@@ -2,13 +2,13 @@ pre-commit:
   commands:
     check:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}"
-      run: oxlint --fix && oxfmt --no-error-on-unmatched-pattern
+      run: bunx oxlint --fix && bunx oxfmt --no-error-on-unmatched-pattern
       stage_fixed: true
 
 pre-push:
   commands:
     check:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}"
-      run: oxlint && oxfmt --check
+      run: bunx oxlint && bunx oxfmt --check
     typecheck:
       run: bun run typecheck

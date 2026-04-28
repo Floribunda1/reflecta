@@ -13,10 +13,7 @@ function rawSqlPlugin() {
     name: "raw-sql",
     resolveId(source: string, importer: string | undefined) {
       if (source.endsWith(".sql?raw")) {
-        const realPath = path.resolve(
-          path.dirname(importer ?? ""),
-          source.replace("?raw", "")
-        );
+        const realPath = path.resolve(path.dirname(importer ?? ""), source.replace("?raw", ""));
         resolvedPaths.set(source, realPath);
         return source;
       }

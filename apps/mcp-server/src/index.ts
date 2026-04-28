@@ -7,7 +7,13 @@ import {
   type TextContent,
 } from "@modelcontextprotocol/sdk/types.js";
 import { getDbPath, initDB } from "./db.js";
-import { searchThoughts, getThoughtById, listCategories, listRecentThoughts, searchContexts } from "./tools.js";
+import {
+  searchThoughts,
+  getThoughtById,
+  listCategories,
+  listRecentThoughts,
+  searchContexts,
+} from "./tools.js";
 
 const server = new Server(
   {
@@ -51,7 +57,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "get_thought",
-        description: "Get a single thought by ID, including its categories, contexts, connections and referenced-by thoughts.",
+        description:
+          "Get a single thought by ID, including its categories, contexts, connections and referenced-by thoughts.",
         inputSchema: {
           type: "object",
           properties: {

@@ -230,7 +230,10 @@ export class ThoughtService {
   async deleteThought(id: string): Promise<void> {
     const db = this.options.getDb();
     await db.transaction(async (tx) => {
-      await tx.update(thoughts).set({ deletedAt: new Date().toISOString() }).where(eq(thoughts.id, id));
+      await tx
+        .update(thoughts)
+        .set({ deletedAt: new Date().toISOString() })
+        .where(eq(thoughts.id, id));
       await tx.run(sql`DELETE FROM fts_thoughts WHERE thought_id = ${id}`);
       await tx.run(sql`DELETE FROM fts_contexts WHERE thought_id = ${id}`);
     });

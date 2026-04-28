@@ -12,11 +12,13 @@
   "exports": {
     ".": {
       "types": "./src/index.ts",
-      "import": "./dist/index.mjs"
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.mjs"
     },
     "./db/schema": {
       "types": "./src/db/schema.ts",
-      "import": "./dist/db/schema.mjs"
+      "import": "./dist/db/schema.mjs",
+      "require": "./dist/db/schema.mjs"
     }
   },
   "scripts": {

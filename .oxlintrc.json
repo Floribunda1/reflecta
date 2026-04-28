@@ -4,7 +4,13 @@
   "categories": {
     "correctness": "error"
   },
-  "ignorePatterns": ["**/build/**/*", "**/dist/**/*", "**/out/**/*", "**/resources/**/*", "**/node_modules/**/*"],
+  "ignorePatterns": [
+    "**/build/**/*",
+    "**/dist/**/*",
+    "**/out/**/*",
+    "**/resources/**/*",
+    "**/node_modules/**/*"
+  ],
   "rules": {},
   "env": {
     "builtin": true

@@ -73,7 +73,10 @@ export class ContextService {
   async deleteContext(id: string): Promise<void> {
     const db = this.options.getDb();
     await db.transaction(async (tx) => {
-      await tx.update(contexts).set({ deletedAt: new Date().toISOString() }).where(eq(contexts.id, id));
+      await tx
+        .update(contexts)
+        .set({ deletedAt: new Date().toISOString() })
+        .where(eq(contexts.id, id));
       await tx.run(sql`DELETE FROM fts_contexts WHERE context_id = ${id}`);
     });
   }
