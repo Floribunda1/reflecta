@@ -58,16 +58,20 @@ export function getDbPath(): string {
   return resolveDefaultDbPath();
 }
 
+export async function initDB() {
+  const dbPath = getDbPath();
+  if (!fs.existsSync(dbPath)) {
+    throw new Error(
+      `Reflecta database not found at "${dbPath}". ` +
+        `Set REFLECTA_DB_PATH or run the Reflecta desktop app first to initialize the database.`,
+    );
+  }
+  db = await createDBInstance(dbPath);
+}
+
 export function getDB() {
   if (!db) {
-    const dbPath = getDbPath();
-    if (!fs.existsSync(dbPath)) {
-      throw new Error(
-        `Reflecta database not found at "${dbPath}". ` +
-          `Set REFLECTA_DB_PATH or run the Reflecta desktop app first to initialize the database.`,
-      );
-    }
-    db = createDBInstance(dbPath);
+    throw new Error("DB not initialized. Call initDB() first.");
   }
   return db;
 }

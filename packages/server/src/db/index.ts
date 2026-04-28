@@ -1,9 +1,12 @@
 import { drizzle } from "drizzle-orm/libsql";
 import type { ReflectaDb } from "../services/types.js";
 import * as schema from "./schema.js";
+import { performDbMigration } from "./migration.js";
 
-export function createDBInstance(dbPath: string): ReflectaDb {
-  return drizzle(`file:${dbPath}`, {
+export async function createDBInstance(dbPath: string): Promise<ReflectaDb> {
+  const db = drizzle(`file:${dbPath}`, {
     schema,
   });
+  await performDbMigration(db);
+  return db;
 }

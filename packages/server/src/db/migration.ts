@@ -1,12 +1,12 @@
-/// <reference path="./import-meta.d.ts" />
-
 import type { Client } from "@libsql/client";
 import { Umzug } from "umzug";
 import type { ReflectaDb } from "../services/types.js";
 
+// @ts-expect-error - Vite's glob import is not typed, so we assert the type here.
 const sqlMigrations = import.meta.glob("./migration/sql/*.sql", {
   eager: true,
   import: "default",
+  query: "?raw",
 }) as Record<string, string>;
 
 export async function performDbMigration(db: ReflectaDb): Promise<void> {

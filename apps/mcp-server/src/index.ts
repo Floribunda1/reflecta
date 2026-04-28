@@ -6,7 +6,7 @@ import {
   ListToolsRequestSchema,
   type TextContent,
 } from "@modelcontextprotocol/sdk/types.js";
-import { getDbPath } from "./db.js";
+import { getDbPath, initDB } from "./db.js";
 import { searchThoughts, getThoughtById, listCategories, listRecentThoughts, searchContexts } from "./tools.js";
 
 const server = new Server(
@@ -167,6 +167,7 @@ async function main() {
   const dbPath = getDbPath();
   // eslint-disable-next-line no-console
   console.error(`[reflecta-mcp-server] Using database: ${dbPath}`);
+  await initDB();
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

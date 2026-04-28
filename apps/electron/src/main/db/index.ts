@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { createDBInstance, performDbMigration, type ReflectaDb } from "@reflecta/server";
+import { createDBInstance, type ReflectaDb } from "@reflecta/server";
 import { getStorageRoot } from "../config";
 
 let db: ReflectaDb;
@@ -12,8 +12,7 @@ export const initializeDB = async () => {
     fs.mkdirSync(storageRoot, { recursive: true });
   }
 
-  db = createDBInstance(dbPath);
-  await performDbMigration(db);
+  db = await createDBInstance(dbPath);
 };
 
 export const getDBInstance = () => db;

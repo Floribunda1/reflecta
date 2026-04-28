@@ -2,7 +2,7 @@ import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { shell } from "electron";
 import { getDBInstance } from "@main/db";
-import { contexts, thoughts } from "@main/db/schema";
+import { contexts, thoughts } from "@reflecta/server/db/schema";
 import type { OrphanAssetInfo } from "@shared/asset";
 import { IpcMethod, IpcService } from "electron-ipc-decorator";
 import { nanoid } from "nanoid";
