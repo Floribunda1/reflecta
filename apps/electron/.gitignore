@@ -1,0 +1,13 @@
+# Electron output
+out
+dist
+
+# OS specific
+.DS_Store
+
+# Logs
+*.log*
+dev-debug.log
+
+# Environment variables
+.env

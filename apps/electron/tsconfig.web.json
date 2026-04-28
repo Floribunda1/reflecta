@@ -1,0 +1,26 @@
+{
+  "extends": "@electron-toolkit/tsconfig/tsconfig.web.json",
+  "include": [
+    "src/renderer/src/env.d.ts",
+    "src/renderer/src/**/*",
+    "src/renderer/src/**/*.tsx",
+    "src/preload/*.d.ts"
+  ],
+  "compilerOptions": {
+    "composite": true,
+    "jsx": "preserve",
+    "jsxImportSource": "vue",
+    "baseUrl": ".",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "paths": {
+      "@renderer/*": ["src/renderer/src/*"],
+      "@main/*": ["src/main/*"],
+      "@shared/*": ["src/preload/typings/*"],
+      "electron-ipc-decorator": ["node_modules/electron-ipc-decorator/dist/index-07qxEjCM.d.ts"],
+      "electron-ipc-decorator/client": [
+        "node_modules/electron-ipc-decorator/dist/client-CsZ0e3b_.d.ts"
+      ]
+    }
+  }
+}
