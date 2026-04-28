@@ -1,11 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
-import { drizzle } from "drizzle-orm/libsql";
-import { performMigration } from "./migration";
-import * as schema from "./schema";
+import { createDBInstance, performDbMigration, type ReflectaDb } from "@reflecta/server";
 import { getStorageRoot } from "../config";
 
-let db: ReturnType<typeof drizzle>;
+let db: ReflectaDb;
 
 export const initializeDB = async () => {
   const storageRoot = getStorageRoot();
@@ -14,10 +12,8 @@ export const initializeDB = async () => {
     fs.mkdirSync(storageRoot, { recursive: true });
   }
 
-  db = drizzle(`file:${dbPath}`, {
-    schema,
-  });
-  await performMigration();
+  db = createDBInstance(dbPath);
+  await performDbMigration(db);
 };
 
-export const getDBInstance = () => db!;
+export const getDBInstance = () => db;

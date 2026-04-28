@@ -1,6 +1,10 @@
 # Electron output
 out
 dist
+src/main/db/schema/*.js
+src/main/db/schema/*.js.map
+src/main/db/schema/*.d.ts
+src/main/db/schema/*.d.ts.map
 
 # OS specific
 .DS_Store

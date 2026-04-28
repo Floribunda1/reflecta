@@ -8,8 +8,6 @@ import { IpcMethod, IpcService } from "electron-ipc-decorator";
 import { nanoid } from "nanoid";
 import { getStorageRoot } from "../config";
 
-export type { OrphanAssetInfo };
-
 /** Extract all asset filenames referenced in a piece of markdown/html content. */
 function extractAssetRefs(content: string): Set<string> {
   const refs = new Set<string>();

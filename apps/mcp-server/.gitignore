@@ -1,0 +1,11 @@
+# Build output
+dist
+
+# OS specific
+.DS_Store
+
+# Logs
+*.log*
+
+# Environment variables
+.env

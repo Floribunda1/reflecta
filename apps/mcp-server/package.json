@@ -1,0 +1,38 @@
+{
+  "name": "@reflecta/mcp-server",
+  "version": "1.0.0",
+  "description": "Reflecta MCP Server — expose your knowledge base to AI assistants",
+  "bin": {
+    "reflecta-mcp-server": "./dist/index.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "scripts": {
+    "build": "bun run --filter '@reflecta/server' build && tsdown",
+    "dev": "tsdown --watch",
+    "start": "node ./dist/index.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.17.2",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@reflecta/server": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^22.19.11",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.2"
+  }
+}

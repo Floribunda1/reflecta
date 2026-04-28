@@ -1,50 +1,45 @@
+/// <reference path="./import-meta.d.ts" />
+
 import type { Client } from "@libsql/client";
 import { Umzug } from "umzug";
-import { getDBInstance } from "..";
+import type { ReflectaDb } from "../services/types.js";
 
-// SQL migration files are imported as raw strings at build time so they are
-// correctly bundled and available in the packaged Electron app.
-const sqlMigrations = import.meta.glob<string>("./sql/*.sql", {
+const sqlMigrations = import.meta.glob("./migration/sql/*.sql", {
   eager: true,
-  query: "?raw",
   import: "default",
-});
+}) as Record<string, string>;
 
-export const performMigration = async () => {
-  const db = getDBInstance();
+export async function performDbMigration(db: ReflectaDb): Promise<void> {
   const client = db.$client as Client;
 
-  const migrations = Object.keys(sqlMigrations)
-    .map((p) => p.replace("./sql/", ""))
-    .sort()
-    .map((name) => ({
-      name,
-      up: async ({ context }: { context: Client }) => {
-        await context.executeMultiple(sqlMigrations[`./sql/${name}`]);
-      },
-      down: async () => {
-        // Down migrations are not supported
-      },
-    }));
-
   const migrator = new Umzug<Client>({
-    migrations,
+    migrations: Object.entries(sqlMigrations)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([filePath, sql]) => ({
+        name: filePath.replace("./migration/sql/", ""),
+        up: async ({ context }: { context: Client }) => {
+          await context.executeMultiple(sql);
+        },
+        down: async () => {
+          // Down migrations are not supported.
+        },
+      })),
     context: client,
     storage: {
-      async executed({ context }) {
+      async executed({ context }: { context: Client }) {
         await context.execute(
           `CREATE TABLE IF NOT EXISTS _migrations (name TEXT NOT NULL PRIMARY KEY, run_at TEXT NOT NULL)`,
         );
         const result = await context.execute(`SELECT name FROM _migrations ORDER BY run_at ASC`);
         return result.rows.map((r) => r.name as string);
       },
-      async logMigration({ name, context }) {
+      async logMigration({ name, context }: { name: string; context: Client }) {
         await context.execute({
           sql: `INSERT INTO _migrations (name, run_at) VALUES (?, ?)`,
           args: [name, new Date().toISOString()],
         });
       },
-      async unlogMigration({ name, context }) {
+      async unlogMigration({ name, context }: { name: string; context: Client }) {
         await context.execute({
           sql: `DELETE FROM _migrations WHERE name = ?`,
           args: [name],
@@ -55,4 +50,4 @@ export const performMigration = async () => {
   });
 
   await migrator.up();
-};
+}
