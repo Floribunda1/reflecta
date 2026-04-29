@@ -39,7 +39,7 @@ const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?:
 
   mainWindow.webContents.on("will-navigate", (event, url) => {
     const appUrl = is.dev
-      ? (process.env.ELECTRON_RENDERER_URL ?? "")
+      ? (process.env.VITE_DEV_SERVER_URL ?? "")
       : `file://${join(__dirname, "../renderer/index.html")}`;
     if (!url.startsWith(appUrl)) {
       event.preventDefault();
@@ -47,12 +47,12 @@ const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?:
     }
   });
 
-  // HMR for renderer base on electron-vite cli.
+  // HMR for renderer based on Vite.
   // Load the remote URL for development or the local html file for production.
-  if (is.dev && process.env.ELECTRON_RENDERER_URL) {
+  if (is.dev && process.env.VITE_DEV_SERVER_URL) {
     const url = route
-      ? `${process.env.ELECTRON_RENDERER_URL}${route}`
-      : process.env.ELECTRON_RENDERER_URL;
+      ? `${process.env.VITE_DEV_SERVER_URL}${route}`
+      : process.env.VITE_DEV_SERVER_URL;
     mainWindow.loadURL(url);
   } else {
     if (route) {

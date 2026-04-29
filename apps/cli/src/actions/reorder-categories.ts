@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getServices } from "../services.js";
+import { getServices } from "../services";
 import {
   confirmProperty,
   confirmShape,
@@ -11,7 +11,7 @@ import {
   objectSchema,
   stringProperty,
   type ActionDefinition,
-} from "./shared.js";
+} from "./shared";
 
 type ReorderCategoryArgs = {
   items: Array<{

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runCli } from "./cli.js";
+import { runCli } from "./cli";
 
 function createIo() {
   let stdout = "";

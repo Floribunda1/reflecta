@@ -1,14 +1,14 @@
 import { eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { categories, thoughtCategories, thoughts } from "../db/schema.js";
+import { categories, thoughtCategories, thoughts } from "../db/schema";
 import type {
   Category,
   CategoryWithCounts,
   CreateCategoryInput,
   ReorderCategoryItem,
   UpdateCategoryInput,
-} from "../types.js";
-import type { ReflectaServerContext } from "./types.js";
+} from "../types";
+import type { ReflectaServerContext } from "./types";
 
 export class CategoryService {
   constructor(private readonly options: ReflectaServerContext) {}

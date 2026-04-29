@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getServices } from "../services.js";
+import { getServices } from "../services";
 import {
   createActionHelp,
   numberProperty,
@@ -8,7 +8,7 @@ import {
   stringProperty,
   thoughtArrayOutputSchema,
   type ActionDefinition,
-} from "./shared.js";
+} from "./shared";
 
 const inputSchema = objectSchema(
   {

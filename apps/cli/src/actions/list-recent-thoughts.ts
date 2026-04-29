@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getServices } from "../services.js";
+import { getServices } from "../services";
 import {
   MAX_LIMIT,
   createActionHelp,
@@ -7,7 +7,7 @@ import {
   objectSchema,
   thoughtArrayOutputSchema,
   type ActionDefinition,
-} from "./shared.js";
+} from "./shared";
 
 const inputSchema = objectSchema({
   limit: numberProperty("Max results to return. Defaults to 20, maximum 100.", 20),

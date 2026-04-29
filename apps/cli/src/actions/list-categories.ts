@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { getServices } from "../services.js";
+import { getServices } from "../services";
 import {
   categoryArrayOutputSchema,
   createActionHelp,
   objectSchema,
   type ActionDefinition,
-} from "./shared.js";
+} from "./shared";
 
 const inputSchema = objectSchema({});
 

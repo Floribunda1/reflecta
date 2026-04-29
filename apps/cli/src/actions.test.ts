@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { callAction, getActionHelp, listActions } from "./actions.js";
-import { getResolvedDbPath, resolveDbPath } from "./db.js";
+import { callAction, getActionHelp, listActions } from "./actions";
+import { getResolvedDbPath, resolveDbPath } from "./db";
 
 const readActionNames = [
   "search_thoughts",

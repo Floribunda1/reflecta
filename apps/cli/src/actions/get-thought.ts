@@ -1,12 +1,12 @@
 import { z } from "zod";
-import { getServices } from "../services.js";
+import { getServices } from "../services";
 import {
   createActionHelp,
   objectSchema,
   stringProperty,
   thoughtOutputSchema,
   type ActionDefinition,
-} from "./shared.js";
+} from "./shared";
 
 const inputSchema = objectSchema({ id: stringProperty("Thought ID.") }, ["id"]);
 

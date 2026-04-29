@@ -5,7 +5,7 @@ import type {
   thoughtCategories,
   thoughtConnections,
   thoughts,
-} from "./db/schema.js";
+} from "./db/schema";
 
 export type ThoughtType = "idea" | "insight";
 export type SourceType = "experience" | "video" | "book" | "article" | "opinion" | "ai";

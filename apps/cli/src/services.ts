@@ -1,5 +1,5 @@
 import { CategoryService, ContextService, SearchService, ThoughtService } from "@reflecta/server";
-import { getDb, initializeDb } from "./db.js";
+import { getDb, initializeDb } from "./db";
 
 export type ReflectaCliServices = {
   categories: CategoryService;

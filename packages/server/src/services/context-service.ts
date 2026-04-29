@@ -1,14 +1,14 @@
 import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { contexts } from "../db/schema.js";
+import { contexts } from "../db/schema";
 import type {
   ContextDTO,
   CreateContextInput,
   TrashedContextDTO,
   UpdateContextInput,
-} from "../types.js";
-import { rowToContextDTO } from "./shared.js";
-import type { ReflectaServerContext } from "./types.js";
+} from "../types";
+import { rowToContextDTO } from "./shared";
+import type { ReflectaServerContext } from "./types";
 
 export class ContextService {
   constructor(private readonly options: ReflectaServerContext) {}

@@ -1,22 +1,22 @@
-import { addThoughtConnectionAction } from "./actions/add-thought-connection.js";
-import { createCategoryAction } from "./actions/create-category.js";
-import { createContextAction } from "./actions/create-context.js";
-import { createThoughtAction } from "./actions/create-thought.js";
-import { deleteCategoryAction } from "./actions/delete-category.js";
-import { deleteContextAction } from "./actions/delete-context.js";
-import { deleteThoughtAction } from "./actions/delete-thought.js";
-import { getThoughtAction } from "./actions/get-thought.js";
-import { listCategoriesAction } from "./actions/list-categories.js";
-import { listRecentThoughtsAction } from "./actions/list-recent-thoughts.js";
-import { removeThoughtConnectionAction } from "./actions/remove-thought-connection.js";
-import { reorderCategoriesAction } from "./actions/reorder-categories.js";
-import { restoreContextAction } from "./actions/restore-context.js";
-import { restoreThoughtAction } from "./actions/restore-thought.js";
-import { searchContextsAction } from "./actions/search-contexts.js";
-import { searchThoughtsAction } from "./actions/search-thoughts.js";
-import { updateCategoryAction } from "./actions/update-category.js";
-import { updateContextAction } from "./actions/update-context.js";
-import { updateThoughtAction } from "./actions/update-thought.js";
+import { addThoughtConnectionAction } from "./actions/add-thought-connection";
+import { createCategoryAction } from "./actions/create-category";
+import { createContextAction } from "./actions/create-context";
+import { createThoughtAction } from "./actions/create-thought";
+import { deleteCategoryAction } from "./actions/delete-category";
+import { deleteContextAction } from "./actions/delete-context";
+import { deleteThoughtAction } from "./actions/delete-thought";
+import { getThoughtAction } from "./actions/get-thought";
+import { listCategoriesAction } from "./actions/list-categories";
+import { listRecentThoughtsAction } from "./actions/list-recent-thoughts";
+import { removeThoughtConnectionAction } from "./actions/remove-thought-connection";
+import { reorderCategoriesAction } from "./actions/reorder-categories";
+import { restoreContextAction } from "./actions/restore-context";
+import { restoreThoughtAction } from "./actions/restore-thought";
+import { searchContextsAction } from "./actions/search-contexts";
+import { searchThoughtsAction } from "./actions/search-thoughts";
+import { updateCategoryAction } from "./actions/update-category";
+import { updateContextAction } from "./actions/update-context";
+import { updateThoughtAction } from "./actions/update-thought";
 import {
   failure,
   success,
@@ -24,7 +24,7 @@ import {
   type ActionHelp,
   type CliAction,
   type CliResult,
-} from "./actions/shared.js";
+} from "./actions/shared";
 
 const actions: Array<ActionDefinition<any>> = [
   searchThoughtsAction,
@@ -48,8 +48,8 @@ const actions: Array<ActionDefinition<any>> = [
   removeThoughtConnectionAction,
 ];
 
-export type { CliAction, CliFailure, CliResult, CliSuccess } from "./actions/shared.js";
-export { failure } from "./actions/shared.js";
+export type { CliAction, CliFailure, CliResult, CliSuccess } from "./actions/shared";
+export { failure } from "./actions/shared";
 
 export function listActions(): CliAction[] {
   return actions.map(({ name, description, mutates }) => ({ name, description, mutates }));

@@ -1,5 +1,5 @@
 import { cac } from "cac";
-import { callAction, failure, getActionHelp, listActions, type CliResult } from "./actions.js";
+import { callAction, failure, getActionHelp, listActions, type CliResult } from "./actions";
 
 type CliIO = {
   stdout: Pick<NodeJS.WriteStream, "write">;

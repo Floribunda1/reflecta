@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { contexts, thoughtCategories, thoughtConnections, thoughts } from "../db/schema.js";
+import { contexts, thoughtCategories, thoughtConnections, thoughts } from "../db/schema";
 import type {
   CreateThoughtInput,
   ListThoughtsFilter,
@@ -8,9 +8,9 @@ import type {
   ThoughtSummaryDTO,
   ThoughtType,
   UpdateThoughtInput,
-} from "../types.js";
-import { rowToContextDTO } from "./shared.js";
-import type { ReflectaServerContext } from "./types.js";
+} from "../types";
+import { rowToContextDTO } from "./shared";
+import type { ReflectaServerContext } from "./types";
 
 export class ThoughtService {
   constructor(private readonly options: ReflectaServerContext) {}

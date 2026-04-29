@@ -1,7 +1,7 @@
 import { isNotNull } from "drizzle-orm";
-import { thoughts } from "../db/schema.js";
-import type { TrashedThoughtDTO, ThoughtType } from "../types.js";
-import type { ReflectaServerContext } from "./types.js";
+import { thoughts } from "../db/schema";
+import type { TrashedThoughtDTO, ThoughtType } from "../types";
+import type { ReflectaServerContext } from "./types";
 
 export class TrashService {
   constructor(private readonly options: ReflectaServerContext) {}

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getServices } from "../services.js";
+import { getServices } from "../services";
 import {
   confirmProperty,
   confirmShape,
@@ -13,7 +13,7 @@ import {
   thoughtOutputSchema,
   thoughtTypeSchema,
   type ActionDefinition,
-} from "./shared.js";
+} from "./shared";
 
 const inputSchema = objectSchema(
   {

@@ -1,9 +1,9 @@
 import { sql, inArray } from "drizzle-orm";
-import { thoughts } from "../db/schema.js";
-import type { FtsContextResult, SearchOptions, SearchResult, ThoughtSummaryDTO } from "../types.js";
-import { getLimitOffset } from "./shared.js";
-import type { ReflectaServerContext } from "./types.js";
-import type { ThoughtService } from "./thought-service.js";
+import { thoughts } from "../db/schema";
+import type { FtsContextResult, SearchOptions, SearchResult, ThoughtSummaryDTO } from "../types";
+import { getLimitOffset } from "./shared";
+import type { ReflectaServerContext } from "./types";
+import type { ThoughtService } from "./thought-service";
 
 export class SearchService {
   constructor(
