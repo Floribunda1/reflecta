@@ -1,160 +1,173 @@
-import { cac } from "cac";
-import { callAction, failure, getActionHelp, listActions, type CliResult } from "./actions";
+import { Command, CommanderError } from "commander";
+import { ErrorCodes } from "./error";
+import { writeError } from "./output";
+import { registerCreateCategoryAction } from "./actions/category/create";
+import { registerDeleteCategoryAction } from "./actions/category/delete";
+import { registerListCategoriesAction } from "./actions/category/list";
+import { registerUpdateCategoryAction } from "./actions/category/update";
+import { registerCreateContextAction } from "./actions/context/create";
+import { registerDeleteContextAction } from "./actions/context/delete";
+import { registerListContextsAction } from "./actions/context/list";
+import { registerRestoreContextAction } from "./actions/context/restore";
+import { registerUpdateContextAction } from "./actions/context/update";
+import { registerSearchAllAction } from "./actions/search/all";
+import { registerSearchContextsAction } from "./actions/search/contexts";
+import { registerSearchThoughtsAction } from "./actions/search/thoughts";
+import { registerConnectThoughtAction } from "./actions/thought/connect";
+import { registerCreateThoughtAction } from "./actions/thought/create";
+import { registerDeleteThoughtAction } from "./actions/thought/delete";
+import { registerDisconnectThoughtAction } from "./actions/thought/disconnect";
+import { registerGetThoughtAction } from "./actions/thought/get";
+import { registerListThoughtsAction } from "./actions/thought/list";
+import { registerRestoreThoughtAction } from "./actions/thought/restore";
+import { registerUpdateThoughtAction } from "./actions/thought/update";
+import { registerListTrashedContextsAction } from "./actions/trash/list-contexts";
+import { registerListTrashedThoughtsAction } from "./actions/trash/list-thoughts";
 
-type CliIO = {
-  stdout: Pick<NodeJS.WriteStream, "write">;
-  stderr: Pick<NodeJS.WriteStream, "write">;
+const helpData: Record<string, unknown> = {
+  "": {
+    commands: [
+      { name: "thought", description: "Manage thoughts" },
+      { name: "context", description: "Manage contexts" },
+      { name: "category", description: "Manage categories" },
+      { name: "search", description: "Search thoughts and contexts" },
+      { name: "trash", description: "View trashed items" },
+    ],
+  },
+  thought: {
+    commands: [
+      { name: "list", description: "List thoughts", mutates: false },
+      { name: "get", description: "Get a thought by ID", mutates: false },
+      { name: "create", description: "Create a thought", mutates: true },
+      { name: "update", description: "Update a thought", mutates: true },
+      { name: "delete", description: "Soft-delete a thought", mutates: true },
+      { name: "restore", description: "Restore a soft-deleted thought", mutates: true },
+      {
+        name: "connect",
+        description: "Create a directed connection between two thoughts",
+        mutates: true,
+      },
+      {
+        name: "disconnect",
+        description: "Remove a directed connection between two thoughts",
+        mutates: true,
+      },
+    ],
+  },
+  context: {
+    commands: [
+      { name: "list", description: "List contexts for a thought", mutates: false },
+      { name: "create", description: "Create a context", mutates: true },
+      { name: "update", description: "Update a context", mutates: true },
+      { name: "delete", description: "Soft-delete a context", mutates: true },
+      { name: "restore", description: "Restore a soft-deleted context", mutates: true },
+    ],
+  },
+  category: {
+    commands: [
+      { name: "list", description: "List all categories", mutates: false },
+      { name: "create", description: "Create a category", mutates: true },
+      { name: "update", description: "Update a category", mutates: true },
+      { name: "delete", description: "Delete a category", mutates: true },
+    ],
+  },
+  search: {
+    commands: [
+      { name: "thoughts", description: "Full-text search thoughts", mutates: false },
+      { name: "contexts", description: "Full-text search contexts", mutates: false },
+      { name: "all", description: "Search both thoughts and contexts", mutates: false },
+    ],
+  },
+  trash: {
+    commands: [
+      { name: "list-thoughts", description: "List trashed thoughts", mutates: false },
+      { name: "list-contexts", description: "List trashed contexts", mutates: false },
+    ],
+  },
 };
 
-type ParsedJson = { parsed: true; value: Record<string, unknown> } | CliResult;
+function handleHelp(argv: string[]): number {
+  const helpIdx = argv.indexOf("--help");
+  const hIdx = argv.indexOf("-h");
+  const idx = helpIdx !== -1 ? helpIdx : hIdx;
+  const path = argv.slice(0, idx).filter((a) => !a.startsWith("-"));
+  const key = path.join(".");
 
-function printJson(io: CliIO, value: unknown): void {
-  io.stdout.write(`${JSON.stringify(value)}\n`);
-}
-
-function printText(io: CliIO, value: string): void {
-  io.stdout.write(`${value}\n`);
-}
-
-function printError(io: CliIO, result: CliResult): void {
-  if (result.ok) {
-    return;
-  }
-
-  io.stderr.write(`${result.error.code}: ${result.error.message}\n`);
-  if (result.error.details !== undefined) {
-    io.stderr.write(`${JSON.stringify(result.error.details)}\n`);
-  }
-}
-
-function isCliResult(value: unknown): value is CliResult {
-  return (
-    !!value &&
-    typeof value === "object" &&
-    "ok" in value &&
-    typeof (value as { ok?: unknown }).ok === "boolean"
-  );
-}
-
-function usage(): string {
-  return [
-    "reflecta list-actions",
-    "reflecta help <action>",
-    "reflecta <action> --json '<json>' [--confirm]",
-  ].join("\n");
-}
-
-function formatTopLevelHelp(): string {
-  return usage();
-}
-
-function formatActions(): string {
-  return listActions()
-    .map((action) => `${action.name}${action.mutates ? "!" : ""}`)
-    .join("\n");
-}
-
-function formatActionHelp(name: string): string | undefined {
-  const help = getActionHelp(name);
-  if (!help) {
-    return undefined;
-  }
-
-  return [
-    `name ${help.name}`,
-    `mutates ${help.mutates ? "1" : "0"}`,
-    `req ${help.input.required.join(",") || "-"}`,
-    `opt ${help.input.optional.join(",") || "-"}`,
-    `json ${JSON.stringify(help.input.example)}`,
-    `out ${help.output.description}`,
-  ].join("\n");
-}
-
-function parseJson(raw: string): ParsedJson {
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return failure("INVALID_JSON", "--json must be a JSON object.");
-    }
-    return { parsed: true, value: parsed as Record<string, unknown> };
-  } catch (err) {
-    return failure("INVALID_JSON", err instanceof Error ? err.message : String(err));
-  }
-}
-
-export async function runCli(argv = process.argv.slice(2), io: CliIO = process): Promise<number> {
-  const cli = cac("reflecta");
-  let exitCode = 0;
-
-  cli.usage("<command> [options]");
-
-  cli.command("list-actions", "List all Reflecta CLI actions.").action(() => {
-    printText(io, formatActions());
-  });
-
-  cli
-    .command("help <action>", "Show input and output help for one action.")
-    .action((name: string) => {
-      const help = formatActionHelp(name);
-      if (!help) {
-        printError(io, failure("UNKNOWN_ACTION", `Unknown action: ${name}`));
-        exitCode = 1;
-        return;
-      }
-
-      printText(io, help);
-    });
-
-  cli
-    .command("<action>", "Run a Reflecta action.")
-    .option("--json <json>", "Action arguments as a JSON object.")
-    .option("--confirm", "Inject confirm: true for mutating actions.")
-    .action(async (actionName: string, options: { json?: unknown; confirm?: boolean }) => {
-      if (typeof options.json !== "string") {
-        printError(io, failure("INVALID_ARGUMENTS", "Action commands require --json '<json>'."));
-        exitCode = 1;
-        return;
-      }
-
-      const parsed = parseJson(options.json);
-      if (isCliResult(parsed)) {
-        printError(io, parsed);
-        exitCode = 1;
-        return;
-      }
-
-      if (options.confirm) {
-        parsed.value.confirm = true;
-      }
-
-      const result = await callAction(actionName, parsed.value);
-      if (result.ok) {
-        if (result.data !== undefined) {
-          printJson(io, result.data);
-        }
-      } else {
-        printError(io, result);
-      }
-      exitCode = result.ok ? 0 : 1;
-    });
-
-  if (argv.includes("-h") || argv.includes("--help")) {
-    printText(io, formatTopLevelHelp());
+  const data = helpData[key];
+  if (data) {
+    console.log(JSON.stringify(data));
     return 0;
   }
 
-  if (argv.length === 0) {
-    const result = failure("USAGE", usage());
-    printError(io, result);
-    return 1;
+  writeError(ErrorCodes.VALIDATION_ERROR, "Unknown command.");
+  return 2;
+}
+
+export async function runCli(argv = process.argv.slice(2)): Promise<number> {
+  if (argv.includes("--help") || argv.includes("-h")) {
+    return handleHelp(argv);
   }
 
+  if (argv.length === 0) {
+    writeError(ErrorCodes.VALIDATION_ERROR, "No command provided. Pass --help for usage.");
+    return 2;
+  }
+
+  const cli = new Command("reflecta");
+
+  cli.exitOverride();
+  cli.configureOutput({
+    writeErr: () => {},
+    writeOut: () => {},
+  });
+
+  cli.option("--format <fmt>", "Output format: json | jsonl", "jsonl");
+  cli.option("--yes", "Auto-confirm mutating actions");
+  cli.option("--quiet", "Suppress non-error stdout");
+  cli.option("--verbose", "Debug logs to stderr");
+
+  const thought = cli.command("thought").description("Manage thoughts");
+  registerListThoughtsAction(thought);
+  registerGetThoughtAction(thought);
+  registerCreateThoughtAction(thought);
+  registerUpdateThoughtAction(thought);
+  registerDeleteThoughtAction(thought);
+  registerRestoreThoughtAction(thought);
+  registerConnectThoughtAction(thought);
+  registerDisconnectThoughtAction(thought);
+
+  const context = cli.command("context").description("Manage contexts");
+  registerListContextsAction(context);
+  registerCreateContextAction(context);
+  registerUpdateContextAction(context);
+  registerDeleteContextAction(context);
+  registerRestoreContextAction(context);
+
+  const category = cli.command("category").description("Manage categories");
+  registerListCategoriesAction(category);
+  registerCreateCategoryAction(category);
+  registerUpdateCategoryAction(category);
+  registerDeleteCategoryAction(category);
+
+  const search = cli.command("search").description("Search thoughts and contexts");
+  registerSearchThoughtsAction(search);
+  registerSearchContextsAction(search);
+  registerSearchAllAction(search);
+
+  const trash = cli.command("trash").description("View trashed items");
+  registerListTrashedThoughtsAction(trash);
+  registerListTrashedContextsAction(trash);
+
   try {
-    cli.parse(["node", "reflecta", ...argv], { run: false });
-    await cli.runMatchedCommand();
-    return exitCode;
+    await cli.parseAsync(argv, { from: "user" });
+    return Number(process.exitCode ?? 0);
   } catch (err) {
-    printError(io, failure("INVALID_ARGUMENTS", err instanceof Error ? err.message : String(err)));
-    return 1;
+    if (err instanceof CommanderError) {
+      writeError(ErrorCodes.VALIDATION_ERROR, err.message);
+      return 2;
+    }
+    const message = err instanceof Error ? err.message : String(err);
+    writeError(ErrorCodes.VALIDATION_ERROR, message);
+    return 2;
   }
 }

@@ -1,4 +1,10 @@
-import { CategoryService, ContextService, SearchService, ThoughtService } from "@reflecta/server";
+import {
+  CategoryService,
+  ContextService,
+  SearchService,
+  ThoughtService,
+  TrashService,
+} from "@reflecta/server";
 import { getDb, initializeDb } from "./db";
 
 export type ReflectaCliServices = {
@@ -6,6 +12,7 @@ export type ReflectaCliServices = {
   contexts: ContextService;
   search: SearchService;
   thoughts: ThoughtService;
+  trash: TrashService;
 };
 
 let services: ReflectaCliServices | undefined;
@@ -23,6 +30,7 @@ export async function getServices(): Promise<ReflectaCliServices> {
     contexts: new ContextService(context),
     search: new SearchService({ ...context, thoughtService: thoughts }),
     thoughts,
+    trash: new TrashService(context),
   };
 
   return services;
