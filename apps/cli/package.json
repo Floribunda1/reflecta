@@ -1,9 +1,9 @@
 {
-  "name": "@reflecta/mcp-server",
+  "name": "@reflecta/cli",
   "version": "1.0.0",
-  "description": "Reflecta MCP Server — expose your knowledge base to AI assistants",
+  "description": "Reflecta CLI — scriptable access to your local knowledge base",
   "bin": {
-    "reflecta-mcp-server": "./dist/index.mjs"
+    "reflecta": "./dist/index.mjs"
   },
   "files": [
     "dist",
@@ -24,8 +24,8 @@
   },
   "dependencies": {
     "@libsql/client": "^0.17.2",
-    "@modelcontextprotocol/sdk": "^1.12.0",
     "@reflecta/server": "workspace:*",
+    "cac": "^7.0.0",
     "drizzle-orm": "^0.45.2",
     "zod": "^3.25.0"
   },

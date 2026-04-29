@@ -2,7 +2,7 @@ import type { Client } from "@libsql/client";
 import { Umzug } from "umzug";
 import type { ReflectaDb } from "../services/types.js";
 
-// @ts-expect-error - Vite's glob import is not typed, so we assert the type here.
+// @ts-ignore - Vite's glob import is not typed in every build context, so we assert the type here.
 const sqlMigrations = import.meta.glob("./migration/sql/*.sql", {
   eager: true,
   import: "default",
