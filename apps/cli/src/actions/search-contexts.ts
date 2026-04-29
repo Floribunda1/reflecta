@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { getServices } from "../services";
 import {
-  contextSearchOutputSchema,
   createActionHelp,
   numberProperty,
   objectSchema,
@@ -32,8 +31,7 @@ export const searchContextsAction = {
     mutates: false,
     inputSchema,
     inputExample: { query: "book", limit: 20, offset: 0 },
-    outputDescription: "Success returns an array of FtsContextResult objects in data.",
-    outputSchema: contextSearchOutputSchema,
+    outputDescription: "FtsContextResult[]",
   }),
   schema: z.object({ query: z.string().min(1), ...paginationShape }),
   handler: async (args) => {

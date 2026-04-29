@@ -30,43 +30,48 @@ function createIo() {
 }
 
 describe("Reflecta CLI", () => {
-  it("prints list-actions as a success JSON envelope", async () => {
+  it("prints top-level help as text", async () => {
     const capture = createIo();
-    const code = await runCli(["list-actions"], capture.io);
-    const output = JSON.parse(capture.stdout) as { ok: boolean; data: unknown[] };
+    const code = await runCli(["--help"], capture.io);
 
     expect(code).toBe(0);
     expect(capture.stderr).toBe("");
-    expect(output.ok).toBe(true);
-    expect(output.data.length).toBeGreaterThan(0);
-    expect(output.data[0]).not.toHaveProperty("inputSchema");
+    expect(capture.stdout).toContain("reflecta list-actions");
+    expect(capture.stdout).toContain("reflecta help <action>");
   });
 
-  it("prints per-action help as a success JSON envelope", async () => {
+  it("prints list-actions as text", async () => {
     const capture = createIo();
-    const code = await runCli(["help", "search_thoughts"], capture.io);
-    const output = JSON.parse(capture.stdout) as {
-      ok: boolean;
-      data?: { input?: unknown; output?: unknown };
-    };
+    const code = await runCli(["list-actions"], capture.io);
 
     expect(code).toBe(0);
-    expect(output.ok).toBe(true);
-    expect(output.data?.input).toBeTruthy();
-    expect(output.data?.output).toBeTruthy();
+    expect(capture.stderr).toBe("");
+    expect(capture.stdout).toContain("search_thoughts");
+    expect(capture.stdout).toContain("create_thought!");
+    expect(capture.stdout).not.toContain("Full-text search Reflecta thoughts");
+    expect(capture.stdout).not.toContain("inputSchema");
   });
 
-  it("returns failure JSON for unknown action help", async () => {
+  it("prints per-action help as text", async () => {
+    const capture = createIo();
+    const code = await runCli(["help", "search_thoughts"], capture.io);
+
+    expect(code).toBe(0);
+    expect(capture.stderr).toBe("");
+    expect(capture.stdout).toContain("name search_thoughts");
+    expect(capture.stdout).toContain("mutates 0");
+    expect(capture.stdout).toContain("req query");
+    expect(capture.stdout).toContain('json {"query":"design","limit":20,"offset":0}');
+    expect(capture.stdout).not.toContain('"properties"');
+  });
+
+  it("returns an stderr error for unknown action help", async () => {
     const capture = createIo();
     const code = await runCli(["help", "missing_action"], capture.io);
-    const output = JSON.parse(capture.stdout) as {
-      ok: boolean;
-      error?: { code: string };
-    };
 
     expect(code).toBe(1);
-    expect(output.ok).toBe(false);
-    expect(output.error?.code).toBe("UNKNOWN_ACTION");
+    expect(capture.stdout).toBe("");
+    expect(capture.stderr).toContain("UNKNOWN_ACTION");
   });
 
   it("injects --confirm into action JSON", async () => {
@@ -75,80 +80,57 @@ describe("Reflecta CLI", () => {
       ["delete_thought", "--json", '{"id":"thought-1"}', "--confirm"],
       capture.io,
     );
-    const output = JSON.parse(capture.stdout) as {
-      ok: boolean;
-      error?: { code: string };
-    };
 
     expect([0, 1]).toContain(code);
-    if (!output.ok) {
-      expect(output.error?.code).not.toBe("CONFIRMATION_REQUIRED");
+    if (code === 1) {
+      expect(capture.stderr).not.toContain("CONFIRMATION_REQUIRED");
+    } else {
+      expect(capture.stdout).toBe("");
     }
   });
 
-  it("returns failure JSON and exit code 1 for invalid JSON", async () => {
+  it("returns an stderr error and exit code 1 for invalid JSON", async () => {
     const capture = createIo();
     const code = await runCli(["search_thoughts", "--json", "not-json"], capture.io);
-    const output = JSON.parse(capture.stdout) as {
-      ok: boolean;
-      error?: { code: string };
-    };
 
     expect(code).toBe(1);
-    expect(capture.stderr).toBe("");
-    expect(output.ok).toBe(false);
-    expect(output.error?.code).toBe("INVALID_JSON");
+    expect(capture.stdout).toBe("");
+    expect(capture.stderr).toContain("INVALID_JSON");
   });
 
-  it("returns failure JSON and exit code 1 for unknown actions", async () => {
+  it("returns an stderr error and exit code 1 for unknown actions", async () => {
     const capture = createIo();
     const code = await runCli(["missing_action", "--json", "{}"], capture.io);
-    const output = JSON.parse(capture.stdout) as {
-      ok: boolean;
-      error?: { code: string };
-    };
 
     expect(code).toBe(1);
-    expect(output.ok).toBe(false);
-    expect(output.error?.code).toBe("UNKNOWN_ACTION");
+    expect(capture.stdout).toBe("");
+    expect(capture.stderr).toContain("UNKNOWN_ACTION");
   });
 
   it("accepts --json=value syntax", async () => {
     const capture = createIo();
     const code = await runCli(["missing_action", '--json={"ok":true}'], capture.io);
-    const output = JSON.parse(capture.stdout) as {
-      ok: boolean;
-      error?: { code: string };
-    };
 
     expect(code).toBe(1);
-    expect(output.ok).toBe(false);
-    expect(output.error?.code).toBe("UNKNOWN_ACTION");
+    expect(capture.stdout).toBe("");
+    expect(capture.stderr).toContain("UNKNOWN_ACTION");
   });
 
-  it("returns failure JSON for missing --json", async () => {
+  it("returns an stderr error for missing --json", async () => {
     const capture = createIo();
     const code = await runCli(["search_thoughts"], capture.io);
-    const output = JSON.parse(capture.stdout) as {
-      ok: boolean;
-      error?: { code: string };
-    };
 
     expect(code).toBe(1);
-    expect(output.ok).toBe(false);
-    expect(output.error?.code).toBe("INVALID_ARGUMENTS");
+    expect(capture.stdout).toBe("");
+    expect(capture.stderr).toContain("INVALID_ARGUMENTS");
   });
 
-  it("returns failure JSON for unknown options", async () => {
+  it("returns an stderr error for unknown options", async () => {
     const capture = createIo();
     const code = await runCli(["search_thoughts", "--json", "{}", "--bad"], capture.io);
-    const output = JSON.parse(capture.stdout) as {
-      ok: boolean;
-      error?: { code: string };
-    };
 
     expect(code).toBe(1);
-    expect(output.ok).toBe(false);
-    expect(output.error?.code).toBe("INVALID_ARGUMENTS");
+    expect(capture.stdout).toBe("");
+    expect(capture.stderr).toContain("INVALID_ARGUMENTS");
   });
 });

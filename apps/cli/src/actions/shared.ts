@@ -11,13 +11,12 @@ export type CliAction = {
 export type ActionHelp = CliAction & {
   command: string;
   input: {
-    description: string;
-    schema: JsonObject;
+    required: string[];
+    optional: string[];
     example: JsonObject;
   };
   output: {
     description: string;
-    schema: JsonObject;
   };
 };
 
@@ -115,8 +114,8 @@ export function failure(code: string, message: string, details?: unknown): CliFa
   };
 }
 
-export function mutationResult(): JsonObject {
-  return { ok: true };
+export function mutationResult(): undefined {
+  return undefined;
 }
 
 export function createActionHelp(input: {
@@ -126,7 +125,6 @@ export function createActionHelp(input: {
   inputSchema: JsonObject;
   inputExample: JsonObject;
   outputDescription: string;
-  outputSchema: JsonObject;
 }): ActionHelp {
   return {
     name: input.name,
@@ -136,66 +134,16 @@ export function createActionHelp(input: {
       input.mutates ? " --confirm" : ""
     }`,
     input: {
-      description: "JSON object passed to --json.",
-      schema: input.inputSchema,
+      required: Array.isArray(input.inputSchema.required)
+        ? (input.inputSchema.required as string[])
+        : [],
+      optional: Object.keys((input.inputSchema.properties as JsonObject | undefined) ?? {}).filter(
+        (key) => !((input.inputSchema.required as string[] | undefined) ?? []).includes(key),
+      ),
       example: input.inputExample,
     },
     output: {
       description: input.outputDescription,
-      schema: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          ok: { const: true },
-          data: input.outputSchema,
-        },
-        required: ["ok", "data"],
-      },
     },
   };
 }
-
-export const mutationOutputSchema: JsonObject = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    ok: { type: "boolean", const: true },
-  },
-  required: ["ok"],
-};
-
-export const categoryOutputSchema: JsonObject = {
-  type: "object",
-  description: "@reflecta/server Category DTO.",
-};
-
-export const categoryArrayOutputSchema: JsonObject = {
-  type: "array",
-  items: categoryOutputSchema,
-};
-
-export const contextOutputSchema: JsonObject = {
-  type: "object",
-  description: "@reflecta/server ContextDTO.",
-};
-
-export const thoughtOutputSchema: JsonObject = {
-  type: ["object", "null"],
-  description: "@reflecta/server ThoughtDTO, or null when not found.",
-};
-
-export const thoughtArrayOutputSchema: JsonObject = {
-  type: "array",
-  items: {
-    type: "object",
-    description: "@reflecta/server ThoughtSummaryDTO.",
-  },
-};
-
-export const contextSearchOutputSchema: JsonObject = {
-  type: "array",
-  items: {
-    type: "object",
-    description: "@reflecta/server FtsContextResult.",
-  },
-};

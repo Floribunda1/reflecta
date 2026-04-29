@@ -8,7 +8,6 @@ import {
   objectSchema,
   optionalStringProperty,
   stringArrayProperty,
-  thoughtOutputSchema,
   thoughtTypeSchema,
   type ActionDefinition,
 } from "./shared";
@@ -35,8 +34,7 @@ export const createThoughtAction = {
     mutates: true,
     inputSchema,
     inputExample: { type: "idea", title: "Inbox", body: "Capture this", confirm: true },
-    outputDescription: "Success returns the created ThoughtDTO in data.",
-    outputSchema: thoughtOutputSchema,
+    outputDescription: "ThoughtDTO",
   }),
   schema: z.object({
     type: thoughtTypeSchema,

@@ -5,7 +5,6 @@ import {
   confirmShape,
   createActionHelp,
   mutationResult,
-  mutationOutputSchema,
   nullableStringProperty,
   numberProperty,
   objectSchema,
@@ -54,8 +53,7 @@ export const reorderCategoriesAction = {
     mutates: true,
     inputSchema,
     inputExample: { items: [{ id: "category-id", parentId: null, sortOrder: 0 }], confirm: true },
-    outputDescription: "Success returns a mutation acknowledgement in data.",
-    outputSchema: mutationOutputSchema,
+    outputDescription: "-",
   }),
   schema: z.object({
     items: z.array(

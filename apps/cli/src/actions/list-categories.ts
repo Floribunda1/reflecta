@@ -1,11 +1,6 @@
 import { z } from "zod";
 import { getServices } from "../services";
-import {
-  categoryArrayOutputSchema,
-  createActionHelp,
-  objectSchema,
-  type ActionDefinition,
-} from "./shared";
+import { createActionHelp, objectSchema, type ActionDefinition } from "./shared";
 
 const inputSchema = objectSchema({});
 
@@ -20,8 +15,7 @@ export const listCategoriesAction = {
     mutates: false,
     inputSchema,
     inputExample: {},
-    outputDescription: "Success returns an array of Category DTO objects in data.",
-    outputSchema: categoryArrayOutputSchema,
+    outputDescription: "CategoryDTO[]",
   }),
   schema: z.object({}).default({}),
   handler: async () => {

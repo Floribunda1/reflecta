@@ -6,7 +6,6 @@ import {
   objectSchema,
   paginationShape,
   stringProperty,
-  thoughtArrayOutputSchema,
   type ActionDefinition,
 } from "./shared";
 
@@ -32,8 +31,7 @@ export const searchThoughtsAction = {
     mutates: false,
     inputSchema,
     inputExample: { query: "design", limit: 20, offset: 0 },
-    outputDescription: "Success returns an array of ThoughtSummaryDTO objects in data.",
-    outputSchema: thoughtArrayOutputSchema,
+    outputDescription: "ThoughtSummaryDTO[]",
   }),
   schema: z.object({ query: z.string().min(1), ...paginationShape }),
   handler: async (args) => {

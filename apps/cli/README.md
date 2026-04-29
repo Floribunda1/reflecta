@@ -1,6 +1,6 @@
 # Reflecta CLI
 
-`@reflecta/cli` exposes Reflecta's local knowledge base through a script-friendly JSON CLI.
+`@reflecta/cli` exposes Reflecta's local knowledge base through a token-lean agent CLI.
 
 ## Usage
 
@@ -10,10 +10,23 @@ List actions:
 reflecta list-actions
 ```
 
+`!` marks mutating actions.
+
 Show input and output help for one action:
 
 ```bash
 reflecta help search_thoughts
+```
+
+Help is compact:
+
+```text
+name search_thoughts
+mutates 0
+req query
+opt limit,offset
+json {"query":"design","limit":20,"offset":0}
+out ThoughtSummaryDTO[]
 ```
 
 Run an action:
@@ -28,19 +41,18 @@ Mutating actions require explicit confirmation:
 reflecta create_thought --json '{"type":"idea","title":"Inbox","body":"Capture this"}' --confirm
 ```
 
-All command results are JSON on stdout:
+Action results are written directly as JSON on stdout, without wrappers:
 
 ```json
-{ "ok": true, "data": {} }
+{}
 ```
 
-Failures use the same envelope and exit with code `1`:
+Actions with no result write no stdout output; success is exit code `0`.
 
-```json
-{
-  "ok": false,
-  "error": { "code": "INVALID_ARGUMENTS", "message": "Action arguments are invalid." }
-}
+Failures are written to stderr and exit with code `1`:
+
+```text
+INVALID_ARGUMENTS: Action arguments are invalid.
 ```
 
 ## Database Path

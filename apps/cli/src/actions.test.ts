@@ -63,33 +63,26 @@ describe("Reflecta CLI actions", () => {
     expect(actions[0]).not.toHaveProperty("help");
   });
 
-  it("requires confirm in every write action help schema only", () => {
+  it("requires confirm in every write action help", () => {
     for (const name of readActionNames) {
-      expect(getActionHelp(name)?.input.schema.required).not.toContain("confirm");
+      expect(getActionHelp(name)?.input.required).not.toContain("confirm");
     }
 
     for (const name of writeActionNames) {
       const help = getActionHelp(name);
-      expect(help?.input.schema.required).toContain("confirm");
-      expect(help?.input.schema.properties).toMatchObject({
-        confirm: { type: "boolean" },
-      });
+      expect(help?.input.required).toContain("confirm");
     }
   });
 
-  it("returns per-action help with input and output schemas", () => {
+  it("returns compact per-action help without schemas", () => {
     const help = getActionHelp("search_thoughts");
 
     expect(help?.command).toContain("reflecta search_thoughts");
-    expect(help?.input.schema.required).toEqual(["query"]);
+    expect(help?.input.required).toEqual(["query"]);
+    expect(help?.input.optional).toEqual(["limit", "offset"]);
     expect(help?.input.example).toMatchObject({ query: "design" });
-    expect(help?.output.schema).toMatchObject({
-      type: "object",
-      properties: {
-        ok: { const: true },
-        data: { type: "array" },
-      },
-    });
+    expect(help?.input).not.toHaveProperty("schema");
+    expect(help?.output).not.toHaveProperty("schema");
   });
 
   it("blocks mutating actions unless confirm is true", async () => {

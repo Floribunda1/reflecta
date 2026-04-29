@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { getServices } from "../services";
 import {
-  categoryOutputSchema,
   confirmProperty,
   confirmShape,
   createActionHelp,
@@ -33,8 +32,7 @@ export const updateCategoryAction = {
     mutates: true,
     inputSchema,
     inputExample: { id: "category-id", name: "Updated category", confirm: true },
-    outputDescription: "Success returns the updated Category DTO in data.",
-    outputSchema: categoryOutputSchema,
+    outputDescription: "CategoryDTO",
   }),
   schema: z.object({
     id: z.string().min(1),

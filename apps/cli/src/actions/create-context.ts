@@ -3,7 +3,6 @@ import { getServices } from "../services";
 import {
   confirmProperty,
   confirmShape,
-  contextOutputSchema,
   createActionHelp,
   enumProperty,
   objectSchema,
@@ -44,8 +43,7 @@ export const createContextAction = {
       content: "Relevant context",
       confirm: true,
     },
-    outputDescription: "Success returns the created ContextDTO in data.",
-    outputSchema: contextOutputSchema,
+    outputDescription: "ContextDTO",
   }),
   schema: z.object({
     thoughtId: z.string().min(1),

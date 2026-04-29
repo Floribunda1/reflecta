@@ -1,12 +1,6 @@
 import { z } from "zod";
 import { getServices } from "../services";
-import {
-  createActionHelp,
-  objectSchema,
-  stringProperty,
-  thoughtOutputSchema,
-  type ActionDefinition,
-} from "./shared";
+import { createActionHelp, objectSchema, stringProperty, type ActionDefinition } from "./shared";
 
 const inputSchema = objectSchema({ id: stringProperty("Thought ID.") }, ["id"]);
 
@@ -23,9 +17,7 @@ export const getThoughtAction = {
     mutates: false,
     inputSchema,
     inputExample: { id: "thought-id" },
-    outputDescription:
-      "Success returns a ThoughtDTO in data, or null when the thought is not found.",
-    outputSchema: thoughtOutputSchema,
+    outputDescription: "ThoughtDTO|null",
   }),
   schema: z.object({ id: z.string().min(1) }),
   handler: async (args) => {

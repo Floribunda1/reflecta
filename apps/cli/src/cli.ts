@@ -12,6 +12,21 @@ function printJson(io: CliIO, value: unknown): void {
   io.stdout.write(`${JSON.stringify(value)}\n`);
 }
 
+function printText(io: CliIO, value: string): void {
+  io.stdout.write(`${value}\n`);
+}
+
+function printError(io: CliIO, result: CliResult): void {
+  if (result.ok) {
+    return;
+  }
+
+  io.stderr.write(`${result.error.code}: ${result.error.message}\n`);
+  if (result.error.details !== undefined) {
+    io.stderr.write(`${JSON.stringify(result.error.details)}\n`);
+  }
+}
+
 function isCliResult(value: unknown): value is CliResult {
   return (
     !!value &&
@@ -23,10 +38,35 @@ function isCliResult(value: unknown): value is CliResult {
 
 function usage(): string {
   return [
-    "Usage:",
-    "  reflecta list-actions",
-    "  reflecta help <action>",
-    "  reflecta <action> --json '<json>' [--confirm]",
+    "reflecta list-actions",
+    "reflecta help <action>",
+    "reflecta <action> --json '<json>' [--confirm]",
+  ].join("\n");
+}
+
+function formatTopLevelHelp(): string {
+  return usage();
+}
+
+function formatActions(): string {
+  return listActions()
+    .map((action) => `${action.name}${action.mutates ? "!" : ""}`)
+    .join("\n");
+}
+
+function formatActionHelp(name: string): string | undefined {
+  const help = getActionHelp(name);
+  if (!help) {
+    return undefined;
+  }
+
+  return [
+    `name ${help.name}`,
+    `mutates ${help.mutates ? "1" : "0"}`,
+    `req ${help.input.required.join(",") || "-"}`,
+    `opt ${help.input.optional.join(",") || "-"}`,
+    `json ${JSON.stringify(help.input.example)}`,
+    `out ${help.output.description}`,
   ].join("\n");
 }
 
@@ -49,20 +89,20 @@ export async function runCli(argv = process.argv.slice(2), io: CliIO = process):
   cli.usage("<command> [options]");
 
   cli.command("list-actions", "List all Reflecta CLI actions.").action(() => {
-    printJson(io, { ok: true, data: listActions() });
+    printText(io, formatActions());
   });
 
   cli
     .command("help <action>", "Show input and output help for one action.")
     .action((name: string) => {
-      const help = getActionHelp(name);
+      const help = formatActionHelp(name);
       if (!help) {
-        printJson(io, failure("UNKNOWN_ACTION", `Unknown action: ${name}`));
+        printError(io, failure("UNKNOWN_ACTION", `Unknown action: ${name}`));
         exitCode = 1;
         return;
       }
 
-      printJson(io, { ok: true, data: help });
+      printText(io, help);
     });
 
   cli
@@ -71,14 +111,14 @@ export async function runCli(argv = process.argv.slice(2), io: CliIO = process):
     .option("--confirm", "Inject confirm: true for mutating actions.")
     .action(async (actionName: string, options: { json?: unknown; confirm?: boolean }) => {
       if (typeof options.json !== "string") {
-        printJson(io, failure("INVALID_ARGUMENTS", "Action commands require --json '<json>'."));
+        printError(io, failure("INVALID_ARGUMENTS", "Action commands require --json '<json>'."));
         exitCode = 1;
         return;
       }
 
       const parsed = parseJson(options.json);
       if (isCliResult(parsed)) {
-        printJson(io, parsed);
+        printError(io, parsed);
         exitCode = 1;
         return;
       }
@@ -88,14 +128,24 @@ export async function runCli(argv = process.argv.slice(2), io: CliIO = process):
       }
 
       const result = await callAction(actionName, parsed.value);
-      printJson(io, result);
+      if (result.ok) {
+        if (result.data !== undefined) {
+          printJson(io, result.data);
+        }
+      } else {
+        printError(io, result);
+      }
       exitCode = result.ok ? 0 : 1;
     });
 
-  if (argv.length === 0 || argv.includes("-h") || argv.includes("--help")) {
+  if (argv.includes("-h") || argv.includes("--help")) {
+    printText(io, formatTopLevelHelp());
+    return 0;
+  }
+
+  if (argv.length === 0) {
     const result = failure("USAGE", usage());
-    printJson(io, result);
-    io.stderr.write(`${result.error.message}\n`);
+    printError(io, result);
     return 1;
   }
 
@@ -104,7 +154,7 @@ export async function runCli(argv = process.argv.slice(2), io: CliIO = process):
     await cli.runMatchedCommand();
     return exitCode;
   } catch (err) {
-    printJson(io, failure("INVALID_ARGUMENTS", err instanceof Error ? err.message : String(err)));
+    printError(io, failure("INVALID_ARGUMENTS", err instanceof Error ? err.message : String(err)));
     return 1;
   }
 }

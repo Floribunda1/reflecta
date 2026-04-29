@@ -5,7 +5,6 @@ import {
   confirmShape,
   createActionHelp,
   mutationResult,
-  mutationOutputSchema,
   objectSchema,
   stringProperty,
   type ActionDefinition,
@@ -31,8 +30,7 @@ export const removeThoughtConnectionAction = {
     mutates: true,
     inputSchema,
     inputExample: { sourceId: "source-thought-id", targetId: "target-thought-id", confirm: true },
-    outputDescription: "Success returns a mutation acknowledgement in data.",
-    outputSchema: mutationOutputSchema,
+    outputDescription: "-",
   }),
   schema: z.object({
     sourceId: z.string().min(1),

@@ -5,7 +5,6 @@ import {
   confirmShape,
   createActionHelp,
   mutationResult,
-  mutationOutputSchema,
   objectSchema,
   stringProperty,
   type ActionDefinition,
@@ -27,8 +26,7 @@ export const restoreContextAction = {
     mutates: true,
     inputSchema,
     inputExample: { id: "context-id", confirm: true },
-    outputDescription: "Success returns a mutation acknowledgement in data.",
-    outputSchema: mutationOutputSchema,
+    outputDescription: "-",
   }),
   schema: z.object({ id: z.string().min(1), ...confirmShape }),
   handler: async ({ id }) => {

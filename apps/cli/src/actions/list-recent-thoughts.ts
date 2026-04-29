@@ -5,7 +5,6 @@ import {
   createActionHelp,
   numberProperty,
   objectSchema,
-  thoughtArrayOutputSchema,
   type ActionDefinition,
 } from "./shared";
 
@@ -24,8 +23,7 @@ export const listRecentThoughtsAction = {
     mutates: false,
     inputSchema,
     inputExample: { limit: 20 },
-    outputDescription: "Success returns an array of ThoughtSummaryDTO objects in data.",
-    outputSchema: thoughtArrayOutputSchema,
+    outputDescription: "ThoughtSummaryDTO[]",
   }),
   schema: z.object({ limit: z.number().int().min(1).max(MAX_LIMIT).default(20) }),
   handler: async (args) => {

@@ -5,7 +5,6 @@ import {
   confirmShape,
   createActionHelp,
   mutationResult,
-  mutationOutputSchema,
   objectSchema,
   stringProperty,
   type ActionDefinition,
@@ -29,8 +28,7 @@ export const deleteCategoryAction = {
     mutates: true,
     inputSchema,
     inputExample: { id: "category-id", confirm: true },
-    outputDescription: "Success returns a mutation acknowledgement in data.",
-    outputSchema: mutationOutputSchema,
+    outputDescription: "-",
   }),
   schema: z.object({ id: z.string().min(1), ...confirmShape }),
   handler: async ({ id }) => {
