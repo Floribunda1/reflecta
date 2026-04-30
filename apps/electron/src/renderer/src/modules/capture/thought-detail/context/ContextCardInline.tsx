@@ -1,7 +1,7 @@
 import { defineComponent, ref, computed, PropType } from "vue";
 import {
   SimpleMarkdownPreview,
-  VditorMarkdownPreview,
+  MarkdownPreview,
 } from "@renderer/modules/shared/components/md-preview";
 import type { ContextDTO } from "@shared/context";
 import { useConfirm } from "primevue/useconfirm";
@@ -108,7 +108,7 @@ export const ContextCardInline = defineComponent({
           </div>
           {expanded.value && (
             <div class={inlineCardExpandedClass}>
-              <VditorMarkdownPreview content={props.context.content} />
+              <MarkdownPreview content={props.context.content} />
             </div>
           )}
         </div>

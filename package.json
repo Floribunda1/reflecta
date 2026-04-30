@@ -7,7 +7,8 @@
   ],
   "scripts": {
     "build": "bun run --filter '*' build",
-    "dev": "bun run --filter '*' dev",
+    "dev:gui": "cd apps/electron && bun run dev",
+    "dev:cli": "cd apps/cli && bun run dev",
     "test": "bun run --filter '*' test",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",

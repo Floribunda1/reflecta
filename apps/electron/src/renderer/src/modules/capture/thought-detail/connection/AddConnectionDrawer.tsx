@@ -4,7 +4,7 @@ import type { ThoughtSummaryDTO } from "@shared/thought";
 import { CategoryTreeSelect } from "@renderer/modules/shared/biz-components/CategoryTreeSelect";
 import {
   SimpleMarkdownPreview,
-  VditorMarkdownPreview,
+  MarkdownPreview,
 } from "@renderer/modules/shared/components/md-preview";
 import { ThoughtTypeBadge } from "../ThoughtTypeBadge";
 import { useSharedDrawer } from "@renderer/modules/shared/hooks/use-drawer";
@@ -204,7 +204,7 @@ export const AddConnectionDrawer = defineComponent({
                     </div>
                     {isExpanded && t.body && (
                       <div class={inlineCardExpandedClass}>
-                        <VditorMarkdownPreview content={t.body} />
+                        <MarkdownPreview content={t.body} />
                       </div>
                     )}
                   </div>

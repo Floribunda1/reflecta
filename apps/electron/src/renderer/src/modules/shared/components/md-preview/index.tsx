@@ -1,6 +1,5 @@
 import { defineComponent, onMounted, ref, watch } from "vue";
 import { marked } from "marked";
-import Vditor from "vditor";
 import mediumZoom from "medium-zoom";
 import { css } from "@emotion/css";
 
@@ -51,8 +50,8 @@ export const SimpleMarkdownPreview = defineComponent({
   },
 });
 
-export const VditorMarkdownPreview = defineComponent({
-  name: "VditorMarkdownPreview",
+export const MarkdownPreview = defineComponent({
+  name: "MarkdownPreview",
   props: {
     content: { type: String, required: true },
   },
@@ -64,12 +63,8 @@ export const VditorMarkdownPreview = defineComponent({
       if (!el) return;
       el.innerHTML = "";
       if (!props.content) return;
-      Vditor.preview(el, props.content, {
-        mode: "light",
-        theme: { current: "ant-design" },
-        hljs: { style: "github" },
-        after: () => mediumZoom(el.querySelectorAll("img")),
-      });
+      el.innerHTML = marked.parse(props.content, { async: false }) as string;
+      mediumZoom(el.querySelectorAll("img"));
     };
 
     onMounted(render);

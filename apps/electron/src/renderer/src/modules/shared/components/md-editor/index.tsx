@@ -1,6 +1,10 @@
 import { ipcClient } from "@renderer/utils/ipc";
-import { defineComponent, onMounted, onUnmounted, ref, watch } from "vue";
-import Vditor from "vditor";
+import { defineComponent, ref, watch, type PropType } from "vue";
+import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/vue";
+import { Crepe } from "@milkdown/crepe";
+import { replaceAll } from "@milkdown/utils";
+import "@milkdown/crepe/theme/common/style.css";
+import "@milkdown/crepe/theme/frame.css";
 
 async function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -14,6 +18,64 @@ async function fileToBase64(file: File): Promise<string> {
   });
 }
 
+const EditorCore = defineComponent({
+  name: "EditorCore",
+  props: {
+    content: { type: String, default: undefined },
+    onUpdate: {
+      type: Function as PropType<(val: string) => void>,
+      required: true,
+    },
+  },
+  setup(props) {
+    const crepeRef = ref<Crepe | null>(null);
+
+    const { get, loading } = useEditor((root) => {
+      const crepe = new Crepe({
+        root,
+        defaultValue: props.content ?? "",
+        featureConfigs: {
+          [Crepe.Feature.Placeholder]: {
+            text: "请输入",
+            mode: "doc",
+          },
+          [Crepe.Feature.ImageBlock]: {
+            onUpload: async (file: File) => {
+              const base64 = await fileToBase64(file);
+              const id = await ipcClient.asset.saveAsset(base64, file.name);
+              return `asset:///${id}`;
+            },
+          },
+        },
+      });
+
+      crepe.on((api) => {
+        api.markdownUpdated((_ctx, markdown, _prevMarkdown) => {
+          props.onUpdate(markdown);
+        });
+      });
+
+      crepeRef.value = crepe;
+      return crepe;
+    });
+
+    watch(
+      () => props.content,
+      (val) => {
+        if (val === undefined || loading.value) return;
+        const crepe = crepeRef.value;
+        if (!crepe) return;
+        if (crepe.getMarkdown() === val) return;
+        const editor = get();
+        if (!editor) return;
+        editor.action(replaceAll(val));
+      },
+    );
+
+    return () => <Milkdown />;
+  },
+});
+
 export const MarkdownEditor = defineComponent({
   name: "MarkdownEditor",
   props: {
@@ -23,85 +85,18 @@ export const MarkdownEditor = defineComponent({
   },
   emits: ["update"],
   setup(props, { emit }) {
-    const containerRef = ref<HTMLDivElement | null>(null);
-    const vditorRef = ref<Vditor | null>(null);
-
-    onMounted(() => {
-      if (!containerRef.value) return;
-
-      const vditor = new Vditor(containerRef.value, {
-        width: props.width ?? "100%",
-        height: props.height ?? 400,
-        cache: { enable: false },
-        toolbar: [],
-        fullscreen: { index: 1000 },
-        placeholder: "请输入",
-        preview: {
-          hljs: { style: "catppuccin-latte" },
-          markdown: { mark: true, sanitize: false },
-          theme: { current: "ant-design" },
-        },
-        upload: {
-          multiple: false,
-          accept: "image/*, video/*, audio/*",
-          handler: (files: File[]) => {
-            (async () => {
-              for (const file of files) {
-                const base64 = await fileToBase64(file);
-                const id = await ipcClient.asset.saveAsset(base64, file.name);
-                const url = `asset:///${id}`;
-                if (file.type.startsWith("image/")) {
-                  vditorRef.value?.insertValue(`![](${url})\n`);
-                } else if (file.type.startsWith("video/")) {
-                  vditorRef.value?.insertValue(
-                    `<video src="${url}" controls style="max-width:100%"></video>\n`,
-                  );
-                } else if (file.type.startsWith("audio/")) {
-                  vditorRef.value?.insertValue(`<audio src="${url}" controls></audio>\n`);
-                }
-              }
-            })();
-            return null;
-          },
-        },
-        input: (value) => {
-          emit("update", value);
-        },
-        after: () => {
-          vditorRef.value = vditor;
-          if (props.content !== undefined) {
-            vditor.setValue(props.content);
-          }
-        },
-        mode: "ir",
-      });
-    });
-
-    onUnmounted(() => {
-      if (vditorRef.value) {
-        vditorRef.value.destroy();
-        vditorRef.value = null;
-      }
-    });
-
-    watch(
-      () => props.content,
-      (val) => {
-        if (!vditorRef.value || val === undefined) return;
-        if (vditorRef.value.getValue() !== val) {
-          vditorRef.value.setValue(val);
-        }
-      },
-    );
-
     return () => (
       <div
-        ref={containerRef}
+        class="milkdown-editor"
         style={{
           width: "100%",
           height: typeof props.height === "number" ? `${props.height}px` : props.height,
         }}
-      />
+      >
+        <MilkdownProvider>
+          <EditorCore content={props.content} onUpdate={(val: string) => emit("update", val)} />
+        </MilkdownProvider>
+      </div>
     );
   },
 });

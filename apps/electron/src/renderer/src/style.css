@@ -1,7 +1,6 @@
-@import "@renderer/modules/shared/components/md-editor/vditor_override.css";
 @import "tailwindcss";
 @import "primeicons/primeicons.css";
-@import "vditor/dist/index.css";
+@import "@renderer/modules/shared/components/md-editor/milkdown_override.css";
 @import "tailwindcss-primeui";
 
 html {

@@ -3,7 +3,7 @@ import { useRouter } from "vue-router";
 import type { ThoughtSummaryDTO, ThoughtType } from "@shared/thought";
 import {
   SimpleMarkdownPreview,
-  VditorMarkdownPreview,
+  MarkdownPreview,
 } from "@renderer/modules/shared/components/md-preview";
 import { ThoughtTypeBadge } from "../ThoughtTypeBadge";
 import { useConfirm } from "primevue/useconfirm";
@@ -144,7 +144,7 @@ export const ConnectionCardInline = defineComponent({
           </div>
           {expanded.value && (
             <div class={inlineCardExpandedClass}>
-              <VditorMarkdownPreview content={props.thought.body} />
+              <MarkdownPreview content={props.thought.body} />
             </div>
           )}
         </div>
