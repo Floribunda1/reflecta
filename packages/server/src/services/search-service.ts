@@ -5,6 +5,10 @@ import { getLimitOffset } from "./shared";
 import type { ReflectaServerContext } from "./types";
 import type { ThoughtService } from "./thought-service";
 
+function escapeFtsQuery(query: string): string {
+  return `"${query.replace(/"/g, '""')}"`;
+}
+
 export class SearchService {
   constructor(
     private readonly options: ReflectaServerContext & { thoughtService: ThoughtService },
@@ -16,7 +20,7 @@ export class SearchService {
     const ftsRows = await db.all<{ thought_id: string }>(sql`
       SELECT thought_id
       FROM fts_thoughts
-      WHERE fts_thoughts MATCH ${query}
+      WHERE fts_thoughts MATCH ${escapeFtsQuery(query)}
       ORDER BY rank
       LIMIT ${limit} OFFSET ${offset}
     `);
@@ -39,7 +43,7 @@ export class SearchService {
         snippet(fts_contexts, 3, '<mark>', '</mark>', '…', 10) AS snippet,
         rank
       FROM fts_contexts
-      WHERE fts_contexts MATCH ${query}
+      WHERE fts_contexts MATCH ${escapeFtsQuery(query)}
       ORDER BY rank
       LIMIT ${limit} OFFSET ${offset}
     `);

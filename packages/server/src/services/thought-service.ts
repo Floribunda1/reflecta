@@ -12,6 +12,16 @@ import type {
 import { rowToContextDTO } from "./shared";
 import type { ReflectaServerContext } from "./types";
 
+function extractWikiLinkTargets(markdown: string): string[] {
+  const targets = new Set<string>();
+  const mdLinkPattern = /\[([^\]]*)\]\(\/wiki\/([^)]+)\)/g;
+  for (const match of markdown.matchAll(mdLinkPattern)) {
+    const id = match[2]?.trim();
+    if (id) targets.add(id);
+  }
+  return [...targets];
+}
+
 export class ThoughtService {
   constructor(private readonly options: ReflectaServerContext) {}
 
@@ -95,7 +105,8 @@ export class ThoughtService {
     }
 
     if (filter?.searchQuery) {
-      const term = `${filter.searchQuery}*`;
+      const escaped = filter.searchQuery.replace(/"/g, '""');
+      const term = `"${escaped}"*`;
       const ftsRows = await db.all<{ thought_id: string }>(
         sql`SELECT thought_id FROM fts_thoughts WHERE fts_thoughts MATCH ${term} ORDER BY rank`,
       );
@@ -185,6 +196,8 @@ export class ThoughtService {
       );
     });
 
+    await this.syncWikiLinkConnections(id, input.body ?? "");
+
     const dto = await this.getThoughtById(id);
     if (!dto) throw new Error(`Thought not found after creation: ${id}`);
     return dto;
@@ -221,6 +234,10 @@ export class ThoughtService {
         }
       }
     });
+
+    if (input.body !== undefined) {
+      await this.syncWikiLinkConnections(id, input.body);
+    }
 
     const dto = await this.getThoughtById(id);
     if (!dto) throw new Error(`Thought not found after update: ${id}`);
@@ -285,6 +302,62 @@ export class ThoughtService {
       .where(
         and(eq(thoughtConnections.sourceId, sourceId), eq(thoughtConnections.targetId, targetId)),
       );
+  }
+
+  async resolveWikiLinkTarget(target: string): Promise<ThoughtSummaryDTO | null> {
+    const db = this.options.getDb();
+    const normalizedTarget = target.replace(/^\/wiki\//, "").trim();
+    if (!normalizedTarget) return null;
+
+    const rows = await db
+      .select()
+      .from(thoughts)
+      .where(
+        and(
+          isNull(thoughts.deletedAt),
+          or(eq(thoughts.id, normalizedTarget), eq(thoughts.title, normalizedTarget)),
+        ),
+      )
+      .orderBy(desc(thoughts.updatedAt))
+      .limit(1);
+
+    if (rows.length === 0) return null;
+    const [summary] = await this.assembleThoughtSummaryDTOs(rows);
+    return summary ?? null;
+  }
+
+  private async syncWikiLinkConnections(sourceId: string, body: string): Promise<void> {
+    const db = this.options.getDb();
+    const linkTargets = extractWikiLinkTargets(body);
+
+    await db.transaction(async (tx) => {
+      await tx.delete(thoughtConnections).where(eq(thoughtConnections.sourceId, sourceId));
+
+      if (linkTargets.length === 0) return;
+
+      const rows = await tx
+        .select()
+        .from(thoughts)
+        .where(
+          and(
+            isNull(thoughts.deletedAt),
+            or(inArray(thoughts.id, linkTargets), inArray(thoughts.title, linkTargets)),
+          ),
+        )
+        .orderBy(desc(thoughts.updatedAt));
+
+      const targetIds = new Set<string>();
+      for (const target of linkTargets) {
+        const row = rows.find((t) => t.id === target) ?? rows.find((t) => t.title === target);
+        if (row && row.id !== sourceId) targetIds.add(row.id);
+      }
+
+      if (targetIds.size === 0) return;
+      await tx
+        .insert(thoughtConnections)
+        .values([...targetIds].map((targetId) => ({ sourceId, targetId })))
+        .onConflictDoNothing();
+    });
   }
 
   async listRecentThoughts(limit = 20): Promise<ThoughtSummaryDTO[]> {

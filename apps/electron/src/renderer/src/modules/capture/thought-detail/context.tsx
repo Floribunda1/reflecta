@@ -36,6 +36,7 @@ const [createThoughtDetailContext, useThoughtDetailContext] = createInjectionSta
           body: input.body ?? old.body,
           categoryIds: input.categoryIds ?? old.categoryIds,
           connections: result.connections,
+          referencedBy: result.referencedBy,
           contexts: result.contexts,
           updatedAt: result.updatedAt,
         };
@@ -66,6 +67,11 @@ const [createThoughtDetailContext, useThoughtDetailContext] = createInjectionSta
         { queryKey: ["contemplate.listThoughts"], exact: false },
         patchList,
       );
+
+      if (input.body !== undefined) {
+        queryClient.invalidateQueries({ queryKey: ["thought.listThoughts"], exact: false });
+        queryClient.invalidateQueries({ queryKey: ["contemplate.listThoughts"], exact: false });
+      }
     };
 
     const createContext = async (input: Omit<CreateContextInput, "thoughtId.value">) => {
@@ -101,27 +107,6 @@ const [createThoughtDetailContext, useThoughtDetailContext] = createInjectionSta
       });
     };
 
-    const addConnection = async (targetId: string) => {
-      await ipcClient.thought.addConnection(thoughtId.value, targetId);
-      queryClient.invalidateQueries({ queryKey: ["thought.listThoughts"], exact: false });
-      queryClient.invalidateQueries({ queryKey: ["contemplate.listThoughts"], exact: false });
-      await refetch();
-    };
-
-    const removeConnection = async (targetId: string) => {
-      await ipcClient.thought.removeConnection(thoughtId.value, targetId);
-      queryClient.invalidateQueries({ queryKey: ["thought.listThoughts"], exact: false });
-      queryClient.invalidateQueries({ queryKey: ["contemplate.listThoughts"], exact: false });
-      await refetch();
-    };
-
-    const removeIncomingConnection = async (sourceId: string) => {
-      await ipcClient.thought.removeConnection(sourceId, thoughtId.value);
-      queryClient.invalidateQueries({ queryKey: ["thought.listThoughts"], exact: false });
-      queryClient.invalidateQueries({ queryKey: ["contemplate.listThoughts"], exact: false });
-      await refetch();
-    };
-
     return {
       thought: computed(() => thought.value ?? null),
       loading,
@@ -129,9 +114,6 @@ const [createThoughtDetailContext, useThoughtDetailContext] = createInjectionSta
       createContext,
       updateContext,
       deleteContext,
-      addConnection,
-      removeConnection,
-      removeIncomingConnection,
     };
   },
 );

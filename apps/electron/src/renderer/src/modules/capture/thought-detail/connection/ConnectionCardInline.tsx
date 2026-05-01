@@ -6,7 +6,6 @@ import {
   MarkdownPreview,
 } from "@renderer/modules/shared/components/md-preview";
 import { ThoughtTypeBadge } from "../ThoughtTypeBadge";
-import { useConfirm } from "primevue/useconfirm";
 import ContextMenu from "primevue/contextmenu";
 import Tag from "primevue/tag";
 import { formatDistanceToNow } from "date-fns";
@@ -30,10 +29,8 @@ export const ConnectionCardInline = defineComponent({
       type: String as PropType<"outgoing" | "incoming">,
       required: true,
     },
-    onRemove: { type: Function as PropType<() => void> },
   },
   setup(props) {
-    const confirm = useConfirm();
     const router = useRouter();
     const cm = ref<InstanceType<typeof ContextMenu>>();
     const expanded = ref(false);
@@ -68,22 +65,6 @@ export const ConnectionCardInline = defineComponent({
         command: () =>
           router.push({ name: "Contemplate", query: { selectThoughtId: props.thought.id } }),
       });
-      if (props.onRemove) {
-        items.push({
-          label: "移除连接",
-          icon: "pi pi-trash",
-          class: "text-red-600",
-          command: () =>
-            confirm.require({
-              message: "确定要移除这条 Connection 吗？",
-              header: "移除确认",
-              rejectLabel: "取消",
-              acceptLabel: "移除",
-              acceptClass: "p-button-danger",
-              accept: props.onRemove!,
-            }),
-        });
-      }
       return items;
     });
 

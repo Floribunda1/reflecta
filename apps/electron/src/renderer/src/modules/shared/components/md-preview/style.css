@@ -65,75 +65,38 @@
   text-decoration-color: var(--p-primary-color);
 }
 
+.markdown-preview a.wiki-link {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--p-primary-color), transparent 90%);
+  padding: 0 0.2em;
+  text-decoration: none;
+}
+
 .markdown-preview strong {
   font-weight: 700;
 }
 
+.markdown-preview ul,
+.markdown-preview ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
 .markdown-preview ul {
-  margin: 0.375rem 0 0.75rem;
-  padding-left: 1.55rem;
+  list-style: disc;
 }
 
 .markdown-preview ol {
-  margin: 0.375rem 0 0.75rem;
-  padding-left: 1.9rem;
-}
-
-.markdown-preview ul ul,
-.markdown-preview ol ul {
-  margin: 0.125rem 0 0.25rem;
-  padding-left: 1.55rem;
-}
-
-.markdown-preview ul ol,
-.markdown-preview ol ol {
-  margin: 0.125rem 0 0.25rem;
-  padding-left: 1.9rem;
+  list-style: decimal;
 }
 
 .markdown-preview li {
-  margin: 0.125rem 0;
-  padding-left: 0.2rem;
-  line-height: 1.55;
-}
-
-.markdown-preview li::marker {
-  color: var(--p-text-muted-color);
-  font-size: 1em;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-}
-
-.markdown-preview ul li::marker {
-  font-size: 1.15em;
-}
-
-.markdown-preview ol li::marker {
-  font-size: 1em;
+  margin: 0.25rem 0;
+  padding-left: 0.125rem;
 }
 
 .markdown-preview li > p {
-  margin: 0.125rem 0;
-}
-
-.markdown-preview li > ul,
-.markdown-preview li > ol {
-  margin-top: 0.125rem;
-  margin-bottom: 0.25rem;
-}
-
-.markdown-preview input[type="checkbox"] {
-  width: 1.05rem;
-  height: 1.05rem;
-  margin: 0 0.55rem 0 0;
-  vertical-align: -0.14em;
-  accent-color: var(--p-primary-color);
-}
-
-.markdown-preview li:has(> input[type="checkbox"]) {
-  list-style: none;
-  margin-left: -1.55rem;
-  padding-left: 0;
+  margin: 0.25rem 0;
 }
 
 .markdown-preview blockquote {
@@ -221,6 +184,27 @@
 .markdown-preview-compact blockquote,
 .markdown-preview-compact pre,
 .markdown-preview-compact table {
+  margin: 0;
+}
+
+.markdown-preview-compact ul,
+.markdown-preview-compact ol {
+  padding-left: 1.35rem;
+}
+
+.markdown-preview-compact li {
+  margin: 0;
+  padding-left: 0.15rem;
+  line-height: inherit;
+}
+
+.markdown-preview-compact li::marker {
+  color: var(--p-text-muted-color);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.markdown-preview-compact li > p {
   margin: 0;
 }
 

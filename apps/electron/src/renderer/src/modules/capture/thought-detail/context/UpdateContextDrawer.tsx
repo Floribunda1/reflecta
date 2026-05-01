@@ -82,6 +82,7 @@ export const UpdateContextDrawer = defineComponent({
           <div class="flex-1 min-h-0">
             <MarkdownEditor
               content={content.value}
+              enableWikiLink={false}
               onUpdate={(v: string) => {
                 content.value = v;
               }}

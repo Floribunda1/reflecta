@@ -55,4 +55,9 @@ export class ThoughtService extends IpcService {
   async removeConnection(sourceId: string, targetId: string): Promise<void> {
     return thoughtService.removeConnection(sourceId, targetId);
   }
+
+  @IpcMethod()
+  async resolveWikiLinkTarget(target: string): Promise<ThoughtSummaryDTO | null> {
+    return thoughtService.resolveWikiLinkTarget(target);
+  }
 }
