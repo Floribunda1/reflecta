@@ -49,14 +49,14 @@ export const ThoughtToolbar = defineComponent({
     const newMenuItems = [
       {
         label: "Idea",
-        icon: "pi pi-lightbulb text-muted-color",
+        icon: "pi pi-lightbulb text-amber-500",
         command: () => {
           thoughtList.createThought({ type: "idea" });
         },
       },
       {
         label: "Insight",
-        icon: "pi pi-star text-primary",
+        icon: "pi pi-star text-violet-500",
         command: () => {
           thoughtList.createThought({ type: "insight" });
         },
@@ -137,7 +137,7 @@ export const ThoughtToolbar = defineComponent({
                 />
                 <Button
                   icon="pi pi-plus"
-                  label="New"
+                  label="新建"
                   size="small"
                   severity="secondary"
                   aria-label="新建 Thought"
