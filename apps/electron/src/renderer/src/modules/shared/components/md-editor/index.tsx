@@ -4,7 +4,7 @@ import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/vue";
 import { Crepe } from "@milkdown/crepe";
 import { replaceAll } from "@milkdown/utils";
 import "@milkdown/crepe/theme/common/style.css";
-import "@milkdown/crepe/theme/frame.css";
+import "./milkdown-theme.css";
 
 async function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -35,6 +35,9 @@ const EditorCore = defineComponent({
         root,
         defaultValue: props.content ?? "",
         featureConfigs: {
+          [Crepe.Feature.CodeMirror]: {
+            theme: [],
+          },
           [Crepe.Feature.Placeholder]: {
             text: "请输入",
             mode: "doc",

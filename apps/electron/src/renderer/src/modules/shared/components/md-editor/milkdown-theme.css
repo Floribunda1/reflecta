@@ -1,0 +1,468 @@
+.milkdown-editor {
+  box-sizing: border-box;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--p-content-border-color);
+  border-radius: 8px;
+  background: var(--p-surface-50);
+  color: var(--p-text-color);
+}
+
+.milkdown-editor .milkdown {
+  --crepe-color-background: transparent;
+  --crepe-color-on-background: var(--p-text-color);
+  --crepe-color-surface: var(--p-surface-0);
+  --crepe-color-surface-low: var(--p-surface-50);
+  --crepe-color-on-surface: var(--p-text-color);
+  --crepe-color-on-surface-variant: var(--p-text-muted-color);
+  --crepe-color-outline: var(--p-content-border-color);
+  --crepe-color-primary: var(--p-primary-color);
+  --crepe-color-secondary: var(--p-highlight-background);
+  --crepe-color-on-secondary: var(--p-primary-color);
+  --crepe-color-inverse: var(--p-surface-900);
+  --crepe-color-on-inverse: var(--p-surface-0);
+  --crepe-color-inline-code: #dd5b00;
+  --crepe-color-error: #dc2626;
+  --crepe-color-hover: var(--p-content-hover-background);
+  --crepe-color-selected: var(--p-highlight-background);
+  --crepe-color-inline-area: var(--p-surface-100);
+  --crepe-font-title:
+    "Inter Variable", "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    system-ui, sans-serif;
+  --crepe-font-default:
+    "Inter Variable", "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    system-ui, sans-serif;
+  --crepe-font-code: "Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --crepe-shadow-1: var(--p-overlay-navigation-shadow);
+  --crepe-shadow-2: var(--p-overlay-modal-shadow);
+
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--p-content-background);
+  font-feature-settings:
+    "cv01" 1,
+    "ss03" 1,
+    "lnum" 1,
+    "locl" 1;
+}
+
+.milkdown-editor .milkdown .ProseMirror {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  padding: 1.5rem 2rem 2rem;
+  caret-color: var(--p-primary-color);
+  color: var(--p-text-color);
+  font-size: 1rem;
+  line-height: 1.58;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.milkdown-editor .milkdown .ProseMirror > *:first-child {
+  margin-top: 0;
+}
+
+.milkdown-editor .milkdown .ProseMirror p {
+  padding: 0.125rem 0;
+  font-size: 1rem;
+  line-height: 1.58;
+}
+
+.milkdown-editor .milkdown .ProseMirror h1,
+.milkdown-editor .milkdown .ProseMirror h2,
+.milkdown-editor .milkdown .ProseMirror h3,
+.milkdown-editor .milkdown .ProseMirror h4,
+.milkdown-editor .milkdown .ProseMirror h5,
+.milkdown-editor .milkdown .ProseMirror h6 {
+  padding: 0;
+  color: var(--p-text-color);
+  font-family: var(--crepe-font-title);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.milkdown-editor .milkdown .ProseMirror h1 {
+  margin-top: 1.75rem;
+  font-size: 1.75rem;
+  line-height: 1.18;
+}
+
+.milkdown-editor .milkdown .ProseMirror h2 {
+  margin-top: 1.5rem;
+  font-size: 1.45rem;
+  line-height: 1.22;
+}
+
+.milkdown-editor .milkdown .ProseMirror h3 {
+  margin-top: 1.25rem;
+  font-size: 1.2rem;
+  line-height: 1.3;
+}
+
+.milkdown-editor .milkdown .ProseMirror h4,
+.milkdown-editor .milkdown .ProseMirror h5,
+.milkdown-editor .milkdown .ProseMirror h6 {
+  margin-top: 1rem;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.milkdown-editor .milkdown .ProseMirror a {
+  color: var(--p-primary-color);
+  text-decoration-color: color-mix(in srgb, var(--p-primary-color), transparent 45%);
+  text-underline-offset: 0.18em;
+}
+
+.milkdown-editor .milkdown .ProseMirror a:hover {
+  text-decoration-color: var(--p-primary-color);
+}
+
+.milkdown-editor .milkdown .ProseMirror code {
+  display: inline;
+  border: 1px solid color-mix(in srgb, var(--p-content-border-color), transparent 20%);
+  background: var(--p-surface-50);
+  color: #dd5b00;
+  font-size: 0.875em;
+  line-height: 1.5;
+  padding: 0.1rem 0.3rem;
+}
+
+.milkdown-editor .milkdown .ProseMirror pre,
+.milkdown-editor .milkdown .milkdown-code-block {
+  border: 1px solid var(--p-content-border-color);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--p-surface-50), var(--p-surface-0) 42%);
+}
+
+.milkdown-editor .milkdown .ProseMirror pre {
+  margin: 0.75rem 0;
+  padding: 0.75rem 0.875rem;
+}
+
+.milkdown-editor .milkdown .ProseMirror pre code {
+  border: 0;
+  background: transparent;
+  color: var(--p-text-color);
+  padding: 0;
+}
+
+.milkdown-editor .milkdown .milkdown-code-block,
+.milkdown-editor .milkdown .milkdown-code-block .cm-editor,
+.milkdown-editor .milkdown .milkdown-code-block .cm-gutters,
+.milkdown-editor .milkdown .milkdown-code-block .cm-panel {
+  background: color-mix(in srgb, var(--p-surface-50), var(--p-surface-0) 42%);
+}
+
+.milkdown-editor .milkdown .milkdown-code-block {
+  margin: 0.875rem 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.milkdown-editor .milkdown .milkdown-code-block .cm-editor {
+  max-height: 22rem;
+  overflow: auto;
+  color: var(--p-text-color);
+  font-family: var(--crepe-font-code);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.milkdown-editor .milkdown .milkdown-code-block .cm-scroller {
+  overscroll-behavior: contain;
+}
+
+.milkdown-editor .milkdown .milkdown-code-block .cm-content {
+  padding: 0.875rem 1rem;
+}
+
+.milkdown-editor .milkdown .milkdown-code-block .cm-line {
+  color: var(--p-text-color);
+}
+
+.milkdown-editor .milkdown .milkdown-code-block .cm-gutters {
+  display: none;
+}
+
+.milkdown-editor .milkdown .milkdown-code-block .cm-activeLine,
+.milkdown-editor .milkdown .milkdown-code-block .cm-activeLineGutter {
+  background: color-mix(in srgb, var(--p-highlight-background), transparent 45%);
+}
+
+.milkdown-editor .milkdown .milkdown-code-block .cm-selectionBackground,
+.milkdown-editor .milkdown .milkdown-code-block .cm-focused .cm-selectionBackground {
+  background: color-mix(in srgb, var(--p-primary-color), transparent 82%);
+}
+
+.milkdown-editor .milkdown .milkdown-code-block .tools {
+  padding: 0.5rem 0.75rem 0;
+}
+
+.milkdown-editor .milkdown .milkdown-code-block .tools .language-button,
+.milkdown-editor .milkdown .milkdown-code-block .tools .tools-button-group button {
+  background: var(--p-surface-100);
+  color: var(--p-text-muted-color);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.milkdown-editor .milkdown .milkdown-code-block .tools .language-button:hover,
+.milkdown-editor .milkdown .milkdown-code-block .tools .tools-button-group button:hover {
+  background: var(--p-surface-200);
+  color: var(--p-text-color);
+}
+
+.milkdown-editor .milkdown .ProseMirror blockquote {
+  margin: 0.5rem 0;
+  padding-left: 1rem;
+  color: var(--p-text-muted-color);
+}
+
+.milkdown-editor .milkdown .ProseMirror blockquote::before {
+  width: 2px;
+  background: var(--p-content-border-color);
+}
+
+.milkdown-editor .milkdown .ProseMirror hr {
+  background-color: var(--p-content-border-color);
+}
+
+.milkdown-editor .milkdown .ProseMirror img {
+  border-radius: 8px;
+}
+
+.milkdown-editor .milkdown .milkdown-table-block {
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+
+.milkdown-editor .milkdown .milkdown-table-block table {
+  border-collapse: collapse;
+  border: 1px solid color-mix(in srgb, var(--p-content-border-color), var(--p-text-color) 16%);
+  border-radius: 6px;
+}
+
+.milkdown-editor .milkdown .milkdown-table-block th,
+.milkdown-editor .milkdown .milkdown-table-block td {
+  border: 1px solid color-mix(in srgb, var(--p-content-border-color), var(--p-text-color) 16%);
+  padding: 0.625rem 0.875rem;
+  vertical-align: top;
+}
+
+.milkdown-editor .milkdown .milkdown-table-block th {
+  background: color-mix(in srgb, var(--p-surface-50), var(--p-surface-0) 28%);
+  font-weight: 700;
+}
+
+.milkdown-editor .milkdown .milkdown-table-block th p,
+.milkdown-editor .milkdown .milkdown-table-block td p {
+  padding: 0;
+}
+
+.milkdown-editor .milkdown .crepe-placeholder::before {
+  color: var(--p-text-muted-color);
+}
+
+.milkdown-editor .milkdown .milkdown-toolbar,
+.milkdown-editor .milkdown .milkdown-slash-menu,
+.milkdown-editor .milkdown .milkdown-link-preview > .link-preview,
+.milkdown-editor .milkdown .milkdown-link-edit > .link-edit,
+.milkdown-editor .milkdown .milkdown-top-bar,
+.milkdown-editor .milkdown .milkdown-code-block .list-wrapper {
+  border: 1px solid var(--p-content-border-color);
+  background: color-mix(in srgb, var(--p-content-background), transparent 4%);
+  box-shadow: var(--p-overlay-navigation-shadow);
+  backdrop-filter: blur(10px);
+}
+
+.milkdown-editor .milkdown .milkdown-toolbar,
+.milkdown-editor .milkdown .milkdown-link-preview > .link-preview,
+.milkdown-editor .milkdown .milkdown-link-edit > .link-edit {
+  border-radius: 8px;
+}
+
+.milkdown-editor .milkdown .milkdown-slash-menu,
+.milkdown-editor .milkdown .milkdown-code-block .list-wrapper {
+  border-radius: 8px;
+}
+
+.milkdown-editor .milkdown .milkdown-toolbar .toolbar-item,
+.milkdown-editor .milkdown .milkdown-block-handle .operation-item,
+.milkdown-editor .milkdown .milkdown-top-bar .top-bar-item,
+.milkdown-editor .milkdown .milkdown-link-preview > .link-preview > .button,
+.milkdown-editor .milkdown .milkdown-link-preview > .link-preview > .link-icon,
+.milkdown-editor .milkdown .milkdown-link-edit > .link-edit > .button {
+  border-radius: 4px;
+  color: var(--p-text-muted-color);
+}
+
+.milkdown-editor .milkdown .milkdown-toolbar .toolbar-item:hover,
+.milkdown-editor .milkdown .milkdown-block-handle .operation-item:hover,
+.milkdown-editor .milkdown .milkdown-top-bar .top-bar-item:hover,
+.milkdown-editor .milkdown .milkdown-link-preview > .link-preview > .button:hover,
+.milkdown-editor .milkdown .milkdown-link-preview > .link-preview > .link-icon:hover,
+.milkdown-editor .milkdown .milkdown-link-edit > .link-edit > .button:hover,
+.milkdown-editor .milkdown .milkdown-slash-menu .tab-group ul li:hover,
+.milkdown-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group li.hover {
+  background: var(--p-content-hover-background);
+  color: var(--p-text-color);
+}
+
+.milkdown-editor .milkdown .milkdown-toolbar .toolbar-item.active,
+.milkdown-editor .milkdown .milkdown-top-bar .top-bar-item.active,
+.milkdown-editor .milkdown .milkdown-slash-menu .tab-group ul li.selected,
+.milkdown-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group li.active {
+  background: var(--p-highlight-background);
+  color: var(--p-primary-color);
+}
+
+.milkdown-editor .milkdown .milkdown-toolbar svg,
+.milkdown-editor .milkdown .milkdown-block-handle svg,
+.milkdown-editor .milkdown .milkdown-top-bar svg,
+.milkdown-editor .milkdown .milkdown-link-preview svg,
+.milkdown-editor .milkdown .milkdown-link-edit svg,
+.milkdown-editor .milkdown .milkdown-slash-menu svg {
+  color: currentColor;
+  fill: currentColor;
+}
+
+.milkdown-editor .milkdown .milkdown-slash-menu .tab-group {
+  border-bottom-color: var(--p-content-border-color);
+  padding: 0.5rem 0.5rem 0;
+}
+
+.milkdown-editor .milkdown .milkdown-slash-menu .tab-group ul {
+  gap: 0.25rem;
+  padding: 0.25rem;
+}
+
+.milkdown-editor .milkdown .milkdown-slash-menu .tab-group ul li {
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.milkdown-editor .milkdown .milkdown-slash-menu .menu-groups {
+  padding: 0.25rem;
+}
+
+.milkdown-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group h6 {
+  padding: 0.55rem 0.6rem 0.35rem;
+  color: var(--p-text-muted-color);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.milkdown-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group li {
+  min-width: 13rem;
+  gap: 0.625rem;
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+}
+
+.milkdown-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group li > span {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.milkdown-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group + .menu-group::before,
+.milkdown-editor .milkdown .milkdown-toolbar .divider,
+.milkdown-editor .milkdown .milkdown-top-bar .top-bar-divider {
+  background: var(--p-content-border-color);
+}
+
+.milkdown-editor .milkdown .milkdown-block-handle {
+  gap: 0;
+  opacity: 0.38;
+  transform: translateX(-0.5rem);
+}
+
+.milkdown-editor .milkdown .milkdown-block-handle:hover {
+  opacity: 1;
+}
+
+.milkdown-editor .milkdown .milkdown-block-handle .operation-item {
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0.25rem;
+  border-radius: 4px;
+  background: transparent;
+  color: color-mix(in srgb, var(--p-text-muted-color), transparent 18%);
+}
+
+.milkdown-editor .milkdown .milkdown-block-handle .operation-item svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.milkdown-editor .milkdown .milkdown-block-handle .operation-item:hover {
+  background: var(--p-surface-100);
+  color: var(--p-text-color);
+}
+
+.milkdown-editor .milkdown .milkdown-table-block .cell-handle,
+.milkdown-editor .milkdown .milkdown-table-block .line-handle .add-button {
+  border: 1px solid var(--p-content-border-color);
+  background: var(--p-surface-0);
+  color: var(--p-text-muted-color);
+  box-shadow: var(--p-overlay-navigation-shadow);
+}
+
+.milkdown-editor .milkdown .milkdown-table-block .line-handle {
+  background-color: var(--p-primary-color);
+}
+
+.milkdown-editor .milkdown .milkdown-table-block .line-handle .add-button {
+  opacity: 0.62;
+}
+
+.milkdown-editor .milkdown .milkdown-table-block .line-handle .add-button:hover {
+  background: var(--p-surface-100);
+  color: var(--p-text-color);
+  opacity: 1;
+}
+
+.milkdown-editor .milkdown .milkdown-image-block .image-edit,
+.milkdown-editor .milkdown .milkdown-image-inline .empty-image-inline {
+  border: 1px solid var(--p-content-border-color);
+  border-radius: 8px;
+  background: var(--p-surface-50);
+}
+
+.milkdown-editor .milkdown .milkdown-image-block .image-edit .confirm {
+  border-radius: 4px;
+  background: var(--p-primary-color);
+  color: var(--p-primary-contrast-color);
+  font-weight: 600;
+}
+
+.milkdown-editor .milkdown .milkdown-image-block > .caption-input {
+  color: var(--p-text-muted-color);
+  font-size: 0.875rem;
+}
+
+.milkdown-editor .milkdown .milkdown-list-item-block li {
+  gap: 0.5rem;
+}
+
+.milkdown-editor .milkdown .milkdown-list-item-block li .label-wrapper {
+  color: var(--p-text-muted-color);
+}
+
+@media (max-width: 720px) {
+  .milkdown-editor {
+    border-radius: 6px;
+  }
+
+  .milkdown-editor .milkdown .ProseMirror {
+    padding: 1rem 0.25rem 1.5rem 1rem;
+  }
+}

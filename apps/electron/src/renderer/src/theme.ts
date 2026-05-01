@@ -1,5 +1,5 @@
 import { definePreset } from "@primeuix/themes";
-import Lara from "@primeuix/themes/lara";
+import Aura from "@primeuix/themes/aura";
 
 // ─── Reflecta Preset ──────────────────────────────────────────────────────────
 // Notion-inspired design system for PrimeVue 4.x.
@@ -18,7 +18,7 @@ const DEEP_SHADOW =
 
 const WHISPER_BORDER = "rgba(0, 0, 0, 0.1)";
 
-export const ReflectaPreset = definePreset(Lara, {
+export const ReflectaPreset = definePreset(Aura, {
   primitive: {
     notionBlue: {
       50: "#f2f9ff",
