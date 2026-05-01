@@ -1,7 +1,7 @@
 import { defineComponent, onMounted, ref, watch } from "vue";
 import { marked } from "marked";
 import mediumZoom from "medium-zoom";
-import { css } from "@emotion/css";
+import "./style.css";
 
 export const SimpleMarkdownPreview = defineComponent({
   name: "SimpleMarkdownPreview",
@@ -32,19 +32,10 @@ export const SimpleMarkdownPreview = defineComponent({
       <div
         ref={containerRef}
         style={{
-          fontSize: "13px",
-          lineHeight: "1.5em",
           maxHeight: props.lineClamp != null ? `${props.lineClamp * 1.5}em` : undefined,
-          overflow: props.lineClamp !== null ? "hidden" : undefined,
+          overflow: props.lineClamp != null ? "hidden" : undefined,
         }}
-        class={[
-          "text-surface-500",
-          css`
-            & p {
-              white-space: pre-line;
-            }
-          `,
-        ]}
+        class="markdown-preview markdown-preview-compact"
       />
     );
   },
@@ -70,6 +61,6 @@ export const MarkdownPreview = defineComponent({
     onMounted(render);
     watch(() => props.content, render);
 
-    return () => <div ref={containerRef} style={{ fontSize: "13px" }} />;
+    return () => <div ref={containerRef} class="markdown-preview" />;
   },
 });
