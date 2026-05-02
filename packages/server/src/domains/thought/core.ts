@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, isNotNull, isNull, or, sql, count } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { contexts, thoughtCategories, thoughtConnections, thoughts } from "../../db/schema";
-import { extractThoughtWikiLinkTargets, normalizeThoughtWikiLinkBody } from "../../wiki-links";
+import { extractThoughtWikiLinkTargets, normalizeThoughtWikiLinkBody } from "./wiki-links";
 import { getCategoryDescendants } from "../category/core";
 import type { ReflectaDb } from "../../db/types";
 import type {

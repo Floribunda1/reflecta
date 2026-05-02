@@ -3,6 +3,8 @@ import * as schema from "./schema";
 import { performDbMigration } from "./migration";
 import type { ReflectaDb } from "./types";
 
+export type { ReflectaDb } from "./types";
+
 export async function createDBInstance(dbPath: string): Promise<ReflectaDb> {
   const db = drizzle(`file:${dbPath}`, {
     schema,
