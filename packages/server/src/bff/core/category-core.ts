@@ -1,12 +1,8 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { categories, thoughtCategories, thoughts } from "../../db/schema";
-import type {
-  CreateCategoryInput,
-  ReflectaDb,
-  ReorderCategoryItem,
-  UpdateCategoryInput,
-} from "./types";
+import type { ReflectaDb } from "../../db/types";
+import type { CreateCategoryInput, ReorderCategoryItem, UpdateCategoryInput } from "../../types";
 
 export async function listCategoryRows(
   db: ReflectaDb,
@@ -79,10 +75,12 @@ export async function deleteCategory(
         .select({ thoughtId: thoughtCategories.thoughtId })
         .from(thoughtCategories)
         .where(eq(thoughtCategories.categoryId, id));
-      for (const { thoughtId } of rows) {
-        await tx.run(sql`DELETE FROM fts_thoughts WHERE thought_id = ${thoughtId}`);
-        await tx.run(sql`DELETE FROM fts_contexts WHERE thought_id = ${thoughtId}`);
-        await tx.delete(thoughts).where(eq(thoughts.id, thoughtId));
+      const thoughtIds = rows.map((r) => r.thoughtId);
+      if (thoughtIds.length > 0) {
+        const idList = sql.join(thoughtIds.map((tid) => sql`${tid}`));
+        await tx.run(sql`DELETE FROM fts_thoughts WHERE thought_id IN (${idList})`);
+        await tx.run(sql`DELETE FROM fts_contexts WHERE thought_id IN (${idList})`);
+        await tx.delete(thoughts).where(inArray(thoughts.id, thoughtIds));
       }
     }
     await tx.delete(categories).where(eq(categories.id, id));
@@ -94,14 +92,16 @@ export async function reorderCategories(
   items: ReorderCategoryItem[],
 ): Promise<void> {
   const updatedAt = new Date().toISOString();
-  for (const item of items) {
-    await db
-      .update(categories)
-      .set({
-        parentId: item.parentId,
-        sortOrder: item.sortOrder,
-        updatedAt,
-      })
-      .where(eq(categories.id, item.id));
-  }
+  await db.transaction(async (tx) => {
+    for (const item of items) {
+      await tx
+        .update(categories)
+        .set({
+          parentId: item.parentId,
+          sortOrder: item.sortOrder,
+          updatedAt,
+        })
+        .where(eq(categories.id, item.id));
+    }
+  });
 }

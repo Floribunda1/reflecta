@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
-import type { ReflectaDb, SearchOptions } from "./types";
+import type { ReflectaDb } from "../../db/types";
+import type { SearchOptions } from "../../types";
 import { escapeFtsQuery, getLimitOffset } from "./shared";
 
 export async function searchThoughtIds(

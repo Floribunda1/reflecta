@@ -5,7 +5,7 @@ import {
   listContextRows,
   updateContext as coreUpdateContext,
 } from "../core/context-core";
-import type { ReflectaDb } from "../core/types";
+import type { ReflectaDb } from "../../db/types";
 import type { ContextDetail, CreateContextInput, SourceType, UpdateContextInput } from "./types";
 
 export class ContextService {

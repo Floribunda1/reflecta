@@ -1,5 +1,5 @@
 import { thoughts } from "../../db/schema";
-import type { ReflectaDb } from "../../bff/core/types";
+import type { ReflectaDb } from "../../db/types";
 import { resolveCategoryRefs as coreResolveCategoryRefs } from "../../bff/core/shared";
 import type { CategoryRef, ThoughtSummary, ThoughtType } from "./types";
 

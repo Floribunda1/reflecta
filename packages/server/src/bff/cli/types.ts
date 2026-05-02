@@ -1,15 +1,39 @@
 export type ID = string;
 export type ISODateTime = string;
 
+import type {
+  ThoughtType,
+  SourceType,
+  CreateThoughtInput,
+  UpdateThoughtInput,
+  CreateContextInput,
+  UpdateContextInput,
+  CreateCategoryInput,
+  UpdateCategoryInput,
+  SearchOptions,
+  ListThoughtsFilter,
+} from "../../types";
+
+export type {
+  ThoughtType,
+  SourceType,
+  CreateThoughtInput,
+  UpdateThoughtInput,
+  CreateContextInput,
+  UpdateContextInput,
+  CreateCategoryInput,
+  UpdateCategoryInput,
+  SearchOptions,
+};
+
+export type ListThoughtsOptions = ListThoughtsFilter & SearchOptions;
+
 export type PageInfo = {
   limit: number;
   offset?: number;
   nextOffset?: number | null;
   hasMore: boolean;
 };
-
-export type ThoughtType = "idea" | "insight";
-export type SourceType = "experience" | "book" | "article" | "video" | "opinion" | "ai";
 
 export type CategoryRef = {
   id: ID;
@@ -123,14 +147,6 @@ export type ProjectSnapshotResult = {
 };
 
 // Command options
-export type ListThoughtsOptions = {
-  type?: ThoughtType;
-  categoryId?: ID;
-  includeDescendants?: boolean;
-  limit?: number;
-  offset?: number;
-};
-
 export type GetThoughtOptions = {
   includeContexts?: boolean;
   includeReferences?: boolean;
@@ -150,40 +166,3 @@ export type GraphNeighborhoodOptions = {
   limit?: number;
   offset?: number;
 };
-
-export type SearchOptions = {
-  limit?: number;
-  offset?: number;
-};
-
-export type CreateThoughtInput = {
-  type: ThoughtType;
-  title?: string;
-  body?: string;
-  categoryIds?: string[];
-};
-
-export type UpdateThoughtInput = {
-  type?: ThoughtType;
-  title?: string | null;
-  body?: string;
-  categoryIds?: string[];
-};
-
-export type CreateContextInput = {
-  thoughtId: string;
-  sourceType: SourceType;
-  sourceName?: string;
-  content: string;
-};
-
-export type UpdateContextInput = Partial<
-  Pick<CreateContextInput, "sourceType" | "sourceName" | "content">
->;
-
-export type CreateCategoryInput = {
-  name: string;
-  parentId?: string | null;
-};
-
-export type UpdateCategoryInput = Partial<CreateCategoryInput>;

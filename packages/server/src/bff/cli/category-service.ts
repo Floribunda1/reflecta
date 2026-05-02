@@ -1,6 +1,6 @@
 import { and, desc, inArray, isNull } from "drizzle-orm";
 import { contexts, thoughtCategories, thoughtConnections, thoughts } from "../../db/schema";
-import type { ReflectaDb } from "../core/types";
+import type { ReflectaDb } from "../../db/types";
 import {
   createCategory as coreCreateCategory,
   deleteCategory as coreDeleteCategory,

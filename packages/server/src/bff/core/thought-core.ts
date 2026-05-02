@@ -3,12 +3,8 @@ import { nanoid } from "nanoid";
 import { thoughtCategories, thoughtConnections, thoughts } from "../../db/schema";
 import { extractThoughtWikiLinkTargets, normalizeThoughtWikiLinkBody } from "../../wiki-links";
 import { getCategoryDescendants } from "./shared";
-import type {
-  CreateThoughtInput,
-  ListThoughtsFilter,
-  ReflectaDb,
-  UpdateThoughtInput,
-} from "./types";
+import type { ReflectaDb } from "../../db/types";
+import type { CreateThoughtInput, ListThoughtsFilter, UpdateThoughtInput } from "../../types";
 
 export async function listThoughtRows(
   db: ReflectaDb,

@@ -19,7 +19,11 @@ export class SearchService {
 
     const thoughtIds = ftsRows.map((r) => r.thoughtId);
     const thoughtRows = await db.select().from(thoughts).where(inArray(thoughts.id, thoughtIds));
-    return this.options.thoughtService.assembleThoughtSummaryDTOs(thoughtRows);
+    const dtos = await this.options.thoughtService.assembleThoughtSummaryDTOs(thoughtRows);
+    const dtoMap = new Map(dtos.map((d) => [d.id, d]));
+    return thoughtIds
+      .map((id) => dtoMap.get(id))
+      .filter((d): d is ThoughtSummaryDTO => d !== undefined);
   }
 
   async searchContexts(query: string, options?: SearchOptions): Promise<FtsContextResult[]> {

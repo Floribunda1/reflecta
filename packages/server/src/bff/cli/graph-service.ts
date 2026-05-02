@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { contexts, thoughtConnections, thoughts } from "../../db/schema";
-import type { ReflectaDb } from "../core/types";
+import type { ReflectaDb } from "../../db/types";
 import { makePageInfo } from "../core/shared";
 import { toThoughtSummaries } from "./shared";
 import type {
@@ -156,24 +156,44 @@ export class GraphService {
     ];
 
     while (queue.length > 0 && paths.length < MAX_PATHS) {
-      const { node, path, edges } = queue.shift()!;
-      if (path.length >= MAX_DEPTH) continue;
+      const depth = queue[0].path.length;
+      if (depth >= MAX_DEPTH) break;
 
-      const connRows = await this.db
-        .select()
-        .from(thoughtConnections)
-        .where(eq(thoughtConnections.sourceId, node));
+      const layer: Array<{ node: string; path: string[]; edges: { from: string; to: string }[] }> =
+        [];
+      while (queue.length > 0 && queue[0].path.length === depth) {
+        layer.push(queue.shift()!);
+      }
 
+      const layerNodes = [...new Set(layer.map((item) => item.node))];
+      const connRows =
+        layerNodes.length > 0
+          ? await this.db
+              .select()
+              .from(thoughtConnections)
+              .where(inArray(thoughtConnections.sourceId, layerNodes))
+          : [];
+
+      const connMap = new Map<string, typeof connRows>();
       for (const conn of connRows) {
-        if (path.includes(conn.targetId)) continue;
+        const arr = connMap.get(conn.sourceId) ?? [];
+        arr.push(conn);
+        connMap.set(conn.sourceId, arr);
+      }
 
-        const newPath = [...path, conn.targetId];
-        const newEdges = [...edges, { from: conn.sourceId, to: conn.targetId }];
+      for (const item of layer) {
+        const nodeConns = connMap.get(item.node) ?? [];
+        for (const conn of nodeConns) {
+          if (item.path.includes(conn.targetId)) continue;
 
-        if (conn.targetId === toId) {
-          paths.push({ nodes: newPath, edges: newEdges });
-        } else {
-          queue.push({ node: conn.targetId, path: newPath, edges: newEdges });
+          const newPath = [...item.path, conn.targetId];
+          const newEdges = [...item.edges, { from: conn.sourceId, to: conn.targetId }];
+
+          if (conn.targetId === toId) {
+            paths.push({ nodes: newPath, edges: newEdges });
+          } else {
+            queue.push({ node: conn.targetId, path: newPath, edges: newEdges });
+          }
         }
       }
     }

@@ -7,7 +7,7 @@ import {
   updateThought as coreUpdateThought,
 } from "../core/thought-core";
 import { contexts, thoughtConnections, thoughts } from "../../db/schema";
-import type { ReflectaDb } from "../core/types";
+import type { ReflectaDb } from "../../db/types";
 import type {
   CreateThoughtInput,
   GetThoughtOptions,

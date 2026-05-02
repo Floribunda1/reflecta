@@ -6,7 +6,7 @@ import {
   thoughtConnections,
   thoughts,
 } from "../../db/schema";
-import type { ReflectaDb } from "../core/types";
+import type { ReflectaDb } from "../../db/types";
 import { toThoughtSummaries } from "./shared";
 import type { ProjectSnapshotResult } from "./types";
 

@@ -15,20 +15,10 @@
       "import": "./src/index.ts",
       "require": "./src/index.ts"
     },
-    "./bff/core": {
-      "types": "./src/bff/core/index.ts",
-      "import": "./src/bff/core/index.ts",
-      "require": "./src/bff/core/index.ts"
-    },
     "./bff/electron": {
       "types": "./src/bff/electron/index.ts",
       "import": "./src/bff/electron/index.ts",
       "require": "./src/bff/electron/index.ts"
-    },
-    "./bff/cli": {
-      "types": "./src/bff/cli/index.ts",
-      "import": "./src/bff/cli/index.ts",
-      "require": "./src/bff/cli/index.ts"
     }
   },
   "scripts": {

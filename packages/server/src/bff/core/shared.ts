@@ -1,6 +1,7 @@
-import { eq, inArray, sql, count } from "drizzle-orm";
-import { categories, thoughtCategories, thoughtConnections } from "../../db/schema";
-import type { ReflectaDb, SearchOptions } from "./types";
+import { and, eq, inArray, isNull, sql, count } from "drizzle-orm";
+import { categories, contexts, thoughtCategories, thoughtConnections } from "../../db/schema";
+import type { ReflectaDb } from "../../db/types";
+import type { SearchOptions } from "../../types";
 
 export function getLimitOffset(options?: SearchOptions) {
   return {
@@ -35,13 +36,17 @@ export async function resolveCategoryRefs(
 ): Promise<Map<string, { id: string; name: string; parentId: string | null }[]>> {
   if (thoughtIds.length === 0) return new Map();
 
-  const allCategories = await db.select().from(categories);
-  const catMap = new Map(allCategories.map((c) => [c.id, c]));
-
   const tcRows = await db
     .select()
     .from(thoughtCategories)
     .where(inArray(thoughtCategories.thoughtId, thoughtIds));
+
+  const categoryIds = [...new Set(tcRows.map((tc) => tc.categoryId))];
+  const catRows =
+    categoryIds.length > 0
+      ? await db.select().from(categories).where(inArray(categories.id, categoryIds))
+      : [];
+  const catMap = new Map(catRows.map((c) => [c.id, c]));
 
   const result = new Map<string, { id: string; name: string; parentId: string | null }[]>();
   for (const tc of tcRows) {
@@ -61,12 +66,12 @@ export async function getThoughtConnectionCounts(
   const [ctxCountRes, refCountRes, refByCountRes] = await Promise.all([
     db
       .select({ count: count() })
-      .from(thoughtConnections)
-      .where(eq(thoughtConnections.sourceId, thoughtId)),
+      .from(contexts)
+      .where(and(eq(contexts.thoughtId, thoughtId), isNull(contexts.deletedAt))),
     db
       .select({ count: count() })
       .from(thoughtConnections)
-      .where(eq(thoughtConnections.targetId, thoughtId)),
+      .where(eq(thoughtConnections.sourceId, thoughtId)),
     db
       .select({ count: count() })
       .from(thoughtConnections)

@@ -48,14 +48,37 @@ export class ThoughtService {
         ),
     ]);
 
+    const tcMap = new Map<string, string[]>();
+    for (const r of tcRows) {
+      const arr = tcMap.get(r.thoughtId) ?? [];
+      arr.push(r.categoryId);
+      tcMap.set(r.thoughtId, arr);
+    }
+
+    const ctxMap = new Map<string, typeof ctxRows>();
+    for (const r of ctxRows) {
+      const arr = ctxMap.get(r.thoughtId) ?? [];
+      arr.push(r);
+      ctxMap.set(r.thoughtId, arr);
+    }
+
+    const connMap = new Map<string, typeof connRows>();
+    for (const r of connRows) {
+      for (const key of [r.sourceId, r.targetId]) {
+        const arr = connMap.get(key) ?? [];
+        arr.push(r);
+        connMap.set(key, arr);
+      }
+    }
+
     return thoughtRows.map((t) => ({
       id: t.id,
       type: t.type as ThoughtType,
       title: t.title ?? null,
       body: t.body,
-      categoryIds: tcRows.filter((r) => r.thoughtId === t.id).map((r) => r.categoryId),
-      contexts: ctxRows.filter((r) => r.thoughtId === t.id).map(rowToContextDTO),
-      connections: connRows.filter((r) => r.sourceId === t.id || r.targetId === t.id),
+      categoryIds: tcMap.get(t.id) ?? [],
+      contexts: (ctxMap.get(t.id) ?? []).map(rowToContextDTO),
+      connections: connMap.get(t.id) ?? [],
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
     }));

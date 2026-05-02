@@ -1,6 +1,6 @@
 import type { Client } from "@libsql/client";
 import { Umzug } from "umzug";
-import type { ReflectaDb } from "../bff/electron/types";
+import type { ReflectaDb } from "./types";
 
 // @ts-ignore - Vite's glob import is not typed in every build context, so we assert the type here.
 const sqlMigrations = import.meta.glob("./migration/sql/*.sql", {

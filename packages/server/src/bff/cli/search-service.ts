@@ -1,6 +1,6 @@
 import { inArray } from "drizzle-orm";
 import { thoughts } from "../../db/schema";
-import type { ReflectaDb } from "../core/types";
+import type { ReflectaDb } from "../../db/types";
 import { searchContextRows, searchThoughtIds } from "../core/search-core";
 import { toThoughtSummaries } from "./shared";
 import type { ContextSearchHit, SearchAllResult, SearchOptions, ThoughtSearchHit } from "./types";
