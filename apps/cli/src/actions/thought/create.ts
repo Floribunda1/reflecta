@@ -12,7 +12,7 @@ export function registerCreateThoughtAction(cli: Command): void {
     .description("Create a thought")
     .option("--type <type>", "Thought type (idea | insight)")
     .option("--title <title>", "Thought title")
-    .option("--body <body>", "Thought body. Use [[thought-id]] or [[title|label]] to create links")
+    .option("--body <body>", "Thought body. Use [[title#thought-id]] to create links")
     .option("--category-id <ids>", "Category IDs, comma-separated")
     .action((_options, actionCli) => createThoughtAction(actionCli));
 }

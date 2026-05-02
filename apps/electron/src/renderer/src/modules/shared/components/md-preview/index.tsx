@@ -3,6 +3,7 @@ import { marked } from "marked";
 import mediumZoom from "medium-zoom";
 import { ipcClient } from "@renderer/utils/ipc";
 import { searchEventBus } from "@renderer/utils/searchEventBus";
+import { renderThoughtWikiLinksAsMarkdown } from "../wiki-links";
 import "./style.css";
 
 async function handleWikiLinkClick(e: MouseEvent): Promise<void> {
@@ -52,7 +53,7 @@ export const SimpleMarkdownPreview = defineComponent({
         .filter(Boolean)
         .slice(0, props.lineClamp)
         .join("\n");
-      el.innerHTML = marked.parse(truncatedContent, {
+      el.innerHTML = marked.parse(renderThoughtWikiLinksAsMarkdown(truncatedContent), {
         async: false,
       }) as string;
       bindWikiLinkClicks(el);
@@ -88,7 +89,9 @@ export const MarkdownPreview = defineComponent({
       if (!el) return;
       el.innerHTML = "";
       if (!props.content) return;
-      el.innerHTML = marked.parse(props.content, { async: false }) as string;
+      el.innerHTML = marked.parse(renderThoughtWikiLinksAsMarkdown(props.content), {
+        async: false,
+      }) as string;
       bindWikiLinkClicks(el);
       mediumZoom(el.querySelectorAll("img"));
     };

@@ -636,13 +636,13 @@ Thought 之间的关系不再通过独立命令手动新增、删除。
 在 CLI 中，关系由 `thought create --body` / `thought update --body` 里的 wiki links 推导：
 
 ```bash
-reflecta thought update th_new --body "关联到 [[th_existing]]" --yes --format json
+reflecta thought update th_new --body "关联到 [[已有 Thought#th_existing]]" --yes --format json
 ```
 
 语义：
 
-- `[[target]]` 或 `[[target|label]]` 表示当前 Thought 引用目标 Thought
-- CLI 会把 `[[...]]` 规范化成内部 `/wiki/...` markdown link 后再写入
+- `[[title#id]]` 表示当前 Thought 引用目标 Thought
+- `title` 用于正文展示，`id` 用于稳定解析目标 Thought
 - 更新正文时会同步该 Thought 的 outgoing references
 
 ---

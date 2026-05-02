@@ -6,21 +6,27 @@ describe("normalizeThoughtBody", () => {
     expect(normalizeThoughtBody(undefined)).toBeUndefined();
   });
 
-  it("converts basic wikilinks into markdown wiki links", () => {
+  it("normalizes markdown wiki links into title-id wikilinks", () => {
+    expect(
+      normalizeThoughtBody("Connect [thought-1](/wiki/thought-1) to [thought-2](/wiki/thought-2)"),
+    ).toBe("Connect [[thought-1#thought-1]] to [[thought-2#thought-2]]");
+  });
+
+  it("normalizes alias wikilinks into title-id wikilinks", () => {
     expect(normalizeThoughtBody("Connect [[thought-1]] to [[thought-2]]")).toBe(
-      "Connect [thought-1](/wiki/thought-1) to [thought-2](/wiki/thought-2)",
+      "Connect [[thought-1]] to [[thought-2]]",
     );
   });
 
-  it("supports alias labels", () => {
+  it("supports label-target legacy aliases", () => {
     expect(normalizeThoughtBody("See [[thought-1|primary thought]]")).toBe(
-      "See [primary thought](/wiki/thought-1)",
+      "See [[primary thought#thought-1]]",
     );
   });
 
-  it("leaves malformed wikilinks unchanged", () => {
-    expect(normalizeThoughtBody("Broken [[ |label]] and [[target| ]]")).toBe(
-      "Broken [[ |label]] and [[target| ]]",
+  it("canonicalizes title-id wikilinks", () => {
+    expect(normalizeThoughtBody("See [[  primary thought  # thought-1 ]]")).toBe(
+      "See [[primary thought#thought-1]]",
     );
   });
 });

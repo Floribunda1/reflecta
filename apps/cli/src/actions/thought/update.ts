@@ -11,7 +11,7 @@ export function registerUpdateThoughtAction(cli: Command): void {
     .description("Update a thought")
     .option("--type <type>", "Thought type (idea | insight)")
     .option("--title <title>", "Thought title")
-    .option("--body <body>", "Thought body. Use [[thought-id]] or [[title|label]] to create links")
+    .option("--body <body>", "Thought body. Use [[title#thought-id]] to create links")
     .option("--category-id <ids>", "Replace category IDs, comma-separated")
     .action((id, _options, actionCli) => updateThoughtAction(id, actionCli));
 }

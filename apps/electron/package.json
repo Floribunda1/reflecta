@@ -28,6 +28,7 @@
     "@electron-toolkit/utils": "^4.0.0",
     "@libsql/client": "^0.17.2",
     "@milkdown/crepe": "^7.20.0",
+    "@milkdown/kit": "^7.20.0",
     "@milkdown/utils": "^7.20.0",
     "@milkdown/vue": "^7.20.0",
     "@oxc-project/runtime": "^0.128.0",

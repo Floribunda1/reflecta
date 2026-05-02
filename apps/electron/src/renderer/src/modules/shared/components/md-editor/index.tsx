@@ -8,6 +8,11 @@ import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
 import { $prose } from "@milkdown/kit/utils";
 import type { ThoughtSummaryDTO } from "@shared/thought";
 import { searchEventBus } from "@renderer/utils/searchEventBus";
+import {
+  findThoughtWikiLinkAtOffset,
+  formatThoughtWikiLink,
+  normalizeThoughtWikiLinkBody,
+} from "../wiki-links";
 import "@milkdown/crepe/theme/common/style.css";
 import "./milkdown-theme.css";
 
@@ -17,12 +22,8 @@ function getSuggestionLabel(thought: ThoughtSummaryDTO): string {
   return thought.title?.trim() || thought.id;
 }
 
-function getWikiLinkIdFromUrl(url: string): string {
-  return url.replace(/^\/wiki\//, "");
-}
-
 async function openWikiLinkByUrl(url: string): Promise<void> {
-  const id = getWikiLinkIdFromUrl(url);
+  const id = url.replace(/^\/wiki\//, "");
   if (!id) return;
   const thought = await ipcClient.thought.resolveWikiLinkTarget(id);
   if (!thought) return;
@@ -46,7 +47,7 @@ function createWikiLinkHintPlugin() {
         handleKeyDown(_view, event) {
           return pluginView?.handleKeyDown(event) ?? false;
         },
-        handleClick(_view, _pos, event) {
+        handleClick(view, pos, event) {
           const mdLink = (event.target as Element | null)?.closest<HTMLAnchorElement>(
             "a[href^='/wiki/']",
           );
@@ -56,7 +57,16 @@ function createWikiLinkHintPlugin() {
             void openWikiLinkByUrl(mdLink.getAttribute("href") ?? "");
             return true;
           }
-          return false;
+
+          const $pos = view.state.doc.resolve(pos);
+          const text = $pos.parent.textBetween(0, $pos.parent.content.size, "\n", "\n");
+          const link = findThoughtWikiLinkAtOffset(text, $pos.parentOffset);
+          if (!link) return false;
+
+          event.preventDefault();
+          event.stopPropagation();
+          void openWikiLinkByUrl(link.id);
+          return true;
         },
       },
     });
@@ -216,10 +226,9 @@ class WikiLinkHintView {
   private applySuggestion(thought: ThoughtSummaryDTO): void {
     if (!this.currentMatch) return;
 
-    const label = getSuggestionLabel(thought);
-    const { schema } = this.view.state;
-    const linkMark = schema.marks.link.create({ href: `/wiki/${thought.id}` });
-    const textNode = schema.text(label, [linkMark]);
+    const textNode = this.view.state.schema.text(
+      formatThoughtWikiLink({ title: getSuggestionLabel(thought), id: thought.id }),
+    );
     const tr = this.view.state.tr.replaceWith(
       this.currentMatch.from,
       this.currentMatch.to,
@@ -293,7 +302,7 @@ const EditorCore = defineComponent({
 
       crepe.on((api) => {
         api.markdownUpdated((_ctx, markdown, _prevMarkdown) => {
-          props.onUpdate(markdown);
+          props.onUpdate(normalizeThoughtWikiLinkBody(markdown));
         });
       });
 
