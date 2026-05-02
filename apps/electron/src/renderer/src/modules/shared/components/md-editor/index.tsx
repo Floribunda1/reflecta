@@ -78,6 +78,8 @@ function createWikiLinkHintPlugin() {
           return pluginView?.handleKeyDown(event) ?? false;
         },
         handleClick(view, pos, event) {
+          if (!event.metaKey) return false;
+
           const mdLink = (event.target as Element | null)?.closest<HTMLAnchorElement>(
             "a[data-wiki-link]",
           );
