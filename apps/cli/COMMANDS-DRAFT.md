@@ -288,33 +288,33 @@ type TrashedContext = ContextFull & {
 
 ### 3.7 命令到返回类型映射
 
-| Command                                             | 默认 stdout               | `--format=json`           | 备注                             |
-| --------------------------------------------------- | ------------------------- | ------------------------- | -------------------------------- |
-| `meta actions`                                      | `CommandSummary` JSONL    | `CommandSummary[]`        | 自发现入口                       |
-| `meta schema <command>`                             | `CommandSchema`           | `CommandSchema`           | 单对象，不使用 JSONL             |
-| `search thoughts <query>`                           | `ThoughtSearchHit` JSONL  | `ThoughtSearchHit[]`      | 按 rank 排序                     |
-| `search contexts <query>`                           | `ContextSearchHit` JSONL  | `ContextSearchHit[]`      | 按 rank 排序                     |
-| `search all <query>`                                | `SearchAllResult`         | `SearchAllResult`         | 聚合对象                         |
-| `thought list`                                      | `ThoughtSummary` JSONL    | `ThoughtSummary[]`        | 浏览/过滤，不做关键词搜索        |
-| `thought get <id>`                                  | `ThoughtDetail`           | `ThoughtDetail`           | 默认轻量，`--include-*` 按需展开 |
-| `thought create`                                    | `ThoughtDetail`           | `ThoughtDetail`           | mutation，需 `--yes`             |
-| `thought update <id>`                               | `ThoughtDetail`           | `ThoughtDetail`           | mutation，需 `--yes`             |
-| `thought delete <id>`                               | 空                        | 空                        | mutation，需 `--yes`             |
-| `thought restore <id>`                              | 空                        | 空                        | mutation，需 `--yes`             |
-| `context list --thought-id <id>`                    | `ContextFull` JSONL       | `ContextFull[]`           | Thought 的来源材料               |
-| `context create`                                    | `ContextFull`             | `ContextFull`             | mutation，需 `--yes`             |
-| `context update <id>`                               | `ContextFull`             | `ContextFull`             | mutation，需 `--yes`             |
-| `context delete <id>`                               | 空                        | 空                        | mutation，需 `--yes`             |
-| `context restore <id>`                              | 空                        | 空                        | mutation，需 `--yes`             |
-| `category list`                                     | `CategorySummary` JSONL   | `CategorySummary[]`       | 分类浏览                         |
-| `category inspect <id>`                             | `CategoryInspectResult`   | `CategoryInspectResult`   | 聚合对象                         |
-| `category create`                                   | `CategorySummary`         | `CategorySummary`         | mutation，需 `--yes`             |
-| `category update <id>`                              | `CategorySummary`         | `CategorySummary`         | mutation，需 `--yes`             |
-| `category delete <id>`                              | 空                        | 空                        | mutation，需 `--yes`             |
-| `graph neighborhood --thought-id <id>`              | `GraphNeighborhoodResult` | `GraphNeighborhoodResult` | 聚合对象                         |
-| `graph path --from <id> --to <id>`                  | `GraphPathResult`         | `GraphPathResult`         | 聚合对象                         |
-| `trash list-thoughts`                               | `TrashedThought` JSONL    | `TrashedThought[]`        | 回收站列表                       |
-| `trash list-contexts`                               | `TrashedContext` JSONL    | `TrashedContext[]`        | 回收站列表                       |
+| Command                                | 默认 stdout               | `--format=json`           | 备注                             |
+| -------------------------------------- | ------------------------- | ------------------------- | -------------------------------- |
+| `meta actions`                         | `CommandSummary` JSONL    | `CommandSummary[]`        | 自发现入口                       |
+| `meta schema <command>`                | `CommandSchema`           | `CommandSchema`           | 单对象，不使用 JSONL             |
+| `search thoughts <query>`              | `ThoughtSearchHit` JSONL  | `ThoughtSearchHit[]`      | 按 rank 排序                     |
+| `search contexts <query>`              | `ContextSearchHit` JSONL  | `ContextSearchHit[]`      | 按 rank 排序                     |
+| `search all <query>`                   | `SearchAllResult`         | `SearchAllResult`         | 聚合对象                         |
+| `thought list`                         | `ThoughtSummary` JSONL    | `ThoughtSummary[]`        | 浏览/过滤，不做关键词搜索        |
+| `thought get <id>`                     | `ThoughtDetail`           | `ThoughtDetail`           | 默认轻量，`--include-*` 按需展开 |
+| `thought create`                       | `ThoughtDetail`           | `ThoughtDetail`           | mutation，需 `--yes`             |
+| `thought update <id>`                  | `ThoughtDetail`           | `ThoughtDetail`           | mutation，需 `--yes`             |
+| `thought delete <id>`                  | 空                        | 空                        | mutation，需 `--yes`             |
+| `thought restore <id>`                 | 空                        | 空                        | mutation，需 `--yes`             |
+| `context list --thought-id <id>`       | `ContextFull` JSONL       | `ContextFull[]`           | Thought 的来源材料               |
+| `context create`                       | `ContextFull`             | `ContextFull`             | mutation，需 `--yes`             |
+| `context update <id>`                  | `ContextFull`             | `ContextFull`             | mutation，需 `--yes`             |
+| `context delete <id>`                  | 空                        | 空                        | mutation，需 `--yes`             |
+| `context restore <id>`                 | 空                        | 空                        | mutation，需 `--yes`             |
+| `category list`                        | `CategorySummary` JSONL   | `CategorySummary[]`       | 分类浏览                         |
+| `category inspect <id>`                | `CategoryInspectResult`   | `CategoryInspectResult`   | 聚合对象                         |
+| `category create`                      | `CategorySummary`         | `CategorySummary`         | mutation，需 `--yes`             |
+| `category update <id>`                 | `CategorySummary`         | `CategorySummary`         | mutation，需 `--yes`             |
+| `category delete <id>`                 | 空                        | 空                        | mutation，需 `--yes`             |
+| `graph neighborhood --thought-id <id>` | `GraphNeighborhoodResult` | `GraphNeighborhoodResult` | 聚合对象                         |
+| `graph path --from <id> --to <id>`     | `GraphPathResult`         | `GraphPathResult`         | 聚合对象                         |
+| `trash list-thoughts`                  | `TrashedThought` JSONL    | `TrashedThought[]`        | 回收站列表                       |
+| `trash list-contexts`                  | `TrashedContext` JSONL    | `TrashedContext[]`        | 回收站列表                       |
 
 ---
 
@@ -1126,14 +1126,14 @@ reflecta category inspect cat_identity --include-descendants --include-contexts 
 
 建议新增或调整：
 
-| 能力                                                      | 优先级 | 原因                                                 |
-| --------------------------------------------------------- | ------ | ---------------------------------------------------- |
-| `meta actions` / `meta schema`                            | P0     | 纯 Agent CLI 需要机器可读自发现                      |
-| `category inspect`                                        | P0     | Category 洞察挖掘的主入口，避免 N+1                  |
-| `search thoughts` 返回 rank/snippet 并保序                | P0     | 搜索入口质量直接影响后续调用                         |
-| `graph neighborhood`                                      | P1     | 发散探索和图谱解释需要局部邻域                       |
-| `graph path`                                              | P2     | 明确桥梁探索有用，但不是所有场景必需                 |
-| `thought get-many`                                        | P2     | 大型 Category 分批分析时减少 round-trip              |
+| 能力                                       | 优先级 | 原因                                    |
+| ------------------------------------------ | ------ | --------------------------------------- |
+| `meta actions` / `meta schema`             | P0     | 纯 Agent CLI 需要机器可读自发现         |
+| `category inspect`                         | P0     | Category 洞察挖掘的主入口，避免 N+1     |
+| `search thoughts` 返回 rank/snippet 并保序 | P0     | 搜索入口质量直接影响后续调用            |
+| `graph neighborhood`                       | P1     | 发散探索和图谱解释需要局部邻域          |
+| `graph path`                               | P2     | 明确桥梁探索有用，但不是所有场景必需    |
+| `thought get-many`                         | P2     | 大型 Category 分批分析时减少 round-trip |
 
 ---
 
