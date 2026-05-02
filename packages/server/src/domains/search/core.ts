@@ -1,7 +1,17 @@
 import { sql } from "drizzle-orm";
 import type { ReflectaDb } from "../../db/types";
 import type { SearchOptions } from "./types";
-import { escapeFtsQuery, getLimitOffset } from "../shared/core";
+
+export function getLimitOffset(options?: SearchOptions) {
+  return {
+    limit: options?.limit ?? 20,
+    offset: options?.offset ?? 0,
+  };
+}
+
+export function escapeFtsQuery(query: string): string {
+  return `"${query.replace(/"/g, '""')}"`;
+}
 
 export class SearchCore {
   constructor(protected db: ReflectaDb) {}

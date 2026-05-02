@@ -2,8 +2,9 @@ import { and, desc, inArray, isNull } from "drizzle-orm";
 import { contexts, thoughtCategories, thoughtConnections, thoughts } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import { CategoryCore } from "./core";
-import { getCategoryDescendants, makePageInfo } from "../shared/core";
-import { toThoughtSummaries } from "../shared/bff-cli";
+import { getCategoryDescendants } from "./core";
+import { makePageInfo } from "../shared/types";
+import { toThoughtSummaries } from "../thought/core";
 import type { ContextDetail, SourceType } from "../context/types";
 import type { ThoughtNode } from "../thought/types";
 import type {

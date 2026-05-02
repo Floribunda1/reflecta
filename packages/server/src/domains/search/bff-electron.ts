@@ -3,7 +3,7 @@ import { thoughts } from "../../db/schema";
 import type { FtsContextResult, SearchOptions, SearchResult } from "./types";
 import type { ThoughtSummaryDTO } from "../thought/types";
 import { SearchCore } from "./core";
-import { getLimitOffset } from "../shared/core";
+import { getLimitOffset } from "./core";
 import type { ReflectaServerContext } from "../shared/types-electron";
 import type { ThoughtElectronBff } from "../thought/bff-electron";
 

@@ -7,7 +7,7 @@ import {
   thoughts,
 } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
-import { toThoughtSummaries } from "../shared/bff-cli";
+import { toThoughtSummaries } from "../thought/core";
 import type { ProjectSnapshotResult } from "./types";
 
 export class SnapshotCliBff {

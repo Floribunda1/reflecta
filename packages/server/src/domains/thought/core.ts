@@ -1,10 +1,43 @@
-import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, or, sql, count } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { thoughtCategories, thoughtConnections, thoughts } from "../../db/schema";
+import { contexts, thoughtCategories, thoughtConnections, thoughts } from "../../db/schema";
 import { extractThoughtWikiLinkTargets, normalizeThoughtWikiLinkBody } from "../../wiki-links";
-import { getCategoryDescendants } from "../shared/core";
+import { getCategoryDescendants } from "../category/core";
 import type { ReflectaDb } from "../../db/types";
-import type { CreateThoughtInput, ListThoughtsFilter, UpdateThoughtInput } from "./types";
+import type {
+  CreateThoughtInput,
+  ListThoughtsFilter,
+  ThoughtSummary,
+  ThoughtType,
+  UpdateThoughtInput,
+} from "./types";
+import { resolveCategoryRefs } from "../category/core";
+
+export async function getThoughtConnectionCounts(
+  db: ReflectaDb,
+  thoughtId: string,
+): Promise<{ contextCount: number; referenceCount: number; referencedByCount: number }> {
+  const [ctxCountRes, refCountRes, refByCountRes] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(contexts)
+      .where(and(eq(contexts.thoughtId, thoughtId), isNull(contexts.deletedAt))),
+    db
+      .select({ count: count() })
+      .from(thoughtConnections)
+      .where(eq(thoughtConnections.sourceId, thoughtId)),
+    db
+      .select({ count: count() })
+      .from(thoughtConnections)
+      .where(eq(thoughtConnections.targetId, thoughtId)),
+  ]);
+
+  return {
+    contextCount: ctxCountRes[0]?.count ?? 0,
+    referenceCount: refCountRes[0]?.count ?? 0,
+    referencedByCount: refByCountRes[0]?.count ?? 0,
+  };
+}
 
 export class ThoughtCore {
   constructor(protected db: ReflectaDb) {}
@@ -224,4 +257,19 @@ export class ThoughtCore {
         .onConflictDoNothing();
     });
   }
+}
+
+export async function toThoughtSummaries(
+  db: ReflectaDb,
+  rows: Array<typeof thoughts.$inferSelect>,
+): Promise<ThoughtSummary[]> {
+  const ids = rows.map((r) => r.id);
+  const catRefs = await resolveCategoryRefs(db, ids);
+  return rows.map((row) => ({
+    id: row.id,
+    type: row.type as ThoughtType,
+    title: row.title ?? null,
+    body: row.body,
+    categories: catRefs.get(row.id) ?? [],
+  }));
 }

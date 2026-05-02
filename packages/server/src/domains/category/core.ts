@@ -4,6 +4,22 @@ import { categories, thoughtCategories, thoughts } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type { CreateCategoryInput, ReorderCategoryItem, UpdateCategoryInput } from "./types";
 
+export async function getCategoryDescendants(
+  db: ReflectaDb,
+  categoryId: string,
+): Promise<string[]> {
+  const result = await db.all<{ id: string }>(sql`
+    WITH RECURSIVE descendants(id) AS (
+      SELECT id FROM categories WHERE parent_id = ${categoryId}
+      UNION ALL
+      SELECT c.id FROM categories c
+      INNER JOIN descendants d ON c.parent_id = d.id
+    )
+    SELECT id FROM descendants
+  `);
+  return result.map((r) => r.id);
+}
+
 export class CategoryCore {
   constructor(protected db: ReflectaDb) {}
 
@@ -96,4 +112,33 @@ export class CategoryCore {
       }
     });
   }
+}
+
+export async function resolveCategoryRefs(
+  db: ReflectaDb,
+  thoughtIds: string[],
+): Promise<Map<string, { id: string; name: string; parentId: string | null }[]>> {
+  if (thoughtIds.length === 0) return new Map();
+
+  const tcRows = await db
+    .select()
+    .from(thoughtCategories)
+    .where(inArray(thoughtCategories.thoughtId, thoughtIds));
+
+  const categoryIds = [...new Set(tcRows.map((tc) => tc.categoryId))];
+  const catRows =
+    categoryIds.length > 0
+      ? await db.select().from(categories).where(inArray(categories.id, categoryIds))
+      : [];
+  const catMap = new Map(catRows.map((c) => [c.id, c]));
+
+  const result = new Map<string, { id: string; name: string; parentId: string | null }[]>();
+  for (const tc of tcRows) {
+    const cat = catMap.get(tc.categoryId);
+    if (!cat) continue;
+    const refs = result.get(tc.thoughtId) ?? [];
+    refs.push({ id: cat.id, name: cat.name, parentId: cat.parentId });
+    result.set(tc.thoughtId, refs);
+  }
+  return result;
 }

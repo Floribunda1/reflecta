@@ -11,8 +11,8 @@ import type {
   UpdateThoughtInput,
 } from "./types";
 import type { ListThoughtsFilter } from "./types";
-import { getThoughtConnectionCounts } from "../shared/core";
-import { toThoughtSummaries } from "../shared/bff-cli";
+import { getThoughtConnectionCounts } from "./core";
+import { toThoughtSummaries } from "./core";
 
 export class ThoughtCliBff extends ThoughtCore {
   constructor(db: ReflectaDb) {

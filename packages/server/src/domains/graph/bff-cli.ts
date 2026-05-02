@@ -1,8 +1,8 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { contexts, thoughtConnections, thoughts } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
-import { makePageInfo } from "../shared/core";
-import { toThoughtSummaries } from "../shared/bff-cli";
+import { makePageInfo } from "../shared/types";
+import { toThoughtSummaries } from "../thought/core";
 import type { ContextDetail, SourceType } from "../context/types";
 import type { ThoughtNode, ThoughtSummary } from "../thought/types";
 import type { GraphNeighborhoodOptions, GraphNeighborhoodResult, GraphPathResult } from "./types";
