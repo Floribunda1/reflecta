@@ -31,7 +31,9 @@ async function handleWikiLinkClick(e: MouseEvent): Promise<void> {
   const target = link.dataset.wikiLink;
   if (!target) return;
 
-  const thought = await ipcClient.thought.resolveWikiLinkTarget(target);
+  const id = target.replace(/^\/wiki\//, "").trim();
+  if (!id) return;
+  const thought = await ipcClient.thought.getThoughtById(id);
   if (!thought) return;
 
   searchEventBus.emit("thoughtSelected", {

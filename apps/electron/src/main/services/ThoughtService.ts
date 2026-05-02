@@ -45,9 +45,4 @@ export class ThoughtService extends IpcService {
   async permanentlyDeleteThought(id: string): Promise<void> {
     return thoughtService.permanentlyDeleteThought(id);
   }
-
-  @IpcMethod()
-  async resolveWikiLinkTarget(target: string): Promise<ThoughtSummaryDTO | null> {
-    return thoughtService.resolveWikiLinkTarget(target);
-  }
 }

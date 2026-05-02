@@ -511,7 +511,6 @@ interface ThoughtService {
   delete(id: string): Promise<ThoughtListItem>; // 返回被删除的实体（含 deletedAt）
   addConnection(sourceId: string, targetId: string): Promise<ThoughtConnection>;
   removeConnection(sourceId: string, targetId: string): Promise<void>;
-  resolveLinkTarget(target: string): Promise<SuggestItem | null>;
 }
 
 interface ContextService {
@@ -759,7 +758,6 @@ export const thoughtApi = {
     ipcClient.thought.addConnection(sourceId, targetId),
   removeConnection: (sourceId: string, targetId: string) =>
     ipcClient.thought.removeConnection(sourceId, targetId),
-  resolveLinkTarget: (target: string) => ipcClient.thought.resolveLinkTarget(target),
 };
 ```
 

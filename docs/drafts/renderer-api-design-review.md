@@ -9,7 +9,7 @@
 ```
 category.*        → list, create, update, delete, reorder
 thought.*         → list, getById, create, update, delete, restore, permanentlyDelete,
-                    addConnection, removeConnection, resolveWikiLinkTarget
+                    addConnection, removeConnection
 context.*         → listByThought, create, update, delete, restore, permanentlyDelete,
                     listTrashed
 search.*          → searchThoughts, searchContexts, search

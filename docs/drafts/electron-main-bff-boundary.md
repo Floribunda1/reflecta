@@ -291,7 +291,6 @@ Main / DialogService.pickDirectory()
 | `thought.delete()`            | **BFF** | 软删除 + 返回被删除实体              |
 | `thought.addConnection()`     | **BFF** | 关系操作的业务规则                   |
 | `thought.removeConnection()`  | **BFF** | 关系操作的业务规则                   |
-| `thought.resolveLinkTarget()` | **BFF** | 搜索 + 返回 SuggestItem              |
 
 ### 6.2 Context 域
 

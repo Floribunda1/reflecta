@@ -25,9 +25,9 @@ function getSuggestionLabel(thought: ThoughtSummaryDTO): string {
 }
 
 async function openWikiLinkByUrl(url: string): Promise<void> {
-  const id = url.trim();
+  const id = url.replace(/^\/wiki\//, "").trim();
   if (!id) return;
-  const thought = await ipcClient.thought.resolveWikiLinkTarget(id);
+  const thought = await ipcClient.thought.getThoughtById(id);
   if (!thought) return;
   searchEventBus.emit("thoughtSelected", {
     thoughtId: thought.id,

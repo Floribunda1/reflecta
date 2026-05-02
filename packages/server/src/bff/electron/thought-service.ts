@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { contexts, thoughtCategories, thoughtConnections, thoughts } from "../../db/schema";
 import type {
   CreateThoughtInput,
@@ -174,28 +174,6 @@ export class ThoughtService {
 
   async permanentlyDeleteThought(id: string): Promise<void> {
     await corePermanentlyDeleteThought(this.options.getDb(), id);
-  }
-
-  async resolveWikiLinkTarget(target: string): Promise<ThoughtSummaryDTO | null> {
-    const db = this.options.getDb();
-    const normalizedTarget = target.replace(/^\/wiki\//, "").trim();
-    if (!normalizedTarget) return null;
-
-    const rows = await db
-      .select()
-      .from(thoughts)
-      .where(
-        and(
-          isNull(thoughts.deletedAt),
-          or(eq(thoughts.id, normalizedTarget), eq(thoughts.title, normalizedTarget)),
-        ),
-      )
-      .orderBy(desc(thoughts.updatedAt))
-      .limit(1);
-
-    if (rows.length === 0) return null;
-    const [summary] = await this.assembleThoughtSummaryDTOs(rows);
-    return summary ?? null;
   }
 
   async listRecentThoughts(limit = 20): Promise<ThoughtSummaryDTO[]> {
