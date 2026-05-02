@@ -479,25 +479,25 @@
 }
 
 .milkdown-editor .milkdown .ProseMirror .reflecta-wiki-link {
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
   cursor: pointer;
   border-radius: 4px;
   background: color-mix(in srgb, var(--p-primary-color), transparent 90%);
   font-size: 0;
   padding: 0 4px;
-  line-height: 1.5;
-  position: relative;
+  line-height: inherit;
   vertical-align: baseline;
   white-space: nowrap;
 }
 
 .milkdown-editor .milkdown .ProseMirror .reflecta-wiki-link::after {
   content: attr(data-wiki-display);
+  display: inline-block;
   color: var(--p-primary-color);
   font-size: 1rem;
-  line-height: 1.5;
+  line-height: inherit;
   pointer-events: none;
+  vertical-align: baseline;
 }
 
 .wiki-link-hint {
