@@ -13,12 +13,12 @@ export class ContextCliBff extends ContextCore {
   }
 
   async listContexts(thoughtId: string): Promise<ContextDetail[]> {
-    const rows = await this.listContextRows(thoughtId);
+    const rows = await this.listContextsByThought(thoughtId);
     return rows.map((r) => ({
       id: r.id,
       thoughtId: r.thoughtId,
-      sourceType: r.sourceType as SourceType,
-      sourceName: r.sourceName ?? null,
+      sourceType: r.sourceType,
+      sourceName: r.sourceName,
       content: r.content,
     }));
   }
@@ -43,8 +43,8 @@ export class ContextCliBff extends ContextCore {
     return {
       id: row.id,
       thoughtId: row.thoughtId,
-      sourceType: row.sourceType as SourceType,
-      sourceName: row.sourceName ?? null,
+      sourceType: row.sourceType,
+      sourceName: row.sourceName,
       content: row.content,
     };
   }
@@ -54,8 +54,8 @@ export class ContextCliBff extends ContextCore {
     return {
       id: row.id,
       thoughtId: row.thoughtId,
-      sourceType: row.sourceType as SourceType,
-      sourceName: row.sourceName ?? null,
+      sourceType: row.sourceType,
+      sourceName: row.sourceName,
       content: row.content,
     };
   }

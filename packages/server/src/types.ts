@@ -10,8 +10,6 @@ export type {
 
 export type {
   SourceType,
-  Context,
-  NewContext,
   ContextDTO,
   CreateContextInput,
   UpdateContextInput,

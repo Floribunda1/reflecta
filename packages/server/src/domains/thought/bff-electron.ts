@@ -1,5 +1,6 @@
 import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { contexts, thoughtCategories, thoughtConnections, thoughts } from "../../db/schema";
+import type { SourceType } from "../context/types";
 import type {
   CreateThoughtInput,
   ListThoughtsFilter,
@@ -9,7 +10,6 @@ import type {
   UpdateThoughtInput,
 } from "./types";
 import { ThoughtCore } from "./core";
-import { rowToContextDTO } from "../shared/bff-electron";
 import type { ReflectaServerContext } from "../shared/types-electron";
 
 export class ThoughtElectronBff extends ThoughtCore {
@@ -68,7 +68,10 @@ export class ThoughtElectronBff extends ThoughtCore {
       title: t.title ?? null,
       body: t.body,
       categoryIds: tcMap.get(t.id) ?? [],
-      contexts: (ctxMap.get(t.id) ?? []).map(rowToContextDTO),
+      contexts: (ctxMap.get(t.id) ?? []).map((r) => ({
+        ...r,
+        sourceType: r.sourceType as SourceType,
+      })),
       connections: connMap.get(t.id) ?? [],
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
@@ -130,7 +133,7 @@ export class ThoughtElectronBff extends ThoughtCore {
       title: row.title ?? null,
       body: row.body,
       categoryIds: tcRows.map((r) => r.categoryId),
-      contexts: ctxRows.map(rowToContextDTO),
+      contexts: ctxRows.map((r) => ({ ...r, sourceType: r.sourceType as SourceType })),
       connections,
       referencedBy,
       createdAt: row.createdAt,

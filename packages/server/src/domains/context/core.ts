@@ -2,17 +2,19 @@ import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { contexts } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
-import type { CreateContextInput, SourceType, UpdateContextInput } from "./types";
+import type { ContextDTO, CreateContextInput, SourceType, UpdateContextInput } from "./types";
+import type { TrashedContextDTO } from "../trash/types";
 
 export class ContextCore {
   constructor(protected db: ReflectaDb) {}
 
-  async listContextRows(thoughtId: string): Promise<Array<typeof contexts.$inferSelect>> {
-    return this.db
+  async listContextsByThought(thoughtId: string): Promise<ContextDTO[]> {
+    const rows = await this.db
       .select()
       .from(contexts)
       .where(and(eq(contexts.thoughtId, thoughtId), isNull(contexts.deletedAt)))
       .orderBy(desc(contexts.createdAt));
+    return rows as ContextDTO[];
   }
 
   async getContextRow(id: string): Promise<typeof contexts.$inferSelect | null> {
@@ -24,7 +26,7 @@ export class ContextCore {
     return rows[0] ?? null;
   }
 
-  async _createContext(input: CreateContextInput): Promise<typeof contexts.$inferSelect> {
+  async _createContext(input: CreateContextInput): Promise<ContextDTO> {
     const createdAt = new Date().toISOString();
     const id = nanoid();
 
@@ -46,25 +48,22 @@ export class ContextCore {
       `);
     });
 
-    return { ...row, createdAt, deletedAt: null } as typeof contexts.$inferSelect;
+    return { ...row, createdAt, deletedAt: null } as ContextDTO;
   }
 
-  async _updateContext(
-    id: string,
-    input: UpdateContextInput,
-  ): Promise<typeof contexts.$inferSelect> {
+  async _updateContext(id: string, input: UpdateContextInput): Promise<ContextDTO> {
     const updates: Partial<typeof contexts.$inferInsert> = {};
     if (input.sourceType !== undefined) updates.sourceType = input.sourceType;
     if (input.sourceName !== undefined) updates.sourceName = input.sourceName;
     if (input.content !== undefined) updates.content = input.content;
 
-    let updated: typeof contexts.$inferSelect | undefined;
+    let updated: ContextDTO | undefined;
     await this.db.transaction(async (tx) => {
       const rows = await tx.update(contexts).set(updates).where(eq(contexts.id, id)).returning();
       if (rows.length === 0) {
         throw new Error(`Context not found: ${id}`);
       }
-      updated = rows[0];
+      updated = rows[0] as ContextDTO;
 
       await tx.run(sql`DELETE FROM fts_contexts WHERE context_id = ${id}`);
       await tx.run(sql`
@@ -112,17 +111,7 @@ export class ContextCore {
     });
   }
 
-  async listTrashedContextRows(): Promise<
-    Array<{
-      id: string;
-      thoughtId: string;
-      thoughtTitle: string | null;
-      sourceType: SourceType;
-      sourceName: string | null;
-      content: string;
-      deletedAt: string;
-    }>
-  > {
+  async listTrashedContexts(): Promise<TrashedContextDTO[]> {
     const rows = await this.db.all<{
       id: string;
       thought_id: string;
