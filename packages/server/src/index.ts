@@ -9,7 +9,6 @@ export { ContextElectronBff } from "./domains/context/bff-electron";
 export { ThoughtElectronBff } from "./domains/thought/bff-electron";
 export { SearchElectronBff } from "./domains/search/bff-electron";
 export { TrashElectronBff } from "./domains/trash/bff-electron";
-export type { ReflectaDb, ReflectaServerContext } from "./domains/shared/types-electron";
 
 // CLI BFF services
 export { CategoryCliBff } from "./domains/category/bff-cli";

@@ -8,7 +8,7 @@ import {
 } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import { toThoughtSummaries } from "../shared/bff-cli";
-import type { ProjectSnapshotResult } from "../shared/types-cli";
+import type { ProjectSnapshotResult } from "./types";
 
 export class SnapshotCliBff {
   constructor(private db: ReflectaDb) {}

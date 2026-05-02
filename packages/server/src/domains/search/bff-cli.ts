@@ -3,12 +3,9 @@ import { thoughts } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import { SearchCore } from "./core";
 import { toThoughtSummaries } from "../shared/bff-cli";
-import type {
-  ContextSearchHit,
-  SearchAllResult,
-  SearchOptions,
-  ThoughtSearchHit,
-} from "../shared/types-cli";
+import type { ContextSearchHit } from "../context/types";
+import type { ThoughtSearchHit } from "../thought/types";
+import type { SearchAllResult, SearchOptions } from "./types";
 
 export class SearchCliBff extends SearchCore {
   constructor(db: ReflectaDb) {

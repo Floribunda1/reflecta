@@ -4,16 +4,15 @@ import type { ReflectaDb } from "../../db/types";
 import { CategoryCore } from "./core";
 import { getCategoryDescendants, makePageInfo } from "../shared/core";
 import { toThoughtSummaries } from "../shared/bff-cli";
+import type { ContextDetail, SourceType } from "../context/types";
+import type { ThoughtNode } from "../thought/types";
 import type {
   CategoryInspectResult,
   CategorySummary,
-  ContextDetail,
   CreateCategoryInput,
   InspectCategoryOptions,
-  SourceType,
-  ThoughtNode,
   UpdateCategoryInput,
-} from "../shared/types-cli";
+} from "./types";
 
 export class CategoryCliBff extends CategoryCore {
   constructor(db: ReflectaDb) {

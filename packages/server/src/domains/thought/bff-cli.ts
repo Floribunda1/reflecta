@@ -2,14 +2,14 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { ThoughtCore } from "./core";
 import { contexts, thoughtConnections, thoughts } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
+import type { SourceType } from "../context/types";
 import type {
   CreateThoughtInput,
   GetThoughtOptions,
-  SourceType,
   ThoughtDetail,
   ThoughtSummary,
   UpdateThoughtInput,
-} from "../shared/types-cli";
+} from "./types";
 import type { ListThoughtsFilter } from "./types";
 import { getThoughtConnectionCounts } from "../shared/core";
 import { toThoughtSummaries } from "../shared/bff-cli";

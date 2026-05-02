@@ -1,11 +1,6 @@
 import type { ReflectaDb } from "../../db/types";
 import { ContextCore } from "./core";
-import type {
-  ContextDetail,
-  CreateContextInput,
-  SourceType,
-  UpdateContextInput,
-} from "../shared/types-cli";
+import type { ContextDetail, CreateContextInput, SourceType, UpdateContextInput } from "./types";
 
 export class ContextCliBff extends ContextCore {
   constructor(db: ReflectaDb) {

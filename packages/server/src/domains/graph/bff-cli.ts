@@ -3,15 +3,9 @@ import { contexts, thoughtConnections, thoughts } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import { makePageInfo } from "../shared/core";
 import { toThoughtSummaries } from "../shared/bff-cli";
-import type {
-  ContextDetail,
-  GraphNeighborhoodOptions,
-  GraphNeighborhoodResult,
-  GraphPathResult,
-  SourceType,
-  ThoughtNode,
-  ThoughtSummary,
-} from "../shared/types-cli";
+import type { ContextDetail, SourceType } from "../context/types";
+import type { ThoughtNode, ThoughtSummary } from "../thought/types";
+import type { GraphNeighborhoodOptions, GraphNeighborhoodResult, GraphPathResult } from "./types";
 
 export class GraphCliBff {
   constructor(private db: ReflectaDb) {}

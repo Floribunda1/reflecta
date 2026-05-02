@@ -1,7 +1,8 @@
 import { thoughts } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import { resolveCategoryRefs as coreResolveCategoryRefs } from "./core";
-import type { CategoryRef, ThoughtSummary, ThoughtType } from "./types-cli";
+import type { CategoryRef } from "../category/types";
+import type { ThoughtSummary, ThoughtType } from "../thought/types";
 
 export async function resolveCategoryRefs(
   db: ReflectaDb,

@@ -1,4 +1,6 @@
 import type { ThoughtSummaryDTO } from "../thought/types";
+import type { ContextSearchHit } from "../context/types";
+import type { ThoughtSearchHit } from "../thought/types";
 
 export type SearchOptions = {
   limit?: number;
@@ -16,4 +18,9 @@ export type FtsContextResult = {
 export type SearchResult = {
   thoughts: ThoughtSummaryDTO[];
   contexts: FtsContextResult[];
+};
+
+export type SearchAllResult = {
+  thoughts: ThoughtSearchHit[];
+  contexts: ContextSearchHit[];
 };

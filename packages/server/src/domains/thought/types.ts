@@ -1,6 +1,7 @@
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import type { thoughtCategories, thoughtConnections, thoughts } from "../../db/schema";
-import type { ContextDTO } from "../context/types";
+import type { CategoryRef } from "../category/types";
+import type { ContextDTO, ContextDetail } from "../context/types";
 
 export type ThoughtType = "idea" | "insight";
 
@@ -53,4 +54,36 @@ export type ListThoughtsFilter = {
   categoryId?: string;
   includeDescendants?: boolean;
   searchQuery?: string;
+};
+
+export type ThoughtSummary = {
+  id: string;
+  type: ThoughtType;
+  title: string | null;
+  body: string;
+  categories: CategoryRef[];
+};
+
+export type ThoughtNode = ThoughtSummary & {
+  contextIds?: string[];
+};
+
+export type ThoughtSearchHit = ThoughtSummary & {
+  snippet: string;
+  rank: number;
+};
+
+export type ThoughtDetail = ThoughtSummary & {
+  contextCount: number;
+  referenceCount: number;
+  referencedByCount: number;
+  contexts?: ContextDetail[];
+  references?: ThoughtSummary[];
+  referencedBys?: ThoughtSummary[];
+};
+
+export type GetThoughtOptions = {
+  includeContexts?: boolean;
+  includeReferences?: boolean;
+  includeReferencedBys?: boolean;
 };
