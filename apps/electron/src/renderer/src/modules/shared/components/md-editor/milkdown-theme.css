@@ -478,6 +478,16 @@
   background: color-mix(in srgb, var(--p-primary-color), transparent 84%);
 }
 
+.milkdown-editor .milkdown .ProseMirror .reflecta-wiki-link {
+  display: inline-block;
+  cursor: pointer;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--p-primary-color), transparent 90%);
+  color: var(--p-primary-color);
+  padding: 0 4px;
+  line-height: 1.5;
+}
+
 .wiki-link-hint {
   position: fixed;
   z-index: 10000;

@@ -64,3 +64,25 @@ export function findThoughtWikiLinkAtOffset(text: string, offset: number): Thoug
 
   return null;
 }
+
+export function findThoughtWikiLinkRanges(
+  text: string,
+): Array<{ from: number; to: number; link: ThoughtWikiLink }> {
+  const ranges: Array<{ from: number; to: number; link: ThoughtWikiLink }> = [];
+
+  for (const match of text.matchAll(thoughtWikiLinkPattern)) {
+    const start = match.index ?? -1;
+    if (start === -1) continue;
+
+    const parsed = parseThoughtWikiLink(match[0]);
+    if (!parsed) continue;
+
+    ranges.push({
+      from: start,
+      to: start + match[0].length,
+      link: parsed,
+    });
+  }
+
+  return ranges;
+}

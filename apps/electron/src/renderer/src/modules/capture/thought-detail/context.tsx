@@ -69,6 +69,7 @@ const [createThoughtDetailContext, useThoughtDetailContext] = createInjectionSta
       );
 
       if (input.body !== undefined) {
+        queryClient.invalidateQueries({ queryKey: ["thought.getThoughtById"], exact: false });
         queryClient.invalidateQueries({ queryKey: ["thought.listThoughts"], exact: false });
         queryClient.invalidateQueries({ queryKey: ["contemplate.listThoughts"], exact: false });
       }

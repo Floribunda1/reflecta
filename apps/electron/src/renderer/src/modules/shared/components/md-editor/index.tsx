@@ -3,13 +3,14 @@ import { defineComponent, ref, watch, type PropType } from "vue";
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/vue";
 import { Crepe } from "@milkdown/crepe";
 import { replaceAll } from "@milkdown/utils";
-import type { EditorView } from "@milkdown/kit/prose/view";
+import { Decoration, DecorationSet, type EditorView } from "@milkdown/kit/prose/view";
 import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
 import { $prose } from "@milkdown/kit/utils";
 import type { ThoughtSummaryDTO } from "@shared/thought";
 import { searchEventBus } from "@renderer/utils/searchEventBus";
 import {
   findThoughtWikiLinkAtOffset,
+  findThoughtWikiLinkRanges,
   formatThoughtWikiLink,
   normalizeThoughtWikiLinkBody,
 } from "../wiki-links";
@@ -37,6 +38,30 @@ function createWikiLinkHintPlugin() {
   return $prose(() => {
     let pluginView: WikiLinkHintView | null = null;
 
+    const buildDecorations = (
+      doc: Parameters<
+        Exclude<EditorView["state"], undefined>["doc"]["descendants"]
+      >[0] extends never
+        ? never
+        : any,
+    ) => {
+      const decorations: Decoration[] = [];
+
+      doc.descendants((node: { isText?: boolean; text?: string }, pos: number) => {
+        if (!node.isText || !node.text) return;
+
+        for (const range of findThoughtWikiLinkRanges(node.text)) {
+          decorations.push(
+            Decoration.inline(pos + range.from, pos + range.to, {
+              class: "reflecta-wiki-link",
+            }),
+          );
+        }
+      });
+
+      return DecorationSet.create(doc, decorations);
+    };
+
     return new Plugin({
       key: new PluginKey("reflecta-wiki-link-hint"),
       view: (view) => {
@@ -44,6 +69,9 @@ function createWikiLinkHintPlugin() {
         return pluginView;
       },
       props: {
+        decorations(state) {
+          return buildDecorations(state.doc);
+        },
         handleKeyDown(_view, event) {
           return pluginView?.handleKeyDown(event) ?? false;
         },
