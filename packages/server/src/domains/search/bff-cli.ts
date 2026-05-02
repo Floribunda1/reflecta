@@ -1,9 +1,14 @@
 import { inArray } from "drizzle-orm";
 import { thoughts } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
-import { searchContextRows, searchThoughtIds } from "../core/search-core";
-import { toThoughtSummaries } from "./shared";
-import type { ContextSearchHit, SearchAllResult, SearchOptions, ThoughtSearchHit } from "./types";
+import { searchContextRows, searchThoughtIds } from "./core";
+import { toThoughtSummaries } from "../shared/bff-cli";
+import type {
+  ContextSearchHit,
+  SearchAllResult,
+  SearchOptions,
+  ThoughtSearchHit,
+} from "../shared/types-cli";
 
 export class SearchService {
   constructor(private db: ReflectaDb) {}

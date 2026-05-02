@@ -2,7 +2,7 @@ import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { contexts } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
-import type { CreateContextInput, SourceType, UpdateContextInput } from "../../types";
+import type { CreateContextInput, SourceType, UpdateContextInput } from "./types";
 
 export async function listContextRows(
   db: ReflectaDb,

@@ -1,10 +1,11 @@
 import { inArray } from "drizzle-orm";
 import { thoughts } from "../../db/schema";
-import type { FtsContextResult, SearchOptions, SearchResult, ThoughtSummaryDTO } from "../../types";
-import { searchContextRows, searchThoughtIds } from "../core/search-core";
-import { getLimitOffset } from "../core/shared";
-import type { ReflectaServerContext } from "./types";
-import type { ThoughtService } from "./thought-service";
+import type { FtsContextResult, SearchOptions, SearchResult } from "./types";
+import type { ThoughtSummaryDTO } from "../thought/types";
+import { searchContextRows, searchThoughtIds } from "./core";
+import { getLimitOffset } from "../shared/core";
+import type { ReflectaServerContext } from "../shared/types-electron";
+import type { ThoughtService } from "../thought/bff-electron";
 
 export class SearchService {
   constructor(

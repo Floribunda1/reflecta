@@ -3,16 +3,13 @@ export type ISODateTime = string;
 
 import type {
   ThoughtType,
-  SourceType,
   CreateThoughtInput,
   UpdateThoughtInput,
-  CreateContextInput,
-  UpdateContextInput,
-  CreateCategoryInput,
-  UpdateCategoryInput,
-  SearchOptions,
   ListThoughtsFilter,
-} from "../../types";
+} from "../thought/types";
+import type { SourceType, CreateContextInput, UpdateContextInput } from "../context/types";
+import type { CreateCategoryInput, UpdateCategoryInput } from "../category/types";
+import type { SearchOptions } from "../search/types";
 
 export type {
   ThoughtType,

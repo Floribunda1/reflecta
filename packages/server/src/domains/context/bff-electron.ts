@@ -6,15 +6,11 @@ import {
   permanentlyDeleteContext as corePermanentlyDeleteContext,
   restoreContext as coreRestoreContext,
   updateContext as coreUpdateContext,
-} from "../core/context-core";
-import type {
-  ContextDTO,
-  CreateContextInput,
-  TrashedContextDTO,
-  UpdateContextInput,
-} from "../../types";
-import { rowToContextDTO } from "./shared";
-import type { ReflectaServerContext } from "./types";
+} from "./core";
+import type { ContextDTO, CreateContextInput, UpdateContextInput } from "./types";
+import type { TrashedContextDTO } from "../trash/types";
+import { rowToContextDTO } from "../shared/bff-electron";
+import type { ReflectaServerContext } from "../shared/types-electron";
 
 export class ContextService {
   constructor(private readonly options: ReflectaServerContext) {}

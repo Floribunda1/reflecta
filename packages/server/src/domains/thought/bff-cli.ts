@@ -5,7 +5,7 @@ import {
   getThoughtRow,
   listThoughtRows,
   updateThought as coreUpdateThought,
-} from "../core/thought-core";
+} from "./core";
 import { contexts, thoughtConnections, thoughts } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type {
@@ -16,9 +16,9 @@ import type {
   ThoughtDetail,
   ThoughtSummary,
   UpdateThoughtInput,
-} from "./types";
-import { getThoughtConnectionCounts } from "../core/shared";
-import { toThoughtSummaries } from "./shared";
+} from "../shared/types-cli";
+import { getThoughtConnectionCounts } from "../shared/core";
+import { toThoughtSummaries } from "../shared/bff-cli";
 
 export class ThoughtService {
   constructor(private db: ReflectaDb) {}

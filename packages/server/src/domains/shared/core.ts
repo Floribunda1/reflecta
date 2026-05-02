@@ -1,7 +1,7 @@
 import { and, eq, inArray, isNull, sql, count } from "drizzle-orm";
 import { categories, contexts, thoughtCategories, thoughtConnections } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
-import type { SearchOptions } from "../../types";
+import type { SearchOptions } from "../search/types";
 
 export function getLimitOffset(options?: SearchOptions) {
   return {

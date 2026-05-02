@@ -1,8 +1,8 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { contexts, thoughtConnections, thoughts } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
-import { makePageInfo } from "../core/shared";
-import { toThoughtSummaries } from "./shared";
+import { makePageInfo } from "../shared/core";
+import { toThoughtSummaries } from "../shared/bff-cli";
 import type {
   ContextDetail,
   GraphNeighborhoodOptions,
@@ -11,7 +11,7 @@ import type {
   SourceType,
   ThoughtNode,
   ThoughtSummary,
-} from "./types";
+} from "../shared/types-cli";
 
 export class GraphService {
   constructor(private db: ReflectaDb) {}

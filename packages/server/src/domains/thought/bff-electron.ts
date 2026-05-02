@@ -7,7 +7,7 @@ import type {
   ThoughtSummaryDTO,
   ThoughtType,
   UpdateThoughtInput,
-} from "../../types";
+} from "./types";
 import {
   createThought as coreCreateThought,
   deleteThought as coreDeleteThought,
@@ -17,9 +17,9 @@ import {
   permanentlyDeleteThought as corePermanentlyDeleteThought,
   restoreThought as coreRestoreThought,
   updateThought as coreUpdateThought,
-} from "../core/thought-core";
-import { rowToContextDTO } from "./shared";
-import type { ReflectaServerContext } from "./types";
+} from "./core";
+import { rowToContextDTO } from "../shared/bff-electron";
+import type { ReflectaServerContext } from "../shared/types-electron";
 
 export class ThoughtService {
   constructor(private readonly options: ReflectaServerContext) {}

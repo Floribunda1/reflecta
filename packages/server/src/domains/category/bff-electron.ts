@@ -4,15 +4,15 @@ import {
   listCategoryRows,
   reorderCategories as coreReorderCategories,
   updateCategory as coreUpdateCategory,
-} from "../core/category-core";
+} from "./core";
 import type {
   Category,
   CategoryWithCounts,
   CreateCategoryInput,
   ReorderCategoryItem,
   UpdateCategoryInput,
-} from "../../types";
-import type { ReflectaServerContext } from "./types";
+} from "./types";
+import type { ReflectaServerContext } from "../shared/types-electron";
 
 export class CategoryService {
   constructor(private readonly options: ReflectaServerContext) {}

@@ -2,9 +2,9 @@ import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm"
 import { nanoid } from "nanoid";
 import { thoughtCategories, thoughtConnections, thoughts } from "../../db/schema";
 import { extractThoughtWikiLinkTargets, normalizeThoughtWikiLinkBody } from "../../wiki-links";
-import { getCategoryDescendants } from "./shared";
+import { getCategoryDescendants } from "../shared/core";
 import type { ReflectaDb } from "../../db/types";
-import type { CreateThoughtInput, ListThoughtsFilter, UpdateThoughtInput } from "../../types";
+import type { CreateThoughtInput, ListThoughtsFilter, UpdateThoughtInput } from "./types";
 
 export async function listThoughtRows(
   db: ReflectaDb,

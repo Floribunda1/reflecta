@@ -7,9 +7,9 @@ import {
   getCategoryRow,
   listCategoryRows,
   updateCategory as coreUpdateCategory,
-} from "../core/category-core";
-import { getCategoryDescendants, makePageInfo } from "../core/shared";
-import { toThoughtSummaries } from "./shared";
+} from "./core";
+import { getCategoryDescendants, makePageInfo } from "../shared/core";
+import { toThoughtSummaries } from "../shared/bff-cli";
 import type {
   CategoryInspectResult,
   CategorySummary,
@@ -19,7 +19,7 @@ import type {
   SourceType,
   ThoughtNode,
   UpdateCategoryInput,
-} from "./types";
+} from "../shared/types-cli";
 
 export class CategoryService {
   constructor(private db: ReflectaDb) {}

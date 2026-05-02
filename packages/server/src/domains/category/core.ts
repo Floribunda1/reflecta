@@ -2,7 +2,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { categories, thoughtCategories, thoughts } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
-import type { CreateCategoryInput, ReorderCategoryItem, UpdateCategoryInput } from "../../types";
+import type { CreateCategoryInput, ReorderCategoryItem, UpdateCategoryInput } from "./types";
 
 export async function listCategoryRows(
   db: ReflectaDb,

@@ -4,9 +4,14 @@ import {
   getContextRow,
   listContextRows,
   updateContext as coreUpdateContext,
-} from "../core/context-core";
+} from "./core";
 import type { ReflectaDb } from "../../db/types";
-import type { ContextDetail, CreateContextInput, SourceType, UpdateContextInput } from "./types";
+import type {
+  ContextDetail,
+  CreateContextInput,
+  SourceType,
+  UpdateContextInput,
+} from "../shared/types-cli";
 
 export class ContextService {
   constructor(private db: ReflectaDb) {}

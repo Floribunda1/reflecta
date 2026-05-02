@@ -15,10 +15,10 @@
       "import": "./src/index.ts",
       "require": "./src/index.ts"
     },
-    "./bff/electron": {
-      "types": "./src/bff/electron/index.ts",
-      "import": "./src/bff/electron/index.ts",
-      "require": "./src/bff/electron/index.ts"
+    "./domains/*": {
+      "types": "./src/domains/*.ts",
+      "import": "./src/domains/*.ts",
+      "require": "./src/domains/*.ts"
     }
   },
   "scripts": {
