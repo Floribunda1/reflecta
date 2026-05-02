@@ -3,11 +3,18 @@ import { defineComponent, ref, watch, type PropType } from "vue";
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/vue";
 import { Crepe } from "@milkdown/crepe";
 import { replaceAll } from "@milkdown/utils";
-import type { EditorView } from "@milkdown/kit/prose/view";
+import { Decoration, DecorationSet, type EditorView } from "@milkdown/kit/prose/view";
 import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
 import { $prose } from "@milkdown/kit/utils";
 import type { ThoughtSummaryDTO } from "@shared/thought";
 import { searchEventBus } from "@renderer/utils/searchEventBus";
+import {
+  findThoughtWikiLinkAtOffset,
+  findThoughtWikiLinkRanges,
+  formatThoughtWikiLinkDisplay,
+  formatThoughtWikiLink,
+  normalizeThoughtWikiLinkBody,
+} from "../wiki-links";
 import "@milkdown/crepe/theme/common/style.css";
 import "./milkdown-theme.css";
 
@@ -17,12 +24,8 @@ function getSuggestionLabel(thought: ThoughtSummaryDTO): string {
   return thought.title?.trim() || thought.id;
 }
 
-function getWikiLinkIdFromUrl(url: string): string {
-  return url.replace(/^\/wiki\//, "");
-}
-
 async function openWikiLinkByUrl(url: string): Promise<void> {
-  const id = getWikiLinkIdFromUrl(url);
+  const id = url.trim();
   if (!id) return;
   const thought = await ipcClient.thought.resolveWikiLinkTarget(id);
   if (!thought) return;
@@ -36,6 +39,31 @@ function createWikiLinkHintPlugin() {
   return $prose(() => {
     let pluginView: WikiLinkHintView | null = null;
 
+    const buildDecorations = (
+      doc: Parameters<
+        Exclude<EditorView["state"], undefined>["doc"]["descendants"]
+      >[0] extends never
+        ? never
+        : any,
+    ) => {
+      const decorations: Decoration[] = [];
+
+      doc.descendants((node: { isText?: boolean; text?: string }, pos: number) => {
+        if (!node.isText || !node.text) return;
+
+        for (const range of findThoughtWikiLinkRanges(node.text)) {
+          decorations.push(
+            Decoration.inline(pos + range.from, pos + range.to, {
+              class: "reflecta-wiki-link",
+              "data-wiki-display": formatThoughtWikiLinkDisplay(range.link),
+            }),
+          );
+        }
+      });
+
+      return DecorationSet.create(doc, decorations);
+    };
+
     return new Plugin({
       key: new PluginKey("reflecta-wiki-link-hint"),
       view: (view) => {
@@ -43,20 +71,34 @@ function createWikiLinkHintPlugin() {
         return pluginView;
       },
       props: {
+        decorations(state) {
+          return buildDecorations(state.doc);
+        },
         handleKeyDown(_view, event) {
           return pluginView?.handleKeyDown(event) ?? false;
         },
-        handleClick(_view, _pos, event) {
+        handleClick(view, pos, event) {
+          if (!event.metaKey) return false;
+
           const mdLink = (event.target as Element | null)?.closest<HTMLAnchorElement>(
-            "a[href^='/wiki/']",
+            "a[data-wiki-link]",
           );
           if (mdLink) {
             event.preventDefault();
             event.stopPropagation();
-            void openWikiLinkByUrl(mdLink.getAttribute("href") ?? "");
+            void openWikiLinkByUrl(mdLink.dataset.wikiLink ?? "");
             return true;
           }
-          return false;
+
+          const $pos = view.state.doc.resolve(pos);
+          const text = $pos.parent.textBetween(0, $pos.parent.content.size, "\n", "\n");
+          const link = findThoughtWikiLinkAtOffset(text, $pos.parentOffset);
+          if (!link) return false;
+
+          event.preventDefault();
+          event.stopPropagation();
+          void openWikiLinkByUrl(link.id);
+          return true;
         },
       },
     });
@@ -141,7 +183,7 @@ class WikiLinkHintView {
 
     const $from = selection.$from;
     const textBefore = $from.parent.textBetween(0, $from.parentOffset, "\n", "\n");
-    const match = /@([^\s\n]*)$/.exec(textBefore);
+    const match = /\[\[([^\]\n]*)$/.exec(textBefore);
     if (!match) return null;
 
     const query = match[1] ?? "";
@@ -216,10 +258,9 @@ class WikiLinkHintView {
   private applySuggestion(thought: ThoughtSummaryDTO): void {
     if (!this.currentMatch) return;
 
-    const label = getSuggestionLabel(thought);
-    const { schema } = this.view.state;
-    const linkMark = schema.marks.link.create({ href: `/wiki/${thought.id}` });
-    const textNode = schema.text(label, [linkMark]);
+    const textNode = this.view.state.schema.text(
+      formatThoughtWikiLink({ title: getSuggestionLabel(thought), id: thought.id }),
+    );
     const tr = this.view.state.tr.replaceWith(
       this.currentMatch.from,
       this.currentMatch.to,
@@ -293,7 +334,7 @@ const EditorCore = defineComponent({
 
       crepe.on((api) => {
         api.markdownUpdated((_ctx, markdown, _prevMarkdown) => {
-          props.onUpdate(markdown);
+          props.onUpdate(normalizeThoughtWikiLinkBody(markdown));
         });
       });
 
@@ -307,7 +348,9 @@ const EditorCore = defineComponent({
         if (val === undefined || loading.value) return;
         const crepe = crepeRef.value;
         if (!crepe) return;
-        if (crepe.getMarkdown() === val) return;
+        const currentMarkdown = crepe.getMarkdown();
+        if (currentMarkdown === val) return;
+        if (normalizeThoughtWikiLinkBody(currentMarkdown) === val) return;
         const editor = get();
         if (!editor) return;
         editor.action(replaceAll(val));

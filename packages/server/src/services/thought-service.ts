@@ -9,18 +9,9 @@ import type {
   ThoughtType,
   UpdateThoughtInput,
 } from "../types";
+import { extractThoughtWikiLinkTargets, normalizeThoughtWikiLinkBody } from "../wiki-links";
 import { rowToContextDTO } from "./shared";
 import type { ReflectaServerContext } from "./types";
-
-function extractWikiLinkTargets(markdown: string): string[] {
-  const targets = new Set<string>();
-  const mdLinkPattern = /\[([^\]]*)\]\(\/wiki\/([^)]+)\)/g;
-  for (const match of markdown.matchAll(mdLinkPattern)) {
-    const id = match[2]?.trim();
-    if (id) targets.add(id);
-  }
-  return [...targets];
-}
 
 export class ThoughtService {
   constructor(private readonly options: ReflectaServerContext) {}
@@ -171,13 +162,14 @@ export class ThoughtService {
     const db = this.options.getDb();
     const createdAt = new Date().toISOString();
     const id = nanoid();
+    const body = normalizeThoughtWikiLinkBody(input.body) ?? "";
 
     await db.transaction(async (tx) => {
       await tx.insert(thoughts).values({
         id,
         type: input.type,
         title: input.title ?? null,
-        body: input.body ?? "",
+        body,
         createdAt,
         updatedAt: createdAt,
       });
@@ -192,11 +184,11 @@ export class ThoughtService {
       }
 
       await tx.run(
-        sql`INSERT INTO fts_thoughts (thought_id, title, body) VALUES (${id}, ${input.title ?? ""}, ${input.body ?? ""})`,
+        sql`INSERT INTO fts_thoughts (thought_id, title, body) VALUES (${id}, ${input.title ?? ""}, ${body})`,
       );
     });
 
-    await this.syncWikiLinkConnections(id, input.body ?? "");
+    await this.syncWikiLinkConnections(id, body);
 
     const dto = await this.getThoughtById(id);
     if (!dto) throw new Error(`Thought not found after creation: ${id}`);
@@ -207,7 +199,8 @@ export class ThoughtService {
     const db = this.options.getDb();
     const updates: Partial<typeof thoughts.$inferInsert> = { updatedAt: new Date().toISOString() };
     if (input.type !== undefined) updates.type = input.type;
-    if (input.body !== undefined) updates.body = input.body;
+    const normalizedBody = normalizeThoughtWikiLinkBody(input.body);
+    if (normalizedBody !== undefined) updates.body = normalizedBody;
     if (input.title !== undefined) updates.title = input.title;
 
     await db.transaction(async (tx) => {
@@ -235,8 +228,8 @@ export class ThoughtService {
       }
     });
 
-    if (input.body !== undefined) {
-      await this.syncWikiLinkConnections(id, input.body);
+    if (normalizedBody !== undefined) {
+      await this.syncWikiLinkConnections(id, normalizedBody);
     }
 
     const dto = await this.getThoughtById(id);
@@ -328,7 +321,7 @@ export class ThoughtService {
 
   private async syncWikiLinkConnections(sourceId: string, body: string): Promise<void> {
     const db = this.options.getDb();
-    const linkTargets = extractWikiLinkTargets(body);
+    const linkTargets = extractThoughtWikiLinkTargets(body);
 
     await db.transaction(async (tx) => {
       await tx.delete(thoughtConnections).where(eq(thoughtConnections.sourceId, sourceId));

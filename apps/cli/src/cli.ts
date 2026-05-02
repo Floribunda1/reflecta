@@ -13,10 +13,8 @@ import { registerUpdateContextAction } from "./actions/context/update";
 import { registerSearchAllAction } from "./actions/search/all";
 import { registerSearchContextsAction } from "./actions/search/contexts";
 import { registerSearchThoughtsAction } from "./actions/search/thoughts";
-import { registerConnectThoughtAction } from "./actions/thought/connect";
 import { registerCreateThoughtAction } from "./actions/thought/create";
 import { registerDeleteThoughtAction } from "./actions/thought/delete";
-import { registerDisconnectThoughtAction } from "./actions/thought/disconnect";
 import { registerGetThoughtAction } from "./actions/thought/get";
 import { registerListThoughtsAction } from "./actions/thought/list";
 import { registerRestoreThoughtAction } from "./actions/thought/restore";
@@ -42,16 +40,6 @@ const helpData: Record<string, unknown> = {
       { name: "update", description: "Update a thought", mutates: true },
       { name: "delete", description: "Soft-delete a thought", mutates: true },
       { name: "restore", description: "Restore a soft-deleted thought", mutates: true },
-      {
-        name: "connect",
-        description: "Create a directed connection between two thoughts",
-        mutates: true,
-      },
-      {
-        name: "disconnect",
-        description: "Remove a directed connection between two thoughts",
-        mutates: true,
-      },
     ],
   },
   context: {
@@ -133,8 +121,6 @@ export async function runCli(argv = process.argv.slice(2)): Promise<number> {
   registerUpdateThoughtAction(thought);
   registerDeleteThoughtAction(thought);
   registerRestoreThoughtAction(thought);
-  registerConnectThoughtAction(thought);
-  registerDisconnectThoughtAction(thought);
 
   const context = cli.command("context").description("Manage contexts");
   registerListContextsAction(context);

@@ -461,7 +461,8 @@
   height: 26px;
 }
 
-.milkdown-editor .milkdown .ProseMirror a[href^="/wiki/"] {
+.milkdown-editor .milkdown .ProseMirror a.wiki-link,
+.milkdown-editor .milkdown .ProseMirror a[data-wiki-link] {
   display: inline-block;
   cursor: pointer;
   border-radius: 4px;
@@ -472,8 +473,31 @@
   line-height: 1.5;
 }
 
-.milkdown-editor .milkdown .ProseMirror a[href^="/wiki/"]:hover {
+.milkdown-editor .milkdown .ProseMirror a.wiki-link:hover,
+.milkdown-editor .milkdown .ProseMirror a[data-wiki-link]:hover {
   background: color-mix(in srgb, var(--p-primary-color), transparent 84%);
+}
+
+.milkdown-editor .milkdown .ProseMirror .reflecta-wiki-link {
+  display: inline-block;
+  cursor: pointer;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--p-primary-color), transparent 90%);
+  font-size: 0;
+  padding: 0 4px;
+  line-height: inherit;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
+.milkdown-editor .milkdown .ProseMirror .reflecta-wiki-link::after {
+  content: attr(data-wiki-display);
+  display: inline-block;
+  color: var(--p-primary-color);
+  font-size: 1rem;
+  line-height: inherit;
+  pointer-events: none;
+  vertical-align: baseline;
 }
 
 .wiki-link-hint {

@@ -1,9 +1,24 @@
 import { defineComponent, onMounted, ref, watch } from "vue";
-import { marked } from "marked";
 import mediumZoom from "medium-zoom";
+import rehypeStringify from "rehype-stringify";
+import remarkGfm from "remark-gfm";
+import remarkParse from "remark-parse";
+import remarkRehype from "remark-rehype";
+import { unified } from "unified";
 import { ipcClient } from "@renderer/utils/ipc";
 import { searchEventBus } from "@renderer/utils/searchEventBus";
+import { renderThoughtWikiLinksAsHtml } from "../wiki-links";
 import "./style.css";
+
+const markdownRenderer = unified()
+  .use(remarkParse)
+  .use(remarkGfm)
+  .use(remarkRehype, { allowDangerousHtml: true })
+  .use(rehypeStringify, { allowDangerousHtml: true });
+
+function renderMarkdownToHtml(content: string): string {
+  return String(markdownRenderer.processSync(content));
+}
 
 async function handleWikiLinkClick(e: MouseEvent): Promise<void> {
   const el = e.target as Element | null;
@@ -25,14 +40,6 @@ async function handleWikiLinkClick(e: MouseEvent): Promise<void> {
   });
 }
 
-function bindWikiLinkClicks(container: HTMLDivElement): void {
-  for (const link of container.querySelectorAll<HTMLAnchorElement>('a[href^="/wiki/"]')) {
-    link.dataset.wikiLink = decodeURIComponent(link.getAttribute("href")!.replace(/^\/wiki\//, ""));
-    link.setAttribute("href", "#");
-    link.classList.add("wiki-link");
-  }
-}
-
 export const SimpleMarkdownPreview = defineComponent({
   name: "SimpleMarkdownPreview",
   props: {
@@ -52,10 +59,7 @@ export const SimpleMarkdownPreview = defineComponent({
         .filter(Boolean)
         .slice(0, props.lineClamp)
         .join("\n");
-      el.innerHTML = marked.parse(truncatedContent, {
-        async: false,
-      }) as string;
-      bindWikiLinkClicks(el);
+      el.innerHTML = renderMarkdownToHtml(renderThoughtWikiLinksAsHtml(truncatedContent));
     };
 
     onMounted(render);
@@ -88,8 +92,7 @@ export const MarkdownPreview = defineComponent({
       if (!el) return;
       el.innerHTML = "";
       if (!props.content) return;
-      el.innerHTML = marked.parse(props.content, { async: false }) as string;
-      bindWikiLinkClicks(el);
+      el.innerHTML = renderMarkdownToHtml(renderThoughtWikiLinksAsHtml(props.content));
       mediumZoom(el.querySelectorAll("img"));
     };
 
