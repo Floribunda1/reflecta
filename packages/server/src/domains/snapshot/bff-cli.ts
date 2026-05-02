@@ -10,7 +10,7 @@ import type { ReflectaDb } from "../../db/types";
 import { toThoughtSummaries } from "../shared/bff-cli";
 import type { ProjectSnapshotResult } from "../shared/types-cli";
 
-export class SnapshotService {
+export class SnapshotCliBff {
   constructor(private db: ReflectaDb) {}
 
   async projectSnapshot(): Promise<ProjectSnapshotResult> {

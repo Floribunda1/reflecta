@@ -4,7 +4,7 @@ import type { ThoughtType } from "../thought/types";
 import type { TrashedThoughtDTO } from "./types";
 import type { ReflectaServerContext } from "../shared/types-electron";
 
-export class TrashService {
+export class TrashElectronBff {
   constructor(private readonly options: ReflectaServerContext) {}
 
   async listTrashedThoughts(): Promise<TrashedThoughtDTO[]> {

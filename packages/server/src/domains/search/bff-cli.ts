@@ -1,7 +1,7 @@
 import { inArray } from "drizzle-orm";
 import { thoughts } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
-import { searchContextRows, searchThoughtIds } from "./core";
+import { SearchCore } from "./core";
 import { toThoughtSummaries } from "../shared/bff-cli";
 import type {
   ContextSearchHit,
@@ -10,11 +10,13 @@ import type {
   ThoughtSearchHit,
 } from "../shared/types-cli";
 
-export class SearchService {
-  constructor(private db: ReflectaDb) {}
+export class SearchCliBff extends SearchCore {
+  constructor(db: ReflectaDb) {
+    super(db);
+  }
 
   async searchThoughts(query: string, options?: SearchOptions): Promise<ThoughtSearchHit[]> {
-    const ftsRows = await searchThoughtIds(this.db, query, options);
+    const ftsRows = await this.searchThoughtIds(query, options);
     if (ftsRows.length === 0) return [];
 
     const thoughtIds = ftsRows.map((r) => r.thoughtId);
@@ -40,7 +42,7 @@ export class SearchService {
   }
 
   async searchContexts(query: string, options?: SearchOptions): Promise<ContextSearchHit[]> {
-    const rows = await searchContextRows(this.db, query, options);
+    const rows = await this.searchContextRows(query, options);
     return rows.map((r) => ({
       contextId: r.contextId,
       thoughtId: r.thoughtId,

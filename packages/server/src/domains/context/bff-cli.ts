@@ -1,11 +1,5 @@
-import {
-  createContext as coreCreateContext,
-  deleteContext as coreDeleteContext,
-  getContextRow,
-  listContextRows,
-  updateContext as coreUpdateContext,
-} from "./core";
 import type { ReflectaDb } from "../../db/types";
+import { ContextCore } from "./core";
 import type {
   ContextDetail,
   CreateContextInput,
@@ -13,11 +7,13 @@ import type {
   UpdateContextInput,
 } from "../shared/types-cli";
 
-export class ContextService {
-  constructor(private db: ReflectaDb) {}
+export class ContextCliBff extends ContextCore {
+  constructor(db: ReflectaDb) {
+    super(db);
+  }
 
   async listContexts(thoughtId: string): Promise<ContextDetail[]> {
-    const rows = await listContextRows(this.db, thoughtId);
+    const rows = await this.listContextRows(thoughtId);
     return rows.map((r) => ({
       id: r.id,
       thoughtId: r.thoughtId,
@@ -28,7 +24,7 @@ export class ContextService {
   }
 
   async getContext(id: string): Promise<ContextDetail> {
-    const row = await getContextRow(this.db, id);
+    const row = await this.getContextRow(id);
     if (!row) {
       throw new Error(`Context not found: ${id}`);
     }
@@ -43,7 +39,7 @@ export class ContextService {
   }
 
   async createContext(input: CreateContextInput): Promise<ContextDetail> {
-    const row = await coreCreateContext(this.db, input);
+    const row = await super._createContext(input);
     return {
       id: row.id,
       thoughtId: row.thoughtId,
@@ -54,7 +50,7 @@ export class ContextService {
   }
 
   async updateContext(id: string, input: UpdateContextInput): Promise<ContextDetail> {
-    const row = await coreUpdateContext(this.db, id, input);
+    const row = await super._updateContext(id, input);
     return {
       id: row.id,
       thoughtId: row.thoughtId,
@@ -62,9 +58,5 @@ export class ContextService {
       sourceName: row.sourceName ?? null,
       content: row.content,
     };
-  }
-
-  async deleteContext(id: string): Promise<void> {
-    await coreDeleteContext(this.db, id);
   }
 }

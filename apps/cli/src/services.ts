@@ -1,18 +1,18 @@
 import {
-  CategoryService,
-  ContextService,
-  SearchService,
-  ThoughtService,
-  TrashService,
+  CategoryCliBff,
+  ContextCliBff,
+  SearchCliBff,
+  ThoughtCliBff,
+  TrashElectronBff,
 } from "@reflecta/server";
 import { getDb, initializeDb } from "./db";
 
 export type ReflectaCliServices = {
-  categories: CategoryService;
-  contexts: ContextService;
-  search: SearchService;
-  thoughts: ThoughtService;
-  trash: TrashService;
+  categories: CategoryCliBff;
+  contexts: ContextCliBff;
+  search: SearchCliBff;
+  thoughts: ThoughtCliBff;
+  trash: TrashElectronBff;
 };
 
 let services: ReflectaCliServices | undefined;
@@ -22,15 +22,14 @@ export async function getServices(): Promise<ReflectaCliServices> {
 
   await initializeDb();
 
-  const context = { getDb };
-  const thoughts = new ThoughtService(context);
+  const db = getDb();
 
   services = {
-    categories: new CategoryService(context),
-    contexts: new ContextService(context),
-    search: new SearchService({ ...context, thoughtService: thoughts }),
-    thoughts,
-    trash: new TrashService(context),
+    categories: new CategoryCliBff(db),
+    contexts: new ContextCliBff(db),
+    search: new SearchCliBff(db),
+    thoughts: new ThoughtCliBff(db),
+    trash: new TrashElectronBff({ getDb }),
   };
 
   return services;

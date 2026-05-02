@@ -1,13 +1,7 @@
 import { and, desc, inArray, isNull } from "drizzle-orm";
 import { contexts, thoughtCategories, thoughtConnections, thoughts } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
-import {
-  createCategory as coreCreateCategory,
-  deleteCategory as coreDeleteCategory,
-  getCategoryRow,
-  listCategoryRows,
-  updateCategory as coreUpdateCategory,
-} from "./core";
+import { CategoryCore } from "./core";
 import { getCategoryDescendants, makePageInfo } from "../shared/core";
 import { toThoughtSummaries } from "../shared/bff-cli";
 import type {
@@ -21,16 +15,18 @@ import type {
   UpdateCategoryInput,
 } from "../shared/types-cli";
 
-export class CategoryService {
-  constructor(private db: ReflectaDb) {}
+export class CategoryCliBff extends CategoryCore {
+  constructor(db: ReflectaDb) {
+    super(db);
+  }
 
   async listCategories(): Promise<CategorySummary[]> {
-    const rows = await listCategoryRows(this.db);
+    const rows = await this.listCategoryRows();
     return rows.map((r) => ({ id: r.id, name: r.name, parentId: r.parentId }));
   }
 
   async getCategory(id: string): Promise<CategorySummary> {
-    const row = await getCategoryRow(this.db, id);
+    const row = await this.getCategoryRow(id);
     if (!row) {
       throw new Error(`Category not found: ${id}`);
     }
@@ -41,12 +37,12 @@ export class CategoryService {
     id: string,
     options?: InspectCategoryOptions,
   ): Promise<CategoryInspectResult> {
-    const category = await getCategoryRow(this.db, id);
+    const category = await this.getCategoryRow(id);
     if (!category) {
       throw new Error(`Category not found: ${id}`);
     }
 
-    const allCats = await listCategoryRows(this.db);
+    const allCats = await this.listCategoryRows();
 
     const descendantIds = await getCategoryDescendants(this.db, id);
     const targetCatIds = [id, ...descendantIds];
@@ -151,17 +147,13 @@ export class CategoryService {
     };
   }
 
-  async createCategory(input: CreateCategoryInput): Promise<CategorySummary> {
-    const row = await coreCreateCategory(this.db, input);
+  async createCategorySummary(input: CreateCategoryInput): Promise<CategorySummary> {
+    const row = await super.createCategory(input);
     return { id: row.id, name: row.name, parentId: row.parentId };
   }
 
-  async updateCategory(id: string, input: UpdateCategoryInput): Promise<CategorySummary> {
-    const row = await coreUpdateCategory(this.db, id, input);
+  async updateCategorySummary(id: string, input: UpdateCategoryInput): Promise<CategorySummary> {
+    const row = await super.updateCategory(id, input);
     return { id: row.id, name: row.name, parentId: row.parentId };
-  }
-
-  async deleteCategory(id: string, deleteThoughts = false): Promise<void> {
-    await coreDeleteCategory(this.db, id, deleteThoughts);
   }
 }

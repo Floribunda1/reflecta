@@ -1,48 +1,30 @@
-import {
-  createContext as coreCreateContext,
-  deleteContext as coreDeleteContext,
-  listContextRows,
-  listTrashedContextRows,
-  permanentlyDeleteContext as corePermanentlyDeleteContext,
-  restoreContext as coreRestoreContext,
-  updateContext as coreUpdateContext,
-} from "./core";
 import type { ContextDTO, CreateContextInput, UpdateContextInput } from "./types";
 import type { TrashedContextDTO } from "../trash/types";
+import { ContextCore } from "./core";
 import { rowToContextDTO } from "../shared/bff-electron";
 import type { ReflectaServerContext } from "../shared/types-electron";
 
-export class ContextService {
-  constructor(private readonly options: ReflectaServerContext) {}
+export class ContextElectronBff extends ContextCore {
+  constructor(options: ReflectaServerContext) {
+    super(options.getDb());
+  }
 
   async listContextsByThought(thoughtId: string): Promise<ContextDTO[]> {
-    const rows = await listContextRows(this.options.getDb(), thoughtId);
+    const rows = await this.listContextRows(thoughtId);
     return rows.map(rowToContextDTO);
   }
 
   async createContext(input: CreateContextInput): Promise<ContextDTO> {
-    const row = await coreCreateContext(this.options.getDb(), input);
+    const row = await super._createContext(input);
     return rowToContextDTO(row);
   }
 
   async updateContext(id: string, input: UpdateContextInput): Promise<ContextDTO> {
-    const row = await coreUpdateContext(this.options.getDb(), id, input);
+    const row = await super._updateContext(id, input);
     return rowToContextDTO(row);
   }
 
-  async deleteContext(id: string): Promise<void> {
-    await coreDeleteContext(this.options.getDb(), id);
-  }
-
-  async restoreContext(id: string): Promise<void> {
-    await coreRestoreContext(this.options.getDb(), id);
-  }
-
-  async permanentlyDeleteContext(id: string): Promise<void> {
-    await corePermanentlyDeleteContext(this.options.getDb(), id);
-  }
-
   async listTrashedContexts(): Promise<TrashedContextDTO[]> {
-    return listTrashedContextRows(this.options.getDb());
+    return this.listTrashedContextRows();
   }
 }

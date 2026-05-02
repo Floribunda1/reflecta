@@ -8,28 +8,21 @@ import type {
   ThoughtType,
   UpdateThoughtInput,
 } from "./types";
-import {
-  createThought as coreCreateThought,
-  deleteThought as coreDeleteThought,
-  getThoughtRow,
-  listRecentThoughtRows,
-  listThoughtRows,
-  permanentlyDeleteThought as corePermanentlyDeleteThought,
-  restoreThought as coreRestoreThought,
-  updateThought as coreUpdateThought,
-} from "./core";
+import { ThoughtCore } from "./core";
 import { rowToContextDTO } from "../shared/bff-electron";
 import type { ReflectaServerContext } from "../shared/types-electron";
 
-export class ThoughtService {
-  constructor(private readonly options: ReflectaServerContext) {}
+export class ThoughtElectronBff extends ThoughtCore {
+  constructor(options: ReflectaServerContext) {
+    super(options.getDb());
+  }
 
   async assembleThoughtSummaryDTOs(
     thoughtRows: Array<typeof thoughts.$inferSelect>,
   ): Promise<ThoughtSummaryDTO[]> {
     if (thoughtRows.length === 0) return [];
 
-    const db = this.options.getDb();
+    const db = this.db;
     const ids = thoughtRows.map((t) => t.id);
 
     const [tcRows, ctxRows, connRows] = await Promise.all([
@@ -83,9 +76,7 @@ export class ThoughtService {
   }
 
   async listThoughts(filter?: ListThoughtsFilter): Promise<ThoughtSummaryDTO[]> {
-    const db = this.options.getDb();
-
-    let thoughtRows = await listThoughtRows(db, {
+    let thoughtRows = await this.listThoughtRows({
       type: filter?.type,
       categoryId: filter?.categoryId,
       includeDescendants: filter?.includeDescendants,
@@ -93,7 +84,7 @@ export class ThoughtService {
 
     if (filter?.searchQuery) {
       const escaped = `"${filter.searchQuery.replace(/"/g, '""')}"*`;
-      const ftsRows = await db.all<{ thought_id: string }>(
+      const ftsRows = await this.db.all<{ thought_id: string }>(
         sql`SELECT thought_id FROM fts_thoughts WHERE fts_thoughts MATCH ${escaped} ORDER BY rank`,
       );
       const matchingIds = new Set(ftsRows.map((r) => r.thought_id));
@@ -104,25 +95,24 @@ export class ThoughtService {
   }
 
   async getThoughtById(id: string): Promise<ThoughtDTO | null> {
-    const db = this.options.getDb();
-    const row = await getThoughtRow(db, id);
+    const row = await this.getThoughtRow(id);
     if (!row) return null;
 
     const [tcRows, ctxRows, connRows, refRows] = await Promise.all([
-      db.select().from(thoughtCategories).where(eq(thoughtCategories.thoughtId, id)),
-      db
+      this.db.select().from(thoughtCategories).where(eq(thoughtCategories.thoughtId, id)),
+      this.db
         .select()
         .from(contexts)
         .where(and(eq(contexts.thoughtId, id), isNull(contexts.deletedAt))),
-      db.select().from(thoughtConnections).where(eq(thoughtConnections.sourceId, id)),
-      db.select().from(thoughtConnections).where(eq(thoughtConnections.targetId, id)),
+      this.db.select().from(thoughtConnections).where(eq(thoughtConnections.sourceId, id)),
+      this.db.select().from(thoughtConnections).where(eq(thoughtConnections.targetId, id)),
     ]);
 
     const connectionIds = connRows.map((r) => r.targetId);
     const connections =
       connectionIds.length > 0
         ? await this.assembleThoughtSummaryDTOs(
-            await db.select().from(thoughts).where(inArray(thoughts.id, connectionIds)),
+            await this.db.select().from(thoughts).where(inArray(thoughts.id, connectionIds)),
           )
         : [];
 
@@ -130,7 +120,7 @@ export class ThoughtService {
     const referencedBy =
       referencedByIds.length > 0
         ? await this.assembleThoughtSummaryDTOs(
-            await db.select().from(thoughts).where(inArray(thoughts.id, referencedByIds)),
+            await this.db.select().from(thoughts).where(inArray(thoughts.id, referencedByIds)),
           )
         : [];
 
@@ -149,35 +139,21 @@ export class ThoughtService {
   }
 
   async createThought(input: CreateThoughtInput): Promise<ThoughtDTO> {
-    const db = this.options.getDb();
-    const row = await coreCreateThought(db, input);
+    const row = await super._createThought(input);
     const dto = await this.getThoughtById(row.id);
     if (!dto) throw new Error(`Thought not found after creation: ${row.id}`);
     return dto;
   }
 
   async updateThought(id: string, input: UpdateThoughtInput): Promise<ThoughtDTO> {
-    const db = this.options.getDb();
-    const row = await coreUpdateThought(db, id, input);
+    const row = await super._updateThought(id, input);
     const dto = await this.getThoughtById(row.id);
     if (!dto) throw new Error(`Thought not found after update: ${row.id}`);
     return dto;
   }
 
-  async deleteThought(id: string): Promise<void> {
-    await coreDeleteThought(this.options.getDb(), id);
-  }
-
-  async restoreThought(id: string): Promise<void> {
-    await coreRestoreThought(this.options.getDb(), id);
-  }
-
-  async permanentlyDeleteThought(id: string): Promise<void> {
-    await corePermanentlyDeleteThought(this.options.getDb(), id);
-  }
-
   async listRecentThoughts(limit = 20): Promise<ThoughtSummaryDTO[]> {
-    const rows = await listRecentThoughtRows(this.options.getDb(), limit);
+    const rows = await this.listRecentThoughtRows(limit);
     return this.assembleThoughtSummaryDTOs(rows);
   }
 }

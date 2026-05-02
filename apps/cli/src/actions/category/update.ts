@@ -22,7 +22,7 @@ export async function updateCategoryAction(id: string, cli: Command): Promise<vo
       }
       const services = await getServices();
       return compactCategory(
-        await services.categories.updateCategory(id, {
+        await services.categories.updateCategorySummary(id, {
           name: options.name,
           parentId: options.parentId ?? null,
         }),

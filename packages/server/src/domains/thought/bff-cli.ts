@@ -1,59 +1,35 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import {
-  createThought as coreCreateThought,
-  deleteThought as coreDeleteThought,
-  getThoughtRow,
-  listThoughtRows,
-  updateThought as coreUpdateThought,
-} from "./core";
+import { ThoughtCore } from "./core";
 import { contexts, thoughtConnections, thoughts } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type {
   CreateThoughtInput,
   GetThoughtOptions,
-  ListThoughtsOptions,
   SourceType,
   ThoughtDetail,
   ThoughtSummary,
   UpdateThoughtInput,
 } from "../shared/types-cli";
+import type { ListThoughtsFilter } from "./types";
 import { getThoughtConnectionCounts } from "../shared/core";
 import { toThoughtSummaries } from "../shared/bff-cli";
 
-export class ThoughtService {
-  constructor(private db: ReflectaDb) {}
+export class ThoughtCliBff extends ThoughtCore {
+  constructor(db: ReflectaDb) {
+    super(db);
+  }
 
-  async listThoughts(options?: ListThoughtsOptions): Promise<{
-    items: ThoughtSummary[];
-    page: { limit: number; offset: number; hasMore: boolean; nextOffset: number | null };
-  }> {
-    const limit = options?.limit ?? 20;
-    const offset = options?.offset ?? 0;
-
-    const rows = await listThoughtRows(this.db, {
-      type: options?.type,
-      categoryId: options?.categoryId,
-      includeDescendants: options?.includeDescendants,
-      limit: limit + 1,
-      offset,
+  async listThoughts(filter?: ListThoughtsFilter): Promise<ThoughtSummary[]> {
+    const rows = await this.listThoughtRows({
+      type: filter?.type,
+      categoryId: filter?.categoryId,
+      includeDescendants: filter?.includeDescendants,
     });
-
-    const hasMore = rows.length > limit;
-    const items = await toThoughtSummaries(this.db, rows.slice(0, limit));
-
-    return {
-      items,
-      page: {
-        limit,
-        offset,
-        hasMore,
-        nextOffset: hasMore ? offset + limit : null,
-      },
-    };
+    return toThoughtSummaries(this.db, rows);
   }
 
   async getThought(id: string, options?: GetThoughtOptions): Promise<ThoughtDetail> {
-    const row = await getThoughtRow(this.db, id);
+    const row = await this.getThoughtRow(id);
     if (!row) {
       throw new Error(`Thought not found: ${id}`);
     }
@@ -120,16 +96,12 @@ export class ThoughtService {
   }
 
   async createThought(input: CreateThoughtInput): Promise<ThoughtDetail> {
-    const row = await coreCreateThought(this.db, input);
+    const row = await super._createThought(input);
     return this.getThought(row.id);
   }
 
   async updateThought(id: string, input: UpdateThoughtInput): Promise<ThoughtDetail> {
-    const row = await coreUpdateThought(this.db, id, input);
+    const row = await super._updateThought(id, input);
     return this.getThought(row.id);
-  }
-
-  async deleteThought(id: string): Promise<void> {
-    await coreDeleteThought(this.db, id);
   }
 }

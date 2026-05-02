@@ -28,13 +28,13 @@ Reflecta 的后端核心，采用按 Domain 分层架构：
 
 ## 分层说明
 
-| 层级          | 职责                                             | 示例                                               |
-| ------------- | ------------------------------------------------ | -------------------------------------------------- |
-| **Core**      | 数据库定义、迁移脚本、纯工具函数，不依赖任何上层 | `db/schema.ts`, `db/migration.ts`, `wiki-links.ts` |
-| **Domain Core**  | 共享的底层数据库操作，被 electron / cli BFF 复用 | `domains/*/core.ts`                               |
-| **Domain BFF**   | 面向消费端的业务编排层，按 Domain 组织           | `domains/*/bff-electron.ts`, `domains/*/bff-cli.ts` |
-| **Facade**    | 协议适配层，负责把 BFF 能力桥接到具体终端        | Electron IPC handler / CLI argument parser         |
-| **GUI / CLI** | 最终用户界面                                     | React 组件 / 终端命令                              |
+| 层级            | 职责                                             | 示例                                                |
+| --------------- | ------------------------------------------------ | --------------------------------------------------- |
+| **Core**        | 数据库定义、迁移脚本、纯工具函数，不依赖任何上层 | `db/schema.ts`, `db/migration.ts`, `wiki-links.ts`  |
+| **Domain Core** | 共享的底层数据库操作，被 electron / cli BFF 复用 | `domains/*/core.ts`                                 |
+| **Domain BFF**  | 面向消费端的业务编排层，按 Domain 组织           | `domains/*/bff-electron.ts`, `domains/*/bff-cli.ts` |
+| **Facade**      | 协议适配层，负责把 BFF 能力桥接到具体终端        | Electron IPC handler / CLI argument parser          |
+| **GUI / CLI**   | 最终用户界面                                     | React 组件 / 终端命令                               |
 
 ### 为什么这样分层？
 

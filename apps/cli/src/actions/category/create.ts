@@ -22,7 +22,7 @@ export async function createCategoryAction(cli: Command): Promise<void> {
       }
       const services = await getServices();
       return compactCategory(
-        await services.categories.createCategory({
+        await services.categories.createCategorySummary({
           name: options.name,
           parentId: options.parentId ?? null,
         }),

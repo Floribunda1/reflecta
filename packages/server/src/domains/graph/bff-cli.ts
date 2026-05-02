@@ -13,7 +13,7 @@ import type {
   ThoughtSummary,
 } from "../shared/types-cli";
 
-export class GraphService {
+export class GraphCliBff {
   constructor(private db: ReflectaDb) {}
 
   async graphNeighborhood(
