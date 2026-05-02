@@ -11,6 +11,7 @@ import { searchEventBus } from "@renderer/utils/searchEventBus";
 import {
   findThoughtWikiLinkAtOffset,
   findThoughtWikiLinkRanges,
+  formatThoughtWikiLinkDisplay,
   formatThoughtWikiLink,
   normalizeThoughtWikiLinkBody,
 } from "../wiki-links";
@@ -54,6 +55,7 @@ function createWikiLinkHintPlugin() {
           decorations.push(
             Decoration.inline(pos + range.from, pos + range.to, {
               class: "reflecta-wiki-link",
+              "data-wiki-display": formatThoughtWikiLinkDisplay(range.link),
             }),
           );
         }
@@ -179,7 +181,7 @@ class WikiLinkHintView {
 
     const $from = selection.$from;
     const textBefore = $from.parent.textBetween(0, $from.parentOffset, "\n", "\n");
-    const match = /@([^\s\n]*)$/.exec(textBefore);
+    const match = /\[\[([^\]\n]*)$/.exec(textBefore);
     if (!match) return null;
 
     const query = match[1] ?? "";

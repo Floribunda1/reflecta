@@ -96,3 +96,7 @@ export function findThoughtWikiLinkRanges(
 
   return ranges;
 }
+
+export function formatThoughtWikiLinkDisplay(link: ThoughtWikiLink): string {
+  return `[[${link.title}]]`;
+}

@@ -479,13 +479,23 @@
 }
 
 .milkdown-editor .milkdown .ProseMirror .reflecta-wiki-link {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   cursor: pointer;
   border-radius: 4px;
   background: color-mix(in srgb, var(--p-primary-color), transparent 90%);
-  color: var(--p-primary-color);
+  color: transparent;
   padding: 0 4px;
   line-height: 1.5;
+  position: relative;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
+.milkdown-editor .milkdown .ProseMirror .reflecta-wiki-link::after {
+  content: attr(data-wiki-display);
+  color: var(--p-primary-color);
+  pointer-events: none;
 }
 
 .wiki-link-hint {
