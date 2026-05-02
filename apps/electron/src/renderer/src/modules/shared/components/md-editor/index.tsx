@@ -344,7 +344,9 @@ const EditorCore = defineComponent({
         if (val === undefined || loading.value) return;
         const crepe = crepeRef.value;
         if (!crepe) return;
-        if (crepe.getMarkdown() === val) return;
+        const currentMarkdown = crepe.getMarkdown();
+        if (currentMarkdown === val) return;
+        if (normalizeThoughtWikiLinkBody(currentMarkdown) === val) return;
         const editor = get();
         if (!editor) return;
         editor.action(replaceAll(val));

@@ -33,7 +33,7 @@ const [createThoughtDetailContext, useThoughtDetailContext] = createInjectionSta
           ...old,
           type: input.type ?? result.type,
           title: input.title !== undefined ? input.title : old.title,
-          body: input.body ?? old.body,
+          body: input.body !== undefined ? result.body : old.body,
           categoryIds: input.categoryIds ?? old.categoryIds,
           connections: result.connections,
           referencedBy: result.referencedBy,
@@ -50,7 +50,7 @@ const [createThoughtDetailContext, useThoughtDetailContext] = createInjectionSta
                 ...item,
                 type: input.type ?? result.type,
                 title: input.title !== undefined ? input.title : item.title,
-                body: input.body ?? item.body,
+                body: input.body !== undefined ? result.body : item.body,
                 categoryIds: input.categoryIds ?? item.categoryIds,
                 updatedAt: result.updatedAt,
               }
