@@ -56,7 +56,7 @@
 > 示例：`射手前期要猥琐发育`、`重复会重塑大脑`
 
 **Insight**
-通过对一个或多个 Idea 进行关联、抽象或总结而形成的更高层理解。可以独立创建，也可以通过手动关联引用已有 Thought。
+通过对一个或多个 Idea 进行关联、抽象或总结而形成的更高层理解。可以独立创建，也可以在正文中通过 `[[title#id]]` 引用已有 Thought 来建立关联。
 
 > 示例：`射手就是玻璃大炮`（由"前期猥琐发育"和"碰到刺客要出肉"推导而来）
 
@@ -66,8 +66,8 @@ Thought 的共同属性：
 - 正文支持 Markdown
 - 可归属多个 Category
 - 可挂载多个 Context
-- 可通过交互操作手动关联其他 Thought
-- 被其他 Thought 关联时，可在详情中查看"被关联于"列表
+- 可在正文中通过 `[[title#id]]` 语法引用其他 Thought，系统自动维护双向关联
+- 被其他 Thought 引用时，可在详情中查看 backlinks 列表
 
 ---
 
@@ -76,7 +76,7 @@ Thought 的共同属性：
 附属于 Thought 的背景材料，记录这个 Thought 从哪里来、当时的细节是什么。让一个 Thought 不只是一句空洞的结论，而是有迹可循、可回忆的认知。
 
 - 一个 Thought 可以挂载多个 Context
-- Context 不是独立节点，不参与图谱，不能被手动关联
+- Context 不是独立节点，不参与图谱，不能被双向链接引用
 - 来源类型：个人经历 / 书籍 / 文章 / 视频 / 他人观点
 
 ---
@@ -92,9 +92,9 @@ Thought 的共同属性：
 
 ---
 
-### Connection
+### 双向链接（Double-link）
 
-Thought 与 Thought 之间的关联关系，由用户通过交互操作手动建立。用户在 Thought 详情中点击「添加关联」，选择目标 Thought 及关联类型后，Connection 在图谱中呈现为连线。
+Thought 与 Thought 之间的关联关系，由系统根据用户在正文中书写的 `[[title#id]]` 语法自动解析和维护。用户不需要离开编辑上下文进行手动添加或删除，关联随写作自然产生。被引用的 Thought 会自动获得 backlinks，在图谱中呈现为连线。
 
 ---
 
@@ -151,7 +151,7 @@ Thought 与 Thought 之间的关联关系，由用户通过交互操作手动建
 - 类型标签：`Idea` / `Insight`，不同颜色区分
 - 所属 Category（支持多个，面包屑形式展示）
 - Context 数量
-- Connection 数量，点击后跳转至 Contemplate 并高亮该节点
+- 双向链接数量（出链 + 入链），点击后跳转至 Contemplate 并高亮该节点
 - 创建时间 / 最近修改时间
 
 **卡片操作**
@@ -181,10 +181,10 @@ Thought 与 Thought 之间的关联关系，由用户通过交互操作手动建
 - 支持展开查看完整内容
 - 支持新增、编辑、删除单条 Context
 
-**Connection 区域**
+**双向链接区域**
 
-- 展示该 Thought 手动关联的其他 Thought 列表（关联了谁）
-- 展示关联了该 Thought 的其他 Thought 列表（被谁关联）
+- 展示该 Thought 在正文中通过 `[[title#id]]` 引用的其他 Thought 列表（引用了谁 / 出链）
+- 展示在正文中引用了该 Thought 的其他 Thought 列表（被谁引用 / 入链 / backlinks）
 - 点击可跳转至对应 Thought
 
 ---
@@ -194,13 +194,13 @@ Thought 与 Thought 之间的关联关系，由用户通过交互操作手动建
 **新增 Idea** 点击「+ Idea」，在编辑区创建新 Thought：
 
 - Category 默认继承当前选中 Category，可修改
-- 创建后可通过「添加关联」按钮手动关联已有 Thought
+- 创建后可在正文中通过 `[[title#id]]` 引用已有 Thought，系统自动维护关联
 
 **新增 Insight** 点击「+ Insight」，在编辑区创建新 Thought：
 
 - 触发场景：用户在热状态下，已发现与已有 Thought 的关联，就地记录由此产生的更高层理解
 - Category 默认继承当前选中 Category，可修改
-- 创建后可通过「添加关联」按钮手动关联已有 Thought，关联关系在图谱中呈现为连线
+- 创建后可在正文中通过 `[[title#id]]` 引用已有 Thought，关联关系在图谱中呈现为连线
 
 ---
 

@@ -58,7 +58,7 @@ Capture 是 Reflecta 的高频内容工作台。它服务用户在认知事件�
 
 **Case**：
 
-> 用户两周前在"交易心理"Category 下记录了若干 Thoughts，今天想回到这个主题继续思考。用户选中"交易心理"，右侧出现 12 张 Thought 卡片。每张卡片显示标题、3 行正文 Preview、Idea/Insight 类型标签、Context 数量和 Connection 数量。用户扫一眼就能想起："恐惧与贪婪的边界"是上次看访谈记录的，"止损即承认错误"是那次爆仓后的复盘，"仓位管理的核心是活下去"是一个 Insight，已经连了 3 条 Idea。用户不需要逐条打开精读，靠卡片上的线索就能在 1 分钟内重新进入当时的思考语境，并决定今天从"止损即承认错误"这条继续深挖。
+> 用户两周前在"交易心理"Category 下记录了若干 Thoughts，今天想回到这个主题继续思考。用户选中"交易心理"，右侧出现 12 张 Thought 卡片。每张卡片显示标题、3 行正文 Preview、Idea/Insight 类型标签、Context 数量和双向链接数量。用户扫一眼就能想起："恐惧与贪婪的边界"是上次看访谈记录的，"止损即承认错误"是那次爆仓后的复盘，"仓位管理的核心是活下去"是一个 Insight，正文中引用了 3 条 Idea。用户不需要逐条打开精读，靠卡片上的线索就能在 1 分钟内重新进入当时的思考语境，并决定今天从"止损即承认错误"这条继续深挖。
 
 ### 意图三：看到一条旧笔记时，快速理解它从哪来、在什么背景下成立
 
@@ -214,9 +214,9 @@ Capture 是 Reflecta 的高频内容工作台。它服务用户在认知事件�
 
 **参照 C：双向链接笔记**
 
-- 介入位置：通过 `[[ ]]` 链接把相关笔记连在一起
-- 解决部分：建立了笔记间的引用关系
-- 局限 / 代价：链接是关系层面的，不是背景层面的；无法回答"这条笔记是从哪来、基于什么经历写的"；链接过多后网络复杂，反而增加理解成本
+- 介入位置：通过在正文中使用 `[[title#id]]` 引用其他笔记，系统自动维护双向关联
+- 解决部分：关系随写作自然产生，不需要离开编辑上下文去手动管理；被引用的笔记自动获得 backlinks，形成自然的知识网络
+- 局限 / 代价：链接是关系层面的，不是背景层面的，无法回答"这条笔记是从哪来、基于什么经历写的"；Obsidian 等工具的双链缺乏结构化关联类型，仅表示"相关"
 
 ---
 
@@ -258,12 +258,12 @@ Capture 是 Reflecta 的高频内容工作台。它服务用户在认知事件�
 - 方案 B（极简标题列表）：只显示标题，信息密度过低
 - 方案 C（数据表格）：行列展示 meta 信息，阅读负担重
 
-**我们选择**：卡片式布局，每张卡片展示正文 Preview（3 行折叠）、类型标签、所属 Category、Context 数量、Connection 数量、创建/修改时间。
+**我们选择**：卡片式布局，每张卡片展示正文 Preview（3 行折叠）、类型标签、所属 Category、Context 数量、双向链接数量、创建/修改时间。
 
 **理由**：
 
 - 标题 + 3 行 Preview 足够唤起记忆，又不至于信息过载
-- 类型标签（Idea / Insight）和 Context / Connection 数量提供快速线索
+- 类型标签（Idea / Insight）和 Context / 双向链接数量提供快速线索
 - 卡片密度适合中等数量的 Thoughts 快速扫描
 
 **放弃**：
@@ -284,13 +284,13 @@ Capture 是 Reflecta 的高频内容工作台。它服务用户在认知事件�
 - 方案 B（Context 作为独立标签页）：用户需要切换 tab 才能看到 Context
 - 方案 C（Context 和正文混排）：来源信息直接插入正文
 
-**我们选择**：详情态左右分栏，左侧正文编辑区为主，右侧 Context 列表为辅；Connection 作为整理延伸区，不争夺第一视线。
+**我们选择**：详情态左右分栏，左侧正文编辑区为主，右侧 Context 列表为辅；双向链接作为整理延伸区，不争夺第一视线。
 
 **理由**：
 
 - 左右并列让用户阅读正文的同时扫到 Context，不需要来回滚动或切换
 - Context 作为独立对象管理，不与正文混排，保持正文纯净
-- Connection 虽然重要，但属于关系整理，不是每次打开 Thought 的首要任务，退到延伸位置
+- 双向链接虽然重要，但属于关系整理，不是每次打开 Thought 的首要任务，退到延伸位置
 
 **放弃**：
 
@@ -338,7 +338,7 @@ Capture 是 Reflecta 的高频内容工作台。它服务用户在认知事件�
 - 不在 Capture 中展开图谱探索和关系网络审视（交给 Contemplate）
 - 不在 Capture 中做 AI 认知深化对话（交给 Deepen）
 - 不把分类维护做成完整管理后台
-- 不把 Context / Connection 做成与 Thought 正文并列的系统整理中心
+- 不把 Context / 双向链接做成与 Thought 正文并列的系统整理中心
 
 **MVP 边界**：
 
@@ -347,7 +347,7 @@ Capture 是 Reflecta 的高频内容工作台。它服务用户在认知事件�
   - Thought 卡片列表：按 category 展示、搜索、类型筛选、子分类范围切换、排序
   - Thought 详情态：正文编辑（Markdown）、Category 归属修改
   - Context 列表：展示、新增、编辑、删除
-  - Connection 列表：展示关联的 Thought、跳转至对应 Thought
+  - 双向链接：在正文中通过 `[[title#id]]` 引用其他 Thought，系统自动解析并维护关联；展示当前 Thought 引用了谁、被谁引用
   - 新建 Idea / Insight：从当前 category 直接进入详情态创建
 
 - **P1**：
@@ -388,13 +388,13 @@ Capture 是 Reflecta 的高频内容工作台。它服务用户在认知事件�
 - 按当前选中的 Category 展示 Thought 卡片列表
 - 支持全文搜索当前 Category 下的 Thought 正文及 Context 内容，实时高亮匹配关键词
 - 支持类型筛选（All / Idea / Insight）、子分类范围切换（仅当前 / 含后代）、排序（最新创建 / 最近修改）
-- 卡片展示：正文 Preview（3 行折叠）、类型标签、所属 Category（面包屑）、Context 数量、Connection 数量、创建/修改时间
+- 卡片展示：正文 Preview（3 行折叠）、类型标签、所属 Category（面包屑）、Context 数量、双向链接数量、创建/修改时间
 
 **关键业务规则**：
 
 - 搜索和筛选结果必须保留当前 Category 语境，用户清除搜索后回到原 Category 状态
 - Thought 卡片不是缩小版详情页，不承载正文编辑、Context 完整内容或关系图谱
-- 卡片上的 Connection 数量可点击，点击后跳转至 Contemplate 并高亮该节点，不在 Capture 中展开图谱
+- 卡片上的双向链接数量可点击，点击后跳转至 Contemplate 并高亮该节点，不在 Capture 中展开图谱
 
 ---
 
@@ -404,13 +404,13 @@ Capture 是 Reflecta 的高频内容工作台。它服务用户在认知事件�
 
 - 点击 Thought 卡片后进入详情态，左右分栏布局
 - 左侧：正文编辑（Markdown）、Category 归属修改（多选）
-- 右侧：Context 列表、Connection 列表
+- 右侧：Context 列表、双向链接列表
 - 支持删除 Thought（二次确认）
 
 **关键业务规则**：
 
 - 详情态属于 Capture 主内容区，不让用户感觉进入了另一个产品
-- 正文编辑区是主焦点，Context 和 Connection 是辅助延伸区
+- 正文编辑区是主焦点，Context 和双向链接是辅助延伸区
 - 关闭详情后必须回到原 Category、筛选和浏览位置，不能丢失滚动位置或重置筛选状态
 
 ---
@@ -425,26 +425,27 @@ Capture 是 Reflecta 的高频内容工作台。它服务用户在认知事件�
 
 **关键业务规则**：
 
-- Context 不是独立节点，不参与图谱，不能被手动关联，始终附属于 Thought
+- Context 不是独立节点，不参与图谱，不能被双向链接引用，始终附属于 Thought
 - Context 列表以可扫描的摘要形式出现，不强迫用户进入系统整理流程
 - 新增 Context 支持从 Thought 编辑区直接新增，也支持用户先搜索/浏览找到目标 Thought 再挂载
 
 ---
 
-### 模块：Connection 管理
+### 模块：双向链接
 
 **核心功能**：
 
-- 在 Thought 详情态右侧展示该 Thought 手动关联的其他 Thought（关联了谁）
-- 展示关联了该 Thought 的其他 Thought（被谁关联）
-- 支持添加关联（选择目标 Thought 及关联类型）、删除关联
+- 在 Thought 详情态右侧展示该 Thought 通过正文中 `[[title#id]]` 引用到的其他 Thought（引用了谁）
+- 展示在正文中引用了该 Thought 的其他 Thought（被谁引用）
+- 支持在 Markdown 正文中通过 `[[title#id]]` 语法直接建立对其他 Thought 的引用
 - 点击关联 Thought 可跳转至对应 Thought
 
 **关键业务规则**：
 
-- Connection 由用户通过交互操作手动建立，系统不自动推断关联
-- Connection 在 Contemplate 图谱中呈现为连线，Capture 中只提供列表视图和添加入口
-- 沿 Connection 做大范围关系探索是 Contemplate 的任务，Capture 只提供明确的跨模块出口
+- 关联关系由系统根据正文中的 `[[title#id]]` 语法自动解析和维护，不需要用户离开编辑上下文进行手动添加/删除操作
+- 双向链接在 Contemplate 图谱中呈现为连线，Capture 中只提供 backlinks 列表视图和跳转入口
+- 沿双向链接做大范围关系探索是 Contemplate 的任务，Capture 只提供明确的跨模块出口
+- 被引用 Thought 的删除需要处理 dangling links：当前 Thought 正文中保留失效的 `[[title#id]]` 标记，但视觉上提示该目标已不存在
 
 ---
 
@@ -461,7 +462,7 @@ Capture 是 Reflecta 的高频内容工作台。它服务用户在认知事件�
 
 - 创建后必须直接进入详情态，减少中间步骤，保护热状态
 - 创建后新 Thought 必须立即出现在当前 Category 的列表中，让用户确认归属正确
-- Insight 创建后可通过「添加关联」按钮手动关联已有 Thought，关联关系在图谱中呈现
+- Insight 创建后可在正文中通过 `[[title#id]]` 引用已有 Thought，关联关系在图谱中呈现
 
 ---
 
@@ -495,7 +496,7 @@ Capture 是 Reflecta 的高频内容工作台。它服务用户在认知事件�
 **验收条件**：
 
 - Category 树当前选中节点和页面标题共同显示用户所处的 Category 路径
-- Thought 卡片在列表中单屏至少展示 6-8 条，且每条包含标题、3 行 Preview、类型标签、Context/Connection 数量和时间的摘要信息
+- Thought 卡片在列表中单屏至少展示 6-8 条，且每条包含标题、3 行 Preview、类型标签、Context/双向链接数量和时间的摘要信息
 - 用户关闭 Thought 详情后，列表恢复到原 Category、原筛选状态和原滚动位置
 - 用户能在不打开详情的情况下，通过卡片信息判断一条 Thought 的性质和丰富度
 
@@ -514,7 +515,7 @@ Capture 是 Reflecta 的高频内容工作台。它服务用户在认知事件�
 - Thought 详情态中，Context 列表与正文在同一屏可见（左右分栏或合理布局），用户不需要切换 tab 或滚动离开正文区域
 - 每条 Context 至少展示内容摘要（50 字以内）、来源类型图标和记录时间，用户不展开就能判断这是什么来源
 - Context 的新增入口在列表顶部或底部，不占用正文编辑区空间
-- Connection 列表与 Context 列表分区展示，Connection 的 visual weight 不高于 Context
+- 双向链接列表与 Context 列表分区展示，链接列表的 visual weight 不高于 Context
 
 ---
 
@@ -524,4 +525,4 @@ Capture 是 Reflecta 的高频内容工作台。它服务用户在认知事件�
 - 删除 Category 时触发二次确认，且明确告知用户其下 Thought 将归入父节点
 - 搜索支持 Thought 正文和 Context 内容的全文匹配，实时高亮关键词
 - 类型筛选、子分类范围切换和排序组合使用时，结果正确且状态可清除重置
-- Connection 的添加、删除操作实时同步到 Contemplate 图谱，双向一致
+- 正文中 `[[title#id]]` 引用的增删实时同步到 Contemplate 图谱，双向一致
