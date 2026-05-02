@@ -1,12 +1,12 @@
 import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { contexts } from "../db/schema";
+import { contexts } from "../../db/schema";
 import type {
   ContextDTO,
   CreateContextInput,
   TrashedContextDTO,
   UpdateContextInput,
-} from "../types";
+} from "../../types";
 import { rowToContextDTO } from "./shared";
 import type { ReflectaServerContext } from "./types";
 

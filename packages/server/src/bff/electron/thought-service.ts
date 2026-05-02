@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { contexts, thoughtCategories, thoughtConnections, thoughts } from "../db/schema";
+import { contexts, thoughtCategories, thoughtConnections, thoughts } from "../../db/schema";
 import type {
   CreateThoughtInput,
   ListThoughtsFilter,
@@ -8,8 +8,8 @@ import type {
   ThoughtSummaryDTO,
   ThoughtType,
   UpdateThoughtInput,
-} from "../types";
-import { extractThoughtWikiLinkTargets, normalizeThoughtWikiLinkBody } from "../wiki-links";
+} from "../../types";
+import { extractThoughtWikiLinkTargets, normalizeThoughtWikiLinkBody } from "../../wiki-links";
 import { rowToContextDTO } from "./shared";
 import type { ReflectaServerContext } from "./types";
 

@@ -74,13 +74,7 @@ type PageInfo = {
 ```ts
 type ThoughtType = "idea" | "insight";
 
-type SourceType =
-  | "experience"
-  | "book"
-  | "article"
-  | "video"
-  | "opinion"
-  | "ai";
+type SourceType = "experience" | "book" | "article" | "video" | "opinion" | "ai";
 
 type CategoryRef = {
   id: ID;
@@ -231,30 +225,30 @@ type ProjectSnapshotResult = {
 
 ## 6. 命令到输出映射
 
-| Command | 默认 stdout | 说明 |
-| --- | --- | --- |
-| `thought list` | `ThoughtSummary` JSONL | 浏览与过滤 |
-| `thought get <id>` | `ThoughtDetail` | 单条读取，默认轻量 |
-| `thought create` | `ThoughtDetail` | 返回新对象 |
-| `thought update <id>` | `ThoughtDetail` | 返回更新后对象 |
-| `thought delete <id>` | 空 | 只用 exit code 表示成功 |
-| `context list --thought-id <id>` | `ContextDetail` JSONL | 某条 thought 的来源材料 |
-| `context get <id>` | `ContextDetail` | 单条读取 |
-| `context create` | `ContextDetail` | 返回新对象 |
-| `context update <id>` | `ContextDetail` | 返回更新后对象 |
-| `context delete <id>` | 空 | 只用 exit code 表示成功 |
-| `category list` | `CategorySummary` JSONL | 分类浏览 |
-| `category get <id>` | `CategorySummary` | 单条读取 |
-| `category inspect <id>` | `CategoryInspectResult` | 领域分析入口 |
-| `category create` | `CategorySummary` | 返回新对象 |
-| `category update <id>` | `CategorySummary` | 返回更新后对象 |
-| `category delete <id>` | 空 | 只用 exit code 表示成功 |
-| `search thoughts <query>` | `ThoughtSearchHit` JSONL | Thought 搜索 |
-| `search contexts <query>` | `ContextSearchHit` JSONL | Context 搜索 |
-| `search all <query>` | `SearchAllResult` | 聚合搜索 |
-| `graph neighborhood --thought-id <id>` | `GraphNeighborhoodResult` | 局部图谱 |
-| `graph path --from <id> --to <id>` | `GraphPathResult` | 路径探索 |
-| `snapshot project` | `ProjectSnapshotResult` | 全局概览 |
+| Command                                | 默认 stdout               | 说明                    |
+| -------------------------------------- | ------------------------- | ----------------------- |
+| `thought list`                         | `ThoughtSummary` JSONL    | 浏览与过滤              |
+| `thought get <id>`                     | `ThoughtDetail`           | 单条读取，默认轻量      |
+| `thought create`                       | `ThoughtDetail`           | 返回新对象              |
+| `thought update <id>`                  | `ThoughtDetail`           | 返回更新后对象          |
+| `thought delete <id>`                  | 空                        | 只用 exit code 表示成功 |
+| `context list --thought-id <id>`       | `ContextDetail` JSONL     | 某条 thought 的来源材料 |
+| `context get <id>`                     | `ContextDetail`           | 单条读取                |
+| `context create`                       | `ContextDetail`           | 返回新对象              |
+| `context update <id>`                  | `ContextDetail`           | 返回更新后对象          |
+| `context delete <id>`                  | 空                        | 只用 exit code 表示成功 |
+| `category list`                        | `CategorySummary` JSONL   | 分类浏览                |
+| `category get <id>`                    | `CategorySummary`         | 单条读取                |
+| `category inspect <id>`                | `CategoryInspectResult`   | 领域分析入口            |
+| `category create`                      | `CategorySummary`         | 返回新对象              |
+| `category update <id>`                 | `CategorySummary`         | 返回更新后对象          |
+| `category delete <id>`                 | 空                        | 只用 exit code 表示成功 |
+| `search thoughts <query>`              | `ThoughtSearchHit` JSONL  | Thought 搜索            |
+| `search contexts <query>`              | `ContextSearchHit` JSONL  | Context 搜索            |
+| `search all <query>`                   | `SearchAllResult`         | 聚合搜索                |
+| `graph neighborhood --thought-id <id>` | `GraphNeighborhoodResult` | 局部图谱                |
+| `graph path --from <id> --to <id>`     | `GraphPathResult`         | 路径探索                |
+| `snapshot project`                     | `ProjectSnapshotResult`   | 全局概览                |
 
 ---
 

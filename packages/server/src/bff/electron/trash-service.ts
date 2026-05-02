@@ -1,6 +1,6 @@
 import { isNotNull } from "drizzle-orm";
-import { thoughts } from "../db/schema";
-import type { TrashedThoughtDTO, ThoughtType } from "../types";
+import { thoughts } from "../../db/schema";
+import type { TrashedThoughtDTO, ThoughtType } from "../../types";
 import type { ReflectaServerContext } from "./types";
 
 export class TrashService {

@@ -1,13 +1,13 @@
 import { eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { categories, thoughtCategories, thoughts } from "../db/schema";
+import { categories, thoughtCategories, thoughts } from "../../db/schema";
 import type {
   Category,
   CategoryWithCounts,
   CreateCategoryInput,
   ReorderCategoryItem,
   UpdateCategoryInput,
-} from "../types";
+} from "../../types";
 import type { ReflectaServerContext } from "./types";
 
 export class CategoryService {

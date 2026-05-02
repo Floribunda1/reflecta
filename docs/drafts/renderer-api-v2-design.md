@@ -22,8 +22,8 @@
 ```ts
 // shared/common/pagination.ts
 export interface PageOptions {
-  limit?: number;    // default: 50, max: 200
-  offset?: number;   // default: 0
+  limit?: number; // default: 50, max: 200
+  offset?: number; // default: 0
 }
 
 export interface Page<T> {
@@ -34,8 +34,8 @@ export interface Page<T> {
 }
 
 export interface CursorPageOptions {
-  limit?: number;    // default: 50, max: 200
-  cursor?: string;   // opaque cursor
+  limit?: number; // default: 50, max: 200
+  cursor?: string; // opaque cursor
 }
 
 export interface CursorPage<T> {
@@ -60,8 +60,8 @@ export interface Timestamped {
 ```ts
 // shared/common/error.ts
 export interface ApiError {
-  code: string;           // 机器可读错误码，如 "CATEGORY_NOT_FOUND"
-  message: string;        // 人类可读描述
+  code: string; // 机器可读错误码，如 "CATEGORY_NOT_FOUND"
+  message: string; // 人类可读描述
   details?: Record<string, unknown>;
 }
 ```
@@ -91,10 +91,10 @@ export interface ThoughtListItem {
   id: string;
   type: ThoughtType;
   title: string | null;
-  bodyPreview: string;         // 列表渲染只需前 ~200 字
+  bodyPreview: string; // 列表渲染只需前 ~200 字
   categoryIds: string[];
-  contextCount: number;        // 替代完整 contexts[]
-  connectionCount: number;     // 替代完整 connections[]
+  contextCount: number; // 替代完整 contexts[]
+  connectionCount: number; // 替代完整 connections[]
   createdAt: string;
   updatedAt: string;
 }
@@ -112,9 +112,9 @@ export interface ThoughtDetail {
   title: string | null;
   body: string;
   categoryIds: string[];
-  contexts: ContextItem[];            // 完整嵌套
-  connections: ThoughtConnection[];   // outgoing
-  referencedBy: ThoughtConnection[];  // incoming
+  contexts: ContextItem[]; // 完整嵌套
+  connections: ThoughtConnection[]; // outgoing
+  referencedBy: ThoughtConnection[]; // incoming
   createdAt: string;
   updatedAt: string;
 }
@@ -126,7 +126,7 @@ export interface ThoughtDetail {
 // shared/thought/query.ts
 export interface ThoughtQueryFilter {
   categoryId?: string;
-  categoryIds?: string[];       // 支持多分类，替代前端 N 次请求
+  categoryIds?: string[]; // 支持多分类，替代前端 N 次请求
   includeDescendants?: boolean; // 与 categoryId 配合生效
   type?: ThoughtType;
 }
@@ -174,13 +174,7 @@ export interface PatchThoughtInput {
 
 ```ts
 // shared/context/type.ts
-export type SourceType =
-  | "experience"
-  | "video"
-  | "book"
-  | "article"
-  | "opinion"
-  | "ai";
+export type SourceType = "experience" | "video" | "book" | "article" | "opinion" | "ai";
 ```
 
 ### 4.2 DTO
@@ -249,7 +243,7 @@ export interface Category {
 
 // 扁平列表（后端返回原始数据，前端自行建树）
 export interface CategoryFlatNode extends Category {
-  thoughtCount: number;   // 该分类下的 thought 数量
+  thoughtCount: number; // 该分类下的 thought 数量
   descendantCount: number; // 包含子分类的总数
 }
 
@@ -319,11 +313,11 @@ export interface DeleteCategoriesResult {
 export interface SuggestItem {
   id: string;
   title: string | null;
-  bodyPreview: string;   // ~100 字预览
+  bodyPreview: string; // ~100 字预览
 }
 
 export interface SuggestOptions {
-  limit?: number;        // default: 8
+  limit?: number; // default: 8
 }
 ```
 
@@ -335,7 +329,7 @@ export interface SearchThoughtResult {
   id: string;
   type: ThoughtType;
   title: string | null;
-  bodySnippet: string;   // 高亮片段（HTML）
+  bodySnippet: string; // 高亮片段（HTML）
   categoryIds: string[];
   updatedAt: string;
 }
@@ -345,12 +339,12 @@ export interface SearchContextResult {
   thoughtId: string;
   sourceType: SourceType;
   sourceName: string | null;
-  snippet: string;       // 高亮片段（HTML）
+  snippet: string; // 高亮片段（HTML）
 }
 
 export interface SearchRequest {
   query: string;
-  options?: PageOptions;  // 分页，默认 limit=20
+  options?: PageOptions; // 分页，默认 limit=20
 }
 
 export interface SearchResult {
@@ -395,8 +389,8 @@ export interface TrashContents {
 
 // 写操作返回被恢复的实体，方便前端乐观更新
 export interface RestoreResult {
-  thought?: ThoughtListItem;   // restoreThought 时返回
-  context?: ContextItem;       // restoreContext 时返回
+  thought?: ThoughtListItem; // restoreThought 时返回
+  context?: ContextItem; // restoreContext 时返回
 }
 
 export interface BulkDeleteResult {
@@ -413,8 +407,8 @@ export interface BulkDeleteResult {
 ```ts
 // shared/asset/type.ts
 export interface AssetInfo {
-  id: string;        // 文件名 / 存储 ID
-  filename: string;  // 原始文件名
+  id: string; // 文件名 / 存储 ID
+  filename: string; // 原始文件名
   size: number;
   mimeType?: string;
 }
@@ -427,7 +421,7 @@ export interface OrphanAssetInfo {
 
 export interface SaveAssetResult {
   id: string;
-  url: string;       // asset:///id
+  url: string; // asset:///id
 }
 ```
 
@@ -514,7 +508,7 @@ interface ThoughtService {
   create(input: CreateThoughtInput): Promise<ThoughtDetail>;
   update(id: string, input: UpdateThoughtInput): Promise<ThoughtDetail>;
   patch(id: string, input: PatchThoughtInput): Promise<ThoughtDetail>;
-  delete(id: string): Promise<ThoughtListItem>;   // 返回被删除的实体（含 deletedAt）
+  delete(id: string): Promise<ThoughtListItem>; // 返回被删除的实体（含 deletedAt）
   addConnection(sourceId: string, targetId: string): Promise<ThoughtConnection>;
   removeConnection(sourceId: string, targetId: string): Promise<void>;
   resolveLinkTarget(target: string): Promise<SuggestItem | null>;
@@ -523,17 +517,17 @@ interface ThoughtService {
 interface ContextService {
   create(input: CreateContextInput): Promise<ContextItem>;
   update(id: string, input: UpdateContextInput): Promise<ContextItem>;
-  delete(id: string): Promise<ContextItem>;   // 返回被删除的实体（含 deletedAt）
+  delete(id: string): Promise<ContextItem>; // 返回被删除的实体（含 deletedAt）
   deleteMany(req: DeleteContextsRequest): Promise<DeleteContextsResult>;
 }
 
 interface CategoryService {
-  list(): Promise<CategoryFlatNode[]>;   // 扁平数组，前端建树
+  list(): Promise<CategoryFlatNode[]>; // 扁平数组，前端建树
   create(input: CreateCategoryInput): Promise<Category>;
   update(id: string, input: UpdateCategoryInput): Promise<Category>;
-  delete(id: string, options?: DeleteCategoryOptions): Promise<Category>;   // 返回被删除的分类
+  delete(id: string, options?: DeleteCategoryOptions): Promise<Category>; // 返回被删除的分类
   deleteMany(req: DeleteCategoriesRequest): Promise<DeleteCategoriesResult>;
-  reorder(input: ReorderCategoriesInput): Promise<CategoryFlatNode[]>;  // 返回重排后的完整列表
+  reorder(input: ReorderCategoriesInput): Promise<CategoryFlatNode[]>; // 返回重排后的完整列表
 }
 
 interface SearchService {
@@ -553,14 +547,14 @@ interface TrashService {
 interface AssetService {
   save(data: ArrayBuffer, filename: string): Promise<SaveAssetResult>;
   scanOrphans(): Promise<OrphanAssetInfo[]>;
-  cleanOrphans(ids: string[]): Promise<number>;   // 返回实际删除数量
+  cleanOrphans(ids: string[]): Promise<number>; // 返回实际删除数量
   open(id: string): Promise<void>;
   reveal(id: string): Promise<void>;
 }
 
 interface CfgService {
   getStorage(): Promise<StorageConfig>;
-  setStorage(path: string): Promise<StorageConfig>;   // 返回更新后的配置
+  setStorage(path: string): Promise<StorageConfig>; // 返回更新后的配置
   getAiProvider(): Promise<AiProviderConfig>;
   setAiProvider(config: AiProviderConfig): Promise<AiProviderConfig>;
 }
@@ -615,7 +609,7 @@ src/renderer/src/
 ```ts
 // utils/ipc.ts
 import { createIpcProxy } from "electron-ipc-decorator/client";
-import { useToast } from "primevue/usetoast";   // 或全局 toast 实例
+import { useToast } from "primevue/usetoast"; // 或全局 toast 实例
 
 function createClient() {
   const raw = createIpcProxy<IpcServices>(window.ipcRenderer)!;
@@ -632,14 +626,14 @@ function createClient() {
               return await method(...args);
             } catch (err: any) {
               // 全局错误提示
-              const toast = useToast();   // 实际实现中可能需要全局 toast 实例
+              const toast = useToast(); // 实际实现中可能需要全局 toast 实例
               toast.add({
                 severity: "error",
                 summary: `${String(serviceKey)}.${String(methodKey)} 失败`,
                 detail: err.message || "未知错误",
                 life: 4000,
               });
-              throw err;   // 继续抛出，让调用方决定是否处理
+              throw err; // 继续抛出，让调用方决定是否处理
             }
           };
         },
@@ -716,9 +710,7 @@ export function useOptimisticMutation<TData, TError, TVariables>(
       await queryClient.cancelQueries({ queryKey: options.queryKey });
       const previous = queryClient.getQueryData<TData>(options.queryKey);
       if (options.updater && previous !== undefined) {
-        queryClient.setQueryData<TData>(options.queryKey, (old) =>
-          options.updater!(old, vars),
-        );
+        queryClient.setQueryData<TData>(options.queryKey, (old) => options.updater!(old, vars));
       }
       return { previous };
     },
@@ -784,7 +776,7 @@ import type { ThoughtType } from "@shared/thought/type";
 
 export function useThoughtList(options: {
   categoryId: Ref<string | undefined>;
-  categoryIds: Ref<string[]>;   // 支持多分类
+  categoryIds: Ref<string[]>; // 支持多分类
   includeDescendants: Ref<boolean>;
   type: Ref<ThoughtType | undefined>;
   searchQuery: Ref<string | undefined>;
@@ -824,96 +816,96 @@ export function useThoughtList(options: {
 
 #### ThoughtDetail（详情页）
 
-| 修改项 | 当前 | 改为 |
-|--------|------|------|
-| 获取详情 | `ipcClient.thought.getThoughtById(id)` | `thoughtApi.getById(id)` |
-| 更新 body | `updateThought({ body })` → invalidate 三个 key | `thoughtApi.patch(id, { body })` → 只更新 detail key，不 invalidate list |
-| 更新 title/type/category | `updateThought({ ... })` | `thoughtApi.update(id, { ... })` → 乐观更新 detail + list |
-| 连接展示 | `connections[]` / `referencedBy[]` | 直接使用 `ThoughtDetail.connections` / `referencedBy` |
+| 修改项                   | 当前                                            | 改为                                                                     |
+| ------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------ |
+| 获取详情                 | `ipcClient.thought.getThoughtById(id)`          | `thoughtApi.getById(id)`                                                 |
+| 更新 body                | `updateThought({ body })` → invalidate 三个 key | `thoughtApi.patch(id, { body })` → 只更新 detail key，不 invalidate list |
+| 更新 title/type/category | `updateThought({ ... })`                        | `thoughtApi.update(id, { ... })` → 乐观更新 detail + list                |
+| 连接展示                 | `connections[]` / `referencedBy[]`              | 直接使用 `ThoughtDetail.connections` / `referencedBy`                    |
 
 #### ThoughtList（列表页）
 
-| 修改项 | 当前 | 改为 |
-|--------|------|------|
-| 数据来源 | `ThoughtSummaryDTO[]` | `Page<ThoughtListItem>`，使用 `items` 和 `total` |
-| 展示字段 | `contexts.length` / `connections.length` | `contextCount` / `connectionCount`（直接读取，无需计算） |
-| 排序 | 前端 `sort()` | 后端 `sortBy` + `order` |
-| 删除 Thought | `thoughtApi.delete(id)` + 手动设置 selectedThoughtId = null | `thoughtApi.delete(id)` 返回被删除实体，前端乐观移除 |
+| 修改项       | 当前                                                        | 改为                                                     |
+| ------------ | ----------------------------------------------------------- | -------------------------------------------------------- |
+| 数据来源     | `ThoughtSummaryDTO[]`                                       | `Page<ThoughtListItem>`，使用 `items` 和 `total`         |
+| 展示字段     | `contexts.length` / `connections.length`                    | `contextCount` / `connectionCount`（直接读取，无需计算） |
+| 排序         | 前端 `sort()`                                               | 后端 `sortBy` + `order`                                  |
+| 删除 Thought | `thoughtApi.delete(id)` + 手动设置 selectedThoughtId = null | `thoughtApi.delete(id)` 返回被删除实体，前端乐观移除     |
 
 #### WikiLink 补全（md-editor）
 
-| 修改项 | 当前 | 改为 |
-|--------|------|------|
-| 接口 | `thought.listThoughts({ searchQuery })` | `searchApi.suggest(query, { limit: 8 })` |
-| Debounce | 无 | 150ms debounce |
-| Fallback | catch 后请求全部 | 不再 fallback，直接返回空数组 |
-| 返回类型 | `ThoughtSummaryDTO[]` | `SuggestItem[]`（只含 id + title + bodyPreview） |
+| 修改项   | 当前                                    | 改为                                             |
+| -------- | --------------------------------------- | ------------------------------------------------ |
+| 接口     | `thought.listThoughts({ searchQuery })` | `searchApi.suggest(query, { limit: 8 })`         |
+| Debounce | 无                                      | 150ms debounce                                   |
+| Fallback | catch 后请求全部                        | 不再 fallback，直接返回空数组                    |
+| 返回类型 | `ThoughtSummaryDTO[]`                   | `SuggestItem[]`（只含 id + title + bodyPreview） |
 
 #### GlobalSearch（全局搜索）
 
-| 修改项 | 当前 | 改为 |
-|--------|------|------|
-| 接口 | `search.search(query)` 无 limit | `searchApi.search({ query, options: { limit: 20 } })` |
-| 返回类型 | `SearchResult`（含 `thoughts` + `contexts`） | 相同，但默认最多 20 条 |
-| 加载更多 | 无 | 可扩展 `offset` 或 "加载更多" |
+| 修改项   | 当前                                         | 改为                                                  |
+| -------- | -------------------------------------------- | ----------------------------------------------------- |
+| 接口     | `search.search(query)` 无 limit              | `searchApi.search({ query, options: { limit: 20 } })` |
+| 返回类型 | `SearchResult`（含 `thoughts` + `contexts`） | 相同，但默认最多 20 条                                |
+| 加载更多 | 无                                           | 可扩展 `offset` 或 "加载更多"                         |
 
 #### CategoryTree（分类树）
 
-| 修改项 | 当前 | 改为 |
-|--------|------|------|
-| 获取数据 | `category.listCategories()` | `categoryApi.list()` 返回 `CategoryFlatNode[]` |
+| 修改项   | 当前                                 | 改为                                                                                |
+| -------- | ------------------------------------ | ----------------------------------------------------------------------------------- |
+| 获取数据 | `category.listCategories()`          | `categoryApi.list()` 返回 `CategoryFlatNode[]`                                      |
 | 建树逻辑 | `useCategoryData` 内部 `buildTree()` | 复用相同的 `buildTree()`，但输入从 `CategoryWithCounts[]` 改为 `CategoryFlatNode[]` |
-| 删除分类 | `deleteCategory(id, deleteThoughts)` | `categoryApi.delete(id, { mode: "uncategorize" })` 或 `mode: "cascade"` |
-| 重排 | `reorderCategories(items)` | `categoryApi.reorder({ items })` 返回新的 `CategoryFlatNode[]`，直接替换缓存 |
+| 删除分类 | `deleteCategory(id, deleteThoughts)` | `categoryApi.delete(id, { mode: "uncategorize" })` 或 `mode: "cascade"`             |
+| 重排     | `reorderCategories(items)`           | `categoryApi.reorder({ items })` 返回新的 `CategoryFlatNode[]`，直接替换缓存        |
 
 #### TrashSection（回收站）
 
-| 修改项 | 当前 | 改为 |
-|--------|------|------|
-| 获取数据 | `trash.listTrashedThoughts()` + `context.listTrashedContexts()` | `trashApi.list()` 返回 `{ thoughts, contexts }` |
-| 恢复 | `trash.restoreThought(id)` / `context.restoreContext(id)` | `trashApi.restoreThought(id)` / `trashApi.restoreContext(id)` |
-| 清空 | `Promise.all([...thoughts.map(...), ...contexts.map(...)])` | `trashApi.empty()` 一键清空 |
+| 修改项   | 当前                                                            | 改为                                                          |
+| -------- | --------------------------------------------------------------- | ------------------------------------------------------------- |
+| 获取数据 | `trash.listTrashedThoughts()` + `context.listTrashedContexts()` | `trashApi.list()` 返回 `{ thoughts, contexts }`               |
+| 恢复     | `trash.restoreThought(id)` / `context.restoreContext(id)`       | `trashApi.restoreThought(id)` / `trashApi.restoreContext(id)` |
+| 清空     | `Promise.all([...thoughts.map(...), ...contexts.map(...)])`     | `trashApi.empty()` 一键清空                                   |
 
 #### StorageSection（存储设置）
 
-| 修改项 | 当前 | 改为 |
-|--------|------|------|
-| 获取路径 | `config.getConfig()` | `cfgApi.getStorage()` |
-| 设置路径 | `config.setStoragePath(path)` | `cfgApi.setStorage(path)` |
+| 修改项   | 当前                           | 改为                        |
+| -------- | ------------------------------ | --------------------------- |
+| 获取路径 | `config.getConfig()`           | `cfgApi.getStorage()`       |
+| 设置路径 | `config.setStoragePath(path)`  | `cfgApi.setStorage(path)`   |
 | 选择目录 | `config.openDirectoryPicker()` | `dialogApi.pickDirectory()` |
-| 重启 | `config.restartApp()` | `appApi.restart()` |
+| 重启     | `config.restartApp()`          | `appApi.restart()`          |
 
 #### AiSection（AI 设置）
 
-| 修改项 | 当前 | 改为 |
-|--------|------|------|
-| 获取配置 | `config.getAiConfig()` | `cfgApi.getAiProvider()` |
+| 修改项   | 当前                         | 改为                           |
+| -------- | ---------------------------- | ------------------------------ |
+| 获取配置 | `config.getAiConfig()`       | `cfgApi.getAiProvider()`       |
 | 保存配置 | `config.setAiConfig(config)` | `cfgApi.setAiProvider(config)` |
 
 #### Asset / 图片上传
 
-| 修改项 | 当前 | 改为 |
-|--------|------|------|
-| 传输格式 | Base64 string | `ArrayBuffer` |
-| 接口 | `asset.saveAsset(base64, filename)` | `assetApi.save(arrayBuffer, filename)` |
-| 返回值 | `string` (id) | `{ id, url }`（可直接用于 markdown） |
+| 修改项   | 当前                                | 改为                                   |
+| -------- | ----------------------------------- | -------------------------------------- |
+| 传输格式 | Base64 string                       | `ArrayBuffer`                          |
+| 接口     | `asset.saveAsset(base64, filename)` | `assetApi.save(arrayBuffer, filename)` |
+| 返回值   | `string` (id)                       | `{ id, url }`（可直接用于 markdown）   |
 
 ---
 
 ## 十三、Query Key 映射关系（新旧对比）
 
-| 旧 Query Key | 新 Query Key | 说明 |
-|--------------|--------------|------|
-| `["category.listCategories"]` | `queryKeys.category.list()` | 扁平数组，前端建树 |
-| `["thought.listThoughts", ...]` | `queryKeys.thought.list(filter)` | 返回 `Page<ThoughtListItem>` |
-| `["thought.getThoughtById", id]` | `queryKeys.thought.detail(id)` | 返回 `ThoughtDetail` |
-| `["contemplate.listThoughts", ...]` | `queryKeys.thought.list(filter)` | 统一使用同一个 hook |
-| `["search", query]` | `queryKeys.search.result(query)` | 返回 `SearchResult` |
-| — | `queryKeys.search.suggest(query)` | 新增，用于 WikiLink 补全 |
-| — | `queryKeys.trash.list()` | 新增，统一回收站 |
-| — | `queryKeys.asset.orphans()` | 新增 |
-| — | `queryKeys.cfg.storage()` | 新增 |
-| — | `queryKeys.cfg.ai()` | 新增 |
+| 旧 Query Key                        | 新 Query Key                      | 说明                         |
+| ----------------------------------- | --------------------------------- | ---------------------------- |
+| `["category.listCategories"]`       | `queryKeys.category.list()`       | 扁平数组，前端建树           |
+| `["thought.listThoughts", ...]`     | `queryKeys.thought.list(filter)`  | 返回 `Page<ThoughtListItem>` |
+| `["thought.getThoughtById", id]`    | `queryKeys.thought.detail(id)`    | 返回 `ThoughtDetail`         |
+| `["contemplate.listThoughts", ...]` | `queryKeys.thought.list(filter)`  | 统一使用同一个 hook          |
+| `["search", query]`                 | `queryKeys.search.result(query)`  | 返回 `SearchResult`          |
+| —                                   | `queryKeys.search.suggest(query)` | 新增，用于 WikiLink 补全     |
+| —                                   | `queryKeys.trash.list()`          | 新增，统一回收站             |
+| —                                   | `queryKeys.asset.orphans()`       | 新增                         |
+| —                                   | `queryKeys.cfg.storage()`         | 新增                         |
+| —                                   | `queryKeys.cfg.ai()`              | 新增                         |
 
 ---
 
@@ -944,29 +936,29 @@ export function useThoughtList(options: {
 
 ## 附录：完整类型索引
 
-| 文件 | 导出类型 |
-|------|----------|
-| `shared/common/pagination.ts` | `Page`, `PageOptions`, `CursorPage`, `CursorPageOptions` |
-| `shared/common/timestamp.ts` | `Timestamped` |
-| `shared/common/error.ts` | `ApiError` |
-| `shared/thought/type.ts` | `ThoughtType`, `ThoughtConnection` |
-| `shared/thought/list-item.ts` | `ThoughtListItem` |
-| `shared/thought/detail.ts` | `ThoughtDetail` |
-| `shared/thought/query.ts` | `ThoughtQueryFilter`, `ThoughtQueryOptions`, `ThoughtQueryRequest` |
-| `shared/thought/input.ts` | `CreateThoughtInput`, `UpdateThoughtInput`, `PatchThoughtInput` |
-| `shared/context/type.ts` | `SourceType` |
-| `shared/context/item.ts` | `ContextItem` |
-| `shared/context/input.ts` | `CreateContextInput`, `UpdateContextInput` |
-| `shared/context/batch.ts` | `DeleteContextsRequest`, `DeleteContextsResult` |
-| `shared/category/type.ts` | `Category`, `CategoryFlatNode`, `CategoryTreeNode` |
-| `shared/category/input.ts` | `CreateCategoryInput`, `UpdateCategoryInput`, `ReorderCategoryItem`, `ReorderCategoriesInput` |
-| `shared/category/delete.ts` | `DeleteCategoryOptions` |
-| `shared/category/batch.ts` | `DeleteCategoriesRequest`, `DeleteCategoriesResult` |
-| `shared/search/suggest.ts` | `SuggestItem`, `SuggestOptions` |
-| `shared/search/result.ts` | `SearchThoughtResult`, `SearchContextResult`, `SearchRequest`, `SearchResult` |
-| `shared/trash/type.ts` | `TrashedThought`, `TrashedContext`, `TrashContents`, `RestoreResult`, `BulkDeleteResult` |
-| `shared/asset/type.ts` | `AssetInfo`, `OrphanAssetInfo`, `SaveAssetResult` |
-| `shared/config/type.ts` | `StorageConfig`, `AiProviderConfig` |
-| `shared/dialog/type.ts` | `PickDirectoryOptions`, `PickDirectoryResult` |
-| `shared/app/type.ts` | `AppInfo` |
-| `shared/ai/type.ts` | `GenerateSummaryRequest`, `GenerateSummaryResult` |
+| 文件                          | 导出类型                                                                                      |
+| ----------------------------- | --------------------------------------------------------------------------------------------- |
+| `shared/common/pagination.ts` | `Page`, `PageOptions`, `CursorPage`, `CursorPageOptions`                                      |
+| `shared/common/timestamp.ts`  | `Timestamped`                                                                                 |
+| `shared/common/error.ts`      | `ApiError`                                                                                    |
+| `shared/thought/type.ts`      | `ThoughtType`, `ThoughtConnection`                                                            |
+| `shared/thought/list-item.ts` | `ThoughtListItem`                                                                             |
+| `shared/thought/detail.ts`    | `ThoughtDetail`                                                                               |
+| `shared/thought/query.ts`     | `ThoughtQueryFilter`, `ThoughtQueryOptions`, `ThoughtQueryRequest`                            |
+| `shared/thought/input.ts`     | `CreateThoughtInput`, `UpdateThoughtInput`, `PatchThoughtInput`                               |
+| `shared/context/type.ts`      | `SourceType`                                                                                  |
+| `shared/context/item.ts`      | `ContextItem`                                                                                 |
+| `shared/context/input.ts`     | `CreateContextInput`, `UpdateContextInput`                                                    |
+| `shared/context/batch.ts`     | `DeleteContextsRequest`, `DeleteContextsResult`                                               |
+| `shared/category/type.ts`     | `Category`, `CategoryFlatNode`, `CategoryTreeNode`                                            |
+| `shared/category/input.ts`    | `CreateCategoryInput`, `UpdateCategoryInput`, `ReorderCategoryItem`, `ReorderCategoriesInput` |
+| `shared/category/delete.ts`   | `DeleteCategoryOptions`                                                                       |
+| `shared/category/batch.ts`    | `DeleteCategoriesRequest`, `DeleteCategoriesResult`                                           |
+| `shared/search/suggest.ts`    | `SuggestItem`, `SuggestOptions`                                                               |
+| `shared/search/result.ts`     | `SearchThoughtResult`, `SearchContextResult`, `SearchRequest`, `SearchResult`                 |
+| `shared/trash/type.ts`        | `TrashedThought`, `TrashedContext`, `TrashContents`, `RestoreResult`, `BulkDeleteResult`      |
+| `shared/asset/type.ts`        | `AssetInfo`, `OrphanAssetInfo`, `SaveAssetResult`                                             |
+| `shared/config/type.ts`       | `StorageConfig`, `AiProviderConfig`                                                           |
+| `shared/dialog/type.ts`       | `PickDirectoryOptions`, `PickDirectoryResult`                                                 |
+| `shared/app/type.ts`          | `AppInfo`                                                                                     |
+| `shared/ai/type.ts`           | `GenerateSummaryRequest`, `GenerateSummaryResult`                                             |

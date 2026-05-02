@@ -1,6 +1,6 @@
 import { sql, inArray } from "drizzle-orm";
-import { thoughts } from "../db/schema";
-import type { FtsContextResult, SearchOptions, SearchResult, ThoughtSummaryDTO } from "../types";
+import { thoughts } from "../../db/schema";
+import type { FtsContextResult, SearchOptions, SearchResult, ThoughtSummaryDTO } from "../../types";
 import { getLimitOffset } from "./shared";
 import type { ReflectaServerContext } from "./types";
 import type { ThoughtService } from "./thought-service";

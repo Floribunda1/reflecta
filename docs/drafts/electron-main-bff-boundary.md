@@ -33,6 +33,7 @@
 ```
 
 **核心原则**：
+
 - Renderer → Main 之间走 **IPC**
 - Main → Server 之间走 **直接函数调用**（同进程）
 - Main 本身**不实现业务逻辑**，只负责 **Electron 运行时能力 + 契约转发**
@@ -64,6 +65,7 @@ class ThoughtService extends IpcService {
 ```
 
 **约束**：
+
 - Main 的 IPC 方法签名与 `packages/server/bff` 完全一致
 - Main **不修改** BFF 返回的数据结构
 - Main **不组装 DTO**，所有聚合逻辑属于 BFF
@@ -119,26 +121,26 @@ BFF 是 Electron Main 的"下游"，负责所有**业务数据契约**。
 
 ### 3.1 BFF 必须做的事
 
-| 职责 | 说明 | 示例 |
-|------|------|------|
-| DTO 组装 | 把 core 的原始 record 组装成 consumer-facing shape | `ThoughtRecord` → `ThoughtDetail` |
-| 字段裁剪 | 列表返回轻量字段，详情返回完整嵌套 | `ThoughtListItem` vs `ThoughtDetail` |
-| 分页 | 处理 limit/offset，返回 `Page<T>` | `query(filter, { limit: 50 })` |
-| 搜索高亮 | 生成 snippet、处理 rank | `search.suggest()` 返回 `bodyPreview` |
-| `include-*` 语义 | 按需展开嵌套关系 | `getById(id)` 默认展开 contexts |
-| 软删除/恢复 | 业务规则判断（不是 core 的硬删） | delete 实际是更新 deletedAt |
-| 级联操作 | 删除 category 时 uncategorize 还是 cascade | `delete(id, { mode })` |
+| 职责             | 说明                                               | 示例                                  |
+| ---------------- | -------------------------------------------------- | ------------------------------------- |
+| DTO 组装         | 把 core 的原始 record 组装成 consumer-facing shape | `ThoughtRecord` → `ThoughtDetail`     |
+| 字段裁剪         | 列表返回轻量字段，详情返回完整嵌套                 | `ThoughtListItem` vs `ThoughtDetail`  |
+| 分页             | 处理 limit/offset，返回 `Page<T>`                  | `query(filter, { limit: 50 })`        |
+| 搜索高亮         | 生成 snippet、处理 rank                            | `search.suggest()` 返回 `bodyPreview` |
+| `include-*` 语义 | 按需展开嵌套关系                                   | `getById(id)` 默认展开 contexts       |
+| 软删除/恢复      | 业务规则判断（不是 core 的硬删）                   | delete 实际是更新 deletedAt           |
+| 级联操作         | 删除 category 时 uncategorize 还是 cascade         | `delete(id, { mode })`                |
 
 ### 3.2 BFF 不做的事
 
-| 职责 | 为什么不属于 BFF | 实际归属 |
-|------|------------------|----------|
-| IPC 通信 | BFF 不知道 IPC 存在 | Electron Main |
-| 系统对话框 | BFF 不知道 Electron 存在 | Electron Main |
-| 文件系统写入 | BFF 是纯逻辑层 | Electron Main / core（视架构） |
-| 窗口管理 | BFF 不知道 BrowserWindow | Electron Main |
-| DB Schema 变更 | 属于数据层 | server core |
-| 原始 SQL 查询 | 属于数据访问层 | server core |
+| 职责           | 为什么不属于 BFF         | 实际归属                       |
+| -------------- | ------------------------ | ------------------------------ |
+| IPC 通信       | BFF 不知道 IPC 存在      | Electron Main                  |
+| 系统对话框     | BFF 不知道 Electron 存在 | Electron Main                  |
+| 文件系统写入   | BFF 是纯逻辑层           | Electron Main / core（视架构） |
+| 窗口管理       | BFF 不知道 BrowserWindow | Electron Main                  |
+| DB Schema 变更 | 属于数据层               | server core                    |
+| 原始 SQL 查询  | 属于数据访问层           | server core                    |
 
 ---
 
@@ -174,23 +176,23 @@ BFF 是 Electron Main 的"下游"，负责所有**业务数据契约**。
 
 ### 4.2 实例判定
 
-| 功能 | 归属 | 理由 |
-|------|------|------|
-| `thought.query()` — 分页返回 `Page<ThoughtListItem>` | **BFF** | DTO 组装 + 分页 + 字段裁剪 |
-| `thought.getById()` — 返回 `ThoughtDetail`（含嵌套 contexts） | **BFF** | 按需展开嵌套关系 |
-| `thought.create()` — 创建 thought，返回 `ThoughtDetail` | **BFF** | 写后回显的 DTO 组装 |
-| `thought.patch()` — 静默更新 body | **BFF** | 业务语义（"静默"是 consumer 概念） |
-| `search.suggest()` — WikiLink 补全，limit=8 | **BFF** | 搜索高亮 + limit + 返回 shape |
-| `trash.empty()` — 一键清空回收站 | **BFF** | 批量删除的业务规则 + 返回契约 |
-| `category.delete(id, { mode })` — 级联或去分类 | **BFF** | 业务规则判断 |
-| `asset.save(data, filename)` — 保存文件到磁盘 | **Main** | 需要文件系统写入（安全隔离） |
-| `asset.scanOrphans()` — 扫描无效文件 | **BFF**（调用 core） | 业务逻辑判断"无效"（引用计数） |
-| `dialog.pickDirectory()` — 弹出选择目录框 | **Main** | 需要 Electron `dialog` API |
-| `app.restart()` — 重启应用 | **Main** | 需要 Electron `app` API |
-| `ai.generateSummary()` — AI 摘要 | **BFF**（调用 core/外部） | 业务组装 prompt + 返回 shape |
-| DB 读写（thoughts.insert/ update/ delete） | **Core** | 原始数据能力 |
-| Wiki-link 解析与同步 | **Core** | 数据一致性规则 |
-| FTS 索引构建 | **Core** | 原始搜索能力 |
+| 功能                                                          | 归属                      | 理由                               |
+| ------------------------------------------------------------- | ------------------------- | ---------------------------------- |
+| `thought.query()` — 分页返回 `Page<ThoughtListItem>`          | **BFF**                   | DTO 组装 + 分页 + 字段裁剪         |
+| `thought.getById()` — 返回 `ThoughtDetail`（含嵌套 contexts） | **BFF**                   | 按需展开嵌套关系                   |
+| `thought.create()` — 创建 thought，返回 `ThoughtDetail`       | **BFF**                   | 写后回显的 DTO 组装                |
+| `thought.patch()` — 静默更新 body                             | **BFF**                   | 业务语义（"静默"是 consumer 概念） |
+| `search.suggest()` — WikiLink 补全，limit=8                   | **BFF**                   | 搜索高亮 + limit + 返回 shape      |
+| `trash.empty()` — 一键清空回收站                              | **BFF**                   | 批量删除的业务规则 + 返回契约      |
+| `category.delete(id, { mode })` — 级联或去分类                | **BFF**                   | 业务规则判断                       |
+| `asset.save(data, filename)` — 保存文件到磁盘                 | **Main**                  | 需要文件系统写入（安全隔离）       |
+| `asset.scanOrphans()` — 扫描无效文件                          | **BFF**（调用 core）      | 业务逻辑判断"无效"（引用计数）     |
+| `dialog.pickDirectory()` — 弹出选择目录框                     | **Main**                  | 需要 Electron `dialog` API         |
+| `app.restart()` — 重启应用                                    | **Main**                  | 需要 Electron `app` API            |
+| `ai.generateSummary()` — AI 摘要                              | **BFF**（调用 core/外部） | 业务组装 prompt + 返回 shape       |
+| DB 读写（thoughts.insert/ update/ delete）                    | **Core**                  | 原始数据能力                       |
+| Wiki-link 解析与同步                                          | **Core**                  | 数据一致性规则                     |
+| FTS 索引构建                                                  | **Core**                  | 原始搜索能力                       |
 
 ---
 
@@ -279,67 +281,68 @@ Main / DialogService.pickDirectory()
 
 ### 6.1 Thought 域
 
-| 接口 | 归属 | 说明 |
-|------|------|------|
-| `thought.query()` | **BFF** | 分页 + 字段裁剪 |
-| `thought.getById()` | **BFF** | 嵌套展开 |
-| `thought.create()` | **BFF** | 写后回显 |
-| `thought.update()` | **BFF** | 写后回显 |
-| `thought.patch()` | **BFF** | 静默更新语义（BFF 决定是否通知缓存） |
-| `thought.delete()` | **BFF** | 软删除 + 返回被删除实体 |
-| `thought.addConnection()` | **BFF** | 关系操作的业务规则 |
-| `thought.removeConnection()` | **BFF** | 关系操作的业务规则 |
-| `thought.resolveLinkTarget()` | **BFF** | 搜索 + 返回 SuggestItem |
+| 接口                          | 归属    | 说明                                 |
+| ----------------------------- | ------- | ------------------------------------ |
+| `thought.query()`             | **BFF** | 分页 + 字段裁剪                      |
+| `thought.getById()`           | **BFF** | 嵌套展开                             |
+| `thought.create()`            | **BFF** | 写后回显                             |
+| `thought.update()`            | **BFF** | 写后回显                             |
+| `thought.patch()`             | **BFF** | 静默更新语义（BFF 决定是否通知缓存） |
+| `thought.delete()`            | **BFF** | 软删除 + 返回被删除实体              |
+| `thought.addConnection()`     | **BFF** | 关系操作的业务规则                   |
+| `thought.removeConnection()`  | **BFF** | 关系操作的业务规则                   |
+| `thought.resolveLinkTarget()` | **BFF** | 搜索 + 返回 SuggestItem              |
 
 ### 6.2 Context 域
 
-| 接口 | 归属 | 说明 |
-|------|------|------|
-| `context.create()` | **BFF** | 写后回显 |
-| `context.update()` | **BFF** | 写后回显 |
-| `context.delete()` | **BFF** | 软删除 |
+| 接口                   | 归属    | 说明               |
+| ---------------------- | ------- | ------------------ |
+| `context.create()`     | **BFF** | 写后回显           |
+| `context.update()`     | **BFF** | 写后回显           |
+| `context.delete()`     | **BFF** | 软删除             |
 | `context.deleteMany()` | **BFF** | 批量删除的业务规则 |
 
 ### 6.3 Category 域
 
-| 接口 | 归属 | 说明 |
-|------|------|------|
-| `category.list()` | **BFF** | 返回 `CategoryFlatNode[]`（含 thoughtCount）|
-| `category.create()` | **BFF** | 写后回显 |
-| `category.update()` | **BFF** | 写后回显 |
-| `category.delete()` | **BFF** | 级联/去分类的业务规则 |
-| `category.deleteMany()` | **BFF** | 批量删除的业务规则 |
-| `category.reorder()` | **BFF** | 重排后返回完整列表 |
+| 接口                    | 归属    | 说明                                         |
+| ----------------------- | ------- | -------------------------------------------- |
+| `category.list()`       | **BFF** | 返回 `CategoryFlatNode[]`（含 thoughtCount） |
+| `category.create()`     | **BFF** | 写后回显                                     |
+| `category.update()`     | **BFF** | 写后回显                                     |
+| `category.delete()`     | **BFF** | 级联/去分类的业务规则                        |
+| `category.deleteMany()` | **BFF** | 批量删除的业务规则                           |
+| `category.reorder()`    | **BFF** | 重排后返回完整列表                           |
 
 ### 6.4 Search 域
 
-| 接口 | 归属 | 说明 |
-|------|------|------|
+| 接口               | 归属    | 说明                            |
+| ------------------ | ------- | ------------------------------- |
 | `search.suggest()` | **BFF** | 搜索 + limit + 返回 SuggestItem |
-| `search.search()` | **BFF** | 全文搜索 + snippet + 分页 |
+| `search.search()`  | **BFF** | 全文搜索 + snippet + 分页       |
 
 ### 6.5 Trash 域
 
-| 接口 | 归属 | 说明 |
-|------|------|------|
-| `trash.list()` | **BFF** | 聚合 thoughts + contexts |
-| `trash.restoreThought()` | **BFF** | 恢复业务规则 + 返回 RestoreResult |
-| `trash.restoreContext()` | **BFF** | 恢复业务规则 + 返回 RestoreResult |
-| `trash.deleteThoughtPermanently()` | **BFF** | 永久删除业务规则 |
-| `trash.deleteContextPermanently()` | **BFF** | 永久删除业务规则 |
-| `trash.empty()` | **BFF** | 批量清空业务规则 |
+| 接口                               | 归属    | 说明                              |
+| ---------------------------------- | ------- | --------------------------------- |
+| `trash.list()`                     | **BFF** | 聚合 thoughts + contexts          |
+| `trash.restoreThought()`           | **BFF** | 恢复业务规则 + 返回 RestoreResult |
+| `trash.restoreContext()`           | **BFF** | 恢复业务规则 + 返回 RestoreResult |
+| `trash.deleteThoughtPermanently()` | **BFF** | 永久删除业务规则                  |
+| `trash.deleteContextPermanently()` | **BFF** | 永久删除业务规则                  |
+| `trash.empty()`                    | **BFF** | 批量清空业务规则                  |
 
 ### 6.6 Asset 域
 
-| 接口 | 归属 | 说明 |
-|------|------|------|
-| `asset.save()` | **Main + BFF** | Main 负责文件写入；BFF 负责 DB 记录 + 返回契约 |
-| `asset.scanOrphans()` | **BFF**（调用 core） | "无效"判断是业务逻辑 |
-| `asset.cleanOrphans()` | **BFF + Main** | BFF 决定删哪些；Main 执行文件删除 |
-| `asset.open()` | **Main** | `shell.openPath()` |
-| `asset.reveal()` | **Main** | `shell.showItemInFolder()` |
+| 接口                   | 归属                 | 说明                                           |
+| ---------------------- | -------------------- | ---------------------------------------------- |
+| `asset.save()`         | **Main + BFF**       | Main 负责文件写入；BFF 负责 DB 记录 + 返回契约 |
+| `asset.scanOrphans()`  | **BFF**（调用 core） | "无效"判断是业务逻辑                           |
+| `asset.cleanOrphans()` | **BFF + Main**       | BFF 决定删哪些；Main 执行文件删除              |
+| `asset.open()`         | **Main**             | `shell.openPath()`                             |
+| `asset.reveal()`       | **Main**             | `shell.showItemInFolder()`                     |
 
 **注意**：`asset.save` 是一个跨边界接口。
+
 - 如果 BFF 负责"保存 asset 的业务逻辑"（如生成 ID、记录到 DB、返回契约），那么 BFF 暴露 `save(data, filename)` 方法，内部调用 Main 的文件写入能力。
 - 但当前 IPC 架构下，BFF 无法直接调用 Main。所以有两种方案：
   - **方案 A**：`asset.save` 是 Main 的 IPC 接口，内部调用 BFF 的业务逻辑（推荐，因为文件写入必须在 Main）
@@ -349,20 +352,20 @@ Main / DialogService.pickDirectory()
 
 ### 6.7 Config / Dialog / App 域
 
-| 接口 | 归属 | 说明 |
-|------|------|------|
-| `cfg.getStorage()` | **BFF** | 读取配置的业务封装 |
-| `cfg.setStorage()` | **BFF** | 写入配置 + 返回更新后配置 |
-| `cfg.getAiProvider()` | **BFF** | 读取配置 |
-| `cfg.setAiProvider()` | **BFF** | 写入配置 |
-| `dialog.pickDirectory()` | **Main** | 纯 Electron 运行时能力 |
-| `app.restart()` | **Main** | 纯 Electron 运行时能力 |
-| `app.getInfo()` | **Main** | 纯 Electron 运行时能力 |
+| 接口                     | 归属     | 说明                      |
+| ------------------------ | -------- | ------------------------- |
+| `cfg.getStorage()`       | **BFF**  | 读取配置的业务封装        |
+| `cfg.setStorage()`       | **BFF**  | 写入配置 + 返回更新后配置 |
+| `cfg.getAiProvider()`    | **BFF**  | 读取配置                  |
+| `cfg.setAiProvider()`    | **BFF**  | 写入配置                  |
+| `dialog.pickDirectory()` | **Main** | 纯 Electron 运行时能力    |
+| `app.restart()`          | **Main** | 纯 Electron 运行时能力    |
+| `app.getInfo()`          | **Main** | 纯 Electron 运行时能力    |
 
 ### 6.8 AI 域
 
-| 接口 | 归属 | 说明 |
-|------|------|------|
+| 接口                   | 归属    | 说明                     |
+| ---------------------- | ------- | ------------------------ |
 | `ai.generateSummary()` | **BFF** | prompt 组装 + 返回 shape |
 
 ---
@@ -372,6 +375,7 @@ Main / DialogService.pickDirectory()
 ### 7.1 Thin Main（推荐）
 
 Main 只负责：
+
 1. IPC 契约暴露（`@IpcMethod` 装饰器）
 2. Electron 运行时能力（dialog、shell、app、protocol）
 3. 安全隔离（文件系统写入必须在 Main）
@@ -408,6 +412,7 @@ class ThoughtService extends IpcService {
 ```
 
 **为什么错误**：
+
 - DTO 组装逻辑分散在 Main 里，BFF 无法复用
 - CLI 和 Electron 的返回结构可能不一致
 - 业务规则变更需要改两个地方

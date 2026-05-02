@@ -1,5 +1,5 @@
-import type { ContextDTO, SearchOptions, SourceType } from "../types";
-import { contexts } from "../db/schema";
+import type { ContextDTO, SearchOptions, SourceType } from "../../types";
+import { contexts } from "../../db/schema";
 
 export function rowToContextDTO(row: typeof contexts.$inferSelect): ContextDTO {
   return {
