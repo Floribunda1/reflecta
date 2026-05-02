@@ -9,14 +9,12 @@ import type {
   UpdateThoughtInput,
 } from "../../types";
 import {
-  addConnection as coreAddConnection,
   createThought as coreCreateThought,
   deleteThought as coreDeleteThought,
   getThoughtRow,
   listRecentThoughtRows,
   listThoughtRows,
   permanentlyDeleteThought as corePermanentlyDeleteThought,
-  removeConnection as coreRemoveConnection,
   restoreThought as coreRestoreThought,
   updateThought as coreUpdateThought,
 } from "../core/thought-core";
@@ -176,14 +174,6 @@ export class ThoughtService {
 
   async permanentlyDeleteThought(id: string): Promise<void> {
     await corePermanentlyDeleteThought(this.options.getDb(), id);
-  }
-
-  async addConnection(sourceId: string, targetId: string): Promise<void> {
-    await coreAddConnection(this.options.getDb(), sourceId, targetId);
-  }
-
-  async removeConnection(sourceId: string, targetId: string): Promise<void> {
-    await coreRemoveConnection(this.options.getDb(), sourceId, targetId);
   }
 
   async resolveWikiLinkTarget(target: string): Promise<ThoughtSummaryDTO | null> {

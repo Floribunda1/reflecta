@@ -200,26 +200,6 @@ export async function permanentlyDeleteThought(db: ReflectaDb, id: string): Prom
   });
 }
 
-export async function addConnection(
-  db: ReflectaDb,
-  sourceId: string,
-  targetId: string,
-): Promise<void> {
-  await db.insert(thoughtConnections).values({ sourceId, targetId }).onConflictDoNothing();
-}
-
-export async function removeConnection(
-  db: ReflectaDb,
-  sourceId: string,
-  targetId: string,
-): Promise<void> {
-  await db
-    .delete(thoughtConnections)
-    .where(
-      and(eq(thoughtConnections.sourceId, sourceId), eq(thoughtConnections.targetId, targetId)),
-    );
-}
-
 export async function syncWikiLinkConnections(
   db: ReflectaDb,
   sourceId: string,
