@@ -69,6 +69,12 @@ Set `REFLECTA_DB_PATH` when using a development or test database:
 REFLECTA_DB_PATH=/absolute/path/to/reflecta.db reflecta list_categories --json '{}'
 ```
 
+## Thought Links
+
+Thought relationships are inferred from wiki links in the thought body.
+
+In the CLI, write `[[target-thought-id]]` or `[[target-thought-id|label]]` in `thought create --body` or `thought update --body`. The CLI normalizes these into Reflecta's internal `/wiki/...` markdown links before saving.
+
 ## Development
 
 ```bash

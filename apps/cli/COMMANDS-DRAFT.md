@@ -301,8 +301,6 @@ type TrashedContext = ContextFull & {
 | `thought update <id>`                               | `ThoughtDetail`           | `ThoughtDetail`           | mutation，需 `--yes`             |
 | `thought delete <id>`                               | 空                        | 空                        | mutation，需 `--yes`             |
 | `thought restore <id>`                              | 空                        | 空                        | mutation，需 `--yes`             |
-| `thought reference <referrer-id> <referenced-id>`   | 空                        | 空                        | mutation，需 `--yes`             |
-| `thought unreference <referrer-id> <referenced-id>` | 空                        | 空                        | mutation，需 `--yes`             |
 | `context list --thought-id <id>`                    | `ContextFull` JSONL       | `ContextFull[]`           | Thought 的来源材料               |
 | `context create`                                    | `ContextFull`             | `ContextFull`             | mutation，需 `--yes`             |
 | `context update <id>`                               | `ContextFull`             | `ContextFull`             | mutation，需 `--yes`             |
@@ -338,8 +336,7 @@ reflecta
 │   ├── update <id>
 │   ├── delete <id>
 │   ├── restore <id>
-│   ├── reference <referrer-id> <referenced-id>
-│   └── unreference <referrer-id> <referenced-id>
+│   └── links inferred from `[[...]]` in body
 ├── context
 │   ├── list --thought-id <id>
 │   ├── create
@@ -632,21 +629,21 @@ reflecta thought create \
 reflecta thought update th_1 --body "澄清后的表达..." --yes --format json
 ```
 
-### `reflecta thought reference <referrer-id> <referenced-id>`
+### Thought 关系维护
 
-用户确认后建立有向引用。
+Thought 之间的关系不再通过独立命令手动新增、删除。
 
-返回类型：空 stdout，exit code `0` 表示成功。缺少 `--yes` 时返回 `CONFIRMATION_REQUIRED`，不执行写入。
+在 CLI 中，关系由 `thought create --body` / `thought update --body` 里的 wiki links 推导：
 
 ```bash
-reflecta thought reference th_new th_existing --yes
+reflecta thought update th_new --body "关联到 [[th_existing]]" --yes --format json
 ```
 
 语义：
 
-- `referrer-id references referenced-id`
-- 表示 referrer 引用 referenced：前者的内容指向、使用、支持、启发或关联后者
-- 当前不强制 relation type，避免 Agent 在早期过度分类
+- `[[target]]` 或 `[[target|label]]` 表示当前 Thought 引用目标 Thought
+- CLI 会把 `[[...]]` 规范化成内部 `/wiki/...` markdown link 后再写入
+- 更新正文时会同步该 Thought 的 outgoing references
 
 ---
 
@@ -1121,7 +1118,7 @@ reflecta category inspect cat_identity --include-descendants --include-contexts 
 
 当前已实现：
 
-- `thought list/get/create/update/delete/restore/connect/disconnect`
+- `thought list/get/create/update/delete/restore`（关系通过正文内 `[[...]]` 自动同步）
 - `context list/create/update/delete/restore`
 - `category list/create/update/delete`
 - `search thoughts/contexts/all`
@@ -1132,7 +1129,6 @@ reflecta category inspect cat_identity --include-descendants --include-contexts 
 | 能力                                                      | 优先级 | 原因                                                 |
 | --------------------------------------------------------- | ------ | ---------------------------------------------------- |
 | `meta actions` / `meta schema`                            | P0     | 纯 Agent CLI 需要机器可读自发现                      |
-| `thought reference/unreference` 替代 `connect/disconnect` | P0     | 命令表达 A references B，方向和语义比 connect 更明确 |
 | `category inspect`                                        | P0     | Category 洞察挖掘的主入口，避免 N+1                  |
 | `search thoughts` 返回 rank/snippet 并保序                | P0     | 搜索入口质量直接影响后续调用                         |
 | `graph neighborhood`                                      | P1     | 发散探索和图谱解释需要局部邻域                       |

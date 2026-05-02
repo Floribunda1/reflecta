@@ -4,6 +4,7 @@ import { CliError, ErrorCodes } from "../../error";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
 import { compactThought } from "../compact";
+import { normalizeThoughtBody } from "./wiki-links";
 
 export function registerCreateThoughtAction(cli: Command): void {
   cli
@@ -11,7 +12,7 @@ export function registerCreateThoughtAction(cli: Command): void {
     .description("Create a thought")
     .option("--type <type>", "Thought type (idea | insight)")
     .option("--title <title>", "Thought title")
-    .option("--body <body>", "Thought body")
+    .option("--body <body>", "Thought body. Use [[thought-id]] or [[title|label]] to create links")
     .option("--category-id <ids>", "Category IDs, comma-separated")
     .action((_options, actionCli) => createThoughtAction(actionCli));
 }
@@ -32,7 +33,7 @@ export async function createThoughtAction(cli: Command): Promise<void> {
       const input: CreateThoughtInput = {
         type: options.type as ThoughtType,
         title: options.title,
-        body: options.body,
+        body: normalizeThoughtBody(options.body),
         categoryIds: options.categoryId
           ? options.categoryId
               .split(",")
