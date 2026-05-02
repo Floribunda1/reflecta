@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractThoughtWikiLinkTargets,
   formatThoughtWikiLink,
+  normalizeThoughtWikiLinkBody,
   parseThoughtWikiLink,
 } from "./wiki-links";
 
@@ -17,6 +18,12 @@ describe("thought wiki links", () => {
       title: "Primary Thought",
       id: "th_1",
     });
+  });
+
+  it("normalizes escaped remark output back into title-id links", () => {
+    expect(normalizeThoughtWikiLinkBody("\\[\\[Primary Thought#th\\_1]]")).toBe(
+      "[[Primary Thought#th_1]]",
+    );
   });
 
   it("extracts unique target ids", () => {

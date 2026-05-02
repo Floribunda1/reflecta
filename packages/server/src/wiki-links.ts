@@ -4,6 +4,11 @@ export type ThoughtWikiLink = {
 };
 
 const thoughtWikiLinkPattern = /\[\[([^\]\n]+)\]\]/g;
+const escapedThoughtWikiLinkPattern = /\\\[\\\[([^\]\n]+)]]/g;
+
+function unescapeMarkdownText(value: string): string {
+  return value.replaceAll(/\\([\\[\]_`*#])/g, "$1");
+}
 
 export function formatThoughtWikiLink(link: ThoughtWikiLink): string {
   const id = link.id.trim();
@@ -15,7 +20,7 @@ export function parseThoughtWikiLink(raw: string): ThoughtWikiLink | null {
   const match = /^\[\[([^\]\n]+)\]\]$/.exec(raw.trim());
   if (!match) return null;
 
-  const content = match[1]?.trim() ?? "";
+  const content = unescapeMarkdownText(match[1]?.trim() ?? "");
   const separatorIndex = content.lastIndexOf("#");
   if (separatorIndex <= 0 || separatorIndex === content.length - 1) return null;
 
@@ -29,7 +34,12 @@ export function parseThoughtWikiLink(raw: string): ThoughtWikiLink | null {
 export function normalizeThoughtWikiLinkBody(body: string | undefined): string | undefined {
   if (body === undefined) return undefined;
 
-  return body.replaceAll(thoughtWikiLinkPattern, (match) => {
+  const unescapedBody = body.replaceAll(escapedThoughtWikiLinkPattern, (_match, rawContent) => {
+    const content = unescapeMarkdownText(String(rawContent).trim());
+    return `[[${content}]]`;
+  });
+
+  return unescapedBody.replaceAll(thoughtWikiLinkPattern, (match) => {
     const parsed = parseThoughtWikiLink(match);
     return parsed ? formatThoughtWikiLink(parsed) : match;
   });
