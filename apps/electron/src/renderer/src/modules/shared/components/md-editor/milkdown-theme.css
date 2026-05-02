@@ -484,7 +484,7 @@
   cursor: pointer;
   border-radius: 4px;
   background: color-mix(in srgb, var(--p-primary-color), transparent 90%);
-  color: transparent;
+  font-size: 0;
   padding: 0 4px;
   line-height: 1.5;
   position: relative;
@@ -495,6 +495,8 @@
 .milkdown-editor .milkdown .ProseMirror .reflecta-wiki-link::after {
   content: attr(data-wiki-display);
   color: var(--p-primary-color);
+  font-size: 1rem;
+  line-height: 1.5;
   pointer-events: none;
 }
 
