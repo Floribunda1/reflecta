@@ -1,14 +1,15 @@
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { nanoid } from "nanoid";
+import { and, desc, inArray, isNull } from "drizzle-orm";
+import { contexts, thoughtCategories, thoughtConnections, thoughts } from "../../db/schema";
+import type { ReflectaDb } from "../core/types";
 import {
-  categories,
-  contexts,
-  thoughtCategories,
-  thoughtConnections,
-  thoughts,
-} from "../../db/schema";
-import type { ReflectaDb } from "../electron/types";
-import { getCategoryDescendants, makePageInfo, toThoughtSummaries } from "./shared";
+  createCategory as coreCreateCategory,
+  deleteCategory as coreDeleteCategory,
+  getCategoryRow,
+  listCategoryRows,
+  updateCategory as coreUpdateCategory,
+} from "../core/category-core";
+import { getCategoryDescendants, makePageInfo } from "../core/shared";
+import { toThoughtSummaries } from "./shared";
 import type {
   CategoryInspectResult,
   CategorySummary,
@@ -24,35 +25,28 @@ export class CategoryService {
   constructor(private db: ReflectaDb) {}
 
   async listCategories(): Promise<CategorySummary[]> {
-    const rows = await this.db.select().from(categories).orderBy(categories.sortOrder);
+    const rows = await listCategoryRows(this.db);
     return rows.map((r) => ({ id: r.id, name: r.name, parentId: r.parentId }));
   }
 
   async getCategory(id: string): Promise<CategorySummary> {
-    const rows = await this.db.select().from(categories).where(eq(categories.id, id)).limit(1);
-    if (rows.length === 0) {
+    const row = await getCategoryRow(this.db, id);
+    if (!row) {
       throw new Error(`Category not found: ${id}`);
     }
-    const r = rows[0];
-    return { id: r.id, name: r.name, parentId: r.parentId };
+    return { id: row.id, name: row.name, parentId: row.parentId };
   }
 
   async inspectCategory(
     id: string,
     options?: InspectCategoryOptions,
   ): Promise<CategoryInspectResult> {
-    const categoryRows = await this.db
-      .select()
-      .from(categories)
-      .where(eq(categories.id, id))
-      .limit(1);
-
-    if (categoryRows.length === 0) {
+    const category = await getCategoryRow(this.db, id);
+    if (!category) {
       throw new Error(`Category not found: ${id}`);
     }
 
-    const category = categoryRows[0];
-    const allCats = await this.db.select().from(categories).orderBy(categories.sortOrder);
+    const allCats = await listCategoryRows(this.db);
 
     const descendantIds = await getCategoryDescendants(this.db, id);
     const targetCatIds = [id, ...descendantIds];
@@ -158,65 +152,16 @@ export class CategoryService {
   }
 
   async createCategory(input: CreateCategoryInput): Promise<CategorySummary> {
-    const createdAt = new Date().toISOString();
-    const parentId = input.parentId ?? null;
-
-    const maxOrderResult = await this.db
-      .select({ maxOrder: sql<number>`coalesce(max(sort_order), -1)` })
-      .from(categories)
-      .where(parentId ? eq(categories.parentId, parentId) : sql`parent_id IS NULL`);
-    const nextOrder = (maxOrderResult[0]?.maxOrder ?? -1) + 1;
-
-    const rows = await this.db
-      .insert(categories)
-      .values({
-        id: nanoid(),
-        name: input.name,
-        parentId,
-        sortOrder: nextOrder,
-        createdAt,
-        updatedAt: createdAt,
-      })
-      .returning();
-
-    const r = rows[0];
-    return { id: r.id, name: r.name, parentId: r.parentId };
+    const row = await coreCreateCategory(this.db, input);
+    return { id: row.id, name: row.name, parentId: row.parentId };
   }
 
   async updateCategory(id: string, input: UpdateCategoryInput): Promise<CategorySummary> {
-    const updates: Partial<typeof categories.$inferInsert> = {
-      updatedAt: new Date().toISOString(),
-    };
-    if (input.name !== undefined) updates.name = input.name;
-    if (input.parentId !== undefined) updates.parentId = input.parentId;
-
-    const rows = await this.db
-      .update(categories)
-      .set(updates)
-      .where(eq(categories.id, id))
-      .returning();
-    if (rows.length === 0) {
-      throw new Error(`Category not found: ${id}`);
-    }
-
-    const r = rows[0];
-    return { id: r.id, name: r.name, parentId: r.parentId };
+    const row = await coreUpdateCategory(this.db, id, input);
+    return { id: row.id, name: row.name, parentId: row.parentId };
   }
 
   async deleteCategory(id: string, deleteThoughts = false): Promise<void> {
-    await this.db.transaction(async (tx) => {
-      if (deleteThoughts) {
-        const tcRows = await tx
-          .select({ thoughtId: thoughtCategories.thoughtId })
-          .from(thoughtCategories)
-          .where(eq(thoughtCategories.categoryId, id));
-        for (const { thoughtId } of tcRows) {
-          await tx.run(sql`DELETE FROM fts_thoughts WHERE thought_id = ${thoughtId}`);
-          await tx.run(sql`DELETE FROM fts_contexts WHERE thought_id = ${thoughtId}`);
-          await tx.delete(thoughts).where(eq(thoughts.id, thoughtId));
-        }
-      }
-      await tx.delete(categories).where(eq(categories.id, id));
-    });
+    await coreDeleteCategory(this.db, id, deleteThoughts);
   }
 }

@@ -1,7 +1,8 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { contexts, thoughtConnections, thoughts } from "../../db/schema";
-import type { ReflectaDb } from "../electron/types";
-import { makePageInfo, toThoughtSummaries } from "./shared";
+import type { ReflectaDb } from "../core/types";
+import { makePageInfo } from "../core/shared";
+import { toThoughtSummaries } from "./shared";
 import type {
   ContextDetail,
   GraphNeighborhoodOptions,

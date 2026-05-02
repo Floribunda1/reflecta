@@ -1,5 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
-import { nanoid } from "nanoid";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { contexts, thoughtCategories, thoughtConnections, thoughts } from "../../db/schema";
 import type {
   CreateThoughtInput,
@@ -9,7 +8,18 @@ import type {
   ThoughtType,
   UpdateThoughtInput,
 } from "../../types";
-import { extractThoughtWikiLinkTargets, normalizeThoughtWikiLinkBody } from "../../wiki-links";
+import {
+  addConnection as coreAddConnection,
+  createThought as coreCreateThought,
+  deleteThought as coreDeleteThought,
+  getThoughtRow,
+  listRecentThoughtRows,
+  listThoughtRows,
+  permanentlyDeleteThought as corePermanentlyDeleteThought,
+  removeConnection as coreRemoveConnection,
+  restoreThought as coreRestoreThought,
+  updateThought as coreUpdateThought,
+} from "../core/thought-core";
 import { rowToContextDTO } from "./shared";
 import type { ReflectaServerContext } from "./types";
 
@@ -53,53 +63,17 @@ export class ThoughtService {
 
   async listThoughts(filter?: ListThoughtsFilter): Promise<ThoughtSummaryDTO[]> {
     const db = this.options.getDb();
-    let thoughtRows: Array<typeof thoughts.$inferSelect>;
 
-    if (filter?.categoryId) {
-      let catIds: string[];
-      if (filter.includeDescendants) {
-        const result = await db.all<{ id: string }>(sql`
-          WITH RECURSIVE descendants(id) AS (
-            SELECT id FROM categories WHERE id = ${filter.categoryId}
-            UNION ALL
-            SELECT c.id FROM categories c
-            INNER JOIN descendants d ON c.parent_id = d.id
-          )
-          SELECT id FROM descendants
-        `);
-        catIds = result.map((r) => r.id);
-      } else {
-        catIds = [filter.categoryId];
-      }
-
-      thoughtRows = await db
-        .select()
-        .from(thoughts)
-        .where(
-          and(
-            isNull(thoughts.deletedAt),
-            inArray(
-              thoughts.id,
-              db
-                .select({ id: thoughtCategories.thoughtId })
-                .from(thoughtCategories)
-                .where(inArray(thoughtCategories.categoryId, catIds)),
-            ),
-          ),
-        );
-    } else {
-      thoughtRows = await db.select().from(thoughts).where(isNull(thoughts.deletedAt));
-    }
-
-    if (filter?.type) {
-      thoughtRows = thoughtRows.filter((t) => t.type === filter.type);
-    }
+    let thoughtRows = await listThoughtRows(db, {
+      type: filter?.type,
+      categoryId: filter?.categoryId,
+      includeDescendants: filter?.includeDescendants,
+    });
 
     if (filter?.searchQuery) {
-      const escaped = filter.searchQuery.replace(/"/g, '""');
-      const term = `"${escaped}"*`;
+      const escaped = `"${filter.searchQuery.replace(/"/g, '""')}"*`;
       const ftsRows = await db.all<{ thought_id: string }>(
-        sql`SELECT thought_id FROM fts_thoughts WHERE fts_thoughts MATCH ${term} ORDER BY rank`,
+        sql`SELECT thought_id FROM fts_thoughts WHERE fts_thoughts MATCH ${escaped} ORDER BY rank`,
       );
       const matchingIds = new Set(ftsRows.map((r) => r.thought_id));
       thoughtRows = thoughtRows.filter((t) => matchingIds.has(t.id));
@@ -110,13 +84,8 @@ export class ThoughtService {
 
   async getThoughtById(id: string): Promise<ThoughtDTO | null> {
     const db = this.options.getDb();
-    const rows = await db
-      .select()
-      .from(thoughts)
-      .where(and(eq(thoughts.id, id), isNull(thoughts.deletedAt)))
-      .limit(1);
-    if (rows.length === 0) return null;
-    const row = rows[0];
+    const row = await getThoughtRow(db, id);
+    if (!row) return null;
 
     const [tcRows, ctxRows, connRows, refRows] = await Promise.all([
       db.select().from(thoughtCategories).where(eq(thoughtCategories.thoughtId, id)),
@@ -160,141 +129,38 @@ export class ThoughtService {
 
   async createThought(input: CreateThoughtInput): Promise<ThoughtDTO> {
     const db = this.options.getDb();
-    const createdAt = new Date().toISOString();
-    const id = nanoid();
-    const body = normalizeThoughtWikiLinkBody(input.body) ?? "";
-
-    await db.transaction(async (tx) => {
-      await tx.insert(thoughts).values({
-        id,
-        type: input.type,
-        title: input.title ?? null,
-        body,
-        createdAt,
-        updatedAt: createdAt,
-      });
-
-      if (input.categoryIds && input.categoryIds.length > 0) {
-        await tx.insert(thoughtCategories).values(
-          input.categoryIds.map((catId) => ({
-            thoughtId: id,
-            categoryId: catId,
-          })),
-        );
-      }
-
-      await tx.run(
-        sql`INSERT INTO fts_thoughts (thought_id, title, body) VALUES (${id}, ${input.title ?? ""}, ${body})`,
-      );
-    });
-
-    await this.syncWikiLinkConnections(id, body);
-
-    const dto = await this.getThoughtById(id);
-    if (!dto) throw new Error(`Thought not found after creation: ${id}`);
+    const row = await coreCreateThought(db, input);
+    const dto = await this.getThoughtById(row.id);
+    if (!dto) throw new Error(`Thought not found after creation: ${row.id}`);
     return dto;
   }
 
   async updateThought(id: string, input: UpdateThoughtInput): Promise<ThoughtDTO> {
     const db = this.options.getDb();
-    const updates: Partial<typeof thoughts.$inferInsert> = { updatedAt: new Date().toISOString() };
-    if (input.type !== undefined) updates.type = input.type;
-    const normalizedBody = normalizeThoughtWikiLinkBody(input.body);
-    if (normalizedBody !== undefined) updates.body = normalizedBody;
-    if (input.title !== undefined) updates.title = input.title;
-
-    await db.transaction(async (tx) => {
-      const rows = await tx.update(thoughts).set(updates).where(eq(thoughts.id, id)).returning();
-      if (rows.length === 0) throw new Error(`Thought not found: ${id}`);
-
-      if (input.body !== undefined || input.title !== undefined) {
-        const row = rows[0];
-        await tx.run(sql`DELETE FROM fts_thoughts WHERE thought_id = ${id}`);
-        await tx.run(
-          sql`INSERT INTO fts_thoughts (thought_id, title, body) VALUES (${id}, ${row.title ?? ""}, ${row.body})`,
-        );
-      }
-
-      if (input.categoryIds !== undefined) {
-        await tx.delete(thoughtCategories).where(eq(thoughtCategories.thoughtId, id));
-        if (input.categoryIds.length > 0) {
-          await tx.insert(thoughtCategories).values(
-            input.categoryIds.map((catId) => ({
-              thoughtId: id,
-              categoryId: catId,
-            })),
-          );
-        }
-      }
-    });
-
-    if (normalizedBody !== undefined) {
-      await this.syncWikiLinkConnections(id, normalizedBody);
-    }
-
-    const dto = await this.getThoughtById(id);
-    if (!dto) throw new Error(`Thought not found after update: ${id}`);
+    const row = await coreUpdateThought(db, id, input);
+    const dto = await this.getThoughtById(row.id);
+    if (!dto) throw new Error(`Thought not found after update: ${row.id}`);
     return dto;
   }
 
   async deleteThought(id: string): Promise<void> {
-    const db = this.options.getDb();
-    await db.transaction(async (tx) => {
-      await tx
-        .update(thoughts)
-        .set({ deletedAt: new Date().toISOString() })
-        .where(eq(thoughts.id, id));
-      await tx.run(sql`DELETE FROM fts_thoughts WHERE thought_id = ${id}`);
-      await tx.run(sql`DELETE FROM fts_contexts WHERE thought_id = ${id}`);
-    });
+    await coreDeleteThought(this.options.getDb(), id);
   }
 
   async restoreThought(id: string): Promise<void> {
-    const db = this.options.getDb();
-    await db.transaction(async (tx) => {
-      const rows = await tx
-        .update(thoughts)
-        .set({ deletedAt: null })
-        .where(and(eq(thoughts.id, id), isNotNull(thoughts.deletedAt)))
-        .returning();
-      if (rows.length === 0) return;
-      const row = rows[0];
-      await tx.run(
-        sql`INSERT OR IGNORE INTO fts_thoughts (thought_id, title, body) VALUES (${row.id}, ${row.title ?? ""}, ${row.body})`,
-      );
-      const ctxRows = await tx
-        .select()
-        .from(contexts)
-        .where(and(eq(contexts.thoughtId, id), isNull(contexts.deletedAt)));
-      for (const ctx of ctxRows) {
-        await tx.run(
-          sql`INSERT OR IGNORE INTO fts_contexts (context_id, thought_id, source_name, content) VALUES (${ctx.id}, ${ctx.thoughtId}, ${ctx.sourceName}, ${ctx.content})`,
-        );
-      }
-    });
+    await coreRestoreThought(this.options.getDb(), id);
   }
 
   async permanentlyDeleteThought(id: string): Promise<void> {
-    const db = this.options.getDb();
-    await db.transaction(async (tx) => {
-      await tx.run(sql`DELETE FROM fts_thoughts WHERE thought_id = ${id}`);
-      await tx.run(sql`DELETE FROM fts_contexts WHERE thought_id = ${id}`);
-      await tx.delete(thoughts).where(eq(thoughts.id, id));
-    });
+    await corePermanentlyDeleteThought(this.options.getDb(), id);
   }
 
   async addConnection(sourceId: string, targetId: string): Promise<void> {
-    const db = this.options.getDb();
-    await db.insert(thoughtConnections).values({ sourceId, targetId }).onConflictDoNothing();
+    await coreAddConnection(this.options.getDb(), sourceId, targetId);
   }
 
   async removeConnection(sourceId: string, targetId: string): Promise<void> {
-    const db = this.options.getDb();
-    await db
-      .delete(thoughtConnections)
-      .where(
-        and(eq(thoughtConnections.sourceId, sourceId), eq(thoughtConnections.targetId, targetId)),
-      );
+    await coreRemoveConnection(this.options.getDb(), sourceId, targetId);
   }
 
   async resolveWikiLinkTarget(target: string): Promise<ThoughtSummaryDTO | null> {
@@ -319,48 +185,8 @@ export class ThoughtService {
     return summary ?? null;
   }
 
-  private async syncWikiLinkConnections(sourceId: string, body: string): Promise<void> {
-    const db = this.options.getDb();
-    const linkTargets = extractThoughtWikiLinkTargets(body);
-
-    await db.transaction(async (tx) => {
-      await tx.delete(thoughtConnections).where(eq(thoughtConnections.sourceId, sourceId));
-
-      if (linkTargets.length === 0) return;
-
-      const rows = await tx
-        .select()
-        .from(thoughts)
-        .where(
-          and(
-            isNull(thoughts.deletedAt),
-            or(inArray(thoughts.id, linkTargets), inArray(thoughts.title, linkTargets)),
-          ),
-        )
-        .orderBy(desc(thoughts.updatedAt));
-
-      const targetIds = new Set<string>();
-      for (const target of linkTargets) {
-        const row = rows.find((t) => t.id === target) ?? rows.find((t) => t.title === target);
-        if (row && row.id !== sourceId) targetIds.add(row.id);
-      }
-
-      if (targetIds.size === 0) return;
-      await tx
-        .insert(thoughtConnections)
-        .values([...targetIds].map((targetId) => ({ sourceId, targetId })))
-        .onConflictDoNothing();
-    });
-  }
-
   async listRecentThoughts(limit = 20): Promise<ThoughtSummaryDTO[]> {
-    const db = this.options.getDb();
-    const rows = await db
-      .select()
-      .from(thoughts)
-      .where(isNull(thoughts.deletedAt))
-      .orderBy(desc(thoughts.updatedAt))
-      .limit(limit);
+    const rows = await listRecentThoughtRows(this.options.getDb(), limit);
     return this.assembleThoughtSummaryDTOs(rows);
   }
 }

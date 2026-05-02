@@ -1,6 +1,7 @@
-import { inArray, sql } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { thoughts } from "../../db/schema";
-import type { ReflectaDb } from "../electron/types";
+import type { ReflectaDb } from "../core/types";
+import { searchContextRows, searchThoughtIds } from "../core/search-core";
 import { toThoughtSummaries } from "./shared";
 import type { ContextSearchHit, SearchAllResult, SearchOptions, ThoughtSearchHit } from "./types";
 
@@ -8,28 +9,10 @@ export class SearchService {
   constructor(private db: ReflectaDb) {}
 
   async searchThoughts(query: string, options?: SearchOptions): Promise<ThoughtSearchHit[]> {
-    const limit = options?.limit ?? 20;
-    const offset = options?.offset ?? 0;
-    const escaped = `"${query.replace(/"/g, '""')}"`;
-
-    const ftsRows = await this.db.all<{
-      thought_id: string;
-      snippet: string;
-      rank: number;
-    }>(sql`
-      SELECT
-        thought_id,
-        snippet(fts_thoughts, 1, '<mark>', '</mark>', '…', 10) AS snippet,
-        rank
-      FROM fts_thoughts
-      WHERE fts_thoughts MATCH ${escaped}
-      ORDER BY rank
-      LIMIT ${limit} OFFSET ${offset}
-    `);
-
+    const ftsRows = await searchThoughtIds(this.db, query, options);
     if (ftsRows.length === 0) return [];
 
-    const thoughtIds = ftsRows.map((r) => r.thought_id);
+    const thoughtIds = ftsRows.map((r) => r.thoughtId);
     const thoughtRows = await this.db
       .select()
       .from(thoughts)
@@ -40,7 +23,7 @@ export class SearchService {
 
     return ftsRows
       .map((fts) => {
-        const summary = summaryMap.get(fts.thought_id);
+        const summary = summaryMap.get(fts.thoughtId);
         if (!summary) return null;
         return {
           ...summary,
@@ -52,23 +35,15 @@ export class SearchService {
   }
 
   async searchContexts(query: string, options?: SearchOptions): Promise<ContextSearchHit[]> {
-    const limit = options?.limit ?? 20;
-    const offset = options?.offset ?? 0;
-    const escaped = `"${query.replace(/"/g, '""')}"`;
-
-    return this.db.all<ContextSearchHit>(sql`
-      SELECT
-        context_id AS contextId,
-        thought_id AS thoughtId,
-        source_name AS sourceName,
-        source_type AS sourceType,
-        snippet(fts_contexts, 3, '<mark>', '</mark>', '…', 10) AS snippet,
-        rank
-      FROM fts_contexts
-      WHERE fts_contexts MATCH ${escaped}
-      ORDER BY rank
-      LIMIT ${limit} OFFSET ${offset}
-    `);
+    const rows = await searchContextRows(this.db, query, options);
+    return rows.map((r) => ({
+      contextId: r.contextId,
+      thoughtId: r.thoughtId,
+      sourceType: r.sourceType as ContextSearchHit["sourceType"],
+      sourceName: r.sourceName,
+      snippet: r.snippet,
+      rank: r.rank,
+    }));
   }
 
   async searchAll(query: string, options?: SearchOptions): Promise<SearchAllResult> {

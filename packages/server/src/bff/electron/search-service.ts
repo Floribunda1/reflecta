@@ -1,13 +1,10 @@
-import { sql, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { thoughts } from "../../db/schema";
 import type { FtsContextResult, SearchOptions, SearchResult, ThoughtSummaryDTO } from "../../types";
-import { getLimitOffset } from "./shared";
+import { searchContextRows, searchThoughtIds } from "../core/search-core";
+import { getLimitOffset } from "../core/shared";
 import type { ReflectaServerContext } from "./types";
 import type { ThoughtService } from "./thought-service";
-
-function escapeFtsQuery(query: string): string {
-  return `"${query.replace(/"/g, '""')}"`;
-}
 
 export class SearchService {
   constructor(
@@ -17,16 +14,10 @@ export class SearchService {
   async searchThoughts(query: string, options?: SearchOptions): Promise<ThoughtSummaryDTO[]> {
     const db = this.options.getDb();
     const { limit, offset } = getLimitOffset(options);
-    const ftsRows = await db.all<{ thought_id: string }>(sql`
-      SELECT thought_id
-      FROM fts_thoughts
-      WHERE fts_thoughts MATCH ${escapeFtsQuery(query)}
-      ORDER BY rank
-      LIMIT ${limit} OFFSET ${offset}
-    `);
+    const ftsRows = await searchThoughtIds(db, query, { limit, offset });
     if (ftsRows.length === 0) return [];
 
-    const thoughtIds = ftsRows.map((r) => r.thought_id);
+    const thoughtIds = ftsRows.map((r) => r.thoughtId);
     const thoughtRows = await db.select().from(thoughts).where(inArray(thoughts.id, thoughtIds));
     return this.options.thoughtService.assembleThoughtSummaryDTOs(thoughtRows);
   }
@@ -34,19 +25,14 @@ export class SearchService {
   async searchContexts(query: string, options?: SearchOptions): Promise<FtsContextResult[]> {
     const db = this.options.getDb();
     const { limit, offset } = getLimitOffset(options);
-
-    return db.all<FtsContextResult>(sql`
-      SELECT
-        context_id  AS contextId,
-        thought_id  AS thoughtId,
-        source_name AS sourceName,
-        snippet(fts_contexts, 3, '<mark>', '</mark>', '…', 10) AS snippet,
-        rank
-      FROM fts_contexts
-      WHERE fts_contexts MATCH ${escapeFtsQuery(query)}
-      ORDER BY rank
-      LIMIT ${limit} OFFSET ${offset}
-    `);
+    const rows = await searchContextRows(db, query, { limit, offset });
+    return rows.map((r) => ({
+      contextId: r.contextId,
+      thoughtId: r.thoughtId,
+      sourceName: r.sourceName,
+      snippet: r.snippet,
+      rank: r.rank,
+    }));
   }
 
   async search(query: string, options?: SearchOptions): Promise<SearchResult> {
