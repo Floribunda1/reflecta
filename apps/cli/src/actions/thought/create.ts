@@ -3,7 +3,6 @@ import type { ThoughtType, CreateThoughtInput } from "@reflecta/server";
 import { CliError, ErrorCodes } from "../../error";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
-import { compactThought } from "../compact";
 
 export function registerCreateThoughtAction(cli: Command): void {
   cli
@@ -40,7 +39,7 @@ export async function createThoughtAction(cli: Command): Promise<void> {
               .filter(Boolean)
           : undefined,
       };
-      return compactThought(await services.thoughts.createThought(input));
+      return services.thoughts.createThought(input);
     },
     { ...options, mutates: true },
   );

@@ -3,24 +3,26 @@ import { ErrorCodes } from "./error";
 import { writeError } from "./output";
 import { registerCreateCategoryAction } from "./actions/category/create";
 import { registerDeleteCategoryAction } from "./actions/category/delete";
+import { registerGetCategoryAction } from "./actions/category/get";
+import { registerInspectCategoryAction } from "./actions/category/inspect";
 import { registerListCategoriesAction } from "./actions/category/list";
 import { registerUpdateCategoryAction } from "./actions/category/update";
 import { registerCreateContextAction } from "./actions/context/create";
 import { registerDeleteContextAction } from "./actions/context/delete";
+import { registerGetContextAction } from "./actions/context/get";
 import { registerListContextsAction } from "./actions/context/list";
-import { registerRestoreContextAction } from "./actions/context/restore";
 import { registerUpdateContextAction } from "./actions/context/update";
+import { registerGraphNeighborhoodAction } from "./actions/graph/neighborhood";
+import { registerGraphPathAction } from "./actions/graph/path";
 import { registerSearchAllAction } from "./actions/search/all";
 import { registerSearchContextsAction } from "./actions/search/contexts";
 import { registerSearchThoughtsAction } from "./actions/search/thoughts";
+import { registerProjectSnapshotAction } from "./actions/snapshot/project";
 import { registerCreateThoughtAction } from "./actions/thought/create";
 import { registerDeleteThoughtAction } from "./actions/thought/delete";
 import { registerGetThoughtAction } from "./actions/thought/get";
 import { registerListThoughtsAction } from "./actions/thought/list";
-import { registerRestoreThoughtAction } from "./actions/thought/restore";
 import { registerUpdateThoughtAction } from "./actions/thought/update";
-import { registerListTrashedContextsAction } from "./actions/trash/list-contexts";
-import { registerListTrashedThoughtsAction } from "./actions/trash/list-thoughts";
 
 const helpData: Record<string, unknown> = {
   "": {
@@ -29,7 +31,8 @@ const helpData: Record<string, unknown> = {
       { name: "context", description: "Manage contexts" },
       { name: "category", description: "Manage categories" },
       { name: "search", description: "Search thoughts and contexts" },
-      { name: "trash", description: "View trashed items" },
+      { name: "graph", description: "Explore thought graph" },
+      { name: "snapshot", description: "Project snapshots" },
     ],
   },
   thought: {
@@ -39,21 +42,22 @@ const helpData: Record<string, unknown> = {
       { name: "create", description: "Create a thought", mutates: true },
       { name: "update", description: "Update a thought", mutates: true },
       { name: "delete", description: "Soft-delete a thought", mutates: true },
-      { name: "restore", description: "Restore a soft-deleted thought", mutates: true },
     ],
   },
   context: {
     commands: [
       { name: "list", description: "List contexts for a thought", mutates: false },
+      { name: "get", description: "Get a context by ID", mutates: false },
       { name: "create", description: "Create a context", mutates: true },
       { name: "update", description: "Update a context", mutates: true },
       { name: "delete", description: "Soft-delete a context", mutates: true },
-      { name: "restore", description: "Restore a soft-deleted context", mutates: true },
     ],
   },
   category: {
     commands: [
       { name: "list", description: "List all categories", mutates: false },
+      { name: "get", description: "Get a category by ID", mutates: false },
+      { name: "inspect", description: "Inspect a category", mutates: false },
       { name: "create", description: "Create a category", mutates: true },
       { name: "update", description: "Update a category", mutates: true },
       { name: "delete", description: "Delete a category", mutates: true },
@@ -66,11 +70,14 @@ const helpData: Record<string, unknown> = {
       { name: "all", description: "Search both thoughts and contexts", mutates: false },
     ],
   },
-  trash: {
+  graph: {
     commands: [
-      { name: "list-thoughts", description: "List trashed thoughts", mutates: false },
-      { name: "list-contexts", description: "List trashed contexts", mutates: false },
+      { name: "neighborhood", description: "Get neighborhood around a thought", mutates: false },
+      { name: "path", description: "Find paths between two thoughts", mutates: false },
     ],
+  },
+  snapshot: {
+    commands: [{ name: "project", description: "Get project snapshot", mutates: false }],
   },
 };
 
@@ -120,17 +127,18 @@ export async function runCli(argv = process.argv.slice(2)): Promise<number> {
   registerCreateThoughtAction(thought);
   registerUpdateThoughtAction(thought);
   registerDeleteThoughtAction(thought);
-  registerRestoreThoughtAction(thought);
 
   const context = cli.command("context").description("Manage contexts");
   registerListContextsAction(context);
+  registerGetContextAction(context);
   registerCreateContextAction(context);
   registerUpdateContextAction(context);
   registerDeleteContextAction(context);
-  registerRestoreContextAction(context);
 
   const category = cli.command("category").description("Manage categories");
   registerListCategoriesAction(category);
+  registerGetCategoryAction(category);
+  registerInspectCategoryAction(category);
   registerCreateCategoryAction(category);
   registerUpdateCategoryAction(category);
   registerDeleteCategoryAction(category);
@@ -140,9 +148,12 @@ export async function runCli(argv = process.argv.slice(2)): Promise<number> {
   registerSearchContextsAction(search);
   registerSearchAllAction(search);
 
-  const trash = cli.command("trash").description("View trashed items");
-  registerListTrashedThoughtsAction(trash);
-  registerListTrashedContextsAction(trash);
+  const graph = cli.command("graph").description("Explore thought graph");
+  registerGraphNeighborhoodAction(graph);
+  registerGraphPathAction(graph);
+
+  const snapshot = cli.command("snapshot").description("Project snapshots");
+  registerProjectSnapshotAction(snapshot);
 
   try {
     await cli.parseAsync(argv, { from: "user" });

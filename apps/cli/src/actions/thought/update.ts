@@ -2,7 +2,6 @@ import type { Command } from "commander";
 import type { ThoughtType, UpdateThoughtInput } from "@reflecta/server";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
-import { compactThought } from "../compact";
 
 export function registerUpdateThoughtAction(cli: Command): void {
   cli
@@ -35,7 +34,7 @@ export async function updateThoughtAction(id: string, cli: Command): Promise<voi
           .map((s) => s.trim())
           .filter(Boolean);
       }
-      return compactThought(await services.thoughts.updateThought(id, input));
+      return services.thoughts.updateThought(id, input);
     },
     { ...options, mutates: true },
   );

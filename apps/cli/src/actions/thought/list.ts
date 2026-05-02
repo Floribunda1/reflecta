@@ -8,7 +8,6 @@ import {
   runCommand,
   type GlobalOptions,
 } from "../../runner";
-import { compactThoughtSummary } from "../compact";
 
 export function registerListThoughtsAction(cli: Command): void {
   cli
@@ -41,7 +40,7 @@ export async function listThoughtsAction(cli: Command): Promise<void> {
           "--recent cannot be combined with --category-id or --type.",
         );
       }
-      return (await services.thoughts.listRecentThoughts(limit)).map(compactThoughtSummary);
+      return services.thoughts.listRecentThoughts(limit);
     }
 
     const filter: ListThoughtsFilter = {};
@@ -51,11 +50,6 @@ export async function listThoughtsAction(cli: Command): Promise<void> {
       if (options.includeDescendants) filter.includeDescendants = true;
     }
 
-    let thoughts = await services.thoughts.listThoughts(filter);
-    thoughts.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    if (thoughts.length > limit) {
-      thoughts = thoughts.slice(0, limit);
-    }
-    return thoughts.map(compactThoughtSummary);
+    return services.thoughts.listThoughts(filter);
   }, options);
 }

@@ -1,8 +1,6 @@
 import type { Command } from "commander";
-import { CliError, ErrorCodes } from "../../error";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
-import { compactCategory } from "../compact";
 
 export function registerUpdateCategoryAction(cli: Command): void {
   cli
@@ -17,16 +15,11 @@ export async function updateCategoryAction(id: string, cli: Command): Promise<vo
   const options = getCommandOptions(cli) as GlobalOptions & { name?: string; parentId?: string };
   await runCommand(
     async () => {
-      if (!options.name) {
-        throw new CliError(ErrorCodes.VALIDATION_ERROR, "Missing required option --name.");
-      }
       const services = await getServices();
-      return compactCategory(
-        await services.categories.updateCategorySummary(id, {
-          name: options.name,
-          parentId: options.parentId ?? null,
-        }),
-      );
+      return services.categories.updateCategorySummary(id, {
+        name: options.name,
+        parentId: options.parentId ?? null,
+      });
     },
     { ...options, mutates: true },
   );

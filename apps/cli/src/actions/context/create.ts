@@ -3,7 +3,6 @@ import type { SourceType, CreateContextInput } from "@reflecta/server";
 import { CliError, ErrorCodes } from "../../error";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
-import { compactContext } from "../compact";
 
 export function registerCreateContextAction(cli: Command): void {
   cli
@@ -41,7 +40,7 @@ export async function createContextAction(cli: Command): Promise<void> {
         sourceName: options.sourceName,
         content: options.content ?? "",
       };
-      return compactContext(await services.contexts.createContext(input));
+      return services.contexts.createContext(input);
     },
     { ...options, mutates: true },
   );

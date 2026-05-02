@@ -2,7 +2,6 @@ import type { Command } from "commander";
 import type { SourceType, UpdateContextInput } from "@reflecta/server";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
-import { compactContext } from "../compact";
 
 export function registerUpdateContextAction(cli: Command): void {
   cli
@@ -30,7 +29,7 @@ export async function updateContextAction(id: string, cli: Command): Promise<voi
       if (options.sourceType !== undefined) input.sourceType = options.sourceType as SourceType;
       if (options.sourceName !== undefined) input.sourceName = options.sourceName;
       if (options.content !== undefined) input.content = options.content;
-      return compactContext(await services.contexts.updateContext(id, input));
+      return services.contexts.updateContext(id, input);
     },
     { ...options, mutates: true },
   );

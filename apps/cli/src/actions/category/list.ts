@@ -1,7 +1,6 @@
 import type { Command } from "commander";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand } from "../../runner";
-import { compactCategory } from "../compact";
 
 export function registerListCategoriesAction(cli: Command): void {
   cli
@@ -14,6 +13,6 @@ export async function listCategoriesAction(cli: Command): Promise<void> {
   const options = getCommandOptions(cli);
   await runCommand(async () => {
     const services = await getServices();
-    return (await services.categories.listCategories()).map(compactCategory);
+    return services.categories.listCategories();
   }, options);
 }

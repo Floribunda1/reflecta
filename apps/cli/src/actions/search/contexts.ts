@@ -6,7 +6,6 @@ import {
   runCommand,
   type GlobalOptions,
 } from "../../runner";
-import { compactFtsContext } from "../compact";
 import { normalizeFtsQuery } from "./shared";
 
 export function registerSearchContextsAction(cli: Command): void {
@@ -23,11 +22,9 @@ export async function searchContextsAction(query: string, cli: Command): Promise
   await runCommand(async () => {
     const services = await getServices();
     const normalizedQuery = normalizeFtsQuery(query);
-    return (
-      await services.search.searchContexts(normalizedQuery, {
-        limit: options.limit ?? 20,
-        offset: options.offset ?? 0,
-      })
-    ).map(compactFtsContext);
+    return services.search.searchContexts(normalizedQuery, {
+      limit: options.limit ?? 20,
+      offset: options.offset ?? 0,
+    });
   }, options);
 }

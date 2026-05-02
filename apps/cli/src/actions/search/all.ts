@@ -6,7 +6,6 @@ import {
   runCommand,
   type GlobalOptions,
 } from "../../runner";
-import { compactSearchResult } from "../compact";
 import { normalizeFtsQuery } from "./shared";
 
 export function registerSearchAllAction(cli: Command): void {
@@ -23,11 +22,9 @@ export async function searchAllAction(query: string, cli: Command): Promise<void
   await runCommand(async () => {
     const services = await getServices();
     const normalizedQuery = normalizeFtsQuery(query);
-    return compactSearchResult(
-      await services.search.search(normalizedQuery, {
-        limit: options.limit ?? 20,
-        offset: options.offset ?? 0,
-      }),
-    );
+    return services.search.searchAll(normalizedQuery, {
+      limit: options.limit ?? 20,
+      offset: options.offset ?? 0,
+    });
   }, options);
 }

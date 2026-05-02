@@ -104,4 +104,9 @@ export class ThoughtCliBff extends ThoughtCore {
     const row = await super._updateThought(id, input);
     return this.getThought(row.id);
   }
+
+  async listRecentThoughts(limit = 20): Promise<ThoughtSummary[]> {
+    const rows = await this.listRecentThoughtRows(limit);
+    return toThoughtSummaries(this.db, rows);
+  }
 }
