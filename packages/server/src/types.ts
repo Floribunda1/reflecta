@@ -1,7 +1,5 @@
 export type {
   Category,
-  NewCategory,
-  CategoryWithCounts,
   CategoryTreeNode,
   CreateCategoryInput,
   UpdateCategoryInput,

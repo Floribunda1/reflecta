@@ -1,4 +1,4 @@
-import type { CategoryWithCounts } from "./types";
+import type { Category } from "./types";
 import { CategoryCore } from "./core";
 import type { ReflectaServerContext } from "../shared/types-electron";
 
@@ -7,7 +7,7 @@ export class CategoryElectronBff extends CategoryCore {
     super(options.getDb());
   }
 
-  async listCategories(): Promise<CategoryWithCounts[]> {
+  async listCategories(): Promise<Category[]> {
     return this.listCategoryRows();
   }
 }

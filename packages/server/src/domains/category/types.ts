@@ -1,10 +1,8 @@
-import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import type { InferSelectModel } from "drizzle-orm";
 import type { categories } from "../../db/schema";
 
 export type Category = InferSelectModel<typeof categories>;
-export type NewCategory = InferInsertModel<typeof categories>;
-export type CategoryWithCounts = Category;
-export type CategoryTreeNode = Omit<CategoryWithCounts, "createdAt" | "updatedAt"> & {
+export type CategoryTreeNode = Omit<Category, "createdAt" | "updatedAt"> & {
   children: CategoryTreeNode[];
 };
 

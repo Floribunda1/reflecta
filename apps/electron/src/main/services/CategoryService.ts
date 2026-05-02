@@ -1,6 +1,5 @@
 import type {
   Category,
-  CategoryWithCounts,
   CreateCategoryInput,
   ReorderCategoryItem,
   UpdateCategoryInput,
@@ -12,7 +11,7 @@ export class CategoryService extends IpcService {
   static readonly groupName = "category";
 
   @IpcMethod()
-  async listCategories(): Promise<CategoryWithCounts[]> {
+  async listCategories(): Promise<Category[]> {
     return categoryService.listCategories();
   }
 

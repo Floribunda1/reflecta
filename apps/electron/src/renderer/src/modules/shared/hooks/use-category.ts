@@ -1,9 +1,9 @@
 import { ipcClient } from "@renderer/utils/ipc";
-import type { CategoryTreeNode, CategoryWithCounts } from "@shared/category";
+import type { CategoryTreeNode, Category } from "@shared/category";
 import { useQuery } from "@tanstack/vue-query";
 import { computed } from "vue";
 
-function buildTree(flat: CategoryWithCounts[]): CategoryTreeNode[] {
+function buildTree(flat: Category[]): CategoryTreeNode[] {
   const map = new Map<string, CategoryTreeNode>();
   for (const c of flat) {
     map.set(c.id, {
