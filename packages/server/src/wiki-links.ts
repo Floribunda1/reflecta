@@ -4,8 +4,6 @@ export type ThoughtWikiLink = {
 };
 
 const thoughtWikiLinkPattern = /\[\[([^\]\n]+)\]\]/g;
-const legacyMarkdownWikiLinkPattern = /\[([^\]\n]*)\]\(\/wiki\/([^)]+)\)/g;
-const legacyAliasWikiLinkPattern = /\[\[([^\]|\n]+)\|([^\]\n]+)\]\]/g;
 
 export function formatThoughtWikiLink(link: ThoughtWikiLink): string {
   const id = link.id.trim();
@@ -31,25 +29,7 @@ export function parseThoughtWikiLink(raw: string): ThoughtWikiLink | null {
 export function normalizeThoughtWikiLinkBody(body: string | undefined): string | undefined {
   if (body === undefined) return undefined;
 
-  const normalizedLegacyMarkdown = body.replaceAll(
-    legacyMarkdownWikiLinkPattern,
-    (_match, rawLabel: string, rawId: string) => {
-      const id = rawId.trim();
-      const title = rawLabel.trim() || id;
-      return id ? formatThoughtWikiLink({ title, id }) : _match;
-    },
-  );
-
-  const normalizedLegacyAliases = normalizedLegacyMarkdown.replaceAll(
-    legacyAliasWikiLinkPattern,
-    (_match, rawTarget: string, rawLabel: string) => {
-      const id = rawTarget.trim();
-      const title = rawLabel.trim() || id;
-      return id ? formatThoughtWikiLink({ title, id }) : _match;
-    },
-  );
-
-  return normalizedLegacyAliases.replaceAll(thoughtWikiLinkPattern, (match) => {
+  return body.replaceAll(thoughtWikiLinkPattern, (match) => {
     const parsed = parseThoughtWikiLink(match);
     return parsed ? formatThoughtWikiLink(parsed) : match;
   });

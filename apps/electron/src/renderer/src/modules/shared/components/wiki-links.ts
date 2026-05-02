@@ -4,8 +4,6 @@ export type ThoughtWikiLink = {
 };
 
 const thoughtWikiLinkPattern = /\[\[([^\]\n]+)\]\]/g;
-const legacyMarkdownWikiLinkPattern = /\[([^\]\n]*)\]\(\/wiki\/([^)]+)\)/g;
-const legacyAliasWikiLinkPattern = /\[\[([^\]|\n]+)\|([^\]\n]+)\]\]/g;
 
 export function formatThoughtWikiLink(link: ThoughtWikiLink): string {
   const id = link.id.trim();
@@ -28,33 +26,25 @@ export function parseThoughtWikiLink(raw: string): ThoughtWikiLink | null {
   return { title, id };
 }
 
-export function renderThoughtWikiLinksAsMarkdown(content: string): string {
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+export function renderThoughtWikiLinksAsHtml(content: string): string {
   return content.replaceAll(thoughtWikiLinkPattern, (match) => {
     const parsed = parseThoughtWikiLink(match);
-    return parsed ? `[${parsed.title}](/wiki/${parsed.id})` : match;
+    if (!parsed) return match;
+    return `<a href="#" data-wiki-link="${escapeHtml(parsed.id)}" class="wiki-link">${escapeHtml(parsed.title)}</a>`;
   });
 }
 
 export function normalizeThoughtWikiLinkBody(body: string): string {
-  const normalizedLegacyMarkdown = body.replaceAll(
-    legacyMarkdownWikiLinkPattern,
-    (match, rawLabel: string, rawId: string) => {
-      const id = rawId.trim();
-      const title = rawLabel.trim() || id;
-      return id ? formatThoughtWikiLink({ title, id }) : match;
-    },
-  );
-
-  const normalizedLegacyAliases = normalizedLegacyMarkdown.replaceAll(
-    legacyAliasWikiLinkPattern,
-    (match, rawTarget: string, rawLabel: string) => {
-      const id = rawTarget.trim();
-      const title = rawLabel.trim() || id;
-      return id ? formatThoughtWikiLink({ title, id }) : match;
-    },
-  );
-
-  return normalizedLegacyAliases.replaceAll(thoughtWikiLinkPattern, (match) => {
+  return body.replaceAll(thoughtWikiLinkPattern, (match) => {
     const parsed = parseThoughtWikiLink(match);
     return parsed ? formatThoughtWikiLink(parsed) : match;
   });

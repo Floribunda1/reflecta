@@ -23,7 +23,7 @@ function getSuggestionLabel(thought: ThoughtSummaryDTO): string {
 }
 
 async function openWikiLinkByUrl(url: string): Promise<void> {
-  const id = url.replace(/^\/wiki\//, "");
+  const id = url.trim();
   if (!id) return;
   const thought = await ipcClient.thought.resolveWikiLinkTarget(id);
   if (!thought) return;
@@ -49,12 +49,12 @@ function createWikiLinkHintPlugin() {
         },
         handleClick(view, pos, event) {
           const mdLink = (event.target as Element | null)?.closest<HTMLAnchorElement>(
-            "a[href^='/wiki/']",
+            "a[data-wiki-link]",
           );
           if (mdLink) {
             event.preventDefault();
             event.stopPropagation();
-            void openWikiLinkByUrl(mdLink.getAttribute("href") ?? "");
+            void openWikiLinkByUrl(mdLink.dataset.wikiLink ?? "");
             return true;
           }
 

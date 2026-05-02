@@ -461,7 +461,8 @@
   height: 26px;
 }
 
-.milkdown-editor .milkdown .ProseMirror a[href^="/wiki/"] {
+.milkdown-editor .milkdown .ProseMirror a.wiki-link,
+.milkdown-editor .milkdown .ProseMirror a[data-wiki-link] {
   display: inline-block;
   cursor: pointer;
   border-radius: 4px;
@@ -472,7 +473,8 @@
   line-height: 1.5;
 }
 
-.milkdown-editor .milkdown .ProseMirror a[href^="/wiki/"]:hover {
+.milkdown-editor .milkdown .ProseMirror a.wiki-link:hover,
+.milkdown-editor .milkdown .ProseMirror a[data-wiki-link]:hover {
   background: color-mix(in srgb, var(--p-primary-color), transparent 84%);
 }
 

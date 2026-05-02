@@ -3,7 +3,7 @@ import { marked } from "marked";
 import mediumZoom from "medium-zoom";
 import { ipcClient } from "@renderer/utils/ipc";
 import { searchEventBus } from "@renderer/utils/searchEventBus";
-import { renderThoughtWikiLinksAsMarkdown } from "../wiki-links";
+import { renderThoughtWikiLinksAsHtml } from "../wiki-links";
 import "./style.css";
 
 async function handleWikiLinkClick(e: MouseEvent): Promise<void> {
@@ -26,14 +26,6 @@ async function handleWikiLinkClick(e: MouseEvent): Promise<void> {
   });
 }
 
-function bindWikiLinkClicks(container: HTMLDivElement): void {
-  for (const link of container.querySelectorAll<HTMLAnchorElement>('a[href^="/wiki/"]')) {
-    link.dataset.wikiLink = decodeURIComponent(link.getAttribute("href")!.replace(/^\/wiki\//, ""));
-    link.setAttribute("href", "#");
-    link.classList.add("wiki-link");
-  }
-}
-
 export const SimpleMarkdownPreview = defineComponent({
   name: "SimpleMarkdownPreview",
   props: {
@@ -53,10 +45,9 @@ export const SimpleMarkdownPreview = defineComponent({
         .filter(Boolean)
         .slice(0, props.lineClamp)
         .join("\n");
-      el.innerHTML = marked.parse(renderThoughtWikiLinksAsMarkdown(truncatedContent), {
+      el.innerHTML = marked.parse(renderThoughtWikiLinksAsHtml(truncatedContent), {
         async: false,
       }) as string;
-      bindWikiLinkClicks(el);
     };
 
     onMounted(render);
@@ -89,10 +80,9 @@ export const MarkdownPreview = defineComponent({
       if (!el) return;
       el.innerHTML = "";
       if (!props.content) return;
-      el.innerHTML = marked.parse(renderThoughtWikiLinksAsMarkdown(props.content), {
+      el.innerHTML = marked.parse(renderThoughtWikiLinksAsHtml(props.content), {
         async: false,
       }) as string;
-      bindWikiLinkClicks(el);
       mediumZoom(el.querySelectorAll("img"));
     };
 
