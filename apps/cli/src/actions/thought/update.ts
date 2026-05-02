@@ -3,7 +3,6 @@ import type { ThoughtType, UpdateThoughtInput } from "@reflecta/server";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
 import { compactThought } from "../compact";
-import { normalizeThoughtBody } from "./wiki-links";
 
 export function registerUpdateThoughtAction(cli: Command): void {
   cli
@@ -29,7 +28,7 @@ export async function updateThoughtAction(id: string, cli: Command): Promise<voi
       const input: UpdateThoughtInput = {};
       if (options.type !== undefined) input.type = options.type as ThoughtType;
       if (options.title !== undefined) input.title = options.title;
-      if (options.body !== undefined) input.body = normalizeThoughtBody(options.body);
+      if (options.body !== undefined) input.body = options.body;
       if (options.categoryId !== undefined) {
         input.categoryIds = options.categoryId
           .split(",")
