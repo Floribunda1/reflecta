@@ -24,12 +24,12 @@ export class AssetService extends IpcService {
   static groupName = "asset";
 
   @IpcMethod()
-  async saveAsset(base64: string, filename: string): Promise<string> {
+  async saveAsset(buffer: ArrayBuffer, filename: string): Promise<string> {
     const dir = join(getStorageRoot(), "assets");
     await mkdir(dir, { recursive: true });
     const ext = extname(filename) || ".bin";
     const id = `${nanoid()}${ext}`;
-    await writeFile(join(dir, id), Buffer.from(base64, "base64"));
+    await writeFile(join(dir, id), Buffer.from(buffer));
     return id;
   }
 

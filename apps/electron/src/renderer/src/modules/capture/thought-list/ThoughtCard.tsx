@@ -10,7 +10,6 @@ import { zhCN } from "date-fns/locale";
 import ContextMenu from "primevue/contextmenu";
 import { useCategoryData } from "@renderer/modules/shared/hooks/use-category";
 import { useRouter } from "vue-router";
-import { SOURCE_META } from "../thought-detail/context/types";
 
 const categoryChipClass =
   "rounded-full border border-[var(--p-content-border-color)] bg-transparent px-1.5 py-0.5 text-xs text-muted-color";
@@ -54,15 +53,11 @@ export const ThoughtCard = defineComponent({
 
     const isSelected = computed(() => capture.selectedThoughtId.value === props.thought.id);
     const shouldShowCategory = computed(() => categoryNames.value.length > 0);
-    const primaryContext = computed(() => props.thought.contexts[0] ?? null);
     const contextCue = computed(() => {
-      const ctx = primaryContext.value;
-      if (!ctx) return null;
-      const source = ctx.sourceName || SOURCE_META[ctx.sourceType].label;
+      const count = props.thought.contextCount;
+      if (count === 0) return null;
       return {
-        icon: SOURCE_META[ctx.sourceType].icon,
-        source,
-        count: props.thought.contexts.length,
+        count,
       };
     });
 
@@ -120,13 +115,10 @@ export const ThoughtCard = defineComponent({
           </div>
 
           <div class="mt-3 flex flex-col gap-2 border-t border-[var(--p-content-border-color)] pt-3">
-            {contextCue.value && (
+            {contextCue.value && contextCue.value.count > 0 && (
               <div class="flex min-w-0 items-center gap-1.5 text-sm text-muted-color">
-                <i class={`${contextCue.value.icon} shrink-0 text-xs text-muted-color`} />
-                <span class="min-w-0 truncate">{contextCue.value.source}</span>
-                {contextCue.value.count > 1 && (
-                  <span class="shrink-0 tabular-nums">+{contextCue.value.count - 1}</span>
-                )}
+                <i class="pi pi-paperclip shrink-0 text-xs text-muted-color" />
+                <span class="shrink-0 tabular-nums">{contextCue.value.count}</span>
               </div>
             )}
             {shouldShowCategory.value && (
@@ -144,12 +136,8 @@ export const ThoughtCard = defineComponent({
             <div class="flex items-center justify-between gap-3 text-sm text-muted-color">
               <div class="flex items-center gap-3">
                 <div class="flex items-center gap-1">
-                  <i class="pi pi-paperclip text-sm" />
-                  <span>{props.thought.contexts.length}</span>
-                </div>
-                <div class="flex items-center gap-1">
                   <i class="pi pi-link text-sm" />
-                  <span>{props.thought.connections.length}</span>
+                  <span>{props.thought.connectionCount}</span>
                 </div>
               </div>
               <span>

@@ -52,6 +52,9 @@ const [createThoughtDetailContext, useThoughtDetailContext] = createInjectionSta
                 title: input.title !== undefined ? input.title : item.title,
                 body: input.body !== undefined ? result.body : item.body,
                 categoryIds: input.categoryIds ?? item.categoryIds,
+                contextCount: result.contexts.length,
+                connectionCount: result.connections.length,
+                connectionIds: result.connections.map((c) => c.id),
                 updatedAt: result.updatedAt,
               }
             : item,
@@ -63,15 +66,9 @@ const [createThoughtDetailContext, useThoughtDetailContext] = createInjectionSta
         patchList,
       );
 
-      queryClient.setQueriesData<ThoughtSummaryDTO[]>(
-        { queryKey: ["contemplate.listThoughts"], exact: false },
-        patchList,
-      );
-
       if (input.body !== undefined) {
         queryClient.invalidateQueries({ queryKey: ["thought.getThoughtById"], exact: false });
         queryClient.invalidateQueries({ queryKey: ["thought.listThoughts"], exact: false });
-        queryClient.invalidateQueries({ queryKey: ["contemplate.listThoughts"], exact: false });
       }
     };
 

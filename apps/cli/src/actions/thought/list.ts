@@ -46,7 +46,7 @@ export async function listThoughtsAction(cli: Command): Promise<void> {
     const filter: ListThoughtsFilter = {};
     if (options.type) filter.type = options.type as ThoughtType;
     if (options.categoryId) {
-      filter.categoryId = options.categoryId;
+      filter.categoryIds = [options.categoryId];
       if (options.includeDescendants) filter.includeDescendants = true;
     }
 

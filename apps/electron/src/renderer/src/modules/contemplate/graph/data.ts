@@ -40,8 +40,6 @@ export function buildG6Data(items: ThoughtSummaryDTO[], colors: GraphColors): G6
 
   const nodeIds = new Set(items.map((t) => t.id));
 
-  // t.connections contains ALL connections involving t (source OR target), so each
-  // connection row appears in two thoughts' lists — deduplicate before counting.
   // "A 引用 B" → DB: sourceId=A, targetId=B → graph edge: B→A.
   // Graph in-degree (incoming arrows) of A = how many thoughts A references.
   // More incoming arrows → bigger node.
@@ -49,15 +47,15 @@ export function buildG6Data(items: ThoughtSummaryDTO[], colors: GraphColors): G6
   const inDegreeMap = new Map<string, number>();
   const validEdges: Array<{ id: string; source: string; target: string }> = [];
   for (const t of items) {
-    for (const conn of t.connections) {
-      const key = `${conn.sourceId}->${conn.targetId}`;
+    for (const targetId of t.connectionIds) {
+      const key = `${t.id}->${targetId}`;
       if (seenConns.has(key)) continue;
-      if (!nodeIds.has(conn.sourceId) || !nodeIds.has(conn.targetId)) continue;
+      if (!nodeIds.has(targetId)) continue;
       seenConns.add(key);
-      // B (被引用, targetId) → A (引用方, sourceId)
-      validEdges.push({ id: key, source: conn.targetId, target: conn.sourceId });
-      // A (conn.sourceId) receives the arrow → count its graph in-degree
-      inDegreeMap.set(conn.sourceId, (inDegreeMap.get(conn.sourceId) ?? 0) + 1);
+      // B (被引用, targetId) → A (引用方, t.id)
+      validEdges.push({ id: key, source: targetId, target: t.id });
+      // A (t.id) receives the arrow → count its graph in-degree
+      inDegreeMap.set(t.id, (inDegreeMap.get(t.id) ?? 0) + 1);
     }
   }
 

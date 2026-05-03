@@ -51,11 +51,16 @@ export class ThoughtCore {
       conditions.push(eq(thoughts.type, filter.type));
     }
 
-    if (filter?.categoryId) {
-      let catIds = [filter.categoryId];
-      if (filter.includeDescendants) {
-        const descendants = await getCategoryDescendants(this.db, filter.categoryId);
-        catIds = [...catIds, ...descendants];
+    if (filter?.categoryIds && filter.categoryIds.length > 0) {
+      const categoryIds = filter.categoryIds;
+      let catIds = categoryIds;
+      if (filter?.includeDescendants) {
+        const allDescendants: string[] = [];
+        for (const catId of categoryIds) {
+          const descendants = await getCategoryDescendants(this.db, catId);
+          allDescendants.push(...descendants);
+        }
+        catIds = [...new Set([...catIds, ...allDescendants])];
       }
       conditions.push(
         inArray(

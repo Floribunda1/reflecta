@@ -16,8 +16,9 @@ export type ThoughtSummaryDTO = {
   title: string | null;
   body: string;
   categoryIds: string[];
-  contexts: ContextDTO[];
-  connections: ThoughtConnection[];
+  contextCount: number;
+  connectionCount: number;
+  connectionIds: string[];
   createdAt: string;
   updatedAt: string;
 };
@@ -51,9 +52,11 @@ export type UpdateThoughtInput = {
 
 export type ListThoughtsFilter = {
   type?: ThoughtType;
-  categoryId?: string;
+  categoryIds?: string[];
   includeDescendants?: boolean;
   searchQuery?: string;
+  limit?: number;
+  offset?: number;
 };
 
 export type ThoughtSummary = {

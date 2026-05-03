@@ -33,7 +33,7 @@ export const FilterPanel = defineComponent({
             : undefined,
       });
       await queryClient.invalidateQueries({
-        queryKey: ["contemplate.listThoughts"],
+        queryKey: ["thought.listThoughts"],
         exact: false,
       });
       ctx.selectedThoughtId.value = dto.id;

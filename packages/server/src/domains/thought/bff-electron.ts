@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql, count } from "drizzle-orm";
 import { contexts, thoughtCategories, thoughtConnections, thoughts } from "../../db/schema";
 import type { SourceType } from "../context/types";
 import type {
@@ -25,18 +25,14 @@ export class ThoughtElectronBff extends ThoughtCore {
     const db = this.db;
     const ids = thoughtRows.map((t) => t.id);
 
-    const [tcRows, ctxRows, connRows] = await Promise.all([
+    const [tcRows, ctxCountRows, connRows] = await Promise.all([
       db.select().from(thoughtCategories).where(inArray(thoughtCategories.thoughtId, ids)),
       db
-        .select()
+        .select({ thoughtId: contexts.thoughtId, count: count() })
         .from(contexts)
-        .where(and(inArray(contexts.thoughtId, ids), isNull(contexts.deletedAt))),
-      db
-        .select()
-        .from(thoughtConnections)
-        .where(
-          or(inArray(thoughtConnections.sourceId, ids), inArray(thoughtConnections.targetId, ids)),
-        ),
+        .where(and(inArray(contexts.thoughtId, ids), isNull(contexts.deletedAt)))
+        .groupBy(contexts.thoughtId),
+      db.select().from(thoughtConnections).where(inArray(thoughtConnections.sourceId, ids)),
     ]);
 
     const tcMap = new Map<string, string[]>();
@@ -46,20 +42,16 @@ export class ThoughtElectronBff extends ThoughtCore {
       tcMap.set(r.thoughtId, arr);
     }
 
-    const ctxMap = new Map<string, typeof ctxRows>();
-    for (const r of ctxRows) {
-      const arr = ctxMap.get(r.thoughtId) ?? [];
-      arr.push(r);
-      ctxMap.set(r.thoughtId, arr);
+    const ctxCountMap = new Map<string, number>();
+    for (const r of ctxCountRows) {
+      ctxCountMap.set(r.thoughtId, r.count);
     }
 
-    const connMap = new Map<string, typeof connRows>();
+    const connMap = new Map<string, string[]>();
     for (const r of connRows) {
-      for (const key of [r.sourceId, r.targetId]) {
-        const arr = connMap.get(key) ?? [];
-        arr.push(r);
-        connMap.set(key, arr);
-      }
+      const arr = connMap.get(r.sourceId) ?? [];
+      arr.push(r.targetId);
+      connMap.set(r.sourceId, arr);
     }
 
     return thoughtRows.map((t) => ({
@@ -68,11 +60,9 @@ export class ThoughtElectronBff extends ThoughtCore {
       title: t.title ?? null,
       body: t.body,
       categoryIds: tcMap.get(t.id) ?? [],
-      contexts: (ctxMap.get(t.id) ?? []).map((r) => ({
-        ...r,
-        sourceType: r.sourceType as SourceType,
-      })),
-      connections: connMap.get(t.id) ?? [],
+      contextCount: ctxCountMap.get(t.id) ?? 0,
+      connectionCount: (connMap.get(t.id) ?? []).length,
+      connectionIds: connMap.get(t.id) ?? [],
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
     }));
@@ -81,8 +71,10 @@ export class ThoughtElectronBff extends ThoughtCore {
   async listThoughts(filter?: ListThoughtsFilter): Promise<ThoughtSummaryDTO[]> {
     let thoughtRows = await this.listThoughtRows({
       type: filter?.type,
-      categoryId: filter?.categoryId,
+      categoryIds: filter?.categoryIds,
       includeDescendants: filter?.includeDescendants,
+      limit: filter?.limit,
+      offset: filter?.offset,
     });
 
     if (filter?.searchQuery) {

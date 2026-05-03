@@ -22,7 +22,7 @@ export class ThoughtCliBff extends ThoughtCore {
   async listThoughts(filter?: ListThoughtsFilter): Promise<ThoughtSummary[]> {
     const rows = await this.listThoughtRows({
       type: filter?.type,
-      categoryId: filter?.categoryId,
+      categoryIds: filter?.categoryIds,
       includeDescendants: filter?.includeDescendants,
     });
     return toThoughtSummaries(this.db, rows);

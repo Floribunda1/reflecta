@@ -284,16 +284,8 @@ class WikiLinkHintView {
   }
 }
 
-async function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolve(result.split(",")[1]);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+async function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
+  return file.arrayBuffer();
 }
 
 const EditorCore = defineComponent({
@@ -323,8 +315,8 @@ const EditorCore = defineComponent({
           },
           [Crepe.Feature.ImageBlock]: {
             onUpload: async (file: File) => {
-              const base64 = await fileToBase64(file);
-              const id = await ipcClient.asset.saveAsset(base64, file.name);
+              const buffer = await fileToArrayBuffer(file);
+              const id = await ipcClient.asset.saveAsset(buffer, file.name);
               return `asset:///${id}`;
             },
           },

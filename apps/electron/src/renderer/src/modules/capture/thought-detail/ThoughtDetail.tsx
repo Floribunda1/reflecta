@@ -241,10 +241,6 @@ export const ThoughtDetail = defineComponent({
               queryKey: ["thought.listThoughts"],
               exact: false,
             });
-            await queryClient.invalidateQueries({
-              queryKey: ["contemplate.listThoughts"],
-              exact: false,
-            });
             props.onDeleted?.();
           } finally {
             deleting.value = false;

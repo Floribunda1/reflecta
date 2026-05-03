@@ -40,13 +40,13 @@ const [useThoughtListProvide, useThoughtListContext] = createInjectionState(() =
     queryKey,
     queryFn: () => {
       const filter: {
-        categoryId?: string;
+        categoryIds?: string[];
         includeDescendants?: boolean;
         type?: ThoughtType;
         searchQuery?: string;
       } = {};
       if (capture.selectedCategoryId.value !== "all") {
-        filter.categoryId = capture.selectedCategoryId.value;
+        filter.categoryIds = [capture.selectedCategoryId.value];
         filter.includeDescendants = capture.showAllDescendants.value;
       }
       if (filterMode.value !== "all") filter.type = filterMode.value;
