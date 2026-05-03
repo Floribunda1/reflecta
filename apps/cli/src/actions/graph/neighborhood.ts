@@ -8,7 +8,36 @@ import {
   type GlobalOptions,
 } from "../../runner";
 
+import { registerActionMeta } from "../meta";
+
 export function registerGraphNeighborhoodAction(cli: Command): void {
+  registerActionMeta(
+    "graph",
+    "neighborhood",
+    {
+      name: "neighborhood",
+      description: "Get the neighborhood graph around a thought",
+      mutates: false,
+      options: [
+        { flags: "--thought-id <id>", description: "Seed thought ID", required: true },
+        {
+          flags: "--depth <n>",
+          description: "Neighborhood depth",
+          required: false,
+          defaultValue: 1,
+        },
+        {
+          flags: "--include-contexts",
+          description: "Include full context objects",
+          required: false,
+        },
+        { flags: "--limit <n>", description: "Limit results", required: false, defaultValue: 200 },
+        { flags: "--offset <n>", description: "Result offset", required: false, defaultValue: 0 },
+      ],
+      returns: "GraphNeighborhoodResult — { seed, nodes, edges, contexts?, page }",
+    },
+    "Explore thought graph",
+  );
   cli
     .command("neighborhood")
     .description("Get the neighborhood graph around a thought")

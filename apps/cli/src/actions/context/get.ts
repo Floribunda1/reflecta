@@ -2,7 +2,16 @@ import type { Command } from "commander";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand } from "../../runner";
 
+import { registerActionMeta } from "../meta";
+
 export function registerGetContextAction(cli: Command): void {
+  registerActionMeta("context", "get", {
+    name: "get",
+    description: "Get a context by ID",
+    mutates: false,
+    arguments: [{ name: "id", description: "Context ID", required: true }],
+    returns: "ContextDetail — { id, thoughtId, sourceType, sourceName, content }",
+  });
   cli
     .command("get <id>")
     .description("Get a context by ID")

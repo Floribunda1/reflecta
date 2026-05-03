@@ -8,7 +8,21 @@ import {
 } from "../../runner";
 import { normalizeFtsQuery } from "./shared";
 
+import { registerActionMeta } from "../meta";
+
 export function registerSearchContextsAction(cli: Command): void {
+  registerActionMeta("search", "contexts", {
+    name: "contexts",
+    description: "Full-text search contexts",
+    mutates: false,
+    arguments: [{ name: "query", description: "Search query", required: true }],
+    options: [
+      { flags: "--limit <n>", description: "Limit results", required: false, defaultValue: 20 },
+      { flags: "--offset <n>", description: "Result offset", required: false, defaultValue: 0 },
+    ],
+    returns:
+      "ContextSearchHit[] — { contextId, thoughtId, sourceType, sourceName, snippet, rank }[]",
+  });
   cli
     .command("contexts <query>")
     .description("Full-text search contexts")

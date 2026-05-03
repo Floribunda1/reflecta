@@ -3,7 +3,19 @@ import { CliError, ErrorCodes } from "../../error";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
 
+import { registerActionMeta } from "../meta";
+
 export function registerGraphPathAction(cli: Command): void {
+  registerActionMeta("graph", "path", {
+    name: "path",
+    description: "Find paths between two thoughts",
+    mutates: false,
+    options: [
+      { flags: "--from <id>", description: "Source thought ID", required: true },
+      { flags: "--to <id>", description: "Target thought ID", required: true },
+    ],
+    returns: "GraphPathResult — { from, to, paths: { nodes, edges }[] }",
+  });
   cli
     .command("path")
     .description("Find paths between two thoughts")

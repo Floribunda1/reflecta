@@ -3,7 +3,19 @@ import { CliError, ErrorCodes } from "../../error";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
 
+import { registerActionMeta } from "../meta";
+
 export function registerCreateCategoryAction(cli: Command): void {
+  registerActionMeta("category", "create", {
+    name: "create",
+    description: "Create a category",
+    mutates: true,
+    options: [
+      { flags: "--name <name>", description: "Category name", required: true },
+      { flags: "--parent-id <id>", description: "Parent category ID", required: false },
+    ],
+    returns: "CategorySummary — { id, name, parentId }",
+  });
   cli
     .command("create")
     .description("Create a category")

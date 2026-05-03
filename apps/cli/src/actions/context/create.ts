@@ -4,7 +4,25 @@ import { CliError, ErrorCodes } from "../../error";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
 
+import { registerActionMeta } from "../meta";
+
 export function registerCreateContextAction(cli: Command): void {
+  registerActionMeta("context", "create", {
+    name: "create",
+    description: "Create a context",
+    mutates: true,
+    options: [
+      { flags: "--thought-id <id>", description: "Thought ID", required: true },
+      {
+        flags: "--source-type <type>",
+        description: "Source type (experience | video | book | article | opinion | ai)",
+        required: true,
+      },
+      { flags: "--source-name <name>", description: "Source name", required: false },
+      { flags: "--content <content>", description: "Content", required: false },
+    ],
+    returns: "ContextDetail — { id, thoughtId, sourceType, sourceName, content }",
+  });
   cli
     .command("create")
     .description("Create a context")

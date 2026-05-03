@@ -3,7 +3,21 @@ import { CliError, ErrorCodes } from "../../error";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
 
+import { registerActionMeta } from "../meta";
+
 export function registerListContextsAction(cli: Command): void {
+  registerActionMeta(
+    "context",
+    "list",
+    {
+      name: "list",
+      description: "List contexts for a thought",
+      mutates: false,
+      options: [{ flags: "--thought-id <id>", description: "Thought ID", required: true }],
+      returns: "ContextDetail[] — { id, thoughtId, sourceType, sourceName, content }[]",
+    },
+    "Manage contexts",
+  );
   cli
     .command("list")
     .description("List contexts for a thought")

@@ -7,7 +7,30 @@ import {
   type GlobalOptions,
 } from "../../runner";
 
+import { registerActionMeta } from "../meta";
+
 export function registerInspectCategoryAction(cli: Command): void {
+  registerActionMeta("category", "inspect", {
+    name: "inspect",
+    description: "Inspect a category and its thoughts",
+    mutates: false,
+    arguments: [{ name: "id", description: "Category ID", required: true }],
+    options: [
+      {
+        flags: "--include-contexts",
+        description: "Include full context objects for thoughts",
+        required: false,
+      },
+      {
+        flags: "--include-edges",
+        description: "Include reference edges between thoughts",
+        required: false,
+      },
+      { flags: "--limit <n>", description: "Limit results", required: false, defaultValue: 200 },
+      { flags: "--offset <n>", description: "Result offset", required: false, defaultValue: 0 },
+    ],
+    returns: "CategoryInspectResult — { category, categories, thoughts, contexts?, edges?, page }",
+  });
   cli
     .command("inspect <id>")
     .description("Inspect a category and its thoughts")

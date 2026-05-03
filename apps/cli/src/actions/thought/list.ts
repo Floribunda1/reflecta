@@ -9,7 +9,35 @@ import {
   type GlobalOptions,
 } from "../../runner";
 
+import { registerActionMeta } from "../meta";
+
 export function registerListThoughtsAction(cli: Command): void {
+  registerActionMeta(
+    "thought",
+    "list",
+    {
+      name: "list",
+      description: "List thoughts",
+      mutates: false,
+      options: [
+        { flags: "--type <type>", description: "Filter by type (idea | insight)", required: false },
+        { flags: "--category-id <id>", description: "Filter by category ID", required: false },
+        {
+          flags: "--include-descendants",
+          description: "Include descendant categories when filtering by category",
+          required: false,
+        },
+        {
+          flags: "--recent",
+          description: "Sort by recently updated (descending)",
+          required: false,
+        },
+        { flags: "--limit <n>", description: "Limit results", required: false, defaultValue: 20 },
+      ],
+      returns: "ThoughtSummary[] — { id, type, title, body, categories }[]",
+    },
+    "Manage thoughts",
+  );
   cli
     .command("list")
     .description("List thoughts")

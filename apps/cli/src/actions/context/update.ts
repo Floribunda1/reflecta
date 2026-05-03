@@ -3,7 +3,25 @@ import type { SourceType, UpdateContextInput } from "@reflecta/server";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
 
+import { registerActionMeta } from "../meta";
+
 export function registerUpdateContextAction(cli: Command): void {
+  registerActionMeta("context", "update", {
+    name: "update",
+    description: "Update a context",
+    mutates: true,
+    arguments: [{ name: "id", description: "Context ID", required: true }],
+    options: [
+      {
+        flags: "--source-type <type>",
+        description: "Source type (experience | video | book | article | opinion | ai)",
+        required: false,
+      },
+      { flags: "--source-name <name>", description: "Source name", required: false },
+      { flags: "--content <content>", description: "Content", required: false },
+    ],
+    returns: "ContextDetail — { id, thoughtId, sourceType, sourceName, content }",
+  });
   cli
     .command("update <id>")
     .description("Update a context")

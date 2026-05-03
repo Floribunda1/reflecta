@@ -1,6 +1,13 @@
 import { Command, CommanderError } from "commander";
 import { ErrorCodes } from "./error";
 import { writeError } from "./output";
+import type { GlobalOptions } from "./runner";
+import {
+  getActionMeta,
+  getResourceDescriptions,
+  getActionsByResource,
+  getGroupedActions,
+} from "./actions/meta";
 import { registerCreateCategoryAction } from "./actions/category/create";
 import { registerDeleteCategoryAction } from "./actions/category/delete";
 import { registerGetCategoryAction } from "./actions/category/get";
@@ -24,73 +31,122 @@ import { registerGetThoughtAction } from "./actions/thought/get";
 import { registerListThoughtsAction } from "./actions/thought/list";
 import { registerUpdateThoughtAction } from "./actions/thought/update";
 
-const helpData: Record<string, unknown> = {
-  "": {
-    commands: [
-      { name: "thought", description: "Manage thoughts" },
-      { name: "context", description: "Manage contexts" },
-      { name: "category", description: "Manage categories" },
-      { name: "search", description: "Search thoughts and contexts" },
-      { name: "graph", description: "Explore thought graph" },
-      { name: "snapshot", description: "Project snapshots" },
-    ],
-  },
-  thought: {
-    commands: [
-      { name: "list", description: "List thoughts", mutates: false },
-      { name: "get", description: "Get a thought by ID", mutates: false },
-      { name: "create", description: "Create a thought", mutates: true },
-      { name: "update", description: "Update a thought", mutates: true },
-      { name: "delete", description: "Soft-delete a thought", mutates: true },
-    ],
-  },
-  context: {
-    commands: [
-      { name: "list", description: "List contexts for a thought", mutates: false },
-      { name: "get", description: "Get a context by ID", mutates: false },
-      { name: "create", description: "Create a context", mutates: true },
-      { name: "update", description: "Update a context", mutates: true },
-      { name: "delete", description: "Soft-delete a context", mutates: true },
-    ],
-  },
-  category: {
-    commands: [
-      { name: "list", description: "List all categories", mutates: false },
-      { name: "get", description: "Get a category by ID", mutates: false },
-      { name: "inspect", description: "Inspect a category", mutates: false },
-      { name: "create", description: "Create a category", mutates: true },
-      { name: "update", description: "Update a category", mutates: true },
-      { name: "delete", description: "Delete a category", mutates: true },
-    ],
-  },
-  search: {
-    commands: [
-      { name: "thoughts", description: "Full-text search thoughts", mutates: false },
-      { name: "contexts", description: "Full-text search contexts", mutates: false },
-      { name: "all", description: "Search both thoughts and contexts", mutates: false },
-    ],
-  },
-  graph: {
-    commands: [
-      { name: "neighborhood", description: "Get neighborhood around a thought", mutates: false },
-      { name: "path", description: "Find paths between two thoughts", mutates: false },
-    ],
-  },
-  snapshot: {
-    commands: [{ name: "project", description: "Get project snapshot", mutates: false }],
-  },
-};
+function formatRows(rows: Array<{ key: string; desc: string }>, indent = 2, width = 22): string[] {
+  const pad = " ".repeat(indent);
+  return rows.map(({ key, desc }) => {
+    if (key.length > width) {
+      return `${pad}${key}\n${pad}${" ".repeat(width + 1)}${desc}`;
+    }
+    return `${pad}${key.padEnd(width)} ${desc}`;
+  });
+}
+
+function printGlobalOptions(): void {
+  console.log("Global Options:");
+  formatRows([
+    { key: "--format <fmt>", desc: "Output format: json | jsonl (default: jsonl)" },
+    { key: "--yes", desc: "Auto-confirm mutating actions" },
+    { key: "--quiet", desc: "Suppress non-error stdout" },
+    { key: "--verbose", desc: "Debug logs to stderr" },
+  ]).forEach((line) => console.log(line));
+}
 
 function handleHelp(argv: string[]): number {
   const helpIdx = argv.indexOf("--help");
   const hIdx = argv.indexOf("-h");
   const idx = helpIdx !== -1 ? helpIdx : hIdx;
   const path = argv.slice(0, idx).filter((a) => !a.startsWith("-"));
-  const key = path.join(".");
 
-  const data = helpData[key];
-  if (data) {
-    console.log(JSON.stringify(data));
+  if (path.length === 0) {
+    const resources = [];
+    for (const [name, description] of getResourceDescriptions()) {
+      resources.push({ key: name, desc: description });
+    }
+    console.log("Usage: reflecta <resource> <action> [args] [options]");
+    console.log("");
+    console.log("Resources:");
+    formatRows(resources).forEach((line) => console.log(line));
+    console.log("");
+    console.log("Commands:");
+    formatRows([{ key: "list-actions", desc: "List all available actions" }]).forEach((line) =>
+      console.log(line),
+    );
+    console.log("");
+    printGlobalOptions();
+    return 0;
+  }
+
+  if (path[0] === "list-actions") {
+    console.log("Usage: reflecta list-actions [options]");
+    console.log("");
+    console.log("Description: List all available actions");
+    console.log("");
+    printGlobalOptions();
+    return 0;
+  }
+
+  if (path.length === 1) {
+    const resource = path[0];
+    const actions = getActionsByResource(resource);
+    if (actions.size === 0) {
+      writeError(ErrorCodes.VALIDATION_ERROR, "Unknown command.");
+      return 2;
+    }
+    console.log(`Usage: reflecta ${resource} <action> [args] [options]`);
+    console.log("");
+    console.log("Actions:");
+    const rows: Array<{ key: string; desc: string }> = [];
+    for (const [name, meta] of actions) {
+      const mutatesTag = meta.mutates ? "  [mutates]" : "";
+      rows.push({ key: name, desc: meta.description + mutatesTag });
+    }
+    formatRows(rows).forEach((line) => console.log(line));
+    console.log("");
+    printGlobalOptions();
+    return 0;
+  }
+
+  const meta = getActionMeta(path[0], path[1]);
+  if (meta) {
+    const resource = path[0];
+    const action = path[1];
+    const argsStr =
+      meta.arguments?.map((a) => (a.required ? `<${a.name}>` : `[<${a.name}>]`)).join(" ") ?? "";
+    const usageArgs = argsStr ? ` ${argsStr}` : "";
+    console.log(`Usage: reflecta ${resource} ${action}${usageArgs} [options]`);
+    console.log("");
+    console.log(`Description: ${meta.description}`);
+    if (meta.mutates) {
+      console.log("Mutates: yes (use --yes to confirm)");
+    }
+    if (meta.returns) {
+      console.log(`Returns: ${meta.returns}`);
+    }
+    console.log("");
+
+    if (meta.arguments && meta.arguments.length > 0) {
+      console.log("Arguments:");
+      formatRows(
+        meta.arguments.map((a) => ({
+          key: a.name,
+          desc: `${a.description}${a.required ? " (required)" : ""}`,
+        })),
+      ).forEach((line) => console.log(line));
+      console.log("");
+    }
+
+    if (meta.options && meta.options.length > 0) {
+      console.log("Options:");
+      formatRows(
+        meta.options.map((o) => ({
+          key: o.flags,
+          desc: `${o.description}${o.required ? " (required)" : o.defaultValue !== undefined ? ` (default: ${JSON.stringify(o.defaultValue)})` : ""}`,
+        })),
+      ).forEach((line) => console.log(line));
+      console.log("");
+    }
+
+    printGlobalOptions();
     return 0;
   }
 
@@ -99,10 +155,6 @@ function handleHelp(argv: string[]): number {
 }
 
 export async function runCli(argv = process.argv.slice(2)): Promise<number> {
-  if (argv.includes("--help") || argv.includes("-h")) {
-    return handleHelp(argv);
-  }
-
   if (argv.length === 0) {
     writeError(ErrorCodes.VALIDATION_ERROR, "No command provided. Pass --help for usage.");
     return 2;
@@ -154,6 +206,31 @@ export async function runCli(argv = process.argv.slice(2)): Promise<number> {
 
   const snapshot = cli.command("snapshot").description("Project snapshots");
   registerProjectSnapshotAction(snapshot);
+
+  cli
+    .command("list-actions")
+    .description("List all available actions")
+    .action((_options, actionCli: Command) => {
+      const opts = actionCli.optsWithGlobals<GlobalOptions>();
+      if (opts.quiet) return;
+      const grouped = getGroupedActions();
+      console.log("Actions:");
+      for (const g of grouped) {
+        console.log("");
+        console.log(`${g.group} — ${g.description}`);
+        for (const a of g.actions) {
+          const mutatesTag = a.mutates ? "  [mutates]" : "";
+          const shortName = a.name.replace(`${g.group} `, "");
+          formatRows([{ key: shortName, desc: a.description + mutatesTag }], 2).forEach((line) =>
+            console.log(line),
+          );
+        }
+      }
+    });
+
+  if (argv.includes("--help") || argv.includes("-h")) {
+    return handleHelp(argv);
+  }
 
   try {
     await cli.parseAsync(argv, { from: "user" });

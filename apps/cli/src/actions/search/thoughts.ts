@@ -8,7 +8,25 @@ import {
 } from "../../runner";
 import { normalizeFtsQuery } from "./shared";
 
+import { registerActionMeta } from "../meta";
+
 export function registerSearchThoughtsAction(cli: Command): void {
+  registerActionMeta(
+    "search",
+    "thoughts",
+    {
+      name: "thoughts",
+      description: "Full-text search thoughts",
+      mutates: false,
+      arguments: [{ name: "query", description: "Search query", required: true }],
+      options: [
+        { flags: "--limit <n>", description: "Limit results", required: false, defaultValue: 20 },
+        { flags: "--offset <n>", description: "Result offset", required: false, defaultValue: 0 },
+      ],
+      returns: "ThoughtSearchHit[] — ThoughtSummary + snippet, rank",
+    },
+    "Search thoughts and contexts",
+  );
   cli
     .command("thoughts <query>")
     .description("Full-text search thoughts")

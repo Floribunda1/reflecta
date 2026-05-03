@@ -3,7 +3,30 @@ import { CliError, ErrorCodes } from "../../error";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand } from "../../runner";
 
+import { registerActionMeta } from "../meta";
+
 export function registerGetThoughtAction(cli: Command): void {
+  registerActionMeta("thought", "get", {
+    name: "get",
+    description: "Get a thought by ID",
+    mutates: false,
+    arguments: [{ name: "id", description: "Thought ID", required: true }],
+    options: [
+      { flags: "--include-contexts", description: "Include full context objects", required: false },
+      {
+        flags: "--include-references",
+        description: "Include referenced thoughts",
+        required: false,
+      },
+      {
+        flags: "--include-referenced-bys",
+        description: "Include thoughts that reference this one",
+        required: false,
+      },
+    ],
+    returns:
+      "ThoughtDetail — ThoughtSummary + contextCount, referenceCount, referencedByCount, contexts?, references?, referencedBys?",
+  });
   cli
     .command("get <id>")
     .description("Get a thought by ID")

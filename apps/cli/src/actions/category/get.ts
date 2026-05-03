@@ -2,7 +2,16 @@ import type { Command } from "commander";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand } from "../../runner";
 
+import { registerActionMeta } from "../meta";
+
 export function registerGetCategoryAction(cli: Command): void {
+  registerActionMeta("category", "get", {
+    name: "get",
+    description: "Get a category by ID",
+    mutates: false,
+    arguments: [{ name: "id", description: "Category ID", required: true }],
+    returns: "CategorySummary — { id, name, parentId }",
+  });
   cli
     .command("get <id>")
     .description("Get a category by ID")

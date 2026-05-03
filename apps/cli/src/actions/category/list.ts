@@ -2,7 +2,20 @@ import type { Command } from "commander";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand } from "../../runner";
 
+import { registerActionMeta } from "../meta";
+
 export function registerListCategoriesAction(cli: Command): void {
+  registerActionMeta(
+    "category",
+    "list",
+    {
+      name: "list",
+      description: "List all categories",
+      mutates: false,
+      returns: "CategorySummary[] — { id, name, parentId }[]",
+    },
+    "Manage categories",
+  );
   cli
     .command("list")
     .description("List all categories")

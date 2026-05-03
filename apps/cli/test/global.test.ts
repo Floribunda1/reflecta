@@ -126,15 +126,19 @@ describe("全局行为", () => {
     it("顶层帮助输出命令分组", async () => {
       const { code, stdout } = await runCommand(["--help"]);
       expect(code).toBe(0);
-      const data = parseJson(stdout) as { commands?: unknown[] };
-      expect(Array.isArray(data.commands)).toBe(true);
+      expect(stdout).toContain("Usage: reflecta <resource> <action> [args] [options]");
+      expect(stdout).toContain("Resources:");
+      expect(stdout).toContain("Commands:");
+      expect(stdout).toContain("Global Options:");
     });
 
     it("嵌套帮助输出子命令列表", async () => {
       const { code, stdout } = await runCommand(["thought", "--help"]);
       expect(code).toBe(0);
-      const data = parseJson(stdout) as { commands?: unknown[] };
-      expect(Array.isArray(data.commands)).toBe(true);
+      expect(stdout).toContain("Usage: reflecta thought <action> [args] [options]");
+      expect(stdout).toContain("Actions:");
+      expect(stdout).toContain("list");
+      expect(stdout).toContain("Global Options:");
     });
   });
 });

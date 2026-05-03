@@ -2,7 +2,20 @@ import type { Command } from "commander";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
 
+import { registerActionMeta } from "../meta";
+
 export function registerUpdateCategoryAction(cli: Command): void {
+  registerActionMeta("category", "update", {
+    name: "update",
+    description: "Update a category",
+    mutates: true,
+    arguments: [{ name: "id", description: "Category ID", required: true }],
+    options: [
+      { flags: "--name <name>", description: "Category name", required: false },
+      { flags: "--parent-id <id>", description: "Parent category ID", required: false },
+    ],
+    returns: "CategorySummary — { id, name, parentId }",
+  });
   cli
     .command("update <id>")
     .description("Update a category")
