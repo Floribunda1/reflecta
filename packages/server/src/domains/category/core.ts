@@ -79,6 +79,10 @@ export class CategoryCore {
   }
 
   async deleteCategory(id: string, deleteThoughts = false): Promise<void> {
+    const category = await this.getCategoryRow(id);
+    if (!category) {
+      throw new Error(`Category not found: ${id}`);
+    }
     await this.db.transaction(async (tx) => {
       if (deleteThoughts) {
         const rows = await tx

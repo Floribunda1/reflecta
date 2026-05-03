@@ -24,6 +24,8 @@ export class ThoughtCliBff extends ThoughtCore {
       type: filter?.type,
       categoryIds: filter?.categoryIds,
       includeDescendants: filter?.includeDescendants,
+      limit: filter?.limit,
+      offset: filter?.offset,
     });
     return toThoughtSummaries(this.db, rows);
   }

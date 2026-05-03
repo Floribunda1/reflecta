@@ -10,7 +10,7 @@ export function getLimitOffset(options?: SearchOptions) {
 }
 
 export function escapeFtsQuery(query: string): string {
-  return `"${query.replace(/"/g, '""')}"`;
+  return query.replace(/"/g, '""');
 }
 
 export class SearchCore {
@@ -70,13 +70,14 @@ export class SearchCore {
       rank: number;
     }>(sql`
       SELECT
-        context_id AS contextId,
-        thought_id AS thoughtId,
-        source_type AS sourceType,
-        source_name AS sourceName,
+        c.id AS contextId,
+        c.thought_id AS thoughtId,
+        c.source_type AS sourceType,
+        c.source_name AS sourceName,
         snippet(fts_contexts, 3, '<mark>', '</mark>', '…', 10) AS snippet,
         rank
       FROM fts_contexts
+      JOIN contexts c ON c.id = fts_contexts.context_id
       WHERE fts_contexts MATCH ${escaped}
       ORDER BY rank
       LIMIT ${limit} OFFSET ${offset}

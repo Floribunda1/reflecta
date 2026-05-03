@@ -49,6 +49,7 @@ export async function listThoughtsAction(cli: Command): Promise<void> {
       filter.categoryIds = [options.categoryId];
       if (options.includeDescendants) filter.includeDescendants = true;
     }
+    filter.limit = limit;
 
     return services.thoughts.listThoughts(filter);
   }, options);
