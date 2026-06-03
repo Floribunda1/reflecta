@@ -2,9 +2,9 @@ import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { merge } from "lodash-es";
 import "./services";
-import { join } from "node:path";
 import { initializeDB } from "./db";
 import { registerAssetScheme, handleAssetProtocol } from "./assetProtocol";
+import { preloadScript, rendererHtml } from "./paths";
 
 // Register asset:// as a privileged scheme before app is ready
 registerAssetScheme();
@@ -19,7 +19,7 @@ const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?:
       show: false,
       autoHideMenuBar: true,
       webPreferences: {
-        preload: join(__dirname, "../preload/index.js"),
+        preload: preloadScript,
         sandbox: false,
       },
     } satisfies Electron.BrowserWindowConstructorOptions,
@@ -38,9 +38,7 @@ const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?:
   });
 
   mainWindow.webContents.on("will-navigate", (event, url) => {
-    const appUrl = is.dev
-      ? (process.env.VITE_DEV_SERVER_URL ?? "")
-      : `file://${join(__dirname, "../renderer/index.html")}`;
+    const appUrl = is.dev ? (process.env.VITE_DEV_SERVER_URL ?? "") : `file://${rendererHtml}`;
     if (!url.startsWith(appUrl)) {
       event.preventDefault();
       shell.openExternal(url);
@@ -56,9 +54,9 @@ const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?:
     mainWindow.loadURL(url);
   } else {
     if (route) {
-      mainWindow.loadFile(join(__dirname, "../renderer/index.html"), { hash: route });
+      mainWindow.loadFile(rendererHtml, { hash: route });
     } else {
-      mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
+      mainWindow.loadFile(rendererHtml);
     }
   }
 };

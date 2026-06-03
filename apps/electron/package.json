@@ -4,6 +4,7 @@
   "description": "Reflecta Electron application",
   "homepage": "https://github.com/electron-vite/vite-plugin-electron",
   "author": "example.com",
+  "type": "module",
   "main": "./out/main/index.js",
   "scripts": {
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
@@ -24,6 +25,9 @@
     "build:linux": "vite build && electron-builder --linux"
   },
   "dependencies": {
+    "@earendil-works/pi-agent-core": "^0.78.0",
+    "@earendil-works/pi-ai": "^0.78.0",
+    "@earendil-works/pi-coding-agent": "^0.78.0",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@libsql/client": "^0.17.2",
@@ -33,6 +37,8 @@
     "@milkdown/vue": "^7.20.0",
     "@oxc-project/runtime": "^0.128.0",
     "@reflecta/server": "workspace:*",
+    "@sinclair/typebox": "^0.34.49",
+    "ai": "^6.0.195",
     "ajv": "^8.18.0",
     "drizzle-orm": "^0.45.2",
     "electron-ipc-decorator": "1.0.0",
@@ -46,7 +52,6 @@
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
-    "umzug": "^3.8.2",
     "unified": "^11.0.5"
   },
   "devDependencies": {

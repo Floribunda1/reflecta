@@ -4,16 +4,16 @@ overview: 将 chat 后端收敛为 Electron main 的应用服务，基于完整 
 todos:
   - id: define-runtime
     content: 把原 ChatAgent 职责改写为 Electron-only ChatRuntime，明确 pi-agent session 与 Reflecta IPC/DB 的边界。
-    status: pending
+    status: completed
   - id: design-persistence
     content: 确定 pi session JSONL 作为 transcript 事实源，Reflecta conversation 表只保存索引和映射。
-    status: pending
+    status: completed
   - id: design-tools
     content: 把七个 Reflecta 工具定义成 pi-agent tools，并定义读/写工具确认协议。
-    status: pending
+    status: completed
   - id: design-ipc-events
     content: 定义 renderer 只消费 Reflecta StreamEvent，不直接依赖 pi-agent event。
-    status: pending
+    status: completed
 isProject: false
 ---
 

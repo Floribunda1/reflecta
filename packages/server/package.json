@@ -27,8 +27,7 @@
   "dependencies": {
     "@libsql/client": "^0.17.2",
     "drizzle-orm": "^0.45.2",
-    "nanoid": "^5.1.7",
-    "umzug": "^3.8.2"
+    "nanoid": "^5.1.7"
   },
   "devDependencies": {
     "@types/node": "^22.19.11",

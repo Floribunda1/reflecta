@@ -3,6 +3,7 @@ import { createServices } from "electron-ipc-decorator";
 import { AiService } from "./AiService";
 import { AssetService } from "./AssetService";
 import { CategoryService } from "./CategoryService";
+import { ChatService } from "./ChatService";
 import { ConfigService } from "./ConfigService";
 import { ContextService } from "./ContextService";
 import { SearchService } from "./SearchService";
@@ -29,6 +30,7 @@ export const services = createServices([
   AiService,
   AssetService,
   CategoryService,
+  ChatService,
   ConfigService,
   ThoughtService,
   ContextService,

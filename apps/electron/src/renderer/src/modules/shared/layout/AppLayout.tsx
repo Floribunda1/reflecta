@@ -41,6 +41,7 @@ export const AppLayout = defineComponent({
     const navItems = computed<Array<{ label: string; value: string; description: string }>>(() => [
       { label: "Capture", value: "Capture", description: "Collect" },
       { label: "Contemplate", value: "Contemplate", description: "Connect" },
+      { label: "Agent", value: "Agent", description: "Chat with your knowledge" },
     ]);
 
     return () => (

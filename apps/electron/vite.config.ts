@@ -8,6 +8,15 @@ import electron from "vite-plugin-electron/simple";
 
 const appRoot = fileURLToPath(new URL(".", import.meta.url));
 
+const mainExternals = ["@libsql/client"];
+
+const esmOutput = {
+  format: "es" as const,
+  entryFileNames: "[name].mjs",
+  chunkFileNames: "[name].mjs",
+  codeSplitting: false,
+};
+
 export default defineConfig({
   root: resolve(appRoot, "src/renderer"),
   publicDir: false,
@@ -39,7 +48,7 @@ export default defineConfig({
             outDir: resolve(appRoot, "out/main"),
             emptyOutDir: true,
             rolldownOptions: {
-              external: ["@libsql/client"],
+              external: mainExternals,
             },
           },
         },
@@ -56,6 +65,9 @@ export default defineConfig({
           build: {
             outDir: resolve(appRoot, "out/preload"),
             emptyOutDir: true,
+            rolldownOptions: {
+              output: esmOutput,
+            },
           },
         },
       },

@@ -6,6 +6,8 @@ import {
   ThoughtElectronBff,
   TrashElectronBff,
 } from "@reflecta/server";
+import { ChatRepository } from "./chat/repository";
+import { ChatRuntime } from "./chat/runtime";
 
 const options = { getDb: getDBInstance };
 
@@ -27,3 +29,15 @@ export const searchService = createLazy(
   () => new SearchElectronBff({ ...options, thoughtService }),
 );
 export const trashService = createLazy(() => new TrashElectronBff(options));
+
+export const chatRepository = createLazy(() => new ChatRepository(getDBInstance));
+
+export const chatRuntime = createLazy(() => {
+  return new ChatRuntime(chatRepository, {
+    thoughtService,
+    contextService,
+    searchService,
+    categoryService,
+    getDb: getDBInstance,
+  });
+});

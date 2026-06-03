@@ -84,3 +84,17 @@ export const contexts = sqliteTable(
     index("idx_contexts_source_type").on(t.sourceType),
   ],
 );
+
+export const conversations = sqliteTable(
+  "conversations",
+  {
+    id: text("id").notNull().primaryKey(),
+    title: text("title").notNull().default("新对话"),
+    piSessionId: text("pi_session_id"),
+    piSessionFile: text("pi_session_file"),
+    lastMessagePreview: text("last_message_preview"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [index("idx_conversations_updated_at").on(t.updatedAt)],
+);

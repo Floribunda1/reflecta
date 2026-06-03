@@ -58,10 +58,10 @@
 
 **两种入口，共享核心组件：**
 
-| 入口 | 形态 | 场景 |
-|---|---|---|
-| `/agent` 独立路由 | 全屏 Chat 居中 + 完整 Right Panel | 沉浸式深度对话、浏览历史对话 |
-| Capture/Contemplate 侧边栏 | Drawer 滑入 (~50% 宽度) | 浏览知识库时"停下来聊"，自动携带当前上下文 |
+| 入口                       | 形态                              | 场景                                       |
+| -------------------------- | --------------------------------- | ------------------------------------------ |
+| `/agent` 独立路由          | 全屏 Chat 居中 + 完整 Right Panel | 沉浸式深度对话、浏览历史对话               |
+| Capture/Contemplate 侧边栏 | Drawer 滑入 (~50% 宽度)           | 浏览知识库时"停下来聊"，自动携带当前上下文 |
 
 ---
 
@@ -115,20 +115,20 @@ CREATE INDEX idx_messages_created ON messages(created_at);
 
 **读工具（Agent 自主执行，无需用户确认）：**
 
-| 工具 | 功能 | 依赖现有服务 |
-|---|---|---|
-| `search_knowledge_base` | FTS5 搜索 thought 正文 + context | SearchService |
-| `get_thought_detail` | 获取 thought 完整内容 + context + connection | ThoughtService |
-| `get_graph_neighborhood` | 获取节点的 1-hop 邻居 + category 归属 | ThoughtService + CategoryService |
+| 工具                     | 功能                                         | 依赖现有服务                     |
+| ------------------------ | -------------------------------------------- | -------------------------------- |
+| `search_knowledge_base`  | FTS5 搜索 thought 正文 + context             | SearchService                    |
+| `get_thought_detail`     | 获取 thought 完整内容 + context + connection | ThoughtService                   |
+| `get_graph_neighborhood` | 获取节点的 1-hop 邻居 + category 归属        | ThoughtService + CategoryService |
 
 **写工具（暂停流式，弹出确认卡片，用户确认后执行）：**
 
-| 工具 | 功能 | 依赖现有服务 |
-|---|---|---|
-| `propose_create_insight` | 提议创建 insight | ThoughtService.createThought |
-| `propose_update_thought` | 提议修改 thought 正文 | ThoughtService.updateThought |
-| `propose_add_context` | 提议为 thought 添加 Context | ContextService.createContext |
-| `propose_create_connection` | 提议创建 thought 间连线 | ThoughtService (add connection) |
+| 工具                        | 功能                        | 依赖现有服务                    |
+| --------------------------- | --------------------------- | ------------------------------- |
+| `propose_create_insight`    | 提议创建 insight            | ThoughtService.createThought    |
+| `propose_update_thought`    | 提议修改 thought 正文       | ThoughtService.updateThought    |
+| `propose_add_context`       | 提议为 thought 添加 Context | ContextService.createContext    |
+| `propose_create_connection` | 提议创建 thought 间连线     | ThoughtService (add connection) |
 
 ### 2.4 Agent 循环
 
@@ -195,15 +195,15 @@ ChatAgent.stream(convId, userMessage, referenceIds)
 
 ### 2.6 复用现有模块（不修改）
 
-| 现有模块 | Agent 如何使用 |
-|---|---|
-| `ThoughtElectronBff` | 写工具执行：`createThought` / `updateThought` / `getThoughtById` |
-| `ContextElectronBff` | `propose_add_context` 时调用 `createContext` |
-| `SearchElectronBff` | `search_knowledge_base` 调用 `search()`（已有 FTS5） |
-| `CategoryElectronBff` | `get_graph_neighborhood` 获取 category 信息 |
-| `AiProviderConfig` | Agent 复用同一份 API Key / Base URL / Model 配置 |
-| `ReflectaDb` 实例 | ChatCore 使用同一个 Drizzle 实例 |
-| FTS5 索引 | `fts_thoughts` / `fts_contexts` 已覆盖正文和 Context |
+| 现有模块              | Agent 如何使用                                                   |
+| --------------------- | ---------------------------------------------------------------- |
+| `ThoughtElectronBff`  | 写工具执行：`createThought` / `updateThought` / `getThoughtById` |
+| `ContextElectronBff`  | `propose_add_context` 时调用 `createContext`                     |
+| `SearchElectronBff`   | `search_knowledge_base` 调用 `search()`（已有 FTS5）             |
+| `CategoryElectronBff` | `get_graph_neighborhood` 获取 category 信息                      |
+| `AiProviderConfig`    | Agent 复用同一份 API Key / Base URL / Model 配置                 |
+| `ReflectaDb` 实例     | ChatCore 使用同一个 Drizzle 实例                                 |
+| FTS5 索引             | `fts_thoughts` / `fts_contexts` 已覆盖正文和 Context             |
 
 ---
 
@@ -277,24 +277,24 @@ apps/electron/src/renderer/src/modules/agent/
 
 interface AgentState {
   // 会话
-  conversations: ConversationDTO[]
-  activeConvId: string | null
+  conversations: ConversationDTO[];
+  activeConvId: string | null;
 
   // 消息
-  messages: MessageDTO[]
-  isStreaming: boolean
-  streamingContent: string            // 当前流式 delta 累积（未存库）
+  messages: MessageDTO[];
+  isStreaming: boolean;
+  streamingContent: string; // 当前流式 delta 累积（未存库）
 
   // 工具确认
-  pendingToolCall: AgentToolCall | null  // 等待用户确认的工具调用
+  pendingToolCall: AgentToolCall | null; // 等待用户确认的工具调用
 
   // 右侧面板
-  rightPanelMode: "browse" | "graph" | "search" | "references"
-  references: ThoughtSummaryDTO[]     // 已 @ 的 thought
+  rightPanelMode: "browse" | "graph" | "search" | "references";
+  references: ThoughtSummaryDTO[]; // 已 @ 的 thought
 
   // 搜索
-  searchQuery: string
-  searchResults: SearchResult | null
+  searchQuery: string;
+  searchResults: SearchResult | null;
 }
 ```
 
@@ -337,6 +337,7 @@ function useChatStream() {
 ```
 
 两种入口共享 `ChatPanel` 和 `RightPanel` 组件，通过 props 控制：
+
 - `embedded: boolean` — 是否为侧边栏模式（略窄，RightPanel 可收折）
 - `initialReferences: string[]` — 初始 @ 的 thought ID 列表
 
@@ -352,46 +353,46 @@ function useChatStream() {
 
 ### 3.7 复用现有前端模块（不修改或最小修改）
 
-| 现有模块 | Agent 前端如何使用 |
-|---|---|
-| `CategoryTree` (capture) | BrowseTab 中复用，展示 category 树 |
-| `ThoughtCard` / `ThoughtList` (capture) | BrowseTab 中复用，展示 thought 列表 |
-| `ThoughtDetail` (capture) | BrowseTab 中点击 thought 展开详情 |
-| `GraphCanvas` (contemplate) | GraphTab 中复用，但限制交互（无拖拽重构） |
-| `GlobalSearch` (shared) | SearchTab 中复用 |
-| `useCategory` / `useThought` hooks | BrowseTab / ReferencesTab 中复用 |
-| `MdPreview` (shared) | MessageBubble 中复用，渲染 Markdown |
-| PrimeVue `Splitter` / `Drawer` / `TabView` | 布局容器 |
+| 现有模块                                   | Agent 前端如何使用                        |
+| ------------------------------------------ | ----------------------------------------- |
+| `CategoryTree` (capture)                   | BrowseTab 中复用，展示 category 树        |
+| `ThoughtCard` / `ThoughtList` (capture)    | BrowseTab 中复用，展示 thought 列表       |
+| `ThoughtDetail` (capture)                  | BrowseTab 中点击 thought 展开详情         |
+| `GraphCanvas` (contemplate)                | GraphTab 中复用，但限制交互（无拖拽重构） |
+| `GlobalSearch` (shared)                    | SearchTab 中复用                          |
+| `useCategory` / `useThought` hooks         | BrowseTab / ReferencesTab 中复用          |
+| `MdPreview` (shared)                       | MessageBubble 中复用，渲染 Markdown       |
+| PrimeVue `Splitter` / `Drawer` / `TabView` | 布局容器                                  |
 
 ---
 
 ## 四、关键架构决策
 
-| 决策 | 选择 | 理由 |
-|---|---|---|
-| Agent 运行位置 | **Main Process** | 唯一能访问 DB 的进程；API Key 安全；写工具需调用现有 Service |
-| 流式通道 | **原始 IPC push**（非 decorator） | decorator 只支持 req/res；流式需主进程主动推事件 |
-| 工具确认模式 | **暂停-恢复**（非预生成-替换） | 工具结果可能改变后续输出，预生成会导致内容跳变 |
-| 知识检索方案 | **FTS5**（非向量数据库） | 用户 ~50 条 thought，FTS5 够用；省去 embedding 复杂度 |
-| 工具调用存储 | **JSON 字段**（非关联表） | 个人工具，数据量小；避免额外 JOIN |
-| System Prompt | **每次动态构建**（不存库） | 每次对话上下文不同（@ 的 thought 不同），需实时组装 |
-| 配置 | **复用现有 AiProviderConfig** | API Key / Base URL / Model 已配好，不重复造轮子 |
+| 决策           | 选择                              | 理由                                                         |
+| -------------- | --------------------------------- | ------------------------------------------------------------ |
+| Agent 运行位置 | **Main Process**                  | 唯一能访问 DB 的进程；API Key 安全；写工具需调用现有 Service |
+| 流式通道       | **原始 IPC push**（非 decorator） | decorator 只支持 req/res；流式需主进程主动推事件             |
+| 工具确认模式   | **暂停-恢复**（非预生成-替换）    | 工具结果可能改变后续输出，预生成会导致内容跳变               |
+| 知识检索方案   | **FTS5**（非向量数据库）          | 用户 ~50 条 thought，FTS5 够用；省去 embedding 复杂度        |
+| 工具调用存储   | **JSON 字段**（非关联表）         | 个人工具，数据量小；避免额外 JOIN                            |
+| System Prompt  | **每次动态构建**（不存库）        | 每次对话上下文不同（@ 的 thought 不同），需实时组装          |
+| 配置           | **复用现有 AiProviderConfig**     | API Key / Base URL / Model 已配好，不重复造轮子              |
 
 ---
 
 ## 五、需修改的现有文件
 
-| 文件 | 修改 | 风险 |
-|---|---|---|
-| `packages/server/src/db/schema.ts` | 新增 `conversations` + `messages` 表 | 低 |
-| `packages/server/src/db/migration.ts` | 新增 003 migration | 低 |
-| `packages/server/src/index.ts` | 新增 `export * from "./domains/chat"` | 低 |
-| `apps/electron/src/main/services/core.ts` | 新增 `chatService` lazy init | 低 |
-| `apps/electron/src/main/services/index.ts` | 注册 ChatService + 流式 IPC handler | 低 |
-| `apps/electron/src/renderer/src/router/index.ts` | 新增 `/agent` 路由 | 低 |
-| `apps/electron/src/renderer/src/modules/shared/layout/AppLayout.tsx` | 导航加 Agent 入口 | 低 |
-| `apps/electron/src/renderer/src/modules/capture/index.tsx` | 工具栏加 [AI 对话] 按钮 | 低 |
-| `apps/electron/src/renderer/src/modules/contemplate/index.tsx` | 工具栏加 [AI 对话] 按钮 | 低 |
+| 文件                                                                 | 修改                                  | 风险 |
+| -------------------------------------------------------------------- | ------------------------------------- | ---- |
+| `packages/server/src/db/schema.ts`                                   | 新增 `conversations` + `messages` 表  | 低   |
+| `packages/server/src/db/migration.ts`                                | 新增 003 migration                    | 低   |
+| `packages/server/src/index.ts`                                       | 新增 `export * from "./domains/chat"` | 低   |
+| `apps/electron/src/main/services/core.ts`                            | 新增 `chatService` lazy init          | 低   |
+| `apps/electron/src/main/services/index.ts`                           | 注册 ChatService + 流式 IPC handler   | 低   |
+| `apps/electron/src/renderer/src/router/index.ts`                     | 新增 `/agent` 路由                    | 低   |
+| `apps/electron/src/renderer/src/modules/shared/layout/AppLayout.tsx` | 导航加 Agent 入口                     | 低   |
+| `apps/electron/src/renderer/src/modules/capture/index.tsx`           | 工具栏加 [AI 对话] 按钮               | 低   |
+| `apps/electron/src/renderer/src/modules/contemplate/index.tsx`       | 工具栏加 [AI 对话] 按钮               | 低   |
 
 **原则：** 所有新增能力放在新文件。对现有文件的修改仅限注册/路由/按钮——不碰现有业务逻辑。
 
