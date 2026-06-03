@@ -64,8 +64,8 @@ export const ThoughtToolbar = defineComponent({
     ];
 
     return () => (
-      <div class="shrink-0 border-b border-[var(--p-content-border-color)] px-8 py-4">
-        <div class="mx-auto flex w-full max-w-[1220px] flex-col gap-4">
+      <div class="shrink-0 pt-4">
+        <div class="mx-auto px-8 flex w-full flex-col gap-4">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="min-w-[280px] flex-1 md:max-w-[520px]">
               <IconField class="w-full">

@@ -2,7 +2,6 @@ import { defineComponent, ref, computed } from "vue";
 import type { ThoughtSummaryDTO } from "@shared/thought";
 import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/md-preview";
 import { useCapturePageContext } from "../context";
-import { ThoughtTypeBadge } from "../thought-detail/ThoughtTypeBadge";
 import { useThoughtListContext } from "./context";
 import { useConfirm } from "primevue/useconfirm";
 import { formatDistanceToNow } from "date-fns";
@@ -10,9 +9,6 @@ import { zhCN } from "date-fns/locale";
 import ContextMenu from "primevue/contextmenu";
 import { useCategoryData } from "@renderer/modules/shared/hooks/use-category";
 import { useRouter } from "vue-router";
-
-const categoryChipClass =
-  "rounded-full border border-[var(--p-content-border-color)] bg-transparent px-1.5 py-0.5 text-xs text-muted-color";
 
 export const ThoughtCard = defineComponent({
   name: "ThoughtCard",
@@ -52,14 +48,6 @@ export const ThoughtCard = defineComponent({
     ];
 
     const isSelected = computed(() => capture.selectedThoughtId.value === props.thought.id);
-    const shouldShowCategory = computed(() => categoryNames.value.length > 0);
-    const contextCue = computed(() => {
-      const count = props.thought.contextCount;
-      if (count === 0) return null;
-      return {
-        count,
-      };
-    });
 
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
@@ -80,73 +68,48 @@ export const ThoughtCard = defineComponent({
     };
 
     return () => (
-      <div class="h-full" onContextmenu={handleContextMenu}>
+      <div onContextmenu={handleContextMenu}>
         <ContextMenu ref={cm} model={menuItems} />
         <div
           class={[
-            "flex h-full cursor-pointer flex-col rounded-xl border border-[var(--p-content-border-color)] bg-surface-0 p-4 shadow-none transition-colors duration-150 hover:bg-surface-50",
-            isSelected.value ? "border-primary-200 bg-primary-50" : "",
+            "group flex cursor-pointer flex-col gap-3 py-5 transition-colors duration-150 hover:bg-surface-50 px-8",
+            isSelected.value ? "bg-surface-100" : "",
           ]}
           onClick={() => {
             capture.selectedThoughtId.value = props.thought.id;
           }}
         >
-          <div class="flex min-w-0 items-center gap-2.5">
-            <ThoughtTypeBadge type={props.thought.type} />
-            <div class="min-w-0 flex-1">
-              {props.thought.title ? (
-                <span class="block truncate text-lg font-semibold leading-tight text-color">
-                  {props.thought.title}
-                </span>
-              ) : (
-                <span class="block truncate text-lg font-medium text-muted-color">
-                  未命名 Thought
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div class="mt-3 flex flex-1 flex-col text-sm leading-normal text-muted-color">
-            {props.thought.body ? (
-              <SimpleMarkdownPreview content={props.thought.body} lineClamp={3} />
+          {/* Title + meta */}
+          <div class="flex min-w-0 items-baseline gap-3">
+            {props.thought.title ? (
+              <span class="truncate text-base font-semibold leading-snug text-color">
+                {props.thought.title}
+              </span>
             ) : (
-              <span class="text-sm text-muted-color">还没有正文</span>
+              <span class="truncate text-base font-medium leading-snug text-muted-color">
+                未命名 Thought
+              </span>
             )}
-          </div>
 
-          <div class="mt-3 flex flex-col gap-2 border-t border-[var(--p-content-border-color)] pt-3">
-            {contextCue.value && contextCue.value.count > 0 && (
-              <div class="flex min-w-0 items-center gap-1.5 text-sm text-muted-color">
-                <i class="pi pi-paperclip shrink-0 text-xs text-muted-color" />
-                <span class="shrink-0 tabular-nums">{contextCue.value.count}</span>
-              </div>
-            )}
-            {shouldShowCategory.value && (
-              <div class="flex flex-wrap gap-1.5">
-                {categoryNames.value.slice(0, 2).map((name) => (
-                  <span key={name} class={categoryChipClass}>
-                    {name}
-                  </span>
-                ))}
-                {categoryNames.value.length > 2 && (
-                  <span class={categoryChipClass}>+{categoryNames.value.length - 2}</span>
-                )}
-              </div>
-            )}
-            <div class="flex items-center justify-between gap-3 text-sm text-muted-color">
-              <div class="flex items-center gap-3">
-                <div class="flex items-center gap-1">
-                  <i class="pi pi-link text-sm" />
-                  <span>{props.thought.connectionCount}</span>
-                </div>
-              </div>
-              <span>
+            <div class="ml-auto flex shrink-0 items-baseline gap-3 text-sm leading-snug text-muted-color">
+              {categoryNames.value.length > 0 && <span>{categoryNames.value[0]}</span>}
+              <span>· {props.thought.connectionCount}</span>
+              <span class="tabular-nums">
                 {formatDistanceToNow(props.thought.updatedAt, {
                   addSuffix: true,
                   locale: zhCN,
                 })}
               </span>
             </div>
+          </div>
+
+          {/* Preview */}
+          <div class="min-w-0 text-sm leading-relaxed text-muted-color line-clamp-2">
+            {props.thought.body ? (
+              <SimpleMarkdownPreview content={props.thought.body} />
+            ) : (
+              <span class="text-muted-color/40">还没有正文</span>
+            )}
           </div>
         </div>
       </div>
