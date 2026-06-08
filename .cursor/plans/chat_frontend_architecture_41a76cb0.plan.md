@@ -31,7 +31,7 @@ isProject: false
 - 未来从 Capture/Contemplate 带着 selected thought/subgraph 进入对话。
 - 后端 `chat:stream-event` 的流式输出、tool 确认和会话持久化。
 
-核心原则：**state 可以直接调用 `ipcClient.chat.`*；不要为了包装而引入 IPC 层。只有 `chat:stream-event` 这种需要订阅生命周期管理的事件流，才保留一个薄 helper。conversation/reference/tool 是 domain state，组件只消费 view model。**
+核心原则：**state 可以直接调用 `ipcClient.chat.`\*；不要为了包装而引入 IPC 层。只有 `chat:stream-event` 这种需要订阅生命周期管理的事件流，才保留一个薄 helper。conversation/reference/tool 是 domain state，组件只消费 view model。**
 
 ```mermaid
 flowchart TD
@@ -44,8 +44,6 @@ flowchart TD
   chatViewModel --> chatComponents["Chat Components"]
   knowledgeViewModel --> knowledgeComponents["Knowledge Components"]
 ```
-
-
 
 ## 模块划分
 
@@ -251,8 +249,6 @@ sequenceDiagram
   StreamReducer->>ChatDomain: reduce delta/tool/done/error
 ```
 
-
-
 ### 完成一轮
 
 ```mermaid
@@ -263,8 +259,6 @@ flowchart TD
   reloadHistory --> clearTurn["clear active turn"]
   clearTurn --> keepReferences["keep conversation references"]
 ```
-
-
 
 ## 与 Vercel AI SDK Vue 的关系
 
@@ -282,4 +276,3 @@ flowchart TD
 - Capture/Contemplate 的上下文入口先不做，但 reference state 必须为它预留初始化能力。
 - Fork、edit-and-resend、regenerate 需要后端 API 配合，先不纳入 state 核心路径。
 - 完整复用 Contemplate graph 组件暂缓，先定义 graph panel 的 state contract。
-

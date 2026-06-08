@@ -292,6 +292,13 @@ async function runWriteTool<TParams>(
 
   const approved = await runtime.waitForToolApproval(toolCallId, signal);
   if (!approved) {
+    await runtime.emitToolEvent({
+      type: "tool_result",
+      toolCallId,
+      toolName,
+      result: { rejected: true, message: "User rejected this action." },
+      isError: true,
+    });
     return textResult("User rejected this action.", { rejected: true });
   }
 
@@ -299,6 +306,7 @@ async function runWriteTool<TParams>(
     type: "tool_running",
     toolCallId,
     toolName,
+    input,
   });
 
   const result = await executeApproved();

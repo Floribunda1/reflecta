@@ -1,21 +1,20 @@
 import { ipcClient } from "@renderer/utils/ipc";
 import type { ConversationDTO } from "@shared/chat";
 import type { ThoughtSummaryDTO } from "@shared/thought";
+import type { ChatStatus, UIMessage } from "ai";
 import { useQuery, useQueryClient } from "@tanstack/vue-query";
 import { createInjectionState, useLocalStorage } from "@vueuse/core";
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { onChatStreamEvent } from "./stream/on-chat-stream-event";
-import {
-  buildThreadItems,
-  createInitialTurnState,
-  reduceTurnState,
-} from "./state/chat-turn-reducer";
-import type { ActiveTurnState, KnowledgePanelMode } from "./state/types";
+import { computed, ref, shallowRef, watch } from "vue";
+import { ReflectaChat } from "./libs/reflecta-chat";
+import { dtoListToUiMessages } from "./transport/dto-to-ui-message";
+import { ElectronChatTransport } from "./transport/electron-chat-transport";
+import type { KnowledgePanelMode } from "./state/types";
 
 const [useChatPageProvide, useChatPageContext] = createInjectionState(() => {
   const queryClient = useQueryClient();
   const activeConversationId = useLocalStorage<string | null>("chat:activeConversationId", null);
-  const activeTurn = ref<ActiveTurnState | null>(null);
+  const chat = shallowRef<ReflectaChat<UIMessage> | null>(null);
+  const activeRequestId = ref<string | null>(null);
   const draftText = ref("");
   const draftThoughtIds = ref<string[]>([]);
   const conversationThoughtIds = ref<string[]>([]);
@@ -26,10 +25,13 @@ const [useChatPageProvide, useChatPageContext] = createInjectionState(() => {
   const selectedThoughtId = ref<string | null>(null);
   const panelSearchQuery = ref("");
 
+  const chatStatus = computed<ChatStatus>(() => chat.value?.vueState.statusRef.value ?? "ready");
+  const chatError = computed(() => chat.value?.vueState.errorRef.value);
+  const chatMessages = computed<UIMessage[]>(() => chat.value?.vueState.messagesRef.value ?? []);
+
   const isStreaming = computed(() => {
-    const turn = activeTurn.value;
-    if (!turn) return false;
-    return ["sending", "streaming", "waiting_tool"].includes(turn.status);
+    const status = chatStatus.value;
+    return status === "submitted" || status === "streaming";
   });
 
   const conversationsQuery = useQuery({
@@ -64,34 +66,42 @@ const [useChatPageProvide, useChatPageContext] = createInjectionState(() => {
     }
   };
 
-  const clearTurn = () => {
-    activeTurn.value = null;
+  const createChatInstance = (conversationId: string, messages: UIMessage[]) => {
+    return new ReflectaChat({
+      id: conversationId,
+      messages,
+      transport: new ElectronChatTransport(conversationId, {
+        onRequestStart: (requestId) => {
+          activeRequestId.value = requestId;
+        },
+        onRequestEnd: () => {
+          activeRequestId.value = null;
+        },
+      }),
+      onFinish: () => {
+        void queryClient.invalidateQueries({ queryKey: ["chat.conversations"] });
+      },
+    });
   };
 
-  let unsubscribeStream: (() => void) | null = null;
-
-  onMounted(() => {
-    unsubscribeStream = onChatStreamEvent(({ requestId, event }) => {
-      const turn = activeTurn.value;
-      if (!turn || turn.requestId !== requestId) return;
-
-      activeTurn.value = reduceTurnState(turn, event);
-
-      if (event.type === "done") {
-        const conversationId = activeTurn.value?.conversationId ?? activeConversationId.value;
-        void invalidateChatQueries(conversationId).then(clearTurn);
-      }
-    });
+  watch(activeConversationId, (conversationId, previousId) => {
+    if (conversationId === previousId) return;
+    chat.value = null;
   });
 
-  onUnmounted(() => {
-    unsubscribeStream?.();
-  });
+  watch(
+    [activeConversationId, () => messagesQuery.data.value, () => messagesQuery.isFetching.value],
+    ([conversationId, history, isFetching]) => {
+      if (!conversationId || chat.value) return;
+      if (isFetching && !history?.length) return;
+      chat.value = createChatInstance(conversationId, dtoListToUiMessages(history ?? []));
+    },
+    { immediate: true },
+  );
 
   const selectConversation = (conversationId: string) => {
     if (isStreaming.value) return;
     activeConversationId.value = conversationId;
-    clearTurn();
     draftText.value = "";
     draftThoughtIds.value = [];
     conversationThoughtIds.value = [];
@@ -103,7 +113,6 @@ const [useChatPageProvide, useChatPageContext] = createInjectionState(() => {
     const conversation = await ipcClient.chat.createConversation();
     await invalidateChatQueries(conversation.id);
     activeConversationId.value = conversation.id;
-    clearTurn();
     draftText.value = "";
     draftThoughtIds.value = [];
     conversationThoughtIds.value = [];
@@ -121,7 +130,7 @@ const [useChatPageProvide, useChatPageContext] = createInjectionState(() => {
     await ipcClient.chat.deleteConversation(conversationId);
     if (activeConversationId.value === conversationId) {
       activeConversationId.value = null;
-      clearTurn();
+      chat.value = null;
     }
     await invalidateChatQueries(null);
   };
@@ -165,17 +174,10 @@ const [useChatPageProvide, useChatPageContext] = createInjectionState(() => {
   const sendMessage = async () => {
     const content = draftText.value.trim();
     const conversationId = activeConversationId.value;
-    if (!conversationId || !content || isStreaming.value) return;
+    const activeChat = chat.value;
+    if (!conversationId || !content || !activeChat || isStreaming.value) return;
 
     const referenceThoughtIds = [...draftThoughtIds.value];
-    const optimisticUserMessage = {
-      id: `opt-${Date.now()}`,
-      role: "user" as const,
-      content,
-      createdAt: new Date().toISOString(),
-    };
-
-    activeTurn.value = createInitialTurnState(conversationId, optimisticUserMessage);
     draftText.value = "";
 
     for (const thoughtId of referenceThoughtIds) {
@@ -187,53 +189,44 @@ const [useChatPageProvide, useChatPageContext] = createInjectionState(() => {
 
     draftThoughtIds.value = [];
 
-    try {
-      const { requestId } = await ipcClient.chat.sendMessage({
-        conversationId,
-        content,
-        referenceThoughtIds: referenceThoughtIds.length > 0 ? referenceThoughtIds : undefined,
-      });
-      if (activeTurn.value) {
-        activeTurn.value = { ...activeTurn.value, requestId, status: "streaming" };
-      }
-    } catch (error) {
-      activeTurn.value = {
-        ...activeTurn.value!,
-        status: "error",
-        errorMessage: error instanceof Error ? error.message : "发送失败",
-      };
-    }
+    await activeChat.sendMessage(
+      { text: content },
+      {
+        body: {
+          referenceThoughtIds: referenceThoughtIds.length > 0 ? referenceThoughtIds : undefined,
+        },
+      },
+    );
   };
 
   const cancelStream = async () => {
-    const turn = activeTurn.value;
-    if (!turn?.requestId) return;
-    await ipcClient.chat.cancelStream({ requestId: turn.requestId });
-    activeTurn.value = { ...turn, status: "cancelled" };
-    setTimeout(clearTurn, 300);
+    await chat.value?.stop();
   };
 
   const confirmToolCall = async (toolCallId: string, approved: boolean) => {
-    const turn = activeTurn.value;
-    if (!turn?.requestId) return;
+    const requestId = activeRequestId.value;
+    const activeChat = chat.value;
+    if (!requestId || !activeChat) return;
+
+    await activeChat.addToolApprovalResponse({
+      id: toolCallId,
+      approved,
+    });
+
     if (approved) {
       await ipcClient.chat.confirmToolCall({
-        requestId: turn.requestId,
+        requestId,
         toolCallId,
         approved: true,
       });
     } else {
       await ipcClient.chat.rejectToolCall({
-        requestId: turn.requestId,
+        requestId,
         toolCallId,
         approved: false,
       });
     }
   };
-
-  const threadItems = computed(() =>
-    buildThreadItems(messagesQuery.data.value ?? [], activeTurn.value),
-  );
 
   const draftReferences = computed(() =>
     draftThoughtIds.value
@@ -254,10 +247,13 @@ const [useChatPageProvide, useChatPageContext] = createInjectionState(() => {
 
   return {
     activeConversationId,
+    chat,
+    chatMessages,
+    chatStatus,
+    chatError,
     conversations,
     conversationsLoading: computed(() => conversationsQuery.isFetching.value),
     messagesLoading: computed(() => messagesQuery.isFetching.value),
-    threadItems,
     isStreaming,
     canSend,
     draftText,

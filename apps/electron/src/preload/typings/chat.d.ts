@@ -34,7 +34,7 @@ export type ChatStreamEvent =
       toolName: string;
       input: unknown;
     }
-  | { type: "tool_running"; toolCallId: string; toolName: string }
+  | { type: "tool_running"; toolCallId: string; toolName: string; input?: unknown }
   | {
       type: "tool_result";
       toolCallId: string;

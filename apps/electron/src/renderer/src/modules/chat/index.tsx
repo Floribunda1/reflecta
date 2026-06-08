@@ -1,3 +1,4 @@
+import "streamdown-vue3/styles.css";
 import { defineComponent, onMounted, watch } from "vue";
 import { useChatPageContext, useChatPageProvide } from "./context";
 import { ChatInput } from "./components/ChatInput";

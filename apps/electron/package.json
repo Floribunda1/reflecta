@@ -25,6 +25,7 @@
     "build:linux": "vite build && electron-builder --linux"
   },
   "dependencies": {
+    "@ai-sdk/vue": "^3.0.195",
     "@earendil-works/pi-agent-core": "^0.78.0",
     "@earendil-works/pi-ai": "^0.78.0",
     "@earendil-works/pi-coding-agent": "^0.78.0",
@@ -52,6 +53,7 @@
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
+    "streamdown-vue3": "^0.1.0",
     "unified": "^11.0.5"
   },
   "devDependencies": {

@@ -202,6 +202,7 @@ export class ChatRuntime implements ToolApprovalHost {
           type: "tool_running",
           toolCallId: event.toolCallId,
           toolName: event.toolName,
+          input: "args" in event ? event.args : undefined,
         });
       }
 
