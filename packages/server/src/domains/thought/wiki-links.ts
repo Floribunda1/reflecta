@@ -48,8 +48,11 @@ export function normalizeThoughtWikiLinkBody(body: string | undefined): string |
 export function extractThoughtWikiLinkTargets(body: string): string[] {
   const targets = new Set<string>();
   for (const match of body.matchAll(thoughtWikiLinkPattern)) {
+    const raw = unescapeMarkdownText(match[1]?.trim() ?? "");
+    if (!raw) continue;
+
     const parsed = parseThoughtWikiLink(match[0]);
-    if (parsed) targets.add(parsed.id);
+    targets.add(parsed?.id ?? raw);
   }
   return [...targets];
 }
