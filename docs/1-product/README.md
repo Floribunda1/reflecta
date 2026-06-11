@@ -59,6 +59,16 @@
 
 ## 目录
 
+- `value-proposition.md`
+  - Reflecta 的 PMF / value proposition 讨论记录：定义“有效积累”“个人理解”“Context provenance”和产品边界。
+- `feature-set.md`
+  - 基于 value proposition 推导 PMF Feature Set：先记录 problem / job 层判断，再映射产品能力。
+- `feature-set-guide.md`
+  - 从 Value Proposition 推导 PMF Feature Set 的方法指南。
+- `pmf-mvp-prd.md`
+  - Reflecta PMF MVP PRD：把价值主张和 Feature Set 落成产品目标、用户路径、功能设计、边界和验收标准。
+- `pmf-mvp-product-shape.md`
+  - Reflecta PMF MVP 产品形态草案：定义 Domain Workspace（按领域组织的个人理解工作台）的主形态和关键路径。
 - `workflow/`
   - `1-用户意图.md`
   - `2-User-Journey.md`

@@ -57,6 +57,10 @@ UX workflow 用来把产品决策翻译成用户行为路径、界面状态、�
 
 ## 目录
 
+- `pmf-mvp-information-architecture.md`
+  - Reflecta PMF MVP 的信息架构草案：基于用户画像、Domain Workspace 产品形态和三条核心路径定义空间结构。
+- `domain-workspace-detail-ux-path.md`
+  - Domain Workspace 右侧详情区的 UX 交互路径：从用户任务、认知状态、扫描顺序和真实 Context 长度推导默认阅读态、Context 摘影和单条 Context 详情。
 - `0-文档定位与节间逻辑.md`
 - `1-用户是谁他要做什么.md`
 - `2-用户的行动路径.md`
