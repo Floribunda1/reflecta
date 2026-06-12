@@ -1,7 +1,7 @@
 import { ipcClient } from "@renderer/utils/ipc";
 import type { CategoryTreeNode, Category } from "@shared/category";
-import { useQuery } from "@tanstack/vue-query";
-import { computed } from "vue";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 function buildTree(flat: Category[]): CategoryTreeNode[] {
   const map = new Map<string, CategoryTreeNode>();
@@ -43,11 +43,12 @@ export const useCategoryData = () => {
     queryFn: () => ipcClient.category.listCategories(),
   });
 
-  const categories = computed(() => buildTree(categoryList.value ?? []));
+  const normalizedCategoryList = categoryList ?? [];
+  const categories = useMemo(() => buildTree(normalizedCategoryList), [normalizedCategoryList]);
 
   return {
     categories,
-    categoryList: computed(() => categoryList.value ?? []),
+    categoryList: normalizedCategoryList,
     loading: isFetching,
     refresh,
   };

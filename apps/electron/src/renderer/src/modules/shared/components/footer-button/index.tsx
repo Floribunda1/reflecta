@@ -1,24 +1,30 @@
-import Button, { ButtonProps } from "primevue/button";
-import { defineComponent, PropType } from "vue";
+import type { ButtonHTMLAttributes } from "react";
+import { Button } from "@renderer/components/ui/button";
 
-export const FooterButton = defineComponent({
-  name: "FooterButton",
-  props: {
-    okProps: {
-      type: Object as PropType<ButtonProps>,
-    },
-    cancelProps: {
-      type: Object as PropType<ButtonProps>,
-    },
-  },
-  setup(props) {
-    return () => (
-      <div class="flex justify-end gap-2 w-full">
-        <Button severity="secondary" {...props.cancelProps}>
-          取消
-        </Button>
-        <Button {...props.okProps}>确定</Button>
-      </div>
-    );
-  },
-});
+type FooterButtonProps = {
+  okProps?: ButtonHTMLAttributes<HTMLButtonElement>;
+  cancelProps?: ButtonHTMLAttributes<HTMLButtonElement>;
+};
+
+export function FooterButton({ okProps, cancelProps }: FooterButtonProps) {
+  return (
+    <div className="flex w-full justify-end gap-2">
+      <Button
+        variant="bordered"
+        size="sm"
+        {...(cancelProps as any)}
+        className={["border-border text-muted-foreground", cancelProps?.className ?? ""].join(" ")}
+      >
+        {cancelProps?.children ?? "取消"}
+      </Button>
+      <Button
+        variant="solid"
+        size="sm"
+        {...(okProps as any)}
+        className={["bg-primary text-white", okProps?.className ?? ""].join(" ")}
+      >
+        {okProps?.children ?? "确定"}
+      </Button>
+    </div>
+  );
+}

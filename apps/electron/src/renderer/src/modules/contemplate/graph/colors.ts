@@ -1,15 +1,15 @@
 /**
  * G6 renders to Canvas and cannot resolve CSS custom properties directly.
- * These utilities read computed values once at init time after PrimeVue has injected them.
+ * These utilities read computed values once at init time after app styles are loaded.
  */
 
 // Color semantic roles:
 // - idea=amber, insight=violet (mirrors ThoughtTypeBadge)
 // - Fills use -200 tint for visible color identity without being garish
 // - Strokes use -500 for a crisp, defined ring
-// - Selection: primary color ring (consistent with ThoughtCard's border-l-primary)
-// - Labels: muted-color (secondary information, retreats behind the node)
-// - Edges: surface-400 (structure layer — visible but clearly subordinate to nodes)
+// - Selection: primary color ring
+// - Labels: muted foreground (secondary information, retreats behind the node)
+// - Edges: muted foreground (structure layer, visible but subordinate to nodes)
 export interface GraphColors {
   ideaFill: string;
   ideaStroke: string;
@@ -32,17 +32,17 @@ function getCSSVar(name: string): string {
 
 export function resolveColors(): GraphColors {
   return {
-    ideaFill: getCSSVar("--p-amber-100"),
-    ideaStroke: getCSSVar("--p-amber-500"),
-    insightFill: getCSSVar("--p-violet-100"),
-    insightStroke: getCSSVar("--p-violet-500"),
-    selStroke: getCSSVar("--p-primary-500"),
-    selHalo: getCSSVar("--p-primary-100"),
-    labelColor: getCSSVar("--p-text-muted-color"),
-    activeLabelColor: getCSSVar("--p-text-color"),
-    edgeStroke: getCSSVar("--p-surface-400"),
-    canvasBg: getCSSVar("--p-surface-50"),
-    dimNodeColor: getCSSVar("--p-surface-300"),
-    dimEdgeColor: getCSSVar("--p-surface-200"),
+    ideaFill: "hsl(48 96% 89%)",
+    ideaStroke: "hsl(38 92% 50%)",
+    insightFill: "hsl(270 100% 92%)",
+    insightStroke: "hsl(262 72% 58%)",
+    selStroke: getCSSVar("--primary"),
+    selHalo: "hsl(226 91% 92%)",
+    labelColor: getCSSVar("--muted-foreground"),
+    activeLabelColor: getCSSVar("--foreground"),
+    edgeStroke: getCSSVar("--muted-foreground"),
+    canvasBg: getCSSVar("--muted"),
+    dimNodeColor: getCSSVar("--muted-foreground"),
+    dimEdgeColor: getCSSVar("--border"),
   };
 }

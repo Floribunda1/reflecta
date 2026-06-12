@@ -1,102 +1,66 @@
-import { defineComponent, computed } from "vue";
-import { useRoute, RouterView, useRouter } from "vue-router";
-import { useDialog } from "primevue/usedialog";
-import Button from "primevue/button";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Cog } from "lucide-react";
+import { Button } from "@renderer/components/ui/button";
 import { SettingsDialogContent } from "@renderer/modules/settings/SettingsDialog";
 import { GlobalSearch } from "@renderer/modules/shared/biz-components/GlobalSearch";
+import { useModal } from "@renderer/modules/shared/hooks/use-modal";
+import { routes } from "@renderer/router";
 import appIcon from "../../../../../../build/icon.png";
 
-export const AppLayout = defineComponent({
-  name: "AppLayout",
-  setup() {
-    const route = useRoute();
-    const router = useRouter();
+export function AppLayout() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { openModal } = useModal();
 
-    const dialog = useDialog();
+  const openSettings = () => {
+    openModal(<SettingsDialogContent />, {
+      title: "设置",
+      widthClassName: "max-w-5xl",
+      className: "!p-0",
+    });
+  };
 
-    const openSettings = () => {
-      dialog.open(SettingsDialogContent, {
-        props: {
-          header: "设置",
-          style: { width: "60vw", maxWidth: "90vw" },
-          modal: true,
-          dismissableMask: true,
-          closeButtonProps: {
-            size: "small",
-            severity: "secondary",
-          },
-          pt: {
-            root: { class: "!overflow-hidden" },
-            header: { class: "!px-8 !py-5" },
-            title: { class: "!text-[1.35rem] !font-semibold" },
-            content: {
-              style: "padding: 0; overflow: hidden;",
-              class: "border-t border-surface-100",
-            },
-          },
-        },
-      });
-    };
-
-    const navItems = computed<Array<{ label: string; value: string; description: string }>>(() => [
-      { label: "Capture", value: "Capture", description: "Collect" },
-      { label: "Contemplate", value: "Contemplate", description: "Connect" },
-      { label: "Agent", value: "Agent", description: "Chat with your knowledge" },
-    ]);
-
-    return () => (
-      <div class="flex h-screen flex-col overflow-hidden bg-surface-0">
-        <header class="flex h-[54px] shrink-0 items-center gap-6 border-b border-surface-200/70 bg-surface-0 px-6">
-          <div class="flex items-center gap-3">
-            <img src={appIcon} alt="" class="h-7 w-7 select-none rounded-md object-contain" />
-            <span class="select-none text-[18px] font-semibold leading-none text-color">
-              Reflecta
-            </span>
-          </div>
-
-          <nav class="flex items-center gap-1">
-            {navItems.value.map((item) => {
-              const active = route.name === item.value;
-              return (
-                <button
-                  key={item.value}
-                  type="button"
-                  class={[
-                    "flex h-8 items-center rounded-lg px-3.5 text-[14px] font-medium transition-colors",
-                    active
-                      ? "bg-primary-50 text-primary"
-                      : "text-muted-color hover:bg-surface-100 hover:text-color",
-                  ]}
-                  title={item.description}
-                  onClick={() => {
-                    if (!active) router.push({ name: item.value });
-                  }}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
-
-          <div class="ml-auto flex items-center gap-1">
-            <GlobalSearch />
-            <Button
-              text
-              rounded
-              severity="secondary"
-              icon="pi pi-cog"
-              aria-label="设置"
-              class="!h-8 !w-8"
-              onClick={openSettings}
-            />
-          </div>
-        </header>
-
-        {/* Content */}
-        <div class="flex flex-1 overflow-hidden">
-          <RouterView />
+  return (
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
+      <header className="flex h-[54px] shrink-0 items-center gap-6 border-b border-border bg-background px-6">
+        <div className="flex items-center gap-3">
+          <img src={appIcon} alt="" className="h-7 w-7 select-none rounded-md object-contain" />
+          <span className="select-none text-[18px] font-semibold leading-none text-foreground">
+            Reflecta
+          </span>
         </div>
+
+        <nav className="flex items-center gap-1">
+          {routes.map((item) => {
+            const active = location.pathname === item.path;
+            return (
+              <Button
+                key={item.value}
+                type="button"
+                size="sm"
+                variant={active ? "default" : "ghost"}
+                aria-label={item.description}
+                onClick={() => {
+                  if (!active) void navigate(item.path);
+                }}
+              >
+                {item.label}
+              </Button>
+            );
+          })}
+        </nav>
+
+        <div className="ml-auto flex items-center gap-1">
+          <GlobalSearch />
+          <Button size="icon-sm" variant="ghost" aria-label="设置" onClick={openSettings}>
+            <Cog size={17} />
+          </Button>
+        </div>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden">
+        <Outlet />
       </div>
-    );
-  },
-});
+    </div>
+  );
+}

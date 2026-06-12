@@ -1,8 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
-import vue from "@vitejs/plugin-vue";
-import vueJsx from "@vitejs/plugin-vue-jsx";
+import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import electron from "vite-plugin-electron/simple";
 
@@ -28,8 +27,7 @@ export default defineConfig({
   },
   plugins: [
     tailwindcss(),
-    vue(),
-    vueJsx(),
+    react(),
     electron({
       main: {
         entry: resolve(appRoot, "src/main/index.ts"),

@@ -1,5 +1,5 @@
 .markdown-preview {
-  color: var(--p-text-color);
+  color: var(--foreground);
   font-size: 1rem;
   line-height: 1.62;
   overflow-wrap: anywhere;
@@ -30,7 +30,7 @@
 .markdown-preview h5,
 .markdown-preview h6 {
   margin: 1.25rem 0 0.5rem;
-  color: var(--p-text-color);
+  color: var(--foreground);
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1.25;
@@ -55,19 +55,19 @@
 }
 
 .markdown-preview a {
-  color: var(--p-primary-color);
+  color: var(--primary);
   text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--p-primary-color), transparent 45%);
+  text-decoration-color: color-mix(in srgb, var(--primary), transparent 45%);
   text-underline-offset: 0.18em;
 }
 
 .markdown-preview a:hover {
-  text-decoration-color: var(--p-primary-color);
+  text-decoration-color: var(--primary);
 }
 
 .markdown-preview a.wiki-link {
   border-radius: 4px;
-  background: color-mix(in srgb, var(--p-primary-color), transparent 90%);
+  background: color-mix(in srgb, var(--primary), transparent 90%);
   padding: 0 0.2em;
   text-decoration: none;
 }
@@ -101,9 +101,9 @@
 
 .markdown-preview blockquote {
   margin: 0.75rem 0;
-  border-left: 2px solid var(--p-content-border-color);
+  border-left: 2px solid var(--border);
   padding: 0.125rem 0 0.125rem 1rem;
-  color: var(--p-text-muted-color);
+  color: var(--muted-foreground);
 }
 
 .markdown-preview blockquote p {
@@ -114,13 +114,13 @@
   height: 1px;
   margin: 1rem 0;
   border: 0;
-  background: var(--p-content-border-color);
+  background: var(--border);
 }
 
 .markdown-preview code {
-  border: 1px solid color-mix(in srgb, var(--p-content-border-color), transparent 20%);
+  border: 1px solid color-mix(in srgb, var(--border), transparent 20%);
   border-radius: 4px;
-  background: var(--p-surface-50);
+  background: var(--muted);
   color: #dd5b00;
   font-family: "Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.875em;
@@ -131,16 +131,16 @@
 .markdown-preview pre {
   margin: 0.875rem 0;
   overflow: auto;
-  border: 1px solid var(--p-content-border-color);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--p-surface-50), var(--p-surface-0) 42%);
+  background: color-mix(in srgb, var(--muted), var(--background) 42%);
   padding: 0.875rem 1rem;
 }
 
 .markdown-preview pre code {
   border: 0;
   background: transparent;
-  color: var(--p-text-color);
+  color: var(--foreground);
   padding: 0;
 }
 
@@ -148,20 +148,20 @@
   width: 100%;
   margin: 1rem 0;
   border-collapse: collapse;
-  border: 1px solid color-mix(in srgb, var(--p-content-border-color), var(--p-text-color) 16%);
+  border: 1px solid color-mix(in srgb, var(--border), var(--foreground) 16%);
   font-size: 0.95rem;
 }
 
 .markdown-preview th,
 .markdown-preview td {
-  border: 1px solid color-mix(in srgb, var(--p-content-border-color), var(--p-text-color) 16%);
+  border: 1px solid color-mix(in srgb, var(--border), var(--foreground) 16%);
   padding: 0.625rem 0.875rem;
   text-align: left;
   vertical-align: top;
 }
 
 .markdown-preview th {
-  background: color-mix(in srgb, var(--p-surface-50), var(--p-surface-0) 28%);
+  background: color-mix(in srgb, var(--muted), var(--background) 28%);
   font-weight: 700;
 }
 
@@ -169,11 +169,11 @@
   max-width: 100%;
   height: auto;
   border-radius: 8px;
-  border: 1px solid var(--p-content-border-color);
+  border: 1px solid var(--border);
 }
 
 .markdown-preview-compact {
-  color: var(--p-text-muted-color);
+  color: var(--muted-foreground);
   font-size: 0.875rem;
   line-height: 1.5;
 }
@@ -199,7 +199,7 @@
 }
 
 .markdown-preview-compact li::marker {
-  color: var(--p-text-muted-color);
+  color: var(--muted-foreground);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
 }
@@ -216,7 +216,7 @@
 .markdown-preview-compact h6 {
   display: inline;
   margin: 0;
-  color: var(--p-text-muted-color);
+  color: var(--muted-foreground);
   font-size: inherit;
   font-weight: 600;
   line-height: inherit;
@@ -224,8 +224,8 @@
 
 .markdown-preview-compact code {
   border: 0;
-  background: color-mix(in srgb, var(--p-surface-100), transparent 35%);
-  color: var(--p-text-muted-color);
+  background: color-mix(in srgb, var(--muted), transparent 35%);
+  color: var(--muted-foreground);
   font-size: 0.92em;
   padding: 0 0.2rem;
 }

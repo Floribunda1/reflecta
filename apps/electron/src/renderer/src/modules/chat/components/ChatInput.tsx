@@ -1,78 +1,76 @@
-import { defineComponent, ref } from "vue";
-import Button from "primevue/button";
-import Textarea from "primevue/textarea";
+import { Badge } from "@renderer/components/ui/badge";
+import { Textarea } from "@renderer/components/ui/textarea";
+import { Send, StopCircle, X } from "lucide-react";
+import { Button } from "@renderer/components/ui/button";
+import { KeyboardEvent } from "react";
 import { useChatPageContext } from "../context";
 
-export const ChatInput = defineComponent({
-  name: "ChatInput",
-  setup() {
-    const ctx = useChatPageContext()!;
-    const mentionOpen = ref(false);
+export function ChatInput() {
+  const ctx = useChatPageContext();
 
-    return () => (
-      <div class="border-t border-surface-200 bg-surface-0 px-6 py-4">
-        <div class="mx-auto max-w-3xl">
-          {ctx.draftReferences.value.length > 0 && (
-            <div class="mb-2 flex flex-wrap gap-2">
-              {ctx.draftReferences.value.map((thought) => (
-                <span
-                  key={thought.id}
-                  class="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1 text-xs text-primary"
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      if (ctx.canSend) void ctx.sendMessage();
+    }
+  };
+
+  return (
+    <div className="border-t border-border bg-background px-6 py-4">
+      <div className="mx-auto max-w-3xl">
+        {ctx.draftReferences.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {ctx.draftReferences.map((thought) => (
+              <Badge key={thought.id} variant="secondary">
+                @{thought.title || "无标题"}
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label="移除引用"
+                  onClick={() => ctx.removeDraftReference(thought.id)}
                 >
-                  @{thought.title || "无标题"}
-                  <button
-                    type="button"
-                    class="hover:text-primary-700"
-                    onClick={() => ctx.removeDraftReference(thought.id)}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-
-          <div class="flex items-end gap-2">
-            <Textarea
-              v-model={ctx.draftText.value}
-              rows={3}
-              autoResize
-              fluid
-              placeholder="输入消息… 使用右侧面板 @ 引用 thought"
-              disabled={!ctx.activeConversationId.value}
-              {...{
-                onKeydown: (e: KeyboardEvent) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (ctx.canSend.value) void ctx.sendMessage();
-                  }
-                },
-              }}
-            />
-            <div class="flex shrink-0 flex-col gap-2">
-              {ctx.isStreaming.value ? (
-                <Button
-                  icon="pi pi-stop"
-                  severity="danger"
-                  aria-label="停止"
-                  onClick={() => void ctx.cancelStream()}
-                />
-              ) : (
-                <Button
-                  icon="pi pi-send"
-                  aria-label="发送"
-                  disabled={!ctx.canSend.value}
-                  onClick={() => void ctx.sendMessage()}
-                />
-              )}
-            </div>
+                  <X size={12} />
+                </Button>
+              </Badge>
+            ))}
           </div>
+        )}
 
-          {mentionOpen.value && (
-            <div class="mt-2 text-xs text-muted-color">请从右侧面板选择要引用的 thought</div>
+        <div className="flex items-end gap-2">
+          <Textarea
+            value={ctx.draftText}
+            onChange={(event) => ctx.setDraftText(event.target.value)}
+            rows={3}
+            placeholder="输入消息... 使用右侧面板 @ 引用 thought"
+            disabled={!ctx.activeConversationId}
+            onKeyDown={handleKeyDown}
+            className="min-h-20 flex-1 resize-none"
+          />
+          {ctx.isStreaming ? (
+            <Button
+              type="button"
+              size="icon"
+              variant="destructive"
+              aria-label="停止"
+              onClick={() => void ctx.cancelStream()}
+            >
+              <StopCircle size={18} />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="icon"
+              variant="default"
+              aria-label="发送"
+              disabled={!ctx.canSend}
+              onClick={() => void ctx.sendMessage()}
+            >
+              <Send size={18} />
+            </Button>
           )}
         </div>
       </div>
-    );
-  },
-});
+    </div>
+  );
+}

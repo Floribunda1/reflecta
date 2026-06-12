@@ -1,108 +1,90 @@
-import { defineComponent, ref } from "vue";
-import Button from "primevue/button";
-import Menu from "primevue/menu";
-import ToggleSwitch from "primevue/toggleswitch";
+import { Checkbox } from "@renderer/components/ui/checkbox";
+import { Badge } from "@renderer/components/ui/badge";
+import { Dropdown } from "@renderer/components/ui/dropdown";
+import { useState } from "react";
+import { Button } from "@renderer/components/ui/button";
+import { Filter, Lightbulb, Plus, Sparkles, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useContemplatePageContext } from "../context";
 import { CategoryTreeSelect } from "../../shared/biz-components/CategoryTreeSelect";
 import { ipcClient } from "@renderer/utils/ipc";
-import { useQueryClient } from "@tanstack/vue-query";
 import type { ThoughtType } from "@shared/thought";
-import { THOUGHT_TYPE_COLOR } from "@renderer/theme";
 import { cloneDeep } from "lodash-es";
 
-export const FilterPanel = defineComponent({
-  name: "FilterPanel",
-  setup() {
-    const ctx = useContemplatePageContext()!;
-    const open = ref(true);
-    const queryClient = useQueryClient();
-    const newMenu = ref<InstanceType<typeof Menu>>();
+export function FilterPanel() {
+  const ctx = useContemplatePageContext();
+  const [open, setOpen] = useState(true);
+  const queryClient = useQueryClient();
 
-    const thoughtIconClass: Record<string, string> = {
-      amber: "text-amber-500",
-      violet: "text-violet-500",
-    };
+  const createThought = async (type: ThoughtType) => {
+    const dto = await ipcClient.thought.createThought({
+      type,
+      body: "",
+      categoryIds:
+        ctx.selectedCategoryIds.length > 0 ? cloneDeep(ctx.selectedCategoryIds) : undefined,
+    });
+    await queryClient.invalidateQueries({ queryKey: ["thought.listThoughts"], exact: false });
+    ctx.setSelectedThoughtId(dto.id);
+  };
 
-    const createThought = async (type: ThoughtType) => {
-      const dto = await ipcClient.thought.createThought({
-        type,
-        body: "",
-        categoryIds:
-          ctx.selectedCategoryIds.value.length > 0
-            ? cloneDeep(ctx.selectedCategoryIds.value)
-            : undefined,
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ["thought.listThoughts"],
-        exact: false,
-      });
-      ctx.selectedThoughtId.value = dto.id;
-    };
+  return (
+    <div className="absolute left-6 top-4 z-20">
+      <div className="flex min-h-11 max-w-[min(760px,calc(100vw-5rem))] items-center gap-2 rounded-xl border border-border bg-background px-2 py-2 shadow-[0_8px_24px_rgb(15_23_42_/_0.08)] backdrop-blur">
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          aria-label={open ? "收起筛选" : "展开筛选"}
+          onClick={() => setOpen((value) => !value)}
+        >
+          {open ? <X size={16} /> : <Filter size={16} />}
+        </Button>
 
-    const newMenuItems = [
-      {
-        label: "Idea",
-        icon: `pi pi-lightbulb ${thoughtIconClass[THOUGHT_TYPE_COLOR.idea]}`,
-        command: () => createThought("idea"),
-      },
-      {
-        label: "Insight",
-        icon: `pi pi-star ${thoughtIconClass[THOUGHT_TYPE_COLOR.insight]}`,
-        command: () => createThought("insight"),
-      },
-    ];
-
-    return () => (
-      <div class="absolute left-6 top-4 z-20">
-        <div class="flex min-h-11 max-w-[min(760px,calc(100vw-5rem))] items-center gap-2 rounded-xl border border-surface-200/80 bg-surface-0/90 px-2 py-2 shadow-[0_8px_24px_color-mix(in_srgb,var(--p-surface-950),transparent_94%)] backdrop-blur">
-          <Button
-            text
-            severity="secondary"
-            icon={open.value ? "pi pi-times" : "pi pi-filter"}
-            aria-label={open.value ? "收起筛选" : "展开筛选"}
-            class="!h-8 !w-8"
-            v-tooltip={{
-              value: open.value ? "收起筛选" : "展开筛选",
-              position: "bottom",
-            }}
-            onClick={() => (open.value = !open.value)}
-          />
-
-          <Button
-            icon="pi pi-plus"
+        <Dropdown>
+          <Dropdown.Trigger
             aria-label="新建 Thought"
-            class="!h-8 !w-8"
-            onClick={(e: MouseEvent) => newMenu.value?.toggle(e)}
-          />
-          <Menu ref={newMenu} popup model={newMenuItems} />
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white transition-colors hover:bg-primary/90"
+          >
+            <Plus size={16} />
+          </Dropdown.Trigger>
+          <Dropdown.Popover placement="bottom start">
+            <Dropdown.Menu aria-label="新建 Thought 类型">
+              <Dropdown.Item id="idea" onAction={() => void createThought("idea")}>
+                <span className="flex items-center gap-2">
+                  <Lightbulb size={14} className="text-amber-500" /> Idea
+                </span>
+              </Dropdown.Item>
+              <Dropdown.Item id="insight" onAction={() => void createThought("insight")}>
+                <span className="flex items-center gap-2">
+                  <Sparkles size={14} className="text-violet-500" /> Insight
+                </span>
+              </Dropdown.Item>
+            </Dropdown.Menu>
+          </Dropdown.Popover>
+        </Dropdown>
 
-          {open.value && (
-            <div class="flex min-w-0 items-center gap-2 border-l border-surface-200 pl-2">
-              <div class="w-[min(420px,calc(100vw-21rem))] min-w-64">
-                <CategoryTreeSelect
-                  variant="inline"
-                  v-model={ctx.selectedCategoryIds.value}
-                  placeholder="全部 Category"
-                />
-              </div>
-
-              <label
-                for="show-descendants"
-                class="flex h-8 shrink-0 cursor-pointer items-center gap-2 rounded-lg px-2 text-sm text-muted-color transition-colors hover:bg-surface-100 hover:text-color"
-              >
-                <ToggleSwitch v-model={ctx.showAllDescendants.value} inputId="show-descendants" />
-                <span>包含子类</span>
-              </label>
+        {open && (
+          <div className="flex min-w-0 items-center gap-2 border-l border-border pl-2">
+            <div className="w-[min(420px,calc(100vw-21rem))] min-w-64">
+              <CategoryTreeSelect
+                variant="inline"
+                modelValue={ctx.selectedCategoryIds}
+                onUpdateModelValue={ctx.setSelectedCategoryIds}
+                placeholder="全部 Category"
+              />
             </div>
-          )}
-        </div>
-
-        {!open.value && ctx.selectedCategoryIds.value.length > 0 && (
-          <div class="mt-2 inline-flex rounded-lg border border-surface-200/80 bg-surface-0/85 px-2 py-1 text-xs text-muted-color shadow-sm backdrop-blur">
-            {ctx.selectedCategoryIds.value.length} 个 Category
+            <Checkbox checked={ctx.showAllDescendants} onCheckedChange={ctx.setShowAllDescendants}>
+              包含子类
+            </Checkbox>
           </div>
         )}
       </div>
-    );
-  },
-});
+
+      {!open && ctx.selectedCategoryIds.length > 0 && (
+        <Badge className="mt-2 backdrop-blur" variant="secondary">
+          {ctx.selectedCategoryIds.length} 个 Category
+        </Badge>
+      )}
+    </div>
+  );
+}

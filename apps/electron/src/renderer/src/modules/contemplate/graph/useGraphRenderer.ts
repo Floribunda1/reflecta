@@ -1,5 +1,4 @@
-import { ref, watch, onMounted, onUnmounted } from "vue";
-import type { Ref } from "vue";
+import { RefObject, useEffect, useRef, useState } from "react";
 import { Graph, NodeEvent, CanvasEvent } from "@antv/g6";
 import type { GraphData } from "@antv/g6";
 import type { ThoughtSummaryDTO } from "@shared/thought";
@@ -7,28 +6,42 @@ import { buildG6Data, getNeighborIds, type G6Data } from "./data";
 import { resolveColors } from "./colors";
 
 interface ContemplateCtx {
-  selectedThoughtId: Ref<string | null>;
+  selectedThoughtId: string | null;
+  setSelectedThoughtId: (value: string | null) => void;
+}
+
+function isSameStructure(a: G6Data, b: G6Data): boolean {
+  if (a.nodes.length !== b.nodes.length) return false;
+  if (a.edges.length !== b.edges.length) return false;
+  const aIds = new Set(a.nodes.map((n) => n.id));
+  for (const n of b.nodes) if (!aIds.has(n.id)) return false;
+  const aEdgeKeys = new Set(a.edges.map((e) => `${e.source}->${e.target}`));
+  for (const e of b.edges) if (!aEdgeKeys.has(`${e.source}->${e.target}`)) return false;
+  return true;
 }
 
 export function useGraphRenderer(
-  containerRef: Ref<HTMLDivElement | null>,
+  containerRef: RefObject<HTMLDivElement | null>,
   ctx: ContemplateCtx,
-  thoughts: Ref<ThoughtSummaryDTO[] | undefined>,
+  thoughts: ThoughtSummaryDTO[] | undefined,
 ) {
-  let graph: Graph | null = null;
-  let currentData: G6Data = { nodes: [], edges: [] };
+  const graphRef = useRef<Graph | null>(null);
+  const currentDataRef = useRef<G6Data>({ nodes: [], edges: [] });
+  const nodeDataCacheRef = useRef(new Map<string, { title: string; body: string }>());
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+  const selectedThoughtIdRef = useRef<string | null>(ctx.selectedThoughtId);
 
-  const hoveredNodeId = ref<string | null>(null);
-  const cursorPos = ref({ x: 0, y: 0 });
-  const nodeDataCache = new Map<string, { title: string; body: string }>();
+  useEffect(() => {
+    selectedThoughtIdRef.current = ctx.selectedThoughtId;
+  }, [ctx.selectedThoughtId]);
 
-  // ── Highlight / dim logic via G6 element states ─────────────────────────────
-
-  function applyStates(activeId: string | null) {
+  const applyStates = (activeId: string | null) => {
+    const graph = graphRef.current;
+    const currentData = currentDataRef.current;
     if (!graph || !currentData.nodes.length) return;
 
     const neighbors = activeId ? getNeighborIds(activeId, currentData) : new Set<string>();
-
     const nodeStates: Record<string, string[]> = {};
     for (const n of currentData.nodes) {
       if (activeId) {
@@ -42,85 +55,59 @@ export function useGraphRenderer(
 
     const edgeStates: Record<string, string[]> = {};
     for (const e of currentData.edges) {
-      if (activeId && e.source !== activeId && e.target !== activeId) {
-        edgeStates[e.id] = ["inactive"];
-      } else {
-        edgeStates[e.id] = [];
-      }
+      edgeStates[e.id] =
+        activeId && e.source !== activeId && e.target !== activeId ? ["inactive"] : [];
     }
-
     graph.setElementState({ ...nodeStates, ...edgeStates }, false);
-  }
+  };
 
-  // ── Data sync ────────────────────────────────────────────────────────────────
-
-  function isSameStructure(a: G6Data, b: G6Data): boolean {
-    if (a.nodes.length !== b.nodes.length) return false;
-    if (a.edges.length !== b.edges.length) return false;
-    const aIds = new Set(a.nodes.map((n) => n.id));
-    for (const n of b.nodes) if (!aIds.has(n.id)) return false;
-    const aEdgeKeys = new Set(a.edges.map((e) => `${e.source}->${e.target}`));
-    for (const e of b.edges) if (!aEdgeKeys.has(`${e.source}->${e.target}`)) return false;
-    return true;
-  }
-
-  async function syncData(items: ThoughtSummaryDTO[]) {
+  const syncData = async (items: ThoughtSummaryDTO[]) => {
+    const graph = graphRef.current;
     if (!graph) return;
     const c = resolveColors();
     const nextData = buildG6Data(items, c);
-
+    const nodeDataCache = nodeDataCacheRef.current;
     nodeDataCache.clear();
     for (const item of items) {
       nodeDataCache.set(item.id, { title: item.title ?? "", body: item.body ?? "" });
     }
 
-    if (isSameStructure(currentData, nextData)) {
-      // Only attributes changed (title/body/label) — update in-place without resetting layout.
-      currentData = nextData;
+    if (isSameStructure(currentDataRef.current, nextData)) {
+      currentDataRef.current = nextData;
       graph.updateData({ nodes: nextData.nodes } as unknown as GraphData);
     } else {
-      // Structural change — rebuild with fresh initial positions.
-      currentData = nextData;
-      const nodeCount = currentData.nodes.length;
+      currentDataRef.current = nextData;
+      const nodeCount = nextData.nodes.length;
       if (nodeCount > 0) {
         const radius = Math.max(nodeCount * 20, 150);
-        currentData.nodes.forEach((node, i) => {
+        nextData.nodes.forEach((node, i) => {
           node.style.x = Math.cos((2 * Math.PI * i) / nodeCount) * radius;
           node.style.y = Math.sin((2 * Math.PI * i) / nodeCount) * radius;
         });
       }
-
-      graph.setData(currentData as unknown as GraphData);
+      graph.setData(nextData as unknown as GraphData);
       await graph.render();
     }
 
-    // Restore selection state after update/render
-    const sel = ctx.selectedThoughtId.value;
-    if (sel && currentData.nodes.some((n) => n.id === sel)) {
-      applyStates(sel);
-    } else {
-      if (sel) ctx.selectedThoughtId.value = null;
+    const selectedId = selectedThoughtIdRef.current;
+    if (selectedId && nextData.nodes.some((node) => node.id === selectedId)) {
+      applyStates(selectedId);
+    } else if (selectedId) {
+      ctx.setSelectedThoughtId(null);
     }
-  }
-
-  // ── Lifecycle ────────────────────────────────────────────────────────────────
-
-  const onPointerMove = (e: PointerEvent) => {
-    cursorPos.value = { x: e.clientX, y: e.clientY };
   };
 
-  onMounted(async () => {
-    if (!containerRef.value) return;
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
     const c = resolveColors();
 
-    graph = new Graph({
-      container: containerRef.value,
+    const graph = new Graph({
+      container,
       autoFit: "view",
       autoResize: true,
       padding: 96,
       animation: false,
-
-      // ── Layout ───────────────────────────────────────────────────────────
       layout: {
         type: "force-atlas2",
         preventOverlap: true,
@@ -136,8 +123,6 @@ export function useGraphRenderer(
         prune: false,
         iterations: 300,
       },
-
-      // ── Node style ───────────────────────────────────────────────────────
       node: {
         style: {
           size: (d: any) => d.style?.size ?? 20,
@@ -178,8 +163,6 @@ export function useGraphRenderer(
           },
         },
       },
-
-      // ── Edge style ───────────────────────────────────────────────────────
       edge: {
         style: {
           stroke: c.edgeStroke,
@@ -195,8 +178,6 @@ export function useGraphRenderer(
           },
         },
       },
-
-      // ── Toolbar ──────────────────────────────────────────────────────────
       plugins: [
         {
           type: "toolbar",
@@ -209,7 +190,6 @@ export function useGraphRenderer(
             { id: "reset", value: "reset", title: "重置布局" },
           ],
           onClick: (value: string) => {
-            if (!graph) return;
             switch (value) {
               case "zoom-in":
                 graph.zoomBy(1.2);
@@ -228,73 +208,62 @@ export function useGraphRenderer(
           },
         },
       ],
-
-      // ── Behaviors ────────────────────────────────────────────────────────
       behaviors: ["drag-canvas", "zoom-canvas", "drag-element"],
     });
 
-    // ── Events ─────────────────────────────────────────────────────────────
+    graphRef.current = graph;
 
     graph.on(NodeEvent.CLICK, (evt: any) => {
       const nodeId = evt.target.id;
-      if (ctx.selectedThoughtId.value === nodeId) {
-        ctx.selectedThoughtId.value = null;
-        applyStates(hoveredNodeId.value);
+      if (selectedThoughtIdRef.current === nodeId) {
+        ctx.setSelectedThoughtId(null);
+        applyStates(hoveredNodeId);
       } else {
-        ctx.selectedThoughtId.value = nodeId;
+        ctx.setSelectedThoughtId(nodeId);
         applyStates(nodeId);
       }
     });
 
     graph.on(CanvasEvent.CLICK, () => {
-      if (ctx.selectedThoughtId.value !== null) {
-        ctx.selectedThoughtId.value = null;
-        applyStates(hoveredNodeId.value);
+      if (selectedThoughtIdRef.current !== null) {
+        ctx.setSelectedThoughtId(null);
+        applyStates(hoveredNodeId);
       }
     });
 
     graph.on(NodeEvent.POINTER_ENTER, (evt: any) => {
-      hoveredNodeId.value = evt.target.id;
-      if (!ctx.selectedThoughtId.value) applyStates(evt.target.id);
+      setHoveredNodeId(evt.target.id);
+      if (!selectedThoughtIdRef.current) applyStates(evt.target.id);
     });
 
     graph.on(NodeEvent.POINTER_LEAVE, (evt: any) => {
-      // POINTER_ENTER on the next node fires before POINTER_LEAVE on the previous one.
-      // Guard against clearing the state if hoveredNodeId has already moved on.
-      if (hoveredNodeId.value !== evt.target.id) return;
-      hoveredNodeId.value = null;
-      if (!ctx.selectedThoughtId.value) applyStates(null);
+      setHoveredNodeId((current) => {
+        if (current !== evt.target.id) return current;
+        if (!selectedThoughtIdRef.current) applyStates(null);
+        return null;
+      });
     });
 
-    if (thoughts.value) {
-      await syncData(thoughts.value);
-    }
-
+    const onPointerMove = (event: PointerEvent) =>
+      setCursorPos({ x: event.clientX, y: event.clientY });
     window.addEventListener("pointermove", onPointerMove);
-  });
+    if (thoughts) void syncData(thoughts);
 
-  onUnmounted(() => {
-    graph?.destroy();
-    graph = null;
-    window.removeEventListener("pointermove", onPointerMove);
-  });
+    return () => {
+      graph.destroy();
+      graphRef.current = null;
+      window.removeEventListener("pointermove", onPointerMove);
+    };
+  }, [containerRef]);
 
-  // ── Watchers ─────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!thoughts) return;
+    void syncData(thoughts);
+  }, [thoughts]);
 
-  watch(
-    () => thoughts.value,
-    (items) => {
-      if (!items) return;
-      syncData(items);
-    },
-  );
+  useEffect(() => {
+    applyStates(ctx.selectedThoughtId ?? hoveredNodeId);
+  }, [ctx.selectedThoughtId, hoveredNodeId]);
 
-  watch(
-    () => ctx.selectedThoughtId.value,
-    (newId) => {
-      applyStates(newId ?? hoveredNodeId.value);
-    },
-  );
-
-  return { hoveredNodeId, cursorPos, nodeDataCache };
+  return { hoveredNodeId, cursorPos, nodeDataCache: nodeDataCacheRef.current };
 }

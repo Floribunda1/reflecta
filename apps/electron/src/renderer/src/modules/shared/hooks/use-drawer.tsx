@@ -1,53 +1,56 @@
-import Drawer, { DrawerProps } from "primevue/drawer";
-import { defineComponent, inject, provide, ref, shallowRef, VNode } from "vue";
+import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from "react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@renderer/components/ui/sheet";
 
-export const DrawerContextProvider = defineComponent({
-  setup(_, { slots }) {
-    const drawerVisible = ref(false);
-    const drawerProps = shallowRef<Partial<DrawerProps>>({});
-    const _children = ref<VNode | null>(null);
+type DrawerProps = {
+  header?: ReactNode;
+  title?: ReactNode;
+  className?: string;
+  widthClassName?: string;
+};
 
-    const openDrawer = (props: DrawerProps, children: VNode) => {
-      drawerProps.value = props;
-      _children.value = children;
-      drawerVisible.value = true;
-    };
+type DrawerContextValue = {
+  openDrawer: (props: DrawerProps, children: ReactNode) => void;
+  closeDrawer: () => void;
+};
 
-    const closeDrawer = () => {
-      drawerVisible.value = false;
-    };
+const DrawerContext = createContext<DrawerContextValue | null>(null);
 
-    provide("openDrawer", openDrawer);
-    provide("closeDrawer", closeDrawer);
+export function DrawerContextProvider({ children }: { children: ReactNode }) {
+  const [drawer, setDrawer] = useState<{ props: DrawerProps; children: ReactNode } | null>(null);
 
-    return () => (
-      <>
-        <Drawer
-          v-model:visible={drawerVisible.value}
-          {...drawerProps.value}
-          onAfter-hide={() => {
-            _children.value = null;
-            drawerProps.value = {};
-          }}
-        >
-          {_children.value}
-        </Drawer>
-        {slots.default?.()}
-      </>
-    );
-  },
-});
+  const closeDrawer = useCallback(() => setDrawer(null), []);
+  const openDrawer = useCallback((props: DrawerProps, content: ReactNode) => {
+    setDrawer({ props, children: content });
+  }, []);
+
+  const value = useMemo(() => ({ openDrawer, closeDrawer }), [openDrawer, closeDrawer]);
+
+  return (
+    <DrawerContext.Provider value={value}>
+      {children}
+      {drawer && (
+        <Sheet open={!!drawer} onOpenChange={(isOpen) => !isOpen && closeDrawer()}>
+          <SheetContent
+            className={[
+              drawer.props.widthClassName ?? "max-w-xl",
+              drawer.props.className ?? "",
+            ].join(" ")}
+          >
+            {(drawer.props.header ?? drawer.props.title) && (
+              <SheetHeader>
+                <SheetTitle>{drawer.props.header ?? drawer.props.title}</SheetTitle>
+              </SheetHeader>
+            )}
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">{drawer.children}</div>
+          </SheetContent>
+        </Sheet>
+      )}
+    </DrawerContext.Provider>
+  );
+}
 
 export const useSharedDrawer = () => {
-  const openDrawer = inject("openDrawer") as (
-    props: DrawerProps & { class?: string; style?: any },
-    children: VNode,
-  ) => void;
-  const closeDrawer = inject("closeDrawer") as () => void;
-
-  if (!openDrawer || !closeDrawer) {
-    throw new Error("useSharedDrawer must be used within a DrawerContextProvider");
-  }
-
-  return { openDrawer, closeDrawer };
+  const ctx = useContext(DrawerContext);
+  if (!ctx) throw new Error("useSharedDrawer must be used within DrawerContextProvider");
+  return ctx;
 };

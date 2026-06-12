@@ -1,25 +1,54 @@
-import { createInjectionState, useLocalStorage } from "@vueuse/core";
-import { ref } from "vue";
+import { createContext, ReactNode, useContext, useMemo } from "react";
+import { useLocalStorageState } from "@renderer/modules/shared/hooks/use-local-storage-state";
 
-const [useCapturePageProvide, useCapturePageContext] = createInjectionState(() => {
-  const selectedCategoryId = useLocalStorage("capture:selectedCategoryId", "all");
-  const showAllDescendants = ref(true);
-  const selectedThoughtId = useLocalStorage<string | null>("capture:selectedThoughtId", null);
-  const focusMode = ref(false);
-  const thoughtListPanelCollapsed = useLocalStorage("capture:thoughtListPanelCollapsed", false);
-  const expandedCategoryKeys = useLocalStorage<Record<string, boolean>>(
-    "capture:expandedCategoryKeys",
-    {},
+type CapturePageContextValue = {
+  selectedCategoryId: string;
+  setSelectedCategoryId: (value: string) => void;
+  selectedThoughtId: string | null;
+  setSelectedThoughtId: (value: string | null) => void;
+  expandedCategoryKeys: Record<string, boolean>;
+  setExpandedCategoryKeys: (value: Record<string, boolean>) => void;
+};
+
+const CapturePageContext = createContext<CapturePageContextValue | null>(null);
+
+export function CapturePageProvider({ children }: { children: ReactNode }) {
+  const [selectedCategoryId, setSelectedCategoryId] = useLocalStorageState(
+    "capture:selectedCategoryId",
+    "all",
+  );
+  const [selectedThoughtId, setSelectedThoughtId] = useLocalStorageState<string | null>(
+    "capture:selectedThoughtId",
+    null,
+  );
+  const [expandedCategoryKeys, setExpandedCategoryKeys] = useLocalStorageState<
+    Record<string, boolean>
+  >("capture:expandedCategoryKeys", {});
+
+  const value = useMemo(
+    () => ({
+      selectedCategoryId,
+      setSelectedCategoryId,
+      selectedThoughtId,
+      setSelectedThoughtId,
+      expandedCategoryKeys,
+      setExpandedCategoryKeys,
+    }),
+    [
+      selectedCategoryId,
+      setSelectedCategoryId,
+      selectedThoughtId,
+      setSelectedThoughtId,
+      expandedCategoryKeys,
+      setExpandedCategoryKeys,
+    ],
   );
 
-  return {
-    selectedCategoryId,
-    showAllDescendants,
-    selectedThoughtId,
-    focusMode,
-    thoughtListPanelCollapsed,
-    expandedCategoryKeys,
-  };
-});
+  return <CapturePageContext.Provider value={value}>{children}</CapturePageContext.Provider>;
+}
 
-export { useCapturePageProvide, useCapturePageContext };
+export function useCapturePageContext() {
+  const context = useContext(CapturePageContext);
+  if (!context) throw new Error("useCapturePageContext must be used within CapturePageProvider");
+  return context;
+}

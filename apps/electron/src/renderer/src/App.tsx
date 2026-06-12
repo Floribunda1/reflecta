@@ -1,20 +1,14 @@
-import { defineComponent } from "vue";
-import { RouterView } from "vue-router";
-import ConfirmDialog from "primevue/confirmdialog";
-import DynamicDialog from "primevue/dynamicdialog";
+import { RouterProvider } from "react-router-dom";
 import { DrawerContextProvider } from "./modules/shared/hooks/use-drawer";
+import { ModalProvider } from "./modules/shared/hooks/use-modal";
+import { router } from "./router";
 
-export const App = defineComponent({
-  name: "App",
-  setup() {
-    return () => (
-      <>
-        <DrawerContextProvider>
-          <ConfirmDialog />
-          <DynamicDialog />
-          <RouterView />
-        </DrawerContextProvider>
-      </>
-    );
-  },
-});
+export function App() {
+  return (
+    <ModalProvider>
+      <DrawerContextProvider>
+        <RouterProvider router={router} />
+      </DrawerContextProvider>
+    </ModalProvider>
+  );
+}

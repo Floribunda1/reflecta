@@ -1,4 +1,4 @@
-import { defineComponent, onMounted, ref, watch } from "vue";
+import { CSSProperties, MouseEvent, useEffect, useMemo, useRef } from "react";
 import mediumZoom from "medium-zoom";
 import rehypeStringify from "rehype-stringify";
 import remarkGfm from "remark-gfm";
@@ -20,7 +20,7 @@ function renderMarkdownToHtml(content: string): string {
   return String(markdownRenderer.processSync(content));
 }
 
-async function handleWikiLinkClick(e: MouseEvent): Promise<void> {
+async function handleWikiLinkClick(e: MouseEvent<HTMLDivElement>): Promise<void> {
   const el = e.target as Element | null;
   const link = el?.closest<HTMLAnchorElement>("a[data-wiki-link]");
   if (!link) return;
@@ -42,65 +42,53 @@ async function handleWikiLinkClick(e: MouseEvent): Promise<void> {
   });
 }
 
-export const SimpleMarkdownPreview = defineComponent({
-  name: "SimpleMarkdownPreview",
-  props: {
-    content: { type: String, required: true },
-    lineClamp: { type: Number, default: undefined },
-  },
-  setup(props) {
-    const containerRef = ref<HTMLDivElement | null>(null);
+export function SimpleMarkdownPreview({
+  content,
+  lineClamp,
+}: {
+  content: string;
+  lineClamp?: number;
+}) {
+  const html = useMemo(() => {
+    if (!content) return "";
+    const truncatedContent = content.split("\n").filter(Boolean).slice(0, lineClamp).join("\n");
+    return renderMarkdownToHtml(renderThoughtWikiLinksAsHtml(truncatedContent));
+  }, [content, lineClamp]);
 
-    const render = () => {
-      const el = containerRef.value;
-      if (!el) return;
-      el.innerHTML = "";
-      if (!props.content) return;
-      const truncatedContent = props.content
-        .split("\n")
-        .filter(Boolean)
-        .slice(0, props.lineClamp)
-        .join("\n");
-      el.innerHTML = renderMarkdownToHtml(renderThoughtWikiLinksAsHtml(truncatedContent));
-    };
+  const style: CSSProperties = {
+    maxHeight: lineClamp != null ? `${lineClamp * 1.5}em` : undefined,
+    overflow: lineClamp != null ? "hidden" : undefined,
+  };
 
-    onMounted(render);
-    watch(() => props.content, render);
+  return (
+    <div
+      style={style}
+      className="markdown-preview markdown-preview-compact"
+      onClick={handleWikiLinkClick}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
 
-    return () => (
-      <div
-        ref={containerRef}
-        style={{
-          maxHeight: props.lineClamp != null ? `${props.lineClamp * 1.5}em` : undefined,
-          overflow: props.lineClamp != null ? "hidden" : undefined,
-        }}
-        class="markdown-preview markdown-preview-compact"
-        onClick={handleWikiLinkClick}
-      />
-    );
-  },
-});
+export function MarkdownPreview({ content }: { content: string }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const html = useMemo(
+    () => renderMarkdownToHtml(renderThoughtWikiLinksAsHtml(content)),
+    [content],
+  );
 
-export const MarkdownPreview = defineComponent({
-  name: "MarkdownPreview",
-  props: {
-    content: { type: String, required: true },
-  },
-  setup(props) {
-    const containerRef = ref<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    mediumZoom(el.querySelectorAll("img"));
+  }, [html]);
 
-    const render = () => {
-      const el = containerRef.value;
-      if (!el) return;
-      el.innerHTML = "";
-      if (!props.content) return;
-      el.innerHTML = renderMarkdownToHtml(renderThoughtWikiLinksAsHtml(props.content));
-      mediumZoom(el.querySelectorAll("img"));
-    };
-
-    onMounted(render);
-    watch(() => props.content, render);
-
-    return () => <div ref={containerRef} class="markdown-preview" onClick={handleWikiLinkClick} />;
-  },
-});
+  return (
+    <div
+      ref={containerRef}
+      className="markdown-preview"
+      onClick={handleWikiLinkClick}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}

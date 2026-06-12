@@ -2,10 +2,10 @@
   box-sizing: border-box;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid var(--p-content-border-color);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--p-surface-50);
-  color: var(--p-text-color);
+  background: var(--muted);
+  color: var(--foreground);
 }
 
 .milkdown-editor [data-milkdown-root] {
@@ -16,22 +16,22 @@
 
 .milkdown-editor .milkdown {
   --crepe-color-background: transparent;
-  --crepe-color-on-background: var(--p-text-color);
-  --crepe-color-surface: var(--p-surface-0);
-  --crepe-color-surface-low: var(--p-surface-50);
-  --crepe-color-on-surface: var(--p-text-color);
-  --crepe-color-on-surface-variant: var(--p-text-muted-color);
-  --crepe-color-outline: var(--p-content-border-color);
-  --crepe-color-primary: var(--p-primary-color);
-  --crepe-color-secondary: var(--p-highlight-background);
-  --crepe-color-on-secondary: var(--p-primary-color);
-  --crepe-color-inverse: var(--p-surface-900);
-  --crepe-color-on-inverse: var(--p-surface-0);
+  --crepe-color-on-background: var(--foreground);
+  --crepe-color-surface: var(--background);
+  --crepe-color-surface-low: var(--muted);
+  --crepe-color-on-surface: var(--foreground);
+  --crepe-color-on-surface-variant: var(--muted-foreground);
+  --crepe-color-outline: var(--border);
+  --crepe-color-primary: var(--primary);
+  --crepe-color-secondary: var(--muted);
+  --crepe-color-on-secondary: var(--primary);
+  --crepe-color-inverse: var(--foreground);
+  --crepe-color-on-inverse: var(--background);
   --crepe-color-inline-code: #dd5b00;
   --crepe-color-error: #dc2626;
-  --crepe-color-hover: var(--p-content-hover-background);
-  --crepe-color-selected: var(--p-highlight-background);
-  --crepe-color-inline-area: var(--p-surface-100);
+  --crepe-color-hover: var(--muted);
+  --crepe-color-selected: var(--muted);
+  --crepe-color-inline-area: var(--muted);
   --crepe-font-title:
     "Inter Variable", "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI",
     system-ui, sans-serif;
@@ -39,15 +39,15 @@
     "Inter Variable", "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI",
     system-ui, sans-serif;
   --crepe-font-code: "Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --crepe-shadow-1: var(--p-overlay-navigation-shadow);
-  --crepe-shadow-2: var(--p-overlay-modal-shadow);
+  --crepe-shadow-1: 0 10px 30px rgb(15 23 42 / 0.12);
+  --crepe-shadow-2: 0 18px 50px rgb(15 23 42 / 0.18);
 
   height: 100%;
   width: 100%;
   min-height: 0;
   overflow: hidden;
   border-radius: inherit;
-  background: var(--p-content-background);
+  background: var(--background);
   font-feature-settings:
     "cv01" 1,
     "ss03" 1,
@@ -62,8 +62,8 @@
   min-height: 0;
   overflow: auto;
   padding: 1.5rem 2rem 2rem;
-  caret-color: var(--p-primary-color);
-  color: var(--p-text-color);
+  caret-color: var(--primary);
+  color: var(--foreground);
   font-size: 1rem;
   line-height: 1.58;
   overscroll-behavior: contain;
@@ -83,7 +83,7 @@
 .milkdown-editor .milkdown .ProseMirror h5,
 .milkdown-editor .milkdown .ProseMirror h6 {
   padding: 0;
-  color: var(--p-text-color);
+  color: var(--foreground);
   font-family: var(--crepe-font-title);
   font-weight: 700;
   letter-spacing: 0;
@@ -116,19 +116,19 @@
 }
 
 .milkdown-editor .milkdown .ProseMirror a {
-  color: var(--p-primary-color);
-  text-decoration-color: color-mix(in srgb, var(--p-primary-color), transparent 45%);
+  color: var(--primary);
+  text-decoration-color: color-mix(in srgb, var(--primary), transparent 45%);
   text-underline-offset: 0.18em;
 }
 
 .milkdown-editor .milkdown .ProseMirror a:hover {
-  text-decoration-color: var(--p-primary-color);
+  text-decoration-color: var(--primary);
 }
 
 .milkdown-editor .milkdown .ProseMirror code {
   display: inline;
-  border: 1px solid color-mix(in srgb, var(--p-content-border-color), transparent 20%);
-  background: var(--p-surface-50);
+  border: 1px solid color-mix(in srgb, var(--border), transparent 20%);
+  background: var(--muted);
   color: #dd5b00;
   font-size: 0.875em;
   line-height: 1.5;
@@ -137,9 +137,9 @@
 
 .milkdown-editor .milkdown .ProseMirror pre,
 .milkdown-editor .milkdown .milkdown-code-block {
-  border: 1px solid var(--p-content-border-color);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--p-surface-50), var(--p-surface-0) 42%);
+  background: color-mix(in srgb, var(--muted), var(--background) 42%);
 }
 
 .milkdown-editor .milkdown .ProseMirror pre {
@@ -150,7 +150,7 @@
 .milkdown-editor .milkdown .ProseMirror pre code {
   border: 0;
   background: transparent;
-  color: var(--p-text-color);
+  color: var(--foreground);
   padding: 0;
 }
 
@@ -158,7 +158,7 @@
 .milkdown-editor .milkdown .milkdown-code-block .cm-editor,
 .milkdown-editor .milkdown .milkdown-code-block .cm-gutters,
 .milkdown-editor .milkdown .milkdown-code-block .cm-panel {
-  background: color-mix(in srgb, var(--p-surface-50), var(--p-surface-0) 42%);
+  background: color-mix(in srgb, var(--muted), var(--background) 42%);
 }
 
 .milkdown-editor .milkdown .milkdown-code-block {
@@ -170,7 +170,7 @@
 .milkdown-editor .milkdown .milkdown-code-block .cm-editor {
   max-height: 22rem;
   overflow: auto;
-  color: var(--p-text-color);
+  color: var(--foreground);
   font-family: var(--crepe-font-code);
   font-size: 0.9rem;
   line-height: 1.55;
@@ -185,7 +185,7 @@
 }
 
 .milkdown-editor .milkdown .milkdown-code-block .cm-line {
-  color: var(--p-text-color);
+  color: var(--foreground);
 }
 
 .milkdown-editor .milkdown .milkdown-code-block .cm-gutters {
@@ -194,12 +194,12 @@
 
 .milkdown-editor .milkdown .milkdown-code-block .cm-activeLine,
 .milkdown-editor .milkdown .milkdown-code-block .cm-activeLineGutter {
-  background: color-mix(in srgb, var(--p-highlight-background), transparent 45%);
+  background: color-mix(in srgb, var(--muted), transparent 45%);
 }
 
 .milkdown-editor .milkdown .milkdown-code-block .cm-selectionBackground,
 .milkdown-editor .milkdown .milkdown-code-block .cm-focused .cm-selectionBackground {
-  background: color-mix(in srgb, var(--p-primary-color), transparent 82%);
+  background: color-mix(in srgb, var(--primary), transparent 82%);
 }
 
 .milkdown-editor .milkdown .milkdown-code-block .tools {
@@ -208,8 +208,8 @@
 
 .milkdown-editor .milkdown .milkdown-code-block .tools .language-button,
 .milkdown-editor .milkdown .milkdown-code-block .tools .tools-button-group button {
-  background: var(--p-surface-100);
-  color: var(--p-text-muted-color);
+  background: var(--muted);
+  color: var(--muted-foreground);
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: 600;
@@ -217,23 +217,23 @@
 
 .milkdown-editor .milkdown .milkdown-code-block .tools .language-button:hover,
 .milkdown-editor .milkdown .milkdown-code-block .tools .tools-button-group button:hover {
-  background: var(--p-surface-200);
-  color: var(--p-text-color);
+  background: var(--border);
+  color: var(--foreground);
 }
 
 .milkdown-editor .milkdown .ProseMirror blockquote {
   margin: 0.5rem 0;
   padding-left: 1rem;
-  color: var(--p-text-muted-color);
+  color: var(--muted-foreground);
 }
 
 .milkdown-editor .milkdown .ProseMirror blockquote::before {
   width: 2px;
-  background: var(--p-content-border-color);
+  background: var(--border);
 }
 
 .milkdown-editor .milkdown .ProseMirror hr {
-  background-color: var(--p-content-border-color);
+  background-color: var(--border);
 }
 
 .milkdown-editor .milkdown .ProseMirror img {
@@ -247,19 +247,19 @@
 
 .milkdown-editor .milkdown .milkdown-table-block table {
   border-collapse: collapse;
-  border: 1px solid color-mix(in srgb, var(--p-content-border-color), var(--p-text-color) 16%);
+  border: 1px solid color-mix(in srgb, var(--border), var(--foreground) 16%);
   border-radius: 6px;
 }
 
 .milkdown-editor .milkdown .milkdown-table-block th,
 .milkdown-editor .milkdown .milkdown-table-block td {
-  border: 1px solid color-mix(in srgb, var(--p-content-border-color), var(--p-text-color) 16%);
+  border: 1px solid color-mix(in srgb, var(--border), var(--foreground) 16%);
   padding: 0.625rem 0.875rem;
   vertical-align: top;
 }
 
 .milkdown-editor .milkdown .milkdown-table-block th {
-  background: color-mix(in srgb, var(--p-surface-50), var(--p-surface-0) 28%);
+  background: color-mix(in srgb, var(--muted), var(--background) 28%);
   font-weight: 700;
 }
 
@@ -269,7 +269,7 @@
 }
 
 .milkdown-editor .milkdown .crepe-placeholder::before {
-  color: var(--p-text-muted-color);
+  color: var(--muted-foreground);
 }
 
 .milkdown-editor .milkdown .milkdown-toolbar,
@@ -278,9 +278,9 @@
 .milkdown-editor .milkdown .milkdown-link-edit > .link-edit,
 .milkdown-editor .milkdown .milkdown-top-bar,
 .milkdown-editor .milkdown .milkdown-code-block .list-wrapper {
-  border: 1px solid var(--p-content-border-color);
-  background: color-mix(in srgb, var(--p-content-background), transparent 4%);
-  box-shadow: var(--p-overlay-navigation-shadow);
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--background), transparent 4%);
+  box-shadow: 0 10px 30px rgb(15 23 42 / 0.12);
   backdrop-filter: blur(10px);
 }
 
@@ -302,7 +302,7 @@
 .milkdown-editor .milkdown .milkdown-link-preview > .link-preview > .link-icon,
 .milkdown-editor .milkdown .milkdown-link-edit > .link-edit > .button {
   border-radius: 4px;
-  color: var(--p-text-muted-color);
+  color: var(--muted-foreground);
 }
 
 .milkdown-editor .milkdown .milkdown-toolbar .toolbar-item:hover,
@@ -313,16 +313,16 @@
 .milkdown-editor .milkdown .milkdown-link-edit > .link-edit > .button:hover,
 .milkdown-editor .milkdown .milkdown-slash-menu .tab-group ul li:hover,
 .milkdown-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group li.hover {
-  background: var(--p-content-hover-background);
-  color: var(--p-text-color);
+  background: var(--muted);
+  color: var(--foreground);
 }
 
 .milkdown-editor .milkdown .milkdown-toolbar .toolbar-item.active,
 .milkdown-editor .milkdown .milkdown-top-bar .top-bar-item.active,
 .milkdown-editor .milkdown .milkdown-slash-menu .tab-group ul li.selected,
 .milkdown-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group li.active {
-  background: var(--p-highlight-background);
-  color: var(--p-primary-color);
+  background: var(--muted);
+  color: var(--primary);
 }
 
 .milkdown-editor .milkdown .milkdown-toolbar svg,
@@ -336,7 +336,7 @@
 }
 
 .milkdown-editor .milkdown .milkdown-slash-menu .tab-group {
-  border-bottom-color: var(--p-content-border-color);
+  border-bottom-color: var(--border);
   padding: 0.5rem 0.5rem 0;
 }
 
@@ -358,7 +358,7 @@
 
 .milkdown-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group h6 {
   padding: 0.55rem 0.6rem 0.35rem;
-  color: var(--p-text-muted-color);
+  color: var(--muted-foreground);
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0;
@@ -379,7 +379,7 @@
 .milkdown-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group + .menu-group::before,
 .milkdown-editor .milkdown .milkdown-toolbar .divider,
 .milkdown-editor .milkdown .milkdown-top-bar .top-bar-divider {
-  background: var(--p-content-border-color);
+  background: var(--border);
 }
 
 .milkdown-editor .milkdown .milkdown-block-handle {
@@ -398,7 +398,7 @@
   padding: 0.25rem;
   border-radius: 4px;
   background: transparent;
-  color: color-mix(in srgb, var(--p-text-muted-color), transparent 18%);
+  color: color-mix(in srgb, var(--muted-foreground), transparent 18%);
 }
 
 .milkdown-editor .milkdown .milkdown-block-handle .operation-item svg {
@@ -407,20 +407,20 @@
 }
 
 .milkdown-editor .milkdown .milkdown-block-handle .operation-item:hover {
-  background: var(--p-surface-100);
-  color: var(--p-text-color);
+  background: var(--muted);
+  color: var(--foreground);
 }
 
 .milkdown-editor .milkdown .milkdown-table-block .cell-handle,
 .milkdown-editor .milkdown .milkdown-table-block .line-handle .add-button {
-  border: 1px solid var(--p-content-border-color);
-  background: var(--p-surface-0);
-  color: var(--p-text-muted-color);
-  box-shadow: var(--p-overlay-navigation-shadow);
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--muted-foreground);
+  box-shadow: 0 10px 30px rgb(15 23 42 / 0.12);
 }
 
 .milkdown-editor .milkdown .milkdown-table-block .line-handle {
-  background-color: var(--p-primary-color);
+  background-color: var(--primary);
 }
 
 .milkdown-editor .milkdown .milkdown-table-block .line-handle .add-button {
@@ -428,27 +428,27 @@
 }
 
 .milkdown-editor .milkdown .milkdown-table-block .line-handle .add-button:hover {
-  background: var(--p-surface-100);
-  color: var(--p-text-color);
+  background: var(--muted);
+  color: var(--foreground);
   opacity: 1;
 }
 
 .milkdown-editor .milkdown .milkdown-image-block .image-edit,
 .milkdown-editor .milkdown .milkdown-image-inline .empty-image-inline {
-  border: 1px solid var(--p-content-border-color);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--p-surface-50);
+  background: var(--muted);
 }
 
 .milkdown-editor .milkdown .milkdown-image-block .image-edit .confirm {
   border-radius: 4px;
-  background: var(--p-primary-color);
-  color: var(--p-primary-contrast-color);
+  background: var(--primary);
+  color: var(--primary-foreground);
   font-weight: 600;
 }
 
 .milkdown-editor .milkdown .milkdown-image-block > .caption-input {
-  color: var(--p-text-muted-color);
+  color: var(--muted-foreground);
   font-size: 0.875rem;
 }
 
@@ -457,7 +457,7 @@
 }
 
 .milkdown-editor .milkdown .milkdown-list-item-block li .label-wrapper {
-  color: var(--p-text-muted-color);
+  color: var(--muted-foreground);
   height: 26px;
 }
 
@@ -466,8 +466,8 @@
   display: inline-block;
   cursor: pointer;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--p-primary-color), transparent 90%);
-  color: var(--p-primary-color);
+  background: color-mix(in srgb, var(--primary), transparent 90%);
+  color: var(--primary);
   padding: 0 4px;
   text-decoration: none;
   line-height: 1.5;
@@ -475,14 +475,14 @@
 
 .milkdown-editor .milkdown .ProseMirror a.wiki-link:hover,
 .milkdown-editor .milkdown .ProseMirror a[data-wiki-link]:hover {
-  background: color-mix(in srgb, var(--p-primary-color), transparent 84%);
+  background: color-mix(in srgb, var(--primary), transparent 84%);
 }
 
 .milkdown-editor .milkdown .ProseMirror .reflecta-wiki-link {
   display: inline-block;
   cursor: pointer;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--p-primary-color), transparent 90%);
+  background: color-mix(in srgb, var(--primary), transparent 90%);
   font-size: 0;
   padding: 0 4px;
   line-height: inherit;
@@ -493,7 +493,7 @@
 .milkdown-editor .milkdown .ProseMirror .reflecta-wiki-link::after {
   content: attr(data-wiki-display);
   display: inline-block;
-  color: var(--p-primary-color);
+  color: var(--primary);
   font-size: 1rem;
   line-height: inherit;
   pointer-events: none;
@@ -508,9 +508,9 @@
   max-height: 280px;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--p-content-border-color);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--p-surface-0);
+  background: var(--background);
   box-shadow:
     0 16px 36px rgb(15 23 42 / 0.14),
     0 2px 8px rgb(15 23 42 / 0.08);
@@ -537,12 +537,12 @@
 
 .wiki-link-hint__item.is-active,
 .wiki-link-hint__item:hover {
-  background: var(--p-surface-100);
+  background: var(--muted);
 }
 
 .wiki-link-hint__title {
   overflow: hidden;
-  color: var(--p-text-color);
+  color: var(--foreground);
   font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.3;
@@ -552,7 +552,7 @@
 
 .wiki-link-hint__body {
   overflow: hidden;
-  color: var(--p-text-muted-color);
+  color: var(--muted-foreground);
   font-size: 0.75rem;
   line-height: 1.35;
   text-overflow: ellipsis;

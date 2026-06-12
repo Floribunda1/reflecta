@@ -1,6 +1,6 @@
-import { defineComponent, ref, onUnmounted, onMounted } from "vue";
-import { useRoute } from "vue-router";
-import { useContemplatePageProvide, useContemplatePageContext } from "./context";
+import { MouseEvent, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { ContemplatePageProvider, useContemplatePageContext } from "./context";
 import { FilterPanel } from "./filter-panel";
 import { GraphCanvas } from "./graph";
 import { NodeDetail } from "./NodeDetail";
@@ -10,88 +10,70 @@ const MIN_PANEL_WIDTH = 440;
 const MAX_PANEL_WIDTH = 680;
 const DEFAULT_PANEL_WIDTH = 560;
 
-const ContemplatePageInner = defineComponent({
-  name: "ContemplatePageInner",
-  setup() {
-    const ctx = useContemplatePageContext()!;
-    const route = useRoute();
-    const panelWidth = ref(DEFAULT_PANEL_WIDTH);
+function ContemplatePageInner() {
+  const ctx = useContemplatePageContext();
+  const [searchParams] = useSearchParams();
+  const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
 
+  useEffect(() => {
     const handleThoughtSelected = ({ thoughtId }: SearchSelectPayload) => {
-      ctx.selectedThoughtId.value = thoughtId;
+      ctx.setSelectedThoughtId(thoughtId);
     };
+    searchEventBus.on("thoughtSelected", handleThoughtSelected);
+    const pending = searchParams.get("selectThoughtId");
+    if (pending) ctx.setSelectedThoughtId(pending);
+    return () => {
+      searchEventBus.off("thoughtSelected", handleThoughtSelected);
+    };
+  }, [searchParams]);
 
-    onMounted(() => {
-      searchEventBus.on("thoughtSelected", handleThoughtSelected);
-      const pending = route.query.selectThoughtId;
-      if (pending && typeof pending === "string") {
-        ctx.selectedThoughtId.value = pending;
-      }
-    });
+  function onDragHandleMouseDown(event: MouseEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = panelWidth;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
 
-    let dragging = false;
-    let startX = 0;
-    let startWidth = 0;
-
-    function onMouseMove(e: MouseEvent) {
-      if (!dragging) return;
-      const delta = startX - e.clientX;
-      panelWidth.value = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, startWidth + delta));
-    }
-
-    function onMouseUp() {
-      if (!dragging) return;
-      dragging = false;
+    const onMouseMove = (moveEvent: globalThis.MouseEvent) => {
+      const delta = startX - moveEvent.clientX;
+      setPanelWidth(Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, startWidth + delta)));
+    };
+    const onMouseUp = () => {
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
-    }
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }
 
-    function onDragHandleMouseDown(e: MouseEvent) {
-      e.preventDefault();
-      dragging = true;
-      startX = e.clientX;
-      startWidth = panelWidth.value;
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-      window.addEventListener("mousemove", onMouseMove);
-      window.addEventListener("mouseup", onMouseUp);
-    }
-
-    onUnmounted(() => {
-      searchEventBus.off("thoughtSelected", handleThoughtSelected);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    });
-
-    return () => (
-      <div class="contemplate-page relative h-full w-full overflow-hidden">
-        <GraphCanvas />
-        <FilterPanel />
-        {ctx.selectedThoughtId.value !== null && (
+  return (
+    <div className="contemplate-page relative h-full w-full overflow-hidden">
+      <GraphCanvas />
+      <FilterPanel />
+      {ctx.selectedThoughtId !== null && (
+        <div
+          className="absolute bottom-0 right-0 top-0 z-10 flex overflow-hidden"
+          style={{ width: `${panelWidth}px` }}
+        >
           <div
-            class="absolute bottom-0 right-0 top-0 z-10 flex overflow-hidden"
-            style={{ width: `${panelWidth.value}px` }}
-          >
-            <div
-              class="absolute bottom-0 left-0 top-0 z-20 w-1 cursor-col-resize transition-colors hover:bg-primary-300"
-              onMousedown={onDragHandleMouseDown}
-            />
-            <div class="flex-1 overflow-hidden">
-              <NodeDetail />
-            </div>
+            className="absolute bottom-0 left-0 top-0 z-20 w-1 cursor-col-resize transition-colors hover:bg-primary/10"
+            onMouseDown={onDragHandleMouseDown}
+          />
+          <div className="flex-1 overflow-hidden">
+            <NodeDetail />
           </div>
-        )}
-      </div>
-    );
-  },
-});
+        </div>
+      )}
+    </div>
+  );
+}
 
-export const ContemplatePage = defineComponent({
-  name: "ContemplatePage",
-  setup() {
-    useContemplatePageProvide();
-    return () => <ContemplatePageInner />;
-  },
-});
+export function ContemplatePage() {
+  return (
+    <ContemplatePageProvider>
+      <ContemplatePageInner />
+    </ContemplatePageProvider>
+  );
+}

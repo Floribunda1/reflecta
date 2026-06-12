@@ -1,107 +1,91 @@
 import { ipcClient } from "@renderer/utils/ipc";
-import type { CreateThoughtInput, ThoughtSummaryDTO, ThoughtType } from "@shared/thought";
-import { useQuery } from "@tanstack/vue-query";
-import { createInjectionState } from "@vueuse/core";
-import { computed, ref, watch } from "vue";
+import type { ThoughtDTO, ThoughtSummaryDTO } from "@shared/thought";
+import { useQuery } from "@tanstack/react-query";
+import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from "react";
 import { useCapturePageContext } from "../context";
 
-export type FilterMode = "all" | "idea" | "insight";
-export type SortMode = "created" | "updated";
+type ThoughtListContextValue = {
+  displayedThoughts: ThoughtSummaryDTO[];
+  loading: boolean;
+  refresh: () => Promise<unknown>;
+  searchQuery: string;
+  setSearchQuery: (value: string) => void;
+  createEmptyUnderstanding: () => Promise<ThoughtDTO>;
+  deleteThought: (id: string) => Promise<void>;
+};
 
-const [useThoughtListProvide, useThoughtListContext] = createInjectionState(() => {
-  const capture = useCapturePageContext()!;
+const ThoughtListContext = createContext<ThoughtListContextValue | null>(null);
 
-  const filterMode = ref<FilterMode>("all");
-  const sortMode = ref<SortMode>("created");
-  const searchQuery = ref("");
-  const showUncategorized = ref(false);
+export function ThoughtListProvider({ children }: { children: ReactNode }) {
+  const capture = useCapturePageContext();
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Reset when user navigates away from "全部"
-  watch(
-    () => capture.selectedCategoryId.value,
-    (val) => {
-      if (val !== "all") showUncategorized.value = false;
-    },
-  );
+  const queryKey = ["thought.listThoughts", capture.selectedCategoryId, searchQuery] as const;
 
-  const queryKey = computed(() => [
-    "thought.listThoughts",
-    capture.selectedCategoryId.value,
-    capture.showAllDescendants.value,
-    filterMode.value,
-    searchQuery.value,
-  ]);
-
-  const {
-    data,
-    isFetching,
-    refetch: refresh,
-  } = useQuery({
+  const { data, isFetching, refetch } = useQuery({
     queryKey,
     queryFn: () => {
       const filter: {
         categoryIds?: string[];
         includeDescendants?: boolean;
-        type?: ThoughtType;
         searchQuery?: string;
       } = {};
-      if (capture.selectedCategoryId.value !== "all") {
-        filter.categoryIds = [capture.selectedCategoryId.value];
-        filter.includeDescendants = capture.showAllDescendants.value;
+      if (capture.selectedCategoryId !== "all") {
+        filter.categoryIds = [capture.selectedCategoryId];
+        filter.includeDescendants = false;
       }
-      if (filterMode.value !== "all") filter.type = filterMode.value;
-      if (searchQuery.value) filter.searchQuery = searchQuery.value;
+      if (searchQuery) filter.searchQuery = searchQuery;
       return ipcClient.thought.listThoughts(Object.keys(filter).length > 0 ? filter : undefined);
     },
   });
 
-  const loading = isFetching;
+  const displayedThoughts = useMemo(() => {
+    return [...(data ?? [])].sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
+  }, [data]);
 
-  const displayedThoughts = computed<ThoughtSummaryDTO[]>(() => {
-    let list = data.value ?? [];
-    if (showUncategorized.value) {
-      list = list.filter((t) => t.categoryIds.length === 0);
-    }
-    return [...list].sort((a, b) => {
-      const dateA = sortMode.value === "created" ? a.createdAt : a.updatedAt;
-      const dateB = sortMode.value === "created" ? b.createdAt : b.updatedAt;
-      return new Date(dateB).getTime() - new Date(dateA).getTime();
-    });
-  });
+  const refresh = useCallback(() => refetch(), [refetch]);
 
-  const toggleSortMode = () => {
-    sortMode.value = sortMode.value === "created" ? "updated" : "created";
-  };
-
-  const createThought = async (input: Omit<CreateThoughtInput, "categoryIds">) => {
+  const createEmptyUnderstanding = useCallback(async () => {
     const dto = await ipcClient.thought.createThought({
-      ...input,
-      categoryIds:
-        capture.selectedCategoryId.value !== "all" ? [capture.selectedCategoryId.value] : [],
+      type: "insight",
+      title: "",
+      body: "",
+      categoryIds: capture.selectedCategoryId !== "all" ? [capture.selectedCategoryId] : [],
     });
-    await refresh();
-    capture.selectedThoughtId.value = dto.id;
+    await refetch();
+    capture.setSelectedThoughtId(dto.id);
     return dto;
-  };
+  }, [capture.selectedCategoryId, capture.setSelectedThoughtId, refetch]);
 
-  const deleteThought = async (id: string) => {
-    await ipcClient.thought.deleteThought(id);
-    await refresh();
-    capture.selectedThoughtId.value = null;
-  };
+  const deleteThought = useCallback(
+    async (id: string) => {
+      await ipcClient.thought.deleteThought(id);
+      await refetch();
+      capture.setSelectedThoughtId(null);
+    },
+    [capture.setSelectedThoughtId, refetch],
+  );
 
-  return {
-    displayedThoughts,
-    loading,
-    refresh,
-    filterMode,
-    sortMode,
-    toggleSortMode,
-    searchQuery,
-    showUncategorized,
-    createThought,
-    deleteThought,
-  };
-});
+  const value = useMemo(
+    () => ({
+      displayedThoughts,
+      loading: isFetching,
+      refresh,
+      searchQuery,
+      setSearchQuery,
+      createEmptyUnderstanding,
+      deleteThought,
+    }),
+    [displayedThoughts, isFetching, refresh, searchQuery, createEmptyUnderstanding, deleteThought],
+  );
 
-export { useThoughtListProvide, useThoughtListContext };
+  return <ThoughtListContext.Provider value={value}>{children}</ThoughtListContext.Provider>;
+}
+
+export function useThoughtListContext() {
+  const context = useContext(ThoughtListContext);
+  if (!context) throw new Error("useThoughtListContext must be used within ThoughtListProvider");
+  return context;
+}

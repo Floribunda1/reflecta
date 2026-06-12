@@ -1,411 +1,489 @@
-import { defineComponent, ref, computed, watch, toRef, PropType } from "vue";
-import { Teleport } from "vue";
-import { MarkdownEditor } from "@renderer/modules/shared/components/md-editor";
-import { createThoughtDetailContext } from "./context";
-import { ContextList } from "./context/ContextList";
-import { ConnectionList } from "./connection/ConnectionList";
-import { ThoughtTypeBadge } from "./ThoughtTypeBadge";
-import Button from "primevue/button";
-import Menu from "primevue/menu";
+import { Badge } from "@renderer/components/ui/badge";
+import { Button } from "@renderer/components/ui/button";
+import { Input } from "@renderer/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@renderer/components/ui/native-select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@renderer/components/ui/sheet";
+import { Textarea } from "@renderer/components/ui/textarea";
 import { CategoryTreeSelect } from "@renderer/modules/shared/biz-components/CategoryTreeSelect";
-import { cloneDeep, debounce } from "lodash-es";
-import InputText from "primevue/inputtext";
+import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/md-preview";
+import { useModal } from "@renderer/modules/shared/hooks/use-modal";
 import { ipcClient } from "@renderer/utils/ipc";
-import { useConfirm } from "primevue/useconfirm";
-import { useQueryClient } from "@tanstack/vue-query";
-import { useRouter } from "vue-router";
-import Splitter from "primevue/splitter";
-import SplitterPanel from "primevue/splitterpanel";
-import Tabs from "primevue/tabs";
-import TabList from "primevue/tablist";
-import Tab from "primevue/tab";
-import TabPanels from "primevue/tabpanels";
-import TabPanel from "primevue/tabpanel";
+import type { ContextDTO, SourceType } from "@shared/context";
+import type { ThoughtSummaryDTO } from "@shared/thought";
+import { formatDistanceToNow } from "date-fns";
+import { zhCN } from "date-fns/locale";
+import { ArrowLeft, ArrowRight, ExternalLink, Plus, Trash2 } from "lucide-react";
+import { debounce } from "lodash-es";
+import { useEffect, useMemo, useState } from "react";
+import { useCapturePageContext } from "../context";
+import { ThoughtDetailProvider, useThoughtDetailContext } from "./context";
+import { SOURCE_META, SOURCE_TYPES } from "./context/types";
 
-export const ThoughtDetail = defineComponent({
-  name: "ThoughtDetail",
-  emits: ["close"],
-  props: {
-    thoughtId: {
-      type: String as PropType<string>,
-      required: true,
-    },
-    presentation: {
-      type: String as PropType<"workspace" | "panel">,
-      default: "workspace",
-    },
-    onDeleted: {
-      type: Function as PropType<() => void>,
-      required: false,
-    },
-  },
-  setup(props, { emit }) {
-    const focusMode = ref(false);
-    const thoughtId = toRef(props, "thoughtId");
-    const { thought, updateThought } = createThoughtDetailContext(thoughtId);
-    const confirm = useConfirm();
-    const queryClient = useQueryClient();
-    const router = useRouter();
-    const deleting = ref(false);
+type ThoughtDetailProps = {
+  thoughtId: string;
+  onDeleted?: () => void;
+};
 
-    const toggleFocusMode = () => {
-      focusMode.value = !focusMode.value;
-    };
+type SourceUpdateInput = {
+  sourceType?: SourceType;
+  sourceName?: string;
+  content?: string;
+};
 
-    const body = ref(thought.value?.body ?? "");
-    const title = ref(thought.value?.title ?? "");
-    const categoryIds = computed(() => thought.value?.categoryIds);
-    const activeTab = ref("context");
+const wikiLinkPattern = /\[\[([^\]\n]+)\]\]/g;
 
-    // Reset when thought changes
-    watch(
-      () => thought.value?.body,
-      () => {
-        body.value = thought.value?.body ?? "";
-      },
-    );
+function titleForThought(thought: { title: string | null; body: string }): string {
+  const title = thought.title?.trim();
+  if (title) return title;
+  const firstLine = thought.body
+    .split("\n")
+    .map((line) => line.trim())
+    .find(Boolean);
+  return firstLine || "未命名理解";
+}
 
-    watch(
-      () => thought.value?.title,
-      () => {
-        title.value = thought.value?.title ?? "";
-      },
-    );
+function sourceLabel(type: SourceType): string {
+  return SOURCE_META[type].label;
+}
 
-    const debouncedUpdate = debounce((v: string) => {
-      updateThought({
-        body: v,
-        categoryIds: categoryIds.value,
-      });
-    });
+function getUnresolvedWikiLinks(body: string, resolvedTargets: ThoughtSummaryDTO[]): string[] {
+  const resolved = new Set<string>();
+  for (const target of resolvedTargets) {
+    resolved.add(target.id);
+    if (target.title) resolved.add(target.title);
+  }
 
-    const debouncedTitleUpdate = debounce((v: string) => {
-      updateThought({
-        title: v || null,
-      });
-    });
+  const unresolved = new Set<string>();
+  for (const match of body.matchAll(wikiLinkPattern)) {
+    const raw = match[1]?.trim();
+    if (!raw) continue;
+    const target = raw.includes("#") ? raw.slice(raw.lastIndexOf("#") + 1).trim() : raw;
+    if (!target || resolved.has(target)) continue;
+    unresolved.add(raw);
+  }
+  return [...unresolved];
+}
 
-    const generatingSummary = ref(false);
-    const actionMenuRef = ref();
+function SourcePreview({
+  source,
+  onOpen,
+  onDelete,
+}: {
+  source: ContextDTO;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
+  const meta = SOURCE_META[source.sourceType];
+  const Icon = meta.Icon;
 
-    const handleGenerateSummary = async () => {
-      const content = thought.value?.body;
-      if (!content?.trim()) return;
-      generatingSummary.value = true;
-      try {
-        const summary = await ipcClient.ai.generateSummary(
-          content,
-          cloneDeep(thought.value?.contexts ?? []),
-        );
-        title.value = summary;
-        await updateThought({ title: summary });
-      } catch (e: any) {
-        console.error("生成摘要失败", e);
-      } finally {
-        generatingSummary.value = false;
-      }
-    };
-
-    const connectionCount = computed(
-      () => (thought.value?.connections.length ?? 0) + (thought.value?.referencedBy.length ?? 0),
-    );
-
-    const convertingType = ref(false);
-    const typeMenuRef = ref();
-    const typeMenuItems = computed(() => [
-      {
-        label: "Idea",
-        icon: "pi pi-lightbulb",
-        command: async () => {
-          if (!thought.value || thought.value.type === "idea") return;
-          convertingType.value = true;
-          try {
-            await updateThought({ type: "idea" });
-          } finally {
-            convertingType.value = false;
-          }
-        },
-      },
-      {
-        label: "Insight",
-        icon: "pi pi-star",
-        command: async () => {
-          if (!thought.value || thought.value.type === "insight") return;
-          convertingType.value = true;
-          try {
-            await updateThought({ type: "insight" });
-          } finally {
-            convertingType.value = false;
-          }
-        },
-      },
-    ]);
-
-    const handleBadgeClick = (e: MouseEvent) => {
-      typeMenuRef.value?.toggle(e);
-    };
-
-    const actionMenuItems = computed(() => [
-      {
-        label: "删除 Thought",
-        icon: "pi pi-trash",
-        command: handleDelete,
-      },
-    ]);
-
-    const actionGroupClass =
-      "flex items-center rounded-md border border-[var(--p-content-border-color)] bg-transparent p-0.5";
-    const actionButtonClass = "!h-8 !w-8";
-    const tabCountClass = (value: "context" | "connections") => [
-      "rounded px-1.5 text-xs font-semibold leading-5 tabular-nums",
-      activeTab.value === value ? "bg-surface-100 text-muted-color" : "text-muted-color",
-    ];
-
-    const renderHeaderActions = () => (
-      <div class="flex shrink-0 items-center gap-2">
-        <div class={actionGroupClass}>
-          <Button
-            icon="pi pi-sparkles"
-            text
-            rounded
-            severity="secondary"
-            aria-label="AI 生成摘要标题"
-            title="AI 生成摘要标题"
-            loading={generatingSummary.value}
-            disabled={!thought.value?.body?.trim()}
-            class={actionButtonClass}
-            onClick={handleGenerateSummary}
-          />
-        </div>
-
-        <div class={actionGroupClass}>
-          <Menu ref={actionMenuRef} model={actionMenuItems.value} popup />
-          <Button
-            icon="pi pi-ellipsis-h"
-            text
-            rounded
-            severity="secondary"
-            aria-label="更多操作"
-            title="更多操作"
-            class={actionButtonClass}
-            loading={deleting.value}
-            onClick={(e: MouseEvent) => actionMenuRef.value?.toggle(e)}
-          />
-        </div>
-
-        <div class={actionGroupClass}>
-          <Button
-            icon={focusMode.value ? "pi pi-window-minimize" : "pi pi-window-maximize"}
-            text
-            rounded
-            severity="secondary"
-            aria-label={focusMode.value ? "退出专注模式" : "专注模式"}
-            title={focusMode.value ? "退出专注模式" : "专注模式"}
-            class={actionButtonClass}
-            onClick={() => toggleFocusMode()}
-          />
-          <Button
-            icon="pi pi-times"
-            text
-            rounded
-            severity="secondary"
-            aria-label="关闭详情"
-            title="关闭详情"
-            class={actionButtonClass}
-            onClick={() => emit("close")}
-          />
-        </div>
-      </div>
-    );
-
-    const handleCategoryUpdate = async (categoryIds: string[]) => {
-      await updateThought({
-        body: thought.value!.body,
-        categoryIds,
-      });
-    };
-
-    const handleDelete = async () => {
-      if (!thought.value) return;
-      confirm.require({
-        message: `确定要删除这条 Thought 吗？此操作不可撤销。`,
-        header: "删除 Thought",
-        rejectLabel: "取消",
-        acceptLabel: "删除",
-        acceptClass: "p-button-danger",
-        accept: async () => {
-          deleting.value = true;
-          try {
-            await ipcClient.thought.deleteThought(thoughtId.value);
-            await queryClient.invalidateQueries({
-              queryKey: ["thought.listThoughts"],
-              exact: false,
-            });
-            props.onDeleted?.();
-          } finally {
-            deleting.value = false;
-          }
-        },
-      });
-    };
-
-    const renderBodySection = (panel = false) => (
-      <div class="flex h-full min-w-0 flex-col bg-surface-0">
-        <div class={["shrink-0", panel ? "px-6 pt-5" : "px-8 pt-6"]}>
-          <div class="flex items-start justify-between gap-4">
-            <div class="min-w-0 flex-1">
-              <Menu ref={typeMenuRef} model={typeMenuItems.value} popup />
-              <InputText
-                value={title.value}
-                onInput={(e: Event) => {
-                  const v = (e.target as HTMLInputElement).value;
-                  title.value = v;
-                  debouncedTitleUpdate(v);
-                }}
-                placeholder="无标题"
-                class="w-full"
-                pt={{
-                  root: {
-                    class: `border-none bg-transparent px-0 ${panel ? "text-2xl" : "text-3xl"} font-semibold leading-[1.08] text-color shadow-none placeholder:text-muted-color`,
-                  },
-                }}
-              />
-              <div class="mt-2 flex flex-wrap items-center gap-2">
-                <div
-                  class="inline-flex cursor-pointer rounded-md"
-                  title="更改类型"
-                  onClick={handleBadgeClick}
-                >
-                  <ThoughtTypeBadge type={thought.value!.type} />
-                </div>
-                <CategoryTreeSelect
-                  modelValue={thought.value!.categoryIds}
-                  onUpdate:modelValue={handleCategoryUpdate}
-                  placeholder="+ 添加分类"
-                  fluid={false}
-                  usePathLabel={false}
-                  variant="inline"
-                  class="max-w-full"
-                />
-              </div>
-            </div>
-
-            {renderHeaderActions()}
-          </div>
-        </div>
-
-        <div class={["min-h-0 flex-1", panel ? "px-6 pb-6 pt-4" : "px-8 pb-8 pt-5"]}>
-          <MarkdownEditor
-            content={body.value}
-            onUpdate={(v: string) => {
-              body.value = v;
-              debouncedUpdate(v);
-            }}
-            height="100%"
-          />
-        </div>
-      </div>
-    );
-
-    const renderContextAside = (panel = false) => (
-      <aside class="flex h-full min-w-0 flex-col bg-surface-0">
-        <Tabs
-          value={activeTab.value}
-          {...{
-            "onUpdate:value": (v: string) => {
-              activeTab.value = v;
-            },
-          }}
-          class="flex min-h-0 flex-1 flex-col"
-        >
-          <TabList
-            class={[
-              panel ? "mx-5 mt-4" : "mx-5 mt-5",
-              "flex shrink-0 gap-1 border-b border-[var(--p-content-border-color)] pb-2",
-            ]}
+  return (
+    <div className="group rounded-lg border border-border/40 bg-muted/20 px-3 py-2.5 transition-colors hover:border-border/70 hover:bg-muted/35">
+      <button type="button" className="w-full text-left" onClick={onOpen}>
+        <div className="flex min-w-0 items-center gap-2">
+          <Badge
+            variant="outline"
+            className="h-5 rounded-md border-border/50 px-1.5 text-[11px] font-normal text-muted-foreground"
           >
-            <Tab value="context">
-              <span class="flex items-center gap-1.5 text-xs font-semibold">
-                Context
-                <span class={tabCountClass("context")}>{thought.value!.contexts.length}</span>
-              </span>
-            </Tab>
-            <Tab value="connections">
-              <span class="flex items-center gap-1.5 text-xs font-semibold">
-                Connections
-                <span class={tabCountClass("connections")}>{connectionCount.value}</span>
-              </span>
-            </Tab>
-          </TabList>
-          <TabPanels class="min-h-0 flex-1 overflow-y-auto px-5 py-4 capture-scroll">
-            <TabPanel value="context">
-              <ContextList />
-            </TabPanel>
-            <TabPanel value="connections">
-              <ConnectionList
-                onViewGraph={() =>
-                  router.push({
-                    name: "Contemplate",
-                    query: { selectThoughtId: thought.value!.id },
-                  })
-                }
-              />
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
-      </aside>
-    );
+            <Icon size={11} />
+            {meta.label}
+          </Badge>
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground/90">
+            {source.sourceName?.trim() || meta.label}
+          </span>
+          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+            {source.content.length} 字
+          </span>
+        </div>
+        <div className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
+          {source.content ? (
+            <SimpleMarkdownPreview content={source.content} lineClamp={2} />
+          ) : (
+            <span className="text-muted-foreground/55">空来源，可以直接补充内容。</span>
+          )}
+        </div>
+      </button>
+      <div className="mt-2 hidden justify-end group-hover:flex">
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2 text-xs"
+          onClick={onDelete}
+        >
+          <Trash2 size={13} />
+          删除
+        </Button>
+      </div>
+    </div>
+  );
+}
 
-    const renderPanelWorkspace = () => (
-      <Splitter
-        layout="vertical"
-        class="h-full w-full rounded-none! border-none! bg-surface-0"
-        gutterSize={1}
-      >
-        <SplitterPanel size={62} minSize={42}>
-          {renderBodySection(true)}
-        </SplitterPanel>
-        <SplitterPanel size={38} minSize={22}>
-          {renderContextAside(true)}
-        </SplitterPanel>
-      </Splitter>
-    );
+function RelationItem({
+  thought,
+  direction,
+  onSelect,
+}: {
+  thought: ThoughtSummaryDTO;
+  direction: "outgoing" | "incoming";
+  onSelect: () => void;
+}) {
+  const Icon = direction === "outgoing" ? ArrowRight : ArrowLeft;
+  const label = direction === "outgoing" ? "引用了" : "被引用";
 
-    const renderWorkspace = () => (
-      <Splitter
-        layout="horizontal"
-        class="h-full w-full rounded-none! border-none! bg-surface-0"
-        gutterSize={1}
-      >
-        <SplitterPanel size={72} minSize={52}>
-          {renderBodySection()}
-        </SplitterPanel>
-        <SplitterPanel size={28} minSize={22}>
-          <div class="h-full min-w-[320px] border-l border-surface-200/70">
-            {renderContextAside()}
+  return (
+    <button
+      type="button"
+      className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-left transition-colors hover:border-border/70 hover:bg-muted/35"
+      onClick={onSelect}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <Badge
+          variant="outline"
+          className="h-5 rounded-md px-1.5 text-[11px] font-normal text-muted-foreground"
+        >
+          <Icon size={11} />
+          {label}
+        </Badge>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground/90">
+          {titleForThought(thought)}
+        </span>
+        <ExternalLink size={13} className="shrink-0 text-muted-foreground" />
+      </div>
+      {thought.body && (
+        <div className="mt-1.5 line-clamp-2 text-sm leading-6 text-muted-foreground">
+          <SimpleMarkdownPreview content={thought.body} lineClamp={2} />
+        </div>
+      )}
+    </button>
+  );
+}
+
+function SourceDetailOverlay({
+  source,
+  open,
+  onOpenChange,
+  onUpdate,
+}: {
+  source: ContextDTO | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onUpdate: (id: string, input: SourceUpdateInput) => void;
+}) {
+  const [sourceType, setSourceType] = useState<SourceType>("experience");
+  const [sourceName, setSourceName] = useState("");
+  const [content, setContent] = useState("");
+
+  useEffect(() => {
+    if (!source) return;
+    setSourceType(source.sourceType);
+    setSourceName(source.sourceName ?? "");
+    setContent(source.content);
+  }, [source?.id, source?.sourceType, source?.sourceName, source?.content]);
+
+  const debouncedUpdate = useMemo(
+    () =>
+      debounce((id: string, input: SourceUpdateInput) => {
+        onUpdate(id, input);
+      }, 350),
+    [onUpdate],
+  );
+
+  useEffect(() => () => debouncedUpdate.cancel(), [debouncedUpdate]);
+
+  if (!source) return null;
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-[min(720px,56vw)] max-w-none bg-card shadow-xl">
+        <SheetHeader className="border-b border-border/50 px-5 py-4">
+          <SheetTitle className="text-sm font-medium text-muted-foreground">来源详情</SheetTitle>
+          <div className="flex min-w-0 items-center gap-2 pt-2">
+            <NativeSelect
+              size="sm"
+              value={sourceType}
+              onChange={(event) => {
+                const next = event.target.value as SourceType;
+                setSourceType(next);
+                onUpdate(source.id, { sourceType: next });
+              }}
+            >
+              {SOURCE_TYPES.map((type) => (
+                <NativeSelectOption key={type} value={type}>
+                  {sourceLabel(type)}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+            <Input
+              value={sourceName}
+              onChange={(event) => {
+                const next = event.target.value;
+                setSourceName(next);
+                debouncedUpdate(source.id, { sourceName: next });
+              }}
+              placeholder="来源名称或场景"
+              className="h-8 border-transparent bg-transparent px-0 text-lg font-semibold shadow-none focus-visible:border-transparent focus-visible:ring-0"
+            />
           </div>
-        </SplitterPanel>
-      </Splitter>
-    );
+          <div className="text-xs tabular-nums text-muted-foreground">{content.length} 字</div>
+        </SheetHeader>
+        <div className="capture-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+          <Textarea
+            value={content}
+            onChange={(event) => {
+              const next = event.target.value;
+              setContent(next);
+              debouncedUpdate(source.id, { content: next });
+            }}
+            placeholder="记录这条来源的具体内容"
+            className="min-h-[calc(100vh-160px)] resize-none border-transparent bg-transparent px-0 py-4 text-sm leading-7 shadow-none focus-visible:border-transparent focus-visible:ring-0"
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
 
-    return () => {
-      if (!thought.value) return null;
+function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
+  const capture = useCapturePageContext();
+  const { thought, updateThought, createContext, updateContext, deleteContext } =
+    useThoughtDetailContext();
+  const { confirm } = useModal();
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [activeSourceId, setActiveSourceId] = useState<string | null>(null);
 
-      if (focusMode.value) {
-        return (
-          <Teleport to="body">
-            <div class="fixed left-0 top-0 z-100 h-screen w-screen bg-surface-0">
-              {renderWorkspace()}
+  useEffect(() => setTitle(thought?.title ?? ""), [thought?.id, thought?.title]);
+  useEffect(() => setBody(thought?.body ?? ""), [thought?.id, thought?.body]);
+
+  const debouncedTitleUpdate = useMemo(
+    () =>
+      debounce((value: string) => {
+        void updateThought({ title: value || null });
+      }, 350),
+    [updateThought],
+  );
+
+  const debouncedBodyUpdate = useMemo(
+    () =>
+      debounce((value: string) => {
+        void updateThought({ body: value });
+      }, 350),
+    [updateThought],
+  );
+
+  useEffect(
+    () => () => {
+      debouncedTitleUpdate.cancel();
+      debouncedBodyUpdate.cancel();
+    },
+    [debouncedTitleUpdate, debouncedBodyUpdate],
+  );
+
+  if (!thought) {
+    return <div className="h-full bg-background" />;
+  }
+
+  const activeSource = thought.contexts.find((source) => source.id === activeSourceId) ?? null;
+  const unresolvedLinks = getUnresolvedWikiLinks(thought.body, thought.connections);
+  const updatedLabel = formatDistanceToNow(thought.updatedAt, {
+    addSuffix: true,
+    locale: zhCN,
+  });
+
+  const handleDeleteThought = () => {
+    confirm({
+      title: "删除理解",
+      message: "确定要删除这条理解吗？此操作不可撤销。",
+      acceptLabel: "删除",
+      danger: true,
+      onAccept: async () => {
+        await ipcClient.thought.deleteThought(thoughtId);
+        onDeleted?.();
+      },
+    });
+  };
+
+  const handleAddSource = async () => {
+    const created = await createContext({
+      sourceType: "experience",
+      sourceName: "",
+      content: "",
+    });
+    setActiveSourceId(created.id);
+  };
+
+  const handleDeleteSource = (source: ContextDTO) => {
+    confirm({
+      title: "删除来源",
+      message: "确定要删除这条来源吗？此操作不可撤销。",
+      acceptLabel: "删除",
+      danger: true,
+      onAccept: async () => {
+        await deleteContext(source.id);
+        if (activeSourceId === source.id) setActiveSourceId(null);
+      },
+    });
+  };
+
+  return (
+    <div className="h-full overflow-hidden bg-background">
+      <div className="capture-scroll h-full overflow-y-auto">
+        <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 px-10 py-8">
+          <header className="flex flex-col gap-3 border-b border-border/45 pb-5">
+            <div className="flex min-w-0 items-center gap-3 text-xs text-muted-foreground">
+              <span>{updatedLabel}</span>
+              <span>·</span>
+              <CategoryTreeSelect
+                modelValue={thought.categoryIds}
+                onUpdateModelValue={(categoryIds) => void updateThought({ categoryIds })}
+                placeholder="未归类"
+                fluid={false}
+                usePathLabel={false}
+                variant="inline"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="ml-auto h-7 px-2 text-xs text-muted-foreground"
+                onClick={handleDeleteThought}
+              >
+                <Trash2 size={13} />
+                删除
+              </Button>
             </div>
-          </Teleport>
-        );
-      }
+            <Input
+              value={title}
+              onChange={(event) => {
+                const next = event.target.value;
+                setTitle(next);
+                debouncedTitleUpdate(next);
+              }}
+              placeholder="写下一个刚形成的理解"
+              className="h-auto border-transparent bg-transparent px-0 py-0 text-[1.625rem] font-semibold leading-tight tracking-normal text-foreground shadow-none placeholder:text-muted-foreground/55 focus-visible:border-transparent focus-visible:ring-0"
+            />
+          </header>
 
-      if (props.presentation === "panel") {
-        return <div class="h-full w-full bg-surface-0">{renderPanelWorkspace()}</div>;
-      }
+          <section>
+            <Textarea
+              value={body}
+              onChange={(event) => {
+                const next = event.target.value;
+                setBody(next);
+                debouncedBodyUpdate(next);
+              }}
+              placeholder="用自己的语言写下这条理解。通过 [[已有理解标题]] 连接相关理解。"
+              className="min-h-[300px] resize-none border-transparent bg-transparent px-0 py-0 text-[1.0625rem] leading-[1.85] text-foreground shadow-none placeholder:text-muted-foreground/55 focus-visible:border-transparent focus-visible:ring-0"
+            />
+          </section>
 
-      return <div class="h-full w-full bg-surface-0">{renderWorkspace()}</div>;
-    };
-  },
-});
+          <section className="flex flex-col gap-2 pt-1">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium text-foreground">来源</div>
+                <div className="text-xs text-muted-foreground">这条理解从哪里长出来</div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs"
+                onClick={() => void handleAddSource()}
+              >
+                <Plus size={14} />
+                添加来源
+              </Button>
+            </div>
+            {thought.contexts.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {thought.contexts.map((source) => (
+                  <SourcePreview
+                    key={source.id}
+                    source={source}
+                    onOpen={() => setActiveSourceId(source.id)}
+                    onDelete={() => handleDeleteSource(source)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="rounded-lg border border-dashed border-border/60 bg-transparent px-3 py-6 text-sm text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground"
+                onClick={() => void handleAddSource()}
+              >
+                添加来源
+              </button>
+            )}
+          </section>
+
+          <section className="flex flex-col gap-2 pb-8">
+            <div>
+              <div className="text-sm font-medium text-foreground">双链关系</div>
+              <div className="text-xs text-muted-foreground">关系只来自正文中的双链</div>
+            </div>
+
+            {thought.connections.length === 0 &&
+            thought.referencedBy.length === 0 &&
+            unresolvedLinks.length === 0 ? (
+              <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
+                暂时独立
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {thought.connections.map((item) => (
+                  <RelationItem
+                    key={`out-${item.id}`}
+                    thought={item}
+                    direction="outgoing"
+                    onSelect={() => {
+                      capture.setSelectedThoughtId(item.id);
+                      capture.setSelectedCategoryId(item.categoryIds[0] ?? "all");
+                    }}
+                  />
+                ))}
+                {thought.referencedBy.map((item) => (
+                  <RelationItem
+                    key={`in-${item.id}`}
+                    thought={item}
+                    direction="incoming"
+                    onSelect={() => {
+                      capture.setSelectedThoughtId(item.id);
+                      capture.setSelectedCategoryId(item.categoryIds[0] ?? "all");
+                    }}
+                  />
+                ))}
+                {unresolvedLinks.map((link) => (
+                  <div
+                    key={link}
+                    className="rounded-lg border border-dashed border-border/60 bg-transparent px-3 py-2 text-sm text-muted-foreground"
+                  >
+                    未解析：[[{link}]]
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
+
+      <SourceDetailOverlay
+        source={activeSource}
+        open={activeSource !== null}
+        onOpenChange={(open) => {
+          if (!open) setActiveSourceId(null);
+        }}
+        onUpdate={(id, input) => {
+          void updateContext(id, input);
+        }}
+      />
+    </div>
+  );
+}
+
+export function ThoughtDetail(props: ThoughtDetailProps) {
+  return (
+    <ThoughtDetailProvider thoughtId={props.thoughtId}>
+      <ThoughtDetailInner {...props} />
+    </ThoughtDetailProvider>
+  );
+}

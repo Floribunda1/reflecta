@@ -1,118 +1,68 @@
-import { defineComponent, ref, computed } from "vue";
+import { useMemo } from "react";
 import type { ThoughtSummaryDTO } from "@shared/thought";
 import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/md-preview";
 import { useCapturePageContext } from "../context";
-import { useThoughtListContext } from "./context";
-import { useConfirm } from "primevue/useconfirm";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import ContextMenu from "primevue/contextmenu";
-import { useCategoryData } from "@renderer/modules/shared/hooks/use-category";
-import { useRouter } from "vue-router";
 
-export const ThoughtCard = defineComponent({
-  name: "ThoughtCard",
-  props: {
-    thought: { type: Object as () => ThoughtSummaryDTO, required: true },
-  },
-  setup(props) {
-    const capture = useCapturePageContext()!;
-    const thoughtListCtx = useThoughtListContext()!;
-    const confirm = useConfirm();
-    const router = useRouter();
-    const { categoryList } = useCategoryData();
+function getUnderstandingTitle(thought: ThoughtSummaryDTO): string {
+  const title = thought.title?.trim();
+  if (title) return title;
 
-    const categoryNames = computed(() => {
-      const map = new Map((categoryList.value ?? []).map((c) => [c.id, c.name]));
-      return props.thought.categoryIds.map((id) => map.get(id)).filter(Boolean) as string[];
-    });
+  const firstLine = thought.body
+    .split("\n")
+    .map((line) => line.trim())
+    .find(Boolean);
+  return firstLine || "未命名理解";
+}
 
-    const cm = ref<InstanceType<typeof ContextMenu>>();
-    const menuItems = [
-      {
-        label: "查看关联",
-        icon: "pi pi-share-alt",
-        command: () => {
-          router.push({
-            name: "Contemplate",
-            query: { selectThoughtId: props.thought.id },
-          });
-        },
-      },
-      {
-        label: "删除",
-        icon: "pi pi-trash",
-        class: "text-red-600",
-        command: () => openDeleteConfirm(),
-      },
-    ];
+export function ThoughtCard({ thought }: { thought: ThoughtSummaryDTO }) {
+  const capture = useCapturePageContext();
+  const isSelected = capture.selectedThoughtId === thought.id;
 
-    const isSelected = computed(() => capture.selectedThoughtId.value === props.thought.id);
+  const updatedLabel = useMemo(
+    () =>
+      formatDistanceToNow(thought.updatedAt, {
+        addSuffix: true,
+        locale: zhCN,
+      }),
+    [thought.updatedAt],
+  );
 
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      cm.value?.show(e);
-    };
-
-    const openDeleteConfirm = () => {
-      confirm.require({
-        message: "确定要删除这条 Thought 吗？此操作不可撤销。",
-        header: "删除确认",
-        rejectLabel: "取消",
-        acceptLabel: "删除",
-        acceptClass: "p-button-danger",
-        rejectProps: { severity: "secondary" },
-        accept: () => thoughtListCtx.deleteThought(props.thought.id),
-      });
-    };
-
-    return () => (
-      <div onContextmenu={handleContextMenu}>
-        <ContextMenu ref={cm} model={menuItems} />
-        <div
-          class={[
-            "group flex cursor-pointer flex-col gap-3 py-5 transition-colors duration-150 hover:bg-surface-50 px-8",
-            isSelected.value ? "bg-surface-100" : "",
-          ]}
-          onClick={() => {
-            capture.selectedThoughtId.value = props.thought.id;
-          }}
-        >
-          {/* Title + meta */}
-          <div class="flex min-w-0 items-baseline gap-3">
-            {props.thought.title ? (
-              <span class="truncate text-base font-semibold leading-snug text-color">
-                {props.thought.title}
-              </span>
-            ) : (
-              <span class="truncate text-base font-medium leading-snug text-muted-color">
-                未命名 Thought
-              </span>
-            )}
-
-            <div class="ml-auto flex shrink-0 items-baseline gap-3 text-sm leading-snug text-muted-color">
-              {categoryNames.value.length > 0 && <span>{categoryNames.value[0]}</span>}
-              <span>· {props.thought.connectionCount}</span>
-              <span class="tabular-nums">
-                {formatDistanceToNow(props.thought.updatedAt, {
-                  addSuffix: true,
-                  locale: zhCN,
-                })}
-              </span>
-            </div>
-          </div>
-
-          {/* Preview */}
-          <div class="min-w-0 text-sm leading-relaxed text-muted-color line-clamp-2">
-            {props.thought.body ? (
-              <SimpleMarkdownPreview content={props.thought.body} />
-            ) : (
-              <span class="text-muted-color/40">还没有正文</span>
-            )}
-          </div>
-        </div>
+  return (
+    <button
+      type="button"
+      className={[
+        "w-full rounded-lg border border-l-2 px-3 py-2.5 text-left shadow-none transition-colors",
+        isSelected
+          ? "border-border/75 border-l-foreground/35 bg-muted/45"
+          : "border-border/45 border-l-transparent bg-background/40 hover:border-border/70 hover:bg-muted/30",
+      ].join(" ")}
+      onClick={() => capture.setSelectedThoughtId(thought.id)}
+    >
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="min-w-0 flex-1 truncate text-sm font-medium leading-5 text-foreground">
+          {getUnderstandingTitle(thought)}
+        </span>
+        <span className="shrink-0 pt-0.5 text-xs tabular-nums text-muted-foreground">
+          {updatedLabel}
+        </span>
       </div>
-    );
-  },
-});
+
+      <div className="mt-1.5 min-h-5 text-sm leading-6 text-muted-foreground line-clamp-2">
+        {thought.body ? (
+          <SimpleMarkdownPreview content={thought.body} lineClamp={2} />
+        ) : (
+          <span className="text-muted-foreground/55">空理解，可以直接开始写。</span>
+        )}
+      </div>
+
+      <div className="mt-2 flex min-w-0 items-center gap-3 text-xs text-muted-foreground">
+        <span>{thought.contextCount > 0 ? `${thought.contextCount} 个来源` : "无来源"}</span>
+        <span>
+          {thought.connectionCount > 0 ? `连接到 ${thought.connectionCount} 个理解` : "暂时独立"}
+        </span>
+      </div>
+    </button>
+  );
+}

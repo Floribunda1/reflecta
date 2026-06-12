@@ -1,12 +1,13 @@
+import { Bot, BookOpen, FileText, MessageCircle, User, Video } from "lucide-react";
 import { SourceType } from "@shared/context";
 
-export const SOURCE_META: Record<SourceType, { label: string; icon: string }> = {
-  experience: { label: "个人经历", icon: "pi pi-user" },
-  video: { label: "视频", icon: "pi pi-youtube" },
-  book: { label: "书籍", icon: "pi pi-book" },
-  article: { label: "文章", icon: "pi pi-file-word" },
-  opinion: { label: "他人观点", icon: "pi pi-comments" },
-  ai: { label: "AI 生成", icon: "pi pi-microchip-ai" },
+export const SOURCE_META: Record<SourceType, { label: string; Icon: typeof User }> = {
+  experience: { label: "个人经历", Icon: User },
+  video: { label: "视频", Icon: Video },
+  book: { label: "书籍", Icon: BookOpen },
+  article: { label: "文章", Icon: FileText },
+  opinion: { label: "他人观点", Icon: MessageCircle },
+  ai: { label: "AI 生成", Icon: Bot },
 };
 
 export const SOURCE_PLACEHOLDER: Record<SourceType, string> = {

@@ -1,38 +1,94 @@
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ipcClient } from "@renderer/utils/ipc";
 import type { ConversationDTO } from "@shared/chat";
 import type { ThoughtSummaryDTO } from "@shared/thought";
 import type { ChatStatus, UIMessage } from "ai";
-import { useQuery, useQueryClient } from "@tanstack/vue-query";
-import { createInjectionState, useLocalStorage } from "@vueuse/core";
-import { computed, ref, shallowRef, watch } from "vue";
+import { useLocalStorageState } from "@renderer/modules/shared/hooks/use-local-storage-state";
 import { ReflectaChat } from "./libs/reflecta-chat";
 import { dtoListToUiMessages } from "./transport/dto-to-ui-message";
 import { ElectronChatTransport } from "./transport/electron-chat-transport";
 import type { KnowledgePanelMode } from "./state/types";
 
-const [useChatPageProvide, useChatPageContext] = createInjectionState(() => {
+type ChatPageContextValue = {
+  activeConversationId: string | null;
+  chat: ReflectaChat<UIMessage> | null;
+  chatMessages: UIMessage[];
+  chatStatus: ChatStatus;
+  chatError: Error | undefined;
+  conversations: ConversationDTO[];
+  conversationsLoading: boolean;
+  messagesLoading: boolean;
+  isStreaming: boolean;
+  canSend: boolean;
+  draftText: string;
+  setDraftText: (value: string) => void;
+  draftThoughtIds: string[];
+  draftReferences: ThoughtSummaryDTO[];
+  conversationThoughtIds: string[];
+  conversationReferences: ThoughtSummaryDTO[];
+  thoughtSummaries: Record<string, ThoughtSummaryDTO>;
+  panelMode: KnowledgePanelMode;
+  setPanelMode: (value: KnowledgePanelMode) => void;
+  selectedCategoryId: string;
+  setSelectedCategoryId: (value: string) => void;
+  selectedThoughtId: string | null;
+  setSelectedThoughtId: (value: string | null) => void;
+  panelSearchQuery: string;
+  setPanelSearchQuery: (value: string) => void;
+  selectConversation: (conversationId: string) => void;
+  createConversation: () => Promise<ConversationDTO | undefined>;
+  renameConversation: (conversationId: string, title: string) => Promise<void>;
+  deleteConversation: (conversationId: string) => Promise<void>;
+  addReference: (thoughtId: string) => Promise<void>;
+  removeDraftReference: (thoughtId: string) => void;
+  clearDraftReferences: () => void;
+  sendMessage: () => Promise<void>;
+  cancelStream: () => Promise<void>;
+  confirmToolCall: (toolCallId: string, approved: boolean) => Promise<void>;
+};
+
+const ChatPageContext = createContext<ChatPageContextValue | null>(null);
+
+export function ChatPageProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const activeConversationId = useLocalStorage<string | null>("chat:activeConversationId", null);
-  const chat = shallowRef<ReflectaChat<UIMessage> | null>(null);
-  const activeRequestId = ref<string | null>(null);
-  const draftText = ref("");
-  const draftThoughtIds = ref<string[]>([]);
-  const conversationThoughtIds = ref<string[]>([]);
-  const thoughtSummaries = ref<Record<string, ThoughtSummaryDTO>>({});
+  const [activeConversationId, setActiveConversationId] = useLocalStorageState<string | null>(
+    "chat:activeConversationId",
+    null,
+  );
+  const [chat, setChat] = useState<ReflectaChat<UIMessage> | null>(null);
+  const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
+  const [draftText, setDraftText] = useState("");
+  const [draftThoughtIds, setDraftThoughtIds] = useState<string[]>([]);
+  const [conversationThoughtIds, setConversationThoughtIds] = useState<string[]>([]);
+  const [thoughtSummaries, setThoughtSummaries] = useState<Record<string, ThoughtSummaryDTO>>({});
+  const [panelMode, setPanelMode] = useState<KnowledgePanelMode>("browse");
+  const [selectedCategoryId, setSelectedCategoryId] = useState("all");
+  const [selectedThoughtId, setSelectedThoughtId] = useState<string | null>(null);
+  const [panelSearchQuery, setPanelSearchQuery] = useState("");
 
-  const panelMode = ref<KnowledgePanelMode>("browse");
-  const selectedCategoryId = ref<string>("all");
-  const selectedThoughtId = ref<string | null>(null);
-  const panelSearchQuery = ref("");
+  const chatMessages = useSyncExternalStore(
+    chat?.reactState.subscribe ?? (() => () => undefined),
+    () => chat?.reactState.messages ?? [],
+  );
+  const chatStatus = useSyncExternalStore(
+    chat?.reactState.subscribe ?? (() => () => undefined),
+    () => chat?.reactState.status ?? "ready",
+  );
+  const chatError = useSyncExternalStore(
+    chat?.reactState.subscribe ?? (() => () => undefined),
+    () => chat?.reactState.error,
+  );
 
-  const chatStatus = computed<ChatStatus>(() => chat.value?.vueState.statusRef.value ?? "ready");
-  const chatError = computed(() => chat.value?.vueState.errorRef.value);
-  const chatMessages = computed<UIMessage[]>(() => chat.value?.vueState.messagesRef.value ?? []);
-
-  const isStreaming = computed(() => {
-    const status = chatStatus.value;
-    return status === "submitted" || status === "streaming";
-  });
+  const isStreaming = chatStatus === "submitted" || chatStatus === "streaming";
 
   const conversationsQuery = useQuery({
     queryKey: ["chat.conversations"],
@@ -40,83 +96,71 @@ const [useChatPageProvide, useChatPageContext] = createInjectionState(() => {
   });
 
   const messagesQuery = useQuery({
-    queryKey: computed(() => ["chat.messages", activeConversationId.value] as const),
-    queryFn: () => ipcClient.chat.getMessages(activeConversationId.value!),
-    enabled: computed(() => !!activeConversationId.value),
+    queryKey: ["chat.messages", activeConversationId] as const,
+    queryFn: () => ipcClient.chat.getMessages(activeConversationId!),
+    enabled: !!activeConversationId,
   });
 
-  watch(
-    () => conversationsQuery.data.value,
-    (conversations) => {
-      if (!conversations?.length) return;
-      if (
-        !activeConversationId.value ||
-        !conversations.some((c) => c.id === activeConversationId.value)
-      ) {
-        activeConversationId.value = conversations[0]!.id;
-      }
-    },
-    { immediate: true },
-  );
+  useEffect(() => {
+    const conversations = conversationsQuery.data;
+    if (!conversations?.length) return;
+    if (
+      !activeConversationId ||
+      !conversations.some((conversation) => conversation.id === activeConversationId)
+    ) {
+      setActiveConversationId(conversations[0]!.id);
+    }
+  }, [conversationsQuery.data, activeConversationId, setActiveConversationId]);
 
   const invalidateChatQueries = async (conversationId: string | null) => {
     await queryClient.invalidateQueries({ queryKey: ["chat.conversations"] });
-    if (conversationId) {
+    if (conversationId)
       await queryClient.invalidateQueries({ queryKey: ["chat.messages", conversationId] });
-    }
   };
 
-  const createChatInstance = (conversationId: string, messages: UIMessage[]) => {
-    return new ReflectaChat({
+  const createChatInstance = (conversationId: string, messages: UIMessage[]) =>
+    new ReflectaChat({
       id: conversationId,
       messages,
       transport: new ElectronChatTransport(conversationId, {
-        onRequestStart: (requestId) => {
-          activeRequestId.value = requestId;
-        },
-        onRequestEnd: () => {
-          activeRequestId.value = null;
-        },
+        onRequestStart: setActiveRequestId,
+        onRequestEnd: () => setActiveRequestId(null),
       }),
       onFinish: () => {
         void queryClient.invalidateQueries({ queryKey: ["chat.conversations"] });
       },
     });
-  };
 
-  watch(activeConversationId, (conversationId, previousId) => {
-    if (conversationId === previousId) return;
-    chat.value = null;
-  });
+  useEffect(() => {
+    setChat(null);
+  }, [activeConversationId]);
 
-  watch(
-    [activeConversationId, () => messagesQuery.data.value, () => messagesQuery.isFetching.value],
-    ([conversationId, history, isFetching]) => {
-      if (!conversationId || chat.value) return;
-      if (isFetching && !history?.length) return;
-      chat.value = createChatInstance(conversationId, dtoListToUiMessages(history ?? []));
-    },
-    { immediate: true },
-  );
+  useEffect(() => {
+    if (!activeConversationId || chat) return;
+    if (messagesQuery.isFetching && !messagesQuery.data?.length) return;
+    setChat(
+      createChatInstance(activeConversationId, dtoListToUiMessages(messagesQuery.data ?? [])),
+    );
+  }, [activeConversationId, messagesQuery.data, messagesQuery.isFetching, chat]);
 
   const selectConversation = (conversationId: string) => {
-    if (isStreaming.value) return;
-    activeConversationId.value = conversationId;
-    draftText.value = "";
-    draftThoughtIds.value = [];
-    conversationThoughtIds.value = [];
-    thoughtSummaries.value = {};
+    if (isStreaming) return;
+    setActiveConversationId(conversationId);
+    setDraftText("");
+    setDraftThoughtIds([]);
+    setConversationThoughtIds([]);
+    setThoughtSummaries({});
   };
 
   const createConversation = async () => {
-    if (isStreaming.value) return;
+    if (isStreaming) return undefined;
     const conversation = await ipcClient.chat.createConversation();
     await invalidateChatQueries(conversation.id);
-    activeConversationId.value = conversation.id;
-    draftText.value = "";
-    draftThoughtIds.value = [];
-    conversationThoughtIds.value = [];
-    thoughtSummaries.value = {};
+    setActiveConversationId(conversation.id);
+    setDraftText("");
+    setDraftThoughtIds([]);
+    setConversationThoughtIds([]);
+    setThoughtSummaries({});
     return conversation;
   };
 
@@ -126,21 +170,21 @@ const [useChatPageProvide, useChatPageContext] = createInjectionState(() => {
   };
 
   const deleteConversation = async (conversationId: string) => {
-    if (isStreaming.value) return;
+    if (isStreaming) return;
     await ipcClient.chat.deleteConversation(conversationId);
-    if (activeConversationId.value === conversationId) {
-      activeConversationId.value = null;
-      chat.value = null;
+    if (activeConversationId === conversationId) {
+      setActiveConversationId(null);
+      setChat(null);
     }
     await invalidateChatQueries(null);
   };
 
   const ensureThoughtSummary = async (thoughtId: string) => {
-    if (thoughtSummaries.value[thoughtId]) return;
+    if (thoughtSummaries[thoughtId]) return;
     const thought = await ipcClient.thought.getThoughtById(thoughtId);
     if (!thought) return;
-    thoughtSummaries.value = {
-      ...thoughtSummaries.value,
+    setThoughtSummaries((current) => ({
+      ...current,
       [thoughtId]: {
         id: thought.id,
         title: thought.title,
@@ -153,43 +197,35 @@ const [useChatPageProvide, useChatPageContext] = createInjectionState(() => {
         createdAt: thought.createdAt,
         updatedAt: thought.updatedAt,
       },
-    };
+    }));
   };
 
   const addReference = async (thoughtId: string) => {
-    if (!draftThoughtIds.value.includes(thoughtId)) {
-      draftThoughtIds.value = [...draftThoughtIds.value, thoughtId];
-    }
+    setDraftThoughtIds((current) =>
+      current.includes(thoughtId) ? current : [...current, thoughtId],
+    );
     await ensureThoughtSummary(thoughtId);
   };
 
   const removeDraftReference = (thoughtId: string) => {
-    draftThoughtIds.value = draftThoughtIds.value.filter((id) => id !== thoughtId);
+    setDraftThoughtIds((current) => current.filter((id) => id !== thoughtId));
   };
 
-  const clearDraftReferences = () => {
-    draftThoughtIds.value = [];
-  };
+  const clearDraftReferences = () => setDraftThoughtIds([]);
 
   const sendMessage = async () => {
-    const content = draftText.value.trim();
-    const conversationId = activeConversationId.value;
-    const activeChat = chat.value;
-    if (!conversationId || !content || !activeChat || isStreaming.value) return;
-
-    const referenceThoughtIds = [...draftThoughtIds.value];
-    draftText.value = "";
-
+    const content = draftText.trim();
+    if (!activeConversationId || !content || !chat || isStreaming) return;
+    const referenceThoughtIds = [...draftThoughtIds];
+    setDraftText("");
     for (const thoughtId of referenceThoughtIds) {
-      if (!conversationThoughtIds.value.includes(thoughtId)) {
-        conversationThoughtIds.value = [...conversationThoughtIds.value, thoughtId];
-      }
+      setConversationThoughtIds((current) =>
+        current.includes(thoughtId) ? current : [...current, thoughtId],
+      );
       await ensureThoughtSummary(thoughtId);
     }
-
-    draftThoughtIds.value = [];
-
-    await activeChat.sendMessage(
+    setDraftThoughtIds([]);
+    await chat.sendMessage(
       { text: content },
       {
         body: {
@@ -200,83 +236,103 @@ const [useChatPageProvide, useChatPageContext] = createInjectionState(() => {
   };
 
   const cancelStream = async () => {
-    await chat.value?.stop();
+    await chat?.stop();
   };
 
   const confirmToolCall = async (toolCallId: string, approved: boolean) => {
-    const requestId = activeRequestId.value;
-    const activeChat = chat.value;
-    if (!requestId || !activeChat) return;
-
-    await activeChat.addToolApprovalResponse({
-      id: toolCallId,
-      approved,
-    });
-
+    if (!activeRequestId || !chat) return;
+    await chat.addToolApprovalResponse({ id: toolCallId, approved });
     if (approved) {
       await ipcClient.chat.confirmToolCall({
-        requestId,
+        requestId: activeRequestId,
         toolCallId,
         approved: true,
       });
     } else {
       await ipcClient.chat.rejectToolCall({
-        requestId,
+        requestId: activeRequestId,
         toolCallId,
         approved: false,
       });
     }
   };
 
-  const draftReferences = computed(() =>
-    draftThoughtIds.value
-      .map((id) => thoughtSummaries.value[id])
-      .filter((item): item is ThoughtSummaryDTO => !!item),
+  const draftReferences = draftThoughtIds
+    .map((id) => thoughtSummaries[id])
+    .filter((item): item is ThoughtSummaryDTO => !!item);
+  const conversationReferences = conversationThoughtIds
+    .map((id) => thoughtSummaries[id])
+    .filter((item): item is ThoughtSummaryDTO => !!item);
+  const conversations = conversationsQuery.data ?? [];
+  const canSend = !!activeConversationId && !!draftText.trim() && !isStreaming;
+
+  const value = useMemo<ChatPageContextValue>(
+    () => ({
+      activeConversationId,
+      chat,
+      chatMessages,
+      chatStatus,
+      chatError,
+      conversations,
+      conversationsLoading: conversationsQuery.isFetching,
+      messagesLoading: messagesQuery.isFetching,
+      isStreaming,
+      canSend,
+      draftText,
+      setDraftText,
+      draftThoughtIds,
+      draftReferences,
+      conversationThoughtIds,
+      conversationReferences,
+      thoughtSummaries,
+      panelMode,
+      setPanelMode,
+      selectedCategoryId,
+      setSelectedCategoryId,
+      selectedThoughtId,
+      setSelectedThoughtId,
+      panelSearchQuery,
+      setPanelSearchQuery,
+      selectConversation,
+      createConversation,
+      renameConversation,
+      deleteConversation,
+      addReference,
+      removeDraftReference,
+      clearDraftReferences,
+      sendMessage,
+      cancelStream,
+      confirmToolCall,
+    }),
+    [
+      activeConversationId,
+      chat,
+      chatMessages,
+      chatStatus,
+      chatError,
+      conversations,
+      conversationsQuery.isFetching,
+      messagesQuery.isFetching,
+      isStreaming,
+      canSend,
+      draftText,
+      draftThoughtIds,
+      draftReferences,
+      conversationThoughtIds,
+      conversationReferences,
+      thoughtSummaries,
+      panelMode,
+      selectedCategoryId,
+      selectedThoughtId,
+      panelSearchQuery,
+    ],
   );
 
-  const conversationReferences = computed(() =>
-    conversationThoughtIds.value
-      .map((id) => thoughtSummaries.value[id])
-      .filter((item): item is ThoughtSummaryDTO => !!item),
-  );
+  return <ChatPageContext.Provider value={value}>{children}</ChatPageContext.Provider>;
+}
 
-  const conversations = computed<ConversationDTO[]>(() => conversationsQuery.data.value ?? []);
-  const canSend = computed(
-    () => !!activeConversationId.value && !!draftText.value.trim() && !isStreaming.value,
-  );
-
-  return {
-    activeConversationId,
-    chat,
-    chatMessages,
-    chatStatus,
-    chatError,
-    conversations,
-    conversationsLoading: computed(() => conversationsQuery.isFetching.value),
-    messagesLoading: computed(() => messagesQuery.isFetching.value),
-    isStreaming,
-    canSend,
-    draftText,
-    draftThoughtIds,
-    draftReferences,
-    conversationThoughtIds,
-    conversationReferences,
-    thoughtSummaries,
-    panelMode,
-    selectedCategoryId,
-    selectedThoughtId,
-    panelSearchQuery,
-    selectConversation,
-    createConversation,
-    renameConversation,
-    deleteConversation,
-    addReference,
-    removeDraftReference,
-    clearDraftReferences,
-    sendMessage,
-    cancelStream,
-    confirmToolCall,
-  };
-});
-
-export { useChatPageProvide, useChatPageContext };
+export function useChatPageContext() {
+  const context = useContext(ChatPageContext);
+  if (!context) throw new Error("useChatPageContext must be used within ChatPageProvider");
+  return context;
+}

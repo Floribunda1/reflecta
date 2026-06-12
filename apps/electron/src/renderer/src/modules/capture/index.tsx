@@ -1,54 +1,66 @@
-import { defineComponent, onMounted, onUnmounted } from "vue";
+import { useEffect } from "react";
 import { CategoryTree } from "./category";
-import { useCapturePageProvide } from "./context";
+import { CapturePageProvider, useCapturePageContext } from "./context";
+import { CategoryProvider } from "./category/context";
 import { ThoughtDetail } from "./thought-detail";
 import { ThoughtList } from "./thought-list";
-import Splitter from "primevue/splitter";
-import SplitterPanel from "primevue/splitterpanel";
+import { ThoughtListProvider } from "./thought-list/context";
 import { searchEventBus, type SearchSelectPayload } from "@renderer/utils/searchEventBus";
 import { ipcClient } from "@renderer/utils/ipc";
 
-export const CapturePage = defineComponent({
-  name: "CapturePage",
-  setup() {
-    const { selectedThoughtId, selectedCategoryId } = useCapturePageProvide();
+function CapturePageInner() {
+  const capture = useCapturePageContext();
 
+  useEffect(() => {
     const handleThoughtSelected = async ({ thoughtId, categoryIds }: SearchSelectPayload) => {
-      selectedThoughtId.value = thoughtId;
+      capture.setSelectedThoughtId(thoughtId);
       let cats = categoryIds;
       if (cats === undefined) {
         const thought = await ipcClient.thought.getThoughtById(thoughtId);
         cats = thought?.categoryIds ?? [];
       }
-      selectedCategoryId.value = cats.length > 0 ? cats[0] : "all";
+      capture.setSelectedCategoryId(cats.length > 0 ? cats[0] : "all");
     };
 
-    onMounted(() => {
-      searchEventBus.on("thoughtSelected", handleThoughtSelected);
-    });
-    onUnmounted(() => searchEventBus.off("thoughtSelected", handleThoughtSelected));
+    searchEventBus.on("thoughtSelected", handleThoughtSelected);
+    return () => {
+      searchEventBus.off("thoughtSelected", handleThoughtSelected);
+    };
+  }, [capture]);
 
-    return () => (
-      <Splitter
-        layout="horizontal"
-        class="h-full w-full rounded-none! border-none! bg-surface-0"
-        gutterSize={1}
-      >
-        <SplitterPanel size={18} minSize={12}>
-          <CategoryTree />
-        </SplitterPanel>
-        <SplitterPanel size={82} minSize={40}>
-          {selectedThoughtId.value ? (
-            <ThoughtDetail
-              thoughtId={selectedThoughtId.value}
-              onClose={() => (selectedThoughtId.value = null)}
-              onDeleted={() => (selectedThoughtId.value = null)}
-            />
-          ) : (
-            <ThoughtList />
-          )}
-        </SplitterPanel>
-      </Splitter>
-    );
-  },
-});
+  return (
+    <div className="flex h-full w-full overflow-hidden bg-background text-foreground">
+      <CategoryTree />
+      <ThoughtList />
+      <main className="min-w-0 flex-1 overflow-hidden">
+        {capture.selectedThoughtId ? (
+          <ThoughtDetail
+            thoughtId={capture.selectedThoughtId}
+            onDeleted={() => capture.setSelectedThoughtId(null)}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center bg-background px-8">
+            <div className="max-w-sm text-center">
+              <div className="text-sm font-medium text-foreground">选择或写下一条理解</div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                当前领域的理解会在左侧索引中出现。新建后会立即创建一条空理解，并在这里直接编辑。
+              </p>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+export function CapturePage() {
+  return (
+    <CapturePageProvider>
+      <CategoryProvider>
+        <ThoughtListProvider>
+          <CapturePageInner />
+        </ThoughtListProvider>
+      </CategoryProvider>
+    </CapturePageProvider>
+  );
+}
