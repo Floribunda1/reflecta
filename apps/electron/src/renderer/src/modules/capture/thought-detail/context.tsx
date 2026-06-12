@@ -1,8 +1,8 @@
 import { ipcClient } from "@renderer/utils/ipc";
 import type { ContextDTO, CreateContextInput, UpdateContextInput } from "@shared/context";
 import type { ThoughtDTO, ThoughtSummaryDTO, ThoughtType } from "@shared/thought";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { cloneDeep } from "lodash-es";
+import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { cloneDeep, debounce } from "lodash-es";
 import { createContext, ReactNode, useContext, useMemo } from "react";
 
 type ThoughtDetailContextValue = {
@@ -21,6 +21,20 @@ type ThoughtDetailContextValue = {
 
 const ThoughtDetailContext = createContext<ThoughtDetailContextValue | null>(null);
 
+const invalidateRelatedThoughtDetails = debounce((queryClient: QueryClient) => {
+  queryClient.invalidateQueries({ queryKey: ["thought.getThoughtById"], exact: false });
+}, 800);
+
+function patchThoughtInList(
+  thoughtId: string,
+  patch: (item: ThoughtSummaryDTO) => ThoughtSummaryDTO,
+) {
+  return (old: ThoughtSummaryDTO[] | undefined) => {
+    if (!old) return old;
+    return old.map((item) => (item.id === thoughtId ? patch(item) : item));
+  };
+}
+
 export function ThoughtDetailProvider({
   thoughtId,
   children,
@@ -32,7 +46,6 @@ export function ThoughtDetailProvider({
   const {
     data: thought,
     isFetching: loading,
-    refetch,
   } = useQuery({
     queryKey: ["thought.getThoughtById", thoughtId],
     queryFn: () => ipcClient.thought.getThoughtById(thoughtId),
@@ -56,33 +69,23 @@ export function ThoughtDetailProvider({
       };
     });
 
-    const patchList = (old: ThoughtSummaryDTO[] | undefined) => {
-      if (!old) return old;
-      return old.map((item) =>
-        item.id === thoughtId
-          ? {
-              ...item,
-              type: input.type ?? result.type,
-              title: input.title !== undefined ? input.title : item.title,
-              body: input.body !== undefined ? result.body : item.body,
-              categoryIds: input.categoryIds ?? item.categoryIds,
-              contextCount: result.contexts.length,
-              connectionCount: result.connections.length,
-              connectionIds: result.connections.map((c) => c.id),
-              updatedAt: result.updatedAt,
-            }
-          : item,
-      );
-    };
-
     queryClient.setQueriesData<ThoughtSummaryDTO[]>(
       { queryKey: ["thought.listThoughts"], exact: false },
-      patchList,
+      patchThoughtInList(thoughtId, (item) => ({
+        ...item,
+        type: input.type ?? result.type,
+        title: input.title !== undefined ? input.title : item.title,
+        body: input.body !== undefined ? result.body : item.body,
+        categoryIds: input.categoryIds ?? item.categoryIds,
+        contextCount: result.contexts.length,
+        connectionCount: result.connections.length,
+        connectionIds: result.connections.map((c) => c.id),
+        updatedAt: result.updatedAt,
+      })),
     );
 
     if (input.body !== undefined) {
-      queryClient.invalidateQueries({ queryKey: ["thought.getThoughtById"], exact: false });
-      queryClient.invalidateQueries({ queryKey: ["thought.listThoughts"], exact: false });
+      invalidateRelatedThoughtDetails(queryClient);
     }
   };
 
@@ -93,25 +96,54 @@ export function ThoughtDetailProvider({
       sourceName: input.sourceName,
       content: input.content,
     });
-    queryClient.invalidateQueries({ queryKey: ["thought.getThoughtById", thoughtId] });
-    await refetch();
+
+    queryClient.setQueryData<ThoughtDTO>(["thought.getThoughtById", thoughtId], (old) => {
+      if (!old) return old;
+      return { ...old, contexts: [...old.contexts, created] };
+    });
+
+    queryClient.setQueriesData<ThoughtSummaryDTO[]>(
+      { queryKey: ["thought.listThoughts"], exact: false },
+      patchThoughtInList(thoughtId, (item) => ({
+        ...item,
+        contextCount: item.contextCount + 1,
+      })),
+    );
+
     return created;
   };
 
   const updateContext: ThoughtDetailContextValue["updateContext"] = async (id, input) => {
-    await ipcClient.context.updateContext(id, {
+    const updated = await ipcClient.context.updateContext(id, {
       sourceType: input.sourceType,
       sourceName: input.sourceName ?? undefined,
       content: input.content,
     });
-    queryClient.invalidateQueries({ queryKey: ["thought.getThoughtById", thoughtId] });
-    await refetch();
+
+    queryClient.setQueryData<ThoughtDTO>(["thought.getThoughtById", thoughtId], (old) => {
+      if (!old) return old;
+      return {
+        ...old,
+        contexts: old.contexts.map((ctx) => (ctx.id === id ? { ...ctx, ...updated } : ctx)),
+      };
+    });
   };
 
   const deleteContext = async (id: string) => {
     await ipcClient.context.deleteContext(id);
-    await refetch();
-    queryClient.invalidateQueries({ queryKey: ["thought.getThoughtById", thoughtId] });
+
+    queryClient.setQueryData<ThoughtDTO>(["thought.getThoughtById", thoughtId], (old) => {
+      if (!old) return old;
+      return { ...old, contexts: old.contexts.filter((ctx) => ctx.id !== id) };
+    });
+
+    queryClient.setQueriesData<ThoughtSummaryDTO[]>(
+      { queryKey: ["thought.listThoughts"], exact: false },
+      patchThoughtInList(thoughtId, (item) => ({
+        ...item,
+        contextCount: Math.max(0, item.contextCount - 1),
+      })),
+    );
   };
 
   const value = useMemo(

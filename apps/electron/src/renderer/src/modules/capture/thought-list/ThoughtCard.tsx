@@ -1,7 +1,7 @@
-import { useMemo } from "react";
 import type { ThoughtSummaryDTO } from "@shared/thought";
 import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/md-preview";
-import { useCapturePageContext } from "../context";
+import { useAtomValue, useSetAtom } from "jotai";
+import { selectedThoughtIdAtom } from "../state";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 
@@ -17,17 +17,14 @@ function getUnderstandingTitle(thought: ThoughtSummaryDTO): string {
 }
 
 export function ThoughtCard({ thought }: { thought: ThoughtSummaryDTO }) {
-  const capture = useCapturePageContext();
-  const isSelected = capture.selectedThoughtId === thought.id;
+  const selectedThoughtId = useAtomValue(selectedThoughtIdAtom);
+  const setSelectedThoughtId = useSetAtom(selectedThoughtIdAtom);
+  const isSelected = selectedThoughtId === thought.id;
 
-  const updatedLabel = useMemo(
-    () =>
-      formatDistanceToNow(thought.updatedAt, {
-        addSuffix: true,
-        locale: zhCN,
-      }),
-    [thought.updatedAt],
-  );
+  const updatedLabel = formatDistanceToNow(thought.updatedAt, {
+    addSuffix: true,
+    locale: zhCN,
+  });
 
   return (
     <button
@@ -38,7 +35,7 @@ export function ThoughtCard({ thought }: { thought: ThoughtSummaryDTO }) {
           ? "border-border/75 border-l-foreground/35 bg-muted/45"
           : "border-border/45 border-l-transparent bg-background/40 hover:border-border/70 hover:bg-muted/30",
       ].join(" ")}
-      onClick={() => capture.setSelectedThoughtId(thought.id)}
+      onClick={() => setSelectedThoughtId(thought.id)}
     >
       <div className="flex min-w-0 items-start gap-3">
         <span className="min-w-0 flex-1 truncate text-sm font-medium leading-5 text-foreground">

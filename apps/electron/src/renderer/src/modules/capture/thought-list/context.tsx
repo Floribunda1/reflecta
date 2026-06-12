@@ -1,8 +1,9 @@
 import { ipcClient } from "@renderer/utils/ipc";
 import type { ThoughtDTO, ThoughtSummaryDTO } from "@shared/thought";
 import { useQuery } from "@tanstack/react-query";
+import { useAtomValue, useSetAtom } from "jotai";
 import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from "react";
-import { useCapturePageContext } from "../context";
+import { selectedCategoryIdAtom, selectedThoughtIdAtom } from "../state";
 
 type ThoughtListContextValue = {
   displayedThoughts: ThoughtSummaryDTO[];
@@ -17,10 +18,11 @@ type ThoughtListContextValue = {
 const ThoughtListContext = createContext<ThoughtListContextValue | null>(null);
 
 export function ThoughtListProvider({ children }: { children: ReactNode }) {
-  const capture = useCapturePageContext();
+  const selectedCategoryId = useAtomValue(selectedCategoryIdAtom);
+  const setSelectedThoughtId = useSetAtom(selectedThoughtIdAtom);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const queryKey = ["thought.listThoughts", capture.selectedCategoryId, searchQuery] as const;
+  const queryKey = ["thought.listThoughts", selectedCategoryId, searchQuery] as const;
 
   const { data, isFetching, refetch } = useQuery({
     queryKey,
@@ -30,8 +32,8 @@ export function ThoughtListProvider({ children }: { children: ReactNode }) {
         includeDescendants?: boolean;
         searchQuery?: string;
       } = {};
-      if (capture.selectedCategoryId !== "all") {
-        filter.categoryIds = [capture.selectedCategoryId];
+      if (selectedCategoryId !== "all") {
+        filter.categoryIds = [selectedCategoryId];
         filter.includeDescendants = false;
       }
       if (searchQuery) filter.searchQuery = searchQuery;
@@ -39,11 +41,9 @@ export function ThoughtListProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const displayedThoughts = useMemo(() => {
-    return [...(data ?? [])].sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-    );
-  }, [data]);
+  const displayedThoughts = [...(data ?? [])].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+  );
 
   const refresh = useCallback(() => refetch(), [refetch]);
 
@@ -52,20 +52,20 @@ export function ThoughtListProvider({ children }: { children: ReactNode }) {
       type: "insight",
       title: "",
       body: "",
-      categoryIds: capture.selectedCategoryId !== "all" ? [capture.selectedCategoryId] : [],
+      categoryIds: selectedCategoryId !== "all" ? [selectedCategoryId] : [],
     });
     await refetch();
-    capture.setSelectedThoughtId(dto.id);
+    setSelectedThoughtId(dto.id);
     return dto;
-  }, [capture.selectedCategoryId, capture.setSelectedThoughtId, refetch]);
+  }, [selectedCategoryId, setSelectedThoughtId, refetch]);
 
   const deleteThought = useCallback(
     async (id: string) => {
       await ipcClient.thought.deleteThought(id);
       await refetch();
-      capture.setSelectedThoughtId(null);
+      setSelectedThoughtId(null);
     },
-    [capture.setSelectedThoughtId, refetch],
+    [setSelectedThoughtId, refetch],
   );
 
   const value = useMemo(

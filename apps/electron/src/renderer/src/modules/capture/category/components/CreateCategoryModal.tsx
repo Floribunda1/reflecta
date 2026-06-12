@@ -1,5 +1,12 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Input } from "@renderer/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@renderer/components/ui/select";
 import type { CategoryTreeNode } from "@shared/category";
 import { FooterButton } from "@renderer/modules/shared/components/footer-button";
 
@@ -30,12 +37,8 @@ export function CategoryModalContent({ data }: { data: CategoryModalData }) {
     isEditing ? (data.editCategory!.parentId ?? null) : (data.initialParentId ?? null),
   );
 
-  const options = useMemo(
-    () =>
-      flattenCategories(data.categories).filter(
-        (category) => category.id !== data.editCategory?.id,
-      ),
-    [data.categories, data.editCategory?.id],
+  const options = flattenCategories(data.categories).filter(
+    (category) => category.id !== data.editCategory?.id,
   );
 
   const submit = async () => {
@@ -60,21 +63,23 @@ export function CategoryModalContent({ data }: { data: CategoryModalData }) {
 
       <div className="flex flex-col gap-1">
         <label className="text-sm font-medium text-foreground">父领域</label>
-        <select
+        <Select
           value={parentId ?? NONE_KEY}
-          onChange={(event) =>
-            setParentId(event.target.value === NONE_KEY ? null : event.target.value)
-          }
-          className="h-10 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+          onValueChange={(value) => setParentId(value === NONE_KEY ? null : value)}
         >
-          <option value={NONE_KEY}>无父领域</option>
-          {options.map((category) => (
-            <option key={category.id} value={category.id}>
-              {"  ".repeat(category.level)}
-              {category.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="选择父领域" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NONE_KEY}>无父领域</SelectItem>
+            {options.map((category) => (
+              <SelectItem key={category.id} value={category.id}>
+                {"  ".repeat(category.level)}
+                {category.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <FooterButton

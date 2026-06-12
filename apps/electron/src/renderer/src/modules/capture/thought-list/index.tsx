@@ -1,7 +1,8 @@
 import { FileText, Plus } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
+import { useAtomValue, useSetAtom } from "jotai";
 import { useCategoryData } from "@renderer/modules/shared/hooks/use-category";
-import { useCapturePageContext } from "../context";
+import { selectedCategoryIdAtom, selectedThoughtIdAtom } from "../state";
 import { useThoughtListContext } from "./context";
 import { ThoughtCard } from "./ThoughtCard";
 import { Button } from "@renderer/components/ui/button";
@@ -9,23 +10,29 @@ import { Input } from "@renderer/components/ui/input";
 
 export function ThoughtList() {
   const thoughtList = useThoughtListContext();
-  const capture = useCapturePageContext();
+  const selectedCategoryId = useAtomValue(selectedCategoryIdAtom);
+  const selectedThoughtId = useAtomValue(selectedThoughtIdAtom);
+  const setSelectedThoughtId = useSetAtom(selectedThoughtIdAtom);
   const { categoryList } = useCategoryData();
 
-  const categoryLabel = useMemo(() => {
-    if (capture.selectedCategoryId === "all") return "全部领域";
-    const cat = categoryList.find((c) => c.id === capture.selectedCategoryId);
-    return cat?.name ?? "";
-  }, [capture.selectedCategoryId, categoryList]);
+  const categoryLabel =
+    selectedCategoryId === "all"
+      ? "全部领域"
+      : (categoryList.find((c) => c.id === selectedCategoryId)?.name ?? "");
 
   useEffect(() => {
     if (thoughtList.loading) return;
     const selectedIsVisible = thoughtList.displayedThoughts.some(
-      (thought) => thought.id === capture.selectedThoughtId,
+      (thought) => thought.id === selectedThoughtId,
     );
     if (selectedIsVisible) return;
-    capture.setSelectedThoughtId(thoughtList.displayedThoughts[0]?.id ?? null);
-  }, [thoughtList.loading, thoughtList.displayedThoughts, capture.selectedThoughtId]);
+    setSelectedThoughtId(thoughtList.displayedThoughts[0]?.id ?? null);
+  }, [
+    thoughtList.loading,
+    thoughtList.displayedThoughts,
+    selectedThoughtId,
+    setSelectedThoughtId,
+  ]);
 
   return (
     <section className="flex h-full w-[340px] shrink-0 flex-col border-r border-border/60 bg-background">

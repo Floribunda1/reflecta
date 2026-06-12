@@ -1,7 +1,13 @@
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import { Input } from "@renderer/components/ui/input";
-import { NativeSelect, NativeSelectOption } from "@renderer/components/ui/native-select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@renderer/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@renderer/components/ui/sheet";
 import { Textarea } from "@renderer/components/ui/textarea";
 import { CategoryTreeSelect } from "@renderer/modules/shared/biz-components/CategoryTreeSelect";
@@ -13,9 +19,10 @@ import type { ThoughtSummaryDTO } from "@shared/thought";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { ArrowLeft, ArrowRight, ExternalLink, Plus, Trash2 } from "lucide-react";
-import { debounce } from "lodash-es";
-import { useEffect, useMemo, useState } from "react";
-import { useCapturePageContext } from "../context";
+import { useDebounceFn } from "ahooks";
+import { useEffect, useState } from "react";
+import { useSetAtom } from "jotai";
+import { selectedCategoryIdAtom, selectedThoughtIdAtom } from "../state";
 import { ThoughtDetailProvider, useThoughtDetailContext } from "./context";
 import { SOURCE_META, SOURCE_TYPES } from "./context/types";
 
@@ -180,15 +187,14 @@ function SourceDetailOverlay({
     setContent(source.content);
   }, [source?.id, source?.sourceType, source?.sourceName, source?.content]);
 
-  const debouncedUpdate = useMemo(
-    () =>
-      debounce((id: string, input: SourceUpdateInput) => {
-        onUpdate(id, input);
-      }, 350),
-    [onUpdate],
+  const { run: debouncedUpdate, cancel: cancelDebouncedUpdate } = useDebounceFn(
+    (id: string, input: SourceUpdateInput) => {
+      onUpdate(id, input);
+    },
+    { wait: 350 },
   );
 
-  useEffect(() => () => debouncedUpdate.cancel(), [debouncedUpdate]);
+  useEffect(() => () => cancelDebouncedUpdate(), [cancelDebouncedUpdate]);
 
   if (!source) return null;
 
@@ -198,21 +204,25 @@ function SourceDetailOverlay({
         <SheetHeader className="border-b border-border/50 px-5 py-4">
           <SheetTitle className="text-sm font-medium text-muted-foreground">来源详情</SheetTitle>
           <div className="flex min-w-0 items-center gap-2 pt-2">
-            <NativeSelect
-              size="sm"
+            <Select
               value={sourceType}
-              onChange={(event) => {
-                const next = event.target.value as SourceType;
+              onValueChange={(value) => {
+                const next = value as SourceType;
                 setSourceType(next);
                 onUpdate(source.id, { sourceType: next });
               }}
             >
-              {SOURCE_TYPES.map((type) => (
-                <NativeSelectOption key={type} value={type}>
-                  {sourceLabel(type)}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+              <SelectTrigger size="sm" className="w-fit">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SOURCE_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {sourceLabel(type)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Input
               value={sourceName}
               onChange={(event) => {
@@ -244,7 +254,8 @@ function SourceDetailOverlay({
 }
 
 function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
-  const capture = useCapturePageContext();
+  const setSelectedThoughtId = useSetAtom(selectedThoughtIdAtom);
+  const setSelectedCategoryId = useSetAtom(selectedCategoryIdAtom);
   const { thought, updateThought, createContext, updateContext, deleteContext } =
     useThoughtDetailContext();
   const { confirm } = useModal();
@@ -255,28 +266,26 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
   useEffect(() => setTitle(thought?.title ?? ""), [thought?.id, thought?.title]);
   useEffect(() => setBody(thought?.body ?? ""), [thought?.id, thought?.body]);
 
-  const debouncedTitleUpdate = useMemo(
-    () =>
-      debounce((value: string) => {
-        void updateThought({ title: value || null });
-      }, 350),
-    [updateThought],
+  const { run: debouncedTitleUpdate, cancel: cancelTitleUpdate } = useDebounceFn(
+    (value: string) => {
+      void updateThought({ title: value || null });
+    },
+    { wait: 350 },
   );
 
-  const debouncedBodyUpdate = useMemo(
-    () =>
-      debounce((value: string) => {
-        void updateThought({ body: value });
-      }, 350),
-    [updateThought],
+  const { run: debouncedBodyUpdate, cancel: cancelBodyUpdate } = useDebounceFn(
+    (value: string) => {
+      void updateThought({ body: value });
+    },
+    { wait: 350 },
   );
 
   useEffect(
     () => () => {
-      debouncedTitleUpdate.cancel();
-      debouncedBodyUpdate.cancel();
+      cancelTitleUpdate();
+      cancelBodyUpdate();
     },
-    [debouncedTitleUpdate, debouncedBodyUpdate],
+    [cancelTitleUpdate, cancelBodyUpdate],
   );
 
   if (!thought) {
@@ -436,8 +445,8 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
                     thought={item}
                     direction="outgoing"
                     onSelect={() => {
-                      capture.setSelectedThoughtId(item.id);
-                      capture.setSelectedCategoryId(item.categoryIds[0] ?? "all");
+                      setSelectedThoughtId(item.id);
+                      setSelectedCategoryId(item.categoryIds[0] ?? "all");
                     }}
                   />
                 ))}
@@ -447,8 +456,8 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
                     thought={item}
                     direction="incoming"
                     onSelect={() => {
-                      capture.setSelectedThoughtId(item.id);
-                      capture.setSelectedCategoryId(item.categoryIds[0] ?? "all");
+                      setSelectedThoughtId(item.id);
+                      setSelectedCategoryId(item.categoryIds[0] ?? "all");
                     }}
                   />
                 ))}

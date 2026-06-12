@@ -1,9 +1,29 @@
-import { MouseEvent, useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { Button } from "@renderer/components/ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@renderer/components/ui/context-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@renderer/components/ui/dropdown-menu";
 import { BookOpen, ChevronDown, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
 import type { CategoryTreeNode } from "@shared/category";
 import { useCategoryContext } from "../context";
-import { useCapturePageContext } from "../../context";
+import {
+  expandedCategoryKeysAtom,
+  selectCategoryAtom,
+  selectedCategoryIdAtom,
+  selectedThoughtIdAtom,
+} from "../../state";
 import { useModal } from "@renderer/modules/shared/hooks/use-modal";
 import { CategoryModalContent } from "./CreateCategoryModal";
 
@@ -20,20 +40,49 @@ function getAncestorKeys(nodes: CategoryTreeNode[], targetKey: string): string[]
   return null;
 }
 
+type CategoryNodeActions = {
+  onCreateChild: (node: CategoryTreeNode) => void;
+  onEdit: (node: CategoryTreeNode) => void;
+  onDelete: (node: CategoryTreeNode) => void;
+};
+
+function CategoryMenuItems({
+  node,
+  actions,
+  Item,
+  Separator,
+}: {
+  node: CategoryTreeNode;
+  actions: CategoryNodeActions;
+  Item: typeof ContextMenuItem | typeof DropdownMenuItem;
+  Separator: typeof ContextMenuSeparator | typeof DropdownMenuSeparator;
+}) {
+  return (
+    <>
+      <Item onSelect={() => actions.onCreateChild(node)}>新建子领域</Item>
+      <Item onSelect={() => actions.onEdit(node)}>编辑领域</Item>
+      <Separator />
+      <Item variant="destructive" onSelect={() => actions.onDelete(node)}>
+        删除
+      </Item>
+    </>
+  );
+}
+
 function CategoryNode({
   node,
   selectedId,
   expandedKeys,
   onToggle,
   onSelect,
-  onMenu,
+  actions,
 }: {
   node: CategoryTreeNode;
   selectedId: string;
   expandedKeys: Record<string, boolean>;
   onToggle: (id: string) => void;
   onSelect: (id: string) => void;
-  onMenu: (event: Pick<MouseEvent, "clientX" | "clientY">, node: CategoryTreeNode) => void;
+  actions: CategoryNodeActions;
 }) {
   const expanded = !!expandedKeys[node.id];
   const selected = selectedId === node.id;
@@ -58,27 +107,46 @@ function CategoryNode({
         >
           {hasChildren ? expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : null}
         </Button>
-        <button
-          type="button"
-          className="min-w-0 flex-1 truncate text-left"
-          onClick={() => onSelect(node.id)}
-          onContextMenu={(event) => {
-            event.preventDefault();
-            onMenu(event, node);
-          }}
-        >
-          {node.name}
-        </button>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          className="invisible shrink-0 group-hover:visible"
-          onClick={(event) => onMenu(event, node)}
-          aria-label="分类操作"
-        >
-          <MoreHorizontal size={15} />
-        </Button>
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <button
+              type="button"
+              className="min-w-0 flex-1 truncate text-left"
+              onClick={() => onSelect(node.id)}
+            >
+              {node.name}
+            </button>
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <CategoryMenuItems
+              node={node}
+              actions={actions}
+              Item={ContextMenuItem}
+              Separator={ContextMenuSeparator}
+            />
+          </ContextMenuContent>
+        </ContextMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              className="invisible shrink-0 group-hover:visible"
+              aria-label="分类操作"
+            >
+              <MoreHorizontal size={15} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <CategoryMenuItems
+              node={node}
+              actions={actions}
+              Item={DropdownMenuItem}
+              Separator={DropdownMenuSeparator}
+            />
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       {hasChildren && expanded && (
         <div className="ml-4 flex flex-col gap-0.5 border-l border-border pl-1.5">
@@ -90,7 +158,7 @@ function CategoryNode({
               expandedKeys={expandedKeys}
               onToggle={onToggle}
               onSelect={onSelect}
-              onMenu={onMenu}
+              actions={actions}
             />
           ))}
         </div>
@@ -101,33 +169,33 @@ function CategoryNode({
 
 export function CategoryTree() {
   const { categories, createCategory, updateCategory, deleteCategory } = useCategoryContext();
-  const capture = useCapturePageContext();
+  const selectedCategoryId = useAtomValue(selectedCategoryIdAtom);
+  const selectCategory = useSetAtom(selectCategoryAtom);
+  const setSelectedCategoryId = useSetAtom(selectedCategoryIdAtom);
+  const setSelectedThoughtId = useSetAtom(selectedThoughtIdAtom);
+  const [expandedCategoryKeys, setExpandedCategoryKeys] = useAtom(expandedCategoryKeysAtom);
   const { openModal, closeModal, confirm } = useModal();
-  const [menuState, setMenuState] = useState<{
-    x: number;
-    y: number;
-    node: CategoryTreeNode;
-  } | null>(null);
 
   useEffect(() => {
-    if (!capture.selectedCategoryId || capture.selectedCategoryId === "all") return;
-    const ancestors = getAncestorKeys(categories, capture.selectedCategoryId);
+    if (!selectedCategoryId || selectedCategoryId === "all") return;
+    const ancestors = getAncestorKeys(categories, selectedCategoryId);
     if (!ancestors) return;
-    capture.setExpandedCategoryKeys({
-      ...capture.expandedCategoryKeys,
+    setExpandedCategoryKeys((prev) => ({
+      ...prev,
       ...Object.fromEntries(ancestors.map((key) => [key, true])),
-    });
-  }, [categories, capture.selectedCategoryId]);
+    }));
+  }, [categories, selectedCategoryId, setExpandedCategoryKeys]);
 
   useEffect(() => {
     const validKeys = new Set(getAllKeys(categories));
-    const next = Object.fromEntries(
-      Object.entries(capture.expandedCategoryKeys).filter(([key]) => validKeys.has(key)),
-    );
-    if (Object.keys(next).length !== Object.keys(capture.expandedCategoryKeys).length) {
-      capture.setExpandedCategoryKeys(next);
-    }
-  }, [categories]);
+    setExpandedCategoryKeys((prev) => {
+      const next = Object.fromEntries(
+        Object.entries(prev).filter(([key]) => validKeys.has(key)),
+      );
+      if (Object.keys(next).length === Object.keys(prev).length) return prev;
+      return next;
+    });
+  }, [categories, setExpandedCategoryKeys]);
 
   const openCreateModal = (initialParentId?: string | null) => {
     openModal(
@@ -158,82 +226,38 @@ export function CategoryTree() {
   };
 
   const onSelect = (id: string) => {
-    capture.setSelectedCategoryId(id);
-    capture.setSelectedThoughtId(null);
+    selectCategory(id);
   };
 
   const onToggle = (id: string) => {
-    capture.setExpandedCategoryKeys({
-      ...capture.expandedCategoryKeys,
-      [id]: !capture.expandedCategoryKeys[id],
+    setExpandedCategoryKeys((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const handleDelete = (node: CategoryTreeNode) => {
+    const deletedCategoryIds = new Set([node.id, ...getAllKeys(node.children)]);
+    confirm({
+      title: "删除领域",
+      message: `确定要删除领域 "${node.name}" 吗？此操作不可撤销。`,
+      acceptLabel: "删除",
+      danger: true,
+      onAccept: async () => {
+        await deleteCategory(node.id);
+        if (deletedCategoryIds.has(selectedCategoryId)) {
+          setSelectedCategoryId("all");
+          setSelectedThoughtId(null);
+        }
+      },
     });
   };
 
-  const onMenu = (event: Pick<MouseEvent, "clientX" | "clientY">, node: CategoryTreeNode) => {
-    setMenuState({ x: event.clientX, y: event.clientY, node });
+  const actions: CategoryNodeActions = {
+    onCreateChild: (node) => openCreateModal(node.id),
+    onEdit: openEditModal,
+    onDelete: handleDelete,
   };
-
-  const menu = useMemo(() => {
-    if (!menuState) return null;
-    const node = menuState.node;
-    const deletedCategoryIds = new Set([node.id, ...getAllKeys(node.children)]);
-    return (
-      <div
-        className="fixed z-50 min-w-36 rounded-lg border border-border bg-popover p-1 text-sm shadow-xl"
-        style={{ left: menuState.x, top: menuState.y }}
-      >
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="w-full justify-start"
-          onClick={() => {
-            setMenuState(null);
-            openCreateModal(node.id);
-          }}
-        >
-          新建子领域
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="w-full justify-start"
-          onClick={() => {
-            setMenuState(null);
-            openEditModal(node);
-          }}
-        >
-          编辑领域
-        </Button>
-        <div className="my-1 h-px bg-muted" />
-        <Button
-          type="button"
-          size="sm"
-          variant="destructive"
-          className="w-full justify-start"
-          onClick={() => {
-            setMenuState(null);
-            confirm({
-              title: "删除领域",
-              message: `确定要删除领域 "${node.name}" 吗？此操作不可撤销。`,
-              acceptLabel: "删除",
-              danger: true,
-              onAccept: async () => {
-                await deleteCategory(node.id);
-                if (deletedCategoryIds.has(capture.selectedCategoryId)) {
-                  capture.setSelectedCategoryId("all");
-                  capture.setSelectedThoughtId(null);
-                }
-              },
-            });
-          }}
-        >
-          删除
-        </Button>
-      </div>
-    );
-  }, [menuState, categories]);
 
   return (
     <aside className="flex h-full w-[220px] shrink-0 flex-col gap-0 border-r border-border/60 bg-sidebar px-3">
@@ -258,7 +282,7 @@ export function CategoryTree() {
             variant="ghost"
             className={[
               "w-full justify-start rounded-md text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
-              capture.selectedCategoryId === "all"
+              selectedCategoryId === "all"
                 ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
                 : "",
             ].join(" ")}
@@ -272,16 +296,15 @@ export function CategoryTree() {
             <CategoryNode
               key={node.id}
               node={node}
-              selectedId={capture.selectedCategoryId}
-              expandedKeys={capture.expandedCategoryKeys}
+              selectedId={selectedCategoryId}
+              expandedKeys={expandedCategoryKeys}
               onToggle={onToggle}
               onSelect={onSelect}
-              onMenu={onMenu}
+              actions={actions}
             />
           ))}
         </div>
       </div>
-      {menu}
     </aside>
   );
 }

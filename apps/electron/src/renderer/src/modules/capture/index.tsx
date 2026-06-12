@@ -1,42 +1,45 @@
 import { useEffect } from "react";
+import { useAtomValue, useSetAtom } from "jotai";
 import { CategoryTree } from "./category";
-import { CapturePageProvider, useCapturePageContext } from "./context";
 import { CategoryProvider } from "./category/context";
 import { ThoughtDetail } from "./thought-detail";
 import { ThoughtList } from "./thought-list";
 import { ThoughtListProvider } from "./thought-list/context";
+import { selectedCategoryIdAtom, selectedThoughtIdAtom } from "./state";
 import { searchEventBus, type SearchSelectPayload } from "@renderer/utils/searchEventBus";
 import { ipcClient } from "@renderer/utils/ipc";
 
 function CapturePageInner() {
-  const capture = useCapturePageContext();
+  const selectedThoughtId = useAtomValue(selectedThoughtIdAtom);
+  const setSelectedThoughtId = useSetAtom(selectedThoughtIdAtom);
+  const setSelectedCategoryId = useSetAtom(selectedCategoryIdAtom);
 
   useEffect(() => {
     const handleThoughtSelected = async ({ thoughtId, categoryIds }: SearchSelectPayload) => {
-      capture.setSelectedThoughtId(thoughtId);
+      setSelectedThoughtId(thoughtId);
       let cats = categoryIds;
       if (cats === undefined) {
         const thought = await ipcClient.thought.getThoughtById(thoughtId);
         cats = thought?.categoryIds ?? [];
       }
-      capture.setSelectedCategoryId(cats.length > 0 ? cats[0] : "all");
+      setSelectedCategoryId(cats.length > 0 ? cats[0] : "all");
     };
 
     searchEventBus.on("thoughtSelected", handleThoughtSelected);
     return () => {
       searchEventBus.off("thoughtSelected", handleThoughtSelected);
     };
-  }, [capture]);
+  }, [setSelectedThoughtId, setSelectedCategoryId]);
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-background text-foreground">
       <CategoryTree />
       <ThoughtList />
       <main className="min-w-0 flex-1 overflow-hidden">
-        {capture.selectedThoughtId ? (
+        {selectedThoughtId ? (
           <ThoughtDetail
-            thoughtId={capture.selectedThoughtId}
-            onDeleted={() => capture.setSelectedThoughtId(null)}
+            thoughtId={selectedThoughtId}
+            onDeleted={() => setSelectedThoughtId(null)}
           />
         ) : (
           <div className="flex h-full items-center justify-center bg-background px-8">
@@ -55,12 +58,10 @@ function CapturePageInner() {
 
 export function CapturePage() {
   return (
-    <CapturePageProvider>
-      <CategoryProvider>
-        <ThoughtListProvider>
-          <CapturePageInner />
-        </ThoughtListProvider>
-      </CategoryProvider>
-    </CapturePageProvider>
+    <CategoryProvider>
+      <ThoughtListProvider>
+        <CapturePageInner />
+      </ThoughtListProvider>
+    </CategoryProvider>
   );
 }
