@@ -1,12 +1,12 @@
 {
   "$schema": "https://ui.shadcn.com/schema.json",
-  "style": "radix-vega",
+  "style": "base-vega",
   "rsc": false,
   "tsx": true,
   "tailwind": {
     "config": "",
     "css": "src/renderer/src/style.css",
-    "baseColor": "olive",
+    "baseColor": "mist",
     "cssVariables": true,
     "prefix": ""
   },
