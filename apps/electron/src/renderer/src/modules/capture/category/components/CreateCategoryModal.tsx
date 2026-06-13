@@ -27,9 +27,9 @@ export function CategoryModalContent({ data }: { data: CategoryModalData }) {
   };
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium text-foreground">名称</label>
+    <div className="space-y-4">
+      <div className="grid gap-2">
+        <label className="text-sm font-medium">名称</label>
         <Input
           value={name}
           onChange={(event) => setName(event.target.value)}
@@ -39,8 +39,8 @@ export function CategoryModalContent({ data }: { data: CategoryModalData }) {
         />
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium text-foreground">父领域</label>
+      <div className="grid gap-2">
+        <label className="text-sm font-medium">父领域</label>
         <CategoryTreeSelect
           mode="single"
           value={parentId}

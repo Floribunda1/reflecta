@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { Button } from "@renderer/components/ui/button";
+import { ScrollArea } from "@renderer/components/ui/scroll-area";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -8,15 +9,9 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@renderer/components/ui/context-menu";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@renderer/components/ui/dropdown-menu";
-import { BookOpen, ChevronDown, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import type { CategoryTreeNode } from "@shared/category";
+import { cn } from "@renderer/lib/utils";
 import { useCategoryContext } from "../context";
 import {
   expandedCategoryKeysAtom,
@@ -54,8 +49,8 @@ function CategoryMenuItems({
 }: {
   node: CategoryTreeNode;
   actions: CategoryNodeActions;
-  Item: typeof ContextMenuItem | typeof DropdownMenuItem;
-  Separator: typeof ContextMenuSeparator | typeof DropdownMenuSeparator;
+  Item: typeof ContextMenuItem;
+  Separator: typeof ContextMenuSeparator;
 }) {
   return (
     <>
@@ -71,94 +66,76 @@ function CategoryMenuItems({
 
 function CategoryNode({
   node,
-  selectedId,
+  level = 0,
+  selectedCategoryId,
   expandedKeys,
   onToggle,
   onSelect,
   actions,
 }: {
   node: CategoryTreeNode;
-  selectedId: string;
+  level?: number;
+  selectedCategoryId: string;
   expandedKeys: Record<string, boolean>;
   onToggle: (id: string) => void;
   onSelect: (id: string) => void;
   actions: CategoryNodeActions;
 }) {
   const expanded = !!expandedKeys[node.id];
-  const selected = selectedId === node.id;
   const hasChildren = node.children.length > 0;
+  const selected = selectedCategoryId === node.id;
 
   return (
-    <div className="flex flex-col gap-0.5">
-      <div
-        className={[
-          "group flex min-h-8 items-center gap-1 rounded-md px-1.5 text-sm transition-colors",
-          selected
-            ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
-        ].join(" ")}
-      >
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          onClick={() => hasChildren && onToggle(node.id)}
-          aria-label={expanded ? "折叠分类" : "展开分类"}
-        >
-          {hasChildren ? expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : null}
-        </Button>
-        <ContextMenu>
-          <ContextMenuTrigger
-            render={
-              <button
-                type="button"
-                className="min-w-0 flex-1 truncate text-left"
-                onClick={() => onSelect(node.id)}
-              >
-                {node.name}
-              </button>
-            }
+    <div>
+      <ContextMenu>
+        <ContextMenuTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "h-9 w-full min-w-0 justify-start gap-2 rounded-lg px-2 text-left font-normal text-foreground/85 hover:bg-accent/70 hover:text-accent-foreground",
+                selected &&
+                  "bg-card/90 text-foreground shadow-sm ring-1 ring-border/80 hover:bg-card/90",
+              )}
+              style={{ paddingLeft: `calc(0.5rem + ${level} * 0.875rem)` }}
+              onClick={() => {
+                onSelect(node.id);
+                if (hasChildren) onToggle(node.id);
+              }}
+              aria-expanded={hasChildren ? expanded : undefined}
+            >
+              {hasChildren ? (
+                expanded ? (
+                  <ChevronDown size={14} className="shrink-0 text-muted-foreground" />
+                ) : (
+                  <ChevronRight size={14} className="shrink-0 text-muted-foreground" />
+                )
+              ) : (
+                <span className="size-3.5 shrink-0" />
+              )}
+              <span className="min-w-0 truncate">{node.name}</span>
+            </Button>
+          }
+        />
+        <ContextMenuContent>
+          <CategoryMenuItems
+            node={node}
+            actions={actions}
+            Item={ContextMenuItem}
+            Separator={ContextMenuSeparator}
           />
-          <ContextMenuContent>
-            <CategoryMenuItems
-              node={node}
-              actions={actions}
-              Item={ContextMenuItem}
-              Separator={ContextMenuSeparator}
-            />
-          </ContextMenuContent>
-        </ContextMenu>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                className="invisible shrink-0 group-hover:visible"
-                aria-label="分类操作"
-              >
-                <MoreHorizontal size={15} />
-              </Button>
-            }
-          />
-          <DropdownMenuContent align="end">
-            <CategoryMenuItems
-              node={node}
-              actions={actions}
-              Item={DropdownMenuItem}
-              Separator={DropdownMenuSeparator}
-            />
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+        </ContextMenuContent>
+      </ContextMenu>
       {hasChildren && expanded && (
-        <div className="ml-4 flex flex-col gap-0.5 border-l border-border pl-1.5">
+        <div>
           {node.children.map((child) => (
             <CategoryNode
               key={child.id}
               node={child}
-              selectedId={selectedId}
+              level={level + 1}
+              selectedCategoryId={selectedCategoryId}
               expandedKeys={expandedKeys}
               onToggle={onToggle}
               onSelect={onSelect}
@@ -209,7 +186,7 @@ export function CategoryTree() {
           onClose: closeModal,
         }}
       />,
-      { title: "新建领域", widthClassName: "max-w-[420px]" },
+      { title: "新建领域" },
     );
   };
 
@@ -223,7 +200,7 @@ export function CategoryTree() {
           onClose: closeModal,
         }}
       />,
-      { title: "编辑领域", widthClassName: "max-w-[420px]" },
+      { title: "编辑领域" },
     );
   };
 
@@ -262,13 +239,14 @@ export function CategoryTree() {
   };
 
   return (
-    <aside className="flex h-full w-[220px] shrink-0 flex-col gap-0 border-r border-border/60 bg-sidebar px-3">
-      <div className="flex shrink-0 items-center justify-between pb-2 pt-4 pl-2">
-        <span className="pl-0.5 text-sm font-medium text-sidebar-foreground/70">领域</span>
+    <aside className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-4 pt-10 pb-4">
+      <div className="flex h-9 items-center justify-between gap-2">
+        <span className="text-sm font-medium">领域</span>
         <Button
           type="button"
           size="icon-sm"
           variant="ghost"
+          className="size-8"
           aria-label="新建领域"
           onClick={() => openCreateModal()}
         >
@@ -276,37 +254,41 @@ export function CategoryTree() {
         </Button>
       </div>
 
-      <div className="capture-scroll flex-1 overflow-y-auto py-1">
-        <div className="flex flex-col gap-1">
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="space-y-1 pt-6">
           <Button
             type="button"
             size="sm"
             variant="ghost"
-            className={[
-              "w-full justify-start rounded-md text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
-              selectedCategoryId === "all"
-                ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-                : "",
-            ].join(" ")}
+            className={cn(
+              "h-9 w-full justify-start rounded-lg px-2 text-left font-normal text-foreground/85 hover:bg-accent/70 hover:text-accent-foreground",
+              selectedCategoryId === "all" &&
+                "bg-card/90 text-foreground shadow-sm ring-1 ring-border/80 hover:bg-card/90",
+            )}
             onClick={() => onSelect("all")}
           >
-            <BookOpen size={15} />
-            <span className="min-w-0 flex-1 truncate">全部领域</span>
+            <span>全部领域</span>
           </Button>
 
           {categories.map((node) => (
             <CategoryNode
               key={node.id}
               node={node}
-              selectedId={selectedCategoryId}
+              selectedCategoryId={selectedCategoryId}
               expandedKeys={expandedCategoryKeys}
               onToggle={onToggle}
               onSelect={onSelect}
               actions={actions}
             />
           ))}
+
+          {categories.length === 0 && (
+            <div className="px-2 py-3 text-xs leading-5 text-muted-foreground">
+              还没有领域。新建一个领域后，理解会在这里形成长期语境。
+            </div>
+          )}
         </div>
-      </div>
+      </ScrollArea>
     </aside>
   );
 }

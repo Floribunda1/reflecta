@@ -30,14 +30,20 @@ function getCSSVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
+function isDarkMode(): boolean {
+  return document.documentElement.classList.contains("dark");
+}
+
 export function resolveColors(): GraphColors {
+  const dark = isDarkMode();
+
   return {
-    ideaFill: "hsl(48 96% 89%)",
-    ideaStroke: "hsl(38 92% 50%)",
-    insightFill: "hsl(270 100% 92%)",
-    insightStroke: "hsl(262 72% 58%)",
+    ideaFill: dark ? "hsl(38 70% 22%)" : "hsl(48 96% 89%)",
+    ideaStroke: dark ? "hsl(38 92% 58%)" : "hsl(38 92% 50%)",
+    insightFill: dark ? "hsl(270 45% 24%)" : "hsl(270 100% 92%)",
+    insightStroke: dark ? "hsl(262 72% 68%)" : "hsl(262 72% 58%)",
     selStroke: getCSSVar("--primary"),
-    selHalo: "hsl(226 91% 92%)",
+    selHalo: dark ? "hsl(166 45% 18%)" : "hsl(226 91% 92%)",
     labelColor: getCSSVar("--muted-foreground"),
     activeLabelColor: getCSSVar("--foreground"),
     edgeStroke: getCSSVar("--muted-foreground"),

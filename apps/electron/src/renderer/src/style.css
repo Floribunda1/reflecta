@@ -79,10 +79,15 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
   }
   html {
     @apply font-sans;
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
   }
 }
 
@@ -108,6 +113,7 @@ html {
 
 body {
   height: 100vh;
+  background: transparent;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
@@ -120,6 +126,23 @@ select {
   font-feature-settings:
     "cv01" 1,
     "ss03" 1;
+}
+
+.app-window {
+  -webkit-app-region: drag;
+}
+
+.app-window button,
+.app-window input,
+.app-window textarea,
+.app-window select,
+.app-window a,
+.app-window [role="button"],
+.app-window [data-slot="scroll-area"],
+.app-window [data-slot="scroll-area-viewport"],
+.app-window [data-slot="scroll-area-scrollbar"],
+.app-window [data-no-drag] {
+  -webkit-app-region: no-drag;
 }
 
 code,
@@ -141,12 +164,12 @@ samp,
 }
 
 ::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, hsl(224 12% 42%), transparent 72%);
+  background: color-mix(in srgb, var(--muted-foreground), transparent 72%);
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, hsl(224 12% 42%), transparent 58%);
+  background: color-mix(in srgb, var(--muted-foreground), transparent 58%);
 }
 
 ::-webkit-scrollbar-corner {
@@ -157,6 +180,7 @@ samp,
   height: 100vh;
   display: flex;
   flex-direction: column;
+  background: transparent;
 }
 
 .medium-zoom-overlay {
@@ -174,27 +198,27 @@ samp,
 .contemplate-canvas .g6-toolbar,
 .contemplate-page .g6-toolbar {
   overflow: hidden;
-  border: 1px solid hsl(220 14% 91%);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: color-mix(in srgb, white, transparent 8%);
-  box-shadow: 0 14px 32px rgb(15 23 42 / 0.12);
+  background: color-mix(in srgb, var(--popover), transparent 8%);
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--foreground), transparent 88%);
   backdrop-filter: blur(10px);
 }
 
 .contemplate-canvas .g6-toolbar-item,
 .contemplate-page .g6-toolbar-item {
-  color: hsl(224 12% 42%);
+  color: var(--muted-foreground);
 }
 
 .contemplate-canvas .g6-toolbar-item:hover,
 .contemplate-page .g6-toolbar-item:hover {
-  background: hsl(220 14% 96%);
-  color: hsl(224 18% 16%);
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'Inter Variable', sans-serif;
+  --font-sans: "Inter Variable", sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

@@ -39,8 +39,8 @@
     "Inter Variable", "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI",
     system-ui, sans-serif;
   --crepe-font-code: "Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --crepe-shadow-1: 0 10px 30px rgb(15 23 42 / 0.12);
-  --crepe-shadow-2: 0 18px 50px rgb(15 23 42 / 0.18);
+  --crepe-shadow-1: 0 10px 30px color-mix(in srgb, var(--foreground), transparent 88%);
+  --crepe-shadow-2: 0 18px 50px color-mix(in srgb, var(--foreground), transparent 82%);
 
   height: 100%;
   width: 100%;
@@ -280,7 +280,7 @@
 .milkdown-editor .milkdown .milkdown-code-block .list-wrapper {
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--background), transparent 4%);
-  box-shadow: 0 10px 30px rgb(15 23 42 / 0.12);
+  box-shadow: var(--crepe-shadow-1);
   backdrop-filter: blur(10px);
 }
 
@@ -416,7 +416,7 @@
   border: 1px solid var(--border);
   background: var(--background);
   color: var(--muted-foreground);
-  box-shadow: 0 10px 30px rgb(15 23 42 / 0.12);
+  box-shadow: var(--crepe-shadow-1);
 }
 
 .milkdown-editor .milkdown .milkdown-table-block .line-handle {
@@ -512,8 +512,8 @@
   border-radius: 8px;
   background: var(--background);
   box-shadow:
-    0 16px 36px rgb(15 23 42 / 0.14),
-    0 2px 8px rgb(15 23 42 / 0.08);
+    var(--crepe-shadow-2),
+    0 2px 8px color-mix(in srgb, var(--foreground), transparent 92%);
   padding: 0.25rem;
 }
 

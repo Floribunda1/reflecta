@@ -1,8 +1,14 @@
 <!doctype html>
-<html>
+<html lang="zh-CN" suppressHydrationWarning>
   <head>
     <meta charset="UTF-8" />
     <title>Reflecta</title>
+    <script>
+      (() => {
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        if (prefersDark) document.documentElement.classList.add("dark");
+      })();
+    </script>
   </head>
 
   <body>

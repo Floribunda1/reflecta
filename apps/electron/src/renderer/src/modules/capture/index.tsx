@@ -1,9 +1,20 @@
 import { useEffect } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
+import { FileText } from "lucide-react";
+import { Button } from "@renderer/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@renderer/components/ui/empty";
 import { CategoryTree } from "./category";
 import { CategoryProvider } from "./category/context";
 import { ThoughtDetail } from "./thought-detail";
 import { ThoughtList } from "./thought-list";
+import { useThoughtListContext } from "./thought-list/context";
 import { ThoughtListProvider } from "./thought-list/context";
 import { selectedCategoryIdAtom, selectedThoughtIdAtom } from "./state";
 import { searchEventBus, type SearchSelectPayload } from "@renderer/utils/searchEventBus";
@@ -13,6 +24,7 @@ function CapturePageInner() {
   const selectedThoughtId = useAtomValue(selectedThoughtIdAtom);
   const setSelectedThoughtId = useSetAtom(selectedThoughtIdAtom);
   const setSelectedCategoryId = useSetAtom(selectedCategoryIdAtom);
+  const thoughtList = useThoughtListContext();
 
   useEffect(() => {
     const handleThoughtSelected = async ({ thoughtId, categoryIds }: SearchSelectPayload) => {
@@ -32,26 +44,34 @@ function CapturePageInner() {
   }, [setSelectedThoughtId, setSelectedCategoryId]);
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-background text-foreground">
+    <div className="grid h-full min-h-0 w-full grid-cols-[248px_minmax(0,1fr)] gap-4 overflow-hidden bg-background/45 backdrop-blur-2xl">
       <CategoryTree />
-      <ThoughtList />
-      <main className="min-w-0 flex-1 overflow-hidden">
-        {selectedThoughtId ? (
-          <ThoughtDetail
-            thoughtId={selectedThoughtId}
-            onDeleted={() => setSelectedThoughtId(null)}
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center bg-background px-8">
-            <div className="max-w-sm text-center">
-              <div className="text-sm font-medium text-foreground">选择或写下一条理解</div>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                当前领域的理解会在左侧索引中出现。新建后会立即创建一条空理解，并在这里直接编辑。
-              </p>
-            </div>
-          </div>
-        )}
-      </main>
+      <div className="grid h-full min-h-0 min-w-0 grid-cols-[minmax(280px,360px)_minmax(0,1fr)] overflow-hidden rounded-xl border bg-card/95 shadow-sm backdrop-blur-sm">
+        <ThoughtList />
+        <main className="min-h-0 min-w-0 overflow-hidden bg-background/95">
+          {selectedThoughtId ? (
+            <ThoughtDetail
+              thoughtId={selectedThoughtId}
+              onDeleted={() => setSelectedThoughtId(null)}
+            />
+          ) : (
+            <Empty className="h-full rounded-none border-0 bg-muted/30 px-6 py-5">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <FileText />
+                </EmptyMedia>
+                <EmptyTitle>选择或写下一条理解</EmptyTitle>
+                <EmptyDescription>新建后会立即创建一条空理解，并在这里直接编辑。</EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button type="button" onClick={() => void thoughtList.createEmptyUnderstanding()}>
+                  新建理解
+                </Button>
+              </EmptyContent>
+            </Empty>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

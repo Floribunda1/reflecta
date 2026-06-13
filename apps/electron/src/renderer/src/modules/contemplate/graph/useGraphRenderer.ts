@@ -24,6 +24,7 @@ export function useGraphRenderer(
   containerRef: RefObject<HTMLDivElement | null>,
   ctx: ContemplateCtx,
   thoughts: ThoughtSummaryDTO[] | undefined,
+  colorScheme?: string,
 ) {
   const graphRef = useRef<Graph | null>(null);
   const currentDataRef = useRef<G6Data>({ nodes: [], edges: [] });
@@ -254,7 +255,7 @@ export function useGraphRenderer(
       graphRef.current = null;
       window.removeEventListener("pointermove", onPointerMove);
     };
-  }, [containerRef]);
+  }, [containerRef, colorScheme]);
 
   useEffect(() => {
     if (!thoughts) return;

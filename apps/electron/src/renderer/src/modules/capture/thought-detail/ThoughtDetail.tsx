@@ -1,6 +1,7 @@
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import { Input } from "@renderer/components/ui/input";
+import { ScrollArea } from "@renderer/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -84,39 +85,32 @@ function SourcePreview({
   const Icon = meta.Icon;
 
   return (
-    <div className="group rounded-lg border border-border/40 bg-muted/20 px-3 py-2.5 transition-colors hover:border-border/70 hover:bg-muted/35">
-      <button type="button" className="w-full text-left" onClick={onOpen}>
-        <div className="flex min-w-0 items-center gap-2">
-          <Badge
-            variant="outline"
-            className="h-5 rounded-md border-border/50 px-1.5 text-[11px] font-normal text-muted-foreground"
-          >
+    <div className="flex flex-col gap-2 rounded-xl border bg-card p-3 text-sm shadow-none transition-colors hover:border-border hover:bg-accent/30">
+      <button
+        type="button"
+        className="min-w-0 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        onClick={onOpen}
+      >
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Badge variant="outline" className="gap-1">
             <Icon size={11} />
             {meta.label}
           </Badge>
-          <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground/90">
+          <span className="min-w-0 flex-1 truncate font-medium">
             {source.sourceName?.trim() || meta.label}
           </span>
-          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-            {source.content.length} 字
-          </span>
+          <span className="shrink-0 text-xs text-muted-foreground">{source.content.length} 字</span>
         </div>
-        <div className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
+        <div className="mt-2 text-muted-foreground">
           {source.content ? (
             <SimpleMarkdownPreview content={source.content} lineClamp={2} />
           ) : (
-            <span className="text-muted-foreground/55">空来源，可以直接补充内容。</span>
+            <span>空来源，可以直接补充内容。</span>
           )}
         </div>
       </button>
-      <div className="mt-2 hidden justify-end group-hover:flex">
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="h-7 px-2 text-xs"
-          onClick={onDelete}
-        >
+      <div className="flex items-center justify-end gap-1.5">
+        <Button type="button" size="sm" variant="ghost" onClick={onDelete}>
           <Trash2 size={13} />
           删除
         </Button>
@@ -140,24 +134,19 @@ function RelationItem({
   return (
     <button
       type="button"
-      className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-left transition-colors hover:border-border/70 hover:bg-muted/35"
+      className="flex w-full flex-col gap-2 rounded-xl border bg-card p-3 text-left text-sm shadow-none transition-colors hover:border-border hover:bg-accent/30 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
       onClick={onSelect}
     >
       <div className="flex min-w-0 items-center gap-2">
-        <Badge
-          variant="outline"
-          className="h-5 rounded-md px-1.5 text-[11px] font-normal text-muted-foreground"
-        >
+        <Badge variant="outline" className="gap-1">
           <Icon size={11} />
           {label}
         </Badge>
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground/90">
-          {titleForThought(thought)}
-        </span>
+        <span className="min-w-0 flex-1 truncate font-medium">{titleForThought(thought)}</span>
         <ExternalLink size={13} className="shrink-0 text-muted-foreground" />
       </div>
       {thought.body && (
-        <div className="mt-1.5 line-clamp-2 text-sm leading-6 text-muted-foreground">
+        <div className="text-muted-foreground">
           <SimpleMarkdownPreview content={thought.body} lineClamp={2} />
         </div>
       )}
@@ -200,10 +189,10 @@ function SourceDetailOverlay({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[min(720px,56vw)] max-w-none bg-card shadow-xl">
-        <SheetHeader className="border-b border-border/50 px-5 py-4">
-          <SheetTitle className="text-sm font-medium text-muted-foreground">来源详情</SheetTitle>
-          <div className="flex min-w-0 items-center gap-2 pt-2">
+      <SheetContent className="sm:max-w-xl">
+        <SheetHeader className="gap-3 border-b">
+          <SheetTitle>来源详情</SheetTitle>
+          <div className="grid grid-cols-[128px_minmax(0,1fr)] gap-2">
             <Select
               value={sourceType}
               onValueChange={(value) => {
@@ -212,7 +201,7 @@ function SourceDetailOverlay({
                 onUpdate(source.id, { sourceType: next });
               }}
             >
-              <SelectTrigger size="sm" className="w-fit">
+              <SelectTrigger size="sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -231,12 +220,11 @@ function SourceDetailOverlay({
                 debouncedUpdate(source.id, { sourceName: next });
               }}
               placeholder="来源名称或场景"
-              className="h-8 border-transparent bg-transparent px-0 text-lg font-semibold shadow-none focus-visible:border-transparent focus-visible:ring-0"
             />
           </div>
-          <div className="text-xs tabular-nums text-muted-foreground">{content.length} 字</div>
+          <div className="text-xs text-muted-foreground">{content.length} 字</div>
         </SheetHeader>
-        <div className="capture-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+        <div className="min-h-0 flex-1 px-4 pb-4">
           <Textarea
             value={content}
             onChange={(event) => {
@@ -244,8 +232,8 @@ function SourceDetailOverlay({
               setContent(next);
               debouncedUpdate(source.id, { content: next });
             }}
+            className="h-full min-h-[calc(100vh-11rem)] resize-none"
             placeholder="记录这条来源的具体内容"
-            className="min-h-[calc(100vh-160px)] resize-none border-transparent bg-transparent px-0 py-4 text-sm leading-7 shadow-none focus-visible:border-transparent focus-visible:ring-0"
           />
         </div>
       </SheetContent>
@@ -289,7 +277,7 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
   );
 
   if (!thought) {
-    return <div className="h-full bg-background" />;
+    return <div className="h-full" />;
   }
 
   const activeSource = thought.contexts.find((source) => source.id === activeSourceId) ?? null;
@@ -335,13 +323,13 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
   };
 
   return (
-    <div className="h-full overflow-hidden bg-background">
-      <div className="capture-scroll h-full overflow-y-auto">
-        <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 px-10 py-8">
-          <header className="flex flex-col gap-3 border-b border-border/45 pb-5">
-            <div className="flex min-w-0 items-center gap-3 text-xs text-muted-foreground">
+    <div className="h-full min-h-0 min-w-0">
+      <ScrollArea className="h-full">
+        <article className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-5">
+          <header className="space-y-4">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span>{updatedLabel}</span>
-              <span>·</span>
+              <span aria-hidden>·</span>
               <CategoryTreeSelect
                 modelValue={thought.categoryIds}
                 onUpdateModelValue={(categoryIds) => void updateThought({ categoryIds })}
@@ -354,7 +342,7 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
                 type="button"
                 size="sm"
                 variant="ghost"
-                className="ml-auto h-7 px-2 text-xs text-muted-foreground"
+                className="ml-auto text-destructive hover:bg-destructive/10 hover:text-destructive"
                 onClick={handleDeleteThought}
               >
                 <Trash2 size={13} />
@@ -368,12 +356,12 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
                 setTitle(next);
                 debouncedTitleUpdate(next);
               }}
+              className="h-auto border-0 px-0 py-0 text-2xl font-semibold shadow-none focus-visible:ring-0 md:text-2xl"
               placeholder="写下一个刚形成的理解"
-              className="h-auto border-transparent bg-transparent px-0 py-0 text-[1.625rem] font-semibold leading-tight tracking-normal text-foreground shadow-none placeholder:text-muted-foreground/55 focus-visible:border-transparent focus-visible:ring-0"
             />
           </header>
 
-          <section>
+          <section className="mt-5">
             <Textarea
               value={body}
               onChange={(event) => {
@@ -381,22 +369,20 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
                 setBody(next);
                 debouncedBodyUpdate(next);
               }}
+              className="min-h-[320px] resize-none border-0 px-0 py-0 text-base leading-7 shadow-none focus-visible:ring-0"
               placeholder="用自己的语言写下这条理解。通过 [[已有理解标题]] 连接相关理解。"
-              className="min-h-[300px] resize-none border-transparent bg-transparent px-0 py-0 text-[1.0625rem] leading-[1.85] text-foreground shadow-none placeholder:text-muted-foreground/55 focus-visible:border-transparent focus-visible:ring-0"
             />
           </section>
 
-          <section className="flex flex-col gap-2 pt-1">
-            <div className="flex items-center justify-between">
+          <section className="mt-8 flex flex-col gap-3">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-sm font-medium text-foreground">来源</div>
-                <div className="text-xs text-muted-foreground">这条理解从哪里长出来</div>
+                <div className="text-sm font-medium">来源</div>
               </div>
               <Button
                 type="button"
                 size="sm"
                 variant="ghost"
-                className="h-7 px-2 text-xs"
                 onClick={() => void handleAddSource()}
               >
                 <Plus size={14} />
@@ -404,7 +390,7 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
               </Button>
             </div>
             {thought.contexts.length > 0 ? (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-3">
                 {thought.contexts.map((source) => (
                   <SourcePreview
                     key={source.id}
@@ -417,7 +403,7 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
             ) : (
               <button
                 type="button"
-                className="rounded-lg border border-dashed border-border/60 bg-transparent px-3 py-6 text-sm text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground"
+                className="rounded-xl border border-dashed bg-muted/30 p-4 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/30 focus-visible:ring-3 focus-visible:ring-ring/50"
                 onClick={() => void handleAddSource()}
               >
                 添加来源
@@ -425,20 +411,19 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
             )}
           </section>
 
-          <section className="flex flex-col gap-2 pb-8">
+          <section className="mt-8 flex flex-col gap-3 pb-6">
             <div>
-              <div className="text-sm font-medium text-foreground">双链关系</div>
-              <div className="text-xs text-muted-foreground">关系只来自正文中的双链</div>
+              <div className="text-sm font-medium">双链关系</div>
             </div>
 
             {thought.connections.length === 0 &&
             thought.referencedBy.length === 0 &&
             unresolvedLinks.length === 0 ? (
-              <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
+              <div className="rounded-xl border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
                 暂时独立
               </div>
             ) : (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-3">
                 {thought.connections.map((item) => (
                   <RelationItem
                     key={`out-${item.id}`}
@@ -464,7 +449,7 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
                 {unresolvedLinks.map((link) => (
                   <div
                     key={link}
-                    className="rounded-lg border border-dashed border-border/60 bg-transparent px-3 py-2 text-sm text-muted-foreground"
+                    className="rounded-xl border bg-muted/30 p-3 text-sm text-muted-foreground"
                   >
                     未解析：[[{link}]]
                   </div>
@@ -472,8 +457,8 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
               </div>
             )}
           </section>
-        </div>
-      </div>
+        </article>
+      </ScrollArea>
 
       <SourceDetailOverlay
         source={activeSource}

@@ -113,7 +113,7 @@ export function CategoryTreeSelect({
       >
         <ComboboxTrigger
           className={cn(
-            "flex min-h-9 w-full items-center gap-2 rounded-lg border border-border bg-white px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted",
+            "flex min-h-9 w-full items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted",
             variant === "inline" && "border-none bg-transparent px-0 py-0 hover:bg-transparent",
           )}
         >

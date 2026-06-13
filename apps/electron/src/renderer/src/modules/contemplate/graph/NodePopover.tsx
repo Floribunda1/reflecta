@@ -33,7 +33,7 @@ export function NodePopover({ data, x, y }: { data: NodePopoverData; x: number; 
   return (
     <div
       ref={floatingRef}
-      className="pointer-events-none z-50 w-96 rounded-xl border border-border bg-white p-4 shadow-xl"
+      className="pointer-events-none z-50 w-96 rounded-xl border border-border bg-popover p-4 shadow-xl"
     >
       {data.title && <div className="mb-2 text-sm font-semibold text-foreground">{data.title}</div>}
       {data.body && <SimpleMarkdownPreview content={data.body} lineClamp={5} />}

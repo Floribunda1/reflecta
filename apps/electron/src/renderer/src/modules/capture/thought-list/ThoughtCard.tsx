@@ -1,9 +1,11 @@
 import type { ThoughtSummaryDTO } from "@shared/thought";
 import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/md-preview";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useSetAtom } from "jotai";
 import { selectedThoughtIdAtom } from "../state";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
+import { cn } from "@renderer/lib/utils";
+import { FileText, Link2 } from "lucide-react";
 
 function getUnderstandingTitle(thought: ThoughtSummaryDTO): string {
   const title = thought.title?.trim();
@@ -16,10 +18,14 @@ function getUnderstandingTitle(thought: ThoughtSummaryDTO): string {
   return firstLine || "未命名理解";
 }
 
-export function ThoughtCard({ thought }: { thought: ThoughtSummaryDTO }) {
-  const selectedThoughtId = useAtomValue(selectedThoughtIdAtom);
+export function ThoughtCard({
+  thought,
+  selected = false,
+}: {
+  thought: ThoughtSummaryDTO;
+  selected?: boolean;
+}) {
   const setSelectedThoughtId = useSetAtom(selectedThoughtIdAtom);
-  const isSelected = selectedThoughtId === thought.id;
 
   const updatedLabel = formatDistanceToNow(thought.updatedAt, {
     addSuffix: true,
@@ -29,35 +35,43 @@ export function ThoughtCard({ thought }: { thought: ThoughtSummaryDTO }) {
   return (
     <button
       type="button"
-      className={[
-        "w-full rounded-lg border border-l-2 px-3 py-2.5 text-left shadow-none transition-colors",
-        isSelected
-          ? "border-border/75 border-l-foreground/35 bg-muted/45"
-          : "border-border/45 border-l-transparent bg-background/40 hover:border-border/70 hover:bg-muted/30",
-      ].join(" ")}
+      aria-current={selected ? "true" : undefined}
+      className={cn(
+        "flex w-full flex-col gap-2 rounded-xl border bg-card p-3 text-left text-sm text-card-foreground shadow-none transition-colors outline-none hover:border-border hover:bg-accent/30 active:border-border active:bg-accent/20 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+        selected &&
+          "border-ring bg-card shadow-sm hover:border-ring hover:bg-card active:border-ring active:bg-card",
+      )}
       onClick={() => setSelectedThoughtId(thought.id)}
     >
-      <div className="flex min-w-0 items-start gap-3">
-        <span className="min-w-0 flex-1 truncate text-sm font-medium leading-5 text-foreground">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <span className="min-w-0 flex-1 truncate font-medium">
           {getUnderstandingTitle(thought)}
         </span>
-        <span className="shrink-0 pt-0.5 text-xs tabular-nums text-muted-foreground">
-          {updatedLabel}
-        </span>
+        <span className="shrink-0 text-xs text-muted-foreground">{updatedLabel}</span>
       </div>
 
-      <div className="mt-1.5 min-h-5 text-sm leading-6 text-muted-foreground line-clamp-2">
+      <div className="min-h-10 text-sm text-muted-foreground">
         {thought.body ? (
           <SimpleMarkdownPreview content={thought.body} lineClamp={2} />
         ) : (
-          <span className="text-muted-foreground/55">空理解，可以直接开始写。</span>
+          <span className="text-muted-foreground">空理解，可以直接开始写。</span>
         )}
       </div>
 
-      <div className="mt-2 flex min-w-0 items-center gap-3 text-xs text-muted-foreground">
-        <span>{thought.contextCount > 0 ? `${thought.contextCount} 个来源` : "无来源"}</span>
-        <span>
-          {thought.connectionCount > 0 ? `连接到 ${thought.connectionCount} 个理解` : "暂时独立"}
+      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+        <span
+          className="inline-flex items-center gap-1"
+          aria-label={`${thought.contextCount} 个来源`}
+        >
+          <FileText size={13} aria-hidden />
+          {thought.contextCount}
+        </span>
+        <span
+          className="inline-flex items-center gap-1"
+          aria-label={`${thought.connectionCount} 个双链关系`}
+        >
+          <Link2 size={13} aria-hidden />
+          {thought.connectionCount}
         </span>
       </div>
     </button>

@@ -1,5 +1,6 @@
 /** Graph canvas powered by AntV G6 with ForceAtlas2 layout. */
 import { useRef } from "react";
+import { useTheme } from "next-themes";
 import { GitBranch } from "lucide-react";
 import { useContemplatePageContext } from "../context";
 import { useThoughtsQuery } from "./useThoughtsQuery";
@@ -8,9 +9,15 @@ import { NodePopover } from "./NodePopover";
 
 export function GraphCanvas() {
   const ctx = useContemplatePageContext();
+  const { resolvedTheme } = useTheme();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { data: thoughts } = useThoughtsQuery(ctx.selectedCategoryIds, ctx.showAllDescendants);
-  const { hoveredNodeId, cursorPos, nodeDataCache } = useGraphRenderer(containerRef, ctx, thoughts);
+  const { hoveredNodeId, cursorPos, nodeDataCache } = useGraphRenderer(
+    containerRef,
+    ctx,
+    thoughts,
+    resolvedTheme,
+  );
   const hovered = hoveredNodeId ? nodeDataCache.get(hoveredNodeId) : null;
   const showPopover = !ctx.selectedThoughtId && !!(hovered && (hovered.title || hovered.body));
 

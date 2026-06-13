@@ -32,7 +32,7 @@ export function MarkdownEditor({ content = "", height = 400, onUpdate }: Markdow
           onUpdate?.(next);
         }}
         placeholder="请输入"
-        className="h-full w-full resize-none rounded-lg border border-border bg-white p-3 text-sm leading-6 text-foreground outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/20"
+        className="h-full w-full resize-none rounded-lg border border-border bg-background p-3 text-sm leading-6 text-foreground outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/20"
       />
     </div>
   );
