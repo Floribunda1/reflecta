@@ -1,47 +1,62 @@
 import { Badge } from "@renderer/components/ui/badge";
-import { useEffect, useMemo, useState } from "react";
-import { Checkbox } from "@renderer/components/ui/checkbox";
-import { ChevronDown, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+} from "@renderer/components/ui/combobox";
+import { X } from "lucide-react";
 import { useCategoryData } from "@renderer/modules/shared/hooks/use-category";
+import { cn } from "@renderer/lib/utils";
 import type { CategoryTreeNode } from "@shared/category";
-
-export interface TreeSelectNode {
-  key: string;
-  label: string;
-  pathLabel: string;
-  children?: TreeSelectNode[];
-}
+import {
+  convertToTreeNodes,
+  excludeTreeNodeKeys,
+  flattenTreeNodes,
+  type TreeSelectNode,
+} from "./category-tree-select-utils";
 
 type CategoryTreeSelectProps = {
+  mode?: "multiple" | "single";
   modelValue?: string[];
   onUpdateModelValue?: (value: string[]) => void;
   "onUpdate:modelValue"?: (value: string[]) => void;
+  value?: string | null;
+  onValueChange?: (value: string | null) => void;
+  categories?: CategoryTreeNode[];
+  excludeIds?: string[];
   placeholder?: string;
   fluid?: boolean;
   usePathLabel?: boolean;
   variant?: "default" | "inline";
 };
 
-function convertToTreeNodes(categories: CategoryTreeNode[], parentPath = ""): TreeSelectNode[] {
-  return categories.map((cat) => {
-    const pathLabel = parentPath ? `${parentPath} > ${cat.name}` : cat.name;
-    return {
-      key: cat.id,
-      label: cat.name,
-      pathLabel,
-      children: cat.children.length > 0 ? convertToTreeNodes(cat.children, pathLabel) : undefined,
-    };
-  });
-}
-
-function flatten(nodes: TreeSelectNode[]): TreeSelectNode[] {
-  return nodes.flatMap((node) => [node, ...(node.children ? flatten(node.children) : [])]);
+function CategoryTreeItems({ nodes, level = 0 }: { nodes: TreeSelectNode[]; level?: number }) {
+  return nodes.map((node) => (
+    <div key={node.key}>
+      <ComboboxItem
+        value={node.key}
+        className="rounded-md"
+        style={{ paddingLeft: `calc(0.5rem + ${level} * 1rem)` }}
+      >
+        <span className="min-w-0 flex-1 truncate">{node.label}</span>
+      </ComboboxItem>
+      {node.children.length > 0 && <CategoryTreeItems nodes={node.children} level={level + 1} />}
+    </div>
+  ));
 }
 
 export function CategoryTreeSelect({
+  mode = "multiple",
   modelValue = [],
   onUpdateModelValue,
   "onUpdate:modelValue": onUpdateModelValueCompat,
+  value,
+  onValueChange,
+  categories: categoriesProp,
+  excludeIds = [],
   placeholder = "选择 Category",
   fluid = true,
   usePathLabel = true,
@@ -49,91 +64,86 @@ export function CategoryTreeSelect({
 }: CategoryTreeSelectProps) {
   const { categories, loading } = useCategoryData();
   const [open, setOpen] = useState(false);
-  const treeOptions = useMemo(() => convertToTreeNodes(categories), [categories]);
-  const flatOptions = useMemo(() => flatten(treeOptions), [treeOptions]);
-  const selectedNodes = flatOptions.filter((node) => modelValue.includes(node.key));
+  const sourceCategories = categoriesProp ?? categories;
+  const treeOptions = useMemo(() => {
+    const nodes = convertToTreeNodes(sourceCategories);
+    return excludeTreeNodeKeys(nodes, new Set(excludeIds));
+  }, [excludeIds, sourceCategories]);
+  const flatOptions = useMemo(() => flattenTreeNodes(treeOptions), [treeOptions]);
+  const selectedKeys = mode === "single" ? (value ? [value] : []) : modelValue;
+  const selectedNodes = flatOptions.filter((node) => selectedKeys.includes(node.key));
   const emitChange = onUpdateModelValue ?? onUpdateModelValueCompat;
 
-  useEffect(() => {
-    if (!open) return;
-    const close = () => setOpen(false);
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.stopPropagation();
-      setOpen(false);
-    };
-    window.addEventListener("click", close);
-    window.addEventListener("keydown", closeOnEscape);
-    return () => {
-      window.removeEventListener("click", close);
-      window.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [open]);
-
   const toggle = (id: string) => {
-    const next = modelValue.includes(id)
-      ? modelValue.filter((value) => value !== id)
-      : [...modelValue, id];
+    if (mode === "single") {
+      onValueChange?.(selectedKeys.includes(id) ? null : id);
+      setOpen(false);
+      return;
+    }
+
+    const next = selectedKeys.includes(id)
+      ? selectedKeys.filter((selectedKey) => selectedKey !== id)
+      : [...selectedKeys, id];
+    emitChange?.(next);
+  };
+
+  const handleComboboxValueChange = (next: string[]) => {
+    if (mode === "single") {
+      const added = next.find((key) => !selectedKeys.includes(key));
+      onValueChange?.(added ?? next.at(-1) ?? null);
+      setOpen(false);
+      return;
+    }
+
     emitChange?.(next);
   };
 
   return (
-    <div
-      className={[
-        "relative",
-        fluid ? "w-full" : "inline-flex",
-        variant === "inline" ? "max-w-full" : "",
-      ].join(" ")}
-      onClick={(event) => event.stopPropagation()}
+    <Combobox<string, true>
+      multiple
+      open={open}
+      onOpenChange={setOpen}
+      value={selectedKeys}
+      onValueChange={handleComboboxValueChange}
+      items={flatOptions.map((node) => node.key)}
+      itemToStringLabel={(key) => flatOptions.find((node) => node.key === key)?.label ?? key}
     >
-      <button
-        type="button"
-        className={[
-          "flex min-h-9 w-full items-center gap-2 rounded-lg border border-border bg-white px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted",
-          variant === "inline" ? "border-none bg-transparent px-0 py-0 hover:bg-transparent" : "",
-        ].join(" ")}
-        onClick={() => setOpen((value) => !value)}
+      <div
+        className={cn(fluid ? "w-full" : "inline-flex", variant === "inline" ? "max-w-full" : "")}
       >
-        <span className="flex min-w-0 flex-1 flex-wrap gap-1.5">
-          {selectedNodes.length === 0 ? (
-            <span className="text-muted-foreground">{loading ? "加载中..." : placeholder}</span>
-          ) : (
-            selectedNodes.map((node) => (
-              <Badge key={node.key} variant="secondary" className="max-w-full">
-                <span className="truncate">{usePathLabel ? node.pathLabel : node.label}</span>
-                <X
-                  size={12}
-                  className="shrink-0 text-muted-foreground"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    toggle(node.key);
-                  }}
-                />
-              </Badge>
-            ))
+        <ComboboxTrigger
+          className={cn(
+            "flex min-h-9 w-full items-center gap-2 rounded-lg border border-border bg-white px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted",
+            variant === "inline" && "border-none bg-transparent px-0 py-0 hover:bg-transparent",
           )}
-        </span>
-        <ChevronDown size={14} className="shrink-0 text-muted-foreground" />
-      </button>
-
-      {open && (
-        <div className="absolute left-0 top-full z-30 mt-1 max-h-64 w-full min-w-64 overflow-auto rounded-xl border border-border bg-white p-1 shadow-xl">
-          {flatOptions.map((node) => (
-            <label
-              key={node.key}
-              className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-foreground hover:bg-muted"
-            >
-              <Checkbox
-                checked={modelValue.includes(node.key)}
-                onCheckedChange={() => toggle(node.key)}
-              />
-              <span className="min-w-0 flex-1 truncate">
-                {usePathLabel ? node.pathLabel : node.label}
-              </span>
-            </label>
-          ))}
-        </div>
-      )}
-    </div>
+        >
+          <span className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+            {selectedNodes.length === 0 ? (
+              <span className="text-muted-foreground">{loading ? "加载中..." : placeholder}</span>
+            ) : (
+              selectedNodes.map((node) => (
+                <Badge key={node.key} variant="secondary" className="max-w-full">
+                  <span className="truncate">{usePathLabel ? node.pathLabel : node.label}</span>
+                  <X
+                    size={12}
+                    className="shrink-0 text-muted-foreground"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      toggle(node.key);
+                    }}
+                  />
+                </Badge>
+              ))
+            )}
+          </span>
+        </ComboboxTrigger>
+      </div>
+      <ComboboxContent className="min-w-64 p-1">
+        <ComboboxList className="max-h-72 p-0">
+          <CategoryTreeItems nodes={treeOptions} />
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   );
 }

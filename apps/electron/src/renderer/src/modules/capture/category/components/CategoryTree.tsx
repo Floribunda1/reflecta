@@ -59,10 +59,10 @@ function CategoryMenuItems({
 }) {
   return (
     <>
-      <Item onSelect={() => actions.onCreateChild(node)}>新建子领域</Item>
-      <Item onSelect={() => actions.onEdit(node)}>编辑领域</Item>
+      <Item onClick={() => actions.onCreateChild(node)}>新建子领域</Item>
+      <Item onClick={() => actions.onEdit(node)}>编辑领域</Item>
       <Separator />
-      <Item variant="destructive" onSelect={() => actions.onDelete(node)}>
+      <Item variant="destructive" onClick={() => actions.onDelete(node)}>
         删除
       </Item>
     </>
@@ -108,15 +108,17 @@ function CategoryNode({
           {hasChildren ? expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : null}
         </Button>
         <ContextMenu>
-          <ContextMenuTrigger asChild>
-            <button
-              type="button"
-              className="min-w-0 flex-1 truncate text-left"
-              onClick={() => onSelect(node.id)}
-            >
-              {node.name}
-            </button>
-          </ContextMenuTrigger>
+          <ContextMenuTrigger
+            render={
+              <button
+                type="button"
+                className="min-w-0 flex-1 truncate text-left"
+                onClick={() => onSelect(node.id)}
+              >
+                {node.name}
+              </button>
+            }
+          />
           <ContextMenuContent>
             <CategoryMenuItems
               node={node}
@@ -127,17 +129,19 @@ function CategoryNode({
           </ContextMenuContent>
         </ContextMenu>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              className="invisible shrink-0 group-hover:visible"
-              aria-label="分类操作"
-            >
-              <MoreHorizontal size={15} />
-            </Button>
-          </DropdownMenuTrigger>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                className="invisible shrink-0 group-hover:visible"
+                aria-label="分类操作"
+              >
+                <MoreHorizontal size={15} />
+              </Button>
+            }
+          />
           <DropdownMenuContent align="end">
             <CategoryMenuItems
               node={node}
@@ -189,9 +193,7 @@ export function CategoryTree() {
   useEffect(() => {
     const validKeys = new Set(getAllKeys(categories));
     setExpandedCategoryKeys((prev) => {
-      const next = Object.fromEntries(
-        Object.entries(prev).filter(([key]) => validKeys.has(key)),
-      );
+      const next = Object.fromEntries(Object.entries(prev).filter(([key]) => validKeys.has(key)));
       if (Object.keys(next).length === Object.keys(prev).length) return prev;
       return next;
     });
