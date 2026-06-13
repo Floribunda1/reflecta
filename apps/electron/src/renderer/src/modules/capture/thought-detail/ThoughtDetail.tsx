@@ -1,5 +1,6 @@
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
+import { Empty, EmptyContent, EmptyDescription } from "@renderer/components/ui/empty";
 import { Input } from "@renderer/components/ui/input";
 import { ScrollArea } from "@renderer/components/ui/scroll-area";
 import {
@@ -24,7 +25,7 @@ import { useDebounceFn } from "ahooks";
 import { useEffect, useState } from "react";
 import { useSetAtom } from "jotai";
 import { selectedCategoryIdAtom, selectedThoughtIdAtom } from "../state";
-import { ThoughtDetailProvider, useThoughtDetailContext } from "./context";
+import { useThoughtDetail, useThoughtDetailActions } from "./hooks";
 import { SOURCE_META, SOURCE_TYPES } from "./context/types";
 
 type ThoughtDetailProps = {
@@ -85,30 +86,35 @@ function SourcePreview({
   const Icon = meta.Icon;
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border bg-card p-3 text-sm shadow-none transition-colors hover:border-border hover:bg-accent/30">
-      <button
+    <div className="flex flex-col gap-2 rounded-lg border p-2 text-sm">
+      <Button
         type="button"
-        className="min-w-0 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        variant="ghost"
+        className="h-auto min-w-0 justify-start px-2 py-1.5 text-left"
         onClick={onOpen}
       >
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <Badge variant="outline" className="gap-1">
-            <Icon size={11} />
-            {meta.label}
-          </Badge>
-          <span className="min-w-0 flex-1 truncate font-medium">
-            {source.sourceName?.trim() || meta.label}
-          </span>
-          <span className="shrink-0 text-xs text-muted-foreground">{source.content.length} 字</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Badge variant="outline" className="gap-1">
+              <Icon size={11} />
+              {meta.label}
+            </Badge>
+            <span className="min-w-0 flex-1 truncate font-medium">
+              {source.sourceName?.trim() || meta.label}
+            </span>
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {source.content.length} 字
+            </span>
+          </div>
+          <div className="mt-2 text-muted-foreground">
+            {source.content ? (
+              <SimpleMarkdownPreview content={source.content} lineClamp={2} />
+            ) : (
+              <span>空来源，可以直接补充内容。</span>
+            )}
+          </div>
         </div>
-        <div className="mt-2 text-muted-foreground">
-          {source.content ? (
-            <SimpleMarkdownPreview content={source.content} lineClamp={2} />
-          ) : (
-            <span>空来源，可以直接补充内容。</span>
-          )}
-        </div>
-      </button>
+      </Button>
       <div className="flex items-center justify-end gap-1.5">
         <Button type="button" size="sm" variant="ghost" onClick={onDelete}>
           <Trash2 size={13} />
@@ -132,25 +138,28 @@ function RelationItem({
   const label = direction === "outgoing" ? "引用了" : "被引用";
 
   return (
-    <button
+    <Button
       type="button"
-      className="flex w-full flex-col gap-2 rounded-xl border bg-card p-3 text-left text-sm shadow-none transition-colors hover:border-border hover:bg-accent/30 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+      variant="outline"
+      className="h-auto w-full justify-start p-3 text-left"
       onClick={onSelect}
     >
-      <div className="flex min-w-0 items-center gap-2">
-        <Badge variant="outline" className="gap-1">
-          <Icon size={11} />
-          {label}
-        </Badge>
-        <span className="min-w-0 flex-1 truncate font-medium">{titleForThought(thought)}</span>
-        <ExternalLink size={13} className="shrink-0 text-muted-foreground" />
-      </div>
-      {thought.body && (
-        <div className="text-muted-foreground">
-          <SimpleMarkdownPreview content={thought.body} lineClamp={2} />
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <Badge variant="outline" className="gap-1">
+            <Icon size={11} />
+            {label}
+          </Badge>
+          <span className="min-w-0 flex-1 truncate font-medium">{titleForThought(thought)}</span>
+          <ExternalLink size={13} className="shrink-0 text-muted-foreground" />
         </div>
-      )}
-    </button>
+        {thought.body && (
+          <div className="text-muted-foreground">
+            <SimpleMarkdownPreview content={thought.body} lineClamp={2} />
+          </div>
+        )}
+      </div>
+    </Button>
   );
 }
 
@@ -244,8 +253,9 @@ function SourceDetailOverlay({
 function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
   const setSelectedThoughtId = useSetAtom(selectedThoughtIdAtom);
   const setSelectedCategoryId = useSetAtom(selectedCategoryIdAtom);
-  const { thought, updateThought, createContext, updateContext, deleteContext } =
-    useThoughtDetailContext();
+  const { thought } = useThoughtDetail(thoughtId);
+  const { updateThought, createContext, updateContext, deleteContext } =
+    useThoughtDetailActions(thoughtId);
   const { confirm } = useModal();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -356,7 +366,7 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
                 setTitle(next);
                 debouncedTitleUpdate(next);
               }}
-              className="h-auto border-0 px-0 py-0 text-2xl font-semibold shadow-none focus-visible:ring-0 md:text-2xl"
+              className="h-auto border-0 bg-transparent px-0 py-0 text-2xl font-semibold shadow-none focus-visible:ring-0 md:text-2xl dark:bg-transparent"
               placeholder="写下一个刚形成的理解"
             />
           </header>
@@ -369,7 +379,7 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
                 setBody(next);
                 debouncedBodyUpdate(next);
               }}
-              className="min-h-[320px] resize-none border-0 px-0 py-0 text-base leading-7 shadow-none focus-visible:ring-0"
+              className="min-h-[320px] resize-none border-0 bg-transparent px-0 py-0 text-base leading-7 shadow-none focus-visible:ring-0 dark:bg-transparent"
               placeholder="用自己的语言写下这条理解。通过 [[已有理解标题]] 连接相关理解。"
             />
           </section>
@@ -401,13 +411,14 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
                 ))}
               </div>
             ) : (
-              <button
+              <Button
                 type="button"
-                className="rounded-xl border border-dashed bg-muted/30 p-4 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/30 focus-visible:ring-3 focus-visible:ring-ring/50"
+                variant="outline"
+                className="h-auto justify-start border-dashed p-4 text-muted-foreground"
                 onClick={() => void handleAddSource()}
               >
                 添加来源
-              </button>
+              </Button>
             )}
           </section>
 
@@ -419,9 +430,11 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
             {thought.connections.length === 0 &&
             thought.referencedBy.length === 0 &&
             unresolvedLinks.length === 0 ? (
-              <div className="rounded-xl border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
-                暂时独立
-              </div>
+              <Empty className="min-h-20 flex-none p-4">
+                <EmptyContent>
+                  <EmptyDescription>暂时独立</EmptyDescription>
+                </EmptyContent>
+              </Empty>
             ) : (
               <div className="flex flex-col gap-3">
                 {thought.connections.map((item) => (
@@ -475,9 +488,5 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
 }
 
 export function ThoughtDetail(props: ThoughtDetailProps) {
-  return (
-    <ThoughtDetailProvider thoughtId={props.thoughtId}>
-      <ThoughtDetailInner {...props} />
-    </ThoughtDetailProvider>
-  );
+  return <ThoughtDetailInner {...props} />;
 }

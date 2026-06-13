@@ -13,6 +13,13 @@ export const expandedCategoryKeysAtom = atomWithStorage<Record<string, boolean>>
   {},
 );
 
+export const thoughtListSearchQueryAtom = atom("");
+
+export const thoughtListIncludeDescendantsAtom = atomWithStorage(
+  "capture:thoughtListIncludeDescendants",
+  true,
+);
+
 /** Select a category and clear the current thought selection. */
 export const selectCategoryAtom = atom(null, (_get, set, categoryId: string) => {
   set(selectedCategoryIdAtom, categoryId);

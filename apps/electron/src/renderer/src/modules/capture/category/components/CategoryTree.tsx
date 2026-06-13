@@ -12,7 +12,8 @@ import {
 import { ChevronDown, ChevronRight, Layers, Plus } from "lucide-react";
 import type { CategoryTreeNode } from "@shared/category";
 import { cn } from "@renderer/lib/utils";
-import { useCategoryContext } from "../context";
+import { useCategoryData } from "@renderer/modules/shared/hooks/use-category";
+import { useCategoryActions } from "../hooks";
 import {
   expandedCategoryKeysAtom,
   selectCategoryAtom,
@@ -95,26 +96,30 @@ function CategoryNode({
               variant="ghost"
               size="sm"
               className={cn(
-                "h-8 w-full min-w-0 justify-start gap-1 rounded-lg px-2 text-left font-normal text-foreground/85",
+                "w-full min-w-0 justify-start text-left font-normal text-foreground/85 p-1.5",
                 selected && "bg-muted dark:bg-muted/50 text-foreground font-medium",
               )}
-              style={{ paddingLeft: `calc(0.5rem + ${level} * 0.875rem)` }}
               onClick={() => onSelect(node.id)}
             >
-              {hasChildren ? (
-                <span
-                  className="flex size-6 shrink-0 items-center justify-center text-muted-foreground"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onToggle(node.id);
-                  }}
-                >
-                  {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                </span>
-              ) : (
-                <span className="size-6 shrink-0" />
-              )}
-              <span className="min-w-0 truncate">{node.name}</span>
+              <span
+                className="flex min-w-0 flex-1 items-center gap-1"
+                style={{ paddingLeft: `calc(${level} * 0.875rem)` }}
+              >
+                {hasChildren ? (
+                  <span
+                    className="flex size-6 shrink-0 items-center justify-center text-muted-foreground"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onToggle(node.id);
+                    }}
+                  >
+                    {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </span>
+                ) : (
+                  <span className="size-6 shrink-0" />
+                )}
+                <span className="min-w-0 truncate">{node.name}</span>
+              </span>
             </Button>
           }
         />
@@ -147,20 +152,14 @@ function CategoryNode({
   );
 }
 
-function CategoryRootButton({
-  selected,
-  onSelect,
-}: {
-  selected: boolean;
-  onSelect: () => void;
-}) {
+function CategoryRootButton({ selected, onSelect }: { selected: boolean; onSelect: () => void }) {
   return (
     <Button
       type="button"
       size="sm"
       variant="ghost"
       className={cn(
-        "h-8 w-full justify-start gap-1 rounded-lg px-2 text-left font-normal text-foreground/85",
+        "w-full justify-start text-left font-normal text-foreground/85 p-1.5",
         selected && "bg-muted dark:bg-muted/50 text-foreground font-medium",
       )}
       onClick={onSelect}
@@ -174,7 +173,8 @@ function CategoryRootButton({
 }
 
 export function CategoryTree() {
-  const { categories, createCategory, updateCategory, deleteCategory } = useCategoryContext();
+  const { categories } = useCategoryData();
+  const { createCategory, updateCategory, deleteCategory } = useCategoryActions();
   const selectedCategoryId = useAtomValue(selectedCategoryIdAtom);
   const selectCategory = useSetAtom(selectCategoryAtom);
   const setSelectedCategoryId = useSetAtom(selectedCategoryIdAtom);
@@ -264,27 +264,29 @@ export function CategoryTree() {
   };
 
   return (
-    <aside className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-4 pt-10 pb-4">
-      <div className="flex h-8 items-center justify-between gap-1">
-        <div className="flex min-w-0 items-center gap-1">
-          <span className="size-2.5 shrink-0" />
-          <span className="truncate text-sm font-medium">领域</span>
+    <aside className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      <div className="px-5 pt-14 pb-3">
+        <div className="flex h-8 items-center justify-between gap-1">
+          <div className="min-w-0 truncate text-sm font-medium">领域</div>
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            className="size-8"
+            aria-label="新建领域"
+            onClick={() => openCreateModal()}
+          >
+            <Plus size={16} />
+          </Button>
         </div>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          className="size-8"
-          aria-label="新建领域"
-          onClick={() => openCreateModal()}
-        >
-          <Plus size={16} />
-        </Button>
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-0.5">
-          <CategoryRootButton selected={selectedCategoryId === "all"} onSelect={() => onSelect("all")} />
+        <div className="space-y-0.5 px-2">
+          <CategoryRootButton
+            selected={selectedCategoryId === "all"}
+            onSelect={() => onSelect("all")}
+          />
 
           {categories.map((node) => (
             <CategoryNode
