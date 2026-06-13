@@ -44,7 +44,7 @@ function CapturePageInner() {
   }, [setSelectedThoughtId, setSelectedCategoryId]);
 
   return (
-    <div className="grid h-full min-h-0 w-full grid-cols-[248px_minmax(0,1fr)] gap-4 overflow-hidden bg-background/45 backdrop-blur-2xl">
+    <div className="grid h-full min-h-0 w-full grid-cols-[248px_minmax(0,1fr)] overflow-hidden bg-background/45 backdrop-blur-2xl">
       <CategoryTree />
       <div className="grid h-full min-h-0 min-w-0 grid-cols-[minmax(280px,360px)_minmax(0,1fr)] overflow-hidden rounded-xl border bg-card/95 shadow-sm backdrop-blur-sm">
         <ThoughtList />

@@ -9,7 +9,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@renderer/components/ui/context-menu";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Layers, Plus } from "lucide-react";
 import type { CategoryTreeNode } from "@shared/category";
 import { cn } from "@renderer/lib/utils";
 import { useCategoryContext } from "../context";
@@ -95,25 +95,24 @@ function CategoryNode({
               variant="ghost"
               size="sm"
               className={cn(
-                "h-9 w-full min-w-0 justify-start gap-2 rounded-lg px-2 text-left font-normal text-foreground/85 hover:bg-accent/70 hover:text-accent-foreground",
-                selected &&
-                  "bg-card/90 text-foreground shadow-sm ring-1 ring-border/80 hover:bg-card/90",
+                "h-8 w-full min-w-0 justify-start gap-1 rounded-lg px-2 text-left font-normal text-foreground/85",
+                selected && "bg-muted dark:bg-muted/50 text-foreground font-medium",
               )}
               style={{ paddingLeft: `calc(0.5rem + ${level} * 0.875rem)` }}
-              onClick={() => {
-                onSelect(node.id);
-                if (hasChildren) onToggle(node.id);
-              }}
-              aria-expanded={hasChildren ? expanded : undefined}
+              onClick={() => onSelect(node.id)}
             >
               {hasChildren ? (
-                expanded ? (
-                  <ChevronDown size={14} className="shrink-0 text-muted-foreground" />
-                ) : (
-                  <ChevronRight size={14} className="shrink-0 text-muted-foreground" />
-                )
+                <span
+                  className="flex size-6 shrink-0 items-center justify-center text-muted-foreground"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggle(node.id);
+                  }}
+                >
+                  {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                </span>
               ) : (
-                <span className="size-3.5 shrink-0" />
+                <span className="size-6 shrink-0" />
               )}
               <span className="min-w-0 truncate">{node.name}</span>
             </Button>
@@ -145,6 +144,32 @@ function CategoryNode({
         </div>
       )}
     </div>
+  );
+}
+
+function CategoryRootButton({
+  selected,
+  onSelect,
+}: {
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="ghost"
+      className={cn(
+        "h-8 w-full justify-start gap-1 rounded-lg px-2 text-left font-normal text-foreground/85",
+        selected && "bg-muted dark:bg-muted/50 text-foreground font-medium",
+      )}
+      onClick={onSelect}
+    >
+      <span className="flex size-6 shrink-0 items-center justify-center text-muted-foreground">
+        <Layers size={14} />
+      </span>
+      <span className="min-w-0 truncate">全部领域</span>
+    </Button>
   );
 }
 
@@ -240,8 +265,11 @@ export function CategoryTree() {
 
   return (
     <aside className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-4 pt-10 pb-4">
-      <div className="flex h-9 items-center justify-between gap-2">
-        <span className="text-sm font-medium">领域</span>
+      <div className="flex h-8 items-center justify-between gap-1">
+        <div className="flex min-w-0 items-center gap-1">
+          <span className="size-2.5 shrink-0" />
+          <span className="truncate text-sm font-medium">领域</span>
+        </div>
         <Button
           type="button"
           size="icon-sm"
@@ -255,20 +283,8 @@ export function CategoryTree() {
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-1 pt-6">
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className={cn(
-              "h-9 w-full justify-start rounded-lg px-2 text-left font-normal text-foreground/85 hover:bg-accent/70 hover:text-accent-foreground",
-              selectedCategoryId === "all" &&
-                "bg-card/90 text-foreground shadow-sm ring-1 ring-border/80 hover:bg-card/90",
-            )}
-            onClick={() => onSelect("all")}
-          >
-            <span>全部领域</span>
-          </Button>
+        <div className="space-y-0.5">
+          <CategoryRootButton selected={selectedCategoryId === "all"} onSelect={() => onSelect("all")} />
 
           {categories.map((node) => (
             <CategoryNode
