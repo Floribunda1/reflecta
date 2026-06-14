@@ -1,4 +1,5 @@
 import { ipcMain } from "electron";
+import type { IpcMainInvokeEvent } from "electron";
 import { createServices } from "electron-ipc-decorator";
 import { AiService } from "./AiService";
 import { AssetService } from "./AssetService";
@@ -11,15 +12,28 @@ import { ThoughtService } from "./ThoughtService";
 import { TrashService } from "./TrashService";
 
 const originalHandle = ipcMain.handle.bind(ipcMain);
-ipcMain.handle = (channel: string, listener: any) => {
-  const wrapped = async (event: any, ...args: any[]) => {
+type IpcHandleListener = (
+  event: IpcMainInvokeEvent,
+  ...args: unknown[]
+) => unknown | Promise<unknown>;
+
+function getErrorField(error: unknown, field: "code" | "message"): unknown {
+  return typeof error === "object" && error !== null
+    ? error[field as keyof typeof error]
+    : undefined;
+}
+
+ipcMain.handle = (channel: string, listener: IpcHandleListener) => {
+  const wrapped: IpcHandleListener = async (event, ...args) => {
     try {
       return await listener(event, ...args);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const code = getErrorField(error, "code");
+      const message = getErrorField(error, "message");
       throw {
         __isIpcError: true,
-        code: error.code || "UNKNOWN",
-        message: error.message || "未知错误",
+        code: typeof code === "string" ? code : "UNKNOWN",
+        message: typeof message === "string" ? message : "未知错误",
       };
     }
   };

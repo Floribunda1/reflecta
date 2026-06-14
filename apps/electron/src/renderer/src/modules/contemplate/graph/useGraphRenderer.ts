@@ -1,6 +1,6 @@
 import { RefObject, useEffect, useRef, useState } from "react";
 import { Graph, NodeEvent, CanvasEvent } from "@antv/g6";
-import type { GraphData } from "@antv/g6";
+import type { ElementDatum, GraphData, IElementEvent } from "@antv/g6";
 import type { ThoughtSummaryDTO } from "@shared/thought";
 import { buildG6Data, getNeighborIds, type G6Data } from "./data";
 import { resolveColors } from "./colors";
@@ -8,6 +8,16 @@ import { resolveColors } from "./colors";
 interface ContemplateCtx {
   selectedThoughtId: string | null;
   setSelectedThoughtId: (value: string | null) => void;
+}
+
+function styleNumber(datum: ElementDatum, key: string, fallback: number): number {
+  const value = datum.style?.[key];
+  return typeof value === "number" ? value : fallback;
+}
+
+function styleString(datum: ElementDatum, key: string, fallback: string): string {
+  const value = datum.style?.[key];
+  return typeof value === "string" ? value : fallback;
 }
 
 function isSameStructure(a: G6Data, b: G6Data): boolean {
@@ -126,11 +136,11 @@ export function useGraphRenderer(
       },
       node: {
         style: {
-          size: (d: any) => d.style?.size ?? 20,
-          fill: (d: any) => d.style?.fill ?? c.ideaFill,
-          stroke: (d: any) => d.style?.stroke ?? c.ideaStroke,
+          size: (d: ElementDatum) => styleNumber(d, "size", 20),
+          fill: (d: ElementDatum) => styleString(d, "fill", c.ideaFill),
+          stroke: (d: ElementDatum) => styleString(d, "stroke", c.ideaStroke),
           lineWidth: 2,
-          labelText: (d: any) => d.style?.labelText ?? "",
+          labelText: (d: ElementDatum) => styleString(d, "labelText", ""),
           labelFill: c.labelColor,
           labelFontSize: 12.5,
           labelFontFamily: "Inter, -apple-system, sans-serif",
@@ -214,7 +224,7 @@ export function useGraphRenderer(
 
     graphRef.current = graph;
 
-    graph.on(NodeEvent.CLICK, (evt: any) => {
+    graph.on(NodeEvent.CLICK, (evt: IElementEvent) => {
       const nodeId = evt.target.id;
       if (selectedThoughtIdRef.current === nodeId) {
         ctx.setSelectedThoughtId(null);
@@ -232,12 +242,12 @@ export function useGraphRenderer(
       }
     });
 
-    graph.on(NodeEvent.POINTER_ENTER, (evt: any) => {
+    graph.on(NodeEvent.POINTER_ENTER, (evt: IElementEvent) => {
       setHoveredNodeId(evt.target.id);
       if (!selectedThoughtIdRef.current) applyStates(evt.target.id);
     });
 
-    graph.on(NodeEvent.POINTER_LEAVE, (evt: any) => {
+    graph.on(NodeEvent.POINTER_LEAVE, (evt: IElementEvent) => {
       setHoveredNodeId((current) => {
         if (current !== evt.target.id) return current;
         if (!selectedThoughtIdRef.current) applyStates(null);

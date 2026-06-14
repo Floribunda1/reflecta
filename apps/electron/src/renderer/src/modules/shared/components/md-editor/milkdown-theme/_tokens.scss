@@ -9,16 +9,8 @@
   .milkdown {
     --crepe-color-background: var(--background);
     --crepe-color-on-background: var(--foreground);
-    --crepe-color-surface: color-mix(
-      in srgb,
-      var(--popover),
-      var(--muted) 32%
-    );
-    --crepe-color-surface-low: color-mix(
-      in srgb,
-      var(--background),
-      var(--muted) 64%
-    );
+    --crepe-color-surface: color-mix(in srgb, var(--popover), var(--muted) 32%);
+    --crepe-color-surface-low: color-mix(in srgb, var(--background), var(--muted) 64%);
     --crepe-color-on-surface: var(--foreground);
     --crepe-color-on-surface-variant: var(--muted-foreground);
     --crepe-color-outline: var(--border);
@@ -34,14 +26,11 @@
     --crepe-color-inline-area: color-mix(in srgb, var(--muted), transparent 18%);
     --crepe-font-title: inherit;
     --crepe-font-default: inherit;
-    --crepe-font-code:
-      "Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --crepe-font-code: "Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     --crepe-radius-control: min(var(--radius-md), 8px);
     --crepe-radius-block: var(--radius-md);
-    --crepe-shadow-1: 0 12px 28px
-      color-mix(in srgb, var(--foreground), transparent 90%);
-    --crepe-shadow-2: 0 18px 42px
-      color-mix(in srgb, var(--foreground), transparent 88%);
+    --crepe-shadow-1: 0 12px 28px color-mix(in srgb, var(--foreground), transparent 90%);
+    --crepe-shadow-2: 0 18px 42px color-mix(in srgb, var(--foreground), transparent 88%);
 
     @include fill-height;
     background: transparent;

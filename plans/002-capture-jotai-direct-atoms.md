@@ -42,6 +42,7 @@
 ## Task 1：定义 Capture 状态 Atoms
 
 **文件：**
+
 - 新增或修改：`apps/electron/src/renderer/src/modules/capture/state.ts`
 
 - [ ] 使用 `atomWithStorage` 定义 `selectedCategoryIdAtom`，key 为 `capture:selectedCategoryId`，默认值为 `"all"`。
@@ -53,6 +54,7 @@
 ## Task 2：迁移 Page 层状态消费
 
 **文件：**
+
 - 修改：`apps/electron/src/renderer/src/modules/capture/index.tsx`
 - 修改：`apps/electron/src/renderer/src/modules/capture/context.tsx`
 
@@ -64,6 +66,7 @@
 ## Task 3：迁移 CategoryTree 状态消费
 
 **文件：**
+
 - 修改：`apps/electron/src/renderer/src/modules/capture/category/components/CategoryTree.tsx`
 
 - [ ] 用 `useAtomValue(selectedCategoryIdAtom)` 替代 `capture.selectedCategoryId`。
@@ -76,6 +79,7 @@
 ## Task 4：迁移 ThoughtList 状态消费
 
 **文件：**
+
 - 修改：`apps/electron/src/renderer/src/modules/capture/thought-list/index.tsx`
 - 修改：`apps/electron/src/renderer/src/modules/capture/thought-list/ThoughtCard.tsx`
 - 修改：`apps/electron/src/renderer/src/modules/capture/thought-list/context.tsx`
@@ -89,6 +93,7 @@
 ## Task 5：迁移 ThoughtDetail 状态消费
 
 **文件：**
+
 - 修改：`apps/electron/src/renderer/src/modules/capture/thought-detail/ThoughtDetail.tsx`
 
 - [ ] 用 `useSetAtom(selectedThoughtIdAtom)` 处理关系跳转时的 thought 选择。
@@ -99,6 +104,7 @@
 ## Task 6：删除 Context 兼容层残留
 
 **文件：**
+
 - 修改或删除：`apps/electron/src/renderer/src/modules/capture/context.tsx`
 - 修改：所有仍导入 `useCapturePageContext` 的文件
 

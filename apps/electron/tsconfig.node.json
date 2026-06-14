@@ -3,6 +3,7 @@
   "include": ["vite.config.*", "src/main/**/*", "src/preload/**/*"],
   "compilerOptions": {
     "composite": true,
+    "noImplicitAny": true,
     "types": ["vite-plugin-electron/electron-env"],
     "baseUrl": ".",
     "experimentalDecorators": true,

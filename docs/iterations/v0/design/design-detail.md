@@ -341,7 +341,6 @@ div
   - `empty-selection` → 当前领域没有选中理解时展示一行弱提示
 - 约束：使用 shadcn `Empty` 默认样式，保留 `EmptyMedia(icon) + EmptyTitle`；不使用说明文案、新建按钮、大段教育文案、功能介绍页或图谱空画布
 
-
 ---
 
 ## Token Review
@@ -384,26 +383,26 @@ div
 
 本页面使用的 shadcn 组件及 variant 配置，不在此处做设计决策。
 
-| 组件 | Variant / 配置 | 使用位置 |
-| ---- | -------------- | -------- |
-| Button | ghost variant | CategoryNavigation 新建领域、ThoughtIndex 新建、SourceTraceSection 添加来源 |
-| Button | ghost + destructive | 删除理解、删除来源、删除领域菜单项或按钮 |
-| Button | size="sm" | SourceTraceSection 添加来源、删除来源 |
-| Button | size="icon-sm" | CategoryNavigation 新建领域、ThoughtIndex 搜索、包含子领域、新建理解 |
-| Input | default variant | ThoughtIndex 搜索、ThoughtDocument 标题、CategoryModal 名称、SourceDetailSheet 来源名称 |
-| Textarea | default variant | ThoughtDocument 正文、SourceDetailSheet 来源内容 |
-| Badge | outline variant | 来源类型、关系方向、来源 / 关系 meta |
-| Card / CardHeader / CardContent / CardFooter | default variant | SourcePreviewCard、RelationItem |
-| ScrollArea | default variant | CategoryNavigation 树、ThoughtIndex 列表、ThoughtDocument 内容区 |
-| Sheet / SheetContent / SheetHeader / SheetTitle | default variant | SourceDetailSheet |
-| Select / SelectTrigger / SelectContent / SelectItem / SelectValue | default variant, trigger size="sm" | SourceDetailSheet 来源类型 |
-| ContextMenu / ContextMenuTrigger / ContextMenuContent / ContextMenuItem / ContextMenuSeparator | default variant | CategoryNodeRow 右键操作、ThoughtRow 右键删除 |
-| AlertDialog | default variant | 删除领域、删除理解、删除来源确认 |
-| Empty / EmptyHeader / EmptyMedia / EmptyTitle | default variant, EmptyMedia variant="icon" | EmptyDocumentState、EmptyIndexState |
-| CategoryTreeSelect | inline variant / custom business component | ThoughtDocument 领域归属 |
-| SimpleMarkdownPreview | lineClamp=2 / custom business component | ThoughtRow 摘要、SourcePreviewCard 摘要、RelationItem 摘要 |
-| lucide icons | Search / GitBranch / Plus | ThoughtIndex 搜索、包含子领域、新建理解 |
-| lucide icons | FileText / Link2 或等价语义图标 | ThoughtRow 来源数量、双链数量 meta |
+| 组件                                                                                           | Variant / 配置                             | 使用位置                                                                                |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------- |
+| Button                                                                                         | ghost variant                              | CategoryNavigation 新建领域、ThoughtIndex 新建、SourceTraceSection 添加来源             |
+| Button                                                                                         | ghost + destructive                        | 删除理解、删除来源、删除领域菜单项或按钮                                                |
+| Button                                                                                         | size="sm"                                  | SourceTraceSection 添加来源、删除来源                                                   |
+| Button                                                                                         | size="icon-sm"                             | CategoryNavigation 新建领域、ThoughtIndex 搜索、包含子领域、新建理解                    |
+| Input                                                                                          | default variant                            | ThoughtIndex 搜索、ThoughtDocument 标题、CategoryModal 名称、SourceDetailSheet 来源名称 |
+| Textarea                                                                                       | default variant                            | ThoughtDocument 正文、SourceDetailSheet 来源内容                                        |
+| Badge                                                                                          | outline variant                            | 来源类型、关系方向、来源 / 关系 meta                                                    |
+| Card / CardHeader / CardContent / CardFooter                                                   | default variant                            | SourcePreviewCard、RelationItem                                                         |
+| ScrollArea                                                                                     | default variant                            | CategoryNavigation 树、ThoughtIndex 列表、ThoughtDocument 内容区                        |
+| Sheet / SheetContent / SheetHeader / SheetTitle                                                | default variant                            | SourceDetailSheet                                                                       |
+| Select / SelectTrigger / SelectContent / SelectItem / SelectValue                              | default variant, trigger size="sm"         | SourceDetailSheet 来源类型                                                              |
+| ContextMenu / ContextMenuTrigger / ContextMenuContent / ContextMenuItem / ContextMenuSeparator | default variant                            | CategoryNodeRow 右键操作、ThoughtRow 右键删除                                           |
+| AlertDialog                                                                                    | default variant                            | 删除领域、删除理解、删除来源确认                                                        |
+| Empty / EmptyHeader / EmptyMedia / EmptyTitle                                                  | default variant, EmptyMedia variant="icon" | EmptyDocumentState、EmptyIndexState                                                     |
+| CategoryTreeSelect                                                                             | inline variant / custom business component | ThoughtDocument 领域归属                                                                |
+| SimpleMarkdownPreview                                                                          | lineClamp=2 / custom business component    | ThoughtRow 摘要、SourcePreviewCard 摘要、RelationItem 摘要                              |
+| lucide icons                                                                                   | Search / GitBranch / Plus                  | ThoughtIndex 搜索、包含子领域、新建理解                                                 |
+| lucide icons                                                                                   | FileText / Link2 或等价语义图标            | ThoughtRow 来源数量、双链数量 meta                                                      |
 
 ---
 

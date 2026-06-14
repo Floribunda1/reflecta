@@ -134,7 +134,9 @@
   }
 
   @for $index from 1 through $slash-menu-tab-count {
-    .tab-group:has(ul li:nth-child(#{$index}).selected) + .menu-groups .menu-group:nth-child(#{$index}) {
+    .tab-group:has(ul li:nth-child(#{$index}).selected)
+      + .menu-groups
+      .menu-group:nth-child(#{$index}) {
       display: block;
     }
   }

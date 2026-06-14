@@ -418,7 +418,16 @@ function generateBody(idx: number, includeWikiLink: boolean): string {
 // Categories (multi-level nested, 20 total)
 // ---------------------------------------------------------------------------
 
-const categories: any[] = [
+type SeedCategory = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+const categories: SeedCategory[] = [
   // Root level (5)
   {
     id: generateId("cat"),

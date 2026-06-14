@@ -9,12 +9,22 @@ function cleanWikiValue(value: unknown): string {
     .trim();
 }
 
-export const remarkWikiLink = $remark("reflectaWikiLink", () => () => (tree: any) => {
-  visit(tree, "text", (node: any, index: number | undefined, parent: any) => {
-    if (!parent || typeof index !== "number") return;
+type AstNode = {
+  type: string;
+  data?: Record<string, unknown>;
+};
+type AstParent = AstNode & { children: AstNode[] };
+type TextNode = AstNode & { type: "text"; value?: unknown };
+type WikiLinkNode = AstNode & { type: "wikiLink"; title: string; id: string };
 
-    const value = String(node.value ?? "");
-    const replacements: any[] = [];
+export const remarkWikiLink = $remark("reflectaWikiLink", () => () => (tree) => {
+  visit(tree, "text", (node, index, parent) => {
+    const textNode = node as TextNode;
+    const parentNode = parent as AstParent | undefined;
+    if (!parentNode || typeof index !== "number") return;
+
+    const value = String(textNode.value ?? "");
+    const replacements: Array<TextNode | WikiLinkNode> = [];
     let cursor = 0;
 
     for (const match of value.matchAll(wikiLinkPattern)) {
@@ -37,7 +47,7 @@ export const remarkWikiLink = $remark("reflectaWikiLink", () => () => (tree: any
       replacements.push({ type: "text", value: value.slice(cursor) });
     }
 
-    parent.children.splice(index, 1, ...replacements);
+    parentNode.children.splice(index, 1, ...replacements);
   });
 });
 

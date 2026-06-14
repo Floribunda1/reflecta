@@ -1,9 +1,4 @@
-import {
-  Editor,
-  editorViewCtx,
-  parserCtx,
-  serializerCtx,
-} from "@milkdown/core";
+import { Editor, editorViewCtx, parserCtx, serializerCtx } from "@milkdown/core";
 import { uploadConfig } from "@milkdown/plugin-upload";
 import type { Node as ProseNode } from "@milkdown/prose/model";
 import { Fragment } from "@milkdown/prose/model";
@@ -11,10 +6,6 @@ import type { EditorView } from "@milkdown/prose/view";
 import type { Schema } from "@milkdown/prose/model";
 import { Crepe } from "@milkdown/crepe";
 import { reflectaMilkdownExtensions } from "./milkdown-extensions";
-import {
-  createWikiLinkMilkdownPlugin,
-  type WikiLinkPluginController,
-} from "./wiki-link-plugin";
 
 export type AssetUploader = (file: File) => Promise<string>;
 
@@ -25,7 +16,6 @@ export type CreateReflectaMilkdownEditorOptions = {
   readonly?: boolean;
   onUpdate?: (markdown: string) => void;
   uploadAsset?: AssetUploader;
-  wikiLinkController?: WikiLinkPluginController;
 };
 
 function isSupportedMedia(file: File): boolean {
@@ -90,7 +80,6 @@ export function createReflectaMilkdownEditorBuilder({
   readonly,
   onUpdate,
   uploadAsset,
-  wikiLinkController,
 }: CreateReflectaMilkdownEditorOptions): Editor {
   const editorRoot = document.createElement("div");
   editorRoot.className = "reflecta-milkdown";
@@ -127,9 +116,6 @@ export function createReflectaMilkdownEditorBuilder({
   });
 
   editor.use(reflectaMilkdownExtensions);
-  if (!readonly && wikiLinkController) {
-    editor.use(createWikiLinkMilkdownPlugin(wikiLinkController));
-  }
   if (readonly) crepe.setReadonly(true);
 
   return editor;
@@ -170,11 +156,7 @@ export function setMilkdownMarkdown(editor: Editor, markdown: string): void {
   const parser = editor.ctx.get(parserCtx);
   const view: EditorView = editor.ctx.get(editorViewCtx);
   const nextDoc = parser(markdown);
-  const transaction = view.state.tr.replaceWith(
-    0,
-    view.state.doc.content.size,
-    nextDoc.content,
-  );
+  const transaction = view.state.tr.replaceWith(0, view.state.doc.content.size, nextDoc.content);
   view.dispatch(transaction);
 }
 

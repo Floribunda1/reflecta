@@ -90,6 +90,7 @@ SettingsPage
   - 两次密码不一致：失焦后立即显示错误，不等提交
 
 - **DangerCard**
+
   ```
   Card
     CardHeader
@@ -130,24 +131,24 @@ SettingsPage
 
 本页面使用的语义 token 及其边界，用来检查跨区块一致性。
 
-| Token 类型 | Token / Class | 使用场景 | 禁止用法 |
-| ---------- | ------------- | -------- | -------- |
-| Text | `text-2xl font-bold tracking-tight` | PageHeader 主标题 | 不用于 CardTitle，避免区块标题抢页面标题层级 |
-| Text | `text-sm text-muted-foreground` | PageHeader 描述文字、FormField HelperText、当前邮箱 disabled 文本 | 不用于主标题、字段 Label、危险操作文案 |
-| Text | `text-destructive` | DangerCard 标题、字段错误提示 | 不用于普通说明、warning 或次级信息 |
-| Surface | `Card` 默认背景 | ProfileCard、EmailCard、PasswordCard、DangerCard 容器 | 不嵌套 Card 形成额外背景层级 |
-| Border | `Card` 默认 border | 所有 Organism 的区块边界 | 不叠加 shadow 表达同一层级 |
-| Spacing | `px-4 py-6` / `px-8 py-10` | 页面容器移动端 / 桌面端 padding | 不用于 Card 内部 padding |
-| Spacing | `mb-8` | PageHeader 与内容区间距 | 不用于 Card 内部元素间距 |
-| Spacing | `gap-6` | 内容区 Organism 垂直间距 | 不用于 FormField 或按钮组 |
-| Spacing | `gap-4` | AvatarUploader 内部头像与按钮间距 | 不用于表单字段内部 |
-| Spacing | `gap-2` | CardAction 按钮组间距 | 不用于页面区块间距 |
-| Spacing | `gap-1.5` | FormField 内部 Label、Input、HelperText 间距 | 不用于 Organism 间距 |
-| State | `disabled` | EmailCard 当前邮箱 Input | 不用于表达只读说明文字，说明文字继续使用 `text-muted-foreground` |
-| State | `Button loading` | AvatarUploader 上传中、保存按钮提交中 | 不用 Toast 表达进行中状态 |
-| Action | `Button Default` | 主要保存操作 | 不用于取消、删除或低风险次要操作 |
-| Action | `Button Ghost` | 取消、更换头像 | 不用于主要提交 |
-| Action | `Button Ghost + destructive` | 删除账号入口 | 不做成 Destructive 填充按钮，避免危险操作过度突出 |
+| Token 类型 | Token / Class                       | 使用场景                                                          | 禁止用法                                                         |
+| ---------- | ----------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Text       | `text-2xl font-bold tracking-tight` | PageHeader 主标题                                                 | 不用于 CardTitle，避免区块标题抢页面标题层级                     |
+| Text       | `text-sm text-muted-foreground`     | PageHeader 描述文字、FormField HelperText、当前邮箱 disabled 文本 | 不用于主标题、字段 Label、危险操作文案                           |
+| Text       | `text-destructive`                  | DangerCard 标题、字段错误提示                                     | 不用于普通说明、warning 或次级信息                               |
+| Surface    | `Card` 默认背景                     | ProfileCard、EmailCard、PasswordCard、DangerCard 容器             | 不嵌套 Card 形成额外背景层级                                     |
+| Border     | `Card` 默认 border                  | 所有 Organism 的区块边界                                          | 不叠加 shadow 表达同一层级                                       |
+| Spacing    | `px-4 py-6` / `px-8 py-10`          | 页面容器移动端 / 桌面端 padding                                   | 不用于 Card 内部 padding                                         |
+| Spacing    | `mb-8`                              | PageHeader 与内容区间距                                           | 不用于 Card 内部元素间距                                         |
+| Spacing    | `gap-6`                             | 内容区 Organism 垂直间距                                          | 不用于 FormField 或按钮组                                        |
+| Spacing    | `gap-4`                             | AvatarUploader 内部头像与按钮间距                                 | 不用于表单字段内部                                               |
+| Spacing    | `gap-2`                             | CardAction 按钮组间距                                             | 不用于页面区块间距                                               |
+| Spacing    | `gap-1.5`                           | FormField 内部 Label、Input、HelperText 间距                      | 不用于 Organism 间距                                             |
+| State      | `disabled`                          | EmailCard 当前邮箱 Input                                          | 不用于表达只读说明文字，说明文字继续使用 `text-muted-foreground` |
+| State      | `Button loading`                    | AvatarUploader 上传中、保存按钮提交中                             | 不用 Toast 表达进行中状态                                        |
+| Action     | `Button Default`                    | 主要保存操作                                                      | 不用于取消、删除或低风险次要操作                                 |
+| Action     | `Button Ghost`                      | 取消、更换头像                                                    | 不用于主要提交                                                   |
+| Action     | `Button Ghost + destructive`        | 删除账号入口                                                      | 不做成 Destructive 填充按钮，避免危险操作过度突出                |
 
 ---
 

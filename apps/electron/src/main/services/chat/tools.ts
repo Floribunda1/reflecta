@@ -86,7 +86,7 @@ export function createReflectaTools(
   ];
 }
 
-function textResult(text: string, details: unknown): AgentToolResult<any> {
+function textResult(text: string, details: unknown): AgentToolResult<unknown> {
   return {
     content: [{ type: "text" as const, text }],
     details,
@@ -282,7 +282,7 @@ async function runWriteTool<TParams>(
   input: TParams,
   signal: AbortSignal | undefined,
   executeApproved: () => Promise<unknown>,
-): Promise<AgentToolResult<any>> {
+): Promise<AgentToolResult<unknown>> {
   await runtime.emitToolEvent({
     type: "tool_pending",
     toolCallId,

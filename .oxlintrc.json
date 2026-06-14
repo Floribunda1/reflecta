@@ -11,7 +11,9 @@
     "**/resources/**/*",
     "**/node_modules/**/*"
   ],
-  "rules": {},
+  "rules": {
+    "typescript/no-explicit-any": "error"
+  },
   "env": {
     "builtin": true
   }

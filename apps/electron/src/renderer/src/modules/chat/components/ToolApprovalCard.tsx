@@ -77,6 +77,7 @@ export function ToolApprovalCard({ part }: { part: ToolPart }) {
   const toolName = getToolName(part);
   const label = getToolLabel(toolName);
   const status = getStatusMeta(part);
+  const statusTone = TONE_COLOR[status.tone];
   const needsApproval = part.state === "approval-requested";
   const presentation = presentToolCall({
     toolName,
@@ -102,12 +103,8 @@ export function ToolApprovalCard({ part }: { part: ToolPart }) {
         )}
         <span className="shrink-0 text-sm font-medium text-foreground">{label}</span>
         <Badge
-          variant={TONE_COLOR[status.tone] === "error" ? "destructive" : "secondary"}
-          className={
-            TONE_COLOR[status.tone] === "error"
-              ? undefined
-              : semanticBadgeClass[TONE_COLOR[status.tone]]
-          }
+          variant={statusTone === "error" ? "destructive" : "secondary"}
+          className={statusTone === "error" ? undefined : semanticBadgeClass[statusTone]}
         >
           {status.label}
         </Badge>

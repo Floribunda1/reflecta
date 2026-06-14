@@ -4,37 +4,20 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { MarkdownEditor } from "./index";
-import { createReflectaMilkdownEditorBuilder } from "./milkdown-editor";
 import { getMilkdownMarkdown, setMilkdownMarkdown } from "./milkdown-editor";
+
+declare global {
+  var IS_REACT_ACT_ENVIRONMENT: boolean;
+}
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 let currentEditorMarkdown = "Initial";
-let latestBuilderOptions: any = null;
-
-const thoughts = [
-  {
-    id: "thought-1",
-    title: "Alpha",
-    body: "Alpha body",
-  },
-  {
-    id: "thought-2",
-    title: "Beta",
-    body: "Beta body",
-  },
-];
 
 vi.mock("@renderer/utils/ipc", () => ({
   ipcClient: {
     asset: {
       saveAsset: vi.fn(),
-    },
-    search: {
-      searchThoughts: vi.fn(async () => thoughts),
-    },
-    thought: {
-      listThoughts: vi.fn(async () => thoughts),
     },
   },
 }));
@@ -52,8 +35,7 @@ vi.mock("@milkdown/react", () => ({
 }));
 
 vi.mock("./milkdown-editor", () => ({
-  createReflectaMilkdownEditorBuilder: vi.fn((options) => {
-    latestBuilderOptions = options;
+  createReflectaMilkdownEditorBuilder: vi.fn(() => {
     return {};
   }),
   getMilkdownMarkdown: vi.fn(() => currentEditorMarkdown),
@@ -72,7 +54,6 @@ describe("MarkdownEditor", () => {
     container?.remove();
     container = null;
     currentEditorMarkdown = "Initial";
-    latestBuilderOptions = null;
     vi.clearAllMocks();
   });
 
@@ -83,7 +64,7 @@ describe("MarkdownEditor", () => {
 
     act(() => {
       root?.render(
-        React.createElement(MarkdownEditor as React.ComponentType<any>, {
+        React.createElement(MarkdownEditor, {
           contentKey: "thought-1",
           content: "Initial",
         }),
@@ -95,7 +76,7 @@ describe("MarkdownEditor", () => {
     currentEditorMarkdown = "Local typing";
     act(() => {
       root?.render(
-        React.createElement(MarkdownEditor as React.ComponentType<any>, {
+        React.createElement(MarkdownEditor, {
           contentKey: "thought-1",
           content: "Server formatted local typing",
         }),
@@ -106,7 +87,7 @@ describe("MarkdownEditor", () => {
 
     act(() => {
       root?.render(
-        React.createElement(MarkdownEditor as React.ComponentType<any>, {
+        React.createElement(MarkdownEditor, {
           contentKey: "thought-2",
           content: "Another thought",
         }),
@@ -129,44 +110,5 @@ describe("MarkdownEditor", () => {
     expect(container.querySelector(".reflecta-md-editor")?.hasAttribute("data-variant")).toBe(
       false,
     );
-  });
-
-  test("renders wiki-link suggestions from plugin state", async () => {
-    container = document.createElement("div");
-    document.body.append(container);
-    root = createRoot(container);
-
-    await act(async () => {
-      root?.render(<MarkdownEditor content="Initial" />);
-    });
-
-    expect(createReflectaMilkdownEditorBuilder).toHaveBeenCalled();
-
-    await act(async () => {
-      latestBuilderOptions.wikiLinkController.onStateChange({
-        active: true,
-        from: 1,
-        to: 3,
-        query: "",
-        selectedIndex: 0,
-      });
-    });
-
-    const menu = container.querySelector('[role="listbox"]');
-    expect(menu?.textContent).toContain("Alpha");
-    expect(menu?.textContent).toContain("Beta");
-    expect(container.querySelector('[role="option"][aria-selected="true"]')?.textContent).toContain(
-      "Alpha",
-    );
-    expect(latestBuilderOptions.wikiLinkController.getItemCount()).toBe(2);
-    expect(
-      latestBuilderOptions.wikiLinkController.getSelectedMarkdown({
-        active: true,
-        from: 1,
-        to: 3,
-        query: "",
-        selectedIndex: 1,
-      }),
-    ).toBe("[[Beta#thought-2]]");
   });
 });

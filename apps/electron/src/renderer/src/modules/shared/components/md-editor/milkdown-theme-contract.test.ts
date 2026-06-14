@@ -180,8 +180,8 @@ describe("milkdown theme contract", () => {
   test("styles slash menu as a compact command-palette surface", () => {
     for (const selectorPart of [
       ".reflecta-md-editor .milkdown .milkdown-slash-menu",
-      '.reflecta-md-editor .milkdown .milkdown-slash-menu[data-show=false]',
-      '.reflecta-md-editor .milkdown .milkdown-slash-menu[data-show=true]',
+      ".reflecta-md-editor .milkdown .milkdown-slash-menu[data-show=false]",
+      ".reflecta-md-editor .milkdown .milkdown-slash-menu[data-show=true]",
       ".reflecta-md-editor .milkdown .milkdown-slash-menu .tab-group",
       ".reflecta-md-editor .milkdown .milkdown-slash-menu .menu-groups",
       ".reflecta-md-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group li",
@@ -191,22 +191,22 @@ describe("milkdown theme contract", () => {
     }
 
     expectDeclaration(
-      '.reflecta-md-editor .milkdown .milkdown-slash-menu[data-show=false]',
+      ".reflecta-md-editor .milkdown .milkdown-slash-menu[data-show=false]",
       "display",
       /none/,
     );
     expectDeclaration(
-      '.reflecta-md-editor .milkdown .milkdown-slash-menu[data-show=true]',
+      ".reflecta-md-editor .milkdown .milkdown-slash-menu[data-show=true]",
       "display",
       /flex/,
     );
     expectDeclaration(
-      '.reflecta-md-editor .milkdown .milkdown-slash-menu[data-show=true]',
+      ".reflecta-md-editor .milkdown .milkdown-slash-menu[data-show=true]",
       "height",
       /fit-content/,
     );
     expectDeclaration(
-      '.reflecta-md-editor .milkdown .milkdown-slash-menu[data-show=true]',
+      ".reflecta-md-editor .milkdown .milkdown-slash-menu[data-show=true]",
       "background",
       /var\(--popover\)/,
     );

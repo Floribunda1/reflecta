@@ -53,6 +53,7 @@
 ## Task 1：引入 Jotai 管理 Capture UI 状态
 
 **文件：**
+
 - 新增：`apps/electron/src/renderer/src/modules/capture/state.ts`
 - 修改：`apps/electron/src/renderer/src/modules/capture/context.tsx`
 - 修改：`apps/electron/src/renderer/src/modules/capture/index.tsx`
@@ -67,6 +68,7 @@
 ## Task 2：移除 Capture 对手写 Local Storage Hook 的依赖
 
 **文件：**
+
 - 修改：`apps/electron/src/renderer/src/modules/capture/context.tsx`
 
 - [ ] 从 capture 中移除 `@renderer/modules/shared/hooks/use-local-storage-state` 的 imports。
@@ -82,6 +84,7 @@ rg "useLocalStorageState" apps/electron/src/renderer/src/modules/capture
 ## Task 3：把 Debounce 逻辑迁到 ahooks
 
 **文件：**
+
 - 修改：`apps/electron/src/renderer/src/modules/capture/thought-detail/ThoughtDetail.tsx`
 
 - [ ] 将标题、正文、来源名称、来源内容的 `lodash-es/debounce + useMemo + cleanup effect` 替换为 ahooks 的 `useDebounceFn`。
@@ -93,6 +96,7 @@ rg "useLocalStorageState" apps/electron/src/renderer/src/modules/capture
 ## Task 4：降低编辑过程中的 Refetch Churn
 
 **文件：**
+
 - 修改：`apps/electron/src/renderer/src/modules/capture/thought-detail/context.tsx`
 - 修改：`apps/electron/src/renderer/src/modules/capture/thought-list/context.tsx`
 
@@ -105,6 +109,7 @@ rg "useLocalStorageState" apps/electron/src/renderer/src/modules/capture
 ## Task 5：用 shadcn 替换分类手写 Context Menu
 
 **文件：**
+
 - 修改：`apps/electron/src/renderer/src/modules/capture/category/components/CategoryTree.tsx`
 
 - [ ] 用 `apps/electron/src/renderer/src/components/ui/` 下的 shadcn `ContextMenu` 或 `DropdownMenu` primitives 替换 `menuState` fixed-position JSX。
@@ -116,6 +121,7 @@ rg "useLocalStorageState" apps/electron/src/renderer/src/modules/capture
 ## Task 6：用 shadcn Select 替换 Raw/Native Select
 
 **文件：**
+
 - 修改：`apps/electron/src/renderer/src/modules/capture/category/components/CreateCategoryModal.tsx`
 - 修改：`apps/electron/src/renderer/src/modules/capture/thought-detail/ThoughtDetail.tsx`
 
@@ -135,6 +141,7 @@ rg "<select|NativeSelect" apps/electron/src/renderer/src/modules/capture
 ## Task 7：移除低价值 useMemo
 
 **文件：**
+
 - 修改：`apps/electron/src/renderer/src/modules/capture/thought-list/index.tsx`
 - 修改：`apps/electron/src/renderer/src/modules/capture/thought-list/ThoughtCard.tsx`
 - 修改：`apps/electron/src/renderer/src/modules/capture/category/components/CreateCategoryModal.tsx`
