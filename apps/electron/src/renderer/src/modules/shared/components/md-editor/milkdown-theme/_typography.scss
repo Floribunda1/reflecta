@@ -1,0 +1,46 @@
+@use "./config" as *;
+@use "./mixins" as *;
+
+/* Base typography and headings */
+.reflecta-md-editor .milkdown .ProseMirror {
+  p,
+  li,
+  blockquote,
+  table {
+    font-size: $font-size-body;
+  }
+
+  p {
+    margin: 0.42rem 0;
+    padding: 2px 0;
+    color: var(--foreground);
+    @include compact-text;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: 1.35rem 0 0.5rem;
+    padding: 0;
+    color: var(--foreground);
+    font-family: inherit;
+    font-weight: 650;
+    letter-spacing: 0;
+    line-height: 1.25;
+  }
+
+  @each $level, $size in $heading-sizes {
+    h#{$level} {
+      font-size: $size;
+    }
+  }
+
+  h4,
+  h5,
+  h6 {
+    font-size: 1em;
+  }
+}

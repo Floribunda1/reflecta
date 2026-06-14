@@ -1,0 +1,44 @@
+@use "./config" as *;
+@use "./mixins" as *;
+
+/* Tables */
+.reflecta-md-editor .milkdown-table-block {
+  margin: 0.75rem 0;
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: $font-size-body;
+    line-height: 1.45;
+  }
+
+  th,
+  td {
+    border: 1px solid color-mix(in srgb, var(--border), var(--foreground) 10%);
+    padding: 0.38rem 0.55rem;
+    vertical-align: top;
+  }
+
+  th {
+    background: color-mix(in srgb, var(--muted), var(--background) 34%);
+    color: var(--foreground);
+    font-weight: 600;
+  }
+
+  .selectedCell::after {
+    background: color-mix(in srgb, var(--primary), transparent 84%);
+  }
+
+  .cell-handle,
+  .cell-handle .button-group,
+  .line-handle .add-button {
+    @include popover-chrome;
+    border-radius: var(--crepe-radius-control);
+    color: var(--muted-foreground);
+  }
+
+  .cell-handle button,
+  .line-handle .add-button {
+    @include accent-hover;
+  }
+}

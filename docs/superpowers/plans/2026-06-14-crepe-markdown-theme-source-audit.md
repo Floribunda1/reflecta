@@ -1,0 +1,30 @@
+# Crepe Markdown Theme Source Audit
+
+This audit maps `apps/electron/src/renderer/src/modules/shared/components/demo.md`
+coverage to Crepe's actual theme ownership before rewriting
+`milkdown-theme.css`.
+
+| Demo block | Crepe source | Selector ownership | Override reason | Design token family |
+| --- | --- | --- | --- | --- |
+| Root surface | `common/reset.css` | `.milkdown`, `.milkdown .ProseMirror` | Crepe owns root padding, selection, font family, and background. Reflecta owns editor dimensions and base color bridge. | `--background`, `--foreground`, `--muted`, `--border`, `--primary` |
+| Paragraph text | `common/reset.css` | `.milkdown .ProseMirror p` | Crepe reset hard-codes `16px/24px`. Reflecta markdown body must use the app's 14px baseline. | `--foreground`, inherited app font |
+| Headings | `common/reset.css` | `.milkdown .ProseMirror h1` through `h6` | Crepe heading scale is document-editor sized. Reflecta needs a compact note/editor hierarchy. | `--foreground`, inherited app font |
+| Inline code | `common/reset.css` | `.milkdown .ProseMirror code` | Crepe inline code uses its own inline-area token. Reflecta should keep compact code chrome with app border/radius/surface tokens. | `--muted`, `--border`, `--radius-sm` |
+| Links | `common/reset.css`, local wiki extension | `.milkdown .ProseMirror a`, `a.wiki-link`, `a[data-wiki-link]` | Link colors should come from app primary token; wiki chips should remain inline and not affect line-height. | `--primary`, `--radius-sm` |
+| Blockquote | `common/reset.css` | `.milkdown .ProseMirror blockquote`, `blockquote::before` | Crepe draws a pseudo vertical bar and applies wide left padding. Reflecta needs one subtle border with compact nesting. | `--border`, `--primary`, `--muted-foreground` |
+| Horizontal rule | `common/reset.css` | `.milkdown .ProseMirror hr` | Crepe reset creates a padded 13px band. Reflecta needs a single tokenized divider line. | `--border` |
+| Lists | `common/list-item.css` plus native fallback | `.milkdown-list-item-block`, `.list-item`, `.children`, `.label-wrapper`, `.label`, fallback `ul/ol/li` | Crepe list DOM is not plain `ol > li`; marker and content alignment must target the real list block structure. | `--muted-foreground`, `--primary`, inherited typography |
+| Task lists | `common/list-item.css`, GFM task DOM | `.label-wrapper .checked`, `.label-wrapper .unchecked`, fallback `input[type="checkbox"]` | Task markers must align to text baseline and use app accent/primary state. | `--primary`, `--muted-foreground` |
+| Image and video | `common/image-block.css`, upload adapter output | `.milkdown-image-block`, `.milkdown-image-inline`, `.ProseMirror img`, `.ProseMirror video` | Media should fit content width and use subtle system chrome without becoming nested cards. | `--border`, `--radius-md` |
+| Code blocks | `common/code-mirror.css` | `.milkdown-code-block`, `.cm-editor`, `.cm-content`, `.cm-gutters`, `.cm-activeLine`, `.cm-activeLineGutter`, tools and language picker classes | CodeMirror chrome has its own surface, gutter, active line, and tool buttons. Reflecta owns block chrome and active gutter treatment. | `--muted`, `--background`, `--border`, `--radius-md`, `--muted-foreground` |
+| Tables | `common/table.css` | `.milkdown-table-block`, `table`, `th`, `td`, table handles | Crepe default table cells are too roomy and handle chrome uses Crepe surface/shadow. Reflecta needs dense table content with system border/surface. | `--border`, `--muted`, `--background`, `--radius-md`, low-elevation shadow |
+| Link popovers | `common/link-tooltip.css` | `.milkdown-link-preview`, `.link-preview`, `.milkdown-link-edit`, `.link-edit` | Floating link UI should match app popovers, not Crepe surface. | `--popover`, `--popover-foreground`, `--border`, `--radius-md`, low-elevation shadow |
+| Slash menu and block handle | `common/block-edit.css` | `.milkdown-slash-menu`, `.menu-groups`, `.milkdown-block-handle`, `.operation-item` | Editing controls are app controls and need system hover/active/radius/icon sizing. | `--popover`, `--accent`, `--muted-foreground`, `--radius-md`, low-elevation shadow |
+| Selection toolbar | `common/toolbar.css` | `.milkdown-toolbar`, `.toolbar-item`, `.divider` | Crepe toolbar is too large and uses Crepe surface/shadow. Reflecta needs compact icon button popover styling. | `--popover`, `--accent`, `--primary`, `--border`, `--radius-md`, low-elevation shadow |
+| Math, footnotes, definitions | current Crepe setup/fallback text | Paragraph/code fallback unless official plugin enables specialized DOM | No custom renderer is added here. Unsupported syntax must still obey base typography. | inherited text and inline code tokens |
+| Readonly preview | local `MarkdownPreview` composition | `.markdown-preview .reflecta-md-editor ...` | Preview uses editor readonly mode; editing controls must be hidden while block rendering remains identical. | same as editor, with readonly control hiding |
+
+The rewrite should keep only `@milkdown/crepe/theme/common/style.css` from Crepe.
+Full visual themes such as `@milkdown/crepe/theme/nord.css` are not part of the
+design-system bridge because they reintroduce Crepe colors, fonts, shadows, and
+spacing defaults after Reflecta has already defined tokens.

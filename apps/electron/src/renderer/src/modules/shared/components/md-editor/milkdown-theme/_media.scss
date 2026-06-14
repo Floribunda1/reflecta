@@ -1,0 +1,50 @@
+@use "./config" as *;
+@use "./mixins" as *;
+
+/* Media */
+.reflecta-md-editor {
+  .milkdown {
+    .ProseMirror {
+      img,
+      video {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+      }
+    }
+
+    .milkdown-image-block {
+      margin: 0.875rem 0;
+
+      > .image-wrapper {
+        max-width: 100%;
+      }
+
+      > .caption-input {
+        color: var(--muted-foreground);
+        font-size: $font-size-caption;
+        line-height: $line-height-caption;
+        margin-top: 0.35rem;
+      }
+
+      > .image-edit {
+        @include popover-chrome;
+        border-radius: var(--crepe-radius-control);
+      }
+    }
+
+    .milkdown-image-inline .empty-image-inline {
+      @include popover-chrome;
+      border-radius: var(--crepe-radius-control);
+    }
+  }
+
+  .milkdown-image-block img,
+  .milkdown-image-inline img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+}

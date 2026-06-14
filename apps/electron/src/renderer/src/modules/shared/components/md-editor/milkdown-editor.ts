@@ -1,20 +1,20 @@
 import {
   Editor,
-  editorViewOptionsCtx,
   editorViewCtx,
   parserCtx,
   serializerCtx,
 } from "@milkdown/core";
-import { listenerCtx } from "@milkdown/plugin-listener";
 import { uploadConfig } from "@milkdown/plugin-upload";
-import { htmlSchema, imageSchema } from "@milkdown/preset-commonmark";
 import type { Node as ProseNode } from "@milkdown/prose/model";
 import { Fragment } from "@milkdown/prose/model";
 import type { EditorView } from "@milkdown/prose/view";
-import type { Ctx } from "@milkdown/ctx";
+import type { Schema } from "@milkdown/prose/model";
 import { Crepe } from "@milkdown/crepe";
-import { formatPastedMediaMarkdown } from "./markdown-support";
 import { reflectaMilkdownExtensions } from "./milkdown-extensions";
+import {
+  createWikiLinkMilkdownPlugin,
+  type WikiLinkPluginController,
+} from "./wiki-link-plugin";
 
 export type AssetUploader = (file: File) => Promise<string>;
 
@@ -22,49 +22,62 @@ export type CreateReflectaMilkdownEditorOptions = {
   root: HTMLElement;
   content: string;
   placeholder?: string;
+  readonly?: boolean;
   onUpdate?: (markdown: string) => void;
   uploadAsset?: AssetUploader;
-  onTextBeforeCursorChange?: (text: string) => void;
+  wikiLinkController?: WikiLinkPluginController;
 };
 
 function isSupportedMedia(file: File): boolean {
   return file.type.startsWith("image/") || file.type.startsWith("video/");
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function createImageNode(schema: Schema, file: File, assetUrl: string): ProseNode | null {
+  const imageBlock = schema.nodes["image-block"];
+  if (imageBlock) return imageBlock.createAndFill({ src: assetUrl, alt: file.name });
+
+  const image = schema.nodes.image;
+  if (image) return image.createAndFill({ src: assetUrl, alt: file.name, title: file.name });
+
+  return null;
+}
+
+function createVideoNode(schema: Schema, file: File, assetUrl: string): ProseNode | null {
+  const html = schema.nodes.html;
+  if (!html) return null;
+
+  return html.create({
+    value: `<video src="${escapeHtml(assetUrl)}" controls title="${escapeHtml(file.name)}"></video>`,
+  });
+}
+
 async function uploadFilesAsMarkdown(
   files: FileList,
-  ctx: Ctx,
+  schema: Schema,
   uploadAsset?: AssetUploader,
 ): Promise<Fragment | ProseNode | ProseNode[]> {
+  if (!uploadAsset) return Fragment.empty;
+
   const nodes: ProseNode[] = [];
 
   for (let index = 0; index < files.length; index += 1) {
     const file = files.item(index);
     if (!file || !isSupportedMedia(file)) continue;
 
-    if (!uploadAsset) continue;
-
     const savedFilename = await uploadAsset(file);
     const assetUrl = `asset:///${savedFilename}`;
-
-    if (file.type.startsWith("image/")) {
-      const image = imageSchema.type(ctx).create({
-        src: assetUrl,
-        alt: file.name,
-        title: file.name,
-      });
-      if (image) nodes.push(image);
-      continue;
-    }
-
-    const video = htmlSchema.type(ctx).create({
-      value: formatPastedMediaMarkdown({
-        filename: file.name,
-        assetUrl,
-        mimeType: file.type,
-      }),
-    });
-    if (video) nodes.push(video);
+    const node = file.type.startsWith("image/")
+      ? createImageNode(schema, file, assetUrl)
+      : createVideoNode(schema, file, assetUrl);
+    if (node) nodes.push(node);
   }
 
   return Fragment.fromArray(nodes);
@@ -74,9 +87,10 @@ export function createReflectaMilkdownEditorBuilder({
   root,
   content,
   placeholder,
+  readonly,
   onUpdate,
   uploadAsset,
-  onTextBeforeCursorChange,
+  wikiLinkController,
 }: CreateReflectaMilkdownEditorOptions): Editor {
   const editorRoot = document.createElement("div");
   editorRoot.className = "reflecta-milkdown";
@@ -95,53 +109,30 @@ export function createReflectaMilkdownEditorBuilder({
         text: placeholder ?? "请输入",
         mode: "block",
       },
-      [Crepe.Feature.ImageBlock]: {
-        inlineOnUpload: uploadAsset,
-        blockOnUpload: uploadAsset,
-      },
     },
   });
-  const editor = crepe.editor
-    .config((ctx) => {
-      ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
-        onUpdate?.(markdown);
-      });
-      ctx.update(uploadConfig.key, (prev) => ({
-        ...prev,
-        enableHtmlFileUploader: true,
-        uploader: (files) => uploadFilesAsMarkdown(files, ctx, uploadAsset),
-      }));
-      ctx.update(editorViewOptionsCtx, (prev) => ({
-        ...prev,
-        handleDOMEvents: {
-          ...prev.handleDOMEvents,
-          input: (view, event) => {
-            const handled = prev.handleDOMEvents?.input?.(view, event) ?? false;
-            queueMicrotask(() => onTextBeforeCursorChange?.(getTextBeforeCursorFromView(view)));
-            return handled;
-          },
-          keyup: (view, event) => {
-            const handled = prev.handleDOMEvents?.keyup?.(view, event) ?? false;
-            queueMicrotask(() => onTextBeforeCursorChange?.(getTextBeforeCursorFromView(view)));
-            return handled;
-          },
-        },
-        handleClick: (view, position, event) => {
-          const handled = prev.handleClick?.(view, position, event) ?? false;
-          queueMicrotask(() => onTextBeforeCursorChange?.(getTextBeforeCursorFromView(view)));
-          return handled;
-        },
-      }));
-    })
-    .use(reflectaMilkdownExtensions);
+
+  crepe.on((listener) => {
+    listener.markdownUpdated((_ctx, markdown) => {
+      onUpdate?.(markdown);
+    });
+  });
+
+  const editor = crepe.editor.config((ctx) => {
+    ctx.update(uploadConfig.key, (prev) => ({
+      ...prev,
+      enableHtmlFileUploader: true,
+      uploader: (files, schema) => uploadFilesAsMarkdown(files, schema, uploadAsset),
+    }));
+  });
+
+  editor.use(reflectaMilkdownExtensions);
+  if (!readonly && wikiLinkController) {
+    editor.use(createWikiLinkMilkdownPlugin(wikiLinkController));
+  }
+  if (readonly) crepe.setReadonly(true);
 
   return editor;
-}
-
-function getTextBeforeCursorFromView(view: EditorView): string {
-  const selection = view.state.selection;
-  if (!selection.empty) return "";
-  return selection.$from.parent.textBetween(0, selection.$from.parentOffset, "\n", "\n");
 }
 
 export async function createReflectaMilkdownEditor(
@@ -149,7 +140,24 @@ export async function createReflectaMilkdownEditor(
 ): Promise<Editor> {
   const editor = createReflectaMilkdownEditorBuilder(options);
   await editor.create();
+  patchSlashMenuScroll(options.root);
   return editor;
+}
+
+function patchSlashMenuScroll(root: HTMLElement): void {
+  const observer = new MutationObserver(() => {
+    const menu = root.querySelector<HTMLElement>(".milkdown-slash-menu");
+    if (!menu || menu.dataset.show === "false") return;
+
+    const hovered = menu.querySelector<HTMLElement>(".menu-groups li.hover");
+    hovered?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  });
+
+  observer.observe(root, {
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["class", "data-show"],
+  });
 }
 
 export function getMilkdownMarkdown(editor: Editor): string {

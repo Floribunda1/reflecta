@@ -1,0 +1,55 @@
+@use "./config" as *;
+@use "./mixins" as *;
+
+/* Editor surface */
+.reflecta-md-editor__surface {
+  position: relative;
+  @include fill-height;
+}
+
+.reflecta-md-editor {
+  .milkdown > div,
+  [data-milkdown-root],
+  .reflecta-milkdown {
+    @include fill-height;
+  }
+
+  .ProseMirror {
+    box-sizing: border-box;
+    @include fill-height;
+    overflow: auto;
+    padding: 0;
+    color: var(--foreground);
+    caret-color: var(--primary);
+    font-size: $font-size-body;
+    line-height: $line-height-prose;
+    outline: none;
+    overflow-wrap: anywhere;
+
+    &[contenteditable="false"] {
+      cursor: default;
+    }
+
+    > * {
+      &:first-child {
+        margin-top: 0;
+      }
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+}
+
+#{$preview-root} .reflecta-md-editor {
+  width: 100%;
+  max-width: 46rem;
+  margin: 0 auto;
+
+  .ProseMirror {
+    padding: 0;
+    font-size: $font-size-body;
+    line-height: $line-height-preview;
+  }
+}

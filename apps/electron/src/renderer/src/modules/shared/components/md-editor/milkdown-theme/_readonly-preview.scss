@@ -1,0 +1,33 @@
+@use "./config" as *;
+
+/* Readonly preview */
+.reflecta-md-editor .ProseMirror[contenteditable="false"] ~ .milkdown-block-handle {
+  display: none !important;
+}
+
+#{$preview-root} .reflecta-md-editor {
+  .milkdown-block-handle,
+  .milkdown-toolbar,
+  .milkdown-slash-menu,
+  .milkdown-link-preview,
+  .milkdown-link-edit,
+  .language-button,
+  .tools-button-group,
+  .milkdown-table-block .handle {
+    display: none !important;
+  }
+
+  .milkdown-code-block {
+    margin: 1rem 0;
+    background: color-mix(in srgb, var(--muted), var(--background) 68%);
+  }
+
+  .milkdown-table-block {
+    overflow-x: auto;
+  }
+
+  .milkdown-image-block,
+  .milkdown-image-inline {
+    margin: 1rem 0;
+  }
+}

@@ -1,0 +1,35 @@
+/* Blockquote and divider */
+.reflecta-md-editor .milkdown .ProseMirror {
+  blockquote {
+    box-sizing: border-box;
+    margin: 0.75rem 0;
+    border-left: 2px solid color-mix(in srgb, var(--border), var(--primary) 18%);
+    background: transparent;
+    color: var(--muted-foreground);
+    padding: 0.05rem 0 0.05rem 0.75rem;
+    position: relative;
+
+    &::before {
+      content: none !important;
+      display: none !important;
+    }
+
+    p {
+      color: inherit;
+    }
+
+    blockquote {
+      margin-left: 0.75rem;
+    }
+  }
+
+  hr {
+    height: 1px !important;
+    min-height: 0 !important;
+    margin: 1.25rem 0 !important;
+    border: 0 !important;
+    background: var(--border) !important;
+    background-clip: border-box !important;
+    padding: 0 !important;
+  }
+}

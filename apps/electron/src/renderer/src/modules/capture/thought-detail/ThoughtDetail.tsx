@@ -374,9 +374,9 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
 
           <section className="mt-5">
             <MarkdownEditor
-              content={body}
+              contentKey={thought.id}
+              initialContent={thought.body}
               height="clamp(320px, 46vh, 520px)"
-              variant="plain"
               placeholder="用自己的语言写下这条理解。通过 [[已有理解标题]] 连接相关理解。"
               onUpdate={(next) => {
                 if (next === body) return;

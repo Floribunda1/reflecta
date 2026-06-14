@@ -1,10 +1,5 @@
-import { Plugin } from "@milkdown/prose/state";
 import { $nodeSchema, $remark } from "@milkdown/utils";
-import { $prose } from "@milkdown/utils";
-import mermaid from "mermaid";
-import remarkDirective from "remark-directive";
 import { visit } from "unist-util-visit";
-import { normalizeAdmonitionType } from "./markdown-support";
 
 const wikiLinkPattern = /\[\[([^\]\n#]+)#([^\]\n#]+)\]\]/g;
 
@@ -45,8 +40,6 @@ export const remarkWikiLink = $remark("reflectaWikiLink", () => () => (tree: any
     parent.children.splice(index, 1, ...replacements);
   });
 });
-
-export const remarkDirectivePlugin = $remark("reflectaDirective", () => remarkDirective);
 
 export const wikiLinkSchema = $nodeSchema("wiki_link", () => ({
   inline: true,
@@ -97,124 +90,4 @@ export const wikiLinkSchema = $nodeSchema("wiki_link", () => ({
   },
 }));
 
-export const admonitionSchema = $nodeSchema("admonition", () => ({
-  group: "block",
-  content: "block+",
-  defining: true,
-  isolating: true,
-  attrs: {
-    type: { default: "note", validate: "string" },
-  },
-  parseDOM: [
-    {
-      tag: "aside[data-admonition]",
-      getAttrs: (dom) => {
-        if (!(dom instanceof HTMLElement)) return false;
-        return { type: normalizeAdmonitionType(dom.dataset.type) };
-      },
-    },
-  ],
-  toDOM: (node) => [
-    "aside",
-    {
-      "data-admonition": "",
-      "data-type": normalizeAdmonitionType(node.attrs.type),
-      class: "reflecta-admonition",
-    },
-    ["div", { class: "reflecta-admonition__content" }, 0],
-  ],
-  parseMarkdown: {
-    match: (node) => node.type === "containerDirective",
-    runner: (state, node, type) => {
-      state.openNode(type, { type: normalizeAdmonitionType(node.name) });
-      state.next(node.children ?? []);
-      state.closeNode();
-    },
-  },
-  toMarkdown: {
-    match: (node) => node.type.name === "admonition",
-    runner: (state, node) => {
-      state.openNode("containerDirective", undefined, {
-        name: normalizeAdmonitionType(node.attrs.type),
-      });
-      state.next(node.content);
-      state.closeNode();
-    },
-  },
-}));
-
-export const mermaidPreviewPlugin = $prose(() => {
-  mermaid.initialize({ startOnLoad: false, securityLevel: "strict" });
-
-  return new Plugin({
-    view: (view) => {
-      let renderVersion = 0;
-      let destroyed = false;
-
-      const render = () => {
-        if (destroyed) return;
-        const version = ++renderVersion;
-        const previewRoot = view.dom.parentElement ?? view.dom;
-        previewRoot
-          .querySelectorAll(".reflecta-md-editor__mermaid-preview")
-          .forEach((element) => element.remove());
-
-        const codeBlocks: Array<{ source: string; language: string }> = [];
-        view.state.doc.descendants((node) => {
-          if (node.type.name === "code_block") {
-            codeBlocks.push({
-              source: node.textContent,
-              language: String(node.attrs.language ?? ""),
-            });
-          }
-          return true;
-        });
-
-        codeBlocks.forEach((codeBlock, index) => {
-          if (codeBlock.language !== "mermaid") return;
-
-          const element = document.createElement("div");
-          element.className = "reflecta-mermaid reflecta-md-editor__mermaid-preview";
-          element.textContent = codeBlock.source;
-          previewRoot.append(element);
-
-          const renderId = `reflecta-editor-mermaid-${index}-${Math.random()
-            .toString(36)
-            .slice(2)}`;
-          void mermaid
-            .render(renderId, codeBlock.source)
-            .then((result) => {
-              if (!destroyed && version === renderVersion) element.innerHTML = result.svg;
-            })
-            .catch(() => {
-              if (destroyed) return;
-              element.dataset.mermaidError = "true";
-              element.textContent = codeBlock.source;
-            });
-        });
-      };
-
-      queueMicrotask(render);
-
-      return {
-        update: render,
-        destroy: () => {
-          destroyed = true;
-          renderVersion += 1;
-          const previewRoot = view.dom.parentElement ?? view.dom;
-          previewRoot
-            .querySelectorAll(".reflecta-md-editor__mermaid-preview")
-            .forEach((element) => element.remove());
-        },
-      };
-    },
-  });
-});
-
-export const reflectaMilkdownExtensions = [
-  remarkDirectivePlugin,
-  remarkWikiLink,
-  wikiLinkSchema,
-  admonitionSchema,
-  mermaidPreviewPlugin,
-].flat();
+export const reflectaMilkdownExtensions = [remarkWikiLink, wikiLinkSchema].flat();

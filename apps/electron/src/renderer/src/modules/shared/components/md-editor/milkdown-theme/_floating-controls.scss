@@ -1,0 +1,145 @@
+@use "./config" as *;
+@use "./mixins" as *;
+
+/* Floating controls */
+.reflecta-md-editor .milkdown {
+  .milkdown-toolbar,
+  .milkdown-link-preview > .link-preview,
+  .milkdown-link-edit > .link-edit {
+    @include popover-chrome;
+  }
+
+  .milkdown-toolbar {
+    align-items: center;
+    gap: 2px;
+    width: max-content;
+    min-width: 0;
+    height: auto;
+    min-height: 0;
+    max-height: $toolbar-max-height;
+    padding: 4px;
+    overflow: hidden;
+
+    .toolbar-item {
+      @include icon-button;
+      @include accent-hover;
+      @include primary-active;
+
+      svg {
+        @include control-icon;
+      }
+    }
+
+    .divider {
+      width: 1px;
+      height: $toolbar-divider-height;
+      margin: 0 3px;
+      background: var(--border);
+    }
+  }
+
+  .milkdown-block-handle {
+    color: var(--muted-foreground);
+
+    .operation-item {
+      @include icon-button;
+      @include accent-hover;
+      @include primary-active;
+
+      svg {
+        @include control-icon;
+      }
+    }
+  }
+
+  .milkdown-link-preview > .link-preview,
+  .milkdown-link-edit > .link-edit {
+    min-height: 32px;
+    align-items: center;
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .milkdown-link-preview {
+    svg {
+      @include control-icon;
+    }
+
+    > .link-preview {
+      > .button,
+      > .link-icon {
+        @include icon-button;
+        @include accent-hover;
+
+        &:hover {
+          background: var(--accent);
+          color: var(--accent-foreground);
+        }
+      }
+
+      > .link-display {
+        font-size: $font-size-body;
+        line-height: $line-height-menu;
+        color: var(--popover-foreground);
+      }
+    }
+  }
+
+  .milkdown-link-edit {
+    svg {
+      @include control-icon;
+    }
+
+    > .link-edit {
+      > .button {
+        @include icon-button;
+        @include accent-hover;
+      }
+
+      > .input-area {
+        font-size: $font-size-body;
+        line-height: $line-height-menu;
+        color: var(--popover-foreground);
+      }
+    }
+  }
+}
+
+.reflecta-md-editor__wiki-menu {
+  @include popover-chrome;
+  @include slash-menu-scrollbar;
+
+  position: absolute;
+  z-index: 20;
+  top: 2.75rem;
+  left: 1rem;
+  display: flex;
+  width: min(18rem, calc(100% - 2rem));
+  max-height: 18rem;
+  flex-direction: column;
+  overflow: auto;
+  padding: 0.25rem;
+}
+
+.reflecta-md-editor__wiki-menu-item {
+  display: flex;
+  min-height: 2rem;
+  width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: var(--crepe-radius-control);
+  background: transparent;
+  color: inherit;
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  font: inherit;
+  font-size: $font-size-body;
+  line-height: $line-height-menu;
+
+  @include menu-item-selected;
+
+  &:focus-visible {
+    outline: none;
+  }
+}

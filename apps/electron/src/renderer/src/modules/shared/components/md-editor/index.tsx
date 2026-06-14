@@ -1,32 +1,35 @@
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { editorViewCtx } from "@milkdown/core";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@renderer/lib/utils";
 import { ipcClient } from "@renderer/utils/ipc";
 import type { ThoughtSummaryDTO } from "@shared/thought";
-import {
-  findWikiLinkTrigger,
-  getTextBeforeCursor,
-  insertMarkdownReplacingTrigger,
-} from "./editor-actions";
+import { formatThoughtWikiLink } from "../wiki-links";
 import {
   createReflectaMilkdownEditorBuilder,
   getMilkdownMarkdown,
   setMilkdownMarkdown,
 } from "./milkdown-editor";
-import "./milkdown-theme.css";
+import {
+  insertWikiLinkMarkdown,
+  type WikiLinkMenuState,
+  type WikiLinkPluginController,
+} from "./wiki-link-plugin";
+import "./milkdown-theme.scss";
 
 type MarkdownEditorProps = {
+  contentKey?: string;
+  initialContent?: string;
   content?: string;
   width?: number | string;
   height?: number | string;
-  enableWikiLink?: boolean;
   placeholder?: string;
-  variant?: "default" | "plain";
+  readonly?: boolean;
   className?: string;
   onUpdate?: (value: string) => void;
 };
 
-type WikiMenu = { fromOffset: number; query: string } | null;
+const inactiveWikiLinkState: WikiLinkMenuState = { active: false };
 
 function titleForThought(thought: ThoughtSummaryDTO): string {
   const title = thought.title?.trim();
@@ -38,34 +41,25 @@ function titleForThought(thought: ThoughtSummaryDTO): string {
   return firstLine || "未命名理解";
 }
 
-function getDomTextBeforeCursor(): string {
-  const selection = window.getSelection();
-  if (!selection || !selection.isCollapsed || !selection.anchorNode) return "";
-  const text = selection.anchorNode.textContent ?? "";
-  return text.slice(0, selection.anchorOffset);
-}
-
 function MarkdownEditorSurface({
+  contentKey,
   content,
   placeholder,
+  readonly,
   onUpdate,
 }: {
+  contentKey?: string;
   content: string;
   placeholder: string;
+  readonly?: boolean;
   onUpdate?: (value: string) => void;
 }) {
-  const contentRef = useRef(content);
-  const lastMarkdownRef = useRef(content);
   const onUpdateRef = useRef(onUpdate);
-  const isApplyingExternalContentRef = useRef(false);
-  const isReadyForUserUpdatesRef = useRef(false);
-  const surfaceRef = useRef<HTMLDivElement | null>(null);
-  const [wikiMenu, setWikiMenu] = useState<WikiMenu>(null);
+  const contentKeyRef = useRef(contentKey);
+  const wikiResultsRef = useRef<ThoughtSummaryDTO[]>([]);
+  const wikiStateRef = useRef<WikiLinkMenuState>(inactiveWikiLinkState);
+  const [wikiState, setWikiState] = useState<WikiLinkMenuState>(inactiveWikiLinkState);
   const [wikiResults, setWikiResults] = useState<ThoughtSummaryDTO[]>([]);
-
-  useEffect(() => {
-    contentRef.current = content;
-  }, [content]);
 
   useEffect(() => {
     onUpdateRef.current = onUpdate;
@@ -75,184 +69,135 @@ function MarkdownEditorSurface({
     return ipcClient.asset.saveAsset(await file.arrayBuffer(), file.name);
   }, []);
 
-  const updateMenuFromText = useCallback((textBeforeCursor: string) => {
-    const wiki = findWikiLinkTrigger(textBeforeCursor);
-    if (wiki) {
-      setWikiMenu(wiki);
-      return;
-    }
+  const wikiLinkController = useMemo<WikiLinkPluginController>(
+    () => ({
+      onStateChange: (next) => {
+        wikiStateRef.current = next;
+        setWikiState(next);
+      },
+      getItemCount: () => wikiResultsRef.current.length,
+      getSelectedMarkdown: (state) => {
+        const thought = wikiResultsRef.current[state.selectedIndex];
+        if (!thought) return null;
 
-    setWikiMenu(null);
-  }, []);
+        return formatThoughtWikiLink({
+          id: thought.id,
+          title: titleForThought(thought),
+        });
+      },
+    }),
+    [],
+  );
 
   const editor = useEditor(
     (root) =>
       createReflectaMilkdownEditorBuilder({
         root,
-        content: contentRef.current,
+        content,
         placeholder,
+        readonly,
         uploadAsset,
+        wikiLinkController: readonly ? undefined : wikiLinkController,
         onUpdate: (next) => {
-          if (
-            !isReadyForUserUpdatesRef.current ||
-            isApplyingExternalContentRef.current ||
-            !surfaceRef.current?.contains(document.activeElement) ||
-            next === lastMarkdownRef.current
-          ) {
-            lastMarkdownRef.current = next;
-            return;
-          }
-
-          lastMarkdownRef.current = next;
           onUpdateRef.current?.(next);
-          updateMenuFromText(next.split("\n").at(-1) ?? "");
         },
-        onTextBeforeCursorChange: updateMenuFromText,
       }),
-    [placeholder, uploadAsset, updateMenuFromText],
+    [placeholder, readonly, uploadAsset, wikiLinkController],
   );
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      isReadyForUserUpdatesRef.current = true;
-    }, 0);
+    if (!wikiState.active) {
+      wikiResultsRef.current = [];
+      setWikiResults([]);
+      return;
+    }
 
-    return () => {
-      window.clearTimeout(timeoutId);
-      isReadyForUserUpdatesRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const instance = editor.get();
-    if (!instance) return;
-    if (content === lastMarkdownRef.current) return;
-    if (content === getMilkdownMarkdown(instance)) return;
-
-    isApplyingExternalContentRef.current = true;
-    setMilkdownMarkdown(instance, content);
-    lastMarkdownRef.current = content;
-    queueMicrotask(() => {
-      isApplyingExternalContentRef.current = false;
-    });
-  }, [content, editor]);
-
-  useEffect(() => {
-    if (!wikiMenu) return;
     let cancelled = false;
+    wikiResultsRef.current = [];
+    setWikiResults([]);
 
-    const load = async () => {
+    const loadResults = async () => {
       const client = ipcClient as Partial<IpcServices>;
       if (!client.search || !client.thought) {
-        if (!cancelled) setWikiResults([]);
+        if (!cancelled) {
+          wikiResultsRef.current = [];
+          setWikiResults([]);
+        }
         return;
       }
-      const results = wikiMenu.query.trim()
-        ? await client.search.searchThoughts(wikiMenu.query.trim())
+
+      const query = wikiState.query.trim();
+      const results = query
+        ? await client.search.searchThoughts(query)
         : await client.thought.listThoughts();
-      if (!cancelled) setWikiResults(results.slice(0, 8));
+      if (cancelled) return;
+
+      const next = results.slice(0, 8);
+      wikiResultsRef.current = next;
+      setWikiResults(next);
     };
 
-    void load();
+    void loadResults();
+
     return () => {
       cancelled = true;
     };
-  }, [wikiMenu]);
+  }, [wikiState.active, wikiState.active ? wikiState.query : ""]);
 
-  const refreshMenu = useCallback(() => {
+  useEffect(() => {
     const instance = editor.get();
     if (!instance) return;
 
-    updateMenuFromText(getTextBeforeCursor(instance));
-  }, [editor, updateMenuFromText]);
+    if (contentKey === undefined) {
+      contentKeyRef.current = undefined;
+    } else {
+      if (contentKeyRef.current === contentKey) return;
+      contentKeyRef.current = contentKey;
+    }
 
-  useEffect(() => {
-    const surface = surfaceRef.current;
-    if (!surface) return;
+    if (content === getMilkdownMarkdown(instance)) return;
 
-    let proseMirror: Element | null = null;
-    const handler = () => {
-      queueMicrotask(() => updateMenuFromText(getDomTextBeforeCursor()));
-    };
-    const attach = () => {
-      const next = surface.querySelector(".ProseMirror");
-      if (!next || next === proseMirror) return;
-      proseMirror?.removeEventListener("beforeinput", handler);
-      proseMirror?.removeEventListener("input", handler);
-      proseMirror?.removeEventListener("keyup", handler);
-      proseMirror?.removeEventListener("mouseup", handler);
-      proseMirror = next;
-      proseMirror.addEventListener("beforeinput", handler);
-      proseMirror.addEventListener("input", handler);
-      proseMirror.addEventListener("keyup", handler);
-      proseMirror.addEventListener("mouseup", handler);
-    };
+    setMilkdownMarkdown(instance, content);
+  }, [content, contentKey, editor]);
 
-    attach();
-    const observer = new MutationObserver(attach);
-    observer.observe(surface, { childList: true, subtree: true });
-
-    return () => {
-      observer.disconnect();
-      proseMirror?.removeEventListener("beforeinput", handler);
-      proseMirror?.removeEventListener("input", handler);
-      proseMirror?.removeEventListener("keyup", handler);
-      proseMirror?.removeEventListener("mouseup", handler);
-    };
-  }, [updateMenuFromText]);
-
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      const surface = surfaceRef.current;
-      if (!surface || !surface.contains(document.activeElement)) return;
-      updateMenuFromText(getDomTextBeforeCursor());
-    }, 150);
-
-    return () => window.clearInterval(interval);
-  }, [updateMenuFromText]);
-
-  const insertWikiLink = useCallback(
-    (markdown: string) => {
+  const selectWikiLink = useCallback(
+    (thought: ThoughtSummaryDTO) => {
       const instance = editor.get();
-      if (!instance || !wikiMenu) return;
-      insertMarkdownReplacingTrigger(instance, {
-        fromOffset: wikiMenu.fromOffset,
-        markdown,
-      });
-      setWikiMenu(null);
+      if (!instance || !wikiStateRef.current.active) return;
+
+      insertWikiLinkMarkdown(
+        instance.ctx.get(editorViewCtx),
+        wikiStateRef.current,
+        formatThoughtWikiLink({
+          id: thought.id,
+          title: titleForThought(thought),
+        }),
+      );
     },
-    [editor, wikiMenu],
+    [editor],
   );
 
   return (
-    <div
-      ref={surfaceRef}
-      className="reflecta-md-editor__surface"
-      onInputCapture={() => {
-        queueMicrotask(() => updateMenuFromText(getDomTextBeforeCursor()));
-      }}
-      onKeyUpCapture={() => {
-        queueMicrotask(() => updateMenuFromText(getDomTextBeforeCursor()));
-      }}
-      onKeyUp={refreshMenu}
-      onMouseUp={refreshMenu}
-      onBlur={(event) => {
-        if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-        setWikiMenu(null);
-      }}
-    >
+    <div className="reflecta-md-editor__surface">
       <Milkdown />
-      {wikiMenu && wikiResults.length > 0 && (
-        <div className="reflecta-md-editor__menu" tabIndex={-1}>
-          {wikiResults.map((thought) => {
+      {wikiState.active && wikiResults.length > 0 && (
+        <div
+          className="reflecta-md-editor__wiki-menu"
+          role="listbox"
+          aria-label="Wiki link suggestions"
+        >
+          {wikiResults.map((thought, index) => {
+            const active = index === wikiState.selectedIndex;
             const title = titleForThought(thought);
             return (
               <button
                 key={thought.id}
                 type="button"
-                className="reflecta-md-editor__menu-item"
+                role="option"
+                aria-selected={active}
+                className={cn("reflecta-md-editor__wiki-menu-item", active && "active")}
                 onMouseDown={(event) => event.preventDefault()}
-                onClick={() => insertWikiLink(`[[${title}#${thought.id}]]`)}
+                onClick={() => selectWikiLink(thought)}
               >
                 <span>{title}</span>
               </button>
@@ -265,18 +210,21 @@ function MarkdownEditorSurface({
 }
 
 export function MarkdownEditor({
+  contentKey,
+  initialContent,
   content = "",
   width = "100%",
   height = 400,
   placeholder = "请输入",
-  variant = "default",
+  readonly,
   className,
   onUpdate,
 }: MarkdownEditorProps) {
+  const editorContent = initialContent ?? content;
+
   return (
     <div
       className={cn("reflecta-md-editor", className)}
-      data-variant={variant}
       data-no-drag
       style={{
         width: typeof width === "number" ? `${width}px` : width,
@@ -284,7 +232,13 @@ export function MarkdownEditor({
       }}
     >
       <MilkdownProvider>
-        <MarkdownEditorSurface content={content} placeholder={placeholder} onUpdate={onUpdate} />
+        <MarkdownEditorSurface
+          contentKey={contentKey}
+          content={editorContent}
+          placeholder={placeholder}
+          readonly={readonly}
+          onUpdate={onUpdate}
+        />
       </MilkdownProvider>
     </div>
   );

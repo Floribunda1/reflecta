@@ -1,0 +1,48 @@
+/* Inline content and wiki links */
+.reflecta-md-editor .milkdown .ProseMirror {
+  a {
+    color: var(--primary);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--primary), transparent 48%);
+    text-underline-offset: 0.18em;
+
+    &.wiki-link,
+    &[data-wiki-link] {
+      display: inline-block;
+      border-radius: var(--radius-sm);
+      background: color-mix(in srgb, var(--primary), transparent 90%);
+      color: var(--primary);
+      padding: 0 0.25em;
+      text-decoration: none;
+      line-height: 1.45;
+      vertical-align: baseline;
+      white-space: nowrap;
+    }
+  }
+
+  code {
+    display: inline;
+    border: 1px solid color-mix(in srgb, var(--border), transparent 18%);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--muted), transparent 16%);
+    color: var(--primary);
+    font-family: var(--crepe-font-code);
+    font-size: 0.88em;
+    line-height: 1.45;
+    padding: 0.08rem 0.28rem;
+  }
+
+  pre code {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    padding: 0;
+  }
+}
+
+.reflecta-md-editor .milkdown-code-block code {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}

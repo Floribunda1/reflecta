@@ -1,0 +1,73 @@
+@use "./config" as *;
+@use "./mixins" as *;
+
+/* Code */
+.reflecta-md-editor .milkdown-code-block {
+  margin: 0.8rem 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--muted), var(--background) 58%);
+  padding: 0.55rem 0.65rem 0.65rem;
+
+  &.selected {
+    outline: 1px solid var(--ring);
+    outline-offset: 1px;
+  }
+
+  .cm-editor,
+  .cm-gutters,
+  .milkdown-code-block-placeholder {
+    background: transparent;
+  }
+
+  .cm-content,
+  .cm-gutters,
+  .milkdown-code-block-placeholder {
+    font-family: var(--crepe-font-code);
+    font-size: $font-size-code;
+    line-height: 1.55;
+  }
+
+  .cm-content {
+    padding: 0.1rem 0;
+  }
+
+  .cm-line {
+    padding: 0 0.25rem;
+  }
+
+  .cm-gutters {
+    border-right: 0;
+    color: var(--muted-foreground);
+  }
+
+  .cm-activeLine,
+  .cm-activeLineGutter {
+    background: color-mix(in srgb, var(--primary), transparent 94%);
+  }
+
+  .cm-gutterElement.cm-activeLineGutter {
+    background: transparent;
+    color: var(--muted-foreground);
+    box-shadow: none;
+  }
+
+  .tools .language-button,
+  .tools .tools-button-group button,
+  .cm-panel > button {
+    @include control-chrome;
+    @include accent-hover;
+  }
+
+  .list-wrapper,
+  .cm-panel {
+    @include popover-chrome;
+  }
+
+  .language-list-item {
+    &:hover,
+    &:focus-visible {
+      background: var(--accent);
+    }
+  }
+}
