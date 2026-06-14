@@ -1,24 +1,11 @@
 import { CSSProperties, MouseEvent, useEffect, useMemo, useRef } from "react";
 import mediumZoom from "medium-zoom";
-import rehypeStringify from "rehype-stringify";
-import remarkGfm from "remark-gfm";
-import remarkParse from "remark-parse";
-import remarkRehype from "remark-rehype";
-import { unified } from "unified";
+import mermaid from "mermaid";
 import { ipcClient } from "@renderer/utils/ipc";
 import { searchEventBus } from "@renderer/utils/searchEventBus";
-import { renderThoughtWikiLinksAsHtml } from "../wiki-links";
+import { renderMarkdownToHtml } from "../md-editor/markdown-support";
+import "katex/dist/katex.min.css";
 import "./style.css";
-
-const markdownRenderer = unified()
-  .use(remarkParse)
-  .use(remarkGfm)
-  .use(remarkRehype, { allowDangerousHtml: true })
-  .use(rehypeStringify, { allowDangerousHtml: true });
-
-function renderMarkdownToHtml(content: string): string {
-  return String(markdownRenderer.processSync(content));
-}
 
 async function handleWikiLinkClick(e: MouseEvent<HTMLDivElement>): Promise<void> {
   const el = e.target as Element | null;
@@ -52,7 +39,7 @@ export function SimpleMarkdownPreview({
   const html = useMemo(() => {
     if (!content) return "";
     const truncatedContent = content.split("\n").filter(Boolean).slice(0, lineClamp).join("\n");
-    return renderMarkdownToHtml(renderThoughtWikiLinksAsHtml(truncatedContent));
+    return renderMarkdownToHtml(truncatedContent);
   }, [content, lineClamp]);
 
   const style: CSSProperties = {
@@ -72,15 +59,42 @@ export function SimpleMarkdownPreview({
 
 export function MarkdownPreview({ content }: { content: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const html = useMemo(
-    () => renderMarkdownToHtml(renderThoughtWikiLinksAsHtml(content)),
-    [content],
-  );
+  const html = useMemo(() => renderMarkdownToHtml(content), [content]);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     mediumZoom(el.querySelectorAll("img"));
+  }, [html]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    mermaid.initialize({ startOnLoad: false, securityLevel: "strict" });
+    let cancelled = false;
+
+    const render = async () => {
+      const blocks = Array.from(el.querySelectorAll<HTMLElement>(".reflecta-mermaid"));
+      await Promise.all(
+        blocks.map(async (block, index) => {
+          const source = block.dataset.mermaid || block.textContent || "";
+          if (!source.trim()) return;
+          try {
+            const result = await mermaid.render(`reflecta-mermaid-${Date.now()}-${index}`, source);
+            if (!cancelled) block.innerHTML = result.svg;
+          } catch {
+            block.dataset.mermaidError = "true";
+            block.textContent = source;
+          }
+        }),
+      );
+    };
+
+    void render();
+    return () => {
+      cancelled = true;
+    };
   }, [html]);
 
   return (

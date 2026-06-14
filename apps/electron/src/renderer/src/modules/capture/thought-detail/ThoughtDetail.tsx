@@ -13,6 +13,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@renderer/components/ui/sheet";
 import { Textarea } from "@renderer/components/ui/textarea";
 import { CategoryTreeSelect } from "@renderer/modules/shared/biz-components/CategoryTreeSelect";
+import { MarkdownEditor } from "@renderer/modules/shared/components/md-editor";
 import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/md-preview";
 import { useModal } from "@renderer/modules/shared/hooks/use-modal";
 import { ipcClient } from "@renderer/utils/ipc";
@@ -335,7 +336,7 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
   return (
     <div className="h-full min-h-0 min-w-0">
       <ScrollArea className="h-full">
-        <article className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-5">
+        <article className="mx-auto flex min-h-full flex-col px-6 py-5">
           <header className="space-y-4">
             <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span>{updatedLabel}</span>
@@ -372,15 +373,16 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
           </header>
 
           <section className="mt-5">
-            <Textarea
-              value={body}
-              onChange={(event) => {
-                const next = event.target.value;
+            <MarkdownEditor
+              content={body}
+              height="clamp(320px, 46vh, 520px)"
+              variant="plain"
+              placeholder="用自己的语言写下这条理解。通过 [[已有理解标题]] 连接相关理解。"
+              onUpdate={(next) => {
+                if (next === body) return;
                 setBody(next);
                 debouncedBodyUpdate(next);
               }}
-              className="min-h-[320px] resize-none border-0 bg-transparent px-0 py-0 text-base leading-7 shadow-none focus-visible:ring-0 dark:bg-transparent"
-              placeholder="用自己的语言写下这条理解。通过 [[已有理解标题]] 连接相关理解。"
             />
           </section>
 

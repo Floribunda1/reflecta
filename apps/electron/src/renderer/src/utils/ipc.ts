@@ -1,6 +1,8 @@
 import { createIpcProxy } from "electron-ipc-decorator/client";
 
-const baseProxy = createIpcProxy<IpcServices>(window.ipcRenderer)!;
+const baseProxy = window.ipcRenderer
+  ? createIpcProxy<IpcServices>(window.ipcRenderer)!
+  : ({} as IpcServices);
 
 function wrapWithErrorHandling<T extends Record<string, any>>(obj: T): T {
   return new Proxy(obj, {
