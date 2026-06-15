@@ -4,7 +4,7 @@ import { Button } from "@renderer/components/ui/button";
 import { AtSign, Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { ipcClient } from "@renderer/utils/ipc";
-import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/md-preview";
+import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/markdown-editor/preview";
 import { useChatPageContext } from "../../context";
 
 export function SearchPanel() {

@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { isTextUIPart, isToolUIPart, type UIMessage } from "ai";
 import { useChatPageContext } from "../context";
 import { ToolApprovalCard } from "./ToolApprovalCard";
-import { MarkdownPreview } from "@renderer/modules/shared/components/md-preview";
+import { MarkdownPreview } from "@renderer/modules/shared/components/markdown-editor/preview";
 
 export function ChatThread() {
   const ctx = useChatPageContext();

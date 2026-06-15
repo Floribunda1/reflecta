@@ -1,11 +1,13 @@
-import { Editor, editorViewCtx, parserCtx, serializerCtx } from "@milkdown/core";
+import { Editor, editorViewCtx, serializerCtx } from "@milkdown/core";
 import { uploadConfig } from "@milkdown/plugin-upload";
 import type { Node as ProseNode } from "@milkdown/prose/model";
 import { Fragment } from "@milkdown/prose/model";
 import type { EditorView } from "@milkdown/prose/view";
 import type { Schema } from "@milkdown/prose/model";
 import { Crepe } from "@milkdown/crepe";
+import { replaceAll } from "@milkdown/utils";
 import { reflectaMilkdownExtensions } from "./milkdown-extensions";
+import { milkdownMarkdownEquals, normalizeMilkdownMarkdown } from "./markdown-normalize";
 import {
   createThoughtWikiLinkSuggestionSource,
   createWikiLinkSuggestionPlugin,
@@ -20,6 +22,7 @@ export type CreateReflectaMilkdownEditorOptions = {
   placeholder?: string;
   readonly?: boolean;
   onUpdate?: (markdown: string) => void;
+  onBlur?: () => void;
   uploadAsset?: AssetUploader;
   wikiLinkSuggestionSource?: WikiLinkSuggestionSource;
 };
@@ -85,6 +88,7 @@ export function createReflectaMilkdownEditorBuilder({
   placeholder,
   readonly,
   onUpdate,
+  onBlur,
   uploadAsset,
   wikiLinkSuggestionSource,
 }: CreateReflectaMilkdownEditorOptions): Editor {
@@ -111,18 +115,22 @@ export function createReflectaMilkdownEditorBuilder({
     },
   });
 
-  crepe.on((listener) => {
-    listener.markdownUpdated((_ctx, markdown) => {
-      onUpdate?.(markdown);
-    });
-  });
-
   const editor = crepe.editor.config((ctx) => {
     ctx.update(uploadConfig.key, (prev) => ({
       ...prev,
       enableHtmlFileUploader: true,
       uploader: (files, schema) => uploadFilesAsMarkdown(files, schema, uploadAsset),
     }));
+  });
+
+  crepe.on((listener) => {
+    listener.markdownUpdated((_ctx, markdown, prevMarkdown) => {
+      if (prevMarkdown != null && milkdownMarkdownEquals(markdown, prevMarkdown)) return;
+      onUpdate?.(markdown);
+    });
+    listener.blur(() => {
+      onBlur?.();
+    });
   });
 
   editor.use(reflectaMilkdownExtensions);
@@ -170,13 +178,6 @@ export function getMilkdownMarkdown(editor: Editor): string {
 }
 
 export function setMilkdownMarkdown(editor: Editor, markdown: string): void {
-  const parser = editor.ctx.get(parserCtx);
-  const view: EditorView = editor.ctx.get(editorViewCtx);
-  const nextDoc = parser(markdown);
-  const transaction = view.state.tr.replaceWith(0, view.state.doc.content.size, nextDoc.content);
-  view.dispatch(transaction);
-}
-
-function normalizeMilkdownMarkdown(markdown: string): string {
-  return markdown.replaceAll(/\\\[\\\[([^\]\n]+)]]/g, "[[$1]]");
+  if (milkdownMarkdownEquals(markdown, getMilkdownMarkdown(editor))) return;
+  editor.action(replaceAll(markdown));
 }

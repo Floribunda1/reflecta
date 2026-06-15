@@ -10,7 +10,7 @@ import { ipcClient } from "@renderer/utils/ipc";
 import { searchEventBus } from "@renderer/utils/searchEventBus";
 import type { ThoughtSummaryDTO, ThoughtType } from "@shared/thought";
 import type { FtsContextResult } from "@shared/search";
-import { SimpleMarkdownPreview } from "../components/md-preview";
+import { SimpleMarkdownPreview } from "../components/markdown-editor/preview";
 import { useModal } from "../hooks/use-modal";
 
 type SuggestionItem =

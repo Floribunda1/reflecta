@@ -1,6 +1,6 @@
 import { CSSProperties, useEffect, useMemo, useRef } from "react";
 import mediumZoom from "medium-zoom";
-import { MarkdownEditor } from "../md-editor";
+import { MarkdownEditor } from "../editor";
 import "./style.css";
 
 const wikiLinkPattern = /\[\[([^\]\n#]+)#([^\]\n#]+)\]\]/g;

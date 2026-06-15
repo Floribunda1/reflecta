@@ -154,9 +154,14 @@ samp,
 }
 
 /* ─── Global scrollbar styling ─────────────────────────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -164,12 +169,15 @@ samp,
 }
 
 ::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--muted-foreground), transparent 72%);
+  background: var(--border);
+  border: 2px solid transparent;
+  background-clip: content-box;
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--muted-foreground), transparent 58%);
+  background: color-mix(in srgb, var(--border), var(--foreground) 12%);
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-corner {

@@ -53,6 +53,24 @@ describe("reflecta milkdown editor", () => {
     expect(onUpdate).not.toHaveBeenCalled();
   });
 
+  test("skips replace when markdown is already equivalent", async () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+    const onUpdate = vi.fn();
+
+    const editor = await createReflectaMilkdownEditor({
+      root,
+      content: "Initial",
+      onUpdate,
+    });
+    editors.push(editor);
+
+    setMilkdownMarkdown(editor, "Initial\n");
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
   test("replaces the editor document from markdown", async () => {
     const root = document.createElement("div");
     document.body.append(root);

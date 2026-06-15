@@ -1,6 +1,6 @@
 import { Button } from "@renderer/components/ui/button";
 import { AtSign } from "lucide-react";
-import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/md-preview";
+import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/markdown-editor/preview";
 import { useChatPageContext } from "../../context";
 
 export function ReferencesPanel() {

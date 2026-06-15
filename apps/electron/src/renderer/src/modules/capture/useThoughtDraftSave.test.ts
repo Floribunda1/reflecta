@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, test, vi } from "vitest";
-import { createDraftSaveQueue, type DraftSaveSnapshot } from "./useThoughtDraftAutosave";
+import { createDraftSaveQueue, type DraftSaveSnapshot } from "./useThoughtDraftSave";
 
 function snapshot(partial: Partial<DraftSaveSnapshot> = {}): DraftSaveSnapshot {
   return {

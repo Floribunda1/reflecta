@@ -13,8 +13,9 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@renderer/components/ui/sheet";
 import { Textarea } from "@renderer/components/ui/textarea";
 import { CategoryTreeSelect } from "@renderer/modules/shared/biz-components/CategoryTreeSelect";
-import { MarkdownEditor } from "@renderer/modules/shared/components/md-editor";
-import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/md-preview";
+import { MarkdownEditor } from "@renderer/modules/shared/components/markdown-editor/editor";
+import { milkdownMarkdownEquals } from "@renderer/modules/shared/components/markdown-editor/editor/markdown-normalize";
+import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/markdown-editor/preview";
 import { useModal } from "@renderer/modules/shared/hooks/use-modal";
 import type { ContextDTO, SourceType } from "@shared/context";
 import type { ThoughtSummaryDTO } from "@shared/thought";
@@ -22,11 +23,11 @@ import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { ArrowLeft, ArrowRight, ExternalLink, Plus, Trash2 } from "lucide-react";
 import { useDebounceFn } from "ahooks";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useThoughtDetail, useThoughtDetailActions } from "./hooks";
 import { SOURCE_META, SOURCE_TYPES } from "./context/types";
 import { useCaptureStore } from "../store";
-import { useThoughtDraftAutosave } from "../useThoughtDraftAutosave";
+import { useThoughtDraftSave } from "../useThoughtDraftSave";
 
 type ThoughtDetailProps = {
   thoughtId: string;
@@ -251,6 +252,7 @@ function SourceDetailOverlay({
 }
 
 function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
+  const detailRef = useRef<HTMLElement>(null);
   const { thought } = useThoughtDetail(thoughtId);
   const { updateThought, deleteThought, createContext, updateContext, deleteContext } =
     useThoughtDetailActions(thoughtId);
@@ -264,7 +266,7 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
   const updateDraftBody = useCaptureStore((state) => state.updateDraftBody);
   const setActiveSourceId = useCaptureStore((state) => state.setActiveSourceId);
   const selectThoughtFromSearch = useCaptureStore((state) => state.selectThoughtFromSearch);
-  useThoughtDraftAutosave();
+  const { saveDraft } = useThoughtDraftSave({ thoughtId, scopeRef: detailRef });
 
   useEffect(() => {
     if (!thought) return;
@@ -287,13 +289,6 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
     addSuffix: true,
     locale: zhCN,
   });
-  const saveLabel = draft?.saving
-    ? "保存中"
-    : draft?.error
-      ? "保存失败"
-      : draft?.lastSavedAt
-        ? "已保存"
-        : null;
 
   const handleDeleteThought = () => {
     confirm({
@@ -333,16 +328,10 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
   return (
     <div className="h-full min-h-0 min-w-0">
       <ScrollArea className="h-full">
-        <article className="mx-auto flex min-h-full flex-col px-6 py-5">
+        <article ref={detailRef} className="mx-auto flex min-h-full flex-col px-6 py-5">
           <header className="space-y-4">
             <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span>{updatedLabel}</span>
-              {saveLabel && (
-                <>
-                  <span aria-hidden>·</span>
-                  <span className={draft?.error ? "text-destructive" : undefined}>{saveLabel}</span>
-                </>
-              )}
               <span aria-hidden>·</span>
               <CategoryTreeSelect
                 modelValue={thought.categoryIds}
@@ -369,6 +358,7 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
                 const next = event.target.value;
                 updateDraftTitle(next);
               }}
+              onBlur={() => void saveDraft()}
               className="h-auto border-0 bg-transparent px-0 py-0 text-2xl font-semibold shadow-none focus-visible:ring-0 md:text-2xl dark:bg-transparent"
               placeholder="写下一个刚形成的理解"
             />
@@ -381,9 +371,10 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
               height="clamp(320px, 46vh, 520px)"
               placeholder="用自己的语言写下这条理解。通过 [[已有理解标题]] 连接相关理解。"
               onUpdate={(next) => {
-                if (next === body) return;
+                if (milkdownMarkdownEquals(next, body)) return;
                 updateDraftBody(next);
               }}
+              onBlur={() => void saveDraft()}
             />
           </section>
 

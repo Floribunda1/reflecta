@@ -1,3 +1,4 @@
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { FileText, GitBranch, Plus, Search, ArrowUpDown } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useThoughtList, useThoughtListActions } from "./hooks";
@@ -5,7 +6,6 @@ import { ThoughtRow } from "./ThoughtRow";
 import { Button } from "@renderer/components/ui/button";
 import { Input } from "@renderer/components/ui/input";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@renderer/components/ui/empty";
-import { ScrollArea } from "@renderer/components/ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +35,16 @@ export function ThoughtList() {
   const setThoughtListSortBy = useCaptureStore((state) => state.setThoughtListSortBy);
   const { categoryList } = useCaptureCategories();
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const listViewportRef = useRef<HTMLDivElement | null>(null);
+  const thoughts = thoughtList.displayedThoughts;
+
+  const virtualizer = useVirtualizer({
+    count: thoughts.length,
+    getScrollElement: () => listViewportRef.current,
+    estimateSize: () => 108,
+    gap: 4,
+    overscan: 8,
+  });
 
   const categoryLabel =
     selectedCategoryId === "all"
@@ -42,14 +52,23 @@ export function ThoughtList() {
       : (categoryList.find((c) => c.id === selectedCategoryId)?.name ?? "");
   const hasSearchQuery = searchQuery.trim().length > 0;
   const countLabel =
-    hasSearchQuery && thoughtList.displayedThoughts.length !== thoughtList.totalCount
-      ? `${thoughtList.displayedThoughts.length} / ${thoughtList.totalCount} 笔记`
+    hasSearchQuery && thoughts.length !== thoughtList.totalCount
+      ? `${thoughts.length} / ${thoughtList.totalCount} 笔记`
       : `${thoughtList.totalCount} 笔记`;
 
   useEffect(() => {
     if (!searchOpen) return;
     searchInputRef.current?.focus();
   }, [searchOpen]);
+
+  useEffect(() => {
+    if (!selectedThoughtId || thoughts.length === 0) return;
+
+    const selectedIndex = thoughts.findIndex((thought) => thought.id === selectedThoughtId);
+    if (selectedIndex < 0) return;
+
+    virtualizer.scrollToIndex(selectedIndex, { align: "auto" });
+  }, [selectedThoughtId, thoughts, virtualizer]);
 
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col border-r bg-transparent">
@@ -130,29 +149,41 @@ export function ThoughtList() {
         )}
       </div>
 
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-1 px-2 pb-3">
-          {thoughtList.displayedThoughts.map((thought) => (
-            <ThoughtRow
-              key={thought.id}
-              thought={thought}
-              selected={thought.id === selectedThoughtId}
-            />
-          ))}
-          {thoughtList.displayedThoughts.length === 0 && (
-            <Empty>
-              <EmptyContent>
-                <EmptyMedia variant="icon">
-                  <FileText />
-                </EmptyMedia>
-                <EmptyDescription>
-                  {hasSearchQuery ? "没有找到相关内容" : "暂时没有内容"}
-                </EmptyDescription>
-              </EmptyContent>
-            </Empty>
-          )}
+      {thoughts.length === 0 ? (
+        <div className="min-h-0 flex-1 px-2 pb-3">
+          <Empty>
+            <EmptyContent>
+              <EmptyMedia variant="icon">
+                <FileText />
+              </EmptyMedia>
+              <EmptyDescription>
+                {hasSearchQuery ? "没有找到相关内容" : "暂时没有内容"}
+              </EmptyDescription>
+            </EmptyContent>
+          </Empty>
         </div>
-      </ScrollArea>
+      ) : (
+        <div ref={listViewportRef} className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+          <div className="relative w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const thought = thoughts[virtualRow.index];
+              if (!thought) return null;
+
+              return (
+                <div
+                  key={thought.id}
+                  data-index={virtualRow.index}
+                  ref={virtualizer.measureElement}
+                  className="absolute top-0 left-0 w-full"
+                  style={{ transform: `translateY(${virtualRow.start}px)` }}
+                >
+                  <ThoughtRow thought={thought} selected={thought.id === selectedThoughtId} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

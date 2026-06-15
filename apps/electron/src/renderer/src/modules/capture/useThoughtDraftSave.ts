@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useKeyPress, useMemoizedFn } from "ahooks";
+import { useEffect, useRef, type RefObject } from "react";
 import { useUpdateThoughtMutation } from "./queries";
 import { useCaptureStore } from "./store";
 
@@ -33,7 +34,7 @@ export function createDraftSaveQueue<Result extends DraftSaveResult>({
   let latestRevision = 0;
 
   return {
-    save(snapshot: DraftSaveSnapshot): Promise<Result> {
+    save(snapshot: DraftSaveSnapshot): Promise<Result | undefined> {
       const revision = ++latestRevision;
       onStarted(snapshot);
 
@@ -57,8 +58,12 @@ export function createDraftSaveQueue<Result extends DraftSaveResult>({
   };
 }
 
-export function useThoughtDraftAutosave() {
-  const draft = useCaptureStore((state) => state.draft);
+type UseThoughtDraftSaveOptions = {
+  thoughtId: string;
+  scopeRef?: RefObject<HTMLElement | null>;
+};
+
+export function useThoughtDraftSave({ thoughtId, scopeRef }: UseThoughtDraftSaveOptions) {
   const updateThoughtMutation = useUpdateThoughtMutation();
   const mutateAsyncRef = useRef(updateThoughtMutation.mutateAsync);
   mutateAsyncRef.current = updateThoughtMutation.mutateAsync;
@@ -96,18 +101,33 @@ export function useThoughtDraftAutosave() {
     });
   }
 
+  const saveDraft = useMemoizedFn(() => {
+    const draft = useCaptureStore.getState().draft;
+    if (!draft?.dirty || draft.thoughtId !== thoughtId) return Promise.resolve(undefined);
+
+    return queueRef.current
+      ?.save({
+        thoughtId: draft.thoughtId,
+        title: draft.title,
+        body: draft.body,
+      })
+      .catch(() => undefined);
+  });
+
+  useKeyPress(
+    ["meta.s", "ctrl.s"],
+    (event) => {
+      event.preventDefault();
+      void saveDraft();
+    },
+    { target: scopeRef, exactMatch: true },
+  );
+
   useEffect(() => {
-    if (!draft?.dirty) return;
-
-    const snapshot: DraftSaveSnapshot = {
-      thoughtId: draft.thoughtId,
-      title: draft.title,
-      body: draft.body,
+    return () => {
+      void saveDraft();
     };
-    const timer = window.setTimeout(() => {
-      void queueRef.current?.save(snapshot).catch(() => undefined);
-    }, 350);
+  }, [thoughtId, saveDraft]);
 
-    return () => window.clearTimeout(timer);
-  }, [draft?.thoughtId, draft?.title, draft?.body, draft?.dirty]);
+  return { saveDraft };
 }

@@ -5,7 +5,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@renderer/components/ui/context-menu";
-import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/md-preview";
+import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/markdown-editor/preview";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { cn } from "@renderer/lib/utils";

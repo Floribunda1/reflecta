@@ -2,6 +2,7 @@ import { create, type StateCreator } from "zustand";
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { createJSONStorage, persist } from "zustand/middleware";
 import type { ThoughtListSortBy } from "./thought-list/sort";
+import { milkdownMarkdownEquals } from "@renderer/modules/shared/components/markdown-editor/editor/markdown-normalize";
 
 export type CaptureDraft = {
   thoughtId: string;
@@ -100,7 +101,7 @@ function makeDraft(input: { thoughtId: string; title: string; body: string }): C
 }
 
 function isDraftDirty(draft: Pick<CaptureDraft, "title" | "body" | "baseTitle" | "baseBody">) {
-  return draft.title !== draft.baseTitle || draft.body !== draft.baseBody;
+  return draft.title !== draft.baseTitle || !milkdownMarkdownEquals(draft.body, draft.baseBody);
 }
 
 function clearThoughtState(state: CaptureStore): Partial<CaptureStore> {

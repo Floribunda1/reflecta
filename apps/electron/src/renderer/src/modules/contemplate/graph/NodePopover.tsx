@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { computePosition, offset, flip, shift } from "@floating-ui/dom";
 import type { VirtualElement } from "@floating-ui/dom";
-import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/md-preview";
+import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/markdown-editor/preview";
 
 export interface NodePopoverData {
   title: string;

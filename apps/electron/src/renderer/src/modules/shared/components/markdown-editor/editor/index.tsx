@@ -7,6 +7,7 @@ import {
   getMilkdownMarkdown,
   setMilkdownMarkdown,
 } from "./milkdown-editor";
+import { milkdownMarkdownEquals } from "./markdown-normalize";
 import "./milkdown-theme.scss";
 
 type MarkdownEditorProps = {
@@ -19,6 +20,7 @@ type MarkdownEditorProps = {
   readonly?: boolean;
   className?: string;
   onUpdate?: (value: string) => void;
+  onBlur?: () => void;
 };
 
 function MarkdownEditorSurface({
@@ -27,19 +29,26 @@ function MarkdownEditorSurface({
   placeholder,
   readonly,
   onUpdate,
+  onBlur,
 }: {
   contentKey?: string;
   content: string;
   placeholder: string;
   readonly?: boolean;
   onUpdate?: (value: string) => void;
+  onBlur?: () => void;
 }) {
   const onUpdateRef = useRef(onUpdate);
+  const onBlurRef = useRef(onBlur);
   const contentKeyRef = useRef(contentKey);
 
   useEffect(() => {
     onUpdateRef.current = onUpdate;
   }, [onUpdate]);
+
+  useEffect(() => {
+    onBlurRef.current = onBlur;
+  }, [onBlur]);
 
   const uploadAsset = useCallback(async (file: File) => {
     return ipcClient.asset.saveAsset(await file.arrayBuffer(), file.name);
@@ -56,6 +65,9 @@ function MarkdownEditorSurface({
         onUpdate: (next) => {
           onUpdateRef.current?.(next);
         },
+        onBlur: () => {
+          onBlurRef.current?.();
+        },
       }),
     [placeholder, readonly, uploadAsset],
   );
@@ -71,7 +83,7 @@ function MarkdownEditorSurface({
       contentKeyRef.current = contentKey;
     }
 
-    if (content === getMilkdownMarkdown(instance)) return;
+    if (milkdownMarkdownEquals(content, getMilkdownMarkdown(instance))) return;
 
     setMilkdownMarkdown(instance, content);
   }, [content, contentKey, editor]);
@@ -93,6 +105,7 @@ export function MarkdownEditor({
   readonly,
   className,
   onUpdate,
+  onBlur,
 }: MarkdownEditorProps) {
   const editorContent = initialContent ?? content;
 
@@ -112,6 +125,7 @@ export function MarkdownEditor({
           placeholder={placeholder}
           readonly={readonly}
           onUpdate={onUpdate}
+          onBlur={onBlur}
         />
       </MilkdownProvider>
     </div>

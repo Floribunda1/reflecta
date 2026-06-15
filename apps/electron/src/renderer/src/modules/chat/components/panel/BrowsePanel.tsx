@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, Grid2X2, AtSign } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { CategoryTreeNode } from "@shared/category";
 import { ipcClient } from "@renderer/utils/ipc";
-import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/md-preview";
+import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/markdown-editor/preview";
 import { useChatPageContext } from "../../context";
 import { useState } from "react";
 import { useCaptureCategories } from "@renderer/modules/capture/queries";

@@ -184,6 +184,15 @@ describe("capture store", () => {
     });
   });
 
+  test("updateDraftBody ignores trailing newline-only changes for dirty state", () => {
+    const store = createCaptureStore();
+    store.getState().initializeDraft({ thoughtId: "t1", title: "A", body: "Saved body" });
+    store.getState().updateDraftBody("Saved body\n");
+
+    expect(store.getState().draft?.body).toBe("Saved body\n");
+    expect(store.getState().draft?.dirty).toBe(false);
+  });
+
   test("markDraftSaveFailed keeps draft content", () => {
     const store = createCaptureStore();
     store.getState().initializeDraft({ thoughtId: "t1", title: "Old", body: "Old body" });
