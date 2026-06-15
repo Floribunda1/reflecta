@@ -103,4 +103,54 @@
       }
     }
   }
+
+  .reflecta-md-editor__wiki-suggestion {
+    position: fixed;
+    z-index: 50;
+    width: min(280px, calc(100vw - 32px));
+    max-height: 260px;
+    padding: 4px;
+    overflow-y: auto;
+
+    &[data-show="false"] {
+      display: none !important;
+      pointer-events: none;
+    }
+
+    &[data-show="true"] {
+      @include popover-chrome;
+    }
+  }
+
+  .reflecta-md-editor__wiki-suggestion-status {
+    padding: 8px 10px;
+    font-size: $font-size-body;
+    line-height: $line-height-menu;
+    color: var(--muted-foreground);
+  }
+
+  .reflecta-md-editor__wiki-suggestion-item {
+    display: block;
+    width: 100%;
+    min-height: 30px;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--popover-foreground);
+    font: inherit;
+    font-size: $font-size-body;
+    line-height: $line-height-menu;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+
+    &:hover,
+    &[aria-selected="true"] {
+      background: var(--accent);
+      color: var(--accent-foreground);
+    }
+  }
 }

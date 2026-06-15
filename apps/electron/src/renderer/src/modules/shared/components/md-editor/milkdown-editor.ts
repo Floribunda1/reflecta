@@ -6,6 +6,11 @@ import type { EditorView } from "@milkdown/prose/view";
 import type { Schema } from "@milkdown/prose/model";
 import { Crepe } from "@milkdown/crepe";
 import { reflectaMilkdownExtensions } from "./milkdown-extensions";
+import {
+  createThoughtWikiLinkSuggestionSource,
+  createWikiLinkSuggestionPlugin,
+  type WikiLinkSuggestionSource,
+} from "./wiki-link-suggestion";
 
 export type AssetUploader = (file: File) => Promise<string>;
 
@@ -16,6 +21,7 @@ export type CreateReflectaMilkdownEditorOptions = {
   readonly?: boolean;
   onUpdate?: (markdown: string) => void;
   uploadAsset?: AssetUploader;
+  wikiLinkSuggestionSource?: WikiLinkSuggestionSource;
 };
 
 function isSupportedMedia(file: File): boolean {
@@ -80,6 +86,7 @@ export function createReflectaMilkdownEditorBuilder({
   readonly,
   onUpdate,
   uploadAsset,
+  wikiLinkSuggestionSource,
 }: CreateReflectaMilkdownEditorOptions): Editor {
   const editorRoot = document.createElement("div");
   editorRoot.className = "reflecta-milkdown";
@@ -116,6 +123,13 @@ export function createReflectaMilkdownEditorBuilder({
   });
 
   editor.use(reflectaMilkdownExtensions);
+  if (!readonly) {
+    editor.use(
+      createWikiLinkSuggestionPlugin({
+        source: wikiLinkSuggestionSource ?? createThoughtWikiLinkSuggestionSource(),
+      }),
+    );
+  }
   if (readonly) crepe.setReadonly(true);
 
   return editor;

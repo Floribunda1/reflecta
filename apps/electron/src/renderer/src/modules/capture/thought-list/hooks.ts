@@ -3,7 +3,7 @@ import type { ThoughtDTO, ThoughtSummaryDTO } from "@shared/thought";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { orderBy } from "lodash-es";
-import { useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   selectedCategoryIdAtom,
   selectedThoughtIdAtom,
@@ -37,10 +37,33 @@ function buildThoughtFilter({
   return Object.keys(filter).length > 0 ? filter : undefined;
 }
 
+function sortThoughtsByUpdatedAt(items: ThoughtSummaryDTO[]): ThoughtSummaryDTO[] {
+  return orderBy(items, [(thought) => new Date(thought.updatedAt).getTime()], ["desc"]);
+}
+
+export function orderThoughtsForStableList(
+  items: ThoughtSummaryDTO[],
+  previousIds?: string[],
+): ThoughtSummaryDTO[] {
+  const sorted = sortThoughtsByUpdatedAt(items);
+  if (!previousIds || previousIds.length === 0) return sorted;
+
+  const previousIndex = new Map(previousIds.map((id, index) => [id, index]));
+  const incoming = sorted.filter((item) => !previousIndex.has(item.id));
+  const existing = sorted
+    .filter((item) => previousIndex.has(item.id))
+    .sort((a, b) => previousIndex.get(a.id)! - previousIndex.get(b.id)!);
+
+  return [...incoming, ...existing];
+}
+
 export function useThoughtList() {
   const selectedCategoryId = useAtomValue(selectedCategoryIdAtom);
   const searchQuery = useAtomValue(thoughtListSearchQueryAtom);
   const includeDescendants = useAtomValue(thoughtListIncludeDescendantsAtom);
+  const previousOrderRef = useRef<{ filterKey: string; ids: string[] } | null>(null);
+  const normalizedSearchQuery = searchQuery.trim();
+  const filterKey = JSON.stringify([selectedCategoryId, includeDescendants, normalizedSearchQuery]);
 
   const filter = buildThoughtFilter({
     selectedCategoryId,
@@ -69,12 +92,21 @@ export function useThoughtList() {
       ),
   });
 
+  const displayedThoughts = useMemo(() => {
+    const previous =
+      previousOrderRef.current?.filterKey === filterKey ? previousOrderRef.current.ids : undefined;
+    return orderThoughtsForStableList(data ?? [], previous);
+  }, [data, filterKey]);
+
+  useEffect(() => {
+    previousOrderRef.current = {
+      filterKey,
+      ids: displayedThoughts.map((thought) => thought.id),
+    };
+  }, [displayedThoughts, filterKey]);
+
   return {
-    displayedThoughts: orderBy(
-      data ?? [],
-      [(thought: ThoughtSummaryDTO) => new Date(thought.updatedAt).getTime()],
-      ["desc"],
-    ),
+    displayedThoughts,
     totalCount: totalData?.length ?? 0,
     loading: isFetching,
   };

@@ -3,7 +3,7 @@ import type { ContextDTO, CreateContextInput, UpdateContextInput } from "@shared
 import type { ThoughtDTO, ThoughtSummaryDTO, ThoughtType } from "@shared/thought";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { cloneDeep, debounce } from "lodash-es";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 
 type UpdateThoughtInput = {
   type?: ThoughtType;
@@ -26,6 +26,25 @@ function patchThoughtInList(
   };
 }
 
+export function createSequentialLatestRunner() {
+  let queue = Promise.resolve();
+  let latestRevision = 0;
+
+  return function run<T>(task: () => Promise<T>, apply: (result: T) => void): Promise<T> {
+    const revision = ++latestRevision;
+    const result = queue.catch(() => undefined).then(task);
+    queue = result.then(
+      () => undefined,
+      () => undefined,
+    );
+
+    return result.then((value) => {
+      if (revision === latestRevision) apply(value);
+      return value;
+    });
+  };
+}
+
 export function useThoughtDetail(thoughtId: string) {
   const { data: thought, isFetching: loading } = useQuery({
     queryKey: ["thought.getThoughtById", thoughtId],
@@ -40,23 +59,27 @@ export function useThoughtDetail(thoughtId: string) {
 
 export function useThoughtDetailActions(thoughtId: string) {
   const queryClient = useQueryClient();
+  const runLatestUpdateRef = useRef<{
+    thoughtId: string;
+    run: ReturnType<typeof createSequentialLatestRunner>;
+  } | null>(null);
+  if (runLatestUpdateRef.current?.thoughtId !== thoughtId) {
+    runLatestUpdateRef.current = {
+      thoughtId,
+      run: createSequentialLatestRunner(),
+    };
+  }
 
   const updateThought = useCallback(
     async (input: UpdateThoughtInput) => {
-      const result = await ipcClient.thought.updateThought(thoughtId, cloneDeep(input));
-
       queryClient.setQueryData<ThoughtDTO>(["thought.getThoughtById", thoughtId], (old) => {
         if (!old) return old;
         return {
           ...old,
-          type: input.type ?? result.type,
+          type: input.type ?? old.type,
           title: input.title !== undefined ? input.title : old.title,
-          body: input.body !== undefined ? result.body : old.body,
+          body: input.body !== undefined ? input.body : old.body,
           categoryIds: input.categoryIds ?? old.categoryIds,
-          connections: result.connections,
-          referencedBy: result.referencedBy,
-          contexts: result.contexts,
-          updatedAt: result.updatedAt,
         };
       });
 
@@ -64,20 +87,53 @@ export function useThoughtDetailActions(thoughtId: string) {
         { queryKey: ["thought.listThoughts"], exact: false },
         patchThoughtInList(thoughtId, (item) => ({
           ...item,
-          type: input.type ?? result.type,
+          type: input.type ?? item.type,
           title: input.title !== undefined ? input.title : item.title,
-          body: input.body !== undefined ? result.body : item.body,
+          body: input.body !== undefined ? input.body : item.body,
           categoryIds: input.categoryIds ?? item.categoryIds,
-          contextCount: result.contexts.length,
-          connectionCount: result.connections.length,
-          connectionIds: result.connections.map((connection) => connection.id),
-          updatedAt: result.updatedAt,
         })),
+      );
+
+      const result = await runLatestUpdateRef.current!.run(
+        () => ipcClient.thought.updateThought(thoughtId, cloneDeep(input)),
+        (latestResult) => {
+          queryClient.setQueryData<ThoughtDTO>(["thought.getThoughtById", thoughtId], (old) => {
+            if (!old) return old;
+            return {
+              ...old,
+              type: input.type ?? latestResult.type,
+              title: input.title !== undefined ? input.title : old.title,
+              body: input.body !== undefined ? latestResult.body : old.body,
+              categoryIds: input.categoryIds ?? old.categoryIds,
+              connections: latestResult.connections,
+              referencedBy: latestResult.referencedBy,
+              contexts: latestResult.contexts,
+              updatedAt: latestResult.updatedAt,
+            };
+          });
+
+          queryClient.setQueriesData<ThoughtSummaryDTO[]>(
+            { queryKey: ["thought.listThoughts"], exact: false },
+            patchThoughtInList(thoughtId, (item) => ({
+              ...item,
+              type: input.type ?? latestResult.type,
+              title: input.title !== undefined ? input.title : item.title,
+              body: input.body !== undefined ? latestResult.body : item.body,
+              categoryIds: input.categoryIds ?? item.categoryIds,
+              contextCount: latestResult.contexts.length,
+              connectionCount: latestResult.connections.length,
+              connectionIds: latestResult.connections.map((connection) => connection.id),
+              updatedAt: latestResult.updatedAt,
+            })),
+          );
+        },
       );
 
       if (input.body !== undefined) {
         invalidateRelatedThoughtDetails(queryClient);
       }
+
+      return result;
     },
     [thoughtId, queryClient],
   );

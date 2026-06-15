@@ -237,6 +237,34 @@ describe("milkdown theme contract", () => {
     );
   });
 
+  test("hides wiki link suggestions when the provider is closed", () => {
+    for (const selectorPart of [
+      ".reflecta-md-editor .milkdown .reflecta-md-editor__wiki-suggestion",
+      ".reflecta-md-editor .milkdown .reflecta-md-editor__wiki-suggestion[data-show=false]",
+      ".reflecta-md-editor .milkdown .reflecta-md-editor__wiki-suggestion[data-show=true]",
+      ".reflecta-md-editor .milkdown .reflecta-md-editor__wiki-suggestion-item",
+      ".reflecta-md-editor .milkdown .reflecta-md-editor__wiki-suggestion-status",
+    ]) {
+      findRule(selectorPart);
+    }
+
+    expectDeclaration(
+      ".reflecta-md-editor .milkdown .reflecta-md-editor__wiki-suggestion[data-show=false]",
+      "display",
+      /none/,
+    );
+    expectDeclaration(
+      ".reflecta-md-editor .milkdown .reflecta-md-editor__wiki-suggestion",
+      "position",
+      /fixed/,
+    );
+    expectDeclaration(
+      ".reflecta-md-editor .milkdown .reflecta-md-editor__wiki-suggestion[data-show=true]",
+      "background",
+      /var\(--popover\)/,
+    );
+  });
+
   test("keeps readonly preview as editor rendering without editing controls", () => {
     for (const selectorPart of [
       ".markdown-preview .reflecta-md-editor .milkdown-block-handle",

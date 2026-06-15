@@ -191,7 +191,8 @@ Store action 规则：
 export const captureQueryKeys = {
   categories: ["category.listCategories"] as const,
   thoughtList: (filter: ThoughtListFilterKey) => ["thought.listThoughts", filter] as const,
-  thoughtListTotal: (filter: ThoughtListTotalKey) => ["thought.listThoughts.total", filter] as const,
+  thoughtListTotal: (filter: ThoughtListTotalKey) =>
+    ["thought.listThoughts.total", filter] as const,
   thoughtDetail: (thoughtId: string) => ["thought.getThoughtById", thoughtId] as const,
 };
 ```
