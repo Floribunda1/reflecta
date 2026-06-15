@@ -94,7 +94,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
           >
             {modal.options.title && (
               <DialogHeader>
-                <DialogTitle>{modal.options.title}</DialogTitle>
+                <DialogTitle className="font-semibold">{modal.options.title}</DialogTitle>
               </DialogHeader>
             )}
             {modal.content}

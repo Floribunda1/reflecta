@@ -1,28 +1,21 @@
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@renderer/components/ui/field";
 import { Input } from "@renderer/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@renderer/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@renderer/components/ui/sheet";
-import { Textarea } from "@renderer/components/ui/textarea";
+import { Tabs, TabsList, TabsTrigger } from "@renderer/components/ui/tabs";
 import { CategoryTreeSelect } from "@renderer/modules/shared/biz-components/CategoryTreeSelect";
 import { MarkdownEditor } from "@renderer/modules/shared/components/markdown-editor/editor";
 import { milkdownMarkdownEquals } from "@renderer/modules/shared/components/markdown-editor/editor/markdown-normalize";
 import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/markdown-editor/preview";
+import { useSharedDrawer } from "@renderer/modules/shared/hooks/use-drawer";
 import { useModal } from "@renderer/modules/shared/hooks/use-modal";
 import type { ContextDTO, SourceType } from "@shared/context";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { Plus, Trash2 } from "lucide-react";
-import { useDebounceFn } from "ahooks";
 import { useEffect, useRef, useState } from "react";
 import { useThoughtDetail, useThoughtDetailActions } from "./hooks";
-import { SOURCE_META, SOURCE_TYPES } from "./context/types";
+import { SOURCE_META, SOURCE_PLACEHOLDER, SOURCE_TYPES } from "./context/types";
 import { useCaptureStore } from "../store";
 import { useThoughtDraftSave } from "../useThoughtDraftSave";
 
@@ -31,14 +24,34 @@ type ThoughtDetailProps = {
   onDeleted?: () => void;
 };
 
-type SourceUpdateInput = {
-  sourceType?: SourceType;
-  sourceName?: string;
-  content?: string;
+type SourceDraftInput = {
+  sourceType: SourceType;
+  sourceName: string;
+  content: string;
 };
+
+const SOURCE_DRAWER_WIDTH_CLASS =
+  "data-[side=right]:w-[min(760px,calc(100vw-2rem))] data-[side=right]:sm:max-w-none";
 
 function sourceLabel(type: SourceType): string {
   return SOURCE_META[type].label;
+}
+
+function createEmptySourceDraft(): SourceDraftInput {
+  return {
+    sourceType: "experience",
+    sourceName: "",
+    content: "",
+  };
+}
+
+function createSourceDraft(source: ContextDTO | null): SourceDraftInput {
+  if (!source) return createEmptySourceDraft();
+  return {
+    sourceType: source.sourceType,
+    sourceName: source.sourceName ?? "",
+    content: source.content,
+  };
 }
 
 function SourcePreview({
@@ -93,90 +106,100 @@ function SourcePreview({
   );
 }
 
-function SourceDetailOverlay({
+function SourceDetailDrawerContent({
   source,
-  open,
-  onOpenChange,
-  onUpdate,
+  creating,
+  editorKey,
+  onSave,
 }: {
   source: ContextDTO | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onUpdate: (id: string, input: SourceUpdateInput) => void;
+  creating: boolean;
+  editorKey: string;
+  onSave: (input: SourceDraftInput) => Promise<void>;
 }) {
-  const [sourceType, setSourceType] = useState<SourceType>("experience");
-  const [sourceName, setSourceName] = useState("");
-  const [content, setContent] = useState("");
+  const [draft, setDraft] = useState<SourceDraftInput>(() => createSourceDraft(source));
+  const [saving, setSaving] = useState(false);
+  const { closeDrawer } = useSharedDrawer();
 
-  useEffect(() => {
-    if (!source) return;
-    setSourceType(source.sourceType);
-    setSourceName(source.sourceName ?? "");
-    setContent(source.content);
-  }, [source?.id, source?.sourceType, source?.sourceName, source?.content]);
+  if (!creating && !source) return null;
 
-  const { run: debouncedUpdate, cancel: cancelDebouncedUpdate } = useDebounceFn(
-    (id: string, input: SourceUpdateInput) => {
-      onUpdate(id, input);
-    },
-    { wait: 350 },
-  );
+  const sourceTypePlaceholder = SOURCE_PLACEHOLDER[draft.sourceType] || "来源名称或场景";
 
-  useEffect(() => () => cancelDebouncedUpdate(), [cancelDebouncedUpdate]);
-
-  if (!source) return null;
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave(draft);
+      closeDrawer();
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-xl">
-        <SheetHeader className="gap-3 border-b">
-          <SheetTitle>来源详情</SheetTitle>
-          <div className="grid grid-cols-[128px_minmax(0,1fr)] gap-2">
-            <Select
-              value={sourceType}
-              onValueChange={(value) => {
-                const next = value as SourceType;
-                setSourceType(next);
-                onUpdate(source.id, { sourceType: next });
-              }}
-            >
-              <SelectTrigger size="sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SOURCE_TYPES.map((type) => (
-                  <SelectItem key={type} value={type}>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <FieldGroup className="min-h-0 flex-1 gap-4">
+        <Field className="w-auto">
+          <FieldLabel>来源类型</FieldLabel>
+          <Tabs
+            value={draft.sourceType}
+            onValueChange={(value) =>
+              setDraft((current) => ({ ...current, sourceType: value as SourceType }))
+            }
+          >
+            <TabsList>
+              {SOURCE_TYPES.map((type) => {
+                const meta = SOURCE_META[type];
+                const Icon = meta.Icon;
+                return (
+                  <TabsTrigger key={type} value={type}>
+                    <Icon size={14} />
                     {sourceLabel(type)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              value={sourceName}
-              onChange={(event) => {
-                const next = event.target.value;
-                setSourceName(next);
-                debouncedUpdate(source.id, { sourceName: next });
-              }}
-              placeholder="来源名称或场景"
-            />
-          </div>
-          <div className="text-xs text-muted-foreground">{content.length} 字</div>
-        </SheetHeader>
-        <div className="min-h-0 flex-1 px-4 pb-4">
-          <Textarea
-            value={content}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </Tabs>
+        </Field>
+
+        <Field>
+          <FieldLabel>来源名称</FieldLabel>
+          <Input
+            value={draft.sourceName}
             onChange={(event) => {
-              const next = event.target.value;
-              setContent(next);
-              debouncedUpdate(source.id, { content: next });
+              const sourceName = event.target.value;
+              setDraft((current) => ({ ...current, sourceName }));
             }}
-            className="h-full min-h-[calc(100vh-11rem)] resize-none"
-            placeholder="记录这条来源的具体内容"
+            placeholder={sourceTypePlaceholder}
           />
-        </div>
-      </SheetContent>
-    </Sheet>
+        </Field>
+
+        <Field className="min-h-0 flex-1">
+          <FieldLabel>来源内容</FieldLabel>
+          <FieldDescription>{draft.content.length} 字</FieldDescription>
+          <MarkdownEditor
+            contentKey={editorKey}
+            initialContent={draft.content}
+            height="100%"
+            placeholder="记录这条来源的具体内容"
+            onUpdate={(content) => {
+              setDraft((current) =>
+                milkdownMarkdownEquals(content, current.content)
+                  ? current
+                  : { ...current, content },
+              );
+            }}
+          />
+        </Field>
+      </FieldGroup>
+      <div className="mt-4 flex shrink-0 justify-end gap-2 border-t bg-popover pt-4">
+        <Button type="button" variant="outline" onClick={closeDrawer}>
+          取消
+        </Button>
+        <Button type="button" onClick={() => void handleSave()} disabled={saving}>
+          保存
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -186,6 +209,7 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
   const { updateThought, deleteThought, createContext, updateContext, deleteContext } =
     useThoughtDetailActions(thoughtId);
   const { confirm } = useModal();
+  const { openDrawer, closeDrawer } = useSharedDrawer();
   const draft = useCaptureStore((state) =>
     state.draft?.thoughtId === thoughtId ? state.draft : null,
   );
@@ -209,7 +233,6 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
     return <div className="h-full" />;
   }
 
-  const activeSource = thought.contexts.find((source) => source.id === activeSourceId) ?? null;
   const title = draft?.title ?? thought.title ?? "";
   const body = draft?.body ?? thought.body;
   const updatedLabel = formatDistanceToNow(thought.updatedAt, {
@@ -230,13 +253,47 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
     });
   };
 
-  const handleAddSource = async () => {
-    const created = await createContext({
-      sourceType: "experience",
-      sourceName: "",
-      content: "",
-    });
-    setActiveSourceId(created.id);
+  const openSourceDrawer = (source: ContextDTO | null) => {
+    const sourceId = source?.id ?? null;
+    const creating = sourceId === null;
+    if (sourceId) {
+      setActiveSourceId(sourceId);
+    } else {
+      setActiveSourceId(null);
+    }
+
+    openDrawer(
+      {
+        title: creating ? "添加来源" : "来源详情",
+        widthClassName: SOURCE_DRAWER_WIDTH_CLASS,
+        onClose: () => setActiveSourceId(null),
+      },
+      <SourceDetailDrawerContent
+        source={source}
+        creating={creating}
+        editorKey={sourceId ?? "source-new"}
+        onSave={async (input) => {
+          if (creating) {
+            await createContext({
+              sourceType: input.sourceType,
+              sourceName: input.sourceName,
+              content: input.content,
+            });
+            return;
+          }
+
+          await updateContext(sourceId, {
+            sourceType: input.sourceType,
+            sourceName: input.sourceName,
+            content: input.content,
+          });
+        }}
+      />,
+    );
+  };
+
+  const handleAddSource = () => {
+    openSourceDrawer(null);
   };
 
   const handleDeleteSource = (source: ContextDTO) => {
@@ -247,7 +304,10 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
       danger: true,
       onAccept: async () => {
         await deleteContext(source.id);
-        if (activeSourceId === source.id) setActiveSourceId(null);
+        if (activeSourceId === source.id) {
+          setActiveSourceId(null);
+          closeDrawer();
+        }
       },
     });
   };
@@ -310,7 +370,7 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
             <div>
               <div className="text-sm font-medium">来源</div>
             </div>
-            <Button type="button" size="sm" variant="ghost" onClick={() => void handleAddSource()}>
+            <Button type="button" size="sm" variant="ghost" onClick={handleAddSource}>
               <Plus size={14} />
               添加来源
             </Button>
@@ -321,7 +381,7 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
                 <SourcePreview
                   key={source.id}
                   source={source}
-                  onOpen={() => setActiveSourceId(source.id)}
+                  onOpen={() => openSourceDrawer(source)}
                   onDelete={() => handleDeleteSource(source)}
                 />
               ))}
@@ -331,24 +391,13 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
               type="button"
               variant="outline"
               className="h-auto justify-start border-dashed p-4 text-muted-foreground"
-              onClick={() => void handleAddSource()}
+              onClick={handleAddSource}
             >
               添加来源
             </Button>
           )}
         </section>
       </article>
-
-      <SourceDetailOverlay
-        source={activeSource}
-        open={activeSource !== null}
-        onOpenChange={(open) => {
-          if (!open) setActiveSourceId(null);
-        }}
-        onUpdate={(id, input) => {
-          void updateContext(id, input);
-        }}
-      />
     </div>
   );
 }

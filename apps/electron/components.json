@@ -6,7 +6,7 @@
   "tailwind": {
     "config": "",
     "css": "src/renderer/src/style.css",
-    "baseColor": "mist",
+    "baseColor": "taupe",
     "cssVariables": true,
     "prefix": ""
   },
