@@ -84,7 +84,7 @@ function SourcePreview({
         render={
           <button
             type="button"
-            className="group flex w-full min-w-0 flex-col gap-2 rounded-lg border bg-background px-4 py-3 text-left text-sm transition-colors outline-none hover:bg-muted/35 active:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="group flex w-full min-w-0 flex-col gap-2 rounded-lg border bg-card px-4 py-3 text-left text-sm text-card-foreground transition-colors outline-none hover:bg-accent/30 active:bg-accent/40 focus-visible:ring-3 focus-visible:ring-ring/50"
             onClick={onPreview}
           >
             <div className="flex min-w-0 items-center gap-2">
@@ -375,7 +375,7 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
 
   return (
     <div className="h-full min-h-0 min-w-0 overflow-hidden">
-      <article ref={detailRef} className="mx-auto h-full overflow-y-auto px-6 py-5">
+      <article ref={detailRef} className="mx-auto h-full overflow-y-auto px-6 py-3">
         <header className="space-y-4">
           <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span>{updatedLabel}</span>

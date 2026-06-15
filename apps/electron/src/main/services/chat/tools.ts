@@ -1,4 +1,3 @@
-import { Type } from "@sinclair/typebox";
 import type { AgentTool, AgentToolResult } from "@earendil-works/pi-agent-core";
 import { thoughtConnections } from "@reflecta/server";
 import type {
@@ -9,6 +8,7 @@ import type {
   ThoughtElectronBff,
 } from "@reflecta/server";
 import type { ChatStreamEvent } from "@shared/chat";
+import { z } from "zod";
 import type { ToolApprovalHost } from "./runtime";
 
 export const READ_TOOL_NAMES = new Set([
@@ -24,44 +24,44 @@ export const WRITE_TOOL_NAMES = new Set([
   "propose_create_connection",
 ]);
 
-const SearchParams = Type.Object({
-  query: Type.String({ description: "Search query" }),
+const SearchParams = z.object({
+  query: z.string().describe("Search query"),
 });
 
-const ThoughtIdParams = Type.Object({
-  thoughtId: Type.String({ description: "Thought ID" }),
+const ThoughtIdParams = z.object({
+  thoughtId: z.string().describe("Thought ID"),
 });
 
-const CreateInsightParams = Type.Object({
-  title: Type.String({ description: "Insight title" }),
-  body: Type.String({ description: "Insight body in markdown" }),
-  categoryIds: Type.Optional(Type.Array(Type.String())),
+const CreateInsightParams = z.object({
+  title: z.string().describe("Insight title"),
+  body: z.string().describe("Insight body in markdown"),
+  categoryIds: z.array(z.string()).optional(),
 });
 
-const UpdateThoughtParams = Type.Object({
-  thoughtId: Type.String(),
-  title: Type.Optional(Type.Union([Type.String(), Type.Null()])),
-  body: Type.Optional(Type.String()),
+const UpdateThoughtParams = z.object({
+  thoughtId: z.string(),
+  title: z.string().nullable().optional(),
+  body: z.string().optional(),
 });
 
-const AddContextParams = Type.Object({
-  thoughtId: Type.String(),
-  sourceType: Type.Union([
-    Type.Literal("experience"),
-    Type.Literal("video"),
-    Type.Literal("book"),
-    Type.Literal("article"),
-    Type.Literal("opinion"),
-    Type.Literal("ai"),
-  ]),
-  sourceName: Type.Optional(Type.String()),
-  content: Type.String(),
+const AddContextParams = z.object({
+  thoughtId: z.string(),
+  sourceType: z.enum(["experience", "video", "book", "article", "opinion", "ai"]),
+  sourceName: z.string().optional(),
+  content: z.string(),
 });
 
-const CreateConnectionParams = Type.Object({
-  sourceId: Type.String(),
-  targetId: Type.String(),
+const CreateConnectionParams = z.object({
+  sourceId: z.string(),
+  targetId: z.string(),
 });
+
+type SearchParams = z.infer<typeof SearchParams>;
+type ThoughtIdParams = z.infer<typeof ThoughtIdParams>;
+type CreateInsightParams = z.infer<typeof CreateInsightParams>;
+type UpdateThoughtParams = z.infer<typeof UpdateThoughtParams>;
+type AddContextParams = z.infer<typeof AddContextParams>;
+type CreateConnectionParams = z.infer<typeof CreateConnectionParams>;
 
 export type ReflectaToolDeps = {
   thoughtService: ThoughtElectronBff;
@@ -100,7 +100,8 @@ function createSearchTool(deps: ReflectaToolDeps): AgentTool<typeof SearchParams
     description: "Search thoughts and contexts in the user's knowledge base using FTS5.",
     parameters: SearchParams,
     execute: async (_toolCallId, params) => {
-      const result = await deps.searchService.search(params.query, { limit: 10 });
+      const input: SearchParams = SearchParams.parse(params);
+      const result = await deps.searchService.search(input.query, { limit: 10 });
       return textResult(JSON.stringify(result, null, 2), result);
     },
   };
@@ -113,9 +114,10 @@ function createThoughtDetailTool(deps: ReflectaToolDeps): AgentTool<typeof Thoug
     description: "Get full thought content including contexts and connections.",
     parameters: ThoughtIdParams,
     execute: async (_toolCallId, params) => {
-      const thought = await deps.thoughtService.getThoughtById(params.thoughtId);
+      const input: ThoughtIdParams = ThoughtIdParams.parse(params);
+      const thought = await deps.thoughtService.getThoughtById(input.thoughtId);
       if (!thought) {
-        return textResult(`Thought ${params.thoughtId} not found.`, { found: false });
+        return textResult(`Thought ${input.thoughtId} not found.`, { found: false });
       }
       return textResult(JSON.stringify(thought, null, 2), thought);
     },
@@ -129,9 +131,10 @@ function createGraphNeighborhoodTool(deps: ReflectaToolDeps): AgentTool<typeof T
     description: "Get 1-hop neighbors and category info for a thought.",
     parameters: ThoughtIdParams,
     execute: async (_toolCallId, params) => {
-      const thought = await deps.thoughtService.getThoughtById(params.thoughtId);
+      const input: ThoughtIdParams = ThoughtIdParams.parse(params);
+      const thought = await deps.thoughtService.getThoughtById(input.thoughtId);
       if (!thought) {
-        return textResult(`Thought ${params.thoughtId} not found.`, { found: false });
+        return textResult(`Thought ${input.thoughtId} not found.`, { found: false });
       }
       const categories = await deps.categoryService.listCategories();
       const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
@@ -171,18 +174,19 @@ function createProposeCreateInsightTool(
     description: "Propose creating a new insight thought. Requires user confirmation.",
     parameters: CreateInsightParams,
     execute: async (toolCallId, params, signal) => {
+      const input: CreateInsightParams = CreateInsightParams.parse(params);
       return runWriteTool(
         runtime,
         toolCallId,
         "propose_create_insight",
-        params,
+        input,
         signal,
         async () => {
           const created = await deps.thoughtService.createThought({
             type: "insight",
-            title: params.title,
-            body: params.body,
-            categoryIds: params.categoryIds,
+            title: input.title,
+            body: input.body,
+            categoryIds: input.categoryIds,
           });
           return { thoughtId: created.id, title: created.title };
         },
@@ -202,16 +206,17 @@ function createProposeUpdateThoughtTool(
     description: "Propose updating an existing thought. Requires user confirmation.",
     parameters: UpdateThoughtParams,
     execute: async (toolCallId, params, signal) => {
+      const input: UpdateThoughtParams = UpdateThoughtParams.parse(params);
       return runWriteTool(
         runtime,
         toolCallId,
         "propose_update_thought",
-        params,
+        input,
         signal,
         async () => {
-          const updated = await deps.thoughtService.updateThought(params.thoughtId, {
-            title: params.title,
-            body: params.body,
+          const updated = await deps.thoughtService.updateThought(input.thoughtId, {
+            title: input.title,
+            body: input.body,
           });
           return { thoughtId: updated.id, title: updated.title };
         },
@@ -231,12 +236,13 @@ function createProposeAddContextTool(
     description: "Propose adding context to a thought. Requires user confirmation.",
     parameters: AddContextParams,
     execute: async (toolCallId, params, signal) => {
-      return runWriteTool(runtime, toolCallId, "propose_add_context", params, signal, async () => {
+      const input: AddContextParams = AddContextParams.parse(params);
+      return runWriteTool(runtime, toolCallId, "propose_add_context", input, signal, async () => {
         const created = await deps.contextService.createContext({
-          thoughtId: params.thoughtId,
-          sourceType: params.sourceType,
-          sourceName: params.sourceName,
-          content: params.content,
+          thoughtId: input.thoughtId,
+          sourceType: input.sourceType,
+          sourceName: input.sourceName,
+          content: input.content,
         });
         return { contextId: created.id, thoughtId: created.thoughtId };
       });
@@ -255,19 +261,20 @@ function createProposeCreateConnectionTool(
     description: "Propose creating a connection between two thoughts. Requires user confirmation.",
     parameters: CreateConnectionParams,
     execute: async (toolCallId, params, signal) => {
+      const input: CreateConnectionParams = CreateConnectionParams.parse(params);
       return runWriteTool(
         runtime,
         toolCallId,
         "propose_create_connection",
-        params,
+        input,
         signal,
         async () => {
           await deps
             .getDb()
             .insert(thoughtConnections)
-            .values({ sourceId: params.sourceId, targetId: params.targetId })
+            .values({ sourceId: input.sourceId, targetId: input.targetId })
             .onConflictDoNothing();
-          return { sourceId: params.sourceId, targetId: params.targetId };
+          return { sourceId: input.sourceId, targetId: input.targetId };
         },
       );
     },
