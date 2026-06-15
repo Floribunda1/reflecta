@@ -101,6 +101,9 @@ export function createReflectaMilkdownEditorBuilder({
       [Crepe.Feature.TopBar]: false,
     },
     featureConfigs: {
+      [Crepe.Feature.Cursor]: {
+        virtual: false,
+      },
       [Crepe.Feature.Placeholder]: {
         text: placeholder ?? "请输入",
         mode: "block",

@@ -1,57 +1,46 @@
-import { ipcClient } from "@renderer/utils/ipc";
 import type { ReorderCategoryItem } from "@shared/category";
-import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { useCategoryMutations } from "../queries";
 
 export function useCategoryActions() {
-  const queryClient = useQueryClient();
-
-  const refreshCategories = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: ["category.listCategories"] }),
-    [queryClient],
-  );
+  const categoryMutations = useCategoryMutations();
 
   const renameCategory = useCallback(
     async (id: string, name: string) => {
-      await ipcClient.category.updateCategory(id, { name });
-      await refreshCategories();
+      await categoryMutations.updateCategory.mutateAsync({ id, input: { name } });
     },
-    [refreshCategories],
+    [categoryMutations.updateCategory],
   );
 
   const updateCategory = useCallback(
     async (id: string, input: { name?: string; parentId?: string | null }) => {
-      await ipcClient.category.updateCategory(id, input);
-      await refreshCategories();
+      await categoryMutations.updateCategory.mutateAsync({ id, input });
     },
-    [refreshCategories],
+    [categoryMutations.updateCategory],
   );
 
   const createCategory = useCallback(
     async (input: { name: string; parentId?: string | null }) => {
-      await ipcClient.category.createCategory({
+      await categoryMutations.createCategory.mutateAsync({
         name: input.name,
         parentId: input.parentId ?? null,
       });
-      await refreshCategories();
     },
-    [refreshCategories],
+    [categoryMutations.createCategory],
   );
 
   const deleteCategory = useCallback(
     async (id: string, deleteThoughts?: boolean) => {
-      await ipcClient.category.deleteCategory(id, deleteThoughts);
-      await refreshCategories();
+      await categoryMutations.deleteCategory.mutateAsync({ id, deleteThoughts });
     },
-    [refreshCategories],
+    [categoryMutations.deleteCategory],
   );
 
   const reorderCategories = useCallback(
     async (items: ReorderCategoryItem[]) => {
-      await ipcClient.category.reorderCategories(items);
-      await refreshCategories();
+      await categoryMutations.reorderCategories.mutateAsync(items);
     },
-    [refreshCategories],
+    [categoryMutations.reorderCategories],
   );
 
   return {

@@ -1,35 +1,33 @@
 import { useEffect } from "react";
-import { useAtomValue, useSetAtom } from "jotai";
 import { FileText } from "lucide-react";
 import { CategoryTree } from "./category";
 import { ThoughtDetail } from "./thought-detail";
 import { ThoughtList } from "./thought-list";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@renderer/components/ui/empty";
-import { selectedCategoryIdAtom, selectedThoughtIdAtom } from "./state";
 import { searchEventBus, type SearchSelectPayload } from "@renderer/utils/searchEventBus";
 import { ipcClient } from "@renderer/utils/ipc";
+import { useCaptureStore } from "./store";
 
 function CapturePageInner() {
-  const selectedThoughtId = useAtomValue(selectedThoughtIdAtom);
-  const setSelectedThoughtId = useSetAtom(selectedThoughtIdAtom);
-  const setSelectedCategoryId = useSetAtom(selectedCategoryIdAtom);
+  const selectedThoughtId = useCaptureStore((state) => state.selectedThoughtId);
+  const selectThoughtFromSearch = useCaptureStore((state) => state.selectThoughtFromSearch);
+  const resetAfterThoughtDeleted = useCaptureStore((state) => state.resetAfterThoughtDeleted);
 
   useEffect(() => {
     const handleThoughtSelected = async ({ thoughtId, categoryIds }: SearchSelectPayload) => {
-      setSelectedThoughtId(thoughtId);
       let cats = categoryIds;
       if (cats === undefined) {
         const thought = await ipcClient.thought.getThoughtById(thoughtId);
         cats = thought?.categoryIds ?? [];
       }
-      setSelectedCategoryId(cats.length > 0 ? cats[0] : "all");
+      selectThoughtFromSearch({ thoughtId, categoryIds: cats });
     };
 
     searchEventBus.on("thoughtSelected", handleThoughtSelected);
     return () => {
       searchEventBus.off("thoughtSelected", handleThoughtSelected);
     };
-  }, [setSelectedThoughtId, setSelectedCategoryId]);
+  }, [selectThoughtFromSearch]);
 
   return (
     <div className="grid h-full min-h-0 w-full grid-cols-[248px_minmax(0,1fr)] overflow-hidden bg-background/45 backdrop-blur-2xl">
@@ -40,7 +38,7 @@ function CapturePageInner() {
           {selectedThoughtId ? (
             <ThoughtDetail
               thoughtId={selectedThoughtId}
-              onDeleted={() => setSelectedThoughtId(null)}
+              onDeleted={() => resetAfterThoughtDeleted(selectedThoughtId)}
             />
           ) : (
             <Empty className="h-full">

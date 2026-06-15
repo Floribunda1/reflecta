@@ -8,7 +8,6 @@ import {
   ComboboxTrigger,
 } from "@renderer/components/ui/combobox";
 import { X } from "lucide-react";
-import { useCategoryData } from "@renderer/modules/shared/hooks/use-category";
 import { cn } from "@renderer/lib/utils";
 import type { CategoryTreeNode } from "@shared/category";
 import {
@@ -17,6 +16,7 @@ import {
   flattenTreeNodes,
   type TreeSelectNode,
 } from "./category-tree-select-utils";
+import { useCaptureCategories } from "@renderer/modules/capture/queries";
 
 type CategoryTreeSelectProps = {
   mode?: "multiple" | "single";
@@ -62,7 +62,7 @@ export function CategoryTreeSelect({
   usePathLabel = true,
   variant = "default",
 }: CategoryTreeSelectProps) {
-  const { categories, loading } = useCategoryData();
+  const { categories, loading } = useCaptureCategories();
   const [open, setOpen] = useState(false);
   const sourceCategories = categoriesProp ?? categories;
   const treeOptions = useMemo(() => {

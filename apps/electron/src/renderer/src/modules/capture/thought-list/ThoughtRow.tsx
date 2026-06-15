@@ -6,14 +6,13 @@ import {
   ContextMenuTrigger,
 } from "@renderer/components/ui/context-menu";
 import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/md-preview";
-import { useSetAtom } from "jotai";
-import { selectedThoughtIdAtom } from "../state";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { cn } from "@renderer/lib/utils";
 import { FileText, Link2 } from "lucide-react";
 import { useModal } from "@renderer/modules/shared/hooks/use-modal";
 import { useThoughtListActions } from "./hooks";
+import { useCaptureStore } from "../store";
 
 function getUnderstandingTitle(thought: ThoughtSummaryDTO): string {
   const title = thought.title?.trim();
@@ -33,7 +32,7 @@ export function ThoughtRow({
   thought: ThoughtSummaryDTO;
   selected?: boolean;
 }) {
-  const setSelectedThoughtId = useSetAtom(selectedThoughtIdAtom);
+  const selectThought = useCaptureStore((state) => state.selectThought);
   const { deleteThought } = useThoughtListActions();
   const { confirm } = useModal();
 
@@ -64,7 +63,7 @@ export function ThoughtRow({
               "group relative flex w-full flex-col gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm text-card-foreground transition-colors outline-none hover:bg-muted/45 active:bg-muted/55 focus-visible:ring-3 focus-visible:ring-ring/50",
               selected && "bg-muted/70 hover:bg-muted/75 active:bg-muted/80",
             )}
-            onClick={() => setSelectedThoughtId(thought.id)}
+            onClick={() => selectThought(thought.id)}
           >
             <span
               aria-hidden

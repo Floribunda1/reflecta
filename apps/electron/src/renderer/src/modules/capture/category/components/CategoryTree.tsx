@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { Button } from "@renderer/components/ui/button";
 import { ScrollArea } from "@renderer/components/ui/scroll-area";
 import {
@@ -12,16 +11,11 @@ import {
 import { ChevronDown, ChevronRight, Layers, Plus } from "lucide-react";
 import type { CategoryTreeNode } from "@shared/category";
 import { cn } from "@renderer/lib/utils";
-import { useCategoryData } from "@renderer/modules/shared/hooks/use-category";
 import { useCategoryActions } from "../hooks";
-import {
-  expandedCategoryKeysAtom,
-  selectCategoryAtom,
-  selectedCategoryIdAtom,
-  selectedThoughtIdAtom,
-} from "../../state";
 import { useModal } from "@renderer/modules/shared/hooks/use-modal";
 import { CategoryModalContent } from "./CreateCategoryModal";
+import { useCaptureStore } from "../../store";
+import { useCaptureCategories } from "../../queries";
 
 function getAllKeys(nodes: CategoryTreeNode[]): string[] {
   return nodes.flatMap((node) => [node.id, ...getAllKeys(node.children)]);
@@ -173,33 +167,28 @@ function CategoryRootButton({ selected, onSelect }: { selected: boolean; onSelec
 }
 
 export function CategoryTree() {
-  const { categories } = useCategoryData();
+  const { categories } = useCaptureCategories();
   const { createCategory, updateCategory, deleteCategory } = useCategoryActions();
-  const selectedCategoryId = useAtomValue(selectedCategoryIdAtom);
-  const selectCategory = useSetAtom(selectCategoryAtom);
-  const setSelectedCategoryId = useSetAtom(selectedCategoryIdAtom);
-  const setSelectedThoughtId = useSetAtom(selectedThoughtIdAtom);
-  const [expandedCategoryKeys, setExpandedCategoryKeys] = useAtom(expandedCategoryKeysAtom);
+  const selectedCategoryId = useCaptureStore((state) => state.selectedCategoryId);
+  const expandedCategoryKeys = useCaptureStore((state) => state.expandedCategoryIds);
+  const selectCategory = useCaptureStore((state) => state.selectCategory);
+  const toggleCategoryExpanded = useCaptureStore((state) => state.toggleCategoryExpanded);
+  const reconcileExpandedCategories = useCaptureStore((state) => state.reconcileExpandedCategories);
+  const expandCategoryAncestors = useCaptureStore((state) => state.expandCategoryAncestors);
+  const resetAfterCategoryDeleted = useCaptureStore((state) => state.resetAfterCategoryDeleted);
   const { openModal, closeModal, confirm } = useModal();
 
   useEffect(() => {
     if (!selectedCategoryId || selectedCategoryId === "all") return;
     const ancestors = getAncestorKeys(categories, selectedCategoryId);
     if (!ancestors) return;
-    setExpandedCategoryKeys((prev) => ({
-      ...prev,
-      ...Object.fromEntries(ancestors.map((key) => [key, true])),
-    }));
-  }, [categories, selectedCategoryId, setExpandedCategoryKeys]);
+    expandCategoryAncestors(ancestors);
+  }, [categories, selectedCategoryId, expandCategoryAncestors]);
 
   useEffect(() => {
     const validKeys = new Set(getAllKeys(categories));
-    setExpandedCategoryKeys((prev) => {
-      const next = Object.fromEntries(Object.entries(prev).filter(([key]) => validKeys.has(key)));
-      if (Object.keys(next).length === Object.keys(prev).length) return prev;
-      return next;
-    });
-  }, [categories, setExpandedCategoryKeys]);
+    reconcileExpandedCategories(validKeys);
+  }, [categories, reconcileExpandedCategories]);
 
   const openCreateModal = (initialParentId?: string | null) => {
     openModal(
@@ -234,10 +223,7 @@ export function CategoryTree() {
   };
 
   const onToggle = (id: string) => {
-    setExpandedCategoryKeys((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    toggleCategoryExpanded(id);
   };
 
   const handleDelete = (node: CategoryTreeNode) => {
@@ -249,10 +235,7 @@ export function CategoryTree() {
       danger: true,
       onAccept: async () => {
         await deleteCategory(node.id);
-        if (deletedCategoryIds.has(selectedCategoryId)) {
-          setSelectedCategoryId("all");
-          setSelectedThoughtId(null);
-        }
+        resetAfterCategoryDeleted(deletedCategoryIds);
       },
     });
   };

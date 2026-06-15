@@ -1,12 +1,12 @@
 import { Button } from "@renderer/components/ui/button";
 import { ChevronDown, ChevronRight, Grid2X2, AtSign } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useCategoryData } from "@renderer/modules/shared/hooks/use-category";
 import type { CategoryTreeNode } from "@shared/category";
 import { ipcClient } from "@renderer/utils/ipc";
 import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/md-preview";
 import { useChatPageContext } from "../../context";
 import { useState } from "react";
+import { useCaptureCategories } from "@renderer/modules/capture/queries";
 
 function CategoryItem({
   node,
@@ -57,7 +57,7 @@ function CategoryItem({
 
 export function BrowsePanel() {
   const ctx = useChatPageContext();
-  const { categories } = useCategoryData();
+  const { categories } = useCaptureCategories();
 
   const thoughtsQuery = useQuery({
     queryKey: ["chat.browse.thoughts", ctx.selectedCategoryId] as const,
