@@ -129,51 +129,18 @@ select {
 }
 
 .app-window {
-  -webkit-app-region: drag;
-}
-
-.app-window
-  :is(
-    a,
-    button,
-    input,
-    textarea,
-    select,
-    label,
-    [role="button"],
-    [role="tab"],
-    [role="tablist"],
-    [role="menuitem"],
-    [role="option"],
-    [role="combobox"],
-    [role="listbox"],
-    [role="dialog"],
-    [contenteditable="true"],
-    [data-slot="button"],
-    [data-slot="tabs"],
-    [data-slot="tabs-list"],
-    [data-slot="tabs-trigger"],
-    [data-slot="tabs-content"],
-    [data-slot="select-trigger"],
-    [data-slot="select-content"],
-    [data-slot="select-item"],
-    [data-slot="dialog-content"],
-    [data-slot="dialog-overlay"],
-    [data-slot="sheet-content"],
-    [data-slot="sheet-overlay"],
-    [data-slot="scroll-area"],
-    [data-slot="scroll-area-viewport"],
-    [data-slot="scroll-area-scrollbar"],
-    [data-no-drag]
-  ) {
   -webkit-app-region: no-drag;
 }
 
-[data-slot="dialog-content"],
-[data-slot="dialog-overlay"],
-[data-slot="sheet-content"],
-[data-slot="sheet-overlay"],
-[data-no-drag] {
+.app-drag-region,
+[data-app-drag] {
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+[data-no-drag],
+.app-drag-region [data-no-drag],
+[data-app-drag] [data-no-drag] {
   -webkit-app-region: no-drag;
 }
 

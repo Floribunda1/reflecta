@@ -1,7 +1,6 @@
 import { CSSProperties, useEffect, useMemo, useRef } from "react";
 import mediumZoom from "medium-zoom";
 import { MarkdownEditor } from "../editor";
-import "./style.css";
 
 const wikiLinkPattern = /\[\[([^\]\n#]+)#([^\]\n#]+)\]\]/g;
 
@@ -45,8 +44,19 @@ export function MarkdownPreview({ content }: { content: string }) {
     const el = containerRef.current;
     if (!el) return;
 
-    const zoom = mediumZoom(el.querySelectorAll("img"));
+    const zoom = mediumZoom();
+    const syncZoomImages = () => {
+      zoom.detach();
+      zoom.attach(el.querySelectorAll("img"));
+    };
+
+    const frameId = window.requestAnimationFrame(syncZoomImages);
+    const observer = new MutationObserver(syncZoomImages);
+    observer.observe(el, { childList: true, subtree: true });
+
     return () => {
+      window.cancelAnimationFrame(frameId);
+      observer.disconnect();
       zoom.detach();
     };
   }, [content]);

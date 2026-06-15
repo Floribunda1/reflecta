@@ -248,10 +248,11 @@ export function CategoryTree() {
 
   return (
     <aside className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-      <div className="px-5 pt-14 pb-3">
+      <div className="app-drag-region px-5 pt-14 pb-3">
         <div className="flex h-8 items-center justify-between gap-1">
           <div className="min-w-0 truncate text-sm font-medium">领域</div>
           <Button
+            data-no-drag
             type="button"
             size="icon-sm"
             variant="ghost"

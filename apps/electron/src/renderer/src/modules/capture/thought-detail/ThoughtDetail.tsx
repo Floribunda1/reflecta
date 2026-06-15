@@ -1,18 +1,28 @@
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@renderer/components/ui/context-menu";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@renderer/components/ui/field";
 import { Input } from "@renderer/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@renderer/components/ui/tabs";
 import { CategoryTreeSelect } from "@renderer/modules/shared/biz-components/CategoryTreeSelect";
 import { MarkdownEditor } from "@renderer/modules/shared/components/markdown-editor/editor";
 import { milkdownMarkdownEquals } from "@renderer/modules/shared/components/markdown-editor/editor/markdown-normalize";
-import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/markdown-editor/preview";
+import {
+  MarkdownPreview,
+  SimpleMarkdownPreview,
+} from "@renderer/modules/shared/components/markdown-editor/preview";
 import { useSharedDrawer } from "@renderer/modules/shared/hooks/use-drawer";
 import { useModal } from "@renderer/modules/shared/hooks/use-modal";
 import type { ContextDTO, SourceType } from "@shared/context";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useThoughtDetail, useThoughtDetailActions } from "./hooks";
 import { SOURCE_META, SOURCE_PLACEHOLDER, SOURCE_TYPES } from "./context/types";
@@ -56,51 +66,90 @@ function createSourceDraft(source: ContextDTO | null): SourceDraftInput {
 
 function SourcePreview({
   source,
-  onOpen,
+  onPreview,
+  onEdit,
   onDelete,
 }: {
   source: ContextDTO;
-  onOpen: () => void;
+  onPreview: () => void;
+  onEdit: () => void;
   onDelete: () => void;
 }) {
   const meta = SOURCE_META[source.sourceType];
   const Icon = meta.Icon;
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border p-2 text-sm">
-      <Button
-        type="button"
-        variant="ghost"
-        className="h-auto min-w-0 justify-start px-2 py-1.5 text-left"
-        onClick={onOpen}
-      >
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <Badge variant="outline" className="gap-1">
-              <Icon size={11} />
-              {meta.label}
-            </Badge>
-            <span className="min-w-0 flex-1 truncate font-medium">
-              {source.sourceName?.trim() || meta.label}
-            </span>
-            <span className="shrink-0 text-xs text-muted-foreground">
-              {source.content.length} 字
-            </span>
-          </div>
-          <div className="mt-2 text-muted-foreground">
-            {source.content ? (
-              <SimpleMarkdownPreview content={source.content} lineClamp={2} />
-            ) : (
-              <span>空来源，可以直接补充内容。</span>
-            )}
-          </div>
-        </div>
-      </Button>
-      <div className="flex items-center justify-end gap-1.5">
-        <Button type="button" size="sm" variant="ghost" onClick={onDelete}>
-          <Trash2 size={13} />
+    <ContextMenu>
+      <ContextMenuTrigger
+        render={
+          <button
+            type="button"
+            className="group flex w-full min-w-0 flex-col gap-2 rounded-lg border bg-background px-4 py-3 text-left text-sm transition-colors outline-none hover:bg-muted/35 active:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
+            onClick={onPreview}
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <Badge variant="outline" className="gap-1">
+                <Icon size={11} />
+                {meta.label}
+              </Badge>
+              <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                {source.sourceName?.trim() || meta.label}
+              </span>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {source.content.length} 字
+              </span>
+            </div>
+
+            <div className="text-muted-foreground">
+              {source.content ? (
+                <SimpleMarkdownPreview content={source.content} lineClamp={2} />
+              ) : (
+                <span>空来源，可以直接补充内容。</span>
+              )}
+            </div>
+          </button>
+        }
+      />
+      <ContextMenuContent>
+        <ContextMenuItem onClick={onEdit}>
+          <Pencil size={14} />
+          编辑
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem variant="destructive" onClick={onDelete}>
+          <Trash2 size={14} />
           删除
-        </Button>
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
+
+function SourcePreviewDrawerContent({ source }: { source: ContextDTO }) {
+  const meta = SOURCE_META[source.sourceType];
+  const Icon = meta.Icon;
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-5">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 border-b pb-4">
+        <Badge variant="outline" className="gap-1">
+          <Icon size={11} />
+          {meta.label}
+        </Badge>
+        <div className="min-w-0 flex-1 truncate text-sm font-medium">
+          {source.sourceName?.trim() || meta.label}
+        </div>
+        <div className="shrink-0 text-xs text-muted-foreground">{source.content.length} 字</div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {source.content ? (
+          <MarkdownPreview content={source.content} />
+        ) : (
+          <div className="text-sm text-muted-foreground">
+            空来源，可以通过右键菜单编辑补充内容。
+          </div>
+        )}
       </div>
     </div>
   );
@@ -296,6 +345,18 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
     openSourceDrawer(null);
   };
 
+  const openSourcePreview = (source: ContextDTO) => {
+    setActiveSourceId(source.id);
+    openDrawer(
+      {
+        title: "来源预览",
+        widthClassName: SOURCE_DRAWER_WIDTH_CLASS,
+        onClose: () => setActiveSourceId(null),
+      },
+      <SourcePreviewDrawerContent source={source} />,
+    );
+  };
+
   const handleDeleteSource = (source: ContextDTO) => {
     confirm({
       title: "删除来源",
@@ -366,10 +427,8 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
         </section>
 
         <section className="mt-10 flex flex-col gap-3 border-t border-border/70 pt-8 pb-6">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-sm font-medium">来源</div>
-            </div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm leading-8 font-medium">来源</div>
             <Button type="button" size="sm" variant="ghost" onClick={handleAddSource}>
               <Plus size={14} />
               添加来源
@@ -381,7 +440,8 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
                 <SourcePreview
                   key={source.id}
                   source={source}
-                  onOpen={() => openSourceDrawer(source)}
+                  onPreview={() => openSourcePreview(source)}
+                  onEdit={() => openSourceDrawer(source)}
                   onDelete={() => handleDeleteSource(source)}
                 />
               ))}

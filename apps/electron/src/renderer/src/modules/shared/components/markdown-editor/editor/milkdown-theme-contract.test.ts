@@ -9,7 +9,7 @@ const themeImports = readFileSync(
   "utf8",
 );
 const compiledCss = sass.compile(themeEntry).css;
-const demoMarkdown = readFileSync(new URL("../demo.md", import.meta.url), "utf8");
+const demoMarkdown = readFileSync(new URL("../../demo.md", import.meta.url), "utf8");
 
 type CssRule = {
   selector: string;
@@ -150,7 +150,6 @@ describe("milkdown theme contract", () => {
       ".reflecta-md-editor .milkdown .milkdown-toolbar .toolbar-item",
       ".reflecta-md-editor .milkdown .milkdown-link-preview > .link-preview",
       ".reflecta-md-editor .milkdown .milkdown-link-edit > .link-edit",
-      ".reflecta-md-editor .milkdown .milkdown-block-handle .operation-item",
     ]) {
       findRule(selectorPart);
     }
@@ -175,6 +174,15 @@ describe("milkdown theme contract", () => {
       "width",
       /16px/,
     );
+  });
+
+  test("removes Crepe block add and drag handle chrome", () => {
+    expectDeclaration(
+      ".reflecta-md-editor .milkdown .milkdown-block-handle",
+      "display",
+      /none !important/,
+    );
+    expect(compiledCss).not.toContain(".milkdown-block-handle .operation-item");
   });
 
   test("styles slash menu as a compact command-palette surface", () => {

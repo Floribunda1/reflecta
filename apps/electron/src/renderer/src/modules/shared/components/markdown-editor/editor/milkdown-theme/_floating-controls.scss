@@ -39,17 +39,8 @@
   }
 
   .milkdown-block-handle {
-    color: var(--muted-foreground);
-
-    .operation-item {
-      @include icon-button;
-      @include accent-hover;
-      @include primary-active;
-
-      svg {
-        @include control-icon;
-      }
-    }
+    display: none !important;
+    pointer-events: none;
   }
 
   .milkdown-link-preview > .link-preview,

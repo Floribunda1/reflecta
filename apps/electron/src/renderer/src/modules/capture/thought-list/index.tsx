@@ -74,11 +74,11 @@ export function ThoughtList() {
     <section className="flex h-full min-h-0 min-w-0 flex-col border-r bg-transparent">
       <div className="space-y-3 px-3 py-3">
         <div className="flex h-8 items-center justify-between gap-2">
-          <div className="min-w-0">
+          <div className="app-drag-region min-w-0 flex-1 self-stretch">
             <div className="truncate text-sm font-medium">{categoryLabel}</div>
             <div className="text-xs text-muted-foreground">{countLabel}</div>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1" data-no-drag>
             <Button
               type="button"
               size="icon-sm"
