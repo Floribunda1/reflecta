@@ -42,6 +42,25 @@
   }
 }
 
+.reflecta-md-editor--auto-grow {
+  height: auto;
+
+  .reflecta-md-editor__surface,
+  .milkdown > div,
+  [data-milkdown-root],
+  .reflecta-milkdown {
+    height: auto;
+    min-height: 0;
+  }
+
+  .ProseMirror {
+    height: auto;
+    min-height: 8rem;
+    max-height: var(--reflecta-md-editor-max-height, none);
+    overflow-y: auto;
+  }
+}
+
 #{$preview-root} .reflecta-md-editor {
   width: 100%;
   max-width: 46rem;

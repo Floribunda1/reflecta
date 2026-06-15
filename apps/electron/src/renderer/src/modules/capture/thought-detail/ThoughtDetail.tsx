@@ -1,8 +1,6 @@
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
-import { Empty, EmptyContent, EmptyDescription } from "@renderer/components/ui/empty";
 import { Input } from "@renderer/components/ui/input";
-import { ScrollArea } from "@renderer/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -18,10 +16,9 @@ import { milkdownMarkdownEquals } from "@renderer/modules/shared/components/mark
 import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/markdown-editor/preview";
 import { useModal } from "@renderer/modules/shared/hooks/use-modal";
 import type { ContextDTO, SourceType } from "@shared/context";
-import type { ThoughtSummaryDTO } from "@shared/thought";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { ArrowLeft, ArrowRight, ExternalLink, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useDebounceFn } from "ahooks";
 import { useEffect, useRef, useState } from "react";
 import { useThoughtDetail, useThoughtDetailActions } from "./hooks";
@@ -40,38 +37,8 @@ type SourceUpdateInput = {
   content?: string;
 };
 
-const wikiLinkPattern = /\[\[([^\]\n]+)\]\]/g;
-
-function titleForThought(thought: { title: string | null; body: string }): string {
-  const title = thought.title?.trim();
-  if (title) return title;
-  const firstLine = thought.body
-    .split("\n")
-    .map((line) => line.trim())
-    .find(Boolean);
-  return firstLine || "未命名理解";
-}
-
 function sourceLabel(type: SourceType): string {
   return SOURCE_META[type].label;
-}
-
-function getUnresolvedWikiLinks(body: string, resolvedTargets: ThoughtSummaryDTO[]): string[] {
-  const resolved = new Set<string>();
-  for (const target of resolvedTargets) {
-    resolved.add(target.id);
-    if (target.title) resolved.add(target.title);
-  }
-
-  const unresolved = new Set<string>();
-  for (const match of body.matchAll(wikiLinkPattern)) {
-    const raw = match[1]?.trim();
-    if (!raw) continue;
-    const target = raw.includes("#") ? raw.slice(raw.lastIndexOf("#") + 1).trim() : raw;
-    if (!target || resolved.has(target)) continue;
-    unresolved.add(raw);
-  }
-  return [...unresolved];
 }
 
 function SourcePreview({
@@ -123,44 +90,6 @@ function SourcePreview({
         </Button>
       </div>
     </div>
-  );
-}
-
-function RelationItem({
-  thought,
-  direction,
-  onSelect,
-}: {
-  thought: ThoughtSummaryDTO;
-  direction: "outgoing" | "incoming";
-  onSelect: () => void;
-}) {
-  const Icon = direction === "outgoing" ? ArrowRight : ArrowLeft;
-  const label = direction === "outgoing" ? "引用了" : "被引用";
-
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      className="h-auto w-full justify-start p-3 text-left"
-      onClick={onSelect}
-    >
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <Badge variant="outline" className="gap-1">
-            <Icon size={11} />
-            {label}
-          </Badge>
-          <span className="min-w-0 flex-1 truncate font-medium">{titleForThought(thought)}</span>
-          <ExternalLink size={13} className="shrink-0 text-muted-foreground" />
-        </div>
-        {thought.body && (
-          <div className="text-muted-foreground">
-            <SimpleMarkdownPreview content={thought.body} lineClamp={2} />
-          </div>
-        )}
-      </div>
-    </Button>
   );
 }
 
@@ -265,7 +194,6 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
   const updateDraftTitle = useCaptureStore((state) => state.updateDraftTitle);
   const updateDraftBody = useCaptureStore((state) => state.updateDraftBody);
   const setActiveSourceId = useCaptureStore((state) => state.setActiveSourceId);
-  const selectThoughtFromSearch = useCaptureStore((state) => state.selectThoughtFromSearch);
   const { saveDraft } = useThoughtDraftSave({ thoughtId, scopeRef: detailRef });
 
   useEffect(() => {
@@ -284,7 +212,6 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
   const activeSource = thought.contexts.find((source) => source.id === activeSourceId) ?? null;
   const title = draft?.title ?? thought.title ?? "";
   const body = draft?.body ?? thought.body;
-  const unresolvedLinks = getUnresolvedWikiLinks(body, thought.connections);
   const updatedLabel = formatDistanceToNow(thought.updatedAt, {
     addSuffix: true,
     locale: zhCN,
@@ -326,150 +253,91 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
   };
 
   return (
-    <div className="h-full min-h-0 min-w-0">
-      <ScrollArea className="h-full">
-        <article ref={detailRef} className="mx-auto flex min-h-full flex-col px-6 py-5">
-          <header className="space-y-4">
-            <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span>{updatedLabel}</span>
-              <span aria-hidden>·</span>
-              <CategoryTreeSelect
-                modelValue={thought.categoryIds}
-                onUpdateModelValue={(categoryIds) => void updateThought({ categoryIds })}
-                placeholder="未归类"
-                fluid={false}
-                usePathLabel={false}
-                variant="inline"
-              />
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="ml-auto text-destructive hover:bg-destructive/10 hover:text-destructive"
-                onClick={handleDeleteThought}
-              >
-                <Trash2 size={13} />
-                删除
-              </Button>
-            </div>
-            <Input
-              value={title}
-              onChange={(event) => {
-                const next = event.target.value;
-                updateDraftTitle(next);
-              }}
-              onBlur={() => void saveDraft()}
-              className="h-auto border-0 bg-transparent px-0 py-0 text-2xl font-semibold shadow-none focus-visible:ring-0 md:text-2xl dark:bg-transparent"
-              placeholder="写下一个刚形成的理解"
+    <div className="h-full min-h-0 min-w-0 overflow-hidden">
+      <article ref={detailRef} className="mx-auto h-full overflow-y-auto px-6 py-5">
+        <header className="space-y-4">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>{updatedLabel}</span>
+            <span aria-hidden>·</span>
+            <CategoryTreeSelect
+              modelValue={thought.categoryIds}
+              onUpdateModelValue={(categoryIds) => void updateThought({ categoryIds })}
+              placeholder="未归类"
+              fluid={false}
+              usePathLabel={false}
+              variant="inline"
             />
-          </header>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="ml-auto text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={handleDeleteThought}
+            >
+              <Trash2 size={13} />
+              删除
+            </Button>
+          </div>
+          <Input
+            value={title}
+            onChange={(event) => {
+              const next = event.target.value;
+              updateDraftTitle(next);
+            }}
+            onBlur={() => void saveDraft()}
+            className="h-auto border-0 bg-transparent px-0 py-0 text-2xl font-semibold shadow-none focus-visible:ring-0 md:text-2xl dark:bg-transparent"
+            placeholder="写下一个刚形成的理解"
+          />
+        </header>
 
-          <section className="mt-5">
-            <MarkdownEditor
-              contentKey={thought.id}
-              initialContent={thought.body}
-              height="clamp(320px, 46vh, 520px)"
-              placeholder="用自己的语言写下这条理解。通过 [[已有理解标题]] 连接相关理解。"
-              onUpdate={(next) => {
-                if (milkdownMarkdownEquals(next, body)) return;
-                updateDraftBody(next);
-              }}
-              onBlur={() => void saveDraft()}
-            />
-          </section>
+        <section className="mt-5">
+          <MarkdownEditor
+            contentKey={thought.id}
+            initialContent={thought.body}
+            height="auto"
+            maxHeight="clamp(320px, 50vh, 560px)"
+            placeholder="用自己的语言写下这条理解。通过 [[已有理解标题]] 连接相关理解。"
+            onUpdate={(next) => {
+              if (milkdownMarkdownEquals(next, body)) return;
+              updateDraftBody(next);
+            }}
+            onBlur={() => void saveDraft()}
+          />
+        </section>
 
-          <section className="mt-8 flex flex-col gap-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-sm font-medium">来源</div>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => void handleAddSource()}
-              >
-                <Plus size={14} />
-                添加来源
-              </Button>
-            </div>
-            {thought.contexts.length > 0 ? (
-              <div className="flex flex-col gap-3">
-                {thought.contexts.map((source) => (
-                  <SourcePreview
-                    key={source.id}
-                    source={source}
-                    onOpen={() => setActiveSourceId(source.id)}
-                    onDelete={() => handleDeleteSource(source)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                className="h-auto justify-start border-dashed p-4 text-muted-foreground"
-                onClick={() => void handleAddSource()}
-              >
-                添加来源
-              </Button>
-            )}
-          </section>
-
-          <section className="mt-8 flex flex-col gap-3 pb-6">
+        <section className="mt-10 flex flex-col gap-3 border-t border-border/70 pt-8 pb-6">
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-sm font-medium">双链关系</div>
+              <div className="text-sm font-medium">来源</div>
             </div>
-
-            {thought.connections.length === 0 &&
-            thought.referencedBy.length === 0 &&
-            unresolvedLinks.length === 0 ? (
-              <Empty className="min-h-20 flex-none p-4">
-                <EmptyContent>
-                  <EmptyDescription>暂时独立</EmptyDescription>
-                </EmptyContent>
-              </Empty>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {thought.connections.map((item) => (
-                  <RelationItem
-                    key={`out-${item.id}`}
-                    thought={item}
-                    direction="outgoing"
-                    onSelect={() => {
-                      selectThoughtFromSearch({
-                        thoughtId: item.id,
-                        categoryIds: item.categoryIds,
-                      });
-                    }}
-                  />
-                ))}
-                {thought.referencedBy.map((item) => (
-                  <RelationItem
-                    key={`in-${item.id}`}
-                    thought={item}
-                    direction="incoming"
-                    onSelect={() => {
-                      selectThoughtFromSearch({
-                        thoughtId: item.id,
-                        categoryIds: item.categoryIds,
-                      });
-                    }}
-                  />
-                ))}
-                {unresolvedLinks.map((link) => (
-                  <div
-                    key={link}
-                    className="rounded-xl border bg-muted/30 p-3 text-sm text-muted-foreground"
-                  >
-                    未解析：[[{link}]]
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        </article>
-      </ScrollArea>
+            <Button type="button" size="sm" variant="ghost" onClick={() => void handleAddSource()}>
+              <Plus size={14} />
+              添加来源
+            </Button>
+          </div>
+          {thought.contexts.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              {thought.contexts.map((source) => (
+                <SourcePreview
+                  key={source.id}
+                  source={source}
+                  onOpen={() => setActiveSourceId(source.id)}
+                  onDelete={() => handleDeleteSource(source)}
+                />
+              ))}
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-auto justify-start border-dashed p-4 text-muted-foreground"
+              onClick={() => void handleAddSource()}
+            >
+              添加来源
+            </Button>
+          )}
+        </section>
+      </article>
 
       <SourceDetailOverlay
         source={activeSource}

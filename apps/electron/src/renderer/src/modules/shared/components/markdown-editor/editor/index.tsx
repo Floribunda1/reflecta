@@ -16,12 +16,17 @@ type MarkdownEditorProps = {
   content?: string;
   width?: number | string;
   height?: number | string;
+  maxHeight?: number | string;
   placeholder?: string;
   readonly?: boolean;
   className?: string;
   onUpdate?: (value: string) => void;
   onBlur?: () => void;
 };
+
+function toCssSize(value: number | string): string {
+  return typeof value === "number" ? `${value}px` : value;
+}
 
 function MarkdownEditorSurface({
   contentKey,
@@ -101,6 +106,7 @@ export function MarkdownEditor({
   content = "",
   width = "100%",
   height = 400,
+  maxHeight,
   placeholder = "请输入",
   readonly,
   className,
@@ -108,14 +114,18 @@ export function MarkdownEditor({
   onBlur,
 }: MarkdownEditorProps) {
   const editorContent = initialContent ?? content;
+  const autoGrow = height === "auto";
 
   return (
     <div
-      className={cn("reflecta-md-editor", className)}
+      className={cn("reflecta-md-editor", autoGrow && "reflecta-md-editor--auto-grow", className)}
       data-no-drag
       style={{
-        width: typeof width === "number" ? `${width}px` : width,
-        height: typeof height === "number" ? `${height}px` : height,
+        width: toCssSize(width),
+        height: autoGrow ? undefined : toCssSize(height),
+        ...(autoGrow && maxHeight != null
+          ? { "--reflecta-md-editor-max-height": toCssSize(maxHeight) }
+          : {}),
       }}
     >
       <MilkdownProvider>
