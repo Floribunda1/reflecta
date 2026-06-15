@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Button } from "@renderer/components/ui/button";
+import { ScrollArea } from "@renderer/components/ui/scroll-area";
+import { cn } from "@renderer/lib/utils";
 import { Database, Sparkles, Trash2 } from "lucide-react";
 import { AiSection } from "./AiSection";
 import { StorageSection } from "./StorageSection";
@@ -16,31 +18,37 @@ export function SettingsDialogContent() {
   const [activeMenu, setActiveMenu] = useState<MenuKey>("storage");
 
   return (
-    <div className="flex h-[76vh] bg-background">
-      <aside className="flex w-44 shrink-0 flex-col border-r border-border px-3 py-4">
+    <div className="-mx-6 -mb-6 flex h-[min(68vh,620px)] min-h-[420px] overflow-hidden border-t border-border/70">
+      <aside className="flex w-44 shrink-0 flex-col border-r border-border/70 bg-muted/20 p-3">
         {MENU_ITEMS.map((item) => {
           const Icon = item.icon;
+          const active = activeMenu === item.key;
           return (
             <Button
               key={item.key}
               type="button"
               size="sm"
-              variant={activeMenu === item.key ? "default" : "ghost"}
-              className="w-full justify-start"
+              variant="ghost"
+              className={cn(
+                "h-8 w-full justify-start gap-2 px-2 text-muted-foreground",
+                active && "bg-muted text-foreground",
+              )}
               onClick={() => setActiveMenu(item.key)}
             >
               <Icon size={14} />
-              <span className="font-medium">{item.label}</span>
+              <span>{item.label}</span>
             </Button>
           );
         })}
       </aside>
 
-      <main className="min-w-0 flex-1 overflow-y-auto px-8 py-7">
-        {activeMenu === "storage" && <StorageSection />}
-        {activeMenu === "ai" && <AiSection />}
-        {activeMenu === "trash" && <TrashSection />}
-      </main>
+      <ScrollArea className="min-w-0 flex-1">
+        <main className="mx-auto w-full max-w-2xl px-6 py-5">
+          {activeMenu === "storage" && <StorageSection />}
+          {activeMenu === "ai" && <AiSection />}
+          {activeMenu === "trash" && <TrashSection />}
+        </main>
+      </ScrollArea>
     </div>
   );
 }

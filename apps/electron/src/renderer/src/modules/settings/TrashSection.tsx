@@ -102,11 +102,11 @@ export function TrashSection() {
   const totalCount = thoughts.length + contexts.length;
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
-      <div className="border-b border-border pb-4">
+    <div className="flex flex-col gap-5">
+      <div>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-lg font-semibold leading-none text-foreground">回收站</h3>
+            <h3 className="text-base font-medium text-foreground">回收站</h3>
             <p className="mt-2 text-sm text-muted-foreground">
               被删除的 Thought 与 Context 会暂存在这里。
             </p>
@@ -119,114 +119,112 @@ export function TrashSection() {
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="animate-spin text-muted-foreground" size={24} />
-        </div>
-      ) : totalCount === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-2 py-10">
-          <Trash2 size={28} className="text-muted-foreground opacity-35" />
-          <span className="text-sm text-muted-foreground">回收站为空</span>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {thoughts.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-1.5">
-                <Lightbulb size={13} className="text-muted-foreground" />
-                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  想法 ({thoughts.length})
-                </span>
-              </div>
-              {thoughts.map((thought) => (
-                <div
-                  key={thought.id}
-                  className="group flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 transition-colors hover:bg-muted"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm text-foreground">
-                      {thought.title || truncate(thought.body) || (
-                        <span className="italic text-muted-foreground">（无内容）</span>
-                      )}
-                    </div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      删除于 {formatDate(thought.deletedAt)}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      aria-label="恢复"
-                      onClick={() => void handleRestoreThought(thought.id)}
-                    >
-                      <RotateCcw size={15} />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="destructive"
-                      aria-label="永久删除"
-                      onClick={() => handleDeleteThoughtForever(thought.id)}
-                    >
-                      <X size={15} />
-                    </Button>
-                  </div>
+      <section className="border-t border-border/70 pt-5">
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="animate-spin text-muted-foreground" size={22} />
+          </div>
+        ) : totalCount === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border/70 py-10">
+            <Trash2 size={24} className="text-muted-foreground opacity-50" />
+            <span className="text-sm text-muted-foreground">回收站为空</span>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-5">
+            {thoughts.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Lightbulb size={13} />
+                  <span>想法 ({thoughts.length})</span>
                 </div>
-              ))}
-            </div>
-          )}
+                {thoughts.map((thought) => (
+                  <div
+                    key={thought.id}
+                    className="group flex items-center gap-3 rounded-md border border-border/70 bg-muted/20 px-3 py-2.5 transition-colors hover:bg-muted/45"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm text-foreground">
+                        {thought.title || truncate(thought.body) || (
+                          <span className="italic text-muted-foreground">（无内容）</span>
+                        )}
+                      </div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        删除于 {formatDate(thought.deletedAt)}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label="恢复"
+                        onClick={() => void handleRestoreThought(thought.id)}
+                      >
+                        <RotateCcw size={15} />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="destructive"
+                        aria-label="永久删除"
+                        onClick={() => handleDeleteThoughtForever(thought.id)}
+                      >
+                        <X size={15} />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
-          {contexts.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {contexts.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <div className="text-xs font-medium text-muted-foreground">
                   来源 ({contexts.length})
-                </span>
-              </div>
-              {contexts.map((context) => (
-                <div
-                  key={context.id}
-                  className="group flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 transition-colors hover:bg-muted"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm text-foreground">
-                      {context.sourceName
-                        ? `${context.sourceName} - ${truncate(context.content, 40)}`
-                        : truncate(context.content)}
-                    </div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      来自「{context.thoughtTitle || "无标题想法"}」 · 删除于{" "}
-                      {formatDate(context.deletedAt)}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      aria-label="恢复"
-                      onClick={() => void handleRestoreContext(context.id)}
-                    >
-                      <RotateCcw size={15} />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="destructive"
-                      aria-label="永久删除"
-                      onClick={() => handleDeleteContextForever(context.id)}
-                    >
-                      <X size={15} />
-                    </Button>
-                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+                {contexts.map((context) => (
+                  <div
+                    key={context.id}
+                    className="group flex items-center gap-3 rounded-md border border-border/70 bg-muted/20 px-3 py-2.5 transition-colors hover:bg-muted/45"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm text-foreground">
+                        {context.sourceName
+                          ? `${context.sourceName} - ${truncate(context.content, 40)}`
+                          : truncate(context.content)}
+                      </div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        来自「{context.thoughtTitle || "无标题想法"}」 · 删除于{" "}
+                        {formatDate(context.deletedAt)}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label="恢复"
+                        onClick={() => void handleRestoreContext(context.id)}
+                      >
+                        <RotateCcw size={15} />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="destructive"
+                        aria-label="永久删除"
+                        onClick={() => handleDeleteContextForever(context.id)}
+                      >
+                        <X size={15} />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

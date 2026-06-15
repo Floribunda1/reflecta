@@ -32,7 +32,6 @@ export type CaptureState = {
 export type CaptureActions = {
   selectCategory: (categoryId: string) => void;
   selectThought: (thoughtId: string | null) => void;
-  selectThoughtFromSearch: (input: { thoughtId: string; categoryIds?: string[] }) => void;
   reconcileSelectedThought: (visibleThoughtIds: Set<string>) => void;
   setSearchOpen: (open: boolean) => void;
   setSearchQuery: (query: string) => void;
@@ -127,14 +126,6 @@ export function createCaptureState(
 
     selectThought: (thoughtId) =>
       set((state) => ({
-        selectedThoughtId: thoughtId,
-        activeSourceId: null,
-        draft: state.selectedThoughtId === thoughtId ? state.draft : null,
-      })),
-
-    selectThoughtFromSearch: ({ thoughtId, categoryIds }) =>
-      set((state) => ({
-        selectedCategoryId: categoryIds?.[0] ?? "all",
         selectedThoughtId: thoughtId,
         activeSourceId: null,
         draft: state.selectedThoughtId === thoughtId ? state.draft : null,

@@ -36,18 +36,6 @@ describe("capture store", () => {
     expect(store.getState().activeSourceId).toBeNull();
   });
 
-  test("selectThoughtFromSearch selects category and thought", () => {
-    const store = createCaptureStore();
-
-    store.getState().selectThoughtFromSearch({
-      thoughtId: "thought-1",
-      categoryIds: ["category-1"],
-    });
-
-    expect(store.getState().selectedCategoryId).toBe("category-1");
-    expect(store.getState().selectedThoughtId).toBe("thought-1");
-  });
-
   test("setIncludeDescendants updates includeDescendants", () => {
     const store = createCaptureStore();
 

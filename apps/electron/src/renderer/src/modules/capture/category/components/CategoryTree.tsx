@@ -8,11 +8,12 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@renderer/components/ui/context-menu";
-import { ChevronDown, ChevronRight, Layers, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Layers, Plus, Settings } from "lucide-react";
 import type { CategoryTreeNode } from "@shared/category";
 import { cn } from "@renderer/lib/utils";
 import { useCategoryActions } from "../hooks";
 import { useModal } from "@renderer/modules/shared/hooks/use-modal";
+import { SettingsDialogContent } from "@renderer/modules/settings/SettingsDialog";
 import { CategoryModalContent } from "./CreateCategoryModal";
 import { useCaptureStore } from "../../store";
 import { useCaptureCategories } from "../../queries";
@@ -291,6 +292,24 @@ export function CategoryTree() {
           )}
         </div>
       </ScrollArea>
+
+      <div className="p-2">
+        <Button
+          type="button"
+          variant="ghost"
+          className="w-full justify-start"
+          aria-label="打开设置"
+          onClick={() =>
+            openModal(<SettingsDialogContent />, {
+              title: "设置",
+              widthClassName: "w-[min(880px,calc(100vw-3rem))] max-w-none sm:max-w-none",
+            })
+          }
+        >
+          <Settings size={16} />
+          <span className="font-medium">设置</span>
+        </Button>
+      </div>
     </aside>
   );
 }

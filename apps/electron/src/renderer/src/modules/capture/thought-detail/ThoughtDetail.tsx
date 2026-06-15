@@ -7,6 +7,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@renderer/components/ui/context-menu";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@renderer/components/ui/empty";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@renderer/components/ui/field";
 import { Input } from "@renderer/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@renderer/components/ui/tabs";
@@ -447,14 +448,14 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
               ))}
             </div>
           ) : (
-            <Button
-              type="button"
-              variant="outline"
-              className="h-auto justify-start border-dashed p-4 text-muted-foreground"
-              onClick={handleAddSource}
-            >
-              添加来源
-            </Button>
+            <Empty className="flex-none py-10">
+              <EmptyContent>
+                <EmptyMedia variant="icon">
+                  <Plus />
+                </EmptyMedia>
+                <EmptyDescription>暂时没有来源</EmptyDescription>
+              </EmptyContent>
+            </Empty>
           )}
         </section>
       </article>

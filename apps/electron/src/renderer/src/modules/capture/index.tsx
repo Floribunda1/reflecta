@@ -1,33 +1,13 @@
-import { useEffect } from "react";
 import { FileText } from "lucide-react";
 import { CategoryTree } from "./category";
 import { ThoughtDetail } from "./thought-detail";
 import { ThoughtList } from "./thought-list";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@renderer/components/ui/empty";
-import { searchEventBus, type SearchSelectPayload } from "@renderer/utils/searchEventBus";
-import { ipcClient } from "@renderer/utils/ipc";
 import { useCaptureStore } from "./store";
 
 function CapturePageInner() {
   const selectedThoughtId = useCaptureStore((state) => state.selectedThoughtId);
-  const selectThoughtFromSearch = useCaptureStore((state) => state.selectThoughtFromSearch);
   const resetAfterThoughtDeleted = useCaptureStore((state) => state.resetAfterThoughtDeleted);
-
-  useEffect(() => {
-    const handleThoughtSelected = async ({ thoughtId, categoryIds }: SearchSelectPayload) => {
-      let cats = categoryIds;
-      if (cats === undefined) {
-        const thought = await ipcClient.thought.getThoughtById(thoughtId);
-        cats = thought?.categoryIds ?? [];
-      }
-      selectThoughtFromSearch({ thoughtId, categoryIds: cats });
-    };
-
-    searchEventBus.on("thoughtSelected", handleThoughtSelected);
-    return () => {
-      searchEventBus.off("thoughtSelected", handleThoughtSelected);
-    };
-  }, [selectThoughtFromSearch]);
 
   return (
     <div className="grid h-full min-h-0 w-full grid-cols-[248px_minmax(0,1fr)] overflow-hidden bg-background/45 backdrop-blur-2xl">

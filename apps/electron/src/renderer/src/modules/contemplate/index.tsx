@@ -4,7 +4,6 @@ import { ContemplatePageProvider, useContemplatePageContext } from "./context";
 import { FilterPanel } from "./filter-panel";
 import { GraphCanvas } from "./graph";
 import { NodeDetail } from "./NodeDetail";
-import { searchEventBus, type SearchSelectPayload } from "@renderer/utils/searchEventBus";
 
 const MIN_PANEL_WIDTH = 440;
 const MAX_PANEL_WIDTH = 680;
@@ -12,20 +11,14 @@ const DEFAULT_PANEL_WIDTH = 560;
 
 function ContemplatePageInner() {
   const ctx = useContemplatePageContext();
+  const { setSelectedThoughtId } = ctx;
   const [searchParams] = useSearchParams();
   const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
 
   useEffect(() => {
-    const handleThoughtSelected = ({ thoughtId }: SearchSelectPayload) => {
-      ctx.setSelectedThoughtId(thoughtId);
-    };
-    searchEventBus.on("thoughtSelected", handleThoughtSelected);
     const pending = searchParams.get("selectThoughtId");
-    if (pending) ctx.setSelectedThoughtId(pending);
-    return () => {
-      searchEventBus.off("thoughtSelected", handleThoughtSelected);
-    };
-  }, [searchParams]);
+    if (pending) setSelectedThoughtId(pending);
+  }, [searchParams, setSelectedThoughtId]);
 
   function onDragHandleMouseDown(event: MouseEvent<HTMLDivElement>) {
     event.preventDefault();
