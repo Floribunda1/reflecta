@@ -1,9 +1,16 @@
 pre-commit:
   commands:
-    check:
+    lint:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}"
-      run: bunx oxlint --fix && bunx oxfmt --no-error-on-unmatched-pattern && bun typecheck
+      run: bunx oxlint --fix {staged_files}
       stage_fixed: true
+    format:
+      glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc,css,scss,md}"
+      run: bunx oxfmt --no-error-on-unmatched-pattern {staged_files}
+      stage_fixed: true
+    typecheck:
+      glob: "*.{ts,tsx,json,jsonc}"
+      run: bun typecheck
 
 pre-push:
   commands:
