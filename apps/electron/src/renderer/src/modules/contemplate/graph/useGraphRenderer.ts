@@ -1,14 +1,16 @@
 import { RefObject, useEffect, useRef, useState } from "react";
-import { Graph, NodeEvent, CanvasEvent } from "@antv/g6";
+import { Graph, NodeEvent, CanvasEvent, ComboEvent } from "@antv/g6";
 import type { ElementDatum, GraphData, IElementEvent } from "@antv/g6";
 import type { ThoughtSummaryDTO } from "@shared/thought";
-import { buildG6Data, getNeighborIds, type G6Data } from "./data";
+import type { Category } from "@shared/category";
+import { buildG6Data, type G6Data } from "./data";
 import { resolveColors } from "./colors";
 import type { NodePopoverData } from "./NodePopover";
 
 interface ContemplateCtx {
   selectedThoughtId: string | null;
   setSelectedThoughtId: (value: string | null) => void;
+  setSelectedCategoryIds: (value: string[]) => void;
 }
 
 function styleNumber(datum: ElementDatum, key: string, fallback: number): number {
@@ -21,17 +23,22 @@ function styleString(datum: ElementDatum, key: string, fallback: string): string
   return typeof value === "string" ? value : fallback;
 }
 
-function styleNumberArray(datum: ElementDatum, key: string): number[] | undefined {
+function styleBoolean(datum: ElementDatum, key: string, fallback: boolean): boolean {
   const value = datum.style?.[key];
-  if (!Array.isArray(value)) return undefined;
-  return value.every((item) => typeof item === "number") ? value : undefined;
+  return typeof value === "boolean" ? value : fallback;
 }
 
 function isSameStructure(a: G6Data, b: G6Data): boolean {
   if (a.nodes.length !== b.nodes.length) return false;
   if (a.edges.length !== b.edges.length) return false;
-  const aIds = new Set(a.nodes.map((n) => n.id));
-  for (const n of b.nodes) if (!aIds.has(n.id)) return false;
+  if (a.combos.length !== b.combos.length) return false;
+  const aNodeCombos = new Map(a.nodes.map((n) => [n.id, n.combo ?? null]));
+  for (const n of b.nodes) {
+    if (!aNodeCombos.has(n.id)) return false;
+    if (aNodeCombos.get(n.id) !== (n.combo ?? null)) return false;
+  }
+  const aComboIds = new Set(a.combos.map((combo) => combo.id));
+  for (const combo of b.combos) if (!aComboIds.has(combo.id)) return false;
   const aEdgeKeys = new Set(a.edges.map((e) => `${e.source}->${e.target}`));
   for (const e of b.edges) if (!aEdgeKeys.has(`${e.source}->${e.target}`)) return false;
   return true;
@@ -49,10 +56,11 @@ export function useGraphRenderer(
   containerRef: RefObject<HTMLDivElement | null>,
   ctx: ContemplateCtx,
   thoughts: ThoughtSummaryDTO[] | undefined,
+  categories: Category[] = [],
   colorScheme?: string,
 ) {
   const graphRef = useRef<Graph | null>(null);
-  const currentDataRef = useRef<G6Data>({ nodes: [], edges: [] });
+  const currentDataRef = useRef<G6Data>({ nodes: [], edges: [], combos: [] });
   const nodeDataCacheRef = useRef(new Map<string, NodePopoverData>());
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
@@ -67,22 +75,19 @@ export function useGraphRenderer(
     const currentData = currentDataRef.current;
     if (!graph || !currentData.nodes.length) return;
 
-    const neighbors = activeId ? getNeighborIds(activeId, currentData) : new Set<string>();
     const nodeStates: Record<string, string[]> = {};
     for (const n of currentData.nodes) {
-      if (activeId) {
-        if (n.id === activeId) nodeStates[n.id] = ["active"];
-        else if (neighbors.has(n.id)) nodeStates[n.id] = ["neighbor"];
-        else nodeStates[n.id] = ["inactive"];
-      } else {
-        nodeStates[n.id] = [];
-      }
+      nodeStates[n.id] = activeId && n.id === activeId ? ["active"] : [];
     }
 
     const edgeStates: Record<string, string[]> = {};
     for (const e of currentData.edges) {
-      edgeStates[e.id] =
-        activeId && e.source !== activeId && e.target !== activeId ? ["inactive"] : [];
+      if (!activeId) {
+        edgeStates[e.id] = [];
+      } else {
+        edgeStates[e.id] =
+          e.source === activeId || e.target === activeId ? ["active"] : ["inactive"];
+      }
     }
     try {
       ignoreAsyncG6Error(graph.setElementState({ ...nodeStates, ...edgeStates }, false));
@@ -96,17 +101,17 @@ export function useGraphRenderer(
     if (!graph) return;
     const activeGraph = graph;
     const c = resolveColors();
-    const nextData = buildG6Data(items, c);
+    const nextData = buildG6Data(items, c, categories);
     const nodeDataCache = nodeDataCacheRef.current;
     nodeDataCache.clear();
     for (const node of nextData.nodes) {
+      if (node.data.kind !== "note") continue;
       nodeDataCache.set(node.id, {
         title: node.data.title,
         body: node.data.body,
         contextCount: node.data.contextCount,
         connectionCount: node.data.connectionCount,
         hasContext: node.data.hasContext,
-        isIsolated: node.data.isIsolated,
       });
     }
 
@@ -114,7 +119,7 @@ export function useGraphRenderer(
       currentDataRef.current = nextData;
       if (graphRef.current !== activeGraph) return;
       try {
-        await graph.updateData({ nodes: nextData.nodes } as unknown as GraphData);
+        await graph.updateData(nextData as unknown as GraphData);
       } catch {
         if (graphRef.current !== activeGraph) return;
         try {
@@ -126,14 +131,6 @@ export function useGraphRenderer(
       }
     } else {
       currentDataRef.current = nextData;
-      const nodeCount = nextData.nodes.length;
-      if (nodeCount > 0) {
-        const radius = Math.max(nodeCount * 20, 150);
-        nextData.nodes.forEach((node, i) => {
-          node.style.x = Math.cos((2 * Math.PI * i) / nodeCount) * radius;
-          node.style.y = Math.sin((2 * Math.PI * i) / nodeCount) * radius;
-        });
-      }
       if (graphRef.current !== activeGraph) return;
       try {
         graph.setData(nextData as unknown as GraphData);
@@ -164,38 +161,34 @@ export function useGraphRenderer(
       padding: 96,
       animation: false,
       layout: {
-        type: "force-atlas2",
-        preventOverlap: true,
-        nodeSize: 36,
-        kr: 150,
-        kg: 4,
-        ks: 0.2,
-        ksmax: 24,
-        tao: 0.1,
-        mode: "linlog",
-        dissuadeHubs: false,
-        barnesHut: false,
-        prune: false,
-        iterations: 300,
+        type: "combo-combined",
+        nodeSize: 34,
+        nodeSpacing: 14,
+        comboPadding: 34,
+        comboSpacing: 120,
+        layout: (comboId: string | null) =>
+          comboId
+            ? { type: "force", preventOverlap: true, nodeSpacing: 14 }
+            : { type: "force", preventOverlap: true, nodeSpacing: 120 },
       },
       node: {
         style: {
           size: (d: ElementDatum) => styleNumber(d, "size", 20),
           fill: (d: ElementDatum) => styleString(d, "fill", c.nodeFill),
           stroke: (d: ElementDatum) => styleString(d, "stroke", c.nodeStroke),
-          lineDash: (d: ElementDatum) => styleNumberArray(d, "lineDash"),
-          lineWidth: 2,
           labelText: (d: ElementDatum) => styleString(d, "labelText", ""),
           labelFill: c.labelColor,
-          labelFontSize: 12.5,
+          labelFontSize: 13,
           labelFontFamily: "Inter, -apple-system, sans-serif",
+          labelFontWeight: 520,
           labelPlacement: "bottom",
-          labelOffsetY: 6,
-          opacity: 1,
-          shadowColor: "rgba(15,23,42,0.08)",
-          shadowBlur: 8,
+          labelOffsetY: 7,
+          shadowColor: "rgba(15,23,42,0.14)",
+          shadowBlur: 12,
           shadowOffsetY: 3,
           cursor: "pointer",
+          lineWidth: (d: ElementDatum) => styleNumber(d, "lineWidth", 2.5),
+          opacity: (d: ElementDatum) => styleNumber(d, "opacity", 1),
         },
         state: {
           active: {
@@ -206,31 +199,48 @@ export function useGraphRenderer(
             labelFill: c.activeLabelColor,
             labelFontWeight: 650,
           },
-          neighbor: {
-            labelFill: c.activeLabelColor,
-            labelFontWeight: 560,
-          },
-          inactive: {
-            fill: c.dimNodeColor,
-            stroke: c.dimNodeColor,
-            labelText: "",
-            shadowBlur: 0,
-            opacity: 0.26,
+        },
+      },
+      combo: {
+        type: "circle",
+        style: {
+          fill: (d: ElementDatum) => styleString(d, "fill", c.domainFill),
+          stroke: (d: ElementDatum) => styleString(d, "stroke", c.domainStroke),
+          lineWidth: (d: ElementDatum) => styleNumber(d, "lineWidth", 1.4),
+          opacity: (d: ElementDatum) => styleNumber(d, "opacity", 0.8),
+          labelText: (d: ElementDatum) => styleString(d, "labelText", ""),
+          labelFill: c.labelColor,
+          labelFontSize: 13,
+          labelFontWeight: 650,
+          labelPlacement: "bottom",
+          labelOffsetY: 8,
+          cursor: "pointer",
+        },
+        state: {
+          active: {
+            stroke: c.selStroke,
+            lineWidth: 2.4,
           },
         },
       },
       edge: {
         style: {
-          stroke: c.edgeStroke,
-          lineWidth: 1.25,
-          opacity: 0.58,
-          endArrow: true,
-          endArrowSize: 5,
+          stroke: (d: ElementDatum) => styleString(d, "stroke", c.edgeStroke),
+          lineWidth: (d: ElementDatum) => styleNumber(d, "lineWidth", 2.25),
+          opacity: (d: ElementDatum) => styleNumber(d, "opacity", 0.72),
+          endArrow: (d: ElementDatum) => styleBoolean(d, "endArrow", true),
+          endArrowSize: 7,
         },
         state: {
+          active: {
+            stroke: c.activeEdgeStroke,
+            lineWidth: 3.2,
+            opacity: 0.94,
+          },
           inactive: {
-            stroke: c.dimEdgeColor,
-            opacity: 0.18,
+            stroke: c.edgeStroke,
+            lineWidth: 1.8,
+            opacity: 0.24,
           },
         },
       },
@@ -280,6 +290,14 @@ export function useGraphRenderer(
       }
     });
 
+    graph.on(ComboEvent.CLICK, (evt: IElementEvent) => {
+      const combo = currentDataRef.current.combos.find((item) => item.id === evt.target.id);
+      const categoryId = combo?.data.categoryId;
+      if (categoryId) ctx.setSelectedCategoryIds([categoryId]);
+      ctx.setSelectedThoughtId(null);
+      applyStates(null);
+    });
+
     graph.on(CanvasEvent.CLICK, () => {
       if (selectedThoughtIdRef.current !== null) {
         ctx.setSelectedThoughtId(null);
@@ -310,7 +328,7 @@ export function useGraphRenderer(
       graphRef.current = null;
       window.removeEventListener("pointermove", onPointerMove);
     };
-  }, [containerRef, colorScheme]);
+  }, [containerRef, categories, colorScheme]);
 
   useEffect(() => {
     if (!thoughts) return;

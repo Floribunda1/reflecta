@@ -1,8 +1,6 @@
-import { Checkbox } from "@renderer/components/ui/checkbox";
 import { Badge } from "@renderer/components/ui/badge";
 import { useState } from "react";
 import { Button } from "@renderer/components/ui/button";
-import { Input } from "@renderer/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,7 +10,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@renderer/components/ui/dropdown-menu";
-import { Filter, ListFilter, Plus, RotateCcw, Search, X } from "lucide-react";
+import { Filter, GitBranch, ListFilter, Plus, RotateCcw, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { type GraphStatusFilter, useContemplatePageContext } from "../context";
 import { CategoryTreeSelect } from "../../shared/biz-components/CategoryTreeSelect";
@@ -20,11 +18,9 @@ import { ipcClient } from "@renderer/utils/ipc";
 import { cn } from "@renderer/lib/utils";
 
 const STATUS_FILTER_OPTIONS: Array<{ value: GraphStatusFilter; label: string }> = [
-  { value: "all", label: "全部状态" },
+  { value: "all", label: "全部 Context" },
   { value: "with-context", label: "有 Context" },
   { value: "without-context", label: "无 Context" },
-  { value: "connected", label: "已连接" },
-  { value: "isolated", label: "未连接" },
 ];
 
 export function FilterPanel() {
@@ -34,10 +30,11 @@ export function FilterPanel() {
   const selectedStatusOption =
     STATUS_FILTER_OPTIONS.find((option) => option.value === ctx.statusFilter) ??
     STATUS_FILTER_OPTIONS[0];
+  const hasCategoryFilter = ctx.selectedCategoryIds.length > 0;
+  const hasScopedToCurrentCategory = hasCategoryFilter && !ctx.showAllDescendants;
   const activeFilterCount =
     ctx.selectedCategoryIds.length +
-    (ctx.showAllDescendants ? 1 : 0) +
-    (ctx.searchQuery.trim() ? 1 : 0) +
+    (hasScopedToCurrentCategory ? 1 : 0) +
     (ctx.statusFilter !== "all" ? 1 : 0);
 
   const createThought = async () => {
@@ -50,8 +47,8 @@ export function FilterPanel() {
   };
 
   return (
-    <div className="absolute left-6 top-4 z-20">
-      <div className="flex min-h-11 max-w-[min(1040px,calc(100vw-3rem))] flex-wrap items-center gap-2 rounded-md border border-border bg-background px-2 py-2 shadow-[0_8px_24px_rgb(15_23_42_/_0.08)] backdrop-blur">
+    <div className="absolute left-4 top-12 z-20">
+      <div className="inline-flex min-h-10 max-w-[calc(100vw-2rem)] items-center gap-2 rounded-md border border-border bg-background px-2 py-2 shadow-sm">
         <Button
           type="button"
           size="icon-sm"
@@ -72,34 +69,25 @@ export function FilterPanel() {
         </Button>
 
         {open && (
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 border-l border-border pl-2">
-            <div className="relative min-w-44 max-w-[280px] flex-1">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={ctx.searchQuery}
-                onChange={(event) => ctx.setSearchQuery(event.target.value)}
-                className="h-8 pl-8 text-sm"
-                placeholder="搜索 Thought"
-              />
-            </div>
+          <div className="flex min-w-0 items-center gap-2 border-l border-border pl-2">
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
                   <Button
                     type="button"
-                    size="sm"
-                    variant="outline"
-                    aria-label="筛选节点状态"
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label={`Context 筛选：${selectedStatusOption.label}`}
+                    title={`Context 筛选：${selectedStatusOption.label}`}
                     className={cn(ctx.statusFilter !== "all" && "bg-muted text-foreground")}
                   >
-                    <ListFilter size={14} />
-                    {selectedStatusOption.label}
+                    <ListFilter size={16} />
                   </Button>
                 }
               />
               <DropdownMenuContent side="bottom" align="start" className="w-36">
                 <DropdownMenuGroup>
-                  <DropdownMenuLabel>节点状态</DropdownMenuLabel>
+                  <DropdownMenuLabel>Context 状态</DropdownMenuLabel>
                   <DropdownMenuRadioGroup
                     value={ctx.statusFilter}
                     onValueChange={(value) => ctx.setStatusFilter(value as GraphStatusFilter)}
@@ -123,28 +111,33 @@ export function FilterPanel() {
             >
               <RotateCcw size={14} />
             </Button>
-            <div className="flex w-full min-w-0 flex-wrap items-center gap-2 border-t border-border pt-2">
-              <div className="min-w-64 max-w-[460px] flex-1">
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="w-60 min-w-0">
                 <CategoryTreeSelect
-                  variant="inline"
                   modelValue={ctx.selectedCategoryIds}
                   onUpdateModelValue={ctx.setSelectedCategoryIds}
                   placeholder="全部 Category"
                 />
               </div>
-              <Checkbox
-                checked={ctx.showAllDescendants}
-                onCheckedChange={ctx.setShowAllDescendants}
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label={ctx.showAllDescendants ? "已包含子类" : "仅当前类"}
+                aria-pressed={ctx.showAllDescendants}
+                title={ctx.showAllDescendants ? "包含子类" : "仅当前类"}
+                className={cn(!ctx.showAllDescendants && "bg-muted text-foreground")}
+                onClick={() => ctx.setShowAllDescendants(!ctx.showAllDescendants)}
               >
-                包含子类
-              </Checkbox>
+                <GitBranch size={16} />
+              </Button>
             </div>
           </div>
         )}
       </div>
 
       {!open && activeFilterCount > 0 && (
-        <Badge className="mt-2 backdrop-blur" variant="secondary">
+        <Badge className="mt-2" variant="secondary">
           {activeFilterCount} 个筛选
         </Badge>
       )}

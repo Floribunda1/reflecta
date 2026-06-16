@@ -9,7 +9,6 @@ export interface NodePopoverData {
   contextCount: number;
   connectionCount: number;
   hasContext: boolean;
-  isIsolated: boolean;
 }
 
 export function NodePopover({ data, x, y }: { data: NodePopoverData; x: number; y: number }) {
@@ -37,16 +36,14 @@ export function NodePopover({ data, x, y }: { data: NodePopoverData; x: number; 
   return (
     <div
       ref={floatingRef}
-      className="pointer-events-none z-50 w-96 rounded-xl border border-border bg-popover p-4 shadow-xl"
+      className="pointer-events-none z-50 w-80 rounded-md border border-border bg-popover p-3 shadow-md"
     >
       {data.title && <div className="mb-2 text-sm font-semibold text-foreground">{data.title}</div>}
       <div className="mb-2 flex flex-wrap gap-1.5 text-[11px] text-muted-foreground">
         <span className="rounded-sm bg-muted px-1.5 py-0.5">{data.contextCount} Context</span>
-        <span className="rounded-sm bg-muted px-1.5 py-0.5">
-          {data.isIsolated ? "未连接" : `${data.connectionCount} 连接`}
-        </span>
+        <span className="rounded-sm bg-muted px-1.5 py-0.5">{data.connectionCount} 连接</span>
       </div>
-      {data.body && <SimpleMarkdownPreview content={data.body} lineClamp={5} />}
+      {data.body && <SimpleMarkdownPreview content={data.body} lineClamp={3} />}
     </div>
   );
 }

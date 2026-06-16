@@ -181,31 +181,6 @@ samp,
   z-index: 101;
 }
 
-.contemplate-canvas canvas {
-  display: block;
-}
-
-.contemplate-canvas .g6-toolbar,
-.contemplate-page .g6-toolbar {
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--popover), transparent 8%);
-  box-shadow: 0 14px 32px color-mix(in srgb, var(--foreground), transparent 88%);
-  backdrop-filter: blur(10px);
-}
-
-.contemplate-canvas .g6-toolbar-item,
-.contemplate-page .g6-toolbar-item {
-  color: var(--muted-foreground);
-}
-
-.contemplate-canvas .g6-toolbar-item:hover,
-.contemplate-page .g6-toolbar-item:hover {
-  background: var(--accent);
-  color: var(--accent-foreground);
-}
-
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: "Inter Variable", sans-serif;

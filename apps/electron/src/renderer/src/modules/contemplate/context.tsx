@@ -1,12 +1,7 @@
 import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from "react";
 import { useLocalStorageState } from "@renderer/modules/shared/hooks/use-local-storage-state";
 
-export type GraphStatusFilter =
-  | "all"
-  | "with-context"
-  | "without-context"
-  | "connected"
-  | "isolated";
+export type GraphStatusFilter = "all" | "with-context" | "without-context";
 
 type ContemplatePageContextValue = {
   selectedCategoryIds: string[];
@@ -15,8 +10,6 @@ type ContemplatePageContextValue = {
   setSelectedThoughtId: (value: string | null) => void;
   showAllDescendants: boolean;
   setShowAllDescendants: (value: boolean) => void;
-  searchQuery: string;
-  setSearchQuery: (value: string) => void;
   statusFilter: GraphStatusFilter;
   setStatusFilter: (value: GraphStatusFilter) => void;
   resetFilters: () => void;
@@ -32,15 +25,13 @@ export function ContemplatePageProvider({ children }: { children: ReactNode }) {
   const [selectedThoughtId, setSelectedThoughtId] = useState<string | null>(null);
   const [showAllDescendants, setShowAllDescendants] = useLocalStorageState<boolean>(
     "contemplate:showAllDescendants",
-    false,
+    true,
   );
-  const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<GraphStatusFilter>("all");
 
   const resetFilters = useCallback(() => {
     setSelectedCategoryIds([]);
-    setShowAllDescendants(false);
-    setSearchQuery("");
+    setShowAllDescendants(true);
     setStatusFilter("all");
     setSelectedThoughtId(null);
   }, [setSelectedCategoryIds, setShowAllDescendants]);
@@ -53,8 +44,6 @@ export function ContemplatePageProvider({ children }: { children: ReactNode }) {
       setSelectedThoughtId,
       showAllDescendants,
       setShowAllDescendants,
-      searchQuery,
-      setSearchQuery,
       statusFilter,
       setStatusFilter,
       resetFilters,
@@ -65,7 +54,6 @@ export function ContemplatePageProvider({ children }: { children: ReactNode }) {
       selectedThoughtId,
       showAllDescendants,
       setShowAllDescendants,
-      searchQuery,
       statusFilter,
       resetFilters,
     ],

@@ -8,6 +8,7 @@ import { NodeDetail } from "./NodeDetail";
 const MIN_PANEL_WIDTH = 440;
 const MAX_PANEL_WIDTH = 680;
 const DEFAULT_PANEL_WIDTH = 560;
+const TITLEBAR_DRAG_LEFT_OFFSET = 220;
 
 function ContemplatePageInner() {
   const ctx = useContemplatePageContext();
@@ -42,7 +43,14 @@ function ContemplatePageInner() {
   }
 
   return (
-    <div className="contemplate-page relative h-full w-full overflow-hidden">
+    <div className="contemplate-page relative h-full w-full overflow-hidden bg-background">
+      <div
+        className="app-drag-region absolute top-0 z-[15] h-12"
+        style={{
+          left: `${TITLEBAR_DRAG_LEFT_OFFSET}px`,
+          right: ctx.selectedThoughtId !== null ? `${panelWidth}px` : 0,
+        }}
+      />
       <GraphCanvas />
       <FilterPanel />
       {ctx.selectedThoughtId !== null && (

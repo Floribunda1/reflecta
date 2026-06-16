@@ -1,5 +1,10 @@
 /* Inline content and wiki links */
 .reflecta-md-editor .milkdown .ProseMirror {
+  strong,
+  em {
+    color: color-mix(in srgb, var(--foreground), var(--primary) 42%);
+  }
+
   a {
     color: var(--primary);
     text-decoration: underline;

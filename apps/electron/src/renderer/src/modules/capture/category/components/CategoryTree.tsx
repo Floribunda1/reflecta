@@ -8,15 +8,15 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@renderer/components/ui/context-menu";
-import { ChevronDown, ChevronRight, Layers, Plus, Settings } from "lucide-react";
+import { ChevronDown, ChevronRight, Layers, Plus } from "lucide-react";
 import type { CategoryTreeNode } from "@shared/category";
 import { cn } from "@renderer/lib/utils";
 import { useCategoryActions } from "../hooks";
 import { useModal } from "@renderer/modules/shared/hooks/use-modal";
-import { SettingsDialogContent } from "@renderer/modules/settings/SettingsDialog";
 import { CategoryModalContent } from "./CreateCategoryModal";
 import { useCaptureStore } from "../../store";
 import { useCaptureCategories } from "../../queries";
+import { APP_CHROME_MENU_HIT_AREA_CLASS } from "@renderer/modules/shared/layout/AppChromeMenu";
 
 function getAllKeys(nodes: CategoryTreeNode[]): string[] {
   return nodes.flatMap((node) => [node.id, ...getAllKeys(node.children)]);
@@ -91,8 +91,8 @@ function CategoryNode({
               variant="ghost"
               size="sm"
               className={cn(
-                "w-full min-w-0 justify-start text-left font-normal text-foreground/85 p-1.5",
-                selected && "bg-muted dark:bg-muted/50 text-foreground font-medium",
+                "w-full min-w-0 justify-start text-left font-normal text-foreground/85 p-1.5 hover:bg-foreground/5 hover:text-foreground",
+                selected && "bg-foreground/5 text-foreground font-medium hover:bg-foreground/5",
               )}
               onClick={() => onSelect(node.id)}
             >
@@ -154,8 +154,8 @@ function CategoryRootButton({ selected, onSelect }: { selected: boolean; onSelec
       size="sm"
       variant="ghost"
       className={cn(
-        "w-full justify-start text-left font-normal text-foreground/85 p-1.5",
-        selected && "bg-muted dark:bg-muted/50 text-foreground font-medium",
+        "w-full justify-start text-left font-normal text-foreground/85 p-1.5 hover:bg-foreground/5 hover:text-foreground",
+        selected && "bg-foreground/5 text-foreground font-medium hover:bg-foreground/5",
       )}
       onClick={onSelect}
     >
@@ -249,7 +249,13 @@ export function CategoryTree() {
 
   return (
     <aside className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-      <div className="app-drag-region px-5 pt-14 pb-3">
+      <div className="app-drag-region relative px-5 pt-14 pb-3">
+        {/* Electron requires no-drag inside the same drag region to release this hit area. */}
+        <div
+          data-no-drag
+          aria-hidden="true"
+          className={`${APP_CHROME_MENU_HIT_AREA_CLASS} pointer-events-none`}
+        />
         <div className="flex h-8 items-center justify-between gap-1">
           <div className="min-w-0 truncate text-sm font-medium">领域</div>
           <Button
@@ -292,24 +298,6 @@ export function CategoryTree() {
           )}
         </div>
       </ScrollArea>
-
-      <div className="p-2">
-        <Button
-          type="button"
-          variant="ghost"
-          className="w-full justify-start"
-          aria-label="打开设置"
-          onClick={() =>
-            openModal(<SettingsDialogContent />, {
-              title: "设置",
-              widthClassName: "w-[min(880px,calc(100vw-3rem))] max-w-none sm:max-w-none",
-            })
-          }
-        >
-          <Settings size={16} />
-          <span className="font-medium">设置</span>
-        </Button>
-      </div>
     </aside>
   );
 }
