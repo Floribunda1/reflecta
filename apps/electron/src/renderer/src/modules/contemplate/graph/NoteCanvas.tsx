@@ -28,6 +28,7 @@ type NoteNodeData = {
 type GroupNodeData = {
   kind: "group";
   label: string;
+  breadcrumb: string;
   count: number;
   external: boolean;
   width: number;
@@ -46,6 +47,7 @@ type Link = {
 type LaneBox = {
   id: string;
   label: string;
+  breadcrumb: string;
   count: number;
   external: boolean;
   x: number;
@@ -182,9 +184,7 @@ function layoutNodes(
     const thought = thoughtById.get(id);
     if (!thought) return null;
     const categoryId = thought.categoryIds[0];
-    const categoryLabel = categoryId
-      ? (categoryById.get(categoryId)?.name ?? "未命名 Category")
-      : "未归类";
+    const categoryLabel = categoryId ? categoryBreadcrumb(categoryId) : "未归类";
     return {
       id,
       type: "note",
@@ -204,6 +204,18 @@ function layoutNodes(
   function categoryLabel(categoryId: string) {
     if (categoryId === "uncategorized") return "未归类";
     return categoryById.get(categoryId)?.name ?? "未命名 Category";
+  }
+
+  function categoryBreadcrumb(categoryId: string) {
+    const names: string[] = [];
+    const seen = new Set<string>();
+    let current = categoryById.get(categoryId);
+    while (current && !seen.has(current.id)) {
+      seen.add(current.id);
+      names.unshift(current.name);
+      current = current.parentId ? categoryById.get(current.parentId) : undefined;
+    }
+    return names.join(" / ") || "未命名 Category";
   }
 
   function laneBoxes(nodes: NoteFlowNode[], prefix: string): LaneBox[] {
@@ -244,6 +256,7 @@ function layoutNodes(
     return [...boxes.values()].map((box, index) => ({
       id: `${prefix}:${index}:${box.label}`,
       label: box.label,
+      breadcrumb: box.label,
       count: box.count,
       external: box.external,
       x: box.minX - LANE_PAD_X,
@@ -387,6 +400,7 @@ function addGroupNodes(layout: LayoutResult): NoteFlowNode[] {
       data: {
         kind: "group",
         label: lane.label,
+        breadcrumb: lane.breadcrumb,
         count: lane.count,
         external: lane.external,
         width: lane.width,
@@ -413,7 +427,7 @@ function buildEdges(
       type: "smoothstep",
       animated: active,
       style: {
-        stroke: active ? "hsl(38 80% 62%)" : crossDomain ? "hsl(38 55% 54%)" : "hsl(38 10% 58%)",
+        stroke: active ? "var(--primary)" : crossDomain ? "var(--ring)" : "var(--border)",
         strokeWidth: active ? 2.5 : crossDomain ? 1.8 : 1.25,
         opacity: active ? 0.9 : crossDomain ? 0.58 : 0.34,
         strokeDasharray: crossDomain ? "6 5" : undefined,
@@ -436,9 +450,9 @@ function NoteCard({ data }: NodeProps<Node<NoteNodeData, "note">>) {
     <button
       type="button"
       className={cn(
-        "w-[300px] rounded-md border bg-card px-4 py-3 text-left text-card-foreground shadow-sm transition-colors",
-        data.external && "border-dashed bg-card/55 text-muted-foreground",
-        data.selected && "border-primary shadow-md",
+        "w-[300px] rounded-md border border-border bg-card px-4 py-3 text-left text-card-foreground shadow-xs transition-colors",
+        data.external && "border-dashed bg-muted/30 text-muted-foreground shadow-none",
+        data.selected && "border-primary ring-2 ring-ring/30",
       )}
     >
       <HiddenHandles />
@@ -468,19 +482,31 @@ function GroupBox({ data }: NodeProps<Node<GroupNodeData, "categoryGroup">>) {
   return (
     <div
       className={cn(
-        "nodrag nopan pointer-events-none rounded-lg border border-amber-500/20 bg-amber-500/[0.025]",
-        data.external && "border-cyan-400/20 bg-cyan-400/[0.025]",
+        "nodrag nopan pointer-events-none rounded-lg border border-border bg-muted/20 shadow-xs dark:bg-muted/10",
+        data.external && "border-dashed bg-muted/10 shadow-none",
       )}
       style={{ width: data.width, height: data.height }}
     >
       <div className="px-3 py-2 text-xs font-medium text-muted-foreground">
-        {data.label} · {data.count}
+        {data.breadcrumb} · {data.count}
       </div>
     </div>
   );
 }
 
 const NODE_TYPES = { note: NoteCard, categoryGroup: GroupBox };
+
+function miniMapNodeColor(node: NoteFlowNode) {
+  if (node.data.kind === "group") return "transparent";
+  if (node.data.selected) return "var(--primary)";
+  return node.data.external ? "var(--muted)" : "var(--card)";
+}
+
+function miniMapNodeStrokeColor(node: NoteFlowNode) {
+  if (node.data.kind === "group") return "transparent";
+  if (node.data.selected) return "var(--primary)";
+  return node.data.external ? "var(--muted-foreground)" : "var(--border)";
+}
 
 export function NoteCanvas({
   thoughts,
@@ -511,7 +537,8 @@ export function NoteCanvas({
 
   return (
     <ReactFlow
-      colorMode="dark"
+      colorMode="system"
+      className="bg-background text-foreground"
       nodes={nodes}
       edges={edges}
       nodeTypes={NODE_TYPES}
@@ -529,7 +556,16 @@ export function NoteCanvas({
     >
       <Background color="var(--border)" gap={40} size={1} />
       <Controls position="bottom-left" />
-      <MiniMap pannable zoomable position="bottom-right" />
+      <MiniMap
+        pannable
+        zoomable
+        position="bottom-right"
+        nodeColor={miniMapNodeColor}
+        nodeStrokeColor={miniMapNodeStrokeColor}
+        nodeBorderRadius={4}
+        maskColor="color-mix(in srgb, var(--background), transparent 25%)"
+        bgColor="var(--background)"
+      />
     </ReactFlow>
   );
 }
