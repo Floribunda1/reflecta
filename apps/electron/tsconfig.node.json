@@ -5,13 +5,12 @@
     "composite": true,
     "noImplicitAny": true,
     "types": ["vite-plugin-electron/electron-env"],
-    "baseUrl": ".",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "paths": {
-      "@main/*": ["src/main/*"],
-      "@shared/*": ["src/preload/typings/*"],
-      "electron-ipc-decorator": ["node_modules/electron-ipc-decorator/dist/index-07qxEjCM.d.ts"]
+      "@main/*": ["./src/main/*"],
+      "@shared/*": ["./src/preload/typings/*"],
+      "electron-ipc-decorator": ["./node_modules/electron-ipc-decorator/dist/index-07qxEjCM.d.ts"]
     }
   }
 }
