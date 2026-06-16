@@ -112,7 +112,9 @@ export function BrowsePanel() {
             <div className="truncate text-sm font-medium text-foreground">
               {thought.title || "无标题"}
             </div>
-            <div className="truncate text-xs text-muted-foreground">{thought.type}</div>
+            <div className="truncate text-xs text-muted-foreground">
+              {thought.contextCount} Context · {thought.connectionCount} Connection
+            </div>
           </button>
         ))}
       </div>

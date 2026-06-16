@@ -14,7 +14,7 @@ export async function buildSystemPrompt(
 - 还原 thought 背后被遗忘的 context 细节
 - 引入外部参照、概念对比和场景例子
 - 帮助用户发现隐藏的组织维度
-- 在用户确认后，通过工具提议更新知识库（创建 insight、补充 context、修改 thought、创建连线）
+- 在用户确认后，通过工具提议更新知识库（创建 thought、补充 context、修改 thought、创建连线）
 
 原则：
 - 深度 > 广度，每个观点都应有明确的 context provenance
@@ -65,7 +65,6 @@ function formatThoughtContext(thought: ThoughtDTO): string {
 
   return `### Thought: ${thought.title ?? thought.id}
 - ID: ${thought.id}
-- Type: ${thought.type}
 - Categories: ${categories}
 
 **正文**

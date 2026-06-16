@@ -1,9 +1,7 @@
-import type { ThoughtType } from "../thought/types";
 import type { SourceType } from "../context/types";
 
 export type TrashedThoughtDTO = {
   id: string;
-  type: ThoughtType;
   title: string | null;
   body: string;
   deletedAt: string;

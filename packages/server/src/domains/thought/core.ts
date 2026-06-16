@@ -8,7 +8,6 @@ import type {
   CreateThoughtInput,
   ListThoughtsFilter,
   ThoughtSummary,
-  ThoughtType,
   UpdateThoughtInput,
 } from "./types";
 import { resolveCategoryRefs } from "../category/core";
@@ -46,10 +45,6 @@ export class ThoughtCore {
     filter?: ListThoughtsFilter & { limit?: number; offset?: number },
   ): Promise<Array<typeof thoughts.$inferSelect>> {
     const conditions = [isNull(thoughts.deletedAt)];
-
-    if (filter?.type) {
-      conditions.push(eq(thoughts.type, filter.type));
-    }
 
     if (filter?.categoryIds && filter.categoryIds.length > 0) {
       const categoryIds = filter.categoryIds;
@@ -116,7 +111,7 @@ export class ThoughtCore {
     await this.db.transaction(async (tx) => {
       await tx.insert(thoughts).values({
         id,
-        type: input.type,
+        type: "thought",
         title: input.title ?? null,
         body,
         createdAt,
@@ -151,7 +146,6 @@ export class ThoughtCore {
     const updates: Partial<typeof thoughts.$inferInsert> = {
       updatedAt: new Date().toISOString(),
     };
-    if (input.type !== undefined) updates.type = input.type;
     const normalizedBody = normalizeThoughtWikiLinkBody(input.body);
     if (normalizedBody !== undefined) updates.body = normalizedBody;
     if (input.title !== undefined) updates.title = input.title;
@@ -272,7 +266,6 @@ export async function toThoughtSummaries(
   const catRefs = await resolveCategoryRefs(db, ids);
   return rows.map((row) => ({
     id: row.id,
-    type: row.type as ThoughtType,
     title: row.title ?? null,
     body: row.body,
     categories: catRefs.get(row.id) ?? [],

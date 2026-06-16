@@ -1,8 +1,8 @@
 import { Navigate, createHashRouter } from "react-router-dom";
 import { AppLayout } from "@renderer/modules/shared/layout/AppLayout";
 import { CapturePage } from "@renderer/modules/capture";
+import { ContemplatePage } from "@renderer/modules/contemplate";
 import { ChatPage } from "@renderer/modules/chat";
-import { GraphTerrainDemo } from "@renderer/modules/graph-demo";
 
 export const routes = [
   { label: "Capture", path: "/capture", value: "Capture", description: "Collect" },
@@ -10,9 +10,9 @@ export const routes = [
   { label: "Agent", path: "/agent", value: "Agent", description: "Chat with your knowledge" },
   {
     label: "Demo",
-    path: "/demo/domain-workspace",
-    value: "DomainWorkspaceDemo",
-    description: "Domain Workspace demo",
+    path: "/demo/graph",
+    value: "GraphDemo",
+    description: "Graph demo",
   },
 ] as const;
 
@@ -23,8 +23,8 @@ export const router = createHashRouter([
     children: [
       { index: true, element: <Navigate to="/capture" replace /> },
       { path: "capture", id: "Capture", element: <CapturePage /> },
+      { path: "contemplate", id: "Contemplate", element: <ContemplatePage /> },
       { path: "agent", id: "Agent", element: <ChatPage /> },
-      { path: "graph-demo", id: "GraphDemo", element: <GraphTerrainDemo /> },
     ],
   },
 ]);

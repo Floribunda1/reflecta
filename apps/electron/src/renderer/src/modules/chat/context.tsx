@@ -57,6 +57,8 @@ type ChatPageContextValue = {
 };
 
 const ChatPageContext = createContext<ChatPageContextValue | null>(null);
+const EMPTY_CHAT_MESSAGES: UIMessage[] = [];
+const noopSubscribe = () => () => undefined;
 
 export function ChatPageProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
@@ -76,15 +78,15 @@ export function ChatPageProvider({ children }: { children: ReactNode }) {
   const [panelSearchQuery, setPanelSearchQuery] = useState("");
 
   const chatMessages = useSyncExternalStore(
-    chat?.reactState.subscribe ?? (() => () => undefined),
-    () => chat?.reactState.messages ?? [],
+    chat?.reactState.subscribe ?? noopSubscribe,
+    () => chat?.reactState.messages ?? EMPTY_CHAT_MESSAGES,
   );
   const chatStatus = useSyncExternalStore(
-    chat?.reactState.subscribe ?? (() => () => undefined),
+    chat?.reactState.subscribe ?? noopSubscribe,
     () => chat?.reactState.status ?? "ready",
   );
   const chatError = useSyncExternalStore(
-    chat?.reactState.subscribe ?? (() => () => undefined),
+    chat?.reactState.subscribe ?? noopSubscribe,
     () => chat?.reactState.error,
   );
 
@@ -189,7 +191,6 @@ export function ChatPageProvider({ children }: { children: ReactNode }) {
         id: thought.id,
         title: thought.title,
         body: thought.body,
-        type: thought.type,
         categoryIds: thought.categoryIds,
         contextCount: thought.contexts.length,
         connectionCount: thought.connections.length,

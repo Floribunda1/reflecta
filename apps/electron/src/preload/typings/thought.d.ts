@@ -7,6 +7,5 @@ export type {
   ThoughtConnection,
   ThoughtDTO,
   ThoughtSummaryDTO,
-  ThoughtType,
   UpdateThoughtInput,
 } from "@reflecta/server";

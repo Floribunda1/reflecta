@@ -6,7 +6,6 @@ import type {
   ListThoughtsFilter,
   ThoughtDTO,
   ThoughtSummaryDTO,
-  ThoughtType,
   UpdateThoughtInput,
 } from "./types";
 import { ThoughtCore } from "./core";
@@ -56,7 +55,6 @@ export class ThoughtElectronBff extends ThoughtCore {
 
     return thoughtRows.map((t) => ({
       id: t.id,
-      type: t.type as ThoughtType,
       title: t.title ?? null,
       body: t.body,
       categoryIds: tcMap.get(t.id) ?? [],
@@ -70,7 +68,6 @@ export class ThoughtElectronBff extends ThoughtCore {
 
   async listThoughts(filter?: ListThoughtsFilter): Promise<ThoughtSummaryDTO[]> {
     let thoughtRows = await this.listThoughtRows({
-      type: filter?.type,
       categoryIds: filter?.categoryIds,
       includeDescendants: filter?.includeDescendants,
       limit: filter?.limit,
@@ -121,7 +118,6 @@ export class ThoughtElectronBff extends ThoughtCore {
 
     return {
       id: row.id,
-      type: row.type as ThoughtType,
       title: row.title ?? null,
       body: row.body,
       categoryIds: tcRows.map((r) => r.categoryId),

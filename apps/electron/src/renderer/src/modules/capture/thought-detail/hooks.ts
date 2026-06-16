@@ -1,5 +1,4 @@
 import type { ContextDTO, CreateContextInput, UpdateContextInput } from "@shared/context";
-import type { ThoughtType } from "@shared/thought";
 import { useCallback } from "react";
 import {
   useCaptureThoughtDetail,
@@ -11,7 +10,6 @@ import {
 } from "../queries";
 
 type UpdateThoughtInput = {
-  type?: ThoughtType;
   title?: string | null;
   body?: string;
   categoryIds?: string[];

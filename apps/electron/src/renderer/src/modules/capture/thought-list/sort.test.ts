@@ -4,7 +4,6 @@ import { sortThoughtSummaries } from "./sort";
 
 function thought(partial: Partial<ThoughtSummaryDTO> & { id: string }): ThoughtSummaryDTO {
   return {
-    type: "insight",
     title: null,
     body: "",
     categoryIds: [],

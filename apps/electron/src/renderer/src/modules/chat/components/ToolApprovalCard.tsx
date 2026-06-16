@@ -8,7 +8,7 @@ import { useChatPageContext } from "../context";
 import { presentToolCall } from "./tool-presenters";
 
 const WRITE_TOOL_LABELS: Record<string, string> = {
-  propose_create_insight: "创建 Insight",
+  propose_create_thought: "创建 Thought",
   propose_update_thought: "更新 Thought",
   propose_add_context: "添加 Context",
   propose_create_connection: "创建连接",

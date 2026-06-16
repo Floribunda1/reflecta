@@ -21,7 +21,6 @@ export class ThoughtCliBff extends ThoughtCore {
 
   async listThoughts(filter?: ListThoughtsFilter): Promise<ThoughtSummary[]> {
     const rows = await this.listThoughtRows({
-      type: filter?.type,
       categoryIds: filter?.categoryIds,
       includeDescendants: filter?.includeDescendants,
       limit: filter?.limit,

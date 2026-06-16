@@ -1,6 +1,5 @@
 import { isNotNull } from "drizzle-orm";
 import { thoughts } from "../../db/schema";
-import type { ThoughtType } from "../thought/types";
 import type { TrashedThoughtDTO } from "./types";
 import type { ReflectaServerContext } from "../shared/types-electron";
 
@@ -12,7 +11,6 @@ export class TrashElectronBff {
     const rows = await db.select().from(thoughts).where(isNotNull(thoughts.deletedAt));
     return rows.map((r) => ({
       id: r.id,
-      type: r.type as ThoughtType,
       title: r.title ?? null,
       body: r.body,
       deletedAt: r.deletedAt!,

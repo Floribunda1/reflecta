@@ -224,13 +224,13 @@ function presentGraphOutput(output: Record<string, unknown>): ToolPresentation {
   };
 }
 
-function presentCreateInsightInput(input: Record<string, unknown>): ToolPresentation {
-  const title = asString(input.title) ?? "新 Insight";
+function presentCreateThoughtInput(input: Record<string, unknown>): ToolPresentation {
+  const title = asString(input.title) ?? "新 Thought";
   const body = asString(input.body) ?? "";
   const categoryIds = Array.isArray(input.categoryIds) ? input.categoryIds.length : 0;
 
   return {
-    summary: `创建 Insight「${truncate(title, 48)}」`,
+    summary: `创建 Thought「${truncate(title, 48)}」`,
     sections: joinSections({
       title: "将创建",
       rows: [
@@ -242,8 +242,8 @@ function presentCreateInsightInput(input: Record<string, unknown>): ToolPresenta
   };
 }
 
-function presentCreateInsightOutput(output: Record<string, unknown>): ToolPresentation {
-  const title = asString(output.title) ?? "Insight";
+function presentCreateThoughtOutput(output: Record<string, unknown>): ToolPresentation {
+  const title = asString(output.title) ?? "Thought";
   const thoughtId = asString(output.thoughtId);
   return {
     summary: `已创建「${truncate(title, 48)}」`,
@@ -419,7 +419,7 @@ const INPUT_PRESENTERS: Record<string, (input: Record<string, unknown>) => ToolP
   search_knowledge_base: presentSearchInput,
   get_thought_detail: presentThoughtDetailInput,
   get_graph_neighborhood: presentGraphInput,
-  propose_create_insight: presentCreateInsightInput,
+  propose_create_thought: presentCreateThoughtInput,
   propose_update_thought: presentUpdateThoughtInput,
   propose_add_context: presentAddContextInput,
   propose_create_connection: presentCreateConnectionInput,
@@ -429,7 +429,7 @@ const OUTPUT_PRESENTERS: Record<string, (output: Record<string, unknown>) => Too
   search_knowledge_base: presentSearchOutput,
   get_thought_detail: presentThoughtDetailOutput,
   get_graph_neighborhood: presentGraphOutput,
-  propose_create_insight: presentCreateInsightOutput,
+  propose_create_thought: presentCreateThoughtOutput,
   propose_update_thought: presentUpdateThoughtOutput,
   propose_add_context: presentAddContextOutput,
   propose_create_connection: presentCreateConnectionOutput,

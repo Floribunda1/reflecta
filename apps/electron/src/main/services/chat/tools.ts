@@ -18,7 +18,7 @@ export const READ_TOOL_NAMES = new Set([
 ]);
 
 export const WRITE_TOOL_NAMES = new Set([
-  "propose_create_insight",
+  "propose_create_thought",
   "propose_update_thought",
   "propose_add_context",
   "propose_create_connection",
@@ -32,9 +32,9 @@ const ThoughtIdParams = z.object({
   thoughtId: z.string().describe("Thought ID"),
 });
 
-const CreateInsightParams = z.object({
-  title: z.string().describe("Insight title"),
-  body: z.string().describe("Insight body in markdown"),
+const CreateThoughtParams = z.object({
+  title: z.string().describe("Thought title"),
+  body: z.string().describe("Thought body in markdown"),
   categoryIds: z.array(z.string()).optional(),
 });
 
@@ -58,7 +58,7 @@ const CreateConnectionParams = z.object({
 
 type SearchParams = z.infer<typeof SearchParams>;
 type ThoughtIdParams = z.infer<typeof ThoughtIdParams>;
-type CreateInsightParams = z.infer<typeof CreateInsightParams>;
+type CreateThoughtParams = z.infer<typeof CreateThoughtParams>;
 type UpdateThoughtParams = z.infer<typeof UpdateThoughtParams>;
 type AddContextParams = z.infer<typeof AddContextParams>;
 type CreateConnectionParams = z.infer<typeof CreateConnectionParams>;
@@ -79,7 +79,7 @@ export function createReflectaTools(
     createSearchTool(deps),
     createThoughtDetailTool(deps),
     createGraphNeighborhoodTool(deps),
-    createProposeCreateInsightTool(deps, runtime),
+    createProposeCreateThoughtTool(deps, runtime),
     createProposeUpdateThoughtTool(deps, runtime),
     createProposeAddContextTool(deps, runtime),
     createProposeCreateConnectionTool(deps, runtime),
@@ -142,7 +142,6 @@ function createGraphNeighborhoodTool(deps: ReflectaToolDeps): AgentTool<typeof T
         thought: {
           id: thought.id,
           title: thought.title,
-          type: thought.type,
         },
         categories: thought.categoryIds.map((id) => ({
           id,
@@ -151,12 +150,10 @@ function createGraphNeighborhoodTool(deps: ReflectaToolDeps): AgentTool<typeof T
         connections: thought.connections.map((c) => ({
           id: c.id,
           title: c.title,
-          type: c.type,
         })),
         referencedBy: thought.referencedBy.map((c) => ({
           id: c.id,
           title: c.title,
-          type: c.type,
         })),
       };
       return textResult(JSON.stringify(payload, null, 2), payload);
@@ -164,26 +161,25 @@ function createGraphNeighborhoodTool(deps: ReflectaToolDeps): AgentTool<typeof T
   };
 }
 
-function createProposeCreateInsightTool(
+function createProposeCreateThoughtTool(
   deps: ReflectaToolDeps,
   runtime: ToolApprovalHost,
-): AgentTool<typeof CreateInsightParams> {
+): AgentTool<typeof CreateThoughtParams> {
   return {
-    name: "propose_create_insight",
-    label: "Propose Create Insight",
-    description: "Propose creating a new insight thought. Requires user confirmation.",
-    parameters: CreateInsightParams,
+    name: "propose_create_thought",
+    label: "Propose Create Thought",
+    description: "Propose creating a new thought. Requires user confirmation.",
+    parameters: CreateThoughtParams,
     execute: async (toolCallId, params, signal) => {
-      const input: CreateInsightParams = CreateInsightParams.parse(params);
+      const input: CreateThoughtParams = CreateThoughtParams.parse(params);
       return runWriteTool(
         runtime,
         toolCallId,
-        "propose_create_insight",
+        "propose_create_thought",
         input,
         signal,
         async () => {
           const created = await deps.thoughtService.createThought({
-            type: "insight",
             title: input.title,
             body: input.body,
             categoryIds: input.categoryIds,

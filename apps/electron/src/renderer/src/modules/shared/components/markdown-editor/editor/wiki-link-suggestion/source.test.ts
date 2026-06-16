@@ -17,7 +17,6 @@ vi.mock("@renderer/utils/ipc", () => ({
 function thought(partial: Partial<ThoughtSummaryDTO> & { id: string }): ThoughtSummaryDTO {
   return {
     id: partial.id,
-    type: partial.type ?? "insight",
     title: partial.title ?? null,
     body: partial.body ?? "",
     categoryIds: partial.categoryIds ?? [],

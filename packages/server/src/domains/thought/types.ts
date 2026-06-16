@@ -3,8 +3,6 @@ import type { thoughtCategories, thoughtConnections, thoughts } from "../../db/s
 import type { CategoryRef } from "../category/types";
 import type { ContextDTO, ContextDetail } from "../context/types";
 
-export type ThoughtType = "idea" | "insight";
-
 export type Thought = InferSelectModel<typeof thoughts>;
 export type NewThought = InferInsertModel<typeof thoughts>;
 export type ThoughtCategory = InferSelectModel<typeof thoughtCategories>;
@@ -12,7 +10,6 @@ export type ThoughtConnection = InferSelectModel<typeof thoughtConnections>;
 
 export type ThoughtSummaryDTO = {
   id: string;
-  type: ThoughtType;
   title: string | null;
   body: string;
   categoryIds: string[];
@@ -25,7 +22,6 @@ export type ThoughtSummaryDTO = {
 
 export type ThoughtDTO = {
   id: string;
-  type: ThoughtType;
   title: string | null;
   body: string;
   categoryIds: string[];
@@ -37,21 +33,18 @@ export type ThoughtDTO = {
 };
 
 export type CreateThoughtInput = {
-  type: ThoughtType;
   title?: string;
   body?: string;
   categoryIds?: string[];
 };
 
 export type UpdateThoughtInput = {
-  type?: ThoughtType;
   title?: string | null;
   body?: string;
   categoryIds?: string[];
 };
 
 export type ListThoughtsFilter = {
-  type?: ThoughtType;
   categoryIds?: string[];
   includeDescendants?: boolean;
   searchQuery?: string;
@@ -61,7 +54,6 @@ export type ListThoughtsFilter = {
 
 export type ThoughtSummary = {
   id: string;
-  type: ThoughtType;
   title: string | null;
   body: string;
   categories: CategoryRef[];

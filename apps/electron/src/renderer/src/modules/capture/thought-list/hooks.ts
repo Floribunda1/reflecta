@@ -61,7 +61,6 @@ export function useThoughtListActions() {
 
   const createEmptyUnderstanding = useCallback(async (): Promise<ThoughtDTO> => {
     const dto = await createThoughtMutation.mutateAsync({
-      type: "insight",
       title: "",
       body: "",
       categoryIds: selectedCategoryId !== "all" ? [selectedCategoryId] : [],

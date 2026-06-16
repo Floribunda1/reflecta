@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import type { ThoughtType, UpdateThoughtInput } from "@reflecta/server";
+import type { UpdateThoughtInput } from "@reflecta/server";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
 
@@ -12,7 +12,6 @@ export function registerUpdateThoughtAction(cli: Command): void {
     mutates: true,
     arguments: [{ name: "id", description: "Thought ID", required: true }],
     options: [
-      { flags: "--type <type>", description: "Thought type (idea | insight)", required: false },
       { flags: "--title <title>", description: "Thought title", required: false },
       {
         flags: "--body <body>",
@@ -30,7 +29,6 @@ export function registerUpdateThoughtAction(cli: Command): void {
   cli
     .command("update <id>")
     .description("Update a thought")
-    .option("--type <type>", "Thought type (idea | insight)")
     .option("--title <title>", "Thought title")
     .option("--body <body>", "Thought body. Use [[title#thought-id]] to create links")
     .option("--category-id <ids>", "Replace category IDs, comma-separated")
@@ -39,7 +37,6 @@ export function registerUpdateThoughtAction(cli: Command): void {
 
 export async function updateThoughtAction(id: string, cli: Command): Promise<void> {
   const options = getCommandOptions(cli) as GlobalOptions & {
-    type?: string;
     title?: string;
     body?: string;
     categoryId?: string;
@@ -48,7 +45,6 @@ export async function updateThoughtAction(id: string, cli: Command): Promise<voi
     async () => {
       const services = await getServices();
       const input: UpdateThoughtInput = {};
-      if (options.type !== undefined) input.type = options.type as ThoughtType;
       if (options.title !== undefined) input.title = options.title;
       if (options.body !== undefined) input.body = options.body;
       if (options.categoryId !== undefined) {

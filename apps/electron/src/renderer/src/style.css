@@ -95,19 +95,10 @@ html {
   font-size: 14px;
   line-height: normal;
   font-family:
-    "Inter Variable",
-    "Inter",
-    "SF Pro Display",
+    "MiSans",
     -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
     system-ui,
-    sans-serif;
-  font-feature-settings:
-    "cv01" 1,
-    "ss03" 1,
-    "lnum" 1,
-    "locl" 1;
+    "Segoe UI";
   font-variation-settings: normal;
 }
 
@@ -117,15 +108,6 @@ body {
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
-}
-
-button,
-input,
-textarea,
-select {
-  font-feature-settings:
-    "cv01" 1,
-    "ss03" 1;
 }
 
 .app-window {
