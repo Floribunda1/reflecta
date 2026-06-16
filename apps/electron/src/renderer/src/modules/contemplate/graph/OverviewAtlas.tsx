@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Background,
   Controls,
@@ -26,6 +27,8 @@ type AtlasNode = {
 type DomainNodeData = {
   node: AtlasNode;
   maxCount: number;
+  relatedCount: number;
+  dimmed: boolean;
   selectable: boolean;
 };
 
@@ -157,6 +160,8 @@ function layoutSubtree(root: AtlasNode, maxCount: number) {
       data: {
         node,
         maxCount,
+        relatedCount: 0,
+        dimmed: false,
         selectable: Boolean(node.categoryId),
       },
     });
@@ -189,6 +194,59 @@ function flattenAtlas(node: AtlasNode): AtlasNode[] {
   return [node, ...node.children.flatMap(flattenAtlas)];
 }
 
+function buildDomainRelations(
+  thoughts: ThoughtSummaryDTO[],
+  visibleCategoryIds: Set<string>,
+): Edge[] {
+  const thoughtCategory = new Map<string, string>();
+  for (const thought of thoughts) {
+    const categoryId = thought.categoryIds[0];
+    if (categoryId && visibleCategoryIds.has(categoryId))
+      thoughtCategory.set(thought.id, categoryId);
+  }
+
+  const relationCounts = new Map<string, number>();
+  for (const thought of thoughts) {
+    const sourceCategory = thoughtCategory.get(thought.id);
+    if (!sourceCategory) continue;
+    for (const targetId of thought.connectionIds) {
+      const targetCategory = thoughtCategory.get(targetId);
+      if (!targetCategory || targetCategory === sourceCategory) continue;
+      const [a, b] = [sourceCategory, targetCategory].sort();
+      const key = `${a}->${b}`;
+      relationCounts.set(key, (relationCounts.get(key) ?? 0) + 1);
+    }
+  }
+
+  return [...relationCounts.entries()].map(([key, count]) => {
+    const [source, target] = key.split("->");
+    return {
+      id: `domain:${key}`,
+      source,
+      target,
+      type: "smoothstep",
+      selectable: false,
+      data: { count },
+      style: {
+        stroke: "var(--ring)",
+        strokeWidth: Math.min(3, 1 + count * 0.35),
+        opacity: 0.18,
+        strokeDasharray: "5 6",
+      },
+    } satisfies Edge;
+  });
+}
+
+function relatedIds(edges: Edge[], id: string | null) {
+  if (!id) return new Set<string>();
+  const ids = new Set([id]);
+  for (const edge of edges) {
+    if (edge.source === id) ids.add(edge.target);
+    if (edge.target === id) ids.add(edge.source);
+  }
+  return ids;
+}
+
 function HiddenHandles() {
   return (
     <>
@@ -212,6 +270,8 @@ function DomainNode({ data }: NodeProps<DomainFlowNode>) {
       className={cn(
         "w-[240px] rounded-md border border-border bg-card px-4 py-3 text-left text-card-foreground shadow-xs transition-colors",
         "hover:border-primary/50 hover:bg-accent disabled:pointer-events-none disabled:bg-muted/30 disabled:text-muted-foreground",
+        data.relatedCount > 0 && "ring-1 ring-ring/20",
+        data.dimmed && "opacity-35",
       )}
     >
       <HiddenHandles />
@@ -222,8 +282,15 @@ function DomainNode({ data }: NodeProps<DomainFlowNode>) {
             {data.node.breadcrumb}
           </div>
         </div>
-        <div className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-          {countLabel}
+        <div className="flex shrink-0 items-center gap-1">
+          {data.relatedCount > 0 && (
+            <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+              {data.relatedCount}
+            </span>
+          )}
+          <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            {countLabel}
+          </span>
         </div>
       </div>
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
@@ -251,8 +318,52 @@ export function OverviewAtlas({
   thoughts: ThoughtSummaryDTO[];
   onSelectCategory: (categoryId: string) => void;
 }) {
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const atlas = buildAtlas(categories, thoughts);
-  const { nodes, edges } = layoutTree(atlas);
+  const { nodes: treeNodes, edges: treeEdges } = layoutTree(atlas);
+  const visibleCategoryIds = new Set(
+    treeNodes.flatMap((node) => (node.data.node.categoryId ? [node.data.node.categoryId] : [])),
+  );
+  const relationEdges = buildDomainRelations(thoughts, visibleCategoryIds);
+  const related = relatedIds(relationEdges, hoveredNodeId);
+  const relationCounts = new Map<string, number>();
+  for (const edge of relationEdges) {
+    const count = Number((edge.data as { count?: number } | undefined)?.count ?? 0);
+    relationCounts.set(edge.source, (relationCounts.get(edge.source) ?? 0) + count);
+    relationCounts.set(edge.target, (relationCounts.get(edge.target) ?? 0) + count);
+  }
+  const nodes = treeNodes.map((node) => ({
+    ...node,
+    data: {
+      ...node.data,
+      relatedCount: relationCounts.get(node.id) ?? 0,
+      dimmed: hoveredNodeId !== null && !related.has(node.id),
+    },
+  }));
+  const edges = [
+    ...relationEdges.map((edge) => {
+      const active =
+        hoveredNodeId !== null && (edge.source === hoveredNodeId || edge.target === hoveredNodeId);
+      return {
+        ...edge,
+        animated: active,
+        style: {
+          ...edge.style,
+          opacity: active ? 0.78 : hoveredNodeId ? 0.06 : edge.style?.opacity,
+          strokeWidth: active
+            ? Math.max(Number(edge.style?.strokeWidth ?? 1), 2.4)
+            : edge.style?.strokeWidth,
+        },
+      };
+    }),
+    ...treeEdges.map((edge) => ({
+      ...edge,
+      style: {
+        ...edge.style,
+        opacity: hoveredNodeId && !related.has(edge.source) && !related.has(edge.target) ? 0.12 : 1,
+      },
+    })),
+  ];
 
   return (
     <div className="absolute inset-0 bg-background">
@@ -265,6 +376,8 @@ export function OverviewAtlas({
         onNodeClick={(_, node) => {
           if (node.data.node.categoryId) onSelectCategory(node.data.node.categoryId);
         }}
+        onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
+        onNodeMouseLeave={() => setHoveredNodeId(null)}
         fitView
         fitViewOptions={{ padding: 0.28 }}
         minZoom={0.24}
