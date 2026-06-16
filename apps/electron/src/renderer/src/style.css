@@ -192,6 +192,7 @@ samp,
 
 .medium-zoom-overlay {
   z-index: 100;
+  background: color-mix(in srgb, var(--popover), transparent 8%) !important;
 }
 
 .medium-zoom-image {
