@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { Database } from "bun:sqlite";
+import { createDBInstance } from "@reflecta/server";
 import { resolveProfileDbPath } from "../src/profile";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
@@ -14,10 +15,49 @@ function ensureDir(): void {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 }
 
-function ensureFtsTables(): void {
+function withDb(fn: (db: Database) => void): void {
   ensureDir();
   const db = new Database(dbPath);
-  db.exec(`
+  try {
+    fn(db);
+  } finally {
+    db.close();
+  }
+}
+
+function dropFtsTables(): void {
+  if (!fs.existsSync(dbPath)) return;
+  withDb((db) => {
+    db.exec(`
+      DROP TABLE IF EXISTS fts_thoughts;
+      DROP TABLE IF EXISTS fts_contexts;
+    `);
+  });
+}
+
+function dropExplicitIndexes(): void {
+  if (!fs.existsSync(dbPath)) return;
+  withDb((db) => {
+    const indexes = db
+      .query<{ name: string }, []>(
+        "SELECT name FROM sqlite_schema WHERE type = 'index' AND sql IS NOT NULL",
+      )
+      .all();
+    for (const index of indexes) {
+      db.exec(`DROP INDEX IF EXISTS "${index.name.replaceAll('"', '""')}"`);
+    }
+  });
+}
+
+async function migrate(): Promise<void> {
+  ensureDir();
+  const db = await createDBInstance(dbPath, { runMigrations: true });
+  db.$client.close();
+}
+
+function rebuildFtsTables(): void {
+  withDb((db) => {
+    db.exec(`
     CREATE VIRTUAL TABLE IF NOT EXISTS fts_thoughts USING fts5(
       thought_id UNINDEXED,
       title,
@@ -30,8 +70,21 @@ function ensureFtsTables(): void {
       source_name,
       content
     );
+
+    DELETE FROM fts_thoughts;
+    DELETE FROM fts_contexts;
+
+    INSERT INTO fts_thoughts (thought_id, title, body)
+    SELECT id, coalesce(title, ''), body
+    FROM thoughts
+    WHERE deleted_at IS NULL;
+
+    INSERT INTO fts_contexts (context_id, thought_id, source_name, content)
+    SELECT id, thought_id, source_name, content
+    FROM contexts
+    WHERE deleted_at IS NULL;
   `);
-  db.close();
+  });
 }
 
 function run(args: string[]): number {
@@ -55,19 +108,27 @@ if (command === "reset") {
   process.exit(0);
 }
 
+if (command === "migrate") {
+  await migrate();
+  process.exit(0);
+}
+
 if (command === "push") {
   ensureDir();
+  await migrate();
+  dropFtsTables();
+  dropExplicitIndexes();
   const status = run(["x", "drizzle-kit", "push", "--config", "drizzle.config.ts"]);
-  if (status === 0) ensureFtsTables();
+  if (fs.existsSync(dbPath)) rebuildFtsTables();
   process.exit(status);
 }
 
 if (command === "seed") {
-  if (fs.existsSync(dbPath)) ensureFtsTables();
+  if (fs.existsSync(dbPath)) rebuildFtsTables();
   process.exit(run(["run", path.join(import.meta.dirname, "seed-test-data.ts"), dbPath]));
 }
 
-console.log(`Usage: bun run apps/cli/scripts/dev-db.ts <reset|push|seed>
+console.log(`Usage: bun run apps/cli/scripts/dev-db.ts <migrate|reset|push|seed>
 
 Dev database:
   ${dbPath}`);

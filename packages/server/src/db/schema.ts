@@ -96,3 +96,8 @@ export const conversations = sqliteTable(
   },
   (t) => [index("idx_conversations_updated_at").on(t.updatedAt)],
 );
+
+export const migrations = sqliteTable("_migrations", {
+  name: text("name").notNull().primaryKey(),
+  runAt: text("run_at").notNull(),
+});
