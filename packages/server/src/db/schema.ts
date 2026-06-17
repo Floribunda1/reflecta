@@ -20,7 +20,6 @@ export const thoughts = sqliteTable(
   "thoughts",
   {
     id: text("id").notNull().primaryKey(),
-    type: text("type").notNull(),
     title: text("title"),
     body: text("body").notNull().default(""),
     createdAt: text("created_at").notNull(),
@@ -28,7 +27,6 @@ export const thoughts = sqliteTable(
     deletedAt: text("deleted_at"),
   },
   (t) => [
-    index("idx_thoughts_type").on(t.type),
     index("idx_thoughts_created_at").on(t.createdAt),
     index("idx_thoughts_updated_at").on(t.updatedAt),
   ],

@@ -1,4 +1,6 @@
 import type { Client } from "@libsql/client";
+import fs from "node:fs";
+import path from "node:path";
 import type { ReflectaDb } from "./types";
 
 type Migration = {
@@ -6,12 +8,29 @@ type Migration = {
   up: (client: Client) => Promise<void>;
 };
 
-// @ts-ignore - Vite's glob import is not typed in every build context, so we assert the type here.
-const sqlMigrations = import.meta.glob("./migration/sql/*.sql", {
-  eager: true,
-  import: "default",
-  query: "?raw",
-}) as Record<string, string>;
+function readSqlMigrationsFromFs(): Record<string, string> {
+  const migrationDir = path.resolve(import.meta.dirname, "migration/sql");
+  return Object.fromEntries(
+    fs
+      .readdirSync(migrationDir)
+      .filter((file) => file.endsWith(".sql"))
+      .map((file) => [
+        `./migration/sql/${file}`,
+        fs.readFileSync(path.join(migrationDir, file), "utf-8"),
+      ]),
+  );
+}
+
+const sqlMigrations =
+  // @ts-ignore import.meta.glob is provided by Vite when bundled for Electron.
+  typeof import.meta.glob === "function"
+    ? // @ts-ignore import.meta.glob is provided by Vite when bundled for Electron.
+      (import.meta.glob("./migration/sql/*.sql", {
+        eager: true,
+        import: "default",
+        query: "?raw",
+      }) as Record<string, string>)
+    : readSqlMigrationsFromFs();
 
 const migrations: Migration[] = Object.entries(sqlMigrations)
   .sort(([a], [b]) => a.localeCompare(b))

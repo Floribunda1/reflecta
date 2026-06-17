@@ -5,10 +5,19 @@ import type { ReflectaDb } from "./types";
 
 export type { ReflectaDb } from "./types";
 
-export async function createDBInstance(dbPath: string): Promise<ReflectaDb> {
+export interface CreateDBInstanceOptions {
+  runMigrations?: boolean;
+}
+
+export async function createDBInstance(
+  dbPath: string,
+  options: CreateDBInstanceOptions = {},
+): Promise<ReflectaDb> {
   const db = drizzle(`file:${dbPath}`, {
     schema,
   });
-  await performDbMigration(db);
+  if (options.runMigrations ?? true) {
+    await performDbMigration(db);
+  }
   return db;
 }

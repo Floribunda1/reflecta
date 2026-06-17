@@ -54,16 +54,14 @@ CREATE INDEX IF NOT EXISTS idx_contexts_source_type ON contexts(source_type);
 CREATE VIRTUAL TABLE IF NOT EXISTS fts_thoughts USING fts5(
   thought_id UNINDEXED,
   title,
-  body,
-  content=''
+  body
 );
 
 CREATE VIRTUAL TABLE IF NOT EXISTS fts_contexts USING fts5(
   context_id UNINDEXED,
   thought_id UNINDEXED,
   source_name,
-  content,
-  content=''
+  content
 );
 
 INSERT INTO fts_thoughts (thought_id, title, body)
@@ -76,4 +74,4 @@ INSERT INTO fts_contexts (context_id, thought_id, source_name, content)
 SELECT id, thought_id, source_name, content
 FROM contexts
 WHERE deleted_at IS NULL
-  AND context_id NOT IN (SELECT context_id FROM fts_contexts);
+  AND id NOT IN (SELECT context_id FROM fts_contexts);

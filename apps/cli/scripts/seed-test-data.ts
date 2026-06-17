@@ -25,6 +25,23 @@ console.log(`Opening database at: ${dbPath}`);
 
 const db = new Database(dbPath);
 
+function ensureFtsTables() {
+  db.exec(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS fts_thoughts USING fts5(
+      thought_id UNINDEXED,
+      title,
+      body
+    );
+
+    CREATE VIRTUAL TABLE IF NOT EXISTS fts_contexts USING fts5(
+      context_id UNINDEXED,
+      thought_id UNINDEXED,
+      source_name,
+      content
+    );
+  `);
+}
+
 // ---------------------------------------------------------------------------
 // Migrations
 // ---------------------------------------------------------------------------
@@ -41,17 +58,6 @@ const migrationFiles = fs
 if (isNewDb) {
   for (const file of migrationFiles) {
     let sql = fs.readFileSync(path.join(migrationDir, file), "utf-8");
-    // 001_seed.sql has two bugs that only surface with bun:sqlite:
-    // 1. References `contexts.context_id` but the actual column is `id`.
-    // 2. Uses `content=''` on FTS5 virtual tables, which with bun:sqlite 3.51
-    //    causes UNINDEXED columns to return null, breaking search.
-    // We patch these at runtime in the seed script rather than editing the
-    // committed migration file (which would affect existing user databases).
-    sql = sql.replace(
-      /FROM contexts\s+WHERE deleted_at IS NULL\s+AND context_id NOT IN/g,
-      "FROM contexts WHERE deleted_at IS NULL AND id NOT IN",
-    );
-    sql = sql.replace(/,\s*content=''/g, "");
     db.exec(sql);
     console.log(`Applied migration: ${file}`);
   }
@@ -66,6 +72,7 @@ if (isNewDb) {
     insertMigration.run(file, new Date().toISOString());
   }
 } else {
+  ensureFtsTables();
   console.log("Database exists. Truncating tables before seeding...");
   try {
     db.exec(`
@@ -628,7 +635,6 @@ const leafCategoryIds = categories
 // ---------------------------------------------------------------------------
 
 const anchorThoughts: Array<{
-  type: "idea" | "insight";
   title?: string;
   body: string;
   daysAgo: number;
@@ -639,7 +645,6 @@ const anchorThoughts: Array<{
 }> = [
   // Graph structures
   {
-    type: "idea",
     title: "React Server Components",
     body: "RSC allows server-side rendering of components without shipping JS to client. Could be combined with [[React Suspense]] for progressive hydration.",
     daysAgo: 1,
@@ -647,7 +652,6 @@ const anchorThoughts: Array<{
     categoryCount: 2,
   },
   {
-    type: "idea",
     title: "React Suspense",
     body: "Suspense boundaries let us declaratively specify loading states. Should explore integration with data fetching patterns.",
     daysAgo: 2,
@@ -655,7 +659,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Vue Reactivity",
     body: "Proxy-based reactivity system in Vue 3 is elegant. How does it compare to [[React Server Components]] architecture?",
     daysAgo: 4,
@@ -663,7 +666,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "CSS Container Queries",
     body: "Container queries enable component-level responsive design without media queries. A game changer for design systems.",
     daysAgo: 5,
@@ -671,7 +673,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Database Indexing",
     body: "Proper indexing can improve query performance by orders of magnitude. B-trees vs hash indexes vs GiST.",
     daysAgo: 7,
@@ -679,7 +680,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "REST API Design",
     body: "REST is not dead. HATEOAS and content negotiation are still underutilized. See also [[GraphQL Tradeoffs]].",
     daysAgo: 8,
@@ -687,7 +687,6 @@ const anchorThoughts: Array<{
     categoryCount: 2,
   },
   {
-    type: "idea",
     title: "GraphQL Tradeoffs",
     body: "GraphQL solves over-fetching but introduces N+1 problems. Compare with [[REST API Design]] approaches.",
     daysAgo: 9,
@@ -695,7 +694,6 @@ const anchorThoughts: Array<{
     categoryCount: 2,
   },
   {
-    type: "idea",
     title: "Circular A",
     body: "Points to [[Circular B]] to create a cycle in the graph.",
     daysAgo: 25,
@@ -703,7 +701,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Circular B",
     body: "Points to [[Circular C]] continuing the cycle.",
     daysAgo: 26,
@@ -711,7 +708,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Circular C",
     body: "Points back to [[Circular A]] completing the cycle.",
     daysAgo: 27,
@@ -719,7 +715,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Star Center",
     body: "This is the center of a star graph. Many thoughts link here.",
     daysAgo: 5,
@@ -727,7 +722,6 @@ const anchorThoughts: Array<{
     categoryCount: 2,
   },
   {
-    type: "idea",
     title: "Star Leaf 1",
     body: "Links to [[Star Center]] as leaf 1.",
     daysAgo: 6,
@@ -735,7 +729,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Star Leaf 2",
     body: "Links to [[Star Center]] as leaf 2.",
     daysAgo: 6,
@@ -743,7 +736,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Star Leaf 3",
     body: "Links to [[Star Center]] as leaf 3.",
     daysAgo: 6,
@@ -751,7 +743,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Long Path Start",
     body: "Start of a 5-hop path. Next is [[Long Path 2]].",
     daysAgo: 40,
@@ -759,7 +750,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Long Path 2",
     body: "Second hop. Next is [[Long Path 3]].",
     daysAgo: 41,
@@ -767,7 +757,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Long Path 3",
     body: "Third hop. Next is [[Long Path 4]].",
     daysAgo: 42,
@@ -775,7 +764,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Long Path 4",
     body: "Fourth hop. Next is [[Long Path 5]].",
     daysAgo: 43,
@@ -783,7 +771,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Long Path 5",
     body: "End of the 5-hop path. No further links.",
     daysAgo: 44,
@@ -791,7 +778,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Branch Point",
     body: "This thought branches to [[Branch A]] and [[Branch B]] and [[Branch C]].",
     daysAgo: 50,
@@ -799,7 +785,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Branch A",
     body: "Leaf A from branch point.",
     daysAgo: 51,
@@ -807,7 +792,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Branch B",
     body: "Leaf B from branch point.",
     daysAgo: 51,
@@ -815,7 +799,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Branch C",
     body: "Leaf C from branch point.",
     daysAgo: 51,
@@ -823,7 +806,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "insight",
     title: "Bidirectional Link A",
     body: "Links to [[Bidirectional Link B]] and is linked back.",
     daysAgo: 33,
@@ -831,7 +813,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "insight",
     title: "Bidirectional Link B",
     body: "Links to [[Bidirectional Link A]] creating a mutual reference.",
     daysAgo: 34,
@@ -839,7 +820,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "insight",
     title: "Dense Cluster Center",
     body: "Central node in a dense cluster.",
     daysAgo: 60,
@@ -847,7 +827,6 @@ const anchorThoughts: Array<{
     categoryCount: 2,
   },
   {
-    type: "insight",
     title: "Dense Cluster 1",
     body: "Links to [[Dense Cluster Center]] and [[Dense Cluster 2]].",
     daysAgo: 61,
@@ -855,7 +834,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "insight",
     title: "Dense Cluster 2",
     body: "Links to [[Dense Cluster Center]] and [[Dense Cluster 3]].",
     daysAgo: 61,
@@ -863,7 +841,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "insight",
     title: "Dense Cluster 3",
     body: "Links to [[Dense Cluster Center]] and [[Dense Cluster 1]].",
     daysAgo: 61,
@@ -873,7 +850,6 @@ const anchorThoughts: Array<{
 
   // Search anchors
   {
-    type: "insight",
     title: "Search Test Alpha",
     body: "This content contains the unique keyword ALPHA_SEED_42 for testing full-text search precision.",
     daysAgo: 2,
@@ -881,7 +857,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "insight",
     title: "Search Test Beta",
     body: "Another unique keyword BETA_SEED_99 appears here for search testing.",
     daysAgo: 3,
@@ -889,7 +864,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "insight",
     title: "Search Test Gamma",
     body: "Both ALPHA_SEED_42 and BETA_SEED_99 appear in this thought for multi-term search.",
     daysAgo: 4,
@@ -899,7 +873,6 @@ const anchorThoughts: Array<{
 
   // Edge cases
   {
-    type: "idea",
     title: "Soft Deleted Thought A",
     body: "This thought is soft deleted and should not appear in normal queries.",
     daysAgo: 20,
@@ -908,7 +881,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Soft Deleted Thought B",
     body: "Another deleted thought for testing edge cases.",
     daysAgo: 21,
@@ -917,7 +889,6 @@ const anchorThoughts: Array<{
     noCategory: true,
   },
   {
-    type: "idea",
     title: "Soft Deleted Thought C",
     body: "Third deleted thought with multiple categories.",
     daysAgo: 22,
@@ -926,7 +897,6 @@ const anchorThoughts: Array<{
     categoryCount: 3,
   },
   {
-    type: "insight",
     title: "Soft Deleted Insight",
     body: "This insight is deleted.",
     daysAgo: 15,
@@ -935,7 +905,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Unconnected Node",
     body: "This thought has no wiki links and no categories. It is an island.",
     daysAgo: 30,
@@ -943,7 +912,6 @@ const anchorThoughts: Array<{
     noCategory: true,
   },
   {
-    type: "insight",
     title: "Insight Without Category",
     body: "An insight that belongs to no category. Testing the zero-association case.",
     daysAgo: 12,
@@ -951,21 +919,18 @@ const anchorThoughts: Array<{
     noCategory: true,
   },
   {
-    type: "idea",
     body: "Untitled idea: sometimes raw notes are enough without a formal title.",
     daysAgo: 0,
     hoursOffset: 1,
     categoryCount: 1,
   },
   {
-    type: "insight",
     body: "Untitled insight: sometimes raw notes are enough without a formal title.",
     daysAgo: 11,
     hoursOffset: 0,
     categoryCount: 1,
   },
   {
-    type: "idea",
     title: "Empty Body Thought",
     body: "",
     daysAgo: 16,
@@ -973,7 +938,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "insight",
     title: "Very Old Thought",
     body: "This is from the beginning of the knowledge base. Just a placeholder with minimal content.",
     daysAgo: 300,
@@ -981,7 +945,6 @@ const anchorThoughts: Array<{
     categoryCount: 1,
   },
   {
-    type: "insight",
     title: "Future Thought",
     body: "Dated slightly in the future to test sorting edge cases.",
     daysAgo: -1,
@@ -998,7 +961,7 @@ const TOTAL_THOUGHTS = 200;
 const generatedThoughts: typeof anchorThoughts = [];
 
 for (let i = 0; i < TOTAL_THOUGHTS - anchorThoughts.length; i++) {
-  const type = i % 3 === 0 ? "insight" : "idea"; // 2/3 idea, 1/3 insight
+  const titleKind = i % 3 === 0 ? "insight" : "idea";
   const daysAgo = rng.int(0, 365);
   const hoursOffset = rng.int(0, 23);
 
@@ -1013,11 +976,10 @@ for (let i = 0; i < TOTAL_THOUGHTS - anchorThoughts.length; i++) {
   // 30% chance of wiki link
   const hasWikiLink = rng.bool(0.3);
 
-  const title = noTitle ? undefined : generateTitle(type, i);
+  const title = noTitle ? undefined : generateTitle(titleKind, i);
   const body = emptyBody ? "" : generateBody(i, hasWikiLink);
 
   generatedThoughts.push({
-    type,
     title,
     body,
     daysAgo,
@@ -1046,10 +1008,10 @@ const thoughtSeeds: ThoughtSeed[] = allThoughtTemplates.map((t) => ({
 }));
 
 const insertThought = db.prepare(
-  "INSERT INTO thoughts (id, type, title, body, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+  "INSERT INTO thoughts (id, title, body, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?)",
 );
 for (const t of thoughtSeeds) {
-  insertThought.run(t.id, t.type, t.title ?? null, t.body, t.createdAt, t.updatedAt, t.deletedAt);
+  insertThought.run(t.id, t.title ?? null, t.body, t.createdAt, t.updatedAt, t.deletedAt);
 }
 console.log(`Inserted ${thoughtSeeds.length} thoughts`);
 

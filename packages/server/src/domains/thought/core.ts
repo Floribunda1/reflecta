@@ -111,7 +111,6 @@ export class ThoughtCore {
     await this.db.transaction(async (tx) => {
       await tx.insert(thoughts).values({
         id,
-        type: "thought",
         title: input.title ?? null,
         body,
         createdAt,

@@ -13,7 +13,23 @@ export interface AppConfig {
   aiProvider?: AiProviderConfig;
 }
 
-const getConfigFilePath = () => path.join(app.getPath("userData"), "reflecta-config.json");
+export type ReflectaProfile = "dev" | "prod";
+
+export function getReflectaProfile(): ReflectaProfile {
+  if (process.env.REFLECTA_PROFILE === "dev" || process.env.REFLECTA_PROFILE === "prod") {
+    return process.env.REFLECTA_PROFILE;
+  }
+
+  return app.isPackaged ? "prod" : "dev";
+}
+
+function getDefaultStorageRoot(): string {
+  return getReflectaProfile() === "dev"
+    ? path.join(app.getPath("appData"), "reflecta-dev")
+    : app.getPath("userData");
+}
+
+const getConfigFilePath = () => path.join(getDefaultStorageRoot(), "reflecta-config.json");
 
 let _cache: AppConfig | null = null;
 
@@ -32,10 +48,12 @@ export function writeConfig(partial: Partial<AppConfig>): void {
   const config = readConfig();
   Object.assign(config, partial);
   _cache = config;
-  fs.writeFileSync(getConfigFilePath(), JSON.stringify(config, null, 2), "utf-8");
+  const configFilePath = getConfigFilePath();
+  fs.mkdirSync(path.dirname(configFilePath), { recursive: true });
+  fs.writeFileSync(configFilePath, JSON.stringify(config, null, 2), "utf-8");
 }
 
 /** Used by AssetService and db — resolves the effective storage root. */
 export function getStorageRoot(): string {
-  return readConfig().storagePath || app.getPath("userData");
+  return readConfig().storagePath || getDefaultStorageRoot();
 }
