@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { cpSync } from "node:fs";
 import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
@@ -15,6 +16,17 @@ const esmOutput = {
   chunkFileNames: "[name].mjs",
   codeSplitting: false,
 };
+
+const copyMainMigrationSql = () => ({
+  name: "copy-main-migration-sql",
+  closeBundle() {
+    cpSync(
+      resolve(appRoot, "../../packages/server/src/db/migration/sql"),
+      resolve(appRoot, "out/main/migration/sql"),
+      { recursive: true },
+    );
+  },
+});
 
 export default defineConfig({
   root: resolve(appRoot, "src/renderer"),
@@ -42,6 +54,7 @@ export default defineConfig({
               "@shared": resolve(appRoot, "src/preload/typings"),
             },
           },
+          plugins: [copyMainMigrationSql()],
           build: {
             outDir: resolve(appRoot, "out/main"),
             emptyOutDir: true,
