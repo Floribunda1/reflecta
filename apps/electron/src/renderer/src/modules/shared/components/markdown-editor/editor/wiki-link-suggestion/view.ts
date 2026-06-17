@@ -9,6 +9,8 @@ type RequestKey = {
   query: string;
 };
 
+const requestDebounceMs = 160;
+
 function sameRequestKey(a: RequestKey | null, b: RequestKey): boolean {
   return !!a && a.from === b.from && a.query === b.query;
 }
@@ -18,6 +20,12 @@ function createStatus(text: string): HTMLElement {
   status.className = "reflecta-md-editor__wiki-suggestion-status";
   status.textContent = text;
   return status;
+}
+
+function scrollSelectedItemIntoView(content: HTMLElement): void {
+  content
+    .querySelector<HTMLElement>('[role="option"][aria-selected="true"]')
+    ?.scrollIntoView({ block: "nearest" });
 }
 
 export function createWikiLinkSuggestionView(
@@ -36,6 +44,7 @@ export function createWikiLinkSuggestionView(
   let view = initialView;
   let abortController: AbortController | null = null;
   let lastRequestKey: RequestKey | null = null;
+  let requestTimer: ReturnType<typeof setTimeout> | null = null;
   let requestId = 0;
 
   const content = document.createElement("div");
@@ -60,27 +69,38 @@ export function createWikiLinkSuggestionView(
     view.dispatch(view.state.tr.setMeta(pluginKey, meta));
   }
 
+  function clearRequestTimer(): void {
+    if (!requestTimer) return;
+    clearTimeout(requestTimer);
+    requestTimer = null;
+  }
+
   function startRequest(state: WikiLinkSuggestionState): void {
     const nextRequestKey = { from: state.from, query: state.query };
     if (sameRequestKey(lastRequestKey, nextRequestKey)) return;
 
     lastRequestKey = nextRequestKey;
+    clearRequestTimer();
     abortController?.abort();
     abortController = new AbortController();
+    const controller = abortController;
     requestId += 1;
     const currentRequestId = requestId;
 
     dispatchMeta({ type: "loading", requestId: currentRequestId });
 
-    source(state.query, abortController.signal)
-      .then((items) => {
-        if (abortController?.signal.aborted) return;
-        dispatchMeta({ type: "results", requestId: currentRequestId, items });
-      })
-      .catch(() => {
-        if (abortController?.signal.aborted) return;
-        dispatchMeta({ type: "error", requestId: currentRequestId });
-      });
+    requestTimer = setTimeout(() => {
+      requestTimer = null;
+      source(state.query, controller.signal)
+        .then((items) => {
+          if (controller.signal.aborted) return;
+          dispatchMeta({ type: "results", requestId: currentRequestId, items });
+        })
+        .catch(() => {
+          if (controller.signal.aborted) return;
+          dispatchMeta({ type: "error", requestId: currentRequestId });
+        });
+    }, requestDebounceMs);
   }
 
   function selectItem(item: WikiLinkSuggestionItem): void {
@@ -109,11 +129,25 @@ export function createWikiLinkSuggestionView(
       button.className = "reflecta-md-editor__wiki-suggestion-item";
       button.setAttribute("role", "option");
       button.setAttribute("aria-selected", String(index === state.selectedIndex));
-      button.textContent = item.title;
+
+      const title = document.createElement("div");
+      title.className = "reflecta-md-editor__wiki-suggestion-title";
+      title.textContent = item.title;
+      button.append(title);
+
+      if (item.preview) {
+        const preview = document.createElement("div");
+        preview.className = "reflecta-md-editor__wiki-suggestion-preview";
+        preview.textContent = item.preview;
+        button.append(preview);
+      }
+
       button.addEventListener("mousedown", (event) => event.preventDefault());
       button.addEventListener("click", () => selectItem(item));
       content.append(button);
     });
+
+    scrollSelectedItemIntoView(content);
   }
 
   return {
@@ -122,6 +156,7 @@ export function createWikiLinkSuggestionView(
       const state = pluginKey.getState(view.state);
 
       if (!state?.active) {
+        clearRequestTimer();
         abortController?.abort();
         abortController = null;
         lastRequestKey = null;
@@ -136,6 +171,7 @@ export function createWikiLinkSuggestionView(
     },
 
     destroy() {
+      clearRequestTimer();
       abortController?.abort();
       provider.destroy();
       content.remove();

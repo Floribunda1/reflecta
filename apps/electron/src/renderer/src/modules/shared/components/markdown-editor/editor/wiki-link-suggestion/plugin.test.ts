@@ -29,7 +29,7 @@ function pressKey(editor: Editor, key: string): boolean {
 }
 
 async function flush(): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 180));
 }
 
 async function createEditor(source: WikiLinkSuggestionSource, readonly = false): Promise<Editor> {

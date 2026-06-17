@@ -98,7 +98,7 @@
   .reflecta-md-editor__wiki-suggestion {
     position: fixed;
     z-index: 50;
-    width: min(280px, calc(100vw - 32px));
+    width: min(340px, calc(100vw - 32px));
     max-height: 260px;
     padding: 4px;
     overflow-y: auto;
@@ -123,19 +123,16 @@
   .reflecta-md-editor__wiki-suggestion-item {
     display: block;
     width: 100%;
-    min-height: 30px;
-    padding: 6px 8px;
+    min-height: 38px;
+    padding: 7px 8px;
     border: 0;
     border-radius: 6px;
     background: transparent;
     color: var(--popover-foreground);
     font: inherit;
     font-size: $font-size-body;
-    line-height: $line-height-menu;
     text-align: left;
-    white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
     cursor: pointer;
 
     &:hover,
@@ -143,5 +140,30 @@
       background: var(--accent);
       color: var(--accent-foreground);
     }
+  }
+
+  .reflecta-md-editor__wiki-suggestion-title,
+  .reflecta-md-editor__wiki-suggestion-preview {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .reflecta-md-editor__wiki-suggestion-title {
+    font-size: $font-size-body;
+    line-height: $line-height-menu;
+  }
+
+  .reflecta-md-editor__wiki-suggestion-preview {
+    margin-top: 2px;
+    color: var(--muted-foreground);
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .reflecta-md-editor__wiki-suggestion-item:hover .reflecta-md-editor__wiki-suggestion-preview,
+  .reflecta-md-editor__wiki-suggestion-item[aria-selected="true"]
+    .reflecta-md-editor__wiki-suggestion-preview {
+    color: color-mix(in srgb, var(--accent-foreground), transparent 24%);
   }
 }

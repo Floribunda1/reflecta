@@ -1,5 +1,6 @@
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/react";
 import { useCallback, useEffect, useRef } from "react";
+import type { MouseEvent } from "react";
 import { cn } from "@renderer/lib/utils";
 import { ipcClient } from "@renderer/utils/ipc";
 import {
@@ -22,6 +23,7 @@ type MarkdownEditorProps = {
   className?: string;
   onUpdate?: (value: string) => void;
   onBlur?: () => void;
+  onWikiLinkClick?: (thoughtId: string) => void;
 };
 
 function toCssSize(value: number | string): string {
@@ -35,6 +37,7 @@ function MarkdownEditorSurface({
   readonly,
   onUpdate,
   onBlur,
+  onWikiLinkClick,
 }: {
   contentKey?: string;
   content: string;
@@ -42,9 +45,11 @@ function MarkdownEditorSurface({
   readonly?: boolean;
   onUpdate?: (value: string) => void;
   onBlur?: () => void;
+  onWikiLinkClick?: (thoughtId: string) => void;
 }) {
   const onUpdateRef = useRef(onUpdate);
   const onBlurRef = useRef(onBlur);
+  const onWikiLinkClickRef = useRef(onWikiLinkClick);
   const contentKeyRef = useRef(contentKey);
 
   useEffect(() => {
@@ -54,6 +59,21 @@ function MarkdownEditorSurface({
   useEffect(() => {
     onBlurRef.current = onBlur;
   }, [onBlur]);
+
+  useEffect(() => {
+    onWikiLinkClickRef.current = onWikiLinkClick;
+  }, [onWikiLinkClick]);
+
+  const handleClick = useCallback((event: MouseEvent<HTMLDivElement>) => {
+    const link = (event.target as HTMLElement | null)?.closest<HTMLAnchorElement>(
+      "a[data-wiki-link]",
+    );
+    const thoughtId = link?.dataset.wikiLink;
+    if (!thoughtId) return;
+
+    event.preventDefault();
+    onWikiLinkClickRef.current?.(thoughtId);
+  }, []);
 
   const uploadAsset = useCallback(async (file: File) => {
     return ipcClient.asset.saveAsset(await file.arrayBuffer(), file.name);
@@ -94,7 +114,7 @@ function MarkdownEditorSurface({
   }, [content, contentKey, editor]);
 
   return (
-    <div className="reflecta-md-editor__surface">
+    <div className="reflecta-md-editor__surface" onClick={handleClick}>
       <Milkdown />
     </div>
   );
@@ -112,6 +132,7 @@ export function MarkdownEditor({
   className,
   onUpdate,
   onBlur,
+  onWikiLinkClick,
 }: MarkdownEditorProps) {
   const editorContent = initialContent ?? content;
   const autoGrow = height === "auto";
@@ -136,6 +157,7 @@ export function MarkdownEditor({
           readonly={readonly}
           onUpdate={onUpdate}
           onBlur={onBlur}
+          onWikiLinkClick={onWikiLinkClick}
         />
       </MilkdownProvider>
     </div>

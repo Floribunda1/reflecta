@@ -33,6 +33,7 @@ import { useThoughtDraftSave } from "../useThoughtDraftSave";
 type ThoughtDetailProps = {
   thoughtId: string;
   onDeleted?: () => void;
+  onWikiLinkClick?: (thoughtId: string) => void;
 };
 
 type SourceDraftInput = {
@@ -253,7 +254,7 @@ function SourceDetailDrawerContent({
   );
 }
 
-function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
+function ThoughtDetailInner({ thoughtId, onDeleted, onWikiLinkClick }: ThoughtDetailProps) {
   const detailRef = useRef<HTMLElement>(null);
   const { thought } = useThoughtDetail(thoughtId);
   const { updateThought, deleteThought, createContext, updateContext, deleteContext } =
@@ -424,6 +425,7 @@ function ThoughtDetailInner({ thoughtId, onDeleted }: ThoughtDetailProps) {
               updateDraftBody(next);
             }}
             onBlur={() => void saveDraft()}
+            onWikiLinkClick={onWikiLinkClick}
           />
         </section>
 

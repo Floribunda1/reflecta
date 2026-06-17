@@ -1,6 +1,7 @@
 export type WikiLinkSuggestionItem = {
   id: string;
   title: string;
+  preview?: string;
   markdown: string;
 };
 

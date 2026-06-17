@@ -7,7 +7,16 @@ import { useCaptureStore } from "./store";
 
 function CapturePageInner() {
   const selectedThoughtId = useCaptureStore((state) => state.selectedThoughtId);
+  const selectCategory = useCaptureStore((state) => state.selectCategory);
+  const selectThought = useCaptureStore((state) => state.selectThought);
   const resetAfterThoughtDeleted = useCaptureStore((state) => state.resetAfterThoughtDeleted);
+  const setSearchOpen = useCaptureStore((state) => state.setSearchOpen);
+
+  const handleWikiLinkClick = (thoughtId: string) => {
+    selectCategory("all");
+    setSearchOpen(false);
+    selectThought(thoughtId);
+  };
 
   return (
     <div className="grid h-full min-h-0 w-full grid-cols-[248px_minmax(0,1fr)] overflow-hidden bg-background/45 backdrop-blur-2xl">
@@ -18,6 +27,7 @@ function CapturePageInner() {
           {selectedThoughtId ? (
             <ThoughtDetail
               thoughtId={selectedThoughtId}
+              onWikiLinkClick={handleWikiLinkClick}
               onDeleted={() => resetAfterThoughtDeleted(selectedThoughtId)}
             />
           ) : (

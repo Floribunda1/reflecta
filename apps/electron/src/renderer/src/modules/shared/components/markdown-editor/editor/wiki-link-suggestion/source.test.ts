@@ -46,18 +46,23 @@ describe("thought wiki link suggestion source", () => {
     expect(items).toEqual([{ id: "thought-1", title: "Alpha", markdown: "[[Alpha#thought-1]]" }]);
   });
 
-  test("uses searchThoughts for a non-empty query", async () => {
-    vi.mocked(ipcClient.search.searchThoughts).mockResolvedValue([
+  test("uses listThoughts search filter for a non-empty query", async () => {
+    vi.mocked(ipcClient.thought.listThoughts).mockResolvedValue([
       thought({ id: "thought-2", title: null, body: "\nBeta body\nSecond line" }),
     ]);
 
     const source = createThoughtWikiLinkSuggestionSource();
     const items = await source(" beta ", new AbortController().signal);
 
-    expect(ipcClient.search.searchThoughts).toHaveBeenCalledWith("beta");
-    expect(ipcClient.thought.listThoughts).not.toHaveBeenCalled();
+    expect(ipcClient.thought.listThoughts).toHaveBeenCalledWith({ searchQuery: "beta" });
+    expect(ipcClient.search.searchThoughts).not.toHaveBeenCalled();
     expect(items).toEqual([
-      { id: "thought-2", title: "Beta body", markdown: "[[Beta body#thought-2]]" },
+      {
+        id: "thought-2",
+        title: "Beta body",
+        preview: "Beta body Second line",
+        markdown: "[[Beta body#thought-2]]",
+      },
     ]);
   });
 
