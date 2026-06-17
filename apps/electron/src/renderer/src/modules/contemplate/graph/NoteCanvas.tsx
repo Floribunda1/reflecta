@@ -3,6 +3,7 @@ import {
   Background,
   Controls,
   Handle,
+  MarkerType,
   MiniMap,
   Position,
   ReactFlow,
@@ -70,6 +71,15 @@ const GROUP_GAP_Y = 110;
 const LANE_PAD_X = 30;
 const LANE_PAD_TOP = 42;
 const LANE_PAD_BOTTOM = 28;
+
+function edgeMarker(color: string) {
+  return {
+    type: MarkerType.ArrowClosed,
+    width: 16,
+    height: 16,
+    color,
+  };
+}
 
 function titleForThought(thought: ThoughtSummaryDTO) {
   const title = thought.title?.trim();
@@ -189,6 +199,8 @@ function layoutNodes(
       id,
       type: "note",
       position: { x, y },
+      width: NODE_W,
+      height: NODE_H,
       data: {
         kind: "note",
         thought,
@@ -394,6 +406,8 @@ function addGroupNodes(layout: LayoutResult): NoteFlowNode[] {
         x: lane.x,
         y: lane.y,
       },
+      width: lane.width,
+      height: lane.height,
       selectable: false,
       draggable: false,
       focusable: false,
@@ -420,14 +434,16 @@ function buildEdges(
   return links.map((link) => {
     const crossDomain = focusIds.has(link.source) !== focusIds.has(link.target);
     const active = selectedThoughtId === link.source || selectedThoughtId === link.target;
+    const stroke = active ? "var(--primary)" : crossDomain ? "var(--ring)" : "var(--border)";
     return {
       id: `${link.source}->${link.target}`,
       source: link.source,
       target: link.target,
       type: "smoothstep",
       animated: active,
+      markerStart: edgeMarker(stroke),
       style: {
-        stroke: active ? "var(--primary)" : crossDomain ? "var(--ring)" : "var(--border)",
+        stroke,
         strokeWidth: active ? 2.5 : crossDomain ? 1.8 : 1.25,
         opacity: active ? 0.9 : crossDomain ? 0.58 : 0.34,
         strokeDasharray: crossDomain ? "6 5" : undefined,
@@ -499,13 +515,13 @@ const NODE_TYPES = { note: NoteCard, categoryGroup: GroupBox };
 function miniMapNodeColor(node: NoteFlowNode) {
   if (node.data.kind === "group") return "transparent";
   if (node.data.selected) return "var(--primary)";
-  return node.data.external ? "var(--muted)" : "var(--card)";
+  return node.data.external ? "var(--muted-foreground)" : "var(--primary)";
 }
 
 function miniMapNodeStrokeColor(node: NoteFlowNode) {
   if (node.data.kind === "group") return "transparent";
   if (node.data.selected) return "var(--primary)";
-  return node.data.external ? "var(--muted-foreground)" : "var(--border)";
+  return node.data.external ? "var(--muted-foreground)" : "var(--primary)";
 }
 
 export function NoteCanvas({

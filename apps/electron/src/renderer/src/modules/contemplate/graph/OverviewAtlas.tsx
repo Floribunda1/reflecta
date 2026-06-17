@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useCallback, useMemo, useRef, type MouseEvent } from "react";
 import {
   Background,
   Controls,
   Handle,
+  MarkerType,
   MiniMap,
   Position,
   ReactFlow,
@@ -28,7 +29,6 @@ type DomainNodeData = {
   node: AtlasNode;
   maxCount: number;
   relatedCount: number;
-  dimmed: boolean;
   selectable: boolean;
 };
 
@@ -40,6 +40,20 @@ const X_GAP = 92;
 const Y_GAP = 36;
 const TREE_GAP_X = 140;
 const TREE_GAP_Y = 96;
+
+const TREE_MARKER = {
+  type: MarkerType.ArrowClosed,
+  width: 16,
+  height: 16,
+  color: "var(--border)",
+} as const;
+
+const RELATION_MARKER = {
+  type: MarkerType.ArrowClosed,
+  width: 16,
+  height: 16,
+  color: "var(--primary)",
+} as const;
 
 function buildAtlas(categories: Category[], thoughts: ThoughtSummaryDTO[]): AtlasNode[] {
   const nodes = new Map<string, AtlasNode>();
@@ -157,11 +171,12 @@ function layoutSubtree(root: AtlasNode, maxCount: number) {
       id: node.id,
       type: "domain",
       position: { x: depth * (NODE_W + X_GAP), y: centerSlot * (NODE_H + Y_GAP) },
+      width: NODE_W,
+      height: NODE_H,
       data: {
         node,
         maxCount,
         relatedCount: 0,
-        dimmed: false,
         selectable: Boolean(node.categoryId),
       },
     });
@@ -173,6 +188,7 @@ function layoutSubtree(root: AtlasNode, maxCount: number) {
         source: node.id,
         target: child.id,
         type: "smoothstep",
+        markerEnd: TREE_MARKER,
         style: { stroke: "var(--border)", strokeWidth: 1.4 },
       });
       childSlot = visit(child, depth + 1, childSlot);
@@ -225,10 +241,12 @@ function buildDomainRelations(
       source,
       target,
       type: "smoothstep",
+      className: "overview-relation-edge",
+      markerEnd: RELATION_MARKER,
       selectable: false,
       data: { count },
       style: {
-        stroke: "var(--ring)",
+        stroke: "var(--primary)",
         strokeWidth: Math.min(3, 1 + count * 0.35),
         opacity: 0.18,
         strokeDasharray: "5 6",
@@ -237,14 +255,65 @@ function buildDomainRelations(
   });
 }
 
-function relatedIds(edges: Edge[], id: string | null) {
-  if (!id) return new Set<string>();
-  const ids = new Set([id]);
+function buildRelationIndex(edges: Edge[]) {
+  const relatedByNode = new Map<string, Set<string>>();
+  const edgeIdsByNode = new Map<string, Set<string>>();
   for (const edge of edges) {
-    if (edge.source === id) ids.add(edge.target);
-    if (edge.target === id) ids.add(edge.source);
+    const sourceRelated = relatedByNode.get(edge.source) ?? new Set([edge.source]);
+    sourceRelated.add(edge.target);
+    relatedByNode.set(edge.source, sourceRelated);
+
+    const targetRelated = relatedByNode.get(edge.target) ?? new Set([edge.target]);
+    targetRelated.add(edge.source);
+    relatedByNode.set(edge.target, targetRelated);
+
+    const sourceEdges = edgeIdsByNode.get(edge.source) ?? new Set<string>();
+    sourceEdges.add(edge.id);
+    edgeIdsByNode.set(edge.source, sourceEdges);
+
+    const targetEdges = edgeIdsByNode.get(edge.target) ?? new Set<string>();
+    targetEdges.add(edge.id);
+    edgeIdsByNode.set(edge.target, targetEdges);
   }
-  return ids;
+  return { relatedByNode, edgeIdsByNode };
+}
+
+function clearHover(root: HTMLElement) {
+  root.classList.remove("is-overview-hovering");
+  root
+    .querySelectorAll(".is-overview-related, .is-overview-dimmed, .is-overview-edge-active")
+    .forEach((element) => {
+      element.classList.remove(
+        "is-overview-related",
+        "is-overview-dimmed",
+        "is-overview-edge-active",
+      );
+    });
+}
+
+function applyHover(
+  root: HTMLElement,
+  nodeId: string,
+  relationIndex: ReturnType<typeof buildRelationIndex>,
+) {
+  clearHover(root);
+  root.classList.add("is-overview-hovering");
+
+  const related = relationIndex.relatedByNode.get(nodeId) ?? new Set([nodeId]);
+  const activeEdgeIds = relationIndex.edgeIdsByNode.get(nodeId) ?? new Set<string>();
+
+  root.querySelectorAll<HTMLElement>(".react-flow__node").forEach((element) => {
+    const id = element.dataset.id;
+    if (!id) return;
+    element.classList.add(related.has(id) ? "is-overview-related" : "is-overview-dimmed");
+  });
+
+  root.querySelectorAll<HTMLElement>(".overview-relation-edge").forEach((element) => {
+    const id = element.dataset.id;
+    if (id && activeEdgeIds.has(id)) {
+      element.classList.add("is-overview-edge-active");
+    }
+  });
 }
 
 function HiddenHandles() {
@@ -268,10 +337,9 @@ function DomainNode({ data }: NodeProps<DomainFlowNode>) {
       type="button"
       disabled={!data.selectable}
       className={cn(
-        "w-[240px] rounded-md border border-border bg-card px-4 py-3 text-left text-card-foreground shadow-xs transition-colors",
+        "overview-domain-card w-[240px] rounded-md border border-border bg-card px-4 py-3 text-left text-card-foreground shadow-xs transition-colors",
         "hover:border-primary/50 hover:bg-accent disabled:pointer-events-none disabled:bg-muted/30 disabled:text-muted-foreground",
         data.relatedCount > 0 && "ring-1 ring-ring/20",
-        data.dimmed && "opacity-35",
       )}
     >
       <HiddenHandles />
@@ -306,7 +374,7 @@ function DomainNode({ data }: NodeProps<DomainFlowNode>) {
 const NODE_TYPES = { domain: DomainNode };
 
 function miniMapNodeColor(node: DomainFlowNode) {
-  return node.data.node.categoryId ? "var(--card)" : "var(--muted)";
+  return node.data.node.categoryId ? "var(--primary)" : "var(--muted-foreground)";
 }
 
 export function OverviewAtlas({
@@ -318,66 +386,80 @@ export function OverviewAtlas({
   thoughts: ThoughtSummaryDTO[];
   onSelectCategory: (categoryId: string) => void;
 }) {
-  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const atlas = buildAtlas(categories, thoughts);
-  const { nodes: treeNodes, edges: treeEdges } = layoutTree(atlas);
-  const visibleCategoryIds = new Set(
-    treeNodes.flatMap((node) => (node.data.node.categoryId ? [node.data.node.categoryId] : [])),
+  const rootRef = useRef<HTMLDivElement>(null);
+  const atlas = useMemo(() => buildAtlas(categories, thoughts), [categories, thoughts]);
+  const { nodes: treeNodes, edges: treeEdges } = useMemo(() => layoutTree(atlas), [atlas]);
+  const visibleCategoryIds = useMemo(
+    () =>
+      new Set(
+        treeNodes.flatMap((node) => (node.data.node.categoryId ? [node.data.node.categoryId] : [])),
+      ),
+    [treeNodes],
   );
-  const relationEdges = buildDomainRelations(thoughts, visibleCategoryIds);
-  const related = relatedIds(relationEdges, hoveredNodeId);
-  const relationCounts = new Map<string, number>();
-  for (const edge of relationEdges) {
-    const count = Number((edge.data as { count?: number } | undefined)?.count ?? 0);
-    relationCounts.set(edge.source, (relationCounts.get(edge.source) ?? 0) + count);
-    relationCounts.set(edge.target, (relationCounts.get(edge.target) ?? 0) + count);
-  }
-  const nodes = treeNodes.map((node) => ({
-    ...node,
-    data: {
-      ...node.data,
-      relatedCount: relationCounts.get(node.id) ?? 0,
-      dimmed: hoveredNodeId !== null && !related.has(node.id),
-    },
-  }));
-  const edges = [
-    ...relationEdges.map((edge) => {
-      const active =
-        hoveredNodeId !== null && (edge.source === hoveredNodeId || edge.target === hoveredNodeId);
-      return {
+  const relationEdges = useMemo(
+    () => buildDomainRelations(thoughts, visibleCategoryIds),
+    [thoughts, visibleCategoryIds],
+  );
+  const relationIndex = useMemo(() => buildRelationIndex(relationEdges), [relationEdges]);
+  const relationCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const edge of relationEdges) {
+      const count = Number((edge.data as { count?: number } | undefined)?.count ?? 0);
+      counts.set(edge.source, (counts.get(edge.source) ?? 0) + count);
+      counts.set(edge.target, (counts.get(edge.target) ?? 0) + count);
+    }
+    return counts;
+  }, [relationEdges]);
+  const nodes = useMemo(
+    () =>
+      treeNodes.map((node) => ({
+        ...node,
+        data: { ...node.data, relatedCount: relationCounts.get(node.id) ?? 0 },
+      })),
+    [treeNodes, relationCounts],
+  );
+  const edges = useMemo(
+    () => [
+      ...relationEdges,
+      ...treeEdges.map((edge) => ({
         ...edge,
-        animated: active,
-        style: {
-          ...edge.style,
-          opacity: active ? 0.78 : hoveredNodeId ? 0.06 : edge.style?.opacity,
-          strokeWidth: active
-            ? Math.max(Number(edge.style?.strokeWidth ?? 1), 2.4)
-            : edge.style?.strokeWidth,
-        },
-      };
-    }),
-    ...treeEdges.map((edge) => ({
-      ...edge,
-      style: {
-        ...edge.style,
-        opacity: hoveredNodeId && !related.has(edge.source) && !related.has(edge.target) ? 0.12 : 1,
-      },
-    })),
-  ];
+        className: "overview-tree-edge",
+      })),
+    ],
+    [relationEdges, treeEdges],
+  );
+  const handleNodeMouseEnter = useCallback(
+    (_: MouseEvent, node: DomainFlowNode) => {
+      if (rootRef.current) applyHover(rootRef.current, node.id, relationIndex);
+    },
+    [relationIndex],
+  );
+  const handleNodeMouseLeave = useCallback(() => {
+    if (rootRef.current) clearHover(rootRef.current);
+  }, []);
+  const handlePaneMouseEnter = useCallback(() => {
+    if (rootRef.current) clearHover(rootRef.current);
+  }, []);
+
+  const handleNodeClick = useCallback(
+    (_: MouseEvent, node: DomainFlowNode) => {
+      if (node.data.node.categoryId) onSelectCategory(node.data.node.categoryId);
+    },
+    [onSelectCategory],
+  );
 
   return (
-    <div className="absolute inset-0 bg-background">
+    <div ref={rootRef} className="contemplate-overview absolute inset-0 bg-background">
       <ReactFlow
         colorMode="system"
         className="bg-background text-foreground"
         nodes={nodes}
         edges={edges}
         nodeTypes={NODE_TYPES}
-        onNodeClick={(_, node) => {
-          if (node.data.node.categoryId) onSelectCategory(node.data.node.categoryId);
-        }}
-        onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
-        onNodeMouseLeave={() => setHoveredNodeId(null)}
+        onNodeClick={handleNodeClick}
+        onNodeMouseEnter={handleNodeMouseEnter}
+        onNodeMouseLeave={handleNodeMouseLeave}
+        onPaneMouseEnter={handlePaneMouseEnter}
         fitView
         fitViewOptions={{ padding: 0.28 }}
         minZoom={0.24}

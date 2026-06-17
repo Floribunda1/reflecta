@@ -1,4 +1,4 @@
-/** Graph canvas powered by AntV G6 with ForceAtlas2 layout. */
+/** Graph canvas powered by React Flow. */
 import { useMemo } from "react";
 import { GitBranch } from "lucide-react";
 import type { Category } from "@shared/category";
