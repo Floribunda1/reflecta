@@ -93,7 +93,10 @@ export function extractIds(arr: Array<{ id?: string }>): string[] {
 export function queryDb<T extends Record<string, unknown> = Record<string, unknown>>(
   sql: string,
 ): T[] {
-  const dbPath = process.env.REFLECTA_DB_PATH ?? "/tmp/reflecta-cli-test.db";
+  const dbPath = process.env.REFLECTA_DB_PATH;
+  if (!dbPath) {
+    throw new Error("REFLECTA_DB_PATH is required for test database queries.");
+  }
   try {
     const output = execSync(`sqlite3 "${dbPath}" -json "${sql}"`, {
       encoding: "utf-8",

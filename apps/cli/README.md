@@ -77,6 +77,12 @@ In the CLI, write `[[thought title#target-thought-id]]` in `thought create --bod
 
 ## Development
 
+CLI tests require `REFLECTA_TEST_DB_PATH` in the repo root `.env.test`:
+
+```dotenv
+REFLECTA_TEST_DB_PATH=/tmp/reflecta-cli-test.db
+```
+
 ```bash
 bun run --filter '@reflecta/cli' typecheck
 bun run --filter '@reflecta/cli' test

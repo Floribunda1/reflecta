@@ -2,9 +2,13 @@ import { beforeAll } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
+import { loadEnv } from "vite";
 
-// Each test file gets its own isolated database to avoid concurrent seed conflicts.
-const TEST_DB_PATH = `/tmp/reflecta-cli-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.db`;
+const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
+const TEST_DB_PATH = loadEnv("test", REPO_ROOT, "").REFLECTA_TEST_DB_PATH;
+if (!TEST_DB_PATH) {
+  throw new Error("REFLECTA_TEST_DB_PATH is required. Set it in the repo root .env.test.");
+}
 process.env.REFLECTA_DB_PATH = TEST_DB_PATH;
 
 const SEED_SCRIPT = path.resolve(import.meta.dirname, "../scripts/seed-test-data.ts");
