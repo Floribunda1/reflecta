@@ -57,9 +57,6 @@ function ThreadChat({
 
   return (
     <main className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-l bg-transparent">
-      <header className="flex h-12 shrink-0 items-center border-b px-4">
-        <h2 className="text-sm font-medium text-foreground">Agent</h2>
-      </header>
       <div className="relative min-h-0 flex-1">
         <div
           ref={threadView.scrollRef}
