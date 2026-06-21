@@ -1,12 +1,12 @@
 import { ipcMain } from "electron";
 import type { IpcMainInvokeEvent } from "electron";
 import { createServices } from "electron-ipc-decorator";
-import { AiService } from "./AiService";
 import { AssetService } from "./AssetService";
 import { CategoryService } from "./CategoryService";
 import { ChatService } from "./ChatService";
 import { ConfigService } from "./ConfigService";
 import { ContextService } from "./ContextService";
+import { DiagnosticsService } from "./DiagnosticsService";
 import { SearchService } from "./SearchService";
 import { ThoughtService } from "./ThoughtService";
 import { TrashService } from "./TrashService";
@@ -41,11 +41,11 @@ ipcMain.handle = (channel: string, listener: IpcHandleListener) => {
 };
 
 export const services = createServices([
-  AiService,
   AssetService,
   CategoryService,
   ChatService,
   ConfigService,
+  DiagnosticsService,
   ThoughtService,
   ContextService,
   SearchService,

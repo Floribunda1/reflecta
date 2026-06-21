@@ -8,7 +8,7 @@ import electron from "vite-plugin-electron/simple";
 
 const appRoot = fileURLToPath(new URL(".", import.meta.url));
 
-const mainExternals = ["@libsql/client"];
+const mainExternals = ["better-sqlite3", "libsql"];
 
 const esmOutput = {
   format: "es" as const,

@@ -1,13 +1,19 @@
 import { getDBInstance } from "@main/db";
 import {
+  CategoryCliBff,
   CategoryElectronBff,
+  ContextCliBff,
   ContextElectronBff,
+  GraphCliBff,
+  SearchCliBff,
   SearchElectronBff,
+  SnapshotCliBff,
+  ThoughtCliBff,
   ThoughtElectronBff,
   TrashElectronBff,
 } from "@reflecta/server";
-import { ChatRepository } from "./chat/repository";
-import { ChatRuntime } from "./chat/runtime";
+import { AgentRepository } from "./agent/repository";
+import { AgentRuntime } from "./agent/runtime";
 
 const options = { getDb: getDBInstance };
 
@@ -23,21 +29,18 @@ function createLazy<T extends object>(factory: () => T): T {
 }
 
 export const thoughtService = createLazy(() => new ThoughtElectronBff(options));
+export const thoughtCliService = createLazy(() => new ThoughtCliBff(getDBInstance()));
 export const categoryService = createLazy(() => new CategoryElectronBff(options));
+export const categoryCliService = createLazy(() => new CategoryCliBff(getDBInstance()));
 export const contextService = createLazy(() => new ContextElectronBff(options));
+export const contextCliService = createLazy(() => new ContextCliBff(getDBInstance()));
 export const searchService = createLazy(
   () => new SearchElectronBff({ ...options, thoughtService }),
 );
+export const searchCliService = createLazy(() => new SearchCliBff(getDBInstance()));
+export const graphService = createLazy(() => new GraphCliBff(getDBInstance()));
+export const snapshotService = createLazy(() => new SnapshotCliBff(getDBInstance()));
 export const trashService = createLazy(() => new TrashElectronBff(options));
 
-export const chatRepository = createLazy(() => new ChatRepository(getDBInstance));
-
-export const chatRuntime = createLazy(() => {
-  return new ChatRuntime(chatRepository, {
-    thoughtService,
-    contextService,
-    searchService,
-    categoryService,
-    getDb: getDBInstance,
-  });
-});
+export const agentRepository = createLazy(() => new AgentRepository(getDBInstance));
+export const agentRuntime = createLazy(() => new AgentRuntime(agentRepository));

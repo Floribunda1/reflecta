@@ -16,6 +16,11 @@ export class CategoryService extends IpcService {
   }
 
   @IpcMethod()
+  async getCategoryById(id: string): Promise<Category | null> {
+    return categoryService.getCategoryById(id);
+  }
+
+  @IpcMethod()
   async reorderCategories(items: ReorderCategoryItem[]): Promise<void> {
     return categoryService.reorderCategories(items);
   }

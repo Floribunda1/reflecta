@@ -1,6 +1,7 @@
 # Electron output
 out
 dist
+index.html
 
 # OS specific
 .DS_Store

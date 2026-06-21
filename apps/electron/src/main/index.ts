@@ -4,10 +4,14 @@ import { merge } from "lodash-es";
 import "./services";
 import { initializeDB } from "./db";
 import { registerAssetScheme, handleAssetProtocol } from "./assetProtocol";
+import { APP_NAME, appLog, initializeLogging } from "./logger";
 import { preloadScript, rendererHtml } from "./paths";
 
 // Register asset:// as a privileged scheme before app is ready
 registerAssetScheme();
+app.setName(APP_NAME);
+initializeLogging();
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
 const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?: string) => {
   // Create the browser window.
@@ -71,38 +75,49 @@ const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?:
   }
 };
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.whenReady().then(async () => {
-  await initializeDB();
-
-  nativeTheme.themeSource = "system";
-
-  // Serve local assets via asset:// protocol
-  handleAssetProtocol();
-
-  // Set app user model id for windows
-  electronApp.setAppUserModelId("com.electron");
-
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-  app.on("browser-window-created", (_, window) => {
-    optimizer.watchWindowShortcuts(window);
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    const [window] = BrowserWindow.getAllWindows();
+    if (!window) return;
+    if (window.isMinimized()) window.restore();
+    window.focus();
   });
 
-  // IPC test
-  ipcMain.on("ping", () => console.log("pong"));
+  // This method will be called when Electron has finished
+  // initialization and is ready to create browser windows.
+  // Some APIs can only be used after this event occurs.
+  app.whenReady().then(async () => {
+    await initializeDB();
 
-  createWindow();
+    nativeTheme.themeSource = "system";
 
-  app.on("activate", () => {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    // Serve local assets via asset:// protocol
+    handleAssetProtocol();
+
+    // Set app user model id for windows
+    electronApp.setAppUserModelId("com.electron");
+
+    // Default open or close DevTools by F12 in development
+    // and ignore CommandOrControl + R in production.
+    // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+    app.on("browser-window-created", (_, window) => {
+      optimizer.watchWindowShortcuts(window);
+    });
+
+    // IPC test
+    ipcMain.on("ping", () => appLog.debug("ipc.ping"));
+
+    createWindow();
+
+    app.on("activate", () => {
+      // On macOS it's common to re-create a window in the app when the
+      // dock icon is clicked and there are no other windows open.
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
   });
-});
+}
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits

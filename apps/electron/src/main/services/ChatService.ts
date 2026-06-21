@@ -1,68 +1,57 @@
-import type {
-  CancelStreamInput,
-  ChatMessageDTO,
-  ConfirmToolCallInput,
-  ConversationDTO,
-  SendMessageInput,
-  SendMessageResult,
-} from "@shared/chat";
 import { getIpcContext, IpcMethod, IpcService } from "electron-ipc-decorator";
-import { chatRuntime } from "./core";
+import type { CancelAgentRunInput, SendAgentMessageInput } from "@shared/chat";
+import { ipcLog } from "../logger";
+import { agentRuntime } from "./core";
 
 export class ChatService extends IpcService {
   static readonly groupName = "chat";
 
   @IpcMethod()
-  listConversations(): Promise<ConversationDTO[]> {
-    return chatRuntime.listConversations();
+  listThreads() {
+    return agentRuntime.listThreads();
   }
 
   @IpcMethod()
-  createConversation(title?: string): Promise<ConversationDTO> {
-    return chatRuntime.createConversation(title);
+  createThread(title?: string) {
+    return agentRuntime.createThread(title);
   }
 
   @IpcMethod()
-  getConversation(conversationId: string): Promise<ConversationDTO | null> {
-    return chatRuntime.getConversation(conversationId);
+  renameThread(threadId: string, title: string) {
+    return agentRuntime.renameThread(threadId, title);
   }
 
   @IpcMethod()
-  renameConversation(conversationId: string, title: string): Promise<void> {
-    return chatRuntime.renameConversation(conversationId, title);
+  archiveThread(threadId: string) {
+    return agentRuntime.archiveThread(threadId);
   }
 
   @IpcMethod()
-  deleteConversation(conversationId: string): Promise<void> {
-    return chatRuntime.deleteConversation(conversationId);
+  deleteThread(threadId: string) {
+    return agentRuntime.deleteThread(threadId);
   }
 
   @IpcMethod()
-  getMessages(conversationId: string): Promise<ChatMessageDTO[]> {
-    return chatRuntime.getMessages(conversationId);
+  getMessages(threadId: string) {
+    return agentRuntime.getMessages(threadId);
   }
 
   @IpcMethod()
-  sendMessage(input: SendMessageInput): Promise<SendMessageResult> {
+  sendMessage(input: SendAgentMessageInput) {
     const ctx = getIpcContext();
-    return chatRuntime.sendMessage({
-      ...input,
-      webContents: ctx.sender,
+    ipcLog.info("chat.sendMessage", {
+      requestId: input.requestId,
+      threadId: input.threadId,
+      messages: input.messages.length,
+      modelSelection: input.modelSelection,
+      reasoningLevel: input.reasoningLevel,
     });
+    return agentRuntime.sendMessage({ ...input, webContents: ctx.sender });
   }
 
   @IpcMethod()
-  confirmToolCall(input: ConfirmToolCallInput): Promise<void> {
-    return chatRuntime.confirmToolCall(input);
-  }
-
-  @IpcMethod()
-  rejectToolCall(input: ConfirmToolCallInput): Promise<void> {
-    return chatRuntime.confirmToolCall({ ...input, approved: false });
-  }
-
-  @IpcMethod()
-  cancelStream(input: CancelStreamInput): Promise<void> {
-    return chatRuntime.cancel(input);
+  cancelStream(input: CancelAgentRunInput) {
+    ipcLog.info("chat.cancelStream", { requestId: input.requestId });
+    return agentRuntime.cancel(input.requestId);
   }
 }

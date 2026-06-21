@@ -16,6 +16,11 @@ export class ContextService extends IpcService {
   }
 
   @IpcMethod()
+  async getContextById(id: string): Promise<ContextDTO | null> {
+    return contextService.getContextById(id);
+  }
+
+  @IpcMethod()
   async createContext(input: CreateContextInput): Promise<ContextDTO> {
     return contextService.createContext(input);
   }

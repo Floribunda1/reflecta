@@ -1,7 +1,16 @@
 import { app, dialog } from "electron";
 import { IpcMethod, IpcService } from "electron-ipc-decorator";
-import type { AiProviderConfig } from "../config";
-import { getStorageRoot, readConfig, writeConfig } from "../config";
+import type { AiConfig, AiModelOption, AiModelSelection, AiProviderCatalogItem } from "../config";
+import {
+  getActiveAiModelSelection,
+  getAiConfig,
+  getAiModelOptions,
+  getAiProviderCatalog,
+  getContentStorageRoot,
+  normalizeAiConfig,
+  readConfig,
+  writeConfig,
+} from "../config";
 
 export class ConfigService extends IpcService {
   static readonly groupName = "config";
@@ -17,8 +26,8 @@ export class ConfigService extends IpcService {
   }
 
   @IpcMethod()
-  async setStoragePath(newPath: string): Promise<void> {
-    writeConfig({ storagePath: newPath || undefined });
+  async setContentStorageRoot(newPath: string): Promise<void> {
+    writeConfig({ contentStorageRoot: newPath || undefined });
   }
 
   @IpcMethod()
@@ -28,21 +37,55 @@ export class ConfigService extends IpcService {
   }
 
   @IpcMethod()
-  async getConfig(): Promise<{ storagePath: string; isCustomPath: boolean }> {
+  async getConfig(): Promise<{
+    contentStorageRoot: string;
+    isCustomContentStorageRoot: boolean;
+  }> {
     const config = readConfig();
     return {
-      storagePath: getStorageRoot(),
-      isCustomPath: !!config.storagePath,
+      contentStorageRoot: getContentStorageRoot(),
+      isCustomContentStorageRoot: !!config.contentStorageRoot,
     };
   }
 
   @IpcMethod()
-  async getAiConfig(): Promise<AiProviderConfig> {
-    return readConfig().aiProvider ?? { apiKey: "", baseUrl: "", model: "" };
+  async getAiConfig(): Promise<AiConfig> {
+    return getAiConfig();
   }
 
   @IpcMethod()
-  async setAiConfig(config: AiProviderConfig): Promise<void> {
-    writeConfig({ aiProvider: config });
+  async setAiConfig(config: AiConfig): Promise<void> {
+    writeConfig({ ai: normalizeAiConfig(config) });
+  }
+
+  @IpcMethod()
+  async listAiModelOptions(): Promise<AiModelOption[]> {
+    return getAiModelOptions();
+  }
+
+  @IpcMethod()
+  async listAiProviderCatalog(): Promise<AiProviderCatalogItem[]> {
+    return getAiProviderCatalog();
+  }
+
+  @IpcMethod()
+  async getActiveAgentModel(): Promise<AiModelSelection | null> {
+    return getActiveAiModelSelection() ?? null;
+  }
+
+  @IpcMethod()
+  async setActiveAgentModel(selection: AiModelSelection): Promise<void> {
+    const ai = getAiConfig();
+    const requested = {
+      providerId: selection.providerId.trim(),
+      modelId: selection.modelId.trim(),
+    };
+    const exists = getAiModelOptions(ai).some(
+      (option) =>
+        option.providerId === requested.providerId && option.modelId === requested.modelId,
+    );
+    if (!exists) throw new Error("请选择可用的 AI 模型");
+    const next = normalizeAiConfig({ ...ai, activeAgentModel: requested });
+    writeConfig({ ai: next });
   }
 }

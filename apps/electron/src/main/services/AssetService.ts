@@ -6,7 +6,7 @@ import { contexts, thoughts } from "@reflecta/server";
 import type { OrphanAssetInfo } from "@shared/asset";
 import { IpcMethod, IpcService } from "electron-ipc-decorator";
 import { nanoid } from "nanoid";
-import { getStorageRoot } from "../config";
+import { getContentStorageRoot } from "../config";
 
 /** Extract all asset filenames referenced in a piece of markdown/html content. */
 function extractAssetRefs(content: string): Set<string> {
@@ -25,7 +25,7 @@ export class AssetService extends IpcService {
 
   @IpcMethod()
   async saveAsset(buffer: ArrayBuffer, filename: string): Promise<string> {
-    const dir = join(getStorageRoot(), "assets");
+    const dir = join(getContentStorageRoot(), "assets");
     await mkdir(dir, { recursive: true });
     const ext = extname(filename) || ".bin";
     const id = `${nanoid()}${ext}`;
@@ -35,7 +35,7 @@ export class AssetService extends IpcService {
 
   @IpcMethod()
   async scanOrphanAssets(): Promise<OrphanAssetInfo[]> {
-    const assetsDir = join(getStorageRoot(), "assets");
+    const assetsDir = join(getContentStorageRoot(), "assets");
     await mkdir(assetsDir, { recursive: true });
 
     // Collect all files present on disk
@@ -72,7 +72,7 @@ export class AssetService extends IpcService {
   @IpcMethod()
   async cleanOrphanAssets(filenames: string[]): Promise<number> {
     if (filenames.length === 0) return 0;
-    const assetsDir = join(getStorageRoot(), "assets");
+    const assetsDir = join(getContentStorageRoot(), "assets");
     // Re-validate against current references before deleting
     const orphans = await this.scanOrphanAssets();
     const safeToDelete = new Set(orphans.map((o) => o.filename));
@@ -92,14 +92,14 @@ export class AssetService extends IpcService {
   @IpcMethod()
   async openAsset(filename: string): Promise<void> {
     if (filename.includes("/") || filename.includes("\\")) return;
-    const filePath = join(getStorageRoot(), "assets", filename);
+    const filePath = join(getContentStorageRoot(), "assets", filename);
     await shell.openPath(filePath);
   }
 
   @IpcMethod()
   async revealAsset(filename: string): Promise<void> {
     if (filename.includes("/") || filename.includes("\\")) return;
-    const filePath = join(getStorageRoot(), "assets", filename);
+    const filePath = join(getContentStorageRoot(), "assets", filename);
     shell.showItemInFolder(filePath);
   }
 }
