@@ -9,7 +9,7 @@
 > 上游文档：
 >
 > - `docs/iterations/references/value-proposition.md`
-> - `docs/iterations/v2/product/agent-chat-system-feature-set.md`
+> - `docs/iterations/v1.0.0/product/agent-chat-system-feature-set.md`
 
 ## 上游约束
 

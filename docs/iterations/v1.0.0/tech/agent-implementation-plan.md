@@ -8,9 +8,9 @@
 >
 > 上游文档：
 >
-> - `docs/iterations/v2/product/agent-value-proposition.md`
-> - `docs/iterations/v2/product/agent-tools-and-ui-discussion.md`
-> - `docs/iterations/v2/test-cases/`
+> - `docs/iterations/v1.0.0/product/agent-value-proposition.md`
+> - `docs/iterations/v1.0.0/product/agent-tools-and-ui-discussion.md`
+> - `docs/iterations/v1.0.0/test-cases/`
 
 ## 1. 当前代码基线（实施前）
 
@@ -24,7 +24,7 @@
   - `agent_threads`、`agent_messages`、`agent_tool_invocations`、`agent_runs`。
 - Current tools：`apps/electron/src/main/services/agent/tools.ts`
   - 旧工具名：`search_knowledge_base`、`get_thought_detail`、`get_graph_neighborhood`、`propose_*`。
-- Feature tests：`docs/iterations/v2/test-cases/*.feature`
+- Feature tests：`docs/iterations/v1.0.0/test-cases/*.feature`
   - 当前作为实现验收清单，不是自动化测试入口。
 
 主要差距：

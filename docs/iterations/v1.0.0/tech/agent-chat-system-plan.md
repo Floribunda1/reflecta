@@ -8,8 +8,8 @@
 >
 > 上游文档：
 >
-> - `docs/iterations/v2/product/agent-tech-selection.md`
-> - `docs/iterations/v2/product/agent-chat-system-feature-set.md`
+> - `docs/iterations/v1.0.0/product/agent-tech-selection.md`
+> - `docs/iterations/v1.0.0/product/agent-chat-system-feature-set.md`
 
 ## 1. 社区共识
 

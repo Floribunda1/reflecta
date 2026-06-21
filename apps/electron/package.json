@@ -1,6 +1,6 @@
 {
   "name": "@reflecta/electron",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Reflecta Electron application",
   "homepage": "https://github.com/electron-vite/vite-plugin-electron",
   "author": "example.com",

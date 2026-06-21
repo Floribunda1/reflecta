@@ -9,8 +9,8 @@
 > 上游文档：
 >
 > - `docs/iterations/references/value-proposition.md`
-> - `docs/iterations/v2/product/agent-value-proposition.md`
-> - `docs/iterations/v2/product/agent-chat-system-feature-set.md`
+> - `docs/iterations/v1.0.0/product/agent-value-proposition.md`
+> - `docs/iterations/v1.0.0/product/agent-chat-system-feature-set.md`
 
 ## 1. 基本前提
 

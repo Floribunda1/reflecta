@@ -8,8 +8,8 @@
 >
 > 上游文档：
 >
-> - `docs/iterations/v2/product/agent-product-taste-requirements.md`
-> - `docs/iterations/v2/product/agent-ux-gap-analysis.md`
+> - `docs/iterations/v1.0.0/product/agent-product-taste-requirements.md`
+> - `docs/iterations/v1.0.0/product/agent-ux-gap-analysis.md`
 > - `CONTEXT.md`
 
 ## 1. Problem
