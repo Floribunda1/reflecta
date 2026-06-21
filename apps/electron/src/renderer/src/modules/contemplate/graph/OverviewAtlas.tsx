@@ -14,6 +14,7 @@ import {
 import type { Category } from "@shared/category";
 import type { ThoughtSummaryDTO } from "@shared/thought";
 import { cn } from "@renderer/lib/utils";
+import { layoutDagreGraph } from "./dagre-layout";
 
 type AtlasNode = {
   id: string;
@@ -39,7 +40,6 @@ const NODE_H = 92;
 const X_GAP = 92;
 const Y_GAP = 36;
 const TREE_GAP_X = 140;
-const TREE_GAP_Y = 96;
 
 const TREE_MARKER = {
   type: MarkerType.ArrowClosed,
@@ -125,85 +125,40 @@ function buildAtlas(categories: Category[], thoughts: ThoughtSummaryDTO[]): Atla
   return result;
 }
 
-function subtreeSlots(node: AtlasNode): number {
-  if (node.children.length === 0) return 1;
-  return Math.max(
-    1,
-    node.children.reduce((sum, child) => sum + subtreeSlots(child), 0),
-  );
-}
-
 function layoutTree(roots: AtlasNode[]) {
   const allNodes = roots.flatMap(flattenAtlas);
-  const maxCount = Math.max(...allNodes.map((node) => node.count), 1);
-  const treeLayouts = roots.map((root) => layoutSubtree(root, maxCount));
-  const columnCount = Math.min(2, treeLayouts.length);
-  const columnWidth = Math.max(...treeLayouts.map((layout) => layout.width), NODE_W) + TREE_GAP_X;
-  const columnHeights = Array.from({ length: columnCount }, () => 0);
-  const nodes: DomainFlowNode[] = [];
-  const edges: Edge[] = [];
-
-  for (const layout of treeLayouts) {
-    const col = columnHeights.indexOf(Math.min(...columnHeights));
-    const offsetX = col * columnWidth;
-    const offsetY = columnHeights[col];
-    nodes.push(
-      ...layout.nodes.map((node) => ({
-        ...node,
-        position: { x: node.position.x + offsetX, y: node.position.y + offsetY },
-      })),
-    );
-    edges.push(...layout.edges);
-    columnHeights[col] += layout.height + TREE_GAP_Y;
-  }
+  const maxCount = Math.max(1, ...allNodes.map((node) => node.count));
+  const treeLinks = allNodes.flatMap((node) =>
+    node.children.map((child) => ({ source: node.id, target: child.id })),
+  );
+  const positions = layoutDagreGraph(
+    allNodes.map((node) => ({ id: node.id, width: NODE_W, height: NODE_H })),
+    treeLinks,
+    { rankdir: "LR", nodesep: Y_GAP, ranksep: X_GAP + TREE_GAP_X / 2 },
+  );
+  const nodes: DomainFlowNode[] = allNodes.map((node) => ({
+    id: node.id,
+    type: "domain",
+    position: positions.get(node.id) ?? { x: 0, y: 0 },
+    width: NODE_W,
+    height: NODE_H,
+    data: {
+      node,
+      maxCount,
+      relatedCount: 0,
+      selectable: Boolean(node.categoryId),
+    },
+  }));
+  const edges: Edge[] = treeLinks.map((link) => ({
+    id: `${link.source}->${link.target}`,
+    source: link.source,
+    target: link.target,
+    type: "smoothstep",
+    markerEnd: TREE_MARKER,
+    style: { stroke: "var(--border)", strokeWidth: 1.4 },
+  }));
 
   return { nodes, edges };
-}
-
-function layoutSubtree(root: AtlasNode, maxCount: number) {
-  const nodes: DomainFlowNode[] = [];
-  const edges: Edge[] = [];
-
-  const visit = (node: AtlasNode, depth: number, slotStart: number): number => {
-    const slots = subtreeSlots(node);
-    const centerSlot = slotStart + (slots - 1) / 2;
-    nodes.push({
-      id: node.id,
-      type: "domain",
-      position: { x: depth * (NODE_W + X_GAP), y: centerSlot * (NODE_H + Y_GAP) },
-      width: NODE_W,
-      height: NODE_H,
-      data: {
-        node,
-        maxCount,
-        relatedCount: 0,
-        selectable: Boolean(node.categoryId),
-      },
-    });
-
-    let childSlot = slotStart;
-    for (const child of node.children) {
-      edges.push({
-        id: `${node.id}->${child.id}`,
-        source: node.id,
-        target: child.id,
-        type: "smoothstep",
-        markerEnd: TREE_MARKER,
-        style: { stroke: "var(--border)", strokeWidth: 1.4 },
-      });
-      childSlot = visit(child, depth + 1, childSlot);
-    }
-    return slotStart + slots;
-  };
-
-  const slots = visit(root, 0, 0);
-  const maxDepth = Math.max(...nodes.map((node) => node.position.x / (NODE_W + X_GAP)), 0);
-  return {
-    nodes,
-    edges,
-    width: (maxDepth + 1) * NODE_W + maxDepth * X_GAP,
-    height: slots * NODE_H + Math.max(0, slots - 1) * Y_GAP,
-  };
 }
 
 function flattenAtlas(node: AtlasNode): AtlasNode[] {

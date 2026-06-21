@@ -1,0 +1,40 @@
+@use "./config" as *;
+
+#{$chat-markdown-root} {
+  table {
+    width: 100%;
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--border), var(--foreground) 10%);
+    border-radius: var(--radius-md);
+    border-collapse: separate;
+    border-spacing: 0;
+    background: color-mix(in srgb, var(--muted), var(--background) 35%);
+    font-size: $font-size-body;
+    line-height: 1.45;
+  }
+
+  th,
+  td {
+    border-right: 1px solid color-mix(in srgb, var(--border), var(--foreground) 10%);
+    border-bottom: 1px solid color-mix(in srgb, var(--border), var(--foreground) 10%);
+    background: color-mix(in srgb, var(--muted), var(--background) 35%);
+    padding: 0.38rem 0.55rem;
+    vertical-align: top;
+  }
+
+  th {
+    background: color-mix(in srgb, var(--muted), var(--foreground) 6%);
+    color: var(--foreground);
+    font-weight: 600;
+  }
+
+  tr:last-child td {
+    border-bottom: 0;
+  }
+
+  th:last-child,
+  td:last-child {
+    border-right: 0;
+  }
+}

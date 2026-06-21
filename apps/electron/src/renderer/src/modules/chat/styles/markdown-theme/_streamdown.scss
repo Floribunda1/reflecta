@@ -1,0 +1,79 @@
+@use "./config" as *;
+
+#{$chat-markdown-root} {
+  [data-streamdown="code-block"] {
+    position: relative;
+    margin: 0.8rem 0;
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--muted), var(--background) 58%);
+    padding: 0;
+  }
+
+  [data-streamdown="code-block-header"] {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.65rem;
+    z-index: 1;
+    height: auto;
+    min-height: 0;
+    color: var(--muted-foreground);
+    font-size: 12px;
+    line-height: 18px;
+
+    span {
+      margin-left: 0;
+    }
+  }
+
+  [data-streamdown="code-block-body"] {
+    overflow-x: auto;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0 0.5rem 0 0.5rem;
+    font-size: $font-size-code;
+    line-height: 1.55;
+  }
+
+  [data-streamdown="code-block-actions"] {
+    position: absolute;
+    top: 0.45rem;
+    right: 0.45rem;
+    z-index: 2;
+    pointer-events: auto;
+    gap: 0.125rem;
+    padding: 0.125rem;
+    box-shadow: none;
+  }
+
+  [data-streamdown="code-block-copy-button"],
+  [data-streamdown="code-block-download-button"] {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: var(--radius-sm);
+    color: var(--muted-foreground);
+  }
+
+  [data-streamdown="table-wrapper"] {
+    position: relative;
+    margin: 0.75rem 0;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--muted), var(--background) 35%);
+  }
+
+  [data-streamdown="table-wrapper"] > div:first-child {
+    z-index: 1;
+    gap: 0.25rem;
+    color: var(--muted-foreground);
+
+    & > div {
+      display: flex;
+      align-items: center;
+    }
+  }
+}

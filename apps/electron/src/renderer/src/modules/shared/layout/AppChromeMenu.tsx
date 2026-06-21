@@ -58,7 +58,7 @@ export function AppChromeMenu() {
             onClick={() =>
               openModal(<SettingsDialogContent />, {
                 title: "设置",
-                widthClassName: "w-[min(880px,calc(100vw-3rem))] max-w-none sm:max-w-none",
+                widthClassName: "w-[min(80vw,calc(100vw-3rem))] max-w-none sm:max-w-none",
               })
             }
           >

@@ -24,8 +24,8 @@ function formatSize(bytes: number) {
 
 export function StorageSection() {
   const { confirm } = useModal();
-  const [storagePath, setStoragePath] = useState("");
-  const [isCustomPath, setIsCustomPath] = useState(false);
+  const [contentStorageRoot, setContentStorageRoot] = useState("");
+  const [isCustomContentStorageRoot, setIsCustomContentStorageRoot] = useState(false);
   const [pendingRestart, setPendingRestart] = useState(false);
   const [loading, setLoading] = useState(false);
   const [orphanLoading, setOrphanLoading] = useState(false);
@@ -34,8 +34,8 @@ export function StorageSection() {
 
   useEffect(() => {
     void ipcClient.config.getConfig().then((config) => {
-      setStoragePath(config.storagePath);
-      setIsCustomPath(config.isCustomPath);
+      setContentStorageRoot(config.contentStorageRoot);
+      setIsCustomContentStorageRoot(config.isCustomContentStorageRoot);
     });
   }, []);
 
@@ -44,9 +44,9 @@ export function StorageSection() {
     if (!picked) return;
     setLoading(true);
     try {
-      await ipcClient.config.setStoragePath(picked);
-      setStoragePath(picked);
-      setIsCustomPath(true);
+      await ipcClient.config.setContentStorageRoot(picked);
+      setContentStorageRoot(picked);
+      setIsCustomContentStorageRoot(true);
       setPendingRestart(true);
     } finally {
       setLoading(false);
@@ -56,10 +56,10 @@ export function StorageSection() {
   const handleResetToDefault = async () => {
     setLoading(true);
     try {
-      await ipcClient.config.setStoragePath("");
+      await ipcClient.config.setContentStorageRoot("");
       const config = await ipcClient.config.getConfig();
-      setStoragePath(config.storagePath);
-      setIsCustomPath(false);
+      setContentStorageRoot(config.contentStorageRoot);
+      setIsCustomContentStorageRoot(config.isCustomContentStorageRoot);
       setPendingRestart(true);
     } finally {
       setLoading(false);
@@ -105,9 +105,9 @@ export function StorageSection() {
 
       <section className="border-t border-border/70 pt-5">
         <div>
-          <h4 className="text-sm font-medium text-foreground">数据存储路径</h4>
+          <h4 className="text-sm font-medium text-foreground">数据目录</h4>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            修改后需要重启应用生效，现有数据不会自动迁移。
+            目录内保存知识库数据库和媒体资源。修改后需要重启应用生效，现有数据不会自动迁移。
           </p>
         </div>
         <div className="mt-3 min-w-0 space-y-3">
@@ -115,11 +115,11 @@ export function StorageSection() {
             <Folder size={15} className="shrink-0 text-muted-foreground" />
             <span
               className="min-w-0 flex-1 truncate font-mono text-xs text-foreground"
-              title={storagePath}
+              title={contentStorageRoot}
             >
-              {storagePath}
+              {contentStorageRoot}
             </span>
-            {isCustomPath && <Badge variant="secondary">自定义</Badge>}
+            {isCustomContentStorageRoot && <Badge variant="secondary">自定义</Badge>}
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -132,7 +132,7 @@ export function StorageSection() {
             >
               <FolderOpen size={15} /> 更改目录
             </Button>
-            {isCustomPath && (
+            {isCustomContentStorageRoot && (
               <Button
                 type="button"
                 disabled={loading}
@@ -151,7 +151,7 @@ export function StorageSection() {
         <Alert>
           <TriangleAlert />
           <AlertTitle>需要重启</AlertTitle>
-          <AlertDescription>存储路径已更新，重启应用后生效。</AlertDescription>
+          <AlertDescription>数据目录已更新，重启应用后生效。</AlertDescription>
           <AlertAction>
             <Button type="button" size="sm" onClick={() => void ipcClient.config.restartApp()}>
               立即重启

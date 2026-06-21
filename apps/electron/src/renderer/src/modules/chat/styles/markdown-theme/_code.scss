@@ -1,0 +1,16 @@
+@use "./config" as *;
+
+#{$chat-markdown-root} {
+  pre {
+    margin: 0.8rem 0;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--muted), var(--background) 58%);
+    padding: 0.55rem 0.65rem 0.65rem;
+  }
+
+  pre code {
+    font-size: $font-size-code;
+  }
+}

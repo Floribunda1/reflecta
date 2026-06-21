@@ -1,1 +1,1 @@
-export { ThoughtDetail } from "./ThoughtDetail";
+export { SourcePreviewDrawerContent, ThoughtDetail } from "./ThoughtDetail";

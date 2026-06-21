@@ -127,7 +127,7 @@ function SourcePreview({
   );
 }
 
-function SourcePreviewDrawerContent({ source }: { source: ContextDTO }) {
+export function SourcePreviewDrawerContent({ source }: { source: ContextDTO }) {
   const meta = SOURCE_META[source.sourceType];
   const Icon = meta.Icon;
 

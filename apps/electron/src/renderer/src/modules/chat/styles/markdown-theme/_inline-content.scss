@@ -1,0 +1,37 @@
+@use "./config" as *;
+
+#{$chat-markdown-root} {
+  strong,
+  em {
+    color: color-mix(in srgb, var(--foreground), var(--primary) 42%);
+  }
+
+  a {
+    color: var(--primary);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--primary), transparent 48%);
+    text-underline-offset: 0.18em;
+  }
+
+  code {
+    display: inline;
+    border: 1px solid color-mix(in srgb, var(--border), transparent 18%);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--muted), transparent 16%);
+    color: var(--primary);
+    font-family: "Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.88em;
+    line-height: 1.45;
+    padding: 0.08rem 0.28rem;
+  }
+
+  pre code {
+    display: block;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 13px;
+    line-height: 1.55;
+    padding: 0;
+  }
+}

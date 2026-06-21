@@ -1,0 +1,18 @@
+@use "./config" as *;
+
+#{$chat-markdown-root} {
+  color: var(--foreground);
+  font-size: $font-size-body;
+  line-height: $line-height-prose;
+  overflow-wrap: anywhere;
+
+  > * {
+    &:first-child {
+      margin-top: 0;
+    }
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}

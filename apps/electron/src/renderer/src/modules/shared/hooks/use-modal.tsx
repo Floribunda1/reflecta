@@ -88,7 +88,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
           <DialogContent
             className={[
               modal.options.widthClassName ?? "max-w-3xl",
-              "max-h-[85vh] overflow-y-auto",
+              "max-h-[90vh] overflow-y-auto",
               modal.options.className ?? "",
             ].join(" ")}
           >

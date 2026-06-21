@@ -18,7 +18,7 @@ export function SettingsDialogContent() {
   const [activeMenu, setActiveMenu] = useState<MenuKey>("storage");
 
   return (
-    <div className="-mx-6 -mb-6 flex h-[min(68vh,620px)] min-h-[420px] overflow-hidden border-t border-border/70">
+    <div className="-mx-6 -mb-6 flex h-[80vh] overflow-hidden border-t border-border/70">
       <aside className="flex w-44 shrink-0 flex-col border-r border-border/70 bg-muted/20 p-3">
         {MENU_ITEMS.map((item) => {
           const Icon = item.icon;
@@ -42,13 +42,18 @@ export function SettingsDialogContent() {
         })}
       </aside>
 
-      <ScrollArea className="min-w-0 flex-1">
-        <main className="mx-auto w-full max-w-2xl px-6 py-5">
-          {activeMenu === "storage" && <StorageSection />}
-          {activeMenu === "ai" && <AiSection />}
-          {activeMenu === "trash" && <TrashSection />}
+      {activeMenu === "ai" ? (
+        <main className="h-full min-h-0 min-w-0 flex-1 px-6 py-5">
+          <AiSection />
         </main>
-      </ScrollArea>
+      ) : (
+        <ScrollArea className="min-w-0 flex-1">
+          <main className="mx-auto w-full px-6 py-5">
+            {activeMenu === "storage" && <StorageSection />}
+            {activeMenu === "trash" && <TrashSection />}
+          </main>
+        </ScrollArea>
+      )}
     </div>
   );
 }

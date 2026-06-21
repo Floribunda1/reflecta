@@ -15,6 +15,7 @@ import "@xyflow/react/dist/style.css";
 import type { Category } from "@shared/category";
 import type { ThoughtSummaryDTO } from "@shared/thought";
 import { cn } from "@renderer/lib/utils";
+import { layoutDagreGraph, type DagreLayoutEdge } from "./dagre-layout";
 
 type NoteNodeData = {
   kind: "note";
@@ -116,67 +117,6 @@ function buildLinks(thoughts: ThoughtSummaryDTO[]): Link[] {
   return links;
 }
 
-function connectedComponents(thoughts: ThoughtSummaryDTO[], links: Link[]) {
-  const adjacency = new Map(thoughts.map((thought) => [thought.id, [] as string[]]));
-  for (const link of links) {
-    adjacency.get(link.source)?.push(link.target);
-    adjacency.get(link.target)?.push(link.source);
-  }
-
-  const seen = new Set<string>();
-  const components: string[][] = [];
-  for (const thought of thoughts) {
-    if (seen.has(thought.id)) continue;
-    const queue = [thought.id];
-    const ids: string[] = [];
-    seen.add(thought.id);
-    while (queue.length > 0) {
-      const id = queue.shift()!;
-      ids.push(id);
-      for (const next of adjacency.get(id) ?? []) {
-        if (seen.has(next)) continue;
-        seen.add(next);
-        queue.push(next);
-      }
-    }
-    components.push(ids);
-  }
-
-  return components.sort((a, b) => b.length - a.length);
-}
-
-function dagRanks(ids: string[], links: Link[]) {
-  const idSet = new Set(ids);
-  const rank = new Map(ids.map((id) => [id, 0]));
-  const indegree = new Map(ids.map((id) => [id, 0]));
-  const outgoing = new Map(ids.map((id) => [id, [] as string[]]));
-
-  for (const link of links) {
-    if (!idSet.has(link.source) || !idSet.has(link.target)) continue;
-    outgoing.get(link.source)?.push(link.target);
-    indegree.set(link.target, (indegree.get(link.target) ?? 0) + 1);
-  }
-
-  const queue = ids.filter((id) => (indegree.get(id) ?? 0) === 0);
-  const visited = new Set<string>();
-  while (queue.length > 0) {
-    const id = queue.shift()!;
-    visited.add(id);
-    for (const next of outgoing.get(id) ?? []) {
-      rank.set(next, Math.max(rank.get(next) ?? 0, (rank.get(id) ?? 0) + 1));
-      indegree.set(next, (indegree.get(next) ?? 1) - 1);
-      if ((indegree.get(next) ?? 0) === 0) queue.push(next);
-    }
-  }
-
-  // ponytail: cycles fall back to degree order; add SCC ranking if cyclic graphs become common.
-  for (const id of ids) {
-    if (!visited.has(id)) rank.set(id, Math.min(rank.get(id) ?? 0, 2));
-  }
-
-  return rank;
-}
-
 function layoutNodes(
   thoughts: ThoughtSummaryDTO[],
   links: Link[],
@@ -186,9 +126,9 @@ function layoutNodes(
 ) {
   const categoryById = new Map(categories.map((category) => [category.id, category]));
   const thoughtById = new Map(thoughts.map((thought) => [thought.id, thought]));
-  const components = connectedComponents(thoughts, links);
-  const blocks: LayoutResult[] = [];
-  const isolatedIds: string[] = [];
+  const categoryByThoughtId = new Map(
+    thoughts.map((thought) => [thought.id, thought.categoryIds[0] ?? "uncategorized"]),
+  );
 
   const pushNode = (id: string, x: number, y: number) => {
     const thought = thoughtById.get(id);
@@ -230,169 +170,76 @@ function layoutNodes(
     return names.join(" / ") || "未命名 Category";
   }
 
-  function laneBoxes(nodes: NoteFlowNode[], prefix: string): LaneBox[] {
-    const boxes = new Map<
-      string,
-      {
-        label: string;
-        external: boolean;
-        count: number;
-        minX: number;
-        minY: number;
-        maxX: number;
-        maxY: number;
-      }
-    >();
-
-    for (const node of nodes) {
-      if (node.data.kind !== "note") continue;
-      const key = node.data.categoryLabel;
-      const current = boxes.get(key) ?? {
-        label: key,
-        external: true,
-        count: 0,
-        minX: Infinity,
-        minY: Infinity,
-        maxX: -Infinity,
-        maxY: -Infinity,
-      };
-      current.external = current.external && node.data.external;
-      current.count += 1;
-      current.minX = Math.min(current.minX, node.position.x);
-      current.minY = Math.min(current.minY, node.position.y);
-      current.maxX = Math.max(current.maxX, node.position.x + NODE_W);
-      current.maxY = Math.max(current.maxY, node.position.y + NODE_H);
-      boxes.set(key, current);
-    }
-
-    return [...boxes.values()].map((box, index) => ({
-      id: `${prefix}:${index}:${box.label}`,
-      label: box.label,
-      breadcrumb: box.label,
-      count: box.count,
-      external: box.external,
-      x: box.minX - LANE_PAD_X,
-      y: box.minY - LANE_PAD_TOP,
-      width: box.maxX - box.minX + LANE_PAD_X * 2,
-      height: box.maxY - box.minY + LANE_PAD_TOP + LANE_PAD_BOTTOM,
-    }));
+  const groupedIds = new Map<string, string[]>();
+  for (const thought of thoughts) {
+    const categoryId = thought.categoryIds[0] ?? "uncategorized";
+    groupedIds.set(categoryId, [...(groupedIds.get(categoryId) ?? []), thought.id]);
   }
 
-  function offsetLayout(layout: LayoutResult, x: number, y: number): LayoutResult {
+  const groups = [...groupedIds.entries()].map(([categoryId, ids], index) => {
+    const idSet = new Set(ids);
+    const positions = layoutDagreGraph(
+      ids.map((id) => ({ id, width: NODE_W, height: NODE_H })),
+      links.filter((link) => idSet.has(link.source) && idSet.has(link.target)),
+      { rankdir: "LR", nodesep: ROW_GAP, ranksep: COL_GAP },
+    );
+    const nodes = ids.flatMap((id) => {
+      const position = positions.get(id) ?? { x: 0, y: 0 };
+      const node = pushNode(id, position.x + LANE_PAD_X, position.y + LANE_PAD_TOP);
+      return node ? [node] : [];
+    });
+    const width = Math.max(...nodes.map((node) => node.position.x + NODE_W), NODE_W) + LANE_PAD_X;
+    const height =
+      Math.max(...nodes.map((node) => node.position.y + NODE_H), NODE_H) + LANE_PAD_BOTTOM;
     return {
-      nodes: layout.nodes.map((node) => ({
-        ...node,
-        position: { x: node.position.x + x, y: node.position.y + y },
-      })),
-      lanes: layout.lanes.map((lane) => ({ ...lane, x: lane.x + x, y: lane.y + y })),
+      id: categoryId,
+      nodes,
+      lane: {
+        id: `category:${index}:${categoryId}`,
+        label: categoryLabel(categoryId),
+        breadcrumb: categoryBreadcrumb(categoryId),
+        count: nodes.length,
+        external: nodes.every((node) => node.data.kind === "note" && node.data.external),
+        x: 0,
+        y: 0,
+        width,
+        height,
+      } satisfies LaneBox,
     };
+  });
+
+  const groupEdgeKeys = new Set<string>();
+  const groupEdges: DagreLayoutEdge[] = [];
+  for (const link of links) {
+    const source = categoryByThoughtId.get(link.source);
+    const target = categoryByThoughtId.get(link.target);
+    if (!source || !target || source === target) continue;
+    const key = `${source}->${target}`;
+    if (groupEdgeKeys.has(key)) continue;
+    groupEdgeKeys.add(key);
+    groupEdges.push({ source, target });
   }
 
-  function layoutRelationBlock(ids: string[], blockIndex: number): LayoutResult {
-    const idSet = new Set(ids);
-    const componentLinks = links.filter((link) => idSet.has(link.source) && idSet.has(link.target));
-    const ranks = dagRanks(ids, componentLinks);
-    const categoryOrder = [
-      ...new Set(ids.map((id) => thoughtById.get(id)?.categoryIds[0] ?? "uncategorized")),
-    ].sort((a, b) => {
-      const aFocus = ids.filter(
-        (id) => focusIds.has(id) && thoughtById.get(id)?.categoryIds[0] === a,
-      ).length;
-      const bFocus = ids.filter(
-        (id) => focusIds.has(id) && thoughtById.get(id)?.categoryIds[0] === b,
-      ).length;
-      return bFocus - aFocus;
-    });
-    const laneY = new Map<string, number>();
-    let componentHeight = 0;
-
-    for (const categoryId of categoryOrder) {
-      const categoryIds = ids.filter(
-        (id) => (thoughtById.get(id)?.categoryIds[0] ?? "uncategorized") === categoryId,
-      );
-      const byRank = new Map<number, string[]>();
-      for (const id of categoryIds) {
-        const rank = ranks.get(id) ?? 0;
-        byRank.set(rank, [...(byRank.get(rank) ?? []), id]);
-      }
-      const rows = Math.max(...[...byRank.values()].map((items) => items.length), 1);
-      laneY.set(categoryId, componentHeight);
-      componentHeight += rows * (NODE_H + ROW_GAP) + GROUP_GAP_Y;
-    }
-
-    const blockNodes: NoteFlowNode[] = [];
-    const rankRows = new Map<string, Map<number, number>>();
-    for (const id of ids) {
-      const categoryId = thoughtById.get(id)?.categoryIds[0] ?? "uncategorized";
-      const rank = ranks.get(id) ?? 0;
-      const rows = rankRows.get(categoryId) ?? new Map<number, number>();
-      const row = rows.get(rank) ?? 0;
-      rows.set(rank, row + 1);
-      rankRows.set(categoryId, rows);
-      const node = pushNode(
-        id,
-        rank * (NODE_W + COL_GAP),
-        (laneY.get(categoryId) ?? 0) + row * (NODE_H + ROW_GAP),
-      );
-      if (node) blockNodes.push(node);
-    }
-
-    blockNodes.sort((a, b) => a.position.y - b.position.y || a.position.x - b.position.x);
-
-    return { nodes: blockNodes, lanes: laneBoxes(blockNodes, `relation:${blockIndex}`) };
-  }
-
-  for (const ids of components) {
-    const idSet = new Set(ids);
-    const hasLink = links.some((link) => idSet.has(link.source) && idSet.has(link.target));
-    if (hasLink) blocks.push(layoutRelationBlock(ids, blocks.length));
-    else isolatedIds.push(...ids);
-  }
-
-  const isolatedByCategory = new Map<string, string[]>();
-  for (const id of isolatedIds) {
-    const categoryId = thoughtById.get(id)?.categoryIds[0] ?? "uncategorized";
-    isolatedByCategory.set(categoryId, [...(isolatedByCategory.get(categoryId) ?? []), id]);
-  }
-
-  [...isolatedByCategory.entries()]
-    .sort(([, a], [, b]) => b.length - a.length)
-    .forEach(([categoryId, ids]) => {
-      const blockNodes: NoteFlowNode[] = [];
-      const cols = Math.min(3, Math.max(1, Math.ceil(Math.sqrt(ids.length))));
-      ids.forEach((id, index) => {
-        const node = pushNode(
-          id,
-          (index % cols) * (NODE_W + COL_GAP),
-          Math.floor(index / cols) * (NODE_H + ROW_GAP),
-        );
-        if (node) blockNodes.push(node);
-      });
-      blocks.push({
-        nodes: blockNodes,
-        lanes: laneBoxes(blockNodes, `isolated:${categoryLabel(categoryId)}`),
-      });
-    });
-
-  const blockSizes = blocks.map((block) => ({
-    width: Math.max(...block.lanes.map((lane) => lane.x + lane.width), NODE_W),
-    height: Math.max(...block.lanes.map((lane) => lane.y + lane.height), NODE_H),
-  }));
-  const columnCount = Math.min(3, Math.max(1, Math.ceil(Math.sqrt(blocks.length))));
-  const columnWidth = Math.max(...blockSizes.map((size) => size.width), NODE_W) + GROUP_GAP_X;
-  const columnHeights = Array.from({ length: columnCount }, () => -260);
+  const groupPositions = layoutDagreGraph(
+    groups.map((group) => ({ id: group.id, width: group.lane.width, height: group.lane.height })),
+    groupEdges,
+    { rankdir: "LR", nodesep: GROUP_GAP_Y, ranksep: GROUP_GAP_X },
+  );
   const nodes: NoteFlowNode[] = [];
   const lanes: LaneBox[] = [];
-
-  blocks.forEach((block, index) => {
-    const col = columnHeights.indexOf(Math.min(...columnHeights));
-    const x = col * columnWidth;
-    const y = columnHeights[col];
-    const placed = offsetLayout(block, x, y);
-    nodes.push(...placed.nodes);
-    lanes.push(...placed.lanes);
-    columnHeights[col] += blockSizes[index].height + GROUP_GAP_Y;
-  });
+  for (const group of groups) {
+    const offset = groupPositions.get(group.id) ?? { x: 0, y: 0 };
+    lanes.push({ ...group.lane, x: offset.x, y: offset.y });
+    nodes.push(
+      ...group.nodes.map((node) => ({
+        ...node,
+        position: {
+          x: node.position.x + offset.x,
+          y: node.position.y + offset.y,
+        },
+      })),
+    );
+  }
 
   return { nodes, lanes };
 }
