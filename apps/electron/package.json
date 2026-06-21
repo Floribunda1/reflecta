@@ -3,7 +3,7 @@
   "version": "1.0.1",
   "description": "Reflecta Electron application",
   "homepage": "https://github.com/electron-vite/vite-plugin-electron",
-  "author": "example.com",
+  "author": "com.acnoo.reflecta",
   "type": "module",
   "main": "./out/main/index.js",
   "scripts": {
