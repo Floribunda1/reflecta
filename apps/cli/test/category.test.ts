@@ -212,8 +212,6 @@ describe("Category 管理", () => {
       const { stdout: thOut } = await runCommand([
         "thought",
         "create",
-        "--type",
-        "idea",
         "--title",
         "Cascade Thought",
         "--category-id",

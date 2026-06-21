@@ -20,27 +20,10 @@ describe("Thought 管理", () => {
       for (const t of thoughts) {
         expect(t).toMatchObject({
           id: expect.any(String),
-          type: expect.any(String),
           body: expect.any(String),
           categories: expect.any(Array),
         });
       }
-    });
-
-    it("按类型 idea 过滤", async () => {
-      const { code, stdout } = await runCommand(["thought", "list", "--type", "idea"]);
-      expect(code).toBe(0);
-      const thoughts = parseJsonl(stdout);
-      expect(thoughts.length).toBeGreaterThan(0);
-      for (const t of thoughts) expect((t as { type: string }).type).toBe("idea");
-    });
-
-    it("按类型 insight 过滤", async () => {
-      const { code, stdout } = await runCommand(["thought", "list", "--type", "insight"]);
-      expect(code).toBe(0);
-      const thoughts = parseJsonl(stdout);
-      expect(thoughts.length).toBeGreaterThan(0);
-      for (const t of thoughts) expect((t as { type: string }).type).toBe("insight");
     });
 
     it("按 Category ID 过滤", async () => {
@@ -78,12 +61,6 @@ describe("Thought 管理", () => {
       const thoughts = parseJsonl(stdout);
       expect(thoughts.length).toBeGreaterThan(0);
       expect(thoughts.length).toBeLessThanOrEqual(20);
-    });
-
-    it("--recent 不能与 --type 同时使用", async () => {
-      const { code, stderr } = await runCommand(["thought", "list", "--recent", "--type", "idea"]);
-      expect(code).toBe(1);
-      expect(JSON.parse(stderr).code).toBe("VALIDATION_ERROR");
     });
 
     it("--recent 不能与 --category-id 同时使用", async () => {
@@ -209,10 +186,9 @@ describe("Thought 管理", () => {
 
   describe("thought create", () => {
     it("创建最简 Thought", async () => {
-      const { code, stdout } = await runCommand(["thought", "create", "--type", "idea", "--yes"]);
+      const { code, stdout } = await runCommand(["thought", "create", "--yes"]);
       expect(code).toBe(0);
-      const data = parseJson(stdout) as { type: string; title: unknown; body: string };
-      expect(data.type).toBe("idea");
+      const data = parseJson(stdout) as { title: unknown; body: string };
       expect(data.title).toBeNull();
       expect(data.body).toBe("");
     });
@@ -223,8 +199,6 @@ describe("Thought 管理", () => {
       const { code, stdout } = await runCommand([
         "thought",
         "create",
-        "--type",
-        "insight",
         "--title",
         "Test Creation",
         "--body",
@@ -239,14 +213,8 @@ describe("Thought 管理", () => {
       expect(data.body).toBe("Test body");
     });
 
-    it("缺少必填参数 --type", async () => {
-      const { code, stderr } = await runCommand(["thought", "create", "--yes"]);
-      expect(code).toBe(1);
-      expect(JSON.parse(stderr).code).toBe("VALIDATION_ERROR");
-    });
-
     it("未加 --yes 时拒绝创建", async () => {
-      const { code } = await runCommand(["thought", "create", "--type", "idea"]);
+      const { code } = await runCommand(["thought", "create"]);
       expect(code).toBe(3);
     });
   });
@@ -256,8 +224,6 @@ describe("Thought 管理", () => {
       const { stdout: createOut } = await runCommand([
         "thought",
         "create",
-        "--type",
-        "idea",
         "--title",
         "Update Target",
         "--yes",
@@ -281,8 +247,6 @@ describe("Thought 管理", () => {
       const { stdout: createOut } = await runCommand([
         "thought",
         "create",
-        "--type",
-        "idea",
         "--title",
         "Link Source",
         "--yes",
@@ -309,8 +273,6 @@ describe("Thought 管理", () => {
       const { stdout: createOut } = await runCommand([
         "thought",
         "create",
-        "--type",
-        "idea",
         "--title",
         "Link Then Unlink",
         "--body",
@@ -345,8 +307,6 @@ describe("Thought 管理", () => {
       const { stdout: createOut } = await runCommand([
         "thought",
         "create",
-        "--type",
-        "idea",
         "--title",
         "Category Test",
         "--category-id",
@@ -389,8 +349,6 @@ describe("Thought 管理", () => {
       const { stdout: createOut } = await runCommand([
         "thought",
         "create",
-        "--type",
-        "idea",
         "--title",
         "To Delete",
         "--yes",
@@ -408,8 +366,6 @@ describe("Thought 管理", () => {
       const { stdout: createOut } = await runCommand([
         "thought",
         "create",
-        "--type",
-        "insight",
         "--title",
         "FTS Delete Test",
         "--body",
@@ -439,8 +395,6 @@ describe("Thought 管理", () => {
       const { stdout: createOut } = await runCommand([
         "thought",
         "create",
-        "--type",
-        "idea",
         "--title",
         "No Delete",
         "--yes",

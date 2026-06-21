@@ -25,11 +25,13 @@
     "fmt:check": "oxfmt --check"
   },
   "dependencies": {
-    "@libsql/client": "^0.17.2",
+    "better-sqlite3": "^12.11.1",
     "drizzle-orm": "^0.45.2",
+    "libsql": "^0.5.29",
     "nanoid": "^5.1.7"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.19.11",
     "typescript": "^5.9.3",
     "vitest": "^4.1.2"

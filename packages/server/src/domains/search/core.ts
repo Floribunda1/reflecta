@@ -70,10 +70,10 @@ export class SearchCore {
       rank: number;
     }>(sql`
       SELECT
-        c.id AS contextId,
-        c.thought_id AS thoughtId,
-        c.source_type AS sourceType,
-        c.source_name AS sourceName,
+        c.id AS context_id,
+        c.thought_id AS thought_id,
+        c.source_type AS source_type,
+        c.source_name AS source_name,
         snippet(fts_contexts, 3, '<mark>', '</mark>', '…', 10) AS snippet,
         rank
       FROM fts_contexts

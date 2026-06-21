@@ -1,6 +1,6 @@
 import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { contexts } from "../../db/schema";
+import { contexts, thoughts } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type { ContextDTO, CreateContextInput, SourceType, UpdateContextInput } from "./types";
 import type { TrashedContextDTO } from "../trash/types";
@@ -29,6 +29,7 @@ export class ContextCore {
   async _createContext(input: CreateContextInput): Promise<ContextDTO> {
     const createdAt = new Date().toISOString();
     const id = nanoid();
+    await this.assertThoughtExists(input.thoughtId);
 
     const row: typeof contexts.$inferInsert = {
       id,
@@ -40,9 +41,9 @@ export class ContextCore {
       deletedAt: null,
     };
 
-    await this.db.transaction(async (tx) => {
-      await tx.insert(contexts).values(row);
-      await tx.run(sql`
+    await this.db.transaction((tx) => {
+      tx.insert(contexts).values(row).run();
+      tx.run(sql`
         INSERT INTO fts_contexts (context_id, thought_id, source_name, content)
         VALUES (${id}, ${input.thoughtId}, ${input.sourceName ?? null}, ${input.content})
       `);
@@ -56,17 +57,18 @@ export class ContextCore {
     if (input.sourceType !== undefined) updates.sourceType = input.sourceType;
     if (input.sourceName !== undefined) updates.sourceName = input.sourceName;
     if (input.content !== undefined) updates.content = input.content;
+    if (Object.keys(updates).length === 0) throw new Error("No context fields to update");
 
     let updated: ContextDTO | undefined;
-    await this.db.transaction(async (tx) => {
-      const rows = await tx.update(contexts).set(updates).where(eq(contexts.id, id)).returning();
+    await this.db.transaction((tx) => {
+      const rows = tx.update(contexts).set(updates).where(eq(contexts.id, id)).returning().all();
       if (rows.length === 0) {
         throw new Error(`Context not found: ${id}`);
       }
       updated = rows[0] as ContextDTO;
 
-      await tx.run(sql`DELETE FROM fts_contexts WHERE context_id = ${id}`);
-      await tx.run(sql`
+      tx.run(sql`DELETE FROM fts_contexts WHERE context_id = ${id}`);
+      tx.run(sql`
         INSERT INTO fts_contexts (context_id, thought_id, source_name, content)
         VALUES (${updated.id}, ${updated.thoughtId}, ${updated.sourceName}, ${updated.content})
       `);
@@ -76,39 +78,50 @@ export class ContextCore {
   }
 
   async deleteContext(id: string): Promise<void> {
-    await this.db.transaction(async (tx) => {
-      const rows = await tx
+    await this.db.transaction((tx) => {
+      const rows = tx
         .update(contexts)
         .set({ deletedAt: new Date().toISOString() })
         .where(eq(contexts.id, id))
-        .returning();
+        .returning()
+        .all();
       if (rows.length === 0) {
         throw new Error(`Context not found: ${id}`);
       }
-      await tx.run(sql`DELETE FROM fts_contexts WHERE context_id = ${id}`);
+      tx.run(sql`DELETE FROM fts_contexts WHERE context_id = ${id}`);
     });
   }
 
   async restoreContext(id: string): Promise<void> {
-    await this.db.transaction(async (tx) => {
-      const rows = await tx
+    await this.db.transaction((tx) => {
+      const rows = tx
         .update(contexts)
         .set({ deletedAt: null })
         .where(and(eq(contexts.id, id), isNotNull(contexts.deletedAt)))
-        .returning();
+        .returning()
+        .all();
       if (rows.length === 0) return;
       const ctx = rows[0];
-      await tx.run(
+      tx.run(
         sql`INSERT INTO fts_contexts (context_id, thought_id, source_name, content) VALUES (${ctx.id}, ${ctx.thoughtId}, ${ctx.sourceName}, ${ctx.content})`,
       );
     });
   }
 
   async permanentlyDeleteContext(id: string): Promise<void> {
-    await this.db.transaction(async (tx) => {
-      await tx.delete(contexts).where(eq(contexts.id, id));
-      await tx.run(sql`DELETE FROM fts_contexts WHERE context_id = ${id}`);
+    await this.db.transaction((tx) => {
+      tx.delete(contexts).where(eq(contexts.id, id)).run();
+      tx.run(sql`DELETE FROM fts_contexts WHERE context_id = ${id}`);
     });
+  }
+
+  private async assertThoughtExists(thoughtId: string): Promise<void> {
+    const rows = await this.db
+      .select({ id: thoughts.id })
+      .from(thoughts)
+      .where(and(eq(thoughts.id, thoughtId), isNull(thoughts.deletedAt)))
+      .limit(1);
+    if (rows.length === 0) throw new Error(`Thought not found: ${thoughtId}`);
   }
 
   async listTrashedContexts(): Promise<TrashedContextDTO[]> {

@@ -36,8 +36,6 @@ describe("图遍历", () => {
       const { stdout: createOut } = await runCommand([
         "thought",
         "create",
-        "--type",
-        "idea",
         "--title",
         "Isolated Node",
         "--yes",

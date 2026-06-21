@@ -60,8 +60,8 @@ INVALID_ARGUMENTS: Action arguments are invalid.
 The CLI resolves the local Reflecta database in this order:
 
 1. `REFLECTA_DB_PATH`
-2. Reflecta desktop config `storagePath` plus `reflecta.db`
-3. The platform default Reflecta application data directory
+2. Reflecta desktop config `contentStorageRoot` plus `reflecta.db`
+3. The platform default Reflecta content storage root plus `reflecta.db`
 
 Set `REFLECTA_DB_PATH` when using a development or test database:
 
@@ -77,11 +77,7 @@ In the CLI, write `[[thought title#target-thought-id]]` in `thought create --bod
 
 ## Development
 
-CLI tests require `REFLECTA_TEST_DB_PATH` in the repo root `.env.test`:
-
-```dotenv
-REFLECTA_TEST_DB_PATH=/tmp/reflecta-cli-test.db
-```
+CLI tests create an isolated temporary database automatically.
 
 ```bash
 bun run --filter '@reflecta/cli' typecheck

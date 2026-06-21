@@ -35,6 +35,7 @@ export class CategoryCore {
   async createCategory(input: CreateCategoryInput): Promise<typeof categories.$inferSelect> {
     const createdAt = new Date().toISOString();
     const parentId = input.parentId ?? null;
+    await this.assertValidParent(undefined, parentId);
 
     const maxOrderResult = await this.db
       .select({ maxOrder: sql<number>`coalesce(max(sort_order), -1)` })
@@ -61,6 +62,10 @@ export class CategoryCore {
     id: string,
     input: UpdateCategoryInput,
   ): Promise<typeof categories.$inferSelect> {
+    if (input.parentId !== undefined) {
+      await this.assertValidParent(id, input.parentId);
+    }
+
     const updates: Partial<typeof categories.$inferInsert> = {
       updatedAt: new Date().toISOString(),
     };
@@ -83,38 +88,52 @@ export class CategoryCore {
     if (!category) {
       throw new Error(`Category not found: ${id}`);
     }
-    await this.db.transaction(async (tx) => {
+    await this.db.transaction((tx) => {
       if (deleteThoughts) {
-        const rows = await tx
+        const rows = tx
           .select({ thoughtId: thoughtCategories.thoughtId })
           .from(thoughtCategories)
-          .where(eq(thoughtCategories.categoryId, id));
+          .where(eq(thoughtCategories.categoryId, id))
+          .all();
         const thoughtIds = rows.map((r) => r.thoughtId);
         if (thoughtIds.length > 0) {
           const idList = sql.join(thoughtIds.map((tid) => sql`${tid}`));
-          await tx.run(sql`DELETE FROM fts_thoughts WHERE thought_id IN (${idList})`);
-          await tx.run(sql`DELETE FROM fts_contexts WHERE thought_id IN (${idList})`);
-          await tx.delete(thoughts).where(inArray(thoughts.id, thoughtIds));
+          tx.run(sql`DELETE FROM fts_thoughts WHERE thought_id IN (${idList})`);
+          tx.run(sql`DELETE FROM fts_contexts WHERE thought_id IN (${idList})`);
+          tx.delete(thoughts).where(inArray(thoughts.id, thoughtIds)).run();
         }
       }
-      await tx.delete(categories).where(eq(categories.id, id));
+      tx.delete(categories).where(eq(categories.id, id)).run();
     });
   }
 
   async reorderCategories(items: ReorderCategoryItem[]): Promise<void> {
     const updatedAt = new Date().toISOString();
-    await this.db.transaction(async (tx) => {
+    await this.db.transaction((tx) => {
       for (const item of items) {
-        await tx
-          .update(categories)
+        tx.update(categories)
           .set({
             parentId: item.parentId,
             sortOrder: item.sortOrder,
             updatedAt,
           })
-          .where(eq(categories.id, item.id));
+          .where(eq(categories.id, item.id))
+          .run();
       }
     });
+  }
+
+  private async assertValidParent(id: string | undefined, parentId: string | null): Promise<void> {
+    if (parentId === null) return;
+    if (parentId === id) throw new Error("Category cannot be its own parent");
+    if (!(await this.getCategoryRow(parentId))) {
+      throw new Error(`Category not found: ${parentId}`);
+    }
+    if (!id) return;
+    const descendants = await getCategoryDescendants(this.db, id);
+    if (descendants.includes(parentId)) {
+      throw new Error("Category cannot be moved under its descendant");
+    }
   }
 }
 

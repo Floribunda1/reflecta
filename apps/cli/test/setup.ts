@@ -1,23 +1,19 @@
-import { beforeAll } from "vitest";
-import fs from "node:fs";
+import { afterAll, beforeAll } from "vitest";
 import path from "node:path";
+import os from "node:os";
+import fs from "node:fs";
 import { execSync } from "node:child_process";
-import { loadEnv } from "vite";
-
-const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
-const TEST_DB_PATH = loadEnv("test", REPO_ROOT, "").REFLECTA_TEST_DB_PATH;
-if (!TEST_DB_PATH) {
-  throw new Error("REFLECTA_TEST_DB_PATH is required. Set it in the repo root .env.test.");
-}
-process.env.REFLECTA_DB_PATH = TEST_DB_PATH;
 
 const SEED_SCRIPT = path.resolve(import.meta.dirname, "../scripts/seed-test-data.ts");
+const workerId = process.env.VITEST_POOL_ID ?? process.env.VITEST_WORKER_ID ?? "0";
+const TEST_DIR = path.join(os.tmpdir(), "reflecta-cli-test", workerId, String(process.pid));
+const TEST_DB_PATH = path.join(TEST_DIR, "reflecta.db");
+
+fs.rmSync(TEST_DIR, { recursive: true, force: true });
+fs.mkdirSync(TEST_DIR, { recursive: true });
+process.env.REFLECTA_DB_PATH = TEST_DB_PATH;
 
 beforeAll(() => {
-  if (fs.existsSync(TEST_DB_PATH)) {
-    fs.unlinkSync(TEST_DB_PATH);
-  }
-
   try {
     execSync(`bun run "${SEED_SCRIPT}" "${TEST_DB_PATH}"`, {
       stdio: "pipe",
@@ -29,4 +25,8 @@ beforeAll(() => {
   }
 
   console.log(`[test/setup] Seeded test database at ${TEST_DB_PATH}`);
+});
+
+afterAll(() => {
+  fs.rmSync(TEST_DIR, { recursive: true, force: true });
 });

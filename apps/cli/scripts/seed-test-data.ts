@@ -10,6 +10,7 @@
  */
 
 import { Database } from "bun:sqlite";
+import { createDBInstance } from "@reflecta/server";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -22,6 +23,18 @@ if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 const isNewDb = !fs.existsSync(dbPath);
 
 console.log(`Opening database at: ${dbPath}`);
+
+if (isNewDb) {
+  const packageJson = JSON.parse(
+    fs.readFileSync(new URL("../package.json", import.meta.url), "utf-8"),
+  ) as { version: string };
+  const migratedDb = await createDBInstance(dbPath, {
+    appVersion: packageJson.version,
+    runMigrations: true,
+  });
+  migratedDb.$client.close();
+  console.log(`Applied migrations through v${packageJson.version}`);
+}
 
 const db = new Database(dbPath);
 
@@ -42,36 +55,7 @@ function ensureFtsTables() {
   `);
 }
 
-// ---------------------------------------------------------------------------
-// Migrations
-// ---------------------------------------------------------------------------
-
-const migrationDir = path.resolve(
-  import.meta.dirname,
-  "../../../packages/server/src/db/migration/sql",
-);
-const migrationFiles = fs
-  .readdirSync(migrationDir)
-  .filter((f) => f.endsWith(".sql"))
-  .sort();
-
-if (isNewDb) {
-  for (const file of migrationFiles) {
-    let sql = fs.readFileSync(path.join(migrationDir, file), "utf-8");
-    db.exec(sql);
-    console.log(`Applied migration: ${file}`);
-  }
-  // Record migrations so umzug (used by the app at runtime) knows they are already applied
-  db.exec(
-    `CREATE TABLE IF NOT EXISTS _migrations (name TEXT NOT NULL PRIMARY KEY, run_at TEXT NOT NULL)`,
-  );
-  const insertMigration = db.prepare(
-    "INSERT OR IGNORE INTO _migrations (name, run_at) VALUES (?, ?)",
-  );
-  for (const file of migrationFiles) {
-    insertMigration.run(file, new Date().toISOString());
-  }
-} else {
+if (!isNewDb) {
   ensureFtsTables();
   console.log("Database exists. Truncating tables before seeding...");
   try {

@@ -10,4 +10,8 @@ export class CategoryElectronBff extends CategoryCore {
   async listCategories(): Promise<Category[]> {
     return this.listCategoryRows();
   }
+
+  async getCategoryById(id: string): Promise<Category | null> {
+    return this.getCategoryRow(id);
+  }
 }

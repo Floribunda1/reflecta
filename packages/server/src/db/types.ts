@@ -1,5 +1,5 @@
-import type { Client } from "@libsql/client";
-import type { LibSQLDatabase } from "drizzle-orm/libsql";
+import type { Database } from "libsql";
+import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema";
 
-export type ReflectaDb = LibSQLDatabase<typeof schema> & { $client: Client };
+export type ReflectaDb = BetterSQLite3Database<typeof schema> & { $client: Database };

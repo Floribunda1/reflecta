@@ -19,7 +19,14 @@ export async function initializeDb(): Promise<ReflectaDb> {
     );
   }
 
-  db = await createDBInstance(dbPath, { runMigrations: getReflectaProfile() === "prod" });
+  const packageJson = JSON.parse(
+    fs.readFileSync(new URL("../package.json", import.meta.url), "utf-8"),
+  ) as { version: string };
+
+  db = await createDBInstance(dbPath, {
+    appVersion: packageJson.version,
+    runMigrations: getReflectaProfile() === "prod",
+  });
   return db;
 }
 

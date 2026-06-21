@@ -31,8 +31,6 @@ describe("Context 管理", () => {
       const { stdout: createOut } = await runCommand([
         "thought",
         "create",
-        "--type",
-        "idea",
         "--title",
         "No Contexts",
         "--yes",
