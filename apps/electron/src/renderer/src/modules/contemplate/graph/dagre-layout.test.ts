@@ -30,6 +30,13 @@ describe("layoutDagreGraph", () => {
     }
   });
 
+  test("spreads isolated nodes across columns", () => {
+    const positions = layoutDagreGraph([node("a"), node("b"), node("c"), node("d")], []);
+
+    expect(positions.get("b")!.x).toBeGreaterThan(positions.get("a")!.x);
+    expect(positions.get("c")!.y).toBeGreaterThan(positions.get("a")!.y);
+  });
+
   test("places a directed target to the right in LR layout", () => {
     const positions = layoutDagreGraph([node("a"), node("b")], [{ source: "a", target: "b" }]);
 

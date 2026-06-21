@@ -21,6 +21,30 @@ export type DagreLayoutOptions = Pick<
   "rankdir" | "nodesep" | "ranksep" | "edgesep" | "marginx" | "marginy"
 >;
 
+function layoutGrid(
+  nodes: DagreLayoutNode[],
+  options: DagreLayoutOptions,
+): Map<string, DagreLayoutPosition> {
+  const positions = new Map<string, DagreLayoutPosition>();
+  if (nodes.length === 0) return positions;
+
+  // ponytail: edge-less graphs do not need dagre; add component packing if mixed graphs need it.
+  const columns = Math.ceil(Math.sqrt(nodes.length));
+  const width = Math.max(...nodes.map((node) => node.width));
+  const height = Math.max(...nodes.map((node) => node.height));
+  const cellWidth = width + (options.ranksep ?? 80);
+  const cellHeight = height + (options.nodesep ?? 40);
+
+  nodes.forEach((node, index) => {
+    positions.set(node.id, {
+      x: (index % columns) * cellWidth,
+      y: Math.floor(index / columns) * cellHeight,
+    });
+  });
+
+  return positions;
+}
+
 export function layoutDagreGraph(
   nodes: DagreLayoutNode[],
   edges: DagreLayoutEdge[],
@@ -40,9 +64,11 @@ export function layoutDagreGraph(
 
   const nodeIds = new Set(nodes.map((node) => node.id));
   for (const node of nodes) graph.setNode(node.id, { width: node.width, height: node.height });
-  for (const edge of edges) {
-    if (edge.source === edge.target || !nodeIds.has(edge.source) || !nodeIds.has(edge.target))
-      continue;
+  const validEdges = edges.filter(
+    (edge) => edge.source !== edge.target && nodeIds.has(edge.source) && nodeIds.has(edge.target),
+  );
+  if (validEdges.length === 0) return layoutGrid(nodes, options);
+  for (const edge of validEdges) {
     graph.setEdge(edge.source, edge.target);
   }
 
