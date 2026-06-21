@@ -9,7 +9,7 @@
 > - `docs/iterations/v1/product/graph-value-proposition.md`
 > - `docs/iterations/v1/product/graph-feature-set.md`
 > - `docs/iterations/v1/product/graph-functional-prd.md`
-> - `docs/iterations/references/ui-spec-guide.md`
+> - `docs/references/product/ui-spec-guide.md`
 
 ## 1. 页面目标
 

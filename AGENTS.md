@@ -1,1 +1,2 @@
-在进行前端代码编写之前一定要看 [前端规范.md](docs/3-frontend/前端规范.md)
+- 每次完成长任务或者取得阶段性成果后，必须要及时 commit，并且 commit 需要 follow `Angular Commit Convention`
+- 在进行前端代码编写之前一定要看 [前端规范.md](docs/references/technical/frontend-guide.md)

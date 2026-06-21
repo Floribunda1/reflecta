@@ -6,14 +6,6 @@
 >
 > 输入依据：
 >
-> - `../../../3-frontend/UI Review 规范.md`
-> - `docs/references/product/ui-spec-guide.md`
-> - `../product/value-proposition.md`
-> - `../product/pmf-mvp-scope.md`
-> - `../product/domain-workspace-product-spec.md`
-> - `./pmf-mvp-information-architecture.md`
-> - `./domain-workspace-detail-ux-path.md`
->
 > 命名说明：v0 产品语义使用 `Understanding / Source / Domain / Relation`，当前 capture 模块代码仍使用 `Thought / Context / Category / Connection`。本文以用户可见语义“理解 / 来源 / 领域 / 双链关系”为准，组件名沿用当前代码模块边界。
 
 ## 页面目标
