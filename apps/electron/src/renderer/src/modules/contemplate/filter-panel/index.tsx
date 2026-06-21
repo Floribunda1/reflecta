@@ -112,7 +112,7 @@ export function FilterPanel() {
               <RotateCcw size={14} />
             </Button>
             <div className="flex min-w-0 items-center gap-2">
-              <div className="w-60 min-w-0">
+              <div className="min-w-0 w-[28rem] max-w-[calc(100vw-20rem)]">
                 <CategoryTreeSelect
                   modelValue={ctx.selectedCategoryIds}
                   onUpdateModelValue={ctx.setSelectedCategoryIds}
