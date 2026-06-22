@@ -41,8 +41,8 @@ const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?:
   const mainWindow = new BrowserWindow(option);
 
   mainWindow.on("ready-to-show", () => {
-    mainWindow.show();
     mainWindow.maximize();
+    mainWindow.show();
   });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
