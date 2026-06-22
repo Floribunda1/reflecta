@@ -21,7 +21,7 @@ export function WikiLinkChip({
   onInspect?: (ref: InspectableContextRef) => void;
 }) {
   const content = `${contextMentionIcon(ref.type)} ${ref.title?.trim() || ref.id}`;
-  const className = `${contextMentionClass(ref.type)} rounded-sm outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring/50`;
+  const className = `${contextMentionClass(ref.type)} m-0 appearance-none rounded-sm border-0 bg-transparent p-0 text-left align-baseline outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring/50`;
 
   if (!onInspect) {
     return (

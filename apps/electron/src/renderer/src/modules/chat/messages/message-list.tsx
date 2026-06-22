@@ -43,7 +43,7 @@ function MentionChip({
     <button
       type="button"
       data-slot="user-context-mention"
-      className={`${messageContextMentionClass(ref.type)} cursor-pointer rounded-sm outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring/50`}
+      className={`${messageContextMentionClass(ref.type)} m-0 cursor-pointer appearance-none rounded-sm border-0 bg-transparent p-0 text-left align-baseline outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring/50`}
       onClick={() => onInspect(inspectableRef)}
     >
       {content}
@@ -119,23 +119,29 @@ function UserMessageContent({
   const refs = message.metadata?.contextRefs ?? [];
   const files = fileUIParts(message);
   const content = message.metadata?.composerContent as ComposerJSON | undefined;
-  const renderedContent = content?.content?.map((node, index) =>
-    renderComposerNode(node, String(index), onInspect),
-  );
+  const renderedContent =
+    content?.content?.map((node, index) => renderComposerNode(node, String(index), onInspect)) ??
+    [];
+  const hasRenderedContent = renderedContent.length > 0;
+  const hasTextContent = hasRenderedContent || Boolean(text) || refs.length > 0;
 
   return (
     <div
       data-slot="user-message-content"
-      className="grid max-w-full gap-2 whitespace-pre-wrap rounded-lg bg-muted px-4 py-3 leading-6 text-foreground"
+      className="flex max-w-full flex-col gap-2 whitespace-pre-wrap rounded-lg bg-muted px-4 py-3 text-foreground"
     >
-      {renderedContent && renderedContent.length > 0 ? renderedContent : text || null}
-      {!renderedContent && refs.length > 0 ? (
-        <>
-          {" "}
-          {refs.map((ref) => (
-            <MentionChip key={contextKey(ref)} ref={ref} onInspect={onInspect} />
-          ))}
-        </>
+      {hasTextContent ? (
+        <div data-slot="user-message-text" className="leading-6">
+          {hasRenderedContent ? renderedContent : text || null}
+          {!hasRenderedContent && refs.length > 0 ? (
+            <>
+              {" "}
+              {refs.map((ref) => (
+                <MentionChip key={contextKey(ref)} ref={ref} onInspect={onInspect} />
+              ))}
+            </>
+          ) : null}
+        </div>
       ) : null}
       {files.length > 0 ? (
         <div className="flex max-w-full flex-wrap gap-2">

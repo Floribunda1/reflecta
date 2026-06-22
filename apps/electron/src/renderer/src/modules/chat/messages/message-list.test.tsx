@@ -182,9 +182,13 @@ describe("MessageList", () => {
     container = rendered.container;
 
     const bubble = container.querySelector('[data-slot="user-message-content"]');
+    const textRow = bubble?.querySelector('[data-slot="user-message-text"]');
     const mention = bubble?.querySelector('[data-slot="user-context-mention"]');
 
     expect(mention?.textContent).toBe("✦ 热爱是高效前进的强驱动力");
+    expect(bubble?.className).toContain("flex");
+    expect(bubble?.className).not.toContain("grid");
+    expect(textRow?.contains(mention ?? null)).toBe(true);
     expect(mention?.parentElement?.getAttribute("data-slot")).toBe("user-message-paragraph");
     expect(bubble?.textContent).toContain("我想知道 ✦ 热爱是高效前进的强驱动力 和交易的关系");
   });
@@ -281,6 +285,7 @@ describe("MessageList", () => {
 
     expect(container.textContent).not.toContain("[[自信的状态#thought-1]]");
     expect(wikiLink?.textContent).toBe("✦ 自信的状态");
+    expect(wikiLink?.className).toContain("text-left");
     expect(onInspect).toHaveBeenCalledWith({
       type: "thought",
       id: "thought-1",
