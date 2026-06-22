@@ -133,6 +133,8 @@ export function AiSection() {
                 return (
                   <button
                     key={provider.id}
+                    data-testid="settings-ai-provider"
+                    data-provider-id={provider.id}
                     type="button"
                     className={[
                       "flex h-9 w-full items-center justify-between rounded-md px-3 text-left text-sm transition-colors",
@@ -207,6 +209,7 @@ export function AiSection() {
                 <label className="flex shrink-0 flex-col gap-2">
                   <span className="text-sm font-medium text-foreground">API Key</span>
                   <Input
+                    data-testid="settings-ai-api-key-input"
                     value={providerConfig?.apiKey ?? ""}
                     onChange={(event) =>
                       upsertProvider(selectedProvider.id, { apiKey: event.target.value })
@@ -266,7 +269,12 @@ export function AiSection() {
       </section>
 
       <div className="flex shrink-0 items-center gap-3 border-t border-border/70 pt-5">
-        <Button size="sm" disabled={loading} onClick={() => void handleSave()}>
+        <Button
+          data-testid="settings-ai-save-button"
+          size="sm"
+          disabled={loading}
+          onClick={() => void handleSave()}
+        >
           <Check size={15} />
           保存
         </Button>

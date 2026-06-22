@@ -489,7 +489,7 @@ export function ChatComposer({
   };
 
   return (
-    <div className="px-6 py-4">
+    <div data-testid="agent-composer" className="px-6 py-4">
       <div className="flex w-full flex-col gap-2">
         {editingMessage ? (
           <div className="flex items-center justify-between rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
@@ -542,6 +542,7 @@ export function ChatComposer({
           ) : null}
           <EditorContent
             editor={editor}
+            data-testid="agent-composer-editor"
             className={["flex min-w-0 flex-1", isBusy ? "pointer-events-none opacity-50" : ""].join(
               " ",
             )}
@@ -582,6 +583,7 @@ export function ChatComposer({
             <div className="flex min-w-0 items-center gap-1">
               <input
                 ref={fileInputRef}
+                data-testid="agent-file-input"
                 type="file"
                 multiple
                 className="hidden"
@@ -591,6 +593,7 @@ export function ChatComposer({
                 }}
               />
               <Button
+                data-testid="agent-attachment-button"
                 type="button"
                 size="icon-sm"
                 variant="ghost"
@@ -604,6 +607,7 @@ export function ChatComposer({
                 <DropdownMenuTrigger
                   render={
                     <Button
+                      data-testid="agent-model-menu-button"
                       type="button"
                       variant="ghost"
                       size="sm"
@@ -625,7 +629,12 @@ export function ChatComposer({
                   >
                     <DropdownMenuLabel>推理等级</DropdownMenuLabel>
                     {REASONING_OPTIONS.map((option) => (
-                      <DropdownMenuRadioItem key={option.value} value={option.value}>
+                      <DropdownMenuRadioItem
+                        key={option.value}
+                        value={option.value}
+                        data-testid="agent-reasoning-option"
+                        data-reasoning-level={option.value}
+                      >
                         {option.label}
                       </DropdownMenuRadioItem>
                     ))}
@@ -636,6 +645,9 @@ export function ChatComposer({
                     {modelOptions.map((option) => (
                       <DropdownMenuItem
                         key={modelSelectionValue(option)}
+                        data-testid="agent-model-option"
+                        data-provider-id={option.providerId}
+                        data-model-id={option.modelId}
                         onClick={() =>
                           onSelectModel({
                             providerId: option.providerId,
@@ -657,6 +669,7 @@ export function ChatComposer({
               <ContextUsageMeter usage={contextUsage} />
               {isBusy && canStop ? (
                 <Button
+                  data-testid="agent-stop-button"
                   type="button"
                   size="icon-sm"
                   variant="outline"
@@ -679,6 +692,7 @@ export function ChatComposer({
                 </Button>
               ) : (
                 <Button
+                  data-testid="agent-send-button"
                   type="button"
                   size="icon-sm"
                   className="disabled:bg-muted disabled:text-muted-foreground"

@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { createE2eTestEnv, saveE2eTestEnv } from "./test-env";
+import { createE2eTestEnv, saveE2eTestEnv, writeE2eAiConfig } from "./test-env";
 
 export default function globalSetup() {
   const env = createE2eTestEnv();
@@ -8,4 +8,5 @@ export default function globalSetup() {
 
   execFileSync("bun", ["run", seedScript, env.dbPath], { stdio: "inherit" });
   saveE2eTestEnv(env);
+  writeE2eAiConfig();
 }

@@ -250,7 +250,9 @@ function approvalStatus(part: AgentToolPart): ToolApprovalStatus | undefined {
   if (part.state === "approval-responded") {
     return part.approval.approved ? "approved" : "rejected";
   }
-  if (part.state === "output-available") return "approved";
+  if (part.state === "output-available" && "approval" in part && part.approval?.approved) {
+    return "approved";
+  }
   if (part.state === "output-denied") return "rejected";
   return undefined;
 }

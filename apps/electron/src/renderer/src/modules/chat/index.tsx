@@ -57,7 +57,10 @@ function ThreadChat({
   const selectModel = useMemoizedFn((selection) => selectModelMutation.mutate(selection));
 
   return (
-    <main className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-l bg-transparent">
+    <main
+      data-testid="agent-thread-chat"
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-l bg-transparent"
+    >
       <div className="relative min-h-0 flex-1">
         <div
           ref={threadView.scrollRef}
@@ -189,7 +192,10 @@ function ChatPageContent() {
   ]);
 
   return (
-    <div className="grid h-full min-h-0 w-full grid-cols-[248px_minmax(0,1fr)] overflow-hidden bg-background/45 backdrop-blur-2xl">
+    <div
+      data-testid="agent-page"
+      className="grid h-full min-h-0 w-full grid-cols-[248px_minmax(0,1fr)] overflow-hidden bg-background/45 backdrop-blur-2xl"
+    >
       <ThreadSidebar
         threads={threads}
         pending={threadsQuery.isFetching}

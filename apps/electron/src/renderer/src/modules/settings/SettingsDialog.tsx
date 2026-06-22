@@ -26,6 +26,7 @@ export function SettingsDialogContent() {
           return (
             <Button
               key={item.key}
+              data-testid={`settings-menu-${item.key}`}
               type="button"
               size="sm"
               variant="ghost"

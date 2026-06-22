@@ -7,7 +7,7 @@ import type { ComposerSendInput, EditingMessage } from "../composer/chat-compose
 import type { ApproveToolInput } from "../messages/agent-message-content";
 import { messageText } from "../shared/text";
 import { useThreadMessagesQuery } from "./server-state";
-import { chatUiStore, useThreadFocusNonce } from "./chat-ui-store";
+import { chatUiStore, useStoppedMessageId, useThreadFocusNonce } from "./chat-ui-store";
 import { getAgentThreadChat } from "./chat-registry";
 
 export type AgentThreadView = {
@@ -105,6 +105,7 @@ export function useAgentThreadView(threadId: string, scrollRequest = 0): AgentTh
   const persistedMessages = messagesQuery.data ?? [];
   const [editingMessage, setEditingMessage] = useState<EditingMessage | undefined>();
   const focusRequest = useThreadFocusNonce(threadId);
+  const stoppedMessageId = useStoppedMessageId(threadId);
   const chatInstance = useMemo(
     () => getAgentThreadChat({ threadId, messages: persistedMessages, queryClient }),
     [persistedMessages, queryClient, threadId],
@@ -181,7 +182,7 @@ export function useAgentThreadView(threadId: string, scrollRequest = 0): AgentTh
     canStop: isBusy,
     error: chat.error,
     editingMessage,
-    stoppedMessageId: null,
+    stoppedMessageId,
     focusRequest,
     showScrollToBottom,
     scrollRef,
@@ -190,6 +191,7 @@ export function useAgentThreadView(threadId: string, scrollRequest = 0): AgentTh
     actions: {
       send: async (input) => {
         setEditingMessage(undefined);
+        chatUiStore.getState().setStoppedMessage(threadId, null);
         const metadata = {
           contextRefs: input.contextRefs,
           composerContent: input.composerContent,
@@ -215,9 +217,11 @@ export function useAgentThreadView(threadId: string, scrollRequest = 0): AgentTh
         });
       },
       retry: async () => {
+        chatUiStore.getState().setStoppedMessage(threadId, null);
         await chat.regenerate();
       },
       regenerate: async (messageId) => {
+        chatUiStore.getState().setStoppedMessage(threadId, null);
         await chat.regenerate({ messageId });
       },
       editMessage: (message) => {
@@ -238,6 +242,10 @@ export function useAgentThreadView(threadId: string, scrollRequest = 0): AgentTh
       },
       cancelEdit: () => setEditingMessage(undefined),
       stop: () => {
+        const lastAssistantId = chat.messages.findLast(
+          (message) => message.role === "assistant",
+        )?.id;
+        if (lastAssistantId) chatUiStore.getState().setStoppedMessage(threadId, lastAssistantId);
         void chat.stop();
       },
     },

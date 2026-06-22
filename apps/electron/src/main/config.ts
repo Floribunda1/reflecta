@@ -65,6 +65,7 @@ export function getReflectaProfile(): ReflectaProfile {
 }
 
 export function getAppConfigDir(): string {
+  if (process.env.REFLECTA_APP_CONFIG_DIR) return process.env.REFLECTA_APP_CONFIG_DIR;
   return getReflectaProfile() === "dev"
     ? path.join(app.getPath("appData"), "reflecta-dev")
     : app.getPath("userData");

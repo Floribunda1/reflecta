@@ -100,7 +100,10 @@ function MessageAttachment({ file }: { file: FileUIPart }) {
   }
 
   return (
-    <div className="flex max-w-72 items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm">
+    <div
+      data-testid="agent-message-attachment"
+      className="flex max-w-72 items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm"
+    >
       <FileText className="size-4 shrink-0 text-muted-foreground" />
       <span className="min-w-0 truncate">{name}</span>
     </div>
@@ -128,6 +131,7 @@ function UserMessageContent({
   return (
     <div
       data-slot="user-message-content"
+      data-testid="agent-user-message"
       className="flex max-w-full flex-col gap-2 whitespace-pre-wrap rounded-lg bg-muted px-4 py-3 text-foreground"
     >
       {hasTextContent ? (
@@ -188,6 +192,8 @@ function MessageRowComponent({
 
   return (
     <div
+      data-testid="agent-message-row"
+      data-message-role={message.role}
       className={[
         "group/message flex flex-col gap-1 [contain-intrinsic-size:auto_180px] [content-visibility:auto]",
         message.role === "user" ? "items-end" : "items-start",
@@ -238,6 +244,7 @@ function MessageRowComponent({
         </Button>
         {message.role === "user" ? (
           <Button
+            data-testid="agent-edit-message-button"
             type="button"
             size="icon-xs"
             variant="ghost"
@@ -250,6 +257,7 @@ function MessageRowComponent({
         ) : null}
         {isLastAssistant ? (
           <Button
+            data-testid="agent-regenerate-button"
             type="button"
             size="icon-xs"
             variant="ghost"
@@ -313,9 +321,9 @@ export function MessageList({
   };
 
   return (
-    <div className="flex w-full flex-col gap-5">
+    <div data-testid="agent-message-list" className="flex w-full flex-col gap-5">
       {messages.length === 0 ? (
-        <Empty className="border-0 py-16">
+        <Empty data-testid="agent-empty-state" className="border-0 py-16">
           <EmptyHeader>
             <EmptyTitle>开始和 Agent 对话</EmptyTitle>
             <EmptyDescription>直接提问，或通过 @ 选择知识库对象。</EmptyDescription>
@@ -337,9 +345,18 @@ export function MessageList({
         />
       ))}
       {error ? (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          <span>{error.message}</span>
-          <Button type="button" size="sm" variant="destructive" onClick={onRetry}>
+        <div
+          data-testid="agent-error-banner"
+          className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          <span>回复失败：{error.message}</span>
+          <Button
+            data-testid="agent-retry-button"
+            type="button"
+            size="sm"
+            variant="destructive"
+            onClick={onRetry}
+          >
             <RefreshCcw />
             重试
           </Button>

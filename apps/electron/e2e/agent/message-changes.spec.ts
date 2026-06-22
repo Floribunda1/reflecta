@@ -1,0 +1,81 @@
+import { expect, test } from "@playwright/test";
+import { hasAi, launchAgentPage, waitForAssistantReply } from "./agent-e2e";
+import { resetAgentFixtures, seedCompletedThread } from "./agent-fixtures";
+
+test.beforeEach(() => {
+  resetAgentFixtures();
+});
+
+test("@AG-MESSAGE-001 用户编辑历史消息后看到新的当前回复", async () => {
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY or OPENAI_API_KEY");
+  test.setTimeout(180_000);
+
+  seedCompletedThread({
+    id: "message-edit",
+    title: "ORIGINAL_USER_MESSAGE",
+    userText: "ORIGINAL_USER_MESSAGE",
+    assistantText: "ORIGINAL_AGENT_REPLY",
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await page
+      .getByTestId("agent-message-row")
+      .filter({ hasText: "ORIGINAL_USER_MESSAGE" })
+      .hover();
+    await page.getByTestId("agent-edit-message-button").click();
+    await page
+      .getByTestId("agent-composer-editor")
+      .locator('[contenteditable="true"]')
+      .fill("EDITED_USER_MESSAGE");
+    await page.getByTestId("agent-send-button").click();
+    await waitForAssistantReply(page);
+
+    await expect(
+      page.getByTestId("agent-user-message").filter({ hasText: "EDITED_USER_MESSAGE" }),
+    ).toBeVisible();
+    await expect(page.getByTestId("agent-message-row").nth(0)).toHaveAttribute(
+      "data-message-role",
+      "user",
+    );
+    await expect(page.getByTestId("agent-message-row").nth(1)).toHaveAttribute(
+      "data-message-role",
+      "assistant",
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-MESSAGE-002 用户重新生成回复后看到新的当前回复", async () => {
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY or OPENAI_API_KEY");
+  test.setTimeout(180_000);
+
+  seedCompletedThread({
+    id: "message-regenerate",
+    title: "REGENERATE_USER_MESSAGE",
+    userText: "REGENERATE_USER_MESSAGE",
+    assistantText: "ORIGINAL_AGENT_REPLY",
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await page.getByTestId("agent-message-row").filter({ hasText: "ORIGINAL_AGENT_REPLY" }).hover();
+    await page.getByTestId("agent-regenerate-button").click();
+    await waitForAssistantReply(page);
+
+    await expect(
+      page.getByTestId("agent-user-message").filter({ hasText: "REGENERATE_USER_MESSAGE" }),
+    ).toBeVisible();
+    await expect(page.getByTestId("agent-message-row").nth(0)).toHaveAttribute(
+      "data-message-role",
+      "user",
+    );
+    await expect(page.getByTestId("agent-message-row").nth(1)).toHaveAttribute(
+      "data-message-role",
+      "assistant",
+    );
+  } finally {
+    await app.close();
+  }
+});

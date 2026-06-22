@@ -58,7 +58,10 @@ function ThreadSidebarComponent({
   };
 
   return (
-    <aside className="flex h-full min-h-0 w-[248px] shrink-0 flex-col overflow-hidden">
+    <aside
+      data-testid="agent-thread-sidebar"
+      className="flex h-full min-h-0 w-[248px] shrink-0 flex-col overflow-hidden"
+    >
       <div className="app-drag-region relative pl-4 pr-2 pt-14 pb-3">
         {/* Electron requires no-drag inside the same drag region to release this hit area. */}
         <div
@@ -70,6 +73,7 @@ function ThreadSidebarComponent({
           <div className="min-w-0 truncate text-sm font-medium">对话</div>
           <Button
             data-no-drag
+            data-testid="agent-new-thread-button"
             type="button"
             size="icon-sm"
             variant="ghost"
@@ -103,6 +107,8 @@ function ThreadSidebarComponent({
                     <ContextMenuTrigger
                       render={
                         <Button
+                          data-testid="agent-thread-item"
+                          data-thread-title={thread.title}
                           type="button"
                           variant="ghost"
                           size="sm"

@@ -48,6 +48,7 @@ export function ContextPicker({
 
   return (
     <Command
+      data-testid="agent-context-picker"
       className="rounded-md border border-border shadow-sm"
       shouldFilter={false}
       value={activeValue}
@@ -73,6 +74,8 @@ export function ContextPicker({
           {candidates.map((candidate, index) => (
             <CommandItem
               key={candidateValue(candidate)}
+              data-testid="agent-context-option"
+              data-context-type={candidate.type}
               value={candidateValue(candidate)}
               onMouseDown={(event) => event.preventDefault()}
               onSelect={() => onSelect(candidate)}

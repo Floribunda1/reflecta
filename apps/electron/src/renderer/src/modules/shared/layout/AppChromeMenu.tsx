@@ -55,6 +55,7 @@ export function AppChromeMenu() {
           <DropdownMenuSeparator />
           <DropdownMenuItem
             data-no-drag
+            data-testid="app-settings-menu-item"
             onClick={() =>
               openModal(<SettingsDialogContent />, {
                 title: "设置",

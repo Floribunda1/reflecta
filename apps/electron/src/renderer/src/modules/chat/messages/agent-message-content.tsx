@@ -71,7 +71,10 @@ function MarkdownBody({
 
 function ToolActivityGroup({ activity }: { activity: ToolActivityView }) {
   return (
-    <Collapsible className="w-full rounded-md bg-muted/35 text-xs text-muted-foreground">
+    <Collapsible
+      data-testid="agent-tool-activity"
+      className="w-full rounded-md bg-muted/35 text-xs text-muted-foreground"
+    >
       <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between gap-2 px-2.5 py-1.5 text-left">
         <span className="flex min-w-0 items-center gap-2">
           <ChevronDown className="size-3 shrink-0 -rotate-90 text-muted-foreground transition-transform group-data-[panel-open]:rotate-0" />
@@ -122,6 +125,7 @@ function ReasoningBlock({
   return (
     <Collapsible
       data-slot="agent-reasoning"
+      data-testid="agent-reasoning"
       className="w-full rounded-md border border-border/60 bg-muted/25 text-xs text-muted-foreground"
     >
       <CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-2 px-2.5 py-1.5 text-left">
@@ -146,7 +150,10 @@ function ReasoningBlock({
 
 function RunningResponsePlaceholder() {
   return (
-    <div className="flex max-w-full items-center gap-2 rounded-md bg-muted/35 px-2.5 py-1.5 text-xs text-muted-foreground">
+    <div
+      data-testid="agent-running-placeholder"
+      className="flex max-w-full items-center gap-2 rounded-md bg-muted/35 px-2.5 py-1.5 text-xs text-muted-foreground"
+    >
       <Spinner className="size-3 shrink-0" />
       <span>正在思考</span>
     </div>
@@ -171,24 +178,29 @@ function CandidateShell({
   const resultRefId = proposal.resultRefId;
   const statusNote = proposalStatusNote(status, resultRefType, resultRefId);
   return (
-    <div className="w-full rounded-lg border border-border/70 bg-card px-3 py-3 text-sm">
+    <div
+      data-testid="agent-proposal-card"
+      data-proposal-title={title}
+      data-proposal-state={proposal.state}
+      className="w-full rounded-lg border border-border/70 bg-card px-3 py-3 text-sm"
+    >
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="font-medium">{title}</span>
         <Badge variant={status === "rejected" ? "destructive" : "outline"}>
           {statusLabel(status, proposal.state)}
         </Badge>
       </div>
-      {proposal.state === "output-error" ? (
+      {children}
+      {proposal.state === "output-error" && (
         <div className="rounded-md bg-destructive/10 p-2 text-sm text-destructive">
           {proposal.errorText}
         </div>
-      ) : (
-        children
       )}
       {statusNote ? <div className="mt-2 text-xs text-muted-foreground">{statusNote}</div> : null}
       {status === "pending" ? (
         <div className="mt-3 flex gap-2">
           <Button
+            data-testid="agent-proposal-confirm-button"
             type="button"
             size="sm"
             disabled={!proposal.approvalId}
@@ -206,6 +218,7 @@ function CandidateShell({
             确认
           </Button>
           <Button
+            data-testid="agent-proposal-reject-button"
             type="button"
             size="sm"
             variant="outline"
@@ -439,7 +452,11 @@ export function AgentMessageContent({
       {turn.blocks.map((block, index) => {
         if (block.kind === "text") {
           return (
-            <div key={`${message.id}-text-${index}`} className="w-full px-1 py-1">
+            <div
+              key={`${message.id}-text-${index}`}
+              data-testid="agent-assistant-text"
+              className="w-full px-1 py-1"
+            >
               <MarkdownBody value={block.text} onInspectContextRef={onInspectContextRef} />
             </div>
           );
@@ -469,7 +486,10 @@ export function AgentMessageContent({
         );
       })}
       {stopped ? (
-        <div className="max-w-full rounded-md border border-border px-3 py-2 text-xs text-muted-foreground">
+        <div
+          data-testid="agent-stopped-state"
+          className="max-w-full rounded-md border border-border px-3 py-2 text-xs text-muted-foreground"
+        >
           已停止
         </div>
       ) : null}
