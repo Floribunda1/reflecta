@@ -15,7 +15,7 @@ import { MessageList } from "./messages/message-list";
 import {
   useActiveThreadId,
   useInspectorRef,
-  useChatUiActions,
+  useAgentUiActions,
   useRunningThreadId,
 } from "./session/chat-ui-store";
 import {
@@ -140,7 +140,7 @@ function ChatPageContent() {
   const activeThreadId = useActiveThreadId();
   const inspectedRef = useInspectorRef();
   const runningThreadId = useRunningThreadId();
-  const uiActions = useChatUiActions();
+  const uiActions = useAgentUiActions();
   const createThreadMutation = useCreateThreadMutation();
   const deleteThreadMutation = useDeleteThreadMutation();
   const archiveThreadMutation = useArchiveThreadMutation();

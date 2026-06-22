@@ -119,7 +119,7 @@ export function useRunningThreadId() {
   return chatUiStore((state) => Object.keys(state.runningThreadIds)[0] ?? null);
 }
 
-export function useChatUiActions() {
+export function useAgentUiActions() {
   return chatUiStore(
     useShallow((state) => ({
       selectThread: state.selectThread,
