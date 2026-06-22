@@ -1,4 +1,4 @@
-import type { AgentContextRef } from "@shared/chat";
+import type { AgentContextRef } from "@shared/agent";
 
 const WIKI_LINK_PATTERN = /\[\[([^#\]\n]+)#([^\]\n]+)\]\]/g;
 export const WIKI_LINK_HREF_PREFIX = "#reflecta-wiki/thought/";

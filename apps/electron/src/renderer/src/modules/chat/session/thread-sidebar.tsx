@@ -13,7 +13,7 @@ import { Input } from "@renderer/components/ui/input";
 import { ScrollArea } from "@renderer/components/ui/scroll-area";
 import { APP_CHROME_MENU_HIT_AREA_CLASS } from "@renderer/modules/shared/layout/AppChromeMenu";
 import { cn } from "@renderer/lib/utils";
-import type { AgentThreadDTO } from "@shared/chat";
+import type { AgentSessionSummary } from "@shared/agent";
 import { groupAgentThreads } from "./thread-groups";
 
 function ThreadSidebarComponent({
@@ -29,7 +29,7 @@ function ThreadSidebarComponent({
   onDelete,
   titleGeneratingThreadId,
 }: {
-  threads: AgentThreadDTO[];
+  threads: AgentSessionSummary[];
   pending?: boolean;
   activeThreadId: string | null;
   runningThreadId: string | null;
@@ -44,12 +44,12 @@ function ThreadSidebarComponent({
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const groups = useMemo(() => groupAgentThreads(threads), [threads]);
-  const finishRename = (thread: AgentThreadDTO) => {
+  const finishRename = (thread: AgentSessionSummary) => {
     const title = renameDraft.trim();
     setRenamingId(null);
     if (title && title !== thread.title) onRename(thread.id, title);
   };
-  const startRename = (thread: AgentThreadDTO) => {
+  const startRename = (thread: AgentSessionSummary) => {
     setRenamingId(thread.id);
     setRenameDraft(thread.title);
   };

@@ -1,14 +1,15 @@
 import { describe, expect, test } from "vitest";
-import type { AgentThreadDTO } from "@shared/chat";
+import type { AgentSessionSummary } from "@shared/agent";
 import { groupAgentThreads } from "./thread-groups";
 
-function thread(id: string, updatedAt: string): AgentThreadDTO {
+function thread(id: string, updatedAt: string): AgentSessionSummary {
   return {
     id,
     title: id,
     status: "active",
     createdAt: updatedAt,
     updatedAt,
+    runtime: "pi",
   };
 }
 

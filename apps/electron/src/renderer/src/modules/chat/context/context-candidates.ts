@@ -1,5 +1,5 @@
 import type { Category } from "@shared/category";
-import type { AgentContextRef } from "@shared/chat";
+import type { AgentContextRef } from "@shared/agent";
 import type { FtsContextResult } from "@shared/search";
 import type { ThoughtSummaryDTO } from "@shared/thought";
 import { truncate } from "../shared/text";

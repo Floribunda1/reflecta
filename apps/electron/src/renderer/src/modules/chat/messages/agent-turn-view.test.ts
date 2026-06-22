@@ -1,49 +1,51 @@
 import { describe, expect, test } from "vitest";
-import type { AgentChatMessage } from "@shared/chat";
-import { buildAgentTurnView, type AgentToolPart } from "./agent-turn-view";
+import type { AgentReducedAssistantBlock } from "@shared/agent";
+import { buildAgentTurnView } from "./agent-turn-view";
 
-function text(text: string): AgentChatMessage["parts"][number] {
-  return { type: "text", text };
+function text(text: string): AgentReducedAssistantBlock {
+  return { kind: "text", text, createdAt: "2026-06-23T00:00:00.000Z" };
 }
 
-function reasoning(
-  text: string,
-  state: "streaming" | "done" = "done",
-): AgentChatMessage["parts"][number] {
-  return { type: "reasoning", text, state };
+function reasoning(text: string): AgentReducedAssistantBlock {
+  return { kind: "reasoning", text, createdAt: "2026-06-23T00:00:00.000Z" };
 }
 
 function tool(
   name: string,
   toolCallId: string,
   output: unknown,
-  state: AgentToolPart["state"] = "output-available",
-  errorText?: string,
-): AgentToolPart {
+  state: "running" | "completed" | "failed" = "completed",
+  error?: string,
+): AgentReducedAssistantBlock {
   return {
-    type: `tool-${name}`,
+    kind: "tool",
     toolCallId,
+    toolName: name,
     state,
     input: {},
     output,
-    ...(errorText ? { errorText } : {}),
-  } as AgentToolPart;
+    error,
+    createdAt: "2026-06-23T00:00:00.000Z",
+  };
 }
 
-function proposalTool(
+function proposal(
   name: string,
   toolCallId: string,
-  input: Record<string, unknown>,
-  state: AgentToolPart["state"] = "approval-requested",
-): AgentToolPart {
+  payload: Record<string, unknown>,
+  state: "pending" | "approved" | "rejected" | "completed" | "failed" = "pending",
+): AgentReducedAssistantBlock {
   return {
-    type: `tool-${name}`,
+    kind: "approval",
+    approvalId: `approval-${toolCallId}`,
     toolCallId,
+    toolName: name,
+    title: name,
+    payload,
+    approved: state === "approved" || state === "completed",
     state,
-    input,
-    toolMetadata: { kind: "proposal", proposalType: name },
-    approval: { id: `approval-${toolCallId}`, approved: state === "approval-responded" },
-  } as AgentToolPart;
+    createdAt: "2026-06-23T00:00:00.000Z",
+  };
 }
 
 describe("buildAgentTurnView", () => {
@@ -77,8 +79,8 @@ describe("buildAgentTurnView", () => {
     });
   });
 
-  test("keeps streaming reasoning content visible", () => {
-    const turn = buildAgentTurnView([reasoning("正在比较已有笔记", "streaming")]);
+  test("keeps running reasoning content visible", () => {
+    const turn = buildAgentTurnView([reasoning("正在比较已有笔记")], true);
 
     expect(turn.blocks).toEqual([
       {
@@ -158,9 +160,9 @@ describe("buildAgentTurnView", () => {
   });
 
   test("keeps running and failed tool activity states in thinking", () => {
-    const runningTurn = buildAgentTurnView([tool("search_all", "tool-1", {}, "input-streaming")]);
+    const runningTurn = buildAgentTurnView([tool("search_all", "tool-1", {}, "running")]);
     const failedTurn = buildAgentTurnView([
-      tool("graph_path", "tool-2", {}, "output-error", "Graph query failed"),
+      tool("graph_path", "tool-2", {}, "failed", "Graph query failed"),
     ]);
 
     expect(runningTurn.blocks[0]).toMatchObject({
@@ -190,18 +192,18 @@ describe("buildAgentTurnView", () => {
   });
 
   test.each([
-    ["thought_create", "候选 Thought", "thought"],
-    ["thought_update", "候选修改", "thought-update"],
-    ["thought_delete", "候选删除 Thought", "generic"],
-    ["category_create", "候选 Category", "generic"],
-    ["category_update", "候选修改 Category", "generic"],
-    ["category_delete", "候选删除 Category", "generic"],
-    ["context_create", "候选 Context", "context"],
-    ["context_update", "候选修改 Context", "generic"],
-    ["context_delete", "候选删除 Context", "generic"],
+    ["thought_create", "thought_create", "thought"],
+    ["thought_update", "thought_update", "thought-update"],
+    ["thought_delete", "thought_delete", "generic"],
+    ["category_create", "category_create", "generic"],
+    ["category_update", "category_update", "generic"],
+    ["category_delete", "category_delete", "generic"],
+    ["context_create", "context_create", "context"],
+    ["context_update", "context_update", "generic"],
+    ["context_delete", "context_delete", "generic"],
   ])("maps %s proposal view metadata", (proposalType, title, renderKind) => {
     const turn = buildAgentTurnView([
-      proposalTool(proposalType, "tool-1", {
+      proposal(proposalType, "tool-1", {
         body: "new thought",
         content: "new context",
       }),
@@ -214,21 +216,6 @@ describe("buildAgentTurnView", () => {
         title,
         status: "pending",
         data: { kind: renderKind },
-      },
-    });
-  });
-
-  test("does not treat old proposal tool names as proposal cards", () => {
-    const turn = buildAgentTurnView([
-      tool("thought_create_proposal", "tool-1", {
-        body: "new thought",
-      }),
-    ]);
-
-    expect(turn.blocks[0]).toMatchObject({
-      kind: "tool-activity",
-      activity: {
-        groupType: "lookup",
       },
     });
   });

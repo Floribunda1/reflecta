@@ -1,11 +1,10 @@
-import { memo, useMemo, useRef, type ReactNode } from "react";
+import { memo, useMemo, type ReactNode } from "react";
 import { Copy, FileText, Pencil, RefreshCcw } from "lucide-react";
 import { format } from "date-fns";
-import type { FileUIPart } from "ai";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@renderer/components/ui/empty";
-import type { AgentChatMessage, AgentContextRef } from "@shared/chat";
+import type { AgentContextRef, AgentFileAttachment, AgentReducedMessage } from "@shared/agent";
 import {
   contextKey,
   contextMentionIcon,
@@ -16,7 +15,6 @@ import {
   messageContextMentionClass,
   type InspectableContextRef,
 } from "../context/context-reference";
-import { messageText } from "../shared/text";
 import type { ComposerJSON } from "../composer/composer-content";
 import { AgentMessageContent, type ApproveToolInput } from "./agent-message-content";
 import { buildAgentTurnView } from "./agent-turn-view";
@@ -80,14 +78,11 @@ function messageTimeLabel(createdAt: string) {
   return format(date, "M月d日 HH:mm:ss");
 }
 
-function fileUIParts(message: AgentChatMessage): FileUIPart[] {
-  return message.parts.filter(
-    (part): part is FileUIPart =>
-      part.type === "file" && typeof part.url === "string" && typeof part.mediaType === "string",
-  );
+function messageFiles(message: AgentReducedMessage): AgentFileAttachment[] {
+  return message.files ?? [];
 }
 
-function MessageAttachment({ file }: { file: FileUIPart }) {
+function MessageAttachment({ file }: { file: AgentFileAttachment }) {
   const name = file.filename || file.mediaType;
   if (file.mediaType.startsWith("image/")) {
     return (
@@ -115,13 +110,13 @@ function UserMessageContent({
   text,
   onInspect,
 }: {
-  message: AgentChatMessage;
+  message: AgentReducedMessage;
   text: string;
   onInspect?: (ref: InspectableContextRef) => void;
 }) {
-  const refs = message.metadata?.contextRefs ?? [];
-  const files = fileUIParts(message);
-  const content = message.metadata?.composerContent as ComposerJSON | undefined;
+  const refs = message.contextRefs ?? [];
+  const files = messageFiles(message);
+  const content = message.composerContent as ComposerJSON | undefined;
   const renderedContent =
     content?.content?.map((node, index) => renderComposerNode(node, String(index), onInspect)) ??
     [];
@@ -159,12 +154,12 @@ function UserMessageContent({
 }
 
 type MessageRowProps = {
-  message: AgentChatMessage;
+  message: AgentReducedMessage;
   createdAt: string;
   isBusy: boolean;
   isLastAssistant: boolean;
   stopped: boolean;
-  onEdit: (message: AgentChatMessage) => void;
+  onEdit: (message: AgentReducedMessage) => void;
   onRegenerate: (messageId: string) => void;
   onApproveTool: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
@@ -181,10 +176,13 @@ function MessageRowComponent({
   onApproveTool,
   onInspectContextRef,
 }: MessageRowProps) {
-  const text = useMemo(() => messageText(message), [message]);
-  const turn = useMemo(() => buildAgentTurnView(message.parts), [message.parts]);
+  const text = message.text;
+  const turn = useMemo(
+    () => buildAgentTurnView(message.blocks ?? [], isBusy && isLastAssistant),
+    [isBusy, isLastAssistant, message.blocks],
+  );
   const timeLabel = messageTimeLabel(createdAt);
-  const hasFiles = fileUIParts(message).length > 0;
+  const hasFiles = messageFiles(message).length > 0;
 
   const copyMessage = async () => {
     await navigator.clipboard.writeText(text);
@@ -213,11 +211,9 @@ function MessageRowComponent({
           onInspectContextRef={onInspectContextRef}
         />
       ) : null}
-      {message.role !== "user" &&
-      message.metadata?.contextRefs &&
-      message.metadata.contextRefs.length > 0 ? (
+      {message.role !== "user" && message.contextRefs && message.contextRefs.length > 0 ? (
         <div className="flex max-w-full flex-wrap gap-1">
-          {message.metadata.contextRefs.map((ref) => (
+          {message.contextRefs.map((ref) => (
             <Badge key={contextKey(ref)} variant="outline">
               {contextTypeLabel(ref.type)} · {contextTitle(ref)}
             </Badge>
@@ -298,30 +294,22 @@ export function MessageList({
   onApproveTool,
   onInspectContextRef,
 }: {
-  messages: AgentChatMessage[];
+  messages: AgentReducedMessage[];
   isBusy: boolean;
   stoppedMessageId: string | null;
   error?: Error;
   onRetry: () => void;
-  onEdit: (message: AgentChatMessage) => void;
+  onEdit: (message: AgentReducedMessage) => void;
   onRegenerate: (messageId: string) => void;
   onApproveTool: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
 }) {
   const lastAssistantId = messages.findLast((message) => message.role === "assistant")?.id;
-  const localCreatedAtById = useRef(new Map<string, string>());
   const stoppedMessageVisible = stoppedMessageId
     ? messages.some((message) => message.id === stoppedMessageId)
     : true;
 
-  const createdAtFor = (message: AgentChatMessage) => {
-    if (message.createdAt) return message.createdAt;
-    const cached = localCreatedAtById.current.get(message.id);
-    if (cached) return cached;
-    const createdAt = new Date().toISOString();
-    localCreatedAtById.current.set(message.id, createdAt);
-    return createdAt;
-  };
+  const createdAtFor = (message: AgentReducedMessage) => message.createdAt;
 
   return (
     <div data-testid="agent-message-list" className="flex w-full flex-col gap-5">

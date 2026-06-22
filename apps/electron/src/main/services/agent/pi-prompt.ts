@@ -1,5 +1,5 @@
 import type { AgentContextRef, AgentFileAttachment } from "@shared/agent";
-import { selectedContextBlockFromRefs } from "@shared/chat-context";
+import { selectedAgentContextBlockFromRefs } from "@shared/agent-context";
 
 type ReflectaAttachmentMetadata = {
   attachmentId?: unknown;
@@ -45,5 +45,5 @@ export function buildPiPromptText({
   contextRefs?: AgentContextRef[];
   files?: AgentFileAttachment[];
 }): string {
-  return `${text}${selectedContextBlockFromRefs(contextRefs)}${attachmentBlockFromFiles(files)}`;
+  return `${text}${selectedAgentContextBlockFromRefs(contextRefs)}${attachmentBlockFromFiles(files)}`;
 }

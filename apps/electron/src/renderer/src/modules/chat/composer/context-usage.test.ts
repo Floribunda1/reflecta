@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import type { AgentChatMessage } from "@shared/chat";
+import type { AgentReducedMessage } from "@shared/agent";
 import {
   buildContextUsageRequest,
   contextUsageLabel,
@@ -7,11 +7,12 @@ import {
   contextWindowForModel,
 } from "./context-usage";
 
-function userMessage(text: string): AgentChatMessage {
+function userMessage(text: string): AgentReducedMessage {
   return {
     id: "user-1",
     role: "user",
-    parts: [{ type: "text", text }],
+    text,
+    createdAt: "2026-06-23T00:00:00.000Z",
   };
 }
 

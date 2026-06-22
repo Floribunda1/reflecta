@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useDebounce } from "ahooks";
 import { ipcClient } from "@renderer/utils/ipc";
-import type { AgentContextRef } from "@shared/chat";
+import type { AgentContextRef } from "@shared/agent";
 import {
   buildContextCandidates,
   CONTEXT_LOOKUP_LIMIT,

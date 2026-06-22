@@ -1,7 +1,6 @@
 import agentSystemPrompt from "../../../../../main/services/agent/agent-system-prompt.md?raw";
-import type { AgentChatMessage, AgentContextRef, AgentModelSelection } from "@shared/chat";
-import { selectedContextBlockFromRefs } from "@shared/chat-context";
-import { agentMessageDisplayText } from "@shared/chat-display";
+import type { AgentContextRef, AgentModelSelection, AgentReducedMessage } from "@shared/agent";
+import { selectedAgentContextBlockFromRefs } from "@shared/agent-context";
 
 const MAX_MODEL_HISTORY_MESSAGES = 24;
 
@@ -65,22 +64,32 @@ export type ContextUsageWorkerResponse = {
   usage: ContextUsage;
 };
 
-function usagePartText(part: AgentChatMessage["parts"][number]) {
-  if ("text" in part && typeof part.text === "string") return part.text;
-  const record = part as Record<string, unknown>;
-  return JSON.stringify({
-    type: part.type,
-    input: record.input,
-    output: record.output,
-    errorText: record.errorText,
-  });
-}
-
-function usageMessageText(message: AgentChatMessage) {
+function usageMessageText(message: AgentReducedMessage) {
   const text =
     message.role === "user"
-      ? agentMessageDisplayText(message)
-      : message.parts.map(usagePartText).filter(Boolean).join("\n");
+      ? [message.text, ...(message.contextRefs ?? []).map((ref) => ref.title ?? ref.id)]
+          .filter(Boolean)
+          .join(" ")
+      : (message.blocks ?? [])
+          .map((block) => {
+            if (block.kind === "text" || block.kind === "reasoning") return block.text;
+            if (block.kind === "tool") {
+              return JSON.stringify({
+                type: block.toolName,
+                input: block.input,
+                output: block.output,
+                errorText: block.error,
+              });
+            }
+            return JSON.stringify({
+              type: block.toolName,
+              input: block.payload,
+              output: block.output,
+              errorText: block.error,
+            });
+          })
+          .filter(Boolean)
+          .join("\n");
   return `${message.role}:\n${text}`;
 }
 
@@ -90,18 +99,19 @@ function nextMessages({
   selectedContexts,
   editingMessageId,
 }: {
-  messages: AgentChatMessage[];
+  messages: AgentReducedMessage[];
   draft: string;
   selectedContexts: AgentContextRef[];
   editingMessageId?: string;
 }) {
   const text = draft.trim();
   if (!text) return messages;
-  const nextMessage: AgentChatMessage = {
+  const nextMessage: AgentReducedMessage = {
     id: editingMessageId ?? "draft",
     role: "user",
-    parts: [{ type: "text", text }],
-    metadata: { contextRefs: selectedContexts },
+    text,
+    createdAt: new Date(0).toISOString(),
+    contextRefs: selectedContexts,
   };
   if (!editingMessageId) return [...messages, nextMessage];
   return messages.map((message) => (message.id === editingMessageId ? nextMessage : message));
@@ -122,7 +132,7 @@ export function buildContextUsageRequest({
   modelSelection,
   editingMessageId,
 }: {
-  messages: AgentChatMessage[];
+  messages: AgentReducedMessage[];
   draft: string;
   selectedContexts: AgentContextRef[];
   modelSelection: AgentModelSelection | null | undefined;
@@ -136,7 +146,7 @@ export function buildContextUsageRequest({
   }).slice(-MAX_MODEL_HISTORY_MESSAGES);
   const input = [
     agentSystemPrompt,
-    selectedContextBlockFromRefs(selectedContexts),
+    selectedAgentContextBlockFromRefs(selectedContexts),
     ...effectiveMessages.map(usageMessageText),
   ]
     .filter(Boolean)

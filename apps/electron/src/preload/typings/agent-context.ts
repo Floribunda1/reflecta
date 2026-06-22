@@ -6,7 +6,7 @@ function refTitle(ref: AgentContextRef) {
   return ref.title?.trim() || `${ref.type}:${ref.id}`;
 }
 
-export function selectedContextBlockFromRefs(refs: AgentContextRef[]): string {
+export function selectedAgentContextBlockFromRefs(refs: AgentContextRef[]): string {
   if (refs.length === 0) return "";
 
   const lines = refs

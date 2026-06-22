@@ -1,18 +1,28 @@
-import {
-  getToolName,
-  isReasoningUIPart,
-  isTextUIPart,
-  isToolUIPart,
-  type DynamicToolUIPart,
-  type ReasoningUIPart,
-  type ToolUIPart,
-} from "ai";
-import type { AgentChatMessage, AgentProposalType } from "@shared/chat";
+import type { AgentReducedAssistantBlock } from "@shared/agent";
 
-export type AgentToolPart = ToolUIPart | DynamicToolUIPart;
-export type ProposalType = AgentProposalType;
+export type ProposalType =
+  | "thought_create"
+  | "thought_update"
+  | "thought_delete"
+  | "category_create"
+  | "category_update"
+  | "category_delete"
+  | "context_create"
+  | "context_update"
+  | "context_delete"
+  | "bash";
 export type ToolApprovalStatus = "pending" | "approved" | "rejected";
 export type ToolGroupType = "lookup" | "graph" | "other";
+export type ProposalState =
+  | "approval-requested"
+  | "approval-responded"
+  | "output-available"
+  | "output-denied"
+  | "output-error"
+  | "input-streaming";
+
+type AgentToolBlock = Extract<AgentReducedAssistantBlock, { kind: "tool" }>;
+type AgentApprovalBlock = Extract<AgentReducedAssistantBlock, { kind: "approval" }>;
 
 export type ToolActivityView = {
   groupType: ToolGroupType;
@@ -37,7 +47,7 @@ type ProposalBase<TType extends ProposalType, TData extends { kind: string }> = 
   type: TType;
   title: string;
   status?: ToolApprovalStatus;
-  state: AgentToolPart["state"];
+  state: ProposalState;
   errorText?: string;
   resultRefType?: string;
   resultRefId?: string;
@@ -108,53 +118,47 @@ export type AgentTurnView = {
 
 type InternalTurnBlock =
   | { kind: "text"; text: string }
-  | { kind: "reasoning"; parts: ReasoningUIPart[] }
-  | { kind: "tool-group"; groupType: ToolGroupType; parts: AgentToolPart[] }
+  | { kind: "reasoning"; text: string; status: AgentReasoningView["status"] }
+  | { kind: "tool-group"; groupType: ToolGroupType; blocks: AgentToolBlock[] }
   | { kind: "proposal"; proposal: ProposalView };
 
-export function buildAgentTurnView(parts: AgentChatMessage["parts"]): AgentTurnView {
+export function buildAgentTurnView(
+  blocks: AgentReducedAssistantBlock[],
+  assistantRunning = false,
+): AgentTurnView {
   const internalBlocks: InternalTurnBlock[] = [];
 
-  for (const part of parts) {
-    if (isTextUIPart(part)) {
-      appendText(internalBlocks, part.text);
+  for (const block of blocks) {
+    if (block.kind === "text") {
+      appendText(internalBlocks, block.text);
       continue;
     }
-    if (isReasoningUIPart(part)) {
-      appendReasoning(internalBlocks, part);
+    if (block.kind === "reasoning") {
+      appendReasoning(internalBlocks, block.text, assistantRunning ? "streaming" : "done");
       continue;
     }
-    if (!isToolUIPart(part)) continue;
-
-    const proposal = proposalViewFor(part);
-    if (proposal) {
-      internalBlocks.push({ kind: "proposal", proposal });
+    if (block.kind === "approval") {
+      internalBlocks.push({ kind: "proposal", proposal: proposalViewFor(block) });
       continue;
     }
-
-    appendTool(internalBlocks, toolGroupType(part), part);
+    appendTool(internalBlocks, toolGroupType(block.toolName), block);
   }
 
-  const blocks = internalBlocks.map(toPublicBlock);
-
   return {
-    blocks,
+    blocks: internalBlocks.map(toPublicBlock),
   };
 }
 
 function toPublicBlock(block: InternalTurnBlock): AgentTurnBlock {
   if (block.kind === "tool-group") {
-    return { kind: "tool-activity", activity: summarizeToolGroup(block.groupType, block.parts) };
+    return { kind: "tool-activity", activity: summarizeToolGroup(block.groupType, block.blocks) };
   }
   if (block.kind === "reasoning") {
     return {
       kind: "reasoning",
       reasoning: {
-        text: block.parts
-          .map((part) => part.text)
-          .join("\n")
-          .trim(),
-        status: block.parts.some((part) => part.state === "streaming") ? "streaming" : "done",
+        text: block.text.trim(),
+        status: block.status,
       },
     };
   }
@@ -171,39 +175,43 @@ function appendText(blocks: InternalTurnBlock[], text: string) {
   blocks.push({ kind: "text", text });
 }
 
-function appendTool(blocks: InternalTurnBlock[], groupType: ToolGroupType, part: AgentToolPart) {
+function appendTool(blocks: InternalTurnBlock[], groupType: ToolGroupType, block: AgentToolBlock) {
   const last = blocks.at(-1);
   if (last?.kind === "tool-group" && last.groupType === groupType) {
-    last.parts.push(part);
+    last.blocks.push(block);
     return;
   }
-  blocks.push({ kind: "tool-group", groupType, parts: [part] });
+  blocks.push({ kind: "tool-group", groupType, blocks: [block] });
 }
 
-function appendReasoning(blocks: InternalTurnBlock[], part: ReasoningUIPart) {
+function appendReasoning(
+  blocks: InternalTurnBlock[],
+  text: string,
+  status: AgentReasoningView["status"],
+) {
+  if (!text) return;
   const last = blocks.at(-1);
   if (last?.kind === "reasoning") {
-    last.parts.push(part);
+    last.text += `\n${text}`;
+    last.status = last.status === "streaming" || status === "streaming" ? "streaming" : "done";
     return;
   }
-  blocks.push({ kind: "reasoning", parts: [part] });
+  blocks.push({ kind: "reasoning", text, status });
 }
 
-function proposalViewFor(part: AgentToolPart): ProposalView | null {
-  const input = toolInput(part);
-  const output = toolOutputRecord(part);
-  const type = proposalTypeFor(part);
-  if (!type) return null;
+function proposalViewFor(block: AgentApprovalBlock): ProposalView {
+  const input = isRecord(block.payload) ? block.payload : {};
+  const output = isRecord(block.output) ? block.output : {};
+  const type = proposalTypeFor(block.toolName);
   const base = {
-    toolCallId: part.toolCallId,
-    title: proposalTitle(type),
-    status: approvalStatus(part),
-    state: part.state,
-    errorText:
-      "errorText" in part && typeof part.errorText === "string" ? part.errorText : undefined,
+    toolCallId: block.toolCallId,
+    title: block.title || proposalTitle(type),
+    status: approvalStatus(block),
+    state: proposalState(block),
+    errorText: block.error,
     resultRefType: stringValue(output.resultRefType),
     resultRefId: stringValue(output.resultRefId),
-    approvalId: "approval" in part && part.approval ? part.approval.id : undefined,
+    approvalId: block.approvalId,
   };
 
   if (type === "thought_create") {
@@ -218,43 +226,34 @@ function proposalViewFor(part: AgentToolPart): ProposalView | null {
   return { ...base, type, data: genericProposalData(input) };
 }
 
-function proposalTypeFor(part: AgentToolPart): ProposalType | null {
-  const metadata = "toolMetadata" in part && isRecord(part.toolMetadata) ? part.toolMetadata : {};
-  const type = metadata.proposalType;
-  if (type === "thought_create") return "thought_create";
-  if (type === "thought_update") return "thought_update";
-  if (type === "thought_delete") return "thought_delete";
-  if (type === "category_create") return "category_create";
-  if (type === "category_update") return "category_update";
-  if (type === "category_delete") return "category_delete";
-  if (type === "context_create") return "context_create";
-  if (type === "context_update") return "context_update";
-  if (type === "context_delete") return "context_delete";
-  if (type === "bash") return "bash";
-  const name = getToolName(part);
-  if (name === "thought_create") return "thought_create";
-  if (name === "thought_update") return "thought_update";
-  if (name === "thought_delete") return "thought_delete";
-  if (name === "category_create") return "category_create";
-  if (name === "category_update") return "category_update";
-  if (name === "category_delete") return "category_delete";
-  if (name === "context_create") return "context_create";
-  if (name === "context_update") return "context_update";
-  if (name === "context_delete") return "context_delete";
-  if (name === "bash") return "bash";
-  return null;
+function proposalTypeFor(toolName: string): ProposalType {
+  if (toolName === "thought_create") return "thought_create";
+  if (toolName === "thought_update") return "thought_update";
+  if (toolName === "thought_delete") return "thought_delete";
+  if (toolName === "category_create") return "category_create";
+  if (toolName === "category_update") return "category_update";
+  if (toolName === "category_delete") return "category_delete";
+  if (toolName === "context_create") return "context_create";
+  if (toolName === "context_update") return "context_update";
+  if (toolName === "context_delete") return "context_delete";
+  if (toolName === "bash") return "bash";
+  return "thought_create";
 }
 
-function approvalStatus(part: AgentToolPart): ToolApprovalStatus | undefined {
-  if (part.state === "approval-requested") return "pending";
-  if (part.state === "approval-responded") {
-    return part.approval.approved ? "approved" : "rejected";
-  }
-  if (part.state === "output-available" && "approval" in part && part.approval?.approved) {
-    return "approved";
-  }
-  if (part.state === "output-denied") return "rejected";
-  return undefined;
+function approvalStatus(block: AgentApprovalBlock): ToolApprovalStatus | undefined {
+  if (block.state === "pending") return "pending";
+  if (block.state === "rejected") return "rejected";
+  if (block.state === "approved" || block.state === "completed") return "approved";
+  return block.approved ? "approved" : undefined;
+}
+
+function proposalState(block: AgentApprovalBlock): ProposalState {
+  if (block.state === "pending") return "approval-requested";
+  if (block.state === "approved") return "approval-responded";
+  if (block.state === "rejected") return "output-denied";
+  if (block.state === "completed") return "output-available";
+  if (block.state === "failed") return "output-error";
+  return "input-streaming";
 }
 
 function proposalTitle(type: ProposalType) {
@@ -319,19 +318,19 @@ function proposalValue(value: unknown) {
   return String(value);
 }
 
-function summarizeToolGroup(groupType: ToolGroupType, parts: AgentToolPart[]): ToolActivityView {
-  const status = parts.some((part) => part.state === "output-error")
+function summarizeToolGroup(groupType: ToolGroupType, blocks: AgentToolBlock[]): ToolActivityView {
+  const status = blocks.some((block) => block.state === "failed")
     ? "failed"
-    : parts.every((part) => part.state === "output-available")
+    : blocks.every((block) => block.state === "completed")
       ? "done"
       : "running";
-  const title = toolActivityTitle(groupType, parts);
+  const title = toolActivityTitle(groupType, blocks);
   const summary =
     status === "running"
       ? runningSummary(groupType)
       : status === "failed"
-        ? failedSummary(title, parts)
-        : doneSummary(groupType, parts);
+        ? failedSummary(title, blocks)
+        : doneSummary(groupType, blocks);
 
   return {
     groupType,
@@ -339,13 +338,11 @@ function summarizeToolGroup(groupType: ToolGroupType, parts: AgentToolPart[]): T
     status,
     statusLabel: status === "failed" ? "出错" : status === "running" ? "运行中" : "完成",
     summary,
-    items: parts.map(toolItemView),
+    items: blocks.map(toolItemView),
   };
 }
 
-function toolGroupType(part: AgentToolPart | undefined): ToolGroupType {
-  if (!part) return "other";
-  const name = getToolName(part);
+function toolGroupType(name: string): ToolGroupType {
   if (name.startsWith("graph_")) return "graph";
   if (
     name.startsWith("search_") ||
@@ -361,34 +358,29 @@ function toolGroupType(part: AgentToolPart | undefined): ToolGroupType {
   return "other";
 }
 
-function toolOutput(part: AgentToolPart): unknown {
-  return part.state === "output-available" ? part.output : undefined;
+function toolOutput(block: AgentToolBlock): unknown {
+  return block.state === "completed" ? block.output : undefined;
 }
 
-function toolOutputRecord(part: AgentToolPart): Record<string, unknown> {
-  const output = toolOutput(part);
-  return isRecord(output) ? output : {};
+function toolInput(block: AgentToolBlock): Record<string, unknown> {
+  return isRecord(block.input) ? block.input : {};
 }
 
-function toolInput(part: AgentToolPart): Record<string, unknown> {
-  return "input" in part && isRecord(part.input) ? part.input : {};
-}
-
-function toolItemView(part: AgentToolPart): ToolActivityItemView {
-  const toolName = getToolName(part);
-  if (part.state === "output-error") {
+function toolItemView(block: AgentToolBlock): ToolActivityItemView {
+  const toolName = block.toolName;
+  if (block.state === "failed") {
     return {
-      toolCallId: part.toolCallId,
+      toolCallId: block.toolCallId,
       toolName,
       label: `${toolDoneVerb(toolName)}失败`,
       status: "failed",
       statusLabel: "出错",
-      errorText: toolErrorText(part),
+      errorText: block.error,
     };
   }
-  if (part.state !== "output-available") {
+  if (block.state !== "completed") {
     return {
-      toolCallId: part.toolCallId,
+      toolCallId: block.toolCallId,
       toolName,
       label: toolRunningVerb(toolName),
       status: "running",
@@ -396,9 +388,9 @@ function toolItemView(part: AgentToolPart): ToolActivityItemView {
     };
   }
   return {
-    toolCallId: part.toolCallId,
+    toolCallId: block.toolCallId,
     toolName,
-    label: toolDoneSummary(toolName, toolInput(part), toolOutput(part)),
+    label: toolDoneSummary(toolName, toolInput(block), toolOutput(block)),
     status: "done",
     statusLabel: "完成",
   };
@@ -410,11 +402,11 @@ function runningSummary(groupType: ToolGroupType) {
   return "正在使用工具";
 }
 
-function doneSummary(groupType: ToolGroupType, parts: AgentToolPart[]) {
-  if (parts.length === 1 && parts[0]) return toolItemView(parts[0]).label;
+function doneSummary(groupType: ToolGroupType, blocks: AgentToolBlock[]) {
+  if (blocks.length === 1 && blocks[0]) return toolItemView(blocks[0]).label;
   if (groupType === "graph") return "查看了关联";
   if (groupType === "lookup") {
-    const counts = aggregateLookupCounts(parts);
+    const counts = aggregateLookupCounts(blocks);
     if (counts.thoughts || counts.contexts) {
       return `搜索 ${counts.thoughts} 条 Thought，读取 ${counts.contexts} 条 Context`;
     }
@@ -423,23 +415,19 @@ function doneSummary(groupType: ToolGroupType, parts: AgentToolPart[]) {
   return "使用了工具";
 }
 
-function failedSummary(title: string, parts: AgentToolPart[]) {
-  const failedItems = parts.filter((part) => part.state === "output-error").map(toolItemView);
+function failedSummary(title: string, blocks: AgentToolBlock[]) {
+  const failedItems = blocks.filter((block) => block.state === "failed").map(toolItemView);
   if (failedItems.length === 1) return failedItems[0]?.label ?? `${title}时遇到问题`;
   return `${title}时遇到 ${failedItems.length} 个问题`;
 }
 
-function toolErrorText(part: AgentToolPart) {
-  return "errorText" in part && typeof part.errorText === "string" ? part.errorText : undefined;
-}
-
-function aggregateLookupCounts(parts: AgentToolPart[]) {
+function aggregateLookupCounts(blocks: AgentToolBlock[]) {
   let thoughts = 0;
   let contexts = 0;
-  for (const part of parts) {
-    if (part.state !== "output-available") continue;
-    const name = getToolName(part);
-    const output = toolOutput(part);
+  for (const block of blocks) {
+    if (block.state !== "completed") continue;
+    const name = block.toolName;
+    const output = toolOutput(block);
     if (name === "thought_list" || name === "search_thoughts") {
       thoughts += outputCount(output, "thoughts");
     }
@@ -454,8 +442,8 @@ function aggregateLookupCounts(parts: AgentToolPart[]) {
   return { thoughts, contexts };
 }
 
-function toolActivityTitle(groupType: ToolGroupType, parts: AgentToolPart[]) {
-  if (parts.length === 1 && parts[0]) return toolTitle(getToolName(parts[0]));
+function toolActivityTitle(groupType: ToolGroupType, blocks: AgentToolBlock[]) {
+  if (blocks.length === 1 && blocks[0]) return toolTitle(blocks[0].toolName);
   if (groupType === "graph") return "查看关联";
   if (groupType === "lookup") return "查找相关内容";
   return "使用工具";

@@ -9,8 +9,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@renderer/components/ui/collapsible";
-import type { AgentChatMessage } from "@shared/chat";
-import type { AgentModelSelection, AgentReasoningLevel } from "@shared/chat";
+import type { AgentModelSelection, AgentReasoningLevel, AgentReducedMessage } from "@shared/agent";
 import { wikiMarkdownToLinks, type InspectableContextRef } from "../context/context-reference";
 import {
   type AgentReasoningView,
@@ -439,7 +438,7 @@ export function AgentMessageContent({
   onApproveTool,
   onInspectContextRef,
 }: {
-  message: AgentChatMessage;
+  message: AgentReducedMessage;
   turn: AgentTurnView;
   isBusy: boolean;
   isLastAssistant: boolean;

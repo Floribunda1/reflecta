@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ipcClient } from "@renderer/utils/ipc";
 import type { AiModelOption } from "@main/config";
-import type { AgentModelSelection } from "@shared/chat";
+import type { AgentModelSelection } from "@shared/agent";
 import { removeThreadFromCache, renameThreadInCache, upsertThreadInCache } from "./query-cache";
 import { chatQueryKeys } from "./query-keys";
 

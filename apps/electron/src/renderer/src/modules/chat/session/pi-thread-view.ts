@@ -5,12 +5,11 @@ import type { AgentSessionEvent } from "@shared/agent";
 import { isAgentSessionEvent, reduceAgentSession } from "@shared/agent";
 import type { ComposerSendInput, EditingMessage } from "../composer/chat-composer";
 import type { ApproveToolInput } from "../messages/agent-message-content";
-import { agentStateToChatMessages } from "./agent-events-to-chat";
 import { chatUiStore, useStoppedMessageId, useThreadFocusNonce } from "./chat-ui-store";
 import { chatQueryKeys } from "./query-keys";
 import type { AgentThreadView } from "./thread-view";
 import {
-  editingMessageFromChatMessage,
+  editingMessageFromAgentMessage,
   scrollKeyFor,
   shouldShowScrollToBottomButton,
 } from "./thread-view";
@@ -55,7 +54,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
   }, [queryClient, sessionId]);
 
   const state = useMemo(() => reduceAgentSession(events), [events]);
-  const visibleMessages = useMemo(() => agentStateToChatMessages(state), [state]);
+  const visibleMessages = state.messages;
   const stoppedMessageId = useMemo(() => {
     if (localStoppedMessageId) return localStoppedMessageId;
     if (state.status !== "cancelled") return null;
@@ -146,7 +145,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
       regenerate: async () => {},
       editMessage: (message) => {
         if (isBusy || message.role !== "user") return;
-        setEditingMessage(editingMessageFromChatMessage(message));
+        setEditingMessage(editingMessageFromAgentMessage(message));
       },
       approveTool: async (input: ApproveToolInput) => {
         await ipcClient.chat.sendAgentCommand({

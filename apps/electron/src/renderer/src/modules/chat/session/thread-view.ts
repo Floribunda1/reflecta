@@ -1,12 +1,10 @@
 import type { RefObject } from "react";
-import type { FileUIPart } from "ai";
-import type { AgentChatMessage } from "@shared/chat";
+import type { AgentReducedMessage } from "@shared/agent";
 import type { ComposerSendInput, EditingMessage } from "../composer/chat-composer";
 import type { ApproveToolInput } from "../messages/agent-message-content";
-import { messageText } from "../shared/text";
 
 export type AgentThreadView = {
-  visibleMessages: AgentChatMessage[];
+  visibleMessages: AgentReducedMessage[];
   messagesFetching: boolean;
   isBusy: boolean;
   composerBusy: boolean;
@@ -23,23 +21,20 @@ export type AgentThreadView = {
     send(input: ComposerSendInput): Promise<void>;
     retry(): Promise<void>;
     regenerate(messageId: string): Promise<void>;
-    editMessage(message: AgentChatMessage): void;
+    editMessage(message: AgentReducedMessage): void;
     approveTool(input: ApproveToolInput): Promise<void>;
     cancelEdit(): void;
     stop(): void;
   };
 };
 
-export function editingMessageFromChatMessage(message: AgentChatMessage): EditingMessage {
+export function editingMessageFromAgentMessage(message: AgentReducedMessage): EditingMessage {
   return {
     id: message.id,
-    text: messageText(message),
-    contextRefs: message.metadata?.contextRefs ?? [],
-    files: message.parts.filter(
-      (part): part is FileUIPart =>
-        part.type === "file" && typeof part.url === "string" && typeof part.mediaType === "string",
-    ),
-    composerContent: message.metadata?.composerContent,
+    text: message.text,
+    contextRefs: message.contextRefs ?? [],
+    files: message.files ?? [],
+    composerContent: message.composerContent,
   };
 }
 
@@ -49,19 +44,20 @@ function valueKey(value: unknown) {
   return String(JSON.stringify(value)?.length ?? 0);
 }
 
-function partScrollKey(part: AgentChatMessage["parts"][number]) {
-  const state = "state" in part && typeof part.state === "string" ? part.state : "";
-  const text = "text" in part && typeof part.text === "string" ? part.text.length : "";
-  const input = "input" in part ? valueKey(part.input) : "";
-  const output = "output" in part ? valueKey(part.output) : "";
-  const error = "errorText" in part ? valueKey(part.errorText) : "";
-  return `${part.type}:${state}:${text}:${input}:${output}:${error}`;
+function blockScrollKey(block: NonNullable<AgentReducedMessage["blocks"]>[number]) {
+  if (block.kind === "text" || block.kind === "reasoning") {
+    return `${block.kind}:${block.text.length}`;
+  }
+  if (block.kind === "tool") {
+    return `${block.kind}:${block.toolCallId}:${block.state}:${valueKey(block.input)}:${valueKey(block.output)}:${valueKey(block.error)}`;
+  }
+  return `${block.kind}:${block.approvalId}:${block.state}:${valueKey(block.payload)}:${valueKey(block.output)}:${valueKey(block.error)}`;
 }
 
-export function scrollKeyFor(messages: AgentChatMessage[]) {
+export function scrollKeyFor(messages: AgentReducedMessage[]) {
   const lastMessage = messages.at(-1);
   return lastMessage
-    ? `${messages.length}:${lastMessage.id}:${lastMessage.parts.map(partScrollKey).join("|")}`
+    ? `${messages.length}:${lastMessage.id}:${lastMessage.text.length}:${(lastMessage.blocks ?? []).map(blockScrollKey).join("|")}`
     : "empty";
 }
 

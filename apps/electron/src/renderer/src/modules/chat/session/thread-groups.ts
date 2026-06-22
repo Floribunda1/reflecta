@@ -1,13 +1,16 @@
 import { compareDesc, startOfDay, subDays } from "date-fns";
-import type { AgentThreadDTO } from "@shared/chat";
+import type { AgentSessionSummary } from "@shared/agent";
 
 export type AgentThreadGroup = {
   id: string;
   label: string;
-  threads: AgentThreadDTO[];
+  threads: AgentSessionSummary[];
 };
 
-export function groupAgentThreads(threads: AgentThreadDTO[], now = Date.now()): AgentThreadGroup[] {
+export function groupAgentThreads(
+  threads: AgentSessionSummary[],
+  now = Date.now(),
+): AgentThreadGroup[] {
   const sorted = [...threads].sort((a, b) =>
     compareDesc(new Date(a.updatedAt), new Date(b.updatedAt)),
   );

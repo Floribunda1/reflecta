@@ -4,7 +4,6 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useLatest } from "ahooks";
 import { ChevronDown, FileText, Paperclip, Send, Square, X } from "lucide-react";
-import type { FileUIPart } from "ai";
 import { Button } from "@renderer/components/ui/button";
 import { Spinner } from "@renderer/components/ui/spinner";
 import {
@@ -20,11 +19,12 @@ import {
 } from "@renderer/components/ui/dropdown-menu";
 import type { AiModelOption } from "@main/config";
 import type {
-  AgentChatMessage,
   AgentContextRef,
+  AgentFileAttachment,
   AgentModelSelection,
   AgentReasoningLevel,
-} from "@shared/chat";
+  AgentReducedMessage,
+} from "@shared/agent";
 import {
   contextMentionClass,
   contextMentionIcon,
@@ -59,14 +59,14 @@ export type EditingMessage = {
   id: string;
   text: string;
   contextRefs: AgentContextRef[];
-  files: FileUIPart[];
+  files: AgentFileAttachment[];
   composerContent?: ComposerJSON;
 };
 
 export type ComposerSendInput = {
   text: string;
   contextRefs: AgentContextRef[];
-  files: FileUIPart[];
+  files: AgentFileAttachment[];
   composerContent: ComposerJSON;
   modelSelection?: AgentModelSelection;
   reasoningLevel?: AgentReasoningLevel;
@@ -125,7 +125,7 @@ function ContextUsageMeter({ usage }: { usage: ContextUsage }) {
   );
 }
 
-function fileToUIPart(file: File): Promise<FileUIPart> {
+function fileToAttachment(file: File): Promise<AgentFileAttachment> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () =>
@@ -146,7 +146,13 @@ function fileToUIPart(file: File): Promise<FileUIPart> {
   });
 }
 
-function AttachmentPreview({ file, onRemove }: { file: FileUIPart; onRemove: () => void }) {
+function AttachmentPreview({
+  file,
+  onRemove,
+}: {
+  file: AgentFileAttachment;
+  onRemove: () => void;
+}) {
   const isImage = file.mediaType.startsWith("image/");
   const name = file.filename || file.mediaType;
 
@@ -189,7 +195,7 @@ export function ChatComposer({
   focusRequest: number;
   modelOptions: AiModelOption[];
   activeModel: AgentModelSelection | null;
-  messages: AgentChatMessage[];
+  messages: AgentReducedMessage[];
   modelSelectorDisabled: boolean;
   onSend: (input: ComposerSendInput) => Promise<void> | void;
   onSelectModel: (selection: AgentModelSelection) => void;
@@ -199,7 +205,7 @@ export function ChatComposer({
 }) {
   const [draft, setDraft] = useState("");
   const [selectedContexts, setSelectedContexts] = useState<AgentContextRef[]>([]);
-  const [files, setFiles] = useState<FileUIPart[]>([]);
+  const [files, setFiles] = useState<AgentFileAttachment[]>([]);
   const [attachmentError, setAttachmentError] = useState("");
   const [reasoningLevel, setReasoningLevel] = useState<AgentReasoningLevel>("default");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -418,7 +424,7 @@ export function ChatComposer({
     text: string,
     refs: AgentContextRef[] = [],
     existingContent?: ComposerJSON,
-    nextFiles: FileUIPart[] = [],
+    nextFiles: AgentFileAttachment[] = [],
   ) => {
     const content = existingContent ?? composerContent(text, refs);
     editor?.commands.setContent(content);
@@ -437,8 +443,8 @@ export function ChatComposer({
       setAttachmentError(`附件不能超过 ${MAX_ATTACHMENT_BYTES / 1024 / 1024}MB：${oversized.name}`);
       return;
     }
-    const parts = await Promise.all(incoming.map(fileToUIPart));
-    setFiles((current) => [...current, ...parts].slice(0, MAX_ATTACHMENTS));
+    const attachments = await Promise.all(incoming.map(fileToAttachment));
+    setFiles((current) => [...current, ...attachments].slice(0, MAX_ATTACHMENTS));
     setAttachmentError("");
   };
 

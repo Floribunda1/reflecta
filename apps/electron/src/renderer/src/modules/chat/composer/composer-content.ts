@@ -1,4 +1,4 @@
-import type { AgentContextRef } from "@shared/chat";
+import type { AgentContextRef } from "@shared/agent";
 import {
   contextKey,
   contextRefFromMention,
