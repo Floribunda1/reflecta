@@ -58,4 +58,31 @@ describe("reduceAgentSession", () => {
     ]);
     expect(reduceAgentSession(events)).toEqual(state);
   });
+
+  test("clears the active run after failure", () => {
+    const state = reduceAgentSession([
+      { ...base, id: "evt_1", type: "run.started" },
+      {
+        ...base,
+        id: "evt_2",
+        type: "run.failed",
+        error: "invalid api key",
+      },
+    ]);
+
+    expect(state.status).toBe("failed");
+    expect(state.activeRunId).toBeNull();
+    expect(state.error).toBe("invalid api key");
+  });
+
+  test("clears the active run after cancellation", () => {
+    const state = reduceAgentSession([
+      { ...base, id: "evt_1", type: "run.started" },
+      { ...base, id: "evt_2", type: "run.cancelled" },
+    ]);
+
+    expect(state.status).toBe("cancelled");
+    expect(state.activeRunId).toBeNull();
+    expect(state.error).toBeNull();
+  });
 });

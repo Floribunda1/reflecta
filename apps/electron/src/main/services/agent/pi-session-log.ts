@@ -28,6 +28,11 @@ function titleFromEvents(events: AgentSessionEvent[], fallback: string) {
   return firstUserText ? firstUserText.slice(0, 40) : fallback;
 }
 
+type FlushablePiSessionInternals = {
+  _rewriteFile?: () => void;
+  flushed?: boolean;
+};
+
 export class AgentSessionLog {
   private readonly pendingSessionFiles = new Map<string, string>();
   private readonly pendingSummaries = new Map<string, AgentSessionSummary>();
@@ -105,6 +110,7 @@ export class AgentSessionLog {
 
   appendEvent(manager: SessionManager, event: AgentSessionEvent): void {
     manager.appendCustomEntry(REFLECTA_AGENT_EVENT_ENTRY, event);
+    this.flushCustomOnlySession(manager);
     const sessionFile = manager.getSessionFile();
     if (sessionFile) this.pendingSessionFiles.set(manager.getSessionId(), sessionFile);
     const pending = this.pendingSummaries.get(event.sessionId);
@@ -118,6 +124,19 @@ export class AgentSessionLog {
         updatedAt: event.createdAt,
       });
     }
+  }
+
+  private flushCustomOnlySession(manager: SessionManager): void {
+    const sessionFile = manager.getSessionFile();
+    if (!sessionFile) return;
+    const flushable = manager as unknown as FlushablePiSessionInternals;
+    if (flushable.flushed === true && fs.existsSync(sessionFile)) return;
+    if (typeof flushable._rewriteFile !== "function") {
+      throw new Error("Pi SessionManager flush hook is unavailable");
+    }
+    fs.mkdirSync(path.dirname(sessionFile), { recursive: true });
+    flushable._rewriteFile();
+    flushable.flushed = true;
   }
 
   async renameSession(sessionId: string, title: string): Promise<void> {

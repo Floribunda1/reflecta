@@ -88,6 +88,7 @@ export function isPiAgentRuntimeEnabled() {
 export class PiAgentHost {
   private readonly sessionLog: AgentSessionLog;
   private readonly activeRuns = new Map<string, ActivePiRun>();
+  private readonly cancelledRunIds = new Set<string>();
 
   constructor(private readonly contentStorageRoot = getContentStorageRoot()) {
     this.sessionLog = new AgentSessionLog(contentStorageRoot);
@@ -140,15 +141,22 @@ export class PiAgentHost {
     if (command.type === "run.cancel") {
       const active = this.activeRuns.get(command.sessionId);
       if (!active) return;
-      await active.session.abort();
+      this.cancelledRunIds.add(active.runId);
       const event = this.createEvent({
         sessionId: command.sessionId,
         runId: active.runId,
         type: "run.cancelled",
       });
-      const manager = await this.sessionLog.openSession(command.sessionId);
+      const manager = active.session.sessionManager;
       this.appendAndEmit(manager, webContents, event);
       this.activeRuns.delete(command.sessionId);
+      void active.session.abort().catch((error) => {
+        agentLog.error("pi.run.cancelFailed", {
+          sessionId: command.sessionId,
+          runId: active.runId,
+          error: formatAgentError(error),
+        });
+      });
     }
   }
 
@@ -212,20 +220,24 @@ export class PiAgentHost {
     let session: AgentSession | undefined;
     let unsubscribe: (() => void) | undefined;
     let assistantText = "";
+    let runStarted = false;
     const emit = (event: AgentSessionEvent) => this.appendAndEmit(manager, webContents, event);
-
-    emit(this.createEvent({ type: "run.started", sessionId: command.sessionId, runId }));
-    emit(
-      this.createEvent({
-        type: "user.message",
-        sessionId: command.sessionId,
-        runId,
-        messageId: userMessageId,
-        text: command.text,
-        contextRefs: command.contextRefs,
-        composerContent: command.composerContent,
-      }),
-    );
+    const emitRunStarted = () => {
+      if (runStarted) return;
+      runStarted = true;
+      emit(this.createEvent({ type: "run.started", sessionId: command.sessionId, runId }));
+      emit(
+        this.createEvent({
+          type: "user.message",
+          sessionId: command.sessionId,
+          runId,
+          messageId: userMessageId,
+          text: command.text,
+          contextRefs: command.contextRefs,
+          composerContent: command.composerContent,
+        }),
+      );
+    };
 
     try {
       const created = await this.createSession(command, manager);
@@ -261,9 +273,24 @@ export class PiAgentHost {
           );
         }
       });
+      emitRunStarted();
       await session.prompt(command.text);
+      if (this.cancelledRunIds.has(runId)) return;
+      if (!assistantText.trim()) {
+        emit(
+          this.createEvent({
+            type: "run.failed",
+            sessionId: command.sessionId,
+            runId,
+            error: "Agent response was empty",
+          }),
+        );
+        return;
+      }
       emit(this.createEvent({ type: "run.completed", sessionId: command.sessionId, runId }));
     } catch (error) {
+      emitRunStarted();
+      if (this.cancelledRunIds.has(runId)) return;
       emit(
         this.createEvent({
           type: "run.failed",
@@ -275,6 +302,7 @@ export class PiAgentHost {
     } finally {
       unsubscribe?.();
       session?.dispose();
+      this.cancelledRunIds.delete(runId);
       this.activeRuns.delete(command.sessionId);
     }
   }

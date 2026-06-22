@@ -20,7 +20,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
   const [events, setEvents] = useState<AgentSessionEvent[]>([]);
   const [editingMessage, setEditingMessage] = useState<EditingMessage | undefined>();
   const focusRequest = useThreadFocusNonce(sessionId);
-  const stoppedMessageId = useStoppedMessageId(sessionId);
+  const localStoppedMessageId = useStoppedMessageId(sessionId);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const shouldStickToBottom = useRef(true);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -56,6 +56,14 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
 
   const state = useMemo(() => reduceAgentSession(events), [events]);
   const visibleMessages = useMemo(() => agentStateToChatMessages(state), [state]);
+  const stoppedMessageId = useMemo(() => {
+    if (localStoppedMessageId) return localStoppedMessageId;
+    if (state.status !== "cancelled") return null;
+    return (
+      visibleMessages.findLast((message) => message.role === "assistant")?.id ??
+      `${sessionId}:cancelled`
+    );
+  }, [localStoppedMessageId, sessionId, state.status, visibleMessages]);
   const isBusy = state.status === "running";
   const error = state.error ? new Error(state.error) : undefined;
   const scrollKey = scrollKeyFor(visibleMessages);
