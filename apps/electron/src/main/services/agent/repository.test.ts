@@ -62,6 +62,19 @@ describe("AgentRepository", () => {
     );
   });
 
+  test("keeps existing messages when replacement fails", async () => {
+    const thread = await repository.createThread();
+    const otherThread = await repository.createThread();
+    await repository.appendMessage(thread.id, textMessage("u1", "user", "original"));
+    await repository.appendMessage(otherThread.id, textMessage("duplicate", "user", "other"));
+
+    await expect(
+      repository.replaceMessages(thread.id, [textMessage("duplicate", "user", "new")]),
+    ).rejects.toThrow();
+
+    expect((await repository.getMessages(thread.id)).map((message) => message.id)).toEqual(["u1"]);
+  });
+
   test("stores readable first message title for composer mentions", async () => {
     const thread = await repository.createThread();
     await repository.appendMessage(thread.id, {

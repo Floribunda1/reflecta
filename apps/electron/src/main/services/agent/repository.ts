@@ -174,36 +174,38 @@ export class AgentRepository {
       .where(eq(agentThreads.id, threadId))
       .limit(1);
     const thread = threadRows[0];
-    await this.db().delete(agentMessages).where(eq(agentMessages.threadId, threadId));
-
     const now = new Date().toISOString();
-    if (messages.length > 0) {
-      await this.db()
-        .insert(agentMessages)
-        .values(
-          messages.map((message, index) => ({
-            id: message.id,
-            threadId,
-            seq: index + 1,
-            role: message.role,
-            partsJson: JSON.stringify(message.parts),
-            attachmentsJson: null,
-            metadataJson: message.metadata ? JSON.stringify(message.metadata) : null,
-            createdAt: message.createdAt ?? now,
-          })),
-        );
-    }
-
     const firstUser = messages.find((message) => message.role === "user");
     const firstUserTitle = firstUser ? titleFromMessage(firstUser) : "";
 
-    await this.db()
-      .update(agentThreads)
-      .set({
-        title: firstUserTitle && thread?.title === "新对话" ? firstUserTitle : undefined,
-        updatedAt: now,
-      })
-      .where(eq(agentThreads.id, threadId));
+    await this.db().transaction((tx) => {
+      tx.delete(agentMessages).where(eq(agentMessages.threadId, threadId)).run();
+
+      if (messages.length > 0) {
+        tx.insert(agentMessages)
+          .values(
+            messages.map((message, index) => ({
+              id: message.id,
+              threadId,
+              seq: index + 1,
+              role: message.role,
+              partsJson: JSON.stringify(message.parts),
+              attachmentsJson: null,
+              metadataJson: message.metadata ? JSON.stringify(message.metadata) : null,
+              createdAt: message.createdAt ?? now,
+            })),
+          )
+          .run();
+      }
+
+      tx.update(agentThreads)
+        .set({
+          title: firstUserTitle && thread?.title === "新对话" ? firstUserTitle : undefined,
+          updatedAt: now,
+        })
+        .where(eq(agentThreads.id, threadId))
+        .run();
+    });
   }
 
   async recordToolInvocation(input: RecordToolInvocationInput): Promise<void> {
