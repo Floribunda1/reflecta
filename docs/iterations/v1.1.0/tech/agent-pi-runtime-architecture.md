@@ -150,7 +150,7 @@ If it must survive restart, explain a bug, or support replay, it belongs in Sess
 If it only affects the current screen, it belongs in Renderer state.
 ```
 
-## 5. Backend Mental Model
+## 5. Runtime Internal Model
 
 Backend is one deep module with a small interface:
 
@@ -162,14 +162,44 @@ ReflectaAgentRuntime.read(sessionId) -> projection
 Everything else is implementation.
 
 ```mermaid
-flowchart LR
+flowchart TD
   Command["AgentCommand"] --> Runtime["ReflectaAgentRuntime"]
-  Runtime --> Event["ReflectaAgentEvent"]
   Runtime --> Log["SessionLog"]
-  Log --> Projection["SessionProjection"]
+  Runtime --> ContextBuilder["ContextBuilder"]
+  Runtime --> ModelAdapter["ModelAdapter"]
+  Runtime --> PiLoop["PiLoopAdapter"]
+  Runtime --> ToolRuntime["ToolRuntime"]
+  Log --> Projector["SessionProjector"]
+  Projector --> Projection["SessionProjection"]
+  Runtime --> Event["ReflectaAgentEvent stream"]
+  ContextBuilder --> DomainRead["Reflecta domain reads"]
+  ToolRuntime --> DomainWrite["Reflecta domain reads/writes"]
+  ModelAdapter --> PiLoop
 ```
 
-### 5.1 ReflectaAgentRuntime
+The important part is direction:
+
+```txt
+Commands enter Runtime.
+Only Runtime appends canonical events.
+Projector derives state from events.
+PiLoop never talks to Renderer or SessionLog directly.
+Tools never mutate knowledge without Runtime policy.
+```
+
+### 5.1 Module Roles
+
+| Module                 | Role                                                            | Input                                                    | Output                                 |
+| ---------------------- | --------------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------- |
+| `ReflectaAgentRuntime` | Orchestrates one command into ordered events.                   | `AgentCommand`, current session state                    | `ReflectaAgentEvent` stream            |
+| `SessionLog`           | Stores canonical append-only history.                           | ordered events                                           | persisted JSONL, readable event stream |
+| `SessionProjector`     | Turns events into UI/query state.                               | session events                                           | `SessionProjection`                    |
+| `ContextBuilder`       | Builds model input from Reflecta knowledge and session history. | session events, selected refs, model limits              | model context                          |
+| `ModelAdapter`         | Hides provider/model differences.                               | model selection, runtime config                          | model handle/request shape for Pi      |
+| `PiLoopAdapter`        | Runs the model/tool continuation loop.                          | model context, model handle, tool executor, abort signal | loop events                            |
+| `ToolRuntime`          | Describes and executes Reflecta tools after Runtime policy.     | tool request, Runtime decision                           | tool result or error                   |
+
+### 5.2 ReflectaAgentRuntime
 
 Owns:
 
@@ -187,7 +217,21 @@ Does not own:
 - Thought / Context persistence internals
 - provider-specific quirks
 
-### 5.2 SessionLog
+Its implementation shape:
+
+```txt
+handle(command)
+  -> load current projection from SessionLog
+  -> validate command against projection
+  -> append command-visible events
+  -> call internal modules
+  -> append internal result events
+  -> yield the same events to IPC
+```
+
+The Runtime is intentionally the only place that sees all moving parts. That is what lets the other modules stay narrow.
+
+### 5.3 SessionLog
 
 Owns the canonical session timeline.
 
@@ -208,7 +252,87 @@ run.completed
 
 The exact event schema can evolve, but the semantic level should stay here: Reflecta events, not SDK events.
 
-### 5.3 PiLoopAdapter
+Interface:
+
+```txt
+append(sessionId, event) -> persisted event with id
+read(sessionId) -> ordered events
+readAfter(sessionId, eventId) -> ordered events
+branch(sessionId, fromEventId) -> child session
+```
+
+Invariants:
+
+- Events are append-only.
+- Event order is canonical.
+- Every persisted event has an id and timestamp.
+- Rebuilding a projection from events must not require React state or SDK state.
+
+### 5.4 SessionProjector
+
+`SessionProjector` is a pure reducer over events.
+
+```txt
+events -> SessionProjection
+```
+
+It owns the translation from audit trail to UI state:
+
+- sessions and titles
+- turns and visible messages
+- running / waiting / failed run state
+- pending approvals
+- tool activity cards
+
+It must not call model providers, tools, or domain writes. If projection needs extra data for display, the event schema is missing information.
+
+### 5.5 ContextBuilder
+
+`ContextBuilder` answers one question:
+
+```txt
+Given this session and user intent, what should the model see?
+```
+
+Inputs:
+
+- projected conversation history
+- selected `Thought` / `Context` / `Category` refs
+- Reflecta domain reads
+- model context limits
+- compaction summaries, if present
+
+Output:
+
+```txt
+ModelContext
+  system instructions
+  conversation messages
+  selected knowledge context
+  available tools summary
+  provenance metadata
+```
+
+It does not call the model and does not execute tools. Runtime records the built request as an event so debug can inspect the exact model input.
+
+### 5.6 ModelAdapter
+
+`ModelAdapter` hides provider differences from Runtime.
+
+```txt
+resolve(modelSelection) -> ModelHandle
+```
+
+It owns:
+
+- provider config
+- model id mapping
+- reasoning/options compatibility
+- `pi-ai` vs any fallback provider SDK details
+
+Runtime should never branch on OpenAI vs OpenAI-compatible vs local model. That branching belongs here.
+
+### 5.7 PiLoopAdapter
 
 Pi is used at the loop seam.
 
@@ -228,18 +352,90 @@ Pi should not own:
 
 This keeps Pi replaceable. If Pi changes, the blast radius is the adapter.
 
-### 5.4 ToolRuntime
+Interface shape:
+
+```txt
+run({
+  model: ModelHandle,
+  context: ModelContext,
+  tools: ToolExecutor,
+  signal: AbortSignal,
+}) -> AsyncIterable<LoopEvent>
+```
+
+`LoopEvent` is not canonical history. Runtime translates it into `ReflectaAgentEvent` before persistence.
+
+### 5.8 ToolRuntime
 
 Tools are Reflecta capabilities exposed to the loop.
 
 ```txt
 Pi asks to call a tool.
-ToolRuntime decides whether it is read-only, approval-gated, or rejected.
-Reflecta domain modules perform the actual knowledge read/write.
+Runtime records the request.
+Runtime decides whether it is read-only, approval-gated, or rejected.
+ToolRuntime executes allowed operations.
+Reflecta domain modules perform the actual knowledge read/write behind ToolRuntime.
 SessionLog records the decision and result.
 ```
 
 That means tools are not “SDK callbacks”. They are domain operations with audit events.
+
+Tool handling has three possible outcomes:
+
+| Outcome              | Meaning                                           | Runtime event result                                                |
+| -------------------- | ------------------------------------------------- | ------------------------------------------------------------------- |
+| `completed`          | Safe read or already-approved operation finished. | append tool completed event and return output to Pi loop            |
+| `waitingForApproval` | Operation needs user decision.                    | append approval requested event and pause continuation              |
+| `failed`             | Tool validation or execution failed.              | append failed event and return/raise error according to tool policy |
+
+`ToolRuntime` may call Reflecta domain modules, but it does not own approval policy. Approval policy belongs to Runtime because it affects run lifecycle and session truth.
+
+### 5.9 Runtime Flow: Send Message
+
+```mermaid
+sequenceDiagram
+  participant UI as Renderer
+  participant RT as ReflectaAgentRuntime
+  participant Log as SessionLog
+  participant Ctx as ContextBuilder
+  participant Model as ModelAdapter
+  participant Pi as PiLoopAdapter
+  participant Tool as ToolRuntime
+  participant Proj as SessionProjector
+
+  UI->>RT: message.send
+  RT->>Log: append user.message.appended
+  RT->>Log: append run.started
+  RT->>Ctx: build(session, selected refs)
+  Ctx-->>RT: ModelContext
+  RT->>Log: append model.request.built
+  RT->>Model: resolve(modelSelection)
+  Model-->>RT: ModelHandle
+  RT->>Pi: run(ModelHandle, ModelContext, ToolExecutor)
+  Pi-->>RT: assistant/tool LoopEvents
+  RT->>Tool: execute tool request when needed
+  Tool-->>RT: completed / waitingForApproval / failed
+  RT->>Log: append canonical events
+  Log->>Proj: project events
+  RT-->>UI: stream same canonical events
+```
+
+Review point: every arrow that changes durable state goes through `SessionLog`. If a future design writes durable state elsewhere, it is probably leaking ownership.
+
+### 5.10 Runtime Flow: Approval
+
+```txt
+tool.approve command
+  -> Runtime loads projection
+  -> Runtime verifies there is a matching pending approval
+  -> Runtime appends tool.approved
+  -> ToolRuntime performs the approved operation
+  -> Runtime appends tool.completed or tool.failed
+  -> PiLoopAdapter continues the paused loop if the run is resumable
+  -> Runtime appends assistant/run completion events
+```
+
+The approval card is not the source of truth. It is a projection of the pending approval event.
 
 ## 6. Frontend Mental Model
 
@@ -270,33 +466,63 @@ Frontend must not:
 - know Pi types
 - treat SDK message parts as truth
 
-## 7. Main Flows
+### 6.1 Frontend Dataflow
 
-### Send Message
+```mermaid
+flowchart TD
+  Session["session/\nqueries + event stream"]
+  Projection["SessionProjection\nTanStack Query cache"]
+  Composer["composer/\ndraft + selected refs"]
+  Messages["messages/\nturn rendering"]
+  Tools["tools/\napproval controls"]
+  Context["context/\nref picker"]
+  IPC["Agent IPC\ncommands / queries / events"]
 
-```txt
-Composer
-  -> message.send command
-  -> ReflectaAgentRuntime
-  -> SessionLog appends user.message.appended + run.started
-  -> ContextBuilder builds model context
-  -> PiLoopAdapter runs model/tool loop
-  -> SessionLog appends events
-  -> SessionProjector updates UI projection
+  Session --> Projection
+  Projection --> Messages
+  Projection --> Tools
+  Composer --> IPC
+  Tools --> IPC
+  Context --> Composer
+  IPC --> Session
 ```
 
-### Approval
+The renderer has only one Agent-facing state shape: `SessionProjection`.
 
 ```txt
-ToolRuntime emits tool.approval.requested
-  -> UI renders approval
-  -> user sends tool.approve / tool.reject
-  -> ReflectaAgentRuntime records decision
-  -> ToolRuntime continues or stops mutation
-  -> SessionProjector updates approval card
+SessionProjection
+  sessions/sidebar state
+  current turns
+  running run status
+  pending approvals
+  tool activity views
 ```
 
-### Resume
+If frontend live updates reduce raw events locally, they must use the same projection rules as `SessionProjector`. There should not be a separate React-only interpretation of Agent semantics.
+
+### 6.2 IPC Contract
+
+IPC is a transport seam, not a runtime module.
+
+| IPC shape            | Direction           | Meaning                                             |
+| -------------------- | ------------------- | --------------------------------------------------- |
+| `AgentCommand`       | Renderer -> Runtime | User intent: send, cancel, approve, reject, resume. |
+| `AgentQuery`         | Renderer -> Runtime | Read session list or a session projection.          |
+| `ReflectaAgentEvent` | Runtime -> Renderer | Canonical event stream for the active run/session.  |
+| `SessionProjection`  | Runtime -> Renderer | Derived state for initial load and cache refresh.   |
+
+IPC must not transport Pi types or provider SDK chunks. If the renderer sees those, the Runtime seam is leaking.
+
+### 6.3 Frontend Review Rule
+
+Frontend review should ask:
+
+- Does this code render `SessionProjection`, or is it interpreting raw runtime state?
+- Does this command express user intent, or does it smuggle internal runtime state?
+- Does approval UI read from projection, or from local button state?
+- Can the page reload and rebuild from projection alone?
+
+## 7. Resume And Rebuild
 
 ```txt
 App opens session
@@ -306,6 +532,14 @@ App opens session
 ```
 
 Resume is a property of SessionLog + Runtime. It is not a frontend chat hook feature.
+
+The first 1.1.0 target is not necessarily "resume a half-open model stream". The architectural requirement is stricter and simpler:
+
+```txt
+Every visible Agent state can be rebuilt from SessionLog.
+```
+
+Once that holds, continuing interrupted runs is a policy decision inside Runtime, not a data recovery problem.
 
 ## 8. What We Reuse From Pi
 
