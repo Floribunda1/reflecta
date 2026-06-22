@@ -136,6 +136,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
           sessionId,
           text: input.text,
           contextRefs: input.contextRefs,
+          files: input.files,
           composerContent: input.composerContent,
           modelSelection: input.modelSelection,
           reasoningLevel: input.reasoningLevel,

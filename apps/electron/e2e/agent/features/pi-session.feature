@@ -58,3 +58,38 @@
     而且用户切回原对话
     那么页面应该仍显示已停止
     而且输入框应该可操作
+
+  @P0 @context @AG-PI-CONTEXT-001
+  场景: 用户在 Pi-backed session 中选择引用后发送消息
+    假如用户已经用 Pi Agent runtime 进入 Agent 页面
+    而且 Agent 当前可以正常回复
+    当用户选择 Thought 引用 React Server Components
+    而且用户选择 Category 引用 React
+    而且用户发送消息 请比较这两个引用
+    那么页面应该显示用户选择的两个引用
+    而且最终应该出现一条 Agent 回复正文
+    而且输入框应该可操作
+
+  @P0 @attachment @AG-PI-ATTACHMENT-001
+  场景: 用户在 Pi-backed session 中发送附件后重启仍能看到附件
+    假如用户已经用 Pi Agent runtime 进入 Agent 页面
+    而且 Agent 当前可以正常回复
+    当用户上传一个附件
+    而且用户发送消息 请总结这个附件
+    那么页面应该显示这个附件
+    而且最终应该出现一条 Agent 回复正文
+    当用户关闭并重新打开 Reflecta 应用
+    而且用户打开原对话
+    那么原对话应该仍显示这个附件
+    而且输入框应该可操作
+
+  @P0 @model @AG-PI-MODEL-001
+  场景: 用户在 Pi-backed session 中选择模型和推理强度后发送消息
+    假如用户已经用 Pi Agent runtime 进入 Agent 页面
+    而且 Agent 当前可以正常回复
+    当用户选择一个模型
+    而且用户选择中推理
+    而且用户发送消息 请用一句话回复 model selection e2e
+    那么模型菜单应该显示所选模型
+    而且模型菜单应该显示中推理
+    而且最终应该出现一条 Agent 回复正文

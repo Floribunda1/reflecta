@@ -18,6 +18,14 @@ export type AgentModelSelection = {
 
 export type AgentReasoningLevel = "default" | "low" | "medium" | "high" | "xhigh";
 
+export type AgentFileAttachment = {
+  type: "file";
+  mediaType: string;
+  url: string;
+  filename?: string;
+  providerMetadata?: Record<string, unknown>;
+};
+
 export type AgentSessionSummary = {
   id: string;
   title: string;
@@ -60,6 +68,7 @@ export type AgentUserMessage = AgentEventBase & {
   messageId: string;
   text: string;
   contextRefs?: AgentContextRef[];
+  files?: AgentFileAttachment[];
   composerContent?: AgentComposerContentNode;
 };
 
@@ -140,6 +149,7 @@ export type AgentCommand =
       sessionId: string;
       text: string;
       contextRefs?: AgentContextRef[];
+      files?: AgentFileAttachment[];
       composerContent?: AgentComposerContentNode;
       modelSelection?: AgentModelSelection;
       reasoningLevel?: AgentReasoningLevel;
@@ -174,6 +184,7 @@ export type AgentReducedMessage = {
   text: string;
   createdAt: string;
   contextRefs?: AgentContextRef[];
+  files?: AgentFileAttachment[];
   composerContent?: AgentComposerContentNode;
 };
 
@@ -246,6 +257,7 @@ export function reduceAgentSession(events: AgentSessionEvent[]): AgentSessionSta
               text: event.text,
               createdAt: event.createdAt,
               contextRefs: event.contextRefs,
+              files: event.files,
               composerContent: event.composerContent,
             },
           ],

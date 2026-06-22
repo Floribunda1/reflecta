@@ -85,4 +85,33 @@ describe("reduceAgentSession", () => {
     expect(state.activeRunId).toBeNull();
     expect(state.error).toBeNull();
   });
+
+  test("keeps user message attachments in reduced state", () => {
+    const state = reduceAgentSession([
+      {
+        ...base,
+        id: "evt_1",
+        type: "user.message",
+        messageId: "user_1",
+        text: "请总结附件",
+        files: [
+          {
+            type: "file",
+            mediaType: "text/plain",
+            filename: "note.txt",
+            url: "data:text/plain;base64,aGVsbG8=",
+          },
+        ],
+      },
+    ]);
+
+    expect(state.messages[0]?.files).toEqual([
+      {
+        type: "file",
+        mediaType: "text/plain",
+        filename: "note.txt",
+        url: "data:text/plain;base64,aGVsbG8=",
+      },
+    ]);
+  });
 });

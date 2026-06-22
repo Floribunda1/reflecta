@@ -23,6 +23,7 @@ import type {
 import { agentLog } from "../../logger";
 import { AgentSessionLog } from "./pi-session-log";
 import { formatAgentError } from "./error";
+import { buildPiPromptText } from "./pi-prompt";
 
 export const AGENT_EVENT_CHANNEL = "agent:event";
 
@@ -234,6 +235,7 @@ export class PiAgentHost {
           messageId: userMessageId,
           text: command.text,
           contextRefs: command.contextRefs,
+          files: command.files,
           composerContent: command.composerContent,
         }),
       );
@@ -274,7 +276,13 @@ export class PiAgentHost {
         }
       });
       emitRunStarted();
-      await session.prompt(command.text);
+      await session.prompt(
+        buildPiPromptText({
+          text: command.text,
+          contextRefs: command.contextRefs,
+          files: command.files,
+        }),
+      );
       if (this.cancelledRunIds.has(runId)) return;
       if (!assistantText.trim()) {
         emit(

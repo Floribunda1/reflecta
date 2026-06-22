@@ -9,9 +9,11 @@ import {
   hasAi,
   launchAgentPage,
   openThread,
+  selectContext,
   sendMessage,
   threadByTitle,
   waitForAssistantReply,
+  writeAttachmentFile,
 } from "./agent-e2e";
 import { resetAgentFixtures } from "./agent-fixtures";
 
@@ -155,6 +157,91 @@ test("@AG-PI-RUN-002 用户停止回复后切换回来仍看到停止状态", as
     await openThread(page, SLOW_PROMPT.slice(0, 20));
     await expect(page.getByTestId("agent-stopped-state")).toContainText("已停止");
     await expect(composer(page)).toBeEditable();
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-PI-CONTEXT-001 用户在 Pi-backed session 中选择引用后发送消息", async () => {
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
+  test.setTimeout(180_000);
+
+  const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+
+  try {
+    await createNewThread(page);
+    await selectContext(page, "React", "React Server Components", "thought");
+    await selectContext(page, "React", "React", "category");
+    await composer(page).click();
+    await page.keyboard.type("请比较这两个引用");
+    await page.getByTestId("agent-send-button").click();
+    await expect(page.getByTestId("agent-user-message")).toContainText("React Server Components");
+    await expect(page.getByTestId("agent-user-message")).toContainText("React");
+    await waitForAssistantReply(page);
+    await expect(composer(page)).toBeEditable();
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-PI-ATTACHMENT-001 用户在 Pi-backed session 中发送附件后重启仍能看到附件", async () => {
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
+  test.setTimeout(240_000);
+
+  const filePath = writeAttachmentFile("PI_ATTACHMENT_FILE.txt");
+  const fileName = path.basename(filePath);
+  const first = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+
+  try {
+    await createNewThread(first.page);
+    const fileChooser = first.page.waitForEvent("filechooser");
+    await first.page.getByTestId("agent-attachment-button").click();
+    await (await fileChooser).setFiles(filePath);
+    await expect(first.page.getByTestId("agent-attachment-preview")).toContainText(fileName);
+    await sendMessage(first.page, "请总结这个附件");
+    await expect(first.page.getByTestId("agent-message-attachment")).toContainText(fileName);
+    await waitForAssistantReply(first.page);
+  } finally {
+    await first.app.close();
+  }
+
+  const second = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+
+  try {
+    await expect(threadByTitle(second.page, "请总结这个附件")).toBeVisible();
+    await openThread(second.page, "请总结这个附件");
+    await expect(second.page.getByTestId("agent-message-attachment")).toContainText(fileName);
+    await expect(composer(second.page)).toBeEditable();
+  } finally {
+    await second.app.close();
+  }
+});
+
+test("@AG-PI-MODEL-001 用户在 Pi-backed session 中选择模型和推理强度后发送消息", async () => {
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
+  test.setTimeout(180_000);
+
+  const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+
+  try {
+    await createNewThread(page);
+    await page.getByTestId("agent-model-menu-button").click();
+    const firstModel = page.getByTestId("agent-model-option").first();
+    const modelName = (await firstModel.locator("span").first().innerText()).trim();
+    await firstModel.click();
+
+    await page.getByTestId("agent-model-menu-button").click();
+    await page
+      .locator('[data-testid="agent-reasoning-option"][data-reasoning-level="medium"]')
+      .click();
+    await page.keyboard.press("Escape");
+
+    await expect(page.getByTestId("agent-model-menu-button")).toContainText(modelName);
+    await expect(page.getByTestId("agent-model-menu-button")).toContainText("中推理");
+    await sendMessage(page, "请用一句话回复 model selection e2e");
+    await expect(page.getByTestId("agent-model-menu-button")).toContainText(modelName);
+    await expect(page.getByTestId("agent-model-menu-button")).toContainText("中推理");
+    await waitForAssistantReply(page);
   } finally {
     await app.close();
   }
