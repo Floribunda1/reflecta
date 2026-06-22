@@ -185,6 +185,7 @@ describe("MessageList", () => {
     const mention = bubble?.querySelector('[data-slot="user-context-mention"]');
 
     expect(mention?.textContent).toBe("✦ 热爱是高效前进的强驱动力");
+    expect(mention?.parentElement?.getAttribute("data-slot")).toBe("user-message-paragraph");
     expect(bubble?.textContent).toContain("我想知道 ✦ 热爱是高效前进的强驱动力 和交易的关系");
   });
 

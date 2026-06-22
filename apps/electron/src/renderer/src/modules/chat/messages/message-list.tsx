@@ -59,6 +59,15 @@ function renderComposerNode(
   if (node.type === "text") return node.text ?? "";
   const ref = contextRefFromMentionNode(node);
   if (ref) return <MentionChip key={key} ref={ref} onInspect={onInspect} />;
+  if (node.type === "paragraph") {
+    return (
+      <span key={key} data-slot="user-message-paragraph">
+        {node.content?.map((child, index) =>
+          renderComposerNode(child, `${key}-${index}`, onInspect),
+        )}
+      </span>
+    );
+  }
   return (
     node.content?.map((child, index) => renderComposerNode(child, `${key}-${index}`, onInspect)) ??
     null
