@@ -19,10 +19,10 @@ Test layer choice is a cost decision.
 Test Case 的唯一来源是 Cucumber / Gherkin feature 文件：
 
 ```txt
-apps/electron/e2e/agent/agent.feature
+apps/electron/e2e/agent/features/*.feature
 ```
 
-自动化测试应该引用 feature 里的 scenario tag，例如 `@AG-CHAT-001`。
+自动化测试应该引用 feature 里的 scenario tag，例如 `@AG-START-002`。
 
 一个 scenario 可以由多层自动化测试共同覆盖。它不等于一条 E2E。
 

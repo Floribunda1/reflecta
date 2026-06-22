@@ -22,6 +22,8 @@ Test case 应该有组织地描述用户场景，而不是把零散检查点堆�
 
 不要再创建一份并行的 `test-case.md`。
 
+同一个模块可以维护多个 feature 文件。优先按用户场景族拆分文件，而不是按代码模块或自动化测试层级拆分。
+
 每个 test case 只需要表达这些信息：
 
 ```text
@@ -41,7 +43,7 @@ Test case 应该写成 Gherkin / Cucumber feature 文件。
 对应关系：
 
 ```text
-Feature  = 一组相关用户能力
+Feature  = 一组相关用户场景
 Scenario = 一条 test case，场景名表达目标
 Tag      = 稳定 ID
 Given    = 前置条件
@@ -49,7 +51,7 @@ When     = 用户操作
 Then     = 用户可观察的期望结果
 ```
 
-Scenario 可以用 tag 作为稳定 ID，例如 `@AG-CHAT-001`。
+Scenario 可以用 tag 作为稳定 ID，例如 `@AG-START-002`。
 
 Feature 文件仍然只描述用户路径和产品表现，不写 unit、integration、E2E 等自动化测试分层。
 
