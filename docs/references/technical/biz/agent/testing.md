@@ -18,52 +18,52 @@ ID
 
 ID：AG-CHAT-001
 
-目标：验证用户可以在新对话中发送一条消息，并看到 Agent 的完整响应。
+目标：验证用户可以在新对话中发送一条消息，并看到 Agent 的完整回复。
 
 前置条件：
 
 ```text
-当前没有正在运行的 Agent run
-模型返回文本 hello from agent
+用户已打开 Agent 页面
+Agent 当前可以正常回复
 ```
 
 步骤：
 
 ```text
-1. 打开 Agent 页面
-2. 创建新对话
-3. 在输入框输入 hello
-4. 点击发送
+1. 创建新对话
+2. 在输入框输入 hello
+3. 点击发送
 ```
 
 期望结果：
 
 ```text
 页面出现用户消息 hello
-页面进入 assistant 响应中状态
-最终出现 assistant 消息 hello from agent
-发送按钮 / 输入框恢复可操作
-对话列表出现这条对话
+页面显示 Agent 正在回复
+最终出现 Agent 回复 hello from agent
+输入框恢复可操作
+对话列表出现这条新对话
 ```
 
-### AG-CHAT-002 模型失败后可继续发送
+### AG-CHAT-002 回复失败后可继续发送
 
 ID：AG-CHAT-002
 
-目标：验证一次模型失败不会破坏当前对话，用户可以继续发送下一条消息。
+目标：验证一次 Agent 回复失败不会破坏当前对话，用户可以继续发送下一条消息。
 
 前置条件：
 
 ```text
-第一次模型请求返回错误 provider unavailable
-第二次模型请求返回文本 recovered
+用户已打开一个新对话
+Agent 第一次回复会失败
+Agent 第二次回复可以成功
 ```
 
 步骤：
 
 ```text
-1. 在新对话发送 first
-2. 等待错误状态出现
+1. 发送 first
+2. 等待失败状态出现
 3. 在同一对话继续发送 second
 ```
 
@@ -71,32 +71,33 @@ ID：AG-CHAT-002
 
 ```text
 first 保留为用户消息
-界面显示可理解错误
-界面不是白屏或无限 loading
+界面显示用户能理解的失败提示
+界面不是白屏或无限加载
 second 可以正常发送
-最终出现 assistant 消息 recovered
-输入框在错误后和恢复后都可操作
+最终出现 Agent 回复 recovered
+输入框在失败后和恢复后都可操作
 ```
 
-## Suite AG-RUN: 运行控制
+## Suite AG-RUN: 回复控制
 
-### AG-RUN-001 取消 slow stream
+### AG-RUN-001 停止正在生成的回复
 
 ID：AG-RUN-001
 
-目标：验证用户取消正在响应的 Agent run 后，当前响应停止并且界面恢复可操作。
+目标：验证用户停止正在生成的 Agent 回复后，回复停止增长，并且界面恢复可操作。
 
 前置条件：
 
 ```text
-模型返回 slow stream: token-1, token-2, token-3...
+用户已打开一个对话
+Agent 会持续生成一段较长回复
 ```
 
 步骤：
 
 ```text
 1. 发送一条消息
-2. 等待 token-1 出现
+2. 等待 Agent 开始显示部分回复
 3. 点击停止
 4. 等待界面回到可操作状态
 ```
@@ -104,110 +105,112 @@ ID：AG-RUN-001
 期望结果：
 
 ```text
-停止后不再追加新的 token
+停止后当前回复不再继续增长
 停止按钮消失
 输入框恢复可用
-当前 thread 不再显示 running 状态
-刷新或切换回来后不会继续增长旧响应
+当前对话不再显示正在回复状态
+刷新或切换回来后，旧回复不会继续增长
 ```
 
-### AG-RUN-002 stream terminal chunk 只结束当前请求
+### AG-RUN-002 停止一个回复不影响其他对话
 
 ID：AG-RUN-002
 
-目标：验证 finish / abort / error 只影响对应 request，不会影响其他正在运行或已存在的请求。
+目标：验证用户在多个对话之间切换和停止回复时，只影响当前目标对话，不影响其他对话。
 
 前置条件：
 
 ```text
-存在 request A 和 request B
-当前正在消费 request A
+存在对话 A 和对话 B
+对话 A 正在生成回复
+对话 B 有自己的历史消息
 ```
 
 步骤：
 
 ```text
-1. 发送 request B 的 text chunk
-2. 发送 request A 的 text chunk
-3. 发送 request A 的 finish / abort / error
+1. 打开对话 A
+2. 在 A 正在回复时切换到对话 B
+3. 回到对话 A
+4. 点击停止
+5. 再次打开对话 B
 ```
 
 期望结果：
 
 ```text
-request B 的 chunk 被忽略
-request A 的 text chunk 被消费
-finish 会正常关闭当前 stream
-abort 会关闭当前 stream 且不显示失败错误
-error 会关闭当前 stream 并产生用户可见错误
-后续请求不会收到当前请求遗留的事件
+停止操作只停止对话 A 的回复
+对话 B 的消息不被修改
+对话 B 不显示对话 A 的回复内容
+两个对话的输入框状态各自正确
 ```
 
 ## Suite AG-THREAD: 对话隔离
 
-### AG-THREAD-001 streaming 时切换对话不串线
+### AG-THREAD-001 生成回复时切换对话不串线
 
 ID：AG-THREAD-001
 
-目标：验证一个对话 streaming 时切换到另一个对话，不会把消息或运行状态串到错误的对话。
+目标：验证一个对话正在生成回复时切换到另一个对话，不会把消息或状态显示到错误的对话里。
 
 前置条件：
 
 ```text
-存在 thread A 和 thread B
-thread A 的模型响应是 slow stream
-thread B 有自己的历史消息
+存在对话 A 和对话 B
+对话 A 会生成一段较长回复
+对话 B 有自己的历史消息
 ```
 
 步骤：
 
 ```text
-1. 打开 thread A
-2. 发送消息 start A
-3. 在 A streaming 时切换到 thread B
-4. 等待 A 的 stream 继续产出 chunk
-5. 切回 thread A
+1. 打开对话 A
+2. 发送 start A
+3. 在 A 正在回复时切换到对话 B
+4. 等待一段时间
+5. 切回对话 A
 ```
 
 期望结果：
 
 ```text
-thread B 不显示 start A
-thread B 不显示 A 的 assistant token
-thread B 的输入状态按 B 自己的状态显示
-A 的后续 chunk 只追加到 A
-切回 A 后能看到 A 的完整运行结果或仍在运行状态
+对话 B 不显示 start A
+对话 B 不显示 A 的 Agent 回复
+对话 B 的输入状态按 B 自己的状态显示
+对话 A 的回复只出现在 A 中
+切回 A 后能看到 A 的完整回复或正在回复状态
 ```
 
 ### AG-THREAD-002 对话历史持久化
 
 ID：AG-THREAD-002
 
-目标：验证 Agent 响应完成后，对话历史可以在切换或重启后恢复。
+目标：验证 Agent 回复完成后，对话历史可以在切换或重启后恢复。
 
 前置条件：
 
 ```text
-模型返回文本 persisted answer
+用户已打开 Agent 页面
+Agent 可以正常回复
 ```
 
 步骤：
 
 ```text
-1. 新建 thread
+1. 新建对话
 2. 发送 remember this
-3. 等待 assistant 完成
-4. 切换到另一个 thread
-5. 切回原 thread，或重启 app 后重新打开原 thread
+3. 等待 Agent 完成回复 persisted answer
+4. 切换到另一个对话
+5. 切回原对话，或重启应用后重新打开原对话
 ```
 
 期望结果：
 
 ```text
-原 thread 仍显示用户消息 remember this
-原 thread 仍显示 assistant 消息 persisted answer
-对话标题 / 预览不丢
-消息顺序保持 user -> assistant
+原对话仍显示用户消息 remember this
+原对话仍显示 Agent 回复 persisted answer
+对话标题或预览不丢
+消息顺序保持用户消息在前、Agent 回复在后
 ```
 
 ### AG-THREAD-003 删除或归档只影响目标对话
@@ -219,26 +222,26 @@ ID：AG-THREAD-003
 前置条件：
 
 ```text
-存在 thread A 和 thread B
-两个 thread 都有历史消息
+存在对话 A 和对话 B
+两个对话都有历史消息
 ```
 
 步骤：
 
 ```text
-1. 对 thread A 执行删除或归档
+1. 对对话 A 执行删除或归档
 2. 查看对话列表
-3. 打开 thread B
+3. 打开对话 B
 4. 重启或重新加载后再次查看列表
 ```
 
 期望结果：
 
 ```text
-thread A 从可见列表消失
-thread B 仍然存在
-thread B 的消息不变
-重新打开后 thread A 仍不可见
+对话 A 从可见列表消失
+对话 B 仍然存在
+对话 B 的消息不变
+重新打开后对话 A 仍不可见
 ```
 
 ## Suite AG-MSG: 消息变更
@@ -247,15 +250,15 @@ thread B 的消息不变
 
 ID：AG-MSG-001
 
-目标：验证编辑历史用户消息后，不会保留与新问题不匹配的旧 assistant 回复。
+目标：验证编辑历史用户消息后，不会保留与新问题不匹配的旧 Agent 回复。
 
 前置条件：
 
 ```text
-thread 中已有：
-user: old question
-assistant: old answer
-模型对 edited question 返回 new answer
+对话中已有：
+用户消息 old question
+Agent 回复 old answer
+Agent 可以对 edited question 回复 new answer
 ```
 
 步骤：
@@ -264,271 +267,267 @@ assistant: old answer
 1. 点击 old question 的编辑入口
 2. 将内容改为 edited question
 3. 提交编辑
-4. 等待新响应完成
+4. 等待 Agent 完成新回复
 ```
 
 期望结果：
 
 ```text
 用户消息变成 edited question
-old answer 不再作为有效后续回复显示
-最终出现 new answer
-消息顺序仍然是 user -> assistant
-切换 thread 或刷新后结果一致
+old answer 不再作为当前有效回复显示
+最终出现 Agent 回复 new answer
+消息顺序仍然是用户消息在前、Agent 回复在后
+切换对话或刷新后结果一致
 ```
 
 ### AG-MSG-002 重新生成不会重复用户消息
 
 ID：AG-MSG-002
 
-目标：验证重新生成 assistant 回复时，不会重复创建对应的用户消息。
+目标：验证重新生成 Agent 回复时，不会重复创建对应的用户消息。
 
 前置条件：
 
 ```text
-thread 中已有：
-user: question
-assistant: first answer
-模型对 regenerate 返回 second answer
+对话中已有：
+用户消息 question
+Agent 回复 first answer
+Agent 可以重新回复 second answer
 ```
 
 步骤：
 
 ```text
-1. 对 assistant 消息执行重新生成
-2. 等待新响应完成
+1. 对 first answer 执行重新生成
+2. 等待 Agent 完成新回复
 ```
 
 期望结果：
 
 ```text
 用户消息 question 只出现一次
-first answer 被替换或按产品规则标记为非当前
-second answer 成为当前 assistant 回复
+first answer 被替换，或按产品规则标记为非当前回复
+second answer 成为当前 Agent 回复
 消息顺序不乱
 ```
 
-## Suite AG-INPUT: 请求输入
+## Suite AG-INPUT: 输入与上下文
 
-### AG-INPUT-001 发送请求保留模型和 reasoning
+### AG-INPUT-001 选择模型和推理强度后发送
 
 ID：AG-INPUT-001
 
-目标：验证用户选择的模型和 reasoning level 会进入本次 Agent 请求。
+目标：验证用户在发送前选择的模型和推理强度会用于这次 Agent 回复，并且界面不会误导用户。
 
 前置条件：
 
 ```text
-用户选择 providerId=model-provider
-用户选择 modelId=model-a
-用户选择 reasoningLevel=medium
+用户已打开 Agent 页面
+页面允许选择模型和推理强度
 ```
 
 步骤：
 
 ```text
-1. 发送一条用户消息
-2. 观察本次 Agent 请求的输入
+1. 选择模型 model-a
+2. 选择推理强度 medium
+3. 发送一条用户消息
+4. 等待 Agent 回复完成
 ```
 
 期望结果：
 
 ```text
-请求 threadId 正确
-请求 messages 是发送时的消息快照
-请求 modelSelection.providerId 为 model-provider
-请求 modelSelection.modelId 为 model-a
-请求 reasoningLevel 为 medium
-无效 reasoningLevel 不会进入请求
+发送前界面显示已选择 model-a
+发送前界面显示已选择 medium
+发送过程中选择不会被意外重置
+Agent 正常完成回复
+用户能理解这次回复使用的是发送时选择的设置
 ```
 
-### AG-INPUT-002 选中 context 后只注入选中项
+### AG-INPUT-002 选中资料后发送
 
 ID：AG-INPUT-002
 
-目标：验证 Agent 请求只包含用户明确选中的 context，不包含未选中的隐藏内容。
+目标：验证用户选中的资料会随本次消息一起进入对话语境，未选中的资料不会出现在用户可见的引用中。
 
 前置条件：
 
 ```text
-用户选中 thought T1 和 category C1
-系统中还存在未选中的 thought T2
+存在资料 T1、资料 C1、资料 T2
+用户只选中 T1 和 C1
 ```
 
 步骤：
 
 ```text
-1. 构造带 contextRefs metadata 的用户消息
+1. 在输入框中选择 T1 和 C1
 2. 发送消息
-3. 观察本次 Agent 请求中的 context block
+3. 查看用户消息和 Agent 回复
 ```
 
 期望结果：
 
 ```text
-context block 包含 T1 和 C1
-context block 不包含 T2
-超过数量上限时按规则截断
-缺失或不可读的 ref 不会让整次发送失败
+用户消息中能看到已选择 T1 和 C1
+用户消息中看不到未选择的 T2
+Agent 回复可以基于 T1 和 C1 作答
+如果某个已选资料不可用，界面给出可理解反馈，而不是整页失败
 ```
 
-### AG-INPUT-003 不支持 native file part 时降级附件提示
+### AG-INPUT-003 发送附件后可得到清晰反馈
 
 ID：AG-INPUT-003
 
-目标：验证不支持 native file part 的模型仍能收到可读的附件引用。
+目标：验证用户发送附件后，Agent 要么能使用附件，要么给出清晰、可行动的反馈。
 
 前置条件：
 
 ```text
-消息中包含 file part
-当前 provider 不支持 native file part
+用户已打开一个对话
+用户准备了一个可上传附件
 ```
 
 步骤：
 
 ```text
-1. 发送包含附件的消息
-2. 观察本次模型输入
+1. 在输入框添加附件
+2. 输入请总结这个附件
+3. 点击发送
+4. 等待 Agent 回复
 ```
 
 期望结果：
 
 ```text
-file part 被替换为文本附件提示
-提示包含 filename、mediaType、attachmentId
-不会返回 base64 或丢失附件引用
-支持 native file part 的 provider 仍保留 native file part
+用户消息中显示附件
+如果附件可被使用，Agent 回复与附件内容相关
+如果附件不可被使用，界面显示清晰原因或下一步操作
+附件不会以乱码或无意义内容显示给用户
 ```
 
 ## Suite AG-VIEW: 消息呈现
 
-### AG-VIEW-001 保持 message parts 的用户可见顺序
+### AG-VIEW-001 复杂回复按发生顺序显示
 
 ID：AG-VIEW-001
 
-目标：验证 Agent Turn 中 reasoning、工具活动、文本和 proposal 的用户可见顺序稳定。
+目标：验证 Agent 回复中包含思考摘要、查找进度、提案和最终文字时，用户看到的顺序符合实际发生顺序。
 
 前置条件：
 
 ```text
-assistant message parts 顺序为：
-reasoning -> tool lookup -> text -> tool proposal -> text
+对话中有一条复杂 Agent 回复
+该回复包含思考摘要、查找进度、提案卡片和最终文字
 ```
 
 步骤：
 
 ```text
-1. 打开包含该 assistant message 的对话
-2. 观察消息列表中的 Agent Turn
+1. 打开该对话
+2. 观察消息列表中的 Agent 回复
 ```
 
 期望结果：
 
 ```text
-reasoning 显示在第一个文本前
-lookup 工具活动不跨过 text 被合并
-proposal card 出现在原始位置
-最后的 text 仍在 proposal 后面
+思考摘要显示在对应文字前
+查找进度显示在它发生的位置
+提案卡片显示在它出现的位置
+最终文字显示在最后
+不同内容不会被错误合并或错位
 ```
 
-### AG-VIEW-002 proposal 状态可区分
+### AG-VIEW-002 提案状态可区分
 
 ID：AG-VIEW-002
 
-目标：验证 proposal 的 pending、approved、rejected、output、error 状态在界面上可区分。
+目标：验证提案的待确认、已确认、已拒绝、已完成、失败状态在界面上可区分。
 
 前置条件：
 
 ```text
-存在 5 种 proposal 状态：
-pending
-approval responded approved
-approval responded rejected
-output available
-error
+存在包含不同提案状态的对话
 ```
 
 步骤：
 
 ```text
-1. 打开包含这些 proposal 状态的对话
-2. 观察每个 proposal 的显示状态
+1. 打开该对话
+2. 观察每个提案卡片
 ```
 
 期望结果：
 
 ```text
-pending 显示待确认操作
-approved 显示已确认结果
-rejected 显示已拒绝结果
-output 显示执行结果
-error 显示错误状态
-五种状态不会被渲染成同一个普通工具活动
+待确认提案显示待用户操作
+已确认提案显示已确认
+已拒绝提案显示已拒绝
+已完成提案显示执行结果
+失败提案显示失败原因
+不同状态不会被渲染成同一种普通信息
 ```
 
-## Suite AG-TOOL: 工具提案
+## Suite AG-TOOL: 提案操作
 
-### AG-TOOL-001 用户确认 proposal 后执行并继续
+### AG-TOOL-001 用户确认提案后执行并继续
 
 ID：AG-TOOL-001
 
-目标：验证用户确认 proposal 后，工具会执行，结果会显示，Agent 可以继续输出。
+目标：验证用户确认提案后，对应操作会执行，结果会显示，Agent 可以继续回复。
 
 前置条件：
 
 ```text
-模型先产出 proposal tool call
-用户确认后工具返回 success output
-模型继续返回 final answer
+Agent 会提出一个需要用户确认的操作
+用户有权限确认该操作
 ```
 
 步骤：
 
 ```text
-1. 发送触发 proposal 的消息
-2. 等待 proposal card 出现
+1. 发送会触发提案的消息
+2. 等待提案卡片出现
 3. 点击确认
-4. 等待工具结果和最终回答
+4. 等待操作结果和 Agent 后续回复
 ```
 
 期望结果：
 
 ```text
-proposal card 可见
+提案卡片可见
 点击确认后状态变为已确认或执行中
-工具输出可见
-最终 assistant 文本可见
-持久化历史中保留 proposal 和确认状态
+操作结果可见
+最终 Agent 回复可见
+重新打开对话后仍能看到提案和确认状态
 ```
 
-### AG-TOOL-002 用户拒绝 proposal 后不执行写入
+### AG-TOOL-002 用户拒绝提案后不执行写入
 
 ID：AG-TOOL-002
 
-目标：验证用户拒绝 proposal 后，对应写入动作不会发生，拒绝状态会保留。
+目标：验证用户拒绝提案后，对应写入操作不会发生，拒绝状态会保留。
 
 前置条件：
 
 ```text
-模型先产出 proposal tool call
-proposal 对应一个写入动作
+Agent 会提出一个需要用户确认的写入操作
+用户有权限拒绝该操作
 ```
 
 步骤：
 
 ```text
-1. 发送触发 proposal 的消息
-2. 等待 proposal card 出现
+1. 发送会触发提案的消息
+2. 等待提案卡片出现
 3. 点击拒绝
 ```
 
 期望结果：
 
 ```text
-proposal 状态变为已拒绝
-写入动作没有发生
+提案状态变为已拒绝
+对应写入操作没有发生
 Agent 可以继续解释或结束
-拒绝状态可被重新加载后看到
-provider 消息转换时 rejected approval 不会导致模型请求格式错误
+重新打开对话后仍能看到拒绝状态
 ```
