@@ -35,8 +35,8 @@
 - AI 自然语言不可控，所以测试不能断言固定回答内容。只断言产品状态：出现回复、回复完成、失败状态、停止状态、tool card、approval card、历史恢复、composer 可用。
 - 现有 feature/e2e spec 是产品契约。不能为了迁移通过而改弱场景语义。
 - 不迁旧 Agent 历史。v1.1.0 的 Pi 历史从新 session 开始。
-- Pi session 固定存到当前 Content Storage Root 下的 `Sessions/` 目录，例如 `<content-storage-root>/Sessions/<session-id>.jsonl`。
-- 新 Agent 不再需要当前 DB 对话表；迁移完成时用 DB migration 删除 `agent_threads`、`agent_messages`、`agent_tool_invocations`、`agent_runs`。
+- Pi session 固定存到当前 Content Storage Root 下的 `Sessions/` 目录，例如 `<content-storage-root>/Sessions/<session-id>.jsonl`；不能落到 Pi 默认的全局 `~/.pi` session 目录。
+- 新 Agent 不再需要当前 DB 对话表；迁移完成时必须新增 v1.1.0 DB migration 删除 `agent_threads`、`agent_messages`、`agent_tool_invocations`、`agent_runs`，不是只停用代码读取。
 - 不引入 `AgentViewBuilder`。公共协议只有 `AgentSessionEvent`。
 - 清理旧 AI SDK chat runtime 必须等 Pi 主路径全绿后再做。
 
@@ -363,7 +363,7 @@ bun run --cwd apps/electron test:e2e
 - unit test。
 - 完整 e2e。
 - grep 验收。
-- migration 验收：新数据库不创建旧 Agent 对话表；旧数据库升级后这些表被 drop。
+- migration 验收：新增 v1.1.0 migration 会 drop 旧 Agent 对话表；新数据库初始化后不再创建旧 Agent 对话表；旧数据库升级后这些表不存在。
 
 验收：
 
