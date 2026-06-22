@@ -14,9 +14,11 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { nanoid } from "nanoid";
 import { getAiModelConfig, getContentStorageRoot, type AiModelSelection } from "../../config";
+import { thoughtService } from "../core";
 import type {
   AgentCommand,
   AgentReasoningLevel,
+  AgentApprovalRequested,
   AgentSessionEvent,
   AgentSessionSummary,
 } from "@shared/agent";
@@ -25,6 +27,7 @@ import { AgentSessionLog } from "./pi-session-log";
 import { formatAgentError } from "./error";
 import { buildPiPromptText } from "./pi-prompt";
 import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-tools";
+import { createPiWriteTools, isPiApprovalToolName, PI_APPROVAL_TOOL_NAMES } from "./pi-write-tools";
 
 export const AGENT_EVENT_CHANNEL = "agent:event";
 
@@ -109,6 +112,32 @@ function piToolError(result: unknown): string {
   return typeof result === "string" ? result : JSON.stringify(result);
 }
 
+function approvalIdForToolCall(toolCallId: string) {
+  return `approval_${toolCallId}`;
+}
+
+function approvalTitleForTool(toolName: string) {
+  if (toolName === "thought_create") return "候选 Thought";
+  return "候选操作";
+}
+
+function thoughtCreateInput(payload: unknown): {
+  title?: string;
+  body: string;
+  categoryIds?: string[];
+} {
+  if (!isRecord(payload) || typeof payload.body !== "string" || !payload.body.trim()) {
+    throw new Error("候选 Thought 缺少正文。");
+  }
+  return {
+    title: typeof payload.title === "string" ? payload.title : undefined,
+    body: payload.body,
+    categoryIds: Array.isArray(payload.categoryIds)
+      ? payload.categoryIds.filter((item): item is string => typeof item === "string")
+      : undefined,
+  };
+}
+
 export function isPiAgentRuntimeEnabled() {
   return process.env.REFLECTA_AGENT_RUNTIME === "pi";
 }
@@ -186,6 +215,10 @@ export class PiAgentHost {
         });
       });
     }
+
+    if (command.type === "tool.approve" || command.type === "tool.reject") {
+      await this.resolveToolApproval(command, webContents);
+    }
   }
 
   private async createSession(
@@ -207,7 +240,7 @@ export class PiAgentHost {
     return createAgentSession({
       agentDir,
       authStorage,
-      customTools: createPiReadOnlyTools(),
+      customTools: [...createPiReadOnlyTools(), ...createPiWriteTools()],
       cwd: this.contentStorageRoot,
       model,
       modelRegistry,
@@ -215,7 +248,7 @@ export class PiAgentHost {
       sessionManager,
       settingsManager,
       thinkingLevel: thinkingLevelFor(command.reasoningLevel),
-      tools: [...PI_READ_ONLY_TOOL_NAMES],
+      tools: [...PI_READ_ONLY_TOOL_NAMES, ...PI_APPROVAL_TOOL_NAMES],
     });
   }
 
@@ -249,6 +282,7 @@ export class PiAgentHost {
     let session: AgentSession | undefined;
     let unsubscribe: (() => void) | undefined;
     let assistantText = "";
+    let assistantActivity = false;
     let runStarted = false;
     const emit = (event: AgentSessionEvent) => this.appendAndEmit(manager, webContents, event);
     const emitRunStarted = () => {
@@ -276,6 +310,7 @@ export class PiAgentHost {
       unsubscribe = session.subscribe((event) => {
         if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
           assistantText += event.assistantMessageEvent.delta;
+          assistantActivity = true;
           emit(
             this.createEvent({
               type: "assistant.text.delta",
@@ -292,6 +327,7 @@ export class PiAgentHost {
           event.type === "message_update" &&
           event.assistantMessageEvent.type === "thinking_delta"
         ) {
+          assistantActivity = true;
           emit(
             this.createEvent({
               type: "assistant.reasoning.delta",
@@ -305,6 +341,23 @@ export class PiAgentHost {
         }
 
         if (event.type === "tool_execution_start") {
+          assistantActivity = true;
+          if (isPiApprovalToolName(event.toolName)) {
+            emit(
+              this.createEvent({
+                type: "approval.requested",
+                sessionId: command.sessionId,
+                runId,
+                messageId: assistantMessageId,
+                approvalId: approvalIdForToolCall(event.toolCallId),
+                toolCallId: event.toolCallId,
+                toolName: event.toolName,
+                title: approvalTitleForTool(event.toolName),
+                payload: event.args,
+              }),
+            );
+            return;
+          }
           emit(
             this.createEvent({
               type: "tool.started",
@@ -320,6 +373,22 @@ export class PiAgentHost {
         }
 
         if (event.type === "tool_execution_end") {
+          if (isPiApprovalToolName(event.toolName)) {
+            if (event.isError) {
+              emit(
+                this.createEvent({
+                  type: "tool.failed",
+                  sessionId: command.sessionId,
+                  runId,
+                  messageId: assistantMessageId,
+                  toolCallId: event.toolCallId,
+                  toolName: event.toolName,
+                  error: piToolError(event.result),
+                }),
+              );
+            }
+            return;
+          }
           if (event.isError) {
             emit(
               this.createEvent({
@@ -352,6 +421,7 @@ export class PiAgentHost {
           const finalText = extractAssistantText(event.message);
           if (!finalText) return;
           assistantText = finalText;
+          assistantActivity = true;
           emit(
             this.createEvent({
               type: "assistant.text.delta",
@@ -372,7 +442,7 @@ export class PiAgentHost {
         }),
       );
       if (this.cancelledRunIds.has(runId)) return;
-      if (!assistantText.trim()) {
+      if (!assistantText.trim() && !assistantActivity) {
         emit(
           this.createEvent({
             type: "run.failed",
@@ -401,5 +471,79 @@ export class PiAgentHost {
       this.cancelledRunIds.delete(runId);
       this.activeRuns.delete(command.sessionId);
     }
+  }
+
+  private async resolveToolApproval(
+    command: Extract<AgentCommand, { type: "tool.approve" | "tool.reject" }>,
+    webContents: WebContents,
+  ) {
+    const manager = await this.sessionLog.openSession(command.sessionId);
+    const events = await this.sessionLog.readEvents(command.sessionId);
+    const requested = events.findLast(
+      (event): event is AgentApprovalRequested =>
+        event.type === "approval.requested" && event.approvalId === command.approvalId,
+    );
+    if (!requested) throw new Error("Approval request not found");
+    const alreadyResolved = events.some(
+      (event) => event.type === "approval.resolved" && event.approvalId === command.approvalId,
+    );
+    if (alreadyResolved) return;
+
+    const approved = command.type === "tool.approve";
+    this.appendAndEmit(
+      manager,
+      webContents,
+      this.createEvent({
+        type: "approval.resolved",
+        sessionId: command.sessionId,
+        runId: requested.runId,
+        messageId: requested.messageId,
+        approvalId: requested.approvalId,
+        toolCallId: requested.toolCallId,
+        toolName: requested.toolName,
+        approved,
+      }),
+    );
+    if (!approved) return;
+
+    try {
+      const output = await this.executeApprovedTool(requested);
+      this.appendAndEmit(
+        manager,
+        webContents,
+        this.createEvent({
+          type: "tool.completed",
+          sessionId: command.sessionId,
+          runId: requested.runId,
+          messageId: requested.messageId,
+          toolCallId: requested.toolCallId,
+          toolName: requested.toolName,
+          output,
+        }),
+      );
+    } catch (error) {
+      this.appendAndEmit(
+        manager,
+        webContents,
+        this.createEvent({
+          type: "tool.failed",
+          sessionId: command.sessionId,
+          runId: requested.runId,
+          messageId: requested.messageId,
+          toolCallId: requested.toolCallId,
+          toolName: requested.toolName,
+          error: formatAgentError(error),
+        }),
+      );
+    }
+  }
+
+  private async executeApprovedTool(requested: AgentApprovalRequested): Promise<unknown> {
+    if (requested.toolName === "thought_create") {
+      const input = thoughtCreateInput(requested.payload);
+      const thought = await thoughtService.createThought(input);
+      return { resultRefType: "thought", resultRefId: thought.id };
+    }
+    throw new Error(`Unsupported approval tool: ${requested.toolName}`);
   }
 }

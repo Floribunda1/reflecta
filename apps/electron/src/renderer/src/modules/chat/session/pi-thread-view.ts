@@ -148,7 +148,13 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
         if (isBusy || message.role !== "user") return;
         setEditingMessage(editingMessageFromChatMessage(message));
       },
-      approveTool: async (_input: ApproveToolInput) => {},
+      approveTool: async (input: ApproveToolInput) => {
+        await ipcClient.chat.sendAgentCommand({
+          type: input.approved ? "tool.approve" : "tool.reject",
+          sessionId,
+          approvalId: input.approvalId,
+        });
+      },
       cancelEdit: () => setEditingMessage(undefined),
       stop: () => {
         const lastAssistantId = visibleMessages.findLast(

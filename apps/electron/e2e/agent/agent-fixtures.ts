@@ -56,6 +56,10 @@ export function seedThoughtIdByTitle(title: string) {
   return runFixture({ type: "thoughtIdByTitle", title }).trim();
 }
 
+export function thoughtExistsByTitle(title: string) {
+  return runFixture({ type: "thoughtExistsByTitle", title }).trim() === "true";
+}
+
 export function seedCompletedThread({
   id,
   title,

@@ -62,6 +62,9 @@ function assistantBlockParts(
         ]
       : [];
   }
+  if (block.kind === "approval") {
+    return [approvalPart(block)];
+  }
   if (block.state === "failed") {
     return [
       {
@@ -92,4 +95,53 @@ function assistantBlockParts(
       input: block.input ?? {},
     } as AgentChatMessage["parts"][number],
   ];
+}
+
+function approvalPart(
+  block: Extract<AgentReducedAssistantBlock, { kind: "approval" }>,
+): AgentChatMessage["parts"][number] {
+  const common = {
+    type: `tool-${block.toolName}`,
+    toolCallId: block.toolCallId,
+    input: block.payload ?? {},
+    toolMetadata: {
+      kind: "proposal",
+      proposalType: block.toolName,
+    },
+  };
+  if (block.state === "pending") {
+    return {
+      ...common,
+      state: "approval-requested",
+      approval: { id: block.approvalId },
+    } as AgentChatMessage["parts"][number];
+  }
+  if (block.state === "rejected") {
+    return {
+      ...common,
+      state: "output-denied",
+      approval: { id: block.approvalId, approved: false },
+    } as AgentChatMessage["parts"][number];
+  }
+  if (block.state === "completed") {
+    return {
+      ...common,
+      state: "output-available",
+      approval: { id: block.approvalId, approved: true },
+      output: block.output,
+    } as AgentChatMessage["parts"][number];
+  }
+  if (block.state === "failed") {
+    return {
+      ...common,
+      state: "output-error",
+      approval: { id: block.approvalId, approved: block.approved },
+      errorText: block.error ?? "Tool failed",
+    } as AgentChatMessage["parts"][number];
+  }
+  return {
+    ...common,
+    state: "approval-responded",
+    approval: { id: block.approvalId, approved: true },
+  } as AgentChatMessage["parts"][number];
 }

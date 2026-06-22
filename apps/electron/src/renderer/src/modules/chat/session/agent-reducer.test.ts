@@ -123,6 +123,66 @@ describe("reduceAgentSession", () => {
     expect(reduceAgentSession(events)).toEqual(state);
   });
 
+  test("reduces approval requested, rejected, and completed states", () => {
+    const requested: AgentSessionEvent = {
+      ...base,
+      id: "evt_1",
+      type: "approval.requested",
+      messageId: "assistant_1",
+      approvalId: "approval_1",
+      toolCallId: "tool_1",
+      toolName: "thought_create",
+      title: "候选 Thought",
+      payload: { title: "A", body: "B" },
+    };
+
+    expect(
+      reduceAgentSession([
+        requested,
+        {
+          ...base,
+          id: "evt_2",
+          type: "approval.resolved",
+          messageId: "assistant_1",
+          approvalId: "approval_1",
+          toolCallId: "tool_1",
+          toolName: "thought_create",
+          approved: false,
+        },
+      ]).messages[0]?.blocks?.[0],
+    ).toMatchObject({ kind: "approval", approvalId: "approval_1", state: "rejected" });
+
+    expect(
+      reduceAgentSession([
+        requested,
+        {
+          ...base,
+          id: "evt_3",
+          type: "approval.resolved",
+          messageId: "assistant_1",
+          approvalId: "approval_1",
+          toolCallId: "tool_1",
+          toolName: "thought_create",
+          approved: true,
+        },
+        {
+          ...base,
+          id: "evt_4",
+          type: "tool.completed",
+          messageId: "assistant_1",
+          toolCallId: "tool_1",
+          toolName: "thought_create",
+          output: { resultRefType: "thought", resultRefId: "thought_1" },
+        },
+      ]).messages[0]?.blocks?.[0],
+    ).toMatchObject({
+      kind: "approval",
+      approvalId: "approval_1",
+      state: "completed",
+      output: { resultRefType: "thought", resultRefId: "thought_1" },
+    });
+  });
+
   test("clears the active run after failure", () => {
     const state = reduceAgentSession([
       { ...base, id: "evt_1", type: "run.started" },

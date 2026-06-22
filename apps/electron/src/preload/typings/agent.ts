@@ -116,8 +116,10 @@ export type AgentToolFailed = AgentEventBase & {
 export type AgentApprovalRequested = AgentEventBase & {
   type: "approval.requested";
   runId: string;
+  messageId: string;
   approvalId: string;
   toolCallId: string;
+  toolName: string;
   title: string;
   description?: string;
   payload?: unknown;
@@ -126,7 +128,10 @@ export type AgentApprovalRequested = AgentEventBase & {
 export type AgentApprovalResolved = AgentEventBase & {
   type: "approval.resolved";
   runId: string;
+  messageId: string;
   approvalId: string;
+  toolCallId: string;
+  toolName: string;
   approved: boolean;
 };
 
@@ -158,6 +163,20 @@ export type AgentReducedAssistantBlock =
       output?: unknown;
       error?: string;
       state: "running" | "completed" | "failed";
+      createdAt: string;
+    }
+  | {
+      kind: "approval";
+      approvalId: string;
+      toolCallId: string;
+      toolName: string;
+      title: string;
+      description?: string;
+      payload?: unknown;
+      output?: unknown;
+      error?: string;
+      approved?: boolean;
+      state: "pending" | "approved" | "rejected" | "completed" | "failed";
       createdAt: string;
     }
   | {
@@ -326,6 +345,28 @@ function upsertAssistantTool(
       return blocks.map((current, blockIndex) => (blockIndex === index ? block : current));
     }
 
+    const approvalIndex = blocks.findIndex(
+      (block) => block.kind === "approval" && block.toolCallId === event.toolCallId,
+    );
+    if (approvalIndex >= 0) {
+      return blocks.map((block, blockIndex) => {
+        if (blockIndex !== approvalIndex || block.kind !== "approval") return block;
+        if (event.type === "tool.completed") {
+          return {
+            ...block,
+            approved: true,
+            state: "completed",
+            output: event.output,
+          };
+        }
+        return {
+          ...block,
+          state: "failed",
+          error: event.error,
+        };
+      });
+    }
+
     const update =
       event.type === "tool.completed"
         ? {
@@ -354,9 +395,51 @@ function upsertAssistantTool(
   });
 }
 
+function upsertAssistantApproval(
+  messages: AgentReducedMessage[],
+  event: AgentApprovalRequested | AgentApprovalResolved,
+): AgentReducedMessage[] {
+  return upsertAssistantBlock(messages, event, (blocks) => {
+    const index = blocks.findIndex(
+      (block) => block.kind === "approval" && block.approvalId === event.approvalId,
+    );
+    if (event.type === "approval.requested") {
+      const block = {
+        kind: "approval" as const,
+        approvalId: event.approvalId,
+        toolCallId: event.toolCallId,
+        toolName: event.toolName,
+        title: event.title,
+        description: event.description,
+        payload: event.payload,
+        state: "pending" as const,
+        createdAt: event.createdAt,
+      };
+      if (index < 0) return [...blocks, block];
+      return blocks.map((current, blockIndex) => (blockIndex === index ? block : current));
+    }
+    if (index < 0) return blocks;
+    return blocks.map((block, blockIndex) =>
+      blockIndex === index && block.kind === "approval"
+        ? {
+            ...block,
+            approved: event.approved,
+            state: event.approved ? "approved" : "rejected",
+          }
+        : block,
+    );
+  });
+}
+
 function upsertAssistantBlock(
   messages: AgentReducedMessage[],
-  event: AgentAssistantReasoningDelta | AgentToolStarted | AgentToolCompleted | AgentToolFailed,
+  event:
+    | AgentAssistantReasoningDelta
+    | AgentToolStarted
+    | AgentToolCompleted
+    | AgentToolFailed
+    | AgentApprovalRequested
+    | AgentApprovalResolved,
   reduceBlocks: (blocks: AgentReducedAssistantBlock[]) => AgentReducedAssistantBlock[],
 ): AgentReducedMessage[] {
   const index = messages.findIndex((message) => message.id === event.messageId);
@@ -435,6 +518,14 @@ export function reduceAgentSession(events: AgentSessionEvent[]): AgentSessionSta
           ...state,
           sessionId: event.sessionId,
           messages: upsertAssistantTool(state.messages, event),
+        };
+      }
+
+      if (event.type === "approval.requested" || event.type === "approval.resolved") {
+        return {
+          ...state,
+          sessionId: event.sessionId,
+          messages: upsertAssistantApproval(state.messages, event),
         };
       }
 

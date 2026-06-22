@@ -106,3 +106,39 @@
     当用户展开工具活动
     那么页面应该显示工具标题
     而且输入框应该可操作
+
+  @P0 @proposal @AG-PI-PROPOSAL-REJECT-001
+  场景: 用户拒绝 Pi-backed session 中的候选 Thought
+    假如用户已经用 Pi Agent runtime 进入 Agent 页面
+    而且 Agent 当前可以正常回复
+    当用户创建新对话
+    而且用户要求 Agent 提出一个候选 Thought
+    那么页面应该显示待确认的候选 Thought 卡片
+    当用户点击拒绝
+    那么该候选 Thought 卡片应该显示已拒绝
+    而且界面应该显示未写入知识库
+    而且知识库中不应该出现该候选 Thought
+
+  @P0 @proposal @AG-PI-PROPOSAL-APPROVE-001
+  场景: 用户确认 Pi-backed session 中的候选 Thought
+    假如用户已经用 Pi Agent runtime 进入 Agent 页面
+    而且 Agent 当前可以正常回复
+    当用户创建新对话
+    而且用户要求 Agent 提出一个候选 Thought
+    那么页面应该显示待确认的候选 Thought 卡片
+    当用户点击确认
+    那么该候选 Thought 卡片应该显示已确认
+    而且界面应该显示已写入结果
+    而且知识库中应该出现该候选 Thought
+
+  @P0 @proposal @recovery @AG-PI-PROPOSAL-RELOAD-001
+  场景: 用户重启后仍能处理等待确认的候选 Thought
+    假如用户已经用 Pi Agent runtime 进入 Agent 页面
+    而且 Agent 已经提出一个待确认的候选 Thought
+    当用户关闭并重新打开 Reflecta 应用
+    而且用户重新进入 Agent 页面
+    而且用户打开原对话
+    那么页面应该仍显示待确认的候选 Thought 卡片
+    当用户点击拒绝
+    那么该候选 Thought 卡片应该显示已拒绝
+    而且知识库中不应该出现该候选 Thought
