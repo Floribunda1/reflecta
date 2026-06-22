@@ -33,25 +33,26 @@ Unit Test 由稳定规则驱动。
 ```text
 threads -> groupedThreads
 thoughts + selectedRefs + query -> context candidates
-context reference key -> parsed reference
-model + prompt + selected refs -> usage display data
+session events -> restored session state
+profile name + env -> content storage path
 ```
 
 这类测试应该保留，因为它们便宜、稳定，而且能覆盖 E2E 很难穷举的组合。
 
-### 协议到展示模型的翻译
+### 协议到产品模型的翻译
 
-当后端、runtime、AI SDK 或 Agent 返回的是事件、parts、tool result 等结构时，前端通常需要把它们翻译成用户可见的展示模型。
+当后端、runtime、AI SDK 或 Agent 返回的是事件、parts、tool result 等结构时，系统通常需要把它们翻译成项目内部稳定模型。
 
 例如：
 
 ```text
 agent runtime parts -> message view model
-tool result -> tool activity item
-proposal state -> proposal display state
+provider stream chunk -> normalized run event
+tool call + tool result -> persisted session event
+storage record -> domain object
 ```
 
-这类逻辑适合 Unit Test。它不是测 DOM，而是测产品语义有没有被正确翻译。
+这类逻辑适合 Unit Test。它不是测框架或 IO，而是测产品语义有没有被正确翻译。
 
 ### 多组合边界
 
@@ -64,8 +65,9 @@ E2E 应该跑主路径，不应该穷举所有组合。
 ```text
 空 query 时不搜索 context
 已选择的 context 不再出现在候选项里
-今天、昨天、更早的 thread 分组顺序稳定
-agent message 中 text、reasoning、tool 的顺序保持稳定
+session restore 时跳过损坏的 JSONL 行并保留有效事件
+provider rate limit 错误被归一成可重试失败
+同一个 run 的 start、tool、finish 事件顺序稳定
 ```
 
 ### 真实 bug 回归
@@ -75,8 +77,8 @@ agent message 中 text、reasoning、tool 的顺序保持稳定
 测试名应该描述用户可观察到的问题，而不是内部修复方式。
 
 ```text
-GOOD: keeps tool result in the original message order
-BAD: calls sortParts before renderMessage
+GOOD: restores valid session events when one JSONL line is malformed
+BAD: calls parseJsonlLine inside restoreSession
 ```
 
 ## Unit Test 不应该测什么
@@ -105,8 +107,8 @@ Unit Test 可以 mock 系统边界，例如时间、随机数、文件系统、�
 不要 mock 自己控制的内部模块，然后断言它被调用。
 
 ```text
-GOOD: 输入 messages，断言展示模型里的 parts 顺序
-BAD: mock buildMessageParts，然后断言它被调用一次
+GOOD: 输入 session events，断言恢复后的 session state
+BAD: mock restoreMessages，然后断言它被调用一次
 ```
 
 ### 不测框架调用细节
@@ -120,6 +122,8 @@ React Query 有没有 invalidateQueries
 router 有没有 navigate
 某个 hook 有没有 setState
 某个 callback 有没有被调用三次
+SQLite client 有没有调用 execute
+JSONL writer 有没有调用 appendLine
 ```
 
 如果这是产品行为，就通过公开接口或用户可见结果验证。
@@ -135,8 +139,8 @@ Unit Test 只保留这条路径背后最小、稳定、可组合的规则。
 例如：
 
 ```text
-E2E: 用户点击 context mention 后打开 inspector
-Unit: context reference 能判断哪些类型可以 inspect
+E2E: 用户发送消息后能恢复历史对话
+Unit: JSONL session events 能恢复成正确 session state
 ```
 
 ## TDD 时怎么写 Unit Test
@@ -176,7 +180,7 @@ E2E:
 真实打开窗口，输入消息，等待回复完成，检查页面上出现结果。
 
 Unit:
-给定 runtime parts，断言 text、reasoning、tool result 的展示顺序正确。
+给定 runtime events，断言持久化后的 session events 能恢复出正确的消息和 run 状态。
 ```
 
 Unit Test 不是 Feature 的替代品，也不是 E2E 的低配版。
@@ -189,8 +193,10 @@ Unit Test 不是 Feature 的替代品，也不是 E2E 的低配版。
 thread 分组和排序
 context reference parse / format
 context candidate 过滤和排序
-context usage 计算
-agent message parts 到展示模型的翻译
+agent message parts 到产品模型的翻译
+session JSONL event parse / restore
+provider stream event normalization
+storage path / profile resolution
 ```
 
 下面这类测试应该删掉、改写，或交给 E2E：
@@ -202,6 +208,7 @@ className 和 data-slot
 React Query cache 是否调用某个 API
 render 次数
 mock 内部模块后的调用断言
+DB / file writer 的调用次数
 ```
 
 默认规则：如果测试读起来像用户或调用方关心的行为，就保留；如果读起来像当前实现方式，就删除。
