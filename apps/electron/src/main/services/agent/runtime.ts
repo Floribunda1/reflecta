@@ -42,6 +42,100 @@ export function selectModelMessages(messages: AgentChatMessage[]): AgentChatMess
   return messages.slice(-MAX_MODEL_HISTORY_MESSAGES);
 }
 
+type FinishMessagesInput = {
+  inputMessages: AgentChatMessage[];
+  finishMessages: AgentChatMessage[];
+  responseMessage: AgentChatMessage;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isDeniedApproval(part: AgentChatMessage["parts"][number]) {
+  if (!isRecord(part) || typeof part.type !== "string" || !part.type.startsWith("tool-")) {
+    return false;
+  }
+  const record = part as Record<string, unknown>;
+  if (record.state !== "approval-responded") return false;
+  return isRecord(record.approval) && record.approval.approved === false;
+}
+
+function partShape(part: AgentChatMessage["parts"][number]) {
+  if (!isRecord(part)) return { type: "unknown" };
+  const record = part as Record<string, unknown>;
+  const shape: Record<string, unknown> = { type: record.type };
+  if (typeof record.state === "string") shape.state = record.state;
+  if (typeof record.toolCallId === "string") shape.toolCallId = record.toolCallId;
+  if (isRecord(record.approval)) shape.approved = record.approval.approved;
+  return shape;
+}
+
+function duplicateIds(messages: AgentChatMessage[]) {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const message of messages) {
+    if (seen.has(message.id)) duplicates.add(message.id);
+    seen.add(message.id);
+  }
+  return [...duplicates];
+}
+
+function messageShape(messages: AgentChatMessage[]) {
+  return {
+    count: messages.length,
+    duplicateIds: duplicateIds(messages),
+    lastMessages: messages.slice(-4).map((message) => ({
+      id: message.id,
+      role: message.role,
+      parts: message.parts.map(partShape),
+    })),
+  };
+}
+
+function rejectedToolCallIds(messages: AgentChatMessage[]) {
+  return messages.flatMap((message) =>
+    message.parts
+      .filter(isDeniedApproval)
+      .map((part) => {
+        const record = part as Record<string, unknown>;
+        return typeof record.toolCallId === "string" ? record.toolCallId : "";
+      })
+      .filter(Boolean),
+  );
+}
+
+export function finalMessagesForFinish({
+  inputMessages,
+  finishMessages,
+  responseMessage,
+}: FinishMessagesInput): AgentChatMessage[] {
+  if (finishMessages.length > 0) return finishMessages;
+  const index = inputMessages.findIndex((message) => message.id === responseMessage.id);
+  if (index === -1) return [...inputMessages, responseMessage];
+  return inputMessages.map((message, messageIndex) =>
+    messageIndex === index ? responseMessage : message,
+  );
+}
+
+export function normalizeDeniedToolApprovals(messages: AgentChatMessage[]): AgentChatMessage[] {
+  return messages.map((message) => {
+    let changed = false;
+    const parts = message.parts.map((part) => {
+      if (!isDeniedApproval(part)) return part;
+      changed = true;
+      return { ...part, state: "output-denied" } as AgentChatMessage["parts"][number];
+    });
+    return changed ? { ...message, parts } : message;
+  });
+}
+
+export function prepareMessagesForRun(messages: AgentChatMessage[]): AgentChatMessage[] {
+  return normalizeDeniedToolApprovals(
+    messages.filter((message) => message.role !== "assistant" || message.parts.length > 0),
+  );
+}
+
 function titleTranscript(messages: AgentChatMessage[]) {
   return selectModelMessages(messages)
     .filter((message) => message.role === "user" || message.role === "assistant")
@@ -245,13 +339,32 @@ export class AgentRuntime {
       return;
     }
 
-    await this.repository.replaceMessages(input.threadId, input.messages);
+    const inputMessages = prepareMessagesForRun(input.messages);
+    const rejectedToolCalls = rejectedToolCallIds(input.messages);
+    if (rejectedToolCalls.length > 0) {
+      await Promise.all(
+        rejectedToolCalls.map((toolCallId) =>
+          this.repository.finishToolInvocation(toolCallId, {
+            approvalStatus: "rejected",
+            output: { approvalStatus: "rejected" },
+          }),
+        ),
+      );
+      agentLog.info("run.toolApprovalsRejected", {
+        requestId,
+        runId,
+        threadId: input.threadId,
+        toolCallIds: rejectedToolCalls,
+      });
+    }
+
+    await this.repository.replaceMessages(input.threadId, inputMessages);
 
     const modelMessages = modelMessagesForProvider(
-      selectModelMessages(input.messages),
+      selectModelMessages(inputMessages),
       providerOptionsKey,
     );
-    const selectedContextBlock = await buildSelectedContextBlock(input.messages);
+    const selectedContextBlock = await buildSelectedContextBlock(inputMessages);
     const systemPrompt = agentSystemPrompt + selectedContextBlock;
     const providerOptions = providerOptionsForReasoning(input.reasoningLevel, providerOptionsKey, {
       instructions: codexSubscription ? systemPrompt : undefined,
@@ -260,9 +373,11 @@ export class AgentRuntime {
     agentLog.debug("run.modelInputReady", {
       requestId,
       runId,
-      persistedMessages: input.messages.length,
+      requestMessages: input.messages.length,
+      persistedMessages: inputMessages.length,
       modelMessages: modelMessages.length,
       selectedContextChars: selectedContextBlock.length,
+      messages: messageShape(inputMessages),
     });
     const tools = createAgentTools(this.repository, input.threadId);
     const result = streamText({
@@ -276,24 +391,29 @@ export class AgentRuntime {
     });
 
     const stream = result.toUIMessageStream({
-      originalMessages: input.messages,
+      originalMessages: inputMessages,
       generateMessageId: createIdGenerator({ prefix: "msg", size: 16 }),
-      onFinish: async ({ responseMessage, isAborted }) => {
+      onFinish: async ({ messages, responseMessage, isContinuation, isAborted }) => {
+        const finishMessages = prepareMessagesForRun(messages as AgentChatMessage[]);
+        const finalMessages = finalMessagesForFinish({
+          inputMessages,
+          finishMessages,
+          responseMessage: responseMessage as AgentChatMessage,
+        });
         agentLog.info("run.finishCallback", {
           requestId,
           runId,
           threadId: input.threadId,
           isAborted,
+          isContinuation,
           responseMessageId: responseMessage.id,
+          messages: messageShape(finalMessages),
         });
         if (isAborted) {
           await this.repository.finishRun(runId, "cancelled");
           return;
         }
-        await this.repository.replaceMessages(input.threadId, [
-          ...input.messages,
-          responseMessage as AgentChatMessage,
-        ]);
+        await this.repository.replaceMessages(input.threadId, finalMessages);
         await this.repository.finishRun(runId, "completed");
       },
       onError: (error) => (error instanceof Error ? error.message : "Unknown error"),
