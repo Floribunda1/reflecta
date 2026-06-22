@@ -15,13 +15,14 @@ import {
   waitForAssistantReply,
   writeAttachmentFile,
 } from "./agent-e2e";
-import { resetAgentFixtures, thoughtExistsByTitle } from "./agent-fixtures";
+import { categoryExistsByName, resetAgentFixtures, thoughtExistsByTitle } from "./agent-fixtures";
 
 const SLOW_PROMPT = "请慢慢输出 1 到 400，每个数字单独一行。";
 const REFLECTA_AGENT_EVENT_ENTRY = "reflecta.agent.event";
 const PI_REJECT_PROPOSAL_TITLE = "PI_REJECT_CANDIDATE_THOUGHT";
 const PI_APPROVE_PROPOSAL_TITLE = "PI_APPROVE_CANDIDATE_THOUGHT";
 const PI_RELOAD_PROPOSAL_TITLE = "PI_RELOAD_CANDIDATE_THOUGHT";
+const PI_CATEGORY_PROPOSAL_NAME = "PI_APPROVE_CANDIDATE_CATEGORY";
 
 function sessionsRoot() {
   return path.join(readE2eTestEnv().contentStorageRoot, "Sessions");
@@ -337,6 +338,43 @@ test("@AG-PI-PROPOSAL-APPROVE-001 用户确认 Pi-backed session 中的候选 Th
     expect(eventTypes).toContain("approval.requested");
     expect(eventTypes).toContain("approval.resolved");
     expect(eventTypes).toContain("tool.completed");
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-PI-PROPOSAL-CATEGORY-001 用户确认 Pi-backed session 中的候选 Category", async () => {
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
+  test.setTimeout(240_000);
+
+  const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+
+  try {
+    await createNewThread(page);
+    await sendMessage(
+      page,
+      `请必须调用 category_create 工具提出候选 Category。名称必须是 ${PI_CATEGORY_PROPOSAL_NAME}。等待我确认，不要直接写入。`,
+    );
+    const card = page
+      .getByTestId("agent-proposal-card")
+      .filter({ hasText: PI_CATEGORY_PROPOSAL_NAME });
+    await expect(card).toBeVisible({ timeout: 120_000 });
+    await card.getByTestId("agent-proposal-confirm-button").click();
+    await expect(card).toContainText("已确认", { timeout: 120_000 });
+    await expect(card).toContainText("已写入");
+
+    expect(categoryExistsByName(PI_CATEGORY_PROPOSAL_NAME)).toBe(true);
+    const events = readPiEvents();
+    expect(
+      events.some(
+        (event) => event.type === "approval.requested" && event.toolName === "category_create",
+      ),
+    ).toBe(true);
+    expect(
+      events.some(
+        (event) => event.type === "tool.completed" && event.toolName === "category_create",
+      ),
+    ).toBe(true);
   } finally {
     await app.close();
   }

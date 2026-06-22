@@ -131,6 +131,18 @@
     而且界面应该显示已写入结果
     而且知识库中应该出现该候选 Thought
 
+  @P0 @proposal @AG-PI-PROPOSAL-CATEGORY-001
+  场景: 用户确认 Pi-backed session 中的候选 Category
+    假如用户已经用 Pi Agent runtime 进入 Agent 页面
+    而且 Agent 当前可以正常回复
+    当用户创建新对话
+    而且用户要求 Agent 提出一个候选 Category
+    那么页面应该显示待确认的候选 Category 卡片
+    当用户点击确认
+    那么该候选 Category 卡片应该显示已确认
+    而且界面应该显示已写入结果
+    而且知识库中应该出现该候选 Category
+
   @P0 @proposal @recovery @AG-PI-PROPOSAL-RELOAD-001
   场景: 用户重启后仍能处理等待确认的候选 Thought
     假如用户已经用 Pi Agent runtime 进入 Agent 页面

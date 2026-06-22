@@ -14,7 +14,6 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { nanoid } from "nanoid";
 import { getAiModelConfig, getContentStorageRoot, type AiModelSelection } from "../../config";
-import { thoughtService } from "../core";
 import type {
   AgentCommand,
   AgentReasoningLevel,
@@ -27,7 +26,13 @@ import { AgentSessionLog } from "./pi-session-log";
 import { formatAgentError } from "./error";
 import { buildPiPromptText } from "./pi-prompt";
 import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-tools";
-import { createPiWriteTools, isPiApprovalToolName, PI_APPROVAL_TOOL_NAMES } from "./pi-write-tools";
+import {
+  approvalTitleForTool,
+  createPiWriteTools,
+  executePiApprovedTool,
+  isPiApprovalToolName,
+  PI_APPROVAL_TOOL_NAMES,
+} from "./pi-write-tools";
 
 export const AGENT_EVENT_CHANNEL = "agent:event";
 
@@ -114,28 +119,6 @@ function piToolError(result: unknown): string {
 
 function approvalIdForToolCall(toolCallId: string) {
   return `approval_${toolCallId}`;
-}
-
-function approvalTitleForTool(toolName: string) {
-  if (toolName === "thought_create") return "候选 Thought";
-  return "候选操作";
-}
-
-function thoughtCreateInput(payload: unknown): {
-  title?: string;
-  body: string;
-  categoryIds?: string[];
-} {
-  if (!isRecord(payload) || typeof payload.body !== "string" || !payload.body.trim()) {
-    throw new Error("候选 Thought 缺少正文。");
-  }
-  return {
-    title: typeof payload.title === "string" ? payload.title : undefined,
-    body: payload.body,
-    categoryIds: Array.isArray(payload.categoryIds)
-      ? payload.categoryIds.filter((item): item is string => typeof item === "string")
-      : undefined,
-  };
 }
 
 export function isPiAgentRuntimeEnabled() {
@@ -539,11 +522,9 @@ export class PiAgentHost {
   }
 
   private async executeApprovedTool(requested: AgentApprovalRequested): Promise<unknown> {
-    if (requested.toolName === "thought_create") {
-      const input = thoughtCreateInput(requested.payload);
-      const thought = await thoughtService.createThought(input);
-      return { resultRefType: "thought", resultRefId: thought.id };
+    if (!isPiApprovalToolName(requested.toolName)) {
+      throw new Error(`Unsupported approval tool: ${requested.toolName}`);
     }
-    throw new Error(`Unsupported approval tool: ${requested.toolName}`);
+    return executePiApprovedTool(requested.toolName, requested.payload);
   }
 }

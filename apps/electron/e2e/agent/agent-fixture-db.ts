@@ -28,7 +28,8 @@ const fixture = JSON.parse(fs.readFileSync(fixturePath, "utf-8")) as
       };
     }
   | { type: "thoughtIdByTitle"; title: string }
-  | { type: "thoughtExistsByTitle"; title: string };
+  | { type: "thoughtExistsByTitle"; title: string }
+  | { type: "categoryExistsByName"; name: string };
 
 const BASE_TIME = "2026-06-22T08:00:00.000Z";
 const db = new Database(dbPath);
@@ -80,6 +81,13 @@ try {
     const row = db
       .query(`SELECT 1 AS exists_flag FROM thoughts WHERE title = ? AND deleted_at IS NULL LIMIT 1`)
       .get(fixture.title) as { exists_flag: number } | null;
+    console.log(row ? "true" : "false");
+  }
+
+  if (fixture.type === "categoryExistsByName") {
+    const row = db
+      .query(`SELECT 1 AS exists_flag FROM categories WHERE name = ? LIMIT 1`)
+      .get(fixture.name) as { exists_flag: number } | null;
     console.log(row ? "true" : "false");
   }
 } finally {

@@ -60,6 +60,10 @@ export function thoughtExistsByTitle(title: string) {
   return runFixture({ type: "thoughtExistsByTitle", title }).trim() === "true";
 }
 
+export function categoryExistsByName(name: string) {
+  return runFixture({ type: "categoryExistsByName", name }).trim() === "true";
+}
+
 export function seedCompletedThread({
   id,
   title,
