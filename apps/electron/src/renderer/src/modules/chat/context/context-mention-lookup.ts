@@ -12,6 +12,13 @@ import {
 
 export { buildContextCandidates, shouldSearchContexts, type ContextCandidate };
 
+export function listMentionThoughts(query: string) {
+  const normalizedQuery = query.trim();
+  return normalizedQuery
+    ? ipcClient.search.searchThoughts(normalizedQuery, { limit: CONTEXT_LOOKUP_LIMIT })
+    : ipcClient.thought.listThoughts({ limit: CONTEXT_LOOKUP_LIMIT });
+}
+
 export function useContextMentionLookup({
   disabled,
   selected,
@@ -26,11 +33,7 @@ export function useContextMentionLookup({
 
   const contextThoughtsQuery = useQuery({
     queryKey: ["agent.context.thoughts", debouncedQuery],
-    queryFn: () =>
-      ipcClient.thought.listThoughts({
-        searchQuery: debouncedQuery || undefined,
-        limit: CONTEXT_LOOKUP_LIMIT,
-      }),
+    queryFn: () => listMentionThoughts(debouncedQuery),
     enabled,
   });
 

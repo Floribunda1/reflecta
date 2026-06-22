@@ -1,11 +1,64 @@
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
+import { ipcClient } from "@renderer/utils/ipc";
+import type { ThoughtSummaryDTO } from "@shared/thought";
 import {
   buildContextCandidates,
+  CONTEXT_LOOKUP_LIMIT,
   shouldSearchContexts,
   type ContextCandidate,
 } from "./context-candidates";
+import { listMentionThoughts } from "./context-mention-lookup";
+
+vi.mock("@renderer/utils/ipc", () => ({
+  ipcClient: {
+    search: {
+      searchThoughts: vi.fn(),
+    },
+    thought: {
+      listThoughts: vi.fn(),
+    },
+  },
+}));
+
+function thought(id: string): ThoughtSummaryDTO {
+  return {
+    id,
+    title: id,
+    body: "",
+    categoryIds: [],
+    contextCount: 0,
+    connectionCount: 0,
+    connectionIds: [],
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+}
 
 describe("context mention lookup", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test("uses thought search for a non-empty query", async () => {
+    vi.mocked(ipcClient.search.searchThoughts).mockResolvedValue([thought("thought-search")]);
+
+    await expect(listMentionThoughts(" beta ")).resolves.toEqual([thought("thought-search")]);
+
+    expect(ipcClient.search.searchThoughts).toHaveBeenCalledWith("beta", {
+      limit: CONTEXT_LOOKUP_LIMIT,
+    });
+    expect(ipcClient.thought.listThoughts).not.toHaveBeenCalled();
+  });
+
+  test("uses recent thoughts for an empty query", async () => {
+    vi.mocked(ipcClient.thought.listThoughts).mockResolvedValue([thought("thought-recent")]);
+
+    await expect(listMentionThoughts("  ")).resolves.toEqual([thought("thought-recent")]);
+
+    expect(ipcClient.thought.listThoughts).toHaveBeenCalledWith({ limit: CONTEXT_LOOKUP_LIMIT });
+    expect(ipcClient.search.searchThoughts).not.toHaveBeenCalled();
+  });
+
   test("orders thoughts, contexts, then filtered categories and removes selected refs", () => {
     const candidates = buildContextCandidates({
       query: "work",
