@@ -121,10 +121,6 @@ function approvalIdForToolCall(toolCallId: string) {
   return `approval_${toolCallId}`;
 }
 
-export function isPiAgentRuntimeEnabled() {
-  return process.env.REFLECTA_AGENT_RUNTIME === "pi";
-}
-
 export class PiAgentHost {
   private readonly sessionLog: AgentSessionLog;
   private readonly activeRuns = new Map<string, ActivePiRun>();

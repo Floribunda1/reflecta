@@ -3,7 +3,6 @@ import { ipcClient } from "@renderer/utils/ipc";
 import type { AiModelOption } from "@main/config";
 import type { AgentModelSelection } from "@shared/chat";
 import { removeThreadFromCache, renameThreadInCache, upsertThreadInCache } from "./query-cache";
-import { removeAgentThreadChat } from "./chat-registry";
 import { chatQueryKeys } from "./query-keys";
 
 export type { AiModelOption } from "@main/config";
@@ -17,14 +16,6 @@ export function useThreadsQuery() {
   return useQuery({
     queryKey: chatQueryKeys.threads,
     queryFn: () => ipcClient.chat.listThreads(),
-  });
-}
-
-export function useThreadMessagesQuery(threadId: string | null) {
-  return useQuery({
-    queryKey: threadId ? chatQueryKeys.threadMessages(threadId) : ["agent.messages", null],
-    queryFn: () => ipcClient.chat.getMessages(threadId!),
-    enabled: !!threadId,
   });
 }
 
@@ -56,9 +47,6 @@ export function useDeleteThreadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (threadId: string) => ipcClient.chat.deleteThread(threadId),
-    onMutate: (threadId) => {
-      removeAgentThreadChat(threadId, { stop: true });
-    },
     onSuccess: async (_result, threadId) => {
       removeThreadFromCache(queryClient, threadId);
       await queryClient.invalidateQueries({ queryKey: chatQueryKeys.threads });
@@ -70,9 +58,6 @@ export function useArchiveThreadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (threadId: string) => ipcClient.chat.archiveThread(threadId),
-    onMutate: (threadId) => {
-      removeAgentThreadChat(threadId, { stop: true });
-    },
     onSuccess: async (_result, threadId) => {
       removeThreadFromCache(queryClient, threadId);
       await queryClient.invalidateQueries({ queryKey: chatQueryKeys.threads });
