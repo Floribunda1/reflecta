@@ -2,7 +2,6 @@ import type { WebContents } from "electron";
 import {
   convertToModelMessages,
   createIdGenerator,
-  generateText,
   isFileUIPart,
   streamText,
   type FileUIPart,
@@ -162,13 +161,17 @@ export class AgentRuntime {
       instructions: codexSubscription ? THREAD_TITLE_SYSTEM_PROMPT : undefined,
       storeResponses: codexSubscription ? false : undefined,
     });
-    const result = await generateText({
+    const result = streamText({
       model,
       system: codexSubscription ? undefined : THREAD_TITLE_SYSTEM_PROMPT,
       prompt: `请为下面这段对话生成标题：\n\n${transcript}`,
       providerOptions,
     });
-    const title = cleanGeneratedThreadTitle(result.text);
+    const text: string[] = [];
+    for await (const part of result.fullStream) {
+      if (part.type === "text-delta") text.push(part.text);
+    }
+    const title = cleanGeneratedThreadTitle(text.join(""));
     await this.repository.renameThread(threadId, title);
     return title;
   }
