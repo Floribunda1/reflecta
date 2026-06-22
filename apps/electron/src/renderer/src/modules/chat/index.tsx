@@ -159,6 +159,9 @@ function ChatPageContent() {
   const renameThread = useMemoizedFn((threadId: string, title: string) =>
     renameThreadMutation.mutate({ threadId, title }),
   );
+  const titleGeneratingThreadId = generateThreadTitleMutation.isPending
+    ? (generateThreadTitleMutation.variables ?? null)
+    : null;
   const generateThreadTitle = useMemoizedFn((threadId: string) =>
     generateThreadTitleMutation.mutate(threadId),
   );
@@ -197,7 +200,7 @@ function ChatPageContent() {
         onGenerateTitle={generateThreadTitle}
         onArchive={archiveThread}
         onDelete={confirmDeleteThread}
-        titleGenerating={generateThreadTitleMutation.isPending}
+        titleGeneratingThreadId={titleGeneratingThreadId}
       />
       <ResizablePanelGroup
         orientation="horizontal"

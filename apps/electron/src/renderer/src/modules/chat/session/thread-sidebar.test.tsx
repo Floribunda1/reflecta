@@ -61,4 +61,29 @@ describe("ThreadSidebar", () => {
 
     expect(container.querySelector('[aria-label="Agent 正在响应"]')).not.toBeNull();
   });
+
+  test("marks the title generation thread", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(
+        <ThreadSidebar
+          threads={[thread("thread-a", "A"), thread("thread-b", "B")]}
+          activeThreadId="thread-a"
+          runningThreadId={null}
+          onSelect={noop}
+          onCreate={noop}
+          onRename={noop}
+          onGenerateTitle={noop}
+          onArchive={noop}
+          onDelete={noop}
+          titleGeneratingThreadId="thread-b"
+        />,
+      );
+    });
+
+    expect(container.querySelector('[aria-label="正在生成标题"]')).not.toBeNull();
+  });
 });

@@ -27,7 +27,7 @@ function ThreadSidebarComponent({
   onGenerateTitle,
   onArchive,
   onDelete,
-  titleGenerating,
+  titleGeneratingThreadId,
 }: {
   threads: AgentThreadDTO[];
   pending?: boolean;
@@ -39,7 +39,7 @@ function ThreadSidebarComponent({
   onGenerateTitle: (threadId: string) => void;
   onArchive: (threadId: string) => void;
   onDelete: (threadId: string) => void;
-  titleGenerating?: boolean;
+  titleGeneratingThreadId?: string | null;
 }) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -92,69 +92,73 @@ function ThreadSidebarComponent({
               <div className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                 {group.label}
               </div>
-              {group.threads.map((thread) => (
-                <ContextMenu key={thread.id}>
-                  <ContextMenuTrigger
-                    render={
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className={cn(
-                          "h-auto w-full min-w-0 justify-start p-1.5 text-left font-normal text-foreground/85 hover:bg-foreground/5 hover:text-foreground",
-                          thread.id === activeThreadId &&
-                            "bg-foreground/5 text-foreground font-medium hover:bg-foreground/5",
-                        )}
-                        onClick={() => onSelect(thread.id)}
-                      >
-                        <span className="min-w-0 flex-1">
-                          {renamingId === thread.id ? (
-                            <Input
-                              autoFocus
-                              className="h-7 w-full text-sm"
-                              value={renameDraft}
-                              onBlur={() => finishRename(thread)}
-                              onClick={(event) => event.stopPropagation()}
-                              onChange={(event) => setRenameDraft(event.target.value)}
-                              onKeyDown={(event) => {
-                                event.stopPropagation();
-                                if (event.key === "Enter") finishRename(thread);
-                                if (event.key === "Escape") setRenamingId(null);
-                              }}
-                            />
-                          ) : (
-                            <span className="flex min-w-0 items-center gap-1.5">
-                              <span className="block min-w-0 flex-1 truncate text-sm">
-                                {thread.title}
-                              </span>
-                              {thread.id === runningThreadId ? (
-                                <Spinner
-                                  aria-label="Agent 正在响应"
-                                  className="size-3 shrink-0 text-muted-foreground"
-                                />
-                              ) : null}
-                            </span>
+              {group.threads.map((thread) => {
+                const generatingTitle = thread.id === titleGeneratingThreadId;
+                const running = thread.id === runningThreadId;
+                return (
+                  <ContextMenu key={thread.id}>
+                    <ContextMenuTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className={cn(
+                            "h-auto w-full min-w-0 justify-start p-1.5 text-left font-normal text-foreground/85 hover:bg-foreground/5 hover:text-foreground",
+                            thread.id === activeThreadId &&
+                              "bg-foreground/5 text-foreground font-medium hover:bg-foreground/5",
                           )}
-                        </span>
-                      </Button>
-                    }
-                  />
-                  <ContextMenuContent>
-                    <ContextMenuItem onClick={() => startRename(thread)}>重命名</ContextMenuItem>
-                    <ContextMenuItem
-                      disabled={titleGenerating || thread.id === runningThreadId}
-                      onClick={() => onGenerateTitle(thread.id)}
-                    >
-                      {titleGenerating ? "生成中..." : "生成标题"}
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={() => onArchive(thread.id)}>归档</ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem variant="destructive" onClick={() => onDelete(thread.id)}>
-                      删除
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenu>
-              ))}
+                          onClick={() => onSelect(thread.id)}
+                        >
+                          <span className="min-w-0 flex-1">
+                            {renamingId === thread.id ? (
+                              <Input
+                                autoFocus
+                                className="h-7 w-full text-sm"
+                                value={renameDraft}
+                                onBlur={() => finishRename(thread)}
+                                onClick={(event) => event.stopPropagation()}
+                                onChange={(event) => setRenameDraft(event.target.value)}
+                                onKeyDown={(event) => {
+                                  event.stopPropagation();
+                                  if (event.key === "Enter") finishRename(thread);
+                                  if (event.key === "Escape") setRenamingId(null);
+                                }}
+                              />
+                            ) : (
+                              <span className="flex min-w-0 items-center gap-1.5">
+                                <span className="block min-w-0 flex-1 truncate text-sm">
+                                  {thread.title}
+                                </span>
+                                {generatingTitle || running ? (
+                                  <Spinner
+                                    aria-label={generatingTitle ? "正在生成标题" : "Agent 正在响应"}
+                                    className="size-3 shrink-0 text-muted-foreground"
+                                  />
+                                ) : null}
+                              </span>
+                            )}
+                          </span>
+                        </Button>
+                      }
+                    />
+                    <ContextMenuContent>
+                      <ContextMenuItem onClick={() => startRename(thread)}>重命名</ContextMenuItem>
+                      <ContextMenuItem
+                        disabled={Boolean(titleGeneratingThreadId) || running}
+                        onClick={() => onGenerateTitle(thread.id)}
+                      >
+                        {generatingTitle ? "生成中..." : "生成标题"}
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => onArchive(thread.id)}>归档</ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem variant="destructive" onClick={() => onDelete(thread.id)}>
+                        删除
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
+                );
+              })}
             </div>
           ))}
         </div>
