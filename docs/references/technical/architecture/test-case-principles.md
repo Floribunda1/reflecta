@@ -16,6 +16,23 @@ Test case 不是 bullet list。
 
 Test case 应该有组织地描述用户场景，而不是把零散检查点堆成列表。
 
+### 按 QA 用户场景设计 test case
+
+Test case 的设计入口是用户在产品里要完成的事情，不是代码模块、Agent runtime 状态机或自动化测试层级。
+
+设计 test case 时，先拆用户场景族，再补场景覆盖：
+
+```text
+用户正常完成任务
+用户遇到失败后继续使用
+用户中断后恢复
+用户在多个对象之间切换
+用户带数据或上下文操作
+用户查看和处理结果状态
+```
+
+这些覆盖维度可以体现在 scenario tag 里，例如 `@happy_path`、`@error`、`@recovery`、`@isolation`、`@context`，但 feature 文件的主结构仍然应该是用户场景。
+
 ### Test case 只维护 Feature 文件
 
 新增或维护 test case 时，只产生 Gherkin / Cucumber feature 文件。
@@ -23,6 +40,8 @@ Test case 应该有组织地描述用户场景，而不是把零散检查点堆�
 不要再创建一份并行的 `test-case.md`。
 
 同一个模块可以维护多个 feature 文件。优先按用户场景族拆分文件，而不是按代码模块或自动化测试层级拆分。
+
+Feature 文件名应该表达用户场景族，例如 `start-conversation.feature`、`history-recovery.feature`。
 
 每个 test case 只需要表达这些信息：
 
