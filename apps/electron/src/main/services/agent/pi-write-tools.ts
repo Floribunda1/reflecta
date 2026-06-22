@@ -105,6 +105,11 @@ const toolSpecs: PiWriteToolSpec[] = [
     label: "候选 Category",
     description: "Create a new Reflecta Category only after user approval.",
     promptSnippet: "category_create: propose a new Reflecta Category.",
+    promptGuidelines: [
+      "When the user asks to create or propose a Category, call category_create and wait for user approval.",
+      "If the user gives a Category name but no parent, call category_create with that name and omit parentId instead of asking a follow-up question.",
+      "Do not present a prose-only Category proposal when category_create can express it.",
+    ],
     parameters: Type.Object({
       name: Type.String({ minLength: 1 }),
       parentId: Type.Optional(nullableStringParameter),
