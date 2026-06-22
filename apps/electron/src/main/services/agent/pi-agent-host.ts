@@ -24,6 +24,7 @@ import { agentLog } from "../../logger";
 import { AgentSessionLog } from "./pi-session-log";
 import { formatAgentError } from "./error";
 import { buildPiPromptText } from "./pi-prompt";
+import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-tools";
 
 export const AGENT_EVENT_CHANNEL = "agent:event";
 
@@ -40,7 +41,11 @@ function createPiResourceLoader(): ResourceLoader {
     getThemes: () => ({ themes: [], diagnostics: [] }),
     getAgentsFiles: () => ({ agentsFiles: [] }),
     getSystemPrompt: () =>
-      "You are Reflecta's agent. Answer the user's message clearly and concisely.",
+      [
+        "You are Reflecta's agent. Answer the user's message clearly and concisely.",
+        "When the user asks to search, inspect, or read Reflecta knowledge, use the provided Reflecta read-only tools before answering.",
+        "Do not invent knowledge-base search results. Base those answers on tool results.",
+      ].join("\n"),
     getAppendSystemPrompt: () => [],
     extendResources: () => {},
     reload: async () => {},
@@ -80,6 +85,28 @@ function extractAssistantText(message: unknown): string {
         : "",
     )
     .join("");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function piToolOutput(result: unknown): unknown {
+  return isRecord(result) && "details" in result ? result.details : result;
+}
+
+function piToolError(result: unknown): string {
+  if (isRecord(result)) {
+    if (typeof result.error === "string") return result.error;
+    if (Array.isArray(result.content)) {
+      const text = result.content
+        .map((item) => (isRecord(item) && typeof item.text === "string" ? item.text : ""))
+        .join("\n")
+        .trim();
+      if (text) return text;
+    }
+  }
+  return typeof result === "string" ? result : JSON.stringify(result);
 }
 
 export function isPiAgentRuntimeEnabled() {
@@ -180,14 +207,15 @@ export class PiAgentHost {
     return createAgentSession({
       agentDir,
       authStorage,
+      customTools: createPiReadOnlyTools(),
       cwd: this.contentStorageRoot,
       model,
       modelRegistry,
-      noTools: "all",
       resourceLoader: createPiResourceLoader(),
       sessionManager,
       settingsManager,
       thinkingLevel: thinkingLevelFor(command.reasoningLevel),
+      tools: [...PI_READ_ONLY_TOOL_NAMES],
     });
   }
 
@@ -255,6 +283,66 @@ export class PiAgentHost {
               runId,
               messageId: assistantMessageId,
               delta: event.assistantMessageEvent.delta,
+            }),
+          );
+          return;
+        }
+
+        if (
+          event.type === "message_update" &&
+          event.assistantMessageEvent.type === "thinking_delta"
+        ) {
+          emit(
+            this.createEvent({
+              type: "assistant.reasoning.delta",
+              sessionId: command.sessionId,
+              runId,
+              messageId: assistantMessageId,
+              delta: event.assistantMessageEvent.delta,
+            }),
+          );
+          return;
+        }
+
+        if (event.type === "tool_execution_start") {
+          emit(
+            this.createEvent({
+              type: "tool.started",
+              sessionId: command.sessionId,
+              runId,
+              messageId: assistantMessageId,
+              toolCallId: event.toolCallId,
+              toolName: event.toolName,
+              input: event.args,
+            }),
+          );
+          return;
+        }
+
+        if (event.type === "tool_execution_end") {
+          if (event.isError) {
+            emit(
+              this.createEvent({
+                type: "tool.failed",
+                sessionId: command.sessionId,
+                runId,
+                messageId: assistantMessageId,
+                toolCallId: event.toolCallId,
+                toolName: event.toolName,
+                error: piToolError(event.result),
+              }),
+            );
+            return;
+          }
+          emit(
+            this.createEvent({
+              type: "tool.completed",
+              sessionId: command.sessionId,
+              runId,
+              messageId: assistantMessageId,
+              toolCallId: event.toolCallId,
+              toolName: event.toolName,
+              output: piToolOutput(event.result),
             }),
           );
           return;

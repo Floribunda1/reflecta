@@ -29,6 +29,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function readPiEventTypes() {
+  return readPiEvents()
+    .map((event) => event.type)
+    .filter((type): type is string => Boolean(type));
+}
+
+function readPiEvents() {
   const root = sessionsRoot();
   if (!fs.existsSync(root)) return [];
   return fs
@@ -50,7 +56,7 @@ function readPiEventTypes() {
           ) {
             return [];
           }
-          return [entry.data.type];
+          return [entry.data];
         }),
     );
 }
@@ -242,6 +248,33 @@ test("@AG-PI-MODEL-001 用户在 Pi-backed session 中选择模型和推理强�
     await expect(page.getByTestId("agent-model-menu-button")).toContainText(modelName);
     await expect(page.getByTestId("agent-model-menu-button")).toContainText("中推理");
     await waitForAssistantReply(page);
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-PI-TOOL-READ-001 用户在 Pi-backed session 中使用只读知识库工具", async () => {
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
+  test.setTimeout(240_000);
+
+  const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+
+  try {
+    await createNewThread(page);
+    await sendMessage(
+      page,
+      "请必须使用知识库搜索工具 search_all 查找 React Server Components，并简短总结你找到的内容。",
+    );
+    await expect(page.getByTestId("agent-tool-activity")).toBeVisible({ timeout: 120_000 });
+    await waitForAssistantReply(page);
+    await page.getByTestId("agent-tool-activity").first().click();
+    await expect(page.getByText("搜索相关内容").first()).toBeVisible();
+
+    const eventTypes = readPiEventTypes();
+    expect(eventTypes).toContain("tool.started");
+    expect(eventTypes).toContain("tool.completed");
+    expect(eventTypes).not.toContain("approval.requested");
+    expect(readPiEvents().some((event) => event.toolName === "search_all")).toBe(true);
   } finally {
     await app.close();
   }

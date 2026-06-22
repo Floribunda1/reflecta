@@ -53,9 +53,73 @@ describe("reduceAgentSession", () => {
         id: "assistant_1",
         role: "assistant",
         text: "hello",
+        runId: "run_1",
         createdAt: "2026-06-23T00:00:00.000Z",
+        blocks: [
+          {
+            kind: "text",
+            text: "hello",
+            createdAt: "2026-06-23T00:00:00.000Z",
+          },
+        ],
       },
     ]);
+    expect(reduceAgentSession(events)).toEqual(state);
+  });
+
+  test("keeps reasoning, tool activity, and final text in event order", () => {
+    const events: AgentSessionEvent[] = [
+      { ...base, id: "evt_1", type: "run.started" },
+      {
+        ...base,
+        id: "evt_2",
+        type: "assistant.reasoning.delta",
+        messageId: "assistant_1",
+        delta: "先搜索",
+      },
+      {
+        ...base,
+        id: "evt_3",
+        type: "tool.started",
+        messageId: "assistant_1",
+        toolCallId: "tool_1",
+        toolName: "search_all",
+        input: { query: "React Server Components" },
+      },
+      {
+        ...base,
+        id: "evt_4",
+        type: "tool.completed",
+        messageId: "assistant_1",
+        toolCallId: "tool_1",
+        toolName: "search_all",
+        output: { thoughts: [{ id: "thought_1" }], contexts: [] },
+      },
+      {
+        ...base,
+        id: "evt_5",
+        type: "assistant.text.delta",
+        messageId: "assistant_1",
+        delta: "找到相关内容。",
+      },
+      { ...base, id: "evt_6", type: "run.completed" },
+    ];
+
+    const state = reduceAgentSession(events);
+
+    expect(state.messages[0]?.blocks?.map((block) => block.kind)).toEqual([
+      "reasoning",
+      "tool",
+      "text",
+    ]);
+    expect(state.messages[0]?.blocks?.[1]).toMatchObject({
+      kind: "tool",
+      toolCallId: "tool_1",
+      toolName: "search_all",
+      state: "completed",
+      input: { query: "React Server Components" },
+      output: { thoughts: [{ id: "thought_1" }], contexts: [] },
+    });
     expect(reduceAgentSession(events)).toEqual(state);
   });
 

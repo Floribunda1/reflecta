@@ -93,3 +93,16 @@
     那么模型菜单应该显示所选模型
     而且模型菜单应该显示中推理
     而且最终应该出现一条 Agent 回复正文
+
+  @P0 @result @AG-PI-TOOL-READ-001
+  场景: 用户在 Pi-backed session 中使用只读知识库工具
+    假如用户已经用 Pi Agent runtime 进入 Agent 页面
+    而且 seed 数据中存在 Thought「React Server Components」
+    而且 Agent 当前可以正常回复
+    当用户创建新对话
+    而且用户要求 Agent 使用知识库搜索工具查找 React Server Components
+    那么页面应该显示工具活动
+    而且最终应该出现一条 Agent 回复正文
+    当用户展开工具活动
+    那么页面应该显示工具标题
+    而且输入框应该可操作
