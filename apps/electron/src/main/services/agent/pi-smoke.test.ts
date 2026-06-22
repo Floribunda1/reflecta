@@ -2,7 +2,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
-import { getPiAgentSessionsRoot, runPiAgentSmoke } from "./pi-smoke";
+import { getPiAgentSessionsRoot } from "./pi-session-log";
+import { runPiAgentSmoke } from "./pi-smoke";
 
 const envTestLocalPath = path.resolve(import.meta.dirname, "../../../../../../.env.test.local");
 

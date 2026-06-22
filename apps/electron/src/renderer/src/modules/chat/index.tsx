@@ -30,6 +30,7 @@ import {
 } from "./session/server-state";
 import { ThreadSidebar } from "./session/thread-sidebar";
 import { useAgentThreadView } from "./session/thread-view";
+import { usePiAgentThreadView } from "./session/pi-thread-view";
 
 function activeThreadIdFor(threads: { id: string }[], activeThreadId: string | null) {
   if (threads.length === 0) return null;
@@ -41,6 +42,32 @@ function activeThreadIdFor(threads: { id: string }[], activeThreadId: string | n
 
 function ThreadChat({
   threadId,
+  runtime,
+  scrollRequest,
+  onInspectContextRef,
+}: {
+  threadId: string;
+  runtime?: "legacy" | "pi";
+  scrollRequest: number;
+  onInspectContextRef: (ref: InspectableContextRef) => void;
+}) {
+  return runtime === "pi" ? (
+    <PiThreadChat
+      threadId={threadId}
+      scrollRequest={scrollRequest}
+      onInspectContextRef={onInspectContextRef}
+    />
+  ) : (
+    <LegacyThreadChat
+      threadId={threadId}
+      scrollRequest={scrollRequest}
+      onInspectContextRef={onInspectContextRef}
+    />
+  );
+}
+
+function LegacyThreadChat({
+  threadId,
   scrollRequest,
   onInspectContextRef,
 }: {
@@ -49,6 +76,29 @@ function ThreadChat({
   onInspectContextRef: (ref: InspectableContextRef) => void;
 }) {
   const threadView = useAgentThreadView(threadId, scrollRequest);
+  return <ThreadChatSurface threadView={threadView} onInspectContextRef={onInspectContextRef} />;
+}
+
+function PiThreadChat({
+  threadId,
+  scrollRequest,
+  onInspectContextRef,
+}: {
+  threadId: string;
+  scrollRequest: number;
+  onInspectContextRef: (ref: InspectableContextRef) => void;
+}) {
+  const threadView = usePiAgentThreadView(threadId, scrollRequest);
+  return <ThreadChatSurface threadView={threadView} onInspectContextRef={onInspectContextRef} />;
+}
+
+function ThreadChatSurface({
+  threadView,
+  onInspectContextRef,
+}: {
+  threadView: ReturnType<typeof useAgentThreadView>;
+  onInspectContextRef: (ref: InspectableContextRef) => void;
+}) {
   const modelOptionsQuery = useAgentModelOptionsQuery();
   const selectModelMutation = useSelectAgentModelMutation();
   const modelOptions = modelOptionsQuery.data?.options ?? [];
@@ -234,6 +284,7 @@ function ChatPageContent() {
               <ThreadChat
                 key={activeThreadId}
                 threadId={activeThreadId}
+                runtime={threads.find((thread) => thread.id === activeThreadId)?.runtime}
                 scrollRequest={threadScrollRequest}
                 onInspectContextRef={openInspector}
               />

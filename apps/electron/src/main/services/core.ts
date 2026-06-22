@@ -14,6 +14,7 @@ import {
 } from "@reflecta/server";
 import { AgentRepository } from "./agent/repository";
 import { AgentRuntime } from "./agent/runtime";
+import { PiAgentHost } from "./agent/pi-agent-host";
 
 const options = { getDb: getDBInstance };
 
@@ -44,3 +45,4 @@ export const trashService = createLazy(() => new TrashElectronBff(options));
 
 export const agentRepository = createLazy(() => new AgentRepository(getDBInstance));
 export const agentRuntime = createLazy(() => new AgentRuntime(agentRepository));
+export const piAgentHost = createLazy(() => new PiAgentHost());

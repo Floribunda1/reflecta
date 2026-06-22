@@ -11,17 +11,19 @@ import { getE2eAiEnv, getE2eElectronEnv, hasE2eAiConfig } from "../test-env";
 
 export const hasAi = hasE2eAiConfig();
 
-export async function launchApp(): Promise<{ app: ElectronApplication; page: Page }> {
+export async function launchApp(
+  envOverrides: Record<string, string | undefined> = {},
+): Promise<{ app: ElectronApplication; page: Page }> {
   const app = await electron.launch({
     args: [path.resolve(import.meta.dirname, "../..")],
-    env: getE2eElectronEnv(),
+    env: { ...getE2eElectronEnv(), ...envOverrides },
   });
   const page = await app.firstWindow();
   return { app, page };
 }
 
-export async function launchAgentPage() {
-  const launched = await launchApp();
+export async function launchAgentPage(envOverrides: Record<string, string | undefined> = {}) {
+  const launched = await launchApp(envOverrides);
   await openAgentPage(launched.page);
   return launched;
 }

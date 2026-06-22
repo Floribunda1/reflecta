@@ -10,6 +10,7 @@ import {
   SettingsManager,
   type ResourceLoader,
 } from "@earendil-works/pi-coding-agent";
+import { getPiAgentSessionsRoot } from "./pi-session-log";
 
 export type RunPiAgentSmokeInput = {
   apiKey: string;
@@ -24,10 +25,6 @@ export type RunPiAgentSmokeResult = {
   sessionFile: string;
   sessionId: string;
 };
-
-export function getPiAgentSessionsRoot(contentStorageRoot: string): string {
-  return path.join(contentStorageRoot, "Sessions");
-}
 
 function createSmokeResourceLoader(): ResourceLoader {
   return {

@@ -28,6 +28,7 @@ export type AgentThreadDTO = {
   status: "active" | "archived";
   createdAt: string;
   updatedAt: string;
+  runtime?: "legacy" | "pi";
 };
 
 export type AgentModelSelection = {
