@@ -149,7 +149,157 @@ Reflecta Integration gives Pi domain context and tools.
 AgentProjection turns Pi session history into UI state.
 ```
 
-## 4. Module Split
+## 4. Class Relationship UML
+
+This is a conceptual class diagram. The names can become classes, modules, or files, but the dependency direction should stay the same.
+
+```mermaid
+classDiagram
+  direction LR
+
+  class AgentService {
+    +sendMessage(input)
+    +cancelRun(runId)
+    +approveTool(toolCallId)
+    +rejectTool(toolCallId)
+    +resumeSession(sessionId)
+    +readProjection(sessionId)
+  }
+
+  class PiAgentHost {
+    +handle(command) AgentEventStream
+    +projection(sessionId) AgentProjectionDTO
+    -openSession(sessionId)
+    -registerTools()
+    -registerSkills()
+  }
+
+  class PiAgentCore {
+    <<Pi>>
+    +run(session, tools, skills)
+  }
+
+  class PiSessionManager {
+    <<Pi>>
+    +append(entry)
+    +read(sessionId)
+    +resume(sessionId)
+    +branch(sessionId, entryId)
+  }
+
+  class PiAI {
+    <<Pi>>
+    +complete(request)
+    +stream(request)
+  }
+
+  class PiSkillRegistry {
+    <<Pi>>
+    +load()
+    +instructions()
+    +tools()
+  }
+
+  class PiBuiltinTools {
+    <<Pi>>
+    +readFile()
+    +readAttachment()
+    +bash()
+  }
+
+  class ReflectaContextProvider {
+    +buildContext(session, refs)
+  }
+
+  class ReflectaToolBridge {
+    +toolDefinitions()
+    +execute(toolCall)
+    +resumeApproved(toolCallId)
+  }
+
+  class ApprovalPolicy {
+    +decisionFor(toolCall)
+  }
+
+  class AgentProjection {
+    +fromSession(entries) AgentProjectionDTO
+  }
+
+  class PiSessionEntry {
+    <<PiData>>
+    +role
+    +content
+    +timestamp
+  }
+
+  class ReflectaSessionEntry {
+    <<ReflectaData>>
+    +type
+    +payload
+    +sourceRefs
+  }
+
+  class ThoughtService {
+    +read()
+    +write()
+  }
+
+  class ContextService {
+    +read()
+    +write()
+  }
+
+  class CategoryService {
+    +read()
+    +write()
+  }
+
+  class GraphService {
+    +search()
+    +neighbors()
+  }
+
+  AgentService --> PiAgentHost : delegates commands
+  AgentService --> AgentProjection : reads projection
+
+  PiAgentHost *-- PiAgentCore : hosts
+  PiAgentHost *-- PiSessionManager : owns session access
+  PiAgentHost *-- PiSkillRegistry : loads skills
+  PiAgentHost *-- ReflectaContextProvider : injects context
+  PiAgentHost *-- ReflectaToolBridge : registers tools
+  PiAgentHost --> AgentProjection : builds UI view
+
+  PiAgentCore --> PiAI : model calls
+  PiAgentCore --> PiSessionManager : appends entries
+  PiAgentCore --> PiSkillRegistry : reads instructions/tools
+  PiAgentCore --> PiBuiltinTools : calls builtin tools
+  PiAgentCore --> ReflectaToolBridge : calls Reflecta tools
+
+  PiSessionManager *-- PiSessionEntry : stores
+  ReflectaSessionEntry --|> PiSessionEntry : custom entry
+  PiSessionManager *-- ReflectaSessionEntry : stores
+
+  AgentProjection --> PiSessionManager : reads entries
+  AgentProjection --> ReflectaSessionEntry : interprets product entries
+
+  ReflectaToolBridge --> ApprovalPolicy : checks
+  ReflectaToolBridge --> ThoughtService : reads/writes
+  ReflectaToolBridge --> ContextService : reads/writes
+  ReflectaToolBridge --> CategoryService : reads/writes
+  ReflectaToolBridge --> GraphService : reads
+
+  PiBuiltinTools --> ApprovalPolicy : gated by Reflecta
+```
+
+Read the diagram this way:
+
+- `PiAgentHost` is the only class that knows both Reflecta and Pi at runtime level.
+- `PiAgentCore`, `PiSessionManager`, `PiAI`, `PiSkillRegistry`, and `PiBuiltinTools` are Pi-owned.
+- `ReflectaToolBridge`, `ReflectaContextProvider`, `ApprovalPolicy`, and domain services are Reflecta-owned.
+- `AgentProjection` is the only class that turns Pi session history into renderer-facing state.
+- `ReflectaSessionEntry` extends the Pi session with product meaning instead of creating a second session store.
+
+## 5. Module Split
 
 The architecture has five important modules. Fewer modules, clearer ownership.
 
@@ -161,7 +311,7 @@ The architecture has five important modules. Fewer modules, clearer ownership.
 | `ReflectaToolBridge` | Reflecta tools, approval policy, domain adapter. | Generic model/tool loop.                          |
 | `AgentProjection`    | UI-facing view of Pi session history.            | Runtime decisions, tool execution.                |
 
-### 4.1 AgentService
+### 5.1 AgentService
 
 `AgentService` is deliberately thin.
 
@@ -186,7 +336,7 @@ AgentProjection
 
 It should feel like transport glue. If business rules appear here, they are in the wrong place.
 
-### 4.2 PiAgentHost
+### 5.2 PiAgentHost
 
 `PiAgentHost` is the central Reflecta module.
 
@@ -221,7 +371,7 @@ Internally it delegates the hard generic parts to Pi:
 - resume / branch mechanics
 - skill loading model
 
-### 4.3 Pi Agent Runtime
+### 5.3 Pi Agent Runtime
 
 Pi Agent Runtime is where the generic agent behaviour lives.
 
@@ -244,7 +394,7 @@ The main technical question for 1.1.0 is not "how do we rewrite this loop?" It i
 How do we host Pi's loop without letting generic coding-agent semantics become Reflecta's product model?
 ```
 
-### 4.4 ReflectaToolBridge
+### 5.4 ReflectaToolBridge
 
 `ReflectaToolBridge` is how Pi sees Reflecta.
 
@@ -265,7 +415,7 @@ It can also expose a safe subset of Pi builtin tools:
 
 The bridge does not implement the agent loop. It only answers tool calls from Pi and writes Reflecta-specific session entries when product meaning matters.
 
-### 4.5 AgentProjection
+### 5.5 AgentProjection
 
 `AgentProjection` is a pure view builder.
 
@@ -290,7 +440,7 @@ AgentProjection
 
 It must be possible to rebuild the entire UI from Pi session history plus Reflecta custom entries. React state and AI SDK messages are not required.
 
-## 5. What Pi Agent Does Here
+## 6. What Pi Agent Does Here
 
 This section is the answer to "what is Pi Agent actually doing?"
 
@@ -312,7 +462,7 @@ Reflecta adds:
 - projection into Electron UI
 - domain writes through existing Reflecta modules
 
-## 6. State Ownership
+## 7. State Ownership
 
 | State                    | Owner                                | Why                                                        |
 | ------------------------ | ------------------------------------ | ---------------------------------------------------------- |
@@ -332,9 +482,9 @@ If it is Reflecta product meaning, keep it in Reflecta.
 If it is only display shape, keep it in Projection/Renderer.
 ```
 
-## 7. Main Flows
+## 8. Main Flows
 
-### 7.1 Send Message
+### 8.1 Send Message
 
 ```mermaid
 sequenceDiagram
@@ -360,7 +510,7 @@ sequenceDiagram
   Projection-->>UI: projected turns/tools/approvals
 ```
 
-### 7.2 Approval
+### 8.2 Approval
 
 ```txt
 Pi calls an approval-gated tool
@@ -376,7 +526,7 @@ Pi calls an approval-gated tool
 
 The approval card is not source of truth. The Pi session entry is.
 
-### 7.3 Resume
+### 8.3 Resume
 
 ```txt
 App opens
@@ -391,7 +541,7 @@ The first target is not necessarily "continue a half-open stream". The architect
 The whole Agent UI can be rebuilt from Pi session history.
 ```
 
-## 8. Frontend Mental Model
+## 9. Frontend Mental Model
 
 Frontend no longer owns chat runtime.
 
@@ -426,7 +576,7 @@ AgentProjection
 AgentEvent stream
 ```
 
-## 9. Why This Is Not Rewriting Pi
+## 10. Why This Is Not Rewriting Pi
 
 The architecture intentionally avoids rebuilding these Pi-owned things:
 
@@ -455,7 +605,7 @@ Pi Agent = generic agent runtime.
 Reflecta = product semantics and UI projection.
 ```
 
-## 10. Architecture Review Checks
+## 11. Architecture Review Checks
 
 Use these questions to review future design changes:
 
