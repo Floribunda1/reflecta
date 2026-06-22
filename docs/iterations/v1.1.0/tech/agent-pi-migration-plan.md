@@ -1,36 +1,36 @@
-# v1.1.0 Pi Agent Migration Plan
+# v1.1.0 Pi Agent 迁移计划
 
-> Date: 2026-06-22
+> 日期：2026-06-22
 >
-> Status: Draft
+> 状态：Draft
 >
-> Goal: Replace the current AI SDK chat runtime with Pi Agent without creating a second message model or a fake runtime that only looks like Pi.
+> 目标：把当前 AI SDK chat runtime 替换成 Pi Agent，同时避免造出第二套消息模型，或者造一个只是名字像 Pi 的假 runtime。
 
-## 1. Gap Audit
+## 1. 差距复盘
 
-The reverted implementation was not a real Pi Agent migration.
+已经回滚的那版实现，不是真正的 Pi Agent 迁移。
 
-| Area     | What was done                                                   | Gap                                                                                                           |
-| -------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Runtime  | Replaced the runtime with a deterministic `PiAgentHost` runner. | It did not call Pi SDK, Pi session, Pi loop, Pi resume, or Pi tools.                                          |
-| Storage  | Wrote Pi-like JSONL custom records by hand.                     | It did not prove compatibility with Pi session APIs or actual Pi JSONL entries.                               |
-| Tests    | Made the event/UI path green with fake output.                  | It did not include a Pi SDK integration test; one e2e scenario was briefly weakened, which is not acceptable. |
-| Tools    | Converted tool code toward plain specs.                         | It did not register tools through Pi or prove approval continuation through Pi.                               |
-| Frontend | Removed AI SDK transport and consumed events directly.          | This happened before the real backend boundary existed, so it hid the missing Pi integration.                 |
-| Cleanup  | Removed `@ai-sdk/react`.                                        | Cleanup is only valid after the real Pi path is green.                                                        |
+| 范围     | 实际做了什么                                           | 差距                                                                      |
+| -------- | ------------------------------------------------------ | ------------------------------------------------------------------------- |
+| Runtime  | 用 deterministic `PiAgentHost` runner 替换了 runtime。 | 没有调用 Pi SDK、Pi session、Pi loop、Pi resume、Pi tools。               |
+| Storage  | 手写了类似 Pi JSONL 的 custom records。                | 没有证明它和 Pi session API 或真实 Pi JSONL entry 兼容。                  |
+| Tests    | 用 fake output 把 event/UI 链路跑绿。                  | 缺 Pi SDK integration test；还短暂削弱过一个 e2e 场景语义，这不应该发生。 |
+| Tools    | 把 tool 代码往 plain spec 方向改。                     | 没有通过 Pi 注册 tool，也没有证明 approval continuation 能通过 Pi 跑。    |
+| Frontend | 移除了 AI SDK transport，并让前端直接消费 events。     | 这发生在真实后端边界存在之前，掩盖了 Pi integration 缺失。                |
+| Cleanup  | 移除了 `@ai-sdk/react`。                               | 清理只能发生在真实 Pi 主链路跑绿之后。                                    |
 
-Conclusion: the correct migration must start at the Pi boundary, not at the UI.
+结论：正确迁移必须从 Pi 边界开始，不是从 UI 开始。
 
-## 2. Non-Negotiables
+## 2. 不可妥协的约束
 
-- Existing feature/e2e specs are product contracts. Do not change scenario semantics to make the migration pass.
-- Fake model output is allowed for stable automation, but only behind a real Pi SDK adapter.
-- The production host must call Pi Agent APIs before frontend runtime removal starts.
-- No `AgentViewBuilder`, no backend DTO projection, no old `agent_messages.parts_json` recovery.
-- One public model crosses backend, IPC, frontend, fixtures, and Reflecta Pi custom entries: `AgentSessionEvent`.
-- Do not migrate old Agent history in v1.1.0.
+- 现有 feature/e2e spec 是产品契约。不能为了迁移通过而改弱场景语义。
+- fake model output 可以用于稳定自动化，但必须挂在真实 Pi SDK adapter 后面，不能替代 Pi。
+- 生产 host 必须先调用 Pi Agent API，然后才能开始移除前端 runtime。
+- 不保留 `AgentViewBuilder`，不做后端 DTO 投影，不恢复旧 `agent_messages.parts_json` 历史。
+- 后端、IPC、前端、fixture、Reflecta Pi custom entries 共用同一个公开模型：`AgentSessionEvent`。
+- v1.1.0 不迁移旧 Agent 历史。
 
-## 3. Target Shape
+## 3. 目标形态
 
 ```txt
 Renderer
@@ -45,220 +45,220 @@ Renderer
   -> reduceAgentSession(events)
 ```
 
-Pi owns the loop and session mechanics. Reflecta owns event semantics, tool meaning, approval, and UI.
+Pi 负责 loop 和 session 机制。Reflecta 负责事件语义、工具含义、approval 和 UI。
 
-## 4. Phase Plan
+## 4. 阶段计划
 
-### Phase 0: Pi SDK Spike
+### Phase 0：Pi SDK Spike
 
-Goal: prove Reflecta can open a Pi session in the app process and run one prompt through Pi with a deterministic model.
+目标：证明 Reflecta 能在 Electron main 进程里打开 Pi session，并通过 Pi 跑一次 prompt。模型可以是 deterministic，但 Pi 不能是假的。
 
-Do:
+要做：
 
-- Add the real Pi dependency/API adapter.
-- Create a tiny `PiAgentHost` spike that calls Pi session/prompt APIs.
-- Use a deterministic model/provider only as Pi input, not as a replacement for Pi.
-- Persist the session under Reflecta content storage root, not global Pi state.
+- 加入真实 Pi dependency/API adapter。
+- 做一个最小 `PiAgentHost` spike，调用 Pi session/prompt API。
+- deterministic model/provider 只能作为 Pi 输入，不能替代 Pi loop。
+- session 存在 Reflecta content storage root 下，不用全局 Pi 状态。
 
-Tests first:
+先写测试：
 
-- One integration test: prompt through Pi emits assistant text.
-- One storage check: Pi creates/opens the expected session file under Reflecta storage.
+- integration test：prompt 经过 Pi 后能产出 assistant text。
+- storage check：Pi 在 Reflecta storage 下创建/打开预期 session file。
 
-Exit:
+退出条件：
 
-- A production code path calls Pi SDK.
-- No frontend changes yet.
+- production code path 已经调用 Pi SDK。
+- 不改前端。
 
-### Phase 1: Canonical Shared Events
+### Phase 1：Canonical Shared Events
 
-Goal: introduce `@shared/agent` without changing runtime behavior.
+目标：引入 `@shared/agent`，但先不改 runtime 行为。
 
-Do:
+要做：
 
-- Add `AgentSessionEvent`, `AgentCommand`, `AgentSessionSummary`.
-- Add `reduceAgentSession(events)`.
-- Keep existing UI running until backend event history is real.
+- 新增 `AgentSessionEvent`、`AgentCommand`、`AgentSessionSummary`。
+- 新增 `reduceAgentSession(events)`。
+- 后端 event history 没跑通之前，先让现有 UI 继续工作。
 
-Tests first:
+先写测试：
 
-- `@shared/agent` does not import `ai`.
-- Reducer merges text deltas, orders reasoning/tool/proposal/text, resolves approval states, and makes failed/cancelled runs composer-ready.
+- `@shared/agent` 不 import `ai`。
+- reducer 合并 text delta，保持 reasoning/tool/proposal/text 顺序，处理 approval 状态，并让 failed/cancelled run 后 composer 可用。
 
-Exit:
+退出条件：
 
-- Shared model exists and is tested.
-- No UI migration yet.
+- shared model 存在并有测试。
+- 还不迁 UI。
 
-### Phase 2: Pi SessionLog
+### Phase 2：Pi SessionLog
 
-Goal: make Pi session files the only new Agent history source.
+目标：Pi session file 成为新 Agent 唯一历史来源。
 
-Do:
+要做：
 
-- Wrap Pi session custom entry APIs in `AgentSessionLog`.
-- `appendEvent(event)` writes `reflecta.agent.event`.
-- `readSessionEvents(sessionId)` reads only Reflecta custom entries.
-- Use `agent_threads` only as session list metadata if needed.
+- 用 `AgentSessionLog` 包住 Pi session custom entry API。
+- `appendEvent(event)` 写 `reflecta.agent.event`。
+- `readSessionEvents(sessionId)` 只读 Reflecta custom entries。
+- 如有需要，`agent_threads` 只做 session list metadata。
 
-Tests first:
+先写测试：
 
-- append/read exact event round-trip.
-- restart reads the same event sequence.
-- malformed and non-Reflecta entries are ignored.
-- no code path reads `agent_messages` for new Agent history.
+- append/read event 完全 round-trip。
+- restart 后读回同一组 event。
+- malformed 和非 Reflecta entries 被忽略。
+- 新 Agent history 没有代码路径读取 `agent_messages`。
 
-Exit:
+退出条件：
 
-- History restore works from Pi JSONL custom entries.
+- history restore 来自 Pi JSONL custom entries。
 
-### Phase 3: Runtime Vertical Slice
+### Phase 3：Runtime Vertical Slice
 
-Goal: send one message through Pi and surface the same event live and persisted.
+目标：一条消息真实经过 Pi，并且 live event 和 persisted event 是同一个 shape。
 
-Do:
+要做：
 
-- `message.send` appends `run.started` and `user.message`.
-- Pi callbacks become `assistant.text.delta`, `assistant.reasoning.delta`, tool events, and terminal run events.
-- `appendAndEmit(event)` is the only live stream path.
-- `run.cancel` aborts the active Pi run and appends `run.cancelled`.
+- `message.send` append `run.started` 和 `user.message`。
+- Pi callbacks 转成 `assistant.text.delta`、`assistant.reasoning.delta`、tool events 和 terminal run events。
+- `appendAndEmit(event)` 是唯一 live stream 路径。
+- `run.cancel` abort 当前 Pi run，并 append `run.cancelled`。
 
-Tests first:
+先写测试：
 
-- Integration: fake model through real Pi produces `run.started -> user.message -> assistant.text.delta -> run.completed`.
-- Failure: model error appends `run.failed`, then next message can run.
-- Cancel: active Pi run aborts and appends `run.cancelled`.
-- Shape: emitted event equals persisted event.
+- integration：fake model 经过真实 Pi，产出 `run.started -> user.message -> assistant.text.delta -> run.completed`。
+- failure：model error append `run.failed`，下一条消息仍可发送。
+- cancel：active Pi run abort，并 append `run.cancelled`。
+- shape：emit 的 event 和 persist 的 event 完全一致。
 
-Exit:
+退出条件：
 
-- Backend event runtime is real Pi-backed.
-- Frontend still may use old UI until this is green.
+- 后端 event runtime 是真实 Pi-backed。
+- 这一步跑绿前，前端可以继续旧 UI。
 
-### Phase 4: Tools and Approval
+### Phase 4：Tools 和 Approval
 
-Goal: use Pi tools while preserving Reflecta approval semantics.
+目标：使用 Pi tools，同时保留 Reflecta approval 语义。
 
-Do:
+要做：
 
-- Convert existing tools into plain Reflecta tool specs.
-- Register specs through Pi tool APIs.
-- Read/search/list/get tools execute directly.
-- Write/delete/bash tools append `approval.requested` and pause mutation.
-- Approve executes mutation once and appends `approval.resolved` plus `tool.completed`.
-- Reject appends `approval.resolved` and executes nothing.
+- 把现有 tools 转成 Reflecta plain tool specs。
+- 通过 Pi tool API 注册 specs。
+- read/search/list/get 直接执行。
+- write/delete/bash 先 append `approval.requested`，不执行 mutation。
+- approve 执行一次 mutation，并 append `approval.resolved` + `tool.completed`。
+- reject append `approval.resolved`，不执行 mutation。
 
-Tests first:
+先写测试：
 
-- read tool needs no approval.
-- write tool pending does not call domain mutation.
-- approve calls mutation once.
-- reject never mutates.
-- mutation error becomes `tool.failed`.
+- read tool 不需要 approval。
+- write tool pending 时不调用 domain mutation。
+- approve 只调用一次 mutation。
+- reject 永不 mutation。
+- mutation error 变成 `tool.failed`。
 
-Exit:
+退出条件：
 
-- Approval is event-driven and Pi-backed.
+- Approval 是 event-driven 且 Pi-backed。
 
-### Phase 5: IPC Cutover
+### Phase 5：IPC Cutover
 
-Goal: IPC carries only shared events and commands.
+目标：IPC 只传 shared events 和 commands。
 
-Do:
+要做：
 
-- Add `readSessionEvents(sessionId)`.
-- Add `sendAgentCommand(command)`.
-- Emit `agent:event`.
-- Remove new-path use of `agent:stream`, AI SDK chunks, and message array inputs.
+- 新增 `readSessionEvents(sessionId)`。
+- 新增 `sendAgentCommand(command)`。
+- emit `agent:event`。
+- 移除新主链路对 `agent:stream`、AI SDK chunks、message array inputs 的使用。
 
-Tests first:
+先写测试：
 
-- IPC service delegates commands to `PiAgentHost`.
-- `readSessionEvents` returns canonical events.
-- IPC payload contains no raw Pi entries and no AI SDK chunks.
+- IPC service 把 command delegate 给 `PiAgentHost`。
+- `readSessionEvents` 返回 canonical events。
+- IPC payload 不包含 raw Pi entries，也不包含 AI SDK chunks。
 
-Exit:
+退出条件：
 
-- Backend API is event-only.
+- 后端 API 是 event-only。
 
-### Phase 6: Frontend Cutover
+### Phase 6：Frontend Cutover
 
-Goal: renderer reads events, subscribes to events, sends commands.
+目标：renderer 只负责读 events、订阅 events、发 commands。
 
-Do:
+要做：
 
-- Add `useAgentSessionEvents(sessionId)`.
-- Add `useAgentSessionState(sessionId)` using `reduceAgentSession`.
-- Add `useAgentCommands(sessionId)`.
-- Replace `useChat` and chat transport usage.
-- Render `AgentSessionState.turns`.
+- 新增 `useAgentSessionEvents(sessionId)`。
+- 新增 `useAgentSessionState(sessionId)`，内部用 `reduceAgentSession`。
+- 新增 `useAgentCommands(sessionId)`。
+- 替换 `useChat` 和 chat transport。
+- 渲染 `AgentSessionState.turns`。
 
-Tests first:
+先写测试：
 
-- incoming `agent:event` updates only the matching session.
-- failed/cancelled run restores composer availability.
-- approve/reject waits for returned events; it does not locally fake canonical state.
+- 收到 `agent:event` 后只更新匹配 session。
+- failed/cancelled run 后 composer 恢复可用。
+- approve/reject 等 event 回来，不在本地伪造 canonical state。
 
-Exit:
+退出条件：
 
-- UI no longer parses AI SDK parts.
+- UI 不再解析 AI SDK parts。
 
-### Phase 7: Fixture and E2E Migration
+### Phase 7：Fixture 和 E2E Migration
 
-Goal: keep feature semantics, change only fixture storage mechanics.
+目标：保留 feature 语义，只替换 fixture 的底层存储方式。
 
-Do:
+要做：
 
-- Existing e2e specs keep their user-path assertions.
-- Fixture helpers can keep old names, but write Pi JSONL Reflecta events.
-- Real AI smoke stays one skipped-by-default test.
+- 现有 e2e specs 保持用户路径断言不变。
+- fixture helpers 可以保留旧名字，但写 Pi JSONL Reflecta events。
+- 真实 AI smoke 保留一条，默认 skip。
 
-Tests:
+测试：
 
-- Full existing e2e suite passes unchanged in behavior.
-- Seeded completed sessions restore from Pi JSONL.
-- Pending approval survives reload and can still be handled.
+- 完整现有 e2e suite 以不削弱行为的方式通过。
+- seeded completed sessions 从 Pi JSONL 恢复。
+- pending approval reload 后仍可处理。
 
-Exit:
+退出条件：
 
-- Product paths are still covered, now through event history.
+- 产品路径仍被覆盖，现在历史来源改成 event history。
 
-### Phase 8: Cleanup
+### Phase 8：Cleanup
 
-Goal: remove old runtime only after the real Pi path is green.
+目标：真实 Pi 主链路跑绿后，再删除旧 runtime。
 
-Delete:
+删除：
 
-- `@ai-sdk/react`.
-- AI SDK chat transport.
-- AI SDK UI message persistence tests.
-- Old runtime helpers that exist only for AI SDK message conversion.
-- Fixture writes to `agent_messages.parts_json`.
+- `@ai-sdk/react`。
+- AI SDK chat transport。
+- AI SDK UI message persistence tests。
+- 只服务于 AI SDK message conversion 的 old runtime helpers。
+- fixture 对 `agent_messages.parts_json` 的写入。
 
-Keep temporarily:
+暂时保留：
 
-- AI model/provider adapter code if Pi still needs the same provider credentials.
+- 如果 Pi 仍复用现有 provider credentials，可以保留 AI model/provider adapter code。
 
-Exit:
+退出条件：
 
-- `rg "useChat|ChatTransport|UIMessageChunk|toUIMessageStream|AgentChatMessage = UIMessage|agent:stream|parts_json"` has no new-path hits.
+- `rg "useChat|ChatTransport|UIMessageChunk|toUIMessageStream|AgentChatMessage = UIMessage|agent:stream|parts_json"` 没有新主链路命中。
 
-## 5. Validation Commands
+## 5. 验证命令
 
-Run at every phase that changes code:
+每个改代码的 phase 都要跑：
 
 ```bash
 bun run --filter '@reflecta/electron' typecheck
 bun run --filter '@reflecta/electron' test
 ```
 
-Run before accepting the migration:
+迁移验收前跑：
 
 ```bash
 bun run --cwd apps/electron test:e2e
 rg "useChat|ChatTransport|UIMessageChunk|toUIMessageStream|AgentChatMessage = UIMessage|agent:stream|parts_json" apps/electron/src apps/electron/e2e
 ```
 
-## 6. Stop Rule
+## 6. 停止规则
 
-If Phase 0 cannot prove a real Pi SDK prompt/session path inside Electron main, stop. Do not rewrite frontend, storage, or tests around a fake host.
+如果 Phase 0 不能证明 Electron main 里存在真实 Pi SDK prompt/session 路径，就停止。不要围绕 fake host 重写前端、storage 或测试。
