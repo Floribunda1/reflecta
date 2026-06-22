@@ -1,6 +1,6 @@
 {
   "name": "@reflecta/electron",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Reflecta Electron application",
   "homepage": "https://github.com/electron-vite/vite-plugin-electron",
   "author": "com.acnoo.reflecta",
@@ -30,9 +30,6 @@
     "build:linux": "bun run clean:dist && bun run build && electron-builder --linux"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.72",
-    "@ai-sdk/openai-compatible": "^2.0.51",
-    "@ai-sdk/react": "^3.0.209",
     "@base-ui/react": "^1.5.0",
     "@dagrejs/dagre": "^3.0.0",
     "@earendil-works/pi-ai": "^0.79.10",
@@ -70,7 +67,6 @@
     "@xstate/react": "^6.1.0",
     "@xyflow/react": "^12.11.0",
     "ahooks": "^3.9.7",
-    "ai": "^6.0.195",
     "ajv": "^8.18.0",
     "better-sqlite3": "^12.11.1",
     "class-variance-authority": "^0.7.1",

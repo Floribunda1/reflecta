@@ -354,7 +354,6 @@ function upsertAssistantTool(
         if (event.type === "tool.completed") {
           return {
             ...block,
-            approved: true,
             state: "completed",
             output: event.output,
           };

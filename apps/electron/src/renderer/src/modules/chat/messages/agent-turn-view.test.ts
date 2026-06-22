@@ -219,4 +219,28 @@ describe("buildAgentTurnView", () => {
       },
     });
   });
+
+  test("keeps direct completion distinct from user approval", () => {
+    const turn = buildAgentTurnView([
+      {
+        kind: "approval",
+        approvalId: "approval-tool-1",
+        toolCallId: "tool-1",
+        toolName: "thought_create",
+        title: "候选 Thought",
+        payload: { title: "A", body: "B" },
+        output: { resultRefType: "thought", resultRefId: "thought_1" },
+        state: "completed",
+        createdAt: "2026-06-23T00:00:00.000Z",
+      },
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "proposal",
+      proposal: {
+        status: undefined,
+        state: "output-available",
+      },
+    });
+  });
 });

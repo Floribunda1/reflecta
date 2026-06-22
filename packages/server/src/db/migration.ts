@@ -11,7 +11,7 @@ type Migration = {
 
 type Version = readonly [number, number, number];
 
-const DEFAULT_APP_VERSION = "1.0.0";
+const DEFAULT_APP_VERSION = "1.1.0";
 const appVersionPattern = /^v?(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/;
 const migrationNamePattern = /^v(\d+)\.(\d+)\.(\d+)\.sql$/;
 

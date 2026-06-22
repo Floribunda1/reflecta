@@ -1,0 +1,413 @@
+#!/usr/bin/env bun
+import { Database } from "bun:sqlite";
+import fs from "node:fs";
+import path from "node:path";
+import { SessionManager } from "@earendil-works/pi-coding-agent";
+
+const dbPath = process.argv[2];
+const contentStorageRoot = process.argv[3];
+const fixturePath = process.argv[4];
+
+if (!dbPath || !contentStorageRoot || !fixturePath) {
+  throw new Error(
+    "Usage: bun run agent-fixture-store.ts <db-path> <content-storage-root> <fixture-json-path>",
+  );
+}
+
+type FixtureMessage = {
+  id: string;
+  role: "user" | "assistant";
+  parts: unknown[];
+  metadata?: unknown;
+  createdAt?: string;
+};
+
+type FixtureThread = {
+  id: string;
+  title: string;
+  createdAt?: string;
+  updatedAt?: string;
+  messages?: FixtureMessage[];
+};
+
+type Fixture =
+  | { type: "reset" }
+  | { type: "seedThread"; thread: FixtureThread }
+  | { type: "thoughtIdByTitle"; title: string }
+  | { type: "thoughtExistsByTitle"; title: string }
+  | { type: "categoryExistsByName"; name: string };
+
+type ReflectaEvent = {
+  id: string;
+  sessionId: string;
+  runId?: string;
+  createdAt: string;
+  type: string;
+  [key: string]: unknown;
+};
+
+type FlushableSessionManager = SessionManager & {
+  _rewriteFile?: () => void;
+  flushed?: boolean;
+};
+
+const BASE_TIME = "2026-06-22T08:00:00.000Z";
+const REFLECTA_AGENT_EVENT_ENTRY = "reflecta.agent.event";
+const fixture = JSON.parse(fs.readFileSync(fixturePath, "utf-8")) as Fixture;
+const db = new Database(dbPath);
+
+function sessionsRoot() {
+  return path.join(contentStorageRoot, "Sessions");
+}
+
+function timeAt(base: string, index: number) {
+  return new Date(new Date(base).getTime() + index * 1000).toISOString();
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function textFromParts(parts: unknown[]) {
+  return parts
+    .map((part) => (isRecord(part) && part.type === "text" ? String(part.text ?? "") : ""))
+    .join("");
+}
+
+function approvalIdFor(part: Record<string, unknown>, toolCallId: string) {
+  const approval = isRecord(part.approval) ? part.approval : {};
+  return typeof approval.id === "string" ? approval.id : `approval_${toolCallId}`;
+}
+
+function approvedFor(part: Record<string, unknown>, fallback: boolean) {
+  const approval = isRecord(part.approval) ? part.approval : {};
+  return typeof approval.approved === "boolean" ? approval.approved : fallback;
+}
+
+function proposalTitle(toolName: string) {
+  if (toolName === "thought_create") return "候选 Thought";
+  if (toolName === "thought_update") return "候选修改 Thought";
+  if (toolName === "thought_delete") return "候选删除 Thought";
+  if (toolName === "category_create") return "候选 Category";
+  if (toolName === "category_update") return "候选修改 Category";
+  if (toolName === "category_delete") return "候选删除 Category";
+  if (toolName === "context_create") return "候选 Context";
+  if (toolName === "context_update") return "候选修改 Context";
+  if (toolName === "context_delete") return "候选删除 Context";
+  if (toolName === "bash") return "执行 Bash";
+  return "候选操作";
+}
+
+function isProposalPart(part: Record<string, unknown>, toolName: string) {
+  const metadata = isRecord(part.toolMetadata) ? part.toolMetadata : {};
+  return (
+    metadata.kind === "proposal" ||
+    [
+      "thought_create",
+      "thought_update",
+      "thought_delete",
+      "category_create",
+      "category_update",
+      "category_delete",
+      "context_create",
+      "context_update",
+      "context_delete",
+      "bash",
+    ].includes(toolName)
+  );
+}
+
+function eventFactory(thread: FixtureThread) {
+  const createdAt = thread.createdAt ?? thread.updatedAt ?? BASE_TIME;
+  let index = 0;
+  return (event: Omit<ReflectaEvent, "id" | "sessionId" | "createdAt">): ReflectaEvent => ({
+    ...event,
+    id: `evt_${thread.id}_${++index}`,
+    sessionId: thread.id,
+    createdAt: timeAt(createdAt, index),
+  });
+}
+
+function appendProposalEvents(
+  events: ReflectaEvent[],
+  createEvent: ReturnType<typeof eventFactory>,
+  part: Record<string, unknown>,
+  runId: string,
+  messageId: string,
+  toolName: string,
+  toolCallId: string,
+) {
+  const approvalId = approvalIdFor(part, toolCallId);
+  const payload = isRecord(part.input) ? part.input : {};
+  events.push(
+    createEvent({
+      type: "approval.requested",
+      runId,
+      messageId,
+      approvalId,
+      toolCallId,
+      toolName,
+      title: proposalTitle(toolName),
+      payload,
+    }),
+  );
+
+  const state = typeof part.state === "string" ? part.state : "";
+  if (state === "approval-requested") return;
+
+  if (state === "approval-responded") {
+    events.push(
+      createEvent({
+        type: "approval.resolved",
+        runId,
+        messageId,
+        approvalId,
+        toolCallId,
+        toolName,
+        approved: approvedFor(part, true),
+      }),
+    );
+    return;
+  }
+
+  if (state === "output-denied") {
+    events.push(
+      createEvent({
+        type: "approval.resolved",
+        runId,
+        messageId,
+        approvalId,
+        toolCallId,
+        toolName,
+        approved: false,
+      }),
+    );
+    return;
+  }
+
+  if (state === "output-error") {
+    events.push(
+      createEvent({
+        type: "tool.failed",
+        runId,
+        messageId,
+        toolCallId,
+        toolName,
+        error: String(part.errorText ?? "工具执行失败"),
+      }),
+    );
+    return;
+  }
+
+  if (approvedFor(part, false)) {
+    events.push(
+      createEvent({
+        type: "approval.resolved",
+        runId,
+        messageId,
+        approvalId,
+        toolCallId,
+        toolName,
+        approved: true,
+      }),
+    );
+    return;
+  }
+
+  events.push(
+    createEvent({
+      type: "tool.completed",
+      runId,
+      messageId,
+      toolCallId,
+      toolName,
+      output: part.output,
+    }),
+  );
+}
+
+function appendToolEvents(
+  events: ReflectaEvent[],
+  createEvent: ReturnType<typeof eventFactory>,
+  part: Record<string, unknown>,
+  runId: string,
+  messageId: string,
+) {
+  const type = String(part.type ?? "");
+  if (!type.startsWith("tool-")) return;
+  const toolName = type.slice("tool-".length);
+  const toolCallId = typeof part.toolCallId === "string" ? part.toolCallId : `${messageId}-tool`;
+
+  if (isProposalPart(part, toolName)) {
+    appendProposalEvents(events, createEvent, part, runId, messageId, toolName, toolCallId);
+    return;
+  }
+
+  events.push(
+    createEvent({
+      type: "tool.started",
+      runId,
+      messageId,
+      toolCallId,
+      toolName,
+      input: part.input,
+    }),
+  );
+
+  if (part.state === "output-error") {
+    events.push(
+      createEvent({
+        type: "tool.failed",
+        runId,
+        messageId,
+        toolCallId,
+        toolName,
+        error: String(part.errorText ?? "工具执行失败"),
+      }),
+    );
+    return;
+  }
+
+  events.push(
+    createEvent({
+      type: "tool.completed",
+      runId,
+      messageId,
+      toolCallId,
+      toolName,
+      output: part.output,
+    }),
+  );
+}
+
+function threadEvents(thread: FixtureThread) {
+  const events: ReflectaEvent[] = [];
+  const createEvent = eventFactory(thread);
+  let activeRunId: string | null = null;
+
+  for (const message of thread.messages ?? []) {
+    if (message.role === "user") {
+      activeRunId = `run_${message.id}`;
+      const metadata = isRecord(message.metadata) ? message.metadata : {};
+      events.push(createEvent({ type: "run.started", runId: activeRunId }));
+      events.push(
+        createEvent({
+          type: "user.message",
+          runId: activeRunId,
+          messageId: message.id,
+          text: textFromParts(message.parts),
+          contextRefs: metadata.contextRefs,
+          composerContent: metadata.composerContent,
+        }),
+      );
+      continue;
+    }
+
+    const runId = activeRunId ?? `run_${message.id}`;
+    if (!activeRunId) events.push(createEvent({ type: "run.started", runId }));
+
+    for (const part of message.parts) {
+      if (!isRecord(part)) continue;
+      if (part.type === "text") {
+        events.push(
+          createEvent({
+            type: "assistant.text.delta",
+            runId,
+            messageId: message.id,
+            delta: String(part.text ?? ""),
+          }),
+        );
+        continue;
+      }
+      if (part.type === "reasoning") {
+        events.push(
+          createEvent({
+            type: "assistant.reasoning.delta",
+            runId,
+            messageId: message.id,
+            delta: String(part.text ?? ""),
+          }),
+        );
+        continue;
+      }
+      appendToolEvents(events, createEvent, part, runId, message.id);
+    }
+
+    events.push(createEvent({ type: "run.completed", runId }));
+    activeRunId = null;
+  }
+
+  return events;
+}
+
+function flush(manager: SessionManager) {
+  const flushable = manager as FlushableSessionManager;
+  if (typeof flushable._rewriteFile !== "function") {
+    throw new Error("Pi SessionManager flush hook is unavailable");
+  }
+  flushable._rewriteFile();
+  flushable.flushed = true;
+}
+
+function rewriteHeaderTimestamp(manager: SessionManager, timestamp: string) {
+  const file = manager.getSessionFile();
+  if (!file) return;
+  const lines = fs
+    .readFileSync(file, "utf-8")
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line, index) => {
+      const entry = JSON.parse(line) as Record<string, unknown>;
+      if (index === 0 && entry.type === "session") {
+        entry.timestamp = timestamp;
+      }
+      return JSON.stringify(entry);
+    });
+  fs.writeFileSync(file, `${lines.join("\n")}\n`, "utf-8");
+}
+
+function seedThread(thread: FixtureThread) {
+  fs.mkdirSync(sessionsRoot(), { recursive: true });
+  const manager = SessionManager.create(contentStorageRoot, sessionsRoot(), { id: thread.id });
+  manager.appendSessionInfo(thread.title);
+  for (const event of threadEvents(thread)) {
+    manager.appendCustomEntry(REFLECTA_AGENT_EVENT_ENTRY, event);
+  }
+  flush(manager);
+  rewriteHeaderTimestamp(manager, thread.updatedAt ?? thread.createdAt ?? BASE_TIME);
+}
+
+try {
+  if (fixture.type === "reset") {
+    fs.rmSync(sessionsRoot(), { recursive: true, force: true });
+    fs.mkdirSync(sessionsRoot(), { recursive: true });
+  }
+
+  if (fixture.type === "seedThread") {
+    seedThread(fixture.thread);
+  }
+
+  if (fixture.type === "thoughtIdByTitle") {
+    const row = db
+      .query(`SELECT id FROM thoughts WHERE title = ? AND deleted_at IS NULL LIMIT 1`)
+      .get(fixture.title) as { id: string } | null;
+    if (!row) throw new Error(`Seed thought not found: ${fixture.title}`);
+    console.log(row.id);
+  }
+
+  if (fixture.type === "thoughtExistsByTitle") {
+    const row = db
+      .query(`SELECT 1 AS exists_flag FROM thoughts WHERE title = ? AND deleted_at IS NULL LIMIT 1`)
+      .get(fixture.title) as { exists_flag: number } | null;
+    console.log(row ? "true" : "false");
+  }
+
+  if (fixture.type === "categoryExistsByName") {
+    const row = db
+      .query(`SELECT 1 AS exists_flag FROM categories WHERE name = ? LIMIT 1`)
+      .get(fixture.name) as { exists_flag: number } | null;
+    console.log(row ? "true" : "false");
+  }
+} finally {
+  db.close();
+}

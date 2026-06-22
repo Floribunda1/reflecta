@@ -243,7 +243,8 @@ function proposalTypeFor(toolName: string): ProposalType {
 function approvalStatus(block: AgentApprovalBlock): ToolApprovalStatus | undefined {
   if (block.state === "pending") return "pending";
   if (block.state === "rejected") return "rejected";
-  if (block.state === "approved" || block.state === "completed") return "approved";
+  if (block.state === "approved") return "approved";
+  if (block.state === "completed") return block.approved ? "approved" : undefined;
   return block.approved ? "approved" : undefined;
 }
 

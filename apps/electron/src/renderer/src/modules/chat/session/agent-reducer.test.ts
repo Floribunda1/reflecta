@@ -179,8 +179,30 @@ describe("reduceAgentSession", () => {
       kind: "approval",
       approvalId: "approval_1",
       state: "completed",
+      approved: true,
       output: { resultRefType: "thought", resultRefId: "thought_1" },
     });
+
+    const directCompletion = reduceAgentSession([
+      requested,
+      {
+        ...base,
+        id: "evt_5",
+        type: "tool.completed",
+        messageId: "assistant_1",
+        toolCallId: "tool_1",
+        toolName: "thought_create",
+        output: { resultRefType: "thought", resultRefId: "thought_2" },
+      },
+    ]).messages[0]?.blocks?.[0];
+
+    expect(directCompletion).toMatchObject({
+      kind: "approval",
+      approvalId: "approval_1",
+      state: "completed",
+      output: { resultRefType: "thought", resultRefId: "thought_2" },
+    });
+    expect(directCompletion).not.toHaveProperty("approved");
   });
 
   test("clears the active run after failure", () => {

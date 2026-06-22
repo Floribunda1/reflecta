@@ -29,12 +29,14 @@ function runFixture(fixture: unknown) {
   );
   fs.writeFileSync(fixturePath, JSON.stringify(fixture), "utf-8");
   try {
+    const env = readE2eTestEnv();
     return execFileSync(
       "bun",
       [
         "run",
-        path.resolve(import.meta.dirname, "agent-fixture-db.ts"),
-        readE2eTestEnv().dbPath,
+        path.resolve(import.meta.dirname, "agent-fixture-store.ts"),
+        env.dbPath,
+        env.contentStorageRoot,
         fixturePath,
       ],
       { stdio: "pipe" },
