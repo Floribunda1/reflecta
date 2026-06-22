@@ -2,6 +2,7 @@ import type { WebContents } from "electron";
 import {
   convertToModelMessages,
   createIdGenerator,
+  generateText,
   isFileUIPart,
   streamText,
   type FileUIPart,
@@ -17,6 +18,7 @@ import type {
   SendAgentMessageInput,
   SendAgentMessageResult,
 } from "@shared/chat";
+import { agentMessageDisplayText } from "@shared/chat-display";
 import { buildSelectedContextBlock } from "./context";
 import { formatAgentError } from "./error";
 import { getAgentModel } from "./model";
@@ -26,6 +28,9 @@ import { attachmentIdFor, attachmentSizeFor } from "./attachments";
 
 export const AGENT_STREAM_CHANNEL = "agent:stream";
 const MAX_MODEL_HISTORY_MESSAGES = 24;
+const MAX_TITLE_TRANSCRIPT_CHARS = 6000;
+const THREAD_TITLE_SYSTEM_PROMPT =
+  "你是 Reflecta 的对话标题生成器。根据对话内容生成一个简短、具体、可扫描的中文标题。只输出标题，不要解释，不要加引号，不要超过 18 个汉字。";
 type ActiveRun = {
   abortController: AbortController;
   webContents: WebContents;
@@ -36,6 +41,28 @@ type ActiveRun = {
 export function selectModelMessages(messages: AgentChatMessage[]): AgentChatMessage[] {
   if (messages.length <= MAX_MODEL_HISTORY_MESSAGES) return messages;
   return messages.slice(-MAX_MODEL_HISTORY_MESSAGES);
+}
+
+function titleTranscript(messages: AgentChatMessage[]) {
+  return selectModelMessages(messages)
+    .filter((message) => message.role === "user" || message.role === "assistant")
+    .map((message) => {
+      const text = agentMessageDisplayText(message).trim();
+      if (!text) return "";
+      return `${message.role === "user" ? "用户" : "助手"}：${text}`;
+    })
+    .filter(Boolean)
+    .join("\n\n")
+    .slice(0, MAX_TITLE_TRANSCRIPT_CHARS);
+}
+
+export function cleanGeneratedThreadTitle(value: string) {
+  const title = value
+    .replace(/^[\s"'“”‘’`]+|[\s"'“”‘’`]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 40);
+  return title || "新对话";
 }
 
 function supportsNativeFileParts(providerOptionsKey: string) {
@@ -123,6 +150,27 @@ export class AgentRuntime {
 
   getMessages(threadId: string) {
     return this.repository.getMessages(threadId);
+  }
+
+  async generateThreadTitle(threadId: string): Promise<string> {
+    const messages = await this.repository.getMessages(threadId);
+    const transcript = titleTranscript(messages);
+    if (!transcript) throw new Error("没有可用于生成标题的对话内容");
+
+    const { model, providerOptionsKey, codexSubscription } = await getAgentModel();
+    const providerOptions = providerOptionsForReasoning("default", providerOptionsKey, {
+      instructions: codexSubscription ? THREAD_TITLE_SYSTEM_PROMPT : undefined,
+      storeResponses: codexSubscription ? false : undefined,
+    });
+    const result = await generateText({
+      model,
+      system: codexSubscription ? undefined : THREAD_TITLE_SYSTEM_PROMPT,
+      prompt: `请为下面这段对话生成标题：\n\n${transcript}`,
+      providerOptions,
+    });
+    const title = cleanGeneratedThreadTitle(result.text);
+    await this.repository.renameThread(threadId, title);
+    return title;
   }
 
   async sendMessage(

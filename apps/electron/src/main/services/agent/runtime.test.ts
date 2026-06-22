@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 import type { AgentChatMessage } from "@shared/chat";
 import {
+  cleanGeneratedThreadTitle,
   modelMessagesForProvider,
   providerOptionsForReasoning,
   selectModelMessages,
@@ -32,6 +33,14 @@ describe("selectModelMessages", () => {
     expect(selected).toHaveLength(24);
     expect(selected[0]?.id).toBe("m6");
     expect(selected.at(-1)?.id).toBe("m29");
+  });
+});
+
+describe("cleanGeneratedThreadTitle", () => {
+  test("strips quotes, whitespace, and clamps long output", () => {
+    expect(cleanGeneratedThreadTitle("  “对话标题”\n")).toBe("对话标题");
+    expect(cleanGeneratedThreadTitle("")).toBe("新对话");
+    expect(cleanGeneratedThreadTitle("一".repeat(60))).toHaveLength(40);
   });
 });
 

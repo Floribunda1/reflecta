@@ -52,6 +52,7 @@ describe("ThreadSidebar", () => {
           onSelect={noop}
           onCreate={noop}
           onRename={noop}
+          onGenerateTitle={noop}
           onArchive={noop}
           onDelete={noop}
         />,

@@ -92,6 +92,17 @@ export function useRenameThreadMutation() {
   });
 }
 
+export function useGenerateThreadTitleMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (threadId: string) => ipcClient.chat.generateThreadTitle(threadId),
+    onSuccess: async (title, threadId) => {
+      renameThreadInCache(queryClient, threadId, title);
+      await queryClient.invalidateQueries({ queryKey: chatQueryKeys.threads });
+    },
+  });
+}
+
 export function useSelectAgentModelMutation() {
   const queryClient = useQueryClient();
   return useMutation({

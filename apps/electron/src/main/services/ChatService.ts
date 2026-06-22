@@ -22,6 +22,11 @@ export class ChatService extends IpcService {
   }
 
   @IpcMethod()
+  generateThreadTitle(threadId: string) {
+    return agentRuntime.generateThreadTitle(threadId);
+  }
+
+  @IpcMethod()
   archiveThread(threadId: string) {
     return agentRuntime.archiveThread(threadId);
   }

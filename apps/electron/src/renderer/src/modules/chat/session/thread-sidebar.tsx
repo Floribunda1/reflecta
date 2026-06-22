@@ -24,8 +24,10 @@ function ThreadSidebarComponent({
   onSelect,
   onCreate,
   onRename,
+  onGenerateTitle,
   onArchive,
   onDelete,
+  titleGenerating,
 }: {
   threads: AgentThreadDTO[];
   pending?: boolean;
@@ -34,8 +36,10 @@ function ThreadSidebarComponent({
   onSelect: (threadId: string) => void;
   onCreate: () => void;
   onRename: (threadId: string, title: string) => void;
+  onGenerateTitle: (threadId: string) => void;
   onArchive: (threadId: string) => void;
   onDelete: (threadId: string) => void;
+  titleGenerating?: boolean;
 }) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -137,6 +141,12 @@ function ThreadSidebarComponent({
                   />
                   <ContextMenuContent>
                     <ContextMenuItem onClick={() => startRename(thread)}>重命名</ContextMenuItem>
+                    <ContextMenuItem
+                      disabled={titleGenerating || thread.id === runningThreadId}
+                      onClick={() => onGenerateTitle(thread.id)}
+                    >
+                      {titleGenerating ? "生成中..." : "生成标题"}
+                    </ContextMenuItem>
                     <ContextMenuItem onClick={() => onArchive(thread.id)}>归档</ContextMenuItem>
                     <ContextMenuSeparator />
                     <ContextMenuItem variant="destructive" onClick={() => onDelete(thread.id)}>

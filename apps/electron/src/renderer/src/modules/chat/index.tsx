@@ -23,6 +23,7 @@ import {
   useArchiveThreadMutation,
   useCreateThreadMutation,
   useDeleteThreadMutation,
+  useGenerateThreadTitleMutation,
   useRenameThreadMutation,
   useSelectAgentModelMutation,
   useThreadsQuery,
@@ -129,6 +130,7 @@ function ChatPageContent() {
   const deleteThreadMutation = useDeleteThreadMutation();
   const archiveThreadMutation = useArchiveThreadMutation();
   const renameThreadMutation = useRenameThreadMutation();
+  const generateThreadTitleMutation = useGenerateThreadTitleMutation();
   const threads = threadsQuery.data ?? [];
   const [threadScrollRequest, setThreadScrollRequest] = useState(0);
   const confirmDeleteThread = useMemoizedFn((threadId: string) =>
@@ -156,6 +158,9 @@ function ChatPageContent() {
   });
   const renameThread = useMemoizedFn((threadId: string, title: string) =>
     renameThreadMutation.mutate({ threadId, title }),
+  );
+  const generateThreadTitle = useMemoizedFn((threadId: string) =>
+    generateThreadTitleMutation.mutate(threadId),
   );
   const archiveThread = useMemoizedFn((threadId: string) => {
     uiActions.clearThread(threadId);
@@ -189,8 +194,10 @@ function ChatPageContent() {
         onSelect={selectThread}
         onCreate={createThread}
         onRename={renameThread}
+        onGenerateTitle={generateThreadTitle}
         onArchive={archiveThread}
         onDelete={confirmDeleteThread}
+        titleGenerating={generateThreadTitleMutation.isPending}
       />
       <ResizablePanelGroup
         orientation="horizontal"
