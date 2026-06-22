@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.2 - 2026-06-22
+
+- Removed the Agent view title bar and adjusted the main window show order after maximizing.
+- Added thread title generation from the chat sidebar context menu with streaming support and loading state.
+- Added chat sidebar context menu action to copy a thread ID.
+- Fixed message replacement so failed persistence cannot delete existing chat content.
+- Made composer mentions clickable so Thought and Context references open the inspector.
+
 ## 1.0.1 - 2026-06-22
 
 - Fixed Electron dev/prod GUI instances so they can run side by side.
