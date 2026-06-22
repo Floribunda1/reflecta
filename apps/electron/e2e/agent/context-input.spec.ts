@@ -1,9 +1,10 @@
 import path from "node:path";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   composer,
   hasAi,
   launchAgentPage,
+  selectContext,
   sendMessage,
   waitForAssistantReply,
   writeAttachmentFile,
@@ -13,18 +14,6 @@ import { resetAgentFixtures } from "./agent-fixtures";
 test.beforeEach(() => {
   resetAgentFixtures();
 });
-
-async function selectContext(page: Page, query: string, title: string, type: string) {
-  const editor = page.getByTestId("agent-composer-editor").locator('[contenteditable="true"]');
-  await editor.click();
-  await page.keyboard.type(`@${query}`);
-  await expect(page.getByTestId("agent-context-picker")).toBeVisible({ timeout: 15_000 });
-  await page
-    .locator(`[data-testid="agent-context-option"][data-context-type="${type}"]`)
-    .filter({ hasText: title })
-    .first()
-    .click();
-}
 
 test("@AG-CONTEXT-001 用户选中引用后发送消息", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
@@ -41,6 +30,58 @@ test("@AG-CONTEXT-001 用户选中引用后发送消息", async () => {
     await expect(page.getByTestId("agent-user-message")).toContainText("React Server Components");
     await expect(page.getByTestId("agent-user-message")).toContainText("React");
     await waitForAssistantReply(page);
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-CONTEXT-004 用户通过 @ 搜索选择上下文引用", async () => {
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await composer(page).click();
+    await page.keyboard.type("@React");
+    await expect(page.getByTestId("agent-context-picker")).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page
+        .locator('[data-testid="agent-context-option"][data-context-type="thought"]')
+        .filter({ hasText: "React Server Components" }),
+    ).toBeVisible();
+    await expect(
+      page
+        .locator('[data-testid="agent-context-option"][data-context-type="category"]')
+        .filter({ hasText: "React" }),
+    ).toBeVisible();
+
+    await page
+      .locator('[data-testid="agent-context-option"][data-context-type="thought"]')
+      .filter({ hasText: "React Server Components" })
+      .first()
+      .click();
+    await expect(
+      page.locator('[data-slot="composer-context-mention"]').filter({
+        hasText: "React Server Components",
+      }),
+    ).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-CONTEXT-005 用户点击已选择的 Thought 引用后查看详情", async () => {
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await selectContext(page, "React", "React Server Components", "thought");
+    await page
+      .locator('[data-slot="composer-context-mention"]')
+      .filter({ hasText: "React Server Components" })
+      .click();
+    await expect(page.getByTestId("agent-context-inspector")).toBeVisible();
+    await expect(page.getByPlaceholder("写下一个刚形成的理解")).toHaveValue(
+      "React Server Components",
+      { timeout: 15_000 },
+    );
   } finally {
     await app.close();
   }

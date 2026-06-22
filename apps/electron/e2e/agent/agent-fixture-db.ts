@@ -16,6 +16,8 @@ const fixture = JSON.parse(fs.readFileSync(fixturePath, "utf-8")) as
       thread: {
         id: string;
         title: string;
+        createdAt?: string;
+        updatedAt?: string;
         messages?: Array<{
           id: string;
           role: "user" | "assistant";
@@ -24,7 +26,8 @@ const fixture = JSON.parse(fs.readFileSync(fixturePath, "utf-8")) as
           createdAt?: string;
         }>;
       };
-    };
+    }
+  | { type: "thoughtIdByTitle"; title: string };
 
 const BASE_TIME = "2026-06-22T08:00:00.000Z";
 const db = new Database(dbPath);
@@ -41,10 +44,11 @@ try {
 
   if (fixture.type === "seedThread") {
     const thread = fixture.thread;
+    const createdAt = thread.createdAt ?? BASE_TIME;
     db.prepare(
       `INSERT INTO agent_threads (id, title, status, created_at, updated_at)
        VALUES (?, ?, 'active', ?, ?)`,
-    ).run(thread.id, thread.title, BASE_TIME, BASE_TIME);
+    ).run(thread.id, thread.title, createdAt, thread.updatedAt ?? createdAt);
 
     for (const [index, message] of (thread.messages ?? []).entries()) {
       db.prepare(
@@ -61,6 +65,14 @@ try {
         message.createdAt ?? BASE_TIME,
       );
     }
+  }
+
+  if (fixture.type === "thoughtIdByTitle") {
+    const row = db
+      .query(`SELECT id FROM thoughts WHERE title = ? AND deleted_at IS NULL LIMIT 1`)
+      .get(fixture.title) as { id: string } | null;
+    if (!row) throw new Error(`Seed thought not found: ${fixture.title}`);
+    console.log(row.id);
   }
 } finally {
   db.close();

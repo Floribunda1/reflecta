@@ -23,7 +23,7 @@ import { useModal } from "@renderer/modules/shared/hooks/use-modal";
 import type { ContextDTO, SourceType } from "@shared/context";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { FileText, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useThoughtDetail, useThoughtDetailActions } from "./hooks";
 import { SOURCE_META, SOURCE_PLACEHOLDER, SOURCE_TYPES } from "./context/types";
@@ -44,9 +44,14 @@ type SourceDraftInput = {
 
 const SOURCE_DRAWER_WIDTH_CLASS =
   "data-[side=right]:w-[min(760px,calc(100vw-2rem))] data-[side=right]:sm:max-w-none";
+const FALLBACK_SOURCE_META = { label: "来源", Icon: FileText };
 
 function sourceLabel(type: SourceType): string {
   return SOURCE_META[type].label;
+}
+
+function sourceMeta(type: SourceType | string) {
+  return SOURCE_META[type as SourceType] ?? FALLBACK_SOURCE_META;
 }
 
 function createEmptySourceDraft(): SourceDraftInput {
@@ -77,7 +82,7 @@ function SourcePreview({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const meta = SOURCE_META[source.sourceType];
+  const meta = sourceMeta(source.sourceType);
   const Icon = meta.Icon;
 
   return (
@@ -128,7 +133,7 @@ function SourcePreview({
 }
 
 export function SourcePreviewDrawerContent({ source }: { source: ContextDTO }) {
-  const meta = SOURCE_META[source.sourceType];
+  const meta = sourceMeta(source.sourceType);
   const Icon = meta.Icon;
 
   return (

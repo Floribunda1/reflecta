@@ -62,6 +62,17 @@ export async function sendMessage(page: Page, text: string) {
   await expect(page.getByTestId("agent-user-message").filter({ hasText: text })).toBeVisible();
 }
 
+export async function selectContext(page: Page, query: string, title: string, type: string) {
+  await composer(page).click();
+  await page.keyboard.type(`@${query}`);
+  await expect(page.getByTestId("agent-context-picker")).toBeVisible({ timeout: 15_000 });
+  await page
+    .locator(`[data-testid="agent-context-option"][data-context-type="${type}"]`)
+    .filter({ hasText: title })
+    .first()
+    .click();
+}
+
 export async function waitForAssistantReply(page: Page) {
   await expect(page.getByTestId("agent-assistant-text").last()).toBeVisible({ timeout: 120_000 });
   await expect(page.getByTestId("agent-stop-button")).toBeHidden({ timeout: 120_000 });

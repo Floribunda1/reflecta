@@ -30,3 +30,26 @@
     而且 CANDIDATE_TITLE_REJECTED 所在卡片应该显示“已拒绝”
     而且 CANDIDATE_TITLE_DONE 所在卡片应该显示“完成”
     而且 CANDIDATE_TITLE_ERROR 所在卡片应该显示“出错”并显示错误信息
+
+  @P1 @happy_path @AG-RESULT-003
+  场景: 用户展开思考过程和工具活动查看详情
+    假如对话中有一条 Agent 回复
+    而且该回复包含思考过程
+    而且该回复包含工具活动
+    当用户打开该对话
+    那么思考过程应该默认收起
+    而且工具活动应该默认收起
+    当用户展开思考过程
+    而且用户展开工具活动
+    那么页面应该显示思考过程详情
+    而且页面应该显示工具活动详情
+
+  @P1 @context @AG-RESULT-004
+  场景: 用户点击 Agent 回复中的知识库引用后查看详情
+    假如 seed 数据中存在 Thought「React Server Components」
+    而且对话中有一条 Agent 回复引用了 Thought「React Server Components」
+    当用户打开该对话
+    那么 Agent 回复中应该显示 Thought「React Server Components」引用
+    当用户点击该引用
+    那么页面应该打开详情面板
+    而且详情面板应该显示 Thought「React Server Components」

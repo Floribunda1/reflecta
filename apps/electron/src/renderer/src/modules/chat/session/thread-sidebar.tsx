@@ -95,7 +95,12 @@ function ThreadSidebarComponent({
             <div className="px-2 py-3 text-xs leading-5 text-muted-foreground">还没有对话</div>
           ) : null}
           {groups.map((group) => (
-            <div key={group.id} className="space-y-0.5">
+            <div
+              key={group.id}
+              data-testid="agent-thread-group"
+              data-thread-group-id={group.id}
+              className="space-y-0.5"
+            >
               <div className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                 {group.label}
               </div>

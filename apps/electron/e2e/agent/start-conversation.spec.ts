@@ -6,7 +6,9 @@ import {
   createNewThread,
   hasAi,
   launchAgentPage,
+  selectContext,
   sendMessage,
+  threadByTitle,
   waitForAssistantReply,
 } from "./agent-e2e";
 import { resetAgentFixtures } from "./agent-fixtures";
@@ -71,6 +73,29 @@ test("@AG-START-003 回复失败后用户可以继续发送消息", async () => 
       page.getByTestId("agent-user-message").filter({ hasText: "second" }),
     ).toBeVisible();
     await expect(composer(page)).toBeEditable();
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-START-004 新对话标题使用第一条用户消息的可读内容", async () => {
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
+  test.setTimeout(180_000);
+
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await createNewThread(page);
+    await selectContext(page, "React", "React", "category");
+    await composer(page).click();
+    await page.keyboard.type("请解释这个分类");
+    await page.getByTestId("agent-send-button").click();
+    await expect(page.getByTestId("agent-user-message")).toContainText("React");
+    await waitForAssistantReply(page);
+
+    const title = "React 请解释这个分类";
+    await expect(threadByTitle(page, title)).toBeVisible();
+    await expect(threadByTitle(page, title)).not.toContainText("category:");
   } finally {
     await app.close();
   }

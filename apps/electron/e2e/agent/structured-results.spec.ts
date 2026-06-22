@@ -5,6 +5,7 @@ import {
   reasoningPart,
   resetAgentFixtures,
   seedAgentThread,
+  seedThoughtIdByTitle,
   toolPart,
   userMessage,
 } from "./agent-fixtures";
@@ -120,6 +121,68 @@ test("@AG-RESULT-002 用户可以区分提案的不同状态", async () => {
     await expect(
       page.getByTestId("agent-proposal-card").filter({ hasText: "CANDIDATE_TITLE_ERROR" }),
     ).toContainText("RESULT_ERROR_MESSAGE");
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-RESULT-003 用户展开思考过程和工具活动查看详情", async () => {
+  seedAgentThread({
+    id: "result-expand",
+    title: "展开详情",
+    messages: [
+      userMessage("result-expand-user", "展示可展开内容"),
+      assistantMessage("result-expand-assistant", [
+        reasoningPart("THINKING_DETAIL"),
+        toolPart("snapshot_project", "result-snapshot", {}),
+        { type: "text", text: "DONE" },
+      ]),
+    ],
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await expect(page.getByTestId("agent-reasoning")).toContainText("思考过程");
+    await expect(page.getByText("THINKING_DETAIL")).toHaveCount(0);
+    await expect(page.getByText("查看了知识库概览")).toBeVisible();
+    await expect(page.getByText("查看知识库概览", { exact: true })).toHaveCount(0);
+
+    await page.getByTestId("agent-reasoning").getByText("思考过程").click();
+    await page.getByTestId("agent-tool-activity").getByText("查看了知识库概览").click();
+
+    await expect(page.getByText("THINKING_DETAIL")).toBeVisible();
+    await expect(page.getByText("查看知识库概览", { exact: true })).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-RESULT-004 用户点击 Agent 回复中的知识库引用后查看详情", async () => {
+  const thoughtId = seedThoughtIdByTitle("React Server Components");
+  seedAgentThread({
+    id: "result-wiki-link",
+    title: "知识库引用",
+    messages: [
+      userMessage("result-wiki-link-user", "展示知识库引用"),
+      assistantMessage("result-wiki-link-assistant", [
+        { type: "text", text: `可以关联到 [[React Server Components#${thoughtId}]]。` },
+      ]),
+    ],
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await expect(page.getByText("[[React Server Components")).toHaveCount(0);
+    const wikiLink = page.locator('[data-slot="wiki-link"]').filter({
+      hasText: "React Server Components",
+    });
+    await expect(wikiLink).toBeVisible();
+    await wikiLink.click();
+    await expect(page.getByTestId("agent-context-inspector")).toBeVisible();
+    await expect(page.getByPlaceholder("写下一个刚形成的理解")).toHaveValue(
+      "React Server Components",
+      { timeout: 15_000 },
+    );
   } finally {
     await app.close();
   }

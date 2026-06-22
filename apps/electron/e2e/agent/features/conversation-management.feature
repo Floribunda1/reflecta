@@ -37,3 +37,12 @@
     那么对话列表应该显示对话 B
     而且对话 B 应该显示用户消息 B_USER_MESSAGE
     而且对话 B 应该显示一条已完成 Agent 回复
+
+  @P1 @isolation @AG-CONV-004
+  场景: 用户按时间分组查看对话列表
+    假如存在今天更新的对话 TODAY_LATE 和 TODAY_EARLY
+    而且存在昨天更新的对话 YESTERDAY_THREAD
+    当用户进入 Agent 页面
+    那么对话列表应该显示“今天”和“昨天”分组
+    而且 TODAY_LATE 应该显示在 TODAY_EARLY 前面
+    而且今天的对话应该显示在昨天的对话前面

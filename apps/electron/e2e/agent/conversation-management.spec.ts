@@ -22,6 +22,13 @@ test.beforeEach(() => {
   resetAgentFixtures();
 });
 
+function localIso(daysAgo: number, hour: number, minute: number) {
+  const date = new Date();
+  date.setDate(date.getDate() - daysAgo);
+  date.setHours(hour, minute, 0, 0);
+  return date.toISOString();
+}
+
 test("@AG-CONV-001 对话 A 正在回复时切换到对话 B 不影响 B", async () => {
   seedAgentThread({
     id: "conv-a",
@@ -106,6 +113,41 @@ test("@AG-CONV-003 用户删除一个对话后仍可查看剩余对话", async (
     await openThread(page, "对话 B");
     await expect(page.getByTestId("agent-user-message")).toContainText("B_USER_MESSAGE");
     await expect(page.getByTestId("agent-assistant-text")).toContainText("B_AGENT_REPLY");
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-CONV-004 用户按时间分组查看对话列表", async () => {
+  seedAgentThread({
+    id: "conv-today-late",
+    title: "TODAY_LATE",
+    createdAt: localIso(0, 12, 10),
+    updatedAt: localIso(0, 12, 10),
+  });
+  seedAgentThread({
+    id: "conv-today-early",
+    title: "TODAY_EARLY",
+    createdAt: localIso(0, 9, 0),
+    updatedAt: localIso(0, 9, 0),
+  });
+  seedAgentThread({
+    id: "conv-yesterday",
+    title: "YESTERDAY_THREAD",
+    createdAt: localIso(1, 12, 0),
+    updatedAt: localIso(1, 12, 0),
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await expect(page.getByTestId("agent-thread-group").filter({ hasText: "今天" })).toBeVisible();
+    await expect(page.getByTestId("agent-thread-group").filter({ hasText: "昨天" })).toBeVisible();
+
+    const sidebarText = await page.getByTestId("agent-thread-sidebar").innerText();
+    expect(sidebarText.indexOf("TODAY_LATE")).toBeLessThan(sidebarText.indexOf("TODAY_EARLY"));
+    expect(sidebarText.indexOf("TODAY_EARLY")).toBeLessThan(
+      sidebarText.indexOf("YESTERDAY_THREAD"),
+    );
   } finally {
     await app.close();
   }

@@ -15,6 +15,8 @@ export type AgentFixtureMessage = {
 export type AgentFixtureThread = {
   id: string;
   title: string;
+  createdAt?: string;
+  updatedAt?: string;
   messages?: AgentFixtureMessage[];
 };
 
@@ -27,7 +29,7 @@ function runFixture(fixture: unknown) {
   );
   fs.writeFileSync(fixturePath, JSON.stringify(fixture), "utf-8");
   try {
-    execFileSync(
+    return execFileSync(
       "bun",
       [
         "run",
@@ -36,7 +38,7 @@ function runFixture(fixture: unknown) {
         fixturePath,
       ],
       { stdio: "pipe" },
-    );
+    ).toString("utf-8");
   } finally {
     fs.rmSync(fixturePath, { force: true });
   }
@@ -48,6 +50,10 @@ export function resetAgentFixtures() {
 
 export function seedAgentThread(thread: AgentFixtureThread) {
   runFixture({ type: "seedThread", thread });
+}
+
+export function seedThoughtIdByTitle(title: string) {
+  return runFixture({ type: "thoughtIdByTitle", title }).trim();
 }
 
 export function seedCompletedThread({
