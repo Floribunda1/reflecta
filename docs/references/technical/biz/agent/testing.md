@@ -1,6 +1,8 @@
 # Agent Test Cases
 
-这份文档只定义 Agent 模块的 test case。其他流程另行派生，test case 本身保持独立。期望结果只描述用户应该得到的产品状态。
+这份文档只定义 Agent 模块的 test case。其他流程另行派生，test case 本身保持独立。期望结果只描述用户应该得到的产品状态。涉及 Agent 回复时，只校验用户可见状态，不指定模型生成的具体文本。
+
+具体数据名称只有在来自 seed 数据时才直接写出；其他测试数据使用大写代指，执行前从 seed 或 fixture 绑定。
 
 每个 test case 只包含：
 
@@ -40,7 +42,7 @@ Agent 当前可以正常回复
 ```text
 页面出现用户消息 hello
 页面显示 Agent 正在回复
-最终出现 Agent 回复 hello from agent
+最终出现一条 Agent 回复正文
 输入框恢复可操作
 对话列表出现这条新对话
 ```
@@ -56,7 +58,7 @@ ID：AG-CHAT-002
 ```text
 用户已打开一个新对话
 Agent 第一次回复会失败
-Agent 第二次回复可以成功
+Agent 第二次回复可以完成
 ```
 
 步骤：
@@ -74,7 +76,7 @@ first 保留为用户消息
 界面显示回复失败提示，提示内容包含“回复失败”
 输入框保持可操作
 second 可以正常发送
-最终出现 Agent 回复 recovered
+最终出现一条新的 Agent 回复正文
 对话进入正常可继续使用状态
 ```
 
@@ -84,20 +86,20 @@ second 可以正常发送
 
 ID：AG-RUN-001
 
-目标：验证用户停止正在生成的 Agent 回复后，回复停止增长，并且界面恢复可操作。
+目标：验证用户停止正在生成的 Agent 回复后，当前对话显示已停止状态，并且界面恢复可操作。
 
 前置条件：
 
 ```text
 用户已打开一个对话
-Agent 会先显示 partial answer，再继续生成后续内容
+发送消息后 Agent 会进入正在回复状态
 ```
 
 步骤：
 
 ```text
 1. 发送一条消息
-2. 等待 Agent 回复中出现 partial answer
+2. 等待停止按钮可点击
 3. 点击停止
 4. 等待界面回到可操作状态
 ```
@@ -105,11 +107,11 @@ Agent 会先显示 partial answer，再继续生成后续内容
 期望结果：
 
 ```text
-当前回复显示 partial answer
 界面显示回复已停止状态
+当前 Agent 回复不再显示正在回复状态
 输入框恢复可用
 当前对话进入可继续输入状态
-切换到另一个对话再切回后仍显示 partial answer
+切换到另一个对话再切回后仍显示已停止状态
 ```
 
 ### AG-RUN-002 停止对话 A 后对话 B 保持原内容
@@ -123,7 +125,7 @@ ID：AG-RUN-002
 ```text
 存在对话 A 和对话 B
 对话 A 正在生成回复
-对话 B 已有用户消息 B question 和 Agent 回复 B answer
+对话 B 已有用户消息 B_USER_MESSAGE 和一条 Agent 回复
 ```
 
 步骤：
@@ -140,7 +142,7 @@ ID：AG-RUN-002
 
 ```text
 对话 A 显示已停止的回复状态
-对话 B 显示用户消息 B question 和 Agent 回复 B answer
+对话 B 显示用户消息 B_USER_MESSAGE 和一条已完成 Agent 回复
 对话 A 的输入框可输入
 对话 B 的输入框可输入
 ```
@@ -157,8 +159,8 @@ ID：AG-THREAD-001
 
 ```text
 存在对话 A 和对话 B
-对话 A 会先显示 A partial answer，再完成为 A final answer
-对话 B 已有用户消息 B question 和 Agent 回复 B answer
+Agent 当前可以完成回复
+对话 B 已有用户消息 B_USER_MESSAGE 和一条已完成 Agent 回复
 ```
 
 步骤：
@@ -174,10 +176,10 @@ ID：AG-THREAD-001
 期望结果：
 
 ```text
-对话 B 显示用户消息 B question 和 Agent 回复 B answer
+对话 B 显示用户消息 B_USER_MESSAGE 和一条已完成 Agent 回复
 对话 B 的输入框可输入
-对话 A 显示用户消息 start A
-切回 A 后看到 Agent 回复 A final answer
+对话 A 显示用户消息“start A”
+切回 A 后看到一条已完成的 Agent 回复
 ```
 
 ### AG-THREAD-002 对话历史持久化
@@ -198,7 +200,7 @@ Agent 可以正常回复
 ```text
 1. 新建对话
 2. 发送 remember this
-3. 等待 Agent 完成回复 persisted answer
+3. 等待 Agent 完成回复
 4. 切换到另一个对话
 5. 切回原对话
 6. 重启应用
@@ -209,7 +211,7 @@ Agent 可以正常回复
 
 ```text
 原对话仍显示用户消息 remember this
-原对话仍显示 Agent 回复 persisted answer
+原对话仍显示一条 Agent 回复正文
 对话列表中原对话的预览包含 remember this
 消息顺序保持用户消息在前、Agent 回复在后
 ```
@@ -224,8 +226,8 @@ ID：AG-THREAD-003
 
 ```text
 存在对话 A 和对话 B
-对话 A 有用户消息 A question 和 Agent 回复 A answer
-对话 B 有用户消息 B question 和 Agent 回复 B answer
+对话 A 有用户消息 A_USER_MESSAGE 和一条 Agent 回复
+对话 B 有用户消息 B_USER_MESSAGE 和一条 Agent 回复
 ```
 
 步骤：
@@ -241,43 +243,43 @@ ID：AG-THREAD-003
 
 ```text
 对话列表显示对话 B
-对话 B 显示用户消息 B question 和 Agent 回复 B answer
+对话 B 显示用户消息 B_USER_MESSAGE 和一条已完成 Agent 回复
 重新打开后对话列表状态保持一致
 ```
 
 ## Suite AG-MSG: 消息变更
 
-### AG-MSG-001 编辑用户消息后显示新的有效回复
+### AG-MSG-001 编辑用户消息后完成当前回复
 
 ID：AG-MSG-001
 
-目标：验证编辑历史用户消息后，当前对话显示与新问题匹配的 Agent 回复。
+目标：验证编辑历史用户消息后，当前对话显示编辑后的用户消息和完成状态的 Agent 回复。
 
 前置条件：
 
 ```text
 对话中已有：
-用户消息 old question
-Agent 回复 old answer
-Agent 可以对 edited question 回复 new answer
+用户消息 ORIGINAL_USER_MESSAGE
+一条 Agent 回复
+Agent 可以完成回复
 ```
 
 步骤：
 
 ```text
-1. 点击 old question 的编辑入口
-2. 将内容改为 edited question
+1. 点击 ORIGINAL_USER_MESSAGE 的编辑入口
+2. 将内容改为 EDITED_USER_MESSAGE
 3. 提交编辑
-4. 等待 Agent 完成新回复
+4. 等待 Agent 完成回复
 ```
 
 期望结果：
 
 ```text
-用户消息变成 edited question
-当前有效 Agent 回复为 new answer
+用户消息变成 EDITED_USER_MESSAGE
+当前对话显示一条完成状态的 Agent 回复
 消息顺序仍然是用户消息在前、Agent 回复在后
-切换到另一个对话再切回后，仍显示 edited question 和 new answer
+切换到另一个对话再切回后，仍显示 EDITED_USER_MESSAGE 和完成状态的 Agent 回复
 ```
 
 ### AG-MSG-002 重新生成后显示新的当前回复
@@ -290,23 +292,23 @@ ID：AG-MSG-002
 
 ```text
 对话中已有：
-用户消息 question
-Agent 回复 first answer
-Agent 可以重新回复 second answer
+用户消息 REGENERATE_USER_MESSAGE
+一条 Agent 回复
+Agent 可以完成回复
 ```
 
 步骤：
 
 ```text
-1. 对 first answer 执行重新生成
-2. 等待 Agent 完成新回复
+1. 对当前 Agent 回复执行重新生成
+2. 等待 Agent 完成回复
 ```
 
 期望结果：
 
 ```text
-对话中保留一条用户消息 question
-second answer 成为当前 Agent 回复
+对话中保留一条用户消息 REGENERATE_USER_MESSAGE
+当前对话显示一条完成状态的 Agent 回复
 消息顺序保持用户消息在前、Agent 回复在后
 ```
 
@@ -328,40 +330,41 @@ ID：AG-INPUT-001
 步骤：
 
 ```text
-1. 选择模型 model-a
-2. 选择推理强度 medium
-3. 发送一条用户消息
-4. 等待 Agent 回复完成
+1. 打开模型菜单
+2. 记录模型列表第一项的模型显示名称为 M
+3. 点击模型列表第一项
+4. 选择推理等级“中推理”
+5. 发送一条用户消息
+6. 等待 Agent 回复完成
 ```
 
 期望结果：
 
 ```text
-发送前界面显示已选择 model-a
-发送前界面显示已选择 medium
-发送过程中界面仍显示 model-a 和 medium
-Agent 回复完成后，界面仍显示 model-a 和 medium
-Agent 回复正文显示完成
+发送前界面显示已选择 M
+发送前界面显示已选择“中推理”
+发送过程中界面仍显示 M 和“中推理”
+Agent 回复完成后，界面仍显示 M 和“中推理”
+页面出现一条 Agent 回复正文
 ```
 
-### AG-INPUT-002 选中资料后发送
+### AG-INPUT-002 选中引用后发送
 
 ID：AG-INPUT-002
 
-目标：验证用户选中的资料会随本次消息一起进入对话语境，并在用户消息中清楚呈现。
+目标：验证用户选中的引用会随本次消息一起进入对话，并在用户消息中清楚呈现。
 
 前置条件：
 
 ```text
-存在资料 T1《旅行计划》、资料 C1《预算约束》、资料 T2《健身计划》
-用户只选中 T1《旅行计划》和 C1《预算约束》
-T1《旅行计划》和 C1《预算约束》都可被使用
+seed 数据中存在 Thought「React Server Components」
+seed 数据中存在 Category「React」
 ```
 
 步骤：
 
 ```text
-1. 在输入框中选择 T1《旅行计划》和 C1《预算约束》
+1. 在输入框中选择 Thought「React Server Components」和 Category「React」
 2. 发送消息
 3. 查看用户消息和 Agent 回复
 ```
@@ -369,29 +372,29 @@ T1《旅行计划》和 C1《预算约束》都可被使用
 期望结果：
 
 ```text
-用户消息中能看到已选择 T1《旅行计划》和 C1《预算约束》
-用户消息中的资料引用与发送前选择一致
-Agent 回复同时提到旅行计划和预算约束
+用户消息中显示 Thought「React Server Components」
+用户消息中显示 Category「React」
+Agent 回复完成后，当前对话进入可继续输入状态
 ```
 
-### AG-INPUT-003 发送可用附件后得到附件总结
+### AG-INPUT-003 发送附件后显示附件并完成回复
 
 ID：AG-INPUT-003
 
-目标：验证用户发送可用附件后，Agent 回复会围绕该附件内容作答。
+目标：验证用户发送附件后，用户消息中显示该附件，并且 Agent 完成一次回复。
 
 前置条件：
 
 ```text
 用户已打开一个对话
-用户准备了附件 trip-notes.txt
-trip-notes.txt 可被 Agent 使用
+测试环境有可上传文件 ATTACHMENT_FILE
+附件上传后会显示在用户消息中
 ```
 
 步骤：
 
 ```text
-1. 在输入框添加附件 trip-notes.txt
+1. 在输入框添加附件 ATTACHMENT_FILE
 2. 输入请总结这个附件
 3. 点击发送
 4. 等待 Agent 回复
@@ -400,9 +403,9 @@ trip-notes.txt 可被 Agent 使用
 期望结果：
 
 ```text
-用户消息中显示附件 trip-notes.txt
-Agent 回复包含对 trip-notes.txt 的总结
-附件在用户消息中以可识别名称和状态显示
+用户消息中显示附件 ATTACHMENT_FILE
+页面出现一条 Agent 回复正文
+附件在用户消息中以 ATTACHMENT_FILE 的文件名显示
 ```
 
 ## Suite AG-VIEW: 消息呈现
@@ -411,17 +414,17 @@ Agent 回复包含对 trip-notes.txt 的总结
 
 ID：AG-VIEW-001
 
-目标：验证 Agent 回复中包含思考摘要、查找进度、提案和最终文字时，用户看到的顺序符合实际发生顺序。
+目标：验证一条已经存在的复杂 Agent 回复中，思考摘要、查找进度、提案和最终回复正文按指定顺序显示。
 
 前置条件：
 
 ```text
 对话中有一条复杂 Agent 回复
 该回复包含：
-思考摘要“正在理解你的问题”
-查找进度“找到 3 条相关资料”
-提案卡片“创建想法《读书笔记》”
-最终文字“我建议先整理这 3 条资料”
+思考摘要
+查找进度
+提案卡片
+最终回复正文
 ```
 
 步骤：
@@ -435,10 +438,10 @@ ID：AG-VIEW-001
 
 ```text
 在同一条 Agent 回复中，从上到下依次显示：
-1. 思考摘要“正在理解你的问题”
-2. 查找进度“找到 3 条相关资料”
-3. 提案卡片“创建想法《读书笔记》”
-4. 最终文字“我建议先整理这 3 条资料”
+1. 思考摘要
+2. 查找进度
+3. 提案卡片
+4. 最终回复正文
 ```
 
 ### AG-VIEW-002 提案状态可区分
@@ -451,11 +454,11 @@ ID：AG-VIEW-002
 
 ```text
 存在一个对话，里面依次包含 5 张提案卡片：
-待确认提案“创建想法《A》”
-已确认提案“创建想法《B》”
-已拒绝提案“创建想法《C》”
-已完成提案“创建想法《D》”
-失败提案“创建想法《E》”
+候选 Thought，候选标题 CANDIDATE_TITLE_PENDING，状态为待确认
+候选 Thought，候选标题 CANDIDATE_TITLE_APPROVED，状态为已确认
+候选 Thought，候选标题 CANDIDATE_TITLE_REJECTED，状态为已拒绝
+候选 Thought，候选标题 CANDIDATE_TITLE_DONE，状态为完成
+候选 Thought，候选标题 CANDIDATE_TITLE_ERROR，状态为出错
 ```
 
 步骤：
@@ -468,74 +471,72 @@ ID：AG-VIEW-002
 期望结果：
 
 ```text
-“创建想法《A》”显示待确认状态
-“创建想法《B》”显示已确认状态
-“创建想法《C》”显示已拒绝状态
-“创建想法《D》”显示已完成结果
-“创建想法《E》”显示失败原因
+CANDIDATE_TITLE_PENDING 所在卡片显示“待确认”
+CANDIDATE_TITLE_APPROVED 所在卡片显示“已确认”
+CANDIDATE_TITLE_REJECTED 所在卡片显示“已拒绝”
+CANDIDATE_TITLE_DONE 所在卡片显示“完成”
+CANDIDATE_TITLE_ERROR 所在卡片显示“出错”并显示错误信息
 ```
 
 ## Suite AG-TOOL: 提案操作
 
-### AG-TOOL-001 用户确认提案后执行并继续
+### AG-TOOL-001 用户确认候选 Thought 后执行并保留结果
 
 ID：AG-TOOL-001
 
-目标：验证用户确认提案后，对应操作会执行，结果会显示，Agent 可以继续回复。
+目标：验证用户确认提案后，对应操作会执行，结果会显示并保留。
 
 前置条件：
 
 ```text
-Agent 会提出“创建想法《读书笔记》”提案
-Agent 确认后会回复“已创建读书笔记”
+对话中已经出现待确认“候选 Thought”提案卡片
+该卡片的候选标题为 CANDIDATE_TITLE
 用户有权限确认该操作
 ```
 
 步骤：
 
 ```text
-1. 发送会触发提案的消息
-2. 等待“创建想法《读书笔记》”提案卡片出现
-3. 点击确认
-4. 等待操作结果和 Agent 后续回复
+1. 点击该提案卡片上的确认
+2. 等待操作结果显示
 ```
 
 期望结果：
 
 ```text
-“创建想法《读书笔记》”提案卡片可见
-点击确认后，该提案状态变为已确认
-界面显示“创建想法《读书笔记》”的操作结果
-最终 Agent 回复包含“已创建读书笔记”
+“候选 Thought”提案卡片可见
+卡片中显示候选标题 CANDIDATE_TITLE
+点击确认后，该提案状态显示为已确认
+界面显示该提案的操作结果
 重新打开对话后仍能看到提案和确认状态
 ```
 
-### AG-TOOL-002 用户拒绝提案后保留拒绝结果
+### AG-TOOL-002 用户拒绝候选 Thought 后保留拒绝结果
 
 ID：AG-TOOL-002
 
-目标：验证用户拒绝提案后，界面保留拒绝结果，并展示后续 Agent 说明。
+目标：验证用户拒绝提案后，界面保留拒绝结果。
 
 前置条件：
 
 ```text
-Agent 会提出“创建想法《读书笔记》”提案
+对话中已经出现待确认“候选 Thought”提案卡片
+该卡片的候选标题为 CANDIDATE_TITLE
 用户有权限拒绝该操作
 ```
 
 步骤：
 
 ```text
-1. 发送会触发提案的消息
-2. 等待“创建想法《读书笔记》”提案卡片出现
-3. 点击拒绝
+1. 点击该提案卡片上的拒绝
 ```
 
 期望结果：
 
 ```text
-“创建想法《读书笔记》”提案状态变为已拒绝
+“候选 Thought”提案卡片可见
+卡片中显示候选标题 CANDIDATE_TITLE
+点击拒绝后，该提案状态显示为已拒绝
 界面显示该提案的拒绝结果
-Agent 后续说明包含“已拒绝”
 重新打开对话后仍能看到拒绝状态
 ```
