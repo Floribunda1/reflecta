@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3 - 2026-06-22
+
+- Fixed chat composer mention search so non-empty queries search all matching Thoughts instead of filtering only the recent list.
+
 ## 1.0.2 - 2026-06-22
 
 - Removed the Agent view title bar and adjusted the main window show order after maximizing.
