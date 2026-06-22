@@ -16,6 +16,7 @@
     "start": "electron .",
     "dev": "vite",
     "build": "bun run typecheck && vite build",
+    "clean:dist": "rm -rf dist",
     "test:e2e": "playwright test --pass-with-no-tests",
     "test:e2e:ui": "playwright test --ui",
     "lint": "oxlint",
@@ -23,10 +24,10 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "postinstall": "electron-builder install-app-deps",
-    "build:unpack": "bun run build && electron-builder --dir",
-    "build:win": "bun run build && electron-builder --win",
-    "build:mac": "vite build && electron-builder --mac",
-    "build:linux": "vite build && electron-builder --linux"
+    "build:unpack": "bun run clean:dist && bun run build && electron-builder --dir",
+    "build:win": "bun run clean:dist && bun run build && electron-builder --win",
+    "build:mac": "bun run clean:dist && bun run build && electron-builder --mac",
+    "build:linux": "bun run clean:dist && bun run build && electron-builder --linux"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.72",
