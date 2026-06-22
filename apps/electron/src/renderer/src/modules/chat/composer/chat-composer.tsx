@@ -28,9 +28,12 @@ import type {
 import {
   contextMentionClass,
   contextMentionIcon,
+  contextRefFromMention,
   contextTitle,
   contextTypeFromKey,
+  inspectableContextRef,
   mentionId,
+  type InspectableContextRef,
   type MentionAttrs,
 } from "../context/context-reference";
 import {
@@ -175,6 +178,7 @@ export function ChatComposer({
   onSelectModel,
   onCancelEdit,
   onStop,
+  onInspectContextRef,
 }: {
   isBusy: boolean;
   canStop: boolean;
@@ -188,6 +192,7 @@ export function ChatComposer({
   onSelectModel: (selection: AgentModelSelection) => void;
   onCancelEdit: () => void;
   onStop: () => void;
+  onInspectContextRef?: (ref: InspectableContextRef) => void;
 }) {
   const [draft, setDraft] = useState("");
   const [selectedContexts, setSelectedContexts] = useState<AgentContextRef[]>([]);
@@ -307,14 +312,25 @@ export function ChatComposer({
           typeof node.attrs.label === "string" ? node.attrs.label : String(node.attrs.id ?? ""),
         renderHTML: ({ node, options }) => {
           const type = contextTypeFromKey(node.attrs.id);
+          const isInspectable = type === "thought" || type === "context";
+          const id =
+            typeof node.attrs.id === "string" ? node.attrs.id : String(node.attrs.id ?? "");
+          const label =
+            typeof node.attrs.label === "string" ? node.attrs.label : String(node.attrs.id ?? "");
           return [
             "span",
             {
               ...options.HTMLAttributes,
-              class: contextMentionClass(type),
+              "data-slot": "composer-context-mention",
+              "data-context-ref-id": id,
+              "data-context-ref-label": label,
+              class: [
+                contextMentionClass(type),
+                isInspectable ? "cursor-pointer hover:opacity-80" : "",
+              ].join(" "),
             },
             `${contextMentionIcon(type)} `,
-            typeof node.attrs.label === "string" ? node.attrs.label : String(node.attrs.id ?? ""),
+            label,
           ];
         },
         suggestion: {
@@ -529,6 +545,21 @@ export function ChatComposer({
             className={["flex min-w-0 flex-1", isBusy ? "pointer-events-none opacity-50" : ""].join(
               " ",
             )}
+            onClick={(event) => {
+              if (!onInspectContextRef) return;
+              const target = event.target;
+              if (!(target instanceof Element)) return;
+              const mention = target.closest('[data-slot="composer-context-mention"]');
+              if (!mention || !event.currentTarget.contains(mention)) return;
+              const ref = contextRefFromMention(
+                mention.getAttribute("data-context-ref-id"),
+                mention.getAttribute("data-context-ref-label"),
+              );
+              const inspectableRef = ref ? inspectableContextRef(ref) : null;
+              if (!inspectableRef) return;
+              event.preventDefault();
+              onInspectContextRef(inspectableRef);
+            }}
             onKeyDown={(event) => {
               if (event.nativeEvent.isComposing) return;
               if (event.key === "Enter" && !event.shiftKey) {

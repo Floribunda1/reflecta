@@ -114,6 +114,7 @@ function ThreadChat({
         onSend={threadView.actions.send}
         onCancelEdit={threadView.actions.cancelEdit}
         onStop={threadView.actions.stop}
+        onInspectContextRef={onInspectContextRef}
       />
     </main>
   );
