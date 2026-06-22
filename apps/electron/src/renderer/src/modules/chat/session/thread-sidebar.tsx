@@ -53,6 +53,9 @@ function ThreadSidebarComponent({
     setRenamingId(thread.id);
     setRenameDraft(thread.title);
   };
+  const copyThreadId = (threadId: string) => {
+    void navigator.clipboard?.writeText(threadId);
+  };
 
   return (
     <aside className="flex h-full min-h-0 w-[248px] shrink-0 flex-col overflow-hidden">
@@ -149,6 +152,9 @@ function ThreadSidebarComponent({
                         onClick={() => onGenerateTitle(thread.id)}
                       >
                         {generatingTitle ? "生成中..." : "生成标题"}
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => copyThreadId(thread.id)}>
+                        复制对话 ID
                       </ContextMenuItem>
                       <ContextMenuItem onClick={() => onArchive(thread.id)}>归档</ContextMenuItem>
                       <ContextMenuSeparator />
