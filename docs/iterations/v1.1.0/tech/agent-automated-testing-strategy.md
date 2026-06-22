@@ -16,6 +16,16 @@ Automated tests prove the implementation.
 Test layer choice is a cost decision.
 ```
 
+Test Case 的唯一来源是 Cucumber / Gherkin feature 文件：
+
+```txt
+apps/electron/e2e/agent/agent.feature
+```
+
+自动化测试应该引用 feature 里的 scenario tag，例如 `@AG-CHAT-001`。
+
+一个 scenario 可以由多层自动化测试共同覆盖。它不等于一条 E2E。
+
 目标不是“测试越简单越好”，而是：
 
 ```txt

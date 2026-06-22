@@ -16,9 +16,13 @@ Test case 不是 bullet list。
 
 Test case 应该有组织地描述用户场景，而不是把零散检查点堆成列表。
 
-### Test case 只保留必要字段
+### Test case 只维护 Feature 文件
 
-每个 test case 只需要：
+新增或维护 test case 时，只产生 Gherkin / Cucumber feature 文件。
+
+不要再创建一份并行的 `test-case.md`。
+
+每个 test case 只需要表达这些信息：
 
 ```text
 ID
@@ -29,6 +33,25 @@ ID
 ```
 
 不要把后续流程信息写进 test case 本身。
+
+### 用 Cucumber feature 表达 Test case
+
+Test case 应该写成 Gherkin / Cucumber feature 文件。
+
+对应关系：
+
+```text
+Feature  = 一组相关用户能力
+Scenario = 一条 test case，场景名表达目标
+Tag      = 稳定 ID
+Given    = 前置条件
+When     = 用户操作
+Then     = 用户可观察的期望结果
+```
+
+Scenario 可以用 tag 作为稳定 ID，例如 `@AG-CHAT-001`。
+
+Feature 文件仍然只描述用户路径和产品表现，不写 unit、integration、E2E 等自动化测试分层。
 
 ### 只对用户场景负责
 
