@@ -35,6 +35,8 @@
 - AI 自然语言不可控，所以测试不能断言固定回答内容。只断言产品状态：出现回复、回复完成、失败状态、停止状态、tool card、approval card、历史恢复、composer 可用。
 - 现有 feature/e2e spec 是产品契约。不能为了迁移通过而改弱场景语义。
 - 不迁旧 Agent 历史。v1.1.0 的 Pi 历史从新 session 开始。
+- Pi session 固定存到当前 Content Storage Root 下的 `Sessions/` 目录，例如 `<content-storage-root>/Sessions/<session-id>.jsonl`。
+- 新 Agent 不再需要当前 DB 对话表；迁移完成时用 DB migration 删除 `agent_threads`、`agent_messages`、`agent_tool_invocations`、`agent_runs`。
 - 不引入 `AgentViewBuilder`。公共协议只有 `AgentSessionEvent`。
 - 清理旧 AI SDK chat runtime 必须等 Pi 主路径全绿后再做。
 
@@ -84,7 +86,7 @@ Pi 负责 loop、session、resume、skills、tool 调用机制。Reflecta 负责
 自动化测试：
 
 - integration：配置 `REFLECTA_E2E_AI_API_KEY` 后，Electron main 通过真实 Pi SDK 创建 session，发送 prompt，收到 assistant text。
-- integration：Pi session file 创建在 Reflecta content storage 下。
+- integration：Pi session file 创建在 `<content-storage-root>/Sessions/` 下。
 - unit：content storage root 解析规则稳定。
 
 TDD 顺序：
@@ -92,7 +94,7 @@ TDD 顺序：
 1. RED：写 `@AG-PI-SMOKE-001` 对应 integration test，真实 AI 未接 Pi 前失败。
 2. GREEN：新增最小 Pi adapter，只支持 create session + prompt。
 3. RED：写 session file 位置检查。
-4. GREEN：把 Pi session root 指到 Reflecta content storage。
+4. GREEN：把 Pi session root 指到 `<content-storage-root>/Sessions/`。
 5. REFRACTOR：收敛 adapter 名称，不扩展 tools、不改前端主链路。
 
 退出条件：
@@ -116,7 +118,7 @@ Test Case：
 - e2e：真实 AI key 下创建 Pi session，发送消息，看到 assistant 回复出现并完成。
 - e2e：关闭 app 再打开，恢复同一 Pi session 历史。
 - unit：`reduceAgentSession(events)` 合并 text deltas，并且同一组 events reduce 结果稳定。
-- integration：`readSessionEvents(sessionId)` 只读取 Pi JSONL 里的 `reflecta.agent.event`。
+- integration：`readSessionEvents(sessionId)` 只读取 `Sessions/` 下 Pi JSONL 里的 `reflecta.agent.event`。
 
 TDD 顺序：
 
@@ -132,6 +134,7 @@ TDD 顺序：
 - Pi 新 session 的纯文本聊天可用。
 - reload 可恢复。
 - 不读取 `agent_messages.parts_json`。
+- 不为了 session list 保留 `agent_threads`；session list 从 `Sessions/` 下的 Pi session metadata 派生。
 
 ## 7. Phase 2：失败、停止、继续使用可用
 
@@ -352,6 +355,7 @@ bun run --cwd apps/electron test:e2e
 - AI SDK UI message persistence tests。
 - 只服务 AI SDK message conversion 的 helpers。
 - fixture 对 `agent_messages.parts_json` 的写入。
+- DB schema 和 migration 中的旧 Agent 对话表：`agent_threads`、`agent_messages`、`agent_tool_invocations`、`agent_runs`。
 
 自动化测试：
 
@@ -359,6 +363,7 @@ bun run --cwd apps/electron test:e2e
 - unit test。
 - 完整 e2e。
 - grep 验收。
+- migration 验收：新数据库不创建旧 Agent 对话表；旧数据库升级后这些表被 drop。
 
 验收：
 
