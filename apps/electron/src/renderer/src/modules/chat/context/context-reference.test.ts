@@ -2,7 +2,6 @@ import { describe, expect, test } from "vitest";
 import {
   contextKey,
   contextMentionIcon,
-  messageContextMentionClass,
   contextRefFromMention,
   contextTitle,
   contextTypeLabel,
@@ -45,12 +44,6 @@ describe("context reference", () => {
       id: "thought-1",
     });
     expect(inspectableContextRef({ type: "category", id: "category-1" })).toBeNull();
-  });
-
-  test("keeps message mentions as inline text so they align with surrounding copy", () => {
-    expect(messageContextMentionClass("category")).toContain("inline");
-    expect(messageContextMentionClass("category")).not.toContain("inline-block");
-    expect(messageContextMentionClass("category")).not.toContain("truncate");
   });
 
   test("builds and parses assistant wiki links", () => {

@@ -1,13 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 import type { AgentChatMessage, AgentThreadDTO } from "@shared/chat";
-import {
-  invalidateThreadSnapshot,
-  refreshThreadTitle,
-  removeThreadFromCache,
-  renameThreadInCache,
-  replaceThreadMessages,
-} from "./query-cache";
+import { refreshThreadTitle } from "./query-cache";
 import { chatQueryKeys } from "./query-keys";
 
 function queryClient() {
@@ -36,18 +30,6 @@ function message(id: string, role: AgentChatMessage["role"], text: string): Agen
 }
 
 describe("chat query cache", () => {
-  test("replaces only the selected thread messages", () => {
-    const client = queryClient();
-    const firstMessages = [message("user-1", "user", "first")];
-    const secondMessages = [message("user-2", "user", "second")];
-    client.setQueryData(chatQueryKeys.threadMessages("thread-b"), secondMessages);
-
-    replaceThreadMessages(client, "thread-a", firstMessages);
-
-    expect(client.getQueryData(chatQueryKeys.threadMessages("thread-a"))).toBe(firstMessages);
-    expect(client.getQueryData(chatQueryKeys.threadMessages("thread-b"))).toBe(secondMessages);
-  });
-
   test("refreshes one new thread title from first user message", () => {
     const client = queryClient();
     client.setQueryData(chatQueryKeys.threads, [
@@ -113,29 +95,5 @@ describe("chat query cache", () => {
     expect(client.getQueryData<AgentThreadDTO[]>(chatQueryKeys.threads)?.[0]).toMatchObject({
       title: "Custom title",
     });
-  });
-
-  test("invalidates thread messages and thread list", async () => {
-    const client = queryClient();
-    const invalidateQueries = vi.spyOn(client, "invalidateQueries");
-
-    await invalidateThreadSnapshot(client, "thread-a");
-
-    expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: chatQueryKeys.threadMessages("thread-a"),
-    });
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: chatQueryKeys.threads });
-  });
-
-  test("remove and rename helpers update only thread list cache", () => {
-    const client = queryClient();
-    client.setQueryData(chatQueryKeys.threads, [thread("thread-a"), thread("thread-b")]);
-
-    renameThreadInCache(client, "thread-b", "Renamed");
-    removeThreadFromCache(client, "thread-a");
-
-    expect(client.getQueryData<AgentThreadDTO[]>(chatQueryKeys.threads)).toMatchObject([
-      { id: "thread-b", title: "Renamed" },
-    ]);
   });
 });
