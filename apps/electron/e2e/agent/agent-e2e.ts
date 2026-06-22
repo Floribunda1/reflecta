@@ -7,7 +7,7 @@ import {
   type ElectronApplication,
   type Page,
 } from "@playwright/test";
-import { getE2eElectronEnv, hasE2eAiConfig } from "../test-env";
+import { getE2eAiEnv, getE2eElectronEnv, hasE2eAiConfig } from "../test-env";
 
 export const hasAi = hasE2eAiConfig();
 
@@ -32,11 +32,14 @@ export async function openAgentPage(page: Page) {
   await expect(page.getByTestId("agent-page")).toBeVisible();
 }
 
-export async function configureOpenAiKey(page: Page, apiKey: string) {
+export async function configureE2eAiKey(page: Page, apiKey: string) {
+  const { providerId } = getE2eAiEnv();
   await page.getByLabel("Switch module").click();
   await page.getByTestId("app-settings-menu-item").click();
   await page.getByTestId("settings-menu-ai").click();
-  await page.getByTestId("settings-ai-provider").filter({ hasText: "OpenAI" }).click();
+  await page
+    .locator(`[data-testid="settings-ai-provider"][data-provider-id="${providerId}"]`)
+    .click();
   await page.getByTestId("settings-ai-api-key-input").fill(apiKey);
   await page.getByTestId("settings-ai-save-button").click();
   await expect(page.getByText("已保存")).toBeVisible();
@@ -61,6 +64,7 @@ export async function sendMessage(page: Page, text: string) {
 
 export async function waitForAssistantReply(page: Page) {
   await expect(page.getByTestId("agent-assistant-text").last()).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByTestId("agent-stop-button")).toBeHidden({ timeout: 120_000 });
   await expect(composer(page)).toBeEditable();
 }
 

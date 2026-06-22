@@ -151,7 +151,10 @@ function AttachmentPreview({ file, onRemove }: { file: FileUIPart; onRemove: () 
   const name = file.filename || file.mediaType;
 
   return (
-    <div className="flex max-w-60 items-center gap-2 rounded-md border border-border bg-card px-2 py-1.5 text-xs">
+    <div
+      data-testid="agent-attachment-preview"
+      className="flex max-w-60 items-center gap-2 rounded-md border border-border bg-card px-2 py-1.5 text-xs"
+    >
       {isImage ? (
         <img src={file.url} alt={name} className="size-8 rounded-sm object-cover" />
       ) : (

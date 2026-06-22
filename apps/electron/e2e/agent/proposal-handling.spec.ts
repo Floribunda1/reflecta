@@ -31,7 +31,7 @@ test.beforeEach(() => {
 });
 
 test("@AG-PROPOSAL-001 用户确认候选 Thought 后看到执行结果", async () => {
-  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY or OPENAI_API_KEY");
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
   seedPendingProposal();
@@ -48,7 +48,7 @@ test("@AG-PROPOSAL-001 用户确认候选 Thought 后看到执行结果", async 
 });
 
 test("@AG-PROPOSAL-002 用户拒绝候选 Thought 后看到拒绝结果", async () => {
-  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY or OPENAI_API_KEY");
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
   seedPendingProposal();

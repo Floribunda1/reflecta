@@ -1,6 +1,7 @@
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import {
+  composer,
   hasAi,
   launchAgentPage,
   sendMessage,
@@ -26,15 +27,17 @@ async function selectContext(page: Page, query: string, title: string, type: str
 }
 
 test("@AG-CONTEXT-001 用户选中引用后发送消息", async () => {
-  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY or OPENAI_API_KEY");
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
   const { app, page } = await launchAgentPage();
 
   try {
-    await selectContext(page, "React Server Components", "React Server Components", "thought");
+    await selectContext(page, "React", "React Server Components", "thought");
     await selectContext(page, "React", "React", "category");
-    await sendMessage(page, "请比较这两个引用");
+    await composer(page).click();
+    await page.keyboard.type("请比较这两个引用");
+    await page.getByTestId("agent-send-button").click();
     await expect(page.getByTestId("agent-user-message")).toContainText("React Server Components");
     await expect(page.getByTestId("agent-user-message")).toContainText("React");
     await waitForAssistantReply(page);
@@ -44,7 +47,7 @@ test("@AG-CONTEXT-001 用户选中引用后发送消息", async () => {
 });
 
 test("@AG-CONTEXT-002 用户发送附件后看到附件和回复", async () => {
-  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY or OPENAI_API_KEY");
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
   const { app, page } = await launchAgentPage();
@@ -52,8 +55,10 @@ test("@AG-CONTEXT-002 用户发送附件后看到附件和回复", async () => {
   const fileName = path.basename(filePath);
 
   try {
-    await page.getByTestId("agent-file-input").setInputFiles(filePath);
-    await expect(page.getByText(fileName)).toBeVisible();
+    const fileChooser = page.waitForEvent("filechooser");
+    await page.getByTestId("agent-attachment-button").click();
+    await (await fileChooser).setFiles(filePath);
+    await expect(page.getByTestId("agent-attachment-preview")).toContainText(fileName);
     await sendMessage(page, "请总结这个附件");
     await expect(page.getByTestId("agent-message-attachment")).toContainText(fileName);
     await waitForAssistantReply(page);
@@ -63,7 +68,7 @@ test("@AG-CONTEXT-002 用户发送附件后看到附件和回复", async () => {
 });
 
 test("@AG-CONTEXT-003 用户选择模型和推理强度后发送消息", async () => {
-  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY or OPENAI_API_KEY");
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
   const { app, page } = await launchAgentPage();
@@ -78,6 +83,7 @@ test("@AG-CONTEXT-003 用户选择模型和推理强度后发送消息", async (
     await page
       .locator('[data-testid="agent-reasoning-option"][data-reasoning-level="medium"]')
       .click();
+    await page.keyboard.press("Escape");
 
     await expect(page.getByTestId("agent-model-menu-button")).toContainText(modelName);
     await expect(page.getByTestId("agent-model-menu-button")).toContainText("中推理");

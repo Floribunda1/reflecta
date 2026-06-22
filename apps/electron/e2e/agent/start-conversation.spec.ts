@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { writeE2eAiConfig } from "../test-env";
+import { getE2eAiEnv, writeE2eAiConfig } from "../test-env";
 import {
   composer,
-  configureOpenAiKey,
+  configureE2eAiKey,
   createNewThread,
   hasAi,
   launchAgentPage,
@@ -29,7 +29,7 @@ test("@AG-START-001 用户进入 Agent 页面后可以开始对话", async () =>
 });
 
 test("@AG-START-002 用户发送第一条消息后看到完整回复", async () => {
-  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY or OPENAI_API_KEY");
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
   const { app, page } = await launchAgentPage();
@@ -48,8 +48,8 @@ test("@AG-START-002 用户发送第一条消息后看到完整回复", async () 
 });
 
 test("@AG-START-003 回复失败后用户可以继续发送消息", async () => {
-  const apiKey = process.env.REFLECTA_E2E_AI_API_KEY || process.env.OPENAI_API_KEY || "";
-  test.skip(!apiKey, "requires REFLECTA_E2E_AI_API_KEY or OPENAI_API_KEY");
+  const apiKey = getE2eAiEnv().apiKey;
+  test.skip(!apiKey, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(240_000);
 
   writeE2eAiConfig({ ...process.env, REFLECTA_E2E_AI_API_KEY: "invalid-reflecta-e2e-key" });
@@ -62,7 +62,7 @@ test("@AG-START-003 回复失败后用户可以继续发送消息", async () => 
     });
     await expect(composer(page)).toBeEditable();
 
-    await configureOpenAiKey(page, apiKey);
+    await configureE2eAiKey(page, apiKey);
     await sendMessage(page, "second");
     await waitForAssistantReply(page);
 

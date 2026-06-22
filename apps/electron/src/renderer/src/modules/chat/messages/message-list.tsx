@@ -310,6 +310,9 @@ export function MessageList({
 }) {
   const lastAssistantId = messages.findLast((message) => message.role === "assistant")?.id;
   const localCreatedAtById = useRef(new Map<string, string>());
+  const stoppedMessageVisible = stoppedMessageId
+    ? messages.some((message) => message.id === stoppedMessageId)
+    : true;
 
   const createdAtFor = (message: AgentChatMessage) => {
     if (message.createdAt) return message.createdAt;
@@ -344,6 +347,14 @@ export function MessageList({
           onInspectContextRef={onInspectContextRef}
         />
       ))}
+      {stoppedMessageId && !stoppedMessageVisible ? (
+        <div
+          data-testid="agent-stopped-state"
+          className="max-w-full rounded-md border border-border px-3 py-2 text-xs text-muted-foreground"
+        >
+          已停止
+        </div>
+      ) : null}
       {error ? (
         <div
           data-testid="agent-error-banner"

@@ -7,7 +7,7 @@ test.beforeEach(() => {
 });
 
 test("@AG-MESSAGE-001 用户编辑历史消息后看到新的当前回复", async () => {
-  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY or OPENAI_API_KEY");
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
   seedCompletedThread({
@@ -48,7 +48,7 @@ test("@AG-MESSAGE-001 用户编辑历史消息后看到新的当前回复", asyn
 });
 
 test("@AG-MESSAGE-002 用户重新生成回复后看到新的当前回复", async () => {
-  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY or OPENAI_API_KEY");
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
   seedCompletedThread({

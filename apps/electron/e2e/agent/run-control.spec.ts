@@ -16,7 +16,7 @@ test.beforeEach(() => {
 });
 
 test("@AG-RUN-001 用户停止正在生成的回复", async () => {
-  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY or OPENAI_API_KEY");
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
   const { app, page } = await launchAgentPage();
@@ -37,7 +37,7 @@ test("@AG-RUN-001 用户停止正在生成的回复", async () => {
 });
 
 test("@AG-RUN-002 用户停止回复后切换回来仍看到停止状态", async () => {
-  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY or OPENAI_API_KEY");
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
   const { app, page } = await launchAgentPage();

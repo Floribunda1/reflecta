@@ -50,7 +50,7 @@ test("@AG-CONV-001 对话 A 正在回复时切换到对话 B 不影响 B", async
 });
 
 test("@AG-CONV-002 对话 A 回复完成后切回 A 可以看到 A 的内容", async () => {
-  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY or OPENAI_API_KEY");
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
   seedCompletedThread({
