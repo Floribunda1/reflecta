@@ -24,15 +24,15 @@ describe("buildPiPromptText", () => {
         {
           type: "file",
           mediaType: "text/plain",
-          filename: "note.txt",
+          filename: "attachment.txt",
           url: `data:text/plain;base64,${Buffer.from("secret file body").toString("base64")}`,
-          providerMetadata: { reflecta: { attachmentId: "att-note", size: 16 } },
+          providerMetadata: { reflecta: { attachmentId: "att-file", size: 16 } },
         },
       ],
     });
 
-    expect(prompt).toContain("note.txt");
-    expect(prompt).toContain("attachmentId=att-note");
+    expect(prompt).toContain("attachment.txt");
+    expect(prompt).toContain("attachmentId=att-file");
     expect(prompt).toContain("size=16 bytes");
     expect(prompt).not.toContain("secret file body");
     expect(prompt).not.toContain("data:text/plain");

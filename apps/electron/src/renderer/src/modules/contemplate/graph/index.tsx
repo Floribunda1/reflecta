@@ -7,7 +7,7 @@ import { useContemplatePageContext } from "../context";
 import { useUnderstandingsQuery } from "./useUnderstandingsQuery";
 import { filterUnderstandingsByStatus } from "./data";
 import { OverviewAtlas } from "./OverviewAtlas";
-import { NoteCanvas } from "./NoteCanvas";
+import { UnderstandingCanvas } from "./UnderstandingCanvas";
 import { useCaptureDomains } from "../../capture/queries";
 
 export function GraphCanvas() {
@@ -110,7 +110,7 @@ function FocusGraph({
     <>
       <div className="contemplate-canvas h-full w-full">
         {understandings && rawUnderstandings && understandings.length > 0 && (
-          <NoteCanvas
+          <UnderstandingCanvas
             understandings={understandings}
             focusUnderstandings={rawUnderstandings}
             domains={domains}

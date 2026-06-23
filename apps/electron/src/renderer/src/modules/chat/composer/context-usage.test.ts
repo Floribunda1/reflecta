@@ -27,13 +27,13 @@ describe("context usage", () => {
 
   test("builds prompt usage input with selected refs", () => {
     const request = buildContextUsageRequest({
-      messages: [userMessage("帮我整理这条笔记")],
+      messages: [userMessage("帮我整理这条理解")],
       draft: "继续分析",
       selectedContexts: [{ type: "understanding", id: "understanding-1", title: "拖延" }],
       modelSelection: { providerId: "openai", modelId: "gpt-4o" },
     });
 
-    expect(request.input).toContain("帮我整理这条笔记");
+    expect(request.input).toContain("帮我整理这条理解");
     expect(request.input).toContain("继续分析");
     expect(request.input).toContain("拖延");
     expect(request.contextWindow).toBe(128_000);

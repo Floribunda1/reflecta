@@ -17,8 +17,8 @@ import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import { cn } from "@renderer/lib/utils";
 import { layoutDagreGraph, type DagreLayoutEdge } from "./dagre-layout";
 
-type NoteNodeData = {
-  kind: "note";
+type UnderstandingNodeData = {
+  kind: "understanding";
   understanding: UnderstandingSummaryDTO;
   title: string;
   excerpt: string;
@@ -37,9 +37,9 @@ type GroupNodeData = {
   height: number;
 };
 
-type NoteCanvasNodeData = NoteNodeData | GroupNodeData;
+type UnderstandingCanvasNodeData = UnderstandingNodeData | GroupNodeData;
 
-type NoteFlowNode = Node<NoteCanvasNodeData, "note" | "domainGroup">;
+type UnderstandingFlowNode = Node<UnderstandingCanvasNodeData, "understanding" | "domainGroup">;
 
 type Link = {
   source: string;
@@ -59,10 +59,11 @@ type LaneBox = {
 };
 
 type LayoutResult = {
-  nodes: NoteFlowNode[];
+  nodes: UnderstandingFlowNode[];
   lanes: LaneBox[];
 };
 
+const NO_DOMAIN_ID = "no-domain";
 const NODE_W = 300;
 const NODE_H = 156;
 const COL_GAP = 150;
@@ -131,7 +132,7 @@ function layoutNodes(
   const domainByUnderstandingId = new Map(
     understandings.map((understanding) => [
       understanding.id,
-      understanding.domainIds[0] ?? "uncategorized",
+      understanding.domainIds[0] ?? NO_DOMAIN_ID,
     ]),
   );
 
@@ -139,15 +140,15 @@ function layoutNodes(
     const understanding = understandingById.get(id);
     if (!understanding) return null;
     const domainId = understanding.domainIds[0];
-    const domainLabel = domainId ? domainBreadcrumb(domainId) : "未归类";
+    const domainLabel = domainId ? domainBreadcrumb(domainId) : "未归入 Domain";
     return {
       id,
-      type: "note",
+      type: "understanding",
       position: { x, y },
       width: NODE_W,
       height: NODE_H,
       data: {
-        kind: "note",
+        kind: "understanding",
         understanding,
         title: titleForUnderstanding(understanding),
         excerpt: excerptForUnderstanding(understanding),
@@ -155,11 +156,11 @@ function layoutNodes(
         external: !focusIds.has(id),
         selected: selectedUnderstandingId === id,
       },
-    } satisfies NoteFlowNode;
+    } satisfies UnderstandingFlowNode;
   };
 
   function domainLabel(domainId: string) {
-    if (domainId === "uncategorized") return "未归类";
+    if (domainId === NO_DOMAIN_ID) return "未归入 Domain";
     return domainById.get(domainId)?.name ?? "未命名 Domain";
   }
 
@@ -177,7 +178,7 @@ function layoutNodes(
 
   const groupedIds = new Map<string, string[]>();
   for (const understanding of understandings) {
-    const domainId = understanding.domainIds[0] ?? "uncategorized";
+    const domainId = understanding.domainIds[0] ?? NO_DOMAIN_ID;
     groupedIds.set(domainId, [...(groupedIds.get(domainId) ?? []), understanding.id]);
   }
 
@@ -204,7 +205,7 @@ function layoutNodes(
         label: domainLabel(domainId),
         breadcrumb: domainBreadcrumb(domainId),
         count: nodes.length,
-        external: nodes.every((node) => node.data.kind === "note" && node.data.external),
+        external: nodes.every((node) => node.data.kind === "understanding" && node.data.external),
         x: 0,
         y: 0,
         width,
@@ -230,7 +231,7 @@ function layoutNodes(
     groupEdges,
     { rankdir: "LR", nodesep: GROUP_GAP_Y, ranksep: GROUP_GAP_X },
   );
-  const nodes: NoteFlowNode[] = [];
+  const nodes: UnderstandingFlowNode[] = [];
   const lanes: LaneBox[] = [];
   for (const group of groups) {
     const offset = groupPositions.get(group.id) ?? { x: 0, y: 0 };
@@ -249,8 +250,8 @@ function layoutNodes(
   return { nodes, lanes };
 }
 
-function addGroupNodes(layout: LayoutResult): NoteFlowNode[] {
-  const groupNodes: NoteFlowNode[] = layout.lanes.map((lane) => {
+function addGroupNodes(layout: LayoutResult): UnderstandingFlowNode[] {
+  const groupNodes: UnderstandingFlowNode[] = layout.lanes.map((lane) => {
     return {
       id: `group:${lane.id}`,
       type: "domainGroup",
@@ -314,7 +315,7 @@ function HiddenHandles() {
   );
 }
 
-function NoteCard({ data }: NodeProps<Node<NoteNodeData, "note">>) {
+function UnderstandingCard({ data }: NodeProps<Node<UnderstandingNodeData, "understanding">>) {
   return (
     <button
       type="button"
@@ -365,21 +366,21 @@ function GroupBox({ data }: NodeProps<Node<GroupNodeData, "domainGroup">>) {
   );
 }
 
-const NODE_TYPES = { note: NoteCard, domainGroup: GroupBox };
+const NODE_TYPES = { understanding: UnderstandingCard, domainGroup: GroupBox };
 
-function miniMapNodeColor(node: NoteFlowNode) {
+function miniMapNodeColor(node: UnderstandingFlowNode) {
   if (node.data.kind === "group") return "transparent";
   if (node.data.selected) return "var(--primary)";
   return node.data.external ? "var(--muted-foreground)" : "var(--primary)";
 }
 
-function miniMapNodeStrokeColor(node: NoteFlowNode) {
+function miniMapNodeStrokeColor(node: UnderstandingFlowNode) {
   if (node.data.kind === "group") return "transparent";
   if (node.data.selected) return "var(--primary)";
   return node.data.external ? "var(--muted-foreground)" : "var(--primary)";
 }
 
-export function NoteCanvas({
+export function UnderstandingCanvas({
   understandings,
   focusUnderstandings,
   domains,
@@ -415,7 +416,7 @@ export function NoteCanvas({
       edges={edges}
       nodeTypes={NODE_TYPES}
       onNodeClick={(_, node) => {
-        if (node.data.kind === "note") onSelectUnderstanding(node.id);
+        if (node.data.kind === "understanding") onSelectUnderstanding(node.id);
       }}
       onPaneClick={() => onSelectUnderstanding(null)}
       fitView

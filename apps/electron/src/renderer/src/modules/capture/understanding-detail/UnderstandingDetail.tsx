@@ -394,7 +394,7 @@ function UnderstandingDetailInner({
             <DomainTreeSelect
               modelValue={understanding.domainIds}
               onUpdateModelValue={(domainIds) => void updateUnderstanding({ domainIds })}
-              placeholder="未归类"
+              placeholder="未归入 Domain"
               fluid={false}
               usePathLabel={false}
               variant="inline"

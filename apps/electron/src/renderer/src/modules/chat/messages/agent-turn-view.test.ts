@@ -80,12 +80,12 @@ describe("buildAgentTurnView", () => {
   });
 
   test("keeps running reasoning content visible", () => {
-    const turn = buildAgentTurnView([reasoning("正在比较已有笔记")], true);
+    const turn = buildAgentTurnView([reasoning("正在比较已有理解")], true);
 
     expect(turn.blocks).toEqual([
       {
         kind: "reasoning",
-        reasoning: { text: "正在比较已有笔记", status: "streaming" },
+        reasoning: { text: "正在比较已有理解", status: "streaming" },
       },
     ]);
   });

@@ -27,7 +27,7 @@ describe("context reference", () => {
 
   test("ignores malformed mention ids", () => {
     expect(parseContextKey("understanding")).toBeNull();
-    expect(parseContextKey("note:1")).toBeNull();
+    expect(parseContextKey("unknown:1")).toBeNull();
     expect(parseContextKey("understanding:")).toBeNull();
     expect(contextRefFromMention(undefined, "Title")).toBeNull();
   });

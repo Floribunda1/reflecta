@@ -82,11 +82,11 @@ function buildAtlas(domains: Domain[], understandings: UnderstandingSummaryDTO[]
     }
   }
 
-  const uncategorized: AtlasNode = {
-    id: "uncategorized",
+  const noDomain: AtlasNode = {
+    id: "no-domain",
     domainId: null,
-    label: "未归类",
-    breadcrumb: "未归类",
+    label: "未归入 Domain",
+    breadcrumb: "未归入 Domain",
     count: 0,
     ownCount: 0,
     children: [],
@@ -96,7 +96,7 @@ function buildAtlas(domains: Domain[], understandings: UnderstandingSummaryDTO[]
     const domainId = understanding.domainIds[0];
     const node = domainId ? nodes.get(domainId) : null;
     if (node) node.ownCount += 1;
-    else uncategorized.ownCount += 1;
+    else noDomain.ownCount += 1;
   }
 
   const rollup = (node: AtlasNode): number => {
@@ -118,9 +118,9 @@ function buildAtlas(domains: Domain[], understandings: UnderstandingSummaryDTO[]
   const result = roots
     .filter((node) => rollup(node) > 0)
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
-  if (uncategorized.ownCount > 0) {
-    uncategorized.count = uncategorized.ownCount;
-    result.push(uncategorized);
+  if (noDomain.ownCount > 0) {
+    noDomain.count = noDomain.ownCount;
+    result.push(noDomain);
   }
   return result;
 }

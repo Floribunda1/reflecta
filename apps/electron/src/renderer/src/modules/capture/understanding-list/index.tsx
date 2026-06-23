@@ -53,8 +53,8 @@ export function UnderstandingList() {
   const hasSearchQuery = searchQuery.trim().length > 0;
   const countLabel =
     hasSearchQuery && understandings.length !== understandingList.totalCount
-      ? `${understandings.length} / ${understandingList.totalCount} 笔记`
-      : `${understandingList.totalCount} 笔记`;
+      ? `${understandings.length} / ${understandingList.totalCount} 条理解`
+      : `${understandingList.totalCount} 条理解`;
 
   useEffect(() => {
     if (!searchOpen) return;
@@ -110,7 +110,7 @@ export function UnderstandingList() {
                     type="button"
                     size="icon-sm"
                     variant="ghost"
-                    aria-label="排序笔记"
+                    aria-label="排序理解"
                     className={cn(
                       understandingListSortBy === "createdAt" && "bg-muted text-foreground",
                     )}

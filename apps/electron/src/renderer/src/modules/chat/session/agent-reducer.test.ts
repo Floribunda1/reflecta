@@ -354,7 +354,7 @@ describe("reduceAgentSession", () => {
           {
             type: "file",
             mediaType: "text/plain",
-            filename: "note.txt",
+            filename: "attachment.txt",
             url: "data:text/plain;base64,aGVsbG8=",
           },
         ],
@@ -365,7 +365,7 @@ describe("reduceAgentSession", () => {
       {
         type: "file",
         mediaType: "text/plain",
-        filename: "note.txt",
+        filename: "attachment.txt",
         url: "data:text/plain;base64,aGVsbG8=",
       },
     ]);
