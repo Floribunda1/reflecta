@@ -11,7 +11,7 @@
 V2 Agent 主链路采用：
 
 - **Vercel AI SDK**：负责 chat runtime、streaming、tool calling、`UIMessage`、tool approval 生命周期。
-- **AI Elements**：作为 AI UI 组件来源，按需引入 / copy 到项目内，保持 shadcn 风格。
+- **AI Elements**：作为 AI UI 组件参考，按需引入 / copy 到项目内，保持 shadcn 风格。
 - **Reflecta domain services**：作为知识库读写边界，Agent 不直接操作数据库。
 
 新 Agent 主链路不使用 `pi-agent`。旧实现可以保留到迁移完成后再删除。
@@ -394,7 +394,7 @@ AI SDK 推荐持久化 `UIMessage`，因为它能完整恢复用户看到的聊�
 | 概念                       | 出现位置                                                     | 用途                                                                                     |
 | -------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
 | Thread / chat / session    | AI SDK examples、Mastra memory、OpenAI Agents SDK、LangGraph | 用户可见的对话边界。                                                                     |
-| Message history            | AI SDK、Vercel Chatbot、Mastra、OpenAI Agents SDK            | 恢复 UI，也作为模型上下文来源。                                                          |
+| Message history            | AI SDK、Vercel Chatbot、Mastra、OpenAI Agents SDK            | 恢复 UI，也作为模型上下文。                                                              |
 | Message parts              | AI SDK、Vercel Chatbot                                       | 存 text、tool call、tool result、自定义 UI data、attachments。                           |
 | Tool invocation / approval | AI SDK tool parts、LangGraph interrupts/checkpoints          | 追踪待确认动作，并在确认后恢复执行。                                                     |
 | Run / stream               | Vercel Chatbot streams、OpenAI / LangGraph runs              | 追踪 streaming、取消、失败、重试、恢复。                                                 |

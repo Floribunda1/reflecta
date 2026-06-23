@@ -8,7 +8,7 @@
 
 ## 1. 页面目标
 
-面向高频使用 Reflecta 做理解深化和笔记关联讨论的桌面端用户，页面要让用户把注意力稳定放在当前对话内容和下一次输入上。Agent 工作过程需要可见但不能抢正文层级；左侧 thread list 是导航层，不应该比当前对话更重。
+面向高频使用 Reflecta 做理解深化和Understanding关联讨论的桌面端用户，页面要让用户把注意力稳定放在当前对话内容和下一次输入上。Agent 工作过程需要可见但不能抢正文层级；左侧 thread list 是导航层，不应该比当前对话更重。
 
 ## 2. Template
 
@@ -124,7 +124,7 @@ div
 
 - 状态规则：
   - `hover-actions` → 复制 / 编辑按钮只在 hover 或 focus-within 出现
-- 约束：User bubble 作为用户输入回显，宽度不超过 `max-w-[80%]`；context badges 是证据线索，不抢 bubble 层级。
+- 约束：User bubble 作为用户输入回显，宽度不超过 `max-w-[80%]`；context badges 是Context线索，不抢 bubble 层级。
 
 #### Detail: ContextBadgeRow
 

@@ -70,12 +70,12 @@ Edge 表示两条 Understanding 之间的 Connection。
 
 Edge 至少包含以下信息：
 
-| 字段          | 说明                               | 展示位置                    |
-| ------------- | ---------------------------------- | --------------------------- |
-| sourceNodeId  | 起点 Understanding                 | 画布                        |
-| targetNodeId  | 终点 Understanding                 | 画布                        |
-| relationLabel | 关系说明，如有                     | 边 hover / 节点详情连接列表 |
-| createdBy     | 关系来源，必须是用户显式创建或确认 | 不一定直接展示              |
+| 字段          | 说明                                  | 展示位置                    |
+| ------------- | ------------------------------------- | --------------------------- |
+| sourceNodeId  | 起点 Understanding                    | 画布                        |
+| targetNodeId  | 终点 Understanding                    | 画布                        |
+| relationLabel | 关系说明，如有                        | 边 hover / 节点详情连接列表 |
+| createdBy     | 关系Context，必须是用户显式创建或确认 | 不一定直接展示              |
 
 Edge 不表示系统猜测、相似度、推荐关系。
 
@@ -161,7 +161,7 @@ Domain 不作为图谱节点，不参与边的主叙事。
 | 有 Context | Understanding 关联至少一个 Context | 普通状态               |
 | 无 Context | Understanding 没有关联 Context     | 节点需要有明确视觉区分 |
 
-无 Context 不表示错误，只表示该 Understanding 缺少形成来源。
+无 Context 不表示错误，只表示该 Understanding 缺少形成Context。
 
 ### 5.2 Connection 表达
 
@@ -361,7 +361,7 @@ Graph V1 不需要为了展示跨 Domain Connection 而额外引入外部节点�
 3. 用户能看到当前 Domain 内部的 cluster、孤岛和桥接关系。
 4. 用户能快速望见与其他 Domain 有呼应的概念，但外部概念只作为 ghost / 边缘提示。
 5. 用户点击一个局部后，局部关系强化，帮助继续游走。
-6. 用户可以从当前 Understanding 回到原笔记继续整理。
+6. 用户可以从当前 Understanding 回到原 Understanding继续整理。
 
 ### 10.3 处理无 Context 节点
 
@@ -440,7 +440,7 @@ Graph V1 不需要为了展示跨 Domain Connection 而额外引入外部节点�
 4. 不使用统计卡片作为 Graph 的主表达。
 5. 不出现掌握度、完成度、质量分等评分表达。
 6. 不把孤立节点表达为错误。
-7. 不把无 Context 节点表达为失败，只表达缺少来源。
+7. 不把无 Context 节点表达为失败，只表达缺少Context。
 8. 不展示 AI 推断但用户未确认的关系。
 9. 不把 Graph 做成关系管理后台。
 10. Graph 的整理动作最终回到原 Understanding。

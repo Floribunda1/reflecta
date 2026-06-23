@@ -27,7 +27,7 @@ Agent 前台不暴露“概念深化”“关系探讨”等模式。
 
 我感觉 @逃避复盘 @不愿止损 @拖延沟通 有点像，帮我一起分析一下。
 
-基于 @这条笔记 和 @这个 Context，追问我几个问题。
+基于 @这条 Understanding 和 @这个 Context，追问我几个问题。
 
 把我们刚刚聊出来的东西，整理成一条候选 Understanding。
 ```
@@ -150,7 +150,7 @@ Read tools 让 Agent 在已经知道对象 ID 后读取内容，类似 `cat` / `
 | Tool                 | 类比                            | 输入                                                                      | 输出                      |
 | -------------------- | ------------------------------- | ------------------------------------------------------------------------- | ------------------------- |
 | `understanding_get`  | `cat understanding`             | `id`、`includeContexts?`、`includeReferences?`、`includeReferencedBys?`。 | UnderstandingDetail。     |
-| `context_list`       | 打开 Understanding 来源列表     | `understandingId`。                                                       | ContextDetail[]。         |
+| `context_list`       | 打开 Understanding Context列表  | `understandingId`。                                                       | ContextDetail[]。         |
 | `context_get`        | `cat context`                   | `id`。                                                                    | ContextDetail。           |
 | `graph_neighborhood` | 追踪引用 / backlinks            | `understandingId`、`depth?`、`includeContexts?`、`limit?`、`offset?`。    | GraphNeighborhoodResult。 |
 | `graph_path`         | 查两个 Understanding 之间的路径 | `from`、`to`。                                                            | GraphPathResult。         |
@@ -239,9 +239,9 @@ Proposal tools 不写入知识库。它们只生成前台可确认的结构化 p
 
 ```txt
 1. understanding_get(id: @反馈延迟)
-2. 如果正文提到来源或用户问“为什么形成”：
+2. 如果正文提到Context或用户问“为什么形成”：
    context_list(understandingId: @反馈延迟)
-3. 如果用户问“和哪些想法有关”：
+3. 如果用户问“和哪些Understanding有关”：
    understanding_get(id: @反馈延迟, includeReferences: true, includeReferencedBys: true)
 4. 如果需要补充用户知识库内的相近概念：
    search_understandings(query: "反馈 行动 拖延 判断", limit: 8)
@@ -302,7 +302,7 @@ Proposal tools 不写入知识库。它们只生成前台可确认的结构化 p
 
 ```txt
 1. understanding_get(id: @反馈延迟)
-2. 如果需要确认来源：
+2. 如果需要确认Context：
    context_list(understandingId: @反馈延迟)
 3. 生成修改版本。
 4. understanding_update_proposal(target: @反馈延迟, before: ..., after: ..., reason: ...)
@@ -314,13 +314,13 @@ Concept Deepening 需要历史脉络、人物、理论、跨领域案例。
 
 P0 可以先不做外部搜索 tool，让模型基于已有知识回答，并在回答中保留不确定性。
 
-后续如果要支持外部来源，再考虑：
+后续如果要支持外部Context，再考虑：
 
-| Tool                      | 用途                                             | 前台展示                                   |
-| ------------------------- | ------------------------------------------------ | ------------------------------------------ |
-| `search_external_sources` | 用户明确要求查来源、历史、人物、理论背景时调用。 | Source cards，展示标题、来源、摘要、链接。 |
+| Tool                      | 用途                                                 | 前台展示                                               |
+| ------------------------- | ---------------------------------------------------- | ------------------------------------------------------ |
+| `search_external_sources` | 用户明确要求查外部材料、历史、人物、理论背景时调用。 | External result cards，展示标题、Context、摘要、链接。 |
 
-外部搜索会引入来源可信度、联网开关、隐私边界和引用格式，先不要为了“看起来完整”提前上。
+外部搜索会引入材料可信度、联网开关、隐私边界和引用格式，先不要为了“看起来完整”提前上。
 
 ## 6. 前台 UI 组件
 
@@ -347,7 +347,7 @@ P0 可以先不做外部搜索 tool，让模型基于已有知识回答，并在
 ```txt
 AI 读取了 3 条 Understanding、2 条 Context
 AI 搜索了 8 条内容
-AI 读取了关联笔记
+AI 读取了关联Understanding
 ```
 
 展开后展示对象列表和简短摘要。
@@ -603,7 +603,7 @@ Candidate 卡片需要随 thread/message 持久化。刷新页面后，pending p
 
 V2 不做外部搜索。
 
-Agent 可以基于模型已有知识提供历史脉络、人物、理论和跨领域案例，但需要保持不确定性。外部搜索涉及来源可信度、隐私、联网开关和引用格式，留到后续版本。
+Agent 可以基于模型已有知识提供历史脉络、人物、理论和跨领域案例，但需要保持不确定性。外部搜索涉及材料可信度、隐私、联网开关和引用格式，留到后续版本。
 
 ### 10.7 右侧 Inspector
 

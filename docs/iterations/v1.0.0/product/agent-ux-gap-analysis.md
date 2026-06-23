@@ -12,7 +12,7 @@ Reflecta 当前差的不是“能不能 chat”，而是用户是否能清楚理
 
 - Agent 正在想、查、读、写哪一步。
 - Agent 调用 tool 的目的和结果。
-- 哪些内容是证据，哪些是 AI 生成的解释。
+- 哪些内容是Context，哪些是 AI 生成的解释。
 - 哪些动作会写入知识库。
 - 用户点按钮后，控制权交给谁。
 
@@ -48,7 +48,7 @@ AI SDK 文档明确支持 tool call streaming，让 tool input 生成过程也�
 对 Reflecta 的含义：
 
 - 用户不应该看到 `search_all`、`understanding_get`、`graph_neighborhood` 这种内部工具名。
-- 用户应该看到“搜索了 12 条内容”“读取了 3 条想法”“查看了附近关联”。
+- 用户应该看到“搜索了 12 条内容”“读取了 3 条Understanding”“查看了附近关联”。
 - JSON 只能是展开后的 debug/detail，不应该是默认信息架构。
 
 ### 2.3 HITL 的核心是控制权
@@ -127,7 +127,7 @@ Reflecta 当前问题：
 
 ### 3.3 Save memory approval 是产品卡片
 
-它的 `Save to memory` 卡片有状态点、状态文案、分类 badge、原因说明、可展开详情、approve/skip 操作。
+它的 `Save to memory` 卡片有状态点、状态文案、Domain badge、原因说明、可展开详情、approve/skip 操作。
 
 参考：
 
@@ -202,12 +202,12 @@ Reflecta 当前问题：
 | `snapshot_project`   | 查看了知识库概览                       |
 | `domain_list`        | 列出了领域目录                         |
 | `domain_inspect`     | 查看了「领域名」下的内容               |
-| `understanding_list` | 列出了 8 条相关想法                    |
+| `understanding_list` | 列出了 8 条相关Understanding           |
 | `understanding_get`  | 读取了「Understanding 标题」           |
-| `context_list`       | 读取了 3 条来源                        |
+| `context_list`       | 读取了 3 条Context                     |
 | `search_all`         | 搜索了 12 条相关内容                   |
 | `graph_neighborhood` | 查看了「Understanding 标题」附近的关联 |
-| `graph_path`         | 查找了两条想法之间的路径               |
+| `graph_path`         | 查找了两条Understanding之间的路径      |
 
 展开后可以看命中对象列表。JSON 放到 dev/debug，不做默认信息。
 
@@ -241,7 +241,7 @@ Reflecta 当前问题：
 
 - 用户可以 `@` Understanding / Context / Domain。
 - 消息下方有 context chips。
-- 但 assistant 回答和 tool 证据之间的关系不够清楚。
+- 但 assistant 回答和 tool Context之间的关系不够清楚。
 
 应该变成：
 
@@ -253,7 +253,7 @@ Reflecta 当前问题：
 建议：
 
 ```text
-基于：拖延与自我保护 · 自我要求过高 · 3 条来源
+基于：拖延与自我保护 · 自我要求过高 · 3 条Context
 ```
 
 ### P0. Stop / error / recovery 状态还粗
@@ -320,7 +320,7 @@ Reflecta 当前问题：
 建议：
 
 - `@` picker 支持上下选择和 Enter。
-- 空 `@` 时优先显示最近/常用对象或分类目录。
+- 空 `@` 时优先显示最近/常用对象或Domain目录。
 - 输入框 placeholder 体现 Reflecta 心智：`询问、比较，或 @ 引用知识库内容...`
 
 ### P1. 缺 dev-only stream/tool inspector
@@ -384,15 +384,15 @@ Reflecta 当前问题：
 
 ## 6. 完成度评估
 
-| 体验面                       | 当前完成度 | 主要缺口                          |
-| ---------------------------- | ---------- | --------------------------------- |
-| 基础 chat stream             | 70%        | 首 token 前状态和 stopped 状态    |
-| Markdown streaming           | 80%        | 已有 Streamdown，缺周边状态       |
-| Tool calling legibility      | 35%        | 暴露工具名和 JSON，缺语义摘要     |
-| Proposal HITL                | 45%        | 缺忽略，拒绝不交回 AI，动作语义弱 |
-| Evidence / source legibility | 30%        | 缺回答后的证据 chips              |
-| Thread management            | 50%        | 缺时间分组和细节状态              |
-| Debuggability                | 35%        | 缺 dev-only inspector             |
+| 体验面                  | 当前完成度 | 主要缺口                          |
+| ----------------------- | ---------- | --------------------------------- |
+| 基础 chat stream        | 70%        | 首 token 前状态和 stopped 状态    |
+| Markdown streaming      | 80%        | 已有 Streamdown，缺周边状态       |
+| Tool calling legibility | 35%        | 暴露工具名和 JSON，缺语义摘要     |
+| Proposal HITL           | 45%        | 缺忽略，拒绝不交回 AI，动作语义弱 |
+| Context legibility      | 30%        | 缺回答后的 Context chips          |
+| Thread management       | 50%        | 缺时间分组和细节状态              |
+| Debuggability           | 35%        | 缺 dev-only inspector             |
 
 总体判断：
 

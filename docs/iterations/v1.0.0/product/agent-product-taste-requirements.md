@@ -151,7 +151,7 @@ AI 正在理解问题
 
 所以我会把它拆成两个层次...
 
-基于：热爱过程 · 风险控制 · 1 条来源
+基于：热爱过程 · 风险控制 · 1 条Context
 ```
 
 而不是：
@@ -180,8 +180,8 @@ Thinking 应该是“过程摘要”，不是 raw chain-of-thought。
 最小内容：
 
 - 当前阶段：`正在理解问题`、`正在查找相关内容`、`正在整理回答`。
-- 已完成步骤：`查看了领域目录`、`搜索了相关内容`、`读取了 3 条笔记`。
-- 可选短原因：`为了比较这些笔记里的共同模式`。
+- 已完成步骤：`查看了领域目录`、`搜索了相关内容`、`读取了 3 条Understanding`。
+- 可选短原因：`为了比较这些 Understanding里的共同模式`。
 
 展示规则：
 
@@ -228,17 +228,17 @@ Thinking 应该是“过程摘要”，不是 raw chain-of-thought。
 
 默认文案必须是用户语义，不是内部 tool 名。
 
-| Tool 类型                 | Running                | Done                     |
-| ------------------------- | ---------------------- | ------------------------ |
-| domain list               | 正在查看领域目录       | 查看了领域目录           |
-| domain inspect            | 正在查看「领域名」     | 查看了「领域名」下的内容 |
-| understanding search/list | 正在搜索相关想法       | 找到 8 条相关想法        |
-| understanding get         | 正在读取「标题」       | 读取了「标题」           |
-| context search/list       | 正在搜索来源           | 找到 3 条来源            |
-| context get               | 正在读取来源           | 读取了 1 条来源          |
-| graph neighborhood        | 正在查看附近关联       | 查看了「标题」附近的关联 |
-| graph path                | 正在查找两条想法的路径 | 查找了两条想法之间的路径 |
-| proposal create           | 正在准备候选项         | 准备了候选项             |
+| Tool 类型                 | Running                         | Done                              |
+| ------------------------- | ------------------------------- | --------------------------------- |
+| domain list               | 正在查看领域目录                | 查看了领域目录                    |
+| domain inspect            | 正在查看「领域名」              | 查看了「领域名」下的内容          |
+| understanding search/list | 正在搜索相关Understanding       | 找到 8 条相关Understanding        |
+| understanding get         | 正在读取「标题」                | 读取了「标题」                    |
+| context search/list       | 正在搜索Context                 | 找到 3 条Context                  |
+| context get               | 正在读取Context                 | 读取了 1 条Context                |
+| graph neighborhood        | 正在查看附近关联                | 查看了「标题」附近的关联          |
+| graph path                | 正在查找两条Understanding的路径 | 查找了两条Understanding之间的路径 |
+| proposal create           | 正在准备候选项                  | 准备了候选项                      |
 
 展开后可以显示：
 
@@ -277,7 +277,7 @@ Evidence 应该回答“这段回答基于哪些真实材料”。
 示例：
 
 ```text
-基于：拖延与自我保护 · 真正的恶是放弃进步 · 1 条来源
+基于：拖延与自我保护 · 真正的恶是放弃进步 · 1 条Context
 ```
 
 ### 3.8 Proposal / Approval
@@ -287,7 +287,7 @@ Proposal 是 assistant turn 里的行动请求，不是普通 tool log。
 规则：
 
 - 出现在提出 proposal 的位置。
-- 标题是用户对象：`候选想法`、`候选关联`、`候选来源`。
+- 标题是用户对象：`候选Understanding`、`候选关联`、`候选Context`。
 - 状态：`待确认 / 已确认 / 已拒绝 / 已忽略 / 写入失败`。
 - 长文本默认折叠。
 - `确认 / 拒绝 / 忽略` 三个动作语义明确。
@@ -392,7 +392,7 @@ message.parts
 
 - 基于实际读取结果生成 evidence chips。
 - 可点击跳转对象。
-- 不伪造来源。
+- 不伪造 Context。
 
 ### P1：Message Actions / Recovery
 
