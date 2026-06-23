@@ -27,6 +27,7 @@ export function getLimitOffset(options?: SearchOptions) {
 }
 
 type SearchRetrievalHit = RetrievalSearchHit & { rank: number; snippet: string };
+type SearchRetrievalMode = { includeDense?: boolean };
 
 export class SearchCore {
   constructor(protected db: ReflectaDb) {}
@@ -34,13 +35,14 @@ export class SearchCore {
   protected async searchRetrievalDocuments(
     query: string,
     options?: SearchOptions,
+    mode: SearchRetrievalMode = {},
   ): Promise<SearchRetrievalHit[]> {
     const { limit, offset } = getLimitOffset(options);
     const index = createRetrievalIndex();
     if (!(await index.isReady()) || (await isRetrievalIndexDirty())) {
       await rebuildRetrievalIndexWithStatus(this.db);
     }
-    const hits = await index.search(query, limit + offset);
+    const hits = await index.search(query, limit + offset, { includeDense: mode.includeDense });
     return hits.slice(offset).map((hit, index) => ({
       ...hit,
       rank: index + offset,
@@ -52,7 +54,7 @@ export class SearchCore {
     query: string,
     options?: SearchOptions,
   ): Promise<Array<{ understandingId: string; snippet: string; rank: number }>> {
-    const hits = await this.searchRetrievalDocuments(query, options);
+    const hits = await this.searchRetrievalDocuments(query, options, { includeDense: false });
     return hits
       .filter((hit) => hit.entityType === "understanding")
       .map((hit) => ({
@@ -75,7 +77,7 @@ export class SearchCore {
       rank: number;
     }>
   > {
-    const hits = await this.searchRetrievalDocuments(query, options);
+    const hits = await this.searchRetrievalDocuments(query, options, { includeDense: false });
     return hits
       .filter((hit) => hit.entityType === "context")
       .map((hit) => ({

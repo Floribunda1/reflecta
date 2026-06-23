@@ -1,5 +1,34 @@
+import fs from "node:fs";
+import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { launchApp } from "../agent/agent-e2e";
+import { readE2eTestEnv } from "../test-env";
+
+function writeLexicalOnlyRetrievalConfig() {
+  const env = readE2eTestEnv();
+  const configPath = path.join(env.appConfigDir, "reflecta-config.json");
+  const existing = fs.existsSync(configPath)
+    ? (JSON.parse(fs.readFileSync(configPath, "utf-8")) as Record<string, unknown>)
+    : {};
+  fs.mkdirSync(env.appConfigDir, { recursive: true });
+  fs.writeFileSync(
+    configPath,
+    JSON.stringify(
+      {
+        ...existing,
+        retrieval: {
+          embedding: {
+            provider: "disabled",
+            modelId: "lexical-only",
+          },
+        },
+      },
+      null,
+      2,
+    ),
+    "utf-8",
+  );
+}
 
 test("@EMBEDDING-SETTINGS-001 用户查看默认本地 embedding 模型并触发下载", async () => {
   const { app, page } = await launchApp({ REFLECTA_STUB_RETRIEVAL_MODEL_DOWNLOAD: "1" });
@@ -25,6 +54,7 @@ test("@EMBEDDING-SETTINGS-001 用户查看默认本地 embedding 模型并触发
 });
 
 test("@EMBEDDING-SETTINGS-002 用户查看并重建 retrieval 索引", async () => {
+  writeLexicalOnlyRetrievalConfig();
   const { app, page } = await launchApp();
 
   try {

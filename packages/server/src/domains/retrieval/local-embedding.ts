@@ -13,8 +13,16 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
 
   constructor(private readonly dimensions = 64) {}
 
-  async embed(texts: string[]): Promise<number[][]> {
-    return texts.map((text) => this.embedOne(text));
+  async embed(
+    texts: string[],
+    options?: { onProgress?: (progress: { completed: number; total: number }) => void },
+  ): Promise<number[][]> {
+    const vectors = texts.map((text, index) => {
+      const vector = this.embedOne(text);
+      options?.onProgress?.({ completed: index + 1, total: texts.length });
+      return vector;
+    });
+    return vectors;
   }
 
   private embedOne(text: string): number[] {

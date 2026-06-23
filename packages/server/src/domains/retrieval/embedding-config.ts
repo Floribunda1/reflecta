@@ -63,7 +63,12 @@ export function isDenseRetrievalEnabled(): boolean {
 export class DisabledEmbeddingProvider implements EmbeddingProvider {
   readonly modelId = LEXICAL_ONLY_EMBEDDING_MODEL;
 
-  async embed(texts: string[]): Promise<number[][]> {
-    return texts.map(() => [0]);
+  async embed(
+    texts: string[],
+    options?: { onProgress?: (progress: { completed: number; total: number }) => void },
+  ): Promise<number[][]> {
+    const vectors = texts.map(() => [0]);
+    options?.onProgress?.({ completed: vectors.length, total: texts.length });
+    return vectors;
   }
 }

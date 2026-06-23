@@ -26,7 +26,10 @@ export type RetrievalSearchHit = RetrievalDocument & {
 
 export type EmbeddingProvider = {
   readonly modelId: string;
-  embed(texts: string[]): Promise<number[][]>;
+  embed(
+    texts: string[],
+    options?: { onProgress?: (progress: { completed: number; total: number }) => void },
+  ): Promise<number[][]>;
 };
 
 export type KnowledgeAnchor =

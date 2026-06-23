@@ -492,7 +492,7 @@ hybrid candidates top 50
 {
   "query": "agent 产出不满意 不是 prompt 是标准问题",
   "embeddingModel": "Qwen/Qwen3-Embedding-0.6B-GGUF:Q8_0",
-  "projectionVersion": 1,
+  "projectionVersion": 2,
   "dense": {
     "searched": true,
     "topK": 30,

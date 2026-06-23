@@ -19,7 +19,10 @@ export class OpenAiCompatibleEmbeddingProvider implements EmbeddingProvider {
     this.endpoint = `${options.baseUrl.replace(/\/+$/, "")}/embeddings`;
   }
 
-  async embed(texts: string[]): Promise<number[][]> {
+  async embed(
+    texts: string[],
+    options?: { onProgress?: (progress: { completed: number; total: number }) => void },
+  ): Promise<number[][]> {
     const response = await fetch(this.endpoint, {
       method: "POST",
       headers: {
@@ -41,6 +44,7 @@ export class OpenAiCompatibleEmbeddingProvider implements EmbeddingProvider {
     if (!vectors || vectors.length !== texts.length) {
       throw new Error("Embedding endpoint returned invalid vectors");
     }
+    options?.onProgress?.({ completed: vectors.length, total: texts.length });
     return vectors;
   }
 }

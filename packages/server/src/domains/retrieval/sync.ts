@@ -15,18 +15,40 @@ import { LlamaCppEmbeddingProvider } from "./llama-cpp-embedding";
 import { OpenAiCompatibleEmbeddingProvider } from "./openai-compatible-embedding";
 import { buildRetrievalDocuments } from "./projection";
 
-export const RETRIEVAL_PROJECTION_VERSION = 1;
+export const RETRIEVAL_PROJECTION_VERSION = 2;
+
+export type RetrievalIndexProgress = {
+  phase: "preparing" | "embedding" | "writing";
+  completed: number;
+  total: number;
+  percent: number;
+};
 
 export type RetrievalIndexStatus = {
   state: "not_ready" | "dirty" | "indexing" | "ready" | "error";
   embeddingModel: string;
   projectionVersion: number;
   tableName: string;
+  progress?: RetrievalIndexProgress;
   error?: string;
 };
 
 let activeRebuild: Promise<void> | null = null;
 let lastRebuildError: string | undefined;
+let activeRebuildProgress: RetrievalIndexProgress | undefined;
+
+function updateActiveRebuildProgress(
+  phase: RetrievalIndexProgress["phase"],
+  completed: number,
+  total: number,
+) {
+  activeRebuildProgress = {
+    phase,
+    completed,
+    total,
+    percent: total <= 0 ? 0 : Math.min(100, Math.round((completed / total) * 100)),
+  };
+}
 
 function safeTableSegment(value: string) {
   return (
@@ -153,7 +175,14 @@ export async function syncRetrievalIndexByUnderstandingId(
 }
 
 export async function rebuildRetrievalIndex(db: ReflectaDb): Promise<void> {
-  await createRetrievalIndex().replaceAll(await buildRetrievalDocumentsFromDb(db));
+  updateActiveRebuildProgress("preparing", 0, 0);
+  const docs = await buildRetrievalDocumentsFromDb(db);
+  updateActiveRebuildProgress("embedding", 0, docs.length);
+  await createRetrievalIndex().replaceAll(docs, {
+    onEmbeddingProgress: ({ completed, total }) =>
+      updateActiveRebuildProgress("embedding", completed, total),
+    onWritingStart: () => updateActiveRebuildProgress("writing", docs.length, docs.length),
+  });
   await clearRetrievalIndexDirty();
 }
 
@@ -169,6 +198,7 @@ export async function rebuildRetrievalIndexWithStatus(db: ReflectaDb): Promise<v
       throw error;
     } finally {
       activeRebuild = null;
+      activeRebuildProgress = undefined;
     }
   })();
   return activeRebuild;
@@ -180,7 +210,7 @@ export async function getRetrievalIndexStatus(): Promise<RetrievalIndexStatus> {
     projectionVersion: RETRIEVAL_PROJECTION_VERSION,
     tableName: getRetrievalTableName(),
   };
-  if (activeRebuild) return { ...base, state: "indexing" };
+  if (activeRebuild) return { ...base, state: "indexing", progress: activeRebuildProgress };
   if (lastRebuildError) return { ...base, state: "error", error: lastRebuildError };
   const index = createRetrievalIndex();
   if (!(await index.isReady())) return { ...base, state: "not_ready" };

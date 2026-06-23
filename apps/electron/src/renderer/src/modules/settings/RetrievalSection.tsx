@@ -31,6 +31,16 @@ function downloadStatusLabel(status: RetrievalEmbeddingModelStatus) {
   return status.downloaded ? "已下载" : "未下载";
 }
 
+function indexProgressLabel(progress: NonNullable<RetrievalIndexStatus["progress"]>) {
+  const phase =
+    progress.phase === "preparing"
+      ? "准备文档"
+      : progress.phase === "embedding"
+        ? "生成 embedding"
+        : "写入索引";
+  return progress.total > 0 ? `${phase} ${progress.completed}/${progress.total}` : phase;
+}
+
 export function RetrievalSection() {
   const [status, setStatus] = useState<RetrievalEmbeddingModelStatus | null>(null);
   const [indexStatus, setIndexStatus] = useState<RetrievalIndexStatus | null>(null);
@@ -224,11 +234,18 @@ export function RetrievalSection() {
                 </Badge>
               </div>
               {indexStatus.state === "indexing" ? (
-                <Progress
-                  data-testid="settings-retrieval-index-progress"
-                  value={null}
-                  className="mt-3"
-                />
+                <>
+                  <Progress
+                    data-testid="settings-retrieval-index-progress"
+                    value={indexStatus.progress?.percent ?? 0}
+                    className="mt-3"
+                  />
+                  {indexStatus.progress ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {indexProgressLabel(indexStatus.progress)}
+                    </p>
+                  ) : null}
+                </>
               ) : null}
               {indexStatus.state === "error" && indexStatus.error ? (
                 <p className="mt-2 text-xs text-destructive">{indexStatus.error}</p>

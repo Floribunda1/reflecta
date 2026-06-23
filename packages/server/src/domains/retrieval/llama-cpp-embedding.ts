@@ -18,11 +18,15 @@ export class LlamaCppEmbeddingProvider implements EmbeddingProvider {
     this.modelId = options.modelId;
   }
 
-  async embed(texts: string[]): Promise<number[][]> {
+  async embed(
+    texts: string[],
+    options?: { onProgress?: (progress: { completed: number; total: number }) => void },
+  ): Promise<number[][]> {
     const context = await this.getContext();
     const vectors: number[][] = [];
     for (const text of texts) {
       vectors.push([...(await context.getEmbeddingFor(text)).vector]);
+      options?.onProgress?.({ completed: vectors.length, total: texts.length });
     }
     return vectors;
   }

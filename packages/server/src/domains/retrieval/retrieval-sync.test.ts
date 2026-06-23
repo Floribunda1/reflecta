@@ -7,6 +7,7 @@ import { createDBInstance } from "../../db";
 import { ContextCliBff } from "../context/bff-cli";
 import { DomainCliBff } from "../domain/bff-cli";
 import { SearchCliBff } from "../search/bff-cli";
+import { SearchCore } from "../search/core";
 import { UnderstandingCliBff } from "../understanding/bff-cli";
 import { configureRetrievalEmbedding } from "./embedding-config";
 import {
@@ -80,6 +81,67 @@ async function startEmbeddingServer() {
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Embedding server failed to start");
   return `http://127.0.0.1:${address.port}/v1`;
+}
+
+async function startCountingEmbeddingServer() {
+  let callCount = 0;
+  const server = createServer((request, response) => {
+    const chunks: Buffer[] = [];
+    request.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    request.on("end", () => {
+      callCount += 1;
+      const body = JSON.parse(Buffer.concat(chunks).toString("utf-8")) as { input: string[] };
+      response.setHeader("Content-Type", "application/json");
+      response.end(
+        JSON.stringify({
+          data: body.input.map(() => ({ embedding: [1, 0] })),
+        }),
+      );
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  servers.push(server);
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Embedding server failed to start");
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}/v1`,
+    getCallCount: () => callCount,
+  };
+}
+
+async function startBlockingEmbeddingServer() {
+  let releaseResponse!: () => void;
+  let resolveRequestSeen!: () => void;
+  const requestSeen = new Promise<void>((resolve) => {
+    resolveRequestSeen = resolve;
+  });
+  const responseReleased = new Promise<void>((resolve) => {
+    releaseResponse = resolve;
+  });
+  const server = createServer((request, response) => {
+    const chunks: Buffer[] = [];
+    request.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    request.on("end", async () => {
+      resolveRequestSeen();
+      await responseReleased;
+      const body = JSON.parse(Buffer.concat(chunks).toString("utf-8")) as { input: string[] };
+      response.setHeader("Content-Type", "application/json");
+      response.end(
+        JSON.stringify({
+          data: body.input.map(() => ({ embedding: [1, 0] })),
+        }),
+      );
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  servers.push(server);
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Embedding server failed to start");
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}/v1`,
+    requestSeen,
+    releaseResponse,
+  };
 }
 
 describe("retrieval index write-path sync", () => {
@@ -189,6 +251,62 @@ describe("retrieval index write-path sync", () => {
     expect(await getRetrievalIndexStatus()).toMatchObject({ state: "ready" });
   });
 
+  test("rebuild status reports indexing progress before the rebuild finishes", async () => {
+    const { db, understandings } = await setupServices();
+    await understandings.createUnderstanding({
+      title: "Progress Status",
+      body: "progressstatusmarker",
+    });
+    const embeddingServer = await startBlockingEmbeddingServer();
+    configureRetrievalEmbedding({
+      provider: "openai-compatible",
+      baseUrl: embeddingServer.baseUrl,
+      modelId: "test-progress",
+    });
+
+    const rebuild = rebuildRetrievalIndexWithStatus(db);
+    await embeddingServer.requestSeen;
+    const status = await getRetrievalIndexStatus();
+    embeddingServer.releaseResponse();
+    await rebuild;
+
+    expect(status).toMatchObject({
+      state: "indexing",
+      progress: expect.objectContaining({
+        phase: "embedding",
+        completed: 0,
+        total: expect.any(Number),
+        percent: expect.any(Number),
+      }),
+    });
+  });
+
+  test("interactive context search stays lexical and does not embed every query", async () => {
+    const embeddingServer = await startCountingEmbeddingServer();
+    configureRetrievalEmbedding({
+      provider: "openai-compatible",
+      baseUrl: embeddingServer.baseUrl,
+      modelId: "test-search-latency",
+    });
+    const { contexts, db, understandings } = await setupServices();
+    const understanding = await understandings.createUnderstanding({
+      title: "Prompt Search",
+      body: "promptsearchparent",
+    });
+    const context = await contexts.createContext({
+      understandingId: understanding.id,
+      medium: "article",
+      title: "Prompt Context",
+      content: "promptsearchmarker lives in this context",
+    });
+    const callsAfterIndexing = embeddingServer.getCallCount();
+
+    const rows = await new SearchCore(db).searchContextRows("promptsearchmarker", { limit: 5 });
+
+    expect(rows.map((row) => row.contextId)).toContain(context.id);
+    expect(embeddingServer.getCallCount()).toBe(callsAfterIndexing);
+  });
+
   test("retrieveKnowledge uses configured OpenAI-compatible embeddings for dense recall", async () => {
     configureRetrievalEmbedding({
       provider: "openai-compatible",
@@ -238,7 +356,7 @@ describe("retrieval index write-path sync", () => {
     expect(result.trace.relation.candidates).toBe(1);
     expect(result.trace).toMatchObject({
       embeddingModel: "lexical-only",
-      projectionVersion: 1,
+      projectionVersion: 2,
       dense: { searched: false },
       fusion: { method: "rrf" },
     });
