@@ -38,25 +38,7 @@ if (isNewDb) {
 
 const db = new Database(dbPath);
 
-function ensureFtsTables() {
-  db.exec(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS fts_understandings USING fts5(
-      understanding_id UNINDEXED,
-      title,
-      body
-    );
-
-    CREATE VIRTUAL TABLE IF NOT EXISTS fts_contexts USING fts5(
-      context_id UNINDEXED,
-      understanding_id UNINDEXED,
-      title,
-      content
-    );
-  `);
-}
-
 if (!isNewDb) {
-  ensureFtsTables();
   console.log("Database exists. Truncating tables before seeding...");
   try {
     db.exec(`
@@ -65,8 +47,6 @@ if (!isNewDb) {
       DELETE FROM contexts;
       DELETE FROM understandings;
       DELETE FROM domains;
-      DELETE FROM fts_understandings;
-      DELETE FROM fts_contexts;
     `);
   } catch {
     // Tables may not exist yet
@@ -1234,35 +1214,6 @@ for (let i = 0; i < 20; i++) {
 }
 
 console.log(`Inserted ${ctxCount} contexts`);
-
-// ---------------------------------------------------------------------------
-// FTS5 population
-// ---------------------------------------------------------------------------
-
-const insertFtsUnderstanding = db.prepare(
-  "INSERT INTO fts_understandings (understanding_id, title, body) VALUES (?, ?, ?)",
-);
-for (const t of understandingSeeds) {
-  if (t.deleted) continue;
-  insertFtsUnderstanding.run(t.id, t.title ?? "", t.body);
-}
-console.log("Populated fts_understandings");
-
-const insertFtsContext = db.prepare(
-  "INSERT INTO fts_contexts (context_id, understanding_id, title, content) VALUES (?, ?, ?, ?)",
-);
-const activeContextRows = db
-  .query("SELECT id, understanding_id, title, content FROM contexts WHERE deleted_at IS NULL")
-  .all() as Array<{
-  id: string;
-  understanding_id: string;
-  title: string | null;
-  content: string;
-}>;
-for (const c of activeContextRows) {
-  insertFtsContext.run(c.id, c.understanding_id, c.title, c.content);
-}
-console.log("Populated fts_contexts");
 
 // ---------------------------------------------------------------------------
 // Summary

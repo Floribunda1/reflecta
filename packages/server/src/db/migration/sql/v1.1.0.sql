@@ -30,29 +30,5 @@ CREATE INDEX IF NOT EXISTS idx_contexts_medium ON contexts(medium);
 CREATE INDEX IF NOT EXISTS idx_conn_target ON understanding_connections(target_id);
 
 DROP TABLE IF EXISTS fts_thoughts;
+DROP TABLE IF EXISTS fts_understandings;
 DROP TABLE IF EXISTS fts_contexts;
-
-CREATE VIRTUAL TABLE IF NOT EXISTS fts_understandings USING fts5(
-  understanding_id UNINDEXED,
-  title,
-  body
-);
-
-CREATE VIRTUAL TABLE IF NOT EXISTS fts_contexts USING fts5(
-  context_id UNINDEXED,
-  understanding_id UNINDEXED,
-  title,
-  content
-);
-
-INSERT INTO fts_understandings (understanding_id, title, body)
-SELECT id, coalesce(title, ''), body
-FROM understandings
-WHERE deleted_at IS NULL
-  AND id NOT IN (SELECT understanding_id FROM fts_understandings);
-
-INSERT INTO fts_contexts (context_id, understanding_id, title, content)
-SELECT id, understanding_id, title, content
-FROM contexts
-WHERE deleted_at IS NULL
-  AND id NOT IN (SELECT context_id FROM fts_contexts);

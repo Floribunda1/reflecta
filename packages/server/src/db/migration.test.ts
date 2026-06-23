@@ -68,6 +68,14 @@ describe("versioned migrations", () => {
     expect(hasTable(db, "agent_runs")).toBe(false);
   });
 
+  test("deletes SQLite FTS tables in v1.1.0", async () => {
+    const db = await createTestDb("1.1.0");
+
+    expect(hasTable(db, "fts_thoughts")).toBe(false);
+    expect(hasTable(db, "fts_understandings")).toBe(false);
+    expect(hasTable(db, "fts_contexts")).toBe(false);
+  });
+
   test("migrates knowledge tables to the unified product language in v1.1.0", async () => {
     const db = await createTestDb("1.0.0");
 

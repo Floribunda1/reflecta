@@ -25,16 +25,6 @@ function withDb(fn: (db: Database) => void): void {
   }
 }
 
-function dropFtsTables(): void {
-  if (!fs.existsSync(dbPath)) return;
-  withDb((db) => {
-    db.exec(`
-      DROP TABLE IF EXISTS fts_understandings;
-      DROP TABLE IF EXISTS fts_contexts;
-    `);
-  });
-}
-
 function dropExplicitIndexes(): void {
   if (!fs.existsSync(dbPath)) return;
   withDb((db) => {
@@ -53,38 +43,6 @@ async function migrate(): Promise<void> {
   ensureDir();
   const db = await createDBInstance(dbPath, { runMigrations: true });
   db.$client.close();
-}
-
-function rebuildFtsTables(): void {
-  withDb((db) => {
-    db.exec(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS fts_understandings USING fts5(
-      understanding_id UNINDEXED,
-      title,
-      body
-    );
-
-    CREATE VIRTUAL TABLE IF NOT EXISTS fts_contexts USING fts5(
-      context_id UNINDEXED,
-      understanding_id UNINDEXED,
-      title,
-      content
-    );
-
-    DELETE FROM fts_understandings;
-    DELETE FROM fts_contexts;
-
-    INSERT INTO fts_understandings (understanding_id, title, body)
-    SELECT id, coalesce(title, ''), body
-    FROM understandings
-    WHERE deleted_at IS NULL;
-
-    INSERT INTO fts_contexts (context_id, understanding_id, title, content)
-    SELECT id, understanding_id, title, content
-    FROM contexts
-    WHERE deleted_at IS NULL;
-  `);
-  });
 }
 
 function run(args: string[]): number {
@@ -116,15 +74,12 @@ if (command === "migrate") {
 if (command === "push") {
   ensureDir();
   await migrate();
-  dropFtsTables();
   dropExplicitIndexes();
   const status = run(["x", "drizzle-kit", "push", "--config", "drizzle.config.ts"]);
-  if (fs.existsSync(dbPath)) rebuildFtsTables();
   process.exit(status);
 }
 
 if (command === "seed") {
-  if (fs.existsSync(dbPath)) rebuildFtsTables();
   process.exit(run(["run", path.join(import.meta.dirname, "seed-test-data.ts"), dbPath]));
 }
 

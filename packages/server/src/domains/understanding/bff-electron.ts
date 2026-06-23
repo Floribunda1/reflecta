@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, sql, count } from "drizzle-orm";
+import { and, eq, inArray, isNull, count } from "drizzle-orm";
 import {
   contexts,
   understandingDomains,
@@ -86,12 +86,10 @@ export class UnderstandingElectronBff extends UnderstandingCore {
     });
 
     if (filter?.searchQuery) {
-      const escaped = `"${filter.searchQuery.replace(/"/g, '""')}"*`;
-      const ftsRows = await this.db.all<{ understanding_id: string }>(
-        sql`SELECT understanding_id FROM fts_understandings WHERE fts_understandings MATCH ${escaped} ORDER BY rank`,
+      const query = filter.searchQuery.toLocaleLowerCase();
+      understandingRows = understandingRows.filter((t) =>
+        `${t.title ?? ""}\n${t.body}`.toLocaleLowerCase().includes(query),
       );
-      const matchingIds = new Set(ftsRows.map((r) => r.understanding_id));
-      understandingRows = understandingRows.filter((t) => matchingIds.has(t.id));
     }
 
     return this.assembleUnderstandingSummaryDTOs(understandingRows);

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, isNull, or, sql, count } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, or, count } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import {
   domains,
@@ -143,10 +143,6 @@ export class UnderstandingCore {
           )
           .run();
       }
-
-      tx.run(
-        sql`INSERT INTO fts_understandings (understanding_id, title, body) VALUES (${id}, ${input.title ?? ""}, ${body})`,
-      );
     });
 
     await this.syncWikiLinkConnections(id, body);
@@ -177,14 +173,6 @@ export class UnderstandingCore {
         .all();
       if (rows.length === 0) {
         throw new Error(`Understanding not found: ${id}`);
-      }
-
-      if (input.body !== undefined || input.title !== undefined) {
-        const row = rows[0];
-        tx.run(sql`DELETE FROM fts_understandings WHERE understanding_id = ${id}`);
-        tx.run(
-          sql`INSERT INTO fts_understandings (understanding_id, title, body) VALUES (${id}, ${row.title ?? ""}, ${row.body})`,
-        );
       }
 
       if (input.domainIds !== undefined) {
@@ -222,8 +210,6 @@ export class UnderstandingCore {
       if (rows.length === 0) {
         throw new Error(`Understanding not found: ${id}`);
       }
-      tx.run(sql`DELETE FROM fts_understandings WHERE understanding_id = ${id}`);
-      tx.run(sql`DELETE FROM fts_contexts WHERE understanding_id = ${id}`);
     });
   }
 
@@ -236,17 +222,11 @@ export class UnderstandingCore {
         .returning()
         .all();
       if (rows.length === 0) return;
-      const row = rows[0];
-      tx.run(
-        sql`INSERT OR IGNORE INTO fts_understandings (understanding_id, title, body) VALUES (${row.id}, ${row.title ?? ""}, ${row.body})`,
-      );
     });
   }
 
   async permanentlyDeleteUnderstanding(id: string): Promise<void> {
     await this.db.transaction((tx) => {
-      tx.run(sql`DELETE FROM fts_understandings WHERE understanding_id = ${id}`);
-      tx.run(sql`DELETE FROM fts_contexts WHERE understanding_id = ${id}`);
       tx.delete(understandings).where(eq(understandings.id, id)).run();
     });
   }

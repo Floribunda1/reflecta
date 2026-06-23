@@ -87,9 +87,6 @@ export class DomainCore {
           .all();
         const understandingIds = rows.map((r) => r.understandingId);
         if (understandingIds.length > 0) {
-          const idList = sql.join(understandingIds.map((tid) => sql`${tid}`));
-          tx.run(sql`DELETE FROM fts_understandings WHERE understanding_id IN (${idList})`);
-          tx.run(sql`DELETE FROM fts_contexts WHERE understanding_id IN (${idList})`);
           tx.delete(understandings).where(inArray(understandings.id, understandingIds)).run();
         }
       }

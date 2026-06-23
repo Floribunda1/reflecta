@@ -41,13 +41,7 @@ export class ContextCore {
       deletedAt: null,
     };
 
-    await this.db.transaction((tx) => {
-      tx.insert(contexts).values(row).run();
-      tx.run(sql`
-        INSERT INTO fts_contexts (context_id, understanding_id, title, content)
-        VALUES (${id}, ${input.understandingId}, ${input.title ?? null}, ${input.content})
-      `);
-    });
+    await this.db.insert(contexts).values(row).run();
 
     return { ...row, createdAt, deletedAt: null } as ContextDTO;
   }
@@ -66,12 +60,6 @@ export class ContextCore {
         throw new Error(`Context not found: ${id}`);
       }
       updated = rows[0] as ContextDTO;
-
-      tx.run(sql`DELETE FROM fts_contexts WHERE context_id = ${id}`);
-      tx.run(sql`
-        INSERT INTO fts_contexts (context_id, understanding_id, title, content)
-        VALUES (${updated.id}, ${updated.understandingId}, ${updated.title}, ${updated.content})
-      `);
     });
 
     return updated!;
@@ -88,7 +76,6 @@ export class ContextCore {
       if (rows.length === 0) {
         throw new Error(`Context not found: ${id}`);
       }
-      tx.run(sql`DELETE FROM fts_contexts WHERE context_id = ${id}`);
     });
   }
 
@@ -101,18 +88,11 @@ export class ContextCore {
         .returning()
         .all();
       if (rows.length === 0) return;
-      const ctx = rows[0];
-      tx.run(
-        sql`INSERT INTO fts_contexts (context_id, understanding_id, title, content) VALUES (${ctx.id}, ${ctx.understandingId}, ${ctx.title}, ${ctx.content})`,
-      );
     });
   }
 
   async permanentlyDeleteContext(id: string): Promise<void> {
-    await this.db.transaction((tx) => {
-      tx.delete(contexts).where(eq(contexts.id, id)).run();
-      tx.run(sql`DELETE FROM fts_contexts WHERE context_id = ${id}`);
-    });
+    await this.db.delete(contexts).where(eq(contexts.id, id)).run();
   }
 
   private async assertUnderstandingExists(understandingId: string): Promise<void> {
