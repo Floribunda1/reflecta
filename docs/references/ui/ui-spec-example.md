@@ -135,7 +135,7 @@ aside
 section
   IndexHeader
     current-domain title / path
-    note count meta
+    understanding count meta
     Button(icon: Search)
     Button(icon: GitBranch, state: include descendants)
     Button(icon: Plus)
@@ -152,7 +152,7 @@ section
   - `search-empty` → 搜索无结果时展示轻量 Empty：「没有找到相关理解」，保留搜索词
   - `selected-row` → 有理解时按最近更新排序；点击索引行后 UnderstandingDocument 展示该理解
 - 展示规则：
-  - note count meta → 默认展示当前领域计数「N 笔记」；有搜索词且搜索结果少于领域总数时展示「M / N 笔记」
+  - understanding count meta → 默认展示当前领域计数「N Understanding」；有搜索词且搜索结果少于领域总数时展示「M / N Understanding」
 - 约束：索引只承载扫描线索，不展示完整正文、完整上下文或关系管理表单；IndexHeader 不展示“当前领域”这类解释性 label，只展示领域名或路径；IndexHeader 的 Search / include descendants / 新建入口都使用弱 icon-only Button；搜索 Input 默认不占位，只有 search-open 时出现；EmptyIndexState 使用 shadcn `Empty` 默认样式，保留 `EmptyMedia(icon) + EmptyTitle`，省略 `EmptyDescription` 和 `EmptyContent`
 - 复用 Detail：`HeaderRow`
 
@@ -346,8 +346,8 @@ div
 
 #### Typography
 
-- 统一规则：HeaderRow / SectionHeader 标题使用 `text-sm font-medium`；UnderstandingIndex note count meta、更新时间、上下文字数、索引行 icon meta 和空态说明使用 `text-xs text-muted-foreground`；UnderstandingDocument 标题使用 `text-2xl font-semibold`；UnderstandingRow 未选中标题使用 `text-foreground/70`，未选中正文使用 `text-muted-foreground/70`，selected 恢复 `text-foreground` / `text-muted-foreground`；危险操作文案才使用 `text-destructive`；正文摘要使用 `prose prose-sm`。
-- 禁止：不把弱 meta 样式用于危险操作；不把危险色用于无上下文、无关系、未归类或未解析双链提示；不在 UnderstandingRow meta 中写重复解释性 chip。
+- 统一规则：HeaderRow / SectionHeader 标题使用 `text-sm font-medium`；UnderstandingIndex understanding count meta、更新时间、上下文字数、索引行 icon meta 和空态说明使用 `text-xs text-muted-foreground`；UnderstandingDocument 标题使用 `text-2xl font-semibold`；UnderstandingRow 未选中标题使用 `text-foreground/70`，未选中正文使用 `text-muted-foreground/70`，selected 恢复 `text-foreground` / `text-muted-foreground`；危险操作文案才使用 `text-destructive`；正文摘要使用 `prose prose-sm`。
+- 禁止：不把弱 meta 样式用于危险操作；不把危险色用于无上下文、无关系、未归入 Domain或未解析双链提示；不在 UnderstandingRow meta 中写重复解释性 chip。
 
 #### Spacing Rhythm
 
@@ -403,7 +403,7 @@ div
 - ❌ **不做独立创建页或创建向导** → 新建理解必须立即进入当前工作台的 Document，符合 local-first 和高频沉淀路径。
 - ❌ **不把上下文做成上下文库或 reader 页面** → 上下文只解释当前理解从哪里长出来，点击单条上下文只打开单条 ContextDetailSheet。
 - ❌ **不做关系管理后台** → 双链关系只来自正文，关系区只展示和导航，删除关系必须回到正文删除对应双链。
-- ❌ **不把无上下文、无关系、未归类做成异常状态** → 这些都是个人理解自然生长过程中的正常边界。
+- ❌ **不把无上下文、无关系、未归入 Domain做成异常状态** → 这些都是个人理解自然生长过程中的正常边界。
 - ❌ **不把右侧 WorkspaceStage 做成悬浮卡片** → 右侧是连续工作区，只使用 `border-l` 和统一 surface 分层，不使用圆角、阴影或加重背景。
 - ❌ **不在 WorkspaceStage 内用背景色切割索引和文档** → UnderstandingIndex 和 UnderstandingDocument 都属于同一 workspace，结构分隔只使用 `border-r`。
 - ❌ **不使用脏感大面积底色** → 页面底层使用透明窗口 + `bg-background/45 backdrop-blur-2xl`，避免 `bg-muted` 把工作台变成灰蒙蒙的底板。

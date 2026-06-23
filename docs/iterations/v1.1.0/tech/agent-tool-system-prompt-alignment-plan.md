@@ -364,7 +364,7 @@ TDD：
   - parent Understanding
   - matched Context evidence
   - explicit related Understandings
-  - boundary notes
+  - boundary markers
   - retrieval trace
 - System prompt 指导 Agent 优先使用 `find_understandings`，只有需要精读时再 `read_understanding` / `read_context`。
 
@@ -372,8 +372,8 @@ TDD：
 
 1. RED：seed Understanding + Context，调用 `find_understandings("命中 Context 的词")`，期望返回父 Understanding 和命中的 Context evidence。
 2. GREEN：接入 `KnowledgeRetriever`。
-3. RED：seed 只有 Understanding、没有 Context 的记录，期望 candidate 带 boundary note。
-4. GREEN：补 boundary note。
+3. RED：seed 只有 Understanding、没有 Context 的记录，期望 candidate 带 boundary marker。
+4. GREEN：补 boundary marker。
 5. E2E：真实 AI 下让用户查询一个已 seed 的主题，断言出现 tool activity，最终回复完成，并且 UI 有可读的 Context / 候选展示。
 
 退出条件：

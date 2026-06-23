@@ -14,8 +14,8 @@
 ## 1. 页面目标
 
 用户在桌面端高频回看自己的 Understanding 如何通过 Connection 形成结构，并从图谱进入原 Understanding 继续整理。
-页面第一任务是看图、筛范围、点节点、打开原笔记，不承担统计、评分或复杂关系管理。
-整体体验必须像熟悉的笔记图谱工作区：画布安静、控制轻量、节点状态清楚、详情持续可见。
+页面第一任务是看图、筛范围、点节点、打开原 Understanding，不承担统计、评分或复杂关系管理。
+整体体验必须像熟悉的Understanding 图谱工作区：画布安静、控制轻量、节点状态清楚、详情持续可见。
 
 页面还需要承载 Domain-scoped wander：用户先锁定一个领域，再通过视觉结构自己发现哪些 Understanding 值得回看。产品不做“值得回看”的自动推荐，只提供清楚的空间组织。
 
@@ -77,7 +77,7 @@ main
   - `dense graph` → label 允许裁剪，但节点圆点不能缩小到低于 28px；默认边保持可读，不能弱到需要依赖节点状态判断连接。
 - 布局规则：
   - 先根据可见 Connection 计算 connected component；有连接的节点按 component 成组。
-  - 无连接节点按首个 Domain 成组；无 Domain 的节点进入 uncategorized 组。
+  - 无连接节点按首个 Domain 成组；无 Domain 的节点进入 no-domain 组。
   - 组之间使用稳定的 spiral / golden-angle seeding，不能从均匀圆环开始。
   - 组内 connection count 只影响布局位置：连接多的节点更靠近局部中心；不改变节点大小、颜色或业务状态。
   - 节点较多时，overview 只保留连接节点、少量代表节点和小组节点 label；其余节点通过 hover preview 读取内容。
@@ -406,7 +406,7 @@ section
 - ❌ **不使用 Modal 展示节点详情** → Modal 会切断用户对当前节点在图中位置的理解。
 - ❌ **不把无 Context 表达为错误** → 它是事实边界和下一步整理入口，不是失败。
 - ❌ **不在 Graph 内编辑 Connection** → V1 的整理动作回到原 Understanding，Graph 不变成关系管理后台。
-- ❌ **V1 不做搜索入口** → 当前阶段先验证看图、筛范围、点节点、打开原笔记这条主流程。
+- ❌ **V1 不做搜索入口** → 当前阶段先验证看图、筛范围、点节点、打开原 Understanding这条主流程。
 - ❌ **不使用大面积品牌渐变或装饰背景** → 画布需要服务节点和边的可读性，不能让背景成为视觉主体。
 - ❌ **不重写 shadcn 基础组件状态** → 通用 hover、active、focus-visible、disabled 交给 shadcn design system。
 - ❌ **不使用节点大小表达重要性或连接数** → V1 不替用户判断权重，节点状态只表达事实。

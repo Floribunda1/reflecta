@@ -15,7 +15,7 @@
 ## 1.0.1 - 2026-06-22
 
 - Fixed Electron dev/prod GUI instances so they can run side by side.
-- Improved graph layout for unconnected notes by spreading them across the canvas.
+- Improved graph layout for unconnected Understandings by spreading them across the canvas.
 - Widened the graph domain filter so selected domains have enough room.
 
 ## 1.0.0 - 2026-06-21

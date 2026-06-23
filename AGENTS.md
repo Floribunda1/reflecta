@@ -1,3 +1,4 @@
 - 每次完成长任务或者取得阶段性成果后，必须要及时 commit，并且 commit 需要 follow `Angular Commit Convention`
 - 在进行前端代码编写之前一定要看 [前端规范.md](docs/references/technical/frontend-guide.md)
 - 在编写单元测试用例前必须看 [单元测试编写规范.md](docs/references/technical/architecture/unit-test-principles.md)，在编写 test-case 前参考 [测试用例规范.md](docs/references/technical/architecture/test-case-principles.md)
+- 在讨论产品设计或阐述产品理念之前必须要阅读 [value-proposition.md](docs/references/product/value-proposition.md)

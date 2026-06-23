@@ -320,7 +320,7 @@ AI 查看了 1 个关联图谱
 
 - `@反馈延迟` 能选择 Understanding。
 - `@交易心理` 能选择 Domain。
-- `@某段来源` 能选择 Context。
+- `@某段 Context` 能选择 Context。
 - 消息 metadata 只有轻量 ref。
 
 ### Phase 5: Thread And Chat UX Finish
