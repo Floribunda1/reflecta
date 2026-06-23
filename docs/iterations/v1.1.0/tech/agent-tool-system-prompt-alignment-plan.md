@@ -169,7 +169,7 @@ type ContextSearchHit = {
 };
 ```
 
-### 3.4 `understanding_create` 允许 Context-less AI proposal
+### 3.4 `understanding_create` 没有表达候选来源
 
 当前裸 create 工具参数是：
 
@@ -181,7 +181,7 @@ type ContextSearchHit = {
 }
 ```
 
-这个 shape 很容易让 Agent 做出一条漂亮但悬空的 Understanding。
+这个 shape 很容易让 Agent 做出一条漂亮但来源不清的 Understanding。
 
 审批只能保证不会直接写入，不能保证这个候选项符合 Reflecta 的产品哲学。
 
@@ -189,10 +189,8 @@ type ContextSearchHit = {
 
 ```txt
 这是一个用户理解候选。
-它有没有 Context？
-Context 的 medium、title、content 是什么？
 它是用户已经说出来的理解，还是 AI 帮用户整理出来的候选表达？
-如果没有 Context，它应该被标记为缺少上下文，而不是伪装成成熟理解。
+如果用户同时给了上下文，Context 应该用独立工具补到已创建的 Understanding 上。
 ```
 
 ## 4. 目标形态
@@ -262,12 +260,6 @@ type PaginationInput = {
 };
 
 type ContextMedium = "experience" | "video" | "book" | "article" | "opinion" | "ai" | "other";
-
-type InitialContextInput = {
-  medium: ContextMedium;
-  title?: string;
-  content: string;
-};
 
 type UnderstandingPatch = {
   title?: string | null;
@@ -460,7 +452,6 @@ type ProposeUnderstandingCreateInput = {
   title?: string;
   body: string;
   domainIds?: Id[];
-  initialContext?: InitialContextInput;
   basis: "user_stated" | "ai_candidate";
   reason?: string;
 };
@@ -470,9 +461,8 @@ type ProposeUnderstandingCreateInput = {
 
 - `basis: "user_stated"` 表示用户已经表达了这条理解，Agent 只做整理。
 - `basis: "ai_candidate"` 表示 AI 在提出候选表达，必须在 UI 中明确等待用户确认。
-- 有具体经历、材料、实践或 AI 对话时，优先带 `initialContext`。
-- 没有 `initialContext` 时不能伪造 Context；UI 应显示这条候选理解缺少 Context。
-- approval 后，`initialContext` 和 Understanding 必须在同一事务里创建。
+- `propose_understanding_create` 不携带 Context。Understanding 可以先独立存在。
+- 如果用户同时给了具体经历、材料、实践或 AI 对话，先提交 Understanding 候选；approval 后再用新 Understanding id 调用 `propose_context_create`。
 
 ```ts
 type ProposeUnderstandingUpdateInput = {
@@ -518,7 +508,7 @@ type ProposeContextDeleteInput = {
 规则：
 
 - `propose_context_create` 只能给已有 Understanding 补 Context。
-- 新 Understanding 的初始 Context 用 `propose_understanding_create.initialContext`。
+- 如果 Context 属于刚创建的 Understanding，先等 `propose_understanding_create` approval 产生 Understanding id，再调用 `propose_context_create`。
 - Context 不是附件库；`content` 必须是围绕该 Understanding 的具象上下文。
 
 ### 4.6 当前工具到目标工具的迁移表
@@ -540,7 +530,7 @@ type ProposeContextDeleteInput = {
 | `domain_create`         | `propose_domain_create`        | 名字表达 pending proposal              |
 | `domain_update`         | `propose_domain_update`        | 参数收敛到 `after`                     |
 | `domain_delete`         | `propose_domain_delete`        | 名字表达 pending proposal              |
-| `understanding_create`  | `propose_understanding_create` | 增加 `initialContext` 和 `basis`       |
+| `understanding_create`  | `propose_understanding_create` | 增加 `basis`                           |
 | `understanding_update`  | `propose_understanding_update` | 参数收敛到 `after`                     |
 | `understanding_delete`  | `propose_understanding_delete` | 名字表达 pending proposal              |
 | `context_create`        | `propose_context_create`       | 名字表达 pending proposal              |
@@ -654,9 +644,9 @@ TDD：
 用户可见变化：
 
 - 所有写入卡片都明确是候选项，确认前不写入。
-- 用户让 Agent 记录一条理解时，proposal card 会显示它是否带 initial Context。
-- 带 initial Context 的理解确认后，会同时创建 Understanding 和 Context。
-- 没有 Context 的理解会明确显示“缺少 Context”。
+- 用户让 Agent 记录一条理解时，proposal card 只展示 Understanding 候选。
+- 用户同时给了 Context 时，Agent 在 Understanding 确认后再提交 Context 候选。
+- 没有 Context 的 Understanding 可以正常存在；Agent 只在回答边界时说明它尚未被 Context 追溯。
 
 改动：
 
@@ -671,7 +661,7 @@ TDD：
   - `propose_context_update`
   - `propose_context_delete`
 - 旧 `domain_*` / `understanding_*` / `context_*` 第一阶段可作为 alias 保留。
-- `propose_understanding_create` 增加 `initialContext` 和 `basis`。
+- `propose_understanding_create` 增加 `basis`。
 - `propose_*_update` 参数收敛为 `after` patch。
 - approval pending 文案从 “knowledge base has not been changed” 改成“候选项尚未写入”。
 - 不新增 connection/link 写工具。
@@ -680,19 +670,21 @@ TDD：
 
 1. RED：tool registry contract test，断言目标 write proposal tools 全部注册。
 2. GREEN：新增目标 tool 名并复用现有 approval pipeline。
-3. RED：调用 `propose_understanding_create`，pending event payload 可包含 `initialContext` 和 `basis`。
+3. RED：调用 `propose_understanding_create`，pending event payload 包含 `basis`，且不包含 Context 字段。
 4. GREEN：补 pending payload。
-5. RED：approve 带 `initialContext` 的 proposal 后，DB 里同时出现 Understanding 和 Context。
-6. GREEN：实现同事务写入。
-7. RED：调用 `propose_understanding_update` 修改 body 插入双链，approve 后 link neighborhood 可读到关系。
-8. GREEN：复用正文双链解析。
-9. E2E：真实 AI 下输入“把这段来自某次 AI 对话的理解记录下来...”，断言出现 pending proposal；点击确认后，刷新仍能看到新 Understanding 和 Context。
+5. RED：approve `propose_understanding_create` 后，DB 里只出现 Understanding。
+6. GREEN：实现候选理解写入。
+7. RED：approve `propose_context_create` 后，DB 里 Context 绑定到已有 Understanding。
+8. GREEN：复用现有 Context 写入。
+9. RED：调用 `propose_understanding_update` 修改 body 插入双链，approve 后 link neighborhood 可读到关系。
+10. GREEN：复用正文双链解析。
+11. E2E：真实 AI 下输入“把这段来自某次 AI 对话的理解记录下来...”，断言先出现 Understanding proposal；确认后再出现 Context proposal；两次确认后刷新仍能看到新 Understanding 和 Context。
 
 退出条件：
 
 - write tool 名称和 4.5 参数一致。
 - 所有写入仍然走 approval。
-- 新写入路径不需要 Agent 连续调用 create Understanding + create Context 来表达初始上下文。
+- 记录 Understanding + Context 通过两个 proposal tool 组合完成，不把 Context 塞进 Understanding create。
 - 修改双链关系只能通过 Understanding body update。
 
 ### Phase 5：收敛 tool display 和 prompt 默认路线
@@ -718,7 +710,7 @@ TDD：
   - 回看领域：`list_domains` -> `inspect_domain`。
   - 查看关系：`read_understanding` -> `read_link_neighborhood`。
   - 新增双链：`search_understandings` -> `read_understanding` -> `propose_understanding_update`。
-  - 记录理解：`propose_understanding_create`，有上下文时带 `initialContext`。
+  - 记录理解：`propose_understanding_create`；如果用户同时给了上下文，approval 后继续 `propose_context_create`。
 - 隐藏或降级旧名：
   - `domain_list`
   - `domain_inspect`
@@ -739,7 +731,7 @@ TDD：
 5. E2E：真实 AI 下跑四个 happy path：
    - 查询已有理解。
    - 查询已有 Context。
-   - 记录带 Context 的理解。
+   - 记录理解并补 Context。
    - 给已有 Understanding 正文补双链。
 
 退出条件：
@@ -759,7 +751,8 @@ TDD：
 - tool registry 是否暴露 4.4 / 4.5 定义的目标工具。
 - `search_contexts` 对 seed DB 返回 Context 和父 Understanding。
 - `read_link_neighborhood` 对 seed 双链返回 outgoing links / backlinks / unresolved links。
-- `propose_understanding_create` approve 后的事务结果，包含 `initialContext` 时同时创建 Understanding 和 Context。
+- `propose_understanding_create` approve 后只创建 Understanding。
+- `propose_context_create` approve 后给已有 Understanding 创建 Context。
 - `propose_understanding_update` 修改正文双链后，link neighborhood 能读到新关系。
 - reducer 和 UI display mapping。
 
@@ -768,7 +761,7 @@ TDD：
 - Agent 解释自己在 Reflecta 里的角色。
 - 查询已有理解。
 - 查询已有 Context。
-- 记录带 Context 的理解。
+- 记录理解并补 Context。
 - 给已有 Understanding 正文补双链。
 - pending proposal approve。
 
