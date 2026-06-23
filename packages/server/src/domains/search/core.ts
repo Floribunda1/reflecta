@@ -1,5 +1,5 @@
 import { and, inArray, isNull, or } from "drizzle-orm";
-import { understandingConnections, understandings } from "../../db/schema";
+import { understandingConnections, understandingDomains, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type { SearchOptions } from "./types";
 import { toUnderstandingSummaries } from "../understanding/core";
@@ -106,6 +106,7 @@ export class SearchCore {
       input.anchors
         ?.filter((anchor) => anchor.type === "understanding")
         .map((anchor) => anchor.id) ?? [],
+      input.anchors?.filter((anchor) => anchor.type === "domain").map((anchor) => anchor.id) ?? [],
       limit,
     );
     const returnedCandidates = [...candidates, ...relationCandidates].slice(0, limit);
@@ -124,7 +125,7 @@ export class SearchCore {
         projectionVersion: RETRIEVAL_PROJECTION_VERSION,
         dense: { searched: true, hits: denseHits },
         lexical: { searched: true, hits: lexicalHits },
-        fusion: { method: "lancedb", documentsAfterFusion: hits.length },
+        fusion: { method: "rrf", documentsAfterFusion: hits.length },
         grouping: {
           understandingCandidates: candidates.length,
           matchedContexts,
@@ -134,6 +135,9 @@ export class SearchCore {
             ...candidates.map((candidate) => candidate.id),
             ...(input.anchors
               ?.filter((anchor) => anchor.type === "understanding")
+              .map((anchor) => anchor.id) ?? []),
+            ...(input.anchors
+              ?.filter((anchor) => anchor.type === "domain")
               .map((anchor) => anchor.id) ?? []),
           ]).size,
           candidates: relationCandidates.length,
@@ -146,26 +150,39 @@ export class SearchCore {
   private async expandRelationCandidates(
     candidates: UnderstandingCandidate[],
     anchorUnderstandingIds: string[],
+    anchorDomainIds: string[],
     limit: number,
   ): Promise<UnderstandingCandidate[]> {
     const existingIds = new Set(candidates.map((candidate) => candidate.id));
     const seedIds = [...new Set([...existingIds, ...anchorUnderstandingIds])];
-    if (seedIds.length === 0 || existingIds.size >= limit) return [];
+    if (seedIds.length === 0 && anchorDomainIds.length === 0) return [];
+    if (existingIds.size >= limit) return [];
 
-    const connectionRows = await this.db
-      .select()
-      .from(understandingConnections)
-      .where(
-        or(
-          inArray(understandingConnections.sourceId, seedIds),
-          inArray(understandingConnections.targetId, seedIds),
-        ),
-      );
+    const connectionRows =
+      seedIds.length === 0
+        ? []
+        : await this.db
+            .select()
+            .from(understandingConnections)
+            .where(
+              or(
+                inArray(understandingConnections.sourceId, seedIds),
+                inArray(understandingConnections.targetId, seedIds),
+              ),
+            );
+    const domainRows =
+      anchorDomainIds.length === 0
+        ? []
+        : await this.db
+            .select({ understandingId: understandingDomains.understandingId })
+            .from(understandingDomains)
+            .where(inArray(understandingDomains.domainId, anchorDomainIds));
     const relatedIds = [
       ...new Set(
-        connectionRows
-          .flatMap((connection) => [connection.sourceId, connection.targetId])
-          .filter((id) => !existingIds.has(id) && !seedIds.includes(id)),
+        [
+          ...connectionRows.flatMap((connection) => [connection.sourceId, connection.targetId]),
+          ...domainRows.map((row) => row.understandingId),
+        ].filter((id) => !existingIds.has(id) && !seedIds.includes(id)),
       ),
     ].slice(0, Math.max(0, limit - existingIds.size));
     if (relatedIds.length === 0) return [];
@@ -175,6 +192,7 @@ export class SearchCore {
       .from(understandings)
       .where(and(inArray(understandings.id, relatedIds), isNull(understandings.deletedAt)));
     const summaries = await toUnderstandingSummaries(this.db, rows);
+    const domainAnchorUnderstandingIds = new Set(domainRows.map((row) => row.understandingId));
     return summaries.map((summary, index) => ({
       id: summary.id,
       type: "understanding" as const,
@@ -188,10 +206,12 @@ export class SearchCore {
       },
       evidence: [
         {
-          channel: "relation" as const,
+          channel: domainAnchorUnderstandingIds.has(summary.id) ? "anchor" : "relation",
           entityType: "understanding" as const,
           rank: candidates.length + index,
-          reason: "one-hop explicit Understanding relation",
+          reason: domainAnchorUnderstandingIds.has(summary.id)
+            ? "direct Understanding from Domain anchor"
+            : "one-hop explicit Understanding relation",
         },
       ],
     }));

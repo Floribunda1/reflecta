@@ -1,7 +1,7 @@
 import type { EmbeddingProvider } from "./types";
 
 const SEMANTIC_CONCEPTS: RegExp[] = [
-  /ai|agent|llm|model|模型|智能体|助手|大模型/i,
+  /\b(ai|agent|llm|model)\b|模型|智能体|助手|大模型/i,
   /产出|输出|回复|回答|result|response|answer|output/i,
   /稳定|可靠|可控|一致|预期|quality|stable|reliable|consistent|expected/i,
   /验收|标准|criteria|check|检查|评估|判断|完成/i,

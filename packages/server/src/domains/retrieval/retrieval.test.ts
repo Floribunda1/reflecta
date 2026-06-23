@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 import { buildUnderstandingCandidates } from "./candidate-builder";
 import { LanceDbRetrievalIndex } from "./lancedb-index";
+import { LocalEmbeddingProvider } from "./local-embedding";
 import { buildRetrievalDocuments } from "./projection";
 import type { EmbeddingProvider, RetrievalDocument } from "./types";
 
@@ -156,6 +157,15 @@ describe("buildUnderstandingCandidates", () => {
         input: { understandingId: "understanding-1", includeContexts: true },
       },
     });
+  });
+});
+
+describe("LocalEmbeddingProvider", () => {
+  test("does not match ai inside unrelated words", async () => {
+    const [domainVector, aiVector] = await new LocalEmbeddingProvider().embed(["domain", "AI"]);
+
+    expect(Math.hypot(...domainVector)).toBe(0);
+    expect(Math.hypot(...aiVector)).toBeGreaterThan(0);
   });
 });
 

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 import { createDBInstance } from "../../db";
 import { ContextCliBff } from "../context/bff-cli";
+import { DomainCliBff } from "../domain/bff-cli";
 import { SearchCliBff } from "../search/bff-cli";
 import { UnderstandingCliBff } from "../understanding/bff-cli";
 import { createRetrievalIndex } from "./sync";
@@ -28,6 +29,7 @@ async function setupServices() {
   const db = await createDBInstance(join(tempDir, "test.db"));
   return {
     contexts: new ContextCliBff(db),
+    domains: new DomainCliBff(db),
     search: new SearchCliBff(db),
     understandings: new UnderstandingCliBff(db),
   };
@@ -115,6 +117,33 @@ describe("retrieval index write-path sync", () => {
     expect(result.trace).toMatchObject({
       embeddingModel: "local-concept-v1",
       projectionVersion: 1,
+      fusion: { method: "rrf" },
     });
+  });
+
+  test("retrieveKnowledge returns capped direct Understandings from Domain anchors", async () => {
+    const { domains, search, understandings } = await setupServices();
+    const domain = await domains.createDomain({ name: "Anchor Domain" });
+    const first = await understandings.createUnderstanding({
+      title: "Domain Anchor A",
+      domainIds: [domain.id],
+    });
+    const second = await understandings.createUnderstanding({
+      title: "Domain Anchor B",
+      domainIds: [domain.id],
+    });
+
+    const result = await search.retrieveKnowledge({
+      query: "zzznomtxq",
+      anchors: [{ type: "domain", id: domain.id }],
+      limit: 1,
+    });
+
+    expect(result.candidates).toHaveLength(1);
+    expect([first.id, second.id]).toContain(result.candidates[0].id);
+    expect(result.candidates[0]).toMatchObject({
+      evidence: expect.arrayContaining([expect.objectContaining({ channel: "anchor" })]),
+    });
+    expect(result.trace.relation.candidates).toBe(1);
   });
 });
