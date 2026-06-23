@@ -66,9 +66,9 @@ flowchart TD
   end
 
   subgraph Domain["Reflecta Domain"]
-    Thought["ThoughtService"]
+    Understanding["ThoughtService"]
     Context["ContextService"]
-    Category["CategoryService"]
+    Domain["CategoryService"]
     Graph["GraphService"]
   end
 
@@ -85,9 +85,9 @@ flowchart TD
   Core --> ToolBridge
   Builtins --> ApprovalPolicy
   ToolBridge --> ApprovalPolicy
-  ToolBridge --> Thought
+  ToolBridge --> Understanding
   ToolBridge --> Context
-  ToolBridge --> Category
+  ToolBridge --> Domain
   ToolBridge --> Graph
   Session --> ViewBuilder
 ```
@@ -178,7 +178,7 @@ classDiagram
     <<ReflectaData>>
     +type
     +payload
-    +sourceRefs
+    +selectedRefs
   }
 
   class ThoughtService
@@ -225,7 +225,7 @@ classDiagram
 | `PiAgentHost`             | The class that runs Pi Agent inside Reflecta.   | One place knows both Pi runtime and Reflecta integration.         |
 | `PiAgentCore`             | Pi-owned loop.                                  | We do not rewrite model/tool/model continuation.                  |
 | `PiSessionManager`        | Pi-owned JSONL session/resume/branch.           | We use Pi's session model as agent history.                       |
-| `ReflectaContextProvider` | Builds Reflecta context for a Pi run.           | Pi does not know Thought / Context / Category.                    |
+| `ReflectaContextProvider` | Builds Reflecta context for a Pi run.           | Pi does not know Understanding / Context / Domain.                |
 | `ReflectaToolBridge`      | Exposes Reflecta tools to Pi.                   | Pi can call Reflecta domain actions through a controlled adapter. |
 | `ApprovalPolicy`          | Decides which calls need user approval.         | Approval is a product rule, not a generic Pi rule.                |
 | `AgentViewBuilder`        | Converts Pi session entries into renderer DTOs. | Frontend needs a product view, not raw Pi entries.                |
@@ -414,7 +414,7 @@ Frontend modules:
 | `composer/` | Draft text, selected refs before submit, files before submit.           | Prompt building, model input.       |
 | `messages/` | Rendering turns from `AgentViewDTO`.                                    | Runtime history.                    |
 | `tools/`    | Rendering tool activity and approval controls.                          | Approval truth.                     |
-| `context/`  | Picking Thought / Context / Category refs.                              | Expanding refs into model context.  |
+| `context/`  | Picking Understanding / Context / Domain refs.                          | Expanding refs into model context.  |
 
 The frontend consumes:
 
@@ -528,7 +528,7 @@ The whole Agent UI can be rebuilt from Pi session history.
 
 Reflecta adds:
 
-- Thought / Context / Category context.
+- Understanding / Context / Domain context.
 - Reflecta tools.
 - Approval policy.
 - Domain writes.

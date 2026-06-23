@@ -172,7 +172,7 @@ TDD 顺序：
 
 ## 8. Phase 3：上下文、模型选择、附件可用
 
-用户状态：用户可以在 Pi session 里选择 Thought/Context/Category 引用，选择模型和推理强度，发送附件，并在历史中看到这些输入。
+用户状态：用户可以在 Pi session 里选择 Understanding/Context/Domain 引用，选择模型和推理强度，发送附件，并在历史中看到这些输入。
 
 Test Case：
 
@@ -180,7 +180,7 @@ Test Case：
 - `@AG-CONTEXT-002`：用户发送附件后看到附件和回复。
 - `@AG-CONTEXT-003`：用户选择模型和推理强度后发送消息。
 - `@AG-CONTEXT-004`：用户通过 `@` 搜索选择上下文引用。
-- `@AG-CONTEXT-005`：用户点击已选择的 Thought 引用后查看详情。
+- `@AG-CONTEXT-005`：用户点击已选择的 Understanding 引用后查看详情。
 
 自动化测试：
 
@@ -242,15 +242,15 @@ TDD 顺序：
 
 Test Case：
 
-- `@AG-PROPOSAL-001`：用户确认候选 Thought 后看到执行结果。
-- `@AG-PROPOSAL-002`：用户拒绝候选 Thought 后看到拒绝结果。
+- `@AG-PROPOSAL-001`：用户确认候选 Understanding 后看到执行结果。
+- `@AG-PROPOSAL-002`：用户拒绝候选 Understanding 后看到拒绝结果。
 - `@AG-PROPOSAL-003`：用户重新打开对话后仍能看到提案处理结果。
 - `@AG-HISTORY-003`：用户离开后仍可处理等待确认的提案。
 - `@AG-RESULT-002`：用户可以区分提案的不同状态。
 
 自动化测试：
 
-- e2e：真实 AI 触发候选 Thought proposal，显示 pending approval card。
+- e2e：真实 AI 触发候选 Understanding proposal，显示 pending approval card。
 - e2e：确认后看到已确认/已写入。
 - e2e：拒绝后看到已拒绝/未写入。
 - e2e：reload 后 pending approval 仍可确认/拒绝。

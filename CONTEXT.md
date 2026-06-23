@@ -1,5 +1,38 @@
 # Reflecta Glossary
 
+## Understanding
+
+A user-owned piece of personal understanding that Reflecta helps preserve and revisit. An
+Understanding can be a judgment, expression, boundary, experience-backed lesson, or mental-model
+fragment that the user currently wants to keep developing.
+_Avoid_: Thought, note, idea, AI summary
+
+## Context
+
+The concrete surrounding context of one Understanding. A Context can describe where the
+Understanding first formed, later support it, show where it was applied, challenge its boundary, or
+revise it.
+
+**Context role**:
+origin | support | application | challenge | revision | related
+
+**Context medium**:
+experience | video | book | article | opinion | ai | other
+
+_Avoid_: Source, evidence, attachment
+
+## Connection
+
+A user-recognized relationship between two Understandings. AI may suggest a Connection, but it
+cannot become part of the user's understanding network until the user confirms it.
+_Avoid_: inferred graph edge, automatic relation
+
+## Domain
+
+A long-lived area where the user revisits and develops a group of Understandings, such as trading
+psychology, product design, behavior design, or AI agents.
+_Avoid_: Category, folder, tag
+
 ## App Config Dir
 
 The directory that contains Reflecta application configuration, including `reflecta-config.json`.
