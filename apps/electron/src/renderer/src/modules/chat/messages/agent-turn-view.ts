@@ -354,6 +354,7 @@ function summarizeToolGroup(groupType: ToolGroupType, blocks: AgentToolBlock[]):
 function toolGroupType(name: string): ToolGroupType {
   if (
     name === "search" ||
+    name === "graph" ||
     name.startsWith("understanding_") ||
     name.startsWith("context_") ||
     name.startsWith("domain_") ||
@@ -444,6 +445,10 @@ function aggregateLookupCounts(blocks: AgentToolBlock[]) {
       understandings += counts.understandings;
       contexts += counts.contexts;
     }
+    if (name === "graph") {
+      understandings += outputCount(output, "nodes");
+      contexts += outputCount(output, "contexts");
+    }
   }
   return { understandings, contexts };
 }
@@ -462,6 +467,7 @@ function toolTitle(name: string) {
   if (name === "context_list") return "列出 Context";
   if (name === "context_get") return "读取 Context";
   if (name === "search") return "搜索相关内容";
+  if (name === "graph") return "查看关联图";
   if (name === "attachment_read") return "读取附件";
   if (name === "file_read") return "读取本地文件";
   if (name === "bash") return "执行 Bash";
@@ -473,6 +479,7 @@ function toolRunningVerb(name: string) {
   if (name === "file_read") return "正在读取本地文件";
   if (name === "bash") return "正在执行 Bash";
   if (name.includes("search")) return "正在搜索相关内容";
+  if (name === "graph") return "正在查看关联图";
   if (name.includes("get")) return "正在读取内容";
   if (name.startsWith("domain_")) return "正在查看领域目录";
   return "正在使用工具";
@@ -483,6 +490,7 @@ function toolDoneVerb(name: string) {
   if (name === "file_read") return "读取本地文件";
   if (name === "bash") return "执行 Bash";
   if (name.includes("search")) return "搜索";
+  if (name === "graph") return "查看关联图";
   if (name.includes("get")) return "读取";
   if (name.startsWith("domain_")) return "查看领域目录";
   return "使用工具";
@@ -510,6 +518,9 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
   if (name === "search") {
     const counts = searchHitCounts(output);
     return `搜索了 ${counts.understandings} 条 Understanding / ${counts.contexts} 条 Context`;
+  }
+  if (name === "graph") {
+    return `查看了 ${outputCount(output, "nodes")} 条 Understanding 的关联图`;
   }
   if (name === "understanding_get")
     return `读取了「${entityTitle(outputRecord.understanding) || entityTitle(outputRecord) || stringValue(input.understandingId) || "Understanding"}」`;

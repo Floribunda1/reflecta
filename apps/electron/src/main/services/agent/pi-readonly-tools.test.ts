@@ -4,6 +4,7 @@ import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-to
 vi.mock("../core", () => ({
   contextCliService: {},
   domainCliService: {},
+  graphCliService: {},
   searchCliService: {},
   understandingCliService: {},
 }));
@@ -16,6 +17,7 @@ const expectedReadToolNames = [
   "context_list",
   "context_get",
   "search",
+  "graph",
 ] as const;
 
 describe("createPiReadOnlyTools", () => {

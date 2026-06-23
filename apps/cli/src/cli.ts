@@ -18,6 +18,7 @@ import { registerDeleteContextAction } from "./actions/context/delete";
 import { registerGetContextAction } from "./actions/context/get";
 import { registerListContextsAction } from "./actions/context/list";
 import { registerUpdateContextAction } from "./actions/context/update";
+import { registerGraphAction } from "./actions/graph";
 import { registerSearchAction } from "./actions/search/search";
 import { registerCreateUnderstandingAction } from "./actions/understanding/create";
 import { registerDeleteUnderstandingAction } from "./actions/understanding/delete";
@@ -91,6 +92,34 @@ function handleHelp(argv: string[]): number {
     console.log("Arguments:");
     formatRows([{ key: "query", desc: "Search query (required)" }]).forEach((line) =>
       console.log(line),
+    );
+    console.log("");
+    if (meta?.options && meta.options.length > 0) {
+      console.log("Options:");
+      formatRows(
+        meta.options.map((o) => ({
+          key: o.flags,
+          desc: `${o.description}${o.required ? " (required)" : o.defaultValue !== undefined ? ` (default: ${JSON.stringify(o.defaultValue)})` : ""}`,
+        })),
+      ).forEach((line) => console.log(line));
+      console.log("");
+    }
+    printGlobalOptions();
+    return 0;
+  }
+
+  if (path[0] === "graph" && path.length === 1) {
+    const meta = getActionMeta("graph", "graph");
+    console.log("Usage: reflecta graph <understanding-id> [options]");
+    console.log("");
+    console.log(`Description: ${meta?.description ?? "Get the understanding graph"}`);
+    if (meta?.returns) {
+      console.log(`Returns: ${meta.returns}`);
+    }
+    console.log("");
+    console.log("Arguments:");
+    formatRows([{ key: "understanding-id", desc: "Seed understanding ID (required)" }]).forEach(
+      (line) => console.log(line),
     );
     console.log("");
     if (meta?.options && meta.options.length > 0) {
@@ -218,6 +247,8 @@ export async function runCli(argv = process.argv.slice(2)): Promise<number> {
 
   const search = cli.command("search").description("Search understandings and contexts");
   registerSearchAction(search);
+
+  registerGraphAction(cli);
 
   cli
     .command("list-actions")

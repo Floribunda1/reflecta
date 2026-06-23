@@ -217,6 +217,23 @@ describe("buildAgentTurnView", () => {
     });
   });
 
+  test("summarizes graph tool output", () => {
+    const turn = buildAgentTurnView([
+      tool("graph", "tool-1", {
+        nodes: [{ id: "t1" }, { id: "t2" }],
+        edges: [{ from: "t1", to: "t2" }],
+      }),
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "tool-activity",
+      activity: {
+        title: "查看关联图",
+        summary: "查看了 2 条 Understanding 的关联图",
+      },
+    });
+  });
+
   test("keeps running and failed tool activity states in thinking", () => {
     const runningTurn = buildAgentTurnView([tool("search", "tool-1", {}, "running")]);
     const failedTurn = buildAgentTurnView([tool("bash", "tool-2", {}, "failed", "Command failed")]);

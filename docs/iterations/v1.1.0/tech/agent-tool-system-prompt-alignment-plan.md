@@ -18,13 +18,15 @@ Understanding CRUD
 Context CRUD
 domain_inspect
 search
+graph
 ```
 
-只有三个产品语义约束需要进 tool interface：
+只有四个产品语义约束需要进 tool interface：
 
 - `understanding_list` 可以选择 `includeContexts`，因为短 Understanding 脱离 Context 时容易失真。
 - `understanding_get` 可以选择 `includeContexts` 和 `includeRelations`。
 - `search` 返回混合命中；Context 命中必须带 `understandingId`，让 AI 能回到父 Understanding。
+- `graph` 只保留一个邻域 primitive：`graph(understandingId, includeContext, depth)`。
 
 双链关系不做独立 CRUD。关系来自 Understanding 正文里的 `[[Title#understandingId]]`：
 
@@ -451,25 +453,46 @@ type SearchOutput = {
 
 一个搜索工具就够了。AI 不需要先判断应该搜 Understanding 还是 Context。
 
+### 4.6 Graph tool
+
+#### `graph`
+
+```ts
+type GraphInput = {
+  understandingId: Id;
+  includeContext?: boolean; // default false
+  depth?: number; // default 1
+};
+
+type GraphOutput = {
+  seed: Id;
+  nodes: UnderstandingSummary[];
+  edges: Array<{ from: Id; to: Id }>;
+  contexts?: ContextDetail[];
+};
+```
+
+一个 graph 工具就够了。只做从某个 Understanding 出发的双链邻域，不保留 path / neighborhood 两个旧入口。
+
 ## 5. 当前工具到目标工具
 
-| 当前工具                             | 目标                                                     |
-| ------------------------------------ | -------------------------------------------------------- |
-| `snapshot_project`                   | 删除                                                     |
-| `domain_list`                        | 保留                                                     |
-| `domain_inspect`                     | 保留                                                     |
-| `understanding_list`                 | 保留                                                     |
-| `understanding_get`                  | 保留，参数收敛为 `includeContexts` / `includeRelations`  |
-| `context_list`                       | 保留                                                     |
-| `context_get`                        | 保留                                                     |
-| `search_all`                         | 改为 `search`                                            |
-| `search_understandings`              | 删除                                                     |
-| `search_contexts`                    | 删除                                                     |
-| `graph_neighborhood`                 | 删除，用 `understanding_get({ includeRelations: true })` |
-| `graph_path`                         | 删除                                                     |
-| `domain_create/update/delete`        | 保留                                                     |
-| `understanding_create/update/delete` | 保留                                                     |
-| `context_create/update/delete`       | 保留                                                     |
+| 当前工具                             | 目标                                                    |
+| ------------------------------------ | ------------------------------------------------------- |
+| `snapshot_project`                   | 删除                                                    |
+| `domain_list`                        | 保留                                                    |
+| `domain_inspect`                     | 保留                                                    |
+| `understanding_list`                 | 保留                                                    |
+| `understanding_get`                  | 保留，参数收敛为 `includeContexts` / `includeRelations` |
+| `context_list`                       | 保留                                                    |
+| `context_get`                        | 保留                                                    |
+| `search_all`                         | 改为 `search`                                           |
+| `search_understandings`              | 删除                                                    |
+| `search_contexts`                    | 删除                                                    |
+| `graph_neighborhood`                 | 改为 `graph`                                            |
+| `graph_path`                         | 删除                                                    |
+| `domain_create/update/delete`        | 保留                                                    |
+| `understanding_create/update/delete` | 保留                                                    |
+| `context_create/update/delete`       | 保留                                                    |
 
 ## 6. 渐进式 Phase
 
@@ -527,11 +550,13 @@ TDD：
   - `graph_neighborhood`
   - `graph_path`
 - `search_all` 改名为 `search`。
+- `graph_neighborhood` 改名并收敛为 `graph(understandingId, includeContext, depth)`。
 - `understanding_get` 只保留：
   - `includeContexts`
   - `includeRelations`
 - `understanding_list` 增加 `includeContexts`。
 - `domain_inspect` 保留。
+- `graph` 保留。
 
 TDD：
 
@@ -543,10 +568,12 @@ TDD：
 6. GREEN：接入现有双链解析。
 7. RED：seed 短 Understanding + Context，调用 `understanding_list({ includeContexts: true })`，返回 `contextsByUnderstandingId`。
 8. GREEN：补 list context expansion。
+9. RED：seed 正文双链，调用 `graph({ understandingId, depth: 1 })`，返回 nodes / edges。
+10. GREEN：实现单一 graph adapter。
 
 退出条件：
 
-- `search_understandings` / `search_contexts` / `graph_*` / `snapshot_project` 在 CLI 和 Pi 中都删除。
+- `search_understandings` / `search_contexts` / `graph_path` / `snapshot_project` 在 CLI 和 Pi 中都删除。
 - AI 需要列表级 Context 时通过 `understanding_list(includeContexts)` 获取；需要精读单条时通过 `understanding_get(includeContexts)` 或 `context_*` 获取。
 - AI 需要关系时通过 `understanding_get(includeRelations)` 获取。
 

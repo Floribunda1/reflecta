@@ -69,6 +69,8 @@ src/
 │   │   ├── core.ts
 │   │   ├── bff-electron.ts
 │   │   └── bff-cli.ts
+│   ├── graph/
+│   │   └── bff-cli.ts
 │   ├── trash/
 │   │   └── bff-electron.ts
 │   └── shared/

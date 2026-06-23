@@ -151,9 +151,9 @@ describe("全局行为", () => {
       expect(code).toBe(0);
       expect(stdout).toMatch(/\n  inspect\s+Inspect a domain/);
       expect(stdout).toMatch(/\n  search\s+Search understandings and contexts/);
+      expect(stdout).toMatch(/\n  graph\s+Get the understanding graph/);
       expect(stdout).not.toMatch(/\n  get\s+Get a domain/);
       expect(stdout).not.toMatch(/\n  all\s+Search both/);
-      expect(stdout).not.toContain("Explore understanding graph");
       expect(stdout).not.toContain("Project snapshots");
     });
 
@@ -163,6 +163,14 @@ describe("全局行为", () => {
       expect(stdout).toContain("Usage: reflecta search <query> [options]");
       expect(stdout).toContain("Returns: SearchOutput");
       expect(stdout).not.toContain("Usage: reflecta search <action>");
+    });
+
+    it("graph 帮助展示单一图入口", async () => {
+      const { code, stdout } = await runCommand(["graph", "--help"]);
+      expect(code).toBe(0);
+      expect(stdout).toContain("Usage: reflecta graph <understanding-id> [options]");
+      expect(stdout).toContain("Returns: GraphResult");
+      expect(stdout).not.toContain("Usage: reflecta graph <action>");
     });
   });
 });

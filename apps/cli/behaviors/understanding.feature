@@ -95,32 +95,15 @@
     当 用户执行命令 "understanding get UNDERSTANDING_ID --include-contexts"
     那么 输出中包含 contexts: []
 
-  场景: 附带引用列表
+  场景: 附带双链关系
     假设 存在一条活跃 Understanding UNDERSTANDING_ID，其正文中的 wiki-link 指向了另外 2 条活跃 Understanding
-    当 用户执行命令 "understanding get UNDERSTANDING_ID --include-references"
-    那么 输出中包含 references 数组，长度为 2
-    并且 数组中每个元素都是 Understanding 摘要
+    当 用户执行命令 "understanding get UNDERSTANDING_ID --include-relations"
+    那么 输出中包含 relations 数组
 
-  场景: 附带引用但无 outgoing wiki-link
-    假设 存在一条活跃 Understanding UNDERSTANDING_ID，其正文中没有任何 wiki-link
-    当 用户执行命令 "understanding get UNDERSTANDING_ID --include-references"
-    那么 输出中包含 references: []
-
-  场景: 附带被引用列表
-    假设 存在一条活跃 Understanding UNDERSTANDING_ID，有另外 3 条活跃 Understanding 的正文中通过 wiki-link 引用了它
-    当 用户执行命令 "understanding get UNDERSTANDING_ID --include-referenced-bys"
-    那么 输出中包含 referencedBys 数组，长度为 3
-    并且 数组中每个元素都是 Understanding 摘要
-
-  场景: 被引用列表排除已删除的 Understanding
-    假设 存在一条活跃 Understanding UNDERSTANDING_ID，有一条已删除 Understanding 通过 wiki-link 引用了它
-    当 用户执行命令 "understanding get UNDERSTANDING_ID --include-referenced-bys"
-    那么 referencedBys 中不包含该已删除 Understanding
-
-  场景: 同时附带 Context、引用和被引用
+  场景: 同时附带 Context 和双链关系
     假设 存在一条活跃 Understanding UNDERSTANDING_ID，它同时拥有 Context、 outgoing wiki-link 和 incoming wiki-link
-    当 用户执行命令 "understanding get UNDERSTANDING_ID --include-contexts --include-references --include-referenced-bys"
-    那么 输出中同时包含正确填充的 contexts、references 和 referencedBys 数组
+    当 用户执行命令 "understanding get UNDERSTANDING_ID --include-contexts --include-relations"
+    那么 输出中同时包含正确填充的 contexts 和 relations 数组
 
   # understanding create
 

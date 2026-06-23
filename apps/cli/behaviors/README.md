@@ -19,3 +19,4 @@
 | [context.feature](context.feature)             | Context 的列表、查看、创建、更新、删除       |
 | [domain.feature](domain.feature)               | Domain 的列表、检查、创建、更新、删除        |
 | [search.feature](search.feature)               | 全文检索（Understanding / Context）          |
+| [graph.feature](graph.feature)                 | Understanding 关联图                         |

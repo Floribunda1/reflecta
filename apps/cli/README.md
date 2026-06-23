@@ -30,6 +30,7 @@ Run an action:
 
 ```bash
 reflecta search design --limit 10
+reflecta graph UNDERSTANDING_ID --depth 1 --include-context
 ```
 
 Mutating actions require explicit confirmation:

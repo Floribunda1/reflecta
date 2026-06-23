@@ -3,6 +3,7 @@ import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent
 import {
   domainCliService,
   contextCliService,
+  graphCliService,
   searchCliService,
   understandingCliService,
 } from "../core";
@@ -15,6 +16,7 @@ export const PI_READ_ONLY_TOOL_NAMES = [
   "context_list",
   "context_get",
   "search",
+  "graph",
 ] as const;
 
 const paginationParameters = {
@@ -140,6 +142,19 @@ export function createPiReadOnlyTools(): ToolDefinition[] {
       }),
       execute: async (_toolCallId, { query, ...options }) =>
         toolResult(await searchCliService.search(query, options)),
+    }),
+    defineTool({
+      name: "graph",
+      label: "查看关联图",
+      description: "Get the wiki-link graph around one Reflecta Understanding.",
+      promptSnippet: "graph: get the wiki-link graph around one Reflecta Understanding.",
+      parameters: Type.Object({
+        understandingId: Type.String({ minLength: 1 }),
+        includeContext: Type.Optional(Type.Boolean()),
+        depth: Type.Optional(Type.Integer({ minimum: 0, maximum: 6 })),
+      }),
+      execute: async (_toolCallId, { understandingId, ...options }) =>
+        toolResult(await graphCliService.graph(understandingId, options)),
     }),
   ];
 }
