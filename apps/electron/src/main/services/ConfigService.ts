@@ -124,7 +124,9 @@ export class ConfigService extends IpcService {
 
   @IpcMethod()
   async rebuildRetrievalIndex(): Promise<RetrievalIndexStatus> {
-    await rebuildRetrievalIndexWithStatus(getDBInstance());
+    try {
+      await rebuildRetrievalIndexWithStatus(getDBInstance());
+    } catch {}
     return getRetrievalIndexStatus();
   }
 
