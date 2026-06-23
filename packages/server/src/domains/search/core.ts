@@ -6,9 +6,10 @@ import { toUnderstandingSummaries } from "../understanding/core";
 import {
   RETRIEVAL_EMBEDDING_MODEL,
   RETRIEVAL_PROJECTION_VERSION,
-  buildRetrievalDocumentsFromDb,
   buildUnderstandingCandidates,
   createRetrievalIndex,
+  isRetrievalIndexDirty,
+  rebuildRetrievalIndex,
 } from "../retrieval";
 import type {
   RetrievalSearchHit,
@@ -35,8 +36,8 @@ export class SearchCore {
   ): Promise<SearchRetrievalHit[]> {
     const { limit, offset } = getLimitOffset(options);
     const index = createRetrievalIndex();
-    if (!(await index.isReady())) {
-      await index.replaceAll(await buildRetrievalDocumentsFromDb(this.db));
+    if (!(await index.isReady()) || (await isRetrievalIndexDirty())) {
+      await rebuildRetrievalIndex(this.db);
     }
     const hits = await index.search(query, limit + offset);
     return hits.slice(offset).map((hit, index) => ({

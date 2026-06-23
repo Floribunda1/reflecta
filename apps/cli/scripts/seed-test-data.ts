@@ -808,7 +808,7 @@ const anchorUnderstandings: Array<{
   // Search anchors
   {
     title: "Search Test Alpha",
-    body: "This content contains the unique keyword ALPHA_SEED_42 for testing full-text search precision.",
+    body: "This content contains the unique keyword ALPHA_SEED_42 for testing lexical retrieval precision.",
     daysAgo: 2,
     hoursOffset: 0,
     domainCount: 1,

@@ -7,7 +7,7 @@ import { ContextCliBff } from "../context/bff-cli";
 import { DomainCliBff } from "../domain/bff-cli";
 import { SearchCliBff } from "../search/bff-cli";
 import { UnderstandingCliBff } from "../understanding/bff-cli";
-import { createRetrievalIndex } from "./sync";
+import { createRetrievalIndex, isRetrievalIndexDirty, markRetrievalIndexDirty } from "./sync";
 
 const tempDirs: string[] = [];
 const previousIndexPath = process.env.REFLECTA_RETRIEVAL_INDEX_PATH;
@@ -86,6 +86,22 @@ describe("retrieval index write-path sync", () => {
 
     await contexts.deleteContext(context.id);
     expect(await indexIds("contextsyncaftermarker")).not.toContain(`context:${context.id}`);
+  });
+
+  test("retrieveKnowledge rebuilds and clears a dirty retrieval index marker", async () => {
+    const { search, understandings } = await setupServices();
+    const created = await understandings.createUnderstanding({
+      title: "Dirty Marker",
+      body: "dirtymarkerterm",
+    });
+
+    await markRetrievalIndexDirty();
+    expect(await isRetrievalIndexDirty()).toBe(true);
+
+    const result = await search.retrieveKnowledge({ query: "dirtymarkerterm", limit: 5 });
+
+    expect(result.candidates.map((candidate) => candidate.id)).toContain(created.id);
+    expect(await isRetrievalIndexDirty()).toBe(false);
   });
 
   test("retrieveKnowledge expands one-hop explicit Understanding relations from anchors", async () => {

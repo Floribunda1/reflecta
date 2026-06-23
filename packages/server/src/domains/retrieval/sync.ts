@@ -1,4 +1,5 @@
 import { and, desc, inArray, isNull } from "drizzle-orm";
+import { access, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { contexts, understandings } from "../../db/schema";
@@ -12,14 +13,41 @@ export const RETRIEVAL_PROJECTION_VERSION = 1;
 export const RETRIEVAL_EMBEDDING_MODEL = "local-concept-v1";
 const RETRIEVAL_TABLE_NAME = `retrieval_documents_p${RETRIEVAL_PROJECTION_VERSION}_${RETRIEVAL_EMBEDDING_MODEL.replaceAll("-", "_")}`;
 
+function resolveRetrievalIndexPath() {
+  return (
+    process.env.REFLECTA_RETRIEVAL_INDEX_PATH ??
+    join(tmpdir(), "reflecta-retrieval-index", String(process.pid))
+  );
+}
+
+function resolveRetrievalDirtyMarkerPath() {
+  return join(resolveRetrievalIndexPath(), ".dirty");
+}
+
 export function createRetrievalIndex() {
   return new LanceDbRetrievalIndex({
-    uri:
-      process.env.REFLECTA_RETRIEVAL_INDEX_PATH ??
-      join(tmpdir(), "reflecta-retrieval-index", String(process.pid)),
+    uri: resolveRetrievalIndexPath(),
     embeddingProvider: new LocalEmbeddingProvider(),
     tableName: RETRIEVAL_TABLE_NAME,
   });
+}
+
+export async function markRetrievalIndexDirty(): Promise<void> {
+  await mkdir(resolveRetrievalIndexPath(), { recursive: true });
+  await writeFile(resolveRetrievalDirtyMarkerPath(), String(Date.now()));
+}
+
+export async function clearRetrievalIndexDirty(): Promise<void> {
+  await rm(resolveRetrievalDirtyMarkerPath(), { force: true });
+}
+
+export async function isRetrievalIndexDirty(): Promise<boolean> {
+  try {
+    await access(resolveRetrievalDirtyMarkerPath());
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function buildRetrievalDocumentsFromDb(db: ReflectaDb, understandingIds?: string[]) {
@@ -78,6 +106,11 @@ export async function syncRetrievalIndexByUnderstandingId(
   );
 }
 
+export async function rebuildRetrievalIndex(db: ReflectaDb): Promise<void> {
+  await createRetrievalIndex().replaceAll(await buildRetrievalDocumentsFromDb(db));
+  await clearRetrievalIndexDirty();
+}
+
 export async function trySyncRetrievalIndexByUnderstandingId(
   db: ReflectaDb,
   understandingId: string,
@@ -85,6 +118,9 @@ export async function trySyncRetrievalIndexByUnderstandingId(
   try {
     await syncRetrievalIndexByUnderstandingId(db, understandingId);
   } catch {
-    // ponytail: keep product writes durable; search rebuilds the projection if sync misses.
+    // ponytail: file marker is enough; SQLite stays source of truth and search rebuilds.
+    try {
+      await markRetrievalIndexDirty();
+    } catch {}
   }
 }
