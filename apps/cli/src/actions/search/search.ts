@@ -6,7 +6,6 @@ import {
   runCommand,
   type GlobalOptions,
 } from "../../runner";
-import { normalizeFtsQuery } from "./shared";
 
 import { registerActionMeta } from "../meta";
 
@@ -38,8 +37,7 @@ export async function searchAction(query: string, cli: Command): Promise<void> {
   const options = getCommandOptions(cli) as GlobalOptions & { limit?: number; offset?: number };
   await runCommand(async () => {
     const services = await getServices();
-    const normalizedQuery = normalizeFtsQuery(query);
-    return services.search.search(normalizedQuery, {
+    return services.search.search(query.trim(), {
       limit: options.limit ?? 20,
       offset: options.offset ?? 0,
     });

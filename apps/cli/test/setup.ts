@@ -8,10 +8,12 @@ const SEED_SCRIPT = path.resolve(import.meta.dirname, "../scripts/seed-test-data
 const workerId = process.env.VITEST_POOL_ID ?? process.env.VITEST_WORKER_ID ?? "0";
 const TEST_DIR = path.join(os.tmpdir(), "reflecta-cli-test", workerId, String(process.pid));
 const TEST_DB_PATH = path.join(TEST_DIR, "reflecta.db");
+const TEST_RETRIEVAL_INDEX_PATH = path.join(TEST_DIR, "retrieval-index");
 
 fs.rmSync(TEST_DIR, { recursive: true, force: true });
 fs.mkdirSync(TEST_DIR, { recursive: true });
 process.env.REFLECTA_DB_PATH = TEST_DB_PATH;
+process.env.REFLECTA_RETRIEVAL_INDEX_PATH = TEST_RETRIEVAL_INDEX_PATH;
 
 beforeAll(() => {
   try {

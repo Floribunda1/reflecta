@@ -7,7 +7,7 @@ export type SearchOptions = {
   offset?: number;
 };
 
-export type FtsContextResult = {
+export type SearchContextResult = {
   contextId: string;
   understandingId: string;
   title: string | null;
@@ -17,7 +17,7 @@ export type FtsContextResult = {
 
 export type SearchResult = {
   understandings: UnderstandingSummaryDTO[];
-  contexts: FtsContextResult[];
+  contexts: SearchContextResult[];
 };
 
 export type SearchHit =

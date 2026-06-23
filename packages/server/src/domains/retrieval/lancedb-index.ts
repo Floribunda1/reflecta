@@ -26,6 +26,8 @@ type RetrievalRow = {
   _score?: number;
 };
 
+const SEMANTIC_DISTANCE_THRESHOLD = 0.35;
+
 function quoteSqlString(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
 }
@@ -67,6 +69,37 @@ function fromRow(row: RetrievalRow): RetrievalSearchHit {
       updatedAt: row.updatedAt || undefined,
     },
   };
+}
+
+function isRelevantRow(row: RetrievalRow): boolean {
+  const semanticDistance = row._distance ?? Number.POSITIVE_INFINITY;
+  return semanticDistance <= SEMANTIC_DISTANCE_THRESHOLD;
+}
+
+function lexicalTokens(query: string): string[] {
+  return query.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+}
+
+function matchesLexicalQuery(row: RetrievalRow, tokens: string[]): boolean {
+  if (tokens.length === 0) return true;
+  const text = row.textForLexicalSearch.toLocaleLowerCase();
+  return tokens.every((token) => text.includes(token));
+}
+
+function hasVectorSignal(vector: number[]): boolean {
+  return Math.hypot(...vector) > 0;
+}
+
+function fuseRows(lexicalRows: RetrievalRow[], semanticRows: RetrievalRow[], limit: number) {
+  const rows: RetrievalRow[] = [];
+  const seen = new Set<string>();
+  for (const row of [...lexicalRows, ...semanticRows]) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    rows.push(row);
+    if (rows.length >= limit) break;
+  }
+  return rows;
 }
 
 export class LanceDbRetrievalIndex {
@@ -115,12 +148,23 @@ export class LanceDbRetrievalIndex {
 
     const table = await db.openTable(this.tableName);
     const [vector] = await this.options.embeddingProvider.embed([query]);
-    const rows = (await table
-      .search(vector, "auto")
-      .fullTextSearch(query, { columns: ["textForLexicalSearch"] })
-      .limit(limit)
-      .toArray()) as RetrievalRow[];
-    return rows.map(fromRow);
+    const searchLimit = Math.max(limit * 5, 20);
+    const tokens = lexicalTokens(query);
+    const lexicalRows = (
+      (await table
+        .search(query)
+        .fullTextSearch(query, { columns: ["textForLexicalSearch"] })
+        .limit(searchLimit)
+        .toArray()) as RetrievalRow[]
+    )
+      .filter((row) => matchesLexicalQuery(row, tokens))
+      .slice(0, limit);
+    const semanticRows = hasVectorSignal(vector)
+      ? ((await table.vectorSearch(vector).limit(searchLimit).toArray()) as RetrievalRow[]).filter(
+          isRelevantRow,
+        )
+      : [];
+    return fuseRows(lexicalRows, semanticRows, limit).map(fromRow);
   }
 
   private async embedRows(docs: RetrievalDocument[]): Promise<RetrievalRow[]> {

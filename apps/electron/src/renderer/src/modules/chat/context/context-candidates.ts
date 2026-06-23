@@ -1,6 +1,6 @@
 import type { Domain } from "@shared/domain";
 import type { AgentContextRef } from "@shared/agent";
-import type { FtsContextResult } from "@shared/search";
+import type { SearchContextResult } from "@shared/search";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import { truncate } from "../shared/text";
 import { contextKey } from "./context-reference";
@@ -20,7 +20,7 @@ function understandingCandidate(understanding: UnderstandingSummaryDTO): Context
   };
 }
 
-function contextCandidate(context: FtsContextResult): ContextCandidate {
+function contextCandidate(context: SearchContextResult): ContextCandidate {
   return {
     type: "context",
     id: context.contextId,
@@ -51,7 +51,7 @@ export function buildContextCandidates({
 }: {
   query: string;
   understandings: UnderstandingSummaryDTO[];
-  contexts: FtsContextResult[];
+  contexts: SearchContextResult[];
   domains: Domain[];
   selected: AgentContextRef[];
 }): ContextCandidate[] {

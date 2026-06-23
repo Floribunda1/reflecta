@@ -65,7 +65,7 @@
     当 用户执行命令 "context create --understanding-id UNDERSTANDING_ID --medium article --title 'Blog Post' --content 'Important context' --yes"
     那么 数据库中新增一条 Context，所有字段与输入一致
 
-  场景: 创建 Context 后自动加入 FTS 索引
+  场景: 创建 Context 后可被搜索到
     假设 存在一条活跃 Understanding，其 ID 为 UNDERSTANDING_ID
     当 用户执行命令 "context create --understanding-id UNDERSTANDING_ID --medium experience --content 'UNIQUE_CONTEXT_TEXT' --yes"
     那么 使用 "UNIQUE_CONTEXT_TEXT" 搜索 context 可返回该新 Context
@@ -111,7 +111,7 @@
     当 用户执行命令 "context update CONTEXT_ID --medium video --yes"
     那么 该 Context 的 medium 被更新
 
-  场景: 更新内容后刷新 FTS 索引
+  场景: 更新内容后搜索结果同步变化
     假设 存在一条活跃 Context CONTEXT_ID，其内容为 "OLD_TEXT"
     当 用户执行命令 "context update CONTEXT_ID --content 'NEW_TEXT' --yes"
     那么 搜索 "OLD_TEXT" 不再返回该 Context
@@ -143,7 +143,7 @@
     并且 该 Context 不再出现在 context list 的结果中
     并且 该 Context 不再出现在搜索结果中
 
-  场景: 删除 Context 后从 FTS 索引中移除
+  场景: 删除 Context 后不再出现在搜索结果中
     假设 存在一条活跃 Context CONTEXT_ID，其内容为 "DELETE_ME_KEYWORD"
     当 用户执行命令 "context delete CONTEXT_ID --yes"
     那么 搜索 "DELETE_ME_KEYWORD" 不再返回该 Context

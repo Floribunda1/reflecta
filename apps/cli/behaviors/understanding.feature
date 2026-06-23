@@ -185,12 +185,12 @@
     并且 该 Understanding 不再出现在搜索结果中
     并且 命令退出码应为 0
 
-  场景: 删除 Understanding 后将其从 FTS 索引中移除
+  场景: 删除 Understanding 后不再出现在搜索结果中
     假设 存在一条活跃 Understanding UNDERSTANDING_ID，其正文中包含关键词 "UNIQUE_KEYWORD"
     当 用户执行命令 "understanding delete UNDERSTANDING_ID --yes"
     那么 搜索 "UNIQUE_KEYWORD" 不再返回 UNDERSTANDING_ID
 
-  场景: 删除 Understanding 后将其 Context 从 FTS 索引中移除
+  场景: 删除 Understanding 后其 Context 不再出现在搜索结果中
     假设 存在一条活跃 Understanding UNDERSTANDING_ID，其 Context 内容包含 "CTX_KEYWORD"
     当 用户执行命令 "understanding delete UNDERSTANDING_ID --yes"
     那么 在 Context 中搜索 "CTX_KEYWORD" 不再返回这些 Context

@@ -362,22 +362,24 @@ describe("Understanding 管理", () => {
       expect(row!.deleted_at).not.toBeNull();
     });
 
-    it("删除后从 FTS 索引中移除", async () => {
+    it("删除后不再出现在搜索结果中", async () => {
       const { stdout: createOut } = await runCommand([
         "understanding",
         "create",
         "--title",
-        "FTS Delete Test",
+        "Search Delete Test",
         "--body",
         "UNIQUE_KEYWORD_XYZ",
+        "--format",
+        "json",
         "--yes",
       ]);
       const understandingId = (parseJson(createOut) as { id: string }).id;
       const { code } = await runCommand(["understanding", "delete", understandingId, "--yes"]);
       expect(code).toBe(0);
-      const { stdout } = await runCommand(["search", "understandings", "UNIQUE_KEYWORD_XYZ"]);
-      const ids = parseJsonl(stdout).map((r) => (r as { id: string }).id);
-      expect(ids).not.toContain(understandingId);
+      const { stdout } = await runCommand(["search", "UNIQUE_KEYWORD_XYZ", "--format", "json"]);
+      const hits = (parseJson(stdout) as { hits: Array<{ understanding?: { id: string } }> }).hits;
+      expect(hits.map((hit) => hit.understanding?.id)).not.toContain(understandingId);
     });
 
     it("删除不存在的 Understanding", async () => {

@@ -1,6 +1,6 @@
 import type {
-  FtsContextResult,
   SearchOptions,
+  SearchContextResult,
   SearchResult,
   UnderstandingSummaryDTO,
 } from "@reflecta/server";
@@ -19,7 +19,7 @@ export class SearchService extends IpcService {
   }
 
   @IpcMethod()
-  async searchContexts(query: string, options?: SearchOptions): Promise<FtsContextResult[]> {
+  async searchContexts(query: string, options?: SearchOptions): Promise<SearchContextResult[]> {
     return searchService.searchContexts(query, options);
   }
 

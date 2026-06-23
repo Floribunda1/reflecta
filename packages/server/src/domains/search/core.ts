@@ -1,6 +1,16 @@
-import { sql } from "drizzle-orm";
+import { and, desc, inArray, isNull } from "drizzle-orm";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { contexts, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type { SearchOptions } from "./types";
+import { resolveDomainRefs } from "../domain/core";
+import {
+  LanceDbRetrievalIndex,
+  LocalEmbeddingProvider,
+  buildRetrievalDocuments,
+} from "../retrieval";
+import type { RetrievalSearchHit } from "../retrieval";
 
 export function getLimitOffset(options?: SearchOptions) {
   return {
@@ -9,40 +19,47 @@ export function getLimitOffset(options?: SearchOptions) {
   };
 }
 
-export function escapeFtsQuery(query: string): string {
-  return query.replace(/"/g, '""');
-}
+type SearchRetrievalHit = RetrievalSearchHit & { rank: number; snippet: string };
 
 export class SearchCore {
   constructor(protected db: ReflectaDb) {}
+
+  protected async searchRetrievalDocuments(
+    query: string,
+    options?: SearchOptions,
+  ): Promise<SearchRetrievalHit[]> {
+    const { limit, offset } = getLimitOffset(options);
+    const docs = await this.buildRetrievalDocuments();
+    if (docs.length === 0) return [];
+
+    const index = new LanceDbRetrievalIndex({
+      uri:
+        process.env.REFLECTA_RETRIEVAL_INDEX_PATH ??
+        join(tmpdir(), "reflecta-retrieval-index", String(process.pid)),
+      embeddingProvider: new LocalEmbeddingProvider(),
+    });
+    // ponytail: rebuild-on-search; replace with write-path sync before large profiles.
+    await index.replaceAll(docs);
+    const hits = await index.search(query, limit + offset);
+    return hits.slice(offset).map((hit, index) => ({
+      ...hit,
+      rank: index + offset,
+      snippet: hit.textForLexicalSearch.slice(0, 160),
+    }));
+  }
 
   async searchUnderstandingIds(
     query: string,
     options?: SearchOptions,
   ): Promise<Array<{ understandingId: string; snippet: string; rank: number }>> {
-    const { limit, offset } = getLimitOffset(options);
-    const escaped = escapeFtsQuery(query);
-
-    const rows = await this.db.all<{
-      understanding_id: string;
-      snippet: string;
-      rank: number;
-    }>(sql`
-      SELECT
-        understanding_id,
-        snippet(fts_understandings, 1, '<mark>', '</mark>', '…', 10) AS snippet,
-        rank
-      FROM fts_understandings
-      WHERE fts_understandings MATCH ${escaped}
-      ORDER BY rank
-      LIMIT ${limit} OFFSET ${offset}
-    `);
-
-    return rows.map((r) => ({
-      understandingId: r.understanding_id,
-      snippet: r.snippet,
-      rank: r.rank,
-    }));
+    const hits = await this.searchRetrievalDocuments(query, options);
+    return hits
+      .filter((hit) => hit.entityType === "understanding")
+      .map((hit) => ({
+        understandingId: hit.entityId,
+        snippet: hit.snippet,
+        rank: hit.rank,
+      }));
   }
 
   async searchContextRows(
@@ -58,38 +75,56 @@ export class SearchCore {
       rank: number;
     }>
   > {
-    const { limit, offset } = getLimitOffset(options);
-    const escaped = escapeFtsQuery(query);
+    const hits = await this.searchRetrievalDocuments(query, options);
+    return hits
+      .filter((hit) => hit.entityType === "context")
+      .map((hit) => ({
+        contextId: hit.entityId,
+        understandingId: hit.parentUnderstandingId,
+        medium: hit.metadata.medium ?? "",
+        title: hit.metadata.title ?? null,
+        snippet: hit.snippet,
+        rank: hit.rank,
+      }));
+  }
 
-    const rows = await this.db.all<{
-      context_id: string;
-      understanding_id: string;
-      medium: string;
-      title: string | null;
-      snippet: string;
-      rank: number;
-    }>(sql`
-      SELECT
-        c.id AS context_id,
-        c.understanding_id AS understanding_id,
-        c.medium AS medium,
-        c.title AS title,
-        snippet(fts_contexts, 3, '<mark>', '</mark>', '…', 10) AS snippet,
-        rank
-      FROM fts_contexts
-      JOIN contexts c ON c.id = fts_contexts.context_id
-      WHERE fts_contexts MATCH ${escaped}
-      ORDER BY rank
-      LIMIT ${limit} OFFSET ${offset}
-    `);
+  private async buildRetrievalDocuments() {
+    const understandingRows = await this.db
+      .select()
+      .from(understandings)
+      .where(isNull(understandings.deletedAt))
+      .orderBy(desc(understandings.updatedAt));
+    if (understandingRows.length === 0) return [];
 
-    return rows.map((r) => ({
-      contextId: r.context_id,
-      understandingId: r.understanding_id,
-      medium: r.medium,
-      title: r.title,
-      snippet: r.snippet,
-      rank: r.rank,
-    }));
+    const understandingIds = understandingRows.map((understanding) => understanding.id);
+    const [domainRefs, contextRows] = await Promise.all([
+      resolveDomainRefs(this.db, understandingIds),
+      this.db
+        .select()
+        .from(contexts)
+        .where(
+          and(inArray(contexts.understandingId, understandingIds), isNull(contexts.deletedAt)),
+        ),
+    ]);
+    const contextsByUnderstandingId = new Map<string, typeof contextRows>();
+    for (const context of contextRows) {
+      const items = contextsByUnderstandingId.get(context.understandingId) ?? [];
+      items.push(context);
+      contextsByUnderstandingId.set(context.understandingId, items);
+    }
+
+    return understandingRows.flatMap((understanding) =>
+      buildRetrievalDocuments({
+        understanding,
+        domains: domainRefs.get(understanding.id) ?? [],
+        contexts: (contextsByUnderstandingId.get(understanding.id) ?? []).map((context) => ({
+          id: context.id,
+          medium: context.medium,
+          title: context.title,
+          content: context.content,
+          createdAt: context.createdAt,
+        })),
+      }),
+    );
   }
 }

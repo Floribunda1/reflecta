@@ -1,1 +1,1 @@
-export type { FtsContextResult, SearchOptions, SearchResult } from "@reflecta/server";
+export type { SearchContextResult, SearchOptions, SearchResult } from "@reflecta/server";

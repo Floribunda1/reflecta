@@ -1,6 +1,6 @@
 import { inArray } from "drizzle-orm";
 import { understandings } from "../../db/schema";
-import type { FtsContextResult, SearchOptions, SearchResult } from "./types";
+import type { SearchContextResult, SearchOptions, SearchResult } from "./types";
 import type { UnderstandingSummaryDTO } from "../understanding/types";
 import { SearchCore } from "./core";
 import { getLimitOffset } from "./core";
@@ -20,10 +20,10 @@ export class SearchElectronBff extends SearchCore {
     options?: SearchOptions,
   ): Promise<UnderstandingSummaryDTO[]> {
     const { limit, offset } = getLimitOffset(options);
-    const ftsRows = await this.searchUnderstandingIds(query, { limit, offset });
-    if (ftsRows.length === 0) return [];
+    const retrievalRows = await this.searchUnderstandingIds(query, { limit, offset });
+    if (retrievalRows.length === 0) return [];
 
-    const understandingIds = ftsRows.map((r) => r.understandingId);
+    const understandingIds = retrievalRows.map((r) => r.understandingId);
     const understandingRows = await this.db
       .select()
       .from(understandings)
@@ -36,7 +36,7 @@ export class SearchElectronBff extends SearchCore {
       .filter((d): d is UnderstandingSummaryDTO => d !== undefined);
   }
 
-  async searchContexts(query: string, options?: SearchOptions): Promise<FtsContextResult[]> {
+  async searchContexts(query: string, options?: SearchOptions): Promise<SearchContextResult[]> {
     const { limit, offset } = getLimitOffset(options);
     const rows = await this.searchContextRows(query, { limit, offset });
     return rows.map((r) => ({
@@ -49,10 +49,32 @@ export class SearchElectronBff extends SearchCore {
   }
 
   async search(query: string, options?: SearchOptions): Promise<SearchResult> {
-    const [understandingDTOs, ctxResults] = await Promise.all([
-      this.searchUnderstandings(query, options),
-      this.searchContexts(query, options),
-    ]);
+    const retrievalHits = await this.searchRetrievalDocuments(query, options);
+    const understandingIds = [
+      ...new Set(
+        retrievalHits
+          .filter((hit) => hit.entityType === "understanding")
+          .map((hit) => hit.entityId),
+      ),
+    ];
+    const understandingRows =
+      understandingIds.length === 0
+        ? []
+        : await this.db
+            .select()
+            .from(understandings)
+            .where(inArray(understandings.id, understandingIds));
+    const understandingDTOs =
+      await this.understandingService.assembleUnderstandingSummaryDTOs(understandingRows);
+    const ctxResults = retrievalHits
+      .filter((hit) => hit.entityType === "context")
+      .map((hit) => ({
+        contextId: hit.entityId,
+        understandingId: hit.parentUnderstandingId,
+        title: hit.metadata.title ?? null,
+        snippet: hit.snippet,
+        rank: hit.rank,
+      }));
     return { understandings: understandingDTOs, contexts: ctxResults };
   }
 }

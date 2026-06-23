@@ -148,7 +148,7 @@
     当 用户执行命令 "domain delete DOMAIN_ID --yes --cascade"
     那么 该 Domain 被删除
     并且 关联的 2 条 Understanding 被永久删除
-    并且 这些 Understanding 的 Context 和 FTS 记录也被移除
+    并且 这些 Understanding 的 Context 也被移除
 
   场景: 删除带有子 Domain 的父节点
     假设 数据库中存在父 Domain PARENT_ID，其下包含子 Domain

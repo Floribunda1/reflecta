@@ -3,89 +3,65 @@ import { understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import { SearchCore } from "./core";
 import { toUnderstandingSummaries } from "../understanding/core";
-import type { ContextSearchHit } from "../context/types";
-import type { UnderstandingSearchHit } from "../understanding/types";
-import type { SearchOptions, SearchOutput } from "./types";
+import type { ContextMedium } from "../context/types";
+import type { SearchHit, SearchOptions, SearchOutput } from "./types";
 
 export class SearchCliBff extends SearchCore {
   constructor(db: ReflectaDb) {
     super(db);
   }
 
-  private async searchUnderstandings(
-    query: string,
-    options?: SearchOptions,
-  ): Promise<UnderstandingSearchHit[]> {
-    const ftsRows = await this.searchUnderstandingIds(query, options);
-    if (ftsRows.length === 0) return [];
-
-    const understandingIds = ftsRows.map((r) => r.understandingId);
-    const understandingRows = await this.db
-      .select()
-      .from(understandings)
-      .where(inArray(understandings.id, understandingIds));
-
-    const summaries = await toUnderstandingSummaries(this.db, understandingRows);
-    const summaryMap = new Map(summaries.map((s) => [s.id, s]));
-
-    return ftsRows
-      .map((fts) => {
-        const summary = summaryMap.get(fts.understandingId);
-        if (!summary) return null;
-        return {
-          ...summary,
-          snippet: fts.snippet,
-          rank: fts.rank,
-        };
-      })
-      .filter((h): h is UnderstandingSearchHit => h !== null);
-  }
-
-  private async searchContexts(
-    query: string,
-    options?: SearchOptions,
-  ): Promise<ContextSearchHit[]> {
-    const rows = await this.searchContextRows(query, options);
-    return rows.map((r) => ({
-      contextId: r.contextId,
-      understandingId: r.understandingId,
-      medium: r.medium as ContextSearchHit["medium"],
-      title: r.title,
-      snippet: r.snippet,
-      rank: r.rank,
-    }));
-  }
-
   async search(query: string, options?: SearchOptions): Promise<SearchOutput> {
-    const [understandings, contexts] = await Promise.all([
-      this.searchUnderstandings(query, options),
-      this.searchContexts(query, options),
-    ]);
-    const hits = [
-      ...understandings.map((understanding) => ({
-        type: "understanding" as const,
+    const retrievalHits = await this.searchRetrievalDocuments(query, options);
+    const understandingIds = [
+      ...new Set(
+        retrievalHits
+          .filter((hit) => hit.entityType === "understanding")
+          .map((hit) => hit.entityId),
+      ),
+    ];
+    const understandingRows =
+      understandingIds.length === 0
+        ? []
+        : await this.db
+            .select()
+            .from(understandings)
+            .where(inArray(understandings.id, understandingIds));
+    const summaries = await toUnderstandingSummaries(this.db, understandingRows);
+    const summaryMap = new Map(summaries.map((summary) => [summary.id, summary]));
+
+    const hits: SearchHit[] = [];
+    for (const hit of retrievalHits) {
+      if (hit.entityType === "context") {
+        hits.push({
+          type: "context",
+          context: {
+            id: hit.entityId,
+            understandingId: hit.parentUnderstandingId,
+            medium: hit.metadata.medium as ContextMedium,
+            title: hit.metadata.title ?? null,
+          },
+          understandingId: hit.parentUnderstandingId,
+          matchedText: hit.snippet,
+          rank: hit.rank,
+        });
+        continue;
+      }
+
+      const summary = summaryMap.get(hit.entityId);
+      if (!summary) continue;
+      hits.push({
+        type: "understanding",
         understanding: {
-          id: understanding.id,
-          title: understanding.title,
-          body: understanding.body,
-          domains: understanding.domains,
+          id: summary.id,
+          title: summary.title,
+          body: summary.body,
+          domains: summary.domains,
         },
-        matchedText: understanding.snippet,
-        rank: understanding.rank,
-      })),
-      ...contexts.map((context) => ({
-        type: "context" as const,
-        context: {
-          id: context.contextId,
-          understandingId: context.understandingId,
-          medium: context.medium,
-          title: context.title,
-        },
-        understandingId: context.understandingId,
-        matchedText: context.snippet,
-        rank: context.rank,
-      })),
-    ].sort((left, right) => left.rank - right.rank);
+        matchedText: hit.snippet,
+        rank: hit.rank,
+      });
+    }
 
     return { hits };
   }
