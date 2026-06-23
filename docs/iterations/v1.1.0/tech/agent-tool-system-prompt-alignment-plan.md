@@ -302,6 +302,12 @@ type ContextSummary = {
   contentPreview?: string;
 };
 
+type UnderstandingListItem = {
+  understanding: UnderstandingSummary;
+  contexts: ContextSummary[];
+  contextBoundary?: "missing_context" | "has_more_contexts";
+};
+
 type LinkEdgeSummary = {
   fromUnderstandingId: Id;
   toUnderstandingId: Id;
@@ -353,14 +359,15 @@ type ListDomainsOutput = {
 type InspectDomainInput = PaginationInput & {
   domainId: Id;
   includeUnderstandings?: boolean; // default true
-  includeContexts?: boolean; // default false
+  includeContexts?: boolean; // default true
+  contextLimit?: number; // integer, 0..5 per Understanding, default 2
   includeLinkEdges?: boolean; // default false
 };
 
 type InspectDomainOutput = {
   domain: DomainSummary;
   children?: DomainSummary[];
-  understandings?: UnderstandingSummary[];
+  understandings?: UnderstandingListItem[];
   contexts?: ContextSummary[];
   linkEdges?: LinkEdgeSummary[];
 };
@@ -374,12 +381,16 @@ type InspectDomainOutput = {
 type ListUnderstandingsInput = PaginationInput & {
   domainIds?: Id[];
   includeDescendants?: boolean; // default false
+  includeContexts?: boolean; // default true
+  contextLimit?: number; // integer, 0..5 per Understanding, default 2
 };
 
 type ListUnderstandingsOutput = {
-  understandings: UnderstandingSummary[];
+  understandings: UnderstandingListItem[];
 };
 ```
+
+`contextLimit: 0` 明确表示只要 Understanding，不要 Context preview。默认不能只返回 `contextCount`，否则会把 Context 降级成弱 meta。
 
 #### `list_contexts`
 
@@ -405,10 +416,14 @@ type SearchUnderstandingsInput = PaginationInput & {
   query: string;
   domainIds?: Id[];
   includeDescendants?: boolean; // default true when domainIds is present
+  includeContexts?: boolean; // default true
+  contextLimit?: number; // integer, 0..5 per hit, default 2
 };
 
 type SearchUnderstandingHit = {
   understanding: UnderstandingSummary;
+  contexts: ContextSummary[];
+  contextBoundary?: "missing_context" | "has_more_contexts";
   matchedText?: string;
 };
 
@@ -720,29 +735,29 @@ type ProposeContextDeleteOutput = PendingProposalOutput<
 
 ### 4.6 当前工具到目标工具的迁移表
 
-| 当前工具                | 目标工具                       | 说明                                   |
-| ----------------------- | ------------------------------ | -------------------------------------- |
-| `snapshot_project`      | `snapshot_project`             | 兼容保留，不作为默认入口               |
-| `domain_list`           | `list_domains`                 | 只改名                                 |
-| `domain_inspect`        | `inspect_domain`               | `includeEdges` 改成 `includeLinkEdges` |
-| `understanding_list`    | `list_understandings`          | 只改名                                 |
-| `understanding_get`     | `read_understanding`           | 默认带 Context 和双链摘要              |
-| `context_list`          | `list_contexts`                | 只改名                                 |
-| `context_get`           | `read_context`                 | 默认带父 Understanding summary         |
-| `search_all`            | legacy/debug only              | 不再主推                               |
-| `search_understandings` | `search_understandings`        | 保留                                   |
-| `search_contexts`       | `search_contexts`              | 保留，但结果带父 Understanding         |
-| `graph_neighborhood`    | `read_link_neighborhood`       | graph 改成正文双链心智                 |
-| `graph_path`            | `read_link_path`               | graph 改成正文双链心智                 |
-| `domain_create`         | `propose_domain_create`        | 名字表达 pending proposal              |
-| `domain_update`         | `propose_domain_update`        | 参数收敛到 `after`                     |
-| `domain_delete`         | `propose_domain_delete`        | 名字表达 pending proposal              |
-| `understanding_create`  | `propose_understanding_create` | 增加 `basis`                           |
-| `understanding_update`  | `propose_understanding_update` | 参数收敛到 `after`                     |
-| `understanding_delete`  | `propose_understanding_delete` | 名字表达 pending proposal              |
-| `context_create`        | `propose_context_create`       | 名字表达 pending proposal              |
-| `context_update`        | `propose_context_update`       | 参数收敛到 `after`                     |
-| `context_delete`        | `propose_context_delete`       | 名字表达 pending proposal              |
+| 当前工具                | 目标工具                       | 说明                                                           |
+| ----------------------- | ------------------------------ | -------------------------------------------------------------- |
+| `snapshot_project`      | `snapshot_project`             | 兼容保留，不作为默认入口                                       |
+| `domain_list`           | `list_domains`                 | 只改名                                                         |
+| `domain_inspect`        | `inspect_domain`               | `includeEdges` 改成 `includeLinkEdges`，默认带 Context preview |
+| `understanding_list`    | `list_understandings`          | 默认带 Context preview                                         |
+| `understanding_get`     | `read_understanding`           | 默认带 Context 和双链摘要                                      |
+| `context_list`          | `list_contexts`                | 只改名                                                         |
+| `context_get`           | `read_context`                 | 默认带父 Understanding summary                                 |
+| `search_all`            | legacy/debug only              | 不再主推                                                       |
+| `search_understandings` | `search_understandings`        | 保留，但默认带 Context preview                                 |
+| `search_contexts`       | `search_contexts`              | 保留，但结果带父 Understanding                                 |
+| `graph_neighborhood`    | `read_link_neighborhood`       | graph 改成正文双链心智                                         |
+| `graph_path`            | `read_link_path`               | graph 改成正文双链心智                                         |
+| `domain_create`         | `propose_domain_create`        | 名字表达 pending proposal                                      |
+| `domain_update`         | `propose_domain_update`        | 参数收敛到 `after`                                             |
+| `domain_delete`         | `propose_domain_delete`        | 名字表达 pending proposal                                      |
+| `understanding_create`  | `propose_understanding_create` | 增加 `basis`                                                   |
+| `understanding_update`  | `propose_understanding_update` | 参数收敛到 `after`                                             |
+| `understanding_delete`  | `propose_understanding_delete` | 名字表达 pending proposal                                      |
+| `context_create`        | `propose_context_create`       | 名字表达 pending proposal                                      |
+| `context_update`        | `propose_context_update`       | 参数收敛到 `after`                                             |
+| `context_delete`        | `propose_context_delete`       | 名字表达 pending proposal                                      |
 
 ## 5. 渐进式 Phase
 
@@ -824,6 +839,8 @@ TDD：
   - `read_link_neighborhood`
   - `read_link_path`
 - 保留当前实现作 adapter，先让新名字转发到旧 service。
+- `list_understandings` 默认返回每条 Understanding 的 Context preview，而不是只返回 `contextCount`。
+- `search_understandings` 默认返回命中 Understanding 的 Context preview。
 - `search_contexts` result 增加 `parentUnderstanding`。
 - `read_understanding` 默认带 Context summary 和双链摘要。
 - `graph_neighborhood` / `graph_path` 改名为 `read_link_neighborhood` / `read_link_path`。
@@ -833,16 +850,19 @@ TDD：
 
 1. RED：tool registry contract test，断言目标 read tools 全部注册。
 2. GREEN：新增目标 tool 名并转发旧 service。
-3. RED：seed Understanding + Context，调用 `search_contexts("命中 Context 的词")`，期望返回 `parentUnderstanding`。
-4. GREEN：补 `parentUnderstanding` result shape。
-5. RED：seed 正文双链，调用 `read_link_neighborhood`，期望返回 outgoing links / backlinks / unresolved links。
-6. GREEN：接入当前 graph/wiki-link 解析结果。
-7. E2E：真实 AI 下让用户查询一个已 seed 的主题，断言出现 tool activity，最终回复完成，不出现旧 `search_all` 强制路径。
+3. RED：seed Understanding + Context，调用 `list_understandings`，期望每条结果包含 `contexts` 或 `contextBoundary: "missing_context"`。
+4. GREEN：补 list result shape。
+5. RED：seed Understanding + Context，调用 `search_contexts("命中 Context 的词")`，期望返回 `parentUnderstanding`。
+6. GREEN：补 `parentUnderstanding` result shape。
+7. RED：seed 正文双链，调用 `read_link_neighborhood`，期望返回 outgoing links / backlinks / unresolved links。
+8. GREEN：接入当前 graph/wiki-link 解析结果。
+9. E2E：真实 AI 下让用户查询一个已 seed 的主题，断言出现 tool activity，最终回复完成，不出现旧 `search_all` 强制路径。
 
 退出条件：
 
 - read tool 名称和 4.4 参数一致。
 - `search_all` 不再是 prompt 主推工具。
+- `list_understandings` / `search_understandings` 不把 Context 降级成 `contextCount`。
 - Context search 能带用户回到父 Understanding。
 - 双链读工具只读派生关系，不创建关系。
 
@@ -913,7 +933,7 @@ TDD：
   - `propose_context_create` -> 候选上下文
   - `propose_domain_create` -> 候选领域
 - System prompt 指导 Agent 使用 primitive 组合：
-  - 查找主题：`search_understandings` / `search_contexts` -> `read_understanding` / `read_context`。
+  - 查找主题：先用 `search_understandings` / `search_contexts`；需要精读时再 `read_understanding` / `read_context`。
   - 回看领域：`list_domains` -> `inspect_domain`。
   - 查看关系：`read_understanding` -> `read_link_neighborhood`。
   - 新增双链：`search_understandings` -> `read_understanding` -> `propose_understanding_update`。
@@ -956,6 +976,8 @@ TDD：
 - prompt loader 是否读取同一份文件。
 - tool descriptions 是否包含/不包含关键产品词。
 - tool registry 是否暴露 4.4 / 4.5 定义的目标工具。
+- `list_understandings` 对 seed DB 默认返回 Context preview 或 `missing_context` boundary。
+- `search_understandings` 对 seed DB 默认返回命中 Understanding 的 Context preview。
 - `search_contexts` 对 seed DB 返回 Context 和父 Understanding。
 - `read_link_neighborhood` 对 seed 双链返回 outgoing links / backlinks / unresolved links。
 - `propose_understanding_create` approve 后只创建 Understanding。
