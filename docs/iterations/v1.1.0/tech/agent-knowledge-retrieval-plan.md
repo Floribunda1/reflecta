@@ -46,7 +46,7 @@ SQLite FTS、Context 上下文、显式关系、未来的 vector index 都只是
 现在 Agent 调用的是数据库味很重的搜索工具：
 
 ```txt
-search_all("PDCA 检验 标准 Check 验证 迭代 反馈")
+search({ query: "PDCA 检验 标准 Check 验证 迭代 反馈" })
 ```
 
 这个 query 进入 SQLite FTS 后，空格分隔的词会形成很强的匹配约束。对 Agent 来说，这句话本来是“一组候选关键词”；对 FTS 来说，它更像“这些词都要同时满足”。
@@ -68,7 +68,7 @@ result: understandings=1
 
 ```txt
 Agent 输入的是自然语言/关键词包。
-当前 search_all 执行的是底层 FTS 表达式。
+当前 Agent `search` 仍然执行的是底层 FTS 表达式。
 两者语义不一致。
 ```
 
@@ -219,7 +219,7 @@ type UnderstandingCandidate = {
   score: number;
   matchedContexts: MatchedContext[];
   suggestedRead?: {
-    tool: "read_understanding";
+    tool: "understanding_get";
     input: { understandingId: string; includeContexts: true };
   };
   evidence: CandidateEvidence[];
@@ -420,7 +420,7 @@ Agent 主路径应该收敛成：
 
 ```txt
 retrieve_knowledge
-read knowledge detail tools
+understanding_get / context_get / domain_inspect
 ```
 
 `retrieve_knowledge` 返回候选和下一步读取建议：
@@ -442,7 +442,7 @@ read knowledge detail tools
     }
   ],
   "suggestedRead": {
-    "tool": "read_understanding",
+    "tool": "understanding_get",
     "input": { "understandingId": "understanding_1", "includeContexts": true }
   },
   "evidence": [
@@ -454,15 +454,15 @@ read knowledge detail tools
 }
 ```
 
-保留底层 `read_understanding`、`read_context`、`inspect_domain`，但 prompt 里不鼓励 Agent 反复试不同 search query。
+保留底层 `understanding_get`、`context_get`、`domain_inspect`，但 prompt 里不鼓励 Agent 反复试不同 search query。
 
-## 9. Phase 1：修 search_all 召回语义
+## 9. Phase 1：修 Agent search 召回语义
 
 用户状态：用户让 Agent 搜索知识库时，多关键词查询不再轻易返回空。
 
 实现范围：
 
-- 在 Agent read-only tool 内部改 `search_all` 的执行逻辑。
+- 在 Pi read-only tool facade 内部改 `search` 的执行逻辑。
 - 不改 CLI `search` 命令语义。
 - 不引入新索引。
 - 增加 `trace` 字段。
@@ -472,7 +472,7 @@ TDD：
 1. RED：写 main unit/integration，用真实 search service 数据复现：
    - 多词 query strict 为空。
    - 单 token query 有结果。
-   - `search_all` 最终应返回非空候选。
+   - Agent `search` 最终应返回非空候选。
    - 如果命中来自 Context，结果必须能指回 parent Understanding。
 2. GREEN：实现 token fallback 和 merge 去重。
 3. RED：写 trace 断言。
@@ -480,7 +480,7 @@ TDD：
 
 退出条件：
 
-- Agent `search_all` 对关键词包有高召回。
+- Agent `search` 对关键词包有高召回。
 - Context 命中不会丢失所属 Understanding。
 - CLI 搜索行为不变。
 - UI tool activity 仍能展示搜索数量。
@@ -493,7 +493,7 @@ TDD：
 
 - 新增 `KnowledgeRetriever` 模块。
 - 新增 Pi read-only tool：`retrieve_knowledge`。
-- `search_all` 暂时保留，但 prompt 中主推 `retrieve_knowledge`。
+- 现有 `search` 暂时保留，但 prompt 中主推 `retrieve_knowledge`。
 
 TDD：
 
@@ -505,7 +505,7 @@ TDD：
 退出条件：
 
 - Agent 有一个产品语义的 retrieval tool。
-- 旧 search tools 还能工作。
+- 旧 `search` tool 还能工作。
 - 新 tool 输出可 debug，并保留 Context。
 
 ## 11. Phase 3：Context 作为一级召回信号
@@ -667,7 +667,7 @@ Pi Agent
       -> CandidateFusion(score + evidence)
       -> RetrievalTrace
   -> candidates + suggestedRead
-  -> read_understanding / read_context / inspect_domain
+  -> understanding_get / context_get / domain_inspect
 ```
 
 一句话：
