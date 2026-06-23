@@ -35,8 +35,9 @@
 
 - Runtime 真实加载一份 Reflecta system prompt，不再使用散落的内联 prompt。
 - Agent 默认语言从 `knowledge base` 转成 `personal understanding` / `Understanding` / `Context`。
-- 读工具主入口从 `search_all` 转成产品语义的 `find_understandings`。
-- 写工具从“创建一个 Understanding”转成“提交一个可追溯的理解候选”。
+- 读工具从 `search_all` 默认入口，转成 `search_understandings` / `search_contexts` / `read_*` 这组小而正交的 Reflecta 领域 primitive。
+- 写工具从“直接 create/update/delete”转成 `propose_*` 候选写入。
+- 双链关系不做独立 CRUD；它来自 Understanding 正文里的 `[[Title#understandingId]]`，修改关系就是修改正文。
 - Context 不再被描述成 surrounding material，而是 Understanding 的上下文。
 
 ## 2. 判断标准
@@ -95,11 +96,11 @@ create, update, or delete Reflecta knowledge...
 ```txt
 snapshot_project
 domain_list
-inspect_domain
+domain_inspect
 understanding_list
-read_understanding
+understanding_get
 context_list
-read_context
+context_get
 search_all
 search_understandings
 search_contexts
@@ -123,9 +124,14 @@ graph_path
 search_all -> read_understanding(includeContexts) -> graph_neighborhood
 ```
 
-这个 interface 太浅。复杂度暴露给了模型。
+问题不是工具数量太少，而是 interface 心智不稳定：
 
-### 3.3 Search 返回 shape 不符合 Context
+- `search_all` 太像“万能知识库搜索”，还会劫持默认路线。
+- `graph_*` 听起来像独立关系对象，但当前产品里关系来自正文双链。
+- `*_create/update/delete` 实际是 approval proposal，但名字像直接写库。
+- `understanding_get` / `context_get` 是数据库味命名，不如 `read_*` 表达 Agent 动作。
+
+### 3.3 Search 默认路径和 Context 语义不清
 
 当前 `search_all` 返回：
 
@@ -138,26 +144,32 @@ search_all -> read_understanding(includeContexts) -> graph_neighborhood
 
 这把 Understanding 命中和 Context 命中拆成了两个列表。
 
-但 Reflecta 的产品语义里，Context 命中不应该是另一类“搜索结果”。它应该被解释成：
+但 Reflecta 的产品语义里，Context 可以被直接搜索，不能被降级成孤立材料。`search_contexts` 应该保留，因为用户会问：
 
 ```txt
-某个 Understanding 被它的上下文命中了。
+我有没有类似经历？
+我以前有没有类似 AI 对话？
+我在哪些材料里碰到过这个问题？
 ```
 
-所以更合适的 shape 是：
+但 Context search result 必须带父 Understanding：
+
+```txt
+这个 Context 属于哪条 Understanding？
+这个命中能否帮助用户回到某条个人理解？
+```
+
+所以更合适的 `search_contexts` result shape 是：
 
 ```ts
-type UnderstandingCandidate = {
-  understanding: UnderstandingSummary;
-  matchedBy: "understanding" | "context" | "connection";
-  matchedContexts: ContextEvidence[];
-  relatedUnderstandings: RelatedUnderstanding[];
-  boundaryNotes: string[];
-  trace: RetrievalTrace;
+type ContextSearchHit = {
+  context: ContextSummary;
+  parentUnderstanding: UnderstandingSummary;
+  matchedText?: string;
 };
 ```
 
-### 3.4 `propose_understanding` 允许 Context-less AI proposal
+### 3.4 `understanding_create` 允许 Context-less AI proposal
 
 当前裸 create 工具参数是：
 
@@ -207,89 +219,333 @@ Pi runtime、token usage 估算、测试都引用这同一份文件。
 - 如果 Understanding 没有 Context，要明确这是未追溯边界。
 - 关系只能作为候选建议，不能自动当作用户知识网。
 
-### 4.2 Read tools 分两层
+### 4.2 Tool interface 原则
 
-Agent prompt 中主推产品语义工具：
+Tools should be small Reflecta-domain primitives, not generic CRUD and not workflow-sized shortcuts.
+
+第一版保留领域对象，不做大一统 `tool({ kind, payload })`：
 
 ```txt
-find_understandings
+Domain
+Understanding
+Context
+正文双链派生出的 link graph
 ```
 
-它的 interface：
+写入侧只有三个可写对象：
+
+```txt
+Domain
+Understanding
+Context
+```
+
+没有 Connection CRUD。双链关系来自 Understanding 正文里的 `[[Title#understandingId]]`：
+
+- 读取关系：用 `read_link_neighborhood` / `read_link_path`。
+- 新增关系：用 `propose_understanding_update` 修改正文，插入双链。
+- 删除关系：用 `propose_understanding_update` 修改正文，移除双链。
+- 未解析双链：作为读取结果里的 boundary，不生成独立写工具。
+
+`search_contexts` 必须保留。搜索 Context 是 primitive，不是 workflow；但返回结果必须带父 Understanding。
+
+`search_all` 可以第一阶段兼容保留，但只能是 legacy/debug tool，不再出现在 prompt 默认路线里。
+
+### 4.3 Shared parameter types
 
 ```ts
-type FindUnderstandingsInput = {
+type Id = string;
+
+type PaginationInput = {
+  limit?: number; // integer, 1..200, default implementation-defined
+  offset?: number; // integer, >= 0, default 0
+};
+
+type ContextMedium = "experience" | "video" | "book" | "article" | "opinion" | "ai" | "other";
+
+type InitialContextInput = {
+  medium: ContextMedium;
+  title?: string;
+  content: string;
+};
+
+type UnderstandingPatch = {
+  title?: string | null;
+  body?: string;
+  domainIds?: Id[];
+};
+
+type DomainPatch = {
+  name?: string;
+  parentId?: Id | null;
+};
+
+type ContextPatch = {
+  medium?: ContextMedium;
+  title?: string | null;
+  content?: string;
+};
+
+type UnderstandingSummary = {
+  id: Id;
+  title?: string | null;
+  bodyPreview?: string;
+  domainIds?: Id[];
+  contextCount?: number;
+  linkCount?: number;
+};
+
+type ContextSummary = {
+  id: Id;
+  understandingId: Id;
+  medium: ContextMedium;
+  title?: string | null;
+  contentPreview?: string;
+};
+```
+
+约束：
+
+- 所有 `Id` 都必须是非空字符串。
+- 所有 `query` / `body` / `content` 都必须是非空字符串。
+- `*Patch` 至少要包含一个字段。
+- `body` 是完整 Markdown body，不做局部 patch。
+- `domainIds` 是 Understanding 的完整目标归属列表，不是增量 add/remove。
+- `title: null` 表示清空标题；省略表示不改。
+- `parentId: null` 表示移动到顶层 Domain；省略表示不改。
+
+### 4.4 Read tools 参数
+
+```ts
+type ListDomainsInput = {};
+```
+
+返回 Domain 树或扁平列表，由当前 domain service 决定。Agent 只依赖 `id`、`name`、`parentId`。
+
+```ts
+type InspectDomainInput = PaginationInput & {
+  domainId: Id;
+  includeUnderstandings?: boolean; // default true
+  includeContexts?: boolean; // default false
+  includeLinkEdges?: boolean; // default false
+};
+```
+
+用于看一个 Domain 的回看语境，不负责搜索。
+
+```ts
+type ListUnderstandingsInput = PaginationInput & {
+  domainIds?: Id[];
+  includeDescendants?: boolean; // default false
+};
+```
+
+用于枚举，不用于语义搜索。
+
+```ts
+type ListContextsInput = {
+  understandingId: Id;
+};
+```
+
+只列出一条 Understanding 下的 Context。
+
+```ts
+type SearchUnderstandingsInput = PaginationInput & {
   query: string;
-  domainIds?: string[];
-  selectedRefs?: AgentContextRef[];
-  limit?: number;
-};
-
-type FindUnderstandingsResult = {
-  candidates: UnderstandingCandidate[];
-  emptyReason?: "no_match" | "query_too_broad" | "query_too_specific";
-  suggestedNextQueries?: string[];
+  domainIds?: Id[];
+  includeDescendants?: boolean; // default true when domainIds is present
 };
 ```
 
-它背后的 implementation 第一版复用 `agent-knowledge-retrieval-plan.md`：
-
-```txt
-SQLite FTS
-  + token fallback
-  + Context recall
-  + explicit graph expansion
-  + local ranking
-  + retrieval trace
-```
-
-低层工具可以暂时保留，但不作为 prompt 里的默认路线：
-
-```txt
-read_understanding
-read_context
-inspect_domain
-graph_neighborhood
-```
-
-`search_all` 第一阶段可以保留兼容测试和排查，但不再指导模型优先调用它。
-
-### 4.3 Write tools 改成候选理解语义
-
-新增或替换一个 Agent-facing 写工具：
-
-```txt
-propose_understanding
-```
-
-它表达的是“捕捉一个用户理解候选”，而不是裸 `createUnderstanding`。
-
-建议 shape：
+只搜索 Understanding title/body。Context 命中不混进这个工具。
 
 ```ts
-type ProposeUnderstandingInput = {
+type SearchContextsInput = PaginationInput & {
+  query: string;
+  domainIds?: Id[];
+  understandingId?: Id;
+  mediums?: ContextMedium[];
+};
+```
+
+返回结果必须包含父 Understanding summary：
+
+```ts
+type SearchContextsHit = {
+  context: ContextSummary;
+  parentUnderstanding: UnderstandingSummary;
+  matchedText?: string;
+};
+```
+
+```ts
+type ReadUnderstandingInput = {
+  understandingId: Id;
+  includeContexts?: boolean; // default true
+  includeOutgoingLinks?: boolean; // default true
+  includeBacklinks?: boolean; // default true
+};
+```
+
+读取一条 Understanding。默认带 Context summary 和正文双链摘要。
+
+```ts
+type ReadContextInput = {
+  contextId: Id;
+  includeParentUnderstanding?: boolean; // default true
+};
+```
+
+精读一条 Context。默认带父 Understanding summary。
+
+```ts
+type ReadLinkNeighborhoodInput = PaginationInput & {
+  understandingId: Id;
+  depth?: number; // integer, 1..3, default 1
+  includeContexts?: boolean; // default false
+};
+```
+
+读取正文双链派生出的 outgoing links、backlinks、unresolved links。它只读图，不推断新关系。
+
+```ts
+type ReadLinkPathInput = {
+  fromUnderstandingId: Id;
+  toUnderstandingId: Id;
+  maxDepth?: number; // integer, 1..6, default 4
+};
+```
+
+查找两条 Understanding 之间已经存在的双链路径。没有路径时返回空结果，不让 Agent 编造关系。
+
+兼容工具：
+
+```ts
+type SnapshotProjectInput = {};
+
+type SearchAllInput = PaginationInput & {
+  query: string;
+};
+```
+
+`snapshot_project` 和 `search_all` 第一阶段可以保留给兼容、排查和测试，但 prompt 不再主推。
+
+### 4.5 Write proposal tools 参数
+
+所有写工具都只是提交 pending proposal。它们不能直接写入 DB，approval 后才执行真正 mutation。
+
+```ts
+type ProposeDomainCreateInput = {
+  name: string;
+  parentId?: Id | null;
+  reason?: string;
+};
+
+type ProposeDomainUpdateInput = {
+  domainId: Id;
+  after: DomainPatch;
+  reason?: string;
+};
+
+type ProposeDomainDeleteInput = {
+  domainId: Id;
+  deleteUnderstandings?: boolean; // default false
+  reason?: string;
+};
+```
+
+```ts
+type ProposeUnderstandingCreateInput = {
   title?: string;
   body: string;
-  domainIds?: string[];
-  proposedContext?: {
-    medium: "experience" | "video" | "book" | "article" | "opinion" | "ai" | "other";
-    title?: string;
-    content: string;
-  };
-  proposalReason: string;
+  domainIds?: Id[];
+  initialContext?: InitialContextInput;
+  basis: "user_stated" | "ai_candidate";
+  reason?: string;
 };
 ```
 
 规则：
 
-- 有具体场景或材料时带 `proposedContext`。
-- 没有 `proposedContext` 时 proposal UI 只展示 Understanding 候选，不伪造 Context。
-- 如果用户只是在让 AI 总结材料，Agent 不能直接把总结当 Understanding；应该先问用户这是否代表他的理解。
-- approval 后，后端用一次事务创建 Understanding，并在有 `proposedContext` 时一起创建 Context。
-- `add_context` 保留，用于给已有 Understanding 增加 Context。
-- `update_understanding` 保留，但 prompt 必须要求先读取现有 Understanding 和 Context。
+- `basis: "user_stated"` 表示用户已经表达了这条理解，Agent 只做整理。
+- `basis: "ai_candidate"` 表示 AI 在提出候选表达，必须在 UI 中明确等待用户确认。
+- 有具体经历、材料、实践或 AI 对话时，优先带 `initialContext`。
+- 没有 `initialContext` 时不能伪造 Context；UI 应显示这条候选理解缺少 Context。
+- approval 后，`initialContext` 和 Understanding 必须在同一事务里创建。
 
-不新增 connection 写工具，直到产品明确需要“关系候选卡片”。
+```ts
+type ProposeUnderstandingUpdateInput = {
+  understandingId: Id;
+  before?: UnderstandingPatch;
+  after: UnderstandingPatch;
+  reason?: string;
+};
+
+type ProposeUnderstandingDeleteInput = {
+  understandingId: Id;
+  reason?: string;
+};
+```
+
+规则：
+
+- Agent 必须先 `read_understanding`，再提交 `propose_understanding_update`。
+- 修改双链关系也走 `after.body`，不走独立 link/connection write tool。
+- `before` 用于 UI diff 和并发校验；缺省时后端仍需在 approval 时读取最新值。
+
+```ts
+type ProposeContextCreateInput = {
+  understandingId: Id;
+  medium: ContextMedium;
+  title?: string;
+  content: string;
+  reason?: string;
+};
+
+type ProposeContextUpdateInput = {
+  contextId: Id;
+  after: ContextPatch;
+  reason?: string;
+};
+
+type ProposeContextDeleteInput = {
+  contextId: Id;
+  reason?: string;
+};
+```
+
+规则：
+
+- `propose_context_create` 只能给已有 Understanding 补 Context。
+- 新 Understanding 的初始 Context 用 `propose_understanding_create.initialContext`。
+- Context 不是附件库；`content` 必须是围绕该 Understanding 的具象上下文。
+
+### 4.6 当前工具到目标工具的迁移表
+
+| 当前工具                | 目标工具                       | 说明                                   |
+| ----------------------- | ------------------------------ | -------------------------------------- |
+| `snapshot_project`      | `snapshot_project`             | 兼容保留，不作为默认入口               |
+| `domain_list`           | `list_domains`                 | 只改名                                 |
+| `domain_inspect`        | `inspect_domain`               | `includeEdges` 改成 `includeLinkEdges` |
+| `understanding_list`    | `list_understandings`          | 只改名                                 |
+| `understanding_get`     | `read_understanding`           | 默认带 Context 和双链摘要              |
+| `context_list`          | `list_contexts`                | 只改名                                 |
+| `context_get`           | `read_context`                 | 默认带父 Understanding summary         |
+| `search_all`            | legacy/debug only              | 不再主推                               |
+| `search_understandings` | `search_understandings`        | 保留                                   |
+| `search_contexts`       | `search_contexts`              | 保留，但结果带父 Understanding         |
+| `graph_neighborhood`    | `read_link_neighborhood`       | graph 改成正文双链心智                 |
+| `graph_path`            | `read_link_path`               | graph 改成正文双链心智                 |
+| `domain_create`         | `propose_domain_create`        | 名字表达 pending proposal              |
+| `domain_update`         | `propose_domain_update`        | 参数收敛到 `after`                     |
+| `domain_delete`         | `propose_domain_delete`        | 名字表达 pending proposal              |
+| `understanding_create`  | `propose_understanding_create` | 增加 `initialContext` 和 `basis`       |
+| `understanding_update`  | `propose_understanding_update` | 参数收敛到 `after`                     |
+| `understanding_delete`  | `propose_understanding_delete` | 名字表达 pending proposal              |
+| `context_create`        | `propose_context_create`       | 名字表达 pending proposal              |
+| `context_update`        | `propose_context_update`       | 参数收敛到 `after`                     |
+| `context_delete`        | `propose_context_delete`       | 名字表达 pending proposal              |
 
 ## 5. 渐进式 Phase
 
@@ -349,121 +605,148 @@ TDD：
 - 现有工具仍能执行。
 - 产品文案不再把 Context 降级成附件、背景或 surrounding material。
 
-### Phase 3：新增 `find_understandings` 作为主读工具
+### Phase 3：收敛 read tool interface
 
 用户可见变化：
 
-- 用户问“我关于 X 有哪些理解”时，Agent 能返回带 Context 的候选，而不是裸搜索结果。
-- 如果没有命中，Agent 能说清楚是没有匹配，还是 query 太宽/太窄。
+- Agent 可以分别搜索 Understanding 和 Context。
+- Context 命中会带回父 Understanding，不再像孤立材料。
+- Tool activity 不再显示 `graph_*` 这种误导关系模型的名字。
 
 改动：
 
-- 新增 `find_understandings` Pi tool。
-- 第一版 implementation 调用 `KnowledgeRetriever`。
-- 返回 `UnderstandingCandidate[]`：
-  - parent Understanding
-  - matched Context evidence
-  - explicit related Understandings
-  - boundary markers
-  - retrieval trace
-- System prompt 指导 Agent 优先使用 `find_understandings`，只有需要精读时再 `read_understanding` / `read_context`。
+- 新增目标 read tool 名：
+  - `list_domains`
+  - `inspect_domain`
+  - `list_understandings`
+  - `list_contexts`
+  - `search_understandings`
+  - `search_contexts`
+  - `read_understanding`
+  - `read_context`
+  - `read_link_neighborhood`
+  - `read_link_path`
+- 保留当前实现作 adapter，先让新名字转发到旧 service。
+- `search_contexts` result 增加 `parentUnderstanding`。
+- `read_understanding` 默认带 Context summary 和双链摘要。
+- `graph_neighborhood` / `graph_path` 改名为 `read_link_neighborhood` / `read_link_path`。
+- `search_all` 降级成 legacy/debug，不再出现在 prompt guideline。
 
 TDD：
 
-1. RED：seed Understanding + Context，调用 `find_understandings("命中 Context 的词")`，期望返回父 Understanding 和命中的 Context evidence。
-2. GREEN：接入 `KnowledgeRetriever`。
-3. RED：seed 只有 Understanding、没有 Context 的记录，期望 candidate 带 boundary marker。
-4. GREEN：补 boundary marker。
-5. E2E：真实 AI 下让用户查询一个已 seed 的主题，断言出现 tool activity，最终回复完成，并且 UI 有可读的 Context / 候选展示。
+1. RED：tool registry contract test，断言目标 read tools 全部注册。
+2. GREEN：新增目标 tool 名并转发旧 service。
+3. RED：seed Understanding + Context，调用 `search_contexts("命中 Context 的词")`，期望返回 `parentUnderstanding`。
+4. GREEN：补 `parentUnderstanding` result shape。
+5. RED：seed 正文双链，调用 `read_link_neighborhood`，期望返回 outgoing links / backlinks / unresolved links。
+6. GREEN：接入当前 graph/wiki-link 解析结果。
+7. E2E：真实 AI 下让用户查询一个已 seed 的主题，断言出现 tool activity，最终回复完成，不出现旧 `search_all` 强制路径。
 
 退出条件：
 
-- `find_understandings` 覆盖普通查询路径。
+- read tool 名称和 4.4 参数一致。
 - `search_all` 不再是 prompt 主推工具。
-- 空结果有可解释 fallback。
+- Context search 能带用户回到父 Understanding。
+- 双链读工具只读派生关系，不创建关系。
 
-### Phase 4：新增 `propose_understanding` 候选写入工具
+### Phase 4：收敛 write proposal interface
 
 用户可见变化：
 
-- 用户让 Agent 记录一条理解时，proposal card 会显示它是否带 Context。
-- 带 Context 的理解确认后，会同时创建 Understanding 和 Context。
+- 所有写入卡片都明确是候选项，确认前不写入。
+- 用户让 Agent 记录一条理解时，proposal card 会显示它是否带 initial Context。
+- 带 initial Context 的理解确认后，会同时创建 Understanding 和 Context。
 - 没有 Context 的理解会明确显示“缺少 Context”。
 
 改动：
 
-- 新增 `propose_understanding` approval tool。
-- approval 后用一次后端事务：
-  - 创建 Understanding。
-  - 如果有 `proposedContext`，创建 Context。
-- System prompt 规定：
-  - 用户已经表达的理解可以整理成 candidate。
-  - AI 自己总结出的内容只能作为候选表达，必须说明 Context 状态。
-  - 缺少 Context 时优先追问；用户明确要先记录时，标记为 ungrounded。
-- UI proposal card 展示：
-  - Understanding title/body。
-  - proposed Context 的 medium/title/content preview。
-  - proposal reason。
+- 新增目标 write proposal tools：
+  - `propose_domain_create`
+  - `propose_domain_update`
+  - `propose_domain_delete`
+  - `propose_understanding_create`
+  - `propose_understanding_update`
+  - `propose_understanding_delete`
+  - `propose_context_create`
+  - `propose_context_update`
+  - `propose_context_delete`
+- 旧 `domain_*` / `understanding_*` / `context_*` 第一阶段可作为 alias 保留。
+- `propose_understanding_create` 增加 `initialContext` 和 `basis`。
+- `propose_*_update` 参数收敛为 `after` patch。
+- approval pending 文案从 “knowledge base has not been changed” 改成“候选项尚未写入”。
+- 不新增 connection/link 写工具。
 
 TDD：
 
-1. RED：调用 `propose_understanding` approval tool，pending event payload 可包含 `proposedContext`。
-2. GREEN：注册 approval tool。
-3. RED：approve 带 proposedContext 的 proposal 后，DB 里同时出现 Understanding 和 Context。
-4. GREEN：实现事务写入。
-5. RED：approve 不带 proposedContext 的 proposal 后，只创建 Understanding。
-6. GREEN：补输出。
-7. E2E：真实 AI 下输入“把这段来自某次 AI 对话的理解记录下来...”，断言出现 pending proposal；点击确认后，刷新仍能看到新 Understanding 和 Context。
+1. RED：tool registry contract test，断言目标 write proposal tools 全部注册。
+2. GREEN：新增目标 tool 名并复用现有 approval pipeline。
+3. RED：调用 `propose_understanding_create`，pending event payload 可包含 `initialContext` 和 `basis`。
+4. GREEN：补 pending payload。
+5. RED：approve 带 `initialContext` 的 proposal 后，DB 里同时出现 Understanding 和 Context。
+6. GREEN：实现同事务写入。
+7. RED：调用 `propose_understanding_update` 修改 body 插入双链，approve 后 link neighborhood 可读到关系。
+8. GREEN：复用正文双链解析。
+9. E2E：真实 AI 下输入“把这段来自某次 AI 对话的理解记录下来...”，断言出现 pending proposal；点击确认后，刷新仍能看到新 Understanding 和 Context。
 
 退出条件：
 
-- 新写入路径不需要 Agent 连续调用 `propose_understanding` + `add_context`。
-- 写入 proposal 能表达 Context 状态。
-- 旧的裸 create 工具不再作为 prompt 主推工具。
+- write tool 名称和 4.5 参数一致。
+- 所有写入仍然走 approval。
+- 新写入路径不需要 Agent 连续调用 create Understanding + create Context 来表达初始上下文。
+- 修改双链关系只能通过 Understanding body update。
 
-### Phase 5：收敛 tool surface
+### Phase 5：收敛 tool display 和 prompt 默认路线
 
 用户可见变化：
 
 - Tool activity 不再显示数据库味工具名。
-- Agent 行为更稳定：先找理解，再精读 Context，再提出候选。
+- Agent 行为更稳定：搜索、读取、提出候选，但不自动织网。
 
 改动：
 
-- Pi tools 列表中主推：
-  - `find_understandings`
-  - `read_understanding`
-  - `read_context`
-  - `inspect_domain`
-  - `propose_understanding`
-  - `add_context`
-  - update/delete approval tools
-- 降级或隐藏：
-  - `search_understandings`
-  - `search_contexts`
-  - `search_all`
 - Tool UI 文案统一：
-  - 搜索相关内容 -> 查找相关理解
-  - 读取 Understanding -> 读取理解
-  - 读取 Context -> 读取上下文
-  - 候选 Understanding -> 候选理解
+  - `search_understandings` -> 查找相关理解
+  - `search_contexts` -> 查找相关上下文
+  - `read_understanding` -> 读取理解
+  - `read_context` -> 读取上下文
+  - `read_link_neighborhood` -> 查看双链关系
+  - `propose_understanding_create` -> 候选理解
+  - `propose_context_create` -> 候选上下文
+  - `propose_domain_create` -> 候选领域
+- System prompt 指导 Agent 使用 primitive 组合：
+  - 查找主题：`search_understandings` / `search_contexts` -> `read_understanding` / `read_context`。
+  - 回看领域：`list_domains` -> `inspect_domain`。
+  - 查看关系：`read_understanding` -> `read_link_neighborhood`。
+  - 新增双链：`search_understandings` -> `read_understanding` -> `propose_understanding_update`。
+  - 记录理解：`propose_understanding_create`，有上下文时带 `initialContext`。
+- 隐藏或降级旧名：
+  - `domain_list`
+  - `domain_inspect`
+  - `understanding_list`
+  - `understanding_get`
+  - `context_list`
+  - `context_get`
+  - `graph_neighborhood`
+  - `graph_path`
+  - `search_all`
 
 TDD：
 
-1. RED：agent turn view 测试输入 `find_understandings` event，期望 UI 显示“查找相关理解”。
+1. RED：agent turn view 测试输入 `read_link_neighborhood` event，期望 UI 显示“查看双链关系”。
 2. GREEN：更新 tool display mapping。
-3. RED：tool registry contract test，断言 prompt 主推工具包含 `find_understandings`，不包含强制 `search_all`。
+3. RED：tool registry contract test，断言 prompt 主推工具不包含强制 `search_all`。
 4. GREEN：收敛 registry / guidelines。
-5. E2E：真实 AI 下跑三个 happy path：
+5. E2E：真实 AI 下跑四个 happy path：
    - 查询已有理解。
+   - 查询已有 Context。
    - 记录带 Context 的理解。
-   - 给已有 Understanding 补 Context。
+   - 给已有 Understanding 正文补双链。
 
 退出条件：
 
 - Runtime prompt 和 tool display 都不再把产品表达成 generic knowledge base。
 - happy path 全部真实 AI 通过。
-- 底层 `search_all` 即使保留，也只是 debug/legacy 工具，不是主路径。
+- 底层旧工具即使保留，也只是 alias / debug，不是主路径。
 
 ## 6. 测试边界
 
@@ -473,15 +756,20 @@ TDD：
 
 - prompt loader 是否读取同一份文件。
 - tool descriptions 是否包含/不包含关键产品词。
-- `find_understandings` 对 seed DB 的 deterministic result。
-- `propose_understanding` approve 后的事务结果。
+- tool registry 是否暴露 4.4 / 4.5 定义的目标工具。
+- `search_contexts` 对 seed DB 返回 Context 和父 Understanding。
+- `read_link_neighborhood` 对 seed 双链返回 outgoing links / backlinks / unresolved links。
+- `propose_understanding_create` approve 后的事务结果，包含 `initialContext` 时同时创建 Understanding 和 Context。
+- `propose_understanding_update` 修改正文双链后，link neighborhood 能读到新关系。
 - reducer 和 UI display mapping。
 
 必须用真实 AI 跑的路径：
 
 - Agent 解释自己在 Reflecta 里的角色。
 - 查询已有理解。
+- 查询已有 Context。
 - 记录带 Context 的理解。
+- 给已有 Understanding 正文补双链。
 - pending proposal approve。
 
 真实 AI E2E 不断言固定回答内容，只断言产品状态：
@@ -532,6 +820,7 @@ rg "surrounding material|call search_all before answering|knowledge-base search 
 
 - runtime prompt 不再命中这些旧表达。
 - `agent-system-prompt.md` 是 Pi runtime 的真实 system prompt。
-- `find_understandings` 是 Agent 查询个人理解的主路径。
-- `propose_understanding` 是 Agent 创建新理解候选的主路径。
+- `search_understandings` / `search_contexts` / `read_*` 是 Agent 查询个人理解的主路径。
+- `propose_*` 是 Agent 写入候选的主路径。
+- `graph_*` 不再作为主推工具名；双链读取使用 `read_link_*`。
 - 所有写入仍然走 approval。
