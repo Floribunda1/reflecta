@@ -249,7 +249,7 @@ Context
 
 `search_all` 可以第一阶段兼容保留，但只能是 legacy/debug tool，不再出现在 prompt 默认路线里。
 
-### 4.3 Shared parameter types
+### 4.3 Shared types
 
 ```ts
 type Id = string;
@@ -278,6 +278,13 @@ type ContextPatch = {
   content?: string;
 };
 
+type DomainSummary = {
+  id: Id;
+  name: string;
+  parentId?: Id | null;
+  understandingCount?: number;
+};
+
 type UnderstandingSummary = {
   id: Id;
   title?: string | null;
@@ -294,6 +301,24 @@ type ContextSummary = {
   title?: string | null;
   contentPreview?: string;
 };
+
+type LinkEdgeSummary = {
+  fromUnderstandingId: Id;
+  toUnderstandingId: Id;
+  fromTitle?: string | null;
+  toTitle?: string | null;
+};
+
+type UnresolvedLinkSummary = {
+  fromUnderstandingId: Id;
+  rawText: string;
+};
+
+type PendingProposalOutput<TType extends string, TInput> = {
+  approvalStatus: "pending";
+  proposalType: TType;
+  proposal: TInput;
+};
 ```
 
 约束：
@@ -306,13 +331,23 @@ type ContextSummary = {
 - `title: null` 表示清空标题；省略表示不改。
 - `parentId: null` 表示移动到顶层 Domain；省略表示不改。
 
-### 4.4 Read tools 参数
+### 4.4 Read tools
+
+#### `list_domains`
+
+列出 Domain。用于发现用户有哪些领域语境。
 
 ```ts
 type ListDomainsInput = {};
+
+type ListDomainsOutput = {
+  domains: DomainSummary[];
+};
 ```
 
-返回 Domain 树或扁平列表，由当前 domain service 决定。Agent 只依赖 `id`、`name`、`parentId`。
+#### `inspect_domain`
+
+读取一个 Domain 的领域回看语境，不负责搜索。
 
 ```ts
 type InspectDomainInput = PaginationInput & {
@@ -321,26 +356,49 @@ type InspectDomainInput = PaginationInput & {
   includeContexts?: boolean; // default false
   includeLinkEdges?: boolean; // default false
 };
+
+type InspectDomainOutput = {
+  domain: DomainSummary;
+  children?: DomainSummary[];
+  understandings?: UnderstandingSummary[];
+  contexts?: ContextSummary[];
+  linkEdges?: LinkEdgeSummary[];
+};
 ```
 
-用于看一个 Domain 的回看语境，不负责搜索。
+#### `list_understandings`
+
+枚举 Understanding。用于浏览列表，不用于语义搜索。
 
 ```ts
 type ListUnderstandingsInput = PaginationInput & {
   domainIds?: Id[];
   includeDescendants?: boolean; // default false
 };
+
+type ListUnderstandingsOutput = {
+  understandings: UnderstandingSummary[];
+};
 ```
 
-用于枚举，不用于语义搜索。
+#### `list_contexts`
+
+列出一条 Understanding 下的 Context。
 
 ```ts
 type ListContextsInput = {
   understandingId: Id;
 };
+
+type ListContextsOutput = {
+  understanding: UnderstandingSummary;
+  contexts: ContextSummary[];
+};
 ```
 
-只列出一条 Understanding 下的 Context。
+#### `search_understandings`
+
+搜索 Understanding title/body。Context 命中不混进这个工具。
 
 ```ts
 type SearchUnderstandingsInput = PaginationInput & {
@@ -348,9 +406,20 @@ type SearchUnderstandingsInput = PaginationInput & {
   domainIds?: Id[];
   includeDescendants?: boolean; // default true when domainIds is present
 };
+
+type SearchUnderstandingHit = {
+  understanding: UnderstandingSummary;
+  matchedText?: string;
+};
+
+type SearchUnderstandingsOutput = {
+  hits: SearchUnderstandingHit[];
+};
 ```
 
-只搜索 Understanding title/body。Context 命中不混进这个工具。
+#### `search_contexts`
+
+搜索 Context。结果必须带父 Understanding，避免把 Context 变成孤立材料。
 
 ```ts
 type SearchContextsInput = PaginationInput & {
@@ -359,17 +428,21 @@ type SearchContextsInput = PaginationInput & {
   understandingId?: Id;
   mediums?: ContextMedium[];
 };
-```
 
-返回结果必须包含父 Understanding summary：
-
-```ts
 type SearchContextsHit = {
   context: ContextSummary;
   parentUnderstanding: UnderstandingSummary;
   matchedText?: string;
 };
+
+type SearchContextsOutput = {
+  hits: SearchContextsHit[];
+};
 ```
+
+#### `read_understanding`
+
+精读一条 Understanding。默认带 Context summary 和正文双链摘要。
 
 ```ts
 type ReadUnderstandingInput = {
@@ -378,18 +451,40 @@ type ReadUnderstandingInput = {
   includeOutgoingLinks?: boolean; // default true
   includeBacklinks?: boolean; // default true
 };
+
+type ReadUnderstandingOutput = {
+  understanding: UnderstandingSummary & {
+    title?: string | null;
+    body: string;
+  };
+  contexts?: ContextSummary[];
+  outgoingLinks?: LinkEdgeSummary[];
+  backlinks?: LinkEdgeSummary[];
+  unresolvedLinks?: UnresolvedLinkSummary[];
+};
 ```
 
-读取一条 Understanding。默认带 Context summary 和正文双链摘要。
+#### `read_context`
+
+精读一条 Context。默认带父 Understanding summary。
 
 ```ts
 type ReadContextInput = {
   contextId: Id;
   includeParentUnderstanding?: boolean; // default true
 };
+
+type ReadContextOutput = {
+  context: ContextSummary & {
+    content: string;
+  };
+  parentUnderstanding?: UnderstandingSummary;
+};
 ```
 
-精读一条 Context。默认带父 Understanding summary。
+#### `read_link_neighborhood`
+
+读取正文双链派生出的 outgoing links、backlinks、unresolved links。它只读图，不推断新关系。
 
 ```ts
 type ReadLinkNeighborhoodInput = PaginationInput & {
@@ -397,9 +492,20 @@ type ReadLinkNeighborhoodInput = PaginationInput & {
   depth?: number; // integer, 1..3, default 1
   includeContexts?: boolean; // default false
 };
+
+type ReadLinkNeighborhoodOutput = {
+  seed: UnderstandingSummary;
+  nodes: UnderstandingSummary[];
+  outgoingLinks: LinkEdgeSummary[];
+  backlinks: LinkEdgeSummary[];
+  unresolvedLinks: UnresolvedLinkSummary[];
+  contexts?: ContextSummary[];
+};
 ```
 
-读取正文双链派生出的 outgoing links、backlinks、unresolved links。它只读图，不推断新关系。
+#### `read_link_path`
+
+查找两条 Understanding 之间已经存在的双链路径。没有路径时返回空结果，不让 Agent 编造关系。
 
 ```ts
 type ReadLinkPathInput = {
@@ -407,25 +513,55 @@ type ReadLinkPathInput = {
   toUnderstandingId: Id;
   maxDepth?: number; // integer, 1..6, default 4
 };
+
+type ReadLinkPathOutput = {
+  fromUnderstanding: UnderstandingSummary;
+  toUnderstanding: UnderstandingSummary;
+  paths: Array<{
+    nodes: UnderstandingSummary[];
+    edges: LinkEdgeSummary[];
+  }>;
+};
 ```
 
-查找两条 Understanding 之间已经存在的双链路径。没有路径时返回空结果，不让 Agent 编造关系。
+#### `snapshot_project`
 
-兼容工具：
+兼容保留给排查和测试，不作为 prompt 默认入口。
 
 ```ts
 type SnapshotProjectInput = {};
 
-type SearchAllInput = PaginationInput & {
-  query: string;
+type SnapshotProjectOutput = {
+  domains: DomainSummary[];
+  recentUnderstandings: UnderstandingSummary[];
+  stats: {
+    domainCount: number;
+    understandingCount: number;
+    contextCount: number;
+  };
 };
 ```
 
-`snapshot_project` 和 `search_all` 第一阶段可以保留给兼容、排查和测试，但 prompt 不再主推。
+#### `search_all`
 
-### 4.5 Write proposal tools 参数
+Legacy/debug tool。第一阶段可以保留给兼容、排查和测试，但 prompt 不再主推。
+
+```ts
+type SearchAllInput = PaginationInput & {
+  query: string;
+};
+
+type SearchAllOutput = {
+  understandings: SearchUnderstandingHit[];
+  contexts: SearchContextsHit[];
+};
+```
+
+### 4.5 Write proposal tools
 
 所有写工具都只是提交 pending proposal。它们不能直接写入 DB，approval 后才执行真正 mutation。
+
+#### `propose_domain_create`
 
 ```ts
 type ProposeDomainCreateInput = {
@@ -434,18 +570,43 @@ type ProposeDomainCreateInput = {
   reason?: string;
 };
 
+type ProposeDomainCreateOutput = PendingProposalOutput<
+  "propose_domain_create",
+  ProposeDomainCreateInput
+>;
+```
+
+#### `propose_domain_update`
+
+```ts
 type ProposeDomainUpdateInput = {
   domainId: Id;
   after: DomainPatch;
   reason?: string;
 };
 
+type ProposeDomainUpdateOutput = PendingProposalOutput<
+  "propose_domain_update",
+  ProposeDomainUpdateInput
+>;
+```
+
+#### `propose_domain_delete`
+
+```ts
 type ProposeDomainDeleteInput = {
   domainId: Id;
   deleteUnderstandings?: boolean; // default false
   reason?: string;
 };
+
+type ProposeDomainDeleteOutput = PendingProposalOutput<
+  "propose_domain_delete",
+  ProposeDomainDeleteInput
+>;
 ```
+
+#### `propose_understanding_create`
 
 ```ts
 type ProposeUnderstandingCreateInput = {
@@ -455,6 +616,11 @@ type ProposeUnderstandingCreateInput = {
   basis: "user_stated" | "ai_candidate";
   reason?: string;
 };
+
+type ProposeUnderstandingCreateOutput = PendingProposalOutput<
+  "propose_understanding_create",
+  ProposeUnderstandingCreateInput
+>;
 ```
 
 规则：
@@ -464,6 +630,8 @@ type ProposeUnderstandingCreateInput = {
 - `propose_understanding_create` 不携带 Context。Understanding 可以先独立存在。
 - 如果用户同时给了具体经历、材料、实践或 AI 对话，先提交 Understanding 候选；approval 后再用新 Understanding id 调用 `propose_context_create`。
 
+#### `propose_understanding_update`
+
 ```ts
 type ProposeUnderstandingUpdateInput = {
   understandingId: Id;
@@ -472,10 +640,10 @@ type ProposeUnderstandingUpdateInput = {
   reason?: string;
 };
 
-type ProposeUnderstandingDeleteInput = {
-  understandingId: Id;
-  reason?: string;
-};
+type ProposeUnderstandingUpdateOutput = PendingProposalOutput<
+  "propose_understanding_update",
+  ProposeUnderstandingUpdateInput
+>;
 ```
 
 规则：
@@ -483,6 +651,22 @@ type ProposeUnderstandingDeleteInput = {
 - Agent 必须先 `read_understanding`，再提交 `propose_understanding_update`。
 - 修改双链关系也走 `after.body`，不走独立 link/connection write tool。
 - `before` 用于 UI diff 和并发校验；缺省时后端仍需在 approval 时读取最新值。
+
+#### `propose_understanding_delete`
+
+```ts
+type ProposeUnderstandingDeleteInput = {
+  understandingId: Id;
+  reason?: string;
+};
+
+type ProposeUnderstandingDeleteOutput = PendingProposalOutput<
+  "propose_understanding_delete",
+  ProposeUnderstandingDeleteInput
+>;
+```
+
+#### `propose_context_create`
 
 ```ts
 type ProposeContextCreateInput = {
@@ -493,16 +677,10 @@ type ProposeContextCreateInput = {
   reason?: string;
 };
 
-type ProposeContextUpdateInput = {
-  contextId: Id;
-  after: ContextPatch;
-  reason?: string;
-};
-
-type ProposeContextDeleteInput = {
-  contextId: Id;
-  reason?: string;
-};
+type ProposeContextCreateOutput = PendingProposalOutput<
+  "propose_context_create",
+  ProposeContextCreateInput
+>;
 ```
 
 规则：
@@ -510,6 +688,35 @@ type ProposeContextDeleteInput = {
 - `propose_context_create` 只能给已有 Understanding 补 Context。
 - 如果 Context 属于刚创建的 Understanding，先等 `propose_understanding_create` approval 产生 Understanding id，再调用 `propose_context_create`。
 - Context 不是附件库；`content` 必须是围绕该 Understanding 的具象上下文。
+
+#### `propose_context_update`
+
+```ts
+type ProposeContextUpdateInput = {
+  contextId: Id;
+  after: ContextPatch;
+  reason?: string;
+};
+
+type ProposeContextUpdateOutput = PendingProposalOutput<
+  "propose_context_update",
+  ProposeContextUpdateInput
+>;
+```
+
+#### `propose_context_delete`
+
+```ts
+type ProposeContextDeleteInput = {
+  contextId: Id;
+  reason?: string;
+};
+
+type ProposeContextDeleteOutput = PendingProposalOutput<
+  "propose_context_delete",
+  ProposeContextDeleteInput
+>;
+```
 
 ### 4.6 当前工具到目标工具的迁移表
 
