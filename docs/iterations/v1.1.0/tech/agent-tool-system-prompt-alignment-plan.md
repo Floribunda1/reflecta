@@ -38,7 +38,7 @@ Pi Agent 和 CLI 的工具名和输入参数必须同步。读取工具的返回
 
 ## 2. 判断标准
 
-所有 system prompt 和 tool 设计都必须服从这几个规则：
+system prompt 负责传达产品价值和行为边界；tool description / schema 负责传达可用工具和参数。两者都必须服从这几个规则：
 
 ```txt
 Understanding = 用户形成的个人理解
@@ -53,7 +53,7 @@ AI = 辅助，不是大脑
 - Agent 可以追问、对比、整理、提出候选表达。
 - Agent 不可以把自己生成的总结直接当成用户的个人理解。
 - Agent 不可以自动构建关系网并直接写入。
-- Agent 需要 Context 时，显式调用 `understanding_list({ includeContexts: true })`、`understanding_get({ includeContexts: true })` 或 `context_*`。
+- Agent 需要真实内容时必须读取对象，不要凭轻量引用、标题或文件名猜测。
 - 没有 Context 的 Understanding 可以存在；这是边界，不是错误。
 
 ## 3. 当前问题
@@ -587,18 +587,21 @@ TDD：
   - `understanding_get` -> 读取理解
   - `context_get` -> 读取上下文
 - approval pending 文案从 “knowledge base has not been changed” 改成“候选项尚未写入”。
-- system prompt 指导 AI 组合 primitive：
-  - 搜索：`search`
-  - 浏览短理解列表：`understanding_list({ includeContexts: true })`
-  - 需要 Context：`understanding_get({ includeContexts: true })`
-  - 需要关系：`understanding_get({ includeRelations: true })`
-  - 写入：调用对应 CRUD tool，等待用户确认。
+- system prompt 不枚举工具清单，不指导具体 tool routing；这些信息由 runtime tool description / schema 提供。
+- system prompt 只承载产品价值和不可走偏的点：
+  - Reflecta 是把学习、实践和对话沉淀成可追溯的个人理解，不是 generic knowledge base。
+  - Understanding 是用户形成的个人理解，Context 是理解周围的具象上下文。
+  - 用户是大脑，AI 是辅助；AI 只提出候选表达，不能替用户直接入库。
+  - 关系来自用户显式理解，不自动构建关系网。
+  - 轻量引用、附件名和本地路径不等于真实内容，需要内容时先读取。
 
 TDD：
 
 1. RED：tool display mapping 测试目标文案。
 2. GREEN：更新 renderer mapping。
-3. E2E：真实 AI 下跑三条 happy path：
+3. RED：prompt contract test 断言包含产品价值和行为边界，且不包含具体工具名。
+4. GREEN：更新 runtime prompt。
+5. E2E：真实 AI 下跑三条 happy path：
    - 查询已有理解。
    - 记录理解并补 Context。
    - 给已有 Understanding 正文补双链。

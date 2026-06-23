@@ -99,6 +99,12 @@ describe("createPiResourceLoader", () => {
     expect(loadAgentSystemPrompt()).toBe(expected);
     expect(createPiResourceLoader().getSystemPrompt()).toBe(expected);
     expect(expected).toContain("你是 Reflecta 的认知辅助 Agent");
+    expect(expected).toContain("可回看的个人理解");
+    expect(expected).toContain("用户是大脑，AI 是辅助");
+    expect(expected).toContain("System prompt 不枚举工具清单");
+    expect(expected).not.toContain("understanding_list");
+    expect(expected).not.toContain("includeContexts");
+    expect(expected).not.toContain("`graph`");
     expect(expected).not.toContain("You are Reflecta's agent");
   });
 });
