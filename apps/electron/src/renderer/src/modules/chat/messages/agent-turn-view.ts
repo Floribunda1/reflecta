@@ -127,14 +127,20 @@ export function buildAgentTurnView(
   assistantRunning = false,
 ): AgentTurnView {
   const internalBlocks: InternalTurnBlock[] = [];
+  const streamingReasoningIndex =
+    assistantRunning && blocks.at(-1)?.kind === "reasoning" ? blocks.length - 1 : -1;
 
-  for (const block of blocks) {
+  for (const [index, block] of blocks.entries()) {
     if (block.kind === "text") {
       appendText(internalBlocks, block.text);
       continue;
     }
     if (block.kind === "reasoning") {
-      appendReasoning(internalBlocks, block.text, assistantRunning ? "streaming" : "done");
+      appendReasoning(
+        internalBlocks,
+        block.text,
+        index === streamingReasoningIndex ? "streaming" : "done",
+      );
       continue;
     }
     if (block.kind === "approval") {

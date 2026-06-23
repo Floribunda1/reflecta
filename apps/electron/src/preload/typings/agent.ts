@@ -310,15 +310,15 @@ function upsertAssistantReasoning(
   event: AgentAssistantReasoningDelta,
 ): AgentReducedMessage[] {
   return upsertAssistantBlock(messages, event, (blocks) => {
-    const index = blocks.findIndex((block) => block.kind === "reasoning");
-    if (index < 0) {
+    const last = blocks.at(-1);
+    if (last?.kind !== "reasoning") {
       return [
         ...blocks,
         { kind: "reasoning" as const, text: event.delta, createdAt: event.createdAt },
       ];
     }
     return blocks.map((block, blockIndex) =>
-      blockIndex === index && block.kind === "reasoning"
+      blockIndex === blocks.length - 1 && block.kind === "reasoning"
         ? { ...block, text: block.text + event.delta }
         : block,
     );

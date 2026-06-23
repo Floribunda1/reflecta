@@ -123,6 +123,79 @@ describe("reduceAgentSession", () => {
     expect(reduceAgentSession(events)).toEqual(state);
   });
 
+  test("keeps interleaved reasoning and tool events in source order", () => {
+    const events: AgentSessionEvent[] = [
+      { ...base, id: "evt_1", type: "run.started" },
+      {
+        ...base,
+        id: "evt_2",
+        type: "assistant.reasoning.delta",
+        messageId: "assistant_1",
+        delta: "先做第一轮搜索。",
+      },
+      {
+        ...base,
+        id: "evt_3",
+        type: "tool.started",
+        messageId: "assistant_1",
+        toolCallId: "tool_1",
+        toolName: "search_all",
+      },
+      {
+        ...base,
+        id: "evt_4",
+        type: "tool.completed",
+        messageId: "assistant_1",
+        toolCallId: "tool_1",
+        toolName: "search_all",
+        output: { thoughts: [{ id: "thought_1" }] },
+      },
+      {
+        ...base,
+        id: "evt_5",
+        type: "assistant.reasoning.delta",
+        messageId: "assistant_1",
+        delta: "看完结果后再读取详情。",
+      },
+      {
+        ...base,
+        id: "evt_6",
+        type: "tool.started",
+        messageId: "assistant_1",
+        toolCallId: "tool_2",
+        toolName: "thought_get",
+      },
+      {
+        ...base,
+        id: "evt_7",
+        type: "tool.completed",
+        messageId: "assistant_1",
+        toolCallId: "tool_2",
+        toolName: "thought_get",
+        output: { thought: { id: "thought_1", title: "Feedback Loop" } },
+      },
+      {
+        ...base,
+        id: "evt_8",
+        type: "assistant.text.delta",
+        messageId: "assistant_1",
+        delta: "最终答案。",
+      },
+    ];
+
+    const blocks = reduceAgentSession(events).messages[0]?.blocks;
+
+    expect(blocks?.map((block) => block.kind)).toEqual([
+      "reasoning",
+      "tool",
+      "reasoning",
+      "tool",
+      "text",
+    ]);
+    expect(blocks?.[0]).toMatchObject({ kind: "reasoning", text: "先做第一轮搜索。" });
+    expect(blocks?.[2]).toMatchObject({ kind: "reasoning", text: "看完结果后再读取详情。" });
+  });
+
   test("replaces an edited user message and truncates following assistant output", () => {
     const state = reduceAgentSession([
       { ...base, id: "evt_1", type: "run.started" },

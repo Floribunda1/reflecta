@@ -90,6 +90,27 @@ describe("buildAgentTurnView", () => {
     ]);
   });
 
+  test("marks reasoning done once later tool or text content exists", () => {
+    const turn = buildAgentTurnView(
+      [
+        reasoning("先查找相关内容"),
+        tool("search_all", "tool-1", { thoughts: [{ id: "t1" }] }),
+        reasoning("再确认详情"),
+        tool("thought_get", "tool-2", { thought: { id: "t1", title: "Feedback Loop" } }),
+        text("最终答案开始输出。"),
+      ],
+      true,
+    );
+
+    expect(turn.blocks).toMatchObject([
+      { kind: "reasoning", reasoning: { text: "先查找相关内容", status: "done" } },
+      { kind: "tool-activity" },
+      { kind: "reasoning", reasoning: { text: "再确认详情", status: "done" } },
+      { kind: "tool-activity" },
+      { kind: "text", text: "最终答案开始输出。" },
+    ]);
+  });
+
   test("groups adjacent lookup tools without crossing text", () => {
     const turn = buildAgentTurnView([
       tool("search_all", "tool-1", { thoughts: [{ id: "t1" }], contexts: [] }),
