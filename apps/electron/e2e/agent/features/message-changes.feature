@@ -5,8 +5,8 @@
 
   @P1 @happy_path @AG-MESSAGE-001
   场景: 用户编辑历史消息后看到新的当前回复
-    假如对话中已有用户消息 ORIGINAL_USER_MESSAGE
-    而且对话中已有一条 Agent 回复
+    假如用户已经发送 ORIGINAL_USER_MESSAGE
+    而且 Agent 已经完成一条真实回复
     而且 Agent 可以完成回复
     当用户编辑 ORIGINAL_USER_MESSAGE
     而且用户将内容改为 EDITED_USER_MESSAGE
@@ -19,8 +19,8 @@
 
   @P1 @happy_path @AG-MESSAGE-002
   场景: 用户重新生成回复后看到新的当前回复
-    假如对话中已有用户消息 REGENERATE_USER_MESSAGE
-    而且对话中已有一条 Agent 回复
+    假如用户已经发送 REGENERATE_USER_MESSAGE
+    而且 Agent 已经完成一条真实回复
     而且 Agent 可以完成回复
     当用户对当前 Agent 回复执行重新生成
     而且用户等待 Agent 完成回复

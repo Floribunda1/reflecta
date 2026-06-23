@@ -3,7 +3,7 @@
 功能: 用户理解 Agent 的结构化结果
   用户需要能看懂复杂回复的展示顺序，并区分提案的不同状态。
 
-  @P1 @happy_path @AG-RESULT-001
+  @P1 @render @AG-RESULT-001
   场景: 用户查看复杂回复时内容按发生顺序显示
     假如对话中有一条复杂 Agent 回复
     而且该回复包含思考摘要
@@ -16,7 +16,7 @@
     而且查找进度之后应该显示提案卡片
     而且提案卡片之后应该显示最终回复正文
 
-  @P1 @happy_path @AG-RESULT-002
+  @P1 @render @AG-RESULT-002
   场景: 用户可以区分提案的不同状态
     假如存在一个对话，里面包含 5 张提案卡片
     而且候选标题 CANDIDATE_TITLE_PENDING 的状态为待确认
@@ -31,7 +31,7 @@
     而且 CANDIDATE_TITLE_DONE 所在卡片应该显示“完成”
     而且 CANDIDATE_TITLE_ERROR 所在卡片应该显示“出错”并显示错误信息
 
-  @P1 @happy_path @AG-RESULT-003
+  @P1 @render @AG-RESULT-003
   场景: 用户展开思考过程和工具活动查看详情
     假如对话中有一条 Agent 回复
     而且该回复包含思考过程

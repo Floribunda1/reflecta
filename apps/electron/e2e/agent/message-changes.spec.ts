@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { hasAi, launchAgentPage, waitForAssistantReply } from "./agent-e2e";
-import { resetAgentFixtures, seedCompletedThread } from "./agent-fixtures";
+import { hasAi, launchAgentPage, sendMessage, waitForAssistantReply } from "./agent-e2e";
+import { resetAgentFixtures } from "./agent-fixtures";
 
 test.beforeEach(() => {
   resetAgentFixtures();
@@ -10,15 +10,12 @@ test("@AG-MESSAGE-001 用户编辑历史消息后看到新的当前回复", asyn
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
-  seedCompletedThread({
-    id: "message-edit",
-    title: "ORIGINAL_USER_MESSAGE",
-    userText: "ORIGINAL_USER_MESSAGE",
-    assistantText: "ORIGINAL_AGENT_REPLY",
-  });
   const { app, page } = await launchAgentPage();
 
   try {
+    await sendMessage(page, "ORIGINAL_USER_MESSAGE");
+    await waitForAssistantReply(page);
+
     await page
       .getByTestId("agent-message-row")
       .filter({ hasText: "ORIGINAL_USER_MESSAGE" })
@@ -36,9 +33,6 @@ test("@AG-MESSAGE-001 用户编辑历史消息后看到新的当前回复", asyn
     ).toBeVisible();
     await expect(
       page.getByTestId("agent-user-message").filter({ hasText: "ORIGINAL_USER_MESSAGE" }),
-    ).toHaveCount(0);
-    await expect(
-      page.getByTestId("agent-assistant-text").filter({ hasText: "ORIGINAL_AGENT_REPLY" }),
     ).toHaveCount(0);
     await expect(page.getByTestId("agent-message-row")).toHaveCount(2);
     await expect(page.getByTestId("agent-message-row").nth(0)).toHaveAttribute(
@@ -58,25 +52,19 @@ test("@AG-MESSAGE-002 用户重新生成回复后看到新的当前回复", asyn
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
-  seedCompletedThread({
-    id: "message-regenerate",
-    title: "REGENERATE_USER_MESSAGE",
-    userText: "REGENERATE_USER_MESSAGE",
-    assistantText: "ORIGINAL_AGENT_REPLY",
-  });
   const { app, page } = await launchAgentPage();
 
   try {
-    await page.getByTestId("agent-message-row").filter({ hasText: "ORIGINAL_AGENT_REPLY" }).hover();
+    await sendMessage(page, "REGENERATE_USER_MESSAGE");
+    await waitForAssistantReply(page);
+
+    await page.getByTestId("agent-message-row").nth(1).hover();
     await page.getByTestId("agent-regenerate-button").click();
     await waitForAssistantReply(page);
 
     await expect(
       page.getByTestId("agent-user-message").filter({ hasText: "REGENERATE_USER_MESSAGE" }),
     ).toBeVisible();
-    await expect(
-      page.getByTestId("agent-assistant-text").filter({ hasText: "ORIGINAL_AGENT_REPLY" }),
-    ).toHaveCount(0);
     await expect(page.getByTestId("agent-message-row")).toHaveCount(2);
     await expect(page.getByTestId("agent-message-row").nth(0)).toHaveAttribute(
       "data-message-role",
