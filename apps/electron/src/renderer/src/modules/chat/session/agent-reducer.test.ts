@@ -123,6 +123,43 @@ describe("reduceAgentSession", () => {
     expect(reduceAgentSession(events)).toEqual(state);
   });
 
+  test("replaces an edited user message and truncates following assistant output", () => {
+    const state = reduceAgentSession([
+      { ...base, id: "evt_1", type: "run.started" },
+      { ...base, id: "evt_2", type: "user.message", messageId: "user_1", text: "old" },
+      {
+        ...base,
+        id: "evt_3",
+        type: "assistant.text.delta",
+        messageId: "assistant_1",
+        delta: "old reply",
+      },
+      { ...base, id: "evt_4", type: "run.completed" },
+      { ...base, id: "evt_5", type: "run.started", runId: "run_2" },
+      {
+        ...base,
+        id: "evt_6",
+        type: "user.message",
+        runId: "run_2",
+        messageId: "user_1",
+        text: "edited",
+      },
+      {
+        ...base,
+        id: "evt_7",
+        type: "assistant.text.delta",
+        runId: "run_2",
+        messageId: "assistant_2",
+        delta: "new reply",
+      },
+    ]);
+
+    expect(state.messages.map((message) => [message.role, message.text])).toEqual([
+      ["user", "edited"],
+      ["assistant", "new reply"],
+    ]);
+  });
+
   test("reduces approval requested, rejected, and completed states", () => {
     const requested: AgentSessionEvent = {
       ...base,

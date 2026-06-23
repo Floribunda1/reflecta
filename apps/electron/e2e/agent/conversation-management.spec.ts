@@ -152,3 +152,25 @@ test("@AG-CONV-004 用户按时间分组查看对话列表", async () => {
     await app.close();
   }
 });
+
+test("@AG-CONV-005 用户 Fork 当前对话分支后继续查看同一段内容", async () => {
+  seedCompletedThread({
+    id: "conv-fork-source",
+    title: "FORK_SOURCE",
+    userText: "FORK_USER_MESSAGE",
+    assistantText: "FORK_AGENT_REPLY",
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await threadByTitle(page, "FORK_SOURCE").click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Fork 当前分支" }).click();
+
+    await expect(page.getByRole("button", { name: "FORK_SOURCE", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "FORK_SOURCE 副本", exact: true })).toBeVisible();
+    await expect(page.getByTestId("agent-user-message")).toContainText("FORK_USER_MESSAGE");
+    await expect(page.getByTestId("agent-assistant-text")).toContainText("FORK_AGENT_REPLY");
+  } finally {
+    await app.close();
+  }
+});

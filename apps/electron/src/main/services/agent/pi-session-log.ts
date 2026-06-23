@@ -14,12 +14,24 @@ export function getPiAgentSessionsRoot(contentStorageRoot: string): string {
   return path.join(contentStorageRoot, "Sessions");
 }
 
-function isReflectaEventEntry(entry: SessionEntry): entry is CustomEntry<AgentSessionEvent> {
+type ReflectaEventEntry = CustomEntry<AgentSessionEvent> & { data: AgentSessionEvent };
+type ReflectaEventEntryOfType<T extends AgentSessionEvent["type"]> = ReflectaEventEntry & {
+  data: Extract<AgentSessionEvent, { type: T }>;
+};
+
+function isReflectaEventEntry(entry: SessionEntry): entry is ReflectaEventEntry {
   return (
     entry.type === "custom" &&
     entry.customType === REFLECTA_AGENT_EVENT_ENTRY &&
     isAgentSessionEvent(entry.data)
   );
+}
+
+function isReflectaEventEntryOfType<T extends AgentSessionEvent["type"]>(
+  entry: SessionEntry,
+  type: T,
+): entry is ReflectaEventEntryOfType<T> {
+  return isReflectaEventEntry(entry) && entry.data.type === type;
 }
 
 function titleFromEvents(events: AgentSessionEvent[], fallback: string) {
@@ -108,6 +120,55 @@ export class AgentSessionLog {
     return SessionManager.open(session.path, this.sessionsRoot, this.contentStorageRoot);
   }
 
+  async openSessionForEditedMessage(sessionId: string, messageId: string): Promise<SessionManager> {
+    const manager = await this.openSession(sessionId);
+    const entries = manager.getEntries();
+    const userEntry = entries.findLast(
+      (entry) =>
+        isReflectaEventEntryOfType(entry, "user.message") && entry.data.messageId === messageId,
+    ) as ReflectaEventEntryOfType<"user.message"> | undefined;
+    if (!userEntry) throw new Error("Edited message not found");
+    const editedRunId = userEntry.data.runId;
+
+    const runEntry = entries.findLast(
+      (entry) =>
+        isReflectaEventEntryOfType(entry, "run.started") && entry.data.runId === editedRunId,
+    );
+    const branchFromId = runEntry ? runEntry.parentId : userEntry.parentId;
+    if (branchFromId) manager.branch(branchFromId);
+    else manager.resetLeaf();
+    return manager;
+  }
+
+  async forkSession(sessionId: string): Promise<AgentSessionSummary> {
+    const manager = await this.openSession(sessionId);
+    const leafId = manager.getLeafId();
+    if (!leafId) throw new Error("Cannot fork an empty session");
+
+    const sourceEvents = await this.readEvents(sessionId);
+    const title = `${manager.getSessionName()?.trim() || titleFromEvents(sourceEvents, "新对话")} 副本`;
+    manager.createBranchedSession(leafId);
+    this.flushCustomOnlySession(manager);
+    manager.appendSessionInfo(title);
+
+    const forkedSessionId = manager.getSessionId();
+    const sessionFile = manager.getSessionFile();
+    if (sessionFile) {
+      this.rewriteReflectaEventSessionIds(sessionFile, forkedSessionId);
+      this.pendingSessionFiles.set(forkedSessionId, sessionFile);
+    }
+
+    const now = new Date().toISOString();
+    return {
+      id: forkedSessionId,
+      title,
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+      runtime: "pi",
+    };
+  }
+
   appendEvent(manager: SessionManager, event: AgentSessionEvent): void {
     manager.appendCustomEntry(REFLECTA_AGENT_EVENT_ENTRY, event);
     this.flushCustomOnlySession(manager);
@@ -137,6 +198,24 @@ export class AgentSessionLog {
     fs.mkdirSync(path.dirname(sessionFile), { recursive: true });
     flushable._rewriteFile();
     flushable.flushed = true;
+  }
+
+  private rewriteReflectaEventSessionIds(sessionFile: string, sessionId: string): void {
+    if (!fs.existsSync(sessionFile)) return;
+    let changed = false;
+    const lines = fs
+      .readFileSync(sessionFile, "utf-8")
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => {
+        const entry = JSON.parse(line) as SessionEntry;
+        if (isReflectaEventEntry(entry) && entry.data.sessionId !== sessionId) {
+          entry.data = { ...entry.data, sessionId };
+          changed = true;
+        }
+        return JSON.stringify(entry);
+      });
+    if (changed) fs.writeFileSync(sessionFile, `${lines.join("\n")}\n`, "utf-8");
   }
 
   async renameSession(sessionId: string, title: string): Promise<void> {

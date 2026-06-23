@@ -37,6 +37,11 @@ export class ChatService extends IpcService {
   }
 
   @IpcMethod()
+  forkThread(threadId: string) {
+    return piAgentHost.forkThread(threadId);
+  }
+
+  @IpcMethod()
   readSessionEvents(sessionId: string) {
     return piAgentHost.readSessionEvents(sessionId);
   }

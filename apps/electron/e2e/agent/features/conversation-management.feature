@@ -46,3 +46,13 @@
     那么对话列表应该显示“今天”和“昨天”分组
     而且 TODAY_LATE 应该显示在 TODAY_EARLY 前面
     而且今天的对话应该显示在昨天的对话前面
+
+  @P1 @branch @AG-CONV-005
+  场景: 用户 Fork 当前对话分支后继续查看同一段内容
+    假如存在对话 FORK_SOURCE
+    而且对话 FORK_SOURCE 有用户消息 FORK_USER_MESSAGE 和一条 Agent 回复
+    当用户对 FORK_SOURCE 执行 Fork 当前分支
+    那么对话列表应该显示 Fork 后的新对话
+    而且新对话应该显示用户消息 FORK_USER_MESSAGE
+    而且新对话应该显示一条已完成 Agent 回复
+    而且原对话 FORK_SOURCE 应该仍保留在对话列表中

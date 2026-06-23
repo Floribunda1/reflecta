@@ -34,6 +34,13 @@ test("@AG-MESSAGE-001 用户编辑历史消息后看到新的当前回复", asyn
     await expect(
       page.getByTestId("agent-user-message").filter({ hasText: "EDITED_USER_MESSAGE" }),
     ).toBeVisible();
+    await expect(
+      page.getByTestId("agent-user-message").filter({ hasText: "ORIGINAL_USER_MESSAGE" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByTestId("agent-assistant-text").filter({ hasText: "ORIGINAL_AGENT_REPLY" }),
+    ).toHaveCount(0);
+    await expect(page.getByTestId("agent-message-row")).toHaveCount(2);
     await expect(page.getByTestId("agent-message-row").nth(0)).toHaveAttribute(
       "data-message-role",
       "user",
@@ -67,6 +74,10 @@ test("@AG-MESSAGE-002 用户重新生成回复后看到新的当前回复", asyn
     await expect(
       page.getByTestId("agent-user-message").filter({ hasText: "REGENERATE_USER_MESSAGE" }),
     ).toBeVisible();
+    await expect(
+      page.getByTestId("agent-assistant-text").filter({ hasText: "ORIGINAL_AGENT_REPLY" }),
+    ).toHaveCount(0);
+    await expect(page.getByTestId("agent-message-row")).toHaveCount(2);
     await expect(page.getByTestId("agent-message-row").nth(0)).toHaveAttribute(
       "data-message-role",
       "user",

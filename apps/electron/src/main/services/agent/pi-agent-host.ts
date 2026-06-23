@@ -170,6 +170,10 @@ export class PiAgentHost {
     await this.sessionLog.deleteSession(sessionId);
   }
 
+  forkThread(sessionId: string): Promise<AgentSessionSummary> {
+    return this.sessionLog.forkSession(sessionId);
+  }
+
   async generateThreadTitle(sessionId: string): Promise<string> {
     const events = await this.sessionLog.readEvents(sessionId);
     const firstUserMessage = events.find((event) => event.type === "user.message");
@@ -275,9 +279,11 @@ export class PiAgentHost {
     webContents: WebContents,
   ) {
     const runId = `run_${nanoid()}`;
-    const userMessageId = `msg_${nanoid()}`;
+    const userMessageId = command.messageId ?? `msg_${nanoid()}`;
     const assistantMessageId = `msg_${nanoid()}`;
-    const manager = await this.sessionLog.openSession(command.sessionId);
+    const manager = command.messageId
+      ? await this.sessionLog.openSessionForEditedMessage(command.sessionId, command.messageId)
+      : await this.sessionLog.openSession(command.sessionId);
     let session: AgentSession | undefined;
     let unsubscribe: (() => void) | undefined;
     let assistantText = "";

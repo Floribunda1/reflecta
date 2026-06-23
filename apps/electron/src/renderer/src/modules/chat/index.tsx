@@ -23,6 +23,7 @@ import {
   useArchiveThreadMutation,
   useCreateThreadMutation,
   useDeleteThreadMutation,
+  useForkThreadMutation,
   useGenerateThreadTitleMutation,
   useRenameThreadMutation,
   useSelectAgentModelMutation,
@@ -143,6 +144,7 @@ function ChatPageContent() {
   const uiActions = useAgentUiActions();
   const createThreadMutation = useCreateThreadMutation();
   const deleteThreadMutation = useDeleteThreadMutation();
+  const forkThreadMutation = useForkThreadMutation();
   const archiveThreadMutation = useArchiveThreadMutation();
   const renameThreadMutation = useRenameThreadMutation();
   const generateThreadTitleMutation = useGenerateThreadTitleMutation();
@@ -180,6 +182,11 @@ function ChatPageContent() {
   const generateThreadTitle = useMemoizedFn((threadId: string) =>
     generateThreadTitleMutation.mutate(threadId),
   );
+  const forkThread = useMemoizedFn((threadId: string) =>
+    forkThreadMutation.mutate(threadId, {
+      onSuccess: (thread) => uiActions.selectThread(thread.id),
+    }),
+  );
   const archiveThread = useMemoizedFn((threadId: string) => {
     uiActions.clearThread(threadId);
     archiveThreadMutation.mutate(threadId);
@@ -216,6 +223,7 @@ function ChatPageContent() {
         onCreate={createThread}
         onRename={renameThread}
         onGenerateTitle={generateThreadTitle}
+        onFork={forkThread}
         onArchive={archiveThread}
         onDelete={confirmDeleteThread}
         titleGeneratingThreadId={titleGeneratingThreadId}

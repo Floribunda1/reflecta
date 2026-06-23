@@ -43,6 +43,17 @@ export function useCreateThreadMutation() {
   });
 }
 
+export function useForkThreadMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (threadId: string) => ipcClient.chat.forkThread(threadId),
+    onSuccess: async (thread) => {
+      upsertThreadInCache(queryClient, thread);
+      await queryClient.invalidateQueries({ queryKey: chatQueryKeys.threads });
+    },
+  });
+}
+
 export function useDeleteThreadMutation() {
   const queryClient = useQueryClient();
   return useMutation({

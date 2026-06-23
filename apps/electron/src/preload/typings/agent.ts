@@ -194,6 +194,7 @@ export type AgentCommand =
       type: "message.send";
       sessionId: string;
       text: string;
+      messageId?: string;
       contextRefs?: AgentContextRef[];
       files?: AgentFileAttachment[];
       composerContent?: AgentComposerContentNode;
@@ -474,21 +475,23 @@ export function reduceAgentSession(events: AgentSessionEvent[]): AgentSessionSta
       }
 
       if (event.type === "user.message") {
+        const nextUserMessage = {
+          id: event.messageId,
+          role: "user" as const,
+          text: event.text,
+          createdAt: event.createdAt,
+          contextRefs: event.contextRefs,
+          files: event.files,
+          composerContent: event.composerContent,
+        };
+        const existingIndex = state.messages.findIndex((message) => message.id === event.messageId);
         return {
           ...state,
           sessionId: event.sessionId,
-          messages: [
-            ...state.messages,
-            {
-              id: event.messageId,
-              role: "user",
-              text: event.text,
-              createdAt: event.createdAt,
-              contextRefs: event.contextRefs,
-              files: event.files,
-              composerContent: event.composerContent,
-            },
-          ],
+          messages:
+            existingIndex < 0
+              ? [...state.messages, nextUserMessage]
+              : [...state.messages.slice(0, existingIndex), nextUserMessage],
         };
       }
 

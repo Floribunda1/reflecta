@@ -25,6 +25,7 @@ function ThreadSidebarComponent({
   onCreate,
   onRename,
   onGenerateTitle,
+  onFork,
   onArchive,
   onDelete,
   titleGeneratingThreadId,
@@ -37,6 +38,7 @@ function ThreadSidebarComponent({
   onCreate: () => void;
   onRename: (threadId: string, title: string) => void;
   onGenerateTitle: (threadId: string) => void;
+  onFork: (threadId: string) => void;
   onArchive: (threadId: string) => void;
   onDelete: (threadId: string) => void;
   titleGeneratingThreadId?: string | null;
@@ -166,6 +168,9 @@ function ThreadSidebarComponent({
                       </ContextMenuItem>
                       <ContextMenuItem onClick={() => copyThreadId(thread.id)}>
                         复制对话 ID
+                      </ContextMenuItem>
+                      <ContextMenuItem disabled={running} onClick={() => onFork(thread.id)}>
+                        Fork 当前分支
                       </ContextMenuItem>
                       <ContextMenuItem onClick={() => onArchive(thread.id)}>归档</ContextMenuItem>
                       <ContextMenuSeparator />

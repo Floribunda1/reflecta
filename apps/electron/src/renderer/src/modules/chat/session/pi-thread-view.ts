@@ -134,6 +134,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
           type: "message.send",
           sessionId,
           text: input.text,
+          messageId: input.messageId,
           contextRefs: input.contextRefs,
           files: input.files,
           composerContent: input.composerContent,
@@ -142,7 +143,27 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
         });
       },
       retry: async () => {},
-      regenerate: async () => {},
+      regenerate: async (messageId) => {
+        if (isBusy) return;
+        const assistantIndex = visibleMessages.findIndex((message) => message.id === messageId);
+        const userMessage =
+          assistantIndex >= 0
+            ? visibleMessages
+                .slice(0, assistantIndex)
+                .findLast((message) => message.role === "user")
+            : undefined;
+        if (!userMessage) return;
+        chatUiStore.getState().setStoppedMessage(sessionId, null);
+        await ipcClient.chat.sendAgentCommand({
+          type: "message.send",
+          sessionId,
+          text: userMessage.text,
+          messageId: userMessage.id,
+          contextRefs: userMessage.contextRefs,
+          files: userMessage.files,
+          composerContent: userMessage.composerContent,
+        });
+      },
       editMessage: (message) => {
         if (isBusy || message.role !== "user") return;
         setEditingMessage(editingMessageFromAgentMessage(message));
