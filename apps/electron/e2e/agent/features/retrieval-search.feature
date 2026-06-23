@@ -11,7 +11,7 @@
 
   @P0 @semantic @AG-RETRIEVAL-002
   场景: 用户通过语义搜索找到没有共同关键词的 Understanding
-    假如 seed 数据中存在 semantic target Understanding
-    而且本地 embedding endpoint 已启用
-    当用户在 Agent 输入框中搜索语义相近但无共同关键词的 query
-    那么上下文候选列表应该包含 semantic target Understanding
+    假如 seed 数据中存在与查询语义相关但没有共同关键词的 Understanding
+    而且语义检索模型已准备好
+    当用户在 Agent 输入框中搜索语义相近但无共同关键词的内容
+    那么上下文候选列表应该包含该 Understanding

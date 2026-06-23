@@ -17,10 +17,6 @@ type ReplaceAllOptions = {
   onWritingStart?: () => void;
 };
 
-type RetrievalIndexSearchOptions = {
-  includeDense?: boolean;
-};
-
 type RetrievalRow = {
   id: string;
   entityType: string;
@@ -196,11 +192,7 @@ export class LanceDbRetrievalIndex {
     }
   }
 
-  async search(
-    query: string,
-    limit = 20,
-    options: RetrievalIndexSearchOptions = {},
-  ): Promise<RetrievalSearchHit[]> {
+  async search(query: string, limit = 20): Promise<RetrievalSearchHit[]> {
     const db = await lancedb.connect(this.options.uri);
     const tableNames = await db.tableNames();
     if (!tableNames.includes(this.tableName)) return [];
@@ -217,14 +209,12 @@ export class LanceDbRetrievalIndex {
     )
       .filter((row) => matchesLexicalQuery(row, tokens))
       .slice(0, limit);
-    const [vector] =
-      options.includeDense === false ? [[0]] : await this.options.embeddingProvider.embed([query]);
-    const semanticRows =
-      options.includeDense !== false && hasVectorSignal(vector)
-        ? (
-            (await table.vectorSearch(vector).limit(searchLimit).toArray()) as RetrievalRow[]
-          ).filter(isRelevantRow)
-        : [];
+    const [vector] = await this.options.embeddingProvider.embed([query]);
+    const semanticRows = hasVectorSignal(vector)
+      ? ((await table.vectorSearch(vector).limit(searchLimit).toArray()) as RetrievalRow[]).filter(
+          isRelevantRow,
+        )
+      : [];
     return fuseRows(lexicalRows, semanticRows, limit).map(fromRow);
   }
 

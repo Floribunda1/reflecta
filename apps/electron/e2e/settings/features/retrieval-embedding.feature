@@ -12,10 +12,13 @@
     当用户点击下载默认 embedding 模型
     那么用户应该看到模型下载已完成
 
-  @P0 @settings @retrieval @EMBEDDING-SETTINGS-002
-  场景: 用户查看并重建 retrieval 索引
+  @P0 @settings @retrieval @progress @EMBEDDING-SETTINGS-002
+  场景: 用户在语义检索模型准备好后重建 retrieval 索引
     假如用户打开设置
+    而且语义检索模型已准备好
     当用户进入 Retrieval 设置
     那么用户应该看到检索索引状态
     当用户点击重新构建检索索引
+    那么用户应该看到索引进入构建中
+    而且用户应该看到生成 embedding 的已完成数量增加
     那么用户应该看到检索索引已完成
