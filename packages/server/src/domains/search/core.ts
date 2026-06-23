@@ -4,6 +4,8 @@ import type { ReflectaDb } from "../../db/types";
 import type { SearchOptions } from "./types";
 import { toUnderstandingSummaries } from "../understanding/core";
 import {
+  RETRIEVAL_EMBEDDING_MODEL,
+  RETRIEVAL_PROJECTION_VERSION,
   buildRetrievalDocumentsFromDb,
   buildUnderstandingCandidates,
   createRetrievalIndex,
@@ -118,6 +120,8 @@ export class SearchCore {
       candidates: returnedCandidates,
       trace: {
         query: input.query,
+        embeddingModel: RETRIEVAL_EMBEDDING_MODEL,
+        projectionVersion: RETRIEVAL_PROJECTION_VERSION,
         dense: { searched: true, hits: denseHits },
         lexical: { searched: true, hits: lexicalHits },
         fusion: { method: "lancedb", documentsAfterFusion: hits.length },

@@ -8,12 +8,17 @@ import { LanceDbRetrievalIndex } from "./lancedb-index";
 import { LocalEmbeddingProvider } from "./local-embedding";
 import { buildRetrievalDocuments } from "./projection";
 
+export const RETRIEVAL_PROJECTION_VERSION = 1;
+export const RETRIEVAL_EMBEDDING_MODEL = "local-concept-v1";
+const RETRIEVAL_TABLE_NAME = `retrieval_documents_p${RETRIEVAL_PROJECTION_VERSION}_${RETRIEVAL_EMBEDDING_MODEL.replaceAll("-", "_")}`;
+
 export function createRetrievalIndex() {
   return new LanceDbRetrievalIndex({
     uri:
       process.env.REFLECTA_RETRIEVAL_INDEX_PATH ??
       join(tmpdir(), "reflecta-retrieval-index", String(process.pid)),
     embeddingProvider: new LocalEmbeddingProvider(),
+    tableName: RETRIEVAL_TABLE_NAME,
   });
 }
 

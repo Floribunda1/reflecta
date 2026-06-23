@@ -72,6 +72,8 @@ export type UnderstandingCandidate = {
 
 export type RetrievalTrace = {
   query: string;
+  embeddingModel: string;
+  projectionVersion: number;
   dense: { searched: boolean; hits: number };
   lexical: { searched: boolean; hits: number };
   fusion: { method: "lancedb"; documentsAfterFusion: number };

@@ -112,5 +112,9 @@ describe("retrieval index write-path sync", () => {
       ]),
     );
     expect(result.trace.relation.candidates).toBe(1);
+    expect(result.trace).toMatchObject({
+      embeddingModel: "local-concept-v1",
+      projectionVersion: 1,
+    });
   });
 });
