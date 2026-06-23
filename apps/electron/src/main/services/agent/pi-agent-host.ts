@@ -13,7 +13,12 @@ import {
   type ResourceLoader,
 } from "@earendil-works/pi-coding-agent";
 import { nanoid } from "nanoid";
-import { getAiModelConfig, getContentStorageRoot, type AiModelSelection } from "../../config";
+import {
+  getAiModelConfig,
+  getContentStorageRoot,
+  type AiModelSelection,
+  type ResolvedAiModelConfig,
+} from "../../config";
 import type {
   AgentCommand,
   AgentReasoningLevel,
@@ -25,6 +30,7 @@ import { agentLog } from "../../logger";
 import { AgentSessionLog } from "./pi-session-log";
 import { formatAgentError } from "./error";
 import { buildPiPromptText } from "./pi-prompt";
+import { getCodexCredentials } from "./codex-auth";
 import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-tools";
 import {
   approvalTitleForTool,
@@ -124,6 +130,17 @@ function approvalIdForToolCall(toolCallId: string) {
   return `approval_${toolCallId}`;
 }
 
+export async function configurePiRuntimeAuth(
+  authStorage: AuthStorage,
+  modelConfig: ResolvedAiModelConfig,
+): Promise<void> {
+  const apiKey =
+    modelConfig.catalog.authType === "codex"
+      ? (await getCodexCredentials()).accessToken
+      : modelConfig.provider.apiKey;
+  authStorage.setRuntimeApiKey(modelConfig.provider.id, apiKey);
+}
+
 export class PiAgentHost {
   private readonly sessionLog: AgentSessionLog;
   private readonly activeRuns = new Map<string, ActivePiRun>();
@@ -211,7 +228,7 @@ export class PiAgentHost {
     const agentDir = path.join(this.contentStorageRoot, ".pi-agent");
     fs.mkdirSync(agentDir, { recursive: true });
     const authStorage = AuthStorage.create(path.join(agentDir, "auth.json"));
-    authStorage.setRuntimeApiKey(modelConfig.provider.id, modelConfig.provider.apiKey);
+    await configurePiRuntimeAuth(authStorage, modelConfig);
     const modelRegistry = ModelRegistry.inMemory(authStorage);
     const model = resolvePiModel(modelConfig.provider.id, modelConfig.model.id);
     const settingsManager = SettingsManager.inMemory({
