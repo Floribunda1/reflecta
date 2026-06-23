@@ -13,12 +13,7 @@ import {
   type ResourceLoader,
 } from "@earendil-works/pi-coding-agent";
 import { nanoid } from "nanoid";
-import {
-  getAiModelConfig,
-  getContentStorageRoot,
-  type AiModelSelection,
-  type ResolvedAiModelConfig,
-} from "../../config";
+import { reduceAgentSession } from "@shared/agent";
 import type {
   AgentCommand,
   AgentReasoningLevel,
@@ -26,6 +21,12 @@ import type {
   AgentSessionEvent,
   AgentSessionSummary,
 } from "@shared/agent";
+import {
+  getAiModelConfig,
+  getContentStorageRoot,
+  type AiModelSelection,
+  type ResolvedAiModelConfig,
+} from "../../config";
 import { agentLog } from "../../logger";
 import { AgentSessionLog } from "./pi-session-log";
 import { formatAgentError } from "./error";
@@ -183,8 +184,19 @@ export class PiAgentHost {
     return title;
   }
 
-  readSessionEvents(sessionId: string): Promise<AgentSessionEvent[]> {
-    return this.sessionLog.readEvents(sessionId);
+  async readSessionEvents(sessionId: string): Promise<AgentSessionEvent[]> {
+    const events = await this.sessionLog.readEvents(sessionId);
+    const activeRunId = reduceAgentSession(events).activeRunId;
+    if (!activeRunId || this.activeRuns.get(sessionId)?.runId === activeRunId) return events;
+
+    const manager = await this.sessionLog.openSession(sessionId);
+    const cancelled = this.createEvent({
+      type: "run.cancelled",
+      sessionId,
+      runId: activeRunId,
+    });
+    this.sessionLog.appendEvent(manager, cancelled);
+    return [...events, cancelled];
   }
 
   async sendAgentCommand(command: AgentCommand, webContents: WebContents): Promise<void> {

@@ -59,6 +59,15 @@
     那么页面应该仍显示已停止
     而且输入框应该可操作
 
+  @P0 @recovery @AG-PI-RUN-003
+  场景: 用户重新打开有未完成回复的 Pi session 后不会卡在正在回复
+    假如用户上次关闭 Reflecta 时 Pi-backed session 里有一条未完成回复
+    当用户重新打开 Reflecta 应用
+    而且用户打开原对话
+    那么页面应该显示该回复已停止
+    而且停止按钮应该消失
+    而且输入框应该可操作
+
   @P0 @context @AG-PI-CONTEXT-001
   场景: 用户在 Pi-backed session 中选择引用后发送消息
     假如用户已经用 Pi Agent runtime 进入 Agent 页面

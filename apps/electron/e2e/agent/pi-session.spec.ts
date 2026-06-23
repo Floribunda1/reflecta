@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
+import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { getE2eAiEnv, readE2eTestEnv, writeE2eAiConfig } from "../test-env";
 import {
   composer,
@@ -23,6 +24,7 @@ const PI_REJECT_PROPOSAL_TITLE = "PI_REJECT_CANDIDATE_THOUGHT";
 const PI_APPROVE_PROPOSAL_TITLE = "PI_APPROVE_CANDIDATE_THOUGHT";
 const PI_RELOAD_PROPOSAL_TITLE = "PI_RELOAD_CANDIDATE_THOUGHT";
 const PI_CATEGORY_PROPOSAL_NAME = "PI_APPROVE_CANDIDATE_CATEGORY";
+const ABANDONED_RUN_MESSAGE = "ABANDONED_RUN_MESSAGE";
 
 function sessionsRoot() {
   return path.join(readE2eTestEnv().contentStorageRoot, "Sessions");
@@ -63,6 +65,49 @@ function readPiEvents() {
           return [entry.data];
         }),
     );
+}
+
+function flushPiSession(manager: SessionManager) {
+  const sessionFile = manager.getSessionFile();
+  if (!sessionFile) return;
+  const flushable = manager as unknown as { _rewriteFile?: () => void; flushed?: boolean };
+  if (typeof flushable._rewriteFile !== "function") throw new Error("Pi session flush unavailable");
+  fs.mkdirSync(path.dirname(sessionFile), { recursive: true });
+  flushable._rewriteFile();
+  flushable.flushed = true;
+}
+
+function seedAbandonedPiSession() {
+  const root = readE2eTestEnv().contentStorageRoot;
+  fs.mkdirSync(sessionsRoot(), { recursive: true });
+  const manager = SessionManager.create(root, sessionsRoot());
+  const sessionId = manager.getSessionId();
+  const base = {
+    sessionId,
+    runId: "run_abandoned",
+    createdAt: "2026-06-23T00:00:00.000Z",
+  };
+  for (const event of [
+    { ...base, id: "evt_abandoned_1", type: "run.started" },
+    {
+      ...base,
+      id: "evt_abandoned_2",
+      type: "user.message",
+      messageId: "user_abandoned",
+      text: ABANDONED_RUN_MESSAGE,
+    },
+    {
+      ...base,
+      id: "evt_abandoned_3",
+      type: "assistant.reasoning.delta",
+      messageId: "assistant_abandoned",
+      delta: "正在思考",
+    },
+  ]) {
+    manager.appendCustomEntry(REFLECTA_AGENT_EVENT_ENTRY, event);
+  }
+  manager.appendSessionInfo(ABANDONED_RUN_MESSAGE);
+  flushPiSession(manager);
 }
 
 test.beforeEach(() => {
@@ -167,6 +212,24 @@ test("@AG-PI-RUN-002 用户停止回复后切换回来仍看到停止状态", as
     await openThread(page, SLOW_PROMPT.slice(0, 20));
     await expect(page.getByTestId("agent-stopped-state")).toContainText("已停止");
     await expect(composer(page)).toBeEditable();
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-PI-RUN-003 用户重新打开有未完成回复的 Pi session 后不会卡在正在回复", async () => {
+  seedAbandonedPiSession();
+  const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+
+  try {
+    await openThread(page, ABANDONED_RUN_MESSAGE);
+    await expect(
+      page.getByTestId("agent-user-message").filter({ hasText: ABANDONED_RUN_MESSAGE }),
+    ).toBeVisible();
+    await expect(page.getByTestId("agent-stopped-state")).toContainText("已停止");
+    await expect(page.getByTestId("agent-stop-button")).toHaveCount(0);
+    await expect(composer(page)).toBeEditable();
+    expect(readPiEventTypes()).toContain("run.cancelled");
   } finally {
     await app.close();
   }
