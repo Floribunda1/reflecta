@@ -124,7 +124,7 @@ SQLite 仍然保存 `understandings`、`contexts`、`domains`、`connections`。
 - Pi Agent 的 `retrieve_knowledge` 使用 LanceDB。
 - 现有 `search` tool 如果继续保留名称，也只作为兼容入口，内部走 LanceDB / `retrieveKnowledge()`。
 - CLI `search` 也切到 LanceDB，不再直接查 SQLite FTS。
-- 后续 migration 删除或停止维护 `fts_understandings` / `fts_contexts`。
+- 删除 SQLite FTS 表：`fts_understandings` / `fts_contexts`。
 
 ## 4. Product Semantics
 
@@ -639,7 +639,7 @@ TDD / checks：
 - 新增 projection builder。
 - 新增 LanceDB sync / rebuild 命令或内部方法。
 - Understanding / Context 创建、更新、删除后能同步检索文档。
-- 停止向 SQLite FTS 表写入新的检索数据。
+- 删除 SQLite FTS 写入逻辑。
 
 TDD：
 
@@ -719,17 +719,18 @@ TDD：
 - 返回结果能表达“这条理解从哪里长出来”。
 - `retrieve_knowledge` 和兼容 `search` 都不再使用 SQLite FTS。
 
-## 15. Phase 4：Search Replacement Cleanup
+## 15. Phase 4：Delete SQLite FTS Search
 
 用户状态：用户继续使用搜索能力，但结果来自 LanceDB。
 
 实现范围：
 
-- 删除或停用 `SearchCore` 对 SQLite FTS 表的查询路径。
+- 删除 `SearchCore` 对 SQLite FTS 表的查询路径。
 - CLI `search` 切到 LanceDB-backed retrieval。
 - Electron / Pi `search` 兼容入口切到 LanceDB-backed retrieval。
-- migration 停止创建或填充 `fts_understandings` / `fts_contexts`。
-- 如果已有 profile 里存在旧 FTS 表，不再依赖它们；后续可清理。
+- migration 删除 `fts_understandings` / `fts_contexts`。
+- Understanding / Context 写路径删除 FTS insert / delete / restore 逻辑。
+- 已有 profile 里的旧 FTS 表在迁移后不存在。
 
 TDD：
 
