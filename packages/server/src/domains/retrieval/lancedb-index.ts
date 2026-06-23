@@ -34,6 +34,20 @@ type RetrievalRow = {
 
 const SEMANTIC_DISTANCE_THRESHOLD = 0.35;
 const RRF_K = 60;
+const LEXICAL_SCAN_COLUMNS = [
+  "id",
+  "entityType",
+  "entityId",
+  "parentUnderstandingId",
+  "textForEmbedding",
+  "textForLexicalSearch",
+  "domainIdsJson",
+  "domainNamesJson",
+  "medium",
+  "title",
+  "createdAt",
+  "updatedAt",
+];
 
 function quoteSqlString(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
@@ -132,6 +146,18 @@ function fuseRows(lexicalRows: RetrievalRow[], semanticRows: RetrievalRow[], lim
     }));
 }
 
+function appendMissingRows(rows: RetrievalRow[], fallbackRows: RetrievalRow[], limit: number) {
+  const seen = new Set(rows.map((row) => row.id));
+  const merged = [...rows];
+  for (const row of fallbackRows) {
+    if (seen.has(row.id)) continue;
+    merged.push(row);
+    seen.add(row.id);
+    if (merged.length >= limit) break;
+  }
+  return merged;
+}
+
 export class LanceDbRetrievalIndex {
   private readonly tableName: string;
 
@@ -185,7 +211,7 @@ export class LanceDbRetrievalIndex {
     const [vector] = await this.options.embeddingProvider.embed([query]);
     const searchLimit = Math.max(limit * 5, 20);
     const tokens = lexicalTokens(query);
-    const lexicalRows = (
+    const ftsLexicalRows = (
       (await table
         .search(query)
         .fullTextSearch(query, { columns: ["textForLexicalSearch"] })
@@ -194,6 +220,17 @@ export class LanceDbRetrievalIndex {
     )
       .filter((row) => matchesLexicalQuery(row, tokens))
       .slice(0, limit);
+    const lexicalRows =
+      ftsLexicalRows.length >= limit
+        ? ftsLexicalRows
+        : appendMissingRows(
+            ftsLexicalRows,
+            // ponytail: full scan catches CJK terms LanceDB FTS can miss; replace with a CJK tokenizer index if this gets slow.
+            ((await table.query().select(LEXICAL_SCAN_COLUMNS).toArray()) as RetrievalRow[])
+              .filter((row) => matchesLexicalQuery(row, tokens))
+              .slice(0, limit),
+            limit,
+          );
     const semanticRows = hasVectorSignal(vector)
       ? ((await table.vectorSearch(vector).limit(searchLimit).toArray()) as RetrievalRow[]).filter(
           isRelevantRow,

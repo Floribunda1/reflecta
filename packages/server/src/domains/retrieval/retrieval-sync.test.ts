@@ -131,6 +131,31 @@ describe("retrieval index write-path sync", () => {
     expect(await indexIds("contextsyncaftermarker")).not.toContain(`context:${context.id}`);
   });
 
+  test("Chinese context query finds lexical matches", async () => {
+    const { contexts, search, understandings } = await setupServices();
+    const understanding = await understandings.createUnderstanding({
+      title: "中文搜索父理解",
+      body: "父理解正文",
+    });
+    const context = await contexts.createContext({
+      understandingId: understanding.id,
+      medium: "article",
+      title: "说不出口，就无法交易",
+      content: "交易系统里有一段热烈讨论。",
+    });
+
+    const result = await search.search("热烈", { limit: 5 });
+
+    expect(result.hits).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "context",
+          context: expect.objectContaining({ id: context.id }),
+        }),
+      ]),
+    );
+  });
+
   test("retrieveKnowledge rebuilds and clears a dirty retrieval index marker", async () => {
     const { search, understandings } = await setupServices();
     const created = await understandings.createUnderstanding({
