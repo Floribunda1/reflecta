@@ -40,7 +40,7 @@ export function TrashSection() {
   const handleDeleteUnderstandingForever = (id: string) => {
     confirm({
       title: "永久删除",
-      message: "该想法将被永久删除，无法恢复。确定继续吗？",
+      message: "该理解将被永久删除，无法恢复。确定继续吗？",
       acceptLabel: "永久删除",
       danger: true,
       onAccept: async () => {
@@ -149,7 +149,7 @@ export function TrashSection() {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <Lightbulb size={13} />
-                  <span>想法 ({understandings.length})</span>
+                  <span>理解 ({understandings.length})</span>
                 </div>
                 {understandings.map((understanding) => (
                   <div
@@ -208,7 +208,7 @@ export function TrashSection() {
                           : truncate(context.content)}
                       </div>
                       <div className="mt-0.5 text-xs text-muted-foreground">
-                        来自「{context.understandingTitle || "无标题想法"}」 · 删除于{" "}
+                        来自「{context.understandingTitle || "无标题理解"}」 · 删除于{" "}
                         {formatDate(context.deletedAt)}
                       </div>
                     </div>

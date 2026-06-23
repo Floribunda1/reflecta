@@ -534,7 +534,7 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
     return `读取了「${entityTitle(outputRecord.context) || entityTitle(outputRecord) || stringValue(input.contextId) || "Context"}」`;
   if (name === "graph_neighborhood")
     return `查看了「${entityTitle(outputRecord.seed) || stringValue(input.understandingId) || "Understanding"}」附近的关联`;
-  if (name === "graph_path") return "查找了两条想法之间的路径";
+  if (name === "graph_path") return "查找了两条 Understanding 之间的路径";
   return `使用了 ${name}`;
 }
 
