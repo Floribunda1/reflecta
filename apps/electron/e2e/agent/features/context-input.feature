@@ -40,6 +40,11 @@
     而且 Agent 回复完成后界面应该仍显示 M 和“中推理”
     而且页面应该出现一条 Agent 回复正文
 
+  @P1 @context @AG-CONTEXT-006
+  场景: 用户打开 Agent 页面时默认使用中推理
+    假如用户已经打开 Agent 页面
+    那么模型菜单应该显示“中推理”
+
   @P1 @context @AG-CONTEXT-004
   场景: 用户通过 @ 搜索选择上下文引用
     假如 seed 数据中存在 Thought「React Server Components」

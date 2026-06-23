@@ -74,7 +74,7 @@ export type ComposerSendInput = {
 };
 
 const REASONING_OPTIONS: { value: AgentReasoningLevel; label: string }[] = [
-  { value: "default", label: "默认" },
+  { value: "default", label: "关闭推理" },
   { value: "low", label: "低推理" },
   { value: "medium", label: "中推理" },
   { value: "high", label: "高推理" },
@@ -207,7 +207,7 @@ export function ChatComposer({
   const [selectedContexts, setSelectedContexts] = useState<AgentContextRef[]>([]);
   const [files, setFiles] = useState<AgentFileAttachment[]>([]);
   const [attachmentError, setAttachmentError] = useState("");
-  const [reasoningLevel, setReasoningLevel] = useState<AgentReasoningLevel>("default");
+  const [reasoningLevel, setReasoningLevel] = useState<AgentReasoningLevel>("medium");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const mentionCommandRef = useRef<((attrs: MentionAttrs) => void) | null>(null);
   const mentionActiveRef = useRef(false);

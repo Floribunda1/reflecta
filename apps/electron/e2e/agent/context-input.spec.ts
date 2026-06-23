@@ -138,3 +138,13 @@ test("@AG-CONTEXT-003 用户选择模型和推理强度后发送消息", async (
     await app.close();
   }
 });
+
+test("@AG-CONTEXT-006 用户打开 Agent 页面时默认使用中推理", async () => {
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await expect(page.getByTestId("agent-model-menu-button")).toContainText("中推理");
+  } finally {
+    await app.close();
+  }
+});
