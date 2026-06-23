@@ -1,16 +1,12 @@
-import { and, desc, inArray, isNull } from "drizzle-orm";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
-import { contexts, understandings } from "../../db/schema";
+import { and, inArray, isNull } from "drizzle-orm";
+import { understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type { SearchOptions } from "./types";
-import { resolveDomainRefs } from "../domain/core";
 import { toUnderstandingSummaries } from "../understanding/core";
 import {
-  LanceDbRetrievalIndex,
-  LocalEmbeddingProvider,
+  buildRetrievalDocumentsFromDb,
   buildUnderstandingCandidates,
-  buildRetrievalDocuments,
+  createRetrievalIndex,
 } from "../retrieval";
 import type {
   RetrievalSearchHit,
@@ -35,15 +31,10 @@ export class SearchCore {
     options?: SearchOptions,
   ): Promise<SearchRetrievalHit[]> {
     const { limit, offset } = getLimitOffset(options);
-    const docs = await this.buildRetrievalDocuments();
+    const docs = await buildRetrievalDocumentsFromDb(this.db);
     if (docs.length === 0) return [];
 
-    const index = new LanceDbRetrievalIndex({
-      uri:
-        process.env.REFLECTA_RETRIEVAL_INDEX_PATH ??
-        join(tmpdir(), "reflecta-retrieval-index", String(process.pid)),
-      embeddingProvider: new LocalEmbeddingProvider(),
-    });
+    const index = createRetrievalIndex();
     // ponytail: rebuild-on-search; replace with write-path sync before large profiles.
     await index.replaceAll(docs);
     const hits = await index.search(query, limit + offset);
@@ -129,45 +120,5 @@ export class SearchCore {
         returnedCandidates: candidates.length,
       },
     };
-  }
-
-  private async buildRetrievalDocuments() {
-    const understandingRows = await this.db
-      .select()
-      .from(understandings)
-      .where(isNull(understandings.deletedAt))
-      .orderBy(desc(understandings.updatedAt));
-    if (understandingRows.length === 0) return [];
-
-    const understandingIds = understandingRows.map((understanding) => understanding.id);
-    const [domainRefs, contextRows] = await Promise.all([
-      resolveDomainRefs(this.db, understandingIds),
-      this.db
-        .select()
-        .from(contexts)
-        .where(
-          and(inArray(contexts.understandingId, understandingIds), isNull(contexts.deletedAt)),
-        ),
-    ]);
-    const contextsByUnderstandingId = new Map<string, typeof contextRows>();
-    for (const context of contextRows) {
-      const items = contextsByUnderstandingId.get(context.understandingId) ?? [];
-      items.push(context);
-      contextsByUnderstandingId.set(context.understandingId, items);
-    }
-
-    return understandingRows.flatMap((understanding) =>
-      buildRetrievalDocuments({
-        understanding,
-        domains: domainRefs.get(understanding.id) ?? [],
-        contexts: (contextsByUnderstandingId.get(understanding.id) ?? []).map((context) => ({
-          id: context.id,
-          medium: context.medium,
-          title: context.title,
-          content: context.content,
-          createdAt: context.createdAt,
-        })),
-      }),
-    );
   }
 }

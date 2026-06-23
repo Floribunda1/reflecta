@@ -1,8 +1,8 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import { nanoid } from "nanoid";
 import { domains, understandingDomains, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type { CreateDomainInput, ReorderDomainItem, UpdateDomainInput } from "./types";
+import { createEntityId } from "../shared/id";
 
 export async function getDomainDescendants(db: ReflectaDb, domainId: string): Promise<string[]> {
   const result = await db.all<{ id: string }>(sql`
@@ -43,7 +43,7 @@ export class DomainCore {
     const rows = await this.db
       .insert(domains)
       .values({
-        id: nanoid(),
+        id: createEntityId(),
         name: input.name,
         parentId,
         sortOrder: nextOrder,

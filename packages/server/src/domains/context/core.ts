@@ -1,9 +1,10 @@
 import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
-import { nanoid } from "nanoid";
 import { contexts, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type { ContextDTO, CreateContextInput, ContextMedium, UpdateContextInput } from "./types";
 import type { TrashedContextDTO } from "../trash/types";
+import { trySyncRetrievalIndexByUnderstandingId } from "../retrieval/sync";
+import { createEntityId } from "../shared/id";
 
 export class ContextCore {
   constructor(protected db: ReflectaDb) {}
@@ -28,7 +29,7 @@ export class ContextCore {
 
   async _createContext(input: CreateContextInput): Promise<ContextDTO> {
     const createdAt = new Date().toISOString();
-    const id = nanoid();
+    const id = createEntityId();
     await this.assertUnderstandingExists(input.understandingId);
 
     const row: typeof contexts.$inferInsert = {
@@ -42,6 +43,7 @@ export class ContextCore {
     };
 
     await this.db.insert(contexts).values(row).run();
+    await trySyncRetrievalIndexByUnderstandingId(this.db, input.understandingId);
 
     return { ...row, createdAt, deletedAt: null } as ContextDTO;
   }
@@ -62,10 +64,12 @@ export class ContextCore {
       updated = rows[0] as ContextDTO;
     });
 
+    await trySyncRetrievalIndexByUnderstandingId(this.db, updated!.understandingId);
     return updated!;
   }
 
   async deleteContext(id: string): Promise<void> {
+    let understandingId: string | undefined;
     await this.db.transaction((tx) => {
       const rows = tx
         .update(contexts)
@@ -76,10 +80,13 @@ export class ContextCore {
       if (rows.length === 0) {
         throw new Error(`Context not found: ${id}`);
       }
+      understandingId = rows[0].understandingId;
     });
+    await trySyncRetrievalIndexByUnderstandingId(this.db, understandingId!);
   }
 
   async restoreContext(id: string): Promise<void> {
+    let understandingId: string | undefined;
     await this.db.transaction((tx) => {
       const rows = tx
         .update(contexts)
@@ -88,11 +95,14 @@ export class ContextCore {
         .returning()
         .all();
       if (rows.length === 0) return;
+      understandingId = rows[0].understandingId;
     });
+    if (understandingId) await trySyncRetrievalIndexByUnderstandingId(this.db, understandingId);
   }
 
   async permanentlyDeleteContext(id: string): Promise<void> {
-    await this.db.delete(contexts).where(eq(contexts.id, id)).run();
+    const rows = await this.db.delete(contexts).where(eq(contexts.id, id)).returning().all();
+    if (rows[0]) await trySyncRetrievalIndexByUnderstandingId(this.db, rows[0].understandingId);
   }
 
   private async assertUnderstandingExists(understandingId: string): Promise<void> {

@@ -1,5 +1,4 @@
 import { and, desc, eq, inArray, isNotNull, isNull, or, count } from "drizzle-orm";
-import { nanoid } from "nanoid";
 import {
   domains,
   contexts,
@@ -20,6 +19,8 @@ import type {
   UpdateUnderstandingInput,
 } from "./types";
 import { resolveDomainRefs } from "../domain/core";
+import { trySyncRetrievalIndexByUnderstandingId } from "../retrieval/sync";
+import { createEntityId } from "../shared/id";
 
 export async function getUnderstandingConnectionCounts(
   db: ReflectaDb,
@@ -118,7 +119,7 @@ export class UnderstandingCore {
     input: CreateUnderstandingInput,
   ): Promise<typeof understandings.$inferSelect> {
     const createdAt = new Date().toISOString();
-    const id = nanoid();
+    const id = createEntityId();
     const body = normalizeUnderstandingWikiLinkBody(input.body) ?? "";
     await this.assertDomainIdsExist(input.domainIds);
 
@@ -149,6 +150,7 @@ export class UnderstandingCore {
 
     const row = await this.getUnderstandingRow(id);
     if (!row) throw new Error(`Understanding not found after creation: ${id}`);
+    await trySyncRetrievalIndexByUnderstandingId(this.db, id);
     return row;
   }
 
@@ -196,6 +198,7 @@ export class UnderstandingCore {
 
     const row = await this.getUnderstandingRow(id);
     if (!row) throw new Error(`Understanding not found after update: ${id}`);
+    await trySyncRetrievalIndexByUnderstandingId(this.db, id);
     return row;
   }
 
@@ -211,9 +214,11 @@ export class UnderstandingCore {
         throw new Error(`Understanding not found: ${id}`);
       }
     });
+    await trySyncRetrievalIndexByUnderstandingId(this.db, id);
   }
 
   async restoreUnderstanding(id: string): Promise<void> {
+    let restored = false;
     await this.db.transaction((tx) => {
       const rows = tx
         .update(understandings)
@@ -222,13 +227,16 @@ export class UnderstandingCore {
         .returning()
         .all();
       if (rows.length === 0) return;
+      restored = true;
     });
+    if (restored) await trySyncRetrievalIndexByUnderstandingId(this.db, id);
   }
 
   async permanentlyDeleteUnderstanding(id: string): Promise<void> {
     await this.db.transaction((tx) => {
       tx.delete(understandings).where(eq(understandings.id, id)).run();
     });
+    await trySyncRetrievalIndexByUnderstandingId(this.db, id);
   }
 
   async syncWikiLinkConnections(sourceId: string, body: string): Promise<void> {
