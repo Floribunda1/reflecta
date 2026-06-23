@@ -321,7 +321,7 @@ export function ChatComposer({
           typeof node.attrs.label === "string" ? node.attrs.label : String(node.attrs.id ?? ""),
         renderHTML: ({ node, options }) => {
           const type = contextTypeFromKey(node.attrs.id);
-          const isInspectable = type === "thought" || type === "context";
+          const isInspectable = type === "understanding" || type === "context";
           const id =
             typeof node.attrs.id === "string" ? node.attrs.id : String(node.attrs.id ?? "");
           const label =

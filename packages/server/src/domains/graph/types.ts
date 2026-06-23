@@ -1,5 +1,5 @@
 import type { ContextDetail } from "../context/types";
-import type { ThoughtNode } from "../thought/types";
+import type { UnderstandingNode } from "../understanding/types";
 import type { PageInfo } from "../shared/types";
 
 export type ReferenceEdge = {
@@ -16,7 +16,7 @@ export type GraphNeighborhoodOptions = {
 
 export type GraphNeighborhoodResult = {
   seed: string;
-  nodes: ThoughtNode[];
+  nodes: UnderstandingNode[];
   edges: ReferenceEdge[];
   contexts?: ContextDetail[];
   page: PageInfo;

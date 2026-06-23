@@ -1,9 +1,9 @@
 import type { AgentContextRef } from "@shared/agent";
 
 const WIKI_LINK_PATTERN = /\[\[([^#\]\n]+)#([^\]\n]+)\]\]/g;
-export const WIKI_LINK_HREF_PREFIX = "#reflecta-wiki/thought/";
+export const WIKI_LINK_HREF_PREFIX = "#reflecta-wiki/understanding/";
 
-export type InspectableContextRef = AgentContextRef & { type: "thought" | "context" };
+export type InspectableContextRef = AgentContextRef & { type: "understanding" | "context" };
 
 export type MentionAttrs = {
   id: string;
@@ -19,9 +19,9 @@ export function contextTitle(ref: AgentContextRef) {
 }
 
 export function contextTypeLabel(type: AgentContextRef["type"]) {
-  if (type === "thought") return "Thought";
+  if (type === "understanding") return "Understanding";
   if (type === "context") return "Context";
-  return "Category";
+  return "Domain";
 }
 
 export function parseContextKey(value: unknown): AgentContextRef | null {
@@ -30,7 +30,7 @@ export function parseContextKey(value: unknown): AgentContextRef | null {
   if (separatorIndex < 1) return null;
   const type = value.slice(0, separatorIndex);
   const id = value.slice(separatorIndex + 1);
-  if ((type !== "thought" && type !== "context" && type !== "category") || !id) return null;
+  if ((type !== "understanding" && type !== "context" && type !== "domain") || !id) return null;
   return { type, id };
 }
 
@@ -39,7 +39,7 @@ export function contextTypeFromKey(value: unknown): AgentContextRef["type"] | nu
 }
 
 export function inspectableContextRef(ref: AgentContextRef): InspectableContextRef | null {
-  if (ref.type === "thought") return { ...ref, type: "thought" };
+  if (ref.type === "understanding") return { ...ref, type: "understanding" };
   if (ref.type === "context") return { ...ref, type: "context" };
   return null;
 }
@@ -48,7 +48,7 @@ export function contextMentionClass(type: AgentContextRef["type"] | null) {
   const base =
     "mx-0.5 inline text-[1em] font-medium leading-[inherit] no-underline decoration-transparent";
   if (type === "context") return `${base} text-emerald-700 dark:text-emerald-300`;
-  if (type === "category") return `${base} text-violet-700 dark:text-violet-300`;
+  if (type === "domain") return `${base} text-violet-700 dark:text-violet-300`;
   return `${base} text-sky-700 dark:text-sky-300`;
 }
 
@@ -58,7 +58,7 @@ export function messageContextMentionClass(type: AgentContextRef["type"] | null)
 
 export function contextMentionIcon(type: AgentContextRef["type"] | null) {
   if (type === "context") return "↳";
-  if (type === "category") return "#";
+  if (type === "domain") return "#";
   return "✦";
 }
 
@@ -102,7 +102,7 @@ export function parseWikiHref(href: string | undefined): InspectableContextRef |
     const id = decodeURIComponent(encodedId);
     const title = params.get("title") ?? undefined;
     if (!id) return null;
-    return { type: "thought", id, title };
+    return { type: "understanding", id, title };
   } catch {
     return null;
   }

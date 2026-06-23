@@ -1,23 +1,23 @@
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-export const categories = sqliteTable(
-  "categories",
+export const domains = sqliteTable(
+  "domains",
   {
     id: text("id").notNull().primaryKey(),
     name: text("name").notNull(),
-    parentId: text("parent_id").references((): AnySQLiteColumn => categories.id, {
+    parentId: text("parent_id").references((): AnySQLiteColumn => domains.id, {
       onDelete: "set null",
     }),
     sortOrder: integer("sort_order").notNull().default(0),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
-  (t) => [index("idx_categories_parent").on(t.parentId)],
+  (t) => [index("idx_domains_parent").on(t.parentId)],
 );
 
-export const thoughts = sqliteTable(
-  "thoughts",
+export const understandings = sqliteTable(
+  "understandings",
   {
     id: text("id").notNull().primaryKey(),
     title: text("title"),
@@ -27,36 +27,36 @@ export const thoughts = sqliteTable(
     deletedAt: text("deleted_at"),
   },
   (t) => [
-    index("idx_thoughts_created_at").on(t.createdAt),
-    index("idx_thoughts_updated_at").on(t.updatedAt),
+    index("idx_understandings_created_at").on(t.createdAt),
+    index("idx_understandings_updated_at").on(t.updatedAt),
   ],
 );
 
-export const thoughtCategories = sqliteTable(
-  "thought_categories",
+export const understandingDomains = sqliteTable(
+  "understanding_domains",
   {
-    thoughtId: text("thought_id")
+    understandingId: text("understanding_id")
       .notNull()
-      .references(() => thoughts.id, { onDelete: "cascade" }),
-    categoryId: text("category_id")
+      .references(() => understandings.id, { onDelete: "cascade" }),
+    domainId: text("domain_id")
       .notNull()
-      .references(() => categories.id, { onDelete: "cascade" }),
+      .references(() => domains.id, { onDelete: "cascade" }),
   },
   (t) => [
-    primaryKey({ columns: [t.thoughtId, t.categoryId] }),
-    index("idx_tc_category").on(t.categoryId),
+    primaryKey({ columns: [t.understandingId, t.domainId] }),
+    index("idx_ud_domain").on(t.domainId),
   ],
 );
 
-export const thoughtConnections = sqliteTable(
-  "thought_connections",
+export const understandingConnections = sqliteTable(
+  "understanding_connections",
   {
     sourceId: text("source_id")
       .notNull()
-      .references(() => thoughts.id, { onDelete: "cascade" }),
+      .references(() => understandings.id, { onDelete: "cascade" }),
     targetId: text("target_id")
       .notNull()
-      .references(() => thoughts.id, { onDelete: "cascade" }),
+      .references(() => understandings.id, { onDelete: "cascade" }),
   },
   (t) => [
     primaryKey({ columns: [t.sourceId, t.targetId] }),
@@ -68,18 +68,18 @@ export const contexts = sqliteTable(
   "contexts",
   {
     id: text("id").notNull().primaryKey(),
-    thoughtId: text("thought_id")
+    understandingId: text("understanding_id")
       .notNull()
-      .references(() => thoughts.id, { onDelete: "cascade" }),
-    sourceType: text("source_type").notNull(),
-    sourceName: text("source_name"),
+      .references(() => understandings.id, { onDelete: "cascade" }),
+    medium: text("medium").notNull(),
+    title: text("title"),
     content: text("content").notNull().default(""),
     createdAt: text("created_at").notNull(),
     deletedAt: text("deleted_at"),
   },
   (t) => [
-    index("idx_contexts_thought").on(t.thoughtId),
-    index("idx_contexts_source_type").on(t.sourceType),
+    index("idx_contexts_understanding").on(t.understandingId),
+    index("idx_contexts_medium").on(t.medium),
   ],
 );
 

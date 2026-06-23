@@ -11,9 +11,9 @@ import {
 function seedPendingProposal() {
   seedAgentThread({
     id: "proposal-pending",
-    title: "候选 Thought 提案",
+    title: "候选 Understanding 提案",
     messages: [
-      userMessage("proposal-user", "请创建候选 Thought"),
+      userMessage("proposal-user", "请创建候选 Understanding"),
       assistantMessage("proposal-assistant", [
         proposalPart({
           toolCallId: "proposal-tool",
@@ -30,7 +30,7 @@ test.beforeEach(() => {
   resetAgentFixtures();
 });
 
-test("@AG-PROPOSAL-001 用户确认候选 Thought 后看到执行结果", async () => {
+test("@AG-PROPOSAL-001 用户确认候选 Understanding 后看到执行结果", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
@@ -47,7 +47,7 @@ test("@AG-PROPOSAL-001 用户确认候选 Thought 后看到执行结果", async 
   }
 });
 
-test("@AG-PROPOSAL-002 用户拒绝候选 Thought 后看到拒绝结果", async () => {
+test("@AG-PROPOSAL-002 用户拒绝候选 Understanding 后看到拒绝结果", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
@@ -69,7 +69,7 @@ test("@AG-PROPOSAL-003 用户重新打开对话后仍能看到提案处理结果
     id: "proposal-recovery",
     title: "已处理提案",
     messages: [
-      userMessage("proposal-recovery-user", "请创建候选 Thought"),
+      userMessage("proposal-recovery-user", "请创建候选 Understanding"),
       assistantMessage("proposal-recovery-assistant", [
         proposalPart({
           toolCallId: "proposal-recovery-tool",

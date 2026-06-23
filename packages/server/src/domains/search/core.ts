@@ -16,30 +16,30 @@ export function escapeFtsQuery(query: string): string {
 export class SearchCore {
   constructor(protected db: ReflectaDb) {}
 
-  async searchThoughtIds(
+  async searchUnderstandingIds(
     query: string,
     options?: SearchOptions,
-  ): Promise<Array<{ thoughtId: string; snippet: string; rank: number }>> {
+  ): Promise<Array<{ understandingId: string; snippet: string; rank: number }>> {
     const { limit, offset } = getLimitOffset(options);
     const escaped = escapeFtsQuery(query);
 
     const rows = await this.db.all<{
-      thought_id: string;
+      understanding_id: string;
       snippet: string;
       rank: number;
     }>(sql`
       SELECT
-        thought_id,
-        snippet(fts_thoughts, 1, '<mark>', '</mark>', '…', 10) AS snippet,
+        understanding_id,
+        snippet(fts_understandings, 1, '<mark>', '</mark>', '…', 10) AS snippet,
         rank
-      FROM fts_thoughts
-      WHERE fts_thoughts MATCH ${escaped}
+      FROM fts_understandings
+      WHERE fts_understandings MATCH ${escaped}
       ORDER BY rank
       LIMIT ${limit} OFFSET ${offset}
     `);
 
     return rows.map((r) => ({
-      thoughtId: r.thought_id,
+      understandingId: r.understanding_id,
       snippet: r.snippet,
       rank: r.rank,
     }));
@@ -51,9 +51,9 @@ export class SearchCore {
   ): Promise<
     Array<{
       contextId: string;
-      thoughtId: string;
-      sourceType: string;
-      sourceName: string | null;
+      understandingId: string;
+      medium: string;
+      title: string | null;
       snippet: string;
       rank: number;
     }>
@@ -63,17 +63,17 @@ export class SearchCore {
 
     const rows = await this.db.all<{
       context_id: string;
-      thought_id: string;
-      source_type: string;
-      source_name: string | null;
+      understanding_id: string;
+      medium: string;
+      title: string | null;
       snippet: string;
       rank: number;
     }>(sql`
       SELECT
         c.id AS context_id,
-        c.thought_id AS thought_id,
-        c.source_type AS source_type,
-        c.source_name AS source_name,
+        c.understanding_id AS understanding_id,
+        c.medium AS medium,
+        c.title AS title,
         snippet(fts_contexts, 3, '<mark>', '</mark>', '…', 10) AS snippet,
         rank
       FROM fts_contexts
@@ -85,9 +85,9 @@ export class SearchCore {
 
     return rows.map((r) => ({
       contextId: r.context_id,
-      thoughtId: r.thought_id,
-      sourceType: r.source_type,
-      sourceName: r.source_name,
+      understandingId: r.understanding_id,
+      medium: r.medium,
+      title: r.title,
       snippet: r.snippet,
       rank: r.rank,
     }));

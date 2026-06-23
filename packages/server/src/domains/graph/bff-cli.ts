@@ -1,10 +1,10 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import { contexts, thoughtConnections, thoughts } from "../../db/schema";
+import { contexts, understandingConnections, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import { makePageInfo } from "../shared/types";
-import { toThoughtSummaries } from "../thought/core";
-import type { ContextDetail, SourceType } from "../context/types";
-import type { ThoughtNode, ThoughtSummary } from "../thought/types";
+import { toUnderstandingSummaries } from "../understanding/core";
+import type { ContextDetail, ContextMedium } from "../context/types";
+import type { UnderstandingNode, UnderstandingSummary } from "../understanding/types";
 import type { GraphNeighborhoodOptions, GraphNeighborhoodResult, GraphPathResult } from "./types";
 
 export class GraphCliBff {
@@ -16,12 +16,12 @@ export class GraphCliBff {
   ): Promise<GraphNeighborhoodResult> {
     const seedRows = await this.db
       .select()
-      .from(thoughts)
-      .where(and(eq(thoughts.id, seedId), isNull(thoughts.deletedAt)))
+      .from(understandings)
+      .where(and(eq(understandings.id, seedId), isNull(understandings.deletedAt)))
       .limit(1);
 
     if (seedRows.length === 0) {
-      throw new Error(`Thought not found: ${seedId}`);
+      throw new Error(`Understanding not found: ${seedId}`);
     }
 
     const depth = options?.depth ?? 1;
@@ -38,8 +38,14 @@ export class GraphCliBff {
       if (ids.length === 0) break;
 
       const [outRows, inRows] = await Promise.all([
-        this.db.select().from(thoughtConnections).where(inArray(thoughtConnections.sourceId, ids)),
-        this.db.select().from(thoughtConnections).where(inArray(thoughtConnections.targetId, ids)),
+        this.db
+          .select()
+          .from(understandingConnections)
+          .where(inArray(understandingConnections.sourceId, ids)),
+        this.db
+          .select()
+          .from(understandingConnections)
+          .where(inArray(understandingConnections.targetId, ids)),
       ]);
 
       for (const e of outRows) {
@@ -66,17 +72,17 @@ export class GraphCliBff {
     const hasMore = paginatedIds.length > limit;
     const nodeIds = paginatedIds.slice(0, limit);
 
-    const thoughtRows = await this.db
+    const understandingRows = await this.db
       .select()
-      .from(thoughts)
-      .where(and(inArray(thoughts.id, nodeIds), isNull(thoughts.deletedAt)));
+      .from(understandings)
+      .where(and(inArray(understandings.id, nodeIds), isNull(understandings.deletedAt)));
 
-    const summaries = await toThoughtSummaries(this.db, thoughtRows);
+    const summaries = await toUnderstandingSummaries(this.db, understandingRows);
     const summaryMap = new Map(summaries.map((s) => [s.id, s]));
 
-    const nodes: ThoughtNode[] = nodeIds
+    const nodes: UnderstandingNode[] = nodeIds
       .map((id) => summaryMap.get(id))
-      .filter((s): s is ThoughtSummary => s !== undefined)
+      .filter((s): s is UnderstandingSummary => s !== undefined)
       .map((s) => ({ ...s }));
 
     let resultContexts: ContextDetail[] | undefined;
@@ -85,13 +91,13 @@ export class GraphCliBff {
       const ctxRows = await this.db
         .select()
         .from(contexts)
-        .where(and(inArray(contexts.thoughtId, nodeIds), isNull(contexts.deletedAt)));
+        .where(and(inArray(contexts.understandingId, nodeIds), isNull(contexts.deletedAt)));
 
       const ctxMap = new Map<string, string[]>();
       for (const ctx of ctxRows) {
-        const arr = ctxMap.get(ctx.thoughtId) ?? [];
+        const arr = ctxMap.get(ctx.understandingId) ?? [];
         arr.push(ctx.id);
-        ctxMap.set(ctx.thoughtId, arr);
+        ctxMap.set(ctx.understandingId, arr);
       }
 
       for (const node of nodes) {
@@ -100,9 +106,9 @@ export class GraphCliBff {
 
       resultContexts = ctxRows.map((r) => ({
         id: r.id,
-        thoughtId: r.thoughtId,
-        sourceType: r.sourceType as SourceType,
-        sourceName: r.sourceName ?? null,
+        understandingId: r.understandingId,
+        medium: r.medium as ContextMedium,
+        title: r.title ?? null,
         content: r.content,
       }));
     }
@@ -120,21 +126,21 @@ export class GraphCliBff {
     const [fromRows, toRows] = await Promise.all([
       this.db
         .select()
-        .from(thoughts)
-        .where(and(eq(thoughts.id, fromId), isNull(thoughts.deletedAt)))
+        .from(understandings)
+        .where(and(eq(understandings.id, fromId), isNull(understandings.deletedAt)))
         .limit(1),
       this.db
         .select()
-        .from(thoughts)
-        .where(and(eq(thoughts.id, toId), isNull(thoughts.deletedAt)))
+        .from(understandings)
+        .where(and(eq(understandings.id, toId), isNull(understandings.deletedAt)))
         .limit(1),
     ]);
 
     if (fromRows.length === 0) {
-      throw new Error(`Thought not found: ${fromId}`);
+      throw new Error(`Understanding not found: ${fromId}`);
     }
     if (toRows.length === 0) {
-      throw new Error(`Thought not found: ${toId}`);
+      throw new Error(`Understanding not found: ${toId}`);
     }
 
     if (fromId === toId) {
@@ -164,8 +170,8 @@ export class GraphCliBff {
         layerNodes.length > 0
           ? await this.db
               .select()
-              .from(thoughtConnections)
-              .where(inArray(thoughtConnections.sourceId, layerNodes))
+              .from(understandingConnections)
+              .where(inArray(understandingConnections.sourceId, layerNodes))
           : [];
 
       const connMap = new Map<string, typeof connRows>();

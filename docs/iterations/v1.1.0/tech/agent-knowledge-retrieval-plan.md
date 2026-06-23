@@ -55,13 +55,13 @@ search_all("PDCA 检验 标准 Check 验证 迭代 反馈")
 
 ```txt
 query: "PDCA 检验 标准 Check 验证 迭代 反馈"
-result: thoughts=[], contexts=[]
+result: understandings=[], contexts=[]
 
 query: "检验"
-result: thoughts=2
+result: understandings=2
 
 query: "PDCA"
-result: thoughts=1
+result: understandings=1
 ```
 
 所以根因不是“库里没有内容”，而是：
@@ -197,7 +197,7 @@ packages/server/src/domains/retrieval
 type RetrieveKnowledgeInput = {
   query: string;
   anchors?: KnowledgeAnchor[];
-  scope?: "all" | "thoughts" | "contexts";
+  scope?: "all" | "understandings" | "contexts";
   intent?: "find" | "compare" | "expand" | "verify";
   limit?: number;
 };
@@ -254,7 +254,7 @@ Context 可以作为 detail 被读取，但 retrieval 的默认候选主语是 U
 
 ```txt
 normalize query
-  -> thought lexical recall
+  -> understanding lexical recall
   -> context recall
   -> relation expansion
   -> candidate fusion
@@ -346,8 +346,8 @@ ContextRetriever 找到的 parent Understanding
 ```txt
 Understanding -> references
 Understanding -> referencedBy
-Understanding -> same category siblings, capped
-Domain -> direct thoughts, capped
+Understanding -> same domain siblings, capped
+Domain -> direct understandings, capped
 ```
 
 必须有 cap：
@@ -403,7 +403,7 @@ Debug 输出。
   "fallbacks": ["token"],
   "matchedTokens": ["PDCA", "检验"],
   "missedTokens": ["标准", "Check", "验证", "迭代", "反馈"],
-  "thoughtTextCandidates": 3,
+  "understandingTextCandidates": 3,
   "contextCandidates": 4,
   "relationCandidates": 6,
   "returnedCandidates": 8
@@ -427,7 +427,7 @@ read knowledge detail tools
 
 ```json
 {
-  "id": "thought_1",
+  "id": "understanding_1",
   "type": "understanding",
   "title": "复盘的价值在于积累领域经验",
   "snippet": "复盘就是去理解现实世界的反馈...",
@@ -443,7 +443,7 @@ read knowledge detail tools
   ],
   "suggestedRead": {
     "tool": "read_understanding",
-    "input": { "understandingId": "thought_1", "includeContexts": true }
+    "input": { "understandingId": "understanding_1", "includeContexts": true }
   },
   "evidence": [
     {
@@ -572,7 +572,7 @@ TDD：
 ```ts
 type SearchDocument = {
   docId: string;
-  entityType: "thought" | "context" | "category";
+  entityType: "understanding" | "context" | "domain";
   entityId: string;
   understandingId?: string;
   title: string;
@@ -598,13 +598,13 @@ TDD：
 3. RED：Context 创建/更新/删除后 SearchDocument 同步。
 4. GREEN：同步 Context projection。
 5. RED：Domain 名称可作为召回信号。
-6. GREEN：Domain projection 或 category names 注入 Understanding/Context document。
+6. GREEN：Domain projection 或 domain names 注入 Understanding/Context document。
 
 退出条件：
 
 - Retrieval 不再直接依赖多套 domain-specific FTS 表。
 - 未来加 vector 时只需要给 `SearchDocument` 加 embedding。
-- Context document 保留 role、medium、title 字段，不被降级成普通 text chunk。
+- Context document 保留 medium、title 字段，不被降级成普通 text chunk。
 
 ## 14. Phase 6：可选 Semantic Channel
 

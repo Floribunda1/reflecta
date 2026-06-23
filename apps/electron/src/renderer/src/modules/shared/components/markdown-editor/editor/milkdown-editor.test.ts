@@ -95,13 +95,13 @@ describe("reflecta milkdown editor", () => {
     const editor = await createReflectaMilkdownEditor({
       root,
       content:
-        "Connect [[Alpha#thought-1]].\n\n```mermaid\ngraph TD\n  A --> B\n```\n\n:::warning\nCareful\n:::",
+        "Connect [[Alpha#understanding-1]].\n\n```mermaid\ngraph TD\n  A --> B\n```\n\n:::warning\nCareful\n:::",
     });
     editors.push(editor);
 
     const markdown = getMilkdownMarkdown(editor);
 
-    expect(markdown).toContain("[[Alpha#thought-1]]");
+    expect(markdown).toContain("[[Alpha#understanding-1]]");
     expect(markdown).toContain("```mermaid");
     expect(markdown).toContain(":::warning");
   });
@@ -112,13 +112,13 @@ describe("reflecta milkdown editor", () => {
 
     const editor = await createReflectaMilkdownEditor({
       root,
-      content: "Connect [[Alpha#thought-1]].",
+      content: "Connect [[Alpha#understanding-1]].",
     });
     editors.push(editor);
 
-    const link = root.querySelector<HTMLAnchorElement>('a[data-wiki-link="thought-1"]');
+    const link = root.querySelector<HTMLAnchorElement>('a[data-wiki-link="understanding-1"]');
     expect(link?.textContent).toBe("Alpha");
-    expect(getMilkdownMarkdown(editor)).toContain("[[Alpha#thought-1]]");
+    expect(getMilkdownMarkdown(editor)).toContain("[[Alpha#understanding-1]]");
   });
 
   test("uses the Crepe upload hook for pasted images and videos", async () => {

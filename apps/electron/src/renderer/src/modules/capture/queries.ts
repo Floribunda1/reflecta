@@ -1,67 +1,69 @@
 import { ipcClient } from "@renderer/utils/ipc";
 import type {
-  Category,
-  CategoryTreeNode,
-  CreateCategoryInput,
-  ReorderCategoryItem,
-  UpdateCategoryInput,
-} from "@shared/category";
+  Domain,
+  DomainTreeNode,
+  CreateDomainInput,
+  ReorderDomainItem,
+  UpdateDomainInput,
+} from "@shared/domain";
 import type { ContextDTO, CreateContextInput, UpdateContextInput } from "@shared/context";
 import type {
-  CreateThoughtInput,
-  ListThoughtsFilter,
-  ThoughtDTO,
-  ThoughtSummaryDTO,
-  UpdateThoughtInput,
-} from "@shared/thought";
+  CreateUnderstandingInput,
+  ListUnderstandingsFilter,
+  UnderstandingDTO,
+  UnderstandingSummaryDTO,
+  UpdateUnderstandingInput,
+} from "@shared/understanding";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 
-export type ThoughtListFilterKey = {
-  selectedCategoryId: string;
+export type UnderstandingListFilterKey = {
+  selectedDomainId: string;
   includeDescendants: boolean;
   searchQuery: string;
 };
 
-export type ThoughtListTotalKey = {
-  selectedCategoryId: string;
+export type UnderstandingListTotalKey = {
+  selectedDomainId: string;
   includeDescendants: boolean;
 };
 
 export const captureQueryKeys = {
-  categories: ["category.listCategories"] as const,
-  thoughtLists: ["thought.listThoughts"] as const,
-  thoughtList: (filter: ThoughtListFilterKey) => ["thought.listThoughts", filter] as const,
-  thoughtListTotals: ["thought.listThoughts.total"] as const,
-  thoughtListTotal: (filter: ThoughtListTotalKey) =>
-    ["thought.listThoughts.total", filter] as const,
-  thoughtDetails: ["thought.getThoughtById"] as const,
-  thoughtDetail: (thoughtId: string) => ["thought.getThoughtById", thoughtId] as const,
+  domains: ["domain.listDomains"] as const,
+  understandingLists: ["understanding.listUnderstandings"] as const,
+  understandingList: (filter: UnderstandingListFilterKey) =>
+    ["understanding.listUnderstandings", filter] as const,
+  understandingListTotals: ["understanding.listUnderstandings.total"] as const,
+  understandingListTotal: (filter: UnderstandingListTotalKey) =>
+    ["understanding.listUnderstandings.total", filter] as const,
+  understandingDetails: ["understanding.getUnderstandingById"] as const,
+  understandingDetail: (understandingId: string) =>
+    ["understanding.getUnderstandingById", understandingId] as const,
 };
 
-export function buildCategoryTree(flat: Category[]): CategoryTreeNode[] {
-  const map = new Map<string, CategoryTreeNode>();
-  for (const category of flat) {
-    map.set(category.id, {
-      id: category.id,
-      name: category.name,
-      parentId: category.parentId ?? null,
-      sortOrder: category.sortOrder,
+export function buildDomainTree(flat: Domain[]): DomainTreeNode[] {
+  const map = new Map<string, DomainTreeNode>();
+  for (const domain of flat) {
+    map.set(domain.id, {
+      id: domain.id,
+      name: domain.name,
+      parentId: domain.parentId ?? null,
+      sortOrder: domain.sortOrder,
       children: [],
     });
   }
 
-  const roots: CategoryTreeNode[] = [];
-  for (const category of flat) {
-    const node = map.get(category.id)!;
-    if (category.parentId && map.has(category.parentId)) {
-      map.get(category.parentId)!.children.push(node);
+  const roots: DomainTreeNode[] = [];
+  for (const domain of flat) {
+    const node = map.get(domain.id)!;
+    if (domain.parentId && map.has(domain.parentId)) {
+      map.get(domain.parentId)!.children.push(node);
     } else {
       roots.push(node);
     }
   }
 
-  const sortChildren = (nodes: CategoryTreeNode[]) => {
+  const sortChildren = (nodes: DomainTreeNode[]) => {
     nodes.sort((a, b) => a.sortOrder - b.sortOrder);
     for (const node of nodes) sortChildren(node.children);
   };
@@ -69,14 +71,14 @@ export function buildCategoryTree(flat: Category[]): CategoryTreeNode[] {
   return roots;
 }
 
-export function buildThoughtListFilter({
-  selectedCategoryId,
+export function buildUnderstandingListFilter({
+  selectedDomainId,
   includeDescendants,
   searchQuery,
-}: ThoughtListFilterKey): ListThoughtsFilter | undefined {
-  const filter: ListThoughtsFilter = {};
-  if (selectedCategoryId !== "all") {
-    filter.categoryIds = [selectedCategoryId];
+}: UnderstandingListFilterKey): ListUnderstandingsFilter | undefined {
+  const filter: ListUnderstandingsFilter = {};
+  if (selectedDomainId !== "all") {
+    filter.domainIds = [selectedDomainId];
     filter.includeDescendants = includeDescendants;
   }
 
@@ -86,186 +88,192 @@ export function buildThoughtListFilter({
   return Object.keys(filter).length > 0 ? filter : undefined;
 }
 
-function buildThoughtListTotalFilter({
-  selectedCategoryId,
+function buildUnderstandingListTotalFilter({
+  selectedDomainId,
   includeDescendants,
-}: ThoughtListTotalKey): ListThoughtsFilter | undefined {
-  if (selectedCategoryId === "all") return undefined;
+}: UnderstandingListTotalKey): ListUnderstandingsFilter | undefined {
+  if (selectedDomainId === "all") return undefined;
   return {
-    categoryIds: [selectedCategoryId],
+    domainIds: [selectedDomainId],
     includeDescendants,
   };
 }
 
-const EMPTY_CATEGORY_LIST: Category[] = [];
+const EMPTY_DOMAIN_LIST: Domain[] = [];
 
-export function useCaptureCategories() {
+export function useCaptureDomains() {
   const {
-    data: categoryList,
+    data: domainList,
     isFetching,
     refetch,
   } = useQuery({
-    queryKey: captureQueryKeys.categories,
-    queryFn: () => ipcClient.category.listCategories(),
+    queryKey: captureQueryKeys.domains,
+    queryFn: () => ipcClient.domain.listDomains(),
   });
 
-  const normalizedCategoryList = categoryList ?? EMPTY_CATEGORY_LIST;
-  const categories = useMemo(
-    () => buildCategoryTree(normalizedCategoryList),
-    [normalizedCategoryList],
-  );
+  const normalizedDomainList = domainList ?? EMPTY_DOMAIN_LIST;
+  const domains = useMemo(() => buildDomainTree(normalizedDomainList), [normalizedDomainList]);
 
   return {
-    categories,
-    categoryList: normalizedCategoryList,
+    domains,
+    domainList: normalizedDomainList,
     loading: isFetching,
     refresh: refetch,
   };
 }
 
-export function useCaptureThoughtList(filterKey: ThoughtListFilterKey) {
-  return useQuery<ThoughtSummaryDTO[]>({
-    queryKey: captureQueryKeys.thoughtList(filterKey),
-    queryFn: () => ipcClient.thought.listThoughts(buildThoughtListFilter(filterKey)),
+export function useCaptureUnderstandingList(filterKey: UnderstandingListFilterKey) {
+  return useQuery<UnderstandingSummaryDTO[]>({
+    queryKey: captureQueryKeys.understandingList(filterKey),
+    queryFn: () =>
+      ipcClient.understanding.listUnderstandings(buildUnderstandingListFilter(filterKey)),
   });
 }
 
-export function useCaptureThoughtListTotal(filterKey: ThoughtListTotalKey) {
-  return useQuery<ThoughtSummaryDTO[]>({
-    queryKey: captureQueryKeys.thoughtListTotal(filterKey),
-    queryFn: () => ipcClient.thought.listThoughts(buildThoughtListTotalFilter(filterKey)),
+export function useCaptureUnderstandingListTotal(filterKey: UnderstandingListTotalKey) {
+  return useQuery<UnderstandingSummaryDTO[]>({
+    queryKey: captureQueryKeys.understandingListTotal(filterKey),
+    queryFn: () =>
+      ipcClient.understanding.listUnderstandings(buildUnderstandingListTotalFilter(filterKey)),
   });
 }
 
-export function useCaptureThoughtDetail(thoughtId: string) {
-  return useQuery<ThoughtDTO | null>({
-    queryKey: captureQueryKeys.thoughtDetail(thoughtId),
-    queryFn: () => ipcClient.thought.getThoughtById(thoughtId),
+export function useCaptureUnderstandingDetail(understandingId: string) {
+  return useQuery<UnderstandingDTO | null>({
+    queryKey: captureQueryKeys.understandingDetail(understandingId),
+    queryFn: () => ipcClient.understanding.getUnderstandingById(understandingId),
   });
 }
 
-export function invalidateThoughtLists(queryClient: QueryClient) {
+export function invalidateUnderstandingLists(queryClient: QueryClient) {
   return Promise.all([
-    queryClient.invalidateQueries({ queryKey: captureQueryKeys.thoughtLists, exact: false }),
-    queryClient.invalidateQueries({ queryKey: captureQueryKeys.thoughtListTotals, exact: false }),
+    queryClient.invalidateQueries({ queryKey: captureQueryKeys.understandingLists, exact: false }),
+    queryClient.invalidateQueries({
+      queryKey: captureQueryKeys.understandingListTotals,
+      exact: false,
+    }),
   ]);
 }
 
-export function invalidateThoughtDetail(queryClient: QueryClient, thoughtId: string) {
+export function invalidateUnderstandingDetail(queryClient: QueryClient, understandingId: string) {
   return queryClient.invalidateQueries({
-    queryKey: captureQueryKeys.thoughtDetail(thoughtId),
+    queryKey: captureQueryKeys.understandingDetail(understandingId),
   });
 }
 
-export function invalidateAllThoughtDetails(queryClient: QueryClient) {
+export function invalidateAllUnderstandingDetails(queryClient: QueryClient) {
   return queryClient.invalidateQueries({
-    queryKey: captureQueryKeys.thoughtDetails,
+    queryKey: captureQueryKeys.understandingDetails,
     exact: false,
   });
 }
 
-export function invalidateCategories(queryClient: QueryClient) {
-  return queryClient.invalidateQueries({ queryKey: captureQueryKeys.categories });
+export function invalidateDomains(queryClient: QueryClient) {
+  return queryClient.invalidateQueries({ queryKey: captureQueryKeys.domains });
 }
 
-export function useCreateThoughtMutation() {
+export function useCreateUnderstandingMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateThoughtInput) => ipcClient.thought.createThought(input),
-    onSuccess: () => invalidateThoughtLists(queryClient),
+    mutationFn: (input: CreateUnderstandingInput) =>
+      ipcClient.understanding.createUnderstanding(input),
+    onSuccess: () => invalidateUnderstandingLists(queryClient),
   });
 }
 
-export function useUpdateThoughtMutation() {
+export function useUpdateUnderstandingMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: UpdateThoughtInput }) =>
-      ipcClient.thought.updateThought(id, input),
+    mutationFn: ({ id, input }: { id: string; input: UpdateUnderstandingInput }) =>
+      ipcClient.understanding.updateUnderstanding(id, input),
     onSuccess: (_result, variables) =>
       Promise.all([
-        invalidateThoughtDetail(queryClient, variables.id),
-        invalidateThoughtLists(queryClient),
+        invalidateUnderstandingDetail(queryClient, variables.id),
+        invalidateUnderstandingLists(queryClient),
         variables.input.body !== undefined
-          ? invalidateAllThoughtDetails(queryClient)
+          ? invalidateAllUnderstandingDetails(queryClient)
           : Promise.resolve(),
       ]),
   });
 }
 
-export function useDeleteThoughtMutation() {
+export function useDeleteUnderstandingMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => ipcClient.thought.deleteThought(id),
+    mutationFn: (id: string) => ipcClient.understanding.deleteUnderstanding(id),
     onSuccess: (_result, id) =>
-      Promise.all([invalidateThoughtDetail(queryClient, id), invalidateThoughtLists(queryClient)]),
-  });
-}
-
-export function useCreateContextMutation(thoughtId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input: Omit<CreateContextInput, "thoughtId">): Promise<ContextDTO> =>
-      ipcClient.context.createContext({ ...input, thoughtId }),
-    onSuccess: () =>
       Promise.all([
-        invalidateThoughtDetail(queryClient, thoughtId),
-        invalidateThoughtLists(queryClient),
+        invalidateUnderstandingDetail(queryClient, id),
+        invalidateUnderstandingLists(queryClient),
       ]),
   });
 }
 
-export function useUpdateContextMutation(thoughtId: string) {
+export function useCreateContextMutation(understandingId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: Omit<CreateContextInput, "understandingId">): Promise<ContextDTO> =>
+      ipcClient.context.createContext({ ...input, understandingId }),
+    onSuccess: () =>
+      Promise.all([
+        invalidateUnderstandingDetail(queryClient, understandingId),
+        invalidateUnderstandingLists(queryClient),
+      ]),
+  });
+}
+
+export function useUpdateContextMutation(understandingId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateContextInput }) =>
       ipcClient.context.updateContext(id, input),
-    onSuccess: () => invalidateThoughtDetail(queryClient, thoughtId),
+    onSuccess: () => invalidateUnderstandingDetail(queryClient, understandingId),
   });
 }
 
-export function useDeleteContextMutation(thoughtId: string) {
+export function useDeleteContextMutation(understandingId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => ipcClient.context.deleteContext(id),
     onSuccess: () =>
       Promise.all([
-        invalidateThoughtDetail(queryClient, thoughtId),
-        invalidateThoughtLists(queryClient),
+        invalidateUnderstandingDetail(queryClient, understandingId),
+        invalidateUnderstandingLists(queryClient),
       ]),
   });
 }
 
-export function useCategoryMutations() {
+export function useDomainMutations() {
   const queryClient = useQueryClient();
-  const invalidateCategoryScope = () =>
-    Promise.all([invalidateCategories(queryClient), invalidateThoughtLists(queryClient)]);
+  const invalidateDomainScope = () =>
+    Promise.all([invalidateDomains(queryClient), invalidateUnderstandingLists(queryClient)]);
 
-  const createCategory = useMutation({
-    mutationFn: (input: CreateCategoryInput) => ipcClient.category.createCategory(input),
-    onSuccess: invalidateCategoryScope,
+  const createDomain = useMutation({
+    mutationFn: (input: CreateDomainInput) => ipcClient.domain.createDomain(input),
+    onSuccess: invalidateDomainScope,
   });
 
-  const updateCategory = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: UpdateCategoryInput }) =>
-      ipcClient.category.updateCategory(id, input),
-    onSuccess: invalidateCategoryScope,
+  const updateDomain = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateDomainInput }) =>
+      ipcClient.domain.updateDomain(id, input),
+    onSuccess: invalidateDomainScope,
   });
 
-  const deleteCategory = useMutation({
-    mutationFn: ({ id, deleteThoughts }: { id: string; deleteThoughts?: boolean }) =>
-      ipcClient.category.deleteCategory(id, deleteThoughts),
-    onSuccess: invalidateCategoryScope,
+  const deleteDomain = useMutation({
+    mutationFn: ({ id, deleteUnderstandings }: { id: string; deleteUnderstandings?: boolean }) =>
+      ipcClient.domain.deleteDomain(id, deleteUnderstandings),
+    onSuccess: invalidateDomainScope,
   });
 
-  const reorderCategories = useMutation({
-    mutationFn: (items: ReorderCategoryItem[]) => ipcClient.category.reorderCategories(items),
-    onSuccess: invalidateCategoryScope,
+  const reorderDomains = useMutation({
+    mutationFn: (items: ReorderDomainItem[]) => ipcClient.domain.reorderDomains(items),
+    onSuccess: invalidateDomainScope,
   });
 
   return {
-    createCategory,
-    updateCategory,
-    deleteCategory,
-    reorderCategories,
+    createDomain,
+    updateDomain,
+    deleteDomain,
+    reorderDomains,
   };
 }

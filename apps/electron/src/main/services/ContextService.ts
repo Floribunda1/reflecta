@@ -11,8 +11,8 @@ export class ContextService extends IpcService {
   static readonly groupName = "context";
 
   @IpcMethod()
-  async listContextsByThought(thoughtId: string): Promise<ContextDTO[]> {
-    return contextService.listContextsByThought(thoughtId);
+  async listContextsByUnderstanding(understandingId: string): Promise<ContextDTO[]> {
+    return contextService.listContextsByUnderstanding(understandingId);
   }
 
   @IpcMethod()

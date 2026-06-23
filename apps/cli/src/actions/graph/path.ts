@@ -8,19 +8,19 @@ import { registerActionMeta } from "../meta";
 export function registerGraphPathAction(cli: Command): void {
   registerActionMeta("graph", "path", {
     name: "path",
-    description: "Find paths between two thoughts",
+    description: "Find paths between two understandings",
     mutates: false,
     options: [
-      { flags: "--from <id>", description: "Source thought ID", required: true },
-      { flags: "--to <id>", description: "Target thought ID", required: true },
+      { flags: "--from <id>", description: "Source understanding ID", required: true },
+      { flags: "--to <id>", description: "Target understanding ID", required: true },
     ],
     returns: "GraphPathResult — { from, to, paths: { nodes, edges }[] }",
   });
   cli
     .command("path")
-    .description("Find paths between two thoughts")
-    .requiredOption("--from <id>", "Source thought ID")
-    .requiredOption("--to <id>", "Target thought ID")
+    .description("Find paths between two understandings")
+    .requiredOption("--from <id>", "Source understanding ID")
+    .requiredOption("--to <id>", "Target understanding ID")
     .action((_options, actionCli) => graphPathAction(actionCli));
 }
 

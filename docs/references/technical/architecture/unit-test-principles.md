@@ -32,7 +32,7 @@ Unit Test 由稳定规则驱动。
 
 ```text
 threads -> groupedThreads
-thoughts + selectedRefs + query -> context candidates
+understandings + selectedRefs + query -> context candidates
 session events -> restored session state
 profile name + env -> content storage path
 ```

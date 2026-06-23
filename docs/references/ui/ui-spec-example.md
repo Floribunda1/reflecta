@@ -6,7 +6,7 @@
 >
 > 输入依据：
 >
-> 命名说明：v0 产品语义使用 `Understanding / Source / Domain / Relation`，当前 capture 模块代码仍使用 `Thought / Context / Category / Connection`。本文以用户可见语义“理解 / 来源 / 领域 / 双链关系”为准，组件名沿用当前代码模块边界。
+> 命名说明：v0 产品语义使用 `Understanding / Source / Domain / Relation`，当前 capture 模块代码仍使用 `Understanding / Context / Domain / Connection`。本文以用户可见语义“理解 / 来源 / 领域 / 双链关系”为准，组件名沿用当前代码模块边界。
 
 ## 页面目标
 
@@ -30,7 +30,7 @@ CapturePage
     gap-4
     bg-background/45 backdrop-blur-2xl
 
-    CategoryNavigation
+    DomainNavigation
       h-full min-w-0
       p-0
 
@@ -40,11 +40,11 @@ CapturePage
       bg-card/95 backdrop-blur-sm
       border-l overflow-hidden
 
-      ThoughtIndex
+      UnderstandingIndex
         h-full min-w-0
         border-r
 
-      ThoughtDocument
+      UnderstandingDocument
         h-full min-w-0
         overflow-hidden
 
@@ -52,9 +52,9 @@ CapturePage
     从右侧覆盖 Document 层
 ```
 
-排列逻辑：领域是语境层，必须放在最左侧并常驻；窗口背景采用 Electron 透明窗口 + macOS vibrancy，BrowserWindow 使用 `titleBarStyle: hiddenInset` 保留红绿灯，AppLayout 作为 drag region，所有交互控件和滚动区标记 no-drag。WorkspaceShell 使用 `bg-background/45 backdrop-blur-2xl` 形成 Cursor 式半透明底层材质；左侧 CategoryNavigation 容器本身不设置 padding，避免整棵树和 header 被同一个外边距推偏。HeaderRow 在内部使用 `px-5 pt-14 pb-3` 与 traffic light 建立顶部和左侧节奏，tree 容器使用 `p-0` 让节点 row 从 sidebar 左边界开始。右侧 WorkspaceStage 不留上下间距，贴近窗口顶部和底部；它是同一块工作区 surface，通过 `bg-card/95`、轻量 blur 和 `border-l` 与领域导航分层，不使用圆角或阴影制造悬浮卡片感。ThoughtIndex 和 ThoughtDocument 共享同一背景，只用 `border-r` 区分索引层和文档层。页面不使用 `bg-muted` 做大面积底色。全局只定义这一套桌面 layout，不再另设布局分支；SourceDetailSheet 只从某条来源摘要临时打开，不改变底层两层结构。
+排列逻辑：领域是语境层，必须放在最左侧并常驻；窗口背景采用 Electron 透明窗口 + macOS vibrancy，BrowserWindow 使用 `titleBarStyle: hiddenInset` 保留红绿灯，AppLayout 作为 drag region，所有交互控件和滚动区标记 no-drag。WorkspaceShell 使用 `bg-background/45 backdrop-blur-2xl` 形成 Cursor 式半透明底层材质；左侧 DomainNavigation 容器本身不设置 padding，避免整棵树和 header 被同一个外边距推偏。HeaderRow 在内部使用 `px-5 pt-14 pb-3` 与 traffic light 建立顶部和左侧节奏，tree 容器使用 `p-0` 让节点 row 从 sidebar 左边界开始。右侧 WorkspaceStage 不留上下间距，贴近窗口顶部和底部；它是同一块工作区 surface，通过 `bg-card/95`、轻量 blur 和 `border-l` 与领域导航分层，不使用圆角或阴影制造悬浮卡片感。UnderstandingIndex 和 UnderstandingDocument 共享同一背景，只用 `border-r` 区分索引层和文档层。页面不使用 `bg-muted` 做大面积底色。全局只定义这一套桌面 layout，不再另设布局分支；SourceDetailSheet 只从某条来源摘要临时打开，不改变底层两层结构。
 
-对齐逻辑：CategoryNavigation 不用外层 padding 做对齐。HeaderRow 通过自己的 padding 对齐 traffic light；tree 容器 `p-0`，node Button 使用默认 `size="sm"` padding 和 hover / selected 样式；层级缩进只作用在 row 内部 icon / label，不通过 Button padding 或 sidebar padding 硬调。右侧 WorkspaceStage 贴顶贴底，不跟随左侧 titlebar padding。ThoughtIndex 的 IndexHeader 和 ThoughtDocument 的 DocumentHeader 在 WorkspaceStage 内部对齐。
+对齐逻辑：DomainNavigation 不用外层 padding 做对齐。HeaderRow 通过自己的 padding 对齐 traffic light；tree 容器 `p-0`，node Button 使用默认 `size="sm"` padding 和 hover / selected 样式；层级缩进只作用在 row 内部 icon / label，不通过 Button padding 或 sidebar padding 硬调。右侧 WorkspaceStage 贴顶贴底，不跟随左侧 titlebar padding。UnderstandingIndex 的 IndexHeader 和 UnderstandingDocument 的 DocumentHeader 在 WorkspaceStage 内部对齐。
 
 ---
 
@@ -66,10 +66,10 @@ CapturePage
 
 ```text
 div
-  CategoryNavigation
+  DomainNavigation
   WorkspaceStage
-    ThoughtIndex
-    ThoughtDocument
+    UnderstandingIndex
+    UnderstandingDocument
     EmptyDocumentState
   SourceDetailSheet
 ```
@@ -78,7 +78,7 @@ div
   - `selection-sync` → 左侧领域、右侧索引和当前理解的选中状态保持一致
 - 约束：不跳转到独立创建页、来源页、关系页或图谱页
 
-### CategoryNavigation
+### DomainNavigation
 
 - 容器 token：
   - Surface：不设置独立 background，直接贴在 WorkspaceShell 的 `bg-background/45 backdrop-blur-2xl` 底层材质上
@@ -91,34 +91,34 @@ aside
     title「领域」
     Button(icon: Plus)
   ScrollArea
-    CategoryRootButton
+    DomainRootButton
       icon: Layers
       label「全部领域」
-    CategoryTree
-        CategoryNode
+    DomainTree
+        DomainNode
           ContextMenuTrigger
             Button(row, action: select)
               span(icon: ChevronRight / ChevronDown, action: expand / collapse, stopPropagation)
               label
-  CategoryModal(Dialog)
-  DeleteCategoryConfirm(AlertDialog)
+  DomainModal(Dialog)
+  DeleteDomainConfirm(AlertDialog)
 ```
 
 - 状态规则：
-  - `selected-category` → 点击领域后 ThoughtIndex 切换到该领域，当前理解选择清空或切到可见第一条
+  - `selected-domain` → 点击领域后 UnderstandingIndex 切换到该领域，当前理解选择清空或切到可见第一条
   - `destructive-confirm` → 删除领域必须使用 `AlertDialog`
-  - `disabled` → CategoryModal 名称为空时确认按钮 disabled；导航区常驻新建按钮不使用 disabled 状态
-- 约束：领域导航是方位层，不展示来源统计、关系健康度、掌握度评分或 AI 总结；CategoryNode 的 select 和 expand / collapse 必须拆开，点击文字区域只切换领域，点击 chevron 只展开或收起；不展示 more 按钮，节点操作只通过右键 ContextMenu 触发；新建 / 编辑领域名称为空时确认按钮 disabled
+  - `disabled` → DomainModal 名称为空时确认按钮 disabled；导航区常驻新建按钮不使用 disabled 状态
+- 约束：领域导航是方位层，不展示来源统计、关系健康度、掌握度评分或 AI 总结；DomainNode 的 select 和 expand / collapse 必须拆开，点击文字区域只切换领域，点击 chevron 只展开或收起；不展示 more 按钮，节点操作只通过右键 ContextMenu 触发；新建 / 编辑领域名称为空时确认按钮 disabled
 
 #### Detail: HeaderRow
 
 - 组成：标题 / 弱 meta + 右侧主操作
 - 布局：`flex h-8 items-center justify-between gap-1`
-- 间距：CategoryNavigation 的 HeaderRow 自己使用 `px-5 pt-14 pb-3`，标题直接从 header 内部轴线开始；ThoughtIndex 的 HeaderRow 使用 `px-3 py-3` 区域内对齐，不额外添加横向 padding
+- 间距：DomainNavigation 的 HeaderRow 自己使用 `px-5 pt-14 pb-3`，标题直接从 header 内部轴线开始；UnderstandingIndex 的 HeaderRow 使用 `px-3 py-3` 区域内对齐，不额外添加横向 padding
 - Button：新建领域入口使用 shadcn `Button ghost variant` + `size="icon-sm"`；hover、active、focus-visible 沿用 Button 默认行为；图标按钮只表达添加动作，不承载选中或展开状态
 - 约束：右侧主操作只放 1 个高频按钮；更多操作进入菜单；左右栏 HeaderRow 的标题 baseline 必须对齐
 
-#### Detail: CategoryNodeRow
+#### Detail: DomainNodeRow
 
 - 组成：single Button + inline chevron + label
 - 布局：`flex min-w-0 items-center gap-2`
@@ -129,7 +129,7 @@ aside
   - `expanded / collapsed` → 只改变 chevron 方向和子树显隐，不在 row Button 上设置 `aria-expanded`，避免触发 shadcn `ghost` 的 expanded 背景；不增加独立背景、边框、阴影或文字权重
 - 约束：无子节点时保留 chevron 等宽占位，避免同层文字错位；点击 chevron 不得触发行 select，点击 label / row 不得触发 expand / collapse；ContextMenuTrigger 绑定整行 Button，节点操作只通过右键菜单触发
 
-### ThoughtIndex
+### UnderstandingIndex
 
 ```text
 section
@@ -141,7 +141,7 @@ section
     Button(icon: Plus)
   Input(search, conditional)
   ScrollArea
-    ThoughtRow[]
+    UnderstandingRow[]
     EmptyIndexState
 ```
 
@@ -150,21 +150,21 @@ section
   - `include-descendants` → GitBranch icon button 表示是否包含子领域，默认 true；关闭后只展示当前领域直系理解
   - `empty` → 当前领域无理解时展示轻量 Empty：「这个领域还没有理解」
   - `search-empty` → 搜索无结果时展示轻量 Empty：「没有找到相关理解」，保留搜索词
-  - `selected-row` → 有理解时按最近更新排序；点击索引行后 ThoughtDocument 展示该理解
+  - `selected-row` → 有理解时按最近更新排序；点击索引行后 UnderstandingDocument 展示该理解
 - 展示规则：
   - note count meta → 默认展示当前领域计数「N 笔记」；有搜索词且搜索结果少于领域总数时展示「M / N 笔记」
 - 约束：索引只承载扫描线索，不展示完整正文、完整来源或关系管理表单；IndexHeader 不展示“当前领域”这类解释性 label，只展示领域名或路径；IndexHeader 的 Search / include descendants / 新建入口都使用弱 icon-only Button；搜索 Input 默认不占位，只有 search-open 时出现；EmptyIndexState 使用 shadcn `Empty` 默认样式，保留 `EmptyMedia(icon) + EmptyTitle`，省略 `EmptyDescription` 和 `EmptyContent`
 - 复用 Detail：`HeaderRow`
 
-#### Detail: ThoughtRow
+#### Detail: UnderstandingRow
 
 - 组成：button(row) + HeaderRow + MarkdownPreview + MetaRow + selected indicator
 - 布局：`relative flex flex-col gap-1.5`
 - 间距：列表容器使用 `px-2 pb-3 gap-1`，索引行内部使用 `px-3 py-2.5`
 - 状态规则：
-  - `hover` → 使用 `ThoughtRow hover state`
-  - `selected` → 使用 `ThoughtRow selected state`，表示当前 Document 指针
-  - `active` → 使用 `ThoughtRow active state`，不做位移或缩放
+  - `hover` → 使用 `UnderstandingRow hover state`
+  - `selected` → 使用 `UnderstandingRow selected state`，表示当前 Document 指针
+  - `active` → 使用 `UnderstandingRow active state`，不做位移或缩放
   - `focus-visible` → 使用 `focus-visible ring`
   - `context-menu` → 右键打开 shadcn `ContextMenu`，只提供删除动作；删除前必须使用确认弹窗
 - 展示规则：
@@ -175,7 +175,7 @@ section
   - 0 来源 / 0 关系 → 使用 muted icon + `0`，不写解释性 chip
 - 约束：正文 preview 最多 2 行；不放编辑器、不放来源长文；默认行不使用 `border`、`shadow` 或 `Card` 背景；未选中行的标题和正文用更弱颜色，避免和右侧文档抢主焦点；selected 恢复正常标题/正文对比度，并只通过轻量背景、左侧 2px 指示条和标题权重表达；hover / selected / active 不改变尺寸、padding、border width 或位置；不在 row 上放可见删除按钮，删除只通过右键菜单进入
 
-### ThoughtDocument
+### UnderstandingDocument
 
 ```text
 article
@@ -183,13 +183,13 @@ article
     DocumentHeader
       MetaRow
         updatedAt
-        CategoryTreeSelect(inline)
+        DomainTreeSelect(inline)
         Button(icon: Trash2, text: 删除)
       Input(title, text-2xl, bg-transparent)
     Textarea(body, bg-transparent)
     SourceTraceSection
     RelationSummarySection
-  DeleteThoughtConfirm(AlertDialog)
+  DeleteUnderstandingConfirm(AlertDialog)
 ```
 
 - 状态规则：
@@ -275,7 +275,7 @@ Sheet
 - 状态规则：
   - `open` → Sheet 从右侧覆盖 Document 层，底层工作区保持原上下文
   - `editing` → 编辑来源类型、名称、内容后 local-first 更新
-  - `closed` → 关闭后回到原 ThoughtDocument
+  - `closed` → 关闭后回到原 UnderstandingDocument
 - 展示规则：
   - 来源名称为空 → 用来源类型作为 placeholder
   - 来源内容为空 → 允许保存并显示空内容 placeholder
@@ -341,28 +341,28 @@ div
 
 #### Surface Hierarchy
 
-- 统一规则：WorkspaceShell 使用 `bg-background/45 backdrop-blur-2xl` 作为透明窗口底层材质；WorkspaceStage 使用 `bg-card/95 backdrop-blur-sm border-l` 成为右侧连续工作区；ThoughtIndex 和 ThoughtDocument 共享同一 workspace 背景，只用 `border-r` 区分索引层和文档层；SheetContent 使用更稳定的阅读面。
-- 禁止：不使用 `bg-muted` 做页面大面积底色；不把 `Card` 当成 WorkspaceStage 的实现组件；不在 WorkspaceStage 上使用 `rounded-*`、`shadow-*` 或更重背景制造悬浮卡片感；不让 ThoughtDocument 使用另一种背景色把同一 workspace 切成两块。
+- 统一规则：WorkspaceShell 使用 `bg-background/45 backdrop-blur-2xl` 作为透明窗口底层材质；WorkspaceStage 使用 `bg-card/95 backdrop-blur-sm border-l` 成为右侧连续工作区；UnderstandingIndex 和 UnderstandingDocument 共享同一 workspace 背景，只用 `border-r` 区分索引层和文档层；SheetContent 使用更稳定的阅读面。
+- 禁止：不使用 `bg-muted` 做页面大面积底色；不把 `Card` 当成 WorkspaceStage 的实现组件；不在 WorkspaceStage 上使用 `rounded-*`、`shadow-*` 或更重背景制造悬浮卡片感；不让 UnderstandingDocument 使用另一种背景色把同一 workspace 切成两块。
 
 #### Typography
 
-- 统一规则：HeaderRow / SectionHeader 标题使用 `text-sm font-medium`；ThoughtIndex note count meta、更新时间、来源字数、索引行 icon meta 和空态说明使用 `text-xs text-muted-foreground`；ThoughtDocument 标题使用 `text-2xl font-semibold`；ThoughtRow 未选中标题使用 `text-foreground/70`，未选中正文使用 `text-muted-foreground/70`，selected 恢复 `text-foreground` / `text-muted-foreground`；危险操作文案才使用 `text-destructive`；正文摘要使用 `prose prose-sm`。
-- 禁止：不把弱 meta 样式用于危险操作；不把危险色用于无来源、无关系、未归类或未解析双链提示；不在 ThoughtRow meta 中写重复解释性 chip。
+- 统一规则：HeaderRow / SectionHeader 标题使用 `text-sm font-medium`；UnderstandingIndex note count meta、更新时间、来源字数、索引行 icon meta 和空态说明使用 `text-xs text-muted-foreground`；UnderstandingDocument 标题使用 `text-2xl font-semibold`；UnderstandingRow 未选中标题使用 `text-foreground/70`，未选中正文使用 `text-muted-foreground/70`，selected 恢复 `text-foreground` / `text-muted-foreground`；危险操作文案才使用 `text-destructive`；正文摘要使用 `prose prose-sm`。
+- 禁止：不把弱 meta 样式用于危险操作；不把危险色用于无来源、无关系、未归类或未解析双链提示；不在 UnderstandingRow meta 中写重复解释性 chip。
 
 #### Spacing Rhythm
 
-- 统一规则：页面容器保持 `px-0 py-0`；CategoryNavigation 外层使用 `p-0`；CategoryNavigation 的 HeaderRow 使用 `px-5 pt-14 pb-3`，tree list 使用 `p-0 space-y-0.5`，CategoryNodeRow 保留 `Button ghost + size="sm"` 默认 padding / radius / height，并只在内部 content wrapper 上使用 `padding-left: calc(level * 0.875rem)`；ThoughtIndex Header 使用 `px-3 py-3 space-y-3`，HeaderRow 右侧 icon group 使用 `gap-1`；ThoughtIndex 列表使用 `px-2 pb-3 gap-1`，ThoughtRow 内部使用 `px-3 py-2.5`；Document 内容区和 EmptyDocumentState 使用 `px-6 py-5`；支撑区卡片内部使用 `p-3`；MetaRow / SourceMetaForm 内部使用 `gap-2`。
-- 禁止：不把页面级 `gap-4` 用到列表项内部；不把 SupportSection 的 `gap-3` 当作页面主布局间距；不让 CategoryNodeRow 或 ThoughtRow 使用 Document 内容区 padding；不把 `pt-10` 复制到 WorkspaceStage 或右侧栏。
+- 统一规则：页面容器保持 `px-0 py-0`；DomainNavigation 外层使用 `p-0`；DomainNavigation 的 HeaderRow 使用 `px-5 pt-14 pb-3`，tree list 使用 `p-0 space-y-0.5`，DomainNodeRow 保留 `Button ghost + size="sm"` 默认 padding / radius / height，并只在内部 content wrapper 上使用 `padding-left: calc(level * 0.875rem)`；UnderstandingIndex Header 使用 `px-3 py-3 space-y-3`，HeaderRow 右侧 icon group 使用 `gap-1`；UnderstandingIndex 列表使用 `px-2 pb-3 gap-1`，UnderstandingRow 内部使用 `px-3 py-2.5`；Document 内容区和 EmptyDocumentState 使用 `px-6 py-5`；支撑区卡片内部使用 `p-3`；MetaRow / SourceMetaForm 内部使用 `gap-2`。
+- 禁止：不把页面级 `gap-4` 用到列表项内部；不把 SupportSection 的 `gap-3` 当作页面主布局间距；不让 DomainNodeRow 或 UnderstandingRow 使用 Document 内容区 padding；不把 `pt-10` 复制到 WorkspaceStage 或右侧栏。
 
 #### Interaction State
 
-- 统一规则：shadcn Button 的 hover、active、focus-visible、disabled 沿用所选 variant 的默认行为；CategoryNode selected 作用在整行 Button，并在 `ghost` Button 默认外观基础上增加 `bg-muted text-foreground font-medium`；ThoughtRow hover 使用 `bg-muted/45`，selected 使用 `bg-muted/70` + 左侧 2px `bg-primary` 指示条，active 使用 `bg-muted/55`；SourcePreviewCard 和 RelationItem hover 只使用轻量 `bg-accent/30 border-border`。
-- 禁止：不重写 shadcn Button 默认 hover / active / focus-visible；自定义 hover 不加 shadow、不位移、不缩放、不改变 padding / border width / 尺寸；focus-visible ring 只表达键盘焦点，不表达 selected；disabled 只用于表单确认不可提交，不用于常驻导航按钮；SourcePreviewCard / RelationItem hover 不能比 ThoughtRow selected 更强。
+- 统一规则：shadcn Button 的 hover、active、focus-visible、disabled 沿用所选 variant 的默认行为；DomainNode selected 作用在整行 Button，并在 `ghost` Button 默认外观基础上增加 `bg-muted text-foreground font-medium`；UnderstandingRow hover 使用 `bg-muted/45`，selected 使用 `bg-muted/70` + 左侧 2px `bg-primary` 指示条，active 使用 `bg-muted/55`；SourcePreviewCard 和 RelationItem hover 只使用轻量 `bg-accent/30 border-border`。
+- 禁止：不重写 shadcn Button 默认 hover / active / focus-visible；自定义 hover 不加 shadow、不位移、不缩放、不改变 padding / border width / 尺寸；focus-visible ring 只表达键盘焦点，不表达 selected；disabled 只用于表单确认不可提交，不用于常驻导航按钮；SourcePreviewCard / RelationItem hover 不能比 UnderstandingRow selected 更强。
 
 #### Component Variants
 
-- 统一规则：CategoryNavigation 和 ThoughtIndex 的常驻新建 / 搜索 / 包含子领域入口使用 `Button ghost variant` + `size="icon-sm"`；Search 和 include-descendants active state 使用同一轻量 `bg-muted text-foreground`；CategoryNodeRow 使用 `Button ghost variant` + `size="sm"` 承载整行 select，内部 chevron 点击区用 `stopPropagation` 承载 expand / collapse；ThoughtRow 右键操作使用 `ContextMenu`；常规次要操作使用 `Button ghost variant`；删除入口使用 destructive menu item 或 `Button ghost + destructive`；删除确认使用 `AlertDialog` destructive action；来源详情使用 `SheetContent`。
-- 禁止：不使用填充 destructive 按钮做普通删除入口；不在 CategoryNodeRow 内额外放 more Button；不把 AlertDialog 用于普通保存、切换领域或关闭 Sheet；不把 Sheet 变成常驻侧栏或来源库。
+- 统一规则：DomainNavigation 和 UnderstandingIndex 的常驻新建 / 搜索 / 包含子领域入口使用 `Button ghost variant` + `size="icon-sm"`；Search 和 include-descendants active state 使用同一轻量 `bg-muted text-foreground`；DomainNodeRow 使用 `Button ghost variant` + `size="sm"` 承载整行 select，内部 chevron 点击区用 `stopPropagation` 承载 expand / collapse；UnderstandingRow 右键操作使用 `ContextMenu`；常规次要操作使用 `Button ghost variant`；删除入口使用 destructive menu item 或 `Button ghost + destructive`；删除确认使用 `AlertDialog` destructive action；来源详情使用 `SheetContent`。
+- 禁止：不使用填充 destructive 按钮做普通删除入口；不在 DomainNodeRow 内额外放 more Button；不把 AlertDialog 用于普通保存、切换领域或关闭 Sheet；不把 Sheet 变成常驻侧栏或来源库。
 
 #### Hard-coded Values
 
@@ -375,26 +375,26 @@ div
 
 本页面使用的 shadcn 组件及 variant 配置，不在此处做设计决策。
 
-| 组件                                                                                           | Variant / 配置                             | 使用位置                                                                                |
-| ---------------------------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------- |
-| Button                                                                                         | ghost variant                              | CategoryNavigation 新建领域、ThoughtIndex 新建、SourceTraceSection 添加来源             |
-| Button                                                                                         | ghost + destructive                        | 删除理解、删除来源、删除领域菜单项或按钮                                                |
-| Button                                                                                         | size="sm"                                  | SourceTraceSection 添加来源、删除来源                                                   |
-| Button                                                                                         | size="icon-sm"                             | CategoryNavigation 新建领域、ThoughtIndex 搜索、包含子领域、新建理解                    |
-| Input                                                                                          | default variant                            | ThoughtIndex 搜索、ThoughtDocument 标题、CategoryModal 名称、SourceDetailSheet 来源名称 |
-| Textarea                                                                                       | default variant                            | ThoughtDocument 正文、SourceDetailSheet 来源内容                                        |
-| Badge                                                                                          | outline variant                            | 来源类型、关系方向、来源 / 关系 meta                                                    |
-| Card / CardHeader / CardContent / CardFooter                                                   | default variant                            | SourcePreviewCard、RelationItem                                                         |
-| ScrollArea                                                                                     | default variant                            | CategoryNavigation 树、ThoughtIndex 列表、ThoughtDocument 内容区                        |
-| Sheet / SheetContent / SheetHeader / SheetTitle                                                | default variant                            | SourceDetailSheet                                                                       |
-| Select / SelectTrigger / SelectContent / SelectItem / SelectValue                              | default variant, trigger size="sm"         | SourceDetailSheet 来源类型                                                              |
-| ContextMenu / ContextMenuTrigger / ContextMenuContent / ContextMenuItem / ContextMenuSeparator | default variant                            | CategoryNodeRow 右键操作、ThoughtRow 右键删除                                           |
-| AlertDialog                                                                                    | default variant                            | 删除领域、删除理解、删除来源确认                                                        |
-| Empty / EmptyHeader / EmptyMedia / EmptyTitle                                                  | default variant, EmptyMedia variant="icon" | EmptyDocumentState、EmptyIndexState                                                     |
-| CategoryTreeSelect                                                                             | inline variant / custom business component | ThoughtDocument 领域归属                                                                |
-| SimpleMarkdownPreview                                                                          | lineClamp=2 / custom business component    | ThoughtRow 摘要、SourcePreviewCard 摘要、RelationItem 摘要                              |
-| lucide icons                                                                                   | Search / GitBranch / Plus                  | ThoughtIndex 搜索、包含子领域、新建理解                                                 |
-| lucide icons                                                                                   | FileText / Link2 或等价语义图标            | ThoughtRow 来源数量、双链数量 meta                                                      |
+| 组件                                                                                           | Variant / 配置                             | 使用位置                                                                                          |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| Button                                                                                         | ghost variant                              | DomainNavigation 新建领域、UnderstandingIndex 新建、SourceTraceSection 添加来源                   |
+| Button                                                                                         | ghost + destructive                        | 删除理解、删除来源、删除领域菜单项或按钮                                                          |
+| Button                                                                                         | size="sm"                                  | SourceTraceSection 添加来源、删除来源                                                             |
+| Button                                                                                         | size="icon-sm"                             | DomainNavigation 新建领域、UnderstandingIndex 搜索、包含子领域、新建理解                          |
+| Input                                                                                          | default variant                            | UnderstandingIndex 搜索、UnderstandingDocument 标题、DomainModal 名称、SourceDetailSheet 来源名称 |
+| Textarea                                                                                       | default variant                            | UnderstandingDocument 正文、SourceDetailSheet 来源内容                                            |
+| Badge                                                                                          | outline variant                            | 来源类型、关系方向、来源 / 关系 meta                                                              |
+| Card / CardHeader / CardContent / CardFooter                                                   | default variant                            | SourcePreviewCard、RelationItem                                                                   |
+| ScrollArea                                                                                     | default variant                            | DomainNavigation 树、UnderstandingIndex 列表、UnderstandingDocument 内容区                        |
+| Sheet / SheetContent / SheetHeader / SheetTitle                                                | default variant                            | SourceDetailSheet                                                                                 |
+| Select / SelectTrigger / SelectContent / SelectItem / SelectValue                              | default variant, trigger size="sm"         | SourceDetailSheet 来源类型                                                                        |
+| ContextMenu / ContextMenuTrigger / ContextMenuContent / ContextMenuItem / ContextMenuSeparator | default variant                            | DomainNodeRow 右键操作、UnderstandingRow 右键删除                                                 |
+| AlertDialog                                                                                    | default variant                            | 删除领域、删除理解、删除来源确认                                                                  |
+| Empty / EmptyHeader / EmptyMedia / EmptyTitle                                                  | default variant, EmptyMedia variant="icon" | EmptyDocumentState、EmptyIndexState                                                               |
+| DomainTreeSelect                                                                               | inline variant / custom business component | UnderstandingDocument 领域归属                                                                    |
+| SimpleMarkdownPreview                                                                          | lineClamp=2 / custom business component    | UnderstandingRow 摘要、SourcePreviewCard 摘要、RelationItem 摘要                                  |
+| lucide icons                                                                                   | Search / GitBranch / Plus                  | UnderstandingIndex 搜索、包含子领域、新建理解                                                     |
+| lucide icons                                                                                   | FileText / Link2 或等价语义图标            | UnderstandingRow 来源数量、双链数量 meta                                                          |
 
 ---
 
@@ -405,14 +405,14 @@ div
 - ❌ **不做关系管理后台** → 双链关系只来自正文，关系区只展示和导航，删除关系必须回到正文删除对应双链。
 - ❌ **不把无来源、无关系、未归类做成异常状态** → 这些都是个人理解自然生长过程中的正常边界。
 - ❌ **不把右侧 WorkspaceStage 做成悬浮卡片** → 右侧是连续工作区，只使用 `border-l` 和统一 surface 分层，不使用圆角、阴影或加重背景。
-- ❌ **不在 WorkspaceStage 内用背景色切割索引和文档** → ThoughtIndex 和 ThoughtDocument 都属于同一 workspace，结构分隔只使用 `border-r`。
+- ❌ **不在 WorkspaceStage 内用背景色切割索引和文档** → UnderstandingIndex 和 UnderstandingDocument 都属于同一 workspace，结构分隔只使用 `border-r`。
 - ❌ **不使用脏感大面积底色** → 页面底层使用透明窗口 + `bg-background/45 backdrop-blur-2xl`，避免 `bg-muted` 把工作台变成灰蒙蒙的底板。
 - ❌ **不为桌面端写多套 layout 分支** → 当前 Electron 桌面场景只需要一套稳定 layout，避免实现和验收出现双规格。
-- ❌ **不把 CategoryNode 的选择和展开绑在同一次点击上** → 整行 Button 负责 select，chevron 点击区通过 `stopPropagation` 只负责 expand / collapse，更多操作只通过右键菜单触发。
-- ❌ **不在卡片上展示完整正文或完整来源** → ThoughtIndex 负责扫描和回忆，完整内容只进入 Document 或 SourceDetailSheet。
-- ❌ **不把 ThoughtIndex 做成卡片堆叠** → 中间栏是索引面，不是内容卡片流；默认条目不使用边框、阴影或独立 Card 背景。
-- ❌ **不在 ThoughtRow meta 中写重复解释文案** → 来源和双链关系在列表里只用 icon + count，0 值也保持低权重。
-- ❌ **不让 ThoughtRow hover 改变层级到超过 selected** → hover 不加 shadow、不做位移，避免点击时出现卡顿或状态跳变。
+- ❌ **不把 DomainNode 的选择和展开绑在同一次点击上** → 整行 Button 负责 select，chevron 点击区通过 `stopPropagation` 只负责 expand / collapse，更多操作只通过右键菜单触发。
+- ❌ **不在卡片上展示完整正文或完整来源** → UnderstandingIndex 负责扫描和回忆，完整内容只进入 Document 或 SourceDetailSheet。
+- ❌ **不把 UnderstandingIndex 做成卡片堆叠** → 中间栏是索引面，不是内容卡片流；默认条目不使用边框、阴影或独立 Card 背景。
+- ❌ **不在 UnderstandingRow meta 中写重复解释文案** → 来源和双链关系在列表里只用 icon + count，0 值也保持低权重。
+- ❌ **不让 UnderstandingRow hover 改变层级到超过 selected** → hover 不加 shadow、不做位移，避免点击时出现卡顿或状态跳变。
 - ❌ **不在常规 SectionHeader 展示解释性 description** → 规则和约束留在 spec 中，UI 只保留标题、必要操作和空态引导。
 - ❌ **不展示保存按钮或 dirty 状态** → v0 明确采用 local-first 编辑模型，编辑结果在原位置直接生效。
 - ❌ **不引入硬编码颜色色阶** → 颜色语义统一使用 shadcn token、组件 variant 和状态 token。

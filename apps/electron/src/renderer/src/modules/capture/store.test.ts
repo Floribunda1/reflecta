@@ -8,32 +8,32 @@ describe("capture store", () => {
     globalThis.localStorage?.clear();
   });
 
-  test("selectCategory clears selected thought, active source, and draft", () => {
+  test("selectDomain clears selected understanding, active context, and draft", () => {
     const store = createCaptureStore();
-    store.getState().selectThought("thought-1");
-    store.getState().setActiveSourceId("source-1");
-    store.getState().initializeDraft({ thoughtId: "thought-1", title: "A", body: "B" });
+    store.getState().selectUnderstanding("understanding-1");
+    store.getState().setActiveContextId("context-1");
+    store.getState().initializeDraft({ understandingId: "understanding-1", title: "A", body: "B" });
 
-    store.getState().selectCategory("category-1");
+    store.getState().selectDomain("domain-1");
 
-    expect(store.getState().selectedCategoryId).toBe("category-1");
-    expect(store.getState().selectedThoughtId).toBeNull();
-    expect(store.getState().activeSourceId).toBeNull();
+    expect(store.getState().selectedDomainId).toBe("domain-1");
+    expect(store.getState().selectedUnderstandingId).toBeNull();
+    expect(store.getState().activeContextId).toBeNull();
     expect(store.getState().draft).toBeNull();
   });
 
-  test("selectThought clears active source without changing category", () => {
+  test("selectUnderstanding clears active context without changing domain", () => {
     const store = createCaptureStore({
       ...initialCaptureState,
-      selectedCategoryId: "category-1",
-      activeSourceId: "source-1",
+      selectedDomainId: "domain-1",
+      activeContextId: "context-1",
     });
 
-    store.getState().selectThought("thought-1");
+    store.getState().selectUnderstanding("understanding-1");
 
-    expect(store.getState().selectedCategoryId).toBe("category-1");
-    expect(store.getState().selectedThoughtId).toBe("thought-1");
-    expect(store.getState().activeSourceId).toBeNull();
+    expect(store.getState().selectedDomainId).toBe("domain-1");
+    expect(store.getState().selectedUnderstandingId).toBe("understanding-1");
+    expect(store.getState().activeContextId).toBeNull();
   });
 
   test("setIncludeDescendants updates includeDescendants", () => {
@@ -44,83 +44,85 @@ describe("capture store", () => {
     expect(store.getState().includeDescendants).toBe(false);
   });
 
-  test("setThoughtListSortBy updates thoughtListSortBy", () => {
+  test("setUnderstandingListSortBy updates understandingListSortBy", () => {
     const store = createCaptureStore();
 
-    store.getState().setThoughtListSortBy("createdAt");
+    store.getState().setUnderstandingListSortBy("createdAt");
 
-    expect(store.getState().thoughtListSortBy).toBe("createdAt");
+    expect(store.getState().understandingListSortBy).toBe("createdAt");
   });
 
-  test("reconcileSelectedThought clears invisible selected thought", () => {
+  test("reconcileSelectedUnderstanding clears invisible selected understanding", () => {
     const store = createCaptureStore();
-    store.getState().selectThought("missing");
+    store.getState().selectUnderstanding("missing");
 
-    store.getState().reconcileSelectedThought(new Set(["visible"]));
+    store.getState().reconcileSelectedUnderstanding(new Set(["visible"]));
 
-    expect(store.getState().selectedThoughtId).toBeNull();
+    expect(store.getState().selectedUnderstandingId).toBeNull();
   });
 
-  test("reconcileSelectedThought keeps visible selected thought", () => {
+  test("reconcileSelectedUnderstanding keeps visible selected understanding", () => {
     const store = createCaptureStore();
-    store.getState().selectThought("visible");
+    store.getState().selectUnderstanding("visible");
 
-    store.getState().reconcileSelectedThought(new Set(["visible"]));
+    store.getState().reconcileSelectedUnderstanding(new Set(["visible"]));
 
-    expect(store.getState().selectedThoughtId).toBe("visible");
+    expect(store.getState().selectedUnderstandingId).toBe("visible");
   });
 
-  test("reconcileExpandedCategories drops invalid expanded keys", () => {
+  test("reconcileExpandedDomains drops invalid expanded keys", () => {
     const store = createCaptureStore({
       ...initialCaptureState,
-      expandedCategoryIds: { keep: true, drop: true },
+      expandedDomainIds: { keep: true, drop: true },
     });
 
-    store.getState().reconcileExpandedCategories(new Set(["keep"]));
+    store.getState().reconcileExpandedDomains(new Set(["keep"]));
 
-    expect(store.getState().expandedCategoryIds).toEqual({ keep: true });
+    expect(store.getState().expandedDomainIds).toEqual({ keep: true });
   });
 
-  test("reconcileExpandedCategories is a no-op when expanded keys are already valid", () => {
+  test("reconcileExpandedDomains is a no-op when expanded keys are already valid", () => {
     const store = createCaptureStore({
       ...initialCaptureState,
-      expandedCategoryIds: { keep: true },
+      expandedDomainIds: { keep: true },
     });
-    const before = store.getState().expandedCategoryIds;
+    const before = store.getState().expandedDomainIds;
 
-    store.getState().reconcileExpandedCategories(new Set(["keep"]));
+    store.getState().reconcileExpandedDomains(new Set(["keep"]));
 
-    expect(store.getState().expandedCategoryIds).toBe(before);
+    expect(store.getState().expandedDomainIds).toBe(before);
   });
 
-  test("expandCategoryAncestors expands each provided category id", () => {
+  test("expandDomainAncestors expands each provided domain id", () => {
     const store = createCaptureStore();
 
-    store.getState().expandCategoryAncestors(["root", "child"]);
+    store.getState().expandDomainAncestors(["root", "child"]);
 
-    expect(store.getState().expandedCategoryIds).toEqual({ root: true, child: true });
+    expect(store.getState().expandedDomainIds).toEqual({ root: true, child: true });
   });
 
-  test("initializeDraft does not overwrite a dirty draft for the same thought", () => {
+  test("initializeDraft does not overwrite a dirty draft for the same understanding", () => {
     const store = createCaptureStore();
-    store.getState().initializeDraft({ thoughtId: "t1", title: "Saved", body: "Saved body" });
+    store.getState().initializeDraft({ understandingId: "t1", title: "Saved", body: "Saved body" });
     store.getState().updateDraftBody("Local body");
 
-    store.getState().initializeDraft({ thoughtId: "t1", title: "Server", body: "Server body" });
+    store
+      .getState()
+      .initializeDraft({ understandingId: "t1", title: "Server", body: "Server body" });
 
     expect(store.getState().draft?.body).toBe("Local body");
     expect(store.getState().draft?.dirty).toBe(true);
   });
 
-  test("initializeDraft replaces draft when thought id changes", () => {
+  test("initializeDraft replaces draft when understanding id changes", () => {
     const store = createCaptureStore();
-    store.getState().initializeDraft({ thoughtId: "t1", title: "A", body: "B" });
+    store.getState().initializeDraft({ understandingId: "t1", title: "A", body: "B" });
     store.getState().updateDraftBody("Local body");
 
-    store.getState().initializeDraft({ thoughtId: "t2", title: "C", body: "D" });
+    store.getState().initializeDraft({ understandingId: "t2", title: "C", body: "D" });
 
     expect(store.getState().draft).toMatchObject({
-      thoughtId: "t2",
+      understandingId: "t2",
       title: "C",
       body: "D",
       dirty: false,
@@ -129,12 +131,12 @@ describe("capture store", () => {
 
   test("markDraftSaveSucceeded updates base values and clears dirty flags", () => {
     const store = createCaptureStore();
-    store.getState().initializeDraft({ thoughtId: "t1", title: "Old", body: "Old body" });
+    store.getState().initializeDraft({ understandingId: "t1", title: "Old", body: "Old body" });
     store.getState().updateDraftTitle("New");
     store.getState().markDraftSaveStarted("t1");
 
     store.getState().markDraftSaveSucceeded({
-      thoughtId: "t1",
+      understandingId: "t1",
       title: "New",
       body: "Old body",
       savedAt: "2026-06-15T00:00:00.000Z",
@@ -152,13 +154,13 @@ describe("capture store", () => {
 
   test("markDraftSaveSucceeded does not overwrite a newer dirty draft", () => {
     const store = createCaptureStore();
-    store.getState().initializeDraft({ thoughtId: "t1", title: "Old", body: "Old body" });
+    store.getState().initializeDraft({ understandingId: "t1", title: "Old", body: "Old body" });
     store.getState().updateDraftBody("First local");
     store.getState().markDraftSaveStarted("t1");
     store.getState().updateDraftBody("Second local");
 
     store.getState().markDraftSaveSucceeded({
-      thoughtId: "t1",
+      understandingId: "t1",
       title: "Old",
       body: "First local",
       savedAt: "2026-06-15T00:00:00.000Z",
@@ -174,7 +176,7 @@ describe("capture store", () => {
 
   test("updateDraftBody ignores trailing newline-only changes for dirty state", () => {
     const store = createCaptureStore();
-    store.getState().initializeDraft({ thoughtId: "t1", title: "A", body: "Saved body" });
+    store.getState().initializeDraft({ understandingId: "t1", title: "A", body: "Saved body" });
     store.getState().updateDraftBody("Saved body\n");
 
     expect(store.getState().draft?.body).toBe("Saved body\n");
@@ -183,37 +185,37 @@ describe("capture store", () => {
 
   test("markDraftSaveFailed keeps draft content", () => {
     const store = createCaptureStore();
-    store.getState().initializeDraft({ thoughtId: "t1", title: "Old", body: "Old body" });
+    store.getState().initializeDraft({ understandingId: "t1", title: "Old", body: "Old body" });
     store.getState().updateDraftBody("Unsaved");
 
-    store.getState().markDraftSaveFailed({ thoughtId: "t1", error: "failed" });
+    store.getState().markDraftSaveFailed({ understandingId: "t1", error: "failed" });
 
     expect(store.getState().draft?.body).toBe("Unsaved");
     expect(store.getState().draft?.dirty).toBe(true);
     expect(store.getState().draft?.error).toBe("failed");
   });
 
-  test("resetAfterThoughtDeleted clears state for current thought", () => {
+  test("resetAfterUnderstandingDeleted clears state for current understanding", () => {
     const store = createCaptureStore();
-    store.getState().selectThought("t1");
-    store.getState().setActiveSourceId("s1");
-    store.getState().initializeDraft({ thoughtId: "t1", title: "A", body: "B" });
+    store.getState().selectUnderstanding("t1");
+    store.getState().setActiveContextId("s1");
+    store.getState().initializeDraft({ understandingId: "t1", title: "A", body: "B" });
 
-    store.getState().resetAfterThoughtDeleted("t1");
+    store.getState().resetAfterUnderstandingDeleted("t1");
 
-    expect(store.getState().selectedThoughtId).toBeNull();
-    expect(store.getState().activeSourceId).toBeNull();
+    expect(store.getState().selectedUnderstandingId).toBeNull();
+    expect(store.getState().activeContextId).toBeNull();
     expect(store.getState().draft).toBeNull();
   });
 
-  test("resetAfterCategoryDeleted returns to all when current category is deleted", () => {
+  test("resetAfterDomainDeleted returns to all when current domain is deleted", () => {
     const store = createCaptureStore({
       ...initialCaptureState,
-      selectedCategoryId: "child",
-      selectedThoughtId: "t1",
-      activeSourceId: "s1",
+      selectedDomainId: "child",
+      selectedUnderstandingId: "t1",
+      activeContextId: "s1",
       draft: {
-        thoughtId: "t1",
+        understandingId: "t1",
         title: "A",
         body: "B",
         baseTitle: "A",
@@ -226,11 +228,11 @@ describe("capture store", () => {
       },
     });
 
-    store.getState().resetAfterCategoryDeleted(new Set(["parent", "child"]));
+    store.getState().resetAfterDomainDeleted(new Set(["parent", "child"]));
 
-    expect(store.getState().selectedCategoryId).toBe("all");
-    expect(store.getState().selectedThoughtId).toBeNull();
-    expect(store.getState().activeSourceId).toBeNull();
+    expect(store.getState().selectedDomainId).toBe("all");
+    expect(store.getState().selectedUnderstandingId).toBeNull();
+    expect(store.getState().activeContextId).toBeNull();
     expect(store.getState().draft).toBeNull();
   });
 });

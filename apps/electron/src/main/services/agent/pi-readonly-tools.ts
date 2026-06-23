@@ -1,24 +1,24 @@
 import { Type } from "@earendil-works/pi-ai";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import {
-  categoryCliService,
+  domainCliService,
   contextCliService,
   graphService,
   searchCliService,
   snapshotService,
-  thoughtCliService,
+  understandingCliService,
 } from "../core";
 
 export const PI_READ_ONLY_TOOL_NAMES = [
   "snapshot_project",
-  "category_list",
-  "category_inspect",
-  "thought_list",
-  "thought_get",
+  "domain_list",
+  "domain_inspect",
+  "understanding_list",
+  "understanding_get",
   "context_list",
   "context_get",
   "search_all",
-  "search_thoughts",
+  "search_understandings",
   "search_contexts",
   "graph_neighborhood",
   "graph_path",
@@ -53,72 +53,72 @@ export function createPiReadOnlyTools(): ToolDefinition[] {
       name: "snapshot_project",
       label: "项目概览",
       description:
-        "Get a compact Reflecta knowledge-base snapshot: categories, recent Thoughts, and stats. Use this before broad exploration.",
+        "Get a compact Reflecta knowledge-base snapshot: domains, recent Understandings, and stats. Use this before broad exploration.",
       promptSnippet: "snapshot_project: get a compact Reflecta knowledge-base snapshot.",
       parameters: Type.Object({}),
       execute: async () => toolResult(await snapshotService.projectSnapshot()),
     }),
     defineTool({
-      name: "category_list",
-      label: "列出 Category",
-      description: "List Reflecta categories.",
-      promptSnippet: "category_list: list Reflecta categories.",
+      name: "domain_list",
+      label: "列出 Domain",
+      description: "List Reflecta domains.",
+      promptSnippet: "domain_list: list Reflecta domains.",
       parameters: Type.Object({}),
-      execute: async () => toolResult(await categoryCliService.listCategories()),
+      execute: async () => toolResult(await domainCliService.listDomains()),
     }),
     defineTool({
-      name: "category_inspect",
-      label: "查看 Category",
+      name: "domain_inspect",
+      label: "查看 Domain",
       description:
-        "Inspect a Reflecta category and optionally include its Thoughts, Contexts, and graph edges.",
-      promptSnippet: "category_inspect: inspect one Reflecta category.",
+        "Inspect a Reflecta domain and optionally include its Understandings, Contexts, and graph edges.",
+      promptSnippet: "domain_inspect: inspect one Reflecta domain.",
       parameters: Type.Object({
-        categoryId: Type.String({ minLength: 1 }),
+        domainId: Type.String({ minLength: 1 }),
         includeContexts: Type.Optional(Type.Boolean()),
         includeEdges: Type.Optional(Type.Boolean()),
         ...paginationParameters,
       }),
-      execute: async (_toolCallId, { categoryId, ...options }) =>
-        toolResult(await categoryCliService.inspectCategory(categoryId, options)),
+      execute: async (_toolCallId, { domainId, ...options }) =>
+        toolResult(await domainCliService.inspectDomain(domainId, options)),
     }),
     defineTool({
-      name: "thought_list",
-      label: "列出 Thought",
-      description: "List Reflecta Thoughts, optionally filtered by categories.",
-      promptSnippet: "thought_list: list Reflecta Thoughts.",
+      name: "understanding_list",
+      label: "列出 Understanding",
+      description: "List Reflecta Understandings, optionally filtered by domains.",
+      promptSnippet: "understanding_list: list Reflecta Understandings.",
       parameters: Type.Object({
-        categoryIds: Type.Optional(Type.Array(Type.String())),
+        domainIds: Type.Optional(Type.Array(Type.String())),
         includeDescendants: Type.Optional(Type.Boolean()),
         ...paginationParameters,
       }),
       execute: async (_toolCallId, input) =>
-        toolResult(await thoughtCliService.listThoughts(input)),
+        toolResult(await understandingCliService.listUnderstandings(input)),
     }),
     defineTool({
-      name: "thought_get",
-      label: "读取 Thought",
+      name: "understanding_get",
+      label: "读取 Understanding",
       description:
-        "Get a Reflecta Thought by id. Use includeContexts/includeReferences/includeReferencedBys for surrounding material.",
-      promptSnippet: "thought_get: read one Reflecta Thought by id.",
+        "Get a Reflecta Understanding by id. Use includeContexts/includeReferences/includeReferencedBys for surrounding material.",
+      promptSnippet: "understanding_get: read one Reflecta Understanding by id.",
       parameters: Type.Object({
-        thoughtId: Type.String({ minLength: 1 }),
+        understandingId: Type.String({ minLength: 1 }),
         includeContexts: Type.Optional(Type.Boolean()),
         includeReferences: Type.Optional(Type.Boolean()),
         includeReferencedBys: Type.Optional(Type.Boolean()),
       }),
-      execute: async (_toolCallId, { thoughtId, ...options }) =>
-        toolResult(await thoughtCliService.getThought(thoughtId, options)),
+      execute: async (_toolCallId, { understandingId, ...options }) =>
+        toolResult(await understandingCliService.getUnderstanding(understandingId, options)),
     }),
     defineTool({
       name: "context_list",
       label: "列出 Context",
-      description: "List Contexts attached to a Reflecta Thought.",
-      promptSnippet: "context_list: list Contexts for a Thought.",
+      description: "List Contexts attached to a Reflecta Understanding.",
+      promptSnippet: "context_list: list Contexts for a Understanding.",
       parameters: Type.Object({
-        thoughtId: Type.String({ minLength: 1 }),
+        understandingId: Type.String({ minLength: 1 }),
       }),
-      execute: async (_toolCallId, { thoughtId }) =>
-        toolResult(await contextCliService.listContexts(thoughtId)),
+      execute: async (_toolCallId, { understandingId }) =>
+        toolResult(await contextCliService.listContexts(understandingId)),
     }),
     defineTool({
       name: "context_get",
@@ -135,8 +135,8 @@ export function createPiReadOnlyTools(): ToolDefinition[] {
       name: "search_all",
       label: "搜索知识库",
       description:
-        "Search Reflecta Thoughts and Contexts with a plain text query. Use this whenever the user asks to search the knowledge base.",
-      promptSnippet: "search_all: search Reflecta Thoughts and Contexts.",
+        "Search Reflecta Understandings and Contexts with a plain text query. Use this whenever the user asks to search the knowledge base.",
+      promptSnippet: "search_all: search Reflecta Understandings and Contexts.",
       promptGuidelines: [
         "When the user asks to search or read Reflecta knowledge, call search_all before answering.",
       ],
@@ -148,16 +148,16 @@ export function createPiReadOnlyTools(): ToolDefinition[] {
         toolResult(await searchCliService.searchAll(query, options)),
     }),
     defineTool({
-      name: "search_thoughts",
-      label: "搜索 Thought",
-      description: "Search only Reflecta Thoughts with a plain text query.",
-      promptSnippet: "search_thoughts: search Reflecta Thoughts.",
+      name: "search_understandings",
+      label: "搜索 Understanding",
+      description: "Search only Reflecta Understandings with a plain text query.",
+      promptSnippet: "search_understandings: search Reflecta Understandings.",
       parameters: Type.Object({
         query: Type.String({ minLength: 1 }),
         ...paginationParameters,
       }),
       execute: async (_toolCallId, { query, ...options }) =>
-        toolResult(await searchCliService.searchThoughts(query, options)),
+        toolResult(await searchCliService.searchUnderstandings(query, options)),
     }),
     defineTool({
       name: "search_contexts",
@@ -174,22 +174,22 @@ export function createPiReadOnlyTools(): ToolDefinition[] {
     defineTool({
       name: "graph_neighborhood",
       label: "查看关联",
-      description: "Get nearby Thoughts connected to a seed Thought.",
-      promptSnippet: "graph_neighborhood: inspect nearby connected Thoughts.",
+      description: "Get nearby Understandings connected to a seed Understanding.",
+      promptSnippet: "graph_neighborhood: inspect nearby connected Understandings.",
       parameters: Type.Object({
-        thoughtId: Type.String({ minLength: 1 }),
+        understandingId: Type.String({ minLength: 1 }),
         depth: Type.Optional(Type.Integer({ minimum: 1, maximum: 3 })),
         includeContexts: Type.Optional(Type.Boolean()),
         ...paginationParameters,
       }),
-      execute: async (_toolCallId, { thoughtId, ...options }) =>
-        toolResult(await graphService.graphNeighborhood(thoughtId, options)),
+      execute: async (_toolCallId, { understandingId, ...options }) =>
+        toolResult(await graphService.graphNeighborhood(understandingId, options)),
     }),
     defineTool({
       name: "graph_path",
       label: "查找路径",
-      description: "Find directed graph paths between two Thoughts.",
-      promptSnippet: "graph_path: find directed paths between two Thoughts.",
+      description: "Find directed graph paths between two Understandings.",
+      promptSnippet: "graph_path: find directed paths between two Understandings.",
       parameters: Type.Object({
         fromId: Type.String({ minLength: 1 }),
         toId: Type.String({ minLength: 1 }),

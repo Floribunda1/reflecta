@@ -41,9 +41,9 @@
 
   @P1 @context @AG-START-004
   场景: 新对话标题使用第一条用户消息的可读内容
-    假如 seed 数据中存在 Category「React」
+    假如 seed 数据中存在 Domain「React」
     而且用户已经打开一个新对话
-    当用户在第一条消息中选择 Category「React」
+    当用户在第一条消息中选择 Domain「React」
     而且用户输入请解释这个分类
     而且用户发送消息并等待回复完成
     那么对话列表中应该显示标题“React 请解释这个分类”

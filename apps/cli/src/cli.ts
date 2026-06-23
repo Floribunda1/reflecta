@@ -8,12 +8,12 @@ import {
   getActionsByResource,
   getGroupedActions,
 } from "./actions/meta";
-import { registerCreateCategoryAction } from "./actions/category/create";
-import { registerDeleteCategoryAction } from "./actions/category/delete";
-import { registerGetCategoryAction } from "./actions/category/get";
-import { registerInspectCategoryAction } from "./actions/category/inspect";
-import { registerListCategoriesAction } from "./actions/category/list";
-import { registerUpdateCategoryAction } from "./actions/category/update";
+import { registerCreateDomainAction } from "./actions/domain/create";
+import { registerDeleteDomainAction } from "./actions/domain/delete";
+import { registerGetDomainAction } from "./actions/domain/get";
+import { registerInspectDomainAction } from "./actions/domain/inspect";
+import { registerListDomainsAction } from "./actions/domain/list";
+import { registerUpdateDomainAction } from "./actions/domain/update";
 import { registerCreateContextAction } from "./actions/context/create";
 import { registerDeleteContextAction } from "./actions/context/delete";
 import { registerGetContextAction } from "./actions/context/get";
@@ -23,13 +23,13 @@ import { registerGraphNeighborhoodAction } from "./actions/graph/neighborhood";
 import { registerGraphPathAction } from "./actions/graph/path";
 import { registerSearchAllAction } from "./actions/search/all";
 import { registerSearchContextsAction } from "./actions/search/contexts";
-import { registerSearchThoughtsAction } from "./actions/search/thoughts";
+import { registerSearchUnderstandingsAction } from "./actions/search/understandings";
 import { registerProjectSnapshotAction } from "./actions/snapshot/project";
-import { registerCreateThoughtAction } from "./actions/thought/create";
-import { registerDeleteThoughtAction } from "./actions/thought/delete";
-import { registerGetThoughtAction } from "./actions/thought/get";
-import { registerListThoughtsAction } from "./actions/thought/list";
-import { registerUpdateThoughtAction } from "./actions/thought/update";
+import { registerCreateUnderstandingAction } from "./actions/understanding/create";
+import { registerDeleteUnderstandingAction } from "./actions/understanding/delete";
+import { registerGetUnderstandingAction } from "./actions/understanding/get";
+import { registerListUnderstandingsAction } from "./actions/understanding/list";
+import { registerUpdateUnderstandingAction } from "./actions/understanding/update";
 
 function formatRows(rows: Array<{ key: string; desc: string }>, indent = 2, width = 22): string[] {
   const pad = " ".repeat(indent);
@@ -173,12 +173,12 @@ export async function runCli(argv = process.argv.slice(2)): Promise<number> {
   cli.option("--quiet", "Suppress non-error stdout");
   cli.option("--verbose", "Debug logs to stderr");
 
-  const thought = cli.command("thought").description("Manage thoughts");
-  registerListThoughtsAction(thought);
-  registerGetThoughtAction(thought);
-  registerCreateThoughtAction(thought);
-  registerUpdateThoughtAction(thought);
-  registerDeleteThoughtAction(thought);
+  const understanding = cli.command("understanding").description("Manage understandings");
+  registerListUnderstandingsAction(understanding);
+  registerGetUnderstandingAction(understanding);
+  registerCreateUnderstandingAction(understanding);
+  registerUpdateUnderstandingAction(understanding);
+  registerDeleteUnderstandingAction(understanding);
 
   const context = cli.command("context").description("Manage contexts");
   registerListContextsAction(context);
@@ -187,20 +187,20 @@ export async function runCli(argv = process.argv.slice(2)): Promise<number> {
   registerUpdateContextAction(context);
   registerDeleteContextAction(context);
 
-  const category = cli.command("category").description("Manage categories");
-  registerListCategoriesAction(category);
-  registerGetCategoryAction(category);
-  registerInspectCategoryAction(category);
-  registerCreateCategoryAction(category);
-  registerUpdateCategoryAction(category);
-  registerDeleteCategoryAction(category);
+  const domain = cli.command("domain").description("Manage domains");
+  registerListDomainsAction(domain);
+  registerGetDomainAction(domain);
+  registerInspectDomainAction(domain);
+  registerCreateDomainAction(domain);
+  registerUpdateDomainAction(domain);
+  registerDeleteDomainAction(domain);
 
-  const search = cli.command("search").description("Search thoughts and contexts");
-  registerSearchThoughtsAction(search);
+  const search = cli.command("search").description("Search understandings and contexts");
+  registerSearchUnderstandingsAction(search);
   registerSearchContextsAction(search);
   registerSearchAllAction(search);
 
-  const graph = cli.command("graph").description("Explore thought graph");
+  const graph = cli.command("graph").description("Explore understanding graph");
   registerGraphNeighborhoodAction(graph);
   registerGraphPathAction(graph);
 

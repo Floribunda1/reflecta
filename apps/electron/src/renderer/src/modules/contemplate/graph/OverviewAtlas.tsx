@@ -11,14 +11,14 @@ import {
   type Node,
   type NodeProps,
 } from "@xyflow/react";
-import type { Category } from "@shared/category";
-import type { ThoughtSummaryDTO } from "@shared/thought";
+import type { Domain } from "@shared/domain";
+import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import { cn } from "@renderer/lib/utils";
 import { layoutDagreGraph } from "./dagre-layout";
 
 type AtlasNode = {
   id: string;
-  categoryId: string | null;
+  domainId: string | null;
   label: string;
   breadcrumb: string;
   count: number;
@@ -55,26 +55,26 @@ const RELATION_MARKER = {
   color: "var(--primary)",
 } as const;
 
-function buildAtlas(categories: Category[], thoughts: ThoughtSummaryDTO[]): AtlasNode[] {
+function buildAtlas(domains: Domain[], understandings: UnderstandingSummaryDTO[]): AtlasNode[] {
   const nodes = new Map<string, AtlasNode>();
-  const categoryById = new Map(categories.map((category) => [category.id, category]));
+  const domainById = new Map(domains.map((domain) => [domain.id, domain]));
   const roots: AtlasNode[] = [];
 
-  for (const category of categories) {
-    nodes.set(category.id, {
-      id: category.id,
-      categoryId: category.id,
-      label: category.name,
-      breadcrumb: category.name,
+  for (const domain of domains) {
+    nodes.set(domain.id, {
+      id: domain.id,
+      domainId: domain.id,
+      label: domain.name,
+      breadcrumb: domain.name,
       count: 0,
       ownCount: 0,
       children: [],
     });
   }
 
-  for (const category of categories) {
-    const node = nodes.get(category.id)!;
-    const parent = category.parentId ? nodes.get(category.parentId) : null;
+  for (const domain of domains) {
+    const node = nodes.get(domain.id)!;
+    const parent = domain.parentId ? nodes.get(domain.parentId) : null;
     if (parent) {
       parent.children.push(node);
     } else {
@@ -84,7 +84,7 @@ function buildAtlas(categories: Category[], thoughts: ThoughtSummaryDTO[]): Atla
 
   const uncategorized: AtlasNode = {
     id: "uncategorized",
-    categoryId: null,
+    domainId: null,
     label: "未归类",
     breadcrumb: "未归类",
     count: 0,
@@ -92,9 +92,9 @@ function buildAtlas(categories: Category[], thoughts: ThoughtSummaryDTO[]): Atla
     children: [],
   };
 
-  for (const thought of thoughts) {
-    const categoryId = thought.categoryIds[0];
-    const node = categoryId ? nodes.get(categoryId) : null;
+  for (const understanding of understandings) {
+    const domainId = understanding.domainIds[0];
+    const node = domainId ? nodes.get(domainId) : null;
     if (node) node.ownCount += 1;
     else uncategorized.ownCount += 1;
   }
@@ -104,8 +104,8 @@ function buildAtlas(categories: Category[], thoughts: ThoughtSummaryDTO[]): Atla
     let current: AtlasNode | undefined = node;
     while (current) {
       names.unshift(current.label);
-      const category = categoryById.get(current.id);
-      current = category?.parentId ? nodes.get(category.parentId) : undefined;
+      const domain = domainById.get(current.id);
+      current = domain?.parentId ? nodes.get(domain.parentId) : undefined;
     }
     node.breadcrumb = names.join(" / ");
     node.count = node.ownCount + node.children.reduce((sum, child) => sum + rollup(child), 0);
@@ -146,7 +146,7 @@ function layoutTree(roots: AtlasNode[]) {
       node,
       maxCount,
       relatedCount: 0,
-      selectable: Boolean(node.categoryId),
+      selectable: Boolean(node.domainId),
     },
   }));
   const edges: Edge[] = treeLinks.map((link) => ({
@@ -166,24 +166,24 @@ function flattenAtlas(node: AtlasNode): AtlasNode[] {
 }
 
 function buildDomainRelations(
-  thoughts: ThoughtSummaryDTO[],
-  visibleCategoryIds: Set<string>,
+  understandings: UnderstandingSummaryDTO[],
+  visibleDomainIds: Set<string>,
 ): Edge[] {
-  const thoughtCategory = new Map<string, string>();
-  for (const thought of thoughts) {
-    const categoryId = thought.categoryIds[0];
-    if (categoryId && visibleCategoryIds.has(categoryId))
-      thoughtCategory.set(thought.id, categoryId);
+  const understandingDomain = new Map<string, string>();
+  for (const understanding of understandings) {
+    const domainId = understanding.domainIds[0];
+    if (domainId && visibleDomainIds.has(domainId))
+      understandingDomain.set(understanding.id, domainId);
   }
 
   const relationCounts = new Map<string, number>();
-  for (const thought of thoughts) {
-    const sourceCategory = thoughtCategory.get(thought.id);
-    if (!sourceCategory) continue;
-    for (const targetId of thought.connectionIds) {
-      const targetCategory = thoughtCategory.get(targetId);
-      if (!targetCategory || targetCategory === sourceCategory) continue;
-      const [a, b] = [sourceCategory, targetCategory].sort();
+  for (const understanding of understandings) {
+    const sourceDomain = understandingDomain.get(understanding.id);
+    if (!sourceDomain) continue;
+    for (const targetId of understanding.connectionIds) {
+      const targetDomain = understandingDomain.get(targetId);
+      if (!targetDomain || targetDomain === sourceDomain) continue;
+      const [a, b] = [sourceDomain, targetDomain].sort();
       const key = `${a}->${b}`;
       relationCounts.set(key, (relationCounts.get(key) ?? 0) + 1);
     }
@@ -329,31 +329,31 @@ function DomainNode({ data }: NodeProps<DomainFlowNode>) {
 const NODE_TYPES = { domain: DomainNode };
 
 function miniMapNodeColor(node: DomainFlowNode) {
-  return node.data.node.categoryId ? "var(--primary)" : "var(--muted-foreground)";
+  return node.data.node.domainId ? "var(--primary)" : "var(--muted-foreground)";
 }
 
 export function OverviewAtlas({
-  categories,
-  thoughts,
-  onSelectCategory,
+  domains,
+  understandings,
+  onSelectDomain,
 }: {
-  categories: Category[];
-  thoughts: ThoughtSummaryDTO[];
-  onSelectCategory: (categoryId: string) => void;
+  domains: Domain[];
+  understandings: UnderstandingSummaryDTO[];
+  onSelectDomain: (domainId: string) => void;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const atlas = useMemo(() => buildAtlas(categories, thoughts), [categories, thoughts]);
+  const atlas = useMemo(() => buildAtlas(domains, understandings), [domains, understandings]);
   const { nodes: treeNodes, edges: treeEdges } = useMemo(() => layoutTree(atlas), [atlas]);
-  const visibleCategoryIds = useMemo(
+  const visibleDomainIds = useMemo(
     () =>
       new Set(
-        treeNodes.flatMap((node) => (node.data.node.categoryId ? [node.data.node.categoryId] : [])),
+        treeNodes.flatMap((node) => (node.data.node.domainId ? [node.data.node.domainId] : [])),
       ),
     [treeNodes],
   );
   const relationEdges = useMemo(
-    () => buildDomainRelations(thoughts, visibleCategoryIds),
-    [thoughts, visibleCategoryIds],
+    () => buildDomainRelations(understandings, visibleDomainIds),
+    [understandings, visibleDomainIds],
   );
   const relationIndex = useMemo(() => buildRelationIndex(relationEdges), [relationEdges]);
   const relationCounts = useMemo(() => {
@@ -398,9 +398,9 @@ export function OverviewAtlas({
 
   const handleNodeClick = useCallback(
     (_: MouseEvent, node: DomainFlowNode) => {
-      if (node.data.node.categoryId) onSelectCategory(node.data.node.categoryId);
+      if (node.data.node.domainId) onSelectDomain(node.data.node.domainId);
     },
-    [onSelectCategory],
+    [onSelectDomain],
   );
 
   return (

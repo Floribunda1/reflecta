@@ -20,8 +20,7 @@ export function registerSearchContextsAction(cli: Command): void {
       { flags: "--limit <n>", description: "Limit results", required: false, defaultValue: 20 },
       { flags: "--offset <n>", description: "Result offset", required: false, defaultValue: 0 },
     ],
-    returns:
-      "ContextSearchHit[] — { contextId, thoughtId, sourceType, sourceName, snippet, rank }[]",
+    returns: "ContextSearchHit[] — { contextId, understandingId, medium, title, snippet, rank }[]",
   });
   cli
     .command("contexts <query>")

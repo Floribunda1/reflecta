@@ -29,7 +29,7 @@ describe("context usage", () => {
     const request = buildContextUsageRequest({
       messages: [userMessage("帮我整理这条笔记")],
       draft: "继续分析",
-      selectedContexts: [{ type: "thought", id: "thought-1", title: "拖延" }],
+      selectedContexts: [{ type: "understanding", id: "understanding-1", title: "拖延" }],
       modelSelection: { providerId: "openai", modelId: "gpt-4o" },
     });
 

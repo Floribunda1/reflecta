@@ -29,7 +29,7 @@ function dropFtsTables(): void {
   if (!fs.existsSync(dbPath)) return;
   withDb((db) => {
     db.exec(`
-      DROP TABLE IF EXISTS fts_thoughts;
+      DROP TABLE IF EXISTS fts_understandings;
       DROP TABLE IF EXISTS fts_contexts;
     `);
   });
@@ -58,29 +58,29 @@ async function migrate(): Promise<void> {
 function rebuildFtsTables(): void {
   withDb((db) => {
     db.exec(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS fts_thoughts USING fts5(
-      thought_id UNINDEXED,
+    CREATE VIRTUAL TABLE IF NOT EXISTS fts_understandings USING fts5(
+      understanding_id UNINDEXED,
       title,
       body
     );
 
     CREATE VIRTUAL TABLE IF NOT EXISTS fts_contexts USING fts5(
       context_id UNINDEXED,
-      thought_id UNINDEXED,
-      source_name,
+      understanding_id UNINDEXED,
+      title,
       content
     );
 
-    DELETE FROM fts_thoughts;
+    DELETE FROM fts_understandings;
     DELETE FROM fts_contexts;
 
-    INSERT INTO fts_thoughts (thought_id, title, body)
+    INSERT INTO fts_understandings (understanding_id, title, body)
     SELECT id, coalesce(title, ''), body
-    FROM thoughts
+    FROM understandings
     WHERE deleted_at IS NULL;
 
-    INSERT INTO fts_contexts (context_id, thought_id, source_name, content)
-    SELECT id, thought_id, source_name, content
+    INSERT INTO fts_contexts (context_id, understanding_id, title, content)
+    SELECT id, understanding_id, title, content
     FROM contexts
     WHERE deleted_at IS NULL;
   `);

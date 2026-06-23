@@ -6,14 +6,14 @@ describe("buildPiPromptText", () => {
     const prompt = buildPiPromptText({
       text: "请比较这些引用",
       contextRefs: [
-        { type: "thought", id: "thought-1", title: "React Server Components" },
-        { type: "category", id: "category-1", title: "React" },
+        { type: "understanding", id: "understanding-1", title: "React Server Components" },
+        { type: "domain", id: "domain-1", title: "React" },
       ],
     });
 
     expect(prompt).toContain("请比较这些引用");
-    expect(prompt).toContain("thought: React Server Components (id: thought-1)");
-    expect(prompt).toContain("category: React (id: category-1)");
+    expect(prompt).toContain("understanding: React Server Components (id: understanding-1)");
+    expect(prompt).toContain("domain: React (id: domain-1)");
     expect(prompt).toContain("轻量引用");
   });
 

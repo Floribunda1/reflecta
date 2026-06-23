@@ -23,7 +23,7 @@ type MarkdownEditorProps = {
   className?: string;
   onUpdate?: (value: string) => void;
   onBlur?: () => void;
-  onWikiLinkClick?: (thoughtId: string) => void;
+  onWikiLinkClick?: (understandingId: string) => void;
 };
 
 function toCssSize(value: number | string): string {
@@ -45,7 +45,7 @@ function MarkdownEditorSurface({
   readonly?: boolean;
   onUpdate?: (value: string) => void;
   onBlur?: () => void;
-  onWikiLinkClick?: (thoughtId: string) => void;
+  onWikiLinkClick?: (understandingId: string) => void;
 }) {
   const onUpdateRef = useRef(onUpdate);
   const onBlurRef = useRef(onBlur);
@@ -68,11 +68,11 @@ function MarkdownEditorSurface({
     const link = (event.target as HTMLElement | null)?.closest<HTMLAnchorElement>(
       "a[data-wiki-link]",
     );
-    const thoughtId = link?.dataset.wikiLink;
-    if (!thoughtId) return;
+    const understandingId = link?.dataset.wikiLink;
+    if (!understandingId) return;
 
     event.preventDefault();
-    onWikiLinkClickRef.current?.(thoughtId);
+    onWikiLinkClickRef.current?.(understandingId);
   }, []);
 
   const uploadAsset = useCallback(async (file: File) => {

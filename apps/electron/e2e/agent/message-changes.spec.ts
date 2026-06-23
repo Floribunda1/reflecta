@@ -17,7 +17,7 @@ test("@AG-MESSAGE-001 用户编辑历史消息后看到新的当前回复", asyn
     await waitForAssistantReply(page);
 
     await page
-      .getByTestId("agent-message-row")
+      .locator('[data-testid="agent-message-row"][data-message-role="user"]')
       .filter({ hasText: "ORIGINAL_USER_MESSAGE" })
       .hover();
     await page.getByTestId("agent-edit-message-button").click();

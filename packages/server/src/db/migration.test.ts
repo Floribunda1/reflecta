@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 import { createDBInstance, type ReflectaDb } from ".";
-import { compareVersions, parseAppVersion, parseMigrationVersion } from "./migration";
+import {
+  compareVersions,
+  parseAppVersion,
+  parseMigrationVersion,
+  performDbMigration,
+} from "./migration";
 
 let tempDirs: string[] = [];
 
@@ -23,6 +28,13 @@ function hasTable(db: ReflectaDb, tableName: string) {
     .prepare<[string]>(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`)
     .get(tableName) as { name: string } | null;
   return Boolean(row);
+}
+
+function tableColumns(db: ReflectaDb, tableName: string): string[] {
+  const rows = db.$client.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{
+    name: string;
+  }>;
+  return rows.map((row) => row.name);
 }
 
 describe("versioned migrations", () => {
@@ -54,5 +66,75 @@ describe("versioned migrations", () => {
     expect(hasTable(db, "agent_messages")).toBe(false);
     expect(hasTable(db, "agent_tool_invocations")).toBe(false);
     expect(hasTable(db, "agent_runs")).toBe(false);
+  });
+
+  test("migrates knowledge tables to the unified product language in v1.1.0", async () => {
+    const db = await createTestDb("1.0.0");
+
+    db.$client
+      .prepare(`INSERT INTO categories (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)`)
+      .run("domain-1", "AI / Agent", "2026-01-01T00:00:00.000Z", "2026-01-01T00:00:00.000Z");
+    db.$client
+      .prepare(
+        `INSERT INTO thoughts (id, title, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "understanding-1",
+        "反馈系统",
+        "规划不是预测未来，而是建立反馈系统。",
+        "2026-01-02T00:00:00.000Z",
+        "2026-01-02T00:00:00.000Z",
+      );
+    db.$client
+      .prepare(`INSERT INTO thought_categories (thought_id, category_id) VALUES (?, ?)`)
+      .run("understanding-1", "domain-1");
+    db.$client
+      .prepare(
+        `INSERT INTO contexts (id, thought_id, source_type, source_name, content, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "context-1",
+        "understanding-1",
+        "ai",
+        "一次 Agent 架构对话",
+        "这段上下文后来支撑了这条理解。",
+        "2026-01-03T00:00:00.000Z",
+      );
+
+    await performDbMigration(db, "1.1.0");
+
+    expect(hasTable(db, "understandings")).toBe(true);
+    expect(hasTable(db, "domains")).toBe(true);
+    expect(hasTable(db, "understanding_domains")).toBe(true);
+    expect(hasTable(db, "understanding_connections")).toBe(true);
+    expect(hasTable(db, "thoughts")).toBe(false);
+    expect(hasTable(db, "categories")).toBe(false);
+
+    expect(tableColumns(db, "contexts")).toEqual(
+      expect.arrayContaining(["understanding_id", "medium", "title", "content"]),
+    );
+    expect(tableColumns(db, "contexts")).not.toEqual(
+      expect.arrayContaining(["thought_id", "source_type", "source_name"]),
+    );
+
+    expect(
+      db.$client
+        .prepare(`SELECT title, body FROM understandings WHERE id = ?`)
+        .get("understanding-1"),
+    ).toMatchObject({
+      title: "反馈系统",
+      body: "规划不是预测未来，而是建立反馈系统。",
+    });
+
+    expect(
+      db.$client
+        .prepare(`SELECT understanding_id, medium, title, content FROM contexts WHERE id = ?`)
+        .get("context-1"),
+    ).toMatchObject({
+      understanding_id: "understanding-1",
+      medium: "ai",
+      title: "一次 Agent 架构对话",
+      content: "这段上下文后来支撑了这条理解。",
+    });
   });
 });

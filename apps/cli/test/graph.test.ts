@@ -1,12 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { runCommand, parseJson, getThoughtId } from "./helpers";
+import { runCommand, parseJson, getUnderstandingId } from "./helpers";
 
 describe("图遍历", () => {
   describe("graph neighborhood", () => {
     it("深度为 1 的邻域", async () => {
-      const seedId = getThoughtId("Star Center");
+      const seedId = getUnderstandingId("Star Center");
       expect(seedId).toBeDefined();
-      const { code, stdout } = await runCommand(["graph", "neighborhood", "--thought-id", seedId!]);
+      const { code, stdout } = await runCommand([
+        "graph",
+        "neighborhood",
+        "--understanding-id",
+        seedId!,
+      ]);
       expect(code).toBe(0);
       const data = parseJson(stdout) as { seed: string; nodes: unknown[]; edges: unknown[] };
       expect(data.seed).toBe(seedId);
@@ -15,12 +20,12 @@ describe("图遍历", () => {
     });
 
     it("深度为 2 的邻域", async () => {
-      const seedId = getThoughtId("Long Path Start");
+      const seedId = getUnderstandingId("Long Path Start");
       expect(seedId).toBeDefined();
       const { code, stdout } = await runCommand([
         "graph",
         "neighborhood",
-        "--thought-id",
+        "--understanding-id",
         seedId!,
         "--depth",
         "2",
@@ -28,31 +33,36 @@ describe("图遍历", () => {
       expect(code).toBe(0);
       const data = parseJson(stdout) as { nodes: Array<{ id: string }> };
       const nodeIds = data.nodes.map((n) => n.id);
-      const path2Id = getThoughtId("Long Path 2");
+      const path2Id = getUnderstandingId("Long Path 2");
       expect(nodeIds).toContain(path2Id);
     });
 
-    it("孤立 Thought 的邻域", async () => {
+    it("孤立 Understanding 的邻域", async () => {
       const { stdout: createOut } = await runCommand([
-        "thought",
+        "understanding",
         "create",
         "--title",
         "Isolated Node",
         "--yes",
       ]);
       const seedId = (parseJson(createOut) as { id: string }).id;
-      const { code, stdout } = await runCommand(["graph", "neighborhood", "--thought-id", seedId]);
+      const { code, stdout } = await runCommand([
+        "graph",
+        "neighborhood",
+        "--understanding-id",
+        seedId,
+      ]);
       expect(code).toBe(0);
       const data = parseJson(stdout) as { nodes: unknown[]; edges: unknown[] };
       expect(data.nodes.length).toBe(1);
       expect(data.edges.length).toBe(0);
     });
 
-    it("邻域查询不存在的 Thought", async () => {
+    it("邻域查询不存在的 Understanding", async () => {
       const { code, stderr } = await runCommand([
         "graph",
         "neighborhood",
-        "--thought-id",
+        "--understanding-id",
         "nonexistent-id-12345",
       ]);
       expect(code).toBe(1);
@@ -60,12 +70,12 @@ describe("图遍历", () => {
     });
 
     it("邻域分页", async () => {
-      const seedId = getThoughtId("Star Center");
+      const seedId = getUnderstandingId("Star Center");
       expect(seedId).toBeDefined();
       const { code, stdout } = await runCommand([
         "graph",
         "neighborhood",
-        "--thought-id",
+        "--understanding-id",
         seedId!,
         "--limit",
         "2",
@@ -78,8 +88,8 @@ describe("图遍历", () => {
 
   describe("graph path", () => {
     it("存在直接路径", async () => {
-      const fromId = getThoughtId("Star Leaf 1");
-      const toId = getThoughtId("Star Center");
+      const fromId = getUnderstandingId("Star Leaf 1");
+      const toId = getUnderstandingId("Star Center");
       expect(fromId).toBeDefined();
       expect(toId).toBeDefined();
       const { code, stdout } = await runCommand([
@@ -96,8 +106,8 @@ describe("图遍历", () => {
     });
 
     it("存在多跳路径", async () => {
-      const fromId = getThoughtId("Long Path Start");
-      const toId = getThoughtId("Long Path 3");
+      const fromId = getUnderstandingId("Long Path Start");
+      const toId = getUnderstandingId("Long Path 3");
       expect(fromId).toBeDefined();
       expect(toId).toBeDefined();
       const { code, stdout } = await runCommand([
@@ -114,8 +124,8 @@ describe("图遍历", () => {
     });
 
     it("不存在路径", async () => {
-      const fromId = getThoughtId("Star Center");
-      const toId = getThoughtId("Unconnected Node");
+      const fromId = getUnderstandingId("Star Center");
+      const toId = getUnderstandingId("Unconnected Node");
       expect(fromId).toBeDefined();
       expect(toId).toBeDefined();
       const { code, stdout } = await runCommand([
@@ -132,7 +142,7 @@ describe("图遍历", () => {
     });
 
     it("起点与终点为同一节点", async () => {
-      const seedId = getThoughtId("Star Center");
+      const seedId = getUnderstandingId("Star Center");
       expect(seedId).toBeDefined();
       const { code, stdout } = await runCommand([
         "graph",
@@ -150,7 +160,7 @@ describe("图遍历", () => {
     });
 
     it("缺少必填参数 --from", async () => {
-      const toId = getThoughtId("Star Center");
+      const toId = getUnderstandingId("Star Center");
       const { code, stderr } = await runCommand(["graph", "path", "--to", toId!]);
       expect(code).toBe(2);
       expect(JSON.parse(stderr).code).toBe("VALIDATION_ERROR");

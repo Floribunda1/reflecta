@@ -51,7 +51,7 @@ function proposal(
 describe("buildAgentTurnView", () => {
   test("preserves interleaved tool and text order", () => {
     const turn = buildAgentTurnView([
-      tool("search_all", "tool-1", { thoughts: [{ id: "t1" }], contexts: [] }),
+      tool("search_all", "tool-1", { understandings: [{ id: "t1" }], contexts: [] }),
       reasoning("我先看相关内容"),
       text("first"),
       tool("graph_neighborhood", "tool-2", { nodes: [{ id: "t2" }] }),
@@ -94,9 +94,11 @@ describe("buildAgentTurnView", () => {
     const turn = buildAgentTurnView(
       [
         reasoning("先查找相关内容"),
-        tool("search_all", "tool-1", { thoughts: [{ id: "t1" }] }),
+        tool("search_all", "tool-1", { understandings: [{ id: "t1" }] }),
         reasoning("再确认详情"),
-        tool("thought_get", "tool-2", { thought: { id: "t1", title: "Feedback Loop" } }),
+        tool("understanding_get", "tool-2", {
+          understanding: { id: "t1", title: "Feedback Loop" },
+        }),
         text("最终答案开始输出。"),
       ],
       true,
@@ -113,8 +115,8 @@ describe("buildAgentTurnView", () => {
 
   test("groups adjacent lookup tools without crossing text", () => {
     const turn = buildAgentTurnView([
-      tool("search_all", "tool-1", { thoughts: [{ id: "t1" }], contexts: [] }),
-      tool("thought_get", "tool-2", { thought: { id: "t1", title: "A" } }),
+      tool("search_all", "tool-1", { understandings: [{ id: "t1" }], contexts: [] }),
+      tool("understanding_get", "tool-2", { understanding: { id: "t1", title: "A" } }),
       text("answer"),
       tool("context_list", "tool-3", { contexts: [{ id: "c1" }] }),
     ]);
@@ -136,10 +138,10 @@ describe("buildAgentTurnView", () => {
   test("summarizes lookup activity", () => {
     const turn = buildAgentTurnView([
       tool("search_all", "tool-1", {
-        thoughts: [{ id: "t1" }, { id: "t2" }, { id: "t3" }],
+        understandings: [{ id: "t1" }, { id: "t2" }, { id: "t3" }],
         contexts: [{ id: "c1" }],
       }),
-      tool("thought_get", "tool-2", { thought: { id: "t1", title: "拖延与自我保护" } }),
+      tool("understanding_get", "tool-2", { understanding: { id: "t1", title: "拖延与自我保护" } }),
     ]);
 
     expect(turn.blocks[0]).toMatchObject({
@@ -147,10 +149,10 @@ describe("buildAgentTurnView", () => {
       activity: {
         title: "查找相关内容",
         status: "done",
-        summary: "搜索 3 条 Thought，读取 1 条 Context",
+        summary: "搜索 3 条 Understanding，读取 1 条 Context",
         items: expect.arrayContaining([
           expect.objectContaining({
-            label: "搜索了 3 条 Thought / 1 条 Context",
+            label: "搜索了 3 条 Understanding / 1 条 Context",
             status: "done",
           }),
           expect.objectContaining({
@@ -163,16 +165,18 @@ describe("buildAgentTurnView", () => {
   });
 
   test("summarizes list tools from array outputs", () => {
-    const turn = buildAgentTurnView([tool("thought_list", "tool-1", [{ id: "t1" }, { id: "t2" }])]);
+    const turn = buildAgentTurnView([
+      tool("understanding_list", "tool-1", [{ id: "t1" }, { id: "t2" }]),
+    ]);
 
     expect(turn.blocks[0]).toMatchObject({
       kind: "tool-activity",
       activity: {
-        title: "列出 Thought",
-        summary: "列出 2 条 Thought",
+        title: "列出 Understanding",
+        summary: "列出 2 条 Understanding",
         items: [
           expect.objectContaining({
-            label: "列出 2 条 Thought",
+            label: "列出 2 条 Understanding",
             status: "done",
           }),
         ],
@@ -213,19 +217,19 @@ describe("buildAgentTurnView", () => {
   });
 
   test.each([
-    ["thought_create", "thought_create", "thought"],
-    ["thought_update", "thought_update", "thought-update"],
-    ["thought_delete", "thought_delete", "generic"],
-    ["category_create", "category_create", "generic"],
-    ["category_update", "category_update", "generic"],
-    ["category_delete", "category_delete", "generic"],
+    ["understanding_create", "understanding_create", "understanding"],
+    ["understanding_update", "understanding_update", "understanding-update"],
+    ["understanding_delete", "understanding_delete", "generic"],
+    ["domain_create", "domain_create", "generic"],
+    ["domain_update", "domain_update", "generic"],
+    ["domain_delete", "domain_delete", "generic"],
     ["context_create", "context_create", "context"],
     ["context_update", "context_update", "generic"],
     ["context_delete", "context_delete", "generic"],
   ])("maps %s proposal view metadata", (proposalType, title, renderKind) => {
     const turn = buildAgentTurnView([
       proposal(proposalType, "tool-1", {
-        body: "new thought",
+        body: "new understanding",
         content: "new context",
       }),
     ]);
@@ -247,10 +251,10 @@ describe("buildAgentTurnView", () => {
         kind: "approval",
         approvalId: "approval-tool-1",
         toolCallId: "tool-1",
-        toolName: "thought_create",
-        title: "候选 Thought",
+        toolName: "understanding_create",
+        title: "候选 Understanding",
         payload: { title: "A", body: "B" },
-        output: { resultRefType: "thought", resultRefId: "thought_1" },
+        output: { resultRefType: "understanding", resultRefId: "understanding_1" },
         state: "completed",
         createdAt: "2026-06-23T00:00:00.000Z",
       },

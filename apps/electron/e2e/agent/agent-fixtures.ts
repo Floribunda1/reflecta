@@ -54,16 +54,16 @@ export function seedAgentThread(thread: AgentFixtureThread) {
   runFixture({ type: "seedThread", thread });
 }
 
-export function seedThoughtIdByTitle(title: string) {
-  return runFixture({ type: "thoughtIdByTitle", title }).trim();
+export function seedUnderstandingIdByTitle(title: string) {
+  return runFixture({ type: "understandingIdByTitle", title }).trim();
 }
 
-export function thoughtExistsByTitle(title: string) {
-  return runFixture({ type: "thoughtExistsByTitle", title }).trim() === "true";
+export function understandingExistsByTitle(title: string) {
+  return runFixture({ type: "understandingExistsByTitle", title }).trim() === "true";
 }
 
-export function categoryExistsByName(name: string) {
-  return runFixture({ type: "categoryExistsByName", name }).trim() === "true";
+export function domainExistsByName(name: string) {
+  return runFixture({ type: "domainExistsByName", name }).trim() === "true";
 }
 
 export function seedCompletedThread({
@@ -115,7 +115,7 @@ export function reasoningPart(text: string) {
 }
 
 export function proposalPart({
-  type = "thought_create",
+  type = "understanding_create",
   toolCallId,
   title,
   body,
@@ -142,7 +142,7 @@ export function proposalPart({
     type: `tool-${type}`,
     toolCallId,
     state,
-    input: { title, body: body ?? `${title} body`, categoryIds: [] },
+    input: { title, body: body ?? `${title} body`, domainIds: [] },
     ...(output ? { output } : {}),
     ...(errorText ? { errorText } : {}),
     toolMetadata: { kind: "proposal", proposalType: type },

@@ -2,7 +2,7 @@ import type {
   FtsContextResult,
   SearchOptions,
   SearchResult,
-  ThoughtSummaryDTO,
+  UnderstandingSummaryDTO,
 } from "@reflecta/server";
 import { IpcMethod, IpcService } from "electron-ipc-decorator";
 import { searchService } from "./core";
@@ -11,8 +11,11 @@ export class SearchService extends IpcService {
   static readonly groupName = "search";
 
   @IpcMethod()
-  async searchThoughts(query: string, options?: SearchOptions): Promise<ThoughtSummaryDTO[]> {
-    return searchService.searchThoughts(query, options);
+  async searchUnderstandings(
+    query: string,
+    options?: SearchOptions,
+  ): Promise<UnderstandingSummaryDTO[]> {
+    return searchService.searchUnderstandings(query, options);
   }
 
   @IpcMethod()

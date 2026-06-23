@@ -33,9 +33,9 @@ type FixtureThread = {
 type Fixture =
   | { type: "reset" }
   | { type: "seedThread"; thread: FixtureThread }
-  | { type: "thoughtIdByTitle"; title: string }
-  | { type: "thoughtExistsByTitle"; title: string }
-  | { type: "categoryExistsByName"; name: string };
+  | { type: "understandingIdByTitle"; title: string }
+  | { type: "understandingExistsByTitle"; title: string }
+  | { type: "domainExistsByName"; name: string };
 
 type ReflectaEvent = {
   id: string;
@@ -85,12 +85,12 @@ function approvedFor(part: Record<string, unknown>, fallback: boolean) {
 }
 
 function proposalTitle(toolName: string) {
-  if (toolName === "thought_create") return "候选 Thought";
-  if (toolName === "thought_update") return "候选修改 Thought";
-  if (toolName === "thought_delete") return "候选删除 Thought";
-  if (toolName === "category_create") return "候选 Category";
-  if (toolName === "category_update") return "候选修改 Category";
-  if (toolName === "category_delete") return "候选删除 Category";
+  if (toolName === "understanding_create") return "候选 Understanding";
+  if (toolName === "understanding_update") return "候选修改 Understanding";
+  if (toolName === "understanding_delete") return "候选删除 Understanding";
+  if (toolName === "domain_create") return "候选 Domain";
+  if (toolName === "domain_update") return "候选修改 Domain";
+  if (toolName === "domain_delete") return "候选删除 Domain";
   if (toolName === "context_create") return "候选 Context";
   if (toolName === "context_update") return "候选修改 Context";
   if (toolName === "context_delete") return "候选删除 Context";
@@ -103,12 +103,12 @@ function isProposalPart(part: Record<string, unknown>, toolName: string) {
   return (
     metadata.kind === "proposal" ||
     [
-      "thought_create",
-      "thought_update",
-      "thought_delete",
-      "category_create",
-      "category_update",
-      "category_delete",
+      "understanding_create",
+      "understanding_update",
+      "understanding_delete",
+      "domain_create",
+      "domain_update",
+      "domain_delete",
       "context_create",
       "context_update",
       "context_delete",
@@ -387,24 +387,26 @@ try {
     seedThread(fixture.thread);
   }
 
-  if (fixture.type === "thoughtIdByTitle") {
+  if (fixture.type === "understandingIdByTitle") {
     const row = db
-      .query(`SELECT id FROM thoughts WHERE title = ? AND deleted_at IS NULL LIMIT 1`)
+      .query(`SELECT id FROM understandings WHERE title = ? AND deleted_at IS NULL LIMIT 1`)
       .get(fixture.title) as { id: string } | null;
-    if (!row) throw new Error(`Seed thought not found: ${fixture.title}`);
+    if (!row) throw new Error(`Seed understanding not found: ${fixture.title}`);
     console.log(row.id);
   }
 
-  if (fixture.type === "thoughtExistsByTitle") {
+  if (fixture.type === "understandingExistsByTitle") {
     const row = db
-      .query(`SELECT 1 AS exists_flag FROM thoughts WHERE title = ? AND deleted_at IS NULL LIMIT 1`)
+      .query(
+        `SELECT 1 AS exists_flag FROM understandings WHERE title = ? AND deleted_at IS NULL LIMIT 1`,
+      )
       .get(fixture.title) as { exists_flag: number } | null;
     console.log(row ? "true" : "false");
   }
 
-  if (fixture.type === "categoryExistsByName") {
+  if (fixture.type === "domainExistsByName") {
     const row = db
-      .query(`SELECT 1 AS exists_flag FROM categories WHERE name = ? LIMIT 1`)
+      .query(`SELECT 1 AS exists_flag FROM domains WHERE name = ? LIMIT 1`)
       .get(fixture.name) as { exists_flag: number } | null;
     console.log(row ? "true" : "false");
   }

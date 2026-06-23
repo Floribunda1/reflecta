@@ -2,9 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { Button } from "@renderer/components/ui/button";
 import {
-  SourcePreviewDrawerContent,
-  ThoughtDetail,
-} from "@renderer/modules/capture/thought-detail";
+  ContextPreviewDrawerContent,
+  UnderstandingDetail,
+} from "@renderer/modules/capture/understanding-detail";
 import { ipcClient } from "@renderer/utils/ipc";
 import type { InspectableContextRef } from "./context-reference";
 
@@ -42,15 +42,17 @@ export function ContextInspector({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {refToInspect.type === "thought" ? (
-          <ThoughtDetail
-            thoughtId={refToInspect.id}
-            onWikiLinkClick={(thoughtId) => onInspect({ type: "thought", id: thoughtId })}
+        {refToInspect.type === "understanding" ? (
+          <UnderstandingDetail
+            understandingId={refToInspect.id}
+            onWikiLinkClick={(understandingId: string) =>
+              onInspect({ type: "understanding", id: understandingId })
+            }
           />
         ) : null}
         {refToInspect.type === "context" && contextQuery.data ? (
           <div className="p-4">
-            <SourcePreviewDrawerContent source={contextQuery.data} />
+            <ContextPreviewDrawerContent context={contextQuery.data} />
           </div>
         ) : null}
         {refToInspect.type === "context" && contextQuery.isFetching ? (

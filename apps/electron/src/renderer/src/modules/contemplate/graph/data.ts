@@ -1,18 +1,18 @@
-import type { ThoughtSummaryDTO } from "@shared/thought";
+import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import type { GraphStatusFilter } from "../context";
 
-export function filterThoughtsByStatus(
-  items: ThoughtSummaryDTO[],
+export function filterUnderstandingsByStatus(
+  items: UnderstandingSummaryDTO[],
   statusFilter: GraphStatusFilter,
-): ThoughtSummaryDTO[] {
+): UnderstandingSummaryDTO[] {
   if (statusFilter === "all" || items.length === 0) return items;
 
-  return items.filter((thought) => {
+  return items.filter((understanding) => {
     switch (statusFilter) {
       case "with-context":
-        return thought.contextCount > 0;
+        return understanding.contextCount > 0;
       case "without-context":
-        return thought.contextCount === 0;
+        return understanding.contextCount === 0;
     }
   });
 }

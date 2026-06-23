@@ -1,18 +1,18 @@
 import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { contexts, thoughts } from "../../db/schema";
+import { contexts, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
-import type { ContextDTO, CreateContextInput, SourceType, UpdateContextInput } from "./types";
+import type { ContextDTO, CreateContextInput, ContextMedium, UpdateContextInput } from "./types";
 import type { TrashedContextDTO } from "../trash/types";
 
 export class ContextCore {
   constructor(protected db: ReflectaDb) {}
 
-  async listContextsByThought(thoughtId: string): Promise<ContextDTO[]> {
+  async listContextsByUnderstanding(understandingId: string): Promise<ContextDTO[]> {
     const rows = await this.db
       .select()
       .from(contexts)
-      .where(and(eq(contexts.thoughtId, thoughtId), isNull(contexts.deletedAt)))
+      .where(and(eq(contexts.understandingId, understandingId), isNull(contexts.deletedAt)))
       .orderBy(desc(contexts.createdAt));
     return rows as ContextDTO[];
   }
@@ -29,13 +29,13 @@ export class ContextCore {
   async _createContext(input: CreateContextInput): Promise<ContextDTO> {
     const createdAt = new Date().toISOString();
     const id = nanoid();
-    await this.assertThoughtExists(input.thoughtId);
+    await this.assertUnderstandingExists(input.understandingId);
 
     const row: typeof contexts.$inferInsert = {
       id,
-      thoughtId: input.thoughtId,
-      sourceType: input.sourceType,
-      sourceName: input.sourceName ?? null,
+      understandingId: input.understandingId,
+      medium: input.medium,
+      title: input.title ?? null,
       content: input.content,
       createdAt,
       deletedAt: null,
@@ -44,8 +44,8 @@ export class ContextCore {
     await this.db.transaction((tx) => {
       tx.insert(contexts).values(row).run();
       tx.run(sql`
-        INSERT INTO fts_contexts (context_id, thought_id, source_name, content)
-        VALUES (${id}, ${input.thoughtId}, ${input.sourceName ?? null}, ${input.content})
+        INSERT INTO fts_contexts (context_id, understanding_id, title, content)
+        VALUES (${id}, ${input.understandingId}, ${input.title ?? null}, ${input.content})
       `);
     });
 
@@ -54,8 +54,8 @@ export class ContextCore {
 
   async _updateContext(id: string, input: UpdateContextInput): Promise<ContextDTO> {
     const updates: Partial<typeof contexts.$inferInsert> = {};
-    if (input.sourceType !== undefined) updates.sourceType = input.sourceType;
-    if (input.sourceName !== undefined) updates.sourceName = input.sourceName;
+    if (input.medium !== undefined) updates.medium = input.medium;
+    if (input.title !== undefined) updates.title = input.title;
     if (input.content !== undefined) updates.content = input.content;
     if (Object.keys(updates).length === 0) throw new Error("No context fields to update");
 
@@ -69,8 +69,8 @@ export class ContextCore {
 
       tx.run(sql`DELETE FROM fts_contexts WHERE context_id = ${id}`);
       tx.run(sql`
-        INSERT INTO fts_contexts (context_id, thought_id, source_name, content)
-        VALUES (${updated.id}, ${updated.thoughtId}, ${updated.sourceName}, ${updated.content})
+        INSERT INTO fts_contexts (context_id, understanding_id, title, content)
+        VALUES (${updated.id}, ${updated.understandingId}, ${updated.title}, ${updated.content})
       `);
     });
 
@@ -103,7 +103,7 @@ export class ContextCore {
       if (rows.length === 0) return;
       const ctx = rows[0];
       tx.run(
-        sql`INSERT INTO fts_contexts (context_id, thought_id, source_name, content) VALUES (${ctx.id}, ${ctx.thoughtId}, ${ctx.sourceName}, ${ctx.content})`,
+        sql`INSERT INTO fts_contexts (context_id, understanding_id, title, content) VALUES (${ctx.id}, ${ctx.understandingId}, ${ctx.title}, ${ctx.content})`,
       );
     });
   }
@@ -115,35 +115,35 @@ export class ContextCore {
     });
   }
 
-  private async assertThoughtExists(thoughtId: string): Promise<void> {
+  private async assertUnderstandingExists(understandingId: string): Promise<void> {
     const rows = await this.db
-      .select({ id: thoughts.id })
-      .from(thoughts)
-      .where(and(eq(thoughts.id, thoughtId), isNull(thoughts.deletedAt)))
+      .select({ id: understandings.id })
+      .from(understandings)
+      .where(and(eq(understandings.id, understandingId), isNull(understandings.deletedAt)))
       .limit(1);
-    if (rows.length === 0) throw new Error(`Thought not found: ${thoughtId}`);
+    if (rows.length === 0) throw new Error(`Understanding not found: ${understandingId}`);
   }
 
   async listTrashedContexts(): Promise<TrashedContextDTO[]> {
     const rows = await this.db.all<{
       id: string;
-      thought_id: string;
-      thought_title: string | null;
-      source_type: string;
-      source_name: string | null;
+      understanding_id: string;
+      understanding_title: string | null;
+      medium: string;
+      title: string | null;
       content: string;
       deleted_at: string;
     }>(sql`
       SELECT
         c.id,
-        c.thought_id,
-        t.title AS thought_title,
-        c.source_type,
-        c.source_name,
+        c.understanding_id,
+        t.title AS understanding_title,
+        c.medium,
+        c.title,
         c.content,
         c.deleted_at
       FROM contexts c
-      JOIN thoughts t ON t.id = c.thought_id
+      JOIN understandings t ON t.id = c.understanding_id
       WHERE c.deleted_at IS NOT NULL
         AND t.deleted_at IS NULL
       ORDER BY c.deleted_at DESC
@@ -151,10 +151,10 @@ export class ContextCore {
 
     return rows.map((r) => ({
       id: r.id,
-      thoughtId: r.thought_id,
-      thoughtTitle: r.thought_title ?? null,
-      sourceType: r.source_type as SourceType,
-      sourceName: r.source_name ?? null,
+      understandingId: r.understanding_id,
+      understandingTitle: r.understanding_title ?? null,
+      medium: r.medium as ContextMedium,
+      title: r.title ?? null,
       content: r.content,
       deletedAt: r.deleted_at,
     }));

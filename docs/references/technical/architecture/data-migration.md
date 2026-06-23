@@ -90,7 +90,7 @@ bun run dev:gui
 Drizzle schema 只描述普通业务表。SQLite FTS5 虚拟表由 SQL 负责创建：
 
 - prod：通过 `v1.0.0.sql` 创建。
-- dev：`db:push:dev` / `db:seed:dev` 会补齐 `fts_thoughts` 和 `fts_contexts`。
+- dev：`db:push:dev` / `db:seed:dev` 会补齐 `fts_understandings` 和 `fts_contexts`。
 
 业务写入时由 service 层维护 FTS 数据。
 

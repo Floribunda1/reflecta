@@ -12,11 +12,11 @@ import {
 
 export { buildContextCandidates, shouldSearchContexts, type ContextCandidate };
 
-export function listMentionThoughts(query: string) {
+export function listMentionUnderstandings(query: string) {
   const normalizedQuery = query.trim();
   return normalizedQuery
-    ? ipcClient.search.searchThoughts(normalizedQuery, { limit: CONTEXT_LOOKUP_LIMIT })
-    : ipcClient.thought.listThoughts({ limit: CONTEXT_LOOKUP_LIMIT });
+    ? ipcClient.search.searchUnderstandings(normalizedQuery, { limit: CONTEXT_LOOKUP_LIMIT })
+    : ipcClient.understanding.listUnderstandings({ limit: CONTEXT_LOOKUP_LIMIT });
 }
 
 export function useContextMentionLookup({
@@ -31,9 +31,9 @@ export function useContextMentionLookup({
   const enabled = open && !disabled;
   const debouncedQuery = useDebounce(query, { wait: 120 });
 
-  const contextThoughtsQuery = useQuery({
-    queryKey: ["agent.context.thoughts", debouncedQuery],
-    queryFn: () => listMentionThoughts(debouncedQuery),
+  const contextUnderstandingsQuery = useQuery({
+    queryKey: ["agent.context.understandings", debouncedQuery],
+    queryFn: () => listMentionUnderstandings(debouncedQuery),
     enabled,
   });
 
@@ -43,9 +43,9 @@ export function useContextMentionLookup({
     enabled: shouldSearchContexts(enabled, debouncedQuery),
   });
 
-  const categoriesQuery = useQuery({
-    queryKey: ["agent.context.categories"],
-    queryFn: () => ipcClient.category.listCategories(),
+  const domainsQuery = useQuery({
+    queryKey: ["agent.context.domains"],
+    queryFn: () => ipcClient.domain.listDomains(),
     enabled,
     staleTime: 60_000,
   });
@@ -65,15 +65,15 @@ export function useContextMentionLookup({
     candidates: enabled
       ? buildContextCandidates({
           query: debouncedQuery,
-          thoughts: contextThoughtsQuery.data ?? [],
+          understandings: contextUnderstandingsQuery.data ?? [],
           contexts: contextSearchQuery.data ?? [],
-          categories: categoriesQuery.data ?? [],
+          domains: domainsQuery.data ?? [],
           selected,
         })
       : [],
     loading:
-      contextThoughtsQuery.isFetching ||
+      contextUnderstandingsQuery.isFetching ||
       contextSearchQuery.isFetching ||
-      categoriesQuery.isFetching,
+      domainsQuery.isFetching,
   };
 }

@@ -1,31 +1,31 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { ipcClient } from "@renderer/utils/ipc";
-import type { ThoughtSummaryDTO } from "@shared/thought";
+import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import {
   buildContextCandidates,
   CONTEXT_LOOKUP_LIMIT,
   shouldSearchContexts,
   type ContextCandidate,
 } from "./context-candidates";
-import { listMentionThoughts } from "./context-mention-lookup";
+import { listMentionUnderstandings } from "./context-mention-lookup";
 
 vi.mock("@renderer/utils/ipc", () => ({
   ipcClient: {
     search: {
-      searchThoughts: vi.fn(),
+      searchUnderstandings: vi.fn(),
     },
-    thought: {
-      listThoughts: vi.fn(),
+    understanding: {
+      listUnderstandings: vi.fn(),
     },
   },
 }));
 
-function thought(id: string): ThoughtSummaryDTO {
+function understanding(id: string): UnderstandingSummaryDTO {
   return {
     id,
     title: id,
     body: "",
-    categoryIds: [],
+    domainIds: [],
     contextCount: 0,
     connectionCount: 0,
     connectionIds: [],
@@ -39,53 +39,63 @@ describe("context mention lookup", () => {
     vi.clearAllMocks();
   });
 
-  test("uses thought search for a non-empty query", async () => {
-    vi.mocked(ipcClient.search.searchThoughts).mockResolvedValue([thought("thought-search")]);
+  test("uses understanding search for a non-empty query", async () => {
+    vi.mocked(ipcClient.search.searchUnderstandings).mockResolvedValue([
+      understanding("understanding-search"),
+    ]);
 
-    await expect(listMentionThoughts(" beta ")).resolves.toEqual([thought("thought-search")]);
+    await expect(listMentionUnderstandings(" beta ")).resolves.toEqual([
+      understanding("understanding-search"),
+    ]);
 
-    expect(ipcClient.search.searchThoughts).toHaveBeenCalledWith("beta", {
+    expect(ipcClient.search.searchUnderstandings).toHaveBeenCalledWith("beta", {
       limit: CONTEXT_LOOKUP_LIMIT,
     });
-    expect(ipcClient.thought.listThoughts).not.toHaveBeenCalled();
+    expect(ipcClient.understanding.listUnderstandings).not.toHaveBeenCalled();
   });
 
-  test("uses recent thoughts for an empty query", async () => {
-    vi.mocked(ipcClient.thought.listThoughts).mockResolvedValue([thought("thought-recent")]);
+  test("uses recent understandings for an empty query", async () => {
+    vi.mocked(ipcClient.understanding.listUnderstandings).mockResolvedValue([
+      understanding("understanding-recent"),
+    ]);
 
-    await expect(listMentionThoughts("  ")).resolves.toEqual([thought("thought-recent")]);
+    await expect(listMentionUnderstandings("  ")).resolves.toEqual([
+      understanding("understanding-recent"),
+    ]);
 
-    expect(ipcClient.thought.listThoughts).toHaveBeenCalledWith({ limit: CONTEXT_LOOKUP_LIMIT });
-    expect(ipcClient.search.searchThoughts).not.toHaveBeenCalled();
+    expect(ipcClient.understanding.listUnderstandings).toHaveBeenCalledWith({
+      limit: CONTEXT_LOOKUP_LIMIT,
+    });
+    expect(ipcClient.search.searchUnderstandings).not.toHaveBeenCalled();
   });
 
-  test("orders thoughts, contexts, then filtered categories and removes selected refs", () => {
+  test("orders understandings, contexts, then filtered domains and removes selected refs", () => {
     const candidates = buildContextCandidates({
       query: "work",
-      thoughts: [
-        { id: "thought-1", title: "Thought A", body: "body a" },
-        { id: "thought-2", title: null, body: "fallback body" },
-      ] as Parameters<typeof buildContextCandidates>[0]["thoughts"],
+      understandings: [
+        { id: "understanding-1", title: "Understanding A", body: "body a" },
+        { id: "understanding-2", title: null, body: "fallback body" },
+      ] as Parameters<typeof buildContextCandidates>[0]["understandings"],
       contexts: [
         {
           contextId: "context-1",
-          sourceName: "Source A",
-          snippet: "a <mark>matched</mark> source",
+          title: "Context A",
+          snippet: "a <mark>matched</mark> context",
         },
       ] as Parameters<typeof buildContextCandidates>[0]["contexts"],
-      categories: [
-        { id: "category-1", name: "work", parentId: null },
-        { id: "category-2", name: "life", parentId: null },
-      ] as Parameters<typeof buildContextCandidates>[0]["categories"],
-      selected: [{ type: "thought", id: "thought-1" }],
+      domains: [
+        { id: "domain-1", name: "work", parentId: null },
+        { id: "domain-2", name: "life", parentId: null },
+      ] as Parameters<typeof buildContextCandidates>[0]["domains"],
+      selected: [{ type: "understanding", id: "understanding-1" }],
     });
 
     expect(candidates.map(candidateLabel)).toEqual([
-      "thought:thought-2:fallback body",
-      "context:context-1:Source A",
-      "category:category-1:work",
+      "understanding:understanding-2:fallback body",
+      "context:context-1:Context A",
+      "domain:domain-1:work",
     ]);
-    expect(candidates[1]?.subtitle).toBe("a matched source");
+    expect(candidates[1]?.subtitle).toBe("a matched context");
   });
 
   test("disables context search for empty query", () => {

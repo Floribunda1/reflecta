@@ -82,8 +82,8 @@
   场景: 用户在 Pi-backed session 中选择引用后发送消息
     假如用户已经用 Pi Agent runtime 进入 Agent 页面
     而且 Agent 当前可以正常回复
-    当用户选择 Thought 引用 React Server Components
-    而且用户选择 Category 引用 React
+    当用户选择 Understanding 引用 React Server Components
+    而且用户选择 Domain 引用 React
     而且用户发送消息 请比较这两个引用
     那么页面应该显示用户选择的两个引用
     而且最终应该出现一条 Agent 回复正文
@@ -116,7 +116,7 @@
   @P0 @result @AG-PI-TOOL-READ-001
   场景: 用户在 Pi-backed session 中使用只读知识库工具
     假如用户已经用 Pi Agent runtime 进入 Agent 页面
-    而且 seed 数据中存在 Thought「React Server Components」
+    而且 seed 数据中存在 Understanding「React Server Components」
     而且 Agent 当前可以正常回复
     当用户创建新对话
     而且用户要求 Agent 使用知识库搜索工具查找 React Server Components
@@ -127,49 +127,49 @@
     而且输入框应该可操作
 
   @P0 @proposal @AG-PI-PROPOSAL-REJECT-001
-  场景: 用户拒绝 Pi-backed session 中的候选 Thought
+  场景: 用户拒绝 Pi-backed session 中的候选 Understanding
     假如用户已经用 Pi Agent runtime 进入 Agent 页面
     而且 Agent 当前可以正常回复
     当用户创建新对话
-    而且用户要求 Agent 提出一个候选 Thought
-    那么页面应该显示待确认的候选 Thought 卡片
+    而且用户要求 Agent 提出一个候选 Understanding
+    那么页面应该显示待确认的候选 Understanding 卡片
     当用户点击拒绝
-    那么该候选 Thought 卡片应该显示已拒绝
+    那么该候选 Understanding 卡片应该显示已拒绝
     而且界面应该显示未写入知识库
-    而且知识库中不应该出现该候选 Thought
+    而且知识库中不应该出现该候选 Understanding
 
   @P0 @proposal @AG-PI-PROPOSAL-APPROVE-001
-  场景: 用户确认 Pi-backed session 中的候选 Thought
+  场景: 用户确认 Pi-backed session 中的候选 Understanding
     假如用户已经用 Pi Agent runtime 进入 Agent 页面
     而且 Agent 当前可以正常回复
     当用户创建新对话
-    而且用户要求 Agent 提出一个候选 Thought
-    那么页面应该显示待确认的候选 Thought 卡片
+    而且用户要求 Agent 提出一个候选 Understanding
+    那么页面应该显示待确认的候选 Understanding 卡片
     当用户点击确认
-    那么该候选 Thought 卡片应该显示已确认
+    那么该候选 Understanding 卡片应该显示已确认
     而且界面应该显示已写入结果
-    而且知识库中应该出现该候选 Thought
+    而且知识库中应该出现该候选 Understanding
 
-  @P0 @proposal @AG-PI-PROPOSAL-CATEGORY-001
-  场景: 用户确认 Pi-backed session 中的候选 Category
+  @P0 @proposal @AG-PI-PROPOSAL-DOMAIN-001
+  场景: 用户确认 Pi-backed session 中的候选 Domain
     假如用户已经用 Pi Agent runtime 进入 Agent 页面
     而且 Agent 当前可以正常回复
     当用户创建新对话
-    而且用户要求 Agent 提出一个候选 Category
-    那么页面应该显示待确认的候选 Category 卡片
+    而且用户要求 Agent 提出一个候选 Domain
+    那么页面应该显示待确认的候选 Domain 卡片
     当用户点击确认
-    那么该候选 Category 卡片应该显示已确认
+    那么该候选 Domain 卡片应该显示已确认
     而且界面应该显示已写入结果
-    而且知识库中应该出现该候选 Category
+    而且知识库中应该出现该候选 Domain
 
   @P0 @proposal @recovery @AG-PI-PROPOSAL-RELOAD-001
-  场景: 用户重启后仍能处理等待确认的候选 Thought
+  场景: 用户重启后仍能处理等待确认的候选 Understanding
     假如用户已经用 Pi Agent runtime 进入 Agent 页面
-    而且 Agent 已经提出一个待确认的候选 Thought
+    而且 Agent 已经提出一个待确认的候选 Understanding
     当用户关闭并重新打开 Reflecta 应用
     而且用户重新进入 Agent 页面
     而且用户打开原对话
-    那么页面应该仍显示待确认的候选 Thought 卡片
+    那么页面应该仍显示待确认的候选 Understanding 卡片
     当用户点击拒绝
-    那么该候选 Thought 卡片应该显示已拒绝
-    而且知识库中不应该出现该候选 Thought
+    那么该候选 Understanding 卡片应该显示已拒绝
+    而且知识库中不应该出现该候选 Understanding

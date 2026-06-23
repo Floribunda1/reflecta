@@ -2,7 +2,7 @@ import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { shell } from "electron";
 import { getDBInstance } from "@main/db";
-import { contexts, thoughts } from "@reflecta/server";
+import { contexts, understandings } from "@reflecta/server";
 import type { OrphanAssetInfo } from "@shared/asset";
 import { IpcMethod, IpcService } from "electron-ipc-decorator";
 import { nanoid } from "nanoid";
@@ -41,16 +41,16 @@ export class AssetService extends IpcService {
     // Collect all files present on disk
     const diskFiles = await readdir(assetsDir);
 
-    // Collect all asset references from thoughts and contexts (including soft-deleted,
+    // Collect all asset references from understandings and contexts (including soft-deleted,
     // so we don't accidentally remove assets still referenced in trash)
     const db = getDBInstance();
-    const [thoughtRows, contextRows] = await Promise.all([
-      db.select({ body: thoughts.body }).from(thoughts),
+    const [understandingRows, contextRows] = await Promise.all([
+      db.select({ body: understandings.body }).from(understandings),
       db.select({ content: contexts.content }).from(contexts),
     ]);
 
     const referenced = new Set<string>();
-    for (const row of thoughtRows) {
+    for (const row of understandingRows) {
       for (const ref of extractAssetRefs(row.body)) referenced.add(ref);
     }
     for (const row of contextRows) {

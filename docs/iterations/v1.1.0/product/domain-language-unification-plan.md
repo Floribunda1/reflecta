@@ -11,17 +11,17 @@
 现在项目里的核心名词已经混在一起：
 
 ```txt
-Thought / Understanding / 理解
+Understanding / Understanding / 理解
 Context / Source / 来源 / 上下文
-Category / Domain / 领域 / 分类
+Domain / Domain / 领域 / 分类
 Connection / graph / reference / relation
 ```
 
 这个问题不是文案问题。它会直接影响产品心智：
 
-- 用户到底是在管理 Thought，还是在沉淀 Understanding？
+- 用户到底是在管理 Understanding，还是在沉淀 Understanding？
 - Context 是来源字段，还是围绕一个 Understanding 的完整上下文？
-- Category 是分类目录，还是用户长期回看的 Domain？
+- Domain 是分类目录，还是用户长期回看的 Domain？
 - Agent 创建的是数据对象，还是提交一个用户可确认的理解候选？
 
 v1.1.0 这一版的目标不是“少改代码”，而是把最终产品呈现成一套统一语言。
@@ -55,13 +55,12 @@ Context 是围绕某个 Understanding 的具象上下文。
 - 挑战：让这个 Understanding 出现边界、例外或冲突的场景。
 - 修正：促使用户改写、变窄或深化这个 Understanding 的场景。
 
-所以 `Source` 不能作为一等概念。`sourceType/sourceName` 这种命名会把 Context 降级成 citation metadata。
+所以 `Source` 不能作为一等概念。`medium/title` 这种命名会把 Context 降级成 citation metadata。
 
 更准确的数据语言应该是：
 
 ```txt
 Context
-  - role: origin | support | application | challenge | revision | related
   - medium: experience | video | book | article | opinion | ai | other
   - title
   - content
@@ -92,17 +91,17 @@ Domain 是用户长期回看一组 Understanding 的领域语境。
 - 产品设计
 - 行为设计
 
-当前代码里的 `Category` 更像实现名。v1.1.0 的最终产品语言应收敛到 `Domain`。
+当前代码里的 `Domain` 更像实现名。v1.1.0 的最终产品语言应收敛到 `Domain`。
 
 ## 3. 不再使用的概念边界
 
-### 不把 Thought 当产品名
+### 不把 Understanding 当产品名
 
-`Thought` 太轻，容易让用户理解成灵感、念头、碎片想法。
+`Understanding` 太轻，容易让用户理解成灵感、念头、碎片想法。
 
 产品层统一使用 `Understanding / 理解`。
 
-如果迁移过程中保留 `thoughts` 表或 `ThoughtDTO`，只能是短期中间态。退出条件必须是公共模型、Agent、UI、测试中不再暴露 Thought 作为产品名。
+如果迁移过程中保留 `understandings` 表或 `UnderstandingDTO`，只能是短期中间态。退出条件必须是公共模型、Agent、UI、测试中不再暴露 Understanding 作为产品名。
 
 ### 不把 Source 当 Context
 
@@ -118,9 +117,9 @@ sourceStatus
 
 这些名字会把 Context 拉回“来源证据”，和这次修正后的模型冲突。
 
-### 不把 Category 当用户语言
+### 不把 Domain 当用户语言
 
-`Category` 是信息管理味道，适合作为旧实现名，不适合作为最终产品语言。
+`Domain` 是信息管理味道，适合作为旧实现名，不适合作为最终产品语言。
 
 产品层统一使用 `Domain / 领域`。
 
@@ -138,25 +137,25 @@ sourceStatus
 
 一次粗扫命中约 182 个文件，里面包含 React context、model context window 等 false positive。实际需要迁移的区域至少有 12 个。
 
-| 区域                                                      | 当前影响                                                                    | 目标                                               |
-| --------------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------- |
-| `CONTEXT.md`                                              | 缺少核心产品 glossary                                                       | 补上 Understanding / Context / Connection / Domain |
-| `docs/references/product/value-proposition.md`            | 混用 Thought、Context 来源、领域等表达                                      | 改成统一产品语言                                   |
-| `docs/iterations/v1.1.0/*`                                | 已有计划使用 Thought、Understanding、source evidence、Category、Domain 混杂 | 全部改成统一术语                                   |
-| `packages/skills/skills/cli-usage`                        | skill reference 仍把 Context 说成背景、来源、证据或补充材料                 | 改成 Understanding + Context lifecycle             |
-| `packages/server/src/domains/thought`                     | domain module 以 Thought 命名                                               | 迁到 Understanding domain                          |
-| `packages/server/src/domains/context`                     | 字段是 `sourceType/sourceName`                                              | 改成 `role/medium/title/content`                   |
-| `packages/server/src/domains/category`                    | domain module 以 Category 命名                                              | 迁到 Domain domain                                 |
-| `packages/server/src/domains/graph/search/snapshot/trash` | 搜索、图、概览和回收站都引用旧实体名                                        | 跟随核心模型迁移                                   |
-| `apps/electron/src/preload/typings`                       | IPC 类型暴露 Thought/Category/ContextRef                                    | 改成 Understanding/Domain/SelectedReference        |
-| `apps/electron/src/main/services/agent`                   | Pi tools/prompt 暴露 Thought、Category、source evidence                     | 改成 propose/read/find Understanding + Context     |
-| `apps/electron/src/renderer/src/modules/capture`          | UI 已经部分用“理解/领域”，但代码和 Context UI 仍混用 Source                 | UI、状态、组件统一                                 |
-| `apps/electron/src/renderer/src/modules/chat`             | Agent context refs、tool display、proposal card 旧名混杂                    | 统一到产品语言                                     |
-| `apps/electron/e2e/agent`                                 | feature/spec 里仍有旧工具名和旧对象名                                       | 改成用户语言的测试路径                             |
+| 区域                                                      | 当前影响                                                                        | 目标                                               |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `CONTEXT.md`                                              | 缺少核心产品 glossary                                                           | 补上 Understanding / Context / Connection / Domain |
+| `docs/references/product/value-proposition.md`            | 混用 Understanding、Context 来源、领域等表达                                    | 改成统一产品语言                                   |
+| `docs/iterations/v1.1.0/*`                                | 已有计划使用 Understanding、Understanding、source evidence、Domain、Domain 混杂 | 全部改成统一术语                                   |
+| `packages/skills/skills/cli-usage`                        | skill reference 仍把 Context 说成背景、来源、证据或补充材料                     | 改成 Understanding + Context lifecycle             |
+| `packages/server/src/domains/understanding`               | domain module 以 Understanding 命名                                             | 迁到 Understanding domain                          |
+| `packages/server/src/domains/context`                     | 字段是 `medium/title`                                                           | 改成 `medium/title/content`                        |
+| `packages/server/src/domains/domain`                      | domain module 以 Domain 命名                                                    | 迁到 Domain domain                                 |
+| `packages/server/src/domains/graph/search/snapshot/trash` | 搜索、图、概览和回收站都引用旧实体名                                            | 跟随核心模型迁移                                   |
+| `apps/electron/src/preload/typings`                       | IPC 类型暴露 Understanding/Domain/ContextRef                                    | 改成 Understanding/Domain/SelectedReference        |
+| `apps/electron/src/main/services/agent`                   | Pi tools/prompt 暴露 Understanding、Domain、source evidence                     | 改成 propose/read/find Understanding + Context     |
+| `apps/electron/src/renderer/src/modules/capture`          | UI 已经部分用“理解/领域”，但代码和 Context UI 仍混用 Source                     | UI、状态、组件统一                                 |
+| `apps/electron/src/renderer/src/modules/chat`             | Agent context refs、tool display、proposal card 旧名混杂                        | 统一到产品语言                                     |
+| `apps/electron/e2e/agent`                                 | feature/spec 里仍有旧工具名和旧对象名                                           | 改成用户语言的测试路径                             |
 
 ## 5. 目标数据模型
 
-目标不是在 UI 上把 `Thought` 显示成“理解”，而是让公共模型本身变成产品语言。
+目标不是在 UI 上把 `Understanding` 显示成“理解”，而是让公共模型本身变成产品语言。
 
 ```ts
 type Understanding = {
@@ -171,7 +170,6 @@ type Understanding = {
 type Context = {
   id: string;
   understandingId: string;
-  role: "origin" | "support" | "application" | "challenge" | "revision" | "related";
   medium: "experience" | "video" | "book" | "article" | "opinion" | "ai" | "other";
   title?: string;
   content: string;
@@ -196,9 +194,9 @@ type Domain = {
 实现可以分 phase，但最终不能留下长期双模型：
 
 ```txt
-ThoughtDTO -> UnderstandingDTO mapper
-CategoryDTO -> DomainDTO mapper
-sourceType/sourceName -> context medium/title mapper
+UnderstandingDTO -> UnderstandingDTO mapper
+DomainDTO -> DomainDTO mapper
+medium/title -> context medium/title mapper
 ```
 
 这些只能作为迁移过程中的临时结构，不能作为 v1.1.0 退出状态。
@@ -214,7 +212,7 @@ sourceType/sourceName -> context medium/title mapper
 改动：
 
 - 更新 `CONTEXT.md`，新增四个核心术语：Understanding、Context、Connection、Domain。
-- 更新 `docs/references/product/value-proposition.md`，把 Thought/来源/Category 的表达修正为统一语言。
+- 更新 `docs/references/product/value-proposition.md`，把 Understanding/来源/Domain 的表达修正为统一语言。
 - 更新 `packages/skills/skills/cli-usage/references/reflecta-concepts.md`。
 - 更新 v1.1.0 已有 plan，去掉 `sourceEvidence/sourceContext/retrieve_understanding/thought_capture` 这类混乱命名。
 
@@ -226,33 +224,33 @@ sourceType/sourceName -> context medium/title mapper
 退出条件：
 
 - 任何人先读 glossary，都能知道四个一等概念是什么。
-- 文档里不再一会儿 Thought，一会儿 Understanding。
+- 文档里不再一会儿 Understanding，一会儿 Understanding。
 
-### Phase 2：把 Thought 迁成 Understanding
+### Phase 2：把 Understanding 迁成 Understanding
 
 目标：用户和公共模型都只看到 Understanding。
 
 改动：
 
-- `thoughts` 表迁移为 `understandings`。
-- `thought_connections` 迁移为 `understanding_connections`。
-- `thought_categories` 迁移为 `understanding_domains`。
-- `packages/server/src/domains/thought` 迁移到 `understanding`。
-- `ThoughtDTO/CreateThoughtInput/UpdateThoughtInput` 迁移为 `UnderstandingDTO/CreateUnderstandingInput/UpdateUnderstandingInput`。
+- `understandings` 表迁移为 `understandings`。
+- `understanding_connections` 迁移为 `understanding_connections`。
+- `understanding_domains` 迁移为 `understanding_domains`。
+- `packages/server/src/domains/understanding` 迁移到 `understanding`。
+- `UnderstandingDTO/CreateUnderstandingInput/UpdateUnderstandingInput` 迁移为 `UnderstandingDTO/CreateUnderstandingInput/UpdateUnderstandingInput`。
 - preload typings、IPC、renderer queries、capture UI 同步迁移。
-- markdown/wiki link 从 `[[thought:...]]` 迁到 `[[understanding:...]]`，并明确是否需要一次性迁移旧 body。
+- markdown/wiki link 从 `[[understanding:...]]` 迁到 `[[understanding:...]]`，并明确是否需要一次性迁移旧 body。
 
 测试：
 
-- migration test：旧 `thoughts` 数据迁移后完整保留。
+- migration test：旧 `understandings` 数据迁移后完整保留。
 - domain test：创建、更新、删除 Understanding。
 - renderer test：列表、详情、删除确认都显示“理解”。
 - e2e：用户创建一条理解，刷新后仍能看到。
 
 退出条件：
 
-- 公共类型、IPC、UI、测试中不再暴露 `Thought`。
-- `Thought` 只允许出现在旧 migration 文件或迁移说明里。
+- 公共类型、IPC、UI、测试中不再暴露 `Understanding`。
+- `Understanding` 只允许出现在旧 migration 文件或迁移说明里。
 
 ### Phase 3：把 Context 从 Source 语义里解出来
 
@@ -260,24 +258,22 @@ sourceType/sourceName -> context medium/title mapper
 
 改动：
 
-- `contexts.sourceType` 迁移为 `contexts.medium`。
-- `contexts.sourceName` 迁移为 `contexts.title`。
-- 新增 `contexts.role`，默认迁移值为 `origin`，因为旧数据大多表达形成来源。
-- Context create/update UI 支持选择 role 和 medium。
-- Capture 详情页把“来源”改成“上下文”，并展示 role。
-- Agent proposal card 不再说 source status，而是展示 proposed Context role。
+- `contexts.medium` 迁移为 `contexts.medium`。
+- `contexts.title` 迁移为 `contexts.title`。
+- Context create/update UI 支持选择 medium。
+- Capture 详情页把“来源”改成“上下文”。
+- Agent proposal card 不再说 source status，而是展示 proposed Context。
 
 测试：
 
-- migration test：旧 Context 的 sourceType/sourceName 迁成 medium/title。
-- unit：Context role label 映射稳定。
-- e2e：用户给一个 Understanding 添加“支撑”或“挑战”Context，刷新后 role 保留。
+- migration test：旧 Context 的 medium/title 迁成 medium/title。
+- e2e：用户给一个 Understanding 添加 Context，刷新后 medium/title/content 保留。
 
 退出条件：
 
 - 产品 UI 不再把 Context 叫“来源”。
 - 代码里不再有 `sourceContext/sourceEvidence/sourceStatus`。
-- `SourceType` 类型被替换为 Context medium。
+- `ContextMedium` 类型被替换为 Context medium。
 
 ### Phase 4：把 Category 迁成 Domain
 
@@ -322,7 +318,7 @@ inspect_domain
 - `find_understandings` 返回 Understanding candidates，并把命中的 Context 放在 `matchedContexts` 里。
 - 不使用 `sourceEvidence`。
 - `propose_understanding` 只提交候选，不直接写入。
-- 如果 proposal 包含 Context，必须说明 Context role。
+- 如果 proposal 包含 Context，必须说明 Context 的 title、medium 和 content。
 - Connection 只能作为候选建议，不能自动写入。
 
 测试：
@@ -390,7 +386,7 @@ rg "Thought|thought_|Category|category_|sourceEvidence|sourceContext|sourceStatu
 - 用户路径是否只出现统一语言。
 - 旧数据迁移后语义是否保留。
 - Agent 是否用统一语言提交 proposal。
-- reload 后 Understanding、Context role、Domain 关系仍然存在。
+- reload 后 Understanding、Context、Domain 关系仍然存在。
 
 ## 8. 风险
 
@@ -400,19 +396,7 @@ rg "Thought|thought_|Category|category_|sourceEvidence|sourceContext|sourceStatu
 
 解决方式：按概念逐个闭环，不同时改四个名词。
 
-### 风险 2：Context role 设计过细
-
-如果 role 太多，用户创建 Context 时会有负担。
-
-第一版 role 可以只在数据和 Agent proposal 中存在，UI 可以提供少量默认项：
-
-```txt
-形成 / 支撑 / 应用 / 挑战 / 修正
-```
-
-`related` 作为兜底，不在主 UI 强推。
-
-### 风险 3：技术 context 混淆
+### 风险 2：技术 context 混淆
 
 `Context` 同时是产品对象、AI 上下文、React 技术概念。
 
@@ -438,8 +422,8 @@ Agent 说：理解 / 上下文 / 连接 / 领域
 不是：
 
 ```txt
-UI 叫理解，但代码叫 Thought
-UI 叫领域，但 Agent tool 叫 category
+UI 叫理解，但代码叫 Understanding
+UI 叫领域，但 Agent tool 叫 domain
 Context 页面叫上下文，但字段叫 source
 Agent 搜索返回 source evidence
 ```

@@ -120,31 +120,31 @@ export function queryDbOne<T extends Record<string, unknown> = Record<string, un
 }
 
 /**
- * Get the ID of a thought by its title.
+ * Get the ID of a understanding by its title.
  */
-export function getThoughtId(title: string): string | undefined {
+export function getUnderstandingId(title: string): string | undefined {
   const row = queryDbOne<{ id: string }>(
-    `SELECT id FROM thoughts WHERE title = '${title.replace(/'/g, "''")}' AND deleted_at IS NULL`,
+    `SELECT id FROM understandings WHERE title = '${title.replace(/'/g, "''")}' AND deleted_at IS NULL`,
   );
   return row?.id;
 }
 
 /**
- * Get the ID of a category by its name.
+ * Get the ID of a domain by its name.
  */
-export function getCategoryId(name: string): string | undefined {
+export function getDomainId(name: string): string | undefined {
   const row = queryDbOne<{ id: string }>(
-    `SELECT id FROM categories WHERE name = '${name.replace(/'/g, "''")}'`,
+    `SELECT id FROM domains WHERE name = '${name.replace(/'/g, "''")}'`,
   );
   return row?.id;
 }
 
 /**
- * Get the ID of a deleted thought by its title.
+ * Get the ID of a deleted understanding by its title.
  */
-export function getDeletedThoughtId(title: string): string | undefined {
+export function getDeletedUnderstandingId(title: string): string | undefined {
   const row = queryDbOne<{ id: string }>(
-    `SELECT id FROM thoughts WHERE title = '${title.replace(/'/g, "''")}' AND deleted_at IS NOT NULL`,
+    `SELECT id FROM understandings WHERE title = '${title.replace(/'/g, "''")}' AND deleted_at IS NOT NULL`,
   );
   return row?.id;
 }
@@ -152,9 +152,9 @@ export function getDeletedThoughtId(title: string): string | undefined {
 /**
  * Get the ID of a context by its source name.
  */
-export function getContextId(sourceName: string): string | undefined {
+export function getContextId(title: string): string | undefined {
   const row = queryDbOne<{ id: string }>(
-    `SELECT id FROM contexts WHERE source_name = '${sourceName.replace(/'/g, "''")}' AND deleted_at IS NULL`,
+    `SELECT id FROM contexts WHERE title = '${title.replace(/'/g, "''")}' AND deleted_at IS NULL`,
   );
   return row?.id;
 }

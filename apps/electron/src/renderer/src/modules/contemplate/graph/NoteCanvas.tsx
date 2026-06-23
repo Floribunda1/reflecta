@@ -12,17 +12,17 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import type { Category } from "@shared/category";
-import type { ThoughtSummaryDTO } from "@shared/thought";
+import type { Domain } from "@shared/domain";
+import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import { cn } from "@renderer/lib/utils";
 import { layoutDagreGraph, type DagreLayoutEdge } from "./dagre-layout";
 
 type NoteNodeData = {
   kind: "note";
-  thought: ThoughtSummaryDTO;
+  understanding: UnderstandingSummaryDTO;
   title: string;
   excerpt: string;
-  categoryLabel: string;
+  domainLabel: string;
   external: boolean;
   selected: boolean;
 };
@@ -39,7 +39,7 @@ type GroupNodeData = {
 
 type NoteCanvasNodeData = NoteNodeData | GroupNodeData;
 
-type NoteFlowNode = Node<NoteCanvasNodeData, "note" | "categoryGroup">;
+type NoteFlowNode = Node<NoteCanvasNodeData, "note" | "domainGroup">;
 
 type Link = {
   source: string;
@@ -82,35 +82,35 @@ function edgeMarker(color: string) {
   };
 }
 
-function titleForThought(thought: ThoughtSummaryDTO) {
-  const title = thought.title?.trim();
+function titleForUnderstanding(understanding: UnderstandingSummaryDTO) {
+  const title = understanding.title?.trim();
   if (title) return title;
   return (
-    thought.body
+    understanding.body
       .split("\n")
       .map((line) => line.trim())
       .find(Boolean) || "未命名理解"
   );
 }
 
-function excerptForThought(thought: ThoughtSummaryDTO) {
-  const body = thought.body.replace(/\s+/g, " ").trim();
+function excerptForUnderstanding(understanding: UnderstandingSummaryDTO) {
+  const body = understanding.body.replace(/\s+/g, " ").trim();
   if (!body) return "暂无正文。";
   return body.length > 132 ? `${body.slice(0, 132)}...` : body;
 }
 
-function buildLinks(thoughts: ThoughtSummaryDTO[]): Link[] {
-  const ids = new Set(thoughts.map((thought) => thought.id));
+function buildLinks(understandings: UnderstandingSummaryDTO[]): Link[] {
+  const ids = new Set(understandings.map((understanding) => understanding.id));
   const seen = new Set<string>();
   const links: Link[] = [];
 
-  for (const thought of thoughts) {
-    for (const targetId of thought.connectionIds) {
-      if (!ids.has(targetId) || targetId === thought.id) continue;
-      const key = `${thought.id}->${targetId}`;
+  for (const understanding of understandings) {
+    for (const targetId of understanding.connectionIds) {
+      if (!ids.has(targetId) || targetId === understanding.id) continue;
+      const key = `${understanding.id}->${targetId}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      links.push({ source: thought.id, target: targetId });
+      links.push({ source: understanding.id, target: targetId });
     }
   }
 
@@ -118,23 +118,28 @@ function buildLinks(thoughts: ThoughtSummaryDTO[]): Link[] {
 }
 
 function layoutNodes(
-  thoughts: ThoughtSummaryDTO[],
+  understandings: UnderstandingSummaryDTO[],
   links: Link[],
   focusIds: Set<string>,
-  categories: Category[],
-  selectedThoughtId: string | null,
+  domains: Domain[],
+  selectedUnderstandingId: string | null,
 ) {
-  const categoryById = new Map(categories.map((category) => [category.id, category]));
-  const thoughtById = new Map(thoughts.map((thought) => [thought.id, thought]));
-  const categoryByThoughtId = new Map(
-    thoughts.map((thought) => [thought.id, thought.categoryIds[0] ?? "uncategorized"]),
+  const domainById = new Map(domains.map((domain) => [domain.id, domain]));
+  const understandingById = new Map(
+    understandings.map((understanding) => [understanding.id, understanding]),
+  );
+  const domainByUnderstandingId = new Map(
+    understandings.map((understanding) => [
+      understanding.id,
+      understanding.domainIds[0] ?? "uncategorized",
+    ]),
   );
 
   const pushNode = (id: string, x: number, y: number) => {
-    const thought = thoughtById.get(id);
-    if (!thought) return null;
-    const categoryId = thought.categoryIds[0];
-    const categoryLabel = categoryId ? categoryBreadcrumb(categoryId) : "未归类";
+    const understanding = understandingById.get(id);
+    if (!understanding) return null;
+    const domainId = understanding.domainIds[0];
+    const domainLabel = domainId ? domainBreadcrumb(domainId) : "未归类";
     return {
       id,
       type: "note",
@@ -143,40 +148,40 @@ function layoutNodes(
       height: NODE_H,
       data: {
         kind: "note",
-        thought,
-        title: titleForThought(thought),
-        excerpt: excerptForThought(thought),
-        categoryLabel,
+        understanding,
+        title: titleForUnderstanding(understanding),
+        excerpt: excerptForUnderstanding(understanding),
+        domainLabel,
         external: !focusIds.has(id),
-        selected: selectedThoughtId === id,
+        selected: selectedUnderstandingId === id,
       },
     } satisfies NoteFlowNode;
   };
 
-  function categoryLabel(categoryId: string) {
-    if (categoryId === "uncategorized") return "未归类";
-    return categoryById.get(categoryId)?.name ?? "未命名 Category";
+  function domainLabel(domainId: string) {
+    if (domainId === "uncategorized") return "未归类";
+    return domainById.get(domainId)?.name ?? "未命名 Domain";
   }
 
-  function categoryBreadcrumb(categoryId: string) {
+  function domainBreadcrumb(domainId: string) {
     const names: string[] = [];
     const seen = new Set<string>();
-    let current = categoryById.get(categoryId);
+    let current = domainById.get(domainId);
     while (current && !seen.has(current.id)) {
       seen.add(current.id);
       names.unshift(current.name);
-      current = current.parentId ? categoryById.get(current.parentId) : undefined;
+      current = current.parentId ? domainById.get(current.parentId) : undefined;
     }
-    return names.join(" / ") || "未命名 Category";
+    return names.join(" / ") || "未命名 Domain";
   }
 
   const groupedIds = new Map<string, string[]>();
-  for (const thought of thoughts) {
-    const categoryId = thought.categoryIds[0] ?? "uncategorized";
-    groupedIds.set(categoryId, [...(groupedIds.get(categoryId) ?? []), thought.id]);
+  for (const understanding of understandings) {
+    const domainId = understanding.domainIds[0] ?? "uncategorized";
+    groupedIds.set(domainId, [...(groupedIds.get(domainId) ?? []), understanding.id]);
   }
 
-  const groups = [...groupedIds.entries()].map(([categoryId, ids], index) => {
+  const groups = [...groupedIds.entries()].map(([domainId, ids], index) => {
     const idSet = new Set(ids);
     const positions = layoutDagreGraph(
       ids.map((id) => ({ id, width: NODE_W, height: NODE_H })),
@@ -192,12 +197,12 @@ function layoutNodes(
     const height =
       Math.max(...nodes.map((node) => node.position.y + NODE_H), NODE_H) + LANE_PAD_BOTTOM;
     return {
-      id: categoryId,
+      id: domainId,
       nodes,
       lane: {
-        id: `category:${index}:${categoryId}`,
-        label: categoryLabel(categoryId),
-        breadcrumb: categoryBreadcrumb(categoryId),
+        id: `domain:${index}:${domainId}`,
+        label: domainLabel(domainId),
+        breadcrumb: domainBreadcrumb(domainId),
         count: nodes.length,
         external: nodes.every((node) => node.data.kind === "note" && node.data.external),
         x: 0,
@@ -211,8 +216,8 @@ function layoutNodes(
   const groupEdgeKeys = new Set<string>();
   const groupEdges: DagreLayoutEdge[] = [];
   for (const link of links) {
-    const source = categoryByThoughtId.get(link.source);
-    const target = categoryByThoughtId.get(link.target);
+    const source = domainByUnderstandingId.get(link.source);
+    const target = domainByUnderstandingId.get(link.target);
     if (!source || !target || source === target) continue;
     const key = `${source}->${target}`;
     if (groupEdgeKeys.has(key)) continue;
@@ -248,7 +253,7 @@ function addGroupNodes(layout: LayoutResult): NoteFlowNode[] {
   const groupNodes: NoteFlowNode[] = layout.lanes.map((lane) => {
     return {
       id: `group:${lane.id}`,
-      type: "categoryGroup",
+      type: "domainGroup",
       position: {
         x: lane.x,
         y: lane.y,
@@ -276,11 +281,12 @@ function addGroupNodes(layout: LayoutResult): NoteFlowNode[] {
 function buildEdges(
   links: Link[],
   focusIds: Set<string>,
-  selectedThoughtId: string | null,
+  selectedUnderstandingId: string | null,
 ): Edge[] {
   return links.map((link) => {
     const crossDomain = focusIds.has(link.source) !== focusIds.has(link.target);
-    const active = selectedThoughtId === link.source || selectedThoughtId === link.target;
+    const active =
+      selectedUnderstandingId === link.source || selectedUnderstandingId === link.target;
     const stroke = active ? "var(--primary)" : crossDomain ? "var(--ring)" : "var(--border)";
     return {
       id: `${link.source}->${link.target}`,
@@ -323,13 +329,15 @@ function NoteCard({ data }: NodeProps<Node<NoteNodeData, "note">>) {
         <div className="line-clamp-2 min-w-0 flex-1 text-sm font-semibold leading-5">
           {data.title}
         </div>
-        {!data.thought.contextCount && <span className="mt-1 size-2 rounded-full bg-amber-500" />}
+        {!data.understanding.contextCount && (
+          <span className="mt-1 size-2 rounded-full bg-amber-500" />
+        )}
       </div>
       <div className="mt-2 line-clamp-3 text-xs leading-5 text-muted-foreground">
         {data.excerpt}
       </div>
       <div className="mt-3 flex items-center gap-2 text-[10px] text-muted-foreground">
-        <span>{data.categoryLabel}</span>
+        <span>{data.domainLabel}</span>
         {data.external && (
           <>
             <span aria-hidden>·</span>
@@ -341,7 +349,7 @@ function NoteCard({ data }: NodeProps<Node<NoteNodeData, "note">>) {
   );
 }
 
-function GroupBox({ data }: NodeProps<Node<GroupNodeData, "categoryGroup">>) {
+function GroupBox({ data }: NodeProps<Node<GroupNodeData, "domainGroup">>) {
   return (
     <div
       className={cn(
@@ -357,7 +365,7 @@ function GroupBox({ data }: NodeProps<Node<GroupNodeData, "categoryGroup">>) {
   );
 }
 
-const NODE_TYPES = { note: NoteCard, categoryGroup: GroupBox };
+const NODE_TYPES = { note: NoteCard, domainGroup: GroupBox };
 
 function miniMapNodeColor(node: NoteFlowNode) {
   if (node.data.kind === "group") return "transparent";
@@ -372,30 +380,31 @@ function miniMapNodeStrokeColor(node: NoteFlowNode) {
 }
 
 export function NoteCanvas({
-  thoughts,
-  focusThoughts,
-  categories,
-  selectedThoughtId,
-  onSelectThought,
+  understandings,
+  focusUnderstandings,
+  domains,
+  selectedUnderstandingId,
+  onSelectUnderstanding,
 }: {
-  thoughts: ThoughtSummaryDTO[];
-  focusThoughts: ThoughtSummaryDTO[];
-  categories: Category[];
-  selectedThoughtId: string | null;
-  onSelectThought: (id: string | null) => void;
+  understandings: UnderstandingSummaryDTO[];
+  focusUnderstandings: UnderstandingSummaryDTO[];
+  domains: Domain[];
+  selectedUnderstandingId: string | null;
+  onSelectUnderstanding: (id: string | null) => void;
 }) {
   const focusIds = useMemo(
-    () => new Set(focusThoughts.map((thought) => thought.id)),
-    [focusThoughts],
+    () => new Set(focusUnderstandings.map((understanding) => understanding.id)),
+    [focusUnderstandings],
   );
-  const links = useMemo(() => buildLinks(thoughts), [thoughts]);
+  const links = useMemo(() => buildLinks(understandings), [understandings]);
   const nodes = useMemo(
-    () => addGroupNodes(layoutNodes(thoughts, links, focusIds, categories, selectedThoughtId)),
-    [thoughts, links, focusIds, categories, selectedThoughtId],
+    () =>
+      addGroupNodes(layoutNodes(understandings, links, focusIds, domains, selectedUnderstandingId)),
+    [understandings, links, focusIds, domains, selectedUnderstandingId],
   );
   const edges = useMemo(
-    () => buildEdges(links, focusIds, selectedThoughtId),
-    [links, focusIds, selectedThoughtId],
+    () => buildEdges(links, focusIds, selectedUnderstandingId),
+    [links, focusIds, selectedUnderstandingId],
   );
 
   return (
@@ -406,9 +415,9 @@ export function NoteCanvas({
       edges={edges}
       nodeTypes={NODE_TYPES}
       onNodeClick={(_, node) => {
-        if (node.data.kind === "note") onSelectThought(node.id);
+        if (node.data.kind === "note") onSelectUnderstanding(node.id);
       }}
-      onPaneClick={() => onSelectThought(null)}
+      onPaneClick={() => onSelectUnderstanding(null)}
       fitView
       fitViewOptions={{ padding: 0.24 }}
       minZoom={0.2}

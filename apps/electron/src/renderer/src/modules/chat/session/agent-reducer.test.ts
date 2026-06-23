@@ -93,7 +93,7 @@ describe("reduceAgentSession", () => {
         messageId: "assistant_1",
         toolCallId: "tool_1",
         toolName: "search_all",
-        output: { thoughts: [{ id: "thought_1" }], contexts: [] },
+        output: { understandings: [{ id: "understanding_1" }], contexts: [] },
       },
       {
         ...base,
@@ -118,7 +118,7 @@ describe("reduceAgentSession", () => {
       toolName: "search_all",
       state: "completed",
       input: { query: "React Server Components" },
-      output: { thoughts: [{ id: "thought_1" }], contexts: [] },
+      output: { understandings: [{ id: "understanding_1" }], contexts: [] },
     });
     expect(reduceAgentSession(events)).toEqual(state);
   });
@@ -148,7 +148,7 @@ describe("reduceAgentSession", () => {
         messageId: "assistant_1",
         toolCallId: "tool_1",
         toolName: "search_all",
-        output: { thoughts: [{ id: "thought_1" }] },
+        output: { understandings: [{ id: "understanding_1" }] },
       },
       {
         ...base,
@@ -163,7 +163,7 @@ describe("reduceAgentSession", () => {
         type: "tool.started",
         messageId: "assistant_1",
         toolCallId: "tool_2",
-        toolName: "thought_get",
+        toolName: "understanding_get",
       },
       {
         ...base,
@@ -171,8 +171,8 @@ describe("reduceAgentSession", () => {
         type: "tool.completed",
         messageId: "assistant_1",
         toolCallId: "tool_2",
-        toolName: "thought_get",
-        output: { thought: { id: "thought_1", title: "Feedback Loop" } },
+        toolName: "understanding_get",
+        output: { understanding: { id: "understanding_1", title: "Feedback Loop" } },
       },
       {
         ...base,
@@ -241,8 +241,8 @@ describe("reduceAgentSession", () => {
       messageId: "assistant_1",
       approvalId: "approval_1",
       toolCallId: "tool_1",
-      toolName: "thought_create",
-      title: "候选 Thought",
+      toolName: "understanding_create",
+      title: "候选 Understanding",
       payload: { title: "A", body: "B" },
     };
 
@@ -256,7 +256,7 @@ describe("reduceAgentSession", () => {
           messageId: "assistant_1",
           approvalId: "approval_1",
           toolCallId: "tool_1",
-          toolName: "thought_create",
+          toolName: "understanding_create",
           approved: false,
         },
       ]).messages[0]?.blocks?.[0],
@@ -272,7 +272,7 @@ describe("reduceAgentSession", () => {
           messageId: "assistant_1",
           approvalId: "approval_1",
           toolCallId: "tool_1",
-          toolName: "thought_create",
+          toolName: "understanding_create",
           approved: true,
         },
         {
@@ -281,8 +281,8 @@ describe("reduceAgentSession", () => {
           type: "tool.completed",
           messageId: "assistant_1",
           toolCallId: "tool_1",
-          toolName: "thought_create",
-          output: { resultRefType: "thought", resultRefId: "thought_1" },
+          toolName: "understanding_create",
+          output: { resultRefType: "understanding", resultRefId: "understanding_1" },
         },
       ]).messages[0]?.blocks?.[0],
     ).toMatchObject({
@@ -290,7 +290,7 @@ describe("reduceAgentSession", () => {
       approvalId: "approval_1",
       state: "completed",
       approved: true,
-      output: { resultRefType: "thought", resultRefId: "thought_1" },
+      output: { resultRefType: "understanding", resultRefId: "understanding_1" },
     });
 
     const directCompletion = reduceAgentSession([
@@ -301,8 +301,8 @@ describe("reduceAgentSession", () => {
         type: "tool.completed",
         messageId: "assistant_1",
         toolCallId: "tool_1",
-        toolName: "thought_create",
-        output: { resultRefType: "thought", resultRefId: "thought_2" },
+        toolName: "understanding_create",
+        output: { resultRefType: "understanding", resultRefId: "understanding_2" },
       },
     ]).messages[0]?.blocks?.[0];
 
@@ -310,7 +310,7 @@ describe("reduceAgentSession", () => {
       kind: "approval",
       approvalId: "approval_1",
       state: "completed",
-      output: { resultRefType: "thought", resultRefId: "thought_2" },
+      output: { resultRefType: "understanding", resultRefId: "understanding_2" },
     });
     expect(directCompletion).not.toHaveProperty("approved");
   });

@@ -10,7 +10,7 @@ export function registerGetContextAction(cli: Command): void {
     description: "Get a context by ID",
     mutates: false,
     arguments: [{ name: "id", description: "Context ID", required: true }],
-    returns: "ContextDetail — { id, thoughtId, sourceType, sourceName, content }",
+    returns: "ContextDetail — { id, understandingId, medium, title, content }",
   });
   cli
     .command("get <id>")

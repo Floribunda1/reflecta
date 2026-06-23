@@ -3,45 +3,55 @@ import {
   runCommand,
   parseJsonl,
   parseJson,
-  getThoughtId,
+  getUnderstandingId,
   getContextId,
   queryDbOne,
 } from "./helpers";
 
 describe("Context 管理", () => {
   describe("context list", () => {
-    it("列出某 Thought 下的所有活跃 Context", async () => {
-      const thoughtId = getThoughtId("React Server Components");
-      expect(thoughtId).toBeDefined();
-      const { code, stdout } = await runCommand(["context", "list", "--thought-id", thoughtId!]);
+    it("列出某 Understanding 下的所有活跃 Context", async () => {
+      const understandingId = getUnderstandingId("React Server Components");
+      expect(understandingId).toBeDefined();
+      const { code, stdout } = await runCommand([
+        "context",
+        "list",
+        "--understanding-id",
+        understandingId!,
+      ]);
       expect(code).toBe(0);
       const contexts = parseJsonl(stdout);
       expect(contexts.length).toBeGreaterThan(0);
       for (const c of contexts) {
         expect(c).toMatchObject({
           id: expect.any(String),
-          thoughtId,
-          sourceType: expect.any(String),
+          understandingId,
+          medium: expect.any(String),
         });
       }
     });
 
-    it("Thought 下没有任何 Context", async () => {
-      // Create a fresh thought with no contexts to guarantee isolation
+    it("Understanding 下没有任何 Context", async () => {
+      // Create a fresh understanding with no contexts to guarantee isolation
       const { stdout: createOut } = await runCommand([
-        "thought",
+        "understanding",
         "create",
         "--title",
         "No Contexts",
         "--yes",
       ]);
-      const thoughtId = (parseJson(createOut) as { id: string }).id;
-      const { code, stdout } = await runCommand(["context", "list", "--thought-id", thoughtId]);
+      const understandingId = (parseJson(createOut) as { id: string }).id;
+      const { code, stdout } = await runCommand([
+        "context",
+        "list",
+        "--understanding-id",
+        understandingId,
+      ]);
       expect(code).toBe(0);
       expect(stdout.trim()).toBe("");
     });
 
-    it("缺少必填参数 --thought-id", async () => {
+    it("缺少必填参数 --understanding-id", async () => {
       const { code, stderr } = await runCommand(["context", "list"]);
       expect(code).toBe(2);
       expect(JSON.parse(stderr).code).toBe("VALIDATION_ERROR");
@@ -67,71 +77,71 @@ describe("Context 管理", () => {
 
   describe("context create", () => {
     it("创建最简 Context", async () => {
-      const thoughtId = getThoughtId("React Server Components");
-      expect(thoughtId).toBeDefined();
+      const understandingId = getUnderstandingId("React Server Components");
+      expect(understandingId).toBeDefined();
       const { code, stdout } = await runCommand([
         "context",
         "create",
-        "--thought-id",
-        thoughtId!,
-        "--source-type",
-        "code",
+        "--understanding-id",
+        understandingId!,
+        "--medium",
+        "other",
         "--yes",
       ]);
       expect(code).toBe(0);
       const data = parseJson(stdout) as {
-        thoughtId: string;
-        sourceType: string;
-        sourceName: unknown;
+        understandingId: string;
+        medium: string;
+        title: unknown;
         content: string;
       };
-      expect(data.thoughtId).toBe(thoughtId);
-      expect(data.sourceType).toBe("code");
-      expect(data.sourceName).toBeNull();
+      expect(data.understandingId).toBe(understandingId);
+      expect(data.medium).toBe("other");
+      expect(data.title).toBeNull();
       expect(data.content).toBe("");
     });
 
     it("创建完整的 Context", async () => {
-      const thoughtId = getThoughtId("React Server Components");
-      expect(thoughtId).toBeDefined();
+      const understandingId = getUnderstandingId("React Server Components");
+      expect(understandingId).toBeDefined();
       const { code, stdout } = await runCommand([
         "context",
         "create",
-        "--thought-id",
-        thoughtId!,
-        "--source-type",
+        "--understanding-id",
+        understandingId!,
+        "--medium",
         "article",
-        "--source-name",
+        "--title",
         "Blog Post",
         "--content",
         "Important note",
         "--yes",
       ]);
       expect(code).toBe(0);
-      const data = parseJson(stdout) as { sourceName: string; content: string };
-      expect(data.sourceName).toBe("Blog Post");
+      const data = parseJson(stdout) as { title: string; content: string };
+      expect(data.title).toBe("Blog Post");
       expect(data.content).toBe("Important note");
     });
 
-    it("缺少必填参数 --thought-id", async () => {
+    it("缺少必填参数 --understanding-id", async () => {
       const { code, stderr } = await runCommand([
         "context",
         "create",
-        "--source-type",
-        "code",
+        "--medium",
+        "other",
         "--yes",
       ]);
       expect(code).toBe(1);
       expect(JSON.parse(stderr).code).toBe("VALIDATION_ERROR");
     });
 
-    it("缺少必填参数 --source-type", async () => {
-      const thoughtId = getThoughtId("React Server Components");
+    it("缺少必填参数 --medium", async () => {
+      const understandingId = getUnderstandingId("React Server Components");
       const { code, stderr } = await runCommand([
         "context",
         "create",
-        "--thought-id",
-        thoughtId!,
+        "--understanding-id",
+        understandingId!,
         "--yes",
       ]);
       expect(code).toBe(1);
@@ -139,14 +149,14 @@ describe("Context 管理", () => {
     });
 
     it("未加 --yes 时拒绝创建", async () => {
-      const thoughtId = getThoughtId("React Server Components");
+      const understandingId = getUnderstandingId("React Server Components");
       const { code } = await runCommand([
         "context",
         "create",
-        "--thought-id",
-        thoughtId!,
-        "--source-type",
-        "code",
+        "--understanding-id",
+        understandingId!,
+        "--medium",
+        "other",
       ]);
       expect(code).toBe(3);
     });
@@ -154,15 +164,15 @@ describe("Context 管理", () => {
 
   describe("context update", () => {
     it("更新 Context 内容", async () => {
-      const thoughtId = getThoughtId("React Server Components");
-      expect(thoughtId).toBeDefined();
+      const understandingId = getUnderstandingId("React Server Components");
+      expect(understandingId).toBeDefined();
       const { stdout: createOut } = await runCommand([
         "context",
         "create",
-        "--thought-id",
-        thoughtId!,
-        "--source-type",
-        "note",
+        "--understanding-id",
+        understandingId!,
+        "--medium",
+        "experience",
         "--yes",
       ]);
       const ctxId = (parseJson(createOut) as { id: string }).id;
@@ -178,16 +188,16 @@ describe("Context 管理", () => {
       expect((parseJson(stdout) as { content: string }).content).toBe("Updated content");
     });
 
-    it("更新 Context 来源名称", async () => {
-      const thoughtId = getThoughtId("React Server Components");
-      expect(thoughtId).toBeDefined();
+    it("更新 Context 标题", async () => {
+      const understandingId = getUnderstandingId("React Server Components");
+      expect(understandingId).toBeDefined();
       const { stdout: createOut } = await runCommand([
         "context",
         "create",
-        "--thought-id",
-        thoughtId!,
-        "--source-type",
-        "note",
+        "--understanding-id",
+        understandingId!,
+        "--medium",
+        "experience",
         "--yes",
       ]);
       const ctxId = (parseJson(createOut) as { id: string }).id;
@@ -195,12 +205,12 @@ describe("Context 管理", () => {
         "context",
         "update",
         ctxId,
-        "--source-name",
-        "New Source",
+        "--title",
+        "New Context",
         "--yes",
       ]);
       expect(code).toBe(0);
-      expect((parseJson(stdout) as { sourceName: string }).sourceName).toBe("New Source");
+      expect((parseJson(stdout) as { title: string }).title).toBe("New Context");
     });
 
     it("更新不存在的 Context", async () => {
@@ -217,15 +227,15 @@ describe("Context 管理", () => {
     });
 
     it("未加 --yes 时拒绝更新", async () => {
-      const thoughtId = getThoughtId("React Server Components");
-      expect(thoughtId).toBeDefined();
+      const understandingId = getUnderstandingId("React Server Components");
+      expect(understandingId).toBeDefined();
       const { stdout: createOut } = await runCommand([
         "context",
         "create",
-        "--thought-id",
-        thoughtId!,
-        "--source-type",
-        "note",
+        "--understanding-id",
+        understandingId!,
+        "--medium",
+        "experience",
         "--yes",
       ]);
       const ctxId = (parseJson(createOut) as { id: string }).id;
@@ -236,15 +246,15 @@ describe("Context 管理", () => {
 
   describe("context delete", () => {
     it("软删除 Context", async () => {
-      const thoughtId = getThoughtId("React Server Components");
-      expect(thoughtId).toBeDefined();
+      const understandingId = getUnderstandingId("React Server Components");
+      expect(understandingId).toBeDefined();
       const { stdout: createOut } = await runCommand([
         "context",
         "create",
-        "--thought-id",
-        thoughtId!,
-        "--source-type",
-        "note",
+        "--understanding-id",
+        understandingId!,
+        "--medium",
+        "experience",
         "--yes",
       ]);
       const ctxId = (parseJson(createOut) as { id: string }).id;
@@ -268,15 +278,15 @@ describe("Context 管理", () => {
     });
 
     it("未加 --yes 时拒绝删除", async () => {
-      const thoughtId = getThoughtId("React Server Components");
-      expect(thoughtId).toBeDefined();
+      const understandingId = getUnderstandingId("React Server Components");
+      expect(understandingId).toBeDefined();
       const { stdout: createOut } = await runCommand([
         "context",
         "create",
-        "--thought-id",
-        thoughtId!,
-        "--source-type",
-        "note",
+        "--understanding-id",
+        understandingId!,
+        "--medium",
+        "experience",
         "--yes",
       ]);
       const ctxId = (parseJson(createOut) as { id: string }).id;

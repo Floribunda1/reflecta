@@ -1,5 +1,5 @@
 import { GitBranch } from "lucide-react";
-import { ThoughtDetail } from "@renderer/modules/capture/thought-detail";
+import { UnderstandingDetail } from "@renderer/modules/capture/understanding-detail";
 import { useContemplatePageContext } from "./context";
 
 export function NodeDetail() {
@@ -7,10 +7,10 @@ export function NodeDetail() {
 
   return (
     <div className="flex h-full w-full flex-col border-l border-border bg-background">
-      {ctx.selectedThoughtId ? (
-        <ThoughtDetail
-          thoughtId={ctx.selectedThoughtId}
-          onDeleted={() => ctx.setSelectedThoughtId(null)}
+      {ctx.selectedUnderstandingId ? (
+        <UnderstandingDetail
+          understandingId={ctx.selectedUnderstandingId}
+          onDeleted={() => ctx.setSelectedUnderstandingId(null)}
         />
       ) : (
         <div className="flex h-full flex-col items-center justify-center gap-2 px-6">

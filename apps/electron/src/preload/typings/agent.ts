@@ -1,5 +1,5 @@
 export type AgentContextRef = {
-  type: "thought" | "context" | "category";
+  type: "understanding" | "context" | "domain";
   id: string;
   title?: string;
 };

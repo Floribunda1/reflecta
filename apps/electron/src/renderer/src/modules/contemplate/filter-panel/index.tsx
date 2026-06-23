@@ -13,7 +13,7 @@ import {
 import { Filter, GitBranch, ListFilter, Plus, RotateCcw, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { type GraphStatusFilter, useContemplatePageContext } from "../context";
-import { CategoryTreeSelect } from "../../shared/biz-components/CategoryTreeSelect";
+import { DomainTreeSelect } from "../../shared/biz-components/DomainTreeSelect";
 import { ipcClient } from "@renderer/utils/ipc";
 import { cn } from "@renderer/lib/utils";
 
@@ -30,20 +30,23 @@ export function FilterPanel() {
   const selectedStatusOption =
     STATUS_FILTER_OPTIONS.find((option) => option.value === ctx.statusFilter) ??
     STATUS_FILTER_OPTIONS[0];
-  const hasCategoryFilter = ctx.selectedCategoryIds.length > 0;
-  const hasScopedToCurrentCategory = hasCategoryFilter && !ctx.showAllDescendants;
+  const hasDomainFilter = ctx.selectedDomainIds.length > 0;
+  const hasScopedToCurrentDomain = hasDomainFilter && !ctx.showAllDescendants;
   const activeFilterCount =
-    ctx.selectedCategoryIds.length +
-    (hasScopedToCurrentCategory ? 1 : 0) +
+    ctx.selectedDomainIds.length +
+    (hasScopedToCurrentDomain ? 1 : 0) +
     (ctx.statusFilter !== "all" ? 1 : 0);
 
-  const createThought = async () => {
-    const dto = await ipcClient.thought.createThought({
+  const createUnderstanding = async () => {
+    const dto = await ipcClient.understanding.createUnderstanding({
       body: "",
-      categoryIds: ctx.selectedCategoryIds.length > 0 ? [...ctx.selectedCategoryIds] : undefined,
+      domainIds: ctx.selectedDomainIds.length > 0 ? [...ctx.selectedDomainIds] : undefined,
     });
-    await queryClient.invalidateQueries({ queryKey: ["thought.listThoughts"], exact: false });
-    ctx.setSelectedThoughtId(dto.id);
+    await queryClient.invalidateQueries({
+      queryKey: ["understanding.listUnderstandings"],
+      exact: false,
+    });
+    ctx.setSelectedUnderstandingId(dto.id);
   };
 
   return (
@@ -63,7 +66,7 @@ export function FilterPanel() {
           type="button"
           size="icon-sm"
           aria-label="新建 Understanding"
-          onClick={() => void createThought()}
+          onClick={() => void createUnderstanding()}
         >
           <Plus size={16} />
         </Button>
@@ -113,10 +116,10 @@ export function FilterPanel() {
             </Button>
             <div className="flex min-w-0 items-center gap-2">
               <div className="min-w-0 w-[28rem] max-w-[calc(100vw-20rem)]">
-                <CategoryTreeSelect
-                  modelValue={ctx.selectedCategoryIds}
-                  onUpdateModelValue={ctx.setSelectedCategoryIds}
-                  placeholder="全部 Category"
+                <DomainTreeSelect
+                  modelValue={ctx.selectedDomainIds}
+                  onUpdateModelValue={ctx.setSelectedDomainIds}
+                  placeholder="全部 Domain"
                 />
               </div>
               <Button

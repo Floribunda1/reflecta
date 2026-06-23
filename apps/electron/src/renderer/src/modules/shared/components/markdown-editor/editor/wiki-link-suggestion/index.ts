@@ -1,5 +1,5 @@
 export { createWikiLinkSuggestionPlugin } from "./plugin";
-export { createThoughtWikiLinkSuggestionSource } from "./source";
+export { createUnderstandingWikiLinkSuggestionSource } from "./source";
 export type {
   WikiLinkSuggestionItem,
   WikiLinkSuggestionOptions,

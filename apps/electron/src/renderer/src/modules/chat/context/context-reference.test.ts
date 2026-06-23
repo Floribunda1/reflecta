@@ -14,47 +14,53 @@ import {
 
 describe("context reference", () => {
   test("builds and parses context keys", () => {
-    expect(contextKey({ type: "thought", id: "thought-1" })).toBe("thought:thought-1");
+    expect(contextKey({ type: "understanding", id: "understanding-1" })).toBe(
+      "understanding:understanding-1",
+    );
     expect(parseContextKey("context:context-1")).toEqual({ type: "context", id: "context-1" });
-    expect(contextRefFromMention("category:category-1", "Category A")).toEqual({
-      type: "category",
-      id: "category-1",
-      title: "Category A",
+    expect(contextRefFromMention("domain:domain-1", "Domain A")).toEqual({
+      type: "domain",
+      id: "domain-1",
+      title: "Domain A",
     });
   });
 
   test("ignores malformed mention ids", () => {
-    expect(parseContextKey("thought")).toBeNull();
+    expect(parseContextKey("understanding")).toBeNull();
     expect(parseContextKey("note:1")).toBeNull();
-    expect(parseContextKey("thought:")).toBeNull();
+    expect(parseContextKey("understanding:")).toBeNull();
     expect(contextRefFromMention(undefined, "Title")).toBeNull();
   });
 
   test("formats labels, titles, icons, and inspectability", () => {
-    expect(contextTitle({ type: "thought", id: "thought-1", title: "  A  " })).toBe("A");
+    expect(contextTitle({ type: "understanding", id: "understanding-1", title: "  A  " })).toBe(
+      "A",
+    );
     expect(contextTitle({ type: "context", id: "context-1" })).toBe("context:context-1");
-    expect(contextTypeLabel("thought")).toBe("Thought");
+    expect(contextTypeLabel("understanding")).toBe("Understanding");
     expect(contextTypeLabel("context")).toBe("Context");
-    expect(contextTypeLabel("category")).toBe("Category");
-    expect(contextMentionIcon("thought")).toBe("✦");
+    expect(contextTypeLabel("domain")).toBe("Domain");
+    expect(contextMentionIcon("understanding")).toBe("✦");
     expect(contextMentionIcon("context")).toBe("↳");
-    expect(contextMentionIcon("category")).toBe("#");
-    expect(inspectableContextRef({ type: "thought", id: "thought-1" })).toEqual({
-      type: "thought",
-      id: "thought-1",
+    expect(contextMentionIcon("domain")).toBe("#");
+    expect(inspectableContextRef({ type: "understanding", id: "understanding-1" })).toEqual({
+      type: "understanding",
+      id: "understanding-1",
     });
-    expect(inspectableContextRef({ type: "category", id: "category-1" })).toBeNull();
+    expect(inspectableContextRef({ type: "domain", id: "domain-1" })).toBeNull();
   });
 
   test("builds and parses assistant wiki links", () => {
-    const href = wikiHref("自信的状态", "thought-1");
+    const href = wikiHref("自信的状态", "understanding-1");
 
     expect(parseWikiHref(href)).toEqual({
-      type: "thought",
-      id: "thought-1",
+      type: "understanding",
+      id: "understanding-1",
       title: "自信的状态",
     });
     expect(parseWikiHref("#elsewhere")).toBeNull();
-    expect(wikiMarkdownToLinks("关联 [[自信的状态#thought-1]]")).toBe(`关联 [自信的状态](${href})`);
+    expect(wikiMarkdownToLinks("关联 [[自信的状态#understanding-1]]")).toBe(
+      `关联 [自信的状态](${href})`,
+    );
   });
 });

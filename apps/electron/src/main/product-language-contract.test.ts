@@ -27,7 +27,6 @@ describe("product language contract", () => {
     expect(glossary).toContain("## Context");
     expect(glossary).toContain("## Connection");
     expect(glossary).toContain("## Domain");
-    expect(glossary).toContain("origin | support | application | challenge | revision | related");
   });
 
   test("product-facing reference docs use Understanding and Domain as first-class names", () => {

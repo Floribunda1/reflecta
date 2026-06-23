@@ -1,20 +1,20 @@
 import {
-  CategoryCliBff,
+  DomainCliBff,
   ContextCliBff,
   GraphCliBff,
   SearchCliBff,
   SnapshotCliBff,
-  ThoughtCliBff,
+  UnderstandingCliBff,
 } from "@reflecta/server";
 import { getDb, initializeDb } from "./db";
 
 export type ReflectaCliServices = {
-  categories: CategoryCliBff;
+  domains: DomainCliBff;
   contexts: ContextCliBff;
   graph: GraphCliBff;
   search: SearchCliBff;
   snapshot: SnapshotCliBff;
-  thoughts: ThoughtCliBff;
+  understandings: UnderstandingCliBff;
 };
 
 let services: ReflectaCliServices | undefined;
@@ -27,12 +27,12 @@ export async function getServices(): Promise<ReflectaCliServices> {
   const db = getDb();
 
   services = {
-    categories: new CategoryCliBff(db),
+    domains: new DomainCliBff(db),
     contexts: new ContextCliBff(db),
     graph: new GraphCliBff(db),
     search: new SearchCliBff(db),
     snapshot: new SnapshotCliBff(db),
-    thoughts: new ThoughtCliBff(db),
+    understandings: new UnderstandingCliBff(db),
   };
 
   return services;

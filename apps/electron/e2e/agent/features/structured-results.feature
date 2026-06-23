@@ -46,10 +46,10 @@
 
   @P1 @context @AG-RESULT-004
   场景: 用户点击 Agent 回复中的知识库引用后查看详情
-    假如 seed 数据中存在 Thought「React Server Components」
-    而且对话中有一条 Agent 回复引用了 Thought「React Server Components」
+    假如 seed 数据中存在 Understanding「React Server Components」
+    而且对话中有一条 Agent 回复引用了 Understanding「React Server Components」
     当用户打开该对话
-    那么 Agent 回复中应该显示 Thought「React Server Components」引用
+    那么 Agent 回复中应该显示 Understanding「React Server Components」引用
     当用户点击该引用
     那么页面应该打开详情面板
-    而且详情面板应该显示 Thought「React Server Components」
+    而且详情面板应该显示 Understanding「React Server Components」

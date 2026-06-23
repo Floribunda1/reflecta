@@ -16,14 +16,18 @@ import {
   waitForAssistantReply,
   writeAttachmentFile,
 } from "./agent-e2e";
-import { categoryExistsByName, resetAgentFixtures, thoughtExistsByTitle } from "./agent-fixtures";
+import {
+  domainExistsByName,
+  resetAgentFixtures,
+  understandingExistsByTitle,
+} from "./agent-fixtures";
 
 const SLOW_PROMPT = "请慢慢输出 1 到 400，每个数字单独一行。";
 const REFLECTA_AGENT_EVENT_ENTRY = "reflecta.agent.event";
-const PI_REJECT_PROPOSAL_TITLE = "PI_REJECT_CANDIDATE_THOUGHT";
-const PI_APPROVE_PROPOSAL_TITLE = "PI_APPROVE_CANDIDATE_THOUGHT";
-const PI_RELOAD_PROPOSAL_TITLE = "PI_RELOAD_CANDIDATE_THOUGHT";
-const PI_CATEGORY_PROPOSAL_NAME = "PI_APPROVE_CANDIDATE_CATEGORY";
+const PI_REJECT_PROPOSAL_TITLE = "PI_REJECT_CANDIDATE_UNDERSTANDING";
+const PI_APPROVE_PROPOSAL_TITLE = "PI_APPROVE_CANDIDATE_UNDERSTANDING";
+const PI_RELOAD_PROPOSAL_TITLE = "PI_RELOAD_CANDIDATE_UNDERSTANDING";
+const PI_DOMAIN_PROPOSAL_NAME = "PI_APPROVE_CANDIDATE_DOMAIN";
 const ABANDONED_RUN_MESSAGE = "ABANDONED_RUN_MESSAGE";
 const FAILED_RETRY_MESSAGE = "FAILED_RETRY_MESSAGE";
 
@@ -297,8 +301,8 @@ test("@AG-PI-CONTEXT-001 用户在 Pi-backed session 中选择引用后发送消
 
   try {
     await createNewThread(page);
-    await selectContext(page, "React", "React Server Components", "thought");
-    await selectContext(page, "React", "React", "category");
+    await selectContext(page, "React", "React Server Components", "understanding");
+    await selectContext(page, "React", "React", "domain");
     await composer(page).click();
     await page.keyboard.type("请比较这两个引用");
     await page.getByTestId("agent-send-button").click();
@@ -401,7 +405,7 @@ test("@AG-PI-TOOL-READ-001 用户在 Pi-backed session 中使用只读知识库�
   }
 });
 
-test("@AG-PI-PROPOSAL-REJECT-001 用户拒绝 Pi-backed session 中的候选 Thought", async () => {
+test("@AG-PI-PROPOSAL-REJECT-001 用户拒绝 Pi-backed session 中的候选 Understanding", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(240_000);
 
@@ -411,7 +415,7 @@ test("@AG-PI-PROPOSAL-REJECT-001 用户拒绝 Pi-backed session 中的候选 Tho
     await createNewThread(page);
     await sendMessage(
       page,
-      `请必须调用 thought_create 工具提出候选 Thought。标题必须是 ${PI_REJECT_PROPOSAL_TITLE}，正文写一行中文。等待我确认，不要直接写入。`,
+      `请必须调用 understanding_create 工具提出候选 Understanding。标题必须是 ${PI_REJECT_PROPOSAL_TITLE}，正文写一行中文。等待我确认，不要直接写入。`,
     );
     const card = page
       .getByTestId("agent-proposal-card")
@@ -421,7 +425,7 @@ test("@AG-PI-PROPOSAL-REJECT-001 用户拒绝 Pi-backed session 中的候选 Tho
     await expect(card).toContainText("已拒绝", { timeout: 120_000 });
     await expect(card).toContainText("未写入知识库");
 
-    expect(thoughtExistsByTitle(PI_REJECT_PROPOSAL_TITLE)).toBe(false);
+    expect(understandingExistsByTitle(PI_REJECT_PROPOSAL_TITLE)).toBe(false);
     const eventTypes = readPiEventTypes();
     expect(eventTypes).toContain("approval.requested");
     expect(eventTypes).toContain("approval.resolved");
@@ -430,7 +434,7 @@ test("@AG-PI-PROPOSAL-REJECT-001 用户拒绝 Pi-backed session 中的候选 Tho
   }
 });
 
-test("@AG-PI-PROPOSAL-APPROVE-001 用户确认 Pi-backed session 中的候选 Thought", async () => {
+test("@AG-PI-PROPOSAL-APPROVE-001 用户确认 Pi-backed session 中的候选 Understanding", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(240_000);
 
@@ -440,7 +444,7 @@ test("@AG-PI-PROPOSAL-APPROVE-001 用户确认 Pi-backed session 中的候选 Th
     await createNewThread(page);
     await sendMessage(
       page,
-      `请必须调用 thought_create 工具提出候选 Thought。标题必须是 ${PI_APPROVE_PROPOSAL_TITLE}，正文写一行中文。等待我确认，不要直接写入。`,
+      `请必须调用 understanding_create 工具提出候选 Understanding。标题必须是 ${PI_APPROVE_PROPOSAL_TITLE}，正文写一行中文。等待我确认，不要直接写入。`,
     );
     const card = page
       .getByTestId("agent-proposal-card")
@@ -450,7 +454,7 @@ test("@AG-PI-PROPOSAL-APPROVE-001 用户确认 Pi-backed session 中的候选 Th
     await expect(card).toContainText("已确认", { timeout: 120_000 });
     await expect(card).toContainText("已写入");
 
-    expect(thoughtExistsByTitle(PI_APPROVE_PROPOSAL_TITLE)).toBe(true);
+    expect(understandingExistsByTitle(PI_APPROVE_PROPOSAL_TITLE)).toBe(true);
     const eventTypes = readPiEventTypes();
     expect(eventTypes).toContain("approval.requested");
     expect(eventTypes).toContain("approval.resolved");
@@ -460,7 +464,7 @@ test("@AG-PI-PROPOSAL-APPROVE-001 用户确认 Pi-backed session 中的候选 Th
   }
 });
 
-test("@AG-PI-PROPOSAL-CATEGORY-001 用户确认 Pi-backed session 中的候选 Category", async () => {
+test("@AG-PI-PROPOSAL-DOMAIN-001 用户确认 Pi-backed session 中的候选 Domain", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(240_000);
 
@@ -470,38 +474,36 @@ test("@AG-PI-PROPOSAL-CATEGORY-001 用户确认 Pi-backed session 中的候选 C
     await createNewThread(page);
     await sendMessage(
       page,
-      `请必须调用 category_create 工具提出候选 Category。名称必须是 ${PI_CATEGORY_PROPOSAL_NAME}。等待我确认，不要直接写入。`,
+      `请必须调用 domain_create 工具提出候选 Domain。名称必须是 ${PI_DOMAIN_PROPOSAL_NAME}。等待我确认，不要直接写入。`,
     );
     const card = page
       .getByTestId("agent-proposal-card")
-      .filter({ hasText: PI_CATEGORY_PROPOSAL_NAME });
+      .filter({ hasText: PI_DOMAIN_PROPOSAL_NAME });
     await expect(card).toBeVisible({ timeout: 120_000 });
     await card.getByTestId("agent-proposal-confirm-button").click();
     await expect(card).toContainText("已确认", { timeout: 120_000 });
     await expect(card).toContainText("已写入");
 
-    expect(categoryExistsByName(PI_CATEGORY_PROPOSAL_NAME)).toBe(true);
+    expect(domainExistsByName(PI_DOMAIN_PROPOSAL_NAME)).toBe(true);
     const events = readPiEvents();
     expect(
       events.some(
-        (event) => event.type === "approval.requested" && event.toolName === "category_create",
+        (event) => event.type === "approval.requested" && event.toolName === "domain_create",
       ),
     ).toBe(true);
     expect(
-      events.some(
-        (event) => event.type === "tool.completed" && event.toolName === "category_create",
-      ),
+      events.some((event) => event.type === "tool.completed" && event.toolName === "domain_create"),
     ).toBe(true);
   } finally {
     await app.close();
   }
 });
 
-test("@AG-PI-PROPOSAL-RELOAD-001 用户重启后仍能处理等待确认的候选 Thought", async () => {
+test("@AG-PI-PROPOSAL-RELOAD-001 用户重启后仍能处理等待确认的候选 Understanding", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(300_000);
 
-  const prompt = `创建待确认 Thought：请必须调用 thought_create 工具提出候选 Thought。标题必须是 ${PI_RELOAD_PROPOSAL_TITLE}，正文写一行中文。等待我确认，不要直接写入。`;
+  const prompt = `创建待确认 Understanding：请必须调用 understanding_create 工具提出候选 Understanding。标题必须是 ${PI_RELOAD_PROPOSAL_TITLE}，正文写一行中文。等待我确认，不要直接写入。`;
   const first = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
 
   try {
@@ -524,7 +526,7 @@ test("@AG-PI-PROPOSAL-RELOAD-001 用户重启后仍能处理等待确认的候�
     await expect(card).toBeVisible();
     await card.getByTestId("agent-proposal-reject-button").click();
     await expect(card).toContainText("已拒绝", { timeout: 120_000 });
-    expect(thoughtExistsByTitle(PI_RELOAD_PROPOSAL_TITLE)).toBe(false);
+    expect(understandingExistsByTitle(PI_RELOAD_PROPOSAL_TITLE)).toBe(false);
   } finally {
     await second.app.close();
   }

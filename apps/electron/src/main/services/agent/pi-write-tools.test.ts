@@ -7,64 +7,64 @@ import {
 } from "./pi-write-tools";
 
 const services = vi.hoisted(() => ({
-  createThought: vi.fn(),
-  updateThought: vi.fn(),
-  deleteThought: vi.fn(),
-  createCategory: vi.fn(),
-  updateCategory: vi.fn(),
-  deleteCategory: vi.fn(),
+  createUnderstanding: vi.fn(),
+  updateUnderstanding: vi.fn(),
+  deleteUnderstanding: vi.fn(),
+  createDomain: vi.fn(),
+  updateDomain: vi.fn(),
+  deleteDomain: vi.fn(),
   createContext: vi.fn(),
   updateContext: vi.fn(),
   deleteContext: vi.fn(),
 }));
 
 vi.mock("../core", () => ({
-  categoryService: {
-    createCategory: services.createCategory,
-    updateCategory: services.updateCategory,
-    deleteCategory: services.deleteCategory,
+  domainService: {
+    createDomain: services.createDomain,
+    updateDomain: services.updateDomain,
+    deleteDomain: services.deleteDomain,
   },
   contextService: {
     createContext: services.createContext,
     updateContext: services.updateContext,
     deleteContext: services.deleteContext,
   },
-  thoughtService: {
-    createThought: services.createThought,
-    updateThought: services.updateThought,
-    deleteThought: services.deleteThought,
+  understandingService: {
+    createUnderstanding: services.createUnderstanding,
+    updateUnderstanding: services.updateUnderstanding,
+    deleteUnderstanding: services.deleteUnderstanding,
   },
 }));
 
 const knowledgeMutationNames = [
-  "thought_create",
-  "thought_update",
-  "thought_delete",
-  "category_create",
-  "category_update",
-  "category_delete",
+  "understanding_create",
+  "understanding_update",
+  "understanding_delete",
+  "domain_create",
+  "domain_update",
+  "domain_delete",
   "context_create",
   "context_update",
   "context_delete",
 ] as const;
 
 const samplePayloads: Record<(typeof knowledgeMutationNames)[number], Record<string, unknown>> = {
-  thought_create: { title: "New Thought", body: "Body", categoryIds: ["cat-1"] },
-  thought_update: {
-    thoughtId: "thought-1",
-    after: { title: "Updated Thought", body: "Updated body", categoryIds: ["cat-1"] },
+  understanding_create: { title: "New Understanding", body: "Body", domainIds: ["cat-1"] },
+  understanding_update: {
+    understandingId: "understanding-1",
+    after: { title: "Updated Understanding", body: "Updated body", domainIds: ["cat-1"] },
   },
-  thought_delete: { thoughtId: "thought-1", reason: "Duplicate" },
-  category_create: { name: "New Category", parentId: "cat-parent" },
-  category_update: { categoryId: "cat-1", name: "Renamed Category", parentId: "cat-parent" },
-  category_delete: { categoryId: "cat-1", deleteThoughts: false },
+  understanding_delete: { understandingId: "understanding-1", reason: "Duplicate" },
+  domain_create: { name: "New Domain", parentId: "cat-parent" },
+  domain_update: { domainId: "cat-1", name: "Renamed Domain", parentId: "cat-parent" },
+  domain_delete: { domainId: "cat-1", deleteUnderstandings: false },
   context_create: {
-    thoughtId: "thought-1",
-    sourceType: "ai",
-    sourceName: "Agent",
+    understandingId: "understanding-1",
+    medium: "ai",
+    title: "Agent",
     content: "Supporting context",
   },
-  context_update: { contextId: "context-1", sourceType: "ai", content: "Updated context" },
+  context_update: { contextId: "context-1", medium: "ai", content: "Updated context" },
   context_delete: { contextId: "context-1", reason: "No longer relevant" },
 };
 
@@ -94,22 +94,22 @@ describe("createPiWriteTools", () => {
       });
     }
 
-    expect(services.createThought).not.toHaveBeenCalled();
-    expect(services.updateThought).not.toHaveBeenCalled();
-    expect(services.deleteThought).not.toHaveBeenCalled();
-    expect(services.createCategory).not.toHaveBeenCalled();
-    expect(services.updateCategory).not.toHaveBeenCalled();
-    expect(services.deleteCategory).not.toHaveBeenCalled();
+    expect(services.createUnderstanding).not.toHaveBeenCalled();
+    expect(services.updateUnderstanding).not.toHaveBeenCalled();
+    expect(services.deleteUnderstanding).not.toHaveBeenCalled();
+    expect(services.createDomain).not.toHaveBeenCalled();
+    expect(services.updateDomain).not.toHaveBeenCalled();
+    expect(services.deleteDomain).not.toHaveBeenCalled();
     expect(services.createContext).not.toHaveBeenCalled();
     expect(services.updateContext).not.toHaveBeenCalled();
     expect(services.deleteContext).not.toHaveBeenCalled();
   });
 
   test("executes approved mutation tools through domain services", async () => {
-    services.createThought.mockResolvedValue({ id: "thought-created" });
-    services.updateThought.mockResolvedValue({ id: "thought-updated" });
-    services.createCategory.mockResolvedValue({ id: "category-created" });
-    services.updateCategory.mockResolvedValue({ id: "category-updated" });
+    services.createUnderstanding.mockResolvedValue({ id: "understanding-created" });
+    services.updateUnderstanding.mockResolvedValue({ id: "understanding-updated" });
+    services.createDomain.mockResolvedValue({ id: "domain-created" });
+    services.updateDomain.mockResolvedValue({ id: "domain-updated" });
     services.createContext.mockResolvedValue({ id: "context-created" });
     services.updateContext.mockResolvedValue({ id: "context-updated" });
 
@@ -118,28 +118,28 @@ describe("createPiWriteTools", () => {
       expected: Record<string, unknown>;
     }> = [
       {
-        toolName: "thought_create",
-        expected: { resultRefType: "thought", resultRefId: "thought-created" },
+        toolName: "understanding_create",
+        expected: { resultRefType: "understanding", resultRefId: "understanding-created" },
       },
       {
-        toolName: "thought_update",
-        expected: { resultRefType: "thought", resultRefId: "thought-updated" },
+        toolName: "understanding_update",
+        expected: { resultRefType: "understanding", resultRefId: "understanding-updated" },
       },
       {
-        toolName: "thought_delete",
-        expected: { resultRefType: "thought", resultRefId: "thought-1" },
+        toolName: "understanding_delete",
+        expected: { resultRefType: "understanding", resultRefId: "understanding-1" },
       },
       {
-        toolName: "category_create",
-        expected: { resultRefType: "category", resultRefId: "category-created" },
+        toolName: "domain_create",
+        expected: { resultRefType: "domain", resultRefId: "domain-created" },
       },
       {
-        toolName: "category_update",
-        expected: { resultRefType: "category", resultRefId: "category-updated" },
+        toolName: "domain_update",
+        expected: { resultRefType: "domain", resultRefId: "domain-updated" },
       },
       {
-        toolName: "category_delete",
-        expected: { resultRefType: "category", resultRefId: "cat-1" },
+        toolName: "domain_delete",
+        expected: { resultRefType: "domain", resultRefId: "cat-1" },
       },
       {
         toolName: "context_create",
@@ -161,35 +161,35 @@ describe("createPiWriteTools", () => {
       ).resolves.toEqual(item.expected);
     }
 
-    expect(services.createThought).toHaveBeenCalledWith({
-      title: "New Thought",
+    expect(services.createUnderstanding).toHaveBeenCalledWith({
+      title: "New Understanding",
       body: "Body",
-      categoryIds: ["cat-1"],
+      domainIds: ["cat-1"],
     });
-    expect(services.updateThought).toHaveBeenCalledWith("thought-1", {
-      title: "Updated Thought",
+    expect(services.updateUnderstanding).toHaveBeenCalledWith("understanding-1", {
+      title: "Updated Understanding",
       body: "Updated body",
-      categoryIds: ["cat-1"],
+      domainIds: ["cat-1"],
     });
-    expect(services.deleteThought).toHaveBeenCalledWith("thought-1");
-    expect(services.createCategory).toHaveBeenCalledWith({
-      name: "New Category",
+    expect(services.deleteUnderstanding).toHaveBeenCalledWith("understanding-1");
+    expect(services.createDomain).toHaveBeenCalledWith({
+      name: "New Domain",
       parentId: "cat-parent",
     });
-    expect(services.updateCategory).toHaveBeenCalledWith("cat-1", {
-      name: "Renamed Category",
+    expect(services.updateDomain).toHaveBeenCalledWith("cat-1", {
+      name: "Renamed Domain",
       parentId: "cat-parent",
     });
-    expect(services.deleteCategory).toHaveBeenCalledWith("cat-1", false);
+    expect(services.deleteDomain).toHaveBeenCalledWith("cat-1", false);
     expect(services.createContext).toHaveBeenCalledWith({
-      thoughtId: "thought-1",
-      sourceType: "ai",
-      sourceName: "Agent",
+      understandingId: "understanding-1",
+      medium: "ai",
+      title: "Agent",
       content: "Supporting context",
     });
     expect(services.updateContext).toHaveBeenCalledWith("context-1", {
-      sourceType: "ai",
-      sourceName: undefined,
+      medium: "ai",
+      title: undefined,
       content: "Updated context",
     });
     expect(services.deleteContext).toHaveBeenCalledWith("context-1");

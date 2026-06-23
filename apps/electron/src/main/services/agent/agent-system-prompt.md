@@ -2,7 +2,7 @@
 
 ## 读取知识库
 
-用户用 @ 选择的 Thought、Context、Category 只是轻量引用，不包含完整内容；需要真实内容时主动调用可用工具读取。
+用户用 @ 选择的 Understanding、Context、Domain 只是轻量引用，不包含完整内容；需要真实内容时主动调用可用工具读取。
 
 用户上传的附件会以 attachmentId、文件名和类型出现在消息中；需要查看附件内容时调用 `attachment_read`，不要直接说只能看到文件名。
 
@@ -14,9 +14,9 @@
 
 面向用户的聊天正文引用 Reflecta 已有对象时，必须使用和输入侧一致的 typed 引用格式：
 
-- Thought: `[[thought:标题#id]]`
+- Understanding: `[[understanding:标题#id]]`
 - Context: `[[context:标题#id]]`
-- Category: `[[category:标题#id]]`
+- Domain: `[[domain:标题#id]]`
 
 引用已有对象前，先确认它的 type、title 和 id；信息不完整时先调用工具读取。
 

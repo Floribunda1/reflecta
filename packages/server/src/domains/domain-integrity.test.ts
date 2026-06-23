@@ -3,9 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { createDBInstance, type ReflectaDb } from "../db";
-import { CategoryCore } from "./category/core";
+import { DomainCore } from "./domain/core";
 import { ContextCore } from "./context/core";
-import { ThoughtCore } from "./thought/core";
+import { UnderstandingCore } from "./understanding/core";
 
 let tempDir: string;
 let db: ReflectaDb;
@@ -20,24 +20,24 @@ afterEach(async () => {
 });
 
 describe("domain write integrity", () => {
-  test("validates category ids inside Thought writes", async () => {
-    const thoughts = new ThoughtCore(db);
+  test("validates domain ids inside Understanding writes", async () => {
+    const understandings = new UnderstandingCore(db);
 
     await expect(
-      thoughts._createThought({ body: "body", categoryIds: ["missing-category"] }),
-    ).rejects.toThrow("Category not found: missing-category");
+      understandings._createUnderstanding({ body: "body", domainIds: ["missing-domain"] }),
+    ).rejects.toThrow("Domain not found: missing-domain");
   });
 
-  test("validates Category parents inside Category writes", async () => {
-    const categories = new CategoryCore(db);
-    const parent = await categories.createCategory({ name: "Parent" });
-    const child = await categories.createCategory({ name: "Child", parentId: parent.id });
+  test("validates Domain parents inside Domain writes", async () => {
+    const domains = new DomainCore(db);
+    const parent = await domains.createDomain({ name: "Parent" });
+    const child = await domains.createDomain({ name: "Child", parentId: parent.id });
 
-    await expect(categories.createCategory({ name: "Bad", parentId: "missing" })).rejects.toThrow(
-      "Category not found: missing",
+    await expect(domains.createDomain({ name: "Bad", parentId: "missing" })).rejects.toThrow(
+      "Domain not found: missing",
     );
-    await expect(categories.updateCategory(parent.id, { parentId: child.id })).rejects.toThrow(
-      "Category cannot be moved under its descendant",
+    await expect(domains.updateDomain(parent.id, { parentId: child.id })).rejects.toThrow(
+      "Domain cannot be moved under its descendant",
     );
   });
 
@@ -46,11 +46,11 @@ describe("domain write integrity", () => {
 
     await expect(
       contexts._createContext({
-        thoughtId: "missing-thought",
-        sourceType: "ai",
+        understandingId: "missing-understanding",
+        medium: "ai",
         content: "content",
       }),
-    ).rejects.toThrow("Thought not found: missing-thought");
+    ).rejects.toThrow("Understanding not found: missing-understanding");
     await expect(contexts._updateContext("missing-context", {})).rejects.toThrow(
       "No context fields to update",
     );

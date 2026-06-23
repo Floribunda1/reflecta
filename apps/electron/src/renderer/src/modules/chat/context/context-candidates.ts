@@ -1,7 +1,7 @@
-import type { Category } from "@shared/category";
+import type { Domain } from "@shared/domain";
 import type { AgentContextRef } from "@shared/agent";
 import type { FtsContextResult } from "@shared/search";
-import type { ThoughtSummaryDTO } from "@shared/thought";
+import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import { truncate } from "../shared/text";
 import { contextKey } from "./context-reference";
 
@@ -11,12 +11,12 @@ const MARK_TAG_PATTERN = /<\/?mark>/g;
 
 export type ContextCandidate = AgentContextRef & { subtitle?: string };
 
-function thoughtCandidate(thought: ThoughtSummaryDTO): ContextCandidate {
+function understandingCandidate(understanding: UnderstandingSummaryDTO): ContextCandidate {
   return {
-    type: "thought",
-    id: thought.id,
-    title: (thought.title ?? truncate(thought.body, 48)) || "Untitled Thought",
-    subtitle: truncate(thought.body, 96),
+    type: "understanding",
+    id: understanding.id,
+    title: (understanding.title ?? truncate(understanding.body, 48)) || "Untitled Understanding",
+    subtitle: truncate(understanding.body, 96),
   };
 }
 
@@ -24,17 +24,17 @@ function contextCandidate(context: FtsContextResult): ContextCandidate {
   return {
     type: "context",
     id: context.contextId,
-    title: context.sourceName ?? context.contextId,
+    title: context.title ?? context.contextId,
     subtitle: truncate(context.snippet.replace(MARK_TAG_PATTERN, ""), 96),
   };
 }
 
-function categoryCandidate(category: Category): ContextCandidate {
+function domainCandidate(domain: Domain): ContextCandidate {
   return {
-    type: "category",
-    id: category.id,
-    title: category.name,
-    subtitle: category.parentId ? `parent: ${category.parentId}` : "root category",
+    type: "domain",
+    id: domain.id,
+    title: domain.name,
+    subtitle: domain.parentId ? `parent: ${domain.parentId}` : "root domain",
   };
 }
 
@@ -44,27 +44,27 @@ export function shouldSearchContexts(enabled: boolean, query: string) {
 
 export function buildContextCandidates({
   query,
-  thoughts,
+  understandings,
   contexts,
-  categories,
+  domains,
   selected,
 }: {
   query: string;
-  thoughts: ThoughtSummaryDTO[];
+  understandings: UnderstandingSummaryDTO[];
   contexts: FtsContextResult[];
-  categories: Category[];
+  domains: Domain[];
   selected: AgentContextRef[];
 }): ContextCandidate[] {
   const selectedKeys = new Set(selected.map(contextKey));
   const normalizedQuery = query.toLowerCase();
-  const categoryCandidates = categories
-    .filter((category) => !normalizedQuery || category.name.toLowerCase().includes(normalizedQuery))
+  const domainCandidates = domains
+    .filter((domain) => !normalizedQuery || domain.name.toLowerCase().includes(normalizedQuery))
     .slice(0, CONTEXT_LOOKUP_LIMIT)
-    .map(categoryCandidate);
+    .map(domainCandidate);
 
   return [
-    ...thoughts.slice(0, CONTEXT_LOOKUP_LIMIT).map(thoughtCandidate),
+    ...understandings.slice(0, CONTEXT_LOOKUP_LIMIT).map(understandingCandidate),
     ...contexts.slice(0, CONTEXT_LOOKUP_LIMIT).map(contextCandidate),
-    ...categoryCandidates,
+    ...domainCandidates,
   ].filter((candidate) => !selectedKeys.has(contextKey(candidate)));
 }

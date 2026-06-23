@@ -22,8 +22,8 @@ test("@AG-CONTEXT-001 用户选中引用后发送消息", async () => {
   const { app, page } = await launchAgentPage();
 
   try {
-    await selectContext(page, "React", "React Server Components", "thought");
-    await selectContext(page, "React", "React", "category");
+    await selectContext(page, "React", "React Server Components", "understanding");
+    await selectContext(page, "React", "React", "domain");
     await composer(page).click();
     await page.keyboard.type("请比较这两个引用");
     await page.getByTestId("agent-send-button").click();
@@ -44,17 +44,17 @@ test("@AG-CONTEXT-004 用户通过 @ 搜索选择上下文引用", async () => {
     await expect(page.getByTestId("agent-context-picker")).toBeVisible({ timeout: 15_000 });
     await expect(
       page
-        .locator('[data-testid="agent-context-option"][data-context-type="thought"]')
+        .locator('[data-testid="agent-context-option"][data-context-type="understanding"]')
         .filter({ hasText: "React Server Components" }),
     ).toBeVisible();
     await expect(
       page
-        .locator('[data-testid="agent-context-option"][data-context-type="category"]')
+        .locator('[data-testid="agent-context-option"][data-context-type="domain"]')
         .filter({ hasText: "React" }),
     ).toBeVisible();
 
     await page
-      .locator('[data-testid="agent-context-option"][data-context-type="thought"]')
+      .locator('[data-testid="agent-context-option"][data-context-type="understanding"]')
       .filter({ hasText: "React Server Components" })
       .first()
       .click();
@@ -68,11 +68,11 @@ test("@AG-CONTEXT-004 用户通过 @ 搜索选择上下文引用", async () => {
   }
 });
 
-test("@AG-CONTEXT-005 用户点击已选择的 Thought 引用后查看详情", async () => {
+test("@AG-CONTEXT-005 用户点击已选择的 Understanding 引用后查看详情", async () => {
   const { app, page } = await launchAgentPage();
 
   try {
-    await selectContext(page, "React", "React Server Components", "thought");
+    await selectContext(page, "React", "React Server Components", "understanding");
     await page
       .locator('[data-slot="composer-context-mention"]')
       .filter({ hasText: "React Server Components" })

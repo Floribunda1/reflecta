@@ -13,7 +13,7 @@ export function registerProjectSnapshotAction(cli: Command): void {
       description: "Get a snapshot of the project",
       mutates: false,
       returns:
-        "ProjectSnapshotResult — { categories, recentThoughts, stats: { totalThoughts, totalContexts, totalCategories, totalReferences } }",
+        "ProjectSnapshotResult — { domains, recentUnderstandings, stats: { totalUnderstandings, totalContexts, totalDomains, totalReferences } }",
     },
     "Project snapshots",
   );

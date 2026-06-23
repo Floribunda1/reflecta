@@ -1,6 +1,6 @@
-import type { SourceType } from "../context/types";
+import type { ContextMedium } from "../context/types";
 
-export type TrashedThoughtDTO = {
+export type TrashedUnderstandingDTO = {
   id: string;
   title: string | null;
   body: string;
@@ -9,10 +9,10 @@ export type TrashedThoughtDTO = {
 
 export type TrashedContextDTO = {
   id: string;
-  thoughtId: string;
-  thoughtTitle: string | null;
-  sourceType: SourceType;
-  sourceName: string | null;
+  understandingId: string;
+  understandingTitle: string | null;
+  medium: ContextMedium;
+  title: string | null;
   content: string;
   deletedAt: string;
 };

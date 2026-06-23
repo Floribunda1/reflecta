@@ -1,19 +1,19 @@
 import type { ReflectaDb } from "../../db/types";
 import { ContextCore } from "./core";
-import type { ContextDetail, CreateContextInput, SourceType, UpdateContextInput } from "./types";
+import type { ContextDetail, CreateContextInput, ContextMedium, UpdateContextInput } from "./types";
 
 export class ContextCliBff extends ContextCore {
   constructor(db: ReflectaDb) {
     super(db);
   }
 
-  async listContexts(thoughtId: string): Promise<ContextDetail[]> {
-    const rows = await this.listContextsByThought(thoughtId);
+  async listContexts(understandingId: string): Promise<ContextDetail[]> {
+    const rows = await this.listContextsByUnderstanding(understandingId);
     return rows.map((r) => ({
       id: r.id,
-      thoughtId: r.thoughtId,
-      sourceType: r.sourceType,
-      sourceName: r.sourceName,
+      understandingId: r.understandingId,
+      medium: r.medium,
+      title: r.title,
       content: r.content,
     }));
   }
@@ -26,9 +26,9 @@ export class ContextCliBff extends ContextCore {
 
     return {
       id: row.id,
-      thoughtId: row.thoughtId,
-      sourceType: row.sourceType as SourceType,
-      sourceName: row.sourceName ?? null,
+      understandingId: row.understandingId,
+      medium: row.medium as ContextMedium,
+      title: row.title ?? null,
       content: row.content,
     };
   }
@@ -37,9 +37,9 @@ export class ContextCliBff extends ContextCore {
     const row = await super._createContext(input);
     return {
       id: row.id,
-      thoughtId: row.thoughtId,
-      sourceType: row.sourceType,
-      sourceName: row.sourceName,
+      understandingId: row.understandingId,
+      medium: row.medium,
+      title: row.title,
       content: row.content,
     };
   }
@@ -48,9 +48,9 @@ export class ContextCliBff extends ContextCore {
     const row = await super._updateContext(id, input);
     return {
       id: row.id,
-      thoughtId: row.thoughtId,
-      sourceType: row.sourceType,
-      sourceName: row.sourceName,
+      understandingId: row.understandingId,
+      medium: row.medium,
+      title: row.title,
       content: row.content,
     };
   }

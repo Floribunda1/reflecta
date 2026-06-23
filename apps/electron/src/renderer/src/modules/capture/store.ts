@@ -1,11 +1,11 @@
 import { create, type StateCreator } from "zustand";
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { ThoughtListSortBy } from "./thought-list/sort";
+import type { UnderstandingListSortBy } from "./understanding-list/sort";
 import { milkdownMarkdownEquals } from "@renderer/modules/shared/components/markdown-editor/editor/markdown-normalize";
 
 export type CaptureDraft = {
-  thoughtId: string;
+  understandingId: string;
   title: string;
   body: string;
   baseTitle: string;
@@ -18,59 +18,59 @@ export type CaptureDraft = {
 };
 
 export type CaptureState = {
-  selectedCategoryId: string;
-  selectedThoughtId: string | null;
+  selectedDomainId: string;
+  selectedUnderstandingId: string | null;
   searchOpen: boolean;
   searchQuery: string;
   includeDescendants: boolean;
-  thoughtListSortBy: ThoughtListSortBy;
-  expandedCategoryIds: Record<string, boolean>;
-  activeSourceId: string | null;
+  understandingListSortBy: UnderstandingListSortBy;
+  expandedDomainIds: Record<string, boolean>;
+  activeContextId: string | null;
   draft: CaptureDraft | null;
 };
 
 export type CaptureActions = {
-  selectCategory: (categoryId: string) => void;
-  selectThought: (thoughtId: string | null) => void;
-  reconcileSelectedThought: (visibleThoughtIds: Set<string>) => void;
+  selectDomain: (domainId: string) => void;
+  selectUnderstanding: (understandingId: string | null) => void;
+  reconcileSelectedUnderstanding: (visibleUnderstandingIds: Set<string>) => void;
   setSearchOpen: (open: boolean) => void;
   setSearchQuery: (query: string) => void;
   setIncludeDescendants: (include: boolean) => void;
-  setThoughtListSortBy: (sortBy: ThoughtListSortBy) => void;
-  toggleCategoryExpanded: (categoryId: string) => void;
-  reconcileExpandedCategories: (validIds: Set<string>) => void;
-  expandCategoryAncestors: (categoryIds: string[]) => void;
-  setActiveSourceId: (sourceId: string | null) => void;
-  initializeDraft: (input: { thoughtId: string; title: string; body: string }) => void;
+  setUnderstandingListSortBy: (sortBy: UnderstandingListSortBy) => void;
+  toggleDomainExpanded: (domainId: string) => void;
+  reconcileExpandedDomains: (validIds: Set<string>) => void;
+  expandDomainAncestors: (domainIds: string[]) => void;
+  setActiveContextId: (contextId: string | null) => void;
+  initializeDraft: (input: { understandingId: string; title: string; body: string }) => void;
   updateDraftTitle: (title: string) => void;
   updateDraftBody: (body: string) => void;
-  markDraftSaveStarted: (thoughtId: string) => void;
+  markDraftSaveStarted: (understandingId: string) => void;
   markDraftSaveSucceeded: (input: {
-    thoughtId: string;
+    understandingId: string;
     title: string;
     body: string;
     savedAt: string;
   }) => void;
-  markDraftSaveFailed: (input: { thoughtId: string; error: string }) => void;
-  resetAfterThoughtDeleted: (thoughtId: string) => void;
-  resetAfterCategoryDeleted: (deletedCategoryIds: Set<string>) => void;
+  markDraftSaveFailed: (input: { understandingId: string; error: string }) => void;
+  resetAfterUnderstandingDeleted: (understandingId: string) => void;
+  resetAfterDomainDeleted: (deletedDomainIds: Set<string>) => void;
 };
 
 export type CaptureStore = CaptureState & CaptureActions;
 
 export const initialCaptureState: CaptureState = {
-  selectedCategoryId: "all",
-  selectedThoughtId: null,
+  selectedDomainId: "all",
+  selectedUnderstandingId: null,
   searchOpen: false,
   searchQuery: "",
   includeDescendants: true,
-  thoughtListSortBy: "updatedAt",
-  expandedCategoryIds: {},
-  activeSourceId: null,
+  understandingListSortBy: "updatedAt",
+  expandedDomainIds: {},
+  activeContextId: null,
   draft: null,
 };
 
-function expandedCategoryKeysEqual(
+function expandedDomainKeysEqual(
   left: Record<string, boolean>,
   right: Record<string, boolean>,
 ): boolean {
@@ -84,9 +84,9 @@ function expandedCategoryKeysEqual(
   return leftKeys.every((key, index) => key === rightKeys[index]);
 }
 
-function makeDraft(input: { thoughtId: string; title: string; body: string }): CaptureDraft {
+function makeDraft(input: { understandingId: string; title: string; body: string }): CaptureDraft {
   return {
-    thoughtId: input.thoughtId,
+    understandingId: input.understandingId,
     title: input.title,
     body: input.body,
     baseTitle: input.title,
@@ -103,11 +103,11 @@ function isDraftDirty(draft: Pick<CaptureDraft, "title" | "body" | "baseTitle" |
   return draft.title !== draft.baseTitle || !milkdownMarkdownEquals(draft.body, draft.baseBody);
 }
 
-function clearThoughtState(state: CaptureStore): Partial<CaptureStore> {
-  if (!state.selectedThoughtId && !state.activeSourceId && !state.draft) return {};
+function clearUnderstandingState(state: CaptureStore): Partial<CaptureStore> {
+  if (!state.selectedUnderstandingId && !state.activeContextId && !state.draft) return {};
   return {
-    selectedThoughtId: null,
-    activeSourceId: null,
+    selectedUnderstandingId: null,
+    activeContextId: null,
     draft: null,
   };
 }
@@ -118,23 +118,27 @@ export function createCaptureState(
   return (set) => ({
     ...initialState,
 
-    selectCategory: (categoryId) =>
+    selectDomain: (domainId) =>
       set((state) => ({
-        selectedCategoryId: categoryId,
-        ...clearThoughtState(state),
+        selectedDomainId: domainId,
+        ...clearUnderstandingState(state),
       })),
 
-    selectThought: (thoughtId) =>
+    selectUnderstanding: (understandingId) =>
       set((state) => ({
-        selectedThoughtId: thoughtId,
-        activeSourceId: null,
-        draft: state.selectedThoughtId === thoughtId ? state.draft : null,
+        selectedUnderstandingId: understandingId,
+        activeContextId: null,
+        draft: state.selectedUnderstandingId === understandingId ? state.draft : null,
       })),
 
-    reconcileSelectedThought: (visibleThoughtIds) =>
+    reconcileSelectedUnderstanding: (visibleUnderstandingIds) =>
       set((state) => {
-        if (!state.selectedThoughtId || visibleThoughtIds.has(state.selectedThoughtId)) return {};
-        return clearThoughtState(state);
+        if (
+          !state.selectedUnderstandingId ||
+          visibleUnderstandingIds.has(state.selectedUnderstandingId)
+        )
+          return {};
+        return clearUnderstandingState(state);
       }),
 
     setSearchOpen: (open) =>
@@ -147,46 +151,46 @@ export function createCaptureState(
 
     setIncludeDescendants: (include) => set({ includeDescendants: include }),
 
-    setThoughtListSortBy: (sortBy) => set({ thoughtListSortBy: sortBy }),
+    setUnderstandingListSortBy: (sortBy) => set({ understandingListSortBy: sortBy }),
 
-    toggleCategoryExpanded: (categoryId) =>
+    toggleDomainExpanded: (domainId) =>
       set((state) => {
-        const next = { ...state.expandedCategoryIds };
-        if (next[categoryId]) {
-          delete next[categoryId];
+        const next = { ...state.expandedDomainIds };
+        if (next[domainId]) {
+          delete next[domainId];
         } else {
-          next[categoryId] = true;
+          next[domainId] = true;
         }
-        return { expandedCategoryIds: next };
+        return { expandedDomainIds: next };
       }),
 
-    reconcileExpandedCategories: (validIds) =>
+    reconcileExpandedDomains: (validIds) =>
       set((state) => {
-        const expandedCategoryIds = Object.fromEntries(
-          Object.entries(state.expandedCategoryIds).filter(
-            ([categoryId, expanded]) => expanded && validIds.has(categoryId),
+        const expandedDomainIds = Object.fromEntries(
+          Object.entries(state.expandedDomainIds).filter(
+            ([domainId, expanded]) => expanded && validIds.has(domainId),
           ),
         );
-        if (expandedCategoryKeysEqual(state.expandedCategoryIds, expandedCategoryIds)) return {};
-        return { expandedCategoryIds };
+        if (expandedDomainKeysEqual(state.expandedDomainIds, expandedDomainIds)) return {};
+        return { expandedDomainIds };
       }),
 
-    expandCategoryAncestors: (categoryIds) =>
+    expandDomainAncestors: (domainIds) =>
       set((state) => {
-        if (categoryIds.every((categoryId) => state.expandedCategoryIds[categoryId])) return {};
+        if (domainIds.every((domainId) => state.expandedDomainIds[domainId])) return {};
         return {
-          expandedCategoryIds: {
-            ...state.expandedCategoryIds,
-            ...Object.fromEntries(categoryIds.map((categoryId) => [categoryId, true])),
+          expandedDomainIds: {
+            ...state.expandedDomainIds,
+            ...Object.fromEntries(domainIds.map((domainId) => [domainId, true])),
           },
         };
       }),
 
-    setActiveSourceId: (sourceId) => set({ activeSourceId: sourceId }),
+    setActiveContextId: (contextId) => set({ activeContextId: contextId }),
 
     initializeDraft: (input) =>
       set((state) => {
-        if (state.draft?.thoughtId === input.thoughtId && state.draft.dirty) return {};
+        if (state.draft?.understandingId === input.understandingId && state.draft.dirty) return {};
         return { draft: makeDraft(input) };
       }),
 
@@ -204,9 +208,9 @@ export function createCaptureState(
         return { draft: { ...draft, dirty: isDraftDirty(draft) } };
       }),
 
-    markDraftSaveStarted: (thoughtId) =>
+    markDraftSaveStarted: (understandingId) =>
       set((state) => {
-        if (state.draft?.thoughtId !== thoughtId) return {};
+        if (state.draft?.understandingId !== understandingId) return {};
         return {
           draft: {
             ...state.draft,
@@ -217,9 +221,9 @@ export function createCaptureState(
         };
       }),
 
-    markDraftSaveSucceeded: ({ thoughtId, title, body, savedAt }) =>
+    markDraftSaveSucceeded: ({ understandingId, title, body, savedAt }) =>
       set((state) => {
-        if (state.draft?.thoughtId !== thoughtId) return {};
+        if (state.draft?.understandingId !== understandingId) return {};
         const draft = {
           ...state.draft,
           baseTitle: title,
@@ -232,9 +236,9 @@ export function createCaptureState(
         return { draft: { ...draft, dirty: isDraftDirty(draft) } };
       }),
 
-    markDraftSaveFailed: ({ thoughtId, error }) =>
+    markDraftSaveFailed: ({ understandingId, error }) =>
       set((state) => {
-        if (state.draft?.thoughtId !== thoughtId) return {};
+        if (state.draft?.understandingId !== understandingId) return {};
         return {
           draft: {
             ...state.draft,
@@ -245,27 +249,30 @@ export function createCaptureState(
         };
       }),
 
-    resetAfterThoughtDeleted: (thoughtId) =>
+    resetAfterUnderstandingDeleted: (understandingId) =>
       set((state) => {
-        if (state.selectedThoughtId !== thoughtId && state.draft?.thoughtId !== thoughtId)
+        if (
+          state.selectedUnderstandingId !== understandingId &&
+          state.draft?.understandingId !== understandingId
+        )
           return {};
-        return clearThoughtState(state);
+        return clearUnderstandingState(state);
       }),
 
-    resetAfterCategoryDeleted: (deletedCategoryIds) =>
+    resetAfterDomainDeleted: (deletedDomainIds) =>
       set((state) => {
-        const expandedCategoryIds = Object.fromEntries(
-          Object.entries(state.expandedCategoryIds).filter(
-            ([categoryId]) => !deletedCategoryIds.has(categoryId),
+        const expandedDomainIds = Object.fromEntries(
+          Object.entries(state.expandedDomainIds).filter(
+            ([domainId]) => !deletedDomainIds.has(domainId),
           ),
         );
-        if (!deletedCategoryIds.has(state.selectedCategoryId)) {
-          return { expandedCategoryIds };
+        if (!deletedDomainIds.has(state.selectedDomainId)) {
+          return { expandedDomainIds };
         }
         return {
-          selectedCategoryId: "all",
-          expandedCategoryIds,
-          ...clearThoughtState(state),
+          selectedDomainId: "all",
+          expandedDomainIds,
+          ...clearUnderstandingState(state),
         };
       }),
   });
@@ -277,7 +284,7 @@ export function createCaptureStore(initialState: CaptureState = initialCaptureSt
 
 type PersistedCaptureState = Pick<
   CaptureStore,
-  "selectedCategoryId" | "includeDescendants" | "thoughtListSortBy" | "expandedCategoryIds"
+  "selectedDomainId" | "includeDescendants" | "understandingListSortBy" | "expandedDomainIds"
 >;
 
 export const useCaptureStore = create<CaptureStore>()(
@@ -285,10 +292,10 @@ export const useCaptureStore = create<CaptureStore>()(
     name: "capture:state",
     storage: createJSONStorage(() => localStorage),
     partialize: (state): PersistedCaptureState => ({
-      selectedCategoryId: state.selectedCategoryId,
+      selectedDomainId: state.selectedDomainId,
       includeDescendants: state.includeDescendants,
-      thoughtListSortBy: state.thoughtListSortBy,
-      expandedCategoryIds: state.expandedCategoryIds,
+      understandingListSortBy: state.understandingListSortBy,
+      expandedDomainIds: state.expandedDomainIds,
     }),
   }),
 );

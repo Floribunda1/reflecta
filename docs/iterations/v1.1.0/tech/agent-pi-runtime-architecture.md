@@ -66,9 +66,9 @@ flowchart TD
   end
 
   subgraph Domain["Reflecta Domain"]
-    Understanding["ThoughtService"]
+    Understanding["UnderstandingService"]
     Context["ContextService"]
-    Domain["CategoryService"]
+    Domain["DomainService"]
     Graph["GraphService"]
   end
 
@@ -181,9 +181,9 @@ classDiagram
     +selectedRefs
   }
 
-  class ThoughtService
+  class UnderstandingService
   class ContextService
-  class CategoryService
+  class DomainService
   class GraphService
 
   AgentService --> PiAgentHost : delegates commands
@@ -210,9 +210,9 @@ classDiagram
   AgentViewBuilder --> ReflectaSessionEntry : interprets product entries
 
   ReflectaToolBridge --> ApprovalPolicy : checks
-  ReflectaToolBridge --> ThoughtService : reads/writes
+  ReflectaToolBridge --> UnderstandingService : reads/writes
   ReflectaToolBridge --> ContextService : reads/writes
-  ReflectaToolBridge --> CategoryService : reads/writes
+  ReflectaToolBridge --> DomainService : reads/writes
   ReflectaToolBridge --> GraphService : reads
   PiBuiltinTools --> ApprovalPolicy : gated by Reflecta
 ```

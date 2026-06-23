@@ -1,34 +1,36 @@
 import { FileText } from "lucide-react";
-import { CategoryTree } from "./category";
-import { ThoughtDetail } from "./thought-detail";
-import { ThoughtList } from "./thought-list";
+import { DomainTree } from "./domain";
+import { UnderstandingDetail } from "./understanding-detail";
+import { UnderstandingList } from "./understanding-list";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@renderer/components/ui/empty";
 import { useCaptureStore } from "./store";
 
 function CapturePageInner() {
-  const selectedThoughtId = useCaptureStore((state) => state.selectedThoughtId);
-  const selectCategory = useCaptureStore((state) => state.selectCategory);
-  const selectThought = useCaptureStore((state) => state.selectThought);
-  const resetAfterThoughtDeleted = useCaptureStore((state) => state.resetAfterThoughtDeleted);
+  const selectedUnderstandingId = useCaptureStore((state) => state.selectedUnderstandingId);
+  const selectDomain = useCaptureStore((state) => state.selectDomain);
+  const selectUnderstanding = useCaptureStore((state) => state.selectUnderstanding);
+  const resetAfterUnderstandingDeleted = useCaptureStore(
+    (state) => state.resetAfterUnderstandingDeleted,
+  );
   const setSearchOpen = useCaptureStore((state) => state.setSearchOpen);
 
-  const handleWikiLinkClick = (thoughtId: string) => {
-    selectCategory("all");
+  const handleWikiLinkClick = (understandingId: string) => {
+    selectDomain("all");
     setSearchOpen(false);
-    selectThought(thoughtId);
+    selectUnderstanding(understandingId);
   };
 
   return (
     <div className="grid h-full min-h-0 w-full grid-cols-[248px_minmax(0,1fr)] overflow-hidden bg-background/45 backdrop-blur-2xl">
-      <CategoryTree />
+      <DomainTree />
       <div className="grid h-full min-h-0 min-w-0 grid-cols-[minmax(280px,360px)_minmax(0,1fr)] overflow-hidden border-l bg-card/95 backdrop-blur-sm">
-        <ThoughtList />
+        <UnderstandingList />
         <main className="min-h-0 min-w-0 overflow-hidden bg-transparent">
-          {selectedThoughtId ? (
-            <ThoughtDetail
-              thoughtId={selectedThoughtId}
+          {selectedUnderstandingId ? (
+            <UnderstandingDetail
+              understandingId={selectedUnderstandingId}
               onWikiLinkClick={handleWikiLinkClick}
-              onDeleted={() => resetAfterThoughtDeleted(selectedThoughtId)}
+              onDeleted={() => resetAfterUnderstandingDeleted(selectedUnderstandingId)}
             />
           ) : (
             <Empty className="h-full">

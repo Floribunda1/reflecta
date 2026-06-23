@@ -1,35 +1,39 @@
 import { inArray } from "drizzle-orm";
-import { thoughts } from "../../db/schema";
+import { understandings } from "../../db/schema";
 import type { FtsContextResult, SearchOptions, SearchResult } from "./types";
-import type { ThoughtSummaryDTO } from "../thought/types";
+import type { UnderstandingSummaryDTO } from "../understanding/types";
 import { SearchCore } from "./core";
 import { getLimitOffset } from "./core";
 import type { ReflectaServerContext } from "../shared/types-electron";
-import type { ThoughtElectronBff } from "../thought/bff-electron";
+import type { UnderstandingElectronBff } from "../understanding/bff-electron";
 
 export class SearchElectronBff extends SearchCore {
-  private readonly thoughtService: ThoughtElectronBff;
+  private readonly understandingService: UnderstandingElectronBff;
 
-  constructor(options: ReflectaServerContext & { thoughtService: ThoughtElectronBff }) {
+  constructor(options: ReflectaServerContext & { understandingService: UnderstandingElectronBff }) {
     super(options.getDb());
-    this.thoughtService = options.thoughtService;
+    this.understandingService = options.understandingService;
   }
 
-  async searchThoughts(query: string, options?: SearchOptions): Promise<ThoughtSummaryDTO[]> {
+  async searchUnderstandings(
+    query: string,
+    options?: SearchOptions,
+  ): Promise<UnderstandingSummaryDTO[]> {
     const { limit, offset } = getLimitOffset(options);
-    const ftsRows = await this.searchThoughtIds(query, { limit, offset });
+    const ftsRows = await this.searchUnderstandingIds(query, { limit, offset });
     if (ftsRows.length === 0) return [];
 
-    const thoughtIds = ftsRows.map((r) => r.thoughtId);
-    const thoughtRows = await this.db
+    const understandingIds = ftsRows.map((r) => r.understandingId);
+    const understandingRows = await this.db
       .select()
-      .from(thoughts)
-      .where(inArray(thoughts.id, thoughtIds));
-    const dtos = await this.thoughtService.assembleThoughtSummaryDTOs(thoughtRows);
+      .from(understandings)
+      .where(inArray(understandings.id, understandingIds));
+    const dtos =
+      await this.understandingService.assembleUnderstandingSummaryDTOs(understandingRows);
     const dtoMap = new Map(dtos.map((d) => [d.id, d]));
-    return thoughtIds
+    return understandingIds
       .map((id) => dtoMap.get(id))
-      .filter((d): d is ThoughtSummaryDTO => d !== undefined);
+      .filter((d): d is UnderstandingSummaryDTO => d !== undefined);
   }
 
   async searchContexts(query: string, options?: SearchOptions): Promise<FtsContextResult[]> {
@@ -37,18 +41,18 @@ export class SearchElectronBff extends SearchCore {
     const rows = await this.searchContextRows(query, { limit, offset });
     return rows.map((r) => ({
       contextId: r.contextId,
-      thoughtId: r.thoughtId,
-      sourceName: r.sourceName,
+      understandingId: r.understandingId,
+      title: r.title,
       snippet: r.snippet,
       rank: r.rank,
     }));
   }
 
   async search(query: string, options?: SearchOptions): Promise<SearchResult> {
-    const [thoughtDTOs, ctxResults] = await Promise.all([
-      this.searchThoughts(query, options),
+    const [understandingDTOs, ctxResults] = await Promise.all([
+      this.searchUnderstandings(query, options),
       this.searchContexts(query, options),
     ]);
-    return { thoughts: thoughtDTOs, contexts: ctxResults };
+    return { understandings: understandingDTOs, contexts: ctxResults };
   }
 }

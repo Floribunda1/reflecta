@@ -1,17 +1,17 @@
-import type { ThoughtSummaryDTO } from "@shared/thought";
+import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import { ipcClient } from "@renderer/utils/ipc";
-import { formatThoughtWikiLink } from "../../wiki-links";
+import { formatUnderstandingWikiLink } from "../../wiki-links";
 import type { WikiLinkSuggestionItem, WikiLinkSuggestionSource } from "./types";
 
 const defaultLimit = 8;
 const fallbackTitle = "未命名理解";
 const wikiLinkPattern = /\[\[([^\]\n#]+)#([^\]\n#]+)\]\]/g;
 
-function getThoughtTitle(thought: ThoughtSummaryDTO): string {
-  const title = thought.title?.trim();
+function getUnderstandingTitle(understanding: UnderstandingSummaryDTO): string {
+  const title = understanding.title?.trim();
   if (title) return title;
 
-  const firstBodyLine = thought.body
+  const firstBodyLine = understanding.body
     .split(/\r?\n/)
     .map((line) => line.trim())
     .find(Boolean);
@@ -19,9 +19,9 @@ function getThoughtTitle(thought: ThoughtSummaryDTO): string {
   return firstBodyLine ?? fallbackTitle;
 }
 
-function mapThought(thought: ThoughtSummaryDTO): WikiLinkSuggestionItem {
-  const title = getThoughtTitle(thought);
-  const preview = thought.body
+function mapUnderstanding(understanding: UnderstandingSummaryDTO): WikiLinkSuggestionItem {
+  const title = getUnderstandingTitle(understanding);
+  const preview = understanding.body
     .replace(wikiLinkPattern, "$1")
     .replaceAll(/!\[([^\]]*)]\([^)]+\)/g, "$1")
     .replaceAll(/\[([^\]]+)]\([^)]+\)/g, "$1")
@@ -33,25 +33,25 @@ function mapThought(thought: ThoughtSummaryDTO): WikiLinkSuggestionItem {
     .join(" ");
 
   const item: WikiLinkSuggestionItem = {
-    id: thought.id,
+    id: understanding.id,
     title,
-    markdown: formatThoughtWikiLink({ id: thought.id, title }),
+    markdown: formatUnderstandingWikiLink({ id: understanding.id, title }),
   };
   if (preview) item.preview = preview;
   return item;
 }
 
-export function createThoughtWikiLinkSuggestionSource(
+export function createUnderstandingWikiLinkSuggestionSource(
   limit = defaultLimit,
 ): WikiLinkSuggestionSource {
   return async (query, signal) => {
     const normalizedQuery = query.trim();
-    const thoughts = await ipcClient.thought.listThoughts(
+    const understandings = await ipcClient.understanding.listUnderstandings(
       normalizedQuery ? { searchQuery: normalizedQuery } : undefined,
     );
 
     if (signal.aborted) return [];
 
-    return thoughts.slice(0, limit).map(mapThought);
+    return understandings.slice(0, limit).map(mapUnderstanding);
   };
 }

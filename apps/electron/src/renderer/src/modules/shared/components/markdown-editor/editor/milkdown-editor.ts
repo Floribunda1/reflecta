@@ -9,7 +9,7 @@ import { replaceAll } from "@milkdown/utils";
 import { reflectaMilkdownExtensions } from "./milkdown-extensions";
 import { milkdownMarkdownEquals, normalizeMilkdownMarkdown } from "./markdown-normalize";
 import {
-  createThoughtWikiLinkSuggestionSource,
+  createUnderstandingWikiLinkSuggestionSource,
   createWikiLinkSuggestionPlugin,
   type WikiLinkSuggestionSource,
 } from "./wiki-link-suggestion";
@@ -138,7 +138,7 @@ export function createReflectaMilkdownEditorBuilder({
   if (!readonly) {
     editor.use(
       createWikiLinkSuggestionPlugin({
-        source: wikiLinkSuggestionSource ?? createThoughtWikiLinkSuggestionSource(),
+        source: wikiLinkSuggestionSource ?? createUnderstandingWikiLinkSuggestionSource(),
       }),
     );
   }

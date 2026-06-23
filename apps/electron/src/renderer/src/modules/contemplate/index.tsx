@@ -12,14 +12,14 @@ const TITLEBAR_DRAG_LEFT_OFFSET = 220;
 
 function ContemplatePageInner() {
   const ctx = useContemplatePageContext();
-  const { setSelectedThoughtId } = ctx;
+  const { setSelectedUnderstandingId } = ctx;
   const [searchParams] = useSearchParams();
   const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
 
   useEffect(() => {
-    const pending = searchParams.get("selectThoughtId");
-    if (pending) setSelectedThoughtId(pending);
-  }, [searchParams, setSelectedThoughtId]);
+    const pending = searchParams.get("selectUnderstandingId");
+    if (pending) setSelectedUnderstandingId(pending);
+  }, [searchParams, setSelectedUnderstandingId]);
 
   function onDragHandleMouseDown(event: MouseEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -48,12 +48,12 @@ function ContemplatePageInner() {
         className="app-drag-region absolute top-0 z-[15] h-12"
         style={{
           left: `${TITLEBAR_DRAG_LEFT_OFFSET}px`,
-          right: ctx.selectedThoughtId !== null ? `${panelWidth}px` : 0,
+          right: ctx.selectedUnderstandingId !== null ? `${panelWidth}px` : 0,
         }}
       />
       <GraphCanvas />
       <FilterPanel />
-      {ctx.selectedThoughtId !== null && (
+      {ctx.selectedUnderstandingId !== null && (
         <div
           className="absolute bottom-0 right-0 top-0 z-10 flex overflow-hidden"
           style={{ width: `${panelWidth}px` }}

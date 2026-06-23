@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import type { SourceType, UpdateContextInput } from "@reflecta/server";
+import type { ContextMedium, UpdateContextInput } from "@reflecta/server";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
 
@@ -13,39 +13,39 @@ export function registerUpdateContextAction(cli: Command): void {
     arguments: [{ name: "id", description: "Context ID", required: true }],
     options: [
       {
-        flags: "--source-type <type>",
-        description: "Source type (experience | video | book | article | opinion | ai)",
+        flags: "--medium <type>",
+        description: "Context medium (experience | video | book | article | opinion | ai | other)",
         required: false,
       },
-      { flags: "--source-name <name>", description: "Source name", required: false },
+      { flags: "--title <name>", description: "Context title", required: false },
       { flags: "--content <content>", description: "Content", required: false },
     ],
-    returns: "ContextDetail — { id, thoughtId, sourceType, sourceName, content }",
+    returns: "ContextDetail — { id, understandingId, medium, title, content }",
   });
   cli
     .command("update <id>")
     .description("Update a context")
     .option(
-      "--source-type <type>",
-      "Source type (experience | video | book | article | opinion | ai)",
+      "--medium <type>",
+      "Context medium (experience | video | book | article | opinion | ai | other)",
     )
-    .option("--source-name <name>", "Source name")
+    .option("--title <name>", "Context title")
     .option("--content <content>", "Content")
     .action((id, _options, actionCli) => updateContextAction(id, actionCli));
 }
 
 export async function updateContextAction(id: string, cli: Command): Promise<void> {
   const options = getCommandOptions(cli) as GlobalOptions & {
-    sourceType?: string;
-    sourceName?: string;
+    medium?: string;
+    title?: string;
     content?: string;
   };
   await runCommand(
     async () => {
       const services = await getServices();
       const input: UpdateContextInput = {};
-      if (options.sourceType !== undefined) input.sourceType = options.sourceType as SourceType;
-      if (options.sourceName !== undefined) input.sourceName = options.sourceName;
+      if (options.medium !== undefined) input.medium = options.medium as ContextMedium;
+      if (options.title !== undefined) input.title = options.title;
       if (options.content !== undefined) input.content = options.content;
       return services.contexts.updateContext(id, input);
     },

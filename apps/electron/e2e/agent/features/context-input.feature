@@ -5,12 +5,12 @@
 
   @P0 @context @AG-CONTEXT-001
   场景: 用户选中引用后发送消息
-    假如 seed 数据中存在 Thought「React Server Components」
-    而且 seed 数据中存在 Category「React」
-    当用户在输入框中选择 Thought「React Server Components」和 Category「React」
+    假如 seed 数据中存在 Understanding「React Server Components」
+    而且 seed 数据中存在 Domain「React」
+    当用户在输入框中选择 Understanding「React Server Components」和 Domain「React」
     而且用户发送消息
-    那么用户消息中应该显示 Thought「React Server Components」
-    而且用户消息中应该显示 Category「React」
+    那么用户消息中应该显示 Understanding「React Server Components」
+    而且用户消息中应该显示 Domain「React」
     而且 Agent 回复完成后，当前对话应该进入可继续输入状态
 
   @P1 @context @AG-CONTEXT-002
@@ -47,19 +47,19 @@
 
   @P1 @context @AG-CONTEXT-004
   场景: 用户通过 @ 搜索选择上下文引用
-    假如 seed 数据中存在 Thought「React Server Components」
-    而且 seed 数据中存在 Category「React」
+    假如 seed 数据中存在 Understanding「React Server Components」
+    而且 seed 数据中存在 Domain「React」
     当用户在输入框输入 @React
     那么页面应该显示上下文候选列表
-    而且候选列表应该包含 Thought「React Server Components」
-    而且候选列表应该包含 Category「React」
-    当用户选择 Thought「React Server Components」
-    那么输入框中应该显示 Thought「React Server Components」
+    而且候选列表应该包含 Understanding「React Server Components」
+    而且候选列表应该包含 Domain「React」
+    当用户选择 Understanding「React Server Components」
+    那么输入框中应该显示 Understanding「React Server Components」
 
   @P1 @context @AG-CONTEXT-005
-  场景: 用户点击已选择的 Thought 引用后查看详情
-    假如 seed 数据中存在 Thought「React Server Components」
-    而且用户已经在输入框中选择 Thought「React Server Components」
-    当用户点击输入框中的 Thought「React Server Components」引用
+  场景: 用户点击已选择的 Understanding 引用后查看详情
+    假如 seed 数据中存在 Understanding「React Server Components」
+    而且用户已经在输入框中选择 Understanding「React Server Components」
+    当用户点击输入框中的 Understanding「React Server Components」引用
     那么页面应该打开详情面板
-    而且详情面板应该显示 Thought「React Server Components」
+    而且详情面板应该显示 Understanding「React Server Components」

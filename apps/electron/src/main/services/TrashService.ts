@@ -1,22 +1,22 @@
-import type { TrashedThoughtDTO } from "@reflecta/server";
+import type { TrashedUnderstandingDTO } from "@reflecta/server";
 import { IpcMethod, IpcService } from "electron-ipc-decorator";
-import { thoughtService, trashService } from "./core";
+import { understandingService, trashService } from "./core";
 
 export class TrashService extends IpcService {
   static readonly groupName = "trash";
 
   @IpcMethod()
-  async listTrashedThoughts(): Promise<TrashedThoughtDTO[]> {
-    return trashService.listTrashedThoughts();
+  async listTrashedUnderstandings(): Promise<TrashedUnderstandingDTO[]> {
+    return trashService.listTrashedUnderstandings();
   }
 
   @IpcMethod()
-  async restoreThought(id: string): Promise<void> {
-    return thoughtService.restoreThought(id);
+  async restoreUnderstanding(id: string): Promise<void> {
+    return understandingService.restoreUnderstanding(id);
   }
 
   @IpcMethod()
-  async permanentlyDeleteThought(id: string): Promise<void> {
-    return thoughtService.permanentlyDeleteThought(id);
+  async permanentlyDeleteUnderstanding(id: string): Promise<void> {
+    return understandingService.permanentlyDeleteUnderstanding(id);
   }
 }

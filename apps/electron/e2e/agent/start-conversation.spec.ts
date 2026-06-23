@@ -86,7 +86,7 @@ test("@AG-START-004 新对话标题使用第一条用户消息的可读内容", 
 
   try {
     await createNewThread(page);
-    await selectContext(page, "React", "React", "category");
+    await selectContext(page, "React", "React", "domain");
     await composer(page).click();
     await page.keyboard.type("请解释这个分类");
     await page.getByTestId("agent-send-button").click();
@@ -95,7 +95,7 @@ test("@AG-START-004 新对话标题使用第一条用户消息的可读内容", 
 
     const title = "React 请解释这个分类";
     await expect(threadByTitle(page, title)).toBeVisible();
-    await expect(threadByTitle(page, title)).not.toContainText("category:");
+    await expect(threadByTitle(page, title)).not.toContainText("domain:");
   } finally {
     await app.close();
   }

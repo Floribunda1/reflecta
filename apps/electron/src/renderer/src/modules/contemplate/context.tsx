@@ -4,10 +4,10 @@ import { useLocalStorageState } from "@renderer/modules/shared/hooks/use-local-s
 export type GraphStatusFilter = "all" | "with-context" | "without-context";
 
 type ContemplatePageContextValue = {
-  selectedCategoryIds: string[];
-  setSelectedCategoryIds: (value: string[]) => void;
-  selectedThoughtId: string | null;
-  setSelectedThoughtId: (value: string | null) => void;
+  selectedDomainIds: string[];
+  setSelectedDomainIds: (value: string[]) => void;
+  selectedUnderstandingId: string | null;
+  setSelectedUnderstandingId: (value: string | null) => void;
   showAllDescendants: boolean;
   setShowAllDescendants: (value: boolean) => void;
   statusFilter: GraphStatusFilter;
@@ -18,11 +18,11 @@ type ContemplatePageContextValue = {
 const ContemplatePageContext = createContext<ContemplatePageContextValue | null>(null);
 
 export function ContemplatePageProvider({ children }: { children: ReactNode }) {
-  const [selectedCategoryIds, setSelectedCategoryIds] = useLocalStorageState<string[]>(
-    "contemplate:selectedCategoryIds",
+  const [selectedDomainIds, setSelectedDomainIds] = useLocalStorageState<string[]>(
+    "contemplate:selectedDomainIds",
     [],
   );
-  const [selectedThoughtId, setSelectedThoughtId] = useState<string | null>(null);
+  const [selectedUnderstandingId, setSelectedUnderstandingId] = useState<string | null>(null);
   const [showAllDescendants, setShowAllDescendants] = useLocalStorageState<boolean>(
     "contemplate:showAllDescendants",
     true,
@@ -30,18 +30,18 @@ export function ContemplatePageProvider({ children }: { children: ReactNode }) {
   const [statusFilter, setStatusFilter] = useState<GraphStatusFilter>("all");
 
   const resetFilters = useCallback(() => {
-    setSelectedCategoryIds([]);
+    setSelectedDomainIds([]);
     setShowAllDescendants(true);
     setStatusFilter("all");
-    setSelectedThoughtId(null);
-  }, [setSelectedCategoryIds, setShowAllDescendants]);
+    setSelectedUnderstandingId(null);
+  }, [setSelectedDomainIds, setShowAllDescendants]);
 
   const value = useMemo(
     () => ({
-      selectedCategoryIds,
-      setSelectedCategoryIds,
-      selectedThoughtId,
-      setSelectedThoughtId,
+      selectedDomainIds,
+      setSelectedDomainIds,
+      selectedUnderstandingId,
+      setSelectedUnderstandingId,
       showAllDescendants,
       setShowAllDescendants,
       statusFilter,
@@ -49,9 +49,9 @@ export function ContemplatePageProvider({ children }: { children: ReactNode }) {
       resetFilters,
     }),
     [
-      selectedCategoryIds,
-      setSelectedCategoryIds,
-      selectedThoughtId,
+      selectedDomainIds,
+      setSelectedDomainIds,
+      selectedUnderstandingId,
       showAllDescendants,
       setShowAllDescendants,
       statusFilter,

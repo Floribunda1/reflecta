@@ -1,18 +1,18 @@
-export type ThoughtWikiLink = {
+export type UnderstandingWikiLink = {
   title: string;
   id: string;
 };
 
-const thoughtWikiLinkPattern = /\[\[([^\]\n]+)\]\]/g;
-const escapedThoughtWikiLinkPattern = /\\\[\\\[([^\]\n]+)]]/g;
+const understandingWikiLinkPattern = /\[\[([^\]\n]+)\]\]/g;
+const escapedUnderstandingWikiLinkPattern = /\\\[\\\[([^\]\n]+)]]/g;
 
-export function formatThoughtWikiLink(link: ThoughtWikiLink): string {
+export function formatUnderstandingWikiLink(link: UnderstandingWikiLink): string {
   const id = link.id.trim();
   const title = link.title.trim() || id;
   return `[[${title}#${id}]]`;
 }
 
-export function parseThoughtWikiLink(raw: string): ThoughtWikiLink | null {
+export function parseUnderstandingWikiLink(raw: string): UnderstandingWikiLink | null {
   const match = /^\[\[([^\]\n]+)\]\]$/.exec(raw.trim());
   if (!match) return null;
 
@@ -40,51 +40,57 @@ function unescapeMarkdownText(value: string): string {
   return value.replaceAll(/\\([\\[\]_`*#])/g, "$1");
 }
 
-export function renderThoughtWikiLinksAsHtml(content: string): string {
-  return content.replaceAll(thoughtWikiLinkPattern, (match) => {
-    const parsed = parseThoughtWikiLink(match);
+export function renderUnderstandingWikiLinksAsHtml(content: string): string {
+  return content.replaceAll(understandingWikiLinkPattern, (match) => {
+    const parsed = parseUnderstandingWikiLink(match);
     if (!parsed) return match;
     return `<a href="#" data-wiki-link="${escapeHtml(parsed.id)}" class="wiki-link">${escapeHtml(parsed.title)}</a>`;
   });
 }
 
-export function normalizeThoughtWikiLinkBody(body: string): string {
-  const unescapedBody = body.replaceAll(escapedThoughtWikiLinkPattern, (_match, rawContent) => {
-    const content = unescapeMarkdownText(String(rawContent).trim());
-    return `[[${content}]]`;
-  });
+export function normalizeUnderstandingWikiLinkBody(body: string): string {
+  const unescapedBody = body.replaceAll(
+    escapedUnderstandingWikiLinkPattern,
+    (_match, rawContent) => {
+      const content = unescapeMarkdownText(String(rawContent).trim());
+      return `[[${content}]]`;
+    },
+  );
 
-  return unescapedBody.replaceAll(thoughtWikiLinkPattern, (match) => {
-    const parsed = parseThoughtWikiLink(match);
-    return parsed ? formatThoughtWikiLink(parsed) : match;
+  return unescapedBody.replaceAll(understandingWikiLinkPattern, (match) => {
+    const parsed = parseUnderstandingWikiLink(match);
+    return parsed ? formatUnderstandingWikiLink(parsed) : match;
   });
 }
 
-export function findThoughtWikiLinkAtOffset(text: string, offset: number): ThoughtWikiLink | null {
-  for (const match of text.matchAll(thoughtWikiLinkPattern)) {
+export function findUnderstandingWikiLinkAtOffset(
+  text: string,
+  offset: number,
+): UnderstandingWikiLink | null {
+  for (const match of text.matchAll(understandingWikiLinkPattern)) {
     const start = match.index ?? -1;
     if (start === -1) continue;
 
     const end = start + match[0].length;
     if (offset < start || offset > end) continue;
 
-    const parsed = parseThoughtWikiLink(match[0]);
+    const parsed = parseUnderstandingWikiLink(match[0]);
     if (parsed) return parsed;
   }
 
   return null;
 }
 
-export function findThoughtWikiLinkRanges(
+export function findUnderstandingWikiLinkRanges(
   text: string,
-): Array<{ from: number; to: number; link: ThoughtWikiLink }> {
-  const ranges: Array<{ from: number; to: number; link: ThoughtWikiLink }> = [];
+): Array<{ from: number; to: number; link: UnderstandingWikiLink }> {
+  const ranges: Array<{ from: number; to: number; link: UnderstandingWikiLink }> = [];
 
-  for (const match of text.matchAll(thoughtWikiLinkPattern)) {
+  for (const match of text.matchAll(understandingWikiLinkPattern)) {
     const start = match.index ?? -1;
     if (start === -1) continue;
 
-    const parsed = parseThoughtWikiLink(match[0]);
+    const parsed = parseUnderstandingWikiLink(match[0]);
     if (!parsed) continue;
 
     ranges.push({
@@ -97,6 +103,6 @@ export function findThoughtWikiLinkRanges(
   return ranges;
 }
 
-export function formatThoughtWikiLinkDisplay(link: ThoughtWikiLink): string {
+export function formatUnderstandingWikiLinkDisplay(link: UnderstandingWikiLink): string {
   return `[[${link.title}]]`;
 }

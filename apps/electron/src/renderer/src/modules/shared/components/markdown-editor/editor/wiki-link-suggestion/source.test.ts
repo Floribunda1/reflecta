@@ -1,25 +1,27 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import type { ThoughtSummaryDTO } from "@shared/thought";
+import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import { ipcClient } from "@renderer/utils/ipc";
-import { createThoughtWikiLinkSuggestionSource } from "./source";
+import { createUnderstandingWikiLinkSuggestionSource } from "./source";
 
 vi.mock("@renderer/utils/ipc", () => ({
   ipcClient: {
     search: {
-      searchThoughts: vi.fn(),
+      searchUnderstandings: vi.fn(),
     },
-    thought: {
-      listThoughts: vi.fn(),
+    understanding: {
+      listUnderstandings: vi.fn(),
     },
   },
 }));
 
-function thought(partial: Partial<ThoughtSummaryDTO> & { id: string }): ThoughtSummaryDTO {
+function understanding(
+  partial: Partial<UnderstandingSummaryDTO> & { id: string },
+): UnderstandingSummaryDTO {
   return {
     id: partial.id,
     title: partial.title ?? null,
     body: partial.body ?? "",
-    categoryIds: partial.categoryIds ?? [],
+    domainIds: partial.domainIds ?? [],
     contextCount: partial.contextCount ?? 0,
     connectionCount: partial.connectionCount ?? 0,
     connectionIds: partial.connectionIds ?? [],
@@ -28,59 +30,63 @@ function thought(partial: Partial<ThoughtSummaryDTO> & { id: string }): ThoughtS
   };
 }
 
-describe("thought wiki link suggestion source", () => {
+describe("understanding wiki link suggestion source", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  test("uses listThoughts for an empty query", async () => {
-    vi.mocked(ipcClient.thought.listThoughts).mockResolvedValue([
-      thought({ id: "thought-1", title: "Alpha" }),
+  test("uses listUnderstandings for an empty query", async () => {
+    vi.mocked(ipcClient.understanding.listUnderstandings).mockResolvedValue([
+      understanding({ id: "understanding-1", title: "Alpha" }),
     ]);
 
-    const source = createThoughtWikiLinkSuggestionSource();
+    const source = createUnderstandingWikiLinkSuggestionSource();
     const items = await source("", new AbortController().signal);
 
-    expect(ipcClient.thought.listThoughts).toHaveBeenCalledOnce();
-    expect(ipcClient.search.searchThoughts).not.toHaveBeenCalled();
-    expect(items).toEqual([{ id: "thought-1", title: "Alpha", markdown: "[[Alpha#thought-1]]" }]);
+    expect(ipcClient.understanding.listUnderstandings).toHaveBeenCalledOnce();
+    expect(ipcClient.search.searchUnderstandings).not.toHaveBeenCalled();
+    expect(items).toEqual([
+      { id: "understanding-1", title: "Alpha", markdown: "[[Alpha#understanding-1]]" },
+    ]);
   });
 
-  test("uses listThoughts search filter for a non-empty query", async () => {
-    vi.mocked(ipcClient.thought.listThoughts).mockResolvedValue([
-      thought({ id: "thought-2", title: null, body: "\nBeta body\nSecond line" }),
+  test("uses listUnderstandings search filter for a non-empty query", async () => {
+    vi.mocked(ipcClient.understanding.listUnderstandings).mockResolvedValue([
+      understanding({ id: "understanding-2", title: null, body: "\nBeta body\nSecond line" }),
     ]);
 
-    const source = createThoughtWikiLinkSuggestionSource();
+    const source = createUnderstandingWikiLinkSuggestionSource();
     const items = await source(" beta ", new AbortController().signal);
 
-    expect(ipcClient.thought.listThoughts).toHaveBeenCalledWith({ searchQuery: "beta" });
-    expect(ipcClient.search.searchThoughts).not.toHaveBeenCalled();
+    expect(ipcClient.understanding.listUnderstandings).toHaveBeenCalledWith({
+      searchQuery: "beta",
+    });
+    expect(ipcClient.search.searchUnderstandings).not.toHaveBeenCalled();
     expect(items).toEqual([
       {
-        id: "thought-2",
+        id: "understanding-2",
         title: "Beta body",
         preview: "Beta body Second line",
-        markdown: "[[Beta body#thought-2]]",
+        markdown: "[[Beta body#understanding-2]]",
       },
     ]);
   });
 
   test("falls back to a default title and slices results", async () => {
-    vi.mocked(ipcClient.thought.listThoughts).mockResolvedValue(
+    vi.mocked(ipcClient.understanding.listUnderstandings).mockResolvedValue(
       Array.from({ length: 10 }, (_, index) =>
-        thought({ id: `thought-${index}`, title: "", body: "" }),
+        understanding({ id: `understanding-${index}`, title: "", body: "" }),
       ),
     );
 
-    const source = createThoughtWikiLinkSuggestionSource();
+    const source = createUnderstandingWikiLinkSuggestionSource();
     const items = await source("", new AbortController().signal);
 
     expect(items).toHaveLength(8);
     expect(items[0]).toEqual({
-      id: "thought-0",
+      id: "understanding-0",
       title: "未命名理解",
-      markdown: "[[未命名理解#thought-0]]",
+      markdown: "[[未命名理解#understanding-0]]",
     });
   });
 });

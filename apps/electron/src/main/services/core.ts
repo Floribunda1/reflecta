@@ -1,15 +1,15 @@
 import { getDBInstance } from "@main/db";
 import {
-  CategoryCliBff,
-  CategoryElectronBff,
+  DomainCliBff,
+  DomainElectronBff,
   ContextCliBff,
   ContextElectronBff,
   GraphCliBff,
   SearchCliBff,
   SearchElectronBff,
   SnapshotCliBff,
-  ThoughtCliBff,
-  ThoughtElectronBff,
+  UnderstandingCliBff,
+  UnderstandingElectronBff,
   TrashElectronBff,
 } from "@reflecta/server";
 import { PiAgentHost } from "./agent/pi-agent-host";
@@ -27,14 +27,14 @@ function createLazy<T extends object>(factory: () => T): T {
   });
 }
 
-export const thoughtService = createLazy(() => new ThoughtElectronBff(options));
-export const thoughtCliService = createLazy(() => new ThoughtCliBff(getDBInstance()));
-export const categoryService = createLazy(() => new CategoryElectronBff(options));
-export const categoryCliService = createLazy(() => new CategoryCliBff(getDBInstance()));
+export const understandingService = createLazy(() => new UnderstandingElectronBff(options));
+export const understandingCliService = createLazy(() => new UnderstandingCliBff(getDBInstance()));
+export const domainService = createLazy(() => new DomainElectronBff(options));
+export const domainCliService = createLazy(() => new DomainCliBff(getDBInstance()));
 export const contextService = createLazy(() => new ContextElectronBff(options));
 export const contextCliService = createLazy(() => new ContextCliBff(getDBInstance()));
 export const searchService = createLazy(
-  () => new SearchElectronBff({ ...options, thoughtService }),
+  () => new SearchElectronBff({ ...options, understandingService }),
 );
 export const searchCliService = createLazy(() => new SearchCliBff(getDBInstance()));
 export const graphService = createLazy(() => new GraphCliBff(getDBInstance()));

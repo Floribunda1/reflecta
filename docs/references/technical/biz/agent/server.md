@@ -12,7 +12,7 @@ flowchart TD
   Runtime["AgentRuntime\n运行编排器"]
   Model["AI SDK streamText\n模型循环"]
   Tools["Agent Tools\n读取工具 / 提案工具"]
-  Domain["Domain Services\nThought / Category / Context"]
+  Domain["Domain Services\nUnderstanding / Domain / Context"]
   Repo["AgentRepository\nagent 表"]
   DB["SQLite / libSQL"]
   Stream["agent:stream\nUIMessageChunk"]
@@ -34,7 +34,7 @@ flowchart TD
 - **AgentRuntime**：拥有一次运行的生命周期，包括创建运行、选择模型、构造上下文、调用 AI SDK、发出流、结束 / 取消 / 失败运行。
 - **AI SDK `streamText`**：拥有模型循环，包括助手文本、推理内容、工具调用、工具审批状态和输出分片。
 - **Agent Tools**：把产品能力暴露给模型。读取工具只读；提案工具必须等待用户审批后再写。
-- **Domain Services**：拥有 Thought / Category / Context 的真实业务写入。
+- **Domain Services**：拥有 Understanding / Domain / Context 的真实业务写入。
 - **AgentRepository**：拥有 agent 自己的表，包括对话、消息、运行、工具调用记录。
 - **DB 写入层**：必须拥有写入顺序。SQLite 是单写入者，写入串行化是架构要求，不是错误处理细节。
 

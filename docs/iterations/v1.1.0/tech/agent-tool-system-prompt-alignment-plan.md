@@ -94,14 +94,14 @@ create, update, or delete Reflecta knowledge...
 
 ```txt
 snapshot_project
-category_list
+domain_list
 inspect_domain
-thought_list
+understanding_list
 read_understanding
 context_list
 read_context
 search_all
-search_thoughts
+search_understandings
 search_contexts
 graph_neighborhood
 graph_path
@@ -131,7 +131,7 @@ search_all -> read_understanding(includeContexts) -> graph_neighborhood
 
 ```ts
 {
-  thoughts: ThoughtSearchHit[];
+  understandings: UnderstandingSearchHit[];
   contexts: ContextSearchHit[];
 }
 ```
@@ -178,7 +178,7 @@ type UnderstandingCandidate = {
 ```txt
 这是一个用户理解候选。
 它有没有 Context？
-Context 的 role 是什么？
+Context 的 medium、title、content 是什么？
 它是用户已经说出来的理解，还是 AI 帮用户整理出来的候选表达？
 如果没有 Context，它应该被标记为缺少上下文，而不是伪装成成熟理解。
 ```
@@ -262,7 +262,7 @@ graph_neighborhood
 propose_understanding
 ```
 
-它表达的是“捕捉一个用户理解候选”，而不是裸 `createThought`。
+它表达的是“捕捉一个用户理解候选”，而不是裸 `createUnderstanding`。
 
 建议 shape：
 
@@ -271,9 +271,7 @@ type ProposeUnderstandingInput = {
   title?: string;
   body: string;
   domainIds?: string[];
-  contextStatus: "grounded" | "ungrounded";
   proposedContext?: {
-    role: "origin" | "support" | "application" | "challenge" | "revision" | "related";
     medium: "experience" | "video" | "book" | "article" | "opinion" | "ai" | "other";
     title?: string;
     content: string;
@@ -284,8 +282,8 @@ type ProposeUnderstandingInput = {
 
 规则：
 
-- `contextStatus = grounded` 时必须带 `proposedContext`。
-- `contextStatus = ungrounded` 时 proposal UI 必须显示“缺少 Context”。
+- 有具体场景或材料时带 `proposedContext`。
+- 没有 `proposedContext` 时 proposal UI 只展示 Understanding 候选，不伪造 Context。
 - 如果用户只是在让 AI 总结材料，Agent 不能直接把总结当 Understanding；应该先问用户这是否代表他的理解。
 - approval 后，后端用一次事务创建 Understanding，并在有 `proposedContext` 时一起创建 Context。
 - `add_context` 保留，用于给已有 Understanding 增加 Context。
@@ -365,7 +363,7 @@ TDD：
 - 返回 `UnderstandingCandidate[]`：
   - parent Understanding
   - matched Context evidence
-  - explicit related Thoughts
+  - explicit related Understandings
   - boundary notes
   - retrieval trace
 - System prompt 指导 Agent 优先使用 `find_understandings`，只有需要精读时再 `read_understanding` / `read_context`。
@@ -404,17 +402,16 @@ TDD：
   - 缺少 Context 时优先追问；用户明确要先记录时，标记为 ungrounded。
 - UI proposal card 展示：
   - Understanding title/body。
-  - context status。
-  - context role/medium/title/content preview。
+  - proposed Context 的 medium/title/content preview。
   - proposal reason。
 
 TDD：
 
-1. RED：调用 `propose_understanding` approval tool，pending event payload 包含 `contextStatus`。
+1. RED：调用 `propose_understanding` approval tool，pending event payload 可包含 `proposedContext`。
 2. GREEN：注册 approval tool。
-3. RED：approve grounded proposal 后，DB 里同时出现 Understanding 和 Context。
+3. RED：approve 带 proposedContext 的 proposal 后，DB 里同时出现 Understanding 和 Context。
 4. GREEN：实现事务写入。
-5. RED：approve ungrounded proposal 后，只创建 Understanding，并在事件输出中保留 ungrounded 状态。
+5. RED：approve 不带 proposedContext 的 proposal 后，只创建 Understanding。
 6. GREEN：补输出。
 7. E2E：真实 AI 下输入“把这段来自某次 AI 对话的理解记录下来...”，断言出现 pending proposal；点击确认后，刷新仍能看到新 Understanding 和 Context。
 
@@ -442,7 +439,7 @@ TDD：
   - `add_context`
   - update/delete approval tools
 - 降级或隐藏：
-  - `search_thoughts`
+  - `search_understandings`
   - `search_contexts`
   - `search_all`
 - Tool UI 文案统一：

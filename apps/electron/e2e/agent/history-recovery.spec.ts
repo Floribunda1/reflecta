@@ -68,7 +68,7 @@ test("@AG-HISTORY-003 用户离开后仍可处理等待确认的提案", async (
     id: "history-proposal",
     title: "等待确认提案",
     messages: [
-      userMessage("history-proposal-user", "请创建一个 Thought"),
+      userMessage("history-proposal-user", "请创建一个 Understanding"),
       assistantMessage("history-proposal-assistant", [
         proposalPart({
           toolCallId: "history-proposal-tool",

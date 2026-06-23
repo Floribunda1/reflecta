@@ -1,12 +1,12 @@
 import type { AgentReducedAssistantBlock } from "@shared/agent";
 
 export type ProposalType =
-  | "thought_create"
-  | "thought_update"
-  | "thought_delete"
-  | "category_create"
-  | "category_update"
-  | "category_delete"
+  | "understanding_create"
+  | "understanding_update"
+  | "understanding_delete"
+  | "domain_create"
+  | "domain_update"
+  | "domain_delete"
   | "context_create"
   | "context_update"
   | "context_delete"
@@ -55,21 +55,21 @@ type ProposalBase<TType extends ProposalType, TData extends { kind: string }> = 
   data: TData;
 };
 
-export type ThoughtProposalView = ProposalBase<
-  "thought_create",
+export type UnderstandingProposalView = ProposalBase<
+  "understanding_create",
   {
-    kind: "thought";
+    kind: "understanding";
     title?: string | null;
     body: string;
-    categoryIds: string[];
+    domainIds: string[];
   }
 >;
 
-export type ThoughtUpdateProposalView = ProposalBase<
-  "thought_update",
+export type UnderstandingUpdateProposalView = ProposalBase<
+  "understanding_update",
   {
-    kind: "thought-update";
-    thoughtId: string;
+    kind: "understanding-update";
+    understandingId: string;
     beforeBody: string;
     afterBody: string;
     reason: string;
@@ -80,14 +80,14 @@ export type ContextProposalView = ProposalBase<
   "context_create",
   {
     kind: "context";
-    thoughtId: string;
-    sourceLabel: string;
+    understandingId: string;
+    contextLabel: string;
     content: string;
   }
 >;
 
 export type GenericProposalView = ProposalBase<
-  Exclude<ProposalType, "thought_create" | "thought_update" | "context_create">,
+  Exclude<ProposalType, "understanding_create" | "understanding_update" | "context_create">,
   {
     kind: "generic";
     entries: Array<{ key: string; value: string }>;
@@ -96,8 +96,8 @@ export type GenericProposalView = ProposalBase<
 
 export type ProposalRenderData = ProposalView["data"];
 export type ProposalView =
-  | ThoughtProposalView
-  | ThoughtUpdateProposalView
+  | UnderstandingProposalView
+  | UnderstandingUpdateProposalView
   | ContextProposalView
   | GenericProposalView;
 
@@ -220,11 +220,11 @@ function proposalViewFor(block: AgentApprovalBlock): ProposalView {
     approvalId: block.approvalId,
   };
 
-  if (type === "thought_create") {
-    return { ...base, type, data: thoughtProposalData(input) };
+  if (type === "understanding_create") {
+    return { ...base, type, data: understandingProposalData(input) };
   }
-  if (type === "thought_update") {
-    return { ...base, type, data: thoughtUpdateProposalData(input) };
+  if (type === "understanding_update") {
+    return { ...base, type, data: understandingUpdateProposalData(input) };
   }
   if (type === "context_create") {
     return { ...base, type, data: contextProposalData(input) };
@@ -233,17 +233,17 @@ function proposalViewFor(block: AgentApprovalBlock): ProposalView {
 }
 
 function proposalTypeFor(toolName: string): ProposalType {
-  if (toolName === "thought_create") return "thought_create";
-  if (toolName === "thought_update") return "thought_update";
-  if (toolName === "thought_delete") return "thought_delete";
-  if (toolName === "category_create") return "category_create";
-  if (toolName === "category_update") return "category_update";
-  if (toolName === "category_delete") return "category_delete";
+  if (toolName === "understanding_create") return "understanding_create";
+  if (toolName === "understanding_update") return "understanding_update";
+  if (toolName === "understanding_delete") return "understanding_delete";
+  if (toolName === "domain_create") return "domain_create";
+  if (toolName === "domain_update") return "domain_update";
+  if (toolName === "domain_delete") return "domain_delete";
   if (toolName === "context_create") return "context_create";
   if (toolName === "context_update") return "context_update";
   if (toolName === "context_delete") return "context_delete";
   if (toolName === "bash") return "bash";
-  return "thought_create";
+  return "understanding_create";
 }
 
 function approvalStatus(block: AgentApprovalBlock): ToolApprovalStatus | undefined {
@@ -264,36 +264,38 @@ function proposalState(block: AgentApprovalBlock): ProposalState {
 }
 
 function proposalTitle(type: ProposalType) {
-  if (type === "thought_create") return "候选 Thought";
-  if (type === "thought_update") return "候选修改";
+  if (type === "understanding_create") return "候选 Understanding";
+  if (type === "understanding_update") return "候选修改";
   if (type === "context_create") return "候选 Context";
-  if (type === "thought_delete") return "候选删除 Thought";
-  if (type === "category_create") return "候选 Category";
-  if (type === "category_update") return "候选修改 Category";
-  if (type === "category_delete") return "候选删除 Category";
+  if (type === "understanding_delete") return "候选删除 Understanding";
+  if (type === "domain_create") return "候选 Domain";
+  if (type === "domain_update") return "候选修改 Domain";
+  if (type === "domain_delete") return "候选删除 Domain";
   if (type === "context_update") return "候选修改 Context";
   if (type === "context_delete") return "候选删除 Context";
   if (type === "bash") return "执行 Bash";
   return "候选操作";
 }
 
-function thoughtProposalData(output: Record<string, unknown>): ThoughtProposalView["data"] {
+function understandingProposalData(
+  output: Record<string, unknown>,
+): UnderstandingProposalView["data"] {
   return {
-    kind: "thought",
+    kind: "understanding",
     title: nullableStringValue(output.title),
     body: stringValue(output.body),
-    categoryIds: stringArray(output.categoryIds),
+    domainIds: stringArray(output.domainIds),
   };
 }
 
-function thoughtUpdateProposalData(
+function understandingUpdateProposalData(
   output: Record<string, unknown>,
-): ThoughtUpdateProposalView["data"] {
+): UnderstandingUpdateProposalView["data"] {
   const before = isRecord(output.before) ? output.before : {};
   const after = isRecord(output.after) ? output.after : output;
   return {
-    kind: "thought-update",
-    thoughtId: stringValue(output.thoughtId),
+    kind: "understanding-update",
+    understandingId: stringValue(output.understandingId),
     beforeBody: stringValue(before.body),
     afterBody: stringValue(after.body),
     reason: stringValue(output.reason),
@@ -303,8 +305,8 @@ function thoughtUpdateProposalData(
 function contextProposalData(output: Record<string, unknown>): ContextProposalView["data"] {
   return {
     kind: "context",
-    thoughtId: stringValue(output.thoughtId),
-    sourceLabel: stringValue(output.sourceName) || stringValue(output.sourceType),
+    understandingId: stringValue(output.understandingId),
+    contextLabel: stringValue(output.title) || stringValue(output.medium),
     content: stringValue(output.content),
   };
 }
@@ -353,9 +355,9 @@ function toolGroupType(name: string): ToolGroupType {
   if (name.startsWith("graph_")) return "graph";
   if (
     name.startsWith("search_") ||
-    name.startsWith("thought_") ||
+    name.startsWith("understanding_") ||
     name.startsWith("context_") ||
-    name.startsWith("category_") ||
+    name.startsWith("domain_") ||
     name === "file_read" ||
     name === "attachment_read" ||
     name === "snapshot_project"
@@ -414,8 +416,8 @@ function doneSummary(groupType: ToolGroupType, blocks: AgentToolBlock[]) {
   if (groupType === "graph") return "查看了关联";
   if (groupType === "lookup") {
     const counts = aggregateLookupCounts(blocks);
-    if (counts.thoughts || counts.contexts) {
-      return `搜索 ${counts.thoughts} 条 Thought，读取 ${counts.contexts} 条 Context`;
+    if (counts.understandings || counts.contexts) {
+      return `搜索 ${counts.understandings} 条 Understanding，读取 ${counts.contexts} 条 Context`;
     }
     return "查找了相关内容";
   }
@@ -429,24 +431,24 @@ function failedSummary(title: string, blocks: AgentToolBlock[]) {
 }
 
 function aggregateLookupCounts(blocks: AgentToolBlock[]) {
-  let thoughts = 0;
+  let understandings = 0;
   let contexts = 0;
   for (const block of blocks) {
     if (block.state !== "completed") continue;
     const name = block.toolName;
     const output = toolOutput(block);
-    if (name === "thought_list" || name === "search_thoughts") {
-      thoughts += outputCount(output, "thoughts");
+    if (name === "understanding_list" || name === "search_understandings") {
+      understandings += outputCount(output, "understandings");
     }
     if (name === "context_list" || name === "search_contexts") {
       contexts += outputCount(output, "contexts");
     }
     if (name === "search_all") {
-      thoughts += outputCount(output, "thoughts");
+      understandings += outputCount(output, "understandings");
       contexts += outputCount(output, "contexts");
     }
   }
-  return { thoughts, contexts };
+  return { understandings, contexts };
 }
 
 function toolActivityTitle(groupType: ToolGroupType, blocks: AgentToolBlock[]) {
@@ -458,13 +460,13 @@ function toolActivityTitle(groupType: ToolGroupType, blocks: AgentToolBlock[]) {
 
 function toolTitle(name: string) {
   if (name === "snapshot_project") return "查看知识库概览";
-  if (name === "category_list") return "列出 Category";
-  if (name === "category_inspect") return "查看 Category";
-  if (name === "thought_list") return "列出 Thought";
-  if (name === "thought_get") return "读取 Thought";
+  if (name === "domain_list") return "列出 Domain";
+  if (name === "domain_inspect") return "查看 Domain";
+  if (name === "understanding_list") return "列出 Understanding";
+  if (name === "understanding_get") return "读取 Understanding";
   if (name === "context_list") return "列出 Context";
   if (name === "context_get") return "读取 Context";
-  if (name === "search_thoughts") return "搜索 Thought";
+  if (name === "search_understandings") return "搜索 Understanding";
   if (name === "search_contexts") return "搜索 Context";
   if (name === "search_all") return "搜索相关内容";
   if (name === "attachment_read") return "读取附件";
@@ -481,7 +483,7 @@ function toolRunningVerb(name: string) {
   if (name.startsWith("graph_")) return "正在查看关联";
   if (name.includes("search")) return "正在搜索相关内容";
   if (name.includes("get")) return "正在读取内容";
-  if (name.startsWith("category_")) return "正在查看领域目录";
+  if (name.startsWith("domain_")) return "正在查看领域目录";
   if (name === "snapshot_project") return "正在查看知识库概览";
   return "正在使用工具";
 }
@@ -493,7 +495,7 @@ function toolDoneVerb(name: string) {
   if (name.startsWith("graph_")) return "查看关联";
   if (name.includes("search")) return "搜索";
   if (name.includes("get")) return "读取";
-  if (name.startsWith("category_")) return "查看领域目录";
+  if (name.startsWith("domain_")) return "查看领域目录";
   if (name === "snapshot_project") return "查看知识库概览";
   return "使用工具";
 }
@@ -511,34 +513,34 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
     const exitCode = outputRecord.exitCode;
     return `执行了 Bash${typeof exitCode === "number" ? ` · exit ${exitCode}` : ""}`;
   }
-  if (name === "category_list") return `列出 ${outputCount(output, "categories")} 个 Category`;
-  if (name === "category_inspect") {
-    return `查看了「${stringValue(outputRecord.name) || stringValue(input.categoryId) || "领域"}」下的内容`;
+  if (name === "domain_list") return `列出 ${outputCount(output, "domains")} 个 Domain`;
+  if (name === "domain_inspect") {
+    return `查看了「${stringValue(outputRecord.name) || stringValue(input.domainId) || "领域"}」下的内容`;
   }
-  if (name === "thought_list") {
-    return `列出 ${outputCount(output, "thoughts")} 条 Thought`;
+  if (name === "understanding_list") {
+    return `列出 ${outputCount(output, "understandings")} 条 Understanding`;
   }
-  if (name === "search_thoughts") {
-    return `搜索到 ${outputCount(output, "thoughts")} 条 Thought`;
+  if (name === "search_understandings") {
+    return `搜索到 ${outputCount(output, "understandings")} 条 Understanding`;
   }
   if (name === "search_contexts") return `搜索到 ${outputCount(output, "contexts")} 条 Context`;
   if (name === "search_all") {
-    return `搜索了 ${outputCount(output, "thoughts")} 条 Thought / ${outputCount(output, "contexts")} 条 Context`;
+    return `搜索了 ${outputCount(output, "understandings")} 条 Understanding / ${outputCount(output, "contexts")} 条 Context`;
   }
-  if (name === "thought_get")
-    return `读取了「${entityTitle(outputRecord.thought) || entityTitle(outputRecord) || stringValue(input.thoughtId) || "Thought"}」`;
+  if (name === "understanding_get")
+    return `读取了「${entityTitle(outputRecord.understanding) || entityTitle(outputRecord) || stringValue(input.understandingId) || "Understanding"}」`;
   if (name === "context_list") return `列出 ${outputCount(output, "contexts")} 条 Context`;
   if (name === "context_get")
     return `读取了「${entityTitle(outputRecord.context) || entityTitle(outputRecord) || stringValue(input.contextId) || "Context"}」`;
   if (name === "graph_neighborhood")
-    return `查看了「${entityTitle(outputRecord.seed) || stringValue(input.thoughtId) || "Thought"}」附近的关联`;
+    return `查看了「${entityTitle(outputRecord.seed) || stringValue(input.understandingId) || "Understanding"}」附近的关联`;
   if (name === "graph_path") return "查找了两条想法之间的路径";
   return `使用了 ${name}`;
 }
 
 function entityTitle(value: unknown) {
   if (!isRecord(value)) return undefined;
-  return stringValue(value.title) || stringValue(value.name) || stringValue(value.sourceName);
+  return stringValue(value.title) || stringValue(value.name) || stringValue(value.title);
 }
 
 function arrayValue(value: unknown): unknown[] {

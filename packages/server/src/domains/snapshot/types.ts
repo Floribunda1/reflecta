@@ -1,16 +1,16 @@
-import type { ThoughtSummary } from "../thought/types";
+import type { UnderstandingSummary } from "../understanding/types";
 
 export type ProjectSnapshotResult = {
-  categories: Array<{
+  domains: Array<{
     id: string;
     name: string;
-    thoughtCount: number;
+    understandingCount: number;
   }>;
-  recentThoughts: ThoughtSummary[];
+  recentUnderstandings: UnderstandingSummary[];
   stats?: {
-    totalThoughts: number;
+    totalUnderstandings: number;
     totalContexts: number;
-    totalCategories: number;
+    totalDomains: number;
     totalReferences: number;
   };
 };

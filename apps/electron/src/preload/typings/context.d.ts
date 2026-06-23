@@ -1,6 +1,6 @@
 export type {
   ContextDTO,
   CreateContextInput,
-  SourceType,
+  ContextMedium,
   UpdateContextInput,
 } from "@reflecta/server";

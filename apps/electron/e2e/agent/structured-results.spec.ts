@@ -5,7 +5,7 @@ import {
   reasoningPart,
   resetAgentFixtures,
   seedAgentThread,
-  seedThoughtIdByTitle,
+  seedUnderstandingIdByTitle,
   toolPart,
   userMessage,
 } from "./agent-fixtures";
@@ -23,7 +23,10 @@ test("@AG-RESULT-001 用户查看复杂回复时内容按发生顺序显示", as
       userMessage("result-complex-user", "请给出复杂回复"),
       assistantMessage("result-complex-assistant", [
         reasoningPart("THINKING_SUMMARY"),
-        toolPart("search_all", "result-search", { thoughts: [{ id: "thought-1" }], contexts: [] }),
+        toolPart("search_all", "result-search", {
+          understandings: [{ id: "understanding-1" }],
+          contexts: [],
+        }),
         proposalPart({
           toolCallId: "result-proposal",
           title: "CANDIDATE_TITLE_PENDING",
@@ -38,16 +41,16 @@ test("@AG-RESULT-001 用户查看复杂回复时内容按发生顺序显示", as
 
   try {
     await expect(page.getByText("思考过程")).toBeVisible();
-    await expect(page.getByText("搜索了 1 条 Thought / 0 条 Context")).toBeVisible();
-    await expect(page.getByText("候选 Thought")).toBeVisible();
+    await expect(page.getByText("搜索了 1 条 Understanding / 0 条 Context")).toBeVisible();
+    await expect(page.getByText("候选 Understanding")).toBeVisible();
     await expect(page.getByText("FINAL_REPLY_BODY")).toBeVisible();
 
     const order = await page.locator("body").evaluate((body) => {
       const text = body.textContent ?? "";
       return [
         text.indexOf("思考过程"),
-        text.indexOf("搜索了 1 条 Thought / 0 条 Context"),
-        text.indexOf("候选 Thought"),
+        text.indexOf("搜索了 1 条 Understanding / 0 条 Context"),
+        text.indexOf("候选 Understanding"),
         text.indexOf("FINAL_REPLY_BODY"),
       ];
     });
@@ -77,7 +80,7 @@ test("@AG-RESULT-002 用户可以区分提案的不同状态", async () => {
           title: "CANDIDATE_TITLE_APPROVED",
           state: "output-available",
           approval: { id: "approved-approval", approved: true },
-          output: { resultRefType: "thought", resultRefId: "approved-thought" },
+          output: { resultRefType: "understanding", resultRefId: "approved-understanding" },
         }),
         proposalPart({
           toolCallId: "rejected-tool",
@@ -89,7 +92,7 @@ test("@AG-RESULT-002 用户可以区分提案的不同状态", async () => {
           toolCallId: "done-tool",
           title: "CANDIDATE_TITLE_DONE",
           state: "output-available",
-          output: { resultRefType: "thought", resultRefId: "done-thought" },
+          output: { resultRefType: "understanding", resultRefId: "done-understanding" },
         }),
         proposalPart({
           toolCallId: "error-tool",
@@ -158,14 +161,14 @@ test("@AG-RESULT-003 用户展开思考过程和工具活动查看详情", async
 });
 
 test("@AG-RESULT-004 用户点击 Agent 回复中的知识库引用后查看详情", async () => {
-  const thoughtId = seedThoughtIdByTitle("React Server Components");
+  const understandingId = seedUnderstandingIdByTitle("React Server Components");
   seedAgentThread({
     id: "result-wiki-link",
     title: "知识库引用",
     messages: [
       userMessage("result-wiki-link-user", "展示知识库引用"),
       assistantMessage("result-wiki-link-assistant", [
-        { type: "text", text: `可以关联到 [[React Server Components#${thoughtId}]]。` },
+        { type: "text", text: `可以关联到 [[React Server Components#${understandingId}]]。` },
       ]),
     ],
   });

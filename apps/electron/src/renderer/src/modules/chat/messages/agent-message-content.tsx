@@ -17,8 +17,8 @@ import {
   type ContextProposalView,
   type GenericProposalView,
   type ProposalView,
-  type ThoughtProposalView,
-  type ThoughtUpdateProposalView,
+  type UnderstandingProposalView,
+  type UnderstandingUpdateProposalView,
   type ToolActivityView,
   type ToolApprovalStatus,
 } from "./agent-turn-view";
@@ -251,13 +251,13 @@ function proposalStatusNote(
   return undefined;
 }
 
-function CandidateThoughtCard({
+function CandidateUnderstandingCard({
   proposal,
   messageId,
   onApprove,
   onInspectContextRef,
 }: {
-  proposal: ThoughtProposalView;
+  proposal: UnderstandingProposalView;
   messageId: string;
   onApprove: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
@@ -274,9 +274,9 @@ function CandidateThoughtCard({
         <div className="rounded-md bg-muted/50 p-3 leading-6">
           <MarkdownBody value={proposal.data.body} onInspectContextRef={onInspectContextRef} />
         </div>
-        {proposal.data.categoryIds.length > 0 ? (
+        {proposal.data.domainIds.length > 0 ? (
           <div className="text-xs text-muted-foreground">
-            Category: {proposal.data.categoryIds.join(", ")}
+            Domain: {proposal.data.domainIds.join(", ")}
           </div>
         ) : null}
       </div>
@@ -303,8 +303,10 @@ function CandidateContextCard({
       onApprove={onApprove}
     >
       <div className="space-y-2">
-        <div className="text-xs text-muted-foreground">Thought: {proposal.data.thoughtId}</div>
-        <div>{proposal.data.sourceLabel}</div>
+        <div className="text-xs text-muted-foreground">
+          Understanding: {proposal.data.understandingId}
+        </div>
+        <div>{proposal.data.contextLabel}</div>
         <div className="rounded-md bg-muted/50 p-3 leading-6">
           <MarkdownBody value={proposal.data.content} onInspectContextRef={onInspectContextRef} />
         </div>
@@ -341,13 +343,13 @@ function GenericProposalCard({
   );
 }
 
-function UpdateThoughtDiffCard({
+function UpdateUnderstandingDiffCard({
   proposal,
   messageId,
   onApprove,
   onInspectContextRef,
 }: {
-  proposal: ThoughtUpdateProposalView;
+  proposal: UnderstandingUpdateProposalView;
   messageId: string;
   onApprove: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
@@ -360,7 +362,9 @@ function UpdateThoughtDiffCard({
       onApprove={onApprove}
     >
       <div className="space-y-2">
-        <div className="text-xs text-muted-foreground">Thought: {proposal.data.thoughtId}</div>
+        <div className="text-xs text-muted-foreground">
+          Understanding: {proposal.data.understandingId}
+        </div>
         <div className="grid gap-2 md:grid-cols-2">
           <div className="rounded-md bg-muted/50 p-3">
             <div className="mb-1 font-medium">Before</div>
@@ -396,9 +400,9 @@ function ToolCard({
   onApprove: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
 }) {
-  if (proposal.type === "thought_create") {
+  if (proposal.type === "understanding_create") {
     return (
-      <CandidateThoughtCard
+      <CandidateUnderstandingCard
         proposal={proposal}
         messageId={messageId}
         onApprove={onApprove}
@@ -406,9 +410,9 @@ function ToolCard({
       />
     );
   }
-  if (proposal.type === "thought_update") {
+  if (proposal.type === "understanding_update") {
     return (
-      <UpdateThoughtDiffCard
+      <UpdateUnderstandingDiffCard
         proposal={proposal}
         messageId={messageId}
         onApprove={onApprove}

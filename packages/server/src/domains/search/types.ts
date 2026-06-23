@@ -1,6 +1,6 @@
-import type { ThoughtSummaryDTO } from "../thought/types";
+import type { UnderstandingSummaryDTO } from "../understanding/types";
 import type { ContextSearchHit } from "../context/types";
-import type { ThoughtSearchHit } from "../thought/types";
+import type { UnderstandingSearchHit } from "../understanding/types";
 
 export type SearchOptions = {
   limit?: number;
@@ -9,18 +9,18 @@ export type SearchOptions = {
 
 export type FtsContextResult = {
   contextId: string;
-  thoughtId: string;
-  sourceName: string | null;
+  understandingId: string;
+  title: string | null;
   snippet: string;
   rank: number;
 };
 
 export type SearchResult = {
-  thoughts: ThoughtSummaryDTO[];
+  understandings: UnderstandingSummaryDTO[];
   contexts: FtsContextResult[];
 };
 
 export type SearchAllResult = {
-  thoughts: ThoughtSearchHit[];
+  understandings: UnderstandingSearchHit[];
   contexts: ContextSearchHit[];
 };
