@@ -1,5 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
+import { pipeline } from "node:stream/promises";
+import { Readable } from "node:stream";
 import { app, safeStorage } from "electron";
 
 export interface AiModelConfig {
@@ -41,6 +43,38 @@ export interface AiModelOption {
   label: string;
 }
 
+export type RetrievalEmbeddingProvider = "disabled" | "openai-compatible";
+
+export interface RetrievalEmbeddingConfig {
+  provider: RetrievalEmbeddingProvider;
+  modelId: string;
+  baseUrl?: string;
+  apiKey?: string;
+}
+
+export interface RetrievalConfig {
+  embedding: RetrievalEmbeddingConfig;
+}
+
+export interface RetrievalEmbeddingModelManifest {
+  id: string;
+  name: string;
+  runtime: "llama.cpp";
+  modelId: string;
+  repoId: string;
+  fileName: string;
+  downloadUrl: string;
+  dimensions: number;
+  sizeLabel: string;
+}
+
+export interface RetrievalEmbeddingModelStatus {
+  manifest: RetrievalEmbeddingModelManifest;
+  downloaded: boolean;
+  modelPath: string;
+  config: RetrievalConfig;
+}
+
 export interface ResolvedAiModelConfig {
   provider: AiProviderConfig;
   catalog: AiProviderCatalogItem;
@@ -52,6 +86,7 @@ export interface ResolvedAiModelConfig {
 export interface AppConfig {
   contentStorageRoot?: string;
   ai?: AiConfig;
+  retrieval?: RetrievalConfig;
 }
 
 export type ReflectaProfile = "dev" | "prod";
@@ -83,6 +118,27 @@ export function getDefaultContentStorageRoot(): string {
 
 let _cache: AppConfig | null = null;
 const ENCRYPTED_VALUE_PREFIX = "safe:v1:";
+
+export const DEFAULT_RETRIEVAL_EMBEDDING_MODEL: RetrievalEmbeddingModelManifest = {
+  id: "qwen3-embedding-0.6b-q8_0",
+  name: "Qwen3 Embedding 0.6B",
+  runtime: "llama.cpp",
+  modelId: "Qwen/Qwen3-Embedding-0.6B-GGUF:Q8_0",
+  repoId: "Qwen/Qwen3-Embedding-0.6B-GGUF",
+  fileName: "Qwen3-Embedding-0.6B-Q8_0.gguf",
+  downloadUrl:
+    "https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF/resolve/main/Qwen3-Embedding-0.6B-Q8_0.gguf",
+  dimensions: 1024,
+  sizeLabel: "639 MB",
+};
+
+const DEFAULT_RETRIEVAL_CONFIG: RetrievalConfig = {
+  embedding: {
+    provider: "disabled",
+    modelId: DEFAULT_RETRIEVAL_EMBEDDING_MODEL.modelId,
+    baseUrl: "http://127.0.0.1:8080/v1",
+  },
+};
 
 const BUILT_IN_AI_PROVIDERS: AiProviderCatalogItem[] = [
   {
@@ -204,14 +260,36 @@ function transformAiConfigKeys(config: AiConfig | undefined, transform: (value: 
   };
 }
 
+function transformRetrievalConfigKeys(
+  config: RetrievalConfig | undefined,
+  transform: (value: string) => string,
+) {
+  if (!config) return undefined;
+  return {
+    ...config,
+    embedding: {
+      ...config.embedding,
+      apiKey: config.embedding.apiKey ? transform(config.embedding.apiKey) : undefined,
+    },
+  };
+}
+
 function readPersistedConfig(raw: string): AppConfig {
   const parsed = JSON.parse(raw) as AppConfig;
-  return { ...parsed, ai: transformAiConfigKeys(parsed.ai, decryptConfigSecret) };
+  return {
+    ...parsed,
+    ai: transformAiConfigKeys(parsed.ai, decryptConfigSecret),
+    retrieval: transformRetrievalConfigKeys(parsed.retrieval, decryptConfigSecret),
+  };
 }
 
 function serializeConfig(config: AppConfig): string {
   return JSON.stringify(
-    { ...config, ai: transformAiConfigKeys(config.ai, encryptConfigSecret) },
+    {
+      ...config,
+      ai: transformAiConfigKeys(config.ai, encryptConfigSecret),
+      retrieval: transformRetrievalConfigKeys(config.retrieval, encryptConfigSecret),
+    },
     null,
     2,
   );
@@ -281,6 +359,22 @@ export function normalizeAiConfig(input: AiConfig): AiConfig {
   };
 }
 
+export function normalizeRetrievalConfig(input: RetrievalConfig | undefined): RetrievalConfig {
+  const embedding = input?.embedding ?? DEFAULT_RETRIEVAL_CONFIG.embedding;
+  const provider = embedding.provider === "openai-compatible" ? "openai-compatible" : "disabled";
+  const modelId = embedding.modelId.trim() || DEFAULT_RETRIEVAL_EMBEDDING_MODEL.modelId;
+  const baseUrl = embedding.baseUrl?.trim() || DEFAULT_RETRIEVAL_CONFIG.embedding.baseUrl;
+  const apiKey = embedding.apiKey?.trim();
+  return {
+    embedding: {
+      provider,
+      modelId,
+      baseUrl,
+      ...(apiKey ? { apiKey } : {}),
+    },
+  };
+}
+
 export function getAiProviderCatalog(): AiProviderCatalogItem[] {
   return BUILT_IN_AI_PROVIDERS;
 }
@@ -293,6 +387,26 @@ export function getAiProviderCatalogItem(providerId: string): AiProviderCatalogI
 
 export function getAiConfig(): AiConfig {
   return normalizeAiConfig(readConfig().ai ?? { providers: [] });
+}
+
+export function getRetrievalConfig(): RetrievalConfig {
+  return normalizeRetrievalConfig(readConfig().retrieval);
+}
+
+export function getRetrievalEmbeddingModelPath(
+  manifest = DEFAULT_RETRIEVAL_EMBEDDING_MODEL,
+): string {
+  return path.join(getAppConfigDir(), "models", "retrieval", manifest.fileName);
+}
+
+export function getRetrievalEmbeddingModelStatus(): RetrievalEmbeddingModelStatus {
+  const modelPath = getRetrievalEmbeddingModelPath();
+  return {
+    manifest: DEFAULT_RETRIEVAL_EMBEDDING_MODEL,
+    downloaded: fs.existsSync(modelPath),
+    modelPath,
+    config: getRetrievalConfig(),
+  };
 }
 
 export function getAiModelOptions(config = getAiConfig()): AiModelOption[] {
@@ -356,6 +470,28 @@ export function writeConfig(partial: Partial<AppConfig>): void {
   const configFilePath = getAppConfigFilePath();
   fs.mkdirSync(path.dirname(configFilePath), { recursive: true });
   fs.writeFileSync(configFilePath, serializeConfig(config), "utf-8");
+}
+
+export async function downloadDefaultRetrievalEmbeddingModel(): Promise<RetrievalEmbeddingModelStatus> {
+  const modelPath = getRetrievalEmbeddingModelPath();
+  fs.mkdirSync(path.dirname(modelPath), { recursive: true });
+  if (process.env.REFLECTA_STUB_RETRIEVAL_MODEL_DOWNLOAD === "1") {
+    fs.writeFileSync(modelPath, "stub retrieval embedding model", "utf-8");
+    return getRetrievalEmbeddingModelStatus();
+  }
+
+  const response = await fetch(DEFAULT_RETRIEVAL_EMBEDDING_MODEL.downloadUrl);
+  if (!response.ok || !response.body) {
+    throw new Error(`下载 embedding 模型失败：${response.status}`);
+  }
+
+  const tempPath = `${modelPath}.download`;
+  await pipeline(
+    Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]),
+    fs.createWriteStream(tempPath),
+  );
+  fs.renameSync(tempPath, modelPath);
+  return getRetrievalEmbeddingModelStatus();
 }
 
 /** Used by AssetService and db — resolves the effective user content directory. */

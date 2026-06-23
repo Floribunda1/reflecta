@@ -9,6 +9,8 @@ const SEMANTIC_CONCEPTS: RegExp[] = [
 ];
 
 export class LocalEmbeddingProvider implements EmbeddingProvider {
+  readonly modelId = "test-local-concept";
+
   constructor(private readonly dimensions = 64) {}
 
   async embed(texts: string[]): Promise<number[][]> {

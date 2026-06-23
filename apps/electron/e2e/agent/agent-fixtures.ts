@@ -54,6 +54,10 @@ export function seedAgentThread(thread: AgentFixtureThread) {
   runFixture({ type: "seedThread", thread });
 }
 
+export function seedUnderstanding(input: { id: string; title: string; body: string }) {
+  runFixture({ type: "seedUnderstanding", ...input });
+}
+
 export function seedUnderstandingIdByTitle(title: string) {
   return runFixture({ type: "understandingIdByTitle", title }).trim();
 }

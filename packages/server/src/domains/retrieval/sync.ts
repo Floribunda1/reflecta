@@ -5,13 +5,41 @@ import { join } from "node:path";
 import { contexts, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import { resolveDomainRefs } from "../domain/core";
+import {
+  DisabledEmbeddingProvider,
+  getRetrievalEmbeddingConfig,
+  getRetrievalEmbeddingModelId,
+} from "./embedding-config";
 import { LanceDbRetrievalIndex } from "./lancedb-index";
-import { LocalEmbeddingProvider } from "./local-embedding";
+import { OpenAiCompatibleEmbeddingProvider } from "./openai-compatible-embedding";
 import { buildRetrievalDocuments } from "./projection";
 
 export const RETRIEVAL_PROJECTION_VERSION = 1;
-export const RETRIEVAL_EMBEDDING_MODEL = "local-concept-v1";
-const RETRIEVAL_TABLE_NAME = `retrieval_documents_p${RETRIEVAL_PROJECTION_VERSION}_${RETRIEVAL_EMBEDDING_MODEL.replaceAll("-", "_")}`;
+
+function safeTableSegment(value: string) {
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "default"
+  );
+}
+
+function createEmbeddingProvider() {
+  const config = getRetrievalEmbeddingConfig();
+  if (config.provider === "openai-compatible" && config.baseUrl) {
+    return new OpenAiCompatibleEmbeddingProvider({
+      baseUrl: config.baseUrl,
+      modelId: config.modelId,
+      apiKey: config.apiKey,
+    });
+  }
+  return new DisabledEmbeddingProvider();
+}
+
+export function getRetrievalTableName() {
+  return `retrieval_documents_p${RETRIEVAL_PROJECTION_VERSION}_${safeTableSegment(getRetrievalEmbeddingModelId())}`;
+}
 
 function resolveRetrievalIndexPath() {
   return (
@@ -27,8 +55,8 @@ function resolveRetrievalDirtyMarkerPath() {
 export function createRetrievalIndex() {
   return new LanceDbRetrievalIndex({
     uri: resolveRetrievalIndexPath(),
-    embeddingProvider: new LocalEmbeddingProvider(),
-    tableName: RETRIEVAL_TABLE_NAME,
+    embeddingProvider: createEmbeddingProvider(),
+    tableName: getRetrievalTableName(),
   });
 }
 

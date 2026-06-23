@@ -1,16 +1,48 @@
 import { app, dialog } from "electron";
 import { IpcMethod, IpcService } from "electron-ipc-decorator";
-import type { AiConfig, AiModelOption, AiModelSelection, AiProviderCatalogItem } from "../config";
 import {
+  configureRetrievalEmbedding,
+  markRetrievalIndexDirty,
+  type RetrievalEmbeddingConfig as ServerRetrievalEmbeddingConfig,
+} from "@reflecta/server";
+import type {
+  AiConfig,
+  AiModelOption,
+  AiModelSelection,
+  AiProviderCatalogItem,
+  RetrievalConfig,
+  RetrievalEmbeddingModelStatus,
+} from "../config";
+import {
+  downloadDefaultRetrievalEmbeddingModel,
   getActiveAiModelSelection,
   getAiConfig,
   getAiModelOptions,
   getAiProviderCatalog,
   getContentStorageRoot,
+  getRetrievalConfig,
+  getRetrievalEmbeddingModelStatus,
   normalizeAiConfig,
+  normalizeRetrievalConfig,
   readConfig,
   writeConfig,
 } from "../config";
+
+function toServerRetrievalEmbeddingConfig(
+  config: RetrievalConfig,
+): Partial<ServerRetrievalEmbeddingConfig> | undefined {
+  if (config.embedding.provider === "disabled") return undefined;
+  return {
+    provider: "openai-compatible",
+    modelId: config.embedding.modelId,
+    baseUrl: config.embedding.baseUrl,
+    apiKey: config.embedding.apiKey,
+  };
+}
+
+export function applyRetrievalConfigToServer(config = getRetrievalConfig()): void {
+  configureRetrievalEmbedding(toServerRetrievalEmbeddingConfig(config));
+}
 
 export class ConfigService extends IpcService {
   static readonly groupName = "config";
@@ -56,6 +88,29 @@ export class ConfigService extends IpcService {
   @IpcMethod()
   async setAiConfig(config: AiConfig): Promise<void> {
     writeConfig({ ai: normalizeAiConfig(config) });
+  }
+
+  @IpcMethod()
+  async getRetrievalConfig(): Promise<RetrievalConfig> {
+    return getRetrievalConfig();
+  }
+
+  @IpcMethod()
+  async setRetrievalConfig(config: RetrievalConfig): Promise<void> {
+    const next = normalizeRetrievalConfig(config);
+    writeConfig({ retrieval: next });
+    applyRetrievalConfigToServer(next);
+    await markRetrievalIndexDirty();
+  }
+
+  @IpcMethod()
+  async getRetrievalEmbeddingModelStatus(): Promise<RetrievalEmbeddingModelStatus> {
+    return getRetrievalEmbeddingModelStatus();
+  }
+
+  @IpcMethod()
+  async downloadDefaultRetrievalEmbeddingModel(): Promise<RetrievalEmbeddingModelStatus> {
+    return downloadDefaultRetrievalEmbeddingModel();
   }
 
   @IpcMethod()

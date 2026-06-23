@@ -2,14 +2,16 @@ import { useState } from "react";
 import { Button } from "@renderer/components/ui/button";
 import { ScrollArea } from "@renderer/components/ui/scroll-area";
 import { cn } from "@renderer/lib/utils";
-import { Database, Sparkles, Trash2 } from "lucide-react";
+import { Database, Search, Sparkles, Trash2 } from "lucide-react";
 import { AiSection } from "./AiSection";
+import { RetrievalSection } from "./RetrievalSection";
 import { StorageSection } from "./StorageSection";
 import { TrashSection } from "./TrashSection";
 
 const MENU_ITEMS = [
   { key: "storage", label: "存储", icon: Database },
   { key: "ai", label: "AI", icon: Sparkles },
+  { key: "retrieval", label: "Retrieval", icon: Search },
   { key: "trash", label: "回收站", icon: Trash2 },
 ] as const;
 type MenuKey = (typeof MENU_ITEMS)[number]["key"];
@@ -51,6 +53,7 @@ export function SettingsDialogContent() {
         <ScrollArea className="min-w-0 flex-1">
           <main className="mx-auto w-full px-6 py-5">
             {activeMenu === "storage" && <StorageSection />}
+            {activeMenu === "retrieval" && <RetrievalSection />}
             {activeMenu === "trash" && <TrashSection />}
           </main>
         </ScrollArea>

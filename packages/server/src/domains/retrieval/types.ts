@@ -25,6 +25,7 @@ export type RetrievalSearchHit = RetrievalDocument & {
 };
 
 export type EmbeddingProvider = {
+  readonly modelId: string;
   embed(texts: string[]): Promise<number[][]>;
 };
 

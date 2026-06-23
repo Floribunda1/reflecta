@@ -22,6 +22,8 @@ async function tempIndexDir() {
 }
 
 class KeywordEmbeddingProvider implements EmbeddingProvider {
+  readonly modelId = "test-keyword";
+
   async embed(texts: string[]): Promise<number[][]> {
     return texts.map((text) => {
       const normalized = text.toLocaleLowerCase();
@@ -33,6 +35,8 @@ class KeywordEmbeddingProvider implements EmbeddingProvider {
 }
 
 class RrfEmbeddingProvider implements EmbeddingProvider {
+  readonly modelId = "test-rrf";
+
   async embed(texts: string[]): Promise<number[][]> {
     return texts.map((text) =>
       /semantic-match|lexicalterm/.test(text.toLocaleLowerCase()) ? [1, 0] : [0, 1],

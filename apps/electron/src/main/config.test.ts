@@ -30,6 +30,7 @@ vi.mock("electron", () => ({
 let tempDir: string;
 const originalContentStorageRoot = process.env.REFLECTA_CONTENT_STORAGE_ROOT;
 const originalProfile = process.env.REFLECTA_PROFILE;
+const originalStubRetrievalModelDownload = process.env.REFLECTA_STUB_RETRIEVAL_MODEL_DOWNLOAD;
 
 beforeEach(() => {
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "reflecta-electron-config-"));
@@ -37,6 +38,7 @@ beforeEach(() => {
   mockElectron.userData = path.join(tempDir, "user-data");
   mockElectron.isPackaged = false;
   delete process.env.REFLECTA_CONTENT_STORAGE_ROOT;
+  delete process.env.REFLECTA_STUB_RETRIEVAL_MODEL_DOWNLOAD;
   process.env.REFLECTA_PROFILE = "dev";
   vi.resetModules();
 });
@@ -47,6 +49,66 @@ afterEach(() => {
   else process.env.REFLECTA_CONTENT_STORAGE_ROOT = originalContentStorageRoot;
   if (originalProfile === undefined) delete process.env.REFLECTA_PROFILE;
   else process.env.REFLECTA_PROFILE = originalProfile;
+  if (originalStubRetrievalModelDownload === undefined)
+    delete process.env.REFLECTA_STUB_RETRIEVAL_MODEL_DOWNLOAD;
+  else process.env.REFLECTA_STUB_RETRIEVAL_MODEL_DOWNLOAD = originalStubRetrievalModelDownload;
+});
+
+describe("Electron retrieval config", () => {
+  test("uses the built-in Qwen embedding manifest by default", async () => {
+    const config = await import("./config");
+
+    expect(config.getRetrievalConfig()).toEqual({
+      embedding: {
+        provider: "disabled",
+        modelId: "Qwen/Qwen3-Embedding-0.6B-GGUF:Q8_0",
+        baseUrl: "http://127.0.0.1:8080/v1",
+      },
+    });
+    expect(config.getRetrievalEmbeddingModelStatus()).toMatchObject({
+      downloaded: false,
+      manifest: {
+        name: "Qwen3 Embedding 0.6B",
+        runtime: "llama.cpp",
+      },
+    });
+  });
+
+  test("downloads the default embedding model into app config storage", async () => {
+    process.env.REFLECTA_STUB_RETRIEVAL_MODEL_DOWNLOAD = "1";
+    const config = await import("./config");
+
+    const status = await config.downloadDefaultRetrievalEmbeddingModel();
+
+    expect(status.downloaded).toBe(true);
+    expect(status.modelPath).toBe(
+      path.join(config.getAppConfigDir(), "models", "retrieval", "Qwen3-Embedding-0.6B-Q8_0.gguf"),
+    );
+    expect(fs.readFileSync(status.modelPath, "utf-8")).toContain("stub retrieval embedding model");
+  });
+
+  test("encrypts retrieval endpoint API key on write and decrypts it on read", async () => {
+    const config = await import("./config");
+
+    config.writeConfig({
+      retrieval: {
+        embedding: {
+          provider: "openai-compatible",
+          modelId: "test-model",
+          baseUrl: "http://127.0.0.1:8080/v1",
+          apiKey: "retrieval-key",
+        },
+      },
+    });
+
+    const raw = fs.readFileSync(config.getAppConfigFilePath(), "utf-8");
+    expect(raw).not.toContain("retrieval-key");
+    expect(raw).toContain("safe:v1:");
+
+    vi.resetModules();
+    const freshConfig = await import("./config");
+    expect(freshConfig.readConfig().retrieval?.embedding.apiKey).toBe("retrieval-key");
+  });
 });
 
 describe("Electron content storage root", () => {

@@ -33,6 +33,7 @@ type FixtureThread = {
 type Fixture =
   | { type: "reset" }
   | { type: "seedThread"; thread: FixtureThread }
+  | { type: "seedUnderstanding"; id: string; title: string; body: string }
   | { type: "understandingIdByTitle"; title: string }
   | { type: "understandingExistsByTitle"; title: string }
   | { type: "domainExistsByName"; name: string };
@@ -377,6 +378,22 @@ function seedThread(thread: FixtureThread) {
   rewriteHeaderTimestamp(manager, thread.updatedAt ?? thread.createdAt ?? BASE_TIME);
 }
 
+function markRetrievalDirty() {
+  const retrievalIndexRoot = path.join(contentStorageRoot, "retrieval-index");
+  fs.mkdirSync(retrievalIndexRoot, { recursive: true });
+  fs.writeFileSync(path.join(retrievalIndexRoot, ".dirty"), String(Date.now()), "utf-8");
+}
+
+function seedUnderstanding(id: string, title: string, body: string) {
+  const now = new Date().toISOString();
+  db.query(
+    `INSERT INTO understandings (id, title, body, created_at, updated_at, deleted_at)
+     VALUES (?, ?, ?, ?, ?, NULL)
+     ON CONFLICT(id) DO UPDATE SET title = excluded.title, body = excluded.body, updated_at = excluded.updated_at, deleted_at = NULL`,
+  ).run(id, title, body, now, now);
+  markRetrievalDirty();
+}
+
 try {
   if (fixture.type === "reset") {
     fs.rmSync(sessionsRoot(), { recursive: true, force: true });
@@ -385,6 +402,10 @@ try {
 
   if (fixture.type === "seedThread") {
     seedThread(fixture.thread);
+  }
+
+  if (fixture.type === "seedUnderstanding") {
+    seedUnderstanding(fixture.id, fixture.title, fixture.body);
   }
 
   if (fixture.type === "understandingIdByTitle") {
