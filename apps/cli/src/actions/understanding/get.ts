@@ -1,4 +1,4 @@
-import { Option, type Command } from "commander";
+import type { Command } from "commander";
 import { CliError, ErrorCodes } from "../../error";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand } from "../../runner";
@@ -27,13 +27,6 @@ export function registerGetUnderstandingAction(cli: Command): void {
     .description("Get a understanding by ID")
     .option("--include-contexts", "Include full context objects")
     .option("--include-relations", "Include wiki-link relations")
-    .addOption(new Option("--include-references", "Include referenced understandings").hideHelp())
-    .addOption(
-      new Option(
-        "--include-referenced-bys",
-        "Include understandings that reference this one",
-      ).hideHelp(),
-    )
     .action((id, _options, actionCli) => getUnderstandingAction(id, actionCli));
 }
 
@@ -45,16 +38,12 @@ export async function getUnderstandingAction(id: string, cli: Command): Promise<
     verbose: boolean;
     includeContexts?: boolean;
     includeRelations?: boolean;
-    includeReferences?: boolean;
-    includeReferencedBys?: boolean;
   };
   await runCommand(async () => {
     const services = await getServices();
     const understanding = await services.understandings.getUnderstanding(id, {
       includeContexts: options.includeContexts,
       includeRelations: options.includeRelations,
-      includeReferences: options.includeReferences,
-      includeReferencedBys: options.includeReferencedBys,
     });
     if (!understanding) {
       throw new CliError(ErrorCodes.NOT_FOUND, `Understanding "${id}" not found.`);

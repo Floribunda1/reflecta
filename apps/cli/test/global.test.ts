@@ -31,10 +31,16 @@ describe("全局行为", () => {
       const arr = parseJson(stdout) as unknown[];
       const firstId = (arr[0] as { id: string }).id;
 
-      const { stdout: stdout2 } = await runCommand(["domain", "get", firstId, "--format", "json"]);
-      const data = parseJson(stdout2);
+      const { stdout: stdout2 } = await runCommand([
+        "domain",
+        "inspect",
+        firstId,
+        "--format",
+        "json",
+      ]);
+      const data = parseJson(stdout2) as { domain?: { id: string } };
       expect(Array.isArray(data)).toBe(false);
-      expect(data).toMatchObject({ id: firstId });
+      expect(data.domain).toMatchObject({ id: firstId });
     });
 
     it("单对象查询使用 --format jsonl 输出单行", async () => {
@@ -43,10 +49,16 @@ describe("全局行为", () => {
       const arr = parseJson(stdout) as unknown[];
       const firstId = (arr[0] as { id: string }).id;
 
-      const { stdout: stdout2 } = await runCommand(["domain", "get", firstId, "--format", "jsonl"]);
+      const { stdout: stdout2 } = await runCommand([
+        "domain",
+        "inspect",
+        firstId,
+        "--format",
+        "jsonl",
+      ]);
       const lines = stdout2.split("\n").filter((l) => l.trim());
       expect(lines.length).toBe(1);
-      expect(JSON.parse(lines[0])).toMatchObject({ id: firstId });
+      expect(JSON.parse(lines[0]).domain).toMatchObject({ id: firstId });
     });
   });
 

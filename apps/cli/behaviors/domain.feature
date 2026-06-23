@@ -22,19 +22,6 @@
     当 用户执行命令 "domain list"
     那么 标准输出为空
 
-  # domain get
-
-  场景: 获取已存在的 Domain
-    假设 数据库中存在一条 Domain，其 ID 为 DOMAIN_ID
-    当 用户执行命令 "domain get DOMAIN_ID"
-    那么 标准输出包含该 Domain 的 id、name、parentId
-
-  场景: 获取不存在的 Domain
-    假设 存在一个数据库中不存在的 ID MISSING_ID
-    当 用户执行命令 "domain get MISSING_ID"
-    那么 命令退出码应为 1
-    并且 标准错误输出应包含 NOT_FOUND
-
   # domain inspect
 
   场景: 检查包含 Understanding 的 Domain
@@ -76,13 +63,13 @@
 
   场景: 检查时附带引用边
     假设 数据库中存在一条 Domain DOMAIN_ID，其 Understanding 之间存在 wiki-link 引用关系
-    当 用户执行命令 "domain inspect DOMAIN_ID --include-edges"
+    当 用户执行命令 "domain inspect DOMAIN_ID --include-relations"
     那么 响应中包含 edges 数组，元素为 { from, to }
     并且 edges 数组已去重
 
   场景: 检查时同时附带 Context 和引用边
     假设 数据库中存在一条 Domain DOMAIN_ID，其 Understanding 既有 Context 又互相引用
-    当 用户执行命令 "domain inspect DOMAIN_ID --include-contexts --include-edges"
+    当 用户执行命令 "domain inspect DOMAIN_ID --include-contexts --include-relations"
     那么 响应中同时包含 contexts 和 edges
 
   场景: 检查时排除已删除的 Understanding

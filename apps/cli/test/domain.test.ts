@@ -24,24 +24,6 @@ describe("Domain 管理", () => {
     });
   });
 
-  describe("domain get", () => {
-    it("获取已存在的 Domain", async () => {
-      const catId = getDomainId("Programming");
-      expect(catId).toBeDefined();
-      const { code, stdout } = await runCommand(["domain", "get", catId!]);
-      expect(code).toBe(0);
-      const data = parseJson(stdout) as { id: string; name: string };
-      expect(data.id).toBe(catId);
-      expect(data.name).toBe("Programming");
-    });
-
-    it("获取不存在的 Domain", async () => {
-      const { code, stderr } = await runCommand(["domain", "get", "nonexistent-id-12345"]);
-      expect(code).toBe(1);
-      expect(JSON.parse(stderr).code).toBe("NOT_FOUND");
-    });
-  });
-
   describe("domain inspect", () => {
     it("检查包含 Understanding 的 Domain", async () => {
       const catId = getDomainId("Programming");

@@ -17,7 +17,5 @@
 | [global.feature](global.feature)               | 全局选项、数据库生命周期、输出格式、帮助系统 |
 | [understanding.feature](understanding.feature) | Understanding 的列表、查看、创建、更新、删除 |
 | [context.feature](context.feature)             | Context 的列表、查看、创建、更新、删除       |
-| [domain.feature](domain.feature)               | Domain 的列表、查看、检查、创建、更新、删除  |
-| [search.feature](search.feature)               | 全文检索（Understanding / Context / 全部）   |
-| [graph.feature](graph.feature)                 | 图遍历（邻域、路径）                         |
-| [snapshot.feature](snapshot.feature)           | 项目快照                                     |
+| [domain.feature](domain.feature)               | Domain 的列表、检查、创建、更新、删除        |
+| [search.feature](search.feature)               | 全文检索（Understanding / Context）          |

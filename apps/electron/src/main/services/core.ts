@@ -4,10 +4,8 @@ import {
   DomainElectronBff,
   ContextCliBff,
   ContextElectronBff,
-  GraphCliBff,
   SearchCliBff,
   SearchElectronBff,
-  SnapshotCliBff,
   UnderstandingCliBff,
   UnderstandingElectronBff,
   TrashElectronBff,
@@ -37,8 +35,6 @@ export const searchService = createLazy(
   () => new SearchElectronBff({ ...options, understandingService }),
 );
 export const searchCliService = createLazy(() => new SearchCliBff(getDBInstance()));
-export const graphService = createLazy(() => new GraphCliBff(getDBInstance()));
-export const snapshotService = createLazy(() => new SnapshotCliBff(getDBInstance()));
 export const trashService = createLazy(() => new TrashElectronBff(options));
 
 export const piAgentHost = createLazy(() => new PiAgentHost());

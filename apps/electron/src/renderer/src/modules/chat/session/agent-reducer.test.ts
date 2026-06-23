@@ -83,7 +83,7 @@ describe("reduceAgentSession", () => {
         type: "tool.started",
         messageId: "assistant_1",
         toolCallId: "tool_1",
-        toolName: "search_all",
+        toolName: "search",
         input: { query: "React Server Components" },
       },
       {
@@ -92,8 +92,8 @@ describe("reduceAgentSession", () => {
         type: "tool.completed",
         messageId: "assistant_1",
         toolCallId: "tool_1",
-        toolName: "search_all",
-        output: { understandings: [{ id: "understanding_1" }], contexts: [] },
+        toolName: "search",
+        output: { hits: [{ type: "understanding", understanding: { id: "understanding_1" } }] },
       },
       {
         ...base,
@@ -115,10 +115,10 @@ describe("reduceAgentSession", () => {
     expect(state.messages[0]?.blocks?.[1]).toMatchObject({
       kind: "tool",
       toolCallId: "tool_1",
-      toolName: "search_all",
+      toolName: "search",
       state: "completed",
       input: { query: "React Server Components" },
-      output: { understandings: [{ id: "understanding_1" }], contexts: [] },
+      output: { hits: [{ type: "understanding", understanding: { id: "understanding_1" } }] },
     });
     expect(reduceAgentSession(events)).toEqual(state);
   });
@@ -139,7 +139,7 @@ describe("reduceAgentSession", () => {
         type: "tool.started",
         messageId: "assistant_1",
         toolCallId: "tool_1",
-        toolName: "search_all",
+        toolName: "search",
       },
       {
         ...base,
@@ -147,8 +147,8 @@ describe("reduceAgentSession", () => {
         type: "tool.completed",
         messageId: "assistant_1",
         toolCallId: "tool_1",
-        toolName: "search_all",
-        output: { understandings: [{ id: "understanding_1" }] },
+        toolName: "search",
+        output: { hits: [{ type: "understanding", understanding: { id: "understanding_1" } }] },
       },
       {
         ...base,

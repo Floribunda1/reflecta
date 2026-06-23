@@ -93,13 +93,9 @@ export type UnderstandingDetail = UnderstandingSummary & {
   referencedByCount: number;
   contexts?: ContextDetail[];
   relations?: UnderstandingRelation[];
-  references?: UnderstandingSummary[];
-  referencedBys?: UnderstandingSummary[];
 };
 
 export type GetUnderstandingOptions = {
   includeContexts?: boolean;
   includeRelations?: boolean;
-  includeReferences?: boolean;
-  includeReferencedBys?: boolean;
 };

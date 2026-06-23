@@ -15,21 +15,21 @@ reflecta list-actions
 Show input and output help for one action:
 
 ```bash
-reflecta search understandings --help
+reflecta search --help
 ```
 
 Help is compact:
 
 ```text
-Usage: reflecta search understandings <query> [options]
-Description: Full-text search understandings
-Returns: UnderstandingSearchHit[] — UnderstandingSummary + snippet, rank
+Usage: reflecta search <query> [options]
+Description: Search understandings and contexts
+Returns: SearchOutput — { hits: SearchHit[] }
 ```
 
 Run an action:
 
 ```bash
-reflecta search understandings design --limit 10
+reflecta search design --limit 10
 ```
 
 Mutating actions require explicit confirmation:

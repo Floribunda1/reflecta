@@ -388,7 +388,7 @@ test("@AG-PI-TOOL-READ-001 用户在 Pi-backed session 中使用只读知识库�
     await createNewThread(page);
     await sendMessage(
       page,
-      "请必须使用知识库搜索工具 search_all 查找 React Server Components，并简短总结你找到的内容。",
+      "请必须使用知识库搜索工具 search 查找 React Server Components，并简短总结你找到的内容。",
     );
     await expect(page.getByTestId("agent-tool-activity")).toBeVisible({ timeout: 120_000 });
     await waitForAssistantReply(page);
@@ -399,7 +399,7 @@ test("@AG-PI-TOOL-READ-001 用户在 Pi-backed session 中使用只读知识库�
     expect(eventTypes).toContain("tool.started");
     expect(eventTypes).toContain("tool.completed");
     expect(eventTypes).not.toContain("approval.requested");
-    expect(readPiEvents().some((event) => event.toolName === "search_all")).toBe(true);
+    expect(readPiEvents().some((event) => event.toolName === "search")).toBe(true);
   } finally {
     await app.close();
   }

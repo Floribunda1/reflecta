@@ -10,7 +10,6 @@ import {
 } from "./actions/meta";
 import { registerCreateDomainAction } from "./actions/domain/create";
 import { registerDeleteDomainAction } from "./actions/domain/delete";
-import { registerGetDomainAction } from "./actions/domain/get";
 import { registerInspectDomainAction } from "./actions/domain/inspect";
 import { registerListDomainsAction } from "./actions/domain/list";
 import { registerUpdateDomainAction } from "./actions/domain/update";
@@ -19,13 +18,7 @@ import { registerDeleteContextAction } from "./actions/context/delete";
 import { registerGetContextAction } from "./actions/context/get";
 import { registerListContextsAction } from "./actions/context/list";
 import { registerUpdateContextAction } from "./actions/context/update";
-import { registerGraphNeighborhoodAction } from "./actions/graph/neighborhood";
-import { registerGraphPathAction } from "./actions/graph/path";
-import { registerSearchAllAction } from "./actions/search/all";
-import { registerSearchContextsAction } from "./actions/search/contexts";
 import { registerSearchAction } from "./actions/search/search";
-import { registerSearchUnderstandingsAction } from "./actions/search/understandings";
-import { registerProjectSnapshotAction } from "./actions/snapshot/project";
 import { registerCreateUnderstandingAction } from "./actions/understanding/create";
 import { registerDeleteUnderstandingAction } from "./actions/understanding/delete";
 import { registerGetUnderstandingAction } from "./actions/understanding/get";
@@ -218,7 +211,6 @@ export async function runCli(argv = process.argv.slice(2)): Promise<number> {
 
   const domain = cli.command("domain").description("Manage domains");
   registerListDomainsAction(domain);
-  registerGetDomainAction(domain);
   registerInspectDomainAction(domain);
   registerCreateDomainAction(domain);
   registerUpdateDomainAction(domain);
@@ -226,16 +218,6 @@ export async function runCli(argv = process.argv.slice(2)): Promise<number> {
 
   const search = cli.command("search").description("Search understandings and contexts");
   registerSearchAction(search);
-  registerSearchUnderstandingsAction(search);
-  registerSearchContextsAction(search);
-  registerSearchAllAction(search);
-
-  const graph = cli.command("graph").description("Explore understanding graph");
-  registerGraphNeighborhoodAction(graph);
-  registerGraphPathAction(graph);
-
-  const snapshot = cli.command("snapshot").description("Project snapshots");
-  registerProjectSnapshotAction(snapshot);
 
   cli
     .command("list-actions")

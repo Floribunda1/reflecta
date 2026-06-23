@@ -71,40 +71,6 @@ export class UnderstandingCliBff extends UnderstandingCore {
       detail.relations = await this.listUnderstandingRelations(row, summary);
     }
 
-    if (options?.includeReferences) {
-      const connRows = await this.db
-        .select()
-        .from(understandingConnections)
-        .where(eq(understandingConnections.sourceId, id));
-      if (connRows.length > 0) {
-        const targetIds = connRows.map((r) => r.targetId);
-        const targetRows = await this.db
-          .select()
-          .from(understandings)
-          .where(and(inArray(understandings.id, targetIds), isNull(understandings.deletedAt)));
-        detail.references = await toUnderstandingSummaries(this.db, targetRows);
-      } else {
-        detail.references = [];
-      }
-    }
-
-    if (options?.includeReferencedBys) {
-      const refRows = await this.db
-        .select()
-        .from(understandingConnections)
-        .where(eq(understandingConnections.targetId, id));
-      if (refRows.length > 0) {
-        const sourceIds = refRows.map((r) => r.sourceId);
-        const sourceRows = await this.db
-          .select()
-          .from(understandings)
-          .where(and(inArray(understandings.id, sourceIds), isNull(understandings.deletedAt)));
-        detail.referencedBys = await toUnderstandingSummaries(this.db, sourceRows);
-      } else {
-        detail.referencedBys = [];
-      }
-    }
-
     return detail;
   }
 

@@ -23,9 +23,8 @@ test("@AG-RESULT-001 用户查看复杂回复时内容按发生顺序显示", as
       userMessage("result-complex-user", "请给出复杂回复"),
       assistantMessage("result-complex-assistant", [
         reasoningPart("THINKING_SUMMARY"),
-        toolPart("search_all", "result-search", {
-          understandings: [{ id: "understanding-1" }],
-          contexts: [],
+        toolPart("search", "result-search", {
+          hits: [{ type: "understanding", understanding: { id: "understanding-1" } }],
         }),
         proposalPart({
           toolCallId: "result-proposal",
@@ -137,7 +136,9 @@ test("@AG-RESULT-003 用户展开思考过程和工具活动查看详情", async
       userMessage("result-expand-user", "展示可展开内容"),
       assistantMessage("result-expand-assistant", [
         reasoningPart("THINKING_DETAIL"),
-        toolPart("snapshot_project", "result-snapshot", {}),
+        toolPart("search", "result-search", {
+          hits: [{ type: "understanding", understanding: { id: "u1" } }],
+        }),
         { type: "text", text: "DONE" },
       ]),
     ],
@@ -147,14 +148,17 @@ test("@AG-RESULT-003 用户展开思考过程和工具活动查看详情", async
   try {
     await expect(page.getByTestId("agent-reasoning")).toContainText("思考过程");
     await expect(page.getByText("THINKING_DETAIL")).toHaveCount(0);
-    await expect(page.getByText("查看了知识库概览")).toBeVisible();
-    await expect(page.getByText("查看知识库概览", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("搜索了 1 条 Understanding / 0 条 Context")).toBeVisible();
+    await expect(page.getByText("搜索相关内容", { exact: true })).toHaveCount(0);
 
     await page.getByTestId("agent-reasoning").getByText("思考过程").click();
-    await page.getByTestId("agent-tool-activity").getByText("查看了知识库概览").click();
+    await page
+      .getByTestId("agent-tool-activity")
+      .getByText("搜索了 1 条 Understanding / 0 条 Context")
+      .click();
 
     await expect(page.getByText("THINKING_DETAIL")).toBeVisible();
-    await expect(page.getByText("查看知识库概览", { exact: true })).toBeVisible();
+    await expect(page.getByText("搜索相关内容", { exact: true })).toBeVisible();
   } finally {
     await app.close();
   }

@@ -455,7 +455,7 @@ type SearchOutput = {
 
 | 当前工具                             | 目标                                                     |
 | ------------------------------------ | -------------------------------------------------------- |
-| `snapshot_project`                   | 删除或仅保留内部 debug，不作为 AI tool                   |
+| `snapshot_project`                   | 删除                                                     |
 | `domain_list`                        | 保留                                                     |
 | `domain_inspect`                     | 保留                                                     |
 | `understanding_list`                 | 保留                                                     |
@@ -546,7 +546,7 @@ TDD：
 
 退出条件：
 
-- `search_understandings` / `search_contexts` / `graph_*` 不再作为 AI-facing tools 暴露。
+- `search_understandings` / `search_contexts` / `graph_*` / `snapshot_project` 在 CLI 和 Pi 中都删除。
 - AI 需要列表级 Context 时通过 `understanding_list(includeContexts)` 获取；需要精读单条时通过 `understanding_get(includeContexts)` 或 `context_*` 获取。
 - AI 需要关系时通过 `understanding_get(includeRelations)` 获取。
 

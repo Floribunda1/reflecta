@@ -35,7 +35,7 @@ test("@AG-CONV-001 对话 A 正在回复时切换到对话 B 不影响 B", async
     title: "对话 A",
     messages: [
       userMessage("conv-a-user", "A_USER_MESSAGE"),
-      assistantMessage("conv-a-assistant", [toolPart("search_all", "conv-a-tool", {})]),
+      assistantMessage("conv-a-assistant", [toolPart("search", "conv-a-tool", { hits: [] })]),
     ],
   });
   seedCompletedThread({

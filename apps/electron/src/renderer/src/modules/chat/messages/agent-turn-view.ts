@@ -12,7 +12,7 @@ export type ProposalType =
   | "context_delete"
   | "bash";
 export type ToolApprovalStatus = "pending" | "approved" | "rejected";
-export type ToolGroupType = "lookup" | "graph" | "other";
+export type ToolGroupType = "lookup" | "other";
 export type ProposalState =
   | "approval-requested"
   | "approval-responded"
@@ -352,16 +352,13 @@ function summarizeToolGroup(groupType: ToolGroupType, blocks: AgentToolBlock[]):
 }
 
 function toolGroupType(name: string): ToolGroupType {
-  if (name.startsWith("graph_")) return "graph";
   if (
     name === "search" ||
-    name.startsWith("search_") ||
     name.startsWith("understanding_") ||
     name.startsWith("context_") ||
     name.startsWith("domain_") ||
     name === "file_read" ||
-    name === "attachment_read" ||
-    name === "snapshot_project"
+    name === "attachment_read"
   ) {
     return "lookup";
   }
@@ -407,14 +404,12 @@ function toolItemView(block: AgentToolBlock): ToolActivityItemView {
 }
 
 function runningSummary(groupType: ToolGroupType) {
-  if (groupType === "graph") return "正在查看关联";
   if (groupType === "lookup") return "正在查找相关内容";
   return "正在使用工具";
 }
 
 function doneSummary(groupType: ToolGroupType, blocks: AgentToolBlock[]) {
   if (blocks.length === 1 && blocks[0]) return toolItemView(blocks[0]).label;
-  if (groupType === "graph") return "查看了关联";
   if (groupType === "lookup") {
     const counts = aggregateLookupCounts(blocks);
     if (counts.understandings || counts.contexts) {
@@ -438,14 +433,10 @@ function aggregateLookupCounts(blocks: AgentToolBlock[]) {
     if (block.state !== "completed") continue;
     const name = block.toolName;
     const output = toolOutput(block);
-    if (name === "understanding_list" || name === "search_understandings") {
+    if (name === "understanding_list") {
       understandings += outputCount(output, "understandings");
     }
-    if (name === "context_list" || name === "search_contexts") {
-      contexts += outputCount(output, "contexts");
-    }
-    if (name === "search_all") {
-      understandings += outputCount(output, "understandings");
+    if (name === "context_list") {
       contexts += outputCount(output, "contexts");
     }
     if (name === "search") {
@@ -459,13 +450,11 @@ function aggregateLookupCounts(blocks: AgentToolBlock[]) {
 
 function toolActivityTitle(groupType: ToolGroupType, blocks: AgentToolBlock[]) {
   if (blocks.length === 1 && blocks[0]) return toolTitle(blocks[0].toolName);
-  if (groupType === "graph") return "查看关联";
   if (groupType === "lookup") return "查找相关内容";
   return "使用工具";
 }
 
 function toolTitle(name: string) {
-  if (name === "snapshot_project") return "查看知识库概览";
   if (name === "domain_list") return "列出 Domain";
   if (name === "domain_inspect") return "查看 Domain";
   if (name === "understanding_list") return "列出 Understanding";
@@ -473,13 +462,9 @@ function toolTitle(name: string) {
   if (name === "context_list") return "列出 Context";
   if (name === "context_get") return "读取 Context";
   if (name === "search") return "搜索相关内容";
-  if (name === "search_understandings") return "搜索 Understanding";
-  if (name === "search_contexts") return "搜索 Context";
-  if (name === "search_all") return "搜索相关内容";
   if (name === "attachment_read") return "读取附件";
   if (name === "file_read") return "读取本地文件";
   if (name === "bash") return "执行 Bash";
-  if (name.startsWith("graph_")) return "查看关联";
   return "使用工具";
 }
 
@@ -487,11 +472,9 @@ function toolRunningVerb(name: string) {
   if (name === "attachment_read") return "正在读取附件";
   if (name === "file_read") return "正在读取本地文件";
   if (name === "bash") return "正在执行 Bash";
-  if (name.startsWith("graph_")) return "正在查看关联";
   if (name.includes("search")) return "正在搜索相关内容";
   if (name.includes("get")) return "正在读取内容";
   if (name.startsWith("domain_")) return "正在查看领域目录";
-  if (name === "snapshot_project") return "正在查看知识库概览";
   return "正在使用工具";
 }
 
@@ -499,17 +482,14 @@ function toolDoneVerb(name: string) {
   if (name === "attachment_read") return "读取附件";
   if (name === "file_read") return "读取本地文件";
   if (name === "bash") return "执行 Bash";
-  if (name.startsWith("graph_")) return "查看关联";
   if (name.includes("search")) return "搜索";
   if (name.includes("get")) return "读取";
   if (name.startsWith("domain_")) return "查看领域目录";
-  if (name === "snapshot_project") return "查看知识库概览";
   return "使用工具";
 }
 
 function toolDoneSummary(name: string, input: Record<string, unknown>, output: unknown) {
   const outputRecord = isRecord(output) ? output : {};
-  if (name === "snapshot_project") return "查看了知识库概览";
   if (name === "file_read") {
     return `读取了「${stringValue(outputRecord.path) || stringValue(input.path) || "本地文件"}」`;
   }
@@ -527,13 +507,6 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
   if (name === "understanding_list") {
     return `列出 ${outputCount(output, "understandings")} 条 Understanding`;
   }
-  if (name === "search_understandings") {
-    return `搜索到 ${outputCount(output, "understandings")} 条 Understanding`;
-  }
-  if (name === "search_contexts") return `搜索到 ${outputCount(output, "contexts")} 条 Context`;
-  if (name === "search_all") {
-    return `搜索了 ${outputCount(output, "understandings")} 条 Understanding / ${outputCount(output, "contexts")} 条 Context`;
-  }
   if (name === "search") {
     const counts = searchHitCounts(output);
     return `搜索了 ${counts.understandings} 条 Understanding / ${counts.contexts} 条 Context`;
@@ -543,9 +516,6 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
   if (name === "context_list") return `列出 ${outputCount(output, "contexts")} 条 Context`;
   if (name === "context_get")
     return `读取了「${entityTitle(outputRecord.context) || entityTitle(outputRecord) || stringValue(input.contextId) || "Context"}」`;
-  if (name === "graph_neighborhood")
-    return `查看了「${entityTitle(outputRecord.seed) || stringValue(input.understandingId) || "Understanding"}」附近的关联`;
-  if (name === "graph_path") return "查找了两条 Understanding 之间的路径";
   return `使用了 ${name}`;
 }
 

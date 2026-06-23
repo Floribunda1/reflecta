@@ -40,7 +40,7 @@ Reflecta 的后端核心，采用按 Domain 分层架构：
 
 - **Core 独立**：schema、迁移、工具函数可以被任何上层复用，不绑定到具体产品形态。
 - **Domain Core 复用**：将 electron / cli 中重复的 DB 操作、事务逻辑、FTS 操作抽象到各 domain 的 core，避免两边维护同样的 SQL。
-- **Domain BFF 按终端隔离**：electron BFF 返回完整 DTO 供 UI 绑定；CLI BFF 返回聚合结构（`UnderstandingSummary`、`GraphNeighborhoodResult` 等），减少 agent 的 N+1 查询。
+- **Domain BFF 按终端隔离**：electron BFF 返回完整 DTO 供 UI 绑定；CLI BFF 返回聚合结构（`UnderstandingSummary` 等），减少 agent 的 N+1 查询。
 - **Facade 轻量**：只做协议转换（IPC / argv → BFF method call），不写业务逻辑。
 - **上层无感知 Core**：GUI 和 CLI 只依赖 Facade，不直接触碰数据库。
 
@@ -68,10 +68,6 @@ src/
 │   ├── search/
 │   │   ├── core.ts
 │   │   ├── bff-electron.ts
-│   │   └── bff-cli.ts
-│   ├── graph/
-│   │   └── bff-cli.ts
-│   ├── snapshot/
 │   │   └── bff-cli.ts
 │   ├── trash/
 │   │   └── bff-electron.ts

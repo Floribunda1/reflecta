@@ -5,14 +5,14 @@ import { SearchCore } from "./core";
 import { toUnderstandingSummaries } from "../understanding/core";
 import type { ContextSearchHit } from "../context/types";
 import type { UnderstandingSearchHit } from "../understanding/types";
-import type { SearchAllResult, SearchOptions, SearchOutput } from "./types";
+import type { SearchOptions, SearchOutput } from "./types";
 
 export class SearchCliBff extends SearchCore {
   constructor(db: ReflectaDb) {
     super(db);
   }
 
-  async searchUnderstandings(
+  private async searchUnderstandings(
     query: string,
     options?: SearchOptions,
   ): Promise<UnderstandingSearchHit[]> {
@@ -41,7 +41,10 @@ export class SearchCliBff extends SearchCore {
       .filter((h): h is UnderstandingSearchHit => h !== null);
   }
 
-  async searchContexts(query: string, options?: SearchOptions): Promise<ContextSearchHit[]> {
+  private async searchContexts(
+    query: string,
+    options?: SearchOptions,
+  ): Promise<ContextSearchHit[]> {
     const rows = await this.searchContextRows(query, options);
     return rows.map((r) => ({
       contextId: r.contextId,
@@ -53,18 +56,13 @@ export class SearchCliBff extends SearchCore {
     }));
   }
 
-  async searchAll(query: string, options?: SearchOptions): Promise<SearchAllResult> {
-    const [understandingsResult, contextsResult] = await Promise.all([
+  async search(query: string, options?: SearchOptions): Promise<SearchOutput> {
+    const [understandings, contexts] = await Promise.all([
       this.searchUnderstandings(query, options),
       this.searchContexts(query, options),
     ]);
-    return { understandings: understandingsResult, contexts: contextsResult };
-  }
-
-  async search(query: string, options?: SearchOptions): Promise<SearchOutput> {
-    const result = await this.searchAll(query, options);
     const hits = [
-      ...result.understandings.map((understanding) => ({
+      ...understandings.map((understanding) => ({
         type: "understanding" as const,
         understanding: {
           id: understanding.id,
@@ -75,7 +73,7 @@ export class SearchCliBff extends SearchCore {
         matchedText: understanding.snippet,
         rank: understanding.rank,
       })),
-      ...result.contexts.map((context) => ({
+      ...contexts.map((context) => ({
         type: "context" as const,
         context: {
           id: context.contextId,

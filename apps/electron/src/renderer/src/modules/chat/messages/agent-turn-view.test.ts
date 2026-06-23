@@ -51,10 +51,10 @@ function proposal(
 describe("buildAgentTurnView", () => {
   test("preserves interleaved tool and text order", () => {
     const turn = buildAgentTurnView([
-      tool("search_all", "tool-1", { understandings: [{ id: "t1" }], contexts: [] }),
+      tool("search", "tool-1", { hits: [{ type: "understanding", understanding: { id: "t1" } }] }),
       reasoning("我先看相关内容"),
       text("first"),
-      tool("graph_neighborhood", "tool-2", { nodes: [{ id: "t2" }] }),
+      tool("bash", "tool-2", { exitCode: 0 }),
       text("second"),
     ]);
 
@@ -75,7 +75,7 @@ describe("buildAgentTurnView", () => {
     });
     expect(turn.blocks[3]).toMatchObject({
       kind: "tool-activity",
-      activity: { groupType: "graph" },
+      activity: { groupType: "other" },
     });
   });
 
@@ -94,7 +94,9 @@ describe("buildAgentTurnView", () => {
     const turn = buildAgentTurnView(
       [
         reasoning("先查找相关内容"),
-        tool("search_all", "tool-1", { understandings: [{ id: "t1" }] }),
+        tool("search", "tool-1", {
+          hits: [{ type: "understanding", understanding: { id: "t1" } }],
+        }),
         reasoning("再确认详情"),
         tool("understanding_get", "tool-2", {
           understanding: { id: "t1", title: "Feedback Loop" },
@@ -115,7 +117,9 @@ describe("buildAgentTurnView", () => {
 
   test("groups adjacent lookup tools without crossing text", () => {
     const turn = buildAgentTurnView([
-      tool("search_all", "tool-1", { understandings: [{ id: "t1" }], contexts: [] }),
+      tool("search", "tool-1", {
+        hits: [{ type: "understanding", understanding: { id: "t1" } }],
+      }),
       tool("understanding_get", "tool-2", { understanding: { id: "t1", title: "A" } }),
       text("answer"),
       tool("context_list", "tool-3", { contexts: [{ id: "c1" }] }),
@@ -137,9 +141,13 @@ describe("buildAgentTurnView", () => {
 
   test("summarizes lookup activity", () => {
     const turn = buildAgentTurnView([
-      tool("search_all", "tool-1", {
-        understandings: [{ id: "t1" }, { id: "t2" }, { id: "t3" }],
-        contexts: [{ id: "c1" }],
+      tool("search", "tool-1", {
+        hits: [
+          { type: "understanding", understanding: { id: "t1" } },
+          { type: "understanding", understanding: { id: "t2" } },
+          { type: "understanding", understanding: { id: "t3" } },
+          { type: "context", context: { id: "c1" }, understandingId: "t1" },
+        ],
       }),
       tool("understanding_get", "tool-2", { understanding: { id: "t1", title: "拖延与自我保护" } }),
     ]);
@@ -210,10 +218,8 @@ describe("buildAgentTurnView", () => {
   });
 
   test("keeps running and failed tool activity states in thinking", () => {
-    const runningTurn = buildAgentTurnView([tool("search_all", "tool-1", {}, "running")]);
-    const failedTurn = buildAgentTurnView([
-      tool("graph_path", "tool-2", {}, "failed", "Graph query failed"),
-    ]);
+    const runningTurn = buildAgentTurnView([tool("search", "tool-1", {}, "running")]);
+    const failedTurn = buildAgentTurnView([tool("bash", "tool-2", {}, "failed", "Command failed")]);
 
     expect(runningTurn.blocks[0]).toMatchObject({
       kind: "tool-activity",
@@ -228,13 +234,13 @@ describe("buildAgentTurnView", () => {
       activity: {
         status: "failed",
         statusLabel: "出错",
-        summary: "查看关联失败",
+        summary: "执行 Bash失败",
         items: [
           expect.objectContaining({
             status: "failed",
             statusLabel: "出错",
-            label: "查看关联失败",
-            errorText: "Graph query failed",
+            label: "执行 Bash失败",
+            errorText: "Command failed",
           }),
         ],
       },

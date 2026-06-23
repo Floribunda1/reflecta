@@ -1,6 +1,6 @@
 import type { UnderstandingSummaryDTO } from "../understanding/types";
-import type { ContextSearchHit, ContextSummary } from "../context/types";
-import type { UnderstandingSearchHit, UnderstandingSummary } from "../understanding/types";
+import type { ContextSummary } from "../context/types";
+import type { UnderstandingSummary } from "../understanding/types";
 
 export type SearchOptions = {
   limit?: number;
@@ -18,11 +18,6 @@ export type FtsContextResult = {
 export type SearchResult = {
   understandings: UnderstandingSummaryDTO[];
   contexts: FtsContextResult[];
-};
-
-export type SearchAllResult = {
-  understandings: UnderstandingSearchHit[];
-  contexts: ContextSearchHit[];
 };
 
 export type SearchHit =

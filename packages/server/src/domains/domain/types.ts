@@ -2,7 +2,6 @@ import type { InferSelectModel } from "drizzle-orm";
 import type { domains } from "../../db/schema";
 import type { ContextDetail } from "../context/types";
 import type { UnderstandingNode } from "../understanding/types";
-import type { ReferenceEdge } from "../graph/types";
 import type { PageInfo } from "../shared/types";
 
 export type Domain = InferSelectModel<typeof domains>;
@@ -33,6 +32,11 @@ export type DomainSummary = {
   id: string;
   name: string;
   parentId: string | null;
+};
+
+export type ReferenceEdge = {
+  from: string;
+  to: string;
 };
 
 export type DomainInspectResult = {
