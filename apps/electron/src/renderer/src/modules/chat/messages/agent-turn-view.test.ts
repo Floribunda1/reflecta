@@ -184,6 +184,31 @@ describe("buildAgentTurnView", () => {
     });
   });
 
+  test("summarizes mixed search hits", () => {
+    const turn = buildAgentTurnView([
+      tool("search", "tool-1", {
+        hits: [
+          { type: "understanding", understanding: { id: "t1" } },
+          { type: "context", context: { id: "c1" }, understandingId: "t1" },
+        ],
+      }),
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "tool-activity",
+      activity: {
+        title: "搜索相关内容",
+        summary: "搜索了 1 条 Understanding / 1 条 Context",
+        items: [
+          expect.objectContaining({
+            label: "搜索了 1 条 Understanding / 1 条 Context",
+            status: "done",
+          }),
+        ],
+      },
+    });
+  });
+
   test("keeps running and failed tool activity states in thinking", () => {
     const runningTurn = buildAgentTurnView([tool("search_all", "tool-1", {}, "running")]);
     const failedTurn = buildAgentTurnView([

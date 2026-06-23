@@ -5,7 +5,13 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { AuthStorage } from "@earendil-works/pi-coding-agent";
 import type { AgentSessionEvent } from "@shared/agent";
 import type { ResolvedAiModelConfig } from "../../config";
-import { configurePiRuntimeAuth, extractAssistantError, PiAgentHost } from "./pi-agent-host";
+import {
+  configurePiRuntimeAuth,
+  createPiResourceLoader,
+  extractAssistantError,
+  loadAgentSystemPrompt,
+  PiAgentHost,
+} from "./pi-agent-host";
 import { AgentSessionLog } from "./pi-session-log";
 
 vi.mock("./pi-readonly-tools", () => ({
@@ -81,6 +87,19 @@ describe("configurePiRuntimeAuth", () => {
     );
 
     await expect(authStorage.getApiKey("opencode-go")).resolves.toBe("opencode-key");
+  });
+});
+
+describe("createPiResourceLoader", () => {
+  test("loads the shared agent system prompt from markdown", () => {
+    const expected = fs
+      .readFileSync(new URL("./agent-system-prompt.md", import.meta.url), "utf8")
+      .trim();
+
+    expect(loadAgentSystemPrompt()).toBe(expected);
+    expect(createPiResourceLoader().getSystemPrompt()).toBe(expected);
+    expect(expected).toContain("你是 Reflecta 的认知辅助 Agent");
+    expect(expected).not.toContain("You are Reflecta's agent");
   });
 });
 

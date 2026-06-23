@@ -23,6 +23,7 @@ import { registerGraphNeighborhoodAction } from "./actions/graph/neighborhood";
 import { registerGraphPathAction } from "./actions/graph/path";
 import { registerSearchAllAction } from "./actions/search/all";
 import { registerSearchContextsAction } from "./actions/search/contexts";
+import { registerSearchAction } from "./actions/search/search";
 import { registerSearchUnderstandingsAction } from "./actions/search/understandings";
 import { registerProjectSnapshotAction } from "./actions/snapshot/project";
 import { registerCreateUnderstandingAction } from "./actions/understanding/create";
@@ -81,6 +82,34 @@ function handleHelp(argv: string[]): number {
     console.log("");
     console.log("Description: List all available actions");
     console.log("");
+    printGlobalOptions();
+    return 0;
+  }
+
+  if (path[0] === "search" && path.length === 1) {
+    const meta = getActionMeta("search", "search");
+    console.log("Usage: reflecta search <query> [options]");
+    console.log("");
+    console.log(`Description: ${meta?.description ?? "Search understandings and contexts"}`);
+    if (meta?.returns) {
+      console.log(`Returns: ${meta.returns}`);
+    }
+    console.log("");
+    console.log("Arguments:");
+    formatRows([{ key: "query", desc: "Search query (required)" }]).forEach((line) =>
+      console.log(line),
+    );
+    console.log("");
+    if (meta?.options && meta.options.length > 0) {
+      console.log("Options:");
+      formatRows(
+        meta.options.map((o) => ({
+          key: o.flags,
+          desc: `${o.description}${o.required ? " (required)" : o.defaultValue !== undefined ? ` (default: ${JSON.stringify(o.defaultValue)})` : ""}`,
+        })),
+      ).forEach((line) => console.log(line));
+      console.log("");
+    }
     printGlobalOptions();
     return 0;
   }
@@ -196,6 +225,7 @@ export async function runCli(argv = process.argv.slice(2)): Promise<number> {
   registerDeleteDomainAction(domain);
 
   const search = cli.command("search").description("Search understandings and contexts");
+  registerSearchAction(search);
   registerSearchUnderstandingsAction(search);
   registerSearchContextsAction(search);
   registerSearchAllAction(search);

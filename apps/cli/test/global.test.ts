@@ -133,5 +133,24 @@ describe("全局行为", () => {
       expect(stdout).toContain("list");
       expect(stdout).toContain("Global Options:");
     });
+
+    it("list-actions 只展示 AI-facing actions", async () => {
+      const { code, stdout } = await runCommand(["list-actions"]);
+      expect(code).toBe(0);
+      expect(stdout).toMatch(/\n  inspect\s+Inspect a domain/);
+      expect(stdout).toMatch(/\n  search\s+Search understandings and contexts/);
+      expect(stdout).not.toMatch(/\n  get\s+Get a domain/);
+      expect(stdout).not.toMatch(/\n  all\s+Search both/);
+      expect(stdout).not.toContain("Explore understanding graph");
+      expect(stdout).not.toContain("Project snapshots");
+    });
+
+    it("search 帮助展示单一搜索入口", async () => {
+      const { code, stdout } = await runCommand(["search", "--help"]);
+      expect(code).toBe(0);
+      expect(stdout).toContain("Usage: reflecta search <query> [options]");
+      expect(stdout).toContain("Returns: SearchOutput");
+      expect(stdout).not.toContain("Usage: reflecta search <action>");
+    });
   });
 });

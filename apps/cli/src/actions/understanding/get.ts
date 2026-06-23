@@ -1,4 +1,4 @@
-import type { Command } from "commander";
+import { Option, type Command } from "commander";
 import { CliError, ErrorCodes } from "../../error";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand } from "../../runner";
@@ -14,25 +14,26 @@ export function registerGetUnderstandingAction(cli: Command): void {
     options: [
       { flags: "--include-contexts", description: "Include full context objects", required: false },
       {
-        flags: "--include-references",
-        description: "Include referenced understandings",
-        required: false,
-      },
-      {
-        flags: "--include-referenced-bys",
-        description: "Include understandings that reference this one",
+        flags: "--include-relations",
+        description: "Include wiki-link relations",
         required: false,
       },
     ],
     returns:
-      "UnderstandingDetail — UnderstandingSummary + contextCount, referenceCount, referencedByCount, contexts?, references?, referencedBys?",
+      "UnderstandingDetail — UnderstandingSummary + contextCount, referenceCount, referencedByCount, contexts?, relations?",
   });
   cli
     .command("get <id>")
     .description("Get a understanding by ID")
     .option("--include-contexts", "Include full context objects")
-    .option("--include-references", "Include referenced understandings")
-    .option("--include-referenced-bys", "Include understandings that reference this one")
+    .option("--include-relations", "Include wiki-link relations")
+    .addOption(new Option("--include-references", "Include referenced understandings").hideHelp())
+    .addOption(
+      new Option(
+        "--include-referenced-bys",
+        "Include understandings that reference this one",
+      ).hideHelp(),
+    )
     .action((id, _options, actionCli) => getUnderstandingAction(id, actionCli));
 }
 
@@ -43,6 +44,7 @@ export async function getUnderstandingAction(id: string, cli: Command): Promise<
     quiet: boolean;
     verbose: boolean;
     includeContexts?: boolean;
+    includeRelations?: boolean;
     includeReferences?: boolean;
     includeReferencedBys?: boolean;
   };
@@ -50,6 +52,7 @@ export async function getUnderstandingAction(id: string, cli: Command): Promise<
     const services = await getServices();
     const understanding = await services.understandings.getUnderstanding(id, {
       includeContexts: options.includeContexts,
+      includeRelations: options.includeRelations,
       includeReferences: options.includeReferences,
       includeReferencedBys: options.includeReferencedBys,
     });

@@ -10,6 +10,7 @@ export function registerGraphPathAction(cli: Command): void {
     name: "path",
     description: "Find paths between two understandings",
     mutates: false,
+    hidden: true,
     options: [
       { flags: "--from <id>", description: "Source understanding ID", required: true },
       { flags: "--to <id>", description: "Target understanding ID", required: true },

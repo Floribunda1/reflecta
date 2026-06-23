@@ -32,8 +32,14 @@ export function registerListUnderstandingsAction(cli: Command): void {
           required: false,
         },
         { flags: "--limit <n>", description: "Limit results", required: false, defaultValue: 20 },
+        {
+          flags: "--include-contexts",
+          description: "Include contexts grouped by understanding ID",
+          required: false,
+        },
       ],
-      returns: "UnderstandingSummary[] — { id, title, body, domains }[]",
+      returns:
+        "UnderstandingSummary[] or { understandings, contextsByUnderstandingId } when --include-contexts is set",
     },
     "Manage understandings",
   );
@@ -44,6 +50,7 @@ export function registerListUnderstandingsAction(cli: Command): void {
     .option("--include-descendants", "Include descendant domains when filtering by domain")
     .option("--recent", "Sort by recently updated (descending)")
     .option("--limit <n>", "Limit results", parseIntegerOption, 20)
+    .option("--include-contexts", "Include contexts grouped by understanding ID")
     .action((_options, actionCli) => listUnderstandingsAction(actionCli));
 }
 
@@ -53,6 +60,7 @@ export async function listUnderstandingsAction(cli: Command): Promise<void> {
     includeDescendants?: boolean;
     recent?: boolean;
     limit?: number;
+    includeContexts?: boolean;
   };
   await runCommand(async () => {
     const services = await getServices();
@@ -65,6 +73,9 @@ export async function listUnderstandingsAction(cli: Command): Promise<void> {
           "--recent cannot be combined with --domain-id.",
         );
       }
+      if (options.includeContexts) {
+        return services.understandings.listRecentUnderstandingsWithContexts(limit);
+      }
       return services.understandings.listRecentUnderstandings(limit);
     }
 
@@ -75,6 +86,9 @@ export async function listUnderstandingsAction(cli: Command): Promise<void> {
     }
     filter.limit = limit;
 
+    if (options.includeContexts) {
+      return services.understandings.listUnderstandingsWithContexts(filter);
+    }
     return services.understandings.listUnderstandings(filter);
   }, options);
 }

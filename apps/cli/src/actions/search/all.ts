@@ -15,6 +15,7 @@ export function registerSearchAllAction(cli: Command): void {
     name: "all",
     description: "Search both understandings and contexts",
     mutates: false,
+    hidden: true,
     arguments: [{ name: "query", description: "Search query", required: true }],
     options: [
       { flags: "--limit <n>", description: "Limit results", required: false, defaultValue: 20 },

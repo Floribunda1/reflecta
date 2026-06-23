@@ -3,6 +3,12 @@ export type UnderstandingWikiLink = {
   id: string;
 };
 
+export type ExtractedUnderstandingWikiLink = {
+  rawText: string;
+  title: string | null;
+  target: string;
+};
+
 const understandingWikiLinkPattern = /\[\[([^\]\n]+)\]\]/g;
 const escapedUnderstandingWikiLinkPattern = /\\\[\\\[([^\]\n]+)]]/g;
 
@@ -49,13 +55,29 @@ export function normalizeUnderstandingWikiLinkBody(body: string | undefined): st
 }
 
 export function extractUnderstandingWikiLinkTargets(body: string): string[] {
-  const targets = new Set<string>();
+  return [...new Set(extractUnderstandingWikiLinks(body).map((link) => link.target))];
+}
+
+export function extractUnderstandingWikiLinks(body: string): ExtractedUnderstandingWikiLink[] {
+  const links: ExtractedUnderstandingWikiLink[] = [];
+  const seen = new Set<string>();
+
   for (const match of body.matchAll(understandingWikiLinkPattern)) {
+    const rawText = match[0];
     const raw = unescapeMarkdownText(match[1]?.trim() ?? "");
     if (!raw) continue;
 
-    const parsed = parseUnderstandingWikiLink(match[0]);
-    targets.add(parsed?.id ?? raw);
+    const parsed = parseUnderstandingWikiLink(rawText);
+    const link = {
+      rawText,
+      title: parsed?.title ?? null,
+      target: parsed?.id ?? raw,
+    };
+    const key = `${link.rawText}:${link.target}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    links.push(link);
   }
-  return [...targets];
+
+  return links;
 }

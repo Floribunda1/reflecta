@@ -73,7 +73,7 @@ describe("createPiWriteTools", () => {
     vi.resetAllMocks();
   });
 
-  test("registers every knowledge-base mutation as an approval tool", async () => {
+  test("registers every Reflecta mutation as an approval tool", async () => {
     expect(PI_APPROVAL_TOOL_NAMES).toEqual(knowledgeMutationNames);
 
     const tools = createPiWriteTools();

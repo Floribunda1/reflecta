@@ -18,6 +18,7 @@ export function registerGraphNeighborhoodAction(cli: Command): void {
       name: "neighborhood",
       description: "Get the neighborhood graph around a understanding",
       mutates: false,
+      hidden: true,
       options: [
         { flags: "--understanding-id <id>", description: "Seed understanding ID", required: true },
         {

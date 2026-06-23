@@ -15,6 +15,7 @@ export type ActionMeta = {
   name: string;
   description: string;
   mutates: boolean;
+  hidden?: boolean;
   arguments?: ActionArgument[];
   options?: ActionOption[];
   returns?: string;
@@ -44,14 +45,20 @@ export function getAllActionMeta(): Map<string, ActionMeta> {
 }
 
 export function getResourceDescriptions(): Map<string, string> {
-  return resourceDescriptions;
+  const visibleDescriptions = new Map<string, string>();
+  for (const [resource, description] of resourceDescriptions) {
+    if (getActionsByResource(resource).size > 0) {
+      visibleDescriptions.set(resource, description);
+    }
+  }
+  return visibleDescriptions;
 }
 
 export function getActionsByResource(resource: string): Map<string, ActionMeta> {
   const result = new Map<string, ActionMeta>();
   for (const [key, meta] of actionMetaMap) {
     const [r, a] = key.split(".");
-    if (r === resource) {
+    if (r === resource && !meta.hidden) {
       result.set(a, meta);
     }
   }
@@ -68,6 +75,7 @@ export function getGroupedActions(): Array<{
     Array<{ name: string; description: string; mutates: boolean }>
   >();
   for (const [key, meta] of actionMetaMap) {
+    if (meta.hidden) continue;
     const resource = key.split(".")[0];
     if (!resourceToActions.has(resource)) {
       resourceToActions.set(resource, []);

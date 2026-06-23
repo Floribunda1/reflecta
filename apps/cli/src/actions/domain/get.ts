@@ -9,6 +9,7 @@ export function registerGetDomainAction(cli: Command): void {
     name: "get",
     description: "Get a domain by ID",
     mutates: false,
+    hidden: true,
     arguments: [{ name: "id", description: "Domain ID", required: true }],
     returns: "DomainSummary — { id, name, parentId }",
   });

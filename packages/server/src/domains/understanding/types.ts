@@ -63,6 +63,11 @@ export type UnderstandingSummary = {
   domains: DomainRef[];
 };
 
+export type UnderstandingListWithContexts = {
+  understandings: UnderstandingSummary[];
+  contextsByUnderstandingId: Record<string, ContextDetail[]>;
+};
+
 export type UnderstandingNode = UnderstandingSummary & {
   contextIds?: string[];
 };
@@ -72,17 +77,29 @@ export type UnderstandingSearchHit = UnderstandingSummary & {
   rank: number;
 };
 
+export type UnderstandingRelation = {
+  direction: "outgoing" | "incoming";
+  sourceUnderstandingId: string;
+  targetUnderstandingId: string | null;
+  sourceTitle: string | null;
+  targetTitle: string | null;
+  rawText: string;
+  resolved: boolean;
+};
+
 export type UnderstandingDetail = UnderstandingSummary & {
   contextCount: number;
   referenceCount: number;
   referencedByCount: number;
   contexts?: ContextDetail[];
+  relations?: UnderstandingRelation[];
   references?: UnderstandingSummary[];
   referencedBys?: UnderstandingSummary[];
 };
 
 export type GetUnderstandingOptions = {
   includeContexts?: boolean;
+  includeRelations?: boolean;
   includeReferences?: boolean;
   includeReferencedBys?: boolean;
 };

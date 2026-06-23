@@ -1,4 +1,4 @@
-import type { Command } from "commander";
+import { Option, type Command } from "commander";
 import { getServices } from "../../services";
 import {
   getCommandOptions,
@@ -22,8 +22,8 @@ export function registerInspectDomainAction(cli: Command): void {
         required: false,
       },
       {
-        flags: "--include-edges",
-        description: "Include reference edges between understandings",
+        flags: "--include-relations",
+        description: "Include relations between understandings",
         required: false,
       },
       { flags: "--limit <n>", description: "Limit results", required: false, defaultValue: 200 },
@@ -35,7 +35,10 @@ export function registerInspectDomainAction(cli: Command): void {
     .command("inspect <id>")
     .description("Inspect a domain and its understandings")
     .option("--include-contexts", "Include full context objects for understandings")
-    .option("--include-edges", "Include reference edges between understandings")
+    .option("--include-relations", "Include relations between understandings")
+    .addOption(
+      new Option("--include-edges", "Include reference edges between understandings").hideHelp(),
+    )
     .option("--limit <n>", "Limit results", parseIntegerOption, 200)
     .option("--offset <n>", "Result offset", parseIntegerOption, 0)
     .action((id, _options, actionCli) => inspectDomainAction(id, actionCli));
@@ -44,6 +47,7 @@ export function registerInspectDomainAction(cli: Command): void {
 export async function inspectDomainAction(id: string, cli: Command): Promise<void> {
   const options = getCommandOptions(cli) as GlobalOptions & {
     includeContexts?: boolean;
+    includeRelations?: boolean;
     includeEdges?: boolean;
     limit?: number;
     offset?: number;
@@ -52,7 +56,7 @@ export async function inspectDomainAction(id: string, cli: Command): Promise<voi
     const services = await getServices();
     return services.domains.inspectDomain(id, {
       includeContexts: options.includeContexts,
-      includeEdges: options.includeEdges,
+      includeEdges: options.includeRelations ?? options.includeEdges,
       limit: options.limit,
       offset: options.offset,
     });

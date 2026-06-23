@@ -82,6 +82,26 @@ describe("Understanding 管理", () => {
       expect(parseJsonl(stdout).length).toBe(5);
     });
 
+    it("可按 Understanding 分组附带 Context", async () => {
+      const { code, stdout } = await runCommand([
+        "understanding",
+        "list",
+        "--include-contexts",
+        "--limit",
+        "5",
+        "--format",
+        "json",
+      ]);
+      expect(code).toBe(0);
+      const data = parseJson(stdout) as {
+        understandings?: Array<{ id: string }>;
+        contextsByUnderstandingId?: Record<string, unknown[]>;
+      };
+      expect(Array.isArray(data.understandings)).toBe(true);
+      expect(data.contextsByUnderstandingId).toBeDefined();
+      expect(Object.keys(data.contextsByUnderstandingId ?? {}).length).toBeGreaterThan(0);
+    });
+
     it("软删除的 Understanding 不会出现在列表中", async () => {
       const deletedId = getDeletedUnderstandingId("Soft Deleted Understanding A");
       expect(deletedId).toBeDefined();
@@ -131,37 +151,20 @@ describe("Understanding 管理", () => {
       expect(Array.isArray((parseJson(stdout) as { contexts?: unknown[] }).contexts)).toBe(true);
     });
 
-    it("附带引用列表", async () => {
+    it("附带关系列表", async () => {
       const understandingId = getUnderstandingId("React Server Components");
       expect(understandingId).toBeDefined();
       const { code, stdout } = await runCommand([
         "understanding",
         "get",
         understandingId!,
-        "--include-references",
+        "--include-relations",
       ]);
       expect(code).toBe(0);
-      expect(Array.isArray((parseJson(stdout) as { references?: unknown[] }).references)).toBe(
-        true,
-      );
+      expect(Array.isArray((parseJson(stdout) as { relations?: unknown[] }).relations)).toBe(true);
     });
 
-    it("附带被引用列表", async () => {
-      const understandingId = getUnderstandingId("Star Center");
-      expect(understandingId).toBeDefined();
-      const { code, stdout } = await runCommand([
-        "understanding",
-        "get",
-        understandingId!,
-        "--include-referenced-bys",
-      ]);
-      expect(code).toBe(0);
-      const data = parseJson(stdout) as { referencedBys?: unknown[] };
-      expect(Array.isArray(data.referencedBys)).toBe(true);
-      expect(data.referencedBys!.length).toBeGreaterThan(0);
-    });
-
-    it("同时附带 Context、引用和被引用", async () => {
+    it("同时附带 Context 和关系", async () => {
       const understandingId = getUnderstandingId("React Server Components");
       expect(understandingId).toBeDefined();
       const { code, stdout } = await runCommand([
@@ -169,18 +172,15 @@ describe("Understanding 管理", () => {
         "get",
         understandingId!,
         "--include-contexts",
-        "--include-references",
-        "--include-referenced-bys",
+        "--include-relations",
       ]);
       expect(code).toBe(0);
       const data = parseJson(stdout) as {
         contexts?: unknown[];
-        references?: unknown[];
-        referencedBys?: unknown[];
+        relations?: unknown[];
       };
       expect(Array.isArray(data.contexts)).toBe(true);
-      expect(Array.isArray(data.references)).toBe(true);
-      expect(Array.isArray(data.referencedBys)).toBe(true);
+      expect(Array.isArray(data.relations)).toBe(true);
     });
   });
 

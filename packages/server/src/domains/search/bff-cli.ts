@@ -5,7 +5,7 @@ import { SearchCore } from "./core";
 import { toUnderstandingSummaries } from "../understanding/core";
 import type { ContextSearchHit } from "../context/types";
 import type { UnderstandingSearchHit } from "../understanding/types";
-import type { SearchAllResult, SearchOptions } from "./types";
+import type { SearchAllResult, SearchOptions, SearchOutput } from "./types";
 
 export class SearchCliBff extends SearchCore {
   constructor(db: ReflectaDb) {
@@ -59,5 +59,36 @@ export class SearchCliBff extends SearchCore {
       this.searchContexts(query, options),
     ]);
     return { understandings: understandingsResult, contexts: contextsResult };
+  }
+
+  async search(query: string, options?: SearchOptions): Promise<SearchOutput> {
+    const result = await this.searchAll(query, options);
+    const hits = [
+      ...result.understandings.map((understanding) => ({
+        type: "understanding" as const,
+        understanding: {
+          id: understanding.id,
+          title: understanding.title,
+          body: understanding.body,
+          domains: understanding.domains,
+        },
+        matchedText: understanding.snippet,
+        rank: understanding.rank,
+      })),
+      ...result.contexts.map((context) => ({
+        type: "context" as const,
+        context: {
+          id: context.contextId,
+          understandingId: context.understandingId,
+          medium: context.medium,
+          title: context.title,
+        },
+        understandingId: context.understandingId,
+        matchedText: context.snippet,
+        rank: context.rank,
+      })),
+    ].sort((left, right) => left.rank - right.rank);
+
+    return { hits };
   }
 }

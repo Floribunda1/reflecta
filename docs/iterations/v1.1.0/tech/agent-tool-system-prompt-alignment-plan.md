@@ -158,6 +158,10 @@ type ContextSummary = {
   contentPreview?: string;
 };
 
+type ContextDetail = ContextSummary & {
+  content: string;
+};
+
 type RelationSummary = {
   sourceUnderstandingId: Id;
   targetUnderstandingId?: Id;
@@ -204,7 +208,7 @@ type DomainInspectOutput = {
   domain: DomainSummary;
   children?: DomainSummary[];
   understandings?: UnderstandingSummary[];
-  contexts?: ContextSummary[];
+  contexts?: ContextDetail[];
   relations?: RelationSummary[];
 };
 ```
@@ -268,7 +272,7 @@ type UnderstandingListInput = PaginationInput & {
 
 type UnderstandingListOutput = {
   understandings: UnderstandingSummary[];
-  contextsByUnderstandingId?: Record<Id, ContextSummary[]>;
+  contextsByUnderstandingId?: Record<Id, ContextDetail[]>;
 };
 ```
 
@@ -287,7 +291,7 @@ type UnderstandingGetOutput = {
   understanding: UnderstandingSummary & {
     body: string;
   };
-  contexts?: ContextSummary[];
+  contexts?: ContextDetail[];
   relations?: RelationSummary[];
 };
 ```
@@ -367,9 +371,7 @@ type ContextGetInput = {
 };
 
 type ContextGetOutput = {
-  context: ContextSummary & {
-    content: string;
-  };
+  context: ContextDetail;
   understanding: UnderstandingSummary;
 };
 ```

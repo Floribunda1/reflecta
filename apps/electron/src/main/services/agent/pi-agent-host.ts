@@ -48,22 +48,18 @@ type ActivePiRun = {
   session: AgentSession;
 };
 
-function createPiResourceLoader(): ResourceLoader {
+export function loadAgentSystemPrompt(): string {
+  return fs.readFileSync(new URL("./agent-system-prompt.md", import.meta.url), "utf8").trim();
+}
+
+export function createPiResourceLoader(): ResourceLoader {
   return {
     getExtensions: () => ({ extensions: [], errors: [], runtime: createExtensionRuntime() }),
     getSkills: () => ({ skills: [], diagnostics: [] }),
     getPrompts: () => ({ prompts: [], diagnostics: [] }),
     getThemes: () => ({ themes: [], diagnostics: [] }),
     getAgentsFiles: () => ({ agentsFiles: [] }),
-    getSystemPrompt: () =>
-      [
-        "You are Reflecta's agent. Answer the user's message clearly and concisely.",
-        "When the user asks to search, inspect, or read Reflecta knowledge, use the provided Reflecta read-only tools before answering.",
-        "Do not invent knowledge-base search results. Base those answers on tool results.",
-        "When the user asks to create, update, or delete Reflecta knowledge, call the matching approval tool. Do not replace an approval tool call with a prose-only proposal.",
-        "Approval tools only create pending proposals. Reflecta writes to the knowledge base only after the user confirms in the UI.",
-        "If the user explicitly names a tool, call that tool unless the request is impossible or unsafe.",
-      ].join("\n"),
+    getSystemPrompt: loadAgentSystemPrompt,
     getAppendSystemPrompt: () => [],
     extendResources: () => {},
     reload: async () => {},

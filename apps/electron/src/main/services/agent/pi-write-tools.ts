@@ -48,7 +48,7 @@ const toolSpecs: PiWriteToolSpec[] = [
     name: "understanding_create",
     label: "候选 Understanding",
     description:
-      "Create a new Reflecta Understanding only after user approval. Call this when the user asks you to propose or create a Understanding. The tool requests approval; it must not write the knowledge base until the user confirms.",
+      "Create a new Reflecta Understanding only after user approval. Call this when the user asks you to propose or create a Understanding. The tool requests approval; it must not change Reflecta until the user confirms.",
     promptSnippet:
       "understanding_create: propose a new Reflecta Understanding and request user approval.",
     promptGuidelines: [
@@ -190,7 +190,7 @@ function pendingToolResult(toolName: PiApprovalToolName, params: Record<string, 
     content: [
       {
         type: "text" as const,
-        text: "Approval requested. The knowledge base has not been changed yet.",
+        text: "Approval requested. Reflecta has not been changed yet.",
       },
     ],
     details: {

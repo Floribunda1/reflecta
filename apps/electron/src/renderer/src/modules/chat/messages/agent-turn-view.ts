@@ -354,6 +354,7 @@ function summarizeToolGroup(groupType: ToolGroupType, blocks: AgentToolBlock[]):
 function toolGroupType(name: string): ToolGroupType {
   if (name.startsWith("graph_")) return "graph";
   if (
+    name === "search" ||
     name.startsWith("search_") ||
     name.startsWith("understanding_") ||
     name.startsWith("context_") ||
@@ -447,6 +448,11 @@ function aggregateLookupCounts(blocks: AgentToolBlock[]) {
       understandings += outputCount(output, "understandings");
       contexts += outputCount(output, "contexts");
     }
+    if (name === "search") {
+      const counts = searchHitCounts(output);
+      understandings += counts.understandings;
+      contexts += counts.contexts;
+    }
   }
   return { understandings, contexts };
 }
@@ -466,6 +472,7 @@ function toolTitle(name: string) {
   if (name === "understanding_get") return "读取 Understanding";
   if (name === "context_list") return "列出 Context";
   if (name === "context_get") return "读取 Context";
+  if (name === "search") return "搜索相关内容";
   if (name === "search_understandings") return "搜索 Understanding";
   if (name === "search_contexts") return "搜索 Context";
   if (name === "search_all") return "搜索相关内容";
@@ -527,6 +534,10 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
   if (name === "search_all") {
     return `搜索了 ${outputCount(output, "understandings")} 条 Understanding / ${outputCount(output, "contexts")} 条 Context`;
   }
+  if (name === "search") {
+    const counts = searchHitCounts(output);
+    return `搜索了 ${counts.understandings} 条 Understanding / ${counts.contexts} 条 Context`;
+  }
   if (name === "understanding_get")
     return `读取了「${entityTitle(outputRecord.understanding) || entityTitle(outputRecord) || stringValue(input.understandingId) || "Understanding"}」`;
   if (name === "context_list") return `列出 ${outputCount(output, "contexts")} 条 Context`;
@@ -550,6 +561,18 @@ function arrayValue(value: unknown): unknown[] {
 function outputCount(output: unknown, key: string) {
   if (Array.isArray(output)) return output.length;
   return isRecord(output) ? arrayValue(output[key]).length : 0;
+}
+
+function searchHitCounts(output: unknown) {
+  const hits = isRecord(output) ? arrayValue(output.hits) : [];
+  let understandings = 0;
+  let contexts = 0;
+  for (const hit of hits) {
+    if (!isRecord(hit)) continue;
+    if (hit.type === "understanding") understandings += 1;
+    if (hit.type === "context") contexts += 1;
+  }
+  return { understandings, contexts };
 }
 
 function stringArray(value: unknown): string[] {
