@@ -2,6 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
+import { buildUnderstandingCandidates } from "./candidate-builder";
 import { LanceDbRetrievalIndex } from "./lancedb-index";
 import { buildRetrievalDocuments } from "./projection";
 import type { EmbeddingProvider } from "./types";
@@ -71,6 +72,48 @@ describe("retrieval projection", () => {
       "Parent Understanding: AI 工作流的关键是验收标准，不是提示词堆叠",
     );
     expect(contextDoc?.textForEmbedding).toContain("Domain: AI / Agent");
+  });
+});
+
+describe("buildUnderstandingCandidates", () => {
+  test("folds Context hits back to their parent Understanding", () => {
+    const docs = sampleDocs();
+    const contextDoc = docs.find((doc) => doc.id === "context:context-1");
+    expect(contextDoc).toBeDefined();
+
+    const [candidate] = buildUnderstandingCandidates({
+      hits: [
+        {
+          ...contextDoc!,
+          score: 0.9,
+          rank: 0,
+          snippet: "debug 很久后发现问题不是 prompt",
+        },
+      ],
+      understandings: [
+        {
+          id: "understanding-1",
+          title: "AI 工作流的关键是验收标准，不是提示词堆叠",
+          body: "Agent 产出质量取决于是否有明确 check 标准。",
+          domains: [{ id: "domain-1", name: "AI / Agent", parentId: null }],
+        },
+      ],
+    });
+
+    expect(candidate).toMatchObject({
+      id: "understanding-1",
+      type: "understanding",
+      matchedContexts: [
+        {
+          contextId: "context-1",
+          title: "一次写 human readable 文档失败的经历",
+        },
+      ],
+      suggestedRead: {
+        tool: "understanding_get",
+        input: { understandingId: "understanding-1", includeContexts: true },
+      },
+    });
   });
 });
 

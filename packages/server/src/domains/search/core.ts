@@ -5,12 +5,18 @@ import { contexts, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type { SearchOptions } from "./types";
 import { resolveDomainRefs } from "../domain/core";
+import { toUnderstandingSummaries } from "../understanding/core";
 import {
   LanceDbRetrievalIndex,
   LocalEmbeddingProvider,
+  buildUnderstandingCandidates,
   buildRetrievalDocuments,
 } from "../retrieval";
-import type { RetrievalSearchHit } from "../retrieval";
+import type {
+  RetrievalSearchHit,
+  RetrieveKnowledgeInput,
+  RetrieveKnowledgeResult,
+} from "../retrieval";
 
 export function getLimitOffset(options?: SearchOptions) {
   return {
@@ -86,6 +92,43 @@ export class SearchCore {
         snippet: hit.snippet,
         rank: hit.rank,
       }));
+  }
+
+  async retrieveKnowledge(input: RetrieveKnowledgeInput): Promise<RetrieveKnowledgeResult> {
+    const limit = input.limit ?? 10;
+    const hits = await this.searchRetrievalDocuments(input.query, { limit });
+    const parentIds = [...new Set(hits.map((hit) => hit.parentUnderstandingId))];
+    const rows =
+      parentIds.length === 0
+        ? []
+        : await this.db
+            .select()
+            .from(understandings)
+            .where(and(inArray(understandings.id, parentIds), isNull(understandings.deletedAt)));
+    const candidates = buildUnderstandingCandidates({
+      hits,
+      understandings: await toUnderstandingSummaries(this.db, rows),
+    });
+    const denseHits = hits.filter((hit) => hit.denseDistance !== undefined).length;
+    const matchedContexts = candidates.reduce(
+      (count, candidate) => count + candidate.matchedContexts.length,
+      0,
+    );
+
+    return {
+      candidates,
+      trace: {
+        query: input.query,
+        dense: { searched: true, hits: denseHits },
+        lexical: { searched: true, hits: hits.length - denseHits },
+        fusion: { method: "lancedb", documentsAfterFusion: hits.length },
+        grouping: {
+          understandingCandidates: candidates.length,
+          matchedContexts,
+        },
+        returnedCandidates: candidates.length,
+      },
+    };
   }
 
   private async buildRetrievalDocuments() {

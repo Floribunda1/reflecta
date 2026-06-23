@@ -445,6 +445,11 @@ function aggregateLookupCounts(blocks: AgentToolBlock[]) {
       understandings += counts.understandings;
       contexts += counts.contexts;
     }
+    if (name === "retrieve_knowledge") {
+      const counts = retrievalCandidateCounts(output);
+      understandings += counts.understandings;
+      contexts += counts.contexts;
+    }
     if (name === "graph") {
       understandings += outputCount(output, "nodes");
       contexts += outputCount(output, "contexts");
@@ -466,6 +471,7 @@ function toolTitle(name: string) {
   if (name === "understanding_get") return "读取 Understanding";
   if (name === "context_list") return "列出 Context";
   if (name === "context_get") return "读取 Context";
+  if (name === "retrieve_knowledge") return "检索知识";
   if (name === "search") return "搜索相关内容";
   if (name === "graph") return "查看关联图";
   if (name === "attachment_read") return "读取附件";
@@ -478,6 +484,7 @@ function toolRunningVerb(name: string) {
   if (name === "attachment_read") return "正在读取附件";
   if (name === "file_read") return "正在读取本地文件";
   if (name === "bash") return "正在执行 Bash";
+  if (name === "retrieve_knowledge") return "正在检索知识";
   if (name.includes("search")) return "正在搜索相关内容";
   if (name === "graph") return "正在查看关联图";
   if (name.includes("get")) return "正在读取内容";
@@ -489,6 +496,7 @@ function toolDoneVerb(name: string) {
   if (name === "attachment_read") return "读取附件";
   if (name === "file_read") return "读取本地文件";
   if (name === "bash") return "执行 Bash";
+  if (name === "retrieve_knowledge") return "检索";
   if (name.includes("search")) return "搜索";
   if (name === "graph") return "查看关联图";
   if (name.includes("get")) return "读取";
@@ -518,6 +526,10 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
   if (name === "search") {
     const counts = searchHitCounts(output);
     return `搜索了 ${counts.understandings} 条 Understanding / ${counts.contexts} 条 Context`;
+  }
+  if (name === "retrieve_knowledge") {
+    const counts = retrievalCandidateCounts(output);
+    return `检索到 ${counts.understandings} 条 Understanding / ${counts.contexts} 条 Context 证据`;
   }
   if (name === "graph") {
     return `查看了 ${outputCount(output, "nodes")} 条 Understanding 的关联图`;
@@ -554,6 +566,16 @@ function searchHitCounts(output: unknown) {
     if (hit.type === "context") contexts += 1;
   }
   return { understandings, contexts };
+}
+
+function retrievalCandidateCounts(output: unknown) {
+  const candidates = isRecord(output) ? arrayValue(output.candidates) : [];
+  let contexts = 0;
+  for (const candidate of candidates) {
+    if (!isRecord(candidate)) continue;
+    contexts += arrayValue(candidate.matchedContexts).length;
+  }
+  return { understandings: candidates.length, contexts };
 }
 
 function stringArray(value: unknown): string[] {

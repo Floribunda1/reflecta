@@ -25,3 +25,59 @@ export type RetrievalSearchHit = RetrievalDocument & {
 export type EmbeddingProvider = {
   embed(texts: string[]): Promise<number[][]>;
 };
+
+export type KnowledgeAnchor =
+  | { type: "understanding"; id: string }
+  | { type: "context"; id: string }
+  | { type: "domain"; id: string };
+
+export type RetrieveKnowledgeInput = {
+  query: string;
+  anchors?: KnowledgeAnchor[];
+  limit?: number;
+};
+
+export type MatchedContext = {
+  contextId: string;
+  medium: string;
+  title?: string | null;
+  snippet: string;
+  reason: string;
+};
+
+export type CandidateEvidence = {
+  channel: "dense" | "lexical" | "relation" | "anchor";
+  documentId?: string;
+  entityType?: RetrievalDocumentEntityType;
+  score?: number;
+  rank?: number;
+  reason: string;
+};
+
+export type UnderstandingCandidate = {
+  id: string;
+  type: "understanding";
+  title?: string | null;
+  snippet?: string;
+  score: number;
+  matchedContexts: MatchedContext[];
+  suggestedRead: {
+    tool: "understanding_get";
+    input: { understandingId: string; includeContexts: true };
+  };
+  evidence: CandidateEvidence[];
+};
+
+export type RetrievalTrace = {
+  query: string;
+  dense: { searched: boolean; hits: number };
+  lexical: { searched: boolean; hits: number };
+  fusion: { method: "lancedb"; documentsAfterFusion: number };
+  grouping: { understandingCandidates: number; matchedContexts: number };
+  returnedCandidates: number;
+};
+
+export type RetrieveKnowledgeResult = {
+  candidates: UnderstandingCandidate[];
+  trace: RetrievalTrace;
+};

@@ -15,6 +15,7 @@ export const PI_READ_ONLY_TOOL_NAMES = [
   "understanding_get",
   "context_list",
   "context_get",
+  "retrieve_knowledge",
   "search",
   "graph",
 ] as const;
@@ -130,6 +131,20 @@ export function createPiReadOnlyTools(): ToolDefinition[] {
       }),
       execute: async (_toolCallId, { contextId }) =>
         toolResult(await contextCliService.getContext(contextId)),
+    }),
+    defineTool({
+      name: "retrieve_knowledge",
+      label: "检索知识",
+      description:
+        "Retrieve Reflecta Understanding candidates with matched Context evidence and suggested next reads.",
+      promptSnippet:
+        "retrieve_knowledge: retrieve Understanding candidates with matched Context evidence.",
+      parameters: Type.Object({
+        query: Type.String({ minLength: 1 }),
+        limit: paginationParameters.limit,
+      }),
+      execute: async (_toolCallId, { query, limit }) =>
+        toolResult(await searchCliService.retrieveKnowledge({ query, limit })),
     }),
     defineTool({
       name: "search",
