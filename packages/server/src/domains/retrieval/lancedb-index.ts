@@ -113,6 +113,12 @@ function hasVectorSignal(vector: number[]): boolean {
   return Math.hypot(...vector) > 0;
 }
 
+function shouldSearchDense(tokens: string[], lexicalRows: RetrievalRow[], limit: number): boolean {
+  if (lexicalRows.length === 0) return true;
+  if (lexicalRows.length >= limit) return false;
+  return tokens.length > 1;
+}
+
 function fuseRows(lexicalRows: RetrievalRow[], semanticRows: RetrievalRow[], limit: number) {
   const byId = new Map<
     string,
@@ -209,6 +215,9 @@ export class LanceDbRetrievalIndex {
     )
       .filter((row) => matchesLexicalQuery(row, tokens))
       .slice(0, limit);
+    if (!shouldSearchDense(tokens, lexicalRows, limit)) {
+      return fuseRows(lexicalRows, [], limit).map(fromRow);
+    }
     const [vector] = await this.options.embeddingProvider.embed([query]);
     const semanticRows = hasVectorSignal(vector)
       ? ((await table.vectorSearch(vector).limit(searchLimit).toArray()) as RetrievalRow[]).filter(

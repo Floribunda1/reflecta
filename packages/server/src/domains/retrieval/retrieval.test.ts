@@ -75,7 +75,7 @@ function rrfDocs(): RetrievalDocument[] {
       entityId: "lexical-only",
       parentUnderstandingId: "lexical-only",
       textForEmbedding: "off topic",
-      textForLexicalSearch: "lexicalterm lexicalterm lexicalterm",
+      textForLexicalSearch: "lexicalterm contextword lexicalterm",
       metadata,
     },
     {
@@ -84,7 +84,7 @@ function rrfDocs(): RetrievalDocument[] {
       entityId: "both",
       parentUnderstandingId: "both",
       textForEmbedding: "semantic-match",
-      textForLexicalSearch: "lexicalterm",
+      textForLexicalSearch: "lexicalterm contextword",
       metadata,
     },
     {
@@ -205,7 +205,7 @@ describe("LanceDbRetrievalIndex", () => {
     });
     await index.replaceAll(rrfDocs());
 
-    const [topHit] = await index.search("lexicalterm", 3);
+    const [topHit] = await index.search("lexicalterm contextword", 3);
 
     expect(topHit).toMatchObject({
       id: "understanding:both",

@@ -84,6 +84,37 @@ async function startEmbeddingServer() {
   return `http://127.0.0.1:${address.port}/v1`;
 }
 
+async function startSlowQueryEmbeddingServer(query: string, delayMs = 1_200) {
+  const server = createServer((request, response) => {
+    const chunks: Buffer[] = [];
+    request.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    request.on("end", () => {
+      const body = JSON.parse(Buffer.concat(chunks).toString("utf-8")) as { input: string[] };
+      const inputs = Array.isArray(body.input) ? body.input : [body.input];
+      const respond = () => {
+        response.setHeader("Content-Type", "application/json");
+        response.end(
+          JSON.stringify({
+            data: inputs.map((text) => ({
+              embedding: /semantic-source|semantic-query/.test(text) ? [1, 0] : [0, 1],
+            })),
+          }),
+        );
+      };
+      if (inputs.length === 1 && inputs[0] === query) {
+        setTimeout(respond, delayMs);
+        return;
+      }
+      respond();
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  servers.push(server);
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Embedding server failed to start");
+  return `http://127.0.0.1:${address.port}/v1`;
+}
+
 async function startPartiallyBlockingEmbeddingServer() {
   let releaseBlockedResponse!: () => void;
   let resolveFirstBatchCompleted!: () => void;
@@ -288,6 +319,27 @@ describe("retrieval index write-path sync", () => {
     const rows = await new SearchCore(db).searchUnderstandingIds("semantic-query", { limit: 5 });
 
     expect(rows.map((row) => row.understandingId)).toContain(created.id);
+  });
+
+  test("keyword Understanding search returns lexical matches without waiting for query embedding", async () => {
+    const keyword = "slowkeywordmarker";
+    configureRetrievalEmbedding({
+      provider: "openai-compatible",
+      baseUrl: await startSlowQueryEmbeddingServer(keyword),
+      modelId: "test-slow-query",
+    });
+    const { db, understandings } = await setupServices();
+    const created = await understandings.createUnderstanding({
+      title: "Slow Query Keyword Source",
+      body: `This row contains ${keyword}.`,
+    });
+
+    const startedAt = Date.now();
+    const rows = await new SearchCore(db).searchUnderstandingIds(keyword, { limit: 1 });
+    const elapsedMs = Date.now() - startedAt;
+
+    expect(rows.map((row) => row.understandingId)).toContain(created.id);
+    expect(elapsedMs).toBeLessThan(700);
   });
 
   test("retrieveKnowledge uses configured OpenAI-compatible embeddings for dense recall", async () => {
