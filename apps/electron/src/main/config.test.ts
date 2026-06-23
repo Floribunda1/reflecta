@@ -81,6 +81,7 @@ describe("Electron retrieval config", () => {
     const status = await config.downloadDefaultRetrievalEmbeddingModel();
 
     expect(status.downloaded).toBe(true);
+    expect(status.download.state).toBe("downloaded");
     expect(status.modelPath).toBe(
       path.join(config.getAppConfigDir(), "models", "retrieval", "Qwen3-Embedding-0.6B-Q8_0.gguf"),
     );

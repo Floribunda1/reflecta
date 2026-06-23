@@ -4,6 +4,7 @@ import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import { Input } from "@renderer/components/ui/input";
 import { Label } from "@renderer/components/ui/label";
+import { Progress } from "@renderer/components/ui/progress";
 import { Switch } from "@renderer/components/ui/switch";
 import { ipcClient } from "@renderer/utils/ipc";
 
@@ -11,11 +12,31 @@ type RetrievalConfig = Awaited<ReturnType<typeof ipcClient.config.getRetrievalCo
 type RetrievalEmbeddingModelStatus = Awaited<
   ReturnType<typeof ipcClient.config.getRetrievalEmbeddingModelStatus>
 >;
+type RetrievalIndexStatus = Awaited<ReturnType<typeof ipcClient.config.getRetrievalIndexStatus>>;
+
+function indexStatusLabel(state: RetrievalIndexStatus["state"]) {
+  if (state === "ready") return "已完成";
+  if (state === "indexing") return "索引中";
+  if (state === "dirty") return "需要重建";
+  if (state === "error") return "构建失败";
+  return "未建立";
+}
+
+function downloadStatusLabel(status: RetrievalEmbeddingModelStatus) {
+  const { download } = status;
+  if (download.state === "downloading") {
+    return download.percent === undefined ? "下载中" : `下载中 ${download.percent}%`;
+  }
+  if (download.state === "error") return "下载失败";
+  return status.downloaded ? "已下载" : "未下载";
+}
 
 export function RetrievalSection() {
   const [status, setStatus] = useState<RetrievalEmbeddingModelStatus | null>(null);
+  const [indexStatus, setIndexStatus] = useState<RetrievalIndexStatus | null>(null);
   const [config, setConfig] = useState<RetrievalConfig | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [indexing, setIndexing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -23,9 +44,11 @@ export function RetrievalSection() {
     void Promise.all([
       ipcClient.config.getRetrievalEmbeddingModelStatus(),
       ipcClient.config.getRetrievalConfig(),
-    ]).then(([nextStatus, nextConfig]) => {
+      ipcClient.config.getRetrievalIndexStatus(),
+    ]).then(([nextStatus, nextConfig, nextIndexStatus]) => {
       setStatus(nextStatus);
       setConfig(nextConfig);
+      setIndexStatus(nextIndexStatus);
     });
   }, []);
 
@@ -43,10 +66,31 @@ export function RetrievalSection() {
 
   const handleDownload = async () => {
     setDownloading(true);
+    const interval = window.setInterval(() => {
+      void ipcClient.config.getRetrievalEmbeddingModelStatus().then(setStatus);
+    }, 250);
     try {
       setStatus(await ipcClient.config.downloadDefaultRetrievalEmbeddingModel());
+    } catch {
+      setStatus(await ipcClient.config.getRetrievalEmbeddingModelStatus());
     } finally {
+      window.clearInterval(interval);
       setDownloading(false);
+    }
+  };
+
+  const handleRebuildIndex = async () => {
+    setIndexing(true);
+    const interval = window.setInterval(() => {
+      void ipcClient.config.getRetrievalIndexStatus().then(setIndexStatus);
+    }, 250);
+    try {
+      setIndexStatus(await ipcClient.config.rebuildRetrievalIndex());
+    } catch {
+      setIndexStatus(await ipcClient.config.getRetrievalIndexStatus());
+    } finally {
+      window.clearInterval(interval);
+      setIndexing(false);
     }
   };
 
@@ -56,12 +100,14 @@ export function RetrievalSection() {
     setSaved(false);
     try {
       await ipcClient.config.setRetrievalConfig(config);
-      const [nextStatus, nextConfig] = await Promise.all([
+      const [nextStatus, nextConfig, nextIndexStatus] = await Promise.all([
         ipcClient.config.getRetrievalEmbeddingModelStatus(),
         ipcClient.config.getRetrievalConfig(),
+        ipcClient.config.getRetrievalIndexStatus(),
       ]);
       setStatus(nextStatus);
       setConfig(nextConfig);
+      setIndexStatus(nextIndexStatus);
       setSaved(true);
     } finally {
       setSaving(false);
@@ -101,7 +147,7 @@ export function RetrievalSection() {
                 data-testid="settings-retrieval-model-status"
                 variant={status.downloaded ? "secondary" : "outline"}
               >
-                {status.downloaded ? "已下载" : "未下载"}
+                {downloadStatusLabel(status)}
               </Badge>
             </div>
 
@@ -119,6 +165,16 @@ export function RetrievalSection() {
                 {downloading ? "下载中" : "下载"}
               </Button>
             </div>
+            {status.download.state === "downloading" ? (
+              <Progress
+                data-testid="settings-retrieval-download-progress"
+                value={status.download.percent ?? 0}
+                className="mt-3"
+              />
+            ) : null}
+            {status.download.state === "error" && status.download.error ? (
+              <p className="mt-2 text-xs text-destructive">{status.download.error}</p>
+            ) : null}
           </section>
 
           <section className="grid gap-4 border-t border-border/70 pt-5">
@@ -157,6 +213,46 @@ export function RetrievalSection() {
               />
             </Label>
           </section>
+
+          {indexStatus ? (
+            <section className="border-t border-border/70 pt-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h4 className="text-sm font-medium text-foreground">Indexing</h4>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {indexStatus.embeddingModel} · projection v{indexStatus.projectionVersion}
+                  </p>
+                </div>
+                <Badge
+                  data-testid="settings-retrieval-index-status"
+                  variant={indexStatus.state === "ready" ? "secondary" : "outline"}
+                >
+                  {indexStatusLabel(indexStatus.state)}
+                </Badge>
+              </div>
+              {indexStatus.state === "indexing" ? (
+                <Progress
+                  data-testid="settings-retrieval-index-progress"
+                  value={null}
+                  className="mt-3"
+                />
+              ) : null}
+              {indexStatus.state === "error" && indexStatus.error ? (
+                <p className="mt-2 text-xs text-destructive">{indexStatus.error}</p>
+              ) : null}
+              <Button
+                data-testid="settings-retrieval-rebuild-button"
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-4"
+                disabled={indexing}
+                onClick={() => void handleRebuildIndex()}
+              >
+                {indexing ? "重建中" : "重新构建检索索引"}
+              </Button>
+            </section>
+          ) : null}
 
           <div className="flex items-center gap-3 border-t border-border/70 pt-5">
             <Button size="sm" disabled={saving} onClick={() => void handleSave()}>

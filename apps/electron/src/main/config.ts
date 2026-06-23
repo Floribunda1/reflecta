@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
+import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { Readable } from "node:stream";
 import { app, safeStorage } from "electron";
 
 export interface AiModelConfig {
@@ -73,6 +73,15 @@ export interface RetrievalEmbeddingModelStatus {
   downloaded: boolean;
   modelPath: string;
   config: RetrievalConfig;
+  download: RetrievalEmbeddingDownloadStatus;
+}
+
+export interface RetrievalEmbeddingDownloadStatus {
+  state: "idle" | "downloading" | "downloaded" | "error";
+  receivedBytes: number;
+  totalBytes?: number;
+  percent?: number;
+  error?: string;
 }
 
 export interface ResolvedAiModelConfig {
@@ -118,6 +127,10 @@ export function getDefaultContentStorageRoot(): string {
 
 let _cache: AppConfig | null = null;
 const ENCRYPTED_VALUE_PREFIX = "safe:v1:";
+let retrievalEmbeddingDownload: RetrievalEmbeddingDownloadStatus = {
+  state: "idle",
+  receivedBytes: 0,
+};
 
 export const DEFAULT_RETRIEVAL_EMBEDDING_MODEL: RetrievalEmbeddingModelManifest = {
   id: "qwen3-embedding-0.6b-q8_0",
@@ -401,11 +414,20 @@ export function getRetrievalEmbeddingModelPath(
 
 export function getRetrievalEmbeddingModelStatus(): RetrievalEmbeddingModelStatus {
   const modelPath = getRetrievalEmbeddingModelPath();
+  const downloaded = fs.existsSync(modelPath);
   return {
     manifest: DEFAULT_RETRIEVAL_EMBEDDING_MODEL,
-    downloaded: fs.existsSync(modelPath),
+    downloaded,
     modelPath,
     config: getRetrievalConfig(),
+    download:
+      retrievalEmbeddingDownload.state === "downloading" ||
+      retrievalEmbeddingDownload.state === "error"
+        ? retrievalEmbeddingDownload
+        : {
+            state: downloaded ? "downloaded" : "idle",
+            receivedBytes: downloaded ? fs.statSync(modelPath).size : 0,
+          },
   };
 }
 
@@ -475,23 +497,63 @@ export function writeConfig(partial: Partial<AppConfig>): void {
 export async function downloadDefaultRetrievalEmbeddingModel(): Promise<RetrievalEmbeddingModelStatus> {
   const modelPath = getRetrievalEmbeddingModelPath();
   fs.mkdirSync(path.dirname(modelPath), { recursive: true });
+  if (fs.existsSync(modelPath)) return getRetrievalEmbeddingModelStatus();
   if (process.env.REFLECTA_STUB_RETRIEVAL_MODEL_DOWNLOAD === "1") {
     fs.writeFileSync(modelPath, "stub retrieval embedding model", "utf-8");
+    retrievalEmbeddingDownload = {
+      state: "downloaded",
+      receivedBytes: fs.statSync(modelPath).size,
+    };
     return getRetrievalEmbeddingModelStatus();
   }
 
-  const response = await fetch(DEFAULT_RETRIEVAL_EMBEDDING_MODEL.downloadUrl);
-  if (!response.ok || !response.body) {
-    throw new Error(`下载 embedding 模型失败：${response.status}`);
-  }
-
   const tempPath = `${modelPath}.download`;
-  await pipeline(
-    Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]),
-    fs.createWriteStream(tempPath),
-  );
-  fs.renameSync(tempPath, modelPath);
-  return getRetrievalEmbeddingModelStatus();
+  try {
+    const response = await fetch(DEFAULT_RETRIEVAL_EMBEDDING_MODEL.downloadUrl);
+    if (!response.ok || !response.body) {
+      throw new Error(`下载 embedding 模型失败：${response.status}`);
+    }
+
+    const totalBytes = Number(response.headers.get("content-length")) || undefined;
+    retrievalEmbeddingDownload = { state: "downloading", receivedBytes: 0, totalBytes };
+    let receivedBytes = 0;
+    const progress = new Transform({
+      transform(chunk: Buffer, _encoding, callback) {
+        receivedBytes += chunk.length;
+        retrievalEmbeddingDownload = {
+          state: "downloading",
+          receivedBytes,
+          totalBytes,
+          percent: totalBytes ? Math.floor((receivedBytes / totalBytes) * 100) : undefined,
+        };
+        callback(null, chunk);
+      },
+    });
+
+    await pipeline(
+      Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]),
+      progress,
+      fs.createWriteStream(tempPath),
+    );
+    fs.renameSync(tempPath, modelPath);
+    retrievalEmbeddingDownload = {
+      state: "downloaded",
+      receivedBytes: fs.statSync(modelPath).size,
+      totalBytes,
+      percent: 100,
+    };
+    return getRetrievalEmbeddingModelStatus();
+  } catch (error) {
+    fs.rmSync(tempPath, { force: true });
+    retrievalEmbeddingDownload = {
+      state: "error",
+      receivedBytes: retrievalEmbeddingDownload.receivedBytes,
+      totalBytes: retrievalEmbeddingDownload.totalBytes,
+      percent: retrievalEmbeddingDownload.percent,
+      error: error instanceof Error ? error.message : String(error),
+    };
+    throw error;
+  }
 }
 
 /** Used by AssetService and db — resolves the effective user content directory. */

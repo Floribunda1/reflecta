@@ -16,6 +16,17 @@ import { buildRetrievalDocuments } from "./projection";
 
 export const RETRIEVAL_PROJECTION_VERSION = 1;
 
+export type RetrievalIndexStatus = {
+  state: "not_ready" | "dirty" | "indexing" | "ready" | "error";
+  embeddingModel: string;
+  projectionVersion: number;
+  tableName: string;
+  error?: string;
+};
+
+let activeRebuild: Promise<void> | null = null;
+let lastRebuildError: string | undefined;
+
 function safeTableSegment(value: string) {
   return (
     value
@@ -137,6 +148,37 @@ export async function syncRetrievalIndexByUnderstandingId(
 export async function rebuildRetrievalIndex(db: ReflectaDb): Promise<void> {
   await createRetrievalIndex().replaceAll(await buildRetrievalDocumentsFromDb(db));
   await clearRetrievalIndexDirty();
+}
+
+export async function rebuildRetrievalIndexWithStatus(db: ReflectaDb): Promise<void> {
+  if (activeRebuild) return activeRebuild;
+  activeRebuild = (async () => {
+    try {
+      lastRebuildError = undefined;
+      await rebuildRetrievalIndex(db);
+    } catch (error) {
+      lastRebuildError = error instanceof Error ? error.message : String(error);
+      await markRetrievalIndexDirty();
+      throw error;
+    } finally {
+      activeRebuild = null;
+    }
+  })();
+  return activeRebuild;
+}
+
+export async function getRetrievalIndexStatus(): Promise<RetrievalIndexStatus> {
+  const base = {
+    embeddingModel: getRetrievalEmbeddingModelId(),
+    projectionVersion: RETRIEVAL_PROJECTION_VERSION,
+    tableName: getRetrievalTableName(),
+  };
+  if (activeRebuild) return { ...base, state: "indexing" };
+  if (lastRebuildError) return { ...base, state: "error", error: lastRebuildError };
+  const index = createRetrievalIndex();
+  if (!(await index.isReady())) return { ...base, state: "not_ready" };
+  if (await isRetrievalIndexDirty()) return { ...base, state: "dirty" };
+  return { ...base, state: "ready" };
 }
 
 export async function trySyncRetrievalIndexByUnderstandingId(

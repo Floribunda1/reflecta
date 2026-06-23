@@ -9,7 +9,13 @@ import { DomainCliBff } from "../domain/bff-cli";
 import { SearchCliBff } from "../search/bff-cli";
 import { UnderstandingCliBff } from "../understanding/bff-cli";
 import { configureRetrievalEmbedding } from "./embedding-config";
-import { createRetrievalIndex, isRetrievalIndexDirty, markRetrievalIndexDirty } from "./sync";
+import {
+  createRetrievalIndex,
+  getRetrievalIndexStatus,
+  isRetrievalIndexDirty,
+  markRetrievalIndexDirty,
+  rebuildRetrievalIndexWithStatus,
+} from "./sync";
 
 const tempDirs: string[] = [];
 const servers: Server[] = [];
@@ -41,6 +47,7 @@ async function setupServices() {
   process.env.REFLECTA_RETRIEVAL_INDEX_PATH = join(tempDir, "index");
   const db = await createDBInstance(join(tempDir, "test.db"));
   return {
+    db,
     contexts: new ContextCliBff(db),
     domains: new DomainCliBff(db),
     search: new SearchCliBff(db),
@@ -138,6 +145,23 @@ describe("retrieval index write-path sync", () => {
 
     expect(result.candidates.map((candidate) => candidate.id)).toContain(created.id);
     expect(await isRetrievalIndexDirty()).toBe(false);
+  });
+
+  test("retrieval index status follows ready, dirty, and rebuild states", async () => {
+    const { db, understandings } = await setupServices();
+
+    expect(await getRetrievalIndexStatus()).toMatchObject({ state: "not_ready" });
+    await understandings.createUnderstanding({
+      title: "Index Status",
+      body: "indexstatusmarker",
+    });
+    expect(await getRetrievalIndexStatus()).toMatchObject({ state: "ready" });
+
+    await markRetrievalIndexDirty();
+    expect(await getRetrievalIndexStatus()).toMatchObject({ state: "dirty" });
+
+    await rebuildRetrievalIndexWithStatus(db);
+    expect(await getRetrievalIndexStatus()).toMatchObject({ state: "ready" });
   });
 
   test("retrieveKnowledge uses configured OpenAI-compatible embeddings for dense recall", async () => {

@@ -2,8 +2,11 @@ import { app, dialog } from "electron";
 import { IpcMethod, IpcService } from "electron-ipc-decorator";
 import {
   configureRetrievalEmbedding,
+  getRetrievalIndexStatus,
   markRetrievalIndexDirty,
+  rebuildRetrievalIndexWithStatus,
   type RetrievalEmbeddingConfig as ServerRetrievalEmbeddingConfig,
+  type RetrievalIndexStatus,
 } from "@reflecta/server";
 import type {
   AiConfig,
@@ -13,6 +16,7 @@ import type {
   RetrievalConfig,
   RetrievalEmbeddingModelStatus,
 } from "../config";
+import { getDBInstance } from "../db";
 import {
   downloadDefaultRetrievalEmbeddingModel,
   getActiveAiModelSelection,
@@ -111,6 +115,17 @@ export class ConfigService extends IpcService {
   @IpcMethod()
   async downloadDefaultRetrievalEmbeddingModel(): Promise<RetrievalEmbeddingModelStatus> {
     return downloadDefaultRetrievalEmbeddingModel();
+  }
+
+  @IpcMethod()
+  async getRetrievalIndexStatus(): Promise<RetrievalIndexStatus> {
+    return getRetrievalIndexStatus();
+  }
+
+  @IpcMethod()
+  async rebuildRetrievalIndex(): Promise<RetrievalIndexStatus> {
+    await rebuildRetrievalIndexWithStatus(getDBInstance());
+    return getRetrievalIndexStatus();
   }
 
   @IpcMethod()

@@ -10,7 +10,7 @@ import {
   getRetrievalEmbeddingModelId,
   isDenseRetrievalEnabled,
   isRetrievalIndexDirty,
-  rebuildRetrievalIndex,
+  rebuildRetrievalIndexWithStatus,
 } from "../retrieval";
 import type {
   RetrievalSearchHit,
@@ -38,7 +38,7 @@ export class SearchCore {
     const { limit, offset } = getLimitOffset(options);
     const index = createRetrievalIndex();
     if (!(await index.isReady()) || (await isRetrievalIndexDirty())) {
-      await rebuildRetrievalIndex(this.db);
+      await rebuildRetrievalIndexWithStatus(this.db);
     }
     const hits = await index.search(query, limit + offset);
     return hits.slice(offset).map((hit, index) => ({
