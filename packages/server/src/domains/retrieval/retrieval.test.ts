@@ -118,6 +118,17 @@ describe("buildUnderstandingCandidates", () => {
 });
 
 describe("LanceDbRetrievalIndex", () => {
+  test("reports readiness after documents are indexed", async () => {
+    const index = new LanceDbRetrievalIndex({
+      uri: await tempIndexDir(),
+      embeddingProvider: new KeywordEmbeddingProvider(),
+    });
+
+    expect(await index.isReady()).toBe(false);
+    await index.replaceAll(sampleDocs());
+    expect(await index.isReady()).toBe(true);
+  });
+
   test("stores RetrievalDocuments and retrieves semantic hits", async () => {
     const index = new LanceDbRetrievalIndex({
       uri: await tempIndexDir(),

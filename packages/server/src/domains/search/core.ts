@@ -31,12 +31,10 @@ export class SearchCore {
     options?: SearchOptions,
   ): Promise<SearchRetrievalHit[]> {
     const { limit, offset } = getLimitOffset(options);
-    const docs = await buildRetrievalDocumentsFromDb(this.db);
-    if (docs.length === 0) return [];
-
     const index = createRetrievalIndex();
-    // ponytail: rebuild-on-search; replace with write-path sync before large profiles.
-    await index.replaceAll(docs);
+    if (!(await index.isReady())) {
+      await index.replaceAll(await buildRetrievalDocumentsFromDb(this.db));
+    }
     const hits = await index.search(query, limit + offset);
     return hits.slice(offset).map((hit, index) => ({
       ...hit,

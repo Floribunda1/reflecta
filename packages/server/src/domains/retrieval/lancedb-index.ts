@@ -109,6 +109,11 @@ export class LanceDbRetrievalIndex {
     this.tableName = options.tableName ?? "retrieval_documents";
   }
 
+  async isReady(): Promise<boolean> {
+    const db = await lancedb.connect(this.options.uri);
+    return (await db.tableNames()).includes(this.tableName);
+  }
+
   async replaceAll(docs: RetrievalDocument[]): Promise<void> {
     const db = await lancedb.connect(this.options.uri);
     const tableNames = await db.tableNames();
