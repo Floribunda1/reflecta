@@ -62,7 +62,7 @@
 
   场景: 创建完整的 Context
     假设 存在一条活跃 Understanding，其 ID 为 UNDERSTANDING_ID
-    当 用户执行命令 "context create --understanding-id UNDERSTANDING_ID --medium article --title 'Blog Post' --content 'Important note' --yes"
+    当 用户执行命令 "context create --understanding-id UNDERSTANDING_ID --medium article --title 'Blog Post' --content 'Important context' --yes"
     那么 数据库中新增一条 Context，所有字段与输入一致
 
   场景: 创建 Context 后自动加入 FTS 索引

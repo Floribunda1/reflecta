@@ -1,27 +1,16 @@
 功能: Understanding 管理
 
   背景:
-    假设 数据库已初始化并包含多种类型的 Understanding、Domain 和 Context
+    假设 数据库已初始化并包含 Understanding、Domain 和 Context
 
   # understanding list
 
   场景: 列出所有活跃 Understanding
-    假设 数据库中存在活跃且类型混合的 Understanding
+    假设 数据库中存在活跃 Understanding
     当 用户执行命令 "understanding list"
     那么 标准输出仅包含未软删除的 Understanding
     并且 Understanding 按 updated_at 降序排列
-    并且 每个 Understanding 摘要包含 id、type、title、body 和 domains
-
-  场景: 按类型 idea 过滤
-    假设 数据库中同时存在 idea 和 insight 类型的 Understanding
-    当 用户执行命令 "understanding list --type idea"
-    那么 标准输出仅包含 type 为 "idea" 的 Understanding
-    并且 所有返回的 Understanding 均为活跃状态
-
-  场景: 按类型 insight 过滤
-    假设 数据库中同时存在 idea 和 insight 类型的 Understanding
-    当 用户执行命令 "understanding list --type insight"
-    那么 标准输出仅包含 type 为 "insight" 的 Understanding
+    并且 每个 Understanding 摘要包含 id、title、body 和 domains
 
   场景: 按 Domain ID 过滤
     假设 存在一个活跃 Domain，其 ID 为 DOMAIN_ID，且该 Domain 下有关联 Understanding
@@ -41,8 +30,8 @@
     那么 结果应与不带 --include-descendants 时一致
 
   场景: Domain 过滤下无匹配 Understanding
-    假设 存在一个活跃 Domain EMPTY_CAT_ID，且该 Domain 下没有任何 Understanding
-    当 用户执行命令 "understanding list --domain-id EMPTY_CAT_ID"
+    假设 存在一个活跃 Domain EMPTY_DOMAIN_ID，且该 Domain 下没有任何 Understanding
+    当 用户执行命令 "understanding list --domain-id EMPTY_DOMAIN_ID"
     那么 标准输出为空（零行）
 
   场景: 列出最近更新的 Understanding
@@ -50,11 +39,6 @@
     当 用户执行命令 "understanding list --recent"
     那么 标准输出包含最近更新的 Understanding
     并且 默认限制为 20 条
-
-  场景: --recent 不能与 --type 同时使用
-    当 用户执行命令 "understanding list --recent --type idea"
-    那么 命令退出码应为 1
-    并且 标准错误输出应提示 --recent 不能与 --type 组合使用
 
   场景: --recent 不能与 --domain-id 同时使用
     当 用户执行命令 "understanding list --recent --domain-id DOMAIN_ID"
@@ -86,7 +70,7 @@
   场景: 查看一条活跃 Understanding
     假设 存在一条活跃 Understanding，其 ID 为 UNDERSTANDING_ID
     当 用户执行命令 "understanding get UNDERSTANDING_ID"
-    那么 标准输出包含 Understanding 详情，字段包括 id、type、title、body、domains、contextCount、referenceCount、referencedByCount
+    那么 标准输出包含 Understanding 详情，字段包括 id、title、body、domains、contextCount、referenceCount、referencedByCount
 
   场景: 查看不存在的 Understanding
     假设 存在一个数据库中不存在的 ID MISSING_ID
@@ -159,10 +143,9 @@
     当 用户执行命令 "understanding create --body 'See [[Target Understanding]] for details' --yes"
     那么 数据库中新增一条 Understanding
     并且 understanding_connections 中存在一条从新 Understanding 指向 "Target Understanding" 的记录
-    并且 标准错误输出应包含 VALIDATION_ERROR，提示缺少 --type
 
   场景: 未加 --yes 时拒绝创建
-    当 用户执行命令 "understanding create --type idea"
+    当 用户执行命令 "understanding create --title Draft"
     那么 命令退出码应为 3
     并且 数据库中未新增任何 Understanding
 
@@ -187,10 +170,10 @@
     那么 该 Understanding 之前的所有 outgoing 连接均被移除
 
   场景: 更新 Domain 关联
-    假设 存在一条活跃 Understanding UNDERSTANDING_ID，当前关联到 CAT_A
-    当 用户执行命令 "understanding update UNDERSTANDING_ID --domain-id CAT_B,CAT_C --yes"
-    那么 该 Understanding 仅关联到 CAT_B 和 CAT_C
-    并且 与 CAT_A 的关联已被移除
+    假设 存在一条活跃 Understanding UNDERSTANDING_ID，当前关联到 DOMAIN_A
+    当 用户执行命令 "understanding update UNDERSTANDING_ID --domain-id DOMAIN_B,DOMAIN_C --yes"
+    那么 该 Understanding 仅关联到 DOMAIN_B 和 DOMAIN_C
+    并且 与 DOMAIN_A 的关联已被移除
 
   场景: 清空 Domain 关联
     假设 存在一条活跃 Understanding UNDERSTANDING_ID，当前关联到若干 Domain

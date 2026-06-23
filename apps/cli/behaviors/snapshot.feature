@@ -15,15 +15,15 @@
       | stats           | 对象   | 包含 totalUnderstandings、totalContexts、totalDomains、totalReferences |
 
   场景: Domain 的 Understanding 计数
-    假设 数据库中存在 Domain CAT_A，其下关联了 3 条 Understanding；存在 Domain CAT_B，其下未关联任何 Understanding
+    假设 数据库中存在 Domain DOMAIN_A，其下关联了 3 条 Understanding；存在 Domain DOMAIN_B，其下未关联任何 Understanding
     当 用户执行命令 "snapshot project"
-    那么 domains 中 CAT_A 的 understandingCount 为 3
-    并且 CAT_B 的 understandingCount 为 0
+    那么 domains 中 DOMAIN_A 的 understandingCount 为 3
+    并且 DOMAIN_B 的 understandingCount 为 0
 
   场景: Domain 计数排除已删除的 Understanding
-    假设 数据库中存在 Domain CAT_ID，其下关联了 2 条活跃 Understanding 和 1 条已删除 Understanding
+    假设 数据库中存在 Domain DOMAIN_ID，其下关联了 2 条活跃 Understanding 和 1 条已删除 Understanding
     当 用户执行命令 "snapshot project"
-    那么 CAT_ID 的 understandingCount 为 2
+    那么 DOMAIN_ID 的 understandingCount 为 2
 
   场景: 最近更新 Understanding 的排序
     假设 数据库中存在多条 Understanding，其 updated_at 依次为 T1 < T2 < T3 < … < T15

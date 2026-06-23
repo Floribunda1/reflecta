@@ -123,13 +123,11 @@ function generateId(prefix = "id"): string {
 // Content generators
 // ---------------------------------------------------------------------------
 
-const IDEA_PREFIXES = [
-  "Idea",
+const UNDERSTANDING_PREFIXES = [
   "Concept",
   "Experiment",
   "Draft",
   "Sketch",
-  "Note",
   "Plan",
   "Proposal",
   "Hypothesis",
@@ -144,10 +142,6 @@ const IDEA_PREFIXES = [
   "ADR",
   "Brainstorm",
   "Outline",
-];
-
-const INSIGHT_PREFIXES = [
-  "Insight",
   "Realization",
   "Principle",
   "Pattern",
@@ -377,9 +371,8 @@ const WIKI_LINK_SUBJECTS = [
   "Dense Cluster 3",
 ];
 
-function generateTitle(type: "idea" | "insight", idx: number): string {
-  const prefixes = type === "idea" ? IDEA_PREFIXES : INSIGHT_PREFIXES;
-  const prefix = prefixes[idx % prefixes.length];
+function generateTitle(idx: number): string {
+  const prefix = UNDERSTANDING_PREFIXES[idx % UNDERSTANDING_PREFIXES.length];
   const subject = SUBJECTS[idx % SUBJECTS.length];
   const verb = VERBS[idx % VERBS.length];
   return `${prefix}: ${subject} ${verb}`;
@@ -903,13 +896,13 @@ const anchorUnderstandings: Array<{
     noDomain: true,
   },
   {
-    body: "Untitled idea: sometimes raw notes are enough without a formal title.",
+    body: "Untitled understanding: sometimes rough context is enough without a formal title.",
     daysAgo: 0,
     hoursOffset: 1,
     domainCount: 1,
   },
   {
-    body: "Untitled insight: sometimes raw notes are enough without a formal title.",
+    body: "Untitled understanding: sometimes rough context is enough without a formal title.",
     daysAgo: 11,
     hoursOffset: 0,
     domainCount: 1,
@@ -941,11 +934,10 @@ const anchorUnderstandings: Array<{
 // Generated understandings (bulk)
 // ---------------------------------------------------------------------------
 
-const TOTAL_THOUGHTS = 200;
+const TOTAL_UNDERSTANDINGS = 200;
 const generatedUnderstandings: typeof anchorUnderstandings = [];
 
-for (let i = 0; i < TOTAL_THOUGHTS - anchorUnderstandings.length; i++) {
-  const titleKind = i % 3 === 0 ? "insight" : "idea";
+for (let i = 0; i < TOTAL_UNDERSTANDINGS - anchorUnderstandings.length; i++) {
   const daysAgo = rng.int(0, 365);
   const hoursOffset = rng.int(0, 23);
 
@@ -960,7 +952,7 @@ for (let i = 0; i < TOTAL_THOUGHTS - anchorUnderstandings.length; i++) {
   // 30% chance of wiki link
   const hasWikiLink = rng.bool(0.3);
 
-  const title = noTitle ? undefined : generateTitle(titleKind, i);
+  const title = noTitle ? undefined : generateTitle(i);
   const body = emptyBody ? "" : generateBody(i, hasWikiLink);
 
   generatedUnderstandings.push({
@@ -1082,7 +1074,7 @@ const contextTemplates = [
   },
   {
     medium: "experience",
-    title: "Meeting Notes 2024-03",
+    title: "Meeting Context 2024-03",
     content: "Discussed migration strategy from Pages Router to App Router. Estimated 3 sprints.",
   },
   {
@@ -1124,7 +1116,7 @@ const contextTemplates = [
   {
     medium: "experience",
     title: null,
-    content: "Random idea: what if we used CRDTs for real-time collaborative editing?",
+    content: "Open question: what if we used CRDTs for real-time collaborative editing?",
   },
   {
     medium: "other",
@@ -1318,8 +1310,8 @@ console.log("\n📌 Sample IDs for testing:");
 console.log(`   Domain (root):   ${domains[0].id}`);
 console.log(`   Domain (L2):     ${domains[5].id}`);
 console.log(`   Domain (L3):     ${domains[13].id}`);
-console.log(`   Understanding (idea):    ${findUnderstanding("React Server Components")?.id}`);
-console.log(`   Understanding (insight): ${findUnderstanding("Bidirectional Link A")?.id}`);
+console.log(`   Understanding (sample):  ${findUnderstanding("React Server Components")?.id}`);
+console.log(`   Understanding (linked):  ${findUnderstanding("Bidirectional Link A")?.id}`);
 console.log(`   Understanding (deleted): ${findUnderstanding("Soft Deleted Understanding A")?.id}`);
 console.log(`   Understanding (no domain): ${findUnderstanding("Unconnected Node")?.id}`);
 console.log(`   Understanding (path):    ${findUnderstanding("Long Path Start")?.id}`);

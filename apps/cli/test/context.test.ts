@@ -114,13 +114,13 @@ describe("Context 管理", () => {
         "--title",
         "Blog Post",
         "--content",
-        "Important note",
+        "Important context",
         "--yes",
       ]);
       expect(code).toBe(0);
       const data = parseJson(stdout) as { title: string; content: string };
       expect(data.title).toBe("Blog Post");
-      expect(data.content).toBe("Important note");
+      expect(data.content).toBe("Important context");
     });
 
     it("缺少必填参数 --understanding-id", async () => {

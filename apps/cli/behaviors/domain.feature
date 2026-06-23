@@ -48,8 +48,8 @@
       | page       | 分页信息，hasMore 为 false         |
 
   场景: 检查没有 Understanding 的 Domain
-    假设 数据库中存在一条 Domain EMPTY_CAT_ID，其下没有任何 Understanding
-    当 用户执行命令 "domain inspect EMPTY_CAT_ID"
+    假设 数据库中存在一条 Domain EMPTY_DOMAIN_ID，其下没有任何 Understanding
+    当 用户执行命令 "domain inspect EMPTY_DOMAIN_ID"
     那么 understandings 为空数组
 
   场景: 检查时包含后代 Domain 的 Understanding

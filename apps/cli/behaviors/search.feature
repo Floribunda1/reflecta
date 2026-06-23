@@ -19,7 +19,7 @@
     假设 数据库中存在一条活跃 Understanding，标题为 "React Patterns"
     当 用户执行命令 "search understandings 'React'"
     那么 该 Understanding 出现在结果中
-    并且 每个命中项包含 id、type、title、body、domains、snippet、rank
+    并且 每个命中项包含 id、title、body、domains、snippet、rank
 
   场景: 按正文匹配 Understanding
     假设 数据库中存在一条活跃 Understanding，其正文包含 "distributed consensus"
