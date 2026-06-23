@@ -23,7 +23,7 @@
 - Agent repository：`apps/electron/src/main/services/agent/repository.ts`
   - `agent_threads`、`agent_messages`、`agent_tool_invocations`、`agent_runs`。
 - Current tools：`apps/electron/src/main/services/agent/tools.ts`
-  - 旧工具名：`search_knowledge_base`、`get_thought_detail`、`get_graph_neighborhood`、`propose_*`。
+  - 旧工具名：`search_knowledge_base`、`get_understanding_detail`、`get_graph_neighborhood`、`propose_*`。
 - Feature tests：`docs/iterations/v1.0.0/test-cases/*.feature`
   - 当前作为实现验收清单，不是自动化测试入口。
 
@@ -31,10 +31,10 @@
 
 - Tools 还没有和 CLI action 同构。
 - Candidate UI 仍是通用 JSON ToolCard。
-- Candidate 输出没有按 Thought / Connection / Context / Update diff 分组件展示。
+- Candidate 输出没有按 Understanding / Connection / Context / Update diff 分组件展示。
 - `@` 选择器触发词仍是 `@context`，不是自然 `@` 心智。
 - ToolActivity 还没有折叠成用户可读活动摘要。
-- `category_inspect`、`snapshot_project`、`graph_path` 等 CLI 同构能力未接入 Electron Agent tools。
+- `domain_inspect`、`snapshot_project`、`graph_path` 等 CLI 同构能力未接入 Electron Agent tools。
 
 ## 2. Implementation Principles
 
@@ -45,7 +45,7 @@
    - V2 继续用 AI SDK tool calling；不引入 LangGraph / Mastra / AG-UI。
 
 3. Tools 与 CLI action 同构。
-   - `reflecta thought get` -> `thought_get`
+   - `reflecta understanding get` -> `understanding_get`
    - `reflecta search all` -> `search_all`
    - `reflecta graph neighborhood` -> `graph_neighborhood`
 
@@ -71,7 +71,7 @@
 
 - `apps/electron/src/main/services/core.ts`
 - `packages/server/src/domains/snapshot/bff-cli.ts`
-- `packages/server/src/domains/category/bff-cli.ts`
+- `packages/server/src/domains/domain/bff-cli.ts`
 - `packages/server/src/domains/context/bff-cli.ts`
 - `packages/server/src/domains/graph/bff-cli.ts`
 
@@ -79,15 +79,15 @@
 
 - 在 `core.ts` 中新增 lazy service：
   - `snapshotService = new SnapshotCliBff(getDBInstance())`
-  - `categoryCliService = new CategoryCliBff(getDBInstance())` 或把 `inspectCategory` 下沉到 Electron BFF。
-  - `contextCliService = new ContextCliBff(getDBInstance())` 或复用 Electron BFF 的 `listContextsByThought` / `getContextById`。
+  - `domainCliService = new DomainCliBff(getDBInstance())` 或把 `inspectDomain` 下沉到 Electron BFF。
+  - `contextCliService = new ContextCliBff(getDBInstance())` 或复用 Electron BFF 的 `listContextsByUnderstanding` / `getContextById`。
 - 保留现有 Electron BFF 给 UI 使用，不为了 Agent 重写 UI service。
 
 验收：
 
 - main process 可以直接调用：
   - `snapshotService.projectSnapshot()`
-  - `categoryCliService.inspectCategory(...)`
+  - `domainCliService.inspectDomain(...)`
   - `contextCliService.listContexts(...)`
   - `contextCliService.getContext(...)`
 
@@ -100,37 +100,37 @@
 删除旧 read tools：
 
 - `search_knowledge_base`
-- `get_thought_detail`
+- `get_understanding_detail`
 - `get_graph_neighborhood`
 
 新增 P0 read tools：
 
 - `snapshot_project`
-- `category_list`
-- `thought_list`
-- `thought_get`
+- `domain_list`
+- `understanding_list`
+- `understanding_get`
 - `context_list`
 - `search_all`
 - `graph_neighborhood`
 
 P1 如果顺手补：
 
-- `category_inspect`
+- `domain_inspect`
 - `context_get`
-- `search_thoughts`
+- `search_understandings`
 - `search_contexts`
 - `graph_path`
 
 注意：
 
 - tool input schema 尽量贴 CLI options。
-- `thought_get` 用 `includeContexts` / `includeReferences` / `includeReferencedBys`，不要引入 `fields[]`。
+- `understanding_get` 用 `includeContexts` / `includeReferences` / `includeReferencedBys`，不要引入 `fields[]`。
 - search query 继续走现有 normalized FTS，不让模型理解 FTS5 语法。
 
 验收：
 
 - Agent 可以从 `snapshot_project` 开始探索项目。
-- Agent 可以 `search_all -> thought_get -> context_list` 完成知识库读取。
+- Agent 可以 `search_all -> understanding_get -> context_list` 完成知识库读取。
 - Tool output 是结构化 JSON，不拼自然语言。
 
 #### 1.3 更新 system prompt
@@ -166,8 +166,8 @@ P1 如果顺手补：
 
 新增：
 
-- `thought_create_proposal`
-- `thought_update_proposal`
+- `understanding_create_proposal`
+- `understanding_update_proposal`
 - `context_create_proposal`
 - `connection_create_proposal`
 
@@ -182,18 +182,22 @@ P1 如果顺手补：
 
 ```ts
 type ProposalOutput = {
-  proposalType: "thought_create" | "thought_update" | "context_create" | "connection_create";
+  proposalType:
+    | "understanding_create"
+    | "understanding_update"
+    | "context_create"
+    | "connection_create";
   approvalStatus: "pending" | "approved" | "rejected" | "failed";
-  resultRefType?: "thought" | "context" | "connection";
+  resultRefType?: "understanding" | "context" | "connection";
   resultRefId?: string;
 };
 ```
 
 各 proposal 额外字段：
 
-- Thought create：`title`、`body`、`categoryIds?`、`sourceRefs?`
-- Thought update：`thoughtId`、`before?`、`after`、`reason?`
-- Context create：`thoughtId`、`sourceType`、`sourceName?`、`content`
+- Understanding create：`title`、`body`、`domainIds?`、`sourceRefs?`
+- Understanding update：`understandingId`、`before?`、`after`、`reason?`
+- Context create：`understandingId`、`medium`、`title?`、`content`
 - Connection create：`sourceId`、`targetId`、`reason?`
 
 验收：
@@ -213,17 +217,17 @@ type ProposalOutput = {
 建议先在同文件内拆小组件，避免过早建目录：
 
 - `ToolActivity`
-- `CandidateThoughtCard`
+- `CandidateUnderstandingCard`
 - `CandidateConnectionCard`
 - `CandidateContextCard`
-- `UpdateThoughtDiffCard`
+- `UpdateUnderstandingDiffCard`
 
 #### 3.1 ToolActivity
 
 只读 tools 显示为折叠摘要：
 
 ```txt
-AI 读取了 3 条 Thought
+AI 读取了 3 条 Understanding
 AI 搜索了 8 条内容
 AI 查看了 1 个关联图谱
 ```
@@ -237,14 +241,14 @@ AI 查看了 1 个关联图谱
 
 不展示模型内部推理。
 
-#### 3.2 CandidateThoughtCard
+#### 3.2 CandidateUnderstandingCard
 
 展示：
 
 - 标题
 - 正文
-- suggested category
-- source refs
+- suggested Domain
+- context refs
 - 保存 / 拒绝
 
 用户可以先不做复杂 inline editor。V2 最小版允许编辑 title/body 两个字段即可。
@@ -253,8 +257,8 @@ AI 查看了 1 个关联图谱
 
 展示：
 
-- From Thought
-- To Thought
+- From Understanding
+- To Understanding
 - reason
 - 确认连接 / 拒绝
 
@@ -264,16 +268,16 @@ AI 查看了 1 个关联图谱
 
 展示：
 
-- target Thought
-- source type / source name
+- target Understanding
+- medium / title
 - content 摘要
 - 保存为 Context / 拒绝
 
-#### 3.5 UpdateThoughtDiffCard
+#### 3.5 UpdateUnderstandingDiffCard
 
 展示：
 
-- target Thought
+- target Understanding
 - before
 - after
 - reason
@@ -300,7 +304,7 @@ AI 查看了 1 个关联图谱
 
 - `extractContextQuery()` 改成识别尾部 `@query`。
 - `clearContextToken()` 清掉最近一个 `@query` token。
-- picker candidates 保持 Thought / Context / Category。
+- picker candidates 保持 Understanding / Context / Domain。
 - 发送消息时 metadata 只保留：
   - `type`
   - `id`
@@ -314,8 +318,8 @@ AI 查看了 1 个关联图谱
 
 验收：
 
-- `@反馈延迟` 能选择 Thought。
-- `@交易心理` 能选择 Category。
+- `@反馈延迟` 能选择 Understanding。
+- `@交易心理` 能选择 Domain。
 - `@某段来源` 能选择 Context。
 - 消息 metadata 只有轻量 ref。
 
@@ -408,7 +412,7 @@ bun run test
 | Risk                                       | Why it matters                                         | Mitigation                                                                       |
 | ------------------------------------------ | ------------------------------------------------------ | -------------------------------------------------------------------------------- |
 | Tool rename breaks pending proposals       | Existing DB may hold old `propose_*` tool invocations. | New runs expose new names; approval executor supports old names for one version. |
-| Category inspect duplicates CLI logic      | Electron BFF and CLI BFF may drift.                    | Reuse CLI BFF where cheap; otherwise move shared logic to server core.           |
+| Domain inspect duplicates CLI logic        | Electron BFF and CLI BFF may drift.                    | Reuse CLI BFF where cheap; otherwise move shared logic to server core.           |
 | Candidate cards become a form builder      | Too much editing UI slows V2.                          | Only title/body/reason/content fields; no rich editor in cards.                  |
 | Agent overuses tools                       | More tool calls increase latency.                      | Keep tool output small and ToolActivity folded; do not add workflow tools.       |
 | Model calls old tool names from history    | Previous messages may include old tool parts.          | System prompt names new tools; old parts still render as generic ToolActivity.   |
@@ -417,16 +421,16 @@ bun run test
 ## 6. Acceptance Checklist
 
 - Agent can answer with streamed Markdown and recover history.
-- User can `@` Thought / Context / Category.
+- User can `@` Understanding / Context / Domain.
 - Agent can use CLI-like read tools:
   - `snapshot_project`
-  - `thought_get`
+  - `understanding_get`
   - `context_list`
   - `search_all`
   - `graph_neighborhood`
 - Candidate cards exist for:
-  - create Thought
-  - update Thought
+  - create Understanding
+  - update Understanding
   - create Context
   - create Connection
 - Candidate approval writes through domain services.

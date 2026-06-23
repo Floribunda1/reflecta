@@ -77,14 +77,14 @@ main
   - `dense graph` → label 允许裁剪，但节点圆点不能缩小到低于 28px；默认边保持可读，不能弱到需要依赖节点状态判断连接。
 - 布局规则：
   - 先根据可见 Connection 计算 connected component；有连接的节点按 component 成组。
-  - 无连接节点按首个 Category 成组；无 Category 的节点进入 uncategorized 组。
+  - 无连接节点按首个 Domain 成组；无 Domain 的节点进入 uncategorized 组。
   - 组之间使用稳定的 spiral / golden-angle seeding，不能从均匀圆环开始。
   - 组内 connection count 只影响布局位置：连接多的节点更靠近局部中心；不改变节点大小、颜色或业务状态。
   - 节点较多时，overview 只保留连接节点、少量代表节点和小组节点 label；其余节点通过 hover preview 读取内容。
   - Domain wander 模式下，不能把当前 Domain 的节点平均网格铺开；应使用显式 Connection 形成局部 cluster，让用户自己看见哪些理解成组。
   - Domain wander 模式下，其他 Domain 的相关概念不能进入主 cluster，只能放在边缘，作为可望见但不抢主视觉的线索。
 - 约束：
-  - 第一屏只出现 Node 和 Edge，不出现 Context 节点、Category 节点、统计卡片或 cluster 标题。
+  - 第一屏只出现 Node 和 Edge，不出现 Context 节点、Domain 节点、统计卡片或 cluster 标题。
   - 画布背景不能使用装饰渐变、网格纹理、大面积品牌色或图片。
   - 节点业务状态只表达 Context：有 Context、无 Context；Connection 通过边表达；选中只是交互态。
   - Connection 边只能表达用户已确认关系，不能通过虚线、推荐色或 AI 标记表达未确认关系。
@@ -138,16 +138,16 @@ section
   FilterControls（expanded）
     IconButton           状态筛选
     Button               重置筛选
-    CategoryTreeSelect   Category 筛选
+    DomainTreeSelect   Domain 筛选
     IconButton           当前类 / 包含子类
   Badge（collapsed + active filters）
 ```
 
 - 状态规则：
-  - `expanded` → 状态、Category、包含子类在同一个控制面内出现；状态和包含子类使用低权重 icon button，Category 保留文字入口。
+  - `expanded` → 状态、Domain、包含子类在同一个控制面内出现；状态和包含子类使用低权重 icon button，Domain 保留文字入口。
   - `collapsed` → 只显示展开按钮、新建按钮；有筛选时显示 secondary Badge 说明筛选数量。
   - `active filter` → 对应触发器可使用 `bg-muted text-foreground` 表达已生效，不能使用 primary 填充。
-  - `reset disabled` → 没有状态或 Category 筛选时，重置按钮 disabled。
+  - `reset disabled` → 没有状态或 Domain 筛选时，重置按钮 disabled。
 - 约束：
   - FilterBar 最大宽度不能超过 `720px`，避免截图中左上浮层成为第一视觉主体。
   - 控制条不能出现 PageHeader、说明段落或功能教学文案。
@@ -166,28 +166,28 @@ section
 - 约束：
   - 不增加掌握度、质量、重要性等筛选项。
 
-#### Detail: CategoryFilter
+#### Detail: DomainFilter
 
-- 组成：CategoryTreeSelect inline + Button ghost icon-sm toggle
+- 组成：DomainTreeSelect inline + Button ghost icon-sm toggle
 - 布局：`flex w-full min-w-0 items-center gap-2 border-t border-border pt-2`
-- 间距：CategoryTreeSelect `min-w-64 max-w-[460px] flex-1`
+- 间距：DomainTreeSelect `min-w-64 max-w-[460px] flex-1`
 - 状态规则：
-  - `no category` → placeholder「全部 Category」
-  - `selected categories` → 使用 Badge secondary 展示已选项
+  - `no domain` → placeholder「全部 Domain」
+  - `selected domains` → 使用 Badge secondary 展示已选项
   - `include descendants` → 使用 `GitBranch` icon toggle；默认「包含子类」不高亮，切换为「仅当前类」时增加 `bg-muted text-foreground`
-  - `scoped to current category` → 仅当已选择 Category 且切换为「仅当前类」时，计为额外筛选条件
+  - `scoped to current domain` → 仅当已选择 Domain 且切换为「仅当前类」时，计为额外筛选条件
 - 展示规则：
-  - Category 只作为筛选范围和节点上下文，不作为图中节点。
-  - 多选 Category 时，选择结果可换行，但 FilterBar 高度最多两行控制。
+  - Domain 只作为筛选范围和节点上下文，不作为图中节点。
+  - 多选 Domain 时，选择结果可换行，但 FilterBar 高度最多两行控制。
 - 约束：
-  - 不在 Category 选择器内解释 Category 关系。
+  - 不在 Domain 选择器内解释 Domain 关系。
   - 不使用 Tree panel 常驻侧栏替代轻筛选。
 
 ### NodeInspector
 
 - 容器 token：
   - Surface：`bg-background`
-  - Spacing：内部交给 ThoughtDetail / 详情组件；面板本身不额外包 Card
+  - Spacing：内部交给 UnderstandingDetail / 详情组件；面板本身不额外包 Card
   - Border / Radius / Shadow：`border-l border-border shadow-none`
 
 ```text
@@ -199,8 +199,8 @@ aside
     CloseButton
   ScrollArea
     Summary
-    CategorySection
-    ContextStatus
+    DomainSection
+    ContextPresence
     ConnectionSection
   InspectorFooter
     Button 打开原 Understanding
@@ -238,7 +238,7 @@ aside
   - `has connections` → 每行可点击定位对端节点。
   - `empty` → 显示普通空状态文案「暂未连接到其他 Understanding」，不使用 warning 或 error。
 - 展示规则：
-  - 每行展示对端 title、对端 Category、relationLabel（如果存在）。
+  - 每行展示对端 title、对端 Domain、relationLabel（如果存在）。
   - relationLabel 不存在时不占位。
   - 点击对端后，画布选中对端节点，NodeInspector 内容同步切换。
 - 约束：
@@ -314,7 +314,7 @@ Popover
   - `selected node` → 不显示 hover preview，避免和 NodeInspector 竞争。
 - 展示规则：
   - 宽度 `w-80`，标题最多两行，摘要最多三行。
-  - Meta 只展示 Context 数量、Connection 数量和 Category。
+  - Meta 只展示 Context 数量、Connection 数量和 Domain。
 - 约束：
   - HoverPreview 不能包含编辑、打开原文或创建连接等操作。
   - 不用 `rounded-xl` 或大 shadow，避免比 FilterBar 和 Inspector 更重。
@@ -380,29 +380,29 @@ section
 
 ## 5. Atoms 索引
 
-| 组件                   | Variant / 配置                 | 使用位置                                                                    |
-| ---------------------- | ------------------------------ | --------------------------------------------------------------------------- |
-| Button                 | default variant                | NodeInspector / 打开原 Understanding                                        |
-| Button                 | ghost variant + size `icon-sm` | FilterBar 收起展开、新建、重置、NodeInspector 关闭、GraphToolbar 图标按钮   |
-| Button                 | ghost variant + size `icon-sm` | FilterBar / StatusFilter 触发器、CategoryFilter 范围 toggle                 |
-| DropdownMenu           | default variant                | FilterBar / StatusFilter                                                    |
-| DropdownMenuRadioGroup | default variant                | FilterBar / StatusFilter                                                    |
-| DropdownMenuRadioItem  | default variant                | FilterBar / StatusFilter                                                    |
-| Badge                  | secondary variant              | FilterBar collapsed active count、Category selected items、详情普通事实状态 |
-| Badge                  | outline variant                | NodeInspector / Context 状态                                                |
-| Popover                | default variant                | HoverPreview                                                                |
-| ScrollArea             | default variant                | NodeInspector 内容、ConnectionList                                          |
-| Separator              | default variant                | NodeInspector 内容分区（如 ThoughtDetail 需要）                             |
-| Tooltip                | default variant                | GraphToolbar 图标说明                                                       |
-| CategoryTreeSelect     | default variant                | FilterBar / CategoryFilter                                                  |
-| G6 Canvas              | 自定义 canvas renderer         | GraphCanvas / UnderstandingNode / ConnectionEdge                            |
+| 组件                   | Variant / 配置                 | 使用位置                                                                  |
+| ---------------------- | ------------------------------ | ------------------------------------------------------------------------- |
+| Button                 | default variant                | NodeInspector / 打开原 Understanding                                      |
+| Button                 | ghost variant + size `icon-sm` | FilterBar 收起展开、新建、重置、NodeInspector 关闭、GraphToolbar 图标按钮 |
+| Button                 | ghost variant + size `icon-sm` | FilterBar / StatusFilter 触发器、DomainFilter 范围 toggle                 |
+| DropdownMenu           | default variant                | FilterBar / StatusFilter                                                  |
+| DropdownMenuRadioGroup | default variant                | FilterBar / StatusFilter                                                  |
+| DropdownMenuRadioItem  | default variant                | FilterBar / StatusFilter                                                  |
+| Badge                  | secondary variant              | FilterBar collapsed active count、Domain selected items、详情普通事实状态 |
+| Badge                  | outline variant                | NodeInspector / Context 状态                                              |
+| Popover                | default variant                | HoverPreview                                                              |
+| ScrollArea             | default variant                | NodeInspector 内容、ConnectionList                                        |
+| Separator              | default variant                | NodeInspector 内容分区（如 UnderstandingDetail 需要）                     |
+| Tooltip                | default variant                | GraphToolbar 图标说明                                                     |
+| DomainTreeSelect       | default variant                | FilterBar / DomainFilter                                                  |
+| G6 Canvas              | 自定义 canvas renderer         | GraphCanvas / UnderstandingNode / ConnectionEdge                          |
 
 ---
 
 ## 6. 不做的决策
 
 - ❌ **不做 Dashboard 卡片** → V1 Graph 的核心不是数量、比例或完成度，而是个人理解结构。
-- ❌ **不把 Context / Category 做成一级节点** → 第一屏主对象必须只有 Understanding 和 Connection。
+- ❌ **不把 Context / Domain 做成一级节点** → 第一屏主对象必须只有 Understanding 和 Connection。
 - ❌ **不使用 Modal 展示节点详情** → Modal 会切断用户对当前节点在图中位置的理解。
 - ❌ **不把无 Context 表达为错误** → 它是事实边界和下一步整理入口，不是失败。
 - ❌ **不在 Graph 内编辑 Connection** → V1 的整理动作回到原 Understanding，Graph 不变成关系管理后台。

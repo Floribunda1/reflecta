@@ -88,7 +88,7 @@ Assistant turn 完成后，显示本轮实际读取过的 evidence。
 
 验收：
 
-- Evidence 只来自实际 tool output 中读取到的 Thought / Context / Category。
+- Evidence 只来自实际 tool output 中读取到的 Understanding / Context / Domain。
 - 用户手动 `@` 但 Agent 没读取的对象不能算 evidence。
 - evidence chips 可点击跳转。
 - 太多 evidence 折叠为 `+N`。
@@ -202,21 +202,21 @@ Expanded rendering:
 
 ```text
 查找相关内容 · 完成
-- 搜索了 3 条 Thought / 1 条 Context
+- 搜索了 3 条 Understanding / 1 条 Context
 - 读取了「拖延与自我保护」
 - 读取了「真正的恶是放弃进步」
 ```
 
 Mapping:
 
-| Tool kind                            | Group    | Running          | Done           |
-| ------------------------------------ | -------- | ---------------- | -------------- |
-| search / thought list / context list | lookup   | 正在查找相关内容 | 查找了相关内容 |
-| thought get / context get            | lookup   | 正在读取内容     | 读取了相关内容 |
-| category list / inspect              | lookup   | 正在查看领域目录 | 查看了领域目录 |
-| graph neighborhood / path            | graph    | 正在查看关联     | 查看了关联     |
-| proposal tools                       | proposal | 正在准备候选项   | 准备了候选项   |
-| unknown                              | other    | 正在使用工具     | 使用了工具     |
+| Tool kind                                  | Group    | Running          | Done           |
+| ------------------------------------------ | -------- | ---------------- | -------------- |
+| search / understanding list / context list | lookup   | 正在查找相关内容 | 查找了相关内容 |
+| understanding get / context get            | lookup   | 正在读取内容     | 读取了相关内容 |
+| domain list / inspect                      | lookup   | 正在查看领域目录 | 查看了领域目录 |
+| graph neighborhood / path                  | graph    | 正在查看关联     | 查看了关联     |
+| proposal tools                             | proposal | 正在准备候选项   | 准备了候选项   |
+| unknown                                    | other    | 正在使用工具     | 使用了工具     |
 
 Raw JSON:
 
@@ -245,7 +245,7 @@ This is status narration, not reasoning display.
 
 Modify current candidate cards:
 
-- Remove inline editing from `CandidateThoughtCard`.
+- Remove inline editing from `CandidateUnderstandingCard`.
 - Add `忽略`.
 - Keep `确认 / 拒绝 / 忽略` status in the card.
 - Render proposal cards through ordered turn blocks.
@@ -274,11 +274,11 @@ Rules:
 
 Initial supported outputs:
 
-- `thoughts[]`
+- `understandings[]`
 - `contexts[]`
-- `thought`
+- `understanding`
 - `context`
-- graph nodes that represent thoughts
+- graph nodes that represent understandings
 
 ## 6. Phase Plan
 
@@ -349,7 +349,7 @@ Work:
 Tests:
 
 - Search outputs summarize counts.
-- Thought/context reads summarize names.
+- Understanding/context reads summarize names.
 - Error output produces user-readable failed item.
 
 Verification:
@@ -411,7 +411,7 @@ Work:
 
 Verification:
 
-- Answer with `thought_get` shows that thought as evidence.
+- Answer with `understanding_get` shows that understanding as evidence.
 - User `@` without tool read does not show false evidence.
 
 ## 7. Acceptance Checklist

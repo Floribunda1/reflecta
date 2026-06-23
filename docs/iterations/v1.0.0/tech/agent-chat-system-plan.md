@@ -49,7 +49,7 @@ Agent chat 已经是成熟场景，主流实现基本收敛成以下层次：
 | ------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
 | assistant-ui  | 覆盖 Thread/Composer/Message/ThreadList，但会引入另一套 runtime context；当前 AI Elements 足够。 | 如果 copy/retry/edit/branch/thread UI 实现超过 2 天，或 fork/attachments/message branching 进入 P0，再评估。 |
 | LangGraph     | checkpoint/interrupt 很强，但会把简单 chat 变成 workflow runtime。                               | 需要长任务、跨 app 恢复、分支重放、复杂多步状态机时再上。                                                    |
-| Mastra memory | 适合 agent 平台 memory；Reflecta 已有 Thought/Context 作为长期知识。                             | 需要跨 thread 用户偏好/长期记忆，且不能落到 Thought/Context 时再上。                                         |
+| Mastra memory | 适合 agent 平台 memory；Reflecta 已有 Understanding/Context 作为长期知识。                       | 需要跨 thread 用户偏好/长期记忆，且不能落到 Understanding/Context 时再上。                                   |
 | AG-UI         | 适合多 agent backend / 多客户端协议统一。                                                        | 出现 Web + Electron + 外部 agent backend 共用协议时再上。                                                    |
 | CopilotKit    | 适合 app-wide copilot 和共享 UI state。                                                          | Agent 变成全局 copilot，而不是独立 `/agent` 页面时再上。                                                     |
 
@@ -78,15 +78,15 @@ flowchart TD
   end
 
   subgraph Domain["Reflecta domain"]
-    Thought["Thought service"]
+    Understanding["Understanding service"]
     Context["Context service"]
     Search["Search service"]
-    Category["Category service"]
+    Domain["Domain service"]
   end
 
   subgraph DB["SQLite"]
     AgentTables["agent_threads\nagent_messages\nagent_tool_invocations\nagent_runs"]
-    Knowledge["thoughts\ncontexts\ncategories\nthought_connections"]
+    Knowledge["understandings\ncontexts\ncategories\nunderstanding_connections"]
   end
 
   Page --> ThreadList
@@ -99,14 +99,14 @@ flowchart TD
   Runtime --> Repos
   Runtime --> Tools
   Repos --> AgentTables
-  Tools --> Thought
+  Tools --> Understanding
   Tools --> Context
   Tools --> Search
-  Tools --> Category
-  Thought --> Knowledge
+  Tools --> Domain
+  Understanding --> Knowledge
   Context --> Knowledge
   Search --> Knowledge
-  Category --> Knowledge
+  Domain --> Knowledge
   Runtime --> Events
   Events --> Transport
 ```
@@ -122,16 +122,16 @@ flowchart TD
 
 需要补齐的字段使用现有 JSON 字段承载：
 
-| 数据                | 存储位置                                                   | 说明                                         |
-| ------------------- | ---------------------------------------------------------- | -------------------------------------------- |
-| message parts       | `agent_messages.parts_json`                                | UI source of truth。                         |
-| attachments         | `agent_messages.attachments_json`                          | P0 可为空，后续兼容附件。                    |
-| context refs        | `agent_messages.metadata_json.contextRefs`                 | 用户选择的 Thought / Context / Category ID。 |
-| model info          | `agent_messages.metadata_json.model` 或 `agent_runs.model` | run 维度为准。                               |
-| active thread       | renderer localStorage                                      | 用户本机状态，不进 DB。                      |
-| tool approval state | `agent_tool_invocations`                                   | 可查询、可恢复、可回链。                     |
+| 数据                | 存储位置                                                   | 说明                                             |
+| ------------------- | ---------------------------------------------------------- | ------------------------------------------------ |
+| message parts       | `agent_messages.parts_json`                                | UI source of truth。                             |
+| attachments         | `agent_messages.attachments_json`                          | P0 可为空，后续兼容附件。                        |
+| context refs        | `agent_messages.metadata_json.contextRefs`                 | 用户选择的 Understanding / Context / Domain ID。 |
+| model info          | `agent_messages.metadata_json.model` 或 `agent_runs.model` | run 维度为准。                                   |
+| active thread       | renderer localStorage                                      | 用户本机状态，不进 DB。                          |
+| tool approval state | `agent_tool_invocations`                                   | 可查询、可恢复、可回链。                         |
 
-不要把聊天记录当知识库。用户确认后的写入只进入 Thought / Context / Connection。
+不要把聊天记录当知识库。用户确认后的写入只进入 Understanding / Context / Connection。
 
 ## 5. Runtime Plan
 
@@ -172,7 +172,7 @@ flowchart TD
 Read tool 可以自动执行：
 
 - `search_knowledge_base`
-- `get_thought_detail`
+- `get_understanding_detail`
 - `get_graph_neighborhood`
 
 规则：
@@ -186,8 +186,8 @@ Read tool 可以自动执行：
 
 Write tool 不直接写知识库：
 
-- `propose_create_thought`
-- `propose_update_thought`
+- `propose_create_understanding`
+- `propose_update_understanding`
 - `propose_add_context`
 - `propose_create_connection`
 
@@ -278,14 +278,14 @@ Write tool 不直接写知识库：
 
 ### Phase 3: P1 Knowledge Read Tools
 
-- `@context` picker：Thought / Context / Category。
+- `@context` picker：Understanding / Context / Domain。
 - message metadata 写入 `contextRefs`。
 - 后端 prompt builder 用 ID 展开上下文。
 - 实现 read tools 并渲染 Tool card。
 
 验收：
 
-- 用户选择一个 Thought，Agent 能引用其真实内容回答。
+- 用户选择一个 Understanding，Agent 能引用其真实内容回答。
 - search tool 结果是结构化 JSON。
 - tool running / completed / error 都可见。
 
@@ -299,7 +299,7 @@ Write tool 不直接写知识库：
 
 验收：
 
-- Agent 提议创建 Thought，用户确认后知识库出现真实 Thought。
+- Agent 提议创建 Understanding，用户确认后知识库出现真实 Understanding。
 - 用户拒绝后不写库，Agent 能继续解释或调整。
 - 刷新页面后 pending proposal 状态仍可恢复。
 
@@ -322,7 +322,7 @@ Write tool 不直接写知识库：
 - 不做 AG-UI。Electron 内部 IPC 足够。
 - 不做 workflow engine。普通 chat loop + approval 已覆盖 V2 baseline。
 
-## 11. Sources
+## 11. References
 
 - AI SDK `useChat`: https://ai-sdk.dev/docs/reference/ai-sdk-ui/use-chat
 - AI SDK message persistence: https://ai-sdk.dev/docs/ai-sdk-ui/chatbot-message-persistence

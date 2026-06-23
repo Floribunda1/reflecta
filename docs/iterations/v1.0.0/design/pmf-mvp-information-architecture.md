@@ -154,7 +154,7 @@ Reflecta
 - 双链作为正文的一部分出现，不被转译成单独关系任务。
 - 关系展示区只解释正文双链产生的连接，不创造新的关系入口。
 
-### 4.4 Source Detail Overlay
+### 4.4 Context Detail Overlay
 
 用户问题：
 
@@ -260,7 +260,7 @@ IA 约束：
 阅读 Understanding Document
   -> 扫到来源摘要
   -> 点击某条来源
-  -> 打开 Source Detail Overlay
+  -> 打开 Context Detail Overlay
   -> 阅读完整来源
   -> 关闭 overlay 回到原理解
 ```
@@ -276,7 +276,7 @@ IA 约束：
 
 - 点击单条来源只打开单条来源。
 - 不进入全部来源 reader。
-- 不创建独立 Source 一级页面。
+- 不创建独立 Context 一级页面。
 
 ### 5.4 通过双链走到相关理解
 

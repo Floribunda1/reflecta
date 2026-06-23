@@ -11,7 +11,7 @@
 > - `../product/domain-workspace-product-spec.md`
 > - `./pmf-mvp-information-architecture.md`
 > - `./design-detail.md`
-> - 真实数据库 `<projectRoot>/.local/reflecta-prod/reflecta.db` 中的 `thoughts`、`contexts` 样例数据。
+> - 真实数据库 `<projectRoot>/.local/reflecta-prod/reflecta.db` 中的 `understandings`、`contexts` 样例数据。
 >
 > 本文职责：定义右侧 Document 的 UX 路径和信息显隐。本文不定义数据模型、保存策略、关系解析规则或视觉 token。
 
@@ -79,8 +79,8 @@ Document 的第一视觉焦点必须是理解标题和正文。来源、关系�
 
 `contexts` 里的主要字段是：
 
-- `source_type`
-- `source_name`
+- `medium`
+- `title`
 - `content`
 
 来源类型是固定选项：
@@ -94,13 +94,13 @@ Document 的第一视觉焦点必须是理解标题和正文。来源、关系�
 
 历史样例中的来源长度说明，来源不能被当成一行 metadata：
 
-| source_type | 数量 | 平均 content 长度 | 最大 content 长度 |
-| ----------- | ---: | ----------------: | ----------------: |
-| experience  |   20 |               352 |              1773 |
-| video       |    8 |               182 |               439 |
-| ai          |    5 |              1526 |              2001 |
-| article     |    4 |              5682 |              8721 |
-| opinion     |    2 |               805 |              1424 |
+| medium     | 数量 | 平均 content 长度 | 最大 content 长度 |
+| ---------- | ---: | ----------------: | ----------------: |
+| experience |   20 |               352 |              1773 |
+| video      |    8 |               182 |               439 |
+| ai         |    5 |              1526 |              2001 |
+| article    |    4 |              5682 |              8721 |
+| opinion    |    2 |               805 |              1424 |
 
 单条理解的来源总长度可能很长。因此 Document 必须同时满足：
 
@@ -118,9 +118,9 @@ Understanding Document
 │   └── title
 ├── Body
 │   └── editable prose with [[double links]]
-├── Source Trace
-│   ├── source preview item
-│   └── source preview item
+├── Context Trace
+│   ├── context preview item
+│   └── context preview item
 ├── Relation Summary
 │   ├── outgoing from body links
 │   ├── incoming backlinks
@@ -133,11 +133,11 @@ Understanding Document
 
 1. `Body`
 2. `Identity`
-3. `Source Trace`
+3. `Context Trace`
 4. `Relation Summary`
 5. `Domain Assignment`
 
-`Source Trace`、`Relation Summary` 和 `Domain Assignment` 都是理解正文的支撑信息，不应该获得比正文更高的视觉层级。
+`Context Trace`、`Relation Summary` 和 `Domain Assignment` 都是理解正文的支撑信息，不应该获得比正文更高的视觉层级。
 
 ## 5. 核心路径
 
@@ -169,19 +169,19 @@ Understanding Document
 
 ```text
 用户读完正文
-  -> 扫到 Source Trace
+  -> 扫到 Context Trace
   -> 看到来源类型、来源名、字数和短预览
   -> 判断是否要打开完整来源
 ```
 
-Source preview item 应展示：
+Context preview item 应展示：
 
 - 来源类型。
 - 来源名称。
 - content 字数或长度感。
 - content 前几行预览。
 
-Source preview item 不展示：
+Context preview item 不展示：
 
 - 完整 content。
 - 来源质量判断。
@@ -199,8 +199,8 @@ Source preview item 不展示：
 ### 5.3 打开单条来源
 
 ```text
-用户点击某条 Source preview
-  -> 打开 Source Detail Overlay
+用户点击某条 Context preview
+  -> 打开 Context Detail Overlay
   -> 阅读这一条完整来源
   -> 关闭 overlay
   -> 回到原 Understanding Document
@@ -212,7 +212,7 @@ Source preview item 不展示：
 
 因此，点击某条来源摘要，只能打开这一条来源的详情。它不应该进入“全部来源 reader”，也不应该进入来源管理后台。
 
-Source Detail Overlay 应包含：
+Context Detail Overlay 应包含：
 
 - 来源类型。
 - 来源名称。
@@ -220,7 +220,7 @@ Source Detail Overlay 应包含：
 - 完整 content。
 - 关闭入口。
 
-Source Detail Overlay 不需要默认展示：
+Context Detail Overlay 不需要默认展示：
 
 - 其他来源列表。
 - 来源筛选器。
@@ -338,9 +338,9 @@ Understanding Document
 │   └── title
 ├── Body
 │   └── editable content with [[wiki links]]
-├── Source Trace
-│   ├── source preview item
-│   └── source preview item
+├── Context Trace
+│   ├── context preview item
+│   └── context preview item
 ├── Relation Summary
 │   ├── outgoing body links
 │   ├── incoming backlinks
@@ -348,33 +348,33 @@ Understanding Document
 └── Domain Assignment
 ```
 
-### 8.2 Source Preview Item
+### 8.2 Context Preview Item
 
 单条来源摘要。
 
 ```text
-Source Preview Item
-├── source type
-├── source name
+Context Preview Item
+├── medium
+├── title
 ├── content length
 └── first 2-3 lines of content
 ```
 
 点击后打开这一条来源详情。
 
-### 8.3 Source Detail Overlay
+### 8.3 Context Detail Overlay
 
 单条来源阅读面板。
 
 ```text
-Source Detail Overlay
+Context Detail Overlay
 ├── Header
-│   ├── source type
-│   ├── source name
+│   ├── medium
+│   ├── title
 │   ├── content length
 │   └── close
 └── Scrollable Content
-    └── full source content
+    └── full context content
 ```
 
 它不是全部来源管理器，也不是新的页面主状态。它是从 Document 临时打开的一条来源详情。
