@@ -29,7 +29,8 @@
     "better-sqlite3": "^12.11.1",
     "drizzle-orm": "^0.45.2",
     "libsql": "^0.5.29",
-    "nanoid": "^5.1.7"
+    "nanoid": "^5.1.7",
+    "node-llama-cpp": "^3.18.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

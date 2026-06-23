@@ -15,6 +15,7 @@ test("@EMBEDDING-SETTINGS-001 用户查看默认本地 embedding 模型并触发
     await expect(page.getByTestId("settings-retrieval-model-purpose")).toContainText(
       "本地语义检索",
     );
+    await expect(page.getByText("本地 llama.cpp embedding runtime")).toBeVisible();
 
     await page.getByTestId("settings-retrieval-download-button").click();
     await expect(page.getByTestId("settings-retrieval-model-status")).toContainText("已下载");

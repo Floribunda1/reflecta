@@ -11,6 +11,7 @@ import {
   getRetrievalEmbeddingModelId,
 } from "./embedding-config";
 import { LanceDbRetrievalIndex } from "./lancedb-index";
+import { LlamaCppEmbeddingProvider } from "./llama-cpp-embedding";
 import { OpenAiCompatibleEmbeddingProvider } from "./openai-compatible-embedding";
 import { buildRetrievalDocuments } from "./projection";
 
@@ -38,6 +39,12 @@ function safeTableSegment(value: string) {
 
 function createEmbeddingProvider() {
   const config = getRetrievalEmbeddingConfig();
+  if (config.provider === "local-llama-cpp") {
+    return new LlamaCppEmbeddingProvider({
+      modelId: config.modelId,
+      modelPath: config.modelPath ?? "",
+    });
+  }
   if (config.provider === "openai-compatible" && config.baseUrl) {
     return new OpenAiCompatibleEmbeddingProvider({
       baseUrl: config.baseUrl,

@@ -36,6 +36,13 @@ function toServerRetrievalEmbeddingConfig(
   config: RetrievalConfig,
 ): Partial<ServerRetrievalEmbeddingConfig> | undefined {
   if (config.embedding.provider === "disabled") return undefined;
+  if (config.embedding.provider === "local-llama-cpp") {
+    return {
+      provider: "local-llama-cpp",
+      modelId: config.embedding.modelId,
+      modelPath: config.embedding.modelPath,
+    };
+  }
   return {
     provider: "openai-compatible",
     modelId: config.embedding.modelId,

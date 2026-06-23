@@ -1,6 +1,7 @@
 export * from "./candidate-builder";
 export * from "./embedding-config";
 export * from "./lancedb-index";
+export * from "./llama-cpp-embedding";
 export * from "./local-embedding";
 export * from "./openai-compatible-embedding";
 export * from "./projection";

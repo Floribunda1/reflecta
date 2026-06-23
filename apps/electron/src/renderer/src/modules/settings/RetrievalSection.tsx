@@ -116,7 +116,8 @@ export function RetrievalSection() {
 
   const manifest = status?.manifest;
   const embedding = config?.embedding;
-  const semanticEnabled = embedding?.provider === "openai-compatible";
+  const semanticEnabled = embedding ? embedding.provider !== "disabled" : false;
+  const canRebuildIndex = !indexing && (!semanticEnabled || status?.downloaded);
 
   return (
     <div data-testid="settings-retrieval-section" className="flex flex-col gap-5">
@@ -182,35 +183,27 @@ export function RetrievalSection() {
               <div className="min-w-0">
                 <h4 className="text-sm font-medium text-foreground">Semantic search</h4>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  OpenAI-compatible embedding endpoint
+                  本地 llama.cpp embedding runtime
                 </p>
               </div>
               <Switch
                 checked={semanticEnabled}
                 onCheckedChange={(checked) =>
-                  updateEmbedding({ provider: checked ? "openai-compatible" : "disabled" })
+                  updateEmbedding({
+                    provider: checked ? "local-llama-cpp" : "disabled",
+                    modelId: checked ? manifest.modelId : embedding.modelId,
+                    modelPath: checked ? status.modelPath : embedding.modelPath,
+                    baseUrl: undefined,
+                    apiKey: undefined,
+                  })
                 }
                 aria-label="启用本地语义检索"
               />
             </div>
 
             <Label className="flex flex-col items-start gap-2">
-              <span>Endpoint</span>
-              <Input
-                value={embedding.baseUrl ?? ""}
-                onChange={(event) => updateEmbedding({ baseUrl: event.target.value })}
-                placeholder="http://127.0.0.1:8080/v1"
-                className="font-mono"
-              />
-            </Label>
-
-            <Label className="flex flex-col items-start gap-2">
               <span>Model</span>
-              <Input
-                value={embedding.modelId}
-                onChange={(event) => updateEmbedding({ modelId: event.target.value })}
-                className="font-mono"
-              />
+              <Input value={embedding.modelId} readOnly className="font-mono" />
             </Label>
           </section>
 
@@ -240,13 +233,16 @@ export function RetrievalSection() {
               {indexStatus.state === "error" && indexStatus.error ? (
                 <p className="mt-2 text-xs text-destructive">{indexStatus.error}</p>
               ) : null}
+              {semanticEnabled && !status.downloaded ? (
+                <p className="mt-2 text-xs text-muted-foreground">先下载模型再构建语义索引。</p>
+              ) : null}
               <Button
                 data-testid="settings-retrieval-rebuild-button"
                 type="button"
                 size="sm"
                 variant="outline"
                 className="mt-4"
-                disabled={indexing}
+                disabled={!canRebuildIndex}
                 onClick={() => void handleRebuildIndex()}
               >
                 {indexing ? "重建中" : "重新构建检索索引"}

@@ -1,12 +1,13 @@
 import type { EmbeddingProvider } from "./types";
 
-export type RetrievalEmbeddingProviderId = "disabled" | "openai-compatible";
+export type RetrievalEmbeddingProviderId = "disabled" | "local-llama-cpp" | "openai-compatible";
 
 export type RetrievalEmbeddingConfig = {
   provider: RetrievalEmbeddingProviderId;
   modelId: string;
   baseUrl?: string;
   apiKey?: string;
+  modelPath?: string;
   dimensions?: number;
 };
 
@@ -30,13 +31,21 @@ export function configureRetrievalEmbedding(config?: Partial<RetrievalEmbeddingC
     return;
   }
 
-  currentConfig = {
-    provider: "openai-compatible",
-    modelId: sanitizeModelId(config.modelId ?? ""),
-    baseUrl: config.baseUrl?.trim(),
-    apiKey: config.apiKey?.trim(),
-    dimensions: config.dimensions,
-  };
+  currentConfig =
+    config.provider === "local-llama-cpp"
+      ? {
+          provider: "local-llama-cpp",
+          modelId: sanitizeModelId(config.modelId ?? ""),
+          modelPath: config.modelPath?.trim(),
+          dimensions: config.dimensions,
+        }
+      : {
+          provider: "openai-compatible",
+          modelId: sanitizeModelId(config.modelId ?? ""),
+          baseUrl: config.baseUrl?.trim(),
+          apiKey: config.apiKey?.trim(),
+          dimensions: config.dimensions,
+        };
 }
 
 export function getRetrievalEmbeddingConfig(): RetrievalEmbeddingConfig {

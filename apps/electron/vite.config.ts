@@ -8,7 +8,7 @@ import electron from "vite-plugin-electron/simple";
 
 const appRoot = fileURLToPath(new URL(".", import.meta.url));
 
-const mainExternals = ["@lancedb/lancedb", "better-sqlite3", "libsql"];
+const mainExternals = ["@lancedb/lancedb", "better-sqlite3", "libsql", "node-llama-cpp"];
 
 const esmOutput = {
   format: "es" as const,

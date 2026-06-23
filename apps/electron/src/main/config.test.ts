@@ -62,7 +62,12 @@ describe("Electron retrieval config", () => {
       embedding: {
         provider: "disabled",
         modelId: "Qwen/Qwen3-Embedding-0.6B-GGUF:Q8_0",
-        baseUrl: "http://127.0.0.1:8080/v1",
+        modelPath: path.join(
+          config.getAppConfigDir(),
+          "models",
+          "retrieval",
+          "Qwen3-Embedding-0.6B-Q8_0.gguf",
+        ),
       },
     });
     expect(config.getRetrievalEmbeddingModelStatus()).toMatchObject({
@@ -109,6 +114,30 @@ describe("Electron retrieval config", () => {
     vi.resetModules();
     const freshConfig = await import("./config");
     expect(freshConfig.readConfig().retrieval?.embedding.apiKey).toBe("retrieval-key");
+  });
+
+  test("migrates the legacy default endpoint to the local llama.cpp runtime", async () => {
+    const config = await import("./config");
+
+    expect(
+      config.normalizeRetrievalConfig({
+        embedding: {
+          provider: "openai-compatible",
+          modelId: "Qwen/Qwen3-Embedding-0.6B-GGUF:Q8_0",
+          baseUrl: "http://127.0.0.1:8080/v1",
+        },
+      }),
+    ).toMatchObject({
+      embedding: {
+        provider: "local-llama-cpp",
+        modelPath: path.join(
+          config.getAppConfigDir(),
+          "models",
+          "retrieval",
+          "Qwen3-Embedding-0.6B-Q8_0.gguf",
+        ),
+      },
+    });
   });
 });
 

@@ -43,13 +43,14 @@ export interface AiModelOption {
   label: string;
 }
 
-export type RetrievalEmbeddingProvider = "disabled" | "openai-compatible";
+export type RetrievalEmbeddingProvider = "disabled" | "local-llama-cpp" | "openai-compatible";
 
 export interface RetrievalEmbeddingConfig {
   provider: RetrievalEmbeddingProvider;
   modelId: string;
   baseUrl?: string;
   apiKey?: string;
+  modelPath?: string;
 }
 
 export interface RetrievalConfig {
@@ -149,7 +150,7 @@ const DEFAULT_RETRIEVAL_CONFIG: RetrievalConfig = {
   embedding: {
     provider: "disabled",
     modelId: DEFAULT_RETRIEVAL_EMBEDDING_MODEL.modelId,
-    baseUrl: "http://127.0.0.1:8080/v1",
+    modelPath: "",
   },
 };
 
@@ -374,15 +375,27 @@ export function normalizeAiConfig(input: AiConfig): AiConfig {
 
 export function normalizeRetrievalConfig(input: RetrievalConfig | undefined): RetrievalConfig {
   const embedding = input?.embedding ?? DEFAULT_RETRIEVAL_CONFIG.embedding;
-  const provider = embedding.provider === "openai-compatible" ? "openai-compatible" : "disabled";
+  const legacyDefaultEndpoint =
+    embedding.provider === "openai-compatible" &&
+    !embedding.apiKey &&
+    (embedding.baseUrl?.trim() === "http://127.0.0.1:8080/v1" || !embedding.baseUrl) &&
+    (!embedding.modelId.trim() ||
+      embedding.modelId.trim() === DEFAULT_RETRIEVAL_EMBEDDING_MODEL.modelId);
+  const provider = legacyDefaultEndpoint
+    ? "local-llama-cpp"
+    : embedding.provider === "local-llama-cpp" || embedding.provider === "openai-compatible"
+      ? embedding.provider
+      : "disabled";
   const modelId = embedding.modelId.trim() || DEFAULT_RETRIEVAL_EMBEDDING_MODEL.modelId;
-  const baseUrl = embedding.baseUrl?.trim() || DEFAULT_RETRIEVAL_CONFIG.embedding.baseUrl;
+  const baseUrl = embedding.baseUrl?.trim();
   const apiKey = embedding.apiKey?.trim();
+  const modelPath = embedding.modelPath?.trim() || getRetrievalEmbeddingModelPath();
   return {
     embedding: {
       provider,
       modelId,
-      baseUrl,
+      modelPath,
+      ...(baseUrl ? { baseUrl } : {}),
       ...(apiKey ? { apiKey } : {}),
     },
   };
