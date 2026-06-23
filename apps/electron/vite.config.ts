@@ -17,6 +17,13 @@ const esmOutput = {
   codeSplitting: false,
 };
 
+const mainOutput = {
+  format: "es" as const,
+  entryFileNames: "[name].js",
+  chunkFileNames: "[name].js",
+  codeSplitting: false,
+};
+
 const copyMainMigrationSql = () => ({
   name: "copy-main-migration-sql",
   closeBundle() {
@@ -60,6 +67,7 @@ export default defineConfig({
             emptyOutDir: true,
             rolldownOptions: {
               external: mainExternals,
+              output: mainOutput,
             },
           },
         },

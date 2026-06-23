@@ -5,7 +5,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { AuthStorage } from "@earendil-works/pi-coding-agent";
 import type { AgentSessionEvent } from "@shared/agent";
 import type { ResolvedAiModelConfig } from "../../config";
-import { configurePiRuntimeAuth, PiAgentHost } from "./pi-agent-host";
+import { configurePiRuntimeAuth, extractAssistantError, PiAgentHost } from "./pi-agent-host";
 import { AgentSessionLog } from "./pi-session-log";
 
 vi.mock("./pi-readonly-tools", () => ({
@@ -85,6 +85,16 @@ describe("configurePiRuntimeAuth", () => {
 });
 
 describe("PiAgentHost", () => {
+  test("preserves Pi assistant error messages instead of reporting an empty response", () => {
+    expect(
+      extractAssistantError({
+        role: "assistant",
+        stopReason: "error",
+        errorMessage: "Cannot find module './openai-completions-old.js'",
+      }),
+    ).toBe("Cannot find module './openai-completions-old.js'");
+  });
+
   test("closes restored sessions whose last run never reached a terminal event", async () => {
     const root = tempRoot();
     const log = new AgentSessionLog(root);

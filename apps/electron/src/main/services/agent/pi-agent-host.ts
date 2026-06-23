@@ -105,6 +105,13 @@ function extractAssistantText(message: unknown): string {
     .join("");
 }
 
+export function extractAssistantError(message: unknown): string {
+  if (!isRecord(message) || message.role !== "assistant" || message.stopReason !== "error") {
+    return "";
+  }
+  return typeof message.errorMessage === "string" ? message.errorMessage : "";
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -299,6 +306,7 @@ export class PiAgentHost {
     let session: AgentSession | undefined;
     let unsubscribe: (() => void) | undefined;
     let assistantText = "";
+    let assistantError = "";
     let assistantActivity = false;
     let runStarted = false;
     const emit = (event: AgentSessionEvent) => this.appendAndEmit(manager, webContents, event);
@@ -434,6 +442,14 @@ export class PiAgentHost {
           return;
         }
 
+        if (event.type === "message_end") {
+          const error = extractAssistantError(event.message);
+          if (error) {
+            assistantError = error;
+            return;
+          }
+        }
+
         if (event.type === "message_end" && !assistantText) {
           const finalText = extractAssistantText(event.message);
           if (!finalText) return;
@@ -459,6 +475,17 @@ export class PiAgentHost {
         }),
       );
       if (this.cancelledRunIds.has(runId)) return;
+      if (assistantError) {
+        emit(
+          this.createEvent({
+            type: "run.failed",
+            sessionId: command.sessionId,
+            runId,
+            error: assistantError,
+          }),
+        );
+        return;
+      }
       if (!assistantText.trim() && !assistantActivity) {
         emit(
           this.createEvent({
