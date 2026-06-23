@@ -76,6 +76,7 @@ export type RetrievalTrace = {
   lexical: { searched: boolean; hits: number };
   fusion: { method: "lancedb"; documentsAfterFusion: number };
   grouping: { understandingCandidates: number; matchedContexts: number };
+  relation: { expandedFrom: number; candidates: number };
   returnedCandidates: number;
 };
 

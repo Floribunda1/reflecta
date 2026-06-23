@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 import { createDBInstance } from "../../db";
 import { ContextCliBff } from "../context/bff-cli";
+import { SearchCliBff } from "../search/bff-cli";
 import { UnderstandingCliBff } from "../understanding/bff-cli";
 import { createRetrievalIndex } from "./sync";
 
@@ -27,6 +28,7 @@ async function setupServices() {
   const db = await createDBInstance(join(tempDir, "test.db"));
   return {
     contexts: new ContextCliBff(db),
+    search: new SearchCliBff(db),
     understandings: new UnderstandingCliBff(db),
   };
 }
@@ -82,5 +84,33 @@ describe("retrieval index write-path sync", () => {
 
     await contexts.deleteContext(context.id);
     expect(await indexIds("contextsyncaftermarker")).not.toContain(`context:${context.id}`);
+  });
+
+  test("retrieveKnowledge expands one-hop explicit Understanding relations from anchors", async () => {
+    const { search, understandings } = await setupServices();
+    const target = await understandings.createUnderstanding({
+      title: "Relation Target",
+      body: "Related target body",
+    });
+    const source = await understandings.createUnderstanding({
+      title: "Relation Source",
+      body: `See [[Relation Target#${target.id}]]`,
+    });
+
+    const result = await search.retrieveKnowledge({
+      query: "nohitrelationmarker",
+      anchors: [{ type: "understanding", id: source.id }],
+      limit: 5,
+    });
+
+    expect(result.candidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: target.id,
+          evidence: expect.arrayContaining([expect.objectContaining({ channel: "relation" })]),
+        }),
+      ]),
+    );
+    expect(result.trace.relation.candidates).toBe(1);
   });
 });
