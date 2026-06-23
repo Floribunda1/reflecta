@@ -17,12 +17,12 @@ Reflecta Agent Chat 的价值不是“再做一个聊天窗口”，而是：
 - Agent 不能绕过用户直接改知识库。
 - Agent 不能把聊天记录变成第二套知识库。
 - Agent 必须能引用 Reflecta 里的真实对象，而不是靠模型猜测字符串。
-- Agent 的回答必须能回到 Thought / Context / Connection 等产品对象。
+- Agent 的回答必须能回到 Understanding / Context / Connection 等产品对象。
 - 第一版先做可靠主链路，不做完整工作流引擎。
 
 ## 2. JTBD
 
-当我在 Reflecta 里沉淀了一批 Thought / Context / Connection，
+当我在 Reflecta 里沉淀了一批 Understanding / Context / Connection，
 但不知道下一步该怎么追问、比较、补充或整理时，
 我想直接和这些已有材料对话，
 以便更快找到值得补充、连接或沉淀的新理解。
@@ -33,7 +33,7 @@ Reflecta Agent Chat 的价值不是“再做一个聊天窗口”，而是：
 
 - 对话：用户能发送消息，看到流式回复，并能继续多轮上下文。
 - 历史：对话 thread 可恢复，消息不会因为刷新或重启丢失。
-- 引用：用户能把 Thought / Context / Category 作为上下文交给 Agent。
+- 引用：用户能把 Understanding / Context / Domain 作为上下文交给 Agent。
 - 读取：Agent 能搜索和读取知识库对象。
 - 提案：Agent 能提出创建 / 更新 / 连接知识对象的建议。
 - 确认：所有写入类动作必须先展示可读预览，再由用户确认或拒绝。
@@ -58,13 +58,13 @@ Reflecta Agent Chat 的价值不是“再做一个聊天窗口”，而是：
 
 ## 5. Product Shape Options
 
-| Shape Option        | 如何承载价值                       | 主要风险                        |
-| ------------------- | ---------------------------------- | ------------------------------- |
-| 独立 Agent 页面     | 最小 chat 主链路，容易验证对话价值 | 离 Capture / Graph 工作流较远   |
-| 嵌入式 Agent Drawer | 在具体 Thought / Graph 场景中对话  | 入口和上下文规则更复杂          |
-| 全局 Copilot        | 随时唤起，覆盖全 app               | 太宽，容易变成泛用助手          |
-| 自动整理后台 Agent  | Agent 主动扫描并提建议             | 用户控制感弱，写入风险高        |
-| Graph-first Agent   | 以图谱操作作为主要入口             | 第一版实现重，chat 主链路会失焦 |
+| Shape Option        | 如何承载价值                            | 主要风险                        |
+| ------------------- | --------------------------------------- | ------------------------------- |
+| 独立 Agent 页面     | 最小 chat 主链路，容易验证对话价值      | 离 Capture / Graph 工作流较远   |
+| 嵌入式 Agent Drawer | 在具体 Understanding / Graph 场景中对话 | 入口和上下文规则更复杂          |
+| 全局 Copilot        | 随时唤起，覆盖全 app                    | 太宽，容易变成泛用助手          |
+| 自动整理后台 Agent  | Agent 主动扫描并提建议                  | 用户控制感弱，写入风险高        |
+| Graph-first Agent   | 以图谱操作作为主要入口                  | 第一版实现重，chat 主链路会失焦 |
 
 ## 6. Shape Selection
 
@@ -93,19 +93,19 @@ Reflecta Agent Chat 的价值不是“再做一个聊天窗口”，而是：
 
 ### P1: 知识库读取
 
-- `@context` picker：选择 Thought / Context / Category。
+- `@context` picker：选择 Understanding / Context / Domain。
 - 后端用对象 ID 展开上下文，写入 message metadata。
 - Read tools：
   - search knowledge base
-  - get thought detail
+  - get understanding detail
   - get graph neighborhood
 - Tool result 结构化返回，UI 不解析自然语言。
 
 ### P2: 写入提案与确认
 
 - Proposal tools：
-  - propose create thought
-  - propose update thought
+  - propose create understanding
+  - propose update understanding
   - propose add context
   - propose create connection
 - Proposal card：展示目标、变更内容、风险提示、确认 / 拒绝。
@@ -138,7 +138,7 @@ Reflecta Agent Chat 的价值不是“再做一个聊天窗口”，而是：
 ### Later
 
 - Capture / Contemplate 里的 Agent Drawer。
-- 自动带入当前 Thought / Graph selection。
+- 自动带入当前 Understanding / Graph selection。
 - Graph custom renderer。
 - Fork conversation。
 - 长任务 resume / stream reconnect。

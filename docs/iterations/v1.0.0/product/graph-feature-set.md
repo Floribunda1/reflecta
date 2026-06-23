@@ -72,13 +72,13 @@ Connection 必须来自用户显式表达或确认，不能由系统自动推断
 
 用户必须能看到某条 Understanding 和哪些其他 Understanding 有关。
 
-这里的重点是 Connection 本身，而不是连接两端的 Category 是否相同。
+这里的重点是 Connection 本身，而不是连接两端的 Domain 是否相同。
 
-Category / Domain 只作为关联的上下文信息：
+Domain / Domain 只作为关联的上下文信息：
 
-- 用户可以知道连接两端分别属于哪些 Category。
-- 如果连接两端的 Category 不同，这是 Connection 的附带信息，不是第一版的主叙事。
-- 产品不应该把 Category 差异包装成独立功能或核心价值。
+- 用户可以知道连接两端分别属于哪些 Domain。
+- 如果连接两端的 Domain 不同，这是 Connection 的附带信息，不是第一版的主叙事。
+- 产品不应该把 Domain 差异包装成独立功能或核心价值。
 
 ### 3.6 从观察回到整理
 
@@ -202,7 +202,7 @@ Graph 的价值可以由多种产品形态承载。第一版需要先比较形�
 
 次级信息通过节点状态或点击详情出现：
 
-- Category / Domain：节点标签、筛选范围、关联上下文。
+- Domain / Domain：节点标签、筛选范围、关联上下文。
 - Context：节点状态 / 详情浮层。
 
 ### 7.3 核心动作
@@ -220,9 +220,9 @@ Graph 第一版只有四个核心动作：
 打开 Graph
   -> 看到一张图
   -> 发现有些节点连起来，有些节点孤立
-  -> 用 Category 筛选缩小观察范围
+  -> 用 Domain 筛选缩小观察范围
   -> 点击一个节点
-  -> 查看标题、来源、所属 Category、连接状态
+  -> 查看标题、来源、所属 Domain、连接状态
   -> 打开原笔记继续整理
 ```
 
@@ -244,14 +244,14 @@ Graph 第一版只有四个核心动作：
 
 Shape Rule 不是 Feature。它们是为了让单画布笔记图谱不走偏而必须遵守的呈现规则。
 
-| Shape Rule                  | 原因                                                             |
-| --------------------------- | ---------------------------------------------------------------- |
-| Context 不作为一级节点      | Context 是理解的根，不是一级知识对象                             |
-| Category 不作为一级节点     | 第一屏主对象必须少，Category 只作为筛选范围和节点上下文          |
-| Category 差异只是连接上下文 | Graph 的核心是 Connection，不是强调连接两端是否属于同一 Category |
-| 第一屏不做多栏 Topic Map    | 避免用户同时理解太多对象                                         |
-| 第一屏不展示统计卡片        | 避免 Graph 退化成数量 dashboard                                  |
-| 节点状态只表达 Context      | 有 Context、无 Context；Connection 通过边表达，不表达掌握度评分  |
+| Shape Rule                | 原因                                                            |
+| ------------------------- | --------------------------------------------------------------- |
+| Context 不作为一级节点    | Context 是理解的根，不是一级知识对象                            |
+| Domain 不作为一级节点     | 第一屏主对象必须少，Domain 只作为筛选范围和节点上下文           |
+| Domain 差异只是连接上下文 | Graph 的核心是 Connection，不是强调连接两端是否属于同一 Domain  |
+| 第一屏不做多栏 Topic Map  | 避免用户同时理解太多对象                                        |
+| 第一屏不展示统计卡片      | 避免 Graph 退化成数量 dashboard                                 |
+| 节点状态只表达 Context    | 有 Context、无 Context；Connection 通过边表达，不表达掌握度评分 |
 
 ## 10. Support / Later / Not Now
 
@@ -286,7 +286,7 @@ Later 是价值相关，但不进入第一版最小验证的能力。
 | AI 自动创建 Connection 并入库 | 关系必须来自用户显式理解或确认                                                   |
 | AI 自动推断关系并展示在图谱里 | 关系必须来自用户显式理解或确认，否则会让用户误以为这些关系已经属于自己的知识结构 |
 | Context 独立节点库            | Context 是理解的根，不是一级知识管理对象                                         |
-| 复杂 Category 关系分析页      | 第一版只需要呈现已有 Connection；Category 差异只是连接上下文                     |
+| 复杂 Domain 关系分析页        | 第一版只需要呈现已有 Connection；Domain 差异只是连接上下文                       |
 
 ## 11. Validation
 
@@ -294,7 +294,7 @@ Later 是价值相关，但不进入第一版最小验证的能力。
 
 - 用户是否进入 Graph。
 - 用户是否点击节点查看详情。
-- 用户是否使用 Category 筛选缩小观察范围。
+- 用户是否使用 Domain 筛选缩小观察范围。
 - 用户是否从节点详情打开原 Understanding。
 - 用户是否从 Graph 发现无 Context 节点后补充 Context。
 - 用户是否从 Graph 发现孤岛或相关节点后补充 Connection。
@@ -306,7 +306,7 @@ Graph 成立时，用户应该能说：
 - 我一眼知道这是我的笔记图谱。
 - 我能看见哪些理解连起来了，哪些还是孤岛。
 - 我能看见哪些理解没有来源。
-- 我能点开节点，看它从哪里来、属于哪个 Category、连到了谁。
+- 我能点开节点，看它从哪里来、属于哪个 Domain、连到了谁。
 - 我能看见某条理解和哪些其他理解有关。
 - 我会因为这些发现，回到原笔记补来源、补连接或修正表达。
 
@@ -326,11 +326,11 @@ Graph 第一版选择单画布笔记图谱作为产品承载形态。
 8. 打开原笔记。
 9. 图例。
 
-Category / Domain 不是单独 Feature，而是单画布 Graph 的上下文信息：
+Domain / Domain 不是单独 Feature，而是单画布 Graph 的上下文信息：
 
-- Category 用于筛选图谱范围。
-- 节点可以展示所属 Category，帮助用户理解这条 Thought 的背景。
-- Connection 的重点是两条 Understanding 有关；如果连接两端的 Category 不同，它只是这条 Connection 的上下文。
+- Domain 用于筛选图谱范围。
+- 节点可以展示所属 Domain，帮助用户理解这条 Understanding 的背景。
+- Connection 的重点是两条 Understanding 有关；如果连接两端的 Domain 不同，它只是这条 Connection 的上下文。
 
 这组功能共同验证：
 

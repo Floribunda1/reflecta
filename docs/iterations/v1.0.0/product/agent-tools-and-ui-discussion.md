@@ -18,7 +18,7 @@ Agent 前台不暴露“概念深化”“关系探讨”等模式。
 
 用户最容易理解的形态接近 Vibe Coding：
 
-> 用户在聊天里自然输入需求，并通过 `@` 把 Thought / Context / Category 等对象交给 Agent。
+> 用户在聊天里自然输入需求，并通过 `@` 把 Understanding / Context / Domain 等对象交给 Agent。
 
 例如：
 
@@ -29,7 +29,7 @@ Agent 前台不暴露“概念深化”“关系探讨”等模式。
 
 基于 @这条笔记 和 @这个 Context，追问我几个问题。
 
-把我们刚刚聊出来的东西，整理成一条候选 Thought。
+把我们刚刚聊出来的东西，整理成一条候选 Understanding。
 ```
 
 用户不需要选择模式，不需要填写工作流表单，也不需要理解 tool call。
@@ -77,23 +77,23 @@ reflecta <resource> <action> [args] [options]
 例如：
 
 - `reflecta snapshot project`
-- `reflecta category list`
-- `reflecta category inspect <id>`
-- `reflecta thought list`
-- `reflecta thought get <id>`
-- `reflecta context list --thought-id <id>`
+- `reflecta domain list`
+- `reflecta domain inspect <id>`
+- `reflecta understanding list`
+- `reflecta understanding get <id>`
+- `reflecta context list --understanding-id <id>`
 - `reflecta search all <query>`
-- `reflecta graph neighborhood --thought-id <id>`
+- `reflecta graph neighborhood --understanding-id <id>`
 
 所以 Electron Agent tools 不应该另起一套抽象命名。更好的做法是：
 
 > 前台 Agent tools 与 CLI action 同构，只是把 `resource action` 转成 AI SDK 可用的 tool name。
 
-例如 `reflecta thought get` 对应 `thought_get`，`reflecta search all` 对应 `search_all`。
+例如 `reflecta understanding get` 对应 `understanding_get`，`reflecta search all` 对应 `search_all`。
 
 参考 Agent-Friendly CLI 的共通原则，V2 Agent tools 应该遵守：
 
-- 结构导航优先：Agent 可以先看 Category 地图，再决定在哪些范围里 list / search。
+- 结构导航优先：Agent 可以先看 Domain 地图，再决定在哪些范围里 list / search。
 - 搜索和读取分离：search 负责找候选，read 负责读取少量确定对象。
 - 小步探索优先：允许 Agent 多次低成本调用，而不是追求一次性取全。
 - 局部展开：当 Agent 已经有一组对象时，可以 expand 它们的 Context / Connection / neighbors。
@@ -126,36 +126,36 @@ Tool name 尽量直接来自 CLI action：
 
 Navigation tools 让 Agent 先理解知识库的结构，类似 code agent 先看目录树。
 
-| Tool               | 类比                       | 输入                                                             | 输出                                                      |
-| ------------------ | -------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------- |
-| `snapshot_project` | 打开项目时先看 overview    | 无。                                                             | categories、recentThoughts、stats。                       |
-| `category_list`    | `ls` / file tree           | 无。                                                             | CategorySummary[]：id、name、parentId。                   |
-| `thought_list`     | `ls <dir>`                 | `categoryId?`、`includeDescendants?`、`recent?`、`limit?`。      | ThoughtSummary[]。                                        |
-| `category_inspect` | `ls <dir> + local context` | `id`、`includeContexts?`、`includeEdges?`、`limit?`、`offset?`。 | category、categories、thoughts、contexts?、edges?、page。 |
+| Tool                 | 类比                       | 输入                                                             | 输出                                                       |
+| -------------------- | -------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------- |
+| `snapshot_project`   | 打开项目时先看 overview    | 无。                                                             | domains、recentUnderstandings、stats。                     |
+| `domain_list`        | `ls` / file tree           | 无。                                                             | DomainSummary[]：id、name、parentId。                      |
+| `understanding_list` | `ls <dir>`                 | `domainId?`、`includeDescendants?`、`recent?`、`limit?`。        | UnderstandingSummary[]。                                   |
+| `domain_inspect`     | `ls <dir> + local context` | `id`、`includeContexts?`、`includeEdges?`、`limit?`、`offset?`。 | domain、domains、understandings、contexts?、edges?、page。 |
 
 ### 3.2 Search tools
 
 Search tools 让 Agent 从自然语言、关键词或概念进入知识库，类似 `rg`。
 
-| Tool              | 类比          | 输入                           | 输出                  |
-| ----------------- | ------------- | ------------------------------ | --------------------- |
-| `search_all`      | `rg`          | `query`、`limit?`、`offset?`。 | thoughts + contexts。 |
-| `search_thoughts` | `rg thoughts` | `query`、`limit?`、`offset?`。 | ThoughtSearchHit[]。  |
-| `search_contexts` | `rg contexts` | `query`、`limit?`、`offset?`。 | ContextSearchHit[]。  |
+| Tool                    | 类比                | 输入                           | 输出                        |
+| ----------------------- | ------------------- | ------------------------------ | --------------------------- |
+| `search_all`            | `rg`                | `query`、`limit?`、`offset?`。 | understandings + contexts。 |
+| `search_understandings` | `rg understandings` | `query`、`limit?`、`offset?`。 | UnderstandingSearchHit[]。  |
+| `search_contexts`       | `rg contexts`       | `query`、`limit?`、`offset?`。 | ContextSearchHit[]。        |
 
 ### 3.3 Read tools
 
 Read tools 让 Agent 在已经知道对象 ID 后读取内容，类似 `cat` / `sed`。
 
-| Tool                 | 类比                      | 输入                                                                      | 输出                      |
-| -------------------- | ------------------------- | ------------------------------------------------------------------------- | ------------------------- |
-| `thought_get`        | `cat thought`             | `id`、`includeContexts?`、`includeReferences?`、`includeReferencedBys?`。 | ThoughtDetail。           |
-| `context_list`       | 打开 Thought 来源列表     | `thoughtId`。                                                             | ContextDetail[]。         |
-| `context_get`        | `cat context`             | `id`。                                                                    | ContextDetail。           |
-| `graph_neighborhood` | 追踪引用 / backlinks      | `thoughtId`、`depth?`、`includeContexts?`、`limit?`、`offset?`。          | GraphNeighborhoodResult。 |
-| `graph_path`         | 查两个 Thought 之间的路径 | `from`、`to`。                                                            | GraphPathResult。         |
+| Tool                 | 类比                            | 输入                                                                      | 输出                      |
+| -------------------- | ------------------------------- | ------------------------------------------------------------------------- | ------------------------- |
+| `understanding_get`  | `cat understanding`             | `id`、`includeContexts?`、`includeReferences?`、`includeReferencedBys?`。 | UnderstandingDetail。     |
+| `context_list`       | 打开 Understanding 来源列表     | `understandingId`。                                                       | ContextDetail[]。         |
+| `context_get`        | `cat context`                   | `id`。                                                                    | ContextDetail。           |
+| `graph_neighborhood` | 追踪引用 / backlinks            | `understandingId`、`depth?`、`includeContexts?`、`limit?`、`offset?`。    | GraphNeighborhoodResult。 |
+| `graph_path`         | 查两个 Understanding 之间的路径 | `from`、`to`。                                                            | GraphPathResult。         |
 
-`thought_get` 是 P0 最重要的 read tool。Agent 已经知道要读什么时，低成本读出来。
+`understanding_get` 是 P0 最重要的 read tool。Agent 已经知道要读什么时，低成本读出来。
 
 当前 CLI 用 `include-*` 控制输出体积：
 
@@ -169,12 +169,12 @@ Electron tools 可以沿用同样的布尔开关，不要先设计更复杂的 `
 
 ### 3.4 Proposal tools
 
-| Tool                         | 用途                                        | 输出                                                               |
-| ---------------------------- | ------------------------------------------- | ------------------------------------------------------------------ |
-| `thought_create_proposal`    | 把对话中形成的候选理解整理成 Thought。      | 候选 Thought：title、body、source refs、suggested category。       |
-| `thought_update_proposal`    | 对已有 Thought 提出修改。                   | diff proposal：target thought、before、after、reason。             |
-| `context_create_proposal`    | 把本轮对话片段作为 Context 绑定到 Thought。 | 候选 Context：target thought、summary、quoted conversation range。 |
-| `connection_create_proposal` | 对两条 Thought 提出候选 Connection。        | 候选 Connection：from、to、reason。                                |
+| Tool                            | 用途                                              | 输出                                                                     |
+| ------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------ |
+| `understanding_create_proposal` | 把对话中形成的候选理解整理成 Understanding。      | 候选 Understanding：title、body、context refs、suggested domain。        |
+| `understanding_update_proposal` | 对已有 Understanding 提出修改。                   | diff proposal：target understanding、before、after、reason。             |
+| `context_create_proposal`       | 把本轮对话片段作为 Context 绑定到 Understanding。 | 候选 Context：target understanding、summary、quoted conversation range。 |
+| `connection_create_proposal`    | 对两条 Understanding 提出候选 Connection。        | 候选 Connection：from、to、reason。                                      |
 
 Proposal tools 不写入知识库。它们只生成前台可确认的结构化 proposal。
 
@@ -185,7 +185,7 @@ Proposal tools 不写入知识库。它们只生成前台可确认的结构化 p
 以下能力放在 system prompt / model reasoning 里，不做 tool：
 
 - 概念深化。
-- 多 Thought 比较。
+- 多 Understanding 比较。
 - 找共同机制。
 - 找张力 / 矛盾。
 - 生成追问。
@@ -210,24 +210,24 @@ Proposal tools 不写入知识库。它们只生成前台可确认的结构化 p
 ```txt
 1. snapshot_project()
 2. Agent 发现可能相关的目录：行为机制、学习复盘、交易心理。
-3. thought_list(categoryId: 行为机制, includeDescendants: true, limit: 30)
-4. thought_list(categoryId: 学习复盘, includeDescendants: true, limit: 30)
+3. understanding_list(domainId: 行为机制, includeDescendants: true, limit: 30)
+4. understanding_list(domainId: 学习复盘, includeDescendants: true, limit: 30)
 5. 如果列表里没有明显命中：
    search_all(query: "拖延", limit: 10)
-6. thought_get(id: selectedThoughtId)
+6. understanding_get(id: selectedUnderstandingId)
 ```
 
 可能的调用方式 B：先全局搜索，再看目录确认范围。
 
 ```txt
 1. search_all(query: "拖延", limit: 10)
-2. category_list()
+2. domain_list()
 3. Agent 发现结果主要集中在学习复盘和交易心理。
-4. thought_list(categoryId: 学习复盘, includeDescendants: true, limit: 20)
-5. thought_get(id: selectedThoughtId)
+4. understanding_list(domainId: 学习复盘, includeDescendants: true, limit: 20)
+5. understanding_get(id: selectedUnderstandingId)
 ```
 
-### 4.2 深化一个明确 `@` 的 Thought
+### 4.2 深化一个明确 `@` 的 Understanding
 
 用户输入：
 
@@ -238,16 +238,16 @@ Proposal tools 不写入知识库。它们只生成前台可确认的结构化 p
 可能的调用方式：
 
 ```txt
-1. thought_get(id: @反馈延迟)
+1. understanding_get(id: @反馈延迟)
 2. 如果正文提到来源或用户问“为什么形成”：
-   context_list(thoughtId: @反馈延迟)
+   context_list(understandingId: @反馈延迟)
 3. 如果用户问“和哪些想法有关”：
-   thought_get(id: @反馈延迟, includeReferences: true, includeReferencedBys: true)
+   understanding_get(id: @反馈延迟, includeReferences: true, includeReferencedBys: true)
 4. 如果需要补充用户知识库内的相近概念：
-   search_thoughts(query: "反馈 行动 拖延 判断", limit: 8)
+   search_understandings(query: "反馈 行动 拖延 判断", limit: 8)
 ```
 
-### 4.3 探讨几条 Thought 的隐含关联
+### 4.3 探讨几条 Understanding 的隐含关联
 
 用户输入：
 
@@ -258,14 +258,14 @@ Proposal tools 不写入知识库。它们只生成前台可确认的结构化 p
 可能的调用方式：
 
 ```txt
-1. thought_get(id: @逃避复盘)
-2. thought_get(id: @不愿止损)
-3. thought_get(id: @拖延沟通)
-4. graph_neighborhood(thoughtId: @逃避复盘, depth: 1, limit: 20)
+1. understanding_get(id: @逃避复盘)
+2. understanding_get(id: @不愿止损)
+3. understanding_get(id: @拖延沟通)
+4. graph_neighborhood(understandingId: @逃避复盘, depth: 1, limit: 20)
 5. 如果正文太薄：
-   context_list(thoughtId: @逃避复盘)
+   context_list(understandingId: @逃避复盘)
 6. 如果发现候选关键词“承认错误 / 自我评价”：
-   search_thoughts(query: "承认错误 自我评价 回避", limit: 5)
+   search_understandings(query: "承认错误 自我评价 回避", limit: 5)
 ```
 
 ### 4.4 沉淀候选内容
@@ -273,7 +273,7 @@ Proposal tools 不写入知识库。它们只生成前台可确认的结构化 p
 用户输入：
 
 ```txt
-把刚刚聊出来的东西整理成一条候选 Thought。
+把刚刚聊出来的东西整理成一条候选 Understanding。
 ```
 
 可能的调用方式：
@@ -281,16 +281,16 @@ Proposal tools 不写入知识库。它们只生成前台可确认的结构化 p
 ```txt
 1. 基于当前 thread 先生成候选表达。
 2. 如果候选需要挂到已有对象：
-   thought_get(id: referencedThoughtId)
+   understanding_get(id: referencedUnderstandingId)
 3. 如果需要避免重复：
-   search_thoughts(query: candidateTitle, limit: 5)
+   search_understandings(query: candidateTitle, limit: 5)
 4. 如果没有明显重复：
-   thought_create_proposal(...)
-5. 如果像是在修改已有 Thought：
-   thought_update_proposal(...)
+   understanding_create_proposal(...)
+5. 如果像是在修改已有 Understanding：
+   understanding_update_proposal(...)
 ```
 
-### 4.5 修改已有 Thought
+### 4.5 修改已有 Understanding
 
 用户输入：
 
@@ -301,11 +301,11 @@ Proposal tools 不写入知识库。它们只生成前台可确认的结构化 p
 可能的调用方式：
 
 ```txt
-1. thought_get(id: @反馈延迟)
+1. understanding_get(id: @反馈延迟)
 2. 如果需要确认来源：
-   context_list(thoughtId: @反馈延迟)
+   context_list(understandingId: @反馈延迟)
 3. 生成修改版本。
-4. thought_update_proposal(target: @反馈延迟, before: ..., after: ..., reason: ...)
+4. understanding_update_proposal(target: @反馈延迟, before: ..., after: ..., reason: ...)
 ```
 
 ## 5. 外部信息
@@ -345,7 +345,7 @@ P0 可以先不做外部搜索 tool，让模型基于已有知识回答，并在
 默认折叠，避免污染聊天流。
 
 ```txt
-AI 读取了 3 条 Thought、2 条 Context
+AI 读取了 3 条 Understanding、2 条 Context
 AI 搜索了 8 条内容
 AI 读取了关联笔记
 ```
@@ -358,19 +358,19 @@ AI 回复中引用具体 Reflecta 对象时使用。
 
 职责：
 
-- 让用户能追溯回答基于哪条 Thought / Context。
+- 让用户能追溯回答基于哪条 Understanding / Context。
 - 点击后打开预览，不打断对话。
 
-### CandidateThoughtCard
+### CandidateUnderstandingCard
 
-当 AI 提出候选 Thought 时出现。
+当 AI 提出候选 Understanding 时出现。
 
 内容：
 
 - 标题。
 - 正文。
 - 关联的 Context。
-- 可选 Category。
+- 可选 Domain。
 - 保存 / 拒绝。
 
 要求：
@@ -384,8 +384,8 @@ AI 回复中引用具体 Reflecta 对象时使用。
 
 内容：
 
-- From Thought。
-- To Thought。
+- From Understanding。
+- To Understanding。
 - 关系说明。
 - 确认 / 拒绝。
 
@@ -402,12 +402,12 @@ AI 回复中引用具体 Reflecta 对象时使用。
 
 - Context 摘要。
 - 原始对话片段。
-- 绑定目标 Thought。
+- 绑定目标 Understanding。
 - 保存 / 拒绝。
 
-### UpdateThoughtDiffCard
+### UpdateUnderstandingDiffCard
 
-当 AI 建议修改已有 Thought 时出现。
+当 AI 建议修改已有 Understanding 时出现。
 
 内容：
 
@@ -443,10 +443,10 @@ Chat stream 内承载：
 
 - `ReferenceChip`
 - `ToolActivity`
-- `CandidateThoughtCard`
+- `CandidateUnderstandingCard`
 - `CandidateConnectionCard`
 - `CandidateContextCard`
-- `UpdateThoughtDiffCard`
+- `UpdateUnderstandingDiffCard`
 
 后续如果引用对象、tool activity、pending proposal 多到聊天流承载不住，再补 Inspector。
 
@@ -461,13 +461,13 @@ Chat stream 内承载：
 ### 可承载内容
 
 1. 当前引用
-   - 本轮用户 `@` 了哪些 Thought / Context / Category。
+   - 本轮用户 `@` 了哪些 Understanding / Context / Domain。
 
 2. 对象预览
    - 用户点击 `ReferenceChip` / `CitationLink` 后，展示对象详情。
 
 3. 待确认候选
-   - 当前 thread 里的 pending Thought / Context / Connection proposal。
+   - 当前 thread 里的 pending Understanding / Context / Connection proposal。
 
 ### 不应该承载
 
@@ -485,7 +485,7 @@ Chat stream 内承载：
 - 左侧 thread list。
 - 中间 chat。
 - `ReferenceChip` 点击后用 popover / drawer 预览。
-- 候选 Thought / Connection / Context 直接在聊天流里展示。
+- 候选 Understanding / Connection / Context 直接在聊天流里展示。
 
 优点：
 
@@ -538,30 +538,30 @@ V2 采用：
 V2 先开放现有 CLI 同构的核心只读 tools：
 
 - `snapshot_project`
-- `category_list`
-- `thought_list`
-- `thought_get`
+- `domain_list`
+- `understanding_list`
+- `understanding_get`
 - `context_list`
 - `search_all`
 - `graph_neighborhood`
 
 以下 tools 作为 V2 可选补充，若实现成本低可以一起做：
 
-- `category_inspect`
+- `domain_inspect`
 - `context_get`
-- `search_thoughts`
+- `search_understandings`
 - `search_contexts`
 - `graph_path`
 
 ### 10.2 `@` 引用语义
 
-用户 `@` Thought / Context / Category 后，消息里只携带轻量 ref：
+用户 `@` Understanding / Context / Domain 后，消息里只携带轻量 ref：
 
 - object type
 - object id
 - display title / name
 
-不自动把全文塞进消息。Agent 根据任务自行决定是否调用 `thought_get`、`context_list`、`category_inspect` 等 tools。
+不自动把全文塞进消息。Agent 根据任务自行决定是否调用 `understanding_get`、`context_list`、`domain_inspect` 等 tools。
 
 ### 10.3 只读 Tool 调用权限
 
@@ -570,7 +570,7 @@ V2 先开放现有 CLI 同构的核心只读 tools：
 前台用折叠的 `ToolActivity` 告诉用户 Agent 做了什么，例如：
 
 ```txt
-AI 读取了 3 条 Thought
+AI 读取了 3 条 Understanding
 AI 搜索了 8 条内容
 AI 查看了 1 个关联图谱
 ```
@@ -581,10 +581,10 @@ AI 查看了 1 个关联图谱
 
 V2 Candidate 组件全部进入范围：
 
-- `CandidateThoughtCard`
+- `CandidateUnderstandingCard`
 - `CandidateConnectionCard`
 - `CandidateContextCard`
-- `UpdateThoughtDiffCard`
+- `UpdateUnderstandingDiffCard`
 
 它们都表示 pending change preview，不是已写入内容。
 

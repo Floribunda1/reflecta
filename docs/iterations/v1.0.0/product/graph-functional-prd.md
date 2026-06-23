@@ -24,13 +24,13 @@ Graph 页面用于让用户查看自己的 Understanding 如何通过 Connection
 
 ### 2.1 本期包含
 
-| 模块       | 说明                                                                                 |
-| ---------- | ------------------------------------------------------------------------------------ |
-| Graph 画布 | 展示节点和边，支持缩放、平移、点击节点                                               |
-| 顶部筛选   | 按 Category / 状态缩小图谱范围                                                       |
-| 图例       | 解释节点状态和边的含义                                                               |
-| 节点详情   | 展示单条 Understanding 的标题、摘要、Context 状态、所属 Category、连接列表和操作入口 |
-| 空状态     | 处理无数据、筛选无结果                                                               |
+| 模块       | 说明                                                                               |
+| ---------- | ---------------------------------------------------------------------------------- |
+| Graph 画布 | 展示节点和边，支持缩放、平移、点击节点                                             |
+| 顶部筛选   | 按 Domain / 状态缩小图谱范围                                                       |
+| 图例       | 解释节点状态和边的含义                                                             |
+| 节点详情   | 展示单条 Understanding 的标题、摘要、Context 状态、所属 Domain、连接列表和操作入口 |
+| 空状态     | 处理无数据、筛选无结果                                                             |
 
 ### 2.2 本期不包含
 
@@ -39,7 +39,7 @@ Graph 页面用于让用户查看自己的 Understanding 如何通过 Connection
 | AI 自动生成 Connection            | Graph 只展示用户已确认的 Connection                      |
 | 在 Graph 内创建 / 编辑 Connection | 关系管理回到 Understanding 编辑或正文双链完成            |
 | Context 作为独立节点              | Context 是 Understanding 的支撑信息，不是 Graph 一级对象 |
-| Category 作为独立节点             | Category 用作筛选和上下文，不作为图谱节点                |
+| Domain 作为独立节点               | Domain 用作筛选和上下文，不作为图谱节点                  |
 | 统计 Dashboard                    | 不展示数量卡片、掌握度评分、完成度                       |
 | 时间演化视图                      | 不展示历史变化、成长轨迹、版本对比                       |
 | 保存视图                          | 不支持保存筛选组合或画布位置                             |
@@ -59,8 +59,8 @@ Node 至少包含以下信息：
 | id              | Understanding 唯一标识       | 不直接展示                         |
 | title           | Understanding 标题           | 节点、详情                         |
 | summary         | Understanding 摘要或正文开头 | 详情                               |
-| category        | 所属 Category                | 节点辅助信息、详情、筛选           |
-| contextStatus   | 是否有 Context               | 节点状态、详情                     |
+| domain          | 所属 Domain                  | 节点辅助信息、详情、筛选           |
+| contextPresence | 是否有 Context               | 节点状态、详情                     |
 | connectionCount | 已连接数量                   | 详情和连接列表，不用于节点视觉状态 |
 | updatedAt       | 最近更新时间                 | 详情                               |
 
@@ -79,17 +79,17 @@ Edge 至少包含以下信息：
 
 Edge 不表示系统猜测、相似度、推荐关系。
 
-### 3.3 Category
+### 3.3 Domain
 
-Category 表示 Understanding 的归属范围。
+Domain 表示 Understanding 的归属范围。
 
-Category 在 Graph 中只承担：
+Domain 在 Graph 中只承担：
 
 1. 筛选范围。
 2. 节点上下文。
 3. 连接两端的辅助说明。
 
-Category 不作为图谱节点，不参与边的主叙事。
+Domain 不作为图谱节点，不参与边的主叙事。
 
 ## 4. 页面布局功能
 
@@ -99,19 +99,19 @@ Category 不作为图谱节点，不参与边的主叙事。
 
 必须包含：
 
-| 功能          | 说明                                                   |
-| ------------- | ------------------------------------------------------ |
-| 新建入口      | 创建新的 Understanding，并默认进入该节点详情           |
-| Category 筛选 | 选择一个或多个 Category 后，只展示范围内的节点和相关边 |
-| 状态筛选      | 支持查看全部、有 Context、无 Context                   |
-| 重置入口      | 清空筛选，回到默认图谱                                 |
+| 功能        | 说明                                                 |
+| ----------- | ---------------------------------------------------- |
+| 新建入口    | 创建新的 Understanding，并默认进入该节点详情         |
+| Domain 筛选 | 选择一个或多个 Domain 后，只展示范围内的节点和相关边 |
+| 状态筛选    | 支持查看全部、有 Context、无 Context                 |
+| 重置入口    | 清空筛选，回到默认图谱                               |
 
 交互逻辑：
 
 1. 默认进入页面时展示全部可展示节点。
-2. 用户选择 Category 后，画布只展示命中 Category 的节点。
-3. 状态筛选和 Category 筛选可以叠加。
-4. 重置后清空 Category 和状态筛选。
+2. 用户选择 Domain 后，画布只展示命中 Domain 的节点。
+3. 状态筛选和 Domain 筛选可以叠加。
+4. 重置后清空 Domain 和状态筛选。
 
 ### 4.2 Graph 画布
 
@@ -207,7 +207,7 @@ Connection 不作为节点视觉状态单独编码，而通过边是否存在直
 | -------------------- | ----------------------------------------------- |
 | 标题                 | Understanding 标题                              |
 | 摘要                 | Understanding 摘要或正文开头                    |
-| Category             | 所属 Category                                   |
+| Domain               | 所属 Domain                                     |
 | Context 状态         | 有 Context / 无 Context                         |
 | Connection 状态      | 已连接数量 / 未连接                             |
 | 连接列表             | 与当前 Understanding 已连接的其他 Understanding |
@@ -223,7 +223,7 @@ Connection 不作为节点视觉状态单独编码，而通过边是否存在直
 | 信息                    | 说明                                 |
 | ----------------------- | ------------------------------------ |
 | 对端 Understanding 标题 | 与当前节点相连的另一条 Understanding |
-| 对端 Category           | 作为上下文辅助判断                   |
+| 对端 Domain             | 作为上下文辅助判断                   |
 | 关系说明                | 如 Connection 有说明，则展示         |
 | 定位入口                | 点击后在画布中选中对端节点           |
 
@@ -243,20 +243,20 @@ Connection 不作为节点视觉状态单独编码，而通过边是否存在直
 
 ## 7. 筛选功能
 
-### 7.1 Category 筛选
+### 7.1 Domain 筛选
 
-Category 筛选用于缩小观察范围。
+Domain 筛选用于缩小观察范围。
 
 逻辑：
 
-1. 支持选择一个或多个 Category。
-2. 选择后，只展示属于这些 Category 的节点。
+1. 支持选择一个或多个 Domain。
+2. 选择后，只展示属于这些 Domain 的节点。
 3. 当边的两端节点都在可见范围内时，展示该边。
 4. 当边只有一端节点在可见范围内时，默认不展示该边。
 
 说明：
 
-Graph V1 不需要为了展示跨 Category Connection 而额外引入外部节点。
+Graph V1 不需要为了展示跨 Domain Connection 而额外引入外部节点。
 
 ### 7.2 状态筛选
 
@@ -270,13 +270,13 @@ Graph V1 不需要为了展示跨 Category Connection 而额外引入外部节�
 | 有 Context | 只展示有 Context 的节点 |
 | 无 Context | 只展示无 Context 的节点 |
 
-状态筛选与 Category 筛选叠加。
+状态筛选与 Domain 筛选叠加。
 
 ### 7.3 重置筛选
 
 重置后：
 
-1. 清空 Category 筛选。
+1. 清空 Domain 筛选。
 2. 清空状态筛选。
 3. 取消节点选中。
 4. 画布重新适配全部节点。
@@ -345,10 +345,10 @@ Graph V1 不需要为了展示跨 Category Connection 而额外引入外部节�
 3. 识别哪些节点连接较多，哪些节点孤立。
 4. 通过图例理解无 Context 节点状态。
 
-### 10.2 按 Category 回看
+### 10.2 按 Domain 回看
 
-1. 用户选择一个 Category。
-2. 图谱进入该 Category / Domain 的回看范围。
+1. 用户选择一个 Domain。
+2. 图谱进入该 Domain / Domain 的回看范围。
 3. 当前 Domain 内的 Understanding 成为主画布，用户能扫视哪些理解成组、哪些孤立、哪些缺 Context。
 4. 与其他 Domain 有显式 Connection 的相关概念只作为边缘线索出现，不能抢占当前 Domain 主视觉。
 5. 用户 hover / selected 某条 Understanding 后，局部连接被强化，其他连接保持克制。
@@ -402,15 +402,15 @@ Graph V1 不需要为了展示跨 Category Connection 而额外引入外部节�
 
 ### 11.3 筛选
 
-- 用户能按 Category 筛选节点。
+- 用户能按 Domain 筛选节点。
 - 用户能按 Context 状态筛选节点。
-- Category 和状态筛选可以叠加。
+- Domain 和状态筛选可以叠加。
 - 用户能一键重置筛选。
 - 筛选无结果时有明确空状态。
 
 ### 11.4 节点详情
 
-- 用户能看到节点标题、摘要、Category、Context 状态、Connection 状态和更新时间。
+- 用户能看到节点标题、摘要、Domain、Context 状态、Connection 状态和更新时间。
 - 用户能看到当前节点直接连接的其他 Understanding。
 - 用户能从连接列表定位到对端节点。
 - 用户能打开原 Understanding。
@@ -423,7 +423,7 @@ Graph V1 不需要为了展示跨 Category Connection 而额外引入外部节�
 1. Graph 默认页。
 2. 节点选中后的详情状态。
 3. 无 Context 节点状态。
-4. Category 筛选展开 / 已选状态。
+4. Domain 筛选展开 / 已选状态。
 5. 状态筛选展开 / 已选状态。
 6. 筛选无结果。
 7. 全局无 Understanding 空状态。
@@ -436,7 +436,7 @@ Graph V1 不需要为了展示跨 Category Connection 而额外引入外部节�
 
 1. 第一屏主对象只有 Node 和 Edge。
 2. Context 不设计成一级节点。
-3. Category 不设计成一级节点。
+3. Domain 不设计成一级节点。
 4. 不使用统计卡片作为 Graph 的主表达。
 5. 不出现掌握度、完成度、质量分等评分表达。
 6. 不把孤立节点表达为错误。

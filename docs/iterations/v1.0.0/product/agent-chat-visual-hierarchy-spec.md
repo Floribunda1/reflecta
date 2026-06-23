@@ -50,14 +50,14 @@ AgentChatPage
         px-6 py-4
 ```
 
-排列逻辑：页面只有两个主层级：左侧导航和右侧工作区。左侧 ThreadSidebar 必须和 Capture 页面的 CategoryNavigation 使用同一套 sidebar 视觉语法：同样的宽度、titlebar 对齐、弱 surface、ghost row selected state；它只帮助切换 thread，视觉权重必须低于右侧。右侧从上到下依次是 conversation、开发态 stream inspector、composer。对话流是主内容，composer 是持续可见的下一步行动入口；dev stream inspector 只在开发环境出现，且不能在视觉上插入正文和输入之间成为第三个主层级。
+排列逻辑：页面只有两个主层级：左侧导航和右侧工作区。左侧 ThreadSidebar 必须和 Capture 页面的 DomainNavigation 使用同一套 sidebar 视觉语法：同样的宽度、titlebar 对齐、弱 surface、ghost row selected state；它只帮助切换 thread，视觉权重必须低于右侧。右侧从上到下依次是 conversation、开发态 stream inspector、composer。对话流是主内容，composer 是持续可见的下一步行动入口；dev stream inspector 只在开发环境出现，且不能在视觉上插入正文和输入之间成为第三个主层级。
 
 ## 3. Organisms
 
 ### ThreadSidebar
 
 - 容器 token：
-  - Surface：复用 Capture `CategoryNavigation` 的 sidebar surface；不设置独立 `bg-muted` 大面积底色，贴在页面底层 `bg-background` / app shell 材质上
+  - Surface：复用 Capture `DomainNavigation` 的 sidebar surface；不设置独立 `bg-muted` 大面积底色，贴在页面底层 `bg-background` / app shell 材质上
   - Spacing：外层 `p-0`；SidebarHeader 使用 `px-5 pt-14 pb-3` 对齐 macOS traffic light；thread list 使用 `p-0 space-y-0.5`
   - Border / Radius / Shadow：不使用 `border`、`rounded-*` 或 `shadow-*`
 
@@ -72,10 +72,10 @@ aside
 ```
 
 - 状态规则：
-  - `selected-thread` → 复用 Capture `CategoryNodeRow` 的选中语义：`bg-muted text-foreground font-medium`
+  - `selected-thread` → 复用 Capture `DomainNodeRow` 的选中语义：`bg-muted text-foreground font-medium`
   - `hover-thread` → 沿用 shadcn `Button ghost variant` 的轻量 hover，不改变尺寸
   - `renaming` → 原地 Input 编辑，不弹 Modal
-- 约束：ThreadSidebar 是导航，不展示完整消息、Agent 状态、tool 结果或大型卡片；整体视觉必须和 Capture 左侧 CategoryNavigation 保持同一系统，而不是另做一个独立 chat sidebar。
+- 约束：ThreadSidebar 是导航，不展示完整消息、Agent 状态、tool 结果或大型卡片；整体视觉必须和 Capture 左侧 DomainNavigation 保持同一系统，而不是另做一个独立 chat sidebar。
 
 #### Detail: ThreadRow
 
@@ -85,7 +85,7 @@ aside
 - 展示规则：title 最多 1 行；preview 最多 1 行；preview 使用弱 meta 语义
 - 状态规则：
   - `context-menu` → 右键打开 shadcn `ContextMenu`，提供重命名、归档、删除；删除前必须确认
-- 约束：不使用 `shadow-*`；不使用明显 Card surface；不使用独立 `rounded-lg border bg-card`；不放 hover action button；ThreadRow 和 Capture 的 CategoryNodeRow 必须共享 `hover / selected` 视觉语言与右键操作模型。
+- 约束：不使用 `shadow-*`；不使用明显 Card surface；不使用独立 `rounded-lg border bg-card`；不放 hover action button；ThreadRow 和 Capture 的 DomainNodeRow 必须共享 `hover / selected` 视觉语言与右键操作模型。
 
 ### MessageViewport
 
@@ -270,7 +270,7 @@ details
 
 #### Surface Hierarchy
 
-- 统一规则：主阅读区 `bg-background` 最高稳定性；ThreadSidebar 复用 Capture CategoryNavigation 的弱 sidebar surface；tool/thinking 使用 muted/dashed 辅助 surface；proposal 使用普通 bordered surface；composer dock 只用 top border 和 editor border。
+- 统一规则：主阅读区 `bg-background` 最高稳定性；ThreadSidebar 复用 Capture DomainNavigation 的弱 sidebar surface；tool/thinking 使用 muted/dashed 辅助 surface；proposal 使用普通 bordered surface；composer dock 只用 top border 和 editor border。
 - 禁止：ThreadSidebar 添加独立 border/radius/shadow；sidebar thread row 使用 shadow card；assistant 正文整体套 Card；composer 使用大阴影浮层；dev inspector 生产可见。
 
 #### Typography
@@ -285,7 +285,7 @@ details
 
 #### Interaction State
 
-- 统一规则：Button hover/active/focus-visible/disabled 沿用 shadcn 默认；selected thread 复用 Capture CategoryNodeRow 的 `bg-muted text-foreground font-medium`；busy composer 用 disabled-like opacity。
+- 统一规则：Button hover/active/focus-visible/disabled 沿用 shadcn 默认；selected thread 复用 Capture DomainNodeRow 的 `bg-muted text-foreground font-medium`；busy composer 用 disabled-like opacity。
 - 禁止：重写 shadcn Button 基础状态；用颜色同时表达 selected、disabled、error 三种语义。
 
 #### Component Variants

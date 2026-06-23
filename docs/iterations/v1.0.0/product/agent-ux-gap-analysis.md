@@ -47,7 +47,7 @@ AI SDK 文档明确支持 tool call streaming，让 tool input 生成过程也�
 
 对 Reflecta 的含义：
 
-- 用户不应该看到 `search_all`、`thought_get`、`graph_neighborhood` 这种内部工具名。
+- 用户不应该看到 `search_all`、`understanding_get`、`graph_neighborhood` 这种内部工具名。
 - 用户应该看到“搜索了 12 条内容”“读取了 3 条想法”“查看了附近关联”。
 - JSON 只能是展开后的 debug/detail，不应该是默认信息架构。
 
@@ -136,7 +136,7 @@ Reflecta 当前问题：
 Reflecta 当前问题：
 
 - Candidate card 已有，但状态语言还粗。
-- 当前 Thought create / update 还允许用户手动编辑，这和我们刚定的心智不一致。我们希望用户通过继续对话让 Agent 改，而不是把 proposal 变成表单。
+- 当前 Understanding create / update 还允许用户手动编辑，这和我们刚定的心智不一致。我们希望用户通过继续对话让 Agent 改，而不是把 proposal 变成表单。
 - 当前没有 `忽略`。
 - 当前 `拒绝` 只是标记 rejected，没有把下一轮控制权交回 AI。
 
@@ -197,17 +197,17 @@ Reflecta 当前问题：
 
 建议摘要：
 
-| Tool                 | 默认摘要                         |
-| -------------------- | -------------------------------- |
-| `snapshot_project`   | 查看了知识库概览                 |
-| `category_list`      | 列出了领域目录                   |
-| `category_inspect`   | 查看了「领域名」下的内容         |
-| `thought_list`       | 列出了 8 条相关想法              |
-| `thought_get`        | 读取了「Thought 标题」           |
-| `context_list`       | 读取了 3 条来源                  |
-| `search_all`         | 搜索了 12 条相关内容             |
-| `graph_neighborhood` | 查看了「Thought 标题」附近的关联 |
-| `graph_path`         | 查找了两条想法之间的路径         |
+| Tool                 | 默认摘要                               |
+| -------------------- | -------------------------------------- |
+| `snapshot_project`   | 查看了知识库概览                       |
+| `domain_list`        | 列出了领域目录                         |
+| `domain_inspect`     | 查看了「领域名」下的内容               |
+| `understanding_list` | 列出了 8 条相关想法                    |
+| `understanding_get`  | 读取了「Understanding 标题」           |
+| `context_list`       | 读取了 3 条来源                        |
+| `search_all`         | 搜索了 12 条相关内容                   |
+| `graph_neighborhood` | 查看了「Understanding 标题」附近的关联 |
+| `graph_path`         | 查找了两条想法之间的路径               |
 
 展开后可以看命中对象列表。JSON 放到 dev/debug，不做默认信息。
 
@@ -218,7 +218,7 @@ Reflecta 当前问题：
 - UI 有 `确认 / 拒绝`。
 - 没有 `忽略`。
 - `拒绝` 后只是 patch 成 rejected，Agent 不会自动继续。
-- Thought proposal 可以手动编辑，偏离“用户通过聊天让 Agent 改”的心智。
+- Understanding proposal 可以手动编辑，偏离“用户通过聊天让 Agent 改”的心智。
 
 已定产品语义：
 
@@ -239,14 +239,14 @@ Reflecta 当前问题：
 
 当前表现：
 
-- 用户可以 `@` Thought / Context / Category。
+- 用户可以 `@` Understanding / Context / Domain。
 - 消息下方有 context chips。
 - 但 assistant 回答和 tool 证据之间的关系不够清楚。
 
 应该变成：
 
 - 回答后显示轻量 evidence chips。
-- 只显示真实读取过的 Thought / Context / Category。
+- 只显示真实读取过的 Understanding / Context / Domain。
 - chips 可以跳转到对象。
 - 不做右侧 Inspector。
 

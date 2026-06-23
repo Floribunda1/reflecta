@@ -78,8 +78,8 @@ MVP 不做：
 
 规则：
 
-- Understanding 不维护 `sourceIds`。
-- 来源通过 `Source.understandingId` 反查。
+- Understanding 不维护 `contextIds`。
+- 来源通过 `Context.understandingId` 反查。
 - `title` 可以为空。
 - `body` 可以为空。
 - 新建理解时立即创建一条空 Understanding。
@@ -87,7 +87,7 @@ MVP 不做：
 - 理解可以没有关系。
 - 理解可以同时属于多个领域。
 
-### 2.3 Source
+### 2.3 Context
 
 来源解释一条理解从哪里长出来。
 
@@ -105,7 +105,7 @@ MVP 不做：
 
 - 来源必须依附于某条理解。
 - 来源不是一级知识节点。
-- Source 不维护 `trigger` 字段。
+- Context 不维护 `trigger` 字段。
 - 来源可以很长，默认只在 Document 里展示摘要。
 
 ### 2.4 Relation
@@ -166,7 +166,7 @@ MVP 不做：
 
 展示：
 
-- Source Detail Overlay。
+- Context Detail Overlay。
 - 底层仍保持当前 Understanding Document。
 
 规则：
@@ -350,11 +350,11 @@ MVP 不做：
 边界情况：
 
 - 当前理解被移出当前领域：从当前 Index 消失，并选中下一条。
-- 当前理解没有来源：Source Area 展示添加来源入口。
+- 当前理解没有来源：Context Area 展示添加来源入口。
 - 当前理解没有关系：Relation Area 展示暂时独立。
 - 当前理解正文存在未解析双链：Relation Area 展示未解析状态。
 
-### 4.4 Source Area
+### 4.4 Context Area
 
 职责：
 
@@ -363,7 +363,7 @@ MVP 不做：
 
 展示内容：
 
-- 来源类型。
+- Context medium。
 - 来源名或场景。
 - 内容摘录。
 - 字数或轻量元信息。
@@ -371,42 +371,42 @@ MVP 不做：
 
 展示规则：
 
-| 条件         | 展示                           |
-| ------------ | ------------------------------ |
-| 有来源       | 展示 source trace 列表         |
-| 无来源       | 展示添加来源入口               |
-| 来源较长     | 只展示摘要，完整内容进 overlay |
-| 来源名为空   | 用来源类型作为 placeholder     |
-| 来源内容为空 | 展示内容 placeholder           |
+| 条件         | 展示                             |
+| ------------ | -------------------------------- |
+| 有来源       | 展示 context trace 列表          |
+| 无来源       | 展示添加来源入口                 |
+| 来源较长     | 只展示摘要，完整内容进 overlay   |
+| 来源名为空   | 用Context medium作为 placeholder |
+| 来源内容为空 | 展示内容 placeholder             |
 
 用户动作：
 
 - 添加来源。
 - 打开来源详情。
-- 编辑来源类型。
-- 编辑来源名称。
+- 编辑Context medium。
+- 编辑Context 标题。
 - 编辑来源内容。
 - 删除来源。
 
 交互逻辑：
 
-- 点击来源摘要打开 Source Detail Overlay。
-- 新增来源从 Document 的 Source Area 触发。
-- 新增来源时创建一条绑定当前 Understanding 的 Source。
+- 点击来源摘要打开 Context Detail Overlay。
+- 新增来源从 Document 的 Context Area 触发。
+- 新增来源时创建一条绑定当前 Understanding 的 Context。
 - 删除来源需要确认。
 - 来源编辑按 local-first 方式持久化。
 
 业务规则：
 
 - 来源必须绑定当前理解。
-- 来源删除后，从当前理解的 source query 结果中消失。
+- 来源删除后，从当前理解的 context query 结果中消失。
 - 来源不是全局独立页面，不提供来源库管理。
 
 边界情况：
 
 - 来源很多：MVP 按更新时间或创建顺序展示，不做复杂排序。
 - 来源内容很长：Document 中只展示摘要。
-- 最后一条来源被删除：Source Area 回到无来源状态。
+- 最后一条来源被删除：Context Area 回到无来源状态。
 
 ### 4.5 Domain Assignment
 
@@ -647,17 +647,17 @@ MVP 状态：
 ```text
 打开理解
   -> 点击添加来源
-  -> 创建 Source
-  -> 编辑来源类型、名称、内容
-  -> Source Area 更新摘要
+  -> 创建 Context
+  -> 编辑Context medium、名称、内容
+  -> Context Area 更新摘要
   -> Index 更新来源摘要
 ```
 
 边界：
 
 - 来源内容为空：允许存在。
-- 来源名称为空：用来源类型作为 placeholder。
-- 删除最后一个来源：Source Area 回到无来源状态。
+- Context 标题为空：用Context medium作为 placeholder。
+- 删除最后一个来源：Context Area 回到无来源状态。
 
 ### 5.4 建立关系
 
@@ -700,7 +700,7 @@ MVP 状态：
 | 当前领域有理解       | Index 展示理解列表，Document 展示当前选中理解   |
 | 没有选中理解         | Document 展示当前领域的新建入口                 |
 | 新建空理解           | Index 展示“未命名理解”，Document 展示空标题正文 |
-| 当前理解无来源       | Source Area 展示添加来源入口                    |
+| 当前理解无来源       | Context Area 展示添加来源入口                   |
 | 当前理解无关系       | Relation Area 展示暂时独立                      |
 | 当前理解有 incoming  | Relation Area 展示被引用列表                    |
 | 当前理解有 outgoing  | Relation Area 展示引用了列表                    |
@@ -729,8 +729,8 @@ MVP 状态：
 ### 7.2 边界验收
 
 - Domain 没有 `children` 字段。
-- Understanding 没有 `sourceIds` 字段。
-- Source 没有 `trigger` 字段。
+- Understanding 没有 `contextIds` 字段。
+- Context 没有 `trigger` 字段。
 - Relation 没有 `origin` 字段。
 - Relation 只能从正文双链解析产生。
 - 页面没有手动添加关系入口。

@@ -4,20 +4,20 @@
 
 ## 约定
 
-- `THOUGHT_ID`、`CONTEXT_ID`、`CATEGORY_ID` 指数据库中已存在的活跃记录。
-- `DELETED_THOUGHT_ID` 指已软删除的 Thought。
+- `UNDERSTANDING_ID`、`CONTEXT_ID`、`DOMAIN_ID` 指数据库中已存在的活跃记录。
+- `DELETED_UNDERSTANDING_ID` 指已软删除的 Understanding。
 - `MISSING_ID` 指数据库中不存在的 nanoid。
 - 所有会修改数据的命令都需要 `--yes` 确认，除非另有说明。
 - 默认输出格式为 JSONL；`--format json` 切换为单个 JSON 对象。
 
 ## 文件一览
 
-| 文件                                 | 领域                                          |
-| ------------------------------------ | --------------------------------------------- |
-| [global.feature](global.feature)     | 全局选项、数据库生命周期、输出格式、帮助系统  |
-| [thought.feature](thought.feature)   | Thought 的列表、查看、创建、更新、删除        |
-| [context.feature](context.feature)   | Context 的列表、查看、创建、更新、删除        |
-| [category.feature](category.feature) | Category 的列表、查看、检查、创建、更新、删除 |
-| [search.feature](search.feature)     | 全文检索（Thought / Context / 全部）          |
-| [graph.feature](graph.feature)       | 图遍历（邻域、路径）                          |
-| [snapshot.feature](snapshot.feature) | 项目快照                                      |
+| 文件                                           | 领域                                         |
+| ---------------------------------------------- | -------------------------------------------- |
+| [global.feature](global.feature)               | 全局选项、数据库生命周期、输出格式、帮助系统 |
+| [understanding.feature](understanding.feature) | Understanding 的列表、查看、创建、更新、删除 |
+| [context.feature](context.feature)             | Context 的列表、查看、创建、更新、删除       |
+| [domain.feature](domain.feature)               | Domain 的列表、查看、检查、创建、更新、删除  |
+| [search.feature](search.feature)               | 全文检索（Understanding / Context / 全部）   |
+| [graph.feature](graph.feature)                 | 图遍历（邻域、路径）                         |
+| [snapshot.feature](snapshot.feature)           | 项目快照                                     |

@@ -1,35 +1,35 @@
 功能: Context 管理
 
   背景:
-    假设 数据库已初始化并包含 Thought 与 Context
+    假设 数据库已初始化并包含 Understanding 与 Context
 
   # context list
 
-  场景: 列出某 Thought 下的所有活跃 Context
-    假设 存在一条活跃 Thought THOUGHT_ID，其下有 3 个活跃 Context
-    当 用户执行命令 "context list --thought-id THOUGHT_ID"
+  场景: 列出某 Understanding 下的所有活跃 Context
+    假设 存在一条活跃 Understanding UNDERSTANDING_ID，其下有 3 个活跃 Context
+    当 用户执行命令 "context list --understanding-id UNDERSTANDING_ID"
     那么 标准输出包含 3 个 Context 对象
-    并且 每个对象包含 id、thoughtId、sourceType、sourceName、content
+    并且 每个对象包含 id、understandingId、medium、title、content
     并且 Context 按 created_at 降序排列
 
-  场景: Thought 下没有任何 Context
-    假设 存在一条活跃 Thought EMPTY_THOUGHT_ID，其下没有任何 Context
-    当 用户执行命令 "context list --thought-id EMPTY_THOUGHT_ID"
+  场景: Understanding 下没有任何 Context
+    假设 存在一条活跃 Understanding EMPTY_UNDERSTANDING_ID，其下没有任何 Context
+    当 用户执行命令 "context list --understanding-id EMPTY_UNDERSTANDING_ID"
     那么 标准输出为空
 
   场景: 排除已软删除的 Context
-    假设 存在一条活跃 Thought THOUGHT_ID，其下有 2 个活跃 Context 和 1 个已删除 Context
-    当 用户执行命令 "context list --thought-id THOUGHT_ID"
+    假设 存在一条活跃 Understanding UNDERSTANDING_ID，其下有 2 个活跃 Context 和 1 个已删除 Context
+    当 用户执行命令 "context list --understanding-id UNDERSTANDING_ID"
     那么 标准输出仅包含 2 个活跃 Context
 
-  场景: 缺少必填参数 --thought-id
+  场景: 缺少必填参数 --understanding-id
     当 用户执行命令 "context list"
     那么 命令退出码应为 1
     并且 标准错误输出应包含 VALIDATION_ERROR
 
-  场景: 对不存在的 Thought 列出 Context
+  场景: 对不存在的 Understanding 列出 Context
     假设 存在一个数据库中不存在的 ID MISSING_ID
-    当 用户执行命令 "context list --thought-id MISSING_ID"
+    当 用户执行命令 "context list --understanding-id MISSING_ID"
     那么 标准输出为空
 
   # context get
@@ -54,42 +54,42 @@
   # context create
 
   场景: 创建最简 Context
-    假设 存在一条活跃 Thought，其 ID 为 THOUGHT_ID
-    当 用户执行命令 "context create --thought-id THOUGHT_ID --source-type code --yes"
-    那么 数据库中新增一条 Context，其 thoughtId 为 THOUGHT_ID，sourceType 为 "code"
-    并且 sourceName 为 null
+    假设 存在一条活跃 Understanding，其 ID 为 UNDERSTANDING_ID
+    当 用户执行命令 "context create --understanding-id UNDERSTANDING_ID --medium other --yes"
+    那么 数据库中新增一条 Context，其 understandingId 为 UNDERSTANDING_ID，medium 为 "other"
+    并且 title 为 null
     并且 content 为 ""
 
   场景: 创建完整的 Context
-    假设 存在一条活跃 Thought，其 ID 为 THOUGHT_ID
-    当 用户执行命令 "context create --thought-id THOUGHT_ID --source-type article --source-name 'Blog Post' --content 'Important note' --yes"
+    假设 存在一条活跃 Understanding，其 ID 为 UNDERSTANDING_ID
+    当 用户执行命令 "context create --understanding-id UNDERSTANDING_ID --medium article --title 'Blog Post' --content 'Important note' --yes"
     那么 数据库中新增一条 Context，所有字段与输入一致
 
   场景: 创建 Context 后自动加入 FTS 索引
-    假设 存在一条活跃 Thought，其 ID 为 THOUGHT_ID
-    当 用户执行命令 "context create --thought-id THOUGHT_ID --source-type note --content 'UNIQUE_CONTEXT_TEXT' --yes"
+    假设 存在一条活跃 Understanding，其 ID 为 UNDERSTANDING_ID
+    当 用户执行命令 "context create --understanding-id UNDERSTANDING_ID --medium experience --content 'UNIQUE_CONTEXT_TEXT' --yes"
     那么 使用 "UNIQUE_CONTEXT_TEXT" 搜索 context 可返回该新 Context
 
-  场景: 缺少必填参数 --thought-id
-    当 用户执行命令 "context create --source-type code --yes"
+  场景: 缺少必填参数 --understanding-id
+    当 用户执行命令 "context create --medium other --yes"
     那么 命令退出码应为 1
-    并且 标准错误输出应提示缺少 --thought-id
+    并且 标准错误输出应提示缺少 --understanding-id
 
-  场景: 缺少必填参数 --source-type
-    假设 存在一条活跃 Thought，其 ID 为 THOUGHT_ID
-    当 用户执行命令 "context create --thought-id THOUGHT_ID --yes"
+  场景: 缺少必填参数 --medium
+    假设 存在一条活跃 Understanding，其 ID 为 UNDERSTANDING_ID
+    当 用户执行命令 "context create --understanding-id UNDERSTANDING_ID --yes"
     那么 命令退出码应为 1
-    并且 标准错误输出应提示缺少 --source-type
+    并且 标准错误输出应提示缺少 --medium
 
   场景: 未加 --yes 时拒绝创建
-    假设 存在一条活跃 Thought，其 ID 为 THOUGHT_ID
-    当 用户执行命令 "context create --thought-id THOUGHT_ID --source-type code"
+    假设 存在一条活跃 Understanding，其 ID 为 UNDERSTANDING_ID
+    当 用户执行命令 "context create --understanding-id UNDERSTANDING_ID --medium other"
     那么 命令退出码应为 3
     并且 数据库中未新增任何 Context
 
-  场景: 为不存在的 Thought 创建 Context
+  场景: 为不存在的 Understanding 创建 Context
     假设 存在一个数据库中不存在的 ID MISSING_ID
-    当 用户执行命令 "context create --thought-id MISSING_ID --source-type code --yes"
+    当 用户执行命令 "context create --understanding-id MISSING_ID --medium other --yes"
     那么 命令退出码应为 1
     并且 标准错误输出应包含外键约束或 NOT_FOUND 错误
 
@@ -101,15 +101,15 @@
     那么 该 Context 的 content 被更新
     并且 标准输出包含更新后的 Context 详情
 
-  场景: 更新 Context 来源名称
+  场景: 更新 Context 标题
     假设 存在一条活跃 Context，其 ID 为 CONTEXT_ID
-    当 用户执行命令 "context update CONTEXT_ID --source-name 'New Source' --yes"
-    那么 该 Context 的 sourceName 被更新
+    当 用户执行命令 "context update CONTEXT_ID --title 'New Context' --yes"
+    那么 该 Context 的 title 被更新
 
-  场景: 更新 Context 来源类型
+  场景: 更新 Context medium
     假设 存在一条活跃 Context，其 ID 为 CONTEXT_ID
-    当 用户执行命令 "context update CONTEXT_ID --source-type video --yes"
-    那么 该 Context 的 sourceType 被更新
+    当 用户执行命令 "context update CONTEXT_ID --medium video --yes"
+    那么 该 Context 的 medium 被更新
 
   场景: 更新内容后刷新 FTS 索引
     假设 存在一条活跃 Context CONTEXT_ID，其内容为 "OLD_TEXT"
@@ -118,10 +118,10 @@
     并且 搜索 "NEW_TEXT" 可返回该 Context
 
   场景: 部分更新保留未更改字段
-    假设 存在一条活跃 Context CONTEXT_ID，其 sourceName 为 "Old Name"，content 为 "Old Content"
+    假设 存在一条活跃 Context CONTEXT_ID，其 title 为 "Old Name"，content 为 "Old Content"
     当 用户执行命令 "context update CONTEXT_ID --content 'New Content' --yes"
     那么 content 已更新
-    并且 sourceName 仍为 "Old Name"
+    并且 title 仍为 "Old Name"
 
   场景: 更新不存在的 Context
     假设 存在一个数据库中不存在的 ID MISSING_ID

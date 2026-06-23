@@ -50,15 +50,15 @@ flowchart LR
   end
 
   subgraph Domain["Reflecta Domain Services"]
-    ThoughtSvc["Thought service"]
+    UnderstandingSvc["Understanding service"]
     ContextSvc["Context service"]
-    CategorySvc["Category service"]
+    DomainSvc["Domain service"]
     GraphSvc["Search / Graph service"]
   end
 
   subgraph DB["SQLite / libSQL"]
     AgentTables["Agent tables\nthreads / messages / tools / runs"]
-    KnowledgeTables["Knowledge tables\nthoughts / contexts / categories / connections"]
+    KnowledgeTables["Knowledge tables\nunderstandings / contexts / domains / connections"]
   end
 
   ChatUI --> UseChat
@@ -68,13 +68,13 @@ flowchart LR
   AgentRuntime --> ToolRegistry
   AgentRuntime --> RunStore
   RunStore --> AgentTables
-  ToolRegistry --> ThoughtSvc
+  ToolRegistry --> UnderstandingSvc
   ToolRegistry --> ContextSvc
-  ToolRegistry --> CategorySvc
+  ToolRegistry --> DomainSvc
   ToolRegistry --> GraphSvc
-  ThoughtSvc --> KnowledgeTables
+  UnderstandingSvc --> KnowledgeTables
   ContextSvc --> KnowledgeTables
-  CategorySvc --> KnowledgeTables
+  DomainSvc --> KnowledgeTables
   GraphSvc --> KnowledgeTables
   AgentTables -.stores UI state.-> GraphRender
   KnowledgeTables -.domain data.-> GraphRender
@@ -95,7 +95,7 @@ flowchart TD
   ThreadView --> UseChatRuntime["useChat runtime\n@ai-sdk/react"]
 
   Composer --> ContextMention["@context mention picker"]
-  ContextMention --> SelectedRefs["selectedContextRefs\nThought / Category / Context IDs"]
+  ContextMention --> SelectedRefs["selectedContextRefs\nUnderstanding / Domain / Context IDs"]
   Composer --> UseChatRuntime
   SelectedRefs --> UseChatRuntime
 
@@ -112,18 +112,18 @@ flowchart TD
 
 ### 前端实体
 
-| 实体                    | 职责                                                        | 持有的数据                                  | 交互对象                             |
-| ----------------------- | ----------------------------------------------------------- | ------------------------------------------- | ------------------------------------ |
-| `AgentPage`             | Agent 页面容器，组合 thread 列表、对话区、知识面板。        | 当前 `threadId`。                           | Router、thread queries。             |
-| `ThreadList`            | 展示 / 创建 / 重命名 / 归档 thread。                        | `agent_threads` 列表 DTO。                  | `ipcClient.agent`。                  |
-| `ThreadView`            | 当前对话工作区。                                            | 当前 thread 的 `UIMessage[]`。              | `useChat`。                          |
-| `Composer`              | 用户输入消息。                                              | draft text、selected context refs。         | `useChat.sendMessage`。              |
-| `ContextMentionPicker`  | `@context` 选择器。                                         | 被选中的 Thought / Category / Context ID。  | search / browse IPC。                |
-| `MessageList`           | 按 `UIMessage.parts` 渲染消息。                             | `UIMessage[]`。                             | text/tool/proposal/graph renderers。 |
-| `ToolRenderer`          | 展示 read tool 的运行状态和结果。                           | tool part。                                 | AI Elements Tool。                   |
-| `ProposalRenderer`      | 展示 write proposal，提供确认 / 拒绝。                      | tool part + `agent_tool_invocations` 状态。 | `addToolOutput` / confirm IPC。      |
-| `GraphRenderer`         | 渲染 tool 返回的 graph 数据。                               | graph tool output。                         | `@xyflow/react`。                    |
-| `ElectronChatTransport` | 把 AI SDK chat 请求转成 Electron IPC，并接收 stream chunk。 | requestId、threadId。                       | Electron main。                      |
+| 实体                    | 职责                                                        | 持有的数据                                     | 交互对象                             |
+| ----------------------- | ----------------------------------------------------------- | ---------------------------------------------- | ------------------------------------ |
+| `AgentPage`             | Agent 页面容器，组合 thread 列表、对话区、知识面板。        | 当前 `threadId`。                              | Router、thread queries。             |
+| `ThreadList`            | 展示 / 创建 / 重命名 / 归档 thread。                        | `agent_threads` 列表 DTO。                     | `ipcClient.agent`。                  |
+| `ThreadView`            | 当前对话工作区。                                            | 当前 thread 的 `UIMessage[]`。                 | `useChat`。                          |
+| `Composer`              | 用户输入消息。                                              | draft text、selected context refs。            | `useChat.sendMessage`。              |
+| `ContextMentionPicker`  | `@context` 选择器。                                         | 被选中的 Understanding / Domain / Context ID。 | search / browse IPC。                |
+| `MessageList`           | 按 `UIMessage.parts` 渲染消息。                             | `UIMessage[]`。                                | text/tool/proposal/graph renderers。 |
+| `ToolRenderer`          | 展示 read tool 的运行状态和结果。                           | tool part。                                    | AI Elements Tool。                   |
+| `ProposalRenderer`      | 展示 write proposal，提供确认 / 拒绝。                      | tool part + `agent_tool_invocations` 状态。    | `addToolOutput` / confirm IPC。      |
+| `GraphRenderer`         | 渲染 tool 返回的 graph 数据。                               | graph tool output。                            | `@xyflow/react`。                    |
+| `ElectronChatTransport` | 把 AI SDK chat 请求转成 Electron IPC，并接收 stream chunk。 | requestId、threadId。                          | Electron main。                      |
 
 ### 前端状态边界
 
@@ -180,13 +180,13 @@ flowchart TD
 | `AgentChatService`              | 处理发送消息、加载历史、启动 `streamText`、写入完成消息。 | `agent_messages`、`agent_runs`。                     |
 | `AgentApprovalService`          | 处理 proposal 确认 / 拒绝。确认后调用 domain mutation。   | `agent_tool_invocations`、Reflecta domain services。 |
 | `AgentToolRegistry`             | 定义可给模型调用的 tools。                                | read tools、proposal tools。                         |
-| `ReadTools`                     | 查询知识库，不产生写入。                                  | search / thought / context / graph services。        |
+| `ReadTools`                     | 查询知识库，不产生写入。                                  | search / understanding / context / graph services。  |
 | `ProposalTools`                 | 生成结构化写入提案，不直接落知识库。                      | `agent_tool_invocations`、message parts。            |
 | `AgentThreadRepository`         | thread CRUD。                                             | `agent_threads`。                                    |
 | `AgentMessageRepository`        | message append / list。                                   | `agent_messages`。                                   |
 | `AgentToolInvocationRepository` | tool invocation upsert / approval 状态更新。              | `agent_tool_invocations`。                           |
 | `AgentRunRepository`            | run 创建、状态更新、错误记录。                            | `agent_runs`。                                       |
-| `Reflecta Domain BFF`           | 现有 Thought / Context / Category / Graph 业务服务。      | knowledge tables。                                   |
+| `Reflecta Domain BFF`           | 现有 Understanding / Context / Domain / Graph 业务服务。  | knowledge tables。                                   |
 
 ### 后端数据流
 
@@ -225,7 +225,7 @@ Composer submit
 #### 3. Read tool
 
 ```txt
-streamText calls search_thoughts / get_thought / render_graph
+streamText calls search_understandings / get_understanding / render_graph
   -> AgentToolRegistry
   -> Reflecta Domain BFF
   -> knowledge tables
@@ -237,7 +237,7 @@ streamText calls search_thoughts / get_thought / render_graph
 #### 4. Write proposal
 
 ```txt
-streamText calls propose_create_thought
+streamText calls propose_create_understanding
   -> ProposalTools validates input
   -> create / update agent_tool_invocations(approval_status = pending)
   -> returns structured proposal output
@@ -251,7 +251,7 @@ ProposalRenderer confirm
   -> AgentApprovalService.confirm(tool_call_id)
   -> load agent_tool_invocation
   -> call Reflecta Domain BFF mutation
-  -> write thoughts / contexts / thought_connections
+  -> write understandings / contexts / understanding_connections
   -> update agent_tool_invocations(approved, result_ref_type, result_ref_id)
   -> addToolOutput so AI SDK can continue if needed
 ```
@@ -283,7 +283,7 @@ sequenceDiagram
   Agent->>Store: 创建 agent_run
   Agent-->>UI: streaming text parts
   Agent->>Tools: 调用 read tool 或 propose_* tool
-  Tools->>Domain: 读取 Thought / Context / Graph
+  Tools->>Domain: 读取 Understanding / Context / Graph
   Tools-->>Agent: 返回结构化 output
   Agent->>Store: 保存 message parts 和 tool invocation
   Agent-->>UI: tool part / proposal part
@@ -304,10 +304,10 @@ sequenceDiagram
 
 不重做 Reflecta 现有知识库表。继续保留：
 
-- `thoughts`
+- `understandings`
 - `contexts`
-- `categories`
-- `thought_connections`
+- `domains`
+- `understanding_connections`
 - search / graph domain services
 
 Agent 只在这些 domain services 之上工作，不引入第二套 knowledge model。
@@ -343,7 +343,7 @@ agent_tool_invocations
   output_json
   error_text
   approval_status     -- not_required | pending | approved | rejected
-  result_ref_type     -- nullable; thought | context | connection
+  result_ref_type     -- nullable; understanding | context | connection
   result_ref_id       -- nullable
   created_at
   updated_at
@@ -367,7 +367,7 @@ agent_runs
 - 记录 approve / reject。
 - 把确认后的结果链接到真实 Reflecta 对象。
 
-第一版 `agent_threads` 不绑定 Thought / Category / Graph 等对象。Agent 先作为独立对话 thread 存在；如果后续要做“在 Thought 详情内打开 Agent 面板”这类嵌入式场景，再补对象关联字段或独立关联表。
+第一版 `agent_threads` 不绑定 Understanding / Domain / Graph 等对象。Agent 先作为独立对话 thread 存在；如果后续要做“在 Understanding 详情内打开 Agent 面板”这类嵌入式场景，再补对象关联字段或独立关联表。
 
 ## 为什么不是一张 JSON messages 表
 
@@ -375,12 +375,12 @@ AI SDK 推荐持久化 `UIMessage`，因为它能完整恢复用户看到的聊�
 
 但 Reflecta 的 write tool 不是普通聊天装饰。它会产生需要用户确认的知识库变更：
 
-- `propose_create_thought`
+- `propose_create_understanding`
 - `propose_add_context`
 - `propose_create_connection`
 - 后续 graph / custom render tools
 
-这些状态需要被查询、审批、拒绝、重试，并且需要链接到最终创建的 Thought / Context / Connection。只存一坨 message JSON 会让这些操作变成反复扫描 JSON。
+这些状态需要被查询、审批、拒绝、重试，并且需要链接到最终创建的 Understanding / Context / Connection。只存一坨 message JSON 会让这些操作变成反复扫描 JSON。
 
 所以采用：
 
@@ -391,15 +391,15 @@ AI SDK 推荐持久化 `UIMessage`，因为它能完整恢复用户看到的聊�
 
 成熟方案大致收敛到这些概念：
 
-| 概念                       | 出现位置                                                     | 用途                                                                               |
-| -------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| Thread / chat / session    | AI SDK examples、Mastra memory、OpenAI Agents SDK、LangGraph | 用户可见的对话边界。                                                               |
-| Message history            | AI SDK、Vercel Chatbot、Mastra、OpenAI Agents SDK            | 恢复 UI，也作为模型上下文来源。                                                    |
-| Message parts              | AI SDK、Vercel Chatbot                                       | 存 text、tool call、tool result、自定义 UI data、attachments。                     |
-| Tool invocation / approval | AI SDK tool parts、LangGraph interrupts/checkpoints          | 追踪待确认动作，并在确认后恢复执行。                                               |
-| Run / stream               | Vercel Chatbot streams、OpenAI / LangGraph runs              | 追踪 streaming、取消、失败、重试、恢复。                                           |
-| Checkpoint                 | LangGraph                                                    | 用于 workflow replay、time travel、fault tolerance。V2 baseline 不需要。           |
-| Long-term memory store     | LangGraph stores、Mastra memory                              | 跨 thread 的长期 facts/preferences。Reflecta 现有 Thought/Context 已覆盖主要需求。 |
+| 概念                       | 出现位置                                                     | 用途                                                                                     |
+| -------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| Thread / chat / session    | AI SDK examples、Mastra memory、OpenAI Agents SDK、LangGraph | 用户可见的对话边界。                                                                     |
+| Message history            | AI SDK、Vercel Chatbot、Mastra、OpenAI Agents SDK            | 恢复 UI，也作为模型上下文来源。                                                          |
+| Message parts              | AI SDK、Vercel Chatbot                                       | 存 text、tool call、tool result、自定义 UI data、attachments。                           |
+| Tool invocation / approval | AI SDK tool parts、LangGraph interrupts/checkpoints          | 追踪待确认动作，并在确认后恢复执行。                                                     |
+| Run / stream               | Vercel Chatbot streams、OpenAI / LangGraph runs              | 追踪 streaming、取消、失败、重试、恢复。                                                 |
+| Checkpoint                 | LangGraph                                                    | 用于 workflow replay、time travel、fault tolerance。V2 baseline 不需要。                 |
+| Long-term memory store     | LangGraph stores、Mastra memory                              | 跨 thread 的长期 facts/preferences。Reflecta 现有 Understanding/Context 已覆盖主要需求。 |
 
 ## 产品能力覆盖
 
@@ -410,7 +410,7 @@ AI SDK 推荐持久化 `UIMessage`，因为它能完整恢复用户看到的聊�
 - text part -> markdown response。
 - tool result part -> tool status card。
 - `render_graph` tool result -> graph component。
-- `propose_create_thought` tool result -> proposal / confirmation component。
+- `propose_create_understanding` tool result -> proposal / confirmation component。
 
 Graph 渲染优先复用项目现有 graph 技术栈。LLM 返回结构化数据，React 决定渲染组件。
 
@@ -433,7 +433,7 @@ LLM 不直接写入个人知识库。
 实现方式：
 
 - 用现有 `cmdk` / shadcn 模式做 mention picker；
-- 用户选择 Thought / Category / Context；
+- 用户选择 Understanding / Domain / Context；
 - 前端发送对象 ID；
 - 后端展开 ID 成 prompt context。
 
@@ -441,15 +441,15 @@ LLM 不直接写入个人知识库。
 
 ## 暂不采用
 
-| 方案                        | 决策           | 原因                                                               |
-| --------------------------- | -------------- | ------------------------------------------------------------------ |
-| `pi-agent`                  | 不进入新主链路 | 和 AI SDK 的 runtime、tool loop、stream event、session 重叠。      |
-| CopilotKit                  | 第一版不上     | 适合 app-wide copilot / shared state，但当前需求偏重。             |
-| AG-UI                       | 第一版不上     | 是协议层，等多个 agent backend / frontend 出现后再考虑。           |
-| assistant-ui                | 第一版不上     | 聊天壳完整，但 Reflecta 需要强领域面板和 proposal flow。           |
-| LangGraph / Mastra workflow | 第一版不上     | workflow engine 等长任务、分支、恢复需求出现后再加。               |
-| LangGraph checkpoint tables | 第一版不上     | 只有需要 replay / time travel / fault tolerance 时才值得。         |
-| 独立 vector memory 表       | 第一版不上     | 先用 Thought / Context / Search / `@context`，语义召回不足时再加。 |
+| 方案                        | 决策           | 原因                                                                     |
+| --------------------------- | -------------- | ------------------------------------------------------------------------ |
+| `pi-agent`                  | 不进入新主链路 | 和 AI SDK 的 runtime、tool loop、stream event、session 重叠。            |
+| CopilotKit                  | 第一版不上     | 适合 app-wide copilot / shared state，但当前需求偏重。                   |
+| AG-UI                       | 第一版不上     | 是协议层，等多个 agent backend / frontend 出现后再考虑。                 |
+| assistant-ui                | 第一版不上     | 聊天壳完整，但 Reflecta 需要强领域面板和 proposal flow。                 |
+| LangGraph / Mastra workflow | 第一版不上     | workflow engine 等长任务、分支、恢复需求出现后再加。                     |
+| LangGraph checkpoint tables | 第一版不上     | 只有需要 replay / time travel / fault tolerance 时才值得。               |
+| 独立 vector memory 表       | 第一版不上     | 先用 Understanding / Context / Search / `@context`，语义召回不足时再加。 |
 
 ## 依赖变化
 

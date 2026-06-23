@@ -15,30 +15,27 @@ reflecta list-actions
 Show input and output help for one action:
 
 ```bash
-reflecta help search_thoughts
+reflecta search understandings --help
 ```
 
 Help is compact:
 
 ```text
-name search_thoughts
-mutates 0
-req query
-opt limit,offset
-json {"query":"design","limit":20,"offset":0}
-out ThoughtSummaryDTO[]
+Usage: reflecta search understandings <query> [options]
+Description: Full-text search understandings
+Returns: UnderstandingSearchHit[] — UnderstandingSummary + snippet, rank
 ```
 
 Run an action:
 
 ```bash
-reflecta search_thoughts --json '{"query":"design","limit":10}'
+reflecta search understandings design --limit 10
 ```
 
 Mutating actions require explicit confirmation:
 
 ```bash
-reflecta create_thought --json '{"type":"idea","title":"Inbox","body":"Capture this"}' --confirm
+reflecta understanding create --title Inbox --body "Capture this" --yes
 ```
 
 Action results are written directly as JSON on stdout, without wrappers:
@@ -66,14 +63,14 @@ The CLI resolves the local Reflecta database in this order:
 Set `REFLECTA_DB_PATH` when using a development or test database:
 
 ```bash
-REFLECTA_DB_PATH=/absolute/path/to/reflecta.db reflecta list_categories --json '{}'
+REFLECTA_DB_PATH=/absolute/path/to/reflecta.db reflecta domain list
 ```
 
-## Thought Links
+## Understanding Links
 
-Thought relationships are inferred from wiki links in the thought body.
+Understanding relationships are inferred from wiki links in the understanding body.
 
-In the CLI, write `[[thought title#target-thought-id]]` in `thought create --body` or `thought update --body`. The CLI stores that syntax directly and derives thought relationships from it.
+In the CLI, write `[[understanding title#target-understanding-id]]` in `understanding create --body` or `understanding update --body`. The CLI stores that syntax directly and derives understanding relationships from it.
 
 ## Development
 

@@ -13,9 +13,9 @@ Reflecta 的后端核心，采用按 Domain 分层架构：
 │  └── cli      (命令行业务编排)           │
 ├─────────────────────────────────────────┤
 │  Domain Core                            │
-│  ├── category/core.ts  (Category DB 操作)│
+│  ├── domain/core.ts  (Domain DB 操作)│
 │  ├── context/core.ts   (Context DB 操作) │
-│  ├── thought/core.ts   (Thought DB 操作) │
+│  ├── understanding/core.ts   (Understanding DB 操作) │
 │  ├── search/core.ts    (FTS 搜索操作)    │
 │  └── shared/core.ts    (通用工具函数)    │
 ├─────────────────────────────────────────┤
@@ -40,7 +40,7 @@ Reflecta 的后端核心，采用按 Domain 分层架构：
 
 - **Core 独立**：schema、迁移、工具函数可以被任何上层复用，不绑定到具体产品形态。
 - **Domain Core 复用**：将 electron / cli 中重复的 DB 操作、事务逻辑、FTS 操作抽象到各 domain 的 core，避免两边维护同样的 SQL。
-- **Domain BFF 按终端隔离**：electron BFF 返回完整 DTO 供 UI 绑定；CLI BFF 返回聚合结构（`ThoughtSummary`、`GraphNeighborhoodResult` 等），减少 agent 的 N+1 查询。
+- **Domain BFF 按终端隔离**：electron BFF 返回完整 DTO 供 UI 绑定；CLI BFF 返回聚合结构（`UnderstandingSummary`、`GraphNeighborhoodResult` 等），减少 agent 的 N+1 查询。
 - **Facade 轻量**：只做协议转换（IPC / argv → BFF method call），不写业务逻辑。
 - **上层无感知 Core**：GUI 和 CLI 只依赖 Facade，不直接触碰数据库。
 
@@ -53,7 +53,7 @@ src/
 │   ├── migration.ts
 │   └── index.ts
 ├── domains/             # Domain 层
-│   ├── category/
+│   ├── domain/
 │   │   ├── core.ts
 │   │   ├── bff-electron.ts
 │   │   └── bff-cli.ts
@@ -61,7 +61,7 @@ src/
 │   │   ├── core.ts
 │   │   ├── bff-electron.ts
 │   │   └── bff-cli.ts
-│   ├── thought/
+│   ├── understanding/
 │   │   ├── core.ts
 │   │   ├── bff-electron.ts
 │   │   └── bff-cli.ts
@@ -90,10 +90,10 @@ src/
 
 ```ts
 // 桌面端
-import { ThoughtService } from "@reflecta/server";
+import { UnderstandingElectronBff } from "@reflecta/server";
 
-// BFF Core（供内部 BFF 层使用，不推荐上层直接依赖）
-import { createThought } from "@reflecta/server/domains/thought/core";
+// CLI 端
+import { UnderstandingCliBff } from "@reflecta/server";
 
 // 底层能力（不推荐上层直接使用）
 import * as schema from "@reflecta/server/db/schema";

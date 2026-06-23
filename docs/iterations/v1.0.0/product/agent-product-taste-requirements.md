@@ -114,7 +114,7 @@ Reflecta 已定语义：
 - shadcn/cmdk：`@` picker / command palette。
 - Streamdown：stream markdown rendering。
 
-Reflecta 可以先不整体迁移 assistant-ui，但渲染模型必须向这些库的抽象靠拢。业务层只做最薄的映射：把 `search_all` 变成“搜索了相关内容”，把 `thought_get` 变成“读取了「标题」”。
+Reflecta 可以先不整体迁移 assistant-ui，但渲染模型必须向这些库的抽象靠拢。业务层只做最薄的映射：把 `search_all` 变成“搜索了相关内容”，把 `understanding_get` 变成“读取了「标题」”。
 
 ## 3. 成熟 Agent Turn 应该长什么样
 
@@ -141,7 +141,7 @@ Reflecta 可以先不整体迁移 assistant-ui，但渲染模型必须向这些�
 AI 正在理解问题
 
 ▾ 查找相关内容
-  搜索了 3 条 Thought / 1 条 Context
+  搜索了 3 条 Understanding / 1 条 Context
   读取了「三观里的恐惧/羞耻」
 
 你刚才提到的“热爱过程”和“风险控制活下去”，其实有一个共同点...
@@ -159,10 +159,10 @@ AI 正在理解问题
 ```text
 一大段回答
 
-AI 搜索了 0 条 Thought / 0 条 Context
-AI 搜索了 0 条 Thought / 1 条 Context
-AI 搜索了 0 条 Thought / 1 条 Context
-AI 搜索了 3 条 Thought / 1 条 Context
+AI 搜索了 0 条 Understanding / 0 条 Context
+AI 搜索了 0 条 Understanding / 1 条 Context
+AI 搜索了 0 条 Understanding / 1 条 Context
+AI 搜索了 3 条 Understanding / 1 条 Context
 ```
 
 后者的问题是：
@@ -213,7 +213,7 @@ Thinking 应该是“过程摘要”，不是 raw chain-of-thought。
 
 ```text
 ▾ 查找相关内容 · 完成
-  搜索了 3 条 Thought / 1 条 Context
+  搜索了 3 条 Understanding / 1 条 Context
   读取了「拖延与自我保护」
   读取了「真正的恶是放弃进步」
 ```
@@ -228,17 +228,17 @@ Thinking 应该是“过程摘要”，不是 raw chain-of-thought。
 
 默认文案必须是用户语义，不是内部 tool 名。
 
-| Tool 类型           | Running                | Done                     |
-| ------------------- | ---------------------- | ------------------------ |
-| category list       | 正在查看领域目录       | 查看了领域目录           |
-| category inspect    | 正在查看「领域名」     | 查看了「领域名」下的内容 |
-| thought search/list | 正在搜索相关想法       | 找到 8 条相关想法        |
-| thought get         | 正在读取「标题」       | 读取了「标题」           |
-| context search/list | 正在搜索来源           | 找到 3 条来源            |
-| context get         | 正在读取来源           | 读取了 1 条来源          |
-| graph neighborhood  | 正在查看附近关联       | 查看了「标题」附近的关联 |
-| graph path          | 正在查找两条想法的路径 | 查找了两条想法之间的路径 |
-| proposal create     | 正在准备候选项         | 准备了候选项             |
+| Tool 类型                 | Running                | Done                     |
+| ------------------------- | ---------------------- | ------------------------ |
+| domain list               | 正在查看领域目录       | 查看了领域目录           |
+| domain inspect            | 正在查看「领域名」     | 查看了「领域名」下的内容 |
+| understanding search/list | 正在搜索相关想法       | 找到 8 条相关想法        |
+| understanding get         | 正在读取「标题」       | 读取了「标题」           |
+| context search/list       | 正在搜索来源           | 找到 3 条来源            |
+| context get               | 正在读取来源           | 读取了 1 条来源          |
+| graph neighborhood        | 正在查看附近关联       | 查看了「标题」附近的关联 |
+| graph path                | 正在查找两条想法的路径 | 查找了两条想法之间的路径 |
+| proposal create           | 正在准备候选项         | 准备了候选项             |
 
 展开后可以显示：
 
@@ -268,7 +268,7 @@ Evidence 应该回答“这段回答基于哪些真实材料”。
 
 规则：
 
-- 只展示 Agent 实际读取过的 Thought / Context / Category。
+- 只展示 Agent 实际读取过的 Understanding / Context / Domain。
 - 不把用户 `@` 过但 Agent 没读的对象伪装成 evidence。
 - 太多时折叠。
 - 可以点击跳转。
