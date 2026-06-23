@@ -4,7 +4,7 @@
 >
 > 状态：Draft
 >
-> 目标：把 Agent 的知识库搜索从“直接执行 SQLite FTS 查询”改成“本地优先的 hybrid semantic retrieval”。第一版采用 RAG 社区成熟的 retrieval 技术，但不做完整 RAG answer pipeline，不做自动 GraphRAG 社区总结。
+> 目标：用 LanceDB 完全替换当前 SQLite FTS 搜索方案，把 Agent 的知识库搜索改成本地优先的 hybrid semantic retrieval。第一版采用 RAG 社区成熟的 retrieval 技术，但不做完整 RAG answer pipeline，不做自动 GraphRAG 社区总结。
 
 ## 1. 结论
 
@@ -23,7 +23,7 @@ Agent natural language query
 ```txt
 RetrievalDocument projection
   + dense vector search
-  + lexical search
+  + LanceDB FTS / BM25 lexical search
   + RRF fusion
   + parent Understanding grouping
   + Reflecta explicit relation expansion
@@ -37,6 +37,7 @@ RetrievalDocument projection
 - GraphRAG community summary
 - LLM reranker 作为第一版必需项
 - 云端向量数据库作为默认依赖
+- 继续维护 SQLite FTS 搜索索引
 
 一句话：
 
@@ -68,7 +69,7 @@ Reflecta Retrieval 不是“搜资料片段”，而是从语义和关键词两�
 
 Reflecta 应该采用其中的 retrieval 技术，但输出对象不能照搬普通 RAG 的 `chunk`。Reflecta 的默认输出主语必须是 `Understanding`。
 
-## 3. 当前问题
+## 3. 当前问题与替换边界
 
 现在 Agent 调用的是通用搜索工具：
 
@@ -76,7 +77,7 @@ Reflecta 应该采用其中的 retrieval 技术，但输出对象不能照搬普
 search({ query: "PDCA 检验 标准 Check 验证 迭代 反馈" })
 ```
 
-这个 query 对 Agent 来说是自然语言 / 关键词包。对底层 FTS 来说，它可能变成过强的布尔约束，导致明明有相关内容却返回空。
+这个 query 对 Agent 来说是自然语言 / 关键词包。对当前 SQLite FTS 来说，它可能变成过强的布尔约束，导致明明有相关内容却返回空。
 
 真实 session JSONL 里已经出现过：
 
@@ -108,6 +109,22 @@ OR search
 - Debug 时如何知道 dense / lexical / relation 哪一路起作用。
 
 所以第一版应该做 hybrid semantic retrieval，而不是 FTS patch。
+
+替换边界：
+
+```txt
+SQLite = Reflecta 产品事实源
+LanceDB = 唯一检索索引
+```
+
+SQLite 仍然保存 `understandings`、`contexts`、`domains`、`connections`。LanceDB 保存由这些表派生出来的 `RetrievalDocument` rows，并负责 dense vector search、FTS / BM25、hybrid fusion。
+
+当前 `SearchCore` / SQLite FTS 搜索路径要被替换：
+
+- Pi Agent 的 `retrieve_knowledge` 使用 LanceDB。
+- 现有 `search` tool 如果继续保留名称，也只作为兼容入口，内部走 LanceDB / `retrieveKnowledge()`。
+- CLI `search` 也切到 LanceDB，不再直接查 SQLite FTS。
+- 后续 migration 删除或停止维护 `fts_understandings` / `fts_contexts`。
 
 ## 4. Product Semantics
 
@@ -178,8 +195,8 @@ connections
 ```txt
 source tables
   -> RetrievalDocument
-  -> embedding / vector index
-  -> FTS / BM25 index
+  -> LanceDB vector column
+  -> LanceDB FTS / BM25 index
 ```
 
 最小类型：
@@ -330,9 +347,7 @@ type CandidateEvidence = {
 ```txt
 retrieveKnowledge(query, anchors)
   -> build query embedding
-  -> dense search RetrievalDocument
-  -> lexical search RetrievalDocument
-  -> RRF fusion
+  -> LanceDB hybrid search RetrievalDocument
   -> group by parentUnderstandingId
   -> attach matched Contexts
   -> expand explicit relations from strong anchors
@@ -354,37 +369,51 @@ retrieveKnowledge(query, anchors)
 
 这个 projection 可以删掉重建。它不是事实来源。
 
-### 7.2 EmbeddingIndex
+同步原则：
+
+```txt
+SQLite write succeeds
+  -> syncByUnderstandingId(parentUnderstandingId)
+  -> LanceDB upsert / delete
+```
+
+LanceDB 同步失败不能回滚 SQLite 产品数据。失败时记录 index dirty 状态，后续触发 `rebuildRetrievalIndex()`。
+
+### 7.2 LanceDbRetrievalIndex
 
 负责：
 
-- 对 `textForEmbedding` 生成 embedding。
-- 存储 vector。
-- 记录 embedding model、dimension、index version。
+- 管理 LanceDB table。
+- 写入 `RetrievalDocument` rows。
+- 存储 embedding vector。
+- 为 lexical text 建 LanceDB FTS index。
+- 执行 LanceDB vector / FTS / hybrid search。
+- 记录 embedding model、dimension、projection version、index location。
 - embedding model 或 projection version 变化时触发 rebuild。
 
 第一版必须支持 rebuild，不必先做复杂增量迁移。
 
-### 7.3 LexicalIndex
+### 7.3 EmbeddingProvider
 
 负责：
 
-- 对 `textForLexicalSearch` 做 FTS / BM25。
-- 保留精确词、英文缩写、中文术语、Domain 名称。
-- 不把 FTS query 语法暴露给 Agent。
+- 把 query 和 `RetrievalDocument.textForEmbedding` 转成 vector。
+- 保证写入索引和查询使用同一个 embedding model。
+- 批量生成 embedding，避免逐条网络请求。
 
-Lexical 是 hybrid 的并行通道，不再只是 dense search 失败后的 fallback。
+第一版默认使用一个 provider embedding model。模型切换时不做在线混用，直接 full rebuild。
 
 ### 7.4 HybridRetriever
 
-执行两路召回：
+调用 LanceDB 执行 hybrid search：
 
 ```txt
-dense topK
-lexical topK
+dense vector search
+lexical FTS / BM25 search
+RRF fusion
 ```
 
-再用 RRF 合并：
+RRF 可以由 LanceDB 提供；如果 API 层不满足 trace 需要，再在 adapter 里显式合并：
 
 ```txt
 fusedScore(doc) =
@@ -547,37 +576,42 @@ understanding_get / context_get / domain_inspect
 }
 ```
 
-保留现有 `search`，但 prompt 中主推 `retrieve_knowledge`。
+现有 `search` 名称可以保留做兼容，但不能再走旧 SQLite FTS。它要么直接调用 `retrieveKnowledge()` 并降级成旧 shape，要么在内部调用同一个 LanceDB adapter。
 
 ## 10. 技术选型
 
-本地优先。
+选定 LanceDB。
 
-候选 A：LanceDB
+原因：
 
-- 优点：本地库，支持 vector、FTS、hybrid search、RRF / reranker，TypeScript 可用。
-- 风险：Electron 打包和 native dependency 需要 spike。
+- 本地库，不需要额外服务进程。
+- 同一套索引覆盖 vector search、FTS / BM25、hybrid search。
+- TypeScript 可用，适合 Electron main 进程集成。
+- 替代 SQLite FTS 后，检索逻辑集中在一个 index adapter，少维护一套搜索语义。
 
-候选 B：SQLite FTS5 + sqlite-vec
+风险：
 
-- 优点：贴近现有 SQLite 架构，迁移心理成本低。
-- 风险：hybrid fusion、index sync、embedding storage 要自己写更多代码。
+- Electron 打包和 native dependency 需要 spike。
+- LanceDB index 是 SQLite 之外的新持久化目录，需要明确存储位置和 rebuild 策略。
+- embedding provider 失败时，写路径不能让 SQLite 产品数据回滚。
 
-暂不默认：
+不采用：
 
+- SQLite FTS5 + sqlite-vec：会让 hybrid fusion、index sync、embedding storage 都落到自己维护。
 - Qdrant / Chroma：更像额外检索服务，先不引入服务进程。
 - GraphRAG：适合全库宏观问题和 community summary，不适合作为 v1.1.0 主线。
 
-Phase 0 必须先做技术 spike，确认 Electron packaging、查询延迟、索引 rebuild 可接受。
+Phase 0 只验证 LanceDB 是否能在 Electron 环境稳定运行。
 
-## 11. Phase 0：Hybrid Index Spike
+## 11. Phase 0：LanceDB Spike
 
 用户状态：无用户可见变化。
 
 实现范围：
 
 - 用少量 Understanding / Context 样本生成 `RetrievalDocument`。
-- 分别验证 LanceDB 和 SQLite + sqlite-vec 的可行性，最多选一个继续。
+- 验证 LanceDB table 创建、写入、删除、查询。
+- 验证 vector search、FTS search、hybrid search。
 - 验证 Electron main 进程可写入、查询、重启后读取索引。
 - 验证打包风险，不做完整 UI。
 
@@ -586,13 +620,13 @@ TDD / checks：
 1. 给定 Understanding + Context，能生成 deterministic `RetrievalDocument`。
 2. Context document 包含 parent Understanding title / Domain / medium / content。
 3. 能对 query 做 dense search。
-4. 能对 query 做 lexical search。
-5. 能用 RRF 合并两个 result list。
+4. 能对 query 做 LanceDB FTS / lexical search。
+5. 能执行 LanceDB hybrid search。
 
 退出条件：
 
-- 选定一个本地索引方案。
-- 明确 embedding model、dimension、index 存储位置。
+- LanceDB 可在 Electron main 进程稳定运行。
+- 明确 embedding model、dimension、LanceDB index 存储位置。
 - 明确 rebuild 策略。
 
 ## 12. Phase 1：RetrievalDocument Projection
@@ -603,8 +637,9 @@ TDD / checks：
 
 - 新增 `packages/server/src/domains/retrieval`。
 - 新增 projection builder。
-- 新增 projection sync / rebuild 命令或内部方法。
+- 新增 LanceDB sync / rebuild 命令或内部方法。
 - Understanding / Context 创建、更新、删除后能同步检索文档。
+- 停止向 SQLite FTS 表写入新的检索数据。
 
 TDD：
 
@@ -614,12 +649,15 @@ TDD：
 4. GREEN：实现 Context projection。
 5. RED：删除 Understanding / Context 后对应 document 不再被检索。
 6. GREEN：实现 sync / rebuild。
+7. RED：更新 Understanding title 后，其 Context retrieval rows 也被重建。
+8. GREEN：实现 `syncByUnderstandingId()`。
 
 退出条件：
 
 - `RetrievalDocument` 可被完整重建。
 - Context document 不会退化成裸 content chunk。
 - Domain names 能进入 searchable text / metadata。
+- LanceDB 是唯一被同步的检索索引。
 
 ## 13. Phase 2：HybridRetriever
 
@@ -628,9 +666,9 @@ TDD：
 实现范围：
 
 - 新增 embedding 生成和存储。
-- 新增 dense retrieval。
-- 新增 lexical retrieval。
-- 新增 RRF fusion。
+- 新增 LanceDB dense retrieval。
+- 新增 LanceDB FTS / lexical retrieval。
+- 新增 LanceDB hybrid retrieval / RRF fusion。
 - 新增 trace。
 
 TDD：
@@ -638,9 +676,9 @@ TDD：
 1. RED：query 与 Understanding 没有共同关键词，但语义接近，dense 能召回。
 2. GREEN：接入 embedding search。
 3. RED：query 包含精确术语 / 缩写，lexical 能召回。
-4. GREEN：接入 FTS / BM25。
+4. GREEN：接入 LanceDB FTS / BM25。
 5. RED：同一 document 同时出现在 dense 和 lexical 时，RRF 排名提升。
-6. GREEN：实现 RRF。
+6. GREEN：接入 LanceDB RRF，或在 adapter 内补 RRF。
 7. RED：trace 返回 dense / lexical / fusion 统计。
 8. GREEN：补 trace。
 
@@ -649,6 +687,7 @@ TDD：
 - dense 和 lexical 是并行通道。
 - 不再依赖 FTS fallback 作为主召回心智。
 - 查询结果能解释每条 document 来自哪一路。
+- 不再查询 SQLite `fts_understandings` / `fts_contexts`。
 
 ## 14. Phase 3：UnderstandingCandidateBuilder
 
@@ -661,6 +700,7 @@ TDD：
 - Understanding hit 和 Context hit 的 evidence 合并。
 - 输出 `suggestedRead`。
 - 新增 Pi read-only tool：`retrieve_knowledge`。
+- 现有 `search` tool 改为 LanceDB-backed compatibility adapter。
 
 TDD：
 
@@ -677,9 +717,36 @@ TDD：
 
 - Agent 不需要自己把 Context hit 追到 parent Understanding。
 - 返回结果能表达“这条理解从哪里长出来”。
-- 旧 `search` tool 保留。
+- `retrieve_knowledge` 和兼容 `search` 都不再使用 SQLite FTS。
 
-## 15. Phase 4：Relation Expansion
+## 15. Phase 4：Search Replacement Cleanup
+
+用户状态：用户继续使用搜索能力，但结果来自 LanceDB。
+
+实现范围：
+
+- 删除或停用 `SearchCore` 对 SQLite FTS 表的查询路径。
+- CLI `search` 切到 LanceDB-backed retrieval。
+- Electron / Pi `search` 兼容入口切到 LanceDB-backed retrieval。
+- migration 停止创建或填充 `fts_understandings` / `fts_contexts`。
+- 如果已有 profile 里存在旧 FTS 表，不再依赖它们；后续可清理。
+
+TDD：
+
+1. RED：CLI `search` 不访问 SQLite FTS 表也能返回结果。
+2. GREEN：CLI `search` 走 LanceDB adapter。
+3. RED：Pi `search` 不访问 SQLite FTS 表也能返回结果。
+4. GREEN：Pi `search` 走同一 adapter。
+5. RED：Understanding 更新后 CLI / Pi 搜索均反映 LanceDB 同步结果。
+6. GREEN：接入 write path sync。
+
+退出条件：
+
+- 当前搜索方案完全由 LanceDB 替代。
+- SQLite FTS 不再是运行时依赖。
+- 旧 tool 名称如果保留，也只是 compatibility surface。
+
+## 16. Phase 5：Relation Expansion
 
 用户状态：Agent 找到一个入口理解后，可以看到显式相关的相邻理解。
 
@@ -705,7 +772,7 @@ TDD：
 - 不会因为关系扩展返回过多无关结果。
 - Context 不通过 RelationExpander 扩展；Context 仍由 retrieval document 命中后折回 parent。
 
-## 16. Phase 5：Optional Reranker
+## 17. Phase 6：Optional Reranker
 
 只有满足下面条件才进入：
 
@@ -726,7 +793,7 @@ hybrid retrieval 已能召回正确候选，
 - trace 能显示 reranker 前后排名。
 - 成本、延迟、隐私策略明确。
 
-## 17. 验收标准
+## 18. 验收标准
 
 产品验收：
 
@@ -740,22 +807,23 @@ hybrid retrieval 已能召回正确候选，
 工程验收：
 
 - `retrieveKnowledge()` 是测试主 seam。
-- Agent 不需要知道 FTS、embedding、vector DB、RRF 细节。
+- Agent 不需要知道 LanceDB、embedding、FTS、RRF 细节。
 - `RetrievalDocument` 是可重建 projection，不是事实来源。
 - embedding model / projection version 变化可触发 rebuild。
-- 旧 `search` 行为不被误改。
-- 本地索引方案能在 Electron 环境稳定运行。
+- 旧 `search` 名称如果保留，内部也走 LanceDB。
+- SQLite FTS 不再作为搜索索引维护。
+- LanceDB 能在 Electron 环境稳定运行。
 
-## 18. 最终目标形态
+## 19. 最终目标形态
 
 ```txt
 Pi Agent
   -> retrieve_knowledge(query, anchors)
   -> KnowledgeRetriever
       -> RetrievalProjection
-      -> EmbeddingIndex
-      -> LexicalIndex
-      -> HybridRetriever(dense + lexical + RRF)
+      -> LanceDbRetrievalIndex
+      -> EmbeddingProvider
+      -> HybridRetriever(LanceDB dense + FTS + RRF)
       -> UnderstandingCandidateBuilder(parent grouping)
       -> RelationExpander(explicit one-hop)
       -> RetrievalTrace
@@ -767,10 +835,11 @@ Pi Agent
 
 ```txt
 v1.1.0 做 local-first hybrid semantic retriever：
-向量召回负责语义相近，
-Lexical 召回负责精确词，
+LanceDB 向量召回负责语义相近，
+LanceDB FTS / BM25 负责精确词，
 RetrievalDocument 负责索引投影，
 parentUnderstandingId 负责把 Context 命中折回 Understanding，
 RRF 负责合并排序，
 trace 负责可解释和可调试。
+SQLite 继续做产品事实源，但不再承担搜索索引职责。
 ```
