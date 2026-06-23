@@ -95,7 +95,7 @@ test("@AG-RETRIEVAL-001 用户通过关键词搜索找到 Understanding", async 
   }
 });
 
-test("@AG-RETRIEVAL-002 用户通过语义搜索找到没有共同关键词的 Understanding", async () => {
+test("@AG-RETRIEVAL-002 用户通过 @ 搜索不会看到只有语义相关的 Understanding", async () => {
   const embeddingServer = await startEmbeddingServer();
   writeRetrievalConfig(embeddingServer.baseUrl);
   seedUnderstanding({
@@ -109,11 +109,12 @@ test("@AG-RETRIEVAL-002 用户通过语义搜索找到没有共同关键词的 U
     await composer(page).click();
     await page.keyboard.type("@meaningbridge");
     await expect(page.getByTestId("agent-context-picker")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("没有可选上下文")).toBeVisible({ timeout: 15_000 });
     await expect(
       page
         .locator('[data-testid="agent-context-option"][data-context-type="understanding"]')
         .filter({ hasText: "Vector Recall Canary" }),
-    ).toBeVisible({ timeout: 20_000 });
+    ).toHaveCount(0);
   } finally {
     await app.close();
     await embeddingServer.close();

@@ -12,6 +12,9 @@ type LanceDbRetrievalIndexOptions = {
   tableName?: string;
 };
 
+type LanceDbConnection = Awaited<ReturnType<typeof lancedb.connect>>;
+type LanceDbTable = Awaited<ReturnType<LanceDbConnection["openTable"]>>;
+
 type ReplaceAllOptions = {
   onEmbeddingProgress?: (progress: { completed: number; total: number }) => void;
   onWritingStart?: () => void;
@@ -199,22 +202,12 @@ export class LanceDbRetrievalIndex {
   }
 
   async search(query: string, limit = 20): Promise<RetrievalSearchHit[]> {
-    const db = await lancedb.connect(this.options.uri);
-    const tableNames = await db.tableNames();
-    if (!tableNames.includes(this.tableName)) return [];
+    const table = await this.openTable();
+    if (!table) return [];
 
-    const table = await db.openTable(this.tableName);
     const searchLimit = Math.max(limit * 5, 20);
+    const lexicalRows = await this.searchLexicalRows(table, query, limit);
     const tokens = lexicalTokens(query);
-    const lexicalRows = (
-      (await table
-        .search(query)
-        .fullTextSearch(query, { columns: ["textForLexicalSearch"] })
-        .limit(searchLimit)
-        .toArray()) as RetrievalRow[]
-    )
-      .filter((row) => matchesLexicalQuery(row, tokens))
-      .slice(0, limit);
     if (!shouldSearchDense(tokens, lexicalRows, limit)) {
       return fuseRows(lexicalRows, [], limit).map(fromRow);
     }
@@ -225,6 +218,38 @@ export class LanceDbRetrievalIndex {
         )
       : [];
     return fuseRows(lexicalRows, semanticRows, limit).map(fromRow);
+  }
+
+  async searchLexical(query: string, limit = 20): Promise<RetrievalSearchHit[]> {
+    const table = await this.openTable();
+    if (!table) return [];
+
+    return fuseRows(await this.searchLexicalRows(table, query, limit), [], limit).map(fromRow);
+  }
+
+  private async openTable(): Promise<LanceDbTable | null> {
+    const db = await lancedb.connect(this.options.uri);
+    const tableNames = await db.tableNames();
+    if (!tableNames.includes(this.tableName)) return null;
+    return db.openTable(this.tableName);
+  }
+
+  private async searchLexicalRows(
+    table: LanceDbTable,
+    query: string,
+    limit: number,
+  ): Promise<RetrievalRow[]> {
+    const searchLimit = Math.max(limit * 5, 20);
+    const tokens = lexicalTokens(query);
+    return (
+      (await table
+        .search(query)
+        .fullTextSearch(query, { columns: ["textForLexicalSearch"] })
+        .limit(searchLimit)
+        .toArray()) as RetrievalRow[]
+    )
+      .filter((row) => matchesLexicalQuery(row, tokens))
+      .slice(0, limit);
   }
 
   private async embedRows(

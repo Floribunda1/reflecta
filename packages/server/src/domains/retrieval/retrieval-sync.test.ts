@@ -61,6 +61,20 @@ async function indexIds(query: string) {
   return (await createRetrievalIndex().search(query, 10)).map((hit) => hit.id);
 }
 
+function semanticVectorFor(text: string) {
+  const normalized = text.toLocaleLowerCase();
+  if (
+    /denseonlysourcewithoutsharedterms|semantic-query|retrieval-vector-feedback|持续改进/.test(
+      normalized,
+    )
+  ) {
+    return [1, 0, 0];
+  }
+  if (/retrieval-vector-environment|自控硬撑/.test(normalized)) return [0, 1, 0];
+  if (/retrieval-vector-trading|下单失败/.test(normalized)) return [0, 0, 1];
+  return [0, 0, 0];
+}
+
 async function startEmbeddingServer() {
   const server = createServer((request, response) => {
     const chunks: Buffer[] = [];
@@ -71,7 +85,7 @@ async function startEmbeddingServer() {
       response.end(
         JSON.stringify({
           data: body.input.map((text) => ({
-            embedding: /semantic-source|semantic-query/.test(text) ? [1, 0] : [0, 1],
+            embedding: semanticVectorFor(text),
           })),
         }),
       );
@@ -96,7 +110,7 @@ async function startSlowQueryEmbeddingServer(query: string, delayMs = 1_200) {
         response.end(
           JSON.stringify({
             data: inputs.map((text) => ({
-              embedding: /semantic-source|semantic-query/.test(text) ? [1, 0] : [0, 1],
+              embedding: semanticVectorFor(text),
             })),
           }),
         );
@@ -303,7 +317,7 @@ describe("retrieval index write-path sync", () => {
     expect(status.progress?.completed).toBeLessThan(status.progress?.total ?? 0);
   });
 
-  test("interactive Understanding search finds semantic matches without shared keywords", async () => {
+  test("interactive Understanding search stays lexical-only even when semantic matches exist", async () => {
     const baseUrl = await startEmbeddingServer();
     configureRetrievalEmbedding({
       provider: "openai-compatible",
@@ -312,16 +326,16 @@ describe("retrieval index write-path sync", () => {
     });
     const { db, understandings } = await setupServices();
     const created = await understandings.createUnderstanding({
-      title: "Semantic Picker Source",
-      body: "semantic-source-without-query-keyword",
+      title: "Dense Only Picker Source",
+      body: "denseonlysourcewithoutsharedterms",
     });
 
     const rows = await new SearchCore(db).searchUnderstandingIds("semantic-query", { limit: 5 });
 
-    expect(rows.map((row) => row.understandingId)).toContain(created.id);
+    expect(rows.map((row) => row.understandingId)).not.toContain(created.id);
   });
 
-  test("keyword Understanding search returns lexical matches without waiting for query embedding", async () => {
+  test("interactive Understanding search returns lexical matches without waiting for query embedding", async () => {
     const keyword = "slowkeywordmarker";
     configureRetrievalEmbedding({
       provider: "openai-compatible",
@@ -342,6 +356,26 @@ describe("retrieval index write-path sync", () => {
     expect(elapsedMs).toBeLessThan(700);
   });
 
+  test("interactive Understanding search returns no lexical matches without waiting for query embedding", async () => {
+    configureRetrievalEmbedding({
+      provider: "openai-compatible",
+      baseUrl: await startSlowQueryEmbeddingServer("semantic-query"),
+      modelId: "test-slow-query",
+    });
+    const { db, understandings } = await setupServices();
+    await understandings.createUnderstanding({
+      title: "Semantic Only Source",
+      body: "denseonlysourcewithoutsharedterms",
+    });
+
+    const startedAt = Date.now();
+    const rows = await new SearchCore(db).searchUnderstandingIds("semantic-query", { limit: 5 });
+    const elapsedMs = Date.now() - startedAt;
+
+    expect(rows).toEqual([]);
+    expect(elapsedMs).toBeLessThan(700);
+  });
+
   test("retrieveKnowledge uses configured OpenAI-compatible embeddings for dense recall", async () => {
     configureRetrievalEmbedding({
       provider: "openai-compatible",
@@ -350,8 +384,8 @@ describe("retrieval index write-path sync", () => {
     });
     const { search, understandings } = await setupServices();
     const created = await understandings.createUnderstanding({
-      title: "Semantic Source",
-      body: "semantic-source-without-query-keyword",
+      title: "Dense Source",
+      body: "denseonlysourcewithoutsharedterms",
     });
 
     const result = await search.retrieveKnowledge({ query: "semantic-query", limit: 5 });
@@ -361,6 +395,52 @@ describe("retrieval index write-path sync", () => {
       embeddingModel: "test-openai-compatible",
       dense: { searched: true, hits: 1 },
     });
+  });
+
+  test("@AG-RETRIEVAL-003 retrieveKnowledge returns expected semantic candidates within the interactive budget", async () => {
+    configureRetrievalEmbedding({
+      provider: "openai-compatible",
+      baseUrl: await startEmbeddingServer(),
+      modelId: "test-openai-compatible",
+    });
+    const { search, understandings } = await setupServices();
+    const cases = [
+      {
+        title: "反馈回路让学习形成积累",
+        body: "retrieval-vector-feedback 每次实践后的观察会变成下一轮验证标准。",
+        query: "怎么让复盘不只是记录而能持续改进",
+      },
+      {
+        title: "环境提示比意志力稳定",
+        body: "retrieval-vector-environment 具体场景里的提醒会降低执行成本。",
+        query: "怎样减少靠自控硬撑",
+      },
+      {
+        title: "交易亏损要区分判断和纪律",
+        body: "retrieval-vector-trading 亏损后要拆开市场假设与执行纪律。",
+        query: "一次下单失败后应该怎么复盘",
+      },
+    ];
+    const expectedIds = new Map<string, string>();
+    for (const item of cases) {
+      const created = await understandings.createUnderstanding({
+        title: item.title,
+        body: item.body,
+      });
+      expectedIds.set(item.query, created.id);
+    }
+
+    for (const item of cases) {
+      const startedAt = Date.now();
+      const result = await search.retrieveKnowledge({ query: item.query, limit: 3 });
+      const elapsedMs = Date.now() - startedAt;
+
+      expect(result.candidates.map((candidate) => candidate.id)).toContain(
+        expectedIds.get(item.query),
+      );
+      expect(result.trace.dense.hits).toBeGreaterThan(0);
+      expect(elapsedMs).toBeLessThan(1_200);
+    }
   });
 
   test("retrieveKnowledge expands one-hop explicit Understanding relations from anchors", async () => {
