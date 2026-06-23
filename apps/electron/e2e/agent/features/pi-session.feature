@@ -40,6 +40,16 @@
     而且页面应该显示用户消息 second
     而且输入框应该可操作
 
+  @P0 @recovery @AG-PI-FAILURE-002
+  场景: 用户点击失败回复的重试后看到新的回复
+    假如用户已经用 Pi Agent runtime 进入 Agent 页面
+    而且当前对话中有一条失败回复
+    而且 Agent 当前可以正常回复
+    当用户点击重试
+    那么最终应该出现一条 Agent 回复正文
+    而且失败状态应该消失
+    而且输入框应该可操作
+
   @P0 @control @AG-PI-RUN-001
   场景: 用户停止 Pi-backed session 中正在生成的回复
     假如用户已经用 Pi Agent runtime 进入 Agent 页面

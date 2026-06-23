@@ -142,7 +142,21 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
           reasoningLevel: input.reasoningLevel,
         });
       },
-      retry: async () => {},
+      retry: async () => {
+        if (isBusy) return;
+        const userMessage = visibleMessages.findLast((message) => message.role === "user");
+        if (!userMessage) return;
+        chatUiStore.getState().setStoppedMessage(sessionId, null);
+        await ipcClient.chat.sendAgentCommand({
+          type: "message.send",
+          sessionId,
+          text: userMessage.text,
+          messageId: userMessage.id,
+          contextRefs: userMessage.contextRefs,
+          files: userMessage.files,
+          composerContent: userMessage.composerContent,
+        });
+      },
       regenerate: async (messageId) => {
         if (isBusy) return;
         const assistantIndex = visibleMessages.findIndex((message) => message.id === messageId);

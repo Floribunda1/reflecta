@@ -25,6 +25,7 @@ const PI_APPROVE_PROPOSAL_TITLE = "PI_APPROVE_CANDIDATE_THOUGHT";
 const PI_RELOAD_PROPOSAL_TITLE = "PI_RELOAD_CANDIDATE_THOUGHT";
 const PI_CATEGORY_PROPOSAL_NAME = "PI_APPROVE_CANDIDATE_CATEGORY";
 const ABANDONED_RUN_MESSAGE = "ABANDONED_RUN_MESSAGE";
+const FAILED_RETRY_MESSAGE = "FAILED_RETRY_MESSAGE";
 
 function sessionsRoot() {
   return path.join(readE2eTestEnv().contentStorageRoot, "Sessions");
@@ -110,6 +111,38 @@ function seedAbandonedPiSession() {
   flushPiSession(manager);
 }
 
+function seedFailedPiSession() {
+  const root = readE2eTestEnv().contentStorageRoot;
+  fs.mkdirSync(sessionsRoot(), { recursive: true });
+  const manager = SessionManager.create(root, sessionsRoot());
+  const sessionId = manager.getSessionId();
+  const base = {
+    sessionId,
+    runId: "run_failed_retry",
+    createdAt: "2026-06-23T00:00:00.000Z",
+  };
+  for (const event of [
+    { ...base, id: "evt_failed_1", type: "run.started" },
+    {
+      ...base,
+      id: "evt_failed_2",
+      type: "user.message",
+      messageId: "user_failed_retry",
+      text: FAILED_RETRY_MESSAGE,
+    },
+    {
+      ...base,
+      id: "evt_failed_3",
+      type: "run.failed",
+      error: "Agent response was empty",
+    },
+  ]) {
+    manager.appendCustomEntry(REFLECTA_AGENT_EVENT_ENTRY, event);
+  }
+  manager.appendSessionInfo(FAILED_RETRY_MESSAGE);
+  flushPiSession(manager);
+}
+
 test.beforeEach(() => {
   resetAgentFixtures();
   fs.rmSync(sessionsRoot(), { recursive: true, force: true });
@@ -170,6 +203,27 @@ test("@AG-PI-FAILURE-001 回复失败后用户可以继续发送消息", async (
   } finally {
     await app.close();
     writeE2eAiConfig({ ...process.env, REFLECTA_E2E_AI_API_KEY: apiKey });
+  }
+});
+
+test("@AG-PI-FAILURE-002 用户点击失败回复的重试后看到新的回复", async () => {
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
+  test.setTimeout(180_000);
+
+  seedFailedPiSession();
+  const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+
+  try {
+    await openThread(page, FAILED_RETRY_MESSAGE);
+    await expect(page.getByTestId("agent-error-banner")).toContainText("回复失败");
+    await page.getByTestId("agent-retry-button").click();
+    await waitForAssistantReply(page);
+    await expect(page.getByTestId("agent-error-banner")).toHaveCount(0);
+    await expect(
+      page.getByTestId("agent-user-message").filter({ hasText: FAILED_RETRY_MESSAGE }),
+    ).toBeVisible();
+  } finally {
+    await app.close();
   }
 });
 
