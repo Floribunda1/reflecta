@@ -1,5 +1,10 @@
 import * as lancedb from "@lancedb/lancedb";
-import type { EmbeddingProvider, RetrievalDocument, RetrievalSearchHit } from "./types";
+import type {
+  EmbeddingProvider,
+  RetrievalChannel,
+  RetrievalDocument,
+  RetrievalSearchHit,
+} from "./types";
 
 type LanceDbRetrievalIndexOptions = {
   uri: string;
@@ -24,9 +29,11 @@ type RetrievalRow = {
   _distance?: number;
   _relevance_score?: number;
   _score?: number;
+  _channels?: RetrievalChannel[];
 };
 
 const SEMANTIC_DISTANCE_THRESHOLD = 0.35;
+const RRF_K = 60;
 
 function quoteSqlString(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
@@ -60,6 +67,7 @@ function fromRow(row: RetrievalRow): RetrievalSearchHit {
     textForLexicalSearch: row.textForLexicalSearch,
     score: row._relevance_score ?? row._score ?? (row._distance === undefined ? 0 : -row._distance),
     denseDistance: row._distance,
+    channels: row._channels ?? (row._distance === undefined ? ["lexical"] : ["dense"]),
     metadata: {
       domainIds: JSON.parse(row.domainIdsJson) as string[],
       domainNames: JSON.parse(row.domainNamesJson) as string[],
@@ -91,15 +99,37 @@ function hasVectorSignal(vector: number[]): boolean {
 }
 
 function fuseRows(lexicalRows: RetrievalRow[], semanticRows: RetrievalRow[], limit: number) {
-  const rows: RetrievalRow[] = [];
-  const seen = new Set<string>();
-  for (const row of [...lexicalRows, ...semanticRows]) {
-    if (seen.has(row.id)) continue;
-    seen.add(row.id);
-    rows.push(row);
-    if (rows.length >= limit) break;
+  const byId = new Map<
+    string,
+    { row: RetrievalRow; score: number; channels: Set<RetrievalChannel>; denseDistance?: number }
+  >();
+
+  function addRows(rows: RetrievalRow[], channel: RetrievalChannel) {
+    rows.forEach((row, index) => {
+      const item = byId.get(row.id) ?? {
+        row,
+        score: 0,
+        channels: new Set<RetrievalChannel>(),
+      };
+      item.score += 1 / (RRF_K + index + 1);
+      item.channels.add(channel);
+      if (row._distance !== undefined) item.denseDistance = row._distance;
+      byId.set(row.id, item);
+    });
   }
-  return rows;
+
+  addRows(lexicalRows, "lexical");
+  addRows(semanticRows, "dense");
+
+  return [...byId.values()]
+    .sort((left, right) => right.score - left.score)
+    .slice(0, limit)
+    .map((item) => ({
+      ...item.row,
+      _distance: item.denseDistance,
+      _relevance_score: item.score,
+      _channels: [...item.channels],
+    }));
 }
 
 export class LanceDbRetrievalIndex {

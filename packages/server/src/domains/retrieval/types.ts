@@ -1,4 +1,5 @@
 export type RetrievalDocumentEntityType = "understanding" | "context";
+export type RetrievalChannel = "dense" | "lexical";
 
 export type RetrievalDocument = {
   id: string;
@@ -20,6 +21,7 @@ export type RetrievalDocument = {
 export type RetrievalSearchHit = RetrievalDocument & {
   score: number;
   denseDistance?: number;
+  channels: RetrievalChannel[];
 };
 
 export type EmbeddingProvider = {

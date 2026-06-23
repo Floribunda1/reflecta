@@ -10,9 +10,8 @@ export type RankedRetrievalHit = RetrievalSearchHit & { rank: number; snippet: s
 
 type CandidateWithRank = UnderstandingCandidate & { bestRank: number };
 
-function evidenceFor(hit: RankedRetrievalHit): CandidateEvidence {
-  const channel = hit.denseDistance === undefined ? "lexical" : "dense";
-  return {
+function evidenceFor(hit: RankedRetrievalHit): CandidateEvidence[] {
+  return hit.channels.map((channel) => ({
     channel,
     documentId: hit.id,
     entityType: hit.entityType,
@@ -22,16 +21,19 @@ function evidenceFor(hit: RankedRetrievalHit): CandidateEvidence {
       channel === "dense"
         ? "semantic similarity on RetrievalDocument"
         : "lexical hit on RetrievalDocument",
-  };
+  }));
 }
 
 function matchedContextFor(hit: RankedRetrievalHit): MatchedContext {
+  const reason = hit.channels.includes("dense")
+    ? "semantic hit on Context"
+    : "lexical hit on Context";
   return {
     contextId: hit.entityId,
     medium: hit.metadata.medium ?? "",
     title: hit.metadata.title ?? null,
     snippet: hit.snippet,
-    reason: `${hit.denseDistance === undefined ? "lexical" : "semantic"} hit on Context`,
+    reason,
   };
 }
 
@@ -72,7 +74,7 @@ export function buildUnderstandingCandidates({
 
     candidate.score = Math.max(candidate.score, hit.score);
     candidate.bestRank = Math.min(candidate.bestRank, hit.rank);
-    candidate.evidence.push(evidenceFor(hit));
+    candidate.evidence.push(...evidenceFor(hit));
     if (hit.entityType === "context") {
       candidate.matchedContexts.push(matchedContextFor(hit));
     }

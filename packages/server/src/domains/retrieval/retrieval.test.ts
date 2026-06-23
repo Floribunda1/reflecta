@@ -5,7 +5,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import { buildUnderstandingCandidates } from "./candidate-builder";
 import { LanceDbRetrievalIndex } from "./lancedb-index";
 import { buildRetrievalDocuments } from "./projection";
-import type { EmbeddingProvider } from "./types";
+import type { EmbeddingProvider, RetrievalDocument } from "./types";
 
 const tempDirs: string[] = [];
 
@@ -31,6 +31,14 @@ class KeywordEmbeddingProvider implements EmbeddingProvider {
   }
 }
 
+class RrfEmbeddingProvider implements EmbeddingProvider {
+  async embed(texts: string[]): Promise<number[][]> {
+    return texts.map((text) =>
+      /semantic-match|lexicalterm/.test(text.toLocaleLowerCase()) ? [1, 0] : [0, 1],
+    );
+  }
+}
+
 function sampleDocs() {
   return buildRetrievalDocuments({
     understanding: {
@@ -51,6 +59,39 @@ function sampleDocs() {
       },
     ],
   });
+}
+
+function rrfDocs(): RetrievalDocument[] {
+  const metadata = { domainIds: [], domainNames: [] };
+  return [
+    {
+      id: "understanding:lexical-only",
+      entityType: "understanding",
+      entityId: "lexical-only",
+      parentUnderstandingId: "lexical-only",
+      textForEmbedding: "off topic",
+      textForLexicalSearch: "lexicalterm lexicalterm lexicalterm",
+      metadata,
+    },
+    {
+      id: "understanding:both",
+      entityType: "understanding",
+      entityId: "both",
+      parentUnderstandingId: "both",
+      textForEmbedding: "semantic-match",
+      textForLexicalSearch: "lexicalterm",
+      metadata,
+    },
+    {
+      id: "understanding:semantic-only",
+      entityType: "understanding",
+      entityId: "semantic-only",
+      parentUnderstandingId: "semantic-only",
+      textForEmbedding: "semantic-match",
+      textForLexicalSearch: "unrelated",
+      metadata,
+    },
+  ];
 }
 
 describe("retrieval projection", () => {
@@ -88,6 +129,7 @@ describe("buildUnderstandingCandidates", () => {
           score: 0.9,
           rank: 0,
           snippet: "debug 很久后发现问题不是 prompt",
+          channels: ["lexical"],
         },
       ],
       understandings: [
@@ -140,6 +182,21 @@ describe("LanceDbRetrievalIndex", () => {
 
     expect(hits.map((hit) => hit.parentUnderstandingId)).toContain("understanding-1");
     expect(hits.some((hit) => hit.id === "context:context-1")).toBe(true);
+  });
+
+  test("RRF boosts documents found by both lexical and dense search", async () => {
+    const index = new LanceDbRetrievalIndex({
+      uri: await tempIndexDir(),
+      embeddingProvider: new RrfEmbeddingProvider(),
+    });
+    await index.replaceAll(rrfDocs());
+
+    const [topHit] = await index.search("lexicalterm", 3);
+
+    expect(topHit).toMatchObject({
+      id: "understanding:both",
+      channels: expect.arrayContaining(["lexical", "dense"]),
+    });
   });
 
   test("syncByUnderstandingId replaces all rows for one parent Understanding", async () => {

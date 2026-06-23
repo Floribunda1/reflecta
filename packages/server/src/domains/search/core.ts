@@ -98,7 +98,8 @@ export class SearchCore {
       hits,
       understandings: await toUnderstandingSummaries(this.db, rows),
     });
-    const denseHits = hits.filter((hit) => hit.denseDistance !== undefined).length;
+    const denseHits = hits.filter((hit) => hit.channels.includes("dense")).length;
+    const lexicalHits = hits.filter((hit) => hit.channels.includes("lexical")).length;
     const matchedContexts = candidates.reduce(
       (count, candidate) => count + candidate.matchedContexts.length,
       0,
@@ -109,7 +110,7 @@ export class SearchCore {
       trace: {
         query: input.query,
         dense: { searched: true, hits: denseHits },
-        lexical: { searched: true, hits: hits.length - denseHits },
+        lexical: { searched: true, hits: lexicalHits },
         fusion: { method: "lancedb", documentsAfterFusion: hits.length },
         grouping: {
           understandingCandidates: candidates.length,
