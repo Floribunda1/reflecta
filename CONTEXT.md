@@ -13,6 +13,8 @@ The concrete surrounding context of one Understanding. A Context can describe wh
 Understanding first formed, later support it, show where it was applied, challenge its boundary, or
 revise it.
 
+A Context does not have a role. Its medium only describes the kind of surrounding material it is.
+
 **Context medium**:
 experience | video | book | article | opinion | ai | other
 

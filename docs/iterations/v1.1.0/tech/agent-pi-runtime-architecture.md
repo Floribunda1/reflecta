@@ -169,7 +169,6 @@ classDiagram
 
   class PiSessionEntry {
     <<PiData>>
-    +role
     +content
     +timestamp
   }
