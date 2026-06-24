@@ -405,9 +405,11 @@ function UnderstandingDetailInner({
               <Button
                 data-testid="capture-understanding-chat-button"
                 type="button"
-                size="sm"
+                size="icon-sm"
                 variant="ghost"
                 className="ml-auto"
+                aria-label="聊聊"
+                title="聊聊"
                 onClick={() =>
                   onChat({
                     type: "understanding",
@@ -416,19 +418,19 @@ function UnderstandingDetailInner({
                   })
                 }
               >
-                <MessageCircle size={13} />
-                聊聊
+                <MessageCircle size={15} />
               </Button>
             ) : null}
             <Button
               type="button"
-              size="sm"
+              size="icon-sm"
               variant="ghost"
               className={`${onChat ? "" : "ml-auto"} text-destructive hover:bg-destructive/10 hover:text-destructive`}
+              aria-label="删除"
+              title="删除"
               onClick={handleDeleteUnderstanding}
             >
-              <Trash2 size={13} />
-              删除
+              <Trash2 size={15} />
             </Button>
           </div>
           <Input

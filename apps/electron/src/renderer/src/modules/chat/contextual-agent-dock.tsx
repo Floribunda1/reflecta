@@ -122,13 +122,13 @@ export function ContextualAgentDock({
         <div className="flex shrink-0 items-center gap-1">
           <DropdownMenu>
             <DropdownMenuTrigger
-              type="button"
+              render={<Button type="button" size="icon-xs" variant="ghost" />}
               data-testid="contextual-agent-history-button"
               aria-label="历史对话"
-              className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:bg-accent data-popup-open:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+              className="data-popup-open:bg-muted data-popup-open:text-foreground"
               disabled={!scope}
             >
-              <Clock size={15} />
+              <Clock />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" sideOffset={6} className="w-72">
               <DropdownMenuGroup>
