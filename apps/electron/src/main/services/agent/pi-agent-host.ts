@@ -32,6 +32,7 @@ import { AgentSessionLog } from "./pi-session-log";
 import { formatAgentError } from "./error";
 import { buildPiPromptText } from "./pi-prompt";
 import { getCodexCredentials } from "./codex-auth";
+import agentSystemPrompt from "./agent-system-prompt.md?raw";
 import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-tools";
 import {
   approvalTitleForTool,
@@ -49,7 +50,7 @@ type ActivePiRun = {
 };
 
 export function loadAgentSystemPrompt(): string {
-  return fs.readFileSync(new URL("./agent-system-prompt.md", import.meta.url), "utf8").trim();
+  return agentSystemPrompt.trim();
 }
 
 export function createPiResourceLoader(): ResourceLoader {
@@ -110,6 +111,10 @@ export function extractAssistantError(message: unknown): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function errorStack(error: unknown): string | undefined {
+  return error instanceof Error ? error.stack : undefined;
 }
 
 function piToolOutput(result: unknown): unknown {
@@ -472,6 +477,11 @@ export class PiAgentHost {
       );
       if (this.cancelledRunIds.has(runId)) return;
       if (assistantError) {
+        agentLog.error("pi.run.assistantError", {
+          sessionId: command.sessionId,
+          runId,
+          error: assistantError,
+        });
         emit(
           this.createEvent({
             type: "run.failed",
@@ -497,6 +507,12 @@ export class PiAgentHost {
     } catch (error) {
       emitRunStarted();
       if (this.cancelledRunIds.has(runId)) return;
+      agentLog.error("pi.run.failed", {
+        sessionId: command.sessionId,
+        runId,
+        error: formatAgentError(error),
+        stack: errorStack(error),
+      });
       emit(
         this.createEvent({
           type: "run.failed",
