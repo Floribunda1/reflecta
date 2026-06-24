@@ -54,6 +54,7 @@ import {
   type ContextUsageWorkerRequest,
   type ContextUsageWorkerResponse,
 } from "./context-usage";
+import { shouldApplyInitialContext } from "./initial-context";
 
 export type EditingMessage = {
   id: string;
@@ -179,6 +180,8 @@ export function ChatComposer({
   canStop,
   editingMessage,
   focusRequest,
+  initialContextKey,
+  initialContextRefs = [],
   modelOptions,
   activeModel,
   messages,
@@ -193,6 +196,8 @@ export function ChatComposer({
   canStop: boolean;
   editingMessage?: EditingMessage;
   focusRequest: number;
+  initialContextKey?: string;
+  initialContextRefs?: AgentContextRef[];
   modelOptions: AiModelOption[];
   activeModel: AgentModelSelection | null;
   messages: AgentReducedMessage[];
@@ -212,6 +217,7 @@ export function ChatComposer({
   const mentionCommandRef = useRef<((attrs: MentionAttrs) => void) | null>(null);
   const mentionActiveRef = useRef(false);
   const mentionKeyHandledRef = useRef(false);
+  const appliedInitialContextKeyRef = useRef<string | undefined>(undefined);
   const contextLookup = useContextMentionLookup({ disabled: isBusy, selected: selectedContexts });
   const [activeContextIndex, setActiveContextIndex] = useState(0);
   const activeModelOption = activeModel
@@ -457,6 +463,24 @@ export function ChatComposer({
       editingMessage.files,
     );
   }, [editingMessage?.id]);
+
+  useEffect(() => {
+    if (
+      !shouldApplyInitialContext({
+        initialContextKey,
+        appliedInitialContextKey: appliedInitialContextKeyRef.current,
+        editing: Boolean(editingMessage),
+        draft,
+        fileCount: files.length,
+      }) ||
+      !editor
+    )
+      return;
+
+    appliedInitialContextKeyRef.current = initialContextKey;
+    setComposerContent("", initialContextRefs);
+    editor.commands.focus();
+  }, [draft, editingMessage, editor, files.length, initialContextKey, initialContextRefs]);
 
   useEffect(() => {
     editor?.setEditable(!isBusy);

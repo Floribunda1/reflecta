@@ -1,0 +1,102 @@
+import { expect, type Page, test } from "@playwright/test";
+import { composer, launchAgentPage, launchApp, selectContext } from "../agent/agent-e2e";
+import { resetAgentFixtures } from "../agent/agent-fixtures";
+
+test.beforeEach(() => {
+  resetAgentFixtures();
+});
+
+async function openCapturePage(page: Page) {
+  await page.getByLabel("Switch module").click();
+  await page.getByRole("menuitem", { name: "Capture" }).click();
+  await expect(page.getByTestId("capture-page")).toBeVisible();
+}
+
+function contextMention(page: Page, title: string) {
+  return page.locator('[data-slot="composer-context-mention"]').filter({ hasText: title });
+}
+
+async function chooseChatFromContextMenu(page: Page) {
+  await page.getByRole("menuitem", { name: "和 AI 聊聊" }).click();
+}
+
+async function expectAgentDockWithContext(page: Page, title: string) {
+  await expect(page.getByTestId("capture-agent-dock")).toBeVisible();
+  await expect(page.getByTestId("capture-agent-dock")).toContainText(title);
+  await expect(contextMention(page, title)).toBeVisible();
+  await expect(composer(page)).toBeEditable();
+}
+
+test("@CP-AGENT-001 用户从 Domain 右键菜单打开上下文 Agent", async () => {
+  const { app, page } = await launchApp();
+
+  try {
+    await openCapturePage(page);
+    await page
+      .locator('[data-testid="capture-domain-node"][data-domain-name="Programming"]')
+      .click({
+        button: "right",
+      });
+    await chooseChatFromContextMenu(page);
+
+    await expectAgentDockWithContext(page, "Programming");
+  } finally {
+    await app.close();
+  }
+});
+
+test("@CP-AGENT-002 用户从 Understanding 列表右键菜单打开上下文 Agent", async () => {
+  const { app, page } = await launchApp();
+
+  try {
+    await openCapturePage(page);
+    await page
+      .locator(
+        '[data-testid="capture-understanding-row"][data-understanding-title="React Server Components"]',
+      )
+      .click({ button: "right" });
+    await chooseChatFromContextMenu(page);
+
+    await expectAgentDockWithContext(page, "React Server Components");
+  } finally {
+    await app.close();
+  }
+});
+
+test("@CP-AGENT-003 用户从 Understanding 详情页按钮打开上下文 Agent", async () => {
+  const { app, page } = await launchApp();
+
+  try {
+    await openCapturePage(page);
+    await page
+      .locator(
+        '[data-testid="capture-understanding-row"][data-understanding-title="React Server Components"]',
+      )
+      .click();
+    await expect(page.getByTestId("capture-understanding-chat-button")).toBeVisible();
+    await page.getByTestId("capture-understanding-chat-button").click();
+
+    await expectAgentDockWithContext(page, "React Server Components");
+  } finally {
+    await app.close();
+  }
+});
+
+test("@CP-AGENT-004 嵌入式 Understanding 详情不显示 Capture 专属聊天入口", async () => {
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await selectContext(page, "React", "React Server Components", "understanding");
+    await contextMention(page, "React Server Components").click();
+
+    const inspector = page.getByTestId("agent-context-inspector");
+    await expect(inspector).toBeVisible();
+    await expect(inspector.getByPlaceholder("写下一个刚形成的理解")).toHaveValue(
+      "React Server Components",
+      { timeout: 15_000 },
+    );
+    await expect(inspector.getByTestId("capture-understanding-chat-button")).toHaveCount(0);
+  } finally {
+    await app.close();
+  }
+});

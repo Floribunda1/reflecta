@@ -17,6 +17,12 @@ export type CaptureDraft = {
   saveRequestedAt: string | null;
 };
 
+export type CaptureAgentScope = {
+  type: "domain" | "understanding";
+  id: string;
+  title?: string;
+};
+
 export type CaptureState = {
   selectedDomainId: string;
   selectedUnderstandingId: string | null;
@@ -27,6 +33,10 @@ export type CaptureState = {
   expandedDomainIds: Record<string, boolean>;
   activeContextId: string | null;
   draft: CaptureDraft | null;
+  agentDockOpen: boolean;
+  agentDockScope: CaptureAgentScope | null;
+  agentDockThreadId: string | null;
+  agentDockContextNonce: number;
 };
 
 export type CaptureActions = {
@@ -54,6 +64,9 @@ export type CaptureActions = {
   markDraftSaveFailed: (input: { understandingId: string; error: string }) => void;
   resetAfterUnderstandingDeleted: (understandingId: string) => void;
   resetAfterDomainDeleted: (deletedDomainIds: Set<string>) => void;
+  openAgentDock: (scope: CaptureAgentScope) => void;
+  bindAgentDockThread: (threadId: string) => void;
+  closeAgentDock: () => void;
 };
 
 export type CaptureStore = CaptureState & CaptureActions;
@@ -68,6 +81,10 @@ export const initialCaptureState: CaptureState = {
   expandedDomainIds: {},
   activeContextId: null,
   draft: null,
+  agentDockOpen: false,
+  agentDockScope: null,
+  agentDockThreadId: null,
+  agentDockContextNonce: 0,
 };
 
 function expandedDomainKeysEqual(
@@ -251,12 +268,24 @@ export function createCaptureState(
 
     resetAfterUnderstandingDeleted: (understandingId) =>
       set((state) => {
+        const agentScopeMatches =
+          state.agentDockScope?.type === "understanding" &&
+          state.agentDockScope.id === understandingId;
         if (
           state.selectedUnderstandingId !== understandingId &&
-          state.draft?.understandingId !== understandingId
+          state.draft?.understandingId !== understandingId &&
+          !agentScopeMatches
         )
           return {};
-        return clearUnderstandingState(state);
+        return {
+          ...clearUnderstandingState(state),
+          ...(agentScopeMatches
+            ? {
+                agentDockOpen: false,
+                agentDockScope: null,
+              }
+            : {}),
+        };
       }),
 
     resetAfterDomainDeleted: (deletedDomainIds) =>
@@ -267,14 +296,41 @@ export function createCaptureState(
           ),
         );
         if (!deletedDomainIds.has(state.selectedDomainId)) {
-          return { expandedDomainIds };
+          return {
+            expandedDomainIds,
+            ...(state.agentDockScope?.type === "domain" &&
+            deletedDomainIds.has(state.agentDockScope.id)
+              ? {
+                  agentDockOpen: false,
+                  agentDockScope: null,
+                }
+              : {}),
+          };
         }
         return {
           selectedDomainId: "all",
           expandedDomainIds,
           ...clearUnderstandingState(state),
+          ...(state.agentDockScope?.type === "domain" &&
+          deletedDomainIds.has(state.agentDockScope.id)
+            ? {
+                agentDockOpen: false,
+                agentDockScope: null,
+              }
+            : {}),
         };
       }),
+
+    openAgentDock: (scope) =>
+      set((state) => ({
+        agentDockOpen: true,
+        agentDockScope: scope,
+        agentDockContextNonce: state.agentDockContextNonce + 1,
+      })),
+
+    bindAgentDockThread: (threadId) => set({ agentDockThreadId: threadId }),
+
+    closeAgentDock: () => set({ agentDockOpen: false }),
   });
 }
 

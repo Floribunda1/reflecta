@@ -23,17 +23,18 @@ import { useModal } from "@renderer/modules/shared/hooks/use-modal";
 import type { ContextDTO, ContextMedium } from "@shared/context";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { FileText, Pencil, Plus, Trash2 } from "lucide-react";
+import { FileText, MessageCircle, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useUnderstandingDetail, useUnderstandingDetailActions } from "./hooks";
 import { CONTEXT_META, CONTEXT_PLACEHOLDER, CONTEXT_TYPES } from "./context/types";
-import { useCaptureStore } from "../store";
+import { useCaptureStore, type CaptureAgentScope } from "../store";
 import { useUnderstandingDraftSave } from "../useUnderstandingDraftSave";
 
 type UnderstandingDetailProps = {
   understandingId: string;
   onDeleted?: () => void;
   onWikiLinkClick?: (understandingId: string) => void;
+  onChat?: (scope: CaptureAgentScope) => void;
 };
 
 type ContextDraftInput = {
@@ -263,6 +264,7 @@ function UnderstandingDetailInner({
   understandingId,
   onDeleted,
   onWikiLinkClick,
+  onChat,
 }: UnderstandingDetailProps) {
   const detailRef = useRef<HTMLElement>(null);
   const { understanding } = useUnderstandingDetail(understandingId);
@@ -399,11 +401,30 @@ function UnderstandingDetailInner({
               usePathLabel={false}
               variant="inline"
             />
+            {onChat ? (
+              <Button
+                data-testid="capture-understanding-chat-button"
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="ml-auto"
+                onClick={() =>
+                  onChat({
+                    type: "understanding",
+                    id: understanding.id,
+                    title: title.trim() || understanding.title || undefined,
+                  })
+                }
+              >
+                <MessageCircle size={13} />
+                聊聊
+              </Button>
+            ) : null}
             <Button
               type="button"
               size="sm"
               variant="ghost"
-              className="ml-auto text-destructive hover:bg-destructive/10 hover:text-destructive"
+              className={`${onChat ? "" : "ml-auto"} text-destructive hover:bg-destructive/10 hover:text-destructive`}
               onClick={handleDeleteUnderstanding}
             >
               <Trash2 size={13} />

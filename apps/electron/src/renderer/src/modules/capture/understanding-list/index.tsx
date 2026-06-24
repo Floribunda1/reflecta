@@ -16,11 +16,11 @@ import {
   DropdownMenuTrigger,
 } from "@renderer/components/ui/dropdown-menu";
 import { cn } from "@renderer/lib/utils";
-import { useCaptureStore } from "../store";
+import { useCaptureStore, type CaptureAgentScope } from "../store";
 import { useCaptureDomains } from "../queries";
 import type { UnderstandingListSortBy } from "./sort";
 
-export function UnderstandingList() {
+export function UnderstandingList({ onChat }: { onChat?: (scope: CaptureAgentScope) => void }) {
   const understandingList = useUnderstandingList();
   const understandingListActions = useUnderstandingListActions();
   const selectedDomainId = useCaptureStore((state) => state.selectedDomainId);
@@ -186,6 +186,7 @@ export function UnderstandingList() {
                   <UnderstandingRow
                     understanding={understanding}
                     selected={understanding.id === selectedUnderstandingId}
+                    onChat={onChat}
                   />
                 </div>
               );

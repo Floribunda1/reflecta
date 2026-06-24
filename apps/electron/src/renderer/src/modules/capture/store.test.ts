@@ -235,4 +235,40 @@ describe("capture store", () => {
     expect(store.getState().activeContextId).toBeNull();
     expect(store.getState().draft).toBeNull();
   });
+
+  test("openAgentDock opens the dock and advances the context nonce", () => {
+    const store = createCaptureStore();
+
+    store.getState().openAgentDock({ type: "understanding", id: "u1", title: "First" });
+    store.getState().openAgentDock({ type: "domain", id: "d1", title: "Domain" });
+
+    expect(store.getState().agentDockOpen).toBe(true);
+    expect(store.getState().agentDockScope).toEqual({
+      type: "domain",
+      id: "d1",
+      title: "Domain",
+    });
+    expect(store.getState().agentDockContextNonce).toBe(2);
+  });
+
+  test("closeAgentDock hides the dock without losing its thread", () => {
+    const store = createCaptureStore();
+    store.getState().openAgentDock({ type: "understanding", id: "u1" });
+    store.getState().bindAgentDockThread("thread-1");
+
+    store.getState().closeAgentDock();
+
+    expect(store.getState().agentDockOpen).toBe(false);
+    expect(store.getState().agentDockThreadId).toBe("thread-1");
+  });
+
+  test("resetAfterUnderstandingDeleted closes dock scoped to that understanding", () => {
+    const store = createCaptureStore();
+    store.getState().openAgentDock({ type: "understanding", id: "u1" });
+
+    store.getState().resetAfterUnderstandingDeleted("u1");
+
+    expect(store.getState().agentDockOpen).toBe(false);
+    expect(store.getState().agentDockScope).toBeNull();
+  });
 });

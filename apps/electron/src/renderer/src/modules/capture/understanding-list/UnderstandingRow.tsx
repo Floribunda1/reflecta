@@ -3,6 +3,7 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@renderer/components/ui/context-menu";
 import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/markdown-editor/preview";
@@ -12,7 +13,7 @@ import { cn } from "@renderer/lib/utils";
 import { FileText, Link2 } from "lucide-react";
 import { useModal } from "@renderer/modules/shared/hooks/use-modal";
 import { useUnderstandingListActions } from "./hooks";
-import { useCaptureStore } from "../store";
+import { useCaptureStore, type CaptureAgentScope } from "../store";
 
 function getUnderstandingTitle(understanding: UnderstandingSummaryDTO): string {
   const title = understanding.title?.trim();
@@ -28,9 +29,11 @@ function getUnderstandingTitle(understanding: UnderstandingSummaryDTO): string {
 export function UnderstandingRow({
   understanding,
   selected = false,
+  onChat,
 }: {
   understanding: UnderstandingSummaryDTO;
   selected?: boolean;
+  onChat?: (scope: CaptureAgentScope) => void;
 }) {
   const selectUnderstanding = useCaptureStore((state) => state.selectUnderstanding);
   const { deleteUnderstanding } = useUnderstandingListActions();
@@ -58,6 +61,8 @@ export function UnderstandingRow({
         render={
           <button
             type="button"
+            data-testid="capture-understanding-row"
+            data-understanding-title={title}
             aria-current={selected ? "true" : undefined}
             className={cn(
               "group relative flex w-full flex-col gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm text-card-foreground transition-colors outline-none hover:bg-muted/45 active:bg-muted/55 focus-visible:ring-3 focus-visible:ring-ring/50",
@@ -130,6 +135,19 @@ export function UnderstandingRow({
         }
       />
       <ContextMenuContent>
+        {onChat ? (
+          <>
+            <ContextMenuItem
+              onClick={() => {
+                selectUnderstanding(understanding.id);
+                onChat({ type: "understanding", id: understanding.id, title });
+              }}
+            >
+              和 AI 聊聊
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+          </>
+        ) : null}
         <ContextMenuItem variant="destructive" onClick={handleDelete}>
           删除
         </ContextMenuItem>

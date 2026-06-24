@@ -17,6 +17,7 @@ import { DomainModalContent } from "./CreateDomainModal";
 import { useCaptureStore } from "../../store";
 import { useCaptureDomains } from "../../queries";
 import { APP_CHROME_MENU_HIT_AREA_CLASS } from "@renderer/modules/shared/layout/AppChromeMenu";
+import type { CaptureAgentScope } from "../../store";
 
 function getAllKeys(nodes: DomainTreeNode[]): string[] {
   return nodes.flatMap((node) => [node.id, ...getAllKeys(node.children)]);
@@ -35,6 +36,7 @@ type DomainNodeActions = {
   onCreateChild: (node: DomainTreeNode) => void;
   onEdit: (node: DomainTreeNode) => void;
   onDelete: (node: DomainTreeNode) => void;
+  onChat?: (scope: CaptureAgentScope) => void;
 };
 
 function DomainMenuItems({
@@ -50,6 +52,14 @@ function DomainMenuItems({
 }) {
   return (
     <>
+      {actions.onChat ? (
+        <>
+          <Item onClick={() => actions.onChat?.({ type: "domain", id: node.id, title: node.name })}>
+            和 AI 聊聊
+          </Item>
+          <Separator />
+        </>
+      ) : null}
       <Item onClick={() => actions.onCreateChild(node)}>新建子领域</Item>
       <Item onClick={() => actions.onEdit(node)}>编辑领域</Item>
       <Separator />
@@ -87,6 +97,8 @@ function DomainNode({
         <ContextMenuTrigger
           render={
             <Button
+              data-testid="capture-domain-node"
+              data-domain-name={node.name}
               type="button"
               variant="ghost"
               size="sm"
@@ -150,6 +162,7 @@ function DomainNode({
 function DomainRootButton({ selected, onSelect }: { selected: boolean; onSelect: () => void }) {
   return (
     <Button
+      data-testid="capture-domain-root"
       type="button"
       size="sm"
       variant="ghost"
@@ -167,7 +180,7 @@ function DomainRootButton({ selected, onSelect }: { selected: boolean; onSelect:
   );
 }
 
-export function DomainTree() {
+export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => void }) {
   const { domains } = useCaptureDomains();
   const { createDomain, updateDomain, deleteDomain } = useDomainActions();
   const selectedDomainId = useCaptureStore((state) => state.selectedDomainId);
@@ -246,6 +259,7 @@ export function DomainTree() {
     onCreateChild: (node) => openCreateModal(node.id),
     onEdit: openEditModal,
     onDelete: handleDelete,
+    onChat,
   };
 
   return (
