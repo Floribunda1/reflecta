@@ -1,5 +1,6 @@
 import { Type } from "@earendil-works/pi-ai";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type { AgentFileAttachment } from "@shared/agent";
 import {
   domainCliService,
   contextCliService,
@@ -7,6 +8,8 @@ import {
   searchCliService,
   understandingCliService,
 } from "../core";
+import { HARD_ATTACHMENT_READ_MAX_CHARS, readAttachmentForTool } from "./attachment-read";
+import { HARD_FILE_READ_MAX_BYTES, readLocalFileForTool } from "./local-tools";
 import { fetchWebPage } from "./web-fetch";
 
 export const PI_READ_ONLY_TOOL_NAMES = [
@@ -16,6 +19,8 @@ export const PI_READ_ONLY_TOOL_NAMES = [
   "understanding_get",
   "context_list",
   "context_get",
+  "attachment_read",
+  "file_read",
   "web_fetch",
   "retrieve_knowledge",
   "graph",
@@ -44,7 +49,7 @@ function toolResult(details: unknown) {
   };
 }
 
-export function createPiReadOnlyTools(): ToolDefinition[] {
+export function createPiReadOnlyTools(files: AgentFileAttachment[] = []): ToolDefinition[] {
   return [
     defineTool({
       name: "domain_list",
@@ -132,6 +137,42 @@ export function createPiReadOnlyTools(): ToolDefinition[] {
       }),
       execute: async (_toolCallId, { contextId }) =>
         toolResult(await contextCliService.getContext(contextId)),
+    }),
+    defineTool({
+      name: "attachment_read",
+      label: "读取附件",
+      description:
+        "Read text from a user-uploaded attachment in the current message. Supports PDF and plain text attachments. Use attachmentId from the user message attachment metadata.",
+      promptSnippet: "attachment_read: read a user-uploaded attachment by attachmentId.",
+      parameters: Type.Object({
+        attachmentId: Type.String({ minLength: 1 }),
+        maxChars: Type.Optional(
+          Type.Integer({
+            minimum: 1,
+            maximum: HARD_ATTACHMENT_READ_MAX_CHARS,
+            description: "Maximum number of extracted characters to return.",
+          }),
+        ),
+      }),
+      execute: async (_toolCallId, input) => toolResult(await readAttachmentForTool(files, input)),
+    }),
+    defineTool({
+      name: "file_read",
+      label: "读取本地文件",
+      description:
+        "Read a local file by absolute path, relative path, or ~/ path. Use this when the user types a local file path in chat and asks you to inspect it. Returns UTF-8 text or base64 for binary files.",
+      promptSnippet: "file_read: read a local file path.",
+      parameters: Type.Object({
+        path: Type.String({ minLength: 1 }),
+        maxBytes: Type.Optional(
+          Type.Integer({
+            minimum: 1,
+            maximum: HARD_FILE_READ_MAX_BYTES,
+            description: "Maximum number of bytes to read.",
+          }),
+        ),
+      }),
+      execute: async (_toolCallId, input) => toolResult(await readLocalFileForTool(input)),
     }),
     defineTool({
       name: "web_fetch",

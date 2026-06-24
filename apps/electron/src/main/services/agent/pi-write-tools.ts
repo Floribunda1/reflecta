@@ -10,6 +10,7 @@ import type {
   UpdateUnderstandingInput,
 } from "@reflecta/server";
 import { domainService, contextService, understandingService } from "../core";
+import { MAX_BASH_TIMEOUT_MS, runBashForTool } from "./local-tools";
 
 export const PI_APPROVAL_TOOL_NAMES = [
   "understanding_create",
@@ -21,6 +22,7 @@ export const PI_APPROVAL_TOOL_NAMES = [
   "context_create",
   "context_update",
   "context_delete",
+  "bash",
 ] as const;
 export type PiApprovalToolName = (typeof PI_APPROVAL_TOOL_NAMES)[number];
 
@@ -33,6 +35,7 @@ type PiMutationOutput = {
   resultRefType: "understanding" | "domain" | "context";
   resultRefId: string;
 };
+type PiApprovedToolOutput = PiMutationOutput | Awaited<ReturnType<typeof runBashForTool>>;
 
 type PiWriteToolSpec = {
   name: PiApprovalToolName;
@@ -175,6 +178,24 @@ const toolSpecs: PiWriteToolSpec[] = [
       reason: Type.Optional(Type.String()),
     }),
   },
+  {
+    name: "bash",
+    label: "执行 Bash",
+    description:
+      "Run a Bash command after user approval. Use for local shell tasks that cannot be answered by file_read or Reflecta knowledge tools. Prefer read-only commands unless the user explicitly asks for changes.",
+    promptSnippet: "bash: request user approval to run a Bash command.",
+    parameters: Type.Object({
+      command: Type.String({ minLength: 1 }),
+      cwd: Type.Optional(Type.String()),
+      timeoutMs: Type.Optional(
+        Type.Integer({
+          minimum: 1,
+          maximum: MAX_BASH_TIMEOUT_MS,
+          description: "Command timeout in milliseconds.",
+        }),
+      ),
+    }),
+  },
 ];
 
 export function isPiApprovalToolName(name: string): name is PiApprovalToolName {
@@ -237,6 +258,11 @@ function optionalNullableString(
 function optionalBoolean(payload: Record<string, unknown>, field: string): boolean | undefined {
   const value = payload[field];
   return typeof value === "boolean" ? value : undefined;
+}
+
+function optionalNumber(payload: Record<string, unknown>, field: string): number | undefined {
+  const value = payload[field];
+  return typeof value === "number" ? value : undefined;
 }
 
 function optionalStringArray(
@@ -354,7 +380,16 @@ function contextDeleteInput(payload: unknown): string {
 export async function executePiApprovedTool(
   toolName: PiApprovalToolName,
   payload: unknown,
-): Promise<PiMutationOutput> {
+): Promise<PiApprovedToolOutput> {
+  if (toolName === "bash") {
+    const record = asPayload(payload);
+    return runBashForTool({
+      command: requiredString(record, "command"),
+      cwd: optionalString(record, "cwd"),
+      timeoutMs: optionalNumber(record, "timeoutMs"),
+    });
+  }
+
   if (toolName === "understanding_create") {
     const understanding = await understandingService.createUnderstanding(
       understandingCreateInput(payload),

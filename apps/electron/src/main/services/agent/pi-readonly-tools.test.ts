@@ -3,7 +3,19 @@ import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-to
 
 const services = vi.hoisted(() => ({
   fetchWebPage: vi.fn(),
+  readAttachmentForTool: vi.fn(),
+  readLocalFileForTool: vi.fn(),
   retrieveKnowledge: vi.fn(),
+}));
+
+vi.mock("./attachment-read", () => ({
+  HARD_ATTACHMENT_READ_MAX_CHARS: 500_000,
+  readAttachmentForTool: services.readAttachmentForTool,
+}));
+
+vi.mock("./local-tools", () => ({
+  HARD_FILE_READ_MAX_BYTES: 1_000_000,
+  readLocalFileForTool: services.readLocalFileForTool,
 }));
 
 vi.mock("./web-fetch", () => ({
@@ -27,6 +39,8 @@ const expectedReadToolNames = [
   "understanding_get",
   "context_list",
   "context_get",
+  "attachment_read",
+  "file_read",
   "web_fetch",
   "retrieve_knowledge",
   "graph",
@@ -76,6 +90,63 @@ describe("createPiReadOnlyTools", () => {
     const output = await execute("tool-call-1", { url: "https://example.com" });
 
     expect(services.fetchWebPage).toHaveBeenCalledWith("https://example.com");
+    expect(output.details).toEqual(result);
+  });
+
+  test("executes attachment_read through the current message files seam", async () => {
+    const files = [
+      {
+        type: "file" as const,
+        mediaType: "application/pdf",
+        filename: "attachment.pdf",
+        url: "data:application/pdf;base64,JVBERi0xLjQ=",
+        providerMetadata: { reflecta: { attachmentId: "att-pdf" } },
+      },
+    ];
+    const result = {
+      attachmentId: "att-pdf",
+      filename: "attachment.pdf",
+      mediaType: "application/pdf",
+      kind: "pdf",
+      content: "PDF body",
+      truncated: false,
+    };
+    services.readAttachmentForTool.mockResolvedValue(result);
+    const tool = createPiReadOnlyTools(files).find((item) => item.name === "attachment_read");
+    expect(tool).toBeDefined();
+
+    const execute = tool!.execute as unknown as (
+      toolCallId: string,
+      params: Record<string, unknown>,
+    ) => Promise<{ details: unknown }>;
+    const output = await execute("tool-call-1", { attachmentId: "att-pdf" });
+
+    expect(services.readAttachmentForTool).toHaveBeenCalledWith(files, { attachmentId: "att-pdf" });
+    expect(output.details).toEqual(result);
+  });
+
+  test("executes file_read through the local file seam", async () => {
+    const result = {
+      path: "/tmp/note.txt",
+      bytes: 5,
+      encoding: "utf8",
+      content: "hello",
+      truncated: false,
+    };
+    services.readLocalFileForTool.mockResolvedValue(result);
+    const tool = createPiReadOnlyTools().find((item) => item.name === "file_read");
+    expect(tool).toBeDefined();
+
+    const execute = tool!.execute as unknown as (
+      toolCallId: string,
+      params: Record<string, unknown>,
+    ) => Promise<{ details: unknown }>;
+    const output = await execute("tool-call-1", { path: "/tmp/note.txt", maxBytes: 5 });
+
+    expect(services.readLocalFileForTool).toHaveBeenCalledWith({
+      path: "/tmp/note.txt",
+      maxBytes: 5,
+    });
     expect(output.details).toEqual(result);
   });
 });

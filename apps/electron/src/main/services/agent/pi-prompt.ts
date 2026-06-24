@@ -33,7 +33,7 @@ export function attachmentBlockFromFiles(files: AgentFileAttachment[] = []): str
       );
     })
     .join("\n");
-  return `\n\n用户随消息上传了这些附件。这里只是附件元数据，不包含附件正文。\n${lines}`;
+  return `\n\n用户随消息上传了这些附件。这里只是附件元数据，不包含附件正文；需要正文时使用 attachment_read 读取对应 attachmentId。\n${lines}`;
 }
 
 export function buildPiPromptText({

@@ -515,7 +515,21 @@ function inputDetails(input: Record<string, unknown>) {
   const details: string[] = [];
   const query = stringValue(input.query).trim();
   if (query) details.push(`查询：${query}`);
-  for (const key of ["url", "limit", "offset", "domainId", "understandingId", "contextId"]) {
+  for (const key of [
+    "url",
+    "attachmentId",
+    "path",
+    "command",
+    "cwd",
+    "limit",
+    "offset",
+    "maxBytes",
+    "maxChars",
+    "timeoutMs",
+    "domainId",
+    "understandingId",
+    "contextId",
+  ]) {
     const value = input[key];
     if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
       details.push(`${key}：${value}`);
@@ -527,6 +541,9 @@ function inputDetails(input: Record<string, unknown>) {
 function toolResultDetails(name: string, output: unknown): string[] {
   if (name === "search") return searchHitDetails(output);
   if (name === "retrieve_knowledge") return retrievalCandidateDetails(output);
+  if (name === "attachment_read") return attachmentReadDetails(output);
+  if (name === "file_read") return fileReadDetails(output);
+  if (name === "bash") return bashDetails(output);
   if (name === "web_fetch") return webFetchDetails(output);
   if (name === "domain_list") return recordListDetails(output, "Domain", "domains");
   if (name === "understanding_list")
@@ -539,6 +556,48 @@ function toolResultDetails(name: string, output: unknown): string[] {
   if (name === "graph")
     return recordListDetails(isRecord(output) ? output.nodes : [], "Understanding", "nodes");
   return [];
+}
+
+function attachmentReadDetails(output: unknown) {
+  if (!isRecord(output)) return [];
+  const details: string[] = [];
+  const filename = stringValue(output.filename);
+  const content = stringValue(output.content);
+  const error = stringValue(output.error);
+  if (filename) details.push(`附件：${truncateText(filename)}`);
+  if (output.kind) details.push(`类型：${String(output.kind)}`);
+  if (typeof output.totalPages === "number") details.push(`页数：${output.totalPages}`);
+  if (content) details.push(`内容：${content.length} 字`);
+  if (typeof output.truncated === "boolean" && output.truncated) details.push("内容已截断");
+  if (error) details.push(`错误：${truncateText(error)}`);
+  return details;
+}
+
+function fileReadDetails(output: unknown) {
+  if (!isRecord(output)) return [];
+  const details: string[] = [];
+  const content = stringValue(output.content);
+  const error = stringValue(output.error);
+  if (typeof output.bytes === "number") details.push(`大小：${output.bytes} bytes`);
+  if (output.encoding) details.push(`编码：${String(output.encoding)}`);
+  if (content) details.push(`内容：${content.length} 字`);
+  if (typeof output.truncated === "boolean" && output.truncated) details.push("内容已截断");
+  if (error) details.push(`错误：${truncateText(error)}`);
+  return details;
+}
+
+function bashDetails(output: unknown) {
+  if (!isRecord(output)) return [];
+  const details: string[] = [];
+  if (typeof output.exitCode === "number" || output.exitCode === null)
+    details.push(`exit：${String(output.exitCode)}`);
+  const stdout = stringValue(output.stdout);
+  const stderr = stringValue(output.stderr);
+  if (stdout) details.push(`stdout：${truncateText(stdout)}`);
+  if (stderr) details.push(`stderr：${truncateText(stderr)}`);
+  if (output.timedOut) details.push("命令超时");
+  if (typeof output.truncated === "boolean" && output.truncated) details.push("输出已截断");
+  return details;
 }
 
 function webFetchDetails(output: unknown) {

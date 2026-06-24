@@ -90,6 +90,18 @@
     而且输入框应该可操作
 
   @P0 @attachment @AG-PI-ATTACHMENT-001
+  场景: 用户在 Pi-backed session 中上传 PDF 附件后 Agent 能读取正文
+    假如用户已经用 Pi Agent runtime 进入 Agent 页面
+    而且 Agent 当前可以正常回复
+    而且测试环境有可上传 PDF 附件 PI_PDF_ATTACHMENT
+    当用户上传 PDF 附件 PI_PDF_ATTACHMENT
+    而且用户发送消息 请读取这个 PDF 附件，并直接回复其中的唯一英文单词
+    那么页面应该显示这个 PDF 附件
+    而且页面应该显示 Agent 读取附件的工具活动
+    而且最终 Agent 回复正文应该包含 PDF 附件里的唯一英文单词
+    而且输入框应该可操作
+
+  @P1 @attachment @AG-PI-ATTACHMENT-002
   场景: 用户在 Pi-backed session 中发送附件后重启仍能看到附件
     假如用户已经用 Pi Agent runtime 进入 Agent 页面
     而且 Agent 当前可以正常回复

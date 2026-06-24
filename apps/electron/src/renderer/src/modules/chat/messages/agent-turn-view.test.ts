@@ -266,6 +266,88 @@ describe("buildAgentTurnView", () => {
     });
   });
 
+  test("shows restored peripheral tool details", () => {
+    const turn = buildAgentTurnView([
+      tool(
+        "attachment_read",
+        "tool-1",
+        {
+          attachmentId: "att-pdf",
+          filename: "fixture.pdf",
+          kind: "pdf",
+          totalPages: 1,
+          content: "PDF body",
+          truncated: false,
+        },
+        "completed",
+        undefined,
+        { attachmentId: "att-pdf" },
+      ),
+      tool(
+        "file_read",
+        "tool-2",
+        {
+          path: "/tmp/note.txt",
+          bytes: 5,
+          encoding: "utf8",
+          content: "hello",
+          truncated: false,
+        },
+        "completed",
+        undefined,
+        { path: "/tmp/note.txt" },
+      ),
+      tool(
+        "bash",
+        "tool-3",
+        { command: "printf hello", exitCode: 0, stdout: "hello", stderr: "", truncated: false },
+        "completed",
+        undefined,
+        { command: "printf hello" },
+      ),
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "tool-activity",
+      activity: {
+        items: [
+          expect.objectContaining({
+            toolName: "attachment_read",
+            details: [
+              "attachmentId：att-pdf",
+              "附件：fixture.pdf",
+              "类型：pdf",
+              "页数：1",
+              "内容：8 字",
+            ],
+          }),
+        ],
+      },
+    });
+    expect(turn.blocks[1]).toMatchObject({
+      kind: "tool-activity",
+      activity: {
+        items: [
+          expect.objectContaining({
+            toolName: "file_read",
+            details: ["path：/tmp/note.txt", "大小：5 bytes", "编码：utf8", "内容：5 字"],
+          }),
+        ],
+      },
+    });
+    expect(turn.blocks[2]).toMatchObject({
+      kind: "tool-activity",
+      activity: {
+        items: [
+          expect.objectContaining({
+            toolName: "bash",
+            details: ["command：printf hello", "exit：0", "stdout：hello"],
+          }),
+        ],
+      },
+    });
+  });
+
   test("summarizes list tools from array outputs", () => {
     const turn = buildAgentTurnView([
       tool("understanding_list", "tool-1", [{ id: "t1" }, { id: "t2" }]),

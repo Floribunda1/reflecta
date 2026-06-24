@@ -7,6 +7,7 @@ import {
 } from "./pi-write-tools";
 
 const services = vi.hoisted(() => ({
+  runBashForTool: vi.fn(),
   createUnderstanding: vi.fn(),
   updateUnderstanding: vi.fn(),
   deleteUnderstanding: vi.fn(),
@@ -16,6 +17,11 @@ const services = vi.hoisted(() => ({
   createContext: vi.fn(),
   updateContext: vi.fn(),
   deleteContext: vi.fn(),
+}));
+
+vi.mock("./local-tools", () => ({
+  MAX_BASH_TIMEOUT_MS: 30_000,
+  runBashForTool: services.runBashForTool,
 }));
 
 vi.mock("../core", () => ({
@@ -48,6 +54,8 @@ const knowledgeMutationNames = [
   "context_delete",
 ] as const;
 
+const expectedApprovalToolNames = [...knowledgeMutationNames, "bash"] as const;
+
 const samplePayloads: Record<(typeof knowledgeMutationNames)[number], Record<string, unknown>> = {
   understanding_create: { title: "New Understanding", body: "Body", domainIds: ["cat-1"] },
   understanding_update: {
@@ -67,25 +75,29 @@ const samplePayloads: Record<(typeof knowledgeMutationNames)[number], Record<str
   context_update: { contextId: "context-1", medium: "ai", content: "Updated context" },
   context_delete: { contextId: "context-1", reason: "No longer relevant" },
 };
+const sampleApprovalPayloads: Record<PiApprovalToolName, Record<string, unknown>> = {
+  ...samplePayloads,
+  bash: { command: "printf hello" },
+};
 
 describe("createPiWriteTools", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  test("registers every Reflecta mutation as an approval tool", async () => {
-    expect(PI_APPROVAL_TOOL_NAMES).toEqual(knowledgeMutationNames);
+  test("registers Reflecta mutations and Bash as approval tools", async () => {
+    expect(PI_APPROVAL_TOOL_NAMES).toEqual(expectedApprovalToolNames);
 
     const tools = createPiWriteTools();
-    expect(tools.map((tool) => tool.name)).toEqual(knowledgeMutationNames);
+    expect(tools.map((tool) => tool.name)).toEqual(expectedApprovalToolNames);
 
     for (const tool of tools) {
-      const toolName = tool.name as (typeof knowledgeMutationNames)[number];
+      const toolName = tool.name as PiApprovalToolName;
       const execute = tool.execute as (
         toolCallId: string,
         params: Record<string, unknown>,
       ) => Promise<unknown>;
-      const result = await execute("tool-call-1", samplePayloads[toolName]);
+      const result = await execute("tool-call-1", sampleApprovalPayloads[toolName]);
       expect(result).toMatchObject({
         details: {
           approvalStatus: "pending",
@@ -105,6 +117,20 @@ describe("createPiWriteTools", () => {
     expect(services.deleteContext).not.toHaveBeenCalled();
   });
 
+  test("executes approved Bash through the local shell seam", async () => {
+    const result = { command: "printf hello", exitCode: 0, stdout: "hello", stderr: "" };
+    services.runBashForTool.mockResolvedValue(result);
+
+    await expect(executePiApprovedTool("bash", { command: "printf hello" })).resolves.toEqual(
+      result,
+    );
+    expect(services.runBashForTool).toHaveBeenCalledWith({
+      command: "printf hello",
+      cwd: undefined,
+      timeoutMs: undefined,
+    });
+  });
+
   test("executes approved mutation tools through domain services", async () => {
     services.createUnderstanding.mockResolvedValue({ id: "understanding-created" });
     services.updateUnderstanding.mockResolvedValue({ id: "understanding-updated" });
@@ -114,7 +140,7 @@ describe("createPiWriteTools", () => {
     services.updateContext.mockResolvedValue({ id: "context-updated" });
 
     const cases: Array<{
-      toolName: PiApprovalToolName;
+      toolName: (typeof knowledgeMutationNames)[number];
       expected: Record<string, unknown>;
     }> = [
       {

@@ -10,11 +10,13 @@ import {
   hasAi,
   launchAgentPage,
   openThread,
+  PDF_ATTACHMENT_PHRASE,
   selectContext,
   sendMessage,
   threadByTitle,
   waitForAssistantReply,
   writeAttachmentFile,
+  writePdfAttachmentFile,
 } from "./agent-e2e";
 import {
   domainExistsByName,
@@ -315,7 +317,42 @@ test("@AG-PI-CONTEXT-001 用户在 Pi-backed session 中选择引用后发送消
   }
 });
 
-test("@AG-PI-ATTACHMENT-001 用户在 Pi-backed session 中发送附件后重启仍能看到附件", async () => {
+test("@AG-PI-ATTACHMENT-001 用户在 Pi-backed session 中上传 PDF 附件后 Agent 能读取正文", async () => {
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
+  test.setTimeout(240_000);
+
+  const filePath = writePdfAttachmentFile("PI_PDF_ATTACHMENT.pdf");
+  const fileName = path.basename(filePath);
+  const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+
+  try {
+    await createNewThread(page);
+    const fileChooser = page.waitForEvent("filechooser");
+    await page.getByTestId("agent-attachment-button").click();
+    await (await fileChooser).setFiles(filePath);
+    await expect(page.getByTestId("agent-attachment-preview")).toContainText(fileName);
+    await sendMessage(page, "请读取这个 PDF 附件，并直接回复其中的唯一英文单词");
+    await expect(page.getByTestId("agent-message-attachment")).toContainText(fileName);
+    const attachmentTool = page.getByTestId("agent-tool-activity").filter({ hasText: fileName });
+    await expect(attachmentTool).toBeVisible({
+      timeout: 120_000,
+    });
+    await attachmentTool.click();
+    await expect(attachmentTool).toContainText("类型");
+    await expect(attachmentTool).toContainText("pdf");
+    await expect(attachmentTool).toContainText("页数");
+    await expect(page.getByTestId("agent-assistant-text").last()).toContainText(
+      PDF_ATTACHMENT_PHRASE,
+      { timeout: 120_000 },
+    );
+    await expect(page.getByTestId("agent-stop-button")).toBeHidden({ timeout: 120_000 });
+    await expect(composer(page)).toBeEditable();
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-PI-ATTACHMENT-002 用户在 Pi-backed session 中发送附件后重启仍能看到附件", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(240_000);
 

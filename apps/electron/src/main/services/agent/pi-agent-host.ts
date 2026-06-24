@@ -263,7 +263,7 @@ export class PiAgentHost {
     return createAgentSession({
       agentDir,
       authStorage,
-      customTools: [...createPiReadOnlyTools(), ...createPiWriteTools()],
+      customTools: [...createPiReadOnlyTools(command.files), ...createPiWriteTools()],
       cwd: this.contentStorageRoot,
       model,
       modelRegistry,
