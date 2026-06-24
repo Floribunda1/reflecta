@@ -6,7 +6,9 @@ export default function globalSetup() {
   const env = createE2eTestEnv();
   const seedScript = path.resolve(import.meta.dirname, "../../cli/scripts/seed-test-data.ts");
 
-  execFileSync("bun", ["run", seedScript, env.dbPath], { stdio: "inherit" });
+  execFileSync("bun", ["run", seedScript, env.dbPath, env.contentStorageRoot], {
+    stdio: "inherit",
+  });
   saveE2eTestEnv(env);
   writeE2eAiConfig();
 }

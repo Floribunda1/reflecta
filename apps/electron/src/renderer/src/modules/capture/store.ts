@@ -129,6 +129,10 @@ function clearUnderstandingState(state: CaptureStore): Partial<CaptureStore> {
   };
 }
 
+function sameAgentScope(left: CaptureAgentScope | null, right: CaptureAgentScope) {
+  return Boolean(left && left.type === right.type && left.id === right.id);
+}
+
 export function createCaptureState(
   initialState: CaptureState = initialCaptureState,
 ): StateCreator<CaptureStore> {
@@ -283,6 +287,7 @@ export function createCaptureState(
             ? {
                 agentDockOpen: false,
                 agentDockScope: null,
+                agentDockThreadId: null,
               }
             : {}),
         };
@@ -303,6 +308,7 @@ export function createCaptureState(
               ? {
                   agentDockOpen: false,
                   agentDockScope: null,
+                  agentDockThreadId: null,
                 }
               : {}),
           };
@@ -316,6 +322,7 @@ export function createCaptureState(
             ? {
                 agentDockOpen: false,
                 agentDockScope: null,
+                agentDockThreadId: null,
               }
             : {}),
         };
@@ -325,6 +332,9 @@ export function createCaptureState(
       set((state) => ({
         agentDockOpen: true,
         agentDockScope: scope,
+        agentDockThreadId: sameAgentScope(state.agentDockScope, scope)
+          ? state.agentDockThreadId
+          : null,
         agentDockContextNonce: state.agentDockContextNonce + 1,
       })),
 

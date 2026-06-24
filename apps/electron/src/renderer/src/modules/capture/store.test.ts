@@ -227,6 +227,8 @@ describe("capture store", () => {
         saveRequestedAt: null,
       },
     });
+    store.getState().openAgentDock({ type: "domain", id: "child" });
+    store.getState().bindAgentDockThread("thread-1");
 
     store.getState().resetAfterDomainDeleted(new Set(["parent", "child"]));
 
@@ -234,12 +236,16 @@ describe("capture store", () => {
     expect(store.getState().selectedUnderstandingId).toBeNull();
     expect(store.getState().activeContextId).toBeNull();
     expect(store.getState().draft).toBeNull();
+    expect(store.getState().agentDockOpen).toBe(false);
+    expect(store.getState().agentDockScope).toBeNull();
+    expect(store.getState().agentDockThreadId).toBeNull();
   });
 
-  test("openAgentDock opens the dock and advances the context nonce", () => {
+  test("openAgentDock opens the dock, advances the context nonce, and resets different scopes", () => {
     const store = createCaptureStore();
 
     store.getState().openAgentDock({ type: "understanding", id: "u1", title: "First" });
+    store.getState().bindAgentDockThread("thread-1");
     store.getState().openAgentDock({ type: "domain", id: "d1", title: "Domain" });
 
     expect(store.getState().agentDockOpen).toBe(true);
@@ -248,7 +254,23 @@ describe("capture store", () => {
       id: "d1",
       title: "Domain",
     });
+    expect(store.getState().agentDockThreadId).toBeNull();
     expect(store.getState().agentDockContextNonce).toBe(2);
+  });
+
+  test("openAgentDock keeps the bound thread when reopening the same scope", () => {
+    const store = createCaptureStore();
+
+    store.getState().openAgentDock({ type: "domain", id: "d1", title: "Domain" });
+    store.getState().bindAgentDockThread("thread-1");
+    store.getState().openAgentDock({ type: "domain", id: "d1", title: "Renamed" });
+
+    expect(store.getState().agentDockScope).toEqual({
+      type: "domain",
+      id: "d1",
+      title: "Renamed",
+    });
+    expect(store.getState().agentDockThreadId).toBe("thread-1");
   });
 
   test("closeAgentDock hides the dock without losing its thread", () => {
@@ -265,10 +287,12 @@ describe("capture store", () => {
   test("resetAfterUnderstandingDeleted closes dock scoped to that understanding", () => {
     const store = createCaptureStore();
     store.getState().openAgentDock({ type: "understanding", id: "u1" });
+    store.getState().bindAgentDockThread("thread-1");
 
     store.getState().resetAfterUnderstandingDeleted("u1");
 
     expect(store.getState().agentDockOpen).toBe(false);
     expect(store.getState().agentDockScope).toBeNull();
+    expect(store.getState().agentDockThreadId).toBeNull();
   });
 });

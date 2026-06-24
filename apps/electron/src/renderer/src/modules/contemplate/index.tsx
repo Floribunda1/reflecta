@@ -13,6 +13,10 @@ const DEFAULT_PANEL_WIDTH = 560;
 const AGENT_DOCK_WIDTH = 560;
 const TITLEBAR_DRAG_LEFT_OFFSET = 220;
 
+function sameAgentScope(left: AgentContextRef | null, right: AgentContextRef) {
+  return Boolean(left && left.type === right.type && left.id === right.id);
+}
+
 function ContemplatePageInner() {
   const ctx = useContemplatePageContext();
   const { setSelectedUnderstandingId } = ctx;
@@ -31,11 +35,15 @@ function ContemplatePageInner() {
     if (pending) setSelectedUnderstandingId(pending);
   }, [searchParams, setSelectedUnderstandingId]);
 
-  const openAgentDock = useCallback((scope: AgentContextRef) => {
-    setAgentDockOpen(true);
-    setAgentDockScope(scope);
-    setAgentDockContextNonce((value) => value + 1);
-  }, []);
+  const openAgentDock = useCallback(
+    (scope: AgentContextRef) => {
+      if (!sameAgentScope(agentDockScope, scope)) setAgentDockThreadId(null);
+      setAgentDockOpen(true);
+      setAgentDockScope(scope);
+      setAgentDockContextNonce((value) => value + 1);
+    },
+    [agentDockScope],
+  );
 
   function onDragHandleMouseDown(event: MouseEvent<HTMLDivElement>) {
     event.preventDefault();

@@ -4,9 +4,10 @@
  * Generates a large, reproducible dataset covering all CLI query scenarios.
  *
  * Usage:
- *   bun run apps/cli/scripts/seed-test-data.ts [db-path]
+ *   bun run apps/cli/scripts/seed-test-data.ts [db-path] [content-storage-root]
  *
  * If db-path is omitted, it writes to /tmp/reflecta-test.db
+ * If content-storage-root is provided, it also seeds test Agent sessions.
  */
 
 import { Database } from "bun:sqlite";
@@ -15,6 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const dbPath = process.argv[2] ?? "/tmp/reflecta-test.db";
+const contentStorageRoot = process.argv[3];
 
 // Ensure directory exists
 const dir = path.dirname(dbPath);
@@ -97,6 +99,41 @@ function isoDate(daysAgo = 0, hoursOffset = 0) {
 
 function generateId(prefix = "id"): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36).slice(-4)}`;
+}
+
+const REFLECTA_AGENT_EVENT_ENTRY = "reflecta.agent.event";
+const SEEDED_CONTEXTUAL_AGENT_THREAD_ID = "seed_contextual_agent_programming";
+const SEEDED_CONTEXTUAL_AGENT_TITLE = "Programming 上下文历史对话";
+const SEEDED_CONTEXTUAL_AGENT_USER_TEXT = "历史讨论：Programming";
+const SEEDED_CONTEXTUAL_AGENT_REPLY = "这是一条 Programming 的上下文历史对话。";
+
+type AgentSessionEventSeed = {
+  id: string;
+  sessionId: string;
+  runId?: string;
+  createdAt: string;
+  type: string;
+  [key: string]: unknown;
+};
+
+function seedSessionTimestamp(index: number) {
+  return new Date(Date.UTC(2026, 5, 22, 8, 0, index)).toISOString();
+}
+
+function customAgentEntry(
+  id: string,
+  parentId: string,
+  event: AgentSessionEventSeed,
+  timestamp: string,
+) {
+  return {
+    type: "custom",
+    customType: REFLECTA_AGENT_EVENT_ENTRY,
+    data: event,
+    id,
+    parentId,
+    timestamp,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -391,6 +428,111 @@ type SeedDomain = {
   updatedAt: string;
 };
 
+function seedContextualAgentSession(root: string, domain: SeedDomain) {
+  const sessionsRoot = path.join(root, "Sessions");
+  fs.mkdirSync(sessionsRoot, { recursive: true });
+
+  const timestamp = seedSessionTimestamp(0);
+  const runId = "run_seed_contextual_agent_programming";
+  const userMessageId = "msg_seed_contextual_agent_user";
+  const assistantMessageId = "msg_seed_contextual_agent_assistant";
+  const contextRef = { type: "domain", id: domain.id, title: domain.name };
+  const sessionFile = path.join(
+    sessionsRoot,
+    `2026-06-22T08-00-00-000Z_${SEEDED_CONTEXTUAL_AGENT_THREAD_ID}.jsonl`,
+  );
+  const entries = [
+    {
+      type: "session",
+      version: 3,
+      id: SEEDED_CONTEXTUAL_AGENT_THREAD_ID,
+      timestamp,
+      cwd: root,
+    },
+    {
+      type: "session_info",
+      id: "seed_contextual_agent_info",
+      parentId: null,
+      timestamp,
+      name: SEEDED_CONTEXTUAL_AGENT_TITLE,
+    },
+    customAgentEntry(
+      "seed_contextual_agent_run_started",
+      "seed_contextual_agent_info",
+      {
+        id: "evt_seed_contextual_agent_run_started",
+        sessionId: SEEDED_CONTEXTUAL_AGENT_THREAD_ID,
+        runId,
+        createdAt: seedSessionTimestamp(1),
+        type: "run.started",
+      },
+      seedSessionTimestamp(1),
+    ),
+    customAgentEntry(
+      "seed_contextual_agent_user",
+      "seed_contextual_agent_run_started",
+      {
+        id: "evt_seed_contextual_agent_user",
+        sessionId: SEEDED_CONTEXTUAL_AGENT_THREAD_ID,
+        runId,
+        createdAt: seedSessionTimestamp(2),
+        type: "user.message",
+        messageId: userMessageId,
+        text: SEEDED_CONTEXTUAL_AGENT_USER_TEXT,
+        contextRefs: [contextRef],
+        composerContent: {
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [
+                {
+                  type: "mention",
+                  attrs: {
+                    id: `domain:${domain.id}`,
+                    label: domain.name,
+                    mentionSuggestionChar: "@",
+                  },
+                },
+                { type: "text", text: ` ${SEEDED_CONTEXTUAL_AGENT_USER_TEXT}` },
+              ],
+            },
+          ],
+        },
+      },
+      seedSessionTimestamp(2),
+    ),
+    customAgentEntry(
+      "seed_contextual_agent_assistant",
+      "seed_contextual_agent_user",
+      {
+        id: "evt_seed_contextual_agent_assistant",
+        sessionId: SEEDED_CONTEXTUAL_AGENT_THREAD_ID,
+        runId,
+        createdAt: seedSessionTimestamp(3),
+        type: "assistant.text.delta",
+        messageId: assistantMessageId,
+        delta: SEEDED_CONTEXTUAL_AGENT_REPLY,
+      },
+      seedSessionTimestamp(3),
+    ),
+    customAgentEntry(
+      "seed_contextual_agent_run_completed",
+      "seed_contextual_agent_assistant",
+      {
+        id: "evt_seed_contextual_agent_run_completed",
+        sessionId: SEEDED_CONTEXTUAL_AGENT_THREAD_ID,
+        runId,
+        createdAt: seedSessionTimestamp(4),
+        type: "run.completed",
+      },
+      seedSessionTimestamp(4),
+    ),
+  ];
+
+  fs.writeFileSync(sessionFile, `${entries.map((entry) => JSON.stringify(entry)).join("\n")}\n`);
+}
+
 const domains: SeedDomain[] = [
   // Root level (5)
   {
@@ -581,6 +723,10 @@ for (const c of domains) {
   insertDomain.run(c.id, c.name, c.parentId, c.sortOrder, c.createdAt, c.updatedAt);
 }
 console.log(`Inserted ${domains.length} domains`);
+if (contentStorageRoot) {
+  seedContextualAgentSession(contentStorageRoot, domains[0]);
+  console.log("Inserted 1 Agent session");
+}
 
 const allDomainIds = domains.map((c) => c.id);
 const leafDomainIds = domains

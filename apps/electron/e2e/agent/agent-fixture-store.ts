@@ -54,11 +54,21 @@ type FlushableSessionManager = SessionManager & {
 
 const BASE_TIME = "2026-06-22T08:00:00.000Z";
 const REFLECTA_AGENT_EVENT_ENTRY = "reflecta.agent.event";
+const SEEDED_CONTEXTUAL_AGENT_THREAD_ID = "seed_contextual_agent_programming";
 const fixture = JSON.parse(fs.readFileSync(fixturePath, "utf-8")) as Fixture;
 const db = new Database(dbPath);
 
 function sessionsRoot() {
   return path.join(contentStorageRoot, "Sessions");
+}
+
+function resetSessionsToSeedBaseline() {
+  const root = sessionsRoot();
+  fs.mkdirSync(root, { recursive: true });
+  for (const filename of fs.readdirSync(root)) {
+    if (filename.endsWith(`_${SEEDED_CONTEXTUAL_AGENT_THREAD_ID}.jsonl`)) continue;
+    fs.rmSync(path.join(root, filename), { recursive: true, force: true });
+  }
 }
 
 function timeAt(base: string, index: number) {
@@ -396,8 +406,7 @@ function seedUnderstanding(id: string, title: string, body: string) {
 
 try {
   if (fixture.type === "reset") {
-    fs.rmSync(sessionsRoot(), { recursive: true, force: true });
-    fs.mkdirSync(sessionsRoot(), { recursive: true });
+    resetSessionsToSeedBaseline();
   }
 
   if (fixture.type === "seedThread") {
