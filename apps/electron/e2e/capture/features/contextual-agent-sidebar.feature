@@ -10,6 +10,7 @@
     而且用户选择“和 AI 聊聊”
     那么页面右侧应该打开 Agent 侧栏
     而且 Agent 输入框中应该显示 Domain「Programming」上下文
+    而且 Agent 输入框应该获得焦点
     而且 Agent 侧栏应该显示当前范围为「Programming」
 
   @P0 @context @CP-AGENT-002
@@ -19,6 +20,7 @@
     而且用户选择“和 AI 聊聊”
     那么页面右侧应该打开 Agent 侧栏
     而且 Agent 输入框中应该显示 Understanding「React Server Components」上下文
+    而且 Agent 输入框应该获得焦点
     而且 Agent 侧栏应该显示当前范围为「React Server Components」
 
   @P0 @context @CP-AGENT-003
@@ -28,6 +30,7 @@
     而且用户点击详情页的“聊聊”按钮
     那么页面右侧应该打开 Agent 侧栏
     而且 Agent 输入框中应该显示 Understanding「React Server Components」上下文
+    而且 Agent 输入框应该获得焦点
 
   @P1 @isolation @CP-AGENT-004
   场景: 嵌入式 Understanding 详情不显示 Capture 专属聊天入口

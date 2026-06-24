@@ -25,6 +25,7 @@ async function expectAgentDockWithContext(page: Page, title: string) {
   await expect(page.getByTestId("capture-agent-dock")).toContainText(title);
   await expect(contextMention(page, title)).toBeVisible();
   await expect(composer(page)).toBeEditable();
+  await expect(composer(page)).toBeFocused();
 }
 
 test("@CP-AGENT-001 用户从 Domain 右键菜单打开上下文 Agent", async () => {
