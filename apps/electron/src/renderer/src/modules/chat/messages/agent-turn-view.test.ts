@@ -187,6 +187,85 @@ describe("buildAgentTurnView", () => {
     });
   });
 
+  test("shows web fetch URL and result details", () => {
+    const turn = buildAgentTurnView([
+      tool(
+        "web_fetch",
+        "tool-1",
+        {
+          url: "https://martinfowler.com/eaaDev/uiArchs.html",
+          finalUrl: "https://martinfowler.com/eaaDev/uiArchs.html",
+          title: "GUI Architectures",
+          markdown: "# GUI Architectures\nPresentation Model",
+          provider: "curl.md",
+          truncated: true,
+        },
+        "completed",
+        undefined,
+        { url: "https://martinfowler.com/eaaDev/uiArchs.html" },
+      ),
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "tool-activity",
+      activity: {
+        groupType: "lookup",
+        title: "读取网页",
+        status: "done",
+        summary: "读取了网页「GUI Architectures」",
+        items: [
+          expect.objectContaining({
+            label: "读取了网页「GUI Architectures」",
+            details: [
+              "url：https://martinfowler.com/eaaDev/uiArchs.html",
+              "标题：GUI Architectures",
+              "内容：38 字",
+              "内容已截断",
+            ],
+          }),
+        ],
+      },
+    });
+  });
+
+  test("shows blocked web fetch as unreadable", () => {
+    const turn = buildAgentTurnView([
+      tool(
+        "web_fetch",
+        "tool-1",
+        {
+          url: "https://www.zhihu.com/question/1",
+          markdown: "安全验证 - 知乎",
+          provider: "curl.md",
+          truncated: false,
+          blocked: true,
+          error: "Page appears blocked or login-gated.",
+        },
+        "completed",
+        undefined,
+        { url: "https://www.zhihu.com/question/1" },
+      ),
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "tool-activity",
+      activity: {
+        title: "读取网页",
+        summary: "网页无法读取「https://www.zhihu.com/question/1」",
+        items: [
+          expect.objectContaining({
+            details: [
+              "url：https://www.zhihu.com/question/1",
+              "状态：无法读取",
+              "内容：9 字",
+              "错误：Page appears blocked or login-gated.",
+            ],
+          }),
+        ],
+      },
+    });
+  });
+
   test("summarizes list tools from array outputs", () => {
     const turn = buildAgentTurnView([
       tool("understanding_list", "tool-1", [{ id: "t1" }, { id: "t2" }]),

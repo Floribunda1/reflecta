@@ -353,6 +353,7 @@ function toolGroupType(name: string): ToolGroupType {
   if (
     name === "search" ||
     name === "graph" ||
+    name === "web_fetch" ||
     name.startsWith("understanding_") ||
     name.startsWith("context_") ||
     name.startsWith("domain_") ||
@@ -472,6 +473,7 @@ function toolTitle(name: string) {
   if (name === "understanding_get") return "读取 Understanding";
   if (name === "context_list") return "列出 Context";
   if (name === "context_get") return "读取 Context";
+  if (name === "web_fetch") return "读取网页";
   if (name === "retrieve_knowledge") return "检索知识";
   if (name === "search") return "搜索相关内容";
   if (name === "graph") return "查看关联图";
@@ -485,6 +487,7 @@ function toolRunningVerb(name: string) {
   if (name === "attachment_read") return "正在读取附件";
   if (name === "file_read") return "正在读取本地文件";
   if (name === "bash") return "正在执行 Bash";
+  if (name === "web_fetch") return "正在读取网页";
   if (name === "retrieve_knowledge") return "正在检索知识";
   if (name.includes("search")) return "正在搜索相关内容";
   if (name === "graph") return "正在查看关联图";
@@ -512,7 +515,7 @@ function inputDetails(input: Record<string, unknown>) {
   const details: string[] = [];
   const query = stringValue(input.query).trim();
   if (query) details.push(`查询：${query}`);
-  for (const key of ["limit", "offset", "domainId", "understandingId", "contextId"]) {
+  for (const key of ["url", "limit", "offset", "domainId", "understandingId", "contextId"]) {
     const value = input[key];
     if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
       details.push(`${key}：${value}`);
@@ -524,6 +527,7 @@ function inputDetails(input: Record<string, unknown>) {
 function toolResultDetails(name: string, output: unknown): string[] {
   if (name === "search") return searchHitDetails(output);
   if (name === "retrieve_knowledge") return retrievalCandidateDetails(output);
+  if (name === "web_fetch") return webFetchDetails(output);
   if (name === "domain_list") return recordListDetails(output, "Domain", "domains");
   if (name === "understanding_list")
     return recordListDetails(output, "Understanding", "understandings");
@@ -535,6 +539,20 @@ function toolResultDetails(name: string, output: unknown): string[] {
   if (name === "graph")
     return recordListDetails(isRecord(output) ? output.nodes : [], "Understanding", "nodes");
   return [];
+}
+
+function webFetchDetails(output: unknown) {
+  if (!isRecord(output)) return [];
+  const details: string[] = [];
+  const title = stringValue(output.title);
+  const markdown = stringValue(output.markdown);
+  const error = stringValue(output.error);
+  if (title) details.push(`标题：${truncateText(title)}`);
+  if (typeof output.blocked === "boolean" && output.blocked) details.push("状态：无法读取");
+  if (markdown) details.push(`内容：${markdown.length} 字`);
+  if (typeof output.truncated === "boolean" && output.truncated) details.push("内容已截断");
+  if (error) details.push(`错误：${truncateText(error)}`);
+  return details;
 }
 
 function searchHitDetails(output: unknown) {
@@ -633,6 +651,7 @@ function toolDoneVerb(name: string) {
   if (name === "attachment_read") return "读取附件";
   if (name === "file_read") return "读取本地文件";
   if (name === "bash") return "执行 Bash";
+  if (name === "web_fetch") return "读取网页";
   if (name === "retrieve_knowledge") return "检索";
   if (name.includes("search")) return "搜索";
   if (name === "graph") return "查看关联图";
@@ -648,6 +667,14 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
   }
   if (name === "attachment_read") {
     return `读取了「${stringValue(outputRecord.filename) || stringValue(input.attachmentId) || "附件"}」`;
+  }
+  if (name === "web_fetch") {
+    const label =
+      stringValue(outputRecord.title) ||
+      stringValue(outputRecord.finalUrl) ||
+      stringValue(input.url) ||
+      "网页";
+    return outputRecord.blocked ? `网页无法读取「${label}」` : `读取了网页「${label}」`;
   }
   if (name === "bash") {
     const exitCode = outputRecord.exitCode;
