@@ -159,55 +159,40 @@ function ChatJumpNav({
     <nav
       data-testid="agent-chat-jump-nav"
       aria-label="消息跳转"
-      className="group pointer-events-none absolute right-4 top-1/2 z-20 hidden max-h-[58%] w-72 -translate-y-1/2 xl:block"
+      className="group/jump pointer-events-auto absolute right-4 top-1/2 z-20 hidden max-h-[58%] w-8 -translate-y-1/2 overflow-y-auto overflow-x-hidden rounded-lg border border-transparent bg-transparent p-2 shadow-none backdrop-blur transition-[width,background-color,border-color,box-shadow] duration-150 hover:w-72 hover:border-border hover:bg-background/95 hover:shadow-xl focus-within:w-72 focus-within:border-border focus-within:bg-background/95 focus-within:shadow-xl xl:block"
     >
-      <div className="pointer-events-auto absolute right-1 top-1/2 flex -translate-y-1/2 flex-col items-end gap-4 py-3">
-        {items.map((item) => {
-          const active = item.messageId === activeMessageId;
-          return (
-            <button
-              key={item.messageId}
-              type="button"
-              data-testid="agent-chat-jump-marker"
-              aria-label={item.label}
-              title={item.label}
-              className={cn(
-                "h-1 w-4 rounded-full bg-muted-foreground/50 transition-colors hover:bg-foreground/70 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
-                active && "bg-primary hover:bg-primary",
-              )}
-              onClick={() => onJump(item.messageId)}
-            />
-          );
-        })}
-      </div>
-      <div className="pointer-events-none mr-8 max-h-full translate-x-1 overflow-y-auto rounded-lg border border-border bg-background/95 p-2 opacity-0 shadow-xl backdrop-blur transition-[opacity,transform] duration-150 group-hover:pointer-events-auto group-hover:translate-x-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-x-0 group-focus-within:opacity-100">
-        {items.map((item) => {
-          const active = item.messageId === activeMessageId;
-          return (
-            <button
-              key={item.messageId}
-              type="button"
-              data-testid="agent-chat-jump-item"
-              data-active={active ? "true" : undefined}
-              title={item.label}
-              className={cn(
-                "flex h-9 w-full items-center gap-2 rounded-md px-2 text-left text-sm text-muted-foreground hover:bg-muted/70 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
-                active && "font-medium text-primary",
-              )}
-              onClick={() => onJump(item.messageId)}
+      {items.map((item) => {
+        const active = item.messageId === activeMessageId;
+        return (
+          <button
+            key={item.messageId}
+            type="button"
+            data-testid="agent-chat-jump-item"
+            data-active={active ? "true" : undefined}
+            title={item.label}
+            className={cn(
+              "flex h-9 w-full items-center gap-2 rounded-md px-2 text-left text-sm text-muted-foreground hover:bg-muted/70 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+              active && "font-medium text-primary",
+            )}
+            onClick={() => onJump(item.messageId)}
+          >
+            <span
+              data-testid="agent-chat-jump-label"
+              className="min-w-0 flex-1 truncate opacity-0 transition-opacity duration-150 group-hover/jump:opacity-100 group-focus-within/jump:opacity-100"
             >
-              <span className="min-w-0 flex-1 truncate">{item.label}</span>
-              <span
-                aria-hidden
-                className={cn(
-                  "h-0.5 w-3 shrink-0 rounded-full bg-muted-foreground/40",
-                  active && "bg-primary",
-                )}
-              />
-            </button>
-          );
-        })}
-      </div>
+              {item.label}
+            </span>
+            <span
+              data-testid="agent-chat-jump-marker"
+              aria-hidden
+              className={cn(
+                "h-0.5 w-3 shrink-0 rounded-full bg-muted-foreground/40",
+                active && "bg-primary",
+              )}
+            />
+          </button>
+        );
+      })}
     </nav>
   );
 }

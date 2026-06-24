@@ -358,27 +358,20 @@ test("@AG-PI-JUMP-001 用户在长对话中通过右侧摘录跳转到指定消�
     await openThread(page, CHAT_JUMP_THREAD_TITLE);
     await expect(page.getByTestId("agent-chat-jump-nav")).toBeVisible();
     await expect(page.getByTestId("agent-chat-jump-marker")).toHaveCount(6);
-    await expect(
-      page.getByTestId("agent-chat-jump-item").filter({ hasText: CHAT_JUMP_TARGET_MESSAGE }),
-    ).toHaveCount(1);
+    const targetJumpItem = page
+      .getByTestId("agent-chat-jump-item")
+      .filter({ hasText: CHAT_JUMP_TARGET_MESSAGE });
+    await expect(targetJumpItem).toHaveCount(1);
     await expect(page.getByTestId("agent-chat-jump-item").filter({ hasText: "Agent" })).toHaveCount(
       0,
     );
 
-    const jumpPanelOpacity = await page
-      .getByTestId("agent-chat-jump-item")
-      .first()
-      .evaluate((element) => getComputedStyle(element.closest("div")!).opacity);
-    expect(jumpPanelOpacity).toBe("0");
-
+    const targetJumpLabel = targetJumpItem.locator('[data-testid="agent-chat-jump-label"]');
+    await expect(targetJumpLabel).toHaveCSS("opacity", "0");
     await page.getByTestId("agent-chat-jump-marker").nth(4).hover();
-    await expect(
-      page.getByTestId("agent-chat-jump-item").filter({ hasText: CHAT_JUMP_TARGET_MESSAGE }),
-    ).toBeVisible();
-    await page
-      .getByTestId("agent-chat-jump-item")
-      .filter({ hasText: CHAT_JUMP_TARGET_MESSAGE })
-      .click();
+    await expect(targetJumpLabel).toHaveCSS("opacity", "1");
+
+    await targetJumpItem.click();
 
     await expect(
       page
