@@ -1,6 +1,7 @@
 /** Graph canvas powered by React Flow. */
 import { useMemo } from "react";
 import { GitBranch } from "lucide-react";
+import type { AgentContextRef } from "@shared/agent";
 import type { Domain } from "@shared/domain";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import { useContemplatePageContext } from "../context";
@@ -10,7 +11,7 @@ import { OverviewAtlas } from "./OverviewAtlas";
 import { UnderstandingCanvas } from "./UnderstandingCanvas";
 import { useCaptureDomains } from "../../capture/queries";
 
-export function GraphCanvas() {
+export function GraphCanvas({ onChat }: { onChat: (scope: AgentContextRef) => void }) {
   const ctx = useContemplatePageContext();
   const { data: rawUnderstandings } = useUnderstandingsQuery(
     ctx.selectedDomainIds,
@@ -46,6 +47,7 @@ export function GraphCanvas() {
         domains={domainList}
         understandings={allUnderstandings}
         onSelectDomain={(domainId) => ctx.setSelectedDomainIds([domainId])}
+        onChat={onChat}
       />
     );
   }
@@ -57,6 +59,7 @@ export function GraphCanvas() {
       domains={domainList}
       hasActiveFilter={hasActiveFilter}
       isEmpty={isEmpty}
+      onChat={onChat}
     />
   );
 }
@@ -97,12 +100,14 @@ function FocusGraph({
   domains,
   hasActiveFilter,
   isEmpty,
+  onChat,
 }: {
   rawUnderstandings: UnderstandingSummaryDTO[] | undefined;
   understandings: UnderstandingSummaryDTO[] | undefined;
   domains: Domain[];
   hasActiveFilter: boolean;
   isEmpty: boolean | undefined;
+  onChat: (scope: AgentContextRef) => void;
 }) {
   const ctx = useContemplatePageContext();
 
@@ -116,6 +121,7 @@ function FocusGraph({
             domains={domains}
             selectedUnderstandingId={ctx.selectedUnderstandingId}
             onSelectUnderstanding={ctx.setSelectedUnderstandingId}
+            onChat={onChat}
           />
         )}
       </div>

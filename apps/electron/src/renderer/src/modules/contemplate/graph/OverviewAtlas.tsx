@@ -11,8 +11,15 @@ import {
   type Node,
   type NodeProps,
 } from "@xyflow/react";
+import type { AgentContextRef } from "@shared/agent";
 import type { Domain } from "@shared/domain";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@renderer/components/ui/context-menu";
 import { cn } from "@renderer/lib/utils";
 import { layoutDagreGraph } from "./dagre-layout";
 
@@ -31,6 +38,7 @@ type DomainNodeData = {
   maxCount: number;
   relatedCount: number;
   selectable: boolean;
+  onChat?: (scope: AgentContextRef) => void;
 };
 
 type DomainFlowNode = Node<DomainNodeData, "domain">;
@@ -286,10 +294,11 @@ function DomainNode({ data }: NodeProps<DomainFlowNode>) {
     data.node.ownCount > 0 && data.node.ownCount !== data.node.count
       ? `${data.node.ownCount} / ${data.node.count}`
       : `${data.node.count}`;
-
-  return (
+  const card = (
     <button
       type="button"
+      data-testid="contemplate-domain-node"
+      data-domain-name={data.node.label}
       disabled={!data.selectable}
       className={cn(
         "overview-domain-card w-[240px] rounded-md border border-border bg-card px-4 py-3 text-left text-card-foreground shadow-xs transition-colors",
@@ -324,6 +333,27 @@ function DomainNode({ data }: NodeProps<DomainFlowNode>) {
       </div>
     </button>
   );
+
+  if (!data.node.domainId || !data.onChat) return card;
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger render={card} />
+      <ContextMenuContent>
+        <ContextMenuItem
+          onClick={() =>
+            data.onChat?.({
+              type: "domain",
+              id: data.node.domainId!,
+              title: data.node.label,
+            })
+          }
+        >
+          和 AI 聊聊
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  );
 }
 
 const NODE_TYPES = { domain: DomainNode };
@@ -336,10 +366,12 @@ export function OverviewAtlas({
   domains,
   understandings,
   onSelectDomain,
+  onChat,
 }: {
   domains: Domain[];
   understandings: UnderstandingSummaryDTO[];
   onSelectDomain: (domainId: string) => void;
+  onChat: (scope: AgentContextRef) => void;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const atlas = useMemo(() => buildAtlas(domains, understandings), [domains, understandings]);
@@ -369,9 +401,9 @@ export function OverviewAtlas({
     () =>
       treeNodes.map((node) => ({
         ...node,
-        data: { ...node.data, relatedCount: relationCounts.get(node.id) ?? 0 },
+        data: { ...node.data, relatedCount: relationCounts.get(node.id) ?? 0, onChat },
       })),
-    [treeNodes, relationCounts],
+    [treeNodes, relationCounts, onChat],
   );
   const edges = useMemo(
     () => [

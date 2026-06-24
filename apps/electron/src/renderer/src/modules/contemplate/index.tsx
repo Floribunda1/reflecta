@@ -1,5 +1,7 @@
-import { MouseEvent, useEffect, useState } from "react";
+import { MouseEvent, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import type { AgentContextRef } from "@shared/agent";
+import { ContextualAgentDock } from "@renderer/modules/chat/contextual-agent-dock";
 import { ContemplatePageProvider, useContemplatePageContext } from "./context";
 import { FilterPanel } from "./filter-panel";
 import { GraphCanvas } from "./graph";
@@ -8,6 +10,7 @@ import { NodeDetail } from "./NodeDetail";
 const MIN_PANEL_WIDTH = 440;
 const MAX_PANEL_WIDTH = 680;
 const DEFAULT_PANEL_WIDTH = 560;
+const AGENT_DOCK_WIDTH = 560;
 const TITLEBAR_DRAG_LEFT_OFFSET = 220;
 
 function ContemplatePageInner() {
@@ -15,11 +18,24 @@ function ContemplatePageInner() {
   const { setSelectedUnderstandingId } = ctx;
   const [searchParams] = useSearchParams();
   const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
+  const [agentDockOpen, setAgentDockOpen] = useState(false);
+  const [agentDockScope, setAgentDockScope] = useState<AgentContextRef | null>(null);
+  const [agentDockThreadId, setAgentDockThreadId] = useState<string | null>(null);
+  const [agentDockContextNonce, setAgentDockContextNonce] = useState(0);
+  const rightPanelWidth =
+    (ctx.selectedUnderstandingId !== null ? panelWidth : 0) +
+    (agentDockOpen ? AGENT_DOCK_WIDTH : 0);
 
   useEffect(() => {
     const pending = searchParams.get("selectUnderstandingId");
     if (pending) setSelectedUnderstandingId(pending);
   }, [searchParams, setSelectedUnderstandingId]);
+
+  const openAgentDock = useCallback((scope: AgentContextRef) => {
+    setAgentDockOpen(true);
+    setAgentDockScope(scope);
+    setAgentDockContextNonce((value) => value + 1);
+  }, []);
 
   function onDragHandleMouseDown(event: MouseEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -43,20 +59,26 @@ function ContemplatePageInner() {
   }
 
   return (
-    <div className="contemplate-page relative h-full w-full overflow-hidden bg-background">
+    <div
+      data-testid="contemplate-page"
+      className="contemplate-page relative h-full w-full overflow-hidden bg-background"
+    >
       <div
         className="app-drag-region absolute top-0 z-[15] h-12"
         style={{
           left: `${TITLEBAR_DRAG_LEFT_OFFSET}px`,
-          right: ctx.selectedUnderstandingId !== null ? `${panelWidth}px` : 0,
+          right: `${rightPanelWidth}px`,
         }}
       />
-      <GraphCanvas />
+      <GraphCanvas onChat={openAgentDock} />
       <FilterPanel />
       {ctx.selectedUnderstandingId !== null && (
         <div
           className="absolute bottom-0 right-0 top-0 z-10 flex overflow-hidden"
-          style={{ width: `${panelWidth}px` }}
+          style={{
+            right: agentDockOpen ? `${AGENT_DOCK_WIDTH}px` : 0,
+            width: `${panelWidth}px`,
+          }}
         >
           <div
             className="absolute bottom-0 left-0 top-0 z-20 w-1 cursor-col-resize transition-colors hover:bg-primary/10"
@@ -67,6 +89,21 @@ function ContemplatePageInner() {
           </div>
         </div>
       )}
+      {agentDockOpen && agentDockScope ? (
+        <div
+          className="absolute right-0 top-0 bottom-0 z-20 overflow-hidden border-l"
+          style={{ width: `${AGENT_DOCK_WIDTH}px` }}
+        >
+          <ContextualAgentDock
+            testId="contemplate-agent-dock"
+            scope={agentDockScope}
+            threadId={agentDockThreadId}
+            contextNonce={agentDockContextNonce}
+            onBindThread={setAgentDockThreadId}
+            onClose={() => setAgentDockOpen(false)}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

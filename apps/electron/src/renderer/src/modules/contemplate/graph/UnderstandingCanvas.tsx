@@ -12,8 +12,15 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import type { AgentContextRef } from "@shared/agent";
 import type { Domain } from "@shared/domain";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@renderer/components/ui/context-menu";
 import { cn } from "@renderer/lib/utils";
 import { layoutDagreGraph, type DagreLayoutEdge } from "./dagre-layout";
 
@@ -25,6 +32,7 @@ type UnderstandingNodeData = {
   domainLabel: string;
   external: boolean;
   selected: boolean;
+  onChat?: (scope: AgentContextRef) => void;
 };
 
 type GroupNodeData = {
@@ -124,6 +132,7 @@ function layoutNodes(
   focusIds: Set<string>,
   domains: Domain[],
   selectedUnderstandingId: string | null,
+  onChat: (scope: AgentContextRef) => void,
 ) {
   const domainById = new Map(domains.map((domain) => [domain.id, domain]));
   const understandingById = new Map(
@@ -155,6 +164,7 @@ function layoutNodes(
         domainLabel,
         external: !focusIds.has(id),
         selected: selectedUnderstandingId === id,
+        onChat,
       },
     } satisfies UnderstandingFlowNode;
   };
@@ -316,9 +326,11 @@ function HiddenHandles() {
 }
 
 function UnderstandingCard({ data }: NodeProps<Node<UnderstandingNodeData, "understanding">>) {
-  return (
+  const card = (
     <button
       type="button"
+      data-testid="contemplate-understanding-node"
+      data-understanding-title={data.title}
       className={cn(
         "w-[300px] rounded-md border border-border bg-card px-4 py-3 text-left text-card-foreground shadow-xs transition-colors",
         data.external && "border-dashed bg-muted/30 text-muted-foreground shadow-none",
@@ -347,6 +359,27 @@ function UnderstandingCard({ data }: NodeProps<Node<UnderstandingNodeData, "unde
         )}
       </div>
     </button>
+  );
+
+  if (!data.onChat) return card;
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger render={card} />
+      <ContextMenuContent>
+        <ContextMenuItem
+          onClick={() =>
+            data.onChat?.({
+              type: "understanding",
+              id: data.understanding.id,
+              title: data.title,
+            })
+          }
+        >
+          和 AI 聊聊
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 
@@ -386,12 +419,14 @@ export function UnderstandingCanvas({
   domains,
   selectedUnderstandingId,
   onSelectUnderstanding,
+  onChat,
 }: {
   understandings: UnderstandingSummaryDTO[];
   focusUnderstandings: UnderstandingSummaryDTO[];
   domains: Domain[];
   selectedUnderstandingId: string | null;
   onSelectUnderstanding: (id: string | null) => void;
+  onChat: (scope: AgentContextRef) => void;
 }) {
   const focusIds = useMemo(
     () => new Set(focusUnderstandings.map((understanding) => understanding.id)),
@@ -400,8 +435,10 @@ export function UnderstandingCanvas({
   const links = useMemo(() => buildLinks(understandings), [understandings]);
   const nodes = useMemo(
     () =>
-      addGroupNodes(layoutNodes(understandings, links, focusIds, domains, selectedUnderstandingId)),
-    [understandings, links, focusIds, domains, selectedUnderstandingId],
+      addGroupNodes(
+        layoutNodes(understandings, links, focusIds, domains, selectedUnderstandingId, onChat),
+      ),
+    [understandings, links, focusIds, domains, selectedUnderstandingId, onChat],
   );
   const edges = useMemo(
     () => buildEdges(links, focusIds, selectedUnderstandingId),

@@ -1,27 +1,15 @@
-import { FileText, X } from "lucide-react";
-import { useEffect } from "react";
-import type { AgentContextRef } from "@shared/agent";
-import { Button } from "@renderer/components/ui/button";
+import { FileText } from "lucide-react";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@renderer/components/ui/resizable";
-import { AgentThreadPanel } from "@renderer/modules/chat/agent-thread-panel";
-import { useCreateThreadMutation } from "@renderer/modules/chat/session/server-state";
+import { ContextualAgentDock } from "@renderer/modules/chat/contextual-agent-dock";
 import { DomainTree } from "./domain";
 import { UnderstandingDetail } from "./understanding-detail";
 import { UnderstandingList } from "./understanding-list";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@renderer/components/ui/empty";
-import { useCaptureStore, type CaptureAgentScope } from "./store";
-
-function scopeTitle(scope: CaptureAgentScope | null) {
-  return scope?.title?.trim() || (scope?.type === "domain" ? "当前领域" : "当前理解");
-}
-
-function scopeContextRef(scope: CaptureAgentScope | null): AgentContextRef[] {
-  return scope ? [{ type: scope.type, id: scope.id, title: scope.title }] : [];
-}
+import { useCaptureStore } from "./store";
 
 function CaptureAgentDock() {
   const agentDockScope = useCaptureStore((state) => state.agentDockScope);
@@ -29,53 +17,16 @@ function CaptureAgentDock() {
   const agentDockContextNonce = useCaptureStore((state) => state.agentDockContextNonce);
   const bindAgentDockThread = useCaptureStore((state) => state.bindAgentDockThread);
   const closeAgentDock = useCaptureStore((state) => state.closeAgentDock);
-  const createThreadMutation = useCreateThreadMutation();
-  const contextKey = agentDockScope
-    ? `${agentDockScope.type}:${agentDockScope.id}:${agentDockContextNonce}`
-    : undefined;
-
-  useEffect(() => {
-    if (agentDockThreadId || createThreadMutation.isPending) return;
-    createThreadMutation.mutate(`聊聊：${scopeTitle(agentDockScope)}`, {
-      onSuccess: (thread) => bindAgentDockThread(thread.id),
-    });
-  }, [agentDockScope, agentDockThreadId, bindAgentDockThread, createThreadMutation]);
 
   return (
-    <aside
-      data-testid="capture-agent-dock"
-      className="flex h-full min-h-0 min-w-0 flex-col bg-card/90"
-    >
-      <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-4">
-        <div className="min-w-0">
-          <div className="truncate text-sm font-medium">Agent</div>
-          <div className="truncate text-xs text-muted-foreground">{scopeTitle(agentDockScope)}</div>
-        </div>
-        <Button
-          type="button"
-          size="icon-xs"
-          variant="ghost"
-          aria-label="关闭 Agent"
-          onClick={closeAgentDock}
-        >
-          <X />
-        </Button>
-      </div>
-
-      <div className="min-h-0 flex-1">
-        {agentDockThreadId ? (
-          <AgentThreadPanel
-            threadId={agentDockThreadId}
-            initialContextKey={contextKey}
-            initialContextRefs={scopeContextRef(agentDockScope)}
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            加载 Agent...
-          </div>
-        )}
-      </div>
-    </aside>
+    <ContextualAgentDock
+      testId="capture-agent-dock"
+      scope={agentDockScope}
+      threadId={agentDockThreadId}
+      contextNonce={agentDockContextNonce}
+      onBindThread={bindAgentDockThread}
+      onClose={closeAgentDock}
+    />
   );
 }
 
