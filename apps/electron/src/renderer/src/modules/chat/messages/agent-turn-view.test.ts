@@ -16,13 +16,14 @@ function tool(
   output: unknown,
   state: "running" | "completed" | "failed" = "completed",
   error?: string,
+  input: unknown = {},
 ): AgentReducedAssistantBlock {
   return {
     kind: "tool",
     toolCallId,
     toolName: name,
     state,
-    input: {},
+    input,
     output,
     error,
     createdAt: "2026-06-23T00:00:00.000Z",
@@ -115,7 +116,7 @@ describe("buildAgentTurnView", () => {
     ]);
   });
 
-  test("groups adjacent lookup tools without crossing text", () => {
+  test("renders each adjacent tool as its own activity without crossing text", () => {
     const turn = buildAgentTurnView([
       tool("search", "tool-1", {
         hits: [{ type: "understanding", understanding: { id: "t1" } }],
@@ -125,49 +126,63 @@ describe("buildAgentTurnView", () => {
       tool("context_list", "tool-3", { contexts: [{ id: "c1" }] }),
     ]);
 
-    expect(turn.blocks).toHaveLength(3);
+    expect(turn.blocks).toHaveLength(4);
     expect(turn.blocks[0]).toMatchObject({
+      kind: "tool-activity",
+      activity: { groupType: "lookup", items: [expect.objectContaining({ toolName: "search" })] },
+    });
+    expect(turn.blocks[1]).toMatchObject({
       kind: "tool-activity",
       activity: {
         groupType: "lookup",
-        items: expect.arrayContaining([expect.objectContaining({ label: "读取了「A」" })]),
+        items: [expect.objectContaining({ label: "读取了「A」" })],
       },
     });
-    expect(turn.blocks[2]).toMatchObject({
+    expect(turn.blocks[3]).toMatchObject({
       kind: "tool-activity",
       activity: { groupType: "lookup" },
     });
   });
 
-  test("summarizes lookup activity", () => {
+  test("shows search query and result details in its own tool activity", () => {
     const turn = buildAgentTurnView([
-      tool("search", "tool-1", {
-        hits: [
-          { type: "understanding", understanding: { id: "t1" } },
-          { type: "understanding", understanding: { id: "t2" } },
-          { type: "understanding", understanding: { id: "t3" } },
-          { type: "context", context: { id: "c1" }, understandingId: "t1" },
-        ],
-      }),
-      tool("understanding_get", "tool-2", { understanding: { id: "t1", title: "拖延与自我保护" } }),
+      tool(
+        "search",
+        "tool-1",
+        {
+          hits: [
+            {
+              type: "understanding",
+              understanding: { id: "t1", title: "拖延与自我保护" },
+              matchedText: "拖延有时是在保护自己",
+            },
+            { type: "context", context: { id: "c1", title: "复盘片段" }, understandingId: "t1" },
+          ],
+        },
+        "completed",
+        undefined,
+        { query: "拖延", limit: 5 },
+      ),
     ]);
 
     expect(turn.blocks[0]).toMatchObject({
       kind: "tool-activity",
       activity: {
-        title: "查找相关内容",
+        title: "搜索相关内容",
         status: "done",
-        summary: "搜索 3 条 Understanding，读取 1 条 Context",
-        items: expect.arrayContaining([
+        summary: "搜索「拖延」 · 1 条 Understanding / 1 条 Context",
+        items: [
           expect.objectContaining({
-            label: "搜索了 3 条 Understanding / 1 条 Context",
+            label: "搜索「拖延」 · 1 条 Understanding / 1 条 Context",
             status: "done",
+            details: [
+              "查询：拖延",
+              "limit：5",
+              "Understanding：拖延与自我保护 · 拖延有时是在保护自己",
+              "Context：复盘片段",
+            ],
           }),
-          expect.objectContaining({
-            label: "读取了「拖延与自我保护」",
-            status: "done",
-          }),
-        ]),
+        ],
       },
     });
   });

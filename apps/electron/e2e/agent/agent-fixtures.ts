@@ -104,12 +104,12 @@ export function assistantMessage(id: string, parts: unknown[]): AgentFixtureMess
   return { id, role: "assistant", parts };
 }
 
-export function toolPart(name: string, toolCallId: string, output: unknown) {
+export function toolPart(name: string, toolCallId: string, output: unknown, input: unknown = {}) {
   return {
     type: `tool-${name}`,
     toolCallId,
     state: "output-available",
-    input: {},
+    input,
     output,
   };
 }

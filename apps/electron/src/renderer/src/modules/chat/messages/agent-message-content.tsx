@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Check, CheckCircle2, ChevronDown, CircleAlert } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { Streamdown } from "streamdown";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
@@ -69,44 +69,33 @@ function MarkdownBody({
 }
 
 function ToolActivityGroup({ activity }: { activity: ToolActivityView }) {
+  const item = activity.items[0];
+  const statusClass = activity.status === "failed" ? "text-destructive" : "text-muted-foreground";
+
   return (
     <Collapsible
       data-testid="agent-tool-activity"
-      className="w-full rounded-md bg-muted/35 text-xs text-muted-foreground"
+      className="my-1 w-full border-l border-border/60 pl-3 text-sm text-muted-foreground"
     >
-      <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between gap-2 px-2.5 py-1.5 text-left">
-        <span className="flex min-w-0 items-center gap-2">
-          <ChevronDown className="size-3 shrink-0 -rotate-90 text-muted-foreground transition-transform group-data-[panel-open]:rotate-0" />
-          {activity.status === "running" ? <Spinner className="size-3 shrink-0" /> : null}
-          <span className="truncate">{activity.summary}</span>
+      <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between gap-2 rounded-sm px-1 py-0.5 text-left hover:bg-muted/45">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="min-w-0 truncate">{activity.summary}</span>
+          <ChevronDown className="size-3 shrink-0 -rotate-90 text-muted-foreground opacity-0 transition group-data-[panel-open]:rotate-0 group-data-[panel-open]:opacity-100 group-hover:opacity-100 group-focus-visible:opacity-100" />
         </span>
-        <Badge variant={activity.status === "failed" ? "destructive" : "outline"}>
-          {activity.statusLabel}
-        </Badge>
+        <span className={statusClass}>{activity.statusLabel}</span>
       </CollapsibleTrigger>
-      <CollapsibleContent className="border-t border-border/60 px-2.5 py-2">
-        <div className="mb-1 text-muted-foreground">{activity.title}</div>
-        <ul className="space-y-1.5">
-          {activity.items.map((item) => (
-            <li key={item.toolCallId} className="grid gap-1">
-              <div className="flex min-w-0 items-center gap-2">
-                {item.status === "running" ? <Spinner className="size-3 shrink-0" /> : null}
-                {item.status === "failed" ? (
-                  <CircleAlert className="size-3 shrink-0 text-destructive" />
-                ) : null}
-                {item.status === "done" ? (
-                  <CheckCircle2 className="size-3 shrink-0 text-muted-foreground" />
-                ) : null}
-                <span className="min-w-0 flex-1 truncate">{item.label}</span>
-              </div>
-              {item.errorText ? (
-                <div className="ml-5 rounded-md bg-destructive/10 px-2 py-1 text-destructive">
-                  {item.errorText}
-                </div>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+      <CollapsibleContent className="mt-1 px-1 pb-1 text-muted-foreground">
+        <div className="mb-0.5">{activity.title}</div>
+        {item?.details.length ? (
+          <ul className="grid gap-0.5">
+            {item.details.map((detail, index) => (
+              <li key={`${item.toolCallId}-detail-${index}`} className="break-words">
+                {detail}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {item?.errorText ? <div className="mt-1 text-destructive">{item.errorText}</div> : null}
       </CollapsibleContent>
     </Collapsible>
   );
@@ -125,18 +114,18 @@ function ReasoningBlock({
     <Collapsible
       data-slot="agent-reasoning"
       data-testid="agent-reasoning"
-      className="w-full rounded-md border border-border/60 bg-muted/25 text-xs text-muted-foreground"
+      className="my-1 w-full border-l border-border/60 pl-3 text-sm text-muted-foreground"
     >
-      <CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-2 px-2.5 py-1.5 text-left">
-        <ChevronDown className="size-3 shrink-0 -rotate-90 text-muted-foreground transition-transform group-data-[panel-open]:rotate-0" />
+      <CollapsibleTrigger className="group inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-sm px-1 py-0.5 text-left hover:bg-muted/45">
         {streaming ? <Spinner className="size-3 shrink-0" /> : null}
         <span>{streaming ? "正在思考" : "思考过程"}</span>
+        <ChevronDown className="size-3 shrink-0 -rotate-90 text-muted-foreground opacity-0 transition group-data-[panel-open]:rotate-0 group-data-[panel-open]:opacity-100 group-hover:opacity-100 group-focus-visible:opacity-100" />
       </CollapsibleTrigger>
-      <CollapsibleContent className="border-t border-border/60 px-2.5 py-2">
+      <CollapsibleContent className="mt-1 px-1 pb-1 text-muted-foreground">
         {reasoning.text ? (
           <MarkdownBody
             value={reasoning.text}
-            className="!text-[13px] !leading-5 !text-muted-foreground [&_*]:!text-muted-foreground"
+            className="!text-muted-foreground [&_*]:!text-muted-foreground"
             onInspectContextRef={onInspectContextRef}
           />
         ) : (

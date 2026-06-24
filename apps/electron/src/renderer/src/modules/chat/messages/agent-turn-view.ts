@@ -39,6 +39,7 @@ export type ToolActivityItemView = {
   label: string;
   status: ToolActivityView["status"];
   statusLabel: string;
+  details: string[];
   errorText?: string;
 };
 
@@ -182,11 +183,6 @@ function appendText(blocks: InternalTurnBlock[], text: string) {
 }
 
 function appendTool(blocks: InternalTurnBlock[], groupType: ToolGroupType, block: AgentToolBlock) {
-  const last = blocks.at(-1);
-  if (last?.kind === "tool-group" && last.groupType === groupType) {
-    last.blocks.push(block);
-    return;
-  }
   blocks.push({ kind: "tool-group", groupType, blocks: [block] });
 }
 
@@ -336,7 +332,9 @@ function summarizeToolGroup(groupType: ToolGroupType, blocks: AgentToolBlock[]):
   const title = toolActivityTitle(groupType, blocks);
   const summary =
     status === "running"
-      ? runningSummary(groupType)
+      ? blocks.length === 1 && blocks[0]
+        ? toolItemView(blocks[0]).label
+        : runningSummary(groupType)
       : status === "failed"
         ? failedSummary(title, blocks)
         : doneSummary(groupType, blocks);
@@ -383,6 +381,7 @@ function toolItemView(block: AgentToolBlock): ToolActivityItemView {
       label: `${toolDoneVerb(toolName)}失败`,
       status: "failed",
       statusLabel: "出错",
+      details: toolDetails(block),
       errorText: block.error,
     };
   }
@@ -390,9 +389,10 @@ function toolItemView(block: AgentToolBlock): ToolActivityItemView {
     return {
       toolCallId: block.toolCallId,
       toolName,
-      label: toolRunningVerb(toolName),
+      label: toolRunningSummary(toolName, toolInput(block)),
       status: "running",
       statusLabel: "运行中",
+      details: toolDetails(block),
     };
   }
   return {
@@ -401,6 +401,7 @@ function toolItemView(block: AgentToolBlock): ToolActivityItemView {
     label: toolDoneSummary(toolName, toolInput(block), toolOutput(block)),
     status: "done",
     statusLabel: "完成",
+    details: toolDetails(block),
   };
 }
 
@@ -492,6 +493,142 @@ function toolRunningVerb(name: string) {
   return "正在使用工具";
 }
 
+function queryLabel(input: Record<string, unknown>) {
+  const query = stringValue(input.query).trim();
+  return query ? `「${query}」` : "";
+}
+
+function toolDetails(block: AgentToolBlock): string[] {
+  const input = toolInput(block);
+  const output = toolOutput(block);
+  const details = inputDetails(input);
+  if (block.state !== "completed") return details;
+
+  const resultDetails = toolResultDetails(block.toolName, output);
+  return resultDetails.length > 0 ? [...details, ...resultDetails] : details;
+}
+
+function inputDetails(input: Record<string, unknown>) {
+  const details: string[] = [];
+  const query = stringValue(input.query).trim();
+  if (query) details.push(`查询：${query}`);
+  for (const key of ["limit", "offset", "domainId", "understandingId", "contextId"]) {
+    const value = input[key];
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      details.push(`${key}：${value}`);
+    }
+  }
+  return details;
+}
+
+function toolResultDetails(name: string, output: unknown): string[] {
+  if (name === "search") return searchHitDetails(output);
+  if (name === "retrieve_knowledge") return retrievalCandidateDetails(output);
+  if (name === "domain_list") return recordListDetails(output, "Domain", "domains");
+  if (name === "understanding_list")
+    return recordListDetails(output, "Understanding", "understandings");
+  if (name === "context_list") return recordListDetails(output, "Context", "contexts");
+  if (name === "domain_inspect") return inspectDomainDetails(output);
+  if (name === "understanding_get")
+    return recordDetails(entityRecord(output, "understanding"), "Understanding");
+  if (name === "context_get") return recordDetails(entityRecord(output, "context"), "Context");
+  if (name === "graph")
+    return recordListDetails(isRecord(output) ? output.nodes : [], "Understanding", "nodes");
+  return [];
+}
+
+function searchHitDetails(output: unknown) {
+  const hits = isRecord(output) ? arrayValue(output.hits) : [];
+  return limitedLines(
+    hits.map((hit) => {
+      if (!isRecord(hit)) return "";
+      if (hit.type === "understanding") {
+        const understanding = isRecord(hit.understanding) ? hit.understanding : {};
+        return resultLine(
+          "Understanding",
+          entityTitle(understanding),
+          stringValue(hit.matchedText),
+        );
+      }
+      if (hit.type === "context") {
+        const context = isRecord(hit.context) ? hit.context : {};
+        return resultLine("Context", entityTitle(context), stringValue(hit.matchedText));
+      }
+      return "";
+    }),
+  );
+}
+
+function retrievalCandidateDetails(output: unknown) {
+  const candidates = isRecord(output) ? arrayValue(output.candidates) : [];
+  return limitedLines(
+    candidates.map((candidate) => {
+      if (!isRecord(candidate)) return "";
+      const contexts = arrayValue(candidate.matchedContexts).length;
+      const suffix = contexts > 0 ? `${contexts} 条 Context 证据` : "";
+      return resultLine("Understanding", entityTitle(candidate), suffix);
+    }),
+  );
+}
+
+function recordListDetails(output: unknown, label: string, emptyLabel: string) {
+  const records = Array.isArray(output)
+    ? output
+    : isRecord(output)
+      ? arrayValue(output[emptyLabel])
+      : [];
+  return limitedLines(
+    records.map((record) => (isRecord(record) ? resultLine(label, entityTitle(record)) : "")),
+  );
+}
+
+function inspectDomainDetails(output: unknown) {
+  if (!isRecord(output)) return [];
+  const domain = entityRecord(output, "domain");
+  const details = recordDetails(domain, "Domain");
+  details.push(`Understanding：${arrayValue(output.understandings).length} 条`);
+  details.push(`Context：${arrayValue(output.contexts).length} 条`);
+  return details;
+}
+
+function recordDetails(record: Record<string, unknown>, label: string) {
+  const title = entityTitle(record);
+  const body = stringValue(record.body) || stringValue(record.content);
+  return [resultLine(label, title, body)];
+}
+
+function entityRecord(output: unknown, key: string) {
+  if (!isRecord(output)) return {};
+  const nested = output[key];
+  return isRecord(nested) ? nested : output;
+}
+
+function limitedLines(lines: string[]) {
+  const filtered = lines.filter(Boolean);
+  if (filtered.length === 0) return ["结果：空"];
+  const visible = filtered.slice(0, 5);
+  return filtered.length > visible.length
+    ? [...visible, `还有 ${filtered.length - visible.length} 条结果`]
+    : visible;
+}
+
+function resultLine(kind: string, title?: string, detail?: string) {
+  const safeTitle = title || "未命名";
+  const safeDetail = detail ? ` · ${truncateText(detail)}` : "";
+  return `${kind}：${safeTitle}${safeDetail}`;
+}
+
+function truncateText(text: string, maxLength = 80) {
+  const compact = text.replace(/\s+/g, " ").trim();
+  return compact.length > maxLength ? `${compact.slice(0, maxLength)}...` : compact;
+}
+
+function toolRunningSummary(name: string, input: Record<string, unknown>) {
+  if (name === "search") return `正在搜索${queryLabel(input) || "相关内容"}`;
+  if (name === "retrieve_knowledge") return `正在检索${queryLabel(input) || "知识"}`;
+  return toolRunningVerb(name);
+}
+
 function toolDoneVerb(name: string) {
   if (name === "attachment_read") return "读取附件";
   if (name === "file_read") return "读取本地文件";
@@ -525,11 +662,17 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
   }
   if (name === "search") {
     const counts = searchHitCounts(output);
-    return `搜索了 ${counts.understandings} 条 Understanding / ${counts.contexts} 条 Context`;
+    const query = queryLabel(input);
+    return query
+      ? `搜索${query} · ${counts.understandings} 条 Understanding / ${counts.contexts} 条 Context`
+      : `搜索了 ${counts.understandings} 条 Understanding / ${counts.contexts} 条 Context`;
   }
   if (name === "retrieve_knowledge") {
     const counts = retrievalCandidateCounts(output);
-    return `检索到 ${counts.understandings} 条 Understanding / ${counts.contexts} 条 Context 证据`;
+    const query = queryLabel(input);
+    return query
+      ? `检索${query} · ${counts.understandings} 条 Understanding / ${counts.contexts} 条 Context 证据`
+      : `检索到 ${counts.understandings} 条 Understanding / ${counts.contexts} 条 Context 证据`;
   }
   if (name === "graph") {
     return `查看了 ${outputCount(output, "nodes")} 条 Understanding 的关联图`;
