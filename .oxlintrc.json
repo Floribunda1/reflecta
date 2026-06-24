@@ -12,6 +12,7 @@
     "**/node_modules/**/*"
   ],
   "rules": {
+    "eslint/no-unused-vars": "error",
     "typescript/no-explicit-any": "error"
   },
   "env": {
