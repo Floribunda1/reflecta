@@ -307,6 +307,8 @@ storeMode = explicit-db
 
 这种模式不能运行 search、retrieval、assets、agent 相关命令。
 
+`explicitContentStorageRoot` 和 `explicitDbPath` 表示调用方已经完成“这是显式用户意图”的判定。对 CLI 来说，这个显式意图应该来自命令行参数，例如 `--content-root` 或 `--db`，不能来自 Bun 自动加载的 ambient env。
+
 ## 6. 生产 CLI 和源码 CLI
 
 ### 6.1 生产 CLI
@@ -372,9 +374,9 @@ bun apps/cli/src/index.ts --content-root /absolute/path/to/reflecta-prod search 
 
 这样生产数据目标会出现在命令里，不会由 `.env.production.local` 偷偷决定。
 
-## 7. Release 资格
+## 7. 发布资格
 
-Release 资格不能从运行时 env 读取。
+发布资格不能从运行时 env 读取。
 
 错误做法：
 
@@ -463,8 +465,8 @@ data_environment = prod | dev | test
 用途：
 
 ```txt
-release runtime 默认可以打开 prod。
-source runtime 默认只能打开 dev。
+Build Kind=release 的产品入口默认可以打开 prod。
+Build Kind=source 的产品入口默认只能打开 dev。
 test/script 不能打开 prod。
 seed 不能 truncate prod。
 unknown marker 在 destructive script 中默认拒绝。
@@ -498,11 +500,11 @@ bun run db:seed:dev
 
 Bun 会自动加载 `.env*` 文件。这个行为可以保留，但 Runtime Resolver 不能依赖它来判断生产能力。
 
-允许 env 做两类事情：
+允许 env 做这些事：
 
 ```txt
-1. 传入显式 override，例如 --content-root 对应的环境变量。
-2. 传入外部服务配置，例如 AI provider key。
+1. 传入外部服务配置，例如 AI provider key。
+2. 传入非数据目标配置，例如日志级别。
 ```
 
 不允许 env 做这些事：
@@ -511,6 +513,7 @@ Bun 会自动加载 `.env*` 文件。这个行为可以保留，但 Runtime Reso
 1. 把 source 进程变成 release 进程。
 2. 决定默认 Data Target 是 prod。
 3. 授予自动 migration 权限。
+4. 在源码态 CLI 中作为 --content-root / --db 的替代来源。
 ```
 
 也就是说，即使 Bun 加载了 `.env.production.local`，也不能改变这张表：
@@ -521,6 +524,8 @@ electron + source -> dev
 cli + release -> prod
 electron + release -> prod
 ```
+
+测试和脚本可以用 env 传递临时路径，但那是受控 harness 的输入，不是普通源码态 CLI 的默认解析规则。
 
 ## 12. 迁移计划
 
@@ -567,7 +572,9 @@ electron + release -> prod
 - 新增全局 `--content-root <dir>` 作为显式数据目录覆盖项。
 - 新增低层 `--db <path>`，只用于 DB-only 命令。
 - 删除基于 `REFLECTA_PROFILE` 的 DB discovery。
-- `REFLECTA_APP_CONFIG_DIR` 只作为显式配置覆盖项，不作为源码 CLI 提权通道。
+- 源码 CLI 不把 ambient env 中的 `REFLECTA_CONTENT_STORAGE_ROOT` / `REFLECTA_DB_PATH` 当作生产数据显式意图。
+- 生产 CLI 的默认 App Config Dir 由平台路径推导。
+- `REFLECTA_APP_CONFIG_DIR` 只允许作为命令行显式配置覆盖项或受控测试输入，不作为源码 CLI 提权通道。
 
 ### Phase 6：加入 DB 环境标记
 
@@ -598,10 +605,11 @@ electron + release -> prod
 架构完成时必须满足：
 
 - 没有源码读取 `REFLECTA_PROFILE`。
-- Release 资格不能由运行时 env 设置。
+- 发布资格不能由运行时 env 设置。
 - `NODE_ENV=production bun ...` 不能把源码 CLI 变成生产 CLI。
 - 生产 CLI 无参数时默认读取生产 App Config Dir，并和生产 Electron 同源。
 - 源码 CLI 无参数时默认读取开发 App Config Dir。
+- 源码 CLI 不能因为 ambient env 中存在 `REFLECTA_CONTENT_STORAGE_ROOT` / `REFLECTA_DB_PATH` 而默认切到生产数据。
 - 需要 semantic search 的 CLI 命令必须运行在 full-store 模式，不能只用 `dbPath`。
 - `electron + release` 和 `cli + release` 是唯二可以自动迁移 prod DB 的产品入口。
 - Tests 和 seed scripts 不能 truncate 或写入 marker=prod 的 DB。
