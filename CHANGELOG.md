@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 - 2026-06-24
+
+- Renamed the core product language from Categories and Thoughts to Domains and Understandings across the app, CLI, docs, and migration path.
+- Added local semantic retrieval with domain anchors, local embedding configuration, dirty-index rebuilds, indexing status, and a retrieval quality benchmark runner.
+- Added the Pi-backed agent runtime with detailed tool activity, knowledge retrieval, web fetch, attachments, and improved tool summaries.
+- Added contextual agent docks for Capture and Contemplate, plus chat jump shortcuts and contextual agent history controls.
+- Added diagnostic logging boundaries with daily log rotation.
+- Fixed retrieval quality, CJK lexical matching, exact keyword behavior, native LanceDB packaging, and unsent draft visibility in the thread list.
+
 ## 1.0.3 - 2026-06-22
 
 - Fixed chat composer mention search so non-empty queries search all matching Understandings instead of filtering only the recent list.
