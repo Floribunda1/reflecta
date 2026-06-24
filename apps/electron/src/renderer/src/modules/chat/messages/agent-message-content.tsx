@@ -83,11 +83,20 @@ function isInputDetail(label: string) {
 
 function detailLabel(label: string) {
   if (label === "limit") return "数量";
-  if (label === "offset") return "偏移";
+  if (label === "offset") return "跳过";
   if (label === "domainId") return "Domain";
   if (label === "understandingId") return "Understanding";
   if (label === "contextId") return "Context";
   return label;
+}
+
+function detailValue({ label, value }: { label: string; value: string }) {
+  if (label === "limit" || label === "offset") return `${value} 条`;
+  return value;
+}
+
+function shouldShowInputDetail({ label, value }: { label: string; value: string }) {
+  return label !== "offset" || Number(value) > 0;
 }
 
 function ToolDetailRows({ details }: { details: string[] }) {
@@ -95,7 +104,8 @@ function ToolDetailRows({ details }: { details: string[] }) {
     .map(splitDetail)
     .filter((detail): detail is { label: string; value: string } =>
       Boolean(detail && isInputDetail(detail.label)),
-    );
+    )
+    .filter(shouldShowInputDetail);
   const resultDetails = details.filter((detail) => {
     const parsed = splitDetail(detail);
     return !parsed || !isInputDetail(parsed.label);
@@ -108,7 +118,7 @@ function ToolDetailRows({ details }: { details: string[] }) {
           {inputDetails.map((detail, index) => (
             <span key={`${detail.label}-${detail.value}-${index}`}>
               <span>{detailLabel(detail.label)}：</span>
-              <span>{detail.value}</span>
+              <span>{detailValue(detail)}</span>
             </span>
           ))}
         </div>
