@@ -100,11 +100,13 @@ function lexicalTokens(query: string): string[] {
   return query.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
 }
 
-function expandSemanticQuery(query: string): string {
+function semanticQueryText(query: string): string {
   const productTerms: string[] = [];
   if (/[经验经历上下文]/u.test(query)) productTerms.push("Context");
   if (/[理解认知]/u.test(query)) productTerms.push("Understanding");
-  return productTerms.length === 0 ? query : `${query}\n${[...new Set(productTerms)].join(" ")}`;
+  const expandedQuery =
+    productTerms.length === 0 ? query : `${query}\n${[...new Set(productTerms)].join(" ")}`;
+  return `Instruct: Given a Reflecta user query, retrieve relevant personal knowledge documents.\nQuery: ${expandedQuery}`;
 }
 
 function matchesLexicalQuery(row: RetrievalRow, tokens: string[]): boolean {
@@ -212,7 +214,7 @@ export class LanceDbRetrievalIndex {
     if (!shouldSearchDense(tokens, lexicalRows, limit)) {
       return fuseRows(lexicalRows, [], limit).map(fromRow);
     }
-    const [vector] = await this.options.embeddingProvider.embed([expandSemanticQuery(query)]);
+    const [vector] = await this.options.embeddingProvider.embed([semanticQueryText(query)]);
     const semanticRows = hasVectorSignal(vector)
       ? ((await table
           .vectorSearch(vector)

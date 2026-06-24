@@ -75,7 +75,9 @@ class ProductTermEmbeddingProvider implements EmbeddingProvider {
 
   async embed(texts: string[]): Promise<number[][]> {
     return texts.map((text) => {
-      if (/同一个经验连接多个理解[\s\S]*Context Understanding/.test(text)) return [1, 0];
+      if (/Query: 同一个经验连接多个理解[\s\S]*Context Understanding/.test(text)) {
+        return [1, 0];
+      }
       if (/Context can support Understanding/.test(text)) return [1, 0];
       return [0, 1];
     });
@@ -353,7 +355,7 @@ describe("LanceDbRetrievalIndex", () => {
     });
   });
 
-  test("semantic retrieval expands Chinese product terms to product vocabulary", async () => {
+  test("semantic retrieval embeds queries with retrieval instructions", async () => {
     const index = new LanceDbRetrievalIndex({
       uri: await tempIndexDir(),
       embeddingProvider: new ProductTermEmbeddingProvider(),
