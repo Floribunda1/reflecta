@@ -44,18 +44,22 @@ bun run test:main && bun run test:renderer
 
 CLI 测试不依赖 `.env.test`，也不读取 `REFLECTA_TEST_DB_PATH`。
 
-`apps/cli/test/setup.ts` 会为每个 Vitest worker/process 自动创建隔离 DB：
+`apps/cli/test/setup.ts` 会为每个 Vitest worker/process 自动创建隔离 Content Storage Root：
 
 ```text
-/tmp/reflecta-cli-test/<worker-id>/<pid>/reflecta.db
+/tmp/reflecta-cli-test/<worker-id>/<pid>/
+  reflecta.db
+  retrieval-index/
+  config/reflecta-config.json
 ```
 
 setup 流程：
 
 1. 创建临时目录。
-2. 设置 `process.env.REFLECTA_DB_PATH`。
+2. 设置测试 harness env。
 3. 运行 `apps/cli/scripts/seed-test-data.ts` 写入测试数据。
-4. 测试结束后删除临时目录。
+4. `test/helpers.ts` 把临时目录转成显式 `--content-root` / `--app-config-dir` 参数。
+5. 测试结束后删除临时目录。
 
 这个设计让并发 worker 不共享 SQLite 文件，避免测试互相污染。
 
@@ -63,12 +67,14 @@ setup 流程：
 
 测试里也遵守产品路径模型：
 
-| 使用方           | 环境变量                        | 含义             |
-| ---------------- | ------------------------------- | ---------------- |
-| CLI / Drizzle    | `REFLECTA_DB_PATH`              | 具体 SQLite 文件 |
-| Electron runtime | `REFLECTA_CONTENT_STORAGE_ROOT` | 内容数据目录     |
+| 使用方       | 入口                                     | 含义                    |
+| ------------ | ---------------------------------------- | ----------------------- |
+| CLI 测试     | helper 注入 `--content-root`             | 临时 Content Storage    |
+| CLI 直查 DB  | `REFLECTA_DB_PATH`                       | 测试 helper 查询 SQLite |
+| Drizzle dev  | `dev-db.ts` 传入 `REFLECTA_DB_PATH`      | 显式 dev SQLite 文件    |
+| Electron E2E | `--reflecta-content-root` 等 launch 参数 | 临时 Content Storage    |
 
-CLI 测试只设置 `REFLECTA_DB_PATH`。不要在 CLI 测试里使用 `REFLECTA_CONTENT_STORAGE_ROOT`，否则会把文件级工具和目录级应用概念混在一起。
+Reflecta 运行时代码不读取 `REFLECTA_PROFILE` 来决定 prod/dev，也不把 ambient env 当作 `--content-root` / `--db` 的替代来源。
 
 ## 测试数据
 
@@ -97,13 +103,13 @@ E2E 复用 CLI 的 seed 数据，但不复用 CLI 的 DB 文件。
 E2E 启动 Electron 时应使用 `apps/electron/e2e/test-env.ts`：
 
 ```ts
-import { getE2eElectronEnv } from "./test-env";
+import { getE2eElectronArgs, getE2eElectronEnv } from "./test-env";
 ```
 
-并把返回值传给 Electron launch 的 `env`。它会设置：
+并把返回值分别传给 Electron launch 的 `args` 和 `env`：
 
-- `REFLECTA_PROFILE=dev`
-- `REFLECTA_CONTENT_STORAGE_ROOT=<本次 E2E 的临时内容目录>`
+- `args`：`--reflecta-user-data-dir` / `--reflecta-app-config-dir` / `--reflecta-content-root`
+- `env`：AI key 等外部服务配置，不用于决定数据目标
 
 测试结束后，`global-teardown.ts` 会删除临时目录。
 

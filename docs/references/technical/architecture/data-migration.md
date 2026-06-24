@@ -11,25 +11,40 @@ Reflecta 使用两套策略处理数据库结构变化：
 
 Reflecta 区分三种路径概念：
 
-| 概念                 | 含义                                                       | 使用方                  |
-| -------------------- | ---------------------------------------------------------- | ----------------------- |
-| App Config Dir       | 存放 `reflecta-config.json` 的应用配置目录                 | Electron / CLI 读取配置 |
-| Content Storage Root | 用户内容数据目录，包含 `reflecta.db` 和 `assets/`          | Electron runtime        |
-| Database Path        | SQLite 文件路径，通常是 `<contentStorageRoot>/reflecta.db` | CLI / Drizzle / scripts |
+| 概念                 | 含义                                                                | 使用方                          |
+| -------------------- | ------------------------------------------------------------------- | ------------------------------- |
+| App Config Dir       | 存放 `reflecta-config.json` 的应用配置目录                          | Electron / CLI 读取配置         |
+| Content Storage Root | 用户内容数据目录，包含 `reflecta.db`、`retrieval-index/`、`assets/` | Electron / CLI 产品入口         |
+| Database Path        | SQLite 文件路径，通常是 `<contentStorageRoot>/reflecta.db`          | DB-only CLI / Drizzle / scripts |
 
-Electron Content Storage Root 优先级：
+Runtime path 由三条轴解析：
 
-1. `REFLECTA_CONTENT_STORAGE_ROOT`：显式指定内容数据目录。
-2. `reflecta-config.json` 中的 `contentStorageRoot`。
-3. profile 对应的默认内容数据目录。
+```txt
+Process Kind：electron | cli | test | script
+Build Kind：release | source
+Data Target：prod | dev | test
+```
 
-CLI / Drizzle Database Path 优先级：
+默认规则：
 
-1. `REFLECTA_DB_PATH`：显式指定 DB 文件。
-2. `reflecta-config.json` 中的 `contentStorageRoot` + `reflecta.db`。
-3. profile 对应的默认内容数据目录 + `reflecta.db`。
+| 入口             | 默认 Data Target | 自动 migration |
+| ---------------- | ---------------- | -------------- |
+| Electron release | prod             | 是             |
+| CLI release      | prod             | 是             |
+| Electron source  | dev              | 否             |
+| CLI source       | dev              | 否             |
+| test             | test             | 仅测试初始化   |
+| script           | 显式 dev/test    | 仅 dev/test    |
 
-`REFLECTA_PROFILE` 只选择 `dev` 或 `prod` 默认路径和 migration 行为。Electron 开发态默认为 `dev`，打包态默认为 `prod`；CLI 默认为 `prod`。
+显式覆盖：
+
+- CLI full-store：`--content-root <dir>`。
+- CLI DB-only：`--db <path>`，不能用于 semantic search / retrieval / assets / agent。
+- CLI config：`--app-config-dir <dir>`。
+- Electron 测试启动：`--reflecta-content-root` / `--reflecta-app-config-dir` / `--reflecta-user-data-dir`。
+- Drizzle：只接受 `dev-db.ts` 传入的 `REFLECTA_DB_PATH`。
+
+`REFLECTA_PROFILE`、`.env.production.local`、`NODE_ENV=production` 不再决定数据目标或 migration 权限。
 
 ## Runtime 初始化
 
@@ -37,13 +52,14 @@ CLI / Drizzle Database Path 优先级：
 
 ```mermaid
 flowchart TD
-  A["App / CLI 启动"] --> B["解析 profile 与 Database Path"]
-  B --> C["createDBInstance"]
-  C --> D{"profile 是 prod?"}
-  D -->|是| E["performDbMigration"]
-  D -->|否| F["跳过 migration"]
-  E --> G["业务服务使用 DB"]
-  F --> G
+  A["Electron / CLI 启动"] --> B["Runtime Resolver"]
+  B --> C["解析 Content Storage Root 与 Database Path"]
+  C --> D["createDBInstance"]
+  D --> E{"runMigrations === true?"}
+  E -->|是| F["performDbMigration"]
+  E -->|否| G["跳过 migration"]
+  F --> H["业务服务使用 DB"]
+  G --> H
 ```
 
 prod 启动时会读取 `packages/server/src/db/migration/sql/vX.Y.Z.sql`，按语义版本顺序执行 `<= app.version` 且尚未记录在 `_migrations` 表里的 SQL。
@@ -81,7 +97,7 @@ bun run dev:gui
 - `db:reset:dev`：删除 dev DB。
 - `db:push:dev`：用 `packages/server/src/db/schema.ts` 同步 dev DB。
 - `db:seed:dev`：写入测试数据并补齐 FTS 表。
-- `dev:gui`：使用 dev profile 启动 Electron。
+- `dev:gui`：源码态 Electron 默认使用 dev 数据目标。
 
 `db:push:dev` 只用于开发库，不作为 prod 升级机制。
 

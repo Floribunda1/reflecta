@@ -374,9 +374,9 @@ bun apps/cli/src/index.ts --content-root /absolute/path/to/reflecta-prod search 
 
 这样生产数据目标会出现在命令里，不会由 `.env.production.local` 偷偷决定。
 
-## 7. 发布资格
+## 7. Release 资格
 
-发布资格不能从运行时 env 读取。
+Release 资格不能从运行时 env 读取。
 
 错误做法：
 
@@ -465,8 +465,8 @@ data_environment = prod | dev | test
 用途：
 
 ```txt
-Build Kind=release 的产品入口默认可以打开 prod。
-Build Kind=source 的产品入口默认只能打开 dev。
+release runtime 默认可以打开 prod。
+source runtime 默认只能打开 dev。
 test/script 不能打开 prod。
 seed 不能 truncate prod。
 unknown marker 在 destructive script 中默认拒绝。
@@ -505,6 +505,7 @@ Bun 会自动加载 `.env*` 文件。这个行为可以保留，但 Runtime Reso
 ```txt
 1. 传入外部服务配置，例如 AI provider key。
 2. 传入非数据目标配置，例如日志级别。
+3. 在测试 harness 中承载临时路径，再由 helper 转成显式 CLI 参数。
 ```
 
 不允许 env 做这些事：
@@ -524,8 +525,6 @@ electron + source -> dev
 cli + release -> prod
 electron + release -> prod
 ```
-
-测试和脚本可以用 env 传递临时路径，但那是受控 harness 的输入，不是普通源码态 CLI 的默认解析规则。
 
 ## 12. 迁移计划
 
@@ -572,9 +571,7 @@ electron + release -> prod
 - 新增全局 `--content-root <dir>` 作为显式数据目录覆盖项。
 - 新增低层 `--db <path>`，只用于 DB-only 命令。
 - 删除基于 `REFLECTA_PROFILE` 的 DB discovery。
-- 源码 CLI 不把 ambient env 中的 `REFLECTA_CONTENT_STORAGE_ROOT` / `REFLECTA_DB_PATH` 当作生产数据显式意图。
-- 生产 CLI 的默认 App Config Dir 由平台路径推导。
-- `REFLECTA_APP_CONFIG_DIR` 只允许作为命令行显式配置覆盖项或受控测试输入，不作为源码 CLI 提权通道。
+- `REFLECTA_APP_CONFIG_DIR` 不作为源码 CLI 提权通道；如需覆盖配置目录，使用显式 `--app-config-dir`。
 
 ### Phase 6：加入 DB 环境标记
 
@@ -605,7 +602,7 @@ electron + release -> prod
 架构完成时必须满足：
 
 - 没有源码读取 `REFLECTA_PROFILE`。
-- 发布资格不能由运行时 env 设置。
+- Release 资格不能由运行时 env 设置。
 - `NODE_ENV=production bun ...` 不能把源码 CLI 变成生产 CLI。
 - 生产 CLI 无参数时默认读取生产 App Config Dir，并和生产 Electron 同源。
 - 源码 CLI 无参数时默认读取开发 App Config Dir。
