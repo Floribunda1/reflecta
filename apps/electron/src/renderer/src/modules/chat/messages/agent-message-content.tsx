@@ -75,7 +75,7 @@ function ToolActivityGroup({ activity }: { activity: ToolActivityView }) {
   return (
     <Collapsible
       data-testid="agent-tool-activity"
-      className="my-1 w-full border-l border-border/60 pl-3 text-sm text-muted-foreground"
+      className="my-1 w-full rounded-md border-l border-border/60 bg-muted/20 py-1 pl-3 pr-2 text-sm text-muted-foreground"
     >
       <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between gap-2 rounded-sm px-1 py-0.5 text-left hover:bg-muted/45">
         <span className="flex min-w-0 items-center gap-1.5">
@@ -114,7 +114,7 @@ function ReasoningBlock({
     <Collapsible
       data-slot="agent-reasoning"
       data-testid="agent-reasoning"
-      className="my-1 w-full border-l border-border/60 pl-3 text-sm text-muted-foreground"
+      className="my-1 w-full rounded-md border-l border-border/60 bg-muted/20 py-1 pl-3 pr-2 text-sm text-muted-foreground"
     >
       <CollapsibleTrigger className="group inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-sm px-1 py-0.5 text-left hover:bg-muted/45">
         {streaming ? <Spinner className="size-3 shrink-0" /> : null}
