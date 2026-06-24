@@ -1,14 +1,5 @@
-import { execFileSync } from "node:child_process";
-import path from "node:path";
-import { createE2eTestEnv, saveE2eTestEnv, writeE2eAiConfig } from "./test-env";
+import { createE2eTestRun, saveE2eTestRun } from "./test-env";
 
 export default function globalSetup() {
-  const env = createE2eTestEnv();
-  const seedScript = path.resolve(import.meta.dirname, "../../cli/scripts/seed-test-data.ts");
-
-  execFileSync("bun", ["run", seedScript, env.dbPath, env.contentStorageRoot], {
-    stdio: "inherit",
-  });
-  saveE2eTestEnv(env);
-  writeE2eAiConfig();
+  saveE2eTestRun(createE2eTestRun());
 }

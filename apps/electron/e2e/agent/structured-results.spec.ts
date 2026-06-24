@@ -9,7 +9,7 @@ import {
   toolPart,
   userMessage,
 } from "./agent-fixtures";
-import { launchAgentPage } from "./agent-e2e";
+import { launchAgentPage, openThread } from "./agent-e2e";
 
 test.beforeEach(() => {
   resetAgentFixtures();
@@ -39,6 +39,7 @@ test("@AG-RESULT-001 用户查看复杂回复时内容按发生顺序显示", as
   const { app, page } = await launchAgentPage();
 
   try {
+    await openThread(page, "复杂回复");
     await expect(page.getByText("思考过程")).toBeVisible();
     await expect(page.getByText("搜索了 1 条 Understanding / 0 条 Context")).toBeVisible();
     await expect(page.getByText("候选 Understanding")).toBeVisible();
@@ -105,6 +106,7 @@ test("@AG-RESULT-002 用户可以区分提案的不同状态", async () => {
   const { app, page } = await launchAgentPage();
 
   try {
+    await openThread(page, "提案状态");
     await expect(
       page.getByTestId("agent-proposal-card").filter({ hasText: "CANDIDATE_TITLE_PENDING" }),
     ).toContainText("待确认");
@@ -157,6 +159,7 @@ test("@AG-RESULT-003 用户展开思考过程和工具活动查看详情", async
   const { app, page } = await launchAgentPage();
 
   try {
+    await openThread(page, "展开详情");
     await expect(page.getByTestId("agent-reasoning")).toContainText("思考过程");
     await expect(page.getByText("THINKING_DETAIL")).toHaveCount(0);
     await expect(page.getByText("搜索「代价」 · 1 条 Understanding / 0 条 Context")).toBeVisible();
@@ -196,6 +199,7 @@ test("@AG-RESULT-004 用户点击 Agent 回复中的知识库引用后查看详�
   const { app, page } = await launchAgentPage();
 
   try {
+    await openThread(page, "知识库引用");
     await expect(page.getByText("[[React Server Components")).toHaveCount(0);
     const wikiLink = page.locator('[data-slot="wiki-link"]').filter({
       hasText: "React Server Components",

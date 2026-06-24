@@ -10,6 +10,9 @@ import { preloadScript, rendererHtml } from "./paths";
 // Register asset:// as a privileged scheme before app is ready
 registerAssetScheme();
 app.setName(APP_NAME);
+if (process.env.REFLECTA_USER_DATA_DIR) {
+  app.setPath("userData", process.env.REFLECTA_USER_DATA_DIR);
+}
 initializeLogging();
 
 const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?: string) => {

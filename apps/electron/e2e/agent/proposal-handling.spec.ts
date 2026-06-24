@@ -38,6 +38,7 @@ test("@AG-PROPOSAL-001 用户确认候选 Understanding 后看到执行结果", 
   const { app, page } = await launchAgentPage();
 
   try {
+    await openThread(page, "候选 Understanding 提案");
     const card = page.getByTestId("agent-proposal-card").filter({ hasText: "CANDIDATE_TITLE" });
     await card.getByTestId("agent-proposal-confirm-button").click();
     await expect(card).toContainText("已确认", { timeout: 120_000 });
@@ -55,6 +56,7 @@ test("@AG-PROPOSAL-002 用户拒绝候选 Understanding 后看到拒绝结果", 
   const { app, page } = await launchAgentPage();
 
   try {
+    await openThread(page, "候选 Understanding 提案");
     const card = page.getByTestId("agent-proposal-card").filter({ hasText: "CANDIDATE_TITLE" });
     await card.getByTestId("agent-proposal-reject-button").click();
     await expect(card).toContainText("已拒绝", { timeout: 120_000 });

@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { hasAi, launchAgentPage, sendMessage, waitForAssistantReply } from "./agent-e2e";
+import {
+  createNewThread,
+  hasAi,
+  launchAgentPage,
+  sendMessage,
+  waitForAssistantReply,
+} from "./agent-e2e";
 import { resetAgentFixtures } from "./agent-fixtures";
 
 test.beforeEach(() => {
@@ -13,6 +19,7 @@ test("@AG-MESSAGE-001 用户编辑历史消息后看到新的当前回复", asyn
   const { app, page } = await launchAgentPage();
 
   try {
+    await createNewThread(page);
     await sendMessage(page, "ORIGINAL_USER_MESSAGE");
     await waitForAssistantReply(page);
 
@@ -55,6 +62,7 @@ test("@AG-MESSAGE-002 用户重新生成回复后看到新的当前回复", asyn
   const { app, page } = await launchAgentPage();
 
   try {
+    await createNewThread(page);
     await sendMessage(page, "REGENERATE_USER_MESSAGE");
     await waitForAssistantReply(page);
 
