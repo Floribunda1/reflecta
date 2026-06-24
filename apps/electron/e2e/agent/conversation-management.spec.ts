@@ -124,18 +124,21 @@ test("@AG-CONV-004 用户按时间分组查看对话列表", async () => {
     title: "TODAY_LATE",
     createdAt: localIso(0, 12, 10),
     updatedAt: localIso(0, 12, 10),
+    messages: [userMessage("conv-today-late-user", "TODAY_LATE_MESSAGE")],
   });
   seedAgentThread({
     id: "conv-today-early",
     title: "TODAY_EARLY",
     createdAt: localIso(0, 9, 0),
     updatedAt: localIso(0, 9, 0),
+    messages: [userMessage("conv-today-early-user", "TODAY_EARLY_MESSAGE")],
   });
   seedAgentThread({
     id: "conv-yesterday",
     title: "YESTERDAY_THREAD",
     createdAt: localIso(1, 12, 0),
     updatedAt: localIso(1, 12, 0),
+    messages: [userMessage("conv-yesterday-user", "YESTERDAY_MESSAGE")],
   });
   const { app, page } = await launchAgentPage();
 

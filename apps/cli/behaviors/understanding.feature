@@ -1,3 +1,4 @@
+# language: zh-CN
 功能: Understanding 管理
 
   背景:
@@ -5,6 +6,7 @@
 
   # understanding list
 
+  @CLI-UNDERSTANDING-001
   场景: 列出所有活跃 Understanding
     假设 数据库中存在活跃 Understanding
     当 用户执行命令 "understanding list"
@@ -12,54 +14,64 @@
     并且 Understanding 按 updated_at 降序排列
     并且 每个 Understanding 摘要包含 id、title、body 和 domains
 
+  @CLI-UNDERSTANDING-002
   场景: 按 Domain ID 过滤
     假设 存在一个活跃 Domain，其 ID 为 DOMAIN_ID，且该 Domain 下有关联 Understanding
     当 用户执行命令 "understanding list --domain-id DOMAIN_ID"
     那么 标准输出仅包含直接关联到 DOMAIN_ID 的 Understanding
     并且 所有返回的 Understanding 均为活跃状态
 
+  @CLI-UNDERSTANDING-003
   场景: 按 Domain ID 过滤并包含后代 Domain
     假设 存在一个父 Domain PARENT_ID，其子 Domain 中包含 Understanding
     当 用户执行命令 "understanding list --domain-id PARENT_ID --include-descendants"
     那么 标准输出包含直接关联到 PARENT_ID 的 Understanding，以及关联到其任意后代 Domain 的 Understanding
     并且 所有返回的 Understanding 均为活跃状态
 
+  @CLI-UNDERSTANDING-004
   场景: 对叶子 Domain 使用 --include-descendants
     假设 存在一个叶子 Domain LEAF_ID，其下没有子 Domain
     当 用户执行命令 "understanding list --domain-id LEAF_ID --include-descendants"
     那么 结果应与不带 --include-descendants 时一致
 
+  @CLI-UNDERSTANDING-005
   场景: Domain 过滤下无匹配 Understanding
     假设 存在一个活跃 Domain EMPTY_DOMAIN_ID，且该 Domain 下没有任何 Understanding
     当 用户执行命令 "understanding list --domain-id EMPTY_DOMAIN_ID"
     那么 标准输出为空（零行）
 
+  @CLI-UNDERSTANDING-006
   场景: 列出最近更新的 Understanding
     假设 数据库中存在 updated_at 各不相同的 Understanding
     当 用户执行命令 "understanding list --recent"
     那么 标准输出包含最近更新的 Understanding
     并且 默认限制为 20 条
 
+  @CLI-UNDERSTANDING-007
   场景: --recent 不能与 --domain-id 同时使用
     当 用户执行命令 "understanding list --recent --domain-id DOMAIN_ID"
     那么 命令退出码应为 1
     并且 标准错误输出应提示 --recent 不能与 --domain-id 组合使用
 
+  @CLI-UNDERSTANDING-008
   场景: 限制返回数量
     假设 数据库中活跃 Understanding 数量超过 5
     当 用户执行命令 "understanding list --limit 5"
     那么 标准输出恰好包含 5 条 Understanding 摘要
 
+  @CLI-UNDERSTANDING-009
   场景: 限制数量为 0
     假设 数据库中存在活跃 Understanding
     当 用户执行命令 "understanding list --limit 0"
     那么 标准输出为空
 
+  @CLI-UNDERSTANDING-010
   场景: 软删除的 Understanding 不会出现在列表中
     假设 存在一条软删除的 Understanding，其 ID 为 DELETED_UNDERSTANDING_ID
     当 用户执行命令 "understanding list"
     那么 标准输出不包含 DELETED_UNDERSTANDING_ID
 
+  @CLI-UNDERSTANDING-011
   场景: 软删除的 Understanding 不会出现在 Domain 过滤结果中
     假设 存在一条软删除的 Understanding，其关联到 Domain DOMAIN_ID
     当 用户执行命令 "understanding list --domain-id DOMAIN_ID"
@@ -67,39 +79,46 @@
 
   # understanding get
 
+  @CLI-UNDERSTANDING-012
   场景: 查看一条活跃 Understanding
     假设 存在一条活跃 Understanding，其 ID 为 UNDERSTANDING_ID
     当 用户执行命令 "understanding get UNDERSTANDING_ID"
     那么 标准输出包含 Understanding 详情，字段包括 id、title、body、domains、contextCount、referenceCount、referencedByCount
 
+  @CLI-UNDERSTANDING-013
   场景: 查看不存在的 Understanding
     假设 存在一个数据库中不存在的 ID MISSING_ID
     当 用户执行命令 "understanding get MISSING_ID"
     那么 命令退出码应为 1
     并且 标准错误输出应包含 JSON 对象，字段 code 为 "NOT_FOUND"
 
+  @CLI-UNDERSTANDING-014
   场景: 查看已软删除的 Understanding
     假设 存在一条软删除的 Understanding，其 ID 为 DELETED_UNDERSTANDING_ID
     当 用户执行命令 "understanding get DELETED_UNDERSTANDING_ID"
     那么 命令退出码应为 1
     并且 标准错误输出应包含 JSON 对象，字段 code 为 "NOT_FOUND"
 
+  @CLI-UNDERSTANDING-015
   场景: 附带 Context 列表
     假设 存在一条活跃 Understanding UNDERSTANDING_ID，且该 Understanding 下有 3 个活跃 Context
     当 用户执行命令 "understanding get UNDERSTANDING_ID --include-contexts"
     那么 输出中包含 contexts 数组，长度为 3
     并且 每个 Context 对象包含 id、understandingId、medium、title 和 content
 
+  @CLI-UNDERSTANDING-016
   场景: 附带 Context 但 Understanding 下无 Context
     假设 存在一条活跃 Understanding UNDERSTANDING_ID，且该 Understanding 下没有 Context
     当 用户执行命令 "understanding get UNDERSTANDING_ID --include-contexts"
     那么 输出中包含 contexts: []
 
+  @CLI-UNDERSTANDING-017
   场景: 附带双链关系
     假设 存在一条活跃 Understanding UNDERSTANDING_ID，其正文中的 wiki-link 指向了另外 2 条活跃 Understanding
     当 用户执行命令 "understanding get UNDERSTANDING_ID --include-relations"
     那么 输出中包含 relations 数组
 
+  @CLI-UNDERSTANDING-018
   场景: 同时附带 Context 和双链关系
     假设 存在一条活跃 Understanding UNDERSTANDING_ID，它同时拥有 Context、 outgoing wiki-link 和 incoming wiki-link
     当 用户执行命令 "understanding get UNDERSTANDING_ID --include-contexts --include-relations"
@@ -107,6 +126,7 @@
 
   # understanding create
 
+  @CLI-UNDERSTANDING-019
   场景: 创建最简 Understanding
     当 用户执行命令 "understanding create --yes"
     那么 数据库中新增一条 Understanding
@@ -115,18 +135,21 @@
     并且 domainIds 为空
     并且 标准输出包含该 Understanding 的详情
 
+  @CLI-UNDERSTANDING-020
   场景: 创建完整的 Understanding
     假设 数据库中存在 Domain DOMAIN_A 和 DOMAIN_B
     当 用户执行命令 "understanding create --title 'My Title' --body 'My body' --domain-id DOMAIN_A,DOMAIN_B --yes"
     那么 数据库中新增一条 Understanding，字段与输入一致
     并且 该 Understanding 同时关联到 DOMAIN_A 和 DOMAIN_B
 
+  @CLI-UNDERSTANDING-021
   场景: 创建 Understanding 时自动解析 wiki-link 并建立连接
     假设 数据库中存在一条标题为 "Target Understanding" 的活跃 Understanding
     当 用户执行命令 "understanding create --body 'See [[Target Understanding]] for details' --yes"
     那么 数据库中新增一条 Understanding
     并且 understanding_connections 中存在一条从新 Understanding 指向 "Target Understanding" 的记录
 
+  @CLI-UNDERSTANDING-022
   场景: 未加 --yes 时拒绝创建
     当 用户执行命令 "understanding create --title Draft"
     那么 命令退出码应为 3
@@ -134,6 +157,7 @@
 
   # understanding update
 
+  @CLI-UNDERSTANDING-023
   场景: 更新 Understanding 标题
     假设 存在一条活跃 Understanding，其 ID 为 UNDERSTANDING_ID
     当 用户执行命令 "understanding update UNDERSTANDING_ID --title 'New Title' --yes"
@@ -141,34 +165,40 @@
     并且 updated_at 被刷新
     并且 标准输出包含更新后的 Understanding 详情
 
+  @CLI-UNDERSTANDING-024
   场景: 更新正文并自动同步 wiki-link 连接
     假设 存在一条活跃 Understanding UNDERSTANDING_ID，且数据库中存在标题为 "Linked Understanding" 的活跃 Understanding
     当 用户执行命令 "understanding update UNDERSTANDING_ID --body 'See [[Linked Understanding]]' --yes"
     那么 该 Understanding 的 body 被更新
     并且 存在一条从 UNDERSTANDING_ID 指向 "Linked Understanding" 的连接
 
+  @CLI-UNDERSTANDING-025
   场景: 更新正文时清除旧连接
     假设 存在一条活跃 Understanding UNDERSTANDING_ID，其已有 outgoing wiki-link 连接
     当 用户执行命令 "understanding update UNDERSTANDING_ID --body 'No more links' --yes"
     那么 该 Understanding 之前的所有 outgoing 连接均被移除
 
+  @CLI-UNDERSTANDING-026
   场景: 更新 Domain 关联
     假设 存在一条活跃 Understanding UNDERSTANDING_ID，当前关联到 DOMAIN_A
     当 用户执行命令 "understanding update UNDERSTANDING_ID --domain-id DOMAIN_B,DOMAIN_C --yes"
     那么 该 Understanding 仅关联到 DOMAIN_B 和 DOMAIN_C
     并且 与 DOMAIN_A 的关联已被移除
 
+  @CLI-UNDERSTANDING-027
   场景: 清空 Domain 关联
     假设 存在一条活跃 Understanding UNDERSTANDING_ID，当前关联到若干 Domain
     当 用户执行命令 "understanding update UNDERSTANDING_ID --domain-id '' --yes"
     那么 该 Understanding 不再关联任何 Domain
 
+  @CLI-UNDERSTANDING-028
   场景: 更新不存在的 Understanding
     假设 存在一个数据库中不存在的 ID MISSING_ID
     当 用户执行命令 "understanding update MISSING_ID --title 'X' --yes"
     那么 命令退出码应为 1
     并且 标准错误输出应包含 NOT_FOUND
 
+  @CLI-UNDERSTANDING-029
   场景: 部分更新保留未提及字段
     假设 存在一条活跃 Understanding UNDERSTANDING_ID，其 title 为 "Old Title"，body 为 "Old Body"
     当 用户执行命令 "understanding update UNDERSTANDING_ID --title 'New Title' --yes"
@@ -177,6 +207,7 @@
 
   # understanding delete
 
+  @CLI-UNDERSTANDING-030
   场景: 软删除 Understanding
     假设 存在一条活跃 Understanding，其 ID 为 UNDERSTANDING_ID
     当 用户执行命令 "understanding delete UNDERSTANDING_ID --yes"
@@ -185,22 +216,26 @@
     并且 该 Understanding 不再出现在搜索结果中
     并且 命令退出码应为 0
 
+  @CLI-UNDERSTANDING-031
   场景: 删除 Understanding 后不再出现在搜索结果中
     假设 存在一条活跃 Understanding UNDERSTANDING_ID，其正文中包含关键词 "UNIQUE_KEYWORD"
     当 用户执行命令 "understanding delete UNDERSTANDING_ID --yes"
     那么 搜索 "UNIQUE_KEYWORD" 不再返回 UNDERSTANDING_ID
 
+  @CLI-UNDERSTANDING-032
   场景: 删除 Understanding 后其 Context 不再出现在搜索结果中
     假设 存在一条活跃 Understanding UNDERSTANDING_ID，其 Context 内容包含 "CTX_KEYWORD"
     当 用户执行命令 "understanding delete UNDERSTANDING_ID --yes"
     那么 在 Context 中搜索 "CTX_KEYWORD" 不再返回这些 Context
 
+  @CLI-UNDERSTANDING-033
   场景: 删除不存在的 Understanding
     假设 存在一个数据库中不存在的 ID MISSING_ID
     当 用户执行命令 "understanding delete MISSING_ID --yes"
     那么 命令退出码应为 1
     并且 标准错误输出应包含 NOT_FOUND
 
+  @CLI-UNDERSTANDING-034
   场景: 未加 --yes 时拒绝删除
     假设 存在一条活跃 Understanding，其 ID 为 UNDERSTANDING_ID
     当 用户执行命令 "understanding delete UNDERSTANDING_ID"

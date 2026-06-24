@@ -27,8 +27,9 @@ test("@AG-CONTEXT-001 用户选中引用后发送消息", async () => {
     await composer(page).click();
     await page.keyboard.type("请比较这两个引用");
     await page.getByTestId("agent-send-button").click();
-    await expect(page.getByTestId("agent-user-message")).toContainText("React Server Components");
-    await expect(page.getByTestId("agent-user-message")).toContainText("React");
+    const userMessage = page.getByTestId("agent-user-message").last();
+    await expect(userMessage).toContainText("React Server Components");
+    await expect(userMessage).toContainText("React");
     await waitForAssistantReply(page);
   } finally {
     await app.close();

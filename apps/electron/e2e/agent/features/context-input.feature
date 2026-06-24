@@ -63,3 +63,14 @@
     当用户点击输入框中的 Understanding「React Server Components」引用
     那么页面应该打开详情面板
     而且详情面板应该显示 Understanding「React Server Components」
+
+  @P1 @context @attachment @AG-CONTEXT-007
+  场景: 用户发送可读附件后看到 Agent 使用附件
+    假如用户已经打开一个对话
+    而且测试环境有可上传文件 ATTACHMENT_FILE
+    当用户在输入框添加附件 ATTACHMENT_FILE
+    而且用户要求 Agent 读取该附件
+    而且用户发送消息
+    那么用户消息中应该显示附件 ATTACHMENT_FILE
+    而且页面应该显示 Agent 使用附件的工具活动
+    而且页面应该出现一条 Agent 回复正文

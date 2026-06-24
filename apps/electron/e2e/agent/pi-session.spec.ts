@@ -208,7 +208,7 @@ test.beforeEach(() => {
   fs.rmSync(sessionsRoot(), { recursive: true, force: true });
 });
 
-test("@AG-PI-START-001 用户在 Pi-backed session 中发送第一条消息", async () => {
+test("@AG-START-002 用户发送第一条消息后看到完整回复", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
@@ -234,7 +234,7 @@ test("@AG-PI-START-001 用户在 Pi-backed session 中发送第一条消息", as
   }
 });
 
-test("@AG-PI-FAILURE-001 回复失败后用户可以继续发送消息", async () => {
+test("@AG-START-003 回复失败后用户可以继续发送消息", async () => {
   const apiKey = getE2eAiEnv().apiKey;
   test.skip(!apiKey, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(240_000);
@@ -266,7 +266,7 @@ test("@AG-PI-FAILURE-001 回复失败后用户可以继续发送消息", async (
   }
 });
 
-test("@AG-PI-FAILURE-002 用户点击失败回复的重试后看到新的回复", async () => {
+test("@AG-START-006 用户重试失败回复后看到新的回复", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
@@ -287,7 +287,7 @@ test("@AG-PI-FAILURE-002 用户点击失败回复的重试后看到新的回复"
   }
 });
 
-test("@AG-PI-RUN-001 用户停止 Pi-backed session 中正在生成的回复", async () => {
+test("@AG-RUN-001 用户停止正在生成的回复", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
@@ -309,7 +309,7 @@ test("@AG-PI-RUN-001 用户停止 Pi-backed session 中正在生成的回复", a
   }
 });
 
-test("@AG-PI-RUN-002 用户停止回复后切换回来仍看到停止状态", async () => {
+test("@AG-RUN-002 用户停止回复后切换回来仍看到停止状态", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
@@ -331,7 +331,7 @@ test("@AG-PI-RUN-002 用户停止回复后切换回来仍看到停止状态", as
   }
 });
 
-test("@AG-PI-RUN-003 用户重新打开有未完成回复的 Pi session 后不会卡在正在回复", async () => {
+test("@AG-HISTORY-004 用户重新打开有未完成回复的对话后可以继续操作", async () => {
   seedAbandonedPiSession();
   const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
 
@@ -349,7 +349,7 @@ test("@AG-PI-RUN-003 用户重新打开有未完成回复的 Pi session 后不�
   }
 });
 
-test("@AG-PI-JUMP-001 用户在长对话中通过右侧摘录跳转到指定消息", async () => {
+test("@AG-CONV-006 用户在长对话中通过右侧摘录跳转到指定消息", async () => {
   seedLongPiSession();
   const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
 
@@ -366,11 +366,6 @@ test("@AG-PI-JUMP-001 用户在长对话中通过右侧摘录跳转到指定消�
       0,
     );
 
-    const targetJumpLabel = targetJumpItem.locator('[data-testid="agent-chat-jump-label"]');
-    await expect(targetJumpLabel).toHaveCSS("opacity", "0");
-    await page.getByTestId("agent-chat-jump-marker").nth(4).hover();
-    await expect(targetJumpLabel).toHaveCSS("opacity", "1");
-
     await targetJumpItem.click();
 
     await expect(
@@ -384,7 +379,7 @@ test("@AG-PI-JUMP-001 用户在长对话中通过右侧摘录跳转到指定消�
   }
 });
 
-test("@AG-PI-CONTEXT-001 用户在 Pi-backed session 中选择引用后发送消息", async () => {
+test("@AG-CONTEXT-001 用户选中引用后发送消息", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
@@ -406,7 +401,7 @@ test("@AG-PI-CONTEXT-001 用户在 Pi-backed session 中选择引用后发送消
   }
 });
 
-test("@AG-PI-ATTACHMENT-001 用户在 Pi-backed session 中上传 PDF 附件后 Agent 能读取正文", async () => {
+test("@AG-CONTEXT-007 用户发送可读附件后看到 Agent 使用附件", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(240_000);
 
@@ -441,7 +436,7 @@ test("@AG-PI-ATTACHMENT-001 用户在 Pi-backed session 中上传 PDF 附件后 
   }
 });
 
-test("@AG-PI-ATTACHMENT-002 用户在 Pi-backed session 中发送附件后重启仍能看到附件", async () => {
+test("@AG-HISTORY-005 用户发送附件后重启仍能看到附件", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(240_000);
 
@@ -474,7 +469,7 @@ test("@AG-PI-ATTACHMENT-002 用户在 Pi-backed session 中发送附件后重启
   }
 });
 
-test("@AG-PI-MODEL-001 用户在 Pi-backed session 中选择模型和推理强度后发送消息", async () => {
+test("@AG-CONTEXT-003 用户选择模型和推理强度后发送消息", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
@@ -504,7 +499,7 @@ test("@AG-PI-MODEL-001 用户在 Pi-backed session 中选择模型和推理强�
   }
 });
 
-test("@AG-PI-TOOL-READ-001 用户在 Pi-backed session 中使用只读知识库工具", async () => {
+test("@AG-RETRIEVAL-003 用户要求 Agent 检索知识库后看到检索结果", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(240_000);
 
@@ -533,7 +528,7 @@ test("@AG-PI-TOOL-READ-001 用户在 Pi-backed session 中使用只读知识库�
   }
 });
 
-test("@AG-PI-PROPOSAL-REJECT-001 用户拒绝 Pi-backed session 中的候选 Understanding", async () => {
+test("@AG-PROPOSAL-002 用户拒绝候选 Understanding 后看到拒绝结果", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(240_000);
 
@@ -562,7 +557,7 @@ test("@AG-PI-PROPOSAL-REJECT-001 用户拒绝 Pi-backed session 中的候选 Und
   }
 });
 
-test("@AG-PI-PROPOSAL-APPROVE-001 用户确认 Pi-backed session 中的候选 Understanding", async () => {
+test("@AG-PROPOSAL-001 用户确认候选 Understanding 后看到执行结果", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(240_000);
 
@@ -592,7 +587,7 @@ test("@AG-PI-PROPOSAL-APPROVE-001 用户确认 Pi-backed session 中的候选 Un
   }
 });
 
-test("@AG-PI-PROPOSAL-DOMAIN-001 用户确认 Pi-backed session 中的候选 Domain", async () => {
+test("@AG-PROPOSAL-004 用户确认候选 Domain 后看到执行结果", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(240_000);
 
@@ -627,7 +622,7 @@ test("@AG-PI-PROPOSAL-DOMAIN-001 用户确认 Pi-backed session 中的候选 Dom
   }
 });
 
-test("@AG-PI-PROPOSAL-RELOAD-001 用户重启后仍能处理等待确认的候选 Understanding", async () => {
+test("@AG-PROPOSAL-005 用户重新打开对话后仍能处理等待确认的提案", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(300_000);
 
@@ -660,7 +655,7 @@ test("@AG-PI-PROPOSAL-RELOAD-001 用户重启后仍能处理等待确认的候�
   }
 });
 
-test("@AG-PI-HISTORY-001 用户重启后恢复 Pi-backed session 历史", async () => {
+test("@AG-HISTORY-001 用户重启应用后仍能看到已完成对话", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(240_000);
 

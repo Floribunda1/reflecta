@@ -95,7 +95,7 @@ test("@AG-RETRIEVAL-001 用户通过关键词搜索找到 Understanding", async 
   }
 });
 
-test("@AG-RETRIEVAL-002 用户通过 @ 搜索不会看到只有语义相关的 Understanding", async () => {
+test("@AG-RETRIEVAL-002 用户通过 @ 搜索只看到词面匹配的上下文", async () => {
   const embeddingServer = await startEmbeddingServer();
   writeRetrievalConfig(embeddingServer.baseUrl);
   seedUnderstanding({

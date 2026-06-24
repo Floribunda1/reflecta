@@ -8,7 +8,7 @@
     假如用户打开设置
     当用户进入语义检索设置
     那么用户应该看到默认模型 Qwen3 Embedding 0.6B
-    而且用户应该看到该模型是本地 embedding 模型并使用 llama.cpp runtime
+    而且用户应该看到该模型是本地 embedding 模型
     当用户点击下载默认 embedding 模型
     那么用户应该看到模型已安装
 

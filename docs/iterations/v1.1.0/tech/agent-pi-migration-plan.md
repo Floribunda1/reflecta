@@ -79,9 +79,9 @@ Pi 负责 loop、session、resume、skills、tool 调用机制。Reflecta 负责
 
 用户状态：现有 Agent 仍走旧 AI SDK runtime，不退化。开发环境新增一条 Pi smoke 路径，用真实 AI key 跑通 Pi session。
 
-新增 Test Case：
+新增技术验证：
 
-- `@AG-PI-SMOKE-001`：用户在开发 smoke 路径发送一条消息后，能看到一条真实 AI 回复完成。
+- Pi smoke integration：开发环境发送一条消息后，能看到一条真实 AI 回复完成。
 
 自动化测试：
 
@@ -91,7 +91,7 @@ Pi 负责 loop、session、resume、skills、tool 调用机制。Reflecta 负责
 
 TDD 顺序：
 
-1. RED：写 `@AG-PI-SMOKE-001` 对应 integration test，真实 AI 未接 Pi 前失败。
+1. RED：写 Pi smoke integration test，真实 AI 未接 Pi 前失败。
 2. GREEN：新增最小 Pi adapter，只支持 create session + prompt。
 3. RED：写 session file 位置检查。
 4. GREEN：把 Pi session root 指到 `<content-storage-root>/Sessions/`。
@@ -111,7 +111,6 @@ Test Case：
 
 - `@AG-START-002`：用户发送第一条消息后看到完整回复。
 - `@AG-HISTORY-001`：用户重启应用后仍能看到已完成对话。
-- 新增 `@AG-PI-HISTORY-001`：Pi session 重启后恢复 user message、assistant reply、composer 可用。
 
 自动化测试：
 

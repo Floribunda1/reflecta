@@ -29,3 +29,20 @@
     而且用户重新进入 Agent 页面并打开该对话
     那么用户应该仍能看到该待确认提案
     而且用户应该仍能看到确认和拒绝操作
+
+  @P0 @recovery @control @AG-HISTORY-004
+  场景: 用户重新打开有未完成回复的对话后可以继续操作
+    假如用户上次关闭 Reflecta 时，当前对话中有一条未完成的 Agent 回复
+    当用户重新打开 Reflecta 应用
+    而且用户打开原对话
+    那么该回复应该显示为已停止状态
+    而且输入框应该可操作
+
+  @P1 @recovery @attachment @AG-HISTORY-005
+  场景: 用户发送附件后重启仍能看到附件
+    假如用户已经在对话中发送附件 ATTACHMENT_FILE
+    而且 Agent 已经完成回复
+    当用户关闭并重新打开 Reflecta 应用
+    而且用户打开原对话
+    那么原对话应该仍显示附件 ATTACHMENT_FILE
+    而且输入框应该可操作

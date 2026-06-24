@@ -375,6 +375,8 @@ function rewriteHeaderTimestamp(manager: SessionManager, timestamp: string) {
       return JSON.stringify(entry);
     });
   fs.writeFileSync(file, `${lines.join("\n")}\n`, "utf-8");
+  const time = new Date(timestamp);
+  fs.utimesSync(file, time, time);
 }
 
 function seedThread(thread: FixtureThread) {
