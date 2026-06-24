@@ -119,7 +119,7 @@
     而且 seed 数据中存在 Understanding「React Server Components」
     而且 Agent 当前可以正常回复
     当用户创建新对话
-    而且用户要求 Agent 使用知识库搜索工具查找 React Server Components
+    而且用户要求 Agent 使用知识检索工具查找 React Server Components
     那么页面应该显示工具活动
     而且最终应该出现一条 Agent 回复正文
     当用户展开工具活动

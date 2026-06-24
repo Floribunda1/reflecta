@@ -23,7 +23,6 @@ const expectedReadToolNames = [
   "context_list",
   "context_get",
   "retrieve_knowledge",
-  "search",
   "graph",
 ] as const;
 
