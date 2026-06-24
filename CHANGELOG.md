@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1 - 2026-06-24
+
+- Fixed CLI semantic search so it loads the configured retrieval embedding provider and index path from the desktop config.
+
 ## 1.1.0 - 2026-06-24
 
 - Renamed the core product language from Categories and Thoughts to Domains and Understandings across the app, CLI, docs, and migration path.
