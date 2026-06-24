@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.2 - 2026-06-25
+
+- Fixed packaged Electron startup by bundling the LanceDB `apache-arrow` dependency.
+- Added runtime environment isolation so release Electron and release CLI share production data while source, test, and script entrypoints default away from production.
+- Hardened CLI, seed, and migration paths against accidental production data pollution.
+
 ## 1.1.1 - 2026-06-24
 
 - Fixed CLI semantic search so it loads the configured retrieval embedding provider and index path from the desktop config.
