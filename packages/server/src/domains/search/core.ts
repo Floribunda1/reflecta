@@ -29,6 +29,8 @@ export function getLimitOffset(options?: SearchOptions) {
 type SearchRetrievalHit = RetrievalSearchHit & { rank: number; snippet: string };
 type RetrievalSearchMode = "hybrid" | "lexical";
 
+const RETRIEVE_KNOWLEDGE_DOCUMENT_OVERFETCH_FACTOR = 3;
+
 export class SearchCore {
   constructor(protected db: ReflectaDb) {}
 
@@ -95,7 +97,13 @@ export class SearchCore {
 
   async retrieveKnowledge(input: RetrieveKnowledgeInput): Promise<RetrieveKnowledgeResult> {
     const limit = input.limit ?? 10;
-    const hits = await this.searchRetrievalDocuments(input.query, { limit });
+    const retrievalDocumentLimit = Math.max(
+      limit * RETRIEVE_KNOWLEDGE_DOCUMENT_OVERFETCH_FACTOR,
+      limit + 5,
+    );
+    const hits = await this.searchRetrievalDocuments(input.query, {
+      limit: retrievalDocumentLimit,
+    });
     const parentIds = [...new Set(hits.map((hit) => hit.parentUnderstandingId))];
     const rows =
       parentIds.length === 0

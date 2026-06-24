@@ -44,6 +44,44 @@ class RrfEmbeddingProvider implements EmbeddingProvider {
   }
 }
 
+class SemanticOnlyEmbeddingProvider implements EmbeddingProvider {
+  readonly modelId = "test-semantic-only";
+
+  async embed(texts: string[]): Promise<number[][]> {
+    return texts.map((text) => {
+      const normalized = text.toLocaleLowerCase();
+      if (/nonliteral user need/.test(normalized)) return [1, 0];
+      if (/nearest semantic candidate/.test(normalized)) return [0.5, 0.8660254];
+      return [-1, 0];
+    });
+  }
+}
+
+class DirectionalEmbeddingProvider implements EmbeddingProvider {
+  readonly modelId = "test-directional";
+
+  async embed(texts: string[]): Promise<number[][]> {
+    return texts.map((text) => {
+      const normalized = text.toLocaleLowerCase();
+      if (/directional query/.test(normalized)) return [1, 0];
+      if (/same semantic direction/.test(normalized)) return [100, 0];
+      return [1, 0.2];
+    });
+  }
+}
+
+class ProductTermEmbeddingProvider implements EmbeddingProvider {
+  readonly modelId = "test-product-term";
+
+  async embed(texts: string[]): Promise<number[][]> {
+    return texts.map((text) => {
+      if (/同一个经验连接多个理解[\s\S]*Context Understanding/.test(text)) return [1, 0];
+      if (/Context can support Understanding/.test(text)) return [1, 0];
+      return [0, 1];
+    });
+  }
+}
+
 function sampleDocs() {
   return buildRetrievalDocuments({
     understanding: {
@@ -94,6 +132,78 @@ function rrfDocs(): RetrievalDocument[] {
       parentUnderstandingId: "semantic-only",
       textForEmbedding: "semantic-match",
       textForLexicalSearch: "unrelated",
+      metadata,
+    },
+  ];
+}
+
+function semanticOnlyDocs(): RetrievalDocument[] {
+  const metadata = { domainIds: [], domainNames: [] };
+  return [
+    {
+      id: "understanding:nearest",
+      entityType: "understanding",
+      entityId: "nearest",
+      parentUnderstandingId: "nearest",
+      textForEmbedding: "nearest semantic candidate",
+      textForLexicalSearch: "plain source text without matching query words",
+      metadata,
+    },
+    {
+      id: "understanding:distractor",
+      entityType: "understanding",
+      entityId: "distractor",
+      parentUnderstandingId: "distractor",
+      textForEmbedding: "distant semantic candidate",
+      textForLexicalSearch: "another unrelated source text",
+      metadata,
+    },
+  ];
+}
+
+function directionalDocs(): RetrievalDocument[] {
+  const metadata = { domainIds: [], domainNames: [] };
+  return [
+    {
+      id: "understanding:same-direction",
+      entityType: "understanding",
+      entityId: "same-direction",
+      parentUnderstandingId: "same-direction",
+      textForEmbedding: "same semantic direction",
+      textForLexicalSearch: "source without query words",
+      metadata,
+    },
+    {
+      id: "understanding:near-magnitude",
+      entityType: "understanding",
+      entityId: "near-magnitude",
+      parentUnderstandingId: "near-magnitude",
+      textForEmbedding: "near magnitude but different direction",
+      textForLexicalSearch: "another source without query words",
+      metadata,
+    },
+  ];
+}
+
+function productTermDocs(): RetrievalDocument[] {
+  const metadata = { domainIds: [], domainNames: [] };
+  return [
+    {
+      id: "understanding:context-term",
+      entityType: "understanding",
+      entityId: "context-term",
+      parentUnderstandingId: "context-term",
+      textForEmbedding: "Context can support Understanding",
+      textForLexicalSearch: "product vocabulary source",
+      metadata,
+    },
+    {
+      id: "understanding:generic-term",
+      entityType: "understanding",
+      entityId: "generic-term",
+      parentUnderstandingId: "generic-term",
+      textForEmbedding: "generic unrelated source",
+      textForLexicalSearch: "generic source",
       metadata,
     },
   ];
@@ -210,6 +320,51 @@ describe("LanceDbRetrievalIndex", () => {
     expect(topHit).toMatchObject({
       id: "understanding:both",
       channels: expect.arrayContaining(["lexical", "dense"]),
+    });
+  });
+
+  test("semantic retrieval returns nearest candidates when lexical terms do not match", async () => {
+    const index = new LanceDbRetrievalIndex({
+      uri: await tempIndexDir(),
+      embeddingProvider: new SemanticOnlyEmbeddingProvider(),
+    });
+    await index.replaceAll(semanticOnlyDocs());
+
+    const [topHit] = await index.search("nonliteral user need", 3);
+
+    expect(topHit).toMatchObject({
+      id: "understanding:nearest",
+      channels: ["dense"],
+    });
+  });
+
+  test("semantic retrieval ranks by vector direction instead of raw magnitude", async () => {
+    const index = new LanceDbRetrievalIndex({
+      uri: await tempIndexDir(),
+      embeddingProvider: new DirectionalEmbeddingProvider(),
+    });
+    await index.replaceAll(directionalDocs());
+
+    const [topHit] = await index.search("directional query", 2);
+
+    expect(topHit).toMatchObject({
+      id: "understanding:same-direction",
+      channels: ["dense"],
+    });
+  });
+
+  test("semantic retrieval expands Chinese product terms to product vocabulary", async () => {
+    const index = new LanceDbRetrievalIndex({
+      uri: await tempIndexDir(),
+      embeddingProvider: new ProductTermEmbeddingProvider(),
+    });
+    await index.replaceAll(productTermDocs());
+
+    const [topHit] = await index.search("同一个经验连接多个理解", 2);
+
+    expect(topHit).toMatchObject({
+      id: "understanding:context-term",
+      channels: ["dense"],
     });
   });
 

@@ -40,7 +40,6 @@ type RetrievalRow = {
   _channels?: RetrievalChannel[];
 };
 
-const SEMANTIC_DISTANCE_THRESHOLD = 0.35;
 const RRF_K = 60;
 
 function lexicalFtsIndex() {
@@ -97,13 +96,15 @@ function fromRow(row: RetrievalRow): RetrievalSearchHit {
   };
 }
 
-function isRelevantRow(row: RetrievalRow): boolean {
-  const semanticDistance = row._distance ?? Number.POSITIVE_INFINITY;
-  return semanticDistance <= SEMANTIC_DISTANCE_THRESHOLD;
-}
-
 function lexicalTokens(query: string): string[] {
   return query.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+}
+
+function expandSemanticQuery(query: string): string {
+  const productTerms: string[] = [];
+  if (/[经验经历上下文]/u.test(query)) productTerms.push("Context");
+  if (/[理解认知]/u.test(query)) productTerms.push("Understanding");
+  return productTerms.length === 0 ? query : `${query}\n${[...new Set(productTerms)].join(" ")}`;
 }
 
 function matchesLexicalQuery(row: RetrievalRow, tokens: string[]): boolean {
@@ -211,11 +212,13 @@ export class LanceDbRetrievalIndex {
     if (!shouldSearchDense(tokens, lexicalRows, limit)) {
       return fuseRows(lexicalRows, [], limit).map(fromRow);
     }
-    const [vector] = await this.options.embeddingProvider.embed([query]);
+    const [vector] = await this.options.embeddingProvider.embed([expandSemanticQuery(query)]);
     const semanticRows = hasVectorSignal(vector)
-      ? ((await table.vectorSearch(vector).limit(searchLimit).toArray()) as RetrievalRow[]).filter(
-          isRelevantRow,
-        )
+      ? ((await table
+          .vectorSearch(vector)
+          .distanceType("cosine")
+          .limit(searchLimit)
+          .toArray()) as RetrievalRow[])
       : [];
     return fuseRows(lexicalRows, semanticRows, limit).map(fromRow);
   }

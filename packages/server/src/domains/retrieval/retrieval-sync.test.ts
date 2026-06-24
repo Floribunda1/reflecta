@@ -63,6 +63,10 @@ async function indexIds(query: string) {
 
 function semanticVectorFor(text: string) {
   const normalized = text.toLocaleLowerCase();
+  if (/retrieval-overfetch-query/.test(normalized)) return [1, 0, 0];
+  if (/retrieval-overfetch-primary-context/.test(normalized)) return [0.995, 0.01, 0];
+  if (/retrieval-overfetch-primary/.test(normalized)) return [1, 0, 0];
+  if (/retrieval-overfetch-secondary/.test(normalized)) return [0.98, 0.05, 0];
   if (
     /denseonlysourcewithoutsharedterms|semantic-query|retrieval-vector-feedback|持续改进/.test(
       normalized,
@@ -441,6 +445,34 @@ describe("retrieval index write-path sync", () => {
       expect(result.trace.dense.hits).toBeGreaterThan(0);
       expect(elapsedMs).toBeLessThan(1_200);
     }
+  });
+
+  test("retrieveKnowledge over-fetches retrieval documents before grouping parent candidates", async () => {
+    configureRetrievalEmbedding({
+      provider: "openai-compatible",
+      baseUrl: await startEmbeddingServer(),
+      modelId: "test-openai-compatible",
+    });
+    const { contexts, search, understandings } = await setupServices();
+    const primary = await understandings.createUnderstanding({
+      title: "Primary overfetch source",
+      body: "retrieval-overfetch-primary",
+    });
+    await contexts.createContext({
+      understandingId: primary.id,
+      medium: "experience",
+      title: "Primary overfetch context",
+      content: "retrieval-overfetch-primary-context",
+    });
+    const secondary = await understandings.createUnderstanding({
+      title: "Secondary overfetch source",
+      body: "retrieval-overfetch-secondary",
+    });
+
+    const result = await search.retrieveKnowledge({ query: "retrieval-overfetch-query", limit: 2 });
+
+    expect(result.candidates.map((candidate) => candidate.id)).toEqual([primary.id, secondary.id]);
+    expect(result.trace.fusion.documentsAfterFusion).toBeGreaterThan(2);
   });
 
   test("retrieveKnowledge expands one-hop explicit Understanding relations from anchors", async () => {
