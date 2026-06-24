@@ -37,3 +37,12 @@
     假如 seed 数据中存在 Understanding「React Server Components」
     而且用户在 Agent 页面打开了 Understanding「React Server Components」详情面板
     那么详情面板中不应该显示“聊聊”按钮
+
+  @P1 @draft @CP-AGENT-005
+  场景: 未发送消息的 Capture 上下文 Agent 不进入对话列表
+    假如 seed 数据中存在 Domain「Programming」
+    当用户在 Capture 页面右键 Domain「Programming」
+    而且用户选择“和 AI 聊聊”
+    而且用户不发送任何消息
+    而且用户进入 Agent 页面
+    那么对话列表中不应该出现“聊聊：Programming”

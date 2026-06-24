@@ -127,9 +127,10 @@ export class AgentSessionLog {
     fs.mkdirSync(this.sessionsRoot, { recursive: true });
     const sessions = await SessionManager.list(this.contentStorageRoot, this.sessionsRoot);
     const persisted = sessions
-      .map((session) => {
+      .flatMap((session) => {
         const events = this.readEventsFromFile(session.path);
         this.pendingSummaries.delete(session.id);
+        if (!events.some((event) => event.type === "user.message")) return [];
         return {
           id: session.id,
           title: session.name?.trim() || titleFromEvents(events, session.firstMessage || "新对话"),
@@ -140,13 +141,7 @@ export class AgentSessionLog {
         };
       })
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-    const pending = [...this.pendingSummaries.values()].filter((summary) => {
-      const sessionFile = this.pendingSessionFiles.get(summary.id);
-      return !sessionFile || !fs.existsSync(sessionFile);
-    });
-    return [...pending, ...persisted].sort((left, right) =>
-      right.updatedAt.localeCompare(left.updatedAt),
-    );
+    return persisted;
   }
 
   async openSession(sessionId: string): Promise<SessionManager> {

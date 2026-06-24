@@ -69,6 +69,7 @@ function ChatPageContent() {
   const generateThreadTitleMutation = useGenerateThreadTitleMutation();
   const threads = threadsQuery.data ?? [];
   const [threadScrollRequest, setThreadScrollRequest] = useState(0);
+  const [draftThreadId, setDraftThreadId] = useState<string | null>(null);
   const confirmDeleteThread = useMemoizedFn((threadId: string) =>
     confirm({
       title: "删除对话",
@@ -85,10 +86,14 @@ function ChatPageContent() {
   const openInspector = useMemoizedFn((ref: InspectableContextRef) => uiActions.openInspector(ref));
   const createThread = useMemoizedFn(() =>
     createThreadMutation.mutate(undefined, {
-      onSuccess: (thread) => uiActions.selectThread(thread.id),
+      onSuccess: (thread) => {
+        setDraftThreadId(thread.id);
+        uiActions.selectThread(thread.id);
+      },
     }),
   );
   const selectThread = useMemoizedFn((threadId: string) => {
+    setDraftThreadId(null);
     uiActions.selectThread(threadId);
     setThreadScrollRequest((request) => request + 1);
   });
@@ -112,8 +117,28 @@ function ChatPageContent() {
   });
 
   useEffect(() => {
-    if (!threadsQuery.isFetching && threads.length === 0 && !createThreadMutation.isPending) {
-      createThread();
+    if (draftThreadId && threads.some((thread) => thread.id === draftThreadId)) {
+      setDraftThreadId(null);
+    }
+  }, [draftThreadId, threads]);
+
+  useEffect(() => {
+    if (threadsQuery.isFetching || createThreadMutation.isPending) return;
+
+    const activeIsPersisted = activeThreadId
+      ? threads.some((thread) => thread.id === activeThreadId)
+      : false;
+    const activeIsDraft = Boolean(activeThreadId && activeThreadId === draftThreadId);
+
+    if (threads.length === 0) {
+      if (!activeIsDraft) createThread();
+      return;
+    }
+
+    if (activeIsDraft) return;
+
+    if (activeThreadId && !activeIsPersisted) {
+      selectThread(threads[0]!.id);
       return;
     }
 
@@ -123,6 +148,7 @@ function ChatPageContent() {
     activeThreadId,
     createThread,
     createThreadMutation.isPending,
+    draftThreadId,
     selectThread,
     threads,
     threadsQuery.isFetching,

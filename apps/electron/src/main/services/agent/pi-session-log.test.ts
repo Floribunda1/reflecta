@@ -74,6 +74,37 @@ describe("AgentSessionLog", () => {
     await expect(new AgentSessionLog(root).readEvents(session.id)).resolves.toEqual(events);
   });
 
+  test("does not list a pending session until the user sends a message", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const session = log.createSession();
+
+    await expect(log.listSessions()).resolves.toEqual([]);
+
+    const manager = await log.openSession(session.id);
+    log.appendEvent(manager, {
+      ...baseEvent,
+      id: "evt_1",
+      sessionId: session.id,
+      type: "run.started",
+    });
+
+    await expect(log.listSessions()).resolves.toEqual([]);
+
+    log.appendEvent(manager, {
+      ...baseEvent,
+      id: "evt_2",
+      sessionId: session.id,
+      type: "user.message",
+      messageId: "user_1",
+      text: "hello",
+    });
+
+    await expect(log.listSessions()).resolves.toEqual([
+      expect.objectContaining({ id: session.id, title: "hello" }),
+    ]);
+  });
+
   test("branches before the edited user message run without keeping later output", async () => {
     const root = tempRoot();
     const log = new AgentSessionLog(root);

@@ -36,8 +36,7 @@ export function useCreateThreadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (title?: string) => ipcClient.chat.createThread(title),
-    onSuccess: async (thread) => {
-      upsertThreadInCache(queryClient, thread);
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: chatQueryKeys.threads });
     },
   });

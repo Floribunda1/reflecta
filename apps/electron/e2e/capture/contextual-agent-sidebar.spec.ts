@@ -101,3 +101,27 @@ test("@CP-AGENT-004 嵌入式 Understanding 详情不显示 Capture 专属聊天
     await app.close();
   }
 });
+
+test("@CP-AGENT-005 未发送消息的 Capture 上下文 Agent 不进入对话列表", async () => {
+  const { app, page } = await launchApp();
+
+  try {
+    await openCapturePage(page);
+    await page
+      .locator('[data-testid="capture-domain-node"][data-domain-name="Programming"]')
+      .click({
+        button: "right",
+      });
+    await chooseChatFromContextMenu(page);
+    await expectAgentDockWithContext(page, "Programming");
+
+    await page.getByLabel("Switch module").click();
+    await page.getByRole("menuitem", { name: "Agent" }).click();
+    await expect(page.getByTestId("agent-page")).toBeVisible();
+    await expect(
+      page.getByTestId("agent-thread-item").filter({ hasText: "聊聊：Programming" }),
+    ).toHaveCount(0);
+  } finally {
+    await app.close();
+  }
+});

@@ -100,3 +100,18 @@ test("@AG-START-004 新对话标题使用第一条用户消息的可读内容", 
     await app.close();
   }
 });
+
+test("@AG-START-005 未发送消息的新对话不进入对话列表", async () => {
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await createNewThread(page);
+
+    await expect(page.getByTestId("agent-thread-item").filter({ hasText: "新对话" })).toHaveCount(
+      0,
+    );
+    await expect(composer(page)).toBeEditable();
+  } finally {
+    await app.close();
+  }
+});
