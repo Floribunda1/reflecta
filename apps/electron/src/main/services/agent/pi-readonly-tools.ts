@@ -7,6 +7,7 @@ import {
   searchCliService,
   understandingCliService,
 } from "../core";
+import { fetchWebPage } from "./web-fetch";
 
 export const PI_READ_ONLY_TOOL_NAMES = [
   "domain_list",
@@ -15,6 +16,7 @@ export const PI_READ_ONLY_TOOL_NAMES = [
   "understanding_get",
   "context_list",
   "context_get",
+  "web_fetch",
   "retrieve_knowledge",
   "graph",
 ] as const;
@@ -130,6 +132,17 @@ export function createPiReadOnlyTools(): ToolDefinition[] {
       }),
       execute: async (_toolCallId, { contextId }) =>
         toolResult(await contextCliService.getContext(contextId)),
+    }),
+    defineTool({
+      name: "web_fetch",
+      label: "读取网页",
+      description:
+        "Read a user-provided public http/https URL as markdown. Use this before answering questions about a pasted web page. Returns blocked=true when the page is login-gated or protected.",
+      promptSnippet: "web_fetch: read a user-provided public URL as markdown.",
+      parameters: Type.Object({
+        url: Type.String({ minLength: 1 }),
+      }),
+      execute: async (_toolCallId, { url }) => toolResult(await fetchWebPage(url)),
     }),
     defineTool({
       name: "retrieve_knowledge",

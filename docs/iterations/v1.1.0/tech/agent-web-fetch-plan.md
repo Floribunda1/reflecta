@@ -4,7 +4,7 @@
 >
 > 状态：Draft
 >
-> 目标：给 Pi Agent 增加一个最小可用的网页读取工具，让用户粘贴文章、Twitter/X、GitHub、文档等 URL 后，Agent 能读取页面内容并作为 Context 讨论。第一版不做 Web Search，不读取本地浏览器 Cookie，不接多个 provider。
+> 目标：给 Pi Agent 增加一个最小可用的网页读取工具，让用户粘贴文章、Twitter/X、GitHub、文档等 URL 后，Agent 能读取页面内容并作为 Context 讨论。第一版不做 Web Search，不读取本地浏览器 Cookie，不做浏览器扩展，不接多个 provider。
 
 ## 1. 结论
 
@@ -97,32 +97,30 @@ default = curl.md
 - [Jina Reader](https://jina.ai/reader/)
 - [Firecrawl](https://www.firecrawl.dev/)
 
-### 2.3 登录态网页以后走 Browser Capture
+### 2.3 登录态网页第一版只返回 blocked
 
 知乎、私有页面、需要登录的 Twitter/X 内容，不应该第一版靠读取本地浏览器 Cookie 解决。
 
-更合理的后续能力是：
+第一版也不做 browser extension / bookmarklet。失败路径保持简单：
 
 ```txt
-browser_capture
-  -> user clicks extension/bookmarklet in their logged-in browser
-  -> Reflecta receives current URL + title + selected text + rendered page text
-  -> agent uses captured content
+web_fetch(url)
+  -> blocked/error
+  -> agent tells the user it cannot read the page
+  -> user can paste the relevant text manually
 ```
-
-这和用户心智一致：用户主动把当前页面发给 Reflecta。
 
 不做 Cookie 读取：
 
 - Chrome / Arc / Safari 的 cookie 存储和加密机制不同。
 - macOS Keychain 权限会让实现和分发复杂化。
 - 直接把 cookie 交给 agent 或 fetch 层有隐私风险。
-- 对 JS-heavy 页面来说，cookie 不等于可读内容；读取渲染后的 DOM 更可靠。
+- 对 JS-heavy 页面来说，cookie 不等于可读内容。
 
 第一版只在 `web_fetch` 失败时返回明确提示：
 
 ```txt
-This page looks blocked or login-gated. Open it in your browser and send the page to Reflecta when Browser Capture is available.
+This page looks blocked or login-gated. Please paste the relevant text if you want to discuss it.
 ```
 
 ## 3. 目标 Tool Contract
@@ -192,6 +190,7 @@ type WebFetchOutput = {
 - 读取本地浏览器 Cookie。
 - 自动登录第三方网站。
 - 自动绕过 paywall / login wall。
+- browser extension / bookmarklet。
 - 多 provider fallback。
 - Web Search。
 
@@ -268,23 +267,6 @@ When the user provides a URL and asks about its content, use web_fetch before an
 - Agent 会先帮助用户咀嚼、对比、追问，再建议是否沉淀。
 - 写入前 UI 仍展示 approval。
 
-### Phase 3：Browser Capture 预留，不进入第一版实现
-
-目标：为登录态/动态页面保留清晰后续路径。
-
-第一版只写文档和错误提示，不实现扩展。
-
-后续再做：
-
-- Chrome / Arc extension 或 bookmarklet。
-- 当前页 title / url / selected text / rendered DOM text 发送到 Reflecta。
-- Reflecta 把 captured page 当成可读取 Context source。
-
-不做：
-
-- 读取 Chrome / Safari cookie database。
-- 在 Reflecta 内嵌浏览器里让用户重新登录。
-
 ## 7. 测试计划
 
 只测稳定规则，不测第三方服务内容。
@@ -319,4 +301,5 @@ v1.1.0 这一项完成时，应该满足：
 - 没有新增 API key 配置。
 - 没有 provider 选择 UI。
 - 没有读取用户浏览器 Cookie。
+- 没有浏览器扩展。
 - 没有引入 Web Search。
