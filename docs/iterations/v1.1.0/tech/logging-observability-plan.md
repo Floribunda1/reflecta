@@ -1,4 +1,4 @@
-# Logging / Observability 调研与方案
+# Logging / Observability Plan
 
 > 日期：2026-06-24
 >
@@ -6,7 +6,48 @@
 >
 > 目标：任何 bug 出现时，可以把诊断材料交给 AI，让 AI 自己按时间线、运行 ID、错误栈和上下文查日志并定位问题。
 
-## 结论
+## 最终方案
+
+做一套本地优先的结构化诊断日志，不上重平台。
+
+第一版只落这四件事：
+
+1. 保留现有 `electron-log`，继续写人看的 `main.log`。
+2. 新增 `events.ndjson`，每行一个 JSON 诊断事件，给 AI 和脚本查。
+3. 所有关键事件带上同一组关联字段：`sessionId`、`runId`、`toolCallId`、`requestId`、`traceId`。
+4. 新增“导出诊断包”，把 `events.ndjson`、`main.log`、相关 `Sessions/*.jsonl`、redacted config、DB/retrieval 状态打包给 AI。
+
+不做：
+
+- 不上 ELK / Loki / OTel Collector。
+- 不把日志写进业务 SQLite。
+- 不默认上传 Sentry / Langfuse / LangSmith。
+- 不全量记录用户正文、模型完整输出、API key、token。
+
+一句话：`main.log` 继续给人看，`events.ndjson` 给 AI 查，`Sessions/*.jsonl` 负责 agent turn replay，诊断包把三者按 `runId` 串起来。
+
+## P0 改动范围
+
+只改最值钱的 seam：
+
+| 位置                    | 新增事件                                       | 为什么                       |
+| ----------------------- | ---------------------------------------------- | ---------------------------- |
+| `logger.ts`             | `app.logging.initialized`                      | 确认日志路径、profile、版本  |
+| `db/index.ts`           | `app.db.initialized` / `app.db.failed`         | 启动和 migration 问题最常见  |
+| `services/index.ts`     | `ipc.request.completed` / `ipc.request.failed` | 一处覆盖所有 IPC service     |
+| `pi-agent-host.ts`      | `agent.run.*` / `agent.tool.*`                 | 串起 session、run、tool      |
+| search/retrieval seam   | `retrieval.query.*`                            | 让 RetrievalTrace 可持久查询 |
+| `DiagnosticsService.ts` | `exportDebugBundle()`                          | 给 AI 一个完整现场           |
+
+P0 结束时，AI debug 的路径应该是：
+
+1. 先看诊断包里的 `manifest.json`。
+2. 查 `events.ndjson` 里的 error/warn。
+3. 用 `sessionId/runId/toolCallId` 跳到 agent session JSONL。
+4. 如果是检索问题，看同一个 run/tool 下的 `RetrievalTrace`。
+5. 如果是启动/迁移问题，看 `app.db.*` 和 `main.log` stack。
+
+## 当前问题
 
 Reflecta 现在已经有两类日志：
 
@@ -14,16 +55,6 @@ Reflecta 现在已经有两类日志：
 - Agent 会话日志：Pi session 通过 JSONL 存在 Content Storage Root 的 `Sessions/*.jsonl`，能重放 agent turn、tool call、approval 和 run 状态。
 
 真正缺的是统一的结构化诊断事件。当前 `main.log` 是多行文本，适合人看，不适合 AI 稳定解析；Agent JSONL 很强，但和应用日志、IPC、DB、retrieval trace 没有统一 correlation id。
-
-最小成熟方案：
-
-1. 保留 `electron-log` 做桌面本地日志和 Electron crash/event 捕获。
-2. 新增一份本地 `events.ndjson`，每行一个 JSON 诊断事件，字段对齐 OpenTelemetry log data model。
-3. 把 `sessionId`、`runId`、`toolCallId`、`ipc.channel`、`requestId`、`traceId` 放进结构化字段。
-4. 新增“导出诊断包”能力，打包最近 `events.ndjson`、`main.log`、相关 `Sessions/*.jsonl`、redacted config、DB/retrieval 状态。
-5. 远端平台暂不接。需要线上错误聚合时再接 Sentry；需要 LLM 成本/质量/trace 平台时再接 Langfuse 或 LangSmith。
-
-Skipped: 现在不上 ELK/Loki/OTel Collector。Add when 有多用户远端日志查询、告警和团队运维需求。
 
 ## 现状梳理
 
