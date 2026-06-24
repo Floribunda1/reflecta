@@ -368,6 +368,32 @@ describe("buildAgentTurnView", () => {
     });
   });
 
+  test("summarizes inspected domains by name instead of id", () => {
+    const turn = buildAgentTurnView([
+      tool(
+        "domain_inspect",
+        "tool-1",
+        {
+          domain: { id: "domain-1", name: "三观" },
+          understandings: [],
+          contexts: [],
+        },
+        "completed",
+        undefined,
+        { domainId: "domain-1" },
+      ),
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "tool-activity",
+      activity: {
+        title: "查看 Domain",
+        summary: "查看了「三观」下的内容",
+        items: [expect.objectContaining({ label: "查看了「三观」下的内容" })],
+      },
+    });
+  });
+
   test("summarizes mixed search hits", () => {
     const turn = buildAgentTurnView([
       tool("search", "tool-1", {

@@ -741,7 +741,7 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
   }
   if (name === "domain_list") return `列出 ${outputCount(output, "domains")} 个 Domain`;
   if (name === "domain_inspect") {
-    return `查看了「${stringValue(outputRecord.name) || stringValue(input.domainId) || "领域"}」下的内容`;
+    return `查看了「${entityTitle(outputRecord.domain) || entityTitle(outputRecord) || stringValue(input.domainId) || "领域"}」下的内容`;
   }
   if (name === "understanding_list") {
     return `列出 ${outputCount(output, "understandings")} 条 Understanding`;
