@@ -10,6 +10,7 @@
     而且用户选择“和 AI 聊聊”
     那么页面右侧应该打开 Agent 侧栏
     而且 Agent 输入框中应该显示 Domain「Programming」上下文
+    而且 Agent 输入框应该获得焦点
     而且 Agent 侧栏应该显示当前范围为「Programming」
 
   @P0 @context @CT-AGENT-002
@@ -20,4 +21,12 @@
     而且用户选择“和 AI 聊聊”
     那么页面右侧应该打开 Agent 侧栏
     而且 Agent 输入框中应该显示 Understanding「React Server Components」上下文
+    而且 Agent 输入框应该获得焦点
     而且 Agent 侧栏应该显示当前范围为「React Server Components」
+
+  @P1 @isolation @CT-AGENT-003
+  场景: 图谱 Understanding 详情面板不显示 Capture 专属聊天入口
+    假如 seed 数据中存在 Understanding「React Server Components」
+    当用户在 Contemplate 页面进入 Domain「React」图谱
+    而且用户打开 Understanding 节点「React Server Components」详情面板
+    那么详情面板中不应该显示“聊聊”按钮

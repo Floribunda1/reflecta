@@ -29,6 +29,18 @@ async function expectAgentDockWithContext(page: Page, title: string) {
   await expect(page.getByTestId("contemplate-agent-dock")).toContainText(title);
   await expect(contextMention(page, title)).toBeVisible();
   await expect(composer(page)).toBeEditable();
+  await expect(composer(page)).toBeFocused();
+}
+
+async function openReactFocusGraph(page: Page) {
+  await openContemplatePage(page);
+  await page.locator('[data-testid="contemplate-domain-node"][data-domain-name="React"]').click();
+}
+
+function reactServerComponentsNode(page: Page) {
+  return page.locator(
+    '[data-testid="contemplate-understanding-node"][data-understanding-title="React Server Components"]',
+  );
 }
 
 test("@CT-AGENT-001 用户从图谱 Domain 节点右键菜单打开上下文 Agent", async () => {
@@ -51,16 +63,28 @@ test("@CT-AGENT-002 用户从图谱 Understanding 节点右键菜单打开上下
   const { app, page } = await launchApp();
 
   try {
-    await openContemplatePage(page);
-    await page.locator('[data-testid="contemplate-domain-node"][data-domain-name="React"]').click();
-    await page
-      .locator(
-        '[data-testid="contemplate-understanding-node"][data-understanding-title="React Server Components"]',
-      )
-      .click({ button: "right" });
+    await openReactFocusGraph(page);
+    await reactServerComponentsNode(page).click({ button: "right" });
     await chooseChatFromContextMenu(page);
 
     await expectAgentDockWithContext(page, "React Server Components");
+  } finally {
+    await app.close();
+  }
+});
+
+test("@CT-AGENT-003 图谱 Understanding 详情面板不显示 Capture 专属聊天入口", async () => {
+  const { app, page } = await launchApp();
+
+  try {
+    await openReactFocusGraph(page);
+    await reactServerComponentsNode(page).click();
+
+    await expect(page.getByPlaceholder("写下一个刚形成的理解")).toHaveValue(
+      "React Server Components",
+      { timeout: 15_000 },
+    );
+    await expect(page.getByTestId("capture-understanding-chat-button")).toHaveCount(0);
   } finally {
     await app.close();
   }
