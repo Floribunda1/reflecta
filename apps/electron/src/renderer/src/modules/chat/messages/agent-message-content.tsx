@@ -68,33 +68,108 @@ function MarkdownBody({
   );
 }
 
+function splitDetail(detail: string) {
+  const separator = detail.indexOf("：");
+  if (separator === -1) return undefined;
+  return {
+    label: detail.slice(0, separator),
+    value: detail.slice(separator + 1),
+  };
+}
+
+function isInputDetail(label: string) {
+  return ["查询", "limit", "offset", "domainId", "understandingId", "contextId"].includes(label);
+}
+
+function detailLabel(label: string) {
+  if (label === "limit") return "数量";
+  if (label === "offset") return "偏移";
+  if (label === "domainId") return "Domain";
+  if (label === "understandingId") return "Understanding";
+  if (label === "contextId") return "Context";
+  return label;
+}
+
+function ToolDetailRows({ details }: { details: string[] }) {
+  const inputDetails = details
+    .map(splitDetail)
+    .filter((detail): detail is { label: string; value: string } =>
+      Boolean(detail && isInputDetail(detail.label)),
+    );
+  const resultDetails = details.filter((detail) => {
+    const parsed = splitDetail(detail);
+    return !parsed || !isInputDetail(parsed.label);
+  });
+
+  return (
+    <div className="grid gap-2">
+      {inputDetails.length ? (
+        <div className="flex flex-wrap gap-x-3 gap-y-1 px-1 text-xs text-muted-foreground">
+          {inputDetails.map((detail, index) => (
+            <span key={`${detail.label}-${detail.value}-${index}`}>
+              <span>{detailLabel(detail.label)}：</span>
+              <span>{detail.value}</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {resultDetails.length ? (
+        <ul className="grid gap-1">
+          {resultDetails.map((detail, index) => {
+            const parsed = splitDetail(detail);
+            if (!parsed) {
+              return (
+                <li
+                  key={`${detail}-${index}`}
+                  className="break-words rounded-sm px-1 py-1 text-muted-foreground hover:bg-background/45"
+                >
+                  {detail}
+                </li>
+              );
+            }
+            const [title = parsed.value, description] = parsed.value.split(" · ");
+            return (
+              <li
+                key={`${detail}-${index}`}
+                className="grid gap-0.5 rounded-sm px-1 py-1 hover:bg-background/45"
+              >
+                <div className="flex min-w-0 items-baseline gap-2">
+                  <span className="shrink-0 text-xs text-muted-foreground">{parsed.label}</span>
+                  <span className="min-w-0 font-medium text-foreground/75">{title}</span>
+                </div>
+                {description ? (
+                  <div className="line-clamp-2 text-muted-foreground/85">{description}</div>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 function ToolActivityGroup({ activity }: { activity: ToolActivityView }) {
   const item = activity.items[0];
-  const statusClass = activity.status === "failed" ? "text-destructive" : "text-muted-foreground";
+  const statusClass =
+    activity.status === "failed"
+      ? "bg-destructive/10 text-destructive"
+      : "bg-background/70 text-muted-foreground";
 
   return (
     <Collapsible
       data-testid="agent-tool-activity"
-      className="my-1 w-full rounded-md border-l border-border/60 bg-muted/20 py-1 pl-3 pr-2 text-sm text-muted-foreground"
+      className="my-1 w-full rounded-md border-l-2 border-border/80 bg-muted/30 py-1.5 pl-3 pr-2 text-sm text-muted-foreground"
     >
-      <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between gap-2 rounded-sm px-1 py-0.5 text-left hover:bg-muted/45">
-        <span className="flex min-w-0 items-center gap-1.5">
-          <span className="min-w-0 truncate">{activity.summary}</span>
-          <ChevronDown className="size-3 shrink-0 -rotate-90 text-muted-foreground opacity-0 transition group-data-[panel-open]:rotate-0 group-data-[panel-open]:opacity-100 group-hover:opacity-100 group-focus-visible:opacity-100" />
+      <CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-1.5 rounded-sm px-1 py-0.5 text-left hover:bg-muted/55">
+        <span className="min-w-0 truncate">{activity.summary}</span>
+        <span className={`shrink-0 rounded-sm px-1.5 py-0.5 text-[11px] leading-4 ${statusClass}`}>
+          {activity.statusLabel}
         </span>
-        <span className={statusClass}>{activity.statusLabel}</span>
+        <ChevronDown className="size-3 shrink-0 -rotate-90 text-muted-foreground opacity-0 transition group-data-[panel-open]:rotate-0 group-data-[panel-open]:opacity-100 group-hover:opacity-100 group-focus-visible:opacity-100" />
       </CollapsibleTrigger>
-      <CollapsibleContent className="mt-1 px-1 pb-1 text-muted-foreground">
-        <div className="mb-0.5">{activity.title}</div>
-        {item?.details.length ? (
-          <ul className="grid gap-0.5">
-            {item.details.map((detail, index) => (
-              <li key={`${item.toolCallId}-detail-${index}`} className="break-words">
-                {detail}
-              </li>
-            ))}
-          </ul>
-        ) : null}
+      <CollapsibleContent className="mt-2 px-1 pb-1 text-muted-foreground">
+        {item?.details.length ? <ToolDetailRows details={item.details} /> : null}
         {item?.errorText ? <div className="mt-1 text-destructive">{item.errorText}</div> : null}
       </CollapsibleContent>
     </Collapsible>
@@ -114,9 +189,9 @@ function ReasoningBlock({
     <Collapsible
       data-slot="agent-reasoning"
       data-testid="agent-reasoning"
-      className="my-1 w-full rounded-md border-l border-border/60 bg-muted/20 py-1 pl-3 pr-2 text-sm text-muted-foreground"
+      className="my-1 w-full rounded-md border-l-2 border-border/80 bg-muted/30 py-1.5 pl-3 pr-2 text-sm text-muted-foreground"
     >
-      <CollapsibleTrigger className="group inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-sm px-1 py-0.5 text-left hover:bg-muted/45">
+      <CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-1.5 rounded-sm px-1 py-0.5 text-left hover:bg-muted/55">
         {streaming ? <Spinner className="size-3 shrink-0" /> : null}
         <span>{streaming ? "正在思考" : "思考过程"}</span>
         <ChevronDown className="size-3 shrink-0 -rotate-90 text-muted-foreground opacity-0 transition group-data-[panel-open]:rotate-0 group-data-[panel-open]:opacity-100 group-hover:opacity-100 group-focus-visible:opacity-100" />
