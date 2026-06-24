@@ -69,6 +69,7 @@
     "@xyflow/react": "^12.11.0",
     "ahooks": "^3.9.7",
     "ajv": "^8.18.0",
+    "apache-arrow": "18.1.0",
     "better-sqlite3": "^12.11.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
