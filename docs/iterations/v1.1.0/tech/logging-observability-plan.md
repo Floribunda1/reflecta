@@ -4,7 +4,7 @@
 >
 > 状态：Proposal
 >
-> 目标：任何 bug 出现时，可以把诊断材料交给 AI，让 AI 按时间线、运行 ID、错误栈和上下文自己查日志并定位问题。
+> 目标：任何 bug 出现时，AI 可以直接读取本机日志和 Agent session，按时间线、运行 ID、错误栈和上下文定位问题。
 
 ## 目录
 
@@ -13,14 +13,18 @@
 3. 目标架构
 4. DiagnosticEvent 契约
 5. P0 写入点
-6. 诊断包
+6. AI 调试入口
 7. 落地顺序
 8. 验收标准
-9. 附录：现状和调研依据
+9. 附录：现状和依据
 
 ## 1. 决策
 
-`main.log` 改成 AI-first 的 JSONL 结构化日志。
+`main.log` 改成 AI-first 的 JSONL 结构化日志，并放到 Content Storage Root：
+
+```text
+<contentStorageRoot>/logs/main.log
+```
 
 每一行是一条完整 JSON event：
 
@@ -35,12 +39,15 @@
 }
 ```
 
-不再新增 `events.ndjson`。它只有在需要同时保留“人看的 `main.log`”和“AI 查的结构化日志”时才有价值。现在目标是 AI 解析方便，所以只保留一份应用日志。
+为什么放 Content Storage Root：
 
-保留 `electron-log`，但只用它做三件事：
+- Reflecta 的可调试状态都在这里：`reflecta.db`、`retrieval-index`、`Sessions/*.jsonl`。
+- Agent session JSONL 已经在 Content Storage Root，`main.log` 放同一个 root 才能按 `sessionId/runId/toolCallId` 就地关联。
+- 这个软件当前只有个人使用，不需要 OS 级日志目录、远端平台或客服导出路径。
 
-- 管理 Electron 平台上的日志路径。
-- 管理文件滚动和大小。
+保留 `electron-log`，但只用它做两件事：
+
+- 文件滚动和大小限制。
 - 接住未捕获异常和 Electron runtime 事件。
 
 应用自己的日志入口不再直接暴露 `electron-log` scope，而是通过一个小的 `DiagnosticLog` interface 写入 JSON event。
@@ -49,16 +56,16 @@
 
 目标：
 
-- AI 能从 `main.log` 找到错误、时间线和跨模块上下文。
-- AI 能用 `sessionId` / `runId` / `toolCallId` 从 `main.log` 跳到对应 `Sessions/*.jsonl`。
-- IPC、DB 初始化、Agent run/tool、retrieval trace 都能被串起来。
+- AI 能从 `<contentStorageRoot>/logs/main.log` 找到错误、时间线和跨模块上下文。
+- AI 能用 `sessionId` / `runId` / `toolCallId` 从 `main.log` 跳到 `Sessions/*.jsonl`。
+- IPC、DB 初始化、Agent run/tool、retrieval trace 能被串起来。
 - 日志默认不泄露 API key、token、完整用户正文和完整模型输出。
-- 用户可以导出一个诊断包交给 AI，不需要 AI 访问全量本地数据库。
 
 非目标：
 
-- 不上 ELK / Loki / OpenTelemetry Collector。
-- 不默认上传 Sentry / Langfuse / LangSmith。
+- 不新增 `events.ndjson`。
+- 不增加 `exportDebugBundle()` 或诊断包导出功能。
+- 不接任何远端观测平台。
 - 不把日志写进业务 SQLite。
 - 不铺满业务 CRUD 日志。
 - 不优化 `main.log` 的人工阅读体验。
@@ -67,11 +74,12 @@
 
 ### 3.1 存储
 
-| 文件               | 位置                            | 职责                                |
-| ------------------ | ------------------------------- | ----------------------------------- |
-| `main.log`         | `~/Library/Logs/<app>/main.log` | 应用诊断事件，JSONL                 |
-| `Sessions/*.jsonl` | `<contentStorageRoot>/Sessions` | Agent turn / tool / approval replay |
-| debug bundle       | 用户显式导出                    | 一次 bug 的可交付诊断材料           |
+| 文件               | 位置                               | 职责                                |
+| ------------------ | ---------------------------------- | ----------------------------------- |
+| `main.log`         | `<contentStorageRoot>/logs`        | 应用诊断事件，JSONL                 |
+| `Sessions/*.jsonl` | `<contentStorageRoot>/Sessions`    | Agent turn / tool / approval replay |
+| `reflecta.db`      | `<contentStorageRoot>/reflecta.db` | 业务数据，必要时只查状态不全量读取  |
+| `retrieval-index`  | `<contentStorageRoot>`             | 检索索引状态                        |
 
 ### 3.2 Modules
 
@@ -80,18 +88,16 @@ Application code
   -> DiagnosticLog.write(event)
        -> redaction
        -> JSON.stringify(one line)
-       -> electron-log file transport
+       -> <contentStorageRoot>/logs/main.log
 
 Agent runtime
   -> DiagnosticLog.write(agent.run/tool events)
   -> AgentSessionLog.appendEvent(reflecta.agent.event)
 
-DiagnosticsService
-  -> exportDebugBundle()
-       -> main.log slice
-       -> related Sessions/*.jsonl
-       -> redacted config
-       -> db/retrieval status
+AI debugger
+  -> read logs/main.log
+  -> follow sessionId/runId/toolCallId into Sessions/*.jsonl
+  -> inspect status from DB/retrieval when needed
 ```
 
 ### 3.3 Interfaces
@@ -150,7 +156,6 @@ Interface 要小：调用方只知道 `write(event)`，不知道文件路径、�
 - `context` 只放跨事件关联 ID。
 - `attrs` 放事件细节，必须 JSON-safe。
 - `error.name`、`error.message`、`error.stack` 放进 `attrs`。
-- 高基数字段如 `runId`、`toolCallId` 是普通字段，不作为未来 Loki/Elastic label。
 - 默认不记录完整用户正文、完整模型输出、API key、token、authorization、password、`safe:v1:*`。
 
 ### 4.3 示例
@@ -193,45 +198,35 @@ Interface 要小：调用方只知道 `write(event)`，不知道文件路径、�
 
 P0 不记录普通 CRUD 成功事件。AI debug 优先需要跨 seam 生命周期和失败点。
 
-## 6. 诊断包
+## 6. AI 调试入口
 
-`DiagnosticsService.exportDebugBundle(input)`：
+AI 不需要导出包。调试时直接读取同一个 Content Storage Root：
 
-```ts
-type ExportDebugBundleInput = {
-  since?: string;
-  sessionId?: string;
-  includeUserContent?: boolean;
-};
+```text
+<contentStorageRoot>/
+  logs/main.log
+  Sessions/*.jsonl
+  reflecta.db
+  retrieval-index/
 ```
 
-导出内容：
+调试顺序：
 
-| 文件                         | 内容                                                      |
-| ---------------------------- | --------------------------------------------------------- |
-| `manifest.json`              | app version、profile、platform、导出时间、路径摘要        |
-| `main.log`                   | 按 `since` 截取或 tail 的 JSONL 应用日志                  |
-| `sessions/<sessionId>.jsonl` | 指定 session 的 Agent JSONL                               |
-| `config.redacted.json`       | 去掉密钥后的 provider/model/path 配置                     |
-| `status.json`                | DB path exists、migration version、retrieval index status |
-
-AI debug 顺序：
-
-1. 读 `manifest.json` 确认版本和环境。
-2. 查 `main.log` 的 `level=error` / `level=warn`。
-3. 用 `sessionId` / `runId` / `toolCallId` 跳到 session JSONL。
-4. retrieval 问题查同一 `runId/toolCallId` 的 `retrieval.query.*`。
-5. 启动/迁移问题查 `app.db.*` 和错误栈。
+1. 查 `logs/main.log` 的 `level=error` / `level=warn`。
+2. 用 `sessionId` / `runId` / `toolCallId` 跳到 session JSONL。
+3. retrieval 问题查同一 `runId/toolCallId` 的 `retrieval.query.*`。
+4. 启动/迁移问题查 `app.db.*` 和错误栈。
+5. 只有需要确认数据状态时才查 DB 或 retrieval index，不默认扫全量用户内容。
 
 ## 7. 落地顺序
 
 ### P0：让 AI 能查核心故障
 
 1. 新增 `DiagnosticEvent`、`DiagnosticContext`、`DiagnosticLog.write()`。
-2. 让 `main.log` 输出 JSONL。
-3. 加 redaction helper。
-4. 在 IPC wrapper、DB init、Agent run/tool、retrieval seam 写事件。
-5. 新增 `exportDebugBundle()`。
+2. 把 `main.log` 写到 `<contentStorageRoot>/logs/main.log`。
+3. 让 `main.log` 输出 JSONL。
+4. 加 redaction helper。
+5. 在 IPC wrapper、DB init、Agent run/tool、retrieval seam 写事件。
 6. 加最小测试：JSONL 单行、redaction、IPC failure 事件。
 
 ### P1：补齐 renderer 和关联上下文
@@ -239,26 +234,17 @@ AI debug 顺序：
 1. preload 捕获 renderer `window.onerror` / `unhandledrejection`。
 2. renderer IPC proxy 的错误进入 `renderer.error`。
 3. retrieval trace 挂上 `runId/toolCallId`。
-4. 设置页加“导出诊断包”。
-
-### P2：远端平台
-
-只在真实需要时增加 adapter：
-
-- 需要 release 维度线上错误聚合：Sentry。
-- 需要 LLM 成本、prompt、质量评估：Langfuse / LangSmith。
-- 需要团队集中查询：OpenTelemetry Collector + Loki/Elastic。
 
 ## 8. 验收标准
 
+- `main.log` 位于 `<contentStorageRoot>/logs/main.log`。
 - IPC service 抛错时，`main.log` 有一条 `ipc.request.failed`，包含 channel、durationMs、error message、stack。
 - Agent run 失败时，能从 `main.log` 用 `sessionId/runId` 找到对应 session JSONL。
 - Tool 失败时，能从 `toolCallId` 找到 started/failed 事件和 session JSONL 里的 tool event。
 - Retrieval 异常时，能找到同一 `runId/toolCallId` 下的 `RetrievalTrace`。
-- 诊断包不包含明文 API key、token、authorization、password、`safe:v1:*`。
-- AI 只读诊断包，不访问全量业务 DB，也能判断启动、IPC、Agent、retrieval 问题的第一原因。
+- `main.log` 不包含明文 API key、token、authorization、password、`safe:v1:*`。
 
-## 9. 附录：现状和调研依据
+## 9. 附录：现状和依据
 
 ### 9.1 当前现状
 
@@ -266,7 +252,7 @@ AI debug 顺序：
 
 - 入口：`apps/electron/src/main/logger.ts`。
 - 依赖：`electron-log/main`。
-- 文件：`~/Library/Logs/Reflecta/main.log` 或 `~/Library/Logs/Reflecta Dev/main.log`。
+- 当前文件：`~/Library/Logs/Reflecta/main.log` 或 `~/Library/Logs/Reflecta Dev/main.log`。
 - 当前格式：多行 pretty text，不适合 AI 稳定解析。
 - 当前 scope：`appLog`、`agentLog`、`ipcLog`。
 
@@ -290,31 +276,22 @@ Retrieval trace：
 - 当前随 `SearchCore.retrieveKnowledge()` 返回。
 - 缺口：没有持久进入应用诊断日志，Agent debug 时不一定能按 `runId/toolCallId` 找回。
 
-CLI：
-
-- stdout/stderr 已经是 JSON/JSONL。
-- 暂不并入 Electron 应用日志。
-
-### 9.2 社区依据
+### 9.2 依据
 
 采用：
 
 - OpenTelemetry Logs Data Model 的字段思路：timestamp、severity、body/message、resource、attributes、trace context。
 - JSONL：追加写简单、每行独立、AI 和脚本容易查。
-- Loki/Elastic 的经验：低基数字段才能做 label/index，高基数 ID 放属性。
+- Content Storage Root：已有 DB、retrieval index、assets、Agent Sessions，是 Reflecta 用户数据和调试上下文的实际根目录。
 
 暂不采用：
 
-- OpenTelemetry JS logs runtime：当前对本地桌面 app 过重。
+- OS log dir：会把应用日志和 Agent session 分开，AI debug 时还要跨路径找上下文。
+- OpenTelemetry JS logs runtime：当前对个人本地桌面 app 过重。
 - Pino/Winston/LogTape：现在标准库加 `electron-log` 已够，不加依赖。
-- Sentry/Langfuse/LangSmith：默认远端上传和 Reflecta 本地优先/隐私目标冲突，只能做 opt-in adapter。
+- 远端观测平台：当前只有个人使用，先不接。
 
 参考：
 
 - [OpenTelemetry Logs Data Model](https://opentelemetry.io/docs/specs/otel/logs/data-model/)
 - [electron-log](https://github.com/megahertz/electron-log)
-- [Grafana Loki label best practices](https://grafana.com/docs/loki/latest/get-started/labels/bp-labels/)
-- [Elastic Common Schema](https://www.elastic.co/docs/reference/ecs)
-- [Sentry Electron structured logs](https://docs.sentry.io/platforms/javascript/guides/electron/logs/)
-- [Langfuse OpenTelemetry integration](https://langfuse.com/integrations/native/opentelemetry)
-- [LangSmith Observability](https://docs.langchain.com/langsmith/observability)
