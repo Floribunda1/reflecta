@@ -50,6 +50,18 @@ describe("web_fetch", () => {
     });
   });
 
+  test("does not truncate a Martin Fowler sized article", async () => {
+    const article = "x".repeat(48_000);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(article, { status: 200 })));
+
+    await expect(
+      fetchWebPage("https://martinfowler.com/eaaDev/uiArchs.html"),
+    ).resolves.toMatchObject({
+      markdown: article,
+      truncated: false,
+    });
+  });
+
   test("marks protected pages as blocked", async () => {
     vi.stubGlobal(
       "fetch",

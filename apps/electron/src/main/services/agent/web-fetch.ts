@@ -13,7 +13,7 @@ export type WebFetchOutput = {
 
 const CURL_MD_BASE_URL = "https://curl.md/";
 const REQUEST_TIMEOUT_MS = 30_000;
-const MAX_MARKDOWN_CHARS = 30_000;
+const MAX_MARKDOWN_CHARS = 60_000;
 
 export async function fetchWebPage(url: string): Promise<WebFetchOutput> {
   const target = parsePublicHttpUrl(url);
