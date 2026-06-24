@@ -14,9 +14,13 @@ export type AgentThreadView = {
   stoppedMessageId: string | null;
   focusRequest: number;
   showScrollToBottom: boolean;
+  jumpItems: ChatJumpItem[];
+  activeJumpMessageId: string | null;
+  highlightedMessageId: string | null;
   scrollRef: RefObject<HTMLDivElement | null>;
   handleScroll(): void;
-  scrollToBottom(): void;
+  scrollToBottom(behavior?: ScrollBehavior): void;
+  jumpToMessage(messageId: string): void;
   actions: {
     send(input: ComposerSendInput): Promise<void>;
     retry(): Promise<void>;
@@ -28,6 +32,12 @@ export type AgentThreadView = {
   };
 };
 
+export type ChatJumpItem = {
+  messageId: string;
+  label: string;
+  role: AgentReducedMessage["role"];
+};
+
 export function editingMessageFromAgentMessage(message: AgentReducedMessage): EditingMessage {
   return {
     id: message.id,
@@ -36,6 +46,39 @@ export function editingMessageFromAgentMessage(message: AgentReducedMessage): Ed
     files: message.files ?? [],
     composerContent: message.composerContent,
   };
+}
+
+function normalizedSnippet(value: string | undefined) {
+  return value?.replace(/\s+/g, " ").trim() ?? "";
+}
+
+function fallbackMessageLabel(message: AgentReducedMessage) {
+  const fileNames = message.files
+    ?.map((file) => file.filename || file.mediaType)
+    .filter(Boolean)
+    .join("、");
+  if (fileNames) return `附件：${fileNames}`;
+
+  const actionBlock = message.blocks?.find(
+    (block) => block.kind === "tool" || block.kind === "approval",
+  );
+  if (!actionBlock) return message.role === "user" ? "用户消息" : "Agent 回复";
+  if (actionBlock.kind === "approval") return actionBlock.title;
+  return `工具：${actionBlock.toolName}`;
+}
+
+export function chatJumpLabelFor(message: AgentReducedMessage) {
+  return normalizedSnippet(message.text) || fallbackMessageLabel(message);
+}
+
+export function buildChatJumpItems(messages: AgentReducedMessage[]): ChatJumpItem[] {
+  return messages
+    .filter((message) => message.role === "user")
+    .map((message) => ({
+      messageId: message.id,
+      label: chatJumpLabelFor(message),
+      role: message.role,
+    }));
 }
 
 function valueKey(value: unknown) {

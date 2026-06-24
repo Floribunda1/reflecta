@@ -32,6 +32,8 @@ const PI_RELOAD_PROPOSAL_TITLE = "PI_RELOAD_CANDIDATE_UNDERSTANDING";
 const PI_DOMAIN_PROPOSAL_NAME = "PI_APPROVE_CANDIDATE_DOMAIN";
 const ABANDONED_RUN_MESSAGE = "ABANDONED_RUN_MESSAGE";
 const FAILED_RETRY_MESSAGE = "FAILED_RETRY_MESSAGE";
+const CHAT_JUMP_THREAD_TITLE = "CHAT_JUMP_LONG_SESSION";
+const CHAT_JUMP_TARGET_MESSAGE = "CHAT_JUMP_TARGET_PAYPAL_STATUS";
 
 function sessionsRoot() {
   return path.join(readE2eTestEnv().contentStorageRoot, "Sessions");
@@ -146,6 +148,58 @@ function seedFailedPiSession() {
     manager.appendCustomEntry(REFLECTA_AGENT_EVENT_ENTRY, event);
   }
   manager.appendSessionInfo(FAILED_RETRY_MESSAGE);
+  flushPiSession(manager);
+}
+
+function seedLongPiSession() {
+  const root = readE2eTestEnv().contentStorageRoot;
+  fs.mkdirSync(sessionsRoot(), { recursive: true });
+  const manager = SessionManager.create(root, sessionsRoot());
+  const sessionId = manager.getSessionId();
+  const createdAt = "2026-06-23T00:00:00.000Z";
+  const prompts = [
+    "https://martinfowler.com/eaaDev/uiArchs.html",
+    "这篇文章内容被截断了（后半部分不见了）",
+    "这篇 pdf 内容是啥",
+    "抱歉，我目前可用的工具里没有直接读取 PDF 附件的功能",
+    CHAT_JUMP_TARGET_MESSAGE,
+    "方向对。我希望你把文档里的状态处理梳理出来",
+  ];
+
+  prompts.forEach((prompt, index) => {
+    const runId = `run_jump_${index + 1}`;
+    const userMessageId = `user_jump_${index + 1}`;
+    const assistantMessageId = `assistant_jump_${index + 1}`;
+    const base = {
+      sessionId,
+      runId,
+      createdAt,
+    };
+    for (const event of [
+      { ...base, id: `evt_jump_${index + 1}_1`, type: "run.started" },
+      {
+        ...base,
+        id: `evt_jump_${index + 1}_2`,
+        type: "user.message",
+        messageId: userMessageId,
+        text: prompt,
+      },
+      {
+        ...base,
+        id: `evt_jump_${index + 1}_3`,
+        type: "assistant.text.delta",
+        messageId: assistantMessageId,
+        delta:
+          "这是一段用于撑开长对话的回复内容。它模拟 Agent 对用户问题的分析，包含多行文本，方便测试右侧用户消息跳转导航。\n\n".repeat(
+            4,
+          ),
+      },
+      { ...base, id: `evt_jump_${index + 1}_4`, type: "run.completed" },
+    ]) {
+      manager.appendCustomEntry(REFLECTA_AGENT_EVENT_ENTRY, event);
+    }
+  });
+  manager.appendSessionInfo(CHAT_JUMP_THREAD_TITLE);
   flushPiSession(manager);
 }
 
@@ -290,6 +344,48 @@ test("@AG-PI-RUN-003 用户重新打开有未完成回复的 Pi session 后不�
     await expect(page.getByTestId("agent-stop-button")).toHaveCount(0);
     await expect(composer(page)).toBeEditable();
     expect(readPiEventTypes()).toContain("run.cancelled");
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-PI-JUMP-001 用户在长对话中通过右侧摘录跳转到指定消息", async () => {
+  seedLongPiSession();
+  const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+
+  try {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openThread(page, CHAT_JUMP_THREAD_TITLE);
+    await expect(page.getByTestId("agent-chat-jump-nav")).toBeVisible();
+    await expect(page.getByTestId("agent-chat-jump-marker")).toHaveCount(6);
+    await expect(
+      page.getByTestId("agent-chat-jump-item").filter({ hasText: CHAT_JUMP_TARGET_MESSAGE }),
+    ).toHaveCount(1);
+    await expect(page.getByTestId("agent-chat-jump-item").filter({ hasText: "Agent" })).toHaveCount(
+      0,
+    );
+
+    const jumpPanelOpacity = await page
+      .getByTestId("agent-chat-jump-item")
+      .first()
+      .evaluate((element) => getComputedStyle(element.closest("div")!).opacity);
+    expect(jumpPanelOpacity).toBe("0");
+
+    await page.getByTestId("agent-chat-jump-marker").nth(4).hover();
+    await expect(
+      page.getByTestId("agent-chat-jump-item").filter({ hasText: CHAT_JUMP_TARGET_MESSAGE }),
+    ).toBeVisible();
+    await page
+      .getByTestId("agent-chat-jump-item")
+      .filter({ hasText: CHAT_JUMP_TARGET_MESSAGE })
+      .click();
+
+    await expect(
+      page
+        .locator('[data-testid="agent-message-row"][data-highlighted="true"]')
+        .filter({ hasText: CHAT_JUMP_TARGET_MESSAGE }),
+    ).toBeVisible();
+    await expect(composer(page)).toBeEditable();
   } finally {
     await app.close();
   }

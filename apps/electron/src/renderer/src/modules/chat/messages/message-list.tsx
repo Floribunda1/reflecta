@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@renderer/components/ui/empty";
+import { cn } from "@renderer/lib/utils";
 import type { AgentContextRef, AgentFileAttachment, AgentReducedMessage } from "@shared/agent";
 import {
   contextKey,
@@ -158,6 +159,7 @@ type MessageRowProps = {
   createdAt: string;
   isBusy: boolean;
   isLastAssistant: boolean;
+  highlighted: boolean;
   stopped: boolean;
   onEdit: (message: AgentReducedMessage) => void;
   onRegenerate: (messageId: string) => void;
@@ -170,6 +172,7 @@ function MessageRowComponent({
   createdAt,
   isBusy,
   isLastAssistant,
+  highlighted,
   stopped,
   onEdit,
   onRegenerate,
@@ -191,11 +194,14 @@ function MessageRowComponent({
   return (
     <div
       data-testid="agent-message-row"
+      data-agent-message-id={message.id}
+      data-highlighted={highlighted ? "true" : undefined}
       data-message-role={message.role}
-      className={[
+      className={cn(
         "group/message flex flex-col gap-1 [contain-intrinsic-size:auto_180px] [content-visibility:auto]",
         message.role === "user" ? "items-end" : "items-start",
-      ].join(" ")}
+        highlighted && "scroll-mt-6 rounded-lg bg-primary/5 ring-2 ring-primary/20",
+      )}
     >
       {message.role === "user" && (text || hasFiles) ? (
         <UserMessageContent message={message} text={text} onInspect={onInspectContextRef} />
@@ -275,6 +281,7 @@ export const MessageRow = memo(MessageRowComponent, (previous, next) => {
     previous.createdAt === next.createdAt &&
     previous.isBusy === next.isBusy &&
     previous.isLastAssistant === next.isLastAssistant &&
+    previous.highlighted === next.highlighted &&
     previous.stopped === next.stopped &&
     previous.onEdit === next.onEdit &&
     previous.onRegenerate === next.onRegenerate &&
@@ -293,6 +300,7 @@ export function MessageList({
   onRegenerate,
   onApproveTool,
   onInspectContextRef,
+  highlightedMessageId,
 }: {
   messages: AgentReducedMessage[];
   isBusy: boolean;
@@ -303,6 +311,7 @@ export function MessageList({
   onRegenerate: (messageId: string) => void;
   onApproveTool: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
+  highlightedMessageId?: string | null;
 }) {
   const lastAssistantId = messages.findLast((message) => message.role === "assistant")?.id;
   const stoppedMessageVisible = stoppedMessageId
@@ -328,6 +337,7 @@ export function MessageList({
           createdAt={createdAtFor(message)}
           isBusy={isBusy}
           isLastAssistant={message.id === lastAssistantId}
+          highlighted={highlightedMessageId === message.id}
           stopped={stoppedMessageId === message.id}
           onEdit={onEdit}
           onRegenerate={onRegenerate}

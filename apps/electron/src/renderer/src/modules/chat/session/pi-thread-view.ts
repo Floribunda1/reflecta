@@ -9,6 +9,7 @@ import { chatUiStore, useStoppedMessageId, useThreadFocusNonce } from "./chat-ui
 import { chatQueryKeys } from "./query-keys";
 import type { AgentThreadView } from "./thread-view";
 import {
+  buildChatJumpItems,
   editingMessageFromAgentMessage,
   scrollKeyFor,
   shouldShowScrollToBottomButton,
@@ -22,7 +23,11 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
   const localStoppedMessageId = useStoppedMessageId(sessionId);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const shouldStickToBottom = useRef(true);
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastJumpMessageIdRef = useRef<string | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [activeJumpMessageId, setActiveJumpMessageId] = useState<string | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const eventsQuery = useQuery({
     queryKey: chatQueryKeys.sessionEvents(sessionId),
     queryFn: () => ipcClient.chat.readSessionEvents(sessionId),
@@ -55,6 +60,8 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
 
   const state = useMemo(() => reduceAgentSession(events), [events]);
   const visibleMessages = state.messages;
+  const jumpItems = useMemo(() => buildChatJumpItems(visibleMessages), [visibleMessages]);
+  lastJumpMessageIdRef.current = jumpItems.at(-1)?.messageId ?? null;
   const stoppedMessageId = useMemo(() => {
     if (localStoppedMessageId) return localStoppedMessageId;
     if (state.status !== "cancelled") return null;
@@ -87,16 +94,79 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     [setScrollButtonVisible],
   );
 
+  const updateActiveJumpMessage = useCallback(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    const rows = Array.from(
+      element.querySelectorAll<HTMLElement>('[data-agent-message-id][data-message-role="user"]'),
+    );
+    const containerTop = element.getBoundingClientRect().top;
+    const anchorTop = containerTop + Math.min(element.clientHeight * 0.35, 220);
+    let candidateId: string | null = null;
+
+    for (const row of rows) {
+      const messageId = row.dataset.agentMessageId;
+      if (!messageId) continue;
+      const rect = row.getBoundingClientRect();
+      if (rect.bottom < containerTop + 8) continue;
+      if (rect.top <= anchorTop) {
+        candidateId = messageId;
+        continue;
+      }
+      candidateId ??= messageId;
+      break;
+    }
+
+    setActiveJumpMessageId((current) => (current === candidateId ? current : candidateId));
+  }, []);
+
+  const jumpToMessage = useCallback((messageId: string) => {
+    const element = scrollRef.current;
+    if (!element) return;
+    const row = Array.from(element.querySelectorAll<HTMLElement>("[data-agent-message-id]")).find(
+      (candidate) => candidate.dataset.agentMessageId === messageId,
+    );
+    if (!row) return;
+
+    row.scrollIntoView({ block: "start", behavior: "smooth" });
+    shouldStickToBottom.current = false;
+    setActiveJumpMessageId(messageId);
+    setHighlightedMessageId(messageId);
+
+    if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
+    highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 1_400);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    setActiveJumpMessageId((current) =>
+      current && jumpItems.some((item) => item.messageId === current)
+        ? current
+        : (jumpItems.at(-1)?.messageId ?? null),
+    );
+  }, [jumpItems]);
+
   useEffect(() => {
     shouldStickToBottom.current = true;
     setScrollButtonVisible(false);
-    const frame = requestAnimationFrame(() => scrollToBottom("auto"));
+    const frame = requestAnimationFrame(() => {
+      scrollToBottom("auto");
+      setActiveJumpMessageId(lastJumpMessageIdRef.current);
+    });
     return () => cancelAnimationFrame(frame);
   }, [scrollRequest, scrollToBottom, setScrollButtonVisible, sessionId]);
 
   useEffect(() => {
     if (!shouldStickToBottom.current) return;
-    const frame = requestAnimationFrame(() => scrollToBottom("auto"));
+    const frame = requestAnimationFrame(() => {
+      scrollToBottom("auto");
+      setActiveJumpMessageId(lastJumpMessageIdRef.current);
+    });
     return () => cancelAnimationFrame(frame);
   }, [scrollKey, scrollToBottom]);
 
@@ -110,7 +180,8 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     });
     shouldStickToBottom.current = !shouldShowButton;
     setScrollButtonVisible(shouldShowButton);
-  }, [setScrollButtonVisible]);
+    updateActiveJumpMessage();
+  }, [setScrollButtonVisible, updateActiveJumpMessage]);
 
   return {
     visibleMessages,
@@ -123,9 +194,13 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     stoppedMessageId,
     focusRequest,
     showScrollToBottom,
+    jumpItems,
+    activeJumpMessageId,
+    highlightedMessageId,
     scrollRef: scrollRef as RefObject<HTMLDivElement | null>,
     handleScroll,
     scrollToBottom,
+    jumpToMessage,
     actions: {
       send: async (input: ComposerSendInput) => {
         setEditingMessage(undefined);
