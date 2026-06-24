@@ -20,10 +20,10 @@
 
 ## 1. 决策
 
-`main.log` 改成 AI-first 的 JSONL 结构化日志，并放到 Content Storage Root：
+应用日志改成 AI-first 的 JSONL 结构化日志，按天滚动，并放到 Content Storage Root：
 
 ```text
-<contentStorageRoot>/logs/main.log
+<contentStorageRoot>/logs/reflecta-YYYY-MM-DD.jsonl
 ```
 
 每一行是一条完整 JSON event：
@@ -42,13 +42,18 @@
 为什么放 Content Storage Root：
 
 - Reflecta 的可调试状态都在这里：`reflecta.db`、`retrieval-index`、`Sessions/*.jsonl`。
-- Agent session JSONL 已经在 Content Storage Root，`main.log` 放同一个 root 才能按 `sessionId/runId/toolCallId` 就地关联。
+- Agent session JSONL 已经在 Content Storage Root，应用日志放同一个 root 才能按 `sessionId/runId/toolCallId` 就地关联。
 - 这个软件当前只有个人使用，不需要 OS 级日志目录、远端平台或客服导出路径。
 
-保留 `electron-log`，但只用它做两件事：
+保留 `electron-log`，但只用它接住 Electron 侧的未捕获异常和 runtime 事件，并转成 `DiagnosticEvent`。
 
-- 文件滚动和大小限制。
-- 接住未捕获异常和 Electron runtime 事件。
+`DiagnosticLog` 自己负责：
+
+- 解析 Content Storage Root。
+- 按本地日期选择日志文件。
+- 追加 JSONL。
+- 单日文件超限后的序号滚动。
+- 保留最近 30 天。
 
 应用自己的日志入口不再直接暴露 `electron-log` scope，而是通过一个小的 `DiagnosticLog` interface 写入 JSON event。
 
@@ -56,8 +61,8 @@
 
 目标：
 
-- AI 能从 `<contentStorageRoot>/logs/main.log` 找到错误、时间线和跨模块上下文。
-- AI 能用 `sessionId` / `runId` / `toolCallId` 从 `main.log` 跳到 `Sessions/*.jsonl`。
+- AI 能从 `<contentStorageRoot>/logs/reflecta-YYYY-MM-DD.jsonl` 找到错误、时间线和跨模块上下文。
+- AI 能用 `sessionId` / `runId` / `toolCallId` 从应用日志跳到 `Sessions/*.jsonl`。
 - IPC、DB 初始化、Agent run/tool、retrieval trace 能被串起来。
 - 日志默认不泄露 API key、token、完整用户正文和完整模型输出。
 
@@ -68,39 +73,56 @@
 - 不接任何远端观测平台。
 - 不把日志写进业务 SQLite。
 - 不铺满业务 CRUD 日志。
-- 不优化 `main.log` 的人工阅读体验。
+- 不优化应用日志的人工阅读体验。
 
 ## 3. 目标架构
 
 ### 3.1 存储
 
-| 文件               | 位置                               | 职责                                |
-| ------------------ | ---------------------------------- | ----------------------------------- |
-| `main.log`         | `<contentStorageRoot>/logs`        | 应用诊断事件，JSONL                 |
-| `Sessions/*.jsonl` | `<contentStorageRoot>/Sessions`    | Agent turn / tool / approval replay |
-| `reflecta.db`      | `<contentStorageRoot>/reflecta.db` | 业务数据，必要时只查状态不全量读取  |
-| `retrieval-index`  | `<contentStorageRoot>`             | 检索索引状态                        |
+| 文件                        | 位置                               | 职责                                |
+| --------------------------- | ---------------------------------- | ----------------------------------- |
+| `reflecta-YYYY-MM-DD.jsonl` | `<contentStorageRoot>/logs`        | 应用诊断事件，按天滚动的 JSONL      |
+| `Sessions/*.jsonl`          | `<contentStorageRoot>/Sessions`    | Agent turn / tool / approval replay |
+| `reflecta.db`               | `<contentStorageRoot>/reflecta.db` | 业务数据，必要时只查状态不全量读取  |
+| `retrieval-index`           | `<contentStorageRoot>`             | 检索索引状态                        |
 
-### 3.2 Modules
+### 3.2 日志命名和滚动
+
+应用日志按本地日期写入：
+
+```text
+logs/reflecta-2026-06-24.jsonl
+logs/reflecta-2026-06-25.jsonl
+```
+
+规则：
+
+- 文件名使用运行环境本地日期，格式固定为 `reflecta-YYYY-MM-DD.jsonl`。
+- 一条 event 必须完整写在一行。
+- 日切后新 event 写入新日期文件。
+- 如果单日文件超过大小上限，追加序号：`reflecta-YYYY-MM-DD.1.jsonl`、`reflecta-YYYY-MM-DD.2.jsonl`。
+- 默认保留最近 30 天日志。
+
+### 3.3 Modules
 
 ```text
 Application code
   -> DiagnosticLog.write(event)
        -> redaction
        -> JSON.stringify(one line)
-       -> <contentStorageRoot>/logs/main.log
+       -> <contentStorageRoot>/logs/reflecta-YYYY-MM-DD.jsonl
 
 Agent runtime
   -> DiagnosticLog.write(agent.run/tool events)
   -> AgentSessionLog.appendEvent(reflecta.agent.event)
 
 AI debugger
-  -> read logs/main.log
+  -> read logs/reflecta-*.jsonl for the date range
   -> follow sessionId/runId/toolCallId into Sessions/*.jsonl
   -> inspect status from DB/retrieval when needed
 ```
 
-### 3.3 Interfaces
+### 3.4 Interfaces
 
 `DiagnosticLog` 是应用日志的唯一 interface：
 
@@ -125,7 +147,7 @@ type DiagnosticContext = {
 };
 ```
 
-Interface 要小：调用方只知道 `write(event)`，不知道文件路径、滚动、redaction、JSON 序列化、`electron-log` transport。
+Interface 要小：调用方只知道 `write(event)`，不知道文件路径、日切、大小滚动、保留策略、redaction、JSON 序列化。
 
 ## 4. DiagnosticEvent 契约
 
@@ -204,7 +226,7 @@ AI 不需要导出包。调试时直接读取同一个 Content Storage Root：
 
 ```text
 <contentStorageRoot>/
-  logs/main.log
+  logs/reflecta-YYYY-MM-DD.jsonl
   Sessions/*.jsonl
   reflecta.db
   retrieval-index/
@@ -212,19 +234,20 @@ AI 不需要导出包。调试时直接读取同一个 Content Storage Root：
 
 调试顺序：
 
-1. 查 `logs/main.log` 的 `level=error` / `level=warn`。
-2. 用 `sessionId` / `runId` / `toolCallId` 跳到 session JSONL。
-3. retrieval 问题查同一 `runId/toolCallId` 的 `retrieval.query.*`。
-4. 启动/迁移问题查 `app.db.*` 和错误栈。
-5. 只有需要确认数据状态时才查 DB 或 retrieval index，不默认扫全量用户内容。
+1. 按日期范围读取 `logs/reflecta-*.jsonl`。
+2. 查 `level=error` / `level=warn`。
+3. 用 `sessionId` / `runId` / `toolCallId` 跳到 session JSONL。
+4. retrieval 问题查同一 `runId/toolCallId` 的 `retrieval.query.*`。
+5. 启动/迁移问题查 `app.db.*` 和错误栈。
+6. 只有需要确认数据状态时才查 DB 或 retrieval index，不默认扫全量用户内容。
 
 ## 7. 落地顺序
 
 ### P0：让 AI 能查核心故障
 
 1. 新增 `DiagnosticEvent`、`DiagnosticContext`、`DiagnosticLog.write()`。
-2. 把 `main.log` 写到 `<contentStorageRoot>/logs/main.log`。
-3. 让 `main.log` 输出 JSONL。
+2. 把应用日志写到 `<contentStorageRoot>/logs/reflecta-YYYY-MM-DD.jsonl`。
+3. 让应用日志输出 JSONL。
 4. 加 redaction helper。
 5. 在 IPC wrapper、DB init、Agent run/tool、retrieval seam 写事件。
 6. 加最小测试：JSONL 单行、redaction、IPC failure 事件。
@@ -237,12 +260,13 @@ AI 不需要导出包。调试时直接读取同一个 Content Storage Root：
 
 ## 8. 验收标准
 
-- `main.log` 位于 `<contentStorageRoot>/logs/main.log`。
-- IPC service 抛错时，`main.log` 有一条 `ipc.request.failed`，包含 channel、durationMs、error message、stack。
-- Agent run 失败时，能从 `main.log` 用 `sessionId/runId` 找到对应 session JSONL。
+- 应用日志位于 `<contentStorageRoot>/logs/reflecta-YYYY-MM-DD.jsonl`。
+- 跨日期运行会写入不同日期文件。
+- IPC service 抛错时，当天应用日志有一条 `ipc.request.failed`，包含 channel、durationMs、error message、stack。
+- Agent run 失败时，能从应用日志用 `sessionId/runId` 找到对应 session JSONL。
 - Tool 失败时，能从 `toolCallId` 找到 started/failed 事件和 session JSONL 里的 tool event。
 - Retrieval 异常时，能找到同一 `runId/toolCallId` 下的 `RetrievalTrace`。
-- `main.log` 不包含明文 API key、token、authorization、password、`safe:v1:*`。
+- 应用日志不包含明文 API key、token、authorization、password、`safe:v1:*`。
 
 ## 9. 附录：现状和依据
 
