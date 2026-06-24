@@ -11,12 +11,14 @@ const workerId = process.env.VITEST_POOL_ID ?? process.env.VITEST_WORKER_ID ?? "
 const TEST_DIR = path.join(os.tmpdir(), "reflecta-cli-test", workerId, String(process.pid));
 const TEST_DB_PATH = path.join(TEST_DIR, "reflecta.db");
 const TEST_RETRIEVAL_INDEX_PATH = path.join(TEST_DIR, "retrieval-index");
+const TEST_APP_CONFIG_DIR = path.join(TEST_DIR, "config");
 let embeddingServer: Server | undefined;
 
 fs.rmSync(TEST_DIR, { recursive: true, force: true });
 fs.mkdirSync(TEST_DIR, { recursive: true });
 process.env.REFLECTA_DB_PATH = TEST_DB_PATH;
 process.env.REFLECTA_RETRIEVAL_INDEX_PATH = TEST_RETRIEVAL_INDEX_PATH;
+process.env.REFLECTA_APP_CONFIG_DIR = TEST_APP_CONFIG_DIR;
 
 function embeddingFor(text: string): number[] {
   const concepts = [
@@ -49,11 +51,19 @@ async function startEmbeddingServer(): Promise<string> {
 }
 
 beforeAll(async () => {
-  configureRetrievalEmbedding({
-    provider: "openai-compatible",
-    modelId: "cli-test-embedding",
-    baseUrl: await startEmbeddingServer(),
-  });
+  fs.mkdirSync(TEST_APP_CONFIG_DIR, { recursive: true });
+  fs.writeFileSync(
+    path.join(TEST_APP_CONFIG_DIR, "reflecta-config.json"),
+    JSON.stringify({
+      retrieval: {
+        embedding: {
+          provider: "openai-compatible",
+          modelId: "cli-test-embedding",
+          baseUrl: await startEmbeddingServer(),
+        },
+      },
+    }),
+  );
 
   try {
     execSync(`bun run "${SEED_SCRIPT}" "${TEST_DB_PATH}"`, {

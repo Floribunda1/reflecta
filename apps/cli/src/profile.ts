@@ -30,6 +30,8 @@ export function getDefaultContentStorageRoot(profile = getReflectaProfile()): st
 }
 
 export function getAppConfigDir(profile = getReflectaProfile()): string {
+  if (process.env.REFLECTA_APP_CONFIG_DIR) return path.resolve(process.env.REFLECTA_APP_CONFIG_DIR);
+
   const home = os.homedir();
   const dirName = appDirName(profile);
 
