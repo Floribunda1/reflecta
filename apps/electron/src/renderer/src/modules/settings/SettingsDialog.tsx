@@ -11,7 +11,7 @@ import { TrashSection } from "./TrashSection";
 const MENU_ITEMS = [
   { key: "storage", label: "存储", icon: Database },
   { key: "ai", label: "AI", icon: Sparkles },
-  { key: "retrieval", label: "Retrieval", icon: Search },
+  { key: "retrieval", label: "语义检索", icon: Search },
   { key: "trash", label: "回收站", icon: Trash2 },
 ] as const;
 type MenuKey = (typeof MENU_ITEMS)[number]["key"];

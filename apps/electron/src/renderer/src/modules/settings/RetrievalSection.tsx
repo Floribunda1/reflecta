@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
-import { Check, CheckCircle, Download } from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
-import { Input } from "@renderer/components/ui/input";
-import { Label } from "@renderer/components/ui/label";
 import { Progress } from "@renderer/components/ui/progress";
 import { Switch } from "@renderer/components/ui/switch";
 import { ipcClient } from "@renderer/utils/ipc";
@@ -15,20 +13,29 @@ type RetrievalEmbeddingModelStatus = Awaited<
 type RetrievalIndexStatus = Awaited<ReturnType<typeof ipcClient.config.getRetrievalIndexStatus>>;
 
 function indexStatusLabel(state: RetrievalIndexStatus["state"]) {
-  if (state === "ready") return "已完成";
-  if (state === "indexing") return "索引中";
+  if (state === "ready") return "已就绪";
+  if (state === "indexing") return "构建中";
   if (state === "dirty") return "需要重建";
   if (state === "error") return "构建失败";
   return "未建立";
 }
 
-function downloadStatusLabel(status: RetrievalEmbeddingModelStatus) {
-  const { download } = status;
-  if (download.state === "downloading") {
-    return download.percent === undefined ? "下载中" : `下载中 ${download.percent}%`;
+function modelStatusLabel(status: RetrievalEmbeddingModelStatus) {
+  if (status.download.state === "downloading") return "下载中";
+  if (status.download.state === "error") return "下载失败";
+  return status.downloaded ? "已安装" : "未安装";
+}
+
+function indexDescription(indexStatus: RetrievalIndexStatus) {
+  if (indexStatus.state === "ready") {
+    return `使用 ${indexStatus.embeddingModel} · projection v${indexStatus.projectionVersion}`;
   }
-  if (download.state === "error") return "下载失败";
-  return status.downloaded ? "已下载" : "未下载";
+  if (indexStatus.state === "dirty") return "知识或检索配置变更后，需要重新构建索引。";
+  if (indexStatus.state === "indexing") {
+    return `${indexStatus.embeddingModel} · projection v${indexStatus.projectionVersion}`;
+  }
+  if (indexStatus.state === "error") return "上一次构建没有完成。";
+  return "构建后 Agent 才能使用语义检索结果。";
 }
 
 function indexProgressLabel(progress: NonNullable<RetrievalIndexStatus["progress"]>) {
@@ -48,7 +55,6 @@ export function RetrievalSection() {
   const [downloading, setDownloading] = useState(false);
   const [indexing, setIndexing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     void Promise.all([
@@ -62,16 +68,27 @@ export function RetrievalSection() {
     });
   }, []);
 
-  const updateEmbedding = (patch: Partial<RetrievalConfig["embedding"]>) => {
-    setSaved(false);
-    setConfig((current) =>
-      current
-        ? {
-            ...current,
-            embedding: { ...current.embedding, ...patch },
-          }
-        : current,
-    );
+  const saveEmbedding = async (patch: Partial<RetrievalConfig["embedding"]>) => {
+    if (!config) return;
+    const nextConfig = {
+      ...config,
+      embedding: { ...config.embedding, ...patch },
+    };
+    setSaving(true);
+    setConfig(nextConfig);
+    try {
+      await ipcClient.config.setRetrievalConfig(nextConfig);
+      const [nextStatus, savedConfig, nextIndexStatus] = await Promise.all([
+        ipcClient.config.getRetrievalEmbeddingModelStatus(),
+        ipcClient.config.getRetrievalConfig(),
+        ipcClient.config.getRetrievalIndexStatus(),
+      ]);
+      setStatus(nextStatus);
+      setConfig(savedConfig);
+      setIndexStatus(nextIndexStatus);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDownload = async () => {
@@ -104,26 +121,6 @@ export function RetrievalSection() {
     }
   };
 
-  const handleSave = async () => {
-    if (!config) return;
-    setSaving(true);
-    setSaved(false);
-    try {
-      await ipcClient.config.setRetrievalConfig(config);
-      const [nextStatus, nextConfig, nextIndexStatus] = await Promise.all([
-        ipcClient.config.getRetrievalEmbeddingModelStatus(),
-        ipcClient.config.getRetrievalConfig(),
-        ipcClient.config.getRetrievalIndexStatus(),
-      ]);
-      setStatus(nextStatus);
-      setConfig(nextConfig);
-      setIndexStatus(nextIndexStatus);
-      setSaved(true);
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const manifest = status?.manifest;
   const embedding = config?.embedding;
   const semanticEnabled = embedding ? embedding.provider !== "disabled" : false;
@@ -131,9 +128,32 @@ export function RetrievalSection() {
 
   return (
     <div data-testid="settings-retrieval-section" className="flex flex-col gap-5">
-      <div>
-        <h3 className="text-base font-medium text-foreground">Retrieval</h3>
-        <p className="mt-2 text-sm text-muted-foreground">用于 Agent 知识召回。</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-base font-medium text-foreground">Agent 语义检索</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            仅影响 Agent 知识检索；@ 输入提示仍使用关键词匹配。
+          </p>
+        </div>
+        {manifest && status && embedding ? (
+          <div className="flex items-center gap-3">
+            {saving ? <span className="text-xs text-muted-foreground">保存中</span> : null}
+            <Switch
+              checked={semanticEnabled}
+              disabled={saving}
+              onCheckedChange={(checked) =>
+                void saveEmbedding({
+                  provider: checked ? "local-llama-cpp" : "disabled",
+                  modelId: checked ? manifest.modelId : embedding.modelId,
+                  modelPath: checked ? status.modelPath : embedding.modelPath,
+                  baseUrl: undefined,
+                  apiKey: undefined,
+                })
+              }
+              aria-label="启用 Agent 语义检索"
+            />
+          </div>
+        ) : null}
       </div>
 
       {manifest && status && embedding ? (
@@ -141,6 +161,7 @@ export function RetrievalSection() {
           <section className="border-t border-border/70 pt-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
+                <p className="mb-3 text-xs font-medium text-muted-foreground">本地模型</p>
                 <h4
                   data-testid="settings-retrieval-model-name"
                   className="truncate text-sm font-medium text-foreground"
@@ -151,31 +172,48 @@ export function RetrievalSection() {
                   data-testid="settings-retrieval-model-purpose"
                   className="mt-1 text-xs text-muted-foreground"
                 >
-                  本地语义检索 · {manifest.runtime} · {manifest.sizeLabel}
+                  本地 embedding 模型 · {manifest.runtime} · {manifest.sizeLabel}
                 </p>
               </div>
               <Badge
                 data-testid="settings-retrieval-model-status"
                 variant={status.downloaded ? "secondary" : "outline"}
               >
-                {downloadStatusLabel(status)}
+                {modelStatusLabel(status)}
               </Badge>
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-              <Input value={status.modelPath} readOnly className="font-mono text-xs" />
-              <Button
-                data-testid="settings-retrieval-download-button"
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={downloading}
-                onClick={() => void handleDownload()}
-              >
-                <Download size={15} />
-                {downloading ? "下载中" : "下载"}
-              </Button>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              {!status.downloaded || status.download.state === "error" ? (
+                <Button
+                  data-testid="settings-retrieval-download-button"
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={downloading}
+                  onClick={() => void handleDownload()}
+                >
+                  {status.download.state === "error" ? (
+                    <RefreshCw size={15} />
+                  ) : (
+                    <Download size={15} />
+                  )}
+                  {downloading
+                    ? "下载中"
+                    : status.download.state === "error"
+                      ? "重新下载"
+                      : "下载模型"}
+                </Button>
+              ) : null}
+              {status.downloaded ? (
+                <span className="text-xs text-muted-foreground">模型已保存在本机。</span>
+              ) : null}
             </div>
+            {status.modelPath ? (
+              <p className="mt-3 truncate font-mono text-xs text-muted-foreground">
+                {status.modelPath}
+              </p>
+            ) : null}
             {status.download.state === "downloading" ? (
               <Progress
                 data-testid="settings-retrieval-download-progress"
@@ -188,49 +226,27 @@ export function RetrievalSection() {
             ) : null}
           </section>
 
-          <section className="grid gap-4 border-t border-border/70 pt-5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <h4 className="text-sm font-medium text-foreground">Semantic search</h4>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  本地 llama.cpp embedding runtime
-                </p>
-              </div>
-              <Switch
-                checked={semanticEnabled}
-                onCheckedChange={(checked) =>
-                  updateEmbedding({
-                    provider: checked ? "local-llama-cpp" : "disabled",
-                    modelId: checked ? manifest.modelId : embedding.modelId,
-                    modelPath: checked ? status.modelPath : embedding.modelPath,
-                    baseUrl: undefined,
-                    apiKey: undefined,
-                  })
-                }
-                aria-label="启用本地语义检索"
-              />
-            </div>
-
-            <Label className="flex flex-col items-start gap-2">
-              <span>Model</span>
-              <Input value={embedding.modelId} readOnly className="font-mono" />
-            </Label>
-          </section>
-
           {indexStatus ? (
             <section className="border-t border-border/70 pt-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h4 className="text-sm font-medium text-foreground">Indexing</h4>
+                  <p className="mb-3 text-xs font-medium text-muted-foreground">检索索引</p>
+                  <h4 className="text-sm font-medium text-foreground">
+                    {semanticEnabled && !status.downloaded
+                      ? "等待模型"
+                      : indexStatusLabel(indexStatus.state)}
+                  </h4>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {indexStatus.embeddingModel} · projection v{indexStatus.projectionVersion}
+                    {indexDescription(indexStatus)}
                   </p>
                 </div>
                 <Badge
                   data-testid="settings-retrieval-index-status"
                   variant={indexStatus.state === "ready" ? "secondary" : "outline"}
                 >
-                  {indexStatusLabel(indexStatus.state)}
+                  {semanticEnabled && !status.downloaded
+                    ? "等待模型"
+                    : indexStatusLabel(indexStatus.state)}
                 </Badge>
               </div>
               {indexStatus.state === "indexing" ? (
@@ -266,19 +282,6 @@ export function RetrievalSection() {
               </Button>
             </section>
           ) : null}
-
-          <div className="flex items-center gap-3 border-t border-border/70 pt-5">
-            <Button size="sm" disabled={saving} onClick={() => void handleSave()}>
-              <Check size={15} />
-              保存
-            </Button>
-            {saved ? (
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                <CheckCircle size={14} className="text-emerald-600" />
-                已保存
-              </span>
-            ) : null}
-          </div>
         </>
       ) : null}
     </div>

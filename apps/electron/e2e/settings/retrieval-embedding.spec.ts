@@ -101,12 +101,12 @@ test("@EMBEDDING-SETTINGS-001 用户查看默认本地 embedding 模型并触发
       "Qwen3 Embedding 0.6B",
     );
     await expect(page.getByTestId("settings-retrieval-model-purpose")).toContainText(
-      "本地语义检索",
+      "本地 embedding 模型",
     );
-    await expect(page.getByText("本地 llama.cpp embedding runtime")).toBeVisible();
+    await expect(page.getByTestId("settings-retrieval-model-purpose")).toContainText("llama.cpp");
 
     await page.getByTestId("settings-retrieval-download-button").click();
-    await expect(page.getByTestId("settings-retrieval-model-status")).toContainText("已下载");
+    await expect(page.getByTestId("settings-retrieval-model-status")).toContainText("已安装");
   } finally {
     await app.close();
   }
@@ -124,9 +124,9 @@ test("@EMBEDDING-SETTINGS-002 用户查看并重建 retrieval 索引", async () 
 
     await expect(page.getByTestId("settings-retrieval-index-status")).toBeVisible();
     await page.getByTestId("settings-retrieval-rebuild-button").click();
-    await expect(page.getByTestId("settings-retrieval-index-status")).toContainText("索引中");
+    await expect(page.getByTestId("settings-retrieval-index-status")).toContainText("构建中");
     await waitForEmbeddingProgressAdvance(page);
-    await expect(page.getByTestId("settings-retrieval-index-status")).toContainText("已完成", {
+    await expect(page.getByTestId("settings-retrieval-index-status")).toContainText("已就绪", {
       timeout: 30_000,
     });
   } finally {
