@@ -6,6 +6,7 @@ const services = vi.hoisted(() => ({
   readAttachmentForTool: vi.fn(),
   readLocalFileForTool: vi.fn(),
   retrieveKnowledge: vi.fn(),
+  writeDiagnosticEvent: vi.fn(),
 }));
 
 vi.mock("./attachment-read", () => ({
@@ -20,6 +21,10 @@ vi.mock("./local-tools", () => ({
 
 vi.mock("./web-fetch", () => ({
   fetchWebPage: services.fetchWebPage,
+}));
+
+vi.mock("../../logger", () => ({
+  writeDiagnosticEvent: services.writeDiagnosticEvent,
 }));
 
 vi.mock("../core", () => ({
@@ -69,6 +74,19 @@ describe("createPiReadOnlyTools", () => {
     const output = await execute("tool-call-1", { query: "agent 标准", limit: 3 });
 
     expect(services.retrieveKnowledge).toHaveBeenCalledWith({ query: "agent 标准", limit: 3 });
+    expect(services.writeDiagnosticEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: "debug",
+        event: "agent.tool.completed",
+        scope: "agent",
+        context: { toolCallId: "tool-call-1" },
+        attrs: expect.objectContaining({
+          toolName: "retrieve_knowledge",
+          outputKeys: ["candidates", "trace"],
+          outputType: "object",
+        }),
+      }),
+    );
     expect(output.details).toEqual(result);
   });
 

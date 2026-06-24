@@ -1,6 +1,10 @@
+import { randomUUID } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import { ipcMain } from "electron";
 import type { IpcMainInvokeEvent } from "electron";
 import { createServices } from "electron-ipc-decorator";
+import { diagnosticErrorAttrs } from "../diagnostic-log";
+import { writeDiagnosticEvent } from "../logger";
 import { AssetService } from "./AssetService";
 import { DomainService } from "./DomainService";
 import { ChatService } from "./ChatService";
@@ -23,13 +27,43 @@ function getErrorField(error: unknown, field: "code" | "message"): unknown {
     : undefined;
 }
 
+function argTypes(args: unknown[]): string[] {
+  return args.map((arg) => (Array.isArray(arg) ? "array" : typeof arg));
+}
+
 ipcMain.handle = (channel: string, listener: IpcHandleListener) => {
   const wrapped: IpcHandleListener = async (event, ...args) => {
+    const requestId = randomUUID();
+    const startedAt = performance.now();
     try {
-      return await listener(event, ...args);
+      const result = await listener(event, ...args);
+      writeDiagnosticEvent({
+        level: "debug",
+        event: "ipc.request.completed",
+        scope: "ipc",
+        context: { requestId },
+        attrs: {
+          "ipc.channel": channel,
+          "ipc.argTypes": argTypes(args),
+          durationMs: Math.round(performance.now() - startedAt),
+        },
+      });
+      return result;
     } catch (error: unknown) {
       const code = getErrorField(error, "code");
       const message = getErrorField(error, "message");
+      writeDiagnosticEvent({
+        level: "error",
+        event: "ipc.request.failed",
+        scope: "ipc",
+        context: { requestId },
+        attrs: {
+          "ipc.channel": channel,
+          "ipc.argTypes": argTypes(args),
+          durationMs: Math.round(performance.now() - startedAt),
+          ...diagnosticErrorAttrs(error),
+        },
+      });
       throw {
         __isIpcError: true,
         code: typeof code === "string" ? code : "UNKNOWN",

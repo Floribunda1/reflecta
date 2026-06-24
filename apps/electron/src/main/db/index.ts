@@ -8,6 +8,8 @@ import {
   type RetrievalEmbeddingConfig as ServerRetrievalEmbeddingConfig,
 } from "@reflecta/server";
 import { getContentStorageRoot, getReflectaProfile, getRetrievalConfig } from "../config";
+import { diagnosticErrorAttrs } from "../diagnostic-log";
+import { writeDiagnosticEvent } from "../logger";
 
 let db: ReflectaDb;
 
@@ -32,16 +34,42 @@ function toServerRetrievalEmbeddingConfig(): Partial<ServerRetrievalEmbeddingCon
 export const initializeDB = async () => {
   const contentStorageRoot = getContentStorageRoot();
   const dbPath = path.join(contentStorageRoot, "reflecta.db");
-  process.env.REFLECTA_RETRIEVAL_INDEX_PATH ??= path.join(contentStorageRoot, "retrieval-index");
-  configureRetrievalEmbedding(toServerRetrievalEmbeddingConfig());
-  if (!fs.existsSync(contentStorageRoot)) {
-    fs.mkdirSync(contentStorageRoot, { recursive: true });
-  }
+  const profile = getReflectaProfile();
+  try {
+    process.env.REFLECTA_RETRIEVAL_INDEX_PATH ??= path.join(contentStorageRoot, "retrieval-index");
+    configureRetrievalEmbedding(toServerRetrievalEmbeddingConfig());
+    if (!fs.existsSync(contentStorageRoot)) {
+      fs.mkdirSync(contentStorageRoot, { recursive: true });
+    }
 
-  db = await createDBInstance(dbPath, {
-    appVersion: app.getVersion(),
-    runMigrations: getReflectaProfile() === "prod",
-  });
+    db = await createDBInstance(dbPath, {
+      appVersion: app.getVersion(),
+      runMigrations: profile === "prod",
+    });
+    writeDiagnosticEvent({
+      level: "info",
+      event: "app.db.initialized",
+      scope: "db",
+      attrs: {
+        dbPath,
+        contentStorageRoot,
+        migrationMode: profile === "prod" ? "migration" : "schema-push",
+      },
+    });
+  } catch (error) {
+    writeDiagnosticEvent({
+      level: "error",
+      event: "app.db.failed",
+      scope: "db",
+      attrs: {
+        dbPath,
+        contentStorageRoot,
+        migrationMode: profile === "prod" ? "migration" : "schema-push",
+        ...diagnosticErrorAttrs(error),
+      },
+    });
+    throw error;
+  }
 };
 
 export const getDBInstance = () => db;

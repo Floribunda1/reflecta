@@ -2,7 +2,7 @@
 
 > 日期：2026-06-24
 >
-> 状态：Proposal
+> 状态：Implemented
 >
 > 目标：任何 bug 出现时，AI 可以直接读取本机日志和 Agent session，按时间线、运行 ID、错误栈和上下文定位问题。
 
@@ -10,13 +10,14 @@
 
 1. 决策
 2. 目标和非目标
-3. 目标架构
-4. DiagnosticEvent 契约
-5. P0 写入点
-6. AI 调试入口
-7. 落地顺序
-8. 验收标准
-9. 附录：现状和依据
+3. 低侵入策略
+4. 目标架构
+5. DiagnosticEvent 契约
+6. P0 写入点
+7. AI 调试入口
+8. 落地顺序
+9. 验收标准
+10. 附录：现状和依据
 
 ## 1. 决策
 
@@ -63,7 +64,7 @@
 
 - AI 能从 `<contentStorageRoot>/logs/reflecta-YYYY-MM-DD.jsonl` 找到错误、时间线和跨模块上下文。
 - AI 能用 `sessionId` / `runId` / `toolCallId` 从应用日志跳到 `Sessions/*.jsonl`。
-- IPC、DB 初始化、Agent run/tool、retrieval trace 能被串起来。
+- IPC、DB 初始化、Agent run/tool、renderer error 能被串起来；retrieval 通过 IPC 或 tool 入口追踪。
 - 日志默认不泄露 API key、token、完整用户正文和完整模型输出。
 
 非目标：
@@ -75,9 +76,23 @@
 - 不铺满业务 CRUD 日志。
 - 不优化应用日志的人工阅读体验。
 
-## 3. 目标架构
+## 3. 低侵入策略
 
-### 3.1 存储
+日志是 cross-cutting concern，不应该散进业务逻辑。
+
+Reflecta 的规则：
+
+- 业务函数不直接调用 `writeDiagnosticEvent()`。
+- 只在稳定边界打诊断日志：process/app fallback、renderer fallback、React ErrorBoundary、IPC wrapper、DB init、Agent session event append、tool execute wrapper。
+- Agent 的完整对话、工具输入输出、approval 和文本 delta 仍以 `Sessions/*.jsonl` 为 source of truth。
+- Diagnostic JSONL 只保存 AI 定位问题所需的索引信息：时间、错误、耗时、channel、sessionId、runId、toolCallId、toolName 和摘要。
+- 不为了“完整”记录完整用户正文、完整模型输出或完整工具结果；需要细节时用 correlation id 跳到 session JSONL。
+
+这不是少记日志，而是把日志放在高杠杆边界：覆盖完整链路，同时不污染业务代码。
+
+## 4. 目标架构
+
+### 4.1 存储
 
 | 文件                        | 位置                               | 职责                                |
 | --------------------------- | ---------------------------------- | ----------------------------------- |
@@ -86,7 +101,7 @@
 | `reflecta.db`               | `<contentStorageRoot>/reflecta.db` | 业务数据，必要时只查状态不全量读取  |
 | `retrieval-index`           | `<contentStorageRoot>`             | 检索索引状态                        |
 
-### 3.2 日志命名和滚动
+### 4.2 日志命名和滚动
 
 应用日志按本地日期写入：
 
@@ -103,17 +118,21 @@ logs/reflecta-2026-06-25.jsonl
 - 如果单日文件超过大小上限，追加序号：`reflecta-YYYY-MM-DD.1.jsonl`、`reflecta-YYYY-MM-DD.2.jsonl`。
 - 默认保留最近 30 天日志。
 
-### 3.3 Modules
+### 4.3 Modules
 
 ```text
-Application code
-  -> DiagnosticLog.write(event)
+Boundary instrumentation
+  -> logger.ts fallback hooks
+  -> services/index.ts IPC wrapper
+  -> db/index.ts init boundary
+  -> AgentSessionLog.appendEvent mirror
+  -> ToolDefinition.execute wrapper
+       -> DiagnosticLog.write(event)
        -> redaction
        -> JSON.stringify(one line)
        -> <contentStorageRoot>/logs/reflecta-YYYY-MM-DD.jsonl
 
 Agent runtime
-  -> DiagnosticLog.write(agent.run/tool events)
   -> AgentSessionLog.appendEvent(reflecta.agent.event)
 
 AI debugger
@@ -122,7 +141,7 @@ AI debugger
   -> inspect status from DB/retrieval when needed
 ```
 
-### 3.4 Interfaces
+### 4.4 Interfaces
 
 `DiagnosticLog` 是应用日志的唯一 interface：
 
@@ -149,13 +168,14 @@ type DiagnosticContext = {
 
 Interface 要小：调用方只知道 `write(event)`，不知道文件路径、日切、大小滚动、保留策略、redaction、JSON 序列化。
 
-## 4. DiagnosticEvent 契约
+## 5. DiagnosticEvent 契约
 
-### 4.1 命名
+### 5.1 命名
 
 `event` 用点分命名，稳定后不要随意改：
 
 - `app.logging.initialized`
+- `app.fallback.error`
 - `app.db.initialized`
 - `app.db.failed`
 - `ipc.request.completed`
@@ -166,11 +186,11 @@ Interface 要小：调用方只知道 `write(event)`，不知道文件路径、�
 - `agent.tool.started`
 - `agent.tool.completed`
 - `agent.tool.failed`
-- `retrieval.query.completed`
-- `retrieval.query.failed`
 - `renderer.error`
 
-### 4.2 字段规则
+`retrieval.query.*` 暂不作为 P0 诊断事件。检索从 UI 触发时由 IPC wrapper 覆盖；从 Agent tool 触发时由 `agent.tool.*` 和 session JSONL 覆盖。
+
+### 5.2 字段规则
 
 - `ts` 必须是 ISO string。
 - `level` 只表达严重程度，不承载业务状态。
@@ -180,7 +200,7 @@ Interface 要小：调用方只知道 `write(event)`，不知道文件路径、�
 - `error.name`、`error.message`、`error.stack` 放进 `attrs`。
 - 默认不记录完整用户正文、完整模型输出、API key、token、authorization、password、`safe:v1:*`。
 
-### 4.3 示例
+### 5.3 示例
 
 ```json
 {
@@ -202,25 +222,26 @@ Interface 要小：调用方只知道 `write(event)`，不知道文件路径、�
 }
 ```
 
-## 5. P0 写入点
+## 6. P0 写入点
 
 只在深 seam 写日志，不在每个业务函数里散打。
 
-| Seam                             | Event                     | 必要字段                               |
-| -------------------------------- | ------------------------- | -------------------------------------- |
-| `logger.ts` 初始化               | `app.logging.initialized` | profile, version, logPath              |
-| `db/index.ts` 初始化成功         | `app.db.initialized`      | dbPath, migrationMode                  |
-| `db/index.ts` 初始化失败         | `app.db.failed`           | dbPath, error                          |
-| `services/index.ts` IPC 成功     | `ipc.request.completed`   | requestId, channel, durationMs         |
-| `services/index.ts` IPC 失败     | `ipc.request.failed`      | requestId, channel, durationMs, error  |
-| `pi-agent-host.ts` run 生命周期  | `agent.run.*`             | sessionId, runId, model                |
-| `pi-agent-host.ts` tool 生命周期 | `agent.tool.*`            | sessionId, runId, toolCallId, toolName |
-| retrieval seam                   | `retrieval.query.*`       | runId, toolCallId, RetrievalTrace      |
-| preload/renderer bridge          | `renderer.error`          | error, route if available              |
+| Seam                                                        | Event                     | 必要字段                              |
+| ----------------------------------------------------------- | ------------------------- | ------------------------------------- |
+| `logger.ts` 初始化                                          | `app.logging.initialized` | profile, version, logPath             |
+| `logger.ts` fallback hooks                                  | `app.fallback.error`      | source, error/process detail          |
+| `db/index.ts` 初始化成功                                    | `app.db.initialized`      | dbPath, migrationMode                 |
+| `db/index.ts` 初始化失败                                    | `app.db.failed`           | dbPath, error                         |
+| `services/index.ts` IPC 成功                                | `ipc.request.completed`   | requestId, channel, durationMs        |
+| `services/index.ts` IPC 失败                                | `ipc.request.failed`      | requestId, channel, durationMs, error |
+| `AgentSessionLog.appendEvent`                               | `agent.run.*`             | sessionId, runId, error/summary       |
+| `AgentSessionLog.appendEvent`                               | `agent.approval.*`        | sessionId, runId, approvalId          |
+| `ToolDefinition.execute` wrapper                            | `agent.tool.*`            | toolCallId, toolName, durationMs      |
+| preload / React ErrorBoundary / main renderer error channel | `renderer.error`          | error, route if available             |
 
 P0 不记录普通 CRUD 成功事件。AI debug 优先需要跨 seam 生命周期和失败点。
 
-## 6. AI 调试入口
+## 7. AI 调试入口
 
 AI 不需要导出包。调试时直接读取同一个 Content Storage Root：
 
@@ -237,11 +258,11 @@ AI 不需要导出包。调试时直接读取同一个 Content Storage Root：
 1. 按日期范围读取 `logs/reflecta-*.jsonl`。
 2. 查 `level=error` / `level=warn`。
 3. 用 `sessionId` / `runId` / `toolCallId` 跳到 session JSONL。
-4. retrieval 问题查同一 `runId/toolCallId` 的 `retrieval.query.*`。
+4. Tool 或 retrieval 问题先查 `agent.tool.*`，再用 `toolCallId` 跳到 session JSONL 的 tool event。
 5. 启动/迁移问题查 `app.db.*` 和错误栈。
 6. 只有需要确认数据状态时才查 DB 或 retrieval index，不默认扫全量用户内容。
 
-## 7. 落地顺序
+## 8. 落地顺序
 
 ### P0：让 AI 能查核心故障
 
@@ -249,28 +270,29 @@ AI 不需要导出包。调试时直接读取同一个 Content Storage Root：
 2. 把应用日志写到 `<contentStorageRoot>/logs/reflecta-YYYY-MM-DD.jsonl`。
 3. 让应用日志输出 JSONL。
 4. 加 redaction helper。
-5. 在 IPC wrapper、DB init、Agent run/tool、retrieval seam 写事件。
-6. 加最小测试：JSONL 单行、redaction、IPC failure 事件。
+5. 在 IPC wrapper、DB init、Agent session append、tool execute wrapper 写事件。
+6. 加最小测试：JSONL 单行、redaction、fallback error、renderer error、agent failed event、tool completed event。
 
 ### P1：补齐 renderer 和关联上下文
 
 1. preload 捕获 renderer `window.onerror` / `unhandledrejection`。
-2. renderer IPC proxy 的错误进入 `renderer.error`。
-3. retrieval trace 挂上 `runId/toolCallId`。
+2. preload/main renderer error channel 写入 `renderer.error`。
+3. React ErrorBoundary 捕获 render tree 错误并上报 `renderer.error`。
+4. 如果 session JSONL 对 retrieval 不够用，再把 retrieval trace 摘要挂到 tool wrapper，而不是散进 search 业务函数。
 
-## 8. 验收标准
+## 9. 验收标准
 
 - 应用日志位于 `<contentStorageRoot>/logs/reflecta-YYYY-MM-DD.jsonl`。
 - 跨日期运行会写入不同日期文件。
 - IPC service 抛错时，当天应用日志有一条 `ipc.request.failed`，包含 channel、durationMs、error message、stack。
 - Agent run 失败时，能从应用日志用 `sessionId/runId` 找到对应 session JSONL。
 - Tool 失败时，能从 `toolCallId` 找到 started/failed 事件和 session JSONL 里的 tool event。
-- Retrieval 异常时，能找到同一 `runId/toolCallId` 下的 `RetrievalTrace`。
+- Retrieval 异常时，能通过 IPC failure 或 agent tool failure 找到错误入口，并用 `toolCallId` 查 session JSONL。
 - 应用日志不包含明文 API key、token、authorization、password、`safe:v1:*`。
 
-## 9. 附录：现状和依据
+## 10. 附录：现状和依据
 
-### 9.1 当前现状
+### 10.1 当前现状
 
 应用日志：
 
@@ -298,15 +320,16 @@ Retrieval trace：
 
 - 类型：`packages/server/src/domains/retrieval/types.ts` 的 `RetrievalTrace`。
 - 当前随 `SearchCore.retrieveKnowledge()` 返回。
-- 缺口：没有持久进入应用诊断日志，Agent debug 时不一定能按 `runId/toolCallId` 找回。
+- P0 决策：不单独持久成 `retrieval.query.*`。Agent 调用时 trace 在 tool output/session JSONL；UI 调用时由 IPC wrapper 记录失败入口。
 
-### 9.2 依据
+### 10.2 依据
 
 采用：
 
 - OpenTelemetry Logs Data Model 的字段思路：timestamp、severity、body/message、resource、attributes、trace context。
 - JSONL：追加写简单、每行独立、AI 和脚本容易查。
 - Content Storage Root：已有 DB、retrieval index、assets、Agent Sessions，是 Reflecta 用户数据和调试上下文的实际根目录。
+- Express middleware / NestJS interceptor / OpenTelemetry instrumentation 的共同原则：日志这类横切关注点优先放在边界层，而不是散进业务方法。
 
 暂不采用：
 
@@ -318,4 +341,9 @@ Retrieval trace：
 参考：
 
 - [OpenTelemetry Logs Data Model](https://opentelemetry.io/docs/specs/otel/logs/data-model/)
+- [OpenTelemetry Instrumentation](https://opentelemetry.io/docs/concepts/instrumentation/)
+- [Express middleware](https://expressjs.com/en/5x/guide/using-middleware/)
+- [NestJS interceptors](https://github.com/nestjs/docs.nestjs.com/blob/master/content/interceptors.md)
+- [Electron app events](https://electronjs.org/docs/latest/api/app)
+- [React Error Boundaries](https://legacy.reactjs.org/docs/error-boundaries.html)
 - [electron-log](https://github.com/megahertz/electron-log)

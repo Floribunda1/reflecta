@@ -7,6 +7,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { AgentSessionEvent, AgentSessionSummary } from "@shared/agent";
 import { isAgentSessionEvent, reduceAgentSession } from "@shared/agent";
+import { writeDiagnosticEvent } from "../../logger";
 
 export const REFLECTA_AGENT_EVENT_ENTRY = "reflecta.agent.event";
 
@@ -38,6 +39,55 @@ function titleFromEvents(events: AgentSessionEvent[], fallback: string) {
   const state = reduceAgentSession(events);
   const firstUserText = state.messages.find((message) => message.role === "user")?.text.trim();
   return firstUserText ? firstUserText.slice(0, 40) : fallback;
+}
+
+function compactAttrs(attrs: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(attrs).filter(([, value]) => value !== undefined));
+}
+
+function stringField(event: AgentSessionEvent, key: string): string | undefined {
+  const value = (event as unknown as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function booleanField(event: AgentSessionEvent, key: string): boolean | undefined {
+  const value = (event as unknown as Record<string, unknown>)[key];
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function arrayLengthField(event: AgentSessionEvent, key: string): number | undefined {
+  const value = (event as unknown as Record<string, unknown>)[key];
+  return Array.isArray(value) ? value.length : undefined;
+}
+
+function shouldMirrorAgentEvent(event: AgentSessionEvent): boolean {
+  return event.type !== "assistant.text.delta" && event.type !== "assistant.reasoning.delta";
+}
+
+function mirrorAgentEvent(event: AgentSessionEvent): void {
+  if (!shouldMirrorAgentEvent(event)) return;
+  const error = stringField(event, "error");
+  writeDiagnosticEvent({
+    level: error || event.type.endsWith(".failed") ? "error" : "info",
+    event: `agent.${event.type}`,
+    scope: "agent",
+    context: compactAttrs({
+      sessionId: event.sessionId,
+      runId: stringField(event, "runId"),
+      messageId: stringField(event, "messageId"),
+      toolCallId: stringField(event, "toolCallId"),
+    }),
+    attrs: compactAttrs({
+      agentEventType: event.type,
+      approvalId: stringField(event, "approvalId"),
+      approved: booleanField(event, "approved"),
+      error,
+      textLength: stringField(event, "text")?.length,
+      contextRefCount: arrayLengthField(event, "contextRefs"),
+      fileCount: arrayLengthField(event, "files"),
+      toolName: stringField(event, "toolName"),
+    }),
+  });
 }
 
 type FlushablePiSessionInternals = {
@@ -171,6 +221,7 @@ export class AgentSessionLog {
 
   appendEvent(manager: SessionManager, event: AgentSessionEvent): void {
     manager.appendCustomEntry(REFLECTA_AGENT_EVENT_ENTRY, event);
+    mirrorAgentEvent(event);
     this.flushCustomOnlySession(manager);
     const sessionFile = manager.getSessionFile();
     if (sessionFile) this.pendingSessionFiles.set(manager.getSessionId(), sessionFile);

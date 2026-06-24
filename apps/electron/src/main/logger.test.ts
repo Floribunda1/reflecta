@@ -1,9 +1,15 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 const mockElectron = vi.hoisted(() => ({
   isPackaged: false,
   appData: "/tmp/app-data",
   userData: "/tmp/user-data",
+  on: vi.fn(),
+  ipcMainOn: vi.fn(),
+  version: "1.1.0",
 }));
 
 const mockLogger = vi.hoisted(() => {
@@ -31,6 +37,7 @@ const mockLogger = vi.hoisted(() => {
         level: "info" as unknown,
         format: "",
       },
+      diagnostic: undefined as unknown,
     },
     errorHandler: { startCatching: vi.fn() },
     eventLogger: { startLogging: vi.fn() },
@@ -47,27 +54,61 @@ vi.mock("electron", () => ({
       if (name === "userData") return mockElectron.userData;
       throw new Error(`Unexpected app path: ${name}`);
     },
+    getVersion() {
+      return mockElectron.version;
+    },
+    on: mockElectron.on,
+  },
+  ipcMain: {
+    on: mockElectron.ipcMainOn,
   },
 }));
 
 vi.mock("electron-log/main", () => ({ default: mockLogger }));
 
 const originalProfile = process.env.REFLECTA_PROFILE;
+const originalContentStorageRoot = process.env.REFLECTA_CONTENT_STORAGE_ROOT;
+const roots: string[] = [];
+
+function tempRoot() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "reflecta-logger-test-"));
+  roots.push(root);
+  return root;
+}
+
+function readJsonl(filePath: string): Array<Record<string, unknown>> {
+  return fs
+    .readFileSync(filePath, "utf8")
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+}
 
 beforeEach(() => {
   vi.resetModules();
   vi.clearAllMocks();
+  mockLogger.transports.file.level = "info";
+  mockLogger.transports.file.format = "";
+  mockLogger.transports.console.level = "info";
+  mockLogger.transports.console.format = "";
+  mockLogger.transports.diagnostic = undefined;
 });
 
 afterEach(() => {
   if (originalProfile === undefined) delete process.env.REFLECTA_PROFILE;
   else process.env.REFLECTA_PROFILE = originalProfile;
+  if (originalContentStorageRoot === undefined) delete process.env.REFLECTA_CONTENT_STORAGE_ROOT;
+  else process.env.REFLECTA_CONTENT_STORAGE_ROOT = originalContentStorageRoot;
+  for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
 describe("Electron logging profile", () => {
   test("uses Reflecta Dev as the dev log app name", async () => {
+    const root = tempRoot();
     process.env.REFLECTA_PROFILE = "dev";
-    const { APP_NAME, getLogAppName, initializeLogging } = await import("./logger");
+    process.env.REFLECTA_CONTENT_STORAGE_ROOT = root;
+    const { APP_NAME, getLogAppName, getLogFilePath, initializeLogging } = await import("./logger");
 
     expect(APP_NAME).toBe("Reflecta");
     expect(getLogAppName()).toBe("Reflecta Dev");
@@ -75,13 +116,30 @@ describe("Electron logging profile", () => {
     initializeLogging();
 
     expect(mockLogger.transports.file.setAppName).toHaveBeenCalledWith("Reflecta Dev");
-    expect(mockLogger.transports.file.format).toBe(
-      "[{y}-{m}-{d} {h}:{i}:{s}.{ms}] {level}{scope} {text}",
+    expect(mockLogger.transports.file.level).toBe(false);
+    expect(typeof mockLogger.transports.diagnostic).toBe("function");
+    expect(mockElectron.on).toHaveBeenCalledWith("render-process-gone", expect.any(Function));
+    expect(mockElectron.on).toHaveBeenCalledWith("child-process-gone", expect.any(Function));
+    expect(mockElectron.ipcMainOn).toHaveBeenCalledWith(
+      "diagnostic:renderer-error",
+      expect.any(Function),
     );
-    expect(mockLogger.transports.console.format).toBe(mockLogger.transports.file.format);
+    expect(getLogFilePath()).toMatch(/reflecta-\d{4}-\d{2}-\d{2}\.jsonl$/);
+    expect(readJsonl(getLogFilePath())[0]).toMatchObject({
+      level: "info",
+      event: "app.logging.initialized",
+      scope: "app",
+      attrs: {
+        appName: "Reflecta",
+        logAppName: "Reflecta Dev",
+        profile: "dev",
+        version: "1.1.0",
+      },
+    });
   });
 
   test("uses Reflecta as the prod log app name", async () => {
+    process.env.REFLECTA_CONTENT_STORAGE_ROOT = tempRoot();
     process.env.REFLECTA_PROFILE = "prod";
     const { APP_NAME, getLogAppName, initializeLogging } = await import("./logger");
 
@@ -91,5 +149,62 @@ describe("Electron logging profile", () => {
     initializeLogging();
 
     expect(mockLogger.transports.file.setAppName).toHaveBeenCalledWith("Reflecta");
+  });
+
+  test("writes fallback errors as diagnostic log events", async () => {
+    const root = tempRoot();
+    process.env.REFLECTA_CONTENT_STORAGE_ROOT = root;
+    const { getLogFilePath, writeFallbackError } = await import("./logger");
+
+    writeFallbackError("unhandledRejection", new Error("boom"), { requestId: "req-1" });
+
+    expect(readJsonl(getLogFilePath())[0]).toMatchObject({
+      level: "error",
+      event: "app.fallback.error",
+      scope: "app",
+      attrs: {
+        source: "unhandledRejection",
+        requestId: "req-1",
+        "error.name": "Error",
+        "error.message": "boom",
+      },
+    });
+  });
+
+  test("writes renderer errors from the diagnostic IPC channel", async () => {
+    const root = tempRoot();
+    process.env.REFLECTA_CONTENT_STORAGE_ROOT = root;
+    const { DIAGNOSTIC_RENDERER_ERROR_CHANNEL, getLogFilePath, initializeLogging } =
+      await import("./logger");
+
+    initializeLogging();
+    const handler = mockElectron.ipcMainOn.mock.calls.find(
+      ([channel]) => channel === DIAGNOSTIC_RENDERER_ERROR_CHANNEL,
+    )?.[1];
+    expect(typeof handler).toBe("function");
+    handler(
+      {},
+      {
+        source: "window.error",
+        message: "renderer boom",
+        filename: "app.js",
+        lineno: 12,
+        colno: 34,
+      },
+    );
+
+    const events = readJsonl(getLogFilePath());
+    expect(events.find((event) => event.event === "renderer.error")).toMatchObject({
+      level: "error",
+      event: "renderer.error",
+      scope: "renderer",
+      attrs: {
+        source: "window.error",
+        message: "renderer boom",
+        filename: "app.js",
+        lineno: 12,
+        colno: 34,
+      },
+    });
   });
 });

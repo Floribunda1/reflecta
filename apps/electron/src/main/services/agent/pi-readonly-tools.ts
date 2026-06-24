@@ -1,6 +1,9 @@
+import { performance } from "node:perf_hooks";
 import { Type } from "@earendil-works/pi-ai";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { AgentFileAttachment } from "@shared/agent";
+import { diagnosticErrorAttrs } from "../../diagnostic-log";
+import { writeDiagnosticEvent } from "../../logger";
 import {
   domainCliService,
   contextCliService,
@@ -49,8 +52,76 @@ function toolResult(details: unknown) {
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function compactAttrs(attrs: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(attrs).filter(([, value]) => value !== undefined));
+}
+
+function toolInputKeys(input: unknown): string[] | undefined {
+  return isRecord(input) ? Object.keys(input) : undefined;
+}
+
+function toolResultSummary(result: unknown): Record<string, unknown> {
+  const details = isRecord(result) && "details" in result ? result.details : result;
+  if (Array.isArray(details)) return { outputType: "array", outputCount: details.length };
+  if (isRecord(details)) return { outputType: "object", outputKeys: Object.keys(details) };
+  return { outputType: typeof details };
+}
+
+function withToolDiagnosticLog(tool: ToolDefinition): ToolDefinition {
+  const execute = tool.execute;
+  if (!execute) return tool;
+  const wrapped = (async (...args: Parameters<typeof execute>) => {
+    const [toolCallId, input] = args;
+    const context = typeof toolCallId === "string" ? { toolCallId } : undefined;
+    const startedAt = performance.now();
+    writeDiagnosticEvent({
+      level: "debug",
+      event: "agent.tool.started",
+      scope: "agent",
+      context,
+      attrs: compactAttrs({
+        toolName: tool.name,
+        inputKeys: toolInputKeys(input),
+      }),
+    });
+    try {
+      const result = await execute(...args);
+      writeDiagnosticEvent({
+        level: "debug",
+        event: "agent.tool.completed",
+        scope: "agent",
+        context,
+        attrs: compactAttrs({
+          toolName: tool.name,
+          durationMs: Math.round(performance.now() - startedAt),
+          ...toolResultSummary(result),
+        }),
+      });
+      return result;
+    } catch (error) {
+      writeDiagnosticEvent({
+        level: "error",
+        event: "agent.tool.failed",
+        scope: "agent",
+        context,
+        attrs: compactAttrs({
+          toolName: tool.name,
+          durationMs: Math.round(performance.now() - startedAt),
+          ...diagnosticErrorAttrs(error),
+        }),
+      });
+      throw error;
+    }
+  }) as typeof execute;
+  return { ...tool, execute: wrapped };
+}
+
 export function createPiReadOnlyTools(files: AgentFileAttachment[] = []): ToolDefinition[] {
-  return [
+  const tools = [
     defineTool({
       name: "domain_list",
       label: "列出 Domain",
@@ -212,4 +283,5 @@ export function createPiReadOnlyTools(files: AgentFileAttachment[] = []): ToolDe
         toolResult(await graphCliService.graph(understandingId, options)),
     }),
   ];
+  return tools.map(withToolDiagnosticLog);
 }

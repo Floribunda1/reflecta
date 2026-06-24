@@ -1,9 +1,15 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import type { AgentSessionEvent } from "@shared/agent";
 import { AgentSessionLog, getPiAgentSessionsRoot } from "./pi-session-log";
+
+const logger = vi.hoisted(() => ({
+  writeDiagnosticEvent: vi.fn(),
+}));
+
+vi.mock("../../logger", () => logger);
 
 const roots: string[] = [];
 
@@ -31,6 +37,7 @@ function customEntryByEventId(manager: { getEntries(): unknown[] }, eventId: str
 
 describe("AgentSessionLog", () => {
   afterEach(() => {
+    vi.clearAllMocks();
     for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
   });
 
@@ -52,6 +59,15 @@ describe("AgentSessionLog", () => {
 
     for (const event of events) log.appendEvent(manager, event);
 
+    expect(logger.writeDiagnosticEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "agent.run.failed",
+        level: "error",
+        scope: "agent",
+        context: expect.objectContaining({ sessionId: session.id, runId: "run_1" }),
+        attrs: expect.objectContaining({ error: "invalid api key" }),
+      }),
+    );
     expect(
       fs.readdirSync(getPiAgentSessionsRoot(root)).some((name) => name.endsWith(".jsonl")),
     ).toBe(true);
