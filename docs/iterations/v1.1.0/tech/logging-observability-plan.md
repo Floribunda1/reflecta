@@ -12,19 +12,20 @@
 
 第一版只落这四件事：
 
-1. 保留现有 `electron-log`，继续写人看的 `main.log`。
-2. 新增 `events.ndjson`，每行一个 JSON 诊断事件，给 AI 和脚本查。
+1. 保留 `electron-log` 的文件路径、滚动、异常捕获能力，但把 `main.log` 的内容改成 JSONL。
+2. `main.log` 每行一个 JSON 诊断事件，给 AI 和脚本查，不再优化人工阅读。
 3. 所有关键事件带上同一组关联字段：`sessionId`、`runId`、`toolCallId`、`requestId`、`traceId`。
-4. 新增“导出诊断包”，把 `events.ndjson`、`main.log`、相关 `Sessions/*.jsonl`、redacted config、DB/retrieval 状态打包给 AI。
+4. 新增“导出诊断包”，把 `main.log`、相关 `Sessions/*.jsonl`、redacted config、DB/retrieval 状态打包给 AI。
 
 不做：
 
+- 不新增 `events.ndjson` 这种第二份应用日志。
 - 不上 ELK / Loki / OTel Collector。
 - 不把日志写进业务 SQLite。
 - 不默认上传 Sentry / Langfuse / LangSmith。
 - 不全量记录用户正文、模型完整输出、API key、token。
 
-一句话：`main.log` 继续给人看，`events.ndjson` 给 AI 查，`Sessions/*.jsonl` 负责 agent turn replay，诊断包把三者按 `runId` 串起来。
+一句话：`main.log` 是 AI-first 的结构化事件流，`Sessions/*.jsonl` 负责 agent turn replay，诊断包把两者按 `runId` 串起来。
 
 ## P0 改动范围
 
@@ -42,7 +43,7 @@
 P0 结束时，AI debug 的路径应该是：
 
 1. 先看诊断包里的 `manifest.json`。
-2. 查 `events.ndjson` 里的 error/warn。
+2. 查 `main.log` 里的 error/warn JSON event。
 3. 用 `sessionId/runId/toolCallId` 跳到 agent session JSONL。
 4. 如果是检索问题，看同一个 run/tool 下的 `RetrievalTrace`。
 5. 如果是启动/迁移问题，看 `app.db.*` 和 `main.log` stack。
@@ -54,7 +55,7 @@ Reflecta 现在已经有两类日志：
 - 应用日志：Electron main 通过 `electron-log` 写 `main.log`，主要覆盖启动、少量 IPC、未捕获异常和 Electron 事件。
 - Agent 会话日志：Pi session 通过 JSONL 存在 Content Storage Root 的 `Sessions/*.jsonl`，能重放 agent turn、tool call、approval 和 run 状态。
 
-真正缺的是统一的结构化诊断事件。当前 `main.log` 是多行文本，适合人看，不适合 AI 稳定解析；Agent JSONL 很强，但和应用日志、IPC、DB、retrieval trace 没有统一 correlation id。
+真正缺的是把 `main.log` 变成统一的结构化诊断事件流。当前 `main.log` 是多行文本，不适合 AI 稳定解析；Agent JSONL 很强，但和应用日志、IPC、DB、retrieval trace 没有统一 correlation id。
 
 ## 现状梳理
 
@@ -125,7 +126,7 @@ Renderer 现在只在 IPC proxy 捕获业务错误时 `console.error("[IPC Error
 缺口：
 
 - 只覆盖 agent conversation，不覆盖 app lifecycle、IPC、DB、retrieval index、renderer error。
-- 和 `main.log` 没有统一事件 schema。
+- 和应用 `main.log` 没有统一事件 schema。
 - Retrieval trace 只作为 tool output/return value存在，不稳定进入通用诊断流。
 - 可能包含用户原文和模型输出，诊断导出需要显式隐私边界。
 
@@ -189,7 +190,7 @@ OpenTelemetry Logs Data Model 是最适合借鉴的字段模型。官方定义�
 
 - 保留它。它已经解决桌面文件路径、主进程捕获、Electron 事件这些问题。
 - 不强行把它改造成完整 observability 平台。
-- 结构化诊断事件可以单独写 `events.ndjson`，避免破坏现有 `main.log` 的人工可读性。
+- 把它的 file transport 输出改成一行 JSON；不再保留人工可读 `main.log`。
 
 ### Pino / Winston / LogTape
 
@@ -252,16 +253,15 @@ Loki 和 Elastic 是成熟的集中式日志存储/查询方案。Loki 官方特
 
 ### 日志分层
 
-| 层                      | 用途                            | 存储                                    |
-| ----------------------- | ------------------------------- | --------------------------------------- |
-| Human log               | 本地人工查看、Electron 默认捕获 | `~/Library/Logs/<app>/main.log`         |
-| Diagnostic event log    | AI/脚本稳定解析                 | `~/Library/Logs/<app>/events.ndjson`    |
-| Agent session event log | 重放 agent turn/tool/approval   | `<contentStorageRoot>/Sessions/*.jsonl` |
-| Diagnostic bundle       | 一次 bug 的可交付证据包         | 用户显式导出，zip 或目录                |
+| 层                      | 用途                          | 存储                                    |
+| ----------------------- | ----------------------------- | --------------------------------------- |
+| App diagnostic log      | AI/脚本稳定解析应用诊断事件   | `~/Library/Logs/<app>/main.log`         |
+| Agent session event log | 重放 agent turn/tool/approval | `<contentStorageRoot>/Sessions/*.jsonl` |
+| Diagnostic bundle       | 一次 bug 的可交付证据包       | 用户显式导出，zip 或目录                |
 
 ### DiagnosticEvent schema
 
-每行一个 JSON：
+`main.log` 每行一个 JSON：
 
 ```json
 {
@@ -293,7 +293,7 @@ Loki 和 Elastic 是成熟的集中式日志存储/查询方案。Loki 官方特
 字段规则：
 
 - `event` 必须稳定，使用点分命名：`app.started`、`ipc.request.failed`、`agent.run.failed`、`retrieval.query.completed`。
-- `message` 给人看；AI 以 `event` 和 `attrs` 为准。
+- `message` 只放短摘要；AI 以 `event` 和 `attrs` 为准。
 - `attrs` 只能放 JSON-safe 值。
 - `error.message`、`error.stack`、`error.name` 放在 `attrs`，不要塞进 message。
 - `sessionId`、`runId`、`toolCallId`、`messageId` 是属性，不是文件名和 Loki label。
@@ -322,8 +322,7 @@ P0 只打这些：
 
 文件格式：
 
-- `main.log`：保留现在的人类可读格式。
-- `events.ndjson`：一行一个 JSON，给 AI、`jq`、诊断导出使用。
+- `main.log`：一行一个 JSON，给 AI、`jq`、诊断导出使用。
 - `Sessions/*.jsonl`：保留 Pi session 原格式。
 
 未来 UI 如果要做 Log Viewer，只需要：
@@ -337,8 +336,7 @@ P0 只打这些：
 
 短期：
 
-- `main.log` 继续由 `electron-log` 管理。
-- `events.ndjson` 放同一个 OS log dir。
+- `main.log` 继续由 `electron-log` 管理，但内容改成 JSONL。
 - 单文件滚动 5-10MB，保留最近 3-5 个文件即可。
 - Agent session JSONL 跟随 Content Storage Root，因为它属于用户内容/会话历史。
 
@@ -359,8 +357,7 @@ type ExportDebugBundleInput = {
 Bundle 内容：
 
 - `manifest.json`：app version、profile、platform、log paths、content root hash、导出时间。
-- `events.ndjson`：按 `since` 截取。
-- `main.log`：按 `since` 附近截取或 tail。
+- `main.log`：按 `since` 截取或 tail。
 - `sessions/<sessionId>.jsonl`：如果提供 sessionId。
 - `config.redacted.json`：去掉 API key/token，保留 provider id/model id/paths 是否存在。
 - `status.json`：DB path exists、migration version、retrieval index status、active embedding config id。
@@ -368,7 +365,7 @@ Bundle 内容：
 这样 AI 拿到 bundle 后的查询顺序很明确：
 
 1. 看 `manifest.json` 确认版本和路径。
-2. 查 `events.ndjson` 的 `level >= error`。
+2. 查 `main.log` 的 `level >= error`。
 3. 用 `sessionId/runId/toolCallId` 跳到 session JSONL。
 4. 如果是检索问题，查同 run 下的 `retrieval.query.*`。
 5. 如果是启动/迁移问题，查 `app.db.*` 和 `main.log` stack。
@@ -378,7 +375,7 @@ Bundle 内容：
 ### P0：本地 AI-debug 可用
 
 1. 新增 `DiagnosticEvent` 类型和 `writeDiagnosticEvent()`。
-2. 新增 `events.ndjson` writer，使用 Node `fs`，不加依赖。
+2. 把 `electron-log` file transport format 改成 JSONL。
 3. 在 IPC wrapper、DB init、agent run/tool、retrieval seam 写关键事件。
 4. 新增 redaction helper：屏蔽 apiKey、token、authorization、password、safe:v1。
 5. 新增 `exportDebugBundle()`，先导出目录也可以，zip 不是必须。
@@ -401,8 +398,8 @@ Bundle 内容：
 
 ## 验收标准
 
-- 任意 IPC service 抛错，`events.ndjson` 都有一条 `ipc.request.failed`，包含 channel、durationMs、error message、stack。
-- 任意 Agent run 失败，能从 `events.ndjson` 用 `sessionId/runId` 找到 session JSONL 中同一轮的 user/tool/model 事件。
+- 任意 IPC service 抛错，`main.log` 都有一条 `ipc.request.failed`，包含 channel、durationMs、error message、stack。
+- 任意 Agent run 失败，能从 `main.log` 用 `sessionId/runId` 找到 session JSONL 中同一轮的 user/tool/model 事件。
 - Retrieval 结果异常时，能找到同一 `runId/toolCallId` 下的 `RetrievalTrace`。
 - 诊断包不包含明文 API key/token。
 - AI 只读诊断包，不访问用户全量数据库，也能判断大多数启动、IPC、agent、retrieval 问题的第一原因。
