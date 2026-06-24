@@ -494,30 +494,39 @@ bun run db:push:dev
 bun run db:seed:dev
 ```
 
-## 11. Bun Env 自动加载
+## 11. Bun Env 自动加载不是架构输入
 
-根目录增加 `bunfig.toml`：
+Bun 会自动加载 `.env*` 文件。这个行为可以保留，但 Runtime Resolver 不能依赖它来判断生产能力。
 
-```toml
-env = false
+允许 env 做两类事情：
+
+```txt
+1. 传入显式 override，例如 --content-root 对应的环境变量。
+2. 传入外部服务配置，例如 AI provider key。
 ```
 
-这不是主要安全边界，只是移除一个隐式输入源。
+不允许 env 做这些事：
 
-之后需要 env 的命令必须显式传：
-
-```bash
-REFLECTA_CONTENT_STORAGE_ROOT=/tmp/reflecta-store bun run ...
+```txt
+1. 把 source 进程变成 release 进程。
+2. 决定默认 Data Target 是 prod。
+3. 授予自动 migration 权限。
 ```
 
-本地 `.env*.local` 文件不应该决定 Reflecta 数据目标。
+也就是说，即使 Bun 加载了 `.env.production.local`，也不能改变这张表：
+
+```txt
+cli + source -> dev
+electron + source -> dev
+cli + release -> prod
+electron + release -> prod
+```
 
 ## 12. 迁移计划
 
 ### Phase 1：停止误触入口
 
 - 删除根目录 `prod:gui` 和 `prod:cli` scripts。
-- 增加 `bunfig.toml`，设置 `env = false`。
 - 清理本地开发文档里的 `.env.production.local` 工作流。
 - 更新文档：生产用户数据不是由 `REFLECTA_PROFILE` 选择，而是由 `Process Kind + Build Kind` 解析出来。
 
