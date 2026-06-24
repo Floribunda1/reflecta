@@ -8,14 +8,14 @@
 
   @CLI-GLOBAL-001
   场景: 数据库文件不存在时给出清晰错误
-    假设 环境变量 REFLECTA_DB_PATH 指向一个不存在的文件
-    当 用户执行命令 "domain list"
+    假设 用户通过 --db 指向一个不存在的 SQLite 文件
+    当 用户执行命令 "--db MISSING_DB_PATH domain list"
     那么 命令退出码应为 1
     并且 标准错误输出应包含 JSON 对象，字段 code 为 "DB_NOT_FOUND"，且 message 包含预期数据库路径
 
   @CLI-GLOBAL-002
-  场景: 数据库存在但未初始化时自动迁移
-    假设 REFLECTA_DB_PATH 指向一个空的 SQLite 文件
+  场景: 生产 CLI 首次打开默认 full-store 时自动迁移
+    假设 生产 CLI 指向一个尚未初始化的 Content Storage Root
     当 用户执行命令 "understanding list"
     那么 CLI 应自动应用所有待执行的迁移
     并且 命令成功返回空结果集

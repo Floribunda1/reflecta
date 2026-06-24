@@ -13,6 +13,18 @@ export interface CommandResult {
 export async function runCommand(argv: string[]): Promise<CommandResult> {
   const stdoutLines: string[] = [];
   const stderrLines: string[] = [];
+  const shouldInjectRuntimeArgs =
+    argv.length > 0 && !argv.includes("--help") && !argv.includes("-h");
+  const runtimeArgs = shouldInjectRuntimeArgs
+    ? [
+        ...(process.env.REFLECTA_CONTENT_STORAGE_ROOT
+          ? ["--content-root", process.env.REFLECTA_CONTENT_STORAGE_ROOT]
+          : []),
+        ...(process.env.REFLECTA_APP_CONFIG_DIR
+          ? ["--app-config-dir", process.env.REFLECTA_APP_CONFIG_DIR]
+          : []),
+      ]
+    : [];
 
   const origLog = console.log;
   const origErr = console.error;
@@ -24,7 +36,7 @@ export async function runCommand(argv: string[]): Promise<CommandResult> {
   process.exitCode = undefined;
 
   try {
-    const code = await runCli(argv);
+    const code = await runCli([...runtimeArgs, ...argv]);
     return {
       code: process.exitCode ?? code ?? 0,
       stdout: stdoutLines.join("\n"),

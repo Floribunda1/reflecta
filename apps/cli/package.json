@@ -13,7 +13,7 @@
   "main": "./dist/index.mjs",
   "scripts": {
     "build": "tsdown",
-    "dev": "tsdown --watch",
+    "dev": "REFLECTA_CLI_BUILD_KIND=source tsdown --watch",
     "start": "node ./dist/index.mjs",
     "typecheck": "tsgo --noEmit",
     "test": "vitest",

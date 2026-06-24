@@ -7,9 +7,9 @@
   ],
   "scripts": {
     "build": "bun run --filter '*' build",
-    "dev:gui": "cd apps/electron && REFLECTA_PROFILE=dev bun run dev",
+    "dev:gui": "cd apps/electron && bun run dev",
     "package:electron": "bun run --cwd apps/electron build:mac",
-    "dev:cli": "cd apps/cli && REFLECTA_PROFILE=dev bun run dev",
+    "dev:cli": "cd apps/cli && bun run dev",
     "db:migrate:dev": "bun run apps/cli/scripts/dev-db.ts migrate",
     "db:reset:dev": "bun run apps/cli/scripts/dev-db.ts reset",
     "db:push:dev": "bun run apps/cli/scripts/dev-db.ts push",

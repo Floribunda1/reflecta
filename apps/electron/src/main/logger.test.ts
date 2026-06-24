@@ -66,14 +66,17 @@ vi.mock("electron", () => ({
 
 vi.mock("electron-log/main", () => ({ default: mockLogger }));
 
-const originalProfile = process.env.REFLECTA_PROFILE;
-const originalContentStorageRoot = process.env.REFLECTA_CONTENT_STORAGE_ROOT;
+const originalArgv = process.argv;
 const roots: string[] = [];
 
 function tempRoot() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "reflecta-logger-test-"));
   roots.push(root);
   return root;
+}
+
+function useContentRoot(root: string) {
+  process.argv = ["electron", "app", "--reflecta-content-root", root];
 }
 
 function readJsonl(filePath: string): Array<Record<string, unknown>> {
@@ -93,21 +96,19 @@ beforeEach(() => {
   mockLogger.transports.console.level = "info";
   mockLogger.transports.console.format = "";
   mockLogger.transports.diagnostic = undefined;
+  mockElectron.isPackaged = false;
+  process.argv = ["electron", "app"];
 });
 
 afterEach(() => {
-  if (originalProfile === undefined) delete process.env.REFLECTA_PROFILE;
-  else process.env.REFLECTA_PROFILE = originalProfile;
-  if (originalContentStorageRoot === undefined) delete process.env.REFLECTA_CONTENT_STORAGE_ROOT;
-  else process.env.REFLECTA_CONTENT_STORAGE_ROOT = originalContentStorageRoot;
+  process.argv = originalArgv;
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
 describe("Electron logging profile", () => {
   test("uses Reflecta Dev as the dev log app name", async () => {
     const root = tempRoot();
-    process.env.REFLECTA_PROFILE = "dev";
-    process.env.REFLECTA_CONTENT_STORAGE_ROOT = root;
+    useContentRoot(root);
     const { APP_NAME, getLogAppName, getLogFilePath, initializeLogging } = await import("./logger");
 
     expect(APP_NAME).toBe("Reflecta");
@@ -139,8 +140,8 @@ describe("Electron logging profile", () => {
   });
 
   test("uses Reflecta as the prod log app name", async () => {
-    process.env.REFLECTA_CONTENT_STORAGE_ROOT = tempRoot();
-    process.env.REFLECTA_PROFILE = "prod";
+    useContentRoot(tempRoot());
+    mockElectron.isPackaged = true;
     const { APP_NAME, getLogAppName, initializeLogging } = await import("./logger");
 
     expect(APP_NAME).toBe("Reflecta");
@@ -153,7 +154,7 @@ describe("Electron logging profile", () => {
 
   test("writes fallback errors as diagnostic log events", async () => {
     const root = tempRoot();
-    process.env.REFLECTA_CONTENT_STORAGE_ROOT = root;
+    useContentRoot(root);
     const { getLogFilePath, writeFallbackError } = await import("./logger");
 
     writeFallbackError("unhandledRejection", new Error("boom"), { requestId: "req-1" });
@@ -173,7 +174,7 @@ describe("Electron logging profile", () => {
 
   test("writes renderer errors from the diagnostic IPC channel", async () => {
     const root = tempRoot();
-    process.env.REFLECTA_CONTENT_STORAGE_ROOT = root;
+    useContentRoot(root);
     const { DIAGNOSTIC_RENDERER_ERROR_CHANNEL, getLogFilePath, initializeLogging } =
       await import("./logger");
 

@@ -5,7 +5,7 @@ import {
   SearchCliBff,
   UnderstandingCliBff,
 } from "@reflecta/server";
-import { getDb, initializeDb } from "./db";
+import { getActiveRuntimeKey, getDb } from "./db";
 
 export type ReflectaCliServices = {
   domains: DomainCliBff;
@@ -16,11 +16,11 @@ export type ReflectaCliServices = {
 };
 
 let services: ReflectaCliServices | undefined;
+let servicesRuntimeKey: string | undefined;
 
 export async function getServices(): Promise<ReflectaCliServices> {
-  if (services) return services;
-
-  await initializeDb();
+  const runtimeKey = getActiveRuntimeKey();
+  if (services && servicesRuntimeKey === runtimeKey) return services;
 
   const db = getDb();
 
@@ -31,6 +31,7 @@ export async function getServices(): Promise<ReflectaCliServices> {
     search: new SearchCliBff(db),
     understandings: new UnderstandingCliBff(db),
   };
+  servicesRuntimeKey = runtimeKey;
 
   return services;
 }

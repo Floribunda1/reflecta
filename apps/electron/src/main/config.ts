@@ -3,6 +3,8 @@ import path from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { app, safeStorage } from "electron";
+import { resolveRuntimePaths, type RuntimeAppConfig } from "@reflecta/server/runtime";
+import { getRuntimeArg } from "./runtime-args";
 
 export interface AiModelConfig {
   id: string;
@@ -102,18 +104,23 @@ export interface AppConfig {
 export type ReflectaProfile = "dev" | "prod";
 
 export function getReflectaProfile(): ReflectaProfile {
-  if (process.env.REFLECTA_PROFILE === "dev" || process.env.REFLECTA_PROFILE === "prod") {
-    return process.env.REFLECTA_PROFILE;
-  }
-
   return app.isPackaged ? "prod" : "dev";
 }
 
+function resolveElectronRuntime(appConfig?: RuntimeAppConfig) {
+  return resolveRuntimePaths({
+    processKind: "electron",
+    buildKind: app.isPackaged ? "release" : "source",
+    electronAppDataDir: app.getPath("appData"),
+    electronUserDataDir: app.getPath("userData"),
+    explicitAppConfigDir: getRuntimeArg("reflecta-app-config-dir"),
+    explicitContentStorageRoot: getRuntimeArg("reflecta-content-root"),
+    appConfig,
+  });
+}
+
 export function getAppConfigDir(): string {
-  if (process.env.REFLECTA_APP_CONFIG_DIR) return process.env.REFLECTA_APP_CONFIG_DIR;
-  return getReflectaProfile() === "dev"
-    ? path.join(app.getPath("appData"), "reflecta-dev")
-    : app.getPath("userData");
+  return resolveElectronRuntime().appConfigDir;
 }
 
 export function getAppConfigFilePath(): string {
@@ -121,9 +128,7 @@ export function getAppConfigFilePath(): string {
 }
 
 export function getDefaultContentStorageRoot(): string {
-  return getReflectaProfile() === "dev"
-    ? path.join(app.getPath("appData"), "reflecta-dev")
-    : app.getPath("userData");
+  return resolveElectronRuntime().contentStorageRoot;
 }
 
 let _cache: AppConfig | null = null;
@@ -571,9 +576,5 @@ export async function downloadDefaultRetrievalEmbeddingModel(): Promise<Retrieva
 
 /** Used by AssetService and db — resolves the effective user content directory. */
 export function getContentStorageRoot(): string {
-  return (
-    process.env.REFLECTA_CONTENT_STORAGE_ROOT ||
-    readConfig().contentStorageRoot ||
-    getDefaultContentStorageRoot()
-  );
+  return resolveElectronRuntime(readConfig()).contentStorageRoot;
 }

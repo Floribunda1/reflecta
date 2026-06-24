@@ -4,7 +4,7 @@
  * Generates a large, reproducible dataset covering all CLI query scenarios.
  *
  * Usage:
- *   bun run apps/cli/scripts/seed-test-data.ts [db-path] [content-storage-root]
+ *   bun run apps/cli/scripts/seed-test-data.ts [db-path] [content-storage-root] [--data-environment dev|test]
  *
  * If db-path is omitted, it writes to /tmp/reflecta-test.db
  * If content-storage-root is provided, it also seeds test Agent sessions.
@@ -15,8 +15,27 @@ import { createDBInstance } from "@reflecta/server";
 import fs from "node:fs";
 import path from "node:path";
 
-const dbPath = process.argv[2] ?? "/tmp/reflecta-test.db";
-const contentStorageRoot = process.argv[3];
+type SeedDataEnvironment = "dev" | "test";
+
+const positionalArgs: string[] = [];
+let dataEnvironment: SeedDataEnvironment = "test";
+
+for (let index = 2; index < process.argv.length; index++) {
+  const arg = process.argv[index];
+  if (arg === "--data-environment") {
+    const value = process.argv[index + 1];
+    if (value !== "dev" && value !== "test") {
+      throw new Error("--data-environment must be dev or test.");
+    }
+    dataEnvironment = value;
+    index++;
+    continue;
+  }
+  positionalArgs.push(arg);
+}
+
+const dbPath = positionalArgs[0] ?? "/tmp/reflecta-test.db";
+const contentStorageRoot = positionalArgs[1];
 
 // Ensure directory exists
 const dir = path.dirname(dbPath);
@@ -40,7 +59,42 @@ if (isNewDb) {
 
 const db = new Database(dbPath);
 
+function hasReflectaStoreTable(): boolean {
+  const row = db
+    .query<{ name: string }, []>(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '_reflecta_store' LIMIT 1",
+    )
+    .get();
+  return Boolean(row);
+}
+
+function readDataEnvironmentMarker(): string | undefined {
+  if (!hasReflectaStoreTable()) return undefined;
+  const row = db
+    .query<{ value: string }, []>(
+      "SELECT value FROM _reflecta_store WHERE key = 'data_environment' LIMIT 1",
+    )
+    .get();
+  return row?.value;
+}
+
+function writeDataEnvironmentMarker(): void {
+  db.exec(
+    "CREATE TABLE IF NOT EXISTS _reflecta_store (key TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL)",
+  );
+  db.query<unknown, [string]>(
+    "INSERT INTO _reflecta_store (key, value) VALUES ('data_environment', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+  ).run(dataEnvironment);
+}
+
 if (!isNewDb) {
+  const existingDataEnvironment = readDataEnvironmentMarker();
+  if (existingDataEnvironment !== dataEnvironment) {
+    throw new Error(
+      `Refusing to truncate existing database "${dbPath}" because data_environment is ${existingDataEnvironment ?? "unmarked"}, expected ${dataEnvironment}.`,
+    );
+  }
+
   console.log("Database exists. Truncating tables before seeding...");
   try {
     db.exec(`
@@ -54,6 +108,8 @@ if (!isNewDb) {
     // Tables may not exist yet
   }
   console.log("Tables truncated.");
+} else {
+  writeDataEnvironmentMarker();
 }
 
 // ---------------------------------------------------------------------------

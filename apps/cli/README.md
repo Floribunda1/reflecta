@@ -53,18 +53,23 @@ Failures are written to stderr and exit with code `1`:
 INVALID_ARGUMENTS: Action arguments are invalid.
 ```
 
-## Database Path
+## Content Storage
 
-The CLI resolves the local Reflecta database in this order:
+The release CLI resolves the local Reflecta store in this order:
 
-1. `REFLECTA_DB_PATH`
-2. Reflecta desktop config `contentStorageRoot` plus `reflecta.db`
-3. The platform default Reflecta content storage root plus `reflecta.db`
+1. Reflecta desktop config `contentStorageRoot`
+2. The platform default Reflecta content storage root
 
-Set `REFLECTA_DB_PATH` when using a development or test database:
+Use `--content-root` when a command needs the full store, including semantic search assets:
 
 ```bash
-REFLECTA_DB_PATH=/absolute/path/to/reflecta.db reflecta domain list
+reflecta --content-root /absolute/path/to/reflecta-store search "agent memory"
+```
+
+Use `--db` only for DB-only commands:
+
+```bash
+reflecta --db /absolute/path/to/reflecta.db domain list
 ```
 
 ## Understanding Links

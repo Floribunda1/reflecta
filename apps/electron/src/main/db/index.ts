@@ -4,12 +4,14 @@ import { app } from "electron";
 import {
   configureRetrievalEmbedding,
   createDBInstance,
+  ensureStoreDataEnvironment,
   type ReflectaDb,
   type RetrievalEmbeddingConfig as ServerRetrievalEmbeddingConfig,
 } from "@reflecta/server";
 import { getContentStorageRoot, getReflectaProfile, getRetrievalConfig } from "../config";
 import { diagnosticErrorAttrs } from "../diagnostic-log";
 import { writeDiagnosticEvent } from "../logger";
+import { getRuntimeArg } from "../runtime-args";
 
 let db: ReflectaDb;
 
@@ -36,7 +38,7 @@ export const initializeDB = async () => {
   const dbPath = path.join(contentStorageRoot, "reflecta.db");
   const profile = getReflectaProfile();
   try {
-    process.env.REFLECTA_RETRIEVAL_INDEX_PATH ??= path.join(contentStorageRoot, "retrieval-index");
+    process.env.REFLECTA_RETRIEVAL_INDEX_PATH = path.join(contentStorageRoot, "retrieval-index");
     configureRetrievalEmbedding(toServerRetrievalEmbeddingConfig());
     if (!fs.existsSync(contentStorageRoot)) {
       fs.mkdirSync(contentStorageRoot, { recursive: true });
@@ -46,6 +48,9 @@ export const initializeDB = async () => {
       appVersion: app.getVersion(),
       runMigrations: profile === "prod",
     });
+    if (!getRuntimeArg("reflecta-app-config-dir") && !getRuntimeArg("reflecta-content-root")) {
+      ensureStoreDataEnvironment(db, profile);
+    }
     writeDiagnosticEvent({
       level: "info",
       event: "app.db.initialized",

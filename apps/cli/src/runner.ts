@@ -8,11 +8,14 @@ export type GlobalOptions = {
   yes: boolean;
   quiet: boolean;
   verbose: boolean;
+  appConfigDir?: string;
+  contentRoot?: string;
+  db?: string;
 };
 
 export async function runCommand<T>(
   handler: () => Promise<T>,
-  opts: GlobalOptions & { mutates?: boolean },
+  opts: GlobalOptions & { mutates?: boolean; requiresFullStore?: boolean },
 ): Promise<void> {
   if (opts.mutates && !opts.yes) {
     writeError(
@@ -24,7 +27,7 @@ export async function runCommand<T>(
   }
 
   try {
-    await initializeDb();
+    await initializeDb(opts);
     const result = await handler();
     if (!opts.quiet) {
       writeData(result, opts.format);

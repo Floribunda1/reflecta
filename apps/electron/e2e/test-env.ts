@@ -144,15 +144,19 @@ export function getE2eAiEnv(baseEnv = process.env): E2eAiEnv {
 }
 
 export function getE2eElectronEnv(baseEnv = process.env): NodeJS.ProcessEnv {
+  return getE2eProcessEnv(baseEnv);
+}
+
+export function getE2eElectronArgs(): string[] {
   const env = readE2eTestEnv();
-  return {
-    ...getE2eProcessEnv(baseEnv),
-    REFLECTA_PROFILE: "dev",
-    REFLECTA_APP_CONFIG_DIR: env.appConfigDir,
-    REFLECTA_CONTENT_STORAGE_ROOT: env.contentStorageRoot,
-    REFLECTA_RETRIEVAL_INDEX_PATH: path.join(env.contentStorageRoot, "retrieval-index"),
-    REFLECTA_USER_DATA_DIR: env.userDataDir,
-  };
+  return [
+    "--reflecta-user-data-dir",
+    env.userDataDir,
+    "--reflecta-app-config-dir",
+    env.appConfigDir,
+    "--reflecta-content-root",
+    env.contentStorageRoot,
+  ];
 }
 
 export function hasE2eAiConfig(baseEnv = process.env): boolean {

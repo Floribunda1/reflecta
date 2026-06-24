@@ -6,6 +6,7 @@ import type { ReflectaDb } from "./types";
 import type { Database as BetterSqliteDatabase } from "better-sqlite3";
 
 export type { ReflectaDb } from "./types";
+export * from "./store-marker";
 
 export interface CreateDBInstanceOptions {
   runMigrations?: boolean;
@@ -24,7 +25,7 @@ export async function createDBInstance(
   const db = drizzle(client as unknown as BetterSqliteDatabase, {
     schema,
   }) as ReflectaDb;
-  if (options.runMigrations ?? true) {
+  if (options.runMigrations === true) {
     await performDbMigration(db, options.appVersion);
   }
   return db;

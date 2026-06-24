@@ -32,6 +32,9 @@ function rawSqlPlugin() {
 
 export default defineConfig({
   clean: true,
+  define: {
+    __REFLECTA_CLI_BUILD_KIND__: JSON.stringify(process.env.REFLECTA_CLI_BUILD_KIND ?? "release"),
+  },
   dts: true,
   entry: ["src/index.ts"],
   format: "esm",

@@ -5,11 +5,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { Database } from "bun:sqlite";
 import { createDBInstance } from "@reflecta/server";
-import { resolveProfileDbPath } from "../src/profile";
+import { resolveCliRuntimePaths } from "../src/runtime";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 const command = process.argv[2];
-const dbPath = resolveProfileDbPath("dev");
+const runtime = resolveCliRuntimePaths({ buildKind: "source" });
+const dbPath = runtime.dbPath;
 
 function ensureDir(): void {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -51,7 +52,6 @@ function run(args: string[]): number {
     stdio: "inherit",
     env: {
       ...process.env,
-      REFLECTA_PROFILE: "dev",
       REFLECTA_DB_PATH: dbPath,
     },
   });
@@ -80,7 +80,17 @@ if (command === "push") {
 }
 
 if (command === "seed") {
-  process.exit(run(["run", path.join(import.meta.dirname, "seed-test-data.ts"), dbPath]));
+  fs.rmSync(dbPath, { force: true });
+  process.exit(
+    run([
+      "run",
+      path.join(import.meta.dirname, "seed-test-data.ts"),
+      dbPath,
+      runtime.contentStorageRoot,
+      "--data-environment",
+      "dev",
+    ]),
+  );
 }
 
 console.log(`Usage: bun run apps/cli/scripts/dev-db.ts <migrate|reset|push|seed>

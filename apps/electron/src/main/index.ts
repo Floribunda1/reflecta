@@ -6,12 +6,14 @@ import { initializeDB } from "./db";
 import { registerAssetScheme, handleAssetProtocol } from "./assetProtocol";
 import { APP_NAME, appLog, initializeLogging } from "./logger";
 import { preloadScript, rendererHtml } from "./paths";
+import { getRuntimeArg } from "./runtime-args";
 
 // Register asset:// as a privileged scheme before app is ready
 registerAssetScheme();
 app.setName(APP_NAME);
-if (process.env.REFLECTA_USER_DATA_DIR) {
-  app.setPath("userData", process.env.REFLECTA_USER_DATA_DIR);
+const explicitUserDataDir = getRuntimeArg("reflecta-user-data-dir");
+if (explicitUserDataDir) {
+  app.setPath("userData", explicitUserDataDir);
 }
 initializeLogging();
 

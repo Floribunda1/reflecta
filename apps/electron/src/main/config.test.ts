@@ -31,15 +31,17 @@ let tempDir: string;
 const originalContentStorageRoot = process.env.REFLECTA_CONTENT_STORAGE_ROOT;
 const originalProfile = process.env.REFLECTA_PROFILE;
 const originalStubRetrievalModelDownload = process.env.REFLECTA_STUB_RETRIEVAL_MODEL_DOWNLOAD;
+const originalArgv = process.argv;
 
 beforeEach(() => {
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "reflecta-electron-config-"));
   mockElectron.appData = path.join(tempDir, "app-data");
   mockElectron.userData = path.join(tempDir, "user-data");
   mockElectron.isPackaged = false;
+  process.argv = ["electron", "app"];
   delete process.env.REFLECTA_CONTENT_STORAGE_ROOT;
   delete process.env.REFLECTA_STUB_RETRIEVAL_MODEL_DOWNLOAD;
-  process.env.REFLECTA_PROFILE = "dev";
+  delete process.env.REFLECTA_PROFILE;
   vi.resetModules();
 });
 
@@ -52,6 +54,7 @@ afterEach(() => {
   if (originalStubRetrievalModelDownload === undefined)
     delete process.env.REFLECTA_STUB_RETRIEVAL_MODEL_DOWNLOAD;
   else process.env.REFLECTA_STUB_RETRIEVAL_MODEL_DOWNLOAD = originalStubRetrievalModelDownload;
+  process.argv = originalArgv;
 });
 
 describe("Electron retrieval config", () => {
@@ -142,12 +145,12 @@ describe("Electron retrieval config", () => {
 });
 
 describe("Electron content storage root", () => {
-  test("uses REFLECTA_CONTENT_STORAGE_ROOT before config", async () => {
+  test("uses explicit content root argument before config", async () => {
     const config = await import("./config");
-    const envRoot = path.join(tempDir, "env-root");
-    process.env.REFLECTA_CONTENT_STORAGE_ROOT = envRoot;
+    const explicitRoot = path.join(tempDir, "explicit-root");
+    process.argv.push("--reflecta-content-root", explicitRoot);
 
-    expect(config.getContentStorageRoot()).toBe(envRoot);
+    expect(config.getContentStorageRoot()).toBe(explicitRoot);
   });
 
   test("uses contentStorageRoot from app config", async () => {
@@ -176,6 +179,15 @@ describe("Electron content storage root", () => {
       JSON.stringify({ storagePath: path.join(tempDir, "legacy-root") }),
     );
 
+    expect(config.getContentStorageRoot()).toBe(path.join(mockElectron.appData, "reflecta-dev"));
+  });
+
+  test("does not let Reflecta env override source content storage", async () => {
+    const config = await import("./config");
+    process.env.REFLECTA_PROFILE = "prod";
+    process.env.REFLECTA_CONTENT_STORAGE_ROOT = path.join(tempDir, "env-root");
+
+    expect(config.getReflectaProfile()).toBe("dev");
     expect(config.getContentStorageRoot()).toBe(path.join(mockElectron.appData, "reflecta-dev"));
   });
 });

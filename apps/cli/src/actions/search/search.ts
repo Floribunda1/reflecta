@@ -35,11 +35,14 @@ export function registerSearchAction(cli: Command): void {
 
 export async function searchAction(query: string, cli: Command): Promise<void> {
   const options = getCommandOptions(cli) as GlobalOptions & { limit?: number; offset?: number };
-  await runCommand(async () => {
-    const services = await getServices();
-    return services.search.search(query.trim(), {
-      limit: options.limit ?? 20,
-      offset: options.offset ?? 0,
-    });
-  }, options);
+  await runCommand(
+    async () => {
+      const services = await getServices();
+      return services.search.search(query.trim(), {
+        limit: options.limit ?? 20,
+        offset: options.offset ?? 0,
+      });
+    },
+    { ...options, requiresFullStore: true },
+  );
 }

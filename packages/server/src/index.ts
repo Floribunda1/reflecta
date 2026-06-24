@@ -1,5 +1,6 @@
 export * from "./db/index";
 export * from "./db/schema";
+export * from "./runtime/resolve";
 
 export * from "./domains/domain";
 export * from "./domains/context";

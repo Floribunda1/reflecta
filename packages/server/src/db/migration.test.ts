@@ -20,7 +20,7 @@ afterEach(async () => {
 async function createTestDb(appVersion: string) {
   const tempDir = await mkdtemp(join(tmpdir(), "reflecta-migration-"));
   tempDirs.push(tempDir);
-  return createDBInstance(join(tempDir, "test.db"), { appVersion });
+  return createDBInstance(join(tempDir, "test.db"), { appVersion, runMigrations: true });
 }
 
 function hasTable(db: ReflectaDb, tableName: string) {

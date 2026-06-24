@@ -47,7 +47,7 @@ async function setupServices() {
   const tempDir = await mkdtemp(join(tmpdir(), "reflecta-retrieval-sync-"));
   tempDirs.push(tempDir);
   process.env.REFLECTA_RETRIEVAL_INDEX_PATH = join(tempDir, "index");
-  const db = await createDBInstance(join(tempDir, "test.db"));
+  const db = await createDBInstance(join(tempDir, "test.db"), { runMigrations: true });
   return {
     db,
     contexts: new ContextCliBff(db),

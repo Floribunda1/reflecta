@@ -17,6 +17,7 @@ let embeddingServer: Server | undefined;
 fs.rmSync(TEST_DIR, { recursive: true, force: true });
 fs.mkdirSync(TEST_DIR, { recursive: true });
 process.env.REFLECTA_DB_PATH = TEST_DB_PATH;
+process.env.REFLECTA_CONTENT_STORAGE_ROOT = TEST_DIR;
 process.env.REFLECTA_RETRIEVAL_INDEX_PATH = TEST_RETRIEVAL_INDEX_PATH;
 process.env.REFLECTA_APP_CONFIG_DIR = TEST_APP_CONFIG_DIR;
 

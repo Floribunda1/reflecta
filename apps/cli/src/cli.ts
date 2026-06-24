@@ -40,6 +40,9 @@ function printGlobalOptions(): void {
   console.log("Global Options:");
   formatRows([
     { key: "--format <fmt>", desc: "Output format: json | jsonl (default: jsonl)" },
+    { key: "--content-root <dir>", desc: "Use a Reflecta content storage root" },
+    { key: "--db <path>", desc: "Use a single SQLite database file" },
+    { key: "--app-config-dir <dir>", desc: "Use a specific app config directory" },
     { key: "--yes", desc: "Auto-confirm mutating actions" },
     { key: "--quiet", desc: "Suppress non-error stdout" },
     { key: "--verbose", desc: "Debug logs to stderr" },
@@ -220,6 +223,9 @@ export async function runCli(argv = process.argv.slice(2)): Promise<number> {
   });
 
   cli.option("--format <fmt>", "Output format: json | jsonl", "jsonl");
+  cli.option("--content-root <dir>", "Use a Reflecta content storage root");
+  cli.option("--db <path>", "Use a single SQLite database file");
+  cli.option("--app-config-dir <dir>", "Use a specific app config directory");
   cli.option("--yes", "Auto-confirm mutating actions");
   cli.option("--quiet", "Suppress non-error stdout");
   cli.option("--verbose", "Debug logs to stderr");
