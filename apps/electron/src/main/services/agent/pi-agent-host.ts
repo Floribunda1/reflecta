@@ -40,6 +40,8 @@ import {
   executePiApprovedTool,
   isPiApprovalToolName,
   PI_APPROVAL_TOOL_NAMES,
+  rejectedToolResult,
+  type PiApprovedToolOutput,
 } from "./pi-write-tools";
 
 export const AGENT_EVENT_CHANNEL = "agent:event";
@@ -47,6 +49,12 @@ export const AGENT_EVENT_CHANNEL = "agent:event";
 type ActivePiRun = {
   runId: string;
   session: AgentSession;
+  pendingApprovals: Map<string, PendingApproval>;
+};
+
+type PendingApproval = {
+  resolve: (output: PiApprovedToolOutput | ReturnType<typeof rejectedToolResult>) => void;
+  reject: (error: Error) => void;
 };
 
 export function loadAgentSystemPrompt(): string {
@@ -133,6 +141,10 @@ function piToolError(result: unknown): string {
     }
   }
   return typeof result === "string" ? result : JSON.stringify(result);
+}
+
+function isRejectedApprovalOutput(output: unknown): boolean {
+  return isRecord(output) && output.approvalStatus === "rejected";
 }
 
 function approvalIdForToolCall(toolCallId: string) {
@@ -229,6 +241,7 @@ export class PiAgentHost {
       });
       const manager = active.session.sessionManager;
       this.appendAndEmit(manager, webContents, event);
+      this.rejectPendingApprovals(active, new Error("Run cancelled"));
       this.activeRuns.delete(command.sessionId);
       void active.session.abort().catch((error) => {
         agentLog.error("pi.run.cancelFailed", {
@@ -263,7 +276,12 @@ export class PiAgentHost {
     return createAgentSession({
       agentDir,
       authStorage,
-      customTools: [...createPiReadOnlyTools(command.files), ...createPiWriteTools()],
+      customTools: [
+        ...createPiReadOnlyTools(command.files),
+        ...createPiWriteTools({
+          onApproval: ({ toolCallId }) => this.waitForToolApproval(command.sessionId, toolCallId),
+        }),
+      ],
       cwd: this.contentStorageRoot,
       model,
       modelRegistry,
@@ -332,7 +350,11 @@ export class PiAgentHost {
     try {
       const created = await this.createSession(command, manager);
       session = created.session;
-      this.activeRuns.set(command.sessionId, { runId, session });
+      this.activeRuns.set(command.sessionId, {
+        runId,
+        session,
+        pendingApprovals: new Map(),
+      });
       unsubscribe = session.subscribe((event) => {
         if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
           assistantText += event.assistantMessageEvent.delta;
@@ -400,6 +422,8 @@ export class PiAgentHost {
 
         if (event.type === "tool_execution_end") {
           if (isPiApprovalToolName(event.toolName)) {
+            const output = piToolOutput(event.result);
+            if (isRejectedApprovalOutput(output)) return;
             if (event.isError) {
               emit(
                 this.createEvent({
@@ -413,6 +437,17 @@ export class PiAgentHost {
                 }),
               );
             }
+            emit(
+              this.createEvent({
+                type: "tool.completed",
+                sessionId: command.sessionId,
+                runId,
+                messageId: assistantMessageId,
+                toolCallId: event.toolCallId,
+                toolName: event.toolName,
+                output,
+              }),
+            );
             return;
           }
           if (event.isError) {
@@ -522,11 +557,43 @@ export class PiAgentHost {
         }),
       );
     } finally {
+      const active = this.activeRuns.get(command.sessionId);
+      if (active?.runId === runId) {
+        this.rejectPendingApprovals(active, new Error("Run ended before approval resolved"));
+      }
       unsubscribe?.();
       session?.dispose();
       this.cancelledRunIds.delete(runId);
       this.activeRuns.delete(command.sessionId);
     }
+  }
+
+  private waitForToolApproval(
+    sessionId: string,
+    toolCallId: string,
+  ): Promise<PiApprovedToolOutput | ReturnType<typeof rejectedToolResult>> {
+    const active = this.activeRuns.get(sessionId);
+    if (!active) throw new Error("Approval requested without an active run");
+    const approvalId = approvalIdForToolCall(toolCallId);
+    if (active.pendingApprovals.has(approvalId)) {
+      throw new Error(`Duplicate approval request: ${approvalId}`);
+    }
+
+    return new Promise<PiApprovedToolOutput | ReturnType<typeof rejectedToolResult>>(
+      (resolve, reject) => {
+        active.pendingApprovals.set(approvalId, {
+          resolve,
+          reject,
+        });
+      },
+    ).finally(() => {
+      this.activeRuns.get(sessionId)?.pendingApprovals.delete(approvalId);
+    });
+  }
+
+  private rejectPendingApprovals(active: ActivePiRun, error: Error): void {
+    for (const pending of active.pendingApprovals.values()) pending.reject(error);
+    active.pendingApprovals.clear();
   }
 
   private async resolveToolApproval(
@@ -560,6 +627,22 @@ export class PiAgentHost {
         approved,
       }),
     );
+    const active = this.activeRuns.get(command.sessionId);
+    const pending =
+      active?.runId === requested.runId
+        ? active.pendingApprovals.get(requested.approvalId)
+        : undefined;
+
+    if (pending) {
+      if (!isPiApprovalToolName(requested.toolName)) {
+        pending.reject(new Error(`Unsupported approval tool: ${requested.toolName}`));
+        return;
+      }
+      if (approved) void this.executeApprovedTool(requested).then(pending.resolve, pending.reject);
+      else pending.resolve(rejectedToolResult(requested.toolName));
+      return;
+    }
+
     if (!approved) return;
 
     try {
@@ -594,7 +677,9 @@ export class PiAgentHost {
     }
   }
 
-  private async executeApprovedTool(requested: AgentApprovalRequested): Promise<unknown> {
+  private async executeApprovedTool(
+    requested: AgentApprovalRequested,
+  ): Promise<PiApprovedToolOutput> {
     if (!isPiApprovalToolName(requested.toolName)) {
       throw new Error(`Unsupported approval tool: ${requested.toolName}`);
     }

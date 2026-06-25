@@ -3,6 +3,7 @@ import {
   createPiWriteTools,
   executePiApprovedTool,
   PI_APPROVAL_TOOL_NAMES,
+  type PiApprovedToolOutput,
   type PiApprovalToolName,
 } from "./pi-write-tools";
 
@@ -115,6 +116,49 @@ describe("createPiWriteTools", () => {
     expect(services.createContext).not.toHaveBeenCalled();
     expect(services.updateContext).not.toHaveBeenCalled();
     expect(services.deleteContext).not.toHaveBeenCalled();
+  });
+
+  test("keeps approval tools pending until the user decision resolves", async () => {
+    let resolveApproval: (output: PiApprovedToolOutput) => void = () => {};
+    const tools = createPiWriteTools({
+      onApproval: () =>
+        new Promise((resolve) => {
+          resolveApproval = resolve;
+        }),
+    });
+    const bash = tools.find((tool) => tool.name === "bash")!;
+    const execute = bash.execute as (
+      toolCallId: string,
+      params: Record<string, unknown>,
+    ) => Promise<unknown>;
+    let settled = false;
+
+    const result = execute("tool-call-1", { command: "printf hello" }).then((output) => {
+      settled = true;
+      return output;
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(settled).toBe(false);
+
+    resolveApproval({
+      command: "printf hello",
+      cwd: undefined,
+      exitCode: 0,
+      stdout: "hello",
+      stderr: "",
+      timedOut: undefined,
+      truncated: false,
+    });
+
+    await expect(result).resolves.toMatchObject({
+      details: {
+        command: "printf hello",
+        exitCode: 0,
+        stdout: "hello",
+      },
+    });
+    expect(settled).toBe(true);
   });
 
   test("executes approved Bash through the local shell seam", async () => {

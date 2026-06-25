@@ -1,5 +1,5 @@
 import { Type } from "@earendil-works/pi-ai";
-import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { defineTool } from "@earendil-works/pi-coding-agent";
 import type {
   CreateDomainInput,
   CreateContextInput,
@@ -35,7 +35,26 @@ type PiMutationOutput = {
   resultRefType: "understanding" | "domain" | "context";
   resultRefId: string;
 };
-type PiApprovedToolOutput = PiMutationOutput | Awaited<ReturnType<typeof runBashForTool>>;
+export type PiApprovedToolOutput = PiMutationOutput | Awaited<ReturnType<typeof runBashForTool>>;
+type PiApprovedToolResultDetails = PiApprovedToolOutput & {
+  approvalStatus: "approved";
+  proposalType: PiApprovalToolName;
+};
+type PiRejectedToolOutput = {
+  approvalStatus: "rejected";
+  proposalType: PiApprovalToolName;
+  message: string;
+};
+
+export type PiApprovalToolRequest = {
+  toolName: PiApprovalToolName;
+  toolCallId: string;
+  payload: Record<string, unknown>;
+};
+
+export type PiApprovalToolHandler = (
+  request: PiApprovalToolRequest,
+) => Promise<PiApprovedToolOutput | PiRejectedToolOutput>;
 
 type PiWriteToolSpec = {
   name: PiApprovalToolName;
@@ -222,11 +241,53 @@ function pendingToolResult(toolName: PiApprovalToolName, params: Record<string, 
   };
 }
 
-export function createPiWriteTools(): ToolDefinition[] {
+export function rejectedToolResult(toolName: PiApprovalToolName): PiRejectedToolOutput {
+  return {
+    approvalStatus: "rejected",
+    proposalType: toolName,
+    message: "用户已拒绝执行该操作。",
+  };
+}
+
+function isRejectedToolOutput(
+  output: PiApprovedToolOutput | PiRejectedToolOutput,
+): output is PiRejectedToolOutput {
+  return "approvalStatus" in output && output.approvalStatus === "rejected";
+}
+
+function approvedToolResult(
+  toolName: PiApprovalToolName,
+  output: PiApprovedToolOutput,
+): PiApprovedToolResultDetails {
+  return {
+    approvalStatus: "approved",
+    proposalType: toolName,
+    ...output,
+  };
+}
+
+function toolResult(details: PiApprovedToolResultDetails | PiRejectedToolOutput) {
+  return {
+    content: [{ type: "text" as const, text: JSON.stringify(details, null, 2) }],
+    details,
+  };
+}
+
+export function createPiWriteTools(options: { onApproval?: PiApprovalToolHandler } = {}) {
   return toolSpecs.map((spec) =>
     defineTool({
       ...spec,
-      execute: async (_toolCallId, params) => pendingToolResult(spec.name, params),
+      execute: async (toolCallId, params) => {
+        if (!options.onApproval) return pendingToolResult(spec.name, params);
+        const output = await options.onApproval({
+          toolName: spec.name,
+          toolCallId,
+          payload: params,
+        });
+        return toolResult(
+          isRejectedToolOutput(output) ? output : approvedToolResult(spec.name, output),
+        );
+      },
     }),
   );
 }
