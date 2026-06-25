@@ -204,6 +204,8 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     actions: {
       send: async (input: ComposerSendInput) => {
         setEditingMessage(undefined);
+        shouldStickToBottom.current = true;
+        setScrollButtonVisible(false);
         chatUiStore.getState().setStoppedMessage(sessionId, null);
         await ipcClient.chat.sendAgentCommand({
           type: "message.send",

@@ -218,7 +218,7 @@ export function ChatComposer({
   const mentionActiveRef = useRef(false);
   const mentionKeyHandledRef = useRef(false);
   const appliedInitialContextKeyRef = useRef<string | undefined>(undefined);
-  const contextLookup = useContextMentionLookup({ disabled: isBusy, selected: selectedContexts });
+  const contextLookup = useContextMentionLookup({ selected: selectedContexts });
   const [activeContextIndex, setActiveContextIndex] = useState(0);
   const activeModelOption = activeModel
     ? modelOptions.find(
@@ -483,10 +483,6 @@ export function ChatComposer({
   }, [draft, editingMessage, editor, files.length, initialContextKey, initialContextRefs]);
 
   useEffect(() => {
-    editor?.setEditable(!isBusy);
-  }, [editor, isBusy]);
-
-  useEffect(() => {
     if (focusRequest > 0) editor?.commands.focus();
   }, [editor, focusRequest]);
 
@@ -576,9 +572,7 @@ export function ChatComposer({
           <EditorContent
             editor={editor}
             data-testid="agent-composer-editor"
-            className={["flex min-w-0 flex-1", isBusy ? "pointer-events-none opacity-50" : ""].join(
-              " ",
-            )}
+            className="flex min-w-0 flex-1"
             onClick={(event) => {
               if (!onInspectContextRef) return;
               const target = event.target;
@@ -597,12 +591,17 @@ export function ChatComposer({
             onKeyDown={(event) => {
               if (event.nativeEvent.isComposing) return;
               if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
                 if (mentionKeyHandledRef.current) {
+                  event.preventDefault();
                   mentionKeyHandledRef.current = false;
                   return;
                 }
-                if (contextLookup.isOpen || mentionActiveRef.current) return;
+                if (contextLookup.isOpen || mentionActiveRef.current) {
+                  event.preventDefault();
+                  return;
+                }
+                if (isBusy) return;
+                event.preventDefault();
                 void send();
               }
             }}

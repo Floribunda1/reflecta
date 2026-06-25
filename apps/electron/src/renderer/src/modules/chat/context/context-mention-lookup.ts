@@ -19,16 +19,10 @@ export function listMentionUnderstandings(query: string) {
     : ipcClient.understanding.listUnderstandings({ limit: CONTEXT_LOOKUP_LIMIT });
 }
 
-export function useContextMentionLookup({
-  disabled,
-  selected,
-}: {
-  disabled: boolean;
-  selected: AgentContextRef[];
-}) {
+export function useContextMentionLookup({ selected }: { selected: AgentContextRef[] }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const enabled = open && !disabled;
+  const enabled = open;
   const debouncedQuery = useDebounce(query, { wait: 120 });
 
   const contextUnderstandingsQuery = useQuery({
