@@ -60,3 +60,34 @@ test("@CP-DOMAIN-003 展开 Domain 的拖动目标仍然只占单行高度", asy
     await app.close();
   }
 });
+
+test("@CP-DOMAIN-004 用户拖动展开 Domain 时子树跟随移动", async () => {
+  const { app, page } = await launchApp();
+
+  try {
+    await openCapturePage(page);
+    await expandDomain(page, "Programming", "Frontend");
+
+    const parentBox = await domainNode(page, "Programming").boundingBox();
+    const childBox = await domainNode(page, "Frontend").boundingBox();
+    if (!parentBox || !childBox) throw new Error("Expanded domain rows are not visible");
+
+    await page.mouse.move(parentBox.x + parentBox.width / 2, parentBox.y + parentBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(
+      parentBox.x + parentBox.width / 2,
+      parentBox.y + parentBox.height / 2 + 80,
+      {
+        steps: 8,
+      },
+    );
+
+    await expect
+      .poll(async () => (await domainNode(page, "Frontend").boundingBox())?.y ?? childBox.y)
+      .toBeGreaterThan(childBox.y + 40);
+    await page.mouse.up();
+  } finally {
+    await page.mouse.up().catch(() => undefined);
+    await app.close();
+  }
+});
