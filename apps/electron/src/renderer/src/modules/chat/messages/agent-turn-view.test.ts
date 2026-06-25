@@ -612,6 +612,29 @@ describe("buildAgentTurnView", () => {
     });
   });
 
+  test("keeps understanding update domain changes in render data", () => {
+    const turn = buildAgentTurnView([
+      proposal("understanding_update", "tool-1", {
+        understandingId: "understanding-1",
+        after: {
+          body: "same body",
+          domainIds: [],
+        },
+      }),
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "proposal",
+      proposal: {
+        type: "understanding_update",
+        data: {
+          kind: "understanding-update",
+          domainIds: [],
+        },
+      },
+    });
+  });
+
   test("shows completed approval tool results", () => {
     const turn = buildAgentTurnView([
       {

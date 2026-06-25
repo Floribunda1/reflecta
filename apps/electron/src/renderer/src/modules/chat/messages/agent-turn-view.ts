@@ -94,6 +94,7 @@ export type UnderstandingUpdateProposalView = ProposalBase<
     understandingId: string;
     beforeBody: string;
     afterBody: string;
+    domainIds?: string[];
     reason: string;
   }
 >;
@@ -329,11 +330,13 @@ function understandingUpdateProposalData(
 ): UnderstandingUpdateProposalView["data"] {
   const before = isRecord(output.before) ? output.before : {};
   const after = isRecord(output.after) ? output.after : output;
+  const domainIds = optionalStringArray(after.domainIds) ?? optionalStringArray(output.domainIds);
   return {
     kind: "understanding-update",
     understandingId: stringValue(output.understandingId),
     beforeBody: stringValue(before.body),
     afterBody: stringValue(after.body),
+    ...(domainIds !== undefined ? { domainIds } : {}),
     reason: stringValue(output.reason),
   };
 }
@@ -1106,6 +1109,12 @@ function stringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];
+}
+
+function optionalStringArray(value: unknown): string[] | undefined {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : undefined;
 }
 
 function stringValue(value: unknown) {

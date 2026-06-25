@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { Streamdown } from "streamdown";
+import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import { Spinner } from "@renderer/components/ui/spinner";
@@ -26,8 +27,9 @@ import {
   type ToolApprovalStatus,
 } from "./agent-turn-view";
 import { wikiMarkdownComponents, wikiUrlTransform } from "../context/wiki-link";
-import { useCaptureDomains } from "../../capture/queries";
+import { captureQueryKeys, useCaptureDomains } from "../../capture/queries";
 import { getDomainPath } from "../../capture/domain/util";
+import { ipcClient } from "@renderer/utils/ipc";
 import "../styles/markdown-theme.scss";
 
 export type ApproveToolInput = {
@@ -351,6 +353,55 @@ function proposalStatusNote(
   return undefined;
 }
 
+function contextMediumLabel(value: string) {
+  if (value === "experience") return "实践";
+  if (value === "video") return "视频";
+  if (value === "book") return "书籍";
+  if (value === "article") return "文章";
+  if (value === "opinion") return "观点";
+  if (value === "ai") return "AI 对话";
+  if (value === "other") return "其他";
+  return "";
+}
+
+function useUnderstandingDisplay(understandingId: string) {
+  const query = useQuery({
+    queryKey: captureQueryKeys.understandingDetail(understandingId),
+    queryFn: () => ipcClient.understanding.getUnderstandingById(understandingId),
+    enabled: Boolean(understandingId),
+  });
+  return query.data?.title?.trim() || understandingId;
+}
+
+function useContextDisplay(contextId: string) {
+  const query = useQuery({
+    queryKey: ["agent.proposal.context", contextId],
+    queryFn: () => ipcClient.context.getContextById(contextId),
+    enabled: Boolean(contextId),
+  });
+  return query.data?.title?.trim() || contextMediumLabel(query.data?.medium ?? "") || contextId;
+}
+
+function UnderstandingReference({ understandingId }: { understandingId: string }) {
+  return <>{useUnderstandingDisplay(understandingId)}</>;
+}
+
+function ContextReference({ contextId }: { contextId: string }) {
+  return <>{useContextDisplay(contextId)}</>;
+}
+
+function DomainPathText({ domainId }: { domainId: string }) {
+  const { domains } = useCaptureDomains();
+  if (!domainId || domainId === "null") return <>根 Domain</>;
+  return <>{getDomainPath(domainId, domains, "/")}</>;
+}
+
+function DomainIdsText({ domainIds }: { domainIds: string[] }) {
+  const { domains } = useCaptureDomains();
+  if (domainIds.length === 0) return <>未归入 Domain</>;
+  return <>{domainIds.map((domainId) => getDomainPath(domainId, domains, "/")).join(", ")}</>;
+}
+
 function CandidateUnderstandingCard({
   proposal,
   messageId,
@@ -362,11 +413,6 @@ function CandidateUnderstandingCard({
   onApprove: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
 }) {
-  const { domains } = useCaptureDomains();
-  const domainPaths = proposal.data.domainIds.map((domainId) =>
-    getDomainPath(domainId, domains, "/"),
-  );
-
   return (
     <CandidateShell
       title={proposal.title}
@@ -379,8 +425,10 @@ function CandidateUnderstandingCard({
         <div className="rounded-md bg-muted/50 p-3 leading-6">
           <MarkdownBody value={proposal.data.body} onInspectContextRef={onInspectContextRef} />
         </div>
-        {domainPaths.length > 0 ? (
-          <div className="text-xs text-muted-foreground">Domain: {domainPaths.join(", ")}</div>
+        {proposal.data.domainIds.length > 0 ? (
+          <div className="text-xs text-muted-foreground">
+            Domain: <DomainIdsText domainIds={proposal.data.domainIds} />
+          </div>
         ) : null}
       </div>
     </CandidateShell>
@@ -407,7 +455,7 @@ function CandidateContextCard({
     >
       <div className="space-y-2">
         <div className="text-xs text-muted-foreground">
-          Understanding: {proposal.data.understandingId}
+          Understanding: <UnderstandingReference understandingId={proposal.data.understandingId} />
         </div>
         <div>{proposal.data.contextLabel}</div>
         <div className="rounded-md bg-muted/50 p-3 leading-6">
@@ -458,6 +506,35 @@ function BashProposalCard({
   );
 }
 
+function proposalEntryLabel(key: string) {
+  if (key === "domainId") return "Domain";
+  if (key === "parentId") return "上级 Domain";
+  if (key === "domainIds") return "Domain";
+  if (key === "understandingId") return "Understanding";
+  if (key === "contextId") return "Context";
+  return key;
+}
+
+function GenericProposalValue({ fieldKey, value }: { fieldKey: string; value: string }) {
+  if (fieldKey === "domainId" || fieldKey === "parentId") {
+    return <DomainPathText domainId={value} />;
+  }
+  if (fieldKey === "domainIds") {
+    const domainIds = value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    return <DomainIdsText domainIds={domainIds} />;
+  }
+  if (fieldKey === "understandingId") {
+    return <UnderstandingReference understandingId={value} />;
+  }
+  if (fieldKey === "contextId") {
+    return <ContextReference contextId={value} />;
+  }
+  return <>{value}</>;
+}
+
 function GenericProposalCard({
   proposal,
   messageId,
@@ -477,8 +554,10 @@ function GenericProposalCard({
       <dl className="grid gap-1 text-sm">
         {proposal.data.entries.map(({ key, value }) => (
           <div key={key} className="grid grid-cols-[8rem_minmax(0,1fr)] gap-2">
-            <dt className="text-muted-foreground">{key}</dt>
-            <dd className="min-w-0 break-words">{value}</dd>
+            <dt className="text-muted-foreground">{proposalEntryLabel(key)}</dt>
+            <dd className="min-w-0 break-words">
+              <GenericProposalValue fieldKey={key} value={value} />
+            </dd>
           </div>
         ))}
       </dl>
@@ -506,8 +585,13 @@ function UpdateUnderstandingDiffCard({
     >
       <div className="space-y-2">
         <div className="text-xs text-muted-foreground">
-          Understanding: {proposal.data.understandingId}
+          Understanding: <UnderstandingReference understandingId={proposal.data.understandingId} />
         </div>
+        {proposal.data.domainIds !== undefined ? (
+          <div className="text-xs text-muted-foreground">
+            Domain: <DomainIdsText domainIds={proposal.data.domainIds} />
+          </div>
+        ) : null}
         <div className="grid gap-2 md:grid-cols-2">
           <div className="rounded-md bg-muted/50 p-3">
             <div className="mb-1 font-medium">Before</div>
