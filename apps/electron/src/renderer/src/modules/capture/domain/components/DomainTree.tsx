@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   closestCenter,
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   type CollisionDetection,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -47,6 +49,19 @@ function getAncestorKeys(nodes: DomainTreeNode[], targetKey: string): string[] |
     if (node.id === targetKey) return [];
     const ancestors = getAncestorKeys(node.children, targetKey);
     if (ancestors !== null) return [node.id, ...ancestors];
+  }
+  return null;
+}
+
+function findNodeWithLevel(
+  nodes: DomainTreeNode[],
+  targetKey: string,
+  level = 0,
+): { node: DomainTreeNode; level: number } | null {
+  for (const node of nodes) {
+    if (node.id === targetKey) return { node, level };
+    const found = findNodeWithLevel(node.children, targetKey, level + 1);
+    if (found) return found;
   }
   return null;
 }
@@ -136,7 +151,7 @@ function DomainNode({
     <div
       ref={setNodeRef}
       style={style}
-      className={cn(isDragging && "relative z-10 opacity-70")}
+      className={cn(isDragging && "opacity-0")}
       data-testid="capture-domain-sortable-node"
       data-domain-name={node.name}
     >
@@ -205,6 +220,61 @@ function DomainNode({
   );
 }
 
+function DomainDragPreview({
+  node,
+  level,
+  expandedKeys,
+  width,
+}: {
+  node: DomainTreeNode;
+  level: number;
+  expandedKeys: Record<string, boolean>;
+  width?: number;
+}) {
+  const expanded = !!expandedKeys[node.id];
+  const hasChildren = node.children.length > 0;
+
+  return (
+    <div className="pointer-events-none" style={{ width }}>
+      <Button
+        data-testid="capture-domain-drag-preview-node"
+        data-domain-name={node.name}
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={domainTreeButtonClassName(false)}
+        tabIndex={-1}
+      >
+        <span
+          className="flex min-w-0 flex-1 items-center gap-1"
+          style={{ paddingLeft: `calc(${level} * 0.875rem)` }}
+        >
+          {hasChildren ? (
+            <span className="flex size-6 shrink-0 items-center justify-center text-muted-foreground">
+              {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </span>
+          ) : (
+            <span className="size-6 shrink-0" />
+          )}
+          <span className="min-w-0 truncate">{node.name}</span>
+        </span>
+      </Button>
+      {hasChildren && expanded && (
+        <>
+          {node.children.map((child) => (
+            <DomainDragPreview
+              key={child.id}
+              node={child}
+              level={level + 1}
+              expandedKeys={expandedKeys}
+            />
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
 function DomainNodeList({
   nodes,
   level = 0,
@@ -261,6 +331,7 @@ function DomainRootButton({ selected, onSelect }: { selected: boolean; onSelect:
 export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => void }) {
   const { domains } = useCaptureDomains();
   const { createDomain, updateDomain, deleteDomain, reorderDomains } = useDomainActions();
+  const [activeDrag, setActiveDrag] = useState<{ id: string; width?: number } | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -274,6 +345,10 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
   const resetAfterDomainDeleted = useCaptureStore((state) => state.resetAfterDomainDeleted);
   const { openModal, closeModal, confirm } = useModal();
   const domainParentById = useMemo(() => buildDomainParentLookup(domains), [domains]);
+  const activeDragNode = useMemo(
+    () => (activeDrag ? findNodeWithLevel(domains, activeDrag.id) : null),
+    [activeDrag, domains],
+  );
   const collisionDetection = useCallback<CollisionDetection>(
     (args) => {
       const activeParentId = domainParentById.get(String(args.active.id));
@@ -359,7 +434,15 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
     onChat,
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDrag({
+      id: String(event.active.id),
+      width: event.active.rect.current.initial?.width,
+    });
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
+    setActiveDrag(null);
     const overId = event.over?.id;
     if (!overId) return;
     const items = buildSiblingDomainReorderItems(domains, String(event.active.id), String(overId));
@@ -398,7 +481,9 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
         <DndContext
           sensors={sensors}
           collisionDetection={collisionDetection}
+          onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
+          onDragCancel={() => setActiveDrag(null)}
         >
           <div className="space-y-0.5 px-2">
             <DomainRootButton
@@ -421,6 +506,16 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
               </div>
             )}
           </div>
+          <DragOverlay dropAnimation={null}>
+            {activeDragNode ? (
+              <DomainDragPreview
+                node={activeDragNode.node}
+                level={activeDragNode.level}
+                expandedKeys={expandedDomainKeys}
+                width={activeDrag?.width}
+              />
+            ) : null}
+          </DragOverlay>
         </DndContext>
       </ScrollArea>
     </aside>

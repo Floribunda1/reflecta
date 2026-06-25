@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { launchApp, openAgentPage } from "../agent/agent-e2e";
 import {
   domainNode,
@@ -8,6 +8,12 @@ import {
   openCapturePage,
   sortableDomainNode,
 } from "./capture-e2e";
+
+function dragPreviewNode(page: Page, name: string) {
+  return page.locator(
+    `[data-testid="capture-domain-drag-preview-node"][data-domain-name="${name}"]`,
+  );
+}
 
 test("@CP-DOMAIN-001 用户拖动根级 Domain 调整顺序", async () => {
   const { app, page } = await launchApp();
@@ -82,8 +88,12 @@ test("@CP-DOMAIN-004 用户拖动展开 Domain 时子树跟随移动", async () 
       },
     );
 
+    await expect(dragPreviewNode(page, "Programming")).toBeVisible();
+    const previewParentBox = await dragPreviewNode(page, "Programming").boundingBox();
+    expect(previewParentBox?.height).toBeCloseTo(parentBox.height, 0);
+
     await expect
-      .poll(async () => (await domainNode(page, "Frontend").boundingBox())?.y ?? childBox.y)
+      .poll(async () => (await dragPreviewNode(page, "Frontend").boundingBox())?.y ?? childBox.y)
       .toBeGreaterThan(childBox.y + 40);
     await page.mouse.up();
   } finally {
