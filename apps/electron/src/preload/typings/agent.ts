@@ -461,114 +461,118 @@ function upsertAssistantBlock(
   );
 }
 
-export function reduceAgentSession(events: AgentSessionEvent[]): AgentSessionState {
-  return events.reduce<AgentSessionState>(
-    (state, event) => {
-      if (event.type === "run.started") {
-        return {
-          ...state,
-          sessionId: event.sessionId,
-          activeRunId: event.runId,
-          status: "running",
-          error: null,
-        };
-      }
+export const initialAgentSessionState: AgentSessionState = {
+  sessionId: null,
+  messages: [],
+  activeRunId: null,
+  status: "idle",
+  error: null,
+};
 
-      if (event.type === "user.message") {
-        const nextUserMessage = {
-          id: event.messageId,
-          role: "user" as const,
-          text: event.text,
-          createdAt: event.createdAt,
-          contextRefs: event.contextRefs,
-          files: event.files,
-          composerContent: event.composerContent,
-        };
-        const existingIndex = state.messages.findIndex((message) => message.id === event.messageId);
-        return {
-          ...state,
-          sessionId: event.sessionId,
-          messages:
-            existingIndex < 0
-              ? [...state.messages, nextUserMessage]
-              : [...state.messages.slice(0, existingIndex), nextUserMessage],
-        };
-      }
+export function reduceAgentSessionEvent(
+  state: AgentSessionState,
+  event: AgentSessionEvent,
+): AgentSessionState {
+  if (event.type === "run.started") {
+    return {
+      ...state,
+      sessionId: event.sessionId,
+      activeRunId: event.runId,
+      status: "running",
+      error: null,
+    };
+  }
 
-      if (event.type === "assistant.text.delta") {
-        return {
-          ...state,
-          sessionId: event.sessionId,
-          messages: upsertAssistantText(state.messages, event),
-        };
-      }
+  if (event.type === "user.message") {
+    const nextUserMessage = {
+      id: event.messageId,
+      role: "user" as const,
+      text: event.text,
+      createdAt: event.createdAt,
+      contextRefs: event.contextRefs,
+      files: event.files,
+      composerContent: event.composerContent,
+    };
+    const existingIndex = state.messages.findIndex((message) => message.id === event.messageId);
+    return {
+      ...state,
+      sessionId: event.sessionId,
+      messages:
+        existingIndex < 0
+          ? [...state.messages, nextUserMessage]
+          : [...state.messages.slice(0, existingIndex), nextUserMessage],
+    };
+  }
 
-      if (event.type === "assistant.reasoning.delta") {
-        return {
-          ...state,
-          sessionId: event.sessionId,
-          messages: upsertAssistantReasoning(state.messages, event),
-        };
-      }
+  if (event.type === "assistant.text.delta") {
+    return {
+      ...state,
+      sessionId: event.sessionId,
+      messages: upsertAssistantText(state.messages, event),
+    };
+  }
 
-      if (
-        event.type === "tool.started" ||
-        event.type === "tool.completed" ||
-        event.type === "tool.failed"
-      ) {
-        return {
-          ...state,
-          sessionId: event.sessionId,
-          messages: upsertAssistantTool(state.messages, event),
-        };
-      }
+  if (event.type === "assistant.reasoning.delta") {
+    return {
+      ...state,
+      sessionId: event.sessionId,
+      messages: upsertAssistantReasoning(state.messages, event),
+    };
+  }
 
-      if (event.type === "approval.requested" || event.type === "approval.resolved") {
-        return {
-          ...state,
-          sessionId: event.sessionId,
-          messages: upsertAssistantApproval(state.messages, event),
-        };
-      }
+  if (
+    event.type === "tool.started" ||
+    event.type === "tool.completed" ||
+    event.type === "tool.failed"
+  ) {
+    return {
+      ...state,
+      sessionId: event.sessionId,
+      messages: upsertAssistantTool(state.messages, event),
+    };
+  }
 
-      if (event.type === "run.completed") {
-        return {
-          ...state,
-          sessionId: event.sessionId,
-          activeRunId: null,
-          status: "idle",
-          error: null,
-        };
-      }
+  if (event.type === "approval.requested" || event.type === "approval.resolved") {
+    return {
+      ...state,
+      sessionId: event.sessionId,
+      messages: upsertAssistantApproval(state.messages, event),
+    };
+  }
 
-      if (event.type === "run.failed") {
-        return {
-          ...state,
-          sessionId: event.sessionId,
-          activeRunId: null,
-          status: "failed",
-          error: event.error,
-        };
-      }
-
-      if (event.type === "run.cancelled") {
-        return {
-          ...state,
-          sessionId: event.sessionId,
-          activeRunId: null,
-          status: "cancelled",
-          error: null,
-        };
-      }
-
-      return state;
-    },
-    {
-      sessionId: null,
-      messages: [],
+  if (event.type === "run.completed") {
+    return {
+      ...state,
+      sessionId: event.sessionId,
       activeRunId: null,
       status: "idle",
       error: null,
-    },
-  );
+    };
+  }
+
+  if (event.type === "run.failed") {
+    return {
+      ...state,
+      sessionId: event.sessionId,
+      activeRunId: null,
+      status: "failed",
+      error: event.error,
+    };
+  }
+
+  if (event.type === "run.cancelled") {
+    return {
+      ...state,
+      sessionId: event.sessionId,
+      activeRunId: null,
+      status: "cancelled",
+      error: null,
+    };
+  }
+
+  return state;
+}
+
+export function reduceAgentSession(events: AgentSessionEvent[]): AgentSessionState {
+  return events.reduce<AgentSessionState>(reduceAgentSessionEvent, initialAgentSessionState);
 }

@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ipcClient } from "@renderer/utils/ipc";
-import type { AgentSessionEvent } from "@shared/agent";
-import { isAgentSessionEvent, reduceAgentSession } from "@shared/agent";
+import type { AgentSessionEvent, AgentSessionState } from "@shared/agent";
+import {
+  initialAgentSessionState,
+  isAgentSessionEvent,
+  reduceAgentSession,
+  reduceAgentSessionEvent,
+} from "@shared/agent";
 import type { ComposerSendInput, EditingMessage } from "../composer/chat-composer";
 import type { ApproveToolInput } from "../messages/agent-message-content";
 import { chatUiStore, useStoppedMessageId, useThreadFocusNonce } from "./chat-ui-store";
@@ -17,12 +22,15 @@ import {
 
 export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): AgentThreadView {
   const queryClient = useQueryClient();
-  const [events, setEvents] = useState<AgentSessionEvent[]>([]);
+  const [state, setState] = useState<AgentSessionState>(initialAgentSessionState);
   const [editingMessage, setEditingMessage] = useState<EditingMessage | undefined>();
   const focusRequest = useThreadFocusNonce(sessionId);
   const localStoppedMessageId = useStoppedMessageId(sessionId);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const shouldStickToBottom = useRef(true);
+  const eventIdsRef = useRef<Set<string>>(new Set());
+  const pendingEventsRef = useRef<AgentSessionEvent[]>([]);
+  const flushFrameRef = useRef<number | null>(null);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastJumpMessageIdRef = useRef<string | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -34,15 +42,26 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
   });
 
   useEffect(() => {
-    if (eventsQuery.data) setEvents(eventsQuery.data);
+    if (!eventsQuery.data) return;
+    eventIdsRef.current = new Set(eventsQuery.data.map((event) => event.id));
+    setState(reduceAgentSession(eventsQuery.data));
   }, [eventsQuery.data]);
 
   useEffect(() => {
+    const flushPendingEvents = () => {
+      flushFrameRef.current = null;
+      const pending = pendingEventsRef.current;
+      pendingEventsRef.current = [];
+      if (pending.length === 0) return;
+      setState((current) => pending.reduce(reduceAgentSessionEvent, current));
+    };
+
     const listener = (_event: unknown, payload: unknown) => {
       if (!isAgentSessionEvent(payload) || payload.sessionId !== sessionId) return;
-      setEvents((current) =>
-        current.some((event) => event.id === payload.id) ? current : [...current, payload],
-      );
+      if (eventIdsRef.current.has(payload.id)) return;
+      eventIdsRef.current.add(payload.id);
+      pendingEventsRef.current.push(payload);
+      flushFrameRef.current ??= requestAnimationFrame(flushPendingEvents);
       if (
         payload.type === "user.message" ||
         payload.type === "run.completed" ||
@@ -55,10 +74,12 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     window.ipcRenderer.on("agent:event", listener);
     return () => {
       window.ipcRenderer.removeListener("agent:event", listener);
+      if (flushFrameRef.current !== null) cancelAnimationFrame(flushFrameRef.current);
+      pendingEventsRef.current = [];
+      flushFrameRef.current = null;
     };
   }, [queryClient, sessionId]);
 
-  const state = useMemo(() => reduceAgentSession(events), [events]);
   const visibleMessages = state.messages;
   const jumpItems = useMemo(() => buildChatJumpItems(visibleMessages), [visibleMessages]);
   lastJumpMessageIdRef.current = jumpItems.at(-1)?.messageId ?? null;

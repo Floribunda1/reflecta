@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
 import type { AgentSessionEvent } from "@shared/agent";
-import { reduceAgentSession } from "@shared/agent";
+import {
+  initialAgentSessionState,
+  reduceAgentSession,
+  reduceAgentSessionEvent,
+} from "@shared/agent";
 
 const base = {
   sessionId: "session_1",
@@ -369,5 +373,36 @@ describe("reduceAgentSession", () => {
         url: "data:text/plain;base64,aGVsbG8=",
       },
     ]);
+  });
+
+  test("incrementally reduces live events without replacing unchanged messages", () => {
+    const restoredEvents: AgentSessionEvent[] = [
+      { ...base, id: "evt_1", type: "run.started" },
+      { ...base, id: "evt_2", type: "user.message", messageId: "user_1", text: "hello" },
+      {
+        ...base,
+        id: "evt_3",
+        type: "assistant.text.delta",
+        messageId: "assistant_1",
+        delta: "old reply",
+      },
+      { ...base, id: "evt_4", type: "run.completed" },
+      { ...base, id: "evt_5", type: "run.started", runId: "run_2" },
+    ];
+    const liveEvent: AgentSessionEvent = {
+      ...base,
+      id: "evt_6",
+      type: "assistant.text.delta",
+      runId: "run_2",
+      messageId: "assistant_2",
+      delta: "new reply",
+    };
+    const restored = restoredEvents.reduce(reduceAgentSessionEvent, initialAgentSessionState);
+    const firstMessage = restored.messages[0];
+
+    const next = reduceAgentSessionEvent(restored, liveEvent);
+
+    expect(next).toEqual(reduceAgentSession([...restoredEvents, liveEvent]));
+    expect(next.messages[0]).toBe(firstMessage);
   });
 });
