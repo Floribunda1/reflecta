@@ -569,6 +569,30 @@ describe("buildAgentTurnView", () => {
     });
   });
 
+  test("maps bash proposals to command-focused render data", () => {
+    const turn = buildAgentTurnView([
+      proposal("bash", "tool-1", {
+        command: "find <projectRoot>/.local/blog/content/posts -maxdepth 2 -type f | head -200",
+        cwd: "<projectRoot>",
+        timeoutMs: 30000,
+      }),
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "proposal",
+      proposal: {
+        type: "bash",
+        status: "pending",
+        data: {
+          kind: "bash",
+          command: "find <projectRoot>/.local/blog/content/posts -maxdepth 2 -type f | head -200",
+          cwd: "<projectRoot>",
+          timeoutMs: 30000,
+        },
+      },
+    });
+  });
+
   test("keeps direct completion distinct from user approval", () => {
     const turn = buildAgentTurnView([
       {

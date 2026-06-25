@@ -14,6 +14,7 @@ import { wikiMarkdownToLinks, type InspectableContextRef } from "../context/cont
 import {
   type AgentReasoningView,
   type AgentTurnView,
+  type BashProposalView,
   type ContextProposalView,
   type GenericProposalView,
   type ProposalView,
@@ -122,7 +123,13 @@ function ToolDetailRows({ details }: { details: ToolActivityDetailsView }) {
   );
 }
 
-function ToolActivityGroup({ activity }: { activity: ToolActivityView }) {
+function ToolActivityGroup({
+  activity,
+  defaultOpen = false,
+}: {
+  activity: ToolActivityView;
+  defaultOpen?: boolean;
+}) {
   const statusClass =
     activity.status === "failed"
       ? "bg-destructive/10 text-destructive"
@@ -130,6 +137,7 @@ function ToolActivityGroup({ activity }: { activity: ToolActivityView }) {
 
   return (
     <Collapsible
+      defaultOpen={defaultOpen}
       data-testid="agent-tool-activity"
       className="my-1 w-full rounded-md border-l-2 border-border/80 bg-muted/30 py-1.5 pl-3 pr-2 text-sm text-muted-foreground"
     >
@@ -362,6 +370,46 @@ function CandidateContextCard({
   );
 }
 
+function formatDurationMs(ms?: number) {
+  if (typeof ms !== "number" || !Number.isFinite(ms) || ms <= 0) return undefined;
+  if (ms % 1000 === 0) return `${ms / 1000} 秒`;
+  return `${ms} ms`;
+}
+
+function BashProposalCard({
+  proposal,
+  messageId,
+  onApprove,
+}: {
+  proposal: BashProposalView;
+  messageId: string;
+  onApprove: (input: ApproveToolInput) => void;
+}) {
+  const timeout = formatDurationMs(proposal.data.timeoutMs);
+  return (
+    <CandidateShell
+      title={proposal.title}
+      proposal={proposal}
+      messageId={messageId}
+      onApprove={onApprove}
+    >
+      <div className="space-y-2">
+        <div className="rounded-md bg-muted/50 px-3 py-2 font-mono text-xs leading-5 text-foreground/85">
+          <pre className="m-0 whitespace-pre-wrap break-words font-mono">
+            {proposal.data.command || "未提供命令"}
+          </pre>
+        </div>
+        {proposal.data.cwd || timeout ? (
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            {proposal.data.cwd ? <span>目录：{proposal.data.cwd}</span> : null}
+            {timeout ? <span>最长等待：{timeout}</span> : null}
+          </div>
+        ) : null}
+      </div>
+    </CandidateShell>
+  );
+}
+
 function GenericProposalCard({
   proposal,
   messageId,
@@ -477,6 +525,9 @@ function ToolCard({
       />
     );
   }
+  if (proposal.type === "bash") {
+    return <BashProposalCard proposal={proposal} messageId={messageId} onApprove={onApprove} />;
+  }
   return <GenericProposalCard proposal={proposal} messageId={messageId} onApprove={onApprove} />;
 }
 
@@ -488,6 +539,7 @@ export function AgentMessageContent({
   stopped,
   onApproveTool,
   onInspectContextRef,
+  expandToolDetails = false,
 }: {
   message: AgentReducedMessage;
   turn: AgentTurnView;
@@ -496,6 +548,7 @@ export function AgentMessageContent({
   stopped?: boolean;
   onApproveTool: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
+  expandToolDetails?: boolean;
 }) {
   return (
     <>
@@ -522,7 +575,11 @@ export function AgentMessageContent({
         }
         if (block.kind === "tool-activity") {
           return (
-            <ToolActivityGroup key={`${message.id}-tool-${index}`} activity={block.activity} />
+            <ToolActivityGroup
+              key={`${message.id}-tool-${index}`}
+              activity={block.activity}
+              defaultOpen={expandToolDetails}
+            />
           );
         }
         return (

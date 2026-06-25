@@ -105,8 +105,21 @@ export type ContextProposalView = ProposalBase<
   }
 >;
 
+export type BashProposalView = ProposalBase<
+  "bash",
+  {
+    kind: "bash";
+    command: string;
+    cwd?: string;
+    timeoutMs?: number;
+  }
+>;
+
 export type GenericProposalView = ProposalBase<
-  Exclude<ProposalType, "understanding_create" | "understanding_update" | "context_create">,
+  Exclude<
+    ProposalType,
+    "understanding_create" | "understanding_update" | "context_create" | "bash"
+  >,
   {
     kind: "generic";
     entries: Array<{ key: string; value: string }>;
@@ -118,6 +131,7 @@ export type ProposalView =
   | UnderstandingProposalView
   | UnderstandingUpdateProposalView
   | ContextProposalView
+  | BashProposalView
   | GenericProposalView;
 
 export type AgentTurnBlock =
@@ -248,6 +262,9 @@ function proposalViewFor(block: AgentApprovalBlock): ProposalView {
   if (type === "context_create") {
     return { ...base, type, data: contextProposalData(input) };
   }
+  if (type === "bash") {
+    return { ...base, type, data: bashProposalData(input) };
+  }
   return { ...base, type, data: genericProposalData(input) };
 }
 
@@ -327,6 +344,17 @@ function contextProposalData(output: Record<string, unknown>): ContextProposalVi
     understandingId: stringValue(output.understandingId),
     contextLabel: stringValue(output.title) || stringValue(output.medium),
     content: stringValue(output.content),
+  };
+}
+
+function bashProposalData(output: Record<string, unknown>): BashProposalView["data"] {
+  const cwd = stringValue(output.cwd).trim();
+  const timeoutMs = typeof output.timeoutMs === "number" ? output.timeoutMs : undefined;
+  return {
+    kind: "bash",
+    command: stringValue(output.command),
+    ...(cwd ? { cwd } : {}),
+    ...(timeoutMs !== undefined ? { timeoutMs } : {}),
   };
 }
 

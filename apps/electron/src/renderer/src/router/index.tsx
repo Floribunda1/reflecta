@@ -3,6 +3,7 @@ import { AppLayout } from "@renderer/modules/shared/layout/AppLayout";
 import { CapturePage } from "@renderer/modules/capture";
 import { ContemplatePage } from "@renderer/modules/contemplate";
 import { ChatPage } from "@renderer/modules/chat";
+import { ToolDemoPage } from "@renderer/modules/chat/tool-demo-page";
 
 export const routes = [
   { label: "Capture", path: "/capture", value: "Capture", description: "Collect" },
@@ -18,6 +19,7 @@ export const router = createHashRouter([
       { index: true, element: <Navigate to="/capture" replace /> },
       { path: "capture", id: "Capture", element: <CapturePage /> },
       { path: "contemplate", id: "Contemplate", element: <ContemplatePage /> },
+      { path: "agent/tool-demo", id: "AgentToolDemo", element: <ToolDemoPage /> },
       { path: "agent", id: "Agent", element: <ChatPage /> },
     ],
   },
