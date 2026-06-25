@@ -30,6 +30,7 @@ const PI_REJECT_PROPOSAL_TITLE = "PI_REJECT_CANDIDATE_UNDERSTANDING";
 const PI_APPROVE_PROPOSAL_TITLE = "PI_APPROVE_CANDIDATE_UNDERSTANDING";
 const PI_RELOAD_PROPOSAL_TITLE = "PI_RELOAD_CANDIDATE_UNDERSTANDING";
 const PI_DOMAIN_PROPOSAL_NAME = "PI_APPROVE_CANDIDATE_DOMAIN";
+const PI_BASH_APPROVAL_DONE = "PI_BASH_APPROVAL_CONTINUED_DONE";
 const ABANDONED_RUN_MESSAGE = "ABANDONED_RUN_MESSAGE";
 const FAILED_RETRY_MESSAGE = "FAILED_RETRY_MESSAGE";
 const CHAT_JUMP_THREAD_TITLE = "CHAT_JUMP_LONG_SESSION";
@@ -652,6 +653,45 @@ test("@AG-PROPOSAL-005 用户重新打开对话后仍能处理等待确认的提
     expect(understandingExistsByTitle(PI_RELOAD_PROPOSAL_TITLE)).toBe(false);
   } finally {
     await second.app.close();
+  }
+});
+
+test("@AG-PROPOSAL-006 用户确认 Bash 操作后 Agent 继续回复", async () => {
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
+  test.setTimeout(240_000);
+
+  const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+
+  try {
+    await createNewThread(page);
+    await sendMessage(
+      page,
+      `请必须先调用 bash 工具执行只读命令：printf ${PI_BASH_APPROVAL_DONE}。在我确认并且工具返回后，再回复唯一一行：${PI_BASH_APPROVAL_DONE}。确认前不要输出这行。`,
+    );
+    const card = page.getByTestId("agent-proposal-card").filter({ hasText: "执行 Bash" });
+    await expect(card).toBeVisible({ timeout: 120_000 });
+
+    await card.getByTestId("agent-proposal-confirm-button").click();
+    await expect(card).toContainText("已确认", { timeout: 120_000 });
+    await expect(
+      page.getByTestId("agent-assistant-text").filter({ hasText: PI_BASH_APPROVAL_DONE }),
+    ).toBeVisible({ timeout: 120_000 });
+    await expect(page.getByTestId("agent-stop-button")).toBeHidden({ timeout: 120_000 });
+    await expect(composer(page)).toBeEditable();
+
+    const events = readPiEvents();
+    const resolvedIndex = events.findIndex(
+      (event) => event.type === "approval.resolved" && event.toolName === "bash",
+    );
+    const completedIndex = events.findIndex(
+      (event) => event.type === "tool.completed" && event.toolName === "bash",
+    );
+    const runCompletedIndex = events.findIndex((event) => event.type === "run.completed");
+    expect(resolvedIndex).toBeGreaterThanOrEqual(0);
+    expect(completedIndex).toBeGreaterThan(resolvedIndex);
+    expect(runCompletedIndex).toBeGreaterThan(completedIndex);
+  } finally {
+    await app.close();
   }
 });
 
