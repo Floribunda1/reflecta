@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.3 - 2026-06-25
+
+- Improved Agent tool activity details so expanded tool output shows user-facing evidence, summaries, and readable empty/error states instead of raw execution metadata.
+
 ## 1.1.2 - 2026-06-25
 
 - Fixed packaged Electron startup by bundling the LanceDB `apache-arrow` dependency.

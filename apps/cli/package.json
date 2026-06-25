@@ -1,6 +1,6 @@
 {
   "name": "@reflecta/cli",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "Reflecta CLI — scriptable access to your local knowledge base",
   "bin": {
     "reflecta": "./dist/index.mjs"
