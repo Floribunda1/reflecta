@@ -33,7 +33,7 @@ const SECRET_KEY_PATTERN = /(?:api[-_]?key|token|authorization|password|secret)/
 const LOG_FILE_PATTERN = /^reflecta-(\d{4}-\d{2}-\d{2})(?:\.\d+)?\.jsonl$/;
 
 type DiagnosticLogOptions = {
-  contentStorageRoot: string;
+  logStorageRoot: string;
   maxFileBytes?: number;
   retentionDays?: number;
   now?: () => Date;
@@ -48,13 +48,13 @@ export function formatDiagnosticLogDate(date: Date): string {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 }
 
-export function getDiagnosticLogsDir(contentStorageRoot: string): string {
-  return path.join(contentStorageRoot, "logs");
+export function getDiagnosticLogsDir(logStorageRoot: string): string {
+  return path.join(logStorageRoot, "logs");
 }
 
-export function getDiagnosticLogFilePath(contentStorageRoot: string, date = new Date()): string {
+export function getDiagnosticLogFilePath(logStorageRoot: string, date = new Date()): string {
   return path.join(
-    getDiagnosticLogsDir(contentStorageRoot),
+    getDiagnosticLogsDir(logStorageRoot),
     `reflecta-${formatDiagnosticLogDate(date)}.jsonl`,
   );
 }
@@ -145,11 +145,11 @@ export class DiagnosticLog {
   }
 
   get logsDir(): string {
-    return getDiagnosticLogsDir(this.options.contentStorageRoot);
+    return getDiagnosticLogsDir(this.options.logStorageRoot);
   }
 
   getCurrentLogFilePath(date = this.now()): string {
-    return getDiagnosticLogFilePath(this.options.contentStorageRoot, date);
+    return getDiagnosticLogFilePath(this.options.logStorageRoot, date);
   }
 
   write(input: DiagnosticEventInput): void {

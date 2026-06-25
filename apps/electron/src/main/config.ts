@@ -519,3 +519,7 @@ export async function downloadDefaultRetrievalEmbeddingModel(): Promise<Retrieva
 export function getContentStorageRoot(): string {
   return resolveElectronRuntime(readConfig()).contentStorageRoot;
 }
+
+export function getRetrievalIndexPath(): string {
+  return resolveElectronRuntime(readConfig()).retrievalIndexPath;
+}

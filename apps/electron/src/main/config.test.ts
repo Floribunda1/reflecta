@@ -159,6 +159,20 @@ describe("Electron content storage root", () => {
     expect(config.getContentStorageRoot()).toBe(configuredRoot);
   });
 
+  test("keeps retrieval index in app config storage when content root is custom", async () => {
+    const config = await import("./config");
+    const configuredRoot = path.join(tempDir, "configured-root");
+    fs.mkdirSync(config.getAppConfigDir(), { recursive: true });
+    fs.writeFileSync(
+      config.getAppConfigFilePath(),
+      JSON.stringify({ contentStorageRoot: configuredRoot }),
+    );
+
+    expect(config.getRetrievalIndexPath()).toBe(
+      path.join(config.getAppConfigDir(), "retrieval-index"),
+    );
+  });
+
   test("falls back to default content storage root", async () => {
     const config = await import("./config");
 

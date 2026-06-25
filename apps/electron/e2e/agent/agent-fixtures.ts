@@ -37,6 +37,7 @@ function runFixture(fixture: unknown) {
         path.resolve(import.meta.dirname, "agent-fixture-store.ts"),
         env.dbPath,
         env.contentStorageRoot,
+        env.appConfigDir,
         fixturePath,
       ],
       { stdio: "pipe" },

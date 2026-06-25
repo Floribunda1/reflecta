@@ -2,7 +2,7 @@ import log from "electron-log/main";
 import { app, ipcMain } from "electron";
 import type { DiagnosticLevel, DiagnosticScope, DiagnosticEventInput } from "./diagnostic-log";
 import { DiagnosticLog, diagnosticErrorAttrs } from "./diagnostic-log";
-import { getContentStorageRoot, getReflectaProfile } from "./config";
+import { getAppConfigDir, getReflectaProfile } from "./config";
 
 export const APP_NAME = "Reflecta";
 const DEV_LOG_APP_NAME = "Reflecta Dev";
@@ -27,14 +27,14 @@ function getDiagnosticLog(): DiagnosticLog {
   const root = getSafeDiagnosticLogRoot();
   if (!diagnosticLog || diagnosticLogRoot !== root) {
     diagnosticLogRoot = root;
-    diagnosticLog = new DiagnosticLog({ contentStorageRoot: root });
+    diagnosticLog = new DiagnosticLog({ logStorageRoot: root });
   }
   return diagnosticLog;
 }
 
 function getSafeDiagnosticLogRoot(): string {
   try {
-    return getContentStorageRoot();
+    return getAppConfigDir();
   } catch {
     return getFallbackDiagnosticLogRoot();
   }

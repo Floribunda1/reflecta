@@ -75,8 +75,15 @@ function tempRoot() {
   return root;
 }
 
-function useContentRoot(root: string) {
-  process.argv = ["electron", "app", "--reflecta-content-root", root];
+function useRuntimeRoots(appConfigRoot: string, contentRoot = tempRoot()) {
+  process.argv = [
+    "electron",
+    "app",
+    "--reflecta-app-config-dir",
+    appConfigRoot,
+    "--reflecta-content-root",
+    contentRoot,
+  ];
 }
 
 function readJsonl(filePath: string): Array<Record<string, unknown>> {
@@ -107,8 +114,8 @@ afterEach(() => {
 
 describe("Electron logging profile", () => {
   test("uses Reflecta Dev as the dev log app name", async () => {
-    const root = tempRoot();
-    useContentRoot(root);
+    const appConfigRoot = tempRoot();
+    useRuntimeRoots(appConfigRoot);
     const { APP_NAME, getLogAppName, getLogFilePath, initializeLogging } = await import("./logger");
 
     expect(APP_NAME).toBe("Reflecta");
@@ -125,6 +132,7 @@ describe("Electron logging profile", () => {
       "diagnostic:renderer-error",
       expect.any(Function),
     );
+    expect(getLogFilePath()).toContain(path.join(appConfigRoot, "logs"));
     expect(getLogFilePath()).toMatch(/reflecta-\d{4}-\d{2}-\d{2}\.jsonl$/);
     expect(readJsonl(getLogFilePath())[0]).toMatchObject({
       level: "info",
@@ -140,7 +148,7 @@ describe("Electron logging profile", () => {
   });
 
   test("uses Reflecta as the prod log app name", async () => {
-    useContentRoot(tempRoot());
+    useRuntimeRoots(tempRoot());
     mockElectron.isPackaged = true;
     const { APP_NAME, getLogAppName, initializeLogging } = await import("./logger");
 
@@ -153,8 +161,8 @@ describe("Electron logging profile", () => {
   });
 
   test("writes fallback errors as diagnostic log events", async () => {
-    const root = tempRoot();
-    useContentRoot(root);
+    const appConfigRoot = tempRoot();
+    useRuntimeRoots(appConfigRoot);
     const { getLogFilePath, writeFallbackError } = await import("./logger");
 
     writeFallbackError("unhandledRejection", new Error("boom"), { requestId: "req-1" });
@@ -173,8 +181,8 @@ describe("Electron logging profile", () => {
   });
 
   test("writes renderer errors from the diagnostic IPC channel", async () => {
-    const root = tempRoot();
-    useContentRoot(root);
+    const appConfigRoot = tempRoot();
+    useRuntimeRoots(appConfigRoot);
     const { DIAGNOSTIC_RENDERER_ERROR_CHANNEL, getLogFilePath, initializeLogging } =
       await import("./logger");
 

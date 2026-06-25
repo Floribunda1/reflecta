@@ -6,11 +6,12 @@ import { SessionManager } from "@earendil-works/pi-coding-agent";
 
 const dbPath = process.argv[2];
 const contentStorageRoot = process.argv[3];
-const fixturePath = process.argv[4];
+const appConfigDir = process.argv[4];
+const fixturePath = process.argv[5];
 
-if (!dbPath || !contentStorageRoot || !fixturePath) {
+if (!dbPath || !contentStorageRoot || !appConfigDir || !fixturePath) {
   throw new Error(
-    "Usage: bun run agent-fixture-store.ts <db-path> <content-storage-root> <fixture-json-path>",
+    "Usage: bun run agent-fixture-store.ts <db-path> <content-storage-root> <app-config-dir> <fixture-json-path>",
   );
 }
 
@@ -391,7 +392,7 @@ function seedThread(thread: FixtureThread) {
 }
 
 function markRetrievalDirty() {
-  const retrievalIndexRoot = path.join(contentStorageRoot, "retrieval-index");
+  const retrievalIndexRoot = path.join(appConfigDir, "retrieval-index");
   fs.mkdirSync(retrievalIndexRoot, { recursive: true });
   fs.writeFileSync(path.join(retrievalIndexRoot, ".dirty"), String(Date.now()), "utf-8");
 }

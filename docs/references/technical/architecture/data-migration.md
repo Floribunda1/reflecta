@@ -11,11 +11,11 @@ Reflecta 使用两套策略处理数据库结构变化：
 
 Reflecta 区分三种路径概念：
 
-| 概念                 | 含义                                                                | 使用方                          |
-| -------------------- | ------------------------------------------------------------------- | ------------------------------- |
-| App Config Dir       | 存放 `reflecta-config.json` 的应用配置目录                          | Electron / CLI 读取配置         |
-| Content Storage Root | 用户内容数据目录，包含 `reflecta.db`、`retrieval-index/`、`assets/` | Electron / CLI 产品入口         |
-| Database Path        | SQLite 文件路径，通常是 `<contentStorageRoot>/reflecta.db`          | DB-only CLI / Drizzle / scripts |
+| 概念                 | 含义                                                                 | 使用方                          |
+| -------------------- | -------------------------------------------------------------------- | ------------------------------- |
+| App Config Dir       | 应用自有状态目录，包含 `reflecta-config.json`、logs、retrieval index | Electron / CLI 读取配置与缓存   |
+| Content Storage Root | 用户内容数据目录，包含 `reflecta.db`、`Sessions/`、`assets/`         | Electron / CLI 产品入口         |
+| Database Path        | SQLite 文件路径，通常是 `<contentStorageRoot>/reflecta.db`           | DB-only CLI / Drizzle / scripts |
 
 Runtime path 由三条轴解析：
 

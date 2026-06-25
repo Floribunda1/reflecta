@@ -29,7 +29,7 @@ describe("DiagnosticLog", () => {
   test("writes one JSON event per line to the local-date log file", () => {
     const root = tempRoot();
     const now = new Date(2026, 5, 24, 15, 30, 0);
-    const log = new DiagnosticLog({ contentStorageRoot: root, now: () => now });
+    const log = new DiagnosticLog({ logStorageRoot: root, now: () => now });
 
     log.write({
       level: "info",
@@ -56,7 +56,7 @@ describe("DiagnosticLog", () => {
   test("redacts configured secrets before writing", () => {
     const root = tempRoot();
     const log = new DiagnosticLog({
-      contentStorageRoot: root,
+      logStorageRoot: root,
       now: () => new Date(2026, 5, 24),
     });
 
@@ -84,7 +84,7 @@ describe("DiagnosticLog", () => {
     const root = tempRoot();
     const now = new Date(2026, 5, 24);
     const log = new DiagnosticLog({
-      contentStorageRoot: root,
+      logStorageRoot: root,
       maxFileBytes: 200,
       now: () => now,
     });
@@ -103,7 +103,7 @@ describe("DiagnosticLog", () => {
     fs.writeFileSync(path.join(logsDir, "reflecta-2026-05-25.jsonl"), "{}\n");
     fs.writeFileSync(path.join(logsDir, "reflecta-2026-05-26.jsonl"), "{}\n");
     const log = new DiagnosticLog({
-      contentStorageRoot: root,
+      logStorageRoot: root,
       retentionDays: 30,
       now: () => new Date(2026, 5, 24),
     });

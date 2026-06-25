@@ -216,6 +216,6 @@ export function resolveRuntimePaths(input: ResolveRuntimePathsInput): ResolvedRu
     appConfigDir,
     contentStorageRoot,
     dbPath,
-    retrievalIndexPath: path.join(contentStorageRoot, "retrieval-index"),
+    retrievalIndexPath: path.join(appConfigDir, "retrieval-index"),
   };
 }

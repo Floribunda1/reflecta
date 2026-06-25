@@ -34,13 +34,14 @@ _Avoid_: Category, folder, tag
 
 ## App Config Dir
 
-The directory that contains Reflecta application configuration, including `reflecta-config.json`.
-It is not user content storage, and it does not move when the user changes the data directory.
+The directory that contains Reflecta application-owned state, including `reflecta-config.json`,
+diagnostic logs, downloaded embedding models, and the retrieval index. It is not user content
+storage, and it does not move when the user changes the data directory.
 
 ## Content Storage Root
 
-The directory that contains user-owned Reflecta content files. Electron stores `reflecta.db` and
-`assets/` under this directory.
+The directory that contains user-owned Reflecta content files. Reflecta stores `reflecta.db`,
+`Sessions/`, and `assets/` under this directory.
 
 ## Database Path
 

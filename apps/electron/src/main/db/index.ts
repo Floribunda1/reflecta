@@ -8,7 +8,12 @@ import {
   type ReflectaDb,
   type RetrievalEmbeddingConfig as ServerRetrievalEmbeddingConfig,
 } from "@reflecta/server";
-import { getContentStorageRoot, getReflectaProfile, getRetrievalConfig } from "../config";
+import {
+  getContentStorageRoot,
+  getReflectaProfile,
+  getRetrievalConfig,
+  getRetrievalIndexPath,
+} from "../config";
 import { diagnosticErrorAttrs } from "../diagnostic-log";
 import { writeDiagnosticEvent } from "../logger";
 import { getRuntimeArg } from "../runtime-args";
@@ -36,9 +41,10 @@ function toServerRetrievalEmbeddingConfig(): Partial<ServerRetrievalEmbeddingCon
 export const initializeDB = async () => {
   const contentStorageRoot = getContentStorageRoot();
   const dbPath = path.join(contentStorageRoot, "reflecta.db");
+  const retrievalIndexPath = getRetrievalIndexPath();
   const profile = getReflectaProfile();
   try {
-    process.env.REFLECTA_RETRIEVAL_INDEX_PATH = path.join(contentStorageRoot, "retrieval-index");
+    process.env.REFLECTA_RETRIEVAL_INDEX_PATH = retrievalIndexPath;
     configureRetrievalEmbedding(toServerRetrievalEmbeddingConfig());
     if (!fs.existsSync(contentStorageRoot)) {
       fs.mkdirSync(contentStorageRoot, { recursive: true });
@@ -58,6 +64,7 @@ export const initializeDB = async () => {
       attrs: {
         dbPath,
         contentStorageRoot,
+        retrievalIndexPath,
         migrationMode: profile === "prod" ? "migration" : "schema-push",
       },
     });
@@ -69,6 +76,7 @@ export const initializeDB = async () => {
       attrs: {
         dbPath,
         contentStorageRoot,
+        retrievalIndexPath,
         migrationMode: profile === "prod" ? "migration" : "schema-push",
         ...diagnosticErrorAttrs(error),
       },

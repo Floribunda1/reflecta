@@ -38,7 +38,7 @@ describe("runtime path resolution", () => {
     expect(cli.migrationPolicy).toBe("disabled");
   });
 
-  test("content storage root from app config defines db and retrieval paths", () => {
+  test("content storage root from app config defines db path while retrieval stays in app config", () => {
     const runtime = resolveRuntimePaths({
       processKind: "cli",
       buildKind: "release",
@@ -50,9 +50,12 @@ describe("runtime path resolution", () => {
     });
 
     expect(runtime.storeMode).toBe("full-store");
+    expect(runtime.appConfigDir).toBe("/Users/alice/Library/Application Support/reflecta");
     expect(runtime.contentStorageRoot).toBe("/Users/alice/Knowledge/reflecta-prod");
     expect(runtime.dbPath).toBe("/Users/alice/Knowledge/reflecta-prod/reflecta.db");
-    expect(runtime.retrievalIndexPath).toBe("/Users/alice/Knowledge/reflecta-prod/retrieval-index");
+    expect(runtime.retrievalIndexPath).toBe(
+      "/Users/alice/Library/Application Support/reflecta/retrieval-index",
+    );
   });
 
   test("explicit db path is isolated from full-store semantic search paths", () => {

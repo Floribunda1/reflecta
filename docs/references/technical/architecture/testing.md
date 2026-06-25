@@ -49,8 +49,8 @@ CLI 测试不依赖 `.env.test`，也不读取 `REFLECTA_TEST_DB_PATH`。
 ```text
 /tmp/reflecta-cli-test/<worker-id>/<pid>/
   reflecta.db
-  retrieval-index/
   config/reflecta-config.json
+  config/retrieval-index/
 ```
 
 setup 流程：
