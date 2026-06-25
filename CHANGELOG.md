@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.4 - 2026-06-25
+
+- Improved Agent tool activity rendering for approval tools, keeping each tool call separate and showing approved Bash execution results.
+- Added inline folding for long Bash stdout and stderr so large outputs stay scannable while remaining expandable in place.
+- Removed the temporary Agent tool demo route from the app shell.
+
 ## 1.1.3 - 2026-06-25
 
 - Improved Agent tool activity details so expanded tool output shows user-facing evidence, summaries, and readable empty/error states instead of raw execution metadata.
