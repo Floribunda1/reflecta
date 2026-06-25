@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { Streamdown } from "streamdown";
 import { Badge } from "@renderer/components/ui/badge";
@@ -22,6 +22,7 @@ import {
   type UnderstandingUpdateProposalView,
   type ToolActivityView,
   type ToolActivityDetailsView,
+  type ToolActivityDetailRow,
   type ToolApprovalStatus,
 } from "./agent-turn-view";
 import { wikiMarkdownComponents, wikiUrlTransform } from "../context/wiki-link";
@@ -74,6 +75,42 @@ function hasToolDetails(details: ToolActivityDetailsView) {
   return details.meta.length > 0 || details.rows.length > 0 || Boolean(details.emptyText);
 }
 
+function ToolDetailDescription({ detail }: { detail: ToolActivityDetailRow }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!detail.description) return null;
+  if (detail.format !== "pre") {
+    return <div className="line-clamp-2 text-muted-foreground/85">{detail.description}</div>;
+  }
+
+  const outputClass =
+    "whitespace-pre-wrap break-words rounded-sm bg-background/65 px-2 py-1.5 font-mono text-xs leading-5 text-muted-foreground";
+
+  return (
+    <div className="grid gap-1">
+      {detail.fullDescription ? (
+        <>
+          <pre
+            className={`${outputClass} ${
+              expanded ? "max-h-80 overflow-auto" : "max-h-32 overflow-hidden"
+            }`}
+          >
+            {expanded ? detail.fullDescription : detail.description}
+          </pre>
+          <button
+            type="button"
+            className="w-fit rounded-sm px-1 text-xs text-muted-foreground hover:bg-background/70 hover:text-foreground"
+            onClick={() => setExpanded((value) => !value)}
+          >
+            {expanded ? "收起输出" : "展开完整输出"}
+          </button>
+        </>
+      ) : (
+        <pre className={`${outputClass} max-h-32 overflow-auto`}>{detail.description}</pre>
+      )}
+    </div>
+  );
+}
+
 function ToolDetailRows({ details }: { details: ToolActivityDetailsView }) {
   return (
     <div className="grid gap-2">
@@ -101,9 +138,7 @@ function ToolDetailRows({ details }: { details: ToolActivityDetailsView }) {
                     {detail.title}
                   </span>
                 </div>
-                {detail.description ? (
-                  <div className="line-clamp-2 text-muted-foreground/85">{detail.description}</div>
-                ) : null}
+                <ToolDetailDescription detail={detail} />
                 {detail.meta.length ? (
                   <div className="flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground/80">
                     {detail.meta.map((item) => (

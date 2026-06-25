@@ -88,6 +88,10 @@ const sampleContext = {
   medium: "experience",
   content: "这次推进慢，主要是没有及时把判断变成可验证的小实验。",
 };
+const sampleLongBashError = Array.from(
+  { length: 24 },
+  (_, index) => `error ${index + 1}: demo build output line with enough detail to inspect`,
+).join("\n");
 
 const demoTurns: DemoTurn[] = [
   {
@@ -394,6 +398,13 @@ const demoTurns: DemoTurn[] = [
         },
         state: "completed",
         output: { exitCode: 0, stdout: "/post-a.md\n/post-b.md", stderr: "" },
+      }),
+      approvalBlock({
+        id: "proposal-bash-long-error",
+        toolName: "bash",
+        payload: { command: "bun run build", timeoutMs: 30000 },
+        state: "completed",
+        output: { exitCode: 1, stdout: "", stderr: sampleLongBashError },
       }),
     ],
   },

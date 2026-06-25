@@ -42,6 +42,8 @@ export type ToolActivityDetailRow = {
   label: string;
   title: string;
   description?: string;
+  fullDescription?: string;
+  format?: "text" | "pre";
   meta: string[];
 };
 
@@ -653,8 +655,8 @@ function bashDetails(output: unknown) {
   return detailView({
     meta,
     rows: [
-      stdout ? detailRow("stdout", "标准输出", stdout, rowMeta) : undefined,
-      stderr ? detailRow("stderr", "错误输出", stderr, rowMeta) : undefined,
+      stdout ? detailRow("stdout", "标准输出", stdout, rowMeta, "pre") : undefined,
+      stderr ? detailRow("stderr", "错误输出", stderr, rowMeta, "pre") : undefined,
     ].filter((row): row is ToolActivityDetailRow => Boolean(row)),
     emptyText: stdout || stderr ? undefined : "命令没有输出。",
   });
@@ -892,13 +894,25 @@ function detailRow(
   title?: string,
   description?: string,
   meta: string[] = [],
+  format: ToolActivityDetailRow["format"] = "text",
 ): ToolActivityDetailRow {
-  const compactDescription = description ? truncateText(description, 140) : undefined;
+  const compactDescription = description
+    ? format === "pre"
+      ? truncateOutputPreview(description)
+      : truncateText(description, 140)
+    : undefined;
+  const shouldKeepFullDescription =
+    format === "pre" &&
+    description &&
+    compactDescription &&
+    description.trim() !== compactDescription.trim();
   return {
     label,
     title: title || "未命名",
     meta: meta.filter(Boolean),
+    ...(format === "pre" ? { format } : {}),
     ...(compactDescription ? { description: compactDescription } : {}),
+    ...(shouldKeepFullDescription ? { fullDescription: description } : {}),
   };
 }
 
@@ -913,6 +927,15 @@ function limitedRows(rows: Array<ToolActivityDetailRow | undefined>) {
 function truncateText(text: string, maxLength = 80) {
   const compact = text.replace(/\s+/g, " ").trim();
   return compact.length > maxLength ? `${compact.slice(0, maxLength)}...` : compact;
+}
+
+function truncateOutputPreview(text: string, maxLength = 1200, maxLines = 16) {
+  const normalized = text.trim();
+  if (!normalized) return "";
+  const lines = normalized.split(/\r?\n/);
+  const lineLimited =
+    lines.length > maxLines ? `${lines.slice(0, maxLines).join("\n")}\n...` : normalized;
+  return lineLimited.length > maxLength ? `${lineLimited.slice(0, maxLength)}\n...` : lineLimited;
 }
 
 function toolRunningSummary(name: string, input: Record<string, unknown>) {

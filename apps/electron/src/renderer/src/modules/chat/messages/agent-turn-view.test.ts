@@ -367,7 +367,15 @@ describe("buildAgentTurnView", () => {
                 { label: "命令", value: "printf hello" },
                 { label: "退出码", value: "0" },
               ],
-              rows: [{ label: "stdout", title: "标准输出", description: "hello", meta: [] }],
+              rows: [
+                {
+                  label: "stdout",
+                  title: "标准输出",
+                  description: "hello",
+                  format: "pre",
+                  meta: [],
+                },
+              ],
             },
           }),
         ],
@@ -626,10 +634,51 @@ describe("buildAgentTurnView", () => {
         state: "output-available",
         result: {
           meta: [{ label: "退出码", value: "0" }],
-          rows: [{ label: "stdout", title: "标准输出", description: "hello", meta: [] }],
+          rows: [
+            { label: "stdout", title: "标准输出", description: "hello", format: "pre", meta: [] },
+          ],
         },
       },
     });
+  });
+
+  test("keeps long bash output folded behind a preview", () => {
+    const stdout = Array.from({ length: 24 }, (_, index) => `line ${index + 1}`).join("\n");
+    const turn = buildAgentTurnView([
+      {
+        kind: "approval",
+        approvalId: "approval-bash",
+        toolCallId: "tool-bash",
+        toolName: "bash",
+        title: "执行 Bash",
+        payload: { command: "printf many-lines" },
+        output: { exitCode: 0, stdout, stderr: "" },
+        approved: true,
+        state: "completed",
+        createdAt: "2026-06-23T00:00:00.000Z",
+      },
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "proposal",
+      proposal: {
+        result: {
+          rows: [
+            {
+              label: "stdout",
+              format: "pre",
+              description: expect.stringContaining("line 16"),
+              fullDescription: stdout,
+            },
+          ],
+        },
+      },
+    });
+    expect(
+      turn.blocks[0]?.kind === "proposal"
+        ? turn.blocks[0].proposal.result?.rows[0]?.description
+        : "",
+    ).not.toContain("line 24");
   });
 
   test("keeps direct completion distinct from user approval", () => {
