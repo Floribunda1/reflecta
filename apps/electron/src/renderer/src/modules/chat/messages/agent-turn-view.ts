@@ -71,6 +71,7 @@ type ProposalBase<TType extends ProposalType, TData extends { kind: string }> = 
   resultRefType?: string;
   resultRefId?: string;
   approvalId?: string;
+  result?: ToolActivityDetailsView;
   data: TData;
 };
 
@@ -237,6 +238,7 @@ function proposalViewFor(block: AgentApprovalBlock): ProposalView {
   const input = isRecord(block.payload) ? block.payload : {};
   const output = isRecord(block.output) ? block.output : {};
   const type = proposalTypeFor(block.toolName);
+  const result = proposalResultDetails(type, output, block.state);
   const base = {
     toolCallId: block.toolCallId,
     title: block.title || proposalTitle(type),
@@ -246,6 +248,7 @@ function proposalViewFor(block: AgentApprovalBlock): ProposalView {
     resultRefType: stringValue(output.resultRefType),
     resultRefId: stringValue(output.resultRefId),
     approvalId: block.approvalId,
+    ...(result ? { result } : {}),
   };
 
   if (type === "understanding_create") {
@@ -340,6 +343,34 @@ function contextProposalData(output: Record<string, unknown>): ContextProposalVi
     contextLabel: stringValue(output.title) || stringValue(output.medium),
     content: stringValue(output.content),
   };
+}
+
+function proposalResultDetails(
+  type: ProposalType,
+  output: Record<string, unknown>,
+  state: AgentApprovalBlock["state"],
+) {
+  if (state !== "completed") return undefined;
+  if (type === "bash") return bashDetails(output);
+
+  const resultRefId = stringValue(output.resultRefId);
+  if (!resultRefId) return undefined;
+  return detailView({
+    rows: [
+      detailRow(
+        "执行结果",
+        `${proposalResultTypeLabel(stringValue(output.resultRefType))} 已完成`,
+        resultRefId,
+      ),
+    ],
+  });
+}
+
+function proposalResultTypeLabel(type: string) {
+  if (type === "understanding") return "Understanding";
+  if (type === "domain") return "Domain";
+  if (type === "context") return "Context";
+  return "操作";
 }
 
 function bashProposalData(output: Record<string, unknown>): BashProposalView["data"] {

@@ -37,11 +37,11 @@ export type ApproveToolInput = {
 };
 
 function statusLabel(status: ToolApprovalStatus | undefined, state?: ProposalView["state"]) {
+  if (state === "output-available") return "完成";
   if (status === "approved") return "已确认";
   if (status === "rejected") return "已拒绝";
   if (status === "pending") return "待确认";
   if (state === "output-denied") return "已拒绝";
-  if (state === "output-available") return "完成";
   if (state === "output-error") return "出错";
   if (state === "approval-responded") return "已响应";
   if (state === "approval-requested") return "待确认";
@@ -230,7 +230,7 @@ function CandidateShell({
   const status = proposal.status;
   const resultRefType = proposal.resultRefType;
   const resultRefId = proposal.resultRefId;
-  const statusNote = proposalStatusNote(status, resultRefType, resultRefId);
+  const statusNote = proposalStatusNote(status, proposal.state, resultRefType, resultRefId);
   return (
     <div
       data-testid="agent-proposal-card"
@@ -245,6 +245,12 @@ function CandidateShell({
         </Badge>
       </div>
       {children}
+      {proposal.result && hasToolDetails(proposal.result) ? (
+        <div className="mt-3 rounded-md bg-muted/35 p-2 text-sm text-muted-foreground">
+          <div className="mb-1 px-1 text-xs font-medium text-foreground/70">执行结果</div>
+          <ToolDetailRows details={proposal.result} />
+        </div>
+      ) : null}
       {proposal.state === "output-error" && (
         <div className="rounded-md bg-destructive/10 p-2 text-sm text-destructive">
           {proposal.errorText}
@@ -297,9 +303,11 @@ function CandidateShell({
 
 function proposalStatusNote(
   status: ToolApprovalStatus | undefined,
+  state?: ProposalView["state"],
   resultRefType?: string,
   resultRefId?: string,
 ) {
+  if (state === "output-available") return undefined;
   if (status === "approved" && resultRefId) return `已写入 ${resultRefType} · ${resultRefId}`;
   if (status === "approved") return "已确认";
   if (status === "rejected") return "已拒绝，未写入知识库";

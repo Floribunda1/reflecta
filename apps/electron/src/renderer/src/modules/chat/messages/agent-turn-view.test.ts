@@ -604,6 +604,34 @@ describe("buildAgentTurnView", () => {
     });
   });
 
+  test("shows completed approval tool results", () => {
+    const turn = buildAgentTurnView([
+      {
+        kind: "approval",
+        approvalId: "approval-bash",
+        toolCallId: "tool-bash",
+        toolName: "bash",
+        title: "执行 Bash",
+        payload: { command: "printf hello" },
+        output: { exitCode: 0, stdout: "hello", stderr: "" },
+        approved: true,
+        state: "completed",
+        createdAt: "2026-06-23T00:00:00.000Z",
+      },
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "proposal",
+      proposal: {
+        state: "output-available",
+        result: {
+          meta: [{ label: "退出码", value: "0" }],
+          rows: [{ label: "stdout", title: "标准输出", description: "hello", meta: [] }],
+        },
+      },
+    });
+  });
+
   test("keeps direct completion distinct from user approval", () => {
     const turn = buildAgentTurnView([
       {
@@ -624,6 +652,16 @@ describe("buildAgentTurnView", () => {
       proposal: {
         status: undefined,
         state: "output-available",
+        result: {
+          rows: [
+            {
+              label: "执行结果",
+              title: "Understanding 已完成",
+              description: "understanding_1",
+              meta: [],
+            },
+          ],
+        },
       },
     });
   });

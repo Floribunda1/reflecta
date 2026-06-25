@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { AgentReducedAssistantBlock, AgentReducedMessage } from "@shared/agent";
 import { buildAgentTurnView } from "./messages/agent-turn-view";
 import { AgentMessageContent, type ApproveToolInput } from "./messages/agent-message-content";
@@ -340,7 +341,8 @@ const demoTurns: DemoTurn[] = [
         id: "proposal-domain-update",
         toolName: "domain_update",
         payload: { domainId: "d_product", name: "产品决策" },
-        state: "approved",
+        state: "completed",
+        output: { resultRefType: "domain", resultRefId: "d_product" },
       }),
       approvalBlock({
         id: "proposal-domain-delete",
@@ -390,29 +392,75 @@ const demoTurns: DemoTurn[] = [
             "find <projectRoot>/.local/blog/content/posts -maxdepth 2 -type f | sed 's#^#/#' | head -200",
           timeoutMs: 30000,
         },
-        state: "approved",
+        state: "completed",
+        output: { exitCode: 0, stdout: "/post-a.md\n/post-b.md", stderr: "" },
       }),
     ],
   },
 ];
 
-const ignoreApprove = (_input: ApproveToolInput) => undefined;
+function demoApprovalOutput(block: ApprovalBlock) {
+  if (block.toolName === "bash") {
+    return { exitCode: 0, stdout: "Demo command completed.", stderr: "" };
+  }
+  const resultRefType = resultRefTypeForTool(block.toolName);
+  return {
+    resultRefType,
+    resultRefId: existingRefId(block, resultRefType) || `${resultRefType}_demo`,
+  };
+}
+
+function resultRefTypeForTool(toolName: string) {
+  if (toolName.startsWith("domain_")) return "domain";
+  if (toolName.startsWith("context_")) return "context";
+  return "understanding";
+}
+
+function existingRefId(block: ApprovalBlock, type: string) {
+  const payload = isRecord(block.payload) ? block.payload : {};
+  if (type === "domain") return stringValue(payload.domainId);
+  if (type === "context") return stringValue(payload.contextId);
+  return stringValue(payload.understandingId);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
 
 function DemoMessage({ demo }: { demo: DemoTurn }) {
+  const [blocks, setBlocks] = useState(demo.blocks);
+  const approveTool = (input: ApproveToolInput) => {
+    setBlocks((current) =>
+      current.map((block) => {
+        if (block.kind !== "approval" || block.toolCallId !== input.toolCallId) return block;
+        if (!input.approved) return { ...block, approved: false, state: "rejected" };
+        return {
+          ...block,
+          approved: true,
+          state: "completed",
+          output: demoApprovalOutput(block),
+        };
+      }),
+    );
+  };
   const message: AgentReducedMessage = {
     id: `message-${demo.id}`,
     role: "assistant",
     text: "",
     createdAt: CREATED_AT,
-    blocks: demo.blocks,
+    blocks,
   };
-  const turn = buildAgentTurnView(demo.blocks);
+  const turn = buildAgentTurnView(blocks);
 
   return (
     <section className="min-w-0 border-t border-border/70 pt-4">
       <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
         <h2 className="min-w-0 truncate text-sm font-medium text-foreground">{demo.title}</h2>
-        <span className="shrink-0 text-xs text-muted-foreground">{demo.blocks.length} blocks</span>
+        <span className="shrink-0 text-xs text-muted-foreground">{blocks.length} blocks</span>
       </div>
       <div className="grid min-w-0 gap-2">
         <AgentMessageContent
@@ -420,7 +468,7 @@ function DemoMessage({ demo }: { demo: DemoTurn }) {
           turn={turn}
           isBusy={false}
           isLastAssistant={false}
-          onApproveTool={ignoreApprove}
+          onApproveTool={approveTool}
           expandToolDetails
         />
       </div>
