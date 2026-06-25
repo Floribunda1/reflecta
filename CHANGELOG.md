@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.8 - 2026-06-25
+
+- Removed Electron safeStorage config encryption so packaged app launches no longer prompt for macOS Keychain access to Chromium Safe Storage.
+
 ## 1.1.7 - 2026-06-25
 
 - Added an inline editable Agent thread title bar with consolidated thread actions.
