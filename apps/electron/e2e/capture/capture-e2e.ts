@@ -10,6 +10,10 @@ export function domainNode(page: Page, name: string) {
   return page.locator(`[data-testid="capture-domain-node"][data-domain-name="${name}"]`);
 }
 
+export function sortableDomainNode(page: Page, name: string) {
+  return page.locator(`[data-testid="capture-domain-sortable-node"][data-domain-name="${name}"]`);
+}
+
 export function domainToggle(page: Page, name: string) {
   return page.locator(`[data-testid="capture-domain-toggle"][data-domain-name="${name}"]`);
 }

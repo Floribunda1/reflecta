@@ -1,6 +1,13 @@
-import { test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { launchApp, openAgentPage } from "../agent/agent-e2e";
-import { dragDomainOnto, expandDomain, expectDomainBefore, openCapturePage } from "./capture-e2e";
+import {
+  domainNode,
+  dragDomainOnto,
+  expandDomain,
+  expectDomainBefore,
+  openCapturePage,
+  sortableDomainNode,
+} from "./capture-e2e";
 
 test("@CP-DOMAIN-001 用户拖动根级 Domain 调整顺序", async () => {
   const { app, page } = await launchApp();
@@ -32,6 +39,23 @@ test("@CP-DOMAIN-002 用户拖动根级 Domain 穿过展开子节点调整顺序
 
     await expectDomainBefore(page, "Programming", "Reading");
     await expectDomainBefore(page, "Reading", "Design");
+  } finally {
+    await app.close();
+  }
+});
+
+test("@CP-DOMAIN-003 展开 Domain 的拖动目标仍然只占单行高度", async () => {
+  const { app, page } = await launchApp();
+
+  try {
+    await openCapturePage(page);
+    await expandDomain(page, "Programming", "Frontend");
+
+    const rowBox = await domainNode(page, "Programming").boundingBox();
+    const sortableBox = await sortableDomainNode(page, "Programming").boundingBox();
+
+    expect(rowBox?.height).toBeGreaterThan(0);
+    expect(sortableBox?.height).toBeCloseTo(rowBox?.height ?? 0, 0);
   } finally {
     await app.close();
   }

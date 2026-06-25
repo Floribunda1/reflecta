@@ -133,61 +133,63 @@ function DomainNode({
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(isDragging && "relative z-10 opacity-70")}
-      data-testid="capture-domain-sortable-node"
-      data-domain-name={node.name}
-    >
-      <ContextMenu>
-        <ContextMenuTrigger
-          render={
-            <Button
-              data-testid="capture-domain-node"
-              data-domain-name={node.name}
-              type="button"
-              variant="ghost"
-              size="sm"
-              className={domainTreeButtonClassName(selected, isDragging)}
-              style={{ touchAction: "none" }}
-              onClick={() => onSelect(node.id)}
-              {...attributes}
-              {...listeners}
-            >
-              <span
-                className="flex min-w-0 flex-1 items-center gap-1"
-                style={{ paddingLeft: `calc(${level} * 0.875rem)` }}
+    <div>
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={cn(isDragging && "relative z-10 opacity-70")}
+        data-testid="capture-domain-sortable-node"
+        data-domain-name={node.name}
+      >
+        <ContextMenu>
+          <ContextMenuTrigger
+            render={
+              <Button
+                data-testid="capture-domain-node"
+                data-domain-name={node.name}
+                type="button"
+                variant="ghost"
+                size="sm"
+                className={domainTreeButtonClassName(selected, isDragging)}
+                style={{ touchAction: "none" }}
+                onClick={() => onSelect(node.id)}
+                {...attributes}
+                {...listeners}
               >
-                {hasChildren ? (
-                  <span
-                    data-testid="capture-domain-toggle"
-                    data-domain-name={node.name}
-                    className="flex size-6 shrink-0 items-center justify-center text-muted-foreground"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onToggle(node.id);
-                    }}
-                  >
-                    {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  </span>
-                ) : (
-                  <span className="size-6 shrink-0" />
-                )}
-                <span className="min-w-0 truncate">{node.name}</span>
-              </span>
-            </Button>
-          }
-        />
-        <ContextMenuContent>
-          <DomainMenuItems
-            node={node}
-            actions={actions}
-            Item={ContextMenuItem}
-            Separator={ContextMenuSeparator}
+                <span
+                  className="flex min-w-0 flex-1 items-center gap-1"
+                  style={{ paddingLeft: `calc(${level} * 0.875rem)` }}
+                >
+                  {hasChildren ? (
+                    <span
+                      data-testid="capture-domain-toggle"
+                      data-domain-name={node.name}
+                      className="flex size-6 shrink-0 items-center justify-center text-muted-foreground"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onToggle(node.id);
+                      }}
+                    >
+                      {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </span>
+                  ) : (
+                    <span className="size-6 shrink-0" />
+                  )}
+                  <span className="min-w-0 truncate">{node.name}</span>
+                </span>
+              </Button>
+            }
           />
-        </ContextMenuContent>
-      </ContextMenu>
+          <ContextMenuContent>
+            <DomainMenuItems
+              node={node}
+              actions={actions}
+              Item={ContextMenuItem}
+              Separator={ContextMenuSeparator}
+            />
+          </ContextMenuContent>
+        </ContextMenu>
+      </div>
       {hasChildren && expanded && (
         <DomainNodeList
           nodes={node.children}
