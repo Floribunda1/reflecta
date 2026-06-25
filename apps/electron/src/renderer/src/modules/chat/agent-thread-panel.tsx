@@ -168,6 +168,7 @@ async function exportMarkdown(title: string, messages: AgentReducedMessage[]) {
   const filename = `${(title.trim() || "agent-chat").replace(/[\\/:*?"<>|]+/g, "-")}.md`;
   try {
     const filePath = await ipcClient.chat.exportMarkdown(filename, `${parts.join("\n\n")}\n`);
+    if (!filePath) return;
     toast.success("已导出 Markdown", { description: filePath });
   } catch (error) {
     toast.error("导出 Markdown 失败", { description: errorMessage(error) });

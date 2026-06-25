@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 const mockElectron = vi.hoisted(() => ({
   appData: "",
   userData: "",
+  showSaveDialog: vi.fn(),
   showItemInFolder: vi.fn(),
 }));
 
@@ -22,6 +23,9 @@ vi.mock("electron", () => ({
   },
   shell: {
     showItemInFolder: mockElectron.showItemInFolder,
+  },
+  dialog: {
+    showSaveDialog: mockElectron.showSaveDialog,
   },
 }));
 
@@ -40,6 +44,7 @@ beforeEach(() => {
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "reflecta-chat-service-"));
   mockElectron.appData = path.join(tempDir, "app-data");
   mockElectron.userData = path.join(tempDir, "user-data");
+  mockElectron.showSaveDialog.mockReset();
   mockElectron.showItemInFolder.mockClear();
   process.argv = [
     "electron",
@@ -58,14 +63,31 @@ afterEach(() => {
 });
 
 describe("ChatService export", () => {
-  test("writes Markdown and reveals the exported file", async () => {
+  test("writes Markdown to the selected path and reveals the exported file", async () => {
     const { ChatService } = await import("./ChatService");
     const service = new ChatService();
+    const selectedPath = path.join(tempDir, "selected", "A-B.md");
+    mockElectron.showSaveDialog.mockResolvedValue({ canceled: false, filePath: selectedPath });
 
-    const filePath = service.exportMarkdown("A/B.md", "# Export\n");
+    const filePath = await service.exportMarkdown("A/B.md", "# Export\n");
 
-    expect(filePath).toBe(path.join(tempDir, "content", "exports", "A-B.md"));
-    expect(fs.readFileSync(filePath, "utf-8")).toBe("# Export\n");
+    expect(mockElectron.showSaveDialog).toHaveBeenCalledWith({
+      title: "导出 Markdown",
+      defaultPath: "A-B.md",
+      filters: [{ name: "Markdown", extensions: ["md"] }],
+    });
+    expect(filePath).toBe(selectedPath);
+    expect(fs.readFileSync(filePath!, "utf-8")).toBe("# Export\n");
     expect(mockElectron.showItemInFolder).toHaveBeenCalledWith(filePath);
+  });
+
+  test("returns null without writing when the save dialog is cancelled", async () => {
+    const { ChatService } = await import("./ChatService");
+    const service = new ChatService();
+    mockElectron.showSaveDialog.mockResolvedValue({ canceled: true, filePath: undefined });
+
+    await expect(service.exportMarkdown("A/B.md", "# Export\n")).resolves.toBeNull();
+    expect(fs.existsSync(path.join(tempDir, "selected"))).toBe(false);
+    expect(mockElectron.showItemInFolder).not.toHaveBeenCalled();
   });
 });

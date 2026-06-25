@@ -215,7 +215,11 @@ describe("Electron AI config", () => {
       }),
     );
 
-    expect(config.getAiConfig()).toEqual({ providers: [], activeAgentModel: undefined });
+    expect(config.getAiConfig()).toEqual({
+      providers: [],
+      activeAgentModel: undefined,
+      titleGenerationModel: undefined,
+    });
   });
 
   test("falls back to the first configured model when the active selection is stale", async () => {
@@ -233,6 +237,24 @@ describe("Electron AI config", () => {
         activeAgentModel: { providerId: "missing", modelId: "missing" },
       }).activeAgentModel,
     ).toEqual({ providerId: "openai", modelId: "gpt-4o" });
+  });
+
+  test("falls back to the active model when the title generation selection is stale", async () => {
+    const config = await import("./config");
+
+    expect(
+      config.normalizeAiConfig({
+        providers: [
+          {
+            id: "openai",
+            apiKey: "test-key",
+            models: [{ id: "gpt-4o" }, { id: "gpt-4o-mini" }],
+          },
+        ],
+        activeAgentModel: { providerId: "openai", modelId: "gpt-4o-mini" },
+        titleGenerationModel: { providerId: "missing", modelId: "missing" },
+      }).titleGenerationModel,
+    ).toEqual({ providerId: "openai", modelId: "gpt-4o-mini" });
   });
 
   test("stores AI API keys as plain config", async () => {
@@ -271,7 +293,11 @@ describe("Electron AI config", () => {
           },
         ],
       }),
-    ).toEqual({ providers: [], activeAgentModel: undefined });
+    ).toEqual({
+      providers: [],
+      activeAgentModel: undefined,
+      titleGenerationModel: undefined,
+    });
   });
 
   test("allows Codex subscription provider without an API key", async () => {
@@ -281,6 +307,7 @@ describe("Electron AI config", () => {
     });
 
     expect(ai.activeAgentModel).toEqual({ providerId: "openai-codex", modelId: "gpt-5.5" });
+    expect(ai.titleGenerationModel).toEqual({ providerId: "openai-codex", modelId: "gpt-5.5" });
     expect(config.getAiModelOptions(ai)[0]).toMatchObject({
       providerId: "openai-codex",
       modelId: "gpt-5.5",

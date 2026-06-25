@@ -27,6 +27,7 @@ export type AiReasoningLevel = "default" | "low" | "medium" | "high";
 export interface AiConfig {
   providers: AiProviderConfig[];
   activeAgentModel?: AiModelSelection;
+  titleGenerationModel?: AiModelSelection;
 }
 
 export interface AiProviderCatalogItem {
@@ -309,13 +310,22 @@ export function normalizeAiConfig(input: AiConfig): AiConfig {
     ];
   });
 
-  const config = { providers, activeAgentModel: input.activeAgentModel };
+  const config = {
+    providers,
+    activeAgentModel: input.activeAgentModel,
+    titleGenerationModel: input.titleGenerationModel,
+  };
+  const activeAgentModel =
+    config.activeAgentModel && hasModelSelection(config, config.activeAgentModel)
+      ? config.activeAgentModel
+      : firstModelSelection(providers);
   return {
     providers,
-    activeAgentModel:
-      config.activeAgentModel && hasModelSelection(config, config.activeAgentModel)
-        ? config.activeAgentModel
-        : firstModelSelection(providers),
+    activeAgentModel,
+    titleGenerationModel:
+      config.titleGenerationModel && hasModelSelection(config, config.titleGenerationModel)
+        ? config.titleGenerationModel
+        : activeAgentModel,
   };
 }
 
@@ -414,6 +424,15 @@ export function getActiveAiModelSelection(config = getAiConfig()): AiModelSelect
   return firstModelSelection(config.providers);
 }
 
+export function getTitleGenerationAiModelSelection(
+  config = getAiConfig(),
+): AiModelSelection | undefined {
+  if (config.titleGenerationModel && hasModelSelection(config, config.titleGenerationModel)) {
+    return config.titleGenerationModel;
+  }
+  return getActiveAiModelSelection(config);
+}
+
 export function getAiModelConfig(
   selection: AiModelSelection | undefined = undefined,
   config = getAiConfig(),
@@ -441,6 +460,10 @@ export function getAiModelConfig(
 
 export function getActiveAiModelConfig(config = getAiConfig()): ResolvedAiModelConfig {
   return getAiModelConfig(undefined, config);
+}
+
+export function getTitleGenerationAiModelConfig(config = getAiConfig()): ResolvedAiModelConfig {
+  return getAiModelConfig(getTitleGenerationAiModelSelection(config), config);
 }
 
 export function writeConfig(partial: Partial<AppConfig>): void {

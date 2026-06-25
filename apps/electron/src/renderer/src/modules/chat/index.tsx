@@ -6,6 +6,7 @@ import {
 } from "@renderer/components/ui/resizable";
 import { useModal } from "@renderer/modules/shared/hooks/use-modal";
 import { useMemoizedFn } from "ahooks";
+import { toast } from "sonner";
 import { AgentThreadPanel } from "./agent-thread-panel";
 import { ContextInspector } from "./context/context-inspector";
 import type { InspectableContextRef } from "./context/context-reference";
@@ -32,6 +33,12 @@ function activeThreadIdFor(threads: { id: string }[], activeThreadId: string | n
     return activeThreadId;
   }
   return threads[0]!.id;
+}
+
+function errorMessage(error: unknown) {
+  if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
+    return error.message;
+  return error instanceof Error ? error.message : "请稍后重试";
 }
 
 function ThreadChat({
@@ -126,7 +133,10 @@ function ChatPageContent() {
     ? (generateThreadTitleMutation.variables ?? null)
     : null;
   const generateThreadTitle = useMemoizedFn((threadId: string) =>
-    generateThreadTitleMutation.mutate(threadId),
+    generateThreadTitleMutation.mutate(threadId, {
+      onSuccess: () => toast.success("已生成标题"),
+      onError: (error) => toast.error("生成标题失败", { description: errorMessage(error) }),
+    }),
   );
   const forkThreadFromMessage = useMemoizedFn((threadId: string, messageId: string) =>
     forkThreadFromMessageMutation.mutate(

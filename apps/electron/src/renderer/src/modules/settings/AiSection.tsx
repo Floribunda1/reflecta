@@ -4,12 +4,14 @@ import { Check, CheckCircle, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@renderer/components/ui/button";
 import { Input } from "@renderer/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@renderer/components/ui/native-select";
 import { ScrollArea } from "@renderer/components/ui/scroll-area";
 import { ipcClient } from "@renderer/utils/ipc";
 
 type AiConfig = Awaited<ReturnType<typeof ipcClient.config.getAiConfig>>;
 type AiProviderConfig = AiConfig["providers"][number];
 type AiModelConfig = AiProviderConfig["models"][number];
+type AiModelSelection = NonNullable<AiConfig["activeAgentModel"]>;
 type AiProviderCatalogItem = Awaited<
   ReturnType<typeof ipcClient.config.listAiProviderCatalog>
 >[number];
@@ -30,6 +32,20 @@ function errorMessage(error: unknown) {
   if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
     return error.message;
   return error instanceof Error ? error.message : "请稍后重试";
+}
+
+function modelSelectionValue(selection: AiModelSelection | undefined): string {
+  if (!selection) return "";
+  return `${encodeURIComponent(selection.providerId)}:${encodeURIComponent(selection.modelId)}`;
+}
+
+function parseModelSelectionValue(value: string): AiModelSelection | undefined {
+  const separatorIndex = value.indexOf(":");
+  if (separatorIndex < 0) return undefined;
+  return {
+    providerId: decodeURIComponent(value.slice(0, separatorIndex)),
+    modelId: decodeURIComponent(value.slice(separatorIndex + 1)),
+  };
 }
 
 export function AiSection() {
@@ -57,6 +73,22 @@ export function AiSection() {
   const models = providerConfig?.models.length
     ? providerConfig.models
     : (selectedProvider?.models ?? []);
+  const titleModelOptions = config.providers.flatMap((provider) => {
+    const catalogItem = catalog.find((item) => item.id === provider.id);
+    if (!catalogItem || (catalogItem.authType !== "codex" && !provider.apiKey.trim())) return [];
+    const providerModels = provider.models.length > 0 ? provider.models : catalogItem.models;
+    return providerModels.map((model) => ({
+      providerId: provider.id,
+      modelId: model.id,
+      label: `${catalogItem.name} / ${model.name || model.id}`,
+    }));
+  });
+  const titleModelValue = modelSelectionValue(config.titleGenerationModel);
+  const selectedTitleModelValue = titleModelOptions.some(
+    (option) => modelSelectionValue(option) === titleModelValue,
+  )
+    ? titleModelValue
+    : "";
 
   const upsertProvider = (providerId: string, patch: Partial<AiProviderConfig>) => {
     const provider = catalog.find((item) => item.id === providerId);
@@ -105,6 +137,18 @@ export function AiSection() {
     setConfig((current) => ({
       ...current,
       providers: current.providers.filter((provider) => provider.id !== selectedProviderId),
+      titleGenerationModel:
+        current.titleGenerationModel?.providerId === selectedProviderId
+          ? undefined
+          : current.titleGenerationModel,
+    }));
+  };
+
+  const selectTitleGenerationModel = (value: string) => {
+    setSaved(false);
+    setConfig((current) => ({
+      ...current,
+      titleGenerationModel: parseModelSelectionValue(value),
     }));
   };
 
@@ -129,6 +173,28 @@ export function AiSection() {
         <h3 className="text-base font-medium text-foreground">AI</h3>
         <p className="mt-2 text-sm text-muted-foreground">用于摘要标题生成和 Agent 对话。</p>
       </div>
+
+      <section className="flex shrink-0 flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-sm font-medium text-foreground">标题生成模型</span>
+        <NativeSelect
+          className="w-full sm:w-[360px]"
+          value={selectedTitleModelValue}
+          disabled={titleModelOptions.length === 0}
+          onChange={(event) => selectTitleGenerationModel(event.target.value)}
+        >
+          {titleModelOptions.length === 0 ? (
+            <NativeSelectOption value="">请先配置可用模型</NativeSelectOption>
+          ) : null}
+          {titleModelOptions.map((option) => (
+            <NativeSelectOption
+              key={modelSelectionValue(option)}
+              value={modelSelectionValue(option)}
+            >
+              {option.label}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+      </section>
 
       <section className="grid min-h-0 flex-1 overflow-hidden border-t border-border/70 pt-5 sm:grid-cols-[220px_minmax(0,1fr)]">
         <div className="min-h-0 border-r border-border/70 pr-3">

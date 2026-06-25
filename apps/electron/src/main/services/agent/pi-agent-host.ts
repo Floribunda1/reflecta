@@ -1,7 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { WebContents } from "electron";
-import { getModel, type Api, type Model } from "@earendil-works/pi-ai";
+import {
+  completeSimple,
+  getModel,
+  type Api,
+  type Context,
+  type Model,
+} from "@earendil-works/pi-ai";
 import {
   AuthStorage,
   createAgentSession,
@@ -24,6 +30,7 @@ import type {
 import {
   getAiModelConfig,
   getContentStorageRoot,
+  getTitleGenerationAiModelConfig,
   type AiModelSelection,
   type ResolvedAiModelConfig,
 } from "../../config";
@@ -117,6 +124,102 @@ export function extractAssistantError(message: unknown): string {
   return typeof message.errorMessage === "string" ? message.errorMessage : "";
 }
 
+const TITLE_GENERATION_SYSTEM_PROMPT =
+  "你是 Reflecta 的对话标题生成器。根据用户与 Agent 的对话内容生成一个简短、具体、可回看的标题。只输出标题本身。";
+const TITLE_GENERATION_MAX_SOURCE_LENGTH = 8000;
+const TITLE_GENERATION_MAX_TITLE_LENGTH = 40;
+
+function truncateText(text: string, maxLength: number): string {
+  return text.length > maxLength ? text.slice(0, maxLength) : text;
+}
+
+export function normalizeGeneratedThreadTitle(input: string): string {
+  const firstLine = input
+    .trim()
+    .replace(/^```(?:\w+)?\s*/u, "")
+    .replace(/```$/u, "")
+    .split(/\r?\n/u)
+    .find((line) => line.trim());
+  const title = (firstLine ?? "")
+    .trim()
+    .replace(/^#+\s*/u, "")
+    .replace(/^标题\s*[:：]\s*/iu, "")
+    .replace(/^[`"'“”‘’]+|[`"'“”‘’]+$/gu, "")
+    .trim();
+  return truncateText(title || "新对话", TITLE_GENERATION_MAX_TITLE_LENGTH);
+}
+
+export function buildThreadTitleContext(events: AgentSessionEvent[]): Context | null {
+  const source = reduceAgentSession(events)
+    .messages.flatMap((message) => {
+      const text = message.text.trim();
+      if (!text) return [];
+      return `${message.role === "user" ? "用户" : "Agent"}: ${text}`;
+    })
+    .join("\n\n")
+    .trim();
+
+  if (!source) return null;
+
+  return {
+    systemPrompt: TITLE_GENERATION_SYSTEM_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: [
+          "请为下面这段对话生成标题。",
+          "",
+          "要求：",
+          "- 只输出标题，不要解释",
+          "- 不要使用引号、编号或 Markdown",
+          "- 标题要体现对话的具体主题",
+          "- 不超过 20 个汉字或 40 个英文字符",
+          "",
+          "对话内容：",
+          truncateText(source, TITLE_GENERATION_MAX_SOURCE_LENGTH),
+        ].join("\n"),
+        timestamp: Date.now(),
+      },
+    ],
+  };
+}
+
+export async function generateAgentThreadTitle(
+  events: AgentSessionEvent[],
+  contentStorageRoot = getContentStorageRoot(),
+): Promise<string> {
+  const context = buildThreadTitleContext(events);
+  if (!context) return "新对话";
+
+  const modelConfig = getTitleGenerationAiModelConfig();
+  const agentDir = path.join(contentStorageRoot, ".pi-agent");
+  fs.mkdirSync(agentDir, { recursive: true });
+  const authStorage = AuthStorage.create(path.join(agentDir, "auth.json"));
+  await configurePiRuntimeAuth(authStorage, modelConfig);
+  const modelRegistry = ModelRegistry.inMemory(authStorage);
+  const model = resolvePiModel(modelConfig.provider.id, modelConfig.model.id);
+  const auth = await modelRegistry.getApiKeyAndHeaders(model);
+  if (!auth.ok) throw new Error(auth.error);
+
+  const response = await completeSimple(model, context, {
+    apiKey: auth.apiKey,
+    env: auth.env,
+    headers: auth.headers,
+    maxTokens: 80,
+    reasoning: "minimal",
+    sessionId: `title_${events[0]?.sessionId ?? "session"}`,
+  });
+  if (response.stopReason === "error") {
+    throw new Error(response.errorMessage || "标题生成失败");
+  }
+
+  const text = response.content
+    .map((part) => (part.type === "text" ? part.text : ""))
+    .join("")
+    .trim();
+  return normalizeGeneratedThreadTitle(text);
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -167,7 +270,10 @@ export class PiAgentHost {
   private readonly activeRuns = new Map<string, ActivePiRun>();
   private readonly cancelledRunIds = new Set<string>();
 
-  constructor(private readonly contentStorageRoot = getContentStorageRoot()) {
+  constructor(
+    private readonly contentStorageRoot = getContentStorageRoot(),
+    private readonly titleGenerator = generateAgentThreadTitle,
+  ) {
     this.sessionLog = new AgentSessionLog(contentStorageRoot);
   }
 
@@ -197,9 +303,9 @@ export class PiAgentHost {
 
   async generateThreadTitle(sessionId: string): Promise<string> {
     const events = await this.sessionLog.readEvents(sessionId);
-    const firstUserMessage = events.find((event) => event.type === "user.message");
-    const title =
-      firstUserMessage?.type === "user.message" ? firstUserMessage.text.slice(0, 40) : "新对话";
+    const title = normalizeGeneratedThreadTitle(
+      await this.titleGenerator(events, this.contentStorageRoot),
+    );
     await this.renameThread(sessionId, title);
     return title;
   }

@@ -1,9 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
-import { shell } from "electron";
+import { dialog, shell } from "electron";
 import { getIpcContext, IpcMethod, IpcService } from "electron-ipc-decorator";
 import type { AgentCommand } from "@shared/agent";
-import { getContentStorageRoot } from "../config";
 import { ipcLog } from "../logger";
 import { piAgentHost } from "./core";
 
@@ -51,10 +50,16 @@ export class ChatService extends IpcService {
   }
 
   @IpcMethod()
-  exportMarkdown(filename: string, markdown: string) {
-    const exportDir = path.join(getContentStorageRoot(), "exports");
-    fs.mkdirSync(exportDir, { recursive: true });
-    const filePath = path.join(exportDir, markdownExportFilename(filename));
+  async exportMarkdown(filename: string, markdown: string): Promise<string | null> {
+    const result = await dialog.showSaveDialog({
+      title: "导出 Markdown",
+      defaultPath: markdownExportFilename(filename),
+      filters: [{ name: "Markdown", extensions: ["md"] }],
+    });
+    if (result.canceled || !result.filePath) return null;
+
+    const filePath = result.filePath.endsWith(".md") ? result.filePath : `${result.filePath}.md`;
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
     fs.writeFileSync(filePath, markdown, "utf-8");
     shell.showItemInFolder(filePath);
     return filePath;

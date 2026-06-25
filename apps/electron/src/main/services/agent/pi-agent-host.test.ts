@@ -6,10 +6,12 @@ import { AuthStorage } from "@earendil-works/pi-coding-agent";
 import type { AgentSessionEvent } from "@shared/agent";
 import type { ResolvedAiModelConfig } from "../../config";
 import {
+  buildThreadTitleContext,
   configurePiRuntimeAuth,
   createPiResourceLoader,
   extractAssistantError,
   loadAgentSystemPrompt,
+  normalizeGeneratedThreadTitle,
   PiAgentHost,
 } from "./pi-agent-host";
 import { AgentSessionLog } from "./pi-session-log";
@@ -118,6 +120,78 @@ describe("PiAgentHost", () => {
         errorMessage: "Cannot find module './openai-completions-old.js'",
       }),
     ).toBe("Cannot find module './openai-completions-old.js'");
+  });
+
+  test("builds title prompts from reduced session messages", () => {
+    const context = buildThreadTitleContext([
+      {
+        id: "evt_1",
+        sessionId: "session_1",
+        runId: "run_1",
+        type: "user.message",
+        messageId: "user_1",
+        text: "我想比较内容存储和应用缓存应该怎么分层",
+        createdAt: "2026-06-23T00:00:00.000Z",
+      },
+      {
+        id: "evt_2",
+        sessionId: "session_1",
+        runId: "run_1",
+        type: "assistant.text.delta",
+        messageId: "assistant_1",
+        delta: "可以把 session、db 和文件保留，",
+        createdAt: "2026-06-23T00:00:01.000Z",
+      },
+      {
+        id: "evt_3",
+        sessionId: "session_1",
+        runId: "run_1",
+        type: "assistant.text.delta",
+        messageId: "assistant_1",
+        delta: "索引和日志跟应用卸载。",
+        createdAt: "2026-06-23T00:00:02.000Z",
+      },
+    ]);
+
+    expect(context?.systemPrompt).toContain("对话标题生成器");
+    expect(context?.messages[0]?.content).toContain("用户: 我想比较内容存储和应用缓存应该怎么分层");
+    expect(context?.messages[0]?.content).toContain(
+      "Agent: 可以把 session、db 和文件保留，索引和日志跟应用卸载。",
+    );
+  });
+
+  test("normalizes model title output before saving it", () => {
+    expect(normalizeGeneratedThreadTitle("```markdown\n# 标题：存储路径分层方案\n```")).toBe(
+      "存储路径分层方案",
+    );
+  });
+
+  test("renames a thread using the configured title generator", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const session = log.createSession("新对话");
+    const manager = await log.openSession(session.id);
+    const event: AgentSessionEvent = {
+      id: "evt_1",
+      sessionId: session.id,
+      runId: "run_1",
+      type: "user.message",
+      messageId: "user_1",
+      text: "帮我生成一个标题",
+      createdAt: "2026-06-23T00:00:00.000Z",
+    };
+    log.appendEvent(manager, event);
+
+    const title = await new PiAgentHost(root, async (events, contentStorageRoot) => {
+      expect(events).toEqual([event]);
+      expect(contentStorageRoot).toBe(root);
+      return "“AI 标题”";
+    }).generateThreadTitle(session.id);
+
+    expect(title).toBe("AI 标题");
+    await expect(new AgentSessionLog(root).listSessions()).resolves.toMatchObject([
+      { id: session.id, title: "AI 标题" },
+    ]);
   });
 
   test("closes restored sessions whose last run never reached a terminal event", async () => {
