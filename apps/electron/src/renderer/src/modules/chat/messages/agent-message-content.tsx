@@ -26,6 +26,8 @@ import {
   type ToolApprovalStatus,
 } from "./agent-turn-view";
 import { wikiMarkdownComponents, wikiUrlTransform } from "../context/wiki-link";
+import { useCaptureDomains } from "../../capture/queries";
+import { getDomainPath } from "../../capture/domain/util";
 import "../styles/markdown-theme.scss";
 
 export type ApproveToolInput = {
@@ -360,6 +362,11 @@ function CandidateUnderstandingCard({
   onApprove: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
 }) {
+  const { domains } = useCaptureDomains();
+  const domainPaths = proposal.data.domainIds.map((domainId) =>
+    getDomainPath(domainId, domains, "/"),
+  );
+
   return (
     <CandidateShell
       title={proposal.title}
@@ -372,10 +379,8 @@ function CandidateUnderstandingCard({
         <div className="rounded-md bg-muted/50 p-3 leading-6">
           <MarkdownBody value={proposal.data.body} onInspectContextRef={onInspectContextRef} />
         </div>
-        {proposal.data.domainIds.length > 0 ? (
-          <div className="text-xs text-muted-foreground">
-            Domain: {proposal.data.domainIds.join(", ")}
-          </div>
+        {domainPaths.length > 0 ? (
+          <div className="text-xs text-muted-foreground">Domain: {domainPaths.join(", ")}</div>
         ) : null}
       </div>
     </CandidateShell>
