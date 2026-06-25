@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.6 - 2026-06-25
+
+- Fixed Agent composer paste behavior so Markdown copied from rendered content stays editable as plain text.
+- Improved Agent chat jump navigation in the collapsed state.
+- Fixed proposal references so they render as readable labels with domain paths.
+
 ## 1.1.5 - 2026-06-25
 
 - Show an in-chat pending Agent response state before the first assistant content arrives, so the main conversation no longer appears idle while the model is starting.
