@@ -20,6 +20,7 @@ import {
   type UnderstandingProposalView,
   type UnderstandingUpdateProposalView,
   type ToolActivityView,
+  type ToolActivityDetailsView,
   type ToolApprovalStatus,
 } from "./agent-turn-view";
 import { wikiMarkdownComponents, wikiUrlTransform } from "../context/wiki-link";
@@ -68,99 +69,60 @@ function MarkdownBody({
   );
 }
 
-function splitDetail(detail: string) {
-  const separator = detail.indexOf("：");
-  if (separator === -1) return undefined;
-  return {
-    label: detail.slice(0, separator),
-    value: detail.slice(separator + 1),
-  };
+function hasToolDetails(details: ToolActivityDetailsView) {
+  return details.meta.length > 0 || details.rows.length > 0 || Boolean(details.emptyText);
 }
 
-function isInputDetail(label: string) {
-  return ["查询", "limit", "offset", "domainId", "understandingId", "contextId"].includes(label);
-}
-
-function detailLabel(label: string) {
-  if (label === "limit") return "数量";
-  if (label === "offset") return "跳过";
-  if (label === "domainId") return "Domain";
-  if (label === "understandingId") return "Understanding";
-  if (label === "contextId") return "Context";
-  return label;
-}
-
-function detailValue({ label, value }: { label: string; value: string }) {
-  if (label === "limit" || label === "offset") return `${value} 条`;
-  return value;
-}
-
-function shouldShowInputDetail({ label, value }: { label: string; value: string }) {
-  return label !== "offset" || Number(value) > 0;
-}
-
-function ToolDetailRows({ details }: { details: string[] }) {
-  const inputDetails = details
-    .map(splitDetail)
-    .filter((detail): detail is { label: string; value: string } =>
-      Boolean(detail && isInputDetail(detail.label)),
-    )
-    .filter(shouldShowInputDetail);
-  const resultDetails = details.filter((detail) => {
-    const parsed = splitDetail(detail);
-    return !parsed || !isInputDetail(parsed.label);
-  });
-
+function ToolDetailRows({ details }: { details: ToolActivityDetailsView }) {
   return (
     <div className="grid gap-2">
-      {inputDetails.length ? (
+      {details.meta.length ? (
         <div className="flex flex-wrap gap-x-3 gap-y-1 px-1 text-xs text-muted-foreground">
-          {inputDetails.map((detail, index) => (
-            <span key={`${detail.label}-${detail.value}-${index}`}>
-              <span>{detailLabel(detail.label)}：</span>
-              <span>{detailValue(detail)}</span>
+          {details.meta.map((detail, index) => (
+            <span key={`${detail.label}-${detail.value}-${index}`} className="min-w-0">
+              <span>{detail.label}：</span>
+              <span className="break-words">{detail.value}</span>
             </span>
           ))}
         </div>
       ) : null}
-      {resultDetails.length ? (
+      {details.rows.length ? (
         <ul className="grid gap-1">
-          {resultDetails.map((detail, index) => {
-            const parsed = splitDetail(detail);
-            if (!parsed) {
-              return (
-                <li
-                  key={`${detail}-${index}`}
-                  className="break-words rounded-sm px-1 py-1 text-muted-foreground hover:bg-background/45"
-                >
-                  {detail}
-                </li>
-              );
-            }
-            const [title = parsed.value, description] = parsed.value.split(" · ");
+          {details.rows.map((detail, index) => {
             return (
               <li
-                key={`${detail}-${index}`}
+                key={`${detail.label}-${detail.title}-${index}`}
                 className="grid gap-0.5 rounded-sm px-1 py-1 hover:bg-background/45"
               >
                 <div className="flex min-w-0 items-baseline gap-2">
-                  <span className="shrink-0 text-xs text-muted-foreground">{parsed.label}</span>
-                  <span className="min-w-0 font-medium text-foreground/75">{title}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{detail.label}</span>
+                  <span className="min-w-0 break-words font-medium text-foreground/75">
+                    {detail.title}
+                  </span>
                 </div>
-                {description ? (
-                  <div className="line-clamp-2 text-muted-foreground/85">{description}</div>
+                {detail.description ? (
+                  <div className="line-clamp-2 text-muted-foreground/85">{detail.description}</div>
+                ) : null}
+                {detail.meta.length ? (
+                  <div className="flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground/80">
+                    {detail.meta.map((item) => (
+                      <span key={item}>{item}</span>
+                    ))}
+                  </div>
                 ) : null}
               </li>
             );
           })}
         </ul>
       ) : null}
+      {details.emptyText ? (
+        <div className="break-words px-1 py-1 text-muted-foreground">{details.emptyText}</div>
+      ) : null}
     </div>
   );
 }
 
 function ToolActivityGroup({ activity }: { activity: ToolActivityView }) {
-  const item = activity.items[0];
   const statusClass =
     activity.status === "failed"
       ? "bg-destructive/10 text-destructive"
@@ -179,8 +141,19 @@ function ToolActivityGroup({ activity }: { activity: ToolActivityView }) {
         <ChevronDown className="size-3 shrink-0 -rotate-90 text-muted-foreground opacity-0 transition group-data-[panel-open]:rotate-0 group-data-[panel-open]:opacity-100 group-hover:opacity-100 group-focus-visible:opacity-100" />
       </CollapsibleTrigger>
       <CollapsibleContent className="mt-2 px-1 pb-1 text-muted-foreground">
-        {item?.details.length ? <ToolDetailRows details={item.details} /> : null}
-        {item?.errorText ? <div className="mt-1 text-destructive">{item.errorText}</div> : null}
+        <div className="grid gap-2">
+          {activity.items.map((item) => (
+            <div key={item.toolCallId} className="grid gap-1">
+              {activity.items.length > 1 ? (
+                <div className="px-1 text-xs font-medium text-foreground/70">{item.label}</div>
+              ) : null}
+              {hasToolDetails(item.details) ? <ToolDetailRows details={item.details} /> : null}
+              {item.errorText ? (
+                <div className="px-1 text-destructive">{item.errorText}</div>
+              ) : null}
+            </div>
+          ))}
+        </div>
       </CollapsibleContent>
     </Collapsible>
   );

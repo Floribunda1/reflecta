@@ -175,7 +175,6 @@ test("@AG-RESULT-003 用户展开思考过程和工具活动查看详情", async
     const toolActivity = page.getByTestId("agent-tool-activity");
     await expect(page.getByText("THINKING_DETAIL")).toBeVisible();
     await expect(toolActivity.getByText("查询：代价")).toBeVisible();
-    await expect(toolActivity.getByText("数量：20")).toBeVisible();
     await expect(toolActivity.getByText("Understanding", { exact: true })).toBeVisible();
     await expect(toolActivity.getByText("Feedback Loop")).toBeVisible();
     await expect(toolActivity.getByText("反馈回路能降低试错代价")).toBeVisible();

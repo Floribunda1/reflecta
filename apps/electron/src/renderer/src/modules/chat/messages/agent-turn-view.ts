@@ -33,13 +33,31 @@ export type ToolActivityView = {
   items: ToolActivityItemView[];
 };
 
+export type ToolActivityDetailMeta = {
+  label: string;
+  value: string;
+};
+
+export type ToolActivityDetailRow = {
+  label: string;
+  title: string;
+  description?: string;
+  meta: string[];
+};
+
+export type ToolActivityDetailsView = {
+  meta: ToolActivityDetailMeta[];
+  rows: ToolActivityDetailRow[];
+  emptyText?: string;
+};
+
 export type ToolActivityItemView = {
   toolCallId: string;
   toolName: string;
   label: string;
   status: ToolActivityView["status"];
   statusLabel: string;
-  details: string[];
+  details: ToolActivityDetailsView;
   errorText?: string;
 };
 
@@ -183,6 +201,11 @@ function appendText(blocks: InternalTurnBlock[], text: string) {
 }
 
 function appendTool(blocks: InternalTurnBlock[], groupType: ToolGroupType, block: AgentToolBlock) {
+  const last = blocks.at(-1);
+  if (last?.kind === "tool-group" && last.groupType === groupType) {
+    last.blocks.push(block);
+    return;
+  }
   blocks.push({ kind: "tool-group", groupType, blocks: [block] });
 }
 
@@ -414,13 +437,9 @@ function runningSummary(groupType: ToolGroupType) {
 function doneSummary(groupType: ToolGroupType, blocks: AgentToolBlock[]) {
   if (blocks.length === 1 && blocks[0]) return toolItemView(blocks[0]).label;
   if (groupType === "lookup") {
-    const counts = aggregateLookupCounts(blocks);
-    if (counts.understandings || counts.contexts) {
-      return `搜索 ${counts.understandings} 条 Understanding，读取 ${counts.contexts} 条 Context`;
-    }
-    return "查找了相关内容";
+    return joinedToolLabels(blocks);
   }
-  return "使用了工具";
+  return joinedToolLabels(blocks);
 }
 
 function failedSummary(title: string, blocks: AgentToolBlock[]) {
@@ -429,35 +448,10 @@ function failedSummary(title: string, blocks: AgentToolBlock[]) {
   return `${title}时遇到 ${failedItems.length} 个问题`;
 }
 
-function aggregateLookupCounts(blocks: AgentToolBlock[]) {
-  let understandings = 0;
-  let contexts = 0;
-  for (const block of blocks) {
-    if (block.state !== "completed") continue;
-    const name = block.toolName;
-    const output = toolOutput(block);
-    if (name === "understanding_list") {
-      understandings += outputCount(output, "understandings");
-    }
-    if (name === "context_list") {
-      contexts += outputCount(output, "contexts");
-    }
-    if (name === "search") {
-      const counts = searchHitCounts(output);
-      understandings += counts.understandings;
-      contexts += counts.contexts;
-    }
-    if (name === "retrieve_knowledge") {
-      const counts = retrievalCandidateCounts(output);
-      understandings += counts.understandings;
-      contexts += counts.contexts;
-    }
-    if (name === "graph") {
-      understandings += outputCount(output, "nodes");
-      contexts += outputCount(output, "contexts");
-    }
-  }
-  return { understandings, contexts };
+function joinedToolLabels(blocks: AgentToolBlock[]) {
+  const labels = blocks.map((block) => toolItemView(block).label);
+  const visible = labels.slice(0, 2).join("；");
+  return labels.length > 2 ? `${visible} 等 ${labels.length} 步` : visible || "使用了工具";
 }
 
 function toolActivityTitle(groupType: ToolGroupType, blocks: AgentToolBlock[]) {
@@ -501,44 +495,42 @@ function queryLabel(input: Record<string, unknown>) {
   return query ? `「${query}」` : "";
 }
 
-function toolDetails(block: AgentToolBlock): string[] {
+function toolDetails(block: AgentToolBlock): ToolActivityDetailsView {
   const input = toolInput(block);
   const output = toolOutput(block);
-  const details = inputDetails(input);
-  if (block.state !== "completed") return details;
+  const meta = inputMeta(block.toolName, input);
+  if (block.state !== "completed") return detailView({ meta });
 
   const resultDetails = toolResultDetails(block.toolName, output);
-  return resultDetails.length > 0 ? [...details, ...resultDetails] : details;
+  return detailView({
+    meta: [...meta, ...resultDetails.meta],
+    rows: resultDetails.rows,
+    emptyText: resultDetails.emptyText,
+  });
 }
 
-function inputDetails(input: Record<string, unknown>) {
-  const details: string[] = [];
+function inputMeta(name: string, input: Record<string, unknown>): ToolActivityDetailMeta[] {
+  const meta: ToolActivityDetailMeta[] = [];
   const query = stringValue(input.query).trim();
-  if (query) details.push(`查询：${query}`);
-  for (const key of [
-    "url",
-    "attachmentId",
-    "path",
-    "command",
-    "cwd",
-    "limit",
-    "offset",
-    "maxBytes",
-    "maxChars",
-    "timeoutMs",
-    "domainId",
-    "understandingId",
-    "contextId",
-  ]) {
-    const value = input[key];
-    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-      details.push(`${key}：${value}`);
-    }
+  if (query) meta.push({ label: "查询", value: query });
+  if (name === "web_fetch") {
+    const url = stringValue(input.url).trim();
+    if (url) meta.push({ label: "网页", value: url });
   }
-  return details;
+  if (name === "file_read") {
+    const path = stringValue(input.path).trim();
+    if (path) meta.push({ label: "文件", value: filenameFromPath(path) });
+  }
+  if (name === "bash") {
+    const command = stringValue(input.command).trim();
+    const cwd = stringValue(input.cwd).trim();
+    if (command) meta.push({ label: "命令", value: truncateText(command, 120) });
+    if (cwd) meta.push({ label: "目录", value: cwd });
+  }
+  return meta;
 }
 
-function toolResultDetails(name: string, output: unknown): string[] {
+function toolResultDetails(name: string, output: unknown): ToolActivityDetailsView {
   if (name === "search") return searchHitDetails(output);
   if (name === "retrieve_knowledge") return retrievalCandidateDetails(output);
   if (name === "attachment_read") return attachmentReadDetails(output);
@@ -551,101 +543,159 @@ function toolResultDetails(name: string, output: unknown): string[] {
   if (name === "context_list") return recordListDetails(output, "Context", "contexts");
   if (name === "domain_inspect") return inspectDomainDetails(output);
   if (name === "understanding_get")
-    return recordDetails(entityRecord(output, "understanding"), "Understanding");
-  if (name === "context_get") return recordDetails(entityRecord(output, "context"), "Context");
-  if (name === "graph")
-    return recordListDetails(isRecord(output) ? output.nodes : [], "Understanding", "nodes");
-  return [];
+    return recordDetailView(entityRecord(output, "understanding"), "Understanding");
+  if (name === "context_get") return recordDetailView(entityRecord(output, "context"), "Context");
+  if (name === "graph") return graphDetails(output);
+  return detailView({});
 }
 
 function attachmentReadDetails(output: unknown) {
-  if (!isRecord(output)) return [];
-  const details: string[] = [];
+  if (!isRecord(output)) return detailView({});
   const filename = stringValue(output.filename);
   const content = stringValue(output.content);
   const error = stringValue(output.error);
-  if (filename) details.push(`附件：${truncateText(filename)}`);
-  if (output.kind) details.push(`类型：${String(output.kind)}`);
-  if (typeof output.totalPages === "number") details.push(`页数：${output.totalPages}`);
-  if (content) details.push(`内容：${content.length} 字`);
-  if (typeof output.truncated === "boolean" && output.truncated) details.push("内容已截断");
-  if (error) details.push(`错误：${truncateText(error)}`);
-  return details;
+  const meta = [
+    output.kind ? `${String(output.kind).toUpperCase()} 附件` : "",
+    typeof output.totalPages === "number" ? `${output.totalPages} 页` : "",
+    output.truncated ? "内容已截断" : "",
+  ].filter(Boolean);
+  return detailView({
+    rows: content ? [detailRow("附件内容", filename || "附件", content, meta)] : [],
+    emptyText: error ? `附件暂时无法读取：${truncateText(error)}` : undefined,
+  });
 }
 
 function fileReadDetails(output: unknown) {
-  if (!isRecord(output)) return [];
-  const details: string[] = [];
+  if (!isRecord(output)) return detailView({});
   const content = stringValue(output.content);
   const error = stringValue(output.error);
-  if (typeof output.bytes === "number") details.push(`大小：${output.bytes} bytes`);
-  if (output.encoding) details.push(`编码：${String(output.encoding)}`);
-  if (content) details.push(`内容：${content.length} 字`);
-  if (typeof output.truncated === "boolean" && output.truncated) details.push("内容已截断");
-  if (error) details.push(`错误：${truncateText(error)}`);
-  return details;
+  const path = stringValue(output.path);
+  const encoding = stringValue(output.encoding);
+  const binary = encoding === "base64";
+  const meta = [output.truncated ? "内容已截断" : ""].filter(Boolean);
+  if (binary) {
+    return detailView({
+      emptyText: `「${filenameFromPath(path) || "这个文件"}」是二进制文件，当前不能直接阅读内容。`,
+    });
+  }
+  return detailView({
+    rows: content
+      ? [detailRow("文件内容", filenameFromPath(path) || "本地文件", content, meta)]
+      : [],
+    emptyText: error ? `文件暂时无法读取：${truncateText(error)}` : undefined,
+  });
 }
 
 function bashDetails(output: unknown) {
-  if (!isRecord(output)) return [];
-  const details: string[] = [];
+  if (!isRecord(output)) return detailView({});
+  const meta: ToolActivityDetailMeta[] = [];
   if (typeof output.exitCode === "number" || output.exitCode === null)
-    details.push(`exit：${String(output.exitCode)}`);
+    meta.push({ label: "退出码", value: String(output.exitCode) });
   const stdout = stringValue(output.stdout);
   const stderr = stringValue(output.stderr);
-  if (stdout) details.push(`stdout：${truncateText(stdout)}`);
-  if (stderr) details.push(`stderr：${truncateText(stderr)}`);
-  if (output.timedOut) details.push("命令超时");
-  if (typeof output.truncated === "boolean" && output.truncated) details.push("输出已截断");
-  return details;
+  const rowMeta = [output.timedOut ? "命令超时" : "", output.truncated ? "输出已截断" : ""].filter(
+    Boolean,
+  );
+  return detailView({
+    meta,
+    rows: [
+      stdout ? detailRow("stdout", "标准输出", stdout, rowMeta) : undefined,
+      stderr ? detailRow("stderr", "错误输出", stderr, rowMeta) : undefined,
+    ].filter((row): row is ToolActivityDetailRow => Boolean(row)),
+    emptyText: stdout || stderr ? undefined : "命令没有输出。",
+  });
 }
 
 function webFetchDetails(output: unknown) {
-  if (!isRecord(output)) return [];
-  const details: string[] = [];
+  if (!isRecord(output)) return detailView({});
   const title = stringValue(output.title);
   const markdown = stringValue(output.markdown);
   const error = stringValue(output.error);
-  if (title) details.push(`标题：${truncateText(title)}`);
-  if (typeof output.blocked === "boolean" && output.blocked) details.push("状态：无法读取");
-  if (markdown) details.push(`内容：${markdown.length} 字`);
-  if (typeof output.truncated === "boolean" && output.truncated) details.push("内容已截断");
-  if (error) details.push(`错误：${truncateText(error)}`);
-  return details;
+  const finalUrl = stringValue(output.finalUrl) || stringValue(output.url);
+  const blocked = output.blocked === true;
+  if (blocked) {
+    return detailView({
+      meta: finalUrl ? [{ label: "网页", value: finalUrl }] : [],
+      emptyText: "页面需要登录或被访问限制拦住了。",
+    });
+  }
+  return detailView({
+    meta: finalUrl ? [{ label: "网页", value: finalUrl }] : [],
+    rows: markdown
+      ? [
+          detailRow(
+            "网页内容",
+            title || finalUrl || "网页",
+            markdown,
+            output.truncated ? ["内容已截断"] : [],
+          ),
+        ]
+      : [],
+    emptyText: error ? `网页暂时无法读取：${truncateText(error)}` : undefined,
+  });
 }
 
 function searchHitDetails(output: unknown) {
   const hits = isRecord(output) ? arrayValue(output.hits) : [];
-  return limitedLines(
-    hits.map((hit) => {
-      if (!isRecord(hit)) return "";
-      if (hit.type === "understanding") {
-        const understanding = isRecord(hit.understanding) ? hit.understanding : {};
-        return resultLine(
-          "Understanding",
-          entityTitle(understanding),
-          stringValue(hit.matchedText),
-        );
-      }
-      if (hit.type === "context") {
-        const context = isRecord(hit.context) ? hit.context : {};
-        return resultLine("Context", entityTitle(context), stringValue(hit.matchedText));
-      }
-      return "";
-    }),
-  );
+  return detailView({
+    rows: limitedRows(
+      hits.map((hit) => {
+        if (!isRecord(hit)) return undefined;
+        if (hit.type === "understanding") {
+          const understanding = isRecord(hit.understanding) ? hit.understanding : {};
+          return detailRow(
+            "Understanding",
+            entityTitle(understanding),
+            stringValue(hit.matchedText) || stringValue(understanding.body),
+            domainMeta(understanding),
+          );
+        }
+        if (hit.type === "context") {
+          const context = isRecord(hit.context) ? hit.context : {};
+          return detailRow(
+            "Context",
+            contextTitle(context),
+            stringValue(hit.matchedText),
+            contextMeta(context),
+          );
+        }
+        return undefined;
+      }),
+    ),
+    emptyText: hits.length === 0 ? "没有搜索到相关内容。" : undefined,
+  });
 }
 
 function retrievalCandidateDetails(output: unknown) {
   const candidates = isRecord(output) ? arrayValue(output.candidates) : [];
-  return limitedLines(
-    candidates.map((candidate) => {
-      if (!isRecord(candidate)) return "";
-      const contexts = arrayValue(candidate.matchedContexts).length;
-      const suffix = contexts > 0 ? `${contexts} 条 Context 证据` : "";
-      return resultLine("Understanding", entityTitle(candidate), suffix);
-    }),
-  );
+  const rows = candidates.flatMap((candidate) => {
+    if (!isRecord(candidate)) return [];
+    const contexts = arrayValue(candidate.matchedContexts).length;
+    return [
+      detailRow(
+        "Understanding",
+        entityTitle(candidate),
+        stringValue(candidate.snippet),
+        contexts > 0 ? [`${contexts} 条 Context 证据`] : [],
+      ),
+      ...arrayValue(candidate.matchedContexts)
+        .slice(0, 2)
+        .map((context) =>
+          isRecord(context)
+            ? detailRow(
+                "Context 证据",
+                contextTitle(context),
+                stringValue(context.snippet),
+                contextMeta(context),
+              )
+            : undefined,
+        ),
+    ];
+  });
+  return detailView({
+    rows: limitedRows(rows),
+    emptyText: candidates.length === 0 ? "没有找到直接相关的理解。" : undefined,
+  });
 }
 
 function recordListDetails(output: unknown, label: string, emptyLabel: string) {
@@ -654,24 +704,105 @@ function recordListDetails(output: unknown, label: string, emptyLabel: string) {
     : isRecord(output)
       ? arrayValue(output[emptyLabel])
       : [];
-  return limitedLines(
-    records.map((record) => (isRecord(record) ? resultLine(label, entityTitle(record)) : "")),
-  );
+  return detailView({
+    rows: limitedRows(
+      records.map((record) =>
+        isRecord(record)
+          ? detailRow(
+              label,
+              label === "Context" ? contextTitle(record) : entityTitle(record),
+              recordText(record),
+              [...domainMeta(record), ...contextMeta(record)],
+            )
+          : undefined,
+      ),
+    ),
+    emptyText: records.length === 0 ? "没有找到相关内容。" : undefined,
+  });
 }
 
 function inspectDomainDetails(output: unknown) {
-  if (!isRecord(output)) return [];
+  if (!isRecord(output)) return detailView({});
   const domain = entityRecord(output, "domain");
-  const details = recordDetails(domain, "Domain");
-  details.push(`Understanding：${arrayValue(output.understandings).length} 条`);
-  details.push(`Context：${arrayValue(output.contexts).length} 条`);
-  return details;
+  const understandings = arrayValue(output.understandings);
+  const contexts = arrayValue(output.contexts);
+  const domains = arrayValue(output.domains);
+  return detailView({
+    rows: limitedRows([
+      detailRow(
+        "Domain",
+        entityTitle(domain),
+        undefined,
+        [
+          `${understandings.length} 条 Understanding`,
+          `${contexts.length} 条 Context`,
+          domains.length > 0 ? `${domains.length} 个子 Domain` : "",
+        ].filter(Boolean),
+      ),
+      ...domains.map((record) =>
+        isRecord(record) ? detailRow("子 Domain", entityTitle(record)) : undefined,
+      ),
+      ...understandings.map((record) =>
+        isRecord(record)
+          ? detailRow("Understanding", entityTitle(record), recordText(record), domainMeta(record))
+          : undefined,
+      ),
+      ...contexts.map((record) =>
+        isRecord(record)
+          ? detailRow("Context", contextTitle(record), recordText(record), contextMeta(record))
+          : undefined,
+      ),
+    ]),
+  });
 }
 
-function recordDetails(record: Record<string, unknown>, label: string) {
-  const title = entityTitle(record);
-  const body = stringValue(record.body) || stringValue(record.content);
-  return [resultLine(label, title, body)];
+function recordDetailView(record: Record<string, unknown>, label: string) {
+  return detailView({
+    rows: [
+      detailRow(
+        label,
+        label === "Context" ? contextTitle(record) : entityTitle(record),
+        recordText(record),
+        [...domainMeta(record), ...contextMeta(record), ...recordCountMeta(record)],
+      ),
+      ...arrayValue(record.contexts)
+        .slice(0, 3)
+        .map((context) =>
+          isRecord(context)
+            ? detailRow("Context", contextTitle(context), recordText(context), contextMeta(context))
+            : undefined,
+        ),
+      ...arrayValue(record.relations)
+        .slice(0, 3)
+        .map((relation) =>
+          isRecord(relation)
+            ? detailRow(
+                "关联",
+                relationTitle(relation),
+                stringValue(relation.rawText),
+                [relation.direction === "incoming" ? "被引用" : "引用"].filter(Boolean),
+              )
+            : undefined,
+        ),
+    ].filter((row): row is ToolActivityDetailRow => Boolean(row)),
+  });
+}
+
+function graphDetails(output: unknown) {
+  if (!isRecord(output)) return detailView({});
+  const nodes = arrayValue(output.nodes);
+  const edges = arrayValue(output.edges);
+  return detailView({
+    meta: [{ label: "关联", value: `${edges.length} 条` }],
+    rows: limitedRows(
+      nodes.map((node) =>
+        isRecord(node)
+          ? detailRow("Understanding", entityTitle(node), recordText(node), domainMeta(node))
+          : undefined,
+      ),
+    ),
+    emptyText: nodes.length === 0 ? "这条 Understanding 暂时没有显式关联。" : undefined,
+  });
 }
 
 function entityRecord(output: unknown, key: string) {
@@ -680,19 +811,49 @@ function entityRecord(output: unknown, key: string) {
   return isRecord(nested) ? nested : output;
 }
 
-function limitedLines(lines: string[]) {
-  const filtered = lines.filter(Boolean);
-  if (filtered.length === 0) return ["结果：空"];
-  const visible = filtered.slice(0, 5);
-  return filtered.length > visible.length
-    ? [...visible, `还有 ${filtered.length - visible.length} 条结果`]
-    : visible;
+function detailView({
+  meta = [],
+  rows = [],
+  emptyText,
+}: {
+  meta?: ToolActivityDetailMeta[];
+  rows?: Array<ToolActivityDetailRow | undefined>;
+  emptyText?: string;
+}): ToolActivityDetailsView {
+  const seenMeta = new Set<string>();
+  const view = {
+    meta: meta.filter((item) => {
+      const key = `${item.label}:${item.value}`;
+      if (!item.value.trim() || seenMeta.has(key)) return false;
+      seenMeta.add(key);
+      return true;
+    }),
+    rows: rows.filter((row): row is ToolActivityDetailRow => Boolean(row)),
+  };
+  return emptyText ? { ...view, emptyText } : view;
 }
 
-function resultLine(kind: string, title?: string, detail?: string) {
-  const safeTitle = title || "未命名";
-  const safeDetail = detail ? ` · ${truncateText(detail)}` : "";
-  return `${kind}：${safeTitle}${safeDetail}`;
+function detailRow(
+  label: string,
+  title?: string,
+  description?: string,
+  meta: string[] = [],
+): ToolActivityDetailRow {
+  const compactDescription = description ? truncateText(description, 140) : undefined;
+  return {
+    label,
+    title: title || "未命名",
+    meta: meta.filter(Boolean),
+    ...(compactDescription ? { description: compactDescription } : {}),
+  };
+}
+
+function limitedRows(rows: Array<ToolActivityDetailRow | undefined>) {
+  const filtered = rows.filter((row): row is ToolActivityDetailRow => Boolean(row));
+  const visible = filtered.slice(0, 8);
+  return filtered.length > visible.length
+    ? [...visible, detailRow("更多", `还有 ${filtered.length - visible.length} 条结果`)]
+    : visible;
 }
 
 function truncateText(text: string, maxLength = 80) {
@@ -722,7 +883,8 @@ function toolDoneVerb(name: string) {
 function toolDoneSummary(name: string, input: Record<string, unknown>, output: unknown) {
   const outputRecord = isRecord(output) ? output : {};
   if (name === "file_read") {
-    return `读取了「${stringValue(outputRecord.path) || stringValue(input.path) || "本地文件"}」`;
+    const path = stringValue(outputRecord.path) || stringValue(input.path);
+    return `读取了「${filenameFromPath(path) || "本地文件"}」`;
   }
   if (name === "attachment_read") {
     return `读取了「${stringValue(outputRecord.filename) || stringValue(input.attachmentId) || "附件"}」`;
@@ -773,7 +935,63 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
 
 function entityTitle(value: unknown) {
   if (!isRecord(value)) return undefined;
-  return stringValue(value.title) || stringValue(value.name) || stringValue(value.title);
+  return stringValue(value.title) || stringValue(value.name);
+}
+
+function contextTitle(value: Record<string, unknown>) {
+  return entityTitle(value) || mediumLabel(stringValue(value.medium)) || "Context";
+}
+
+function recordText(value: Record<string, unknown>) {
+  return stringValue(value.body) || stringValue(value.content) || stringValue(value.snippet);
+}
+
+function domainMeta(value: Record<string, unknown>) {
+  const domains = arrayValue(value.domains)
+    .map(entityTitle)
+    .filter((name): name is string => Boolean(name));
+  return domains.length > 0 ? [`Domain：${domains.join("、")}`] : [];
+}
+
+function contextMeta(value: Record<string, unknown>) {
+  const medium = mediumLabel(stringValue(value.medium));
+  return medium ? [`类型：${medium}`] : [];
+}
+
+function recordCountMeta(value: Record<string, unknown>) {
+  return [
+    numberMeta(value.contextCount, "Context"),
+    numberMeta(value.referenceCount, "引用"),
+    numberMeta(value.referencedByCount, "被引用"),
+    numberMeta(value.connectionCount, "关联"),
+  ].filter((item): item is string => Boolean(item));
+}
+
+function numberMeta(value: unknown, label: string) {
+  return typeof value === "number" ? `${value} 条${label}` : undefined;
+}
+
+function relationTitle(value: Record<string, unknown>) {
+  const direction = stringValue(value.direction);
+  if (direction === "incoming") return stringValue(value.sourceTitle) || "被引用的 Understanding";
+  return stringValue(value.targetTitle) || "引用的 Understanding";
+}
+
+function mediumLabel(value: string) {
+  if (value === "experience") return "实践";
+  if (value === "video") return "视频";
+  if (value === "book") return "书籍";
+  if (value === "article") return "文章";
+  if (value === "opinion") return "观点";
+  if (value === "ai") return "AI 对话";
+  if (value === "other") return "其他";
+  return "";
+}
+
+function filenameFromPath(path: string) {
+  const trimmed = path.trim();
+  if (!trimmed) return "";
+  return trimmed.split(/[\\/]/).filter(Boolean).at(-1) ?? trimmed;
 }
 
 function arrayValue(value: unknown): unknown[] {

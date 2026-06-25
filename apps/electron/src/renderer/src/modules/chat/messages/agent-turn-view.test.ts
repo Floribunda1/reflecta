@@ -116,7 +116,7 @@ describe("buildAgentTurnView", () => {
     ]);
   });
 
-  test("renders each adjacent tool as its own activity without crossing text", () => {
+  test("groups adjacent lookup tools without crossing text", () => {
     const turn = buildAgentTurnView([
       tool("search", "tool-1", {
         hits: [{ type: "understanding", understanding: { id: "t1" } }],
@@ -126,19 +126,18 @@ describe("buildAgentTurnView", () => {
       tool("context_list", "tool-3", { contexts: [{ id: "c1" }] }),
     ]);
 
-    expect(turn.blocks).toHaveLength(4);
+    expect(turn.blocks).toHaveLength(3);
     expect(turn.blocks[0]).toMatchObject({
-      kind: "tool-activity",
-      activity: { groupType: "lookup", items: [expect.objectContaining({ toolName: "search" })] },
-    });
-    expect(turn.blocks[1]).toMatchObject({
       kind: "tool-activity",
       activity: {
         groupType: "lookup",
-        items: [expect.objectContaining({ label: "读取了「A」" })],
+        items: [
+          expect.objectContaining({ toolName: "search" }),
+          expect.objectContaining({ label: "读取了「A」" }),
+        ],
       },
     });
-    expect(turn.blocks[3]).toMatchObject({
+    expect(turn.blocks[2]).toMatchObject({
       kind: "tool-activity",
       activity: { groupType: "lookup" },
     });
@@ -175,12 +174,18 @@ describe("buildAgentTurnView", () => {
           expect.objectContaining({
             label: "搜索「拖延」 · 1 条 Understanding / 1 条 Context",
             status: "done",
-            details: [
-              "查询：拖延",
-              "limit：5",
-              "Understanding：拖延与自我保护 · 拖延有时是在保护自己",
-              "Context：复盘片段",
-            ],
+            details: {
+              meta: [{ label: "查询", value: "拖延" }],
+              rows: [
+                {
+                  label: "Understanding",
+                  title: "拖延与自我保护",
+                  description: "拖延有时是在保护自己",
+                  meta: [],
+                },
+                { label: "Context", title: "复盘片段", meta: [] },
+              ],
+            },
           }),
         ],
       },
@@ -216,12 +221,17 @@ describe("buildAgentTurnView", () => {
         items: [
           expect.objectContaining({
             label: "读取了网页「GUI Architectures」",
-            details: [
-              "url：https://martinfowler.com/eaaDev/uiArchs.html",
-              "标题：GUI Architectures",
-              "内容：38 字",
-              "内容已截断",
-            ],
+            details: {
+              meta: [{ label: "网页", value: "https://martinfowler.com/eaaDev/uiArchs.html" }],
+              rows: [
+                {
+                  label: "网页内容",
+                  title: "GUI Architectures",
+                  description: "# GUI Architectures Presentation Model",
+                  meta: ["内容已截断"],
+                },
+              ],
+            },
           }),
         ],
       },
@@ -254,12 +264,11 @@ describe("buildAgentTurnView", () => {
         summary: "网页无法读取「https://www.zhihu.com/question/1」",
         items: [
           expect.objectContaining({
-            details: [
-              "url：https://www.zhihu.com/question/1",
-              "状态：无法读取",
-              "内容：9 字",
-              "错误：Page appears blocked or login-gated.",
-            ],
+            details: {
+              meta: [{ label: "网页", value: "https://www.zhihu.com/question/1" }],
+              rows: [],
+              emptyText: "页面需要登录或被访问限制拦住了。",
+            },
           }),
         ],
       },
@@ -313,13 +322,25 @@ describe("buildAgentTurnView", () => {
         items: [
           expect.objectContaining({
             toolName: "attachment_read",
-            details: [
-              "attachmentId：att-pdf",
-              "附件：fixture.pdf",
-              "类型：pdf",
-              "页数：1",
-              "内容：8 字",
-            ],
+            details: {
+              meta: [],
+              rows: [
+                {
+                  label: "附件内容",
+                  title: "fixture.pdf",
+                  description: "PDF body",
+                  meta: ["PDF 附件", "1 页"],
+                },
+              ],
+            },
+          }),
+          expect.objectContaining({
+            toolName: "file_read",
+            label: "读取了「note.txt」",
+            details: {
+              meta: [{ label: "文件", value: "note.txt" }],
+              rows: [{ label: "文件内容", title: "note.txt", description: "hello", meta: [] }],
+            },
           }),
         ],
       },
@@ -329,19 +350,14 @@ describe("buildAgentTurnView", () => {
       activity: {
         items: [
           expect.objectContaining({
-            toolName: "file_read",
-            details: ["path：/tmp/note.txt", "大小：5 bytes", "编码：utf8", "内容：5 字"],
-          }),
-        ],
-      },
-    });
-    expect(turn.blocks[2]).toMatchObject({
-      kind: "tool-activity",
-      activity: {
-        items: [
-          expect.objectContaining({
             toolName: "bash",
-            details: ["command：printf hello", "exit：0", "stdout：hello"],
+            details: {
+              meta: [
+                { label: "命令", value: "printf hello" },
+                { label: "退出码", value: "0" },
+              ],
+              rows: [{ label: "stdout", title: "标准输出", description: "hello", meta: [] }],
+            },
           }),
         ],
       },
@@ -413,6 +429,64 @@ describe("buildAgentTurnView", () => {
           expect.objectContaining({
             label: "搜索了 1 条 Understanding / 1 条 Context",
             status: "done",
+          }),
+        ],
+      },
+    });
+  });
+
+  test("shows retrieval candidates with matched context evidence", () => {
+    const turn = buildAgentTurnView([
+      tool(
+        "retrieve_knowledge",
+        "tool-1",
+        {
+          candidates: [
+            {
+              id: "u1",
+              title: "反馈回路能降低试错代价",
+              snippet: "先用小反馈验证判断，再扩大投入。",
+              matchedContexts: [
+                {
+                  contextId: "c1",
+                  medium: "experience",
+                  title: "一次项目复盘",
+                  snippet: "这次失败来自没有及时设检查点。",
+                },
+              ],
+            },
+          ],
+        },
+        "completed",
+        undefined,
+        { query: "反馈 成本", limit: 3 },
+      ),
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "tool-activity",
+      activity: {
+        title: "检索知识",
+        summary: "检索「反馈 成本」 · 1 条 Understanding / 1 条 Context 证据",
+        items: [
+          expect.objectContaining({
+            details: {
+              meta: [{ label: "查询", value: "反馈 成本" }],
+              rows: [
+                {
+                  label: "Understanding",
+                  title: "反馈回路能降低试错代价",
+                  description: "先用小反馈验证判断，再扩大投入。",
+                  meta: ["1 条 Context 证据"],
+                },
+                {
+                  label: "Context 证据",
+                  title: "一次项目复盘",
+                  description: "这次失败来自没有及时设检查点。",
+                  meta: ["类型：实践"],
+                },
+              ],
+            },
           }),
         ],
       },
