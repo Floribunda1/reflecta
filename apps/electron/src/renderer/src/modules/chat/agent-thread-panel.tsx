@@ -1,14 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  Archive,
-  ArrowDown,
-  Copy,
-  Download,
-  MoreHorizontal,
-  Pencil,
-  Sparkles,
-  Trash2,
-} from "lucide-react";
+import { Archive, ArrowDown, Copy, FileDown, MoreHorizontal, Sparkles, Trash2 } from "lucide-react";
 import type { AgentContextRef, AgentModelSelection, AgentReducedMessage } from "@shared/agent";
 import { Button } from "@renderer/components/ui/button";
 import {
@@ -192,78 +183,41 @@ function AgentThreadHeader({
   onArchive: () => void;
   onDelete: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(title);
-  const displayTitle = title.trim() || "新对话";
+  const displayTitle = draft.trim() || title.trim() || "新对话";
   const canExport = messages.some((message) => message.text.trim());
 
   useEffect(() => {
-    if (!editing) setDraft(title);
-  }, [editing, title]);
+    setDraft(title);
+  }, [title]);
 
   const finishRename = () => {
     const nextTitle = draft.trim();
-    setEditing(false);
-    if (nextTitle && nextTitle !== title) onRename(nextTitle);
+    if (!nextTitle) {
+      setDraft(title);
+      return;
+    }
+    if (nextTitle !== title) onRename(nextTitle);
   };
 
   return (
-    <header className="app-drag-region flex h-14 shrink-0 items-center justify-between gap-3 border-b bg-background/70 px-6 backdrop-blur">
-      <div className="flex min-w-0 flex-1 items-center gap-1.5">
-        {editing ? (
-          <Input
-            data-no-drag
-            data-testid="agent-thread-title-input"
-            autoFocus
-            className="h-8 max-w-[520px] text-sm font-medium"
-            value={draft}
-            onBlur={finishRename}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") finishRename();
-              if (event.key === "Escape") {
-                setDraft(title);
-                setEditing(false);
-              }
-            }}
-          />
-        ) : (
-          <>
-            <h1
-              data-testid="agent-thread-title"
-              title={displayTitle}
-              className="min-w-0 truncate text-sm font-medium text-foreground"
-            >
-              {displayTitle}
-            </h1>
-            <Button
-              data-no-drag
-              data-testid="agent-thread-title-edit-button"
-              type="button"
-              size="icon-xs"
-              variant="ghost"
-              aria-label="重命名对话"
-              title="重命名对话"
-              onClick={() => setEditing(true)}
-            >
-              <Pencil />
-            </Button>
-          </>
-        )}
-      </div>
+    <header className="app-drag-region flex h-12 shrink-0 items-center justify-between gap-3 border-b bg-background/70 px-6 backdrop-blur">
+      <Input
+        data-no-drag
+        data-testid="agent-thread-title"
+        value={draft}
+        title={displayTitle}
+        onBlur={finishRename}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.currentTarget.blur();
+          if (event.key === "Escape") setDraft(title);
+        }}
+        className="h-8 min-w-0 max-w-[520px] flex-1 border-0 bg-transparent px-0 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent"
+        placeholder="新对话"
+      />
 
       <div data-no-drag className="flex shrink-0 items-center gap-1">
-        <Button
-          data-testid="agent-export-markdown-button"
-          type="button"
-          size="sm"
-          variant="ghost"
-          disabled={!canExport}
-          onClick={() => void exportMarkdown(displayTitle, messages)}
-        >
-          <Download />
-          导出 Markdown
-        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -280,6 +234,15 @@ function AgentThreadHeader({
             <MoreHorizontal />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" sideOffset={6} className="w-44">
+            <DropdownMenuItem
+              data-testid="agent-export-markdown-button"
+              disabled={!canExport}
+              onClick={() => void exportMarkdown(displayTitle, messages)}
+            >
+              <FileDown />
+              导出 Markdown
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               data-testid="agent-generate-title-menu-item"
               disabled={titleGenerating || isBusy}

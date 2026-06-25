@@ -212,9 +212,10 @@ test("@AG-CONV-007 用户导出当前对话为 Markdown", async () => {
 
   try {
     await openThread(page, "EXPORT_SOURCE");
-    await expect(page.getByTestId("agent-thread-title")).toContainText("EXPORT_SOURCE");
+    await expect(page.getByTestId("agent-thread-title")).toHaveValue("EXPORT_SOURCE");
 
     const filePath = path.join(readE2eTestEnv().contentStorageRoot, "exports", "EXPORT_SOURCE.md");
+    await page.getByTestId("agent-thread-actions-button").click();
     await page.getByTestId("agent-export-markdown-button").click();
     await expect.poll(() => fs.existsSync(filePath)).toBe(true);
     const markdown = fs.readFileSync(filePath, "utf-8");
