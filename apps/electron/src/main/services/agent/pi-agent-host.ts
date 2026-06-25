@@ -195,10 +195,22 @@ export async function generateAgentThreadTitle(
   events: AgentSessionEvent[],
   contentStorageRoot = getContentStorageRoot(),
 ): Promise<string> {
+  const sessionId = events[0]?.sessionId ?? "session";
   const context = buildThreadTitleContext(events);
-  if (!context) return "";
+  if (!context) {
+    agentLog.warn("title.generate.noContext", { sessionId, eventCount: events.length });
+    return "";
+  }
 
   const modelConfig = getTitleGenerationAiModelConfig();
+  agentLog.info("title.generate.request", {
+    sessionId,
+    providerId: modelConfig.provider.id,
+    modelId: modelConfig.model.id,
+    eventCount: events.length,
+    messageCount: reduceAgentSession(events).messages.length,
+    promptLength: context.messages[0]?.content.length ?? 0,
+  });
   const agentDir = path.join(contentStorageRoot, ".pi-agent");
   fs.mkdirSync(agentDir, { recursive: true });
   const authStorage = AuthStorage.create(path.join(agentDir, "auth.json"));
@@ -214,9 +226,15 @@ export async function generateAgentThreadTitle(
     headers: auth.headers,
     maxTokens: 80,
     reasoning: "minimal",
-    sessionId: `title_${events[0]?.sessionId ?? "session"}`,
+    sessionId: `title_${sessionId}`,
   });
   if (response.stopReason === "error") {
+    agentLog.error("title.generate.failed", {
+      sessionId,
+      providerId: modelConfig.provider.id,
+      modelId: modelConfig.model.id,
+      error: response.errorMessage || "标题生成失败",
+    });
     throw new Error(response.errorMessage || "标题生成失败");
   }
 
@@ -224,7 +242,17 @@ export async function generateAgentThreadTitle(
     .map((part) => (part.type === "text" ? part.text : ""))
     .join("")
     .trim();
-  return normalizeGeneratedThreadTitle(text, "");
+  const title = normalizeGeneratedThreadTitle(text, "");
+  agentLog.info("title.generate.response", {
+    sessionId,
+    providerId: modelConfig.provider.id,
+    modelId: modelConfig.model.id,
+    stopReason: response.stopReason,
+    rawTitle: text,
+    rawTitleLength: text.length,
+    normalizedTitle: title,
+  });
+  return title;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -310,13 +338,33 @@ export class PiAgentHost {
 
   async generateThreadTitle(sessionId: string): Promise<string> {
     const events = await this.sessionLog.readEvents(sessionId);
+    const state = reduceAgentSession(events);
+    agentLog.info("title.persist.start", {
+      sessionId,
+      eventCount: events.length,
+      messageCount: state.messages.length,
+      userMessageCount: state.messages.filter((message) => message.role === "user").length,
+      assistantMessageCount: state.messages.filter((message) => message.role === "assistant")
+        .length,
+    });
     const fallbackTitle = fallbackGeneratedThreadTitle(events);
-    if (!fallbackTitle) throw new Error("没有可用于生成标题的对话内容");
+    if (!fallbackTitle) {
+      agentLog.warn("title.persist.noFallback", { sessionId, eventCount: events.length });
+      throw new Error("没有可用于生成标题的对话内容");
+    }
     const generatedTitle = normalizeGeneratedThreadTitle(
       await this.titleGenerator(events, this.contentStorageRoot),
       fallbackTitle,
     );
     const title = generatedTitle === "新对话" ? fallbackTitle : generatedTitle;
+    agentLog.info("title.persist.result", {
+      sessionId,
+      fallbackTitle,
+      generatedTitle,
+      finalTitle: title,
+      ignoredGenericTitle: generatedTitle === "新对话",
+      usedFallback: title === fallbackTitle && generatedTitle !== fallbackTitle,
+    });
     await this.renameThread(sessionId, title);
     return title;
   }
