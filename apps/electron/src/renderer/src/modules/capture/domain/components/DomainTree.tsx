@@ -64,10 +64,12 @@ type DomainNodeActions = {
   onChat?: (scope: CaptureAgentScope) => void;
 };
 
-function domainTreeButtonClassName(selected: boolean) {
+function domainTreeButtonClassName(selected: boolean, dragging = false) {
   return cn(
-    "w-full min-w-0 cursor-default justify-start p-1.5 text-left font-normal text-foreground/85 hover:bg-foreground/5 hover:text-foreground",
+    "w-full min-w-0 cursor-default justify-start p-1.5 text-left font-normal text-foreground/85 hover:bg-foreground/5 hover:text-foreground focus-visible:border-transparent focus-visible:bg-foreground/5 focus-visible:ring-0",
     selected && "bg-foreground/5 text-foreground font-medium hover:bg-foreground/5",
+    dragging &&
+      "bg-transparent text-foreground/85 hover:bg-transparent hover:text-foreground/85 focus-visible:bg-transparent",
   );
 }
 
@@ -147,7 +149,7 @@ function DomainNode({
               type="button"
               variant="ghost"
               size="sm"
-              className={domainTreeButtonClassName(selected)}
+              className={domainTreeButtonClassName(selected, isDragging)}
               style={{ touchAction: "none" }}
               onClick={() => onSelect(node.id)}
               {...attributes}
