@@ -116,7 +116,7 @@ describe("buildAgentTurnView", () => {
     ]);
   });
 
-  test("groups adjacent lookup tools without crossing text", () => {
+  test("keeps adjacent tools as separate tool activities", () => {
     const turn = buildAgentTurnView([
       tool("search", "tool-1", {
         hits: [{ type: "understanding", understanding: { id: "t1" } }],
@@ -126,18 +126,22 @@ describe("buildAgentTurnView", () => {
       tool("context_list", "tool-3", { contexts: [{ id: "c1" }] }),
     ]);
 
-    expect(turn.blocks).toHaveLength(3);
+    expect(turn.blocks).toHaveLength(4);
     expect(turn.blocks[0]).toMatchObject({
       kind: "tool-activity",
       activity: {
         groupType: "lookup",
-        items: [
-          expect.objectContaining({ toolName: "search" }),
-          expect.objectContaining({ label: "读取了「A」" }),
-        ],
+        items: [expect.objectContaining({ toolName: "search" })],
       },
     });
-    expect(turn.blocks[2]).toMatchObject({
+    expect(turn.blocks[1]).toMatchObject({
+      kind: "tool-activity",
+      activity: {
+        groupType: "lookup",
+        items: [expect.objectContaining({ label: "读取了「A」" })],
+      },
+    });
+    expect(turn.blocks[3]).toMatchObject({
       kind: "tool-activity",
       activity: { groupType: "lookup" },
     });
@@ -334,6 +338,13 @@ describe("buildAgentTurnView", () => {
               ],
             },
           }),
+        ],
+      },
+    });
+    expect(turn.blocks[1]).toMatchObject({
+      kind: "tool-activity",
+      activity: {
+        items: [
           expect.objectContaining({
             toolName: "file_read",
             label: "读取了「note.txt」",
@@ -345,7 +356,7 @@ describe("buildAgentTurnView", () => {
         ],
       },
     });
-    expect(turn.blocks[1]).toMatchObject({
+    expect(turn.blocks[2]).toMatchObject({
       kind: "tool-activity",
       activity: {
         items: [

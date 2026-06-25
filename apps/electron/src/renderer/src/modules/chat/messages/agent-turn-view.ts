@@ -180,7 +180,7 @@ export function buildAgentTurnView(
       internalBlocks.push({ kind: "proposal", proposal: proposalViewFor(block) });
       continue;
     }
-    appendTool(internalBlocks, toolGroupType(block.toolName), block);
+    appendTool(internalBlocks, block);
   }
 
   return {
@@ -214,13 +214,8 @@ function appendText(blocks: InternalTurnBlock[], text: string) {
   blocks.push({ kind: "text", text });
 }
 
-function appendTool(blocks: InternalTurnBlock[], groupType: ToolGroupType, block: AgentToolBlock) {
-  const last = blocks.at(-1);
-  if (last?.kind === "tool-group" && last.groupType === groupType) {
-    last.blocks.push(block);
-    return;
-  }
-  blocks.push({ kind: "tool-group", groupType, blocks: [block] });
+function appendTool(blocks: InternalTurnBlock[], block: AgentToolBlock) {
+  blocks.push({ kind: "tool-group", groupType: toolGroupType(block.toolName), blocks: [block] });
 }
 
 function appendReasoning(
