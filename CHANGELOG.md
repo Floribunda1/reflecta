@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.7 - 2026-06-25
+
+- Added an inline editable Agent thread title bar with consolidated thread actions.
+- Added Markdown export for user prompts and Agent replies.
+- Moved Agent fork to assistant replies so new branches start from the selected response.
+- Aligned the Agent thread header with the detail inspector header.
+
 ## 1.1.6 - 2026-06-25
 
 - Fixed Agent composer paste behavior so Markdown copied from rendered content stays editable as plain text.
