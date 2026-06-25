@@ -63,6 +63,13 @@ type DomainNodeActions = {
   onChat?: (scope: CaptureAgentScope) => void;
 };
 
+function domainTreeButtonClassName(selected: boolean) {
+  return cn(
+    "w-full min-w-0 cursor-default justify-start p-1.5 text-left font-normal text-foreground/85 hover:bg-foreground/5 hover:text-foreground",
+    selected && "bg-foreground/5 text-foreground font-medium hover:bg-foreground/5",
+  );
+}
+
 function DomainMenuItems({
   node,
   actions,
@@ -121,10 +128,6 @@ function DomainNode({
     transform: CSS.Transform.toString(transform),
     transition,
   };
-  const rowClassName = cn(
-    "h-auto w-full min-w-0 cursor-grab justify-start p-1.5 text-left font-normal text-foreground/85 hover:bg-foreground/5 hover:text-foreground active:cursor-grabbing",
-    selected && "bg-foreground/5 text-foreground font-medium hover:bg-foreground/5",
-  );
 
   return (
     <div
@@ -143,7 +146,7 @@ function DomainNode({
               type="button"
               variant="ghost"
               size="sm"
-              className={rowClassName}
+              className={domainTreeButtonClassName(selected)}
               style={{ touchAction: "none" }}
               onClick={() => onSelect(node.id)}
               {...attributes}
@@ -237,10 +240,7 @@ function DomainRootButton({ selected, onSelect }: { selected: boolean; onSelect:
       type="button"
       size="sm"
       variant="ghost"
-      className={cn(
-        "w-full justify-start text-left font-normal text-foreground/85 p-1.5 hover:bg-foreground/5 hover:text-foreground",
-        selected && "bg-foreground/5 text-foreground font-medium hover:bg-foreground/5",
-      )}
+      className={domainTreeButtonClassName(selected)}
       onClick={onSelect}
     >
       <span className="flex size-6 shrink-0 items-center justify-center text-muted-foreground">
