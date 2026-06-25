@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.10 - 2026-06-25
+
+- Added AI title generation through the configured title model path.
+- Added toast feedback for chat and settings actions.
+- Restored Domain Tree drag sorting with sibling-only reordering and expanded subtree drag coverage.
+- Fixed Domain Tree drag previews so expanded items move as a block without stretching the visible row.
+
 ## 1.1.9 - 2026-06-25
 
 - Moved app-owned retrieval index and diagnostic logs into app config storage so custom content roots keep only user-owned DB, sessions, and assets.
