@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo } from "react";
-import { useQueries } from "@tanstack/react-query";
+import { useCallback, useEffect } from "react";
 import { Clock, Plus, X } from "lucide-react";
-import type { AgentContextRef, AgentSessionEvent, AgentSessionSummary } from "@shared/agent";
+import type { AgentContextRef, AgentSessionSummary } from "@shared/agent";
 import { Button } from "@renderer/components/ui/button";
 import {
   DropdownMenu,
@@ -12,9 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@renderer/components/ui/dropdown-menu";
 import { cn } from "@renderer/lib/utils";
-import { ipcClient } from "@renderer/utils/ipc";
 import { AgentThreadPanel } from "./agent-thread-panel";
-import { chatQueryKeys } from "./session/query-keys";
 import { useCreateThreadMutation, useThreadsQuery } from "./session/server-state";
 
 type ContextualAgentDockProps = {
@@ -36,25 +33,18 @@ function scopeContextRefs(scope: AgentContextRef | null): AgentContextRef[] {
   return scope ? [scope] : [];
 }
 
-function sameContextRef(left: AgentContextRef | null, right: AgentContextRef | null) {
-  return Boolean(left && right && left.type === right.type && left.id === right.id);
-}
-
-function userMessageMatchesScope(event: AgentSessionEvent, scope: AgentContextRef | null) {
-  return (
-    event.type === "user.message" &&
-    Array.isArray(event.contextRefs) &&
-    event.contextRefs.some((ref) => sameContextRef(ref, scope))
-  );
-}
-
-function firstUserText(events: AgentSessionEvent[]) {
-  const message = events.find((event) => event.type === "user.message");
-  return message?.type === "user.message" ? message.text.trim() : "";
-}
-
 function contextThreadTitle(title: string) {
   return `聊聊：${title}`;
+}
+
+export function buildContextualAgentHistoryItems(
+  threads: AgentSessionSummary[],
+  threadId: string | null,
+) {
+  return threads
+    .filter((thread) => thread.id !== threadId)
+    .slice(0, 10)
+    .map((thread) => ({ id: thread.id, title: thread.title }));
 }
 
 export function ContextualAgentDock({
@@ -69,33 +59,12 @@ export function ContextualAgentDock({
   const { mutate: createThread, isPending: createThreadPending } = useCreateThreadMutation();
   const threadsQuery = useThreadsQuery();
   const threads = threadsQuery.data ?? [];
-  const eventQueries = useQueries({
-    queries: threads.map((thread) => ({
-      queryKey: chatQueryKeys.sessionEvents(thread.id),
-      queryFn: (): Promise<AgentSessionEvent[]> => ipcClient.chat.readSessionEvents(thread.id),
-      enabled: Boolean(scope),
-    })),
-  });
   const contextKey = scope
     ? `${scope.type}:${scope.id}:${threadId ?? "draft"}:${contextNonce}`
     : undefined;
   const title = scopeTitle(scope);
-  const historyItems = useMemo(() => {
-    if (!scope) return [];
-    return threads
-      .flatMap((thread: AgentSessionSummary, index) => {
-        if (thread.id === threadId) return [];
-        const events = eventQueries[index]?.data ?? [];
-        if (!events.some((event) => userMessageMatchesScope(event, scope))) return [];
-        return {
-          id: thread.id,
-          title: firstUserText(events) || thread.title,
-        };
-      })
-      .slice(0, 8);
-  }, [eventQueries, scope, threadId, threads]);
-  const historyLoading =
-    threadsQuery.isFetching || eventQueries.some((query) => query.isFetching && !query.data);
+  const historyItems = buildContextualAgentHistoryItems(threads, threadId);
+  const historyLoading = threadsQuery.isFetching;
   const createContextThread = useCallback(() => {
     if (!scope) return;
     createThread(contextThreadTitle(title), {
