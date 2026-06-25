@@ -19,7 +19,7 @@ import type {
   UpdateUnderstandingInput,
 } from "./types";
 import { resolveDomainRefs } from "../domain/core";
-import { trySyncRetrievalIndexByUnderstandingId } from "../retrieval/sync";
+import { markRetrievalIndexDirty, trySyncRetrievalIndexByUnderstandingId } from "../retrieval/sync";
 import { createEntityId } from "../shared/id";
 
 export async function getUnderstandingConnectionCounts(
@@ -198,7 +198,14 @@ export class UnderstandingCore {
 
     const row = await this.getUnderstandingRow(id);
     if (!row) throw new Error(`Understanding not found after update: ${id}`);
-    await trySyncRetrievalIndexByUnderstandingId(this.db, id);
+    if (normalizedBody !== undefined || input.title !== undefined) {
+      await trySyncRetrievalIndexByUnderstandingId(this.db, id);
+    } else if (input.domainIds !== undefined) {
+      // ponytail: domain-only changes affect retrieval labels, but embedding can wait for rebuild.
+      try {
+        await markRetrievalIndexDirty();
+      } catch {}
+    }
     return row;
   }
 

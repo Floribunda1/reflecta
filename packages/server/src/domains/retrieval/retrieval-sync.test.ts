@@ -207,6 +207,20 @@ describe("retrieval index write-path sync", () => {
     );
   });
 
+  test("domain-only Understanding updates mark retrieval dirty instead of syncing immediately", async () => {
+    const { domains, understandings } = await setupServices();
+    const domain = await domains.createDomain({ name: "Dirty Domain" });
+    const created = await understandings.createUnderstanding({
+      title: "Domain Only Dirty",
+      body: "domainonlydirtymarker",
+    });
+    expect(await isRetrievalIndexDirty()).toBe(false);
+
+    await understandings.updateUnderstanding(created.id, { domainIds: [domain.id] });
+
+    expect(await isRetrievalIndexDirty()).toBe(true);
+  });
+
   test("Context create, update, and delete sync parent retrieval rows", async () => {
     const { contexts, understandings } = await setupServices();
     const understanding = await understandings.createUnderstanding({
