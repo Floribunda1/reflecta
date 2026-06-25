@@ -182,8 +182,8 @@ async function waitForIndexingProgress() {
 }
 
 describe("retrieval index write-path sync", () => {
-  test("Understanding create, update, and delete sync retrieval rows", async () => {
-    const { understandings } = await setupServices();
+  test("Understanding content updates mark retrieval dirty instead of syncing immediately", async () => {
+    const { db, understandings } = await setupServices();
 
     const created = await understandings.createUnderstanding({
       title: "Sync Understanding",
@@ -196,6 +196,15 @@ describe("retrieval index write-path sync", () => {
     await understandings.updateUnderstanding(created.id, {
       body: "understandingsyncaftermarker",
     });
+    expect(await isRetrievalIndexDirty()).toBe(true);
+    expect(await indexIds("understandingsyncbeforemarker")).toContain(
+      `understanding:${created.id}`,
+    );
+    expect(await indexIds("understandingsyncaftermarker")).not.toContain(
+      `understanding:${created.id}`,
+    );
+
+    await rebuildRetrievalIndexWithStatus(db);
     expect(await indexIds("understandingsyncbeforemarker")).not.toContain(
       `understanding:${created.id}`,
     );
@@ -221,8 +230,8 @@ describe("retrieval index write-path sync", () => {
     expect(await isRetrievalIndexDirty()).toBe(true);
   });
 
-  test("Context create, update, and delete sync parent retrieval rows", async () => {
-    const { contexts, understandings } = await setupServices();
+  test("Context updates mark retrieval dirty instead of syncing immediately", async () => {
+    const { contexts, db, understandings } = await setupServices();
     const understanding = await understandings.createUnderstanding({
       title: "Sync Context Parent",
       body: "Parent body",
@@ -237,6 +246,11 @@ describe("retrieval index write-path sync", () => {
     expect(await indexIds("contextsyncbeforemarker")).toContain(`context:${context.id}`);
 
     await contexts.updateContext(context.id, { content: "contextsyncaftermarker" });
+    expect(await isRetrievalIndexDirty()).toBe(true);
+    expect(await indexIds("contextsyncbeforemarker")).toContain(`context:${context.id}`);
+    expect(await indexIds("contextsyncaftermarker")).not.toContain(`context:${context.id}`);
+
+    await rebuildRetrievalIndexWithStatus(db);
     expect(await indexIds("contextsyncbeforemarker")).not.toContain(`context:${context.id}`);
     expect(await indexIds("contextsyncaftermarker")).toContain(`context:${context.id}`);
 
