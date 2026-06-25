@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.11 - 2026-06-25
+
+- Fixed chat title generation so generic fallback titles no longer overwrite non-empty conversations.
+- Increased title generation output budget and disabled explicit reasoning for the title pass to avoid empty length-cutoff responses.
+- Added title generation diagnostics for model output and persistence decisions.
+
 ## 1.1.10 - 2026-06-25
 
 - Added AI title generation through the configured title model path.
