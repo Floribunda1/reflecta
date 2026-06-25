@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.9 - 2026-06-25
+
+- Moved app-owned retrieval index and diagnostic logs into app config storage so custom content roots keep only user-owned DB, sessions, and assets.
+
 ## 1.1.8 - 2026-06-25
 
 - Removed Electron safeStorage config encryption so packaged app launches no longer prompt for macOS Keychain access to Chromium Safe Storage.
