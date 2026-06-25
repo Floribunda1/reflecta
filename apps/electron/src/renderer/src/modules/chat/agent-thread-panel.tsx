@@ -1,8 +1,27 @@
-import { ArrowDown } from "lucide-react";
-import type { AgentContextRef, AgentModelSelection } from "@shared/agent";
+import { useEffect, useState } from "react";
+import {
+  Archive,
+  ArrowDown,
+  Copy,
+  Download,
+  MoreHorizontal,
+  Pencil,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
+import type { AgentContextRef, AgentModelSelection, AgentReducedMessage } from "@shared/agent";
 import { Button } from "@renderer/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@renderer/components/ui/dropdown-menu";
+import { Input } from "@renderer/components/ui/input";
 import { cn } from "@renderer/lib/utils";
 import { useMemoizedFn } from "ahooks";
+import { ipcClient } from "@renderer/utils/ipc";
 import { ChatComposer } from "./composer/chat-composer";
 import type { InspectableContextRef } from "./context/context-reference";
 import { MessageList } from "./messages/message-list";
@@ -14,17 +33,31 @@ const CHAT_JUMP_MIN_ITEMS = 4;
 
 type AgentThreadPanelProps = {
   threadId: string;
+  title?: string;
   scrollRequest?: number;
   initialContextKey?: string;
   initialContextRefs?: AgentContextRef[];
+  titleGenerating?: boolean;
+  onRename?: (title: string) => void;
+  onGenerateTitle?: () => void;
+  onForkAssistantMessage?: (messageId: string) => void;
+  onArchive?: () => void;
+  onDelete?: () => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
 };
 
 export function AgentThreadPanel({
   threadId,
+  title,
   scrollRequest = 0,
   initialContextKey,
   initialContextRefs,
+  titleGenerating,
+  onRename,
+  onGenerateTitle,
+  onForkAssistantMessage,
+  onArchive,
+  onDelete,
   onInspectContextRef,
 }: AgentThreadPanelProps) {
   const threadView = usePiAgentThreadView(threadId, scrollRequest);
@@ -42,6 +75,19 @@ export function AgentThreadPanel({
       data-testid="agent-thread-chat"
       className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-transparent"
     >
+      {title !== undefined && onRename && onGenerateTitle && onArchive && onDelete ? (
+        <AgentThreadHeader
+          threadId={threadId}
+          title={title}
+          messages={threadView.visibleMessages}
+          isBusy={threadView.isBusy}
+          titleGenerating={Boolean(titleGenerating)}
+          onRename={onRename}
+          onGenerateTitle={onGenerateTitle}
+          onArchive={onArchive}
+          onDelete={onDelete}
+        />
+      ) : null}
       <div className="relative min-h-0 flex-1">
         <div
           ref={threadView.scrollRef}
@@ -61,6 +107,7 @@ export function AgentThreadPanel({
               onRetry={threadView.actions.retry}
               onEdit={threadView.actions.editMessage}
               onRegenerate={threadView.actions.regenerate}
+              onForkAssistant={onForkAssistantMessage}
               onApproveTool={(input) =>
                 threadView.actions.approveTool({
                   ...input,
@@ -109,6 +156,162 @@ export function AgentThreadPanel({
         onInspectContextRef={onInspectContextRef}
       />
     </main>
+  );
+}
+
+async function exportMarkdown(title: string, messages: AgentReducedMessage[]) {
+  const parts = [`# ${title.trim() || "Agent 对话"}`];
+  for (const message of messages) {
+    const text = message.text.trim();
+    if (!text) continue;
+    parts.push(`## ${message.role === "user" ? "用户" : "Agent"}\n\n${text}`);
+  }
+
+  const filename = `${(title.trim() || "agent-chat").replace(/[\\/:*?"<>|]+/g, "-")}.md`;
+  await ipcClient.chat.exportMarkdown(filename, `${parts.join("\n\n")}\n`);
+}
+
+function AgentThreadHeader({
+  threadId,
+  title,
+  messages,
+  isBusy,
+  titleGenerating,
+  onRename,
+  onGenerateTitle,
+  onArchive,
+  onDelete,
+}: {
+  threadId: string;
+  title: string;
+  messages: AgentReducedMessage[];
+  isBusy: boolean;
+  titleGenerating: boolean;
+  onRename: (title: string) => void;
+  onGenerateTitle: () => void;
+  onArchive: () => void;
+  onDelete: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(title);
+  const displayTitle = title.trim() || "新对话";
+  const canExport = messages.some((message) => message.text.trim());
+
+  useEffect(() => {
+    if (!editing) setDraft(title);
+  }, [editing, title]);
+
+  const finishRename = () => {
+    const nextTitle = draft.trim();
+    setEditing(false);
+    if (nextTitle && nextTitle !== title) onRename(nextTitle);
+  };
+
+  return (
+    <header className="app-drag-region flex h-14 shrink-0 items-center justify-between gap-3 border-b bg-background/70 px-6 backdrop-blur">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        {editing ? (
+          <Input
+            data-no-drag
+            data-testid="agent-thread-title-input"
+            autoFocus
+            className="h-8 max-w-[520px] text-sm font-medium"
+            value={draft}
+            onBlur={finishRename}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") finishRename();
+              if (event.key === "Escape") {
+                setDraft(title);
+                setEditing(false);
+              }
+            }}
+          />
+        ) : (
+          <>
+            <h1
+              data-testid="agent-thread-title"
+              title={displayTitle}
+              className="min-w-0 truncate text-sm font-medium text-foreground"
+            >
+              {displayTitle}
+            </h1>
+            <Button
+              data-no-drag
+              data-testid="agent-thread-title-edit-button"
+              type="button"
+              size="icon-xs"
+              variant="ghost"
+              aria-label="重命名对话"
+              title="重命名对话"
+              onClick={() => setEditing(true)}
+            >
+              <Pencil />
+            </Button>
+          </>
+        )}
+      </div>
+
+      <div data-no-drag className="flex shrink-0 items-center gap-1">
+        <Button
+          data-testid="agent-export-markdown-button"
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={!canExport}
+          onClick={() => void exportMarkdown(displayTitle, messages)}
+        >
+          <Download />
+          导出 Markdown
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                data-testid="agent-thread-actions-button"
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label="对话操作"
+                title="对话操作"
+              />
+            }
+          >
+            <MoreHorizontal />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" sideOffset={6} className="w-44">
+            <DropdownMenuItem
+              data-testid="agent-generate-title-menu-item"
+              disabled={titleGenerating || isBusy}
+              onClick={onGenerateTitle}
+            >
+              <Sparkles />
+              {titleGenerating ? "生成中..." : "生成标题"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              data-testid="agent-copy-thread-id-menu-item"
+              onClick={() => void navigator.clipboard?.writeText(threadId)}
+            >
+              <Copy />
+              复制对话 ID
+            </DropdownMenuItem>
+            <DropdownMenuItem data-testid="agent-archive-thread-menu-item" onClick={onArchive}>
+              <Archive />
+              归档
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              data-testid="agent-delete-thread-menu-item"
+              variant="destructive"
+              onClick={onDelete}
+            >
+              <Trash2 />
+              删除
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </header>
   );
 }
 

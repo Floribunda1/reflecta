@@ -1,5 +1,5 @@
 import { memo, useMemo, type ReactNode } from "react";
-import { Copy, FileText, Pencil, RefreshCcw } from "lucide-react";
+import { Copy, FileText, GitFork, Pencil, RefreshCcw } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
@@ -168,6 +168,7 @@ type MessageRowProps = {
   stopped: boolean;
   onEdit: (message: AgentReducedMessage) => void;
   onRegenerate: (messageId: string) => void;
+  onForkAssistant?: (messageId: string) => void;
   onApproveTool: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
 };
@@ -181,6 +182,7 @@ function MessageRowComponent({
   stopped,
   onEdit,
   onRegenerate,
+  onForkAssistant,
   onApproveTool,
   onInspectContextRef,
 }: MessageRowProps) {
@@ -262,6 +264,19 @@ function MessageRowComponent({
             <Pencil />
           </Button>
         ) : null}
+        {message.role === "assistant" && onForkAssistant ? (
+          <Button
+            data-testid="agent-fork-message-button"
+            type="button"
+            size="icon-xs"
+            variant="ghost"
+            title="Fork 到这里"
+            disabled={isBusy}
+            onClick={() => onForkAssistant(message.id)}
+          >
+            <GitFork />
+          </Button>
+        ) : null}
         {isLastAssistant ? (
           <Button
             data-testid="agent-regenerate-button"
@@ -290,6 +305,7 @@ export const MessageRow = memo(MessageRowComponent, (previous, next) => {
     previous.stopped === next.stopped &&
     previous.onEdit === next.onEdit &&
     previous.onRegenerate === next.onRegenerate &&
+    previous.onForkAssistant === next.onForkAssistant &&
     previous.onApproveTool === next.onApproveTool &&
     previous.onInspectContextRef === next.onInspectContextRef
   );
@@ -303,6 +319,7 @@ export function MessageList({
   onRetry,
   onEdit,
   onRegenerate,
+  onForkAssistant,
   onApproveTool,
   onInspectContextRef,
   highlightedMessageId,
@@ -314,6 +331,7 @@ export function MessageList({
   onRetry: () => void;
   onEdit: (message: AgentReducedMessage) => void;
   onRegenerate: (messageId: string) => void;
+  onForkAssistant?: (messageId: string) => void;
   onApproveTool: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
   highlightedMessageId?: string | null;
@@ -347,6 +365,7 @@ export function MessageList({
           stopped={stoppedMessageId === message.id}
           onEdit={onEdit}
           onRegenerate={onRegenerate}
+          onForkAssistant={onForkAssistant}
           onApproveTool={onApproveTool}
           onInspectContextRef={onInspectContextRef}
         />

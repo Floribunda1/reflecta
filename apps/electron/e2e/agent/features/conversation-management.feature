@@ -1,7 +1,7 @@
 # language: zh-CN
 @agent @v1.1.0
 功能: 用户在多个 Agent 对话之间工作
-  用户需要能在多个对话之间切换、删除对话，并确认不同对话的内容互不污染。
+  用户需要能在多个对话之间切换、删除、导出和分支，并确认不同对话的内容互不污染。
 
   @P0 @isolation @AG-CONV-001
   场景: 对话 A 正在回复时切换到对话 B 不影响 B
@@ -31,7 +31,8 @@
     假如存在对话 A 和对话 B
     而且对话 A 有用户消息 A_USER_MESSAGE 和一条 Agent 回复
     而且对话 B 有用户消息 B_USER_MESSAGE 和一条 Agent 回复
-    当用户删除对话 A
+    当用户打开对话 A
+    而且用户从顶部对话操作里删除对话 A
     而且用户查看对话列表
     而且用户打开对话 B
     那么对话列表应该显示对话 B
@@ -48,13 +49,15 @@
     而且今天的对话应该显示在昨天的对话前面
 
   @P1 @branch @AG-CONV-005
-  场景: 用户 Fork 当前对话分支后继续查看同一段内容
+  场景: 用户在 Agent 回复下方 Fork 对话分支后继续查看分支点内容
     假如存在对话 FORK_SOURCE
-    而且对话 FORK_SOURCE 有用户消息 FORK_USER_MESSAGE 和一条 Agent 回复
-    当用户对 FORK_SOURCE 执行 Fork 当前分支
-    那么对话列表应该显示 Fork 后的新对话
-    而且新对话应该显示用户消息 FORK_USER_MESSAGE
-    而且新对话应该显示一条已完成 Agent 回复
+    而且对话 FORK_SOURCE 有用户消息 FORK_USER_MESSAGE 和对应 Agent 回复
+    而且对话 FORK_SOURCE 在这条 Agent 回复后还有后续消息
+    当用户在这条 Agent 回复下方执行 Fork
+    那么对话列表应该显示 Fork 后的新分支对话
+    而且新分支对话应该显示用户消息 FORK_USER_MESSAGE
+    而且新分支对话应该显示这条 Agent 回复
+    而且新分支对话的消息列表应该到这条 Agent 回复结束
     而且原对话 FORK_SOURCE 应该仍保留在对话列表中
 
   @P1 @navigation @AG-CONV-006
@@ -65,3 +68,14 @@
     那么正文应该滚动到这条目标用户消息
     而且这条目标用户消息应该被短暂高亮
     而且输入框应该可操作
+
+  @P1 @export @AG-CONV-007
+  场景: 用户导出当前对话为 Markdown
+    假如存在对话 EXPORT_SOURCE
+    而且对话 EXPORT_SOURCE 有用户消息 EXPORT_USER_MESSAGE 和一条 Agent 回复
+    当用户打开对话 EXPORT_SOURCE
+    而且用户执行导出 Markdown
+    那么用户应该得到名为 EXPORT_SOURCE.md 的 Markdown 文件
+    而且 Markdown 文件应该包含用户消息 EXPORT_USER_MESSAGE
+    而且 Markdown 文件应该包含这条 Agent 回复
+    而且 Markdown 文件应该只包含用户提问和 Agent 回复内容

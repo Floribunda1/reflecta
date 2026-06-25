@@ -42,10 +42,11 @@ export function useCreateThreadMutation() {
   });
 }
 
-export function useForkThreadMutation() {
+export function useForkThreadFromMessageMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (threadId: string) => ipcClient.chat.forkThread(threadId),
+    mutationFn: ({ threadId, messageId }: { threadId: string; messageId: string }) =>
+      ipcClient.chat.forkThreadFromMessage(threadId, messageId),
     onSuccess: async (thread) => {
       upsertThreadInCache(queryClient, thread);
       await queryClient.invalidateQueries({ queryKey: chatQueryKeys.threads });

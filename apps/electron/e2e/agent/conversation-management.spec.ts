@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { expect, test } from "@playwright/test";
 import {
   composer,
@@ -11,12 +13,14 @@ import {
 } from "./agent-e2e";
 import {
   assistantMessage,
+  reasoningPart,
   resetAgentFixtures,
   seedAgentThread,
   seedCompletedThread,
   toolPart,
   userMessage,
 } from "./agent-fixtures";
+import { readE2eTestEnv } from "../test-env";
 
 test.beforeEach(() => {
   resetAgentFixtures();
@@ -104,8 +108,9 @@ test("@AG-CONV-003 用户删除一个对话后仍可查看剩余对话", async (
   const { app, page } = await launchAgentPage();
 
   try {
-    await threadByTitle(page, "对话 A").click({ button: "right" });
-    await page.getByRole("menuitem", { name: "删除" }).click();
+    await openThread(page, "对话 A");
+    await page.getByTestId("agent-thread-actions-button").click();
+    await page.getByTestId("agent-delete-thread-menu-item").click();
     await page.getByRole("button", { name: "删除" }).click();
 
     await expect(threadByTitle(page, "对话 A")).toHaveCount(0);
@@ -156,23 +161,69 @@ test("@AG-CONV-004 用户按时间分组查看对话列表", async () => {
   }
 });
 
-test("@AG-CONV-005 用户 Fork 当前对话分支后继续查看同一段内容", async () => {
-  seedCompletedThread({
+test("@AG-CONV-005 用户在 Agent 回复下方 Fork 对话分支后继续查看分支点内容", async () => {
+  seedAgentThread({
     id: "conv-fork-source",
     title: "FORK_SOURCE",
-    userText: "FORK_USER_MESSAGE",
-    assistantText: "FORK_AGENT_REPLY",
+    messages: [
+      userMessage("conv-fork-user-1", "FORK_USER_MESSAGE"),
+      assistantMessage("conv-fork-assistant-1", [{ type: "text", text: "FORK_AGENT_REPLY" }]),
+      userMessage("conv-fork-user-2", "FORK_LATER_USER_MESSAGE"),
+      assistantMessage("conv-fork-assistant-2", [{ type: "text", text: "FORK_LATER_AGENT_REPLY" }]),
+    ],
   });
   const { app, page } = await launchAgentPage();
 
   try {
-    await threadByTitle(page, "FORK_SOURCE").click({ button: "right" });
-    await page.getByRole("menuitem", { name: "Fork 当前分支" }).click();
+    await openThread(page, "FORK_SOURCE");
+    const firstAssistantRow = page
+      .getByTestId("agent-message-row")
+      .filter({ hasText: "FORK_AGENT_REPLY" })
+      .first();
+    await firstAssistantRow.hover();
+    await firstAssistantRow.getByTestId("agent-fork-message-button").click();
 
     await expect(page.getByRole("button", { name: "FORK_SOURCE", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "FORK_SOURCE 副本", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "FORK_SOURCE 分支", exact: true })).toBeVisible();
     await expect(page.getByTestId("agent-user-message")).toContainText("FORK_USER_MESSAGE");
     await expect(page.getByTestId("agent-assistant-text")).toContainText("FORK_AGENT_REPLY");
+    await expect(
+      page.getByTestId("agent-user-message").filter({ hasText: "FORK_LATER_USER_MESSAGE" }),
+    ).toHaveCount(0);
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-CONV-007 用户导出当前对话为 Markdown", async () => {
+  seedAgentThread({
+    id: "conv-export-source",
+    title: "EXPORT_SOURCE",
+    messages: [
+      userMessage("conv-export-user", "EXPORT_USER_MESSAGE"),
+      assistantMessage("conv-export-assistant", [
+        reasoningPart("EXPORT_REASONING"),
+        { type: "text", text: "EXPORT_AGENT_REPLY" },
+        toolPart("search", "conv-export-tool", { markdown: "EXPORT_TOOL_OUTPUT" }),
+      ]),
+    ],
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "EXPORT_SOURCE");
+    await expect(page.getByTestId("agent-thread-title")).toContainText("EXPORT_SOURCE");
+
+    const filePath = path.join(readE2eTestEnv().contentStorageRoot, "exports", "EXPORT_SOURCE.md");
+    await page.getByTestId("agent-export-markdown-button").click();
+    await expect.poll(() => fs.existsSync(filePath)).toBe(true);
+    const markdown = fs.readFileSync(filePath, "utf-8");
+
+    expect(markdown).toContain("# EXPORT_SOURCE");
+    expect(markdown).toContain("## 用户\n\nEXPORT_USER_MESSAGE");
+    expect(markdown).toContain("## Agent\n\nEXPORT_AGENT_REPLY");
+    expect(markdown).not.toContain("EXPORT_REASONING");
+    expect(markdown).not.toContain("EXPORT_TOOL_OUTPUT");
   } finally {
     await app.close();
   }

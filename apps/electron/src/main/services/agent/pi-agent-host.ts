@@ -191,8 +191,8 @@ export class PiAgentHost {
     await this.sessionLog.deleteSession(sessionId);
   }
 
-  forkThread(sessionId: string): Promise<AgentSessionSummary> {
-    return this.sessionLog.forkSession(sessionId);
+  forkThreadFromMessage(sessionId: string, messageId: string): Promise<AgentSessionSummary> {
+    return this.sessionLog.forkSessionFromAssistantMessage(sessionId, messageId);
   }
 
   async generateThreadTitle(sessionId: string): Promise<string> {

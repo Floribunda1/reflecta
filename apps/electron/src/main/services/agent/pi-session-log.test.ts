@@ -167,7 +167,7 @@ describe("AgentSessionLog", () => {
     expect(customEntryByEventId(branched, "evt_9")?.parentId).toBe(firstRunCompletedEntry?.id);
   });
 
-  test("forks the current branch into a new session id", async () => {
+  test("forks from an assistant message without keeping later turns", async () => {
     const root = tempRoot();
     const log = new AgentSessionLog(root);
     const session = log.createSession("原对话");
@@ -182,14 +182,34 @@ describe("AgentSessionLog", () => {
         messageId: "user_1",
         text: "hello",
       },
+      {
+        ...baseEvent,
+        id: "evt_3",
+        sessionId: session.id,
+        type: "assistant.text.delta",
+        messageId: "assistant_1",
+        delta: "first reply",
+      },
+      { ...baseEvent, id: "evt_4", sessionId: session.id, type: "run.completed" },
+      { ...baseEvent, id: "evt_5", sessionId: session.id, runId: "run_2", type: "run.started" },
+      {
+        ...baseEvent,
+        id: "evt_6",
+        sessionId: session.id,
+        runId: "run_2",
+        type: "user.message",
+        messageId: "user_2",
+        text: "later",
+      },
     ];
     for (const event of events) log.appendEvent(manager, event);
 
-    const fork = await log.forkSession(session.id);
+    const fork = await log.forkSessionFromAssistantMessage(session.id, "assistant_1");
 
     expect(fork.id).not.toBe(session.id);
+    expect(fork.title).toBe("hello 分支");
     await expect(log.readEvents(fork.id)).resolves.toEqual(
-      events.map((event) => ({ ...event, sessionId: fork.id })),
+      events.slice(0, 4).map((event) => ({ ...event, sessionId: fork.id })),
     );
   });
 });

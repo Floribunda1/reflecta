@@ -1,15 +1,7 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@renderer/components/ui/button";
 import { Spinner } from "@renderer/components/ui/spinner";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "@renderer/components/ui/context-menu";
-import { Input } from "@renderer/components/ui/input";
 import { ScrollArea } from "@renderer/components/ui/scroll-area";
 import { APP_CHROME_MENU_HIT_AREA_CLASS } from "@renderer/modules/shared/layout/AppChromeMenu";
 import { cn } from "@renderer/lib/utils";
@@ -23,11 +15,6 @@ function ThreadSidebarComponent({
   runningThreadId,
   onSelect,
   onCreate,
-  onRename,
-  onGenerateTitle,
-  onFork,
-  onArchive,
-  onDelete,
   titleGeneratingThreadId,
 }: {
   threads: AgentSessionSummary[];
@@ -36,28 +23,9 @@ function ThreadSidebarComponent({
   runningThreadId: string | null;
   onSelect: (threadId: string) => void;
   onCreate: () => void;
-  onRename: (threadId: string, title: string) => void;
-  onGenerateTitle: (threadId: string) => void;
-  onFork: (threadId: string) => void;
-  onArchive: (threadId: string) => void;
-  onDelete: (threadId: string) => void;
   titleGeneratingThreadId?: string | null;
 }) {
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameDraft, setRenameDraft] = useState("");
   const groups = useMemo(() => groupAgentThreads(threads), [threads]);
-  const finishRename = (thread: AgentSessionSummary) => {
-    const title = renameDraft.trim();
-    setRenamingId(null);
-    if (title && title !== thread.title) onRename(thread.id, title);
-  };
-  const startRename = (thread: AgentSessionSummary) => {
-    setRenamingId(thread.id);
-    setRenameDraft(thread.title);
-  };
-  const copyThreadId = (threadId: string) => {
-    void navigator.clipboard?.writeText(threadId);
-  };
 
   return (
     <aside
@@ -110,75 +78,30 @@ function ThreadSidebarComponent({
                 const generatingTitle = thread.id === titleGeneratingThreadId;
                 const running = thread.id === runningThreadId;
                 return (
-                  <ContextMenu key={thread.id}>
-                    <ContextMenuTrigger
-                      render={
-                        <Button
-                          data-testid="agent-thread-item"
-                          data-thread-title={thread.title}
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className={cn(
-                            "h-auto w-full min-w-0 justify-start p-1.5 text-left font-normal text-foreground/85 hover:bg-foreground/5 hover:text-foreground",
-                            thread.id === activeThreadId &&
-                              "bg-foreground/5 text-foreground font-medium hover:bg-foreground/5",
-                          )}
-                          onClick={() => onSelect(thread.id)}
-                        >
-                          <span className="min-w-0 flex-1">
-                            {renamingId === thread.id ? (
-                              <Input
-                                autoFocus
-                                className="h-7 w-full text-sm"
-                                value={renameDraft}
-                                onBlur={() => finishRename(thread)}
-                                onClick={(event) => event.stopPropagation()}
-                                onChange={(event) => setRenameDraft(event.target.value)}
-                                onKeyDown={(event) => {
-                                  event.stopPropagation();
-                                  if (event.key === "Enter") finishRename(thread);
-                                  if (event.key === "Escape") setRenamingId(null);
-                                }}
-                              />
-                            ) : (
-                              <span className="flex min-w-0 items-center gap-1.5">
-                                <span className="block min-w-0 flex-1 truncate text-sm">
-                                  {thread.title}
-                                </span>
-                                {generatingTitle || running ? (
-                                  <Spinner
-                                    aria-label={generatingTitle ? "正在生成标题" : "Agent 正在响应"}
-                                    className="size-3 shrink-0 text-muted-foreground"
-                                  />
-                                ) : null}
-                              </span>
-                            )}
-                          </span>
-                        </Button>
-                      }
-                    />
-                    <ContextMenuContent>
-                      <ContextMenuItem onClick={() => startRename(thread)}>重命名</ContextMenuItem>
-                      <ContextMenuItem
-                        disabled={Boolean(titleGeneratingThreadId) || running}
-                        onClick={() => onGenerateTitle(thread.id)}
-                      >
-                        {generatingTitle ? "生成中..." : "生成标题"}
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => copyThreadId(thread.id)}>
-                        复制对话 ID
-                      </ContextMenuItem>
-                      <ContextMenuItem disabled={running} onClick={() => onFork(thread.id)}>
-                        Fork 当前分支
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => onArchive(thread.id)}>归档</ContextMenuItem>
-                      <ContextMenuSeparator />
-                      <ContextMenuItem variant="destructive" onClick={() => onDelete(thread.id)}>
-                        删除
-                      </ContextMenuItem>
-                    </ContextMenuContent>
-                  </ContextMenu>
+                  <Button
+                    key={thread.id}
+                    data-testid="agent-thread-item"
+                    data-thread-title={thread.title}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      "h-auto w-full min-w-0 justify-start p-1.5 text-left font-normal text-foreground/85 hover:bg-foreground/5 hover:text-foreground",
+                      thread.id === activeThreadId &&
+                        "bg-foreground/5 text-foreground font-medium hover:bg-foreground/5",
+                    )}
+                    onClick={() => onSelect(thread.id)}
+                  >
+                    <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                      <span className="block min-w-0 flex-1 truncate text-sm">{thread.title}</span>
+                      {generatingTitle || running ? (
+                        <Spinner
+                          aria-label={generatingTitle ? "正在生成标题" : "Agent 正在响应"}
+                          className="size-3 shrink-0 text-muted-foreground"
+                        />
+                      ) : null}
+                    </span>
+                  </Button>
                 );
               })}
             </div>

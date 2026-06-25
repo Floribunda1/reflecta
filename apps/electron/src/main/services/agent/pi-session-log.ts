@@ -185,14 +185,30 @@ export class AgentSessionLog {
     return manager;
   }
 
-  async forkSession(sessionId: string): Promise<AgentSessionSummary> {
+  async forkSessionFromAssistantMessage(
+    sessionId: string,
+    messageId: string,
+  ): Promise<AgentSessionSummary> {
     const manager = await this.openSession(sessionId);
-    const leafId = manager.getLeafId();
-    if (!leafId) throw new Error("Cannot fork an empty session");
+    const entries = manager.getEntries();
+    const messageEntries = entries.filter(
+      (entry): entry is ReflectaEventEntry =>
+        isReflectaEventEntry(entry) && stringField(entry.data, "messageId") === messageId,
+    );
+    const lastMessageEntry = messageEntries.at(-1);
+    const runId = lastMessageEntry ? stringField(lastMessageEntry.data, "runId") : undefined;
+    if (!runId) throw new Error("Assistant message not found");
+    const completedEntry = entries.findLast(
+      (entry) =>
+        isReflectaEventEntryOfType(entry, "run.completed") &&
+        stringField(entry.data, "runId") === runId,
+    );
+    const branchEntry = completedEntry ?? lastMessageEntry;
+    if (!branchEntry) throw new Error("Cannot fork assistant message");
 
     const sourceEvents = await this.readEvents(sessionId);
-    const title = `${manager.getSessionName()?.trim() || titleFromEvents(sourceEvents, "新对话")} 副本`;
-    manager.createBranchedSession(leafId);
+    const title = `${manager.getSessionName()?.trim() || titleFromEvents(sourceEvents, "新对话")} 分支`;
+    manager.createBranchedSession(branchEntry.id);
     this.flushCustomOnlySession(manager);
     manager.appendSessionInfo(title);
 

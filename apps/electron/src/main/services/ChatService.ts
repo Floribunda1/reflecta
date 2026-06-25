@@ -1,7 +1,15 @@
+import fs from "node:fs";
+import path from "node:path";
 import { getIpcContext, IpcMethod, IpcService } from "electron-ipc-decorator";
 import type { AgentCommand } from "@shared/agent";
+import { getContentStorageRoot } from "../config";
 import { ipcLog } from "../logger";
 import { piAgentHost } from "./core";
+
+function markdownExportFilename(filename: string) {
+  const base = filename.trim().replace(/[\\/:*?"<>|]+/g, "-") || "agent-chat.md";
+  return base.endsWith(".md") ? base : `${base}.md`;
+}
 
 export class ChatService extends IpcService {
   static readonly groupName = "chat";
@@ -37,8 +45,17 @@ export class ChatService extends IpcService {
   }
 
   @IpcMethod()
-  forkThread(threadId: string) {
-    return piAgentHost.forkThread(threadId);
+  forkThreadFromMessage(threadId: string, messageId: string) {
+    return piAgentHost.forkThreadFromMessage(threadId, messageId);
+  }
+
+  @IpcMethod()
+  exportMarkdown(filename: string, markdown: string) {
+    const exportDir = path.join(getContentStorageRoot(), "exports");
+    fs.mkdirSync(exportDir, { recursive: true });
+    const filePath = path.join(exportDir, markdownExportFilename(filename));
+    fs.writeFileSync(filePath, markdown, "utf-8");
+    return filePath;
   }
 
   @IpcMethod()

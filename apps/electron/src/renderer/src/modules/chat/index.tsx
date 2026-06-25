@@ -19,7 +19,7 @@ import {
   useArchiveThreadMutation,
   useCreateThreadMutation,
   useDeleteThreadMutation,
-  useForkThreadMutation,
+  useForkThreadFromMessageMutation,
   useGenerateThreadTitleMutation,
   useRenameThreadMutation,
   useThreadsQuery,
@@ -36,18 +36,39 @@ function activeThreadIdFor(threads: { id: string }[], activeThreadId: string | n
 
 function ThreadChat({
   threadId,
+  title,
   scrollRequest,
+  titleGenerating,
+  onRename,
+  onGenerateTitle,
+  onForkAssistantMessage,
+  onArchive,
+  onDelete,
   onInspectContextRef,
 }: {
   threadId: string;
+  title: string;
   scrollRequest: number;
+  titleGenerating: boolean;
+  onRename: (threadId: string, title: string) => void;
+  onGenerateTitle: (threadId: string) => void;
+  onForkAssistantMessage: (threadId: string, messageId: string) => void;
+  onArchive: (threadId: string) => void;
+  onDelete: (threadId: string) => void;
   onInspectContextRef: (ref: InspectableContextRef) => void;
 }) {
   return (
     <div className="h-full min-h-0 min-w-0 border-l">
       <AgentThreadPanel
         threadId={threadId}
+        title={title}
         scrollRequest={scrollRequest}
+        titleGenerating={titleGenerating}
+        onRename={(nextTitle) => onRename(threadId, nextTitle)}
+        onGenerateTitle={() => onGenerateTitle(threadId)}
+        onForkAssistantMessage={(messageId) => onForkAssistantMessage(threadId, messageId)}
+        onArchive={() => onArchive(threadId)}
+        onDelete={() => onDelete(threadId)}
         onInspectContextRef={onInspectContextRef}
       />
     </div>
@@ -63,11 +84,12 @@ function ChatPageContent() {
   const uiActions = useAgentUiActions();
   const createThreadMutation = useCreateThreadMutation();
   const deleteThreadMutation = useDeleteThreadMutation();
-  const forkThreadMutation = useForkThreadMutation();
+  const forkThreadFromMessageMutation = useForkThreadFromMessageMutation();
   const archiveThreadMutation = useArchiveThreadMutation();
   const renameThreadMutation = useRenameThreadMutation();
   const generateThreadTitleMutation = useGenerateThreadTitleMutation();
   const threads = threadsQuery.data ?? [];
+  const activeThread = threads.find((thread) => thread.id === activeThreadId);
   const [threadScrollRequest, setThreadScrollRequest] = useState(0);
   const [draftThreadId, setDraftThreadId] = useState<string | null>(null);
   const confirmDeleteThread = useMemoizedFn((threadId: string) =>
@@ -106,15 +128,19 @@ function ChatPageContent() {
   const generateThreadTitle = useMemoizedFn((threadId: string) =>
     generateThreadTitleMutation.mutate(threadId),
   );
-  const forkThread = useMemoizedFn((threadId: string) =>
-    forkThreadMutation.mutate(threadId, {
-      onSuccess: (thread) => uiActions.selectThread(thread.id),
-    }),
+  const forkThreadFromMessage = useMemoizedFn((threadId: string, messageId: string) =>
+    forkThreadFromMessageMutation.mutate(
+      { threadId, messageId },
+      {
+        onSuccess: (thread) => uiActions.selectThread(thread.id),
+      },
+    ),
   );
   const archiveThread = useMemoizedFn((threadId: string) => {
     uiActions.clearThread(threadId);
     archiveThreadMutation.mutate(threadId);
   });
+  const deleteThread = useMemoizedFn((threadId: string) => confirmDeleteThread(threadId));
 
   useEffect(() => {
     if (draftThreadId && threads.some((thread) => thread.id === draftThreadId)) {
@@ -166,11 +192,6 @@ function ChatPageContent() {
         runningThreadId={runningThreadId}
         onSelect={selectThread}
         onCreate={createThread}
-        onRename={renameThread}
-        onGenerateTitle={generateThreadTitle}
-        onFork={forkThread}
-        onArchive={archiveThread}
-        onDelete={confirmDeleteThread}
         titleGeneratingThreadId={titleGeneratingThreadId}
       />
       <ResizablePanelGroup
@@ -198,7 +219,14 @@ function ChatPageContent() {
               <ThreadChat
                 key={activeThreadId}
                 threadId={activeThreadId}
+                title={activeThread?.title ?? "新对话"}
                 scrollRequest={threadScrollRequest}
+                titleGenerating={titleGeneratingThreadId === activeThreadId}
+                onRename={renameThread}
+                onGenerateTitle={generateThreadTitle}
+                onForkAssistantMessage={forkThreadFromMessage}
+                onArchive={archiveThread}
+                onDelete={deleteThread}
                 onInspectContextRef={openInspector}
               />
             ) : (
