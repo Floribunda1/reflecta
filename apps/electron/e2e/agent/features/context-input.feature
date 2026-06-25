@@ -74,3 +74,11 @@
     那么用户消息中应该显示附件 ATTACHMENT_FILE
     而且页面应该显示 Agent 使用附件的工具活动
     而且页面应该出现一条 Agent 回复正文
+
+  @P1 @context @AG-CONTEXT-008
+  场景: 用户粘贴 Markdown 文本后继续编辑纯文本草稿
+    假如用户已经打开 Agent 页面
+    当用户把 Markdown 文本粘贴到输入框
+    而且用户继续输入内容
+    那么输入框应该保留 Markdown 原文
+    而且继续输入的内容应该保持纯文本

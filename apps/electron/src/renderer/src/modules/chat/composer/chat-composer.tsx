@@ -418,6 +418,18 @@ export function ChatComposer({
         class:
           "min-h-24 flex-1 whitespace-pre-wrap break-words px-4 pt-3 pb-12 text-sm leading-6 outline-none",
       },
+      handlePaste: (view, event) => {
+        if (event.clipboardData?.files.length) return false;
+        const text = event.clipboardData?.getData("text/plain");
+        if (!text) return false;
+
+        const transaction = view.state.tr
+          .replaceSelectionWith(view.state.schema.text(text), false)
+          .setStoredMarks([])
+          .scrollIntoView();
+        view.dispatch(transaction);
+        return true;
+      },
     },
     onUpdate: ({ editor }) => {
       const json = editor.getJSON() as ComposerJSON;
