@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.5 - 2026-06-25
+
+- Show an in-chat pending Agent response state before the first assistant content arrives, so the main conversation no longer appears idle while the model is starting.
+
 ## 1.1.4 - 2026-06-25
 
 - Improved Agent tool activity rendering for approval tools, keeping each tool call separate and showing approved Bash execution results.
