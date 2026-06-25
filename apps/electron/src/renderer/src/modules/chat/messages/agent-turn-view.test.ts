@@ -185,9 +185,10 @@ describe("buildAgentTurnView", () => {
                   label: "Understanding",
                   title: "拖延与自我保护",
                   description: "拖延有时是在保护自己",
+                  format: "markdown",
                   meta: [],
                 },
-                { label: "Context", title: "复盘片段", meta: [] },
+                { label: "Context", title: "复盘片段", format: "markdown", meta: [] },
               ],
             },
           }),
@@ -231,7 +232,8 @@ describe("buildAgentTurnView", () => {
                 {
                   label: "网页内容",
                   title: "GUI Architectures",
-                  description: "# GUI Architectures Presentation Model",
+                  description: "# GUI Architectures\nPresentation Model",
+                  format: "markdown",
                   meta: ["内容已截断"],
                 },
               ],
@@ -496,12 +498,14 @@ describe("buildAgentTurnView", () => {
                   label: "Understanding",
                   title: "反馈回路能降低试错代价",
                   description: "先用小反馈验证判断，再扩大投入。",
+                  format: "markdown",
                   meta: ["1 条 Context 证据"],
                 },
                 {
                   label: "Context 证据",
                   title: "一次项目复盘",
                   description: "这次失败来自没有及时设检查点。",
+                  format: "markdown",
                   meta: ["类型：实践"],
                 },
               ],
@@ -584,6 +588,31 @@ describe("buildAgentTurnView", () => {
         title,
         status: "pending",
         data: { kind: renderKind },
+      },
+    });
+  });
+
+  test("marks generic proposal content fields as markdown", () => {
+    const content = "## 过程指标\n\n- 观察是否更精确";
+    const turn = buildAgentTurnView([
+      proposal("context_update", "tool-1", {
+        contextId: "context-1",
+        content,
+        reason: "补充推导链路",
+      }),
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "proposal",
+      proposal: {
+        type: "context_update",
+        data: {
+          entries: [
+            { key: "contextId", value: "context-1" },
+            { key: "content", value: content, format: "markdown" },
+            { key: "reason", value: "补充推导链路" },
+          ],
+        },
       },
     });
   });

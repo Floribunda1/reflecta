@@ -79,9 +79,46 @@ function hasToolDetails(details: ToolActivityDetailsView) {
   return details.meta.length > 0 || details.rows.length > 0 || Boolean(details.emptyText);
 }
 
-function ToolDetailDescription({ detail }: { detail: ToolActivityDetailRow }) {
+function ToolDetailDescription({
+  detail,
+  onInspectContextRef,
+}: {
+  detail: ToolActivityDetailRow;
+  onInspectContextRef?: (ref: InspectableContextRef) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   if (!detail.description) return null;
+  if (detail.format === "markdown") {
+    const value = expanded && detail.fullDescription ? detail.fullDescription : detail.description;
+    return (
+      <div className="grid gap-1">
+        <div
+          className={`text-muted-foreground/85 ${
+            detail.fullDescription
+              ? expanded
+                ? "max-h-80 overflow-auto"
+                : "max-h-32 overflow-hidden"
+              : ""
+          }`}
+        >
+          <MarkdownBody
+            value={value}
+            className="!text-muted-foreground/85 [&_*]:!text-muted-foreground/85"
+            onInspectContextRef={onInspectContextRef}
+          />
+        </div>
+        {detail.fullDescription ? (
+          <button
+            type="button"
+            className="w-fit rounded-sm px-1 text-xs text-muted-foreground hover:bg-background/70 hover:text-foreground"
+            onClick={() => setExpanded((value) => !value)}
+          >
+            {expanded ? "收起内容" : "展开完整内容"}
+          </button>
+        ) : null}
+      </div>
+    );
+  }
   if (detail.format !== "pre") {
     return <div className="line-clamp-2 text-muted-foreground/85">{detail.description}</div>;
   }
@@ -115,7 +152,13 @@ function ToolDetailDescription({ detail }: { detail: ToolActivityDetailRow }) {
   );
 }
 
-function ToolDetailRows({ details }: { details: ToolActivityDetailsView }) {
+function ToolDetailRows({
+  details,
+  onInspectContextRef,
+}: {
+  details: ToolActivityDetailsView;
+  onInspectContextRef?: (ref: InspectableContextRef) => void;
+}) {
   return (
     <div className="grid gap-2">
       {details.meta.length ? (
@@ -142,7 +185,7 @@ function ToolDetailRows({ details }: { details: ToolActivityDetailsView }) {
                     {detail.title}
                   </span>
                 </div>
-                <ToolDetailDescription detail={detail} />
+                <ToolDetailDescription detail={detail} onInspectContextRef={onInspectContextRef} />
                 {detail.meta.length ? (
                   <div className="flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground/80">
                     {detail.meta.map((item) => (
@@ -165,9 +208,11 @@ function ToolDetailRows({ details }: { details: ToolActivityDetailsView }) {
 function ToolActivityGroup({
   activity,
   defaultOpen = false,
+  onInspectContextRef,
 }: {
   activity: ToolActivityView;
   defaultOpen?: boolean;
+  onInspectContextRef?: (ref: InspectableContextRef) => void;
 }) {
   const statusClass =
     activity.status === "failed"
@@ -194,7 +239,9 @@ function ToolActivityGroup({
               {activity.items.length > 1 ? (
                 <div className="px-1 text-xs font-medium text-foreground/70">{item.label}</div>
               ) : null}
-              {hasToolDetails(item.details) ? <ToolDetailRows details={item.details} /> : null}
+              {hasToolDetails(item.details) ? (
+                <ToolDetailRows details={item.details} onInspectContextRef={onInspectContextRef} />
+              ) : null}
               {item.errorText ? (
                 <div className="px-1 text-destructive">{item.errorText}</div>
               ) : null}
@@ -515,7 +562,17 @@ function proposalEntryLabel(key: string) {
   return key;
 }
 
-function GenericProposalValue({ fieldKey, value }: { fieldKey: string; value: string }) {
+function GenericProposalValue({
+  fieldKey,
+  value,
+  format,
+  onInspectContextRef,
+}: {
+  fieldKey: string;
+  value: string;
+  format?: "markdown";
+  onInspectContextRef?: (ref: InspectableContextRef) => void;
+}) {
   if (fieldKey === "domainId" || fieldKey === "parentId") {
     return <DomainPathText domainId={value} />;
   }
@@ -532,6 +589,9 @@ function GenericProposalValue({ fieldKey, value }: { fieldKey: string; value: st
   if (fieldKey === "contextId") {
     return <ContextReference contextId={value} />;
   }
+  if (format === "markdown") {
+    return <MarkdownBody value={value} onInspectContextRef={onInspectContextRef} />;
+  }
   return <>{value}</>;
 }
 
@@ -539,10 +599,12 @@ function GenericProposalCard({
   proposal,
   messageId,
   onApprove,
+  onInspectContextRef,
 }: {
   proposal: GenericProposalView;
   messageId: string;
   onApprove: (input: ApproveToolInput) => void;
+  onInspectContextRef?: (ref: InspectableContextRef) => void;
 }) {
   return (
     <CandidateShell
@@ -552,11 +614,16 @@ function GenericProposalCard({
       onApprove={onApprove}
     >
       <dl className="grid gap-1 text-sm">
-        {proposal.data.entries.map(({ key, value }) => (
+        {proposal.data.entries.map(({ key, value, format }) => (
           <div key={key} className="grid grid-cols-[8rem_minmax(0,1fr)] gap-2">
             <dt className="text-muted-foreground">{proposalEntryLabel(key)}</dt>
             <dd className="min-w-0 break-words">
-              <GenericProposalValue fieldKey={key} value={value} />
+              <GenericProposalValue
+                fieldKey={key}
+                value={value}
+                format={format}
+                onInspectContextRef={onInspectContextRef}
+              />
             </dd>
           </div>
         ))}
@@ -660,7 +727,14 @@ function ToolCard({
   if (proposal.type === "bash") {
     return <BashProposalCard proposal={proposal} messageId={messageId} onApprove={onApprove} />;
   }
-  return <GenericProposalCard proposal={proposal} messageId={messageId} onApprove={onApprove} />;
+  return (
+    <GenericProposalCard
+      proposal={proposal}
+      messageId={messageId}
+      onApprove={onApprove}
+      onInspectContextRef={onInspectContextRef}
+    />
+  );
 }
 
 export function AgentMessageContent({
@@ -711,6 +785,7 @@ export function AgentMessageContent({
               key={`${message.id}-tool-${index}`}
               activity={block.activity}
               defaultOpen={expandToolDetails}
+              onInspectContextRef={onInspectContextRef}
             />
           );
         }

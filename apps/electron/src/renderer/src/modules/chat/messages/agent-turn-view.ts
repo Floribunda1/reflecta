@@ -43,7 +43,7 @@ export type ToolActivityDetailRow = {
   title: string;
   description?: string;
   fullDescription?: string;
-  format?: "text" | "pre";
+  format?: "text" | "pre" | "markdown";
   meta: string[];
 };
 
@@ -126,7 +126,7 @@ export type GenericProposalView = ProposalBase<
   >,
   {
     kind: "generic";
-    entries: Array<{ key: string; value: string }>;
+    entries: Array<{ key: string; value: string; format?: "markdown" }>;
   }
 >;
 
@@ -394,8 +394,18 @@ function genericProposalData(output: Record<string, unknown>): GenericProposalVi
     kind: "generic",
     entries: Object.entries(output)
       .filter(([key, value]) => key !== "proposalType" && value !== undefined)
-      .map(([key, value]) => ({ key, value: proposalValue(value) })),
+      .map(([key, value]) => {
+        const format = genericProposalEntryFormat(key);
+        return { key, value: proposalValue(value), ...(format ? { format } : {}) };
+      }),
   };
+}
+
+function genericProposalEntryFormat(
+  key: string,
+): GenericProposalView["data"]["entries"][number]["format"] {
+  if (key === "body" || key === "content") return "markdown";
+  return undefined;
 }
 
 function proposalValue(value: unknown) {
@@ -687,6 +697,7 @@ function webFetchDetails(output: unknown) {
             title || finalUrl || "网页",
             markdown,
             output.truncated ? ["内容已截断"] : [],
+            "markdown",
           ),
         ]
       : [],
@@ -707,6 +718,7 @@ function searchHitDetails(output: unknown) {
             entityTitle(understanding),
             stringValue(hit.matchedText) || stringValue(understanding.body),
             domainMeta(understanding),
+            "markdown",
           );
         }
         if (hit.type === "context") {
@@ -716,6 +728,7 @@ function searchHitDetails(output: unknown) {
             contextTitle(context),
             stringValue(hit.matchedText),
             contextMeta(context),
+            "markdown",
           );
         }
         return undefined;
@@ -736,6 +749,7 @@ function retrievalCandidateDetails(output: unknown) {
         entityTitle(candidate),
         stringValue(candidate.snippet),
         contexts > 0 ? [`${contexts} 条 Context 证据`] : [],
+        "markdown",
       ),
       ...arrayValue(candidate.matchedContexts)
         .slice(0, 2)
@@ -746,6 +760,7 @@ function retrievalCandidateDetails(output: unknown) {
                 contextTitle(context),
                 stringValue(context.snippet),
                 contextMeta(context),
+                "markdown",
               )
             : undefined,
         ),
@@ -772,6 +787,7 @@ function recordListDetails(output: unknown, label: string, emptyLabel: string) {
               label === "Context" ? contextTitle(record) : entityTitle(record),
               recordText(record),
               [...domainMeta(record), ...contextMeta(record)],
+              "markdown",
             )
           : undefined,
       ),
@@ -803,12 +819,24 @@ function inspectDomainDetails(output: unknown) {
       ),
       ...understandings.map((record) =>
         isRecord(record)
-          ? detailRow("Understanding", entityTitle(record), recordText(record), domainMeta(record))
+          ? detailRow(
+              "Understanding",
+              entityTitle(record),
+              recordText(record),
+              domainMeta(record),
+              "markdown",
+            )
           : undefined,
       ),
       ...contexts.map((record) =>
         isRecord(record)
-          ? detailRow("Context", contextTitle(record), recordText(record), contextMeta(record))
+          ? detailRow(
+              "Context",
+              contextTitle(record),
+              recordText(record),
+              contextMeta(record),
+              "markdown",
+            )
           : undefined,
       ),
     ]),
@@ -823,12 +851,19 @@ function recordDetailView(record: Record<string, unknown>, label: string) {
         label === "Context" ? contextTitle(record) : entityTitle(record),
         recordText(record),
         [...domainMeta(record), ...contextMeta(record), ...recordCountMeta(record)],
+        "markdown",
       ),
       ...arrayValue(record.contexts)
         .slice(0, 3)
         .map((context) =>
           isRecord(context)
-            ? detailRow("Context", contextTitle(context), recordText(context), contextMeta(context))
+            ? detailRow(
+                "Context",
+                contextTitle(context),
+                recordText(context),
+                contextMeta(context),
+                "markdown",
+              )
             : undefined,
         ),
       ...arrayValue(record.relations)
@@ -856,7 +891,13 @@ function graphDetails(output: unknown) {
     rows: limitedRows(
       nodes.map((node) =>
         isRecord(node)
-          ? detailRow("Understanding", entityTitle(node), recordText(node), domainMeta(node))
+          ? detailRow(
+              "Understanding",
+              entityTitle(node),
+              recordText(node),
+              domainMeta(node),
+              "markdown",
+            )
           : undefined,
       ),
     ),
@@ -899,13 +940,14 @@ function detailRow(
   meta: string[] = [],
   format: ToolActivityDetailRow["format"] = "text",
 ): ToolActivityDetailRow {
+  const keepsLineBreaks = format === "pre" || format === "markdown";
   const compactDescription = description
-    ? format === "pre"
+    ? keepsLineBreaks
       ? truncateOutputPreview(description)
       : truncateText(description, 140)
     : undefined;
   const shouldKeepFullDescription =
-    format === "pre" &&
+    keepsLineBreaks &&
     description &&
     compactDescription &&
     description.trim() !== compactDescription.trim();
@@ -913,7 +955,7 @@ function detailRow(
     label,
     title: title || "未命名",
     meta: meta.filter(Boolean),
-    ...(format === "pre" ? { format } : {}),
+    ...(format !== "text" ? { format } : {}),
     ...(compactDescription ? { description: compactDescription } : {}),
     ...(shouldKeepFullDescription ? { fullDescription: description } : {}),
   };
