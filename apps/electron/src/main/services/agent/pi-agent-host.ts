@@ -133,7 +133,14 @@ function truncateText(text: string, maxLength: number): string {
   return text.length > maxLength ? text.slice(0, maxLength) : text;
 }
 
-export function normalizeGeneratedThreadTitle(input: string): string {
+function fallbackGeneratedThreadTitle(events: AgentSessionEvent[]): string {
+  const firstUserText = reduceAgentSession(events)
+    .messages.find((message) => message.role === "user")
+    ?.text.trim();
+  return firstUserText ? truncateText(firstUserText, TITLE_GENERATION_MAX_TITLE_LENGTH) : "";
+}
+
+export function normalizeGeneratedThreadTitle(input: string, fallback = "新对话"): string {
   const firstLine = input
     .trim()
     .replace(/^```(?:\w+)?\s*/u, "")
@@ -146,7 +153,7 @@ export function normalizeGeneratedThreadTitle(input: string): string {
     .replace(/^标题\s*[:：]\s*/iu, "")
     .replace(/^[`"'“”‘’]+|[`"'“”‘’]+$/gu, "")
     .trim();
-  return truncateText(title || "新对话", TITLE_GENERATION_MAX_TITLE_LENGTH);
+  return truncateText(title || fallback, TITLE_GENERATION_MAX_TITLE_LENGTH);
 }
 
 export function buildThreadTitleContext(events: AgentSessionEvent[]): Context | null {
@@ -189,7 +196,7 @@ export async function generateAgentThreadTitle(
   contentStorageRoot = getContentStorageRoot(),
 ): Promise<string> {
   const context = buildThreadTitleContext(events);
-  if (!context) return "新对话";
+  if (!context) return "";
 
   const modelConfig = getTitleGenerationAiModelConfig();
   const agentDir = path.join(contentStorageRoot, ".pi-agent");
@@ -217,7 +224,7 @@ export async function generateAgentThreadTitle(
     .map((part) => (part.type === "text" ? part.text : ""))
     .join("")
     .trim();
-  return normalizeGeneratedThreadTitle(text);
+  return normalizeGeneratedThreadTitle(text, "");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -303,9 +310,13 @@ export class PiAgentHost {
 
   async generateThreadTitle(sessionId: string): Promise<string> {
     const events = await this.sessionLog.readEvents(sessionId);
-    const title = normalizeGeneratedThreadTitle(
+    const fallbackTitle = fallbackGeneratedThreadTitle(events);
+    if (!fallbackTitle) throw new Error("没有可用于生成标题的对话内容");
+    const generatedTitle = normalizeGeneratedThreadTitle(
       await this.titleGenerator(events, this.contentStorageRoot),
+      fallbackTitle,
     );
+    const title = generatedTitle === "新对话" ? fallbackTitle : generatedTitle;
     await this.renameThread(sessionId, title);
     return title;
   }

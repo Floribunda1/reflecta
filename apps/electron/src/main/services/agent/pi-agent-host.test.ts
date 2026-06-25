@@ -194,6 +194,27 @@ describe("PiAgentHost", () => {
     ]);
   });
 
+  test("does not overwrite a non-empty thread with the generic generated-title fallback", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const session = log.createSession("新对话");
+    const manager = await log.openSession(session.id);
+    log.appendEvent(manager, {
+      id: "evt_1",
+      sessionId: session.id,
+      runId: "run_1",
+      type: "user.message",
+      messageId: "user_1",
+      text: "为什么生产环境导出 Markdown 没有反应",
+      createdAt: "2026-06-23T00:00:00.000Z",
+    });
+
+    const title = await new PiAgentHost(root, async () => "新对话").generateThreadTitle(session.id);
+
+    expect(title).toBe("为什么生产环境导出 Markdown 没有反应");
+    await expect(log.listSessions()).resolves.toMatchObject([{ id: session.id, title }]);
+  });
+
   test("closes restored sessions whose last run never reached a terminal event", async () => {
     const root = tempRoot();
     const log = new AgentSessionLog(root);
