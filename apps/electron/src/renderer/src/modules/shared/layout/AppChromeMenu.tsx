@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Bot, Check, ChevronDown, GitBranch, Inbox, Settings, Wrench } from "lucide-react";
+import { Bot, Check, ChevronDown, GitBranch, Inbox, Settings } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +14,6 @@ const moduleItems = [
   { label: "Capture", path: "/capture", Icon: Inbox },
   { label: "Contemplate", path: "/contemplate", Icon: GitBranch },
   { label: "Agent", path: "/agent", Icon: Bot },
-  { label: "Tool Demo", path: "/tool-demo", Icon: Wrench },
 ] as const;
 
 export const APP_CHROME_MENU_HIT_AREA_CLASS = "absolute left-[86px] top-[11px] h-7 w-32";
