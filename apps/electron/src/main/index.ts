@@ -6,6 +6,7 @@ import { initializeDB } from "./db";
 import { registerAssetScheme, handleAssetProtocol } from "./assetProtocol";
 import { APP_NAME, appLog, initializeLogging } from "./logger";
 import { preloadScript, rendererHtml } from "./paths";
+import { startRetrievalIdleRebuild } from "./retrievalIdleRebuild";
 import { getRuntimeArg } from "./runtime-args";
 
 // Register asset:// as a privileged scheme before app is ready
@@ -84,6 +85,8 @@ const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?:
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
   await initializeDB();
+  const retrievalIdleRebuild = startRetrievalIdleRebuild();
+  app.once("before-quit", () => retrievalIdleRebuild.stop());
 
   nativeTheme.themeSource = "system";
 
