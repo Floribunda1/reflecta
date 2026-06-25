@@ -12,6 +12,7 @@ import {
 import { Input } from "@renderer/components/ui/input";
 import { cn } from "@renderer/lib/utils";
 import { useMemoizedFn } from "ahooks";
+import { toast } from "sonner";
 import { ipcClient } from "@renderer/utils/ipc";
 import { ChatComposer } from "./composer/chat-composer";
 import type { InspectableContextRef } from "./context/context-reference";
@@ -21,6 +22,12 @@ import { useAgentModelOptionsQuery, useSelectAgentModelMutation } from "./sessio
 import type { ChatJumpItem } from "./session/thread-view";
 
 const CHAT_JUMP_MIN_ITEMS = 4;
+
+function errorMessage(error: unknown) {
+  if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
+    return error.message;
+  return error instanceof Error ? error.message : "请稍后重试";
+}
 
 type AgentThreadPanelProps = {
   threadId: string;
@@ -159,7 +166,22 @@ async function exportMarkdown(title: string, messages: AgentReducedMessage[]) {
   }
 
   const filename = `${(title.trim() || "agent-chat").replace(/[\\/:*?"<>|]+/g, "-")}.md`;
-  await ipcClient.chat.exportMarkdown(filename, `${parts.join("\n\n")}\n`);
+  try {
+    const filePath = await ipcClient.chat.exportMarkdown(filename, `${parts.join("\n\n")}\n`);
+    toast.success("已导出 Markdown", { description: filePath });
+  } catch (error) {
+    toast.error("导出 Markdown 失败", { description: errorMessage(error) });
+  }
+}
+
+async function copyThreadId(threadId: string) {
+  try {
+    if (!navigator.clipboard) throw new Error("当前环境不支持剪贴板");
+    await navigator.clipboard.writeText(threadId);
+    toast.success("已复制对话 ID");
+  } catch (error) {
+    toast.error("复制失败", { description: errorMessage(error) });
+  }
 }
 
 function AgentThreadHeader({
@@ -253,7 +275,7 @@ function AgentThreadHeader({
             </DropdownMenuItem>
             <DropdownMenuItem
               data-testid="agent-copy-thread-id-menu-item"
-              onClick={() => void navigator.clipboard?.writeText(threadId)}
+              onClick={() => void copyThreadId(threadId)}
             >
               <Copy />
               复制对话 ID

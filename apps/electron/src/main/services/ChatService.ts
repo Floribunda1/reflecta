@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { shell } from "electron";
 import { getIpcContext, IpcMethod, IpcService } from "electron-ipc-decorator";
 import type { AgentCommand } from "@shared/agent";
 import { getContentStorageRoot } from "../config";
@@ -55,6 +56,7 @@ export class ChatService extends IpcService {
     fs.mkdirSync(exportDir, { recursive: true });
     const filePath = path.join(exportDir, markdownExportFilename(filename));
     fs.writeFileSync(filePath, markdown, "utf-8");
+    shell.showItemInFolder(filePath);
     return filePath;
   }
 

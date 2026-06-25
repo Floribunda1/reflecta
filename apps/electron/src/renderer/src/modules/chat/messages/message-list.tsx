@@ -1,6 +1,7 @@
 import { memo, useMemo, type ReactNode } from "react";
 import { Copy, FileText, GitFork, Pencil, RefreshCcw } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@renderer/components/ui/empty";
@@ -24,6 +25,12 @@ import {
 } from "./agent-message-content";
 import { buildAgentTurnView } from "./agent-turn-view";
 import { shouldShowPendingAssistantPlaceholder } from "../session/thread-view";
+
+function errorMessage(error: unknown) {
+  if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
+    return error.message;
+  return error instanceof Error ? error.message : "请稍后重试";
+}
 
 function MentionChip({
   ref,
@@ -195,7 +202,13 @@ function MessageRowComponent({
   const hasFiles = messageFiles(message).length > 0;
 
   const copyMessage = async () => {
-    await navigator.clipboard.writeText(text);
+    try {
+      if (!navigator.clipboard) throw new Error("当前环境不支持剪贴板");
+      await navigator.clipboard.writeText(text);
+      toast.success("已复制消息");
+    } catch (error) {
+      toast.error("复制失败", { description: errorMessage(error) });
+    }
   };
 
   return (

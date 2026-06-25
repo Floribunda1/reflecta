@@ -1,10 +1,17 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@renderer/components/ui/button";
 import { Lightbulb, Loader2, RotateCcw, Trash2, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ipcClient } from "@renderer/utils/ipc";
 import type { TrashedUnderstandingDTO, TrashedContextDTO } from "@shared/trash";
 import { useModal } from "@renderer/modules/shared/hooks/use-modal";
+
+function errorMessage(error: unknown) {
+  if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
+    return error.message;
+  return error instanceof Error ? error.message : "请稍后重试";
+}
 
 export function TrashSection() {
   const { confirm } = useModal();
@@ -32,9 +39,17 @@ export function TrashSection() {
   }, []);
 
   const handleRestoreUnderstanding = async (id: string) => {
-    await ipcClient.trash.restoreUnderstanding(id);
-    queryClient.invalidateQueries({ queryKey: ["understanding.listUnderstandings"], exact: false });
-    await refresh();
+    try {
+      await ipcClient.trash.restoreUnderstanding(id);
+      queryClient.invalidateQueries({
+        queryKey: ["understanding.listUnderstandings"],
+        exact: false,
+      });
+      await refresh();
+      toast.success("已恢复 Understanding");
+    } catch (error) {
+      toast.error("恢复失败", { description: errorMessage(error) });
+    }
   };
 
   const handleDeleteUnderstandingForever = (id: string) => {
@@ -44,23 +59,33 @@ export function TrashSection() {
       acceptLabel: "永久删除",
       danger: true,
       onAccept: async () => {
-        await ipcClient.trash.permanentlyDeleteUnderstanding(id);
-        queryClient.invalidateQueries({
-          queryKey: ["understanding.listUnderstandings"],
-          exact: false,
-        });
-        await refresh();
+        try {
+          await ipcClient.trash.permanentlyDeleteUnderstanding(id);
+          queryClient.invalidateQueries({
+            queryKey: ["understanding.listUnderstandings"],
+            exact: false,
+          });
+          await refresh();
+          toast.success("已永久删除 Understanding");
+        } catch (error) {
+          toast.error("永久删除失败", { description: errorMessage(error) });
+        }
       },
     });
   };
 
   const handleRestoreContext = async (id: string) => {
-    await ipcClient.context.restoreContext(id);
-    queryClient.invalidateQueries({
-      queryKey: ["understanding.getUnderstandingById"],
-      exact: false,
-    });
-    await refresh();
+    try {
+      await ipcClient.context.restoreContext(id);
+      queryClient.invalidateQueries({
+        queryKey: ["understanding.getUnderstandingById"],
+        exact: false,
+      });
+      await refresh();
+      toast.success("已恢复 Context");
+    } catch (error) {
+      toast.error("恢复失败", { description: errorMessage(error) });
+    }
   };
 
   const handleDeleteContextForever = (id: string) => {
@@ -70,8 +95,13 @@ export function TrashSection() {
       acceptLabel: "永久删除",
       danger: true,
       onAccept: async () => {
-        await ipcClient.context.permanentlyDeleteContext(id);
-        await refresh();
+        try {
+          await ipcClient.context.permanentlyDeleteContext(id);
+          await refresh();
+          toast.success("已永久删除 Context");
+        } catch (error) {
+          toast.error("永久删除失败", { description: errorMessage(error) });
+        }
       },
     });
   };
@@ -85,21 +115,26 @@ export function TrashSection() {
       acceptLabel: "全部清空",
       danger: true,
       onAccept: async () => {
-        await Promise.all([
-          ...understandings.map((understanding) =>
-            ipcClient.trash.permanentlyDeleteUnderstanding(understanding.id),
-          ),
-          ...contexts.map((context) => ipcClient.context.permanentlyDeleteContext(context.id)),
-        ]);
-        queryClient.invalidateQueries({
-          queryKey: ["understanding.listUnderstandings"],
-          exact: false,
-        });
-        queryClient.invalidateQueries({
-          queryKey: ["understanding.getUnderstandingById"],
-          exact: false,
-        });
-        await refresh();
+        try {
+          await Promise.all([
+            ...understandings.map((understanding) =>
+              ipcClient.trash.permanentlyDeleteUnderstanding(understanding.id),
+            ),
+            ...contexts.map((context) => ipcClient.context.permanentlyDeleteContext(context.id)),
+          ]);
+          queryClient.invalidateQueries({
+            queryKey: ["understanding.listUnderstandings"],
+            exact: false,
+          });
+          queryClient.invalidateQueries({
+            queryKey: ["understanding.getUnderstandingById"],
+            exact: false,
+          });
+          await refresh();
+          toast.success("已清空回收站", { description: `${total} 项内容` });
+        } catch (error) {
+          toast.error("清空回收站失败", { description: errorMessage(error) });
+        }
       },
     });
   };

@@ -1,5 +1,6 @@
 import { Badge } from "@renderer/components/ui/badge";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@renderer/components/ui/alert";
 import { Button } from "@renderer/components/ui/button";
 import {
@@ -20,6 +21,12 @@ function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function errorMessage(error: unknown) {
+  if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
+    return error.message;
+  return error instanceof Error ? error.message : "请稍后重试";
 }
 
 export function StorageSection() {
@@ -48,6 +55,8 @@ export function StorageSection() {
       setContentStorageRoot(picked);
       setIsCustomContentStorageRoot(true);
       setPendingRestart(true);
+    } catch (error) {
+      toast.error("更新数据目录失败", { description: errorMessage(error) });
     } finally {
       setLoading(false);
     }
@@ -61,6 +70,8 @@ export function StorageSection() {
       setContentStorageRoot(config.contentStorageRoot);
       setIsCustomContentStorageRoot(config.isCustomContentStorageRoot);
       setPendingRestart(true);
+    } catch (error) {
+      toast.error("重置数据目录失败", { description: errorMessage(error) });
     } finally {
       setLoading(false);
     }
@@ -70,6 +81,8 @@ export function StorageSection() {
     setOrphanLoading(true);
     try {
       setOrphans(await ipcClient.asset.scanOrphanAssets());
+    } catch (error) {
+      toast.error("扫描失败", { description: errorMessage(error) });
     } finally {
       setOrphanLoading(false);
     }
@@ -89,11 +102,31 @@ export function StorageSection() {
         try {
           await ipcClient.asset.cleanOrphanAssets(orphans.map((orphan) => orphan.filename));
           setOrphans([]);
+          toast.success("已清除无效媒体文件", { description: `${count} 个文件，${totalSize}` });
+        } catch (error) {
+          toast.error("清除失败", { description: errorMessage(error) });
         } finally {
           setOrphanCleaning(false);
         }
       },
     });
+  };
+
+  const openOrphanAsset = async (filename: string) => {
+    try {
+      await ipcClient.asset.openAsset(filename);
+    } catch (error) {
+      toast.error("打开文件失败", { description: errorMessage(error) });
+    }
+  };
+
+  const revealOrphanAsset = async (filename: string) => {
+    try {
+      await ipcClient.asset.revealAsset(filename);
+      toast.success("已在 Finder 中显示");
+    } catch (error) {
+      toast.error("显示文件失败", { description: errorMessage(error) });
+    }
   };
 
   return (
@@ -220,7 +253,7 @@ export function StorageSection() {
                           size="icon-xs"
                           variant="ghost"
                           aria-label="打开文件"
-                          onClick={() => void ipcClient.asset.openAsset(orphan.filename)}
+                          onClick={() => void openOrphanAsset(orphan.filename)}
                         >
                           <ExternalLink size={13} />
                         </Button>
@@ -229,7 +262,7 @@ export function StorageSection() {
                           size="icon-xs"
                           variant="ghost"
                           aria-label="在 Finder 中显示"
-                          onClick={() => void ipcClient.asset.revealAsset(orphan.filename)}
+                          onClick={() => void revealOrphanAsset(orphan.filename)}
                         >
                           <FolderOpen size={13} />
                         </Button>

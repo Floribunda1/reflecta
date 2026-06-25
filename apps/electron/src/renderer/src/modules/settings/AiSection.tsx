@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, CheckCircle, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@renderer/components/ui/button";
 import { Input } from "@renderer/components/ui/input";
 import { ScrollArea } from "@renderer/components/ui/scroll-area";
@@ -23,6 +24,12 @@ function createProvider(provider: AiProviderCatalogItem): AiProviderConfig {
 
 function createModel(id = ""): AiModelConfig {
   return { id };
+}
+
+function errorMessage(error: unknown) {
+  if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
+    return error.message;
+  return error instanceof Error ? error.message : "请稍后重试";
 }
 
 export function AiSection() {
@@ -109,6 +116,8 @@ export function AiSection() {
       setConfig(await ipcClient.config.getAiConfig());
       await queryClient.invalidateQueries({ queryKey: ["ai.model-options"] });
       setSaved(true);
+    } catch (error) {
+      toast.error("保存 AI 配置失败", { description: errorMessage(error) });
     } finally {
       setLoading(false);
     }
