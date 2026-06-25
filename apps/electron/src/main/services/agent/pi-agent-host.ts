@@ -210,6 +210,7 @@ export async function generateAgentThreadTitle(
     eventCount: events.length,
     messageCount: reduceAgentSession(events).messages.length,
     promptLength: context.messages[0]?.content.length ?? 0,
+    maxTokens: 256,
   });
   const agentDir = path.join(contentStorageRoot, ".pi-agent");
   fs.mkdirSync(agentDir, { recursive: true });
@@ -224,8 +225,7 @@ export async function generateAgentThreadTitle(
     apiKey: auth.apiKey,
     env: auth.env,
     headers: auth.headers,
-    maxTokens: 80,
-    reasoning: "minimal",
+    maxTokens: 256,
     sessionId: `title_${sessionId}`,
   });
   if (response.stopReason === "error") {
