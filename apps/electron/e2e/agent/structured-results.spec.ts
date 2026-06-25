@@ -214,3 +214,44 @@ test("@AG-RESULT-004 用户点击 Agent 回复中的知识库引用后查看详�
     await app.close();
   }
 });
+
+test("@AG-RESULT-005 用户查看 Bash 长输出时可以原地展开", async () => {
+  const stderr = Array.from(
+    { length: 24 },
+    (_, index) => `error ${index + 1}: long bash output line`,
+  ).join("\n");
+  seedAgentThread({
+    id: "result-bash-output",
+    title: "Bash 长输出",
+    messages: [
+      userMessage("result-bash-output-user", "展示 Bash 长输出"),
+      assistantMessage("result-bash-output-assistant", [
+        {
+          type: "tool-bash",
+          toolCallId: "result-bash-output-tool",
+          state: "output-available",
+          input: { command: "bun run build", timeoutMs: 30000 },
+          output: { exitCode: 1, stdout: "", stderr },
+          toolMetadata: { kind: "proposal", proposalType: "bash" },
+        },
+      ]),
+    ],
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "Bash 长输出");
+    const card = page.getByTestId("agent-proposal-card").filter({ hasText: "执行 Bash" });
+    await expect(card).toContainText("完成");
+    await expect(card).toContainText("error 16: long bash output line");
+    await expect(card).not.toContainText("error 24: long bash output line");
+
+    await card.getByText("展开完整输出").click();
+    await expect(card).toContainText("error 24: long bash output line");
+
+    await card.getByText("收起输出").click();
+    await expect(card).not.toContainText("error 24: long bash output line");
+  } finally {
+    await app.close();
+  }
+});
