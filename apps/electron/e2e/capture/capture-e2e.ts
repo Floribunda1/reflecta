@@ -10,6 +10,15 @@ export function domainNode(page: Page, name: string) {
   return page.locator(`[data-testid="capture-domain-node"][data-domain-name="${name}"]`);
 }
 
+export function domainToggle(page: Page, name: string) {
+  return page.locator(`[data-testid="capture-domain-toggle"][data-domain-name="${name}"]`);
+}
+
+export async function expandDomain(page: Page, name: string, expectedChildName: string) {
+  await domainToggle(page, name).click();
+  await expect(domainNode(page, expectedChildName)).toBeVisible();
+}
+
 export async function visibleDomainNames(page: Page): Promise<string[]> {
   return page
     .getByTestId("capture-domain-node")

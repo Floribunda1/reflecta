@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   closestCenter,
   DndContext,
@@ -6,6 +6,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import {
@@ -35,7 +36,7 @@ import { useCaptureStore } from "../../store";
 import { useCaptureDomains } from "../../queries";
 import { APP_CHROME_MENU_HIT_AREA_CLASS } from "@renderer/modules/shared/layout/AppChromeMenu";
 import type { CaptureAgentScope } from "../../store";
-import { buildSiblingDomainReorderItems } from "../reorder";
+import { buildDomainParentLookup, buildSiblingDomainReorderItems } from "../reorder";
 
 function getAllKeys(nodes: DomainTreeNode[]): string[] {
   return nodes.flatMap((node) => [node.id, ...getAllKeys(node.children)]);
@@ -158,6 +159,8 @@ function DomainNode({
               >
                 {hasChildren ? (
                   <span
+                    data-testid="capture-domain-toggle"
+                    data-domain-name={node.name}
                     className="flex size-6 shrink-0 items-center justify-center text-muted-foreground"
                     onClick={(event) => {
                       event.stopPropagation();
@@ -266,6 +269,21 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
   const expandDomainAncestors = useCaptureStore((state) => state.expandDomainAncestors);
   const resetAfterDomainDeleted = useCaptureStore((state) => state.resetAfterDomainDeleted);
   const { openModal, closeModal, confirm } = useModal();
+  const domainParentById = useMemo(() => buildDomainParentLookup(domains), [domains]);
+  const collisionDetection = useCallback<CollisionDetection>(
+    (args) => {
+      const activeParentId = domainParentById.get(String(args.active.id));
+      if (activeParentId === undefined) return closestCenter(args);
+
+      const droppableContainers = args.droppableContainers.filter(
+        (container) => domainParentById.get(String(container.id)) === activeParentId,
+      );
+      if (droppableContainers.length === 0) return [];
+
+      return closestCenter({ ...args, droppableContainers });
+    },
+    [domainParentById],
+  );
 
   useEffect(() => {
     if (!selectedDomainId || selectedDomainId === "all") return;
@@ -373,7 +391,11 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={collisionDetection}
+          onDragEnd={handleDragEnd}
+        >
           <div className="space-y-0.5 px-2">
             <DomainRootButton
               selected={selectedDomainId === "all"}

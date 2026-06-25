@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { DomainTreeNode } from "@shared/domain";
-import { buildSiblingDomainReorderItems } from "./reorder";
+import { buildDomainParentLookup, buildSiblingDomainReorderItems } from "./reorder";
 
 const domains = [
   {
@@ -28,5 +28,15 @@ describe("domain tree reorder", () => {
 
   test("ignores cross-parent drops", () => {
     expect(buildSiblingDomainReorderItems(domains, "backend", "design")).toEqual([]);
+  });
+
+  test("tracks parent ids for nested drag collision filtering", () => {
+    expect(Object.fromEntries(buildDomainParentLookup(domains))).toEqual({
+      programming: null,
+      frontend: "programming",
+      backend: "programming",
+      devops: "programming",
+      design: null,
+    });
   });
 });

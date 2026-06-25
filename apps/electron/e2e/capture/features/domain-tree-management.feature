@@ -9,3 +9,12 @@
     当用户在 Capture 页面把 Domain「Design」拖到 Domain「Programming」前面
     那么 Domain Tree 中「Design」应该显示在「Programming」前面
     而且用户离开并回到 Capture 页面后，Domain Tree 仍然保持「Design」在「Programming」前面
+
+  @P0 @happy_path @CP-DOMAIN-002
+  场景: 用户拖动根级 Domain 穿过展开子节点调整顺序
+    假如 seed 数据中存在根级 Domain「Programming」「Design」「Reading」
+    而且 Domain「Programming」下存在子 Domain「DevOps」
+    当用户展开 Domain「Programming」
+    并且把 Domain「Reading」拖到 Domain「Programming」的子节点区域
+    那么 Domain Tree 中「Reading」应该显示在「Programming」后面
+    而且 Domain Tree 中「Reading」应该显示在「Design」前面

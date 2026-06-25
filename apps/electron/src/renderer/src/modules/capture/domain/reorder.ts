@@ -17,6 +17,18 @@ function moveItem<T>(items: T[], from: number, to: number): T[] {
   return next;
 }
 
+export function buildDomainParentLookup(domains: DomainTreeNode[]): Map<string, string | null> {
+  const parentById = new Map<string, string | null>();
+  const visit = (nodes: DomainTreeNode[]) => {
+    for (const node of nodes) {
+      parentById.set(node.id, node.parentId);
+      visit(node.children);
+    }
+  };
+  visit(domains);
+  return parentById;
+}
+
 export function buildSiblingDomainReorderItems(
   domains: DomainTreeNode[],
   activeId: string,
