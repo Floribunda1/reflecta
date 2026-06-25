@@ -1,16 +1,11 @@
 import { expect, type Page, test } from "@playwright/test";
 import { composer, launchAgentPage, launchApp, selectContext } from "../agent/agent-e2e";
 import { resetAgentFixtures } from "../agent/agent-fixtures";
+import { domainNode, openCapturePage } from "./capture-e2e";
 
 test.beforeEach(() => {
   resetAgentFixtures();
 });
-
-async function openCapturePage(page: Page) {
-  await page.getByLabel("Switch module").click();
-  await page.getByRole("menuitem", { name: "Capture" }).click();
-  await expect(page.getByTestId("capture-page")).toBeVisible();
-}
 
 function contextMention(page: Page, title: string) {
   return page.locator('[data-slot="composer-context-mention"]').filter({ hasText: title });
@@ -33,11 +28,7 @@ test("@CP-AGENT-001 用户从 Domain 右键菜单打开上下文 Agent", async (
 
   try {
     await openCapturePage(page);
-    await page
-      .locator('[data-testid="capture-domain-node"][data-domain-name="Programming"]')
-      .click({
-        button: "right",
-      });
+    await domainNode(page, "Programming").click({ button: "right" });
     await chooseChatFromContextMenu(page);
 
     await expectAgentDockWithContext(page, "Programming");
@@ -107,11 +98,7 @@ test("@CP-AGENT-005 未发送消息的 Capture 上下文 Agent 不进入对话�
 
   try {
     await openCapturePage(page);
-    await page
-      .locator('[data-testid="capture-domain-node"][data-domain-name="Programming"]')
-      .click({
-        button: "right",
-      });
+    await domainNode(page, "Programming").click({ button: "right" });
     await chooseChatFromContextMenu(page);
     await expectAgentDockWithContext(page, "Programming");
 

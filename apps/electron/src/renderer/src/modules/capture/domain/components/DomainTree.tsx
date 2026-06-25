@@ -1,4 +1,21 @@
 import { useEffect } from "react";
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { toast } from "sonner";
 import { Button } from "@renderer/components/ui/button";
 import { ScrollArea } from "@renderer/components/ui/scroll-area";
 import {
@@ -18,6 +35,7 @@ import { useCaptureStore } from "../../store";
 import { useCaptureDomains } from "../../queries";
 import { APP_CHROME_MENU_HIT_AREA_CLASS } from "@renderer/modules/shared/layout/AppChromeMenu";
 import type { CaptureAgentScope } from "../../store";
+import { buildSiblingDomainReorderItems } from "../reorder";
 
 function getAllKeys(nodes: DomainTreeNode[]): string[] {
   return nodes.flatMap((node) => [node.id, ...getAllKeys(node.children)]);
@@ -30,6 +48,12 @@ function getAncestorKeys(nodes: DomainTreeNode[], targetKey: string): string[] |
     if (ancestors !== null) return [node.id, ...ancestors];
   }
   return null;
+}
+
+function errorMessage(error: unknown) {
+  if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
+    return error.message;
+  return error instanceof Error ? error.message : "请稍后重试";
 }
 
 type DomainNodeActions = {
@@ -87,12 +111,29 @@ function DomainNode({
   onSelect: (id: string) => void;
   actions: DomainNodeActions;
 }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: node.id,
+  });
   const expanded = !!expandedKeys[node.id];
   const hasChildren = node.children.length > 0;
   const selected = selectedDomainId === node.id;
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+  const rowClassName = cn(
+    "h-auto w-full min-w-0 cursor-grab justify-start p-1.5 text-left font-normal text-foreground/85 hover:bg-foreground/5 hover:text-foreground active:cursor-grabbing",
+    selected && "bg-foreground/5 text-foreground font-medium hover:bg-foreground/5",
+  );
 
   return (
-    <div>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(isDragging && "relative z-10 opacity-70")}
+      data-testid="capture-domain-sortable-node"
+      data-domain-name={node.name}
+    >
       <ContextMenu>
         <ContextMenuTrigger
           render={
@@ -102,11 +143,11 @@ function DomainNode({
               type="button"
               variant="ghost"
               size="sm"
-              className={cn(
-                "w-full min-w-0 justify-start text-left font-normal text-foreground/85 p-1.5 hover:bg-foreground/5 hover:text-foreground",
-                selected && "bg-foreground/5 text-foreground font-medium hover:bg-foreground/5",
-              )}
+              className={rowClassName}
+              style={{ touchAction: "none" }}
               onClick={() => onSelect(node.id)}
+              {...attributes}
+              {...listeners}
             >
               <span
                 className="flex min-w-0 flex-1 items-center gap-1"
@@ -140,22 +181,52 @@ function DomainNode({
         </ContextMenuContent>
       </ContextMenu>
       {hasChildren && expanded && (
-        <div>
-          {node.children.map((child) => (
-            <DomainNode
-              key={child.id}
-              node={child}
-              level={level + 1}
-              selectedDomainId={selectedDomainId}
-              expandedKeys={expandedKeys}
-              onToggle={onToggle}
-              onSelect={onSelect}
-              actions={actions}
-            />
-          ))}
-        </div>
+        <DomainNodeList
+          nodes={node.children}
+          level={level + 1}
+          selectedDomainId={selectedDomainId}
+          expandedKeys={expandedKeys}
+          onToggle={onToggle}
+          onSelect={onSelect}
+          actions={actions}
+        />
       )}
     </div>
+  );
+}
+
+function DomainNodeList({
+  nodes,
+  level = 0,
+  selectedDomainId,
+  expandedKeys,
+  onToggle,
+  onSelect,
+  actions,
+}: {
+  nodes: DomainTreeNode[];
+  level?: number;
+  selectedDomainId: string;
+  expandedKeys: Record<string, boolean>;
+  onToggle: (id: string) => void;
+  onSelect: (id: string) => void;
+  actions: DomainNodeActions;
+}) {
+  return (
+    <SortableContext items={nodes.map((node) => node.id)} strategy={verticalListSortingStrategy}>
+      {nodes.map((node) => (
+        <DomainNode
+          key={node.id}
+          node={node}
+          level={level}
+          selectedDomainId={selectedDomainId}
+          expandedKeys={expandedKeys}
+          onToggle={onToggle}
+          onSelect={onSelect}
+          actions={actions}
+        />
+      ))}
+    </SortableContext>
   );
 }
 
@@ -182,7 +253,11 @@ function DomainRootButton({ selected, onSelect }: { selected: boolean; onSelect:
 
 export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => void }) {
   const { domains } = useCaptureDomains();
-  const { createDomain, updateDomain, deleteDomain } = useDomainActions();
+  const { createDomain, updateDomain, deleteDomain, reorderDomains } = useDomainActions();
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
   const selectedDomainId = useCaptureStore((state) => state.selectedDomainId);
   const expandedDomainKeys = useCaptureStore((state) => state.expandedDomainIds);
   const selectDomain = useCaptureStore((state) => state.selectDomain);
@@ -262,6 +337,16 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
     onChat,
   };
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const overId = event.over?.id;
+    if (!overId) return;
+    const items = buildSiblingDomainReorderItems(domains, String(event.active.id), String(overId));
+    if (items.length === 0) return;
+    void reorderDomains(items).catch((error) =>
+      toast.error("调整领域顺序失败", { description: errorMessage(error) }),
+    );
+  };
+
   return (
     <aside className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
       <div className="app-drag-region relative px-5 pt-14 pb-3">
@@ -288,30 +373,29 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-0.5 px-2">
-          <DomainRootButton
-            selected={selectedDomainId === "all"}
-            onSelect={() => onSelect("all")}
-          />
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <div className="space-y-0.5 px-2">
+            <DomainRootButton
+              selected={selectedDomainId === "all"}
+              onSelect={() => onSelect("all")}
+            />
 
-          {domains.map((node) => (
-            <DomainNode
-              key={node.id}
-              node={node}
+            <DomainNodeList
+              nodes={domains}
               selectedDomainId={selectedDomainId}
               expandedKeys={expandedDomainKeys}
               onToggle={onToggle}
               onSelect={onSelect}
               actions={actions}
             />
-          ))}
 
-          {domains.length === 0 && (
-            <div className="px-2 py-3 text-xs leading-5 text-muted-foreground">
-              还没有领域。新建一个领域后，理解会在这里形成长期语境。
-            </div>
-          )}
-        </div>
+            {domains.length === 0 && (
+              <div className="px-2 py-3 text-xs leading-5 text-muted-foreground">
+                还没有领域。新建一个领域后，理解会在这里形成长期语境。
+              </div>
+            )}
+          </div>
+        </DndContext>
       </ScrollArea>
     </aside>
   );

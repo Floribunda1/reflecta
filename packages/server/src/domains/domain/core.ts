@@ -95,6 +95,19 @@ export class DomainCore {
   }
 
   async reorderDomains(items: ReorderDomainItem[]): Promise<void> {
+    const seen = new Set<string>();
+    for (const item of items) {
+      if (seen.has(item.id)) throw new Error(`Duplicate Domain reorder item: ${item.id}`);
+      seen.add(item.id);
+      if (!Number.isInteger(item.sortOrder) || item.sortOrder < 0) {
+        throw new Error(`Invalid Domain sort order: ${item.sortOrder}`);
+      }
+      if (!(await this.getDomainRow(item.id))) {
+        throw new Error(`Domain not found: ${item.id}`);
+      }
+      await this.assertValidParent(item.id, item.parentId);
+    }
+
     const updatedAt = new Date().toISOString();
     await this.db.transaction((tx) => {
       for (const item of items) {
