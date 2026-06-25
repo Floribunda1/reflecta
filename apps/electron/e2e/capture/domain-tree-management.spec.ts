@@ -44,7 +44,7 @@ test("@CP-DOMAIN-002 用户拖动根级 Domain 穿过展开子节点调整顺序
   }
 });
 
-test("@CP-DOMAIN-003 展开 Domain 的拖动目标仍然只占单行高度", async () => {
+test("@CP-DOMAIN-003 展开 Domain 的拖动目标包含子树高度", async () => {
   const { app, page } = await launchApp();
 
   try {
@@ -55,7 +55,7 @@ test("@CP-DOMAIN-003 展开 Domain 的拖动目标仍然只占单行高度", asy
     const sortableBox = await sortableDomainNode(page, "Programming").boundingBox();
 
     expect(rowBox?.height).toBeGreaterThan(0);
-    expect(sortableBox?.height).toBeCloseTo(rowBox?.height ?? 0, 0);
+    expect(sortableBox?.height).toBeGreaterThan((rowBox?.height ?? 0) * 2);
   } finally {
     await app.close();
   }

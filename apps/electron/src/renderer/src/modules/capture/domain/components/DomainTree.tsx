@@ -133,8 +133,14 @@ function DomainNode({
   };
 
   return (
-    <div style={style} className={cn(isDragging && "relative z-10 opacity-70")}>
-      <div ref={setNodeRef} data-testid="capture-domain-sortable-node" data-domain-name={node.name}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(isDragging && "relative z-10 opacity-70")}
+      data-testid="capture-domain-sortable-node"
+      data-domain-name={node.name}
+    >
+      <div>
         <ContextMenu>
           <ContextMenuTrigger
             render={
