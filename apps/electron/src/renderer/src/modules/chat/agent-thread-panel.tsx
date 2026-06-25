@@ -224,7 +224,7 @@ function AgentThreadHeader({
   };
 
   return (
-    <header className="app-drag-region flex h-12 shrink-0 items-center justify-between gap-3 border-b bg-background/70 px-6 backdrop-blur">
+    <header className="app-drag-region flex h-12 shrink-0 items-center justify-between gap-3 border-b px-6">
       <Input
         data-no-drag
         data-testid="agent-thread-title"
