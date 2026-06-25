@@ -81,6 +81,13 @@ export function buildChatJumpItems(messages: AgentReducedMessage[]): ChatJumpIte
     }));
 }
 
+export function shouldShowPendingAssistantPlaceholder(
+  messages: AgentReducedMessage[],
+  isBusy: boolean,
+) {
+  return isBusy && messages.at(-1)?.role !== "assistant";
+}
+
 function valueKey(value: unknown) {
   if (value == null) return "";
   if (typeof value === "string") return String(value.length);

@@ -237,7 +237,7 @@ function ReasoningBlock({
   );
 }
 
-function RunningResponsePlaceholder() {
+export function RunningResponsePlaceholder() {
   return (
     <div
       data-testid="agent-running-placeholder"

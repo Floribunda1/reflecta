@@ -72,7 +72,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
   }, [localStoppedMessageId, sessionId, state.status, visibleMessages]);
   const isBusy = state.status === "running";
   const error = state.error ? new Error(state.error) : undefined;
-  const scrollKey = scrollKeyFor(visibleMessages);
+  const scrollKey = `${scrollKeyFor(visibleMessages)}:${isBusy ? "busy" : "idle"}`;
 
   useEffect(() => {
     if (isBusy) chatUiStore.getState().setThreadRunning(sessionId, true);

@@ -17,8 +17,13 @@ import {
   type InspectableContextRef,
 } from "../context/context-reference";
 import type { ComposerJSON } from "../composer/composer-content";
-import { AgentMessageContent, type ApproveToolInput } from "./agent-message-content";
+import {
+  AgentMessageContent,
+  RunningResponsePlaceholder,
+  type ApproveToolInput,
+} from "./agent-message-content";
 import { buildAgentTurnView } from "./agent-turn-view";
+import { shouldShowPendingAssistantPlaceholder } from "../session/thread-view";
 
 function MentionChip({
   ref,
@@ -317,12 +322,13 @@ export function MessageList({
   const stoppedMessageVisible = stoppedMessageId
     ? messages.some((message) => message.id === stoppedMessageId)
     : true;
+  const showPendingAssistant = shouldShowPendingAssistantPlaceholder(messages, isBusy);
 
   const createdAtFor = (message: AgentReducedMessage) => message.createdAt;
 
   return (
     <div data-testid="agent-message-list" className="flex w-full flex-col gap-5">
-      {messages.length === 0 ? (
+      {messages.length === 0 && !showPendingAssistant ? (
         <Empty data-testid="agent-empty-state" className="border-0 py-16">
           <EmptyHeader>
             <EmptyTitle>开始和 Agent 对话</EmptyTitle>
@@ -345,6 +351,7 @@ export function MessageList({
           onInspectContextRef={onInspectContextRef}
         />
       ))}
+      {showPendingAssistant ? <RunningResponsePlaceholder /> : null}
       {stoppedMessageId && !stoppedMessageVisible ? (
         <div
           data-testid="agent-stopped-state"

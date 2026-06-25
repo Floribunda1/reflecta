@@ -6,12 +6,18 @@ import {
   createNewThread,
   hasAi,
   launchAgentPage,
+  openThread,
   selectContext,
   sendMessage,
   threadByTitle,
   waitForAssistantReply,
 } from "./agent-e2e";
-import { resetAgentFixtures } from "./agent-fixtures";
+import {
+  assistantMessage,
+  resetAgentFixtures,
+  seedAgentThread,
+  userMessage,
+} from "./agent-fixtures";
 
 test.beforeEach(() => {
   resetAgentFixtures();
@@ -111,6 +117,50 @@ test("@AG-START-005 未发送消息的新对话不进入对话列表", async () 
       0,
     );
     await expect(composer(page)).toBeEditable();
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-START-007 用户打开等待回复中的对话时看到对话区等待状态", async () => {
+  const sessionId = "waiting-reply";
+  seedAgentThread({
+    id: sessionId,
+    title: "等待回复",
+    messages: [
+      userMessage("waiting-existing-user", "OLD_USER_MESSAGE"),
+      assistantMessage("waiting-existing-assistant", [{ type: "text", text: "OLD_REPLY" }]),
+    ],
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "等待回复");
+    await app.evaluate(({ BrowserWindow }, sessionId) => {
+      const window = BrowserWindow.getAllWindows()[0];
+      const base = {
+        sessionId,
+        runId: "run-waiting",
+        createdAt: "2026-06-25T05:20:00.000Z",
+      };
+      window?.webContents.send("agent:event", {
+        ...base,
+        id: "evt-waiting-run",
+        type: "run.started",
+      });
+      window?.webContents.send("agent:event", {
+        ...base,
+        id: "evt-waiting-user",
+        type: "user.message",
+        messageId: "waiting-user",
+        text: "WAITING_USER_MESSAGE",
+      });
+    }, sessionId);
+    await expect(
+      page.getByTestId("agent-user-message").filter({ hasText: "WAITING_USER_MESSAGE" }),
+    ).toBeVisible();
+    await expect(page.getByTestId("agent-running-placeholder")).toContainText("正在思考");
+    await expect(page.getByTestId("agent-empty-state")).toHaveCount(0);
   } finally {
     await app.close();
   }

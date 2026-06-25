@@ -2,7 +2,11 @@
 
 import { describe, expect, test } from "vitest";
 import type { AgentReducedMessage } from "@shared/agent";
-import { buildChatJumpItems, shouldShowScrollToBottomButton } from "./thread-view";
+import {
+  buildChatJumpItems,
+  shouldShowPendingAssistantPlaceholder,
+  shouldShowScrollToBottomButton,
+} from "./thread-view";
 
 describe("shouldShowScrollToBottomButton", () => {
   test("shows the button after scrolling away from the bottom", () => {
@@ -52,6 +56,20 @@ describe("buildChatJumpItems", () => {
     ]);
 
     expect(items[0]?.label).toBe("附件：report.pdf");
+  });
+});
+
+describe("shouldShowPendingAssistantPlaceholder", () => {
+  test("shows a pending assistant placeholder before the first response block arrives", () => {
+    expect(shouldShowPendingAssistantPlaceholder([message("user-1", "user", "hello")], true)).toBe(
+      true,
+    );
+    expect(
+      shouldShowPendingAssistantPlaceholder([message("assistant-1", "assistant", "")], true),
+    ).toBe(false);
+    expect(shouldShowPendingAssistantPlaceholder([message("user-1", "user", "hello")], false)).toBe(
+      false,
+    );
   });
 });
 
