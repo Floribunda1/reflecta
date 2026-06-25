@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { app, safeStorage } from "electron";
+import { app } from "electron";
 import { resolveRuntimePaths, type RuntimeAppConfig } from "@reflecta/server/runtime";
 import { getRuntimeArg } from "./runtime-args";
 
@@ -132,7 +132,6 @@ export function getDefaultContentStorageRoot(): string {
 }
 
 let _cache: AppConfig | null = null;
-const ENCRYPTED_VALUE_PREFIX = "safe:v1:";
 let retrievalEmbeddingDownload: RetrievalEmbeddingDownloadStatus = {
   state: "idle",
   receivedBytes: 0,
@@ -252,73 +251,15 @@ function isProviderConfigured(provider: AiProviderConfig): boolean {
   return catalog.authType === "codex" || !!provider.apiKey;
 }
 
-function encryptConfigSecret(value: string): string {
-  if (!value || !safeStorage.isEncryptionAvailable()) return value;
-  return `${ENCRYPTED_VALUE_PREFIX}${safeStorage.encryptString(value).toString("base64")}`;
-}
-
-function decryptConfigSecret(value: string): string {
-  if (!value.startsWith(ENCRYPTED_VALUE_PREFIX)) return value;
-  try {
-    return safeStorage.decryptString(
-      Buffer.from(value.slice(ENCRYPTED_VALUE_PREFIX.length), "base64"),
-    );
-  } catch {
-    return "";
-  }
-}
-
-function transformAiConfigKeys(config: AiConfig | undefined, transform: (value: string) => string) {
-  if (!config) return undefined;
-  return {
-    ...config,
-    providers: config.providers.map((provider) => ({
-      ...provider,
-      apiKey: transform(provider.apiKey),
-    })),
-  };
-}
-
-function transformRetrievalConfigKeys(
-  config: RetrievalConfig | undefined,
-  transform: (value: string) => string,
-) {
-  if (!config) return undefined;
-  return {
-    ...config,
-    embedding: {
-      ...config.embedding,
-      apiKey: config.embedding.apiKey ? transform(config.embedding.apiKey) : undefined,
-    },
-  };
-}
-
-function readPersistedConfig(raw: string): AppConfig {
-  const parsed = JSON.parse(raw) as AppConfig;
-  return {
-    ...parsed,
-    ai: transformAiConfigKeys(parsed.ai, decryptConfigSecret),
-    retrieval: transformRetrievalConfigKeys(parsed.retrieval, decryptConfigSecret),
-  };
-}
-
 function serializeConfig(config: AppConfig): string {
-  return JSON.stringify(
-    {
-      ...config,
-      ai: transformAiConfigKeys(config.ai, encryptConfigSecret),
-      retrieval: transformRetrievalConfigKeys(config.retrieval, encryptConfigSecret),
-    },
-    null,
-    2,
-  );
+  return JSON.stringify(config, null, 2);
 }
 
 export function readConfig(): AppConfig {
   if (_cache) return _cache;
   try {
     const raw = fs.readFileSync(getAppConfigFilePath(), "utf-8");
-    _cache = readPersistedConfig(raw);
+    _cache = JSON.parse(raw) as AppConfig;
   } catch {
     _cache = {};
   }

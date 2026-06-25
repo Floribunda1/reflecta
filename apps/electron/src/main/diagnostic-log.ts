@@ -64,9 +64,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function redactValue(value: unknown, seen = new WeakSet<object>()): unknown {
-  if (typeof value === "string") {
-    return value.startsWith("safe:v1:") ? REDACTED : value;
-  }
+  if (typeof value === "string") return value;
   if (
     value === null ||
     typeof value === "number" ||

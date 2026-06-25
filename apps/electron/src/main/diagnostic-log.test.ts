@@ -68,7 +68,6 @@ describe("DiagnosticLog", () => {
         apiKey: "plain-key",
         nested: {
           accessToken: "plain-token",
-          encrypted: "safe:v1:ciphertext",
         },
       },
     });
@@ -77,7 +76,6 @@ describe("DiagnosticLog", () => {
       apiKey: "[redacted]",
       nested: {
         accessToken: "[redacted]",
-        encrypted: "[redacted]",
       },
     });
   });

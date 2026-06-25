@@ -29,11 +29,6 @@ vi.mock("electron", () => ({
   ipcMain: {
     handle: vi.fn(),
   },
-  safeStorage: {
-    isEncryptionAvailable: () => false,
-    encryptString: (plainText: string) => Buffer.from(plainText),
-    decryptString: (encrypted: Buffer) => encrypted.toString("utf-8"),
-  },
 }));
 
 vi.mock("electron-ipc-decorator", () => ({

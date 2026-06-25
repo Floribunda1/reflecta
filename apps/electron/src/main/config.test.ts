@@ -20,11 +20,6 @@ vi.mock("electron", () => ({
       throw new Error(`Unexpected app path: ${name}`);
     },
   },
-  safeStorage: {
-    isEncryptionAvailable: () => true,
-    encryptString: (plainText: string) => Buffer.from(`encrypted:${plainText}`),
-    decryptString: (encrypted: Buffer) => encrypted.toString("utf-8").replace(/^encrypted:/, ""),
-  },
 }));
 
 let tempDir: string;
@@ -96,7 +91,7 @@ describe("Electron retrieval config", () => {
     expect(fs.readFileSync(status.modelPath, "utf-8")).toContain("stub retrieval embedding model");
   });
 
-  test("encrypts retrieval endpoint API key on write and decrypts it on read", async () => {
+  test("stores retrieval endpoint API key as plain config", async () => {
     const config = await import("./config");
 
     config.writeConfig({
@@ -111,8 +106,7 @@ describe("Electron retrieval config", () => {
     });
 
     const raw = fs.readFileSync(config.getAppConfigFilePath(), "utf-8");
-    expect(raw).not.toContain("retrieval-key");
-    expect(raw).toContain("safe:v1:");
+    expect(raw).toContain("retrieval-key");
 
     vi.resetModules();
     const freshConfig = await import("./config");
@@ -227,7 +221,7 @@ describe("Electron AI config", () => {
     ).toEqual({ providerId: "openai", modelId: "gpt-4o" });
   });
 
-  test("encrypts API keys on write and decrypts them on read", async () => {
+  test("stores AI API keys as plain config", async () => {
     const config = await import("./config");
 
     config.writeConfig({
@@ -243,8 +237,7 @@ describe("Electron AI config", () => {
     });
 
     const raw = fs.readFileSync(config.getAppConfigFilePath(), "utf-8");
-    expect(raw).not.toContain("test-key");
-    expect(raw).toContain("safe:v1:");
+    expect(raw).toContain("test-key");
 
     vi.resetModules();
     const freshConfig = await import("./config");
