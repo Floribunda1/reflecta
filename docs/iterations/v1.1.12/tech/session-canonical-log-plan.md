@@ -43,7 +43,7 @@ session 仍然只有一个文件，但文件里保存的是完整 turn，不保�
 - Markdown 导出可以从同一份 session 文件生成完整 transcript。
 - AI 可以直接读取 session 文件作为原始材料。
 - 不再长期保存 `assistant.text.delta` 和 `assistant.reasoning.delta` 碎片。
-- 旧 session 可以迁移为 canonical format。
+- 旧 session 通过一次性脚本迁移为 canonical format。
 
 非目标：
 
@@ -53,10 +53,12 @@ session 仍然只有一个文件，但文件里保存的是完整 turn，不保�
 - 不把 compact summary 当作原始 transcript。
 - 不保留历史对话逐字播放效果。
 - 不为了兼容旧 reader 写“单条 full delta”这种假事件。
+- 不在新应用运行时兼容旧 delta session 格式。
+- 不在 app 启动或打开 session 时自动 lazy migration。
 
 ## 3. Canonical Session Schema
 
-新增 canonical event，而不是继续把 delta 当持久化协议。
+新增 canonical event，而不是继续把 delta 当持久化协议。`AgentSessionEvent` 表示 durable session event；delta 类事件改成 runtime-only live event，不再属于 session 文件的稳定格式。
 
 ```ts
 type AgentAssistantTurn = AgentEventBase & {
@@ -123,6 +125,16 @@ type AgentAssistantTurnBlock =
 `tool.started` / `tool.completed` 不再作为长期必需事件；它们进入 `assistant.turn.blocks`。如果当前运行失败，需要保留已发生 tool 结果，则在失败前写一个 `assistant.turn` 或新增 `assistant.partial.turn`，第一版可以先只处理成功 run。
 
 `approval.requested` / `approval.resolved` 继续作为 durable semantic event 保留。它们不是 token-level transport 噪声，而且涉及用户决策和 pending 状态恢复；第一版不把 approval 折进 `assistant.turn`，避免同一 approval 在 reducer 里显示两次。
+
+删除 durable session schema 中的事件：
+
+- `assistant.text.delta`
+- `assistant.reasoning.delta`
+- `tool.started`
+- `tool.completed`
+- `tool.failed`
+
+这些事件可以继续存在于 `AgentLiveEvent`，只用于当前 run 的流式 UI。
 
 ## 4. Module Interface
 
@@ -195,7 +207,7 @@ appendSession(event)
 
 Renderer 在当前运行中继续吃 live event，所以流式体验不变。应用重启后只读取 session 文件里的 canonical event，所以历史恢复不依赖 delta。
 
-## 6. Reducer Contract
+## 6. Reader / Reducer Contract
 
 `reduceAgentSessionEvent()` 增加 `assistant.turn` 分支：
 
@@ -206,25 +218,28 @@ assistant.turn
   -> message.blocks = event.blocks
 ```
 
-旧 delta 分支暂时保留，用于读取未迁移的旧 session。
+新 reader 不兼容旧 delta session。旧 session 必须先跑 migration script。
 
 读取策略：
 
 - 新 session：主要由 `assistant.turn` 还原。
-- 旧 session：继续由 `assistant.text.delta` / `assistant.reasoning.delta` 还原。
-- 迁移后 session：只剩 `assistant.turn`。
+- 迁移后 session：由 `assistant.turn` 还原。
+- 未迁移旧 session：明确报错，提示先运行 migration script。
+
+当前运行中的流式 UI 不走 durable session reader。它从 `AgentLiveEvent` 更新正在生成的 pending turn，run 完成后由 `assistant.turn` 替换成稳定 transcript。
 
 ## 7. Migration
 
-新增一次性 migration 函数：
+不做自动 migration。新增一个一次性手动脚本，等用户指定文件或目录后执行：
 
 ```ts
-canonicalizeAgentSessionFile(sessionFile: string): CanonicalizeResult
+canonicalizeAgentSessionFile(sessionFile: string): CanonicalizeResult;
+canonicalizeAgentSessions(targetPath: string): CanonicalizeSummary;
 ```
 
 步骤：
 
-1. 读取单个 JSONL 文件。
+1. `targetPath` 可以是单个 `.jsonl` 文件，也可以是 `Sessions/` 目录。
 2. 只处理 `customType === "reflecta.agent.event"` 的 Reflecta events。
 3. 按 `runId + assistant messageId` 聚合：
    - reasoning delta
@@ -241,14 +256,22 @@ canonicalizeAgentSessionFile(sessionFile: string): CanonicalizeResult
 - 没有 `run.completed` 的活跃 run 不迁移。
 - 无法识别的 entry 原样保留。
 
-第一版可以在 app 启动读取 session 时懒迁移当前打开的 session；不做全量后台扫描。
+产品路径：
+
+```text
+用户给出旧 session 文件或 Sessions 目录
+  -> 运行 migration script
+  -> 新应用只读取 canonical session
+```
+
+不把 migration 放进 app 启动流程，也不在 session reader 里塞兼容分支。
 
 ## 8. Tests
 
 新增或更新最少测试：
 
 - `AgentRunAccumulator` unit test：reasoning delta + tool + text delta 归约成 blocks，tool output 全文保留。
-- `reduceAgentSession` unit test：`assistant.turn` 还原出的 message 和旧 delta 还原结果一致。
+- `reduceAgentSession` unit test：`assistant.turn` 还原出完整 message。
 - `pi-session-log` integration test：迁移后文件不包含 `assistant.text.delta` / `assistant.reasoning.delta`，但 reducer state 不变。
 - e2e fixture 更新：新 seeded session 使用 `assistant.turn`。
 
@@ -260,7 +283,7 @@ canonicalizeAgentSessionFile(sessionFile: string): CanonicalizeResult
 
 - 在 shared agent typings 增加 `AgentAssistantTurn`。
 - Reducer 支持 `assistant.turn`。
-- 旧 delta event 继续可读。
+- 从 durable `AgentSessionEvent` 中移除 delta / tool runtime event。
 
 ### Phase 2: Add Run Accumulator
 
@@ -273,25 +296,26 @@ canonicalizeAgentSessionFile(sessionFile: string): CanonicalizeResult
 - run 过程中 delta 只给 renderer，不落盘。
 - run 完成时写 `assistant.turn`。
 
-### Phase 4: Add Lazy Migration
+### Phase 4: Add Manual Migration Script
 
-- `AgentSessionLog.readEventsFromFile()` 读取前或读取后触发 canonicalization。
+- 新增 script：输入单个 `.jsonl` 或 `Sessions/` 目录。
 - 迁移只处理 completed run。
 - 原子写回原 session 文件。
 
 ### Phase 5: Update Export / Fixtures
 
-- Markdown 导出读取 reducer state，不关心底层是 delta 还是 turn。
+- Markdown 导出读取 canonical reducer state。
 - 更新 e2e seeded session。
-- 保留旧 session 兼容测试。
+- 不保留旧 session 运行时兼容测试；只保留 migration 测试。
 
 ## 10. Acceptance Criteria
 
 - 新产生的长对话 session 文件不再包含 `assistant.text.delta` 和 `assistant.reasoning.delta`。
-- 历史对话仍能显示 reasoning、tool result、final answer。
+- 新 session 和迁移后的历史对话都能显示 reasoning、tool result、final answer。
 - Tool result 在 session 文件中保留全文。
 - Markdown 导出能导出 reasoning / tool / answer。
-- 旧 session 打开后 UI 状态和迁移前一致。
+- 旧 session 经手动 migration 后 UI 状态和迁移前一致。
+- 未迁移旧 session 在新应用中明确提示需要先运行 migration script。
 - 对一份包含 50 轮对话的 session，行数接近真实事件数，而不是 token 数。
 
 ## 11. Open Questions
