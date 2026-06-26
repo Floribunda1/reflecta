@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
+  composer,
   createNewThread,
   hasAi,
   launchAgentPage,
@@ -7,6 +8,7 @@ import {
   waitForAssistantReply,
 } from "./agent-e2e";
 import { resetAgentFixtures } from "./agent-fixtures";
+import { writeE2eAiConfig } from "../test-env";
 
 test.beforeEach(() => {
   resetAgentFixtures();
@@ -82,6 +84,38 @@ test("@AG-MESSAGE-002 用户重新生成回复后看到新的当前回复", asyn
       "data-message-role",
       "assistant",
     );
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-MESSAGE-003 用户按 Enter 发送后编辑时仍看到原来的单行内容", async () => {
+  test.setTimeout(120_000);
+  writeE2eAiConfig({ ...process.env, REFLECTA_E2E_AI_API_KEY: "invalid-reflecta-e2e-key" });
+
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await createNewThread(page);
+    await composer(page).click();
+    await page.keyboard.type("ENTER_SEND_SINGLE_LINE");
+    await page.keyboard.press("Enter");
+
+    const userRow = page
+      .locator('[data-testid="agent-message-row"][data-message-role="user"]')
+      .filter({ hasText: "ENTER_SEND_SINGLE_LINE" });
+    await expect(userRow).toBeVisible();
+    await expect(page.getByTestId("agent-error-banner")).toContainText("回复失败", {
+      timeout: 60_000,
+    });
+
+    await userRow.hover();
+    await userRow.getByTestId("agent-edit-message-button").click();
+
+    await expect(composer(page)).toContainText("ENTER_SEND_SINGLE_LINE");
+    await expect
+      .poll(() => composer(page).evaluate((node) => node.textContent))
+      .toBe("ENTER_SEND_SINGLE_LINE");
   } finally {
     await app.close();
   }

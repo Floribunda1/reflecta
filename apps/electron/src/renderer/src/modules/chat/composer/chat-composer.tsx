@@ -217,6 +217,7 @@ export function ChatComposer({
   const mentionCommandRef = useRef<((attrs: MentionAttrs) => void) | null>(null);
   const mentionActiveRef = useRef(false);
   const mentionKeyHandledRef = useRef(false);
+  const sendRef = useRef<() => void>(() => undefined);
   const appliedInitialContextKeyRef = useRef<string | undefined>(undefined);
   const contextLookup = useContextMentionLookup({ selected: selectedContexts });
   const [activeContextIndex, setActiveContextIndex] = useState(0);
@@ -367,6 +368,16 @@ export function ChatComposer({
         view.dispatch(transaction);
         return true;
       },
+      handleKeyDown: (_view, event) => {
+        if (event.isComposing || event.key !== "Enter" || event.shiftKey) return false;
+        event.preventDefault();
+        if (mentionKeyHandledRef.current) {
+          mentionKeyHandledRef.current = false;
+          return true;
+        }
+        if (!mentionActiveRef.current) sendRef.current();
+        return true;
+      },
     },
     onUpdate: ({ editor }) => {
       const json = editor.getJSON() as ComposerJSON;
@@ -453,6 +464,9 @@ export function ChatComposer({
       messageId,
     });
   };
+  sendRef.current = () => {
+    void send();
+  };
 
   const selectContext = (candidate: ContextCandidate) => {
     const ref = { type: candidate.type, id: candidate.id, title: candidate.title };
@@ -536,23 +550,6 @@ export function ChatComposer({
               if (!inspectableRef) return;
               event.preventDefault();
               onInspectContextRef(inspectableRef);
-            }}
-            onKeyDown={(event) => {
-              if (event.nativeEvent.isComposing) return;
-              if (event.key === "Enter" && !event.shiftKey) {
-                if (mentionKeyHandledRef.current) {
-                  event.preventDefault();
-                  mentionKeyHandledRef.current = false;
-                  return;
-                }
-                if (contextLookup.isOpen || mentionActiveRef.current) {
-                  event.preventDefault();
-                  return;
-                }
-                if (isBusy) return;
-                event.preventDefault();
-                void send();
-              }
             }}
             onPaste={(event) => {
               if (event.clipboardData.files.length === 0) return;

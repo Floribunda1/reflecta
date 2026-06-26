@@ -27,3 +27,12 @@
     那么对话中应该保留用户消息 REGENERATE_USER_MESSAGE
     而且当前对话应该只显示一条完成状态的 Agent 回复
     而且消息顺序应该保持用户消息在前、Agent 回复在后
+
+  @P1 @editing @AG-MESSAGE-003
+  场景: 用户按 Enter 发送后编辑时仍看到原来的单行内容
+    假如用户已经打开一个新对话
+    当用户在输入框输入 ENTER_SEND_SINGLE_LINE
+    而且用户按 Enter 发送消息
+    而且用户编辑该用户消息
+    那么输入框应该显示 ENTER_SEND_SINGLE_LINE
+    而且输入框内容应该仍然是单行文本
