@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.12 - 2026-06-26
+
+- Rendered Agent entity links through session-scoped source markers so model text no longer carries raw entity ids.
+- Resolved Agent entity references during streaming and history replay, leaving unresolved references non-clickable.
+- Stored Agent sessions as canonical turns instead of token-level stream deltas.
+
 ## 1.1.11 - 2026-06-25
 
 - Fixed chat title generation so generic fallback titles no longer overwrite non-empty conversations.
