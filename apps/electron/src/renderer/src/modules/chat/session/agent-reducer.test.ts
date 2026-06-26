@@ -13,6 +13,55 @@ const base = {
 };
 
 describe("reduceAgentSession", () => {
+  test("restores entity sources from session events", () => {
+    const events: AgentSessionEvent[] = [
+      {
+        ...base,
+        id: "evt_1",
+        type: "entity.sources.updated",
+        sources: [
+          {
+            sourceId: "S1",
+            entity: { type: "context", id: "ctx_1", title: "一次产品复盘" },
+            origin: { kind: "user_context", messageId: "user_1" },
+          },
+        ],
+      },
+      {
+        ...base,
+        id: "evt_2",
+        type: "entity.sources.updated",
+        sources: [
+          {
+            sourceId: "S1",
+            entity: { type: "context", id: "ctx_1", title: "更新后的标题" },
+            origin: { kind: "user_context", messageId: "user_1" },
+          },
+          {
+            sourceId: "S2",
+            entity: { type: "understanding", id: "u_1", title: "Feedback Loop" },
+            origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "retrieve_knowledge" },
+          },
+        ],
+      },
+    ];
+
+    const state = reduceAgentSession(events);
+
+    expect(state.entitySources).toEqual([
+      {
+        sourceId: "S1",
+        entity: { type: "context", id: "ctx_1", title: "更新后的标题" },
+        origin: { kind: "user_context", messageId: "user_1" },
+      },
+      {
+        sourceId: "S2",
+        entity: { type: "understanding", id: "u_1", title: "Feedback Loop" },
+        origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "retrieve_knowledge" },
+      },
+    ]);
+  });
+
   test("restores assistant turns and returns to idle after completion", () => {
     const events: AgentSessionEvent[] = [
       { ...base, id: "evt_1", type: "run.started" },

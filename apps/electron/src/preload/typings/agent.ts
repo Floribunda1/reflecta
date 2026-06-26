@@ -72,6 +72,19 @@ export type AgentUserMessage = AgentEventBase & {
   composerContent?: AgentComposerContentNode;
 };
 
+export type AgentEntitySource = {
+  sourceId: string;
+  entity: AgentContextRef;
+  origin:
+    | { kind: "user_context"; messageId: string }
+    | { kind: "tool_result"; toolCallId: string; toolName: string };
+};
+
+export type AgentEntitySourcesUpdated = AgentEventBase & {
+  type: "entity.sources.updated";
+  sources: AgentEntitySource[];
+};
+
 export type AgentAssistantTextDelta = AgentEventBase & {
   type: "assistant.text.delta";
   runId: string;
@@ -161,6 +174,7 @@ export type AgentSessionEvent =
   | AgentRunFailed
   | AgentRunCancelled
   | AgentUserMessage
+  | AgentEntitySourcesUpdated
   | AgentAssistantTurn
   | AgentApprovalRequested
   | AgentApprovalResolved;
@@ -261,6 +275,7 @@ export type AgentSessionState = {
   activeRunId: string | null;
   status: "idle" | "running" | "failed" | "cancelled";
   error: string | null;
+  entitySources: AgentEntitySource[];
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -280,6 +295,7 @@ export function isAgentSessionEvent(value: unknown): value is AgentSessionEvent 
       "run.failed",
       "run.cancelled",
       "user.message",
+      "entity.sources.updated",
       "assistant.turn",
       "approval.requested",
       "approval.resolved",
@@ -350,6 +366,19 @@ function upsertAssistantTurn(
   const index = messages.findIndex((message) => message.id === event.messageId);
   if (index < 0) return [...messages, nextMessage];
   return messages.map((message, messageIndex) => (messageIndex === index ? nextMessage : message));
+}
+
+function mergeEntitySources(
+  current: AgentEntitySource[],
+  incoming: AgentEntitySource[],
+): AgentEntitySource[] {
+  const next = [...current];
+  for (const source of incoming) {
+    const index = next.findIndex((item) => item.sourceId === source.sourceId);
+    if (index < 0) next.push(source);
+    else next[index] = source;
+  }
+  return next;
 }
 
 function upsertTextBlock(
@@ -530,6 +559,7 @@ export const initialAgentSessionState: AgentSessionState = {
   activeRunId: null,
   status: "idle",
   error: null,
+  entitySources: [],
 };
 
 export function reduceAgentSessionEvent(
@@ -564,6 +594,14 @@ export function reduceAgentSessionEvent(
         existingIndex < 0
           ? [...state.messages, nextUserMessage]
           : [...state.messages.slice(0, existingIndex), nextUserMessage],
+    };
+  }
+
+  if (event.type === "entity.sources.updated") {
+    return {
+      ...state,
+      sessionId: event.sessionId,
+      entitySources: mergeEntitySources(state.entitySources, event.sources),
     };
   }
 
