@@ -84,7 +84,6 @@
     "electron-updater": "^6.7.3",
     "embla-carousel-react": "^8.6.0",
     "eventemitter3": "^5.0.4",
-    "gpt-tokenizer": "^3.4.0",
     "input-otp": "^1.4.2",
     "isbinaryfile": "^6.0.0",
     "jotai": "^2.20.1",

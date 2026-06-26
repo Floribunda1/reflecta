@@ -1,10 +1,13 @@
+import { customAlphabet } from "nanoid";
 import type { AgentContextRef, AgentEntitySource } from "@shared/agent";
 
 type AgentEntitySourceOrigin = AgentEntitySource["origin"];
 type AgentEntityType = AgentContextRef["type"];
 type MutableRecord = Record<string, unknown>;
+type SourceIdFactory = () => string;
 
 const REF_PATTERN = /^\[\[ref:([A-Za-z0-9_-]+)\]\]$/;
+const createRandomSourceId = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 10);
 const ENTITY_KEYS = new Set(["understanding", "context", "domain"]);
 const ENTITY_ARRAY_KEYS = new Map<string, AgentEntityType>([
   ["understandings", "understanding"],
@@ -49,9 +52,12 @@ function titleFor(value: MutableRecord) {
   return typeof value.title === "string" ? value.title : undefined;
 }
 
-function sourceIdIndex(sourceId: string) {
-  const match = /^S(\d+)$/.exec(sourceId);
-  return match ? Number(match[1]) : 0;
+function isLegacySourceId(sourceId: string) {
+  return /^S\d+$/.test(sourceId);
+}
+
+function randomSourceId() {
+  return `rf_${createRandomSourceId()}`;
 }
 
 function normalizeSourceId(value: string) {
@@ -62,20 +68,25 @@ export class AgentEntitySourceRegistry {
   private readonly sources = new Map<string, AgentEntitySource>();
   private readonly keyToSourceId = new Map<string, string>();
   private pending: AgentEntitySource[] = [];
-  private nextIndex = 1;
 
-  constructor(existing: AgentEntitySource[] = []) {
+  constructor(
+    existing: AgentEntitySource[] = [],
+    private readonly createSourceId: SourceIdFactory = randomSourceId,
+  ) {
     for (const source of existing) {
       this.sources.set(source.sourceId, source);
-      this.keyToSourceId.set(entityKey(source.entity), source.sourceId);
-      this.nextIndex = Math.max(this.nextIndex, sourceIdIndex(source.sourceId) + 1);
+      const key = entityKey(source.entity);
+      const mappedId = this.keyToSourceId.get(key);
+      if (!mappedId || isLegacySourceId(mappedId) || !isLegacySourceId(source.sourceId)) {
+        this.keyToSourceId.set(key, source.sourceId);
+      }
     }
   }
 
   addEntity(entity: AgentContextRef, origin: AgentEntitySourceOrigin): AgentEntitySource {
     const key = entityKey(entity);
     const existingId = this.keyToSourceId.get(key);
-    if (existingId) {
+    if (existingId && !isLegacySourceId(existingId)) {
       const existing = this.sources.get(existingId);
       if (!existing) throw new Error(`Missing entity source for ${existingId}`);
       const title = entity.title?.trim();
@@ -91,7 +102,7 @@ export class AgentEntitySourceRegistry {
     }
 
     const source: AgentEntitySource = {
-      sourceId: `S${this.nextIndex++}`,
+      sourceId: this.nextSourceId(),
       entity,
       origin,
     };
@@ -219,6 +230,14 @@ export class AgentEntitySourceRegistry {
 
   private sourceMarker(source: AgentEntitySource): string {
     return `[[ref:${source.sourceId}]]`;
+  }
+
+  private nextSourceId(): string {
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const sourceId = this.createSourceId();
+      if (sourceId && !this.sources.has(sourceId)) return sourceId;
+    }
+    throw new Error("Unable to allocate entity source id");
   }
 
   private decorateRetrievalValue(

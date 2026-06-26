@@ -45,14 +45,11 @@ import {
 import { useContextMentionLookup, type ContextCandidate } from "../context/context-mention-lookup";
 import { ContextPicker, nextContextPickerIndex } from "../context/context-picker";
 import {
-  buildContextUsageRequest,
+  contextUsageFromMessages,
   contextUsageLabel,
   contextUsageMeterLabel,
   contextUsagePercent,
-  contextWindowForModel,
   type ContextUsage,
-  type ContextUsageWorkerRequest,
-  type ContextUsageWorkerResponse,
 } from "./context-usage";
 import { shouldApplyInitialContext } from "./initial-context";
 
@@ -232,20 +229,7 @@ export function ChatComposer({
   const activeModelLabel = activeModelOption?.modelName ?? activeModelOption?.modelId ?? "Model";
   const contextCandidatesRef = useLatest(contextLookup.candidates);
   const activeContextIndexRef = useLatest(activeContextIndex);
-  const [contextUsage, setContextUsage] = useState<ContextUsage>(() => ({
-    contextWindow: contextWindowForModel(activeModel),
-    selectedContextCount: selectedContexts.length,
-  }));
-  const contextUsageWorkerRef = useRef<Worker | null>(null);
-  const contextUsageRequestIdRef = useRef(0);
-
-  useEffect(
-    () => () => {
-      contextUsageWorkerRef.current?.terminate();
-      contextUsageWorkerRef.current = null;
-    },
-    [],
-  );
+  const contextUsage: ContextUsage = contextUsageFromMessages(messages, selectedContexts.length);
 
   const markMentionKeyHandled = () => {
     mentionKeyHandledRef.current = true;
@@ -263,56 +247,6 @@ export function ChatComposer({
       Math.min(index, Math.max(contextLookup.candidates.length - 1, 0)),
     );
   }, [contextLookup.candidates.length, contextLookup.isOpen]);
-
-  useEffect(() => {
-    const contextWindow = contextWindowForModel(activeModel);
-    const selectedContextCount = selectedContexts.length;
-    setContextUsage({ contextWindow, selectedContextCount });
-
-    let cancelled = false;
-    let idleHandle: number | undefined;
-    const timeoutHandle = window.setTimeout(() => {
-      const run = () => {
-        const request = buildContextUsageRequest({
-          messages,
-          draft,
-          selectedContexts,
-          modelSelection: activeModel,
-          editingMessageId: editingMessage?.id,
-        });
-
-        const worker =
-          contextUsageWorkerRef.current ??
-          new Worker(new URL("./context-usage.worker.ts", import.meta.url), { type: "module" });
-        contextUsageWorkerRef.current = worker;
-
-        const id = contextUsageRequestIdRef.current + 1;
-        contextUsageRequestIdRef.current = id;
-
-        worker.onmessage = (event: MessageEvent<ContextUsageWorkerResponse>) => {
-          if (cancelled) return;
-          if (event.data.id !== contextUsageRequestIdRef.current) return;
-          setContextUsage(event.data.usage);
-        };
-        worker.onerror = () => {
-          if (!cancelled) setContextUsage({ contextWindow, selectedContextCount });
-        };
-        worker.postMessage({ id, ...request } satisfies ContextUsageWorkerRequest);
-      };
-
-      if (window.requestIdleCallback) {
-        idleHandle = window.requestIdleCallback(run, { timeout: 1_000 });
-        return;
-      }
-      run();
-    }, 250);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeoutHandle);
-      if (idleHandle !== undefined) window.cancelIdleCallback?.(idleHandle);
-    };
-  }, [activeModel, draft, editingMessage?.id, messages, selectedContexts]);
 
   const editor = useEditor({
     extensions: [

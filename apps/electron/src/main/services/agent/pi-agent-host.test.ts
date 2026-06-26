@@ -174,7 +174,7 @@ describe("PiAgentHost", () => {
       resultRefType: "understanding",
       resultRefId: "understanding_1",
     });
-    const registry = new AgentEntitySourceRegistry();
+    const registry = new AgentEntitySourceRegistry([], () => "rf_understanding");
 
     const output = await (
       new PiAgentHost(tempRoot()) as unknown as {
@@ -204,11 +204,11 @@ describe("PiAgentHost", () => {
 
     expect(output).toEqual({
       resultRefType: "understanding",
-      resultRef: "[[ref:S1]]",
+      resultRef: "[[ref:rf_understanding]]",
     });
     expect(registry.drainUpdates()).toEqual([
       {
-        sourceId: "S1",
+        sourceId: "rf_understanding",
         entity: { type: "understanding", id: "understanding_1" },
         origin: {
           kind: "tool_result",
@@ -359,22 +359,112 @@ describe("PiAgentHost", () => {
       "entity.sources.updated",
       "user.message",
     ]);
-    expect(events).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          type: "entity.sources.updated",
-          sources: [
-            expect.objectContaining({
-              sourceId: "S1",
-              entity: { type: "context", id: "ctx_1", title: "一次复盘" },
-              origin: { kind: "user_context", messageId: "user_1" },
-            }),
-          ],
-        }),
-      ]),
+    const sourceUpdate = events.find((event) => event.type === "entity.sources.updated");
+    if (sourceUpdate?.type !== "entity.sources.updated") {
+      throw new Error("Expected entity source update event");
+    }
+    const source = sourceUpdate.sources[0];
+    expect(source).toEqual(
+      expect.objectContaining({
+        entity: { type: "context", id: "ctx_1", title: "一次复盘" },
+        origin: { kind: "user_context", messageId: "user_1" },
+      }),
     );
-    expect(promptCalls[0]).toContain("[[ref:S1]] Context: 一次复盘");
+    expect(source?.sourceId).toMatch(/^rf_[a-z0-9]+$/);
+    expect(promptCalls[0]).toContain(`[[ref:${source?.sourceId}]] Context: 一次复盘`);
     expect(promptCalls[0]).not.toContain("ctx_1");
+  });
+
+  test("persists provider usage on the assistant turn", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("新对话");
+    const manager = await log.openSession(thread.id);
+    log.appendEvent(manager, {
+      id: "evt_existing_cancel",
+      sessionId: thread.id,
+      runId: "run_existing",
+      type: "run.cancelled",
+      createdAt: "2026-06-23T00:00:00.000Z",
+    });
+    const usage = {
+      input: 21_000,
+      output: 700,
+      cacheRead: 100_000,
+      cacheWrite: 0,
+      totalTokens: 121_700,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    };
+    let listener: ((event: unknown) => void) | undefined;
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        subscribe: (next: (event: unknown) => void) => {
+          listener = next;
+          return () => {};
+        },
+        prompt: vi.fn(async () => {
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: { type: "text_delta", delta: "完成" },
+          });
+          listener?.({
+            type: "message_end",
+            message: {
+              role: "assistant",
+              content: [{ type: "text", text: "完成" }],
+              usage,
+              provider: "openai",
+              model: "gpt-5.3-codex-spark",
+              stopReason: "stop",
+            },
+          });
+        }),
+        getContextUsage: vi.fn(() => ({
+          tokens: 121_700,
+          contextWindow: 128_000,
+          percent: 95.078125,
+        })),
+        dispose: vi.fn(),
+        abort: vi.fn(),
+      },
+    });
+    const webContents = {
+      isDestroyed: () => false,
+      send: vi.fn(),
+    };
+
+    await (
+      new PiAgentHost(root) as unknown as {
+        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
+      }
+    ).sendMessage(
+      {
+        type: "message.send",
+        sessionId: thread.id,
+        text: "统计上下文",
+        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+      },
+      webContents as never,
+    );
+
+    const events = await new AgentSessionLog(root).readEvents(thread.id);
+    const turn = events.find((event) => event.type === "assistant.turn");
+
+    expect(turn).toEqual(
+      expect.objectContaining({
+        type: "assistant.turn",
+        text: "完成",
+        usage,
+        contextUsage: {
+          tokens: 121_700,
+          contextWindow: 128_000,
+          percent: 95.078125,
+        },
+        model: { providerId: "openai", modelId: "gpt-5.3-codex-spark" },
+        stopReason: "stop",
+      }),
+    );
   });
 
   test("does not overwrite a non-empty thread with the generic generated-title fallback", async () => {

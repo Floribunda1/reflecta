@@ -79,6 +79,20 @@ describe("reduceAgentSession", () => {
         messageId: "assistant_1",
         text: "hello",
         blocks: [{ kind: "text", text: "hello", createdAt: base.createdAt }],
+        usage: {
+          input: 21_000,
+          output: 700,
+          cacheRead: 100_000,
+          cacheWrite: 0,
+          totalTokens: 121_700,
+        },
+        contextUsage: {
+          tokens: 121_700,
+          contextWindow: 128_000,
+          percent: 95.078125,
+        },
+        model: { providerId: "openai", modelId: "gpt-5.3-codex-spark" },
+        stopReason: "stop",
       },
       { ...base, id: "evt_4", type: "run.completed" },
     ];
@@ -94,6 +108,7 @@ describe("reduceAgentSession", () => {
         text: "hello",
         createdAt: "2026-06-23T00:00:00.000Z",
         contextRefs: undefined,
+        files: undefined,
         composerContent: undefined,
       },
       {
@@ -109,6 +124,20 @@ describe("reduceAgentSession", () => {
             createdAt: "2026-06-23T00:00:00.000Z",
           },
         ],
+        usage: {
+          input: 21_000,
+          output: 700,
+          cacheRead: 100_000,
+          cacheWrite: 0,
+          totalTokens: 121_700,
+        },
+        contextUsage: {
+          tokens: 121_700,
+          contextWindow: 128_000,
+          percent: 95.078125,
+        },
+        model: { providerId: "openai", modelId: "gpt-5.3-codex-spark" },
+        stopReason: "stop",
       },
     ]);
     expect(reduceAgentSession(events)).toEqual(state);

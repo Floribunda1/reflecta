@@ -7,7 +7,7 @@ describe("buildPiPromptText", () => {
       text: "请比较这些引用",
       contextSources: [
         {
-          sourceId: "S1",
+          sourceId: "rf_understanding",
           entity: {
             type: "understanding",
             id: "understanding-1",
@@ -16,7 +16,7 @@ describe("buildPiPromptText", () => {
           origin: { kind: "user_context", messageId: "user-1" },
         },
         {
-          sourceId: "S2",
+          sourceId: "rf_domain",
           entity: { type: "domain", id: "domain-1", title: "React" },
           origin: { kind: "user_context", messageId: "user-1" },
         },
@@ -24,12 +24,12 @@ describe("buildPiPromptText", () => {
     });
 
     expect(prompt).toContain("请比较这些引用");
-    expect(prompt).toContain("[[ref:S1]] Understanding: React Server Components");
-    expect(prompt).toContain("[[ref:S2]] Domain: React");
+    expect(prompt).toContain("[[ref:rf_understanding]] Understanding: React Server Components");
+    expect(prompt).toContain("[[ref:rf_domain]] Domain: React");
     expect(prompt).not.toContain("understanding-1");
     expect(prompt).not.toContain("domain-1");
     expect(prompt).toContain("轻量引用");
-    expect(prompt).toContain("不要裸写 Sx 短号");
+    expect(prompt).toContain("不要裸写 ref token");
   });
 
   test("injects attachment metadata without embedding file data URLs", () => {

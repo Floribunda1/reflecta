@@ -58,6 +58,11 @@ const expectedReadToolNames = [
   "graph",
 ] as const;
 
+function registryWithSourceIds(...sourceIds: string[]) {
+  let index = 0;
+  return new AgentEntitySourceRegistry([], () => sourceIds[index++] ?? `rf_extra_${index}`);
+}
+
 describe("createPiReadOnlyTools", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -163,7 +168,7 @@ describe("createPiReadOnlyTools", () => {
       ],
     };
     services.retrieveKnowledge.mockResolvedValue(result);
-    const registry = new AgentEntitySourceRegistry();
+    const registry = registryWithSourceIds("rf_understanding", "rf_context");
     const tool = createPiReadOnlyTools([], {
       decorateToolOutput: (toolName, toolCallId, output) =>
         registry.decorateToolOutput(toolName, toolCallId, output),
@@ -179,9 +184,9 @@ describe("createPiReadOnlyTools", () => {
     expect(output.details).toEqual({
       candidates: [
         {
-          understanding: { ref: "[[ref:S1]]", title: "Feedback Loop", body: "body" },
+          understanding: { ref: "[[ref:rf_understanding]]", title: "Feedback Loop", body: "body" },
           matchedContexts: [
-            { context: { ref: "[[ref:S2]]", title: "一次复盘", excerpt: "excerpt" } },
+            { context: { ref: "[[ref:rf_context]]", title: "一次复盘", excerpt: "excerpt" } },
           ],
         },
       ],
@@ -197,7 +202,7 @@ describe("createPiReadOnlyTools", () => {
       body: "body",
       contexts: [{ id: "ctx_1", understandingId: "u_1", title: "一次复盘" }],
     });
-    const registry = new AgentEntitySourceRegistry();
+    const registry = registryWithSourceIds("rf_understanding", "rf_context");
     const tool = createPiReadOnlyTools([], {
       decorateToolOutput: (toolName, toolCallId, output) =>
         registry.decorateToolOutput(toolName, toolCallId, output),
@@ -211,10 +216,16 @@ describe("createPiReadOnlyTools", () => {
     const output = await execute("tool_1", { understandingId: "u_1" });
 
     expect(output.details).toEqual({
-      ref: "[[ref:S1]]",
+      ref: "[[ref:rf_understanding]]",
       title: "Feedback Loop",
       body: "body",
-      contexts: [{ ref: "[[ref:S2]]", understandingRef: "[[ref:S1]]", title: "一次复盘" }],
+      contexts: [
+        {
+          ref: "[[ref:rf_context]]",
+          understandingRef: "[[ref:rf_understanding]]",
+          title: "一次复盘",
+        },
+      ],
     });
     expect(output.content[0]?.text).not.toContain("u_1");
     expect(output.content[0]?.text).not.toContain("ctx_1");

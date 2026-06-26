@@ -1,9 +1,14 @@
 import { describe, expect, test } from "vitest";
 import { AgentEntitySourceRegistry } from "./agent-entity-sources";
 
+function registryWithSourceIds(...sourceIds: string[]) {
+  let index = 0;
+  return new AgentEntitySourceRegistry([], () => sourceIds[index++] ?? `rf_extra_${index}`);
+}
+
 describe("AgentEntitySourceRegistry", () => {
   test("assigns stable source ids and upgrades titles", () => {
-    const registry = new AgentEntitySourceRegistry();
+    const registry = registryWithSourceIds("rf_ctx");
 
     const first = registry.addEntity(
       { type: "context", id: "ctx_1", title: "旧标题" },
@@ -14,19 +19,49 @@ describe("AgentEntitySourceRegistry", () => {
       { kind: "tool_result", toolCallId: "tool_1", toolName: "context_get" },
     );
 
-    expect(first.sourceId).toBe("S1");
-    expect(second.sourceId).toBe("S1");
+    expect(first.sourceId).toBe("rf_ctx");
+    expect(second.sourceId).toBe("rf_ctx");
     expect(registry.snapshot()).toEqual([
       {
-        sourceId: "S1",
+        sourceId: "rf_ctx",
         entity: { type: "context", id: "ctx_1", title: "新标题" },
         origin: { kind: "user_context", messageId: "user_1" },
       },
     ]);
   });
 
+  test("keeps legacy source ids resolvable but allocates opaque ids for new mentions", () => {
+    const registry = new AgentEntitySourceRegistry(
+      [
+        {
+          sourceId: "S1",
+          entity: { type: "context", id: "ctx_1", title: "旧标题" },
+          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "retrieve_knowledge" },
+        },
+      ],
+      () => "rf_ctx",
+    );
+
+    const source = registry.addEntity(
+      { type: "context", id: "ctx_1", title: "新标题" },
+      { kind: "user_context", messageId: "user_1" },
+    );
+
+    expect(source.sourceId).toBe("rf_ctx");
+    expect(registry.resolveRef("[[ref:S1]]", "context")).toEqual({
+      type: "context",
+      id: "ctx_1",
+      title: "旧标题",
+    });
+    expect(registry.resolveRef("[[ref:rf_ctx]]", "context")).toEqual({
+      type: "context",
+      id: "ctx_1",
+      title: "新标题",
+    });
+  });
+
   test("decorates recognized tool entities with refs and strips raw ids from model-facing output", () => {
-    const registry = new AgentEntitySourceRegistry();
+    const registry = registryWithSourceIds("rf_understanding", "rf_context");
 
     const decorated = registry.decorateToolOutput("retrieve_knowledge", "tool_1", {
       candidates: [
@@ -40,14 +75,14 @@ describe("AgentEntitySourceRegistry", () => {
     expect(decorated).toEqual({
       candidates: [
         {
-          understanding: { ref: "[[ref:S1]]", title: "Feedback Loop", body: "body" },
+          understanding: { ref: "[[ref:rf_understanding]]", title: "Feedback Loop", body: "body" },
           matchedContexts: [
-            { context: { ref: "[[ref:S2]]", title: "一次复盘", excerpt: "excerpt" } },
+            { context: { ref: "[[ref:rf_context]]", title: "一次复盘", excerpt: "excerpt" } },
           ],
         },
       ],
     });
-    expect(registry.resolveRef("S2", "context")).toEqual({
+    expect(registry.resolveRef("rf_context", "context")).toEqual({
       type: "context",
       id: "ctx_1",
       title: "一次复盘",
@@ -55,7 +90,7 @@ describe("AgentEntitySourceRegistry", () => {
   });
 
   test("decorates flat retrieval candidates with refs and strips raw ids", () => {
-    const registry = new AgentEntitySourceRegistry();
+    const registry = registryWithSourceIds("rf_understanding", "rf_context");
 
     const decorated = registry.decorateToolOutput("retrieve_knowledge", "tool_1", {
       candidates: [
@@ -81,19 +116,19 @@ describe("AgentEntitySourceRegistry", () => {
     expect(decorated).toEqual({
       candidates: [
         {
-          ref: "[[ref:S1]]",
+          ref: "[[ref:rf_understanding]]",
           title: "Feedback Loop",
           snippet: "snippet",
           matchedContexts: [
             {
-              ref: "[[ref:S2]]",
+              ref: "[[ref:rf_context]]",
               title: "一次复盘",
               snippet: "context snippet",
             },
           ],
           suggestedRead: {
             tool: "understanding_get",
-            input: { ref: "[[ref:S1]]", includeContexts: true },
+            input: { ref: "[[ref:rf_understanding]]", includeContexts: true },
           },
         },
       ],
@@ -101,7 +136,7 @@ describe("AgentEntitySourceRegistry", () => {
   });
 
   test("decorates root read tool entity outputs and relationship ids", () => {
-    const registry = new AgentEntitySourceRegistry();
+    const registry = registryWithSourceIds("rf_understanding", "rf_domain", "rf_context");
 
     const decorated = registry.decorateToolOutput("understanding_get", "tool_1", {
       id: "u_1",
@@ -119,14 +154,14 @@ describe("AgentEntitySourceRegistry", () => {
     });
 
     expect(decorated).toEqual({
-      ref: "[[ref:S1]]",
+      ref: "[[ref:rf_understanding]]",
       title: "Feedback Loop",
       body: "body",
-      domainRefs: ["[[ref:S2]]"],
+      domainRefs: ["[[ref:rf_domain]]"],
       contexts: [
         {
-          ref: "[[ref:S3]]",
-          understandingRef: "[[ref:S1]]",
+          ref: "[[ref:rf_context]]",
+          understandingRef: "[[ref:rf_understanding]]",
           title: "一次复盘",
           content: "content",
         },
@@ -135,7 +170,7 @@ describe("AgentEntitySourceRegistry", () => {
   });
 
   test("decorates root entity lists and id-keyed context maps", () => {
-    const registry = new AgentEntitySourceRegistry();
+    const registry = registryWithSourceIds("rf_understanding", "rf_context");
 
     const decorated = registry.decorateToolOutput("understanding_list", "tool_1", {
       understandings: [{ id: "u_1", title: "Feedback Loop" }],
@@ -145,11 +180,17 @@ describe("AgentEntitySourceRegistry", () => {
     });
 
     expect(decorated).toEqual({
-      understandings: [{ ref: "[[ref:S1]]", title: "Feedback Loop" }],
+      understandings: [{ ref: "[[ref:rf_understanding]]", title: "Feedback Loop" }],
       contextsByUnderstandingRef: [
         {
-          understandingRef: "[[ref:S1]]",
-          contexts: [{ ref: "[[ref:S2]]", understandingRef: "[[ref:S1]]", title: "一次复盘" }],
+          understandingRef: "[[ref:rf_understanding]]",
+          contexts: [
+            {
+              ref: "[[ref:rf_context]]",
+              understandingRef: "[[ref:rf_understanding]]",
+              title: "一次复盘",
+            },
+          ],
         },
       ],
     });

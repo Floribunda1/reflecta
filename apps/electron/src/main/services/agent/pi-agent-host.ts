@@ -22,7 +22,9 @@ import { nanoid } from "nanoid";
 import { reduceAgentSession } from "@shared/agent";
 import type {
   AgentCommand,
+  AgentContextUsage,
   AgentContextRef,
+  AgentModelSelection,
   AgentReasoningLevel,
   AgentApprovalRequested,
   AgentReducedAssistantBlock,
@@ -30,6 +32,7 @@ import type {
   AgentLiveEvent,
   AgentSessionEvent,
   AgentSessionSummary,
+  AgentUsage,
 } from "@shared/agent";
 import {
   getActiveAgentReasoningLevel,
@@ -103,6 +106,75 @@ function resolvePiModel(providerId: string, modelId: string): Model<Api> {
 function thinkingLevelFor(level: AgentReasoningLevel | undefined) {
   if (!level || level === "default") return "off";
   return level;
+}
+
+type AssistantTurnMetadata = {
+  usage?: AgentUsage;
+  contextUsage?: AgentContextUsage;
+  model?: AgentModelSelection;
+  stopReason?: string;
+};
+
+function numberField(value: Record<string, unknown>, key: string): number | undefined {
+  const field = value[key];
+  return typeof field === "number" && Number.isFinite(field) ? field : undefined;
+}
+
+function extractUsage(value: unknown): AgentUsage | undefined {
+  if (!isRecord(value)) return undefined;
+  const input = numberField(value, "input");
+  const output = numberField(value, "output");
+  const cacheRead = numberField(value, "cacheRead");
+  const cacheWrite = numberField(value, "cacheWrite");
+  const totalTokens = numberField(value, "totalTokens");
+  if (
+    input === undefined ||
+    output === undefined ||
+    cacheRead === undefined ||
+    cacheWrite === undefined ||
+    totalTokens === undefined
+  ) {
+    return undefined;
+  }
+
+  const cost = isRecord(value.cost)
+    ? {
+        input: numberField(value.cost, "input"),
+        output: numberField(value.cost, "output"),
+        cacheRead: numberField(value.cost, "cacheRead"),
+        cacheWrite: numberField(value.cost, "cacheWrite"),
+        total: numberField(value.cost, "total"),
+      }
+    : undefined;
+  return {
+    input,
+    output,
+    cacheRead,
+    cacheWrite,
+    totalTokens,
+    ...(cost &&
+    cost.input !== undefined &&
+    cost.output !== undefined &&
+    cost.cacheRead !== undefined &&
+    cost.cacheWrite !== undefined &&
+    cost.total !== undefined
+      ? { cost: cost as AgentUsage["cost"] }
+      : {}),
+  };
+}
+
+function extractAssistantTurnMetadata(message: unknown): AssistantTurnMetadata | undefined {
+  if (!isRecord(message) || message.role !== "assistant") return undefined;
+  const usage = extractUsage(message.usage);
+  const providerId = typeof message.provider === "string" ? message.provider : undefined;
+  const modelId = typeof message.model === "string" ? message.model : undefined;
+  const stopReason = typeof message.stopReason === "string" ? message.stopReason : undefined;
+  if (!usage && !(providerId && modelId) && !stopReason) return undefined;
+  return {
+    ...(usage ? { usage } : {}),
+    ...(providerId && modelId ? { model: { providerId, modelId } } : {}),
+    ...(stopReason ? { stopReason } : {}),
+  };
 }
 
 function extractAssistantText(message: unknown): string {
@@ -576,6 +648,7 @@ export class PiAgentHost {
     let unsubscribe: (() => void) | undefined;
     let assistantText = "";
     let assistantError = "";
+    let assistantMetadata: AssistantTurnMetadata | undefined;
     let assistantActivity = false;
     let runStarted = false;
     const accumulator = new AgentRunAccumulator();
@@ -749,6 +822,8 @@ export class PiAgentHost {
         }
 
         if (event.type === "message_end") {
+          const metadata = extractAssistantTurnMetadata(event.message);
+          if (metadata) assistantMetadata = metadata;
           const error = extractAssistantError(event.message);
           if (error) {
             assistantError = error;
@@ -809,6 +884,7 @@ export class PiAgentHost {
         );
         return;
       }
+      const contextUsage = session.getContextUsage?.();
       emit(
         accumulator.toAssistantTurn(
           this.createEvent({
@@ -818,6 +894,8 @@ export class PiAgentHost {
             messageId: assistantMessageId,
             blocks: [],
             text: "",
+            ...assistantMetadata,
+            contextUsage,
           }),
         ),
       );

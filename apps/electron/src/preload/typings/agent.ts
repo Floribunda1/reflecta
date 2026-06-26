@@ -16,6 +16,27 @@ export type AgentModelSelection = {
   modelId: string;
 };
 
+export type AgentUsage = {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  totalTokens: number;
+  cost?: {
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+    total: number;
+  };
+};
+
+export type AgentContextUsage = {
+  tokens: number | null;
+  contextWindow: number;
+  percent: number | null;
+};
+
 export type AgentReasoningLevel = "default" | "low" | "medium" | "high" | "xhigh";
 
 export type AgentFileAttachment = {
@@ -156,7 +177,8 @@ export type AgentAssistantTurn = AgentEventBase & {
   messageId: string;
   blocks: AgentAssistantTurnBlock[];
   text: string;
-  usage?: unknown;
+  usage?: AgentUsage;
+  contextUsage?: AgentContextUsage;
   model?: AgentModelSelection;
   stopReason?: string;
 };
@@ -267,6 +289,10 @@ export type AgentReducedMessage = {
   contextRefs?: AgentContextRef[];
   files?: AgentFileAttachment[];
   composerContent?: AgentComposerContentNode;
+  usage?: AgentUsage;
+  contextUsage?: AgentContextUsage;
+  model?: AgentModelSelection;
+  stopReason?: string;
 };
 
 export type AgentSessionState = {
@@ -362,6 +388,10 @@ function upsertAssistantTurn(
     runId: event.runId,
     createdAt: event.createdAt,
     blocks: event.blocks,
+    usage: event.usage,
+    contextUsage: event.contextUsage,
+    model: event.model,
+    stopReason: event.stopReason,
   };
   const index = messages.findIndex((message) => message.id === event.messageId);
   if (index < 0) return [...messages, nextMessage];

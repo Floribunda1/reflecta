@@ -1,54 +1,67 @@
 import { describe, expect, test } from "vitest";
 import type { AgentReducedMessage } from "@shared/agent";
 import {
-  buildContextUsageRequest,
+  contextUsageFromMessages,
   contextUsageLabel,
   contextUsageMeterLabel,
-  contextWindowForModel,
 } from "./context-usage";
 
-function userMessage(text: string): AgentReducedMessage {
+function assistantMessage(
+  id: string,
+  tokens: number | null,
+  contextWindow: number,
+): AgentReducedMessage {
   return {
-    id: "user-1",
-    role: "user",
-    text,
+    id,
+    role: "assistant",
+    text: "完成",
     createdAt: "2026-06-23T00:00:00.000Z",
+    contextUsage: {
+      tokens,
+      contextWindow,
+      percent: tokens === null ? null : (tokens / contextWindow) * 100,
+    },
   };
 }
 
 describe("context usage", () => {
-  test("uses built-in model context windows", () => {
-    expect(contextWindowForModel({ providerId: "openai", modelId: "gpt-4o" })).toBe(128_000);
-    expect(contextWindowForModel({ providerId: "moonshot", modelId: "moonshot-v1-8k" })).toBe(
-      8_192,
+  test("waits for provider usage before showing context used", () => {
+    const usage = contextUsageFromMessages([], 2);
+
+    expect(usage).toEqual({ selectedContextCount: 2 });
+    expect(contextUsageMeterLabel(usage)).toBe("--");
+    expect(contextUsageLabel(usage)).toBe("等待上次请求 usage");
+  });
+
+  test("uses the latest assistant context usage", () => {
+    const usage = contextUsageFromMessages(
+      [
+        assistantMessage("assistant_1", 1_500, 128_000),
+        assistantMessage("assistant_2", 21_700, 128_000),
+      ],
+      1,
     );
-    expect(contextWindowForModel({ providerId: "custom", modelId: "unknown" })).toBeUndefined();
-  });
 
-  test("builds prompt usage input with selected refs", () => {
-    const request = buildContextUsageRequest({
-      messages: [userMessage("帮我整理这条理解")],
-      draft: "继续分析",
-      selectedContexts: [{ type: "understanding", id: "understanding-1", title: "拖延" }],
-      modelSelection: { providerId: "openai", modelId: "gpt-4o" },
-    });
-
-    expect(request.input).toContain("帮我整理这条理解");
-    expect(request.input).toContain("继续分析");
-    expect(request.input).toContain("拖延");
-    expect(request.contextWindow).toBe(128_000);
-    expect(request.selectedContextCount).toBe(1);
-  });
-
-  test("formats usage labels for the compact meter", () => {
-    const usage = {
-      tokens: 1_500,
+    expect(usage).toEqual({
+      tokens: 21_700,
       contextWindow: 128_000,
+      percent: 16.953125,
       selectedContextCount: 1,
-    };
+    });
+    expect(contextUsageMeterLabel(usage)).toBe("17%");
+    expect(contextUsageLabel(usage)).toBe("上次上下文：21.7K / 128K");
+  });
 
-    expect(usage.tokens).toBeGreaterThan(0);
-    expect(contextUsageMeterLabel(usage)).toBe("1.2%");
-    expect(contextUsageLabel(usage)).toBe("1.2% · 1.5K / 128K 已使用上下文");
+  test("preserves selected context count without treating refs as full context", () => {
+    const usage = contextUsageFromMessages([assistantMessage("assistant_1", null, 128_000)], 3);
+
+    expect(usage).toEqual({
+      tokens: null,
+      contextWindow: 128_000,
+      percent: null,
+      selectedContextCount: 3,
+    });
+    expect(contextUsageMeterLabel(usage)).toBe("--");
+    expect(contextUsageLabel(usage)).toBe("等待上次请求 usage");
   });
 });
