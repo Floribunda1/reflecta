@@ -40,6 +40,7 @@ import {
 } from "../../config";
 import { agentLog } from "../../logger";
 import { AgentRunAccumulator } from "./agent-run-accumulator";
+import { AgentEntitySourceRegistry } from "./agent-entity-sources";
 import { AgentSessionLog } from "./pi-session-log";
 import { formatAgentError } from "./error";
 import { buildPiPromptText } from "./pi-prompt";
@@ -535,6 +536,13 @@ export class PiAgentHost {
     const manager = command.messageId
       ? await this.sessionLog.openSessionForEditedMessage(command.sessionId, command.messageId)
       : await this.sessionLog.openSession(command.sessionId);
+    const entitySourceRegistry = new AgentEntitySourceRegistry(
+      reduceAgentSession(this.sessionLog.eventsFromManager(manager)).entitySources,
+    );
+    const contextSources = entitySourceRegistry.addUserContextRefs(
+      userMessageId,
+      command.contextRefs,
+    );
     let session: AgentSession | undefined;
     let unsubscribe: (() => void) | undefined;
     let assistantText = "";
@@ -551,6 +559,17 @@ export class PiAgentHost {
       if (runStarted) return;
       runStarted = true;
       emit(this.createEvent({ type: "run.started", sessionId: command.sessionId, runId }));
+      const sourceUpdates = entitySourceRegistry.drainUpdates();
+      if (sourceUpdates.length > 0) {
+        emit(
+          this.createEvent({
+            type: "entity.sources.updated",
+            sessionId: command.sessionId,
+            runId,
+            sources: sourceUpdates,
+          }),
+        );
+      }
       emit(
         this.createEvent({
           type: "user.message",
@@ -727,6 +746,7 @@ export class PiAgentHost {
         buildPiPromptText({
           text: command.text,
           contextRefs: command.contextRefs,
+          contextSources,
           files: command.files,
         }),
       );

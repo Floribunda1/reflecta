@@ -268,6 +268,13 @@ export class AgentSessionLog {
     }
   }
 
+  eventsFromManager(manager: SessionManager): AgentSessionEvent[] {
+    return manager
+      .getEntries()
+      .filter(isReflectaEventEntry)
+      .flatMap((entry) => (entry.data ? [entry.data] : []));
+  }
+
   private flushCustomOnlySession(manager: SessionManager): void {
     const sessionFile = manager.getSessionFile();
     if (!sessionFile) return;
@@ -336,9 +343,6 @@ export class AgentSessionLog {
     if (!options.allowLegacy && entries.some(isLegacyReflectaEventEntry)) {
       throw new Error("Legacy Agent session format found. This session must be migrated first.");
     }
-    return manager
-      .getEntries()
-      .filter(isReflectaEventEntry)
-      .flatMap((entry) => (entry.data ? [entry.data] : []));
+    return this.eventsFromManager(manager);
   }
 }

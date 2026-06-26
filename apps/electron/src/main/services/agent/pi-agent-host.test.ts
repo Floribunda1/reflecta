@@ -16,6 +16,48 @@ import {
 } from "./pi-agent-host";
 import { AgentSessionLog } from "./pi-session-log";
 
+const createAgentSessionMock = vi.hoisted(() => vi.fn());
+const getModelMock = vi.hoisted(() => vi.fn(() => ({ id: "model-test" })));
+
+vi.mock("@earendil-works/pi-ai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@earendil-works/pi-ai")>()),
+  getModel: getModelMock,
+}));
+
+vi.mock("@earendil-works/pi-coding-agent", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@earendil-works/pi-coding-agent")>()),
+  createAgentSession: createAgentSessionMock,
+}));
+
+vi.mock("../../config", () => ({
+  getActiveAgentReasoningLevel: () => "medium",
+  getAiModelConfig: () => ({
+    provider: { id: "openai", apiKey: "openai-key", models: [{ id: "gpt-4o" }] },
+    catalog: {
+      id: "openai",
+      name: "OpenAI",
+      baseUrl: "https://api.openai.com/v1",
+      models: [{ id: "gpt-4o" }],
+    },
+    model: { id: "gpt-4o" },
+    selection: { providerId: "openai", modelId: "gpt-4o" },
+    label: "OpenAI / gpt-4o",
+  }),
+  getContentStorageRoot: () => "/tmp/reflecta-pi-agent-host-test-content",
+  getTitleGenerationAiModelConfig: () => ({
+    provider: { id: "openai", apiKey: "openai-key", models: [{ id: "gpt-4o" }] },
+    catalog: {
+      id: "openai",
+      name: "OpenAI",
+      baseUrl: "https://api.openai.com/v1",
+      models: [{ id: "gpt-4o" }],
+    },
+    model: { id: "gpt-4o" },
+    selection: { providerId: "openai", modelId: "gpt-4o" },
+    label: "OpenAI / gpt-4o",
+  }),
+}));
+
 vi.mock("./pi-readonly-tools", () => ({
   createPiReadOnlyTools: () => [],
   PI_READ_ONLY_TOOL_NAMES: [],
@@ -65,6 +107,7 @@ function modelConfig(input: {
 }
 
 afterEach(() => {
+  vi.clearAllMocks();
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -190,6 +233,94 @@ describe("PiAgentHost", () => {
     await expect(new AgentSessionLog(root).listSessions()).resolves.toMatchObject([
       { id: session.id, title: "AI 标题" },
     ]);
+  });
+
+  test("persists entity sources for user context refs before the user message", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("新对话");
+    const manager = await log.openSession(thread.id);
+    log.appendEvent(manager, {
+      id: "evt_existing_run",
+      sessionId: thread.id,
+      runId: "run_existing",
+      type: "run.started",
+      createdAt: "2026-06-23T00:00:00.000Z",
+    });
+    log.appendEvent(manager, {
+      id: "evt_existing_user",
+      sessionId: thread.id,
+      runId: "run_existing",
+      type: "user.message",
+      messageId: "user_1",
+      text: "旧问题",
+      createdAt: "2026-06-23T00:00:01.000Z",
+    });
+    log.appendEvent(manager, {
+      id: "evt_existing_cancel",
+      sessionId: thread.id,
+      runId: "run_existing",
+      type: "run.cancelled",
+      createdAt: "2026-06-23T00:00:02.000Z",
+    });
+    const promptCalls: string[] = [];
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        subscribe: () => () => {},
+        prompt: vi.fn(async (prompt: string) => {
+          promptCalls.push(prompt);
+        }),
+        dispose: vi.fn(),
+        abort: vi.fn(),
+      },
+    });
+    const webContents = {
+      isDestroyed: () => false,
+      send: vi.fn(),
+    };
+
+    await (
+      new PiAgentHost(root) as unknown as {
+        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
+      }
+    ).sendMessage(
+      {
+        type: "message.send",
+        sessionId: thread.id,
+        messageId: "user_1",
+        text: "请解释这个 context",
+        contextRefs: [{ type: "context", id: "ctx_1", title: "一次复盘" }],
+        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+      },
+      webContents as never,
+    );
+
+    const events = await new AgentSessionLog(root).readEvents(thread.id);
+    const newEvents = events.slice(3);
+
+    expect(createAgentSessionMock).toHaveBeenCalledTimes(1);
+    expect(newEvents.map((event) => event.type).slice(0, 3)).toEqual([
+      "run.started",
+      "entity.sources.updated",
+      "user.message",
+    ]);
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "entity.sources.updated",
+          sources: [
+            expect.objectContaining({
+              sourceId: "S1",
+              entity: { type: "context", id: "ctx_1", title: "一次复盘" },
+              origin: { kind: "user_context", messageId: "user_1" },
+            }),
+          ],
+        }),
+      ]),
+    );
+    expect(promptCalls[0]).toContain("[[ref:S1]] Context: 一次复盘");
+    expect(promptCalls[0]).not.toContain("ctx_1");
   });
 
   test("does not overwrite a non-empty thread with the generic generated-title fallback", async () => {
