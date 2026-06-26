@@ -2,7 +2,7 @@
 
 > 日期：2026-06-26
 >
-> 状态：Research
+> 状态：Research；最终架构见 [Agent Entity Link 架构](agent-entity-link-architecture.md)
 >
 > 目标：调研和 Reflecta 最相近的产品场景，理解它们如何处理 AI 回答里的 source / entity / knowledge unit reference，并提炼对 Reflecta 的架构启发。
 
@@ -513,36 +513,33 @@ type AgentEntityReference = {
 
 ### 6.4 Prompt 暴露策略
 
-Prompt 不应该暴露完整 registry 内容。只暴露轻量 handle list：
+Prompt 不应该暴露完整 registry 内容。最终架构采用更小的 source marker 策略：marker 跟着 entity 自然出现的位置走，而不是每轮 dump 全局列表。
 
 ```txt
-当前 Agent session 可链接的 Reflecta 对象：
-
-[[U1]] Understanding: Feedback Loop
-[[C1]] Context: 一次产品复盘
-[[D1]] Domain: Agent
+用户显式 @ 了这些知识库对象：
+- [[ref:S1]] Understanding: Feedback Loop
+- [[ref:S2]] Context: 一次产品复盘
 
 规则：
-- 正文里引用 Reflecta 对象时，只能使用这些 handle。
+- 正文里引用 Reflecta 对象时，只能使用上下文或工具结果里出现的 [[ref:Sx]] marker。
 - 不要输出真实 DB id。
-- 如果需要引用未列出的对象，先搜索或读取。
-- 如果需要复述对象细节，先读取对象内容。
+- 不要输出旧格式 [[type:title#id]]。
 ```
 
-如果 registry 很大，第一版可以只暴露：
+如果 source map 很大，第一版仍只暴露：
 
 - 当前 turn 新增对象。
-- 最近 N 个对象。
 - 用户显式 @ 的对象。
 - 当前页面对象。
+- 工具结果中自然出现的对象。
 
-但这只是 prompt budget 策略，不改变 registry 的 session scope。
+但这只是 prompt budget 策略，不改变 source map 的 session scope。
 
 换句话说：
 
 ```txt
-Registry scope = session
-Prompt visible scope = selected lightweight subset
+Source map scope = session
+Prompt visible scope = current context/tool result markers
 ```
 
 ### 6.5 渲染规则
@@ -636,9 +633,9 @@ Entity link 不需要完整内容。只需要 identity。
 2. 在 AgentHost 里维护 session-scoped entity registry。
 3. 用户 `@` 的 entity 和当前页面 entity 进入 registry。
 4. 工具结果里出现的 Understanding / Context / Domain 进入 registry。
-5. Prompt 暴露轻量 handle list。
-6. Agent 正文只输出 `[[U1]]` / `[[C1]]`。
-7. Renderer 用 registry snapshot resolve handle。
+5. Prompt 和工具结果在 entity 出现的位置暴露 `[[ref:Sx]]` marker。
+6. Agent 正文只输出 `[[ref:Sx]]`。
+7. Renderer 用 session source map resolve marker。
 8. resolve 失败则不渲染为 clickable link。
 
 不做：
