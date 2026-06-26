@@ -22,11 +22,14 @@ export interface AiModelSelection {
   modelId: string;
 }
 
-export type AiReasoningLevel = "default" | "low" | "medium" | "high";
+const AI_REASONING_LEVELS = ["default", "low", "medium", "high", "xhigh"] as const;
+export type AiReasoningLevel = (typeof AI_REASONING_LEVELS)[number];
+const DEFAULT_AGENT_REASONING_LEVEL: AiReasoningLevel = "medium";
 
 export interface AiConfig {
   providers: AiProviderConfig[];
   activeAgentModel?: AiModelSelection;
+  activeAgentReasoningLevel?: AiReasoningLevel;
   titleGenerationModel?: AiModelSelection;
 }
 
@@ -282,6 +285,10 @@ function hasModelSelection(config: AiConfig, selection: AiModelSelection): boole
   );
 }
 
+function isAiReasoningLevel(value: unknown): value is AiReasoningLevel {
+  return AI_REASONING_LEVELS.includes(value as AiReasoningLevel);
+}
+
 export function normalizeAiConfig(input: AiConfig): AiConfig {
   const providerIds = new Set<string>();
   const providers = input.providers.flatMap((provider) => {
@@ -313,15 +320,20 @@ export function normalizeAiConfig(input: AiConfig): AiConfig {
   const config = {
     providers,
     activeAgentModel: input.activeAgentModel,
+    activeAgentReasoningLevel: input.activeAgentReasoningLevel,
     titleGenerationModel: input.titleGenerationModel,
   };
   const activeAgentModel =
     config.activeAgentModel && hasModelSelection(config, config.activeAgentModel)
       ? config.activeAgentModel
       : firstModelSelection(providers);
+  const activeAgentReasoningLevel = isAiReasoningLevel(config.activeAgentReasoningLevel)
+    ? config.activeAgentReasoningLevel
+    : undefined;
   return {
     providers,
     activeAgentModel,
+    ...(activeAgentReasoningLevel ? { activeAgentReasoningLevel } : {}),
     titleGenerationModel:
       config.titleGenerationModel && hasModelSelection(config, config.titleGenerationModel)
         ? config.titleGenerationModel
@@ -422,6 +434,10 @@ export function getActiveAiModelSelection(config = getAiConfig()): AiModelSelect
     return config.activeAgentModel;
   }
   return firstModelSelection(config.providers);
+}
+
+export function getActiveAgentReasoningLevel(config = getAiConfig()): AiReasoningLevel {
+  return config.activeAgentReasoningLevel ?? DEFAULT_AGENT_REASONING_LEVEL;
 }
 
 export function getTitleGenerationAiModelSelection(

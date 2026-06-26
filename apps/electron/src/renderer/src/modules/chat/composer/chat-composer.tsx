@@ -184,10 +184,12 @@ export function ChatComposer({
   initialContextRefs = [],
   modelOptions,
   activeModel,
+  activeReasoningLevel,
   messages,
   modelSelectorDisabled,
   onSend,
   onSelectModel,
+  onSelectReasoningLevel,
   onCancelEdit,
   onStop,
   onInspectContextRef,
@@ -200,10 +202,12 @@ export function ChatComposer({
   initialContextRefs?: AgentContextRef[];
   modelOptions: AiModelOption[];
   activeModel: AgentModelSelection | null;
+  activeReasoningLevel: AgentReasoningLevel;
   messages: AgentReducedMessage[];
   modelSelectorDisabled: boolean;
   onSend: (input: ComposerSendInput) => Promise<void> | void;
   onSelectModel: (selection: AgentModelSelection) => void;
+  onSelectReasoningLevel: (level: AgentReasoningLevel) => void;
   onCancelEdit: () => void;
   onStop: () => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
@@ -212,7 +216,6 @@ export function ChatComposer({
   const [selectedContexts, setSelectedContexts] = useState<AgentContextRef[]>([]);
   const [files, setFiles] = useState<AgentFileAttachment[]>([]);
   const [attachmentError, setAttachmentError] = useState("");
-  const [reasoningLevel, setReasoningLevel] = useState<AgentReasoningLevel>("medium");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const mentionCommandRef = useRef<((attrs: MentionAttrs) => void) | null>(null);
   const mentionActiveRef = useRef(false);
@@ -512,7 +515,7 @@ export function ChatComposer({
       files: filesToSend,
       composerContent: json,
       modelSelection: activeModel ?? undefined,
-      reasoningLevel,
+      reasoningLevel: activeReasoningLevel,
       messageId,
     });
   };
@@ -662,14 +665,14 @@ export function ChatComposer({
                 >
                   <span className="truncate text-foreground">{activeModelLabel}</span>
                   <span className="truncate text-muted-foreground">
-                    {reasoningLabel(reasoningLevel)}
+                    {reasoningLabel(activeReasoningLevel)}
                   </span>
                   <ChevronDown size={16} className="text-muted-foreground" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" side="top" className="w-64">
                   <DropdownMenuRadioGroup
-                    value={reasoningLevel}
-                    onValueChange={(value) => setReasoningLevel(value as AgentReasoningLevel)}
+                    value={activeReasoningLevel}
+                    onValueChange={(value) => onSelectReasoningLevel(value as AgentReasoningLevel)}
                   >
                     <DropdownMenuLabel>推理等级</DropdownMenuLabel>
                     {REASONING_OPTIONS.map((option) => (

@@ -28,6 +28,7 @@ import type {
   AgentSessionSummary,
 } from "@shared/agent";
 import {
+  getActiveAgentReasoningLevel,
   getAiModelConfig,
   getContentStorageRoot,
   getTitleGenerationAiModelConfig,
@@ -453,7 +454,7 @@ export class PiAgentHost {
       resourceLoader: createPiResourceLoader(),
       sessionManager,
       settingsManager,
-      thinkingLevel: thinkingLevelFor(command.reasoningLevel),
+      thinkingLevel: thinkingLevelFor(command.reasoningLevel ?? getActiveAgentReasoningLevel()),
       tools: [...PI_READ_ONLY_TOOL_NAMES, ...PI_APPROVAL_TOOL_NAMES],
     });
   }

@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { Archive, ArrowDown, Copy, FileDown, MoreHorizontal, Sparkles, Trash2 } from "lucide-react";
-import type { AgentContextRef, AgentModelSelection, AgentReducedMessage } from "@shared/agent";
+import type {
+  AgentContextRef,
+  AgentModelSelection,
+  AgentReasoningLevel,
+  AgentReducedMessage,
+} from "@shared/agent";
 import { Button } from "@renderer/components/ui/button";
 import {
   DropdownMenu,
@@ -18,7 +23,11 @@ import { ChatComposer } from "./composer/chat-composer";
 import type { InspectableContextRef } from "./context/context-reference";
 import { MessageList } from "./messages/message-list";
 import { usePiAgentThreadView } from "./session/pi-thread-view";
-import { useAgentModelOptionsQuery, useSelectAgentModelMutation } from "./session/server-state";
+import {
+  useAgentModelOptionsQuery,
+  useSelectAgentModelMutation,
+  useSelectAgentReasoningLevelMutation,
+} from "./session/server-state";
 import type { ChatJumpItem } from "./session/thread-view";
 
 const CHAT_JUMP_MIN_ITEMS = 4;
@@ -61,11 +70,19 @@ export function AgentThreadPanel({
   const threadView = usePiAgentThreadView(threadId, scrollRequest);
   const modelOptionsQuery = useAgentModelOptionsQuery();
   const selectModelMutation = useSelectAgentModelMutation();
+  const selectReasoningLevelMutation = useSelectAgentReasoningLevelMutation();
   const modelOptions = modelOptionsQuery.data?.options ?? [];
   const activeModel = modelOptionsQuery.data?.active ?? null;
-  const modelSelectorDisabled = modelOptionsQuery.isFetching || selectModelMutation.isPending;
+  const activeReasoningLevel = modelOptionsQuery.data?.activeReasoningLevel ?? "medium";
+  const modelSelectorDisabled =
+    modelOptionsQuery.isFetching ||
+    selectModelMutation.isPending ||
+    selectReasoningLevelMutation.isPending;
   const selectModel = useMemoizedFn((selection: AgentModelSelection) =>
     selectModelMutation.mutate(selection),
+  );
+  const selectReasoningLevel = useMemoizedFn((level: AgentReasoningLevel) =>
+    selectReasoningLevelMutation.mutate(level),
   );
 
   return (
@@ -145,9 +162,11 @@ export function AgentThreadPanel({
         initialContextRefs={initialContextRefs}
         modelOptions={modelOptions}
         activeModel={activeModel}
+        activeReasoningLevel={activeReasoningLevel}
         messages={threadView.visibleMessages}
         modelSelectorDisabled={modelSelectorDisabled}
         onSelectModel={selectModel}
+        onSelectReasoningLevel={selectReasoningLevel}
         onSend={threadView.actions.send}
         onCancelEdit={threadView.actions.cancelEdit}
         onStop={threadView.actions.stop}

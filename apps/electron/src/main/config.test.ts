@@ -257,6 +257,23 @@ describe("Electron AI config", () => {
     ).toEqual({ providerId: "openai", modelId: "gpt-4o-mini" });
   });
 
+  test("keeps the selected agent reasoning level", async () => {
+    const config = await import("./config");
+
+    expect(
+      config.normalizeAiConfig({
+        providers: [
+          {
+            id: "openai",
+            apiKey: "test-key",
+            models: [{ id: "gpt-4o" }],
+          },
+        ],
+        activeAgentReasoningLevel: "high",
+      }).activeAgentReasoningLevel,
+    ).toBe("high");
+  });
+
   test("stores AI API keys as plain config", async () => {
     const config = await import("./config");
 

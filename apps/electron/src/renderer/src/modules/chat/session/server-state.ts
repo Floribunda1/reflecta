@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ipcClient } from "@renderer/utils/ipc";
 import type { AiModelOption } from "@main/config";
-import type { AgentModelSelection } from "@shared/agent";
+import type { AgentModelSelection, AgentReasoningLevel } from "@shared/agent";
 import { removeThreadFromCache, renameThreadInCache, upsertThreadInCache } from "./query-cache";
 import { chatQueryKeys } from "./query-keys";
 
@@ -10,6 +10,7 @@ export type { AiModelOption } from "@main/config";
 export type AiModelsQueryData = {
   options: AiModelOption[];
   active: AgentModelSelection | null;
+  activeReasoningLevel: AgentReasoningLevel;
 };
 
 export function useThreadsQuery() {
@@ -23,11 +24,12 @@ export function useAgentModelOptionsQuery() {
   return useQuery({
     queryKey: chatQueryKeys.modelOptions,
     queryFn: async (): Promise<AiModelsQueryData> => {
-      const [options, active] = await Promise.all([
+      const [options, active, activeReasoningLevel] = await Promise.all([
         ipcClient.config.listAiModelOptions(),
         ipcClient.config.getActiveAgentModel(),
+        ipcClient.config.getActiveAgentReasoningLevel(),
       ]);
-      return { options, active };
+      return { options, active, activeReasoningLevel };
     },
   });
 }
@@ -106,6 +108,22 @@ export function useSelectAgentModelMutation() {
     onMutate: (selection) => {
       queryClient.setQueryData<AiModelsQueryData>(chatQueryKeys.modelOptions, (current) =>
         current ? { ...current, active: selection } : current,
+      );
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: chatQueryKeys.modelOptions });
+    },
+  });
+}
+
+export function useSelectAgentReasoningLevelMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (level: AgentReasoningLevel) =>
+      ipcClient.config.setActiveAgentReasoningLevel(level),
+    onMutate: (level) => {
+      queryClient.setQueryData<AiModelsQueryData>(chatQueryKeys.modelOptions, (current) =>
+        current ? { ...current, activeReasoningLevel: level } : current,
       );
     },
     onSettled: async () => {

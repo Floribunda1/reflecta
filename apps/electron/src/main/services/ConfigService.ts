@@ -13,11 +13,13 @@ import type {
   AiModelOption,
   AiModelSelection,
   AiProviderCatalogItem,
+  AiReasoningLevel,
   RetrievalConfig,
   RetrievalEmbeddingModelStatus,
 } from "../config";
 import { getDBInstance } from "../db";
 import {
+  getActiveAgentReasoningLevel,
   downloadDefaultRetrievalEmbeddingModel,
   getActiveAiModelSelection,
   getAiConfig,
@@ -153,6 +155,11 @@ export class ConfigService extends IpcService {
   }
 
   @IpcMethod()
+  async getActiveAgentReasoningLevel(): Promise<AiReasoningLevel> {
+    return getActiveAgentReasoningLevel();
+  }
+
+  @IpcMethod()
   async setActiveAgentModel(selection: AiModelSelection): Promise<void> {
     const ai = getAiConfig();
     const requested = {
@@ -165,6 +172,14 @@ export class ConfigService extends IpcService {
     );
     if (!exists) throw new Error("请选择可用的 AI 模型");
     const next = normalizeAiConfig({ ...ai, activeAgentModel: requested });
+    writeConfig({ ai: next });
+  }
+
+  @IpcMethod()
+  async setActiveAgentReasoningLevel(level: AiReasoningLevel): Promise<void> {
+    const ai = getAiConfig();
+    const next = normalizeAiConfig({ ...ai, activeAgentReasoningLevel: level });
+    if (next.activeAgentReasoningLevel !== level) throw new Error("请选择可用的推理等级");
     writeConfig({ ai: next });
   }
 }
