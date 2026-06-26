@@ -65,6 +65,7 @@ export const AGENT_EVENT_CHANNEL = "agent:event";
 
 type ActivePiRun = {
   runId: string;
+  assistantMessageId: string;
   session: AgentSession;
   accumulator: AgentRunAccumulator;
   pendingApprovals: Map<string, PendingApproval>;
@@ -491,7 +492,10 @@ export class PiAgentHost {
   async readSessionEvents(sessionId: string): Promise<AgentSessionEvent[]> {
     const events = await this.sessionLog.readEvents(sessionId);
     const activeRunId = reduceAgentSession(events).activeRunId;
-    if (!activeRunId || this.activeRuns.get(sessionId)?.runId === activeRunId) return events;
+    if (!activeRunId) return events;
+
+    const active = this.activeRuns.get(sessionId);
+    if (active?.runId === activeRunId) return this.withActiveRunSnapshot(sessionId, events, active);
 
     const manager = await this.sessionLog.openSession(sessionId);
     const cancelled = this.createEvent({
@@ -501,6 +505,27 @@ export class PiAgentHost {
     });
     this.sessionLog.appendEvent(manager, cancelled);
     return [...events, cancelled];
+  }
+
+  private withActiveRunSnapshot(
+    sessionId: string,
+    events: AgentSessionEvent[],
+    active: ActivePiRun,
+  ): AgentSessionEvent[] {
+    if (active.accumulator.isEmpty()) return events;
+    return [
+      ...events,
+      active.accumulator.toAssistantTurn(
+        this.createEvent({
+          type: "assistant.turn",
+          sessionId,
+          runId: active.runId,
+          messageId: active.assistantMessageId,
+          blocks: [],
+          text: "",
+        }),
+      ),
+    ];
   }
 
   async sendAgentCommand(command: AgentCommand, webContents: WebContents): Promise<void> {
@@ -690,6 +715,7 @@ export class PiAgentHost {
       session = created.session;
       this.activeRuns.set(command.sessionId, {
         runId,
+        assistantMessageId,
         session,
         accumulator,
         pendingApprovals: new Map(),

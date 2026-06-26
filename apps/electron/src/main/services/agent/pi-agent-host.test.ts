@@ -467,6 +467,86 @@ describe("PiAgentHost", () => {
     );
   });
 
+  test("restores the active streaming turn when reopening a running session", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("新对话");
+    const manager = await log.openSession(thread.id);
+    log.appendEvent(manager, {
+      id: "evt_existing_cancel",
+      sessionId: thread.id,
+      runId: "run_existing",
+      type: "run.cancelled",
+      createdAt: "2026-06-23T00:00:00.000Z",
+    });
+    let listener: ((event: unknown) => void) | undefined;
+    let finishPrompt!: () => void;
+    let promptStarted!: () => void;
+    const promptStartedPromise = new Promise<void>((resolve) => {
+      promptStarted = resolve;
+    });
+    const promptFinishedPromise = new Promise<void>((resolve) => {
+      finishPrompt = resolve;
+    });
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        subscribe: (next: (event: unknown) => void) => {
+          listener = next;
+          return () => {};
+        },
+        prompt: vi.fn(async () => {
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: { type: "text_delta", delta: "前半段回复" },
+          });
+          promptStarted();
+          await promptFinishedPromise;
+        }),
+        getContextUsage: vi.fn(() => undefined),
+        dispose: vi.fn(),
+        abort: vi.fn(),
+      },
+    });
+    const webContents = {
+      isDestroyed: () => false,
+      send: vi.fn(),
+    };
+    const host = new PiAgentHost(root);
+
+    const sendPromise = (
+      host as unknown as {
+        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
+      }
+    ).sendMessage(
+      {
+        type: "message.send",
+        sessionId: thread.id,
+        text: "开始流式回复",
+        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+      },
+      webContents as never,
+    );
+    await promptStartedPromise;
+
+    const restored = await host.readSessionEvents(thread.id);
+    const restoredTurn = restored.find((event) => event.type === "assistant.turn");
+
+    expect(restoredTurn).toEqual(
+      expect.objectContaining({
+        type: "assistant.turn",
+        text: "前半段回复",
+        blocks: [expect.objectContaining({ kind: "text", text: "前半段回复" })],
+      }),
+    );
+    await expect(new AgentSessionLog(root).readEvents(thread.id)).resolves.not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "assistant.turn" })]),
+    );
+
+    finishPrompt();
+    await sendPromise;
+  });
+
   test("does not overwrite a non-empty thread with the generic generated-title fallback", async () => {
     const root = tempRoot();
     const log = new AgentSessionLog(root);

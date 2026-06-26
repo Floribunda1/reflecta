@@ -113,6 +113,10 @@ export class AgentRunAccumulator {
     );
   }
 
+  isEmpty(): boolean {
+    return this.blocks.length === 0;
+  }
+
   toAssistantTurn(input: Omit<AgentAssistantTurn, "blocks" | "text">): AgentAssistantTurn {
     return {
       ...input,
