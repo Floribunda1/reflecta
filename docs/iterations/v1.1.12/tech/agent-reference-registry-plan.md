@@ -1,295 +1,1446 @@
-# v1.1.12 Agent Reference Registry 技术计划
+# Agent Entity Source Map Implementation Plan
 
-> 日期：2026-06-26
->
-> 状态：Draft
->
-> 目标：把 Agent 正文里的 Reflecta 引用从“模型拼真实 id”改成“系统维护引用注册表，模型只输出 handle”，保证可点击引用稳定回到真实 Understanding / Context。
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-## 1. 结论
+**Goal:** Replace assistant-generated `[[context:标题#id]]` links with session-scoped `[[ref:S1]]` source markers that render to real Reflecta Understanding / Context / Domain entities without asking the model to copy database ids.
 
-Agent 正文引用不能继续依赖模型生成 `[[understanding:标题#id]]`。
+**Architecture:** `AgentHost` owns source identity: it assigns `S1`, `S2`, persists `entity.sources.updated` events, and exposes source markers in prompt/tool output where real objects already appear. `Renderer` owns text parsing and real-time rendering: it resolves `[[ref:S1]]` against the reduced session source map and renders the existing chips during streaming and final display. No global database table, no full registry block dumped into every prompt, and no AgentHost parsing of final assistant text.
 
-当前风险有两类：
+**Tech Stack:** Electron main/renderer, TypeScript, Vitest, Streamdown, Pi agent runtime, existing Reflecta session JSONL log.
 
-- Renderer 现有 wiki link parser 没有真正解析 type，`[[context:标题#id]]` 会被当成 Understanding 打开。
-- 即使修掉 type parser，模型仍然可能拼错 id、混淆 Context id 和 Understanding id，或者引用它没有真实确认过的对象。
+---
 
-v1.1.12 直接引入 thread-level Reference Registry：
+## Scope
 
-```txt
-用户 @ / 当前页面 / 工具结果
-  -> Reference Registry 自动注册真实对象
-  -> prompt 暴露 [[U1]] / [[C1]] / [[D1]]
-  -> Agent 正文只输出 handle
-  -> Renderer 通过 registry resolve handle
-  -> 只有 resolved reference 才可点击
+This plan only implements entity links. It does not implement claim-level citations, content grounding validation, citation scores, or automatic proof that the assistant chose the semantically correct source. The system guarantees that a resolved marker opens the exact Reflecta entity stored in the session source map.
+
+## Current Problem
+
+Current prompt contract asks the model to write:
+
+```md
+[[understanding:标题#id]]
+[[context:标题#id]]
+[[domain:标题#id]]
 ```
 
-不做：
+That makes the model responsible for copying `type` and `id` into free text. The reported bug is exactly there: the object was known, but the model produced or the renderer interpreted the wrong `type:id`, so a Context id opened as an Understanding and showed a blank detail view.
 
-- 不让用户手动维护引用选项。
-- 不让模型自由输出真实 DB id。
-- 不用 registry 判断 Agent 论证是否正确。
-- 不在第一版实现 Domain inspector；Domain handle 可显示，暂不作为可 inspect 引用。
+The new contract is:
 
-一句话：
-
-```txt
-Reference Registry 解决“蓝色引用能否稳定打开正确对象”，不是解决“Agent 回答是否有事实依据”。
+```md
+[[ref:S1]]
 ```
 
-## 2. Product Semantics
-
-Reflecta 的核心价值是“可追溯的个人理解”。Agent 正文里的蓝色引用一旦可点击，用户会默认它能回到真实的个人 Understanding 或 Context。
-
-所以可点击引用必须满足：
-
-- 引用对象真实存在于 Reflecta 数据中。
-- type 和 id 必须匹配。
-- 引用来源必须是本轮对话中系统已经确认过的对象。
-- 无法 resolve 的引用不能渲染成可点击链接。
-
-在这个语义里，模型可以解释、比较、总结，但不能成为引用 id 的事实源。真实引用必须来自系统事实源：用户显式 @、当前页面上下文、或只读工具返回结果。
-
-## 3. Module Interface
-
-新增一个深模块：`AgentReferenceRegistry`。
-
-它的外部 Interface 只负责四件事：
+`S1` is only meaningful inside one Agent session. The source map owns the real target:
 
 ```ts
-type AgentReferenceType = "understanding" | "context" | "domain";
-
-type AgentReference = {
-  handle: string; // U1 / C1 / D1
-  type: AgentReferenceType;
-  id: string;
-  title?: string;
-  status: "lightweight" | "loaded";
-  source: "user" | "page" | "tool";
-};
-
-type AgentReferenceRegistry = {
-  add(ref: Omit<AgentReference, "handle">): AgentReference;
-  addFromToolOutput(toolName: string, output: unknown): AgentReference[];
-  renderPromptBlock(): string;
-  resolve(handle: string): AgentReference | null;
-  snapshot(): AgentReference[];
-};
+S1 -> { type: "context", id: "ctx_456", title: "一次产品迭代复盘" }
 ```
 
-Interface 约束：
+## File Structure
 
-- 同一个 thread 内，同一个 `type:id` 永远返回同一个 handle。
-- Handle 按 type 分组递增：`U1`、`U2`、`C1`、`C2`、`D1`。
-- `loaded` 优先级高于 `lightweight`；同一对象后续被工具读取详情后升级为 `loaded`。
-- `source` 只记录最初来源，后续可被更完整数据覆盖 title/status。
-- `resolve()` 找不到 handle 时返回 `null`，调用方不得猜测。
+- Modify: `apps/electron/src/preload/typings/agent.ts`
+  - Adds `AgentEntitySource`, `entity.sources.updated`, and `AgentSessionState.entitySources`.
+  - Reduces source events during session replay and live streaming.
 
-## 4. Registry Sources
+- Create: `apps/electron/src/preload/typings/agent-entity-sources.ts`
+  - Pure helper for source keys, source id allocation, source upsert, source marker formatting, and prompt lines.
+  - Shared by main and renderer through existing `@shared/*` path alias.
 
-Registry 自动收集，不需要用户提供 option。
+- Modify: `apps/electron/src/preload/typings/agent-context.ts`
+  - Adds a source-based prompt block so selected user `@` refs can be rendered as `[[ref:S1]]` instead of exposing real ids.
 
-### 用户 @ 的对象
+- Create: `apps/electron/src/main/services/agent/entity-source-extraction.ts`
+  - Extracts Reflecta entities from supported read-only tool outputs.
+  - Decorates matching entities in tool output with `ref: "[[ref:S1]]"` after registration.
 
-Composer 发送的 `command.contextRefs` 直接注册。
+- Modify: `apps/electron/src/main/services/agent/pi-readonly-tools.ts`
+  - Accepts a lightweight output decorator option.
+  - Returns decorated tool details to the model.
 
-```txt
-@ Feedback Loop
-  -> U1: understanding / feedback-loop-id / Feedback Loop / lightweight / user
-```
+- Modify: `apps/electron/src/main/services/agent/pi-prompt.ts`
+  - Builds prompt text from `AgentEntitySource[]` for selected context refs.
 
-### 当前页面对象
+- Modify: `apps/electron/src/main/services/agent/pi-agent-host.ts`
+  - Creates the per-run source registrar.
+  - Emits `entity.sources.updated` events when user refs or tool outputs register sources.
+  - Passes decorated read-only tools into the Pi session.
 
-Contextual Agent Dock 如果由 Understanding 或 Context 打开，应把当前对象作为 `page` source 注册。第一版可以只接已有 `initialContextRefs`，不新增复杂页面协议。
+- Modify: `apps/electron/src/main/services/agent/agent-system-prompt.md`
+  - Changes assistant-visible link contract to `[[ref:S1]]`.
 
-### 工具结果
+- Modify: `apps/electron/src/renderer/src/modules/chat/context/context-reference.ts`
+  - Fixes typed legacy link parsing.
+  - Converts `[[ref:S1]]` to internal hrefs using the reduced source map.
 
-从只读工具输出中提取真实对象：
+- Modify: `apps/electron/src/renderer/src/modules/chat/context/wiki-link.tsx`
+  - Renders source-resolved Understanding / Context chips and non-clickable Domain chips.
 
-- `understanding_get`：注册 `output.understanding`，状态 `loaded`。
-- `context_get`：注册 `output.context`，状态 `loaded`。
-- `understanding_list`：注册列表里的 Understanding，状态 `lightweight`。
-- `context_list`：注册列表里的 Context，状态 `lightweight`。
-- `search`：注册 `hits[].understanding` 和 `hits[].context`。
-- `retrieve_knowledge`：注册 `candidates[]` 的 Understanding；matched Context 有 id/title 时注册 Context。
-- `graph`：注册 graph node 对应的 Understanding。
+- Modify: `apps/electron/src/renderer/src/modules/chat/messages/agent-message-content.tsx`
+  - Passes `entitySources` into markdown conversion for streaming and final blocks.
 
-第一版只抽取现有返回结构里稳定存在的 `id/title/type` 字段。无法可靠识别的结构先跳过。
+- Modify: `apps/electron/src/renderer/src/modules/chat/messages/message-list.tsx`
+  - Threads `entitySources` into each assistant message row.
 
-## 5. Prompt Contract
+- Modify: `apps/electron/src/renderer/src/modules/chat/session/thread-view.ts`
+  - Adds `entitySources` to `AgentThreadView`.
 
-Agent system prompt 改成：
+- Modify: `apps/electron/src/renderer/src/modules/chat/session/pi-thread-view.ts`
+  - Exposes `state.entitySources` to the thread view.
 
-```txt
-面向用户正文引用 Reflecta 对象时，只能使用 Reference Registry 给出的 handle：
+- Modify: `apps/electron/src/renderer/src/modules/chat/agent-thread-panel.tsx`
+  - Passes `threadView.entitySources` into `MessageList`.
 
-正确：[[U1]]、[[C2]]
-错误：[[understanding:标题#id]]、[[context:标题#id]]
+## Task 1: Add Shared Entity Source Types And Reducer State
 
-如果要引用不在 registry 里的对象，先用工具查到它。
-如果对象是 lightweight，需要正文细节时先调用对应 get 工具。
-```
+**Files:**
 
-每次 `session.prompt()` 前，用户消息追加 registry block：
+- Modify: `apps/electron/src/preload/typings/agent.ts`
+- Create: `apps/electron/src/preload/typings/agent-entity-sources.ts`
+- Test: `apps/electron/src/preload/typings/agent-entity-sources.test.ts`
+- Test: `apps/electron/src/renderer/src/modules/chat/session/agent-reducer.test.ts`
 
-```txt
-本 thread 当前可引用对象：
+- [ ] **Step 1: Write the source helper test**
 
-[[U1]] Understanding: Feedback Loop
-状态：lightweight；需要正文时先调用 understanding_get。
-
-[[C1]] Context: 某次实践复盘
-状态：loaded。
-```
-
-工具执行结束并注册新对象后，如果 runtime 支持向模型注入 tool result 文本，则在 tool result 后追加：
-
-```txt
-本次工具结果新增可引用对象：
-[[U2]] Understanding: 过程指标
-[[C2]] Context: 反馈循环实践记录
-```
-
-如果 runtime 不方便追加额外文本，第一版仍可只依赖下一轮 prompt block；当前回合模型已能从工具 JSON 里看到 id/title，但最终渲染仍通过 registry 验证。
-
-## 6. Session Events
-
-Registry 需要随 session 持久化，否则重开 app 后旧消息里的 `[[U1]]` 无法 resolve。
-
-新增事件：
+Create `apps/electron/src/preload/typings/agent-entity-sources.test.ts`:
 
 ```ts
-type AgentReferencesUpdated = AgentEventBase & {
-  type: "references.updated";
-  refs: AgentReference[];
+import { describe, expect, test } from "vitest";
+import {
+  entitySourceKey,
+  sourceMarker,
+  sourcePromptLine,
+  upsertAgentEntitySources,
+} from "./agent-entity-sources";
+import type { AgentEntitySource } from "./agent";
+
+describe("agent entity sources", () => {
+  test("allocates stable source ids per entity and updates the title", () => {
+    const origin = { kind: "user_context" as const, messageId: "user_1" };
+    const first = upsertAgentEntitySources(
+      [],
+      [{ type: "context", id: "ctx_1", title: "旧标题" }],
+      origin,
+    );
+    const second = upsertAgentEntitySources(
+      first.sources,
+      [{ type: "context", id: "ctx_1", title: "新标题" }],
+      { kind: "tool_result" as const, toolCallId: "tool_1", toolName: "context_get" },
+    );
+
+    expect(first.changed).toBe(true);
+    expect(first.sources).toEqual([
+      {
+        sourceId: "S1",
+        entity: { type: "context", id: "ctx_1", title: "旧标题" },
+        origin,
+      },
+    ]);
+    expect(second.changed).toBe(true);
+    expect(second.sources).toEqual([
+      {
+        sourceId: "S1",
+        entity: { type: "context", id: "ctx_1", title: "新标题" },
+        origin,
+      },
+    ]);
+  });
+
+  test("formats source markers and prompt lines", () => {
+    const source: AgentEntitySource = {
+      sourceId: "S2",
+      entity: { type: "understanding", id: "u_1", title: "Feedback Loop" },
+      origin: { kind: "user_context", messageId: "user_1" },
+    };
+
+    expect(entitySourceKey(source.entity)).toBe("understanding:u_1");
+    expect(sourceMarker(source)).toBe("[[ref:S2]]");
+    expect(sourcePromptLine(source)).toBe("- [[ref:S2]] Understanding: Feedback Loop");
+  });
+});
+```
+
+- [ ] **Step 2: Run the helper test and verify it fails**
+
+Run:
+
+```bash
+rtk bun --cwd apps/electron vitest run src/preload/typings/agent-entity-sources.test.ts
+```
+
+Expected: FAIL because `agent-entity-sources.ts` does not exist.
+
+- [ ] **Step 3: Add shared types to `agent.ts`**
+
+In `apps/electron/src/preload/typings/agent.ts`, add these types after `AgentContextRef`:
+
+```ts
+export type AgentEntitySourceOrigin =
+  | {
+      kind: "user_context";
+      messageId?: string;
+    }
+  | {
+      kind: "page_context";
+      messageId?: string;
+    }
+  | {
+      kind: "tool_result";
+      toolCallId?: string;
+      toolName?: string;
+    };
+
+export type AgentEntitySource = {
+  sourceId: string;
+  entity: AgentContextRef;
+  origin: AgentEntitySourceOrigin;
 };
 ```
 
-事件策略：
-
-- 用户消息入队时注册 `contextRefs`，emit 一次 `references.updated`。
-- 工具完成后从 output 注册 refs；有新增或升级时 emit 一次 `references.updated`。
-- 事件 append 到 session JSONL，renderer reducer 合并进 session state。
-- 重放历史事件时，registry 可从 `references.updated` 恢复，不需要重新跑工具。
-
-Reducer state 增加：
+Add the session event after `AgentUserMessage`:
 
 ```ts
-references: AgentReference[];
+export type AgentEntitySourcesUpdated = AgentEventBase & {
+  type: "entity.sources.updated";
+  sources: AgentEntitySource[];
+};
 ```
 
-Message 渲染时从 session state 读取 registry snapshot。
+Add `AgentEntitySourcesUpdated` to `AgentSessionEvent`:
 
-## 7. Rendering Contract
+```ts
+export type AgentSessionEvent =
+  | AgentRunStarted
+  | AgentRunCompleted
+  | AgentRunFailed
+  | AgentRunCancelled
+  | AgentUserMessage
+  | AgentEntitySourcesUpdated
+  | AgentAssistantTurn
+  | AgentApprovalRequested
+  | AgentApprovalResolved;
+```
 
-Renderer 不再把模型输出的旧 wiki id 当作唯一事实源。
+Add `entitySources` to `AgentSessionState`:
 
-新渲染规则：
+```ts
+export type AgentSessionState = {
+  sessionId: string | null;
+  messages: AgentReducedMessage[];
+  entitySources: AgentEntitySource[];
+  activeRunId: string | null;
+  status: "idle" | "running" | "failed" | "cancelled";
+  error: string | null;
+};
+```
+
+Add `"entity.sources.updated"` to `isAgentSessionEvent()`:
+
+```ts
+[
+  "run.started",
+  "run.completed",
+  "run.failed",
+  "run.cancelled",
+  "user.message",
+  "entity.sources.updated",
+  "assistant.turn",
+  "approval.requested",
+  "approval.resolved",
+].includes(value.type);
+```
+
+Add this reducer helper before `initialAgentSessionState`:
+
+```ts
+function mergeEntitySources(
+  current: AgentEntitySource[],
+  incoming: AgentEntitySource[],
+): AgentEntitySource[] {
+  const bySourceId = new Map(current.map((source) => [source.sourceId, source]));
+  for (const source of incoming) bySourceId.set(source.sourceId, source);
+  return Array.from(bySourceId.values()).sort((left, right) =>
+    left.sourceId.localeCompare(right.sourceId, undefined, { numeric: true }),
+  );
+}
+```
+
+Set the initial state:
+
+```ts
+export const initialAgentSessionState: AgentSessionState = {
+  sessionId: null,
+  messages: [],
+  entitySources: [],
+  activeRunId: null,
+  status: "idle",
+  error: null,
+};
+```
+
+Add this branch in `reduceAgentSessionEvent()` after `user.message`:
+
+```ts
+if (event.type === "entity.sources.updated") {
+  return {
+    ...state,
+    sessionId: event.sessionId,
+    entitySources: mergeEntitySources(state.entitySources, event.sources),
+  };
+}
+```
+
+- [ ] **Step 4: Create the shared source helper**
+
+Create `apps/electron/src/preload/typings/agent-entity-sources.ts`:
+
+```ts
+import type { AgentContextRef, AgentEntitySource, AgentEntitySourceOrigin } from "./agent";
+
+const SOURCE_ID_PATTERN = /^S(\d+)$/;
+
+function titleFor(ref: AgentContextRef) {
+  return ref.title?.trim() || `${ref.type}:${ref.id}`;
+}
+
+function typeLabel(type: AgentContextRef["type"]) {
+  if (type === "understanding") return "Understanding";
+  if (type === "context") return "Context";
+  return "Domain";
+}
+
+function nextSourceId(sources: AgentEntitySource[]) {
+  const max = sources.reduce((value, source) => {
+    const match = SOURCE_ID_PATTERN.exec(source.sourceId);
+    return match ? Math.max(value, Number(match[1])) : value;
+  }, 0);
+  return `S${max + 1}`;
+}
+
+export function entitySourceKey(ref: AgentContextRef) {
+  return `${ref.type}:${ref.id}`;
+}
+
+export function sourceMarker(source: Pick<AgentEntitySource, "sourceId">) {
+  return `[[ref:${source.sourceId}]]`;
+}
+
+export function sourcePromptLine(source: AgentEntitySource) {
+  return `- ${sourceMarker(source)} ${typeLabel(source.entity.type)}: ${titleFor(source.entity)}`;
+}
+
+export function resolveAgentEntitySource(
+  sources: AgentEntitySource[],
+  sourceId: string,
+): AgentEntitySource | null {
+  return sources.find((source) => source.sourceId === sourceId) ?? null;
+}
+
+export function upsertAgentEntitySources(
+  sources: AgentEntitySource[],
+  refs: AgentContextRef[],
+  origin: AgentEntitySourceOrigin,
+): { sources: AgentEntitySource[]; changed: boolean; upserted: AgentEntitySource[] } {
+  let changed = false;
+  const upserted: AgentEntitySource[] = [];
+  const byEntity = new Map(sources.map((source) => [entitySourceKey(source.entity), source]));
+  const next = [...sources];
+
+  for (const ref of refs) {
+    const key = entitySourceKey(ref);
+    const existing = byEntity.get(key);
+    if (existing) {
+      const nextTitle = ref.title?.trim();
+      if (nextTitle && nextTitle !== existing.entity.title) {
+        const updated = { ...existing, entity: { ...existing.entity, title: nextTitle } };
+        const index = next.findIndex((source) => source.sourceId === existing.sourceId);
+        next[index] = updated;
+        byEntity.set(key, updated);
+        upserted.push(updated);
+        changed = true;
+      } else {
+        upserted.push(existing);
+      }
+      continue;
+    }
+
+    const created: AgentEntitySource = {
+      sourceId: nextSourceId(next),
+      entity: { ...ref, title: ref.title?.trim() || undefined },
+      origin,
+    };
+    next.push(created);
+    byEntity.set(key, created);
+    upserted.push(created);
+    changed = true;
+  }
+
+  return { sources: next, changed, upserted };
+}
+```
+
+- [ ] **Step 5: Add reducer coverage for source replay**
+
+Add this test to `apps/electron/src/renderer/src/modules/chat/session/agent-reducer.test.ts`:
+
+```ts
+test("restores entity sources from session events", () => {
+  const state = reduceAgentSession([
+    {
+      ...base,
+      id: "evt_source_1",
+      type: "entity.sources.updated",
+      sources: [
+        {
+          sourceId: "S1",
+          entity: { type: "context", id: "ctx_1", title: "一次复盘" },
+          origin: { kind: "user_context", messageId: "user_1" },
+        },
+      ],
+    },
+    {
+      ...base,
+      id: "evt_source_2",
+      type: "entity.sources.updated",
+      sources: [
+        {
+          sourceId: "S1",
+          entity: { type: "context", id: "ctx_1", title: "一次产品复盘" },
+          origin: { kind: "user_context", messageId: "user_1" },
+        },
+      ],
+    },
+  ]);
+
+  expect(state.entitySources).toEqual([
+    {
+      sourceId: "S1",
+      entity: { type: "context", id: "ctx_1", title: "一次产品复盘" },
+      origin: { kind: "user_context", messageId: "user_1" },
+    },
+  ]);
+});
+```
+
+- [ ] **Step 6: Run focused tests**
+
+Run:
+
+```bash
+rtk bun --cwd apps/electron vitest run src/preload/typings/agent-entity-sources.test.ts src/renderer/src/modules/chat/session/agent-reducer.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 7: Commit**
+
+```bash
+rtk git add apps/electron/src/preload/typings/agent.ts apps/electron/src/preload/typings/agent-entity-sources.ts apps/electron/src/preload/typings/agent-entity-sources.test.ts apps/electron/src/renderer/src/modules/chat/session/agent-reducer.test.ts
+rtk git commit -m "feat(agent): persist entity source map"
+```
+
+## Task 2: Render Selected User Context As Source Markers In Prompt
+
+**Files:**
+
+- Modify: `apps/electron/src/preload/typings/agent-context.ts`
+- Modify: `apps/electron/src/main/services/agent/pi-prompt.ts`
+- Modify: `apps/electron/src/main/services/agent/pi-prompt.test.ts`
+
+- [ ] **Step 1: Write the failing prompt test**
+
+Replace the first test in `apps/electron/src/main/services/agent/pi-prompt.test.ts` with:
+
+```ts
+test("injects selected entity sources without exposing database ids", () => {
+  const prompt = buildPiPromptText({
+    text: "请比较这些引用",
+    contextSources: [
+      {
+        sourceId: "S1",
+        entity: {
+          type: "understanding",
+          id: "understanding-1",
+          title: "React Server Components",
+        },
+        origin: { kind: "user_context", messageId: "user_1" },
+      },
+      {
+        sourceId: "S2",
+        entity: { type: "domain", id: "domain-1", title: "React" },
+        origin: { kind: "user_context", messageId: "user_1" },
+      },
+    ],
+  });
+
+  expect(prompt).toContain("请比较这些引用");
+  expect(prompt).toContain("[[ref:S1]] Understanding: React Server Components");
+  expect(prompt).toContain("[[ref:S2]] Domain: React");
+  expect(prompt).toContain("轻量引用");
+  expect(prompt).not.toContain("understanding-1");
+  expect(prompt).not.toContain("domain-1");
+});
+```
+
+- [ ] **Step 2: Run the prompt test and verify it fails**
+
+Run:
+
+```bash
+rtk bun --cwd apps/electron vitest run src/main/services/agent/pi-prompt.test.ts
+```
+
+Expected: FAIL because `buildPiPromptText()` does not accept `contextSources`.
+
+- [ ] **Step 3: Add the source prompt block helper**
+
+In `apps/electron/src/preload/typings/agent-context.ts`, import `AgentEntitySource` and `sourcePromptLine`:
+
+```ts
+import type { AgentContextRef, AgentEntitySource } from "./agent";
+import { sourcePromptLine } from "./agent-entity-sources";
+```
+
+Add this function after `selectedAgentContextBlockFromRefs()`:
+
+```ts
+export function selectedAgentContextBlockFromSources(sources: AgentEntitySource[]): string {
+  if (sources.length === 0) return "";
+
+  const lines = sources.slice(0, MAX_SELECTED_CONTEXT_REFS).map(sourcePromptLine).join("\n");
+  return `\n\n用户显式 @ 了这些知识库对象。它们只是轻量引用，不包含完整内容；需要内容时调用对应只读工具读取。正文引用对象时只使用 [[ref:S1]] 这种 ref，不要输出真实数据库 id。\n${lines}`;
+}
+```
+
+- [ ] **Step 4: Update prompt builder**
+
+In `apps/electron/src/main/services/agent/pi-prompt.ts`, change the import:
+
+```ts
+import type { AgentEntitySource, AgentFileAttachment } from "@shared/agent";
+import { selectedAgentContextBlockFromSources } from "@shared/agent-context";
+```
+
+Change `buildPiPromptText()` to:
+
+```ts
+export function buildPiPromptText({
+  text,
+  contextSources = [],
+  files = [],
+}: {
+  text: string;
+  contextSources?: AgentEntitySource[];
+  files?: AgentFileAttachment[];
+}): string {
+  return `${text}${selectedAgentContextBlockFromSources(contextSources)}${attachmentBlockFromFiles(files)}`;
+}
+```
+
+- [ ] **Step 5: Run the prompt test**
+
+Run:
+
+```bash
+rtk bun --cwd apps/electron vitest run src/main/services/agent/pi-prompt.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+rtk git add apps/electron/src/preload/typings/agent-context.ts apps/electron/src/main/services/agent/pi-prompt.ts apps/electron/src/main/services/agent/pi-prompt.test.ts
+rtk git commit -m "feat(agent): prompt selected sources as refs"
+```
+
+## Task 3: Extract And Decorate Entity Sources From Read-Only Tool Output
+
+**Files:**
+
+- Create: `apps/electron/src/main/services/agent/entity-source-extraction.ts`
+- Test: `apps/electron/src/main/services/agent/entity-source-extraction.test.ts`
+
+- [ ] **Step 1: Write the extraction test**
+
+Create `apps/electron/src/main/services/agent/entity-source-extraction.test.ts`:
+
+```ts
+import { describe, expect, test } from "vitest";
+import {
+  annotateToolOutputWithEntityRefs,
+  extractEntityRefsFromToolOutput,
+} from "./entity-source-extraction";
+import type { AgentContextRef, AgentEntitySource, AgentEntitySourceOrigin } from "@shared/agent";
+
+function register(ref: AgentContextRef, origin: AgentEntitySourceOrigin): AgentEntitySource {
+  return {
+    sourceId: ref.type === "understanding" ? "S1" : "S2",
+    entity: ref,
+    origin,
+  };
+}
+
+describe("entity source extraction", () => {
+  test("extracts understanding_get and context_get entities", () => {
+    expect(
+      extractEntityRefsFromToolOutput("understanding_get", {
+        understanding: { id: "u_1", title: "Feedback Loop" },
+      }),
+    ).toEqual([{ type: "understanding", id: "u_1", title: "Feedback Loop" }]);
+
+    expect(
+      extractEntityRefsFromToolOutput("context_get", {
+        context: { id: "ctx_1", title: "一次复盘" },
+      }),
+    ).toEqual([{ type: "context", id: "ctx_1", title: "一次复盘" }]);
+  });
+
+  test("extracts and decorates retrieve_knowledge nested entities", () => {
+    const output = {
+      candidates: [
+        {
+          understanding: { id: "u_1", title: "Feedback Loop" },
+          matchedContexts: [{ id: "ctx_1", title: "一次复盘" }],
+        },
+      ],
+    };
+
+    expect(extractEntityRefsFromToolOutput("retrieve_knowledge", output)).toEqual([
+      { type: "understanding", id: "u_1", title: "Feedback Loop" },
+      { type: "context", id: "ctx_1", title: "一次复盘" },
+    ]);
+
+    expect(
+      annotateToolOutputWithEntityRefs("retrieve_knowledge", "tool_1", output, register),
+    ).toEqual({
+      candidates: [
+        {
+          understanding: { id: "u_1", title: "Feedback Loop", ref: "[[ref:S1]]" },
+          matchedContexts: [{ id: "ctx_1", title: "一次复盘", ref: "[[ref:S2]]" }],
+        },
+      ],
+    });
+  });
+});
+```
+
+- [ ] **Step 2: Run the extraction test and verify it fails**
+
+Run:
+
+```bash
+rtk bun --cwd apps/electron vitest run src/main/services/agent/entity-source-extraction.test.ts
+```
+
+Expected: FAIL because `entity-source-extraction.ts` does not exist.
+
+- [ ] **Step 3: Create the extractor**
+
+Create `apps/electron/src/main/services/agent/entity-source-extraction.ts`:
+
+```ts
+import type { AgentContextRef, AgentEntitySource, AgentEntitySourceOrigin } from "@shared/agent";
+import { entitySourceKey, sourceMarker } from "@shared/agent-entity-sources";
+
+type RegisterEntitySource = (
+  ref: AgentContextRef,
+  origin: AgentEntitySourceOrigin,
+) => AgentEntitySource;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function stringField(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function entityRef(type: AgentContextRef["type"], value: unknown): AgentContextRef | null {
+  if (!isRecord(value)) return null;
+  const id = stringField(value, "id");
+  if (!id) return null;
+  return { type, id, title: stringField(value, "title") };
+}
+
+function collectContextArray(value: unknown, refs: AgentContextRef[]): void {
+  if (!Array.isArray(value)) {
+    collectNestedEntities(value, refs);
+    return;
+  }
+  for (const item of value) {
+    const context = entityRef("context", item);
+    if (context) refs.push(context);
+    collectNestedEntities(item, refs);
+  }
+}
+
+function collectNestedEntities(value: unknown, refs: AgentContextRef[]): void {
+  if (Array.isArray(value)) {
+    for (const item of value) collectNestedEntities(item, refs);
+    return;
+  }
+  if (!isRecord(value)) return;
+
+  const understanding = entityRef("understanding", value.understanding);
+  if (understanding) refs.push(understanding);
+
+  const context = entityRef("context", value.context);
+  if (context) refs.push(context);
+
+  if (typeof value.type === "string") {
+    const typed = entityRef(value.type as AgentContextRef["type"], value);
+    if (
+      typed &&
+      (typed.type === "understanding" || typed.type === "context" || typed.type === "domain")
+    ) {
+      refs.push(typed);
+    }
+  }
+
+  if ("matchedContexts" in value) collectContextArray(value.matchedContexts, refs);
+  if ("contexts" in value) collectContextArray(value.contexts, refs);
+  if ("hits" in value) collectNestedEntities(value.hits, refs);
+  if ("candidates" in value) collectNestedEntities(value.candidates, refs);
+  if ("nodes" in value) collectNestedEntities(value.nodes, refs);
+}
+
+function dedupeRefs(refs: AgentContextRef[]): AgentContextRef[] {
+  const byKey = new Map<string, AgentContextRef>();
+  for (const ref of refs) byKey.set(entitySourceKey(ref), ref);
+  return Array.from(byKey.values());
+}
+
+export function extractEntityRefsFromToolOutput(
+  toolName: string,
+  output: unknown,
+): AgentContextRef[] {
+  const refs: AgentContextRef[] = [];
+  if (toolName === "understanding_get" && isRecord(output)) {
+    const ref = entityRef("understanding", output.understanding);
+    if (ref) refs.push(ref);
+  }
+  if (toolName === "context_get" && isRecord(output)) {
+    const ref = entityRef("context", output.context);
+    if (ref) refs.push(ref);
+  }
+  if (
+    toolName === "search" ||
+    toolName === "retrieve_knowledge" ||
+    toolName === "understanding_list" ||
+    toolName === "context_list" ||
+    toolName === "domain_inspect" ||
+    toolName === "graph"
+  ) {
+    collectNestedEntities(output, refs);
+  }
+  return dedupeRefs(refs);
+}
+
+function sourceForRecord(
+  value: Record<string, unknown>,
+  sourcesByEntityKey: Map<string, AgentEntitySource>,
+): AgentEntitySource | undefined {
+  const id = stringField(value, "id");
+  if (!id) return undefined;
+  if (typeof value.type === "string") {
+    const typed = sourcesByEntityKey.get(`${value.type}:${id}`);
+    if (typed) return typed;
+  }
+  return (
+    sourcesByEntityKey.get(`understanding:${id}`) ??
+    sourcesByEntityKey.get(`context:${id}`) ??
+    sourcesByEntityKey.get(`domain:${id}`)
+  );
+}
+
+function annotateValue(
+  value: unknown,
+  sourcesByEntityKey: Map<string, AgentEntitySource>,
+): unknown {
+  if (Array.isArray(value)) return value.map((item) => annotateValue(item, sourcesByEntityKey));
+  if (!isRecord(value)) return value;
+
+  const source = sourceForRecord(value, sourcesByEntityKey);
+  const entries = Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key, annotateValue(item, sourcesByEntityKey)]),
+  );
+  return source ? { ...entries, ref: sourceMarker(source) } : entries;
+}
+
+export function annotateToolOutputWithEntityRefs(
+  toolName: string,
+  toolCallId: string,
+  output: unknown,
+  register: RegisterEntitySource,
+): unknown {
+  const sources = extractEntityRefsFromToolOutput(toolName, output).map((ref) =>
+    register(ref, { kind: "tool_result", toolCallId, toolName }),
+  );
+  const sourcesByEntityKey = new Map(
+    sources.map((source) => [entitySourceKey(source.entity), source]),
+  );
+  return annotateValue(output, sourcesByEntityKey);
+}
+```
+
+- [ ] **Step 4: Run the extraction test**
+
+Run:
+
+```bash
+rtk bun --cwd apps/electron vitest run src/main/services/agent/entity-source-extraction.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+rtk git add apps/electron/src/main/services/agent/entity-source-extraction.ts apps/electron/src/main/services/agent/entity-source-extraction.test.ts
+rtk git commit -m "feat(agent): extract entity refs from tools"
+```
+
+## Task 4: Register Sources In AgentHost And Decorate Tool Results
+
+**Files:**
+
+- Modify: `apps/electron/src/main/services/agent/pi-readonly-tools.ts`
+- Modify: `apps/electron/src/main/services/agent/pi-agent-host.ts`
+- Test: `apps/electron/src/main/services/agent/pi-prompt.test.ts`
+
+- [ ] **Step 1: Write the failing read-only tool decorator test**
+
+Add this test to `apps/electron/src/main/services/agent/pi-readonly-tools.test.ts` after `executes retrieve_knowledge through the retrieval seam`:
+
+```ts
+test("decorates retrieve_knowledge output before returning it to the model", async () => {
+  const result = { candidates: [{ understanding: { id: "u_1", title: "Feedback Loop" } }] };
+  services.retrieveKnowledge.mockResolvedValue(result);
+  const tool = createPiReadOnlyTools([], {
+    decorateToolOutput: (toolName, toolCallId, details) => ({
+      toolName,
+      toolCallId,
+      details,
+      decorated: true,
+    }),
+  }).find((item) => item.name === "retrieve_knowledge");
+  expect(tool).toBeDefined();
+
+  const execute = tool!.execute as unknown as (
+    toolCallId: string,
+    params: Record<string, unknown>,
+  ) => Promise<{ details: unknown }>;
+  const output = await execute("tool-call-1", { query: "agent 标准", limit: 3 });
+
+  expect(output.details).toEqual({
+    toolName: "retrieve_knowledge",
+    toolCallId: "tool-call-1",
+    details: result,
+    decorated: true,
+  });
+});
+```
+
+- [ ] **Step 2: Run the decorator test and verify it fails**
+
+Run:
+
+```bash
+rtk bun --cwd apps/electron vitest run src/main/services/agent/pi-readonly-tools.test.ts -t "decorates retrieve_knowledge output"
+```
+
+Expected: FAIL because `createPiReadOnlyTools()` does not accept a second options argument.
+
+- [ ] **Step 3: Update read-only tool factory to allow output decoration**
+
+In `apps/electron/src/main/services/agent/pi-readonly-tools.ts`, add this type near the imports:
+
+```ts
+export type PiReadOnlyToolsOptions = {
+  decorateToolOutput?: (toolName: string, toolCallId: string, details: unknown) => unknown;
+};
+```
+
+Replace `toolResult()` with:
+
+```ts
+function toolResult(details: unknown) {
+  return {
+    content: [{ type: "text" as const, text: JSON.stringify(details, null, 2) }],
+    details,
+  };
+}
+
+function decoratedToolResult(
+  options: PiReadOnlyToolsOptions,
+  toolName: string,
+  toolCallId: unknown,
+  details: unknown,
+) {
+  const id = typeof toolCallId === "string" ? toolCallId : "";
+  const decorated = options.decorateToolOutput?.(toolName, id, details) ?? details;
+  return toolResult(decorated);
+}
+```
+
+Change the factory signature:
+
+```ts
+export function createPiReadOnlyTools(
+  files: AgentFileAttachment[] = [],
+  options: PiReadOnlyToolsOptions = {},
+): ToolDefinition[] {
+```
+
+For `understanding_get`, change execute to:
+
+```ts
+      execute: async (toolCallId, { understandingId, includeRelations, ...optionsInput }) =>
+        decoratedToolResult(
+          options,
+          "understanding_get",
+          toolCallId,
+          await understandingCliService.getUnderstanding(understandingId, {
+            ...optionsInput,
+            includeRelations,
+          }),
+        ),
+```
+
+For `context_get`, change execute to:
+
+```ts
+      execute: async (toolCallId, { contextId }) =>
+        decoratedToolResult(
+          options,
+          "context_get",
+          toolCallId,
+          await contextCliService.getContext(contextId),
+        ),
+```
+
+For `retrieve_knowledge`, change execute to:
+
+```ts
+      execute: async (toolCallId, { query, limit }) =>
+        decoratedToolResult(
+          options,
+          "retrieve_knowledge",
+          toolCallId,
+          await searchCliService.retrieveKnowledge({ query, limit }),
+        ),
+```
+
+Keep `domain_list`, `domain_inspect`, `understanding_list`, `context_list`, `attachment_read`, `file_read`, `web_fetch`, and `graph` on their current `toolResult()` path in this version.
+
+- [ ] **Step 4: Add source registrar plumbing to AgentHost**
+
+In `apps/electron/src/main/services/agent/pi-agent-host.ts`, update imports:
+
+```ts
+import { upsertAgentEntitySources } from "@shared/agent-entity-sources";
+import type { AgentContextRef, AgentEntitySource, AgentEntitySourceOrigin } from "@shared/agent";
+import { annotateToolOutputWithEntityRefs } from "./entity-source-extraction";
+```
+
+Extend `ActivePiRun`:
+
+```ts
+type ActivePiRun = {
+  runId: string;
+  session: AgentSession;
+  accumulator: AgentRunAccumulator;
+  pendingApprovals: Map<string, PendingApproval>;
+  entitySources: AgentEntitySource[];
+};
+```
+
+Change `createSession()` signature:
+
+```ts
+  private async createSession(
+    command: Extract<AgentCommand, { type: "message.send" }>,
+    sessionManager: SessionManager,
+    options: {
+      decorateToolOutput?: (toolName: string, toolCallId: string, details: unknown) => unknown;
+    } = {},
+  ) {
+```
+
+Pass options to read-only tools:
+
+```ts
+        ...createPiReadOnlyTools(command.files, {
+          decorateToolOutput: options.decorateToolOutput,
+        }),
+```
+
+- [ ] **Step 5: Register user context refs before prompting**
+
+Inside `sendMessage()`, after `const emit = (event: AgentSessionEvent) => this.appendAndEmit(manager, webContents, event);`, add:
+
+```ts
+let entitySources = reduceAgentSession(
+  await this.sessionLog.readEvents(command.sessionId),
+).entitySources;
+const registerEntitySources = (
+  refs: AgentContextRef[],
+  origin: AgentEntitySourceOrigin,
+): AgentEntitySource[] => {
+  const result = upsertAgentEntitySources(entitySources, refs, origin);
+  entitySources = result.sources;
+  if (result.changed) {
+    emit(
+      this.createEvent({
+        type: "entity.sources.updated",
+        sessionId: command.sessionId,
+        runId,
+        sources: entitySources,
+      }),
+    );
+  }
+  return result.upserted;
+};
+const registerEntitySource = (
+  ref: AgentContextRef,
+  origin: AgentEntitySourceOrigin,
+): AgentEntitySource => registerEntitySources([ref], origin)[0];
+```
+
+When setting `activeRuns`, include `entitySources`:
+
+```ts
+this.activeRuns.set(command.sessionId, {
+  runId,
+  session,
+  accumulator,
+  pendingApprovals: new Map(),
+  entitySources,
+});
+```
+
+Before `session.prompt(...)`, register command refs:
+
+```ts
+const selectedContextSources = registerEntitySources(command.contextRefs ?? [], {
+  kind: "user_context",
+  messageId: userMessageId,
+});
+```
+
+Change prompt call to:
+
+```ts
+await session.prompt(
+  buildPiPromptText({
+    text: command.text,
+    contextSources: selectedContextSources,
+    files: command.files,
+  }),
+);
+```
+
+- [ ] **Step 6: Decorate tool output before it reaches the model**
+
+Change the `createSession()` call in `sendMessage()`:
+
+```ts
+const created = await this.createSession(command, manager, {
+  decorateToolOutput: (toolName, toolCallId, details) =>
+    annotateToolOutputWithEntityRefs(toolName, toolCallId, details, registerEntitySource),
+});
+```
+
+In the `tool_execution_end` branch, keep using `piToolOutput(event.result)` for UI events. The tool result already contains `ref` fields because decoration happened inside the tool execution.
+
+- [ ] **Step 7: Run focused main tests**
+
+Run:
+
+```bash
+rtk bun --cwd apps/electron vitest run src/main/services/agent/pi-prompt.test.ts src/main/services/agent/entity-source-extraction.test.ts src/main/services/agent/pi-readonly-tools.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 8: Commit**
+
+```bash
+rtk git add apps/electron/src/main/services/agent/pi-readonly-tools.ts apps/electron/src/main/services/agent/pi-agent-host.ts apps/electron/src/main/services/agent/pi-prompt.ts apps/electron/src/main/services/agent/pi-prompt.test.ts apps/electron/src/main/services/agent/pi-readonly-tools.test.ts
+rtk git commit -m "feat(agent): register entity sources during runs"
+```
+
+## Task 5: Render `[[ref:S1]]` In Streaming And Final Markdown
+
+**Files:**
+
+- Modify: `apps/electron/src/renderer/src/modules/chat/context/context-reference.ts`
+- Modify: `apps/electron/src/renderer/src/modules/chat/context/context-reference.test.ts`
+- Modify: `apps/electron/src/renderer/src/modules/chat/context/wiki-link.tsx`
+- Modify: `apps/electron/src/renderer/src/modules/chat/messages/agent-message-content.tsx`
+- Modify: `apps/electron/src/renderer/src/modules/chat/messages/message-list.tsx`
+- Modify: `apps/electron/src/renderer/src/modules/chat/session/thread-view.ts`
+- Modify: `apps/electron/src/renderer/src/modules/chat/session/pi-thread-view.ts`
+- Modify: `apps/electron/src/renderer/src/modules/chat/agent-thread-panel.tsx`
+
+- [ ] **Step 1: Write parser tests for typed and source links**
+
+Replace the last test in `apps/electron/src/renderer/src/modules/chat/context/context-reference.test.ts` with:
+
+```ts
+test("builds and parses typed assistant wiki links", () => {
+  const href = wikiHref({ type: "context", id: "context-1", title: "一次复盘" });
+
+  expect(parseWikiHref(href)).toEqual({
+    type: "context",
+    id: "context-1",
+    title: "一次复盘",
+  });
+  expect(parseWikiHref("#elsewhere")).toBeNull();
+  expect(wikiMarkdownToLinks("关联 [[context:一次复盘#context-1]]")).toBe(
+    `关联 [一次复盘](${href})`,
+  );
+});
+
+test("renders known source markers and leaves unknown source markers unchanged", () => {
+  const sources = [
+    {
+      sourceId: "S1",
+      entity: { type: "understanding" as const, id: "u_1", title: "Feedback Loop" },
+      origin: { kind: "user_context" as const, messageId: "user_1" },
+    },
+  ];
+
+  expect(wikiMarkdownToLinks("引用 [[ref:S1]]", sources)).toBe(
+    `引用 [Feedback Loop](${wikiHref({ type: "understanding", id: "u_1", title: "Feedback Loop" })})`,
+  );
+  expect(wikiMarkdownToLinks("引用 [[ref:S999]]", sources)).toBe("引用 [[ref:S999]]");
+});
+```
+
+- [ ] **Step 2: Run parser tests and verify they fail**
+
+Run:
+
+```bash
+rtk bun --cwd apps/electron vitest run src/renderer/src/modules/chat/context/context-reference.test.ts
+```
+
+Expected: FAIL because `wikiHref()` still takes `(title, id)` and source marker rendering does not exist.
+
+- [ ] **Step 3: Update context reference parsing**
+
+In `apps/electron/src/renderer/src/modules/chat/context/context-reference.ts`, replace the wiki constants and functions from `WIKI_LINK_PATTERN` through `parseWikiHref()` with:
+
+```ts
+const TYPED_WIKI_LINK_PATTERN = /\[\[(understanding|context|domain):([^#\]\n]+)#([^\]\n]+)\]\]/g;
+const SOURCE_REF_PATTERN = /\[\[ref:(S\d+)\]\]/g;
+export const WIKI_LINK_HREF_PREFIX = "#reflecta-wiki/";
+
+function sourceTitle(ref: AgentContextRef) {
+  return ref.title?.trim() || `${ref.type}:${ref.id}`;
+}
+
+export function wikiHref(ref: AgentContextRef) {
+  return `${WIKI_LINK_HREF_PREFIX}${ref.type}/${encodeURIComponent(ref.id)}?title=${encodeURIComponent(sourceTitle(ref))}`;
+}
+
+export function wikiMarkdownToLinks(markdown: string, sources: AgentEntitySource[] = []) {
+  const sourcesById = new Map(sources.map((source) => [source.sourceId, source]));
+  return markdown
+    .replace(
+      TYPED_WIKI_LINK_PATTERN,
+      (_match, type: AgentContextRef["type"], title: string, id: string) => {
+        return `[${title}](${wikiHref({ type, id, title })})`;
+      },
+    )
+    .replace(SOURCE_REF_PATTERN, (match, sourceId: string) => {
+      const source = sourcesById.get(sourceId);
+      if (!source) return match;
+      return `[${sourceTitle(source.entity)}](${wikiHref(source.entity)})`;
+    });
+}
+
+export function parseWikiHref(href: string | undefined): AgentContextRef | null {
+  if (!href?.startsWith(WIKI_LINK_HREF_PREFIX)) return null;
+  try {
+    const paramsIndex = href.indexOf("?");
+    const path = href.slice(
+      WIKI_LINK_HREF_PREFIX.length,
+      paramsIndex === -1 ? href.length : paramsIndex,
+    );
+    const slashIndex = path.indexOf("/");
+    if (slashIndex < 1) return null;
+    const type = path.slice(0, slashIndex);
+    const encodedId = path.slice(slashIndex + 1);
+    if (type !== "understanding" && type !== "context" && type !== "domain") return null;
+    const params = new URLSearchParams(paramsIndex === -1 ? "" : href.slice(paramsIndex + 1));
+    const id = decodeURIComponent(encodedId);
+    const title = params.get("title") ?? undefined;
+    if (!id) return null;
+    return { type, id, title };
+  } catch {
+    return null;
+  }
+}
+```
+
+Add `AgentEntitySource` to the import:
+
+```ts
+import type { AgentContextRef, AgentEntitySource } from "@shared/agent";
+```
+
+- [ ] **Step 4: Allow non-clickable Domain chips**
+
+In `apps/electron/src/renderer/src/modules/chat/context/wiki-link.tsx`, change `WikiLinkChip` props to accept `AgentContextRef`:
+
+```ts
+import type { AgentContextRef } from "@shared/agent";
+```
+
+Change the component signature:
+
+```ts
+export function WikiLinkChip({
+  ref,
+  onInspect,
+}: {
+  ref: AgentContextRef;
+  onInspect?: (ref: InspectableContextRef) => void;
+}) {
+```
+
+Inside `WikiLinkChip`, derive inspectability:
+
+```ts
+const inspectableRef = inspectableContextRef(ref);
+```
+
+Replace the clickable branch condition with:
+
+```ts
+  if (!onInspect || !inspectableRef) {
+    return (
+      <span data-slot="wiki-link" className={className}>
+        {content}
+      </span>
+    );
+  }
+```
+
+Change the button click:
+
+```tsx
+      onClick={() => onInspect(inspectableRef)}
+```
+
+Import `inspectableContextRef` from `context-reference.ts`.
+
+- [ ] **Step 5: Thread entity sources through renderer props**
+
+Add `entitySources: AgentEntitySource[]` to `AgentThreadView` in `apps/electron/src/renderer/src/modules/chat/session/thread-view.ts`.
+
+In `apps/electron/src/renderer/src/modules/chat/session/pi-thread-view.ts`, import `AgentEntitySource` through the existing shared import and return:
+
+```ts
+    entitySources: state.entitySources,
+```
+
+In `apps/electron/src/renderer/src/modules/chat/agent-thread-panel.tsx`, pass:
+
+```tsx
+              entitySources={threadView.entitySources}
+```
+
+to `MessageList`.
+
+In `apps/electron/src/renderer/src/modules/chat/messages/message-list.tsx`, import `AgentEntitySource` and add `entitySources` to `MessageList`, `MessageRowProps`, and `MessageRowComponent`. Pass it into `AgentMessageContent`:
+
+```tsx
+<AgentMessageContent
+  message={message}
+  turn={turn}
+  entitySources={entitySources}
+  isBusy={isBusy}
+  isLastAssistant={isLastAssistant}
+  stopped={stopped}
+  onApproveTool={onApproveTool}
+  onInspectContextRef={onInspectContextRef}
+/>
+```
+
+In `apps/electron/src/renderer/src/modules/chat/messages/agent-message-content.tsx`, import `AgentEntitySource`, add `entitySources` to `MarkdownBody` props, and call:
+
+```tsx
+{
+  wikiMarkdownToLinks(value, entitySources);
+}
+```
+
+Pass `entitySources` into every `MarkdownBody` call inside `AgentMessageContent` for assistant text, reasoning details, tool details, and proposal bodies.
+
+- [ ] **Step 6: Run focused renderer tests**
+
+Run:
+
+```bash
+rtk bun --cwd apps/electron vitest run src/renderer/src/modules/chat/context/context-reference.test.ts src/renderer/src/modules/chat/session/agent-reducer.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 7: Commit**
+
+```bash
+rtk git add apps/electron/src/renderer/src/modules/chat/context/context-reference.ts apps/electron/src/renderer/src/modules/chat/context/context-reference.test.ts apps/electron/src/renderer/src/modules/chat/context/wiki-link.tsx apps/electron/src/renderer/src/modules/chat/messages/agent-message-content.tsx apps/electron/src/renderer/src/modules/chat/messages/message-list.tsx apps/electron/src/renderer/src/modules/chat/session/thread-view.ts apps/electron/src/renderer/src/modules/chat/session/pi-thread-view.ts apps/electron/src/renderer/src/modules/chat/agent-thread-panel.tsx
+rtk git commit -m "feat(agent): render entity source markers"
+```
+
+## Task 6: Migrate The Agent Prompt Contract
+
+**Files:**
+
+- Modify: `apps/electron/src/main/services/agent/agent-system-prompt.md`
+
+- [ ] **Step 1: Replace the chat reference section**
+
+In `apps/electron/src/main/services/agent/agent-system-prompt.md`, replace `## 聊天正文引用格式` section with:
+
+```md
+## 聊天正文引用格式
+
+面向用户的聊天正文引用 Reflecta 已有对象时，只能使用系统已经提供的 source ref：
+
+- 正确：`[[ref:S1]]`
+- 错误：`[[understanding:标题#id]]`
+- 错误：`[[context:标题#id]]`
+- 错误：直接输出真实数据库 id
+
+source ref 会出现在用户 @ 的对象或工具结果里，例如 `[[ref:S1]] Understanding: Feedback Loop`。如果对象没有 source ref，先使用只读工具搜索或读取。source ref 只是轻量引用，不代表你已经读取了完整内容；需要真实内容时仍然先调用对应只读工具。
+
+不要把聊天正文引用格式和持久化 Markdown 格式混用。
+```
+
+- [ ] **Step 2: Run prompt-related tests**
+
+Run:
+
+```bash
+rtk bun --cwd apps/electron vitest run src/main/services/agent/pi-prompt.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 3: Commit**
+
+```bash
+rtk git add apps/electron/src/main/services/agent/agent-system-prompt.md
+rtk git commit -m "docs(agent): require source refs in assistant text"
+```
+
+## Task 7: Full Verification
+
+**Files:**
+
+- No new files.
+
+- [ ] **Step 1: Run formatting**
+
+Run:
+
+```bash
+rtk bun run fmt:check
+```
+
+Expected: PASS.
+
+- [ ] **Step 2: Run lint**
+
+Run:
+
+```bash
+rtk bun run lint
+```
+
+Expected: PASS.
+
+- [ ] **Step 3: Run typecheck**
+
+Run:
+
+```bash
+rtk bun run typecheck
+```
+
+Expected: PASS.
+
+- [ ] **Step 4: Run Electron tests**
+
+Run:
+
+```bash
+rtk bun --cwd apps/electron run test
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Manual smoke test in dev GUI**
+
+Run:
+
+```bash
+rtk bun run dev:gui
+```
+
+Manual check:
 
 ```txt
-[[U1]]
-  -> registry.resolve("U1")
-  -> understanding chip
-
-[[C1]]
-  -> registry.resolve("C1")
-  -> context chip
-
-[[D1]]
-  -> registry.resolve("D1")
-  -> domain chip, first version non-clickable
-
-[[U999]]
-  -> unresolved text, not clickable
+1. Open an Agent thread.
+2. @ mention one Understanding.
+3. Ask: “这个理解和相关 Context 有什么关系？”
+4. During streaming, any known [[ref:S1]] marker renders as a chip once source state exists.
+5. Final answer still renders the same chip.
+6. Click Understanding chip and confirm Understanding detail opens.
+7. Ask Agent to retrieve related knowledge.
+8. Confirm tool-result entities can be referenced as [[ref:S2]] and Context chip opens Context detail.
+9. Reload the app and reopen the same thread.
+10. Confirm previous [[ref:S1]] chips still render and click correctly.
 ```
 
-兼容旧消息：
+- [ ] **Step 6: Commit verification-only fixes**
 
-- 旧格式 `[[understanding:标题#id]]`、`[[context:标题#id]]` 继续解析 type/id。
-- 旧格式必须先修 type parser，不能继续把 Context 当 Understanding 打开。
-- 新 system prompt 禁止 Agent 再生成旧格式。
+If verification required code fixes, commit them:
 
-Unresolved 处理：
+```bash
+rtk git status --short
+rtk git add apps/electron/src
+rtk git commit -m "fix(agent): stabilize entity source references"
+```
 
-- 不打开 inspector。
-- 不渲染成蓝色可点击按钮。
-- 可显示为普通文本 `[[U999]]` 或 muted inline text。第一版用普通文本即可。
+If verification changed no files, do not create an empty commit.
 
-## 8. Implementation Plan
+## Acceptance Criteria
 
-### Phase 1: Fix Existing Typed Link Parser
+- Assistant text no longer needs `[[understanding:标题#id]]` or `[[context:标题#id]]` for new replies.
+- User-selected refs are exposed to the model as `[[ref:S1]]` prompt lines.
+- Supported read-only tool outputs that contain Reflecta entities include `ref` fields.
+- `entity.sources.updated` events persist source maps in session JSONL.
+- Renderer replay restores source maps after switching threads or restarting the app.
+- Streaming text and final assistant text use the same `[[ref:S1]]` renderer path.
+- Unknown source markers remain plain text and never open an inspector.
+- Legacy typed links parse their real type; `[[context:标题#id]]` does not open as Understanding.
 
-- 支持解析 `[[understanding:标题#id]]`、`[[context:标题#id]]`、`[[domain:标题#id]]`。
-- Context link 点击时打开 Context inspector。
-- Domain link 第一版显示但不可 inspect。
-- 增加 `context-reference.test.ts` 覆盖 Context 不再被当成 Understanding。
+## Self-Review Notes
 
-### Phase 2: Add Registry Types And Reducer State
+- Spec coverage: tasks cover source storage, source creation timing, prompt usage, tool result usage, streaming render, session replay, legacy typed link compatibility, and verification.
+- Placeholder scan: no banned placeholder terms, no unowned option list, no final-text AgentHost annotation pass.
+- Type consistency: the same names are used throughout: `AgentEntitySource`, `AgentEntitySourcesUpdated`, `entity.sources.updated`, `entitySources`, `[[ref:S1]]`.
 
-- 在 shared agent typings 增加 `AgentReference` 和 `references.updated` event。
-- Reducer 合并 registry snapshot。
-- 添加 reducer tests：重放事件后 `U1` resolve 到同一 Understanding。
+## References
 
-### Phase 3: Register User Context Refs
-
-- 在 `PiAgentHost.sendMessage()` 收到 `command.contextRefs` 后注册 refs。
-- 生成 handle 并 emit `references.updated`。
-- `buildPiPromptText()` 增加 registry block。
-- 更新 `pi-prompt.test.ts`。
-
-### Phase 4: Register Read-Only Tool Outputs
-
-- 在 `tool_execution_end` 成功时，从 `piToolOutput(event.result)` 提取 references。
-- 支持 `understanding_get`、`context_get`、`search`、`retrieve_knowledge`。
-- 有新增或升级时 emit `references.updated`。
-- 添加 extraction unit tests。
-
-### Phase 5: Render Handle Links
-
-- `MarkdownBody` 支持 `[[U1]]` / `[[C1]]` / `[[D1]]`。
-- 渲染前通过 registry resolve。
-- Unknown handle 保持不可点击。
-- 旧格式继续兼容。
-
-### Phase 6: Prompt Migration
-
-- 更新 `agent-system-prompt.md`，禁止新正文输出真实 id wiki 格式。
-- 新 prompt 明确 lightweight / loaded 的含义。
-- 回归现有 Agent e2e：用户 @ 后回答中引用可打开。
-
-## 9. Tests
-
-Unit tests:
-
-- `AgentReferenceRegistry` dedupe 同一 `type:id`。
-- `loaded` 覆盖 `lightweight`。
-- tool output extraction 支持 `understanding_get` / `context_get` / `search` / `retrieve_knowledge`。
-- reducer 重放 `references.updated` 后恢复 registry。
-- Markdown parser：
-  - `[[U1]]` resolve 后可点击。
-  - `[[U999]]` 不可点击。
-  - `[[context:标题#id]]` 兼容旧格式并保留 Context type。
-
-E2E tests:
-
-- 用户 @ 一个 Understanding，Agent 回复引用 `[[U1]]`，点击打开正确 Understanding。
-- Agent 工具读取一个 Context，回复引用 `[[C1]]`，点击打开正确 Context。
-- 未知 handle 不打开 inspector。
-
-## 10. Acceptance Criteria
-
-- 新 Agent 回复不再依赖 `[[understanding:标题#id]]` 格式。
-- 用户 @ 的对象能被自动注册并在 prompt 中显示 handle。
-- 只读工具返回的对象能被自动注册。
-- 历史 session 重载后，旧回复里的 `[[U1]]` / `[[C1]]` 仍能 resolve。
-- Context id 不会再被当成 Understanding id 打开。
-- 无法 resolve 的 reference 不会渲染成可点击链接。
-
-## 11. Open Questions
-
-- Domain inspector 是否进入 v1.1.12，还是只显示 non-clickable Domain chip。
-- 工具结果新增 handle 是否需要立刻反馈给当前模型回合，还是下一轮 prompt block 足够。
-- Registry snapshot 是否每次全量 emit，还是只 emit delta。第一版建议全量，少写合并逻辑。
-- 是否需要为 handle 设计更短格式如 `[U1]`。第一版沿用 `[[U1]]`，和现有 wiki 风格一致。
+- [OpenAI File Search](https://developers.openai.com/api/docs/guides/tools-file-search)
+- [OpenAI Citation Formatting](https://developers.openai.com/api/docs/guides/citation-formatting)
