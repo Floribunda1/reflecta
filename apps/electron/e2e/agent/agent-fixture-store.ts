@@ -23,11 +23,24 @@ type FixtureMessage = {
   createdAt?: string;
 };
 
+type FixtureEntitySource = {
+  sourceId: string;
+  entity: {
+    type: "understanding" | "context" | "domain";
+    id: string;
+    title?: string;
+  };
+  origin:
+    | { kind: "user_context"; messageId: string }
+    | { kind: "tool_result"; toolCallId: string; toolName: string };
+};
+
 type FixtureThread = {
   id: string;
   title: string;
   createdAt?: string;
   updatedAt?: string;
+  entitySources?: FixtureEntitySource[];
   messages?: FixtureMessage[];
 };
 
@@ -307,6 +320,10 @@ function threadEvents(thread: FixtureThread) {
   const events: ReflectaEvent[] = [];
   const createEvent = eventFactory(thread);
   let activeRunId: string | null = null;
+
+  if (thread.entitySources?.length) {
+    events.push(createEvent({ type: "entity.sources.updated", sources: thread.entitySources }));
+  }
 
   for (const message of thread.messages ?? []) {
     if (message.role === "user") {

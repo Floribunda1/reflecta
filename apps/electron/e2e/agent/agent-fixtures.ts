@@ -12,11 +12,24 @@ export type AgentFixtureMessage = {
   createdAt?: string;
 };
 
+export type AgentFixtureEntitySource = {
+  sourceId: string;
+  entity: {
+    type: "understanding" | "context" | "domain";
+    id: string;
+    title?: string;
+  };
+  origin:
+    | { kind: "user_context"; messageId: string }
+    | { kind: "tool_result"; toolCallId: string; toolName: string };
+};
+
 export type AgentFixtureThread = {
   id: string;
   title: string;
   createdAt?: string;
   updatedAt?: string;
+  entitySources?: AgentFixtureEntitySource[];
   messages?: AgentFixtureMessage[];
 };
 

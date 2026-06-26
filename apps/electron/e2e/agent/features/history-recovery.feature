@@ -46,3 +46,15 @@
     而且用户打开原对话
     那么原对话应该仍显示附件 ATTACHMENT_FILE
     而且输入框应该可操作
+
+  @P0 @recovery @context @AG-HISTORY-006
+  场景: 用户重启应用后仍可打开 Agent 回复中的知识库引用
+    假如 seed 数据中存在 Understanding「React Server Components」
+    而且用户已经完成一轮包含该 Understanding 引用的 Agent 对话
+    当用户关闭并重新打开 Reflecta 应用
+    而且用户重新进入 Agent 页面
+    而且用户打开原对话
+    那么 Agent 回复中应该显示 Understanding「React Server Components」引用
+    当用户点击该引用
+    那么页面应该打开详情面板
+    而且详情面板应该显示 Understanding「React Server Components」
