@@ -81,7 +81,10 @@ export class AgentEntitySourceRegistry {
   }
 
   decorateToolOutput(toolName: string, toolCallId: string, output: unknown): unknown {
-    return this.decorateValue(output, { kind: "tool_result", toolCallId, toolName });
+    const origin = { kind: "tool_result" as const, toolCallId, toolName };
+    const retrievalOutput =
+      toolName === "retrieve_knowledge" ? this.decorateRetrievalValue(output, origin) : output;
+    return this.decorateValue(retrievalOutput, origin);
   }
 
   resolveRef(sourceIdOrMarker: string, expectedType?: AgentEntityType): AgentContextRef | null {
@@ -141,5 +144,69 @@ export class AgentEntitySourceRegistry {
     const source = this.addEntity({ type, id: String(value.id), title: titleFor(value) }, origin);
     const { id: _id, ...rest } = value;
     return { ref: `[[ref:${source.sourceId}]]`, ...rest };
+  }
+
+  private decorateRetrievalValue(
+    value: unknown,
+    origin: AgentEntitySourceOrigin,
+    parentKey?: string,
+  ): unknown {
+    if (Array.isArray(value)) {
+      return value.map((item) => this.decorateRetrievalValue(item, origin, parentKey));
+    }
+
+    if (!isRecord(value)) return value;
+
+    const normalized =
+      parentKey === "candidates" && typeof value.id === "string"
+        ? this.decorateFlatRetrievalUnderstanding(value, origin)
+        : parentKey === "matchedContexts" && typeof value.contextId === "string"
+          ? this.decorateFlatRetrievalContext(value, origin)
+          : value;
+
+    return Object.fromEntries(
+      Object.entries(normalized).map(([key, child]) => {
+        if (key === "suggestedRead") return [key, this.decorateSuggestedRead(child, origin)];
+        const nextParent = key === "candidates" || key === "matchedContexts" ? key : undefined;
+        return [key, this.decorateRetrievalValue(child, origin, nextParent)];
+      }),
+    );
+  }
+
+  private decorateFlatRetrievalUnderstanding(
+    value: MutableRecord,
+    origin: AgentEntitySourceOrigin,
+  ): MutableRecord {
+    const source = this.addEntity(
+      { type: "understanding", id: String(value.id), title: titleFor(value) },
+      origin,
+    );
+    const { id: _id, ...rest } = value;
+    return { ref: `[[ref:${source.sourceId}]]`, ...rest };
+  }
+
+  private decorateFlatRetrievalContext(
+    value: MutableRecord,
+    origin: AgentEntitySourceOrigin,
+  ): MutableRecord {
+    const source = this.addEntity(
+      { type: "context", id: String(value.contextId), title: titleFor(value) },
+      origin,
+    );
+    const { contextId: _contextId, ...rest } = value;
+    return { ref: `[[ref:${source.sourceId}]]`, ...rest };
+  }
+
+  private decorateSuggestedRead(value: unknown, origin: AgentEntitySourceOrigin): unknown {
+    if (!isRecord(value) || !isRecord(value.input)) return value;
+    const understandingId = value.input.understandingId;
+    if (typeof understandingId !== "string") return value;
+
+    const source = this.addEntity({ type: "understanding", id: understandingId }, origin);
+    const { understandingId: _understandingId, ...input } = value.input;
+    return {
+      ...value,
+      input: { ref: `[[ref:${source.sourceId}]]`, ...input },
+    };
   }
 }

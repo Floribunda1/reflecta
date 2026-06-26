@@ -470,6 +470,7 @@ export class PiAgentHost {
   private async createSession(
     command: Extract<AgentCommand, { type: "message.send" }>,
     sessionManager: SessionManager,
+    entitySourceRegistry: AgentEntitySourceRegistry,
   ) {
     const modelConfig = getAiModelConfig(command.modelSelection as AiModelSelection | undefined);
     const agentDir = path.join(this.contentStorageRoot, ".pi-agent");
@@ -487,7 +488,12 @@ export class PiAgentHost {
       agentDir,
       authStorage,
       customTools: [
-        ...createPiReadOnlyTools(command.files),
+        ...createPiReadOnlyTools(command.files, {
+          resolveEntityRef: (ref, expectedType) =>
+            entitySourceRegistry.resolveRef(ref, expectedType),
+          decorateToolOutput: (toolName, toolCallId, output) =>
+            entitySourceRegistry.decorateToolOutput(toolName, toolCallId, output),
+        }),
         ...createPiWriteTools({
           onApproval: ({ toolCallId }) => this.waitForToolApproval(command.sessionId, toolCallId),
         }),
@@ -555,10 +561,7 @@ export class PiAgentHost {
       accumulator.append(event);
       this.emitLive(webContents, event);
     };
-    const emitRunStarted = () => {
-      if (runStarted) return;
-      runStarted = true;
-      emit(this.createEvent({ type: "run.started", sessionId: command.sessionId, runId }));
+    const emitEntitySourceUpdates = () => {
       const sourceUpdates = entitySourceRegistry.drainUpdates();
       if (sourceUpdates.length > 0) {
         emit(
@@ -570,6 +573,12 @@ export class PiAgentHost {
           }),
         );
       }
+    };
+    const emitRunStarted = () => {
+      if (runStarted) return;
+      runStarted = true;
+      emit(this.createEvent({ type: "run.started", sessionId: command.sessionId, runId }));
+      emitEntitySourceUpdates();
       emit(
         this.createEvent({
           type: "user.message",
@@ -585,7 +594,7 @@ export class PiAgentHost {
     };
 
     try {
-      const created = await this.createSession(command, manager);
+      const created = await this.createSession(command, manager, entitySourceRegistry);
       session = created.session;
       this.activeRuns.set(command.sessionId, {
         runId,
@@ -676,6 +685,7 @@ export class PiAgentHost {
               );
               return;
             }
+            emitEntitySourceUpdates();
             emitAccumulated(
               this.createEvent({
                 type: "tool.completed",
@@ -703,6 +713,7 @@ export class PiAgentHost {
             );
             return;
           }
+          emitEntitySourceUpdates();
           emitAccumulated(
             this.createEvent({
               type: "tool.completed",

@@ -53,4 +53,50 @@ describe("AgentEntitySourceRegistry", () => {
       title: "一次复盘",
     });
   });
+
+  test("decorates flat retrieval candidates with refs and strips raw ids", () => {
+    const registry = new AgentEntitySourceRegistry();
+
+    const decorated = registry.decorateToolOutput("retrieve_knowledge", "tool_1", {
+      candidates: [
+        {
+          id: "u_1",
+          title: "Feedback Loop",
+          snippet: "snippet",
+          matchedContexts: [
+            {
+              contextId: "ctx_1",
+              title: "一次复盘",
+              snippet: "context snippet",
+            },
+          ],
+          suggestedRead: {
+            tool: "understanding_get",
+            input: { understandingId: "u_1", includeContexts: true },
+          },
+        },
+      ],
+    });
+
+    expect(decorated).toEqual({
+      candidates: [
+        {
+          ref: "[[ref:S1]]",
+          title: "Feedback Loop",
+          snippet: "snippet",
+          matchedContexts: [
+            {
+              ref: "[[ref:S2]]",
+              title: "一次复盘",
+              snippet: "context snippet",
+            },
+          ],
+          suggestedRead: {
+            tool: "understanding_get",
+            input: { ref: "[[ref:S1]]", includeContexts: true },
+          },
+        },
+      ],
+    });
+  });
 });
