@@ -90,7 +90,7 @@ Reflecta DB
   -> 真实事实源：Understanding / Context / Domain
 
 AgentHost Entity Source Map
-  -> 给进入 Agent session 的真实 entity 分配 sourceId
+  -> 给已经进入 Agent 输入面的真实 entity 分配 sourceId
 
 Prompt / Tool Output Adapter
   -> 在 entity 出现的位置暴露 [[ref:S1]]
@@ -118,7 +118,6 @@ type AgentEntitySource = {
   entity: AgentEntityRef;
   origin:
     | { kind: "user_context"; messageId: string }
-    | { kind: "page_context" }
     | { kind: "tool_result"; toolCallId: string; toolName: string };
 };
 ```
@@ -150,9 +149,8 @@ Agent 正文只输出：
 AgentHost 负责真实 entity identity：
 
 - 从用户 `@` 的 `contextRefs` 注册 source。
-- 从当前页面上下文注册 source。
 - 从只读工具结果注册 source。
-- 给 prompt / tool result 填入 `[[ref:Sx]]`。
+- 给 prompt / tool result 里已经出现的 entity 填入 `[[ref:Sx]]`。
 - 把 source map 写入 session log。
 
 AgentHost 不负责：
@@ -196,7 +194,7 @@ S80 ...
 v1.1.12 的策略是：
 
 ```txt
-source marker 跟着 entity 出现的位置走。
+source marker 跟着已经进入 Agent 输入面的 entity 走。
 ```
 
 用户 `@` 的对象本来就会进入 prompt，只是把真实 id 换成 marker：
@@ -221,7 +219,7 @@ source marker 跟着 entity 出现的位置走。
 system prompt 只需要一条规则：
 
 ```txt
-聊天正文引用 Reflecta 对象时，只使用工具结果或上下文里出现的 [[ref:Sx]] marker，不要输出真实 id。
+聊天正文引用 Reflecta 对象时，只使用用户 @ 或工具结果里出现的 [[ref:Sx]] marker，不要输出真实 id。
 ```
 
 ## 5. 数据流
@@ -350,7 +348,6 @@ type AgentEntitySourcesUpdated = AgentEventBase & {
 写入时机：
 
 - 用户消息入队后，注册 `contextRefs`，写一次。
-- 当前页面上下文进入 Agent 时，写一次。
 - 工具结果返回真实 entity 后，写一次。
 - 同一 `type:id` 已存在时不重复写；title 更完整时可以覆盖写一次。
 
@@ -479,9 +476,8 @@ Source map 可以随 session 增长，但不会全部进入 prompt。
 Prompt 只在 entity 自然出现的位置暴露 marker：
 
 - 用户 `@`。
-- 当前页面上下文。
 - 工具结果。
-- 必要时最近少量 active sources。
+- 未来任何本来就会给 Agent 看的 entity 字段。
 
 存储 scope 和 prompt visible scope 分开。
 
@@ -555,7 +551,7 @@ Source map 也应跟着新分支重放：
 把正文引用规则改为：
 
 ```txt
-聊天正文引用 Reflecta 对象时，只能使用上下文或工具结果里出现的 [[ref:Sx]] marker。不要输出真实 DB id，不要输出旧格式 [[type:title#id]]。
+聊天正文引用 Reflecta 对象时，只能使用用户 @ 或工具结果里出现的 [[ref:Sx]] marker。不要输出真实 DB id，不要输出旧格式 [[type:title#id]]。
 ```
 
 ## 10. 测试清单
