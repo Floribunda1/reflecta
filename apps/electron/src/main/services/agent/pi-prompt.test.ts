@@ -5,15 +5,29 @@ describe("buildPiPromptText", () => {
   test("injects selected context refs as lightweight references", () => {
     const prompt = buildPiPromptText({
       text: "请比较这些引用",
-      contextRefs: [
-        { type: "understanding", id: "understanding-1", title: "React Server Components" },
-        { type: "domain", id: "domain-1", title: "React" },
+      contextSources: [
+        {
+          sourceId: "S1",
+          entity: {
+            type: "understanding",
+            id: "understanding-1",
+            title: "React Server Components",
+          },
+          origin: { kind: "user_context", messageId: "user-1" },
+        },
+        {
+          sourceId: "S2",
+          entity: { type: "domain", id: "domain-1", title: "React" },
+          origin: { kind: "user_context", messageId: "user-1" },
+        },
       ],
     });
 
     expect(prompt).toContain("请比较这些引用");
-    expect(prompt).toContain("understanding: React Server Components (id: understanding-1)");
-    expect(prompt).toContain("domain: React (id: domain-1)");
+    expect(prompt).toContain("[[ref:S1]] Understanding: React Server Components");
+    expect(prompt).toContain("[[ref:S2]] Domain: React");
+    expect(prompt).not.toContain("understanding-1");
+    expect(prompt).not.toContain("domain-1");
     expect(prompt).toContain("轻量引用");
   });
 

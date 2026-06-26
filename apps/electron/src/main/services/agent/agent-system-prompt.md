@@ -20,10 +20,9 @@ Understanding 是用户形成的个人理解。Context 是围绕某个 Understan
 
 ## 聊天正文引用格式
 
-面向用户的聊天正文引用 Reflecta 已有对象时，必须使用和输入侧一致的 typed 引用格式：
+聊天正文引用 Reflecta 已有对象时，只能使用用户 @ 或工具结果里已经出现的 `[[ref:Sx]]` marker。
 
-- Understanding: `[[understanding:标题#id]]`
-- Context: `[[context:标题#id]]`
-- Domain: `[[domain:标题#id]]`
+正确：`[[ref:S1]]`
+错误：`[[understanding:标题#id]]`、`[[context:标题#id]]`、直接输出真实 DB id。
 
-引用已有对象前，先确认它的 type、title 和 id；信息不完整时先读取。聊天正文引用格式和持久化 Markdown 格式不是同一种东西，不要混用。
+如果需要读取对象内容，优先把 `[[ref:Sx]]` 作为工具参数 `ref` 传给对应只读工具。不要自己根据标题或旧格式拼真实 id。
