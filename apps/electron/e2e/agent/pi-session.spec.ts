@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { getE2eAiEnv, readE2eTestEnv, writeE2eAiConfig } from "../test-env";
 import {
@@ -25,6 +25,8 @@ import {
 } from "./agent-fixtures";
 
 const SLOW_PROMPT = "请慢慢输出 1 到 400，每个数字单独一行。";
+const STREAM_SWITCH_OTHER_THREAD = "STREAM_SWITCH_OTHER_THREAD";
+const STREAM_SWITCH_OTHER_REPLY = "STREAM_SWITCH_OTHER_REPLY";
 const REFLECTA_AGENT_EVENT_ENTRY = "reflecta.agent.event";
 const PI_REJECT_PROPOSAL_TITLE = "PI_REJECT_CANDIDATE_UNDERSTANDING";
 const PI_APPROVE_PROPOSAL_TITLE = "PI_APPROVE_CANDIDATE_UNDERSTANDING";
@@ -171,6 +173,49 @@ function seedFailedPiSession() {
   flushPiSession(manager);
 }
 
+function seedCompletedPiSession({
+  title,
+  userText,
+  assistantText,
+}: {
+  title: string;
+  userText: string;
+  assistantText: string;
+}) {
+  const root = readE2eTestEnv().contentStorageRoot;
+  fs.mkdirSync(sessionsRoot(), { recursive: true });
+  const manager = SessionManager.create(root, sessionsRoot());
+  const sessionId = manager.getSessionId();
+  const base = {
+    sessionId,
+    runId: `run_${title}`,
+    createdAt: "2026-06-23T00:00:00.000Z",
+  };
+  for (const event of [
+    { ...base, id: `evt_${title}_1`, type: "run.started" },
+    {
+      ...base,
+      id: `evt_${title}_2`,
+      type: "user.message",
+      messageId: `user_${title}`,
+      text: userText,
+    },
+    {
+      ...base,
+      id: `evt_${title}_3`,
+      type: "assistant.turn",
+      messageId: `assistant_${title}`,
+      text: assistantText,
+      blocks: [{ kind: "text", text: assistantText, createdAt: base.createdAt }],
+    },
+    { ...base, id: `evt_${title}_4`, type: "run.completed" },
+  ]) {
+    manager.appendCustomEntry(REFLECTA_AGENT_EVENT_ENTRY, event);
+  }
+  manager.appendSessionInfo(title);
+  flushPiSession(manager);
+}
+
 function seedLongPiSession() {
   const root = readE2eTestEnv().contentStorageRoot;
   fs.mkdirSync(sessionsRoot(), { recursive: true });
@@ -229,6 +274,37 @@ function seedLongPiSession() {
   });
   manager.appendSessionInfo(CHAT_JUMP_THREAD_TITLE);
   flushPiSession(manager);
+}
+
+function normalizeProgressText(text: string) {
+  return text
+    .replaceAll("正在思考", "")
+    .replaceAll("思考过程", "")
+    .replaceAll("等待模型输出思考内容", "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function readVisibleProgressText(page: Page) {
+  for (const locator of [
+    page.getByTestId("agent-assistant-text").last(),
+    page.getByTestId("agent-reasoning").last(),
+  ]) {
+    if (!(await locator.isVisible().catch(() => false))) continue;
+    const text = normalizeProgressText(await locator.innerText());
+    if (text) return text;
+  }
+  return "";
+}
+
+async function waitForVisibleProgressText(page: Page) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 60_000) {
+    const text = await readVisibleProgressText(page);
+    if (text.length >= 8) return text;
+    await page.waitForTimeout(500);
+  }
+  throw new Error("Expected visible streaming progress text");
 }
 
 test.beforeEach(() => {
@@ -372,6 +448,47 @@ test("@AG-HISTORY-004 用户重新打开有未完成回复的对话后可以继�
     await expect(page.getByTestId("agent-stop-button")).toHaveCount(0);
     await expect(composer(page)).toBeEditable();
     expect(readPiEventTypes()).toContain("run.cancelled");
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-HISTORY-007 用户切回正在回复的对话后仍看到当前回复进度", async () => {
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
+  test.setTimeout(180_000);
+
+  seedCompletedPiSession({
+    title: STREAM_SWITCH_OTHER_THREAD,
+    userText: STREAM_SWITCH_OTHER_THREAD,
+    assistantText: STREAM_SWITCH_OTHER_REPLY,
+  });
+  const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+
+  try {
+    await createNewThread(page);
+    await sendMessage(page, SLOW_PROMPT);
+    await expect(page.getByTestId("agent-stop-button")).toBeVisible({ timeout: 30_000 });
+    const progressText = await waitForVisibleProgressText(page);
+    const progressSnippet = progressText.slice(0, 24);
+
+    await openThread(page, STREAM_SWITCH_OTHER_THREAD);
+    await expect(
+      page.getByTestId("agent-assistant-text").filter({ hasText: STREAM_SWITCH_OTHER_REPLY }),
+    ).toBeVisible();
+
+    await openThread(page, SLOW_PROMPT.slice(0, 20));
+    await expect(
+      page.getByTestId("agent-user-message").filter({ hasText: SLOW_PROMPT }),
+    ).toBeVisible();
+    await expect(page.getByTestId("agent-stop-button")).toBeVisible({ timeout: 30_000 });
+    await expect
+      .poll(() => readVisibleProgressText(page), { timeout: 30_000 })
+      .toContain(progressSnippet);
+
+    await page.getByTestId("agent-stop-button").click();
+    await expect(page.getByTestId("agent-stopped-state")).toContainText("已停止", {
+      timeout: 30_000,
+    });
   } finally {
     await app.close();
   }
