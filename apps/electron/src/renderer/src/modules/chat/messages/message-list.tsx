@@ -6,7 +6,12 @@ import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@renderer/components/ui/empty";
 import { cn } from "@renderer/lib/utils";
-import type { AgentContextRef, AgentFileAttachment, AgentReducedMessage } from "@shared/agent";
+import type {
+  AgentContextRef,
+  AgentEntitySource,
+  AgentFileAttachment,
+  AgentReducedMessage,
+} from "@shared/agent";
 import {
   contextKey,
   contextMentionIcon,
@@ -168,6 +173,7 @@ function UserMessageContent({
 
 type MessageRowProps = {
   message: AgentReducedMessage;
+  entitySources: AgentEntitySource[];
   createdAt: string;
   isBusy: boolean;
   isLastAssistant: boolean;
@@ -182,6 +188,7 @@ type MessageRowProps = {
 
 function MessageRowComponent({
   message,
+  entitySources,
   createdAt,
   isBusy,
   isLastAssistant,
@@ -229,6 +236,7 @@ function MessageRowComponent({
       {message.role === "assistant" ? (
         <AgentMessageContent
           message={message}
+          entitySources={entitySources}
           turn={turn}
           isBusy={isBusy}
           isLastAssistant={isLastAssistant}
@@ -311,6 +319,7 @@ function MessageRowComponent({
 export const MessageRow = memo(MessageRowComponent, (previous, next) => {
   return (
     previous.message === next.message &&
+    previous.entitySources === next.entitySources &&
     previous.createdAt === next.createdAt &&
     previous.isBusy === next.isBusy &&
     previous.isLastAssistant === next.isLastAssistant &&
@@ -326,6 +335,7 @@ export const MessageRow = memo(MessageRowComponent, (previous, next) => {
 
 export function MessageList({
   messages,
+  entitySources,
   isBusy,
   stoppedMessageId,
   error,
@@ -338,6 +348,7 @@ export function MessageList({
   highlightedMessageId,
 }: {
   messages: AgentReducedMessage[];
+  entitySources: AgentEntitySource[];
   isBusy: boolean;
   stoppedMessageId: string | null;
   error?: Error;
@@ -371,6 +382,7 @@ export function MessageList({
         <MessageRow
           key={message.id}
           message={message}
+          entitySources={entitySources}
           createdAt={createdAtFor(message)}
           isBusy={isBusy}
           isLastAssistant={message.id === lastAssistantId}

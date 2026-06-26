@@ -1,10 +1,11 @@
 import type { RefObject } from "react";
-import type { AgentReducedMessage } from "@shared/agent";
+import type { AgentEntitySource, AgentReducedMessage } from "@shared/agent";
 import type { ComposerSendInput, EditingMessage } from "../composer/chat-composer";
 import type { ApproveToolInput } from "../messages/agent-message-content";
 
 export type AgentThreadView = {
   visibleMessages: AgentReducedMessage[];
+  entitySources: AgentEntitySource[];
   messagesFetching: boolean;
   isBusy: boolean;
   composerBusy: boolean;

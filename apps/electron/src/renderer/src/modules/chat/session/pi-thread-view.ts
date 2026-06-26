@@ -206,6 +206,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
 
   return {
     visibleMessages,
+    entitySources: state.entitySources,
     messagesFetching: eventsQuery.isFetching,
     isBusy,
     composerBusy: isBusy,

@@ -8,6 +8,7 @@ import {
   inspectableContextRef,
   parseContextKey,
   parseWikiHref,
+  referenceMarkdownToLinks,
   wikiHref,
   wikiMarkdownToLinks,
 } from "./context-reference";
@@ -62,5 +63,20 @@ describe("context reference", () => {
     expect(wikiMarkdownToLinks("关联 [[自信的状态#understanding-1]]")).toBe(
       `关联 [自信的状态](${href})`,
     );
+  });
+
+  test("converts and resolves entity ref markers", () => {
+    expect(referenceMarkdownToLinks("见 [[ref:S1]]")).toContain("#reflecta-ref/S1");
+  });
+
+  test("parses typed legacy context links as context", () => {
+    const markdown = wikiMarkdownToLinks("关联 [[context:一次复盘#ctx_1]]");
+    const href = markdown.match(/\(([^)]+)\)/)?.[1];
+
+    expect(parseWikiHref(href)).toEqual({
+      type: "context",
+      id: "ctx_1",
+      title: "一次复盘",
+    });
   });
 });

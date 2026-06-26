@@ -10,8 +10,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@renderer/components/ui/collapsible";
-import type { AgentModelSelection, AgentReasoningLevel, AgentReducedMessage } from "@shared/agent";
-import { wikiMarkdownToLinks, type InspectableContextRef } from "../context/context-reference";
+import type {
+  AgentEntitySource,
+  AgentModelSelection,
+  AgentReasoningLevel,
+  AgentReducedMessage,
+} from "@shared/agent";
+import { referenceMarkdownToLinks, type InspectableContextRef } from "../context/context-reference";
 import {
   type AgentReasoningView,
   type AgentTurnView,
@@ -58,18 +63,20 @@ function MarkdownBody({
   value,
   className = "",
   onInspectContextRef,
+  entitySources = [],
 }: {
   value: string;
   className?: string;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
+  entitySources?: AgentEntitySource[];
 }) {
   return (
     <div className={["reflecta-chat-markdown", className].filter(Boolean).join(" ")}>
       <Streamdown
-        components={wikiMarkdownComponents(onInspectContextRef)}
+        components={wikiMarkdownComponents(onInspectContextRef, entitySources)}
         urlTransform={wikiUrlTransform}
       >
-        {wikiMarkdownToLinks(value)}
+        {referenceMarkdownToLinks(value)}
       </Streamdown>
     </div>
   );
@@ -82,9 +89,11 @@ function hasToolDetails(details: ToolActivityDetailsView) {
 function ToolDetailDescription({
   detail,
   onInspectContextRef,
+  entitySources,
 }: {
   detail: ToolActivityDetailRow;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
+  entitySources: AgentEntitySource[];
 }) {
   const [expanded, setExpanded] = useState(false);
   if (!detail.description) return null;
@@ -105,6 +114,7 @@ function ToolDetailDescription({
             value={value}
             className="!text-muted-foreground/85 [&_*]:!text-muted-foreground/85"
             onInspectContextRef={onInspectContextRef}
+            entitySources={entitySources}
           />
         </div>
         {detail.fullDescription ? (
@@ -155,9 +165,11 @@ function ToolDetailDescription({
 function ToolDetailRows({
   details,
   onInspectContextRef,
+  entitySources = [],
 }: {
   details: ToolActivityDetailsView;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
+  entitySources?: AgentEntitySource[];
 }) {
   return (
     <div className="grid gap-2">
@@ -185,7 +197,11 @@ function ToolDetailRows({
                     {detail.title}
                   </span>
                 </div>
-                <ToolDetailDescription detail={detail} onInspectContextRef={onInspectContextRef} />
+                <ToolDetailDescription
+                  detail={detail}
+                  onInspectContextRef={onInspectContextRef}
+                  entitySources={entitySources}
+                />
                 {detail.meta.length ? (
                   <div className="flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground/80">
                     {detail.meta.map((item) => (
@@ -209,10 +225,12 @@ function ToolActivityGroup({
   activity,
   defaultOpen = false,
   onInspectContextRef,
+  entitySources,
 }: {
   activity: ToolActivityView;
   defaultOpen?: boolean;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
+  entitySources: AgentEntitySource[];
 }) {
   const statusClass =
     activity.status === "failed"
@@ -240,7 +258,11 @@ function ToolActivityGroup({
                 <div className="px-1 text-xs font-medium text-foreground/70">{item.label}</div>
               ) : null}
               {hasToolDetails(item.details) ? (
-                <ToolDetailRows details={item.details} onInspectContextRef={onInspectContextRef} />
+                <ToolDetailRows
+                  details={item.details}
+                  onInspectContextRef={onInspectContextRef}
+                  entitySources={entitySources}
+                />
               ) : null}
               {item.errorText ? (
                 <div className="px-1 text-destructive">{item.errorText}</div>
@@ -256,9 +278,11 @@ function ToolActivityGroup({
 function ReasoningBlock({
   reasoning,
   onInspectContextRef,
+  entitySources,
 }: {
   reasoning: AgentReasoningView;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
+  entitySources: AgentEntitySource[];
 }) {
   const streaming = reasoning.status === "streaming";
 
@@ -279,6 +303,7 @@ function ReasoningBlock({
             value={reasoning.text}
             className="!text-muted-foreground [&_*]:!text-muted-foreground"
             onInspectContextRef={onInspectContextRef}
+            entitySources={entitySources}
           />
         ) : (
           <span>等待模型输出思考内容</span>
@@ -306,12 +331,16 @@ function CandidateShell({
   children,
   onApprove,
   messageId,
+  onInspectContextRef,
+  entitySources,
 }: {
   title: string;
   proposal: ProposalView;
   children: ReactNode;
   onApprove: (input: ApproveToolInput) => void;
   messageId: string;
+  onInspectContextRef?: (ref: InspectableContextRef) => void;
+  entitySources: AgentEntitySource[];
 }) {
   const status = proposal.status;
   const resultRefType = proposal.resultRefType;
@@ -334,7 +363,11 @@ function CandidateShell({
       {proposal.result && hasToolDetails(proposal.result) ? (
         <div className="mt-3 rounded-md bg-muted/35 p-2 text-sm text-muted-foreground">
           <div className="mb-1 px-1 text-xs font-medium text-foreground/70">执行结果</div>
-          <ToolDetailRows details={proposal.result} />
+          <ToolDetailRows
+            details={proposal.result}
+            onInspectContextRef={onInspectContextRef}
+            entitySources={entitySources}
+          />
         </div>
       ) : null}
       {proposal.state === "output-error" && (
@@ -454,11 +487,13 @@ function CandidateUnderstandingCard({
   messageId,
   onApprove,
   onInspectContextRef,
+  entitySources,
 }: {
   proposal: UnderstandingProposalView;
   messageId: string;
   onApprove: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
+  entitySources: AgentEntitySource[];
 }) {
   return (
     <CandidateShell
@@ -466,11 +501,17 @@ function CandidateUnderstandingCard({
       proposal={proposal}
       messageId={messageId}
       onApprove={onApprove}
+      onInspectContextRef={onInspectContextRef}
+      entitySources={entitySources}
     >
       <div className="space-y-2">
         {proposal.data.title ? <div className="font-medium">{proposal.data.title}</div> : null}
         <div className="rounded-md bg-muted/50 p-3 leading-6">
-          <MarkdownBody value={proposal.data.body} onInspectContextRef={onInspectContextRef} />
+          <MarkdownBody
+            value={proposal.data.body}
+            onInspectContextRef={onInspectContextRef}
+            entitySources={entitySources}
+          />
         </div>
         {proposal.data.domainIds.length > 0 ? (
           <div className="text-xs text-muted-foreground">
@@ -487,11 +528,13 @@ function CandidateContextCard({
   messageId,
   onApprove,
   onInspectContextRef,
+  entitySources,
 }: {
   proposal: ContextProposalView;
   messageId: string;
   onApprove: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
+  entitySources: AgentEntitySource[];
 }) {
   return (
     <CandidateShell
@@ -499,6 +542,8 @@ function CandidateContextCard({
       proposal={proposal}
       messageId={messageId}
       onApprove={onApprove}
+      onInspectContextRef={onInspectContextRef}
+      entitySources={entitySources}
     >
       <div className="space-y-2">
         <div className="text-xs text-muted-foreground">
@@ -506,7 +551,11 @@ function CandidateContextCard({
         </div>
         <div>{proposal.data.contextLabel}</div>
         <div className="rounded-md bg-muted/50 p-3 leading-6">
-          <MarkdownBody value={proposal.data.content} onInspectContextRef={onInspectContextRef} />
+          <MarkdownBody
+            value={proposal.data.content}
+            onInspectContextRef={onInspectContextRef}
+            entitySources={entitySources}
+          />
         </div>
       </div>
     </CandidateShell>
@@ -523,10 +572,12 @@ function BashProposalCard({
   proposal,
   messageId,
   onApprove,
+  entitySources,
 }: {
   proposal: BashProposalView;
   messageId: string;
   onApprove: (input: ApproveToolInput) => void;
+  entitySources: AgentEntitySource[];
 }) {
   const timeout = formatDurationMs(proposal.data.timeoutMs);
   return (
@@ -535,6 +586,7 @@ function BashProposalCard({
       proposal={proposal}
       messageId={messageId}
       onApprove={onApprove}
+      entitySources={entitySources}
     >
       <div className="space-y-2">
         <div className="rounded-md bg-muted/50 px-3 py-2 font-mono text-xs leading-5 text-foreground/85">
@@ -567,11 +619,13 @@ function GenericProposalValue({
   value,
   format,
   onInspectContextRef,
+  entitySources,
 }: {
   fieldKey: string;
   value: string;
   format?: "markdown";
   onInspectContextRef?: (ref: InspectableContextRef) => void;
+  entitySources: AgentEntitySource[];
 }) {
   if (fieldKey === "domainId" || fieldKey === "parentId") {
     return <DomainPathText domainId={value} />;
@@ -590,7 +644,13 @@ function GenericProposalValue({
     return <ContextReference contextId={value} />;
   }
   if (format === "markdown") {
-    return <MarkdownBody value={value} onInspectContextRef={onInspectContextRef} />;
+    return (
+      <MarkdownBody
+        value={value}
+        onInspectContextRef={onInspectContextRef}
+        entitySources={entitySources}
+      />
+    );
   }
   return <>{value}</>;
 }
@@ -600,11 +660,13 @@ function GenericProposalCard({
   messageId,
   onApprove,
   onInspectContextRef,
+  entitySources,
 }: {
   proposal: GenericProposalView;
   messageId: string;
   onApprove: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
+  entitySources: AgentEntitySource[];
 }) {
   return (
     <CandidateShell
@@ -612,6 +674,8 @@ function GenericProposalCard({
       proposal={proposal}
       messageId={messageId}
       onApprove={onApprove}
+      onInspectContextRef={onInspectContextRef}
+      entitySources={entitySources}
     >
       <dl className="grid gap-1 text-sm">
         {proposal.data.entries.map(({ key, value, format }) => (
@@ -623,6 +687,7 @@ function GenericProposalCard({
                 value={value}
                 format={format}
                 onInspectContextRef={onInspectContextRef}
+                entitySources={entitySources}
               />
             </dd>
           </div>
@@ -637,11 +702,13 @@ function UpdateUnderstandingDiffCard({
   messageId,
   onApprove,
   onInspectContextRef,
+  entitySources,
 }: {
   proposal: UnderstandingUpdateProposalView;
   messageId: string;
   onApprove: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
+  entitySources: AgentEntitySource[];
 }) {
   return (
     <CandidateShell
@@ -649,6 +716,8 @@ function UpdateUnderstandingDiffCard({
       proposal={proposal}
       messageId={messageId}
       onApprove={onApprove}
+      onInspectContextRef={onInspectContextRef}
+      entitySources={entitySources}
     >
       <div className="space-y-2">
         <div className="text-xs text-muted-foreground">
@@ -665,6 +734,7 @@ function UpdateUnderstandingDiffCard({
             <MarkdownBody
               value={proposal.data.beforeBody}
               onInspectContextRef={onInspectContextRef}
+              entitySources={entitySources}
             />
           </div>
           <div className="rounded-md bg-muted/50 p-3">
@@ -672,6 +742,7 @@ function UpdateUnderstandingDiffCard({
             <MarkdownBody
               value={proposal.data.afterBody}
               onInspectContextRef={onInspectContextRef}
+              entitySources={entitySources}
             />
           </div>
         </div>
@@ -688,11 +759,13 @@ function ToolCard({
   messageId,
   onApprove,
   onInspectContextRef,
+  entitySources,
 }: {
   proposal: ProposalView;
   messageId: string;
   onApprove: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
+  entitySources: AgentEntitySource[];
 }) {
   if (proposal.type === "understanding_create") {
     return (
@@ -701,6 +774,7 @@ function ToolCard({
         messageId={messageId}
         onApprove={onApprove}
         onInspectContextRef={onInspectContextRef}
+        entitySources={entitySources}
       />
     );
   }
@@ -711,6 +785,7 @@ function ToolCard({
         messageId={messageId}
         onApprove={onApprove}
         onInspectContextRef={onInspectContextRef}
+        entitySources={entitySources}
       />
     );
   }
@@ -721,11 +796,19 @@ function ToolCard({
         messageId={messageId}
         onApprove={onApprove}
         onInspectContextRef={onInspectContextRef}
+        entitySources={entitySources}
       />
     );
   }
   if (proposal.type === "bash") {
-    return <BashProposalCard proposal={proposal} messageId={messageId} onApprove={onApprove} />;
+    return (
+      <BashProposalCard
+        proposal={proposal}
+        messageId={messageId}
+        onApprove={onApprove}
+        entitySources={entitySources}
+      />
+    );
   }
   return (
     <GenericProposalCard
@@ -733,12 +816,14 @@ function ToolCard({
       messageId={messageId}
       onApprove={onApprove}
       onInspectContextRef={onInspectContextRef}
+      entitySources={entitySources}
     />
   );
 }
 
 export function AgentMessageContent({
   message,
+  entitySources,
   turn,
   isBusy,
   isLastAssistant,
@@ -748,6 +833,7 @@ export function AgentMessageContent({
   expandToolDetails = false,
 }: {
   message: AgentReducedMessage;
+  entitySources: AgentEntitySource[];
   turn: AgentTurnView;
   isBusy: boolean;
   isLastAssistant: boolean;
@@ -766,7 +852,11 @@ export function AgentMessageContent({
               data-testid="agent-assistant-text"
               className="w-full px-1 py-1"
             >
-              <MarkdownBody value={block.text} onInspectContextRef={onInspectContextRef} />
+              <MarkdownBody
+                value={block.text}
+                onInspectContextRef={onInspectContextRef}
+                entitySources={entitySources}
+              />
             </div>
           );
         }
@@ -776,6 +866,7 @@ export function AgentMessageContent({
               key={`${message.id}-reasoning-${index}`}
               reasoning={block.reasoning}
               onInspectContextRef={onInspectContextRef}
+              entitySources={entitySources}
             />
           );
         }
@@ -786,6 +877,7 @@ export function AgentMessageContent({
               activity={block.activity}
               defaultOpen={expandToolDetails}
               onInspectContextRef={onInspectContextRef}
+              entitySources={entitySources}
             />
           );
         }
@@ -796,6 +888,7 @@ export function AgentMessageContent({
             messageId={message.id}
             onApprove={onApproveTool}
             onInspectContextRef={onInspectContextRef}
+            entitySources={entitySources}
           />
         );
       })}
