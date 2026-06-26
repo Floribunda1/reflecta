@@ -72,6 +72,7 @@ type ProposalBase<TType extends ProposalType, TData extends { kind: string }> = 
   errorText?: string;
   resultRefType?: string;
   resultRefId?: string;
+  resultRef?: string;
   approvalId?: string;
   result?: ToolActivityDetailsView;
   data: TData;
@@ -250,6 +251,7 @@ function proposalViewFor(block: AgentApprovalBlock): ProposalView {
     errorText: block.error,
     resultRefType: stringValue(output.resultRefType),
     resultRefId: stringValue(output.resultRefId),
+    resultRef: stringValue(output.resultRef),
     approvalId: block.approvalId,
     ...(result ? { result } : {}),
   };
@@ -358,14 +360,16 @@ function proposalResultDetails(
   if (state !== "completed") return undefined;
   if (type === "bash") return bashDetails(output);
 
-  const resultRefId = stringValue(output.resultRefId);
-  if (!resultRefId) return undefined;
+  const resultRef = stringValue(output.resultRef) || stringValue(output.resultRefId);
+  if (!resultRef) return undefined;
   return detailView({
     rows: [
       detailRow(
         "执行结果",
         `${proposalResultTypeLabel(stringValue(output.resultRefType))} 已完成`,
-        resultRefId,
+        resultRef,
+        [],
+        resultRef.startsWith("[[ref:") ? "markdown" : "text",
       ),
     ],
   });

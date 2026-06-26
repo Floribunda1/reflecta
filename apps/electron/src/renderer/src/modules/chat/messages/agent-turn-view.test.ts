@@ -766,4 +766,40 @@ describe("buildAgentTurnView", () => {
       },
     });
   });
+
+  test("shows completed approval tool result refs without raw ids", () => {
+    const turn = buildAgentTurnView([
+      {
+        kind: "approval",
+        approvalId: "approval-tool-1",
+        toolCallId: "tool-1",
+        toolName: "understanding_create",
+        title: "候选 Understanding",
+        payload: { title: "A", body: "B" },
+        output: { resultRefType: "understanding", resultRef: "[[ref:S1]]" },
+        state: "completed",
+        createdAt: "2026-06-23T00:00:00.000Z",
+      },
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "proposal",
+      proposal: {
+        state: "output-available",
+        resultRef: "[[ref:S1]]",
+        resultRefId: "",
+        result: {
+          rows: [
+            {
+              label: "执行结果",
+              title: "Understanding 已完成",
+              description: "[[ref:S1]]",
+              format: "markdown",
+              meta: [],
+            },
+          ],
+        },
+      },
+    });
+  });
 });

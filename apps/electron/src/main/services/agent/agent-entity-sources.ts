@@ -10,6 +10,31 @@ const ENTITY_ARRAY_KEYS = new Map<string, AgentEntityType>([
   ["understandings", "understanding"],
   ["contexts", "context"],
   ["domains", "domain"],
+  ["nodes", "understanding"],
+]);
+const TOOL_ROOT_PARENT_KEYS = new Map<string, string>([
+  ["domain_list", "domains"],
+  ["domain_inspect", "domain"],
+  ["understanding_list", "understandings"],
+  ["understanding_get", "understanding"],
+  ["context_list", "contexts"],
+  ["context_get", "context"],
+]);
+const ENTITY_ID_FIELDS = new Map<string, { type: AgentEntityType; refKey: string }>([
+  ["understandingId", { type: "understanding", refKey: "understandingRef" }],
+  ["sourceUnderstandingId", { type: "understanding", refKey: "sourceUnderstandingRef" }],
+  ["targetUnderstandingId", { type: "understanding", refKey: "targetUnderstandingRef" }],
+  ["contextId", { type: "context", refKey: "contextRef" }],
+  ["domainId", { type: "domain", refKey: "domainRef" }],
+  ["parentId", { type: "domain", refKey: "parentRef" }],
+  ["seed", { type: "understanding", refKey: "seedRef" }],
+  ["from", { type: "understanding", refKey: "fromRef" }],
+  ["to", { type: "understanding", refKey: "toRef" }],
+]);
+const ENTITY_ID_ARRAY_FIELDS = new Map<string, { type: AgentEntityType; refKey: string }>([
+  ["understandingIds", { type: "understanding", refKey: "understandingRefs" }],
+  ["contextIds", { type: "context", refKey: "contextRefs" }],
+  ["domainIds", { type: "domain", refKey: "domainRefs" }],
 ]);
 
 function isRecord(value: unknown): value is MutableRecord {
@@ -84,7 +109,7 @@ export class AgentEntitySourceRegistry {
     const origin = { kind: "tool_result" as const, toolCallId, toolName };
     const retrievalOutput =
       toolName === "retrieve_knowledge" ? this.decorateRetrievalValue(output, origin) : output;
-    return this.decorateValue(retrievalOutput, origin);
+    return this.decorateValue(retrievalOutput, origin, TOOL_ROOT_PARENT_KEYS.get(toolName));
   }
 
   resolveRef(sourceIdOrMarker: string, expectedType?: AgentEntityType): AgentContextRef | null {
@@ -124,6 +149,8 @@ export class AgentEntitySourceRegistry {
 
     return Object.fromEntries(
       Object.entries(value).map(([key, child]) => {
+        const relationship = this.decorateRelationshipEntry(key, child, origin);
+        if (relationship) return relationship;
         const nextParent =
           ENTITY_KEYS.has(key) ||
           ENTITY_ARRAY_KEYS.has(key) ||
@@ -143,7 +170,55 @@ export class AgentEntitySourceRegistry {
   ): MutableRecord {
     const source = this.addEntity({ type, id: String(value.id), title: titleFor(value) }, origin);
     const { id: _id, ...rest } = value;
-    return { ref: `[[ref:${source.sourceId}]]`, ...rest };
+    const decoratedRest = this.decorateValue(rest, origin);
+    return {
+      ref: this.sourceMarker(source),
+      ...(isRecord(decoratedRest) ? decoratedRest : rest),
+    };
+  }
+
+  private decorateRelationshipEntry(
+    key: string,
+    value: unknown,
+    origin: AgentEntitySourceOrigin,
+  ): [string, unknown] | null {
+    if (key === "contextsByUnderstandingId" && isRecord(value)) {
+      return [
+        "contextsByUnderstandingRef",
+        Object.entries(value).map(([understandingId, contexts]) => ({
+          understandingRef: this.entityMarker("understanding", understandingId, origin),
+          contexts: this.decorateValue(contexts, origin, "contexts"),
+        })),
+      ];
+    }
+
+    const scalar = ENTITY_ID_FIELDS.get(key);
+    if (scalar) {
+      return [
+        scalar.refKey,
+        typeof value === "string" ? this.entityMarker(scalar.type, value, origin) : null,
+      ];
+    }
+
+    const array = ENTITY_ID_ARRAY_FIELDS.get(key);
+    if (array && Array.isArray(value)) {
+      return [
+        array.refKey,
+        value
+          .filter((item): item is string => typeof item === "string")
+          .map((id) => this.entityMarker(array.type, id, origin)),
+      ];
+    }
+
+    return null;
+  }
+
+  private entityMarker(type: AgentEntityType, id: string, origin: AgentEntitySourceOrigin): string {
+    return this.sourceMarker(this.addEntity({ type, id }, origin));
+  }
+
+  private sourceMarker(source: AgentEntitySource): string {
+    return `[[ref:${source.sourceId}]]`;
   }
 
   private decorateRetrievalValue(
@@ -182,7 +257,7 @@ export class AgentEntitySourceRegistry {
       origin,
     );
     const { id: _id, ...rest } = value;
-    return { ref: `[[ref:${source.sourceId}]]`, ...rest };
+    return { ref: this.sourceMarker(source), ...rest };
   }
 
   private decorateFlatRetrievalContext(
@@ -194,7 +269,7 @@ export class AgentEntitySourceRegistry {
       origin,
     );
     const { contextId: _contextId, ...rest } = value;
-    return { ref: `[[ref:${source.sourceId}]]`, ...rest };
+    return { ref: this.sourceMarker(source), ...rest };
   }
 
   private decorateSuggestedRead(value: unknown, origin: AgentEntitySourceOrigin): unknown {
@@ -206,7 +281,7 @@ export class AgentEntitySourceRegistry {
     const { understandingId: _understandingId, ...input } = value.input;
     return {
       ...value,
-      input: { ref: `[[ref:${source.sourceId}]]`, ...input },
+      input: { ref: this.sourceMarker(source), ...input },
     };
   }
 }

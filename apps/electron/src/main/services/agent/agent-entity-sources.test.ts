@@ -99,4 +99,59 @@ describe("AgentEntitySourceRegistry", () => {
       ],
     });
   });
+
+  test("decorates root read tool entity outputs and relationship ids", () => {
+    const registry = new AgentEntitySourceRegistry();
+
+    const decorated = registry.decorateToolOutput("understanding_get", "tool_1", {
+      id: "u_1",
+      title: "Feedback Loop",
+      body: "body",
+      domainIds: ["domain_1"],
+      contexts: [
+        {
+          id: "ctx_1",
+          understandingId: "u_1",
+          title: "一次复盘",
+          content: "content",
+        },
+      ],
+    });
+
+    expect(decorated).toEqual({
+      ref: "[[ref:S1]]",
+      title: "Feedback Loop",
+      body: "body",
+      domainRefs: ["[[ref:S2]]"],
+      contexts: [
+        {
+          ref: "[[ref:S3]]",
+          understandingRef: "[[ref:S1]]",
+          title: "一次复盘",
+          content: "content",
+        },
+      ],
+    });
+  });
+
+  test("decorates root entity lists and id-keyed context maps", () => {
+    const registry = new AgentEntitySourceRegistry();
+
+    const decorated = registry.decorateToolOutput("understanding_list", "tool_1", {
+      understandings: [{ id: "u_1", title: "Feedback Loop" }],
+      contextsByUnderstandingId: {
+        u_1: [{ id: "ctx_1", understandingId: "u_1", title: "一次复盘" }],
+      },
+    });
+
+    expect(decorated).toEqual({
+      understandings: [{ ref: "[[ref:S1]]", title: "Feedback Loop" }],
+      contextsByUnderstandingRef: [
+        {
+          understandingRef: "[[ref:S1]]",
+          contexts: [{ ref: "[[ref:S2]]", understandingRef: "[[ref:S1]]", title: "一次复盘" }],
+        },
+      ],
+    });
+  });
 });

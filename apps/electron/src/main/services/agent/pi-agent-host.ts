@@ -22,6 +22,7 @@ import { nanoid } from "nanoid";
 import { reduceAgentSession } from "@shared/agent";
 import type {
   AgentCommand,
+  AgentContextRef,
   AgentReasoningLevel,
   AgentApprovalRequested,
   AgentReducedAssistantBlock,
@@ -64,6 +65,7 @@ type ActivePiRun = {
   session: AgentSession;
   accumulator: AgentRunAccumulator;
   pendingApprovals: Map<string, PendingApproval>;
+  entitySourceRegistry: AgentEntitySourceRegistry;
 };
 
 type PendingApproval = {
@@ -528,6 +530,27 @@ export class PiAgentHost {
     if (!webContents.isDestroyed()) webContents.send(AGENT_EVENT_CHANNEL, event);
   }
 
+  private appendEntitySourceUpdates(
+    manager: SessionManager,
+    webContents: WebContents,
+    sessionId: string,
+    runId: string,
+    registry: AgentEntitySourceRegistry,
+  ): void {
+    const sourceUpdates = registry.drainUpdates();
+    if (sourceUpdates.length === 0) return;
+    this.appendAndEmit(
+      manager,
+      webContents,
+      this.createEvent({
+        type: "entity.sources.updated",
+        sessionId,
+        runId,
+        sources: sourceUpdates,
+      }),
+    );
+  }
+
   private emitLive(webContents: WebContents, event: AgentLiveEvent): void {
     if (!webContents.isDestroyed()) webContents.send(AGENT_EVENT_CHANNEL, event);
   }
@@ -562,17 +585,13 @@ export class PiAgentHost {
       this.emitLive(webContents, event);
     };
     const emitEntitySourceUpdates = () => {
-      const sourceUpdates = entitySourceRegistry.drainUpdates();
-      if (sourceUpdates.length > 0) {
-        emit(
-          this.createEvent({
-            type: "entity.sources.updated",
-            sessionId: command.sessionId,
-            runId,
-            sources: sourceUpdates,
-          }),
-        );
-      }
+      this.appendEntitySourceUpdates(
+        manager,
+        webContents,
+        command.sessionId,
+        runId,
+        entitySourceRegistry,
+      );
     };
     const emitRunStarted = () => {
       if (runStarted) return;
@@ -601,6 +620,7 @@ export class PiAgentHost {
         session,
         accumulator,
         pendingApprovals: new Map(),
+        entitySourceRegistry,
       });
       unsubscribe = session.subscribe((event) => {
         if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
@@ -894,13 +914,23 @@ export class PiAgentHost {
         ? active.pendingApprovals.get(requested.approvalId)
         : undefined;
 
-    if (pending) {
+    if (pending && active) {
       if (!isPiApprovalToolName(requested.toolName)) {
         pending.reject(new Error(`Unsupported approval tool: ${requested.toolName}`));
         return;
       }
-      if (approved) void this.executeApprovedTool(requested).then(pending.resolve, pending.reject);
-      else pending.resolve(rejectedToolResult(requested.toolName));
+      if (approved) {
+        void this.executeApprovedTool(requested, active.entitySourceRegistry).then((output) => {
+          this.appendEntitySourceUpdates(
+            manager,
+            webContents,
+            requested.sessionId,
+            requested.runId,
+            active.entitySourceRegistry,
+          );
+          pending.resolve(output);
+        }, pending.reject);
+      } else pending.resolve(rejectedToolResult(requested.toolName));
       return;
     }
 
@@ -911,7 +941,15 @@ export class PiAgentHost {
         event.type === "assistant.turn" && event.messageId === requested.messageId,
     );
     try {
-      const output = await this.executeApprovedTool(requested);
+      const registry = new AgentEntitySourceRegistry(reduceAgentSession(events).entitySources);
+      const output = await this.executeApprovedTool(requested, registry);
+      this.appendEntitySourceUpdates(
+        manager,
+        webContents,
+        requested.sessionId,
+        requested.runId,
+        registry,
+      );
       this.appendAndEmit(
         manager,
         webContents,
@@ -944,10 +982,45 @@ export class PiAgentHost {
 
   private async executeApprovedTool(
     requested: AgentApprovalRequested,
+    registry?: AgentEntitySourceRegistry,
   ): Promise<PiApprovedToolOutput> {
     if (!isPiApprovalToolName(requested.toolName)) {
       throw new Error(`Unsupported approval tool: ${requested.toolName}`);
     }
-    return executePiApprovedTool(requested.toolName, requested.payload);
+    return this.decorateApprovedToolOutput(
+      requested,
+      await executePiApprovedTool(requested.toolName, requested.payload),
+      registry,
+    );
   }
+
+  private decorateApprovedToolOutput(
+    requested: AgentApprovalRequested,
+    output: PiApprovedToolOutput,
+    registry?: AgentEntitySourceRegistry,
+  ): PiApprovedToolOutput {
+    if (!registry || !isMutationOutput(output)) return output;
+    const source = registry.addEntity(
+      { type: output.resultRefType, id: output.resultRefId },
+      { kind: "tool_result", toolCallId: requested.toolCallId, toolName: requested.toolName },
+    );
+    const { resultRefId: _resultRefId, ...rest } = output;
+    return {
+      ...rest,
+      resultRef: `[[ref:${source.sourceId}]]`,
+    };
+  }
+}
+
+function isMutationOutput(output: PiApprovedToolOutput): output is PiApprovedToolOutput & {
+  resultRefType: AgentContextRef["type"];
+  resultRefId: string;
+} {
+  return (
+    "resultRefType" in output &&
+    (output.resultRefType === "understanding" ||
+      output.resultRefType === "context" ||
+      output.resultRefType === "domain") &&
+    typeof output.resultRefId === "string"
+  );
 }

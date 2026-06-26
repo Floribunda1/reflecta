@@ -344,8 +344,8 @@ function CandidateShell({
 }) {
   const status = proposal.status;
   const resultRefType = proposal.resultRefType;
-  const resultRefId = proposal.resultRefId;
-  const statusNote = proposalStatusNote(status, proposal.state, resultRefType, resultRefId);
+  const resultRef = proposal.resultRef || proposal.resultRefId;
+  const statusNote = proposalStatusNote(status, proposal.state, resultRefType, resultRef);
   return (
     <div
       data-testid="agent-proposal-card"
@@ -424,10 +424,10 @@ function proposalStatusNote(
   status: ToolApprovalStatus | undefined,
   state?: ProposalView["state"],
   resultRefType?: string,
-  resultRefId?: string,
+  resultRef?: string,
 ) {
   if (state === "output-available") return undefined;
-  if (status === "approved" && resultRefId) return `已写入 ${resultRefType} · ${resultRefId}`;
+  if (status === "approved" && resultRef) return `已写入 ${resultRefType} · ${resultRef}`;
   if (status === "approved") return "已确认";
   if (status === "rejected") return "已拒绝，未写入知识库";
   return undefined;

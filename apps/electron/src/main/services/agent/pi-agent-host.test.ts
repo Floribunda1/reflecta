@@ -14,10 +14,13 @@ import {
   normalizeGeneratedThreadTitle,
   PiAgentHost,
 } from "./pi-agent-host";
+import { AgentEntitySourceRegistry } from "./agent-entity-sources";
 import { AgentSessionLog } from "./pi-session-log";
 
 const createAgentSessionMock = vi.hoisted(() => vi.fn());
+const executePiApprovedToolMock = vi.hoisted(() => vi.fn());
 const getModelMock = vi.hoisted(() => vi.fn(() => ({ id: "model-test" })));
+const isPiApprovalToolNameMock = vi.hoisted(() => vi.fn((_name: string) => false));
 
 vi.mock("@earendil-works/pi-ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@earendil-works/pi-ai")>()),
@@ -66,8 +69,8 @@ vi.mock("./pi-readonly-tools", () => ({
 vi.mock("./pi-write-tools", () => ({
   approvalTitleForTool: () => "候选操作",
   createPiWriteTools: () => [],
-  executePiApprovedTool: vi.fn(),
-  isPiApprovalToolName: () => false,
+  executePiApprovedTool: executePiApprovedToolMock,
+  isPiApprovalToolName: isPiApprovalToolNameMock,
   PI_APPROVAL_TOOL_NAMES: [],
 }));
 
@@ -163,6 +166,57 @@ describe("PiAgentHost", () => {
         errorMessage: "Cannot find module './openai-completions-old.js'",
       }),
     ).toBe("Cannot find module './openai-completions-old.js'");
+  });
+
+  test("decorates approved mutation outputs as entity refs", async () => {
+    isPiApprovalToolNameMock.mockImplementation((name) => name === "understanding_create");
+    executePiApprovedToolMock.mockResolvedValue({
+      resultRefType: "understanding",
+      resultRefId: "understanding_1",
+    });
+    const registry = new AgentEntitySourceRegistry();
+
+    const output = await (
+      new PiAgentHost(tempRoot()) as unknown as {
+        executeApprovedTool: (
+          requested: AgentSessionEvent & {
+            type: "approval.requested";
+          },
+          registry: AgentEntitySourceRegistry,
+        ) => Promise<unknown>;
+      }
+    ).executeApprovedTool(
+      {
+        id: "evt_approval",
+        sessionId: "session_1",
+        runId: "run_1",
+        type: "approval.requested",
+        messageId: "assistant_1",
+        approvalId: "approval_tool_1",
+        toolCallId: "tool_1",
+        toolName: "understanding_create",
+        title: "候选 Understanding",
+        payload: { title: "A", body: "B" },
+        createdAt: "2026-06-26T00:00:00.000Z",
+      },
+      registry,
+    );
+
+    expect(output).toEqual({
+      resultRefType: "understanding",
+      resultRef: "[[ref:S1]]",
+    });
+    expect(registry.drainUpdates()).toEqual([
+      {
+        sourceId: "S1",
+        entity: { type: "understanding", id: "understanding_1" },
+        origin: {
+          kind: "tool_result",
+          toolCallId: "tool_1",
+          toolName: "understanding_create",
+        },
+      },
+    ]);
   });
 
   test("builds title prompts from reduced session messages", () => {

@@ -190,6 +190,36 @@ describe("createPiReadOnlyTools", () => {
     expect(output.content[0]?.text).not.toContain("ctx_1");
   });
 
+  test("understanding_get decorates root entity output before stringifying model-facing content", async () => {
+    services.getUnderstanding.mockResolvedValue({
+      id: "u_1",
+      title: "Feedback Loop",
+      body: "body",
+      contexts: [{ id: "ctx_1", understandingId: "u_1", title: "一次复盘" }],
+    });
+    const registry = new AgentEntitySourceRegistry();
+    const tool = createPiReadOnlyTools([], {
+      decorateToolOutput: (toolName, toolCallId, output) =>
+        registry.decorateToolOutput(toolName, toolCallId, output),
+    }).find((item) => item.name === "understanding_get");
+    expect(tool).toBeDefined();
+
+    const execute = tool!.execute as unknown as (
+      toolCallId: string,
+      params: Record<string, unknown>,
+    ) => Promise<{ details: unknown; content: Array<{ text: string }> }>;
+    const output = await execute("tool_1", { understandingId: "u_1" });
+
+    expect(output.details).toEqual({
+      ref: "[[ref:S1]]",
+      title: "Feedback Loop",
+      body: "body",
+      contexts: [{ ref: "[[ref:S2]]", understandingRef: "[[ref:S1]]", title: "一次复盘" }],
+    });
+    expect(output.content[0]?.text).not.toContain("u_1");
+    expect(output.content[0]?.text).not.toContain("ctx_1");
+  });
+
   test("executes web_fetch through the web fetch seam", async () => {
     const result = {
       url: "https://example.com",
