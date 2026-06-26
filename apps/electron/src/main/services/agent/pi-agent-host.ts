@@ -24,6 +24,9 @@ import type {
   AgentCommand,
   AgentReasoningLevel,
   AgentApprovalRequested,
+  AgentReducedAssistantBlock,
+  AgentEvent,
+  AgentLiveEvent,
   AgentSessionEvent,
   AgentSessionSummary,
 } from "@shared/agent";
@@ -36,6 +39,7 @@ import {
   type ResolvedAiModelConfig,
 } from "../../config";
 import { agentLog } from "../../logger";
+import { AgentRunAccumulator } from "./agent-run-accumulator";
 import { AgentSessionLog } from "./pi-session-log";
 import { formatAgentError } from "./error";
 import { buildPiPromptText } from "./pi-prompt";
@@ -57,6 +61,7 @@ export const AGENT_EVENT_CHANNEL = "agent:event";
 type ActivePiRun = {
   runId: string;
   session: AgentSession;
+  accumulator: AgentRunAccumulator;
   pendingApprovals: Map<string, PendingApproval>;
 };
 
@@ -290,6 +295,44 @@ function approvalIdForToolCall(toolCallId: string) {
   return `approval_${toolCallId}`;
 }
 
+function withApprovalToolResult(
+  blocks: AgentReducedAssistantBlock[],
+  requested: AgentApprovalRequested,
+  result: { output: unknown } | { error: string },
+): AgentReducedAssistantBlock[] {
+  const index = blocks.findIndex(
+    (block) =>
+      block.kind === "approval" &&
+      (block.approvalId === requested.approvalId || block.toolCallId === requested.toolCallId),
+  );
+  const update =
+    "output" in result
+      ? { state: "completed" as const, output: result.output }
+      : { state: "failed" as const, error: result.error };
+  if (index < 0) {
+    return [
+      ...blocks,
+      {
+        kind: "approval",
+        approvalId: requested.approvalId,
+        toolCallId: requested.toolCallId,
+        toolName: requested.toolName,
+        title: requested.title,
+        description: requested.description,
+        payload: requested.payload,
+        approved: true,
+        ...update,
+        createdAt: requested.createdAt,
+      },
+    ];
+  }
+  return blocks.map((block, blockIndex) =>
+    blockIndex === index && block.kind === "approval"
+      ? { ...block, approved: true, ...update }
+      : block,
+  );
+}
+
 export async function configurePiRuntimeAuth(
   authStorage: AuthStorage,
   modelConfig: ResolvedAiModelConfig,
@@ -459,14 +502,14 @@ export class PiAgentHost {
     });
   }
 
-  private createEvent<T extends AgentSessionEvent["type"]>(
-    input: Omit<Extract<AgentSessionEvent, { type: T }>, "createdAt" | "id"> & { type: T },
-  ): Extract<AgentSessionEvent, { type: T }> {
+  private createEvent<T extends AgentEvent["type"]>(
+    input: Omit<Extract<AgentEvent, { type: T }>, "createdAt" | "id"> & { type: T },
+  ): Extract<AgentEvent, { type: T }> {
     return {
       ...input,
       id: `evt_${nanoid()}`,
       createdAt: new Date().toISOString(),
-    } as Extract<AgentSessionEvent, { type: T }>;
+    } as Extract<AgentEvent, { type: T }>;
   }
 
   private appendAndEmit(
@@ -475,6 +518,10 @@ export class PiAgentHost {
     event: AgentSessionEvent,
   ): void {
     this.sessionLog.appendEvent(manager, event);
+    if (!webContents.isDestroyed()) webContents.send(AGENT_EVENT_CHANNEL, event);
+  }
+
+  private emitLive(webContents: WebContents, event: AgentLiveEvent): void {
     if (!webContents.isDestroyed()) webContents.send(AGENT_EVENT_CHANNEL, event);
   }
 
@@ -494,7 +541,12 @@ export class PiAgentHost {
     let assistantError = "";
     let assistantActivity = false;
     let runStarted = false;
+    const accumulator = new AgentRunAccumulator();
     const emit = (event: AgentSessionEvent) => this.appendAndEmit(manager, webContents, event);
+    const emitAccumulated = (event: AgentLiveEvent) => {
+      accumulator.append(event);
+      this.emitLive(webContents, event);
+    };
     const emitRunStarted = () => {
       if (runStarted) return;
       runStarted = true;
@@ -519,13 +571,14 @@ export class PiAgentHost {
       this.activeRuns.set(command.sessionId, {
         runId,
         session,
+        accumulator,
         pendingApprovals: new Map(),
       });
       unsubscribe = session.subscribe((event) => {
         if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
           assistantText += event.assistantMessageEvent.delta;
           assistantActivity = true;
-          emit(
+          emitAccumulated(
             this.createEvent({
               type: "assistant.text.delta",
               sessionId: command.sessionId,
@@ -542,7 +595,7 @@ export class PiAgentHost {
           event.assistantMessageEvent.type === "thinking_delta"
         ) {
           assistantActivity = true;
-          emit(
+          emitAccumulated(
             this.createEvent({
               type: "assistant.reasoning.delta",
               sessionId: command.sessionId,
@@ -557,22 +610,22 @@ export class PiAgentHost {
         if (event.type === "tool_execution_start") {
           assistantActivity = true;
           if (isPiApprovalToolName(event.toolName)) {
-            emit(
-              this.createEvent({
-                type: "approval.requested",
-                sessionId: command.sessionId,
-                runId,
-                messageId: assistantMessageId,
-                approvalId: approvalIdForToolCall(event.toolCallId),
-                toolCallId: event.toolCallId,
-                toolName: event.toolName,
-                title: approvalTitleForTool(event.toolName),
-                payload: event.args,
-              }),
-            );
+            const requested = this.createEvent({
+              type: "approval.requested",
+              sessionId: command.sessionId,
+              runId,
+              messageId: assistantMessageId,
+              approvalId: approvalIdForToolCall(event.toolCallId),
+              toolCallId: event.toolCallId,
+              toolName: event.toolName,
+              title: approvalTitleForTool(event.toolName),
+              payload: event.args,
+            });
+            accumulator.append(requested);
+            emit(requested);
             return;
           }
-          emit(
+          emitAccumulated(
             this.createEvent({
               type: "tool.started",
               sessionId: command.sessionId,
@@ -591,7 +644,7 @@ export class PiAgentHost {
             const output = piToolOutput(event.result);
             if (isRejectedApprovalOutput(output)) return;
             if (event.isError) {
-              emit(
+              emitAccumulated(
                 this.createEvent({
                   type: "tool.failed",
                   sessionId: command.sessionId,
@@ -602,8 +655,9 @@ export class PiAgentHost {
                   error: piToolError(event.result),
                 }),
               );
+              return;
             }
-            emit(
+            emitAccumulated(
               this.createEvent({
                 type: "tool.completed",
                 sessionId: command.sessionId,
@@ -617,7 +671,7 @@ export class PiAgentHost {
             return;
           }
           if (event.isError) {
-            emit(
+            emitAccumulated(
               this.createEvent({
                 type: "tool.failed",
                 sessionId: command.sessionId,
@@ -630,7 +684,7 @@ export class PiAgentHost {
             );
             return;
           }
-          emit(
+          emitAccumulated(
             this.createEvent({
               type: "tool.completed",
               sessionId: command.sessionId,
@@ -657,7 +711,7 @@ export class PiAgentHost {
           if (!finalText) return;
           assistantText = finalText;
           assistantActivity = true;
-          emit(
+          emitAccumulated(
             this.createEvent({
               type: "assistant.text.delta",
               sessionId: command.sessionId,
@@ -704,6 +758,18 @@ export class PiAgentHost {
         );
         return;
       }
+      emit(
+        accumulator.toAssistantTurn(
+          this.createEvent({
+            type: "assistant.turn",
+            sessionId: command.sessionId,
+            runId,
+            messageId: assistantMessageId,
+            blocks: [],
+            text: "",
+          }),
+        ),
+      );
       emit(this.createEvent({ type: "run.completed", sessionId: command.sessionId, runId }));
     } catch (error) {
       emitRunStarted();
@@ -779,21 +845,19 @@ export class PiAgentHost {
     if (alreadyResolved) return;
 
     const approved = command.type === "tool.approve";
-    this.appendAndEmit(
-      manager,
-      webContents,
-      this.createEvent({
-        type: "approval.resolved",
-        sessionId: command.sessionId,
-        runId: requested.runId,
-        messageId: requested.messageId,
-        approvalId: requested.approvalId,
-        toolCallId: requested.toolCallId,
-        toolName: requested.toolName,
-        approved,
-      }),
-    );
+    const resolved = this.createEvent({
+      type: "approval.resolved",
+      sessionId: command.sessionId,
+      runId: requested.runId,
+      messageId: requested.messageId,
+      approvalId: requested.approvalId,
+      toolCallId: requested.toolCallId,
+      toolName: requested.toolName,
+      approved,
+    });
+    this.appendAndEmit(manager, webContents, resolved);
     const active = this.activeRuns.get(command.sessionId);
+    if (active?.runId === requested.runId) active.accumulator.append(resolved);
     const pending =
       active?.runId === requested.runId
         ? active.pendingApprovals.get(requested.approvalId)
@@ -811,19 +875,22 @@ export class PiAgentHost {
 
     if (!approved) return;
 
+    const existingTurn = events.findLast(
+      (event): event is Extract<AgentSessionEvent, { type: "assistant.turn" }> =>
+        event.type === "assistant.turn" && event.messageId === requested.messageId,
+    );
     try {
       const output = await this.executeApprovedTool(requested);
       this.appendAndEmit(
         manager,
         webContents,
         this.createEvent({
-          type: "tool.completed",
+          type: "assistant.turn",
           sessionId: command.sessionId,
           runId: requested.runId,
           messageId: requested.messageId,
-          toolCallId: requested.toolCallId,
-          toolName: requested.toolName,
-          output,
+          text: existingTurn?.text ?? "",
+          blocks: withApprovalToolResult(existingTurn?.blocks ?? [], requested, { output }),
         }),
       );
     } catch (error) {
@@ -831,13 +898,14 @@ export class PiAgentHost {
         manager,
         webContents,
         this.createEvent({
-          type: "tool.failed",
+          type: "assistant.turn",
           sessionId: command.sessionId,
           runId: requested.runId,
           messageId: requested.messageId,
-          toolCallId: requested.toolCallId,
-          toolName: requested.toolName,
-          error: formatAgentError(error),
+          text: existingTurn?.text ?? "",
+          blocks: withApprovalToolResult(existingTurn?.blocks ?? [], requested, {
+            error: formatAgentError(error),
+          }),
         }),
       );
     }

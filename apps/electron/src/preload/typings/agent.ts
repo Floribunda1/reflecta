@@ -135,19 +135,37 @@ export type AgentApprovalResolved = AgentEventBase & {
   approved: boolean;
 };
 
+export type AgentAssistantTurnBlock = AgentReducedAssistantBlock;
+
+export type AgentAssistantTurn = AgentEventBase & {
+  type: "assistant.turn";
+  runId: string;
+  messageId: string;
+  blocks: AgentAssistantTurnBlock[];
+  text: string;
+  usage?: unknown;
+  model?: AgentModelSelection;
+  stopReason?: string;
+};
+
+export type AgentLiveEvent =
+  | AgentAssistantTextDelta
+  | AgentAssistantReasoningDelta
+  | AgentToolStarted
+  | AgentToolCompleted
+  | AgentToolFailed;
+
 export type AgentSessionEvent =
   | AgentRunStarted
   | AgentRunCompleted
   | AgentRunFailed
   | AgentRunCancelled
   | AgentUserMessage
-  | AgentAssistantTextDelta
-  | AgentAssistantReasoningDelta
-  | AgentToolStarted
-  | AgentToolCompleted
-  | AgentToolFailed
+  | AgentAssistantTurn
   | AgentApprovalRequested
   | AgentApprovalResolved;
+
+export type AgentEvent = AgentSessionEvent | AgentLiveEvent;
 
 export type AgentReducedAssistantBlock =
   | {
@@ -255,7 +273,35 @@ export function isAgentSessionEvent(value: unknown): value is AgentSessionEvent 
     typeof value.id === "string" &&
     typeof value.sessionId === "string" &&
     typeof value.createdAt === "string" &&
-    typeof value.type === "string"
+    typeof value.type === "string" &&
+    [
+      "run.started",
+      "run.completed",
+      "run.failed",
+      "run.cancelled",
+      "user.message",
+      "assistant.turn",
+      "approval.requested",
+      "approval.resolved",
+    ].includes(value.type)
+  );
+}
+
+export function isAgentEvent(value: unknown): value is AgentEvent {
+  if (isAgentSessionEvent(value)) return true;
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === "string" &&
+    typeof value.sessionId === "string" &&
+    typeof value.createdAt === "string" &&
+    typeof value.type === "string" &&
+    [
+      "assistant.text.delta",
+      "assistant.reasoning.delta",
+      "tool.started",
+      "tool.completed",
+      "tool.failed",
+    ].includes(value.type)
   );
 }
 
@@ -287,6 +333,23 @@ function upsertAssistantText(
         }
       : message,
   );
+}
+
+function upsertAssistantTurn(
+  messages: AgentReducedMessage[],
+  event: AgentAssistantTurn,
+): AgentReducedMessage[] {
+  const nextMessage: AgentReducedMessage = {
+    id: event.messageId,
+    role: "assistant",
+    text: event.text,
+    runId: event.runId,
+    createdAt: event.createdAt,
+    blocks: event.blocks,
+  };
+  const index = messages.findIndex((message) => message.id === event.messageId);
+  if (index < 0) return [...messages, nextMessage];
+  return messages.map((message, messageIndex) => (messageIndex === index ? nextMessage : message));
 }
 
 function upsertTextBlock(
@@ -471,7 +534,7 @@ export const initialAgentSessionState: AgentSessionState = {
 
 export function reduceAgentSessionEvent(
   state: AgentSessionState,
-  event: AgentSessionEvent,
+  event: AgentEvent,
 ): AgentSessionState {
   if (event.type === "run.started") {
     return {
@@ -509,6 +572,14 @@ export function reduceAgentSessionEvent(
       ...state,
       sessionId: event.sessionId,
       messages: upsertAssistantText(state.messages, event),
+    };
+  }
+
+  if (event.type === "assistant.turn") {
+    return {
+      ...state,
+      sessionId: event.sessionId,
+      messages: upsertAssistantTurn(state.messages, event),
     };
   }
 
@@ -573,6 +644,6 @@ export function reduceAgentSessionEvent(
   return state;
 }
 
-export function reduceAgentSession(events: AgentSessionEvent[]): AgentSessionState {
+export function reduceAgentSession(events: AgentEvent[]): AgentSessionState {
   return events.reduce<AgentSessionState>(reduceAgentSessionEvent, initialAgentSessionState);
 }

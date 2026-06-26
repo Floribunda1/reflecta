@@ -77,6 +77,24 @@ function readPiEvents() {
     );
 }
 
+function eventHasCompletedTool(event: Record<string, unknown>, toolName: string) {
+  return (
+    event.type === "assistant.turn" &&
+    Array.isArray(event.blocks) &&
+    event.blocks.some(
+      (block) =>
+        isRecord(block) &&
+        (block.kind === "tool" || block.kind === "approval") &&
+        block.toolName === toolName &&
+        block.state === "completed",
+    )
+  );
+}
+
+function assistantTurnHasCompletedTool(toolName: string) {
+  return readPiEvents().some((event) => eventHasCompletedTool(event, toolName));
+}
+
 function flushPiSession(manager: SessionManager) {
   const sessionFile = manager.getSessionFile();
   if (!sessionFile) return;
@@ -109,9 +127,10 @@ function seedAbandonedPiSession() {
     {
       ...base,
       id: "evt_abandoned_3",
-      type: "assistant.reasoning.delta",
+      type: "assistant.turn",
       messageId: "assistant_abandoned",
-      delta: "正在思考",
+      text: "",
+      blocks: [{ kind: "reasoning", text: "正在思考", createdAt: base.createdAt }],
     },
   ]) {
     manager.appendCustomEntry(REFLECTA_AGENT_EVENT_ENTRY, event);
@@ -188,12 +207,20 @@ function seedLongPiSession() {
       {
         ...base,
         id: `evt_jump_${index + 1}_3`,
-        type: "assistant.text.delta",
+        type: "assistant.turn",
         messageId: assistantMessageId,
-        delta:
-          "这是一段用于撑开长对话的回复内容。它模拟 Agent 对用户问题的分析，包含多行文本，方便测试右侧用户消息跳转导航。\n\n".repeat(
-            4,
-          ),
+        text: "这是一段用于撑开长对话的回复内容。它模拟 Agent 对用户问题的分析，包含多行文本，方便测试右侧用户消息跳转导航。\n\n".repeat(
+          4,
+        ),
+        blocks: [
+          {
+            kind: "text",
+            text: "这是一段用于撑开长对话的回复内容。它模拟 Agent 对用户问题的分析，包含多行文本，方便测试右侧用户消息跳转导航。\n\n".repeat(
+              4,
+            ),
+            createdAt: base.createdAt,
+          },
+        ],
       },
       { ...base, id: `evt_jump_${index + 1}_4`, type: "run.completed" },
     ]) {
@@ -520,10 +547,10 @@ test("@AG-RETRIEVAL-003 用户要求 Agent 检索知识库后看到检索结果"
     await expect(toolActivity).toContainText("Context 证据");
 
     const eventTypes = readPiEventTypes();
-    expect(eventTypes).toContain("tool.started");
-    expect(eventTypes).toContain("tool.completed");
+    expect(eventTypes).not.toContain("tool.started");
+    expect(eventTypes).not.toContain("tool.completed");
     expect(eventTypes).not.toContain("approval.requested");
-    expect(readPiEvents().some((event) => event.toolName === "retrieve_knowledge")).toBe(true);
+    expect(assistantTurnHasCompletedTool("retrieve_knowledge")).toBe(true);
   } finally {
     await app.close();
   }
@@ -582,7 +609,8 @@ test("@AG-PROPOSAL-001 用户确认候选 Understanding 后看到执行结果", 
     const eventTypes = readPiEventTypes();
     expect(eventTypes).toContain("approval.requested");
     expect(eventTypes).toContain("approval.resolved");
-    expect(eventTypes).toContain("tool.completed");
+    expect(eventTypes).not.toContain("tool.completed");
+    expect(assistantTurnHasCompletedTool("understanding_create")).toBe(true);
   } finally {
     await app.close();
   }
@@ -615,9 +643,7 @@ test("@AG-PROPOSAL-004 用户确认候选 Domain 后看到执行结果", async (
         (event) => event.type === "approval.requested" && event.toolName === "domain_create",
       ),
     ).toBe(true);
-    expect(
-      events.some((event) => event.type === "tool.completed" && event.toolName === "domain_create"),
-    ).toBe(true);
+    expect(assistantTurnHasCompletedTool("domain_create")).toBe(true);
   } finally {
     await app.close();
   }
@@ -683,13 +709,11 @@ test("@AG-PROPOSAL-006 用户确认 Bash 操作后 Agent 继续回复", async ()
     const resolvedIndex = events.findIndex(
       (event) => event.type === "approval.resolved" && event.toolName === "bash",
     );
-    const completedIndex = events.findIndex(
-      (event) => event.type === "tool.completed" && event.toolName === "bash",
-    );
+    const turnIndex = events.findIndex((event) => eventHasCompletedTool(event, "bash"));
     const runCompletedIndex = events.findIndex((event) => event.type === "run.completed");
     expect(resolvedIndex).toBeGreaterThanOrEqual(0);
-    expect(completedIndex).toBeGreaterThan(resolvedIndex);
-    expect(runCompletedIndex).toBeGreaterThan(completedIndex);
+    expect(turnIndex).toBeGreaterThan(resolvedIndex);
+    expect(runCompletedIndex).toBeGreaterThan(turnIndex);
   } finally {
     await app.close();
   }

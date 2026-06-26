@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ipcClient } from "@renderer/utils/ipc";
-import type { AgentSessionEvent, AgentSessionState } from "@shared/agent";
+import type { AgentEvent, AgentSessionState } from "@shared/agent";
 import {
   initialAgentSessionState,
-  isAgentSessionEvent,
+  isAgentEvent,
   reduceAgentSession,
   reduceAgentSessionEvent,
 } from "@shared/agent";
@@ -29,7 +29,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const shouldStickToBottom = useRef(true);
   const eventIdsRef = useRef<Set<string>>(new Set());
-  const pendingEventsRef = useRef<AgentSessionEvent[]>([]);
+  const pendingEventsRef = useRef<AgentEvent[]>([]);
   const flushFrameRef = useRef<number | null>(null);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastJumpMessageIdRef = useRef<string | null>(null);
@@ -57,7 +57,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     };
 
     const listener = (_event: unknown, payload: unknown) => {
-      if (!isAgentSessionEvent(payload) || payload.sessionId !== sessionId) return;
+      if (!isAgentEvent(payload) || payload.sessionId !== sessionId) return;
       if (eventIdsRef.current.has(payload.id)) return;
       eventIdsRef.current.add(payload.id);
       pendingEventsRef.current.push(payload);

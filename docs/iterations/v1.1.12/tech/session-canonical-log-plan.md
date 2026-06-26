@@ -43,7 +43,7 @@ session 仍然只有一个文件，但文件里保存的是完整 turn，不保�
 - Markdown 导出可以从同一份 session 文件生成完整 transcript。
 - AI 可以直接读取 session 文件作为原始材料。
 - 不再长期保存 `assistant.text.delta` 和 `assistant.reasoning.delta` 碎片。
-- 旧 session 通过一次性脚本迁移为 canonical format。
+- 既有 prod/test session 已一次性迁移为 canonical format。
 
 非目标：
 
@@ -55,6 +55,7 @@ session 仍然只有一个文件，但文件里保存的是完整 turn，不保�
 - 不为了兼容旧 reader 写“单条 full delta”这种假事件。
 - 不在新应用运行时兼容旧 delta session 格式。
 - 不在 app 启动或打开 session 时自动 lazy migration。
+- 不在仓库里保留通用 migration script。
 
 ## 3. Canonical Session Schema
 
@@ -218,53 +219,51 @@ assistant.turn
   -> message.blocks = event.blocks
 ```
 
-新 reader 不兼容旧 delta session。旧 session 必须先跑 migration script。
+新 reader 不兼容旧 delta session。旧 session 必须先完成一次性迁移。
 
 读取策略：
 
 - 新 session：主要由 `assistant.turn` 还原。
 - 迁移后 session：由 `assistant.turn` 还原。
-- 未迁移旧 session：明确报错，提示先运行 migration script。
+- 未迁移旧 session：明确报错，避免静默丢失 assistant 内容。
 
 当前运行中的流式 UI 不走 durable session reader。它从 `AgentLiveEvent` 更新正在生成的 pending turn，run 完成后由 `assistant.turn` 替换成稳定 transcript。
 
 ## 7. Migration
 
-不做自动 migration。新增一个一次性手动脚本，等用户指定文件或目录后执行：
+不做自动 migration，也不在仓库里保留通用 migration script。
 
-```ts
-canonicalizeAgentSessionFile(sessionFile: string): CanonicalizeResult;
-canonicalizeAgentSessions(targetPath: string): CanonicalizeSummary;
+本次 v1.1.12 直接对当前两个 content root 做一次性就地迁移：
+
+```text
+<projectRoot>/.local/reflecta-prod/Sessions/*.jsonl
+<projectRoot>/.local/reflecta-test/Sessions/*.jsonl
 ```
 
-步骤：
+迁移规则：
 
-1. `targetPath` 可以是单个 `.jsonl` 文件，也可以是 `Sessions/` 目录。
-2. 只处理 `customType === "reflecta.agent.event"` 的 Reflecta events。
-3. 按 `runId + assistant messageId` 聚合：
+1. 只处理 `customType === "reflecta.agent.event"` 的 Reflecta events。
+2. 按 `runId + assistant messageId` 聚合：
    - reasoning delta
    - text delta
    - tool started/completed/failed
-4. 在对应 `run.completed` 前插入一条 `assistant.turn`。
-5. 删除被归约的 delta / tool event。
-6. 保留 `session`、`model_change`、`thinking_level_change`、`user.message`、`approval.*`、`run.*`。
+3. 生成 `assistant.turn`。
+4. 删除被归约的 delta / tool event。
+5. 保留 `session`、`model_change`、`thinking_level_change`、`user.message`、`approval.*`、`run.*`。
+6. 对 run 取消后才落下的 late tool result，把结果合并进对应 `assistant.turn.blocks`，再删除旧 tool event。
 7. 原子写回同一个文件。
 
-迁移必须是幂等的：
-
-- 文件里已经有 `assistant.turn` 的 run，不重复生成。
-- 没有 `run.completed` 的活跃 run 不迁移。
-- 无法识别的 entry 原样保留。
-
-产品路径：
+迁移完成后的验证口径：
 
 ```text
-用户给出旧 session 文件或 Sessions 目录
-  -> 运行 migration script
-  -> 新应用只读取 canonical session
+assistant.text.delta / assistant.reasoning.delta / tool.started / tool.completed / tool.failed
+  -> 0 durable events
+
+assistant.turn
+  -> 覆盖历史 assistant reasoning / tool / text 内容
 ```
 
-不把 migration 放进 app 启动流程，也不在 session reader 里塞兼容分支。
+如果未来出现未迁移旧 session，新 reader 直接报错，不做兼容还原。
 
 ## 8. Tests
 
@@ -272,7 +271,7 @@ canonicalizeAgentSessions(targetPath: string): CanonicalizeSummary;
 
 - `AgentRunAccumulator` unit test：reasoning delta + tool + text delta 归约成 blocks，tool output 全文保留。
 - `reduceAgentSession` unit test：`assistant.turn` 还原出完整 message。
-- `pi-session-log` integration test：迁移后文件不包含 `assistant.text.delta` / `assistant.reasoning.delta`，但 reducer state 不变。
+- `pi-session-log` integration test：新 session 文件不包含 `assistant.text.delta` / `assistant.reasoning.delta`。
 - e2e fixture 更新：新 seeded session 使用 `assistant.turn`。
 
 不需要新增大套测试框架；这里是一条数据归约路径，三个小测试就够。
@@ -296,17 +295,17 @@ canonicalizeAgentSessions(targetPath: string): CanonicalizeSummary;
 - run 过程中 delta 只给 renderer，不落盘。
 - run 完成时写 `assistant.turn`。
 
-### Phase 4: Add Manual Migration Script
+### Phase 4: One-Off Migrate Existing Roots
 
-- 新增 script：输入单个 `.jsonl` 或 `Sessions/` 目录。
-- 迁移只处理 completed run。
-- 原子写回原 session 文件。
+- 一次性迁移 `reflecta-prod` 和 `reflecta-test` 的 `Sessions/*.jsonl`。
+- 删除 durable legacy delta / tool event。
+- 不保留 migration script。
 
 ### Phase 5: Update Export / Fixtures
 
 - Markdown 导出读取 canonical reducer state。
 - 更新 e2e seeded session。
-- 不保留旧 session 运行时兼容测试；只保留 migration 测试。
+- 不保留旧 session 运行时兼容测试。
 
 ## 10. Acceptance Criteria
 
@@ -314,8 +313,8 @@ canonicalizeAgentSessions(targetPath: string): CanonicalizeSummary;
 - 新 session 和迁移后的历史对话都能显示 reasoning、tool result、final answer。
 - Tool result 在 session 文件中保留全文。
 - Markdown 导出能导出 reasoning / tool / answer。
-- 旧 session 经手动 migration 后 UI 状态和迁移前一致。
-- 未迁移旧 session 在新应用中明确提示需要先运行 migration script。
+- 已迁移 prod/test session 中没有 legacy delta / tool durable event。
+- 未迁移旧 session 在新应用中明确报错。
 - 对一份包含 50 轮对话的 session，行数接近真实事件数，而不是 token 数。
 
 ## 11. Open Questions

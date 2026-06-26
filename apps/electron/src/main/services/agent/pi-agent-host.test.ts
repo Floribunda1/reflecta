@@ -137,18 +137,16 @@ describe("PiAgentHost", () => {
         id: "evt_2",
         sessionId: "session_1",
         runId: "run_1",
-        type: "assistant.text.delta",
+        type: "assistant.turn",
         messageId: "assistant_1",
-        delta: "可以把 session、db 和文件保留，",
-        createdAt: "2026-06-23T00:00:01.000Z",
-      },
-      {
-        id: "evt_3",
-        sessionId: "session_1",
-        runId: "run_1",
-        type: "assistant.text.delta",
-        messageId: "assistant_1",
-        delta: "索引和日志跟应用卸载。",
+        text: "可以把 session、db 和文件保留，索引和日志跟应用卸载。",
+        blocks: [
+          {
+            kind: "text",
+            text: "可以把 session、db 和文件保留，索引和日志跟应用卸载。",
+            createdAt: "2026-06-23T00:00:01.000Z",
+          },
+        ],
         createdAt: "2026-06-23T00:00:02.000Z",
       },
     ]);

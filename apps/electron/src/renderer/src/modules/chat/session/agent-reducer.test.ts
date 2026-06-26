@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import type { AgentSessionEvent } from "@shared/agent";
+import type { AgentEvent, AgentSessionEvent } from "@shared/agent";
 import {
   initialAgentSessionState,
   reduceAgentSession,
@@ -13,7 +13,7 @@ const base = {
 };
 
 describe("reduceAgentSession", () => {
-  test("merges assistant text deltas and returns to idle after completion", () => {
+  test("restores assistant turns and returns to idle after completion", () => {
     const events: AgentSessionEvent[] = [
       { ...base, id: "evt_1", type: "run.started" },
       {
@@ -26,18 +26,12 @@ describe("reduceAgentSession", () => {
       {
         ...base,
         id: "evt_3",
-        type: "assistant.text.delta",
+        type: "assistant.turn",
         messageId: "assistant_1",
-        delta: "hel",
+        text: "hello",
+        blocks: [{ kind: "text", text: "hello", createdAt: base.createdAt }],
       },
-      {
-        ...base,
-        id: "evt_4",
-        type: "assistant.text.delta",
-        messageId: "assistant_1",
-        delta: "lo",
-      },
-      { ...base, id: "evt_5", type: "run.completed" },
+      { ...base, id: "evt_4", type: "run.completed" },
     ];
 
     const state = reduceAgentSession(events);
@@ -72,7 +66,7 @@ describe("reduceAgentSession", () => {
   });
 
   test("keeps reasoning, tool activity, and final text in event order", () => {
-    const events: AgentSessionEvent[] = [
+    const events: AgentEvent[] = [
       { ...base, id: "evt_1", type: "run.started" },
       {
         ...base,
@@ -128,7 +122,7 @@ describe("reduceAgentSession", () => {
   });
 
   test("keeps interleaved reasoning and tool events in source order", () => {
-    const events: AgentSessionEvent[] = [
+    const events: AgentEvent[] = [
       { ...base, id: "evt_1", type: "run.started" },
       {
         ...base,
@@ -207,9 +201,10 @@ describe("reduceAgentSession", () => {
       {
         ...base,
         id: "evt_3",
-        type: "assistant.text.delta",
+        type: "assistant.turn",
         messageId: "assistant_1",
-        delta: "old reply",
+        text: "old reply",
+        blocks: [{ kind: "text", text: "old reply", createdAt: base.createdAt }],
       },
       { ...base, id: "evt_4", type: "run.completed" },
       { ...base, id: "evt_5", type: "run.started", runId: "run_2" },
@@ -224,10 +219,11 @@ describe("reduceAgentSession", () => {
       {
         ...base,
         id: "evt_7",
-        type: "assistant.text.delta",
+        type: "assistant.turn",
         runId: "run_2",
         messageId: "assistant_2",
-        delta: "new reply",
+        text: "new reply",
+        blocks: [{ kind: "text", text: "new reply", createdAt: base.createdAt }],
       },
     ]);
 
@@ -382,14 +378,15 @@ describe("reduceAgentSession", () => {
       {
         ...base,
         id: "evt_3",
-        type: "assistant.text.delta",
+        type: "assistant.turn",
         messageId: "assistant_1",
-        delta: "old reply",
+        text: "old reply",
+        blocks: [{ kind: "text", text: "old reply", createdAt: base.createdAt }],
       },
       { ...base, id: "evt_4", type: "run.completed" },
       { ...base, id: "evt_5", type: "run.started", runId: "run_2" },
     ];
-    const liveEvent: AgentSessionEvent = {
+    const liveEvent: AgentEvent = {
       ...base,
       id: "evt_6",
       type: "assistant.text.delta",

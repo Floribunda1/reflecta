@@ -566,9 +566,16 @@ function seedContextualAgentSession(root: string, domain: SeedDomain) {
         sessionId: SEEDED_CONTEXTUAL_AGENT_THREAD_ID,
         runId,
         createdAt: seedSessionTimestamp(3),
-        type: "assistant.text.delta",
+        type: "assistant.turn",
         messageId: assistantMessageId,
-        delta: SEEDED_CONTEXTUAL_AGENT_REPLY,
+        text: SEEDED_CONTEXTUAL_AGENT_REPLY,
+        blocks: [
+          {
+            kind: "text",
+            text: SEEDED_CONTEXTUAL_AGENT_REPLY,
+            createdAt: seedSessionTimestamp(3),
+          },
+        ],
       },
       seedSessionTimestamp(3),
     ),

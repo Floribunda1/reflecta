@@ -140,17 +140,64 @@ function eventFactory(thread: FixtureThread) {
   });
 }
 
-function appendProposalEvents(
+function appendTextBlock(
+  blocks: Record<string, unknown>[],
+  kind: string,
+  text: string,
+  createdAt: string,
+) {
+  const last = blocks.at(-1);
+  if (last?.kind === kind && typeof last.text === "string") {
+    last.text += text;
+    return;
+  }
+  blocks.push({ kind, text, createdAt });
+}
+
+function appendToolBlock(
+  blocks: Record<string, unknown>[],
+  part: Record<string, unknown>,
+  toolName: string,
+  toolCallId: string,
+  createdAt: string,
+) {
+  if (part.state === "output-error") {
+    blocks.push({
+      kind: "tool",
+      toolCallId,
+      toolName,
+      input: part.input,
+      state: "failed",
+      error: String(part.errorText ?? "工具执行失败"),
+      createdAt,
+    });
+    return;
+  }
+  blocks.push({
+    kind: "tool",
+    toolCallId,
+    toolName,
+    input: part.input,
+    state: "completed",
+    output: part.output,
+    createdAt,
+  });
+}
+
+function appendProposalBlock(
   events: ReflectaEvent[],
+  blocks: Record<string, unknown>[],
   createEvent: ReturnType<typeof eventFactory>,
   part: Record<string, unknown>,
   runId: string,
   messageId: string,
   toolName: string,
   toolCallId: string,
+  createdAt: string,
 ) {
   const approvalId = approvalIdFor(part, toolCallId);
   const payload = isRecord(part.input) ? part.input : {};
+  const title = proposalTitle(toolName);
   events.push(
     createEvent({
       type: "approval.requested",
@@ -159,15 +206,24 @@ function appendProposalEvents(
       approvalId,
       toolCallId,
       toolName,
-      title: proposalTitle(toolName),
+      title,
       payload,
     }),
   );
 
+  const block: Record<string, unknown> = {
+    kind: "approval",
+    approvalId,
+    toolCallId,
+    toolName,
+    title,
+    payload,
+    state: "pending",
+    createdAt,
+  };
   const state = typeof part.state === "string" ? part.state : "";
-  if (state === "approval-requested") return;
-
-  if (state === "approval-responded") {
+  if (state === "approval-responded" || approvedFor(part, false)) {
+    const approved = approvedFor(part, true);
     events.push(
       createEvent({
         type: "approval.resolved",
@@ -176,13 +232,12 @@ function appendProposalEvents(
         approvalId,
         toolCallId,
         toolName,
-        approved: approvedFor(part, true),
+        approved,
       }),
     );
-    return;
-  }
-
-  if (state === "output-denied") {
+    block.approved = approved;
+    block.state = approved ? "approved" : "rejected";
+  } else if (state === "output-denied") {
     events.push(
       createEvent({
         type: "approval.resolved",
@@ -194,102 +249,58 @@ function appendProposalEvents(
         approved: false,
       }),
     );
-    return;
+    block.approved = false;
+    block.state = "rejected";
+  } else if (state === "output-error") {
+    block.state = "failed";
+    block.error = String(part.errorText ?? "工具执行失败");
+  } else if (state !== "approval-requested") {
+    block.state = "completed";
+    block.output = part.output;
   }
-
-  if (state === "output-error") {
-    events.push(
-      createEvent({
-        type: "tool.failed",
-        runId,
-        messageId,
-        toolCallId,
-        toolName,
-        error: String(part.errorText ?? "工具执行失败"),
-      }),
-    );
-    return;
-  }
-
-  if (approvedFor(part, false)) {
-    events.push(
-      createEvent({
-        type: "approval.resolved",
-        runId,
-        messageId,
-        approvalId,
-        toolCallId,
-        toolName,
-        approved: true,
-      }),
-    );
-    return;
-  }
-
-  events.push(
-    createEvent({
-      type: "tool.completed",
-      runId,
-      messageId,
-      toolCallId,
-      toolName,
-      output: part.output,
-    }),
-  );
+  blocks.push(block);
 }
 
-function appendToolEvents(
+function assistantTurnBlocks(
   events: ReflectaEvent[],
   createEvent: ReturnType<typeof eventFactory>,
-  part: Record<string, unknown>,
+  parts: unknown[],
   runId: string,
   messageId: string,
+  createdAt: string,
 ) {
-  const type = String(part.type ?? "");
-  if (!type.startsWith("tool-")) return;
-  const toolName = type.slice("tool-".length);
-  const toolCallId = typeof part.toolCallId === "string" ? part.toolCallId : `${messageId}-tool`;
-
-  if (isProposalPart(part, toolName)) {
-    appendProposalEvents(events, createEvent, part, runId, messageId, toolName, toolCallId);
-    return;
-  }
-
-  events.push(
-    createEvent({
-      type: "tool.started",
-      runId,
-      messageId,
-      toolCallId,
-      toolName,
-      input: part.input,
-    }),
-  );
-
-  if (part.state === "output-error") {
-    events.push(
-      createEvent({
-        type: "tool.failed",
+  const blocks: Record<string, unknown>[] = [];
+  for (const part of parts) {
+    if (!isRecord(part)) continue;
+    if (part.type === "text") {
+      appendTextBlock(blocks, "text", String(part.text ?? ""), createdAt);
+      continue;
+    }
+    if (part.type === "reasoning") {
+      appendTextBlock(blocks, "reasoning", String(part.text ?? ""), createdAt);
+      continue;
+    }
+    const type = String(part.type ?? "");
+    if (!type.startsWith("tool-")) continue;
+    const toolName = type.slice("tool-".length);
+    const toolCallId = typeof part.toolCallId === "string" ? part.toolCallId : `${messageId}-tool`;
+    if (isProposalPart(part, toolName)) {
+      appendProposalBlock(
+        events,
+        blocks,
+        createEvent,
+        part,
         runId,
         messageId,
-        toolCallId,
         toolName,
-        error: String(part.errorText ?? "工具执行失败"),
-      }),
-    );
-    return;
+        toolCallId,
+        createdAt,
+      );
+      continue;
+    }
+    appendToolBlock(blocks, part, toolName, toolCallId, createdAt);
   }
-
-  events.push(
-    createEvent({
-      type: "tool.completed",
-      runId,
-      messageId,
-      toolCallId,
-      toolName,
-      output: part.output,
-    }),
-  );
+  return blocks;
 }
 
 function threadEvents(thread: FixtureThread) {
@@ -317,34 +328,25 @@ function threadEvents(thread: FixtureThread) {
 
     const runId = activeRunId ?? `run_${message.id}`;
     if (!activeRunId) events.push(createEvent({ type: "run.started", runId }));
-
-    for (const part of message.parts) {
-      if (!isRecord(part)) continue;
-      if (part.type === "text") {
-        events.push(
-          createEvent({
-            type: "assistant.text.delta",
-            runId,
-            messageId: message.id,
-            delta: String(part.text ?? ""),
-          }),
-        );
-        continue;
-      }
-      if (part.type === "reasoning") {
-        events.push(
-          createEvent({
-            type: "assistant.reasoning.delta",
-            runId,
-            messageId: message.id,
-            delta: String(part.text ?? ""),
-          }),
-        );
-        continue;
-      }
-      appendToolEvents(events, createEvent, part, runId, message.id);
-    }
-
+    const blocks = assistantTurnBlocks(
+      events,
+      createEvent,
+      message.parts,
+      runId,
+      message.id,
+      message.createdAt ?? thread.createdAt ?? thread.updatedAt ?? BASE_TIME,
+    );
+    events.push(
+      createEvent({
+        type: "assistant.turn",
+        runId,
+        messageId: message.id,
+        text: blocks
+          .flatMap((block) => (block.kind === "text" ? [String(block.text ?? "")] : []))
+          .join(""),
+        blocks,
+      }),
+    );
     events.push(createEvent({ type: "run.completed", runId }));
     activeRunId = null;
   }
