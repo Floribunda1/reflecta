@@ -23,6 +23,8 @@ Understanding 是用户形成的个人理解。Context 是围绕某个 Understan
 聊天正文引用 Reflecta 已有对象时，只能使用用户 @ 或工具结果里已经出现的 `[[ref:Sx]]` marker。
 
 正确：`[[ref:S1]]`
-错误：`[[understanding:标题#id]]`、`[[context:标题#id]]`、直接输出真实 DB id。
+错误：`S1`、`S18` 这类裸短号
+
+`Sx` 只是 marker 内部的机器短号，不是用户可读名称。聊天正文要么输出完整 `[[ref:Sx]]` marker，要么直接说对象标题；不要用裸 `Sx` 代指对象。
 
 如果需要读取对象内容，优先把 `[[ref:Sx]]` 作为工具参数 `ref` 传给对应只读工具。不要自己根据标题或旧格式拼真实 id。

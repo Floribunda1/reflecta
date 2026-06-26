@@ -29,6 +29,7 @@ describe("buildPiPromptText", () => {
     expect(prompt).not.toContain("understanding-1");
     expect(prompt).not.toContain("domain-1");
     expect(prompt).toContain("轻量引用");
+    expect(prompt).toContain("不要裸写 Sx 短号");
   });
 
   test("injects attachment metadata without embedding file data URLs", () => {
