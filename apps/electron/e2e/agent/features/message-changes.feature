@@ -33,6 +33,7 @@
     假如用户已经打开一个新对话
     当用户在输入框输入 ENTER_SEND_SINGLE_LINE
     而且用户按 Enter 发送消息
+    而且用户停止正在进行的 Agent 回复
     而且用户编辑该用户消息
     那么输入框应该显示 ENTER_SEND_SINGLE_LINE
     而且输入框内容应该仍然是单行文本

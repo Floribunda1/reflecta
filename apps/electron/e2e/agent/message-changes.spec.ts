@@ -105,9 +105,9 @@ test("@AG-MESSAGE-003 用户按 Enter 发送后编辑时仍看到原来的单行
       .locator('[data-testid="agent-message-row"][data-message-role="user"]')
       .filter({ hasText: "ENTER_SEND_SINGLE_LINE" });
     await expect(userRow).toBeVisible();
-    await expect(page.getByTestId("agent-error-banner")).toContainText("回复失败", {
-      timeout: 60_000,
-    });
+    await expect(page.getByTestId("agent-stop-button")).toBeVisible();
+    await page.getByTestId("agent-stop-button").click();
+    await expect(page.getByTestId("agent-stop-button")).toBeHidden();
 
     await userRow.hover();
     await userRow.getByTestId("agent-edit-message-button").click();

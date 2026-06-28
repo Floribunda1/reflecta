@@ -230,6 +230,7 @@ export function ChatComposer({
   const activeModelLabel = activeModelOption?.modelName ?? activeModelOption?.modelId ?? "Model";
   const contextCandidatesRef = useLatest(contextLookup.candidates);
   const activeContextIndexRef = useLatest(activeContextIndex);
+  const contextLookupOpenRef = useLatest(contextLookup.isOpen);
   const contextUsage: ContextUsage = contextUsageFromMessages(messages, selectedContexts.length);
 
   const markMentionKeyHandled = () => {
@@ -237,6 +238,21 @@ export function ChatComposer({
     window.setTimeout(() => {
       mentionKeyHandledRef.current = false;
     }, 0);
+  };
+
+  const selectActiveContextCandidate = () => {
+    const candidates = contextCandidatesRef.current;
+    const candidate = candidates[activeContextIndexRef.current] ?? candidates[0];
+    const command = mentionCommandRef.current;
+    if (!candidate || !command) return false;
+    markMentionKeyHandled();
+    command({
+      id: mentionId(candidate),
+      label: contextTitle(candidate),
+    });
+    mentionActiveRef.current = false;
+    contextLookup.close();
+    return true;
   };
 
   useEffect(() => {
@@ -334,16 +350,7 @@ export function ChatComposer({
               }
               if (event.key !== "Enter" && event.key !== "Tab") return false;
               event.preventDefault();
-              markMentionKeyHandled();
-              const candidates = contextCandidatesRef.current;
-              const candidate = candidates[activeContextIndexRef.current] ?? candidates[0];
-              if (!candidate) return true;
-              mentionCommandRef.current?.({
-                id: mentionId(candidate),
-                label: contextTitle(candidate),
-              });
-              mentionActiveRef.current = false;
-              contextLookup.close();
+              selectActiveContextCandidate();
               return true;
             },
           }),
@@ -370,12 +377,17 @@ export function ChatComposer({
       },
       handleKeyDown: (_view, event) => {
         if (event.isComposing || event.key !== "Enter" || event.shiftKey) return false;
+        if (mentionActiveRef.current || contextLookupOpenRef.current) {
+          event.preventDefault();
+          selectActiveContextCandidate();
+          return true;
+        }
         event.preventDefault();
         if (mentionKeyHandledRef.current) {
           mentionKeyHandledRef.current = false;
           return true;
         }
-        if (!mentionActiveRef.current) sendRef.current();
+        sendRef.current();
         return true;
       },
     },
@@ -536,6 +548,14 @@ export function ChatComposer({
             editor={editor}
             data-testid="agent-composer-editor"
             className="flex min-w-0 flex-1"
+            onKeyDownCapture={(event) => {
+              if (event.nativeEvent.isComposing || event.key !== "Enter" || event.shiftKey) return;
+              if (!contextLookup.isOpen && !mentionActiveRef.current) return;
+              event.preventDefault();
+              event.stopPropagation();
+              event.nativeEvent.stopImmediatePropagation();
+              selectActiveContextCandidate();
+            }}
             onClick={(event) => {
               if (!onInspectContextRef) return;
               const target = event.target;

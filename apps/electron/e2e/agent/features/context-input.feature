@@ -56,6 +56,14 @@
     当用户选择 Understanding「React Server Components」
     那么输入框中应该显示 Understanding「React Server Components」
 
+  @P1 @context @AG-CONTEXT-009
+  场景: 用户通过 @ 搜索后按 Enter 选择上下文引用
+    假如 seed 数据中存在 Understanding「React Server Components」
+    当用户在输入框输入 @React
+    而且用户按 Enter
+    那么输入框中应该显示一个上下文引用
+    而且用户消息不应该被发送
+
   @P1 @context @AG-CONTEXT-005
   场景: 用户点击已选择的 Understanding 引用后查看详情
     假如 seed 数据中存在 Understanding「React Server Components」
