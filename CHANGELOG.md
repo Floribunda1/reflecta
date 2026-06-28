@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.13 - 2026-06-28
+
+- Fixed the Agent context meter to use actual runtime usage instead of renderer-side estimation.
+- Restored active Agent stream recovery after reloads.
+- Fixed chat composer Enter handling so sending messages and selecting context mentions do not insert stray newlines.
+
 ## 1.1.12 - 2026-06-26
 
 - Rendered Agent entity links through session-scoped source markers so model text no longer carries raw entity ids.
