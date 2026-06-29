@@ -9,10 +9,6 @@ import { preloadScript, rendererHtml } from "./paths";
 import { startRetrievalIdleRebuild } from "./retrievalIdleRebuild";
 import { getRuntimeArg } from "./runtime-args";
 
-const FIND_IN_PAGE_CHANNEL = "window:find-in-page";
-const FIND_IN_PAGE_RESULT_CHANNEL = "window:find-in-page-result";
-const STOP_FIND_IN_PAGE_CHANNEL = "window:stop-find-in-page";
-
 // Register asset:// as a privileged scheme before app is ready
 registerAssetScheme();
 app.setName(APP_NAME);
@@ -68,10 +64,6 @@ const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?:
     }
   });
 
-  mainWindow.webContents.on("found-in-page", (_event, result) => {
-    mainWindow.webContents.send(FIND_IN_PAGE_RESULT_CHANNEL, result);
-  });
-
   // HMR for renderer based on Vite.
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env.VITE_DEV_SERVER_URL) {
@@ -113,25 +105,6 @@ app.whenReady().then(async () => {
 
   // IPC test
   ipcMain.on("ping", () => appLog.debug("ipc.ping"));
-  ipcMain.handle(
-    FIND_IN_PAGE_CHANNEL,
-    (event, text: unknown, options: Electron.FindInPageOptions = {}) => {
-      if (typeof text !== "string" || text.length === 0) {
-        event.sender.stopFindInPage("clearSelection");
-        return 0;
-      }
-      const findOptions = typeof options === "object" && options ? options : {};
-
-      return event.sender.findInPage(text, {
-        forward: findOptions.forward !== false,
-        findNext: findOptions.findNext === true,
-        matchCase: findOptions.matchCase === true,
-      });
-    },
-  );
-  ipcMain.handle(STOP_FIND_IN_PAGE_CHANNEL, (event) => {
-    event.sender.stopFindInPage("clearSelection");
-  });
 
   createWindow();
 

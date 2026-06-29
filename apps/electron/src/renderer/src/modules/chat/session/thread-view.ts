@@ -39,6 +39,11 @@ export type ChatJumpItem = {
   role: AgentReducedMessage["role"];
 };
 
+export type ChatFindMatch = {
+  messageId: string;
+  role: AgentReducedMessage["role"];
+};
+
 export function editingMessageFromAgentMessage(message: AgentReducedMessage): EditingMessage {
   return {
     id: message.id,
@@ -80,6 +85,19 @@ export function buildChatJumpItems(messages: AgentReducedMessage[]): ChatJumpIte
       label: chatJumpLabelFor(message),
       role: message.role,
     }));
+}
+
+export function buildChatFindMatches(
+  messages: AgentReducedMessage[],
+  query: string,
+): ChatFindMatch[] {
+  const needle = query.trim().toLocaleLowerCase();
+  if (!needle) return [];
+  return messages.flatMap((message) =>
+    message.text.toLocaleLowerCase().includes(needle)
+      ? [{ messageId: message.id, role: message.role }]
+      : [],
+  );
 }
 
 export function shouldShowPendingAssistantPlaceholder(

@@ -39,17 +39,9 @@ import {
   useSelectAgentModelMutation,
   useSelectAgentReasoningLevelMutation,
 } from "./session/server-state";
-import type { ChatJumpItem } from "./session/thread-view";
+import { buildChatFindMatches, type ChatFindMatch, type ChatJumpItem } from "./session/thread-view";
 
 const CHAT_JUMP_MIN_ITEMS = 4;
-const FIND_IN_PAGE_CHANNEL = "window:find-in-page";
-const FIND_IN_PAGE_RESULT_CHANNEL = "window:find-in-page-result";
-const STOP_FIND_IN_PAGE_CHANNEL = "window:stop-find-in-page";
-
-type FindInPageResult = {
-  activeMatchOrdinal: number;
-  matches: number;
-};
 
 function errorMessage(error: unknown) {
   if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
@@ -123,7 +115,7 @@ export function AgentThreadPanel({
         />
       ) : null}
       <div className="relative min-h-0 flex-1">
-        <ThreadFindBox />
+        <ThreadFindBox messages={threadView.visibleMessages} onJump={threadView.jumpToMessage} />
         <div
           ref={threadView.scrollRef}
           onScroll={threadView.handleScroll}
@@ -225,54 +217,32 @@ async function copyThreadId(threadId: string) {
   }
 }
 
-function findInPage(
-  text: string,
-  options: { forward?: boolean; findNext?: boolean; matchCase?: boolean } = {},
-) {
-  return window.ipcRenderer.invoke(FIND_IN_PAGE_CHANNEL, text, options);
-}
-
-function stopFindInPage() {
-  return window.ipcRenderer.invoke(STOP_FIND_IN_PAGE_CHANNEL);
-}
-
-function ThreadFindBox() {
+function ThreadFindBox({
+  messages,
+  onJump,
+}: {
+  messages: AgentReducedMessage[];
+  onJump: (messageId: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [result, setResult] = useState<FindInPageResult>({ activeMatchOrdinal: 0, matches: 0 });
+  const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const findDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const clearPendingFind = useMemoizedFn(() => {
-    if (!findDelayRef.current) return;
-    clearTimeout(findDelayRef.current);
-    findDelayRef.current = null;
-  });
   const close = useMemoizedFn(() => {
-    clearPendingFind();
     setOpen(false);
     setQuery("");
-    setResult({ activeMatchOrdinal: 0, matches: 0 });
-    void stopFindInPage();
+    setActiveIndex(0);
   });
-  const runFind = useMemoizedFn(
-    (
-      nextQuery: string,
-      options: { forward?: boolean; findNext?: boolean; matchCase?: boolean } = {},
-    ) => {
-      if (!nextQuery.trim()) {
-        setResult({ activeMatchOrdinal: 0, matches: 0 });
-        void stopFindInPage();
-        return;
-      }
-      void findInPage(nextQuery, options);
-    },
-  );
-  const scheduleFind = useMemoizedFn((nextQuery: string) => {
-    clearPendingFind();
-    findDelayRef.current = setTimeout(() => {
-      findDelayRef.current = null;
-      runFind(nextQuery);
-    }, 120);
+  const matches = buildChatFindMatches(messages, query);
+  const jumpToMatch = useMemoizedFn((match: ChatFindMatch | undefined, index: number) => {
+    if (!match) return;
+    setActiveIndex(index);
+    onJump(match.messageId);
+  });
+  const jumpBy = useMemoizedFn((step: 1 | -1) => {
+    if (matches.length === 0) return;
+    const nextIndex = (activeIndex + step + matches.length) % matches.length;
+    jumpToMatch(matches[nextIndex], nextIndex);
   });
 
   useEffect(() => {
@@ -282,23 +252,6 @@ function ThreadFindBox() {
       inputRef.current?.select();
     });
   }, [open]);
-
-  useEffect(() => {
-    const listener = (_event: unknown, payload: unknown) => {
-      if (!payload || typeof payload !== "object") return;
-      const nextResult = payload as Partial<FindInPageResult>;
-      setResult({
-        activeMatchOrdinal:
-          typeof nextResult.activeMatchOrdinal === "number" ? nextResult.activeMatchOrdinal : 0,
-        matches: typeof nextResult.matches === "number" ? nextResult.matches : 0,
-      });
-    };
-
-    window.ipcRenderer.on(FIND_IN_PAGE_RESULT_CHANNEL, listener);
-    return () => {
-      window.ipcRenderer.removeListener(FIND_IN_PAGE_RESULT_CHANNEL, listener);
-    };
-  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -322,18 +275,11 @@ function ThreadFindBox() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [close, open]);
 
-  useEffect(
-    () => () => {
-      clearPendingFind();
-      void stopFindInPage();
-    },
-    [clearPendingFind],
-  );
-
   if (!open) return null;
 
-  const hasMatches = result.matches > 0;
-  const countLabel = `${hasMatches ? result.activeMatchOrdinal : 0}/${result.matches}`;
+  const hasMatches = matches.length > 0;
+  const visibleIndex = hasMatches ? Math.min(activeIndex, matches.length - 1) : 0;
+  const countLabel = `${hasMatches ? visibleIndex + 1 : 0}/${matches.length}`;
 
   return (
     <div
@@ -344,28 +290,25 @@ function ThreadFindBox() {
       <Input
         ref={inputRef}
         data-testid="agent-thread-find-input"
-        type="password"
-        autoComplete="off"
-        spellCheck={false}
         value={query}
         onChange={(event) => {
           const nextQuery = event.target.value;
+          const nextMatches = buildChatFindMatches(messages, nextQuery);
           setQuery(nextQuery);
-          scheduleFind(nextQuery);
+          jumpToMatch(nextMatches[0], 0);
         }}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.preventDefault();
-            clearPendingFind();
-            runFind(query, { findNext: true, forward: !event.shiftKey });
+            jumpBy(event.shiftKey ? -1 : 1);
           }
           if (event.key === "Escape") {
             event.preventDefault();
             close();
           }
         }}
-        className="h-full min-w-0 flex-1 border-0 bg-transparent px-5 text-base shadow-none [-webkit-text-security:none] focus-visible:ring-0 dark:bg-transparent"
-        placeholder="在页面中查找"
+        className="h-full min-w-0 flex-1 border-0 bg-transparent px-5 text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
+        placeholder="搜索对话"
       />
       <div className="px-3 text-base tabular-nums text-muted-foreground">{countLabel}</div>
       <div className="h-8 w-px bg-border" />
@@ -377,10 +320,7 @@ function ThreadFindBox() {
         title="上一个匹配项"
         disabled={!query.trim() || !hasMatches}
         className="mx-1 text-muted-foreground"
-        onClick={() => {
-          clearPendingFind();
-          runFind(query, { findNext: true, forward: false });
-        }}
+        onClick={() => jumpBy(-1)}
       >
         <ChevronUp />
       </Button>
@@ -392,10 +332,7 @@ function ThreadFindBox() {
         title="下一个匹配项"
         disabled={!query.trim() || !hasMatches}
         className="text-muted-foreground"
-        onClick={() => {
-          clearPendingFind();
-          runFind(query, { findNext: true, forward: true });
-        }}
+        onClick={() => jumpBy(1)}
       >
         <ChevronDown />
       </Button>

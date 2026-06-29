@@ -3,6 +3,7 @@
 import { describe, expect, test } from "vitest";
 import type { AgentReducedMessage } from "@shared/agent";
 import {
+  buildChatFindMatches,
   buildChatJumpItems,
   shouldShowPendingAssistantPlaceholder,
   shouldShowScrollToBottomButton,
@@ -56,6 +57,28 @@ describe("buildChatJumpItems", () => {
     ]);
 
     expect(items[0]?.label).toBe("附件：report.pdf");
+  });
+});
+
+describe("buildChatFindMatches", () => {
+  test("matches only chat message text", () => {
+    const items = buildChatFindMatches(
+      [
+        message("user-1", "user", "Find this in the prompt"),
+        message("assistant-1", "assistant", "No match here"),
+        message("assistant-2", "assistant", "find this in the reply"),
+      ],
+      "FIND THIS",
+    );
+
+    expect(items).toEqual([
+      { messageId: "user-1", role: "user" },
+      { messageId: "assistant-2", role: "assistant" },
+    ]);
+  });
+
+  test("returns no matches for blank queries", () => {
+    expect(buildChatFindMatches([message("user-1", "user", "hello")], "   ")).toEqual([]);
   });
 });
 
