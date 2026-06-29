@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import {
   Archive,
   ArrowDown,
+  ChevronDown,
+  ChevronUp,
   Copy,
   FileDown,
   MoreHorizontal,
-  Search,
   Sparkles,
   Trash2,
   X,
@@ -42,7 +43,13 @@ import type { ChatJumpItem } from "./session/thread-view";
 
 const CHAT_JUMP_MIN_ITEMS = 4;
 const FIND_IN_PAGE_CHANNEL = "window:find-in-page";
+const FIND_IN_PAGE_RESULT_CHANNEL = "window:find-in-page-result";
 const STOP_FIND_IN_PAGE_CHANNEL = "window:stop-find-in-page";
+
+type FindInPageResult = {
+  activeMatchOrdinal: number;
+  matches: number;
+};
 
 function errorMessage(error: unknown) {
   if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
@@ -116,6 +123,7 @@ export function AgentThreadPanel({
         />
       ) : null}
       <div className="relative min-h-0 flex-1">
+        <ThreadFindBox />
         <div
           ref={threadView.scrollRef}
           onScroll={threadView.handleScroll}
@@ -231,10 +239,12 @@ function stopFindInPage() {
 function ThreadFindBox() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [result, setResult] = useState<FindInPageResult>({ activeMatchOrdinal: 0, matches: 0 });
   const inputRef = useRef<HTMLInputElement | null>(null);
   const close = useMemoizedFn(() => {
     setOpen(false);
     setQuery("");
+    setResult({ activeMatchOrdinal: 0, matches: 0 });
     void stopFindInPage();
   });
   const runFind = useMemoizedFn(
@@ -243,6 +253,7 @@ function ThreadFindBox() {
       options: { forward?: boolean; findNext?: boolean; matchCase?: boolean } = {},
     ) => {
       if (!nextQuery.trim()) {
+        setResult({ activeMatchOrdinal: 0, matches: 0 });
         void stopFindInPage();
         return;
       }
@@ -259,10 +270,31 @@ function ThreadFindBox() {
   }, [open]);
 
   useEffect(() => {
+    const listener = (_event: unknown, payload: unknown) => {
+      if (!payload || typeof payload !== "object") return;
+      const nextResult = payload as Partial<FindInPageResult>;
+      setResult({
+        activeMatchOrdinal:
+          typeof nextResult.activeMatchOrdinal === "number" ? nextResult.activeMatchOrdinal : 0,
+        matches: typeof nextResult.matches === "number" ? nextResult.matches : 0,
+      });
+    };
+
+    window.ipcRenderer.on(FIND_IN_PAGE_RESULT_CHANNEL, listener);
+    return () => {
+      window.ipcRenderer.removeListener(FIND_IN_PAGE_RESULT_CHANNEL, listener);
+    };
+  }, []);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "f") {
         event.preventDefault();
         setOpen(true);
+        requestAnimationFrame(() => {
+          inputRef.current?.focus();
+          inputRef.current?.select();
+        });
         return;
       }
 
@@ -278,46 +310,75 @@ function ThreadFindBox() {
 
   useEffect(() => () => void stopFindInPage(), []);
 
+  if (!open) return null;
+
+  const hasMatches = result.matches > 0;
+  const countLabel = `${hasMatches ? result.activeMatchOrdinal : 0}/${result.matches}`;
+
   return (
-    <div className="flex items-center gap-1">
-      {open ? (
-        <Input
-          ref={inputRef}
-          data-testid="agent-thread-find-input"
-          value={query}
-          onChange={(event) => {
-            const nextQuery = event.target.value;
-            setQuery(nextQuery);
-            runFind(nextQuery);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              runFind(query, { findNext: true, forward: !event.shiftKey });
-            }
-            if (event.key === "Escape") {
-              event.preventDefault();
-              close();
-            }
-          }}
-          className="h-8 w-56"
-          placeholder="搜索当前页面"
-        />
-      ) : null}
+    <div
+      data-no-drag
+      data-testid="agent-thread-find-box"
+      className="absolute top-2 right-4 z-50 flex h-14 w-[min(420px,calc(100%-2rem))] items-center rounded-xl border border-border/70 bg-background shadow-xl"
+    >
+      <Input
+        ref={inputRef}
+        data-testid="agent-thread-find-input"
+        value={query}
+        onChange={(event) => {
+          const nextQuery = event.target.value;
+          setQuery(nextQuery);
+          runFind(nextQuery);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            runFind(query, { findNext: true, forward: !event.shiftKey });
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            close();
+          }
+        }}
+        className="h-full min-w-0 flex-1 border-0 bg-transparent px-5 text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
+        placeholder="在页面中查找"
+      />
+      <div className="px-3 text-base tabular-nums text-muted-foreground">{countLabel}</div>
+      <div className="h-8 w-px bg-border" />
       <Button
         type="button"
         size="icon-sm"
         variant="ghost"
-        aria-label={open ? "关闭搜索" : "搜索对话"}
-        aria-pressed={open}
-        title={open ? "关闭搜索" : "搜索对话"}
-        className={cn(open && "bg-muted text-foreground")}
-        onClick={() => {
-          if (open) close();
-          else setOpen(true);
-        }}
+        aria-label="上一个匹配项"
+        title="上一个匹配项"
+        disabled={!query.trim() || !hasMatches}
+        className="mx-1 text-muted-foreground"
+        onClick={() => runFind(query, { findNext: true, forward: false })}
       >
-        {open ? <X /> : <Search />}
+        <ChevronUp />
+      </Button>
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        aria-label="下一个匹配项"
+        title="下一个匹配项"
+        disabled={!query.trim() || !hasMatches}
+        className="text-muted-foreground"
+        onClick={() => runFind(query, { findNext: true, forward: true })}
+      >
+        <ChevronDown />
+      </Button>
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        aria-label="关闭搜索"
+        title="关闭搜索"
+        className="mx-2 text-muted-foreground"
+        onClick={close}
+      >
+        <X />
       </Button>
     </div>
   );
@@ -379,7 +440,6 @@ function AgentThreadHeader({
       />
 
       <div data-no-drag className="flex shrink-0 items-center gap-1">
-        <ThreadFindBox />
         <DropdownMenu>
           <DropdownMenuTrigger
             render={

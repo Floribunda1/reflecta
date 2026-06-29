@@ -10,6 +10,7 @@ import { startRetrievalIdleRebuild } from "./retrievalIdleRebuild";
 import { getRuntimeArg } from "./runtime-args";
 
 const FIND_IN_PAGE_CHANNEL = "window:find-in-page";
+const FIND_IN_PAGE_RESULT_CHANNEL = "window:find-in-page-result";
 const STOP_FIND_IN_PAGE_CHANNEL = "window:stop-find-in-page";
 
 // Register asset:// as a privileged scheme before app is ready
@@ -65,6 +66,10 @@ const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?:
       event.preventDefault();
       shell.openExternal(url);
     }
+  });
+
+  mainWindow.webContents.on("found-in-page", (_event, result) => {
+    mainWindow.webContents.send(FIND_IN_PAGE_RESULT_CHANNEL, result);
   });
 
   // HMR for renderer based on Vite.
