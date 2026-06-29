@@ -27,11 +27,12 @@ import {
 } from "@renderer/components/ui/dropdown-menu";
 import { Input } from "@renderer/components/ui/input";
 import { cn } from "@renderer/lib/utils";
-import { useMemoizedFn } from "ahooks";
+import { useDebounce, useMemoizedFn } from "ahooks";
 import { toast } from "sonner";
 import { ipcClient } from "@renderer/utils/ipc";
 import { ChatComposer } from "./composer/chat-composer";
 import type { InspectableContextRef } from "./context/context-reference";
+import type { ApproveToolInput } from "./messages/agent-message-content";
 import {
   activateChatFindMarker,
   chatFindMarkers,
@@ -101,7 +102,21 @@ export function AgentThreadPanel({
     selectReasoningLevelMutation.mutate(level),
   );
   const [findQuery, setFindQuery] = useState("");
+  const debouncedFindQuery = useDebounce(findQuery, { wait: 120 });
+  const renderedFindQuery = findQuery.trim() ? debouncedFindQuery : "";
   const [activeFindMatch, setActiveFindMatch] = useState<ChatFindMarkerMatch | null>(null);
+  const retry = useMemoizedFn(threadView.actions.retry);
+  const editMessage = useMemoizedFn(threadView.actions.editMessage);
+  const regenerate = useMemoizedFn(threadView.actions.regenerate);
+  const send = useMemoizedFn(threadView.actions.send);
+  const cancelEdit = useMemoizedFn(threadView.actions.cancelEdit);
+  const stop = useMemoizedFn(threadView.actions.stop);
+  const approveTool = useMemoizedFn((input: ApproveToolInput) =>
+    threadView.actions.approveTool({
+      ...input,
+      modelSelection: activeModel ?? undefined,
+    }),
+  );
 
   useEffect(() => {
     setFindQuery("");
@@ -130,6 +145,7 @@ export function AgentThreadPanel({
         <ThreadFindBox
           messages={threadView.visibleMessages}
           query={findQuery}
+          renderedQuery={renderedFindQuery}
           activeMatch={activeFindMatch}
           onQueryChange={setFindQuery}
           onActiveMatchChange={setActiveFindMatch}
@@ -150,19 +166,14 @@ export function AgentThreadPanel({
               isBusy={threadView.isBusy}
               stoppedMessageId={threadView.stoppedMessageId}
               error={threadView.error}
-              onRetry={threadView.actions.retry}
-              onEdit={threadView.actions.editMessage}
-              onRegenerate={threadView.actions.regenerate}
+              onRetry={retry}
+              onEdit={editMessage}
+              onRegenerate={regenerate}
               onForkAssistant={onForkAssistantMessage}
-              onApproveTool={(input) =>
-                threadView.actions.approveTool({
-                  ...input,
-                  modelSelection: activeModel ?? undefined,
-                })
-              }
+              onApproveTool={approveTool}
               onInspectContextRef={onInspectContextRef}
               highlightedMessageId={threadView.highlightedMessageId}
-              findQuery={findQuery}
+              findQuery={renderedFindQuery}
             />
           )}
         </div>
@@ -199,9 +210,9 @@ export function AgentThreadPanel({
         modelSelectorDisabled={modelSelectorDisabled}
         onSelectModel={selectModel}
         onSelectReasoningLevel={selectReasoningLevel}
-        onSend={threadView.actions.send}
-        onCancelEdit={threadView.actions.cancelEdit}
-        onStop={threadView.actions.stop}
+        onSend={send}
+        onCancelEdit={cancelEdit}
+        onStop={stop}
         onInspectContextRef={onInspectContextRef}
       />
     </main>
@@ -239,12 +250,14 @@ async function copyThreadId(threadId: string) {
 function ThreadFindBox({
   messages,
   query,
+  renderedQuery,
   activeMatch,
   onQueryChange,
   onActiveMatchChange,
 }: {
   messages: AgentReducedMessage[];
   query: string;
+  renderedQuery: string;
   activeMatch: ChatFindMarkerMatch | null;
   onQueryChange: (query: string) => void;
   onActiveMatchChange: (match: ChatFindMarkerMatch | null) => void;
@@ -302,7 +315,7 @@ function ThreadFindBox({
   }, [close, open]);
 
   useEffect(() => {
-    if (!open || !query.trim()) {
+    if (!open || !renderedQuery.trim()) {
       setRenderedMatches([]);
       onActiveMatchChange(null);
       return;
@@ -317,7 +330,7 @@ function ThreadFindBox({
       onActiveMatchChange(nextMatches[0] ?? null);
     });
     return () => cancelAnimationFrame(frame);
-  }, [messages, onActiveMatchChange, open, query]);
+  }, [messages, onActiveMatchChange, open, renderedQuery]);
 
   useEffect(() => {
     if (!open) return;
@@ -337,7 +350,7 @@ function ThreadFindBox({
         ?.scrollIntoView({ block: "center", inline: "nearest" });
     });
     return () => cancelAnimationFrame(frame);
-  }, [activeMatch, open, query]);
+  }, [activeMatch, open, renderedQuery]);
 
   if (!open) return null;
 
