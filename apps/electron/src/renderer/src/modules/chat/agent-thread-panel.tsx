@@ -102,8 +102,12 @@ export function AgentThreadPanel({
     selectReasoningLevelMutation.mutate(level),
   );
   const [findQuery, setFindQuery] = useState("");
-  const debouncedFindQuery = useDebounce(findQuery, { wait: 120 });
-  const renderedFindQuery = findQuery.trim() ? debouncedFindQuery : "";
+  const [findComposing, setFindComposing] = useState(false);
+  const debouncedFindQuery = useDebounce(findQuery, { wait: 300 });
+  const renderedFindQuery =
+    findQuery.trim() && !findComposing && debouncedFindQuery === findQuery
+      ? debouncedFindQuery
+      : "";
   const [activeFindMatch, setActiveFindMatch] = useState<ChatFindMarkerMatch | null>(null);
   const retry = useMemoizedFn(threadView.actions.retry);
   const editMessage = useMemoizedFn(threadView.actions.editMessage);
@@ -120,6 +124,7 @@ export function AgentThreadPanel({
 
   useEffect(() => {
     setFindQuery("");
+    setFindComposing(false);
     setActiveFindMatch(null);
   }, [threadId]);
 
@@ -146,8 +151,10 @@ export function AgentThreadPanel({
           messages={threadView.visibleMessages}
           query={findQuery}
           renderedQuery={renderedFindQuery}
+          isComposing={findComposing}
           activeMatch={activeFindMatch}
           onQueryChange={setFindQuery}
+          onQueryComposingChange={setFindComposing}
           onActiveMatchChange={setActiveFindMatch}
         />
         <div
@@ -251,15 +258,19 @@ function ThreadFindBox({
   messages,
   query,
   renderedQuery,
+  isComposing,
   activeMatch,
   onQueryChange,
+  onQueryComposingChange,
   onActiveMatchChange,
 }: {
   messages: AgentReducedMessage[];
   query: string;
   renderedQuery: string;
+  isComposing: boolean;
   activeMatch: ChatFindMarkerMatch | null;
   onQueryChange: (query: string) => void;
+  onQueryComposingChange: (isComposing: boolean) => void;
   onActiveMatchChange: (match: ChatFindMarkerMatch | null) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -268,6 +279,7 @@ function ThreadFindBox({
   const close = useMemoizedFn(() => {
     setOpen(false);
     onQueryChange("");
+    onQueryComposingChange(false);
     onActiveMatchChange(null);
     setRenderedMatches([]);
   });
@@ -355,6 +367,7 @@ function ThreadFindBox({
   if (!open) return null;
 
   const hasMatches = renderedMatches.length > 0;
+  const canJump = Boolean(query.trim()) && !isComposing && hasMatches;
   const visibleIndex = hasMatches ? Math.max(activeIndex, 0) : 0;
   const countLabel = `${hasMatches ? visibleIndex + 1 : 0}/${renderedMatches.length}`;
 
@@ -368,16 +381,28 @@ function ThreadFindBox({
         ref={inputRef}
         data-testid="agent-thread-find-input"
         value={query}
+        onCompositionStart={() => {
+          onQueryComposingChange(true);
+          onActiveMatchChange(null);
+          setRenderedMatches([]);
+        }}
+        onCompositionEnd={(event) => {
+          onQueryChange(event.currentTarget.value);
+          onQueryComposingChange(false);
+          onActiveMatchChange(null);
+          setRenderedMatches([]);
+        }}
         onChange={(event) => {
           const nextQuery = event.target.value;
           onQueryChange(nextQuery);
+          if ((event.nativeEvent as InputEvent).isComposing) onQueryComposingChange(true);
           onActiveMatchChange(null);
           setRenderedMatches([]);
         }}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.preventDefault();
-            jumpBy(event.shiftKey ? -1 : 1);
+            if (canJump) jumpBy(event.shiftKey ? -1 : 1);
           }
           if (event.key === "Escape") {
             event.preventDefault();
@@ -395,7 +420,7 @@ function ThreadFindBox({
         variant="ghost"
         aria-label="上一个匹配项"
         title="上一个匹配项"
-        disabled={!query.trim() || !hasMatches}
+        disabled={!canJump}
         className="mx-1 text-muted-foreground"
         onClick={() => jumpBy(-1)}
       >
@@ -407,7 +432,7 @@ function ThreadFindBox({
         variant="ghost"
         aria-label="下一个匹配项"
         title="下一个匹配项"
-        disabled={!query.trim() || !hasMatches}
+        disabled={!canJump}
         className="text-muted-foreground"
         onClick={() => jumpBy(1)}
       >

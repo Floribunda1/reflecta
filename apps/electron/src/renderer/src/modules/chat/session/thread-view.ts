@@ -134,6 +134,20 @@ export function scrollKeyFor(messages: AgentReducedMessage[]) {
 
 const SCROLL_BOTTOM_THRESHOLD = 96;
 
+export function scrollTopForChildBottom({
+  scrollTop,
+  containerBottom,
+  childBottom,
+  bottomOffset = 0,
+}: {
+  scrollTop: number;
+  containerBottom: number;
+  childBottom: number;
+  bottomOffset?: number;
+}) {
+  return Math.max(0, scrollTop + childBottom - containerBottom + bottomOffset);
+}
+
 export function shouldShowScrollToBottomButton({
   scrollHeight,
   scrollTop,

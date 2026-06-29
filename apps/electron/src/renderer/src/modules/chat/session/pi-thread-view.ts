@@ -17,8 +17,25 @@ import {
   buildChatJumpItems,
   editingMessageFromAgentMessage,
   scrollKeyFor,
+  scrollTopForChildBottom,
   shouldShowScrollToBottomButton,
 } from "./thread-view";
+
+const CHAT_JUMP_BOTTOM_OFFSET = 24;
+
+function scrollRowToBottom(element: HTMLElement, row: HTMLElement) {
+  const elementRect = element.getBoundingClientRect();
+  const rowRect = row.getBoundingClientRect();
+  element.scrollTo({
+    top: scrollTopForChildBottom({
+      scrollTop: element.scrollTop,
+      containerBottom: elementRect.bottom,
+      childBottom: rowRect.bottom,
+      bottomOffset: CHAT_JUMP_BOTTOM_OFFSET,
+    }),
+    behavior: "auto",
+  });
+}
 
 export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): AgentThreadView {
   const queryClient = useQueryClient();
@@ -150,7 +167,8 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     );
     if (!row) return;
 
-    row.scrollIntoView({ block: "end", inline: "nearest", behavior: "smooth" });
+    scrollRowToBottom(element, row);
+    requestAnimationFrame(() => scrollRowToBottom(element, row));
     shouldStickToBottom.current = false;
     setActiveJumpMessageId(messageId);
     setHighlightedMessageId(messageId);

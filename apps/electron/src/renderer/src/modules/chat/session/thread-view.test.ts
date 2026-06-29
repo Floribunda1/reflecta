@@ -5,6 +5,7 @@ import type { AgentReducedMessage } from "@shared/agent";
 import {
   buildChatFindMatches,
   buildChatJumpItems,
+  scrollTopForChildBottom,
   shouldShowPendingAssistantPlaceholder,
   shouldShowScrollToBottomButton,
 } from "./thread-view";
@@ -57,6 +58,30 @@ describe("buildChatJumpItems", () => {
     ]);
 
     expect(items[0]?.label).toBe("附件：report.pdf");
+  });
+});
+
+describe("scrollTopForChildBottom", () => {
+  test("aligns the target message to the bottom of the scroll viewport", () => {
+    expect(
+      scrollTopForChildBottom({
+        scrollTop: 400,
+        containerBottom: 900,
+        childBottom: 1_200,
+        bottomOffset: 24,
+      }),
+    ).toBe(724);
+  });
+
+  test("does not scroll above the start", () => {
+    expect(
+      scrollTopForChildBottom({
+        scrollTop: 20,
+        containerBottom: 900,
+        childBottom: 300,
+        bottomOffset: 24,
+      }),
+    ).toBe(0);
   });
 });
 
