@@ -79,9 +79,7 @@ function MarkdownBody({
   findState?: ChatFindRenderState;
 }) {
   const markdownValue = referenceMarkdownToLinks(value);
-  const findKey = findState
-    ? `${findState.query}:${findState.activeMatchIndex ?? "inactive"}`
-    : "plain";
+  const findKey = findState ? findState.query : "plain";
 
   return (
     <div className={["reflecta-chat-markdown", className].filter(Boolean).join(" ")}>
@@ -100,7 +98,11 @@ function MarkdownBody({
                 if (startIndex === null) return label;
                 return renderTextWithChatFindHighlights(
                   label,
-                  { ...findState, nextMatchIndex: startIndex },
+                  {
+                    messageId: findState.messageId,
+                    query: findState.query,
+                    nextMatchIndex: startIndex,
+                  },
                   `wiki-${findState.messageId}-${startIndex}`,
                 );
               }

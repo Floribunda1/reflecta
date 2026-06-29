@@ -29,7 +29,7 @@ import {
   type ApproveToolInput,
 } from "./agent-message-content";
 import { buildAgentTurnView } from "./agent-turn-view";
-import { shouldShowPendingAssistantPlaceholder, type ChatFindMatch } from "../session/thread-view";
+import { shouldShowPendingAssistantPlaceholder } from "../session/thread-view";
 import { renderTextWithChatFindHighlights, type ChatFindRenderState } from "./chat-find-highlight";
 
 function errorMessage(error: unknown) {
@@ -191,7 +191,6 @@ type MessageRowProps = {
   isLastAssistant: boolean;
   highlighted: boolean;
   findQuery?: string;
-  activeFindMatchIndex?: number;
   stopped: boolean;
   onEdit: (message: AgentReducedMessage) => void;
   onRegenerate: (messageId: string) => void;
@@ -208,7 +207,6 @@ function MessageRowComponent({
   isLastAssistant,
   highlighted,
   findQuery,
-  activeFindMatchIndex,
   stopped,
   onEdit,
   onRegenerate,
@@ -228,7 +226,6 @@ function MessageRowComponent({
       ? {
           messageId: message.id,
           query: findQuery,
-          activeMatchIndex: activeFindMatchIndex,
           nextMatchIndex: 0,
         }
       : undefined;
@@ -356,7 +353,6 @@ export const MessageRow = memo(MessageRowComponent, (previous, next) => {
     previous.isLastAssistant === next.isLastAssistant &&
     previous.highlighted === next.highlighted &&
     previous.findQuery === next.findQuery &&
-    previous.activeFindMatchIndex === next.activeFindMatchIndex &&
     previous.stopped === next.stopped &&
     previous.onEdit === next.onEdit &&
     previous.onRegenerate === next.onRegenerate &&
@@ -380,7 +376,6 @@ export function MessageList({
   onInspectContextRef,
   highlightedMessageId,
   findQuery,
-  activeFindMatch,
 }: {
   messages: AgentReducedMessage[];
   entitySources: AgentEntitySource[];
@@ -395,7 +390,6 @@ export function MessageList({
   onInspectContextRef?: (ref: InspectableContextRef) => void;
   highlightedMessageId?: string | null;
   findQuery?: string;
-  activeFindMatch?: ChatFindMatch | null;
 }) {
   const lastAssistantId = messages.findLast((message) => message.role === "assistant")?.id;
   const stoppedMessageVisible = stoppedMessageId
@@ -425,9 +419,6 @@ export function MessageList({
           isLastAssistant={message.id === lastAssistantId}
           highlighted={highlightedMessageId === message.id}
           findQuery={findQuery}
-          activeFindMatchIndex={
-            activeFindMatch?.messageId === message.id ? activeFindMatch.matchIndex : undefined
-          }
           stopped={stoppedMessageId === message.id}
           onEdit={onEdit}
           onRegenerate={onRegenerate}

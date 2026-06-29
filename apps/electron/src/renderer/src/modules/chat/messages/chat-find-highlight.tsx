@@ -2,22 +2,42 @@ import { Fragment, type ReactNode } from "react";
 import { parseWikiHref } from "../context/context-reference";
 import { findChatTextRanges, normalizedChatFindQuery } from "../session/chat-find";
 
+export type ChatFindMarkerMatch = {
+  messageId: string;
+  matchIndex: number;
+};
+
 export type ChatFindRenderState = {
   messageId: string;
   query: string;
-  activeMatchIndex?: number;
   nextMatchIndex: number;
 };
 
 function markProps(state: ChatFindRenderState, matchIndex: number) {
-  const active = state.activeMatchIndex === matchIndex;
-  const props: Record<string, unknown> = {
+  return {
     "data-chat-find-match": "true",
     "data-chat-find-message-id": state.messageId,
     "data-chat-find-match-index": String(matchIndex),
   };
-  if (active) props["data-chat-find-active"] = "true";
-  return props;
+}
+
+export function activateChatFindMarker(root: ParentNode | null, match: ChatFindMarkerMatch | null) {
+  root
+    ?.querySelectorAll<HTMLElement>('[data-chat-find-active="true"]')
+    .forEach((element) => element.removeAttribute("data-chat-find-active"));
+  if (!root || !match) return null;
+
+  const marker = root.querySelector<HTMLElement>(
+    `[data-chat-find-match="true"][data-chat-find-message-id="${escapeCssAttribute(
+      match.messageId,
+    )}"][data-chat-find-match-index="${match.matchIndex}"]`,
+  );
+  marker?.setAttribute("data-chat-find-active", "true");
+  return marker ?? null;
+}
+
+function escapeCssAttribute(value: string) {
+  return globalThis.CSS?.escape?.(value) ?? value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 }
 
 export function renderTextWithChatFindHighlights(

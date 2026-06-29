@@ -3,8 +3,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { AgentEntitySource, AgentReducedMessage } from "@shared/agent";
+import { activateChatFindMarker } from "./chat-find-highlight";
 import { MessageList } from "./message-list";
-import type { ChatFindMatch } from "../session/thread-view";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -23,7 +23,6 @@ function renderMessageList({
   entitySources,
   onInspectContextRef = vi.fn(),
   findQuery,
-  activeFindMatch,
 }: {
   messages: AgentReducedMessage[];
   entitySources: AgentEntitySource[];
@@ -33,7 +32,6 @@ function renderMessageList({
     title?: string;
   }) => void;
   findQuery?: string;
-  activeFindMatch?: ChatFindMatch | null;
 }) {
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -51,7 +49,6 @@ function renderMessageList({
         onApproveTool={vi.fn()}
         onInspectContextRef={onInspectContextRef}
         findQuery={findQuery}
-        activeFindMatch={activeFindMatch}
       />,
     );
   });
@@ -61,12 +58,10 @@ function rerenderMessageList({
   messages,
   entitySources,
   findQuery,
-  activeFindMatch,
 }: {
   messages: AgentReducedMessage[];
   entitySources: AgentEntitySource[];
   findQuery?: string;
-  activeFindMatch?: ChatFindMatch | null;
 }) {
   act(() => {
     root?.render(
@@ -80,7 +75,6 @@ function rerenderMessageList({
         onRegenerate={vi.fn()}
         onApproveTool={vi.fn()}
         findQuery={findQuery}
-        activeFindMatch={activeFindMatch}
       />,
     );
   });
@@ -124,11 +118,11 @@ describe("MessageList entity refs", () => {
       ],
       entitySources: [],
       findQuery: "find",
-      activeFindMatch: { messageId: "user_1", matchIndex: 1, role: "user" },
     });
 
     const marks = container?.querySelectorAll('[data-chat-find-match="true"]');
     expect(marks).toHaveLength(2);
+    activateChatFindMarker(container, { messageId: "user_1", matchIndex: 1 });
     expect(container?.querySelector('[data-chat-find-active="true"]')?.textContent).toBe("find");
     expect(
       container
@@ -156,10 +150,10 @@ describe("MessageList entity refs", () => {
       ],
       entitySources: [],
       findQuery: "find",
-      activeFindMatch: { messageId: "assistant_1", matchIndex: 1, role: "assistant" },
     });
 
     expect(container?.querySelectorAll('[data-chat-find-match="true"]')).toHaveLength(2);
+    activateChatFindMarker(container, { messageId: "assistant_1", matchIndex: 1 });
     expect(
       container
         ?.querySelector('[data-chat-find-active="true"]')
@@ -191,7 +185,6 @@ describe("MessageList entity refs", () => {
       messages,
       entitySources: [],
       findQuery: "用户",
-      activeFindMatch: { messageId: "assistant_1", matchIndex: 0, role: "assistant" },
     });
 
     expect(container?.querySelectorAll('[data-chat-find-match="true"]')).toHaveLength(2);
@@ -216,10 +209,10 @@ describe("MessageList entity refs", () => {
       ],
       entitySources: [],
       findQuery: "用户",
-      activeFindMatch: { messageId: "assistant_1", matchIndex: 0, role: "assistant" },
     });
 
     const chip = container?.querySelector('[data-slot="wiki-link"]');
+    activateChatFindMarker(container, { messageId: "assistant_1", matchIndex: 0 });
     const mark = chip?.querySelector('[data-chat-find-active="true"]');
     expect(mark?.textContent).toBe("用户");
     expect(mark?.getAttribute("data-chat-find-match")).toBe("true");

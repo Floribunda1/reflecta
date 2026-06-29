@@ -32,6 +32,7 @@ import { toast } from "sonner";
 import { ipcClient } from "@renderer/utils/ipc";
 import { ChatComposer } from "./composer/chat-composer";
 import type { InspectableContextRef } from "./context/context-reference";
+import { activateChatFindMarker } from "./messages/chat-find-highlight";
 import { MessageList } from "./messages/message-list";
 import { usePiAgentThreadView } from "./session/pi-thread-view";
 import {
@@ -158,7 +159,6 @@ export function AgentThreadPanel({
               onInspectContextRef={onInspectContextRef}
               highlightedMessageId={threadView.highlightedMessageId}
               findQuery={findQuery}
-              activeFindMatch={activeFindMatch}
             />
           )}
         </div>
@@ -246,26 +246,27 @@ function ThreadFindBox({
   onActiveMatchChange: (match: ChatFindMatch | null) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const close = useMemoizedFn(() => {
     setOpen(false);
     onQueryChange("");
     onActiveMatchChange(null);
-    setActiveIndex(0);
   });
   const matches = useMemo(
     () => (open ? buildChatFindMatches(messages, query) : []),
     [messages, open, query],
   );
-  const jumpToMatch = useMemoizedFn((match: ChatFindMatch | undefined, index: number) => {
-    setActiveIndex(index);
+  const activeIndex = activeMatch
+    ? matches.findIndex((match) => sameFindMatch(match, activeMatch))
+    : -1;
+  const jumpToMatch = useMemoizedFn((match: ChatFindMatch | undefined) => {
     onActiveMatchChange(match ?? null);
   });
   const jumpBy = useMemoizedFn((step: 1 | -1) => {
     if (matches.length === 0) return;
-    const nextIndex = (activeIndex + step + matches.length) % matches.length;
-    jumpToMatch(matches[nextIndex], nextIndex);
+    const currentIndex = activeIndex >= 0 ? activeIndex : step === -1 ? 0 : -1;
+    const nextIndex = (currentIndex + step + matches.length) % matches.length;
+    jumpToMatch(matches[nextIndex]);
   });
 
   useEffect(() => {
@@ -299,20 +300,21 @@ function ThreadFindBox({
   }, [close, open]);
 
   useEffect(() => {
-    if (!open || !activeMatch) return;
+    if (!open) return;
     const frame = requestAnimationFrame(() => {
       const root = inputRef.current?.closest<HTMLElement>('[data-testid="agent-thread-chat"]');
-      const active = root?.querySelector<HTMLElement>('[data-chat-find-active="true"]');
+      const active = activateChatFindMarker(root ?? null, activeMatch);
       if (active) {
-        active.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+        active.scrollIntoView({ block: "center", inline: "nearest" });
         return;
       }
 
+      if (!activeMatch) return;
       root
         ?.querySelector<HTMLElement>(
           `[data-agent-message-id="${escapeCssAttribute(activeMatch.messageId)}"]`,
         )
-        ?.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+        ?.scrollIntoView({ block: "center", inline: "nearest" });
     });
     return () => cancelAnimationFrame(frame);
   }, [activeMatch, open, query]);
@@ -320,7 +322,7 @@ function ThreadFindBox({
   if (!open) return null;
 
   const hasMatches = matches.length > 0;
-  const visibleIndex = hasMatches ? Math.min(activeIndex, matches.length - 1) : 0;
+  const visibleIndex = hasMatches ? Math.max(activeIndex, 0) : 0;
   const countLabel = `${hasMatches ? visibleIndex + 1 : 0}/${matches.length}`;
 
   return (
@@ -337,7 +339,7 @@ function ThreadFindBox({
           const nextQuery = event.target.value;
           const nextMatches = buildChatFindMatches(messages, nextQuery);
           onQueryChange(nextQuery);
-          jumpToMatch(nextMatches[0], 0);
+          jumpToMatch(nextMatches[0]);
         }}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
@@ -395,6 +397,10 @@ function ThreadFindBox({
 
 function escapeCssAttribute(value: string) {
   return globalThis.CSS?.escape?.(value) ?? value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+}
+
+function sameFindMatch(left: ChatFindMatch, right: ChatFindMatch) {
+  return left.messageId === right.messageId && left.matchIndex === right.matchIndex;
 }
 
 function AgentThreadHeader({
