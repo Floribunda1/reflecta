@@ -599,7 +599,7 @@ function ChatJumpNav({
     <nav
       data-testid="agent-chat-jump-nav"
       aria-label="消息跳转"
-      className="group/jump pointer-events-auto absolute right-1 top-1/2 z-20 hidden max-h-[58%] w-12 -translate-y-1/2 overflow-x-hidden overflow-y-hidden rounded-md border border-transparent bg-transparent p-0.5 shadow-none backdrop-blur transition-[width,padding,background-color,border-color,box-shadow] duration-150 hover:w-72 hover:overflow-y-auto hover:rounded-lg hover:border-border hover:bg-background/95 hover:p-2 hover:shadow-xl focus-within:w-72 focus-within:overflow-y-auto focus-within:rounded-lg focus-within:border-border focus-within:bg-background/95 focus-within:p-2 focus-within:shadow-xl xl:block"
+      className="group/jump pointer-events-auto absolute right-1 top-1/2 z-20 hidden max-h-[58%] w-4 -translate-y-1/2 overflow-x-hidden overflow-y-hidden rounded-md border border-transparent bg-transparent p-0.5 shadow-none backdrop-blur transition-[width,padding,background-color,border-color,box-shadow] duration-150 hover:w-72 hover:overflow-y-auto hover:rounded-lg hover:border-border hover:bg-background/95 hover:p-2 hover:shadow-xl focus-within:w-72 focus-within:overflow-y-auto focus-within:rounded-lg focus-within:border-border focus-within:bg-background/95 focus-within:p-2 focus-within:shadow-xl xl:block"
     >
       {items.map((item) => {
         const active = item.messageId === activeMessageId;
@@ -627,9 +627,8 @@ function ChatJumpNav({
               data-testid="agent-chat-jump-marker"
               aria-hidden
               className={cn(
-                "h-0.5 w-9 shrink-0 rounded-full bg-muted-foreground/40 group-hover/jump:w-3 group-focus-within/jump:w-3",
-                active &&
-                  "bg-foreground group-hover/jump:bg-primary group-focus-within/jump:bg-primary",
+                "h-0.5 w-3 shrink-0 rounded-full bg-muted-foreground/40",
+                active && "bg-primary",
               )}
             />
           </button>
