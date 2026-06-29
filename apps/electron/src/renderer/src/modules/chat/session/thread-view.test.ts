@@ -61,10 +61,10 @@ describe("buildChatJumpItems", () => {
 });
 
 describe("buildChatFindMatches", () => {
-  test("matches only chat message text", () => {
+  test("returns each matching occurrence in chat message text", () => {
     const items = buildChatFindMatches(
       [
-        message("user-1", "user", "Find this in the prompt"),
+        message("user-1", "user", "Find this in the prompt. find this again."),
         message("assistant-1", "assistant", "No match here"),
         message("assistant-2", "assistant", "find this in the reply"),
       ],
@@ -72,8 +72,9 @@ describe("buildChatFindMatches", () => {
     );
 
     expect(items).toEqual([
-      { messageId: "user-1", role: "user" },
-      { messageId: "assistant-2", role: "assistant" },
+      { messageId: "user-1", matchIndex: 0, role: "user" },
+      { messageId: "user-1", matchIndex: 1, role: "user" },
+      { messageId: "assistant-2", matchIndex: 0, role: "assistant" },
     ]);
   });
 

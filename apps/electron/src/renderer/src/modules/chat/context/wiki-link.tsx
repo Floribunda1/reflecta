@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { defaultUrlTransform, type Components, type UrlTransform } from "streamdown";
 import type { AgentContextRef, AgentEntitySource } from "@shared/agent";
 import {
@@ -12,6 +12,8 @@ import {
   type InspectableContextRef,
 } from "./context-reference";
 
+type WikiLabelRenderer = (label: string, href: string | undefined, node: unknown) => ReactNode;
+
 export const wikiUrlTransform: UrlTransform = (url, key, node) => {
   if (url.startsWith(REF_LINK_HREF_PREFIX)) return url;
   if (url.startsWith(WIKI_LINK_HREF_PREFIX)) return url;
@@ -21,12 +23,19 @@ export const wikiUrlTransform: UrlTransform = (url, key, node) => {
 export function WikiLinkChip({
   contextRef,
   onInspect,
+  children,
 }: {
   contextRef: AgentContextRef;
   onInspect?: (ref: InspectableContextRef) => void;
+  children?: ReactNode;
 }) {
   const inspectableRef = inspectableContextRef(contextRef);
-  const content = `${contextMentionIcon(contextRef.type)} ${contextRef.title?.trim() || contextRef.id}`;
+  const label = children ?? contextRef.title?.trim() ?? contextRef.id;
+  const content = (
+    <>
+      {contextMentionIcon(contextRef.type)} {label}
+    </>
+  );
   const className = `${contextMentionClass(contextRef.type)} m-0 appearance-none rounded-sm border-0 bg-transparent p-0 text-left align-baseline outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring/50`;
 
   if (!inspectableRef || !onInspect) {
@@ -54,11 +63,13 @@ function WikiAnchor({
   children,
   onInspect,
   entitySources = [],
+  renderWikiLabel,
   node: _node,
   ...props
 }: ComponentProps<"a"> & {
   onInspect?: (ref: InspectableContextRef) => void;
   entitySources?: AgentEntitySource[];
+  renderWikiLabel?: WikiLabelRenderer;
   node?: unknown;
 }) {
   const sourceId = parseRefHref(href);
@@ -69,7 +80,16 @@ function WikiAnchor({
   }
 
   const contextRef = parseWikiHref(href);
-  if (contextRef) return <WikiLinkChip contextRef={contextRef} onInspect={onInspect} />;
+  if (contextRef) {
+    const label = renderWikiLabel
+      ? renderWikiLabel(contextRef.title?.trim() || contextRef.id, href, _node)
+      : children;
+    return (
+      <WikiLinkChip contextRef={contextRef} onInspect={onInspect}>
+        {label}
+      </WikiLinkChip>
+    );
+  }
   return (
     <a href={href} {...props}>
       {children}
@@ -80,8 +100,16 @@ function WikiAnchor({
 export function wikiMarkdownComponents(
   onInspect?: (ref: InspectableContextRef) => void,
   entitySources: AgentEntitySource[] = [],
+  renderWikiLabel?: WikiLabelRenderer,
 ): Components {
   return {
-    a: (props) => <WikiAnchor {...props} onInspect={onInspect} entitySources={entitySources} />,
+    a: (props) => (
+      <WikiAnchor
+        {...props}
+        onInspect={onInspect}
+        entitySources={entitySources}
+        renderWikiLabel={renderWikiLabel}
+      />
+    ),
   };
 }

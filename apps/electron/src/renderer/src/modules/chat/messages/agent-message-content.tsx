@@ -17,6 +17,7 @@ import type {
   AgentReducedMessage,
 } from "@shared/agent";
 import { referenceMarkdownToLinks, type InspectableContextRef } from "../context/context-reference";
+import { findChatTextRanges } from "../session/chat-find";
 import {
   type AgentReasoningView,
   type AgentTurnView,
@@ -35,6 +36,11 @@ import { wikiMarkdownComponents, wikiUrlTransform } from "../context/wiki-link";
 import { captureQueryKeys, useCaptureDomains } from "../../capture/queries";
 import { getDomainPath } from "../../capture/domain/util";
 import { ipcClient } from "@renderer/utils/ipc";
+import {
+  createChatFindRehypePlugin,
+  renderTextWithChatFindHighlights,
+  type ChatFindRenderState,
+} from "./chat-find-highlight";
 import "../styles/markdown-theme.scss";
 
 export type ApproveToolInput = {
@@ -64,22 +70,55 @@ function MarkdownBody({
   className = "",
   onInspectContextRef,
   entitySources = [],
+  findState,
 }: {
   value: string;
   className?: string;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
   entitySources?: AgentEntitySource[];
+  findState?: ChatFindRenderState;
 }) {
+  const markdownValue = referenceMarkdownToLinks(value);
+
   return (
     <div className={["reflecta-chat-markdown", className].filter(Boolean).join(" ")}>
       <Streamdown
-        components={wikiMarkdownComponents(onInspectContextRef, entitySources)}
+        components={wikiMarkdownComponents(
+          onInspectContextRef,
+          entitySources,
+          findState
+            ? (label, _href, node) => {
+                const startIndex = chatFindMarkdownLabelStartIndex(
+                  markdownValue,
+                  findState.query,
+                  node,
+                );
+                if (startIndex === null) return label;
+                return renderTextWithChatFindHighlights(
+                  label,
+                  { ...findState, nextMatchIndex: startIndex },
+                  `wiki-${findState.messageId}-${startIndex}`,
+                );
+              }
+            : undefined,
+        )}
+        rehypePlugins={findState ? [createChatFindRehypePlugin(findState)] : undefined}
         urlTransform={wikiUrlTransform}
       >
-        {referenceMarkdownToLinks(value)}
+        {markdownValue}
       </Streamdown>
     </div>
   );
+}
+
+function chatFindMarkdownLabelStartIndex(markdownValue: string, query: string, node: unknown) {
+  const position =
+    typeof node === "object" && node && "position" in node
+      ? (node.position as { start?: { offset?: unknown } })
+      : undefined;
+  const linkStartOffset = position?.start?.offset;
+  if (typeof linkStartOffset !== "number") return null;
+  return findChatTextRanges(markdownValue.slice(0, linkStartOffset + 1), query).length;
 }
 
 function hasToolDetails(details: ToolActivityDetailsView) {
@@ -828,6 +867,7 @@ export function AgentMessageContent({
   isBusy,
   isLastAssistant,
   stopped,
+  findState,
   onApproveTool,
   onInspectContextRef,
   expandToolDetails = false,
@@ -838,6 +878,7 @@ export function AgentMessageContent({
   isBusy: boolean;
   isLastAssistant: boolean;
   stopped?: boolean;
+  findState?: ChatFindRenderState;
   onApproveTool: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
   expandToolDetails?: boolean;
@@ -856,6 +897,7 @@ export function AgentMessageContent({
                 value={block.text}
                 onInspectContextRef={onInspectContextRef}
                 entitySources={entitySources}
+                findState={findState}
               />
             </div>
           );

@@ -2,6 +2,7 @@ import type { RefObject } from "react";
 import type { AgentEntitySource, AgentReducedMessage } from "@shared/agent";
 import type { ComposerSendInput, EditingMessage } from "../composer/chat-composer";
 import type { ApproveToolInput } from "../messages/agent-message-content";
+import { findChatTextRanges } from "./chat-find";
 
 export type AgentThreadView = {
   visibleMessages: AgentReducedMessage[];
@@ -41,6 +42,7 @@ export type ChatJumpItem = {
 
 export type ChatFindMatch = {
   messageId: string;
+  matchIndex: number;
   role: AgentReducedMessage["role"];
 };
 
@@ -91,12 +93,12 @@ export function buildChatFindMatches(
   messages: AgentReducedMessage[],
   query: string,
 ): ChatFindMatch[] {
-  const needle = query.trim().toLocaleLowerCase();
-  if (!needle) return [];
   return messages.flatMap((message) =>
-    message.text.toLocaleLowerCase().includes(needle)
-      ? [{ messageId: message.id, role: message.role }]
-      : [],
+    findChatTextRanges(message.text, query).map((_, matchIndex) => ({
+      messageId: message.id,
+      matchIndex,
+      role: message.role,
+    })),
   );
 }
 

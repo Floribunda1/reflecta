@@ -29,7 +29,8 @@ import {
   type ApproveToolInput,
 } from "./agent-message-content";
 import { buildAgentTurnView } from "./agent-turn-view";
-import { shouldShowPendingAssistantPlaceholder } from "../session/thread-view";
+import { shouldShowPendingAssistantPlaceholder, type ChatFindMatch } from "../session/thread-view";
+import { renderTextWithChatFindHighlights, type ChatFindRenderState } from "./chat-find-highlight";
 
 function errorMessage(error: unknown) {
   if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
@@ -71,8 +72,11 @@ function renderComposerNode(
   node: ComposerJSON,
   key: string,
   onInspect?: (ref: InspectableContextRef) => void,
+  findState?: ChatFindRenderState,
 ): ReactNode {
-  if (node.type === "text") return node.text ?? "";
+  if (node.type === "text") {
+    return renderTextWithChatFindHighlights(node.text ?? "", findState, `composer-${key}`);
+  }
   if (node.type === "hardBreak") return "\n";
   const ref = contextRefFromMentionNode(node);
   if (ref) return <MentionChip key={key} ref={ref} onInspect={onInspect} />;
@@ -80,14 +84,15 @@ function renderComposerNode(
     return (
       <span key={key} data-slot="user-message-paragraph">
         {node.content?.map((child, index) =>
-          renderComposerNode(child, `${key}-${index}`, onInspect),
+          renderComposerNode(child, `${key}-${index}`, onInspect, findState),
         )}
       </span>
     );
   }
   return (
-    node.content?.map((child, index) => renderComposerNode(child, `${key}-${index}`, onInspect)) ??
-    null
+    node.content?.map((child, index) =>
+      renderComposerNode(child, `${key}-${index}`, onInspect, findState),
+    ) ?? null
   );
 }
 
@@ -128,10 +133,12 @@ function UserMessageContent({
   message,
   text,
   onInspect,
+  findState,
 }: {
   message: AgentReducedMessage;
   text: string;
   onInspect?: (ref: InspectableContextRef) => void;
+  findState?: ChatFindRenderState;
 }) {
   const refs = message.contextRefs ?? [];
   const files = messageFiles(message);
@@ -139,7 +146,7 @@ function UserMessageContent({
   const renderedContent =
     content?.content?.flatMap((node, index) => [
       index > 0 ? "\n" : null,
-      renderComposerNode(node, String(index), onInspect),
+      renderComposerNode(node, String(index), onInspect, findState),
     ]) ?? [];
   const hasRenderedContent = renderedContent.length > 0;
   const hasTextContent = hasRenderedContent || Boolean(text) || refs.length > 0;
@@ -152,7 +159,9 @@ function UserMessageContent({
     >
       {hasTextContent ? (
         <div data-slot="user-message-text" className="leading-6">
-          {hasRenderedContent ? renderedContent : text || null}
+          {hasRenderedContent
+            ? renderedContent
+            : renderTextWithChatFindHighlights(text, findState, `message-${message.id}`) || null}
           {!hasRenderedContent && refs.length > 0 ? (
             <>
               {" "}
@@ -181,6 +190,8 @@ type MessageRowProps = {
   isBusy: boolean;
   isLastAssistant: boolean;
   highlighted: boolean;
+  findQuery?: string;
+  activeFindMatchIndex?: number;
   stopped: boolean;
   onEdit: (message: AgentReducedMessage) => void;
   onRegenerate: (messageId: string) => void;
@@ -196,6 +207,8 @@ function MessageRowComponent({
   isBusy,
   isLastAssistant,
   highlighted,
+  findQuery,
+  activeFindMatchIndex,
   stopped,
   onEdit,
   onRegenerate,
@@ -210,6 +223,15 @@ function MessageRowComponent({
   );
   const timeLabel = messageTimeLabel(createdAt);
   const hasFiles = messageFiles(message).length > 0;
+  const findState =
+    findQuery?.trim() && message.text
+      ? {
+          messageId: message.id,
+          query: findQuery,
+          activeMatchIndex: activeFindMatchIndex,
+          nextMatchIndex: 0,
+        }
+      : undefined;
 
   const copyMessage = async () => {
     try {
@@ -234,7 +256,12 @@ function MessageRowComponent({
       )}
     >
       {message.role === "user" && (text || hasFiles) ? (
-        <UserMessageContent message={message} text={text} onInspect={onInspectContextRef} />
+        <UserMessageContent
+          message={message}
+          text={text}
+          onInspect={onInspectContextRef}
+          findState={findState}
+        />
       ) : null}
       {message.role === "assistant" ? (
         <AgentMessageContent
@@ -244,6 +271,7 @@ function MessageRowComponent({
           isBusy={isBusy}
           isLastAssistant={isLastAssistant}
           stopped={stopped}
+          findState={findState}
           onApproveTool={onApproveTool}
           onInspectContextRef={onInspectContextRef}
         />
@@ -327,6 +355,8 @@ export const MessageRow = memo(MessageRowComponent, (previous, next) => {
     previous.isBusy === next.isBusy &&
     previous.isLastAssistant === next.isLastAssistant &&
     previous.highlighted === next.highlighted &&
+    previous.findQuery === next.findQuery &&
+    previous.activeFindMatchIndex === next.activeFindMatchIndex &&
     previous.stopped === next.stopped &&
     previous.onEdit === next.onEdit &&
     previous.onRegenerate === next.onRegenerate &&
@@ -349,6 +379,8 @@ export function MessageList({
   onApproveTool,
   onInspectContextRef,
   highlightedMessageId,
+  findQuery,
+  activeFindMatch,
 }: {
   messages: AgentReducedMessage[];
   entitySources: AgentEntitySource[];
@@ -362,6 +394,8 @@ export function MessageList({
   onApproveTool: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
   highlightedMessageId?: string | null;
+  findQuery?: string;
+  activeFindMatch?: ChatFindMatch | null;
 }) {
   const lastAssistantId = messages.findLast((message) => message.role === "assistant")?.id;
   const stoppedMessageVisible = stoppedMessageId
@@ -390,6 +424,10 @@ export function MessageList({
           isBusy={isBusy}
           isLastAssistant={message.id === lastAssistantId}
           highlighted={highlightedMessageId === message.id}
+          findQuery={findQuery}
+          activeFindMatchIndex={
+            activeFindMatch?.messageId === message.id ? activeFindMatch.matchIndex : undefined
+          }
           stopped={stoppedMessageId === message.id}
           onEdit={onEdit}
           onRegenerate={onRegenerate}

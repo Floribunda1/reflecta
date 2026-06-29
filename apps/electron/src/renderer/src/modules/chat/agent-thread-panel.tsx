@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Archive,
   ArrowDown,
@@ -95,6 +95,13 @@ export function AgentThreadPanel({
   const selectReasoningLevel = useMemoizedFn((level: AgentReasoningLevel) =>
     selectReasoningLevelMutation.mutate(level),
   );
+  const [findQuery, setFindQuery] = useState("");
+  const [activeFindMatch, setActiveFindMatch] = useState<ChatFindMatch | null>(null);
+
+  useEffect(() => {
+    setFindQuery("");
+    setActiveFindMatch(null);
+  }, [threadId]);
 
   return (
     <main
@@ -115,7 +122,13 @@ export function AgentThreadPanel({
         />
       ) : null}
       <div className="relative min-h-0 flex-1">
-        <ThreadFindBox messages={threadView.visibleMessages} onJump={threadView.jumpToMessage} />
+        <ThreadFindBox
+          messages={threadView.visibleMessages}
+          query={findQuery}
+          activeMatch={activeFindMatch}
+          onQueryChange={setFindQuery}
+          onActiveMatchChange={setActiveFindMatch}
+        />
         <div
           ref={threadView.scrollRef}
           onScroll={threadView.handleScroll}
@@ -144,6 +157,8 @@ export function AgentThreadPanel({
               }
               onInspectContextRef={onInspectContextRef}
               highlightedMessageId={threadView.highlightedMessageId}
+              findQuery={findQuery}
+              activeFindMatch={activeFindMatch}
             />
           )}
         </div>
@@ -219,25 +234,33 @@ async function copyThreadId(threadId: string) {
 
 function ThreadFindBox({
   messages,
-  onJump,
+  query,
+  activeMatch,
+  onQueryChange,
+  onActiveMatchChange,
 }: {
   messages: AgentReducedMessage[];
-  onJump: (messageId: string) => void;
+  query: string;
+  activeMatch: ChatFindMatch | null;
+  onQueryChange: (query: string) => void;
+  onActiveMatchChange: (match: ChatFindMatch | null) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const close = useMemoizedFn(() => {
     setOpen(false);
-    setQuery("");
+    onQueryChange("");
+    onActiveMatchChange(null);
     setActiveIndex(0);
   });
-  const matches = buildChatFindMatches(messages, query);
+  const matches = useMemo(
+    () => (open ? buildChatFindMatches(messages, query) : []),
+    [messages, open, query],
+  );
   const jumpToMatch = useMemoizedFn((match: ChatFindMatch | undefined, index: number) => {
-    if (!match) return;
     setActiveIndex(index);
-    onJump(match.messageId);
+    onActiveMatchChange(match ?? null);
   });
   const jumpBy = useMemoizedFn((step: 1 | -1) => {
     if (matches.length === 0) return;
@@ -275,6 +298,25 @@ function ThreadFindBox({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [close, open]);
 
+  useEffect(() => {
+    if (!open || !activeMatch) return;
+    const frame = requestAnimationFrame(() => {
+      const root = inputRef.current?.closest<HTMLElement>('[data-testid="agent-thread-chat"]');
+      const active = root?.querySelector<HTMLElement>('[data-chat-find-active="true"]');
+      if (active) {
+        active.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+        return;
+      }
+
+      root
+        ?.querySelector<HTMLElement>(
+          `[data-agent-message-id="${escapeCssAttribute(activeMatch.messageId)}"]`,
+        )
+        ?.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [activeMatch, open, query]);
+
   if (!open) return null;
 
   const hasMatches = matches.length > 0;
@@ -294,7 +336,7 @@ function ThreadFindBox({
         onChange={(event) => {
           const nextQuery = event.target.value;
           const nextMatches = buildChatFindMatches(messages, nextQuery);
-          setQuery(nextQuery);
+          onQueryChange(nextQuery);
           jumpToMatch(nextMatches[0], 0);
         }}
         onKeyDown={(event) => {
@@ -349,6 +391,10 @@ function ThreadFindBox({
       </Button>
     </div>
   );
+}
+
+function escapeCssAttribute(value: string) {
+  return globalThis.CSS?.escape?.(value) ?? value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 }
 
 function AgentThreadHeader({
