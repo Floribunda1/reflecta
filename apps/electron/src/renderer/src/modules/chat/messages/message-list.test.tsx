@@ -163,7 +163,7 @@ describe("MessageList entity refs", () => {
     const chip = container?.querySelector('[data-slot="wiki-link"]');
     const mark = chip?.querySelector('[data-chat-find-active="true"]');
     expect(mark?.textContent).toBe("用户");
-    expect(mark?.getAttribute("class")).toContain("bg-yellow-200");
+    expect(mark?.getAttribute("data-chat-find-match")).toBe("true");
   });
 
   test("renders resolved assistant ref markers as clickable context chips", () => {

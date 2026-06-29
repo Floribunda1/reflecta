@@ -9,13 +9,9 @@ export type ChatFindRenderState = {
   nextMatchIndex: number;
 };
 
-const CHAT_FIND_MARK_CLASS =
-  "rounded-[2px] bg-yellow-200 px-0.5 text-inherit dark:bg-yellow-500/45 data-[chat-find-active=true]:bg-primary data-[chat-find-active=true]:text-primary-foreground";
-
 function markProps(state: ChatFindRenderState, matchIndex: number) {
   const active = state.activeMatchIndex === matchIndex;
   const props: Record<string, unknown> = {
-    className: CHAT_FIND_MARK_CLASS,
     "data-chat-find-match": "true",
     "data-chat-find-message-id": state.messageId,
     "data-chat-find-match-index": String(matchIndex),
