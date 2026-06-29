@@ -122,7 +122,8 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
       element.querySelectorAll<HTMLElement>('[data-agent-message-id][data-message-role="user"]'),
     );
     const containerTop = element.getBoundingClientRect().top;
-    const anchorTop = containerTop + Math.min(element.clientHeight * 0.35, 220);
+    const anchorTop =
+      containerTop + Math.max(element.clientHeight * 0.75, element.clientHeight - 96);
     let candidateId: string | null = null;
 
     for (const row of rows) {
@@ -149,7 +150,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     );
     if (!row) return;
 
-    row.scrollIntoView({ block: "start", behavior: "smooth" });
+    row.scrollIntoView({ block: "end", inline: "nearest", behavior: "smooth" });
     shouldStickToBottom.current = false;
     setActiveJumpMessageId(messageId);
     setHighlightedMessageId(messageId);
