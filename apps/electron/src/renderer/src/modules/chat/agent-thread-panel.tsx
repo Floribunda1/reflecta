@@ -241,7 +241,14 @@ function ThreadFindBox() {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<FindInPageResult>({ activeMatchOrdinal: 0, matches: 0 });
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const findDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearPendingFind = useMemoizedFn(() => {
+    if (!findDelayRef.current) return;
+    clearTimeout(findDelayRef.current);
+    findDelayRef.current = null;
+  });
   const close = useMemoizedFn(() => {
+    clearPendingFind();
     setOpen(false);
     setQuery("");
     setResult({ activeMatchOrdinal: 0, matches: 0 });
@@ -260,6 +267,13 @@ function ThreadFindBox() {
       void findInPage(nextQuery, options);
     },
   );
+  const scheduleFind = useMemoizedFn((nextQuery: string) => {
+    clearPendingFind();
+    findDelayRef.current = setTimeout(() => {
+      findDelayRef.current = null;
+      runFind(nextQuery);
+    }, 120);
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -308,7 +322,13 @@ function ThreadFindBox() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [close, open]);
 
-  useEffect(() => () => void stopFindInPage(), []);
+  useEffect(
+    () => () => {
+      clearPendingFind();
+      void stopFindInPage();
+    },
+    [clearPendingFind],
+  );
 
   if (!open) return null;
 
@@ -324,15 +344,19 @@ function ThreadFindBox() {
       <Input
         ref={inputRef}
         data-testid="agent-thread-find-input"
+        type="password"
+        autoComplete="off"
+        spellCheck={false}
         value={query}
         onChange={(event) => {
           const nextQuery = event.target.value;
           setQuery(nextQuery);
-          runFind(nextQuery);
+          scheduleFind(nextQuery);
         }}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.preventDefault();
+            clearPendingFind();
             runFind(query, { findNext: true, forward: !event.shiftKey });
           }
           if (event.key === "Escape") {
@@ -340,7 +364,7 @@ function ThreadFindBox() {
             close();
           }
         }}
-        className="h-full min-w-0 flex-1 border-0 bg-transparent px-5 text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
+        className="h-full min-w-0 flex-1 border-0 bg-transparent px-5 text-base shadow-none [-webkit-text-security:none] focus-visible:ring-0 dark:bg-transparent"
         placeholder="在页面中查找"
       />
       <div className="px-3 text-base tabular-nums text-muted-foreground">{countLabel}</div>
@@ -353,7 +377,10 @@ function ThreadFindBox() {
         title="上一个匹配项"
         disabled={!query.trim() || !hasMatches}
         className="mx-1 text-muted-foreground"
-        onClick={() => runFind(query, { findNext: true, forward: false })}
+        onClick={() => {
+          clearPendingFind();
+          runFind(query, { findNext: true, forward: false });
+        }}
       >
         <ChevronUp />
       </Button>
@@ -365,7 +392,10 @@ function ThreadFindBox() {
         title="下一个匹配项"
         disabled={!query.trim() || !hasMatches}
         className="text-muted-foreground"
-        onClick={() => runFind(query, { findNext: true, forward: true })}
+        onClick={() => {
+          clearPendingFind();
+          runFind(query, { findNext: true, forward: true });
+        }}
       >
         <ChevronDown />
       </Button>
