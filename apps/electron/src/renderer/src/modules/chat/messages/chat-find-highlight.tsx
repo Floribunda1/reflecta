@@ -56,12 +56,15 @@ type HastNode = {
 };
 
 const SKIPPED_HAST_TAGS = new Set(["script", "style"]);
+let chatFindPluginId = 0;
 
 export function createChatFindRehypePlugin(state: ChatFindRenderState | undefined) {
-  return () => (tree: HastNode) => {
+  const plugin = () => (tree: HastNode) => {
     if (!state || !normalizedChatFindQuery(state.query)) return;
     transformHastChildren(tree, state);
   };
+  Object.defineProperty(plugin, "name", { value: `rehypeChatFind${chatFindPluginId++}` });
+  return plugin;
 }
 
 function transformHastChildren(parent: HastNode, state: ChatFindRenderState) {

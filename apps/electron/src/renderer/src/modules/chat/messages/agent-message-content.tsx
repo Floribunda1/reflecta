@@ -79,10 +79,14 @@ function MarkdownBody({
   findState?: ChatFindRenderState;
 }) {
   const markdownValue = referenceMarkdownToLinks(value);
+  const findKey = findState
+    ? `${findState.query}:${findState.activeMatchIndex ?? "inactive"}`
+    : "plain";
 
   return (
     <div className={["reflecta-chat-markdown", className].filter(Boolean).join(" ")}>
       <Streamdown
+        key={findKey}
         components={wikiMarkdownComponents(
           onInspectContextRef,
           entitySources,

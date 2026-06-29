@@ -57,6 +57,35 @@ function renderMessageList({
   });
 }
 
+function rerenderMessageList({
+  messages,
+  entitySources,
+  findQuery,
+  activeFindMatch,
+}: {
+  messages: AgentReducedMessage[];
+  entitySources: AgentEntitySource[];
+  findQuery?: string;
+  activeFindMatch?: ChatFindMatch | null;
+}) {
+  act(() => {
+    root?.render(
+      <MessageList
+        messages={messages}
+        entitySources={entitySources}
+        isBusy={false}
+        stoppedMessageId={null}
+        onRetry={vi.fn()}
+        onEdit={vi.fn()}
+        onRegenerate={vi.fn()}
+        onApproveTool={vi.fn()}
+        findQuery={findQuery}
+        activeFindMatch={activeFindMatch}
+      />,
+    );
+  });
+}
+
 describe("MessageList entity refs", () => {
   test("preserves paragraph breaks in user messages restored from composer content", () => {
     renderMessageList({
@@ -136,6 +165,36 @@ describe("MessageList entity refs", () => {
         ?.querySelector('[data-chat-find-active="true"]')
         ?.getAttribute("data-chat-find-match-index"),
     ).toBe("1");
+  });
+
+  test("adds assistant search highlights after messages already rendered", () => {
+    const messages: AgentReducedMessage[] = [
+      {
+        id: "assistant_1",
+        role: "assistant",
+        text: "用户先出现，用户再出现",
+        createdAt: "2026-06-26T00:00:00.000Z",
+        blocks: [
+          {
+            kind: "text",
+            text: "用户先出现，用户再出现",
+            createdAt: "2026-06-26T00:00:00.000Z",
+          },
+        ],
+      },
+    ];
+
+    renderMessageList({ messages, entitySources: [] });
+    expect(container?.querySelector('[data-chat-find-match="true"]')).toBeNull();
+
+    rerenderMessageList({
+      messages,
+      entitySources: [],
+      findQuery: "用户",
+      activeFindMatch: { messageId: "assistant_1", matchIndex: 0, role: "assistant" },
+    });
+
+    expect(container?.querySelectorAll('[data-chat-find-match="true"]')).toHaveLength(2);
   });
 
   test("keeps search highlights inside rendered wiki chips", () => {
