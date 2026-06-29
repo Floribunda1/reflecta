@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { AgentEntitySource, AgentReducedMessage } from "@shared/agent";
-import { activateChatFindMarker } from "./chat-find-highlight";
+import { activateChatFindMarker, chatFindMarkers } from "./chat-find-highlight";
 import { MessageList } from "./message-list";
 
 let root: Root | null = null;
@@ -188,6 +188,19 @@ describe("MessageList entity refs", () => {
     });
 
     expect(container?.querySelectorAll('[data-chat-find-match="true"]')).toHaveLength(2);
+  });
+
+  test("reads search matches in rendered DOM order", () => {
+    container = document.createElement("div");
+    container.innerHTML = `
+      <mark data-chat-find-match="true" data-chat-find-message-id="message_2" data-chat-find-match-index="0"></mark>
+      <mark data-chat-find-match="true" data-chat-find-message-id="message_1" data-chat-find-match-index="3"></mark>
+    `;
+
+    expect(chatFindMarkers(container)).toEqual([
+      { messageId: "message_2", matchIndex: 0 },
+      { messageId: "message_1", matchIndex: 3 },
+    ]);
   });
 
   test("keeps search highlights inside rendered wiki chips", () => {

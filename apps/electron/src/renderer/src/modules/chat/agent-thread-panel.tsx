@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Archive,
   ArrowDown,
@@ -32,7 +32,11 @@ import { toast } from "sonner";
 import { ipcClient } from "@renderer/utils/ipc";
 import { ChatComposer } from "./composer/chat-composer";
 import type { InspectableContextRef } from "./context/context-reference";
-import { activateChatFindMarker } from "./messages/chat-find-highlight";
+import {
+  activateChatFindMarker,
+  chatFindMarkers,
+  type ChatFindMarkerMatch,
+} from "./messages/chat-find-highlight";
 import { MessageList } from "./messages/message-list";
 import { usePiAgentThreadView } from "./session/pi-thread-view";
 import {
@@ -40,7 +44,7 @@ import {
   useSelectAgentModelMutation,
   useSelectAgentReasoningLevelMutation,
 } from "./session/server-state";
-import { buildChatFindMatches, type ChatFindMatch, type ChatJumpItem } from "./session/thread-view";
+import type { ChatJumpItem } from "./session/thread-view";
 
 const CHAT_JUMP_MIN_ITEMS = 4;
 
@@ -97,7 +101,7 @@ export function AgentThreadPanel({
     selectReasoningLevelMutation.mutate(level),
   );
   const [findQuery, setFindQuery] = useState("");
-  const [activeFindMatch, setActiveFindMatch] = useState<ChatFindMatch | null>(null);
+  const [activeFindMatch, setActiveFindMatch] = useState<ChatFindMarkerMatch | null>(null);
 
   useEffect(() => {
     setFindQuery("");
@@ -241,32 +245,30 @@ function ThreadFindBox({
 }: {
   messages: AgentReducedMessage[];
   query: string;
-  activeMatch: ChatFindMatch | null;
+  activeMatch: ChatFindMarkerMatch | null;
   onQueryChange: (query: string) => void;
-  onActiveMatchChange: (match: ChatFindMatch | null) => void;
+  onActiveMatchChange: (match: ChatFindMarkerMatch | null) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [renderedMatches, setRenderedMatches] = useState<ChatFindMarkerMatch[]>([]);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const close = useMemoizedFn(() => {
     setOpen(false);
     onQueryChange("");
     onActiveMatchChange(null);
+    setRenderedMatches([]);
   });
-  const matches = useMemo(
-    () => (open ? buildChatFindMatches(messages, query) : []),
-    [messages, open, query],
-  );
   const activeIndex = activeMatch
-    ? matches.findIndex((match) => sameFindMatch(match, activeMatch))
+    ? renderedMatches.findIndex((match) => sameFindMatch(match, activeMatch))
     : -1;
-  const jumpToMatch = useMemoizedFn((match: ChatFindMatch | undefined) => {
+  const jumpToMatch = useMemoizedFn((match: ChatFindMarkerMatch | undefined) => {
     onActiveMatchChange(match ?? null);
   });
   const jumpBy = useMemoizedFn((step: 1 | -1) => {
-    if (matches.length === 0) return;
+    if (renderedMatches.length === 0) return;
     const currentIndex = activeIndex >= 0 ? activeIndex : step === -1 ? 0 : -1;
-    const nextIndex = (currentIndex + step + matches.length) % matches.length;
-    jumpToMatch(matches[nextIndex]);
+    const nextIndex = (currentIndex + step + renderedMatches.length) % renderedMatches.length;
+    jumpToMatch(renderedMatches[nextIndex]);
   });
 
   useEffect(() => {
@@ -300,6 +302,24 @@ function ThreadFindBox({
   }, [close, open]);
 
   useEffect(() => {
+    if (!open || !query.trim()) {
+      setRenderedMatches([]);
+      onActiveMatchChange(null);
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      const root = inputRef.current?.closest<HTMLElement>('[data-testid="agent-thread-chat"]');
+      const nextMatches = chatFindMarkers(root ?? null);
+      setRenderedMatches((previous) =>
+        sameFindMatchList(previous, nextMatches) ? previous : nextMatches,
+      );
+      onActiveMatchChange(nextMatches[0] ?? null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [messages, onActiveMatchChange, open, query]);
+
+  useEffect(() => {
     if (!open) return;
     const frame = requestAnimationFrame(() => {
       const root = inputRef.current?.closest<HTMLElement>('[data-testid="agent-thread-chat"]');
@@ -321,9 +341,9 @@ function ThreadFindBox({
 
   if (!open) return null;
 
-  const hasMatches = matches.length > 0;
+  const hasMatches = renderedMatches.length > 0;
   const visibleIndex = hasMatches ? Math.max(activeIndex, 0) : 0;
-  const countLabel = `${hasMatches ? visibleIndex + 1 : 0}/${matches.length}`;
+  const countLabel = `${hasMatches ? visibleIndex + 1 : 0}/${renderedMatches.length}`;
 
   return (
     <div
@@ -337,9 +357,9 @@ function ThreadFindBox({
         value={query}
         onChange={(event) => {
           const nextQuery = event.target.value;
-          const nextMatches = buildChatFindMatches(messages, nextQuery);
           onQueryChange(nextQuery);
-          jumpToMatch(nextMatches[0]);
+          onActiveMatchChange(null);
+          setRenderedMatches([]);
         }}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
@@ -399,8 +419,15 @@ function escapeCssAttribute(value: string) {
   return globalThis.CSS?.escape?.(value) ?? value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 }
 
-function sameFindMatch(left: ChatFindMatch, right: ChatFindMatch) {
+function sameFindMatch(left: ChatFindMarkerMatch, right: ChatFindMarkerMatch) {
   return left.messageId === right.messageId && left.matchIndex === right.matchIndex;
+}
+
+function sameFindMatchList(left: ChatFindMarkerMatch[], right: ChatFindMarkerMatch[]) {
+  return (
+    left.length === right.length &&
+    left.every((match, index) => sameFindMatch(match, right[index]!))
+  );
 }
 
 function AgentThreadHeader({

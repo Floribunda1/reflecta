@@ -36,6 +36,19 @@ export function activateChatFindMarker(root: ParentNode | null, match: ChatFindM
   return marker ?? null;
 }
 
+export function chatFindMarkers(root: ParentNode | null): ChatFindMarkerMatch[] {
+  return Array.from(root?.querySelectorAll<HTMLElement>('[data-chat-find-match="true"]') ?? [])
+    .map(chatFindMarkerFromElement)
+    .filter((match): match is ChatFindMarkerMatch => Boolean(match));
+}
+
+function chatFindMarkerFromElement(element: HTMLElement): ChatFindMarkerMatch | null {
+  const messageId = element.dataset.chatFindMessageId;
+  const matchIndex = Number(element.dataset.chatFindMatchIndex);
+  if (!messageId || !Number.isInteger(matchIndex)) return null;
+  return { messageId, matchIndex };
+}
+
 function escapeCssAttribute(value: string) {
   return globalThis.CSS?.escape?.(value) ?? value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 }
