@@ -51,6 +51,31 @@ function renderMessageList({
 }
 
 describe("MessageList entity refs", () => {
+  test("preserves paragraph breaks in user messages restored from composer content", () => {
+    renderMessageList({
+      messages: [
+        {
+          id: "user_1",
+          role: "user",
+          text: "第一行\n第二行\n第三行",
+          createdAt: "2026-06-26T00:00:00.000Z",
+          composerContent: {
+            type: "doc",
+            content: [
+              { type: "paragraph", content: [{ type: "text", text: "第一行" }] },
+              { type: "paragraph", content: [{ type: "text", text: "第二行" }] },
+              { type: "paragraph", content: [{ type: "text", text: "第三行" }] },
+            ],
+          },
+        },
+      ],
+      entitySources: [],
+    });
+
+    const message = container?.querySelector('[data-testid="agent-user-message"]');
+    expect(message?.textContent).toBe("第一行\n第二行\n第三行");
+  });
+
   test("renders resolved assistant ref markers as clickable context chips", () => {
     const onInspectContextRef = vi.fn();
     renderMessageList({

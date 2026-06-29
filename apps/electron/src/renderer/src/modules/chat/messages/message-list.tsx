@@ -73,6 +73,7 @@ function renderComposerNode(
   onInspect?: (ref: InspectableContextRef) => void,
 ): ReactNode {
   if (node.type === "text") return node.text ?? "";
+  if (node.type === "hardBreak") return "\n";
   const ref = contextRefFromMentionNode(node);
   if (ref) return <MentionChip key={key} ref={ref} onInspect={onInspect} />;
   if (node.type === "paragraph") {
@@ -136,8 +137,10 @@ function UserMessageContent({
   const files = messageFiles(message);
   const content = message.composerContent as ComposerJSON | undefined;
   const renderedContent =
-    content?.content?.map((node, index) => renderComposerNode(node, String(index), onInspect)) ??
-    [];
+    content?.content?.flatMap((node, index) => [
+      index > 0 ? "\n" : null,
+      renderComposerNode(node, String(index), onInspect),
+    ]) ?? [];
   const hasRenderedContent = renderedContent.length > 0;
   const hasTextContent = hasRenderedContent || Boolean(text) || refs.length > 0;
 
