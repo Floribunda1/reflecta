@@ -226,7 +226,7 @@ export class AgentSessionLog {
     if (!branchEntry) throw new Error("Cannot fork assistant message");
 
     const sourceEvents = await this.readEvents(sessionId);
-    const title = `${manager.getSessionName()?.trim() || titleFromEvents(sourceEvents, "新对话")} 分支`;
+    const title = `Fork - ${manager.getSessionName()?.trim() || titleFromEvents(sourceEvents, "新对话")}`;
     manager.createBranchedSession(branchEntry.id);
     this.flushCustomOnlySession(manager);
     manager.appendSessionInfo(title);

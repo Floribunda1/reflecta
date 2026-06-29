@@ -172,8 +172,9 @@ describe("AgentSessionLog", () => {
   test("forks from an assistant message without keeping later turns", async () => {
     const root = tempRoot();
     const log = new AgentSessionLog(root);
-    const session = log.createSession("原对话");
+    const session = log.createSession();
     const manager = await log.openSession(session.id);
+    manager.appendSessionInfo("原对话");
     const events: AgentSessionEvent[] = [
       { ...baseEvent, id: "evt_1", sessionId: session.id, type: "run.started" },
       {
@@ -210,7 +211,7 @@ describe("AgentSessionLog", () => {
     const fork = await log.forkSessionFromAssistantMessage(session.id, "assistant_1");
 
     expect(fork.id).not.toBe(session.id);
-    expect(fork.title).toBe("hello 分支");
+    expect(fork.title).toBe("Fork - 原对话");
     await expect(log.readEvents(fork.id)).resolves.toEqual(
       events.slice(0, 4).map((event) => ({ ...event, sessionId: fork.id })),
     );
