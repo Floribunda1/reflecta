@@ -1,5 +1,15 @@
-import { useEffect, useState } from "react";
-import { Archive, ArrowDown, Copy, FileDown, MoreHorizontal, Sparkles, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Archive,
+  ArrowDown,
+  Copy,
+  FileDown,
+  MoreHorizontal,
+  Search,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
 import type {
   AgentContextRef,
   AgentModelSelection,
@@ -31,6 +41,8 @@ import {
 import type { ChatJumpItem } from "./session/thread-view";
 
 const CHAT_JUMP_MIN_ITEMS = 4;
+const FIND_IN_PAGE_CHANNEL = "window:find-in-page";
+const STOP_FIND_IN_PAGE_CHANNEL = "window:stop-find-in-page";
 
 function errorMessage(error: unknown) {
   if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
@@ -205,6 +217,112 @@ async function copyThreadId(threadId: string) {
   }
 }
 
+function findInPage(
+  text: string,
+  options: { forward?: boolean; findNext?: boolean; matchCase?: boolean } = {},
+) {
+  return window.ipcRenderer.invoke(FIND_IN_PAGE_CHANNEL, text, options);
+}
+
+function stopFindInPage() {
+  return window.ipcRenderer.invoke(STOP_FIND_IN_PAGE_CHANNEL);
+}
+
+function ThreadFindBox() {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const close = useMemoizedFn(() => {
+    setOpen(false);
+    setQuery("");
+    void stopFindInPage();
+  });
+  const runFind = useMemoizedFn(
+    (
+      nextQuery: string,
+      options: { forward?: boolean; findNext?: boolean; matchCase?: boolean } = {},
+    ) => {
+      if (!nextQuery.trim()) {
+        void stopFindInPage();
+        return;
+      }
+      void findInPage(nextQuery, options);
+    },
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    });
+  }, [open]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        setOpen(true);
+        return;
+      }
+
+      if (open && event.key === "Escape") {
+        event.preventDefault();
+        close();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [close, open]);
+
+  useEffect(() => () => void stopFindInPage(), []);
+
+  return (
+    <div className="flex items-center gap-1">
+      {open ? (
+        <Input
+          ref={inputRef}
+          data-testid="agent-thread-find-input"
+          value={query}
+          onChange={(event) => {
+            const nextQuery = event.target.value;
+            setQuery(nextQuery);
+            runFind(nextQuery);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              runFind(query, { findNext: true, forward: !event.shiftKey });
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              close();
+            }
+          }}
+          className="h-8 w-56"
+          placeholder="搜索当前页面"
+        />
+      ) : null}
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        aria-label={open ? "关闭搜索" : "搜索对话"}
+        aria-pressed={open}
+        title={open ? "关闭搜索" : "搜索对话"}
+        className={cn(open && "bg-muted text-foreground")}
+        onClick={() => {
+          if (open) close();
+          else setOpen(true);
+        }}
+      >
+        {open ? <X /> : <Search />}
+      </Button>
+    </div>
+  );
+}
+
 function AgentThreadHeader({
   threadId,
   title,
@@ -261,6 +379,7 @@ function AgentThreadHeader({
       />
 
       <div data-no-drag className="flex shrink-0 items-center gap-1">
+        <ThreadFindBox />
         <DropdownMenu>
           <DropdownMenuTrigger
             render={

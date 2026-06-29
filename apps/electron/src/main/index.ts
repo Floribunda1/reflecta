@@ -9,6 +9,9 @@ import { preloadScript, rendererHtml } from "./paths";
 import { startRetrievalIdleRebuild } from "./retrievalIdleRebuild";
 import { getRuntimeArg } from "./runtime-args";
 
+const FIND_IN_PAGE_CHANNEL = "window:find-in-page";
+const STOP_FIND_IN_PAGE_CHANNEL = "window:stop-find-in-page";
+
 // Register asset:// as a privileged scheme before app is ready
 registerAssetScheme();
 app.setName(APP_NAME);
@@ -105,6 +108,25 @@ app.whenReady().then(async () => {
 
   // IPC test
   ipcMain.on("ping", () => appLog.debug("ipc.ping"));
+  ipcMain.handle(
+    FIND_IN_PAGE_CHANNEL,
+    (event, text: unknown, options: Electron.FindInPageOptions = {}) => {
+      if (typeof text !== "string" || text.length === 0) {
+        event.sender.stopFindInPage("clearSelection");
+        return 0;
+      }
+      const findOptions = typeof options === "object" && options ? options : {};
+
+      return event.sender.findInPage(text, {
+        forward: findOptions.forward !== false,
+        findNext: findOptions.findNext === true,
+        matchCase: findOptions.matchCase === true,
+      });
+    },
+  );
+  ipcMain.handle(STOP_FIND_IN_PAGE_CHANNEL, (event) => {
+    event.sender.stopFindInPage("clearSelection");
+  });
 
   createWindow();
 
