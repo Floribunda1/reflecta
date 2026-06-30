@@ -219,15 +219,13 @@ export async function getRetrievalIndexStatus(): Promise<RetrievalIndexStatus> {
 }
 
 export async function trySyncRetrievalIndexByUnderstandingId(
-  db: ReflectaDb,
-  understandingId: string,
+  _db: ReflectaDb,
+  _understandingId: string,
 ): Promise<void> {
+  // ponytail: keep writes fast; search and idle time rebuild dirty retrieval indexes.
   try {
-    await syncRetrievalIndexByUnderstandingId(db, understandingId);
+    await markRetrievalIndexDirty();
   } catch {
-    // ponytail: file marker is enough; SQLite stays source of truth and search rebuilds.
-    try {
-      await markRetrievalIndexDirty();
-    } catch {}
+    // SQLite stays source of truth; a failed marker write must not block content writes.
   }
 }

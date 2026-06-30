@@ -182,13 +182,19 @@ async function waitForIndexingProgress() {
 }
 
 describe("retrieval index write-path sync", () => {
-  test("Understanding content updates mark retrieval dirty instead of syncing immediately", async () => {
+  test("Understanding writes mark retrieval dirty instead of syncing immediately", async () => {
     const { db, understandings } = await setupServices();
 
     const created = await understandings.createUnderstanding({
       title: "Sync Understanding",
       body: "understandingsyncbeforemarker",
     });
+    expect(await isRetrievalIndexDirty()).toBe(true);
+    expect(await indexIds("understandingsyncbeforemarker")).not.toContain(
+      `understanding:${created.id}`,
+    );
+
+    await rebuildRetrievalIndexWithStatus(db);
     expect(await indexIds("understandingsyncbeforemarker")).toContain(
       `understanding:${created.id}`,
     );
@@ -211,18 +217,23 @@ describe("retrieval index write-path sync", () => {
     expect(await indexIds("understandingsyncaftermarker")).toContain(`understanding:${created.id}`);
 
     await understandings.deleteUnderstanding(created.id);
+    expect(await isRetrievalIndexDirty()).toBe(true);
+    expect(await indexIds("understandingsyncaftermarker")).toContain(`understanding:${created.id}`);
+
+    await rebuildRetrievalIndexWithStatus(db);
     expect(await indexIds("understandingsyncaftermarker")).not.toContain(
       `understanding:${created.id}`,
     );
   });
 
   test("domain-only Understanding updates mark retrieval dirty instead of syncing immediately", async () => {
-    const { domains, understandings } = await setupServices();
+    const { db, domains, understandings } = await setupServices();
     const domain = await domains.createDomain({ name: "Dirty Domain" });
     const created = await understandings.createUnderstanding({
       title: "Domain Only Dirty",
       body: "domainonlydirtymarker",
     });
+    await rebuildRetrievalIndexWithStatus(db);
     expect(await isRetrievalIndexDirty()).toBe(false);
 
     await understandings.updateUnderstanding(created.id, { domainIds: [domain.id] });
@@ -230,12 +241,13 @@ describe("retrieval index write-path sync", () => {
     expect(await isRetrievalIndexDirty()).toBe(true);
   });
 
-  test("Context updates mark retrieval dirty instead of syncing immediately", async () => {
+  test("Context writes mark retrieval dirty instead of syncing immediately", async () => {
     const { contexts, db, understandings } = await setupServices();
     const understanding = await understandings.createUnderstanding({
       title: "Sync Context Parent",
       body: "Parent body",
     });
+    await rebuildRetrievalIndexWithStatus(db);
 
     const context = await contexts.createContext({
       understandingId: understanding.id,
@@ -243,6 +255,10 @@ describe("retrieval index write-path sync", () => {
       title: "Sync Context",
       content: "contextsyncbeforemarker",
     });
+    expect(await isRetrievalIndexDirty()).toBe(true);
+    expect(await indexIds("contextsyncbeforemarker")).not.toContain(`context:${context.id}`);
+
+    await rebuildRetrievalIndexWithStatus(db);
     expect(await indexIds("contextsyncbeforemarker")).toContain(`context:${context.id}`);
 
     await contexts.updateContext(context.id, { content: "contextsyncaftermarker" });
@@ -255,6 +271,10 @@ describe("retrieval index write-path sync", () => {
     expect(await indexIds("contextsyncaftermarker")).toContain(`context:${context.id}`);
 
     await contexts.deleteContext(context.id);
+    expect(await isRetrievalIndexDirty()).toBe(true);
+    expect(await indexIds("contextsyncaftermarker")).toContain(`context:${context.id}`);
+
+    await rebuildRetrievalIndexWithStatus(db);
     expect(await indexIds("contextsyncaftermarker")).not.toContain(`context:${context.id}`);
   });
 
@@ -307,6 +327,9 @@ describe("retrieval index write-path sync", () => {
       title: "Index Status",
       body: "indexstatusmarker",
     });
+    expect(await getRetrievalIndexStatus()).toMatchObject({ state: "not_ready" });
+
+    await rebuildRetrievalIndexWithStatus(db);
     expect(await getRetrievalIndexStatus()).toMatchObject({ state: "ready" });
 
     await markRetrievalIndexDirty();
@@ -336,6 +359,8 @@ describe("retrieval index write-path sync", () => {
     const status = await waitForIndexingProgress();
     embeddingServer.releaseBlockedResponse();
     await rebuild;
+    const completed = status.progress?.completed ?? 0;
+    const total = status.progress?.total ?? 0;
 
     expect(status).toMatchObject({
       state: "indexing",
@@ -345,8 +370,8 @@ describe("retrieval index write-path sync", () => {
         percent: expect.any(Number),
       }),
     });
-    expect(status.progress?.completed).toBeGreaterThan(0);
-    expect(status.progress?.completed).toBeLessThan(status.progress?.total ?? 0);
+    expect(completed).toBeGreaterThan(0);
+    expect(completed).toBeLessThan(total);
   });
 
   test("interactive Understanding search stays lexical-only even when semantic matches exist", async () => {
