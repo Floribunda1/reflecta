@@ -2,9 +2,12 @@
 
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { schemaCtx } from "@milkdown/core";
+import { editorViewCtx } from "@milkdown/core";
 import { uploadConfig } from "@milkdown/plugin-upload";
 import type { Editor } from "@milkdown/core";
 import type { Fragment } from "@milkdown/prose/model";
+import { Fragment as ProseFragment } from "@milkdown/prose/model";
+import { TextSelection } from "@milkdown/prose/state";
 import {
   createReflectaMilkdownEditor,
   getMilkdownMarkdown,
@@ -182,5 +185,35 @@ describe("reflecta milkdown editor", () => {
 
     expect(root.querySelector(".reflecta-md-editor__mermaid-preview")).toBeNull();
     expect(getMilkdownMarkdown(editor)).toContain("```mermaid");
+  });
+
+  test("backspace removes an empty paragraph inside a blockquote", async () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+
+    const editor = await createReflectaMilkdownEditor({
+      root,
+      content: "seed",
+    });
+    editors.push(editor);
+
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const emptyParagraph = schema.nodes.paragraph.create();
+    const quoteText = schema.nodes.paragraph.create(null, schema.text("quoted"));
+    const blockquote = schema.nodes.blockquote.create(
+      null,
+      ProseFragment.fromArray([emptyParagraph, quoteText]),
+    );
+    view.dispatch(
+      view.state.tr.replaceWith(0, view.state.doc.content.size, ProseFragment.from(blockquote)),
+    );
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 2)));
+
+    root
+      .querySelector(".ProseMirror")
+      ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace", bubbles: true }));
+
+    expect(getMilkdownMarkdown(editor)).toBe("> quoted");
   });
 });

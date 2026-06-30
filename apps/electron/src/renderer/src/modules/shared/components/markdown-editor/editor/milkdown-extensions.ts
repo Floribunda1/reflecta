@@ -1,4 +1,6 @@
-import { $nodeSchema, $remark } from "@milkdown/utils";
+import { $nodeSchema, $prose, $remark } from "@milkdown/utils";
+import { keymap } from "@milkdown/prose/keymap";
+import { TextSelection, type Command } from "@milkdown/prose/state";
 import { visit } from "unist-util-visit";
 
 const wikiLinkPattern = /\[\[([^\]\n#]+)#([^\]\n#]+)\]\]/g;
@@ -100,4 +102,40 @@ export const wikiLinkSchema = $nodeSchema("wiki_link", () => ({
   },
 }));
 
-export const reflectaMilkdownExtensions = [remarkWikiLink, wikiLinkSchema].flat();
+const deleteEmptyNestedTextblock: Command = (state, dispatch) => {
+  const { selection } = state;
+  if (!(selection instanceof TextSelection) || !selection.empty || !selection.$cursor) {
+    return false;
+  }
+
+  const $cursor = selection.$cursor;
+  const parent = $cursor.parent;
+  if ($cursor.parentOffset !== 0 || !parent.isTextblock || parent.content.size > 0) {
+    return false;
+  }
+  if ($cursor.depth < 2) return false;
+
+  const containerDepth = $cursor.depth - 1;
+  const container = $cursor.node(containerDepth);
+  if (container.childCount <= 1) return false;
+
+  const index = $cursor.index(containerDepth);
+  if (!container.canReplace(index, index + 1)) return false;
+
+  dispatch?.(
+    state.tr.delete($cursor.before($cursor.depth), $cursor.after($cursor.depth)).scrollIntoView(),
+  );
+  return true;
+};
+
+export const emptyNestedBlockKeymap = $prose(() =>
+  keymap({
+    Backspace: deleteEmptyNestedTextblock,
+  }),
+);
+
+export const reflectaMilkdownExtensions = [
+  remarkWikiLink,
+  wikiLinkSchema,
+  emptyNestedBlockKeymap,
+].flat();
