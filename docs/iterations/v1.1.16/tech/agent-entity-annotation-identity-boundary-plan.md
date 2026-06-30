@@ -1,31 +1,55 @@
-# Agent Entity Annotation 与工具身份边界改造 Implementation Plan
+# Agent 正文内联引用与工具身份边界改造 Implementation Plan
 
 > **给执行 Agent：** 实施本计划时必须使用 `superpowers:subagent-driven-development`（推荐）或 `superpowers:executing-plans`。任务用 checkbox（`- [ ]`）跟踪，按任务逐步执行。
 
-**目标：** 把 Agent 正文、工具实体身份、前端可点击实体展示彻底拆成三条协议，避免模型再次把 display reference 当成工具参数。
+**目标：** 在 assistant 正文里显示可点击知识库引用，同时把正文引用展示、工具实体身份、用户内容落库三条协议彻底拆开，避免模型再次把 display reference 当成工具参数。
 
-**架构：** 工具协议只暴露稳定 Reflecta 实体 id。Assistant 正文使用自然语言和对象标题，不要求模型手写任何会话级短号或 inline ref。Renderer 通过 session entity catalog / structured annotation 渲染实体 chip；写工具落库前拒绝 Agent-only display token，避免把 chat 协议写进用户内容。
+**架构：** 工具协议只暴露稳定 Reflecta 实体 id。Assistant 正文使用自然语言和对象标题；runtime 根据 session entity catalog 生成结构化 text-span annotation，renderer 把正文中的对应 span 渲染为内联引用。模型不手写任何会话级短号、inline ref 或 title/id 组合；写工具落库前拒绝 Agent-only display token，避免把 chat 协议写进用户内容。
 
 **技术栈：** Electron main process、Pi coding agent tools、TypeScript shared Agent session events、Streamdown renderer、Reflecta domain services、Vitest、Electron E2E fixtures。
 
 ---
 
-## 0. 本版本最终结论
+## 0. 当前真实问题
 
-v1.1.16 的最终形态是：**Agent 不再生成任何聊天引用 token。**
+用户现在碰到的不是“工具调用里要不要用引用”，而是 **assistant 正文里的知识库引用展示不可靠**。
+
+具体表现有三类：
+
+1. **正文没有以用户可读的引用形式展示实体。** Assistant 明明在讲某个 Domain / Understanding / Context，但正文里可能显示裸 id、缺 title 的链接、`#reflecta-wiki/...` 形式的 markdown，或者完全没有内联引用。用户需要的是正文中的实体标题能显示成可点击引用，例如 `# 三观`、`✦ 存在不需要被证明`。
+2. **早期让模型手写正文引用会错配。** `[[title#id]]` / `[[type:title#id]]` 这类方案把 title、type、id 的拼装交给模型，模型会把 A 的标题和 B 的 id 拼在一起，导致“看起来可读，但点进去是另一个对象”。
+3. **后来的 ref / 短号方案污染了工具身份。** 为了避免 title/id 错配，把真实 id 包进 `[[ref:S1]]`、`[D1]` 或 `[[type:id]]` 后，模型开始把这些 display reference 当成可复用实体身份，传进工具参数，最终造成 tool failed。
+
+还有一个相邻但必须一起修的 UI 状态问题：
+
+4. **用户确认后工具实际失败，前端没有把失败状态和原因展示清楚。** 这会让用户以为“已确认”就是“已执行成功”，但真实状态是 approval 已确认、tool execution failed。UI 必须显示失败和失败原因。
+
+所以本版本要解决的问题不是：
+
+- 让工具接受 `ref`、`[D1]`、`[[...]]`。
+- 把引用 chip 放到消息下方绕开正文。
+- 再换一种由模型手写的引用 token。
+
+本版本真正要建立的是：
+
+> **正文仍然显示内联引用；引用的真实 id 绑定由 runtime 结构化 annotation 负责；工具参数只使用稳定实体 id；工具执行失败必须在调用记录里显示失败原因。**
+
+## 1. 本版本最终结论
+
+v1.1.16 的最终形态是：**正文里显示引用，但 Agent 不再生成任何聊天引用 token。**
 
 模型只做两件事：
 
 1. 调工具时把稳定实体 id 放进 JSON 参数。
-2. 写回复时用自然语言和对象标题表达。
+2. 写回复时在需要引用的位置写自然语言和实体标题。
 
 系统做三件事：
 
 1. 只读工具和 selected context 给模型暴露 `id`、`type`、`title/name`。
-2. Runtime 把这些实体写进 session entity catalog，并在需要展示时生成结构化 annotation。
-3. Renderer 用 annotation 渲染实体 chip；chip 的目标来自 catalog，不来自模型正文。
+2. Runtime 把这些实体写进 session entity catalog，并在 assistant turn 完成后为正文里的实体标题生成结构化 text-span annotation。
+3. Renderer 用 annotation 把正文中的对应 span 渲染成可点击引用；点击目标来自 catalog，不来自模型正文。
 
-### 0.1 最终 Agent-facing 工具输出
+### 1.1 最终 Agent-facing 工具输出
 
 ```json
 {
@@ -45,7 +69,7 @@ v1.1.16 的最终形态是：**Agent 不再生成任何聊天引用 token。**
 }
 ```
 
-### 0.2 最终工具调用
+### 1.2 最终工具调用
 
 ```json
 {
@@ -62,7 +86,7 @@ v1.1.16 的最终形态是：**Agent 不再生成任何聊天引用 token。**
 { "domainId": "rf_fjxcezk5az" }
 ```
 
-### 0.3 最终 assistant 正文
+### 1.3 最终 assistant 正文与 UI
 
 模型写：
 
@@ -70,46 +94,63 @@ v1.1.16 的最终形态是：**Agent 不再生成任何聊天引用 token。**
 这个理解适合放在三观下面。
 ```
 
-模型不写：
+UI 显示为正文内联引用：
+
+```txt
+这个理解适合放在 # 三观 下面。
+```
+
+其中 `# 三观` 是可点击引用。模型不写：
 
 ```md
 这个理解适合放在 [D1] 下面。
 这个理解适合放在 [[domain:domain_1]] 下面。
 ```
 
-### 0.4 最终 UI 展示
+### 1.4 最终结构化正文引用
 
-Renderer 在消息下方或工具结果区域显示由 runtime 生成的实体 chip：
-
-```txt
-相关实体：# 三观
-```
-
-这个 chip 的数据来自：
+Runtime 为 assistant 正文生成 text-span annotation：
 
 ```ts
 {
   messageId: "assistant_1",
   entity: { type: "domain", id: "domain_1", title: "三观" },
+  range: { start: 8, end: 10, quote: "三观" },
   origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_inspect" },
 }
 ```
 
-v1.1.16 不做 assistant 正文 inline chip。以后如果要做 inline chip，必须引入结构化 message span/annotation，不能让模型手写 token。
+`range` 是 assistant markdown 源文本里的 JS string offset，`quote` 用来防止错位。Renderer 只在 `text.slice(start, end) === quote` 时渲染内联引用；否则降级为普通文本并记录诊断日志。
 
-### 0.5 最终写入用户内容
+### 1.5 最终写入用户内容
 
 写工具落库前拒绝 Agent-only token，例如 `U1`、`[D1]`、`[[ref:*]]`、`[[domain:*]]`。
 
-本版本不新增“自动把 assistant 正文里的标题变成 wiki link”的能力。用户内容层继续使用现有编辑器/server 支持的 canonical Understanding wiki link：`[[标题#understandingId]]`。
+本版本不把 assistant 正文文本改写成 markdown wiki link。正文内联引用只存在于结构化 annotation + renderer 层；用户内容层继续使用现有编辑器/server 支持的 canonical Understanding wiki link：`[[标题#understandingId]]`。
 
-### 0.6 一句话验收
+### 1.6 工具失败状态
+
+用户确认写工具后，如果执行失败，调用记录必须显示：
+
+```txt
+候选修改 Understanding · 执行失败
+原因：domainId 必须是稳定 Domain id，不能是短号、wiki ref 或旧 source id。
+```
+
+这里的状态拆成两层：
+
+- approval status：用户是否确认。
+- execution status：确认后的工具是否成功执行。
+
+`已确认` 不能覆盖 `执行失败`。
+
+### 1.7 一句话验收
 
 看代码和日志时，应该能成立这句话：
 
-> `id` 是唯一工具身份；assistant 正文没有引用协议；可点击实体只来自结构化 annotation。
+> 正文引用显示在 assistant 正文里；引用绑定来自结构化 text-span annotation；`id` 是唯一工具身份；执行失败显示失败状态和原因。
 
-## 1. 背景、时间线和根因
+## 2. 背景、时间线和根因
 
 v1.1.12 引入 `[[ref:S1]]` 的动机是正确的：避免模型手写 `[[type:标题#id]]`，从而把 A 的标题和 B 的 id 拼错。
 
@@ -121,7 +162,7 @@ v1.1.12 引入 `[[ref:S1]]` 的动机是正确的：避免模型手写 `[[type:�
 
 所以 Agent 被误导不是幻觉，而是接口语义给出了错误策略：看到对象就拿 `ref` 传参。
 
-### 1.1 已踩过的坑
+### 2.1 已踩过的坑
 
 这条链路反复失败过，不能再通过“换一个 token 语法”解决。
 
@@ -134,7 +175,7 @@ v1.1.12 引入 `[[ref:S1]]` 的动机是正确的：避免模型手写 `[[type:�
 | v1.1.15 stable id + typed ref | 工具用真实 id，正文用 `[[type:id]]`                 | 去掉 ref 工具参数                       | `ref` 字段仍在模型可见 JSON 中，`[[type:id]]` 缺 title，前端只能显示 id；模型仍会把“正文引用字符串”当可复用对象身份。 |
 | v1.1.16 初稿短号 citation     | `[U1]` / `[C1]` / `[D1]`                            | 避免 `ref` 命名污染                     | 这仍然是同一个坑：把会话内短号暴露给模型手写，迟早会回到“正文里直接说 U1/U2”或“把 `[D1]` 塞进工具参数”。              |
 
-### 1.2 本次 review 的结论
+### 2.2 本次 review 的结论
 
 我的设计问题是一直默认“模型必须手写某种引用 token”，然后只是在换 token：
 
@@ -149,20 +190,20 @@ v1.1.12 引入 `[[ref:S1]]` 的动机是正确的：避免模型手写 `[[type:�
 - Renderer 负责展示和点击。
 - Runtime 负责把工具结果、selected context 和 UI 展示需要的实体 catalog 关联起来。
 
-模型不应该承担“生成可点击链接协议”的职责。除非底层 agent runtime 支持结构化 annotations，否则第一版宁可不做 assistant 正文内联 chip，也不要再让模型手写会话短号。
+模型不应该承担“生成可点击链接协议”的职责。但 v1.1.16 的产品目标是正文内联引用，所以正确做法不是取消正文引用，而是把正文引用移到 runtime 生成的结构化 text-span annotation。
 
-## 2. 架构决策
+## 3. 架构决策
 
-### 2.1 三条协议
+### 3.1 三条协议
 
-| 协议                     | 字段/语法                                        | 使用者                                        | 是否由模型手写          | 是否可传给工具 |
-| ------------------------ | ------------------------------------------------ | --------------------------------------------- | ----------------------- | -------------- |
-| 工具实体身份             | `id`、`domainId`、`understandingId`、`contextId` | Pi tools、Reflecta services                   | 是，作为 JSON 工具参数  | 是             |
-| Assistant 正文           | 自然语言、对象标题                               | Agent assistant text                          | 是                      | 否             |
-| UI entity annotation     | `{ messageId, entity: { type, id, title } }`     | Runtime、Renderer                             | 否                      | 否             |
-| 内容 canonical wiki link | `[[标题#understandingId]]`                       | 用户内容、编辑器、server wiki-link extraction | 不由 Agent 聊天协议生成 | 否             |
+| 协议                     | 字段/语法                                           | 使用者                                        | 是否由模型手写          | 是否可传给工具 |
+| ------------------------ | --------------------------------------------------- | --------------------------------------------- | ----------------------- | -------------- |
+| 工具实体身份             | `id`、`domainId`、`understandingId`、`contextId`    | Pi tools、Reflecta services                   | 是，作为 JSON 工具参数  | 是             |
+| Assistant 正文           | 自然语言、对象标题                                  | Agent assistant text                          | 是                      | 否             |
+| 正文内联引用 annotation  | `{ messageId, range, entity: { type, id, title } }` | Runtime、Renderer                             | 否                      | 否             |
+| 内容 canonical wiki link | `[[标题#understandingId]]`                          | 用户内容、编辑器、server wiki-link extraction | 不由 Agent 聊天协议生成 | 否             |
 
-### 2.2 Agent-facing entity
+### 3.2 Agent-facing entity
 
 只读工具和 selected context 给模型的实体形状统一为：
 
@@ -180,9 +221,9 @@ type AgentFacingEntity = {
 - `id` 是唯一可以放进工具参数的身份。
 - `title` / `name` 只用于人读展示。
 - 面向模型的 JSON 不再出现 `ref`、`citation`、`domainRef`、`understandingRef`、`contextRef` 这类字段名。
-- 如果需要 UI chip，runtime 从同一份实体对象写入 catalog / annotation，不能要求模型把某个 token 写进正文。
+- 如果需要正文内联引用，runtime 从同一份实体对象和 assistant final text 生成 text-span annotation，不能要求模型把某个 token 写进正文。
 
-### 2.3 Session entity catalog
+### 3.3 Session entity catalog
 
 用 entity catalog 取代 source/ref registry 的模型语义：
 
@@ -211,9 +252,9 @@ type AgentEntityCatalogUpdated = AgentEventBase & {
 
 Catalog 以 `{type,id}` 为 key，不分配 `S1`、`U1`、`D1` 这类模型可见短号。
 
-### 2.4 Structured annotation
+### 3.4 Structured text-span annotation
 
-可点击实体展示用结构化 annotation，而不是正文 token：
+可点击正文引用用结构化 annotation，而不是正文 token：
 
 ```ts
 type AgentEntityAnnotation = {
@@ -223,26 +264,77 @@ type AgentEntityAnnotation = {
     id: string;
     title?: string;
   };
+  range: {
+    start: number;
+    end: number;
+    quote: string;
+  };
   origin:
     | { kind: "selected_context" }
     | { kind: "tool_result"; toolCallId: string; toolName: string };
 };
 ```
 
-Renderer 可以把 annotations 展示为消息下方的实体 chip，或在未来支持 message AST span 后做 inline chip。v1.1.16 不让模型手写 inline citation。
+生成规则：
+
+- 只对本轮 selected context 和工具结果进入 catalog 的实体生成 annotation。
+- 只匹配正文中的实体 `title/name`，不匹配 `id`、短号或旧 ref。
+- 跳过 inline code、fenced code 和已有 markdown link。
+- 同一个 title 对应多个实体时不自动 annotation，避免错引用。
+- `range` 使用 assistant markdown 源文本的 JS string offset，并带 `quote` 二次校验。
+
+Renderer 把 annotation 对应 span 渲染为现有 `WikiLinkChip` 风格的内联引用。v1.1.16 不做 sidecar-only chip，也不让模型手写 inline citation。
 
 旧 `entity.sources.updated` 只通过一次性迁移转换，不在 reducer 和 renderer 长期兼容。
 
-## 3. 非目标
+### 3.5 Tool execution state
+
+工具调用 UI 使用同一个 assistant block，但 block 必须同时表达 approval 和 execution：
+
+```ts
+type AgentApprovalBlock = {
+  kind: "approval";
+  approvalState: "pending" | "approved" | "rejected";
+  executionState: "not_started" | "running" | "completed" | "failed";
+  displayState: "pending_approval" | "rejected" | "running" | "completed" | "failed";
+  error?: string;
+  executionError?: AgentToolExecutionError;
+};
+```
+
+Reducer 处理 `approval.resolved` 只更新 `approvalState`；处理 `tool.execution.failed` 才更新 `executionState`、`displayState` 和 `error`。Renderer 展示时以 `displayState === "failed"` 优先，不让 `已确认` 遮住失败。
+
+### 3.6 重新考虑后的实现选择
+
+这次不再从“给模型一个更好的引用 token”出发，而是从职责归属出发：
+
+| 方案                                         | 结论 | 原因                                                                                            |
+| -------------------------------------------- | ---- | ----------------------------------------------------------------------------------------------- |
+| 模型手写 `[[title#id]]` / typed wiki link    | 拒绝 | 这是最早踩坑的方案，会出现 title/id 错配。                                                      |
+| 模型手写 `[[ref:S1]]`、`[D1]`、`U1`          | 拒绝 | 会话短号会污染工具参数，也会在正文里泄漏不可读符号。                                            |
+| 工具接受 display reference                   | 拒绝 | 正式把展示协议变成身份协议，是 tool failed 的根因。                                             |
+| Renderer 看到同名标题就自动链接              | 拒绝 | 前端没有足够上下文判断“这个标题对应哪个实体”，同名时会错链。                                    |
+| Runtime 用 catalog 生成 text-span annotation | 采用 | Runtime 同时拥有 assistant final text 和本轮实体 catalog，能在不改正文文本的情况下绑定真实 id。 |
+
+采用方案的边界：
+
+- Runtime 只能为“本轮 selected context / tool result 里出现过，且 title 在正文中唯一匹配”的实体生成 annotation。
+- 匹配失败、同名冲突、quote 校验失败时，宁可显示普通正文，也不能生成可能点错的引用。
+- Renderer 不负责猜实体，只负责校验 `range.quote` 并渲染 annotation。
+- 工具协议完全不知道 annotation 的存在，只接受稳定 id。
+
+## 4. 非目标
 
 - 不让写工具接受短号、`citation`、`ref`、`[[...]]`、`rf_*` 或去掉前缀的 source id。
 - 不扩展 server service 去理解 chat display token。
 - 不改 Reflecta 数据库实体 id 生成策略。
 - 不把 Domain / Context display token 强行写成内容层 wiki link。当前内容层 canonical wiki link 只支持 Understanding link。
 - 不做 claim-level evidence validation。
-- 不在 v1.1.16 做模型手写 inline citation。没有结构化 annotation 支撑时，宁可展示 sidecar entity chips。
+- 不做 sidecar-only 引用展示；本版本目标是 assistant 正文内联引用。
+- 不做模型手写 inline citation syntax；inline citation 必须来自 structured text-span annotation。
+- 不把 tool failed 伪装成 approval rejected；approval 和 execution 是两个状态。
 
-## 4. 文件结构
+## 5. 文件结构
 
 ### Main process
 
@@ -257,6 +349,8 @@ Renderer 可以把 annotations 展示为消息下方的实体 chip，或在未�
 - Modify: `apps/electron/src/main/services/agent/pi-prompt.ts`
 - Modify: `apps/electron/src/main/services/agent/pi-prompt.test.ts`
 - Modify: `apps/electron/src/main/services/agent/agent-system-prompt.md`
+- Create: `apps/electron/src/main/services/agent/agent-entity-annotations.ts`
+- Create: `apps/electron/src/main/services/agent/agent-entity-annotations.test.ts`
 
 ### Shared typing
 
@@ -277,7 +371,7 @@ Renderer 可以把 annotations 展示为消息下方的实体 chip，或在未�
 - Create: `scripts/migrations/v1.1.16-agent-entity-catalog.ts`
 - Delete after running against provided data roots.
 
-## 5. Task 1: 引入无短号的 AgentEntityCatalog
+## 6. Task 1: 引入无短号的 AgentEntityCatalog
 
 **Files:**
 
@@ -405,7 +499,7 @@ rtk git add apps/electron/src/main/services/agent/agent-entity-catalog.ts apps/e
 rtk git commit -m "refactor(agent): replace entity sources with catalog"
 ```
 
-## 6. Task 2: 工具输出删除 ref/citation，只保留 id/type/title
+## 7. Task 2: 工具输出删除 ref/citation，只保留 id/type/title
 
 **Files:**
 
@@ -486,7 +580,7 @@ rtk git add apps/electron/src/main/services/agent/agent-entity-catalog.ts apps/e
 rtk git commit -m "fix(agent): expose entity ids without display refs"
 ```
 
-## 7. Task 3: Prompt 契约禁止模型手写引用 token
+## 8. Task 3: Prompt 契约禁止模型手写引用 token
 
 **Files:**
 
@@ -567,10 +661,12 @@ rtk git add apps/electron/src/preload/typings/agent-context.ts apps/electron/src
 rtk git commit -m "fix(agent): stop prompting handwritten entity refs"
 ```
 
-## 8. Task 4: Renderer 用结构化 annotation 渲染实体 chip
+## 9. Task 4: 生成并渲染正文内联 entity annotation
 
 **Files:**
 
+- Create: `apps/electron/src/main/services/agent/agent-entity-annotations.ts`
+- Create: `apps/electron/src/main/services/agent/agent-entity-annotations.test.ts`
 - Modify: `apps/electron/src/renderer/src/modules/chat/context/context-reference.ts`
 - Modify: `apps/electron/src/renderer/src/modules/chat/context/context-reference.test.ts`
 - Modify: `apps/electron/src/renderer/src/modules/chat/context/wiki-link.tsx`
@@ -588,10 +684,81 @@ test("does not convert session short codes in assistant text", () => {
 });
 ```
 
-在 `message-list.test.tsx` 添加结构化 annotation 渲染测试：
+新增 `agent-entity-annotations.test.ts`：
+
+```ts
+import { describe, expect, test } from "vitest";
+import { buildAgentEntityAnnotations } from "./agent-entity-annotations";
+
+describe("buildAgentEntityAnnotations", () => {
+  test("binds catalog entity titles to assistant text spans", () => {
+    const annotations = buildAgentEntityAnnotations({
+      messageId: "assistant_1",
+      text: "这个理解适合放在三观下面。",
+      catalog: [
+        {
+          key: "domain:domain_1",
+          entity: { type: "domain", id: "domain_1", title: "三观" },
+          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_list" },
+        },
+      ],
+    });
+
+    expect(annotations).toEqual([
+      {
+        messageId: "assistant_1",
+        entity: { type: "domain", id: "domain_1", title: "三观" },
+        range: { start: 8, end: 10, quote: "三观" },
+        origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_list" },
+      },
+    ]);
+  });
+
+  test("does not annotate ambiguous duplicate titles", () => {
+    const annotations = buildAgentEntityAnnotations({
+      messageId: "assistant_1",
+      text: "放在三观下面。",
+      catalog: [
+        {
+          key: "domain:domain_1",
+          entity: { type: "domain", id: "domain_1", title: "三观" },
+          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_list" },
+        },
+        {
+          key: "domain:domain_2",
+          entity: { type: "domain", id: "domain_2", title: "三观" },
+          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_list" },
+        },
+      ],
+    });
+
+    expect(annotations).toEqual([]);
+  });
+
+  test("skips code spans and existing markdown links", () => {
+    const catalog = [
+      {
+        key: "domain:domain_1",
+        entity: { type: "domain" as const, id: "domain_1", title: "三观" },
+        origin: { kind: "tool_result" as const, toolCallId: "tool_1", toolName: "domain_list" },
+      },
+    ];
+
+    expect(
+      buildAgentEntityAnnotations({
+        messageId: "assistant_1",
+        text: "代码 `三观` 不标注，[三观](https://example.com) 不重复标注。",
+        catalog,
+      }),
+    ).toEqual([]);
+  });
+});
+```
+
+在 `message-list.test.tsx` 添加结构化 inline annotation 渲染测试：
 
 ```tsx
-test("renders entity annotation chips from catalog instead of assistant tokens", () => {
+test("renders entity annotations inline in assistant text", () => {
   const entityCatalog = [
     {
       key: "domain:domain_1",
@@ -607,12 +774,14 @@ test("renders entity annotation chips from catalog instead of assistant tokens",
       {
         messageId: "assistant_1",
         entity: { type: "domain", id: "domain_1", title: "三观" },
+        range: { start: 2, end: 4, quote: "三观" },
         origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_list" },
       },
     ],
   });
 
-  expect(screen.getByText("三观")).toBeInTheDocument();
+  const citation = screen.getByRole("button", { name: /三观/ });
+  expect(citation).toBeInTheDocument();
 });
 ```
 
@@ -621,42 +790,70 @@ test("renders entity annotation chips from catalog instead of assistant tokens",
 Run:
 
 ```bash
-rtk bun --cwd apps/electron vitest run src/renderer/src/modules/chat/context/context-reference.test.ts
+rtk bun --cwd apps/electron vitest run src/main/services/agent/agent-entity-annotations.test.ts src/renderer/src/modules/chat/context/context-reference.test.ts src/renderer/src/modules/chat/messages/message-list.test.tsx
 ```
 
-Expected: FAIL，因为 renderer 当前还没有 entity annotations sidecar。
+Expected: FAIL，因为当前还没有 text-span annotation 生成和 inline 渲染。
 
-- [ ] **Step 3: 实现 annotation chip 渲染**
+- [ ] **Step 3: 实现 annotation 生成模块**
+
+新增 `buildAgentEntityAnnotations()`：
+
+```ts
+export function buildAgentEntityAnnotations(input: {
+  messageId: string;
+  text: string;
+  catalog: AgentEntityCatalogEntry[];
+}): AgentEntityAnnotation[] {
+  // implementation lives here; callers only pass final text + catalog.
+}
+```
 
 规则：
 
-- assistant 正文不解析 `S1`、`U1`、`D1`。
-- renderer 接收 `entityAnnotations`，按 `messageId` 显示消息下方的实体 chip。
-- chip 的 title 来自 annotation/catalog，不来自模型正文。
-- 点击 chip 仍复用现有 inspector。
+- 只用 catalog 中的 `entity.title` / `entity.name` 匹配正文，不匹配 id。
+- 同名实体超过一个时跳过，避免错链。
+- 跳过 inline code、fenced code 和 markdown link 范围。
+- `range` 使用 assistant markdown 源文本 offset，必须带 `quote`。
+- 不解析 `S1`、`U1`、`D1`、`[D1]`、`[[ref:*]]`、`[[type:id]]`。
 
-- [ ] **Step 4: 让 MessageList 传 annotations**
+- [ ] **Step 4: 在 assistant turn 完成时写入 annotations event**
 
-`AgentMessageContent` 当前已经传 `entitySources`，改名为 `entityCatalog`。新增 `entityAnnotations` 并按 `messageId` 传给消息内容组件。
+在 `pi-agent-host.ts` 或现有 assistant turn 聚合点：
 
-- [ ] **Step 5: 运行 renderer 测试**
+- 最终 assistant text 确定后调用 `buildAgentEntityAnnotations()`。
+- 如果有 annotation，追加 `entity.annotations.updated` 事件。
+- 这个步骤不改 assistant text 原文。
+
+- [ ] **Step 5: Renderer inline 渲染**
+
+`AgentMessageContent` 当前已经传 `entitySources`，改名为 `entityCatalog`。新增 `entityAnnotations` 并按 `messageId` 传给 `MarkdownBody`。
+
+Renderer 规则：
+
+- 按 `range.start` 从后往前把正文切成 React nodes，避免 offset 被前一次替换破坏。
+- 只有 `value.slice(start, end) === quote` 时渲染 `WikiLinkChip`。
+- `quote` 校验失败时渲染原文，不兜底猜测。
+- 点击仍复用现有 inspector。
+
+- [ ] **Step 6: 运行测试**
 
 Run:
 
 ```bash
-rtk bun --cwd apps/electron vitest run src/renderer/src/modules/chat/context/context-reference.test.ts src/renderer/src/modules/chat/messages/message-list.test.tsx
+rtk bun --cwd apps/electron vitest run src/main/services/agent/agent-entity-annotations.test.ts src/renderer/src/modules/chat/context/context-reference.test.ts src/renderer/src/modules/chat/messages/message-list.test.tsx
 ```
 
 Expected: PASS。
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-rtk git add apps/electron/src/renderer/src/modules/chat/context/context-reference.ts apps/electron/src/renderer/src/modules/chat/context/context-reference.test.ts apps/electron/src/renderer/src/modules/chat/context/wiki-link.tsx apps/electron/src/renderer/src/modules/chat/messages/agent-message-content.tsx apps/electron/src/renderer/src/modules/chat/messages/message-list.test.tsx
-rtk git commit -m "fix(chat): render entity annotations from catalog"
+rtk git add apps/electron/src/main/services/agent/agent-entity-annotations.ts apps/electron/src/main/services/agent/agent-entity-annotations.test.ts apps/electron/src/renderer/src/modules/chat/context/context-reference.ts apps/electron/src/renderer/src/modules/chat/context/context-reference.test.ts apps/electron/src/renderer/src/modules/chat/context/wiki-link.tsx apps/electron/src/renderer/src/modules/chat/messages/agent-message-content.tsx apps/electron/src/renderer/src/modules/chat/messages/message-list.test.tsx
+rtk git commit -m "fix(chat): render entity annotations inline"
 ```
 
-## 9. Task 5: 写工具参数 preflight 拒绝短号/ref
+## 10. Task 5: 写工具参数 preflight 拒绝短号/ref
 
 **Files:**
 
@@ -742,7 +939,7 @@ rtk git add apps/electron/src/main/services/agent/pi-write-tools.ts apps/electro
 rtk git commit -m "fix(agent): reject display tokens in write tool ids"
 ```
 
-## 10. Task 6: 落库前拒绝 Agent-only display token
+## 11. Task 6: 落库前拒绝 Agent-only display token
 
 **Files:**
 
@@ -818,7 +1015,155 @@ rtk git add apps/electron/src/main/services/agent/pi-write-tools.ts apps/electro
 rtk git commit -m "fix(agent): reject display tokens before writes"
 ```
 
-## 11. Task 7: Session reducer 改用 entity catalog 和 annotations
+## 12. Task 7: 工具确认后执行失败必须显示失败原因
+
+**Files:**
+
+- Modify: `apps/electron/src/renderer/src/modules/chat/session/agent-reducer.test.ts`
+- Modify: `apps/electron/src/renderer/src/modules/chat/messages/message-list.test.tsx`
+- Modify: `apps/electron/src/renderer/src/modules/chat/messages/agent-message-content.tsx`
+
+- [ ] **Step 1: 写 reducer 失败优先测试**
+
+在 `agent-reducer.test.ts` 添加：
+
+```ts
+test("keeps approved approval but displays execution failure", () => {
+  const base = {
+    sessionId: "session_1",
+    runId: "run_1",
+    messageId: "assistant_1",
+    toolCallId: "tool_1",
+    toolName: "understanding_update",
+  };
+
+  const session = reduceAgentSession([
+    {
+      id: "evt_1",
+      type: "approval.requested",
+      createdAt: "2026-06-30T00:00:00.000Z",
+      approvalId: "approval_1",
+      title: "候选修改 Understanding",
+      ...base,
+    },
+    {
+      id: "evt_2",
+      type: "approval.resolved",
+      createdAt: "2026-06-30T00:00:01.000Z",
+      approvalId: "approval_1",
+      approved: true,
+      ...base,
+    },
+    {
+      id: "evt_3",
+      type: "tool.execution.failed",
+      createdAt: "2026-06-30T00:00:02.000Z",
+      error: { message: "domainId 必须是稳定 Domain id" },
+      ...base,
+    },
+  ]);
+
+  const approval = session.messages[0]?.blocks?.find((block) => block.kind === "approval");
+  expect(approval).toMatchObject({
+    kind: "approval",
+    approved: true,
+    approvalState: "approved",
+    executionState: "failed",
+    displayState: "failed",
+    state: "failed",
+    error: "domainId 必须是稳定 Domain id",
+  });
+});
+```
+
+- [ ] **Step 2: 写 UI 展示测试**
+
+在 `message-list.test.tsx` 添加：
+
+```tsx
+test("shows execution failure reason after approval was confirmed", () => {
+  renderMessageList({
+    messages: [
+      {
+        id: "assistant_1",
+        role: "assistant",
+        text: "",
+        blocks: [
+          {
+            kind: "approval",
+            approvalId: "approval_1",
+            toolCallId: "tool_1",
+            toolName: "understanding_update",
+            title: "候选修改 Understanding",
+            approved: true,
+            state: "failed",
+            approvalState: "approved",
+            executionState: "failed",
+            displayState: "failed",
+            error: "domainId 必须是稳定 Domain id",
+            executionError: { message: "domainId 必须是稳定 Domain id" },
+            createdAt: "2026-06-30T00:00:00.000Z",
+          },
+        ],
+      },
+    ],
+  });
+
+  expect(screen.getByText("执行失败")).toBeInTheDocument();
+  expect(screen.getByText("domainId 必须是稳定 Domain id")).toBeInTheDocument();
+});
+```
+
+- [ ] **Step 3: 运行失败测试**
+
+Run:
+
+```bash
+rtk bun --cwd apps/electron vitest run src/renderer/src/modules/chat/session/agent-reducer.test.ts src/renderer/src/modules/chat/messages/message-list.test.tsx
+```
+
+Expected: FAIL，如果 UI 当前只显示 `已确认` 而不显示失败原因。
+
+- [ ] **Step 4: 修 renderer 状态文案**
+
+在 approval block 渲染中按优先级展示：
+
+```ts
+if (block.displayState === "failed") return "执行失败";
+if (block.displayState === "completed") return "已执行";
+if (block.displayState === "pending_approval") return "待确认";
+if (block.displayState === "rejected") return "已拒绝";
+return "已确认";
+```
+
+失败时显示：
+
+```tsx
+{
+  block.displayState === "failed" && block.error ? (
+    <p className="text-destructive">{block.error}</p>
+  ) : null;
+}
+```
+
+- [ ] **Step 5: 运行测试**
+
+Run:
+
+```bash
+rtk bun --cwd apps/electron vitest run src/renderer/src/modules/chat/session/agent-reducer.test.ts src/renderer/src/modules/chat/messages/message-list.test.tsx
+```
+
+Expected: PASS。
+
+- [ ] **Step 6: Commit**
+
+```bash
+rtk git add apps/electron/src/renderer/src/modules/chat/session/agent-reducer.test.ts apps/electron/src/renderer/src/modules/chat/messages/message-list.test.tsx apps/electron/src/renderer/src/modules/chat/messages/agent-message-content.tsx
+rtk git commit -m "fix(chat): show approved tool execution failures"
+```
+
+## 13. Task 8: Session reducer 改用 entity catalog 和 annotations
 
 **Files:**
 
@@ -868,6 +1213,7 @@ test("reduces entity annotations by message", () => {
         {
           messageId: "assistant_1",
           entity: { type: "domain", id: "domain_1", title: "三观" },
+          range: { start: 2, end: 4, quote: "三观" },
           origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_list" },
         },
       ],
@@ -922,7 +1268,7 @@ rtk git add apps/electron/src/preload/typings/agent.ts apps/electron/src/rendere
 rtk git commit -m "refactor(agent): reduce entity catalog annotations"
 ```
 
-## 12. Task 8: 一次性迁移历史 session
+## 14. Task 9: 一次性迁移历史 session
 
 **Files:**
 
@@ -944,8 +1290,8 @@ rtk bun scripts/migrations/v1.1.16-agent-entity-catalog.ts <projectRoot>/.local/
 - `entity.sources.updated` -> `entity.catalog.updated`
 - `source.entity.type + source.entity.id` 相同的对象复用同一个 catalog entry
 - 不分配新短号
-- assistant text 中能通过同 session source map 解析的旧 `[[ref:*]]` 改写为对象 title 文本，并为该 message 增加 `entity.annotations.updated`
-- assistant text 中旧 `[[type:id]]` 如果同 session catalog 有匹配，改写为对象 title 文本，并为该 message 增加 annotation
+- assistant text 中能通过同 session source map 解析的旧 `[[ref:*]]` 改写为对象 title 文本，并为该 message 增加带 `range` 的 `entity.annotations.updated`
+- assistant text 中旧 `[[type:id]]` 如果同 session catalog 有匹配，改写为对象 title 文本，并为该 message 增加带 `range` 的 annotation
 - 无法解析的旧 ref 保留普通文本，不生成运行时兼容逻辑
 - 重复执行脚本不重复追加事件
 
@@ -991,7 +1337,7 @@ rtk git add apps/electron/src scripts/migrations docs/iterations/v1.1.16
 rtk git commit -m "chore(agent): migrate session entity catalogs"
 ```
 
-## 13. Task 9: 全局清理 ref 命名
+## 15. Task 10: 全局清理 ref 命名
 
 **Files:**
 
@@ -1046,7 +1392,7 @@ rtk git add apps/electron/src docs/iterations/v1.1.16
 rtk git commit -m "refactor(agent): remove ref protocol leftovers"
 ```
 
-## 14. Task 10: Release patch
+## 16. Task 11: Release patch
 
 **Files:**
 
@@ -1059,7 +1405,7 @@ Run the smallest existing Agent smoke that covers:
 - selected context appears in prompt with `id` and title, without short handles
 - read tool output contains `id`, `type`, and title, without `ref` / `citation`
 - assistant text does not convert `D1` / `[D1]`
-- entity annotations render title chips
+- entity annotations render inline citations in assistant text
 - write tool rejects `D1` / `[D1]` in `domainId`
 - approved write failure displays `tool.execution.failed`
 
@@ -1085,19 +1431,20 @@ rtk git add .
 rtk git commit -m "chore(release): v1.1.16"
 ```
 
-## 15. 验收标准
+## 17. 验收标准
 
 - Agent prompt 和 tool schema 中不再出现“把 ref 传给工具”的表达。
 - Agent-facing JSON 中不再出现 `ref` 字段。
 - 工具参数中传 `U1`、`[U1]`、`[D1]`、`[[...]]`、`rf_*` 会失败，并展示清楚原因。
 - Assistant 正文中的 `U1`、`[U1]`、`D1`、`[D1]` 不会被当成引用自动转换。
-- 实体 chip 来自结构化 annotation，不来自模型正文 token。
+- Assistant 正文中的实体标题会被结构化 annotation 渲染成内联可点击引用。
 - inline code 和 fenced code 内 display-looking text 不被误判。
 - 写工具落库前不会把 `U1` / `[U1]` 这类 Agent-only token 存进用户内容。
 - 历史 session 通过一次性迁移处理，运行时不保留旧 ref 兼容 parser。
+- 用户确认后工具执行失败时，调用记录显示 `执行失败` 和失败原因，不只显示 `已确认`。
 
-## 16. 自检
+## 18. 自检
 
-- 覆盖范围：计划覆盖 catalog、tool output、prompt、renderer annotations、write preflight、markdown guard、session migration、ref cleanup。
+- 覆盖范围：计划覆盖 catalog、tool output、prompt、inline renderer annotations、write preflight、markdown guard、tool execution failure display、session migration、ref cleanup。
 - 命名一致性：模型可见字段不使用 `ref` / `citation`；工具身份统一使用 `id`。
 - 风险控制：不改 server service id 策略，不改编辑器 canonical wiki-link 基础设施。
