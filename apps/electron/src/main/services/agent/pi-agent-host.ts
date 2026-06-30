@@ -32,6 +32,7 @@ import type {
   AgentLiveEvent,
   AgentSessionEvent,
   AgentSessionSummary,
+  AgentToolExecutionError,
   AgentUsage,
 } from "@shared/agent";
 import {
@@ -345,6 +346,14 @@ function errorStack(error: unknown): string | undefined {
   return error instanceof Error ? error.stack : undefined;
 }
 
+function toolExecutionError(error: unknown): AgentToolExecutionError {
+  return { message: formatAgentError(error) };
+}
+
+function typedEntityRef(type: AgentContextRef["type"], id: string) {
+  return `[[${type}:${id}]]`;
+}
+
 function piToolOutput(result: unknown): unknown {
   return isRecord(result) && "details" in result ? result.details : result;
 }
@@ -650,6 +659,68 @@ export class PiAgentHost {
 
   private emitLive(webContents: WebContents, event: AgentLiveEvent): void {
     if (!webContents.isDestroyed()) webContents.send(AGENT_EVENT_CHANNEL, event);
+  }
+
+  private appendToolExecutionStarted(
+    manager: SessionManager,
+    webContents: WebContents,
+    requested: AgentApprovalRequested,
+  ): void {
+    this.appendAndEmit(
+      manager,
+      webContents,
+      this.createEvent({
+        type: "tool.execution.started",
+        sessionId: requested.sessionId,
+        runId: requested.runId,
+        messageId: requested.messageId,
+        toolCallId: requested.toolCallId,
+        toolName: requested.toolName,
+        input: requested.payload,
+      }),
+    );
+  }
+
+  private appendToolExecutionCompleted(
+    manager: SessionManager,
+    webContents: WebContents,
+    requested: AgentApprovalRequested,
+    output: unknown,
+  ): void {
+    this.appendAndEmit(
+      manager,
+      webContents,
+      this.createEvent({
+        type: "tool.execution.completed",
+        sessionId: requested.sessionId,
+        runId: requested.runId,
+        messageId: requested.messageId,
+        toolCallId: requested.toolCallId,
+        toolName: requested.toolName,
+        output,
+      }),
+    );
+  }
+
+  private appendToolExecutionFailed(
+    manager: SessionManager,
+    webContents: WebContents,
+    requested: AgentApprovalRequested,
+    error: unknown,
+  ): void {
+    this.appendAndEmit(
+      manager,
+      webContents,
+      this.createEvent({
+        type: "tool.execution.failed",
+        sessionId: requested.sessionId,
+        runId: requested.runId,
+        messageId: requested.messageId,
+        toolCallId: requested.toolCallId,
+        toolName: requested.toolName,
+        error: toolExecutionError(error),
+      }),
+    );
   }
 
   private async sendMessage(
@@ -1020,11 +1091,17 @@ export class PiAgentHost {
 
     if (pending && active) {
       if (!isPiApprovalToolName(requested.toolName)) {
-        pending.reject(new Error(`Unsupported approval tool: ${requested.toolName}`));
+        const error = new Error(`Unsupported approval tool: ${requested.toolName}`);
+        pending.reject(error);
         return;
       }
-      if (approved) {
-        void this.executeApprovedTool(requested, active.entitySourceRegistry).then((output) => {
+      if (!approved) {
+        pending.resolve(rejectedToolResult(requested.toolName));
+        return;
+      }
+      this.appendToolExecutionStarted(manager, webContents, requested);
+      void this.executeApprovedTool(requested, active.entitySourceRegistry).then(
+        (output) => {
           this.appendEntitySourceUpdates(
             manager,
             webContents,
@@ -1032,9 +1109,14 @@ export class PiAgentHost {
             requested.runId,
             active.entitySourceRegistry,
           );
+          this.appendToolExecutionCompleted(manager, webContents, requested, output);
           pending.resolve(output);
-        }, pending.reject);
-      } else pending.resolve(rejectedToolResult(requested.toolName));
+        },
+        (error) => {
+          this.appendToolExecutionFailed(manager, webContents, requested, error);
+          pending.reject(error);
+        },
+      );
       return;
     }
 
@@ -1045,6 +1127,7 @@ export class PiAgentHost {
         event.type === "assistant.turn" && event.messageId === requested.messageId,
     );
     try {
+      this.appendToolExecutionStarted(manager, webContents, requested);
       const registry = new AgentEntitySourceRegistry(reduceAgentSession(events).entitySources);
       const output = await this.executeApprovedTool(requested, registry);
       this.appendEntitySourceUpdates(
@@ -1054,6 +1137,7 @@ export class PiAgentHost {
         requested.runId,
         registry,
       );
+      this.appendToolExecutionCompleted(manager, webContents, requested, output);
       this.appendAndEmit(
         manager,
         webContents,
@@ -1067,6 +1151,7 @@ export class PiAgentHost {
         }),
       );
     } catch (error) {
+      this.appendToolExecutionFailed(manager, webContents, requested, error);
       this.appendAndEmit(
         manager,
         webContents,
@@ -1108,10 +1193,9 @@ export class PiAgentHost {
       { type: output.resultRefType, id: output.resultRefId },
       { kind: "tool_result", toolCallId: requested.toolCallId, toolName: requested.toolName },
     );
-    const { resultRefId: _resultRefId, ...rest } = output;
     return {
-      ...rest,
-      resultRef: `[[ref:${source.sourceId}]]`,
+      ...output,
+      resultRef: typedEntityRef(source.entity.type, source.entity.id),
     };
   }
 }

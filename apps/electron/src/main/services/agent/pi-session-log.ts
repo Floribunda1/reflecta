@@ -64,6 +64,10 @@ function compactAttrs(attrs: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(attrs).filter(([, value]) => value !== undefined));
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 function stringField(event: AgentSessionEvent, key: string): string | undefined {
   const value = (event as unknown as Record<string, unknown>)[key];
   return typeof value === "string" ? value : undefined;
@@ -79,13 +83,24 @@ function arrayLengthField(event: AgentSessionEvent, key: string): number | undef
   return Array.isArray(value) ? value.length : undefined;
 }
 
+function errorField(event: AgentSessionEvent): unknown {
+  const value = (event as unknown as Record<string, unknown>).error;
+  if (typeof value === "string") return value;
+  if (!isRecord(value)) return undefined;
+  return compactAttrs({
+    message: typeof value.message === "string" ? value.message : undefined,
+    code: typeof value.code === "string" ? value.code : undefined,
+    details: isRecord(value.details) ? value.details : undefined,
+  });
+}
+
 function shouldMirrorAgentEvent(event: AgentSessionEvent): boolean {
   return event.type !== "assistant.turn";
 }
 
 function mirrorAgentEvent(event: AgentSessionEvent): void {
   if (!shouldMirrorAgentEvent(event)) return;
-  const error = stringField(event, "error");
+  const error = errorField(event);
   writeDiagnosticEvent({
     level: error || event.type.endsWith(".failed") ? "error" : "info",
     event: `agent.${event.type}`,

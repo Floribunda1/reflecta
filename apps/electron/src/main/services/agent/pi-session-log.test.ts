@@ -74,6 +74,43 @@ describe("AgentSessionLog", () => {
     await expect(new AgentSessionLog(root).readEvents(session.id)).resolves.toEqual(events);
   });
 
+  test("mirrors approved tool execution failures to diagnostic logs", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const session = log.createSession();
+    const manager = await log.openSession(session.id);
+    const event: AgentSessionEvent = {
+      ...baseEvent,
+      id: "evt_tool_failed",
+      sessionId: session.id,
+      type: "tool.execution.failed",
+      messageId: "assistant_1",
+      toolCallId: "tool_1",
+      toolName: "understanding_update",
+      error: { message: "Domain not found: domain_1" },
+    };
+
+    log.appendEvent(manager, event);
+
+    expect(logger.writeDiagnosticEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "agent.tool.execution.failed",
+        level: "error",
+        scope: "agent",
+        context: expect.objectContaining({
+          sessionId: session.id,
+          runId: "run_1",
+          messageId: "assistant_1",
+          toolCallId: "tool_1",
+        }),
+        attrs: expect.objectContaining({
+          toolName: "understanding_update",
+          error: { message: "Domain not found: domain_1" },
+        }),
+      }),
+    );
+  });
+
   test("does not list a pending session until the user sends a message", async () => {
     const root = tempRoot();
     const log = new AgentSessionLog(root);

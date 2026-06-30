@@ -204,7 +204,8 @@ describe("PiAgentHost", () => {
 
     expect(output).toEqual({
       resultRefType: "understanding",
-      resultRef: "[[ref:rf_understanding]]",
+      resultRefId: "understanding_1",
+      resultRef: "[[understanding:understanding_1]]",
     });
     expect(registry.drainUpdates()).toEqual([
       {
@@ -217,6 +218,108 @@ describe("PiAgentHost", () => {
         },
       },
     ]);
+  });
+
+  test("persists approved tool execution events after approval succeeds", async () => {
+    isPiApprovalToolNameMock.mockImplementation((name) => name === "understanding_update");
+    executePiApprovedToolMock.mockResolvedValue({
+      resultRefType: "understanding",
+      resultRefId: "understanding_1",
+    });
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("新对话");
+    const manager = await log.openSession(thread.id);
+    log.appendEvent(manager, {
+      id: "evt_approval",
+      sessionId: thread.id,
+      runId: "run_1",
+      type: "approval.requested",
+      messageId: "assistant_1",
+      approvalId: "approval_tool_1",
+      toolCallId: "tool_1",
+      toolName: "understanding_update",
+      title: "候选修改 Understanding",
+      payload: { understandingId: "understanding_1", body: "next" },
+      createdAt: "2026-06-26T00:00:00.000Z",
+    });
+    const webContents = { isDestroyed: () => false, send: vi.fn() };
+
+    await (
+      new PiAgentHost(root) as unknown as {
+        resolveToolApproval: (command: unknown, webContents: unknown) => Promise<void>;
+      }
+    ).resolveToolApproval(
+      { type: "tool.approve", sessionId: thread.id, approvalId: "approval_tool_1" },
+      webContents,
+    );
+
+    const events = await new AgentSessionLog(root).readEvents(thread.id);
+    expect(events.map((event) => event.type)).toEqual([
+      "approval.requested",
+      "approval.resolved",
+      "tool.execution.started",
+      "entity.sources.updated",
+      "tool.execution.completed",
+      "assistant.turn",
+    ]);
+    expect(events.find((event) => event.type === "tool.execution.completed")).toMatchObject({
+      type: "tool.execution.completed",
+      toolCallId: "tool_1",
+      toolName: "understanding_update",
+      output: {
+        resultRefType: "understanding",
+        resultRefId: "understanding_1",
+        resultRef: "[[understanding:understanding_1]]",
+      },
+    });
+  });
+
+  test("persists approved tool execution failures with structured errors", async () => {
+    isPiApprovalToolNameMock.mockImplementation((name) => name === "understanding_update");
+    executePiApprovedToolMock.mockRejectedValue(new Error("Domain not found: domain_1"));
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("新对话");
+    const manager = await log.openSession(thread.id);
+    log.appendEvent(manager, {
+      id: "evt_approval",
+      sessionId: thread.id,
+      runId: "run_1",
+      type: "approval.requested",
+      messageId: "assistant_1",
+      approvalId: "approval_tool_1",
+      toolCallId: "tool_1",
+      toolName: "understanding_update",
+      title: "候选修改 Understanding",
+      payload: { understandingId: "understanding_1", domainIds: ["domain_1"] },
+      createdAt: "2026-06-26T00:00:00.000Z",
+    });
+    const webContents = { isDestroyed: () => false, send: vi.fn() };
+
+    await (
+      new PiAgentHost(root) as unknown as {
+        resolveToolApproval: (command: unknown, webContents: unknown) => Promise<void>;
+      }
+    ).resolveToolApproval(
+      { type: "tool.approve", sessionId: thread.id, approvalId: "approval_tool_1" },
+      webContents,
+    );
+
+    const events = await new AgentSessionLog(root).readEvents(thread.id);
+    expect(events.map((event) => event.type)).toEqual([
+      "approval.requested",
+      "approval.resolved",
+      "tool.execution.started",
+      "tool.execution.failed",
+      "assistant.turn",
+    ]);
+    expect(events.find((event) => event.type === "tool.execution.failed")).toMatchObject({
+      type: "tool.execution.failed",
+      toolCallId: "tool_1",
+      toolName: "understanding_update",
+      error: { message: "Domain not found: domain_1" },
+    });
   });
 
   test("builds title prompts from reduced session messages", () => {
