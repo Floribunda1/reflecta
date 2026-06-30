@@ -694,6 +694,36 @@ describe("buildAgentTurnView", () => {
     });
   });
 
+  test("shows approved tool execution failures as proposal errors", () => {
+    const turn = buildAgentTurnView([
+      {
+        kind: "approval",
+        approvalId: "approval-tool-1",
+        toolCallId: "tool-1",
+        toolName: "understanding_update",
+        title: "候选修改 Understanding",
+        payload: { understandingId: "understanding_1", domainIds: ["domain_1"] },
+        approved: true,
+        state: "failed",
+        error: "Domain not found: domain_1",
+        approvalState: "approved",
+        executionState: "failed",
+        displayState: "failed",
+        executionError: { message: "Domain not found: domain_1" },
+        createdAt: "2026-06-23T00:00:00.000Z",
+      },
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "proposal",
+      proposal: {
+        status: "approved",
+        state: "output-error",
+        errorText: "Domain not found: domain_1",
+      },
+    });
+  });
+
   test("keeps long bash output folded behind a preview", () => {
     const stdout = Array.from({ length: 24 }, (_, index) => `line ${index + 1}`).join("\n");
     const turn = buildAgentTurnView([

@@ -53,12 +53,12 @@ export type ApproveToolInput = {
 };
 
 function statusLabel(status: ToolApprovalStatus | undefined, state?: ProposalView["state"]) {
+  if (state === "output-error") return "执行失败";
+  if (state === "output-denied") return "已拒绝";
   if (state === "output-available") return "完成";
   if (status === "approved") return "已确认";
   if (status === "rejected") return "已拒绝";
   if (status === "pending") return "待确认";
-  if (state === "output-denied") return "已拒绝";
-  if (state === "output-error") return "出错";
   if (state === "approval-responded") return "已响应";
   if (state === "approval-requested") return "待确认";
   if (state === "input-streaming") return "运行中";
@@ -400,7 +400,11 @@ function CandidateShell({
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="font-medium">{title}</span>
-        <Badge variant={status === "rejected" ? "destructive" : "outline"}>
+        <Badge
+          variant={
+            status === "rejected" || proposal.state === "output-error" ? "destructive" : "outline"
+          }
+        >
           {statusLabel(status, proposal.state)}
         </Badge>
       </div>
@@ -471,6 +475,7 @@ function proposalStatusNote(
   resultRefType?: string,
   resultRef?: string,
 ) {
+  if (state === "output-error") return undefined;
   if (state === "output-available") return undefined;
   if (status === "approved" && resultRef) return `已写入 ${resultRefType} · ${resultRef}`;
   if (status === "approved") return "已确认";

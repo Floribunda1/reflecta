@@ -235,7 +235,43 @@ function appendProposalBlock(
     createdAt,
   };
   const state = typeof part.state === "string" ? part.state : "";
-  if (state === "approval-responded" || approvedFor(part, false)) {
+  if (state === "output-error") {
+    const errorMessage = String(part.errorText ?? "工具执行失败");
+    events.push(
+      createEvent({
+        type: "approval.resolved",
+        runId,
+        messageId,
+        approvalId,
+        toolCallId,
+        toolName,
+        approved: true,
+      }),
+      createEvent({
+        type: "tool.execution.started",
+        runId,
+        messageId,
+        toolCallId,
+        toolName,
+        input: payload,
+      }),
+      createEvent({
+        type: "tool.execution.failed",
+        runId,
+        messageId,
+        toolCallId,
+        toolName,
+        error: { message: errorMessage },
+      }),
+    );
+    block.approved = true;
+    block.state = "failed";
+    block.error = errorMessage;
+    block.approvalState = "approved";
+    block.executionState = "failed";
+    block.displayState = "failed";
+    block.executionError = { message: errorMessage };
+  } else if (state === "approval-responded" || approvedFor(part, false)) {
     const approved = approvedFor(part, true);
     events.push(
       createEvent({
@@ -264,9 +300,6 @@ function appendProposalBlock(
     );
     block.approved = false;
     block.state = "rejected";
-  } else if (state === "output-error") {
-    block.state = "failed";
-    block.error = String(part.errorText ?? "工具执行失败");
   } else if (state !== "approval-requested") {
     block.state = "completed";
     block.output = part.output;

@@ -393,6 +393,129 @@ describe("reduceAgentSession", () => {
     expect(directCompletion).not.toHaveProperty("approved");
   });
 
+  test("reduces approved tool execution failure onto the proposal block", () => {
+    const state = reduceAgentSession([
+      {
+        ...base,
+        id: "evt_1",
+        type: "approval.requested",
+        messageId: "assistant_1",
+        approvalId: "approval_1",
+        toolCallId: "tool_1",
+        toolName: "understanding_update",
+        title: "候选修改 Understanding",
+        payload: { understandingId: "understanding_1", domainIds: ["domain_1"] },
+      },
+      {
+        ...base,
+        id: "evt_2",
+        type: "approval.resolved",
+        messageId: "assistant_1",
+        approvalId: "approval_1",
+        toolCallId: "tool_1",
+        toolName: "understanding_update",
+        approved: true,
+      },
+      {
+        ...base,
+        id: "evt_3",
+        type: "tool.execution.started",
+        messageId: "assistant_1",
+        toolCallId: "tool_1",
+        toolName: "understanding_update",
+      },
+      {
+        ...base,
+        id: "evt_4",
+        type: "tool.execution.failed",
+        messageId: "assistant_1",
+        toolCallId: "tool_1",
+        toolName: "understanding_update",
+        error: { message: "Domain not found: domain_1" },
+      },
+    ]);
+
+    expect(state.messages[0]?.blocks?.[0]).toMatchObject({
+      kind: "approval",
+      approvalId: "approval_1",
+      toolName: "understanding_update",
+      approved: true,
+      approvalState: "approved",
+      executionState: "failed",
+      displayState: "failed",
+      state: "failed",
+      error: "Domain not found: domain_1",
+      executionError: { message: "Domain not found: domain_1" },
+    });
+  });
+
+  test("keeps approved tool execution failure when assistant turn snapshot arrives later", () => {
+    const state = reduceAgentSession([
+      {
+        ...base,
+        id: "evt_1",
+        type: "approval.requested",
+        messageId: "assistant_1",
+        approvalId: "approval_1",
+        toolCallId: "tool_1",
+        toolName: "understanding_update",
+        title: "候选修改 Understanding",
+        payload: { understandingId: "understanding_1", domainIds: ["domain_1"] },
+      },
+      {
+        ...base,
+        id: "evt_2",
+        type: "approval.resolved",
+        messageId: "assistant_1",
+        approvalId: "approval_1",
+        toolCallId: "tool_1",
+        toolName: "understanding_update",
+        approved: true,
+      },
+      {
+        ...base,
+        id: "evt_3",
+        type: "tool.execution.failed",
+        messageId: "assistant_1",
+        toolCallId: "tool_1",
+        toolName: "understanding_update",
+        error: { message: "Domain not found: domain_1" },
+      },
+      {
+        ...base,
+        id: "evt_4",
+        type: "assistant.turn",
+        messageId: "assistant_1",
+        text: "",
+        blocks: [
+          {
+            kind: "approval",
+            approvalId: "approval_1",
+            toolCallId: "tool_1",
+            toolName: "understanding_update",
+            title: "候选修改 Understanding",
+            payload: { understandingId: "understanding_1", domainIds: ["domain_1"] },
+            approved: true,
+            state: "approved",
+            createdAt: base.createdAt,
+          },
+        ],
+      },
+    ]);
+
+    expect(state.messages[0]?.blocks?.[0]).toMatchObject({
+      kind: "approval",
+      approvalId: "approval_1",
+      approved: true,
+      approvalState: "approved",
+      executionState: "failed",
+      displayState: "failed",
+      state: "failed",
+      error: "Domain not found: domain_1",
+      executionError: { message: "Domain not found: domain_1" },
+    });
+  });
+
   test("clears the active run after failure", () => {
     const state = reduceAgentSession([
       { ...base, id: "evt_1", type: "run.started" },

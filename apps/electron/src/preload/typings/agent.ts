@@ -274,8 +274,12 @@ export type AgentReducedAssistantBlock =
       payload?: unknown;
       output?: unknown;
       error?: string;
+      executionError?: AgentToolExecutionError;
       approved?: boolean;
       state: "pending" | "approved" | "rejected" | "completed" | "failed";
+      approvalState?: AgentToolApprovalState;
+      executionState?: AgentToolExecutionState;
+      displayState?: AgentToolDisplayState;
       createdAt: string;
     }
   | {
@@ -339,6 +343,8 @@ export type AgentReducedMessage = {
   model?: AgentModelSelection;
   stopReason?: string;
 };
+
+type AgentApprovalBlock = Extract<AgentReducedAssistantBlock, { kind: "approval" }>;
 
 export type AgentSessionState = {
   sessionId: string | null;
@@ -425,23 +431,116 @@ function upsertAssistantText(
   );
 }
 
+function approvalStateForBlock(block: AgentApprovalBlock): AgentToolApprovalState {
+  if (block.approvalState) return block.approvalState;
+  if (block.state === "rejected" || block.approved === false) return "rejected";
+  if (block.approved === true || ["approved", "completed", "failed"].includes(block.state)) {
+    return "approved";
+  }
+  return "pending";
+}
+
+function executionStateForBlock(block: AgentApprovalBlock): AgentToolExecutionState {
+  if (block.executionState) return block.executionState;
+  if (block.state === "failed") return "failed";
+  if (block.state === "completed") return "completed";
+  if (block.state === "approved") return "running";
+  return "not_started";
+}
+
+function strongestApprovalState(
+  left: AgentToolApprovalState,
+  right: AgentToolApprovalState,
+): AgentToolApprovalState {
+  if (left === "rejected" || right === "rejected") return "rejected";
+  if (left === "approved" || right === "approved") return "approved";
+  return "pending";
+}
+
+const executionStateRank: Record<AgentToolExecutionState, number> = {
+  not_started: 0,
+  running: 1,
+  completed: 2,
+  failed: 3,
+};
+
+function strongestExecutionState(
+  left: AgentToolExecutionState,
+  right: AgentToolExecutionState,
+): AgentToolExecutionState {
+  return executionStateRank[left] >= executionStateRank[right] ? left : right;
+}
+
+function mergeApprovalBlockSnapshot(
+  incoming: AgentApprovalBlock,
+  existing?: AgentApprovalBlock,
+): AgentApprovalBlock {
+  const approvalState = existing
+    ? strongestApprovalState(approvalStateForBlock(existing), approvalStateForBlock(incoming))
+    : approvalStateForBlock(incoming);
+  const executionState =
+    approvalState === "rejected"
+      ? "not_started"
+      : existing
+        ? strongestExecutionState(
+            executionStateForBlock(existing),
+            executionStateForBlock(incoming),
+          )
+        : executionStateForBlock(incoming);
+  const displayState = deriveDisplayState(approvalState, executionState);
+  return {
+    ...incoming,
+    approved:
+      approvalState === "pending"
+        ? (incoming.approved ?? existing?.approved)
+        : approvalState === "approved",
+    ...(executionState === "completed" ? { output: incoming.output ?? existing?.output } : {}),
+    ...(executionState === "failed"
+      ? {
+          error: existing?.error ?? incoming.error,
+          executionError: existing?.executionError ?? incoming.executionError,
+        }
+      : {}),
+    approvalState,
+    executionState,
+    displayState,
+    state: legacyApprovalBlockState(displayState),
+  };
+}
+
+function mergeAssistantTurnBlocks(
+  incomingBlocks: AgentReducedAssistantBlock[],
+  existingBlocks: AgentReducedAssistantBlock[] | undefined,
+): AgentReducedAssistantBlock[] {
+  return incomingBlocks.map((block) => {
+    if (block.kind !== "approval") return block;
+    const existing = existingBlocks?.find(
+      (current): current is AgentApprovalBlock =>
+        current.kind === "approval" &&
+        (current.approvalId === block.approvalId || current.toolCallId === block.toolCallId),
+    );
+    return mergeApprovalBlockSnapshot(block, existing);
+  });
+}
+
 function upsertAssistantTurn(
   messages: AgentReducedMessage[],
   event: AgentAssistantTurn,
 ): AgentReducedMessage[] {
+  const index = messages.findIndex((message) => message.id === event.messageId);
+  const existing = index >= 0 ? messages[index] : undefined;
   const nextMessage: AgentReducedMessage = {
     id: event.messageId,
     role: "assistant",
     text: event.text,
     runId: event.runId,
     createdAt: event.createdAt,
-    blocks: event.blocks,
+    blocks: mergeAssistantTurnBlocks(event.blocks, existing?.blocks),
     usage: event.usage,
     contextUsage: event.contextUsage,
     model: event.model,
     stopReason: event.stopReason,
   };
-  const index = messages.findIndex((message) => message.id === event.messageId);
   if (index < 0) return [...messages, nextMessage];
   return messages.map((message, messageIndex) => (messageIndex === index ? nextMessage : message));
 }
@@ -565,6 +664,65 @@ function upsertAssistantTool(
   });
 }
 
+function errorMessage(error: AgentToolExecutionError): string {
+  return error.message || "Tool execution failed";
+}
+
+function deriveDisplayState(
+  approvalState: AgentToolApprovalState,
+  executionState: AgentToolExecutionState,
+): AgentToolDisplayState {
+  if (approvalState === "rejected") return "rejected";
+  if (approvalState === "pending") return "pending_approval";
+  if (executionState === "failed") return "failed";
+  if (executionState === "completed") return "completed";
+  return "running";
+}
+
+function legacyApprovalBlockState(
+  displayState: AgentToolDisplayState,
+): Extract<AgentReducedAssistantBlock, { kind: "approval" }>["state"] {
+  if (displayState === "pending_approval") return "pending";
+  if (displayState === "rejected") return "rejected";
+  if (displayState === "completed") return "completed";
+  if (displayState === "failed") return "failed";
+  return "approved";
+}
+
+function upsertAssistantToolExecution(
+  messages: AgentReducedMessage[],
+  event: AgentToolExecutionStarted | AgentToolExecutionCompleted | AgentToolExecutionFailed,
+): AgentReducedMessage[] {
+  return upsertAssistantBlock(messages, event, (blocks) => {
+    const index = blocks.findIndex(
+      (block) => block.kind === "approval" && block.toolCallId === event.toolCallId,
+    );
+    if (index < 0) return blocks;
+    return blocks.map((block, blockIndex) => {
+      if (blockIndex !== index || block.kind !== "approval") return block;
+      const approvalState = block.approvalState ?? (block.approved ? "approved" : "pending");
+      const executionState: AgentToolExecutionState =
+        event.type === "tool.execution.started"
+          ? "running"
+          : event.type === "tool.execution.completed"
+            ? "completed"
+            : "failed";
+      const displayState = deriveDisplayState(approvalState, executionState);
+      return {
+        ...block,
+        ...(event.type === "tool.execution.completed" ? { output: event.output } : {}),
+        ...(event.type === "tool.execution.failed"
+          ? { error: errorMessage(event.error), executionError: event.error }
+          : {}),
+        approvalState,
+        executionState,
+        displayState,
+        state: legacyApprovalBlockState(displayState),
+      };
+    });
+  });
+}
+
 function upsertAssistantApproval(
   messages: AgentReducedMessage[],
   event: AgentApprovalRequested | AgentApprovalResolved,
@@ -583,21 +741,29 @@ function upsertAssistantApproval(
         description: event.description,
         payload: event.payload,
         state: "pending" as const,
+        approvalState: "pending" as const,
+        executionState: "not_started" as const,
+        displayState: "pending_approval" as const,
         createdAt: event.createdAt,
       };
       if (index < 0) return [...blocks, block];
       return blocks.map((current, blockIndex) => (blockIndex === index ? block : current));
     }
     if (index < 0) return blocks;
-    return blocks.map((block, blockIndex) =>
-      blockIndex === index && block.kind === "approval"
-        ? {
-            ...block,
-            approved: event.approved,
-            state: event.approved ? "approved" : "rejected",
-          }
-        : block,
-    );
+    return blocks.map((block, blockIndex) => {
+      if (blockIndex !== index || block.kind !== "approval") return block;
+      const approvalState = event.approved ? "approved" : "rejected";
+      const executionState = block.executionState ?? "not_started";
+      const displayState = deriveDisplayState(approvalState, executionState);
+      return {
+        ...block,
+        approved: event.approved,
+        approvalState,
+        executionState,
+        displayState,
+        state: legacyApprovalBlockState(displayState),
+      };
+    });
   });
 }
 
@@ -608,6 +774,9 @@ function upsertAssistantBlock(
     | AgentToolStarted
     | AgentToolCompleted
     | AgentToolFailed
+    | AgentToolExecutionStarted
+    | AgentToolExecutionCompleted
+    | AgentToolExecutionFailed
     | AgentApprovalRequested
     | AgentApprovalResolved,
   reduceBlocks: (blocks: AgentReducedAssistantBlock[]) => AgentReducedAssistantBlock[],
@@ -716,6 +885,18 @@ export function reduceAgentSessionEvent(
       ...state,
       sessionId: event.sessionId,
       messages: upsertAssistantTool(state.messages, event),
+    };
+  }
+
+  if (
+    event.type === "tool.execution.started" ||
+    event.type === "tool.execution.completed" ||
+    event.type === "tool.execution.failed"
+  ) {
+    return {
+      ...state,
+      sessionId: event.sessionId,
+      messages: upsertAssistantToolExecution(state.messages, event),
     };
   }
 

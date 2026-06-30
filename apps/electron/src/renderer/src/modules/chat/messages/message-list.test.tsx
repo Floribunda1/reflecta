@@ -81,6 +81,44 @@ function rerenderMessageList({
 }
 
 describe("MessageList entity refs", () => {
+  test("shows approved tool execution failures instead of confirmed state", () => {
+    renderMessageList({
+      messages: [
+        {
+          id: "assistant_1",
+          role: "assistant",
+          text: "",
+          runId: "run_1",
+          createdAt: "2026-06-26T00:00:00.000Z",
+          blocks: [
+            {
+              kind: "approval",
+              approvalId: "approval_tool_1",
+              toolCallId: "tool_1",
+              toolName: "bash",
+              title: "执行 Bash",
+              payload: { command: "printf hello" },
+              approved: true,
+              state: "failed",
+              error: "Domain not found: domain_1",
+              approvalState: "approved",
+              executionState: "failed",
+              displayState: "failed",
+              executionError: { message: "Domain not found: domain_1" },
+              createdAt: "2026-06-26T00:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      entitySources: [],
+    });
+
+    const card = container?.querySelector('[data-testid="agent-proposal-card"]');
+    expect(card?.textContent).toContain("执行失败");
+    expect(card?.textContent).toContain("Domain not found: domain_1");
+    expect(card?.textContent).not.toContain("已确认");
+  });
+
   test("preserves paragraph breaks in user messages restored from composer content", () => {
     renderMessageList({
       messages: [

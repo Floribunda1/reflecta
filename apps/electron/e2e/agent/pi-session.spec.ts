@@ -19,9 +19,13 @@ import {
   writePdfAttachmentFile,
 } from "./agent-e2e";
 import {
+  assistantMessage,
   domainExistsByName,
+  proposalPart,
   resetAgentFixtures,
+  seedAgentThread,
   understandingExistsByTitle,
+  userMessage,
 } from "./agent-fixtures";
 
 const SLOW_PROMPT = "请慢慢输出 1 到 400，每个数字单独一行。";
@@ -37,6 +41,8 @@ const ABANDONED_RUN_MESSAGE = "ABANDONED_RUN_MESSAGE";
 const FAILED_RETRY_MESSAGE = "FAILED_RETRY_MESSAGE";
 const CHAT_JUMP_THREAD_TITLE = "CHAT_JUMP_LONG_SESSION";
 const CHAT_JUMP_TARGET_MESSAGE = "CHAT_JUMP_TARGET_PAYPAL_STATUS";
+const FAILED_APPROVED_TOOL_THREAD_TITLE = "FAILED_APPROVED_TOOL_RECOVERY";
+const FAILED_APPROVED_TOOL_ERROR = "Domain not found: rf_fjxcezk5az";
 
 function sessionsRoot() {
   return path.join(readE2eTestEnv().contentStorageRoot, "Sessions");
@@ -796,6 +802,45 @@ test("@AG-PROPOSAL-005 用户重新打开对话后仍能处理等待确认的提
     expect(understandingExistsByTitle(PI_RELOAD_PROPOSAL_TITLE)).toBe(false);
   } finally {
     await second.app.close();
+  }
+});
+
+test("@AG-PROPOSAL-007 用户重新打开对话后看到已批准工具执行失败原因", async () => {
+  seedAgentThread({
+    id: "failed-approved-tool-recovery",
+    title: FAILED_APPROVED_TOOL_THREAD_TITLE,
+    messages: [
+      userMessage("failed-approved-tool-user", "请修改 Understanding"),
+      assistantMessage("failed-approved-tool-assistant", [
+        proposalPart({
+          type: "understanding_update",
+          toolCallId: "failed-approved-tool",
+          title: "FAILED_APPROVED_TOOL",
+          state: "output-error",
+          approval: { id: "failed-approved-tool-approval", approved: true },
+          errorText: FAILED_APPROVED_TOOL_ERROR,
+        }),
+      ]),
+    ],
+  });
+  const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+
+  try {
+    await openThread(page, FAILED_APPROVED_TOOL_THREAD_TITLE);
+    const card = page
+      .getByTestId("agent-proposal-card")
+      .filter({ hasText: "候选修改 Understanding" });
+    await expect(card).toContainText("执行失败");
+    await expect(card).toContainText(FAILED_APPROVED_TOOL_ERROR);
+    await expect(card).not.toContainText("已确认");
+
+    const eventTypes = readPiEventTypes();
+    expect(eventTypes).toContain("approval.requested");
+    expect(eventTypes).toContain("approval.resolved");
+    expect(eventTypes).toContain("tool.execution.started");
+    expect(eventTypes).toContain("tool.execution.failed");
+  } finally {
+    await app.close();
   }
 });
 

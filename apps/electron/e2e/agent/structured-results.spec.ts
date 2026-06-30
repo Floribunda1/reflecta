@@ -121,7 +121,7 @@ test("@AG-RESULT-002 用户可以区分提案的不同状态", async () => {
     ).toContainText("完成");
     await expect(
       page.getByTestId("agent-proposal-card").filter({ hasText: "CANDIDATE_TITLE_ERROR" }),
-    ).toContainText("出错");
+    ).toContainText("执行失败");
     await expect(
       page.getByTestId("agent-proposal-card").filter({ hasText: "CANDIDATE_TITLE_ERROR" }),
     ).toContainText("RESULT_ERROR_MESSAGE");
