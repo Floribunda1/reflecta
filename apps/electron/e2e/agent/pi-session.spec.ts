@@ -99,8 +99,12 @@ function eventHasCompletedTool(event: Record<string, unknown>, toolName: string)
   );
 }
 
-function assistantTurnHasCompletedTool(toolName: string) {
-  return readPiEvents().some((event) => eventHasCompletedTool(event, toolName));
+function sessionHasCompletedTool(toolName: string) {
+  return readPiEvents().some(
+    (event) =>
+      eventHasCompletedTool(event, toolName) ||
+      (event.type === "tool.execution.completed" && event.toolName === toolName),
+  );
 }
 
 function flushPiSession(manager: SessionManager) {
@@ -673,7 +677,7 @@ test("@AG-RETRIEVAL-003 用户要求 Agent 检索知识库后看到检索结果"
     expect(eventTypes).not.toContain("tool.started");
     expect(eventTypes).not.toContain("tool.completed");
     expect(eventTypes).not.toContain("approval.requested");
-    expect(assistantTurnHasCompletedTool("retrieve_knowledge")).toBe(true);
+    expect(sessionHasCompletedTool("retrieve_knowledge")).toBe(true);
   } finally {
     await app.close();
   }
@@ -725,15 +729,16 @@ test("@AG-PROPOSAL-001 用户确认候选 Understanding 后看到执行结果", 
       .filter({ hasText: PI_APPROVE_PROPOSAL_TITLE });
     await expect(card).toBeVisible({ timeout: 120_000 });
     await card.getByTestId("agent-proposal-confirm-button").click();
-    await expect(card).toContainText("已确认", { timeout: 120_000 });
+    await expect(card).toContainText("完成", { timeout: 120_000 });
     await expect(card).toContainText("已写入");
 
     expect(understandingExistsByTitle(PI_APPROVE_PROPOSAL_TITLE)).toBe(true);
     const eventTypes = readPiEventTypes();
     expect(eventTypes).toContain("approval.requested");
     expect(eventTypes).toContain("approval.resolved");
+    expect(eventTypes).toContain("tool.execution.completed");
     expect(eventTypes).not.toContain("tool.completed");
-    expect(assistantTurnHasCompletedTool("understanding_create")).toBe(true);
+    expect(sessionHasCompletedTool("understanding_create")).toBe(true);
   } finally {
     await app.close();
   }
@@ -756,7 +761,7 @@ test("@AG-PROPOSAL-004 用户确认候选 Domain 后看到执行结果", async (
       .filter({ hasText: PI_DOMAIN_PROPOSAL_NAME });
     await expect(card).toBeVisible({ timeout: 120_000 });
     await card.getByTestId("agent-proposal-confirm-button").click();
-    await expect(card).toContainText("已确认", { timeout: 120_000 });
+    await expect(card).toContainText("完成", { timeout: 120_000 });
     await expect(card).toContainText("已写入");
 
     expect(domainExistsByName(PI_DOMAIN_PROPOSAL_NAME)).toBe(true);
@@ -766,7 +771,8 @@ test("@AG-PROPOSAL-004 用户确认候选 Domain 后看到执行结果", async (
         (event) => event.type === "approval.requested" && event.toolName === "domain_create",
       ),
     ).toBe(true);
-    expect(assistantTurnHasCompletedTool("domain_create")).toBe(true);
+    expect(events.some((event) => event.type === "tool.execution.completed")).toBe(true);
+    expect(sessionHasCompletedTool("domain_create")).toBe(true);
   } finally {
     await app.close();
   }

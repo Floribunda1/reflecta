@@ -476,6 +476,9 @@ function proposalStatusNote(
   resultRef?: string,
 ) {
   if (state === "output-error") return undefined;
+  if (state === "output-available" && status === "approved" && resultRef) {
+    return `已写入 ${resultRefType} · ${resultRef}`;
+  }
   if (state === "output-available") return undefined;
   if (status === "approved" && resultRef) return `已写入 ${resultRefType} · ${resultRef}`;
   if (status === "approved") return "已确认";
