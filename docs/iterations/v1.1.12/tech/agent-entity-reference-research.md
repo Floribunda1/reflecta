@@ -6,6 +6,8 @@
 >
 > 目标：调研和 Reflecta 最相近的产品场景，理解它们如何处理 AI 回答里的 source / entity / knowledge unit reference，并提炼对 Reflecta 的架构启发。
 
+> **已被 v1.1.15 取代：** 本调研中的 session-scoped `[[ref:Sx]]` 结论只适用于历史 renderer entity link 方案。新的 Agent 工具身份协议使用 Reflecta 稳定实体 id；聊天 ref 只负责展示和导航。
+
 ## 1. 结论先行
 
 Reflecta 当前要解决的问题不是传统 RAG 里的“这句话证据来自哪段文本”，而是：

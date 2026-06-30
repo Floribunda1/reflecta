@@ -6,6 +6,8 @@
 >
 > 目标：定义 Agent 正文里 Reflecta entity link 的最终模块架构，让 Agent 能稳定引用真实 Understanding / Context / Domain，同时不污染对话上下文、不阻断 streaming render。
 
+> **已被 v1.1.15 取代：** Agent 工具身份协议已改为直接使用 Reflecta 稳定实体 id。本文的 session-scoped `[[ref:Sx]]` source map 只作为历史背景和旧会话 renderer 兼容方案，不再作为面向模型的工具参数协议。
+
 ## 0. 阅读路径
 
 这份文档按实现者的心智模型组织：

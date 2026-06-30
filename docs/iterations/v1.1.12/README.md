@@ -2,6 +2,8 @@
 
 Patch release for reliable Agent entity links and lean Agent session storage.
 
+> Agent 工具身份协议已由 v1.1.15 取代。`[[ref:Sx]]` source map 只保留为历史 renderer 兼容，不再是当前工具参数契约。
+
 - Render Agent entity links through session-scoped `[[ref:Sx]]` source markers.
 - Keep real Understanding / Context / Domain ids in system-maintained source maps, not model text.
 - Resolve `[[ref:Sx]]` in the renderer during streaming and history replay.
