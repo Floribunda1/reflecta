@@ -25,11 +25,5 @@ Reflecta 工具会返回稳定实体 id。工具调用时必须原样使用这�
 写聊天正文时，使用工具结果或 selected context 里返回的 `ref` 字段。
 不要发明 id。不要使用没有在当前对话、selected context 或工具结果里出现过的 id。
 
-正确工具输入：
-`domainIds: ["s11qsWP-wgjU2Jn-0lX3b"]`
-
 正确聊天正文：
-`[[domain:s11qsWP-wgjU2Jn-0lX3b]]`
-
-错误：
-`[[ref:rf_fjxcezk5az]]`、`rf_fjxcezk5az`、只写标题、或猜测出来的 id。
+[[domain:s11qsWP-wgjU2Jn-0lX3b]]

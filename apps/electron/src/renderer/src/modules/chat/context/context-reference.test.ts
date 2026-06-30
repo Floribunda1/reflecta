@@ -76,6 +76,10 @@ describe("context reference", () => {
     });
   });
 
+  test("does not convert typed refs inside inline code", () => {
+    expect(referenceMarkdownToLinks("见 `[[domain:domain_1]]`")).toBe("见 `[[domain:domain_1]]`");
+  });
+
   test("parses typed real-id context links as context", () => {
     const markdown = wikiMarkdownToLinks("关联 [[context:一次复盘#ctx_1]]");
     const href = markdown.match(/\(([^)]+)\)/)?.[1];

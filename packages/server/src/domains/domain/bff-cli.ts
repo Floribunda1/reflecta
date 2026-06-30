@@ -44,9 +44,11 @@ export class DomainCliBff extends DomainCore {
       throw new Error(`Domain not found: ${id}`);
     }
 
-    const allCats = await this.listDomainRows();
-
     const descendantIds = await getDomainDescendants(this.db, id);
+    const descendantIdSet = new Set(descendantIds);
+    const descendantDomains = (await this.listDomainRows()).filter((c) =>
+      descendantIdSet.has(c.id),
+    );
     const targetCatIds = [id, ...descendantIds];
 
     const limit = options?.limit ?? 200;
@@ -143,7 +145,7 @@ export class DomainCliBff extends DomainCore {
 
     return {
       domain: { id: domain.id, name: domain.name, parentId: domain.parentId },
-      domains: allCats.map((c) => ({ id: c.id, name: c.name, parentId: c.parentId })),
+      domains: descendantDomains.map((c) => ({ id: c.id, name: c.name, parentId: c.parentId })),
       understandings: nodeUnderstandings,
       contexts: resultContexts,
       edges: resultEdges,

@@ -109,7 +109,10 @@ export function wikiMarkdownToLinks(markdown: string) {
 }
 
 export function referenceMarkdownToLinks(markdown: string) {
-  return wikiMarkdownToLinks(markdown);
+  return markdown
+    .split(/(```[\s\S]*?```|`[^`\n]*`)/g)
+    .map((part) => (part.startsWith("`") ? part : wikiMarkdownToLinks(part)))
+    .join("");
 }
 
 export function parseWikiHref(href: string | undefined): AgentContextRef | null {
