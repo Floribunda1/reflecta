@@ -1,10 +1,9 @@
 import type { AgentContextRef } from "@shared/agent";
 
 const TYPED_WIKI_LINK_PATTERN = /\[\[(understanding|context|domain):([^#\]\n]+)#([^\]\n]+)\]\]/g;
+const TYPED_ENTITY_REF_PATTERN = /\[\[(understanding|context|domain):([^#\]\n]+)\]\]/g;
 const WIKI_LINK_PATTERN = /\[\[([^:#\]\n]+)#([^\]\n]+)\]\]/g;
-const REF_MARKER_PATTERN = /\[\[ref:([A-Za-z0-9_-]+)\]\]/g;
 export const WIKI_LINK_HREF_PREFIX = "#reflecta-wiki/";
-export const REF_LINK_HREF_PREFIX = "#reflecta-ref/";
 
 export type InspectableContextRef = AgentContextRef & { type: "understanding" | "context" };
 
@@ -84,11 +83,12 @@ export function contextRefFromMentionNode(node: {
 }
 
 export function wikiHref(
-  title: string,
+  title: string | undefined,
   id: string,
   type: AgentContextRef["type"] = "understanding",
 ) {
-  return `${WIKI_LINK_HREF_PREFIX}${type}/${encodeURIComponent(id)}?title=${encodeURIComponent(title)}`;
+  const href = `${WIKI_LINK_HREF_PREFIX}${type}/${encodeURIComponent(id)}`;
+  return title ? `${href}?title=${encodeURIComponent(title)}` : href;
 }
 
 export function wikiMarkdownToLinks(markdown: string) {
@@ -98,29 +98,18 @@ export function wikiMarkdownToLinks(markdown: string) {
       (_match, type: AgentContextRef["type"], title: string, id: string) =>
         `[${title}](${wikiHref(title, id, type)})`,
     )
+    .replace(
+      TYPED_ENTITY_REF_PATTERN,
+      (_match, type: AgentContextRef["type"], id: string) =>
+        `[${id}](${wikiHref(undefined, id, type)})`,
+    )
     .replace(WIKI_LINK_PATTERN, (_match, title: string, id: string) => {
       return `[${title}](${wikiHref(title, id)})`;
     });
 }
 
-export function refHref(sourceId: string) {
-  return `${REF_LINK_HREF_PREFIX}${encodeURIComponent(sourceId)}`;
-}
-
 export function referenceMarkdownToLinks(markdown: string) {
-  return wikiMarkdownToLinks(markdown).replace(REF_MARKER_PATTERN, (_match, sourceId: string) => {
-    return `[ref:${sourceId}](${refHref(sourceId)})`;
-  });
-}
-
-export function parseRefHref(href: string | undefined): string | null {
-  if (!href?.startsWith(REF_LINK_HREF_PREFIX)) return null;
-  try {
-    const sourceId = decodeURIComponent(href.slice(REF_LINK_HREF_PREFIX.length));
-    return sourceId || null;
-  } catch {
-    return null;
-  }
+  return wikiMarkdownToLinks(markdown);
 }
 
 export function parseWikiHref(href: string | undefined): AgentContextRef | null {

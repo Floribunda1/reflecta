@@ -311,7 +311,7 @@ describe("reduceAgentSession", () => {
     ]);
   });
 
-  test("reduces approval requested, rejected, and completed states", () => {
+  test("reduces approval requested, rejected, and completed execution states", () => {
     const requested: AgentSessionEvent = {
       ...base,
       id: "evt_1",
@@ -338,7 +338,14 @@ describe("reduceAgentSession", () => {
           approved: false,
         },
       ]).messages[0]?.blocks?.[0],
-    ).toMatchObject({ kind: "approval", approvalId: "approval_1", state: "rejected" });
+    ).toMatchObject({
+      kind: "approval",
+      approvalId: "approval_1",
+      state: "rejected",
+      approvalState: "rejected",
+      executionState: "not_started",
+      displayState: "rejected",
+    });
 
     expect(
       reduceAgentSession([
@@ -356,7 +363,15 @@ describe("reduceAgentSession", () => {
         {
           ...base,
           id: "evt_4",
-          type: "tool.completed",
+          type: "tool.execution.started",
+          messageId: "assistant_1",
+          toolCallId: "tool_1",
+          toolName: "understanding_create",
+        },
+        {
+          ...base,
+          id: "evt_5",
+          type: "tool.execution.completed",
           messageId: "assistant_1",
           toolCallId: "tool_1",
           toolName: "understanding_create",
@@ -368,29 +383,11 @@ describe("reduceAgentSession", () => {
       approvalId: "approval_1",
       state: "completed",
       approved: true,
+      approvalState: "approved",
+      executionState: "completed",
+      displayState: "completed",
       output: { resultRefType: "understanding", resultRefId: "understanding_1" },
     });
-
-    const directCompletion = reduceAgentSession([
-      requested,
-      {
-        ...base,
-        id: "evt_5",
-        type: "tool.completed",
-        messageId: "assistant_1",
-        toolCallId: "tool_1",
-        toolName: "understanding_create",
-        output: { resultRefType: "understanding", resultRefId: "understanding_2" },
-      },
-    ]).messages[0]?.blocks?.[0];
-
-    expect(directCompletion).toMatchObject({
-      kind: "approval",
-      approvalId: "approval_1",
-      state: "completed",
-      output: { resultRefType: "understanding", resultRefId: "understanding_2" },
-    });
-    expect(directCompletion).not.toHaveProperty("approved");
   });
 
   test("reduces approved tool execution failure onto the proposal block", () => {
@@ -497,6 +494,9 @@ describe("reduceAgentSession", () => {
             payload: { understandingId: "understanding_1", domainIds: ["domain_1"] },
             approved: true,
             state: "approved",
+            approvalState: "approved",
+            executionState: "running",
+            displayState: "running",
             createdAt: base.createdAt,
           },
         ],

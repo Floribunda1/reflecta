@@ -1,7 +1,7 @@
 import { performance } from "node:perf_hooks";
 import { Type } from "@earendil-works/pi-ai";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
-import type { AgentContextRef, AgentFileAttachment } from "@shared/agent";
+import type { AgentFileAttachment } from "@shared/agent";
 import { diagnosticErrorAttrs } from "../../diagnostic-log";
 import { writeDiagnosticEvent } from "../../logger";
 import {
@@ -53,10 +53,6 @@ function toolResult(details: unknown) {
 }
 
 export type PiReadOnlyToolEntityOptions = {
-  resolveEntityRef?: (
-    ref: string,
-    expectedType?: AgentContextRef["type"],
-  ) => AgentContextRef | null;
   decorateToolOutput?: (toolName: string, toolCallId: string, output: unknown) => unknown;
 };
 
@@ -128,28 +124,6 @@ function withToolDiagnosticLog(tool: ToolDefinition): ToolDefinition {
   return { ...tool, execute: wrapped };
 }
 
-function resolveEntityId({
-  entityOptions,
-  expectedType,
-  legacyId,
-  legacyName,
-  ref,
-}: {
-  entityOptions: PiReadOnlyToolEntityOptions;
-  expectedType: AgentContextRef["type"];
-  legacyId?: string;
-  legacyName: string;
-  ref?: string;
-}): string {
-  if (ref) {
-    const entity = entityOptions.resolveEntityRef?.(ref, expectedType);
-    if (!entity) throw new Error(`Cannot resolve ${expectedType} ref: ${ref}`);
-    return entity.id;
-  }
-  if (legacyId) return legacyId;
-  throw new Error(`Missing ${legacyName} or ref`);
-}
-
 function createToolResult(
   toolName: string,
   toolCallId: string,
@@ -183,32 +157,22 @@ export function createPiReadOnlyTools(
       name: "domain_inspect",
       label: "查看 Domain",
       description:
-        "Inspect a Reflecta domain by id or ref and optionally include its Understandings, Contexts, and relations.",
-      promptSnippet: "domain_inspect: inspect one Reflecta domain by id or ref.",
+        "Inspect a Reflecta domain by stable id and optionally include its Understandings, Contexts, and relations.",
+      promptSnippet: "domain_inspect: inspect one Reflecta domain by stable id.",
       parameters: Type.Object({
-        domainId: Type.Optional(Type.String({ minLength: 1 })),
-        ref: Type.Optional(Type.String({ minLength: 1 })),
+        domainId: Type.String({ minLength: 1 }),
         includeContexts: Type.Optional(Type.Boolean()),
         includeRelations: Type.Optional(Type.Boolean()),
         ...paginationParameters,
       }),
-      execute: async (toolCallId, { domainId, ref, includeRelations, ...options }) =>
+      execute: async (toolCallId, { domainId, includeRelations, ...options }) =>
         createToolResult(
           "domain_inspect",
           toolCallId,
-          await domainCliService.inspectDomain(
-            resolveEntityId({
-              entityOptions,
-              expectedType: "domain",
-              legacyId: domainId,
-              legacyName: "domainId",
-              ref,
-            }),
-            {
-              ...options,
-              includeEdges: includeRelations,
-            },
-          ),
+          await domainCliService.inspectDomain(domainId, {
+            ...options,
+            includeEdges: includeRelations,
+          }),
           entityOptions,
         ),
     }),
@@ -237,81 +201,53 @@ export function createPiReadOnlyTools(
       name: "understanding_get",
       label: "读取 Understanding",
       description:
-        "Get a Reflecta Understanding by id or ref. Use includeContexts for its Context and includeRelations for its wiki-link relations.",
-      promptSnippet: "understanding_get: read one Reflecta Understanding by id or ref.",
+        "Get a Reflecta Understanding by stable id. Use includeContexts for its Context and includeRelations for its wiki-link relations.",
+      promptSnippet: "understanding_get: read one Reflecta Understanding by stable id.",
       parameters: Type.Object({
-        understandingId: Type.Optional(Type.String({ minLength: 1 })),
-        ref: Type.Optional(Type.String({ minLength: 1 })),
+        understandingId: Type.String({ minLength: 1 }),
         includeContexts: Type.Optional(Type.Boolean()),
         includeRelations: Type.Optional(Type.Boolean()),
       }),
-      execute: async (toolCallId, { understandingId, ref, includeRelations, ...options }) =>
+      execute: async (toolCallId, { understandingId, includeRelations, ...options }) =>
         createToolResult(
           "understanding_get",
           toolCallId,
-          await understandingCliService.getUnderstanding(
-            resolveEntityId({
-              entityOptions,
-              expectedType: "understanding",
-              legacyId: understandingId,
-              legacyName: "understandingId",
-              ref,
-            }),
-            {
-              ...options,
-              includeRelations,
-            },
-          ),
+          await understandingCliService.getUnderstanding(understandingId, {
+            ...options,
+            includeRelations,
+          }),
           entityOptions,
         ),
     }),
     defineTool({
       name: "context_list",
       label: "列出 Context",
-      description: "List Contexts attached to a Reflecta Understanding by id or ref.",
-      promptSnippet: "context_list: list Contexts for a Understanding by id or ref.",
+      description: "List Contexts attached to a Reflecta Understanding by stable id.",
+      promptSnippet: "context_list: list Contexts for a Understanding by stable id.",
       parameters: Type.Object({
-        understandingId: Type.Optional(Type.String({ minLength: 1 })),
-        ref: Type.Optional(Type.String({ minLength: 1 })),
+        understandingId: Type.String({ minLength: 1 }),
       }),
-      execute: async (toolCallId, { understandingId, ref }) =>
+      execute: async (toolCallId, { understandingId }) =>
         createToolResult(
           "context_list",
           toolCallId,
-          await contextCliService.listContexts(
-            resolveEntityId({
-              entityOptions,
-              expectedType: "understanding",
-              legacyId: understandingId,
-              legacyName: "understandingId",
-              ref,
-            }),
-          ),
+          await contextCliService.listContexts(understandingId),
           entityOptions,
         ),
     }),
     defineTool({
       name: "context_get",
       label: "读取 Context",
-      description: "Get one Reflecta Context by id or ref.",
-      promptSnippet: "context_get: read one Reflecta Context by id or ref.",
+      description: "Get one Reflecta Context by stable id.",
+      promptSnippet: "context_get: read one Reflecta Context by stable id.",
       parameters: Type.Object({
-        contextId: Type.Optional(Type.String({ minLength: 1 })),
-        ref: Type.Optional(Type.String({ minLength: 1 })),
+        contextId: Type.String({ minLength: 1 }),
       }),
-      execute: async (toolCallId, { contextId, ref }) =>
+      execute: async (toolCallId, { contextId }) =>
         createToolResult(
           "context_get",
           toolCallId,
-          await contextCliService.getContext(
-            resolveEntityId({
-              entityOptions,
-              expectedType: "context",
-              legacyId: contextId,
-              legacyName: "contextId",
-              ref,
-            }),
-          ),
+          await contextCliService.getContext(contextId),
           entityOptions,
         ),
     }),
@@ -391,29 +327,19 @@ export function createPiReadOnlyTools(
     defineTool({
       name: "graph",
       label: "查看关联图",
-      description: "Get the wiki-link graph around one Reflecta Understanding by id or ref.",
+      description: "Get the wiki-link graph around one Reflecta Understanding by stable id.",
       promptSnippet:
-        "graph: get the wiki-link graph around one Reflecta Understanding by id or ref.",
+        "graph: get the wiki-link graph around one Reflecta Understanding by stable id.",
       parameters: Type.Object({
-        understandingId: Type.Optional(Type.String({ minLength: 1 })),
-        ref: Type.Optional(Type.String({ minLength: 1 })),
+        understandingId: Type.String({ minLength: 1 }),
         includeContext: Type.Optional(Type.Boolean()),
         depth: Type.Optional(Type.Integer({ minimum: 0, maximum: 6 })),
       }),
-      execute: async (toolCallId, { understandingId, ref, ...options }) =>
+      execute: async (toolCallId, { understandingId, ...options }) =>
         createToolResult(
           "graph",
           toolCallId,
-          await graphCliService.graph(
-            resolveEntityId({
-              entityOptions,
-              expectedType: "understanding",
-              legacyId: understandingId,
-              legacyName: "understandingId",
-              ref,
-            }),
-            options,
-          ),
+          await graphCliService.graph(understandingId, options),
           entityOptions,
         ),
     }),

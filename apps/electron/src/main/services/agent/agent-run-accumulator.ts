@@ -4,9 +4,33 @@ import type {
   AgentAssistantTurn,
   AgentAssistantTurnBlock,
   AgentLiveEvent,
+  AgentToolApprovalState,
+  AgentToolDisplayState,
+  AgentToolExecutionState,
 } from "@shared/agent";
 
 type AccumulatorEvent = AgentLiveEvent | AgentApprovalRequested | AgentApprovalResolved;
+
+function displayState(
+  approvalState: AgentToolApprovalState,
+  executionState: AgentToolExecutionState,
+): AgentToolDisplayState {
+  if (approvalState === "rejected") return "rejected";
+  if (approvalState === "pending") return "pending_approval";
+  if (executionState === "failed") return "failed";
+  if (executionState === "completed") return "completed";
+  return "running";
+}
+
+function blockState(
+  display: AgentToolDisplayState,
+): Extract<AgentAssistantTurnBlock, { kind: "approval" }>["state"] {
+  if (display === "pending_approval") return "pending";
+  if (display === "rejected") return "rejected";
+  if (display === "completed") return "completed";
+  if (display === "failed") return "failed";
+  return "approved";
+}
 
 export class AgentRunAccumulator {
   private blocks: AgentAssistantTurnBlock[] = [];
@@ -55,7 +79,7 @@ export class AgentRunAccumulator {
           (block.kind === "tool" || block.kind === "approval") &&
           block.toolCallId === event.toolCallId,
       );
-      const update =
+      const toolUpdate =
         event.type === "tool.completed"
           ? { state: "completed" as const, output: event.output }
           : { state: "failed" as const, error: event.error };
@@ -66,7 +90,7 @@ export class AgentRunAccumulator {
             kind: "tool",
             toolCallId: event.toolCallId,
             toolName: event.toolName,
-            ...update,
+            ...toolUpdate,
             createdAt: event.createdAt,
           },
         ];
@@ -74,7 +98,13 @@ export class AgentRunAccumulator {
       }
       this.blocks = this.blocks.map((block, blockIndex) =>
         blockIndex === index && (block.kind === "tool" || block.kind === "approval")
-          ? { ...block, ...update }
+          ? block.kind === "approval"
+            ? this.updateApprovalExecution(
+                block,
+                event.type === "tool.completed" ? "completed" : "failed",
+                event.type === "tool.completed" ? { output: event.output } : { error: event.error },
+              )
+            : { ...block, ...toolUpdate }
           : block,
       );
       return;
@@ -92,6 +122,9 @@ export class AgentRunAccumulator {
           description: event.description,
           payload: event.payload,
           state: "pending",
+          approvalState: "pending",
+          executionState: "not_started",
+          displayState: "pending_approval",
           createdAt: event.createdAt,
         },
       ];
@@ -104,11 +137,9 @@ export class AgentRunAccumulator {
     if (index < 0) return;
     this.blocks = this.blocks.map((block, blockIndex) =>
       blockIndex === index && block.kind === "approval"
-        ? {
-            ...block,
+        ? this.updateApprovalState(block, event.approved ? "approved" : "rejected", {
             approved: event.approved,
-            state: event.approved ? "approved" : "rejected",
-          }
+          })
         : block,
     );
   }
@@ -122,6 +153,38 @@ export class AgentRunAccumulator {
       ...input,
       blocks: this.blocks,
       text: this.blocks.flatMap((block) => (block.kind === "text" ? [block.text] : [])).join(""),
+    };
+  }
+
+  private updateApprovalState(
+    block: Extract<AgentAssistantTurnBlock, { kind: "approval" }>,
+    approvalState: AgentToolApprovalState,
+    update: Partial<Extract<AgentAssistantTurnBlock, { kind: "approval" }>>,
+  ): Extract<AgentAssistantTurnBlock, { kind: "approval" }> {
+    const executionState = approvalState === "rejected" ? "not_started" : block.executionState;
+    const nextDisplayState = displayState(approvalState, executionState);
+    return {
+      ...block,
+      ...update,
+      approvalState,
+      executionState,
+      displayState: nextDisplayState,
+      state: blockState(nextDisplayState),
+    };
+  }
+
+  private updateApprovalExecution(
+    block: Extract<AgentAssistantTurnBlock, { kind: "approval" }>,
+    executionState: AgentToolExecutionState,
+    update: Partial<Extract<AgentAssistantTurnBlock, { kind: "approval" }>>,
+  ): Extract<AgentAssistantTurnBlock, { kind: "approval" }> {
+    const nextDisplayState = displayState(block.approvalState, executionState);
+    return {
+      ...block,
+      ...update,
+      executionState,
+      displayState: nextDisplayState,
+      state: blockState(nextDisplayState),
     };
   }
 }

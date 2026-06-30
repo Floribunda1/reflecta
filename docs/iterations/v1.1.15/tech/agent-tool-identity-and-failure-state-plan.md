@@ -278,7 +278,7 @@ raw Pi message -> grep toolResult text
 
 - `AgentSessionLog.readEvents()` 只返回 canonical `reflecta.agent.event`。
 - Reducer 只消费 canonical approval/execution 状态，不从 Pi 原始 `message.role === "toolResult"` 推断 UI 状态。
-- Renderer 只做安全降级：旧 ref 找不到 source 时显示普通文本；不猜实体、不查库反推、不把 source id 当真实 id。
+- Renderer 只解析 typed real-id ref；旧 `[[ref:*]]` 不再作为链接协议处理，只作为普通文本保留。
 - 写工具只接受稳定实体 id。旧 `rf_*` 或 `[[ref:*]]` 失败要通过迁移修历史数据，而不是让工具继续兼容。
 
 需要迁移的已知历史形态：
@@ -307,7 +307,7 @@ raw Pi message -> grep toolResult text
   - 只保留 renderer/session replay 仍然需要的展示 metadata helper。
 - `apps/electron/src/main/services/agent/pi-readonly-tools.ts`
   - 返回带 `id` 和 typed `ref` 的实体输出。
-  - 对已经支持 `ref` 入参的只读工具，临时保留 legacy resolve。
+  - 删除 `ref` 入参，只接受稳定实体 id。
 - `apps/electron/src/main/services/agent/pi-write-tools.ts`
   - 保持 `understandingId`、`domainIds`、`contextId`、`domainId` 为真实 id 字段。
   - 更新参数描述，明确这些字段来自工具返回的稳定 id。
@@ -469,7 +469,7 @@ domainRefs: ["[[domain:domain_1]]"]
 
 - [ ] **步骤 4: 只保留仍然必要的 registry 能力**
 
-如果 registry 不再需要 session-scoped source ids 作为身份层，就把它收窄到 title/display metadata 和向后兼容 helper。不要再把生成的 `rf_*` 暴露给面向模型的工具输出。
+如果 registry 不再需要 session-scoped source ids 作为身份层，就把它收窄到 title/display metadata。不要再把生成的 `rf_*` 暴露给面向模型的工具输出，也不要保留旧 ref resolver。
 
 - [ ] **步骤 5: 运行测试**
 
@@ -799,7 +799,7 @@ git commit -m "test: cover approved tool execution failure recovery"
 rg -n "\\[\\[ref:|sourceId|rf_" apps/electron/src docs/iterations/v1.1.12 docs/iterations/v1.1.15
 ```
 
-预期：只有向后兼容代码、测试和历史文档保留旧表述。
+预期：运行时代码不再保留旧 ref 解析；只有 prompt 反例、测试断言和历史文档保留旧表述。
 
 - [ ] **步骤 2: 标记 v1.1.12 文档已被取代**
 
@@ -809,9 +809,9 @@ rg -n "\\[\\[ref:|sourceId|rf_" apps/electron/src docs/iterations/v1.1.12 docs/i
 > Agent 工具身份协议已由 v1.1.15 取代。v1.1.12 的 session-scoped `[[ref:Sx]]` source map 仍可作为历史背景，但 v1.1.15 对面向模型的工具协议使用稳定实体 id。
 ```
 
-- [ ] **步骤 3: 只在必要位置保留向后兼容 parser**
+- [ ] **步骤 3: 删除旧 ref parser**
 
-如果旧 session 日志里包含 `[[ref:rf_*]]`，保留 renderer 兜底逻辑：只有持久化 source map 能 resolve 时才渲染，否则显示为不可解析的普通文本。这个兜底逻辑不能影响新的工具输出。
+旧 session 日志中的 `[[ref:rf_*]]` 不再走 renderer resolver。能在一次性迁移中无歧义改写成 typed real-id ref 的就改写；无法反推的保留为普通文本，不再维护运行时兼容 parser。
 
 - [ ] **步骤 4: 提交**
 
@@ -859,7 +859,7 @@ assistant.turn block has error && state === completed
 
 - [ ] **步骤 5: 最小化 ref 迁移**
 
-只补能无歧义反推的 `entity.sources.updated`。不确定的 `[[ref:Sx]]` 保持不可点击普通文本。
+只改写能无歧义反推的 typed real-id ref。不确定的 `[[ref:Sx]]` 保持不可点击普通文本。
 
 - [ ] **步骤 6: 验证迁移结果**
 
@@ -868,7 +868,7 @@ assistant.turn block has error && state === completed
 ```txt
 raw toolResult.isError without matching tool.execution.failed -> 0
 block has error && state === completed -> 0
-unknown ref -> 允许存在，但只降级为普通文本
+unknown ref -> 允许存在，但只是普通文本，不经过 runtime resolver
 ```
 
 再运行：
@@ -917,7 +917,7 @@ pnpm --filter @reflecta/electron e2e -- apps/electron/e2e/agent/pi-session.spec.
 - 失败的已批准工具卡片主状态显示“执行失败”，并展示 `error.message`；它不能继续以“已确认”作为终态展示。
 - 生产风格 `Domain not found` 失败可以通过 session reducer output 看到，不需要 grep 原始 Pi 消息。
 - 已迁移历史 session 中，Pi 原始 `toolResult.isError=true` 都有对应 canonical failed state，UI 不再把它们显示为“已确认/已完成”。
-- 历史 session 不崩溃；无法 resolve 的旧 ref 不可点击。
+- 历史 session 不崩溃；无法迁移的旧 ref 作为普通文本显示，不可点击。
 
 ## 10. 自检
 

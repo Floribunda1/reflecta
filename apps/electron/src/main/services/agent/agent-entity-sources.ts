@@ -6,7 +6,6 @@ type AgentEntityType = AgentContextRef["type"];
 type MutableRecord = Record<string, unknown>;
 type SourceIdFactory = () => string;
 
-const REF_PATTERN = /^\[\[ref:([A-Za-z0-9_-]+)\]\]$/;
 const createRandomSourceId = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 10);
 const ENTITY_KEYS = new Set(["understanding", "context", "domain"]);
 const ENTITY_ARRAY_KEYS = new Map<string, AgentEntityType>([
@@ -52,16 +51,8 @@ function titleFor(value: MutableRecord) {
   return typeof value.title === "string" ? value.title : undefined;
 }
 
-function isLegacySourceId(sourceId: string) {
-  return /^S\d+$/.test(sourceId);
-}
-
 function randomSourceId() {
   return `rf_${createRandomSourceId()}`;
-}
-
-function normalizeSourceId(value: string) {
-  return REF_PATTERN.exec(value)?.[1] ?? value;
 }
 
 export class AgentEntitySourceRegistry {
@@ -76,17 +67,14 @@ export class AgentEntitySourceRegistry {
     for (const source of existing) {
       this.sources.set(source.sourceId, source);
       const key = entityKey(source.entity);
-      const mappedId = this.keyToSourceId.get(key);
-      if (!mappedId || isLegacySourceId(mappedId) || !isLegacySourceId(source.sourceId)) {
-        this.keyToSourceId.set(key, source.sourceId);
-      }
+      if (!this.keyToSourceId.has(key)) this.keyToSourceId.set(key, source.sourceId);
     }
   }
 
   addEntity(entity: AgentContextRef, origin: AgentEntitySourceOrigin): AgentEntitySource {
     const key = entityKey(entity);
     const existingId = this.keyToSourceId.get(key);
-    if (existingId && !isLegacySourceId(existingId)) {
+    if (existingId) {
       const existing = this.sources.get(existingId);
       if (!existing) throw new Error(`Missing entity source for ${existingId}`);
       const title = entity.title?.trim();
@@ -121,13 +109,6 @@ export class AgentEntitySourceRegistry {
     const retrievalOutput =
       toolName === "retrieve_knowledge" ? this.decorateRetrievalValue(output, origin) : output;
     return this.decorateValue(retrievalOutput, origin, TOOL_ROOT_PARENT_KEYS.get(toolName));
-  }
-
-  resolveRef(sourceIdOrMarker: string, expectedType?: AgentEntityType): AgentContextRef | null {
-    const source = this.sources.get(normalizeSourceId(sourceIdOrMarker));
-    if (!source) return null;
-    if (expectedType && source.entity.type !== expectedType) return null;
-    return source.entity;
   }
 
   drainUpdates(): AgentEntitySource[] {

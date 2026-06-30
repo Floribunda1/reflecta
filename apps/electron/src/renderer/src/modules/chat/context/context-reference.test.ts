@@ -65,11 +65,18 @@ describe("context reference", () => {
     );
   });
 
-  test("converts and resolves entity ref markers", () => {
-    expect(referenceMarkdownToLinks("见 [[ref:S1]]")).toContain("#reflecta-ref/S1");
+  test("converts typed real-id entity refs", () => {
+    const markdown = referenceMarkdownToLinks("见 [[context:ctx_1]]");
+    const href = markdown.match(/\(([^)]+)\)/)?.[1];
+
+    expect(parseWikiHref(href)).toEqual({
+      type: "context",
+      id: "ctx_1",
+      title: undefined,
+    });
   });
 
-  test("parses typed legacy context links as context", () => {
+  test("parses typed real-id context links as context", () => {
     const markdown = wikiMarkdownToLinks("关联 [[context:一次复盘#ctx_1]]");
     const href = markdown.match(/\(([^)]+)\)/)?.[1];
 

@@ -36,6 +36,26 @@ function proposal(
   payload: Record<string, unknown>,
   state: "pending" | "approved" | "rejected" | "completed" | "failed" = "pending",
 ): AgentReducedAssistantBlock {
+  const approvalState =
+    state === "pending" ? "pending" : state === "rejected" ? "rejected" : "approved";
+  const executionState =
+    state === "completed"
+      ? "completed"
+      : state === "failed"
+        ? "failed"
+        : state === "approved"
+          ? "running"
+          : "not_started";
+  const displayState =
+    approvalState === "pending"
+      ? "pending_approval"
+      : approvalState === "rejected"
+        ? "rejected"
+        : executionState === "completed"
+          ? "completed"
+          : executionState === "failed"
+            ? "failed"
+            : "running";
   return {
     kind: "approval",
     approvalId: `approval-${toolCallId}`,
@@ -45,6 +65,9 @@ function proposal(
     payload,
     approved: state === "approved" || state === "completed",
     state,
+    approvalState,
+    executionState,
+    displayState,
     createdAt: "2026-06-23T00:00:00.000Z",
   };
 }
@@ -676,6 +699,9 @@ describe("buildAgentTurnView", () => {
         output: { exitCode: 0, stdout: "hello", stderr: "" },
         approved: true,
         state: "completed",
+        approvalState: "approved",
+        executionState: "completed",
+        displayState: "completed",
         createdAt: "2026-06-23T00:00:00.000Z",
       },
     ]);
@@ -737,6 +763,9 @@ describe("buildAgentTurnView", () => {
         output: { exitCode: 0, stdout, stderr: "" },
         approved: true,
         state: "completed",
+        approvalState: "approved",
+        executionState: "completed",
+        displayState: "completed",
         createdAt: "2026-06-23T00:00:00.000Z",
       },
     ]);
@@ -763,7 +792,7 @@ describe("buildAgentTurnView", () => {
     ).not.toContain("line 24");
   });
 
-  test("keeps direct completion distinct from user approval", () => {
+  test("shows completed approval tool result typed refs", () => {
     const turn = buildAgentTurnView([
       {
         kind: "approval",
@@ -772,42 +801,12 @@ describe("buildAgentTurnView", () => {
         toolName: "understanding_create",
         title: "候选 Understanding",
         payload: { title: "A", body: "B" },
-        output: { resultRefType: "understanding", resultRefId: "understanding_1" },
+        output: { resultRefType: "understanding", resultRef: "[[understanding:understanding_1]]" },
+        approved: true,
         state: "completed",
-        createdAt: "2026-06-23T00:00:00.000Z",
-      },
-    ]);
-
-    expect(turn.blocks[0]).toMatchObject({
-      kind: "proposal",
-      proposal: {
-        status: undefined,
-        state: "output-available",
-        result: {
-          rows: [
-            {
-              label: "执行结果",
-              title: "Understanding 已完成",
-              description: "understanding_1",
-              meta: [],
-            },
-          ],
-        },
-      },
-    });
-  });
-
-  test("shows completed approval tool result refs without raw ids", () => {
-    const turn = buildAgentTurnView([
-      {
-        kind: "approval",
-        approvalId: "approval-tool-1",
-        toolCallId: "tool-1",
-        toolName: "understanding_create",
-        title: "候选 Understanding",
-        payload: { title: "A", body: "B" },
-        output: { resultRefType: "understanding", resultRef: "[[ref:S1]]" },
-        state: "completed",
+        approvalState: "approved",
+        executionState: "completed",
+        displayState: "completed",
         createdAt: "2026-06-23T00:00:00.000Z",
       },
     ]);
@@ -816,14 +815,14 @@ describe("buildAgentTurnView", () => {
       kind: "proposal",
       proposal: {
         state: "output-available",
-        resultRef: "[[ref:S1]]",
+        resultRef: "[[understanding:understanding_1]]",
         resultRefId: "",
         result: {
           rows: [
             {
               label: "执行结果",
               title: "Understanding 已完成",
-              description: "[[ref:S1]]",
+              description: "[[understanding:understanding_1]]",
               format: "markdown",
               meta: [],
             },

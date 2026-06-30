@@ -269,44 +269,38 @@ describe("MessageList entity refs", () => {
     expect(mark?.getAttribute("data-chat-find-match")).toBe("true");
   });
 
-  test("renders resolved assistant ref markers as clickable context chips", () => {
+  test("renders typed assistant entity refs as clickable context chips", () => {
     const onInspectContextRef = vi.fn();
     renderMessageList({
       messages: [
         {
           id: "assistant_1",
           role: "assistant",
-          text: "见 [[ref:S1]]",
+          text: "见 [[context:ctx_1]]",
           createdAt: "2026-06-26T00:00:00.000Z",
           blocks: [
             {
               kind: "text",
-              text: "见 [[ref:S1]]",
+              text: "见 [[context:ctx_1]]",
               createdAt: "2026-06-26T00:00:00.000Z",
             },
           ],
         },
       ],
-      entitySources: [
-        {
-          sourceId: "S1",
-          entity: { type: "context", id: "ctx_1", title: "一次复盘" },
-          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "retrieve_knowledge" },
-        },
-      ],
+      entitySources: [],
       onInspectContextRef,
     });
 
     const chip = container?.querySelector<HTMLButtonElement>('[data-slot="wiki-link"]');
-    expect(chip?.textContent).toContain("一次复盘");
-    expect(container?.textContent).not.toContain("[[ref:S1]]");
+    expect(chip?.textContent).toContain("ctx_1");
+    expect(container?.textContent).not.toContain("[[context:ctx_1]]");
 
     act(() => chip?.click());
 
     expect(onInspectContextRef).toHaveBeenCalledWith({
       type: "context",
       id: "ctx_1",
-      title: "一次复盘",
+      title: undefined,
     });
   });
 });

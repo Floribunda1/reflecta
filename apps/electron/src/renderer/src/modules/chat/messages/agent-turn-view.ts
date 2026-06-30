@@ -242,7 +242,7 @@ function proposalViewFor(block: AgentApprovalBlock): ProposalView {
   const input = isRecord(block.payload) ? block.payload : {};
   const output = isRecord(block.output) ? block.output : {};
   const type = proposalTypeFor(block.toolName);
-  const result = proposalResultDetails(type, output, block.state);
+  const result = proposalResultDetails(type, output, block.displayState);
   const base = {
     toolCallId: block.toolCallId,
     title: block.title || proposalTitle(type),
@@ -286,19 +286,17 @@ function proposalTypeFor(toolName: string): ProposalType {
 }
 
 function approvalStatus(block: AgentApprovalBlock): ToolApprovalStatus | undefined {
-  if (block.state === "pending") return "pending";
-  if (block.state === "rejected") return "rejected";
-  if (block.state === "approved") return "approved";
-  if (block.state === "completed") return block.approved ? "approved" : undefined;
+  if (block.approvalState === "pending") return "pending";
+  if (block.approvalState === "rejected") return "rejected";
   return block.approved ? "approved" : undefined;
 }
 
 function proposalState(block: AgentApprovalBlock): ProposalState {
-  if (block.state === "pending") return "approval-requested";
-  if (block.state === "approved") return "approval-responded";
-  if (block.state === "rejected") return "output-denied";
-  if (block.state === "completed") return "output-available";
-  if (block.state === "failed") return "output-error";
+  if (block.displayState === "pending_approval") return "approval-requested";
+  if (block.displayState === "running") return "approval-responded";
+  if (block.displayState === "rejected") return "output-denied";
+  if (block.displayState === "completed") return "output-available";
+  if (block.displayState === "failed") return "output-error";
   return "input-streaming";
 }
 
@@ -355,9 +353,9 @@ function contextProposalData(output: Record<string, unknown>): ContextProposalVi
 function proposalResultDetails(
   type: ProposalType,
   output: Record<string, unknown>,
-  state: AgentApprovalBlock["state"],
+  displayState: AgentApprovalBlock["displayState"],
 ) {
-  if (state !== "completed") return undefined;
+  if (displayState !== "completed") return undefined;
   if (type === "bash") return bashDetails(output);
 
   const resultRef = stringValue(output.resultRef) || stringValue(output.resultRefId);
@@ -369,7 +367,7 @@ function proposalResultDetails(
         `${proposalResultTypeLabel(stringValue(output.resultRefType))} 已完成`,
         resultRef,
         [],
-        resultRef.startsWith("[[ref:") ? "markdown" : "text",
+        resultRef.startsWith("[[") ? "markdown" : "text",
       ),
     ],
   });

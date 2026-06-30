@@ -392,8 +392,23 @@ function withApprovalToolResult(
   );
   const update =
     "output" in result
-      ? { state: "completed" as const, output: result.output }
-      : { state: "failed" as const, error: result.error };
+      ? {
+          state: "completed" as const,
+          output: result.output,
+          approvalState: "approved" as const,
+          executionState: "completed" as const,
+          displayState: "completed" as const,
+          approved: true,
+        }
+      : {
+          state: "failed" as const,
+          error: result.error,
+          executionError: { message: result.error },
+          approvalState: "approved" as const,
+          executionState: "failed" as const,
+          displayState: "failed" as const,
+          approved: true,
+        };
   if (index < 0) {
     return [
       ...blocks,
@@ -405,16 +420,13 @@ function withApprovalToolResult(
         title: requested.title,
         description: requested.description,
         payload: requested.payload,
-        approved: true,
         ...update,
         createdAt: requested.createdAt,
       },
     ];
   }
   return blocks.map((block, blockIndex) =>
-    blockIndex === index && block.kind === "approval"
-      ? { ...block, approved: true, ...update }
-      : block,
+    blockIndex === index && block.kind === "approval" ? { ...block, ...update } : block,
   );
 }
 
@@ -597,8 +609,6 @@ export class PiAgentHost {
       authStorage,
       customTools: [
         ...createPiReadOnlyTools(command.files, {
-          resolveEntityRef: (ref, expectedType) =>
-            entitySourceRegistry.resolveRef(ref, expectedType),
           decorateToolOutput: (toolName, toolCallId, output) =>
             entitySourceRegistry.decorateToolOutput(toolName, toolCallId, output),
         }),

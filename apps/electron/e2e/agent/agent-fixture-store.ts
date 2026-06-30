@@ -232,6 +232,9 @@ function appendProposalBlock(
     title,
     payload,
     state: "pending",
+    approvalState: "pending",
+    executionState: "not_started",
+    displayState: "pending_approval",
     createdAt,
   };
   const state = typeof part.state === "string" ? part.state : "";
@@ -286,6 +289,9 @@ function appendProposalBlock(
     );
     block.approved = approved;
     block.state = approved ? "approved" : "rejected";
+    block.approvalState = approved ? "approved" : "rejected";
+    block.executionState = "not_started";
+    block.displayState = approved ? "running" : "rejected";
   } else if (state === "output-denied") {
     events.push(
       createEvent({
@@ -300,8 +306,15 @@ function appendProposalBlock(
     );
     block.approved = false;
     block.state = "rejected";
+    block.approvalState = "rejected";
+    block.executionState = "not_started";
+    block.displayState = "rejected";
   } else if (state !== "approval-requested") {
     block.state = "completed";
+    block.approved = true;
+    block.approvalState = "approved";
+    block.executionState = "completed";
+    block.displayState = "completed";
     block.output = part.output;
   }
   blocks.push(block);

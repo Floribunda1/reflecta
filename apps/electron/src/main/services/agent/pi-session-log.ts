@@ -28,25 +28,6 @@ function isReflectaEventEntry(entry: SessionEntry): entry is ReflectaEventEntry 
   );
 }
 
-function isLegacyReflectaEventEntry(entry: SessionEntry): boolean {
-  if (
-    entry.type !== "custom" ||
-    entry.customType !== REFLECTA_AGENT_EVENT_ENTRY ||
-    !entry.data ||
-    typeof entry.data !== "object" ||
-    !("type" in entry.data)
-  ) {
-    return false;
-  }
-  return [
-    "assistant.text.delta",
-    "assistant.reasoning.delta",
-    "tool.started",
-    "tool.completed",
-    "tool.failed",
-  ].includes(String(entry.data.type));
-}
-
 function isReflectaEventEntryOfType<T extends AgentSessionEvent["type"]>(
   entry: SessionEntry,
   type: T,
@@ -162,7 +143,7 @@ export class AgentSessionLog {
     const sessions = await SessionManager.list(this.contentStorageRoot, this.sessionsRoot);
     const persisted = sessions
       .flatMap((session) => {
-        const events = this.readEventsFromFile(session.path, { allowLegacy: true });
+        const events = this.readEventsFromFile(session.path);
         this.pendingSummaries.delete(session.id);
         if (!events.some((event) => event.type === "user.message")) return [];
         return {
@@ -348,16 +329,9 @@ export class AgentSessionLog {
     return this.readEventsFromFile(session.path);
   }
 
-  private readEventsFromFile(
-    sessionFile: string,
-    options: { allowLegacy?: boolean } = {},
-  ): AgentSessionEvent[] {
+  private readEventsFromFile(sessionFile: string): AgentSessionEvent[] {
     if (!fs.existsSync(sessionFile)) return [];
     const manager = SessionManager.open(sessionFile, this.sessionsRoot, this.contentStorageRoot);
-    const entries = manager.getEntries();
-    if (!options.allowLegacy && entries.some(isLegacyReflectaEventEntry)) {
-      throw new Error("Legacy Agent session format found. This session must be migrated first.");
-    }
     return this.eventsFromManager(manager);
   }
 }

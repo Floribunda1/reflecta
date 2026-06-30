@@ -30,36 +30,6 @@ describe("AgentEntitySourceRegistry", () => {
     ]);
   });
 
-  test("keeps legacy source ids resolvable but allocates opaque ids for new mentions", () => {
-    const registry = new AgentEntitySourceRegistry(
-      [
-        {
-          sourceId: "S1",
-          entity: { type: "context", id: "ctx_1", title: "旧标题" },
-          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "retrieve_knowledge" },
-        },
-      ],
-      () => "rf_ctx",
-    );
-
-    const source = registry.addEntity(
-      { type: "context", id: "ctx_1", title: "新标题" },
-      { kind: "user_context", messageId: "user_1" },
-    );
-
-    expect(source.sourceId).toBe("rf_ctx");
-    expect(registry.resolveRef("[[ref:S1]]", "context")).toEqual({
-      type: "context",
-      id: "ctx_1",
-      title: "旧标题",
-    });
-    expect(registry.resolveRef("[[ref:rf_ctx]]", "context")).toEqual({
-      type: "context",
-      id: "ctx_1",
-      title: "新标题",
-    });
-  });
-
   test("decorates recognized tool entities with typed refs and keeps raw ids", () => {
     const registry = registryWithSourceIds("rf_understanding", "rf_context");
 
@@ -93,11 +63,6 @@ describe("AgentEntitySourceRegistry", () => {
           ],
         },
       ],
-    });
-    expect(registry.resolveRef("rf_context", "context")).toEqual({
-      type: "context",
-      id: "ctx_1",
-      title: "一次复盘",
     });
   });
 
