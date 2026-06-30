@@ -2,6 +2,8 @@
 
 Agent entity annotation 与工具身份边界改造。
 
+本版本结论：Agent 不再手写任何聊天引用 token。工具只吃稳定 id，正文只写自然语言和标题，UI 的实体 chip 由 runtime 的结构化 annotation 生成。
+
 - 工具参数只接受 Reflecta 稳定实体 id，不再出现 `ref` 参数或 `ref` 字段暗示。
 - Agent 正文不再要求模型手写任何会话级短号，例如 `S1`、`U1`、`D1`。
 - Renderer 通过结构化 entity catalog / annotation 渲染实体 chip，不再相信模型手写 title/id/ref 组合。

@@ -10,6 +10,105 @@
 
 ---
 
+## 0. 本版本最终结论
+
+v1.1.16 的最终形态是：**Agent 不再生成任何聊天引用 token。**
+
+模型只做两件事：
+
+1. 调工具时把稳定实体 id 放进 JSON 参数。
+2. 写回复时用自然语言和对象标题表达。
+
+系统做三件事：
+
+1. 只读工具和 selected context 给模型暴露 `id`、`type`、`title/name`。
+2. Runtime 把这些实体写进 session entity catalog，并在需要展示时生成结构化 annotation。
+3. Renderer 用 annotation 渲染实体 chip；chip 的目标来自 catalog，不来自模型正文。
+
+### 0.1 最终 Agent-facing 工具输出
+
+```json
+{
+  "id": "domain_1",
+  "type": "domain",
+  "name": "三观"
+}
+```
+
+不再输出：
+
+```json
+{
+  "ref": "[[domain:domain_1]]",
+  "citation": "D1",
+  "domainRef": "[[domain:domain_1]]"
+}
+```
+
+### 0.2 最终工具调用
+
+```json
+{
+  "domainId": "domain_1"
+}
+```
+
+这些全部是错误输入：
+
+```json
+{ "domainId": "D1" }
+{ "domainId": "[D1]" }
+{ "domainId": "[[domain:domain_1]]" }
+{ "domainId": "rf_fjxcezk5az" }
+```
+
+### 0.3 最终 assistant 正文
+
+模型写：
+
+```md
+这个理解适合放在三观下面。
+```
+
+模型不写：
+
+```md
+这个理解适合放在 [D1] 下面。
+这个理解适合放在 [[domain:domain_1]] 下面。
+```
+
+### 0.4 最终 UI 展示
+
+Renderer 在消息下方或工具结果区域显示由 runtime 生成的实体 chip：
+
+```txt
+相关实体：# 三观
+```
+
+这个 chip 的数据来自：
+
+```ts
+{
+  messageId: "assistant_1",
+  entity: { type: "domain", id: "domain_1", title: "三观" },
+  origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_inspect" },
+}
+```
+
+v1.1.16 不做 assistant 正文 inline chip。以后如果要做 inline chip，必须引入结构化 message span/annotation，不能让模型手写 token。
+
+### 0.5 最终写入用户内容
+
+写工具落库前拒绝 Agent-only token，例如 `U1`、`[D1]`、`[[ref:*]]`、`[[domain:*]]`。
+
+本版本不新增“自动把 assistant 正文里的标题变成 wiki link”的能力。用户内容层继续使用现有编辑器/server 支持的 canonical Understanding wiki link：`[[标题#understandingId]]`。
+
+### 0.6 一句话验收
+
+看代码和日志时，应该能成立这句话：
+
+> `id` 是唯一工具身份；assistant 正文没有引用协议；可点击实体只来自结构化 annotation。
+
 ## 1. 背景、时间线和根因
 
 v1.1.12 引入 `[[ref:S1]]` 的动机是正确的：避免模型手写 `[[type:标题#id]]`，从而把 A 的标题和 B 的 id 拼错。
@@ -61,7 +160,7 @@ v1.1.12 引入 `[[ref:S1]]` 的动机是正确的：避免模型手写 `[[type:�
 | 工具实体身份             | `id`、`domainId`、`understandingId`、`contextId` | Pi tools、Reflecta services                   | 是，作为 JSON 工具参数  | 是             |
 | Assistant 正文           | 自然语言、对象标题                               | Agent assistant text                          | 是                      | 否             |
 | UI entity annotation     | `{ messageId, entity: { type, id, title } }`     | Runtime、Renderer                             | 否                      | 否             |
-| 内容 canonical wiki link | `[[标题#understandingId]]`                       | 用户内容、编辑器、server wiki-link extraction | 仅写入前由 runtime 生成 | 否             |
+| 内容 canonical wiki link | `[[标题#understandingId]]`                       | 用户内容、编辑器、server wiki-link extraction | 不由 Agent 聊天协议生成 | 否             |
 
 ### 2.2 Agent-facing entity
 
