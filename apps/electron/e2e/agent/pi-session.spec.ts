@@ -577,9 +577,8 @@ test("@AG-CONTEXT-007 用户发送可读附件后看到 Agent 使用附件", asy
       timeout: 120_000,
     });
     await attachmentTool.click();
-    await expect(attachmentTool).toContainText("类型");
-    await expect(attachmentTool).toContainText("pdf");
-    await expect(attachmentTool).toContainText("页数");
+    await expect(attachmentTool).toContainText("PDF 附件");
+    await expect(attachmentTool).toContainText("1 页");
     await expect(page.getByTestId("agent-assistant-text").last()).toContainText(
       PDF_ATTACHMENT_PHRASE,
       { timeout: 120_000 },
