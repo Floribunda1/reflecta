@@ -147,6 +147,39 @@ export type AgentToolFailed = AgentEventBase & {
   error: string;
 };
 
+export type AgentToolExecutionError = {
+  message: string;
+  code?: string;
+  details?: Record<string, unknown>;
+};
+
+export type AgentToolExecutionStarted = AgentEventBase & {
+  type: "tool.execution.started";
+  runId: string;
+  messageId: string;
+  toolCallId: string;
+  toolName: string;
+  input?: unknown;
+};
+
+export type AgentToolExecutionCompleted = AgentEventBase & {
+  type: "tool.execution.completed";
+  runId: string;
+  messageId: string;
+  toolCallId: string;
+  toolName: string;
+  output?: unknown;
+};
+
+export type AgentToolExecutionFailed = AgentEventBase & {
+  type: "tool.execution.failed";
+  runId: string;
+  messageId: string;
+  toolCallId: string;
+  toolName: string;
+  error: AgentToolExecutionError;
+};
+
 export type AgentApprovalRequested = AgentEventBase & {
   type: "approval.requested";
   runId: string;
@@ -170,6 +203,15 @@ export type AgentApprovalResolved = AgentEventBase & {
 };
 
 export type AgentAssistantTurnBlock = AgentReducedAssistantBlock;
+
+export type AgentToolApprovalState = "pending" | "approved" | "rejected";
+export type AgentToolExecutionState = "not_started" | "running" | "completed" | "failed";
+export type AgentToolDisplayState =
+  | "pending_approval"
+  | "rejected"
+  | "running"
+  | "completed"
+  | "failed";
 
 export type AgentAssistantTurn = AgentEventBase & {
   type: "assistant.turn";
@@ -199,7 +241,10 @@ export type AgentSessionEvent =
   | AgentEntitySourcesUpdated
   | AgentAssistantTurn
   | AgentApprovalRequested
-  | AgentApprovalResolved;
+  | AgentApprovalResolved
+  | AgentToolExecutionStarted
+  | AgentToolExecutionCompleted
+  | AgentToolExecutionFailed;
 
 export type AgentEvent = AgentSessionEvent | AgentLiveEvent;
 
@@ -325,6 +370,9 @@ export function isAgentSessionEvent(value: unknown): value is AgentSessionEvent 
       "assistant.turn",
       "approval.requested",
       "approval.resolved",
+      "tool.execution.started",
+      "tool.execution.completed",
+      "tool.execution.failed",
     ].includes(value.type)
   );
 }

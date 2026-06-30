@@ -27,8 +27,30 @@ export const PI_APPROVAL_TOOL_NAMES = [
 export type PiApprovalToolName = (typeof PI_APPROVAL_TOOL_NAMES)[number];
 
 const mediums = ["experience", "video", "book", "article", "opinion", "ai", "other"] as const;
-const domainIdsParameter = Type.Optional(Type.Array(Type.String()));
 const nullableStringParameter = Type.Union([Type.String(), Type.Null()]);
+const domainIdsParameter = Type.Optional(
+  Type.Array(Type.String({ minLength: 1 }), {
+    description: "Stable Domain ids returned by Reflecta tools. Do not pass chat refs.",
+  }),
+);
+const understandingIdParameter = Type.String({
+  minLength: 1,
+  description: "Stable Understanding id returned by Reflecta tools. Do not pass chat refs.",
+});
+const domainIdParameter = Type.String({
+  minLength: 1,
+  description: "Stable Domain id returned by Reflecta tools. Do not pass chat refs.",
+});
+const contextIdParameter = Type.String({
+  minLength: 1,
+  description: "Stable Context id returned by Reflecta tools. Do not pass chat refs.",
+});
+const parentIdParameter = Type.Optional(
+  Type.Union([Type.String({ minLength: 1 }), Type.Null()], {
+    description:
+      "Stable parent Domain id returned by Reflecta tools, or null to detach. Do not pass chat refs.",
+  }),
+);
 const mediumParameter = Type.Union(mediums.map((medium) => Type.Literal(medium)));
 
 type PiMutationOutput = {
@@ -94,7 +116,7 @@ const toolSpecs: PiWriteToolSpec[] = [
       "Read the existing Understanding first, then call understanding_update with the intended change.",
     ],
     parameters: Type.Object({
-      understandingId: Type.String({ minLength: 1 }),
+      understandingId: understandingIdParameter,
       before: Type.Optional(
         Type.Object({
           title: Type.Optional(nullableStringParameter),
@@ -120,7 +142,7 @@ const toolSpecs: PiWriteToolSpec[] = [
     description: "Delete an existing Reflecta Understanding only after user approval.",
     promptSnippet: "understanding_delete: propose deleting an existing Reflecta Understanding.",
     parameters: Type.Object({
-      understandingId: Type.String({ minLength: 1 }),
+      understandingId: understandingIdParameter,
       reason: Type.Optional(Type.String()),
     }),
   },
@@ -136,7 +158,7 @@ const toolSpecs: PiWriteToolSpec[] = [
     ],
     parameters: Type.Object({
       name: Type.String({ minLength: 1 }),
-      parentId: Type.Optional(nullableStringParameter),
+      parentId: parentIdParameter,
       reason: Type.Optional(Type.String()),
     }),
   },
@@ -146,9 +168,9 @@ const toolSpecs: PiWriteToolSpec[] = [
     description: "Rename or move an existing Reflecta Domain only after user approval.",
     promptSnippet: "domain_update: propose updating or moving a Reflecta Domain.",
     parameters: Type.Object({
-      domainId: Type.String({ minLength: 1 }),
+      domainId: domainIdParameter,
       name: Type.Optional(Type.String()),
-      parentId: Type.Optional(nullableStringParameter),
+      parentId: parentIdParameter,
       reason: Type.Optional(Type.String()),
     }),
   },
@@ -158,7 +180,7 @@ const toolSpecs: PiWriteToolSpec[] = [
     description: "Delete an existing Reflecta Domain only after user approval.",
     promptSnippet: "domain_delete: propose deleting a Reflecta Domain.",
     parameters: Type.Object({
-      domainId: Type.String({ minLength: 1 }),
+      domainId: domainIdParameter,
       deleteUnderstandings: Type.Optional(Type.Boolean()),
       reason: Type.Optional(Type.String()),
     }),
@@ -169,7 +191,7 @@ const toolSpecs: PiWriteToolSpec[] = [
     description: "Add Context to an existing Understanding only after user approval.",
     promptSnippet: "context_create: propose adding Context to an Understanding.",
     parameters: Type.Object({
-      understandingId: Type.String({ minLength: 1 }),
+      understandingId: understandingIdParameter,
       medium: mediumParameter,
       title: Type.Optional(Type.String()),
       content: Type.String({ minLength: 1 }),
@@ -181,7 +203,7 @@ const toolSpecs: PiWriteToolSpec[] = [
     description: "Update an existing Reflecta Context only after user approval.",
     promptSnippet: "context_update: propose updating an existing Context.",
     parameters: Type.Object({
-      contextId: Type.String({ minLength: 1 }),
+      contextId: contextIdParameter,
       medium: Type.Optional(mediumParameter),
       title: Type.Optional(Type.String()),
       content: Type.Optional(Type.String()),
@@ -194,7 +216,7 @@ const toolSpecs: PiWriteToolSpec[] = [
     description: "Delete an existing Reflecta Context only after user approval.",
     promptSnippet: "context_delete: propose deleting an existing Context.",
     parameters: Type.Object({
-      contextId: Type.String({ minLength: 1 }),
+      contextId: contextIdParameter,
       reason: Type.Optional(Type.String()),
     }),
   },

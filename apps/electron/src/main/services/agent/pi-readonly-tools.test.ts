@@ -158,7 +158,7 @@ describe("createPiReadOnlyTools", () => {
     expect(output.details).toEqual({ id: "ctx_1", title: "一次复盘", excerpt: "excerpt" });
   });
 
-  test("retrieve_knowledge decorates entity refs for model-facing output", async () => {
+  test("retrieve_knowledge exposes stable ids and typed refs for model-facing output", async () => {
     const result = {
       candidates: [
         {
@@ -184,15 +184,27 @@ describe("createPiReadOnlyTools", () => {
     expect(output.details).toEqual({
       candidates: [
         {
-          understanding: { ref: "[[ref:rf_understanding]]", title: "Feedback Loop", body: "body" },
+          understanding: {
+            id: "u_1",
+            ref: "[[understanding:u_1]]",
+            title: "Feedback Loop",
+            body: "body",
+          },
           matchedContexts: [
-            { context: { ref: "[[ref:rf_context]]", title: "一次复盘", excerpt: "excerpt" } },
+            {
+              context: {
+                id: "ctx_1",
+                ref: "[[context:ctx_1]]",
+                title: "一次复盘",
+                excerpt: "excerpt",
+              },
+            },
           ],
         },
       ],
     });
-    expect(output.content[0]?.text).not.toContain("u_1");
-    expect(output.content[0]?.text).not.toContain("ctx_1");
+    expect(output.content[0]?.text).toContain('"id": "u_1"');
+    expect(output.content[0]?.text).toContain('"id": "ctx_1"');
   });
 
   test("understanding_get decorates root entity output before stringifying model-facing content", async () => {
@@ -216,19 +228,22 @@ describe("createPiReadOnlyTools", () => {
     const output = await execute("tool_1", { understandingId: "u_1" });
 
     expect(output.details).toEqual({
-      ref: "[[ref:rf_understanding]]",
+      id: "u_1",
+      ref: "[[understanding:u_1]]",
       title: "Feedback Loop",
       body: "body",
       contexts: [
         {
-          ref: "[[ref:rf_context]]",
-          understandingRef: "[[ref:rf_understanding]]",
+          id: "ctx_1",
+          ref: "[[context:ctx_1]]",
+          understandingId: "u_1",
+          understandingRef: "[[understanding:u_1]]",
           title: "一次复盘",
         },
       ],
     });
-    expect(output.content[0]?.text).not.toContain("u_1");
-    expect(output.content[0]?.text).not.toContain("ctx_1");
+    expect(output.content[0]?.text).toContain('"id": "u_1"');
+    expect(output.content[0]?.text).toContain('"id": "ctx_1"');
   });
 
   test("executes web_fetch through the web fetch seam", async () => {

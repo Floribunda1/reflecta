@@ -371,8 +371,8 @@ describe("PiAgentHost", () => {
       }),
     );
     expect(source?.sourceId).toMatch(/^rf_[a-z0-9]+$/);
-    expect(promptCalls[0]).toContain(`[[ref:${source?.sourceId}]] Context: 一次复盘`);
-    expect(promptCalls[0]).not.toContain("ctx_1");
+    expect(promptCalls[0]).toContain("[[context:ctx_1]] Context: 一次复盘 (id: ctx_1)");
+    expect(promptCalls[0]).not.toContain(`[[ref:${source?.sourceId}]]`);
   });
 
   test("persists provider usage on the assistant turn", async () => {

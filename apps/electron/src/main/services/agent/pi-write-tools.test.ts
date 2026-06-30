@@ -81,6 +81,12 @@ const sampleApprovalPayloads: Record<PiApprovalToolName, Record<string, unknown>
   bash: { command: "printf hello" },
 };
 
+function parameterDescription(toolName: PiApprovalToolName, parameterName: string): string {
+  const tool = createPiWriteTools().find((item) => item.name === toolName);
+  const schema = tool?.parameters as { properties?: Record<string, { description?: string }> };
+  return schema.properties?.[parameterName]?.description ?? "";
+}
+
 describe("createPiWriteTools", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -116,6 +122,24 @@ describe("createPiWriteTools", () => {
     expect(services.createContext).not.toHaveBeenCalled();
     expect(services.updateContext).not.toHaveBeenCalled();
     expect(services.deleteContext).not.toHaveBeenCalled();
+  });
+
+  test("documents stable id inputs for write tools", () => {
+    expect(parameterDescription("understanding_create", "domainIds")).toContain(
+      "Stable Domain ids",
+    );
+    expect(parameterDescription("understanding_update", "understandingId")).toContain(
+      "Stable Understanding id",
+    );
+    expect(parameterDescription("understanding_update", "domainIds")).toContain(
+      "Stable Domain ids",
+    );
+    expect(parameterDescription("domain_update", "domainId")).toContain("Stable Domain id");
+    expect(parameterDescription("domain_update", "parentId")).toContain("Stable parent Domain id");
+    expect(parameterDescription("context_create", "understandingId")).toContain(
+      "Stable Understanding id",
+    );
+    expect(parameterDescription("context_update", "contextId")).toContain("Stable Context id");
   });
 
   test("keeps approval tools pending until the user decision resolves", async () => {

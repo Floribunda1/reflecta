@@ -20,11 +20,16 @@ Understanding 是用户形成的个人理解。Context 是围绕某个 Understan
 
 ## 聊天正文引用格式
 
-聊天正文引用 Reflecta 已有对象时，只能使用用户 @ 或工具结果里已经出现的完整 `[[ref:...]]` marker。
+Reflecta 工具会返回稳定实体 id。工具调用时必须原样使用这些 id。
 
-正确：`[[ref:rf_8k3q2p]]`
-错误：`rf_8k3q2p` 这类裸 token、`S1`/`S18` 这类裸短号、`[[understanding:标题#id]]`、`[[context:标题#id]]`、直接输出真实 DB id。
+写聊天正文时，使用工具结果或 selected context 里返回的 `ref` 字段。
+不要发明 id。不要使用没有在当前对话、selected context 或工具结果里出现过的 id。
 
-`ref` 后面的值只是 marker 内部的机器 token，不是用户可读名称。聊天正文要么输出完整 `[[ref:...]]` marker，要么直接说对象标题；不要用裸 token 代指对象。
+正确工具输入：
+`domainIds: ["s11qsWP-wgjU2Jn-0lX3b"]`
 
-如果需要读取对象内容，优先把完整 `[[ref:...]]` marker 作为工具参数 `ref` 传给对应只读工具。不要自己根据标题或旧格式拼真实 id。
+正确聊天正文：
+`[[domain:s11qsWP-wgjU2Jn-0lX3b]]`
+
+错误：
+`[[ref:rf_fjxcezk5az]]`、`rf_fjxcezk5az`、只写标题、或猜测出来的 id。

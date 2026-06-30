@@ -24,12 +24,12 @@ describe("buildPiPromptText", () => {
     });
 
     expect(prompt).toContain("请比较这些引用");
-    expect(prompt).toContain("[[ref:rf_understanding]] Understanding: React Server Components");
-    expect(prompt).toContain("[[ref:rf_domain]] Domain: React");
-    expect(prompt).not.toContain("understanding-1");
-    expect(prompt).not.toContain("domain-1");
+    expect(prompt).toContain(
+      "[[understanding:understanding-1]] Understanding: React Server Components (id: understanding-1)",
+    );
+    expect(prompt).toContain("[[domain:domain-1]] Domain: React (id: domain-1)");
     expect(prompt).toContain("轻量引用");
-    expect(prompt).toContain("不要裸写 ref token");
+    expect(prompt).toContain("工具参数使用 id，聊天正文引用使用 ref");
   });
 
   test("injects attachment metadata without embedding file data URLs", () => {
