@@ -56,6 +56,8 @@ Agent runtime 仍然可以保存轻量 session metadata，用于渲染 title、�
 - 不新增 `domainRefs`、`understandingRef`、`contextRef` 作为写工具参数。
 - 不让 server domain services 认识聊天 ref 语法。
 - 不继续把 `rf_*` source id 作为面向模型的实体身份。
+- 不在 main/renderer 运行时长期维护旧 Pi `toolResult`、旧 `state`、旧 `[[ref:Sx]]` 的语义推断逻辑。
+- 不为了历史坏数据扩展写工具入参；写工具不接受 `[[ref:...]]`、`rf_*` 或去掉前缀的 source id。
 - 不做 claim-level citation 或 evidence verification。
 - 不修改 Reflecta 的数据库 id 生成策略，除非后续 import/export 需求证明当前随机 id 不够用。
 
@@ -267,6 +269,33 @@ diagnostic log -> session event -> assistant turn block
 ```txt
 raw Pi message -> grep toolResult text
 ```
+
+### 5.4 历史数据策略：一次性迁移，不背运行时包袱
+
+历史 session 可以迁移，但不要把旧格式解释逻辑留在产品运行时。
+
+运行时原则：
+
+- `AgentSessionLog.readEvents()` 只返回 canonical `reflecta.agent.event`。
+- Reducer 只消费 canonical approval/execution 状态，不从 Pi 原始 `message.role === "toolResult"` 推断 UI 状态。
+- Renderer 只做安全降级：旧 ref 找不到 source 时显示普通文本；不猜实体、不查库反推、不把 source id 当真实 id。
+- 写工具只接受稳定实体 id。旧 `rf_*` 或 `[[ref:*]]` 失败要通过迁移修历史数据，而不是让工具继续兼容。
+
+需要迁移的已知历史形态：
+
+1. Pi 原始 `toolResult.isError === true`，但缺少 `tool.execution.failed`。
+2. `assistant.turn.blocks[*].error` 存在，但旧 `state` 仍是 `completed`。
+3. 旧 `[[ref:Sx]]` 缺少同 session 的 `entity.sources.updated` source map。
+
+迁移规则：
+
+- 对 `toolResult.isError === true` 且能按 `toolCallId` 匹配 `approval.requested` 的记录，补写 canonical `tool.execution.failed`。如果该 tool 已经 `approval.resolved approved=true`，同时保证它有 `tool.execution.started`。
+- 对带 `error` 但旧 `state === "completed"` 的 tool/approval block，把历史 snapshot 改成 failed canonical state；approval block 补 `approvalState=approved`、`executionState=failed`、`displayState=failed`。
+- 对能从同一个 tool output 的真实 `id` 字段无歧义反推的旧 source map，补 `entity.sources.updated`；反推不了的 ref 保持普通文本降级。
+- 迁移是幂等的：重复执行不能重复追加同一个 `tool.execution.failed`。
+- 迁移前备份 session 文件；迁移后用扫描脚本确认不存在“raw toolResult isError 但无 canonical failed event”的会话。
+
+不保留通用 runtime compat adapter。迁移完成后，旧数据也应该长成新数据。
 
 ## 6. 文件结构
 
@@ -791,6 +820,66 @@ git add docs/iterations/v1.1.12/tech/agent-entity-link-architecture.md docs/iter
 git commit -m "docs: supersede session scoped agent refs"
 ```
 
+### 任务 8: 一次性迁移历史 session
+
+**文件：**
+
+- 临时脚本：不保留在运行时代码路径里。
+- 输入：`<projectRoot>/.local/reflecta-prod/Sessions/*.jsonl`
+- 可选输入：`<projectRoot>/.local/reflecta-test/Sessions/*.jsonl`
+
+- [ ] **步骤 1: 备份 session 文件**
+
+对目标 content root 复制一份 `Sessions` 目录备份。备份目录不提交。
+
+- [ ] **步骤 2: 扫描历史坏形态**
+
+统计：
+
+```txt
+toolResult.isError === true
+assistant.turn block has error && state === completed
+[[ref:*]] without entity.sources.updated source
+```
+
+记录每个 session 的数量和样例错误文本。
+
+- [ ] **步骤 3: 迁移 execution failure**
+
+对 raw Pi `toolResult.isError === true`：
+
+- 从 `toolCallId` 匹配 `approval.requested`，取 `sessionId`、`runId`、`messageId`、`toolName`。
+- 如果缺少 `tool.execution.started` 且该 approval 已批准，补一条 started。
+- 如果缺少 `tool.execution.failed`，补一条 failed。
+- `error.message` 取 toolResult 第一段 text；没有 text 时用 `Tool execution failed`。
+
+- [ ] **步骤 4: 迁移旧 block snapshot**
+
+把 `assistant.turn.blocks` 中带 `error` 的 completed block 改成 failed canonical shape。
+
+- [ ] **步骤 5: 最小化 ref 迁移**
+
+只补能无歧义反推的 `entity.sources.updated`。不确定的 `[[ref:Sx]]` 保持不可点击普通文本。
+
+- [ ] **步骤 6: 验证迁移结果**
+
+重新扫描，预期：
+
+```txt
+raw toolResult.isError without matching tool.execution.failed -> 0
+block has error && state === completed -> 0
+unknown ref -> 允许存在，但只降级为普通文本
+```
+
+再运行：
+
+```bash
+pnpm --filter @reflecta/electron typecheck
+pnpm --filter @reflecta/electron e2e -- apps/electron/e2e/agent/pi-session.spec.ts
+```
+
+预期：PASS。
+
 ## 8. 验证
 
 运行：
@@ -827,6 +916,7 @@ pnpm --filter @reflecta/electron e2e -- apps/electron/e2e/agent/pi-session.spec.
 - 已批准写工具失败会产生 `tool.execution.failed`、诊断日志和 UI failed state。
 - 失败的已批准工具卡片主状态显示“执行失败”，并展示 `error.message`；它不能继续以“已确认”作为终态展示。
 - 生产风格 `Domain not found` 失败可以通过 session reducer output 看到，不需要 grep 原始 Pi 消息。
+- 已迁移历史 session 中，Pi 原始 `toolResult.isError=true` 都有对应 canonical failed state，UI 不再把它们显示为“已确认/已完成”。
 - 历史 session 不崩溃；无法 resolve 的旧 ref 不可点击。
 
 ## 10. 自检
@@ -837,6 +927,7 @@ pnpm --filter @reflecta/electron e2e -- apps/electron/e2e/agent/pi-session.spec.
 - `ref` 只保留为展示/导航语法：任务 1、任务 2 覆盖。
 - tool failed 状态纳入计划：任务 4、任务 5、任务 6 覆盖。
 - 截图里的“已确认但实际失败”UI 回归：任务 5、任务 6 覆盖。
+- 减少历史包袱，旧数据用一次性迁移补齐 canonical events：任务 8 覆盖。
 - 文档放在 `docs/iterations/v1.1.15`：本文件和 README 已覆盖。
 
 未完成标记检查：
