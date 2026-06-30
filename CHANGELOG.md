@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.15 - 2026-06-30
+
+- Switched Agent tools to stable Reflecta entity ids and removed legacy `ref` tool inputs.
+- Persisted approved tool execution states so failed confirmed tools render as failed with the error reason after replay.
+- Migrated production and test Agent sessions to canonical execution events and removed runtime legacy session/ref compatibility.
+
 ## 1.1.13 - 2026-06-28
 
 - Fixed the Agent context meter to use actual runtime usage instead of renderer-side estimation.
