@@ -1,10 +1,11 @@
 # v1.1.15
 
-Patch release plan for Agent tool identity and tool failure legibility.
+Agent 工具身份协议和工具失败状态的修复计划。
 
-- Expose stable Reflecta entity ids to Agent tools instead of session-scoped `rf_*` aliases.
-- Keep chat refs as display/navigation syntax, not as tool-call input protocol.
-- Make approved tool execution states explicit: approval accepted is not the same as tool succeeded.
-- Persist and render tool failures so production diagnosis does not require reading raw Pi `toolResult` messages.
+- 让 Agent 工具直接使用 Reflecta 稳定实体 id，不再使用会话级 `rf_*` 别名作为工具参数。
+- 聊天正文里的 ref 只负责展示和导航，不再承担工具调用协议。
+- 拆开“用户批准执行”和“工具执行成功”：`approval.resolved` 不再暗示写入成功。
+- 持久化并渲染工具失败状态，生产问题排查不再依赖手动读取 Pi 原始 `toolResult` 消息。
+- UI 卡片必须把“已确认”和“执行结果”分开显示：已批准但执行失败时，终态显示为“执行失败”并展示失败原因。
 
-See [Agent Tool Identity and Failure State Plan](tech/agent-tool-identity-and-failure-state-plan.md).
+见 [Agent 工具身份与失败状态计划](tech/agent-tool-identity-and-failure-state-plan.md)。

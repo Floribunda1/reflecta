@@ -1,26 +1,28 @@
-# Agent Tool Identity and Failure State Implementation Plan
+# Agent 工具身份与失败状态实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **给执行 Agent：** 实施本计划时必须使用 `superpowers:subagent-driven-development`（推荐）或 `superpowers:executing-plans`。任务用 checkbox（`- [ ]`）跟踪，按任务逐步执行。
 
-**Goal:** Make Agent tool calls use stable Reflecta entity ids directly, and make approved tool execution failures first-class session/UI/diagnostic events.
+**目标：** 让 Agent 工具调用直接使用 Reflecta 稳定实体 id，并把已批准工具的执行失败变成一等的 session、UI 和诊断日志状态。
 
-**Architecture:** Tool-facing identity becomes the same stable entity id used by Reflecta services today. Chat refs remain a rendering/navigation convenience, not a hidden alias table that tools must pass around. Tool approval and tool execution become separate states so `approval.resolved` never implies success.
+**架构：** 工具协议里的身份就是 Reflecta service 当前使用的稳定实体 id。聊天 ref 只保留为展示和导航语法，不再是需要在工具调用中传来传去的隐藏别名。工具审批和工具执行拆成两类事实，`approval.resolved` 永远不代表工具已经成功。
 
-**Tech Stack:** Electron main process, Pi coding agent tools, TypeScript shared Agent session events, SQLite-backed Reflecta domain services, Vitest, Electron E2E fixtures.
+**技术栈：** Electron main process、Pi coding agent tools、TypeScript shared Agent session events、SQLite-backed Reflecta domain services、Vitest、Electron E2E fixtures。
 
 ---
 
-## 1. Problem
+## 1. 问题
 
-The production session `019f1431-3228-70cf-8527-89242fc94156` exposed two coupled defects.
+生产会话 `019f1431-3228-70cf-8527-89242fc94156` 暴露了两个耦合问题。
 
-First, Agent-visible entity identity is inconsistent. Read-only tools and prompts expose session-scoped markers such as `[[ref:rf_fjxcezk5az]]`, while write tools expect true domain ids such as `s11qsWP-wgjU2Jn-0lX3b`. The model tried `rf_fjxcezk5az`, `[[ref:rf_fjxcezk5az]]`, and `fjxcezk5az`; all failed with `Domain not found`.
+第一，Agent 可见的实体身份不一致。只读工具和 prompt 暴露的是会话级 marker，例如 `[[ref:rf_fjxcezk5az]]`；写工具期待的却是真实 domain id，例如 `s11qsWP-wgjU2Jn-0lX3b`。模型依次尝试了 `rf_fjxcezk5az`、`[[ref:rf_fjxcezk5az]]` 和 `fjxcezk5az`，全部失败为 `Domain not found`。
 
-Second, approved write failures are not legible enough. `approval.resolved approved=true` is logged, but the actual write failure mainly appears as a Pi `toolResult` message. The session has enough data to debug manually, but the product event model does not make the failed tool execution obvious.
+第二，已批准写工具的失败不够可见。日志里有 `approval.resolved approved=true`，但真正的写入失败主要保存在 Pi 原始 `toolResult` 消息里。session 数据足够人工排查，但产品事件模型没有把“工具执行失败”清楚表达出来。
 
-## 2. Architecture Decision
+截图里的用户可见症状是同一个问题在 UI 层的表现：用户确认后，候选修改卡片停留在“已确认”，但后续 `understanding_update` 实际失败了。这里的“已确认”只能表示用户批准，不应该作为卡片终态；一旦执行失败，同一张卡片必须变成“执行失败”，并展示失败原因，例如 `Domain not found: rf_fjxcezk5az`。
 
-Use stable Reflecta entity ids as the Agent tool protocol.
+## 2. 架构决策
+
+Agent 工具协议使用稳定 Reflecta 实体 id。
 
 ```json
 {
@@ -31,7 +33,7 @@ Use stable Reflecta entity ids as the Agent tool protocol.
 }
 ```
 
-Tool calls use `id` fields:
+工具调用继续使用 id 字段：
 
 ```json
 {
@@ -41,27 +43,27 @@ Tool calls use `id` fields:
 }
 ```
 
-Refs are only for chat text and renderer navigation:
+`ref` 只用于聊天正文和 renderer 导航：
 
 ```md
 这个理解适合放在 [[domain:s11qsWP-wgjU2Jn-0lX3b]]。
 ```
 
-The Agent runtime can still keep lightweight session metadata for rendering titles and resolving clicked refs, but the metadata no longer owns identity translation. There should be no model-visible `rf_*` source id that pretends to be an entity id.
+Agent runtime 仍然可以保存轻量 session metadata，用于渲染 title、恢复历史消息和点击跳转。但这层 metadata 不再承担身份翻译。模型可见的输出里不应该再出现会被误认为实体 id 的 `rf_*` source id。
 
-## 3. Non-Goals
+## 3. 非目标
 
-- Do not introduce `domainRefs`, `understandingRef`, or `contextRef` as write-tool parameters.
-- Do not make server domain services understand chat ref syntax.
-- Do not keep `rf_*` source ids as model-facing entity identity.
-- Do not build claim-level citations or evidence verification.
-- Do not change Reflecta's database id generation unless a later import/export requirement proves current ids are insufficient.
+- 不新增 `domainRefs`、`understandingRef`、`contextRef` 作为写工具参数。
+- 不让 server domain services 认识聊天 ref 语法。
+- 不继续把 `rf_*` source id 作为面向模型的实体身份。
+- 不做 claim-level citation 或 evidence verification。
+- 不修改 Reflecta 的数据库 id 生成策略，除非后续 import/export 需求证明当前随机 id 不够用。
 
-## 4. Target Model
+## 4. 目标模型
 
-### 4.1 Entity Output Shape
+### 4.1 实体输出形状
 
-Every Agent-facing tool output that returns an entity should expose:
+所有返回实体的 Agent-facing 工具输出都应该暴露：
 
 ```ts
 type AgentFacingEntity = {
@@ -73,16 +75,16 @@ type AgentFacingEntity = {
 };
 ```
 
-Rules:
+规则：
 
-- `id` is the stable Reflecta entity id accepted by write tools and service calls.
-- `ref` is renderer syntax derived from `type` and `id`.
-- `title` / `name` is display only.
-- Existing tool-specific fields stay, but raw `id` must no longer be stripped from model-facing output.
+- `id` 是稳定 Reflecta 实体 id，可以直接传给写工具和 service。
+- `ref` 是根据 `type` 和 `id` 派生出的 renderer 语法。
+- `title` / `name` 只用于展示。
+- 工具原有字段尽量保留，但面向模型的输出不能再剥掉 raw `id`。
 
-### 4.2 Chat Ref Syntax
+### 4.2 聊天 ref 语法
 
-Use typed refs with real ids:
+使用带类型、带真实 id 的 ref：
 
 ```txt
 [[understanding:w6mEdXcCtuVAWdLlgvBXs]]
@@ -90,29 +92,29 @@ Use typed refs with real ids:
 [[domain:s11qsWP-wgjU2Jn-0lX3b]]
 ```
 
-Renderer behavior:
+Renderer 行为：
 
-- Resolve by `type + id`.
-- If the entity exists, render the existing clickable entity chip.
-- If the entity no longer exists, render disabled/plain text.
-- Do not guess by title.
+- 按 `type + id` resolve。
+- 实体存在时，渲染为现有 clickable entity chip。
+- 实体不存在时，渲染为 disabled/plain text。
+- 不根据 title 猜目标实体。
 
-### 4.3 Prompt Contract
+### 4.3 Prompt 契约
 
-Replace the current `[[ref:...]]` contract with:
+把当前 `[[ref:...]]` 契约替换为：
 
 ```txt
-Reflecta tools return stable entity ids. Use those ids exactly in tool calls.
+Reflecta 工具会返回稳定实体 id。工具调用时必须原样使用这些 id。
 
-When writing chat text, use the entity's `ref` field exactly as returned by tools or selected context.
-Do not invent ids. Do not use ids that have not appeared in the current conversation, selected context, or tool results.
+写聊天正文时，使用工具结果或 selected context 里返回的 `ref` 字段。
+不要发明 id。不要使用没有在当前对话、selected context 或工具结果里出现过的 id。
 ```
 
-This keeps the model's interface simple: tools use `id`, prose uses `ref`.
+这样模型只需要记住一条简单规则：工具参数用 `id`，正文引用用 `ref`。
 
-## 5. Tool Failure State Model
+## 5. 工具失败状态模型
 
-Approval and execution are separate facts.
+审批和执行是两个事实。
 
 ```txt
 approval.requested
@@ -121,23 +123,29 @@ tool.execution.started
 tool.execution.completed | tool.execution.failed
 ```
 
-`approval.resolved approved=true` means only:
+`approval.resolved approved=true` 只表示：
 
 ```txt
-The user allowed the tool to run.
+用户允许工具执行。
 ```
 
-It does not mean:
+它不表示：
 
 ```txt
-The write succeeded.
+写入已经成功。
 ```
 
 ### 5.1 Session Events
 
-Add durable semantic events for approved tool execution:
+为已批准工具执行新增 durable semantic events。失败原因必须在事件里结构化传递到 renderer，不能要求前端反查 Pi 原始消息。
 
 ```ts
+type AgentToolExecutionError = {
+  message: string;
+  code?: string;
+  details?: Record<string, unknown>;
+};
+
 type AgentToolExecutionStarted = AgentEventBase & {
   type: "tool.execution.started";
   runId: string;
@@ -162,31 +170,72 @@ type AgentToolExecutionFailed = AgentEventBase & {
   messageId: string;
   toolCallId: string;
   toolName: string;
-  error: string;
+  error: AgentToolExecutionError;
 };
 ```
 
-These events are durable because approved write execution can happen after a user command and must be recoverable independently of a currently streaming model response.
+这些事件需要持久化，因为已批准写入可能发生在用户命令之后，也必须能在没有当前 streaming response 的情况下恢复。
 
 ### 5.2 Assistant Turn Blocks
 
-The rendered assistant turn should still show one coherent tool/proposal block. Reducers derive the block state from approval and execution events:
+UI 上仍然应该显示一张连贯的工具/候选卡片。Reducer 内部要保留 approval state 和 execution state 两个维度，再推导最终展示状态：
 
 ```ts
-type AgentToolBlockState = "pending_approval" | "rejected" | "running" | "completed" | "failed";
+type AgentToolApprovalState = "pending" | "approved" | "rejected";
+type AgentToolExecutionState = "not_started" | "running" | "completed" | "failed";
+type AgentToolDisplayState = "pending_approval" | "rejected" | "running" | "completed" | "failed";
 ```
 
-Mapping:
+Block 形状应表达这两个事实：
+
+```ts
+type AgentToolBlock = {
+  kind: "approval";
+  toolCallId: string;
+  toolName: string;
+  approvalState: AgentToolApprovalState;
+  executionState: AgentToolExecutionState;
+  displayState: AgentToolDisplayState;
+  error?: AgentToolExecutionError;
+};
+```
+
+展示层只消费 `displayState` 和 `error.message`，不要重新解释 raw events。
+
+派生规则：
+
+```ts
+function deriveDisplayState(block: AgentToolBlock): AgentToolDisplayState {
+  if (block.approvalState === "rejected") return "rejected";
+  if (block.approvalState === "pending") return "pending_approval";
+  if (block.executionState === "failed") return "failed";
+  if (block.executionState === "completed") return "completed";
+  return "running";
+}
+```
+
+映射：
 
 - `approval.requested` -> `pending_approval`
 - `approval.resolved approved=false` -> `rejected`
-- `tool.execution.started` -> `running`
-- `tool.execution.completed` -> `completed`
-- `tool.execution.failed` -> `failed`
+- `approval.resolved approved=true` -> `approvalState=approved`，但不作为最终成功状态
+- `tool.execution.started` -> `executionState=running`
+- `tool.execution.completed` -> `executionState=completed`
+- `tool.execution.failed` -> `executionState=failed`
 
-### 5.3 Diagnostic Logging
+UI 文案要求：
 
-Every `tool.execution.failed` event must write a diagnostic event with:
+- `pending_approval`：显示当前确认控件。
+- `rejected`：显示“已拒绝”。
+- `running`：显示“执行中”。
+- `completed`：显示“已完成”或当前业务已有的成功文案。
+- `failed`：显示“执行失败”，并在卡片内展示 `error.message`。
+
+`approvalState=approved` 可以作为辅助信息展示，但只要 `displayState=failed`，卡片主状态和右上角状态都不能继续显示“已确认”。
+
+### 5.3 诊断日志
+
+每个 `tool.execution.failed` 都必须写入诊断日志：
 
 ```json
 {
@@ -200,127 +249,131 @@ Every `tool.execution.failed` event must write a diagnostic event with:
   },
   "attrs": {
     "toolName": "understanding_update",
-    "error": "Domain not found: s11qs..."
+    "error": {
+      "message": "Domain not found: s11qs..."
+    }
   }
 }
 ```
 
-The debugging path should be:
+目标排查路径：
 
 ```txt
 diagnostic log -> session event -> assistant turn block
 ```
 
-not:
+而不是：
 
 ```txt
-raw Pi message -> toolResult text grep
+raw Pi message -> grep toolResult text
 ```
 
-## 6. File Structure
+## 6. 文件结构
 
-Modify these files:
+需要修改：
 
 - `apps/electron/src/main/services/agent/agent-entity-sources.ts`
-  - Stop replacing entity `id` with session-scoped `ref`.
-  - Produce typed chat refs derived from real ids.
-  - Keep only display metadata helpers that are still needed by renderer/session replay.
+  - 停止把实体 `id` 替换成 session-scoped `ref`。
+  - 根据真实 id 生成 typed chat refs。
+  - 只保留 renderer/session replay 仍然需要的展示 metadata helper。
 - `apps/electron/src/main/services/agent/pi-readonly-tools.ts`
-  - Return entity outputs with `id` and typed `ref`.
-  - Keep resolving legacy `ref` input temporarily where tools already support it.
+  - 返回带 `id` 和 typed `ref` 的实体输出。
+  - 对已经支持 `ref` 入参的只读工具，临时保留 legacy resolve。
 - `apps/electron/src/main/services/agent/pi-write-tools.ts`
-  - Keep `understandingId`, `domainIds`, `contextId`, and `domainId` as real id fields.
-  - Improve parameter descriptions to say these are stable ids returned by tools.
-  - Do not accept `[[ref:...]]` as write input.
+  - 保持 `understandingId`、`domainIds`、`contextId`、`domainId` 为真实 id 字段。
+  - 更新参数描述，明确这些字段来自工具返回的稳定 id。
+  - 不接受 `[[ref:...]]` 作为写工具输入。
 - `apps/electron/src/main/services/agent/pi-agent-host.ts`
-  - Emit durable `tool.execution.*` events around approved tool execution.
-  - Feed execution result back to Pi as before.
-  - Write diagnostic logs for execution failures.
+  - 围绕已批准工具执行发出 durable `tool.execution.*` 事件。
+  - 像现在一样把执行结果返回给 Pi。
+  - 把 thrown error 规范化为 `AgentToolExecutionError`。
 - `apps/electron/src/preload/typings/agent.ts`
-  - Add `tool.execution.started/completed/failed` event types.
-  - Add explicit block state union if not already central.
+  - 增加 `tool.execution.started/completed/failed` 事件类型。
+  - 增加 `AgentToolExecutionError`、approval state、execution state 和 display state 类型。
 - `apps/electron/src/preload/typings/agent-context.ts`
-  - Render selected context lines with real ids and typed refs.
+  - selected context 文本里输出真实 id 和 typed refs。
 - `apps/electron/src/main/services/agent/agent-system-prompt.md`
-  - Replace the `[[ref:...]]` contract with stable id + typed chat ref contract.
+  - 把 `[[ref:...]]` 契约替换成稳定 id + typed chat ref 契约。
 - `apps/electron/src/main/services/agent/agent-entity-sources.test.ts`
-  - Update expected output to retain `id`.
+  - 更新 expected output，保留 `id`。
 - `apps/electron/src/main/services/agent/pi-readonly-tools.test.ts`
-  - Cover read tool outputs exposing ids and refs.
+  - 覆盖只读工具输出 `id` 和 `ref`。
 - `apps/electron/src/main/services/agent/pi-write-tools.test.ts`
-  - Cover tool descriptions and real id pass-through.
+  - 覆盖工具描述和真实 id pass-through。
 - `apps/electron/src/main/services/agent/pi-agent-host.test.ts`
-  - Cover approved tool success and failure event sequences.
+  - 覆盖已批准工具成功和失败的事件序列。
 - `apps/electron/src/renderer/src/modules/chat/session/agent-reducer.test.ts`
-  - Cover restoring failed approved tool execution.
+  - 覆盖恢复已批准但执行失败的工具，并断言 block 不停留在“已确认”状态。
+- `apps/electron/src/renderer/src/modules/chat/messages/agent-turn-view.test.ts`
+  - 覆盖失败卡片展示“执行失败”和失败原因。
 - `apps/electron/e2e/agent/pi-session.spec.ts`
-  - Cover a production-like failed write showing failed state instead of only approval resolved.
+  - 覆盖生产风格 failed write 展示 failed state，而不是只展示 approval resolved。
 
-## 7. Implementation Tasks
+## 7. 实施任务
 
-### Task 1: Document and Type the New Tool Identity Contract
+### 任务 1: 文档化并类型化新的工具身份契约
 
-**Files:**
+**文件：**
 
-- Modify: `apps/electron/src/main/services/agent/agent-system-prompt.md`
-- Modify: `apps/electron/src/preload/typings/agent.ts`
-- Test: `apps/electron/src/main/services/agent/agent-entity-sources.test.ts`
+- 修改：`apps/electron/src/main/services/agent/agent-system-prompt.md`
+- 修改：`apps/electron/src/preload/typings/agent.ts`
+- 测试：`apps/electron/src/main/services/agent/agent-entity-sources.test.ts`
 
-- [ ] **Step 1: Update the system prompt contract**
+- [ ] **步骤 1: 更新 system prompt 契约**
 
-Replace the chat ref section with wording equivalent to:
+把聊天 ref 段落替换成等价内容：
 
 ```md
 ## Reflecta Entity Identity
 
-Reflecta tools return stable entity ids. Use those ids exactly in tool calls.
+Reflecta 工具会返回稳定实体 id。工具调用时必须原样使用这些 id。
 
-When writing chat text, use the entity's `ref` field exactly as returned by tools or selected context.
-Do not invent ids. Do not use ids that have not appeared in the current conversation, selected context, or tool results.
+写聊天正文时，使用工具结果或 selected context 里返回的 `ref` 字段。
+不要发明 id。不要使用没有在当前对话、selected context 或工具结果里出现过的 id。
 
-Correct tool input:
+正确工具输入：
 `domainIds: ["s11qsWP-wgjU2Jn-0lX3b"]`
 
-Correct chat text:
+正确聊天正文：
 `[[domain:s11qsWP-wgjU2Jn-0lX3b]]`
 
-Incorrect:
-`[[ref:rf_fjxcezk5az]]`, `rf_fjxcezk5az`, title-only references, or guessed ids.
+错误：
+`[[ref:rf_fjxcezk5az]]`、`rf_fjxcezk5az`、只写标题、或猜测出来的 id。
 ```
 
-- [ ] **Step 2: Add shared event types**
+- [ ] **步骤 2: 增加 shared event types**
 
-Add `AgentToolExecutionStarted`, `AgentToolExecutionCompleted`, and `AgentToolExecutionFailed` to `apps/electron/src/preload/typings/agent.ts`, then include them in the session event union.
+在 `apps/electron/src/preload/typings/agent.ts` 增加 `AgentToolExecutionStarted`、`AgentToolExecutionCompleted`、`AgentToolExecutionFailed`，并纳入 session event union。
 
-- [ ] **Step 3: Run typecheck**
+- [ ] **步骤 3: 运行 typecheck**
 
-Run:
+运行：
 
 ```bash
 pnpm --filter @reflecta/electron typecheck
 ```
 
-Expected: existing type errors only if the repo already has them; otherwise PASS.
+预期：如果仓库已有 type error，则只允许看到既有错误；否则 PASS。
 
-- [ ] **Step 4: Commit**
+- [ ] **步骤 4: 提交**
 
 ```bash
 git add apps/electron/src/main/services/agent/agent-system-prompt.md apps/electron/src/preload/typings/agent.ts
 git commit -m "docs: define agent entity identity contract"
 ```
 
-### Task 2: Keep Real Entity IDs in Model-Facing Tool Output
+### 任务 2: 在面向模型的工具输出里保留真实实体 id
 
-**Files:**
+**文件：**
 
-- Modify: `apps/electron/src/main/services/agent/agent-entity-sources.ts`
-- Modify: `apps/electron/src/main/services/agent/pi-readonly-tools.ts`
-- Test: `apps/electron/src/main/services/agent/agent-entity-sources.test.ts`
-- Test: `apps/electron/src/main/services/agent/pi-readonly-tools.test.ts`
+- 修改：`apps/electron/src/main/services/agent/agent-entity-sources.ts`
+- 修改：`apps/electron/src/main/services/agent/pi-readonly-tools.ts`
+- 测试：`apps/electron/src/main/services/agent/agent-entity-sources.test.ts`
+- 测试：`apps/electron/src/main/services/agent/pi-readonly-tools.test.ts`
 
-- [ ] **Step 1: Write failing tests for decorated outputs**
+- [ ] **步骤 1: 为 decorated output 写失败测试**
 
-Update tests so a decorated `domain_list` item keeps `id` and gets a typed `ref`:
+更新测试，让 decorated `domain_list` item 保留 `id` 并得到 typed `ref`：
 
 ```ts
 expect(decorated).toEqual({
@@ -335,7 +388,7 @@ expect(decorated).toEqual({
 });
 ```
 
-For `understanding_get`, expected output should keep:
+对于 `understanding_get`，期望输出保留：
 
 ```ts
 {
@@ -348,19 +401,19 @@ For `understanding_get`, expected output should keep:
 }
 ```
 
-- [ ] **Step 2: Run the focused tests and confirm failure**
+- [ ] **步骤 2: 运行聚焦测试，确认失败**
 
-Run:
+运行：
 
 ```bash
 pnpm vitest run apps/electron/src/main/services/agent/agent-entity-sources.test.ts apps/electron/src/main/services/agent/pi-readonly-tools.test.ts
 ```
 
-Expected: FAIL because current code strips `id` and emits `[[ref:...]]`.
+预期：FAIL，因为当前代码会剥掉 `id` 并输出 `[[ref:...]]`。
 
-- [ ] **Step 3: Change decoration behavior**
+- [ ] **步骤 3: 修改 decoration 行为**
 
-In `AgentEntitySourceRegistry.decorateEntityObject`, stop removing `id`. Emit:
+在 `AgentEntitySourceRegistry.decorateEntityObject` 里停止移除 `id`。输出：
 
 ```ts
 return {
@@ -370,7 +423,7 @@ return {
 };
 ```
 
-Add:
+新增：
 
 ```ts
 private entityRef(type: AgentEntityType, id: string): string {
@@ -378,44 +431,44 @@ private entityRef(type: AgentEntityType, id: string): string {
 }
 ```
 
-For relationship ids, keep original id fields and add parallel ref fields where useful:
+对 relationship ids，保留原 id 字段，并在有用时添加平行 ref 字段：
 
 ```ts
 domainIds: ["domain_1"],
 domainRefs: ["[[domain:domain_1]]"]
 ```
 
-- [ ] **Step 4: Keep registry only where still needed**
+- [ ] **步骤 4: 只保留仍然必要的 registry 能力**
 
-If the registry no longer needs session-scoped source ids for identity, reduce it to title/display metadata and backwards compatibility helpers. Do not expose generated `rf_*` values to model-facing tool output.
+如果 registry 不再需要 session-scoped source ids 作为身份层，就把它收窄到 title/display metadata 和向后兼容 helper。不要再把生成的 `rf_*` 暴露给面向模型的工具输出。
 
-- [ ] **Step 5: Run tests**
+- [ ] **步骤 5: 运行测试**
 
-Run:
+运行：
 
 ```bash
 pnpm vitest run apps/electron/src/main/services/agent/agent-entity-sources.test.ts apps/electron/src/main/services/agent/pi-readonly-tools.test.ts
 ```
 
-Expected: PASS.
+预期：PASS。
 
-- [ ] **Step 6: Commit**
+- [ ] **步骤 6: 提交**
 
 ```bash
 git add apps/electron/src/main/services/agent/agent-entity-sources.ts apps/electron/src/main/services/agent/agent-entity-sources.test.ts apps/electron/src/main/services/agent/pi-readonly-tools.ts apps/electron/src/main/services/agent/pi-readonly-tools.test.ts
 git commit -m "fix: expose stable entity ids to agent tools"
 ```
 
-### Task 3: Keep Write Tool Inputs as Real IDs
+### 任务 3: 写工具输入继续使用真实 id
 
-**Files:**
+**文件：**
 
-- Modify: `apps/electron/src/main/services/agent/pi-write-tools.ts`
-- Test: `apps/electron/src/main/services/agent/pi-write-tools.test.ts`
+- 修改：`apps/electron/src/main/services/agent/pi-write-tools.ts`
+- 测试：`apps/electron/src/main/services/agent/pi-write-tools.test.ts`
 
-- [ ] **Step 1: Add tests for tool descriptions**
+- [ ] **步骤 1: 为工具描述添加测试**
 
-Assert write tool parameter descriptions mention stable ids returned by Reflecta tools:
+断言写工具参数描述明确说明使用 Reflecta 工具返回的稳定 id：
 
 ```ts
 expect(understandingCreate.parameters).toMatchObject({
@@ -427,9 +480,9 @@ expect(understandingCreate.parameters).toMatchObject({
 });
 ```
 
-- [ ] **Step 2: Add pass-through tests**
+- [ ] **步骤 2: 添加 pass-through 测试**
 
-Keep the existing behavior that calls services with real ids:
+保留当前服务调用真实 id 的行为：
 
 ```ts
 await execute("tool-call-1", {
@@ -445,19 +498,19 @@ expect(services.createUnderstanding).toHaveBeenCalledWith({
 });
 ```
 
-- [ ] **Step 3: Run focused test and confirm failures where descriptions are missing**
+- [ ] **步骤 3: 运行聚焦测试，确认描述缺失导致失败**
 
-Run:
+运行：
 
 ```bash
 pnpm vitest run apps/electron/src/main/services/agent/pi-write-tools.test.ts
 ```
 
-Expected: FAIL only on missing descriptions if pass-through already works.
+预期：如果 pass-through 已经正确，只应因为缺少描述而 FAIL。
 
-- [ ] **Step 4: Update parameter descriptions**
+- [ ] **步骤 4: 更新参数描述**
 
-Change `domainIdsParameter` to include a description:
+把 `domainIdsParameter` 改成：
 
 ```ts
 const domainIdsParameter = Type.Optional(
@@ -467,37 +520,37 @@ const domainIdsParameter = Type.Optional(
 );
 ```
 
-Add similar descriptions for `understandingId`, `domainId`, `parentId`, and `contextId`.
+对 `understandingId`、`domainId`、`parentId`、`contextId` 添加同类描述。
 
-- [ ] **Step 5: Run focused test**
+- [ ] **步骤 5: 运行聚焦测试**
 
-Run:
+运行：
 
 ```bash
 pnpm vitest run apps/electron/src/main/services/agent/pi-write-tools.test.ts
 ```
 
-Expected: PASS.
+预期：PASS。
 
-- [ ] **Step 6: Commit**
+- [ ] **步骤 6: 提交**
 
 ```bash
 git add apps/electron/src/main/services/agent/pi-write-tools.ts apps/electron/src/main/services/agent/pi-write-tools.test.ts
 git commit -m "fix: clarify write tool id contract"
 ```
 
-### Task 4: Add Durable Approved Tool Execution Events
+### 任务 4: 新增 durable approved tool execution events
 
-**Files:**
+**文件：**
 
-- Modify: `apps/electron/src/main/services/agent/pi-agent-host.ts`
-- Modify: `apps/electron/src/main/services/agent/pi-session-log.ts`
-- Test: `apps/electron/src/main/services/agent/pi-agent-host.test.ts`
-- Test: `apps/electron/src/main/services/agent/pi-session-log.test.ts`
+- 修改：`apps/electron/src/main/services/agent/pi-agent-host.ts`
+- 修改：`apps/electron/src/main/services/agent/pi-session-log.ts`
+- 测试：`apps/electron/src/main/services/agent/pi-agent-host.test.ts`
+- 测试：`apps/electron/src/main/services/agent/pi-session-log.test.ts`
 
-- [ ] **Step 1: Write success sequence test**
+- [ ] **步骤 1: 编写成功序列测试**
 
-In `pi-agent-host.test.ts`, approve a pending write tool and assert the session events include:
+在 `pi-agent-host.test.ts` 中 approve 一个 pending write tool，并断言 session events 包含：
 
 ```ts
 expect(eventTypes).toEqual(
@@ -509,17 +562,17 @@ expect(eventTypes).toEqual(
 );
 ```
 
-Assert `tool.execution.completed.output` contains the decorated result.
+断言 `tool.execution.completed.output` 包含 decorated result。
 
-- [ ] **Step 2: Write failure sequence test**
+- [ ] **步骤 2: 编写失败序列测试**
 
-Mock `executePiApprovedTool` to reject with:
+Mock `executePiApprovedTool` 抛出：
 
 ```ts
 new Error("Domain not found: domain_1");
 ```
 
-Assert events include:
+断言 events 包含：
 
 ```ts
 expect(eventTypes).toEqual(
@@ -527,63 +580,67 @@ expect(eventTypes).toEqual(
 );
 ```
 
-Assert:
+断言：
 
 ```ts
-expect(failedEvent.error).toBe("Domain not found: domain_1");
+expect(failedEvent.error).toEqual({
+  message: "Domain not found: domain_1",
+});
 ```
 
-- [ ] **Step 3: Run focused tests and confirm failure**
+- [ ] **步骤 3: 运行聚焦测试，确认失败**
 
-Run:
+运行：
 
 ```bash
 pnpm vitest run apps/electron/src/main/services/agent/pi-agent-host.test.ts
 ```
 
-Expected: FAIL because `tool.execution.*` events do not exist yet.
+预期：FAIL，因为 `tool.execution.*` events 还不存在。
 
-- [ ] **Step 4: Emit execution events around approved tool execution**
+- [ ] **步骤 4: 围绕 approved tool execution 发事件**
 
-In `resolveToolApproval`, after `approval.resolved approved=true`, append `tool.execution.started` before calling `executeApprovedTool`.
+在 `resolveToolApproval` 里，`approval.resolved approved=true` 之后、调用 `executeApprovedTool` 之前 append `tool.execution.started`。
 
-On success, append `tool.execution.completed`.
+成功时 append `tool.execution.completed`。
 
-On failure, append `tool.execution.failed` and still reject/resolve the Pi pending approval in the way Pi expects so the model receives the tool error.
+失败时把 thrown error 规范化为 `AgentToolExecutionError`，append `tool.execution.failed`，同时继续用 Pi 期望的方式 reject/resolve pending approval，让模型能收到工具错误。
 
-- [ ] **Step 5: Mirror execution failures to diagnostic logs**
+- [ ] **步骤 5: 把 execution failure mirror 到诊断日志**
 
-Update `pi-session-log.ts` mirroring so `tool.execution.failed` writes an error-level diagnostic event with `toolName`, `toolCallId`, and `error`.
+更新 `pi-session-log.ts` 的 mirror 逻辑，让 `tool.execution.failed` 写入 error-level diagnostic event，包含 `toolName`、`toolCallId`、`error.message`、`error.code` 和 `error.details`。
 
-- [ ] **Step 6: Run focused tests**
+- [ ] **步骤 6: 运行聚焦测试**
 
-Run:
+运行：
 
 ```bash
 pnpm vitest run apps/electron/src/main/services/agent/pi-agent-host.test.ts apps/electron/src/main/services/agent/pi-session-log.test.ts
 ```
 
-Expected: PASS.
+预期：PASS。
 
-- [ ] **Step 7: Commit**
+- [ ] **步骤 7: 提交**
 
 ```bash
 git add apps/electron/src/main/services/agent/pi-agent-host.ts apps/electron/src/main/services/agent/pi-session-log.ts apps/electron/src/main/services/agent/pi-agent-host.test.ts apps/electron/src/main/services/agent/pi-session-log.test.ts
 git commit -m "fix: persist approved tool execution failures"
 ```
 
-### Task 5: Render Failed Approved Tools Correctly
+### 任务 5: 正确渲染已批准但执行失败的工具
 
-**Files:**
+**文件：**
 
-- Modify: `apps/electron/src/preload/typings/agent.ts`
-- Modify: `apps/electron/src/renderer/src/modules/chat/session/agent-reducer.test.ts`
-- Modify: `apps/electron/src/renderer/src/modules/chat/messages/agent-turn-view.ts`
-- Test: `apps/electron/src/renderer/src/modules/chat/messages/agent-turn-view.test.ts`
+- 修改：`apps/electron/src/preload/typings/agent.ts`
+- 修改：`apps/electron/src/renderer/src/modules/chat/session/agent-reducer.test.ts`
+- 修改：`apps/electron/src/renderer/src/modules/chat/messages/agent-turn-view.ts`
+- 测试：`apps/electron/src/renderer/src/modules/chat/messages/agent-turn-view.test.ts`
 
-- [ ] **Step 1: Write reducer test for failed execution**
+这个任务直接覆盖截图里的问题：用户批准后，卡片不能只显示“已确认”。如果后续 execution event 是失败，同一张候选/工具卡片的主状态必须变成“执行失败”，并展示失败原因。
 
-Given:
+- [ ] **步骤 1: 为 failed execution 写 reducer test**
+
+给定：
 
 ```ts
 [
@@ -594,196 +651,200 @@ Given:
     type: "tool.execution.failed",
     toolName: "understanding_update",
     toolCallId: "tool_1",
-    error: "Domain not found: domain_1",
+    error: { message: "Domain not found: domain_1" },
   },
 ];
 ```
 
-Assert the reduced assistant block has:
+断言 reduced assistant block 为：
 
 ```ts
 {
   kind: "approval",
   toolName: "understanding_update",
-  state: "failed",
-  error: "Domain not found: domain_1"
+  approvalState: "approved",
+  executionState: "failed",
+  displayState: "failed",
+  error: { message: "Domain not found: domain_1" }
 }
 ```
 
-- [ ] **Step 2: Write view test for failed state**
+- [ ] **步骤 2: 为 failed state 写 view test**
 
-Assert the tool/proposal card displays a failed label and the error text, not a pending approval state.
+断言工具/候选卡片显示“执行失败”和 `Domain not found: domain_1`。同时断言这张失败卡片的主状态不再显示“已确认”；“已确认”最多只能作为辅助审批历史出现，不能占据右上角终态 badge。
 
-- [ ] **Step 3: Run focused tests and confirm failure**
+- [ ] **步骤 3: 运行聚焦测试，确认失败**
 
-Run:
-
-```bash
-pnpm vitest run apps/electron/src/renderer/src/modules/chat/session/agent-reducer.test.ts apps/electron/src/renderer/src/modules/chat/messages/agent-turn-view.test.ts
-```
-
-Expected: FAIL because execution events are not reduced/rendered yet.
-
-- [ ] **Step 4: Update reducer**
-
-Handle `tool.execution.started/completed/failed` by matching `toolCallId` and updating the existing approval/tool block state.
-
-- [ ] **Step 5: Update view labels**
-
-For failed approved tools, show the same failed visual treatment used by normal failed tool blocks. Keep the error expandable/copyable if that pattern already exists.
-
-- [ ] **Step 6: Run focused tests**
-
-Run:
+运行：
 
 ```bash
 pnpm vitest run apps/electron/src/renderer/src/modules/chat/session/agent-reducer.test.ts apps/electron/src/renderer/src/modules/chat/messages/agent-turn-view.test.ts
 ```
 
-Expected: PASS.
+预期：FAIL，因为 execution events 还没有被 reduce/render。
 
-- [ ] **Step 7: Commit**
+- [ ] **步骤 4: 更新 reducer**
+
+处理 `tool.execution.started/completed/failed`，通过 `toolCallId` 匹配已有 approval/tool block，并更新 `approvalState`、`executionState`、`displayState` 和 `error`。
+
+- [ ] **步骤 5: 更新 view labels**
+
+对已批准但执行失败的工具，使用普通 failed tool block 同样的失败视觉处理。右上角 badge 显示“执行失败”，卡片正文显示失败原因。若当前已有展开/复制错误的模式，则复用它。
+
+- [ ] **步骤 6: 运行聚焦测试**
+
+运行：
+
+```bash
+pnpm vitest run apps/electron/src/renderer/src/modules/chat/session/agent-reducer.test.ts apps/electron/src/renderer/src/modules/chat/messages/agent-turn-view.test.ts
+```
+
+预期：PASS。
+
+- [ ] **步骤 7: 提交**
 
 ```bash
 git add apps/electron/src/preload/typings/agent.ts apps/electron/src/renderer/src/modules/chat/session/agent-reducer.test.ts apps/electron/src/renderer/src/modules/chat/messages/agent-turn-view.ts apps/electron/src/renderer/src/modules/chat/messages/agent-turn-view.test.ts
 git commit -m "fix: show failed approved tools in agent chat"
 ```
 
-### Task 6: Update E2E Fixtures and Production Regression Path
+### 任务 6: 更新 E2E fixtures 和生产回归路径
 
-**Files:**
+**文件：**
 
-- Modify: `apps/electron/e2e/agent/agent-fixture-store.ts`
-- Modify: `apps/electron/e2e/agent/pi-session.spec.ts`
-- Optional Modify: `apps/cli/scripts/seed-test-data.ts`
+- 修改：`apps/electron/e2e/agent/agent-fixture-store.ts`
+- 修改：`apps/electron/e2e/agent/pi-session.spec.ts`
+- 可选修改：`apps/cli/scripts/seed-test-data.ts`
 
-- [ ] **Step 1: Add failed approved write fixture**
+- [ ] **步骤 1: 添加已批准但执行失败的写入 fixture**
 
-Create a fixture run with:
+创建一条 fixture run，序列为：
 
 ```txt
 approval.requested -> approval.resolved approved=true -> tool.execution.started -> tool.execution.failed
 ```
 
-Use error:
+错误使用：
 
 ```txt
 Domain not found: rf_fjxcezk5az
 ```
 
-This preserves the exact production symptom while testing the new state model.
+这样既保留真实生产症状，又测试新的状态模型。
 
-- [ ] **Step 2: Add E2E assertion**
+- [ ] **步骤 2: 添加 E2E 断言**
 
-Assert the restored chat shows a failed tool state for the approved proposal and includes the error text.
+断言恢复后的 chat 对已批准 proposal 显示 failed tool state，并包含错误文本。对截图里的回归场景，断言失败的候选修改卡片不以“已确认”作为主状态，而是显示“执行失败”。
 
-- [ ] **Step 3: Run E2E target**
+- [ ] **步骤 3: 运行 E2E target**
 
-Run:
+运行：
 
 ```bash
 pnpm --filter @reflecta/electron e2e -- apps/electron/e2e/agent/pi-session.spec.ts
 ```
 
-Expected: PASS.
+预期：PASS。
 
-- [ ] **Step 4: Commit**
+- [ ] **步骤 4: 提交**
 
 ```bash
 git add apps/electron/e2e/agent/agent-fixture-store.ts apps/electron/e2e/agent/pi-session.spec.ts apps/cli/scripts/seed-test-data.ts
 git commit -m "test: cover approved tool execution failure recovery"
 ```
 
-### Task 7: Clean Up Legacy `rf_*` Identity Assumptions
+### 任务 7: 清理 legacy `rf_*` 身份假设
 
-**Files:**
+**文件：**
 
-- Modify: `docs/iterations/v1.1.12/tech/agent-entity-link-architecture.md`
-- Modify: `docs/iterations/v1.1.12/tech/agent-entity-reference-research.md`
-- Modify: `docs/iterations/v1.1.15/README.md`
-- Search: all `apps/electron/src/**` references to `[[ref:` and `sourceId`
+- 修改：`docs/iterations/v1.1.12/tech/agent-entity-link-architecture.md`
+- 修改：`docs/iterations/v1.1.12/tech/agent-entity-reference-research.md`
+- 修改：`docs/iterations/v1.1.15/README.md`
+- 全局搜索：`apps/electron/src/**` 中对 `[[ref:` 和 `sourceId` 的引用
 
-- [ ] **Step 1: Search for generated source id assumptions**
+- [ ] **步骤 1: 搜索生成型 source id 假设**
 
-Run:
+运行：
 
 ```bash
 rg -n "\\[\\[ref:|sourceId|rf_" apps/electron/src docs/iterations/v1.1.12 docs/iterations/v1.1.15
 ```
 
-Expected: only backwards compatibility code/tests and historical docs retain old wording.
+预期：只有向后兼容代码、测试和历史文档保留旧表述。
 
-- [ ] **Step 2: Mark v1.1.12 docs as superseded**
+- [ ] **步骤 2: 标记 v1.1.12 文档已被取代**
 
-Add a short note at the top of v1.1.12 entity-link docs:
+在 v1.1.12 entity-link docs 顶部添加：
 
 ```md
-> Superseded by v1.1.15 for Agent tool identity. v1.1.12's session-scoped `[[ref:Sx]]` source map remains useful historical context, but v1.1.15 uses stable entity ids for model-facing tool protocols.
+> Agent 工具身份协议已由 v1.1.15 取代。v1.1.12 的 session-scoped `[[ref:Sx]]` source map 仍可作为历史背景，但 v1.1.15 对面向模型的工具协议使用稳定实体 id。
 ```
 
-- [ ] **Step 3: Keep backwards compatibility parser only where needed**
+- [ ] **步骤 3: 只在必要位置保留向后兼容 parser**
 
-If old session logs contain `[[ref:rf_*]]`, keep a renderer fallback that displays them as plain unresolved text unless a persisted source map can resolve them. Do not let that fallback affect new tool outputs.
+如果旧 session 日志里包含 `[[ref:rf_*]]`，保留 renderer 兜底逻辑：只有持久化 source map 能 resolve 时才渲染，否则显示为不可解析的普通文本。这个兜底逻辑不能影响新的工具输出。
 
-- [ ] **Step 4: Commit**
+- [ ] **步骤 4: 提交**
 
 ```bash
 git add docs/iterations/v1.1.12/tech/agent-entity-link-architecture.md docs/iterations/v1.1.12/tech/agent-entity-reference-research.md docs/iterations/v1.1.15/README.md
 git commit -m "docs: supersede session scoped agent refs"
 ```
 
-## 8. Verification
+## 8. 验证
 
-Run:
+运行：
 
 ```bash
 pnpm vitest run apps/electron/src/main/services/agent/agent-entity-sources.test.ts apps/electron/src/main/services/agent/pi-readonly-tools.test.ts apps/electron/src/main/services/agent/pi-write-tools.test.ts apps/electron/src/main/services/agent/pi-agent-host.test.ts apps/electron/src/main/services/agent/pi-session-log.test.ts apps/electron/src/renderer/src/modules/chat/session/agent-reducer.test.ts apps/electron/src/renderer/src/modules/chat/messages/agent-turn-view.test.ts
 ```
 
-Expected: PASS.
+预期：PASS。
 
-Run:
+运行：
 
 ```bash
 pnpm --filter @reflecta/electron typecheck
 ```
 
-Expected: PASS.
+预期：PASS。
 
-Run:
+运行：
 
 ```bash
 pnpm --filter @reflecta/electron e2e -- apps/electron/e2e/agent/pi-session.spec.ts
 ```
 
-Expected: PASS.
+预期：PASS。
 
-## 9. Acceptance Criteria
+## 9. 验收标准
 
-- `domain_list`, `domain_inspect`, `understanding_get`, `understanding_list`, `context_get`, and `context_list` expose stable real ids to the model.
-- Write tools continue to accept `understandingId`, `contextId`, `domainId`, and `domainIds` as real ids.
-- New model-facing outputs do not contain generated `rf_*` source ids.
-- Chat text refs are typed and real-id based: `[[domain:<id>]]`, `[[understanding:<id>]]`, `[[context:<id>]]`.
-- Approving a write tool emits `approval.resolved` and then explicit execution state.
-- Approved write failures produce `tool.execution.failed`, diagnostic log entries, and failed UI state.
-- Production-style `Domain not found` failures are visible from session reducer output without grepping raw Pi messages.
-- Legacy sessions still render without crashing; unresolved old refs are non-clickable.
+- `domain_list`、`domain_inspect`、`understanding_get`、`understanding_list`、`context_get`、`context_list` 向模型暴露稳定真实 id。
+- 写工具继续接受 `understandingId`、`contextId`、`domainId`、`domainIds` 作为真实 id。
+- 新的面向模型输出不包含生成的 `rf_*` source ids。
+- 聊天正文 ref 使用 typed real-id 格式：`[[domain:<id>]]`、`[[understanding:<id>]]`、`[[context:<id>]]`。
+- 批准写工具后，会产生 `approval.resolved`，然后产生明确的 execution state。
+- 已批准写工具失败会产生 `tool.execution.failed`、诊断日志和 UI failed state。
+- 失败的已批准工具卡片主状态显示“执行失败”，并展示 `error.message`；它不能继续以“已确认”作为终态展示。
+- 生产风格 `Domain not found` 失败可以通过 session reducer output 看到，不需要 grep 原始 Pi 消息。
+- 历史 session 不崩溃；无法 resolve 的旧 ref 不可点击。
 
-## 10. Self-Review
+## 10. 自检
 
-Spec coverage:
+需求覆盖：
 
-- Stable real ids replace `rf_*` as tool identity: covered by Tasks 1, 2, 3, and 7.
-- `ref` remains display/navigation only: covered by Tasks 1 and 2.
-- Tool failed state included: covered by Tasks 4, 5, and 6.
-- Documentation saved under `docs/iterations/v1.1.15`: this document and README.
+- 稳定真实 id 替代 `rf_*` 作为工具身份：任务 1、任务 2、任务 3、任务 7 覆盖。
+- `ref` 只保留为展示/导航语法：任务 1、任务 2 覆盖。
+- tool failed 状态纳入计划：任务 4、任务 5、任务 6 覆盖。
+- 截图里的“已确认但实际失败”UI 回归：任务 5、任务 6 覆盖。
+- 文档放在 `docs/iterations/v1.1.15`：本文件和 README 已覆盖。
 
-Placeholder scan:
+未完成标记检查：
 
-- Task text has no unresolved marker words.
-- Each task names exact files, commands, and expected outcomes.
+- 任务正文没有遗留未决标记词。
+- 每个任务都写明了文件、命令和预期结果。
 
-Type consistency:
+类型一致性：
 
-- Entity id fields remain `understandingId`, `contextId`, `domainId`, and `domainIds`.
-- New execution event names consistently use `tool.execution.started/completed/failed`.
+- 实体 id 字段保持为 `understandingId`、`contextId`、`domainId`、`domainIds`。
+- 新 execution event 名称统一为 `tool.execution.started/completed/failed`。
