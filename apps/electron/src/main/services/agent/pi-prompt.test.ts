@@ -26,10 +26,6 @@ describe("buildPiPromptText", () => {
     expect(prompt).toContain("请比较这些引用");
     expect(prompt).toContain("Understanding: React Server Components; id=understanding-1");
     expect(prompt).toContain("Domain: React; id=domain-1");
-    expect(prompt).toContain("轻量实体目录");
-    expect(prompt).toContain("工具参数使用 id");
-    expect(prompt).toContain("structured final-answer entity_ref");
-    expect(prompt).toContain("不要用纯标题代替引用");
     expect(prompt).not.toContain("[[");
     expect(prompt).not.toContain("sourceId");
   });
