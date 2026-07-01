@@ -255,3 +255,74 @@ test("@AG-RESULT-005 用户查看 Bash 长输出时可以原地展开", async ()
     await app.close();
   }
 });
+
+test("@AG-RESULT-006 用户查看 Agent 最终答案中的结构化知识库引用", async () => {
+  seedAgentThread({
+    id: "result-finalizer-entity-ref",
+    title: "Finalizer 引用",
+    entityCatalog: [
+      {
+        key: "domain:domain_three_views",
+        entity: { type: "domain", id: "domain_three_views", title: "三观" },
+        origin: { kind: "tool_result", toolCallId: "tool_domain", toolName: "domain_inspect" },
+      },
+    ],
+    messages: [
+      userMessage("result-finalizer-entity-ref-user", "放在哪里"),
+      assistantMessage("result-finalizer-entity-ref-assistant", [
+        {
+          type: "text",
+          text: "可以放在三观下面。",
+          parts: [
+            { type: "text", text: "可以放在" },
+            {
+              type: "entity_ref",
+              entityType: "domain",
+              entityId: "domain_three_views",
+              fallbackText: "三观",
+            },
+            { type: "text", text: "下面。" },
+          ],
+        },
+      ]),
+    ],
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "Finalizer 引用");
+    const wikiLink = page.locator('[data-slot="wiki-link"]').filter({ hasText: "三观" });
+    await expect(wikiLink).toBeVisible();
+    await expect(page.getByText("domain_three_views")).toHaveCount(0);
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-RESULT-007 用户查看最终答案生成失败原因", async () => {
+  seedAgentThread({
+    id: "result-finalizer-failed",
+    title: "Finalizer 失败",
+    messages: [
+      userMessage("result-finalizer-failed-user", "根据知识库回答"),
+      assistantMessage("result-finalizer-failed-assistant", [
+        {
+          type: "text",
+          text: "",
+          state: "failed",
+          error: "引用实体不存在: domain/missing",
+        },
+      ]),
+    ],
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "Finalizer 失败");
+    await expect(page.getByTestId("agent-final-answer-error")).toContainText(
+      "引用实体不存在: domain/missing",
+    );
+  } finally {
+    await app.close();
+  }
+});

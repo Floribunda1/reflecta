@@ -159,10 +159,16 @@ function appendTextBlock(
   text: string,
   createdAt: string,
   parts?: unknown[],
+  state?: unknown,
+  previewText?: unknown,
+  error?: unknown,
 ) {
   const last = blocks.at(-1);
   if (
     !parts &&
+    !state &&
+    !previewText &&
+    !error &&
     last?.kind === kind &&
     typeof last.text === "string" &&
     !Array.isArray(last.parts)
@@ -170,7 +176,15 @@ function appendTextBlock(
     last.text += text;
     return;
   }
-  blocks.push({ kind, text, ...(parts ? { parts } : {}), createdAt });
+  blocks.push({
+    kind,
+    text,
+    ...(parts ? { parts } : {}),
+    ...(typeof state === "string" ? { state } : {}),
+    ...(typeof previewText === "string" ? { previewText } : {}),
+    ...(typeof error === "string" ? { error } : {}),
+    createdAt,
+  });
 }
 
 function appendToolBlock(
@@ -344,6 +358,9 @@ function assistantTurnBlocks(
         String(part.text ?? ""),
         createdAt,
         Array.isArray(part.parts) ? part.parts : undefined,
+        part.state,
+        part.previewText,
+        part.error,
       );
       continue;
     }
