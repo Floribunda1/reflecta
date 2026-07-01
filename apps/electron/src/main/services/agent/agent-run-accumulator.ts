@@ -3,13 +3,20 @@ import type {
   AgentApprovalResolved,
   AgentAssistantTurn,
   AgentAssistantTurnBlock,
+  AgentEventBase,
   AgentLiveEvent,
+  AgentTextPart,
   AgentToolApprovalState,
   AgentToolDisplayState,
   AgentToolExecutionState,
 } from "@shared/agent";
 
 type AccumulatorEvent = AgentLiveEvent | AgentApprovalRequested | AgentApprovalResolved;
+type FinalAnswerEvent = AgentEventBase & {
+  messageId: string;
+  parts: AgentTextPart[];
+  text: string;
+};
 
 function displayState(
   approvalState: AgentToolApprovalState,
@@ -142,6 +149,13 @@ export class AgentRunAccumulator {
           })
         : block,
     );
+  }
+
+  appendFinalAnswer(event: FinalAnswerEvent): void {
+    this.blocks = [
+      ...this.blocks,
+      { kind: "text", text: event.text, parts: event.parts, createdAt: event.createdAt },
+    ];
   }
 
   isEmpty(): boolean {

@@ -13,6 +13,7 @@ import {
   loadAgentSystemPrompt,
   normalizeGeneratedThreadTitle,
   PiAgentHost,
+  REFLECTA_FINAL_ANSWER_TOOL_NAME,
 } from "./pi-agent-host";
 import { AgentEntityCatalog } from "./agent-entity-catalog";
 import { AgentSessionLog } from "./pi-session-log";
@@ -568,6 +569,121 @@ describe("PiAgentHost", () => {
         stopReason: "stop",
       }),
     );
+  });
+
+  test("persists internal final-answer tool output as text parts without visible tool activity", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("新对话");
+    const manager = await log.openSession(thread.id);
+    log.appendEvent(manager, {
+      id: "evt_existing_cancel",
+      sessionId: thread.id,
+      runId: "run_existing",
+      type: "run.cancelled",
+      createdAt: "2026-06-23T00:00:00.000Z",
+    });
+    let listener: ((event: unknown) => void) | undefined;
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        subscribe: (next: (event: unknown) => void) => {
+          listener = next;
+          return () => {};
+        },
+        prompt: vi.fn(async () => {
+          listener?.({
+            type: "tool_execution_start",
+            toolName: REFLECTA_FINAL_ANSWER_TOOL_NAME,
+            toolCallId: "final_1",
+            args: {
+              parts: [
+                { type: "text", text: "放在" },
+                {
+                  type: "entity_ref",
+                  entityType: "domain",
+                  entityId: "domain_1",
+                  fallbackText: "三观",
+                },
+                { type: "text", text: "下面。" },
+              ],
+            },
+          });
+          listener?.({
+            type: "tool_execution_end",
+            toolName: REFLECTA_FINAL_ANSWER_TOOL_NAME,
+            toolCallId: "final_1",
+            result: { details: { accepted: true } },
+            isError: false,
+          });
+          listener?.({
+            type: "message_end",
+            message: {
+              role: "assistant",
+              content: [],
+              provider: "openai",
+              model: "gpt-4o",
+              stopReason: "stop",
+            },
+          });
+        }),
+        getContextUsage: vi.fn(() => undefined),
+        dispose: vi.fn(),
+        abort: vi.fn(),
+      },
+    });
+    const webContents = {
+      isDestroyed: () => false,
+      send: vi.fn(),
+    };
+
+    await (
+      new PiAgentHost(root) as unknown as {
+        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
+      }
+    ).sendMessage(
+      {
+        type: "message.send",
+        sessionId: thread.id,
+        text: "放在哪个 domain",
+        contextRefs: [{ type: "domain", id: "domain_1", title: "三观" }],
+        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+      },
+      webContents as never,
+    );
+
+    const sessionOptions = createAgentSessionMock.mock.calls.at(-1)?.[0] as {
+      tools?: string[];
+    };
+    expect(sessionOptions.tools).toContain(REFLECTA_FINAL_ANSWER_TOOL_NAME);
+    const events = await new AgentSessionLog(root).readEvents(thread.id);
+    expect(events.slice(1).map((event) => event.type)).toEqual([
+      "run.started",
+      "entity.catalog.updated",
+      "user.message",
+      "assistant.turn",
+      "run.completed",
+    ]);
+    expect(events.find((event) => event.type === "assistant.turn")).toMatchObject({
+      type: "assistant.turn",
+      text: "放在三观下面。",
+      blocks: [
+        {
+          kind: "text",
+          text: "放在三观下面。",
+          parts: [
+            { type: "text", text: "放在" },
+            {
+              type: "entity_ref",
+              entityType: "domain",
+              entityId: "domain_1",
+              fallbackText: "三观",
+            },
+            { type: "text", text: "下面。" },
+          ],
+        },
+      ],
+    });
   });
 
   test("restores the active streaming turn when reopening a running session", async () => {

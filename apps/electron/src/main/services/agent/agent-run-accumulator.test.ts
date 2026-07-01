@@ -94,4 +94,37 @@ describe("AgentRunAccumulator", () => {
       { kind: "text", text: "完成。" },
     ]);
   });
+
+  test("converts internal final answer output into a text block with parts", () => {
+    const accumulator = new AgentRunAccumulator();
+
+    accumulator.appendFinalAnswer({
+      ...base,
+      parts: [
+        { type: "text", text: "放在" },
+        { type: "entity_ref", entityType: "domain", entityId: "domain_1", fallbackText: "三观" },
+        { type: "text", text: "下面。" },
+      ],
+      text: "放在三观下面。",
+    });
+
+    expect(
+      accumulator.toAssistantTurn({
+        ...base,
+        id: "turn_1",
+        type: "assistant.turn",
+      }).blocks,
+    ).toEqual([
+      {
+        kind: "text",
+        text: "放在三观下面。",
+        parts: [
+          { type: "text", text: "放在" },
+          { type: "entity_ref", entityType: "domain", entityId: "domain_1", fallbackText: "三观" },
+          { type: "text", text: "下面。" },
+        ],
+        createdAt: base.createdAt,
+      },
+    ]);
+  });
 });

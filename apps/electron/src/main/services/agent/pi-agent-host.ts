@@ -4,6 +4,7 @@ import type { WebContents } from "electron";
 import {
   completeSimple,
   getModel,
+  Type,
   type Api,
   type Context,
   type Model,
@@ -12,6 +13,7 @@ import {
   AuthStorage,
   createAgentSession,
   createExtensionRuntime,
+  defineTool,
   ModelRegistry,
   SessionManager,
   SettingsManager,
@@ -32,6 +34,7 @@ import type {
   AgentLiveEvent,
   AgentSessionEvent,
   AgentSessionSummary,
+  AgentTextPart,
   AgentToolExecutionError,
   AgentUsage,
 } from "@shared/agent";
@@ -46,6 +49,7 @@ import {
 import { agentLog } from "../../logger";
 import { AgentRunAccumulator } from "./agent-run-accumulator";
 import { AgentEntityCatalog } from "./agent-entity-catalog";
+import { normalizeAgentTextParts } from "./agent-text-parts";
 import { AgentSessionLog } from "./pi-session-log";
 import { formatAgentError } from "./error";
 import { buildPiPromptText } from "./pi-prompt";
@@ -63,6 +67,7 @@ import {
 } from "./pi-write-tools";
 
 export const AGENT_EVENT_CHANNEL = "agent:event";
+export const REFLECTA_FINAL_ANSWER_TOOL_NAME = "reflecta_final_answer";
 
 type ActivePiRun = {
   runId: string;
@@ -342,6 +347,74 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function isReflectaFinalAnswerTool(toolName: string): boolean {
+  return toolName === REFLECTA_FINAL_ANSWER_TOOL_NAME;
+}
+
+function agentTextPartFrom(value: unknown): AgentTextPart | null {
+  if (!isRecord(value) || typeof value.type !== "string") return null;
+  if (value.type === "text" && typeof value.text === "string") {
+    return { type: "text", text: value.text };
+  }
+  if (
+    value.type === "entity_ref" &&
+    (value.entityType === "understanding" ||
+      value.entityType === "context" ||
+      value.entityType === "domain") &&
+    typeof value.entityId === "string"
+  ) {
+    return {
+      type: "entity_ref",
+      entityType: value.entityType,
+      entityId: value.entityId,
+      ...(typeof value.fallbackText === "string" ? { fallbackText: value.fallbackText } : {}),
+    };
+  }
+  return null;
+}
+
+function finalAnswerPartsFromInput(input: unknown): AgentTextPart[] {
+  if (!isRecord(input) || !Array.isArray(input.parts)) return [];
+  return input.parts.flatMap((part) => {
+    const parsed = agentTextPartFrom(part);
+    return parsed ? [parsed] : [];
+  });
+}
+
+function createReflectaFinalAnswerTool() {
+  return defineTool({
+    name: REFLECTA_FINAL_ANSWER_TOOL_NAME,
+    label: "最终回答",
+    description:
+      "Internal Reflecta final-answer adapter. Use it when final visible text needs inline Reflecta entity references.",
+    promptSnippet: "reflecta_final_answer: return final visible text as text/entity_ref parts.",
+    parameters: Type.Object({
+      parts: Type.Array(
+        Type.Union([
+          Type.Object({
+            type: Type.Literal("text"),
+            text: Type.String(),
+          }),
+          Type.Object({
+            type: Type.Literal("entity_ref"),
+            entityType: Type.Union([
+              Type.Literal("understanding"),
+              Type.Literal("context"),
+              Type.Literal("domain"),
+            ]),
+            entityId: Type.String({ minLength: 1 }),
+            fallbackText: Type.Optional(Type.String()),
+          }),
+        ]),
+      ),
+    }),
+    execute: async () => ({
+      content: [{ type: "text" as const, text: "Final answer accepted." }],
+      details: { accepted: true },
+    }),
+  });
+}
+
 function errorStack(error: unknown): string | undefined {
   return error instanceof Error ? error.stack : undefined;
 }
@@ -611,6 +684,7 @@ export class PiAgentHost {
         ...createPiWriteTools({
           onApproval: ({ toolCallId }) => this.waitForToolApproval(command.sessionId, toolCallId),
         }),
+        createReflectaFinalAnswerTool(),
       ],
       cwd: this.contentStorageRoot,
       model,
@@ -619,7 +693,11 @@ export class PiAgentHost {
       sessionManager,
       settingsManager,
       thinkingLevel: thinkingLevelFor(command.reasoningLevel ?? getActiveAgentReasoningLevel()),
-      tools: [...PI_READ_ONLY_TOOL_NAMES, ...PI_APPROVAL_TOOL_NAMES],
+      tools: [
+        ...PI_READ_ONLY_TOOL_NAMES,
+        ...PI_APPROVAL_TOOL_NAMES,
+        REFLECTA_FINAL_ANSWER_TOOL_NAME,
+      ],
     });
   }
 
@@ -750,6 +828,7 @@ export class PiAgentHost {
     let assistantMetadata: AssistantTurnMetadata | undefined;
     let assistantActivity = false;
     let runStarted = false;
+    const pendingFinalAnswerInputs = new Map<string, unknown>();
     const accumulator = new AgentRunAccumulator();
     const emit = (event: AgentSessionEvent) => this.appendAndEmit(manager, webContents, event);
     const emitAccumulated = (event: AgentLiveEvent) => {
@@ -830,6 +909,10 @@ export class PiAgentHost {
 
         if (event.type === "tool_execution_start") {
           assistantActivity = true;
+          if (isReflectaFinalAnswerTool(event.toolName)) {
+            pendingFinalAnswerInputs.set(event.toolCallId, event.args);
+            return;
+          }
           if (isPiApprovalToolName(event.toolName)) {
             const requested = this.createEvent({
               type: "approval.requested",
@@ -861,6 +944,30 @@ export class PiAgentHost {
         }
 
         if (event.type === "tool_execution_end") {
+          if (isReflectaFinalAnswerTool(event.toolName)) {
+            const input = pendingFinalAnswerInputs.get(event.toolCallId);
+            pendingFinalAnswerInputs.delete(event.toolCallId);
+            if (event.isError) {
+              assistantError = piToolError(event.result);
+              return;
+            }
+            const normalized = normalizeAgentTextParts(
+              finalAnswerPartsFromInput(input),
+              entityCatalog.snapshot(),
+            );
+            if (!normalized.text && normalized.parts.length === 0) return;
+            assistantText += normalized.text;
+            accumulator.appendFinalAnswer({
+              id: `evt_${nanoid()}`,
+              sessionId: command.sessionId,
+              runId,
+              messageId: assistantMessageId,
+              createdAt: new Date().toISOString(),
+              ...normalized,
+            });
+            return;
+          }
+
           if (isPiApprovalToolName(event.toolName)) {
             const output = piToolOutput(event.result);
             if (isRejectedApprovalOutput(output)) return;
