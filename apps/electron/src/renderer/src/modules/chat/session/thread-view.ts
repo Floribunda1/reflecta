@@ -1,12 +1,12 @@
 import type { RefObject } from "react";
-import type { AgentEntitySource, AgentReducedMessage } from "@shared/agent";
+import type { AgentEntityCatalogEntry, AgentReducedMessage } from "@shared/agent";
 import type { ComposerSendInput, EditingMessage } from "../composer/chat-composer";
 import type { ApproveToolInput } from "../messages/agent-message-content";
 import { findChatTextRanges } from "./chat-find";
 
 export type AgentThreadView = {
   visibleMessages: AgentReducedMessage[];
-  entitySources: AgentEntitySource[];
+  entityCatalog: AgentEntityCatalogEntry[];
   messagesFetching: boolean;
   isBusy: boolean;
   composerBusy: boolean;

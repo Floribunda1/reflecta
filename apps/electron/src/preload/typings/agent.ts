@@ -102,17 +102,17 @@ export type AgentUserMessage = AgentEventBase & {
   composerContent?: AgentComposerContentNode;
 };
 
-export type AgentEntitySource = {
-  sourceId: string;
+export type AgentEntityCatalogEntry = {
+  key: string;
   entity: AgentContextRef;
   origin:
     | { kind: "user_context"; messageId: string }
     | { kind: "tool_result"; toolCallId: string; toolName: string };
 };
 
-export type AgentEntitySourcesUpdated = AgentEventBase & {
-  type: "entity.sources.updated";
-  sources: AgentEntitySource[];
+export type AgentEntityCatalogUpdated = AgentEventBase & {
+  type: "entity.catalog.updated";
+  entries: AgentEntityCatalogEntry[];
 };
 
 export type AgentAssistantTextDelta = AgentEventBase & {
@@ -247,7 +247,7 @@ export type AgentSessionEvent =
   | AgentRunFailed
   | AgentRunCancelled
   | AgentUserMessage
-  | AgentEntitySourcesUpdated
+  | AgentEntityCatalogUpdated
   | AgentAssistantTurn
   | AgentApprovalRequested
   | AgentApprovalResolved
@@ -362,7 +362,7 @@ export type AgentSessionState = {
   activeRunId: string | null;
   status: "idle" | "running" | "failed" | "cancelled";
   error: string | null;
-  entitySources: AgentEntitySource[];
+  entityCatalog: AgentEntityCatalogEntry[];
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -382,7 +382,7 @@ export function isAgentSessionEvent(value: unknown): value is AgentSessionEvent 
       "run.failed",
       "run.cancelled",
       "user.message",
-      "entity.sources.updated",
+      "entity.catalog.updated",
       "assistant.turn",
       "approval.requested",
       "approval.resolved",
@@ -535,15 +535,15 @@ function upsertAssistantTurn(
   return messages.map((message, messageIndex) => (messageIndex === index ? nextMessage : message));
 }
 
-function mergeEntitySources(
-  current: AgentEntitySource[],
-  incoming: AgentEntitySource[],
-): AgentEntitySource[] {
+function mergeEntityCatalog(
+  current: AgentEntityCatalogEntry[],
+  incoming: AgentEntityCatalogEntry[],
+): AgentEntityCatalogEntry[] {
   const next = [...current];
-  for (const source of incoming) {
-    const index = next.findIndex((item) => item.sourceId === source.sourceId);
-    if (index < 0) next.push(source);
-    else next[index] = source;
+  for (const entry of incoming) {
+    const index = next.findIndex((item) => item.key === entry.key);
+    if (index < 0) next.push(entry);
+    else next[index] = entry;
   }
   return next;
 }
@@ -780,7 +780,7 @@ export const initialAgentSessionState: AgentSessionState = {
   activeRunId: null,
   status: "idle",
   error: null,
-  entitySources: [],
+  entityCatalog: [],
 };
 
 export function reduceAgentSessionEvent(
@@ -818,11 +818,11 @@ export function reduceAgentSessionEvent(
     };
   }
 
-  if (event.type === "entity.sources.updated") {
+  if (event.type === "entity.catalog.updated") {
     return {
       ...state,
       sessionId: event.sessionId,
-      entitySources: mergeEntitySources(state.entitySources, event.sources),
+      entityCatalog: mergeEntityCatalog(state.entityCatalog, event.entries),
     };
   }
 

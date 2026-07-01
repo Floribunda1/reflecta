@@ -8,7 +8,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@renderer/comp
 import { cn } from "@renderer/lib/utils";
 import type {
   AgentContextRef,
-  AgentEntitySource,
+  AgentEntityCatalogEntry,
   AgentFileAttachment,
   AgentReducedMessage,
 } from "@shared/agent";
@@ -185,7 +185,7 @@ function UserMessageContent({
 
 type MessageRowProps = {
   message: AgentReducedMessage;
-  entitySources: AgentEntitySource[];
+  entityCatalog: AgentEntityCatalogEntry[];
   createdAt: string;
   isBusy: boolean;
   isLastAssistant: boolean;
@@ -201,7 +201,7 @@ type MessageRowProps = {
 
 function MessageRowComponent({
   message,
-  entitySources,
+  entityCatalog,
   createdAt,
   isBusy,
   isLastAssistant,
@@ -263,7 +263,7 @@ function MessageRowComponent({
       {message.role === "assistant" ? (
         <AgentMessageContent
           message={message}
-          entitySources={entitySources}
+          entityCatalog={entityCatalog}
           turn={turn}
           isBusy={isBusy}
           isLastAssistant={isLastAssistant}
@@ -347,7 +347,7 @@ function MessageRowComponent({
 export const MessageRow = memo(MessageRowComponent, (previous, next) => {
   return (
     previous.message === next.message &&
-    previous.entitySources === next.entitySources &&
+    previous.entityCatalog === next.entityCatalog &&
     previous.createdAt === next.createdAt &&
     previous.isBusy === next.isBusy &&
     previous.isLastAssistant === next.isLastAssistant &&
@@ -364,7 +364,7 @@ export const MessageRow = memo(MessageRowComponent, (previous, next) => {
 
 export function MessageList({
   messages,
-  entitySources,
+  entityCatalog,
   isBusy,
   stoppedMessageId,
   error,
@@ -378,7 +378,7 @@ export function MessageList({
   findQuery,
 }: {
   messages: AgentReducedMessage[];
-  entitySources: AgentEntitySource[];
+  entityCatalog: AgentEntityCatalogEntry[];
   isBusy: boolean;
   stoppedMessageId: string | null;
   error?: Error;
@@ -413,7 +413,7 @@ export function MessageList({
         <MessageRow
           key={message.id}
           message={message}
-          entitySources={entitySources}
+          entityCatalog={entityCatalog}
           createdAt={createdAtFor(message)}
           isBusy={isBusy}
           isLastAssistant={message.id === lastAssistantId}

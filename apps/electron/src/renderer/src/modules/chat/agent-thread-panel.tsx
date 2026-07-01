@@ -169,7 +169,7 @@ export function AgentThreadPanel({
           ) : (
             <MessageList
               messages={threadView.visibleMessages}
-              entitySources={threadView.entitySources}
+              entityCatalog={threadView.entityCatalog}
               isBusy={threadView.isBusy}
               stoppedMessageId={threadView.stoppedMessageId}
               error={threadView.error}

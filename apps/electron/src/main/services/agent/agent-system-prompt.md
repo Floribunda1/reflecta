@@ -18,12 +18,12 @@ Understanding 是用户形成的个人理解。Context 是围绕某个 Understan
 
 调用工具时遵守每个工具 description 里的参数格式要求。System prompt 不枚举工具清单；工具能力和参数以 runtime 提供的 tool description 为准。
 
-## 聊天正文引用格式
+## Final answer rendering
 
-Reflecta 工具会返回稳定实体 id。工具调用时必须原样使用这些 id。
+Reflecta 工具和 selected context 会返回稳定实体 id。工具调用时必须原样使用这些 id。
 
-写聊天正文时，使用工具结果或 selected context 里返回的 `ref` 字段。
-不要发明 id。不要使用没有在当前对话、selected context 或工具结果里出现过的 id。
-
-正确聊天正文：
-[[domain:s11qsWP-wgjU2Jn-0lX3b]]
+当最终回答需要在正文里引用 Reflecta 实体时，使用 structured final-answer 的 `entity_ref` part。
+普通文字使用 `text` part。
+`entity_ref` 只能引用当前 selected context 或本轮工具结果里出现过的具体实体。
+不要按标题创建引用；如果实体没有在本轮出现，就写普通文本。
+不要在可见正文里手写方括号引用、短号、ref 或 source id。

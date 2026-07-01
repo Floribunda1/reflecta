@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { AgentEntitySourceRegistry } from "./agent-entity-sources";
+import { AgentEntityCatalog } from "./agent-entity-catalog";
 import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-tools";
 
 const services = vi.hoisted(() => ({
@@ -58,11 +58,6 @@ const expectedReadToolNames = [
   "graph",
 ] as const;
 
-function registryWithSourceIds(...sourceIds: string[]) {
-  let index = 0;
-  return new AgentEntitySourceRegistry([], () => sourceIds[index++] ?? `rf_extra_${index}`);
-}
-
 describe("createPiReadOnlyTools", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -102,7 +97,7 @@ describe("createPiReadOnlyTools", () => {
     expect(output.details).toEqual(result);
   });
 
-  test("retrieve_knowledge exposes stable ids and typed refs for model-facing output", async () => {
+  test("retrieve_knowledge exposes stable ids without display refs", async () => {
     const result = {
       candidates: [
         {
@@ -112,10 +107,10 @@ describe("createPiReadOnlyTools", () => {
       ],
     };
     services.retrieveKnowledge.mockResolvedValue(result);
-    const registry = registryWithSourceIds("rf_understanding", "rf_context");
+    const catalog = new AgentEntityCatalog();
     const tool = createPiReadOnlyTools([], {
-      decorateToolOutput: (toolName, toolCallId, output) =>
-        registry.decorateToolOutput(toolName, toolCallId, output),
+      collectToolOutput: (toolName, toolCallId, output) =>
+        catalog.collectToolOutput(toolName, toolCallId, output),
     }).find((item) => item.name === "retrieve_knowledge");
     expect(tool).toBeDefined();
 
@@ -130,7 +125,6 @@ describe("createPiReadOnlyTools", () => {
         {
           understanding: {
             id: "u_1",
-            ref: "[[understanding:u_1]]",
             title: "Feedback Loop",
             body: "body",
           },
@@ -138,7 +132,6 @@ describe("createPiReadOnlyTools", () => {
             {
               context: {
                 id: "ctx_1",
-                ref: "[[context:ctx_1]]",
                 title: "一次复盘",
                 excerpt: "excerpt",
               },
@@ -149,19 +142,32 @@ describe("createPiReadOnlyTools", () => {
     });
     expect(output.content[0]?.text).toContain('"id": "u_1"');
     expect(output.content[0]?.text).toContain('"id": "ctx_1"');
+    expect(output.content[0]?.text).not.toContain('"ref"');
+    expect(catalog.snapshot()).toEqual([
+      {
+        key: "understanding:u_1",
+        entity: { type: "understanding", id: "u_1", title: "Feedback Loop" },
+        origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "retrieve_knowledge" },
+      },
+      {
+        key: "context:ctx_1",
+        entity: { type: "context", id: "ctx_1", title: "一次复盘" },
+        origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "retrieve_knowledge" },
+      },
+    ]);
   });
 
-  test("understanding_get decorates root entity output before stringifying model-facing content", async () => {
+  test("understanding_get collects root entities without decorating model-facing content", async () => {
     services.getUnderstanding.mockResolvedValue({
       id: "u_1",
       title: "Feedback Loop",
       body: "body",
       contexts: [{ id: "ctx_1", understandingId: "u_1", title: "一次复盘" }],
     });
-    const registry = registryWithSourceIds("rf_understanding", "rf_context");
+    const catalog = new AgentEntityCatalog();
     const tool = createPiReadOnlyTools([], {
-      decorateToolOutput: (toolName, toolCallId, output) =>
-        registry.decorateToolOutput(toolName, toolCallId, output),
+      collectToolOutput: (toolName, toolCallId, output) =>
+        catalog.collectToolOutput(toolName, toolCallId, output),
     }).find((item) => item.name === "understanding_get");
     expect(tool).toBeDefined();
 
@@ -173,21 +179,32 @@ describe("createPiReadOnlyTools", () => {
 
     expect(output.details).toEqual({
       id: "u_1",
-      ref: "[[understanding:u_1]]",
       title: "Feedback Loop",
       body: "body",
       contexts: [
         {
           id: "ctx_1",
-          ref: "[[context:ctx_1]]",
           understandingId: "u_1",
-          understandingRef: "[[understanding:u_1]]",
           title: "一次复盘",
         },
       ],
     });
     expect(output.content[0]?.text).toContain('"id": "u_1"');
     expect(output.content[0]?.text).toContain('"id": "ctx_1"');
+    expect(output.content[0]?.text).not.toContain('"ref"');
+    expect(output.content[0]?.text).not.toContain("understandingRef");
+    expect(catalog.snapshot()).toEqual([
+      {
+        key: "understanding:u_1",
+        entity: { type: "understanding", id: "u_1", title: "Feedback Loop" },
+        origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "understanding_get" },
+      },
+      {
+        key: "context:ctx_1",
+        entity: { type: "context", id: "ctx_1", title: "一次复盘" },
+        origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "understanding_get" },
+      },
+    ]);
   });
 
   test("executes web_fetch through the web fetch seam", async () => {

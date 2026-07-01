@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import type { AgentEntitySource, AgentReducedMessage } from "@shared/agent";
+import type { AgentEntityCatalogEntry, AgentReducedMessage } from "@shared/agent";
 import { activateChatFindMarker, chatFindMarkers } from "./chat-find-highlight";
 import { MessageList } from "./message-list";
 
@@ -20,12 +20,12 @@ afterEach(() => {
 
 function renderMessageList({
   messages,
-  entitySources,
+  entityCatalog,
   onInspectContextRef = vi.fn(),
   findQuery,
 }: {
   messages: AgentReducedMessage[];
-  entitySources: AgentEntitySource[];
+  entityCatalog: AgentEntityCatalogEntry[];
   onInspectContextRef?: (ref: {
     type: "understanding" | "context";
     id: string;
@@ -40,7 +40,7 @@ function renderMessageList({
     root?.render(
       <MessageList
         messages={messages}
-        entitySources={entitySources}
+        entityCatalog={entityCatalog}
         isBusy={false}
         stoppedMessageId={null}
         onRetry={vi.fn()}
@@ -56,18 +56,18 @@ function renderMessageList({
 
 function rerenderMessageList({
   messages,
-  entitySources,
+  entityCatalog,
   findQuery,
 }: {
   messages: AgentReducedMessage[];
-  entitySources: AgentEntitySource[];
+  entityCatalog: AgentEntityCatalogEntry[];
   findQuery?: string;
 }) {
   act(() => {
     root?.render(
       <MessageList
         messages={messages}
-        entitySources={entitySources}
+        entityCatalog={entityCatalog}
         isBusy={false}
         stoppedMessageId={null}
         onRetry={vi.fn()}
@@ -110,7 +110,7 @@ describe("MessageList entity refs", () => {
           ],
         },
       ],
-      entitySources: [],
+      entityCatalog: [],
     });
 
     const card = container?.querySelector('[data-testid="agent-proposal-card"]');
@@ -137,7 +137,7 @@ describe("MessageList entity refs", () => {
           },
         },
       ],
-      entitySources: [],
+      entityCatalog: [],
     });
 
     const message = container?.querySelector('[data-testid="agent-user-message"]');
@@ -154,7 +154,7 @@ describe("MessageList entity refs", () => {
           createdAt: "2026-06-26T00:00:00.000Z",
         },
       ],
-      entitySources: [],
+      entityCatalog: [],
       findQuery: "find",
     });
 
@@ -186,7 +186,7 @@ describe("MessageList entity refs", () => {
           ],
         },
       ],
-      entitySources: [],
+      entityCatalog: [],
       findQuery: "find",
     });
 
@@ -216,12 +216,12 @@ describe("MessageList entity refs", () => {
       },
     ];
 
-    renderMessageList({ messages, entitySources: [] });
+    renderMessageList({ messages, entityCatalog: [] });
     expect(container?.querySelector('[data-chat-find-match="true"]')).toBeNull();
 
     rerenderMessageList({
       messages,
-      entitySources: [],
+      entityCatalog: [],
       findQuery: "用户",
     });
 
@@ -258,7 +258,7 @@ describe("MessageList entity refs", () => {
           ],
         },
       ],
-      entitySources: [],
+      entityCatalog: [],
       findQuery: "用户",
     });
 
@@ -287,7 +287,7 @@ describe("MessageList entity refs", () => {
           ],
         },
       ],
-      entitySources: [],
+      entityCatalog: [],
       onInspectContextRef,
     });
 

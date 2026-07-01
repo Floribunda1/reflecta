@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
 import { defaultUrlTransform, type Components, type UrlTransform } from "streamdown";
-import type { AgentContextRef, AgentEntitySource } from "@shared/agent";
+import type { AgentContextRef, AgentEntityCatalogEntry } from "@shared/agent";
 import {
   contextMentionClass,
   contextMentionIcon,
@@ -87,7 +87,7 @@ function WikiAnchor({
 
 export function wikiMarkdownComponents(
   onInspect?: (ref: InspectableContextRef) => void,
-  _entitySources: AgentEntitySource[] = [],
+  _entityCatalog: AgentEntityCatalogEntry[] = [],
   renderWikiLabel?: WikiLabelRenderer,
 ): Components {
   return {

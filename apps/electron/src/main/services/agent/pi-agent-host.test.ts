@@ -14,7 +14,7 @@ import {
   normalizeGeneratedThreadTitle,
   PiAgentHost,
 } from "./pi-agent-host";
-import { AgentEntitySourceRegistry } from "./agent-entity-sources";
+import { AgentEntityCatalog } from "./agent-entity-catalog";
 import { AgentSessionLog } from "./pi-session-log";
 
 const createAgentSessionMock = vi.hoisted(() => vi.fn());
@@ -168,13 +168,13 @@ describe("PiAgentHost", () => {
     ).toBe("Cannot find module './openai-completions-old.js'");
   });
 
-  test("decorates approved mutation outputs as entity refs", async () => {
+  test("collects approved mutation outputs in the entity catalog", async () => {
     isPiApprovalToolNameMock.mockImplementation((name) => name === "understanding_create");
     executePiApprovedToolMock.mockResolvedValue({
       resultRefType: "understanding",
       resultRefId: "understanding_1",
     });
-    const registry = new AgentEntitySourceRegistry([], () => "rf_understanding");
+    const catalog = new AgentEntityCatalog();
 
     const output = await (
       new PiAgentHost(tempRoot()) as unknown as {
@@ -182,7 +182,7 @@ describe("PiAgentHost", () => {
           requested: AgentSessionEvent & {
             type: "approval.requested";
           },
-          registry: AgentEntitySourceRegistry,
+          registry: AgentEntityCatalog,
         ) => Promise<unknown>;
       }
     ).executeApprovedTool(
@@ -199,17 +199,16 @@ describe("PiAgentHost", () => {
         payload: { title: "A", body: "B" },
         createdAt: "2026-06-26T00:00:00.000Z",
       },
-      registry,
+      catalog,
     );
 
     expect(output).toEqual({
       resultRefType: "understanding",
       resultRefId: "understanding_1",
-      resultRef: "[[understanding:understanding_1]]",
     });
-    expect(registry.drainUpdates()).toEqual([
+    expect(catalog.drainUpdates()).toEqual([
       {
-        sourceId: "rf_understanding",
+        key: "understanding:understanding_1",
         entity: { type: "understanding", id: "understanding_1" },
         origin: {
           kind: "tool_result",
@@ -259,7 +258,7 @@ describe("PiAgentHost", () => {
       "approval.requested",
       "approval.resolved",
       "tool.execution.started",
-      "entity.sources.updated",
+      "entity.catalog.updated",
       "tool.execution.completed",
       "assistant.turn",
     ]);
@@ -270,7 +269,6 @@ describe("PiAgentHost", () => {
       output: {
         resultRefType: "understanding",
         resultRefId: "understanding_1",
-        resultRef: "[[understanding:understanding_1]]",
       },
     });
   });
@@ -392,7 +390,7 @@ describe("PiAgentHost", () => {
     ]);
   });
 
-  test("persists entity sources for user context refs before the user message", async () => {
+  test("persists entity catalog entries for user context refs before the user message", async () => {
     const root = tempRoot();
     const log = new AgentSessionLog(root);
     const thread = log.createSession("新对话");
@@ -459,23 +457,25 @@ describe("PiAgentHost", () => {
     expect(createAgentSessionMock).toHaveBeenCalledTimes(1);
     expect(newEvents.map((event) => event.type).slice(0, 3)).toEqual([
       "run.started",
-      "entity.sources.updated",
+      "entity.catalog.updated",
       "user.message",
     ]);
-    const sourceUpdate = events.find((event) => event.type === "entity.sources.updated");
-    if (sourceUpdate?.type !== "entity.sources.updated") {
-      throw new Error("Expected entity source update event");
+    const catalogUpdate = events.find((event) => event.type === "entity.catalog.updated");
+    if (catalogUpdate?.type !== "entity.catalog.updated") {
+      throw new Error("Expected entity catalog update event");
     }
-    const source = sourceUpdate.sources[0];
-    expect(source).toEqual(
+    const entry = catalogUpdate.entries[0];
+    expect(entry).toEqual(
       expect.objectContaining({
+        key: "context:ctx_1",
         entity: { type: "context", id: "ctx_1", title: "一次复盘" },
         origin: { kind: "user_context", messageId: "user_1" },
       }),
     );
-    expect(source?.sourceId).toMatch(/^rf_[a-z0-9]+$/);
-    expect(promptCalls[0]).toContain("[[context:ctx_1]] Context: 一次复盘 (id: ctx_1)");
-    expect(promptCalls[0]).not.toContain(`[[ref:${source?.sourceId}]]`);
+    expect(promptCalls[0]).toContain("Context: 一次复盘; id=ctx_1");
+    expect(promptCalls[0]).toContain("structured final-answer entity_ref");
+    expect(promptCalls[0]).not.toContain("[[");
+    expect(promptCalls[0]).not.toContain("sourceId");
   });
 
   test("persists provider usage on the assistant turn", async () => {

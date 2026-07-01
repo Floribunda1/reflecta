@@ -5,9 +5,9 @@ describe("buildPiPromptText", () => {
   test("injects selected context refs as lightweight references", () => {
     const prompt = buildPiPromptText({
       text: "请比较这些引用",
-      contextSources: [
+      contextCatalog: [
         {
-          sourceId: "rf_understanding",
+          key: "understanding:understanding-1",
           entity: {
             type: "understanding",
             id: "understanding-1",
@@ -16,7 +16,7 @@ describe("buildPiPromptText", () => {
           origin: { kind: "user_context", messageId: "user-1" },
         },
         {
-          sourceId: "rf_domain",
+          key: "domain:domain-1",
           entity: { type: "domain", id: "domain-1", title: "React" },
           origin: { kind: "user_context", messageId: "user-1" },
         },
@@ -24,12 +24,13 @@ describe("buildPiPromptText", () => {
     });
 
     expect(prompt).toContain("请比较这些引用");
-    expect(prompt).toContain(
-      "[[understanding:understanding-1]] Understanding: React Server Components (id: understanding-1)",
-    );
-    expect(prompt).toContain("[[domain:domain-1]] Domain: React (id: domain-1)");
-    expect(prompt).toContain("轻量引用");
-    expect(prompt).toContain("工具参数使用 id，聊天正文引用使用 ref");
+    expect(prompt).toContain("Understanding: React Server Components; id=understanding-1");
+    expect(prompt).toContain("Domain: React; id=domain-1");
+    expect(prompt).toContain("轻量实体目录");
+    expect(prompt).toContain("工具参数使用 id");
+    expect(prompt).toContain("structured final-answer entity_ref");
+    expect(prompt).not.toContain("[[");
+    expect(prompt).not.toContain("sourceId");
   });
 
   test("injects attachment metadata without embedding file data URLs", () => {

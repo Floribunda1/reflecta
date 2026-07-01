@@ -56,7 +56,6 @@ const mediumParameter = Type.Union(mediums.map((medium) => Type.Literal(medium))
 type PiMutationOutput = {
   resultRefType: "understanding" | "domain" | "context";
   resultRefId?: string;
-  resultRef?: string;
 };
 export type PiApprovedToolOutput = PiMutationOutput | Awaited<ReturnType<typeof runBashForTool>>;
 type PiApprovedToolResultDetails = PiApprovedToolOutput & {

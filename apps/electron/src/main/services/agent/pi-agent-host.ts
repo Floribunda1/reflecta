@@ -45,7 +45,7 @@ import {
 } from "../../config";
 import { agentLog } from "../../logger";
 import { AgentRunAccumulator } from "./agent-run-accumulator";
-import { AgentEntitySourceRegistry } from "./agent-entity-sources";
+import { AgentEntityCatalog } from "./agent-entity-catalog";
 import { AgentSessionLog } from "./pi-session-log";
 import { formatAgentError } from "./error";
 import { buildPiPromptText } from "./pi-prompt";
@@ -70,7 +70,7 @@ type ActivePiRun = {
   session: AgentSession;
   accumulator: AgentRunAccumulator;
   pendingApprovals: Map<string, PendingApproval>;
-  entitySourceRegistry: AgentEntitySourceRegistry;
+  entityCatalog: AgentEntityCatalog;
 };
 
 type PendingApproval = {
@@ -350,10 +350,6 @@ function toolExecutionError(error: unknown): AgentToolExecutionError {
   return { message: formatAgentError(error) };
 }
 
-function typedEntityRef(type: AgentContextRef["type"], id: string) {
-  return `[[${type}:${id}]]`;
-}
-
 function piToolOutput(result: unknown): unknown {
   return isRecord(result) && "details" in result ? result.details : result;
 }
@@ -590,7 +586,7 @@ export class PiAgentHost {
   private async createSession(
     command: Extract<AgentCommand, { type: "message.send" }>,
     sessionManager: SessionManager,
-    entitySourceRegistry: AgentEntitySourceRegistry,
+    entityCatalog: AgentEntityCatalog,
   ) {
     const modelConfig = getAiModelConfig(command.modelSelection as AiModelSelection | undefined);
     const agentDir = path.join(this.contentStorageRoot, ".pi-agent");
@@ -609,8 +605,8 @@ export class PiAgentHost {
       authStorage,
       customTools: [
         ...createPiReadOnlyTools(command.files, {
-          decorateToolOutput: (toolName, toolCallId, output) =>
-            entitySourceRegistry.decorateToolOutput(toolName, toolCallId, output),
+          collectToolOutput: (toolName, toolCallId, output) =>
+            entityCatalog.collectToolOutput(toolName, toolCallId, output),
         }),
         ...createPiWriteTools({
           onApproval: ({ toolCallId }) => this.waitForToolApproval(command.sessionId, toolCallId),
@@ -646,23 +642,23 @@ export class PiAgentHost {
     if (!webContents.isDestroyed()) webContents.send(AGENT_EVENT_CHANNEL, event);
   }
 
-  private appendEntitySourceUpdates(
+  private appendEntityCatalogUpdates(
     manager: SessionManager,
     webContents: WebContents,
     sessionId: string,
     runId: string,
-    registry: AgentEntitySourceRegistry,
+    registry: AgentEntityCatalog,
   ): void {
-    const sourceUpdates = registry.drainUpdates();
-    if (sourceUpdates.length === 0) return;
+    const catalogUpdates = registry.drainUpdates();
+    if (catalogUpdates.length === 0) return;
     this.appendAndEmit(
       manager,
       webContents,
       this.createEvent({
-        type: "entity.sources.updated",
+        type: "entity.catalog.updated",
         sessionId,
         runId,
-        sources: sourceUpdates,
+        entries: catalogUpdates,
       }),
     );
   }
@@ -743,13 +739,10 @@ export class PiAgentHost {
     const manager = command.messageId
       ? await this.sessionLog.openSessionForEditedMessage(command.sessionId, command.messageId)
       : await this.sessionLog.openSession(command.sessionId);
-    const entitySourceRegistry = new AgentEntitySourceRegistry(
-      reduceAgentSession(this.sessionLog.eventsFromManager(manager)).entitySources,
+    const entityCatalog = new AgentEntityCatalog(
+      reduceAgentSession(this.sessionLog.eventsFromManager(manager)).entityCatalog,
     );
-    const contextSources = entitySourceRegistry.addUserContextRefs(
-      userMessageId,
-      command.contextRefs,
-    );
+    const contextCatalog = entityCatalog.addUserContextRefs(userMessageId, command.contextRefs);
     let session: AgentSession | undefined;
     let unsubscribe: (() => void) | undefined;
     let assistantText = "";
@@ -763,20 +756,20 @@ export class PiAgentHost {
       accumulator.append(event);
       this.emitLive(webContents, event);
     };
-    const emitEntitySourceUpdates = () => {
-      this.appendEntitySourceUpdates(
+    const emitEntityCatalogUpdates = () => {
+      this.appendEntityCatalogUpdates(
         manager,
         webContents,
         command.sessionId,
         runId,
-        entitySourceRegistry,
+        entityCatalog,
       );
     };
     const emitRunStarted = () => {
       if (runStarted) return;
       runStarted = true;
       emit(this.createEvent({ type: "run.started", sessionId: command.sessionId, runId }));
-      emitEntitySourceUpdates();
+      emitEntityCatalogUpdates();
       emit(
         this.createEvent({
           type: "user.message",
@@ -792,7 +785,7 @@ export class PiAgentHost {
     };
 
     try {
-      const created = await this.createSession(command, manager, entitySourceRegistry);
+      const created = await this.createSession(command, manager, entityCatalog);
       session = created.session;
       this.activeRuns.set(command.sessionId, {
         runId,
@@ -800,7 +793,7 @@ export class PiAgentHost {
         session,
         accumulator,
         pendingApprovals: new Map(),
-        entitySourceRegistry,
+        entityCatalog,
       });
       unsubscribe = session.subscribe((event) => {
         if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
@@ -885,7 +878,7 @@ export class PiAgentHost {
               );
               return;
             }
-            emitEntitySourceUpdates();
+            emitEntityCatalogUpdates();
             emitAccumulated(
               this.createEvent({
                 type: "tool.completed",
@@ -913,7 +906,7 @@ export class PiAgentHost {
             );
             return;
           }
-          emitEntitySourceUpdates();
+          emitEntityCatalogUpdates();
           emitAccumulated(
             this.createEvent({
               type: "tool.completed",
@@ -959,7 +952,7 @@ export class PiAgentHost {
         buildPiPromptText({
           text: command.text,
           contextRefs: command.contextRefs,
-          contextSources,
+          contextCatalog,
           files: command.files,
         }),
       );
@@ -1110,14 +1103,14 @@ export class PiAgentHost {
         return;
       }
       this.appendToolExecutionStarted(manager, webContents, requested);
-      void this.executeApprovedTool(requested, active.entitySourceRegistry).then(
+      void this.executeApprovedTool(requested, active.entityCatalog).then(
         (output) => {
-          this.appendEntitySourceUpdates(
+          this.appendEntityCatalogUpdates(
             manager,
             webContents,
             requested.sessionId,
             requested.runId,
-            active.entitySourceRegistry,
+            active.entityCatalog,
           );
           this.appendToolExecutionCompleted(manager, webContents, requested, output);
           pending.resolve(output);
@@ -1138,9 +1131,9 @@ export class PiAgentHost {
     );
     try {
       this.appendToolExecutionStarted(manager, webContents, requested);
-      const registry = new AgentEntitySourceRegistry(reduceAgentSession(events).entitySources);
+      const registry = new AgentEntityCatalog(reduceAgentSession(events).entityCatalog);
       const output = await this.executeApprovedTool(requested, registry);
-      this.appendEntitySourceUpdates(
+      this.appendEntityCatalogUpdates(
         manager,
         webContents,
         requested.sessionId,
@@ -1181,7 +1174,7 @@ export class PiAgentHost {
 
   private async executeApprovedTool(
     requested: AgentApprovalRequested,
-    registry?: AgentEntitySourceRegistry,
+    registry?: AgentEntityCatalog,
   ): Promise<PiApprovedToolOutput> {
     if (!isPiApprovalToolName(requested.toolName)) {
       throw new Error(`Unsupported approval tool: ${requested.toolName}`);
@@ -1196,17 +1189,14 @@ export class PiAgentHost {
   private decorateApprovedToolOutput(
     requested: AgentApprovalRequested,
     output: PiApprovedToolOutput,
-    registry?: AgentEntitySourceRegistry,
+    registry?: AgentEntityCatalog,
   ): PiApprovedToolOutput {
     if (!registry || !isMutationOutput(output)) return output;
-    const source = registry.addEntity(
+    registry.addEntity(
       { type: output.resultRefType, id: output.resultRefId },
       { kind: "tool_result", toolCallId: requested.toolCallId, toolName: requested.toolName },
     );
-    return {
-      ...output,
-      resultRef: typedEntityRef(source.entity.type, source.entity.id),
-    };
+    return output;
   }
 }
 

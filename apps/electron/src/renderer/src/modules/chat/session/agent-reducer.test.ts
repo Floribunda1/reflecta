@@ -13,15 +13,15 @@ const base = {
 };
 
 describe("reduceAgentSession", () => {
-  test("restores entity sources from session events", () => {
+  test("restores entity catalog from session events", () => {
     const events: AgentSessionEvent[] = [
       {
         ...base,
         id: "evt_1",
-        type: "entity.sources.updated",
-        sources: [
+        type: "entity.catalog.updated",
+        entries: [
           {
-            sourceId: "S1",
+            key: "context:ctx_1",
             entity: { type: "context", id: "ctx_1", title: "一次产品复盘" },
             origin: { kind: "user_context", messageId: "user_1" },
           },
@@ -30,15 +30,15 @@ describe("reduceAgentSession", () => {
       {
         ...base,
         id: "evt_2",
-        type: "entity.sources.updated",
-        sources: [
+        type: "entity.catalog.updated",
+        entries: [
           {
-            sourceId: "S1",
+            key: "context:ctx_1",
             entity: { type: "context", id: "ctx_1", title: "更新后的标题" },
             origin: { kind: "user_context", messageId: "user_1" },
           },
           {
-            sourceId: "S2",
+            key: "understanding:u_1",
             entity: { type: "understanding", id: "u_1", title: "Feedback Loop" },
             origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "retrieve_knowledge" },
           },
@@ -48,14 +48,14 @@ describe("reduceAgentSession", () => {
 
     const state = reduceAgentSession(events);
 
-    expect(state.entitySources).toEqual([
+    expect(state.entityCatalog).toEqual([
       {
-        sourceId: "S1",
+        key: "context:ctx_1",
         entity: { type: "context", id: "ctx_1", title: "更新后的标题" },
         origin: { kind: "user_context", messageId: "user_1" },
       },
       {
-        sourceId: "S2",
+        key: "understanding:u_1",
         entity: { type: "understanding", id: "u_1", title: "Feedback Loop" },
         origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "retrieve_knowledge" },
       },
