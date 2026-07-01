@@ -1,6 +1,15 @@
 import Ajv from "ajv";
-import { parseJsonWithRepair, parseStreamingJson } from "@earendil-works/pi-ai/base";
+import {
+  getModel,
+  parseJsonWithRepair,
+  parseStreamingJson,
+  stream,
+  type Api,
+  type Context,
+  type Model,
+} from "@earendil-works/pi-ai";
 import type { AgentEntityCatalogEntry, AgentTextPart } from "@shared/agent";
+import type { ResolvedAiModelConfig } from "../../config";
 import { validateFinalAnswerParts } from "./agent-text-parts";
 
 export type FinalAnswer = {
@@ -70,6 +79,88 @@ const validateFinalAnswerJson = ajv.compile<FinalAnswer>(FINAL_ANSWER_JSON_SCHEM
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function withFinalAnswerStructuredOutput(payload: unknown): unknown {
+  if (!isRecord(payload)) return payload;
+  if ("input" in payload) {
+    return {
+      ...payload,
+      text: {
+        ...(isRecord(payload.text) ? payload.text : {}),
+        format: {
+          type: "json_schema",
+          name: "reflecta_final_answer",
+          strict: true,
+          schema: FINAL_ANSWER_JSON_SCHEMA,
+        },
+      },
+    };
+  }
+  if ("messages" in payload) {
+    return {
+      ...payload,
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "reflecta_final_answer",
+          strict: true,
+          schema: FINAL_ANSWER_JSON_SCHEMA,
+        },
+      },
+    };
+  }
+  return payload;
+}
+
+export function resolveFinalizerModel(providerId: string, modelId: string): Model<Api> {
+  const model = (getModel as (provider: string, modelId: string) => Model<Api> | undefined)(
+    providerId,
+    modelId,
+  );
+  if (!model) throw new Error(`Finalizer model not found: ${providerId}/${modelId}`);
+  return model;
+}
+
+export function buildFinalizerContext(input: RunAgentFinalizerInput): Context {
+  return {
+    systemPrompt:
+      "你是 Reflecta 的最终答案格式化器。只输出符合 schema 的 JSON。parts 中可以交替使用 text 和 entity_ref。entity_ref.entityId 必须来自给定 entityCatalog，不允许编造。",
+    messages: [
+      {
+        role: "user",
+        content: JSON.stringify({
+          userQuestion: input.userQuestion,
+          piDraftText: input.piDraftText,
+          toolResults: input.toolResults,
+          entityCatalog: input.entityCatalog,
+          requiresEntityRefs: input.requiresEntityRefs,
+        }),
+        timestamp: Date.now(),
+      },
+    ],
+  };
+}
+
+export function createPiAiFinalizerStream(input: {
+  modelConfig: ResolvedAiModelConfig;
+  apiKey: string;
+}): AgentFinalizerDeps["streamJson"] {
+  const model = resolveFinalizerModel(input.modelConfig.provider.id, input.modelConfig.model.id);
+  return async function* streamJson(finalizerInput) {
+    const eventStream = stream(model, buildFinalizerContext(finalizerInput), {
+      apiKey: input.apiKey,
+      signal: finalizerInput.signal,
+      temperature: 0,
+      onPayload: (payload) => withFinalAnswerStructuredOutput(payload),
+    });
+    for await (const event of eventStream) {
+      if (event.type === "text_delta") yield event.delta;
+      if (event.type === "error") {
+        throw new Error(event.error.errorMessage ?? "最终答案生成失败");
+      }
+    }
+  };
 }
 
 function stablePartsFromPartial(value: unknown): AgentTextPart[] {

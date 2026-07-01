@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import { runAgentFinalizer } from "./agent-finalizer";
+import { runAgentFinalizer, withFinalAnswerStructuredOutput } from "./agent-finalizer";
 
 async function* chunks(values: string[]) {
   for (const value of values) yield value;
@@ -95,5 +95,44 @@ describe("runAgentFinalizer", () => {
         },
       ),
     ).rejects.toThrow("缺少必要实体引用");
+  });
+
+  test("patches OpenAI Responses payload with structured text format", () => {
+    expect(
+      withFinalAnswerStructuredOutput({
+        model: "gpt-4o",
+        input: [],
+        stream: true,
+        store: false,
+      }),
+    ).toMatchObject({
+      text: {
+        format: {
+          type: "json_schema",
+          name: "reflecta_final_answer",
+          strict: true,
+          schema: expect.objectContaining({ required: ["parts"] }),
+        },
+      },
+    });
+  });
+
+  test("patches OpenAI Chat Completions payload with response_format", () => {
+    expect(
+      withFinalAnswerStructuredOutput({
+        model: "gpt-4o",
+        messages: [],
+        stream: true,
+      }),
+    ).toMatchObject({
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "reflecta_final_answer",
+          strict: true,
+          schema: expect.objectContaining({ required: ["parts"] }),
+        },
+      },
+    });
   });
 });
