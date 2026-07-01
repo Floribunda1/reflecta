@@ -81,15 +81,38 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function supportsProviderStructuredOutput(model: Model<Api> | undefined): boolean {
-  if (!model) return true;
-  return model.api === "openai-responses" || model.api === "azure-openai-responses";
+type FinalAnswerObjectMode = "responses_json_schema" | "chat_json_object" | "unsupported";
+
+function finalAnswerObjectMode(payload: unknown, model?: Model<Api>): FinalAnswerObjectMode {
+  if (!isRecord(payload)) return "unsupported";
+  if (
+    "input" in payload &&
+    (model?.api === "openai-responses" || model?.api === "azure-openai-responses")
+  ) {
+    return "responses_json_schema";
+  }
+  if ("messages" in payload && model?.api === "openai-completions") {
+    return "chat_json_object";
+  }
+  return "unsupported";
+}
+
+function assertFinalAnswerObjectGenerationSupported(model: Model<Api>): void {
+  if (
+    model.api === "openai-responses" ||
+    model.api === "azure-openai-responses" ||
+    model.api === "openai-completions"
+  ) {
+    return;
+  }
+  throw new Error(`当前模型不支持最终答案对象生成: ${model.provider}/${model.id} (${model.api})`);
 }
 
 export function withFinalAnswerStructuredOutput(payload: unknown, model?: Model<Api>): unknown {
   if (!isRecord(payload)) return payload;
-  if (!supportsProviderStructuredOutput(model)) return payload;
-  if ("input" in payload) {
+
+  const mode = finalAnswerObjectMode(payload, model);
+  if (mode === "responses_json_schema") {
     return {
       ...payload,
       text: {
@@ -103,19 +126,16 @@ export function withFinalAnswerStructuredOutput(payload: unknown, model?: Model<
       },
     };
   }
-  if ("messages" in payload) {
+
+  if (mode === "chat_json_object") {
     return {
       ...payload,
       response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "reflecta_final_answer",
-          strict: true,
-          schema: FINAL_ANSWER_JSON_SCHEMA,
-        },
+        type: "json_object",
       },
     };
   }
+
   return payload;
 }
 
@@ -130,8 +150,15 @@ export function resolveFinalizerModel(providerId: string, modelId: string): Mode
 
 export function buildFinalizerContext(input: RunAgentFinalizerInput): Context {
   return {
-    systemPrompt:
-      "你是 Reflecta 的最终答案格式化器。只输出符合 schema 的 JSON。parts 中可以交替使用 text 和 entity_ref。entity_ref.entityId 必须来自给定 entityCatalog，不允许编造。",
+    systemPrompt: [
+      "你是 Reflecta 的最终答案对象生成器。",
+      "你必须只输出一个有效 json object，不输出 markdown，不输出解释，不输出普通正文。",
+      "json object 必须匹配这个形状：",
+      '{"parts":[{"type":"text","text":"文字"},{"type":"entity_ref","entityType":"domain","entityId":"domain_id","fallbackText":"标题"}]}',
+      "parts 中可以交替使用 text 和 entity_ref。",
+      "entity_ref.entityId 必须来自给定 entityCatalog，不允许编造。",
+      "如果 requiresEntityRefs 为 true，parts 至少包含一个 entity_ref。",
+    ].join("\n"),
     messages: [
       {
         role: "user",
@@ -154,10 +181,12 @@ export function createPiAiFinalizerStream(input: {
 }): AgentFinalizerDeps["streamJson"] {
   const model = resolveFinalizerModel(input.modelConfig.provider.id, input.modelConfig.model.id);
   return async function* streamJson(finalizerInput) {
+    assertFinalAnswerObjectGenerationSupported(model);
     const eventStream = stream(model, buildFinalizerContext(finalizerInput), {
       apiKey: input.apiKey,
       signal: finalizerInput.signal,
       temperature: 0,
+      maxTokens: Math.min(model.maxTokens, 4096),
       onPayload: (payload, model) => withFinalAnswerStructuredOutput(payload, model),
     });
     for await (const event of eventStream) {
@@ -213,7 +242,13 @@ function splitPreviewText(parts: AgentTextPart[]): {
 }
 
 function finalAnswerFromRawJson(rawJson: string): FinalAnswer {
-  const parsed = parseJsonWithRepair<unknown>(rawJson);
+  let parsed: unknown;
+  try {
+    parsed = parseJsonWithRepair<unknown>(rawJson);
+  } catch {
+    throw new Error("最终答案对象生成失败: provider 返回了普通文本而不是有效 JSON object");
+  }
+
   if (!validateFinalAnswerJson(parsed)) {
     const message = ajv.errorsText(validateFinalAnswerJson.errors, { separator: "; " });
     throw new Error(`最终答案结构化失败: ${message}`);

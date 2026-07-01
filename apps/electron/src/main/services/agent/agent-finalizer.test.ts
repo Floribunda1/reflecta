@@ -1,6 +1,10 @@
 import { describe, expect, test, vi } from "vitest";
 import type { Api, Model } from "@earendil-works/pi-ai";
-import { runAgentFinalizer, withFinalAnswerStructuredOutput } from "./agent-finalizer";
+import {
+  buildFinalizerContext,
+  runAgentFinalizer,
+  withFinalAnswerStructuredOutput,
+} from "./agent-finalizer";
 
 async function* chunks(values: string[]) {
   for (const value of values) yield value;
@@ -17,6 +21,11 @@ const catalog = [
 const opencodeGoModel = {
   api: "openai-completions",
   provider: "opencode-go",
+} as Model<Api>;
+
+const openAiResponsesModel = {
+  api: "openai-responses",
+  provider: "openai",
 } as Model<Api>;
 
 describe("runAgentFinalizer", () => {
@@ -128,12 +137,15 @@ describe("runAgentFinalizer", () => {
 
   test("patches OpenAI Responses payload with structured text format", () => {
     expect(
-      withFinalAnswerStructuredOutput({
-        model: "gpt-4o",
-        input: [],
-        stream: true,
-        store: false,
-      }),
+      withFinalAnswerStructuredOutput(
+        {
+          model: "gpt-4o",
+          input: [],
+          stream: true,
+          store: false,
+        },
+        openAiResponsesModel,
+      ),
     ).toMatchObject({
       text: {
         format: {
@@ -146,26 +158,7 @@ describe("runAgentFinalizer", () => {
     });
   });
 
-  test("patches OpenAI Chat Completions payload with response_format", () => {
-    expect(
-      withFinalAnswerStructuredOutput({
-        model: "gpt-4o",
-        messages: [],
-        stream: true,
-      }),
-    ).toMatchObject({
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "reflecta_final_answer",
-          strict: true,
-          schema: expect.objectContaining({ required: ["parts"] }),
-        },
-      },
-    });
-  });
-
-  test("keeps non-native structured output providers unchanged when model is known", () => {
+  test("patches OpenAI-compatible chat payload with JSON object mode", () => {
     expect(
       withFinalAnswerStructuredOutput(
         {
@@ -179,6 +172,42 @@ describe("runAgentFinalizer", () => {
       model: "deepseek-v4-flash",
       messages: [],
       stream: true,
+      response_format: {
+        type: "json_object",
+      },
     });
+  });
+
+  test("reports prose finalizer output as object generation failure instead of raw JSON parse error", async () => {
+    await expect(
+      runAgentFinalizer(
+        {
+          userQuestion: "根据知识库回答",
+          piDraftText: "三观相关。",
+          toolResults: [],
+          entityCatalog: catalog,
+          requiresEntityRefs: true,
+          onPartial: vi.fn(),
+        },
+        {
+          streamJson: () => chunks(["好的，我已经通读了你的资料。"]),
+        },
+      ),
+    ).rejects.toThrow("最终答案对象生成失败");
+  });
+
+  test("builds a JSON-mode friendly finalizer prompt", () => {
+    const context = buildFinalizerContext({
+      userQuestion: "根据知识库回答",
+      piDraftText: "三观相关。",
+      toolResults: [],
+      entityCatalog: catalog,
+      requiresEntityRefs: true,
+      onPartial: vi.fn(),
+    });
+
+    expect(context.systemPrompt).toContain("json");
+    expect(context.systemPrompt).toContain('"parts"');
+    expect(context.systemPrompt).toContain('"entity_ref"');
   });
 });
