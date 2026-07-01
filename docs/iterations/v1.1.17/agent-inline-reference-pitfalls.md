@@ -120,7 +120,7 @@ Agent 最终答案的正文里，需要出现可点击的 Reflecta 实体引用�
 
 - 只要它是 optional，模型就可以不调用。
 - 模型仍然可以直接输出普通 assistant text。
-- tool 参数失败或实体 id 无效时，如果 UI 没有稳定失败状态，用户看到的是“已确认但没生效”。
+- 实体 id 无效时，如果系统没有把最终答案判失败，用户会看到一段看似正常但实际没有可靠引用的正文。
 
 结论：**optional structured tool 不是 hard final answer protocol。**
 
@@ -213,19 +213,7 @@ Reflecta finalizer 再把答案重写成 JSON parts
 
 结论：**引用协议不能破坏普通 markdown text 的基本渲染。**
 
-### 1.13 tool failed 状态没显式显示
-
-早期还有“用户确认了工具调用，但最终执行失败却仍显示已确认”的问题。
-
-实际问题：
-
-- approval 状态和 execution 状态混在一起。
-- “已确认”不等于“已执行成功”。
-- 失败原因没有稳定进入 assistant turn block。
-
-结论：**工具状态必须区分 approval 与 execution；执行失败必须在 UI 里显示失败原因。**
-
-### 1.14 迁移和兼容包袱
+### 1.13 迁移和兼容包袱
 
 历史里出现过 `rf_*`、`[[ref:*]]`、旧 `entity.sources.updated`、旧 tool output 字段等。
 
@@ -309,13 +297,12 @@ main answer text -> finalizer rewrite whole answer into parts
 
 这些都必须显式处理：
 
-- tool execution failed
 - final answer parse failed
 - entity id 不在 catalog
 - required reference 缺失
 - provider 不支持当前结构化能力
 
-不能悄悄显示“已确认”或把坏引用变普通文本假装成功。
+不能悄悄把坏引用变普通文本假装成功。
 
 ## 4. 最小心智模型
 
