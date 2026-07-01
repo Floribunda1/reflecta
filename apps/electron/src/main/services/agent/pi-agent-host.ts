@@ -827,6 +827,17 @@ export class PiAgentHost {
         if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
           piDraftText += event.assistantMessageEvent.delta;
           assistantActivity = true;
+          if (entityCatalog.snapshot().length === 0) {
+            emitAccumulated(
+              this.createEvent({
+                type: "assistant.text.delta",
+                sessionId: command.sessionId,
+                runId,
+                messageId: assistantMessageId,
+                delta: event.assistantMessageEvent.delta,
+              }),
+            );
+          }
           return;
         }
 

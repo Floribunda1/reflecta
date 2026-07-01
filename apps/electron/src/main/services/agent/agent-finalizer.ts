@@ -81,8 +81,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function withFinalAnswerStructuredOutput(payload: unknown): unknown {
+function supportsProviderStructuredOutput(model: Model<Api> | undefined): boolean {
+  if (!model) return true;
+  return model.api === "openai-responses" || model.api === "azure-openai-responses";
+}
+
+export function withFinalAnswerStructuredOutput(payload: unknown, model?: Model<Api>): unknown {
   if (!isRecord(payload)) return payload;
+  if (!supportsProviderStructuredOutput(model)) return payload;
   if ("input" in payload) {
     return {
       ...payload,
@@ -152,7 +158,7 @@ export function createPiAiFinalizerStream(input: {
       apiKey: input.apiKey,
       signal: finalizerInput.signal,
       temperature: 0,
-      onPayload: (payload) => withFinalAnswerStructuredOutput(payload),
+      onPayload: (payload, model) => withFinalAnswerStructuredOutput(payload, model),
     });
     for await (const event of eventStream) {
       if (event.type === "text_delta") yield event.delta;
@@ -251,6 +257,15 @@ export async function runAgentFinalizer(
   input: RunAgentFinalizerInput,
   deps: AgentFinalizerDeps,
 ): Promise<RunAgentFinalizerResult> {
+  if (!input.requiresEntityRefs && input.entityCatalog.length === 0) {
+    const result = {
+      text: input.piDraftText,
+      parts: [{ type: "text" as const, text: input.piDraftText }],
+    };
+    input.onPartial(result);
+    return result;
+  }
+
   const maxAttempts = deps.maxAttempts ?? 2;
   let lastError: unknown;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {

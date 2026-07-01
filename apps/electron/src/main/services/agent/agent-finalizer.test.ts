@@ -1,4 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
+import type { Api, Model } from "@earendil-works/pi-ai";
 import { runAgentFinalizer, withFinalAnswerStructuredOutput } from "./agent-finalizer";
 
 async function* chunks(values: string[]) {
@@ -13,7 +14,35 @@ const catalog = [
   },
 ];
 
+const opencodeGoModel = {
+  api: "openai-completions",
+  provider: "opencode-go",
+} as Model<Api>;
+
 describe("runAgentFinalizer", () => {
+  test("returns Pi draft text directly when no entity refs are needed", async () => {
+    const onPartial = vi.fn();
+    const streamJson = vi.fn();
+    const result = await runAgentFinalizer(
+      {
+        userQuestion: "hello",
+        piDraftText: "plain markdown **reply**",
+        toolResults: [],
+        entityCatalog: [],
+        requiresEntityRefs: false,
+        onPartial,
+      },
+      { streamJson },
+    );
+
+    expect(result).toEqual({
+      text: "plain markdown **reply**",
+      parts: [{ type: "text", text: "plain markdown **reply**" }],
+    });
+    expect(onPartial).toHaveBeenCalledWith(result);
+    expect(streamJson).not.toHaveBeenCalled();
+  });
+
   test("streams stable parts and preview text before returning the final answer", async () => {
     const onPartial = vi.fn();
     const result = await runAgentFinalizer(
@@ -133,6 +162,23 @@ describe("runAgentFinalizer", () => {
           schema: expect.objectContaining({ required: ["parts"] }),
         },
       },
+    });
+  });
+
+  test("keeps non-native structured output providers unchanged when model is known", () => {
+    expect(
+      withFinalAnswerStructuredOutput(
+        {
+          model: "deepseek-v4-flash",
+          messages: [],
+          stream: true,
+        },
+        opencodeGoModel,
+      ),
+    ).toEqual({
+      model: "deepseek-v4-flash",
+      messages: [],
+      stream: true,
     });
   });
 });
