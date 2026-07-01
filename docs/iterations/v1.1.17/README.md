@@ -49,3 +49,4 @@ v1.1.17 的判定标准：
 ## 文档
 
 - [Agent 最终答案协议资格审查](tech/final-answer-protocol-qualification.md)
+- [Final Answer Object Generator 实现计划](tech/final-answer-object-generator-plan.md)
