@@ -6,7 +6,10 @@ Agent 正文内联实体引用架构重审。
 
 ## 结论
 
-当前最终结论见 [Agent Inline References Clean Architecture](agent-inline-reference-clean-architecture.md)。
+接手这个模块时，先读 [Agent Inline Reference Module Mental Model](agent-inline-reference-module-mental-model.md)。
+它解释模块边界、核心不变量和代码责任分布。
+
+当前最终架构结论见 [Agent Inline References Clean Architecture](agent-inline-reference-clean-architecture.md)。
 
 最干净的目标架构是：
 
@@ -54,6 +57,7 @@ Pi Agent final tool
 
 ## 文档
 
+- [Agent Inline Reference Module Mental Model](agent-inline-reference-module-mental-model.md)
 - [Agent Inline References Clean Architecture](agent-inline-reference-clean-architecture.md)
 - [Agent 正文引用踩坑记录](agent-inline-reference-pitfalls.md)
 - [Agent 最终答案协议资格审查](tech/final-answer-protocol-qualification.md)
