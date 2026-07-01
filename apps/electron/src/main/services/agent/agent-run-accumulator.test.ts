@@ -127,4 +127,42 @@ describe("AgentRunAccumulator", () => {
       },
     ]);
   });
+
+  test("shows execution failure even if approval is still pending", () => {
+    const accumulator = new AgentRunAccumulator();
+
+    accumulator.append({
+      ...base,
+      id: "evt_1",
+      type: "approval.requested",
+      approvalId: "approval_tool_1",
+      toolCallId: "tool_1",
+      toolName: "domain_update",
+      title: "候选修改 Domain",
+      payload: { domainId: "domain_1", name: "新名字" },
+    });
+    accumulator.append({
+      ...base,
+      id: "evt_2",
+      type: "tool.failed",
+      toolCallId: "tool_1",
+      toolName: "domain_update",
+      error: "Domain not found: domain_1",
+    });
+
+    expect(
+      accumulator.toAssistantTurn({
+        ...base,
+        id: "turn_1",
+        type: "assistant.turn",
+      }).blocks[0],
+    ).toMatchObject({
+      kind: "approval",
+      approvalState: "pending",
+      executionState: "failed",
+      displayState: "failed",
+      state: "failed",
+      error: "Domain not found: domain_1",
+    });
+  });
 });

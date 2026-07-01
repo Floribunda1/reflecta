@@ -27,6 +27,11 @@ export const PI_APPROVAL_TOOL_NAMES = [
 export type PiApprovalToolName = (typeof PI_APPROVAL_TOOL_NAMES)[number];
 
 const mediums = ["experience", "video", "book", "article", "opinion", "ai", "other"] as const;
+const wikiDisplayRefPattern = /\[\[[\s\S]*?\]\]/;
+const shortDisplayIdPattern = /^[UDCS]\d+$/i;
+const bracketedShortDisplayIdPattern = /^\[[UDCS]\d+\]$/i;
+const numberedCitationPattern = /^\[\d+\]$/;
+const oldRefIdPattern = /^rf_[A-Za-z0-9_-]+$/;
 const nullableStringParameter = Type.Union([Type.String(), Type.Null()]);
 const domainIdsParameter = Type.Optional(
   Type.Array(Type.String({ minLength: 1 }), {
@@ -324,6 +329,24 @@ function requiredString(payload: Record<string, unknown>, field: string): string
   return value;
 }
 
+function stableEntityId(value: string, field: string): string {
+  const trimmed = value.trim();
+  if (
+    wikiDisplayRefPattern.test(trimmed) ||
+    oldRefIdPattern.test(trimmed) ||
+    shortDisplayIdPattern.test(trimmed) ||
+    bracketedShortDisplayIdPattern.test(trimmed) ||
+    numberedCitationPattern.test(trimmed)
+  ) {
+    throw new Error(`${field} 必须使用 Reflecta 稳定实体 id，不能使用正文引用、短号或旧 ref。`);
+  }
+  return value;
+}
+
+function requiredStableEntityId(payload: Record<string, unknown>, field: string): string {
+  return stableEntityId(requiredString(payload, field), field);
+}
+
 function optionalString(payload: Record<string, unknown>, field: string): string | undefined {
   const value = payload[field];
   return typeof value === "string" ? value : undefined;
@@ -336,6 +359,14 @@ function optionalNullableString(
   const value = payload[field];
   if (value === null) return null;
   return typeof value === "string" ? value : undefined;
+}
+
+function optionalNullableStableEntityId(
+  payload: Record<string, unknown>,
+  field: string,
+): string | null | undefined {
+  const value = optionalNullableString(payload, field);
+  return typeof value === "string" ? stableEntityId(value, field) : value;
 }
 
 function optionalBoolean(payload: Record<string, unknown>, field: string): boolean | undefined {
@@ -356,6 +387,15 @@ function optionalStringArray(
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : undefined;
+}
+
+function optionalStableEntityIdArray(
+  payload: Record<string, unknown>,
+  field: string,
+): string[] | undefined {
+  return optionalStringArray(payload, field)?.map((value, index) =>
+    stableEntityId(value, `${field}[${index}]`),
+  );
 }
 
 function optionalRecord(payload: Record<string, unknown>, field: string): Record<string, unknown> {
@@ -382,7 +422,7 @@ function understandingCreateInput(payload: unknown): CreateUnderstandingInput {
   return {
     title: optionalString(record, "title"),
     body: requiredString(record, "body"),
-    domainIds: optionalStringArray(record, "domainIds"),
+    domainIds: optionalStableEntityIdArray(record, "domainIds"),
   };
 }
 
@@ -393,35 +433,36 @@ function understandingUpdateInput(payload: unknown): {
   const record = asPayload(payload);
   const after = optionalRecord(record, "after");
   return {
-    understandingId: requiredString(record, "understandingId"),
+    understandingId: requiredStableEntityId(record, "understandingId"),
     input: {
       title: optionalNullableString(after, "title") ?? optionalNullableString(record, "title"),
       body: optionalString(after, "body") ?? optionalString(record, "body"),
       domainIds:
-        optionalStringArray(after, "domainIds") ?? optionalStringArray(record, "domainIds"),
+        optionalStableEntityIdArray(after, "domainIds") ??
+        optionalStableEntityIdArray(record, "domainIds"),
     },
   };
 }
 
 function understandingDeleteInput(payload: unknown): string {
-  return requiredString(asPayload(payload), "understandingId");
+  return requiredStableEntityId(asPayload(payload), "understandingId");
 }
 
 function domainCreateInput(payload: unknown): CreateDomainInput {
   const record = asPayload(payload);
   return {
     name: requiredString(record, "name"),
-    parentId: optionalNullableString(record, "parentId"),
+    parentId: optionalNullableStableEntityId(record, "parentId"),
   };
 }
 
 function domainUpdateInput(payload: unknown): { domainId: string; input: UpdateDomainInput } {
   const record = asPayload(payload);
   return {
-    domainId: requiredString(record, "domainId"),
+    domainId: requiredStableEntityId(record, "domainId"),
     input: {
       name: optionalString(record, "name"),
-      parentId: optionalNullableString(record, "parentId"),
+      parentId: optionalNullableStableEntityId(record, "parentId"),
     },
   };
 }
@@ -429,7 +470,7 @@ function domainUpdateInput(payload: unknown): { domainId: string; input: UpdateD
 function domainDeleteInput(payload: unknown): { domainId: string; deleteUnderstandings?: boolean } {
   const record = asPayload(payload);
   return {
-    domainId: requiredString(record, "domainId"),
+    domainId: requiredStableEntityId(record, "domainId"),
     deleteUnderstandings: optionalBoolean(record, "deleteUnderstandings"),
   };
 }
@@ -437,7 +478,7 @@ function domainDeleteInput(payload: unknown): { domainId: string; deleteUndersta
 function contextCreateInput(payload: unknown): CreateContextInput {
   const record = asPayload(payload);
   return {
-    understandingId: requiredString(record, "understandingId"),
+    understandingId: requiredStableEntityId(record, "understandingId"),
     medium: medium(record, true),
     title: optionalString(record, "title"),
     content: requiredString(record, "content"),
@@ -447,7 +488,7 @@ function contextCreateInput(payload: unknown): CreateContextInput {
 function contextUpdateInput(payload: unknown): { contextId: string; input: UpdateContextInput } {
   const record = asPayload(payload);
   return {
-    contextId: requiredString(record, "contextId"),
+    contextId: requiredStableEntityId(record, "contextId"),
     input: {
       medium: medium(record),
       title: optionalString(record, "title"),
@@ -457,7 +498,7 @@ function contextUpdateInput(payload: unknown): { contextId: string; input: Updat
 }
 
 function contextDeleteInput(payload: unknown): string {
-  return requiredString(asPayload(payload), "contextId");
+  return requiredStableEntityId(asPayload(payload), "contextId");
 }
 
 export async function executePiApprovedTool(

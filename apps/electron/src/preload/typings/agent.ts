@@ -646,10 +646,10 @@ function deriveDisplayState(
   approvalState: AgentToolApprovalState,
   executionState: AgentToolExecutionState,
 ): AgentToolDisplayState {
-  if (approvalState === "rejected") return "rejected";
-  if (approvalState === "pending") return "pending_approval";
   if (executionState === "failed") return "failed";
   if (executionState === "completed") return "completed";
+  if (approvalState === "rejected") return "rejected";
+  if (approvalState === "pending") return "pending_approval";
   return "running";
 }
 

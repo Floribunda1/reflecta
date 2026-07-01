@@ -87,6 +87,18 @@ function parameterDescription(toolName: PiApprovalToolName, parameterName: strin
   return schema.properties?.[parameterName]?.description ?? "";
 }
 
+function expectNoKnowledgeMutationServicesCalled() {
+  expect(services.createUnderstanding).not.toHaveBeenCalled();
+  expect(services.updateUnderstanding).not.toHaveBeenCalled();
+  expect(services.deleteUnderstanding).not.toHaveBeenCalled();
+  expect(services.createDomain).not.toHaveBeenCalled();
+  expect(services.updateDomain).not.toHaveBeenCalled();
+  expect(services.deleteDomain).not.toHaveBeenCalled();
+  expect(services.createContext).not.toHaveBeenCalled();
+  expect(services.updateContext).not.toHaveBeenCalled();
+  expect(services.deleteContext).not.toHaveBeenCalled();
+}
+
 describe("createPiWriteTools", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -141,6 +153,43 @@ describe("createPiWriteTools", () => {
     );
     expect(parameterDescription("context_update", "contextId")).toContain("Stable Context id");
   });
+
+  test.each([
+    {
+      toolName: "domain_update" as const,
+      payload: { domainId: "D1", name: "New name" },
+    },
+    {
+      toolName: "domain_update" as const,
+      payload: { domainId: "[D1]", name: "New name" },
+    },
+    {
+      toolName: "domain_update" as const,
+      payload: { domainId: "[[domain:domain_1]]", name: "New name" },
+    },
+    {
+      toolName: "domain_create" as const,
+      payload: { name: "Child", parentId: "rf_fjxcezk5az" },
+    },
+    {
+      toolName: "understanding_update" as const,
+      payload: { understandingId: "understanding-1", after: { domainIds: ["[1]"] } },
+    },
+    {
+      toolName: "context_create" as const,
+      payload: { understandingId: "[U1]", medium: "ai", content: "Supporting context" },
+    },
+    {
+      toolName: "context_delete" as const,
+      payload: { contextId: "prefix [[context:context_1]]" },
+    },
+  ])(
+    "rejects display identity tokens in write tool ids: $toolName",
+    async ({ toolName, payload }) => {
+      await expect(executePiApprovedTool(toolName, payload)).rejects.toThrow(/稳定实体 id/);
+      expectNoKnowledgeMutationServicesCalled();
+    },
+  );
 
   test("keeps approval tools pending until the user decision resolves", async () => {
     let resolveApproval: (output: PiApprovedToolOutput) => void = () => {};

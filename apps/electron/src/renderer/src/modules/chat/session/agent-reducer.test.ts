@@ -479,6 +479,42 @@ describe("reduceAgentSession", () => {
     });
   });
 
+  test("keeps tool execution failure visible before approval resolves", () => {
+    const state = reduceAgentSession([
+      {
+        ...base,
+        id: "evt_1",
+        type: "approval.requested",
+        messageId: "assistant_1",
+        approvalId: "approval_1",
+        toolCallId: "tool_1",
+        toolName: "domain_update",
+        title: "候选修改 Domain",
+        payload: { domainId: "domain_1", name: "新名字" },
+      },
+      {
+        ...base,
+        id: "evt_2",
+        type: "tool.execution.failed",
+        messageId: "assistant_1",
+        toolCallId: "tool_1",
+        toolName: "domain_update",
+        error: { message: "Domain not found: domain_1" },
+      },
+    ]);
+
+    expect(state.messages[0]?.blocks?.[0]).toMatchObject({
+      kind: "approval",
+      approvalId: "approval_1",
+      approvalState: "pending",
+      executionState: "failed",
+      displayState: "failed",
+      state: "failed",
+      error: "Domain not found: domain_1",
+      executionError: { message: "Domain not found: domain_1" },
+    });
+  });
+
   test("keeps approved tool execution failure when assistant turn snapshot arrives later", () => {
     const state = reduceAgentSession([
       {
