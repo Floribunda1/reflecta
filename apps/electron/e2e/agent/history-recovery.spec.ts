@@ -119,9 +119,16 @@ test("@AG-HISTORY-006 用户重启应用后仍可打开 Agent 回复中的知识
       assistantMessage("history-entity-ref-assistant", [
         {
           type: "text",
-          text: "可以继续查看 React Server Components。",
+          text: "## 相关资料\n\n### 1. React Server Components\n\n- **重点**：可以继续查看 React Server Components。",
           parts: [
-            { type: "text", text: "可以继续查看 " },
+            { type: "text", text: "## 相关资料\n\n### 1. " },
+            {
+              type: "entity_ref",
+              entityType: "understanding",
+              entityId: understandingId,
+              fallbackText: "React Server Components",
+            },
+            { type: "text", text: "\n\n- **重点**：可以继续查看 " },
             {
               type: "entity_ref",
               entityType: "understanding",
@@ -142,9 +149,15 @@ test("@AG-HISTORY-006 用户重启应用后仍可打开 Agent 回复中的知识
   try {
     await openThread(page, "历史知识库引用");
 
-    const wikiLink = page.locator('[data-slot="wiki-link"]').filter({
-      hasText: "React Server Components",
-    });
+    await expect(page.locator("h2", { hasText: "相关资料" })).toBeVisible();
+    await expect(page.locator("h3", { hasText: "React Server Components" })).toBeVisible();
+    await expect(page.locator('[data-streamdown="strong"]', { hasText: "重点" })).toBeVisible();
+    const wikiLink = page
+      .locator('[data-slot="wiki-link"]')
+      .filter({
+        hasText: "React Server Components",
+      })
+      .first();
     await expect(wikiLink).toBeVisible();
     await wikiLink.click();
     await expect(page.getByTestId("agent-context-inspector")).toBeVisible();

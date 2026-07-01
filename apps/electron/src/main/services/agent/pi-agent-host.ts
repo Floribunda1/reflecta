@@ -386,8 +386,9 @@ function createReflectaFinalAnswerTool() {
     name: REFLECTA_FINAL_ANSWER_TOOL_NAME,
     label: "最终回答",
     description:
-      "Internal Reflecta final-answer adapter. Use it when final visible text needs inline Reflecta entity references.",
-    promptSnippet: "reflecta_final_answer: return final visible text as text/entity_ref parts.",
+      "Internal Reflecta final-answer adapter. If the final visible answer mentions any selected or tool-returned Reflecta entity, use this tool and represent that entity as an entity_ref part instead of plain title text.",
+    promptSnippet:
+      "reflecta_final_answer: use text/entity_ref parts; any mentioned current Reflecta entity must be an entity_ref, not plain title text.",
     parameters: Type.Object({
       parts: Type.Array(
         Type.Union([

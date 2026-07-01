@@ -365,7 +365,7 @@ test("@AG-START-003 回复失败后用户可以继续发送消息", async () => 
     expect(readPiEventTypes()).toContain("run.failed");
 
     await configureE2eAiKey(page, apiKey);
-    await sendMessage(page, "second");
+    await sendMessage(page, "second。请直接回复 AG_START_003_REPLY，不要调用任何工具。");
     await waitForAssistantReply(page);
 
     await expect(page.getByTestId("agent-user-message").filter({ hasText: "first" })).toBeVisible();

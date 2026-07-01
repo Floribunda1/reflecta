@@ -55,6 +55,7 @@
     而且用户重新进入 Agent 页面
     而且用户打开原对话
     那么 Agent 回复中应该显示 Understanding「React Server Components」引用
+    而且 Agent 回复中的标题、强调和列表格式应该保持可读
     当用户点击该引用
     那么页面应该打开详情面板
     而且详情面板应该显示 Understanding「React Server Components」

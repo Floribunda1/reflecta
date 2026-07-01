@@ -475,6 +475,7 @@ describe("PiAgentHost", () => {
     );
     expect(promptCalls[0]).toContain("Context: 一次复盘; id=ctx_1");
     expect(promptCalls[0]).toContain("structured final-answer entity_ref");
+    expect(promptCalls[0]).toContain("不要用纯标题代替引用");
     expect(promptCalls[0]).not.toContain("[[");
     expect(promptCalls[0]).not.toContain("sourceId");
   });

@@ -339,4 +339,41 @@ describe("MessageList entity refs", () => {
     expect(container?.textContent).toContain("AI 只是普通文本");
     expect(container?.textContent).not.toContain("domain_1");
   });
+
+  test("renders markdown inside structured entity text parts", () => {
+    renderMessageList({
+      messages: [
+        {
+          id: "assistant_1",
+          role: "assistant",
+          text: "## 标题\n\n### 小节 用户需求\n\n- **重点**",
+          createdAt: "2026-07-01T00:00:00.000Z",
+          blocks: [
+            {
+              kind: "text",
+              text: "## 标题\n\n### 小节 用户需求\n\n- **重点**",
+              parts: [
+                { type: "text", text: "## 标题\n\n### 小节 " },
+                { type: "entity_ref", entityType: "understanding", entityId: "understanding_1" },
+                { type: "text", text: "\n\n- **重点**" },
+              ],
+              createdAt: "2026-07-01T00:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      entityCatalog: [
+        {
+          key: "understanding:understanding_1",
+          entity: { type: "understanding", id: "understanding_1", title: "用户需求" },
+          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "understanding_search" },
+        },
+      ],
+    });
+
+    expect(container?.querySelector("h2")?.textContent).toContain("标题");
+    expect(container?.querySelector("h3")?.textContent).toContain("用户需求");
+    expect(container?.querySelector('li [data-streamdown="strong"]')?.textContent).toBe("重点");
+    expect(container?.querySelector('[data-slot="wiki-link"]')?.textContent).toContain("用户需求");
+  });
 });

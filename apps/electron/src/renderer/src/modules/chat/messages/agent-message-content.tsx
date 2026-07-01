@@ -17,7 +17,11 @@ import type {
   AgentReducedMessage,
   AgentTextPart,
 } from "@shared/agent";
-import { referenceMarkdownToLinks, type InspectableContextRef } from "../context/context-reference";
+import {
+  referenceMarkdownToLinks,
+  wikiHref,
+  type InspectableContextRef,
+} from "../context/context-reference";
 import { findChatTextRanges } from "../session/chat-find";
 import {
   type AgentReasoningView,
@@ -33,7 +37,7 @@ import {
   type ToolActivityDetailRow,
   type ToolApprovalStatus,
 } from "./agent-turn-view";
-import { WikiLinkChip, wikiMarkdownComponents, wikiUrlTransform } from "../context/wiki-link";
+import { wikiMarkdownComponents, wikiUrlTransform } from "../context/wiki-link";
 import { captureQueryKeys, useCaptureDomains } from "../../capture/queries";
 import { getDomainPath } from "../../capture/domain/util";
 import { ipcClient } from "@renderer/utils/ipc";
@@ -72,14 +76,16 @@ function MarkdownBody({
   onInspectContextRef,
   entityCatalog = [],
   findState,
+  convertReferenceMarkdown = true,
 }: {
   value: string;
   className?: string;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
   entityCatalog?: AgentEntityCatalogEntry[];
   findState?: ChatFindRenderState;
+  convertReferenceMarkdown?: boolean;
 }) {
-  const markdownValue = referenceMarkdownToLinks(value);
+  const markdownValue = convertReferenceMarkdown ? referenceMarkdownToLinks(value) : value;
   const findKey = findState ? findState.query : "plain";
 
   return (
@@ -136,33 +142,44 @@ function catalogEntryFor(
   return entityCatalog.find((entry) => entry.key === key);
 }
 
+function markdownLinkLabel(label: string) {
+  return label.replace(/([\\[\]])/g, "\\$1");
+}
+
+function markdownFromStructuredParts(
+  parts: AgentTextPart[],
+  entityCatalog: AgentEntityCatalogEntry[],
+) {
+  return parts
+    .map((part) => {
+      if (part.type === "text") return part.text;
+      const entry = catalogEntryFor(entityCatalog, part);
+      if (!entry) return part.fallbackText ?? "";
+      const title = entry.entity.title?.trim() || part.fallbackText || entry.entity.id;
+      return `[${markdownLinkLabel(title)}](${wikiHref(title, entry.entity.id, entry.entity.type)})`;
+    })
+    .join("");
+}
+
 function StructuredTextBody({
   parts,
   entityCatalog,
   onInspectContextRef,
+  findState,
 }: {
   parts: AgentTextPart[];
   entityCatalog: AgentEntityCatalogEntry[];
   onInspectContextRef?: (ref: InspectableContextRef) => void;
+  findState?: ChatFindRenderState;
 }) {
   return (
-    <div className="reflecta-chat-markdown whitespace-pre-wrap">
-      {parts.map((part, index) => {
-        if (part.type === "text") return <span key={index}>{part.text}</span>;
-        const entry = catalogEntryFor(entityCatalog, part);
-        if (!entry) return <span key={index}>{part.fallbackText ?? ""}</span>;
-        const title = entry.entity.title?.trim() || part.fallbackText || entry.entity.id;
-        return (
-          <WikiLinkChip
-            key={`${entry.key}-${index}`}
-            contextRef={{ ...entry.entity, title }}
-            onInspect={onInspectContextRef}
-          >
-            {title}
-          </WikiLinkChip>
-        );
-      })}
-    </div>
+    <MarkdownBody
+      value={markdownFromStructuredParts(parts, entityCatalog)}
+      onInspectContextRef={onInspectContextRef}
+      entityCatalog={entityCatalog}
+      findState={findState}
+      convertReferenceMarkdown={false}
+    />
   );
 }
 

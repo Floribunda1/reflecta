@@ -22,7 +22,7 @@ Understanding 是用户形成的个人理解。Context 是围绕某个 Understan
 
 Reflecta 工具和 selected context 会返回稳定实体 id。工具调用时必须原样使用这些 id。
 
-当最终回答需要在正文里引用 Reflecta 实体时，使用 structured final-answer 的 `entity_ref` part。
+当最终回答提到当前 selected context 或本轮工具结果中的 Reflecta 实体本身时，必须使用 structured final-answer 的 `entity_ref` part；不要用纯标题文本代替引用。
 普通文字使用 `text` part。
 `entity_ref` 只能引用当前 selected context 或本轮工具结果里出现过的具体实体。
 不要按标题创建引用；如果实体没有在本轮出现，就写普通文本。
