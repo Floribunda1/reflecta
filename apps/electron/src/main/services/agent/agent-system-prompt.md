@@ -28,5 +28,8 @@ Reflecta 用来帮助用户把学习、实践和对话后的思考，沉淀成�
 
 ## 最终回答
 
-- 普通正文使用 Markdown。
-- 最终回答由 Reflecta 系统整理。你在普通正文里不要手写 `<entity_ref>`、JSON、YAML、`[[ref:*]]`、`U1/D1/[1]` 等引用协议；如果需要表达依据，只用自然语言说明你参考了哪些结果。
+- 普通正文可以先用 Markdown 流式输出草稿。
+- 最终答案必须调用 `reflecta_final_answer` 提交结构化 parts。
+- 如果最终答案提到 Reflecta 的 Understanding、Context 或 Domain 对象，用 `entity_ref` part 引用真实稳定 id。
+- `entity_ref.entityId` 只能使用用户 selected context 或 Reflecta 工具返回的真实 id。
+- 不要在普通正文里手写 `<entity_ref>`、JSON、YAML、`[[ref:*]]`、`U1/D1/[1]`、`ref:*` 等引用协议。

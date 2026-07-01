@@ -129,7 +129,7 @@ describe("AgentRunAccumulator", () => {
     ]);
   });
 
-  test("keeps streaming finalizer partials in the active run snapshot", () => {
+  test("keeps streaming final output partials in the active run snapshot", () => {
     const accumulator = new AgentRunAccumulator();
 
     accumulator.append({

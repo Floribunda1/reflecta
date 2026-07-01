@@ -377,7 +377,7 @@ describe("MessageList entity refs", () => {
     expect(container?.querySelector('[data-slot="wiki-link"]')?.textContent).toContain("用户需求");
   });
 
-  test("renders validated finalizer parts with plain preview text", () => {
+  test("renders validated final output parts with plain preview text", () => {
     renderMessageList({
       messages: [
         {
@@ -421,7 +421,7 @@ describe("MessageList entity refs", () => {
     expect(container?.textContent).toContain("domain_ai");
   });
 
-  test("renders finalizer failure as a failed answer state", () => {
+  test("renders final output failure as a failed answer state", () => {
     renderMessageList({
       messages: [
         {

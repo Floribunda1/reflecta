@@ -5,8 +5,10 @@ import {
   completeSimple,
   getModel,
   type Api,
+  type AssistantMessageEvent,
   type Context,
   type Model,
+  type ToolCall,
 } from "@earendil-works/pi-ai";
 import {
   AuthStorage,
@@ -52,11 +54,13 @@ import { buildPiPromptText } from "./pi-prompt";
 import { getCodexCredentials } from "./codex-auth";
 import agentSystemPrompt from "./agent-system-prompt.md?raw";
 import {
-  createPiAiFinalizerStream,
-  runAgentFinalizer,
-  type RunAgentFinalizerInput,
-  type RunAgentFinalizerResult,
-} from "./agent-finalizer";
+  createReflectaFinalAnswerTool,
+  finalStructuredOutputPartialFromValue,
+  isReflectaFinalAnswerToolName,
+  REFLECTA_FINAL_ANSWER_TOOL_NAME,
+  validateFinalStructuredOutput,
+  type FinalStructuredOutputResult,
+} from "./agent-final-output";
 import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-tools";
 import {
   approvalTitleForTool,
@@ -122,11 +126,6 @@ type AssistantTurnMetadata = {
   model?: AgentModelSelection;
   stopReason?: string;
 };
-
-type AgentFinalizer = (
-  input: RunAgentFinalizerInput,
-  modelConfig: ResolvedAiModelConfig,
-) => Promise<RunAgentFinalizerResult>;
 
 function numberField(value: Record<string, unknown>, key: string): number | undefined {
   const field = value[key];
@@ -353,6 +352,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function finalAnswerToolCallFromAssistantEvent(event: AssistantMessageEvent): ToolCall | undefined {
+  if (event.type === "toolcall_end") {
+    return isReflectaFinalAnswerToolName(event.toolCall.name) ? event.toolCall : undefined;
+  }
+  if (event.type !== "toolcall_delta") return undefined;
+  const part = event.partial.content[event.contentIndex];
+  if (part?.type !== "toolCall" || !isReflectaFinalAnswerToolName(part.name)) return undefined;
+  return part;
+}
+
 function errorStack(error: unknown): string | undefined {
   return error instanceof Error ? error.stack : undefined;
 }
@@ -441,25 +450,13 @@ export async function configurePiRuntimeAuth(
   authStorage: AuthStorage,
   modelConfig: ResolvedAiModelConfig,
 ): Promise<void> {
-  authStorage.setRuntimeApiKey(modelConfig.provider.id, await finalizerApiKey(modelConfig));
+  authStorage.setRuntimeApiKey(modelConfig.provider.id, await runtimeApiKey(modelConfig));
 }
 
-async function finalizerApiKey(modelConfig: ResolvedAiModelConfig): Promise<string> {
+async function runtimeApiKey(modelConfig: ResolvedAiModelConfig): Promise<string> {
   return modelConfig.catalog.authType === "codex"
     ? (await getCodexCredentials()).accessToken
     : modelConfig.provider.apiKey;
-}
-
-async function defaultAgentFinalizer(
-  input: RunAgentFinalizerInput,
-  modelConfig: ResolvedAiModelConfig,
-): Promise<RunAgentFinalizerResult> {
-  return runAgentFinalizer(input, {
-    streamJson: createPiAiFinalizerStream({
-      modelConfig,
-      apiKey: await finalizerApiKey(modelConfig),
-    }),
-  });
 }
 
 export class PiAgentHost {
@@ -470,7 +467,6 @@ export class PiAgentHost {
   constructor(
     private readonly contentStorageRoot = getContentStorageRoot(),
     private readonly titleGenerator = generateAgentThreadTitle,
-    private readonly finalizer: AgentFinalizer = defaultAgentFinalizer,
   ) {
     this.sessionLog = new AgentSessionLog(contentStorageRoot);
   }
@@ -630,6 +626,7 @@ export class PiAgentHost {
       agentDir,
       authStorage,
       customTools: [
+        createReflectaFinalAnswerTool(),
         ...createPiReadOnlyTools(command.files, {
           collectToolOutput: (toolName, toolCallId, output) =>
             entityCatalog.collectToolOutput(toolName, toolCallId, output),
@@ -645,7 +642,11 @@ export class PiAgentHost {
       sessionManager,
       settingsManager,
       thinkingLevel: thinkingLevelFor(command.reasoningLevel ?? getActiveAgentReasoningLevel()),
-      tools: [...PI_READ_ONLY_TOOL_NAMES, ...PI_APPROVAL_TOOL_NAMES],
+      tools: [
+        ...PI_READ_ONLY_TOOL_NAMES,
+        ...PI_APPROVAL_TOOL_NAMES,
+        REFLECTA_FINAL_ANSWER_TOOL_NAME,
+      ],
     });
     return { ...created, modelConfig };
   }
@@ -774,9 +775,11 @@ export class PiAgentHost {
     let unsubscribe: (() => void) | undefined;
     let piDraftText = "";
     let assistantError = "";
+    let finalStructuredOutput: FinalStructuredOutputResult | undefined;
+    let finalStructuredOutputError = "";
+    let finalStructuredOutputStarted = false;
     let assistantMetadata: AssistantTurnMetadata | undefined;
     let assistantActivity = false;
-    let toolActivitySeen = false;
     let runStarted = false;
     const accumulator = new AgentRunAccumulator();
     const emit = (event: AgentSessionEvent) => this.appendAndEmit(manager, webContents, event);
@@ -792,6 +795,29 @@ export class PiAgentHost {
         runId,
         entityCatalog,
       );
+    };
+    const emitFinalPartial = (partial: FinalStructuredOutputResult & { previewText?: string }) => {
+      emitAccumulated(
+        this.createEvent({
+          type: "assistant.final.partial",
+          sessionId: command.sessionId,
+          runId,
+          messageId: assistantMessageId,
+          ...partial,
+        }),
+      );
+    };
+    const emitFinalStructuredPartial = (value: unknown) => {
+      const partial = finalStructuredOutputPartialFromValue(value, entityCatalog.snapshot());
+      if (partial.ok) emitFinalPartial(partial.partial);
+    };
+    const acceptFinalStructuredOutput = (value: unknown) => {
+      try {
+        finalStructuredOutput = validateFinalStructuredOutput(value, entityCatalog.snapshot());
+        emitFinalPartial(finalStructuredOutput);
+      } catch (error) {
+        finalStructuredOutputError = formatAgentError(error);
+      }
     };
     const emitRunStarted = () => {
       if (runStarted) return;
@@ -815,7 +841,6 @@ export class PiAgentHost {
     try {
       const created = await this.createSession(command, manager, entityCatalog);
       session = created.session;
-      const modelConfig = created.modelConfig;
       this.activeRuns.set(command.sessionId, {
         runId,
         assistantMessageId,
@@ -825,20 +850,28 @@ export class PiAgentHost {
         entityCatalog,
       });
       unsubscribe = session.subscribe((event) => {
+        if (event.type === "message_update") {
+          const finalToolCall = finalAnswerToolCallFromAssistantEvent(event.assistantMessageEvent);
+          if (finalToolCall) {
+            assistantActivity = true;
+            finalStructuredOutputStarted = true;
+            if (event.assistantMessageEvent.type === "toolcall_end") {
+              acceptFinalStructuredOutput(finalToolCall.arguments);
+            } else {
+              emitFinalStructuredPartial(finalToolCall.arguments);
+            }
+            return;
+          }
+        }
+
         if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
           piDraftText += event.assistantMessageEvent.delta;
           assistantActivity = true;
-          if (!toolActivitySeen && entityCatalog.snapshot().length === 0) {
-            emitAccumulated(
-              this.createEvent({
-                type: "assistant.final.partial",
-                sessionId: command.sessionId,
-                runId,
-                messageId: assistantMessageId,
-                text: piDraftText,
-                parts: [{ type: "text", text: piDraftText }],
-              }),
-            );
+          if (!finalStructuredOutputStarted) {
+            emitFinalPartial({
+              text: piDraftText,
+              parts: [{ type: "text", text: piDraftText }],
+            });
           }
           return;
         }
@@ -862,7 +895,11 @@ export class PiAgentHost {
 
         if (event.type === "tool_execution_start") {
           assistantActivity = true;
-          toolActivitySeen = true;
+          if (isReflectaFinalAnswerToolName(event.toolName)) {
+            finalStructuredOutputStarted = true;
+            acceptFinalStructuredOutput(event.args);
+            return;
+          }
           if (isPiApprovalToolName(event.toolName)) {
             const requested = this.createEvent({
               type: "approval.requested",
@@ -893,7 +930,21 @@ export class PiAgentHost {
           return;
         }
 
+        if (event.type === "tool_execution_update") {
+          if (isReflectaFinalAnswerToolName(event.toolName)) {
+            assistantActivity = true;
+            finalStructuredOutputStarted = true;
+            emitFinalStructuredPartial(event.args);
+            return;
+          }
+        }
+
         if (event.type === "tool_execution_end") {
+          if (isReflectaFinalAnswerToolName(event.toolName)) {
+            assistantActivity = true;
+            if (event.isError) finalStructuredOutputError = piToolError(event.result);
+            return;
+          }
           if (isPiApprovalToolName(event.toolName)) {
             const output = piToolOutput(event.result);
             if (isRejectedApprovalOutput(output)) return;
@@ -984,31 +1035,19 @@ export class PiAgentHost {
       if (assistantError) {
         throw new Error(assistantError);
       }
+      if (finalStructuredOutputError) {
+        throw new Error(finalStructuredOutputError);
+      }
       if (!piDraftText.trim() && !assistantActivity) {
         throw new Error("Agent response was empty");
       }
       const finalEntityCatalog = entityCatalog.snapshot();
-      const finalAnswer = await this.finalizer(
-        {
-          userQuestion: command.text,
-          piDraftText,
-          toolResults: accumulator.toolResults(),
-          entityCatalog: finalEntityCatalog,
-          requiresEntityRefs: finalEntityCatalog.length > 0,
-          onPartial: (partial) => {
-            const event = this.createEvent({
-              type: "assistant.final.partial",
-              sessionId: command.sessionId,
-              runId,
-              messageId: assistantMessageId,
-              ...partial,
-            });
-            accumulator.append(event);
-            this.emitLive(webContents, event);
-          },
-        },
-        modelConfig,
-      );
+      const finalAnswer =
+        finalStructuredOutput ??
+        (finalEntityCatalog.length === 0
+          ? { text: piDraftText, parts: [{ type: "text" as const, text: piDraftText }] }
+          : undefined);
+      if (!finalAnswer) throw new Error("缺少最终结构化回答");
       accumulator.appendFinalAnswer({
         id: `evt_${nanoid()}`,
         sessionId: command.sessionId,
