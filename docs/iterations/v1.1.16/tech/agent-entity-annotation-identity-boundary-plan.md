@@ -179,17 +179,17 @@ function normalizeAgentTextParts(
 
 迁移分两类数据：
 
-| 数据位置                                                               | 是否迁移           | 规则                                                                                                                 |
-| ---------------------------------------------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| Pi session custom event `entity.sources.updated`                       | 必迁               | 转成 `entity.catalog.updated`，以 `${type}:${id}` 为 key；删除 `sourceId`。                                          |
-| Pi session `assistant.turn.blocks[].kind === "text"`                   | 必迁               | 把可解析旧引用改成 plain text + `parts`；不可解析旧引用改成 plain text。                                             |
-| Pi session `assistant.turn.text`                                       | 必迁               | 同步为迁移后的 plain text，保证搜索/导出/标题生成稳定。                                                              |
-| Pi session `tool.completed.output` / `tool.execution.completed.output` | 必迁               | 深度删除 model-facing `ref/citation/*Ref/*Refs/sourceId` 字段；保留 `id/type/title/name`。                           |
-| Pi session approval block `output` / `payload`                         | 部分迁移           | `output` 按 tool output 规则清理；`payload` 是历史审批审计记录，只清理明显的 display-only 派生字段，不改用户输入值。 |
-| `user.message.contextRefs`                                             | 不迁               | 已经是稳定 `{type,id,title}`，保留。                                                                                 |
-| `composerContent` mention attrs                                        | 不迁               | mention id 已经是 `type:id`，属于编辑器结构，不是 agent display token。                                              |
-| 历史普通 assistant text 没有旧引用                                     | 不迁               | 不补 `parts`，继续走 plain markdown fallback。                                                                       |
-| 知识库实体正文/content 中的 Agent-only token                           | 审计后迁移可解析项 | 这是用户内容层，不走 session catalog；只能用全库实体 id 查标题。不可解析项输出报告，不保留 runtime 兼容。            |
+| 数据位置                                                               | 是否迁移 | 规则                                                                                                                 |
+| ---------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------- |
+| Pi session custom event `entity.sources.updated`                       | 必迁     | 转成 `entity.catalog.updated`，以 `${type}:${id}` 为 key；删除 `sourceId`。                                          |
+| Pi session `assistant.turn.blocks[].kind === "text"`                   | 必迁     | 把可解析旧引用改成 plain text + `parts`；不可解析旧引用改成 plain text。                                             |
+| Pi session `assistant.turn.text`                                       | 必迁     | 同步为迁移后的 plain text，保证搜索/导出/标题生成稳定。                                                              |
+| Pi session `tool.completed.output` / `tool.execution.completed.output` | 必迁     | 深度删除 model-facing `ref/citation/*Ref/*Refs/sourceId` 字段；保留 `id/type/title/name`。                           |
+| Pi session approval block `output` / `payload`                         | 部分迁移 | `output` 按 tool output 规则清理；`payload` 是历史审批审计记录，只清理明显的 display-only 派生字段，不改用户输入值。 |
+| `user.message.contextRefs`                                             | 不迁     | 已经是稳定 `{type,id,title}`，保留。                                                                                 |
+| `composerContent` mention attrs                                        | 不迁     | mention id 已经是 `type:id`，属于编辑器结构，不是 agent display token。                                              |
+| 历史普通 assistant text 没有旧引用                                     | 不迁     | 不补 `parts`，继续走 plain markdown fallback。                                                                       |
+| 知识库实体表 `reflecta.db`                                             | 审计守卫 | 只查实体正文是否被 Agent-only token 污染；当前 `reflecta-prod` 全库 0 命中，因此 v1.1.16 不迁移知识库正文。          |
 
 旧引用迁移规则：
 
@@ -201,11 +201,12 @@ function normalizeAgentTextParts(
 | `[U1]` / `[D1]` / `U1` / `D1`                   | 无可靠 source map                           | 不猜，转 plain text，计入 unresolved-short-handle。                           |
 | `[[title#understandingId]]` canonical wiki link | 内容层合法格式                              | 不迁。                                                                        |
 
-知识库内容迁移只处理 Agent-only token：
+知识库内容不进入本次默认迁移。它只做审计守卫：
 
-- `[[understanding:id]]`：如果能查到 Understanding title，改为 canonical `[[title#id]]`。
-- `[[domain:id]]` / `[[context:id]]`：如果能查到 title/name，改成 plain title；内容层不新增 Domain/Context wiki-link 协议。
-- `[[ref:*]]` / `[D1]` / `U1`：没有 session map 时不自动修，写入 report。
+- 审计 `reflecta.db` 的 `domains.name`、`understandings.title/body`、`contexts.title/content`、`conversations.title/last_message_preview`，再用 `.dump` 做全库兜底扫描。
+- 查找 `[[ref:*]]`、`[[understanding:id]]`、`[[context:id]]`、`[[domain:id]]`、`#reflecta-wiki/*`、`[U1]/[C1]/[D1]/[S1]`。
+- 当前 `<projectRoot>/.local/reflecta-prod/reflecta.db` 扫描结果为 0 命中，所以不需要迁移知识库正文。
+- 如果其他环境审计非 0，不在运行时加兼容；单独生成 report，再做一次性清理脚本，清完删除脚本。
 
 ## 4. Files
 
@@ -765,6 +766,7 @@ rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts [--dry-run] [--report <
 Session event migration rules:
 
 - Find Pi session files under `<root>/Sessions`.
+- Do not scan or rewrite `<root>/Sessions.backup-*`, `<root>/assets`, or `<root>/.pi-agent`.
 - Only rewrite `custom` entries whose `customType` is `reflecta.agent.event`.
 - `entity.sources.updated` -> `entity.catalog.updated`.
 - Build a per-session source map from old `sourceId` to `{type,id,title}`.
@@ -776,18 +778,13 @@ Session event migration rules:
 - If a text block already has `parts`, skip it.
 - If an event is already `entity.catalog.updated`, skip it.
 
-Knowledge content audit/migration rules:
+Knowledge DB audit guard:
 
-- Scan non-session Reflecta content files under `<root>` for Agent-only patterns:
-  - `[[ref:*]]`
-  - `[[understanding:id]]`
-  - `[[context:id]]`
-  - `[[domain:id]]`
-  - bare or bracketed short handles `U1/C1/D1/S1`
-- Do not touch canonical `[[title#understandingId]]`.
-- Convert `[[understanding:id]]` to `[[title#id]]` only when the title can be resolved from local data.
-- Convert `[[domain:id]]` / `[[context:id]]` to plain title/name only when resolvable.
-- Leave unresolved tokens unchanged and write them to report; no runtime fallback.
+- Open `<root>/reflecta.db` when it exists.
+- Audit `domains.name`, `understandings.title/body`, `contexts.title/content`, `conversations.title/last_message_preview`.
+- Also scan SQLite `.dump` for `[[ref:*]]`, `[[understanding:*]]`, `[[context:*]]`, `[[domain:*]]`, `#reflecta-wiki/*`, and short handles `[U1]/[C1]/[D1]/[S1]`.
+- If audit hits are 0, do nothing to knowledge content.
+- If audit hits are non-zero, stop and write a report. Do not silently rewrite user content in the session migration script.
 
 Idempotency:
 
