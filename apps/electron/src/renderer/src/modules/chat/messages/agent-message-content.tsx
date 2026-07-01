@@ -15,6 +15,7 @@ import type {
   AgentModelSelection,
   AgentReasoningLevel,
   AgentReducedMessage,
+  AgentTextPart,
 } from "@shared/agent";
 import { referenceMarkdownToLinks, type InspectableContextRef } from "../context/context-reference";
 import { findChatTextRanges } from "../session/chat-find";
@@ -32,7 +33,7 @@ import {
   type ToolActivityDetailRow,
   type ToolApprovalStatus,
 } from "./agent-turn-view";
-import { wikiMarkdownComponents, wikiUrlTransform } from "../context/wiki-link";
+import { WikiLinkChip, wikiMarkdownComponents, wikiUrlTransform } from "../context/wiki-link";
 import { captureQueryKeys, useCaptureDomains } from "../../capture/queries";
 import { getDomainPath } from "../../capture/domain/util";
 import { ipcClient } from "@renderer/utils/ipc";
@@ -125,6 +126,44 @@ function chatFindMarkdownLabelStartIndex(markdownValue: string, query: string, n
   const linkStartOffset = position?.start?.offset;
   if (typeof linkStartOffset !== "number") return null;
   return findChatTextRanges(markdownValue.slice(0, linkStartOffset + 1), query).length;
+}
+
+function catalogEntryFor(
+  entityCatalog: AgentEntityCatalogEntry[],
+  part: Extract<AgentTextPart, { type: "entity_ref" }>,
+) {
+  const key = `${part.entityType}:${part.entityId}`;
+  return entityCatalog.find((entry) => entry.key === key);
+}
+
+function StructuredTextBody({
+  parts,
+  entityCatalog,
+  onInspectContextRef,
+}: {
+  parts: AgentTextPart[];
+  entityCatalog: AgentEntityCatalogEntry[];
+  onInspectContextRef?: (ref: InspectableContextRef) => void;
+}) {
+  return (
+    <div className="reflecta-chat-markdown whitespace-pre-wrap">
+      {parts.map((part, index) => {
+        if (part.type === "text") return <span key={index}>{part.text}</span>;
+        const entry = catalogEntryFor(entityCatalog, part);
+        if (!entry) return <span key={index}>{part.fallbackText ?? ""}</span>;
+        const title = entry.entity.title?.trim() || part.fallbackText || entry.entity.id;
+        return (
+          <WikiLinkChip
+            key={`${entry.key}-${index}`}
+            contextRef={{ ...entry.entity, title }}
+            onInspect={onInspectContextRef}
+          >
+            {title}
+          </WikiLinkChip>
+        );
+      })}
+    </div>
+  );
 }
 
 function hasToolDetails(details: ToolActivityDetailsView) {
@@ -389,7 +428,7 @@ function CandidateShell({
 }) {
   const status = proposal.status;
   const resultRefType = proposal.resultRefType;
-  const resultRef = proposal.resultRef || proposal.resultRefId;
+  const resultRef = proposal.resultRefId;
   const statusNote = proposalStatusNote(status, proposal.state, resultRefType, resultRef);
   return (
     <div
@@ -907,12 +946,20 @@ export function AgentMessageContent({
               data-testid="agent-assistant-text"
               className="w-full px-1 py-1"
             >
-              <MarkdownBody
-                value={block.text}
-                onInspectContextRef={onInspectContextRef}
-                entityCatalog={entityCatalog}
-                findState={findState}
-              />
+              {block.parts ? (
+                <StructuredTextBody
+                  parts={block.parts}
+                  entityCatalog={entityCatalog}
+                  onInspectContextRef={onInspectContextRef}
+                />
+              ) : (
+                <MarkdownBody
+                  value={block.text}
+                  onInspectContextRef={onInspectContextRef}
+                  entityCatalog={entityCatalog}
+                  findState={findState}
+                />
+              )}
             </div>
           );
         }

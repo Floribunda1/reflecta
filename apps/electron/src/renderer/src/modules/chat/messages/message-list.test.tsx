@@ -247,12 +247,12 @@ describe("MessageList entity refs", () => {
         {
           id: "assistant_1",
           role: "assistant",
-          text: "关联 [[understanding:用户需求#u1]]",
+          text: "关联 [[用户需求#u1]]",
           createdAt: "2026-06-26T00:00:00.000Z",
           blocks: [
             {
               kind: "text",
-              text: "关联 [[understanding:用户需求#u1]]",
+              text: "关联 [[用户需求#u1]]",
               createdAt: "2026-06-26T00:00:00.000Z",
             },
           ],
@@ -269,7 +269,7 @@ describe("MessageList entity refs", () => {
     expect(mark?.getAttribute("data-chat-find-match")).toBe("true");
   });
 
-  test("renders typed assistant entity refs as clickable context chips", () => {
+  test("does not render typed assistant entity refs from plain markdown", () => {
     const onInspectContextRef = vi.fn();
     renderMessageList({
       messages: [
@@ -292,15 +292,51 @@ describe("MessageList entity refs", () => {
     });
 
     const chip = container?.querySelector<HTMLButtonElement>('[data-slot="wiki-link"]');
-    expect(chip?.textContent).toContain("ctx_1");
-    expect(container?.textContent).not.toContain("[[context:ctx_1]]");
+    expect(chip).toBeNull();
+    expect(container?.textContent).toContain("[[context:ctx_1]]");
+    expect(onInspectContextRef).not.toHaveBeenCalled();
+  });
 
-    act(() => chip?.click());
-
-    expect(onInspectContextRef).toHaveBeenCalledWith({
-      type: "context",
-      id: "ctx_1",
-      title: undefined,
+  test("renders structured entity text parts without title matching plain words", () => {
+    renderMessageList({
+      messages: [
+        {
+          id: "assistant_1",
+          role: "assistant",
+          text: "这个理解适合放在三观下面。AI 只是普通文本。",
+          createdAt: "2026-07-01T00:00:00.000Z",
+          blocks: [
+            {
+              kind: "text",
+              text: "这个理解适合放在三观下面。AI 只是普通文本。",
+              parts: [
+                { type: "text", text: "这个理解适合放在" },
+                { type: "entity_ref", entityType: "domain", entityId: "domain_1" },
+                { type: "text", text: "下面。AI 只是普通文本。" },
+              ],
+              createdAt: "2026-07-01T00:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      entityCatalog: [
+        {
+          key: "domain:domain_1",
+          entity: { type: "domain", id: "domain_1", title: "三观" },
+          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_inspect" },
+        },
+        {
+          key: "domain:domain_ai",
+          entity: { type: "domain", id: "domain_ai", title: "AI" },
+          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_inspect" },
+        },
+      ],
     });
+
+    const chips = container?.querySelectorAll('[data-slot="wiki-link"]');
+    expect(chips).toHaveLength(1);
+    expect(chips?.[0]?.textContent).toContain("三观");
+    expect(container?.textContent).toContain("AI 只是普通文本");
+    expect(container?.textContent).not.toContain("domain_1");
   });
 });

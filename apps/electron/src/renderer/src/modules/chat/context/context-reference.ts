@@ -1,7 +1,5 @@
 import type { AgentContextRef } from "@shared/agent";
 
-const TYPED_WIKI_LINK_PATTERN = /\[\[(understanding|context|domain):([^#\]\n]+)#([^\]\n]+)\]\]/g;
-const TYPED_ENTITY_REF_PATTERN = /\[\[(understanding|context|domain):([^#\]\n]+)\]\]/g;
 const WIKI_LINK_PATTERN = /\[\[([^:#\]\n]+)#([^\]\n]+)\]\]/g;
 export const WIKI_LINK_HREF_PREFIX = "#reflecta-wiki/";
 
@@ -92,20 +90,9 @@ export function wikiHref(
 }
 
 export function wikiMarkdownToLinks(markdown: string) {
-  return markdown
-    .replace(
-      TYPED_WIKI_LINK_PATTERN,
-      (_match, type: AgentContextRef["type"], title: string, id: string) =>
-        `[${title}](${wikiHref(title, id, type)})`,
-    )
-    .replace(
-      TYPED_ENTITY_REF_PATTERN,
-      (_match, type: AgentContextRef["type"], id: string) =>
-        `[${id}](${wikiHref(undefined, id, type)})`,
-    )
-    .replace(WIKI_LINK_PATTERN, (_match, title: string, id: string) => {
-      return `[${title}](${wikiHref(title, id)})`;
-    });
+  return markdown.replace(WIKI_LINK_PATTERN, (_match, title: string, id: string) => {
+    return `[${title}](${wikiHref(title, id)})`;
+  });
 }
 
 export function referenceMarkdownToLinks(markdown: string) {

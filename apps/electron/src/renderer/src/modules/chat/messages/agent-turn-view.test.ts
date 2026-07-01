@@ -792,7 +792,7 @@ describe("buildAgentTurnView", () => {
     ).not.toContain("line 24");
   });
 
-  test("shows completed approval tool result typed refs", () => {
+  test("shows completed approval tool result stable ids", () => {
     const turn = buildAgentTurnView([
       {
         kind: "approval",
@@ -801,7 +801,7 @@ describe("buildAgentTurnView", () => {
         toolName: "understanding_create",
         title: "候选 Understanding",
         payload: { title: "A", body: "B" },
-        output: { resultRefType: "understanding", resultRef: "[[understanding:understanding_1]]" },
+        output: { resultRefType: "understanding", resultRefId: "understanding_1" },
         approved: true,
         state: "completed",
         approvalState: "approved",
@@ -815,15 +815,13 @@ describe("buildAgentTurnView", () => {
       kind: "proposal",
       proposal: {
         state: "output-available",
-        resultRef: "[[understanding:understanding_1]]",
-        resultRefId: "",
+        resultRefId: "understanding_1",
         result: {
           rows: [
             {
               label: "执行结果",
               title: "Understanding 已完成",
-              description: "[[understanding:understanding_1]]",
-              format: "markdown",
+              description: "understanding_1",
               meta: [],
             },
           ],

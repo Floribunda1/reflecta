@@ -1,4 +1,4 @@
-import type { AgentReducedAssistantBlock } from "@shared/agent";
+import type { AgentReducedAssistantBlock, AgentTextPart } from "@shared/agent";
 
 export type ProposalType =
   | "understanding_create"
@@ -72,7 +72,6 @@ type ProposalBase<TType extends ProposalType, TData extends { kind: string }> = 
   errorText?: string;
   resultRefType?: string;
   resultRefId?: string;
-  resultRef?: string;
   approvalId?: string;
   result?: ToolActivityDetailsView;
   data: TData;
@@ -140,7 +139,7 @@ export type ProposalView =
   | GenericProposalView;
 
 export type AgentTurnBlock =
-  | { kind: "text"; text: string }
+  | { kind: "text"; text: string; parts?: AgentTextPart[] }
   | { kind: "reasoning"; reasoning: AgentReasoningView }
   | { kind: "tool-activity"; activity: ToolActivityView }
   | { kind: "proposal"; proposal: ProposalView };
@@ -155,7 +154,7 @@ export type AgentTurnView = {
 };
 
 type InternalTurnBlock =
-  | { kind: "text"; text: string }
+  | { kind: "text"; text: string; parts?: AgentTextPart[] }
   | { kind: "reasoning"; text: string; status: AgentReasoningView["status"] }
   | { kind: "tool-group"; groupType: ToolGroupType; blocks: AgentToolBlock[] }
   | { kind: "proposal"; proposal: ProposalView };
@@ -170,7 +169,7 @@ export function buildAgentTurnView(
 
   for (const [index, block] of blocks.entries()) {
     if (block.kind === "text") {
-      appendText(internalBlocks, block.text);
+      appendText(internalBlocks, block.text, block.parts);
       continue;
     }
     if (block.kind === "reasoning") {
@@ -209,14 +208,14 @@ function toPublicBlock(block: InternalTurnBlock): AgentTurnBlock {
   return block;
 }
 
-function appendText(blocks: InternalTurnBlock[], text: string) {
+function appendText(blocks: InternalTurnBlock[], text: string, parts?: AgentTextPart[]) {
   if (!text) return;
   const last = blocks.at(-1);
-  if (last?.kind === "text") {
+  if (!parts && last?.kind === "text" && !last.parts) {
     last.text += text;
     return;
   }
-  blocks.push({ kind: "text", text });
+  blocks.push({ kind: "text", text, ...(parts ? { parts } : {}) });
 }
 
 function appendTool(blocks: InternalTurnBlock[], block: AgentToolBlock) {
@@ -251,7 +250,6 @@ function proposalViewFor(block: AgentApprovalBlock): ProposalView {
     errorText: block.error,
     resultRefType: stringValue(output.resultRefType),
     resultRefId: stringValue(output.resultRefId),
-    resultRef: stringValue(output.resultRef),
     approvalId: block.approvalId,
     ...(result ? { result } : {}),
   };
@@ -358,16 +356,16 @@ function proposalResultDetails(
   if (displayState !== "completed") return undefined;
   if (type === "bash") return bashDetails(output);
 
-  const resultRef = stringValue(output.resultRef) || stringValue(output.resultRefId);
-  if (!resultRef) return undefined;
+  const resultRefId = stringValue(output.resultRefId);
+  if (!resultRefId) return undefined;
   return detailView({
     rows: [
       detailRow(
         "执行结果",
         `${proposalResultTypeLabel(stringValue(output.resultRefType))} 已完成`,
-        resultRef,
+        resultRefId,
         [],
-        resultRef.startsWith("[[") ? "markdown" : "text",
+        "text",
       ),
     ],
   });
