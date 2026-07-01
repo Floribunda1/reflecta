@@ -176,6 +176,122 @@ describe("reduceAgentSession", () => {
     });
   });
 
+  test("streams finalizer partial as a streaming assistant text block", () => {
+    const state = reduceAgentSession([
+      { ...base, id: "evt_1", type: "run.started" },
+      {
+        ...base,
+        id: "evt_2",
+        type: "assistant.final.partial",
+        messageId: "assistant_1",
+        text: "放在三观下面，继续",
+        parts: [
+          { type: "text", text: "放在" },
+          { type: "entity_ref", entityType: "domain", entityId: "domain_1" },
+          { type: "text", text: "下面" },
+        ],
+        previewText: "，继续",
+      },
+    ]);
+
+    expect(state.messages[0]).toMatchObject({
+      id: "assistant_1",
+      role: "assistant",
+      text: "放在三观下面，继续",
+      blocks: [
+        {
+          kind: "text",
+          text: "放在三观下面，继续",
+          parts: [
+            { type: "text", text: "放在" },
+            { type: "entity_ref", entityType: "domain", entityId: "domain_1" },
+            { type: "text", text: "下面" },
+          ],
+          previewText: "，继续",
+          state: "streaming",
+        },
+      ],
+    });
+  });
+
+  test("final assistant turn replaces streaming finalizer preview", () => {
+    const state = reduceAgentSession([
+      { ...base, id: "evt_1", type: "run.started" },
+      {
+        ...base,
+        id: "evt_2",
+        type: "assistant.final.partial",
+        messageId: "assistant_1",
+        text: "放在三观下面，继续",
+        parts: [
+          { type: "text", text: "放在" },
+          { type: "entity_ref", entityType: "domain", entityId: "domain_1" },
+          { type: "text", text: "下面" },
+        ],
+        previewText: "，继续",
+      },
+      {
+        ...base,
+        id: "evt_3",
+        type: "assistant.turn",
+        messageId: "assistant_1",
+        text: "放在三观下面。",
+        blocks: [
+          {
+            kind: "text",
+            text: "放在三观下面。",
+            parts: [
+              { type: "text", text: "放在" },
+              { type: "entity_ref", entityType: "domain", entityId: "domain_1" },
+              { type: "text", text: "下面。" },
+            ],
+            state: "done",
+            createdAt: base.createdAt,
+          },
+        ],
+      },
+    ]);
+
+    expect(state.messages[0]).toMatchObject({
+      text: "放在三观下面。",
+      blocks: [
+        {
+          kind: "text",
+          text: "放在三观下面。",
+          state: "done",
+        },
+      ],
+    });
+    expect(state.messages[0]?.blocks?.[0]).not.toHaveProperty("previewText");
+  });
+
+  test("marks finalizer failure as a failed assistant text block", () => {
+    const state = reduceAgentSession([
+      { ...base, id: "evt_1", type: "run.started" },
+      {
+        ...base,
+        id: "evt_2",
+        type: "assistant.final.failed",
+        messageId: "assistant_1",
+        error: "引用实体不存在: domain/missing",
+      },
+    ]);
+
+    expect(state.messages[0]).toMatchObject({
+      id: "assistant_1",
+      role: "assistant",
+      text: "",
+      blocks: [
+        {
+          kind: "text",
+          text: "",
+          state: "failed",
+          error: "引用实体不存在: domain/missing",
+        },
+      ],
+    });
+  });
+
   test("keeps reasoning, tool activity, and final text in event order", () => {
     const events: AgentEvent[] = [
       { ...base, id: "evt_1", type: "run.started" },

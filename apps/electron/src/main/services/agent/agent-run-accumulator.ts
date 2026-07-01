@@ -65,6 +65,29 @@ export class AgentRunAccumulator {
       return;
     }
 
+    if (event.type === "assistant.final.partial") {
+      this.replaceFinalTextBlock({
+        kind: "text",
+        text: event.text,
+        parts: event.parts,
+        ...(event.previewText ? { previewText: event.previewText } : {}),
+        state: "streaming",
+        createdAt: event.createdAt,
+      });
+      return;
+    }
+
+    if (event.type === "assistant.final.failed") {
+      this.replaceFinalTextBlock({
+        kind: "text",
+        text: "",
+        state: "failed",
+        error: event.error,
+        createdAt: event.createdAt,
+      });
+      return;
+    }
+
     if (event.type === "tool.started") {
       this.blocks = [
         ...this.blocks,
@@ -152,10 +175,13 @@ export class AgentRunAccumulator {
   }
 
   appendFinalAnswer(event: FinalAnswerEvent): void {
-    this.blocks = [
-      ...this.blocks,
-      { kind: "text", text: event.text, parts: event.parts, createdAt: event.createdAt },
-    ];
+    this.replaceFinalTextBlock({
+      kind: "text",
+      text: event.text,
+      parts: event.parts,
+      state: "done",
+      createdAt: event.createdAt,
+    });
   }
 
   isEmpty(): boolean {
@@ -200,5 +226,16 @@ export class AgentRunAccumulator {
       displayState: nextDisplayState,
       state: blockState(nextDisplayState),
     };
+  }
+
+  private replaceFinalTextBlock(block: Extract<AgentAssistantTurnBlock, { kind: "text" }>): void {
+    const index = this.blocks.findLastIndex((current) => current.kind === "text");
+    if (index < 0) {
+      this.blocks = [...this.blocks, block];
+      return;
+    }
+    this.blocks = this.blocks.map((current, blockIndex) =>
+      blockIndex === index ? block : current,
+    );
   }
 }

@@ -123,6 +123,72 @@ describe("AgentRunAccumulator", () => {
           { type: "entity_ref", entityType: "domain", entityId: "domain_1", fallbackText: "三观" },
           { type: "text", text: "下面。" },
         ],
+        state: "done",
+        createdAt: base.createdAt,
+      },
+    ]);
+  });
+
+  test("keeps streaming finalizer partials in the active run snapshot", () => {
+    const accumulator = new AgentRunAccumulator();
+
+    accumulator.append({
+      ...base,
+      id: "evt_final_partial",
+      type: "assistant.final.partial",
+      text: "放在三观下面，继续",
+      parts: [
+        { type: "text", text: "放在" },
+        { type: "entity_ref", entityType: "domain", entityId: "domain_1" },
+        { type: "text", text: "下面" },
+      ],
+      previewText: "，继续",
+    });
+
+    expect(
+      accumulator.toAssistantTurn({
+        ...base,
+        id: "turn_1",
+        type: "assistant.turn",
+      }).blocks,
+    ).toEqual([
+      {
+        kind: "text",
+        text: "放在三观下面，继续",
+        parts: [
+          { type: "text", text: "放在" },
+          { type: "entity_ref", entityType: "domain", entityId: "domain_1" },
+          { type: "text", text: "下面" },
+        ],
+        previewText: "，继续",
+        state: "streaming",
+        createdAt: base.createdAt,
+      },
+    ]);
+  });
+
+  test("persists final answer failure in the active run snapshot", () => {
+    const accumulator = new AgentRunAccumulator();
+
+    accumulator.append({
+      ...base,
+      id: "evt_final_failed",
+      type: "assistant.final.failed",
+      error: "引用实体不存在: domain/missing",
+    });
+
+    expect(
+      accumulator.toAssistantTurn({
+        ...base,
+        id: "turn_1",
+        type: "assistant.turn",
+      }).blocks,
+    ).toEqual([
+      {
+        kind: "text",
+        text: "",
+        state: "failed",
+        error: "引用实体不存在: domain/missing",
         createdAt: base.createdAt,
       },
     ]);
