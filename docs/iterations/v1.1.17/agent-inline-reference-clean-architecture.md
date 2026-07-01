@@ -88,9 +88,9 @@ Pi Agent 先写普通答案
 - `validateFinalAnswerParts` 是硬门。
 - renderer 只渲染 validated parts。
 
-## 5. Final Answer Channel
+## 5. Final Structured Output
 
-新增或收敛到一个 final answer channel。最小 interface：
+不要把这里理解成新模块或新通道。它只是主 Agent 最终输出的结构化形态。最小 interface：
 
 ```ts
 type FinalAnswerInput = {
@@ -98,7 +98,7 @@ type FinalAnswerInput = {
 };
 ```
 
-生产形态应该是一个主 Agent 可调用的 final tool，例如：
+如果当前 Agent framework 用 tool call 承载最终结构化输出，形态可以是：
 
 ```ts
 reflecta_final_answer({
@@ -122,22 +122,48 @@ reflecta_final_answer({
 3. 成功则保存为最终 answer parts。
 4. 失败则 retry 或进入 explicit failure，不能静默降级成普通文本。
 
-如果 Pi 支持 terminating tool result，就让该 tool `terminate: true`。如果 Pi 后续暴露 required tool choice，则把这个 final tool 设置为 required。
+这只是 transport adapter，不是架构核心。硬要求是：runtime 必须拿到结构化的 `{ parts: AgentTextPart[] }`，并且这个 transport 必须支持下面的 streaming 规则。
 
-## 6. 普通 text_delta 的角色
+## 6. Streaming Rendering
+
+前端不能等完整 `{ parts }` 全部生成完才开始渲染。
+
+正确流式链路是：
+
+```text
+LLM structured output stream
+  -> runtime incremental parser
+  -> assistant.final.partial
+  -> renderer 更新同一个 streaming message block
+  -> final validate
+  -> assistant.turn done
+```
+
+每次 stream 更新时，runtime 尽量提取当前稳定的前缀：
+
+- 已完成的 `text` part：立即按普通文本渲染。
+- 已完成且通过 catalog 校验的 `entity_ref` part：可以立即渲染成 inline link。
+- 还没闭合的当前文本：作为 `previewText` 按普通文本渲染。
+- 还没完整的 `entity_ref`：不能提前变成链接。
+
+最终完整对象到达后，再做 strict schema validation 和完整 `validateFinalAnswerParts(parts, entityCatalog)`。成功后，同一个 streaming block 进入 done 状态；失败则进入 failed/retry，不能把错误引用静默当成成功。
+
+如果某个 transport 只能在全部结束后一次性给出 `{ parts }`，不能暴露可解析的 partial structured output，那它不满足这个模块的 UX 要求。不能为了结构化输出牺牲流式渲染。
+
+## 7. 普通 text_delta 的角色
 
 普通 `text_delta` 仍然可以用于运行中的草稿展示，但它不是带引用的最终答案协议。
 
 推荐规则：
 
 ```text
-有 validated final_answer parts:
+有 validated final structured parts:
   持久化 structured parts
 
-没有 final_answer parts 且 entityCatalog 为空:
+没有 final structured parts 且 entityCatalog 为空:
   可以把普通 text 作为纯文本答案持久化
 
-没有 final_answer parts 且 entityCatalog 非空:
+没有 final structured parts 且 entityCatalog 非空:
   不生成 inline references
   要么 explicit failure
   要么降级为纯文本 + 底部 references
@@ -145,7 +171,7 @@ reflecta_final_answer({
 
 不要在这种失败路径里假装 inline reference 已经成功。
 
-## 7. 为什么不需要 ReferenceRegistry
+## 8. 为什么不需要 ReferenceRegistry
 
 不需要新建 `ReferenceRegistry`。
 
@@ -164,7 +190,7 @@ entity_ref.entityId = 真实 entity id
 validateFinalAnswerParts = 唯一校验门
 ```
 
-## 8. 和开源方案的关系
+## 9. 和开源方案的关系
 
 这不是自造架构，而是取开源方案里最适合 Reflecta 的部分。
 
@@ -174,7 +200,7 @@ validateFinalAnswerParts = 唯一校验门
 
 所以 Reflecta 的目标不是 numbered citation，而是 first-class `entity_ref` part。
 
-## 9. Module 责任
+## 10. Module 责任
 
 ### `AgentEntityCatalog`
 
@@ -190,13 +216,14 @@ validateFinalAnswerParts = 唯一校验门
 - 扫描正文标题。
 - 判断自然语言里哪里该自动链接。
 
-### `reflecta_final_answer` final tool
+### Final Structured Output adapter
 
 职责：
 
-- 承载主 Agent 的最终 structured parts。
+- 承载主 Agent 的 structured parts stream。
 - 只接受 `text` 和 `entity_ref`。
-- 返回 terminating result（如果当前 Pi 支持）。
+- 流式产出 `assistant.final.partial`。
+- 完整结束后产出可校验的 `{ parts: AgentTextPart[] }`。
 
 不负责：
 
@@ -229,23 +256,37 @@ validateFinalAnswerParts = 唯一校验门
 - 解析模型手写协议。
 - 自动 title matching。
 
-## 10. 迁移步骤
+## 11. 迁移步骤
 
-### Step 1: 保留现有协议，新增主 Agent final tool
+### Step 1: 保留现有协议，新增 streaming Final Structured Output adapter
 
-复用现有 `AgentTextPart` schema，添加或恢复 `reflecta_final_answer` 到 Pi custom tools。
-
-该 tool 的输入就是：
+复用现有 `AgentTextPart` schema。adapter 的输出仍然是：
 
 ```ts
 { parts: AgentTextPart[] }
 ```
 
-### Step 2: Host 捕获 final answer tool result
+但 adapter 必须能在完整对象结束前发出 partial：
 
-`PiAgentHost` 在 tool execution end 时识别 `reflecta_final_answer`：
+```ts
+{
+  parts: AgentTextPart[];
+  previewText?: string;
+}
+```
 
-- 读取 parts。
+如果 `reflecta_final_answer` tool call 的 arguments 不能 streaming，就不要把它作为唯一可见输出路径。
+
+### Step 2: Host 捕获 streaming partial 和最终 parts
+
+`PiAgentHost` 从 adapter 收到 partial 时：
+
+- 对 stable `entity_ref` 做 catalog 校验。
+- 发 `assistant.final.partial`。
+- 让 renderer 更新同一个 streaming block。
+
+adapter 完成后：
+
 - 调用 `validateFinalAnswerParts(parts, entityCatalog.snapshot())`。
 - 成功后写入 accumulator final answer。
 - 失败后发 `assistant.final.failed`。
@@ -277,18 +318,23 @@ Prompt 和测试里不再出现：
 
 只保留 `entity_ref` structured part。
 
-## 11. 验收标准
+## 12. 验收标准
 
 必须有测试覆盖：
 
-1. 主 Agent 通过 `reflecta_final_answer` 输出 valid `entity_ref`，前端渲染 inline link。
-2. `entityId` 不在 catalog 中时，final answer 失败，不 fallback 成普通 text。
-3. catalog 非空但没有 final answer tool result 时，不生成 inline refs。
-4. 普通 text 中出现 `<entity_ref ...>` 时按普通文本显示，不被 parser 处理。
-5. 没有 catalog 的普通回答仍可作为纯文本答案完成。
-6. 历史消息中不出现 `U1` / `[1]` / `ref:nanoid` 这类显示 token。
+1. 主 Agent 输出 structured partial 时，前端在最终对象完成前开始渲染 streaming block。
+1. stable text part 会流式显示。
+1. stable 且 catalog-valid 的 `entity_ref` 会流式显示成 inline link。
+1. 未完成或未校验的 `entity_ref` 不会提前变成链接。
+1. 最终 `{ parts }` valid 时，streaming block 变成 done。
+1. 主 Agent 输出 valid `entity_ref`，前端渲染 inline link。
+1. `entityId` 不在 catalog 中时，final answer 失败，不 fallback 成普通 text。
+1. catalog 非空但没有 final structured output 时，不生成 inline refs。
+1. 普通 text 中出现 `<entity_ref ...>` 时按普通文本显示，不被 parser 处理。
+1. 没有 catalog 的普通回答仍可作为纯文本答案完成。
+1. 历史消息中不出现 `U1` / `[1]` / `ref:nanoid` 这类显示 token。
 
-## 12. 删除清单
+## 13. 删除清单
 
 最终应该删除或停用：
 
@@ -298,14 +344,14 @@ Prompt 和测试里不再出现：
 - 对 bad `entity_ref` 静默 fallback 成成功答案的路径。
 - 所有正文 parser / title matcher / short ref 方案。
 
-## 13. 最终结论
+## 14. 最终结论
 
 最干净的架构是：
 
 ```text
 主 Agent 负责最终回答内容
 AgentEntityCatalog 负责可引用实体集合
-reflecta_final_answer 负责结构化最终出口
+Final Structured Output adapter 负责流式结构化最终出口
 validateFinalAnswerParts 负责硬校验
 renderer 负责 inline 展示
 ```

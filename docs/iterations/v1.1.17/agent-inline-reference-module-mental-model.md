@@ -85,7 +85,7 @@ flowchart TD
   User["User message with @ contextRefs"] --> Host["PiAgentHost"]
   Tools["Read-only tool outputs"] --> Catalog["AgentEntityCatalog"]
   Host --> Catalog
-  Catalog --> Final["Final answer channel"]
+  Catalog --> Final["Final Structured Output"]
   Agent["Main Agent"] --> Final
   Final --> Validator["validateFinalAnswerParts"]
   Catalog --> Validator
@@ -146,9 +146,9 @@ Catalog 的正确理解是“provenance gate”：它只回答一个问题：
 这个 entity id 在本轮回答里有没有真实来源？
 ```
 
-### Final Answer Channel
+### Final Structured Output
 
-Final answer channel 是主 Agent 把最终答案提交给 Reflecta runtime 的 seam。
+Final Structured Output 是主 Agent 把最终答案提交给 Reflecta runtime 的 seam。它不是一个新模块，也不是一个必须单独存在的 channel。
 
 目标形态是主 Agent 直接提交：
 
@@ -161,6 +161,27 @@ Final answer channel 是主 Agent 把最终答案提交给 Reflecta runtime 的 
 这个 seam 应该靠近 Agent 的最终出口，而不是放在 renderer，也不是放在另一个 LLM finalizer 后面。
 
 原因很简单：插引用是“回答的一部分”。如果先让主 Agent 写完普通答案，再让第二个模型重写整篇答案补引用，第二个模型就变成另一个回答 Agent。它会引入延迟、改写语义，也会让责任边界失控。
+
+### Streaming Rendering
+
+结构化输出不能牺牲前端 streaming。
+
+正确心智是：前端渲染的是同一个 assistant message block 的 streaming state。runtime 一边消费 LLM 的 structured output stream，一边把已经稳定的前缀变成 partial event：
+
+```text
+stable text parts + stable validated entity_ref parts + previewText
+```
+
+renderer 每次收到 partial，就更新同一个 message block：
+
+- `text` part 立即显示。
+- 完整且 catalog-valid 的 `entity_ref` 可以立即显示成链接。
+- 未完成的当前文本只作为 plain preview 显示。
+- 未完成或未校验的 `entity_ref` 不能提前变成链接。
+
+完整 `{ parts }` 到达后，再做最终 schema validation 和 catalog validation。成功后，streaming block 变成 done；失败则 failed/retry。
+
+如果某个实现只能等 LLM 全部结束后才拿到 `{ parts }`，它不满足这个模块的 streaming UX 要求。
 
 ### `validateFinalAnswerParts`
 
@@ -263,7 +284,7 @@ Reflecta 应该吸收的是“引用目标来自 runtime sidecar metadata，并�
 用模块设计语言说，这个模块的 seam 是：
 
 ```text
-Final answer channel + validateFinalAnswerParts
+Final Structured Output + validateFinalAnswerParts
 ```
 
 不是：
@@ -285,7 +306,7 @@ Final answer channel + validateFinalAnswerParts
 - 新增 entity 类型：改 shared type、catalog extraction、validator key、renderer link generation。
 - 新增工具返回 shape：只改 `AgentEntityCatalog` 的 extraction，不改 renderer。
 - 改 UI 展示：只改 renderer，不改 identity 规则。
-- 改 Agent 输出协议：改 final answer channel 和 validator，不写正文 parser。
+- 改 Agent 输出协议：改 Final Structured Output 和 validator，不写正文 parser。
 - 改历史兼容：可以在 normalization 层处理旧数据，但不要把兼容路径升级成新协议。
 
 好的改动应该有 locality：一个需求应该落在它所属的层里，不应该同时把 prompt、parser、renderer、registry、finalizer 全部搅动。
