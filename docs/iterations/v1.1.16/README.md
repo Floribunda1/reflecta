@@ -10,6 +10,6 @@ Agent structured message parts 与正文引用改造。
 - 只读工具输出暴露 `id`、`type`、`title/name`，不再暴露 `ref` 或 `citation`。
 - 写工具执行前校验 ID 字段，明确拒绝短号、wiki link、旧 `rf_*` source id。
 - Agent 候选写入落库前拒绝 Agent-only display token，避免把 chat 协议写进用户内容。
-- 一次性迁移历史 session catalog 事件，运行时不保留旧 `[[ref:*]]` / `ref` 字段兼容逻辑。
+- 一次性迁移历史 session events，并审计/迁移知识库内容里的 Agent-only token；运行时不保留旧 `[[ref:*]]` / `ref` 字段兼容逻辑。
 
 见 [Agent structured message parts 与正文引用改造计划](tech/agent-entity-annotation-identity-boundary-plan.md)。

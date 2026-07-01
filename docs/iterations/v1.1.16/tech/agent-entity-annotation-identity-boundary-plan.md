@@ -173,6 +173,40 @@ function normalizeAgentTextParts(
 - 找不到时降级为 `{ type: "text", text: fallbackText || "" }`，并记录 diagnostic log。
 - 不从 `fallbackText` 或 catalog title 反向匹配正文。
 
+### 3.5 One-time migration scope
+
+迁移仍然是一次性脚本，跑完删除脚本；运行时代码不保留旧 `entity.sources.updated`、`[[ref:*]]`、`[[type:id]]`、`domainRef` parser。
+
+迁移分两类数据：
+
+| 数据位置                                                               | 是否迁移           | 规则                                                                                                                 |
+| ---------------------------------------------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Pi session custom event `entity.sources.updated`                       | 必迁               | 转成 `entity.catalog.updated`，以 `${type}:${id}` 为 key；删除 `sourceId`。                                          |
+| Pi session `assistant.turn.blocks[].kind === "text"`                   | 必迁               | 把可解析旧引用改成 plain text + `parts`；不可解析旧引用改成 plain text。                                             |
+| Pi session `assistant.turn.text`                                       | 必迁               | 同步为迁移后的 plain text，保证搜索/导出/标题生成稳定。                                                              |
+| Pi session `tool.completed.output` / `tool.execution.completed.output` | 必迁               | 深度删除 model-facing `ref/citation/*Ref/*Refs/sourceId` 字段；保留 `id/type/title/name`。                           |
+| Pi session approval block `output` / `payload`                         | 部分迁移           | `output` 按 tool output 规则清理；`payload` 是历史审批审计记录，只清理明显的 display-only 派生字段，不改用户输入值。 |
+| `user.message.contextRefs`                                             | 不迁               | 已经是稳定 `{type,id,title}`，保留。                                                                                 |
+| `composerContent` mention attrs                                        | 不迁               | mention id 已经是 `type:id`，属于编辑器结构，不是 agent display token。                                              |
+| 历史普通 assistant text 没有旧引用                                     | 不迁               | 不补 `parts`，继续走 plain markdown fallback。                                                                       |
+| 知识库实体正文/content 中的 Agent-only token                           | 审计后迁移可解析项 | 这是用户内容层，不走 session catalog；只能用全库实体 id 查标题。不可解析项输出报告，不保留 runtime 兼容。            |
+
+旧引用迁移规则：
+
+| 旧形式                                          | 需要什么上下文                              | 迁移结果                                                                      |
+| ----------------------------------------------- | ------------------------------------------- | ----------------------------------------------------------------------------- |
+| `[[ref:S1]]` / `[[ref:rf_x]]`                   | 同 session 的旧 source map                  | 文本替换为 entity title；生成 `entity_ref` part。                             |
+| `[[understanding:id]]`                          | session catalog 或全库 understanding lookup | 有 title 时转 `entity_ref`；无 title 时转 plain `id` 并计入 unresolved。      |
+| `[[context:id]]` / `[[domain:id]]`              | session catalog 或全库 entity lookup        | 有 title/name 时转 `entity_ref`；无 title 时转 plain `id` 并计入 unresolved。 |
+| `[U1]` / `[D1]` / `U1` / `D1`                   | 无可靠 source map                           | 不猜，转 plain text，计入 unresolved-short-handle。                           |
+| `[[title#understandingId]]` canonical wiki link | 内容层合法格式                              | 不迁。                                                                        |
+
+知识库内容迁移只处理 Agent-only token：
+
+- `[[understanding:id]]`：如果能查到 Understanding title，改为 canonical `[[title#id]]`。
+- `[[domain:id]]` / `[[context:id]]`：如果能查到 title/name，改成 plain title；内容层不新增 Domain/Context wiki-link 协议。
+- `[[ref:*]]` / `[D1]` / `U1`：没有 session map 时不自动修，写入 report。
+
 ## 4. Files
 
 ### Shared typing
@@ -205,6 +239,7 @@ function normalizeAgentTextParts(
 ### Migration
 
 - Create then delete after run: `scripts/migrations/v1.1.16-agent-entity-parts.ts`
+- Create then delete after run: `scripts/migrations/v1.1.16-agent-entity-parts.test.ts`
 
 ## 5. Task 1: Extend text blocks with parts
 
@@ -709,6 +744,7 @@ rtk git commit -m "fix(chat): show approved tool execution failures"
 **Files:**
 
 - Create: `scripts/migrations/v1.1.16-agent-entity-parts.ts`
+- Create: `scripts/migrations/v1.1.16-agent-entity-parts.test.ts`
 - Delete after successful migration.
 
 - [ ] **Step 1: Write migration**
@@ -720,35 +756,132 @@ rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts <projectRoot>/.local/re
 rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts <projectRoot>/.local/reflecta-test
 ```
 
-Rules:
+Script interface:
 
-- `entity.sources.updated` -> `entity.catalog.updated`
-- Assistant text containing resolvable old `[[ref:*]]` or `[[type:id]]` is rewritten to plain title text.
-- The rewritten text block gets `parts`.
-- Unresolved refs become plain text; no runtime compatibility parser.
-- Script is idempotent.
+```bash
+rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts [--dry-run] [--report <path>] <content-storage-root>
+```
+
+Session event migration rules:
+
+- Find Pi session files under `<root>/Sessions`.
+- Only rewrite `custom` entries whose `customType` is `reflecta.agent.event`.
+- `entity.sources.updated` -> `entity.catalog.updated`.
+- Build a per-session source map from old `sourceId` to `{type,id,title}`.
+- Rewrite every `assistant.turn`:
+  - `blocks[].kind === "text"`: replace old refs with title/plain fallback and add `parts`.
+  - `assistant.turn.text`: recompute from text blocks.
+  - `blocks[].kind === "approval"`: clean `output` fields that came from tool output; keep historical `payload` inputs.
+- Rewrite `tool.completed.output` and `tool.execution.completed.output` by deleting `ref/citation/sourceId/*Ref/*Refs` fields recursively.
+- If a text block already has `parts`, skip it.
+- If an event is already `entity.catalog.updated`, skip it.
+
+Knowledge content audit/migration rules:
+
+- Scan non-session Reflecta content files under `<root>` for Agent-only patterns:
+  - `[[ref:*]]`
+  - `[[understanding:id]]`
+  - `[[context:id]]`
+  - `[[domain:id]]`
+  - bare or bracketed short handles `U1/C1/D1/S1`
+- Do not touch canonical `[[title#understandingId]]`.
+- Convert `[[understanding:id]]` to `[[title#id]]` only when the title can be resolved from local data.
+- Convert `[[domain:id]]` / `[[context:id]]` to plain title/name only when resolvable.
+- Leave unresolved tokens unchanged and write them to report; no runtime fallback.
+
+Idempotency:
+
+- Running the script twice produces no second rewrite.
+- A file is written only when its normalized JSON/text differs.
+- The report always includes counters and unresolved locations.
 
 - [ ] **Step 2: Dry run**
 
 ```bash
-rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts --dry-run <projectRoot>/.local/reflecta-prod
-rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts --dry-run <projectRoot>/.local/reflecta-test
+rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts --dry-run --report /tmp/reflecta-v1.1.16-prod-migration.json <projectRoot>/.local/reflecta-prod
+rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts --dry-run --report /tmp/reflecta-v1.1.16-test-migration.json <projectRoot>/.local/reflecta-test
 ```
 
 Expected counters:
 
 ```txt
-catalog events migrated: N
-assistant refs rewritten to parts: N
-unresolved refs kept as text: N
+session files scanned: N
+entity.sources.updated migrated: N
+assistant text refs rewritten to parts: N
+tool outputs cleaned: N
+knowledge files scanned: N
+knowledge refs migrated: N
+unresolved refs reported: N
 ```
 
-- [ ] **Step 3: Run migration, delete script, commit**
+- [ ] **Step 3: Add temporary migration unit test**
+
+Create `scripts/migrations/v1.1.16-agent-entity-parts.test.ts`:
+
+```ts
+const migrated = migrateSessionEvents([
+  {
+    type: "entity.sources.updated",
+    sources: [
+      {
+        sourceId: "S1",
+        entity: { type: "domain", id: "domain_1", title: "三观" },
+        origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_inspect" },
+      },
+    ],
+  },
+  {
+    type: "assistant.turn",
+    text: "放在 [[ref:S1]] 下面。",
+    blocks: [
+      { kind: "text", text: "放在 [[ref:S1]] 下面。", createdAt: "2026-07-01T00:00:00.000Z" },
+    ],
+  },
+]);
+
+expect(migrated.events).toMatchObject([
+  {
+    type: "entity.catalog.updated",
+    entries: [
+      {
+        key: "domain:domain_1",
+        entity: { type: "domain", id: "domain_1", title: "三观" },
+      },
+    ],
+  },
+  {
+    type: "assistant.turn",
+    text: "放在 三观 下面。",
+    blocks: [
+      {
+        kind: "text",
+        text: "放在 三观 下面。",
+        parts: [
+          { type: "text", text: "放在 " },
+          { type: "entity_ref", entityType: "domain", entityId: "domain_1", fallbackText: "三观" },
+          { type: "text", text: " 下面。" },
+        ],
+      },
+    ],
+  },
+]);
+```
+
+Run:
 
 ```bash
-rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts <projectRoot>/.local/reflecta-prod
-rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts <projectRoot>/.local/reflecta-test
+rtk bun test scripts/migrations/v1.1.16-agent-entity-parts.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 4: Run migration, inspect reports, delete script/test, commit**
+
+```bash
+rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts --report /tmp/reflecta-v1.1.16-prod-migration.json <projectRoot>/.local/reflecta-prod
+rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts --report /tmp/reflecta-v1.1.16-test-migration.json <projectRoot>/.local/reflecta-test
 rtk rm scripts/migrations/v1.1.16-agent-entity-parts.ts
+rtk rm scripts/migrations/v1.1.16-agent-entity-parts.test.ts
 rtk git add apps/electron/src scripts docs/iterations/v1.1.16
 rtk git commit -m "chore(agent): migrate entity refs to text parts"
 ```
