@@ -161,20 +161,28 @@ function markdownFromStructuredParts(
     .join("");
 }
 
+function markdownVisibleText(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 function StructuredTextBody({
   parts,
+  previewText,
   entityCatalog,
   onInspectContextRef,
   findState,
 }: {
   parts: AgentTextPart[];
+  previewText?: string;
   entityCatalog: AgentEntityCatalogEntry[];
   onInspectContextRef?: (ref: InspectableContextRef) => void;
   findState?: ChatFindRenderState;
 }) {
   return (
     <MarkdownBody
-      value={markdownFromStructuredParts(parts, entityCatalog)}
+      value={`${markdownFromStructuredParts(parts, entityCatalog)}${
+        previewText ? markdownVisibleText(previewText) : ""
+      }`}
       onInspectContextRef={onInspectContextRef}
       entityCatalog={entityCatalog}
       findState={findState}
@@ -963,9 +971,17 @@ export function AgentMessageContent({
               data-testid="agent-assistant-text"
               className="w-full px-1 py-1"
             >
-              {block.parts ? (
+              {block.state === "failed" ? (
+                <div
+                  data-testid="agent-final-answer-error"
+                  className="rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+                >
+                  最终答案生成失败：{block.error ?? "未知错误"}
+                </div>
+              ) : block.parts ? (
                 <StructuredTextBody
                   parts={block.parts}
+                  previewText={block.previewText}
                   entityCatalog={entityCatalog}
                   onInspectContextRef={onInspectContextRef}
                 />

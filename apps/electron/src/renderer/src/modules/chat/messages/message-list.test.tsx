@@ -376,4 +376,75 @@ describe("MessageList entity refs", () => {
     expect(container?.querySelector('li [data-streamdown="strong"]')?.textContent).toBe("重点");
     expect(container?.querySelector('[data-slot="wiki-link"]')?.textContent).toContain("用户需求");
   });
+
+  test("renders validated finalizer parts with plain preview text", () => {
+    renderMessageList({
+      messages: [
+        {
+          id: "assistant_1",
+          role: "assistant",
+          text: '放在三观下面 <entity_ref type="domain" entityId="domain_ai" />',
+          createdAt: "2026-07-01T00:00:00.000Z",
+          blocks: [
+            {
+              kind: "text",
+              text: '放在三观下面 <entity_ref type="domain" entityId="domain_ai" />',
+              parts: [
+                { type: "text", text: "放在" },
+                { type: "entity_ref", entityType: "domain", entityId: "domain_1" },
+                { type: "text", text: "下面" },
+              ],
+              previewText: ' <entity_ref type="domain" entityId="domain_ai" />',
+              state: "streaming",
+              createdAt: "2026-07-01T00:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      entityCatalog: [
+        {
+          key: "domain:domain_1",
+          entity: { type: "domain", id: "domain_1", title: "三观" },
+          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_inspect" },
+        },
+        {
+          key: "domain:domain_ai",
+          entity: { type: "domain", id: "domain_ai", title: "AI" },
+          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_inspect" },
+        },
+      ],
+    });
+
+    expect(container?.querySelectorAll('[data-slot="wiki-link"]')).toHaveLength(1);
+    expect(container?.querySelector('[data-slot="wiki-link"]')?.textContent).toContain("三观");
+    expect(container?.textContent).toContain("<entity_ref");
+    expect(container?.textContent).toContain("domain_ai");
+  });
+
+  test("renders finalizer failure as a failed answer state", () => {
+    renderMessageList({
+      messages: [
+        {
+          id: "assistant_1",
+          role: "assistant",
+          text: "",
+          createdAt: "2026-07-01T00:00:00.000Z",
+          blocks: [
+            {
+              kind: "text",
+              text: "",
+              state: "failed",
+              error: "引用实体不存在: domain/missing",
+              createdAt: "2026-07-01T00:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      entityCatalog: [],
+    });
+
+    expect(
+      container?.querySelector('[data-testid="agent-final-answer-error"]')?.textContent,
+    ).toContain("引用实体不存在: domain/missing");
+  });
 });

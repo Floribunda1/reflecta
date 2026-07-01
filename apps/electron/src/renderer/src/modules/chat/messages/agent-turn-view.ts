@@ -139,7 +139,14 @@ export type ProposalView =
   | GenericProposalView;
 
 export type AgentTurnBlock =
-  | { kind: "text"; text: string; parts?: AgentTextPart[] }
+  | {
+      kind: "text";
+      text: string;
+      parts?: AgentTextPart[];
+      previewText?: string;
+      state?: "streaming" | "done" | "failed";
+      error?: string;
+    }
   | { kind: "reasoning"; reasoning: AgentReasoningView }
   | { kind: "tool-activity"; activity: ToolActivityView }
   | { kind: "proposal"; proposal: ProposalView };
@@ -154,7 +161,14 @@ export type AgentTurnView = {
 };
 
 type InternalTurnBlock =
-  | { kind: "text"; text: string; parts?: AgentTextPart[] }
+  | {
+      kind: "text";
+      text: string;
+      parts?: AgentTextPart[];
+      previewText?: string;
+      state?: "streaming" | "done" | "failed";
+      error?: string;
+    }
   | { kind: "reasoning"; text: string; status: AgentReasoningView["status"] }
   | { kind: "tool-group"; groupType: ToolGroupType; blocks: AgentToolBlock[] }
   | { kind: "proposal"; proposal: ProposalView };
@@ -169,7 +183,14 @@ export function buildAgentTurnView(
 
   for (const [index, block] of blocks.entries()) {
     if (block.kind === "text") {
-      appendText(internalBlocks, block.text, block.parts);
+      appendText(
+        internalBlocks,
+        block.text,
+        block.parts,
+        block.previewText,
+        block.state,
+        block.error,
+      );
       continue;
     }
     if (block.kind === "reasoning") {
@@ -208,14 +229,28 @@ function toPublicBlock(block: InternalTurnBlock): AgentTurnBlock {
   return block;
 }
 
-function appendText(blocks: InternalTurnBlock[], text: string, parts?: AgentTextPart[]) {
-  if (!text) return;
+function appendText(
+  blocks: InternalTurnBlock[],
+  text: string,
+  parts?: AgentTextPart[],
+  previewText?: string,
+  state?: "streaming" | "done" | "failed",
+  error?: string,
+) {
+  if (!text && !previewText && !error) return;
   const last = blocks.at(-1);
-  if (!parts && last?.kind === "text" && !last.parts) {
+  if (!parts && !previewText && !state && !error && last?.kind === "text" && !last.parts) {
     last.text += text;
     return;
   }
-  blocks.push({ kind: "text", text, ...(parts ? { parts } : {}) });
+  blocks.push({
+    kind: "text",
+    text,
+    ...(parts ? { parts } : {}),
+    ...(previewText ? { previewText } : {}),
+    ...(state ? { state } : {}),
+    ...(error ? { error } : {}),
+  });
 }
 
 function appendTool(blocks: InternalTurnBlock[], block: AgentToolBlock) {
