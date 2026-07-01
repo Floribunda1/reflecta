@@ -644,7 +644,10 @@ test("@AG-CONTEXT-003 用户选择模型和推理强度后发送消息", async (
 
     await expect(page.getByTestId("agent-model-menu-button")).toContainText(modelName);
     await expect(page.getByTestId("agent-model-menu-button")).toContainText("中推理");
-    await sendMessage(page, "请用一句话回复 model selection e2e");
+    await sendMessage(
+      page,
+      "请用一句话回复 model selection e2e。不要调用任何工具，只输出普通文本。",
+    );
     await expect(page.getByTestId("agent-model-menu-button")).toContainText(modelName);
     await expect(page.getByTestId("agent-model-menu-button")).toContainText("中推理");
     await waitForAssistantReply(page);
@@ -865,10 +868,10 @@ test("@AG-PROPOSAL-006 用户确认 Bash 操作后 Agent 继续回复", async ()
     await expect(card).toBeVisible({ timeout: 120_000 });
 
     await card.getByTestId("agent-proposal-confirm-button").click();
-    await expect(card).toContainText("已确认", { timeout: 120_000 });
     await expect(
       page.getByTestId("agent-assistant-text").filter({ hasText: PI_BASH_APPROVAL_DONE }),
     ).toBeVisible({ timeout: 120_000 });
+    await expect(card).toContainText("完成", { timeout: 120_000 });
     await expect(page.getByTestId("agent-stop-button")).toBeHidden({ timeout: 120_000 });
     await expect(composer(page)).toBeEditable();
 

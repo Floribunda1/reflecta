@@ -23,8 +23,8 @@ type FixtureMessage = {
   createdAt?: string;
 };
 
-type FixtureEntitySource = {
-  sourceId: string;
+type FixtureEntityCatalogEntry = {
+  key?: string;
   entity: {
     type: "understanding" | "context" | "domain";
     id: string;
@@ -40,7 +40,7 @@ type FixtureThread = {
   title: string;
   createdAt?: string;
   updatedAt?: string;
-  entitySources?: FixtureEntitySource[];
+  entityCatalog?: FixtureEntityCatalogEntry[];
   messages?: FixtureMessage[];
 };
 
@@ -158,13 +158,19 @@ function appendTextBlock(
   kind: string,
   text: string,
   createdAt: string,
+  parts?: unknown[],
 ) {
   const last = blocks.at(-1);
-  if (last?.kind === kind && typeof last.text === "string") {
+  if (
+    !parts &&
+    last?.kind === kind &&
+    typeof last.text === "string" &&
+    !Array.isArray(last.parts)
+  ) {
     last.text += text;
     return;
   }
-  blocks.push({ kind, text, createdAt });
+  blocks.push({ kind, text, ...(parts ? { parts } : {}), createdAt });
 }
 
 function appendToolBlock(
@@ -332,7 +338,13 @@ function assistantTurnBlocks(
   for (const part of parts) {
     if (!isRecord(part)) continue;
     if (part.type === "text") {
-      appendTextBlock(blocks, "text", String(part.text ?? ""), createdAt);
+      appendTextBlock(
+        blocks,
+        "text",
+        String(part.text ?? ""),
+        createdAt,
+        Array.isArray(part.parts) ? part.parts : undefined,
+      );
       continue;
     }
     if (part.type === "reasoning") {
@@ -367,8 +379,16 @@ function threadEvents(thread: FixtureThread) {
   const createEvent = eventFactory(thread);
   let activeRunId: string | null = null;
 
-  if (thread.entitySources?.length) {
-    events.push(createEvent({ type: "entity.sources.updated", sources: thread.entitySources }));
+  if (thread.entityCatalog?.length) {
+    events.push(
+      createEvent({
+        type: "entity.catalog.updated",
+        entries: thread.entityCatalog.map((entry) => ({
+          ...entry,
+          key: entry.key ?? `${entry.entity.type}:${entry.entity.id}`,
+        })),
+      }),
+    );
   }
 
   for (const message of thread.messages ?? []) {

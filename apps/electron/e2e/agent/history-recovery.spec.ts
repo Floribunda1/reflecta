@@ -100,9 +100,8 @@ test("@AG-HISTORY-006 用户重启应用后仍可打开 Agent 回复中的知识
   seedAgentThread({
     id: "history-entity-ref",
     title: "历史知识库引用",
-    entitySources: [
+    entityCatalog: [
       {
-        sourceId: "S1",
         entity: {
           type: "understanding",
           id: understandingId,
@@ -118,7 +117,20 @@ test("@AG-HISTORY-006 用户重启应用后仍可打开 Agent 回复中的知识
     messages: [
       userMessage("history-entity-ref-user", "展示历史知识库引用"),
       assistantMessage("history-entity-ref-assistant", [
-        { type: "text", text: "可以继续查看 [[ref:S1]]。" },
+        {
+          type: "text",
+          text: "可以继续查看 React Server Components。",
+          parts: [
+            { type: "text", text: "可以继续查看 " },
+            {
+              type: "entity_ref",
+              entityType: "understanding",
+              entityId: understandingId,
+              fallbackText: "React Server Components",
+            },
+            { type: "text", text: "。" },
+          ],
+        },
       ]),
     ],
   });
@@ -129,7 +141,6 @@ test("@AG-HISTORY-006 用户重启应用后仍可打开 Agent 回复中的知识
   const { app, page } = await launchAgentPage();
   try {
     await openThread(page, "历史知识库引用");
-    await expect(page.getByText("[[ref:S1]]")).toHaveCount(0);
 
     const wikiLink = page.locator('[data-slot="wiki-link"]').filter({
       hasText: "React Server Components",

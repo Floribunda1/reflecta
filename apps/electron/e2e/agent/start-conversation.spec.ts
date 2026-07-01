@@ -44,7 +44,7 @@ test("@AG-START-002 用户发送第一条消息后看到完整回复", async () 
 
   try {
     await createNewThread(page);
-    await sendMessage(page, "hello");
+    await sendMessage(page, "hello。请直接回复 HELLO_E2E，不要调用任何工具。");
     await expect(
       page.getByTestId("agent-stop-button").or(page.getByTestId("agent-assistant-text").last()),
     ).toBeVisible({ timeout: 15_000 });
@@ -71,7 +71,7 @@ test("@AG-START-003 回复失败后用户可以继续发送消息", async () => 
     await expect(composer(page)).toBeEditable();
 
     await configureE2eAiKey(page, apiKey);
-    await sendMessage(page, "second");
+    await sendMessage(page, "second。请直接回复 SECOND_E2E，不要调用任何工具。");
     await waitForAssistantReply(page);
 
     await expect(page.getByTestId("agent-user-message").filter({ hasText: "first" })).toBeVisible();

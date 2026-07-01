@@ -12,8 +12,8 @@ export type AgentFixtureMessage = {
   createdAt?: string;
 };
 
-export type AgentFixtureEntitySource = {
-  sourceId: string;
+export type AgentFixtureEntityCatalogEntry = {
+  key?: string;
   entity: {
     type: "understanding" | "context" | "domain";
     id: string;
@@ -29,7 +29,7 @@ export type AgentFixtureThread = {
   title: string;
   createdAt?: string;
   updatedAt?: string;
-  entitySources?: AgentFixtureEntitySource[];
+  entityCatalog?: AgentFixtureEntityCatalogEntry[];
   messages?: AgentFixtureMessage[];
 };
 

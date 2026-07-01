@@ -1,8 +1,10 @@
 import { expect, type Page, test } from "@playwright/test";
 import { composer, launchApp } from "../agent/agent-e2e";
+import { assistantMessage, seedAgentThread, userMessage } from "../agent/agent-fixtures";
 
 const PROGRAMMING_HISTORY_USER_MESSAGE = "历史讨论：Programming";
 const PROGRAMMING_HISTORY_REPLY = "这是一条 Programming 的上下文历史对话。";
+const PROGRAMMING_HISTORY_TITLE = "Programming 上下文历史对话";
 
 async function openContemplatePage(page: Page) {
   await page.evaluate(() => {
@@ -89,6 +91,16 @@ test("@CT-AGENT-003 图谱 Understanding 详情面板不显示 Capture 专属聊
 });
 
 test("@CT-AGENT-004 用户从图谱上下文 Agent 恢复历史对话并新建对话", async () => {
+  seedAgentThread({
+    id: "contemplate-programming-history",
+    title: PROGRAMMING_HISTORY_TITLE,
+    messages: [
+      userMessage("contemplate-programming-history-user", PROGRAMMING_HISTORY_USER_MESSAGE),
+      assistantMessage("contemplate-programming-history-assistant", [
+        { type: "text", text: PROGRAMMING_HISTORY_REPLY },
+      ]),
+    ],
+  });
   const { app, page } = await launchApp();
 
   try {
@@ -112,7 +124,8 @@ test("@CT-AGENT-004 用户从图谱上下文 Agent 恢复历史对话并新建�
     await dock.getByTestId("contextual-agent-history-button").click();
     await page
       .getByTestId("contextual-agent-history-thread")
-      .filter({ hasText: PROGRAMMING_HISTORY_USER_MESSAGE })
+      .filter({ hasText: PROGRAMMING_HISTORY_TITLE })
+      .first()
       .click();
 
     await expect(

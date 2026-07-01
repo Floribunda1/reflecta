@@ -22,7 +22,10 @@ test("@AG-MESSAGE-001 用户编辑历史消息后看到新的当前回复", asyn
 
   try {
     await createNewThread(page);
-    await sendMessage(page, "ORIGINAL_USER_MESSAGE");
+    await sendMessage(
+      page,
+      "ORIGINAL_USER_MESSAGE。请直接回复 ORIGINAL_AGENT_REPLY，不要调用任何工具。",
+    );
     await waitForAssistantReply(page);
 
     await page
@@ -33,7 +36,7 @@ test("@AG-MESSAGE-001 用户编辑历史消息后看到新的当前回复", asyn
     await page
       .getByTestId("agent-composer-editor")
       .locator('[contenteditable="true"]')
-      .fill("EDITED_USER_MESSAGE");
+      .fill("EDITED_USER_MESSAGE。请直接回复 EDITED_AGENT_REPLY，不要调用任何工具。");
     await page.getByTestId("agent-send-button").click();
     await waitForAssistantReply(page);
 
@@ -65,7 +68,10 @@ test("@AG-MESSAGE-002 用户重新生成回复后看到新的当前回复", asyn
 
   try {
     await createNewThread(page);
-    await sendMessage(page, "REGENERATE_USER_MESSAGE");
+    await sendMessage(
+      page,
+      "REGENERATE_USER_MESSAGE。请直接回复 REGENERATE_AGENT_REPLY，不要调用任何工具。",
+    );
     await waitForAssistantReply(page);
 
     await page.getByTestId("agent-message-row").nth(1).hover();

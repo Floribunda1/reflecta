@@ -74,7 +74,7 @@ test("@AG-CONV-002 对话 A 回复完成后切回 A 可以看到 A 的内容", a
 
   try {
     await createNewThread(page);
-    await sendMessage(page, "start A");
+    await sendMessage(page, "start A。请直接回复 AG_CONV_002_REPLY，不要调用任何工具。");
     await openThread(page, "对话 B");
     await expect(page.getByTestId("agent-user-message")).toContainText("B_USER_MESSAGE");
     await openThread(page, "start A");
@@ -184,7 +184,9 @@ test("@AG-CONV-005 用户在 Agent 回复下方 Fork 对话分支后继续查看
     await firstAssistantRow.getByTestId("agent-fork-message-button").click();
 
     await expect(page.getByRole("button", { name: "FORK_SOURCE", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "FORK_SOURCE 分支", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Fork - FORK_SOURCE", exact: true }),
+    ).toBeVisible();
     await expect(page.getByTestId("agent-user-message")).toContainText("FORK_USER_MESSAGE");
     await expect(page.getByTestId("agent-assistant-text")).toContainText("FORK_AGENT_REPLY");
     await expect(
@@ -215,9 +217,19 @@ test("@AG-CONV-007 用户导出当前对话为 Markdown", async () => {
     await expect(page.getByTestId("agent-thread-title")).toHaveValue("EXPORT_SOURCE");
 
     const filePath = path.join(readE2eTestEnv().contentStorageRoot, "exports", "EXPORT_SOURCE.md");
+    await app.evaluate(({ dialog, shell }, selectedPath) => {
+      Object.defineProperty(dialog, "showSaveDialog", {
+        configurable: true,
+        value: async () => ({ canceled: false, filePath: selectedPath }),
+      });
+      Object.defineProperty(shell, "showItemInFolder", {
+        configurable: true,
+        value: () => undefined,
+      });
+    }, filePath);
     await page.getByTestId("agent-thread-actions-button").click();
     await page.getByTestId("agent-export-markdown-button").click();
-    await expect.poll(() => fs.existsSync(filePath)).toBe(true);
+    await expect.poll(() => fs.existsSync(filePath), { timeout: 15_000 }).toBe(true);
     const markdown = fs.readFileSync(filePath, "utf-8");
 
     expect(markdown).toContain("# EXPORT_SOURCE");
