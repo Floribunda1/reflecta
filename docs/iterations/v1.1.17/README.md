@@ -1,28 +1,31 @@
 # v1.1.17
 
-Agent 最终答案协议资格审查。
+Agent 正文内联实体引用架构重审。
 
-本版本先不急着换实现。它只回答一个问题：Reflecta 的正文内联实体引用，到底需要什么级别的输出保证，哪些方案真的满足，哪些只是继续靠 prompt 祈祷。
+本版本回答一个问题：Reflecta 的正文内联实体引用，如何做到 Codex 文件引用那种稳定可点，同时不再重踩 parser、短号、title matcher、二次 finalizer 重写全文这些坑。
 
 ## 结论
 
-当前 v1.1.16 的 `reflecta_final_answer` 方向只做到了“有一个结构化出口”，但没有做到“最终答案只能从这个出口出来”。
+当前最终结论见 [Agent Inline References Clean Architecture](agent-inline-reference-clean-architecture.md)。
 
-因此它仍然挡不住这些问题：
+最干净的目标架构是：
 
-- Agent 直接输出普通 assistant text。
-- Agent 手写 `<entity_ref />`、JSON、YAML、markdown token 等伪协议。
-- Agent 不引用实体，只写标题。
-- Agent 填入 shape 正确但 catalog 中不存在的 id。
-- 无效 id 被 fallback 成普通文本继续展示。
+```text
+用户 @ refs / 工具输出
+  -> AgentEntityCatalog 收集真实 entity refs
+  -> 主 Agent 生成最终 AgentTextPart[]
+  -> validateFinalAnswerParts(parts, entityCatalog)
+  -> renderer inline 渲染 entity_ref
+```
 
-v1.1.17 的判定标准：
+架构原则：
 
-- 不接受正文 parser 方案。
-- 不接受 title 自动匹配方案。
-- 不接受会话短号方案，例如 `U1`、`D1`、`[1]` 作为 Reflecta 实体身份。
-- 不接受 optional final-answer tool 被包装成“硬保证”。
-- 只接受能强制最终可见答案进入结构化通道的方案。
+- 不新增 `ReferenceRegistry`。
+- 不使用 `U1`、`D1`、`[1]`、`ref:nanoid` 作为 Reflecta entity 身份。
+- 不做 title 自动匹配。
+- 不让第二个 LLM 重写主 Agent 答案。
+- 复用现有 `AgentEntityCatalog`、`AgentTextPart`、`validateFinalAnswerParts` 和 renderer。
+- inline link 的真实目标只能来自 validated `entity_ref.entityId`。
 
 ## 本版本要沉淀的硬门槛
 
@@ -36,17 +39,22 @@ v1.1.17 的判定标准：
 6. Pi 当前 SDK 或被调用的 provider 能真实支持这个约束。
 7. 不重踩 v1.1.16 已记录的 `ref`、短号、title matcher、display token 污染工具参数等坑。
 
-## 流式渲染结论
+## 当前取舍
 
-最终答案不能等完整 JSON parse 完才突然出现。合格实现必须支持 finalizer 流式渲染：
+旧的 Final Answer Object Generator 文档保留为历史记录，但不再作为目标架构。
 
-- Pi Agent 过程区继续流式显示 reasoning / tool / approval 状态。
-- 最终答案由 Reflecta finalizer 单独流式生成。
-- finalizer 的 raw structured JSON 不进入 UI。
-- UI 接收的是 Reflecta live events：已校验 `entity_ref` parts + provisional plain-text preview。
-- 最终持久化的仍然只有 validated `AgentTextPart[]`。
+当前目标不是“把二次 finalizer 做得更强”，而是把 structured final answer 移回主 Agent 的最终出口：
+
+```text
+Pi Agent final tool
+  -> AgentTextPart[]
+  -> local validation
+  -> inline renderer
+```
 
 ## 文档
 
+- [Agent Inline References Clean Architecture](agent-inline-reference-clean-architecture.md)
+- [Agent 正文引用踩坑记录](agent-inline-reference-pitfalls.md)
 - [Agent 最终答案协议资格审查](tech/final-answer-protocol-qualification.md)
-- [Final Answer Object Generator 实现计划](tech/final-answer-object-generator-plan.md)
+- [Final Answer Object Generator 实现计划](tech/final-answer-object-generator-plan.md)（历史方案）
