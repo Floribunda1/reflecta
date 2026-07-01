@@ -36,6 +36,16 @@ v1.1.17 的判定标准：
 6. Pi 当前 SDK 或被调用的 provider 能真实支持这个约束。
 7. 不重踩 v1.1.16 已记录的 `ref`、短号、title matcher、display token 污染工具参数等坑。
 
+## 流式渲染结论
+
+最终答案不能等完整 JSON parse 完才突然出现。合格实现必须支持 finalizer 流式渲染：
+
+- Pi Agent 过程区继续流式显示 reasoning / tool / approval 状态。
+- 最终答案由 Reflecta finalizer 单独流式生成。
+- finalizer 的 raw structured JSON 不进入 UI。
+- UI 接收的是 Reflecta live events：已校验 `entity_ref` parts + provisional plain-text preview。
+- 最终持久化的仍然只有 validated `AgentTextPart[]`。
+
 ## 文档
 
 - [Agent 最终答案协议资格审查](tech/final-answer-protocol-qualification.md)

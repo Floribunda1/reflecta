@@ -242,7 +242,184 @@ Pi Agent turn
 
 这不是正文 parser，也不是自造引用格式。它只是把最终答案交给社区主流的结构化输出机制，而不是交给普通 assistant text。
 
-## 6. 失败策略
+## 6. 流式渲染实现
+
+最终方案必须流式。不能把“等完整 JSON 回来再一次性渲染”当成可接受产品体验。
+
+社区依据：
+
+- Vercel AI SDK 明确支持用 `streamText` + `output` 流式消费 structured response，并暴露 `partialOutputStream`；array output 还有 `elementStream`。
+- OpenAI Structured Outputs 负责 schema adherence；如果直接用 OpenAI-compatible streaming，stream 里拿到的是 JSON 文本 chunk，完整校验仍要等最终对象。
+- Vercel AI Gateway 文档也提醒：OpenAI-compatible structured output streaming 需要收集 chunk，完整 parse 发生在 stream 结束后。
+
+因此 Reflecta 的产品实现要分两层：
+
+```text
+provider structured stream
+  -> Reflecta finalizer adapter
+  -> validated/provisional Agent final-answer live events
+  -> renderer streaming block
+  -> final assistant.turn snapshot
+```
+
+UI 永远不看 raw JSON。
+
+### 6.1 Finalizer 输出 schema
+
+schema 仍然是 structured parts，但为流式渲染优化成一个字段：
+
+```ts
+type FinalAnswerPart =
+  | { type: "text"; text: string }
+  | {
+      type: "entity_ref";
+      entityType: "understanding" | "context" | "domain";
+      entityId: string;
+      fallbackText?: string;
+    };
+
+type FinalAnswer = {
+  parts: FinalAnswerPart[];
+};
+```
+
+JSON Schema 要求：
+
+- root 是 object，只有 `parts` 一个字段。
+- `parts.items` 只允许 `text` 或 `entity_ref`。
+- `additionalProperties: false`。
+- `entityType` 是 enum。
+- `entityId` 是非空 string。
+
+root 只保留 `parts`，是为了让 provider 从一开始就往 `parts` 写内容，减少流式等待。
+
+### 6.2 Main process live events
+
+新增 finalizer 专用 live event，不复用 Pi 的普通 `assistant.text.delta`：
+
+```ts
+type AgentFinalAnswerPartial = AgentEventBase & {
+  type: "assistant.final.partial";
+  runId: string;
+  messageId: string;
+  text: string;
+  parts: AgentTextPart[];
+  previewText?: string;
+};
+
+type AgentFinalAnswerFailed = AgentEventBase & {
+  type: "assistant.final.failed";
+  runId: string;
+  messageId: string;
+  error: string;
+};
+```
+
+语义：
+
+- `parts` 只放已经通过 catalog validation 的稳定 parts。
+- `previewText` 是当前 JSON stream 中还没稳定提交的 plain text 预览，只能按普通文本渲染，不能变成引用。
+- `text` 是 `parts` + `previewText` 的 plain text，用于搜索状态和滚动定位。
+- `assistant.turn` 仍然是最终持久化事件，只写 validated `parts`，不写 `previewText`。
+
+### 6.3 Finalizer adapter
+
+新增一个 main process module：
+
+```text
+apps/electron/src/main/services/agent/agent-finalizer.ts
+```
+
+接口：
+
+```ts
+type RunAgentFinalizerInput = {
+  model: AgentModelSelection;
+  userQuestion: string;
+  piDraftText: string;
+  toolResults: unknown[];
+  entityCatalog: AgentEntityCatalogEntry[];
+  requiresEntityRefs: boolean;
+  signal?: AbortSignal;
+  onPartial(partial: { text: string; parts: AgentTextPart[]; previewText?: string }): void;
+};
+
+type RunAgentFinalizerResult = {
+  text: string;
+  parts: AgentTextPart[];
+};
+```
+
+实现规则：
+
+1. 用当前 configured finalizer provider 发起 structured output stream。
+2. 如果 provider 是 OpenAI Responses / OpenAI-compatible，使用 provider-native JSON schema。
+3. 如果以后引入 AI SDK，可以直接用 `partialOutputStream` / `elementStream`；但这不是必须前提。
+4. 如果继续用现有 `@earendil-works/pi-ai`，通过 `stream()` 获取 `text_delta`，通过 `onPayload` 注入 provider-native structured output payload。
+5. 累积 raw JSON stream，但 raw JSON 只在 adapter 内部存在。
+6. 每次 JSON stream 更新后，做 partial parse，提取当前可用的 `parts`。
+7. 对 `entity_ref` 立即做 catalog validation；通过才进入 committed `parts`。
+8. 对最后一个仍在增长的 `text` part，只作为 `previewText` 发给 UI。
+9. stream done 后，用 `ajv` 对完整对象做 strict validation，再做 catalog validation。
+10. validation 失败时 retry 一次；仍失败则发 `assistant.final.failed`。
+
+这不是正文 parser。这里解析的是 provider 在 structured-output 模式下产生的 JSON 协议，不是模型可见正文里的 XML/JSON/YAML。
+
+### 6.4 Renderer 行为
+
+renderer 需要支持一个 streaming final block：
+
+```ts
+type AgentFinalTextBlock = {
+  kind: "text";
+  text: string;
+  parts?: AgentTextPart[];
+  previewText?: string;
+  state?: "streaming" | "done" | "failed";
+  createdAt: string;
+};
+```
+
+渲染规则：
+
+- `parts` 走现有 structured markdown/entity renderer。
+- `previewText` 接在 `parts` 后面，按普通 markdown/text 流式显示。
+- `previewText` 里的 `<entity_ref>`、JSON、YAML 都只是普通文本，不解析。
+- 收到最终 `assistant.turn` 后，用 persisted block 替换 streaming block。
+- 收到 `assistant.final.failed` 后，把 block 标成 failed，显示失败原因，不把 provisional preview 当成功答案。
+
+### 6.5 Pi Agent 与 finalizer 的关系
+
+Pi Agent 仍然可以流式展示过程，但它的普通 text 不能再成为最终答案。
+
+```text
+Pi text_delta
+  -> 过程草稿 / internal draft
+  -> 可作为 finalizer 输入
+  -> 不直接持久化为最终 answer text block
+
+Finalizer partial
+  -> 最终答案区域流式渲染
+  -> validated 后持久化 assistant.turn
+```
+
+如果产品不想显示 Pi 草稿，就只显示 reasoning/tool blocks 和“正在整理最终答案”的状态。
+
+### 6.6 最小实现顺序
+
+1. 增加 `assistant.final.partial` / `assistant.final.failed` 类型和 reducer upsert。
+2. 增加 renderer 对 `previewText` / `state` 的支持。
+3. 新增 `agent-finalizer.ts`，先用 fixture stream 做单元测试，不接真实 provider。
+4. 接入 provider-native structured output stream。
+5. 把 Pi run 完成后的最终答案入口改成调用 finalizer。
+6. 禁止 Pi 普通 `assistant.text.delta` 落成最终答案；它只能作为过程草稿或被丢弃。
+7. e2e 覆盖：
+   - finalizer text preview 能流式出现。
+   - `entity_ref` 通过 catalog validation 后变成可点击引用。
+   - invalid id 触发 retry / failed，不 fallback。
+   - 模型输出 XML 时不会被解析成引用。
+
+## 7. 失败策略
 
 合格实现必须把失败显式化。
 
@@ -256,7 +433,7 @@ Pi Agent turn
 
 关键点：失败可以展示给用户，但不能静默改成“看起来成功”。
 
-## 7. 历史数据处理
+## 8. 历史数据处理
 
 v1.1.17 不应该迁移历史普通 assistant text 去补引用，因为那会重新引入 parser/title matcher。
 
@@ -269,7 +446,7 @@ v1.1.17 不应该迁移历史普通 assistant text 去补引用，因为那会�
 
 如果后续实现需要删除旧 fallback 行为，迁移也必须是一次性脚本，跑完删除脚本；运行时不保留旧逻辑兼容。
 
-## 8. 后续实现计划准入
+## 9. 后续实现计划准入
 
 任何 v1.1.17 后续 implementation plan 必须先回答：
 
