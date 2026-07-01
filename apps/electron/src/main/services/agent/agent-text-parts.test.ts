@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { normalizeAgentTextParts } from "./agent-text-parts";
+import { normalizeAgentTextParts, validateFinalAnswerParts } from "./agent-text-parts";
 
 describe("normalizeAgentTextParts", () => {
   test("normalizes entity refs from catalog without title matching", () => {
@@ -38,5 +38,44 @@ describe("normalizeAgentTextParts", () => {
     );
 
     expect(result).toEqual({ text: "三观", parts: [{ type: "text", text: "三观" }] });
+  });
+
+  test("validates final answer parts against the entity catalog", () => {
+    const result = validateFinalAnswerParts(
+      [
+        { type: "text", text: "放在" },
+        { type: "entity_ref", entityType: "domain", entityId: "domain_1", fallbackText: "三观" },
+        { type: "text", text: "下面。" },
+      ],
+      [
+        {
+          key: "domain:domain_1",
+          entity: { type: "domain", id: "domain_1", title: "三观" },
+          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_inspect" },
+        },
+      ],
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      text: "放在三观下面。",
+      parts: [
+        { type: "text", text: "放在" },
+        { type: "entity_ref", entityType: "domain", entityId: "domain_1", fallbackText: "三观" },
+        { type: "text", text: "下面。" },
+      ],
+    });
+  });
+
+  test("rejects final answer parts when an entity id is missing from the catalog", () => {
+    const result = validateFinalAnswerParts(
+      [{ type: "entity_ref", entityType: "domain", entityId: "missing", fallbackText: "三观" }],
+      [],
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: "引用实体不存在: domain/missing",
+    });
   });
 });
