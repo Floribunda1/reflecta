@@ -231,4 +231,35 @@ describe("AgentRunAccumulator", () => {
       error: "Domain not found: domain_1",
     });
   });
+
+  test("collects completed tool outputs for finalization", () => {
+    const accumulator = new AgentRunAccumulator();
+
+    accumulator.append({
+      ...base,
+      id: "evt_tool_started",
+      type: "tool.started",
+      toolCallId: "tool_1",
+      toolName: "domain_inspect",
+      input: { domainId: "domain_1" },
+    });
+    accumulator.append({
+      ...base,
+      id: "evt_tool_completed",
+      type: "tool.completed",
+      toolCallId: "tool_1",
+      toolName: "domain_inspect",
+      output: { domain: { id: "domain_1" } },
+    });
+    accumulator.append({
+      ...base,
+      id: "evt_tool_failed",
+      type: "tool.failed",
+      toolCallId: "tool_2",
+      toolName: "context_inspect",
+      error: "not found",
+    });
+
+    expect(accumulator.toolResults()).toEqual([{ domain: { id: "domain_1" } }]);
+  });
 });

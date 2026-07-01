@@ -4,7 +4,6 @@ import type { WebContents } from "electron";
 import {
   completeSimple,
   getModel,
-  Type,
   type Api,
   type Context,
   type Model,
@@ -13,7 +12,6 @@ import {
   AuthStorage,
   createAgentSession,
   createExtensionRuntime,
-  defineTool,
   ModelRegistry,
   SessionManager,
   SettingsManager,
@@ -34,7 +32,6 @@ import type {
   AgentLiveEvent,
   AgentSessionEvent,
   AgentSessionSummary,
-  AgentTextPart,
   AgentToolExecutionError,
   AgentUsage,
 } from "@shared/agent";
@@ -49,12 +46,17 @@ import {
 import { agentLog } from "../../logger";
 import { AgentRunAccumulator } from "./agent-run-accumulator";
 import { AgentEntityCatalog } from "./agent-entity-catalog";
-import { normalizeAgentTextParts } from "./agent-text-parts";
 import { AgentSessionLog } from "./pi-session-log";
 import { formatAgentError } from "./error";
 import { buildPiPromptText } from "./pi-prompt";
 import { getCodexCredentials } from "./codex-auth";
 import agentSystemPrompt from "./agent-system-prompt.md?raw";
+import {
+  createPiAiFinalizerStream,
+  runAgentFinalizer,
+  type RunAgentFinalizerInput,
+  type RunAgentFinalizerResult,
+} from "./agent-finalizer";
 import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-tools";
 import {
   approvalTitleForTool,
@@ -67,7 +69,6 @@ import {
 } from "./pi-write-tools";
 
 export const AGENT_EVENT_CHANNEL = "agent:event";
-export const REFLECTA_FINAL_ANSWER_TOOL_NAME = "reflecta_final_answer";
 
 type ActivePiRun = {
   runId: string;
@@ -121,6 +122,11 @@ type AssistantTurnMetadata = {
   model?: AgentModelSelection;
   stopReason?: string;
 };
+
+type AgentFinalizer = (
+  input: RunAgentFinalizerInput,
+  modelConfig: ResolvedAiModelConfig,
+) => Promise<RunAgentFinalizerResult>;
 
 function numberField(value: Record<string, unknown>, key: string): number | undefined {
   const field = value[key];
@@ -347,75 +353,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function isReflectaFinalAnswerTool(toolName: string): boolean {
-  return toolName === REFLECTA_FINAL_ANSWER_TOOL_NAME;
-}
-
-function agentTextPartFrom(value: unknown): AgentTextPart | null {
-  if (!isRecord(value) || typeof value.type !== "string") return null;
-  if (value.type === "text" && typeof value.text === "string") {
-    return { type: "text", text: value.text };
-  }
-  if (
-    value.type === "entity_ref" &&
-    (value.entityType === "understanding" ||
-      value.entityType === "context" ||
-      value.entityType === "domain") &&
-    typeof value.entityId === "string"
-  ) {
-    return {
-      type: "entity_ref",
-      entityType: value.entityType,
-      entityId: value.entityId,
-      ...(typeof value.fallbackText === "string" ? { fallbackText: value.fallbackText } : {}),
-    };
-  }
-  return null;
-}
-
-function finalAnswerPartsFromInput(input: unknown): AgentTextPart[] {
-  if (!isRecord(input) || !Array.isArray(input.parts)) return [];
-  return input.parts.flatMap((part) => {
-    const parsed = agentTextPartFrom(part);
-    return parsed ? [parsed] : [];
-  });
-}
-
-function createReflectaFinalAnswerTool() {
-  return defineTool({
-    name: REFLECTA_FINAL_ANSWER_TOOL_NAME,
-    label: "最终回答",
-    description:
-      "Internal Reflecta final-answer adapter. If the final visible answer mentions any selected or tool-returned Reflecta entity, use this tool and represent that entity as an entity_ref part instead of plain title text.",
-    promptSnippet:
-      "reflecta_final_answer: use text/entity_ref parts; any mentioned current Reflecta entity must be an entity_ref, not plain title text.",
-    parameters: Type.Object({
-      parts: Type.Array(
-        Type.Union([
-          Type.Object({
-            type: Type.Literal("text"),
-            text: Type.String(),
-          }),
-          Type.Object({
-            type: Type.Literal("entity_ref"),
-            entityType: Type.Union([
-              Type.Literal("understanding"),
-              Type.Literal("context"),
-              Type.Literal("domain"),
-            ]),
-            entityId: Type.String({ minLength: 1 }),
-            fallbackText: Type.Optional(Type.String()),
-          }),
-        ]),
-      ),
-    }),
-    execute: async () => ({
-      content: [{ type: "text" as const, text: "Final answer accepted." }],
-      details: { accepted: true },
-    }),
-  });
-}
-
 function errorStack(error: unknown): string | undefined {
   return error instanceof Error ? error.stack : undefined;
 }
@@ -504,11 +441,25 @@ export async function configurePiRuntimeAuth(
   authStorage: AuthStorage,
   modelConfig: ResolvedAiModelConfig,
 ): Promise<void> {
-  const apiKey =
-    modelConfig.catalog.authType === "codex"
-      ? (await getCodexCredentials()).accessToken
-      : modelConfig.provider.apiKey;
-  authStorage.setRuntimeApiKey(modelConfig.provider.id, apiKey);
+  authStorage.setRuntimeApiKey(modelConfig.provider.id, await finalizerApiKey(modelConfig));
+}
+
+async function finalizerApiKey(modelConfig: ResolvedAiModelConfig): Promise<string> {
+  return modelConfig.catalog.authType === "codex"
+    ? (await getCodexCredentials()).accessToken
+    : modelConfig.provider.apiKey;
+}
+
+async function defaultAgentFinalizer(
+  input: RunAgentFinalizerInput,
+  modelConfig: ResolvedAiModelConfig,
+): Promise<RunAgentFinalizerResult> {
+  return runAgentFinalizer(input, {
+    streamJson: createPiAiFinalizerStream({
+      modelConfig,
+      apiKey: await finalizerApiKey(modelConfig),
+    }),
+  });
 }
 
 export class PiAgentHost {
@@ -519,6 +470,7 @@ export class PiAgentHost {
   constructor(
     private readonly contentStorageRoot = getContentStorageRoot(),
     private readonly titleGenerator = generateAgentThreadTitle,
+    private readonly finalizer: AgentFinalizer = defaultAgentFinalizer,
   ) {
     this.sessionLog = new AgentSessionLog(contentStorageRoot);
   }
@@ -674,7 +626,7 @@ export class PiAgentHost {
       retry: { enabled: false },
     });
 
-    return createAgentSession({
+    const created = await createAgentSession({
       agentDir,
       authStorage,
       customTools: [
@@ -685,7 +637,6 @@ export class PiAgentHost {
         ...createPiWriteTools({
           onApproval: ({ toolCallId }) => this.waitForToolApproval(command.sessionId, toolCallId),
         }),
-        createReflectaFinalAnswerTool(),
       ],
       cwd: this.contentStorageRoot,
       model,
@@ -694,12 +645,9 @@ export class PiAgentHost {
       sessionManager,
       settingsManager,
       thinkingLevel: thinkingLevelFor(command.reasoningLevel ?? getActiveAgentReasoningLevel()),
-      tools: [
-        ...PI_READ_ONLY_TOOL_NAMES,
-        ...PI_APPROVAL_TOOL_NAMES,
-        REFLECTA_FINAL_ANSWER_TOOL_NAME,
-      ],
+      tools: [...PI_READ_ONLY_TOOL_NAMES, ...PI_APPROVAL_TOOL_NAMES],
     });
+    return { ...created, modelConfig };
   }
 
   private createEvent<T extends AgentEvent["type"]>(
@@ -824,12 +772,11 @@ export class PiAgentHost {
     const contextCatalog = entityCatalog.addUserContextRefs(userMessageId, command.contextRefs);
     let session: AgentSession | undefined;
     let unsubscribe: (() => void) | undefined;
-    let assistantText = "";
+    let piDraftText = "";
     let assistantError = "";
     let assistantMetadata: AssistantTurnMetadata | undefined;
     let assistantActivity = false;
     let runStarted = false;
-    const pendingFinalAnswerInputs = new Map<string, unknown>();
     const accumulator = new AgentRunAccumulator();
     const emit = (event: AgentSessionEvent) => this.appendAndEmit(manager, webContents, event);
     const emitAccumulated = (event: AgentLiveEvent) => {
@@ -867,6 +814,7 @@ export class PiAgentHost {
     try {
       const created = await this.createSession(command, manager, entityCatalog);
       session = created.session;
+      const modelConfig = created.modelConfig;
       this.activeRuns.set(command.sessionId, {
         runId,
         assistantMessageId,
@@ -877,17 +825,8 @@ export class PiAgentHost {
       });
       unsubscribe = session.subscribe((event) => {
         if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
-          assistantText += event.assistantMessageEvent.delta;
+          piDraftText += event.assistantMessageEvent.delta;
           assistantActivity = true;
-          emitAccumulated(
-            this.createEvent({
-              type: "assistant.text.delta",
-              sessionId: command.sessionId,
-              runId,
-              messageId: assistantMessageId,
-              delta: event.assistantMessageEvent.delta,
-            }),
-          );
           return;
         }
 
@@ -910,10 +849,6 @@ export class PiAgentHost {
 
         if (event.type === "tool_execution_start") {
           assistantActivity = true;
-          if (isReflectaFinalAnswerTool(event.toolName)) {
-            pendingFinalAnswerInputs.set(event.toolCallId, event.args);
-            return;
-          }
           if (isPiApprovalToolName(event.toolName)) {
             const requested = this.createEvent({
               type: "approval.requested",
@@ -945,30 +880,6 @@ export class PiAgentHost {
         }
 
         if (event.type === "tool_execution_end") {
-          if (isReflectaFinalAnswerTool(event.toolName)) {
-            const input = pendingFinalAnswerInputs.get(event.toolCallId);
-            pendingFinalAnswerInputs.delete(event.toolCallId);
-            if (event.isError) {
-              assistantError = piToolError(event.result);
-              return;
-            }
-            const normalized = normalizeAgentTextParts(
-              finalAnswerPartsFromInput(input),
-              entityCatalog.snapshot(),
-            );
-            if (!normalized.text && normalized.parts.length === 0) return;
-            assistantText += normalized.text;
-            accumulator.appendFinalAnswer({
-              id: `evt_${nanoid()}`,
-              sessionId: command.sessionId,
-              runId,
-              messageId: assistantMessageId,
-              createdAt: new Date().toISOString(),
-              ...normalized,
-            });
-            return;
-          }
-
           if (isPiApprovalToolName(event.toolName)) {
             const output = piToolOutput(event.result);
             if (isRejectedApprovalOutput(output)) return;
@@ -1039,20 +950,11 @@ export class PiAgentHost {
           }
         }
 
-        if (event.type === "message_end" && !assistantText) {
+        if (event.type === "message_end" && !piDraftText) {
           const finalText = extractAssistantText(event.message);
           if (!finalText) return;
-          assistantText = finalText;
+          piDraftText = finalText;
           assistantActivity = true;
-          emitAccumulated(
-            this.createEvent({
-              type: "assistant.text.delta",
-              sessionId: command.sessionId,
-              runId,
-              messageId: assistantMessageId,
-              delta: finalText,
-            }),
-          );
         }
       });
       emitRunStarted();
@@ -1066,32 +968,41 @@ export class PiAgentHost {
       );
       if (this.cancelledRunIds.has(runId)) return;
       if (assistantError) {
-        agentLog.error("pi.run.assistantError", {
-          sessionId: command.sessionId,
-          runId,
-          error: assistantError,
-        });
-        emit(
-          this.createEvent({
-            type: "run.failed",
-            sessionId: command.sessionId,
-            runId,
-            error: assistantError,
-          }),
-        );
-        return;
+        throw new Error(assistantError);
       }
-      if (!assistantText.trim() && !assistantActivity) {
-        emit(
-          this.createEvent({
-            type: "run.failed",
-            sessionId: command.sessionId,
-            runId,
-            error: "Agent response was empty",
-          }),
-        );
-        return;
+      if (!piDraftText.trim() && !assistantActivity) {
+        throw new Error("Agent response was empty");
       }
+      const finalEntityCatalog = entityCatalog.snapshot();
+      const finalAnswer = await this.finalizer(
+        {
+          userQuestion: command.text,
+          piDraftText,
+          toolResults: accumulator.toolResults(),
+          entityCatalog: finalEntityCatalog,
+          requiresEntityRefs: finalEntityCatalog.length > 0,
+          onPartial: (partial) => {
+            const event = this.createEvent({
+              type: "assistant.final.partial",
+              sessionId: command.sessionId,
+              runId,
+              messageId: assistantMessageId,
+              ...partial,
+            });
+            accumulator.append(event);
+            this.emitLive(webContents, event);
+          },
+        },
+        modelConfig,
+      );
+      accumulator.appendFinalAnswer({
+        id: `evt_${nanoid()}`,
+        sessionId: command.sessionId,
+        runId,
+        messageId: assistantMessageId,
+        createdAt: new Date().toISOString(),
+        ...finalAnswer,
+      });
       const contextUsage = session.getContextUsage?.();
       emit(
         accumulator.toAssistantTurn(
@@ -1111,18 +1022,41 @@ export class PiAgentHost {
     } catch (error) {
       emitRunStarted();
       if (this.cancelledRunIds.has(runId)) return;
+      const errorText = formatAgentError(error);
       agentLog.error("pi.run.failed", {
         sessionId: command.sessionId,
         runId,
-        error: formatAgentError(error),
+        error: errorText,
         stack: errorStack(error),
       });
+      const finalFailed = this.createEvent({
+        type: "assistant.final.failed",
+        sessionId: command.sessionId,
+        runId,
+        messageId: assistantMessageId,
+        error: errorText,
+      });
+      accumulator.append(finalFailed);
+      this.emitLive(webContents, finalFailed);
+      emit(
+        accumulator.toAssistantTurn(
+          this.createEvent({
+            type: "assistant.turn",
+            sessionId: command.sessionId,
+            runId,
+            messageId: assistantMessageId,
+            blocks: [],
+            text: "",
+            ...assistantMetadata,
+          }),
+        ),
+      );
       emit(
         this.createEvent({
           type: "run.failed",
           sessionId: command.sessionId,
           runId,
-          error: formatAgentError(error),
+          error: errorText,
         }),
       );
     } finally {

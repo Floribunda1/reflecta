@@ -188,6 +188,22 @@ export class AgentRunAccumulator {
     return this.blocks.length === 0;
   }
 
+  toolResults(): unknown[] {
+    return this.blocks.flatMap((block) => {
+      if (block.kind === "tool" && block.state === "completed" && block.output !== undefined) {
+        return [block.output];
+      }
+      if (
+        block.kind === "approval" &&
+        block.executionState === "completed" &&
+        block.output !== undefined
+      ) {
+        return [block.output];
+      }
+      return [];
+    });
+  }
+
   toAssistantTurn(input: Omit<AgentAssistantTurn, "blocks" | "text">): AgentAssistantTurn {
     return {
       ...input,

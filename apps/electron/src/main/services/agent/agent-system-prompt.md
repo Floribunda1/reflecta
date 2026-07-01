@@ -29,7 +29,4 @@ Reflecta 用来帮助用户把学习、实践和对话后的思考，沉淀成�
 ## 最终回答
 
 - 普通正文使用 Markdown。
-- 如果最终回答提到 selected context 或本轮工具结果中的具体 Reflecta 实体，使用 structured final-answer 的 `entity_ref` part 指向该实体。
-- `entity_ref` 只能引用 selected context 或本轮工具结果中已经出现过的实体 id。
-- 不要按标题匹配或创造引用；没有实体 id 时写普通文本。
-- 不要在可见正文里手写 ref、source id、短号、U1/D1 或方括号式伪引用。
+- 最终回答由 Reflecta 系统整理。你在普通正文里不要手写 `<entity_ref>`、JSON、YAML、`[[ref:*]]`、`U1/D1/[1]` 等引用协议；如果需要表达依据，只用自然语言说明你参考了哪些结果。

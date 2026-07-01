@@ -3,9 +3,10 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { AuthStorage } from "@earendil-works/pi-coding-agent";
-import type { AgentSessionEvent } from "@shared/agent";
+import type { AgentSessionEvent, AgentTextPart } from "@shared/agent";
 import type { ResolvedAiModelConfig } from "../../config";
 import {
+  AGENT_EVENT_CHANNEL,
   buildThreadTitleContext,
   configurePiRuntimeAuth,
   createPiResourceLoader,
@@ -13,8 +14,8 @@ import {
   loadAgentSystemPrompt,
   normalizeGeneratedThreadTitle,
   PiAgentHost,
-  REFLECTA_FINAL_ANSWER_TOOL_NAME,
 } from "./pi-agent-host";
+import type { RunAgentFinalizerInput } from "./agent-finalizer";
 import { AgentEntityCatalog } from "./agent-entity-catalog";
 import { AgentSessionLog } from "./pi-session-log";
 
@@ -108,6 +109,16 @@ function modelConfig(input: {
     selection: { providerId: input.providerId, modelId: "model-test" },
     label: `${input.providerId} / model-test`,
   };
+}
+
+function finalizerSuccess(parts: AgentTextPart[]) {
+  return vi.fn(async (input: RunAgentFinalizerInput) => {
+    const text = parts
+      .map((part) => (part.type === "text" ? part.text : (part.fallbackText ?? part.entityId)))
+      .join("");
+    input.onPartial({ text, parts });
+    return { text, parts };
+  });
 }
 
 afterEach(() => {
@@ -529,9 +540,10 @@ describe("PiAgentHost", () => {
       isDestroyed: () => false,
       send: vi.fn(),
     };
+    const finalizer = finalizerSuccess([{ type: "text", text: "完成" }]);
 
     await (
-      new PiAgentHost(root) as unknown as {
+      new PiAgentHost(root, undefined, finalizer) as unknown as {
         sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
       }
     ).sendMessage(
@@ -563,7 +575,7 @@ describe("PiAgentHost", () => {
     );
   });
 
-  test("persists internal final-answer tool output as text parts without visible tool activity", async () => {
+  test("uses finalizer output as the persisted final answer instead of Pi text", async () => {
     const root = tempRoot();
     const log = new AgentSessionLog(root);
     const thread = log.createSession("新对话");
@@ -585,34 +597,17 @@ describe("PiAgentHost", () => {
         },
         prompt: vi.fn(async () => {
           listener?.({
-            type: "tool_execution_start",
-            toolName: REFLECTA_FINAL_ANSWER_TOOL_NAME,
-            toolCallId: "final_1",
-            args: {
-              parts: [
-                { type: "text", text: "放在" },
-                {
-                  type: "entity_ref",
-                  entityType: "domain",
-                  entityId: "domain_1",
-                  fallbackText: "三观",
-                },
-                { type: "text", text: "下面。" },
-              ],
+            type: "message_update",
+            assistantMessageEvent: {
+              type: "text_delta",
+              delta: '<entity_ref type="domain" entityId="domain_1" />',
             },
-          });
-          listener?.({
-            type: "tool_execution_end",
-            toolName: REFLECTA_FINAL_ANSWER_TOOL_NAME,
-            toolCallId: "final_1",
-            result: { details: { accepted: true } },
-            isError: false,
           });
           listener?.({
             type: "message_end",
             message: {
               role: "assistant",
-              content: [],
+              content: [{ type: "text", text: '<entity_ref type="domain" entityId="domain_1" />' }],
               provider: "openai",
               model: "gpt-4o",
               stopReason: "stop",
@@ -624,13 +619,18 @@ describe("PiAgentHost", () => {
         abort: vi.fn(),
       },
     });
+    const finalizer = finalizerSuccess([
+      { type: "text", text: "放在" },
+      { type: "entity_ref", entityType: "domain", entityId: "domain_1", fallbackText: "三观" },
+      { type: "text", text: "下面。" },
+    ]);
     const webContents = {
       isDestroyed: () => false,
       send: vi.fn(),
     };
 
     await (
-      new PiAgentHost(root) as unknown as {
+      new PiAgentHost(root, undefined, finalizer) as unknown as {
         sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
       }
     ).sendMessage(
@@ -647,7 +647,7 @@ describe("PiAgentHost", () => {
     const sessionOptions = createAgentSessionMock.mock.calls.at(-1)?.[0] as {
       tools?: string[];
     };
-    expect(sessionOptions.tools).toContain(REFLECTA_FINAL_ANSWER_TOOL_NAME);
+    expect(sessionOptions.tools).not.toContain("reflecta_final_answer");
     const events = await new AgentSessionLog(root).readEvents(thread.id);
     expect(events.slice(1).map((event) => event.type)).toEqual([
       "run.started",
@@ -676,6 +676,88 @@ describe("PiAgentHost", () => {
         },
       ],
     });
+    expect(events.map((event) => event.type)).not.toContain("assistant.text.delta");
+    expect(webContents.send).toHaveBeenCalledWith(
+      AGENT_EVENT_CHANNEL,
+      expect.objectContaining({ type: "assistant.final.partial" }),
+    );
+  });
+
+  test("persists a failed final answer block when finalizer validation fails", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("新对话");
+    const manager = await log.openSession(thread.id);
+    log.appendEvent(manager, {
+      id: "evt_existing_cancel",
+      sessionId: thread.id,
+      runId: "run_existing",
+      type: "run.cancelled",
+      createdAt: "2026-06-23T00:00:00.000Z",
+    });
+    let listener: ((event: unknown) => void) | undefined;
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        subscribe: (next: (event: unknown) => void) => {
+          listener = next;
+          return () => {};
+        },
+        prompt: vi.fn(async () => {
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: { type: "text_delta", delta: "草稿" },
+          });
+          listener?.({
+            type: "message_end",
+            message: {
+              role: "assistant",
+              content: [{ type: "text", text: "草稿" }],
+              provider: "openai",
+              model: "gpt-4o",
+              stopReason: "stop",
+            },
+          });
+        }),
+        getContextUsage: vi.fn(() => undefined),
+        dispose: vi.fn(),
+        abort: vi.fn(),
+      },
+    });
+    const finalizer = vi.fn(async () => {
+      throw new Error("引用实体不存在: domain/missing");
+    });
+    const webContents = { isDestroyed: () => false, send: vi.fn() };
+
+    await (
+      new PiAgentHost(root, undefined, finalizer) as unknown as {
+        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
+      }
+    ).sendMessage(
+      {
+        type: "message.send",
+        sessionId: thread.id,
+        text: "放在哪里",
+        contextRefs: [{ type: "domain", id: "domain_1", title: "三观" }],
+        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+      },
+      webContents as never,
+    );
+
+    const events = await new AgentSessionLog(root).readEvents(thread.id);
+    expect(events.find((event) => event.type === "assistant.turn")).toMatchObject({
+      blocks: [
+        {
+          kind: "text",
+          text: "",
+          state: "failed",
+          error: "引用实体不存在: domain/missing",
+        },
+      ],
+    });
+    expect(events.find((event) => event.type === "run.failed")).toMatchObject({
+      error: "引用实体不存在: domain/missing",
+    });
   });
 
   test("restores the active streaming turn when reopening a running session", async () => {
@@ -691,13 +773,13 @@ describe("PiAgentHost", () => {
       createdAt: "2026-06-23T00:00:00.000Z",
     });
     let listener: ((event: unknown) => void) | undefined;
-    let finishPrompt!: () => void;
-    let promptStarted!: () => void;
-    const promptStartedPromise = new Promise<void>((resolve) => {
-      promptStarted = resolve;
+    let finishFinalizer!: () => void;
+    let finalizerStarted!: () => void;
+    const finalizerStartedPromise = new Promise<void>((resolve) => {
+      finalizerStarted = resolve;
     });
-    const promptFinishedPromise = new Promise<void>((resolve) => {
-      finishPrompt = resolve;
+    const finalizerFinishedPromise = new Promise<void>((resolve) => {
+      finishFinalizer = resolve;
     });
     createAgentSessionMock.mockResolvedValueOnce({
       session: {
@@ -709,10 +791,18 @@ describe("PiAgentHost", () => {
         prompt: vi.fn(async () => {
           listener?.({
             type: "message_update",
-            assistantMessageEvent: { type: "text_delta", delta: "前半段回复" },
+            assistantMessageEvent: { type: "text_delta", delta: "草稿" },
           });
-          promptStarted();
-          await promptFinishedPromise;
+          listener?.({
+            type: "message_end",
+            message: {
+              role: "assistant",
+              content: [{ type: "text", text: "草稿" }],
+              provider: "openai",
+              model: "gpt-4o",
+              stopReason: "stop",
+            },
+          });
         }),
         getContextUsage: vi.fn(() => undefined),
         dispose: vi.fn(),
@@ -723,7 +813,15 @@ describe("PiAgentHost", () => {
       isDestroyed: () => false,
       send: vi.fn(),
     };
-    const host = new PiAgentHost(root);
+    const finalizer = vi.fn(async (input: RunAgentFinalizerInput) => {
+      const parts: AgentTextPart[] = [{ type: "text", text: "前半段回复" }];
+      const finalParts: AgentTextPart[] = [{ type: "text", text: "前半段回复。" }];
+      input.onPartial({ text: "前半段回复", parts });
+      finalizerStarted();
+      await finalizerFinishedPromise;
+      return { text: "前半段回复。", parts: finalParts };
+    });
+    const host = new PiAgentHost(root, undefined, finalizer);
 
     const sendPromise = (
       host as unknown as {
@@ -738,7 +836,7 @@ describe("PiAgentHost", () => {
       },
       webContents as never,
     );
-    await promptStartedPromise;
+    await finalizerStartedPromise;
 
     const restored = await host.readSessionEvents(thread.id);
     const restoredTurn = restored.find((event) => event.type === "assistant.turn");
@@ -747,14 +845,14 @@ describe("PiAgentHost", () => {
       expect.objectContaining({
         type: "assistant.turn",
         text: "前半段回复",
-        blocks: [expect.objectContaining({ kind: "text", text: "前半段回复" })],
+        blocks: [expect.objectContaining({ kind: "text", text: "前半段回复", state: "streaming" })],
       }),
     );
     await expect(new AgentSessionLog(root).readEvents(thread.id)).resolves.not.toEqual(
       expect.arrayContaining([expect.objectContaining({ type: "assistant.turn" })]),
     );
 
-    finishPrompt();
+    finishFinalizer();
     await sendPromise;
   });
 
