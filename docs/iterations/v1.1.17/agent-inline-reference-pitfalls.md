@@ -24,205 +24,114 @@ Agent 最终答案的正文里，需要出现可点击的 Reflecta 实体引用�
 
 我们反复出错，就是把这三层串在一起了。
 
-## 1. 时间线
+## 1. 方案分类
 
-### 1.1 手写 wiki / ref token
+这里按方案族分类，不按 commit 时间线分类。`AgentTextPart[]` 是最终存储和渲染目标，不单独算一种生成方案。
 
-早期思路是让模型在正文里写类似：
+### 1.1 方案一：让 AI 直接在 content 里输出引用语法
 
-- `[[title#id]]`
+典型形式：
+
 - `[[type:title#id]]`
-- `[[ref:S1]]`
-- `rf_*`
+- `[[title#id]]`
+- `<entity_ref type="understanding" entityId="..." fallbackText="..." />`
+- 其他 JSON / YAML / markdown token 变体
 
-想解决的问题：正文可点击，同时不让用户看到裸 id。
-
-实际问题：
-
-- 模型会把 A 的 title 配到 B 的 id。
-- `ref` 变成了一个看似稳定的身份，被带进工具参数、审批、恢复和下一轮上下文。
-- 一旦历史里有 `rf_*`，后面所有链路都要做兼容和迁移。
-
-结论：**display token 不能成为 identity。**
-
-### 1.2 工具接受 `ref`
-
-曾经想让工具参数也接受 `ref`，让模型不用处理真实 id。
+想解决的问题：让前端直接 parse Agent 正文，把匹配到的片段渲染成可点击引用。
 
 实际问题：
 
-- 这是最核心的身份污染。
-- 工具层本来应该只接受真实稳定 id，却开始接受会话内 display alias。
-- Agent 会把正文引用、工具参数、历史 source map 混成一套东西。
+- Agent 输出不稳定，经常把 A 的 title 配到 B 的 id。
+- 格式会漂移：今天 XML，明天 JSON，后天普通 markdown。
+- 前端 parser 会被迫追着模型输出补格式。
+- 格式没被 parse 时，用户会直接看到 raw 协议文本。
+- 这种协议一旦进入历史消息，下一轮模型会继续复制，形成运行时兼容包袱。
 
-结论：**工具参数永远只能吃真实 `entityId`，不能吃 `ref`、短号、display token。**
+结论：**拒绝。不能让模型自由正文承担机器协议。**
 
-### 1.3 暴露真实 id 给正文
+### 1.2 方案二：收集本轮 entity 并分配 ref 编号
 
-后来把工具输出里的真实 id 暴露出来，让模型直接用真实 id 引用。
-
-实际问题：
-
-- 正文里出现裸 id，用户体验差。
-- 模型会把 id 当普通文本或 markdown link 写出来。
-- 真实 id 进入可见正文后，后续模型会继续复制它，变成历史包袱。
-
-结论：**真实 id 可以进入工具参数，但不应该变成自然语言正文格式。**
-
-### 1.4 `U1` / `D1` / `[1]` 短 citation
-
-这个方向借鉴 numbered citations，把本轮候选变成短号。
-
-实际问题：
-
-- 它本质仍然是会话内短身份。
-- 模型可能在后续工具调用里继续传 `U1` / `D1`。
-- 用户也可能在下一轮直接说“修改 U1”，系统必须再解释它是不是上一轮短号。
-- 这会重演 `ref` 污染工具身份的问题。
-
-结论：**短号不能作为 Reflecta 实体身份。若使用，也只能是单轮最终答案里的临时渲染标记，并且必须立刻消解。**
-
-### 1.5 title 自动匹配
-
-曾经考虑过让模型只写标题，系统在正文里扫描标题并自动变引用。
-
-实际问题：
-
-- 宽标题会误链，比如 `AI`、`产品`、`设计`。
-- 同名、别名、旧名、父子域都会造成歧义。
-- 权限、可见性、候选集边界无法从普通标题判断。
-- 模型写“AI”可能只是普通词，不一定是引用。
-
-结论：**不要做 title matcher。漏引用比错引用好。**
-
-### 1.6 prompt 要求模型写 `entity_ref`
-
-曾经让模型在普通正文里写：
+共同思路：
 
 ```text
-<entity_ref type="understanding" entityId="..." fallbackText="..." />
+本轮对话 / 工具结果出现实体
+  -> 系统分配一个 ref
+  -> Agent 在正文里引用 ref
+  -> 系统再把 ref 映射回真实 entityId
 ```
+
+这个方向的根本风险是：ref 很容易从“展示层临时符号”变成“系统身份”。
+
+#### 1.2.1 使用短编号，例如 `S1` / `S2` / `U1` / `D1`
+
+想解决的问题：让模型少写复杂格式，不暴露真实 id。
 
 实际问题：
 
-- 模型可能写 XML、JSON、YAML、markdown token，格式会漂移。
-- parser 永远追着模型输出补格式。
-- 用户会直接看到 raw XML。
-- 下次模型可能换一种格式，继续坏。
+- Agent 有时候不按 `[S1]` 或 `[[S1]]` 格式输出，而是直接在正文里写 `S1`。
+- 用户下一轮也可能直接说“修改 S1”，系统必须解释它是不是上一轮短号。
+- 模型会把短编号当成实体身份，在后续工具调用或正文里继续使用。
+- 短号太像正常内容，流式和 markdown 场景里更难稳定识别。
 
-结论：**不能把机器协议放进模型自由正文里。**
+结论：**短编号不能作为 Reflecta 实体身份。**
 
-### 1.7 optional `reflecta_final_answer` tool
+#### 1.2.2 使用无意义编号，例如 `ref:nanoid`
 
-后来做了 structured final-answer tool / parts，想让最终答案走结构化出口。
+想解决的问题：避免 `S1` / `D1` 看起来像真实语义对象，也避免短编号太容易和正文混淆。
 
 实际问题：
 
-- 只要它是 optional，模型就可以不调用。
-- 模型仍然可以直接输出普通 assistant text。
-- 实体 id 无效时，如果系统没有把最终答案判失败，用户会看到一段看似正常但实际没有可靠引用的正文。
+- Agent 会以为 `ref:nanoid` 就是真实 entity id。
+- 工具调用时它会一直拿这个 `ref_id` 传参。
+- 工具层本来应该只接受真实稳定 `entityId`，结果被 display ref 污染。
+- 一旦历史里出现这些 ref，恢复、迁移和下一轮上下文都要解释它。
 
-结论：**optional structured tool 不是 hard final answer protocol。**
+结论：**无意义 ref 也不能成为工具参数或持久身份。**
 
-### 1.8 `AgentTextPart[]` 方向本身是对的，但出口没锁死
+### 1.3 方案三：title 自动匹配
 
-`AgentTextPart[]` 这个数据模型解决的是最终渲染协议：
+方案：Agent 只输出普通标题，系统在正文里扫描标题并自动替换为 `entity_ref`。
 
-```ts
-type AgentTextPart =
-  | { type: "text"; text: string }
-  | { type: "entity_ref"; entityType: "understanding" | "context" | "domain"; entityId: string };
-```
+这个方案在方案阶段就被否定。
 
-它本身没有问题。
+原因：
 
-问题是：
+- 有些笔记名可能只有一个字或一个高频词。
+- `AI`、`产品`、`设计` 这类标题和普通正文词重合度极高。
+- 同名、别名、旧标题、父子 Domain 都会制造歧义。
+- 权限、候选集和用户意图无法从标题字符串判断。
 
-- 模型可以绕过它输出普通 text。
-- invalid id 曾经会 fallback 成普通文本，错误不显式。
-- renderer 能显示 parts，不代表 Agent 一定会产生正确 parts。
+结论：**直接 pass。不要做 title matcher。**
 
-结论：**最终存储用 parts 是对的，但生成链路必须保证 parts 是唯一落点。**
+### 1.4 方案四：当前 Final Answer Object Generator / finalizer 二次全文生成
 
-### 1.9 streaming finalizer
-
-v1.1.17 做过一版 finalizer：
+当前方案大致是：
 
 ```text
-Pi Agent 先写普通答案
-Reflecta finalizer 再把答案重写成 JSON parts
+Pi Agent 先生成普通答案
+  -> Reflecta finalizer 再读一遍答案、toolResults、entityCatalog
+  -> finalizer 输出 JSON parts
+  -> renderer 展示 AgentTextPart[]
 ```
 
-想解决的问题：
+它试图解决：
 
-- 不让模型在主正文里手写引用格式。
-- 让最终答案统一变成 `AgentTextPart[]`。
+- 不让主 Agent 在正文里手写引用语法。
+- 最终持久化仍然落到 `AgentTextPart[]`。
+- invalid `entity_ref` 可以通过 catalog 校验拦住。
 
 实际问题：
 
-- finalizer 成了“第二个作者”，会重写正文。
+- finalizer 成了“第二个作者”，会重写正文，而不是只做引用绑定。
 - 主 Agent 已经写完答案后，用户还要等第二次模型生成。
-- finalizer 可以满足 schema，但语义上把引用放到错误位置。
-- 最新 test 日志里，正文 3669 字都是普通 text，只有末尾 4 个 domain `entity_ref`，正文里的高质量 Understanding 标题没有变成引用。
-
-结论：**不要让第二个模型重写整篇答案来补引用。**
-
-### 1.10 JSON mode patch
-
-后来给 OpenAI-compatible / DeepSeek path 加了 `response_format: { type: "json_object" }`。
-
-它解决了：
-
-- provider 返回普通中文正文导致 `Unexpected token '好'` 的低级 JSON parse failure。
-
-它没有解决：
-
-- JSON mode 只保证“是 JSON”，不保证符合 schema。
-- 即使符合 schema，也不保证引用语义正确。
-- finalizer 仍然可能输出一个大 text part，然后末尾补几个 entity_ref。
+- 当前 test 日志里，主模型约 44s 已经写完，finalizer 又追加约 17s。
 - finalizer 输入还带完整 `toolResults`，最新 test 工具结果约 8.1 万字符，造成二次生成明显变慢。
+- JSON mode 只保证“是 JSON”，不保证符合 schema，更不保证引用语义正确。
+- 即使 schema 通过，也可能只是末尾补几个 `entity_ref`，正文里的关键实体仍然没有引用。
+- 最新 test 里最终 parts 只有 5 段：前 3669 字是普通 text，末尾 4 个 domain `entity_ref`；正文里的高质量 Understanding 标题没有变成引用。
+- 为了等 finalizer，有 catalog 的回答不会直接展示主模型正文流，流式体验变差。
 
-结论：**JSON mode 是格式补丁，不是引用架构。**
-
-### 1.11 流式体验回退
-
-当前实现里，有 tool activity 或 entity catalog 后，主模型正文流不会作为最终正文展示，而是等 finalizer：
-
-```text
-有 catalog -> 等 finalizer partial / final answer
-```
-
-最新 test 日志显示：
-
-- 主模型约 44s 左右已经生成完正文。
-- finalizer 又追加约 17s。
-- 用户看到的体验就是慢一档。
-
-结论：**不要为了结构化引用，把已经可用的正文流整段扣住。**
-
-### 1.12 Markdown 渲染被破坏
-
-有一次最终答案里出现了正常 markdown 语法不渲染：
-
-- `---`
-- `##`
-- `###`
-- `**bold**`
-
-根因不是 markdown 本身，而是最终答案链路把正文当作结构化转换材料处理，导致 UI 收到的不是稳定的 markdown text block，或者 partial / preview / parts 状态不一致。
-
-结论：**引用协议不能破坏普通 markdown text 的基本渲染。**
-
-### 1.13 迁移和兼容包袱
-
-历史里出现过 `rf_*`、`[[ref:*]]`、旧 `entity.sources.updated`、旧 tool output 字段等。
-
-实际问题：
-
-- 运行时兼容越多，模型上下文和代码路径越脏。
-- 老 token 一旦进入知识库正文或 session，后续每个方案都要解释它。
-
-结论：**能一次性迁移就迁移，运行时不要长期保留老协议兼容。**
+结论：**这不是清晰方案。它把“引用绑定”做成了“第二次全文生成”，所以又慢又容易语义漂移。**
 
 ## 2. 我们真正反复踩的是同一个坑
 
