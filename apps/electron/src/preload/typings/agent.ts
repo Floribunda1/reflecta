@@ -4,6 +4,15 @@ export type AgentContextRef = {
   title?: string;
 };
 
+export type AgentTextPart =
+  | { type: "text"; text: string }
+  | {
+      type: "entity_ref";
+      entityType: AgentContextRef["type"];
+      entityId: string;
+      fallbackText?: string;
+    };
+
 export type AgentComposerContentNode = {
   type?: string;
   text?: string;
@@ -285,6 +294,7 @@ export type AgentReducedAssistantBlock =
   | {
       kind: "text";
       text: string;
+      parts?: AgentTextPart[];
       createdAt: string;
     };
 

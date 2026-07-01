@@ -143,6 +143,39 @@ describe("reduceAgentSession", () => {
     expect(reduceAgentSession(events)).toEqual(state);
   });
 
+  test("preserves structured assistant text parts", () => {
+    const state = reduceAgentSession([
+      {
+        ...base,
+        id: "evt_1",
+        type: "assistant.turn",
+        messageId: "assistant_1",
+        text: "这个理解适合放在三观下面。",
+        blocks: [
+          {
+            kind: "text",
+            text: "这个理解适合放在三观下面。",
+            parts: [
+              { type: "text", text: "这个理解适合放在" },
+              { type: "entity_ref", entityType: "domain", entityId: "domain_1" },
+              { type: "text", text: "下面。" },
+            ],
+            createdAt: base.createdAt,
+          },
+        ],
+      },
+    ]);
+
+    expect(state.messages[0]?.blocks?.[0]).toMatchObject({
+      kind: "text",
+      parts: [
+        { type: "text", text: "这个理解适合放在" },
+        { type: "entity_ref", entityType: "domain", entityId: "domain_1" },
+        { type: "text", text: "下面。" },
+      ],
+    });
+  });
+
   test("keeps reasoning, tool activity, and final text in event order", () => {
     const events: AgentEvent[] = [
       { ...base, id: "evt_1", type: "run.started" },
