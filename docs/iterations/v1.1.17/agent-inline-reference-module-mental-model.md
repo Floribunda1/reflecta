@@ -103,7 +103,7 @@ flowchart TD
 | Run coordinator      | `apps/electron/src/main/services/agent/pi-agent-host.ts`                         | 串起 Agent run、tool events、catalog updates 和 final answer   |
 | Turn accumulator     | `apps/electron/src/main/services/agent/agent-run-accumulator.ts`                 | 把运行事件折叠成 assistant turn，保存 final parts              |
 | Renderer             | `apps/electron/src/renderer/src/modules/chat/messages/agent-message-content.tsx` | 把 validated parts 渲染成正文和链接                            |
-| Historical finalizer | `apps/electron/src/main/services/agent/agent-finalizer.ts`                       | 历史过渡方案，不应继续成为主路径中心                           |
+| Historical finalizer | Removed from the main path                                                       | 历史过渡方案，不应继续成为主路径中心                           |
 
 ### `AgentTextPart`
 
@@ -213,9 +213,9 @@ validated AgentTextPart[] -> 可见文本 + 可点击 entity link
 
 它不应该做 parser，不应该做 title matching，也不应该在 catalog 之外猜 entity。renderer 看到普通 text part，就当普通文本渲染；看到 validated `entity_ref`，才渲染链接。
 
-### `agent-finalizer`
+### Historical finalizer
 
-`agent-finalizer` 是历史过渡方案，不应该是目标架构中心。
+二次 LLM finalizer 是历史过渡方案，不应该是目标架构中心。
 
 它现在做的是：
 

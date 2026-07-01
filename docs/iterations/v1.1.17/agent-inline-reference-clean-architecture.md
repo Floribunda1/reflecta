@@ -293,9 +293,9 @@ adapter 完成后：
 
 ### Step 3: 取消二次 LLM finalizer 的主路径
 
-`agent-finalizer.ts` 不再是有 catalog 答案的默认路径。
+二次 LLM finalizer 不再是有 catalog 答案的默认路径。
 
-可以先保留文件，但 runtime 不再调用它来重写主 Agent 答案。
+历史文件可以删除或仅作为历史记录保留；runtime 不再调用它来重写主 Agent 答案。
 
 ### Step 4: 明确 fallback
 
