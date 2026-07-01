@@ -776,6 +776,7 @@ export class PiAgentHost {
     let assistantError = "";
     let assistantMetadata: AssistantTurnMetadata | undefined;
     let assistantActivity = false;
+    let toolActivitySeen = false;
     let runStarted = false;
     const accumulator = new AgentRunAccumulator();
     const emit = (event: AgentSessionEvent) => this.appendAndEmit(manager, webContents, event);
@@ -827,14 +828,15 @@ export class PiAgentHost {
         if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
           piDraftText += event.assistantMessageEvent.delta;
           assistantActivity = true;
-          if (entityCatalog.snapshot().length === 0) {
+          if (!toolActivitySeen && entityCatalog.snapshot().length === 0) {
             emitAccumulated(
               this.createEvent({
-                type: "assistant.text.delta",
+                type: "assistant.final.partial",
                 sessionId: command.sessionId,
                 runId,
                 messageId: assistantMessageId,
-                delta: event.assistantMessageEvent.delta,
+                text: piDraftText,
+                parts: [{ type: "text", text: piDraftText }],
               }),
             );
           }
@@ -860,6 +862,7 @@ export class PiAgentHost {
 
         if (event.type === "tool_execution_start") {
           assistantActivity = true;
+          toolActivitySeen = true;
           if (isPiApprovalToolName(event.toolName)) {
             const requested = this.createEvent({
               type: "approval.requested",

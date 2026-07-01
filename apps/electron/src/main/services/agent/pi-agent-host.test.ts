@@ -573,6 +573,11 @@ describe("PiAgentHost", () => {
         stopReason: "stop",
       }),
     );
+    expect(events.map((event) => event.type)).not.toContain("assistant.text.delta");
+    expect(webContents.send).toHaveBeenCalledWith(
+      AGENT_EVENT_CHANNEL,
+      expect.objectContaining({ type: "assistant.final.partial", text: "完成" }),
+    );
   });
 
   test("uses finalizer output as the persisted final answer instead of Pi text", async () => {
