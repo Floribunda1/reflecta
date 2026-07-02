@@ -326,7 +326,7 @@ describe("MessageList entity refs", () => {
 
     const chips = container?.querySelectorAll('[data-slot="wiki-link"]');
     expect(chips).toHaveLength(1);
-    expect(chips?.[0]?.textContent).toContain("[1]");
+    expect(chips?.[0]?.textContent).toContain("三观");
     expect(container?.textContent).toContain("AI 只是普通文本");
     expect(container?.textContent).not.toContain("domain_1");
   });
@@ -363,9 +363,9 @@ describe("MessageList entity refs", () => {
     });
 
     expect(container?.querySelector("h2")?.textContent).toContain("标题");
-    expect(container?.querySelector("h3")?.textContent).toContain("[2]");
+    expect(container?.querySelector("h3")?.textContent).toContain("用户需求");
     expect(container?.querySelector('li [data-streamdown="strong"]')?.textContent).toBe("重点");
-    expect(container?.querySelector('[data-slot="wiki-link"]')?.textContent).toContain("[2]");
+    expect(container?.querySelector('[data-slot="wiki-link"]')?.textContent).toContain("用户需求");
   });
 
   test("leaves unknown and code-formatted citation markers as plain text", () => {

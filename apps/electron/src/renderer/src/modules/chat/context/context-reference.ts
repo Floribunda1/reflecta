@@ -108,8 +108,8 @@ function citationMarkdownToLinks(markdown: string, citationSources: AgentCitatio
     if (previous === "!" || next === "(") return match;
     const source = byIndex.get(Number(rawIndex));
     if (!source) return match;
-    const title = source.entity.title?.trim() || source.entity.id;
-    return `[${markdownLinkLabel(match)}](${wikiHref(title, source.entity.id, source.entity.type)})`;
+    const title = contextTitle(source.entity);
+    return `[${markdownLinkLabel(title)}](${wikiHref(title, source.entity.id, source.entity.type)})`;
   });
 }
 
