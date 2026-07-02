@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.17 - 2026-07-02
+
+- Replaced Agent inline references with per-answer numbered citation sources and plain text streaming.
+- Rendered valid citation markers as Reflecta entity title links while keeping unknown and code-formatted markers as plain text.
+- Migrated production Agent session inline references to `text + citationSources` and removed runtime migration logic and obsolete structured-reference docs.
+
 ## 1.1.15 - 2026-06-30
 
 - Switched Agent tools to stable Reflecta entity ids and removed legacy `ref` tool inputs.
