@@ -1,4 +1,4 @@
-import type { AgentContextRef } from "@shared/agent";
+import type { AgentCitationSource, AgentContextRef } from "@shared/agent";
 
 const WIKI_LINK_PATTERN = /\[\[([^:#\]\n]+)#([^\]\n]+)\]\]/g;
 export const WIKI_LINK_HREF_PREFIX = "#reflecta-wiki/";
@@ -95,10 +95,35 @@ export function wikiMarkdownToLinks(markdown: string) {
   });
 }
 
-export function referenceMarkdownToLinks(markdown: string) {
+function markdownLinkLabel(label: string) {
+  return label.replace(/([\\[\]])/g, "\\$1");
+}
+
+function citationMarkdownToLinks(markdown: string, citationSources: AgentCitationSource[] = []) {
+  if (citationSources.length === 0) return markdown;
+  const byIndex = new Map(citationSources.map((source) => [source.index, source]));
+  return markdown.replace(/\[(\d+)\]/g, (match, rawIndex: string, offset: number) => {
+    const previous = offset > 0 ? markdown[offset - 1] : "";
+    const next = markdown[offset + match.length] ?? "";
+    if (previous === "!" || next === "(") return match;
+    const source = byIndex.get(Number(rawIndex));
+    if (!source) return match;
+    const title = source.entity.title?.trim() || source.entity.id;
+    return `[${markdownLinkLabel(match)}](${wikiHref(title, source.entity.id, source.entity.type)})`;
+  });
+}
+
+export function referenceMarkdownToLinks(
+  markdown: string,
+  citationSources: AgentCitationSource[] = [],
+) {
   return markdown
     .split(/(```[\s\S]*?```|`[^`\n]*`)/g)
-    .map((part) => (part.startsWith("`") ? part : wikiMarkdownToLinks(part)))
+    .map((part) =>
+      part.startsWith("`")
+        ? part
+        : citationMarkdownToLinks(wikiMarkdownToLinks(part), citationSources),
+    )
     .join("");
 }
 

@@ -1,4 +1,4 @@
-import type { AgentReducedAssistantBlock, AgentTextPart } from "@shared/agent";
+import type { AgentReducedAssistantBlock } from "@shared/agent";
 
 export type ProposalType =
   | "understanding_create"
@@ -142,8 +142,6 @@ export type AgentTurnBlock =
   | {
       kind: "text";
       text: string;
-      parts?: AgentTextPart[];
-      previewText?: string;
       state?: "streaming" | "done" | "failed";
       error?: string;
     }
@@ -164,8 +162,6 @@ type InternalTurnBlock =
   | {
       kind: "text";
       text: string;
-      parts?: AgentTextPart[];
-      previewText?: string;
       state?: "streaming" | "done" | "failed";
       error?: string;
     }
@@ -183,14 +179,7 @@ export function buildAgentTurnView(
 
   for (const [index, block] of blocks.entries()) {
     if (block.kind === "text") {
-      appendText(
-        internalBlocks,
-        block.text,
-        block.parts,
-        block.previewText,
-        block.state,
-        block.error,
-      );
+      appendText(internalBlocks, block.text, block.state, block.error);
       continue;
     }
     if (block.kind === "reasoning") {
@@ -232,22 +221,18 @@ function toPublicBlock(block: InternalTurnBlock): AgentTurnBlock {
 function appendText(
   blocks: InternalTurnBlock[],
   text: string,
-  parts?: AgentTextPart[],
-  previewText?: string,
   state?: "streaming" | "done" | "failed",
   error?: string,
 ) {
-  if (!text && !previewText && !error) return;
+  if (!text && !error) return;
   const last = blocks.at(-1);
-  if (!parts && !previewText && !state && !error && last?.kind === "text" && !last.parts) {
+  if (!state && !error && last?.kind === "text") {
     last.text += text;
     return;
   }
   blocks.push({
     kind: "text",
     text,
-    ...(parts ? { parts } : {}),
-    ...(previewText ? { previewText } : {}),
     ...(state ? { state } : {}),
     ...(error ? { error } : {}),
   });

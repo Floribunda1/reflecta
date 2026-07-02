@@ -297,87 +297,110 @@ describe("MessageList entity refs", () => {
     expect(onInspectContextRef).not.toHaveBeenCalled();
   });
 
-  test("renders structured entity text parts without title matching plain words", () => {
+  test("renders valid numbered citations as inline Reflecta links", () => {
     renderMessageList({
       messages: [
         {
           id: "assistant_1",
           role: "assistant",
-          text: "这个理解适合放在三观下面。AI 只是普通文本。",
+          text: "这个理解适合放在三观下面 [1]。AI 只是普通文本。",
           createdAt: "2026-07-01T00:00:00.000Z",
+          citationSources: [
+            {
+              index: 1,
+              entity: { type: "domain", id: "domain_1", title: "三观" },
+              origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_inspect" },
+            },
+          ],
           blocks: [
             {
               kind: "text",
-              text: "这个理解适合放在三观下面。AI 只是普通文本。",
-              parts: [
-                { type: "text", text: "这个理解适合放在" },
-                { type: "entity_ref", entityType: "domain", entityId: "domain_1" },
-                { type: "text", text: "下面。AI 只是普通文本。" },
-              ],
+              text: "这个理解适合放在三观下面 [1]。AI 只是普通文本。",
               createdAt: "2026-07-01T00:00:00.000Z",
             },
           ],
         },
       ],
-      entityCatalog: [
-        {
-          key: "domain:domain_1",
-          entity: { type: "domain", id: "domain_1", title: "三观" },
-          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_inspect" },
-        },
-        {
-          key: "domain:domain_ai",
-          entity: { type: "domain", id: "domain_ai", title: "AI" },
-          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_inspect" },
-        },
-      ],
+      entityCatalog: [],
     });
 
     const chips = container?.querySelectorAll('[data-slot="wiki-link"]');
     expect(chips).toHaveLength(1);
-    expect(chips?.[0]?.textContent).toContain("三观");
+    expect(chips?.[0]?.textContent).toContain("[1]");
     expect(container?.textContent).toContain("AI 只是普通文本");
     expect(container?.textContent).not.toContain("domain_1");
   });
 
-  test("renders markdown inside structured entity text parts", () => {
+  test("renders markdown around numbered citation links", () => {
     renderMessageList({
       messages: [
         {
           id: "assistant_1",
           role: "assistant",
-          text: "## 标题\n\n### 小节 用户需求\n\n- **重点**",
+          text: "## 标题\n\n### 小节 [2]\n\n- **重点**",
           createdAt: "2026-07-01T00:00:00.000Z",
+          citationSources: [
+            {
+              index: 2,
+              entity: { type: "understanding", id: "understanding_1", title: "用户需求" },
+              origin: {
+                kind: "tool_result",
+                toolCallId: "tool_1",
+                toolName: "understanding_search",
+              },
+            },
+          ],
           blocks: [
             {
               kind: "text",
-              text: "## 标题\n\n### 小节 用户需求\n\n- **重点**",
-              parts: [
-                { type: "text", text: "## 标题\n\n### 小节 " },
-                { type: "entity_ref", entityType: "understanding", entityId: "understanding_1" },
-                { type: "text", text: "\n\n- **重点**" },
-              ],
+              text: "## 标题\n\n### 小节 [2]\n\n- **重点**",
               createdAt: "2026-07-01T00:00:00.000Z",
             },
           ],
         },
       ],
-      entityCatalog: [
-        {
-          key: "understanding:understanding_1",
-          entity: { type: "understanding", id: "understanding_1", title: "用户需求" },
-          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "understanding_search" },
-        },
-      ],
+      entityCatalog: [],
     });
 
     expect(container?.querySelector("h2")?.textContent).toContain("标题");
-    expect(container?.querySelector("h3")?.textContent).toContain("用户需求");
+    expect(container?.querySelector("h3")?.textContent).toContain("[2]");
     expect(container?.querySelector('li [data-streamdown="strong"]')?.textContent).toBe("重点");
-    expect(container?.querySelector('[data-slot="wiki-link"]')?.textContent).toContain("用户需求");
+    expect(container?.querySelector('[data-slot="wiki-link"]')?.textContent).toContain("[2]");
   });
 
-  test("renders validated final output parts with plain preview text", () => {
+  test("leaves unknown and code-formatted citation markers as plain text", () => {
+    renderMessageList({
+      messages: [
+        {
+          id: "assistant_1",
+          role: "assistant",
+          text: "有效 [1] 未知 [999] `代码 [1]`\n\n```txt\n[1]\n```",
+          createdAt: "2026-07-01T00:00:00.000Z",
+          citationSources: [
+            {
+              index: 1,
+              entity: { type: "domain", id: "domain_1", title: "三观" },
+              origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_inspect" },
+            },
+          ],
+          blocks: [
+            {
+              kind: "text",
+              text: "有效 [1] 未知 [999] `代码 [1]`\n\n```txt\n[1]\n```",
+              createdAt: "2026-07-01T00:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      entityCatalog: [],
+    });
+
+    expect(container?.querySelectorAll('[data-slot="wiki-link"]')).toHaveLength(1);
+    expect(container?.textContent).toContain("[999]");
+    expect(container?.querySelector("code")?.textContent).toContain("[1]");
+  });
+
+  test("leaves raw legacy entity ref strings as plain text", () => {
     renderMessageList({
       messages: [
         {
@@ -389,52 +412,6 @@ describe("MessageList entity refs", () => {
             {
               kind: "text",
               text: '放在三观下面 <entity_ref type="domain" entityId="domain_ai" />',
-              parts: [
-                { type: "text", text: "放在" },
-                { type: "entity_ref", entityType: "domain", entityId: "domain_1" },
-                { type: "text", text: "下面" },
-              ],
-              previewText: ' <entity_ref type="domain" entityId="domain_ai" />',
-              state: "streaming",
-              createdAt: "2026-07-01T00:00:00.000Z",
-            },
-          ],
-        },
-      ],
-      entityCatalog: [
-        {
-          key: "domain:domain_1",
-          entity: { type: "domain", id: "domain_1", title: "三观" },
-          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_inspect" },
-        },
-        {
-          key: "domain:domain_ai",
-          entity: { type: "domain", id: "domain_ai", title: "AI" },
-          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_inspect" },
-        },
-      ],
-    });
-
-    expect(container?.querySelectorAll('[data-slot="wiki-link"]')).toHaveLength(1);
-    expect(container?.querySelector('[data-slot="wiki-link"]')?.textContent).toContain("三观");
-    expect(container?.textContent).toContain("<entity_ref");
-    expect(container?.textContent).toContain("domain_ai");
-  });
-
-  test("renders final output failure as a failed answer state", () => {
-    renderMessageList({
-      messages: [
-        {
-          id: "assistant_1",
-          role: "assistant",
-          text: "",
-          createdAt: "2026-07-01T00:00:00.000Z",
-          blocks: [
-            {
-              kind: "text",
-              text: "",
-              state: "failed",
-              error: "引用实体不存在: domain/missing",
               createdAt: "2026-07-01T00:00:00.000Z",
             },
           ],
@@ -443,8 +420,8 @@ describe("MessageList entity refs", () => {
       entityCatalog: [],
     });
 
-    expect(
-      container?.querySelector('[data-testid="agent-final-answer-error"]')?.textContent,
-    ).toContain("引用实体不存在: domain/missing");
+    expect(container?.querySelector('[data-slot="wiki-link"]')).toBeNull();
+    expect(container?.textContent).toContain("<entity_ref");
+    expect(container?.textContent).toContain("domain_ai");
   });
 });

@@ -11,17 +11,13 @@ import {
   CollapsibleTrigger,
 } from "@renderer/components/ui/collapsible";
 import type {
+  AgentCitationSource,
   AgentEntityCatalogEntry,
   AgentModelSelection,
   AgentReasoningLevel,
   AgentReducedMessage,
-  AgentTextPart,
 } from "@shared/agent";
-import {
-  referenceMarkdownToLinks,
-  wikiHref,
-  type InspectableContextRef,
-} from "../context/context-reference";
+import { referenceMarkdownToLinks, type InspectableContextRef } from "../context/context-reference";
 import { findChatTextRanges } from "../session/chat-find";
 import {
   type AgentReasoningView,
@@ -75,6 +71,7 @@ function MarkdownBody({
   className = "",
   onInspectContextRef,
   entityCatalog = [],
+  citationSources = [],
   findState,
   convertReferenceMarkdown = true,
 }: {
@@ -82,10 +79,13 @@ function MarkdownBody({
   className?: string;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
   entityCatalog?: AgentEntityCatalogEntry[];
+  citationSources?: AgentCitationSource[];
   findState?: ChatFindRenderState;
   convertReferenceMarkdown?: boolean;
 }) {
-  const markdownValue = convertReferenceMarkdown ? referenceMarkdownToLinks(value) : value;
+  const markdownValue = convertReferenceMarkdown
+    ? referenceMarkdownToLinks(value, citationSources)
+    : value;
   const findKey = findState ? findState.query : "plain";
 
   return (
@@ -132,63 +132,6 @@ function chatFindMarkdownLabelStartIndex(markdownValue: string, query: string, n
   const linkStartOffset = position?.start?.offset;
   if (typeof linkStartOffset !== "number") return null;
   return findChatTextRanges(markdownValue.slice(0, linkStartOffset + 1), query).length;
-}
-
-function catalogEntryFor(
-  entityCatalog: AgentEntityCatalogEntry[],
-  part: Extract<AgentTextPart, { type: "entity_ref" }>,
-) {
-  const key = `${part.entityType}:${part.entityId}`;
-  return entityCatalog.find((entry) => entry.key === key);
-}
-
-function markdownLinkLabel(label: string) {
-  return label.replace(/([\\[\]])/g, "\\$1");
-}
-
-function markdownFromStructuredParts(
-  parts: AgentTextPart[],
-  entityCatalog: AgentEntityCatalogEntry[],
-) {
-  return parts
-    .map((part) => {
-      if (part.type === "text") return part.text;
-      const entry = catalogEntryFor(entityCatalog, part);
-      if (!entry) return part.fallbackText ?? "";
-      const title = entry.entity.title?.trim() || part.fallbackText || entry.entity.id;
-      return `[${markdownLinkLabel(title)}](${wikiHref(title, entry.entity.id, entry.entity.type)})`;
-    })
-    .join("");
-}
-
-function markdownVisibleText(value: string) {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function StructuredTextBody({
-  parts,
-  previewText,
-  entityCatalog,
-  onInspectContextRef,
-  findState,
-}: {
-  parts: AgentTextPart[];
-  previewText?: string;
-  entityCatalog: AgentEntityCatalogEntry[];
-  onInspectContextRef?: (ref: InspectableContextRef) => void;
-  findState?: ChatFindRenderState;
-}) {
-  return (
-    <MarkdownBody
-      value={`${markdownFromStructuredParts(parts, entityCatalog)}${
-        previewText ? markdownVisibleText(previewText) : ""
-      }`}
-      onInspectContextRef={onInspectContextRef}
-      entityCatalog={entityCatalog}
-      findState={findState}
-      convertReferenceMarkdown={false}
-    />
-  );
 }
 
 function hasToolDetails(details: ToolActivityDetailsView) {
@@ -978,18 +921,12 @@ export function AgentMessageContent({
                 >
                   最终答案生成失败：{block.error ?? "未知错误"}
                 </div>
-              ) : block.parts ? (
-                <StructuredTextBody
-                  parts={block.parts}
-                  previewText={block.previewText}
-                  entityCatalog={entityCatalog}
-                  onInspectContextRef={onInspectContextRef}
-                />
               ) : (
                 <MarkdownBody
                   value={block.text}
                   onInspectContextRef={onInspectContextRef}
                   entityCatalog={entityCatalog}
+                  citationSources={message.citationSources}
                   findState={findState}
                 />
               )}
