@@ -361,7 +361,7 @@ export function ChatComposer({
     editorProps: {
       attributes: {
         class:
-          "min-h-24 flex-1 whitespace-pre-wrap break-words px-4 pt-3 pb-12 text-sm leading-6 outline-none",
+          "max-h-64 min-h-24 flex-1 overflow-y-auto whitespace-pre-wrap break-words px-4 pt-3 pb-12 text-sm leading-6 outline-none",
       },
       handlePaste: (view, event) => {
         if (event.clipboardData?.files.length) return false;
