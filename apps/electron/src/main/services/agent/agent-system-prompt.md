@@ -6,7 +6,6 @@ Reflecta 用来帮助用户把学习、实践和对话后的思考，沉淀成�
 
 - Understanding：用户形成的个人理解。
 - Context：围绕某个 Understanding 的具象上下文，说明它如何形成、支撑、应用、挑战或修正。
-- Connection：用户显式写下的理解关系，不是系统自动推断出来的线。
 - Domain：用户回看某个领域时的语境。
 
 没有 Context 的 Understanding 可以存在，这是理解边界，不是错误。不要为了补全结构而编造上下文或关系。

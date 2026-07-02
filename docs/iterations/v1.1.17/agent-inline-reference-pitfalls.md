@@ -1,6 +1,6 @@
 # Agent 正文引用踩坑记录
 
-这份文档只记录正文引用 / mention 相关踩坑，不写新方案，不替当前实现背书，也不讨论和 mention 无关的问题。
+这份文档只记录正文引用 / mention 相关踩坑，不写新方案，不替当前实现背书，也不讨论和 mention 无关的问题。当前实现见 [Citation Architecture](agent-inline-reference-citation-architecture.md)。
 
 ## 0. 问题范围
 
@@ -104,9 +104,9 @@
 
 这个方向的问题很早就明确了：错绑的风险太高。
 
-## 4. 方案四：当前 Final Answer Object Generator / finalizer 二次全文生成
+## 4. 方案四：历史 Final Answer Object Generator / finalizer 二次全文生成
 
-当前实现大致是：
+历史实现大致是：
 
 ```text
 Pi Agent 先生成普通答案
@@ -146,4 +146,4 @@ Pi Agent 先生成普通答案
 - title 自动匹配会在标题很短或很泛时误绑。
 - 二次 finalizer 会拖慢输出，并且不保证引用真的落在正文关键位置。
 
-这些只是已经踩过的坑记录，不代表后续方案已经确定。
+这些只是已经踩过的坑记录。当前主路径已经改为 numbered citation，不再保留 finalizer / structured parts 作为运行时方案。
