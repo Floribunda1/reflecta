@@ -15,7 +15,6 @@ import {
   normalizeGeneratedThreadTitle,
   PiAgentHost,
 } from "./pi-agent-host";
-import { REFLECTA_FINAL_ANSWER_TOOL_NAME } from "./agent-final-output";
 import { AgentEntityCatalog } from "./agent-entity-catalog";
 import { AgentSessionLog } from "./pi-session-log";
 
@@ -108,64 +107,6 @@ function modelConfig(input: {
     model: { id: "model-test" },
     selection: { providerId: input.providerId, modelId: "model-test" },
     label: `${input.providerId} / model-test`,
-  };
-}
-
-function finalAnswerToolCall(args: Record<string, unknown>) {
-  return {
-    type: "toolCall",
-    id: "final_tool_call",
-    name: REFLECTA_FINAL_ANSWER_TOOL_NAME,
-    arguments: args,
-  };
-}
-
-function finalAnswerToolDelta(args: Record<string, unknown>) {
-  return {
-    type: "message_update",
-    assistantMessageEvent: {
-      type: "toolcall_delta",
-      contentIndex: 0,
-      delta: "",
-      partial: {
-        role: "assistant",
-        content: [finalAnswerToolCall(args)],
-      },
-    },
-  };
-}
-
-function finalAnswerToolEnd(args: Record<string, unknown>) {
-  return {
-    type: "message_update",
-    assistantMessageEvent: {
-      type: "toolcall_end",
-      contentIndex: 0,
-      toolCall: finalAnswerToolCall(args),
-      partial: {
-        role: "assistant",
-        content: [finalAnswerToolCall(args)],
-      },
-    },
-  };
-}
-
-function finalAnswerToolExecutionStart(args: Record<string, unknown>) {
-  return {
-    type: "tool_execution_start",
-    toolCallId: "final_tool_call",
-    toolName: REFLECTA_FINAL_ANSWER_TOOL_NAME,
-    args,
-  };
-}
-
-function finalAnswerToolExecutionEnd() {
-  return {
-    type: "tool_execution_end",
-    toolCallId: "final_tool_call",
-    toolName: REFLECTA_FINAL_ANSWER_TOOL_NAME,
-    result: { details: { accepted: true } },
-    isError: false,
   };
 }
 
@@ -622,11 +563,11 @@ describe("PiAgentHost", () => {
     expect(events.map((event) => event.type)).not.toContain("assistant.text.delta");
     expect(webContents.send).toHaveBeenCalledWith(
       AGENT_EVENT_CHANNEL,
-      expect.objectContaining({ type: "assistant.final.partial", text: "完成" }),
+      expect.objectContaining({ type: "assistant.text.delta", delta: "完成" }),
     );
   });
 
-  test("uses final structured output as the persisted final answer instead of Pi text", async () => {
+  test("streams and persists plain text with numbered citation sources", async () => {
     const root = tempRoot();
     const log = new AgentSessionLog(root);
     const thread = log.createSession("新对话");
@@ -651,30 +592,14 @@ describe("PiAgentHost", () => {
             type: "message_update",
             assistantMessageEvent: {
               type: "text_delta",
-              delta: '<entity_ref type="domain" entityId="domain_1" />',
+              delta: "放在三观下面 [1]。",
             },
           });
-          const args = {
-            parts: [
-              { type: "text", text: "放在" },
-              {
-                type: "entity_ref",
-                entityType: "domain",
-                entityId: "domain_1",
-                fallbackText: "三观",
-              },
-              { type: "text", text: "下面。" },
-            ],
-          };
-          listener?.(finalAnswerToolDelta(args));
-          listener?.(finalAnswerToolEnd(args));
-          listener?.(finalAnswerToolExecutionStart(args));
-          listener?.(finalAnswerToolExecutionEnd());
           listener?.({
             type: "message_end",
             message: {
               role: "assistant",
-              content: [{ type: "text", text: '<entity_ref type="domain" entityId="domain_1" />' }],
+              content: [{ type: "text", text: "放在三观下面 [1]。" }],
               provider: "openai",
               model: "gpt-4o",
               stopReason: "stop",
@@ -710,10 +635,10 @@ describe("PiAgentHost", () => {
       customTools?: { name: string }[];
       tools?: string[];
     };
-    expect(sessionOptions.customTools?.map((tool) => tool.name)).toContain(
-      REFLECTA_FINAL_ANSWER_TOOL_NAME,
+    expect(sessionOptions.customTools?.map((tool) => tool.name)).not.toContain(
+      "reflecta_final_answer",
     );
-    expect(sessionOptions.tools).toContain(REFLECTA_FINAL_ANSWER_TOOL_NAME);
+    expect(sessionOptions.tools).not.toContain("reflecta_final_answer");
     const events = await new AgentSessionLog(root).readEvents(thread.id);
     expect(events.slice(1).map((event) => event.type)).toEqual([
       "run.started",
@@ -724,151 +649,40 @@ describe("PiAgentHost", () => {
     ]);
     expect(events.find((event) => event.type === "assistant.turn")).toMatchObject({
       type: "assistant.turn",
-      text: "放在三观下面。",
+      text: "放在三观下面 [1]。",
+      citationSources: [
+        {
+          index: 1,
+          entity: { type: "domain", id: "domain_1", title: "三观" },
+          origin: { kind: "user_context", messageId: expect.any(String) },
+        },
+      ],
       blocks: [
         {
           kind: "text",
-          text: "放在三观下面。",
-          parts: [
-            { type: "text", text: "放在" },
-            {
-              type: "entity_ref",
-              entityType: "domain",
-              entityId: "domain_1",
-              fallbackText: "三观",
-            },
-            { type: "text", text: "下面。" },
-          ],
+          text: "放在三观下面 [1]。",
         },
       ],
     });
-    expect(events.map((event) => event.type)).not.toContain("assistant.text.delta");
-    const partials = webContents.send.mock.calls
+    const textDeltas = webContents.send.mock.calls
       .map((call) => call[1])
-      .filter((event) => event.type === "assistant.final.partial");
-    expect(partials).toEqual(
+      .filter((event) => event.type === "assistant.text.delta");
+    expect(textDeltas).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          text: '<entity_ref type="domain" entityId="domain_1" />',
-          parts: [{ type: "text", text: '<entity_ref type="domain" entityId="domain_1" />' }],
-        }),
-        expect.objectContaining({
-          text: "放在三观下面。",
-          parts: [
-            { type: "text", text: "放在" },
-            {
-              type: "entity_ref",
-              entityType: "domain",
-              entityId: "domain_1",
-              fallbackText: "三观",
-            },
+          delta: "放在三观下面 [1]。",
+          citationSources: [
+            expect.objectContaining({
+              index: 1,
+              entity: { type: "domain", id: "domain_1", title: "三观" },
+            }),
           ],
-          previewText: "下面。",
         }),
       ]),
     );
-    expect(
-      webContents.send.mock.calls
-        .map((call) => call[1])
-        .filter(
-          (event) =>
-            (event.type === "tool.started" || event.type === "tool.completed") &&
-            event.toolName === REFLECTA_FINAL_ANSWER_TOOL_NAME,
-        ),
-    ).toEqual([]);
-    expect(webContents.send).toHaveBeenCalledWith(
-      AGENT_EVENT_CHANNEL,
-      expect.objectContaining({ type: "assistant.final.partial" }),
-    );
   });
 
-  test("persists a failed final answer block when final structured output validation fails", async () => {
-    const root = tempRoot();
-    const log = new AgentSessionLog(root);
-    const thread = log.createSession("新对话");
-    const manager = await log.openSession(thread.id);
-    log.appendEvent(manager, {
-      id: "evt_existing_cancel",
-      sessionId: thread.id,
-      runId: "run_existing",
-      type: "run.cancelled",
-      createdAt: "2026-06-23T00:00:00.000Z",
-    });
-    let listener: ((event: unknown) => void) | undefined;
-    createAgentSessionMock.mockResolvedValueOnce({
-      session: {
-        sessionManager: manager,
-        subscribe: (next: (event: unknown) => void) => {
-          listener = next;
-          return () => {};
-        },
-        prompt: vi.fn(async () => {
-          listener?.({
-            type: "message_update",
-            assistantMessageEvent: { type: "text_delta", delta: "草稿" },
-          });
-          listener?.(
-            finalAnswerToolEnd({
-              parts: [
-                {
-                  type: "entity_ref",
-                  entityType: "domain",
-                  entityId: "missing",
-                  fallbackText: "三观",
-                },
-              ],
-            }),
-          );
-          listener?.({
-            type: "message_end",
-            message: {
-              role: "assistant",
-              content: [{ type: "text", text: "草稿" }],
-              provider: "openai",
-              model: "gpt-4o",
-              stopReason: "stop",
-            },
-          });
-        }),
-        getContextUsage: vi.fn(() => undefined),
-        dispose: vi.fn(),
-        abort: vi.fn(),
-      },
-    });
-    const webContents = { isDestroyed: () => false, send: vi.fn() };
-
-    await (
-      new PiAgentHost(root) as unknown as {
-        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
-      }
-    ).sendMessage(
-      {
-        type: "message.send",
-        sessionId: thread.id,
-        text: "放在哪里",
-        contextRefs: [{ type: "domain", id: "domain_1", title: "三观" }],
-        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
-      },
-      webContents as never,
-    );
-
-    const events = await new AgentSessionLog(root).readEvents(thread.id);
-    expect(events.find((event) => event.type === "assistant.turn")).toMatchObject({
-      blocks: [
-        {
-          kind: "text",
-          text: "",
-          state: "failed",
-          error: "引用实体不存在: domain/missing",
-        },
-      ],
-    });
-    expect(events.find((event) => event.type === "run.failed")).toMatchObject({
-      error: "引用实体不存在: domain/missing",
-    });
-  });
-
-  test("streams plain preview but fails when catalog is present and no final structured output arrives", async () => {
+  test("persists plain text when catalog is present and no citation is used", async () => {
     const root = tempRoot();
     const log = new AgentSessionLog(root);
     const thread = log.createSession("新对话");
@@ -926,21 +740,13 @@ describe("PiAgentHost", () => {
       webContents as never,
     );
 
-    expect(webContents.send).toHaveBeenCalledWith(
-      AGENT_EVENT_CHANNEL,
-      expect.objectContaining({
-        type: "assistant.final.partial",
-        text: "草稿",
-        parts: [{ type: "text", text: "草稿" }],
-      }),
-    );
     const events = await new AgentSessionLog(root).readEvents(thread.id);
     expect(events.find((event) => event.type === "assistant.turn")).toMatchObject({
-      blocks: [{ kind: "text", state: "failed", error: "缺少最终结构化回答" }],
+      text: "草稿",
+      citationSources: [],
+      blocks: [{ kind: "text", text: "草稿", state: "done" }],
     });
-    expect(events.find((event) => event.type === "run.failed")).toMatchObject({
-      error: "缺少最终结构化回答",
-    });
+    expect(events.map((event) => event.type)).not.toContain("run.failed");
   });
 
   test("restores the active streaming turn when reopening a running session", async () => {
@@ -956,13 +762,13 @@ describe("PiAgentHost", () => {
       createdAt: "2026-06-23T00:00:00.000Z",
     });
     let listener: ((event: unknown) => void) | undefined;
-    let finishFinalOutput!: () => void;
-    let finalOutputStarted!: () => void;
-    const finalOutputStartedPromise = new Promise<void>((resolve) => {
-      finalOutputStarted = resolve;
+    let finishTextStream!: () => void;
+    let textStarted!: () => void;
+    const textStartedPromise = new Promise<void>((resolve) => {
+      textStarted = resolve;
     });
-    const finalOutputFinishedPromise = new Promise<void>((resolve) => {
-      finishFinalOutput = resolve;
+    const textFinishedPromise = new Promise<void>((resolve) => {
+      finishTextStream = resolve;
     });
     createAgentSessionMock.mockResolvedValueOnce({
       session: {
@@ -974,17 +780,19 @@ describe("PiAgentHost", () => {
         prompt: vi.fn(async () => {
           listener?.({
             type: "message_update",
-            assistantMessageEvent: { type: "text_delta", delta: "草稿" },
+            assistantMessageEvent: { type: "text_delta", delta: "前半段回复" },
           });
-          listener?.(finalAnswerToolDelta({ parts: [{ type: "text", text: "前半段回复" }] }));
-          finalOutputStarted();
-          await finalOutputFinishedPromise;
-          listener?.(finalAnswerToolEnd({ parts: [{ type: "text", text: "前半段回复。" }] }));
+          textStarted();
+          await textFinishedPromise;
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: { type: "text_delta", delta: "。" },
+          });
           listener?.({
             type: "message_end",
             message: {
               role: "assistant",
-              content: [{ type: "text", text: "草稿" }],
+              content: [{ type: "text", text: "前半段回复。" }],
               provider: "openai",
               model: "gpt-4o",
               stopReason: "stop",
@@ -1015,7 +823,7 @@ describe("PiAgentHost", () => {
       },
       webContents as never,
     );
-    await finalOutputStartedPromise;
+    await textStartedPromise;
 
     const restored = await host.readSessionEvents(thread.id);
     const restoredTurn = restored.find((event) => event.type === "assistant.turn");
@@ -1024,14 +832,14 @@ describe("PiAgentHost", () => {
       expect.objectContaining({
         type: "assistant.turn",
         text: "前半段回复",
-        blocks: [expect.objectContaining({ kind: "text", text: "前半段回复", state: "streaming" })],
+        blocks: [expect.objectContaining({ kind: "text", text: "前半段回复" })],
       }),
     );
     await expect(new AgentSessionLog(root).readEvents(thread.id)).resolves.not.toEqual(
       expect.arrayContaining([expect.objectContaining({ type: "assistant.turn" })]),
     );
 
-    finishFinalOutput();
+    finishTextStream();
     await sendPromise;
   });
 

@@ -143,108 +143,106 @@ describe("reduceAgentSession", () => {
     expect(reduceAgentSession(events)).toEqual(state);
   });
 
-  test("preserves structured assistant text parts", () => {
+  test("preserves assistant turn citation sources", () => {
     const state = reduceAgentSession([
       {
         ...base,
         id: "evt_1",
         type: "assistant.turn",
         messageId: "assistant_1",
-        text: "这个理解适合放在三观下面。",
+        text: "这个理解适合放在三观下面 [2]。",
+        citationSources: [
+          {
+            index: 2,
+            entity: { type: "domain", id: "domain_1", title: "三观" },
+            origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_list" },
+          },
+        ],
         blocks: [
           {
             kind: "text",
-            text: "这个理解适合放在三观下面。",
-            parts: [
-              { type: "text", text: "这个理解适合放在" },
-              { type: "entity_ref", entityType: "domain", entityId: "domain_1" },
-              { type: "text", text: "下面。" },
-            ],
+            text: "这个理解适合放在三观下面 [2]。",
             createdAt: base.createdAt,
           },
         ],
       },
     ]);
 
-    expect(state.messages[0]?.blocks?.[0]).toMatchObject({
-      kind: "text",
-      parts: [
-        { type: "text", text: "这个理解适合放在" },
-        { type: "entity_ref", entityType: "domain", entityId: "domain_1" },
-        { type: "text", text: "下面。" },
-      ],
-    });
+    expect(state.messages[0]?.citationSources).toEqual([
+      {
+        index: 2,
+        entity: { type: "domain", id: "domain_1", title: "三观" },
+        origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_list" },
+      },
+    ]);
   });
 
-  test("streams finalizer partial as a streaming assistant text block", () => {
+  test("streams assistant text deltas with citation sources", () => {
     const state = reduceAgentSession([
       { ...base, id: "evt_1", type: "run.started" },
       {
         ...base,
         id: "evt_2",
-        type: "assistant.final.partial",
+        type: "assistant.text.delta",
         messageId: "assistant_1",
-        text: "放在三观下面，继续",
-        parts: [
-          { type: "text", text: "放在" },
-          { type: "entity_ref", entityType: "domain", entityId: "domain_1" },
-          { type: "text", text: "下面" },
+        delta: "放在三观下面 [1]",
+        citationSources: [
+          {
+            index: 1,
+            entity: { type: "domain", id: "domain_1", title: "三观" },
+            origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_list" },
+          },
         ],
-        previewText: "，继续",
       },
     ]);
 
     expect(state.messages[0]).toMatchObject({
       id: "assistant_1",
       role: "assistant",
-      text: "放在三观下面，继续",
+      text: "放在三观下面 [1]",
+      citationSources: [
+        {
+          index: 1,
+          entity: { type: "domain", id: "domain_1", title: "三观" },
+          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_list" },
+        },
+      ],
       blocks: [
         {
           kind: "text",
-          text: "放在三观下面，继续",
-          parts: [
-            { type: "text", text: "放在" },
-            { type: "entity_ref", entityType: "domain", entityId: "domain_1" },
-            { type: "text", text: "下面" },
-          ],
-          previewText: "，继续",
-          state: "streaming",
+          text: "放在三观下面 [1]",
         },
       ],
     });
   });
 
-  test("final assistant turn replaces streaming finalizer preview", () => {
+  test("final assistant turn replaces streaming text and keeps sparse citations", () => {
     const state = reduceAgentSession([
       { ...base, id: "evt_1", type: "run.started" },
       {
         ...base,
         id: "evt_2",
-        type: "assistant.final.partial",
+        type: "assistant.text.delta",
         messageId: "assistant_1",
-        text: "放在三观下面，继续",
-        parts: [
-          { type: "text", text: "放在" },
-          { type: "entity_ref", entityType: "domain", entityId: "domain_1" },
-          { type: "text", text: "下面" },
-        ],
-        previewText: "，继续",
+        delta: "放在三观下面 [3]",
       },
       {
         ...base,
         id: "evt_3",
         type: "assistant.turn",
         messageId: "assistant_1",
-        text: "放在三观下面。",
+        text: "放在三观下面 [3]。",
+        citationSources: [
+          {
+            index: 3,
+            entity: { type: "domain", id: "domain_1", title: "三观" },
+            origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_list" },
+          },
+        ],
         blocks: [
           {
             kind: "text",
-            text: "放在三观下面。",
-            parts: [
-              { type: "text", text: "放在" },
-              { type: "entity_ref", entityType: "domain", entityId: "domain_1" },
-              { type: "text", text: "下面。" },
-            ],
+            text: "放在三观下面 [3]。",
             state: "done",
             createdAt: base.createdAt,
           },
@@ -253,40 +251,18 @@ describe("reduceAgentSession", () => {
     ]);
 
     expect(state.messages[0]).toMatchObject({
-      text: "放在三观下面。",
-      blocks: [
+      text: "放在三观下面 [3]。",
+      citationSources: [
         {
-          kind: "text",
-          text: "放在三观下面。",
-          state: "done",
+          index: 3,
+          entity: { type: "domain", id: "domain_1", title: "三观" },
         },
       ],
-    });
-    expect(state.messages[0]?.blocks?.[0]).not.toHaveProperty("previewText");
-  });
-
-  test("marks finalizer failure as a failed assistant text block", () => {
-    const state = reduceAgentSession([
-      { ...base, id: "evt_1", type: "run.started" },
-      {
-        ...base,
-        id: "evt_2",
-        type: "assistant.final.failed",
-        messageId: "assistant_1",
-        error: "引用实体不存在: domain/missing",
-      },
-    ]);
-
-    expect(state.messages[0]).toMatchObject({
-      id: "assistant_1",
-      role: "assistant",
-      text: "",
       blocks: [
         {
           kind: "text",
-          text: "",
-          state: "failed",
-          error: "引用实体不存在: domain/missing",
+          text: "放在三观下面 [3]。",
+          state: "done",
         },
       ],
     });

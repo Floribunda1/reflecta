@@ -21,11 +21,30 @@ describe("buildPiPromptText", () => {
           origin: { kind: "user_context", messageId: "user-1" },
         },
       ],
+      citationSources: [
+        {
+          index: 1,
+          entity: {
+            type: "understanding",
+            id: "understanding-1",
+            title: "React Server Components",
+          },
+          origin: { kind: "user_context", messageId: "user-1" },
+        },
+        {
+          index: 2,
+          entity: { type: "domain", id: "domain-1", title: "React" },
+          origin: { kind: "user_context", messageId: "user-1" },
+        },
+      ],
     });
 
     expect(prompt).toContain("请比较这些引用");
     expect(prompt).toContain("Understanding: React Server Components; id=understanding-1");
     expect(prompt).toContain("Domain: React; id=domain-1");
+    expect(prompt).toContain("[1] Understanding: React Server Components; id=understanding-1");
+    expect(prompt).toContain("[2] Domain: React; id=domain-1");
+    expect(prompt).toContain("Tool calls must use the real id");
     expect(prompt).not.toContain("[[");
     expect(prompt).not.toContain("sourceId");
   });

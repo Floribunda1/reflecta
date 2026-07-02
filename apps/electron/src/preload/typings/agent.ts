@@ -4,15 +4,6 @@ export type AgentContextRef = {
   title?: string;
 };
 
-export type AgentTextPart =
-  | { type: "text"; text: string }
-  | {
-      type: "entity_ref";
-      entityType: AgentContextRef["type"];
-      entityId: string;
-      fallbackText?: string;
-    };
-
 export type AgentComposerContentNode = {
   type?: string;
   text?: string;
@@ -110,6 +101,12 @@ export type AgentEntityCatalogEntry = {
     | { kind: "tool_result"; toolCallId: string; toolName: string };
 };
 
+export type AgentCitationSource = {
+  index: number;
+  entity: AgentContextRef;
+  origin?: AgentEntityCatalogEntry["origin"];
+};
+
 export type AgentEntityCatalogUpdated = AgentEventBase & {
   type: "entity.catalog.updated";
   entries: AgentEntityCatalogEntry[];
@@ -120,22 +117,7 @@ export type AgentAssistantTextDelta = AgentEventBase & {
   runId: string;
   messageId: string;
   delta: string;
-};
-
-export type AgentAssistantFinalPartial = AgentEventBase & {
-  type: "assistant.final.partial";
-  runId: string;
-  messageId: string;
-  text: string;
-  parts: AgentTextPart[];
-  previewText?: string;
-};
-
-export type AgentAssistantFinalFailed = AgentEventBase & {
-  type: "assistant.final.failed";
-  runId: string;
-  messageId: string;
-  error: string;
+  citationSources?: AgentCitationSource[];
 };
 
 export type AgentAssistantReasoningDelta = AgentEventBase & {
@@ -244,6 +226,7 @@ export type AgentAssistantTurn = AgentEventBase & {
   messageId: string;
   blocks: AgentAssistantTurnBlock[];
   text: string;
+  citationSources?: AgentCitationSource[];
   usage?: AgentUsage;
   contextUsage?: AgentContextUsage;
   model?: AgentModelSelection;
@@ -252,8 +235,6 @@ export type AgentAssistantTurn = AgentEventBase & {
 
 export type AgentLiveEvent =
   | AgentAssistantTextDelta
-  | AgentAssistantFinalPartial
-  | AgentAssistantFinalFailed
   | AgentAssistantReasoningDelta
   | AgentToolStarted
   | AgentToolCompleted
@@ -312,8 +293,6 @@ export type AgentReducedAssistantBlock =
   | {
       kind: "text";
       text: string;
-      parts?: AgentTextPart[];
-      previewText?: string;
       state?: "streaming" | "done" | "failed";
       error?: string;
       createdAt: string;
@@ -373,6 +352,7 @@ export type AgentReducedMessage = {
   contextUsage?: AgentContextUsage;
   model?: AgentModelSelection;
   stopReason?: string;
+  citationSources?: AgentCitationSource[];
 };
 
 type AgentApprovalBlock = Extract<AgentReducedAssistantBlock, { kind: "approval" }>;
@@ -424,8 +404,6 @@ export function isAgentEvent(value: unknown): value is AgentEvent {
     typeof value.type === "string" &&
     [
       "assistant.text.delta",
-      "assistant.final.partial",
-      "assistant.final.failed",
       "assistant.reasoning.delta",
       "tool.started",
       "tool.completed",
@@ -448,6 +426,7 @@ function upsertAssistantText(
         text: event.delta,
         runId: event.runId,
         createdAt: event.createdAt,
+        citationSources: event.citationSources,
         blocks: [{ kind: "text", text: event.delta, createdAt: event.createdAt }],
       },
     ];
@@ -458,71 +437,11 @@ function upsertAssistantText(
       ? {
           ...message,
           text: message.text + event.delta,
+          citationSources: event.citationSources ?? message.citationSources,
           blocks: upsertTextBlock(message.blocks, event),
         }
       : message,
   );
-}
-
-function upsertAssistantFinalPartial(
-  messages: AgentReducedMessage[],
-  event: AgentAssistantFinalPartial,
-): AgentReducedMessage[] {
-  const block: Extract<AgentReducedAssistantBlock, { kind: "text" }> = {
-    kind: "text",
-    text: event.text,
-    parts: event.parts,
-    ...(event.previewText ? { previewText: event.previewText } : {}),
-    state: "streaming",
-    createdAt: event.createdAt,
-  };
-  return upsertAssistantFinalBlock(messages, event, block, event.text);
-}
-
-function upsertAssistantFinalFailed(
-  messages: AgentReducedMessage[],
-  event: AgentAssistantFinalFailed,
-): AgentReducedMessage[] {
-  const block: Extract<AgentReducedAssistantBlock, { kind: "text" }> = {
-    kind: "text",
-    text: "",
-    state: "failed",
-    error: event.error,
-    createdAt: event.createdAt,
-  };
-  return upsertAssistantFinalBlock(messages, event, block, "");
-}
-
-function upsertAssistantFinalBlock(
-  messages: AgentReducedMessage[],
-  event: AgentAssistantFinalPartial | AgentAssistantFinalFailed,
-  block: Extract<AgentReducedAssistantBlock, { kind: "text" }>,
-  text: string,
-): AgentReducedMessage[] {
-  const index = messages.findIndex((message) => message.id === event.messageId);
-  if (index < 0) {
-    return [
-      ...messages,
-      {
-        id: event.messageId,
-        role: "assistant",
-        text,
-        runId: event.runId,
-        createdAt: event.createdAt,
-        blocks: [block],
-      },
-    ];
-  }
-  return messages.map((message, messageIndex) => {
-    if (messageIndex !== index) return message;
-    const blocks = message.blocks ?? [];
-    const lastTextIndex = blocks.findLastIndex((current) => current.kind === "text");
-    const nextBlocks =
-      lastTextIndex < 0
-        ? [...blocks, block]
-        : blocks.map((current, blockIndex) => (blockIndex === lastTextIndex ? block : current));
-    return { ...message, text, blocks: nextBlocks };
-  });
 }
 
 function strongestApprovalState(
@@ -610,6 +529,7 @@ function upsertAssistantTurn(
     runId: event.runId,
     createdAt: event.createdAt,
     blocks: mergeAssistantTurnBlocks(event.blocks, existing?.blocks),
+    citationSources: event.citationSources,
     usage: event.usage,
     contextUsage: event.contextUsage,
     model: event.model,
@@ -915,22 +835,6 @@ export function reduceAgentSessionEvent(
       ...state,
       sessionId: event.sessionId,
       messages: upsertAssistantText(state.messages, event),
-    };
-  }
-
-  if (event.type === "assistant.final.partial") {
-    return {
-      ...state,
-      sessionId: event.sessionId,
-      messages: upsertAssistantFinalPartial(state.messages, event),
-    };
-  }
-
-  if (event.type === "assistant.final.failed") {
-    return {
-      ...state,
-      sessionId: event.sessionId,
-      messages: upsertAssistantFinalFailed(state.messages, event),
     };
   }
 

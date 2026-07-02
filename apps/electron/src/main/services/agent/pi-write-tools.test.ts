@@ -168,6 +168,10 @@ describe("createPiWriteTools", () => {
       payload: { domainId: "[[domain:domain_1]]", name: "New name" },
     },
     {
+      toolName: "domain_update" as const,
+      payload: { domainId: "ref:domain:domain_1", name: "New name" },
+    },
+    {
       toolName: "domain_create" as const,
       payload: { name: "Child", parentId: "rf_fjxcezk5az" },
     },

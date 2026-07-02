@@ -5,10 +5,8 @@ import {
   completeSimple,
   getModel,
   type Api,
-  type AssistantMessageEvent,
   type Context,
   type Model,
-  type ToolCall,
 } from "@earendil-works/pi-ai";
 import {
   AuthStorage,
@@ -24,6 +22,7 @@ import { nanoid } from "nanoid";
 import { reduceAgentSession } from "@shared/agent";
 import type {
   AgentCommand,
+  AgentCitationSource,
   AgentContextUsage,
   AgentContextRef,
   AgentModelSelection,
@@ -54,13 +53,11 @@ import { buildPiPromptText } from "./pi-prompt";
 import { getCodexCredentials } from "./codex-auth";
 import agentSystemPrompt from "./agent-system-prompt.md?raw";
 import {
-  createReflectaFinalAnswerTool,
-  finalStructuredOutputPartialFromValue,
-  isReflectaFinalAnswerToolName,
-  REFLECTA_FINAL_ANSWER_TOOL_NAME,
-  validateFinalStructuredOutput,
-  type FinalStructuredOutputResult,
-} from "./agent-final-output";
+  buildCitationSources,
+  extractCitedSources,
+  formatCitationSourcesForPrompt,
+  mergeCitationSources,
+} from "./agent-citations";
 import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-tools";
 import {
   approvalTitleForTool,
@@ -352,16 +349,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function finalAnswerToolCallFromAssistantEvent(event: AssistantMessageEvent): ToolCall | undefined {
-  if (event.type === "toolcall_end") {
-    return isReflectaFinalAnswerToolName(event.toolCall.name) ? event.toolCall : undefined;
-  }
-  if (event.type !== "toolcall_delta") return undefined;
-  const part = event.partial.content[event.contentIndex];
-  if (part?.type !== "toolCall" || !isReflectaFinalAnswerToolName(part.name)) return undefined;
-  return part;
-}
-
 function errorStack(error: unknown): string | undefined {
   return error instanceof Error ? error.stack : undefined;
 }
@@ -608,7 +595,11 @@ export class PiAgentHost {
   private async createSession(
     command: Extract<AgentCommand, { type: "message.send" }>,
     sessionManager: SessionManager,
-    entityCatalog: AgentEntityCatalog,
+    collectToolOutput: (
+      toolName: string,
+      toolCallId: string,
+      output: unknown,
+    ) => string | undefined,
   ) {
     const modelConfig = getAiModelConfig(command.modelSelection as AiModelSelection | undefined);
     const agentDir = path.join(this.contentStorageRoot, ".pi-agent");
@@ -626,10 +617,8 @@ export class PiAgentHost {
       agentDir,
       authStorage,
       customTools: [
-        createReflectaFinalAnswerTool(),
         ...createPiReadOnlyTools(command.files, {
-          collectToolOutput: (toolName, toolCallId, output) =>
-            entityCatalog.collectToolOutput(toolName, toolCallId, output),
+          collectToolOutput,
         }),
         ...createPiWriteTools({
           onApproval: ({ toolCallId }) => this.waitForToolApproval(command.sessionId, toolCallId),
@@ -642,11 +631,7 @@ export class PiAgentHost {
       sessionManager,
       settingsManager,
       thinkingLevel: thinkingLevelFor(command.reasoningLevel ?? getActiveAgentReasoningLevel()),
-      tools: [
-        ...PI_READ_ONLY_TOOL_NAMES,
-        ...PI_APPROVAL_TOOL_NAMES,
-        REFLECTA_FINAL_ANSWER_TOOL_NAME,
-      ],
+      tools: [...PI_READ_ONLY_TOOL_NAMES, ...PI_APPROVAL_TOOL_NAMES],
     });
     return { ...created, modelConfig };
   }
@@ -771,13 +756,13 @@ export class PiAgentHost {
       reduceAgentSession(this.sessionLog.eventsFromManager(manager)).entityCatalog,
     );
     const contextCatalog = entityCatalog.addUserContextRefs(userMessageId, command.contextRefs);
+    let availableCitationSources: AgentCitationSource[] = buildCitationSources(
+      entityCatalog.snapshot(),
+    );
     let session: AgentSession | undefined;
     let unsubscribe: (() => void) | undefined;
     let piDraftText = "";
     let assistantError = "";
-    let finalStructuredOutput: FinalStructuredOutputResult | undefined;
-    let finalStructuredOutputError = "";
-    let finalStructuredOutputStarted = false;
     let assistantMetadata: AssistantTurnMetadata | undefined;
     let assistantActivity = false;
     let runStarted = false;
@@ -796,28 +781,18 @@ export class PiAgentHost {
         entityCatalog,
       );
     };
-    const emitFinalPartial = (partial: FinalStructuredOutputResult & { previewText?: string }) => {
-      emitAccumulated(
-        this.createEvent({
-          type: "assistant.final.partial",
-          sessionId: command.sessionId,
-          runId,
-          messageId: assistantMessageId,
-          ...partial,
-        }),
+    const collectToolOutputForCitations = (
+      toolName: string,
+      toolCallId: string,
+      output: unknown,
+    ) => {
+      const beforeLength = availableCitationSources.length;
+      entityCatalog.collectToolOutput(toolName, toolCallId, output);
+      availableCitationSources = mergeCitationSources(
+        availableCitationSources,
+        entityCatalog.snapshot(),
       );
-    };
-    const emitFinalStructuredPartial = (value: unknown) => {
-      const partial = finalStructuredOutputPartialFromValue(value, entityCatalog.snapshot());
-      if (partial.ok) emitFinalPartial(partial.partial);
-    };
-    const acceptFinalStructuredOutput = (value: unknown) => {
-      try {
-        finalStructuredOutput = validateFinalStructuredOutput(value, entityCatalog.snapshot());
-        emitFinalPartial(finalStructuredOutput);
-      } catch (error) {
-        finalStructuredOutputError = formatAgentError(error);
-      }
+      return formatCitationSourcesForPrompt(availableCitationSources.slice(beforeLength));
     };
     const emitRunStarted = () => {
       if (runStarted) return;
@@ -839,7 +814,7 @@ export class PiAgentHost {
     };
 
     try {
-      const created = await this.createSession(command, manager, entityCatalog);
+      const created = await this.createSession(command, manager, collectToolOutputForCitations);
       session = created.session;
       this.activeRuns.set(command.sessionId, {
         runId,
@@ -850,29 +825,19 @@ export class PiAgentHost {
         entityCatalog,
       });
       unsubscribe = session.subscribe((event) => {
-        if (event.type === "message_update") {
-          const finalToolCall = finalAnswerToolCallFromAssistantEvent(event.assistantMessageEvent);
-          if (finalToolCall) {
-            assistantActivity = true;
-            finalStructuredOutputStarted = true;
-            if (event.assistantMessageEvent.type === "toolcall_end") {
-              acceptFinalStructuredOutput(finalToolCall.arguments);
-            } else {
-              emitFinalStructuredPartial(finalToolCall.arguments);
-            }
-            return;
-          }
-        }
-
         if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
           piDraftText += event.assistantMessageEvent.delta;
           assistantActivity = true;
-          if (!finalStructuredOutputStarted) {
-            emitFinalPartial({
-              text: piDraftText,
-              parts: [{ type: "text", text: piDraftText }],
-            });
-          }
+          emitAccumulated(
+            this.createEvent({
+              type: "assistant.text.delta",
+              sessionId: command.sessionId,
+              runId,
+              messageId: assistantMessageId,
+              delta: event.assistantMessageEvent.delta,
+              citationSources: availableCitationSources,
+            }),
+          );
           return;
         }
 
@@ -895,11 +860,6 @@ export class PiAgentHost {
 
         if (event.type === "tool_execution_start") {
           assistantActivity = true;
-          if (isReflectaFinalAnswerToolName(event.toolName)) {
-            finalStructuredOutputStarted = true;
-            acceptFinalStructuredOutput(event.args);
-            return;
-          }
           if (isPiApprovalToolName(event.toolName)) {
             const requested = this.createEvent({
               type: "approval.requested",
@@ -930,21 +890,7 @@ export class PiAgentHost {
           return;
         }
 
-        if (event.type === "tool_execution_update") {
-          if (isReflectaFinalAnswerToolName(event.toolName)) {
-            assistantActivity = true;
-            finalStructuredOutputStarted = true;
-            emitFinalStructuredPartial(event.args);
-            return;
-          }
-        }
-
         if (event.type === "tool_execution_end") {
-          if (isReflectaFinalAnswerToolName(event.toolName)) {
-            assistantActivity = true;
-            if (event.isError) finalStructuredOutputError = piToolError(event.result);
-            return;
-          }
           if (isPiApprovalToolName(event.toolName)) {
             const output = piToolOutput(event.result);
             if (isRejectedApprovalOutput(output)) return;
@@ -1028,6 +974,7 @@ export class PiAgentHost {
           text: command.text,
           contextRefs: command.contextRefs,
           contextCatalog,
+          citationSources: availableCitationSources,
           files: command.files,
         }),
       );
@@ -1035,26 +982,18 @@ export class PiAgentHost {
       if (assistantError) {
         throw new Error(assistantError);
       }
-      if (finalStructuredOutputError) {
-        throw new Error(finalStructuredOutputError);
-      }
       if (!piDraftText.trim() && !assistantActivity) {
         throw new Error("Agent response was empty");
       }
-      const finalEntityCatalog = entityCatalog.snapshot();
-      const finalAnswer =
-        finalStructuredOutput ??
-        (finalEntityCatalog.length === 0
-          ? { text: piDraftText, parts: [{ type: "text" as const, text: piDraftText }] }
-          : undefined);
-      if (!finalAnswer) throw new Error("缺少最终结构化回答");
+      const citedSources = extractCitedSources(piDraftText, availableCitationSources);
       accumulator.appendFinalAnswer({
         id: `evt_${nanoid()}`,
         sessionId: command.sessionId,
         runId,
         messageId: assistantMessageId,
         createdAt: new Date().toISOString(),
-        ...finalAnswer,
+        text: piDraftText,
+        citationSources: citedSources,
       });
       const contextUsage = session.getContextUsage?.();
       emit(
@@ -1066,6 +1005,7 @@ export class PiAgentHost {
             messageId: assistantMessageId,
             blocks: [],
             text: "",
+            citationSources: citedSources,
             ...assistantMetadata,
             contextUsage,
           }),
@@ -1082,15 +1022,6 @@ export class PiAgentHost {
         error: errorText,
         stack: errorStack(error),
       });
-      const finalFailed = this.createEvent({
-        type: "assistant.final.failed",
-        sessionId: command.sessionId,
-        runId,
-        messageId: assistantMessageId,
-        error: errorText,
-      });
-      accumulator.append(finalFailed);
-      this.emitLive(webContents, finalFailed);
       emit(
         accumulator.toAssistantTurn(
           this.createEvent({

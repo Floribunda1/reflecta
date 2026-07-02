@@ -53,7 +53,7 @@ function toolResult(details: unknown) {
 }
 
 export type PiReadOnlyToolEntityOptions = {
-  collectToolOutput?: (toolName: string, toolCallId: string, output: unknown) => void;
+  collectToolOutput?: (toolName: string, toolCallId: string, output: unknown) => string | undefined;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -130,8 +130,15 @@ function createToolResult(
   details: unknown,
   entityOptions: PiReadOnlyToolEntityOptions,
 ) {
-  entityOptions.collectToolOutput?.(toolName, toolCallId, details);
-  return toolResult(details);
+  const citationBlock = entityOptions.collectToolOutput?.(toolName, toolCallId, details);
+  const result = toolResult(details);
+  if (!citationBlock) return result;
+  return {
+    ...result,
+    content: result.content.map((part) =>
+      part.type === "text" ? { ...part, text: `${part.text}${citationBlock}` } : part,
+    ),
+  };
 }
 
 export function createPiReadOnlyTools(

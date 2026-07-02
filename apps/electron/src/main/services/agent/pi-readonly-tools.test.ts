@@ -109,8 +109,10 @@ describe("createPiReadOnlyTools", () => {
     services.retrieveKnowledge.mockResolvedValue(result);
     const catalog = new AgentEntityCatalog();
     const tool = createPiReadOnlyTools([], {
-      collectToolOutput: (toolName, toolCallId, output) =>
-        catalog.collectToolOutput(toolName, toolCallId, output),
+      collectToolOutput: (toolName, toolCallId, output) => {
+        catalog.collectToolOutput(toolName, toolCallId, output);
+        return undefined;
+      },
     }).find((item) => item.name === "retrieve_knowledge");
     expect(tool).toBeDefined();
 
@@ -166,8 +168,10 @@ describe("createPiReadOnlyTools", () => {
     });
     const catalog = new AgentEntityCatalog();
     const tool = createPiReadOnlyTools([], {
-      collectToolOutput: (toolName, toolCallId, output) =>
-        catalog.collectToolOutput(toolName, toolCallId, output),
+      collectToolOutput: (toolName, toolCallId, output) => {
+        catalog.collectToolOutput(toolName, toolCallId, output);
+        return undefined;
+      },
     }).find((item) => item.name === "understanding_get");
     expect(tool).toBeDefined();
 
@@ -205,6 +209,36 @@ describe("createPiReadOnlyTools", () => {
         origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "understanding_get" },
       },
     ]);
+  });
+
+  test("appends host-provided citation source text to model-facing content", async () => {
+    services.getUnderstanding.mockResolvedValue({
+      id: "u_1",
+      title: "Feedback Loop",
+      body: "body",
+    });
+    const collectToolOutput = vi.fn(
+      () =>
+        "\n\nAvailable Reflecta citation sources for the final answer:\n[1] Understanding: Feedback Loop; id=u_1",
+    );
+    const tool = createPiReadOnlyTools([], { collectToolOutput }).find(
+      (item) => item.name === "understanding_get",
+    );
+    expect(tool).toBeDefined();
+
+    const execute = tool!.execute as unknown as (
+      toolCallId: string,
+      params: Record<string, unknown>,
+    ) => Promise<{ content: Array<{ text: string }> }>;
+    const output = await execute("tool_1", { understandingId: "u_1" });
+
+    expect(collectToolOutput).toHaveBeenCalledWith("understanding_get", "tool_1", {
+      id: "u_1",
+      title: "Feedback Loop",
+      body: "body",
+    });
+    expect(output.content[0]?.text).toContain('"id": "u_1"');
+    expect(output.content[0]?.text).toContain("[1] Understanding: Feedback Loop; id=u_1");
   });
 
   test("executes web_fetch through the web fetch seam", async () => {

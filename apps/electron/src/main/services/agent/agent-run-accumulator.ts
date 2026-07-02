@@ -3,9 +3,9 @@ import type {
   AgentApprovalResolved,
   AgentAssistantTurn,
   AgentAssistantTurnBlock,
+  AgentCitationSource,
   AgentEventBase,
   AgentLiveEvent,
-  AgentTextPart,
   AgentToolApprovalState,
   AgentToolDisplayState,
   AgentToolExecutionState,
@@ -14,8 +14,8 @@ import type {
 type AccumulatorEvent = AgentLiveEvent | AgentApprovalRequested | AgentApprovalResolved;
 type FinalAnswerEvent = AgentEventBase & {
   messageId: string;
-  parts: AgentTextPart[];
   text: string;
+  citationSources?: AgentCitationSource[];
 };
 
 function displayState(
@@ -62,29 +62,6 @@ export class AgentRunAccumulator {
               index === this.blocks.length - 1 ? { ...last, text: last.text + event.delta } : block,
             )
           : [...this.blocks, { kind: "text", text: event.delta, createdAt: event.createdAt }];
-      return;
-    }
-
-    if (event.type === "assistant.final.partial") {
-      this.replaceFinalTextBlock({
-        kind: "text",
-        text: event.text,
-        parts: event.parts,
-        ...(event.previewText ? { previewText: event.previewText } : {}),
-        state: "streaming",
-        createdAt: event.createdAt,
-      });
-      return;
-    }
-
-    if (event.type === "assistant.final.failed") {
-      this.replaceFinalTextBlock({
-        kind: "text",
-        text: "",
-        state: "failed",
-        error: event.error,
-        createdAt: event.createdAt,
-      });
       return;
     }
 
@@ -178,7 +155,6 @@ export class AgentRunAccumulator {
     this.replaceFinalTextBlock({
       kind: "text",
       text: event.text,
-      parts: event.parts,
       state: "done",
       createdAt: event.createdAt,
     });

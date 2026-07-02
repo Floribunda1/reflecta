@@ -31,7 +31,7 @@ const wikiDisplayRefPattern = /\[\[[\s\S]*?\]\]/;
 const shortDisplayIdPattern = /^[UDCS]\d+$/i;
 const bracketedShortDisplayIdPattern = /^\[[UDCS]\d+\]$/i;
 const numberedCitationPattern = /^\[\d+\]$/;
-const oldRefIdPattern = /^rf_[A-Za-z0-9_-]+$/;
+const oldRefIdPattern = /^(?:rf_[A-Za-z0-9_-]+|ref:[\s\S]+)$/;
 const nullableStringParameter = Type.Union([Type.String(), Type.Null()]);
 const domainIdsParameter = Type.Optional(
   Type.Array(Type.String({ minLength: 1 }), {
