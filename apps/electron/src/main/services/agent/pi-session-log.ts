@@ -8,7 +8,6 @@ import {
 import type { AgentSessionEvent, AgentSessionSummary } from "@shared/agent";
 import { isAgentSessionEvent, reduceAgentSession } from "@shared/agent";
 import { writeDiagnosticEvent } from "../../logger";
-import { migrateAgentSessionFileInlineReferences } from "./agent-session-migration";
 
 export const REFLECTA_AGENT_EVENT_ENTRY = "reflecta.agent.event";
 
@@ -144,7 +143,6 @@ export class AgentSessionLog {
     const sessions = await SessionManager.list(this.contentStorageRoot, this.sessionsRoot);
     const persisted = sessions
       .flatMap((session) => {
-        migrateAgentSessionFileInlineReferences(session.path);
         const events = this.readEventsFromFile(session.path);
         this.pendingSummaries.delete(session.id);
         if (!events.some((event) => event.type === "user.message")) return [];
@@ -165,7 +163,6 @@ export class AgentSessionLog {
     const pendingFile = this.pendingSessionFiles.get(sessionId);
     if (pendingFile) {
       if (fs.existsSync(pendingFile)) {
-        migrateAgentSessionFileInlineReferences(pendingFile);
         return SessionManager.open(pendingFile, this.sessionsRoot, this.contentStorageRoot);
       }
       const manager = SessionManager.create(this.contentStorageRoot, this.sessionsRoot, {
@@ -179,7 +176,6 @@ export class AgentSessionLog {
     const sessions = await SessionManager.list(this.contentStorageRoot, this.sessionsRoot);
     const session = sessions.find((item) => item.id === sessionId);
     if (!session) throw new Error("Pi session not found");
-    migrateAgentSessionFileInlineReferences(session.path);
     this.pendingSessionFiles.set(sessionId, session.path);
     return SessionManager.open(session.path, this.sessionsRoot, this.contentStorageRoot);
   }
@@ -335,7 +331,6 @@ export class AgentSessionLog {
 
   private readEventsFromFile(sessionFile: string): AgentSessionEvent[] {
     if (!fs.existsSync(sessionFile)) return [];
-    migrateAgentSessionFileInlineReferences(sessionFile);
     const manager = SessionManager.open(sessionFile, this.sessionsRoot, this.contentStorageRoot);
     return this.eventsFromManager(manager);
   }
