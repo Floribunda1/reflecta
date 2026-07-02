@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from "react";
-import { Clock, Plus, X } from "lucide-react";
+import { Clock, ExternalLink, Plus, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import type { AgentContextRef, AgentSessionSummary } from "@shared/agent";
 import { Button } from "@renderer/components/ui/button";
 import {
@@ -12,6 +13,7 @@ import {
 } from "@renderer/components/ui/dropdown-menu";
 import { cn } from "@renderer/lib/utils";
 import { AgentThreadPanel } from "./agent-thread-panel";
+import { useAgentUiActions } from "./session/chat-ui-store";
 import { useCreateThreadMutation, useThreadsQuery } from "./session/server-state";
 
 type ContextualAgentDockProps = {
@@ -56,6 +58,8 @@ export function ContextualAgentDock({
   onClose,
   className,
 }: ContextualAgentDockProps) {
+  const navigate = useNavigate();
+  const agentUiActions = useAgentUiActions();
   const { mutate: createThread, isPending: createThreadPending } = useCreateThreadMutation();
   const threadsQuery = useThreadsQuery();
   const threads = threadsQuery.data ?? [];
@@ -71,6 +75,12 @@ export function ContextualAgentDock({
       onSuccess: (thread) => onBindThread(thread.id),
     });
   }, [createThread, onBindThread, scope, title]);
+  const jumpToAgent = useCallback(() => {
+    if (!threadId) return;
+    agentUiActions.selectThread(threadId);
+    agentUiActions.requestComposerFocus(threadId);
+    void navigate("/agent");
+  }, [agentUiActions, navigate, threadId]);
 
   useEffect(() => {
     if (!scope || threadId || createThreadPending) return;
@@ -89,6 +99,17 @@ export function ContextualAgentDock({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          <Button
+            type="button"
+            size="icon-xs"
+            variant="ghost"
+            aria-label="跳转到 Agent 页面"
+            data-testid="contextual-agent-jump-button"
+            disabled={!threadId}
+            onClick={jumpToAgent}
+          >
+            <ExternalLink />
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger
               render={<Button type="button" size="icon-xs" variant="ghost" />}
