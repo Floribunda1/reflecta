@@ -3,7 +3,7 @@ import { contexts, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type { ContextDTO, CreateContextInput, ContextMedium, UpdateContextInput } from "./types";
 import type { TrashedContextDTO } from "../trash/types";
-import { markRetrievalIndexDirty, trySyncRetrievalIndexByUnderstandingId } from "../retrieval/sync";
+import { trySyncRetrievalIndexByUnderstandingId } from "../retrieval/sync";
 import { createEntityId } from "../shared/id";
 
 export class ContextCore {
@@ -64,10 +64,7 @@ export class ContextCore {
       updated = rows[0] as ContextDTO;
     });
 
-    // ponytail: context edits can leave retrieval stale; rebuild on demand instead of blocking UI.
-    try {
-      await markRetrievalIndexDirty();
-    } catch {}
+    await trySyncRetrievalIndexByUnderstandingId(this.db, updated!.understandingId);
     return updated!;
   }
 

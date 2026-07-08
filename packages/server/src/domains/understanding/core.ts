@@ -19,7 +19,7 @@ import type {
   UpdateUnderstandingInput,
 } from "./types";
 import { resolveDomainRefs } from "../domain/core";
-import { markRetrievalIndexDirty, trySyncRetrievalIndexByUnderstandingId } from "../retrieval/sync";
+import { trySyncRetrievalIndexByUnderstandingId } from "../retrieval/sync";
 import { createEntityId } from "../shared/id";
 
 export async function getUnderstandingConnectionCounts(
@@ -198,10 +198,7 @@ export class UnderstandingCore {
 
     const row = await this.getUnderstandingRow(id);
     if (!row) throw new Error(`Understanding not found after update: ${id}`);
-    // ponytail: edits can leave retrieval stale; rebuild on demand instead of blocking the UI.
-    try {
-      await markRetrievalIndexDirty();
-    } catch {}
+    await trySyncRetrievalIndexByUnderstandingId(this.db, id);
     return row;
   }
 

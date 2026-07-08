@@ -168,7 +168,9 @@ export async function syncRetrievalIndexByUnderstandingId(
   db: ReflectaDb,
   understandingId: string,
 ): Promise<void> {
-  await createRetrievalIndex().syncByUnderstandingId(
+  const index = createRetrievalIndex();
+  if (!(await index.isReady())) throw new Error("Retrieval index is not ready");
+  await index.syncByUnderstandingId(
     understandingId,
     await buildRetrievalDocumentsFromDb(db, [understandingId]),
   );
@@ -219,13 +221,20 @@ export async function getRetrievalIndexStatus(): Promise<RetrievalIndexStatus> {
 }
 
 export async function trySyncRetrievalIndexByUnderstandingId(
-  _db: ReflectaDb,
-  _understandingId: string,
+  db: ReflectaDb,
+  understandingId: string,
 ): Promise<void> {
-  // ponytail: keep writes fast; search and idle time rebuild dirty retrieval indexes.
+  // ponytail: sync one parent when possible; full rebuild only when the index cannot be trusted.
   try {
-    await markRetrievalIndexDirty();
+    if (activeRebuild) {
+      await markRetrievalIndexDirty();
+      return;
+    }
+    await syncRetrievalIndexByUnderstandingId(db, understandingId);
   } catch {
-    // SQLite stays source of truth; a failed marker write must not block content writes.
+    // SQLite stays source of truth; retrieval failures must not block content writes.
+    try {
+      await markRetrievalIndexDirty();
+    } catch {}
   }
 }

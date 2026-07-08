@@ -192,8 +192,7 @@ export class LanceDbRetrievalIndex {
     const db = await lancedb.connect(this.options.uri);
     const tableNames = await db.tableNames();
     if (!tableNames.includes(this.tableName)) {
-      await this.replaceAll(docs);
-      return;
+      throw new Error(`Retrieval table is not ready: ${this.tableName}`);
     }
 
     const table = await db.openTable(this.tableName);

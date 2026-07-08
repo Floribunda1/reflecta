@@ -182,7 +182,7 @@ async function waitForIndexingProgress() {
 }
 
 describe("retrieval index write-path sync", () => {
-  test("Understanding writes mark retrieval dirty instead of syncing immediately", async () => {
+  test("Understanding writes sync incrementally after the retrieval index is ready", async () => {
     const { db, understandings } = await setupServices();
 
     const created = await understandings.createUnderstanding({
@@ -202,31 +202,20 @@ describe("retrieval index write-path sync", () => {
     await understandings.updateUnderstanding(created.id, {
       body: "understandingsyncaftermarker",
     });
-    expect(await isRetrievalIndexDirty()).toBe(true);
-    expect(await indexIds("understandingsyncbeforemarker")).toContain(
-      `understanding:${created.id}`,
-    );
-    expect(await indexIds("understandingsyncaftermarker")).not.toContain(
-      `understanding:${created.id}`,
-    );
-
-    await rebuildRetrievalIndexWithStatus(db);
+    expect(await isRetrievalIndexDirty()).toBe(false);
     expect(await indexIds("understandingsyncbeforemarker")).not.toContain(
       `understanding:${created.id}`,
     );
     expect(await indexIds("understandingsyncaftermarker")).toContain(`understanding:${created.id}`);
 
     await understandings.deleteUnderstanding(created.id);
-    expect(await isRetrievalIndexDirty()).toBe(true);
-    expect(await indexIds("understandingsyncaftermarker")).toContain(`understanding:${created.id}`);
-
-    await rebuildRetrievalIndexWithStatus(db);
+    expect(await isRetrievalIndexDirty()).toBe(false);
     expect(await indexIds("understandingsyncaftermarker")).not.toContain(
       `understanding:${created.id}`,
     );
   });
 
-  test("domain-only Understanding updates mark retrieval dirty instead of syncing immediately", async () => {
+  test("domain-only Understanding updates sync incrementally", async () => {
     const { db, domains, understandings } = await setupServices();
     const domain = await domains.createDomain({ name: "Dirty Domain" });
     const created = await understandings.createUnderstanding({
@@ -238,10 +227,11 @@ describe("retrieval index write-path sync", () => {
 
     await understandings.updateUnderstanding(created.id, { domainIds: [domain.id] });
 
-    expect(await isRetrievalIndexDirty()).toBe(true);
+    expect(await isRetrievalIndexDirty()).toBe(false);
+    expect(await indexIds("Dirty Domain")).toContain(`understanding:${created.id}`);
   });
 
-  test("Context writes mark retrieval dirty instead of syncing immediately", async () => {
+  test("Context writes sync incrementally after the retrieval index is ready", async () => {
     const { contexts, db, understandings } = await setupServices();
     const understanding = await understandings.createUnderstanding({
       title: "Sync Context Parent",
@@ -255,26 +245,16 @@ describe("retrieval index write-path sync", () => {
       title: "Sync Context",
       content: "contextsyncbeforemarker",
     });
-    expect(await isRetrievalIndexDirty()).toBe(true);
-    expect(await indexIds("contextsyncbeforemarker")).not.toContain(`context:${context.id}`);
-
-    await rebuildRetrievalIndexWithStatus(db);
+    expect(await isRetrievalIndexDirty()).toBe(false);
     expect(await indexIds("contextsyncbeforemarker")).toContain(`context:${context.id}`);
 
     await contexts.updateContext(context.id, { content: "contextsyncaftermarker" });
-    expect(await isRetrievalIndexDirty()).toBe(true);
-    expect(await indexIds("contextsyncbeforemarker")).toContain(`context:${context.id}`);
-    expect(await indexIds("contextsyncaftermarker")).not.toContain(`context:${context.id}`);
-
-    await rebuildRetrievalIndexWithStatus(db);
+    expect(await isRetrievalIndexDirty()).toBe(false);
     expect(await indexIds("contextsyncbeforemarker")).not.toContain(`context:${context.id}`);
     expect(await indexIds("contextsyncaftermarker")).toContain(`context:${context.id}`);
 
     await contexts.deleteContext(context.id);
-    expect(await isRetrievalIndexDirty()).toBe(true);
-    expect(await indexIds("contextsyncaftermarker")).toContain(`context:${context.id}`);
-
-    await rebuildRetrievalIndexWithStatus(db);
+    expect(await isRetrievalIndexDirty()).toBe(false);
     expect(await indexIds("contextsyncaftermarker")).not.toContain(`context:${context.id}`);
   });
 
