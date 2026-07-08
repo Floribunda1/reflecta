@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.18 - 2026-07-08
+
+- Added contextual Agent dock navigation to jump from a page-level dock into the full Agent thread.
+- Improved chat composer layout so the toolbar stays available while long drafts scroll inside the editor area.
+- Streamed Agent approval proposal previews while tools are still being generated, then collapsed completed proposal cards into compact receipts.
+- Let Reflecta fill Understanding update `before` state from the current record instead of asking the Agent to supply it.
+- Documented wiki-link Markdown body guidance for Agent write tools.
+
 ## 1.1.17 - 2026-07-02
 
 - Replaced Agent inline references with per-answer numbered citation sources and plain text streaming.
