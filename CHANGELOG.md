@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.19 - 2026-07-09
+
+- Kept retrieval dirty-index sync asynchronous while preserving incremental updates for ready indexes.
+- Added `understandingId` support to Context update flows so CLI and Agent tools can move Context between Understandings.
+- Clarified Agent instructions for when to create Understanding knowledge versus supporting Context.
+
 ## 1.1.18 - 2026-07-08
 
 - Added contextual Agent dock navigation to jump from a page-level dock into the full Agent thread.
