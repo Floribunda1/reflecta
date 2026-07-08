@@ -361,7 +361,7 @@ export function ChatComposer({
     editorProps: {
       attributes: {
         class:
-          "max-h-64 min-h-24 flex-1 overflow-y-auto whitespace-pre-wrap break-words px-4 pt-3 pb-12 text-sm leading-6 outline-none",
+          "max-h-64 min-h-24 flex-1 overflow-y-auto whitespace-pre-wrap break-words px-4 pt-3 pb-2 text-sm leading-6 outline-none",
       },
       handlePaste: (view, event) => {
         if (event.clipboardData?.files.length) return false;
@@ -538,46 +538,49 @@ export function ChatComposer({
         {attachmentError ? (
           <div className="px-1 text-xs text-destructive">{attachmentError}</div>
         ) : null}
-        <div className="relative flex min-w-0 rounded-lg border border-border/80 bg-card/90 shadow-sm transition-[color,box-shadow] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30">
-          {!draft.trim() && selectedContexts.length === 0 && files.length === 0 ? (
-            <span className="pointer-events-none absolute top-3 left-4 text-sm text-muted-foreground">
-              询问、比较，或 @ 引用知识库内容...
-            </span>
-          ) : null}
-          <EditorContent
-            editor={editor}
-            data-testid="agent-composer-editor"
-            className="flex min-w-0 flex-1"
-            onKeyDownCapture={(event) => {
-              if (event.nativeEvent.isComposing || event.key !== "Enter" || event.shiftKey) return;
-              if (!contextLookup.isOpen && !mentionActiveRef.current) return;
-              event.preventDefault();
-              event.stopPropagation();
-              event.nativeEvent.stopImmediatePropagation();
-              selectActiveContextCandidate();
-            }}
-            onClick={(event) => {
-              if (!onInspectContextRef) return;
-              const target = event.target;
-              if (!(target instanceof Element)) return;
-              const mention = target.closest('[data-slot="composer-context-mention"]');
-              if (!mention || !event.currentTarget.contains(mention)) return;
-              const ref = contextRefFromMention(
-                mention.getAttribute("data-context-ref-id"),
-                mention.getAttribute("data-context-ref-label"),
-              );
-              const inspectableRef = ref ? inspectableContextRef(ref) : null;
-              if (!inspectableRef) return;
-              event.preventDefault();
-              onInspectContextRef(inspectableRef);
-            }}
-            onPaste={(event) => {
-              if (event.clipboardData.files.length === 0) return;
-              event.preventDefault();
-              void addFiles(event.clipboardData.files);
-            }}
-          />
-          <div className="absolute right-3 bottom-2 left-3 flex h-8 items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-col rounded-lg border border-border/80 bg-card/90 shadow-sm transition-[color,box-shadow] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30">
+          <div className="relative min-w-0">
+            {!draft.trim() && selectedContexts.length === 0 && files.length === 0 ? (
+              <span className="pointer-events-none absolute top-3 left-4 text-sm text-muted-foreground">
+                询问、比较，或 @ 引用知识库内容...
+              </span>
+            ) : null}
+            <EditorContent
+              editor={editor}
+              data-testid="agent-composer-editor"
+              className="flex min-w-0"
+              onKeyDownCapture={(event) => {
+                if (event.nativeEvent.isComposing || event.key !== "Enter" || event.shiftKey)
+                  return;
+                if (!contextLookup.isOpen && !mentionActiveRef.current) return;
+                event.preventDefault();
+                event.stopPropagation();
+                event.nativeEvent.stopImmediatePropagation();
+                selectActiveContextCandidate();
+              }}
+              onClick={(event) => {
+                if (!onInspectContextRef) return;
+                const target = event.target;
+                if (!(target instanceof Element)) return;
+                const mention = target.closest('[data-slot="composer-context-mention"]');
+                if (!mention || !event.currentTarget.contains(mention)) return;
+                const ref = contextRefFromMention(
+                  mention.getAttribute("data-context-ref-id"),
+                  mention.getAttribute("data-context-ref-label"),
+                );
+                const inspectableRef = ref ? inspectableContextRef(ref) : null;
+                if (!inspectableRef) return;
+                event.preventDefault();
+                onInspectContextRef(inspectableRef);
+              }}
+              onPaste={(event) => {
+                if (event.clipboardData.files.length === 0) return;
+                event.preventDefault();
+                void addFiles(event.clipboardData.files);
+              }}
+            />
+          </div>
+          <div className="flex h-10 shrink-0 items-center justify-between gap-3 px-3 pb-2">
             <div className="flex min-w-0 items-center gap-1">
               <input
                 ref={fileInputRef}
