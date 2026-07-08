@@ -140,8 +140,14 @@ describe("createPiWriteTools", () => {
     expect(parameterDescription("understanding_create", "domainIds")).toContain(
       "Stable Domain ids",
     );
+    expect(parameterDescription("understanding_create", "body")).toContain(
+      "[[title#understanding-id]]",
+    );
     expect(parameterDescription("understanding_update", "understandingId")).toContain(
       "Stable Understanding id",
+    );
+    expect(parameterDescription("understanding_update", "body")).toContain(
+      "[[title#understanding-id]]",
     );
     expect(parameterDescription("understanding_update", "domainIds")).toContain(
       "Stable Domain ids",

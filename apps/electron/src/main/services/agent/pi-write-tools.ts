@@ -50,6 +50,8 @@ const contextIdParameter = Type.String({
   minLength: 1,
   description: "Stable Context id returned by Reflecta tools. Do not pass chat refs.",
 });
+const understandingBodyParameterDescription =
+  "Markdown body. Use [[title#understanding-id]] when linking another Understanding.";
 const parentIdParameter = Type.Optional(
   Type.Union([Type.String({ minLength: 1 }), Type.Null()], {
     description:
@@ -106,7 +108,7 @@ const toolSpecs: PiWriteToolSpec[] = [
     ],
     parameters: Type.Object({
       title: Type.Optional(Type.String({ description: "Short Understanding title." })),
-      body: Type.String({ minLength: 1, description: "Markdown body for the new Understanding." }),
+      body: Type.String({ minLength: 1, description: understandingBodyParameterDescription }),
       domainIds: domainIdsParameter,
     }),
   },
@@ -130,12 +132,12 @@ const toolSpecs: PiWriteToolSpec[] = [
       after: Type.Optional(
         Type.Object({
           title: Type.Optional(nullableStringParameter),
-          body: Type.Optional(Type.String()),
+          body: Type.Optional(Type.String({ description: understandingBodyParameterDescription })),
           domainIds: domainIdsParameter,
         }),
       ),
       title: Type.Optional(nullableStringParameter),
-      body: Type.Optional(Type.String()),
+      body: Type.Optional(Type.String({ description: understandingBodyParameterDescription })),
       domainIds: domainIdsParameter,
       reason: Type.Optional(Type.String()),
     }),
