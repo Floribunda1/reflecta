@@ -19,7 +19,7 @@ import type {
   UpdateUnderstandingInput,
 } from "./types";
 import { resolveDomainRefs } from "../domain/core";
-import { trySyncRetrievalIndexByUnderstandingId } from "../retrieval/sync";
+import { markRetrievalIndexDirtyByUnderstandingId } from "../retrieval/sync";
 import { createEntityId } from "../shared/id";
 
 export async function getUnderstandingConnectionCounts(
@@ -150,7 +150,7 @@ export class UnderstandingCore {
 
     const row = await this.getUnderstandingRow(id);
     if (!row) throw new Error(`Understanding not found after creation: ${id}`);
-    await trySyncRetrievalIndexByUnderstandingId(this.db, id);
+    await markRetrievalIndexDirtyByUnderstandingId(id).catch(() => undefined);
     return row;
   }
 
@@ -198,7 +198,7 @@ export class UnderstandingCore {
 
     const row = await this.getUnderstandingRow(id);
     if (!row) throw new Error(`Understanding not found after update: ${id}`);
-    await trySyncRetrievalIndexByUnderstandingId(this.db, id);
+    await markRetrievalIndexDirtyByUnderstandingId(id).catch(() => undefined);
     return row;
   }
 
@@ -214,7 +214,7 @@ export class UnderstandingCore {
         throw new Error(`Understanding not found: ${id}`);
       }
     });
-    await trySyncRetrievalIndexByUnderstandingId(this.db, id);
+    await markRetrievalIndexDirtyByUnderstandingId(id).catch(() => undefined);
   }
 
   async restoreUnderstanding(id: string): Promise<void> {
@@ -229,14 +229,14 @@ export class UnderstandingCore {
       if (rows.length === 0) return;
       restored = true;
     });
-    if (restored) await trySyncRetrievalIndexByUnderstandingId(this.db, id);
+    if (restored) await markRetrievalIndexDirtyByUnderstandingId(id).catch(() => undefined);
   }
 
   async permanentlyDeleteUnderstanding(id: string): Promise<void> {
     await this.db.transaction((tx) => {
       tx.delete(understandings).where(eq(understandings.id, id)).run();
     });
-    await trySyncRetrievalIndexByUnderstandingId(this.db, id);
+    await markRetrievalIndexDirtyByUnderstandingId(id).catch(() => undefined);
   }
 
   async syncWikiLinkConnections(sourceId: string, body: string): Promise<void> {

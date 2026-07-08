@@ -3,7 +3,7 @@ import { contexts, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type { ContextDTO, CreateContextInput, ContextMedium, UpdateContextInput } from "./types";
 import type { TrashedContextDTO } from "../trash/types";
-import { trySyncRetrievalIndexByUnderstandingId } from "../retrieval/sync";
+import { markRetrievalIndexDirtyByUnderstandingId } from "../retrieval/sync";
 import { createEntityId } from "../shared/id";
 
 export class ContextCore {
@@ -43,7 +43,7 @@ export class ContextCore {
     };
 
     await this.db.insert(contexts).values(row).run();
-    await trySyncRetrievalIndexByUnderstandingId(this.db, input.understandingId);
+    await markRetrievalIndexDirtyByUnderstandingId(input.understandingId).catch(() => undefined);
 
     return { ...row, createdAt, deletedAt: null } as ContextDTO;
   }
@@ -64,7 +64,7 @@ export class ContextCore {
       updated = rows[0] as ContextDTO;
     });
 
-    await trySyncRetrievalIndexByUnderstandingId(this.db, updated!.understandingId);
+    await markRetrievalIndexDirtyByUnderstandingId(updated!.understandingId).catch(() => undefined);
     return updated!;
   }
 
@@ -82,7 +82,7 @@ export class ContextCore {
       }
       understandingId = rows[0].understandingId;
     });
-    await trySyncRetrievalIndexByUnderstandingId(this.db, understandingId!);
+    await markRetrievalIndexDirtyByUnderstandingId(understandingId!).catch(() => undefined);
   }
 
   async restoreContext(id: string): Promise<void> {
@@ -97,12 +97,18 @@ export class ContextCore {
       if (rows.length === 0) return;
       understandingId = rows[0].understandingId;
     });
-    if (understandingId) await trySyncRetrievalIndexByUnderstandingId(this.db, understandingId);
+    if (understandingId) {
+      await markRetrievalIndexDirtyByUnderstandingId(understandingId).catch(() => undefined);
+    }
   }
 
   async permanentlyDeleteContext(id: string): Promise<void> {
     const rows = await this.db.delete(contexts).where(eq(contexts.id, id)).returning().all();
-    if (rows[0]) await trySyncRetrievalIndexByUnderstandingId(this.db, rows[0].understandingId);
+    if (rows[0]) {
+      await markRetrievalIndexDirtyByUnderstandingId(rows[0].understandingId).catch(
+        () => undefined,
+      );
+    }
   }
 
   private async assertUnderstandingExists(understandingId: string): Promise<void> {

@@ -17,6 +17,7 @@ import {
   isRetrievalIndexDirty,
   markRetrievalIndexDirty,
   rebuildRetrievalIndexWithStatus,
+  syncDirtyRetrievalIndexWithStatus,
 } from "./sync";
 
 const tempDirs: string[] = [];
@@ -133,6 +134,31 @@ async function startSlowQueryEmbeddingServer(query: string, delayMs = 1_200) {
   return `http://127.0.0.1:${address.port}/v1`;
 }
 
+async function startSlowEmbeddingServer(delayMs = 1_200) {
+  const server = createServer((request, response) => {
+    const chunks: Buffer[] = [];
+    request.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    request.on("end", () => {
+      const body = JSON.parse(Buffer.concat(chunks).toString("utf-8")) as { input: string[] };
+      setTimeout(() => {
+        response.setHeader("Content-Type", "application/json");
+        response.end(
+          JSON.stringify({
+            data: body.input.map((text) => ({
+              embedding: semanticVectorFor(text),
+            })),
+          }),
+        );
+      }, delayMs);
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  servers.push(server);
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Embedding server failed to start");
+  return `http://127.0.0.1:${address.port}/v1`;
+}
+
 async function startPartiallyBlockingEmbeddingServer() {
   let releaseBlockedResponse!: () => void;
   let resolveFirstBatchCompleted!: () => void;
@@ -182,8 +208,8 @@ async function waitForIndexingProgress() {
 }
 
 describe("retrieval index write-path sync", () => {
-  test("Understanding writes sync incrementally after the retrieval index is ready", async () => {
-    const { db, understandings } = await setupServices();
+  test("Understanding writes queue dirty ids and idle sync updates the index", async () => {
+    const { db, search, understandings } = await setupServices();
 
     const created = await understandings.createUnderstanding({
       title: "Sync Understanding",
@@ -202,6 +228,25 @@ describe("retrieval index write-path sync", () => {
     await understandings.updateUnderstanding(created.id, {
       body: "understandingsyncaftermarker",
     });
+    expect(await isRetrievalIndexDirty()).toBe(true);
+    expect(await indexIds("understandingsyncbeforemarker")).toContain(
+      `understanding:${created.id}`,
+    );
+    expect(await indexIds("understandingsyncaftermarker")).not.toContain(
+      `understanding:${created.id}`,
+    );
+    expect(
+      (await search.search("understandingsyncbeforemarker")).hits.some(
+        (hit) => hit.type === "understanding" && hit.understanding.id === created.id,
+      ),
+    ).toBe(false);
+    expect(
+      (await search.search("understandingsyncaftermarker")).hits.some(
+        (hit) => hit.type === "understanding" && hit.understanding.id === created.id,
+      ),
+    ).toBe(true);
+
+    await syncDirtyRetrievalIndexWithStatus(db);
     expect(await isRetrievalIndexDirty()).toBe(false);
     expect(await indexIds("understandingsyncbeforemarker")).not.toContain(
       `understanding:${created.id}`,
@@ -209,17 +254,26 @@ describe("retrieval index write-path sync", () => {
     expect(await indexIds("understandingsyncaftermarker")).toContain(`understanding:${created.id}`);
 
     await understandings.deleteUnderstanding(created.id);
+    expect(await isRetrievalIndexDirty()).toBe(true);
+    expect(await indexIds("understandingsyncaftermarker")).toContain(`understanding:${created.id}`);
+    expect(
+      (await search.search("understandingsyncaftermarker")).hits.some(
+        (hit) => hit.type === "understanding" && hit.understanding.id === created.id,
+      ),
+    ).toBe(false);
+
+    await syncDirtyRetrievalIndexWithStatus(db);
     expect(await isRetrievalIndexDirty()).toBe(false);
     expect(await indexIds("understandingsyncaftermarker")).not.toContain(
       `understanding:${created.id}`,
     );
   });
 
-  test("domain-only Understanding updates sync incrementally", async () => {
-    const { db, domains, understandings } = await setupServices();
-    const domain = await domains.createDomain({ name: "Dirty Domain" });
+  test("domain-only Understanding updates queue dirty ids", async () => {
+    const { db, domains, search, understandings } = await setupServices();
+    const domain = await domains.createDomain({ name: "FreshOnlyDomain" });
     const created = await understandings.createUnderstanding({
-      title: "Domain Only Dirty",
+      title: "Domain Update Source",
       body: "domainonlydirtymarker",
     });
     await rebuildRetrievalIndexWithStatus(db);
@@ -227,12 +281,21 @@ describe("retrieval index write-path sync", () => {
 
     await understandings.updateUnderstanding(created.id, { domainIds: [domain.id] });
 
+    expect(await isRetrievalIndexDirty()).toBe(true);
+    expect(await indexIds("FreshOnlyDomain")).not.toContain(`understanding:${created.id}`);
+    expect(
+      (await search.search("FreshOnlyDomain")).hits.some(
+        (hit) => hit.type === "understanding" && hit.understanding.id === created.id,
+      ),
+    ).toBe(true);
+
+    await syncDirtyRetrievalIndexWithStatus(db);
     expect(await isRetrievalIndexDirty()).toBe(false);
-    expect(await indexIds("Dirty Domain")).toContain(`understanding:${created.id}`);
+    expect(await indexIds("FreshOnlyDomain")).toContain(`understanding:${created.id}`);
   });
 
-  test("Context writes sync incrementally after the retrieval index is ready", async () => {
-    const { contexts, db, understandings } = await setupServices();
+  test("Context writes queue dirty ids and dirty search overlays current context text", async () => {
+    const { contexts, db, search, understandings } = await setupServices();
     const understanding = await understandings.createUnderstanding({
       title: "Sync Context Parent",
       body: "Parent body",
@@ -245,17 +308,83 @@ describe("retrieval index write-path sync", () => {
       title: "Sync Context",
       content: "contextsyncbeforemarker",
     });
+    expect(await isRetrievalIndexDirty()).toBe(true);
+    expect(await indexIds("contextsyncbeforemarker")).not.toContain(`context:${context.id}`);
+    expect(
+      (await search.search("contextsyncbeforemarker")).hits.some(
+        (hit) => hit.type === "context" && hit.context.id === context.id,
+      ),
+    ).toBe(true);
+
+    await syncDirtyRetrievalIndexWithStatus(db);
     expect(await isRetrievalIndexDirty()).toBe(false);
     expect(await indexIds("contextsyncbeforemarker")).toContain(`context:${context.id}`);
 
     await contexts.updateContext(context.id, { content: "contextsyncaftermarker" });
+    expect(await isRetrievalIndexDirty()).toBe(true);
+    expect(await indexIds("contextsyncbeforemarker")).toContain(`context:${context.id}`);
+    expect(await indexIds("contextsyncaftermarker")).not.toContain(`context:${context.id}`);
+    expect(
+      (await search.search("contextsyncbeforemarker")).hits.some(
+        (hit) => hit.type === "context" && hit.context.id === context.id,
+      ),
+    ).toBe(false);
+    expect(
+      (await search.search("contextsyncaftermarker")).hits.some(
+        (hit) => hit.type === "context" && hit.context.id === context.id,
+      ),
+    ).toBe(true);
+
+    await syncDirtyRetrievalIndexWithStatus(db);
     expect(await isRetrievalIndexDirty()).toBe(false);
     expect(await indexIds("contextsyncbeforemarker")).not.toContain(`context:${context.id}`);
     expect(await indexIds("contextsyncaftermarker")).toContain(`context:${context.id}`);
 
     await contexts.deleteContext(context.id);
+    expect(await isRetrievalIndexDirty()).toBe(true);
+    expect(await indexIds("contextsyncaftermarker")).toContain(`context:${context.id}`);
+    expect(
+      (await search.search("contextsyncaftermarker")).hits.some(
+        (hit) => hit.type === "context" && hit.context.id === context.id,
+      ),
+    ).toBe(false);
+
+    await syncDirtyRetrievalIndexWithStatus(db);
     expect(await isRetrievalIndexDirty()).toBe(false);
     expect(await indexIds("contextsyncaftermarker")).not.toContain(`context:${context.id}`);
+  });
+
+  test("dirty writes and lexical search do not wait for embedding", async () => {
+    configureRetrievalEmbedding({
+      provider: "openai-compatible",
+      baseUrl: await startSlowEmbeddingServer(),
+      modelId: "test-slow-dirty-write",
+    });
+    const { db, search, understandings } = await setupServices();
+    const created = await understandings.createUnderstanding({
+      title: "Slow Dirty Write",
+      body: "slowdirtybeforemarker",
+    });
+    await rebuildRetrievalIndexWithStatus(db);
+
+    const updateStartedAt = Date.now();
+    await understandings.updateUnderstanding(created.id, { body: "slowdirtyaftermarker" });
+    const updateElapsedMs = Date.now() - updateStartedAt;
+
+    const searchStartedAt = Date.now();
+    const result = await search.search("slowdirtyaftermarker");
+    const searchElapsedMs = Date.now() - searchStartedAt;
+
+    expect(updateElapsedMs).toBeLessThan(800);
+    expect(searchElapsedMs).toBeLessThan(800);
+    expect(result.hits).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "understanding",
+          understanding: expect.objectContaining({ id: created.id }),
+        }),
+      ]),
+    );
   });
 
   test("Chinese context query finds lexical matches", async () => {
@@ -283,8 +412,8 @@ describe("retrieval index write-path sync", () => {
     );
   });
 
-  test("retrieveKnowledge rebuilds and clears a dirty retrieval index marker", async () => {
-    const { search, understandings } = await setupServices();
+  test("dirty sync clears dirty markers and makes retrieveKnowledge semantic-ready", async () => {
+    const { db, search, understandings } = await setupServices();
     const created = await understandings.createUnderstanding({
       title: "Dirty Marker",
       body: "dirtymarkerterm",
@@ -293,6 +422,7 @@ describe("retrieval index write-path sync", () => {
     await markRetrievalIndexDirty();
     expect(await isRetrievalIndexDirty()).toBe(true);
 
+    await syncDirtyRetrievalIndexWithStatus(db);
     const result = await search.retrieveKnowledge({ query: "dirtymarkerterm", limit: 5 });
 
     expect(result.candidates.map((candidate) => candidate.id)).toContain(created.id);
@@ -419,11 +549,12 @@ describe("retrieval index write-path sync", () => {
       baseUrl: await startEmbeddingServer(),
       modelId: "test-openai-compatible",
     });
-    const { search, understandings } = await setupServices();
+    const { db, search, understandings } = await setupServices();
     const created = await understandings.createUnderstanding({
       title: "Dense Source",
       body: "denseonlysourcewithoutsharedterms",
     });
+    await syncDirtyRetrievalIndexWithStatus(db);
 
     const result = await search.retrieveKnowledge({ query: "semantic-query", limit: 5 });
 
@@ -440,7 +571,7 @@ describe("retrieval index write-path sync", () => {
       baseUrl: await startEmbeddingServer(),
       modelId: "test-openai-compatible",
     });
-    const { search, understandings } = await setupServices();
+    const { db, search, understandings } = await setupServices();
     const cases = [
       {
         title: "反馈回路让学习形成积累",
@@ -466,6 +597,7 @@ describe("retrieval index write-path sync", () => {
       });
       expectedIds.set(item.query, created.id);
     }
+    await syncDirtyRetrievalIndexWithStatus(db);
 
     for (const item of cases) {
       const startedAt = Date.now();
@@ -486,7 +618,7 @@ describe("retrieval index write-path sync", () => {
       baseUrl: await startEmbeddingServer(),
       modelId: "test-openai-compatible",
     });
-    const { contexts, search, understandings } = await setupServices();
+    const { contexts, db, search, understandings } = await setupServices();
     const primary = await understandings.createUnderstanding({
       title: "Primary overfetch source",
       body: "retrieval-overfetch-primary",
@@ -501,6 +633,7 @@ describe("retrieval index write-path sync", () => {
       title: "Secondary overfetch source",
       body: "retrieval-overfetch-secondary",
     });
+    await syncDirtyRetrievalIndexWithStatus(db);
 
     const result = await search.retrieveKnowledge({ query: "retrieval-overfetch-query", limit: 2 });
 

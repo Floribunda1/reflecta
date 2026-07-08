@@ -6,13 +6,15 @@ import { toUnderstandingSummaries } from "../understanding/core";
 import {
   RETRIEVAL_PROJECTION_VERSION,
   buildUnderstandingCandidates,
+  buildRetrievalDocumentsFromDb,
   createRetrievalIndex,
+  getDirtyRetrievalUnderstandingIds,
   getRetrievalEmbeddingModelId,
   isDenseRetrievalEnabled,
-  isRetrievalIndexDirty,
-  rebuildRetrievalIndexWithStatus,
+  isRetrievalIndexFullyDirty,
 } from "../retrieval";
 import type {
+  RetrievalDocument,
   RetrievalSearchHit,
   RetrieveKnowledgeInput,
   RetrieveKnowledgeResult,
@@ -31,6 +33,15 @@ type RetrievalSearchMode = "hybrid" | "lexical";
 
 const RETRIEVE_KNOWLEDGE_DOCUMENT_OVERFETCH_FACTOR = 3;
 
+function lexicalTokens(query: string): string[] {
+  return query.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+}
+
+function matchesLexicalText(text: string, tokens: string[]): boolean {
+  const normalized = text.toLocaleLowerCase();
+  return tokens.every((token) => normalized.includes(token));
+}
+
 export class SearchCore {
   constructor(protected db: ReflectaDb) {}
 
@@ -41,18 +52,72 @@ export class SearchCore {
   ): Promise<SearchRetrievalHit[]> {
     const { limit, offset } = getLimitOffset(options);
     const index = createRetrievalIndex();
-    if (!(await index.isReady()) || (await isRetrievalIndexDirty())) {
-      await rebuildRetrievalIndexWithStatus(this.db);
-    }
-    const hits =
-      mode === "lexical"
-        ? await index.searchLexical(query, limit + offset)
-        : await index.search(query, limit + offset);
+    const resultLimit = limit + offset;
+    const indexReady = await index.isReady();
+    const fullyDirty = await isRetrievalIndexFullyDirty();
+    const dirtyUnderstandingIds = await getDirtyRetrievalUnderstandingIds();
+    const dirtyUnderstandingIdSet = new Set(dirtyUnderstandingIds);
+    const currentLexicalHits = await this.searchCurrentLexicalDocuments(
+      query,
+      indexReady && !fullyDirty ? dirtyUnderstandingIds : undefined,
+      resultLimit,
+    );
+    const indexMode =
+      mode === "hybrid" && dirtyUnderstandingIds.length > 0 && currentLexicalHits.length > 0
+        ? "lexical"
+        : mode;
+
+    const indexedHits =
+      indexReady && !fullyDirty
+        ? indexMode === "lexical"
+          ? await index.searchLexical(query, resultLimit)
+          : await index.search(query, resultLimit)
+        : [];
+    const hits = this.mergeCurrentAndIndexedHits(
+      currentLexicalHits,
+      indexedHits.filter((hit) => !dirtyUnderstandingIdSet.has(hit.parentUnderstandingId)),
+      resultLimit,
+    );
+
     return hits.slice(offset).map((hit, index) => ({
       ...hit,
       rank: index + offset,
       snippet: hit.textForLexicalSearch.slice(0, 160),
     }));
+  }
+
+  private async searchCurrentLexicalDocuments(
+    query: string,
+    understandingIds: string[] | undefined,
+    limit: number,
+  ): Promise<RetrievalSearchHit[]> {
+    if (understandingIds !== undefined && understandingIds.length === 0) return [];
+    const tokens = lexicalTokens(query);
+    const docs = await buildRetrievalDocumentsFromDb(this.db, understandingIds);
+    return docs
+      .filter((doc) => matchesLexicalText(doc.textForLexicalSearch, tokens))
+      .slice(0, limit)
+      .map((doc) => this.toLexicalRetrievalHit(doc));
+  }
+
+  private toLexicalRetrievalHit(doc: RetrievalDocument): RetrievalSearchHit {
+    return {
+      ...doc,
+      score: 0,
+      channels: ["lexical"],
+    };
+  }
+
+  private mergeCurrentAndIndexedHits(
+    currentHits: RetrievalSearchHit[],
+    indexedHits: RetrievalSearchHit[],
+    limit: number,
+  ): RetrievalSearchHit[] {
+    const byId = new Map<string, RetrievalSearchHit>();
+    for (const hit of [...currentHits, ...indexedHits]) {
+      if (!byId.has(hit.id)) byId.set(hit.id, hit);
+    }
+    return [...byId.values()].slice(0, limit);
   }
 
   async searchUnderstandingIds(

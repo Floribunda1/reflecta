@@ -1,7 +1,7 @@
 import { powerMonitor } from "electron";
 import {
   isRetrievalIndexDirty,
-  rebuildRetrievalIndexWithStatus,
+  syncDirtyRetrievalIndexWithStatus,
   type ReflectaDb,
 } from "@reflecta/server";
 import { getDBInstance } from "./db";
@@ -53,6 +53,6 @@ export function startRetrievalIdleRebuild(db: () => ReflectaDb = getDBInstance) 
   return createRetrievalIdleRebuilder({
     getIdleState: (idleThresholdSeconds) => powerMonitor.getSystemIdleState(idleThresholdSeconds),
     isDirty: isRetrievalIndexDirty,
-    rebuild: () => rebuildRetrievalIndexWithStatus(db()),
+    rebuild: () => syncDirtyRetrievalIndexWithStatus(db()),
   });
 }

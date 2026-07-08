@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { syncDirtyRetrievalIndexWithStatus } from "@reflecta/server";
+import { getDb } from "../src/db";
 import { runCommand, parseJson } from "./helpers";
 
 type SearchHit =
@@ -40,6 +42,10 @@ async function createUnderstanding(title: string, body: string): Promise<string>
   ]);
   expect(code).toBe(0);
   return (parseJson(stdout) as { id: string }).id;
+}
+
+async function syncRetrievalIndex(): Promise<void> {
+  await syncDirtyRetrievalIndexWithStatus(getDb());
 }
 
 describe("知识搜索", () => {
@@ -112,6 +118,7 @@ describe("知识搜索", () => {
         "Agent Acceptance Criteria",
         "验收标准让 AI 产出保持可控，团队用清晰 check 判断任务是否完成。",
       );
+      await syncRetrievalIndex();
 
       const hits = await search("怎样让模型回复更稳定可靠");
 
