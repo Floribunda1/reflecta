@@ -73,6 +73,7 @@ type ProposalBase<TType extends ProposalType, TData extends { kind: string }> = 
   resultRefType?: string;
   resultRefId?: string;
   approvalId?: string;
+  preview?: boolean;
   result?: ToolActivityDetailsView;
   data: TData;
 };
@@ -271,6 +272,7 @@ function proposalViewFor(block: AgentApprovalBlock): ProposalView {
     resultRefType: stringValue(output.resultRefType),
     resultRefId: stringValue(output.resultRefId),
     approvalId: block.approvalId,
+    preview: block.preview,
     ...(result ? { result } : {}),
   };
 
@@ -310,6 +312,7 @@ function approvalStatus(block: AgentApprovalBlock): ToolApprovalStatus | undefin
 }
 
 function proposalState(block: AgentApprovalBlock): ProposalState {
+  if (block.preview) return "input-streaming";
   if (block.displayState === "pending_approval") return "approval-requested";
   if (block.displayState === "running") return "approval-responded";
   if (block.displayState === "rejected") return "output-denied";

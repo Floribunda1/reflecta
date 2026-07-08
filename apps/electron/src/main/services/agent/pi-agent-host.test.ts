@@ -20,6 +20,9 @@ import { AgentSessionLog } from "./pi-session-log";
 
 const createAgentSessionMock = vi.hoisted(() => vi.fn());
 const executePiApprovedToolMock = vi.hoisted(() => vi.fn());
+const hydratePiApprovalPayloadMock = vi.hoisted(() =>
+  vi.fn(async (_toolName: string, payload: Record<string, unknown>) => payload),
+);
 const getModelMock = vi.hoisted(() => vi.fn(() => ({ id: "model-test" })));
 const isPiApprovalToolNameMock = vi.hoisted(() => vi.fn((_name: string) => false));
 
@@ -71,6 +74,7 @@ vi.mock("./pi-write-tools", () => ({
   approvalTitleForTool: () => "候选操作",
   createPiWriteTools: () => [],
   executePiApprovedTool: executePiApprovedToolMock,
+  hydratePiApprovalPayload: hydratePiApprovalPayloadMock,
   isPiApprovalToolName: isPiApprovalToolNameMock,
   PI_APPROVAL_TOOL_NAMES: [],
 }));
@@ -747,6 +751,136 @@ describe("PiAgentHost", () => {
       blocks: [{ kind: "text", text: "草稿", state: "done" }],
     });
     expect(events.map((event) => event.type)).not.toContain("run.failed");
+  });
+
+  test("streams approval tool previews before persisting the executable proposal", async () => {
+    isPiApprovalToolNameMock.mockImplementation((name) => name === "understanding_create");
+    hydratePiApprovalPayloadMock.mockResolvedValueOnce({
+      title: "Final",
+      body: "Final body",
+    });
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("新对话");
+    const manager = await log.openSession(thread.id);
+    log.appendEvent(manager, {
+      id: "evt_existing_cancel",
+      sessionId: thread.id,
+      runId: "run_existing",
+      type: "run.cancelled",
+      createdAt: "2026-06-23T00:00:00.000Z",
+    });
+    let listener: ((event: unknown) => void) | undefined;
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        subscribe: (next: (event: unknown) => void) => {
+          listener = next;
+          return () => {};
+        },
+        prompt: vi.fn(async () => {
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: {
+              type: "toolcall_delta",
+              contentIndex: 0,
+              partial: {
+                content: [
+                  {
+                    type: "toolCall",
+                    id: "tool_1",
+                    name: "understanding_create",
+                    arguments: { title: "Draft", body: "Draft body" },
+                  },
+                ],
+              },
+            },
+          });
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: {
+              type: "toolcall_end",
+              toolCall: {
+                type: "toolCall",
+                id: "tool_1",
+                name: "understanding_create",
+                arguments: { title: "Final", body: "Final body" },
+              },
+            },
+          });
+          listener?.({
+            type: "tool_execution_start",
+            toolCallId: "tool_1",
+            toolName: "understanding_create",
+            args: { title: "Final", body: "Final body" },
+          });
+          listener?.({
+            type: "message_end",
+            message: {
+              role: "assistant",
+              content: [
+                {
+                  type: "toolCall",
+                  id: "tool_1",
+                  name: "understanding_create",
+                  arguments: { title: "Final", body: "Final body" },
+                },
+              ],
+              provider: "openai",
+              model: "gpt-4o",
+              stopReason: "toolUse",
+            },
+          });
+        }),
+        getContextUsage: vi.fn(() => undefined),
+        dispose: vi.fn(),
+        abort: vi.fn(),
+      },
+    });
+    const webContents = { isDestroyed: () => false, send: vi.fn() };
+
+    await (
+      new PiAgentHost(root) as unknown as {
+        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
+      }
+    ).sendMessage(
+      {
+        type: "message.send",
+        sessionId: thread.id,
+        text: "创建一个 Understanding",
+        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+      },
+      webContents as never,
+    );
+
+    const sentApprovals = webContents.send.mock.calls
+      .map((call) => call[1])
+      .filter((event) => event.type === "approval.requested");
+    expect(sentApprovals).toEqual([
+      expect.objectContaining({
+        preview: true,
+        payload: { title: "Draft", body: "Draft body" },
+      }),
+      expect.objectContaining({
+        preview: true,
+        payload: { title: "Final", body: "Final body" },
+      }),
+      expect.objectContaining({
+        payload: { title: "Final", body: "Final body" },
+      }),
+    ]);
+    expect(sentApprovals[2]).not.toHaveProperty("preview");
+
+    const persistedApprovals = (await new AgentSessionLog(root).readEvents(thread.id)).filter(
+      (event) => event.type === "approval.requested",
+    );
+    expect(persistedApprovals).toEqual([
+      expect.objectContaining({
+        toolCallId: "tool_1",
+        payload: { title: "Final", body: "Final body" },
+      }),
+    ]);
+    expect(persistedApprovals[0]).not.toHaveProperty("preview");
   });
 
   test("restores the active streaming turn when reopening a running session", async () => {

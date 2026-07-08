@@ -63,10 +63,12 @@ import {
   approvalTitleForTool,
   createPiWriteTools,
   executePiApprovedTool,
+  hydratePiApprovalPayload,
   isPiApprovalToolName,
   PI_APPROVAL_TOOL_NAMES,
   rejectedToolResult,
   type PiApprovedToolOutput,
+  type PiApprovalToolName,
 } from "./pi-write-tools";
 
 export const AGENT_EVENT_CHANNEL = "agent:event";
@@ -381,6 +383,37 @@ function isRejectedApprovalOutput(output: unknown): boolean {
 
 function approvalIdForToolCall(toolCallId: string) {
   return `approval_${toolCallId}`;
+}
+
+function toolCallFromAssistantEvent(value: unknown):
+  | {
+      toolCallId: string;
+      toolName: string;
+      args: Record<string, unknown>;
+    }
+  | undefined {
+  if (!isRecord(value)) return undefined;
+  if (value.type !== "toolcall_delta" && value.type !== "toolcall_end") return undefined;
+  const source = isRecord(value.toolCall)
+    ? value.toolCall
+    : toolCallFromPartial(value.partial, value.contentIndex);
+  if (!source) return undefined;
+  const toolCallId = typeof source.id === "string" ? source.id : "";
+  const toolName = typeof source.name === "string" ? source.name : "";
+  const args = isRecord(source.arguments) ? source.arguments : undefined;
+  if (!toolCallId || !toolName || !args) return undefined;
+  return { toolCallId, toolName, args };
+}
+
+function toolCallFromPartial(
+  partial: unknown,
+  contentIndex: unknown,
+): Record<string, unknown> | undefined {
+  if (!isRecord(partial) || !Array.isArray(partial.content) || typeof contentIndex !== "number") {
+    return undefined;
+  }
+  const block = partial.content[contentIndex];
+  return isRecord(block) && block.type === "toolCall" ? block : undefined;
 }
 
 function withApprovalToolResult(
@@ -767,10 +800,65 @@ export class PiAgentHost {
     let assistantActivity = false;
     let runStarted = false;
     const accumulator = new AgentRunAccumulator();
+    const requestedApprovalIds = new Set<string>();
+    const approvalRequestTasks: Promise<void>[] = [];
     const emit = (event: AgentSessionEvent) => this.appendAndEmit(manager, webContents, event);
     const emitAccumulated = (event: AgentLiveEvent) => {
       accumulator.append(event);
       this.emitLive(webContents, event);
+    };
+    const createApprovalRequested = (
+      toolCallId: string,
+      toolName: PiApprovalToolName,
+      payload: Record<string, unknown>,
+      preview = false,
+    ) =>
+      this.createEvent({
+        type: "approval.requested",
+        sessionId: command.sessionId,
+        runId,
+        messageId: assistantMessageId,
+        approvalId: approvalIdForToolCall(toolCallId),
+        toolCallId,
+        toolName,
+        title: approvalTitleForTool(toolName),
+        payload,
+        ...(preview ? { preview: true } : {}),
+      });
+    const emitApprovalPreview = (
+      toolCallId: string,
+      toolName: PiApprovalToolName,
+      payload: Record<string, unknown>,
+    ) => {
+      if (requestedApprovalIds.has(approvalIdForToolCall(toolCallId))) return;
+      const requested = createApprovalRequested(toolCallId, toolName, payload, true);
+      if (!webContents.isDestroyed()) webContents.send(AGENT_EVENT_CHANNEL, requested);
+    };
+    const emitApprovalRequest = (
+      toolCallId: string,
+      toolName: PiApprovalToolName,
+      payload: Record<string, unknown>,
+    ) => {
+      const approvalId = approvalIdForToolCall(toolCallId);
+      if (requestedApprovalIds.has(approvalId)) return;
+      requestedApprovalIds.add(approvalId);
+      const task = hydratePiApprovalPayload(toolName, payload)
+        .catch((error) => {
+          agentLog.warn("pi.approval.hydrateFailed", {
+            sessionId: command.sessionId,
+            runId,
+            toolName,
+            toolCallId,
+            error: formatAgentError(error),
+          });
+          return payload;
+        })
+        .then((hydratedPayload) => {
+          const requested = createApprovalRequested(toolCallId, toolName, hydratedPayload);
+          accumulator.append(requested);
+          emit(requested);
+        });
+      approvalRequestTasks.push(task);
     };
     const emitEntityCatalogUpdates = () => {
       this.appendEntityCatalogUpdates(
@@ -858,22 +946,23 @@ export class PiAgentHost {
           return;
         }
 
+        if (event.type === "message_update") {
+          const toolCall = toolCallFromAssistantEvent(event.assistantMessageEvent);
+          if (toolCall && isPiApprovalToolName(toolCall.toolName)) {
+            assistantActivity = true;
+            emitApprovalPreview(toolCall.toolCallId, toolCall.toolName, toolCall.args);
+            return;
+          }
+        }
+
         if (event.type === "tool_execution_start") {
           assistantActivity = true;
           if (isPiApprovalToolName(event.toolName)) {
-            const requested = this.createEvent({
-              type: "approval.requested",
-              sessionId: command.sessionId,
-              runId,
-              messageId: assistantMessageId,
-              approvalId: approvalIdForToolCall(event.toolCallId),
-              toolCallId: event.toolCallId,
-              toolName: event.toolName,
-              title: approvalTitleForTool(event.toolName),
-              payload: event.args,
-            });
-            accumulator.append(requested);
-            emit(requested);
+            emitApprovalRequest(
+              event.toolCallId,
+              event.toolName,
+              isRecord(event.args) ? event.args : {},
+            );
             return;
           }
           emitAccumulated(
@@ -978,6 +1067,7 @@ export class PiAgentHost {
           files: command.files,
         }),
       );
+      await Promise.all(approvalRequestTasks);
       if (this.cancelledRunIds.has(runId)) return;
       if (assistantError) {
         throw new Error(assistantError);

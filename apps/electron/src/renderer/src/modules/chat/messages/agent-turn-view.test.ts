@@ -687,6 +687,28 @@ describe("buildAgentTurnView", () => {
     });
   });
 
+  test("marks proposal previews as streaming input", () => {
+    const preview = proposal("understanding_create", "tool-1", {
+      title: "Draft",
+      body: "Draft body",
+    }) as Extract<AgentReducedAssistantBlock, { kind: "approval" }>;
+    const turn = buildAgentTurnView([
+      {
+        ...preview,
+        preview: true,
+      },
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "proposal",
+      proposal: {
+        type: "understanding_create",
+        state: "input-streaming",
+        preview: true,
+      },
+    });
+  });
+
   test("shows completed approval tool results", () => {
     const turn = buildAgentTurnView([
       {

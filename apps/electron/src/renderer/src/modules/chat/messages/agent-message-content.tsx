@@ -54,6 +54,7 @@ export type ApproveToolInput = {
 };
 
 function statusLabel(status: ToolApprovalStatus | undefined, state?: ProposalView["state"]) {
+  if (state === "input-streaming") return "运行中";
   if (state === "output-error") return "执行失败";
   if (state === "output-denied") return "已拒绝";
   if (state === "output-available") return "完成";
@@ -62,7 +63,6 @@ function statusLabel(status: ToolApprovalStatus | undefined, state?: ProposalVie
   if (status === "pending") return "待确认";
   if (state === "approval-responded") return "已响应";
   if (state === "approval-requested") return "待确认";
-  if (state === "input-streaming") return "运行中";
   return "等待中";
 }
 
@@ -432,7 +432,7 @@ function CandidateShell({
         </div>
       )}
       {statusNote ? <div className="mt-2 text-xs text-muted-foreground">{statusNote}</div> : null}
-      {status === "pending" ? (
+      {status === "pending" && !proposal.preview ? (
         <div className="mt-3 flex gap-2">
           <Button
             data-testid="agent-proposal-confirm-button"

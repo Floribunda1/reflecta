@@ -128,6 +128,7 @@ export class AgentRunAccumulator {
           title: event.title,
           description: event.description,
           payload: event.payload,
+          preview: event.preview,
           state: "pending",
           approvalState: "pending",
           executionState: "not_started",

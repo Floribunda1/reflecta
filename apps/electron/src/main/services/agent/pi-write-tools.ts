@@ -120,15 +120,10 @@ const toolSpecs: PiWriteToolSpec[] = [
     promptSnippet: "understanding_update: propose an update to an existing Reflecta Understanding.",
     promptGuidelines: [
       "Read the existing Understanding first, then call understanding_update with the intended change.",
+      "Do not fill before; Reflecta fills it from the current Understanding.",
     ],
     parameters: Type.Object({
       understandingId: understandingIdParameter,
-      before: Type.Optional(
-        Type.Object({
-          title: Type.Optional(nullableStringParameter),
-          body: Type.Optional(Type.String()),
-        }),
-      ),
       after: Type.Optional(
         Type.Object({
           title: Type.Optional(nullableStringParameter),
@@ -501,6 +496,25 @@ function contextUpdateInput(payload: unknown): { contextId: string; input: Updat
 
 function contextDeleteInput(payload: unknown): string {
   return requiredStableEntityId(asPayload(payload), "contextId");
+}
+
+export async function hydratePiApprovalPayload(
+  toolName: PiApprovalToolName,
+  payload: unknown,
+): Promise<Record<string, unknown>> {
+  const record = asPayload(payload);
+  if (toolName !== "understanding_update") return record;
+  const understanding = await understandingService.getUnderstandingById(
+    requiredStableEntityId(record, "understandingId"),
+  );
+  if (!understanding) return record;
+  return {
+    ...record,
+    before: {
+      title: understanding.title,
+      body: understanding.body,
+    },
+  };
 }
 
 export async function executePiApprovedTool(

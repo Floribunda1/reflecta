@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
   createPiWriteTools,
   executePiApprovedTool,
+  hydratePiApprovalPayload,
   PI_APPROVAL_TOOL_NAMES,
   type PiApprovedToolOutput,
   type PiApprovalToolName,
@@ -9,6 +10,7 @@ import {
 
 const services = vi.hoisted(() => ({
   runBashForTool: vi.fn(),
+  getUnderstandingById: vi.fn(),
   createUnderstanding: vi.fn(),
   updateUnderstanding: vi.fn(),
   deleteUnderstanding: vi.fn(),
@@ -37,6 +39,7 @@ vi.mock("../core", () => ({
     deleteContext: services.deleteContext,
   },
   understandingService: {
+    getUnderstandingById: services.getUnderstandingById,
     createUnderstanding: services.createUnderstanding,
     updateUnderstanding: services.updateUnderstanding,
     deleteUnderstanding: services.deleteUnderstanding,
@@ -152,6 +155,10 @@ describe("createPiWriteTools", () => {
     expect(parameterDescription("understanding_update", "domainIds")).toContain(
       "Stable Domain ids",
     );
+    const updateParameters = createPiWriteTools().find(
+      (item) => item.name === "understanding_update",
+    )?.parameters as { properties?: Record<string, unknown> } | undefined;
+    expect(updateParameters?.properties?.before).toBeUndefined();
     expect(parameterDescription("domain_update", "domainId")).toContain("Stable Domain id");
     expect(parameterDescription("domain_update", "parentId")).toContain("Stable parent Domain id");
     expect(parameterDescription("context_create", "understandingId")).toContain(
@@ -242,6 +249,27 @@ describe("createPiWriteTools", () => {
       },
     });
     expect(settled).toBe(true);
+  });
+
+  test("hydrates understanding update before state from Reflecta", async () => {
+    services.getUnderstandingById.mockResolvedValue({
+      id: "understanding-1",
+      title: "Old title",
+      body: "Old body",
+      domainIds: ["cat-old"],
+    });
+
+    await expect(
+      hydratePiApprovalPayload("understanding_update", {
+        understandingId: "understanding-1",
+        after: { body: "Updated body" },
+      }),
+    ).resolves.toMatchObject({
+      understandingId: "understanding-1",
+      before: { title: "Old title", body: "Old body" },
+      after: { body: "Updated body" },
+    });
+    expect(services.getUnderstandingById).toHaveBeenCalledWith("understanding-1");
   });
 
   test("executes approved Bash through the local shell seam", async () => {

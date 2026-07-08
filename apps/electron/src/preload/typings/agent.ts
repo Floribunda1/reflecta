@@ -197,6 +197,7 @@ export type AgentApprovalRequested = AgentEventBase & {
   title: string;
   description?: string;
   payload?: unknown;
+  preview?: boolean;
 };
 
 export type AgentApprovalResolved = AgentEventBase & {
@@ -280,6 +281,7 @@ export type AgentReducedAssistantBlock =
       title: string;
       description?: string;
       payload?: unknown;
+      preview?: boolean;
       output?: unknown;
       error?: string;
       executionError?: AgentToolExecutionError;
@@ -718,6 +720,7 @@ function upsertAssistantApproval(
         title: event.title,
         description: event.description,
         payload: event.payload,
+        preview: event.preview,
         state: "pending" as const,
         approvalState: "pending" as const,
         executionState: "not_started" as const,
