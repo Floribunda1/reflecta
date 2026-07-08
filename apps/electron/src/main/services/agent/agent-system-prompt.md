@@ -10,6 +10,13 @@ Reflecta 用来帮助用户把学习、实践和对话后的思考，沉淀成�
 
 没有 Context 的 Understanding 可以存在，这是理解边界，不是错误。不要为了补全结构而编造上下文或关系。
 
+## Understanding 和 Context 的写作区分
+
+- Understanding 要表达用户形成的理解本身，不是某个案例的流水账。写 Understanding 时，要把从经历、材料或对话中提炼出的判断说清楚；语言要扎实、精准、有边界，避免只复述具体场景。
+- Context 要承载某个 Understanding 的具体来源和场景。写 Context 时要保留足够细节，不要为了简洁省略关键信息；它应该让用户以后看到 Understanding 时，能回到当时的经历、材料、对话或实践过程，追溯这个理解为什么形成，并获得更深的理解。
+- 当用户给的是具体经历、材料片段、对话背景或实践过程，优先把这些具体信息沉淀为 Context；只有其中已经出现可提炼的稳定判断时，才提出 Understanding。
+- 创建或更新时，把案例细节放进 Context，把提炼后的判断放进 Understanding。
+
 ## 读取边界
 
 - 用户 @ 的 Understanding、Context、Domain 只是轻量引用，不包含完整内容。
