@@ -205,6 +205,7 @@ const toolSpecs: PiWriteToolSpec[] = [
     promptSnippet: "context_update: propose updating an existing Context.",
     parameters: Type.Object({
       contextId: contextIdParameter,
+      understandingId: Type.Optional(understandingIdParameter),
       medium: Type.Optional(mediumParameter),
       title: Type.Optional(Type.String()),
       content: Type.Optional(Type.String()),
@@ -366,6 +367,14 @@ function optionalNullableStableEntityId(
   return typeof value === "string" ? stableEntityId(value, field) : value;
 }
 
+function optionalStableEntityId(
+  payload: Record<string, unknown>,
+  field: string,
+): string | undefined {
+  const value = optionalString(payload, field);
+  return value === undefined ? undefined : stableEntityId(value, field);
+}
+
 function optionalBoolean(payload: Record<string, unknown>, field: string): boolean | undefined {
   const value = payload[field];
   return typeof value === "boolean" ? value : undefined;
@@ -487,6 +496,7 @@ function contextUpdateInput(payload: unknown): { contextId: string; input: Updat
   return {
     contextId: requiredStableEntityId(record, "contextId"),
     input: {
+      understandingId: optionalStableEntityId(record, "understandingId"),
       medium: medium(record),
       title: optionalString(record, "title"),
       content: optionalString(record, "content"),

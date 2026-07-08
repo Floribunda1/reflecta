@@ -50,6 +50,14 @@ export class ContextCore {
 
   async _updateContext(id: string, input: UpdateContextInput): Promise<ContextDTO> {
     const updates: Partial<typeof contexts.$inferInsert> = {};
+    let previousUnderstandingId: string | undefined;
+    if (input.understandingId !== undefined) {
+      const row = await this.getContextRow(id);
+      if (!row) throw new Error(`Context not found: ${id}`);
+      await this.assertUnderstandingExists(input.understandingId);
+      previousUnderstandingId = row.understandingId;
+      updates.understandingId = input.understandingId;
+    }
     if (input.medium !== undefined) updates.medium = input.medium;
     if (input.title !== undefined) updates.title = input.title;
     if (input.content !== undefined) updates.content = input.content;
@@ -64,7 +72,13 @@ export class ContextCore {
       updated = rows[0] as ContextDTO;
     });
 
-    await markRetrievalIndexDirtyByUnderstandingId(updated!.understandingId).catch(() => undefined);
+    const dirtyUnderstandingIds = new Set([updated!.understandingId]);
+    if (previousUnderstandingId) dirtyUnderstandingIds.add(previousUnderstandingId);
+    await Promise.all(
+      [...dirtyUnderstandingIds].map((understandingId) =>
+        markRetrievalIndexDirtyByUnderstandingId(understandingId).catch(() => undefined),
+      ),
+    );
     return updated!;
   }
 

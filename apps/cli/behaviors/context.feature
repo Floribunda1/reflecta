@@ -130,6 +130,13 @@
     当 用户执行命令 "context update CONTEXT_ID --medium video --yes"
     那么 该 Context 的 medium 被更新
 
+  @CLI-CONTEXT-027
+  场景: 调整 Context 所属 Understanding
+    假设 存在一条活跃 Context，其 ID 为 CONTEXT_ID
+    并且 存在另一个活跃 Understanding，其 ID 为 TARGET_UNDERSTANDING_ID
+    当 用户执行命令 "context update CONTEXT_ID --understanding-id TARGET_UNDERSTANDING_ID --yes"
+    那么 该 Context 的 understandingId 被更新为 TARGET_UNDERSTANDING_ID
+
   @CLI-CONTEXT-019
   场景: 更新内容后搜索结果同步变化
     假设 存在一条活跃 Context CONTEXT_ID，其内容为 "OLD_TEXT"

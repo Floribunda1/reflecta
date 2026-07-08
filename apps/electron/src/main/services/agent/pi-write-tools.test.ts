@@ -76,7 +76,12 @@ const samplePayloads: Record<(typeof knowledgeMutationNames)[number], Record<str
     title: "Agent",
     content: "Supporting context",
   },
-  context_update: { contextId: "context-1", medium: "ai", content: "Updated context" },
+  context_update: {
+    contextId: "context-1",
+    understandingId: "understanding-2",
+    medium: "ai",
+    content: "Updated context",
+  },
   context_delete: { contextId: "context-1", reason: "No longer relevant" },
 };
 const sampleApprovalPayloads: Record<PiApprovalToolName, Record<string, unknown>> = {
@@ -165,6 +170,9 @@ describe("createPiWriteTools", () => {
       "Stable Understanding id",
     );
     expect(parameterDescription("context_update", "contextId")).toContain("Stable Context id");
+    expect(parameterDescription("context_update", "understandingId")).toContain(
+      "Stable Understanding id",
+    );
   });
 
   test.each([
@@ -199,6 +207,10 @@ describe("createPiWriteTools", () => {
     {
       toolName: "context_delete" as const,
       payload: { contextId: "prefix [[context:context_1]]" },
+    },
+    {
+      toolName: "context_update" as const,
+      payload: { contextId: "context-1", understandingId: "[U1]" },
     },
   ])(
     "rejects display identity tokens in write tool ids: $toolName",
@@ -369,6 +381,7 @@ describe("createPiWriteTools", () => {
       content: "Supporting context",
     });
     expect(services.updateContext).toHaveBeenCalledWith("context-1", {
+      understandingId: "understanding-2",
       medium: "ai",
       title: undefined,
       content: "Updated context",

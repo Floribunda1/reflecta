@@ -20,7 +20,9 @@ export type CreateContextInput = {
   content: string;
 };
 
-export type UpdateContextInput = Partial<Pick<CreateContextInput, "medium" | "title" | "content">>;
+export type UpdateContextInput = Partial<
+  Pick<CreateContextInput, "understandingId" | "medium" | "title" | "content">
+>;
 
 export type ContextSummary = {
   id: string;

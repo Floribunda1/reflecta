@@ -56,6 +56,7 @@ describe("domain write integrity", () => {
 
   test("validates Context targets inside Context writes", async () => {
     const contexts = new ContextCore(db);
+    const understandings = new UnderstandingCore(db);
 
     await expect(
       contexts._createContext({
@@ -67,5 +68,15 @@ describe("domain write integrity", () => {
     await expect(contexts._updateContext("missing-context", {})).rejects.toThrow(
       "No context fields to update",
     );
+
+    const understanding = await understandings._createUnderstanding({ body: "body" });
+    const context = await contexts._createContext({
+      understandingId: understanding.id,
+      medium: "ai",
+      content: "content",
+    });
+    await expect(
+      contexts._updateContext(context.id, { understandingId: "missing-understanding" }),
+    ).rejects.toThrow("Understanding not found: missing-understanding");
   });
 });

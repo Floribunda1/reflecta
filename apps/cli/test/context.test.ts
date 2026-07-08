@@ -213,6 +213,39 @@ describe("Context 管理", () => {
       expect((parseJson(stdout) as { title: string }).title).toBe("New Context");
     });
 
+    it("更新 Context 所属 Understanding", async () => {
+      const understandingId = getUnderstandingId("React Server Components");
+      expect(understandingId).toBeDefined();
+      const { stdout: targetOut } = await runCommand([
+        "understanding",
+        "create",
+        "--title",
+        "Context Move Target",
+        "--yes",
+      ]);
+      const targetId = (parseJson(targetOut) as { id: string }).id;
+      const { stdout: createOut } = await runCommand([
+        "context",
+        "create",
+        "--understanding-id",
+        understandingId!,
+        "--medium",
+        "experience",
+        "--yes",
+      ]);
+      const ctxId = (parseJson(createOut) as { id: string }).id;
+      const { code, stdout } = await runCommand([
+        "context",
+        "update",
+        ctxId,
+        "--understanding-id",
+        targetId,
+        "--yes",
+      ]);
+      expect(code).toBe(0);
+      expect((parseJson(stdout) as { understandingId: string }).understandingId).toBe(targetId);
+    });
+
     it("更新不存在的 Context", async () => {
       const { code, stderr } = await runCommand([
         "context",
