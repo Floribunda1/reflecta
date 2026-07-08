@@ -398,82 +398,108 @@ function CandidateShell({
   const resultRefType = proposal.resultRefType;
   const resultRef = proposal.resultRefId;
   const statusNote = proposalStatusNote(status, proposal.state, resultRefType, resultRef);
+  const defaultOpen = !shouldCollapseProposalByDefault(proposal);
+  const [manualOpen, setManualOpen] = useState<{ toolCallId: string; open: boolean } | null>(null);
+  const open = manualOpen?.toolCallId === proposal.toolCallId ? manualOpen.open : defaultOpen;
   return (
-    <div
+    <Collapsible
+      open={open}
+      onOpenChange={(nextOpen) =>
+        setManualOpen({ toolCallId: proposal.toolCallId, open: nextOpen })
+      }
       data-testid="agent-proposal-card"
       data-proposal-title={title}
       data-proposal-state={proposal.state}
+      data-proposal-open={open ? "true" : "false"}
       className="w-full rounded-lg border border-border/70 bg-card px-3 py-3 text-sm"
     >
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="font-medium">{title}</span>
-        <Badge
-          variant={
-            status === "rejected" || proposal.state === "output-error" ? "destructive" : "outline"
-          }
-        >
-          {statusLabel(status, proposal.state)}
-        </Badge>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate font-medium">{title}</div>
+          {statusNote ? (
+            <div className="mt-0.5 text-xs text-muted-foreground">{statusNote}</div>
+          ) : null}
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Badge
+            variant={
+              status === "rejected" || proposal.state === "output-error" ? "destructive" : "outline"
+            }
+          >
+            {statusLabel(status, proposal.state)}
+          </Badge>
+          <CollapsibleTrigger
+            className="group flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+            aria-label={open ? "折叠候选卡片" : "展开候选卡片"}
+          >
+            <ChevronDown className="size-4 -rotate-90 transition group-data-[panel-open]:rotate-0" />
+          </CollapsibleTrigger>
+        </div>
       </div>
-      {children}
-      {proposal.result && hasToolDetails(proposal.result) ? (
-        <div className="mt-3 rounded-md bg-muted/35 p-2 text-sm text-muted-foreground">
-          <div className="mb-1 px-1 text-xs font-medium text-foreground/70">执行结果</div>
-          <ToolDetailRows
-            details={proposal.result}
-            onInspectContextRef={onInspectContextRef}
-            entityCatalog={entityCatalog}
-          />
-        </div>
-      ) : null}
-      {proposal.state === "output-error" && (
-        <div className="rounded-md bg-destructive/10 p-2 text-sm text-destructive">
-          {proposal.errorText}
-        </div>
-      )}
-      {statusNote ? <div className="mt-2 text-xs text-muted-foreground">{statusNote}</div> : null}
-      {status === "pending" && !proposal.preview ? (
-        <div className="mt-3 flex gap-2">
-          <Button
-            data-testid="agent-proposal-confirm-button"
-            type="button"
-            size="sm"
-            disabled={!proposal.approvalId}
-            onClick={() =>
-              proposal.approvalId &&
-              onApprove({
-                messageId,
-                toolCallId: proposal.toolCallId,
-                approvalId: proposal.approvalId,
-                approved: true,
-              })
-            }
-          >
-            <Check />
-            确认
-          </Button>
-          <Button
-            data-testid="agent-proposal-reject-button"
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={!proposal.approvalId}
-            onClick={() =>
-              proposal.approvalId &&
-              onApprove({
-                messageId,
-                toolCallId: proposal.toolCallId,
-                approvalId: proposal.approvalId,
-                approved: false,
-              })
-            }
-          >
-            拒绝
-          </Button>
-        </div>
-      ) : null}
-    </div>
+      <CollapsibleContent className="mt-2">
+        {children}
+        {proposal.result && hasToolDetails(proposal.result) ? (
+          <div className="mt-3 rounded-md bg-muted/35 p-2 text-sm text-muted-foreground">
+            <div className="mb-1 px-1 text-xs font-medium text-foreground/70">执行结果</div>
+            <ToolDetailRows
+              details={proposal.result}
+              onInspectContextRef={onInspectContextRef}
+              entityCatalog={entityCatalog}
+            />
+          </div>
+        ) : null}
+        {proposal.state === "output-error" && (
+          <div className="rounded-md bg-destructive/10 p-2 text-sm text-destructive">
+            {proposal.errorText}
+          </div>
+        )}
+        {status === "pending" && !proposal.preview ? (
+          <div className="mt-3 flex gap-2">
+            <Button
+              data-testid="agent-proposal-confirm-button"
+              type="button"
+              size="sm"
+              disabled={!proposal.approvalId}
+              onClick={() =>
+                proposal.approvalId &&
+                onApprove({
+                  messageId,
+                  toolCallId: proposal.toolCallId,
+                  approvalId: proposal.approvalId,
+                  approved: true,
+                })
+              }
+            >
+              <Check />
+              确认
+            </Button>
+            <Button
+              data-testid="agent-proposal-reject-button"
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={!proposal.approvalId}
+              onClick={() =>
+                proposal.approvalId &&
+                onApprove({
+                  messageId,
+                  toolCallId: proposal.toolCallId,
+                  approvalId: proposal.approvalId,
+                  approved: false,
+                })
+              }
+            >
+              拒绝
+            </Button>
+          </div>
+        ) : null}
+      </CollapsibleContent>
+    </Collapsible>
   );
+}
+
+function shouldCollapseProposalByDefault(proposal: ProposalView) {
+  return proposal.state === "output-available" || proposal.state === "output-denied";
 }
 
 function proposalStatusNote(

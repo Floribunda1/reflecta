@@ -81,6 +81,49 @@ function rerenderMessageList({
 }
 
 describe("MessageList entity refs", () => {
+  test("collapses completed proposal cards until the user expands them", () => {
+    renderMessageList({
+      messages: [
+        {
+          id: "assistant_1",
+          role: "assistant",
+          text: "",
+          runId: "run_1",
+          createdAt: "2026-06-26T00:00:00.000Z",
+          blocks: [
+            {
+              kind: "approval",
+              approvalId: "approval_tool_1",
+              toolCallId: "tool_1",
+              toolName: "bash",
+              title: "执行 Bash",
+              payload: { command: "printf hello" },
+              output: { exitCode: 0, stdout: "hello", stderr: "" },
+              approved: true,
+              state: "completed",
+              approvalState: "approved",
+              executionState: "completed",
+              displayState: "completed",
+              createdAt: "2026-06-26T00:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      entityCatalog: [],
+    });
+
+    const card = container?.querySelector('[data-testid="agent-proposal-card"]');
+    expect(card?.getAttribute("data-proposal-open")).toBe("false");
+
+    act(() => {
+      container
+        ?.querySelector('[aria-label="展开候选卡片"]')
+        ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(card?.getAttribute("data-proposal-open")).toBe("true");
+  });
+
   test("shows approved tool execution failures instead of confirmed state", () => {
     renderMessageList({
       messages: [
