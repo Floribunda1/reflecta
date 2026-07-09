@@ -171,6 +171,7 @@ describe("PiAgentHost", () => {
     executePiApprovedToolMock.mockResolvedValue({
       resultRefType: "understanding",
       resultRefId: "understanding_1",
+      resultRefTitle: "Stored Understanding",
     });
     const catalog = new AgentEntityCatalog();
 
@@ -203,11 +204,16 @@ describe("PiAgentHost", () => {
     expect(output).toEqual({
       resultRefType: "understanding",
       resultRefId: "understanding_1",
+      resultRefTitle: "Stored Understanding",
     });
     expect(catalog.drainUpdates()).toEqual([
       {
         key: "understanding:understanding_1",
-        entity: { type: "understanding", id: "understanding_1" },
+        entity: {
+          type: "understanding",
+          id: "understanding_1",
+          title: "Stored Understanding",
+        },
         origin: {
           kind: "tool_result",
           toolCallId: "tool_1",

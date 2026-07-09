@@ -63,6 +63,7 @@ const mediumParameter = Type.Union(mediums.map((medium) => Type.Literal(medium))
 type PiMutationOutput = {
   resultRefType: "understanding" | "domain" | "context";
   resultRefId?: string;
+  resultRefTitle?: string;
 };
 export type PiApprovedToolOutput = PiMutationOutput | Awaited<ReturnType<typeof runBashForTool>>;
 type PiApprovedToolResultDetails = PiApprovedToolOutput & {
@@ -508,6 +509,15 @@ function contextDeleteInput(payload: unknown): string {
   return requiredStableEntityId(asPayload(payload), "contextId");
 }
 
+function mutationOutput(
+  resultRefType: PiMutationOutput["resultRefType"],
+  entity: { id: string; title?: string | null },
+): PiMutationOutput {
+  const output: PiMutationOutput = { resultRefType, resultRefId: entity.id };
+  if (typeof entity.title === "string" && entity.title.trim()) output.resultRefTitle = entity.title;
+  return output;
+}
+
 export async function hydratePiApprovalPayload(
   toolName: PiApprovalToolName,
   payload: unknown,
@@ -544,13 +554,13 @@ export async function executePiApprovedTool(
     const understanding = await understandingService.createUnderstanding(
       understandingCreateInput(payload),
     );
-    return { resultRefType: "understanding", resultRefId: understanding.id };
+    return mutationOutput("understanding", understanding);
   }
 
   if (toolName === "understanding_update") {
     const { understandingId, input } = understandingUpdateInput(payload);
     const understanding = await understandingService.updateUnderstanding(understandingId, input);
-    return { resultRefType: "understanding", resultRefId: understanding.id };
+    return mutationOutput("understanding", understanding);
   }
 
   if (toolName === "understanding_delete") {
@@ -578,13 +588,13 @@ export async function executePiApprovedTool(
 
   if (toolName === "context_create") {
     const context = await contextService.createContext(contextCreateInput(payload));
-    return { resultRefType: "context", resultRefId: context.id };
+    return mutationOutput("context", context);
   }
 
   if (toolName === "context_update") {
     const { contextId, input } = contextUpdateInput(payload);
     const context = await contextService.updateContext(contextId, input);
-    return { resultRefType: "context", resultRefId: context.id };
+    return mutationOutput("context", context);
   }
 
   const contextId = contextDeleteInput(payload);

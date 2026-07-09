@@ -1309,7 +1309,11 @@ export class PiAgentHost {
   ): PiApprovedToolOutput {
     if (!registry || !isMutationOutput(output)) return output;
     registry.addEntity(
-      { type: output.resultRefType, id: output.resultRefId },
+      {
+        type: output.resultRefType,
+        id: output.resultRefId,
+        ...(output.resultRefTitle ? { title: output.resultRefTitle } : {}),
+      },
       { kind: "tool_result", toolCallId: requested.toolCallId, toolName: requested.toolName },
     );
     return output;
@@ -1319,6 +1323,7 @@ export class PiAgentHost {
 function isMutationOutput(output: PiApprovedToolOutput): output is PiApprovedToolOutput & {
   resultRefType: AgentContextRef["type"];
   resultRefId: string;
+  resultRefTitle?: string;
 } {
   return (
     "resultRefType" in output &&

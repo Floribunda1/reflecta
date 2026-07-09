@@ -299,12 +299,21 @@ describe("createPiWriteTools", () => {
   });
 
   test("executes approved mutation tools through domain services", async () => {
-    services.createUnderstanding.mockResolvedValue({ id: "understanding-created" });
-    services.updateUnderstanding.mockResolvedValue({ id: "understanding-updated" });
+    services.createUnderstanding.mockResolvedValue({
+      id: "understanding-created",
+      title: "Stored Understanding",
+    });
+    services.updateUnderstanding.mockResolvedValue({
+      id: "understanding-updated",
+      title: "Stored Updated Understanding",
+    });
     services.createDomain.mockResolvedValue({ id: "domain-created" });
     services.updateDomain.mockResolvedValue({ id: "domain-updated" });
-    services.createContext.mockResolvedValue({ id: "context-created" });
-    services.updateContext.mockResolvedValue({ id: "context-updated" });
+    services.createContext.mockResolvedValue({ id: "context-created", title: "Stored Context" });
+    services.updateContext.mockResolvedValue({
+      id: "context-updated",
+      title: "Stored Updated Context",
+    });
 
     const cases: Array<{
       toolName: (typeof knowledgeMutationNames)[number];
@@ -312,11 +321,19 @@ describe("createPiWriteTools", () => {
     }> = [
       {
         toolName: "understanding_create",
-        expected: { resultRefType: "understanding", resultRefId: "understanding-created" },
+        expected: {
+          resultRefType: "understanding",
+          resultRefId: "understanding-created",
+          resultRefTitle: "Stored Understanding",
+        },
       },
       {
         toolName: "understanding_update",
-        expected: { resultRefType: "understanding", resultRefId: "understanding-updated" },
+        expected: {
+          resultRefType: "understanding",
+          resultRefId: "understanding-updated",
+          resultRefTitle: "Stored Updated Understanding",
+        },
       },
       {
         toolName: "understanding_delete",
@@ -336,11 +353,19 @@ describe("createPiWriteTools", () => {
       },
       {
         toolName: "context_create",
-        expected: { resultRefType: "context", resultRefId: "context-created" },
+        expected: {
+          resultRefType: "context",
+          resultRefId: "context-created",
+          resultRefTitle: "Stored Context",
+        },
       },
       {
         toolName: "context_update",
-        expected: { resultRefType: "context", resultRefId: "context-updated" },
+        expected: {
+          resultRefType: "context",
+          resultRefId: "context-updated",
+          resultRefTitle: "Stored Updated Context",
+        },
       },
       {
         toolName: "context_delete",
