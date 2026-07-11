@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { AuthStorage } from "@earendil-works/pi-coding-agent";
-import type { KnownProvider } from "@earendil-works/pi-ai";
+import type { KnownProvider } from "@earendil-works/pi-ai/compat";
 import type { AgentSessionEvent } from "@shared/agent";
 import type { ResolvedAiModelConfig } from "../../config";
 import {
@@ -27,8 +27,8 @@ const hydratePiApprovalPayloadMock = vi.hoisted(() =>
 const getModelMock = vi.hoisted(() => vi.fn(() => ({ id: "model-test" })));
 const isPiApprovalToolNameMock = vi.hoisted(() => vi.fn((_name: string) => false));
 
-vi.mock("@earendil-works/pi-ai", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@earendil-works/pi-ai")>()),
+vi.mock("@earendil-works/pi-ai/compat", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@earendil-works/pi-ai/compat")>()),
   getModel: getModelMock,
 }));
 

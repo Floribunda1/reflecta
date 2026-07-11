@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { getModel, type Api, type Model } from "@earendil-works/pi-ai";
+import { getModel, type Api, type Model } from "@earendil-works/pi-ai/compat";
 import {
   AuthStorage,
   createAgentSession,

@@ -7,7 +7,7 @@ import {
   type Api,
   type Context,
   type Model,
-} from "@earendil-works/pi-ai";
+} from "@earendil-works/pi-ai/compat";
 import {
   AuthStorage,
   createAgentSession,

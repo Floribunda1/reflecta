@@ -78,6 +78,7 @@ const REASONING_OPTIONS: { value: AgentReasoningLevel; label: string }[] = [
   { value: "medium", label: "中推理" },
   { value: "high", label: "高推理" },
   { value: "xhigh", label: "超高推理" },
+  { value: "max", label: "最大推理" },
 ];
 
 const MAX_ATTACHMENTS = 8;

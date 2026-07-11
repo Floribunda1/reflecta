@@ -9,7 +9,7 @@ import {
   getSupportedThinkingLevels,
   type KnownProvider,
   type ModelThinkingLevel,
-} from "@earendil-works/pi-ai";
+} from "@earendil-works/pi-ai/compat";
 import { resolveRuntimePaths, type RuntimeAppConfig } from "@reflecta/server/runtime";
 import { getRuntimeArg } from "./runtime-args";
 
@@ -31,6 +31,7 @@ const AI_REASONING_LEVELS: ModelThinkingLevel[] = [
   "medium",
   "high",
   "xhigh",
+  "max",
 ];
 export type AiReasoningLevel = ModelThinkingLevel;
 const DEFAULT_AGENT_REASONING_LEVEL: AiReasoningLevel = "medium";

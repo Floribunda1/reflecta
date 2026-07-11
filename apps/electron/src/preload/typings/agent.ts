@@ -37,7 +37,7 @@ export type AgentContextUsage = {
   percent: number | null;
 };
 
-export type AgentReasoningLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
+export type AgentReasoningLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
 export type AgentFileAttachment = {
   type: "file";

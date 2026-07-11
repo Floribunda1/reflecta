@@ -265,6 +265,18 @@ describe("Electron AI config", () => {
     expect(config.getAiProviderDefinitions().map((provider) => provider.id)).not.toContain("qwen");
   });
 
+  test("exposes the latest Codex subscription models and max reasoning", async () => {
+    const config = await import("./config");
+    const models = config.getAiProviderDefinition("openai-codex").models;
+
+    expect(models.map((model) => model.id)).toEqual(
+      expect.arrayContaining(["gpt-5.6-luna", "gpt-5.6-sol", "gpt-5.6-terra"]),
+    );
+    expect(models.find((model) => model.id === "gpt-5.6-sol")?.supportedReasoningLevels).toContain(
+      "max",
+    );
+  });
+
   test("lists only enabled models with pi-ai names and reasoning levels", async () => {
     const config = await import("./config");
     const ai = config.normalizeAiConfig({
