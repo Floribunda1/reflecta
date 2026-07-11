@@ -98,3 +98,42 @@ describe("ConfigService retrieval index", () => {
     });
   });
 });
+
+describe("ConfigService AI models", () => {
+  test("requires an authenticated provider to enable at least one model", async () => {
+    const { ConfigService } = await import("./ConfigService");
+    const service = new ConfigService();
+
+    await expect(
+      service.setAiConfig({
+        providers: [{ id: "openai", apiKey: "test-key", enabledModelIds: [] }],
+      }),
+    ).rejects.toThrow("请至少选择一个用于 Chat 的模型");
+  });
+
+  test("clamps reasoning when switching to a model with fewer levels", async () => {
+    const { ConfigService } = await import("./ConfigService");
+    const service = new ConfigService();
+    await service.setAiConfig({
+      providers: [{ id: "openai", apiKey: "test-key", enabledModelIds: ["o3", "gpt-4o"] }],
+      activeAgentModel: { providerId: "openai", modelId: "o3" },
+      activeAgentReasoningLevel: "high",
+    });
+
+    await service.setActiveAgentModel({ providerId: "openai", modelId: "gpt-4o" });
+
+    await expect(service.getActiveAgentReasoningLevel()).resolves.toBe("off");
+  });
+
+  test("rejects reasoning levels unsupported by the active model", async () => {
+    const { ConfigService } = await import("./ConfigService");
+    const service = new ConfigService();
+    await service.setAiConfig({
+      providers: [{ id: "openai", apiKey: "test-key", enabledModelIds: ["gpt-4o"] }],
+    });
+
+    await expect(service.setActiveAgentReasoningLevel("high")).rejects.toThrow(
+      "当前模型不支持该推理等级",
+    );
+  });
+});

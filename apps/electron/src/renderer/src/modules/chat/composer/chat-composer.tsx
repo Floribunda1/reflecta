@@ -72,7 +72,8 @@ export type ComposerSendInput = {
 };
 
 const REASONING_OPTIONS: { value: AgentReasoningLevel; label: string }[] = [
-  { value: "default", label: "关闭推理" },
+  { value: "off", label: "关闭推理" },
+  { value: "minimal", label: "最低推理" },
   { value: "low", label: "低推理" },
   { value: "medium", label: "中推理" },
   { value: "high", label: "高推理" },
@@ -228,6 +229,10 @@ export function ChatComposer({
       )
     : undefined;
   const activeModelLabel = activeModelOption?.modelName ?? activeModelOption?.modelId ?? "Model";
+  const reasoningOptions = REASONING_OPTIONS.filter((option) =>
+    activeModelOption?.supportedReasoningLevels.includes(option.value),
+  );
+  const showReasoningOptions = reasoningOptions.length > 1 || reasoningOptions[0]?.value !== "off";
   const contextCandidatesRef = useLatest(contextLookup.candidates);
   const activeContextIndexRef = useLatest(activeContextIndex);
   const contextLookupOpenRef = useLatest(contextLookup.isOpen);
@@ -618,29 +623,37 @@ export function ChatComposer({
                   }
                 >
                   <span className="truncate text-foreground">{activeModelLabel}</span>
-                  <span className="truncate text-muted-foreground">
-                    {reasoningLabel(activeReasoningLevel)}
-                  </span>
+                  {showReasoningOptions ? (
+                    <span className="truncate text-muted-foreground">
+                      {reasoningLabel(activeReasoningLevel)}
+                    </span>
+                  ) : null}
                   <ChevronDown size={16} className="text-muted-foreground" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" side="top" className="w-64">
-                  <DropdownMenuRadioGroup
-                    value={activeReasoningLevel}
-                    onValueChange={(value) => onSelectReasoningLevel(value as AgentReasoningLevel)}
-                  >
-                    <DropdownMenuLabel>推理等级</DropdownMenuLabel>
-                    {REASONING_OPTIONS.map((option) => (
-                      <DropdownMenuRadioItem
-                        key={option.value}
-                        value={option.value}
-                        data-testid="agent-reasoning-option"
-                        data-reasoning-level={option.value}
+                  {showReasoningOptions ? (
+                    <>
+                      <DropdownMenuRadioGroup
+                        value={activeReasoningLevel}
+                        onValueChange={(value) =>
+                          onSelectReasoningLevel(value as AgentReasoningLevel)
+                        }
                       >
-                        {option.label}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                  <DropdownMenuSeparator />
+                        <DropdownMenuLabel>推理等级</DropdownMenuLabel>
+                        {reasoningOptions.map((option) => (
+                          <DropdownMenuRadioItem
+                            key={option.value}
+                            value={option.value}
+                            data-testid="agent-reasoning-option"
+                            data-reasoning-level={option.value}
+                          >
+                            {option.label}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                      <DropdownMenuSeparator />
+                    </>
+                  ) : null}
                   <DropdownMenuGroup>
                     <DropdownMenuLabel>模型</DropdownMenuLabel>
                     {modelOptions.map((option) => (

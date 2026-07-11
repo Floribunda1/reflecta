@@ -231,12 +231,68 @@ describe("Electron AI config", () => {
           {
             id: "openai",
             apiKey: "test-key",
-            models: [{ id: "gpt-4o" }],
+            enabledModelIds: ["gpt-4o"],
           },
         ],
         activeAgentModel: { providerId: "missing", modelId: "missing" },
       }).activeAgentModel,
     ).toEqual({ providerId: "openai", modelId: "gpt-4o" });
+  });
+
+  test("migrates known legacy model objects and drops unknown models", async () => {
+    const config = await import("./config");
+    const legacy = {
+      providers: [
+        {
+          id: "openai",
+          apiKey: "test-key",
+          models: [{ id: "gpt-4o" }, { id: "unknown-model", name: "Unknown" }],
+        },
+      ],
+    };
+
+    expect(config.normalizeAiConfig(legacy as never).providers).toEqual([
+      { id: "openai", apiKey: "test-key", enabledModelIds: ["gpt-4o"] },
+    ]);
+  });
+
+  test("maps Reflecta provider ids to pi-ai providers", async () => {
+    const config = await import("./config");
+
+    expect(config.getAiProviderDefinition("gemini").piProviderId).toBe("google");
+    expect(config.getAiProviderDefinition("moonshot").piProviderId).toBe("moonshotai-cn");
+    expect(config.getAiProviderDefinition("opencode-zen").piProviderId).toBe("opencode");
+    expect(config.getAiProviderDefinitions().map((provider) => provider.id)).not.toContain("qwen");
+  });
+
+  test("lists only enabled models with pi-ai names and reasoning levels", async () => {
+    const config = await import("./config");
+    const ai = config.normalizeAiConfig({
+      providers: [{ id: "openai", apiKey: "test-key", enabledModelIds: ["gpt-4o", "o3"] }],
+    });
+
+    expect(config.getAiModelOptions(ai)).toEqual([
+      expect.objectContaining({
+        modelId: "gpt-4o",
+        modelName: "GPT-4o",
+        supportedReasoningLevels: ["off"],
+      }),
+      expect.objectContaining({
+        modelId: "o3",
+        modelName: "o3",
+        supportedReasoningLevels: ["off", "minimal", "low", "medium", "high"],
+      }),
+    ]);
+  });
+
+  test("clamps the configured reasoning level to the active model", async () => {
+    const config = await import("./config");
+    const ai = config.normalizeAiConfig({
+      providers: [{ id: "openai", apiKey: "test-key", enabledModelIds: ["gpt-4o"] }],
+      activeAgentReasoningLevel: "high",
+    });
+
+    expect(config.getActiveAgentReasoningLevel(ai)).toBe("off");
   });
 
   test("falls back to the active model when the title generation selection is stale", async () => {
@@ -248,7 +304,7 @@ describe("Electron AI config", () => {
           {
             id: "openai",
             apiKey: "test-key",
-            models: [{ id: "gpt-4o" }, { id: "gpt-4o-mini" }],
+            enabledModelIds: ["gpt-4o", "gpt-4o-mini"],
           },
         ],
         activeAgentModel: { providerId: "openai", modelId: "gpt-4o-mini" },
@@ -266,7 +322,7 @@ describe("Electron AI config", () => {
           {
             id: "openai",
             apiKey: "test-key",
-            models: [{ id: "gpt-4o" }],
+            enabledModelIds: ["gpt-4o"],
           },
         ],
         activeAgentReasoningLevel: "high",
@@ -283,7 +339,7 @@ describe("Electron AI config", () => {
           {
             id: "openai",
             apiKey: "test-key",
-            models: [{ id: "gpt-4o" }],
+            enabledModelIds: ["gpt-4o"],
           },
         ],
       },
@@ -306,7 +362,7 @@ describe("Electron AI config", () => {
           {
             id: "provider-legacy",
             apiKey: "test-key",
-            models: [{ id: "legacy-model" }],
+            enabledModelIds: ["legacy-model"],
           },
         ],
       }),
@@ -320,7 +376,7 @@ describe("Electron AI config", () => {
   test("allows Codex subscription provider without an API key", async () => {
     const config = await import("./config");
     const ai = config.normalizeAiConfig({
-      providers: [{ id: "openai-codex", apiKey: "", models: [] }],
+      providers: [{ id: "openai-codex", apiKey: "", enabledModelIds: ["gpt-5.5"] }],
     });
 
     expect(ai.activeAgentModel).toEqual({ providerId: "openai-codex", modelId: "gpt-5.5" });

@@ -90,7 +90,7 @@ export function AgentThreadPanel({
   const selectReasoningLevelMutation = useSelectAgentReasoningLevelMutation();
   const modelOptions = modelOptionsQuery.data?.options ?? [];
   const activeModel = modelOptionsQuery.data?.active ?? null;
-  const activeReasoningLevel = modelOptionsQuery.data?.activeReasoningLevel ?? "medium";
+  const activeReasoningLevel = modelOptionsQuery.data?.activeReasoningLevel ?? "off";
   const modelSelectorDisabled =
     modelOptionsQuery.isFetching ||
     selectModelMutation.isPending ||

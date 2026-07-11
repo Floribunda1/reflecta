@@ -177,7 +177,7 @@ function writeE2eAiConfigFile(env: E2eTestEnv, baseEnv = process.env): boolean {
     JSON.stringify(
       {
         ai: {
-          providers: [{ id: providerId, apiKey, models: [{ id: modelId }] }],
+          providers: [{ id: providerId, apiKey, enabledModelIds: [modelId] }],
           activeAgentModel: { providerId, modelId },
         },
       },

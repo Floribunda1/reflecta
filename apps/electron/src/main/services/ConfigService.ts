@@ -12,7 +12,7 @@ import type {
   AiConfig,
   AiModelOption,
   AiModelSelection,
-  AiProviderCatalogItem,
+  AiProviderDefinition,
   AiReasoningLevel,
   RetrievalConfig,
   RetrievalEmbeddingModelStatus,
@@ -20,11 +20,13 @@ import type {
 import { getDBInstance } from "../db";
 import {
   getActiveAgentReasoningLevel,
+  clampAiReasoningLevel,
   downloadDefaultRetrievalEmbeddingModel,
   getActiveAiModelSelection,
   getAiConfig,
   getAiModelOptions,
-  getAiProviderCatalog,
+  getAiProviderDefinition,
+  getAiProviderDefinitions,
   getContentStorageRoot,
   getRetrievalConfig,
   getRetrievalEmbeddingModelStatus,
@@ -100,7 +102,14 @@ export class ConfigService extends IpcService {
 
   @IpcMethod()
   async setAiConfig(config: AiConfig): Promise<void> {
-    writeConfig({ ai: normalizeAiConfig(config) });
+    const next = normalizeAiConfig(config);
+    const incompleteProvider = next.providers.find((provider) => {
+      const definition = getAiProviderDefinition(provider.id);
+      const authenticated = definition.authType === "codex" || !!provider.apiKey;
+      return authenticated && provider.enabledModelIds.length === 0;
+    });
+    if (incompleteProvider) throw new Error("请至少选择一个用于 Chat 的模型");
+    writeConfig({ ai: next });
   }
 
   @IpcMethod()
@@ -145,8 +154,8 @@ export class ConfigService extends IpcService {
   }
 
   @IpcMethod()
-  async listAiProviderCatalog(): Promise<AiProviderCatalogItem[]> {
-    return getAiProviderCatalog();
+  async listAiProviderDefinitions(): Promise<AiProviderDefinition[]> {
+    return getAiProviderDefinitions();
   }
 
   @IpcMethod()
@@ -171,13 +180,26 @@ export class ConfigService extends IpcService {
         option.providerId === requested.providerId && option.modelId === requested.modelId,
     );
     if (!exists) throw new Error("请选择可用的 AI 模型");
-    const next = normalizeAiConfig({ ...ai, activeAgentModel: requested });
+    const currentLevel = getActiveAgentReasoningLevel(ai);
+    const reasoningLevel = clampAiReasoningLevel(requested, currentLevel);
+    const next = normalizeAiConfig({
+      ...ai,
+      activeAgentModel: requested,
+      activeAgentReasoningLevel: reasoningLevel,
+    });
     writeConfig({ ai: next });
   }
 
   @IpcMethod()
   async setActiveAgentReasoningLevel(level: AiReasoningLevel): Promise<void> {
     const ai = getAiConfig();
+    const active = getActiveAiModelSelection(ai);
+    const option = getAiModelOptions(ai).find(
+      (item) => item.providerId === active?.providerId && item.modelId === active.modelId,
+    );
+    if (!option?.supportedReasoningLevels.includes(level)) {
+      throw new Error("当前模型不支持该推理等级");
+    }
     const next = normalizeAiConfig({ ...ai, activeAgentReasoningLevel: level });
     if (next.activeAgentReasoningLevel !== level) throw new Error("请选择可用的推理等级");
     writeConfig({ ai: next });

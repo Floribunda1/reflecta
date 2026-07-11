@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { AuthStorage } from "@earendil-works/pi-coding-agent";
+import type { KnownProvider } from "@earendil-works/pi-ai";
 import type { AgentSessionEvent } from "@shared/agent";
 import type { ResolvedAiModelConfig } from "../../config";
 import {
@@ -39,27 +40,27 @@ vi.mock("@earendil-works/pi-coding-agent", async (importOriginal) => ({
 vi.mock("../../config", () => ({
   getActiveAgentReasoningLevel: () => "medium",
   getAiModelConfig: () => ({
-    provider: { id: "openai", apiKey: "openai-key", models: [{ id: "gpt-4o" }] },
-    catalog: {
+    provider: { id: "openai", apiKey: "openai-key", enabledModelIds: ["gpt-4o"] },
+    definition: {
       id: "openai",
       name: "OpenAI",
-      baseUrl: "https://api.openai.com/v1",
-      models: [{ id: "gpt-4o" }],
+      piProviderId: "openai",
+      models: [{ id: "gpt-4o", name: "GPT-4o", supportedReasoningLevels: ["off"] }],
     },
-    model: { id: "gpt-4o" },
+    model: { id: "gpt-4o", name: "GPT-4o", supportedReasoningLevels: ["off"] },
     selection: { providerId: "openai", modelId: "gpt-4o" },
     label: "OpenAI / gpt-4o",
   }),
   getContentStorageRoot: () => "/tmp/reflecta-pi-agent-host-test-content",
   getTitleGenerationAiModelConfig: () => ({
-    provider: { id: "openai", apiKey: "openai-key", models: [{ id: "gpt-4o" }] },
-    catalog: {
+    provider: { id: "openai", apiKey: "openai-key", enabledModelIds: ["gpt-4o"] },
+    definition: {
       id: "openai",
       name: "OpenAI",
-      baseUrl: "https://api.openai.com/v1",
-      models: [{ id: "gpt-4o" }],
+      piProviderId: "openai",
+      models: [{ id: "gpt-4o", name: "GPT-4o", supportedReasoningLevels: ["off"] }],
     },
-    model: { id: "gpt-4o" },
+    model: { id: "gpt-4o", name: "GPT-4o", supportedReasoningLevels: ["off"] },
     selection: { providerId: "openai", modelId: "gpt-4o" },
     label: "OpenAI / gpt-4o",
   }),
@@ -100,15 +101,15 @@ function modelConfig(input: {
   authType?: "api-key" | "codex";
 }): ResolvedAiModelConfig {
   return {
-    provider: { id: input.providerId, apiKey: input.apiKey, models: [{ id: "model-test" }] },
-    catalog: {
+    provider: { id: input.providerId, apiKey: input.apiKey, enabledModelIds: ["model-test"] },
+    definition: {
       id: input.providerId,
       name: input.providerId,
-      baseUrl: "https://example.test",
+      piProviderId: input.providerId as KnownProvider,
       authType: input.authType,
-      models: [{ id: "model-test" }],
+      models: [{ id: "model-test", name: "model-test", supportedReasoningLevels: ["off"] }],
     },
-    model: { id: "model-test" },
+    model: { id: "model-test", name: "model-test", supportedReasoningLevels: ["off"] },
     selection: { providerId: input.providerId, modelId: "model-test" },
     label: `${input.providerId} / model-test`,
   };

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, CheckCircle, Plus, Trash2 } from "lucide-react";
+import { Check, CheckCircle, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@renderer/components/ui/button";
+import { Checkbox } from "@renderer/components/ui/checkbox";
 import { Input } from "@renderer/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@renderer/components/ui/native-select";
 import { ScrollArea } from "@renderer/components/ui/scroll-area";
@@ -10,22 +11,17 @@ import { ipcClient } from "@renderer/utils/ipc";
 
 type AiConfig = Awaited<ReturnType<typeof ipcClient.config.getAiConfig>>;
 type AiProviderConfig = AiConfig["providers"][number];
-type AiModelConfig = AiProviderConfig["models"][number];
 type AiModelSelection = NonNullable<AiConfig["activeAgentModel"]>;
-type AiProviderCatalogItem = Awaited<
-  ReturnType<typeof ipcClient.config.listAiProviderCatalog>
+type AiProviderDefinition = Awaited<
+  ReturnType<typeof ipcClient.config.listAiProviderDefinitions>
 >[number];
 
-function createProvider(provider: AiProviderCatalogItem): AiProviderConfig {
+function createProvider(provider: AiProviderDefinition): AiProviderConfig {
   return {
     id: provider.id,
     apiKey: "",
-    models: provider.models,
+    enabledModelIds: [],
   };
-}
-
-function createModel(id = ""): AiModelConfig {
-  return { id };
 }
 
 function errorMessage(error: unknown) {
@@ -51,37 +47,56 @@ function parseModelSelectionValue(value: string): AiModelSelection | undefined {
 export function AiSection() {
   const queryClient = useQueryClient();
   const [config, setConfig] = useState<AiConfig>({ providers: [] });
-  const [catalog, setCatalog] = useState<AiProviderCatalogItem[]>([]);
+  const [providers, setProviders] = useState<AiProviderDefinition[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState("");
+  const [modelQuery, setModelQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     void Promise.all([
       ipcClient.config.getAiConfig(),
-      ipcClient.config.listAiProviderCatalog(),
-    ]).then(([nextConfig, nextCatalog]) => {
+      ipcClient.config.listAiProviderDefinitions(),
+    ]).then(([nextConfig, nextProviders]) => {
       setConfig(nextConfig);
-      setCatalog(nextCatalog);
-      setSelectedProviderId((current) => current || nextCatalog[0]?.id || "");
+      setProviders(nextProviders);
+      setSelectedProviderId((current) => current || nextProviders[0]?.id || "");
     });
   }, []);
 
-  const selectedProvider = catalog.find((provider) => provider.id === selectedProviderId);
+  const selectedProvider = providers.find((provider) => provider.id === selectedProviderId);
   const providerConfig = config.providers.find((provider) => provider.id === selectedProviderId);
   const usesCodexAuth = selectedProvider?.authType === "codex";
-  const models = providerConfig?.models.length
-    ? providerConfig.models
-    : (selectedProvider?.models ?? []);
+  const enabledModelIds = providerConfig?.enabledModelIds ?? [];
+  const enabledModelIdSet = new Set(enabledModelIds);
+  const normalizedQuery = modelQuery.trim().toLocaleLowerCase();
+  const models = (selectedProvider?.models ?? [])
+    .filter(
+      (model) =>
+        !normalizedQuery ||
+        model.name.toLocaleLowerCase().includes(normalizedQuery) ||
+        model.id.toLocaleLowerCase().includes(normalizedQuery),
+    )
+    .toSorted((left, right) => {
+      const enabledOrder =
+        Number(enabledModelIdSet.has(right.id)) - Number(enabledModelIdSet.has(left.id));
+      return enabledOrder || left.name.localeCompare(right.name);
+    });
   const titleModelOptions = config.providers.flatMap((provider) => {
-    const catalogItem = catalog.find((item) => item.id === provider.id);
-    if (!catalogItem || (catalogItem.authType !== "codex" && !provider.apiKey.trim())) return [];
-    const providerModels = provider.models.length > 0 ? provider.models : catalogItem.models;
-    return providerModels.map((model) => ({
-      providerId: provider.id,
-      modelId: model.id,
-      label: `${catalogItem.name} / ${model.name || model.id}`,
-    }));
+    const definition = providers.find((item) => item.id === provider.id);
+    if (!definition || (definition.authType !== "codex" && !provider.apiKey.trim())) return [];
+    const modelsById = new Map(definition.models.map((model) => [model.id, model]));
+    return provider.enabledModelIds.flatMap((modelId) => {
+      const model = modelsById.get(modelId);
+      if (!model) return [];
+      return [
+        {
+          providerId: provider.id,
+          modelId: model.id,
+          label: `${definition.name} / ${model.name}`,
+        },
+      ];
+    });
   });
   const titleModelValue = modelSelectionValue(config.titleGenerationModel);
   const selectedTitleModelValue = titleModelOptions.some(
@@ -91,7 +106,7 @@ export function AiSection() {
     : "";
 
   const upsertProvider = (providerId: string, patch: Partial<AiProviderConfig>) => {
-    const provider = catalog.find((item) => item.id === providerId);
+    const provider = providers.find((item) => item.id === providerId);
     if (!provider) return;
     setSaved(false);
     setConfig((current) => {
@@ -106,30 +121,18 @@ export function AiSection() {
     });
   };
 
-  const updateModel = (index: number, patch: Partial<AiModelConfig>) => {
+  const toggleModel = (modelId: string, enabled: boolean) => {
     if (!selectedProvider) return;
     upsertProvider(selectedProvider.id, {
-      models: models.map((model, modelIndex) =>
-        modelIndex === index ? { ...model, ...patch } : model,
-      ),
+      enabledModelIds: enabled
+        ? [...enabledModelIds, modelId]
+        : enabledModelIds.filter((id) => id !== modelId),
     });
-  };
-
-  const addModel = () => {
-    if (!selectedProvider) return;
-    upsertProvider(selectedProvider.id, { models: [...models, createModel()] });
   };
 
   const enableProvider = () => {
     if (!selectedProvider) return;
     upsertProvider(selectedProvider.id, {});
-  };
-
-  const removeModel = (index: number) => {
-    if (!selectedProvider) return;
-    upsertProvider(selectedProvider.id, {
-      models: models.filter((_, modelIndex) => modelIndex !== index),
-    });
   };
 
   const clearProvider = () => {
@@ -200,7 +203,7 @@ export function AiSection() {
         <div className="min-h-0 border-r border-border/70 pr-3">
           <ScrollArea className="h-full">
             <div className="space-y-1 pr-2">
-              {catalog.map((provider) => {
+              {providers.map((provider) => {
                 const configured = config.providers.some(
                   (item) =>
                     item.id === provider.id && (provider.authType === "codex" || item.apiKey),
@@ -258,15 +261,6 @@ export function AiSection() {
                 </Button>
               </div>
 
-              <label className="flex shrink-0 flex-col gap-2">
-                <span className="text-sm font-medium text-foreground">API Base URL</span>
-                <Input
-                  value={selectedProvider.baseUrl}
-                  readOnly
-                  className="font-mono text-muted-foreground"
-                />
-              </label>
-
               {usesCodexAuth ? (
                 <div className="flex shrink-0 items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
                   <span className="text-sm text-muted-foreground">使用本机 codex login 会话</span>
@@ -298,42 +292,48 @@ export function AiSection() {
 
               <div className="flex min-h-0 flex-1 flex-col gap-2">
                 <div className="flex shrink-0 items-center justify-between gap-3">
-                  <span className="text-sm font-medium text-foreground">Models</span>
-                  <Button size="xs" variant="outline" onClick={addModel}>
-                    <Plus size={13} />
-                    Model
-                  </Button>
+                  <span className="text-sm font-medium text-foreground">用于 Chat 的模型</span>
+                  <span className="text-xs text-muted-foreground">
+                    已选择 {enabledModelIds.length} 个
+                  </span>
+                </div>
+                <div className="relative shrink-0">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    data-testid="settings-ai-model-search"
+                    value={modelQuery}
+                    onChange={(event) => setModelQuery(event.target.value)}
+                    placeholder="搜索模型名称或 ID"
+                    className="pl-9"
+                  />
                 </div>
                 <ScrollArea className="min-h-0 flex-1">
-                  <div className="space-y-2 pr-3">
-                    {models.map((model, modelIndex) => (
-                      <div
-                        key={`${selectedProvider.id}-${modelIndex}`}
-                        className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+                  <div className="space-y-1 pr-3">
+                    {models.map((model) => (
+                      <label
+                        key={model.id}
+                        data-testid="settings-ai-model-option"
+                        data-model-id={model.id}
+                        className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-muted/60"
                       >
-                        <Input
-                          value={model.id}
-                          onChange={(event) => updateModel(modelIndex, { id: event.target.value })}
-                          placeholder="model-id"
-                          className="font-mono"
+                        <Checkbox
+                          checked={enabledModelIdSet.has(model.id)}
+                          onCheckedChange={(checked) => toggleModel(model.id, checked)}
                         />
-                        <Input
-                          value={model.name ?? ""}
-                          onChange={(event) =>
-                            updateModel(modelIndex, { name: event.target.value })
-                          }
-                          placeholder="显示名称"
-                        />
-                        <Button
-                          size="icon-sm"
-                          variant="ghost"
-                          className="text-muted-foreground"
-                          onClick={() => removeModel(modelIndex)}
-                          aria-label="删除模型"
-                        >
-                          <Trash2 size={14} />
-                        </Button>
-                      </div>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm text-foreground">
+                            {model.name}
+                          </span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {model.id}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {model.supportedReasoningLevels.length === 1
+                            ? "无推理"
+                            : model.supportedReasoningLevels.join(" / ")}
+                        </span>
+                      </label>
                     ))}
                   </div>
                 </ScrollArea>

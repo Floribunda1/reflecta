@@ -3,18 +3,20 @@ import path from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { app } from "electron";
+import {
+  clampThinkingLevel,
+  getModels,
+  getSupportedThinkingLevels,
+  type KnownProvider,
+  type ModelThinkingLevel,
+} from "@earendil-works/pi-ai";
 import { resolveRuntimePaths, type RuntimeAppConfig } from "@reflecta/server/runtime";
 import { getRuntimeArg } from "./runtime-args";
-
-export interface AiModelConfig {
-  id: string;
-  name?: string;
-}
 
 export interface AiProviderConfig {
   id: string;
   apiKey: string;
-  models: AiModelConfig[];
+  enabledModelIds: string[];
 }
 
 export interface AiModelSelection {
@@ -22,8 +24,15 @@ export interface AiModelSelection {
   modelId: string;
 }
 
-const AI_REASONING_LEVELS = ["default", "low", "medium", "high", "xhigh"] as const;
-export type AiReasoningLevel = (typeof AI_REASONING_LEVELS)[number];
+const AI_REASONING_LEVELS: ModelThinkingLevel[] = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+];
+export type AiReasoningLevel = ModelThinkingLevel;
 const DEFAULT_AGENT_REASONING_LEVEL: AiReasoningLevel = "medium";
 
 export interface AiConfig {
@@ -33,12 +42,18 @@ export interface AiConfig {
   titleGenerationModel?: AiModelSelection;
 }
 
-export interface AiProviderCatalogItem {
+export interface AiProviderDefinition {
   id: string;
   name: string;
-  baseUrl: string;
+  piProviderId: KnownProvider;
   authType?: "api-key" | "codex";
-  models: AiModelConfig[];
+  models: AiProviderModel[];
+}
+
+export interface AiProviderModel {
+  id: string;
+  name: string;
+  supportedReasoningLevels: AiReasoningLevel[];
 }
 
 export interface AiModelOption {
@@ -47,6 +62,7 @@ export interface AiModelOption {
   modelId: string;
   modelName: string;
   label: string;
+  supportedReasoningLevels: AiReasoningLevel[];
 }
 
 export type RetrievalEmbeddingProvider = "disabled" | "local-llama-cpp" | "openai-compatible";
@@ -93,8 +109,8 @@ export interface RetrievalEmbeddingDownloadStatus {
 
 export interface ResolvedAiModelConfig {
   provider: AiProviderConfig;
-  catalog: AiProviderCatalogItem;
-  model: AiModelConfig;
+  definition: AiProviderDefinition;
+  model: AiProviderModel;
   selection: AiModelSelection;
   label: string;
 }
@@ -162,97 +178,55 @@ const DEFAULT_RETRIEVAL_CONFIG: RetrievalConfig = {
   },
 };
 
-const BUILT_IN_AI_PROVIDERS: AiProviderCatalogItem[] = [
+const AI_PROVIDER_DEFINITIONS = [
   {
     id: "openai",
     name: "OpenAI",
-    baseUrl: "https://api.openai.com/v1",
-    models: [{ id: "gpt-4o" }, { id: "gpt-4o-mini" }, { id: "o3" }, { id: "o4-mini" }],
+    piProviderId: "openai",
   },
   {
     id: "openai-codex",
     name: "Codex Subscription",
-    baseUrl: "https://chatgpt.com/backend-api/codex",
+    piProviderId: "openai-codex",
     authType: "codex",
-    models: [
-      { id: "gpt-5.5", name: "GPT-5.5" },
-      { id: "gpt-5.4", name: "GPT-5.4" },
-      { id: "gpt-5.4-mini", name: "GPT-5.4 mini" },
-      { id: "gpt-5.3-codex-spark", name: "GPT-5.3 Codex Spark" },
-    ],
   },
   {
     id: "deepseek",
     name: "DeepSeek",
-    baseUrl: "https://api.deepseek.com",
-    models: [{ id: "deepseek-chat" }, { id: "deepseek-reasoner" }],
+    piProviderId: "deepseek",
   },
   {
     id: "gemini",
     name: "Google Gemini",
-    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
-    models: [{ id: "gemini-2.5-pro" }, { id: "gemini-2.5-flash" }, { id: "gemini-2.0-flash" }],
+    piProviderId: "google",
   },
   {
     id: "xai",
     name: "xAI",
-    baseUrl: "https://api.x.ai/v1",
-    models: [{ id: "grok-4" }, { id: "grok-3" }, { id: "grok-3-mini" }],
+    piProviderId: "xai",
   },
   {
     id: "moonshot",
     name: "Moonshot AI",
-    baseUrl: "https://api.moonshot.cn/v1",
-    models: [{ id: "kimi-k2-0711-preview" }, { id: "moonshot-v1-8k" }, { id: "moonshot-v1-32k" }],
-  },
-  {
-    id: "qwen",
-    name: "Qwen DashScope",
-    baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    models: [{ id: "qwen-plus" }, { id: "qwen-max" }, { id: "qwen-turbo" }],
-  },
-  {
-    id: "zhipu",
-    name: "Zhipu GLM",
-    baseUrl: "https://open.bigmodel.cn/api/paas/v4",
-    models: [{ id: "glm-4-plus" }, { id: "glm-4-flash" }, { id: "glm-z1-air" }],
+    piProviderId: "moonshotai-cn",
   },
   {
     id: "opencode-zen",
     name: "OpenCode Zen",
-    baseUrl: "https://opencode.ai/zen/v1",
-    models: [
-      { id: "deepseek-v4-pro" },
-      { id: "deepseek-v4-flash" },
-      { id: "minimax-m2.7" },
-      { id: "minimax-m2.5" },
-      { id: "glm-5.1" },
-      { id: "glm-5" },
-      { id: "kimi-k2.5" },
-    ],
+    piProviderId: "opencode",
   },
   {
     id: "opencode-go",
     name: "OpenCode Go",
-    baseUrl: "https://opencode.ai/zen/go/v1",
-    models: [
-      { id: "glm-5.2" },
-      { id: "glm-5.1" },
-      { id: "kimi-k2.7" },
-      { id: "kimi-k2.6" },
-      { id: "deepseek-v4-pro" },
-      { id: "deepseek-v4-flash" },
-      { id: "mimo-v2.5" },
-      { id: "mimo-v2.5-pro" },
-    ],
+    piProviderId: "opencode-go",
   },
-];
+] as const;
 
-const BUILT_IN_AI_PROVIDER_IDS = new Set(BUILT_IN_AI_PROVIDERS.map((provider) => provider.id));
+const AI_PROVIDER_IDS = new Set<string>(AI_PROVIDER_DEFINITIONS.map((provider) => provider.id));
 
 function isProviderConfigured(provider: AiProviderConfig): boolean {
-  const catalog = getAiProviderCatalogItem(provider.id);
-  return catalog.authType === "codex" || !!provider.apiKey;
+  const definition = getAiProviderDefinition(provider.id);
+  return definition.authType === "codex" || !!provider.apiKey;
 }
 
 function serializeConfig(config: AppConfig): string {
@@ -271,9 +245,11 @@ export function readConfig(): AppConfig {
 }
 
 function firstModelSelection(providers: AiProviderConfig[]): AiModelSelection | undefined {
-  const provider = providers.find((item) => isProviderConfigured(item) && item.models.length > 0);
-  const model = provider?.models[0];
-  return provider && model ? { providerId: provider.id, modelId: model.id } : undefined;
+  const provider = providers.find(
+    (item) => isProviderConfigured(item) && item.enabledModelIds.length > 0,
+  );
+  const modelId = provider?.enabledModelIds[0];
+  return provider && modelId ? { providerId: provider.id, modelId } : undefined;
 }
 
 function hasModelSelection(config: AiConfig, selection: AiModelSelection): boolean {
@@ -281,7 +257,7 @@ function hasModelSelection(config: AiConfig, selection: AiModelSelection): boole
     (provider) =>
       isProviderConfigured(provider) &&
       provider.id === selection.providerId &&
-      provider.models.some((model) => model.id === selection.modelId),
+      provider.enabledModelIds.includes(selection.modelId),
   );
 }
 
@@ -293,26 +269,24 @@ export function normalizeAiConfig(input: AiConfig): AiConfig {
   const providerIds = new Set<string>();
   const providers = input.providers.flatMap((provider) => {
     const providerId = provider.id.trim();
-    if (!providerId || !BUILT_IN_AI_PROVIDER_IDS.has(providerId)) return [];
+    if (!providerId || !AI_PROVIDER_IDS.has(providerId)) return [];
     if (providerIds.has(providerId)) throw new Error("AI Provider ID 不能重复");
     providerIds.add(providerId);
 
-    const modelIds = new Set<string>();
-    const models: AiModelConfig[] = provider.models.flatMap((model) => {
-      const modelId = model.id.trim();
-      if (!modelId) return [];
-      if (modelIds.has(modelId)) throw new Error("AI 模型 ID 不能重复");
-      modelIds.add(modelId);
-      const name = model.name?.trim();
-      return [{ id: modelId, ...(name ? { name } : {}) }];
-    });
-
-    const catalog = getAiProviderCatalogItem(providerId);
+    const definition = getAiProviderDefinition(providerId);
+    const knownModelIds = new Set(definition.models.map((model) => model.id));
+    const legacyModels = (provider as unknown as { models?: Array<{ id?: string }> }).models;
+    const requestedModelIds = Array.isArray(provider.enabledModelIds)
+      ? provider.enabledModelIds
+      : (legacyModels?.map((model) => model.id ?? "") ?? []);
+    const enabledModelIds = [...new Set(requestedModelIds.map((id) => id.trim()))].filter((id) =>
+      knownModelIds.has(id),
+    );
     return [
       {
         id: providerId,
         apiKey: provider.apiKey.trim(),
-        models: models.length > 0 ? models : catalog.models,
+        enabledModelIds,
       },
     ];
   });
@@ -327,8 +301,12 @@ export function normalizeAiConfig(input: AiConfig): AiConfig {
     config.activeAgentModel && hasModelSelection(config, config.activeAgentModel)
       ? config.activeAgentModel
       : firstModelSelection(providers);
-  const activeAgentReasoningLevel = isAiReasoningLevel(config.activeAgentReasoningLevel)
-    ? config.activeAgentReasoningLevel
+  const requestedReasoningLevel =
+    (config.activeAgentReasoningLevel as unknown) === "default"
+      ? "off"
+      : config.activeAgentReasoningLevel;
+  const activeAgentReasoningLevel = isAiReasoningLevel(requestedReasoningLevel)
+    ? requestedReasoningLevel
     : undefined;
   return {
     providers,
@@ -369,12 +347,19 @@ export function normalizeRetrievalConfig(input: RetrievalConfig | undefined): Re
   };
 }
 
-export function getAiProviderCatalog(): AiProviderCatalogItem[] {
-  return BUILT_IN_AI_PROVIDERS;
+export function getAiProviderDefinitions(): AiProviderDefinition[] {
+  return AI_PROVIDER_DEFINITIONS.map((provider) => ({
+    ...provider,
+    models: getModels(provider.piProviderId).map((model) => ({
+      id: model.id,
+      name: model.name,
+      supportedReasoningLevels: getSupportedThinkingLevels(model),
+    })),
+  }));
 }
 
-export function getAiProviderCatalogItem(providerId: string): AiProviderCatalogItem {
-  const provider = BUILT_IN_AI_PROVIDERS.find((item) => item.id === providerId);
+export function getAiProviderDefinition(providerId: string): AiProviderDefinition {
+  const provider = getAiProviderDefinitions().find((item) => item.id === providerId);
   if (!provider) throw new Error("不支持的 AI Provider");
   return provider;
 }
@@ -415,15 +400,18 @@ export function getRetrievalEmbeddingModelStatus(): RetrievalEmbeddingModelStatu
 export function getAiModelOptions(config = getAiConfig()): AiModelOption[] {
   return config.providers.flatMap((provider) => {
     if (!isProviderConfigured(provider)) return [];
-    const catalog = getAiProviderCatalogItem(provider.id);
-    return provider.models.map((model) => {
-      const modelName = model.name || model.id;
+    const definition = getAiProviderDefinition(provider.id);
+    const modelsById = new Map(definition.models.map((model) => [model.id, model]));
+    return provider.enabledModelIds.flatMap((modelId) => {
+      const model = modelsById.get(modelId);
+      if (!model) return [];
       return {
         providerId: provider.id,
-        providerName: catalog.name,
+        providerName: definition.name,
         modelId: model.id,
-        modelName,
-        label: `${catalog.name} / ${modelName}`,
+        modelName: model.name,
+        label: `${definition.name} / ${model.name}`,
+        supportedReasoningLevels: model.supportedReasoningLevels,
       };
     });
   });
@@ -437,7 +425,21 @@ export function getActiveAiModelSelection(config = getAiConfig()): AiModelSelect
 }
 
 export function getActiveAgentReasoningLevel(config = getAiConfig()): AiReasoningLevel {
-  return config.activeAgentReasoningLevel ?? DEFAULT_AGENT_REASONING_LEVEL;
+  const selection = getActiveAiModelSelection(config);
+  if (!selection) return "off";
+  return clampAiReasoningLevel(
+    selection,
+    config.activeAgentReasoningLevel ?? DEFAULT_AGENT_REASONING_LEVEL,
+  );
+}
+
+export function clampAiReasoningLevel(
+  selection: AiModelSelection,
+  level: AiReasoningLevel,
+): AiReasoningLevel {
+  const definition = getAiProviderDefinition(selection.providerId);
+  const model = getModels(definition.piProviderId).find((item) => item.id === selection.modelId);
+  return model ? clampThinkingLevel(model, level) : "off";
 }
 
 export function getTitleGenerationAiModelSelection(
@@ -458,19 +460,18 @@ export function getAiModelConfig(
   if (!effectiveSelection) throw new Error("请先在设置中配置 AI Provider");
 
   const provider = config.providers.find((item) => item.id === effectiveSelection.providerId);
-  const model = provider?.models.find((item) => item.id === effectiveSelection.modelId);
-  if (!provider || !model || !isProviderConfigured(provider)) {
+  const definition = provider ? getAiProviderDefinition(provider.id) : undefined;
+  const model = definition?.models.find((item) => item.id === effectiveSelection.modelId);
+  if (!provider || !definition || !model || !isProviderConfigured(provider)) {
     throw new Error("请先在设置中配置 AI Provider");
   }
 
-  const catalog = getAiProviderCatalogItem(provider.id);
-  const modelName = model.name || model.id;
   return {
     provider,
-    catalog,
+    definition,
     model,
     selection: effectiveSelection,
-    label: `${catalog.name} / ${modelName}`,
+    label: `${definition.name} / ${model.name}`,
   };
 }
 

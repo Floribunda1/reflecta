@@ -115,8 +115,7 @@ function resolvePiModel(providerId: string, modelId: string): Model<Api> {
 }
 
 function thinkingLevelFor(level: AgentReasoningLevel | undefined) {
-  if (!level || level === "default") return "off";
-  return level;
+  return level ?? "off";
 }
 
 type AssistantTurnMetadata = {
@@ -470,11 +469,14 @@ export async function configurePiRuntimeAuth(
   authStorage: AuthStorage,
   modelConfig: ResolvedAiModelConfig,
 ): Promise<void> {
-  authStorage.setRuntimeApiKey(modelConfig.provider.id, await runtimeApiKey(modelConfig));
+  authStorage.setRuntimeApiKey(
+    modelConfig.definition.piProviderId,
+    await runtimeApiKey(modelConfig),
+  );
 }
 
 async function runtimeApiKey(modelConfig: ResolvedAiModelConfig): Promise<string> {
-  return modelConfig.catalog.authType === "codex"
+  return modelConfig.definition.authType === "codex"
     ? (await getCodexCredentials()).accessToken
     : modelConfig.provider.apiKey;
 }
@@ -640,7 +642,7 @@ export class PiAgentHost {
     const authStorage = AuthStorage.create(path.join(agentDir, "auth.json"));
     await configurePiRuntimeAuth(authStorage, modelConfig);
     const modelRegistry = ModelRegistry.inMemory(authStorage);
-    const model = resolvePiModel(modelConfig.provider.id, modelConfig.model.id);
+    const model = resolvePiModel(modelConfig.definition.piProviderId, modelConfig.model.id);
     const settingsManager = SettingsManager.inMemory({
       compaction: { enabled: false },
       retry: { enabled: false },
