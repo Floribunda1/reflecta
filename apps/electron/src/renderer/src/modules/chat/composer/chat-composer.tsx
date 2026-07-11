@@ -662,6 +662,7 @@ export function ChatComposer({
                         data-testid="agent-model-option"
                         data-provider-id={option.providerId}
                         data-model-id={option.modelId}
+                        data-reasoning-levels={option.supportedReasoningLevels.join(" ")}
                         onClick={() =>
                           onSelectModel({
                             providerId: option.providerId,

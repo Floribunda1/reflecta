@@ -136,9 +136,11 @@ test("@AG-CONTEXT-003 用户选择模型和推理强度后发送消息", async (
 
   try {
     await page.getByTestId("agent-model-menu-button").click();
-    const firstModel = page.getByTestId("agent-model-option").first();
-    const modelName = (await firstModel.locator("span").first().innerText()).trim();
-    await firstModel.click();
+    const reasoningModel = page
+      .locator('[data-testid="agent-model-option"][data-reasoning-levels~="medium"]')
+      .first();
+    const modelName = (await reasoningModel.locator("span").first().innerText()).trim();
+    await reasoningModel.click();
 
     await page.getByTestId("agent-model-menu-button").click();
     await page

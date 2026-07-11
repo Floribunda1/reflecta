@@ -180,6 +180,7 @@ export function AiSection() {
       <section className="flex shrink-0 flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center sm:justify-between">
         <span className="text-sm font-medium text-foreground">标题生成模型</span>
         <NativeSelect
+          data-testid="settings-ai-title-model"
           className="w-full sm:w-[360px]"
           value={selectedTitleModelValue}
           disabled={titleModelOptions.length === 0}
