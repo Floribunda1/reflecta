@@ -96,33 +96,27 @@ function fromRow(row: RetrievalRow): RetrievalSearchHit {
   };
 }
 
-function lexicalTokens(query: string): string[] {
-  return query.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
-}
-
 function semanticQueryText(query: string): string {
   const productTerms: string[] = [];
-  if (/[经验经历上下文]/u.test(query)) productTerms.push("Context");
-  if (/[理解认知]/u.test(query)) productTerms.push("Understanding");
+  if (/(?:经验|经历|上下文)/u.test(query)) productTerms.push("Context");
+  if (/(?:理解|认知)/u.test(query)) productTerms.push("Understanding");
   const expandedQuery =
     productTerms.length === 0 ? query : `${query}\n${[...new Set(productTerms)].join(" ")}`;
   return `Instruct: Given a Reflecta user query, retrieve relevant personal knowledge documents.\nQuery: ${expandedQuery}`;
 }
 
-function matchesLexicalQuery(row: RetrievalRow, tokens: string[]): boolean {
-  if (tokens.length === 0) return true;
+function lexicalTerms(query: string): string[] {
+  return query.match(/[\p{L}\p{N}_-]+/gu) ?? [];
+}
+
+function matchesAnyLexicalTerm(row: RetrievalRow, terms: string[]): boolean {
+  if (terms.length === 0) return false;
   const text = row.textForLexicalSearch.toLocaleLowerCase();
-  return tokens.every((token) => text.includes(token));
+  return terms.some((term) => text.includes(term.toLocaleLowerCase()));
 }
 
 function hasVectorSignal(vector: number[]): boolean {
   return Math.hypot(...vector) > 0;
-}
-
-function shouldSearchDense(tokens: string[], lexicalRows: RetrievalRow[], limit: number): boolean {
-  if (lexicalRows.length === 0) return true;
-  if (lexicalRows.length >= limit) return false;
-  return tokens.length > 1;
 }
 
 function fuseRows(lexicalRows: RetrievalRow[], semanticRows: RetrievalRow[], limit: number) {
@@ -208,19 +202,22 @@ export class LanceDbRetrievalIndex {
     if (!table) return [];
 
     const searchLimit = Math.max(limit * 5, 20);
-    const lexicalRows = await this.searchLexicalRows(table, query, limit);
-    const tokens = lexicalTokens(query);
-    if (!shouldSearchDense(tokens, lexicalRows, limit)) {
-      return fuseRows(lexicalRows, [], limit).map(fromRow);
-    }
-    const [vector] = await this.options.embeddingProvider.embed([semanticQueryText(query)]);
-    const semanticRows = hasVectorSignal(vector)
-      ? ((await table
-          .vectorSearch(vector)
-          .distanceType("cosine")
-          .limit(searchLimit)
-          .toArray()) as RetrievalRow[])
-      : [];
+    const lexicalRowsPromise = this.searchLexicalRows(table, query, searchLimit);
+    const semanticRowsPromise = this.options.embeddingProvider
+      .embed([semanticQueryText(query)])
+      .then(async ([vector]) =>
+        hasVectorSignal(vector)
+          ? ((await table
+              .vectorSearch(vector)
+              .distanceType("cosine")
+              .limit(searchLimit)
+              .toArray()) as RetrievalRow[])
+          : [],
+      );
+    const [lexicalRows, semanticRows] = await Promise.all([
+      lexicalRowsPromise,
+      semanticRowsPromise,
+    ]);
     return fuseRows(lexicalRows, semanticRows, limit).map(fromRow);
   }
 
@@ -244,15 +241,18 @@ export class LanceDbRetrievalIndex {
     limit: number,
   ): Promise<RetrievalRow[]> {
     const searchLimit = Math.max(limit * 5, 20);
-    const tokens = lexicalTokens(query);
+    const terms = lexicalTerms(query);
+    const matchQuery = new lancedb.MatchQuery(query, "textForLexicalSearch", {
+      operator: lancedb.Operator.Or,
+    });
     return (
       (await table
         .search(query)
-        .fullTextSearch(query, { columns: ["textForLexicalSearch"] })
+        .fullTextSearch(matchQuery)
         .limit(searchLimit)
         .toArray()) as RetrievalRow[]
     )
-      .filter((row) => matchesLexicalQuery(row, tokens))
+      .filter((row) => matchesAnyLexicalTerm(row, terms))
       .slice(0, limit);
   }
 

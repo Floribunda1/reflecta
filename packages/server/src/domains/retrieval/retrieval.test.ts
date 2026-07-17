@@ -70,14 +70,14 @@ class DirectionalEmbeddingProvider implements EmbeddingProvider {
   }
 }
 
-class ProductTermEmbeddingProvider implements EmbeddingProvider {
-  readonly modelId = "test-product-term";
+class QueryInstructionEmbeddingProvider implements EmbeddingProvider {
+  readonly modelId = "test-query-instruction";
+  readonly inputs: string[] = [];
 
   async embed(texts: string[]): Promise<number[][]> {
+    this.inputs.push(...texts);
     return texts.map((text) => {
-      if (/Query: 同一个经验连接多个理解[\s\S]*Context Understanding/.test(text)) {
-        return [1, 0];
-      }
+      if (text.endsWith("Query: 同一个经验连接多个理解\nContext Understanding")) return [1, 0];
       if (/Context can support Understanding/.test(text)) return [1, 0];
       return [0, 1];
     });
@@ -172,7 +172,7 @@ function directionalDocs(): RetrievalDocument[] {
       entityId: "same-direction",
       parentUnderstandingId: "same-direction",
       textForEmbedding: "same semantic direction",
-      textForLexicalSearch: "source without query words",
+      textForLexicalSearch: "source without matching words",
       metadata,
     },
     {
@@ -181,22 +181,22 @@ function directionalDocs(): RetrievalDocument[] {
       entityId: "near-magnitude",
       parentUnderstandingId: "near-magnitude",
       textForEmbedding: "near magnitude but different direction",
-      textForLexicalSearch: "another source without query words",
+      textForLexicalSearch: "another source without matching words",
       metadata,
     },
   ];
 }
 
-function productTermDocs(): RetrievalDocument[] {
+function queryInstructionDocs(): RetrievalDocument[] {
   const metadata = { domainIds: [], domainNames: [] };
   return [
     {
-      id: "understanding:context-term",
+      id: "understanding:relevant",
       entityType: "understanding",
-      entityId: "context-term",
-      parentUnderstandingId: "context-term",
+      entityId: "relevant",
+      parentUnderstandingId: "relevant",
       textForEmbedding: "Context can support Understanding",
-      textForLexicalSearch: "product vocabulary source",
+      textForLexicalSearch: "source without query terms",
       metadata,
     },
     {
@@ -206,6 +206,39 @@ function productTermDocs(): RetrievalDocument[] {
       parentUnderstandingId: "generic-term",
       textForEmbedding: "generic unrelated source",
       textForLexicalSearch: "generic source",
+      metadata,
+    },
+  ];
+}
+
+function keywordBagDocs(): RetrievalDocument[] {
+  const metadata = { domainIds: [], domainNames: [] };
+  return [
+    {
+      id: "understanding:insult",
+      entityType: "understanding",
+      entityId: "insult",
+      parentUnderstandingId: "insult",
+      textForEmbedding: "off topic one",
+      textForLexicalSearch: "被侮辱以后如何维护尊严",
+      metadata,
+    },
+    {
+      id: "understanding:criticism",
+      entityType: "understanding",
+      entityId: "criticism",
+      parentUnderstandingId: "criticism",
+      textForEmbedding: "off topic two",
+      textForLexicalSearch: "如何区分批评和人身攻击",
+      metadata,
+    },
+    {
+      id: "understanding:communication",
+      entityType: "understanding",
+      entityId: "communication",
+      parentUnderstandingId: "communication",
+      textForEmbedding: "off topic three",
+      textForLexicalSearch: "冲突发生后的沟通方式",
       metadata,
     },
   ];
@@ -325,6 +358,25 @@ describe("LanceDbRetrievalIndex", () => {
     });
   });
 
+  test("lexical terms queries return documents that match any keyword", async () => {
+    const index = new LanceDbRetrievalIndex({
+      uri: await tempIndexDir(),
+      embeddingProvider: new RrfEmbeddingProvider(),
+    });
+    await index.replaceAll(keywordBagDocs());
+
+    const hits = await index.searchLexical("侮辱 批评 区分 沟通", 5);
+
+    expect(hits.map((hit) => hit.id)).toEqual(
+      expect.arrayContaining([
+        "understanding:insult",
+        "understanding:criticism",
+        "understanding:communication",
+      ]),
+    );
+    expect(hits.every((hit) => hit.channels.includes("lexical"))).toBe(true);
+  });
+
   test("semantic retrieval returns nearest candidates when lexical terms do not match", async () => {
     const index = new LanceDbRetrievalIndex({
       uri: await tempIndexDir(),
@@ -355,19 +407,24 @@ describe("LanceDbRetrievalIndex", () => {
     });
   });
 
-  test("semantic retrieval embeds queries with retrieval instructions", async () => {
+  test("hybrid retrieval embeds the query with retrieval instructions and product synonyms", async () => {
+    const embeddingProvider = new QueryInstructionEmbeddingProvider();
     const index = new LanceDbRetrievalIndex({
       uri: await tempIndexDir(),
-      embeddingProvider: new ProductTermEmbeddingProvider(),
+      embeddingProvider,
     });
-    await index.replaceAll(productTermDocs());
+    await index.replaceAll(queryInstructionDocs());
 
     const [topHit] = await index.search("同一个经验连接多个理解", 2);
 
     expect(topHit).toMatchObject({
-      id: "understanding:context-term",
+      id: "understanding:relevant",
       channels: ["dense"],
     });
+    expect(embeddingProvider.inputs.at(-1)).toBe(
+      "Instruct: Given a Reflecta user query, retrieve relevant personal knowledge documents.\n" +
+        "Query: 同一个经验连接多个理解\nContext Understanding",
+    );
   });
 
   test("syncByUnderstandingId replaces all rows for one parent Understanding", async () => {

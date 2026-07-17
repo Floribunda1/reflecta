@@ -412,6 +412,25 @@ describe("retrieval index write-path sync", () => {
     );
   });
 
+  test("dirty documents match any term in a keyword query", async () => {
+    const { search, understandings } = await setupServices();
+    const understanding = await understandings.createUnderstanding({
+      title: "关键词宽松匹配",
+      body: "冲突发生后要先区分批评与人身攻击。",
+    });
+
+    const result = await search.search("侮辱 沟通 批评", { limit: 5 });
+
+    expect(result.hits).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "understanding",
+          understanding: expect.objectContaining({ id: understanding.id }),
+        }),
+      ]),
+    );
+  });
+
   test("dirty sync clears dirty markers and makes retrieveKnowledge semantic-ready", async () => {
     const { db, search, understandings } = await setupServices();
     const created = await understandings.createUnderstanding({
@@ -531,7 +550,7 @@ describe("retrieval index write-path sync", () => {
     });
     const { db, understandings } = await setupServices();
     await understandings.createUnderstanding({
-      title: "Semantic Only Source",
+      title: "Dense Only Source",
       body: "denseonlysourcewithoutsharedterms",
     });
 

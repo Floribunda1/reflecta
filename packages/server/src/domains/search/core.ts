@@ -29,7 +29,7 @@ export function getLimitOffset(options?: SearchOptions) {
 }
 
 type SearchRetrievalHit = RetrievalSearchHit & { rank: number; snippet: string };
-type RetrievalSearchMode = "hybrid" | "lexical";
+type RetrievalSearchMode = "adaptive" | "hybrid" | "lexical";
 
 const RETRIEVE_KNOWLEDGE_DOCUMENT_OVERFETCH_FACTOR = 3;
 
@@ -37,9 +37,9 @@ function lexicalTokens(query: string): string[] {
   return query.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
 }
 
-function matchesLexicalText(text: string, tokens: string[]): boolean {
+function lexicalMatchCount(text: string, tokens: string[]): number {
   const normalized = text.toLocaleLowerCase();
-  return tokens.every((token) => normalized.includes(token));
+  return tokens.filter((token) => normalized.includes(token)).length;
 }
 
 export class SearchCore {
@@ -48,7 +48,7 @@ export class SearchCore {
   protected async searchRetrievalDocuments(
     query: string,
     options?: SearchOptions,
-    mode: RetrievalSearchMode = "hybrid",
+    mode: RetrievalSearchMode = "adaptive",
   ): Promise<SearchRetrievalHit[]> {
     const { limit, offset } = getLimitOffset(options);
     const index = createRetrievalIndex();
@@ -63,10 +63,9 @@ export class SearchCore {
       resultLimit,
     );
     const indexMode =
-      mode === "hybrid" && dirtyUnderstandingIds.length > 0 && currentLexicalHits.length > 0
+      mode === "adaptive" && dirtyUnderstandingIds.length > 0 && currentLexicalHits.length > 0
         ? "lexical"
         : mode;
-
     const indexedHits =
       indexReady && !fullyDirty
         ? indexMode === "lexical"
@@ -93,17 +92,20 @@ export class SearchCore {
   ): Promise<RetrievalSearchHit[]> {
     if (understandingIds !== undefined && understandingIds.length === 0) return [];
     const tokens = lexicalTokens(query);
+    if (tokens.length === 0) return [];
     const docs = await buildRetrievalDocumentsFromDb(this.db, understandingIds);
     return docs
-      .filter((doc) => matchesLexicalText(doc.textForLexicalSearch, tokens))
+      .map((doc) => ({ doc, matchCount: lexicalMatchCount(doc.textForLexicalSearch, tokens) }))
+      .filter(({ matchCount }) => matchCount > 0)
+      .sort((left, right) => right.matchCount - left.matchCount)
       .slice(0, limit)
-      .map((doc) => this.toLexicalRetrievalHit(doc));
+      .map(({ doc, matchCount }) => this.toLexicalRetrievalHit(doc, matchCount / tokens.length));
   }
 
-  private toLexicalRetrievalHit(doc: RetrievalDocument): RetrievalSearchHit {
+  private toLexicalRetrievalHit(doc: RetrievalDocument, score: number): RetrievalSearchHit {
     return {
       ...doc,
-      score: 0,
+      score,
       channels: ["lexical"],
     };
   }
@@ -166,9 +168,11 @@ export class SearchCore {
       limit * RETRIEVE_KNOWLEDGE_DOCUMENT_OVERFETCH_FACTOR,
       limit + 5,
     );
-    const hits = await this.searchRetrievalDocuments(input.query, {
-      limit: retrievalDocumentLimit,
-    });
+    const hits = await this.searchRetrievalDocuments(
+      input.query,
+      { limit: retrievalDocumentLimit },
+      "hybrid",
+    );
     const parentIds = [...new Set(hits.map((hit) => hit.parentUnderstandingId))];
     const rows =
       parentIds.length === 0
