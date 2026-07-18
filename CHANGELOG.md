@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.20 - 2026-07-18
+
+- Rebuilt knowledge retrieval around parallel ICU/BM25 and dense search with RRF fusion, including production-session quality coverage.
+- Replaced dirty markers, polling, and read-time compensation with asynchronous post-save indexing, incremental LanceDB updates, startup reconciliation, and best-effort index maintenance.
+- Moved local embedding work into a short-lived Electron utility process so the model is released when the queue becomes idle.
+- Sourced AI provider model catalogs from pi-ai and added provider model-selection coverage.
+- Preserved mutation titles when Agent write results are turned into citation sources.
+
 ## 1.1.19 - 2026-07-09
 
 - Kept retrieval dirty-index sync asynchronous while preserving incremental updates for ready indexes.
