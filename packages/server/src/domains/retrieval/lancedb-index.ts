@@ -130,14 +130,6 @@ function matchesAnyLexicalTerm(row: RetrievalRow, terms: string[]): boolean {
   return terms.some((term) => text.includes(term.toLocaleLowerCase()));
 }
 
-function exactLexicalStrength(row: RetrievalRow, terms: string[]): number {
-  const text = row.textForLexicalSearch.toLocaleLowerCase();
-  return terms.reduce((score, term) => {
-    const normalized = term.toLocaleLowerCase();
-    return text.includes(normalized) ? score + 1_000 + normalized.length : score;
-  }, 0);
-}
-
 function hasVectorSignal(vector: number[]): boolean {
   return Math.hypot(...vector) > 0;
 }
@@ -289,50 +281,18 @@ export class LanceDbRetrievalIndex {
   ): Promise<RetrievalRow[]> {
     const searchLimit = Math.max(limit * 5, 20);
     const terms = lexicalTerms(query);
-    if (terms.length === 0) return [];
-    const matchQuery = new lancedb.BooleanQuery(
-      terms.map((term) => [
-        lancedb.Occur.Should,
-        new lancedb.MatchQuery(term, "textForLexicalSearch", {
-          operator: lancedb.Operator.And,
-        }),
-      ]),
-    );
-    const [ftsRows, currentRows] = await Promise.all([
-      table.search(query).fullTextSearch(matchQuery).limit(searchLimit).toArray() as Promise<
-        RetrievalRow[]
-      >,
-      table
-        .query()
-        .select([
-          "id",
-          "contentHash",
-          "entityType",
-          "entityId",
-          "parentUnderstandingId",
-          "textForEmbedding",
-          "textForLexicalSearch",
-          "domainIdsJson",
-          "domainNamesJson",
-          "medium",
-          "title",
-          "createdAt",
-          "updatedAt",
-        ])
-        .toArray() as Promise<RetrievalRow[]>,
-    ]);
-
-    const ranked = ftsRows.filter((row) => matchesAnyLexicalTerm(row, terms));
-    const rankedIds = new Set(ranked.map((row) => row.id));
-    const currentOnly = currentRows
-      .filter((row) => !rankedIds.has(row.id) && matchesAnyLexicalTerm(row, terms))
-      .sort(
-        (left, right) =>
-          exactLexicalStrength(right, terms) - exactLexicalStrength(left, terms) ||
-          left.id.localeCompare(right.id),
-      );
-
-    return [...ranked, ...currentOnly].slice(0, limit);
+    const matchQuery = new lancedb.MatchQuery(query, "textForLexicalSearch", {
+      operator: lancedb.Operator.Or,
+    });
+    return (
+      (await table
+        .search(query)
+        .fullTextSearch(matchQuery)
+        .limit(searchLimit)
+        .toArray()) as RetrievalRow[]
+    )
+      .filter((row) => matchesAnyLexicalTerm(row, terms))
+      .slice(0, limit);
   }
 
   private async embedRows(

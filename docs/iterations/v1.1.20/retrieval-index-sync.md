@@ -153,9 +153,9 @@ Retrieve 与索引队列之间没有依赖：
 
 增量数据提交后不再调用 `createIndex`。FTS 只在完整建表时创建，增量路径始终使用 `mergeInsert("id")`。
 
-实现验证发现，当前 LanceDB 0.30 对 FTS indexed row 执行 matched update 或删除后，BM25 索引可能暂时没有最新文本；但每批执行 `table.optimize()` 又会在较大的 n-gram 索引上触发原生 inverted-index panic。因此正确性不依赖 optimize：Lexical 通道在 BM25 排序候选之外，从同一个 LanceDB 当前表补入至少命中一个完整 term 的最新行。Retrieve 仍然不读 SQLite、不等待 coordinator。
+Retrieve 只执行既有的 LanceDB Lexical、Dense 和 RRF，不扫描 LanceDB 全表补偿增量写入，也不承担索引同步的一致性修复。
 
-物理维护恢复为 LanceDB 文档建议的修改次数阈值：
+物理维护使用 LanceDB 文档建议的修改次数阈值：
 
 ```text
 每次增量批次：merge/upsert/delete 文档
