@@ -17,6 +17,7 @@ import {
   isRetrievalIndexDirty,
   markRetrievalIndexDirty,
   rebuildRetrievalIndexWithStatus,
+  subscribeRetrievalIndexDirty,
   syncDirtyRetrievalIndexWithStatus,
 } from "./sync";
 
@@ -101,6 +102,35 @@ async function startEmbeddingServer() {
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Embedding server failed to start");
   return `http://127.0.0.1:${address.port}/v1`;
+}
+
+async function startCountingEmbeddingServer() {
+  let requestCount = 0;
+  const server = createServer((request, response) => {
+    const chunks: Buffer[] = [];
+    request.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    request.on("end", () => {
+      requestCount += 1;
+      const body = JSON.parse(Buffer.concat(chunks).toString("utf-8")) as { input: string[] };
+      response.setHeader("Content-Type", "application/json");
+      response.end(
+        JSON.stringify({
+          data: body.input.map((text) => ({ embedding: semanticVectorFor(text) })),
+        }),
+      );
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  servers.push(server);
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Embedding server failed to start");
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}/v1`,
+    requestCount: () => requestCount,
+    reset: () => {
+      requestCount = 0;
+    },
+  };
 }
 
 async function startSlowQueryEmbeddingServer(query: string, delayMs = 1_200) {
@@ -208,7 +238,52 @@ async function waitForIndexingProgress() {
 }
 
 describe("retrieval index write-path sync", () => {
-  test("Understanding writes queue dirty ids and idle sync updates the index", async () => {
+  test("notifies the background scheduler after a dirty marker is durable", async () => {
+    await setupServices();
+    let notifications = 0;
+    const unsubscribe = subscribeRetrievalIndexDirty(() => {
+      notifications += 1;
+    });
+    const unsubscribeBrokenListener = subscribeRetrievalIndexDirty(() => {
+      throw new Error("broken listener");
+    });
+
+    try {
+      await expect(markRetrievalIndexDirty()).resolves.toBeUndefined();
+      expect(notifications).toBe(1);
+    } finally {
+      unsubscribe();
+      unsubscribeBrokenListener();
+    }
+  });
+
+  test("embeds nearby Understanding updates in one incremental batch", async () => {
+    const embeddingServer = await startCountingEmbeddingServer();
+    configureRetrievalEmbedding({
+      provider: "openai-compatible",
+      baseUrl: embeddingServer.baseUrl,
+      modelId: "test-batched-sync",
+    });
+    const { db, understandings } = await setupServices();
+    const first = await understandings.createUnderstanding({
+      title: "Batch one",
+      body: "Before batch one",
+    });
+    const second = await understandings.createUnderstanding({
+      title: "Batch two",
+      body: "Before batch two",
+    });
+    await rebuildRetrievalIndexWithStatus(db);
+    embeddingServer.reset();
+
+    await understandings.updateUnderstanding(first.id, { body: "After batch one" });
+    await understandings.updateUnderstanding(second.id, { body: "After batch two" });
+    await syncDirtyRetrievalIndexWithStatus(db);
+
+    expect(embeddingServer.requestCount()).toBe(1);
+  });
+
+  test("Understanding writes queue dirty ids and background sync updates the index", async () => {
     const { db, search, understandings } = await setupServices();
 
     const created = await understandings.createUnderstanding({

@@ -3,6 +3,7 @@ import path from "node:path";
 import { app } from "electron";
 import {
   configureRetrievalEmbedding,
+  configureRetrievalEmbeddingProviderFactory,
   createDBInstance,
   ensureStoreDataEnvironment,
   type ReflectaDb,
@@ -17,6 +18,7 @@ import {
 import { diagnosticErrorAttrs } from "../diagnostic-log";
 import { writeDiagnosticEvent } from "../logger";
 import { getRuntimeArg } from "../runtime-args";
+import { createUtilityProcessEmbeddingProvider } from "../retrievalEmbeddingRunner";
 
 let db: ReflectaDb;
 
@@ -45,6 +47,7 @@ export const initializeDB = async () => {
   const profile = getReflectaProfile();
   try {
     process.env.REFLECTA_RETRIEVAL_INDEX_PATH = retrievalIndexPath;
+    configureRetrievalEmbeddingProviderFactory(createUtilityProcessEmbeddingProvider);
     configureRetrievalEmbedding(toServerRetrievalEmbeddingConfig());
     if (!fs.existsSync(contentStorageRoot)) {
       fs.mkdirSync(contentStorageRoot, { recursive: true });

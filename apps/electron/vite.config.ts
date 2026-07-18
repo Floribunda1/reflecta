@@ -21,7 +21,7 @@ const mainOutput = {
   format: "es" as const,
   entryFileNames: "[name].js",
   chunkFileNames: "[name].js",
-  codeSplitting: false,
+  codeSplitting: true,
 };
 
 const copyMainMigrationSql = () => ({
@@ -49,7 +49,10 @@ export default defineConfig({
     react(),
     electron({
       main: {
-        entry: resolve(appRoot, "src/main/index.ts"),
+        entry: {
+          index: resolve(appRoot, "src/main/index.ts"),
+          "retrieval-embedding-worker": resolve(appRoot, "src/main/retrieval-embedding-worker.ts"),
+        },
         onstart({ startup }) {
           void startup(undefined, { cwd: appRoot });
         },

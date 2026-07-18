@@ -20,6 +20,11 @@ type ReplaceAllOptions = {
   onWritingStart?: () => void;
 };
 
+type UnderstandingSync = {
+  parentUnderstandingId: string;
+  docs: RetrievalDocument[];
+};
+
 type RetrievalRow = {
   id: string;
   entityType: string;
@@ -183,6 +188,14 @@ export class LanceDbRetrievalIndex {
     parentUnderstandingId: string,
     docs: RetrievalDocument[],
   ): Promise<void> {
+    await this.syncByUnderstandingIds([{ parentUnderstandingId, docs }]);
+  }
+
+  async syncByUnderstandingIds(
+    updates: UnderstandingSync[],
+    options?: ReplaceAllOptions,
+  ): Promise<void> {
+    if (updates.length === 0) return;
     const db = await lancedb.connect(this.options.uri);
     const tableNames = await db.tableNames();
     if (!tableNames.includes(this.tableName)) {
@@ -190,11 +203,19 @@ export class LanceDbRetrievalIndex {
     }
 
     const table = await db.openTable(this.tableName);
-    await table.delete(`parentUnderstandingId = ${quoteSqlString(parentUnderstandingId)}`);
-    if (docs.length > 0) {
-      await table.add(await this.embedRows(docs));
-      await table.createIndex("textForLexicalSearch", { config: lexicalFtsIndex() });
-    }
+    const docs = updates.flatMap((update) => update.docs);
+    const rows = docs.length > 0 ? await this.embedRows(docs, options) : [];
+    options?.onWritingStart?.();
+    await table.delete(
+      updates
+        .map(
+          ({ parentUnderstandingId }) =>
+            `parentUnderstandingId = ${quoteSqlString(parentUnderstandingId)}`,
+        )
+        .join(" OR "),
+    );
+    if (rows.length > 0) await table.add(rows);
+    await table.createIndex("textForLexicalSearch", { config: lexicalFtsIndex() });
   }
 
   async search(query: string, limit = 20): Promise<RetrievalSearchHit[]> {

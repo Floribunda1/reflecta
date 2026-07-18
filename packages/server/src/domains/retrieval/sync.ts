@@ -14,6 +14,7 @@ import { LanceDbRetrievalIndex } from "./lancedb-index";
 import { LlamaCppEmbeddingProvider } from "./llama-cpp-embedding";
 import { OpenAiCompatibleEmbeddingProvider } from "./openai-compatible-embedding";
 import { buildRetrievalDocuments } from "./projection";
+import type { EmbeddingProvider, RetrievalDocument } from "./types";
 
 export const RETRIEVAL_PROJECTION_VERSION = 2;
 
@@ -37,6 +38,33 @@ let activeRebuild: Promise<void> | null = null;
 let lastRebuildError: string | undefined;
 let activeRebuildProgress: RetrievalIndexProgress | undefined;
 let markerSequence = 0;
+let embeddingProviderFactory:
+  | ((config: ReturnType<typeof getRetrievalEmbeddingConfig>) => EmbeddingProvider | undefined)
+  | undefined;
+const dirtyListeners = new Set<() => void>();
+
+export function configureRetrievalEmbeddingProviderFactory(
+  factory?: (
+    config: ReturnType<typeof getRetrievalEmbeddingConfig>,
+  ) => EmbeddingProvider | undefined,
+): void {
+  embeddingProviderFactory = factory;
+}
+
+export function subscribeRetrievalIndexDirty(listener: () => void): () => void {
+  dirtyListeners.add(listener);
+  return () => dirtyListeners.delete(listener);
+}
+
+function emitRetrievalIndexDirty() {
+  for (const listener of dirtyListeners) {
+    try {
+      listener();
+    } catch {
+      // Dirty markers remain the source of truth; background notification is best-effort.
+    }
+  }
+}
 
 function markerStamp() {
   markerSequence = (markerSequence + 1) % 1000;
@@ -67,6 +95,8 @@ function safeTableSegment(value: string) {
 
 function createEmbeddingProvider() {
   const config = getRetrievalEmbeddingConfig();
+  const configuredProvider = embeddingProviderFactory?.(config);
+  if (configuredProvider) return configuredProvider;
   if (config.provider === "local-llama-cpp") {
     return new LlamaCppEmbeddingProvider({
       modelId: config.modelId,
@@ -117,6 +147,7 @@ export function createRetrievalIndex() {
 export async function markRetrievalIndexDirty(): Promise<void> {
   await mkdir(resolveRetrievalIndexPath(), { recursive: true });
   await writeFile(resolveRetrievalDirtyMarkerPath(), String(markerStamp()));
+  emitRetrievalIndexDirty();
 }
 
 export async function markRetrievalIndexDirtyByUnderstandingId(
@@ -124,6 +155,7 @@ export async function markRetrievalIndexDirtyByUnderstandingId(
 ): Promise<void> {
   await mkdir(resolveRetrievalDirtyUnderstandingDirPath(), { recursive: true });
   await writeFile(resolveRetrievalDirtyUnderstandingPath(understandingId), String(markerStamp()));
+  emitRetrievalIndexDirty();
 }
 
 async function markerTime(path: string): Promise<number> {
@@ -244,6 +276,20 @@ export async function syncRetrievalIndexByUnderstandingId(
   );
 }
 
+function groupRetrievalDocumentsByUnderstandingId(
+  understandingIds: string[],
+  docs: RetrievalDocument[],
+) {
+  const docsByUnderstandingId = new Map(
+    understandingIds.map((understandingId) => [understandingId, [] as RetrievalDocument[]]),
+  );
+  for (const doc of docs) docsByUnderstandingId.get(doc.parentUnderstandingId)?.push(doc);
+  return understandingIds.map((parentUnderstandingId) => ({
+    parentUnderstandingId,
+    docs: docsByUnderstandingId.get(parentUnderstandingId) ?? [],
+  }));
+}
+
 export async function rebuildRetrievalIndex(db: ReflectaDb): Promise<void> {
   const startedAt = markerStamp();
   updateActiveRebuildProgress("preparing", 0, 0);
@@ -286,13 +332,30 @@ export async function syncDirtyRetrievalIndexWithStatus(db: ReflectaDb): Promise
         return;
       }
 
+      const startedAt = markerStamp();
       const understandingIds = await getDirtyRetrievalUnderstandingIds();
       updateActiveRebuildProgress("preparing", 0, understandingIds.length);
-      for (const [index, understandingId] of understandingIds.entries()) {
-        const startedAt = markerStamp();
-        updateActiveRebuildProgress("embedding", index, understandingIds.length);
-        await syncRetrievalIndexByUnderstandingId(db, understandingId);
-        await clearDirtyRetrievalUnderstandingId(understandingId, startedAt);
+      if (understandingIds.length > 0) {
+        const docs = await buildRetrievalDocumentsFromDb(db, understandingIds);
+        updateActiveRebuildProgress("embedding", 0, docs.length);
+        await index.syncByUnderstandingIds(
+          groupRetrievalDocumentsByUnderstandingId(understandingIds, docs),
+          {
+            onEmbeddingProgress: ({ completed, total }) =>
+              updateActiveRebuildProgress("embedding", completed, total),
+            onWritingStart: () =>
+              updateActiveRebuildProgress(
+                "writing",
+                understandingIds.length,
+                understandingIds.length,
+              ),
+          },
+        );
+        await Promise.all(
+          understandingIds.map((understandingId) =>
+            clearDirtyRetrievalUnderstandingId(understandingId, startedAt),
+          ),
+        );
       }
       updateActiveRebuildProgress("writing", understandingIds.length, understandingIds.length);
     } catch (error) {
