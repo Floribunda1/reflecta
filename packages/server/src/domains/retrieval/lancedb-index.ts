@@ -20,11 +20,6 @@ type ReplaceAllOptions = {
   onWritingStart?: () => void;
 };
 
-type UnderstandingSync = {
-  parentUnderstandingId: string;
-  docs: RetrievalDocument[];
-};
-
 type RetrievalRow = {
   id: string;
   entityType: string;
@@ -55,10 +50,6 @@ function lexicalFtsIndex() {
     prefixOnly: false,
     withPosition: false,
   });
-}
-
-function quoteSqlString(value: string): string {
-  return `'${value.replaceAll("'", "''")}'`;
 }
 
 function toRow(doc: RetrievalDocument, vector: number[]): RetrievalRow {
@@ -181,40 +172,6 @@ export class LanceDbRetrievalIndex {
     const rows = await this.embedRows(docs, options);
     options?.onWritingStart?.();
     const table = await db.createTable(this.tableName, rows);
-    await table.createIndex("textForLexicalSearch", { config: lexicalFtsIndex() });
-  }
-
-  async syncByUnderstandingId(
-    parentUnderstandingId: string,
-    docs: RetrievalDocument[],
-  ): Promise<void> {
-    await this.syncByUnderstandingIds([{ parentUnderstandingId, docs }]);
-  }
-
-  async syncByUnderstandingIds(
-    updates: UnderstandingSync[],
-    options?: ReplaceAllOptions,
-  ): Promise<void> {
-    if (updates.length === 0) return;
-    const db = await lancedb.connect(this.options.uri);
-    const tableNames = await db.tableNames();
-    if (!tableNames.includes(this.tableName)) {
-      throw new Error(`Retrieval table is not ready: ${this.tableName}`);
-    }
-
-    const table = await db.openTable(this.tableName);
-    const docs = updates.flatMap((update) => update.docs);
-    const rows = docs.length > 0 ? await this.embedRows(docs, options) : [];
-    options?.onWritingStart?.();
-    await table.delete(
-      updates
-        .map(
-          ({ parentUnderstandingId }) =>
-            `parentUnderstandingId = ${quoteSqlString(parentUnderstandingId)}`,
-        )
-        .join(" OR "),
-    );
-    if (rows.length > 0) await table.add(rows);
     await table.createIndex("textForLexicalSearch", { config: lexicalFtsIndex() });
   }
 

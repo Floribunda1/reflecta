@@ -19,7 +19,6 @@ import type {
   UpdateUnderstandingInput,
 } from "./types";
 import { resolveDomainRefs } from "../domain/core";
-import { markRetrievalIndexDirtyByUnderstandingId } from "../retrieval/sync";
 import { createEntityId } from "../shared/id";
 
 export async function getUnderstandingConnectionCounts(
@@ -150,7 +149,6 @@ export class UnderstandingCore {
 
     const row = await this.getUnderstandingRow(id);
     if (!row) throw new Error(`Understanding not found after creation: ${id}`);
-    await markRetrievalIndexDirtyByUnderstandingId(id).catch(() => undefined);
     return row;
   }
 
@@ -198,7 +196,6 @@ export class UnderstandingCore {
 
     const row = await this.getUnderstandingRow(id);
     if (!row) throw new Error(`Understanding not found after update: ${id}`);
-    await markRetrievalIndexDirtyByUnderstandingId(id).catch(() => undefined);
     return row;
   }
 
@@ -214,11 +211,9 @@ export class UnderstandingCore {
         throw new Error(`Understanding not found: ${id}`);
       }
     });
-    await markRetrievalIndexDirtyByUnderstandingId(id).catch(() => undefined);
   }
 
   async restoreUnderstanding(id: string): Promise<void> {
-    let restored = false;
     await this.db.transaction((tx) => {
       const rows = tx
         .update(understandings)
@@ -227,16 +222,13 @@ export class UnderstandingCore {
         .returning()
         .all();
       if (rows.length === 0) return;
-      restored = true;
     });
-    if (restored) await markRetrievalIndexDirtyByUnderstandingId(id).catch(() => undefined);
   }
 
   async permanentlyDeleteUnderstanding(id: string): Promise<void> {
     await this.db.transaction((tx) => {
       tx.delete(understandings).where(eq(understandings.id, id)).run();
     });
-    await markRetrievalIndexDirtyByUnderstandingId(id).catch(() => undefined);
   }
 
   async syncWikiLinkConnections(sourceId: string, body: string): Promise<void> {

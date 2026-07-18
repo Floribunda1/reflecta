@@ -3,7 +3,6 @@ import { contexts, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type { ContextDTO, CreateContextInput, ContextMedium, UpdateContextInput } from "./types";
 import type { TrashedContextDTO } from "../trash/types";
-import { markRetrievalIndexDirtyByUnderstandingId } from "../retrieval/sync";
 import { createEntityId } from "../shared/id";
 
 export class ContextCore {
@@ -43,19 +42,13 @@ export class ContextCore {
     };
 
     await this.db.insert(contexts).values(row).run();
-    await markRetrievalIndexDirtyByUnderstandingId(input.understandingId).catch(() => undefined);
-
     return { ...row, createdAt, deletedAt: null } as ContextDTO;
   }
 
   async _updateContext(id: string, input: UpdateContextInput): Promise<ContextDTO> {
     const updates: Partial<typeof contexts.$inferInsert> = {};
-    let previousUnderstandingId: string | undefined;
     if (input.understandingId !== undefined) {
-      const row = await this.getContextRow(id);
-      if (!row) throw new Error(`Context not found: ${id}`);
       await this.assertUnderstandingExists(input.understandingId);
-      previousUnderstandingId = row.understandingId;
       updates.understandingId = input.understandingId;
     }
     if (input.medium !== undefined) updates.medium = input.medium;
@@ -72,18 +65,10 @@ export class ContextCore {
       updated = rows[0] as ContextDTO;
     });
 
-    const dirtyUnderstandingIds = new Set([updated!.understandingId]);
-    if (previousUnderstandingId) dirtyUnderstandingIds.add(previousUnderstandingId);
-    await Promise.all(
-      [...dirtyUnderstandingIds].map((understandingId) =>
-        markRetrievalIndexDirtyByUnderstandingId(understandingId).catch(() => undefined),
-      ),
-    );
     return updated!;
   }
 
   async deleteContext(id: string): Promise<void> {
-    let understandingId: string | undefined;
     await this.db.transaction((tx) => {
       const rows = tx
         .update(contexts)
@@ -94,13 +79,10 @@ export class ContextCore {
       if (rows.length === 0) {
         throw new Error(`Context not found: ${id}`);
       }
-      understandingId = rows[0].understandingId;
     });
-    await markRetrievalIndexDirtyByUnderstandingId(understandingId!).catch(() => undefined);
   }
 
   async restoreContext(id: string): Promise<void> {
-    let understandingId: string | undefined;
     await this.db.transaction((tx) => {
       const rows = tx
         .update(contexts)
@@ -109,20 +91,11 @@ export class ContextCore {
         .returning()
         .all();
       if (rows.length === 0) return;
-      understandingId = rows[0].understandingId;
     });
-    if (understandingId) {
-      await markRetrievalIndexDirtyByUnderstandingId(understandingId).catch(() => undefined);
-    }
   }
 
   async permanentlyDeleteContext(id: string): Promise<void> {
-    const rows = await this.db.delete(contexts).where(eq(contexts.id, id)).returning().all();
-    if (rows[0]) {
-      await markRetrievalIndexDirtyByUnderstandingId(rows[0].understandingId).catch(
-        () => undefined,
-      );
-    }
+    await this.db.delete(contexts).where(eq(contexts.id, id)).run();
   }
 
   private async assertUnderstandingExists(understandingId: string): Promise<void> {

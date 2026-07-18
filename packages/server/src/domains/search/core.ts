@@ -6,15 +6,11 @@ import { toUnderstandingSummaries } from "../understanding/core";
 import {
   RETRIEVAL_PROJECTION_VERSION,
   buildUnderstandingCandidates,
-  buildRetrievalDocumentsFromDb,
   createRetrievalIndex,
-  getDirtyRetrievalUnderstandingIds,
   getRetrievalEmbeddingModelId,
   isDenseRetrievalEnabled,
-  isRetrievalIndexFullyDirty,
 } from "../retrieval";
 import type {
-  RetrievalDocument,
   RetrievalSearchHit,
   RetrieveKnowledgeInput,
   RetrieveKnowledgeResult,
@@ -29,18 +25,9 @@ export function getLimitOffset(options?: SearchOptions) {
 }
 
 type SearchRetrievalHit = RetrievalSearchHit & { rank: number; snippet: string };
-type RetrievalSearchMode = "adaptive" | "hybrid" | "lexical";
+type RetrievalSearchMode = "hybrid" | "lexical";
 
 const RETRIEVE_KNOWLEDGE_DOCUMENT_OVERFETCH_FACTOR = 3;
-
-function lexicalTokens(query: string): string[] {
-  return query.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
-}
-
-function lexicalMatchCount(text: string, tokens: string[]): number {
-  const normalized = text.toLocaleLowerCase();
-  return tokens.filter((token) => normalized.includes(token)).length;
-}
 
 export class SearchCore {
   constructor(protected db: ReflectaDb) {}
@@ -48,78 +35,21 @@ export class SearchCore {
   protected async searchRetrievalDocuments(
     query: string,
     options?: SearchOptions,
-    mode: RetrievalSearchMode = "adaptive",
+    mode: RetrievalSearchMode = "hybrid",
   ): Promise<SearchRetrievalHit[]> {
     const { limit, offset } = getLimitOffset(options);
     const index = createRetrievalIndex();
     const resultLimit = limit + offset;
-    const indexReady = await index.isReady();
-    const fullyDirty = await isRetrievalIndexFullyDirty();
-    const dirtyUnderstandingIds = await getDirtyRetrievalUnderstandingIds();
-    const dirtyUnderstandingIdSet = new Set(dirtyUnderstandingIds);
-    const currentLexicalHits = await this.searchCurrentLexicalDocuments(
-      query,
-      indexReady && !fullyDirty ? dirtyUnderstandingIds : undefined,
-      resultLimit,
-    );
-    const indexMode =
-      mode === "adaptive" && dirtyUnderstandingIds.length > 0 && currentLexicalHits.length > 0
-        ? "lexical"
-        : mode;
-    const indexedHits =
-      indexReady && !fullyDirty
-        ? indexMode === "lexical"
-          ? await index.searchLexical(query, resultLimit)
-          : await index.search(query, resultLimit)
-        : [];
-    const hits = this.mergeCurrentAndIndexedHits(
-      currentLexicalHits,
-      indexedHits.filter((hit) => !dirtyUnderstandingIdSet.has(hit.parentUnderstandingId)),
-      resultLimit,
-    );
+    const hits =
+      mode === "lexical"
+        ? await index.searchLexical(query, resultLimit)
+        : await index.search(query, resultLimit);
 
     return hits.slice(offset).map((hit, index) => ({
       ...hit,
       rank: index + offset,
       snippet: hit.textForLexicalSearch.slice(0, 160),
     }));
-  }
-
-  private async searchCurrentLexicalDocuments(
-    query: string,
-    understandingIds: string[] | undefined,
-    limit: number,
-  ): Promise<RetrievalSearchHit[]> {
-    if (understandingIds !== undefined && understandingIds.length === 0) return [];
-    const tokens = lexicalTokens(query);
-    if (tokens.length === 0) return [];
-    const docs = await buildRetrievalDocumentsFromDb(this.db, understandingIds);
-    return docs
-      .map((doc) => ({ doc, matchCount: lexicalMatchCount(doc.textForLexicalSearch, tokens) }))
-      .filter(({ matchCount }) => matchCount > 0)
-      .sort((left, right) => right.matchCount - left.matchCount)
-      .slice(0, limit)
-      .map(({ doc, matchCount }) => this.toLexicalRetrievalHit(doc, matchCount / tokens.length));
-  }
-
-  private toLexicalRetrievalHit(doc: RetrievalDocument, score: number): RetrievalSearchHit {
-    return {
-      ...doc,
-      score,
-      channels: ["lexical"],
-    };
-  }
-
-  private mergeCurrentAndIndexedHits(
-    currentHits: RetrievalSearchHit[],
-    indexedHits: RetrievalSearchHit[],
-    limit: number,
-  ): RetrievalSearchHit[] {
-    const byId = new Map<string, RetrievalSearchHit>();
-    for (const hit of [...currentHits, ...indexedHits]) {
-      if (!byId.has(hit.id)) byId.set(hit.id, hit);
-    }
-    return [...byId.values()].slice(0, limit);
   }
 
   async searchUnderstandingIds(

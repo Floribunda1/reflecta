@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { syncDirtyRetrievalIndexWithStatus } from "@reflecta/server";
+import { rebuildRetrievalIndexWithStatus } from "@reflecta/server";
 import { getDb } from "../src/db";
 import { runCommand, parseJson } from "./helpers";
 
@@ -23,6 +23,8 @@ function hitsFrom(stdout: string): SearchHit[] {
 }
 
 async function search(query: string): Promise<SearchHit[]> {
+  await runCommand(["search", query, "--format", "json"]);
+  await syncRetrievalIndex();
   const { code, stdout } = await runCommand(["search", query, "--format", "json"]);
   expect(code).toBe(0);
   return hitsFrom(stdout);
@@ -45,7 +47,7 @@ async function createUnderstanding(title: string, body: string): Promise<string>
 }
 
 async function syncRetrievalIndex(): Promise<void> {
-  await syncDirtyRetrievalIndexWithStatus(getDb());
+  await rebuildRetrievalIndexWithStatus(getDb());
 }
 
 describe("知识搜索", () => {

@@ -493,12 +493,6 @@ function seedThread(thread: FixtureThread) {
   rewriteHeaderTimestamp(manager, thread.updatedAt ?? thread.createdAt ?? BASE_TIME);
 }
 
-function markRetrievalDirty() {
-  const retrievalIndexRoot = path.join(appConfigDir, "retrieval-index");
-  fs.mkdirSync(retrievalIndexRoot, { recursive: true });
-  fs.writeFileSync(path.join(retrievalIndexRoot, ".dirty"), String(Date.now()), "utf-8");
-}
-
 function seedUnderstanding(id: string, title: string, body: string) {
   const now = new Date().toISOString();
   db.query(
@@ -506,7 +500,6 @@ function seedUnderstanding(id: string, title: string, body: string) {
      VALUES (?, ?, ?, ?, ?, NULL)
      ON CONFLICT(id) DO UPDATE SET title = excluded.title, body = excluded.body, updated_at = excluded.updated_at, deleted_at = NULL`,
   ).run(id, title, body, now, now);
-  markRetrievalDirty();
 }
 
 try {

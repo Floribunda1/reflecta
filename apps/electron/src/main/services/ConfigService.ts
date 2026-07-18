@@ -3,7 +3,6 @@ import { IpcMethod, IpcService } from "electron-ipc-decorator";
 import {
   configureRetrievalEmbedding,
   getRetrievalIndexStatus,
-  markRetrievalIndexDirty,
   rebuildRetrievalIndexWithStatus,
   type RetrievalEmbeddingConfig as ServerRetrievalEmbeddingConfig,
   type RetrievalIndexStatus,
@@ -122,7 +121,6 @@ export class ConfigService extends IpcService {
     const next = normalizeRetrievalConfig(config);
     writeConfig({ retrieval: next });
     applyRetrievalConfigToServer(next);
-    await markRetrievalIndexDirty();
   }
 
   @IpcMethod()

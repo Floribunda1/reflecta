@@ -15,7 +15,6 @@ type RetrievalIndexStatus = Awaited<ReturnType<typeof ipcClient.config.getRetrie
 function indexStatusLabel(state: RetrievalIndexStatus["state"]) {
   if (state === "ready") return "已就绪";
   if (state === "indexing") return "构建中";
-  if (state === "dirty") return "需要重建";
   if (state === "error") return "构建失败";
   return "未建立";
 }
@@ -30,7 +29,6 @@ function indexDescription(indexStatus: RetrievalIndexStatus) {
   if (indexStatus.state === "ready") {
     return `使用 ${indexStatus.embeddingModel} · projection v${indexStatus.projectionVersion}`;
   }
-  if (indexStatus.state === "dirty") return "知识或检索配置变更后，需要重新构建索引。";
   if (indexStatus.state === "indexing") {
     return `${indexStatus.embeddingModel} · projection v${indexStatus.projectionVersion}`;
   }

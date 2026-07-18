@@ -6,7 +6,6 @@ import { initializeDB } from "./db";
 import { registerAssetScheme, handleAssetProtocol } from "./assetProtocol";
 import { APP_NAME, appLog, initializeLogging } from "./logger";
 import { preloadScript, rendererHtml } from "./paths";
-import { startRetrievalIndexScheduler } from "./retrievalIndexScheduler";
 import { retrievalEmbeddingRunner } from "./retrievalEmbeddingRunner";
 import { getRuntimeArg } from "./runtime-args";
 
@@ -86,9 +85,7 @@ const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?:
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
   await initializeDB();
-  const retrievalIndexScheduler = startRetrievalIndexScheduler();
   app.once("before-quit", () => {
-    retrievalIndexScheduler.stop();
     retrievalEmbeddingRunner.stop();
   });
 

@@ -426,16 +426,4 @@ describe("LanceDbRetrievalIndex", () => {
         "Query: 同一个经验连接多个理解\nContext Understanding",
     );
   });
-
-  test("syncByUnderstandingId replaces all rows for one parent Understanding", async () => {
-    const index = new LanceDbRetrievalIndex({
-      uri: await tempIndexDir(),
-      embeddingProvider: new KeywordEmbeddingProvider(),
-    });
-    await index.replaceAll(sampleDocs());
-
-    await index.syncByUnderstandingId("understanding-1", []);
-
-    expect(await index.search("验收标准", 5)).toEqual([]);
-  });
 });
