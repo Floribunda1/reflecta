@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.21 - 2026-07-18
+
+- Replaced the Agent's custom local file and shell tools with Pi's built-in `read`, `bash`, `edit`, and `write` tools, configured through Pi's official resource loader.
+- Added confirmation for dangerous Bash commands while ordinary commands continue without interruption, with durable approval state and real application E2E coverage.
+- Clarified rejected Bash feedback as “command not executed” and kept knowledge-write approval wording scoped to knowledge proposals.
+- Required newly created Context entries to preserve concrete experience details instead of collapsing into generic summaries.
+
 ## 1.1.20 - 2026-07-18
 
 - Rebuilt knowledge retrieval around parallel ICU/BM25 and dense search with RRF fusion, including production-session quality coverage.
