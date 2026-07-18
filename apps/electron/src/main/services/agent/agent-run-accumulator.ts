@@ -3,7 +3,6 @@ import type {
   AgentApprovalResolved,
   AgentAssistantTurn,
   AgentAssistantTurnBlock,
-  AgentCitationSource,
   AgentEventBase,
   AgentLiveEvent,
   AgentToolApprovalState,
@@ -15,7 +14,6 @@ type AccumulatorEvent = AgentLiveEvent | AgentApprovalRequested | AgentApprovalR
 type FinalAnswerEvent = AgentEventBase & {
   messageId: string;
   text: string;
-  citationSources?: AgentCitationSource[];
 };
 
 function displayState(

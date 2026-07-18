@@ -1,14 +1,9 @@
-import type {
-  AgentCitationSource,
-  AgentContextRef,
-  AgentEntityCatalogEntry,
-  AgentFileAttachment,
-} from "@shared/agent";
+import type { AgentContextRef, AgentEntityCatalogEntry, AgentFileAttachment } from "@shared/agent";
 import {
   selectedAgentContextBlockFromCatalog,
   selectedAgentContextBlockFromRefs,
 } from "@shared/agent-context";
-import { formatCitationSourcesForPrompt } from "./agent-citations";
+import { formatEntityRecordsForPrompt } from "./agent-citations";
 
 type ReflectaAttachmentMetadata = {
   attachmentId?: unknown;
@@ -49,13 +44,13 @@ export function buildPiPromptText({
   text,
   contextRefs = [],
   contextCatalog = [],
-  citationSources = [],
+  entityCatalog = [],
   files = [],
 }: {
   text: string;
   contextRefs?: AgentContextRef[];
   contextCatalog?: AgentEntityCatalogEntry[];
-  citationSources?: AgentCitationSource[];
+  entityCatalog?: AgentEntityCatalogEntry[];
   files?: AgentFileAttachment[];
 }): string {
   const contextBlock =
@@ -63,5 +58,5 @@ export function buildPiPromptText({
       ? selectedAgentContextBlockFromCatalog(contextCatalog)
       : selectedAgentContextBlockFromRefs(contextRefs);
 
-  return `${text}${contextBlock}${formatCitationSourcesForPrompt(citationSources)}${attachmentBlockFromFiles(files)}`;
+  return `${text}${contextBlock}${formatEntityRecordsForPrompt(entityCatalog)}${attachmentBlockFromFiles(files)}`;
 }

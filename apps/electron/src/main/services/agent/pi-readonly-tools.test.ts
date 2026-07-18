@@ -204,7 +204,7 @@ describe("createPiReadOnlyTools", () => {
     ]);
   });
 
-  test("appends host-provided citation source text to model-facing content", async () => {
+  test("appends host-provided entity records to model-facing content", async () => {
     services.getUnderstanding.mockResolvedValue({
       id: "u_1",
       title: "Feedback Loop",
@@ -212,7 +212,7 @@ describe("createPiReadOnlyTools", () => {
     });
     const collectToolOutput = vi.fn(
       () =>
-        "\n\nAvailable Reflecta citation sources for the final answer:\n[1] Understanding: Feedback Loop; id=u_1",
+        '\n\n<reflecta_entities>\n{"type":"understanding","id":"u_1","citation":"[[u:u_1]]","title":"Feedback Loop"}\n</reflecta_entities>',
     );
     const tool = createPiReadOnlyTools([], { collectToolOutput }).find(
       (item) => item.name === "understanding_get",
@@ -231,7 +231,7 @@ describe("createPiReadOnlyTools", () => {
       body: "body",
     });
     expect(output.content[0]?.text).toContain('"id": "u_1"');
-    expect(output.content[0]?.text).toContain("[1] Understanding: Feedback Loop; id=u_1");
+    expect(output.content[0]?.text).toContain('"citation":"[[u:u_1]]"');
   });
 
   test("executes web_fetch through the web fetch seam", async () => {

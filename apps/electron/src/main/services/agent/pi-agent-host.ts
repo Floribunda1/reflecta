@@ -21,7 +21,6 @@ import { nanoid } from "nanoid";
 import { reduceAgentSession } from "@shared/agent";
 import type {
   AgentCommand,
-  AgentCitationSource,
   AgentContextUsage,
   AgentContextRef,
   AgentModelSelection,
@@ -51,12 +50,7 @@ import { formatAgentError } from "./error";
 import { buildPiPromptText } from "./pi-prompt";
 import { getCodexCredentials } from "./codex-auth";
 import agentSystemPrompt from "./agent-system-prompt.md?raw";
-import {
-  buildCitationSources,
-  extractCitedSources,
-  formatCitationSourcesForPrompt,
-  mergeCitationSources,
-} from "./agent-citations";
+import { formatEntityRecordsForPrompt } from "./agent-citations";
 import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-tools";
 import {
   approvalTitleForTool,
@@ -849,9 +843,6 @@ export class PiAgentHost {
       reduceAgentSession(this.sessionLog.eventsFromManager(manager)).entityCatalog,
     );
     const contextCatalog = entityCatalog.addUserContextRefs(userMessageId, command.contextRefs);
-    let availableCitationSources: AgentCitationSource[] = buildCitationSources(
-      entityCatalog.snapshot(),
-    );
     let session: AgentSession | undefined;
     let unsubscribe: (() => void) | undefined;
     let piDraftText = "";
@@ -955,18 +946,15 @@ export class PiAgentHost {
         entityCatalog,
       );
     };
-    const collectToolOutputForCitations = (
-      toolName: string,
-      toolCallId: string,
-      output: unknown,
-    ) => {
-      const beforeLength = availableCitationSources.length;
-      entityCatalog.collectToolOutput(toolName, toolCallId, output);
-      availableCitationSources = mergeCitationSources(
-        availableCitationSources,
-        entityCatalog.snapshot(),
+    const collectToolOutputEntities = (toolName: string, toolCallId: string, output: unknown) => {
+      const before = new Map(
+        entityCatalog.snapshot().map((entry) => [entry.key, JSON.stringify(entry.entity)]),
       );
-      return formatCitationSourcesForPrompt(availableCitationSources.slice(beforeLength));
+      entityCatalog.collectToolOutput(toolName, toolCallId, output);
+      const changed = entityCatalog
+        .snapshot()
+        .filter((entry) => before.get(entry.key) !== JSON.stringify(entry.entity));
+      return formatEntityRecordsForPrompt(changed);
     };
     const emitRunStarted = () => {
       if (runStarted) return;
@@ -991,7 +979,7 @@ export class PiAgentHost {
       const created = await this.createSession(
         command,
         manager,
-        collectToolOutputForCitations,
+        collectToolOutputEntities,
         requestDangerousBashApproval,
       );
       session = created.session;
@@ -1014,7 +1002,6 @@ export class PiAgentHost {
               runId,
               messageId: assistantMessageId,
               delta: event.assistantMessageEvent.delta,
-              citationSources: availableCitationSources,
             }),
           );
           return;
@@ -1162,7 +1149,7 @@ export class PiAgentHost {
           text: command.text,
           contextRefs: command.contextRefs,
           contextCatalog,
-          citationSources: availableCitationSources,
+          entityCatalog: entityCatalog.snapshot(),
           files: command.files,
         }),
       );
@@ -1174,7 +1161,6 @@ export class PiAgentHost {
       if (!piDraftText.trim() && !assistantActivity) {
         throw new Error("Agent response was empty");
       }
-      const citedSources = extractCitedSources(piDraftText, availableCitationSources);
       accumulator.appendFinalAnswer({
         id: `evt_${nanoid()}`,
         sessionId: command.sessionId,
@@ -1182,7 +1168,6 @@ export class PiAgentHost {
         messageId: assistantMessageId,
         createdAt: new Date().toISOString(),
         text: piDraftText,
-        citationSources: citedSources,
       });
       const contextUsage = session.getContextUsage?.();
       emit(
@@ -1194,7 +1179,6 @@ export class PiAgentHost {
             messageId: assistantMessageId,
             blocks: [],
             text: "",
-            citationSources: citedSources,
             ...assistantMetadata,
             contextUsage,
           }),

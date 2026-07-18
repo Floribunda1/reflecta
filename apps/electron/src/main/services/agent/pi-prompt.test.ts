@@ -21,9 +21,9 @@ describe("buildPiPromptText", () => {
           origin: { kind: "user_context", messageId: "user-1" },
         },
       ],
-      citationSources: [
+      entityCatalog: [
         {
-          index: 1,
+          key: "understanding:understanding-1",
           entity: {
             type: "understanding",
             id: "understanding-1",
@@ -32,7 +32,7 @@ describe("buildPiPromptText", () => {
           origin: { kind: "user_context", messageId: "user-1" },
         },
         {
-          index: 2,
+          key: "domain:domain-1",
           entity: { type: "domain", id: "domain-1", title: "React" },
           origin: { kind: "user_context", messageId: "user-1" },
         },
@@ -42,11 +42,13 @@ describe("buildPiPromptText", () => {
     expect(prompt).toContain("请比较这些引用");
     expect(prompt).toContain("Understanding: React Server Components; id=understanding-1");
     expect(prompt).toContain("Domain: React; id=domain-1");
-    expect(prompt).toContain("[1] Understanding: React Server Components; id=understanding-1");
-    expect(prompt).toContain("[2] Domain: React; id=domain-1");
-    expect(prompt).toContain("Tool calls must use the real id");
-    expect(prompt).not.toContain("[[");
-    expect(prompt).not.toContain("sourceId");
+    expect(prompt).toContain("<reflecta_entities>");
+    expect(prompt).toContain(
+      '{"type":"understanding","id":"understanding-1","citation":"[[u:understanding-1]]","title":"React Server Components"}',
+    );
+    expect(prompt).toContain(
+      '{"type":"domain","id":"domain-1","citation":"[[d:domain-1]]","title":"React"}',
+    );
   });
 
   test("injects attachment metadata without embedding file data URLs", () => {

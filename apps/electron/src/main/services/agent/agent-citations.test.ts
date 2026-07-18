@@ -1,11 +1,6 @@
 import { describe, expect, test } from "vitest";
-import type { AgentCitationSource, AgentEntityCatalogEntry } from "@shared/agent";
-import {
-  buildCitationSources,
-  extractCitedSources,
-  formatCitationSourcesForPrompt,
-  mergeCitationSources,
-} from "./agent-citations";
+import type { AgentEntityCatalogEntry } from "@shared/agent";
+import { formatEntityRecordsForPrompt } from "./agent-citations";
 
 const entries: AgentEntityCatalogEntry[] = [
   {
@@ -20,84 +15,51 @@ const entries: AgentEntityCatalogEntry[] = [
   },
 ];
 
-describe("buildCitationSources", () => {
-  test("builds stable numbered sources from catalog order", () => {
-    expect(buildCitationSources(entries)).toEqual([
+describe("formatEntityRecordsForPrompt", () => {
+  test("exposes explicit entity type, bare id, citation, and title", () => {
+    const prompt = formatEntityRecordsForPrompt(entries);
+
+    expect(prompt).toContain(
+      '{"type":"understanding","id":"u_1","citation":"[[u:u_1]]","title":"第一条理解"}',
+    );
+    expect(prompt).toContain(
+      '{"type":"domain","id":"d_1","citation":"[[d:d_1]]","title":"产品设计"}',
+    );
+  });
+
+  test("deduplicates an entity by type and id", () => {
+    expect(
+      formatEntityRecordsForPrompt([...entries, entries[0]!]).match(/\[\[u:u_1\]\]/g),
+    ).toHaveLength(1);
+  });
+
+  test("formats context and safely encodes missing or special titles", () => {
+    const prompt = formatEntityRecordsForPrompt([
       {
-        index: 1,
-        entity: { type: "understanding", id: "u_1", title: "第一条理解" },
+        key: "context:c_1",
+        entity: { type: "context", id: "c_1", title: '复盘 "第一轮"\n下一行' },
+        origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "context_get" },
+      },
+      {
+        key: "understanding:u_2",
+        entity: { type: "understanding", id: "u_2" },
         origin: { kind: "user_context", messageId: "msg_1" },
       },
+    ]);
+    const records = prompt
+      .split("<reflecta_entities>\n")[1]!
+      .split("\n</reflecta_entities>")[0]!
+      .split("\n")
+      .map((line) => JSON.parse(line));
+
+    expect(records).toEqual([
       {
-        index: 2,
-        entity: { type: "domain", id: "d_1", title: "产品设计" },
-        origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_list" },
+        type: "context",
+        id: "c_1",
+        citation: "[[c:c_1]]",
+        title: '复盘 "第一轮"\n下一行',
       },
+      { type: "understanding", id: "u_2", citation: "[[u:u_2]]", title: null },
     ]);
-  });
-});
-
-describe("mergeCitationSources", () => {
-  test("appends new tool-discovered entities without renumbering existing sources", () => {
-    const current = buildCitationSources([
-      {
-        key: "understanding:u_1",
-        entity: { type: "understanding", id: "u_1" },
-        origin: { kind: "user_context", messageId: "msg_1" },
-      },
-    ]);
-    const merged = mergeCitationSources(current, entries);
-
-    expect(merged.map((source) => [source.index, source.entity.id])).toEqual([
-      [1, "u_1"],
-      [2, "d_1"],
-    ]);
-    expect(merged[0]?.entity.title).toBe("第一条理解");
-  });
-});
-
-describe("extractCitedSources", () => {
-  test("preserves sparse cited indices", () => {
-    const sources: AgentCitationSource[] = Array.from({ length: 10 }, (_, index) => ({
-      index: index + 1,
-      entity: { type: "understanding", id: `u_${index + 1}`, title: `第 ${index + 1} 条理解` },
-    }));
-    sources[2] = { index: 3, entity: { type: "context", id: "ctx_1", title: "一次复盘" } };
-    sources[9] = {
-      index: 10,
-      entity: { type: "understanding", id: "u_10", title: "第十条理解" },
-    };
-
-    const cited = extractCitedSources("核心来自 [3]，另一个支撑来自 [10]。", sources);
-
-    expect(cited.map((source) => source.index)).toEqual([3, 10]);
-    expect(cited.map((source) => source.entity.id)).toEqual(["ctx_1", "u_10"]);
-  });
-
-  test("ignores citations in inline code, fenced code, links, images, and unknown indices", () => {
-    const sources = buildCitationSources(entries);
-    const markdown = [
-      "真实引用 [1]",
-      "`[2]`",
-      "```",
-      "[1]",
-      "```",
-      "[2](https://example.test)",
-      "![1](image.png)",
-      "[999]",
-    ].join("\n");
-
-    expect(extractCitedSources(markdown, sources).map((source) => source.index)).toEqual([1]);
-  });
-});
-
-describe("formatCitationSourcesForPrompt", () => {
-  test("formats sources as numbered prompt lines", () => {
-    expect(formatCitationSourcesForPrompt(buildCitationSources(entries))).toContain(
-      "[1] Understanding: 第一条理解; id=u_1",
-    );
-    expect(formatCitationSourcesForPrompt(buildCitationSources(entries))).toContain(
-      "Tool calls must use the real id",
-    );
   });
 });

@@ -1,11 +1,15 @@
 import type { ComponentProps, ReactNode } from "react";
+import { useEntityDisplay } from "../../capture/queries";
 import { defaultUrlTransform, type Components, type UrlTransform } from "streamdown";
 import type { AgentContextRef, AgentEntityCatalogEntry } from "@shared/agent";
 import {
   contextMentionClass,
   contextMentionIcon,
+  contextTypeLabel,
+  ENTITY_CITATION_HREF_PREFIX,
   inspectableContextRef,
   parseWikiHref,
+  parseEntityCitationHref,
   WIKI_LINK_HREF_PREFIX,
   type InspectableContextRef,
 } from "./context-reference";
@@ -13,7 +17,9 @@ import {
 type WikiLabelRenderer = (label: string, href: string | undefined, node: unknown) => ReactNode;
 
 export const wikiUrlTransform: UrlTransform = (url, key, node) => {
-  if (url.startsWith(WIKI_LINK_HREF_PREFIX)) return url;
+  if (url.startsWith(WIKI_LINK_HREF_PREFIX) || url.startsWith(ENTITY_CITATION_HREF_PREFIX)) {
+    return url;
+  }
   return defaultUrlTransform(url, key, node);
 };
 
@@ -55,6 +61,35 @@ export function WikiLinkChip({
   );
 }
 
+function EntityCitationAnchor({
+  contextRef,
+  onInspect,
+}: {
+  contextRef: AgentContextRef;
+  onInspect?: (ref: InspectableContextRef) => void;
+}) {
+  const query = useEntityDisplay(contextRef);
+  const title = query.data?.title;
+  const label = query.isPending
+    ? contextTypeLabel(contextRef.type)
+    : query.isError
+      ? "引用加载失败"
+      : query.data === null
+        ? "引用不可用"
+        : title || `未命名 ${contextTypeLabel(contextRef.type)}`;
+  const enabledRef =
+    query.data && !query.isError ? { ...contextRef, title: title ?? undefined } : null;
+
+  return (
+    <WikiLinkChip
+      contextRef={enabledRef ?? contextRef}
+      onInspect={enabledRef ? onInspect : undefined}
+    >
+      {label}
+    </WikiLinkChip>
+  );
+}
+
 function WikiAnchor({
   href,
   children,
@@ -67,6 +102,8 @@ function WikiAnchor({
   renderWikiLabel?: WikiLabelRenderer;
   node?: unknown;
 }) {
+  const entityRef = parseEntityCitationHref(href);
+  if (entityRef) return <EntityCitationAnchor contextRef={entityRef} onInspect={onInspect} />;
   const contextRef = parseWikiHref(href);
   if (contextRef) {
     const label = renderWikiLabel

@@ -14,6 +14,7 @@ import type {
   UnderstandingSummaryDTO,
   UpdateUnderstandingInput,
 } from "@shared/understanding";
+import type { AgentContextRef } from "@shared/agent";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 
@@ -39,7 +40,38 @@ export const captureQueryKeys = {
   understandingDetails: ["understanding.getUnderstandingById"] as const,
   understandingDetail: (understandingId: string) =>
     ["understanding.getUnderstandingById", understandingId] as const,
+  entityDisplay: (ref: Pick<AgentContextRef, "type" | "id">) =>
+    ["entity.display", ref.type, ref.id] as const,
 };
+
+export type EntityDisplay = { title: string | null };
+
+async function getEntityDisplay(ref: Pick<AgentContextRef, "type" | "id">) {
+  if (ref.type === "understanding") {
+    const entity = await ipcClient.understanding.getUnderstandingById(ref.id);
+    return entity ? { title: entity.title?.trim() || null } : null;
+  }
+  if (ref.type === "context") {
+    const entity = await ipcClient.context.getContextById(ref.id);
+    return entity ? { title: entity.title?.trim() || null } : null;
+  }
+  const entity = await ipcClient.domain.getDomainById(ref.id);
+  return entity ? { title: entity.name?.trim() || null } : null;
+}
+
+export function useEntityDisplay(ref: Pick<AgentContextRef, "type" | "id">) {
+  return useQuery<EntityDisplay | null>({
+    queryKey: captureQueryKeys.entityDisplay(ref),
+    queryFn: () => getEntityDisplay(ref),
+  });
+}
+
+export function invalidateEntityDisplay(
+  queryClient: QueryClient,
+  ref: Pick<AgentContextRef, "type" | "id">,
+) {
+  return queryClient.invalidateQueries({ queryKey: captureQueryKeys.entityDisplay(ref) });
+}
 
 export function buildDomainTree(flat: Domain[]): DomainTreeNode[] {
   const map = new Map<string, DomainTreeNode>();
@@ -189,6 +221,7 @@ export function useUpdateUnderstandingMutation() {
     onSuccess: (_result, variables) =>
       Promise.all([
         invalidateUnderstandingDetail(queryClient, variables.id),
+        invalidateEntityDisplay(queryClient, { type: "understanding", id: variables.id }),
         invalidateUnderstandingLists(queryClient),
         variables.input.body !== undefined
           ? invalidateAllUnderstandingDetails(queryClient)
@@ -204,6 +237,7 @@ export function useDeleteUnderstandingMutation() {
     onSuccess: (_result, id) =>
       Promise.all([
         invalidateUnderstandingDetail(queryClient, id),
+        invalidateEntityDisplay(queryClient, { type: "understanding", id }),
         invalidateUnderstandingLists(queryClient),
       ]),
   });
@@ -227,7 +261,11 @@ export function useUpdateContextMutation(understandingId: string) {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateContextInput }) =>
       ipcClient.context.updateContext(id, input),
-    onSuccess: () => invalidateUnderstandingDetail(queryClient, understandingId),
+    onSuccess: (_result, variables) =>
+      Promise.all([
+        invalidateUnderstandingDetail(queryClient, understandingId),
+        invalidateEntityDisplay(queryClient, { type: "context", id: variables.id }),
+      ]),
   });
 }
 
@@ -235,10 +273,11 @@ export function useDeleteContextMutation(understandingId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => ipcClient.context.deleteContext(id),
-    onSuccess: () =>
+    onSuccess: (_result, id) =>
       Promise.all([
         invalidateUnderstandingDetail(queryClient, understandingId),
         invalidateUnderstandingLists(queryClient),
+        invalidateEntityDisplay(queryClient, { type: "context", id }),
       ]),
   });
 }
@@ -256,13 +295,21 @@ export function useDomainMutations() {
   const updateDomain = useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateDomainInput }) =>
       ipcClient.domain.updateDomain(id, input),
-    onSuccess: invalidateDomainScope,
+    onSuccess: (_result, variables) =>
+      Promise.all([
+        invalidateDomainScope(),
+        invalidateEntityDisplay(queryClient, { type: "domain", id: variables.id }),
+      ]),
   });
 
   const deleteDomain = useMutation({
     mutationFn: ({ id, deleteUnderstandings }: { id: string; deleteUnderstandings?: boolean }) =>
       ipcClient.domain.deleteDomain(id, deleteUnderstandings),
-    onSuccess: invalidateDomainScope,
+    onSuccess: (_result, variables) =>
+      Promise.all([
+        invalidateDomainScope(),
+        invalidateEntityDisplay(queryClient, { type: "domain", id: variables.id }),
+      ]),
   });
 
   const reorderDomains = useMutation({

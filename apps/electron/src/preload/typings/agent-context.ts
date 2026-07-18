@@ -13,7 +13,7 @@ export function selectedAgentContextBlockFromRefs(refs: AgentContextRef[]): stri
     .slice(0, MAX_SELECTED_CONTEXT_REFS)
     .map((ref) => `- ${contextTypeLabel(ref.type)}: ${refTitle(ref)}; id=${ref.id}`)
     .join("\n");
-  return `\n\n用户显式 @ 了这些知识库对象。它们只是轻量实体目录，不包含完整内容；需要内容时调用对应只读工具读取。工具参数使用真实 id，不要使用正文里的 citation 编号。\n${lines}`;
+  return `\n\n用户显式 @ 了这些知识库对象。它们只是轻量实体目录，不包含完整内容；需要内容时调用对应只读工具读取。工具参数只使用真实 id。\n${lines}`;
 }
 
 export function selectedAgentContextBlockFromCatalog(entries: AgentEntityCatalogEntry[]): string {
@@ -26,7 +26,7 @@ export function selectedAgentContextBlockFromCatalog(entries: AgentEntityCatalog
         `- ${contextTypeLabel(entry.entity.type)}: ${refTitle(entry.entity)}; id=${entry.entity.id}`,
     )
     .join("\n");
-  return `\n\n用户显式 @ 了这些知识库对象。它们只是轻量实体目录，不包含完整内容；需要内容时调用对应只读工具读取。工具参数使用真实 id，不要使用正文里的 citation 编号。\n${lines}`;
+  return `\n\n用户显式 @ 了这些知识库对象。它们只是轻量实体目录，不包含完整内容；需要内容时调用对应只读工具读取。工具参数只使用真实 id。\n${lines}`;
 }
 
 function contextTypeLabel(type: AgentContextRef["type"]) {

@@ -7,6 +7,7 @@ import {
   contextTypeLabel,
   inspectableContextRef,
   parseContextKey,
+  parseEntityCitationHref,
   parseWikiHref,
   referenceMarkdownToLinks,
   wikiHref,
@@ -65,12 +66,56 @@ describe("context reference", () => {
     );
   });
 
-  test("does not convert typed real-id entity refs in plain markdown", () => {
-    expect(referenceMarkdownToLinks("见 [[context:ctx_1]]")).toBe("见 [[context:ctx_1]]");
+  test("converts direct entity citations with explicit short types", () => {
+    const converted = referenceMarkdownToLinks("见 [[u:u_1]]、[[c:ctx_1]] 和 [[d:domain_1]]");
+
+    expect(converted).toContain("[understanding:u_1](#reflecta-entity/understanding/u_1)");
+    expect(converted).toContain("[context:ctx_1](#reflecta-entity/context/ctx_1)");
+    expect(converted).toContain("[domain:domain_1](#reflecta-entity/domain/domain_1)");
+    expect(parseEntityCitationHref("#reflecta-entity/context/ctx_1")).toEqual({
+      type: "context",
+      id: "ctx_1",
+    });
   });
 
   test("does not convert typed refs inside inline code", () => {
-    expect(referenceMarkdownToLinks("见 `[[domain:domain_1]]`")).toBe("见 `[[domain:domain_1]]`");
+    expect(referenceMarkdownToLinks("见 `[[d:domain_1]]`")).toBe("见 `[[d:domain_1]]`");
+  });
+
+  test("preserves ids exactly and rejects malformed markers", () => {
+    const valid = referenceMarkdownToLinks("[[u:AbC_1-xYz]]");
+    expect(valid).toContain("understanding/AbC_1-xYz");
+    for (const marker of [
+      "[[understanding:id]]",
+      "[[u:title#id]]",
+      "[[u: id]]",
+      "[[x:id]]",
+      "[[u:]]",
+      "[[u:id",
+      "[[u:id\nnext]]",
+    ]) {
+      expect(referenceMarkdownToLinks(marker)).toBe(marker);
+    }
+  });
+
+  test("does not create nested links or parse escaped markers", () => {
+    for (const markdown of [
+      "[已有链接 [[u:u_1]]](https://example.test)",
+      "![图片 [[c:c_1]]](image.png)",
+      "\\[[d:d_1]]",
+      "[[u:u_1]](https://example.test)",
+    ]) {
+      expect(referenceMarkdownToLinks(markdown)).toBe(markdown);
+    }
+  });
+
+  test("keeps surrounding Markdown unchanged", () => {
+    const markdown = "# 标题 [[u:u_1]]\n\n- **上下文** [[c:c_1]]\n\n普通 [括号] 和 [[d:d_1]]";
+    const result = referenceMarkdownToLinks(markdown);
+
+    expect(result).toContain("# 标题 [understanding:u_1]");
+    expect(result).toContain("- **上下文** [context:c_1]");
+    expect(result).toContain("普通 [括号] 和 [domain:d_1]");
   });
 
   test("does not convert typed title links", () => {

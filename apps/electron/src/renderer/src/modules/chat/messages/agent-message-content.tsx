@@ -11,7 +11,6 @@ import {
   CollapsibleTrigger,
 } from "@renderer/components/ui/collapsible";
 import type {
-  AgentCitationSource,
   AgentEntityCatalogEntry,
   AgentModelSelection,
   AgentReasoningLevel,
@@ -71,7 +70,6 @@ function MarkdownBody({
   className = "",
   onInspectContextRef,
   entityCatalog = [],
-  citationSources = [],
   findState,
   convertReferenceMarkdown = true,
 }: {
@@ -79,13 +77,10 @@ function MarkdownBody({
   className?: string;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
   entityCatalog?: AgentEntityCatalogEntry[];
-  citationSources?: AgentCitationSource[];
   findState?: ChatFindRenderState;
   convertReferenceMarkdown?: boolean;
 }) {
-  const markdownValue = convertReferenceMarkdown
-    ? referenceMarkdownToLinks(value, citationSources)
-    : value;
+  const markdownValue = convertReferenceMarkdown ? referenceMarkdownToLinks(value) : value;
   const findKey = findState ? findState.query : "plain";
 
   return (
@@ -961,7 +956,6 @@ export function AgentMessageContent({
                   value={block.text}
                   onInspectContextRef={onInspectContextRef}
                   entityCatalog={entityCatalog}
-                  citationSources={message.citationSources}
                   findState={findState}
                 />
               )}

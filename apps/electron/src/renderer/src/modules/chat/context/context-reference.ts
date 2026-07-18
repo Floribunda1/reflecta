@@ -1,7 +1,8 @@
-import type { AgentCitationSource, AgentContextRef } from "@shared/agent";
+import type { AgentContextRef } from "@shared/agent";
 
 const WIKI_LINK_PATTERN = /\[\[([^:#\]\n]+)#([^\]\n]+)\]\]/g;
 export const WIKI_LINK_HREF_PREFIX = "#reflecta-wiki/";
+export const ENTITY_CITATION_HREF_PREFIX = "#reflecta-entity/";
 
 export type InspectableContextRef = AgentContextRef & { type: "understanding" | "context" };
 
@@ -95,36 +96,49 @@ export function wikiMarkdownToLinks(markdown: string) {
   });
 }
 
-function markdownLinkLabel(label: string) {
-  return label.replace(/([\\[\]])/g, "\\$1");
+function entityTypeFromPrefix(prefix: string): AgentContextRef["type"] {
+  if (prefix === "u") return "understanding";
+  if (prefix === "c") return "context";
+  return "domain";
 }
 
-function citationMarkdownToLinks(markdown: string, citationSources: AgentCitationSource[] = []) {
-  if (citationSources.length === 0) return markdown;
-  const byIndex = new Map(citationSources.map((source) => [source.index, source]));
-  return markdown.replace(/\[(\d+)\]/g, (match, rawIndex: string, offset: number) => {
-    const previous = offset > 0 ? markdown[offset - 1] : "";
-    const next = markdown[offset + match.length] ?? "";
-    if (previous === "!" || next === "(") return match;
-    const source = byIndex.get(Number(rawIndex));
-    if (!source) return match;
-    const title = contextTitle(source.entity);
-    return `[${markdownLinkLabel(title)}](${wikiHref(title, source.entity.id, source.entity.type)})`;
-  });
+function entityCitationMarkdownToLinks(markdown: string) {
+  return markdown.replace(
+    /\[\[([ucd]):([A-Za-z0-9_-]+)\]\]/g,
+    (match, prefix: string, id: string, offset: number) => {
+      if (offset > 0 && markdown[offset - 1] === "\\") return match;
+      if (markdown[offset + match.length] === "(") return match;
+      const openLinkLabel = markdown.lastIndexOf("[", offset - 1);
+      const closeBefore = markdown.lastIndexOf("]", offset - 1);
+      if (openLinkLabel > closeBefore && markdown.indexOf("](", offset + match.length) >= 0) {
+        return match;
+      }
+      const type = entityTypeFromPrefix(prefix);
+      return `[${type}:${id}](${ENTITY_CITATION_HREF_PREFIX}${type}/${encodeURIComponent(id)})`;
+    },
+  );
 }
 
-export function referenceMarkdownToLinks(
-  markdown: string,
-  citationSources: AgentCitationSource[] = [],
-) {
+export function referenceMarkdownToLinks(markdown: string) {
   return markdown
     .split(/(```[\s\S]*?```|`[^`\n]*`)/g)
-    .map((part) =>
-      part.startsWith("`")
-        ? part
-        : citationMarkdownToLinks(wikiMarkdownToLinks(part), citationSources),
-    )
+    .map((part) => (part.startsWith("`") ? part : entityCitationMarkdownToLinks(part)))
     .join("");
+}
+
+export function parseEntityCitationHref(href: string | undefined): AgentContextRef | null {
+  if (!href?.startsWith(ENTITY_CITATION_HREF_PREFIX)) return null;
+  try {
+    const path = href.slice(ENTITY_CITATION_HREF_PREFIX.length);
+    const slashIndex = path.indexOf("/");
+    if (slashIndex < 1) return null;
+    const type = path.slice(0, slashIndex);
+    if (type !== "understanding" && type !== "context" && type !== "domain") return null;
+    const id = decodeURIComponent(path.slice(slashIndex + 1));
+    return id ? { type, id } : null;
+  } catch {
+    return null;
+  }
 }
 
 export function parseWikiHref(href: string | undefined): AgentContextRef | null {

@@ -168,6 +168,8 @@ describe("createPiResourceLoader", () => {
     expect(loader.getThemes().themes).toEqual([]);
     expect(loader.getAgentsFiles().agentsFiles).toEqual([]);
     expect(expected).toContain("你是 Reflecta 的认知辅助 Agent");
+    expect(expected).toContain("原样复制该实体的 `citation` 字段");
+    expect(expected).toContain("调用工具时只传 `id` 字段");
   });
 });
 
@@ -493,7 +495,9 @@ describe("PiAgentHost", () => {
       }),
     );
     expect(promptCalls[0]).toContain("Context: 一次复盘; id=ctx_1");
-    expect(promptCalls[0]).not.toContain("[[");
+    expect(promptCalls[0]).toContain(
+      '{"type":"context","id":"ctx_1","citation":"[[c:ctx_1]]","title":"一次复盘"}',
+    );
     expect(promptCalls[0]).not.toContain("sourceId");
   });
 
@@ -593,7 +597,7 @@ describe("PiAgentHost", () => {
     );
   });
 
-  test("streams and persists plain text with numbered citation sources", async () => {
+  test("streams and persists plain text with direct entity citations", async () => {
     const root = tempRoot();
     const log = new AgentSessionLog(root);
     const thread = log.createSession("新对话");
@@ -618,14 +622,14 @@ describe("PiAgentHost", () => {
             type: "message_update",
             assistantMessageEvent: {
               type: "text_delta",
-              delta: "放在三观下面 [1]。",
+              delta: "放在三观下面 [[d:domain_1]]。",
             },
           });
           listener?.({
             type: "message_end",
             message: {
               role: "assistant",
-              content: [{ type: "text", text: "放在三观下面 [1]。" }],
+              content: [{ type: "text", text: "放在三观下面 [[d:domain_1]]。" }],
               provider: "openai",
               model: "gpt-4o",
               stopReason: "stop",
@@ -676,18 +680,11 @@ describe("PiAgentHost", () => {
     ]);
     expect(events.find((event) => event.type === "assistant.turn")).toMatchObject({
       type: "assistant.turn",
-      text: "放在三观下面 [1]。",
-      citationSources: [
-        {
-          index: 1,
-          entity: { type: "domain", id: "domain_1", title: "三观" },
-          origin: { kind: "user_context", messageId: expect.any(String) },
-        },
-      ],
+      text: "放在三观下面 [[d:domain_1]]。",
       blocks: [
         {
           kind: "text",
-          text: "放在三观下面 [1]。",
+          text: "放在三观下面 [[d:domain_1]]。",
         },
       ],
     });
@@ -697,13 +694,7 @@ describe("PiAgentHost", () => {
     expect(textDeltas).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          delta: "放在三观下面 [1]。",
-          citationSources: [
-            expect.objectContaining({
-              index: 1,
-              entity: { type: "domain", id: "domain_1", title: "三观" },
-            }),
-          ],
+          delta: "放在三观下面 [[d:domain_1]]。",
         }),
       ]),
     );
@@ -770,7 +761,6 @@ describe("PiAgentHost", () => {
     const events = await new AgentSessionLog(root).readEvents(thread.id);
     expect(events.find((event) => event.type === "assistant.turn")).toMatchObject({
       text: "草稿",
-      citationSources: [],
       blocks: [{ kind: "text", text: "草稿", state: "done" }],
     });
     expect(events.map((event) => event.type)).not.toContain("run.failed");

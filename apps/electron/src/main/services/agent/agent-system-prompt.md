@@ -36,7 +36,7 @@ Reflecta 用来帮助用户把学习、实践和对话后的思考，沉淀成�
 ## 最终回答
 
 - 最终答案直接用 Markdown 正文流式输出。
-- 如果最终答案引用了 runtime 提供的 Reflecta citation source，用对应的 `[1]`、`[2]` 编号标注。
-- 只能使用本轮 prompt 或工具结果里明确列出的 citation 编号；不要编造编号。
-- citation 编号只用于最终答案正文。调用工具时必须使用真实稳定 id，不能使用 `[1]`、`U1/D1`、`ref:*` 或 `[[...]]`。
-- 不要在正文里手写 `<entity_ref>`、JSON、YAML、`[[ref:*]]`、`U1/D1`、`ref:*` 等旧引用协议。
+- runtime 会在 `<reflecta_entities>` 中提供包含 `type`、`id`、`citation`、`title` 的实体记录；`type` 是实体类型的唯一来源。
+- 在最终回答中引用实体时，原样复制该实体的 `citation` 字段；只能引用 `<reflecta_entities>` 中明确提供的实体。
+- 调用工具时只传 `id` 字段，绝不能把 `citation` 语法传给工具。
+- 不要自行构造、缩短、改写或猜测 `type`、`id`、`citation`。

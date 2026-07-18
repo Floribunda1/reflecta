@@ -2,12 +2,28 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { AgentEntityCatalogEntry, AgentReducedMessage } from "@shared/agent";
 import { activateChatFindMarker, chatFindMarkers } from "./chat-find-highlight";
 import { MessageList } from "./message-list";
 
+const ipcMocks = vi.hoisted(() => ({
+  getUnderstandingById: vi.fn(),
+  getContextById: vi.fn(),
+  getDomainById: vi.fn(),
+}));
+
+vi.mock("@renderer/utils/ipc", () => ({
+  ipcClient: {
+    understanding: { getUnderstandingById: ipcMocks.getUnderstandingById },
+    context: { getContextById: ipcMocks.getContextById },
+    domain: { getDomainById: ipcMocks.getDomainById },
+  },
+}));
+
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
+let queryClient: QueryClient | null = null;
 
 afterEach(() => {
   if (root) {
@@ -16,6 +32,8 @@ afterEach(() => {
   }
   container?.remove();
   container = null;
+  queryClient = null;
+  vi.clearAllMocks();
 });
 
 function renderMessageList({
@@ -36,20 +54,23 @@ function renderMessageList({
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   act(() => {
     root?.render(
-      <MessageList
-        messages={messages}
-        entityCatalog={entityCatalog}
-        isBusy={false}
-        stoppedMessageId={null}
-        onRetry={vi.fn()}
-        onEdit={vi.fn()}
-        onRegenerate={vi.fn()}
-        onApproveTool={vi.fn()}
-        onInspectContextRef={onInspectContextRef}
-        findQuery={findQuery}
-      />,
+      <QueryClientProvider client={queryClient!}>
+        <MessageList
+          messages={messages}
+          entityCatalog={entityCatalog}
+          isBusy={false}
+          stoppedMessageId={null}
+          onRetry={vi.fn()}
+          onEdit={vi.fn()}
+          onRegenerate={vi.fn()}
+          onApproveTool={vi.fn()}
+          onInspectContextRef={onInspectContextRef}
+          findQuery={findQuery}
+        />
+      </QueryClientProvider>,
     );
   });
 }
@@ -65,18 +86,28 @@ function rerenderMessageList({
 }) {
   act(() => {
     root?.render(
-      <MessageList
-        messages={messages}
-        entityCatalog={entityCatalog}
-        isBusy={false}
-        stoppedMessageId={null}
-        onRetry={vi.fn()}
-        onEdit={vi.fn()}
-        onRegenerate={vi.fn()}
-        onApproveTool={vi.fn()}
-        findQuery={findQuery}
-      />,
+      <QueryClientProvider client={queryClient!}>
+        <MessageList
+          messages={messages}
+          entityCatalog={entityCatalog}
+          isBusy={false}
+          stoppedMessageId={null}
+          onRetry={vi.fn()}
+          onEdit={vi.fn()}
+          onRegenerate={vi.fn()}
+          onApproveTool={vi.fn()}
+          findQuery={findQuery}
+        />
+      </QueryClientProvider>,
     );
+  });
+}
+
+async function flushEntityQuery() {
+  await act(async () => {
+    for (let index = 0; index < 3; index += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
   });
 }
 
@@ -319,34 +350,6 @@ describe("MessageList entity refs", () => {
     ]);
   });
 
-  test("keeps search highlights inside rendered wiki chips", () => {
-    renderMessageList({
-      messages: [
-        {
-          id: "assistant_1",
-          role: "assistant",
-          text: "关联 [[用户需求#u1]]",
-          createdAt: "2026-06-26T00:00:00.000Z",
-          blocks: [
-            {
-              kind: "text",
-              text: "关联 [[用户需求#u1]]",
-              createdAt: "2026-06-26T00:00:00.000Z",
-            },
-          ],
-        },
-      ],
-      entityCatalog: [],
-      findQuery: "用户",
-    });
-
-    const chip = container?.querySelector('[data-slot="wiki-link"]');
-    activateChatFindMarker(container, { messageId: "assistant_1", matchIndex: 0 });
-    const mark = chip?.querySelector('[data-chat-find-active="true"]');
-    expect(mark?.textContent).toBe("用户");
-    expect(mark?.getAttribute("data-chat-find-match")).toBe("true");
-  });
-
   test("does not render typed assistant entity refs from plain markdown", () => {
     const onInspectContextRef = vi.fn();
     renderMessageList({
@@ -375,25 +378,19 @@ describe("MessageList entity refs", () => {
     expect(onInspectContextRef).not.toHaveBeenCalled();
   });
 
-  test("renders valid numbered citations as inline Reflecta links", () => {
+  test("renders direct citations with the current entity title", async () => {
+    ipcMocks.getDomainById.mockResolvedValue({ id: "domain_1", name: "三观" });
     renderMessageList({
       messages: [
         {
           id: "assistant_1",
           role: "assistant",
-          text: "这个理解适合放在三观下面 [1]。AI 只是普通文本。",
+          text: "这个理解适合放在 [[d:domain_1]] 下面。AI 只是普通文本。",
           createdAt: "2026-07-01T00:00:00.000Z",
-          citationSources: [
-            {
-              index: 1,
-              entity: { type: "domain", id: "domain_1", title: "三观" },
-              origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_inspect" },
-            },
-          ],
           blocks: [
             {
               kind: "text",
-              text: "这个理解适合放在三观下面 [1]。AI 只是普通文本。",
+              text: "这个理解适合放在 [[d:domain_1]] 下面。AI 只是普通文本。",
               createdAt: "2026-07-01T00:00:00.000Z",
             },
           ],
@@ -401,6 +398,9 @@ describe("MessageList entity refs", () => {
       ],
       entityCatalog: [],
     });
+    expect(container?.textContent).toContain("Domain");
+    expect(container?.querySelector('button[data-slot="wiki-link"]')).toBeNull();
+    await flushEntityQuery();
 
     const chips = container?.querySelectorAll('[data-slot="wiki-link"]');
     expect(chips).toHaveLength(1);
@@ -409,29 +409,66 @@ describe("MessageList entity refs", () => {
     expect(container?.textContent).not.toContain("domain_1");
   });
 
-  test("renders markdown around numbered citation links", () => {
+  test("renders all entity types and opens only inspectable citations", async () => {
+    ipcMocks.getUnderstandingById.mockResolvedValue({ id: "u_1", title: "反馈循环" });
+    ipcMocks.getContextById.mockResolvedValue({ id: "c_1", title: "一次复盘" });
+    ipcMocks.getDomainById.mockResolvedValue({ id: "d_1", name: "产品设计" });
+    const onInspectContextRef = vi.fn();
     renderMessageList({
       messages: [
         {
           id: "assistant_1",
           role: "assistant",
-          text: "## 标题\n\n### 小节 [2]\n\n- **重点**",
+          text: "[[u:u_1]] [[c:c_1]] [[d:d_1]]",
           createdAt: "2026-07-01T00:00:00.000Z",
-          citationSources: [
-            {
-              index: 2,
-              entity: { type: "understanding", id: "understanding_1", title: "用户需求" },
-              origin: {
-                kind: "tool_result",
-                toolCallId: "tool_1",
-                toolName: "understanding_search",
-              },
-            },
-          ],
           blocks: [
             {
               kind: "text",
-              text: "## 标题\n\n### 小节 [2]\n\n- **重点**",
+              text: "[[u:u_1]] [[c:c_1]] [[d:d_1]]",
+              createdAt: "2026-07-01T00:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      entityCatalog: [],
+      onInspectContextRef,
+    });
+    await flushEntityQuery();
+
+    expect(container?.textContent).toContain("反馈循环");
+    expect(container?.textContent).toContain("一次复盘");
+    expect(container?.textContent).toContain("产品设计");
+    const buttons = container?.querySelectorAll<HTMLButtonElement>('button[data-slot="wiki-link"]');
+    expect(buttons).toHaveLength(2);
+    act(() => buttons?.[0]?.click());
+    act(() => buttons?.[1]?.click());
+    expect(onInspectContextRef).toHaveBeenNthCalledWith(1, {
+      type: "understanding",
+      id: "u_1",
+      title: "反馈循环",
+    });
+    expect(onInspectContextRef).toHaveBeenNthCalledWith(2, {
+      type: "context",
+      id: "c_1",
+      title: "一次复盘",
+    });
+  });
+
+  test("shows empty, missing, and failed entity states without enabling them", async () => {
+    ipcMocks.getContextById.mockResolvedValue({ id: "empty", title: "" });
+    ipcMocks.getDomainById.mockResolvedValue(null);
+    ipcMocks.getUnderstandingById.mockRejectedValue(new Error("offline"));
+    renderMessageList({
+      messages: [
+        {
+          id: "assistant_1",
+          role: "assistant",
+          text: "[[c:empty]] [[d:missing]] [[u:failed]]",
+          createdAt: "2026-07-01T00:00:00.000Z",
+          blocks: [
+            {
+              kind: "text",
+              text: "[[c:empty]] [[d:missing]] [[u:failed]]",
               createdAt: "2026-07-01T00:00:00.000Z",
             },
           ],
@@ -439,6 +476,70 @@ describe("MessageList entity refs", () => {
       ],
       entityCatalog: [],
     });
+    await flushEntityQuery();
+
+    expect(container?.textContent).toContain("未命名 Context");
+    expect(container?.textContent).toContain("引用不可用");
+    expect(container?.textContent).toContain("引用加载失败");
+    expect(container?.querySelectorAll('button[data-slot="wiki-link"]')).toHaveLength(1);
+  });
+
+  test("refreshes a historical citation when its title changes", async () => {
+    let title = "旧标题";
+    ipcMocks.getUnderstandingById.mockImplementation(async () => ({ id: "u_1", title }));
+    renderMessageList({
+      messages: [
+        {
+          id: "assistant_1",
+          role: "assistant",
+          text: "参考 [[u:u_1]]",
+          createdAt: "2026-07-01T00:00:00.000Z",
+          blocks: [
+            {
+              kind: "text",
+              text: "参考 [[u:u_1]]",
+              createdAt: "2026-07-01T00:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      entityCatalog: [],
+    });
+    await flushEntityQuery();
+    expect(container?.textContent).toContain("旧标题");
+
+    title = "新标题";
+    await act(async () => {
+      await queryClient?.invalidateQueries({
+        queryKey: ["entity.display", "understanding", "u_1"],
+      });
+    });
+    await flushEntityQuery();
+    expect(container?.textContent).toContain("新标题");
+    expect(container?.textContent).not.toContain("旧标题");
+  });
+
+  test("renders markdown around direct citation links", async () => {
+    ipcMocks.getUnderstandingById.mockResolvedValue({ id: "understanding_1", title: "用户需求" });
+    renderMessageList({
+      messages: [
+        {
+          id: "assistant_1",
+          role: "assistant",
+          text: "## 标题\n\n### 小节 [[u:understanding_1]]\n\n- **重点**",
+          createdAt: "2026-07-01T00:00:00.000Z",
+          blocks: [
+            {
+              kind: "text",
+              text: "## 标题\n\n### 小节 [[u:understanding_1]]\n\n- **重点**",
+              createdAt: "2026-07-01T00:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      entityCatalog: [],
+    });
+    await flushEntityQuery();
 
     expect(container?.querySelector("h2")?.textContent).toContain("标题");
     expect(container?.querySelector("h3")?.textContent).toContain("用户需求");
@@ -446,25 +547,19 @@ describe("MessageList entity refs", () => {
     expect(container?.querySelector('[data-slot="wiki-link"]')?.textContent).toContain("用户需求");
   });
 
-  test("leaves unknown and code-formatted citation markers as plain text", () => {
+  test("leaves malformed and code-formatted citation markers as plain text", async () => {
+    ipcMocks.getDomainById.mockResolvedValue({ id: "domain_1", name: "三观" });
     renderMessageList({
       messages: [
         {
           id: "assistant_1",
           role: "assistant",
-          text: "有效 [1] 未知 [999] `代码 [1]`\n\n```txt\n[1]\n```",
+          text: "有效 [[d:domain_1]] 未知 [[x:unknown]] `代码 [[d:domain_1]]`\n\n```txt\n[[d:domain_1]]\n```",
           createdAt: "2026-07-01T00:00:00.000Z",
-          citationSources: [
-            {
-              index: 1,
-              entity: { type: "domain", id: "domain_1", title: "三观" },
-              origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_inspect" },
-            },
-          ],
           blocks: [
             {
               kind: "text",
-              text: "有效 [1] 未知 [999] `代码 [1]`\n\n```txt\n[1]\n```",
+              text: "有效 [[d:domain_1]] 未知 [[x:unknown]] `代码 [[d:domain_1]]`\n\n```txt\n[[d:domain_1]]\n```",
               createdAt: "2026-07-01T00:00:00.000Z",
             },
           ],
@@ -472,10 +567,11 @@ describe("MessageList entity refs", () => {
       ],
       entityCatalog: [],
     });
+    await flushEntityQuery();
 
     expect(container?.querySelectorAll('[data-slot="wiki-link"]')).toHaveLength(1);
-    expect(container?.textContent).toContain("[999]");
-    expect(container?.querySelector("code")?.textContent).toContain("[1]");
+    expect(container?.textContent).toContain("[[x:unknown]]");
+    expect(container?.querySelector("code")?.textContent).toContain("[[d:domain_1]]");
   });
 
   test("leaves raw legacy entity ref strings as plain text", () => {

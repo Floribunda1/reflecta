@@ -101,12 +101,6 @@ export type AgentEntityCatalogEntry = {
     | { kind: "tool_result"; toolCallId: string; toolName: string };
 };
 
-export type AgentCitationSource = {
-  index: number;
-  entity: AgentContextRef;
-  origin?: AgentEntityCatalogEntry["origin"];
-};
-
 export type AgentEntityCatalogUpdated = AgentEventBase & {
   type: "entity.catalog.updated";
   entries: AgentEntityCatalogEntry[];
@@ -117,7 +111,6 @@ export type AgentAssistantTextDelta = AgentEventBase & {
   runId: string;
   messageId: string;
   delta: string;
-  citationSources?: AgentCitationSource[];
 };
 
 export type AgentAssistantReasoningDelta = AgentEventBase & {
@@ -227,7 +220,6 @@ export type AgentAssistantTurn = AgentEventBase & {
   messageId: string;
   blocks: AgentAssistantTurnBlock[];
   text: string;
-  citationSources?: AgentCitationSource[];
   usage?: AgentUsage;
   contextUsage?: AgentContextUsage;
   model?: AgentModelSelection;
@@ -354,7 +346,6 @@ export type AgentReducedMessage = {
   contextUsage?: AgentContextUsage;
   model?: AgentModelSelection;
   stopReason?: string;
-  citationSources?: AgentCitationSource[];
 };
 
 type AgentApprovalBlock = Extract<AgentReducedAssistantBlock, { kind: "approval" }>;
@@ -428,7 +419,6 @@ function upsertAssistantText(
         text: event.delta,
         runId: event.runId,
         createdAt: event.createdAt,
-        citationSources: event.citationSources,
         blocks: [{ kind: "text", text: event.delta, createdAt: event.createdAt }],
       },
     ];
@@ -439,7 +429,6 @@ function upsertAssistantText(
       ? {
           ...message,
           text: message.text + event.delta,
-          citationSources: event.citationSources ?? message.citationSources,
           blocks: upsertTextBlock(message.blocks, event),
         }
       : message,
@@ -531,7 +520,6 @@ function upsertAssistantTurn(
     runId: event.runId,
     createdAt: event.createdAt,
     blocks: mergeAssistantTurnBlocks(event.blocks, existing?.blocks),
-    citationSources: event.citationSources,
     usage: event.usage,
     contextUsage: event.contextUsage,
     model: event.model,

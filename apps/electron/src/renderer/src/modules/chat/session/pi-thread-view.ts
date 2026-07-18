@@ -12,6 +12,7 @@ import type { ComposerSendInput, EditingMessage } from "../composer/chat-compose
 import type { ApproveToolInput } from "../messages/agent-message-content";
 import { chatUiStore, useStoppedMessageId, useThreadFocusNonce } from "./chat-ui-store";
 import { chatQueryKeys } from "./query-keys";
+import { invalidateEntityDisplay } from "../../capture/queries";
 import type { AgentThreadView } from "./thread-view";
 import {
   buildChatJumpItems,
@@ -22,6 +23,22 @@ import {
 } from "./thread-view";
 
 const CHAT_JUMP_BOTTOM_OFFSET = 24;
+
+function completedEntityRef(event: AgentEvent) {
+  if (event.type !== "tool.completed" || typeof event.output !== "object" || !event.output) {
+    return null;
+  }
+  const output = event.output as Record<string, unknown>;
+  const type = output.resultRefType;
+  const id = output.resultRefId;
+  if (
+    (type !== "understanding" && type !== "context" && type !== "domain") ||
+    typeof id !== "string"
+  ) {
+    return null;
+  }
+  return { type, id } as const;
+}
 
 function scrollRowToBottom(element: HTMLElement, row: HTMLElement) {
   const elementRect = element.getBoundingClientRect();
@@ -79,6 +96,8 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
       eventIdsRef.current.add(payload.id);
       pendingEventsRef.current.push(payload);
       flushFrameRef.current ??= requestAnimationFrame(flushPendingEvents);
+      const entityRef = completedEntityRef(payload);
+      if (entityRef) void invalidateEntityDisplay(queryClient, entityRef);
       if (
         payload.type === "user.message" ||
         payload.type === "run.completed" ||

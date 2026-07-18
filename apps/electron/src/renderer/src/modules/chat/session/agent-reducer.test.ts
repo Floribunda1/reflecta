@@ -143,41 +143,28 @@ describe("reduceAgentSession", () => {
     expect(reduceAgentSession(events)).toEqual(state);
   });
 
-  test("preserves assistant turn citation sources", () => {
+  test("preserves direct entity citations in assistant turns", () => {
     const state = reduceAgentSession([
       {
         ...base,
         id: "evt_1",
         type: "assistant.turn",
         messageId: "assistant_1",
-        text: "这个理解适合放在三观下面 [2]。",
-        citationSources: [
-          {
-            index: 2,
-            entity: { type: "domain", id: "domain_1", title: "三观" },
-            origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_list" },
-          },
-        ],
+        text: "这个理解适合放在 [[d:domain_1]] 下面。",
         blocks: [
           {
             kind: "text",
-            text: "这个理解适合放在三观下面 [2]。",
+            text: "这个理解适合放在 [[d:domain_1]] 下面。",
             createdAt: base.createdAt,
           },
         ],
       },
     ]);
 
-    expect(state.messages[0]?.citationSources).toEqual([
-      {
-        index: 2,
-        entity: { type: "domain", id: "domain_1", title: "三观" },
-        origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_list" },
-      },
-    ]);
+    expect(state.messages[0]?.text).toBe("这个理解适合放在 [[d:domain_1]] 下面。");
   });
 
-  test("streams assistant text deltas with citation sources", () => {
+  test("streams direct entity citations as plain text", () => {
     const state = reduceAgentSession([
       { ...base, id: "evt_1", type: "run.started" },
       {
@@ -185,38 +172,31 @@ describe("reduceAgentSession", () => {
         id: "evt_2",
         type: "assistant.text.delta",
         messageId: "assistant_1",
-        delta: "放在三观下面 [1]",
-        citationSources: [
-          {
-            index: 1,
-            entity: { type: "domain", id: "domain_1", title: "三观" },
-            origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_list" },
-          },
-        ],
+        delta: "放在 [[d:domain_",
+      },
+      {
+        ...base,
+        id: "evt_3",
+        type: "assistant.text.delta",
+        messageId: "assistant_1",
+        delta: "1]] 下面",
       },
     ]);
 
     expect(state.messages[0]).toMatchObject({
       id: "assistant_1",
       role: "assistant",
-      text: "放在三观下面 [1]",
-      citationSources: [
-        {
-          index: 1,
-          entity: { type: "domain", id: "domain_1", title: "三观" },
-          origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_list" },
-        },
-      ],
+      text: "放在 [[d:domain_1]] 下面",
       blocks: [
         {
           kind: "text",
-          text: "放在三观下面 [1]",
+          text: "放在 [[d:domain_1]] 下面",
         },
       ],
     });
   });
 
-  test("final assistant turn replaces streaming text and keeps sparse citations", () => {
+  test("final assistant turn replaces streamed direct citation text", () => {
     const state = reduceAgentSession([
       { ...base, id: "evt_1", type: "run.started" },
       {
@@ -224,25 +204,18 @@ describe("reduceAgentSession", () => {
         id: "evt_2",
         type: "assistant.text.delta",
         messageId: "assistant_1",
-        delta: "放在三观下面 [3]",
+        delta: "放在 [[d:domain_1]] 下面",
       },
       {
         ...base,
         id: "evt_3",
         type: "assistant.turn",
         messageId: "assistant_1",
-        text: "放在三观下面 [3]。",
-        citationSources: [
-          {
-            index: 3,
-            entity: { type: "domain", id: "domain_1", title: "三观" },
-            origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "domain_list" },
-          },
-        ],
+        text: "放在 [[d:domain_1]] 下面。",
         blocks: [
           {
             kind: "text",
-            text: "放在三观下面 [3]。",
+            text: "放在 [[d:domain_1]] 下面。",
             state: "done",
             createdAt: base.createdAt,
           },
@@ -251,17 +224,11 @@ describe("reduceAgentSession", () => {
     ]);
 
     expect(state.messages[0]).toMatchObject({
-      text: "放在三观下面 [3]。",
-      citationSources: [
-        {
-          index: 3,
-          entity: { type: "domain", id: "domain_1", title: "三观" },
-        },
-      ],
+      text: "放在 [[d:domain_1]] 下面。",
       blocks: [
         {
           kind: "text",
-          text: "放在三观下面 [3]。",
+          text: "放在 [[d:domain_1]] 下面。",
           state: "done",
         },
       ],

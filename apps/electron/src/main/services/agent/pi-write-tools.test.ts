@@ -177,7 +177,7 @@ describe("createPiWriteTools", () => {
     },
     {
       toolName: "domain_update" as const,
-      payload: { domainId: "[[domain:domain_1]]", name: "New name" },
+      payload: { domainId: "[[d:domain_1]]", name: "New name" },
     },
     {
       toolName: "domain_update" as const,
@@ -197,7 +197,7 @@ describe("createPiWriteTools", () => {
     },
     {
       toolName: "context_delete" as const,
-      payload: { contextId: "prefix [[context:context_1]]" },
+      payload: { contextId: "prefix [[c:context_1]]" },
     },
     {
       toolName: "context_update" as const,
