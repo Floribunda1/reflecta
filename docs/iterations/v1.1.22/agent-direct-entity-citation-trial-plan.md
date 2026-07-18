@@ -164,22 +164,32 @@ AgentEntityCatalog 中已有实体
 
 `AgentEntityCatalog` 只服务 prompt，不参与前端渲染；前端也不需要通过 catalog 或其他 source map 把 marker 映射回实体。
 
-### 4.1 后端告诉 Agent 两种用法
+### 4.1 Prompt entity contract
 
-每个可用实体在 prompt 中用一行同时明确正文和工具的不同写法：
+每个可用实体都显式传递完整 `type`、裸 `id`、可复制的 `citation` 和辅助识别的 `title`：
 
 ```text
-- citation=[[u:7N4kP2xQ9mL3cR8vT1aZb]]; id=7N4kP2xQ9mL3cR8vT1aZb; title=反馈循环
+<reflecta_entities>
+{"type":"understanding","id":"abc","citation":"[[u:abc]]","title":"反馈循环"}
+</reflecta_entities>
 ```
 
-system prompt 明确：
+host 负责固定映射，Agent 不自己转换：
 
-- 最终正文复制 `citation`；
-- 工具参数复制 `id`；
-- 不能自己构造、截短或改写 ID；
-- 不允许使用未由 selected context 或工具结果暴露的 marker。
+```text
+understanding -> u
+context       -> c
+domain        -> d
+```
 
-工具返回新实体后，host 继续把新 catalog entries 追加给 Agent，只是显示为 direct marker，不再分配编号。
+System prompt 只需明确：
+
+- 最终正文原样复制 `citation`；
+- 工具参数只传 `id`；
+- `type` 以 record 为准，不从 title 或 tool name 推断；
+- 只能使用 `<reflecta_entities>` 中的实体。
+
+selected context 和工具新返回的实体使用同一 record 格式，host 按 `{type,id}` 去重。
 
 ### 4.2 后端原样保存正文
 
@@ -324,8 +334,9 @@ Feature 只描述用户可见行为，不写 `[[u:id]]`、React Query 或 sessio
 
 在 `agent-citations`、`pi-prompt` 和 `pi-agent-host` 相邻测试中验证：
 
-- selected context 在 prompt 中暴露正确 direct marker 和裸 ID；
-- read-only tool 新返回的实体追加到 Agent 可见列表；
+- selected context 和 tool result 都生成 `{type,id,citation,title}` record，且 `understanding/context/domain` 正确对应 `u/c/d`；
+- title 为 `null` 或包含特殊字符时，JSON block 仍保持有效结构；
+- system prompt 明确区分最终正文复制 `citation` 与工具参数复制 `id`；
 - 同一 `{type,id}` 多次出现只暴露一个引用身份；
 - 新实体不影响旧实体 marker，因为 marker 本身不含顺序；
 - streaming delta 不包含 citation source map；
@@ -465,11 +476,10 @@ Feature 只描述用户可见行为，不写 `[[u:id]]`、React Query 或 sessio
 
 ### Task 3：切换 Agent 生成路径
 
-1. catalog entry 直接格式化为 short marker；
-2. prompt 区分 citation marker 与 tool ID；
-3. tool result 只追加新 direct refs；
-4. 删除 citation source 的生成、event 字段和 reducer 状态；
-5. Agent runtime 不保留旧 citation 协议的读取分支。
+1. selected context 和 tool result 都序列化为 `{type,id,citation,title}` record；
+2. host 统一生成 `u/c/d` citation，system prompt 说明各字段用途；
+3. 删除 citation source 的生成、event 字段和 reducer 状态；
+4. Agent runtime 不保留旧 citation 协议的读取分支。
 
 ### Task 4：接入 live entity display
 
@@ -498,8 +508,8 @@ Feature 只描述用户可见行为，不写 `[[u:id]]`、React Query 或 sessio
 主要会涉及：
 
 - `apps/electron/src/preload/typings/agent*.ts`：删除 citation source event/message 字段；
-- `apps/electron/src/main/services/agent/agent-citations.ts`：从 numbered source formatter 收敛为 direct entity ref formatter；
-- `apps/electron/src/main/services/agent/pi-prompt.ts`：prompt direct refs；
+- `apps/electron/src/main/services/agent/agent-citations.ts`：把 catalog entries 格式化为显式的 `{type,id,citation,title}` records；
+- `apps/electron/src/main/services/agent/pi-prompt.ts`：把 records 作为 JSON block 注入 prompt；
 - `apps/electron/src/main/services/agent/pi-agent-host.ts`：移除 source numbering/merge/extract；
 - `apps/electron/src/main/services/agent/agent-system-prompt.md`：最终正文与工具 ID 规则；
 - `apps/electron/src/renderer/src/modules/chat/context/context-reference.ts`：direct token 到 internal href；
