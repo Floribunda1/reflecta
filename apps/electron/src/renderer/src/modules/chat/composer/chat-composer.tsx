@@ -500,7 +500,7 @@ export function ChatComposer({
 
   return (
     <div data-testid="agent-composer" className="px-6 py-4">
-      <div className="flex w-full flex-col gap-2">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-2">
         {editingMessage ? (
           <div className="flex items-center justify-between rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
             正在编辑上一条消息

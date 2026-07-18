@@ -400,7 +400,7 @@ export function MessageList({
   const createdAtFor = (message: AgentReducedMessage) => message.createdAt;
 
   return (
-    <div data-testid="agent-message-list" className="flex w-full flex-col gap-5">
+    <div data-testid="agent-message-list" className="mx-auto flex w-full max-w-4xl flex-col gap-5">
       {messages.length === 0 && !showPendingAssistant ? (
         <Empty data-testid="agent-empty-state" className="border-0 py-16">
           <EmptyHeader>
