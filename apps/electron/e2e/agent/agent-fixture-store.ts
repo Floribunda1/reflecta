@@ -48,6 +48,9 @@ type Fixture =
   | { type: "reset" }
   | { type: "seedThread"; thread: FixtureThread }
   | { type: "seedUnderstanding"; id: string; title: string; body: string }
+  | { type: "seedContext"; id: string; understandingId: string; title: string; content: string }
+  | { type: "seedDomain"; id: string; name: string }
+  | { type: "deleteUnderstanding"; id: string }
   | { type: "understandingIdByTitle"; title: string }
   | { type: "understandingExistsByTitle"; title: string }
   | { type: "domainExistsByName"; name: string };
@@ -428,6 +431,17 @@ function threadEvents(thread: FixtureThread) {
 
     const runId = activeRunId ?? `run_${message.id}`;
     if (!activeRunId) events.push(createEvent({ type: "run.started", runId }));
+    for (const part of message.parts) {
+      if (!isRecord(part) || part.type !== "text-delta") continue;
+      events.push(
+        createEvent({
+          type: "assistant.text.delta",
+          runId,
+          messageId: message.id,
+          delta: String(part.text ?? ""),
+        }),
+      );
+    }
     const blocks = assistantTurnBlocks(
       events,
       createEvent,
@@ -502,6 +516,24 @@ function seedUnderstanding(id: string, title: string, body: string) {
   ).run(id, title, body, now, now);
 }
 
+function seedContext(id: string, understandingId: string, title: string, content: string) {
+  const now = new Date().toISOString();
+  db.query(
+    `INSERT INTO contexts (id, understanding_id, medium, title, content, created_at, deleted_at)
+     VALUES (?, ?, 'experience', ?, ?, ?, NULL)
+     ON CONFLICT(id) DO UPDATE SET understanding_id = excluded.understanding_id, title = excluded.title, content = excluded.content, deleted_at = NULL`,
+  ).run(id, understandingId, title, content, now);
+}
+
+function seedDomain(id: string, name: string) {
+  const now = new Date().toISOString();
+  db.query(
+    `INSERT INTO domains (id, name, parent_id, sort_order, created_at, updated_at)
+     VALUES (?, ?, NULL, 0, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET name = excluded.name, updated_at = excluded.updated_at`,
+  ).run(id, name, now, now);
+}
+
 try {
   if (fixture.type === "reset") {
     resetSessionsToSeedBaseline();
@@ -513,6 +545,21 @@ try {
 
   if (fixture.type === "seedUnderstanding") {
     seedUnderstanding(fixture.id, fixture.title, fixture.body);
+  }
+
+  if (fixture.type === "seedContext") {
+    seedContext(fixture.id, fixture.understandingId, fixture.title, fixture.content);
+  }
+
+  if (fixture.type === "seedDomain") {
+    seedDomain(fixture.id, fixture.name);
+  }
+
+  if (fixture.type === "deleteUnderstanding") {
+    db.query(`UPDATE understandings SET deleted_at = ? WHERE id = ?`).run(
+      new Date().toISOString(),
+      fixture.id,
+    );
   }
 
   if (fixture.type === "understandingIdByTitle") {

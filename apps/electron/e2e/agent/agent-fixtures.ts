@@ -72,6 +72,23 @@ export function seedUnderstanding(input: { id: string; title: string; body: stri
   runFixture({ type: "seedUnderstanding", ...input });
 }
 
+export function seedContext(input: {
+  id: string;
+  understandingId: string;
+  title: string;
+  content: string;
+}) {
+  runFixture({ type: "seedContext", ...input });
+}
+
+export function seedDomain(input: { id: string; name: string }) {
+  runFixture({ type: "seedDomain", ...input });
+}
+
+export function deleteUnderstanding(id: string) {
+  runFixture({ type: "deleteUnderstanding", id });
+}
+
 export function seedUnderstandingIdByTitle(title: string) {
   return runFixture({ type: "understandingIdByTitle", title }).trim();
 }

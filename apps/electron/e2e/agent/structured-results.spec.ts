@@ -1,10 +1,14 @@
 import { expect, test } from "@playwright/test";
 import {
   assistantMessage,
+  deleteUnderstanding,
   proposalPart,
   reasoningPart,
   resetAgentFixtures,
   seedAgentThread,
+  seedContext,
+  seedDomain,
+  seedUnderstanding,
   seedUnderstandingIdByTitle,
   toolPart,
   userMessage,
@@ -114,10 +118,12 @@ test("@AG-RESULT-002 用户可以区分提案的不同状态", async () => {
       page.getByTestId("agent-proposal-card").filter({ hasText: "CANDIDATE_TITLE_APPROVED" }),
     ).toContainText("已确认");
     await expect(
-      page.getByTestId("agent-proposal-card").filter({ hasText: "CANDIDATE_TITLE_REJECTED" }),
+      page.getByTestId("agent-proposal-card").filter({ hasText: "已拒绝，未写入知识库" }),
     ).toContainText("已拒绝");
     await expect(
-      page.getByTestId("agent-proposal-card").filter({ hasText: "CANDIDATE_TITLE_DONE" }),
+      page
+        .getByTestId("agent-proposal-card")
+        .filter({ hasText: "已写入 understanding · done-understanding" }),
     ).toContainText("完成");
     await expect(
       page.getByTestId("agent-proposal-card").filter({ hasText: "CANDIDATE_TITLE_ERROR" }),
@@ -191,7 +197,7 @@ test("@AG-RESULT-004 用户点击 Agent 回复中的知识库引用后查看详�
     messages: [
       userMessage("result-wiki-link-user", "展示知识库引用"),
       assistantMessage("result-wiki-link-assistant", [
-        { type: "text", text: `可以关联到 [[React Server Components#${understandingId}]]。` },
+        { type: "text", text: `可以关联到 [[u:${understandingId}]]。` },
       ]),
     ],
   });
@@ -243,6 +249,7 @@ test("@AG-RESULT-005 用户查看 Bash 长输出时可以原地展开", async ()
     await openThread(page, "Bash 长输出");
     const card = page.getByTestId("agent-proposal-card").filter({ hasText: "执行 Bash" });
     await expect(card).toContainText("完成");
+    await card.getByRole("button", { name: "展开候选卡片" }).click();
     await expect(card).toContainText("error 16: long bash output line");
     await expect(card).not.toContainText("error 24: long bash output line");
 
@@ -257,6 +264,7 @@ test("@AG-RESULT-005 用户查看 Bash 长输出时可以原地展开", async ()
 });
 
 test("@AG-RESULT-006 用户查看 Agent 最终答案中的结构化知识库引用", async () => {
+  seedDomain({ id: "domain_three_views", name: "三观" });
   seedAgentThread({
     id: "result-finalizer-entity-ref",
     title: "Finalizer 引用",
@@ -270,20 +278,7 @@ test("@AG-RESULT-006 用户查看 Agent 最终答案中的结构化知识库引�
     messages: [
       userMessage("result-finalizer-entity-ref-user", "放在哪里"),
       assistantMessage("result-finalizer-entity-ref-assistant", [
-        {
-          type: "text",
-          text: "可以放在三观下面。",
-          parts: [
-            { type: "text", text: "可以放在" },
-            {
-              type: "entity_ref",
-              entityType: "domain",
-              entityId: "domain_three_views",
-              fallbackText: "三观",
-            },
-            { type: "text", text: "下面。" },
-          ],
-        },
+        { type: "text", text: "可以放在 [[d:domain_three_views]] 下面。" },
       ]),
     ],
   });
@@ -296,6 +291,135 @@ test("@AG-RESULT-006 用户查看 Agent 最终答案中的结构化知识库引�
     await expect(page.getByText("domain_three_views")).toHaveCount(0);
   } finally {
     await app.close();
+  }
+});
+
+test("@AG-RESULT-008 用户修改实体标题后历史回复显示当前标题", async () => {
+  seedUnderstanding({ id: "citation-title-u", title: "旧标题", body: "正文" });
+  seedAgentThread({
+    id: "citation-title-thread",
+    title: "引用标题更新",
+    messages: [
+      userMessage("citation-title-user", "回看理解"),
+      assistantMessage("citation-title-assistant", [
+        { type: "text", text: "参考 [[u:citation-title-u]]。" },
+      ]),
+    ],
+  });
+  let launched = await launchAgentPage();
+
+  try {
+    await openThread(launched.page, "引用标题更新");
+    const citation = launched.page.locator('[data-slot="wiki-link"]');
+    await expect(citation).toContainText("旧标题");
+    await citation.click();
+    const titleInput = launched.page.getByPlaceholder("写下一个刚形成的理解");
+    await titleInput.fill("新标题");
+    await titleInput.press("Tab");
+    await launched.page.getByLabel("关闭详情").click();
+    await expect(citation).toContainText("新标题");
+
+    await launched.app.close();
+    launched = await launchAgentPage();
+    await openThread(launched.page, "引用标题更新");
+    await expect(launched.page.locator('[data-slot="wiki-link"]')).toContainText("新标题");
+  } finally {
+    await launched.app.close();
+  }
+});
+
+test("@AG-RESULT-009 同一回复正确显示三种实体引用", async () => {
+  seedUnderstanding({ id: "citation-mixed-u", title: "反馈循环", body: "正文" });
+  seedContext({
+    id: "citation-mixed-c",
+    understandingId: "citation-mixed-u",
+    title: "一次复盘",
+    content: "具体场景",
+  });
+  seedDomain({ id: "citation-mixed-d", name: "产品设计" });
+  seedAgentThread({
+    id: "citation-mixed-thread",
+    title: "三类引用",
+    messages: [
+      userMessage("citation-mixed-user", "展示引用"),
+      assistantMessage("citation-mixed-assistant", [
+        {
+          type: "text",
+          text: "[[u:citation-mixed-u]]、[[c:citation-mixed-c]]、[[d:citation-mixed-d]]",
+        },
+      ]),
+    ],
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "三类引用");
+    await expect(page.locator('[data-slot="wiki-link"]')).toHaveCount(3);
+    await expect(page.getByText("反馈循环", { exact: false })).toBeVisible();
+    await expect(page.getByText("一次复盘", { exact: false })).toBeVisible();
+    await expect(page.getByText("产品设计", { exact: false })).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-RESULT-010 被引用实体删除后回复保持可读", async () => {
+  seedUnderstanding({ id: "citation-deleted-u", title: "将被删除", body: "正文" });
+  seedAgentThread({
+    id: "citation-deleted-thread",
+    title: "失效引用",
+    messages: [
+      userMessage("citation-deleted-user", "回看引用"),
+      assistantMessage("citation-deleted-assistant", [
+        { type: "text", text: "这段解释仍然可读，来源是 [[u:citation-deleted-u]]。" },
+      ]),
+    ],
+  });
+  deleteUnderstanding("citation-deleted-u");
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "失效引用");
+    await expect(page.getByText("这段解释仍然可读", { exact: false })).toBeVisible();
+    const citation = page.locator('[data-slot="wiki-link"]');
+    await expect(citation).toContainText("引用不可用");
+    await expect(citation).not.toHaveRole("button");
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-RESULT-011 分段生成的引用在历史中保持一致", async () => {
+  seedUnderstanding({ id: "citation-stream-u", title: "流式引用", body: "正文" });
+  seedAgentThread({
+    id: "citation-stream-thread",
+    title: "流式引用历史",
+    messages: [
+      userMessage("citation-stream-user", "展示引用"),
+      assistantMessage("citation-stream-assistant", [
+        { type: "text-delta", text: "参考 [[u:citation" },
+        { type: "text-delta", text: "-stream-u]]。" },
+        { type: "text", text: "参考 [[u:citation-stream-u]]。" },
+      ]),
+    ],
+  });
+  let launched = await launchAgentPage();
+
+  try {
+    await openThread(launched.page, "流式引用历史");
+    await expect(launched.page.locator('[data-slot="wiki-link"]')).toContainText("流式引用");
+    await expect(launched.page.getByText("[[u:citation", { exact: false })).toHaveCount(0);
+
+    await openThread(launched.page, "Programming 上下文历史对话");
+    await openThread(launched.page, "流式引用历史");
+    await expect(launched.page.locator('[data-slot="wiki-link"]')).toContainText("流式引用");
+
+    await launched.app.close();
+    launched = await launchAgentPage();
+    await openThread(launched.page, "流式引用历史");
+    await expect(launched.page.locator('[data-slot="wiki-link"]')).toContainText("流式引用");
+  } finally {
+    await launched.app.close();
   }
 });
 
