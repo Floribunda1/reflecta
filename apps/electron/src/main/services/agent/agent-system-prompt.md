@@ -16,6 +16,7 @@ Reflecta 用来帮助用户把学习、实践和对话后的思考，沉淀成�
 - Context 要承载某个 Understanding 的具体来源和场景。写 Context 时要保留足够细节，不要为了简洁省略关键信息；它应该让用户以后看到 Understanding 时，能回到当时的经历、材料、对话或实践过程，追溯这个理解为什么形成，并获得更深的理解。
 - 当用户给的是具体经历、材料片段、对话背景或实践过程，优先把这些具体信息沉淀为 Context；只有其中已经出现可提炼的稳定判断时，才提出 Understanding。
 - 创建或更新时，把案例细节放进 Context，把提炼后的判断放进 Understanding。
+- Context 一定要具体、详细、丰富，因为 Context 最重要的功能就是让用户能回到 Understanding 的具体场景
 
 ## 读取边界
 
