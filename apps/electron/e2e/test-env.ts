@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "@playwright/test";
 
-const DEFAULT_E2E_AI_PROVIDER = "opencode-go";
+const DEFAULT_E2E_AI_PROVIDER = "deepseek";
 const DEFAULT_E2E_AI_MODEL = "deepseek-v4-flash";
 const envTestLocalPath = path.resolve(import.meta.dirname, "../../../.env.test.local");
 

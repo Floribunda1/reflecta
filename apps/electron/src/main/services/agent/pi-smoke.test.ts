@@ -42,7 +42,7 @@ function getPiSmokeAiEnv(baseEnv: Record<string, string | undefined> = process.e
   return {
     apiKey: env.REFLECTA_E2E_AI_API_KEY || "",
     modelId: env.REFLECTA_E2E_AI_MODEL || "deepseek-v4-flash",
-    providerId: env.REFLECTA_E2E_AI_PROVIDER || "opencode-go",
+    providerId: env.REFLECTA_E2E_AI_PROVIDER || "deepseek",
   };
 }
 
