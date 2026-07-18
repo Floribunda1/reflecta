@@ -39,7 +39,8 @@ test("@AG-PROPOSAL-001 用户确认候选 Understanding 后看到执行结果", 
 
   try {
     await openThread(page, "候选 Understanding 提案");
-    const card = page.getByTestId("agent-proposal-card").filter({ hasText: "CANDIDATE_TITLE" });
+    const card = page.getByTestId("agent-proposal-card");
+    await expect(card).toContainText("CANDIDATE_TITLE");
     await card.getByTestId("agent-proposal-confirm-button").click();
     await expect(card).toContainText("完成", { timeout: 120_000 });
     await expect(card).toContainText("已写入");
@@ -57,7 +58,8 @@ test("@AG-PROPOSAL-002 用户拒绝候选 Understanding 后看到拒绝结果", 
 
   try {
     await openThread(page, "候选 Understanding 提案");
-    const card = page.getByTestId("agent-proposal-card").filter({ hasText: "CANDIDATE_TITLE" });
+    const card = page.getByTestId("agent-proposal-card");
+    await expect(card).toContainText("CANDIDATE_TITLE");
     await card.getByTestId("agent-proposal-reject-button").click();
     await expect(card).toContainText("已拒绝", { timeout: 120_000 });
     await expect(card).toContainText("未写入知识库");
@@ -86,8 +88,10 @@ test("@AG-PROPOSAL-003 用户重新打开对话后仍能看到提案处理结果
 
   try {
     await openThread(page, "已处理提案");
-    await expect(page.getByTestId("agent-proposal-card")).toContainText("CANDIDATE_TITLE");
-    await expect(page.getByTestId("agent-proposal-card")).toContainText("已拒绝");
+    const card = page.getByTestId("agent-proposal-card");
+    await expect(card).toContainText("已拒绝");
+    await card.getByLabel("展开候选卡片").click();
+    await expect(card).toContainText("CANDIDATE_TITLE");
 
     await page.getByLabel("Switch module").click();
     await page.getByRole("menuitem", { name: "Capture" }).click();

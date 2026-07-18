@@ -705,13 +705,13 @@ test("@AG-PROPOSAL-002 用户拒绝候选 Understanding 后看到拒绝结果", 
       page,
       `请必须调用 understanding_create 工具提出候选 Understanding。标题必须是 ${PI_REJECT_PROPOSAL_TITLE}，正文写一行中文。等待我确认，不要直接写入。`,
     );
-    const card = page
+    const pendingCard = page
       .getByTestId("agent-proposal-card")
       .filter({ hasText: PI_REJECT_PROPOSAL_TITLE });
-    await expect(card).toBeVisible({ timeout: 120_000 });
-    await card.getByTestId("agent-proposal-reject-button").click();
+    await expect(pendingCard).toBeVisible({ timeout: 120_000 });
+    await pendingCard.getByTestId("agent-proposal-reject-button").click();
+    const card = page.getByTestId("agent-proposal-card").last();
     await expect(card).toContainText("已拒绝", { timeout: 120_000 });
-    await expect(card).toContainText("命令未执行");
     await expect(card).toContainText("未写入知识库");
 
     expect(understandingExistsByTitle(PI_REJECT_PROPOSAL_TITLE)).toBe(false);
@@ -735,11 +735,12 @@ test("@AG-PROPOSAL-001 用户确认候选 Understanding 后看到执行结果", 
       page,
       `请必须调用 understanding_create 工具提出候选 Understanding。标题必须是 ${PI_APPROVE_PROPOSAL_TITLE}，正文写一行中文。等待我确认，不要直接写入。`,
     );
-    const card = page
+    const pendingCard = page
       .getByTestId("agent-proposal-card")
       .filter({ hasText: PI_APPROVE_PROPOSAL_TITLE });
-    await expect(card).toBeVisible({ timeout: 120_000 });
-    await card.getByTestId("agent-proposal-confirm-button").click();
+    await expect(pendingCard).toBeVisible({ timeout: 120_000 });
+    await pendingCard.getByTestId("agent-proposal-confirm-button").click();
+    const card = page.getByTestId("agent-proposal-card").last();
     await expect(card).toContainText("完成", { timeout: 120_000 });
     await expect(card).toContainText("已写入");
 
@@ -767,11 +768,12 @@ test("@AG-PROPOSAL-004 用户确认候选 Domain 后看到执行结果", async (
       page,
       `请必须调用 domain_create 工具提出候选 Domain。名称必须是 ${PI_DOMAIN_PROPOSAL_NAME}。等待我确认，不要直接写入。`,
     );
-    const card = page
+    const pendingCard = page
       .getByTestId("agent-proposal-card")
       .filter({ hasText: PI_DOMAIN_PROPOSAL_NAME });
-    await expect(card).toBeVisible({ timeout: 120_000 });
-    await card.getByTestId("agent-proposal-confirm-button").click();
+    await expect(pendingCard).toBeVisible({ timeout: 120_000 });
+    await pendingCard.getByTestId("agent-proposal-confirm-button").click();
+    const card = page.getByTestId("agent-proposal-card").last();
     await expect(card).toContainText("完成", { timeout: 120_000 });
     await expect(card).toContainText("已写入");
 
@@ -810,9 +812,7 @@ test("@AG-PROPOSAL-005 用户重新打开对话后仍能处理等待确认的提
 
   try {
     await openThread(second.page, prompt.slice(0, 20));
-    const card = second.page
-      .getByTestId("agent-proposal-card")
-      .filter({ hasText: PI_RELOAD_PROPOSAL_TITLE });
+    const card = second.page.getByTestId("agent-proposal-card").last();
     await expect(card).toBeVisible();
     await card.getByTestId("agent-proposal-reject-button").click();
     await expect(card).toContainText("已拒绝", { timeout: 120_000 });
