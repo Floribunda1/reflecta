@@ -61,7 +61,7 @@ entity-type = "u" | "c" | "d"
 entity-id = 1*(ALPHA | DIGIT | "_" | "-")
 ```
 
-当前新实体 ID 是 21 位大小写字母和数字。parser 额外接受 `_` 和 `-`，只为兼容历史上已经存在的 ID；不接受空格、换行、title 或额外字段。
+当前新实体 ID 是 21 位大小写字母和数字。Reflecta 已存在的 canonical ID 也可能包含 `_` 和 `-`，因此它们属于有效 ID 字符；parser 不接受空格、换行、title 或额外字段。
 
 以下都不是有效引用：
 
@@ -83,8 +83,6 @@ entity-id = 1*(ALPHA | DIGIT | "_" | "-")
 - 工具边界在试验阶段继续拒绝 `[[u:...]]`，用来真实测量模型是否混淆正文协议和工具身份。
 - type 与工具参数类型不一致时直接失败，不做猜测或跨类型查询。
 
-如果真实模型只出现“把完整 marker 传给正确类型工具”这一种失败，可以单独评估一个无状态的 exact unwrap；本轮不预先加入这个兼容层，以免把可靠性问题隐藏掉。
-
 ### 2.4 与旧 direct ID 实现的区别
 
 这次不能只换一个更短的字符串，必须针对旧实现已经暴露的问题逐项验收：
@@ -95,7 +93,7 @@ entity-id = 1*(ALPHA | DIGIT | "_" | "-")
 | renderer 曾只正确处理 Understanding    | grammar 和 resolver 对 `u/c/d` 使用同一 type table           |
 | 模型把正文 marker 传给工具             | prompt 同时明确 citation 与裸 ID，并把工具污染设为 hard gate |
 | session alias 形成第二套身份           | marker 内就是 canonical ID，不存在 registry                  |
-| title snapshot 在历史消息里过期        | renderer 按 ID 读取当前实体，snapshot 只作 legacy fallback   |
+| title snapshot 在历史消息里过期        | marker 不保存 title，renderer 只按 ID 读取当前实体           |
 | parser 失败时 raw syntax 长期留在正文  | exact grammar、完成态 UI 检查和 malformed 降级测试           |
 | 21 位 ID 是否容易被模型抄错没有数据    | 用 numbered baseline 和 direct marker 做固定矩阵 A/B         |
 
@@ -115,7 +113,7 @@ entity-id = 1*(ALPHA | DIGIT | "_" | "-")
   -> prompt：给 Agent 可复制的 marker 和工具用裸 ID
 ```
 
-### 3.2 新消息不再保存 citationSources
+### 3.2 删除 citationSources contract
 
 新协议的 `assistant.turn` 只需要保存正文：
 
@@ -125,7 +123,7 @@ type AssistantAnswer = {
 };
 ```
 
-host 不再为新回答执行：
+runtime 删除 `AgentCitationSource` 以及 live/session/reduced message 上的 `citationSources` 字段。host 不再执行：
 
 - `buildCitationSources`；
 - `mergeCitationSources`；
@@ -133,16 +131,16 @@ host 不再为新回答执行：
 - streaming delta 携带完整 source map；
 - final answer 保存 sparse citation source map。
 
-### 3.3 旧消息继续可读
+### 3.3 Runtime 只保留一条路径
 
-本轮不迁移历史 session，也不立刻删除 `AgentCitationSource` 类型。
+Agent message runtime 和 renderer 只支持 direct ID marker：
 
-- 历史 `[n] + citationSources` 继续由 legacy renderer 解析。
-- 历史 `[[title#id]]` 继续保持现有兼容。
-- 新消息只生成直接 ID marker。
-- 无论旧消息还是新消息，最终都进入同一个“按真实 ID 读取当前实体”的显示模块。
+- 不解析 `[n] + citationSources`；
+- 不解析 Agent 历史消息里的 `[[title#id]]`、`[[ref:*]]` 或 `entity_ref`；
+- 不保留旧协议 adapter、fallback source map 或双写；
+- 旧 Agent 消息不保证 citation 可点击。
 
-这样回滚 prompt 不需要回滚或重写历史数据，也不会为了试验维护双写。
+旧 Agent session 不在本轮范围内。知识编辑器等非 Agent 场景已有的 wiki link 能力不在本次删除范围内。
 
 ## 4. 模块与数据流
 
@@ -253,15 +251,15 @@ resolveEntityDisplays(refs: EntityRef[]): Promise<EntityDisplay[]>;
 
 ### 5.3 title 状态规则
 
-| 状态                  | 显示                                                     | 交互                                                         |
-| --------------------- | -------------------------------------------------------- | ------------------------------------------------------------ |
-| 已解析且有 title/name | 当前 title/name                                          | Understanding、Context 保持现有详情入口；Domain 保持现有行为 |
-| 已解析但 title 为空   | `未命名 Understanding` / `未命名 Context`                | 保持可查看                                                   |
-| 首次加载              | 类型名占位；若 legacy link 有旧 label，可暂作 fallback   | 暂不点击                                                     |
-| 实体不存在或已删除    | legacy 有 fallback 时显示 fallback，否则显示“引用不可用” | disabled                                                     |
-| 读取失败              | 显示“引用加载失败”                                       | disabled，query 可重试                                       |
+| 状态                  | 显示                                      | 交互                                                         |
+| --------------------- | ----------------------------------------- | ------------------------------------------------------------ |
+| 已解析且有 title/name | 当前 title/name                           | Understanding、Context 保持现有详情入口；Domain 保持现有行为 |
+| 已解析但 title 为空   | `未命名 Understanding` / `未命名 Context` | 保持可查看                                                   |
+| 首次加载              | 类型名占位                                | 暂不点击                                                     |
+| 实体不存在或已删除    | “引用不可用”                              | disabled                                                     |
+| 读取失败              | “引用加载失败”                            | disabled，query 可重试                                       |
 
-旧 `citationSources.entity.title` 和旧 wiki link 的 title 只能作为加载或实体不存在时的 fallback，不能覆盖查询到的当前 title。
+renderer 没有 message title fallback；查询到的当前实体是唯一显示来源。
 
 ### 5.4 标题更新路径
 
@@ -327,8 +325,8 @@ Feature 只描述用户可见行为，不写 `[[u:id]]`、React Query 或 sessio
 - read-only tool 新返回的实体追加到 Agent 可见列表；
 - 同一 `{type,id}` 多次出现只暴露一个引用身份；
 - 新实体不影响旧实体 marker，因为 marker 本身不含顺序；
-- streaming delta 不再附带新 citation source map；
-- final `assistant.turn` 原样保存 marker text，不生成新的 `citationSources`；
+- streaming delta 不包含 citation source map；
+- final `assistant.turn` 原样保存 marker text，event contract 中不存在 `citationSources`；
 - Agent 输出 malformed/unknown marker 不导致 run 失败；
 - write tool 的 ID schema 继续拒绝 `[1]`、`S1`、`ref:*`、`[[u:id]]`；
 - 工具使用 marker、错误类型 ID 或不存在 ID 时失败可见，不写入错误实体。
@@ -340,9 +338,9 @@ Feature 只描述用户可见行为，不写 `[[u:id]]`、React Query 或 sessio
 - direct marker 能跨多段 text delta 拼接；
 - final turn 覆盖 streaming draft 后 marker 保持不变；
 - session replay 后 text 与 live state 一致；
-- 新 direct message 没有 `citationSources` 仍能恢复；
-- legacy `[n] + citationSources` 继续恢复；
-- direct 与 legacy message 同时存在于一条 thread 时各自正确渲染，不共享 message-level mapping。
+- direct message 不依赖 message-level mapping 即可恢复；
+- `[n]`、`[[title#id]]`、`[[ref:*]]` 和 `entity_ref` 不进入 direct citation resolver；
+- 不再存在 `citationSources` 的 reducer 分支。
 
 ### 6.5 Renderer unit tests
 
@@ -353,7 +351,7 @@ Feature 只描述用户可见行为，不写 `[[u:id]]`、React Query 或 sessio
 - title 为空时显示确定 fallback；
 - query loading、missing、deleted、error 状态不会打开错误详情；
 - title query 数据更新后 chip 显示新 title；
-- legacy numbered citation 查询到实体后也使用当前 title；
+- `[n]` 等非 direct token 不生成 citation chip；
 - inline/fenced code 中的 token 原样显示；
 - malformed token 不生成 chip；
 - Markdown 标题、列表、强调和普通链接在引用前后仍保持可读；
@@ -460,22 +458,22 @@ Feature 只描述用户可见行为，不写 `[[u:id]]`、React Query 或 sessio
 
 ### Task 2：建立共享 direct token grammar
 
-先写失败的协议 unit tests，再实现最小 formatter/transformer。旧格式兼容留在 legacy adapter，不进入新 grammar。
+先写失败的协议 unit tests，再实现最小 formatter/transformer。旧格式不进入新 grammar，也不保留 adapter。
 
 ### Task 3：切换 Agent 生成路径
 
 1. catalog entry 直接格式化为 short marker；
 2. prompt 区分 citation marker 与 tool ID；
 3. tool result 只追加新 direct refs；
-4. streaming/final event 不再生成新的 citation source map；
-5. 保留 legacy event 类型的读取兼容。
+4. 删除 citation source 的生成、event 字段和 reducer 状态；
+5. Agent runtime 不保留旧 citation 协议的读取分支。
 
 ### Task 4：接入 live entity display
 
 1. direct marker 转 internal entity href；
 2. `useEntityDisplay` 读取当前实体；
 3. 收敛 loading、untitled、missing、error 状态；
-4. 让 legacy numbered citation 也经过 live display；
+4. 删除 Agent message renderer 的 numbered citation/source map 入口；
 5. 在 Capture mutation 和 Agent write completion 后 invalidate 对应 query。
 
 ### Task 5：补 reducer、renderer 和 E2E
@@ -488,7 +486,7 @@ Feature 只描述用户可见行为，不写 `[[u:id]]`、React Query 或 sessio
 
 ### Task 7：决定是否替换生产路径
 
-- 全部 gate 通过：删除 numbered citation 的生成路径，legacy renderer 继续只读兼容。
+- 全部 gate 通过：direct ID 成为唯一 Agent citation 路径。
 - hard failure：恢复 numbered citation 生成路径，保留本分支报告，不合入 direct protocol。
 - 只有 title freshness 或 renderer 问题：修复 deterministic implementation 后重跑相关测试，不需要重跑模型行为矩阵。
 
@@ -496,10 +494,10 @@ Feature 只描述用户可见行为，不写 `[[u:id]]`、React Query 或 sessio
 
 主要会涉及：
 
-- `apps/electron/src/preload/typings/agent*.ts`：共享 token grammar 与 legacy event 类型；
+- `apps/electron/src/preload/typings/agent*.ts`：共享 token grammar，并删除 citation source event/message 字段；
 - `apps/electron/src/main/services/agent/agent-citations.ts`：从 numbered source formatter 收敛为 direct entity ref formatter；
 - `apps/electron/src/main/services/agent/pi-prompt.ts`：prompt direct refs；
-- `apps/electron/src/main/services/agent/pi-agent-host.ts`：移除新回答的 source numbering/merge/extract；
+- `apps/electron/src/main/services/agent/pi-agent-host.ts`：移除 source numbering/merge/extract；
 - `apps/electron/src/main/services/agent/agent-system-prompt.md`：最终正文与工具 ID 规则；
 - `apps/electron/src/renderer/src/modules/chat/context/context-reference.ts`：direct token 到 internal href；
 - `apps/electron/src/renderer/src/modules/chat/context/wiki-link.tsx`：live entity display；
@@ -518,7 +516,7 @@ Feature 只描述用户可见行为，不写 `[[u:id]]`、React Query 或 sessio
 - 不引入二次 LLM finalizer。
 - 不在试验开始前新增 batch title resolver。
 - 不趁本次改造 Domain 的导航或详情产品行为。
-- 不批量迁移历史 session。
+- 不设计或实现历史 session 迁移脚本；它是后续独立的一次性任务。
 
 ## 10. 验证命令
 
@@ -536,11 +534,11 @@ rtk bun run test:e2e
 
 ## 11. 回滚
 
-本轮没有数据库 migration，也不改 canonical ID：
+试验只在独立分支和 test profile 中进行，不写入生产 session。失败时：
 
 1. 恢复 numbered citation prompt 和 host 生成路径；
-2. 保留 direct marker renderer，确保试验期间产生的测试 session 仍可读；
-3. legacy `[n] + citationSources` renderer 从始至终保留；
-4. 不需要修改实体数据或重写历史消息。
+2. 一并撤回 direct marker renderer；
+3. 丢弃试验 profile 中产生的 session；
+4. 不修改实体数据。
 
-这使试验的失败成本限制在代码路径切换，不会把新的身份体系留在用户数据里。
+历史 session 处理不进入本计划。
