@@ -142,42 +142,31 @@ Agent message runtime 和 renderer 只支持 direct ID marker：
 
 旧 Agent session 不在本轮范围内。知识编辑器等非 Agent 场景已有的 wiki link 能力不在本次删除范围内。
 
-## 4. 模块与数据流
+## 4. 引用从生成到显示的流程
 
-```mermaid
-flowchart LR
-    C["AgentEntityCatalog<br/>Agent 已见实体"] --> P["Prompt formatter<br/>marker + bare id + title"]
-    P --> A["Agent Markdown stream<br/>[[u:id]]"]
-    A --> S["assistant.turn<br/>只保存 text"]
-    S --> T["Entity token transformer<br/>只解析语法"]
-    T --> R["Entity reference renderer<br/>按 type + id 读取当前实体"]
-    R --> U["当前 title / name<br/>chip 与详情入口"]
+这一节不是要建立一套新架构。现有的 `AgentEntityCatalog`、prompt、`assistant.turn` 和 Markdown renderer 都继续使用；真正新增的只有三处逻辑：
+
+1. 后端把 `{type,id}` 格式化成 `[[u:id]]`；
+2. 前端从 `[[u:id]]` 解析出 `{type,id}`；
+3. 前端按 `{type,id}` 查询当前实体并显示 title。
+
+完整流程是：
+
+```text
+AgentEntityCatalog 中已有实体
+  -> Prompt 告诉 Agent citation marker 和工具用裸 ID
+  -> Agent 在 Markdown 正文输出 [[u:id]]
+  -> assistant.turn 原样保存 Markdown text
+  -> 现有 Markdown 引用转换逻辑识别 [[u:id]]
+  -> 前端按 type + id 查询当前实体
+  -> 显示当前 title/name 的 citation chip
 ```
 
-### 4.1 Entity token module
+`AgentEntityCatalog` 只服务 prompt，不参与前端渲染；前端也不需要通过 catalog 或其他 source map 把 marker 映射回实体。
 
-建立一个共享的纯函数 module，外部 interface 只暴露两件事：
+### 4.1 后端告诉 Agent 两种用法
 
-```ts
-formatEntityRefToken(ref: { type: EntityType; id: string }): string;
-mapEntityRefTokens(markdown: string, map: (ref: EntityRef) => string): string;
-```
-
-它集中负责：
-
-- `u/c/d` 与完整实体类型互转；
-- exact grammar；
-- 不处理 inline code 和 fenced code 中的 marker；
-- 保留 malformed marker 为普通文本；
-- 保留现有 Markdown link、image 和 escaped text，不产生嵌套 link。
-
-prompt formatter、final text 检查和 renderer 使用同一份 grammar，避免 host 与前端各写一套正则。
-
-它不读取数据库、不判断 title、不维护 catalog，也不拥有 React 状态。
-
-### 4.2 Prompt formatter
-
-每个可用实体在 prompt 中用一行同时明确两种用途：
+每个可用实体在 prompt 中用一行同时明确正文和工具的不同写法：
 
 ```text
 - citation=[[u:7N4kP2xQ9mL3cR8vT1aZb]]; id=7N4kP2xQ9mL3cR8vT1aZb; title=反馈循环
@@ -190,9 +179,9 @@ system prompt 明确：
 - 不能自己构造、截短或改写 ID；
 - 不允许使用未由 selected context 或工具结果暴露的 marker。
 
-工具返回新实体后，host 只把新 catalog entries 的 direct marker 追加给 Agent；不分配编号，不需要保证历史编号顺序。
+工具返回新实体后，host 继续把新 catalog entries 追加给 Agent，只是显示为 direct marker，不再分配编号。
 
-### 4.3 Persistence
+### 4.2 后端原样保存正文
 
 direct marker 原样保存在 Markdown text 中。它在 streaming、最终事件和历史恢复之间不做结构转换：
 
@@ -201,6 +190,20 @@ assistant.text.delta -> accumulated text -> assistant.turn.text -> session repla
 ```
 
 可以在试验日志里解析 final text 统计 marker，但统计结果不进入 session contract。
+
+### 4.3 前端解析 ID 并读取当前实体
+
+前端直接扩展现有 Markdown 引用转换逻辑：
+
+```text
+[[u:abc]]
+  -> { type: "understanding", id: "abc" }
+  -> understanding.getUnderstandingById("abc")
+  -> 当前 title
+  -> citation chip
+```
+
+不新建通用 token module 或 callback interface。格式化、解析和 title 查询分别留在已经承担这些职责的现有代码位置。
 
 ## 5. 前端 render 设计
 
@@ -301,7 +304,7 @@ Feature 只描述用户可见行为，不写 `[[u:id]]`、React Query 或 sessio
 
 ### 6.2 协议 unit tests
 
-共享 token module 使用表格测试覆盖：
+后端 formatter 和前端 parser 的相邻 unit tests 使用同一组协议 case，覆盖：
 
 - format/parse `u`、`c`、`d`；
 - 完整保留大小写敏感 ID；
@@ -456,9 +459,9 @@ Feature 只描述用户可见行为，不写 `[[u:id]]`、React Query 或 sessio
 
 按 test-case 规范更新现有 citation、history feature，先固定用户可见结果。
 
-### Task 2：建立共享 direct token grammar
+### Task 2：实现最小格式化与解析
 
-先写失败的协议 unit tests，再实现最小 formatter/transformer。旧格式不进入新 grammar，也不保留 adapter。
+先写失败的协议 unit tests，再在现有 prompt formatter 中生成 direct marker，并扩展现有 Markdown 引用转换逻辑解析 direct marker。旧格式不进入新 grammar，也不保留 adapter；不为这两个调用方建立通用 token module。
 
 ### Task 3：切换 Agent 生成路径
 
@@ -494,7 +497,7 @@ Feature 只描述用户可见行为，不写 `[[u:id]]`、React Query 或 sessio
 
 主要会涉及：
 
-- `apps/electron/src/preload/typings/agent*.ts`：共享 token grammar，并删除 citation source event/message 字段；
+- `apps/electron/src/preload/typings/agent*.ts`：删除 citation source event/message 字段；
 - `apps/electron/src/main/services/agent/agent-citations.ts`：从 numbered source formatter 收敛为 direct entity ref formatter；
 - `apps/electron/src/main/services/agent/pi-prompt.ts`：prompt direct refs；
 - `apps/electron/src/main/services/agent/pi-agent-host.ts`：移除 source numbering/merge/extract；
