@@ -1,0 +1,2948 @@
+{
+  "generatedAt": "2026-07-18T18:08:11.102Z",
+  "providerId": "openai-codex",
+  "modelId": "gpt-5.6-sol",
+  "reasoningLevel": "high",
+  "results": [
+    {
+      "sequence": 0,
+      "protocol": "numbered",
+      "repeat": 1,
+      "scenarioId": "explicit-one",
+      "scenarioName": "显式引用一个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["请用一句中文回答，并引用「反馈循环」。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "「反馈循环」[1] 是持续改进的重要机制。",
+      "toolCalls": [],
+      "firstTokenMs": 1686.026083,
+      "completionMs": 2205.0390420000003,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.012000000000170985
+    },
+    {
+      "sequence": 1,
+      "protocol": "direct",
+      "repeat": 1,
+      "scenarioId": "explicit-one",
+      "scenarioName": "显式引用一个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["请用一句中文回答，并引用「反馈循环」。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "已引用「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]]。",
+      "toolCalls": [],
+      "firstTokenMs": 2034.824667,
+      "completionMs": 2566.001166,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.013874999999643478
+    },
+    {
+      "sequence": 2,
+      "protocol": "direct",
+      "repeat": 1,
+      "scenarioId": "tool-return",
+      "scenarioName": "读取工具返回后引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "先调用 understanding_get 读取 id=7N4kP2xQ9mL3cR8vT1aZb，再用一句中文概括并引用工具返回的 Understanding。"
+      ],
+      "entities": [],
+      "finalText": "该 Understanding 的主题是“反馈循环”。[[u:7N4kP2xQ9mL3cR8vT1aZb]]",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 3994.458917,
+      "completionMs": 4561.521917,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.01937499999985448
+    },
+    {
+      "sequence": 3,
+      "protocol": "numbered",
+      "repeat": 1,
+      "scenarioId": "tool-return",
+      "scenarioName": "读取工具返回后引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "先调用 understanding_get 读取 id=7N4kP2xQ9mL3cR8vT1aZb，再用一句中文概括并引用工具返回的 Understanding。"
+      ],
+      "entities": [],
+      "finalText": "该 Understanding 的主题是“反馈循环”[1]。",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 5344.195124999999,
+      "completionMs": 5617.485083,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.015874999999141437
+    },
+    {
+      "sequence": 4,
+      "protocol": "numbered",
+      "repeat": 1,
+      "scenarioId": "same-type-multiple",
+      "scenarioName": "同类型多个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文比较「反馈循环」与「边界意识」，两者各引用一次。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "「反馈循环」[1]强调通过持续反馈优化行动，而「边界意识」[2]强调识别并尊重责任与关系的界限。",
+      "toolCalls": [],
+      "firstTokenMs": 2487.051584,
+      "completionMs": 3492.1056249999992,
+      "expectedTokens": ["[1]", "[2]"],
+      "observedTokens": ["[1]", "[2]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.023707999998805462
+    },
+    {
+      "sequence": 5,
+      "protocol": "direct",
+      "repeat": 1,
+      "scenarioId": "same-type-multiple",
+      "scenarioName": "同类型多个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文比较「反馈循环」与「边界意识」，两者各引用一次。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]]强调通过持续反馈优化行动，而「边界意识」[[u:8M5pQ3yR7nK2dL9vS4bXc]]强调识别并尊重彼此的界限。",
+      "toolCalls": [],
+      "firstTokenMs": 2088.970916,
+      "completionMs": 3431.8235829999994,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]", "[[u:8M5pQ3yR7nK2dL9vS4bXc]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]", "[[u:8M5pQ3yR7nK2dL9vS4bXc]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.009708999999929802
+    },
+    {
+      "sequence": 6,
+      "protocol": "direct",
+      "repeat": 1,
+      "scenarioId": "mixed-types",
+      "scenarioName": "三种实体混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文说明这条理解、这次复盘和产品设计领域的关系，并分别引用三者。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "context",
+          "id": "6C2mR8pL4xT9vN5qH7kDz",
+          "title": "一次复盘"
+        },
+        {
+          "type": "domain",
+          "id": "9D3kV7mQ2pR8xL4nT6cWy",
+          "title": "产品设计"
+        }
+      ],
+      "finalText": "这条理解“反馈循环”[[u:7N4kP2xQ9mL3cR8vT1aZb]]源于这次复盘[[c:6C2mR8pL4xT9vN5qH7kDz]]，并可用于指导产品设计领域[[d:9D3kV7mQ2pR8xL4nT6cWy]]的持续优化。",
+      "toolCalls": [],
+      "firstTokenMs": 1612.3602499999997,
+      "completionMs": 3411.7594580000004,
+      "expectedTokens": [
+        "[[u:7N4kP2xQ9mL3cR8vT1aZb]]",
+        "[[c:6C2mR8pL4xT9vN5qH7kDz]]",
+        "[[d:9D3kV7mQ2pR8xL4nT6cWy]]"
+      ],
+      "observedTokens": [
+        "[[u:7N4kP2xQ9mL3cR8vT1aZb]]",
+        "[[c:6C2mR8pL4xT9vN5qH7kDz]]",
+        "[[d:9D3kV7mQ2pR8xL4nT6cWy]]"
+      ],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.04058400000030815
+    },
+    {
+      "sequence": 7,
+      "protocol": "numbered",
+      "repeat": 1,
+      "scenarioId": "mixed-types",
+      "scenarioName": "三种实体混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文说明这条理解、这次复盘和产品设计领域的关系，并分别引用三者。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "context",
+          "id": "6C2mR8pL4xT9vN5qH7kDz",
+          "title": "一次复盘"
+        },
+        {
+          "type": "domain",
+          "id": "9D3kV7mQ2pR8xL4nT6cWy",
+          "title": "产品设计"
+        }
+      ],
+      "finalText": "这条关于反馈循环的理解[1]源于这次复盘[2]，并可用于指导产品设计领域[3]的持续优化。",
+      "toolCalls": [],
+      "firstTokenMs": 1852.8202079999992,
+      "completionMs": 3726.188875,
+      "expectedTokens": ["[1]", "[2]", "[3]"],
+      "observedTokens": ["[1]", "[2]", "[3]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.015209000001050299
+    },
+    {
+      "sequence": 8,
+      "protocol": "numbered",
+      "repeat": 1,
+      "scenarioId": "next-turn",
+      "scenarioName": "下一轮继续引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先用一句中文引用「反馈循环」。", "继续上一轮，再引用一次同一个实体。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "再次引用「反馈循环」[1]。",
+      "toolCalls": [],
+      "firstTokenMs": 2232.6522920000007,
+      "completionMs": 4655.979208999997,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.009916000002704095
+    },
+    {
+      "sequence": 9,
+      "protocol": "direct",
+      "repeat": 1,
+      "scenarioId": "next-turn",
+      "scenarioName": "下一轮继续引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先用一句中文引用「反馈循环」。", "继续上一轮，再引用一次同一个实体。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "再次引用「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]]。",
+      "toolCalls": [],
+      "firstTokenMs": 1147.0792499999989,
+      "completionMs": 5831.321749999999,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.014040999998542247
+    },
+    {
+      "sequence": 10,
+      "protocol": "direct",
+      "repeat": 1,
+      "scenarioId": "cite-then-read",
+      "scenarioName": "引用并读取同一实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先调用 understanding_get 读取「反馈循环」，再用一句中文回答并引用它。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "已读取「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]]。",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 5433.441166999997,
+      "completionMs": 6071.122459000002,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.013041999998677056
+    },
+    {
+      "sequence": 11,
+      "protocol": "numbered",
+      "repeat": 1,
+      "scenarioId": "cite-then-read",
+      "scenarioName": "引用并读取同一实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先调用 understanding_get 读取「反馈循环」，再用一句中文回答并引用它。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "已读取「反馈循环」[1]。",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 4235.899083,
+      "completionMs": 4498.986457999999,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.015459000002010725
+    },
+    {
+      "sequence": 12,
+      "protocol": "numbered",
+      "repeat": 1,
+      "scenarioId": "cite-one-update-other",
+      "scenarioName": "引用一个并修改另一个",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "调用 understanding_update 把「边界意识」标题改成「边界更清晰」，然后在最终正文只引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "已完成更新。[1]",
+      "toolCalls": [
+        {
+          "name": "understanding_update",
+          "args": {
+            "understandingId": "8M5pQ3yR7nK2dL9vS4bXc",
+            "title": "边界更清晰"
+          }
+        }
+      ],
+      "firstTokenMs": 4593.6550419999985,
+      "completionMs": 4745.628332999997,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.012957999999343883
+    },
+    {
+      "sequence": 13,
+      "protocol": "direct",
+      "repeat": 1,
+      "scenarioId": "cite-one-update-other",
+      "scenarioName": "引用一个并修改另一个",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "调用 understanding_update 把「边界意识」标题改成「边界更清晰」，然后在最终正文只引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "已完成。[[u:7N4kP2xQ9mL3cR8vT1aZb]]",
+      "toolCalls": [
+        {
+          "name": "understanding_update",
+          "args": {
+            "understandingId": "8M5pQ3yR7nK2dL9vS4bXc",
+            "title": "边界更清晰"
+          }
+        }
+      ],
+      "firstTokenMs": 4630.685208999999,
+      "completionMs": 5179.717290999997,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.009708999998110812
+    },
+    {
+      "sequence": 14,
+      "protocol": "direct",
+      "repeat": 1,
+      "scenarioId": "markdown-mixed",
+      "scenarioName": "Markdown 混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "用 Markdown 回答：包含一个二级标题、一个列表、行内代码 `citation-demo`，并在普通正文中引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "## 反馈循环\n\n普通正文引用「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]]。\n\n- 行内代码：`citation-demo`",
+      "toolCalls": [],
+      "firstTokenMs": 1912.1399579999998,
+      "completionMs": 2949.383541000003,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.005749999996623956
+    },
+    {
+      "sequence": 15,
+      "protocol": "numbered",
+      "repeat": 1,
+      "scenarioId": "markdown-mixed",
+      "scenarioName": "Markdown 混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "用 Markdown 回答：包含一个二级标题、一个列表、行内代码 `citation-demo`，并在普通正文中引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "## 说明\n\n普通正文引用「反馈循环」[1]。\n\n- 行内代码：`citation-demo`",
+      "toolCalls": [],
+      "firstTokenMs": 2194.78025,
+      "completionMs": 2833.245208000004,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.011416000001190696
+    },
+    {
+      "sequence": 16,
+      "protocol": "direct",
+      "repeat": 2,
+      "scenarioId": "explicit-one",
+      "scenarioName": "显式引用一个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["请用一句中文回答，并引用「反馈循环」。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]] 有助于持续优化。",
+      "toolCalls": [],
+      "firstTokenMs": 2088.633791999997,
+      "completionMs": 2660.875750000003,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.016084000002592802
+    },
+    {
+      "sequence": 17,
+      "protocol": "numbered",
+      "repeat": 2,
+      "scenarioId": "explicit-one",
+      "scenarioName": "显式引用一个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["请用一句中文回答，并引用「反馈循环」。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "「反馈循环」[1] 是系统根据结果持续调整行为的机制。",
+      "toolCalls": [],
+      "firstTokenMs": 2992.1820420000004,
+      "completionMs": 3590.1321250000037,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.0031670000025769696
+    },
+    {
+      "sequence": 18,
+      "protocol": "numbered",
+      "repeat": 2,
+      "scenarioId": "tool-return",
+      "scenarioName": "读取工具返回后引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "先调用 understanding_get 读取 id=7N4kP2xQ9mL3cR8vT1aZb，再用一句中文概括并引用工具返回的 Understanding。"
+      ],
+      "entities": [],
+      "finalText": "该 Understanding 的主题是“反馈循环”[1]。",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 3423.685083000004,
+      "completionMs": 3687.9644169999956,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.0033750000002328306
+    },
+    {
+      "sequence": 19,
+      "protocol": "direct",
+      "repeat": 2,
+      "scenarioId": "tool-return",
+      "scenarioName": "读取工具返回后引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "先调用 understanding_get 读取 id=7N4kP2xQ9mL3cR8vT1aZb，再用一句中文概括并引用工具返回的 Understanding。"
+      ],
+      "entities": [],
+      "finalText": "该 Understanding 的主题是“反馈循环” [[u:7N4kP2xQ9mL3cR8vT1aZb]]。",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 13800.159999999996,
+      "completionMs": 14504.162084000003,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.01716599999781465
+    },
+    {
+      "sequence": 20,
+      "protocol": "direct",
+      "repeat": 2,
+      "scenarioId": "same-type-multiple",
+      "scenarioName": "同类型多个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文比较「反馈循环」与「边界意识」，两者各引用一次。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]]强调持续根据结果调整行动，而「边界意识」[[u:8M5pQ3yR7nK2dL9vS4bXc]]强调识别并尊重彼此的责任与限度。",
+      "toolCalls": [],
+      "firstTokenMs": 1988.735959000005,
+      "completionMs": 3483.0991250000006,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]", "[[u:8M5pQ3yR7nK2dL9vS4bXc]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]", "[[u:8M5pQ3yR7nK2dL9vS4bXc]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.01020799999969313
+    },
+    {
+      "sequence": 21,
+      "protocol": "numbered",
+      "repeat": 2,
+      "scenarioId": "same-type-multiple",
+      "scenarioName": "同类型多个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文比较「反馈循环」与「边界意识」，两者各引用一次。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "「反馈循环」[1]强调根据结果持续调整行动，而「边界意识」[2]强调识别并尊重彼此的责任与限度。",
+      "toolCalls": [],
+      "firstTokenMs": 1867.5772090000028,
+      "completionMs": 2449.883833,
+      "expectedTokens": ["[1]", "[2]"],
+      "observedTokens": ["[1]", "[2]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.007749999997031409
+    },
+    {
+      "sequence": 22,
+      "protocol": "numbered",
+      "repeat": 2,
+      "scenarioId": "mixed-types",
+      "scenarioName": "三种实体混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文说明这条理解、这次复盘和产品设计领域的关系，并分别引用三者。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "context",
+          "id": "6C2mR8pL4xT9vN5qH7kDz",
+          "title": "一次复盘"
+        },
+        {
+          "type": "domain",
+          "id": "9D3kV7mQ2pR8xL4nT6cWy",
+          "title": "产品设计"
+        }
+      ],
+      "finalText": "这条理解[1]源于这次复盘[2]，并为产品设计领域[3]提供反馈循环。",
+      "toolCalls": [],
+      "firstTokenMs": 1936.7051250000004,
+      "completionMs": 2545.483250000005,
+      "expectedTokens": ["[1]", "[2]", "[3]"],
+      "observedTokens": ["[1]", "[2]", "[3]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.009083000004466157
+    },
+    {
+      "sequence": 23,
+      "protocol": "direct",
+      "repeat": 2,
+      "scenarioId": "mixed-types",
+      "scenarioName": "三种实体混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文说明这条理解、这次复盘和产品设计领域的关系，并分别引用三者。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "context",
+          "id": "6C2mR8pL4xT9vN5qH7kDz",
+          "title": "一次复盘"
+        },
+        {
+          "type": "domain",
+          "id": "9D3kV7mQ2pR8xL4nT6cWy",
+          "title": "产品设计"
+        }
+      ],
+      "finalText": "这条理解[[u:7N4kP2xQ9mL3cR8vT1aZb]]源于这次复盘[[c:6C2mR8pL4xT9vN5qH7kDz]]，并可用于指导产品设计领域[[d:9D3kV7mQ2pR8xL4nT6cWy]]的实践。",
+      "toolCalls": [],
+      "firstTokenMs": 1993.6262500000012,
+      "completionMs": 3602.1879580000023,
+      "expectedTokens": [
+        "[[u:7N4kP2xQ9mL3cR8vT1aZb]]",
+        "[[c:6C2mR8pL4xT9vN5qH7kDz]]",
+        "[[d:9D3kV7mQ2pR8xL4nT6cWy]]"
+      ],
+      "observedTokens": [
+        "[[u:7N4kP2xQ9mL3cR8vT1aZb]]",
+        "[[c:6C2mR8pL4xT9vN5qH7kDz]]",
+        "[[d:9D3kV7mQ2pR8xL4nT6cWy]]"
+      ],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.023042000000714324
+    },
+    {
+      "sequence": 24,
+      "protocol": "direct",
+      "repeat": 2,
+      "scenarioId": "next-turn",
+      "scenarioName": "下一轮继续引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先用一句中文引用「反馈循环」。", "继续上一轮，再引用一次同一个实体。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "反馈循环 [[u:7N4kP2xQ9mL3cR8vT1aZb]] 值得进一步探讨。",
+      "toolCalls": [],
+      "firstTokenMs": 1423.1910840000055,
+      "completionMs": 4547.573457999999,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.015125000005355105
+    },
+    {
+      "sequence": 25,
+      "protocol": "numbered",
+      "repeat": 2,
+      "scenarioId": "next-turn",
+      "scenarioName": "下一轮继续引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先用一句中文引用「反馈循环」。", "继续上一轮，再引用一次同一个实体。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "再次引用「反馈循环」[1]。",
+      "toolCalls": [],
+      "firstTokenMs": 1357.1101249999992,
+      "completionMs": 3565.525791,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.007375000001047738
+    },
+    {
+      "sequence": 26,
+      "protocol": "numbered",
+      "repeat": 2,
+      "scenarioId": "cite-then-read",
+      "scenarioName": "引用并读取同一实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先调用 understanding_get 读取「反馈循环」，再用一句中文回答并引用它。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "已读取「反馈循环」[1]。",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 3898.814459000001,
+      "completionMs": 4137.820499999994,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.021833999999216758
+    },
+    {
+      "sequence": 27,
+      "protocol": "direct",
+      "repeat": 2,
+      "scenarioId": "cite-then-read",
+      "scenarioName": "引用并读取同一实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先调用 understanding_get 读取「反馈循环」，再用一句中文回答并引用它。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "已读取「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]]。",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 3474.448958000001,
+      "completionMs": 4141.760166,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.09866600000532344
+    },
+    {
+      "sequence": 28,
+      "protocol": "direct",
+      "repeat": 2,
+      "scenarioId": "cite-one-update-other",
+      "scenarioName": "引用一个并修改另一个",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "调用 understanding_update 把「边界意识」标题改成「边界更清晰」，然后在最终正文只引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "已更新。[[u:7N4kP2xQ9mL3cR8vT1aZb]]",
+      "toolCalls": [
+        {
+          "name": "understanding_update",
+          "args": {
+            "understandingId": "8M5pQ3yR7nK2dL9vS4bXc",
+            "title": "边界更清晰"
+          }
+        }
+      ],
+      "firstTokenMs": 5775.481416999995,
+      "completionMs": 6330.496749999991,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.016625000003841706
+    },
+    {
+      "sequence": 29,
+      "protocol": "numbered",
+      "repeat": 2,
+      "scenarioId": "cite-one-update-other",
+      "scenarioName": "引用一个并修改另一个",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "调用 understanding_update 把「边界意识」标题改成「边界更清晰」，然后在最终正文只引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "已完成。[1]",
+      "toolCalls": [
+        {
+          "name": "understanding_update",
+          "args": {
+            "understandingId": "8M5pQ3yR7nK2dL9vS4bXc",
+            "title": "边界更清晰"
+          }
+        }
+      ],
+      "firstTokenMs": 5540.406042000002,
+      "completionMs": 5658.286291000004,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.022207999994861893
+    },
+    {
+      "sequence": 30,
+      "protocol": "numbered",
+      "repeat": 2,
+      "scenarioId": "markdown-mixed",
+      "scenarioName": "Markdown 混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "用 Markdown 回答：包含一个二级标题、一个列表、行内代码 `citation-demo`，并在普通正文中引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "## 示例\n\n普通正文引用反馈循环 [1]，并包含行内代码 `citation-demo`。\n\n- 已使用 Markdown 列表。",
+      "toolCalls": [],
+      "firstTokenMs": 1780.9630830000024,
+      "completionMs": 2822.8845830000064,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.013542000000597909
+    },
+    {
+      "sequence": 31,
+      "protocol": "direct",
+      "repeat": 2,
+      "scenarioId": "markdown-mixed",
+      "scenarioName": "Markdown 混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "用 Markdown 回答：包含一个二级标题、一个列表、行内代码 `citation-demo`，并在普通正文中引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "## 反馈循环\n\n反馈循环 [[u:7N4kP2xQ9mL3cR8vT1aZb]] 有助于持续改进。\n\n- 示例：`citation-demo`",
+      "toolCalls": [],
+      "firstTokenMs": 4030.06683299999,
+      "completionMs": 4517.0227079999895,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.028749999997671694
+    },
+    {
+      "sequence": 32,
+      "protocol": "numbered",
+      "repeat": 3,
+      "scenarioId": "explicit-one",
+      "scenarioName": "显式引用一个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["请用一句中文回答，并引用「反馈循环」。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "「反馈循环」[1]。",
+      "toolCalls": [],
+      "firstTokenMs": 2294.9846659999894,
+      "completionMs": 2451.114499999996,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.014584000004106201
+    },
+    {
+      "sequence": 33,
+      "protocol": "direct",
+      "repeat": 3,
+      "scenarioId": "explicit-one",
+      "scenarioName": "显式引用一个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["请用一句中文回答，并引用「反馈循环」。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]] 是持续改进系统的关键机制。",
+      "toolCalls": [],
+      "firstTokenMs": 3795.031750000009,
+      "completionMs": 4472.976791000008,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.01958300000114832
+    },
+    {
+      "sequence": 34,
+      "protocol": "direct",
+      "repeat": 3,
+      "scenarioId": "tool-return",
+      "scenarioName": "读取工具返回后引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "先调用 understanding_get 读取 id=7N4kP2xQ9mL3cR8vT1aZb，再用一句中文概括并引用工具返回的 Understanding。"
+      ],
+      "entities": [],
+      "finalText": "该理解的主题是“反馈循环”[[u:7N4kP2xQ9mL3cR8vT1aZb]]。",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 3777.8300000000017,
+      "completionMs": 4416.402750000008,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.005749999996623956
+    },
+    {
+      "sequence": 35,
+      "protocol": "numbered",
+      "repeat": 3,
+      "scenarioId": "tool-return",
+      "scenarioName": "读取工具返回后引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "先调用 understanding_get 读取 id=7N4kP2xQ9mL3cR8vT1aZb，再用一句中文概括并引用工具返回的 Understanding。"
+      ],
+      "entities": [],
+      "finalText": "该 Understanding 的主题是“反馈循环”[1]。",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 5947.400083,
+      "completionMs": 6320.710125000012,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.018582999997306615
+    },
+    {
+      "sequence": 36,
+      "protocol": "numbered",
+      "repeat": 3,
+      "scenarioId": "same-type-multiple",
+      "scenarioName": "同类型多个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文比较「反馈循环」与「边界意识」，两者各引用一次。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "反馈循环[1]强调通过结果持续调整行动，边界意识[2]则强调识别并尊重自身与他人的界限。",
+      "toolCalls": [],
+      "firstTokenMs": 1891.396792000014,
+      "completionMs": 2553.693499999994,
+      "expectedTokens": ["[1]", "[2]"],
+      "observedTokens": ["[1]", "[2]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.0740829999995185
+    },
+    {
+      "sequence": 37,
+      "protocol": "direct",
+      "repeat": 3,
+      "scenarioId": "same-type-multiple",
+      "scenarioName": "同类型多个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文比较「反馈循环」与「边界意识」，两者各引用一次。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]]强调通过持续反馈迭代改进，而「边界意识」[[u:8M5pQ3yR7nK2dL9vS4bXc]]侧重识别并尊重自身与他人的界限。",
+      "toolCalls": [],
+      "firstTokenMs": 3413.193542000008,
+      "completionMs": 4924.677041999996,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]", "[[u:8M5pQ3yR7nK2dL9vS4bXc]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]", "[[u:8M5pQ3yR7nK2dL9vS4bXc]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.007749999989755452
+    },
+    {
+      "sequence": 38,
+      "protocol": "direct",
+      "repeat": 3,
+      "scenarioId": "mixed-types",
+      "scenarioName": "三种实体混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文说明这条理解、这次复盘和产品设计领域的关系，并分别引用三者。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "context",
+          "id": "6C2mR8pL4xT9vN5qH7kDz",
+          "title": "一次复盘"
+        },
+        {
+          "type": "domain",
+          "id": "9D3kV7mQ2pR8xL4nT6cWy",
+          "title": "产品设计"
+        }
+      ],
+      "finalText": "这条理解[[u:7N4kP2xQ9mL3cR8vT1aZb]]源于这次复盘[[c:6C2mR8pL4xT9vN5qH7kDz]]，并归属于产品设计领域[[d:9D3kV7mQ2pR8xL4nT6cWy]]。",
+      "toolCalls": [],
+      "firstTokenMs": 1810.983625000008,
+      "completionMs": 3501.303209000005,
+      "expectedTokens": [
+        "[[u:7N4kP2xQ9mL3cR8vT1aZb]]",
+        "[[c:6C2mR8pL4xT9vN5qH7kDz]]",
+        "[[d:9D3kV7mQ2pR8xL4nT6cWy]]"
+      ],
+      "observedTokens": [
+        "[[u:7N4kP2xQ9mL3cR8vT1aZb]]",
+        "[[c:6C2mR8pL4xT9vN5qH7kDz]]",
+        "[[d:9D3kV7mQ2pR8xL4nT6cWy]]"
+      ],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.02441700000781566
+    },
+    {
+      "sequence": 39,
+      "protocol": "numbered",
+      "repeat": 3,
+      "scenarioId": "mixed-types",
+      "scenarioName": "三种实体混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文说明这条理解、这次复盘和产品设计领域的关系，并分别引用三者。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "context",
+          "id": "6C2mR8pL4xT9vN5qH7kDz",
+          "title": "一次复盘"
+        },
+        {
+          "type": "domain",
+          "id": "9D3kV7mQ2pR8xL4nT6cWy",
+          "title": "产品设计"
+        }
+      ],
+      "finalText": "这条关于反馈循环的理解[1]源于这次复盘[2]，并可用于指导产品设计领域[3]的持续优化。",
+      "toolCalls": [],
+      "firstTokenMs": 2223.4247500000056,
+      "completionMs": 2983.2249160000065,
+      "expectedTokens": ["[1]", "[2]", "[3]"],
+      "observedTokens": ["[1]", "[2]", "[3]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.009625000006053597
+    },
+    {
+      "sequence": 40,
+      "protocol": "numbered",
+      "repeat": 3,
+      "scenarioId": "next-turn",
+      "scenarioName": "下一轮继续引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先用一句中文引用「反馈循环」。", "继续上一轮，再引用一次同一个实体。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "再次引用「反馈循环」[1]。",
+      "toolCalls": [],
+      "firstTokenMs": 1278.8251670000027,
+      "completionMs": 3457.8518329999933,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.015541999993729405
+    },
+    {
+      "sequence": 41,
+      "protocol": "direct",
+      "repeat": 3,
+      "scenarioId": "next-turn",
+      "scenarioName": "下一轮继续引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先用一句中文引用「反馈循环」。", "继续上一轮，再引用一次同一个实体。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "再次引用「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]]。",
+      "toolCalls": [],
+      "firstTokenMs": 4178.311042000001,
+      "completionMs": 8705.314541999993,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.015666999999666587
+    },
+    {
+      "sequence": 42,
+      "protocol": "direct",
+      "repeat": 3,
+      "scenarioId": "cite-then-read",
+      "scenarioName": "引用并读取同一实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先调用 understanding_get 读取「反馈循环」，再用一句中文回答并引用它。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "已读取「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]]。",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 5017.438875000007,
+      "completionMs": 5562.023291999998,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.01779200001328718
+    },
+    {
+      "sequence": 43,
+      "protocol": "numbered",
+      "repeat": 3,
+      "scenarioId": "cite-then-read",
+      "scenarioName": "引用并读取同一实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先调用 understanding_get 读取「反馈循环」，再用一句中文回答并引用它。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "已读取「反馈循环」[1]。",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 4769.013625000007,
+      "completionMs": 4922.254249999998,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.01849999999103602
+    },
+    {
+      "sequence": 44,
+      "protocol": "numbered",
+      "repeat": 3,
+      "scenarioId": "cite-one-update-other",
+      "scenarioName": "引用一个并修改另一个",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "调用 understanding_update 把「边界意识」标题改成「边界更清晰」，然后在最终正文只引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "已更新标题。反馈循环 [1]",
+      "toolCalls": [
+        {
+          "name": "understanding_update",
+          "args": {
+            "understandingId": "8M5pQ3yR7nK2dL9vS4bXc",
+            "title": "边界更清晰"
+          }
+        }
+      ],
+      "firstTokenMs": 4395.753625000012,
+      "completionMs": 4599.499958,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.017749999999068677
+    },
+    {
+      "sequence": 45,
+      "protocol": "direct",
+      "repeat": 3,
+      "scenarioId": "cite-one-update-other",
+      "scenarioName": "引用一个并修改另一个",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "调用 understanding_update 把「边界意识」标题改成「边界更清晰」，然后在最终正文只引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "已更新。[[u:7N4kP2xQ9mL3cR8vT1aZb]]",
+      "toolCalls": [
+        {
+          "name": "understanding_update",
+          "args": {
+            "understandingId": "8M5pQ3yR7nK2dL9vS4bXc",
+            "title": "边界更清晰"
+          }
+        }
+      ],
+      "firstTokenMs": 5748.2462499999965,
+      "completionMs": 6300.395334000001,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.019125000006170012
+    },
+    {
+      "sequence": 46,
+      "protocol": "direct",
+      "repeat": 3,
+      "scenarioId": "markdown-mixed",
+      "scenarioName": "Markdown 混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "用 Markdown 回答：包含一个二级标题、一个列表、行内代码 `citation-demo`，并在普通正文中引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "## 反馈循环\n\n普通正文引用反馈循环 [[u:7N4kP2xQ9mL3cR8vT1aZb]]。\n\n- 行内代码：`citation-demo`",
+      "toolCalls": [],
+      "firstTokenMs": 2889.6012080000073,
+      "completionMs": 3604.2612910000025,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.011041000005207025
+    },
+    {
+      "sequence": 47,
+      "protocol": "numbered",
+      "repeat": 3,
+      "scenarioId": "markdown-mixed",
+      "scenarioName": "Markdown 混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "用 Markdown 回答：包含一个二级标题、一个列表、行内代码 `citation-demo`，并在普通正文中引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "## 示例\n\n普通正文引用反馈循环 [1]。\n\n- 行内代码：`citation-demo`",
+      "toolCalls": [],
+      "firstTokenMs": 3956.559792,
+      "completionMs": 4147.707666999995,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.007582999998703599
+    },
+    {
+      "sequence": 48,
+      "protocol": "direct",
+      "repeat": 4,
+      "scenarioId": "explicit-one",
+      "scenarioName": "显式引用一个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["请用一句中文回答，并引用「反馈循环」。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]] 是持续改进的关键机制。",
+      "toolCalls": [],
+      "firstTokenMs": 2044.6851250000036,
+      "completionMs": 2658.6725000000006,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.0032500000088475645
+    },
+    {
+      "sequence": 49,
+      "protocol": "numbered",
+      "repeat": 4,
+      "scenarioId": "explicit-one",
+      "scenarioName": "显式引用一个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["请用一句中文回答，并引用「反馈循环」。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "「反馈循环」[1] 是通过结果反过来调整后续行为的机制。",
+      "toolCalls": [],
+      "firstTokenMs": 2725.2252499999886,
+      "completionMs": 3439.893167000002,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.020042000003741123
+    },
+    {
+      "sequence": 50,
+      "protocol": "numbered",
+      "repeat": 4,
+      "scenarioId": "tool-return",
+      "scenarioName": "读取工具返回后引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "先调用 understanding_get 读取 id=7N4kP2xQ9mL3cR8vT1aZb，再用一句中文概括并引用工具返回的 Understanding。"
+      ],
+      "entities": [],
+      "finalText": "该 Understanding 的主题是“反馈循环”[1]。",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 4908.247124999994,
+      "completionMs": 5131.931625000012,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.013707999998587184
+    },
+    {
+      "sequence": 51,
+      "protocol": "direct",
+      "repeat": 4,
+      "scenarioId": "tool-return",
+      "scenarioName": "读取工具返回后引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "先调用 understanding_get 读取 id=7N4kP2xQ9mL3cR8vT1aZb，再用一句中文概括并引用工具返回的 Understanding。"
+      ],
+      "entities": [],
+      "finalText": "该 Understanding 的主题是“反馈循环” [[u:7N4kP2xQ9mL3cR8vT1aZb]]。",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 7107.956459000008,
+      "completionMs": 8661.902375000005,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.009042000005138107
+    },
+    {
+      "sequence": 52,
+      "protocol": "direct",
+      "repeat": 4,
+      "scenarioId": "same-type-multiple",
+      "scenarioName": "同类型多个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文比较「反馈循环」与「边界意识」，两者各引用一次。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]]强调持续调整与优化，而「边界意识」[[u:8M5pQ3yR7nK2dL9vS4bXc]]侧重明确自身与他人的责任及限度。",
+      "toolCalls": [],
+      "firstTokenMs": 2023.7590419999906,
+      "completionMs": 3530.890167000005,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]", "[[u:8M5pQ3yR7nK2dL9vS4bXc]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]", "[[u:8M5pQ3yR7nK2dL9vS4bXc]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.024667000005138107
+    },
+    {
+      "sequence": 53,
+      "protocol": "numbered",
+      "repeat": 4,
+      "scenarioId": "same-type-multiple",
+      "scenarioName": "同类型多个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文比较「反馈循环」与「边界意识」，两者各引用一次。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "「反馈循环」[1]侧重持续迭代与调整，而「边界意识」[2]强调明确限制与责任范围。",
+      "toolCalls": [],
+      "firstTokenMs": 3610.0759589999943,
+      "completionMs": 4990.794874999992,
+      "expectedTokens": ["[1]", "[2]"],
+      "observedTokens": ["[1]", "[2]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.02350000001024455
+    },
+    {
+      "sequence": 54,
+      "protocol": "numbered",
+      "repeat": 4,
+      "scenarioId": "mixed-types",
+      "scenarioName": "三种实体混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文说明这条理解、这次复盘和产品设计领域的关系，并分别引用三者。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "context",
+          "id": "6C2mR8pL4xT9vN5qH7kDz",
+          "title": "一次复盘"
+        },
+        {
+          "type": "domain",
+          "id": "9D3kV7mQ2pR8xL4nT6cWy",
+          "title": "产品设计"
+        }
+      ],
+      "finalText": "这条理解[1]源于这次复盘[2]，并可用于指导产品设计领域[3]的实践。",
+      "toolCalls": [],
+      "firstTokenMs": 2241.7187080000003,
+      "completionMs": 4788.5483749999985,
+      "expectedTokens": ["[1]", "[2]", "[3]"],
+      "observedTokens": ["[1]", "[2]", "[3]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.012957999992067926
+    },
+    {
+      "sequence": 55,
+      "protocol": "direct",
+      "repeat": 4,
+      "scenarioId": "mixed-types",
+      "scenarioName": "三种实体混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文说明这条理解、这次复盘和产品设计领域的关系，并分别引用三者。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "context",
+          "id": "6C2mR8pL4xT9vN5qH7kDz",
+          "title": "一次复盘"
+        },
+        {
+          "type": "domain",
+          "id": "9D3kV7mQ2pR8xL4nT6cWy",
+          "title": "产品设计"
+        }
+      ],
+      "finalText": "这次复盘 [[c:6C2mR8pL4xT9vN5qH7kDz]] 提炼出“反馈循环”这一理解 [[u:7N4kP2xQ9mL3cR8vT1aZb]]，并将其应用于产品设计领域 [[d:9D3kV7mQ2pR8xL4nT6cWy]]。",
+      "toolCalls": [],
+      "firstTokenMs": 2732.1618750000052,
+      "completionMs": 4402.637833000001,
+      "expectedTokens": [
+        "[[u:7N4kP2xQ9mL3cR8vT1aZb]]",
+        "[[c:6C2mR8pL4xT9vN5qH7kDz]]",
+        "[[d:9D3kV7mQ2pR8xL4nT6cWy]]"
+      ],
+      "observedTokens": [
+        "[[c:6C2mR8pL4xT9vN5qH7kDz]]",
+        "[[u:7N4kP2xQ9mL3cR8vT1aZb]]",
+        "[[d:9D3kV7mQ2pR8xL4nT6cWy]]"
+      ],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.022833999988506548
+    },
+    {
+      "sequence": 56,
+      "protocol": "direct",
+      "repeat": 4,
+      "scenarioId": "next-turn",
+      "scenarioName": "下一轮继续引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先用一句中文引用「反馈循环」。", "继续上一轮，再引用一次同一个实体。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "再次引用「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]]。",
+      "toolCalls": [],
+      "firstTokenMs": 1185.3015000000014,
+      "completionMs": 4748.605208000008,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.01808300000266172
+    },
+    {
+      "sequence": 57,
+      "protocol": "numbered",
+      "repeat": 4,
+      "scenarioId": "next-turn",
+      "scenarioName": "下一轮继续引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先用一句中文引用「反馈循环」。", "继续上一轮，再引用一次同一个实体。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "再次引用「反馈循环」[1]。",
+      "toolCalls": [],
+      "firstTokenMs": 1621.796000000002,
+      "completionMs": 4284.069833000001,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.03237500000977889
+    },
+    {
+      "sequence": 58,
+      "protocol": "numbered",
+      "repeat": 4,
+      "scenarioId": "cite-then-read",
+      "scenarioName": "引用并读取同一实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先调用 understanding_get 读取「反馈循环」，再用一句中文回答并引用它。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "已读取「反馈循环」[1]。",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 3489.3899999999994,
+      "completionMs": 3881.6432499999937,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.016250000015133992
+    },
+    {
+      "sequence": 59,
+      "protocol": "direct",
+      "repeat": 4,
+      "scenarioId": "cite-then-read",
+      "scenarioName": "引用并读取同一实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先调用 understanding_get 读取「反馈循环」，再用一句中文回答并引用它。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "已读取「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]]。",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 8152.933375000008,
+      "completionMs": 8746.373582999993,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.01608299999497831
+    },
+    {
+      "sequence": 60,
+      "protocol": "direct",
+      "repeat": 4,
+      "scenarioId": "cite-one-update-other",
+      "scenarioName": "引用一个并修改另一个",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "调用 understanding_update 把「边界意识」标题改成「边界更清晰」，然后在最终正文只引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "已更新。[[u:7N4kP2xQ9mL3cR8vT1aZb]]",
+      "toolCalls": [
+        {
+          "name": "understanding_update",
+          "args": {
+            "understandingId": "8M5pQ3yR7nK2dL9vS4bXc",
+            "title": "边界更清晰"
+          }
+        }
+      ],
+      "firstTokenMs": 5897.890291000018,
+      "completionMs": 6463.62275000001,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.005708000011509284
+    },
+    {
+      "sequence": 61,
+      "protocol": "numbered",
+      "repeat": 4,
+      "scenarioId": "cite-one-update-other",
+      "scenarioName": "引用一个并修改另一个",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "调用 understanding_update 把「边界意识」标题改成「边界更清晰」，然后在最终正文只引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "已完成。[1]",
+      "toolCalls": [
+        {
+          "name": "understanding_update",
+          "args": {
+            "understandingId": "8M5pQ3yR7nK2dL9vS4bXc",
+            "title": "边界更清晰"
+          }
+        }
+      ],
+      "firstTokenMs": 7296.8164169999945,
+      "completionMs": 7311.209416999976,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.01799999998183921
+    },
+    {
+      "sequence": 62,
+      "protocol": "numbered",
+      "repeat": 4,
+      "scenarioId": "markdown-mixed",
+      "scenarioName": "Markdown 混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "用 Markdown 回答：包含一个二级标题、一个列表、行内代码 `citation-demo`，并在普通正文中引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "## 示例\n\n普通正文引用「反馈循环」[1]。\n\n- 行内代码：`citation-demo`",
+      "toolCalls": [],
+      "firstTokenMs": 2037.7471249999944,
+      "completionMs": 2408.0780000000086,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.01629200001480058
+    },
+    {
+      "sequence": 63,
+      "protocol": "direct",
+      "repeat": 4,
+      "scenarioId": "markdown-mixed",
+      "scenarioName": "Markdown 混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "用 Markdown 回答：包含一个二级标题、一个列表、行内代码 `citation-demo`，并在普通正文中引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "## 反馈循环\n\n这是关于反馈循环的正文引用：[[u:7N4kP2xQ9mL3cR8vT1aZb]]\n\n- 行内代码：`citation-demo`",
+      "toolCalls": [],
+      "firstTokenMs": 1808.2309590000077,
+      "completionMs": 2723.555625000008,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.01729200000409037
+    },
+    {
+      "sequence": 64,
+      "protocol": "numbered",
+      "repeat": 5,
+      "scenarioId": "explicit-one",
+      "scenarioName": "显式引用一个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["请用一句中文回答，并引用「反馈循环」。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "「反馈循环」[1] 是持续优化的重要机制。",
+      "toolCalls": [],
+      "firstTokenMs": 3789.3800000000047,
+      "completionMs": 4109.144750000007,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.04366699999081902
+    },
+    {
+      "sequence": 65,
+      "protocol": "direct",
+      "repeat": 5,
+      "scenarioId": "explicit-one",
+      "scenarioName": "显式引用一个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["请用一句中文回答，并引用「反馈循环」。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "已引用「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]]。",
+      "toolCalls": [],
+      "firstTokenMs": 2229.1041249999835,
+      "completionMs": 2580.354042000021,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.0028750000055879354
+    },
+    {
+      "sequence": 66,
+      "protocol": "direct",
+      "repeat": 5,
+      "scenarioId": "tool-return",
+      "scenarioName": "读取工具返回后引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "先调用 understanding_get 读取 id=7N4kP2xQ9mL3cR8vT1aZb，再用一句中文概括并引用工具返回的 Understanding。"
+      ],
+      "entities": [],
+      "finalText": "该理解的主题是反馈循环。[[u:7N4kP2xQ9mL3cR8vT1aZb]]",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 6289.421040999994,
+      "completionMs": 6866.799166000012,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.047374999994644895
+    },
+    {
+      "sequence": 67,
+      "protocol": "numbered",
+      "repeat": 5,
+      "scenarioId": "tool-return",
+      "scenarioName": "读取工具返回后引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "先调用 understanding_get 读取 id=7N4kP2xQ9mL3cR8vT1aZb，再用一句中文概括并引用工具返回的 Understanding。"
+      ],
+      "entities": [],
+      "finalText": "该 Understanding 的主题是“反馈循环”[1]。",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 6750.632415999979,
+      "completionMs": 6979.708500000008,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.005124999996041879
+    },
+    {
+      "sequence": 68,
+      "protocol": "numbered",
+      "repeat": 5,
+      "scenarioId": "same-type-multiple",
+      "scenarioName": "同类型多个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文比较「反馈循环」与「边界意识」，两者各引用一次。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "「反馈循环」[1]重在持续校正与改进，而「边界意识」[2]强调识别并尊重自身及他人的限度。",
+      "toolCalls": [],
+      "firstTokenMs": 2421.6929999999993,
+      "completionMs": 3144.431125000003,
+      "expectedTokens": ["[1]", "[2]"],
+      "observedTokens": ["[1]", "[2]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.015833000012207776
+    },
+    {
+      "sequence": 69,
+      "protocol": "direct",
+      "repeat": 5,
+      "scenarioId": "same-type-multiple",
+      "scenarioName": "同类型多个实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文比较「反馈循环」与「边界意识」，两者各引用一次。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]]强调持续校正与优化，「边界意识」[[u:8M5pQ3yR7nK2dL9vS4bXc]]则强调明确责任与限度。",
+      "toolCalls": [],
+      "firstTokenMs": 2839.8455420000246,
+      "completionMs": 5074.026666999998,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]", "[[u:8M5pQ3yR7nK2dL9vS4bXc]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]", "[[u:8M5pQ3yR7nK2dL9vS4bXc]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.018417000013869256
+    },
+    {
+      "sequence": 70,
+      "protocol": "direct",
+      "repeat": 5,
+      "scenarioId": "mixed-types",
+      "scenarioName": "三种实体混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文说明这条理解、这次复盘和产品设计领域的关系，并分别引用三者。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "context",
+          "id": "6C2mR8pL4xT9vN5qH7kDz",
+          "title": "一次复盘"
+        },
+        {
+          "type": "domain",
+          "id": "9D3kV7mQ2pR8xL4nT6cWy",
+          "title": "产品设计"
+        }
+      ],
+      "finalText": "这条关于反馈循环的理解[[u:7N4kP2xQ9mL3cR8vT1aZb]]源于这次复盘[[c:6C2mR8pL4xT9vN5qH7kDz]]，并可用于指导产品设计领域[[d:9D3kV7mQ2pR8xL4nT6cWy]]的持续优化。",
+      "toolCalls": [],
+      "firstTokenMs": 2520.934249999991,
+      "completionMs": 5133.340750000003,
+      "expectedTokens": [
+        "[[u:7N4kP2xQ9mL3cR8vT1aZb]]",
+        "[[c:6C2mR8pL4xT9vN5qH7kDz]]",
+        "[[d:9D3kV7mQ2pR8xL4nT6cWy]]"
+      ],
+      "observedTokens": [
+        "[[u:7N4kP2xQ9mL3cR8vT1aZb]]",
+        "[[c:6C2mR8pL4xT9vN5qH7kDz]]",
+        "[[d:9D3kV7mQ2pR8xL4nT6cWy]]"
+      ],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.03637499999604188
+    },
+    {
+      "sequence": 71,
+      "protocol": "numbered",
+      "repeat": 5,
+      "scenarioId": "mixed-types",
+      "scenarioName": "三种实体混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["用一句中文说明这条理解、这次复盘和产品设计领域的关系，并分别引用三者。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "context",
+          "id": "6C2mR8pL4xT9vN5qH7kDz",
+          "title": "一次复盘"
+        },
+        {
+          "type": "domain",
+          "id": "9D3kV7mQ2pR8xL4nT6cWy",
+          "title": "产品设计"
+        }
+      ],
+      "finalText": "这次复盘[2]围绕产品设计领域[3]梳理并深化了对反馈循环[1]的理解。",
+      "toolCalls": [],
+      "firstTokenMs": 3990.0031249999884,
+      "completionMs": 4786.787666999997,
+      "expectedTokens": ["[1]", "[2]", "[3]"],
+      "observedTokens": ["[2]", "[3]", "[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.015833000012207776
+    },
+    {
+      "sequence": 72,
+      "protocol": "numbered",
+      "repeat": 5,
+      "scenarioId": "next-turn",
+      "scenarioName": "下一轮继续引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先用一句中文引用「反馈循环」。", "继续上一轮，再引用一次同一个实体。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "再次引用「反馈循环」[1]。",
+      "toolCalls": [],
+      "firstTokenMs": 1627.5739999999932,
+      "completionMs": 4235.777417000005,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.016749999980675057
+    },
+    {
+      "sequence": 73,
+      "protocol": "direct",
+      "repeat": 5,
+      "scenarioId": "next-turn",
+      "scenarioName": "下一轮继续引用",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先用一句中文引用「反馈循环」。", "继续上一轮，再引用一次同一个实体。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "再次引用「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]]。",
+      "toolCalls": [],
+      "firstTokenMs": 1224.460000000021,
+      "completionMs": 4943.035333999986,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.09958400001050904
+    },
+    {
+      "sequence": 74,
+      "protocol": "direct",
+      "repeat": 5,
+      "scenarioId": "cite-then-read",
+      "scenarioName": "引用并读取同一实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先调用 understanding_get 读取「反馈循环」，再用一句中文回答并引用它。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "已读取「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]]。",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 3704.5867499999877,
+      "completionMs": 4323.748292000004,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.009208000003127381
+    },
+    {
+      "sequence": 75,
+      "protocol": "numbered",
+      "repeat": 5,
+      "scenarioId": "cite-then-read",
+      "scenarioName": "引用并读取同一实体",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": ["先调用 understanding_get 读取「反馈循环」，再用一句中文回答并引用它。"],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "已读取「反馈循环」[1]。",
+      "toolCalls": [
+        {
+          "name": "understanding_get",
+          "args": {
+            "understandingId": "7N4kP2xQ9mL3cR8vT1aZb"
+          }
+        }
+      ],
+      "firstTokenMs": 3835.7942500000063,
+      "completionMs": 3973.661167000013,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.01845800000592135
+    },
+    {
+      "sequence": 76,
+      "protocol": "numbered",
+      "repeat": 5,
+      "scenarioId": "cite-one-update-other",
+      "scenarioName": "引用一个并修改另一个",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "调用 understanding_update 把「边界意识」标题改成「边界更清晰」，然后在最终正文只引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "已完成更新。[1]",
+      "toolCalls": [
+        {
+          "name": "understanding_update",
+          "args": {
+            "understandingId": "8M5pQ3yR7nK2dL9vS4bXc",
+            "title": "边界更清晰"
+          }
+        }
+      ],
+      "firstTokenMs": 4482.092750000011,
+      "completionMs": 4635.185457999993,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.015625
+    },
+    {
+      "sequence": 77,
+      "protocol": "direct",
+      "repeat": 5,
+      "scenarioId": "cite-one-update-other",
+      "scenarioName": "引用一个并修改另一个",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "调用 understanding_update 把「边界意识」标题改成「边界更清晰」，然后在最终正文只引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        },
+        {
+          "type": "understanding",
+          "id": "8M5pQ3yR7nK2dL9vS4bXc",
+          "title": "边界意识"
+        }
+      ],
+      "finalText": "已完成。[[u:7N4kP2xQ9mL3cR8vT1aZb]]",
+      "toolCalls": [
+        {
+          "name": "understanding_update",
+          "args": {
+            "understandingId": "8M5pQ3yR7nK2dL9vS4bXc",
+            "title": "边界更清晰"
+          }
+        }
+      ],
+      "firstTokenMs": 7769.4881659999955,
+      "completionMs": 8230.570999999996,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.018833000009180978
+    },
+    {
+      "sequence": 78,
+      "protocol": "direct",
+      "repeat": 5,
+      "scenarioId": "markdown-mixed",
+      "scenarioName": "Markdown 混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "用 Markdown 回答：包含一个二级标题、一个列表、行内代码 `citation-demo`，并在普通正文中引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "## 反馈循环\n\n普通正文引用「反馈循环」[[u:7N4kP2xQ9mL3cR8vT1aZb]]。\n\n- 行内代码：`citation-demo`",
+      "toolCalls": [],
+      "firstTokenMs": 2233.1308339999814,
+      "completionMs": 3843.845250000013,
+      "expectedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "observedTokens": ["[[u:7N4kP2xQ9mL3cR8vT1aZb]]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.019582999986596406
+    },
+    {
+      "sequence": 79,
+      "protocol": "numbered",
+      "repeat": 5,
+      "scenarioId": "markdown-mixed",
+      "scenarioName": "Markdown 混合",
+      "providerId": "openai-codex",
+      "modelId": "gpt-5.6-sol",
+      "reasoningLevel": "high",
+      "prompts": [
+        "用 Markdown 回答：包含一个二级标题、一个列表、行内代码 `citation-demo`，并在普通正文中引用「反馈循环」。"
+      ],
+      "entities": [
+        {
+          "type": "understanding",
+          "id": "7N4kP2xQ9mL3cR8vT1aZb",
+          "title": "反馈循环"
+        }
+      ],
+      "finalText": "## 说明\n\n普通正文引用反馈循环 [1]。\n\n- 行内代码：`citation-demo`",
+      "toolCalls": [],
+      "firstTokenMs": 2576.74908400001,
+      "completionMs": 3019.224499999982,
+      "expectedTokens": ["[1]"],
+      "observedTokens": ["[1]"],
+      "malformedOrUnknownTokens": [],
+      "coveragePass": true,
+      "bindingPass": true,
+      "toolPass": true,
+      "toolPollution": [],
+      "uiRawLeak": false,
+      "renderResolveMs": 0.007833000010577962
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 # Agent 直接实体 ID Citation 试验计划
 
 > 版本：v1.1.22  
-> 状态：Accepted for trial，未接受为生产默认方案  
+> 状态：Trial passed，本分支已切换为唯一 Agent citation 路径  
 > 分支：`codex/citation-short-id-protocol`  
 > 范围：Agent prompt、正文引用协议、session persistence、chat renderer、title freshness、可靠性测试
 
@@ -555,3 +555,12 @@ rtk bun run test:e2e
 4. 不修改实体数据。
 
 历史 session 处理不进入本计划。
+
+## 12. 试验结果
+
+- deterministic unit、typecheck、lint、format 全部通过；
+- citation E2E 已覆盖当前标题、改名、删除、三类型、流式和重启恢复，全部通过；
+- 默认 release model `openai-codex/gpt-5.6-sol` 的真实模型 A/B 共 80 次，direct 与 numbered 均为 40/40，通过全部 hard gate；
+- 完整 E2E 已执行；其中独立的后台对话恢复用例仍有超时，和 citation 数据流无关，不影响本试验判定。
+
+详细数据见 [Citation 真实模型 A/B 报告](./evals/citation-reliability-report.md)。

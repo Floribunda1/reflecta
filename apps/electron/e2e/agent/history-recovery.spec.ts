@@ -119,24 +119,7 @@ test("@AG-HISTORY-006 用户重启应用后仍可打开 Agent 回复中的知识
       assistantMessage("history-entity-ref-assistant", [
         {
           type: "text",
-          text: "## 相关资料\n\n### 1. React Server Components\n\n- **重点**：可以继续查看 React Server Components。",
-          parts: [
-            { type: "text", text: "## 相关资料\n\n### 1. " },
-            {
-              type: "entity_ref",
-              entityType: "understanding",
-              entityId: understandingId,
-              fallbackText: "React Server Components",
-            },
-            { type: "text", text: "\n\n- **重点**：可以继续查看 " },
-            {
-              type: "entity_ref",
-              entityType: "understanding",
-              entityId: understandingId,
-              fallbackText: "React Server Components",
-            },
-            { type: "text", text: "。" },
-          ],
+          text: `## 相关资料\n\n### 1. [[u:${understandingId}]]\n\n- **重点**：可以继续查看 [[u:${understandingId}]]。`,
         },
       ]),
     ],
