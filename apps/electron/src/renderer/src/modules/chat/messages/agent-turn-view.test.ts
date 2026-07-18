@@ -384,6 +384,7 @@ describe("buildAgentTurnView", () => {
         items: [
           expect.objectContaining({
             toolName: "bash",
+            label: "执行了 Bash · printf hello",
             details: {
               meta: [
                 { label: "命令", value: "printf hello" },

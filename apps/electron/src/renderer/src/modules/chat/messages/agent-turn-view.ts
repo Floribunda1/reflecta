@@ -1065,8 +1065,8 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
     return outputRecord.blocked ? `网页无法读取「${label}」` : `读取了网页「${label}」`;
   }
   if (name === "bash") {
-    const exitCode = outputRecord.exitCode;
-    return `执行了 Bash${typeof exitCode === "number" ? ` · exit ${exitCode}` : ""}`;
+    const command = stringValue(input.command).trim();
+    return `执行了 Bash${command ? ` · ${command}` : ""}`;
   }
   if (name === "domain_list") return `列出 ${outputCount(output, "domains")} 个 Domain`;
   if (name === "domain_inspect") {
