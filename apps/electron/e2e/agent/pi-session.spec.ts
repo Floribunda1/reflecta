@@ -36,7 +36,9 @@ const PI_REJECT_PROPOSAL_TITLE = "PI_REJECT_CANDIDATE_UNDERSTANDING";
 const PI_APPROVE_PROPOSAL_TITLE = "PI_APPROVE_CANDIDATE_UNDERSTANDING";
 const PI_RELOAD_PROPOSAL_TITLE = "PI_RELOAD_CANDIDATE_UNDERSTANDING";
 const PI_DOMAIN_PROPOSAL_NAME = "PI_APPROVE_CANDIDATE_DOMAIN";
-const PI_BASH_APPROVAL_DONE = "PI_BASH_APPROVAL_CONTINUED_DONE";
+const PI_BASH_APPROVAL_MARKER = "pi-bash-approved.marker";
+const PI_BASH_REJECTION_MARKER = "pi-bash-rejected.marker";
+const PI_BASH_SAFE_MARKER = "pi-bash-safe.marker";
 const ABANDONED_RUN_MESSAGE = "ABANDONED_RUN_MESSAGE";
 const FAILED_RETRY_MESSAGE = "请只回复 RETRY_OK，不要添加其他内容。";
 const CHAT_JUMP_THREAD_TITLE = "CHAT_JUMP_LONG_SESSION";
@@ -46,6 +48,10 @@ const FAILED_APPROVED_TOOL_ERROR = "Domain not found: rf_fjxcezk5az";
 
 function sessionsRoot() {
   return path.join(readE2eTestEnv().contentStorageRoot, "Sessions");
+}
+
+function contentStorageFile(name: string) {
+  return path.join(readE2eTestEnv().contentStorageRoot, name);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -705,6 +711,7 @@ test("@AG-PROPOSAL-002 用户拒绝候选 Understanding 后看到拒绝结果", 
     await expect(card).toBeVisible({ timeout: 120_000 });
     await card.getByTestId("agent-proposal-reject-button").click();
     await expect(card).toContainText("已拒绝", { timeout: 120_000 });
+    await expect(card).toContainText("命令未执行");
     await expect(card).toContainText("未写入知识库");
 
     expect(understandingExistsByTitle(PI_REJECT_PROPOSAL_TITLE)).toBe(false);
@@ -854,28 +861,29 @@ test("@AG-PROPOSAL-007 用户重新打开对话后看到已批准工具执行失
   }
 });
 
-test("@AG-PROPOSAL-006 用户确认 Bash 操作后 Agent 继续回复", async () => {
+test("@AG-PROPOSAL-006 用户确认危险 Bash 后 Agent 继续回复", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(240_000);
 
   const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+  const markerPath = contentStorageFile(PI_BASH_APPROVAL_MARKER);
+  fs.rmSync(markerPath, { force: true });
 
   try {
     await createNewThread(page);
     await sendMessage(
       page,
-      `请必须先调用 bash 工具执行只读命令：printf ${PI_BASH_APPROVAL_DONE}。在我确认并且工具返回后，再回复唯一一行：${PI_BASH_APPROVAL_DONE}。确认前不要输出这行。`,
+      `请必须先调用 bash 工具原样执行这个命令：printf sudo > ${PI_BASH_APPROVAL_MARKER}; printf approved。等我确认并且工具返回后，再简短说明已经完成；确认前不要声称命令已执行。`,
     );
-    const card = page.getByTestId("agent-proposal-card").filter({ hasText: "执行 Bash" });
+    const card = page.getByTestId("agent-proposal-card").filter({ hasText: "确认危险 Bash" });
     await expect(card).toBeVisible({ timeout: 120_000 });
 
     await card.getByTestId("agent-proposal-confirm-button").click();
-    await expect(
-      page.getByTestId("agent-assistant-text").filter({ hasText: PI_BASH_APPROVAL_DONE }),
-    ).toBeVisible({ timeout: 120_000 });
+    await waitForAssistantReply(page);
     await expect(card).toContainText("完成", { timeout: 120_000 });
-    await expect(page.getByTestId("agent-stop-button")).toBeHidden({ timeout: 120_000 });
+    await expect(page.getByTestId("agent-assistant-text").last()).toBeVisible();
     await expect(composer(page)).toBeEditable();
+    expect(fs.readFileSync(markerPath, "utf-8")).toBe("sudo");
 
     const events = readPiEvents();
     const resolvedIndex = events.findIndex(
@@ -886,6 +894,73 @@ test("@AG-PROPOSAL-006 用户确认 Bash 操作后 Agent 继续回复", async ()
     expect(resolvedIndex).toBeGreaterThanOrEqual(0);
     expect(turnIndex).toBeGreaterThan(resolvedIndex);
     expect(runCompletedIndex).toBeGreaterThan(turnIndex);
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-PROPOSAL-008 用户拒绝危险 Bash 后命令不执行", async () => {
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
+  test.setTimeout(240_000);
+
+  const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+  const markerPath = contentStorageFile(PI_BASH_REJECTION_MARKER);
+  fs.rmSync(markerPath, { force: true });
+
+  try {
+    await createNewThread(page);
+    await sendMessage(
+      page,
+      `请必须先调用 bash 工具原样执行这个命令：printf sudo > ${PI_BASH_REJECTION_MARKER}。如果我拒绝，不要重试工具，简短说明操作已取消。`,
+    );
+    const card = page.getByTestId("agent-proposal-card").filter({ hasText: "确认危险 Bash" });
+    await expect(card).toBeVisible({ timeout: 120_000 });
+
+    await card.getByTestId("agent-proposal-reject-button").click();
+    await expect(card).toContainText("已拒绝", { timeout: 120_000 });
+    await expect(page.getByTestId("agent-stop-button")).toBeHidden({ timeout: 120_000 });
+    await expect(composer(page)).toBeEditable();
+    expect(fs.existsSync(markerPath)).toBe(false);
+
+    const events = readPiEvents();
+    expect(
+      events.some(
+        (event) =>
+          event.type === "approval.resolved" &&
+          event.toolName === "bash" &&
+          event.approved === false,
+      ),
+    ).toBe(true);
+    expect(events.some((event) => eventHasCompletedTool(event, "bash"))).toBe(false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-PROPOSAL-009 用户让 Agent 执行普通 Bash 后直接看到结果", async () => {
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
+  test.setTimeout(240_000);
+
+  const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+  const markerPath = contentStorageFile(PI_BASH_SAFE_MARKER);
+  fs.rmSync(markerPath, { force: true });
+
+  try {
+    await createNewThread(page);
+    await sendMessage(
+      page,
+      `请必须先调用 bash 工具原样执行这个命令：printf safe > ${PI_BASH_SAFE_MARKER}; printf done。工具返回后，再简短说明已经完成。`,
+    );
+    await waitForAssistantReply(page);
+    const activity = page.getByTestId("agent-tool-activity").filter({ hasText: "Bash" });
+    await expect(activity).toContainText("完成", { timeout: 120_000 });
+    await expect(page.getByTestId("agent-assistant-text").last()).toBeVisible();
+    await expect(
+      page.getByTestId("agent-proposal-card").filter({ hasText: "确认危险 Bash" }),
+    ).toHaveCount(0);
+    await expect(composer(page)).toBeEditable();
+    expect(fs.readFileSync(markerPath, "utf-8")).toBe("safe");
+    expect(sessionHasCompletedTool("bash")).toBe(true);
   } finally {
     await app.close();
   }

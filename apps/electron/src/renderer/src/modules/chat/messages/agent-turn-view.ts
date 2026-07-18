@@ -472,7 +472,7 @@ function toolGroupType(name: string): ToolGroupType {
     name.startsWith("understanding_") ||
     name.startsWith("context_") ||
     name.startsWith("domain_") ||
-    name === "file_read" ||
+    name === "read" ||
     name === "attachment_read"
   ) {
     return "lookup";
@@ -564,14 +564,18 @@ function toolTitle(name: string) {
   if (name === "search") return "搜索相关内容";
   if (name === "graph") return "查看关联图";
   if (name === "attachment_read") return "读取附件";
-  if (name === "file_read") return "读取本地文件";
+  if (name === "read") return "读取本地文件";
+  if (name === "edit") return "编辑本地文件";
+  if (name === "write") return "写入本地文件";
   if (name === "bash") return "执行 Bash";
   return "使用工具";
 }
 
 function toolRunningVerb(name: string) {
   if (name === "attachment_read") return "正在读取附件";
-  if (name === "file_read") return "正在读取本地文件";
+  if (name === "read") return "正在读取本地文件";
+  if (name === "edit") return "正在编辑本地文件";
+  if (name === "write") return "正在写入本地文件";
   if (name === "bash") return "正在执行 Bash";
   if (name === "web_fetch") return "正在读取网页";
   if (name === "retrieve_knowledge") return "正在检索知识";
@@ -593,7 +597,7 @@ function toolDetails(block: AgentToolBlock): ToolActivityDetailsView {
   const meta = inputMeta(block.toolName, input);
   if (block.state !== "completed") return detailView({ meta });
 
-  const resultDetails = toolResultDetails(block.toolName, output);
+  const resultDetails = toolResultDetails(block.toolName, output, input);
   return detailView({
     meta: [...meta, ...resultDetails.meta],
     rows: resultDetails.rows,
@@ -609,7 +613,7 @@ function inputMeta(name: string, input: Record<string, unknown>): ToolActivityDe
     const url = stringValue(input.url).trim();
     if (url) meta.push({ label: "网页", value: url });
   }
-  if (name === "file_read") {
+  if (name === "read" || name === "edit" || name === "write") {
     const path = stringValue(input.path).trim();
     if (path) meta.push({ label: "文件", value: filenameFromPath(path) });
   }
@@ -622,11 +626,16 @@ function inputMeta(name: string, input: Record<string, unknown>): ToolActivityDe
   return meta;
 }
 
-function toolResultDetails(name: string, output: unknown): ToolActivityDetailsView {
+function toolResultDetails(
+  name: string,
+  output: unknown,
+  input: Record<string, unknown>,
+): ToolActivityDetailsView {
   if (name === "search") return searchHitDetails(output);
   if (name === "retrieve_knowledge") return retrievalCandidateDetails(output);
   if (name === "attachment_read") return attachmentReadDetails(output);
-  if (name === "file_read") return fileReadDetails(output);
+  if (name === "read") return readFileDetails(output, input);
+  if (name === "edit") return editFileDetails(output);
   if (name === "bash") return bashDetails(output);
   if (name === "web_fetch") return webFetchDetails(output);
   if (name === "domain_list") return recordListDetails(output, "Domain", "domains");
@@ -657,24 +666,29 @@ function attachmentReadDetails(output: unknown) {
   });
 }
 
-function fileReadDetails(output: unknown) {
+function readFileDetails(output: unknown, input: Record<string, unknown>) {
   if (!isRecord(output)) return detailView({});
   const content = stringValue(output.content);
-  const error = stringValue(output.error);
-  const path = stringValue(output.path);
-  const encoding = stringValue(output.encoding);
-  const binary = encoding === "base64";
   const meta = [output.truncated ? "内容已截断" : ""].filter(Boolean);
-  if (binary) {
-    return detailView({
-      emptyText: `「${filenameFromPath(path) || "这个文件"}」是二进制文件，当前不能直接阅读内容。`,
-    });
-  }
   return detailView({
     rows: content
-      ? [detailRow("文件内容", filenameFromPath(path) || "本地文件", content, meta)]
+      ? [
+          detailRow(
+            "文件内容",
+            filenameFromPath(stringValue(input.path)) || "本地文件",
+            content,
+            meta,
+          ),
+        ]
       : [],
-    emptyText: error ? `文件暂时无法读取：${truncateText(error)}` : undefined,
+  });
+}
+
+function editFileDetails(output: unknown) {
+  if (!isRecord(output)) return detailView({});
+  const patch = stringValue(output.patch) || stringValue(output.diff);
+  return detailView({
+    rows: patch ? [detailRow("文件修改", "Diff", patch, [], "pre")] : [],
   });
 }
 
@@ -1014,7 +1028,9 @@ function toolRunningSummary(name: string, input: Record<string, unknown>) {
 
 function toolDoneVerb(name: string) {
   if (name === "attachment_read") return "读取附件";
-  if (name === "file_read") return "读取本地文件";
+  if (name === "read") return "读取本地文件";
+  if (name === "edit") return "编辑本地文件";
+  if (name === "write") return "写入本地文件";
   if (name === "bash") return "执行 Bash";
   if (name === "web_fetch") return "读取网页";
   if (name === "retrieve_knowledge") return "检索";
@@ -1027,9 +1043,15 @@ function toolDoneVerb(name: string) {
 
 function toolDoneSummary(name: string, input: Record<string, unknown>, output: unknown) {
   const outputRecord = isRecord(output) ? output : {};
-  if (name === "file_read") {
-    const path = stringValue(outputRecord.path) || stringValue(input.path);
+  if (name === "read") {
+    const path = stringValue(input.path);
     return `读取了「${filenameFromPath(path) || "本地文件"}」`;
+  }
+  if (name === "edit") {
+    return `编辑了「${filenameFromPath(stringValue(input.path)) || "本地文件"}」`;
+  }
+  if (name === "write") {
+    return `写入了「${filenameFromPath(stringValue(input.path)) || "本地文件"}」`;
   }
   if (name === "attachment_read") {
     return `读取了「${stringValue(outputRecord.filename) || stringValue(input.attachmentId) || "附件"}」`;

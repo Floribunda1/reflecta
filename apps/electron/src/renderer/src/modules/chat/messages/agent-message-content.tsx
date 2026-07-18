@@ -397,7 +397,13 @@ function CandidateShell({
   const status = proposal.status;
   const resultRefType = proposal.resultRefType;
   const resultRef = proposal.resultRefId;
-  const statusNote = proposalStatusNote(status, proposal.state, resultRefType, resultRef);
+  const statusNote = proposalStatusNote(
+    proposal.type,
+    status,
+    proposal.state,
+    resultRefType,
+    resultRef,
+  );
   const defaultOpen = !shouldCollapseProposalByDefault(proposal);
   const [manualOpen, setManualOpen] = useState<{ toolCallId: string; open: boolean } | null>(null);
   const open = manualOpen?.toolCallId === proposal.toolCallId ? manualOpen.open : defaultOpen;
@@ -503,6 +509,7 @@ function shouldCollapseProposalByDefault(proposal: ProposalView) {
 }
 
 function proposalStatusNote(
+  type: ProposalView["type"],
   status: ToolApprovalStatus | undefined,
   state?: ProposalView["state"],
   resultRefType?: string,
@@ -515,7 +522,9 @@ function proposalStatusNote(
   if (state === "output-available") return undefined;
   if (status === "approved" && resultRef) return `已写入 ${resultRefType} · ${resultRef}`;
   if (status === "approved") return "已确认";
-  if (status === "rejected") return "已拒绝，未写入知识库";
+  if (status === "rejected") {
+    return type === "bash" ? "已拒绝，命令未执行" : "已拒绝，未写入知识库";
+  }
   return undefined;
 }
 

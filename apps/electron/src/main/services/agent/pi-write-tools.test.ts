@@ -9,7 +9,6 @@ import {
 } from "./pi-write-tools";
 
 const services = vi.hoisted(() => ({
-  runBashForTool: vi.fn(),
   getUnderstandingById: vi.fn(),
   createUnderstanding: vi.fn(),
   updateUnderstanding: vi.fn(),
@@ -20,11 +19,6 @@ const services = vi.hoisted(() => ({
   createContext: vi.fn(),
   updateContext: vi.fn(),
   deleteContext: vi.fn(),
-}));
-
-vi.mock("./local-tools", () => ({
-  MAX_BASH_TIMEOUT_MS: 30_000,
-  runBashForTool: services.runBashForTool,
 }));
 
 vi.mock("../core", () => ({
@@ -58,7 +52,7 @@ const knowledgeMutationNames = [
   "context_delete",
 ] as const;
 
-const expectedApprovalToolNames = [...knowledgeMutationNames, "bash"] as const;
+const expectedApprovalToolNames = knowledgeMutationNames;
 
 const samplePayloads: Record<(typeof knowledgeMutationNames)[number], Record<string, unknown>> = {
   understanding_create: { title: "New Understanding", body: "Body", domainIds: ["cat-1"] },
@@ -84,10 +78,7 @@ const samplePayloads: Record<(typeof knowledgeMutationNames)[number], Record<str
   },
   context_delete: { contextId: "context-1", reason: "No longer relevant" },
 };
-const sampleApprovalPayloads: Record<PiApprovalToolName, Record<string, unknown>> = {
-  ...samplePayloads,
-  bash: { command: "printf hello" },
-};
+const sampleApprovalPayloads: Record<PiApprovalToolName, Record<string, unknown>> = samplePayloads;
 
 function parameterDescription(toolName: PiApprovalToolName, parameterName: string): string {
   const tool = createPiWriteTools().find((item) => item.name === toolName);
@@ -112,7 +103,7 @@ describe("createPiWriteTools", () => {
     vi.resetAllMocks();
   });
 
-  test("registers Reflecta mutations and Bash as approval tools", async () => {
+  test("registers Reflecta mutations as approval tools", async () => {
     expect(PI_APPROVAL_TOOL_NAMES).toEqual(expectedApprovalToolNames);
 
     const tools = createPiWriteTools();
@@ -228,14 +219,14 @@ describe("createPiWriteTools", () => {
           resolveApproval = resolve;
         }),
     });
-    const bash = tools.find((tool) => tool.name === "bash")!;
-    const execute = bash.execute as (
+    const understandingCreate = tools.find((tool) => tool.name === "understanding_create")!;
+    const execute = understandingCreate.execute as (
       toolCallId: string,
       params: Record<string, unknown>,
     ) => Promise<unknown>;
     let settled = false;
 
-    const result = execute("tool-call-1", { command: "printf hello" }).then((output) => {
+    const result = execute("tool-call-1", { body: "Candidate body" }).then((output) => {
       settled = true;
       return output;
     });
@@ -244,20 +235,14 @@ describe("createPiWriteTools", () => {
     expect(settled).toBe(false);
 
     resolveApproval({
-      command: "printf hello",
-      cwd: undefined,
-      exitCode: 0,
-      stdout: "hello",
-      stderr: "",
-      timedOut: undefined,
-      truncated: false,
+      resultRefType: "understanding",
+      resultRefId: "understanding-created",
     });
 
     await expect(result).resolves.toMatchObject({
       details: {
-        command: "printf hello",
-        exitCode: 0,
-        stdout: "hello",
+        resultRefType: "understanding",
+        resultRefId: "understanding-created",
       },
     });
     expect(settled).toBe(true);
@@ -282,20 +267,6 @@ describe("createPiWriteTools", () => {
       after: { body: "Updated body" },
     });
     expect(services.getUnderstandingById).toHaveBeenCalledWith("understanding-1");
-  });
-
-  test("executes approved Bash through the local shell seam", async () => {
-    const result = { command: "printf hello", exitCode: 0, stdout: "hello", stderr: "" };
-    services.runBashForTool.mockResolvedValue(result);
-
-    await expect(executePiApprovedTool("bash", { command: "printf hello" })).resolves.toEqual(
-      result,
-    );
-    expect(services.runBashForTool).toHaveBeenCalledWith({
-      command: "printf hello",
-      cwd: undefined,
-      timeoutMs: undefined,
-    });
   });
 
   test("executes approved mutation tools through domain services", async () => {

@@ -66,6 +66,17 @@ export class AgentRunAccumulator {
     }
 
     if (event.type === "tool.started") {
+      const approvalIndex = this.blocks.findIndex(
+        (block) => block.kind === "approval" && block.toolCallId === event.toolCallId,
+      );
+      if (approvalIndex >= 0) {
+        this.blocks = this.blocks.map((block, index) =>
+          index === approvalIndex && block.kind === "approval"
+            ? this.updateApprovalExecution(block, "running", {})
+            : block,
+        );
+        return;
+      }
       this.blocks = [
         ...this.blocks,
         {
@@ -211,6 +222,7 @@ export class AgentRunAccumulator {
     executionState: AgentToolExecutionState,
     update: Partial<Extract<AgentAssistantTurnBlock, { kind: "approval" }>>,
   ): Extract<AgentAssistantTurnBlock, { kind: "approval" }> {
+    if (block.approvalState === "rejected") return block;
     const nextDisplayState = displayState(block.approvalState, executionState);
     return {
       ...block,

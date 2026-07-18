@@ -157,6 +157,93 @@ describe("AgentRunAccumulator", () => {
     });
   });
 
+  test("keeps an approved dangerous Bash call in one completed approval block", () => {
+    const accumulator = new AgentRunAccumulator();
+
+    accumulator.append({
+      ...base,
+      type: "approval.requested",
+      approvalId: "approval_bash",
+      toolCallId: "tool_bash",
+      toolName: "bash",
+      title: "确认危险 Bash",
+      payload: { command: "git reset --hard HEAD" },
+    });
+    accumulator.append({
+      ...base,
+      type: "approval.resolved",
+      approvalId: "approval_bash",
+      toolCallId: "tool_bash",
+      toolName: "bash",
+      approved: true,
+    });
+    accumulator.append({
+      ...base,
+      type: "tool.started",
+      toolCallId: "tool_bash",
+      toolName: "bash",
+      input: { command: "git reset --hard HEAD" },
+    });
+    accumulator.append({
+      ...base,
+      type: "tool.completed",
+      toolCallId: "tool_bash",
+      toolName: "bash",
+      output: { exitCode: 0, stdout: "", stderr: "" },
+    });
+
+    expect(
+      accumulator.toAssistantTurn({ ...base, id: "turn_1", type: "assistant.turn" }).blocks,
+    ).toMatchObject([
+      {
+        kind: "approval",
+        approvalId: "approval_bash",
+        approvalState: "approved",
+        executionState: "completed",
+        displayState: "completed",
+      },
+    ]);
+  });
+
+  test("keeps a rejected dangerous Bash call rejected when Pi reports the block", () => {
+    const accumulator = new AgentRunAccumulator();
+
+    accumulator.append({
+      ...base,
+      type: "approval.requested",
+      approvalId: "approval_bash",
+      toolCallId: "tool_bash",
+      toolName: "bash",
+      title: "确认危险 Bash",
+      payload: { command: "sudo true" },
+    });
+    accumulator.append({
+      ...base,
+      type: "approval.resolved",
+      approvalId: "approval_bash",
+      toolCallId: "tool_bash",
+      toolName: "bash",
+      approved: false,
+    });
+    accumulator.append({
+      ...base,
+      type: "tool.failed",
+      toolCallId: "tool_bash",
+      toolName: "bash",
+      error: "用户拒绝执行危险 Bash 命令（提权执行）。",
+    });
+
+    expect(
+      accumulator.toAssistantTurn({ ...base, id: "turn_1", type: "assistant.turn" }).blocks[0],
+    ).toMatchObject({
+      kind: "approval",
+      approvalState: "rejected",
+      executionState: "not_started",
+      displayState: "rejected",
+      state: "rejected",
+    });
+  });
+
   test("collects completed tool outputs for finalization", () => {
     const accumulator = new AgentRunAccumulator();
 

@@ -322,12 +322,9 @@ describe("buildAgentTurnView", () => {
         { attachmentId: "att-pdf" },
       ),
       tool(
-        "file_read",
+        "read",
         "tool-2",
         {
-          path: "/tmp/note.txt",
-          bytes: 5,
-          encoding: "utf8",
           content: "hello",
           truncated: false,
         },
@@ -371,7 +368,7 @@ describe("buildAgentTurnView", () => {
       activity: {
         items: [
           expect.objectContaining({
-            toolName: "file_read",
+            toolName: "read",
             label: "读取了「note.txt」",
             details: {
               meta: [{ label: "文件", value: "note.txt" }],

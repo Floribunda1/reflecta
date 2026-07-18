@@ -162,6 +162,41 @@ describe("MessageList entity refs", () => {
     expect(card?.textContent).not.toContain("已确认");
   });
 
+  test("describes a rejected Bash command as not executed", () => {
+    renderMessageList({
+      messages: [
+        {
+          id: "assistant_1",
+          role: "assistant",
+          text: "",
+          runId: "run_1",
+          createdAt: "2026-06-26T00:00:00.000Z",
+          blocks: [
+            {
+              kind: "approval",
+              approvalId: "approval_tool_1",
+              toolCallId: "tool_1",
+              toolName: "bash",
+              title: "确认危险 Bash",
+              payload: { command: "sudo true" },
+              approved: false,
+              state: "rejected",
+              approvalState: "rejected",
+              executionState: "not_started",
+              displayState: "rejected",
+              createdAt: "2026-06-26T00:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      entityCatalog: [],
+    });
+
+    const card = container?.querySelector('[data-testid="agent-proposal-card"]');
+    expect(card?.textContent).toContain("已拒绝，命令未执行");
+    expect(card?.textContent).not.toContain("知识库");
+  });
+
   test("preserves paragraph breaks in user messages restored from composer content", () => {
     renderMessageList({
       messages: [

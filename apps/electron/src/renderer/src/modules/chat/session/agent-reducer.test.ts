@@ -607,6 +607,103 @@ describe("reduceAgentSession", () => {
     });
   });
 
+  test("merges Pi Bash tool events into the dangerous-command approval block", () => {
+    const state = reduceAgentSession([
+      {
+        ...base,
+        id: "evt_1",
+        type: "approval.requested",
+        messageId: "assistant_1",
+        approvalId: "approval_bash",
+        toolCallId: "tool_bash",
+        toolName: "bash",
+        title: "确认危险 Bash",
+        payload: { command: "git reset --hard HEAD" },
+      },
+      {
+        ...base,
+        id: "evt_2",
+        type: "approval.resolved",
+        messageId: "assistant_1",
+        approvalId: "approval_bash",
+        toolCallId: "tool_bash",
+        toolName: "bash",
+        approved: true,
+      },
+      {
+        ...base,
+        id: "evt_3",
+        type: "tool.started",
+        messageId: "assistant_1",
+        toolCallId: "tool_bash",
+        toolName: "bash",
+        input: { command: "git reset --hard HEAD" },
+      },
+      {
+        ...base,
+        id: "evt_4",
+        type: "tool.completed",
+        messageId: "assistant_1",
+        toolCallId: "tool_bash",
+        toolName: "bash",
+        output: { exitCode: 0, stdout: "", stderr: "" },
+      },
+    ]);
+
+    expect(state.messages[0]?.blocks).toMatchObject([
+      {
+        kind: "approval",
+        approvalId: "approval_bash",
+        approvalState: "approved",
+        executionState: "completed",
+        displayState: "completed",
+      },
+    ]);
+  });
+
+  test("keeps rejected dangerous Bash rejected when Pi reports the blocked call", () => {
+    const state = reduceAgentSession([
+      {
+        ...base,
+        id: "evt_1",
+        type: "approval.requested",
+        messageId: "assistant_1",
+        approvalId: "approval_bash",
+        toolCallId: "tool_bash",
+        toolName: "bash",
+        title: "确认危险 Bash",
+        payload: { command: "sudo true" },
+      },
+      {
+        ...base,
+        id: "evt_2",
+        type: "approval.resolved",
+        messageId: "assistant_1",
+        approvalId: "approval_bash",
+        toolCallId: "tool_bash",
+        toolName: "bash",
+        approved: false,
+      },
+      {
+        ...base,
+        id: "evt_3",
+        type: "tool.failed",
+        messageId: "assistant_1",
+        toolCallId: "tool_bash",
+        toolName: "bash",
+        error: "用户拒绝执行危险 Bash 命令（提权执行）。",
+      },
+    ]);
+
+    expect(state.messages[0]?.blocks?.[0]).toMatchObject({
+      kind: "approval",
+      approvalState: "rejected",
+      executionState: "not_started",
+      displayState: "rejected",
+      state: "rejected",
+    });
+  });
+
   test("keeps approved tool execution failure when assistant turn snapshot arrives later", () => {
     const state = reduceAgentSession([
       {

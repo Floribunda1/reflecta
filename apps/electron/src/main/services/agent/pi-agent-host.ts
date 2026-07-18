@@ -11,12 +11,11 @@ import {
 import {
   AuthStorage,
   createAgentSession,
-  createExtensionRuntime,
+  DefaultResourceLoader,
   ModelRegistry,
   SessionManager,
   SettingsManager,
   type AgentSession,
-  type ResourceLoader,
 } from "@earendil-works/pi-coding-agent";
 import { nanoid } from "nanoid";
 import { reduceAgentSession } from "@shared/agent";
@@ -70,6 +69,11 @@ import {
   type PiApprovedToolOutput,
   type PiApprovalToolName,
 } from "./pi-write-tools";
+import {
+  createPiBashPermissionGate,
+  dangerousBashRuleLabels,
+  type DangerousBashApprovalHandler,
+} from "./pi-bash-permission-gate";
 
 export const AGENT_EVENT_CHANNEL = "agent:event";
 
@@ -82,27 +86,46 @@ type ActivePiRun = {
   entityCatalog: AgentEntityCatalog;
 };
 
-type PendingApproval = {
+type MutationPendingApproval = {
+  kind: "mutation";
   resolve: (output: PiApprovedToolOutput | ReturnType<typeof rejectedToolResult>) => void;
   reject: (error: Error) => void;
 };
+
+type BashGatePendingApproval = {
+  kind: "bash_gate";
+  resolve: (approved: boolean) => void;
+  reject: (error: Error) => void;
+};
+
+type PendingApproval = MutationPendingApproval | BashGatePendingApproval;
+
+export const PI_BUILTIN_TOOL_NAMES = ["read", "bash", "edit", "write"] as const;
 
 export function loadAgentSystemPrompt(): string {
   return agentSystemPrompt.trim();
 }
 
-export function createPiResourceLoader(): ResourceLoader {
-  return {
-    getExtensions: () => ({ extensions: [], errors: [], runtime: createExtensionRuntime() }),
-    getSkills: () => ({ skills: [], diagnostics: [] }),
-    getPrompts: () => ({ prompts: [], diagnostics: [] }),
-    getThemes: () => ({ themes: [], diagnostics: [] }),
-    getAgentsFiles: () => ({ agentsFiles: [] }),
-    getSystemPrompt: loadAgentSystemPrompt,
-    getAppendSystemPrompt: () => [],
-    extendResources: () => {},
-    reload: async () => {},
-  };
+export async function createPiResourceLoader(input: {
+  cwd: string;
+  agentDir: string;
+  settingsManager: SettingsManager;
+  onDangerousBashApproval: DangerousBashApprovalHandler;
+}): Promise<DefaultResourceLoader> {
+  const loader = new DefaultResourceLoader({
+    cwd: input.cwd,
+    agentDir: input.agentDir,
+    settingsManager: input.settingsManager,
+    systemPrompt: loadAgentSystemPrompt(),
+    noExtensions: true,
+    noSkills: true,
+    noPromptTemplates: true,
+    noThemes: true,
+    noContextFiles: true,
+    extensionFactories: [createPiBashPermissionGate(input.onDangerousBashApproval)],
+  });
+  await loader.reload();
+  return loader;
 }
 
 function resolvePiModel(providerId: string, modelId: string): Model<Api> {
@@ -358,8 +381,36 @@ function toolExecutionError(error: unknown): AgentToolExecutionError {
   return { message: formatAgentError(error) };
 }
 
-function piToolOutput(result: unknown): unknown {
-  return isRecord(result) && "details" in result ? result.details : result;
+function piToolText(result: Record<string, unknown>): string {
+  if (!Array.isArray(result.content)) return "";
+  return result.content
+    .map((item) => (isRecord(item) && typeof item.text === "string" ? item.text : ""))
+    .join("\n")
+    .trim();
+}
+
+function piToolOutput(toolName: string, result: unknown): unknown {
+  if (!isRecord(result)) return result;
+  const details = isRecord(result.details) ? result.details : {};
+  if (!(PI_BUILTIN_TOOL_NAMES as readonly string[]).includes(toolName)) {
+    return "details" in result ? result.details : result;
+  }
+  const content = piToolText(result);
+  const truncation = isRecord(details.truncation) ? details.truncation : undefined;
+  if (toolName === "bash") {
+    return {
+      ...details,
+      exitCode: 0,
+      stdout: content,
+      stderr: "",
+      truncated: !!truncation?.truncated,
+    };
+  }
+  return {
+    ...details,
+    content,
+    truncated: !!truncation?.truncated,
+  };
 }
 
 function piToolError(result: unknown): string {
@@ -635,6 +686,7 @@ export class PiAgentHost {
       toolCallId: string,
       output: unknown,
     ) => string | undefined,
+    onDangerousBashApproval: DangerousBashApprovalHandler,
   ) {
     const modelConfig = getAiModelConfig(command.modelSelection as AiModelSelection | undefined);
     const agentDir = path.join(this.contentStorageRoot, ".pi-agent");
@@ -646,6 +698,12 @@ export class PiAgentHost {
     const settingsManager = SettingsManager.inMemory({
       compaction: { enabled: false },
       retry: { enabled: false },
+    });
+    const resourceLoader = await createPiResourceLoader({
+      cwd: this.contentStorageRoot,
+      agentDir,
+      settingsManager,
+      onDangerousBashApproval,
     });
 
     const created = await createAgentSession({
@@ -662,11 +720,11 @@ export class PiAgentHost {
       cwd: this.contentStorageRoot,
       model,
       modelRegistry,
-      resourceLoader: createPiResourceLoader(),
+      resourceLoader,
       sessionManager,
       settingsManager,
       thinkingLevel: thinkingLevelFor(command.reasoningLevel ?? getActiveAgentReasoningLevel()),
-      tools: [...PI_READ_ONLY_TOOL_NAMES, ...PI_APPROVAL_TOOL_NAMES],
+      tools: [...PI_BUILTIN_TOOL_NAMES, ...PI_READ_ONLY_TOOL_NAMES, ...PI_APPROVAL_TOOL_NAMES],
     });
     return { ...created, modelConfig };
   }
@@ -862,6 +920,32 @@ export class PiAgentHost {
         });
       approvalRequestTasks.push(task);
     };
+    const requestDangerousBashApproval: DangerousBashApprovalHandler = async ({
+      toolCallId,
+      command: bashCommand,
+      matchedRules,
+    }) => {
+      const approvalId = approvalIdForToolCall(toolCallId);
+      if (requestedApprovalIds.has(approvalId)) {
+        throw new Error(`Duplicate approval request: ${approvalId}`);
+      }
+      requestedApprovalIds.add(approvalId);
+      const requested = this.createEvent({
+        type: "approval.requested",
+        sessionId: command.sessionId,
+        runId,
+        messageId: assistantMessageId,
+        approvalId,
+        toolCallId,
+        toolName: "bash",
+        title: "确认危险 Bash",
+        description: `命中危险规则：${matchedRules.join("、")}`,
+        payload: { command: bashCommand, matchedRules },
+      });
+      accumulator.append(requested);
+      emit(requested);
+      return this.waitForBashGateApproval(command.sessionId, toolCallId);
+    };
     const emitEntityCatalogUpdates = () => {
       this.appendEntityCatalogUpdates(
         manager,
@@ -904,7 +988,12 @@ export class PiAgentHost {
     };
 
     try {
-      const created = await this.createSession(command, manager, collectToolOutputForCitations);
+      const created = await this.createSession(
+        command,
+        manager,
+        collectToolOutputForCitations,
+        requestDangerousBashApproval,
+      );
       session = created.session;
       this.activeRuns.set(command.sessionId, {
         runId,
@@ -967,6 +1056,14 @@ export class PiAgentHost {
             );
             return;
           }
+          if (
+            event.toolName === "bash" &&
+            isRecord(event.args) &&
+            typeof event.args.command === "string" &&
+            dangerousBashRuleLabels(event.args.command).length > 0
+          ) {
+            return;
+          }
           emitAccumulated(
             this.createEvent({
               type: "tool.started",
@@ -983,7 +1080,7 @@ export class PiAgentHost {
 
         if (event.type === "tool_execution_end") {
           if (isPiApprovalToolName(event.toolName)) {
-            const output = piToolOutput(event.result);
+            const output = piToolOutput(event.toolName, event.result);
             if (isRejectedApprovalOutput(output)) return;
             if (event.isError) {
               emitAccumulated(
@@ -1036,7 +1133,7 @@ export class PiAgentHost {
               messageId: assistantMessageId,
               toolCallId: event.toolCallId,
               toolName: event.toolName,
-              output: piToolOutput(event.result),
+              output: piToolOutput(event.toolName, event.result),
             }),
           );
           return;
@@ -1161,11 +1258,31 @@ export class PiAgentHost {
     return new Promise<PiApprovedToolOutput | ReturnType<typeof rejectedToolResult>>(
       (resolve, reject) => {
         active.pendingApprovals.set(approvalId, {
+          kind: "mutation",
           resolve,
           reject,
         });
       },
     ).finally(() => {
+      this.activeRuns.get(sessionId)?.pendingApprovals.delete(approvalId);
+    });
+  }
+
+  private waitForBashGateApproval(sessionId: string, toolCallId: string): Promise<boolean> {
+    const active = this.activeRuns.get(sessionId);
+    if (!active) throw new Error("Approval requested without an active run");
+    const approvalId = approvalIdForToolCall(toolCallId);
+    if (active.pendingApprovals.has(approvalId)) {
+      throw new Error(`Duplicate approval request: ${approvalId}`);
+    }
+
+    return new Promise<boolean>((resolve, reject) => {
+      active.pendingApprovals.set(approvalId, {
+        kind: "bash_gate",
+        resolve,
+        reject,
+      });
+    }).finally(() => {
       this.activeRuns.get(sessionId)?.pendingApprovals.delete(approvalId);
     });
   }
@@ -1210,6 +1327,11 @@ export class PiAgentHost {
         ? active.pendingApprovals.get(requested.approvalId)
         : undefined;
 
+    if (pending?.kind === "bash_gate") {
+      pending.resolve(approved);
+      return;
+    }
+
     if (pending && active) {
       if (!isPiApprovalToolName(requested.toolName)) {
         const error = new Error(`Unsupported approval tool: ${requested.toolName}`);
@@ -1242,6 +1364,12 @@ export class PiAgentHost {
     }
 
     if (!approved) return;
+
+    if (requested.toolName === "bash") {
+      const error = new Error("危险 Bash 确认已过期，请让 Agent 重新发起命令。");
+      this.appendToolExecutionFailed(manager, webContents, requested, error);
+      return;
+    }
 
     const existingTurn = events.findLast(
       (event): event is Extract<AgentSessionEvent, { type: "assistant.turn" }> =>

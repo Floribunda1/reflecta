@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { AuthStorage } from "@earendil-works/pi-coding-agent";
+import { AuthStorage, SettingsManager } from "@earendil-works/pi-coding-agent";
 import type { KnownProvider } from "@earendil-works/pi-ai/compat";
 import type { AgentSessionEvent } from "@shared/agent";
 import type { ResolvedAiModelConfig } from "../../config";
@@ -14,6 +14,7 @@ import {
   extractAssistantError,
   loadAgentSystemPrompt,
   normalizeGeneratedThreadTitle,
+  PI_BUILTIN_TOOL_NAMES,
   PiAgentHost,
 } from "./pi-agent-host";
 import { AgentEntityCatalog } from "./agent-entity-catalog";
@@ -145,13 +146,27 @@ describe("configurePiRuntimeAuth", () => {
 });
 
 describe("createPiResourceLoader", () => {
-  test("loads the shared agent system prompt from markdown", () => {
+  test("loads only the shared system prompt and Reflecta permission gate", async () => {
     const expected = fs
       .readFileSync(new URL("./agent-system-prompt.md", import.meta.url), "utf8")
       .trim();
+    const root = tempRoot();
+    const loader = await createPiResourceLoader({
+      cwd: root,
+      agentDir: path.join(root, ".pi-agent"),
+      settingsManager: SettingsManager.inMemory({}),
+      onDangerousBashApproval: vi.fn().mockResolvedValue(true),
+    });
 
     expect(loadAgentSystemPrompt()).toBe(expected);
-    expect(createPiResourceLoader().getSystemPrompt()).toBe(expected);
+    expect(loader.getSystemPrompt()).toBe(expected);
+    expect(loader.getExtensions().extensions.map((extension) => extension.path)).toEqual([
+      "<inline:reflecta-bash-permission-gate>",
+    ]);
+    expect(loader.getSkills().skills).toEqual([]);
+    expect(loader.getPrompts().prompts).toEqual([]);
+    expect(loader.getThemes().themes).toEqual([]);
+    expect(loader.getAgentsFiles().agentsFiles).toEqual([]);
     expect(expected).toContain("你是 Reflecta 的认知辅助 Agent");
   });
 });
@@ -649,6 +664,7 @@ describe("PiAgentHost", () => {
     expect(sessionOptions.customTools?.map((tool) => tool.name)).not.toContain(
       "reflecta_final_answer",
     );
+    expect(sessionOptions.tools).toEqual(expect.arrayContaining([...PI_BUILTIN_TOOL_NAMES]));
     expect(sessionOptions.tools).not.toContain("reflecta_final_answer");
     const events = await new AgentSessionLog(root).readEvents(thread.id);
     expect(events.slice(1).map((event) => event.type)).toEqual([

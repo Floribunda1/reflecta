@@ -598,7 +598,24 @@ function upsertAssistantTool(
     const index = blocks.findIndex(
       (block) => block.kind === "tool" && block.toolCallId === event.toolCallId,
     );
+    const approvalIndex = blocks.findIndex(
+      (block) => block.kind === "approval" && block.toolCallId === event.toolCallId,
+    );
     if (event.type === "tool.started") {
+      if (approvalIndex >= 0) {
+        return blocks.map((block, blockIndex) => {
+          if (blockIndex !== approvalIndex || block.kind !== "approval") return block;
+          if (block.approvalState === "rejected") return block;
+          const executionState = "running" as const;
+          const displayState = deriveDisplayState(block.approvalState, executionState);
+          return {
+            ...block,
+            executionState,
+            displayState,
+            state: approvalBlockState(displayState),
+          };
+        });
+      }
       const block = {
         kind: "tool" as const,
         toolCallId: event.toolCallId,
@@ -611,10 +628,21 @@ function upsertAssistantTool(
       return blocks.map((current, blockIndex) => (blockIndex === index ? block : current));
     }
 
-    const approvalIndex = blocks.findIndex(
-      (block) => block.kind === "approval" && block.toolCallId === event.toolCallId,
-    );
-    if (approvalIndex >= 0) return blocks;
+    if (approvalIndex >= 0) {
+      return blocks.map((block, blockIndex) => {
+        if (blockIndex !== approvalIndex || block.kind !== "approval") return block;
+        if (block.approvalState === "rejected") return block;
+        const executionState = event.type === "tool.completed" ? "completed" : "failed";
+        const displayState = deriveDisplayState(block.approvalState, executionState);
+        return {
+          ...block,
+          ...(event.type === "tool.completed" ? { output: event.output } : { error: event.error }),
+          executionState,
+          displayState,
+          state: approvalBlockState(displayState),
+        };
+      });
+    }
 
     const update =
       event.type === "tool.completed"

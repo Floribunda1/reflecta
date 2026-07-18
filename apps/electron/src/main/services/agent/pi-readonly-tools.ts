@@ -12,7 +12,6 @@ import {
   understandingCliService,
 } from "../core";
 import { HARD_ATTACHMENT_READ_MAX_CHARS, readAttachmentForTool } from "./attachment-read";
-import { HARD_FILE_READ_MAX_BYTES, readLocalFileForTool } from "./local-tools";
 import { fetchWebPage } from "./web-fetch";
 
 export const PI_READ_ONLY_TOOL_NAMES = [
@@ -23,7 +22,6 @@ export const PI_READ_ONLY_TOOL_NAMES = [
   "context_list",
   "context_get",
   "attachment_read",
-  "file_read",
   "web_fetch",
   "retrieve_knowledge",
   "graph",
@@ -281,25 +279,6 @@ export function createPiReadOnlyTools(
           await readAttachmentForTool(files, input),
           entityOptions,
         ),
-    }),
-    defineTool({
-      name: "file_read",
-      label: "读取本地文件",
-      description:
-        "Read a local file by absolute path, relative path, or ~/ path. Use this when the user types a local file path in chat and asks you to inspect it. Returns UTF-8 text or base64 for binary files.",
-      promptSnippet: "file_read: read a local file path.",
-      parameters: Type.Object({
-        path: Type.String({ minLength: 1 }),
-        maxBytes: Type.Optional(
-          Type.Integer({
-            minimum: 1,
-            maximum: HARD_FILE_READ_MAX_BYTES,
-            description: "Maximum number of bytes to read.",
-          }),
-        ),
-      }),
-      execute: async (toolCallId, input) =>
-        createToolResult("file_read", toolCallId, await readLocalFileForTool(input), entityOptions),
     }),
     defineTool({
       name: "web_fetch",
