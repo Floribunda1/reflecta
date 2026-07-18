@@ -1,6 +1,6 @@
 # Retrieval Index 同步逻辑
 
-> 状态：目标设计，待实现。本文取代当前 `.dirty` marker、延时调度和 Retrieve 补偿方案。
+> 状态：已实现。本文记录取代 `.dirty` marker、延时调度和 Retrieve 补偿后的最终方案。
 
 ## 结论
 
@@ -35,7 +35,7 @@ SQLite 是知识数据的事实源，LanceDB 是可重建的检索投影。
 
 - Understanding 的标题和正文；
 - 属于该 Understanding 的 Context；
-- 关联 Domain 的 ID、名称和路径；
+- 直接关联 Domain 的 ID 和名称；
 - 检索投影版本和 embedding 模型版本。
 
 因此增量同步不以单行 Context 或单个字段为单位，而是重新生成受影响 Understanding 的完整检索投影。这样可以在一次提交中同时处理文档新增、修改和删除。
@@ -92,8 +92,10 @@ flowchart TD
 | 新增、更新、删除、恢复 Context       | Context 所属 Understanding           |
 | Context 移动到另一个 Understanding   | 原 Understanding 和新 Understanding  |
 | 修改 Understanding 的 Domain 关联    | 当前 Understanding                   |
-| Domain 名称或路径变化                | 所有关联到该 Domain 的 Understanding |
-| 删除 Domain 并连带删除 Understanding | 所有被删除的 Understanding           |
+| Domain 改名                          | 直接关联到该 Domain 的 Understanding |
+| 删除 Domain                          | 删除前直接关联的 Understanding       |
+
+Domain 创建、排序和仅修改父级不会入队。当前投影不包含 Domain 层级路径，这些操作不会改变任何 RetrievalDocument。
 
 这里的 affected ID 只存在于进程内队列，不创建 `.dirty`、`.dirty-understandings` 或另一套持久任务状态。
 
@@ -147,21 +149,23 @@ Retrieve 与索引队列之间没有依赖：
 
 这避免长期占用约 600 MiB 内存，同时不会为真正重叠的一组更新反复加载模型。
 
-## 数据同步与物理索引维护分离
+## 数据同步与物理索引维护
 
-增量数据提交后，不在每批任务末尾重新 `createIndex`。LanceDB 会对尚未纳入物理索引的数据执行 flat scan，因此新数据在物理索引优化前仍然可检索。
+增量数据提交后不再调用 `createIndex`。FTS 只在完整建表时创建，增量路径始终使用 `mergeInsert("id")`。
 
-物理维护使用独立策略：
+实现验证发现，当前 LanceDB 0.30 对 FTS indexed row 执行 matched update 或删除后，BM25 索引可能暂时没有最新文本；但每批执行 `table.optimize()` 又会在较大的 n-gram 索引上触发原生 inverted-index panic。因此正确性不依赖 optimize：Lexical 通道在 BM25 排序候选之外，从同一个 LanceDB 当前表补入至少命中一个完整 term 的最新行。Retrieve 仍然不读 SQLite、不等待 coordinator。
+
+物理维护恢复为 LanceDB 文档建议的修改次数阈值：
 
 ```text
-每次知识更新：merge/upsert/delete 文档
+每次增量批次：merge/upsert/delete 文档
 
-累计一定修改量：table.optimize()
+累计 20 次成功数据修改：table.optimize()
 
 投影版本、向量维度或模型不兼容：完整 rebuild
 ```
 
-`optimize()` 可以在应用空闲或达到 LanceDB 建议的修改阈值后执行，但它不属于单次保存的正确性路径。
+计数只存在内存中，不承担恢复职责。维护发生在后台 coordinator 中，不阻塞产品保存。完整 rebuild 使用 overwrite 建新表并创建一次 FTS，不再额外 optimize。
 
 ## 异常与启动恢复
 
@@ -177,9 +181,9 @@ Retrieve 与索引队列之间没有依赖：
 
 这条恢复路径处理 SQLite 提交后应用退出、后台 Worker 失败或上次索引中途终止，不需要持续轮询。运行中的单次任务失败可以保留在内存队列中重试一次；再次失败则暴露索引错误状态，等待下一次启动对账或用户手动重建，不影响产品数据。
 
-## 需要删除的现有逻辑
+## 已删除的旧逻辑
 
-实现本设计时应删除：
+Phase 1 已独立删除并提交：
 
 - `.dirty` 与 `.dirty-understandings` 文件；
 - dirty listener 和 marker timestamp 竞争处理；
@@ -188,7 +192,7 @@ Retrieve 与索引队列之间没有依赖：
 - Retrieve 的 SQLite lexical fallback；
 - 每批增量写入后的 FTS `createIndex`。
 
-保留并重构：
+Phase 2 保留并重构：
 
 - 按 Understanding 构建完整 `RetrievalDocument` 的 projection；
 - 短生命周期 embedding Utility Process；
@@ -205,6 +209,15 @@ Retrieve 与索引队列之间没有依赖：
 5. Retrieve 无论索引是否正在更新，都只执行 LanceDB Hybrid Retrieval。
 6. 更新提交前后的任一 LanceDB 版本均可独立完成 Dense、Lexical 和 RRF。
 7. 更新完成后，新增、修改、移动和删除的 Context 都与 SQLite 一致。
-8. Domain 名称或路径变化后，相关 Understanding 的检索投影得到更新。
+8. Domain 改名或删除后，直接关联 Understanding 的检索投影得到更新。
 9. 应用启动可以发现并修复上次未完成的索引更新。
-10. 增量同步不会在每批结束时重新创建 FTS 或 vector index。
+10. 增量同步不会重新创建 FTS 或 vector index；连续更新后 Lexical 与 Dense 都能读到新文档。
+
+## 实现位置
+
+- `packages/server/src/domains/retrieval/coordinator.ts`：single-flight 队列、重试、状态、启动对账和手动重建边界。
+- `packages/server/src/domains/retrieval/sync.ts`：SQLite 投影读取、v3 全量构建、按 Understanding 增量同步和 manifest 对账。
+- `packages/server/src/domains/retrieval/lancedb-index.ts`：manifest、`mergeInsert`、parent 范围删除、overwrite 建表和物理维护。
+- `packages/server/src/domains/{understanding,context,domain}/core.ts`：事务提交后的 affected ID 通知。
+- `apps/electron/src/main/retrievalIndexCoordinator.ts`：Electron 单例和按需 embedding runner 接线。
+- `apps/cli/src/services.ts`：CLI 共用 coordinator，并在进程返回前 flush。

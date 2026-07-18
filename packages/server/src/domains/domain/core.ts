@@ -3,6 +3,7 @@ import { domains, understandingDomains, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type { CreateDomainInput, ReorderDomainItem, UpdateDomainInput } from "./types";
 import { createEntityId } from "../shared/id";
+import type { RetrievalIndexUpdateSink } from "../shared/types";
 
 export async function getDomainDescendants(db: ReflectaDb, domainId: string): Promise<string[]> {
   const result = await db.all<{ id: string }>(sql`
@@ -18,7 +19,10 @@ export async function getDomainDescendants(db: ReflectaDb, domainId: string): Pr
 }
 
 export class DomainCore {
-  constructor(protected db: ReflectaDb) {}
+  constructor(
+    protected db: ReflectaDb,
+    private readonly retrievalIndex?: RetrievalIndexUpdateSink,
+  ) {}
 
   async listDomainRows(): Promise<Array<typeof domains.$inferSelect>> {
     return this.db.select().from(domains).orderBy(domains.sortOrder);
@@ -56,6 +60,8 @@ export class DomainCore {
   }
 
   async updateDomain(id: string, input: UpdateDomainInput): Promise<typeof domains.$inferSelect> {
+    const affectedUnderstandingIds =
+      input.name === undefined ? [] : await this.listUnderstandingIdsForDomain(id);
     if (input.parentId !== undefined) {
       await this.assertValidParent(id, input.parentId);
     }
@@ -70,6 +76,7 @@ export class DomainCore {
     if (rows.length === 0) {
       throw new Error(`Domain not found: ${id}`);
     }
+    this.retrievalIndex?.enqueue(affectedUnderstandingIds);
     return rows[0];
   }
 
@@ -78,6 +85,7 @@ export class DomainCore {
     if (!domain) {
       throw new Error(`Domain not found: ${id}`);
     }
+    const affectedUnderstandingIds = await this.listUnderstandingIdsForDomain(id);
     await this.db.transaction((tx) => {
       if (deleteUnderstandings) {
         const rows = tx
@@ -92,6 +100,7 @@ export class DomainCore {
       }
       tx.delete(domains).where(eq(domains.id, id)).run();
     });
+    this.retrievalIndex?.enqueue(affectedUnderstandingIds);
   }
 
   async reorderDomains(items: ReorderDomainItem[]): Promise<void> {
@@ -134,6 +143,14 @@ export class DomainCore {
     if (descendants.includes(parentId)) {
       throw new Error("Domain cannot be moved under its descendant");
     }
+  }
+
+  private async listUnderstandingIdsForDomain(domainId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ understandingId: understandingDomains.understandingId })
+      .from(understandingDomains)
+      .where(eq(understandingDomains.domainId, domainId));
+    return rows.map((row) => row.understandingId);
   }
 }
 

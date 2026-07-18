@@ -106,9 +106,15 @@ function sampleDocs() {
   });
 }
 
+function withContentHashes(
+  docs: Array<Omit<RetrievalDocument, "contentHash">>,
+): RetrievalDocument[] {
+  return docs.map((doc) => ({ ...doc, contentHash: doc.id }));
+}
+
 function rrfDocs(): RetrievalDocument[] {
   const metadata = { domainIds: [], domainNames: [] };
-  return [
+  return withContentHashes([
     {
       id: "understanding:lexical-only",
       entityType: "understanding",
@@ -136,12 +142,12 @@ function rrfDocs(): RetrievalDocument[] {
       textForLexicalSearch: "unrelated",
       metadata,
     },
-  ];
+  ]);
 }
 
 function semanticOnlyDocs(): RetrievalDocument[] {
   const metadata = { domainIds: [], domainNames: [] };
-  return [
+  return withContentHashes([
     {
       id: "understanding:nearest",
       entityType: "understanding",
@@ -160,12 +166,12 @@ function semanticOnlyDocs(): RetrievalDocument[] {
       textForLexicalSearch: "another unrelated source text",
       metadata,
     },
-  ];
+  ]);
 }
 
 function directionalDocs(): RetrievalDocument[] {
   const metadata = { domainIds: [], domainNames: [] };
-  return [
+  return withContentHashes([
     {
       id: "understanding:same-direction",
       entityType: "understanding",
@@ -184,12 +190,12 @@ function directionalDocs(): RetrievalDocument[] {
       textForLexicalSearch: "another source without matching words",
       metadata,
     },
-  ];
+  ]);
 }
 
 function queryInstructionDocs(): RetrievalDocument[] {
   const metadata = { domainIds: [], domainNames: [] };
-  return [
+  return withContentHashes([
     {
       id: "understanding:relevant",
       entityType: "understanding",
@@ -208,12 +214,12 @@ function queryInstructionDocs(): RetrievalDocument[] {
       textForLexicalSearch: "generic source",
       metadata,
     },
-  ];
+  ]);
 }
 
 function keywordBagDocs(): RetrievalDocument[] {
   const metadata = { domainIds: [], domainNames: [] };
-  return [
+  return withContentHashes([
     {
       id: "understanding:insult",
       entityType: "understanding",
@@ -241,7 +247,7 @@ function keywordBagDocs(): RetrievalDocument[] {
       textForLexicalSearch: "冲突发生后的沟通方式",
       metadata,
     },
-  ];
+  ]);
 }
 
 describe("retrieval projection", () => {
@@ -263,6 +269,48 @@ describe("retrieval projection", () => {
       "Parent Understanding: AI 工作流的关键是验收标准，不是提示词堆叠",
     );
     expect(contextDoc?.textForEmbedding).toContain("Domain: AI / Agent");
+  });
+
+  test("content hashes are stable when source collections arrive in a different order", () => {
+    const source = {
+      understanding: {
+        id: "understanding-stable-hash",
+        title: "Stable projection",
+        body: "The same projection must produce the same hash.",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+      },
+      domains: [
+        { id: "domain-b", name: "Second" },
+        { id: "domain-a", name: "First" },
+      ],
+      contexts: [
+        {
+          id: "context-b",
+          medium: "note",
+          title: "Second context",
+          content: "Second context body",
+          createdAt: "2026-01-04T00:00:00.000Z",
+        },
+        {
+          id: "context-a",
+          medium: "experience",
+          title: "First context",
+          content: "First context body",
+          createdAt: "2026-01-03T00:00:00.000Z",
+        },
+      ],
+    };
+
+    const first = buildRetrievalDocuments(source);
+    const second = buildRetrievalDocuments({
+      ...source,
+      domains: [...source.domains].reverse(),
+      contexts: [...source.contexts].reverse(),
+    });
+
+    expect(second).toEqual(first);
+    expect(first.every((doc) => /^[a-f0-9]{64}$/.test(doc.contentHash))).toBe(true);
   });
 });
 

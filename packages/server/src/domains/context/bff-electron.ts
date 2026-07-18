@@ -4,7 +4,7 @@ import type { ReflectaServerContext } from "../shared/types-electron";
 
 export class ContextElectronBff extends ContextCore {
   constructor(options: ReflectaServerContext) {
-    super(options.getDb());
+    super(options.getDb(), options.retrievalIndex);
   }
 
   async createContext(input: CreateContextInput): Promise<ContextDTO> {

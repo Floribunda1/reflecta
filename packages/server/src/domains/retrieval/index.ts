@@ -1,4 +1,5 @@
 export * from "./candidate-builder";
+export * from "./coordinator";
 export * from "./embedding-config";
 export * from "./lancedb-index";
 export * from "./llama-cpp-embedding";

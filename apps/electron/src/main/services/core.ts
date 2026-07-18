@@ -12,8 +12,9 @@ import {
   TrashElectronBff,
 } from "@reflecta/server";
 import { PiAgentHost } from "./agent/pi-agent-host";
+import { retrievalIndexCoordinator } from "../retrievalIndexCoordinator";
 
-const options = { getDb: getDBInstance };
+const options = { getDb: getDBInstance, retrievalIndex: retrievalIndexCoordinator };
 
 function createLazy<T extends object>(factory: () => T): T {
   let instance: T | undefined;

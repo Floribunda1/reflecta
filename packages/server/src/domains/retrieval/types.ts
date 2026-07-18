@@ -3,6 +3,7 @@ export type RetrievalChannel = "dense" | "lexical";
 
 export type RetrievalDocument = {
   id: string;
+  contentHash: string;
   entityType: RetrievalDocumentEntityType;
   entityId: string;
   parentUnderstandingId: string;

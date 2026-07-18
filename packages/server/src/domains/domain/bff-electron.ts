@@ -4,7 +4,7 @@ import type { ReflectaServerContext } from "../shared/types-electron";
 
 export class DomainElectronBff extends DomainCore {
   constructor(options: ReflectaServerContext) {
-    super(options.getDb());
+    super(options.getDb(), options.retrievalIndex);
   }
 
   async listDomains(): Promise<Domain[]> {

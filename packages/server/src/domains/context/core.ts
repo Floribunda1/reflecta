@@ -4,9 +4,13 @@ import type { ReflectaDb } from "../../db/types";
 import type { ContextDTO, CreateContextInput, ContextMedium, UpdateContextInput } from "./types";
 import type { TrashedContextDTO } from "../trash/types";
 import { createEntityId } from "../shared/id";
+import type { RetrievalIndexUpdateSink } from "../shared/types";
 
 export class ContextCore {
-  constructor(protected db: ReflectaDb) {}
+  constructor(
+    protected db: ReflectaDb,
+    private readonly retrievalIndex?: RetrievalIndexUpdateSink,
+  ) {}
 
   async listContextsByUnderstanding(understandingId: string): Promise<ContextDTO[]> {
     const rows = await this.db
@@ -42,13 +46,18 @@ export class ContextCore {
     };
 
     await this.db.insert(contexts).values(row).run();
+    this.retrievalIndex?.enqueue([input.understandingId]);
     return { ...row, createdAt, deletedAt: null } as ContextDTO;
   }
 
   async _updateContext(id: string, input: UpdateContextInput): Promise<ContextDTO> {
     const updates: Partial<typeof contexts.$inferInsert> = {};
+    let previousUnderstandingId: string | undefined;
     if (input.understandingId !== undefined) {
+      const current = await this.getContextRow(id);
+      if (!current) throw new Error(`Context not found: ${id}`);
       await this.assertUnderstandingExists(input.understandingId);
+      previousUnderstandingId = current.understandingId;
       updates.understandingId = input.understandingId;
     }
     if (input.medium !== undefined) updates.medium = input.medium;
@@ -65,10 +74,16 @@ export class ContextCore {
       updated = rows[0] as ContextDTO;
     });
 
+    this.retrievalIndex?.enqueue(
+      previousUnderstandingId
+        ? [previousUnderstandingId, updated!.understandingId]
+        : [updated!.understandingId],
+    );
     return updated!;
   }
 
   async deleteContext(id: string): Promise<void> {
+    let understandingId: string | undefined;
     await this.db.transaction((tx) => {
       const rows = tx
         .update(contexts)
@@ -79,10 +94,13 @@ export class ContextCore {
       if (rows.length === 0) {
         throw new Error(`Context not found: ${id}`);
       }
+      understandingId = rows[0].understandingId;
     });
+    this.retrievalIndex?.enqueue([understandingId!]);
   }
 
   async restoreContext(id: string): Promise<void> {
+    let understandingId: string | undefined;
     await this.db.transaction((tx) => {
       const rows = tx
         .update(contexts)
@@ -91,11 +109,14 @@ export class ContextCore {
         .returning()
         .all();
       if (rows.length === 0) return;
+      understandingId = rows[0].understandingId;
     });
+    if (understandingId) this.retrievalIndex?.enqueue([understandingId]);
   }
 
   async permanentlyDeleteContext(id: string): Promise<void> {
-    await this.db.delete(contexts).where(eq(contexts.id, id)).run();
+    const rows = await this.db.delete(contexts).where(eq(contexts.id, id)).returning().all();
+    if (rows[0]) this.retrievalIndex?.enqueue([rows[0].understandingId]);
   }
 
   private async assertUnderstandingExists(understandingId: string): Promise<void> {

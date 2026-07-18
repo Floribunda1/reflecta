@@ -2,8 +2,6 @@ import { app, dialog } from "electron";
 import { IpcMethod, IpcService } from "electron-ipc-decorator";
 import {
   configureRetrievalEmbedding,
-  getRetrievalIndexStatus,
-  rebuildRetrievalIndexWithStatus,
   type RetrievalEmbeddingConfig as ServerRetrievalEmbeddingConfig,
   type RetrievalIndexStatus,
 } from "@reflecta/server";
@@ -16,7 +14,7 @@ import type {
   RetrievalConfig,
   RetrievalEmbeddingModelStatus,
 } from "../config";
-import { getDBInstance } from "../db";
+import { retrievalIndexCoordinator } from "../retrievalIndexCoordinator";
 import {
   getActiveAgentReasoningLevel,
   clampAiReasoningLevel,
@@ -121,6 +119,7 @@ export class ConfigService extends IpcService {
     const next = normalizeRetrievalConfig(config);
     writeConfig({ retrieval: next });
     applyRetrievalConfigToServer(next);
+    void retrievalIndexCoordinator.rebuild().catch(() => undefined);
   }
 
   @IpcMethod()
@@ -135,15 +134,15 @@ export class ConfigService extends IpcService {
 
   @IpcMethod()
   async getRetrievalIndexStatus(): Promise<RetrievalIndexStatus> {
-    return getRetrievalIndexStatus();
+    return retrievalIndexCoordinator.getStatus();
   }
 
   @IpcMethod()
   async rebuildRetrievalIndex(): Promise<RetrievalIndexStatus> {
     try {
-      await rebuildRetrievalIndexWithStatus(getDBInstance());
+      await retrievalIndexCoordinator.rebuild();
     } catch {}
-    return getRetrievalIndexStatus();
+    return retrievalIndexCoordinator.getStatus();
   }
 
   @IpcMethod()

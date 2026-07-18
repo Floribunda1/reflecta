@@ -1,10 +1,11 @@
 import type { ReflectaDb } from "../../db/types";
 import { ContextCore } from "./core";
 import type { ContextDetail, CreateContextInput, ContextMedium, UpdateContextInput } from "./types";
+import type { RetrievalIndexUpdateSink } from "../shared/types";
 
 export class ContextCliBff extends ContextCore {
-  constructor(db: ReflectaDb) {
-    super(db);
+  constructor(db: ReflectaDb, retrievalIndex?: RetrievalIndexUpdateSink) {
+    super(db, retrievalIndex);
   }
 
   async listContexts(understandingId: string): Promise<ContextDetail[]> {

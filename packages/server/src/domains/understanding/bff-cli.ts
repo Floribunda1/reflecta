@@ -16,10 +16,11 @@ import type { ListUnderstandingsFilter } from "./types";
 import { getUnderstandingConnectionCounts } from "./core";
 import { toUnderstandingSummaries } from "./core";
 import { extractUnderstandingWikiLinks, formatUnderstandingWikiLink } from "./wiki-links";
+import type { RetrievalIndexUpdateSink } from "../shared/types";
 
 export class UnderstandingCliBff extends UnderstandingCore {
-  constructor(db: ReflectaDb) {
-    super(db);
+  constructor(db: ReflectaDb, retrievalIndex?: RetrievalIndexUpdateSink) {
+    super(db, retrievalIndex);
   }
 
   async listUnderstandings(filter?: ListUnderstandingsFilter): Promise<UnderstandingSummary[]> {

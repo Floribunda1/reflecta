@@ -25,6 +25,7 @@ import { registerDeleteUnderstandingAction } from "./actions/understanding/delet
 import { registerGetUnderstandingAction } from "./actions/understanding/get";
 import { registerListUnderstandingsAction } from "./actions/understanding/list";
 import { registerUpdateUnderstandingAction } from "./actions/understanding/update";
+import { flushRetrievalIndexUpdates } from "./services";
 
 function formatRows(rows: Array<{ key: string; desc: string }>, indent = 2, width = 22): string[] {
   const pad = " ".repeat(indent);
@@ -283,6 +284,13 @@ export async function runCli(argv = process.argv.slice(2)): Promise<number> {
 
   try {
     await cli.parseAsync(argv, { from: "user" });
+    try {
+      await flushRetrievalIndexUpdates();
+    } catch (error) {
+      console.error(
+        `Warning: knowledge was saved but retrieval indexing failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
     return Number(process.exitCode ?? 0);
   } catch (err) {
     if (err instanceof CommanderError) {

@@ -20,8 +20,15 @@ type ReplaceAllOptions = {
   onWritingStart?: () => void;
 };
 
+export type RetrievalIndexManifestEntry = {
+  id: string;
+  parentUnderstandingId: string;
+  contentHash: string;
+};
+
 type RetrievalRow = {
   id: string;
+  contentHash: string;
   entityType: string;
   entityId: string;
   parentUnderstandingId: string;
@@ -52,9 +59,20 @@ function lexicalFtsIndex() {
   });
 }
 
+function quoteSqlString(value: string): string {
+  return `'${value.replaceAll("'", "''")}'`;
+}
+
+function parentPredicate(parentUnderstandingIds: string[]): string {
+  return parentUnderstandingIds
+    .map((id) => `parentUnderstandingId = ${quoteSqlString(id)}`)
+    .join(" OR ");
+}
+
 function toRow(doc: RetrievalDocument, vector: number[]): RetrievalRow {
   return {
     id: doc.id,
+    contentHash: doc.contentHash,
     entityType: doc.entityType,
     entityId: doc.entityId,
     parentUnderstandingId: doc.parentUnderstandingId,
@@ -73,6 +91,7 @@ function toRow(doc: RetrievalDocument, vector: number[]): RetrievalRow {
 function fromRow(row: RetrievalRow): RetrievalSearchHit {
   return {
     id: row.id,
+    contentHash: row.contentHash,
     entityType: row.entityType as RetrievalSearchHit["entityType"],
     entityId: row.entityId,
     parentUnderstandingId: row.parentUnderstandingId,
@@ -109,6 +128,14 @@ function matchesAnyLexicalTerm(row: RetrievalRow, terms: string[]): boolean {
   if (terms.length === 0) return false;
   const text = row.textForLexicalSearch.toLocaleLowerCase();
   return terms.some((term) => text.includes(term.toLocaleLowerCase()));
+}
+
+function exactLexicalStrength(row: RetrievalRow, terms: string[]): number {
+  const text = row.textForLexicalSearch.toLocaleLowerCase();
+  return terms.reduce((score, term) => {
+    const normalized = term.toLocaleLowerCase();
+    return text.includes(normalized) ? score + 1_000 + normalized.length : score;
+  }, 0);
 }
 
 function hasVectorSignal(vector: number[]): boolean {
@@ -162,17 +189,59 @@ export class LanceDbRetrievalIndex {
   }
 
   async replaceAll(docs: RetrievalDocument[], options?: ReplaceAllOptions): Promise<void> {
+    const rows = await this.embedRows(docs, options);
     const db = await lancedb.connect(this.options.uri);
     const tableNames = await db.tableNames();
-    if (tableNames.includes(this.tableName)) {
-      await db.dropTable(this.tableName);
+    if (rows.length === 0) {
+      if (tableNames.includes(this.tableName)) {
+        await (await db.openTable(this.tableName)).delete("true");
+      }
+      return;
     }
-    if (docs.length === 0) return;
+
+    options?.onWritingStart?.();
+    const table = await db.createTable(this.tableName, rows, { mode: "overwrite" });
+    await table.createIndex("textForLexicalSearch", { config: lexicalFtsIndex() });
+  }
+
+  async readManifest(): Promise<RetrievalIndexManifestEntry[] | null> {
+    const table = await this.openTable();
+    if (!table) return null;
+    return (await table
+      .query()
+      .select(["id", "parentUnderstandingId", "contentHash"])
+      .toArray()) as RetrievalIndexManifestEntry[];
+  }
+
+  async replaceUnderstandingDocuments(
+    parentUnderstandingIds: string[],
+    docs: RetrievalDocument[],
+    options?: ReplaceAllOptions,
+  ): Promise<void> {
+    const uniqueParentIds = [...new Set(parentUnderstandingIds)];
+    if (uniqueParentIds.length === 0) return;
+    const table = await this.openTable();
+    if (!table) throw new Error(`Retrieval table is not ready: ${this.tableName}`);
 
     const rows = await this.embedRows(docs, options);
     options?.onWritingStart?.();
-    const table = await db.createTable(this.tableName, rows);
-    await table.createIndex("textForLexicalSearch", { config: lexicalFtsIndex() });
+    const predicate = parentPredicate(uniqueParentIds);
+    if (rows.length === 0) {
+      await table.delete(predicate);
+      return;
+    }
+
+    await table
+      .mergeInsert("id")
+      .whenMatchedUpdateAll()
+      .whenNotMatchedInsertAll()
+      .whenNotMatchedBySourceDelete({ where: predicate })
+      .execute(rows);
+  }
+
+  async optimize(): Promise<void> {
+    const table = await this.openTable();
+    if (table) await table.optimize();
   }
 
   async search(query: string, limit = 20): Promise<RetrievalSearchHit[]> {
@@ -220,18 +289,50 @@ export class LanceDbRetrievalIndex {
   ): Promise<RetrievalRow[]> {
     const searchLimit = Math.max(limit * 5, 20);
     const terms = lexicalTerms(query);
-    const matchQuery = new lancedb.MatchQuery(query, "textForLexicalSearch", {
-      operator: lancedb.Operator.Or,
-    });
-    return (
-      (await table
-        .search(query)
-        .fullTextSearch(matchQuery)
-        .limit(searchLimit)
-        .toArray()) as RetrievalRow[]
-    )
-      .filter((row) => matchesAnyLexicalTerm(row, terms))
-      .slice(0, limit);
+    if (terms.length === 0) return [];
+    const matchQuery = new lancedb.BooleanQuery(
+      terms.map((term) => [
+        lancedb.Occur.Should,
+        new lancedb.MatchQuery(term, "textForLexicalSearch", {
+          operator: lancedb.Operator.And,
+        }),
+      ]),
+    );
+    const [ftsRows, currentRows] = await Promise.all([
+      table.search(query).fullTextSearch(matchQuery).limit(searchLimit).toArray() as Promise<
+        RetrievalRow[]
+      >,
+      table
+        .query()
+        .select([
+          "id",
+          "contentHash",
+          "entityType",
+          "entityId",
+          "parentUnderstandingId",
+          "textForEmbedding",
+          "textForLexicalSearch",
+          "domainIdsJson",
+          "domainNamesJson",
+          "medium",
+          "title",
+          "createdAt",
+          "updatedAt",
+        ])
+        .toArray() as Promise<RetrievalRow[]>,
+    ]);
+
+    const ranked = ftsRows.filter((row) => matchesAnyLexicalTerm(row, terms));
+    const rankedIds = new Set(ranked.map((row) => row.id));
+    const currentOnly = currentRows
+      .filter((row) => !rankedIds.has(row.id) && matchesAnyLexicalTerm(row, terms))
+      .sort(
+        (left, right) =>
+          exactLexicalStrength(right, terms) - exactLexicalStrength(left, terms) ||
+          left.id.localeCompare(right.id),
+      );
+
+    return [...ranked, ...currentOnly].slice(0, limit);
   }
 
   private async embedRows(

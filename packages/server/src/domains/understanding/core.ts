@@ -19,6 +19,7 @@ import type {
   UpdateUnderstandingInput,
 } from "./types";
 import { resolveDomainRefs } from "../domain/core";
+import type { RetrievalIndexUpdateSink } from "../shared/types";
 import { createEntityId } from "../shared/id";
 
 export async function getUnderstandingConnectionCounts(
@@ -48,7 +49,10 @@ export async function getUnderstandingConnectionCounts(
 }
 
 export class UnderstandingCore {
-  constructor(protected db: ReflectaDb) {}
+  constructor(
+    protected db: ReflectaDb,
+    private readonly retrievalIndex?: RetrievalIndexUpdateSink,
+  ) {}
 
   async listUnderstandingRows(
     filter?: ListUnderstandingsFilter & { limit?: number; offset?: number },
@@ -149,6 +153,7 @@ export class UnderstandingCore {
 
     const row = await this.getUnderstandingRow(id);
     if (!row) throw new Error(`Understanding not found after creation: ${id}`);
+    this.retrievalIndex?.enqueue([id]);
     return row;
   }
 
@@ -196,6 +201,7 @@ export class UnderstandingCore {
 
     const row = await this.getUnderstandingRow(id);
     if (!row) throw new Error(`Understanding not found after update: ${id}`);
+    this.retrievalIndex?.enqueue([id]);
     return row;
   }
 
@@ -211,9 +217,11 @@ export class UnderstandingCore {
         throw new Error(`Understanding not found: ${id}`);
       }
     });
+    this.retrievalIndex?.enqueue([id]);
   }
 
   async restoreUnderstanding(id: string): Promise<void> {
+    let restored = false;
     await this.db.transaction((tx) => {
       const rows = tx
         .update(understandings)
@@ -222,13 +230,16 @@ export class UnderstandingCore {
         .returning()
         .all();
       if (rows.length === 0) return;
+      restored = true;
     });
+    if (restored) this.retrievalIndex?.enqueue([id]);
   }
 
   async permanentlyDeleteUnderstanding(id: string): Promise<void> {
     await this.db.transaction((tx) => {
       tx.delete(understandings).where(eq(understandings.id, id)).run();
     });
+    this.retrievalIndex?.enqueue([id]);
   }
 
   async syncWikiLinkConnections(sourceId: string, body: string): Promise<void> {

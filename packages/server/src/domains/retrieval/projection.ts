@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { RetrievalDocument } from "./types";
 
 export type RetrievalProjectionSource = {
@@ -26,7 +27,9 @@ function compactLines(lines: Array<string | null | undefined>): string {
 }
 
 export function buildRetrievalDocuments(source: RetrievalProjectionSource): RetrievalDocument[] {
-  const { understanding, domains, contexts } = source;
+  const { understanding } = source;
+  const domains = [...source.domains].sort((left, right) => left.id.localeCompare(right.id));
+  const contexts = [...source.contexts].sort((left, right) => left.id.localeCompare(right.id));
   const domainIds = domains.map((domain) => domain.id);
   const domainNames = domains.map((domain) => domain.name);
   const domainText = domainNames.length > 0 ? `Domain: ${domainNames.join(" / ")}` : null;
@@ -39,7 +42,7 @@ export function buildRetrievalDocuments(source: RetrievalProjectionSource): Retr
     understanding.body,
   ]);
 
-  const docs: RetrievalDocument[] = [
+  const docs: Array<Omit<RetrievalDocument, "contentHash">> = [
     {
       id: `understanding:${understanding.id}`,
       entityType: "understanding",
@@ -88,5 +91,8 @@ export function buildRetrievalDocuments(source: RetrievalProjectionSource): Retr
     });
   }
 
-  return docs;
+  return docs.map((doc) => ({
+    ...doc,
+    contentHash: createHash("sha256").update(JSON.stringify(doc)).digest("hex"),
+  }));
 }

@@ -15,7 +15,7 @@ import { OpenAiCompatibleEmbeddingProvider } from "./openai-compatible-embedding
 import { buildRetrievalDocuments } from "./projection";
 import type { EmbeddingProvider } from "./types";
 
-export const RETRIEVAL_PROJECTION_VERSION = 2;
+export const RETRIEVAL_PROJECTION_VERSION = 3;
 
 export type RetrievalIndexProgress = {
   phase: "preparing" | "embedding" | "writing";
@@ -24,18 +24,15 @@ export type RetrievalIndexProgress = {
   percent: number;
 };
 
-export type RetrievalIndexStatus = {
-  state: "not_ready" | "indexing" | "ready" | "error";
-  embeddingModel: string;
-  projectionVersion: number;
-  tableName: string;
-  progress?: RetrievalIndexProgress;
-  error?: string;
+export type RetrievalIndexWorkResult = {
+  modified: boolean;
+  operationCount: number;
 };
 
-let activeRebuild: Promise<void> | null = null;
-let lastRebuildError: string | undefined;
-let activeRebuildProgress: RetrievalIndexProgress | undefined;
+type RetrievalIndexWorkOptions = {
+  onProgress?: (progress: RetrievalIndexProgress) => void;
+};
+
 let embeddingProviderFactory:
   | ((config: ReturnType<typeof getRetrievalEmbeddingConfig>) => EmbeddingProvider | undefined)
   | undefined;
@@ -48,17 +45,18 @@ export function configureRetrievalEmbeddingProviderFactory(
   embeddingProviderFactory = factory;
 }
 
-function updateActiveRebuildProgress(
+function reportProgress(
+  options: RetrievalIndexWorkOptions | undefined,
   phase: RetrievalIndexProgress["phase"],
   completed: number,
   total: number,
 ) {
-  activeRebuildProgress = {
+  options?.onProgress?.({
     phase,
     completed,
     total,
     percent: total <= 0 ? 0 : Math.min(100, Math.round((completed / total) * 100)),
-  };
+  });
 }
 
 function safeTableSegment(value: string) {
@@ -155,42 +153,65 @@ export async function buildRetrievalDocumentsFromDb(db: ReflectaDb, understandin
   );
 }
 
-export async function rebuildRetrievalIndex(db: ReflectaDb): Promise<void> {
-  updateActiveRebuildProgress("preparing", 0, 0);
+export async function rebuildRetrievalIndex(
+  db: ReflectaDb,
+  options?: RetrievalIndexWorkOptions,
+): Promise<RetrievalIndexWorkResult> {
+  reportProgress(options, "preparing", 0, 0);
   const docs = await buildRetrievalDocumentsFromDb(db);
-  updateActiveRebuildProgress("embedding", 0, docs.length);
+  reportProgress(options, "embedding", 0, docs.length);
   await createRetrievalIndex().replaceAll(docs, {
     onEmbeddingProgress: ({ completed, total }) =>
-      updateActiveRebuildProgress("embedding", completed, total),
-    onWritingStart: () => updateActiveRebuildProgress("writing", docs.length, docs.length),
+      reportProgress(options, "embedding", completed, total),
+    onWritingStart: () => reportProgress(options, "writing", docs.length, docs.length),
   });
+  return { modified: true, operationCount: 0 };
 }
 
-export async function rebuildRetrievalIndexWithStatus(db: ReflectaDb): Promise<void> {
-  if (activeRebuild) return activeRebuild;
-  activeRebuild = (async () => {
-    try {
-      lastRebuildError = undefined;
-      await rebuildRetrievalIndex(db);
-    } catch (error) {
-      lastRebuildError = error instanceof Error ? error.message : String(error);
-      throw error;
-    } finally {
-      activeRebuild = null;
-      activeRebuildProgress = undefined;
+export async function syncRetrievalIndexByUnderstandingIds(
+  db: ReflectaDb,
+  understandingIds: string[],
+  options?: RetrievalIndexWorkOptions,
+): Promise<RetrievalIndexWorkResult> {
+  const ids = [...new Set(understandingIds)];
+  if (ids.length === 0) return { modified: false, operationCount: 0 };
+  const index = createRetrievalIndex();
+  if (!(await index.isReady())) return rebuildRetrievalIndex(db, options);
+
+  reportProgress(options, "preparing", 0, ids.length);
+  const docs = await buildRetrievalDocumentsFromDb(db, ids);
+  reportProgress(options, "embedding", 0, docs.length);
+  await index.replaceUnderstandingDocuments(ids, docs, {
+    onEmbeddingProgress: ({ completed, total }) =>
+      reportProgress(options, "embedding", completed, total),
+    onWritingStart: () => reportProgress(options, "writing", ids.length, ids.length),
+  });
+  return { modified: true, operationCount: 1 };
+}
+
+export async function reconcileRetrievalIndex(
+  db: ReflectaDb,
+  options?: RetrievalIndexWorkOptions,
+): Promise<RetrievalIndexWorkResult> {
+  reportProgress(options, "preparing", 0, 0);
+  const index = createRetrievalIndex();
+  const manifest = await index.readManifest();
+  if (manifest === null) return rebuildRetrievalIndex(db, options);
+
+  const docs = await buildRetrievalDocumentsFromDb(db);
+  const currentById = new Map(docs.map((doc) => [doc.id, doc]));
+  const indexedById = new Map(manifest.map((entry) => [entry.id, entry]));
+  const affectedIds = new Set<string>();
+
+  for (const doc of docs) {
+    if (indexedById.get(doc.id)?.contentHash !== doc.contentHash) {
+      affectedIds.add(doc.parentUnderstandingId);
     }
-  })();
-  return activeRebuild;
-}
+  }
+  for (const entry of manifest) {
+    if (!currentById.has(entry.id)) affectedIds.add(entry.parentUnderstandingId);
+  }
 
-export async function getRetrievalIndexStatus(): Promise<RetrievalIndexStatus> {
-  const base = {
-    embeddingModel: getRetrievalEmbeddingModelId(),
-    projectionVersion: RETRIEVAL_PROJECTION_VERSION,
-    tableName: getRetrievalTableName(),
-  };
-  if (activeRebuild) return { ...base, state: "indexing", progress: activeRebuildProgress };
-  if (lastRebuildError) return { ...base, state: "error", error: lastRebuildError };
-  if (!(await createRetrievalIndex().isReady())) return { ...base, state: "not_ready" };
-  return { ...base, state: "ready" };
+  if (affectedIds.size === 0) return { modified: false, operationCount: 0 };
+  return syncRetrievalIndexByUnderstandingIds(db, [...affectedIds], options);
 }

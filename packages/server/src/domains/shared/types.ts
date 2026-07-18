@@ -5,6 +5,10 @@ export type PageInfo = {
   hasMore: boolean;
 };
 
+export type RetrievalIndexUpdateSink = {
+  enqueue(understandingIds: Iterable<string>): void;
+};
+
 export function makePageInfo(limit: number, offset: number, hasMore: boolean): PageInfo {
   return {
     limit,

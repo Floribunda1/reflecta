@@ -19,10 +19,11 @@ import type {
   InspectDomainOptions,
   UpdateDomainInput,
 } from "./types";
+import type { RetrievalIndexUpdateSink } from "../shared/types";
 
 export class DomainCliBff extends DomainCore {
-  constructor(db: ReflectaDb) {
-    super(db);
+  constructor(db: ReflectaDb, retrievalIndex?: RetrievalIndexUpdateSink) {
+    super(db, retrievalIndex);
   }
 
   async listDomains(): Promise<DomainSummary[]> {

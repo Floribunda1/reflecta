@@ -7,6 +7,7 @@ import { registerAssetScheme, handleAssetProtocol } from "./assetProtocol";
 import { APP_NAME, appLog, initializeLogging } from "./logger";
 import { preloadScript, rendererHtml } from "./paths";
 import { retrievalEmbeddingRunner } from "./retrievalEmbeddingRunner";
+import { retrievalIndexCoordinator } from "./retrievalIndexCoordinator";
 import { getRuntimeArg } from "./runtime-args";
 
 // Register asset:// as a privileged scheme before app is ready
@@ -85,7 +86,9 @@ const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?:
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
   await initializeDB();
+  retrievalIndexCoordinator.start();
   app.once("before-quit", () => {
+    retrievalIndexCoordinator.stop();
     retrievalEmbeddingRunner.stop();
   });
 
