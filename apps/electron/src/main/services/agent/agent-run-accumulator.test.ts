@@ -119,6 +119,55 @@ describe("AgentRunAccumulator", () => {
     ]);
   });
 
+  test("keeps interleaved progress text once when the final answer completes", () => {
+    const accumulator = new AgentRunAccumulator();
+
+    accumulator.append({
+      ...base,
+      id: "evt_1",
+      type: "assistant.text.delta",
+      delta: "先搜索资料。",
+    });
+    accumulator.append({
+      ...base,
+      id: "evt_2",
+      type: "tool.started",
+      toolCallId: "tool_1",
+      toolName: "bash",
+      input: { command: "rg milkdown" },
+    });
+    accumulator.append({
+      ...base,
+      id: "evt_3",
+      type: "tool.completed",
+      toolCallId: "tool_1",
+      toolName: "bash",
+      output: { exitCode: 0 },
+    });
+    accumulator.append({
+      ...base,
+      id: "evt_4",
+      type: "assistant.text.delta",
+      delta: "材料看完了。",
+    });
+    accumulator.appendFinalAnswer({
+      ...base,
+      text: "先搜索资料。材料看完了。",
+    });
+
+    const turn = accumulator.toAssistantTurn({
+      ...base,
+      id: "turn_1",
+      type: "assistant.turn",
+    });
+    expect(turn.text).toBe("先搜索资料。材料看完了。");
+    expect(turn.blocks).toMatchObject([
+      { kind: "text", text: "先搜索资料。" },
+      { kind: "tool", toolCallId: "tool_1", state: "completed" },
+      { kind: "text", text: "材料看完了。", state: "done" },
+    ]);
+  });
+
   test("shows execution failure even if approval is still pending", () => {
     const accumulator = new AgentRunAccumulator();
 

@@ -164,7 +164,7 @@ export class AgentRunAccumulator {
   }
 
   appendFinalAnswer(event: FinalAnswerEvent): void {
-    this.replaceFinalTextBlock({
+    this.finalizeTextBlock({
       kind: "text",
       text: event.text,
       state: "done",
@@ -233,14 +233,16 @@ export class AgentRunAccumulator {
     };
   }
 
-  private replaceFinalTextBlock(block: Extract<AgentAssistantTurnBlock, { kind: "text" }>): void {
+  private finalizeTextBlock(block: Extract<AgentAssistantTurnBlock, { kind: "text" }>): void {
     const index = this.blocks.findLastIndex((current) => current.kind === "text");
     if (index < 0) {
       this.blocks = [...this.blocks, block];
       return;
     }
     this.blocks = this.blocks.map((current, blockIndex) =>
-      blockIndex === index ? block : current,
+      blockIndex === index && current.kind === "text"
+        ? { ...current, state: block.state }
+        : current,
     );
   }
 }
