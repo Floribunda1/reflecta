@@ -1,6 +1,6 @@
 # Retrieval Index 最终同步方案
 
-> 状态：最终设计，待按本文实现。
+> 状态：已实现。
 >
 > 本文取代此前的 n-gram、完整 term 过滤、增量后重建 FTS 和 Retrieve 补偿方案。后续实现以本文为唯一依据，不保留旧方案的兼容分支。
 
@@ -331,9 +331,9 @@ not_ready | indexing | ready | error
 
 设置页继续提供显式“重新构建索引”。手动 rebuild 等待完成并展示进度；普通保存永远不等待。
 
-## 实现顺序
+## 落地顺序
 
-实现必须是替换，不是在旧逻辑上叠加：
+本轮按替换而非兼容叠加的方式落地：
 
 1. 升级并锁定 `@lancedb/lancedb@0.31.0`，增加 ICU runtime smoke test 和增量可见性测试。
 2. 删除全部 n-gram 参数、term 提取、`includes` 过滤和相关测试；仓库搜索确认旧 symbol 为零。
@@ -341,7 +341,7 @@ not_ready | indexing | ready | error
 4. 保留标准 `mergeInsert` 增量提交，删除任何增量后的 `createIndex` 或完整 FTS rebuild。
 5. 将 `optimize()` 收敛为后台 best-effort 性能维护，不影响已成功的数据同步状态。
 6. 运行同步一致性、Session 质量集、完整 retrieval benchmark 和 Electron/CLI 产品路径验证。
-7. 最后更新 v1.1.20 README 中仍描述 n-gram 和完整 term 过滤的内容，保证文档与最终代码一致。
+7. 更新 v1.1.20 README 中的 Lexical 规则和最终质量基准，保证文档与代码一致。
 
 不得为了让旧测试继续通过而保留兼容别名、双 tokenizer、旧表读取、结果补偿或 feature flag。
 
