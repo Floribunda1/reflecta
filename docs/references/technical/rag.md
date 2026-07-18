@@ -1,248 +1,249 @@
-# RAG 检索架构
+# 知识检索与 RAG 如何工作
 
-本文描述 Reflecta 当前的知识检索增强生成（RAG）实现：知识数据如何进入检索索引、一次 `retrieve_knowledge` 如何完成 Hybrid Retrieval，以及检索结果如何回到 Agent 的生成循环。
+本文从两个实际动作出发，解释 Reflecta 的知识检索：
 
-索引的异步队列、恢复和失败语义见 [Retrieval Index 同步机制](./retrieval-index-sync.md)。
+1. 用户保存或修改一条知识后，搜索数据如何更新；
+2. Agent 收到一个问题后，如何找到相关的 Understanding 和 Context。
 
-## 心智模型
+索引更新的排队、失败恢复等细节见 [搜索索引如何保持最新](./retrieval-index-sync.md)。
 
-Reflecta 的 RAG 不是“把整篇笔记切块后只做向量搜索”，而是以产品领域对象为边界建立可重建的检索投影：
-
-```mermaid
-flowchart LR
-    SQLite["SQLite<br/>知识事实源"]
-    Projection["RetrievalDocument 投影"]
-    LanceDB["LanceDB<br/>Retrieval table v4"]
-    Tool["retrieve_knowledge"]
-    Agent["Agent 模型循环"]
-    Answer["基于检索证据生成回答"]
-
-    SQLite -->|"保存后异步同步"| Projection
-    Projection --> LanceDB
-    LanceDB -->|"Hybrid Retrieval"| Tool
-    Tool -->|"Understanding 候选和 Context 证据"| Agent
-    Agent --> Answer
-```
-
-各层职责：
-
-- **SQLite**：Understanding、Context、Domain 和显式关联的唯一事实源。
-- **RetrievalDocument**：面向检索的确定性投影，不是新的业务事实。
-- **LanceDB**：可删除、可重建的派生索引，同时承载 Lexical 和 Dense 检索。
-- **`retrieve_knowledge`**：只负责召回、融合、聚合和证据组织，不生成最终回答。
-- **Agent**：决定何时调用工具，并使用返回的知识证据继续生成。
-
-## 索引文档模型
-
-### 投影粒度
-
-每个未删除的 Understanding 会投影为：
-
-1. 一条 Understanding document；
-2. 它的每个未删除 Context 各一条 Context document。
-
-两类 document 都以 `parentUnderstandingId` 指回所属 Understanding。这样既能直接召回 Understanding 本身，也能通过某条具体 Context 命中它的父 Understanding。
+## 先看完整过程
 
 ```mermaid
 flowchart TD
-    U["Understanding"] --> UD["understanding:{understandingId}"]
-    U --> C1["Context A"]
-    U --> C2["Context B"]
-    C1 --> CD1["context:{contextIdA}"]
-    C2 --> CD2["context:{contextIdB}"]
-    UD --> P["同一个 parentUnderstandingId"]
-    CD1 --> P
-    CD2 --> P
+    Save["用户保存 Understanding 或 Context"] --> DB["先写入 SQLite"]
+    DB --> Queue["通知后台：这些 Understanding 的搜索数据需要更新"]
+    Queue --> SearchCopy["后台更新 LanceDB 中的搜索副本"]
+
+    Question["Agent 要查一个问题"] --> Keyword["按关键词查"]
+    Question --> Meaning["按意思相近查"]
+    SearchCopy --> Keyword
+    SearchCopy --> Meaning
+    Keyword --> Combine["合并两路排名"]
+    Meaning --> Combine
+    Combine --> Group["把命中的 Context 归回所属 Understanding"]
+    Group --> Agent["Agent 使用这些证据回答问题"]
 ```
 
-### 两套检索文本
+最重要的两条规则是：
 
-每条 `RetrievalDocument` 同时包含两种文本：
+- SQLite 保存真实知识；LanceDB 只保存一份为了搜索而整理的数据副本。
+- 保存知识不等待搜索数据更新，所以保存很快，但搜索结果可能短暂落后几秒。
 
-| 字段                   | 用途            | 内容组织                                                                                    |
-| ---------------------- | --------------- | ------------------------------------------------------------------------------------------- |
-| `textForLexicalSearch` | ICU FTS / BM25  | 标题、直接 Domain 名称、正文；Context 还包含 medium、Context 标题和内容                     |
-| `textForEmbedding`     | Dense embedding | 带 `Understanding`、`Parent Understanding`、`Domain`、`Context medium` 等结构标签的完整文本 |
+## 系统里保存了哪两份数据
 
-Lexical 文本强调用户可能直接输入的词；Embedding 文本保留实体角色和父子关系，帮助语义模型区分 Understanding 与 Context。
+### SQLite：真实知识
 
-其余关键字段包括：
+Understanding、Context、Domain 和它们之间的关系都以 SQLite 为准。编辑、删除和恢复操作先写 SQLite。
 
-- `id`：`understanding:{id}` 或 `context:{id}`，作为增量 merge key；
-- `entityType`、`entityId`：还原命中的领域对象；
-- `parentUnderstandingId`：聚合和按 Understanding 同步的边界；
-- Domain、medium、title、时间等 metadata；
-- `contentHash`：稳定投影的 SHA-256，用于启动对账；
-- `vector`：写入 LanceDB 时生成的 embedding。
+如果 SQLite 与搜索索引不一致，系统相信 SQLite，并重新生成搜索索引。搜索索引不能反过来修改真实知识。
 
-投影输入中的 Domain 和 Context 会先稳定排序，再计算 `contentHash`。相同业务数据必须产生相同 document 和 hash。
+### LanceDB：为了搜索而整理的副本
 
-## 更新路径
+LanceDB 中的数据不是简单复制数据库表。系统会把一个 Understanding 整理成几条适合搜索的记录：
 
-知识写入和索引写入刻意不处于同一个同步事务中：
+- Understanding 自己一条；
+- 它下面每个未删除的 Context 各一条。
+
+例如：
+
+```text
+Understanding：复盘为什么需要记录假设
+├── 搜索记录 1：Understanding 的标题、正文、Domain
+├── 搜索记录 2：Context A 的标题、内容、媒介、父 Understanding
+└── 搜索记录 3：Context B 的标题、内容、媒介、父 Understanding
+```
+
+这样做有两个好处：
+
+1. 问题直接对应 Understanding 时，可以命中 Understanding 自己；
+2. 问题只出现在某条具体经历里时，可以先命中 Context，再找到它所属的 Understanding。
+
+每条搜索记录都保留父 Understanding 的 ID，所以最终可以把多条命中重新合并成一个 Understanding 候选。
+
+## 一条搜索记录里有什么
+
+同一条记录会准备两份文本：
+
+| 文本           | 给谁使用        | 主要内容                                                                   |
+| -------------- | --------------- | -------------------------------------------------------------------------- |
+| 关键词搜索文本 | ICU 分词和 BM25 | 标题、Domain 名称、正文；Context 还包括媒介和 Context 内容                 |
+| 语义搜索文本   | Embedding 模型  | 在完整内容外标明它是 Understanding 还是 Context，以及父 Understanding 是谁 |
+
+之所以分成两份，是因为关键词搜索和语义搜索需要的信息不同：
+
+- 关键词搜索希望文本自然、直接，方便匹配用户输入的词；
+- 语义搜索需要更多结构提示，避免模型混淆 Understanding 和 Context 的角色。
+
+记录里还包括：
+
+- 自己的稳定 ID；
+- 所属 Understanding 的 ID；
+- Domain、媒介、标题和时间；
+- 一段内容指纹，用来判断 SQLite 内容是否已经同步；
+- 语义搜索所需的向量。
+
+代码中的 `RetrievalDocument` 指的就是这里所说的“一条搜索记录”。
+
+## 保存后发生了什么
 
 ```mermaid
 sequenceDiagram
-    participant Caller as Electron / CLI
-    participant Core as Knowledge Core
-    participant SQLite
-    participant Coordinator
-    participant LanceDB
+    participant User as 用户操作
+    participant App as 业务代码
+    participant DB as SQLite
+    participant Background as 后台索引更新
+    participant Search as LanceDB
 
-    Caller->>Core: 新增、更新、删除或恢复
-    Core->>SQLite: 提交业务事务
-    SQLite-->>Core: commit 成功
-    Core->>Coordinator: enqueue(affected Understanding IDs)
-    Core-->>Caller: 保存成功
-    Coordinator->>SQLite: 读取 affected Understanding 完整投影
-    Coordinator->>Coordinator: 生成 embedding
-    Coordinator->>LanceDB: mergeInsert / parent delete
+    User->>App: 保存知识
+    App->>DB: 提交修改
+    DB-->>App: 保存成功
+    App->>Background: 通知需要更新的 Understanding ID
+    App-->>User: 立即返回保存成功
+    Background->>DB: 重新读取这些 Understanding 的完整数据
+    Background->>Background: 整理搜索文本并生成向量
+    Background->>Search: 一次性更新对应搜索记录
 ```
 
-更新以 **affected Understanding** 为单位，而不是以发生变化的单行作为单位。原因是一个 RetrievalDocument 会包含父 Understanding、直接 Domain 名称和 Context 内容；任一组成部分变化，都应重新生成该 Understanding 的完整 document 集合。
+更新单位是整个 Understanding，而不是刚刚变化的单个字段。例如修改一条 Context 时，会重新整理它所属 Understanding 的全部搜索记录。这是因为这些记录会共同使用父标题、Domain 等信息。
 
-普通 Electron 保存不等待 embedding 或 LanceDB，因此存在一个很短的最终一致性窗口。CLI 写命令在退出前会 `flush()`，使下一条独立 CLI 搜索可以看到刚才的修改。
+以下修改会触发更新：
 
-完整的触发矩阵、single-flight 队列和崩溃恢复规则见 [Retrieval Index 同步机制](./retrieval-index-sync.md)。
+- Understanding 的新增、修改、删除和恢复；
+- Context 的新增、修改、删除和恢复；
+- Context 移动到另一个 Understanding；
+- Understanding 关联的 Domain 发生变化；
+- 已关联 Domain 的名称被修改或 Domain 被删除。
 
-## Retrieve 主流程
+Domain 只是调整顺序或父级时不会更新搜索数据，因为当前搜索记录不包含完整的 Domain 层级路径。
 
-`retrieveKnowledge({ query, anchors, limit })` 的主路径如下：
+## Agent 发起检索后发生了什么
 
-```mermaid
-flowchart TD
-    Q["用户 query"] --> O["计算 document overfetch 数量"]
-    O --> L["Lexical<br/>ICU FTS / BM25"]
-    O --> DQ["构造 Dense query instruction"]
-    DQ --> E["生成 query embedding"]
-    E --> D["Cosine vector search"]
-    L --> R["Document-level RRF<br/>k = 60"]
-    D --> R
-    R --> H["截取融合后的 RetrievalDocument"]
-    H --> S["从 SQLite 读取仍有效的父 Understanding"]
-    S --> G["按 parentUnderstandingId 聚合"]
-    G --> C["Understanding candidates<br/>+ matched Contexts + evidence"]
-    C --> X["可选的一跳 relation / anchor 扩展"]
-    X --> RESULT["候选结果和 retrieval trace"]
-```
+Agent 使用 `retrieve_knowledge` 工具提交问题。系统同时运行关键词搜索和语义搜索，然后合并结果。
 
-### 1. Document overfetch
+### 第一步：多取一些搜索记录
 
-最终返回单位是 Understanding，但检索单位是 RetrievalDocument。为避免多个 Context document 折叠到同一个 Understanding 后候选不足，Search Core 先取：
+最终需要返回的是 Understanding，但一个 Understanding 可能有多条 Context 同时命中。如果只取与最终数量相同的搜索记录，合并后可能只剩很少几个 Understanding。
+
+因此系统会先多取一些记录：
 
 ```text
-max(limit × 3, limit + 5)
+需要的搜索记录数 = max(最终 Understanding 数量 × 3, 最终数量 + 5)
 ```
 
-个融合 document。LanceDB 内部的 Lexical 和 Dense 两路又分别取：
+关键词和语义两路还会各自多取候选，再交给后面的排名合并。
+
+### 第二步：按关键词查
+
+关键词搜索也叫 Lexical Search。当前使用 LanceDB 的 ICU 分词和 BM25 排名。
+
+过程可以简单理解为：
+
+1. ICU 把中文、英文或中英混合的问题拆成可搜索的词；
+2. 文档命中其中任意词就可以进入候选；
+3. BM25 根据命中了哪些词、词有多稀有、出现次数和文档长度进行排序。
+
+例如模型搜索：
 
 ```text
-max(documentLimit × 5, 20)
+复盘 假设 决策
 ```
 
-个候选交给 RRF。
+这不是要求文档包含完整字符串“复盘 假设 决策”，而是三个搜索词。命中多个词、命中更少见的词，通常会排得更高。
 
-### 2. Lexical retrieval
+这里直接使用原始问题，不额外做中文分词、同义词扩展或 `text.includes()` 二次判断。
 
-Lexical 使用 LanceDB `0.31.0` 的 ICU FTS：
+### 第三步：按意思相近查
 
-- query 原样传给 `MatchQuery`；
-- 字段为 `textForLexicalSearch`；
-- 多个 token 使用 `Operator.Or`；
-- 排序由 BM25 完成；
-- 不做应用层分词、同义词扩展、`text.includes(term)` 二次过滤或 SQLite fallback。
+语义搜索也叫 Dense Search。Embedding 模型会把问题和每条搜索记录转换成一串数字；意思越接近，两串数字在向量空间中的距离通常越近。
 
-ICU 负责中文、英文及中英混合文本的 tokenization。OR 负责扩大召回，BM25 再根据词频、词的稀有度和文档长度决定排名。
+问题在转换前会加一段固定说明，告诉模型这是在 Reflecta 中查找个人知识。已有的产品词汇提示也只用于这一路：
 
-### 3. Dense retrieval
+- 问题包含“经验 / 经历 / 上下文”时，补充 `Context`；
+- 问题包含“理解 / 认知”时，补充 `Understanding`。
 
-Dense 路径会为原始 query 添加 Qwen retrieval instruction：
+关键词搜索不会使用这层补充。
+
+如果用户没有启用 Embedding 模型，这一路不返回结果，系统仍可以只靠关键词搜索工作。
+
+### 第四步：合并两路排名
+
+BM25 分数和向量距离不是同一种数值，不能直接相加。因此系统使用 RRF（Reciprocal Rank Fusion）只比较名次：
 
 ```text
-Instruct: Given a Reflecta user query, retrieve relevant personal knowledge documents.
-Query: {query}
+某条记录的最终分数 = 它在关键词列表中的名次分 + 它在语义列表中的名次分
+
+每一路的名次分 = 1 / (60 + 名次)
 ```
 
-既有的产品词汇提示只作用于 Dense query：query 出现“经验 / 经历 / 上下文”时补充 `Context`，出现“理解 / 认知”时补充 `Understanding`。Lexical query 不使用这层扩展。
+一条记录如果同时被关键词搜索和语义搜索找到，会获得两份名次分；只被一路找到则只有一份。
 
-query embedding 与 Lexical search 并行执行。向量检索使用 cosine distance。当 embedding provider 被禁用时，provider 返回零向量，Dense 路径不产生候选，系统退化为 Lexical-only。
+RRF 的作用是把两张排序表稳定地合成一张，而不是重新判断内容是否相关。
 
-### 4. RRF 融合
+### 第五步：把 Context 归回 Understanding
 
-Lexical 的 BM25 score 与 Dense 的 cosine distance 不在同一量纲，不能直接相加。系统只使用两路排名，通过 Reciprocal Rank Fusion 融合：
+合并排名后，系统根据父 Understanding ID 整理结果：
 
-```text
-RRF(document) = Σ 1 / (60 + rank_channel(document))
-```
+- Understanding 自己命中时，记录直接命中证据；
+- Context 命中时，把 Context 的媒介、标题、摘要和命中原因放进 `matchedContexts`；
+- 同一 Understanding 下的多条命中合并成一个候选；
+- 已在 SQLite 中删除的 Understanding 不会返回；
+- 候选中附带稳定 ID，Agent 可以继续读取完整 Understanding 及其 Context。
 
-实现中的 rank 从 1 开始。一个 document 同时出现在 Lexical 和 Dense 列表时会获得两项分数，因此通常优先于只被一路召回的 document。
+### 第六步：补充明确关联的知识
 
-RRF 在 **RetrievalDocument 层** 完成。融合结果会记录命中渠道 `lexical`、`dense` 或两者，供后续 evidence 和 trace 使用。
+如果结果还有空位，系统可以再补充一层明确关系：
 
-### 5. 聚合为 Understanding candidates
+- 从已经找到的 Understanding 沿显式连接找相邻 Understanding；
+- 从用户提供的 Domain 定位直接关联的 Understanding。
 
-Search Core 用融合结果里的 `parentUnderstandingId` 回查 SQLite，只保留当前仍未删除的 Understanding，然后按父 Understanding 聚合：
+这只是查一层已经存在的关系，不会再次让模型规划搜索，也不会改变前面关键词和语义搜索的排名。
 
-- 第一次命中的 document 决定候选的基础 snippet；
-- 候选 score 取其 document hit 的最高 RRF score；
-- 候选排序取其 document 的最佳 rank；
-- Understanding document 命中形成直接 evidence；
-- Context document 命中进入 `matchedContexts`，同时保留 medium、title、snippet 和命中原因；
-- 每个候选提供 `understanding_get` 建议，允许 Agent 按稳定 ID 读取完整 Understanding 及 Context。
+当前 Context 类型的 anchor 不参与这一步。
 
-### 6. 显式关系扩展
+## 检索结果如何用于生成
 
-Hybrid Retrieval 完成后，Search Core 可以利用输入 anchors 和已有候选做一跳扩展：
+`retrieve_knowledge` 返回的是知识候选和证据，不是最终答案，主要包括：
 
-- Understanding anchor 和已召回 Understanding 可沿显式 Understanding connection 找相邻节点；
-- Domain anchor 可找直接关联的 Understanding；
-- 已经召回的 ID 会去重；
-- 关系候选只填充最终 `limit` 的剩余位置，不改变 Hybrid Retrieval 排名。
+- 相关 Understanding；
+- 实际命中的 Context；
+- 是关键词命中、语义命中还是关系补充；
+- 每条命中的名次和分数；
+- 用稳定 ID 继续读取完整知识的方法；
+- 本次检索的过程记录，例如两路各命中多少条。
 
-这一步是确定性的图关系补充，不是再次调用模型规划搜索，也不是 Agentic RAG 子循环。
+Agent 收到这些结果后，可以直接使用摘要回答，也可以继续读取完整 Understanding。最终文字由 Agent 的模型生成，搜索模块本身不负责生成答案。
 
-`KnowledgeAnchor` 类型中的 Context anchor 当前不参与这一步关系扩展；现有实现只消费 Understanding 和 Domain anchors。
+这就是项目里的 RAG：先从用户自己的知识库取回相关证据，再让模型基于这些证据继续回答。
 
-## 返回值与生成边界
+## 保存后立刻搜索会怎样
 
-`retrieve_knowledge` 返回：
+Electron 保存成功后，后台才开始更新搜索副本。因此在更新完成前，搜索可能暂时看到旧内容。
 
-- `candidates`：按 Understanding 聚合的候选；
-- `matchedContexts`：真正命中的 Context 证据；
-- `evidence`：命中渠道、document ID、rank、score 和原因；
-- `suggestedRead`：进一步读取完整 Understanding 的稳定工具调用参数；
-- `trace`：embedding model、projection version、两路命中数、RRF、聚合、关系扩展和最终数量。
+系统没有在每次搜索前等待后台更新，因为这会让所有搜索被一次保存拖慢。它也不会临时扫描 SQLite 拼接结果，因为那会形成第二套搜索逻辑。
 
-工具本身不拼接 prompt，也不生成回答。Agent 收到工具结果后，决定是否继续读取完整实体，并在自己的模型循环中完成最终生成。这是 Reflecta 中“Retrieval-Augmented Generation”的生成边界。
+当 LanceDB 的更新提交后，新内容就可以被查到，不需要等待后续的索引整理工作。应用下次启动时还会核对 SQLite 与搜索副本，修复上次退出前没有完成的更新。
 
-## 一致性与降级语义
+CLI 的行为略有不同：写命令退出前会等待已排队的搜索更新完成，使下一条独立 CLI 搜索能看到刚才的修改。
 
-- SQLite 始终是真实数据；LanceDB 是可重建投影。
-- Retrieve 不读取 coordinator 状态，不等待 pending update，也不执行 read-time repair。
-- 保存后到 `mergeInsert` 提交前，Retrieve 可能短暂看到旧索引。
-- `mergeInsert` 提交后，LanceDB 默认查询会同时扫描尚未进入 FTS index 的 fragment，因此无需等待 `optimize()`。
-- 启动时 manifest 对账会修复进程退出前尚未完成的更新。
-- 索引不存在时检索返回空列表；恢复职责属于后台 reconcile 或显式 rebuild，而不是 Retrieve。
-- embedding 被禁用时只执行有效的 Lexical 召回，不伪造 Dense 命中。
+## 阅读代码时会遇到的名称
 
-## 不变量
+这些是代码名字，不是理解流程的前置知识：
 
-修改 RAG 实现时必须保持：
+| 代码名称                 | 在本文中的意思                                       |
+| ------------------------ | ---------------------------------------------------- |
+| `RetrievalDocument`      | LanceDB 中的一条搜索记录                             |
+| `projection`             | 把 SQLite 知识整理成搜索记录的过程                   |
+| `Lexical Search`         | 按词匹配的 ICU/BM25 搜索                             |
+| `Dense Search`           | 用 Embedding 向量按意思相近搜索                      |
+| `RRF`                    | 只根据名次合并两路结果的方法                         |
+| `UnderstandingCandidate` | 合并 Context 命中后准备返回给 Agent 的 Understanding |
+| `RetrievalTrace`         | 记录本次检索各阶段数量的信息                         |
 
-1. RetrievalDocument 是派生数据，不成为第二事实源。
-2. Lexical 与 Dense 对同一批 document 并行召回，融合发生在 document 层。
-3. Lexical 使用原始 query；不得在 BM25 后追加字符串包含过滤。
-4. RRF 只融合排名，不混合 BM25 score 与 vector distance。
-5. Context 命中必须折叠回父 Understanding，并保留 Context evidence。
-6. Retrieve 不承担同步、重建或故障修复职责。
-7. 普通保存成功不依赖索引成功。
-8. Agent 的生成循环与 Retrieval service 保持分离。
+## 主要代码位置
 
-## 主要实现位置
-
-- `packages/server/src/domains/retrieval/projection.ts`：RetrievalDocument 投影。
-- `packages/server/src/domains/retrieval/lancedb-index.ts`：ICU FTS、Dense search 和 RRF。
-- `packages/server/src/domains/retrieval/candidate-builder.ts`：document hit 到 Understanding candidate 的聚合。
-- `packages/server/src/domains/search/core.ts`：Retrieve 编排、SQLite 有效性过滤和关系扩展。
-- `apps/electron/src/main/services/agent/pi-readonly-tools.ts`：`retrieve_knowledge` Agent 工具边界。
-- `packages/server/src/domains/retrieval/quality-benchmark.ts`：检索质量基准。
+- `packages/server/src/domains/retrieval/projection.ts`：整理搜索记录。
+- `packages/server/src/domains/retrieval/lancedb-index.ts`：关键词搜索、语义搜索和 RRF。
+- `packages/server/src/domains/retrieval/candidate-builder.ts`：把搜索记录归回 Understanding。
+- `packages/server/src/domains/search/core.ts`：组织完整检索流程和关系补充。
+- `apps/electron/src/main/services/agent/pi-readonly-tools.ts`：Agent 使用的 `retrieve_knowledge` 工具。
