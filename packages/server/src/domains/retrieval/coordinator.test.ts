@@ -116,4 +116,24 @@ describe("RetrievalIndexCoordinator", () => {
 
     expect(optimize).toHaveBeenCalledTimes(1);
   });
+
+  test("keeps committed data ready when optimization fails and retries after the next update", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const optimize = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error("maintenance unavailable"))
+      .mockResolvedValueOnce(undefined);
+    const indexCoordinator = coordinator(fakeOperations({ optimize }), 1);
+
+    indexCoordinator.enqueue(["understanding-a"]);
+    await expect(indexCoordinator.flush()).resolves.toBeUndefined();
+    expect(await indexCoordinator.getStatus()).toMatchObject({ state: "ready" });
+
+    indexCoordinator.enqueue(["understanding-b"]);
+    await expect(indexCoordinator.flush()).resolves.toBeUndefined();
+
+    expect(optimize).toHaveBeenCalledTimes(2);
+    expect(await indexCoordinator.getStatus()).toMatchObject({ state: "ready" });
+    warning.mockRestore();
+  });
 });

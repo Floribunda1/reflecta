@@ -169,12 +169,15 @@ export class RetrievalIndexCoordinator implements RetrievalIndexUpdateSink {
       this.lastError = undefined;
       this.modificationOperations += result.operationCount;
       if (this.modificationOperations >= this.optimizeAfterOperations) {
-        const optimized = await this.runWithOneRetry(async () => {
+        try {
           await this.operations.optimize();
-          return { modified: false, operationCount: 0 };
-        });
-        if (!optimized) return;
-        this.modificationOperations = 0;
+          this.modificationOperations = 0;
+        } catch (error) {
+          console.warn(
+            "Retrieval index optimization failed; data remains searchable and maintenance will retry after the next update.",
+            error,
+          );
+        }
       }
     }
   }
