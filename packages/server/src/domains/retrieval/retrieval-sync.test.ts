@@ -45,7 +45,7 @@ async function setup(automatic = false) {
 }
 
 describe("retrieval index rebuild", () => {
-  test("startup reconciliation builds a missing v3 table", async () => {
+  test("startup reconciliation builds a missing v4 table", async () => {
     const { coordinator, understandings } = await setup();
     const created = await understandings.createUnderstanding({
       title: "Startup rebuild",

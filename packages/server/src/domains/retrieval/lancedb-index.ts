@@ -51,10 +51,8 @@ const RRF_K = 60;
 
 function lexicalFtsIndex() {
   return lancedb.Index.fts({
-    baseTokenizer: "ngram",
-    ngramMinLength: 2,
-    ngramMaxLength: 5,
-    prefixOnly: false,
+    // @ts-expect-error LanceDB 0.31 supports ICU at runtime but omits it from FtsOptions.
+    baseTokenizer: "icu",
     withPosition: false,
   });
 }
@@ -120,16 +118,6 @@ function semanticQueryText(query: string): string {
   return `Instruct: Given a Reflecta user query, retrieve relevant personal knowledge documents.\nQuery: ${expandedQuery}`;
 }
 
-function lexicalTerms(query: string): string[] {
-  return query.match(/[\p{L}\p{N}_-]+/gu) ?? [];
-}
-
-function matchesAnyLexicalTerm(row: RetrievalRow, terms: string[]): boolean {
-  if (terms.length === 0) return false;
-  const text = row.textForLexicalSearch.toLocaleLowerCase();
-  return terms.some((term) => text.includes(term.toLocaleLowerCase()));
-}
-
 function hasVectorSignal(vector: number[]): boolean {
   return Math.hypot(...vector) > 0;
 }
@@ -193,7 +181,10 @@ export class LanceDbRetrievalIndex {
 
     options?.onWritingStart?.();
     const table = await db.createTable(this.tableName, rows, { mode: "overwrite" });
-    await table.createIndex("textForLexicalSearch", { config: lexicalFtsIndex() });
+    await table.createIndex("textForLexicalSearch", {
+      config: lexicalFtsIndex(),
+      waitTimeoutSeconds: 300,
+    });
   }
 
   async readManifest(): Promise<RetrievalIndexManifestEntry[] | null> {
@@ -279,20 +270,14 @@ export class LanceDbRetrievalIndex {
     query: string,
     limit: number,
   ): Promise<RetrievalRow[]> {
-    const searchLimit = Math.max(limit * 5, 20);
-    const terms = lexicalTerms(query);
     const matchQuery = new lancedb.MatchQuery(query, "textForLexicalSearch", {
       operator: lancedb.Operator.Or,
     });
-    return (
-      (await table
-        .search(query)
-        .fullTextSearch(matchQuery)
-        .limit(searchLimit)
-        .toArray()) as RetrievalRow[]
-    )
-      .filter((row) => matchesAnyLexicalTerm(row, terms))
-      .slice(0, limit);
+    return (await table
+      .search(query)
+      .fullTextSearch(matchQuery)
+      .limit(limit)
+      .toArray()) as RetrievalRow[];
   }
 
   private async embedRows(

@@ -425,6 +425,79 @@ describe("LanceDbRetrievalIndex", () => {
     expect(hits.every((hit) => hit.channels.includes("lexical"))).toBe(true);
   });
 
+  test("ICU lexical search finds Chinese terms without whitespace", async () => {
+    const index = new LanceDbRetrievalIndex({
+      uri: await tempIndexDir(),
+      embeddingProvider: new RrfEmbeddingProvider(),
+    });
+    await index.replaceAll(
+      withContentHashes([
+        {
+          id: "understanding:mixed-language",
+          entityType: "understanding",
+          entityId: "mixed-language",
+          parentUnderstandingId: "mixed-language",
+          textForEmbedding: "off topic",
+          textForLexicalSearch: "使用 LanceDB 构建中文数据库向量搜索",
+          metadata: { domainIds: [], domainNames: [] },
+        },
+      ]),
+    );
+
+    const [hit] = await index.searchLexical("数据库", 5);
+
+    expect(hit).toMatchObject({
+      id: "understanding:mixed-language",
+      channels: ["lexical"],
+    });
+  });
+
+  test("ICU lexical search observes merge updates before and after optimization", async () => {
+    const index = new LanceDbRetrievalIndex({
+      uri: await tempIndexDir(),
+      embeddingProvider: new RrfEmbeddingProvider(),
+    });
+    const metadata = { domainIds: [], domainNames: [] };
+    await index.replaceAll(
+      withContentHashes([
+        {
+          id: "understanding:incremental-icu",
+          entityType: "understanding",
+          entityId: "incremental-icu",
+          parentUnderstandingId: "incremental-icu",
+          textForEmbedding: "off topic",
+          textForLexicalSearch: "旧版数据库同步方案",
+          metadata,
+        },
+      ]),
+    );
+
+    await index.replaceUnderstandingDocuments(
+      ["incremental-icu"],
+      withContentHashes([
+        {
+          id: "understanding:incremental-icu",
+          entityType: "understanding",
+          entityId: "incremental-icu",
+          parentUnderstandingId: "incremental-icu",
+          textForEmbedding: "off topic",
+          textForLexicalSearch: "新版向量检索同步方案",
+          metadata,
+        },
+      ]),
+    );
+
+    expect(await index.searchLexical("数据库", 5)).toEqual([]);
+    expect((await index.searchLexical("向量检索", 5))[0]?.entityId).toBe("incremental-icu");
+
+    await index.optimize();
+
+    expect((await index.searchLexical("向量检索", 5))[0]?.entityId).toBe("incremental-icu");
+
+    await index.replaceUnderstandingDocuments(["incremental-icu"], []);
+    expect(await index.searchLexical("向量检索", 5)).toEqual([]);
+  });
+
   test("semantic retrieval returns nearest candidates when lexical terms do not match", async () => {
     const index = new LanceDbRetrievalIndex({
       uri: await tempIndexDir(),

@@ -15,7 +15,7 @@ import { OpenAiCompatibleEmbeddingProvider } from "./openai-compatible-embedding
 import { buildRetrievalDocuments } from "./projection";
 import type { EmbeddingProvider } from "./types";
 
-export const RETRIEVAL_PROJECTION_VERSION = 3;
+export const RETRIEVAL_PROJECTION_VERSION = 4;
 
 export type RetrievalIndexProgress = {
   phase: "preparing" | "embedding" | "writing";
