@@ -23,11 +23,13 @@
     "fmt:check": "oxfmt --check"
   },
   "dependencies": {
+    "@lancedb/lancedb": "0.31.0",
     "@reflecta/server": "workspace:*",
     "better-sqlite3": "^12.11.1",
     "commander": "^14.0.3",
     "drizzle-orm": "^0.45.2",
     "libsql": "^0.5.29",
+    "node-llama-cpp": "^3.18.1",
     "zod": "^3.25.0"
   },
   "devDependencies": {

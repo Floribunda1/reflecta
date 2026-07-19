@@ -2,6 +2,8 @@ import { defineConfig } from "tsdown";
 import fs from "node:fs";
 import path from "node:path";
 
+const cliRoot = import.meta.dirname;
+
 /**
  * Rollup plugin to handle `?raw` imports for SQL files.
  * Reads the file and exports its contents as a default string.
@@ -30,6 +32,19 @@ function rawSqlPlugin() {
   };
 }
 
+function copyMigrationSql() {
+  return {
+    name: "copy-migration-sql",
+    closeBundle() {
+      fs.cpSync(
+        path.resolve(cliRoot, "../../packages/server/src/db/migration/sql"),
+        path.resolve(cliRoot, "dist/migration/sql"),
+        { recursive: true },
+      );
+    },
+  };
+}
+
 export default defineConfig({
   clean: true,
   define: {
@@ -45,5 +60,5 @@ export default defineConfig({
   deps: {
     alwaysBundle: [/^@reflecta\//],
   },
-  plugins: [rawSqlPlugin()],
+  plugins: [rawSqlPlugin(), copyMigrationSql()],
 });
