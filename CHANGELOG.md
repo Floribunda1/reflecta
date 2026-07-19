@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.22 - 2026-07-19
+
+- Switched Agent citations to direct stable entity markers for Understandings, Contexts, and Domains, rendered through current entity metadata.
+- Removed runtime reliance on per-message `citationSources` and migrated production/test Agent sessions to the direct marker format.
+- Added DeepSeek v4-Flash citation reliability coverage for long conversations with many interleaved citations.
+
 ## 1.1.21 - 2026-07-18
 
 - Replaced the Agent's custom local file and shell tools with Pi's built-in `read`, `bash`, `edit`, and `write` tools, configured through Pi's official resource loader.

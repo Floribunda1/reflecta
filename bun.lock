@@ -19,7 +19,7 @@
     },
     "apps/cli": {
       "name": "@reflecta/cli",
-      "version": "1.1.21",
+      "version": "1.1.22",
       "bin": {
         "reflecta": "./dist/index.mjs",
       },
@@ -41,7 +41,7 @@
     },
     "apps/electron": {
       "name": "@reflecta/electron",
-      "version": "1.1.21",
+      "version": "1.1.22",
       "dependencies": {
         "@base-ui/react": "^1.5.0",
         "@dagrejs/dagre": "^3.0.0",
@@ -157,7 +157,7 @@
     },
     "packages/server": {
       "name": "@reflecta/server",
-      "version": "1.1.21",
+      "version": "1.1.22",
       "dependencies": {
         "@lancedb/lancedb": "0.31.0",
         "better-sqlite3": "^12.11.1",
@@ -175,7 +175,7 @@
     },
     "packages/skills": {
       "name": "@reflecta/skills",
-      "version": "1.1.21",
+      "version": "1.1.22",
     },
   },
   "packages": {
