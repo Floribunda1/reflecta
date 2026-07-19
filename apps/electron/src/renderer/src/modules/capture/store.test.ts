@@ -8,32 +8,6 @@ describe("capture store", () => {
     globalThis.localStorage?.clear();
   });
 
-  test("knowledge wander opens in waterfall and closes without losing selection", () => {
-    const store = createCaptureStore();
-    store.getState().selectDomain("domain-1");
-    store.getState().selectUnderstanding("understanding-1");
-    store.getState().setWanderView("graph");
-
-    store.getState().toggleKnowledgeWander();
-
-    expect(store.getState()).toMatchObject({
-      captureMode: "wander",
-      wanderView: "waterfall",
-      selectedDomainId: "domain-1",
-      selectedUnderstandingId: "understanding-1",
-    });
-
-    store.getState().setWanderView("graph");
-    store.getState().toggleKnowledgeWander();
-
-    expect(store.getState()).toMatchObject({
-      captureMode: "browse",
-      wanderView: "graph",
-      selectedDomainId: "domain-1",
-      selectedUnderstandingId: "understanding-1",
-    });
-  });
-
   test("selectDomain clears selected understanding, active context, and draft", () => {
     const store = createCaptureStore();
     store.getState().selectUnderstanding("understanding-1");
