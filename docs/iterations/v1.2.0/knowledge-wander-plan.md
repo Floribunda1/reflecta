@@ -1,60 +1,67 @@
-# v1.2.0 知识漫步改版计划
+# v1.2.0 知识漫步图谱改版计划
 
 > 日期：2026-07-20
 >
-> 状态：Implemented
+> 状态：Ready for implementation
 >
-> 范围：删除首版瀑布流与全局图谱，在干净的 Capture 基础上重建连续阅读页
+> 范围：完整删除连续阅读页，再从干净 Capture 基线重建 Obsidian 式领域图谱
 >
 > 产品依据：[知识漫步价值主张](knowledge-wander-value-proposition.md)
 >
-> UI 依据：[知识漫步连续阅读页 UI Spec](design/knowledge-wander-ui-spec.md)
+> UI 依据：[Obsidian 式知识漫步图谱 UI Spec](design/knowledge-wander-ui-spec.md)
 
 ## 1. 改版结论
 
-知识漫步不再提供瀑布流和全局图谱。用户选择 Domain 后，右侧只展示一张从上到下连续排列的阅读页：每条 Understanding 同时呈现标题、完整正文、更新时间、Context 数量和 Connection 数量。
+知识漫步只有一个主要表面：当前 Domain 对应的力导向图谱。
 
-阅读页通过普通滚动同时支持慢读与快扫。用户点击某条 Understanding 时，右侧复用现有 UnderstandingDetail 进入编辑和 Context；关闭详情后仍停留在原阅读位置。
+每条 Understanding 都是节点，真实 Connection 是无方向边，孤立 Understanding 正常参与布局。用户通过平移、缩放和 hover 辨认内容，点击节点后在右侧打开现有 UnderstandingDetail；关闭详情后保留图谱节点位置、视口和探索上下文。
 
-这一版不设计成就感，不显示完成率、阅读进度、连续天数、掌握度或回顾任务。正向反馈只来自重新看见、想起和说清楚用户自己的内容。
+本轮不保留连续阅读、瀑布流、卡片墙或视图切换，也不增加随机、推荐、阅读路径、进度和成就表达。
 
-## 2. 删除首版实现
+## 2. 技术选型
 
-在实现新版之前完整删除：
+### 采用 `@antv/g6@^5.1.1`
 
-- `capture/knowledge-wander/` 下现有瀑布流、G6 图谱、Graph adapter、专用 Markdown renderer 和样式。
-- Capture store 中的 `wanderView` 与 `setWanderView`。
-- 瀑布流/图谱 E2E 场景及其实现细节测试。
-- `@antv/g6` 与 `masonic` 依赖。
+G6 作为唯一图谱引擎，直接覆盖：
 
-删除后先恢复一个不包含知识漫步的可构建 Capture 基线，确认不存在旧组件、旧 test id、旧依赖或隐藏入口，再开始新版实现。
+- Canvas 渲染和元素命中检测。
+- `d3-force` 力导向布局及迭代动画。
+- `drag-element-force` 节点拖拽与实时布局响应。
+- `drag-canvas`、`zoom-canvas`、`hover-activate` 和 `click-select` 成熟行为。
+- 节点、边和标签处于同一场景变换中的缩放。
+- `zoomBy`、`fitView` 和 `resize` 视口 API。
+- 元素 state 与邻居 degree，用于 Obsidian 式 hover / selected 聚焦。
 
-## 3. 新版范围
+不再自行实现力导向、相机、缩放、节点拖拽、命中检测或 Canvas renderer。
 
-### 包含
+### 为什么不采用 Sigma + Graphology + ForceAtlas2
 
-- Capture 领域栏底部保留「知识漫步」入口。
-- 知识漫步沿用当前 Domain；父领域包含子领域；全部领域显示全部 Understanding。
-- 单一连续阅读页展示完整 Understanding，不截断、不总结。
-- 全部领域范围显示每条 Understanding 的 Domain path。
-- 每条内容显示更新时间、Context 数量和 Connection 数量。
-- 使用现有 MarkdownPreview 渲染正文。
-- 使用项目已有 TanStack Virtual 只挂载 viewport 邻近内容。
-- 点击内容打开现有 UnderstandingDetail 侧栏。
-- 打开和关闭详情保持阅读位置。
-- 旧 `/contemplate` 继续重定向 Capture；顶层菜单只保留 Capture 与 Agent。
+Sigma 是成熟的 WebGL 图渲染器，但完整覆盖本轮需求还需要同时组合 Graphology、ForceAtlas2 worker、拖拽和交互 reducers。当前知识库规模约为数百个节点，G6 的单引擎能力已经足够，并能用更少的依赖和更短的生命周期代码覆盖同一结果。
 
-### 不包含
+### 官方能力依据
 
-- 瀑布流、卡片网格或多列排布。
-- 全局图谱、局部图谱或任何布局引擎。
-- 逐条/滚动视图切换。
-- 随机、AI 推荐、AI 摘要或自动阅读路径。
-- 上次阅读进度、已读状态、完成率、连续天数或掌握度。
-- 新的 Markdown parser、renderer、样式表或阅读器依赖。
-- 新建、搜索、筛选、排序或批量操作。
+- [G6 D3 Force 布局](https://g6.antv.antgroup.com/en/manual/layout/d3-force-layout)
+- [G6 Force 节点拖拽](https://g6.antv.antgroup.com/en/manual/behavior/drag-element-force)
+- [G6 Hover Activate](https://g6.antv.antgroup.com/en/manual/behavior/hover-activate)
+- [G6 Click Select](https://g6.antv.antgroup.com/en/manual/behavior/click-select)
+- [G6 Viewport API](https://g6.antv.antgroup.com/en/api/viewport)
 
-## 4. 技术结构
+## 3. 删除连续阅读实现
+
+任何新图谱代码开始前，先完整删除：
+
+- `capture/knowledge-wander/` 当前连续阅读组件。
+- Capture store 中的 `captureMode`、`CaptureMode` 和 `toggleKnowledgeWander`。
+- DomainTree 底部的知识漫步入口。
+- Capture 页面加载 KnowledgeWanderWorkspace 的分支和 lazy import。
+- 当前连续阅读的 feature、E2E spec 和 store test。
+- 连续阅读专用 test id、文案和 TanStack Virtual 调用。
+
+`@tanstack/react-virtual` 仍被 Capture UnderstandingList 使用，因此保留该依赖。
+
+删除完成后运行 renderer tests、typecheck、lint、format 和 build，证明普通 Capture 在没有知识漫步的情况下独立成立；以单独 commit 保存这个干净基线。
+
+## 4. 新版代码结构
 
 ```text
 capture/
@@ -62,64 +69,126 @@ capture/
 ├── store.ts
 ├── domain/components/DomainTree.tsx
 └── knowledge-wander/
-    └── index.tsx
+    ├── index.tsx
+    ├── graph.tsx
+    ├── graph-data.ts
+    └── graph-data.test.ts
 ```
 
-`knowledge-wander/index.tsx` 直接组合：
+职责保持单一：
 
-- `useCaptureUnderstandingList`
-- `sortUnderstandingSummaries`
-- `MarkdownPreview`
-- `UnderstandingDetail`
-- `@tanstack/react-virtual`
-- Capture store 中既有的 Domain / Understanding selection
+- `index.tsx`：查询当前 Domain 数据、组合 Graph 与现有 UnderstandingDetail、处理空态和分栏。
+- `graph.tsx`：拥有一个 G6 Graph 实例，配置布局、主题、behavior、视口控制和实例清理。
+- `graph-data.ts`：把 UnderstandingSummaryDTO 转成稳定、无重复的 G6 nodes / edges。
+- `graph-data.test.ts`：证明孤立节点、范围外 Connection、自连接和双向重复边的规则。
 
-不新增 adapter、view model、专用 hook 或样式文件。只有当稳定业务规则无法被现有查询和排序覆盖时，才新增纯函数。
+不新增 adapter class、graph store、专用 hook、custom renderer、独立 theme 模块或配置面板。
 
-## 5. 实施顺序
+## 5. 数据规则
 
-### Task 1：冻结新版 UI 决策
+### 节点
 
-- 用当前价值主张重写 UI spec。
-- 确认连续阅读页是唯一主视图。
-- 明确图谱、Masonry、进度激励和专用 Markdown renderer 全部退出范围。
+- 使用 `useCaptureUnderstandingList({ selectedDomainId, includeDescendants: true })` 获取当前范围。
+- 每条 UnderstandingSummaryDTO 生成一个节点。
+- `id` 使用 Understanding id；`label` 使用现有 `getUnderstandingTitle` fallback。
+- 节点尺寸只在有限范围内随当前图中的真实 degree 变化，孤立节点保留明确最小尺寸。
+- 节点按 id 排序后交给图谱，确保同一数据集的输入稳定。
 
-### Task 2：清空首版实现
+### 边
 
-- 删除现有 knowledge-wander 模块、入口、mode/view state 与测试。
-- 删除 `@antv/g6`、`masonic` 并更新 lockfile。
-- 运行 renderer tests、typecheck 和 build，证明 Capture 基线独立成立。
-- 以单独 commit 保存删除后的干净基线。
+- 只使用 DTO 中已有的 `connectionIds`。
+- 只保留两个端点都存在于当前 Domain 范围的 Connection。
+- 忽略自连接。
+- Connection 在图谱中按无方向关系处理；`A → B` 与 `B → A` 使用规范化端点 key 去重。
+- 不生成时间边、Domain 边、语义相似边或 AI 推断边。
 
-### Task 3：重建连续阅读页
+## 6. G6 实例边界
 
-- 恢复 Capture 会话级 browse / wander mode 和 DomainTree 入口。
-- 获取当前领域及子领域的 Understanding，并沿用 Capture 排序偏好。
-- 用 TanStack Virtual 渲染单列 ReadingSection。
-- 用现有 MarkdownPreview 展示完整正文。
-- 复用 UnderstandingDetail 与 resizable panel。
+### 创建与销毁
 
-### Task 4：定义并自动化用户场景
+- KnowledgeWanderWorkspace 保持 lazy-loaded，G6 不进入 Capture 初始 bundle。
+- `graph.tsx` 挂载时创建一个 Graph，卸载时调用 `destroy()`。
+- 同一 Domain 内 selected Understanding、详情开关和 React render 不重建 Graph。
+- Theme 改变或 Domain 拓扑真正改变时才替换必要配置 / 数据。
+- 使用 ResizeObserver 调用 `graph.resize()`；面板 resize 不执行 `fitView()`。
 
-- 重写 `knowledge-wander.feature`，只描述连续阅读和深入详情。
-- E2E 验证完整正文、领域范围、内容 meta、详情打开与位置保持。
-- store unit test 只保留 browse / wander mode 的稳定状态规则。
+### 布局
 
-### Task 5：视觉与工程验证
+- 使用 `d3-force`，开启迭代动画。
+- 使用 G6 自带 many-body、link、collide、x / y forces，不创建物理模拟代码。
+- 初次 graph render 后只执行一次 fit view。
+- 使用 `drag-element-force`；拖拽时重新加热布局，释放后自然收敛。
+- 不在 hover、selected、详情打开或普通 resize 时重新 layout。
 
-- 使用真实 Electron 窗口检查全部领域、短领域、长正文、空正文和详情打开状态。
-- 检查宽窗口与详情压缩后的单列布局。
-- 运行 renderer tests、typecheck、lint、format、build 和知识漫步 E2E。
+### 缩放与标签
 
-## 6. 验收标准
+- 使用 `zoom-canvas` 处理围绕指针的滚轮缩放。
+- 节点、边与 label 使用 G6 场景元素，不通过额外 DOM overlay 绘制标签。
+- 使用 G6 label visibility / zoom behavior 控制密度；hover 和 selected 节点强制显示 label。
+- 左下角控制调用 `zoomBy(0.8)`、`zoomBy(1.25)` 和 `fitView()`。
+- 设定合理 zoomRange，避免节点和标签进入不可恢复的极端比例。
 
-- 代码和依赖中不存在 G6、Masonic、Graph data、Waterfall 或知识漫步专用 Markdown renderer。
-- 知识漫步只有一个连续阅读视图，没有视图切换控件。
-- 页面按当前领域范围稳定展示全部完整 Understanding。
-- 每条 Understanding 清楚展示标题、正文、更新时间、Context 数量和 Connection 数量。
-- 正文复用现有 MarkdownPreview，仓库没有第二套知识漫步 Markdown 样式。
-- 大量 Understanding 通过 TanStack Virtual 渲染，不一次挂载全部 Milkdown preview。
-- 点击某条内容打开既有 UnderstandingDetail；关闭详情后保持原滚动位置。
-- 页面没有完成、掌握、已读、连续天数或其他成就表达。
-- 顶层仍只有 Capture 与 Agent；旧 Contemplate 地址安全回到 Capture。
-- renderer tests、typecheck、lint、format、build 和知识漫步 E2E 通过。
+### Hover 与 Selected
+
+- 使用 `hover-activate`，`degree: 1`，只对 node 生效。
+- Hover 节点、直接邻居和相连边进入 active；其他元素进入 hover-inactive。
+- 使用单选 `click-select`，`degree: 1`，selected、selected-neighbor 和 selected-inactive 使用独立 state 名称。
+- G6 behavior 负责鼠标状态增删，避免在 React mouse event 中遍历全图。
+- 点击回调只负责把 node id 交给 Capture store 并打开详情。
+- React selectedUnderstandingId 改变时只同步持久 selection；关闭详情时批量清除 selection states。
+- Hover state 优先于当前 selection 进行临时预览，移开后恢复持久 selection。
+
+## 7. 实施顺序
+
+### Task 1：保存删除后的干净 Capture 基线
+
+- 删除第 3 节列出的全部连续阅读实现。
+- 搜索确认不存在连续阅读 test id、virtualizer 或组件名。
+- 运行 renderer tests、typecheck、lint、format 和 build。
+- 单独 commit，确保后续图谱实现可以从该提交完整审计。
+
+### Task 2：引入 G6 与纯数据转换
+
+- 在 Electron package 中加入 `@antv/g6@^5.1.1` 并更新 lockfile。
+- test-first 编写 graph-data tests。
+- 实现节点、孤立节点和规范化 Connection edge 转换。
+
+### Task 3：实现图谱画布
+
+- 创建单一 G6 Graph 实例。
+- 配置 `d3-force`、force drag、pan、zoom、hover 和 click behaviors。
+- 从 design system CSS variables 读取 semantic colors，配置默认 / hover / selected states。
+- 添加 zoom out、zoom in、fit view 控制。
+- 添加可访问的图谱名称和节点入口，不把 Canvas 作为唯一不可访问操作路径。
+
+### Task 4：接回 Capture 与详情
+
+- 恢复最小 `browse | wander` session state 和 DomainTree 入口。
+- Capture lazy-load KnowledgeWanderWorkspace。
+- 点击节点打开现有 UnderstandingDetail resizable panel。
+- 详情开关只 resize 图谱，保留坐标、缩放和 selected。
+- Domain 切换清理旧 selection，替换 graph data，并为新范围执行一次布局和 fit view。
+
+### Task 5：自动化与视觉验证
+
+- 重写 feature 与 E2E，只描述图谱探索和详情往返。
+- 单元测试 graph-data 与 store toggle 稳定规则。
+- E2E 验证 Domain 范围、孤立节点可进入、点击节点打开详情、关闭后 selection 清除、旧 Contemplate 重定向。
+- 在真实 Electron 窗口检查初始 force 动画、拖拽响应、滚轮缩放、字体随缩放、hover 邻域和 selected 邻域。
+- 分别检查全部领域、只有两个节点的领域、孤立节点为主的领域和详情打开状态。
+
+## 8. 验收标准
+
+- 连续阅读实现已在独立提交中完整删除，新图谱不是在旧组件上改造。
+- 知识漫步只有图谱一个主要表面，没有连续阅读、瀑布流和视图切换。
+- 当前 Domain 及子 Domain 的全部 Understanding 都出现，包括孤立节点。
+- 图上的每条边都对应真实 Connection，且不存在范围外、自连接或双向重复边。
+- 初次布局和节点拖拽具有可见、自然且会收敛的 force 动画。
+- 滚轮缩放围绕指针发生；节点、边和文字处于同一视觉缩放关系。
+- Hover 清晰突出当前节点、邻居和边；移开后准确恢复 selected 或默认状态。
+- 点击节点保持 selected 并打开右侧现有详情；切换节点更新详情；关闭详情保持视口并清除 selected。
+- 打开 / 关闭详情和普通 resize 不重建 Graph、不重新布局、不自动 fit view。
+- 图谱视觉使用当前 design system semantic tokens，同时保持接近 Obsidian 的中性圆点、细边和小标签。
+- 没有手写 layout、相机、zoom、drag、hit-test 或 Canvas renderer。
+- 顶层仍只有 Capture 与 Agent；旧 `/contemplate` 安全回到 Capture。
+- renderer tests、typecheck、lint、format、build 和知识漫步 E2E 全部通过。
