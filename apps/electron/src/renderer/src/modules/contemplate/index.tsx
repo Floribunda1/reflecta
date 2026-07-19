@@ -98,7 +98,7 @@ function ContemplatePageInner() {
             onClick={() => setMode("review")}
           >
             <ArrowLeft size={15} />
-            领域回顾
+            浏览领域
           </Button>
         </>
       )}

@@ -1,7 +1,11 @@
 import { describe, expect, test } from "vitest";
 import type { Domain } from "@shared/domain";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
-import { buildDomainReviewSummaries, UNASSIGNED_DOMAIN_ID } from "./review-data";
+import {
+  buildDomainReviewSummaries,
+  pickWanderUnderstandingId,
+  UNASSIGNED_DOMAIN_ID,
+} from "./review-data";
 
 const domains = [
   { id: "ai", name: "AI", parentId: null, sortOrder: 0 },
@@ -42,5 +46,36 @@ describe("domain review summaries", () => {
     ]);
     expect(result[1].understandings.map((item) => item.id)).toEqual(["cross-domain"]);
     expect(result[2].understandings.map((item) => item.id)).toEqual(["unassigned"]);
+  });
+});
+
+describe("wander candidate", () => {
+  test("prefers an unseen retrieval result, falls back to the domain, then allows revisiting", () => {
+    expect(
+      pickWanderUnderstandingId({
+        retrievedIds: ["current", "seen", "related"],
+        fallbackIds: ["domain-note"],
+        currentId: "current",
+        visitedIds: ["seen"],
+      }),
+    ).toBe("related");
+
+    expect(
+      pickWanderUnderstandingId({
+        retrievedIds: ["current", "seen"],
+        fallbackIds: ["domain-note"],
+        currentId: "current",
+        visitedIds: ["seen"],
+      }),
+    ).toBe("domain-note");
+
+    expect(
+      pickWanderUnderstandingId({
+        retrievedIds: ["current", "seen"],
+        fallbackIds: [],
+        currentId: "current",
+        visitedIds: ["seen"],
+      }),
+    ).toBe("seen");
   });
 });

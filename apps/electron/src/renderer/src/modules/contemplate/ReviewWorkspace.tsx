@@ -1,35 +1,16 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import {
-  ArrowLeft,
-  BookOpen,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  CircleHelp,
-  GitBranch,
-  History,
-  Link2,
-  Pencil,
-  RotateCcw,
-} from "lucide-react";
+import { ArrowLeft, Compass, GitBranch, Link2, Pencil, Sparkles } from "lucide-react";
 import type { Domain } from "@shared/domain";
 import type { ContextDTO } from "@shared/context";
 import type { UnderstandingDTO, UnderstandingSummaryDTO } from "@shared/understanding";
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@renderer/components/ui/card";
 import { ScrollArea } from "@renderer/components/ui/scroll-area";
 import { Skeleton } from "@renderer/components/ui/skeleton";
-import { Textarea } from "@renderer/components/ui/textarea";
+import { ipcClient } from "@renderer/utils/ipc";
 import {
   MarkdownPreview,
   SimpleMarkdownPreview,
@@ -46,18 +27,14 @@ import { useUnderstandingsQuery } from "./graph/useUnderstandingsQuery";
 import {
   buildDomainReviewSummaries,
   getDomainPath,
+  pickWanderUnderstandingId,
   understandingTitle,
+  UNASSIGNED_DOMAIN_ID,
   type DomainReviewSummary,
 } from "./review-data";
 
-type ReviewState = "clear" | "unclear" | "changed";
-
-const REVIEW_STATE_META: Record<ReviewState, { label: string; Icon: typeof Check }> = {
-  clear: { label: "表达清楚", Icon: Check },
-  unclear: { label: "还说不清", Icon: CircleHelp },
-  changed: { label: "判断已变化", Icon: RotateCcw },
-};
-
+// PROTOTYPE: Can content-first domain browsing plus one optional AI-selected next note
+// make Contemplate feel useful without imposing a review method?
 export function ReviewWorkspace({
   onOpenMap,
   onEditUnderstanding,
@@ -68,405 +45,309 @@ export function ReviewWorkspace({
   const { data: understandings } = useUnderstandingsQuery([], true);
   const { domainList, loading } = useCaptureDomains();
   const [selectedDomainId, setSelectedDomainId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [visitedIds, setVisitedIds] = useState<string[]>([]);
   const summaries = buildDomainReviewSummaries(domainList, understandings ?? []);
-  const selectedDomain = summaries.find((domain) => domain.id === selectedDomainId) ?? null;
+  const selectedDomain =
+    summaries.find((domain) => domain.id === selectedDomainId) ?? summaries[0] ?? null;
+  const summaryById = new Map((understandings ?? []).map((item) => [item.id, item]));
+  const activeUnderstanding = activeId ? (summaryById.get(activeId) ?? null) : null;
+
+  const selectDomain = (domainId: string) => {
+    setSelectedDomainId(domainId);
+    setActiveId(null);
+    setVisitedIds([]);
+  };
+
+  const openUnderstanding = (understandingId: string) => {
+    setActiveId(understandingId);
+    setVisitedIds((current) =>
+      current.includes(understandingId) ? current : [...current, understandingId],
+    );
+  };
+
+  const startWander = () => {
+    if (!selectedDomain?.understandings.length) return;
+    const index = Math.floor(Math.random() * selectedDomain.understandings.length);
+    openUnderstanding(selectedDomain.understandings[index].id);
+  };
 
   return (
-    <div className="flex h-full min-w-0 flex-col bg-muted/20 pt-12">
-      {selectedDomain ? (
-        <DomainReview
-          key={selectedDomain.id}
-          domain={selectedDomain}
-          domains={domainList}
-          onBack={() => setSelectedDomainId(null)}
-          onOpenMap={onOpenMap}
-          onEditUnderstanding={onEditUnderstanding}
-        />
-      ) : (
-        <DomainOverview
-          summaries={summaries}
-          loading={loading || !understandings}
-          onSelectDomain={setSelectedDomainId}
-          onOpenMap={onOpenMap}
-        />
-      )}
+    <div className="flex h-full min-w-0 bg-muted/15 pt-12">
+      <DomainShelf
+        summaries={summaries}
+        selectedDomainId={selectedDomain?.id ?? null}
+        loading={loading || !understandings}
+        onSelect={selectDomain}
+        onOpenMap={onOpenMap}
+      />
+
+      <main className="relative min-w-0 flex-1 bg-background">
+        {activeUnderstanding && selectedDomain ? (
+          <UnderstandingReader
+            key={activeUnderstanding.id}
+            understanding={activeUnderstanding}
+            selectedDomain={selectedDomain}
+            domains={domainList}
+            allUnderstandings={understandings ?? []}
+            visitedIds={visitedIds}
+            onBack={() => setActiveId(null)}
+            onOpenUnderstanding={openUnderstanding}
+            onEdit={() => onEditUnderstanding(activeUnderstanding.id)}
+          />
+        ) : (
+          <DomainContents
+            domain={selectedDomain}
+            domains={domainList}
+            loading={loading || !understandings}
+            onOpenUnderstanding={openUnderstanding}
+            onStartWander={startWander}
+          />
+        )}
+      </main>
     </div>
   );
 }
 
-function DomainOverview({
+function DomainShelf({
   summaries,
+  selectedDomainId,
   loading,
-  onSelectDomain,
+  onSelect,
   onOpenMap,
 }: {
   summaries: DomainReviewSummary[];
+  selectedDomainId: string | null;
   loading: boolean;
-  onSelectDomain: (domainId: string) => void;
+  onSelect: (domainId: string) => void;
   onOpenMap: () => void;
 }) {
   return (
-    <>
-      <header className="flex shrink-0 items-center justify-between gap-6 border-b bg-background px-8 py-5">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">领域回顾</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            看看每个领域已经形成了哪些理解，再选择一个领域重新走一遍。
-          </p>
+    <aside className="flex w-56 shrink-0 flex-col border-r bg-muted/20">
+      <div className="border-b px-5 pb-5 pt-4">
+        <div className="flex items-center gap-2 text-base font-semibold">
+          <Compass size={17} />
+          Contemplate
         </div>
-        <Button type="button" variant="outline" onClick={onOpenMap}>
+        <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
+          看看已经知道了什么，偶尔顺着它走远一点。
+        </p>
+      </div>
+
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="space-y-1 p-2">
+          {loading
+            ? Array.from({ length: 6 }, (_, index) => (
+                <Skeleton key={index} className="h-11 rounded-lg" />
+              ))
+            : summaries.map((domain) => (
+                <button
+                  key={domain.id}
+                  type="button"
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-accent",
+                    selectedDomainId === domain.id && "bg-accent text-accent-foreground",
+                  )}
+                  onClick={() => onSelect(domain.id)}
+                >
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{domain.name}</span>
+                  <span className="tabular-nums text-xs text-muted-foreground">
+                    {domain.understandings.length}
+                  </span>
+                </button>
+              ))}
+        </div>
+      </ScrollArea>
+
+      <div className="border-t p-3">
+        <Button type="button" variant="ghost" className="w-full justify-start" onClick={onOpenMap}>
           <GitBranch size={15} />
           知识图谱
         </Button>
-      </header>
-
-      <ScrollArea className="min-h-0 flex-1">
-        <main className="mx-auto w-full max-w-7xl px-8 py-8">
-          {loading ? (
-            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {Array.from({ length: 6 }, (_, index) => (
-                <Skeleton key={index} className="h-72 rounded-xl" />
-              ))}
-            </div>
-          ) : summaries.length > 0 ? (
-            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {summaries.map((domain) => (
-                <DomainCard key={domain.id} domain={domain} onSelect={onSelectDomain} />
-              ))}
-            </div>
-          ) : (
-            <div className="flex min-h-80 items-center justify-center rounded-xl border border-dashed bg-background text-sm text-muted-foreground">
-              还没有可以回顾的 Understanding。
-            </div>
-          )}
-        </main>
-      </ScrollArea>
-    </>
-  );
-}
-
-function DomainCard({
-  domain,
-  onSelect,
-}: {
-  domain: DomainReviewSummary;
-  onSelect: (domainId: string) => void;
-}) {
-  const contextCount = domain.understandings.reduce(
-    (sum, understanding) => sum + understanding.contextCount,
-    0,
-  );
-
-  return (
-    <Card className="min-h-72 transition-shadow hover:shadow-md">
-      <CardHeader className="border-b">
-        <CardTitle>{domain.name}</CardTitle>
-        <CardDescription>
-          {domain.understandings.length} 条理解 · {contextCount} 个 Context
-        </CardDescription>
-        <CardAction>
-          <BookOpen size={17} className="text-muted-foreground" />
-        </CardAction>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col gap-2">
-        {domain.understandings.slice(0, 4).map((understanding) => (
-          <div key={understanding.id} className="flex items-start gap-2 text-sm">
-            <span className="mt-2 size-1.5 shrink-0 rounded-full bg-primary/65" />
-            <span className="line-clamp-2 leading-5">{understandingTitle(understanding)}</span>
-          </div>
-        ))}
-        {domain.understandings.length > 4 ? (
-          <div className="text-xs text-muted-foreground">
-            还有 {domain.understandings.length - 4} 条理解
-          </div>
-        ) : null}
-      </CardContent>
-      <div className="px-6">
-        <Button type="button" className="w-full" onClick={() => onSelect(domain.id)}>
-          开始回顾
-          <ChevronRight size={15} />
-        </Button>
       </div>
-    </Card>
-  );
-}
-
-function DomainReview({
-  domain,
-  domains,
-  onBack,
-  onOpenMap,
-  onEditUnderstanding,
-}: {
-  domain: DomainReviewSummary;
-  domains: Domain[];
-  onBack: () => void;
-  onOpenMap: () => void;
-  onEditUnderstanding: (understandingId: string) => void;
-}) {
-  const [activeId, setActiveId] = useState(domain.understandings[0]?.id ?? "");
-  const [trail, setTrail] = useState<string[]>(activeId ? [activeId] : []);
-  const [reviewStates, setReviewStates] = useState<Record<string, ReviewState>>({});
-  const activeIndex = domain.understandings.findIndex((item) => item.id === activeId);
-  const activeUnderstanding = domain.understandings[activeIndex];
-
-  const selectUnderstanding = (understandingId: string) => {
-    setActiveId(understandingId);
-    setTrail((current) =>
-      current[current.length - 1] === understandingId ? current : [...current, understandingId],
-    );
-  };
-
-  return (
-    <>
-      <header className="flex h-[73px] shrink-0 items-center justify-between gap-6 border-b bg-background px-6">
-        <div className="flex min-w-0 items-center gap-3">
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            aria-label="返回领域总览"
-            onClick={onBack}
-          >
-            <ArrowLeft size={16} />
-          </Button>
-          <div className="min-w-0">
-            <h1 className="truncate text-lg font-semibold">{domain.name}</h1>
-            <p className="text-xs text-muted-foreground">
-              {domain.understandings.length} 条理解 · 本次已回顾 {Object.keys(reviewStates).length}{" "}
-              条
-            </p>
-          </div>
-        </div>
-        <Button type="button" variant="outline" onClick={onOpenMap}>
-          <GitBranch size={15} />
-          查看图谱
-        </Button>
-      </header>
-
-      <div className="grid min-h-0 flex-1 grid-cols-[280px_minmax(460px,1fr)_300px]">
-        <UnderstandingOutline
-          understandings={domain.understandings}
-          domains={domains}
-          activeId={activeId}
-          reviewStates={reviewStates}
-          onSelect={selectUnderstanding}
-        />
-
-        <main className="min-w-0 border-x bg-background">
-          {activeUnderstanding ? (
-            <ReviewCard
-              key={activeId}
-              understanding={activeUnderstanding}
-              domains={domains}
-              currentIndex={activeIndex}
-              total={domain.understandings.length}
-              reviewState={reviewStates[activeId]}
-              onReviewState={(state) =>
-                setReviewStates((current) => ({ ...current, [activeId]: state }))
-              }
-              onEdit={() => onEditUnderstanding(activeId)}
-              onPrevious={
-                activeIndex > 0
-                  ? () => selectUnderstanding(domain.understandings[activeIndex - 1].id)
-                  : undefined
-              }
-              onNext={
-                activeIndex >= 0 && activeIndex < domain.understandings.length - 1
-                  ? () => selectUnderstanding(domain.understandings[activeIndex + 1].id)
-                  : undefined
-              }
-            />
-          ) : null}
-        </main>
-
-        {activeUnderstanding ? (
-          <WanderPanel
-            activeId={activeId}
-            domainUnderstandings={domain.understandings}
-            trail={trail}
-            onSelect={selectUnderstanding}
-          />
-        ) : null}
-      </div>
-    </>
-  );
-}
-
-function UnderstandingOutline({
-  understandings,
-  domains,
-  activeId,
-  reviewStates,
-  onSelect,
-}: {
-  understandings: UnderstandingSummaryDTO[];
-  domains: Domain[];
-  activeId: string;
-  reviewStates: Record<string, ReviewState>;
-  onSelect: (understandingId: string) => void;
-}) {
-  return (
-    <aside className="flex min-h-0 flex-col bg-muted/20">
-      <div className="border-b px-4 py-4">
-        <div className="text-sm font-medium">理解轮廓</div>
-        <div className="mt-1 text-xs text-muted-foreground">选择一条，先尝试自己讲清楚。</div>
-      </div>
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-1 p-2">
-          {understandings.map((understanding) => {
-            const state = reviewStates[understanding.id];
-            const StateIcon = state ? REVIEW_STATE_META[state].Icon : null;
-            return (
-              <button
-                key={understanding.id}
-                type="button"
-                className={cn(
-                  "rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-accent",
-                  activeId === understanding.id && "bg-accent text-accent-foreground",
-                )}
-                onClick={() => onSelect(understanding.id)}
-              >
-                <div className="flex items-start gap-2">
-                  {StateIcon ? (
-                    <StateIcon size={14} className="mt-0.5 shrink-0 text-primary" />
-                  ) : (
-                    <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
-                  )}
-                  <div className="min-w-0">
-                    <div className="line-clamp-2 text-sm font-medium leading-5">
-                      {understandingTitle(understanding)}
-                    </div>
-                    <div className="mt-1 truncate text-[11px] text-muted-foreground">
-                      {getDomainPath(understanding.domainIds[0], domains)}
-                    </div>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </ScrollArea>
     </aside>
   );
 }
 
-function ReviewCard({
-  understanding,
+function DomainContents({
+  domain,
   domains,
-  currentIndex,
-  total,
-  reviewState,
-  onReviewState,
-  onEdit,
-  onPrevious,
-  onNext,
+  loading,
+  onOpenUnderstanding,
+  onStartWander,
 }: {
-  understanding: UnderstandingSummaryDTO;
+  domain: DomainReviewSummary | null;
   domains: Domain[];
-  currentIndex: number;
-  total: number;
-  reviewState?: ReviewState;
-  onReviewState: (state: ReviewState) => void;
-  onEdit: () => void;
-  onPrevious?: () => void;
-  onNext?: () => void;
+  loading: boolean;
+  onOpenUnderstanding: (understandingId: string) => void;
+  onStartWander: () => void;
 }) {
-  const [recall, setRecall] = useState("");
-  const [revealed, setRevealed] = useState(false);
-  const { data: detail, isFetching } = useCaptureUnderstandingDetail(understanding.id);
+  if (loading) {
+    return (
+      <div className="grid gap-4 p-8 md:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 6 }, (_, index) => (
+          <Skeleton key={index} className="h-60 rounded-xl" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!domain) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        还没有可以浏览的 Understanding。
+      </div>
+    );
+  }
 
   return (
-    <ScrollArea className="h-full">
-      <article className="mx-auto w-full max-w-3xl px-8 py-7">
-        <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
-          <div className="flex min-w-0 items-center gap-2">
-            <Badge variant="outline">
-              {currentIndex + 1} / {total}
-            </Badge>
-            <span className="truncate">{getDomainPath(understanding.domainIds[0], domains)}</span>
-          </div>
-          <Button type="button" size="sm" variant="ghost" onClick={onEdit}>
-            <Pencil size={14} />
-            编辑原理解
-          </Button>
+    <div className="flex h-full min-w-0 flex-col">
+      <header className="flex shrink-0 items-center justify-between gap-6 border-b px-8 py-5">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">{domain.name}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {domain.understandings.length} 条 Understanding
+          </p>
         </div>
+        <Button type="button" variant="outline" onClick={onStartWander}>
+          <Sparkles size={15} />
+          随便走走
+        </Button>
+      </header>
 
-        <h2 className="mt-6 text-2xl font-semibold leading-9 tracking-tight">
-          {understandingTitle(understanding)}
-        </h2>
-
-        {!revealed ? (
-          <section className="mt-8 rounded-xl border bg-muted/20 p-6">
-            <div className="text-base font-medium">先别看原文，你会怎样解释这条理解？</div>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              不需要写得完整。试着把当时的判断、适用边界或一个例子重新说出来。
-            </p>
-            <Textarea
-              autoFocus
-              value={recall}
-              onChange={(event) => setRecall(event.target.value)}
-              className="mt-5 min-h-40 resize-none bg-background leading-6"
-              placeholder="用现在的语言复述一下……"
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="grid gap-4 p-8 md:grid-cols-2 2xl:grid-cols-3">
+          {domain.understandings.map((understanding) => (
+            <UnderstandingCard
+              key={understanding.id}
+              understanding={understanding}
+              domainPath={getDomainPath(understanding.domainIds[0], domains)}
+              onOpen={() => onOpenUnderstanding(understanding.id)}
             />
-            <div className="mt-4 flex flex-wrap justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={() => setRevealed(true)}>
-                暂时说不出来
-              </Button>
-              <Button type="button" onClick={() => setRevealed(true)}>
-                查看原理解与 Context
-                <ChevronRight size={15} />
-              </Button>
-            </div>
-          </section>
-        ) : (
-          <RevealedUnderstanding
-            recall={recall}
-            detail={detail ?? null}
-            loading={isFetching}
-            reviewState={reviewState}
-            onReviewState={onReviewState}
-          />
-        )}
-
-        <footer className="mt-8 flex items-center justify-between border-t pt-5">
-          <Button type="button" variant="outline" disabled={!onPrevious} onClick={onPrevious}>
-            <ChevronLeft size={15} />
-            上一条
-          </Button>
-          <Button type="button" variant="outline" disabled={!onNext} onClick={onNext}>
-            下一条
-            <ChevronRight size={15} />
-          </Button>
-        </footer>
-      </article>
-    </ScrollArea>
+          ))}
+        </div>
+      </ScrollArea>
+    </div>
   );
 }
 
-function RevealedUnderstanding({
-  recall,
-  detail,
-  loading,
-  reviewState,
-  onReviewState,
+function UnderstandingCard({
+  understanding,
+  domainPath,
+  onOpen,
 }: {
-  recall: string;
-  detail: UnderstandingDTO | null;
-  loading: boolean;
-  reviewState?: ReviewState;
-  onReviewState: (state: ReviewState) => void;
+  understanding: UnderstandingSummaryDTO;
+  domainPath: string;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="group flex min-h-60 flex-col rounded-xl border bg-card p-5 text-left transition-colors hover:border-foreground/20 hover:bg-accent/20 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      onClick={onOpen}
+    >
+      <div className="text-[11px] text-muted-foreground">{domainPath}</div>
+      <h2 className="mt-3 line-clamp-3 text-base font-semibold leading-6">
+        {understandingTitle(understanding)}
+      </h2>
+      <div className="mt-3 flex-1 text-sm leading-6 text-muted-foreground">
+        {understanding.body.trim() ? (
+          <SimpleMarkdownPreview content={understanding.body} lineClamp={6} />
+        ) : (
+          <span>这条 Understanding 还没有正文。</span>
+        )}
+      </div>
+      <div className="mt-5 flex items-center gap-3 border-t pt-3 text-xs text-muted-foreground">
+        <span>{understanding.contextCount} Context</span>
+        {understanding.connectionCount > 0 ? (
+          <span>{understanding.connectionCount} Connection</span>
+        ) : null}
+      </div>
+    </button>
+  );
+}
+
+function UnderstandingReader({
+  understanding,
+  selectedDomain,
+  domains,
+  allUnderstandings,
+  visitedIds,
+  onBack,
+  onOpenUnderstanding,
+  onEdit,
+}: {
+  understanding: UnderstandingSummaryDTO;
+  selectedDomain: DomainReviewSummary;
+  domains: Domain[];
+  allUnderstandings: UnderstandingSummaryDTO[];
+  visitedIds: string[];
+  onBack: () => void;
+  onOpenUnderstanding: (understandingId: string) => void;
+  onEdit: () => void;
+}) {
+  const { data: detail, isFetching } = useCaptureUnderstandingDetail(understanding.id);
+
+  return (
+    <div className="flex h-full min-w-0 flex-col">
+      <header className="flex h-[73px] shrink-0 items-center justify-between gap-5 border-b px-5">
+        <Button type="button" variant="ghost" onClick={onBack}>
+          <ArrowLeft size={15} />
+          {selectedDomain.name}
+        </Button>
+        <Button type="button" size="sm" variant="ghost" onClick={onEdit}>
+          <Pencil size={14} />
+          编辑
+        </Button>
+      </header>
+
+      <ScrollArea className="min-h-0 flex-1">
+        <article className="mx-auto w-full max-w-3xl px-8 pb-32 pt-10">
+          <div className="text-xs text-muted-foreground">
+            {getDomainPath(understanding.domainIds[0], domains)}
+          </div>
+          <h1 className="mt-4 text-3xl font-semibold leading-tight tracking-tight">
+            {understandingTitle(understanding)}
+          </h1>
+
+          {isFetching || !detail ? (
+            <div className="mt-8 space-y-4">
+              <Skeleton className="h-40 rounded-xl" />
+              <Skeleton className="h-56 rounded-xl" />
+            </div>
+          ) : (
+            <UnderstandingBody detail={detail} onOpenUnderstanding={onOpenUnderstanding} />
+          )}
+        </article>
+      </ScrollArea>
+
+      {detail ? (
+        <WanderBar
+          understanding={understanding}
+          detail={detail}
+          selectedDomain={selectedDomain}
+          allUnderstandings={allUnderstandings}
+          visitedIds={visitedIds}
+          onOpenUnderstanding={onOpenUnderstanding}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function UnderstandingBody({
+  detail,
+  onOpenUnderstanding,
+}: {
+  detail: UnderstandingDTO;
+  onOpenUnderstanding: (understandingId: string) => void;
 }) {
   const { openDrawer } = useSharedDrawer();
-
-  if (loading || !detail) {
-    return <Skeleton className="mt-8 h-96 rounded-xl" />;
-  }
 
   const openContext = (context: ContextDTO) => {
     openDrawer(
       {
-        title: "回到当时的场景",
+        title: context.title?.trim() || "Context",
         widthClassName:
           "data-[side=right]:w-[min(760px,calc(100vw-2rem))] data-[side=right]:sm:max-w-none",
       },
@@ -474,78 +355,61 @@ function RevealedUnderstanding({
     );
   };
 
-  return (
-    <div className="mt-8 space-y-7">
-      {recall.trim() ? (
-        <section>
-          <div className="mb-2 text-xs font-medium tracking-wide text-muted-foreground">
-            我的复述
-          </div>
-          <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm leading-6 whitespace-pre-wrap">
-            {recall.trim()}
-          </div>
-        </section>
-      ) : null}
+  const connections = [...detail.connections, ...detail.referencedBy].filter(
+    (item, index, items) => items.findIndex((candidate) => candidate.id === item.id) === index,
+  );
 
-      <section>
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <div className="text-xs font-medium tracking-wide text-muted-foreground">原理解</div>
-          <span className="text-xs text-muted-foreground">
-            {formatDistanceToNow(detail.updatedAt, { addSuffix: true, locale: zhCN })}
-          </span>
-        </div>
-        <div className="rounded-xl border bg-card px-5 py-4">
-          {detail.body.trim() ? (
-            <MarkdownPreview content={detail.body} />
-          ) : (
-            <span className="text-sm text-muted-foreground">这条理解还没有正文。</span>
-          )}
-        </div>
+  return (
+    <div className="mt-8 space-y-10">
+      <section className="text-[15px] leading-7">
+        {detail.body.trim() ? (
+          <MarkdownPreview content={detail.body} />
+        ) : (
+          <span className="text-muted-foreground">这条 Understanding 还没有正文。</span>
+        )}
       </section>
 
+      <div className="text-xs text-muted-foreground">
+        {formatDistanceToNow(detail.updatedAt, { addSuffix: true, locale: zhCN })}更新
+      </div>
+
       <section>
-        <div className="mb-3">
-          <div className="text-sm font-medium">当时的 Context</div>
-          <p className="mt-1 text-xs text-muted-foreground">从形成理解的场景重新进入当时的心智。</p>
-        </div>
+        <h2 className="text-sm font-semibold">Context</h2>
         {detail.contexts.length > 0 ? (
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
             {detail.contexts.map((context) => (
               <ContextCard key={context.id} context={context} onOpen={() => openContext(context)} />
             ))}
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-            这条理解还没有保留形成它的 Context。
+          <div className="mt-3 rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+            这条 Understanding 还没有保留 Context。
           </div>
         )}
       </section>
 
-      <section className="rounded-xl border bg-muted/20 p-5">
-        <div className="text-sm font-medium">现在再看，你能把它说清楚吗？</div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {(
-            Object.entries(REVIEW_STATE_META) as Array<
-              [ReviewState, (typeof REVIEW_STATE_META)[ReviewState]]
-            >
-          ).map(([state, meta]) => {
-            const Icon = meta.Icon;
-            return (
+      {connections.length > 0 ? (
+        <section>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Link2 size={14} />
+            Connection
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {connections.map((connection) => (
               <Button
-                key={state}
+                key={connection.id}
                 type="button"
                 size="sm"
-                variant={reviewState === state ? "default" : "outline"}
-                onClick={() => onReviewState(state)}
+                variant="outline"
+                className="h-auto max-w-full whitespace-normal text-left"
+                onClick={() => onOpenUnderstanding(connection.id)}
               >
-                <Icon size={14} />
-                {meta.label}
+                {understandingTitle(connection)}
               </Button>
-            );
-          })}
-        </div>
-        <p className="mt-3 text-xs text-muted-foreground">只记录本次回顾感受，不计算掌握度。</p>
-      </section>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -570,96 +434,85 @@ function ContextCard({ context, onOpen }: { context: ContextDTO; onOpen: () => v
         </span>
       </div>
       <div className="mt-3 text-sm leading-5 text-muted-foreground">
-        <SimpleMarkdownPreview content={context.content || "空 Context"} lineClamp={3} />
+        <SimpleMarkdownPreview content={context.content || "空 Context"} lineClamp={4} />
       </div>
     </button>
   );
 }
 
-function WanderPanel({
-  activeId,
-  domainUnderstandings,
-  trail,
-  onSelect,
+function WanderBar({
+  understanding,
+  detail,
+  selectedDomain,
+  allUnderstandings,
+  visitedIds,
+  onOpenUnderstanding,
 }: {
-  activeId: string;
-  domainUnderstandings: UnderstandingSummaryDTO[];
-  trail: string[];
-  onSelect: (understandingId: string) => void;
+  understanding: UnderstandingSummaryDTO;
+  detail: UnderstandingDTO;
+  selectedDomain: DomainReviewSummary;
+  allUnderstandings: UnderstandingSummaryDTO[];
+  visitedIds: string[];
+  onOpenUnderstanding: (understandingId: string) => void;
 }) {
-  const { data: detail } = useCaptureUnderstandingDetail(activeId);
-  const inDomain = new Set(domainUnderstandings.map((understanding) => understanding.id));
-  const summaryById = new Map(
-    domainUnderstandings.map((understanding) => [understanding.id, understanding]),
+  const query = [
+    understanding.title,
+    detail.body,
+    ...detail.contexts.map((context) => context.content),
+  ]
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, 2400);
+  const anchors = [
+    { type: "understanding" as const, id: understanding.id },
+    ...(selectedDomain.id === UNASSIGNED_DOMAIN_ID
+      ? []
+      : [{ type: "domain" as const, id: selectedDomain.id }]),
+  ];
+  const { data, isFetching } = useQuery({
+    queryKey: ["contemplate", "wander", understanding.id],
+    queryFn: () => ipcClient.search.retrieveKnowledge({ query, anchors, limit: 10 }),
+    enabled: Boolean(query),
+    staleTime: 60_000,
+  });
+  const summaryById = new Map(allUnderstandings.map((item) => [item.id, item]));
+  const candidateId = pickWanderUnderstandingId({
+    retrievedIds: (data?.candidates ?? []).map((candidate) => candidate.id),
+    fallbackIds: selectedDomain.understandings.map((item) => item.id),
+    currentId: understanding.id,
+    visitedIds,
+  });
+  const candidate = candidateId ? (summaryById.get(candidateId) ?? null) : null;
+  const retrievedCandidate = data?.candidates.find((item) => item.id === candidateId);
+  const isSuggested = Boolean(
+    retrievedCandidate?.evidence.some(
+      (evidence) => evidence.channel === "dense" || evidence.channel === "lexical",
+    ),
   );
-  const related = detail
-    ? [...detail.connections, ...detail.referencedBy].filter((item, index, items) => {
-        return (
-          inDomain.has(item.id) &&
-          items.findIndex((candidate) => candidate.id === item.id) === index
-        );
-      })
-    : [];
 
   return (
-    <aside className="flex min-h-0 flex-col bg-muted/20">
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-7 p-4">
-          <section>
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Link2 size={15} />
-              顺着关系继续
-            </div>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              只显示这个领域内已经确认的 Connection。
-            </p>
-            <div className="mt-3 space-y-1">
-              {related.length > 0 ? (
-                related.map((understanding) => (
-                  <button
-                    key={understanding.id}
-                    type="button"
-                    className="w-full rounded-lg px-3 py-2 text-left text-sm leading-5 transition-colors hover:bg-accent"
-                    onClick={() => onSelect(understanding.id)}
-                  >
-                    {understandingTitle(understanding)}
-                  </button>
-                ))
-              ) : (
-                <div className="rounded-lg border border-dashed px-3 py-5 text-center text-xs leading-5 text-muted-foreground">
-                  这条理解在当前领域还是一座孤岛。
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section>
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <History size={15} />
-              本次回顾轨迹
-            </div>
-            <div className="mt-3 space-y-1 border-l pl-3">
-              {trail.map((id, index) => {
-                const understanding = summaryById.get(id);
-                if (!understanding) return null;
-                return (
-                  <button
-                    key={`${id}:${index}`}
-                    type="button"
-                    className={cn(
-                      "block w-full rounded-md px-2 py-1.5 text-left text-xs leading-5 text-muted-foreground hover:bg-accent hover:text-foreground",
-                      id === activeId && "bg-accent text-foreground",
-                    )}
-                    onClick={() => onSelect(id)}
-                  >
-                    {understandingTitle(understanding)}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
+    <div className="absolute bottom-6 left-1/2 z-10 w-[min(680px,calc(100%-3rem))] -translate-x-1/2">
+      <div className="flex items-center gap-4 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Sparkles size={17} />
         </div>
-      </ScrollArea>
-    </aside>
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-medium text-muted-foreground">
+            {isFetching ? "正在寻找下一条…" : isSuggested ? "可能相关" : "继续逛这个领域"}
+          </div>
+          <div className="mt-0.5 truncate text-sm font-medium">
+            {candidate ? understandingTitle(candidate) : "暂时没有别的 Understanding"}
+          </div>
+        </div>
+        <Button
+          type="button"
+          disabled={!candidate || isFetching}
+          onClick={() => candidate && onOpenUnderstanding(candidate.id)}
+        >
+          Wander
+          <Compass size={15} />
+        </Button>
+      </div>
+    </div>
   );
 }

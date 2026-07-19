@@ -89,3 +89,22 @@ export function understandingTitle(understanding: UnderstandingSummaryDTO) {
     "未命名理解"
   );
 }
+
+export function pickWanderUnderstandingId({
+  retrievedIds,
+  fallbackIds,
+  currentId,
+  visitedIds,
+}: {
+  retrievedIds: string[];
+  fallbackIds: string[];
+  currentId: string;
+  visitedIds: string[];
+}) {
+  const visited = new Set([...visitedIds, currentId]);
+  const candidates = [...new Set([...retrievedIds, ...fallbackIds])];
+
+  return (
+    candidates.find((id) => !visited.has(id)) ?? candidates.find((id) => id !== currentId) ?? null
+  );
+}

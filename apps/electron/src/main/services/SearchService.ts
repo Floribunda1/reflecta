@@ -1,4 +1,6 @@
 import type {
+  RetrieveKnowledgeInput,
+  RetrieveKnowledgeResult,
   SearchOptions,
   SearchContextResult,
   SearchResult,
@@ -9,6 +11,11 @@ import { searchService } from "./core";
 
 export class SearchService extends IpcService {
   static readonly groupName = "search";
+
+  @IpcMethod()
+  async retrieveKnowledge(input: RetrieveKnowledgeInput): Promise<RetrieveKnowledgeResult> {
+    return searchService.retrieveKnowledge(input);
+  }
 
   @IpcMethod()
   async searchUnderstandings(
