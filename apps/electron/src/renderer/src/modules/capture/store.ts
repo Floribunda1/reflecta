@@ -23,10 +23,7 @@ export type CaptureAgentScope = {
   title?: string;
 };
 
-export type CaptureMode = "browse" | "wander";
-
 export type CaptureState = {
-  captureMode: CaptureMode;
   selectedDomainId: string;
   selectedUnderstandingId: string | null;
   searchOpen: boolean;
@@ -43,7 +40,6 @@ export type CaptureState = {
 };
 
 export type CaptureActions = {
-  toggleKnowledgeWander: () => void;
   selectDomain: (domainId: string) => void;
   selectUnderstanding: (understandingId: string | null) => void;
   reconcileSelectedUnderstanding: (visibleUnderstandingIds: Set<string>) => void;
@@ -76,7 +72,6 @@ export type CaptureActions = {
 export type CaptureStore = CaptureState & CaptureActions;
 
 export const initialCaptureState: CaptureState = {
-  captureMode: "browse",
   selectedDomainId: "all",
   selectedUnderstandingId: null,
   searchOpen: false,
@@ -143,9 +138,6 @@ export function createCaptureState(
 ): StateCreator<CaptureStore> {
   return (set) => ({
     ...initialState,
-
-    toggleKnowledgeWander: () =>
-      set((state) => ({ captureMode: state.captureMode === "wander" ? "browse" : "wander" })),
 
     selectDomain: (domainId) =>
       set((state) => ({

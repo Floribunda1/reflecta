@@ -8,28 +8,6 @@ describe("capture store", () => {
     globalThis.localStorage?.clear();
   });
 
-  test("knowledge wander toggles without losing the current domain or understanding", () => {
-    const store = createCaptureStore();
-    store.getState().selectDomain("domain-1");
-    store.getState().selectUnderstanding("understanding-1");
-
-    store.getState().toggleKnowledgeWander();
-
-    expect(store.getState()).toMatchObject({
-      captureMode: "wander",
-      selectedDomainId: "domain-1",
-      selectedUnderstandingId: "understanding-1",
-    });
-
-    store.getState().toggleKnowledgeWander();
-
-    expect(store.getState()).toMatchObject({
-      captureMode: "browse",
-      selectedDomainId: "domain-1",
-      selectedUnderstandingId: "understanding-1",
-    });
-  });
-
   test("selectDomain clears selected understanding, active context, and draft", () => {
     const store = createCaptureStore();
     store.getState().selectUnderstanding("understanding-1");
