@@ -2,12 +2,13 @@ import { useScroll, useSize } from "ahooks";
 import { useMasonry, usePositioner, useResizeObserver } from "masonic";
 import type { RenderComponentProps } from "masonic";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
-import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/markdown-editor/preview";
 import { cn } from "@renderer/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
+import { FileText, Link2 } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { getUnderstandingTitle } from "../understanding-title";
+import { KnowledgeWanderMarkdown } from "./markdown";
 
 type WaterfallItem = {
   understanding: UnderstandingSummaryDTO;
@@ -22,37 +23,59 @@ function UnderstandingWanderCard({ data }: RenderComponentProps<WaterfallItem>) 
     addSuffix: true,
     locale: zhCN,
   });
+  const title = getUnderstandingTitle(understanding);
 
   return (
-    <button
-      type="button"
+    <article
+      role="button"
+      tabIndex={0}
       data-testid="knowledge-wander-card"
       data-understanding-id={understanding.id}
-      data-understanding-title={getUnderstandingTitle(understanding)}
+      data-understanding-title={title}
       aria-current={selected ? "true" : undefined}
       className={cn(
-        "flex w-full flex-col gap-3 rounded-lg border bg-card p-4 text-left text-card-foreground shadow-xs outline-none transition-colors hover:bg-muted/20 focus-visible:ring-3 focus-visible:ring-ring/50",
+        "flex w-full cursor-pointer flex-col gap-3 rounded-lg border bg-card p-4 text-left text-card-foreground shadow-xs outline-none transition-colors hover:bg-muted/20 focus-visible:ring-3 focus-visible:ring-ring/50",
         selected && "border-primary ring-1 ring-ring/20",
       )}
       onClick={() => onSelect(understanding.id)}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        onSelect(understanding.id);
+      }}
     >
-      <div className="text-base font-semibold text-foreground">
-        {getUnderstandingTitle(understanding)}
-      </div>
+      <div className="text-base font-semibold leading-snug text-foreground">{title}</div>
 
-      <div className="text-sm leading-6 text-muted-foreground">
+      <div className="min-w-0">
         {understanding.body ? (
-          <SimpleMarkdownPreview content={understanding.body} />
+          <KnowledgeWanderMarkdown content={understanding.body} />
         ) : (
-          <span>空理解，可以直接开始写。</span>
+          <span className="text-sm text-muted-foreground">空理解，可以直接开始写。</span>
         )}
       </div>
 
-      <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground/80">
-        {domainLabel ? <span className="min-w-0 flex-1 truncate">{domainLabel}</span> : null}
+      {domainLabel ? (
+        <div className="truncate text-xs text-muted-foreground/75">{domainLabel}</div>
+      ) : null}
+
+      <div className="flex min-w-0 items-center gap-3 text-xs text-muted-foreground/75">
+        <span
+          className="inline-flex items-center gap-1"
+          aria-label={`${understanding.contextCount} 个上下文`}
+        >
+          <FileText size={13} aria-hidden />
+          {understanding.contextCount}
+        </span>
+        <span
+          className="inline-flex items-center gap-1"
+          aria-label={`${understanding.connectionCount} 个双链关系`}
+        >
+          <Link2 size={13} aria-hidden />
+          {understanding.connectionCount}
+        </span>
         <span className="ml-auto shrink-0">{updatedLabel}</span>
       </div>
-    </button>
+    </article>
   );
 }
 

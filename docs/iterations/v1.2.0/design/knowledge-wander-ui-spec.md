@@ -134,15 +134,15 @@ section
 
 #### Detail: UnderstandingWanderCard
 
-- 组成：clickable card surface + title + full SimpleMarkdownPreview + meta
+- 组成：clickable card surface + title + KnowledgeWanderMarkdown + Context/Connection counts + meta
 - 布局：`flex w-full flex-col gap-3 text-left`
 - 间距：`p-4`
 - 状态规则：
   - `hover` → 只使用 `bg-muted/20`
   - `focus-visible` → 使用现有 focus-visible ring
   - `selected` → 详情已打开时使用 `border-primary ring-1 ring-ring/20`
-- 展示规则：标题使用现有 Understanding fallback；正文为空时显示「空理解，可以直接开始写。」；正文使用 `SimpleMarkdownPreview` 且不传 `lineClamp`；全部领域范围才显示领域路径，始终显示更新时间
-- 约束：使用 `rounded-lg border bg-card shadow-xs`；不显示 Context/Connection 数量、操作按钮、摘要、评分或状态点；hover/selected 不改变尺寸和位置
+- 展示规则：标题使用现有 Understanding fallback；正文为空时显示「空理解，可以直接开始写。」；正文使用知识漫步专用的静态 Markdown renderer，保留标题、段落、列表、引用、代码、表格和图片结构；全部领域范围才显示领域路径，始终显示更新时间；Context/Connection 数量复用普通 List 的 `FileText` / `Link2` 表达
+- 约束：使用 `rounded-lg border bg-card shadow-xs`；不显示操作按钮、摘要、评分或状态点；Markdown 链接在卡片中只显示为非交互文本，整张卡片保持唯一点击入口；hover/selected 不改变尺寸和位置
 
 ### GraphView
 
@@ -165,15 +165,15 @@ section
 ```
 
 - 状态规则：
-  - `node-selected` → 节点使用 primary stroke；直接相连边使用 primary stroke；其他内容保持可见
-  - `node-hover` → 节点 stroke 提升为 foreground/弱透明语义，不加动画或位移
+  - `node-selected` → 节点使用 primary stroke 和 accent surface；直接相连边使用 primary stroke；其他内容保持可见
+  - `node-hover` → 节点使用 muted surface 并提升 stroke，不加动画或位移
   - `layout-running` → 不额外展示进度 UI；布局完成后节点停止漂移
 - 约束：G6 使用内置 `rect` node、line edge、D3 Force、drag-canvas、zoom-canvas、drag-element-force 和 MiniMap；不使用 React node extension、自定义 node class、Domain lane、Context node 或图例；节点固定紧凑尺寸，只显示最多 3 行标题
 
 #### Detail: UnderstandingRectNode
 
 - 组成：G6 built-in rect + wrapped label
-- 布局：固定 `220 × 72`，label 居中，最多 3 行
+- 布局：固定紧凑卡片尺寸，显式使用 `labelPlacement: center`，label 居中，最多 3 行
 - 状态规则：default / hover / selected 全部从当前 CSS semantic tokens 解析到 G6 style
 - 展示规则：标题使用与瀑布流相同 fallback；不显示正文、领域、计数和状态点
 - 约束：节点视觉对应 Capture 卡片的 border/radius/typography，但不模拟完整 DOM Card

@@ -24,6 +24,9 @@ test("@KW-WANDER-001 用户连续阅读完整理解并打开详情", async () =>
       `[data-testid="knowledge-wander-card"][data-understanding-title="${UNDERSTANDING_TITLE}"]`,
     );
     await expect(card).toContainText(FULL_BODY_END);
+    await expect(card.getByLabel(/\d+ 个上下文/)).toBeVisible();
+    await expect(card.getByLabel(/\d+ 个双链关系/)).toBeVisible();
+    await expect(page.getByTestId("knowledge-wander-markdown").locator("ul").first()).toBeVisible();
     await card.click();
     await expect(page.getByPlaceholder("写下一个刚形成的理解")).toHaveValue(UNDERSTANDING_TITLE);
 

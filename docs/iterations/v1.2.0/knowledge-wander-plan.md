@@ -124,9 +124,9 @@ CapturePage
 - 完整正文，不使用 `line-clamp`，不生成摘要。
 - 最小必要 meta：更新时间；在「全部领域」范围下补充所属领域路径。
 
-卡片不展示操作按钮、Context 数量、Connection 数量、质量状态或 AI 内容。点击卡片打开右侧详情；右键行为不在本期扩展。
+卡片不展示操作按钮、质量状态或 AI 内容；使用普通 Capture List 已有的图标语言展示 Context 数量和 Connection 数量。点击卡片打开右侧详情；右键行为不在本期扩展。
 
-正文预览复用现有 `SimpleMarkdownPreview`，不传 `lineClamp`。卡片负责完整呈现可读文本；精确 Markdown 样式、图片、Context 和编辑能力留在打开后的 `UnderstandingDetail`，不为瀑布流再造 Markdown renderer。
+正文使用知识漫步专用的静态 Markdown renderer，复用 Milkdown 周边已经安装的 unified、remark-parse、remark-gfm、remark-rehype 和 rehype-stringify，并覆盖为紧凑阅读样式；保留标题、列表、引用、代码、表格和图片等正文结构。卡片负责完整呈现可读文本；Context 和编辑能力仍留在打开后的 `UnderstandingDetail`。
 
 瀑布流的内容顺序是确定的，但视觉列由布局组件按高度平衡。它不是从左到右的严格表格，也不承诺卡片在不同窗口宽度下保持同一列。
 

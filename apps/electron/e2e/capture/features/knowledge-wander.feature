@@ -9,6 +9,8 @@
     当用户在 Capture 中进入「知识漫步」
     那么默认应该以瀑布流展示「全部领域」中的理解数量
     而且 Understanding「React Server Components」卡片应该展示完整正文
+    而且卡片中的 Markdown 结构应该以适合连续阅读的样式呈现
+    而且卡片应该展示它的上下文数量和关联数量
     当用户打开这张卡片
     那么右侧应该打开同一条 Understanding 的可编辑详情
     而且用户关闭详情后仍然停留在原来的瀑布流位置
@@ -18,7 +20,8 @@
     假如 seed 数据中 Domain「Programming」的子领域包含 Understanding「React Server Components」
     当用户选择 Domain「Programming」并进入「知识漫步」
     而且切换到「图谱」
-    那么应该看到可缩放并可适应画布的 Understanding 关系图
+    那么应该看到标题位于节点内部、真实关联清晰可辨的 Understanding 关系图
+    而且关系图应该可以缩放并适应画布
     当用户在图谱中打开 Understanding「React Server Components」
     那么右侧应该打开同一条 Understanding 的可编辑详情
     当用户切回「瀑布流」
