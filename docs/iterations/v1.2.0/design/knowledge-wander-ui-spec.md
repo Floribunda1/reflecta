@@ -1,4 +1,4 @@
-# Design Decision: Capture / 知识漫步连续阅读页
+# Design Decision: Capture / Obsidian 式知识漫步图谱
 
 > 日期：2026-07-20
 >
@@ -8,7 +8,9 @@
 
 ## 1. 页面目标
 
-持续积累 Understanding 的桌面端用户，会经常打开一个 Domain，连续翻阅自己已经形成的理解，并在值得停留的地方回到 Context 或修改原文。页面通过具体内容提供熟悉感和清晰感，不承担成就激励、复习任务或知识结构生成。
+持续积累 Understanding 的桌面端用户，可以在当前 Domain 中直接看见一张可平移、缩放和探索的图谱。用户通过节点重新辨认自己的 Understanding，点击后在右侧进入现有详情和 Context，再回到保持原视口的图谱继续探索。
+
+页面不承担顺序阅读、复习进度、成就激励或自动知识结构生成。
 
 ## 2. Template
 
@@ -24,69 +26,61 @@ CapturePage
 
     WorkspaceStage
       KnowledgeWanderPanelGroup
-        KnowledgeWanderSurface
-          ReadingHeader
-          ReadingViewport
-            UnderstandingReadingSection[]
+        KnowledgeGraphSurface
+          GraphHeader
+          GraphCanvas
+            UnderstandingNode[]
+            ConnectionEdge[]
+          GraphControls
         UnderstandingDetailPanel (conditional)
       ContextualAgentDock (existing, conditional)
 ```
 
-DomainNavigation 继续承担领域选择；进入知识漫步只替换 Capture 主工作区，不创建新路由。阅读页从上到下连续排列当前领域内的全部 Understanding；打开详情或 Agent 时从右侧分栏，不改变底层阅读位置。
+DomainNavigation 继续承担领域范围选择；进入知识漫步只替换 Capture 主工作区，不创建新路由。GraphCanvas 始终是主要表面；打开详情或 Agent 时从右侧分栏，不替换图谱。
 
 ## 3. Organisms
 
 ### DomainNavigation
 
-- 容器 token：
-  - Surface：沿用 Capture 窗口底层 `bg-background/45`
-  - Spacing：树区域完全沿用现状；footer 使用 `p-2`
-  - Border / Radius / Shadow：footer 仅使用 `border-t`
+- Surface：沿用 Capture 现有侧栏材质。
+- Spacing：树区域完全沿用现状；footer 使用 `p-2`。
+- Border：footer 仅使用 `border-t`。
 
 ```text
 aside
   ExistingDomainHeader
   ExistingDomainTreeScroll
   KnowledgeWanderEntry
-    Button(icon: BookOpenText, label: 知识漫步)
+    Button(icon: Network, label: 知识漫步)
 ```
 
-- 状态规则：`active` 时使用与 Domain row selected 相同的 muted 语义，并设置 `aria-pressed=true`
-- 约束：领域树始终可操作；再次点击入口退出知识漫步；不显示进度、徽章、提示语或随机图标
+- `active` 使用与 Domain row selected 相同的 muted 语义，并设置 `aria-pressed=true`。
+- 再次点击入口退出知识漫步。
+- 不显示进度、徽章、说明文字或随机图标。
 
-#### Detail: KnowledgeWanderEntry
+### KnowledgeGraphSurface
 
-- 组成：Button + Lucide BookOpenText + 文案
-- 布局：`w-full justify-start gap-2`
-- 间距：footer `p-2`；Button 使用 `size="sm"`
-- 状态规则：active 只使用 muted 背景和字重，不增加边框或阴影
-- 展示规则：始终显示「知识漫步」，active 时不改成「退出」
-- 约束：使用 shadcn Button 的 ghost variant，不创建新导航组件
-
-### KnowledgeWanderSurface
-
-- 容器 token：
-  - Surface：`bg-background`
-  - Spacing：header 固定，viewport 占据剩余高度
-  - Border / Radius / Shadow：无外层圆角和阴影
+- Surface：`bg-background`，图谱直接占满工作区。
+- Border / Radius / Shadow：无外层圆角和阴影。
+- Layout：header 固定在顶部，canvas 占据剩余空间。
 
 ```text
 main
-  ReadingHeader
-  ReadingViewport
-    UnderstandingReadingSection[]
-  Empty | Skeleton[]
+  GraphHeader
+  GraphCanvas
+  GraphControls
+  Empty | Loading
 ```
 
-- 状态规则：领域切换后回到阅读页顶部；打开详情时当前 Understanding 使用低权重 selected 背景
-- 约束：只存在一个连续阅读视图；无瀑布流、图谱、视图切换、搜索、排序、随机、推荐或完成操作
+- 当前 Domain 改变时替换图数据并重新运行力导向布局。
+- 图谱只存在一种主视图，无瀑布流、连续阅读、卡片列表或视图切换。
+- 图谱引擎作为独立命令式画布挂载；React 只传入数据、主题和交互回调，不逐节点渲染 React DOM。
 
-### ReadingHeader
+### GraphHeader
 
-- 容器 token：
-  - Surface：`bg-background/95 backdrop-blur-sm`
-  - Spacing：`h-14 px-5 flex items-center`
-  - Border / Radius / Shadow：`border-b`，无圆角和阴影
+- Surface：`bg-background/90 backdrop-blur-sm`。
+- Spacing：`h-14 px-5 flex items-center`。
+- Border：`border-b`，无圆角和阴影。
 
 ```text
 header
@@ -95,102 +89,136 @@ header
     Understanding count
 ```
 
-- 展示规则：标题为空时回退「全部领域」；数量统一为「N 条理解」
-- 约束：数量只是当前内容范围，不表达完成率或成就；header 不增加任何操作按钮
+- 标题为空时回退「全部领域」。
+- 数量统一为「N 条理解」。
+- 数量只表示当前范围，不表达进度或成就。
+- Header 不增加布局、过滤、搜索或显示设置。
 
-### ReadingViewport
+### GraphCanvas
 
-- 容器 token：
-  - Surface：`bg-background`
-  - Spacing：页面级 `px-5`；每条内容通过 section 自身 padding 形成纵向节奏
-  - Border / Radius / Shadow：无容器边框、圆角和阴影
+- Surface：使用 design system 的 `background` token。
+- Graph engine 的容器绝对铺满剩余区域。
+- 节点、边、标签和交互状态由图谱引擎绘制，不叠加 DOM 卡片。
 
 ```text
-section
-  VirtualizedReadingList
-    UnderstandingReadingSection[]
+canvas
+  force-directed layout
+  UnderstandingNode[]
+  ConnectionEdge[]
 ```
 
-- 状态规则：切换 Domain 时滚动到顶部；打开和关闭详情时保持 scrollTop
-- 约束：使用项目已有 TanStack Virtual 处理长列表；只渲染 viewport 邻近正文；不引入新的布局或滚动依赖
+#### 数据规则
 
-#### Detail: UnderstandingReadingSection
+- 每条当前 Domain 范围内的 Understanding 对应一个节点；父 Domain 包含子 Domain。
+- 每条真实 Connection 对应一条无方向边；只保留两个端点都在当前范围内的边。
+- 不根据时间、Domain、标题、语义相似度或 AI 结果生成边。
+- 孤立 Understanding 正常进入布局，不隐藏、不降级、不标红。
 
-- 组成：article + title button + Domain/meta + MarkdownPreview + Context/Connection counts
-- 布局：宽窗口使用 `grid grid-cols-[minmax(180px,260px)_minmax(0,1fr)]`；窄容器回落为单列
-- 间距：section 使用 `gap-6 px-1 py-7`；左侧 meta 使用 `gap-3`；正文内部节奏完全交给现有 MarkdownPreview
-- 状态规则：hover 使用轻量 muted surface；selected 使用同一 muted surface 和左侧 primary indicator；focus-visible 只出现在标题 Button
-- 展示规则：标题使用现有 fallback；正文为空时显示「空理解，可以直接开始写。」；全部领域范围显示 Domain path；始终显示更新时间、Context 数量和 Connection 数量
-- 约束：完整正文由现有 MarkdownPreview 渲染；不创建专用 Markdown parser、renderer 或样式表；section 使用分隔线而不是 Card，不截断、不总结、不显示操作按钮
+#### 布局规则
+
+- 使用成熟图谱库提供的力导向布局，不自行实现物理模拟。
+- 初次进入时节点以短暂可见动画自然展开，收敛后停止持续扰动。
+- 用户拖动节点时该节点跟随指针，周围布局自然响应；释放后重新收敛。
+- 同一份图数据不因无关 React render 重启布局。
+- 打开和关闭详情不重建图实例，不改变节点坐标和视口。
+
+#### Zoom / Pan
+
+- 滚轮围绕指针位置连续缩放；拖动画布平移。
+- 节点、标签和边属于同一场景坐标系，缩放时视觉尺寸关系一致，不出现标签悬浮在错误位置或与节点分离。
+- 缩小时逐步减少标签数量；hover / selected 节点标签始终可见。
+- 提供左下角缩小、放大、适应画布三个图标按钮；按钮复用现有 shadcn Button。
+- 不显示 minimap，除非真实大规模知识库验证无法定位。
+
+#### Node / Edge visual
+
+- 默认节点是无描边的中性圆点，颜色使用 `muted-foreground` 语义，保持足够点击热区。
+- 节点视觉半径可在很小范围内随真实 Connection 数量变化；孤立节点保留明确的最小尺寸。
+- 默认边使用低对比度 `border` 语义细线，不显示箭头。
+- 标签使用 UI sans 字体和 foreground 语义，不使用卡片背景、边框或阴影。
+- 默认只让当前缩放级别下可读的标签出现，避免满屏文字。
+
+#### Hover state
+
+- Hover 节点自身变为 foreground 强调色并显示标签。
+- 直接邻居与相连边保持清晰；无关节点、标签和边降低透明度，但仍能感知其存在。
+- 移开后恢复默认状态。
+- Hover 只用于预览，不打开详情，不改变持久 selection。
+
+#### Selected state
+
+- 点击节点后将其设为 selected，并在右侧打开对应 UnderstandingDetail。
+- selected 节点使用 primary 强调；邻居和相连边保持清晰；无关内容退后。
+- Hover 其他节点时可以临时预览其邻居；移开后恢复 selected 状态。
+- 点击画布空白只清除 hover，不关闭详情；关闭详情按钮同时清除 selected。
+- 点击另一个节点直接切换右侧详情和 selected。
+
+### GraphControls
+
+```text
+div.absolute.bottom-4.left-4
+  Button(ZoomOut)
+  Button(ZoomIn)
+  Button(FitView)
+```
+
+- 使用一个纵向 `ButtonGroup` 语义容器。
+- Button 使用 icon-only outline/ghost 现有变体，具备 aria-label 和 tooltip。
+- 不加入布局参数、斥力、边长、标签开关或过滤设置。
 
 ### UnderstandingDetailPanel
 
-- 容器 token：
-  - Surface：`bg-background`
-  - Spacing：沿用现有 UnderstandingDetail
-  - Border / Radius / Shadow：左侧使用 ResizableHandle / `border-l`，无圆角和阴影
-
-```text
-ResizablePanel
-  UnderstandingDetail(existing)
-```
-
-- 状态规则：打开时占知识漫步工作区约 40%，可在 34%–56% 调整；关闭后阅读页恢复完整宽度并保留位置
-- 约束：复用现有编辑、Context、Connection、删除和 Agent 能力；不创建“已读”“完成”或专用阅读详情
+- 复用现有 `UnderstandingDetail`、`ResizablePanel` 和 `ResizableHandle`。
+- 默认占知识漫步工作区约 40%，可在 34%–56% 调整。
+- 打开详情时图谱实例、节点坐标、相机状态和 selected 节点全部保留。
+- 面板宽度变化只触发图谱容器 resize，不重新 fit view。
+- 关闭详情后图谱恢复完整宽度，视口不跳回中心。
 
 ## 4. Token Review
 
-#### Surface Hierarchy
+### Surface Hierarchy
 
-- 统一规则：DomainNavigation 使用窗口底层材质；阅读页和详情使用 background；section 只在 hover/selected 时使用 muted
-- 禁止：卡片海洋、渐变、彩色背景、额外 surface 层或图谱画布
+- DomainNavigation 使用窗口底层材质；图谱和详情使用 background。
+- 图谱靠节点、标签、真实边和交互状态形成层次，不增加彩色背景、渐变或卡片 surface。
 
-#### Typography
+### Typography
 
-- 统一规则：header 领域名使用 `text-sm font-medium`；section 标题使用 `text-base font-semibold`；正文沿用 MarkdownPreview；meta 使用 `text-xs text-muted-foreground`
-- 禁止：用超大标题、数字或粗体统计制造成就感
+- Header 领域名使用 `text-sm font-medium`，数量使用 `text-xs text-muted-foreground`。
+- 图谱标签保持接近 Obsidian 的小号 UI 文本，并随 zoom 进入同一视觉变换。
+- 不用超大标题、粗体统计或数字制造成就感。
 
-#### Spacing Rhythm
+### Interaction State
 
-- 统一规则：页面级 `px-5`；section 级 `py-7`；section 内部 `gap-6`；meta 内部 `gap-3`
-- 禁止：通过 Card margin、Masonry gutter 或不一致 padding 制造节奏
+- 默认：中性节点 + 低对比度边。
+- Hover：当前邻域清晰，无关元素退后。
+- Selected：primary 节点 + 持久邻域，直到切换或关闭详情。
+- Focus：图谱控制按钮使用现有 `focus-visible`；画布本身具备可访问名称。
+- 禁止 hover 位移、外发光、矩形选中背景或覆盖整条边的粗色带。
 
-#### Interaction State
+### Hard-coded Values
 
-- 统一规则：入口 active 与 Domain row selected 共用 muted 语义；section selected 只表达当前详情对象；标题使用 shadcn/Button 可访问 focus
-- 禁止：hover 位移、缩放、阴影、发光，或用颜色表达未连接 Understanding 有问题
-
-#### Component Variants
-
-- 统一规则：入口使用 Button ghost；详情使用现有 Resizable primitives；空状态与加载态复用现有 Empty/Skeleton
-- 禁止：为阅读页创建新的通用 Button、Card、Tabs 或 Toggle 变体
-
-#### Hard-coded Values
-
-- 统一规则：全部视觉值使用 Tailwind semantic classes 和现有组件 token
-- 禁止：硬编码色值、Tailwind 色阶或专属 dark-mode 常量
+- React 层不写死颜色，统一从 CSS semantic tokens 解析后传给图谱主题。
+- 图谱引擎必须使用数值的物理和缩放参数；这些参数集中在单一配置对象，不散落在事件处理器中。
 
 ## 5. Atoms 索引
 
-| 组件                | Variant / 配置                   | 使用位置                     |
-| ------------------- | -------------------------------- | ---------------------------- |
-| Button              | `ghost variant`, `size="sm"`     | KnowledgeWanderEntry         |
-| Button              | `link variant`, `size="default"` | Understanding title          |
-| Empty               | `className="h-full"`             | 空领域 / 查询失败            |
-| EmptyContent        | base configuration               | 空状态内容                   |
-| EmptyMedia          | `variant="icon"`                 | 空状态图标                   |
-| EmptyDescription    | base configuration               | 空状态文案                   |
-| Skeleton            | `className="h-48"`               | 正文列表加载态               |
-| ResizablePanelGroup | `orientation="horizontal"`       | KnowledgeWanderPanelGroup    |
-| ResizablePanel      | percentage size constraints      | 阅读页 / UnderstandingDetail |
-| ResizableHandle     | `withHandle`                     | 详情分隔                     |
+| 组件                | Variant / 配置             | 使用位置                    |
+| ------------------- | -------------------------- | --------------------------- |
+| Button              | `ghost`, `size="sm"`       | KnowledgeWanderEntry        |
+| Button              | icon-only existing variant | GraphControls               |
+| Tooltip             | existing configuration     | GraphControls               |
+| Empty               | `className="h-full"`       | 空领域 / 查询失败           |
+| EmptyMedia          | `variant="icon"`           | 空状态图标                  |
+| ResizablePanelGroup | `orientation="horizontal"` | KnowledgeWanderPanelGroup   |
+| ResizablePanel      | percentage constraints     | Graph / UnderstandingDetail |
+| ResizableHandle     | `withHandle`               | 详情分隔                    |
 
 ## 6. 不做的决策
 
-- ❌ **不保留瀑布流** → Masonry 强调同屏数量和空间填充，不符合连续进入具体理解的阅读动作。
-- ❌ **不保留全局图谱** → 大量孤立 Understanding 无法从图谱获得内容价值，图谱也不能替代阅读。
-- ❌ **不提供阅读模式切换** → 同一条连续页面已经允许慢读和快扫，额外模式只会增加选择成本。
-- ❌ **不创建 Markdown renderer** → 现有 MarkdownPreview 已覆盖正文展示，重复解析和样式会形成第二套系统。
-- ❌ **不显示进度或完成状态** → 知识漫步不是成就或复习模块，位置不能被包装成任务进度。
-- ❌ **不提供随机、推荐和自动路径** → 顺序必须稳定可理解，系统不替用户构造知识关系。
-- ❌ **不创建卡片视觉系统** → section 分隔足以表达内容边界，并能降低浏览时的视觉噪音。
+- ❌ **不保留连续阅读页** → 它把探索变成系统规定的线性阅读，缺少主动选择与领域整体感。
+- ❌ **不保留瀑布流或卡片墙** → 它强调同屏内容密度，没有形成稳定的空间探索体验。
+- ❌ **不提供视图切换** → 知识漫步只有图谱这一个明确入口，避免再次把未经验证的模式并列给用户。
+- ❌ **不自行实现力导向、缩放或命中检测** → 使用成熟图谱引擎覆盖物理模拟和画布交互。
+- ❌ **不推断 Connection** → 图上的边只表达用户已经建立的真实关系。
+- ❌ **不增加配置面板** → 先复刻成熟的默认体验，真实需要出现后再暴露参数。
+- ❌ **不显示进度或完成状态** → 图谱支持探索和回想，不承担复习任务或成就激励。
