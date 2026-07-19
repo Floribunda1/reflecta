@@ -144,10 +144,10 @@ CapturePage
 
 图谱交互由 G6 提供：
 
-- 缩放、平移、节点拖动、标题字号固定和初始 `fitView` 使用 G6 内置 behavior 与 viewport API；不增加可见工具栏。
+- 缩放、平移、节点拖动和初始 `fitView` 使用 G6 内置 behavior 与 viewport API；节点与标题随画布自然缩放，不增加可见工具栏。
 - 节点拖动只改变本次会话中的观察位置，不写回数据库。
 - Hover 或选择节点时突出该节点及一跳邻居，其他节点和边降低视觉权重。
-- 布局完成后停止力模拟，不让节点持续漂移。
+- 首次进入图谱时展示力模拟逐步收敛的过程；布局完成后停止模拟，不让节点持续漂移。
 - 只在领域范围或图数据变化时重新运行布局；打开详情不得触发重新布局。
 - 同一数据范围内切换详情或瀑布流/图谱时，保留当前图谱 viewport 和已稳定的节点位置。
 
@@ -187,7 +187,7 @@ CapturePage
 
 G6 在本次知识漫步第一次切到图谱时动态加载。随后瀑布流与图谱在知识漫步内部保持挂载，用可见性切换保留滚动位置、节点位置和 viewport；退出知识漫步或 Capture 卸载时调用 `graph.destroy()` 释放资源。Capture 普通模式和从未打开图谱的知识漫步不承担 G6 bundle 与 canvas 生命周期。
 
-节点使用 G6 内置 `circle` 复刻 Obsidian Graph View 的小圆点；标题位于圆点下方，并随缩放阈值出现或隐藏。不引入 `@antv/g6-extension-react`，也不为 V1 编写自定义 G6 node class。节点、边和 selected/highlight state 的颜色从当前 Reflecta CSS semantic token 解析，不维护平行色板。
+节点使用 G6 内置 `circle` 复刻 Obsidian Graph View 的小圆点；标题位于圆点下方，并与节点一起随画布缩放，远景下自然退为低细节。不引入 `@antv/g6-extension-react`，也不为 V1 编写自定义 G6 node class。节点、边和 selected/highlight state 的颜色从当前 Reflecta CSS semantic token 解析，不维护平行色板。
 
 ### 5.3 图谱布局：G6 内置 D3 Force
 
@@ -307,7 +307,7 @@ apps/electron/src/renderer/src/modules/capture/knowledge-wander/
 4. 点击节点打开同一个详情 panel；选择节点突出一跳关系。
 5. 缓存本次会话内稳定位置和 viewport，详情开关不得重新模拟。
 
-完成条件：图谱包含范围内全部 Understanding 和真实 Connection；孤立节点仍在同一画布；标题随缩放出现或隐藏；节点稳定且不持续漂移。
+完成条件：图谱包含范围内全部 Understanding 和真实 Connection；孤立节点仍在同一画布；节点和标题同步缩放；首次布局可见地收敛，稳定后不持续漂移。
 
 ### Task 6：退役 Contemplate
 

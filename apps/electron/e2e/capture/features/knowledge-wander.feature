@@ -26,7 +26,8 @@
     而且切换到「图谱」
     那么应该看到全部 Understanding 以圆点组成类似 Obsidian Graph View 的力导向图
     而且有 Connection 的 Understanding 之间应该以细线连接
-    而且缩放时标题应该按可读尺度出现或隐藏
+    而且缩放时圆点和标题应该随画布同步缩放
+    而且首次进入时应该看到力导向布局逐步收敛并最终稳定
     而且聚焦节点时应该突出它和一跳关系并淡化无关节点
     当用户在图谱中打开 Understanding「React Server Components」
     那么右侧应该打开同一条 Understanding 的可编辑详情

@@ -160,9 +160,9 @@ section
 
 - 状态规则：
   - `node-selected` / `node-hover` → 当前节点和一跳邻居保持清晰，其他节点与边降低 opacity
-  - `layout-running` → 不额外展示进度 UI；布局完成后节点停止漂移
-- 展示规则：全部 Understanding 都是同一画布里的小圆点；真实 Connection 使用低对比细线；低缩放隐藏标题，达到可读尺度后在圆点下方显示单行标题
-- 约束：使用 G6 内置 `circle` node、line edge、D3 Force、drag-canvas、zoom-canvas、fix-element-size 和 drag-element-force；标题在缩放时保持可读字号；不使用摘要、未连接分区、MiniMap、React node extension、自定义 node class、Domain lane、Context node 或推断关系
+  - `layout-running` → 不额外展示进度 UI；首次进入时可见节点随力模拟逐步收敛，布局完成后停止漂移
+- 展示规则：全部 Understanding 都是同一画布里的小圆点；真实 Connection 使用低对比细线；标题在圆点下方显示为单行，并与节点一起随画布自然缩放
+- 约束：使用 G6 内置 `circle` node、line edge、D3 Force、drag-canvas、zoom-canvas 和 drag-element-force；不逆向补偿节点、边或标题尺寸；不使用摘要、未连接分区、MiniMap、React node extension、自定义 node class、Domain lane、Context node 或推断关系
 
 #### Detail: UnderstandingDotNode
 
@@ -210,7 +210,7 @@ ResizablePanel
 #### Interaction State
 
 - 统一规则：DOM 交互使用 shadcn 默认 hover/focus；业务 selected 只映射到 muted/primary semantic tokens；G6 state 从同一 token 解析
-- 禁止：hover 位移、缩放、发光、持续动画，或使用颜色表达「未连接即有问题」
+- 禁止：hover 位移、缩放、发光、布局稳定后持续漂移，或使用颜色表达「未连接即有问题」
 
 #### Component Variants
 
