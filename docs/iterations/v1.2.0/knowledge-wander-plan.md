@@ -2,13 +2,21 @@
 
 > 日期：2026-07-20
 >
-> 状态：Ready for implementation
+> 状态：Implemented
 >
 > 范围：完整删除连续阅读页，再从干净 Capture 基线重建 Obsidian 式领域图谱
 >
 > 产品依据：[知识漫步价值主张](knowledge-wander-value-proposition.md)
 >
 > UI 依据：[Obsidian 式知识漫步图谱 UI Spec](design/knowledge-wander-ui-spec.md)
+
+## 0. 完成记录
+
+- 连续阅读实现已在 `0388fcdb` 中完整删除并通过干净 Capture 基线验证。
+- 新版图谱已在 `5090e70c` 中实现：G6 `d3-force`、节点拖拽、画布平移缩放、hover / selected 邻域、领域范围切换和右侧现有 UnderstandingDetail。
+- 图谱输入只包含当前 Domain（含子 Domain）的 Understanding 与真实 Connection；孤立 Understanding 保留为可进入节点。
+- 普通 Capture 继续使用原列表工作区；知识漫步与 G6 通过 lazy import 独立加载。
+- renderer / main / server / CLI 单元测试、全仓 typecheck、lint、format、Electron build 和 4 条知识漫步 E2E 均已通过。
 
 ## 1. 改版结论
 

@@ -9,5 +9,5 @@
 文档索引：
 
 - [知识漫步价值主张](knowledge-wander-value-proposition.md)：当前产品方向与不可走偏的边界。
-- [知识漫步计划](knowledge-wander-plan.md)：删除连续阅读实现并从干净 Capture 基础重建图谱的实施计划。
+- [知识漫步计划与完成记录](knowledge-wander-plan.md)：删除连续阅读实现、从干净 Capture 基础重建图谱的实施计划与验证结果。
 - [知识漫步 UI Spec](design/knowledge-wander-ui-spec.md)：Obsidian 式领域图谱的当前设计决策。
