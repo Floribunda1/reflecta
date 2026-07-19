@@ -1,8 +1,10 @@
 # v1.2.0 知识漫步计划
 
 > 日期：2026-07-19
-> 状态：Implemented
+> 状态：首版已实现，产品交互待改版
 > 范围：Electron Capture、Contemplate 退役、知识瀑布流、Understanding 关系图谱
+>
+> 2026-07-20 更新：本文记录首版实现范围与工程基线。瀑布流和全局图谱不再被视为最终产品答案；改版方向与产品边界以[知识漫步价值主张](knowledge-wander-value-proposition.md)为准。
 
 ## 1. 结论
 

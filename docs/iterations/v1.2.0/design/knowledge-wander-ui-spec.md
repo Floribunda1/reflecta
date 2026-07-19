@@ -1,8 +1,10 @@
 # Design Decision: Capture / 知识漫步
 
 > 日期：2026-07-19
-> 状态：Accepted
+> 状态：首版设计记录，待改版
 > 输入依据：[v1.2.0 知识漫步计划](../knowledge-wander-plan.md)、当前 Capture design system
+>
+> 2026-07-20 更新：本文保留首版瀑布流与全局图谱的设计决策，不代表当前改版结论。后续交互应先满足[知识漫步价值主张](../knowledge-wander-value-proposition.md)，再通过真实知识库原型验证。
 
 ## 1. 页面目标
 
