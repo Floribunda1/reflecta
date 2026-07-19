@@ -1,4 +1,5 @@
 import { FileText } from "lucide-react";
+import { lazy, Suspense } from "react";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -9,7 +10,12 @@ import { DomainTree } from "./domain";
 import { UnderstandingDetail } from "./understanding-detail";
 import { UnderstandingList } from "./understanding-list";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@renderer/components/ui/empty";
+import { Skeleton } from "@renderer/components/ui/skeleton";
 import { useCaptureStore } from "./store";
+
+const KnowledgeWanderWorkspace = lazy(() =>
+  import("./knowledge-wander").then((module) => ({ default: module.KnowledgeWanderWorkspace })),
+);
 
 function CaptureAgentDock() {
   const agentDockScope = useCaptureStore((state) => state.agentDockScope);
@@ -31,6 +37,7 @@ function CaptureAgentDock() {
 }
 
 function CapturePageInner() {
+  const captureMode = useCaptureStore((state) => state.captureMode);
   const selectedUnderstandingId = useCaptureStore((state) => state.selectedUnderstandingId);
   const agentDockOpen = useCaptureStore((state) => state.agentDockOpen);
   const selectDomain = useCaptureStore((state) => state.selectDomain);
@@ -73,28 +80,40 @@ function CapturePageInner() {
           defaultSize={agentDockOpen ? "64%" : "100%"}
           className="min-h-0 min-w-0"
         >
-          <div className="grid h-full min-h-0 min-w-0 grid-cols-[minmax(280px,360px)_minmax(0,1fr)] overflow-hidden bg-transparent">
-            <UnderstandingList onChat={openAgentDock} />
-            <main className="min-h-0 min-w-0 overflow-hidden bg-transparent">
-              {selectedUnderstandingId ? (
-                <UnderstandingDetail
-                  understandingId={selectedUnderstandingId}
-                  onWikiLinkClick={handleWikiLinkClick}
-                  onChat={openAgentDock}
-                  onDeleted={() => resetAfterUnderstandingDeleted(selectedUnderstandingId)}
-                />
-              ) : (
-                <Empty className="h-full">
-                  <EmptyContent>
-                    <EmptyMedia variant="icon">
-                      <FileText />
-                    </EmptyMedia>
-                    <EmptyDescription>选择一条内容开始查看</EmptyDescription>
-                  </EmptyContent>
-                </Empty>
-              )}
-            </main>
-          </div>
+          {captureMode === "wander" ? (
+            <Suspense
+              fallback={
+                <div className="flex h-full items-center justify-center bg-background">
+                  <Skeleton className="h-24 w-52" />
+                </div>
+              }
+            >
+              <KnowledgeWanderWorkspace onChat={openAgentDock} />
+            </Suspense>
+          ) : (
+            <div className="grid h-full min-h-0 min-w-0 grid-cols-[minmax(280px,360px)_minmax(0,1fr)] overflow-hidden bg-transparent">
+              <UnderstandingList onChat={openAgentDock} />
+              <main className="min-h-0 min-w-0 overflow-hidden bg-transparent">
+                {selectedUnderstandingId ? (
+                  <UnderstandingDetail
+                    understandingId={selectedUnderstandingId}
+                    onWikiLinkClick={handleWikiLinkClick}
+                    onChat={openAgentDock}
+                    onDeleted={() => resetAfterUnderstandingDeleted(selectedUnderstandingId)}
+                  />
+                ) : (
+                  <Empty className="h-full">
+                    <EmptyContent>
+                      <EmptyMedia variant="icon">
+                        <FileText />
+                      </EmptyMedia>
+                      <EmptyDescription>选择一条内容开始查看</EmptyDescription>
+                    </EmptyContent>
+                  </Empty>
+                )}
+              </main>
+            </div>
+          )}
         </ResizablePanel>
         {agentDockOpen ? (
           <>

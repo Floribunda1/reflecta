@@ -28,7 +28,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@renderer/components/ui/context-menu";
-import { ChevronDown, ChevronRight, Layers, Plus } from "lucide-react";
+import { BookOpenText, ChevronDown, ChevronRight, Layers, Plus } from "lucide-react";
 import type { DomainTreeNode } from "@shared/domain";
 import { cn } from "@renderer/lib/utils";
 import { useDomainActions } from "../hooks";
@@ -343,6 +343,8 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
   const reconcileExpandedDomains = useCaptureStore((state) => state.reconcileExpandedDomains);
   const expandDomainAncestors = useCaptureStore((state) => state.expandDomainAncestors);
   const resetAfterDomainDeleted = useCaptureStore((state) => state.resetAfterDomainDeleted);
+  const captureMode = useCaptureStore((state) => state.captureMode);
+  const toggleKnowledgeWander = useCaptureStore((state) => state.toggleKnowledgeWander);
   const { openModal, closeModal, confirm } = useModal();
   const domainParentById = useMemo(() => buildDomainParentLookup(domains), [domains]);
   const activeDragNode = useMemo(
@@ -518,6 +520,22 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
           </DragOverlay>
         </DndContext>
       </ScrollArea>
+      <div className="border-t p-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className={cn(
+            "w-full justify-start gap-2 font-normal",
+            captureMode === "wander" && "bg-muted font-medium text-foreground",
+          )}
+          aria-pressed={captureMode === "wander"}
+          onClick={toggleKnowledgeWander}
+        >
+          <BookOpenText size={15} />
+          知识漫步
+        </Button>
+      </div>
     </aside>
   );
 }
