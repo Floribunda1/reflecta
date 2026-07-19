@@ -1,256 +1,196 @@
-# Design Decision: Capture / 知识漫步
+# Design Decision: Capture / 知识漫步连续阅读页
 
-> 日期：2026-07-19
-> 状态：首版设计记录，待改版
-> 输入依据：[v1.2.0 知识漫步计划](../knowledge-wander-plan.md)、当前 Capture design system
+> 日期：2026-07-20
 >
-> 2026-07-20 更新：本文保留首版瀑布流与全局图谱的设计决策，不代表当前改版结论。后续交互应先满足[知识漫步价值主张](../knowledge-wander-value-proposition.md)，再通过真实知识库原型验证。
+> 状态：Accepted
+>
+> 输入依据：[知识漫步价值主张](../knowledge-wander-value-proposition.md)、[Reflecta Value Proposition](../../../references/product/value-proposition.md)、当前 Capture design system
 
 ## 1. 页面目标
 
-持续积累个人 Understanding 的桌面端用户，低频进入某个领域，连续阅读自己已经写下的完整内容，并在需要时观察真实 Connection 形成的知识形状。知识漫步是 Capture 内的观察模式，不建立回顾方法、任务流程或新的顶层页面。
+持续积累 Understanding 的桌面端用户，会经常打开一个 Domain，连续翻阅自己已经形成的理解，并在值得停留的地方回到 Context 或修改原文。页面通过具体内容提供熟悉感和清晰感，不承担成就激励、复习任务或知识结构生成。
 
 ## 2. Template
 
 ```text
 CapturePage
-  w-full h-full max-w-none
-  px-0 py-0
-  overflow-hidden
+  w-full h-full max-w-none p-0 overflow-hidden
 
   WorkspaceShell
-    grid h-full
-    grid-cols-[248px_minmax(0,1fr)]
-    bg-background/45 backdrop-blur-2xl
-
+    grid h-full grid-cols-[248px_minmax(0,1fr)]
     DomainNavigation
-      flex h-full flex-col
-      DomainHeader
-      DomainTreeScroll
+      ExistingDomainTree
       KnowledgeWanderEntry
 
     WorkspaceStage
-      h-full min-w-0
-      bg-card/95 backdrop-blur-sm border-l
-
       KnowledgeWanderPanelGroup
         KnowledgeWanderSurface
-          WanderHeader
-          WaterfallView | GraphView
+          ReadingHeader
+          ReadingViewport
+            UnderstandingReadingSection[]
         UnderstandingDetailPanel (conditional)
-
       ContextualAgentDock (existing, conditional)
 ```
 
-排列逻辑：DomainNavigation 继续作为稳定语境层并保持 248px；知识漫步入口固定在领域树底部，不参与树滚动。进入知识漫步后，普通 Capture 的索引与文档两栏合并为连续观察面；只有用户点击卡片时，右侧才通过现有 resizable panel 打开 UnderstandingDetail。ContextualAgentDock 继续位于 Capture main 最右侧，知识漫步不改变其既有层级。
+DomainNavigation 继续承担领域选择；进入知识漫步只替换 Capture 主工作区，不创建新路由。阅读页从上到下连续排列当前领域内的全部 Understanding；打开详情或 Agent 时从右侧分栏，不改变底层阅读位置。
 
 ## 3. Organisms
 
 ### DomainNavigation
 
 - 容器 token：
-  - Surface：沿用 Capture 外层 `bg-background/45 backdrop-blur-2xl`，不增加独立背景
-  - Spacing：header 和 tree 完全沿用现状；footer 使用 `p-2`
-  - Border / Radius / Shadow：footer 仅使用 `border-t`；不使用圆角容器或阴影
+  - Surface：沿用 Capture 窗口底层 `bg-background/45`
+  - Spacing：树区域完全沿用现状；footer 使用 `p-2`
+  - Border / Radius / Shadow：footer 仅使用 `border-t`
 
 ```text
 aside
-  Existing DomainHeader
-  Existing DomainTreeScroll
+  ExistingDomainHeader
+  ExistingDomainTreeScroll
   KnowledgeWanderEntry
-    Button(icon: Compass, label: 知识漫步)
+    Button(icon: BookOpenText, label: 知识漫步)
 ```
 
-- 状态规则：
-  - `inactive` → `Button ghost variant`，与 DomainNodeRow 相同的低权重导航语义
-  - `active` → `bg-muted text-foreground font-medium`，并设置 `aria-pressed=true`
-- 约束：进入知识漫步后领域树仍可选；入口不显示计数、说明、new badge 或随机图标；再次点击同一入口退出知识漫步
+- 状态规则：`active` 时使用与 Domain row selected 相同的 muted 语义，并设置 `aria-pressed=true`
+- 约束：领域树始终可操作；再次点击入口退出知识漫步；不显示进度、徽章、提示语或随机图标
 
 #### Detail: KnowledgeWanderEntry
 
-- 组成：Button + Lucide Compass + 文案
+- 组成：Button + Lucide BookOpenText + 文案
 - 布局：`w-full justify-start gap-2`
-- 间距：footer `p-2`；Button 使用 shadcn `size="sm"` 默认内部间距
-- 状态规则：active 只增加 muted 背景和字重，不使用 primary 填充、border 或 shadow
-- 约束：图标与文案常驻，不在 active 时改成「退出」或「返回」
+- 间距：footer `p-2`；Button 使用 `size="sm"`
+- 状态规则：active 只使用 muted 背景和字重，不增加边框或阴影
+- 展示规则：始终显示「知识漫步」，active 时不改成「退出」
+- 约束：使用 shadcn Button 的 ghost variant，不创建新导航组件
 
 ### KnowledgeWanderSurface
 
 - 容器 token：
-  - Surface：`bg-transparent`
-  - Spacing：header 固定；内容区占据剩余高度
-  - Border / Radius / Shadow：不使用外层圆角和阴影
+  - Surface：`bg-background`
+  - Spacing：header 固定，viewport 占据剩余高度
+  - Border / Radius / Shadow：无外层圆角和阴影
 
 ```text
 main
-  WanderHeader
-  WaterfallView | GraphView
+  ReadingHeader
+  ReadingViewport
+    UnderstandingReadingSection[]
+  Empty | Skeleton[]
 ```
 
-- 状态规则：
-  - `waterfall` → 显示完整正文瀑布流
-  - `graph` → 显示 G6 图谱
-  - `empty` → 两种视图共享同一轻量 Empty
-  - `loading` → Waterfall 使用卡片 Skeleton；Graph 使用居中的 Skeleton
-- 约束：模式切换不改变领域范围；打开和关闭详情不重建底层视图或丢失 scroll/viewport
+- 状态规则：领域切换后回到阅读页顶部；打开详情时当前 Understanding 使用低权重 selected 背景
+- 约束：只存在一个连续阅读视图；无瀑布流、图谱、视图切换、搜索、排序、随机、推荐或完成操作
 
-### WanderHeader
+### ReadingHeader
 
 - 容器 token：
-  - Surface：`bg-transparent`
-  - Spacing：`h-14 px-4 flex items-center justify-between gap-3`
+  - Surface：`bg-background/95 backdrop-blur-sm`
+  - Spacing：`h-14 px-5 flex items-center`
   - Border / Radius / Shadow：`border-b`，无圆角和阴影
 
 ```text
 header
   ScopeLabel
     current Domain title
-    count meta
-  ToggleGroup(multiple: false)
-    ToggleGroupItem(icon: Columns3, 瀑布流)
-    ToggleGroupItem(icon: Share2, 图谱)
+    Understanding count
 ```
 
-- 状态规则：
-  - `view-selected` → 使用 ToggleGroupItem 现有 selected state
-- 展示规则：领域标题为空时回退「全部领域」；数量统一为「N 条理解」
-- 约束：不增加搜索、排序、包含子领域、刷新、创建、随机或 AI 操作；两个视图入口显示图标与短文案，不让用户猜图标含义
+- 展示规则：标题为空时回退「全部领域」；数量统一为「N 条理解」
+- 约束：数量只是当前内容范围，不表达完成率或成就；header 不增加任何操作按钮
 
-### WaterfallView
-
-- 容器 token：
-  - Surface：`bg-background/35`
-  - Spacing：viewport `px-5 py-6`；内容面占满可用宽度；列间距和行间距统一为 `gap-5`
-  - Border / Radius / Shadow：无外层 border、radius 或 shadow
-
-```text
-section
-  Masonic
-    UnderstandingWanderCard[]
-  Empty
-```
-
-- 状态规则：
-  - `empty` → EmptyDescription「这个领域还没有理解」
-- 约束：卡片目标列宽 520px、最大 2 列，较窄空间自然回落为单列；由 masonic 负责高度测量、列平衡和虚拟化；正文不截断；富文本首轮测高后触发一次跨列重排，避免短列断流
-
-#### Detail: UnderstandingWanderCard
-
-- 组成：clickable article surface + title + KnowledgeWanderMarkdown + Context/Connection counts + meta
-- 布局：`flex w-full flex-col gap-4 text-left`
-- 间距：`p-5`
-- 状态规则：
-  - `hover` → 只使用 `bg-muted/20`
-  - `focus-visible` → 使用现有 focus-visible ring
-  - `selected` → 详情已打开时使用 `border-primary ring-1 ring-ring/20`
-- 展示规则：标题使用现有 Understanding fallback；正文为空时显示「空理解，可以直接开始写。」；正文使用知识漫步专用的静态 Markdown renderer，保留标题、段落、列表、引用、代码、表格和图片结构；Understanding 双链沿用编辑器的主色浅底标记；全部领域范围才显示领域路径，始终显示更新时间；Context/Connection 数量复用普通 List 的 `FileText` / `Link2` 表达
-- 约束：使用 Capture 原有的 `rounded-lg border bg-card shadow-xs`；不显示操作按钮、摘要、评分或状态点；Markdown 链接在卡片中只显示为非交互文本；hover/selected 不改变尺寸和位置
-
-### GraphView
+### ReadingViewport
 
 - 容器 token：
   - Surface：`bg-background`
-  - Spacing：canvas 填满剩余空间
-  - Border / Radius / Shadow：canvas 无边框、无卡片 surface、无浮层摘要
+  - Spacing：页面级 `px-5`；每条内容通过 section 自身 padding 形成纵向节奏
+  - Border / Radius / Shadow：无容器边框、圆角和阴影
 
 ```text
 section
-  G6Canvas
-    UnderstandingDotNode[]
-    ConnectionEdge[]
+  VirtualizedReadingList
+    UnderstandingReadingSection[]
 ```
 
-- 状态规则：
-  - `node-selected` / `node-hover` → 当前节点和一跳邻居保持清晰，其他节点与边降低 opacity
-  - `layout-running` → 不额外展示进度 UI；首次进入时可见节点随力模拟逐步收敛，布局完成后停止漂移
-- 展示规则：全部 Understanding 都是同一画布里的小圆点；真实 Connection 使用低对比细线；标题在圆点下方显示为单行，并与节点一起随画布自然缩放
-- 约束：使用 G6 内置 `circle` node、line edge、D3 Force、drag-canvas、zoom-canvas 和 drag-element-force；不逆向补偿节点、边或标题尺寸；不使用摘要、未连接分区、MiniMap、React node extension、自定义 node class、Domain lane、Context node 或推断关系
+- 状态规则：切换 Domain 时滚动到顶部；打开和关闭详情时保持 scrollTop
+- 约束：使用项目已有 TanStack Virtual 处理长列表；只渲染 viewport 邻近正文；不引入新的布局或滚动依赖
 
-#### Detail: UnderstandingDotNode
+#### Detail: UnderstandingReadingSection
 
-- 组成：G6 built-in circle + single-line label
-- 布局：固定小圆点，label 位于圆点下方且最多 1 行
-- 状态规则：default / hover / selected 全部从当前 CSS semantic tokens 解析到 G6 style
-- 展示规则：标题使用与瀑布流相同 fallback；不显示正文、领域、计数和状态点
-- 约束：节点视觉直接参考 Obsidian Graph View，不模拟完整 DOM Card；缩放和平移直接使用滚轮与画布拖动，不增加可见工具栏
+- 组成：article + title button + Domain/meta + MarkdownPreview + Context/Connection counts
+- 布局：宽窗口使用 `grid grid-cols-[minmax(180px,260px)_minmax(0,1fr)]`；窄容器回落为单列
+- 间距：section 使用 `gap-6 px-1 py-7`；左侧 meta 使用 `gap-3`；正文内部节奏完全交给现有 MarkdownPreview
+- 状态规则：hover 使用轻量 muted surface；selected 使用同一 muted surface 和左侧 primary indicator；focus-visible 只出现在标题 Button
+- 展示规则：标题使用现有 fallback；正文为空时显示「空理解，可以直接开始写。」；全部领域范围显示 Domain path；始终显示更新时间、Context 数量和 Connection 数量
+- 约束：完整正文由现有 MarkdownPreview 渲染；不创建专用 Markdown parser、renderer 或样式表；section 使用分隔线而不是 Card，不截断、不总结、不显示操作按钮
 
 ### UnderstandingDetailPanel
 
 - 容器 token：
   - Surface：`bg-background`
   - Spacing：沿用现有 UnderstandingDetail
-  - Border / Radius / Shadow：左侧使用 ResizableHandle / `border-l`；无圆角和阴影
+  - Border / Radius / Shadow：左侧使用 ResizableHandle / `border-l`，无圆角和阴影
 
 ```text
 ResizablePanel
-  Button(icon: X, close)
   UnderstandingDetail(existing)
 ```
 
-- 状态规则：
-  - `open` → 占知识漫步工作区约 40%，可在 34%–56% 调整
-  - `closed` → 底层视图恢复完整宽度并保留原 scroll/viewport
-- 约束：复用现有编辑、自动保存、删除、Context 和 onChat；不创建只读 reader 或知识漫步详情组件
+- 状态规则：打开时占知识漫步工作区约 40%，可在 34%–56% 调整；关闭后阅读页恢复完整宽度并保留位置
+- 约束：复用现有编辑、Context、Connection、删除和 Agent 能力；不创建“已读”“完成”或专用阅读详情
 
 ## 4. Token Review
 
 #### Surface Hierarchy
 
-- 统一规则：DomainNavigation 使用窗口底层材质；WorkspaceStage 使用 `bg-card/95`；瀑布流使用 `bg-background/35`，图谱和详情使用 `bg-background`
-- 禁止：使用渐变、彩色图谱背景或脱离现有 card/ring tokens 的 dashboard surface
+- 统一规则：DomainNavigation 使用窗口底层材质；阅读页和详情使用 background；section 只在 hover/selected 时使用 muted
+- 禁止：卡片海洋、渐变、彩色背景、额外 surface 层或图谱画布
 
 #### Typography
 
-- 统一规则：header 领域名使用 `text-sm font-medium`；数量与 meta 使用 `text-xs text-muted-foreground`；瀑布流标题使用 `text-base font-semibold`；正文使用 `text-[15px] leading-[1.75]` 的舒展阅读节奏；图谱节点只使用一个 label 层级
-- 禁止：为图谱另建字体、字号系统，或让 meta 与正文同权重
+- 统一规则：header 领域名使用 `text-sm font-medium`；section 标题使用 `text-base font-semibold`；正文沿用 MarkdownPreview；meta 使用 `text-xs text-muted-foreground`
+- 禁止：用超大标题、数字或粗体统计制造成就感
 
 #### Spacing Rhythm
 
-- 统一规则：页面级无 padding；header 使用 `px-4`；瀑布流使用 `px-5 py-6` 和卡片 `p-5`
-- 禁止：同一层级混用临时 `gap-1/2/4/6`，或通过卡片 margin 制造 Masonry gutter
+- 统一规则：页面级 `px-5`；section 级 `py-7`；section 内部 `gap-6`；meta 内部 `gap-3`
+- 禁止：通过 Card margin、Masonry gutter 或不一致 padding 制造节奏
 
 #### Interaction State
 
-- 统一规则：DOM 交互使用 shadcn 默认 hover/focus；业务 selected 只映射到 muted/primary semantic tokens；G6 state 从同一 token 解析
-- 禁止：hover 位移、缩放、发光、布局稳定后持续漂移，或使用颜色表达「未连接即有问题」
+- 统一规则：入口 active 与 Domain row selected 共用 muted 语义；section selected 只表达当前详情对象；标题使用 shadcn/Button 可访问 focus
+- 禁止：hover 位移、缩放、阴影、发光，或用颜色表达未连接 Understanding 有问题
 
 #### Component Variants
 
-- 统一规则：入口与 viewport controls 使用 `Button ghost variant`；视图选择使用 `ToggleGroup outline variant`；Empty/Skeleton 沿用现有配置
-- 禁止：在同一语义位置混用 default/destructive/secondary variant
+- 统一规则：入口使用 Button ghost；详情使用现有 Resizable primitives；空状态与加载态复用现有 Empty/Skeleton
+- 禁止：为阅读页创建新的通用 Button、Card、Tabs 或 Toggle 变体
 
 #### Hard-coded Values
 
-- 统一规则：DOM 使用 Tailwind semantic classes；G6 canvas 初始化时读取 `--background`、`--card`、`--foreground`、`--muted-foreground`、`--border`、`--primary`、`--ring`、`--radius`
-- 禁止：在组件或 G6 options 中写 `#fff`、`#1677ff`、Tailwind 色阶或另一套 dark-mode 常量
+- 统一规则：全部视觉值使用 Tailwind semantic classes 和现有组件 token
+- 禁止：硬编码色值、Tailwind 色阶或专属 dark-mode 常量
 
 ## 5. Atoms 索引
 
-| 组件                | Variant / 配置                                       | 使用位置                          |
-| ------------------- | ---------------------------------------------------- | --------------------------------- |
-| Button              | `ghost variant`, `size="sm"`                         | KnowledgeWanderEntry              |
-| Button              | `ghost variant`, `size="icon-sm"`                    | 详情关闭                          |
-| ToggleGroup         | `multiple={false}`, `variant="outline"`, `size="sm"` | WanderHeader                      |
-| ToggleGroupItem     | `outline variant`, `size="sm"`                       | 瀑布流 / 图谱切换                 |
-| Empty               | existing default configuration                       | 知识漫步共享空状态                |
-| EmptyContent        | existing default configuration                       | 空状态内容                        |
-| EmptyMedia          | `variant="icon"`                                     | 空状态图标                        |
-| EmptyDescription    | existing default configuration                       | 空状态文案                        |
-| Skeleton            | existing default configuration                       | 瀑布流和图谱加载态                |
-| ResizablePanelGroup | `orientation="horizontal"`                           | KnowledgeWanderPanelGroup         |
-| ResizablePanel      | percentage size constraints                          | Surface、UnderstandingDetailPanel |
-| ResizableHandle     | `withHandle`                                         | 详情面板分隔                      |
-| Tooltip             | existing default configuration                       | icon-only viewport controls       |
+| 组件                | Variant / 配置                   | 使用位置                     |
+| ------------------- | -------------------------------- | ---------------------------- |
+| Button              | `ghost variant`, `size="sm"`     | KnowledgeWanderEntry         |
+| Button              | `link variant`, `size="default"` | Understanding title          |
+| Empty               | `className="h-full"`             | 空领域 / 查询失败            |
+| EmptyContent        | base configuration               | 空状态内容                   |
+| EmptyMedia          | `variant="icon"`                 | 空状态图标                   |
+| EmptyDescription    | base configuration               | 空状态文案                   |
+| Skeleton            | `className="h-48"`               | 正文列表加载态               |
+| ResizablePanelGroup | `orientation="horizontal"`       | KnowledgeWanderPanelGroup    |
+| ResizablePanel      | percentage size constraints      | 阅读页 / UnderstandingDetail |
+| ResizableHandle     | `withHandle`                     | 详情分隔                     |
 
 ## 6. 不做的决策
 
-- 不新增顶层「知识漫步」或保留 Contemplate。
-- 不让点击领域自动退出知识漫步；领域只改变观察范围。
-- 不加入随机、推荐、AI 摘要、回顾任务、计分或固定问题。
-- 不在 header 增加搜索、排序、筛选、刷新和新建操作。
-- 不把瀑布流做成普通 Capture 索引；这里明确展示完整正文卡片。
-- 不让瀑布流卡片展示 Context、Connection 健康度或可见操作按钮。
-- 不在图谱展示 Domain/Context 节点、Domain lane、外部领域节点或推断关系。
-- 不使用 G6 React node extension、自定义 HTML node、G6 Toolbar 或平行 design system。
-- 不持久化知识漫步 mode、view、graph node positions 或 viewport。
-- 不为不同窗口宽度维护独立页面结构；列数由 masonic 响应式计算。
+- ❌ **不保留瀑布流** → Masonry 强调同屏数量和空间填充，不符合连续进入具体理解的阅读动作。
+- ❌ **不保留全局图谱** → 大量孤立 Understanding 无法从图谱获得内容价值，图谱也不能替代阅读。
+- ❌ **不提供阅读模式切换** → 同一条连续页面已经允许慢读和快扫，额外模式只会增加选择成本。
+- ❌ **不创建 Markdown renderer** → 现有 MarkdownPreview 已覆盖正文展示，重复解析和样式会形成第二套系统。
+- ❌ **不显示进度或完成状态** → 知识漫步不是成就或复习模块，位置不能被包装成任务进度。
+- ❌ **不提供随机、推荐和自动路径** → 顺序必须稳定可理解，系统不替用户构造知识关系。
+- ❌ **不创建卡片视觉系统** → section 分隔足以表达内容边界，并能降低浏览时的视觉噪音。
