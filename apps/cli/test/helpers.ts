@@ -1,10 +1,36 @@
 import { runCli } from "../src/cli";
 import { execSync } from "node:child_process";
+import os from "node:os";
+import path from "node:path";
 
 export interface CommandResult {
   code: number;
   stdout: string;
   stderr: string;
+}
+
+export function getCliTestRuntimeArgs(
+  env: Record<string, string | undefined> = process.env,
+): string[] {
+  const contentRoot = env.REFLECTA_CONTENT_STORAGE_ROOT;
+  const appConfigDir = env.REFLECTA_APP_CONFIG_DIR;
+  const dbPath = env.REFLECTA_DB_PATH;
+  const allowedRoot = path.resolve(os.tmpdir(), "reflecta-cli-test");
+  const resolvedContentRoot = contentRoot ? path.resolve(contentRoot) : "";
+  const resolvedAppConfigDir = appConfigDir ? path.resolve(appConfigDir) : "";
+  const resolvedDbPath = dbPath ? path.resolve(dbPath) : "";
+
+  if (
+    !resolvedContentRoot.startsWith(`${allowedRoot}${path.sep}`) ||
+    resolvedAppConfigDir !== path.join(resolvedContentRoot, "config") ||
+    resolvedDbPath !== path.join(resolvedContentRoot, "reflecta.db")
+  ) {
+    throw new Error(
+      "Refusing to run CLI tests without an isolated temporary database. Use `bun run test`, not `bun test`.",
+    );
+  }
+
+  return ["--content-root", resolvedContentRoot, "--app-config-dir", resolvedAppConfigDir];
 }
 
 /**
@@ -15,16 +41,7 @@ export async function runCommand(argv: string[]): Promise<CommandResult> {
   const stderrLines: string[] = [];
   const shouldInjectRuntimeArgs =
     argv.length > 0 && !argv.includes("--help") && !argv.includes("-h");
-  const runtimeArgs = shouldInjectRuntimeArgs
-    ? [
-        ...(process.env.REFLECTA_CONTENT_STORAGE_ROOT
-          ? ["--content-root", process.env.REFLECTA_CONTENT_STORAGE_ROOT]
-          : []),
-        ...(process.env.REFLECTA_APP_CONFIG_DIR
-          ? ["--app-config-dir", process.env.REFLECTA_APP_CONFIG_DIR]
-          : []),
-      ]
-    : [];
+  const runtimeArgs = shouldInjectRuntimeArgs ? getCliTestRuntimeArgs() : [];
 
   const origLog = console.log;
   const origErr = console.error;
