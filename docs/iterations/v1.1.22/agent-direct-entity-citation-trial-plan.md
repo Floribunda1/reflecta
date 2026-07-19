@@ -1,7 +1,7 @@
 # Agent 直接实体 ID Citation 试验计划
 
 > 版本：v1.1.22  
-> 状态：Trial passed，本分支已切换为唯一 Agent citation 路径  
+> 状态：DeepSeek 压测中身份可靠性通过；exact-once 尚有 1/220 轮失败  
 > 分支：`codex/citation-short-id-protocol`  
 > 范围：Agent prompt、正文引用协议、session persistence、chat renderer、title freshness、可靠性测试
 
@@ -417,18 +417,14 @@ Feature 只描述用户可见行为，不写 `[[u:id]]`、React Query 或 sessio
 
 场景矩阵：
 
-| 场景族                              | 要观察的风险                       |
-| ----------------------------------- | ---------------------------------- |
-| 用户显式 @ 一个实体并要求引用       | 最短主路径                         |
-| read-only tool 返回一个实体后引用   | 工具结果到正文复制                 |
-| 同类型多个实体                      | ID 串线或混写                      |
-| Understanding、Context、Domain 混合 | type 前缀错误                      |
-| 下一轮继续讨论历史中出现的实体      | 历史复制与可用范围                 |
-| 先引用实体，再对同一实体调用读工具  | marker 是否污染工具参数            |
-| 引用一个实体，同时修改另一个实体    | 正文身份与 write tool 身份是否串线 |
-| Markdown 标题、列表、代码混合回复   | marker 格式与位置稳定性            |
+| 场景族                       | 压力规模            | 要观察的风险                      |
+| ---------------------------- | ------------------- | --------------------------------- |
+| 大目录中的延迟引用           | 64 个实体、8 轮     | 长历史后漏引或选错远距离目标      |
+| 近似 ID 与 citation 密集历史 | 36 个近似 ID、14 轮 | ID 串线、拼接或重复               |
+| 同名跨类型实体               | 48 个实体、10 轮    | 相同 title 下 type 与 ID 错配     |
+| 工具新增实体与 Markdown 噪声 | 48 个实体、12 轮    | 工具参数污染、伪 marker、后期召回 |
 
-最低样本：每个场景族重复 5 次，即每种协议 40 次；至少覆盖当前默认 release model。若准备同时支持多个主要 provider/model，每个准备发布的模型分别跑同样矩阵，结果不能混算。
+每个场景族重复 5 次，每种协议 20 个会话。一次完整 DeepSeek 压测共 40 个会话、440 轮模型交互；每种协议要求生成 1000 个目标 citation。
 
 执行约束：
 
@@ -442,7 +438,7 @@ Feature 只描述用户可见行为，不写 `[[u:id]]`、React Query 或 sessio
 每次 run 记录：
 
 - prompt 中允许的 `{type,id}`；
-- final text 中 complete、malformed、unknown marker；
+- 每轮 final text 中 complete、malformed、unknown marker；
 - marker 对应的预期实体；
 - 每次 tool call 的真实 ID 参数；
 - UI 完成态是否出现 raw protocol；
@@ -450,19 +446,21 @@ Feature 只描述用户可见行为，不写 `[[u:id]]`、React Query 或 sessio
 
 通过门槛：
 
-| 指标                                                 | Gate                                     |
-| ---------------------------------------------------- | ---------------------------------------- |
-| 已生成 marker 的 type + ID 绑定正确率                | 100%                                     |
-| 工具参数中出现 `[[...]]`、`[n]` 或其他 display token | 0 次                                     |
-| 已输出的 citation-like token 为合法 direct marker    | 100%                                     |
-| 要求引用时的 citation coverage                       | 不比 numbered baseline 低超过 5 个百分点 |
-| 最终 UI raw protocol 泄漏                            | 0 次                                     |
-| 改名、重启后的 title freshness                       | 100%                                     |
-| parser + render 额外本地耗时                         | p95 不高于 100 ms                        |
+| 指标                                                 | Gate              |
+| ---------------------------------------------------- | ----------------- |
+| 已生成 marker 的 type + ID 绑定正确率                | 100%              |
+| 工具参数中出现 `[[...]]`、`[n]` 或其他 display token | 0 次              |
+| 已输出的 citation-like token 为合法 direct marker    | 100%              |
+| 每轮要求引用的目标 coverage                          | 100%              |
+| 只引用指定实体且各出现一次                           | 100%              |
+| 长对话末轮重新引用                                   | 100%              |
+| 最终 UI raw protocol 泄漏                            | 0 次              |
+| 改名、重启后的 title freshness                       | 100%              |
+| parser + render 额外本地耗时                         | p95 不高于 100 ms |
 
 绑定错误或工具 ID 污染属于 hard failure；不能用提高语法有效率的平均值抵消。
 
-如果第一次失败，只允许做一轮 prompt wording 调整并完整重跑。第二次仍有 hard failure，则结论是“direct ID 方案对当前模型不够可靠”，回到 numbered citation，而不是继续增加 registry、修复器或二次 LLM。
+ID/type 错配或工具参数污染属于架构 hard failure；单纯重复一个正确 citation 属于输出 multiplicity 问题，单独决定是否收紧 prompt，不据此增加 mapping、registry、修复器或二次 LLM。
 
 ## 7. 实施顺序
 
@@ -560,7 +558,9 @@ rtk bun run test:e2e
 
 - deterministic unit、typecheck、lint、format 全部通过；
 - citation E2E 已覆盖当前标题、改名、删除、三类型、流式和重启恢复，全部通过；
-- 默认 release model `openai-codex/gpt-5.6-sol` 的真实模型 A/B 共 80 次，direct 与 numbered 均为 40/40，通过全部 hard gate；
+- `deepseek/deepseek-v4-flash` 真实 A/B 共 40 个会话、440 轮；每种协议要求 1000 个目标 citation；
+- direct 的目标 coverage、type + ID、长对话末轮引用和工具参数均为 100%；exact-once 为 99.5%，唯一失败是重复了一个正确 citation；
+- numbered 的目标 coverage 为 96.4%，exact-once 为 94.5%，压力场景中出现编号串线；
 - 完整 E2E 已执行；其中独立的后台对话恢复用例仍有超时，和 citation 数据流无关，不影响本试验判定。
 
 详细数据见 [Citation 真实模型 A/B 报告](./evals/citation-reliability-report.md)。

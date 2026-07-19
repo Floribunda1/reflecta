@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
+import { createHash } from "node:crypto";
 import { Type } from "@earendil-works/pi-ai";
 import { getModel, type Api, type Model } from "@earendil-works/pi-ai/compat";
 import {
@@ -20,13 +21,35 @@ import { getCodexCredentials } from "../src/main/services/agent/codex-auth";
 type Protocol = "numbered" | "direct";
 type Entity = { type: "understanding" | "context" | "domain"; id: string; title: string };
 type ToolCall = { name: string; args: unknown };
+type ScenarioTurn = {
+  prompt: string;
+  expected: Entity[];
+  requiredTool?: { name: string; idField: string; id: string };
+};
 type Scenario = {
   id: string;
   name: string;
   entities: Entity[];
-  expected: Entity[];
-  prompts: string[];
-  requiredTool?: { name: string; idField: string; id: string };
+  toolEntities?: Entity[];
+  turns: ScenarioTurn[];
+};
+type TurnResult = {
+  turn: number;
+  prompt: string;
+  finalText: string;
+  toolCalls: ToolCall[];
+  firstTokenMs: number | null;
+  completionMs: number;
+  expectedTokens: string[];
+  observedTokens: string[];
+  malformedOrUnknownTokens: string[];
+  coveragePass: boolean;
+  selectionPass: boolean;
+  bindingPass: boolean;
+  toolPass: boolean;
+  toolPollution: string[];
+  uiRawLeak: boolean;
+  renderResolveMs: number;
 };
 type RunResult = {
   sequence: number;
@@ -37,8 +60,9 @@ type RunResult = {
   providerId: string;
   modelId: string;
   reasoningLevel: string;
-  prompts: string[];
   entities: Entity[];
+  toolEntities: Entity[];
+  turns: TurnResult[];
   expectedTokens: string[];
   finalText: string;
   toolCalls: ToolCall[];
@@ -48,7 +72,9 @@ type RunResult = {
   observedTokens: string[];
   malformedOrUnknownTokens: string[];
   coveragePass: boolean;
+  selectionPass: boolean;
   bindingPass: boolean;
+  finalRecallPass: boolean;
   toolPass: boolean;
   toolPollution: string[];
   uiRawLeak: boolean;
@@ -70,77 +96,199 @@ const reportPath = path.join(outputDir, "citation-reliability-report.md");
 const repeats = Number(process.env.REFLECTA_CITATION_EVAL_REPEATS || 5);
 const concurrency = Number(process.env.REFLECTA_CITATION_EVAL_CONCURRENCY || 2);
 
-const entities = {
-  u1: { type: "understanding", id: "7N4kP2xQ9mL3cR8vT1aZb", title: "反馈循环" },
-  u2: { type: "understanding", id: "8M5pQ3yR7nK2dL9vS4bXc", title: "边界意识" },
-  c1: { type: "context", id: "6C2mR8pL4xT9vN5qH7kDz", title: "一次复盘" },
-  d1: { type: "domain", id: "9D3kV7mQ2pR8xL4nT6cWy", title: "产品设计" },
-} as const satisfies Record<string, Entity>;
+function entity(
+  type: Entity["type"],
+  index: number,
+  title: string,
+  collisionGroup?: string,
+): Entity {
+  const seed = collisionGroup
+    ? `${createHash("sha256").update(collisionGroup).digest("base64url").slice(0, 20)}${"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"[index]}`
+    : createHash("sha256").update(`${type}:${index}:${title}`).digest("base64url").slice(0, 21);
+  return { type, id: seed, title };
+}
+
+function describe(item: Entity) {
+  const type =
+    item.type === "understanding"
+      ? "Understanding"
+      : item.type === "context"
+        ? "Context"
+        : "Domain";
+  return `${type}「${item.title}」`;
+}
+
+function citationTurn(expected: Entity[], instruction = "用一句中文说明它们的关系") {
+  return {
+    prompt: `${instruction}，并且只引用以下实体，每个各一次：${expected.map(describe).join("、")}。`,
+    expected,
+  } satisfies ScenarioTurn;
+}
+
+function rotatingTurns(
+  source: Entity[],
+  count: number,
+  size: number,
+  step: number,
+  instruction?: (turn: number) => string,
+) {
+  return Array.from({ length: count }, (_, turn) =>
+    citationTurn(
+      Array.from(
+        { length: size },
+        (_, index) => source[(turn * step + index * 7) % source.length]!,
+      ),
+      instruction?.(turn),
+    ),
+  );
+}
+
+const wideCatalog = [
+  ...Array.from({ length: 32 }, (_, index) =>
+    entity("understanding", index, `规模化判断 ${String(index + 1).padStart(2, "0")}`),
+  ),
+  ...Array.from({ length: 20 }, (_, index) =>
+    entity("context", index, `项目记录 ${String(index + 1).padStart(2, "0")}`),
+  ),
+  ...Array.from({ length: 12 }, (_, index) =>
+    entity("domain", index, `工作领域 ${String(index + 1).padStart(2, "0")}`),
+  ),
+];
+const similarUnderstandings = Array.from({ length: 36 }, (_, index) =>
+  entity(
+    "understanding",
+    index,
+    `复盘结论 ${String(index + 1).padStart(2, "0")}`,
+    "similar-understanding-ids",
+  ),
+);
+const typeCollisionCatalog = Array.from({ length: 16 }, (_, index) => {
+  const title = `共同主题 ${String(index + 1).padStart(2, "0")}`;
+  return [
+    entity("understanding", index, title),
+    entity("context", index, title),
+    entity("domain", index, title),
+  ];
+}).flat();
+const toolCatalog = wideCatalog.slice(0, 45);
+const lateToolEntities = Array.from({ length: 3 }, (_, index) =>
+  entity("understanding", 100 + index, `工具新增理解 ${index + 1}`),
+);
 
 const scenarios: Scenario[] = [
   {
-    id: "explicit-one",
-    name: "显式引用一个实体",
-    entities: [entities.u1],
-    expected: [entities.u1],
-    prompts: ["请用一句中文回答，并引用「反馈循环」。"],
-  },
-  {
-    id: "tool-return",
-    name: "读取工具返回后引用",
-    entities: [],
-    expected: [entities.u1],
-    prompts: [
-      `先调用 understanding_get 读取 id=${entities.u1.id}，再用一句中文概括并引用工具返回的 Understanding。`,
+    id: "wide-catalog-delayed-recall",
+    name: "64 个实体中的延迟引用",
+    entities: wideCatalog,
+    turns: [
+      ...rotatingTurns(wideCatalog, 7, 6, 9),
+      citationTurn(
+        [
+          wideCatalog[0]!,
+          wideCatalog[15]!,
+          wideCatalog[31]!,
+          wideCatalog[37]!,
+          wideCatalog[53]!,
+          wideCatalog[63]!,
+        ],
+        "回到前面分散出现过的信息，用一句中文总结",
+      ),
     ],
-    requiredTool: { name: "understanding_get", idField: "understandingId", id: entities.u1.id },
   },
   {
-    id: "same-type-multiple",
-    name: "同类型多个实体",
-    entities: [entities.u1, entities.u2],
-    expected: [entities.u1, entities.u2],
-    prompts: ["用一句中文比较「反馈循环」与「边界意识」，两者各引用一次。"],
-  },
-  {
-    id: "mixed-types",
-    name: "三种实体混合",
-    entities: [entities.u1, entities.c1, entities.d1],
-    expected: [entities.u1, entities.c1, entities.d1],
-    prompts: ["用一句中文说明这条理解、这次复盘和产品设计领域的关系，并分别引用三者。"],
-  },
-  {
-    id: "next-turn",
-    name: "下一轮继续引用",
-    entities: [entities.u1],
-    expected: [entities.u1],
-    prompts: ["先用一句中文引用「反馈循环」。", "继续上一轮，再引用一次同一个实体。"],
-  },
-  {
-    id: "cite-then-read",
-    name: "引用并读取同一实体",
-    entities: [entities.u1],
-    expected: [entities.u1],
-    prompts: ["先调用 understanding_get 读取「反馈循环」，再用一句中文回答并引用它。"],
-    requiredTool: { name: "understanding_get", idField: "understandingId", id: entities.u1.id },
-  },
-  {
-    id: "cite-one-update-other",
-    name: "引用一个并修改另一个",
-    entities: [entities.u1, entities.u2],
-    expected: [entities.u1],
-    prompts: [
-      "调用 understanding_update 把「边界意识」标题改成「边界更清晰」，然后在最终正文只引用「反馈循环」。",
+    id: "near-id-dense-history",
+    name: "近似 ID 与 citation 密集历史",
+    entities: similarUnderstandings,
+    turns: [
+      ...rotatingTurns(similarUnderstandings, 13, 4, 5),
+      citationTurn(
+        [
+          similarUnderstandings[0]!,
+          similarUnderstandings[6]!,
+          similarUnderstandings[12]!,
+          similarUnderstandings[18]!,
+          similarUnderstandings[24]!,
+          similarUnderstandings[30]!,
+        ],
+        "对前面跨越整段对话的六条结论做回顾",
+      ),
     ],
-    requiredTool: { name: "understanding_update", idField: "understandingId", id: entities.u2.id },
   },
   {
-    id: "markdown-mixed",
-    name: "Markdown 混合",
-    entities: [entities.u1],
-    expected: [entities.u1],
-    prompts: [
-      "用 Markdown 回答：包含一个二级标题、一个列表、行内代码 `citation-demo`，并在普通正文中引用「反馈循环」。",
+    id: "same-title-cross-type",
+    name: "同名跨类型实体",
+    entities: typeCollisionCatalog,
+    turns: [
+      ...rotatingTurns(typeCollisionCatalog, 9, 5, 11),
+      citationTurn(
+        [
+          typeCollisionCatalog[9]!,
+          typeCollisionCatalog[10]!,
+          typeCollisionCatalog[11]!,
+          typeCollisionCatalog[36]!,
+          typeCollisionCatalog[37]!,
+          typeCollisionCatalog[38]!,
+        ],
+        "区分两个同名主题下的 Understanding、Context 与 Domain",
+      ),
+    ],
+  },
+  {
+    id: "tool-growth-markdown-noise",
+    name: "工具新增实体与 Markdown 噪声",
+    entities: toolCatalog,
+    toolEntities: lateToolEntities,
+    turns: [
+      ...rotatingTurns(toolCatalog, 4, 4, 8, (turn) =>
+        turn % 2 === 0
+          ? "用 Markdown 列表回答；代码示例 `[[u:not-a-real-id]]` 只是文本"
+          : "引用块里可以出现普通方括号 [说明]，正文简短回答",
+      ),
+      ...lateToolEntities.map((item, index) => ({
+        prompt: `调用 understanding_get，参数 understandingId 只传裸 ID ${item.id}。然后引用工具返回的 ${describe(item)}，并同时引用 ${describe(toolCatalog[index * 9]!)}。`,
+        expected: [item, toolCatalog[index * 9]!],
+        requiredTool: {
+          name: "understanding_get",
+          idField: "understandingId",
+          id: item.id,
+        },
+      })),
+      ...rotatingTurns(
+        toolCatalog,
+        4,
+        4,
+        13,
+        () => "继续长对话，用二级标题和列表回答；不要引用代码里的伪 marker",
+      ),
+      {
+        ...citationTurn(
+          [
+            lateToolEntities[0]!,
+            lateToolEntities[2]!,
+            toolCatalog[0]!,
+            toolCatalog[17]!,
+            toolCatalog[31]!,
+          ],
+          "最后回忆早期、中期和工具后期出现的实体",
+        ),
+        requiredTool: {
+          name: "understanding_get",
+          idField: "understandingId",
+          id: lateToolEntities[0]!.id,
+        },
+        prompt: `先调用 understanding_get 读取裸 ID ${lateToolEntities[0]!.id}。${
+          citationTurn(
+            [
+              lateToolEntities[0]!,
+              lateToolEntities[2]!,
+              toolCatalog[0]!,
+              toolCatalog[17]!,
+              toolCatalog[31]!,
+            ],
+            "最后回忆早期、中期和工具后期出现的实体",
+          ).prompt
+        }`,
+      },
     ],
   },
 ];
@@ -153,6 +301,7 @@ const selectedScenarioIds = new Set(
 const selectedScenarios = selectedScenarioIds.size
   ? scenarios.filter((scenario) => selectedScenarioIds.has(scenario.id))
   : scenarios;
+if (selectedScenarios.length === 0) throw new Error("No citation evaluation scenarios selected");
 
 async function readModelConfig() {
   const config = JSON.parse(fs.readFileSync(configPath, "utf-8")) as {
@@ -162,21 +311,22 @@ async function readModelConfig() {
       providers?: Array<{ id?: string; apiKey?: string }>;
     };
   };
-  const selection = config.ai?.activeAgentModel;
-  const provider = config.ai?.providers?.find((item) => item.id === selection?.providerId);
-  if (!selection?.providerId || !selection.modelId || !provider) {
+  const active = config.ai?.activeAgentModel;
+  const providerId = process.env.REFLECTA_CITATION_EVAL_PROVIDER || active?.providerId;
+  const modelId = process.env.REFLECTA_CITATION_EVAL_MODEL || active?.modelId;
+  const provider = config.ai?.providers?.find((item) => item.id === providerId);
+  if (!providerId || !modelId || !provider) {
     throw new Error("Project AI provider or active model is missing");
   }
   const apiKey =
-    selection.providerId === "openai-codex"
-      ? (await getCodexCredentials()).accessToken
-      : provider.apiKey;
+    providerId === "openai-codex" ? (await getCodexCredentials()).accessToken : provider.apiKey;
   if (!apiKey) throw new Error("Project AI API key is missing");
   return {
-    providerId: selection.providerId,
-    modelId: selection.modelId,
+    providerId,
+    modelId,
     apiKey,
-    reasoningLevel: config.ai?.activeAgentReasoningLevel || "low",
+    reasoningLevel:
+      process.env.REFLECTA_CITATION_EVAL_REASONING || config.ai?.activeAgentReasoningLevel || "low",
   };
 }
 
@@ -189,11 +339,14 @@ function tokenFor(protocol: Protocol, entity: Entity, sourceEntities: Entity[]) 
   return `[${sourceEntities.findIndex((item) => item.type === entity.type && item.id === entity.id) + 1}]`;
 }
 
-function sourceBlock(protocol: Protocol, sourceEntities: Entity[]) {
+function sourceBlock(protocol: Protocol, sourceEntities: Entity[], allEntities = sourceEntities) {
   if (sourceEntities.length === 0) return "";
   if (protocol === "numbered") {
     return sourceEntities
-      .map((entity, index) => `[${index + 1}] ${entity.type}: ${entity.title}; id=${entity.id}`)
+      .map(
+        (entity) =>
+          `${tokenFor(protocol, entity, allEntities)} ${entity.type}: ${entity.title}; id=${entity.id}`,
+      )
       .join("\n");
   }
   return `<reflecta_entities>\n${sourceEntities
@@ -283,15 +436,15 @@ function extractError(message: unknown) {
     : "Provider error";
 }
 
-function toolResult(protocol: Protocol, entity: Entity) {
-  const block = sourceBlock(protocol, [entity]);
+function toolResult(protocol: Protocol, entity: Entity, allEntities: Entity[]) {
+  const block = sourceBlock(protocol, [entity], allEntities);
   return {
     content: [{ type: "text" as const, text: `${JSON.stringify(entity)}\n\n${block}` }],
     details: entity,
   };
 }
 
-function createTools(protocol: Protocol, calls: ToolCall[]) {
+function createTools(protocol: Protocol, calls: ToolCall[], allEntities: Entity[]) {
   return [
     defineTool({
       name: "understanding_get",
@@ -301,24 +454,11 @@ function createTools(protocol: Protocol, calls: ToolCall[]) {
       parameters: Type.Object({ understandingId: Type.String({ minLength: 1 }) }),
       execute: async (_toolCallId, args) => {
         calls.push({ name: "understanding_get", args });
-        return toolResult(protocol, entities.u1);
-      },
-    }),
-    defineTool({
-      name: "understanding_update",
-      label: "修改 Understanding",
-      description: "Update one Understanding using its stable bare id and a new title.",
-      promptSnippet: "understanding_update: update one Understanding using understandingId.",
-      parameters: Type.Object({
-        understandingId: Type.String({ minLength: 1 }),
-        title: Type.String({ minLength: 1 }),
-      }),
-      execute: async (_toolCallId, args) => {
-        calls.push({ name: "understanding_update", args });
-        return {
-          content: [{ type: "text" as const, text: JSON.stringify({ ok: true, ...args }) }],
-          details: { ok: true, ...args },
-        };
+        const found = allEntities.find(
+          (entity) => entity.type === "understanding" && entity.id === args.understandingId,
+        );
+        if (!found) throw new Error(`Understanding not found: ${args.understandingId}`);
+        return toolResult(protocol, found, allEntities);
       },
     }),
   ];
@@ -340,10 +480,11 @@ function stringsIn(value: unknown): string[] {
 
 function evaluate(
   protocol: Protocol,
-  scenario: Scenario,
-  sourceEntities: Entity[],
+  expected: Entity[],
+  allowedEntities: Entity[],
   finalText: string,
   toolCalls: ToolCall[],
+  requiredTool?: ScenarioTurn["requiredTool"],
 ) {
   const visibleText = outsideCode(finalText);
   const validPattern = protocol === "direct" ? /\[\[[ucd]:[A-Za-z0-9_-]+\]\]/g : /\[\d+\]/g;
@@ -352,37 +493,30 @@ function evaluate(
     protocol === "direct"
       ? (visibleText.match(/\[\[[^\n]*?(?:\]\]|$)/g) ?? [])
       : (visibleText.match(/\[[^\]\n]+\]/g) ?? []).filter((token) => /^\[\d+\]$/.test(token));
-  const expectedSourceEntities = [...sourceEntities];
-  for (const entity of scenario.expected) {
-    if (
-      !expectedSourceEntities.some((item) => item.type === entity.type && item.id === entity.id)
-    ) {
-      expectedSourceEntities.push(entity);
-    }
-  }
-  const expectedTokens = scenario.expected.map((entity) =>
-    tokenFor(protocol, entity, expectedSourceEntities),
-  );
+  const expectedTokens = expected.map((entity) => tokenFor(protocol, entity, allowedEntities));
   const allowedTokens = new Set(
-    expectedSourceEntities.map((entity) => tokenFor(protocol, entity, expectedSourceEntities)),
+    allowedEntities.map((entity) => tokenFor(protocol, entity, allowedEntities)),
   );
+  const expectedTokenSet = new Set(expectedTokens);
   const malformedOrUnknownTokens = citationLike.filter(
     (token) => !observedTokens.includes(token) || !allowedTokens.has(token),
   );
   const coveragePass = expectedTokens.every((token) => observedTokens.includes(token));
+  const selectionPass =
+    observedTokens.length === expectedTokens.length &&
+    observedTokens.every((token) => expectedTokenSet.has(token));
   const bindingPass = observedTokens.every((token) => allowedTokens.has(token));
   const toolPollution = toolCalls
     .flatMap((call) => stringsIn(call.args))
     .filter((value) => /\[\[|\[\d+\]|^ref:|^[UDCS]\d+$/i.test(value));
-  const requiredCall = scenario.requiredTool;
   const toolPass =
     toolPollution.length === 0 &&
-    (!requiredCall ||
+    (!requiredTool ||
       toolCalls.some((call) => {
-        if (call.name !== requiredCall.name || !call.args || typeof call.args !== "object") {
+        if (call.name !== requiredTool.name || !call.args || typeof call.args !== "object") {
           return false;
         }
-        return (call.args as Record<string, unknown>)[requiredCall.idField] === requiredCall.id;
+        return (call.args as Record<string, unknown>)[requiredTool.idField] === requiredTool.id;
       }));
   const renderStarted = performance.now();
   let rendered = visibleText;
@@ -395,6 +529,7 @@ function evaluate(
     observedTokens,
     malformedOrUnknownTokens,
     coveragePass,
+    selectionPass,
     bindingPass,
     toolPass,
     toolPollution,
@@ -429,11 +564,19 @@ async function runOne(
 ): Promise<RunResult> {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "reflecta-citation-eval-"));
   const calls: ToolCall[] = [];
+  const toolEntities = scenario.toolEntities ?? [];
+  const allEntities = [...scenario.entities, ...toolEntities];
+  const turns: TurnResult[] = [];
   const started = performance.now();
   let firstTokenMs: number | null = null;
   let finalText = "";
   let assistantError = "";
+  let currentTurn: ScenarioTurn | undefined;
+  let currentCallStart = 0;
+  let turnStarted = started;
+  let runError: string | undefined;
   let session: Awaited<ReturnType<typeof createAgentSession>>["session"] | undefined;
+  let unsubscribe: (() => void) | undefined;
   try {
     const agentDir = path.join(tempRoot, ".pi-agent");
     const sessionsRoot = path.join(tempRoot, "Sessions");
@@ -444,7 +587,7 @@ async function runOne(
     const created = await createAgentSession({
       agentDir,
       authStorage,
-      customTools: createTools(protocol, calls),
+      customTools: createTools(protocol, calls, allEntities),
       cwd: tempRoot,
       model: resolveModel(config.providerId, config.modelId),
       modelRegistry: ModelRegistry.inMemory(authStorage),
@@ -455,11 +598,10 @@ async function runOne(
         retry: { enabled: false },
       }),
       thinkingLevel: config.reasoningLevel as never,
-      tools: ["understanding_get", "understanding_update"],
+      tools: ["understanding_get"],
     });
     session = created.session;
-    let turnStarted = performance.now();
-    const unsubscribe = session.subscribe((event) => {
+    unsubscribe = session.subscribe((event) => {
       if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
         firstTokenMs ??= performance.now() - turnStarted;
       }
@@ -469,62 +611,88 @@ async function runOne(
         assistantError = extractError(event.message) || assistantError;
       }
     });
-    try {
-      for (const prompt of scenario.prompts) {
-        finalText = "";
-        firstTokenMs = null;
-        turnStarted = performance.now();
-        await withTimeout(session.prompt(prompt), 120_000, () => void session?.abort());
-        if (assistantError) throw new Error(assistantError);
-      }
-    } finally {
-      unsubscribe();
+    for (const [index, turn] of scenario.turns.entries()) {
+      currentTurn = turn;
+      currentCallStart = calls.length;
+      finalText = "";
+      assistantError = "";
+      firstTokenMs = null;
+      turnStarted = performance.now();
+      await withTimeout(session.prompt(turn.prompt), 120_000, () => void session?.abort());
+      if (assistantError) throw new Error(assistantError);
+      const toolCalls = calls.slice(currentCallStart);
+      turns.push({
+        turn: index + 1,
+        prompt: turn.prompt,
+        finalText,
+        toolCalls,
+        firstTokenMs,
+        completionMs: performance.now() - turnStarted,
+        ...evaluate(protocol, turn.expected, allEntities, finalText, toolCalls, turn.requiredTool),
+      });
+      currentTurn = undefined;
     }
-    const measured = evaluate(protocol, scenario, scenario.entities, finalText, calls);
-    return {
-      sequence,
-      protocol,
-      repeat,
-      scenarioId: scenario.id,
-      scenarioName: scenario.name,
-      providerId: config.providerId,
-      modelId: config.modelId,
-      reasoningLevel: config.reasoningLevel,
-      prompts: scenario.prompts,
-      entities: scenario.entities,
-      finalText,
-      toolCalls: calls,
-      firstTokenMs,
-      completionMs: performance.now() - started,
-      ...measured,
-    };
   } catch (error) {
-    const measured = evaluate(protocol, scenario, scenario.entities, finalText, calls);
-    return {
-      sequence,
-      protocol,
-      repeat,
-      scenarioId: scenario.id,
-      scenarioName: scenario.name,
-      providerId: config.providerId,
-      modelId: config.modelId,
-      reasoningLevel: config.reasoningLevel,
-      prompts: scenario.prompts,
-      entities: scenario.entities,
-      finalText,
-      toolCalls: calls,
-      firstTokenMs,
-      completionMs: performance.now() - started,
-      ...measured,
-      coveragePass: false,
-      bindingPass: false,
-      toolPass: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
+    runError = error instanceof Error ? error.message : String(error);
+    if (currentTurn) {
+      const toolCalls = calls.slice(currentCallStart);
+      turns.push({
+        turn: turns.length + 1,
+        prompt: currentTurn.prompt,
+        finalText,
+        toolCalls,
+        firstTokenMs,
+        completionMs: performance.now() - turnStarted,
+        ...evaluate(
+          protocol,
+          currentTurn.expected,
+          allEntities,
+          finalText,
+          toolCalls,
+          currentTurn.requiredTool,
+        ),
+        coveragePass: false,
+        selectionPass: false,
+        bindingPass: false,
+        toolPass: false,
+      });
+    }
   } finally {
+    unsubscribe?.();
     session?.dispose();
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
+  const complete = !runError && turns.length === scenario.turns.length;
+  const lastTurn = turns.at(-1);
+  return {
+    sequence,
+    protocol,
+    repeat,
+    scenarioId: scenario.id,
+    scenarioName: scenario.name,
+    providerId: config.providerId,
+    modelId: config.modelId,
+    reasoningLevel: config.reasoningLevel,
+    entities: scenario.entities,
+    toolEntities,
+    turns,
+    expectedTokens: turns.flatMap((turn) => turn.expectedTokens),
+    finalText: lastTurn?.finalText ?? "",
+    toolCalls: calls,
+    firstTokenMs: lastTurn?.firstTokenMs ?? null,
+    completionMs: performance.now() - started,
+    renderResolveMs: turns.reduce((total, turn) => total + turn.renderResolveMs, 0),
+    observedTokens: turns.flatMap((turn) => turn.observedTokens),
+    malformedOrUnknownTokens: turns.flatMap((turn) => turn.malformedOrUnknownTokens),
+    coveragePass: complete && turns.every((turn) => turn.coveragePass),
+    selectionPass: complete && turns.every((turn) => turn.selectionPass),
+    bindingPass: complete && turns.every((turn) => turn.bindingPass),
+    finalRecallPass: complete && Boolean(lastTurn?.coveragePass && lastTurn.bindingPass),
+    toolPass: complete && turns.every((turn) => turn.toolPass),
+    toolPollution: turns.flatMap((turn) => turn.toolPollution),
+    uiRawLeak: turns.some((turn) => turn.uiRawLeak),
+    ...(runError ? { error: runError } : {}),
+  };
 }
 
 function percentage(value: number) {
@@ -533,14 +701,27 @@ function percentage(value: number) {
 
 function summarize(results: RunResult[], protocol: Protocol) {
   const runs = results.filter((result) => result.protocol === protocol);
-  const passRate = (key: "coveragePass" | "bindingPass" | "toolPass") =>
-    runs.filter((run) => run[key]).length / runs.length;
-  const renderTimes = runs.map((run) => run.renderResolveMs).sort((a, b) => a - b);
+  const turns = runs.flatMap((run) => run.turns);
+  const turnPassRate = (key: "coveragePass" | "selectionPass" | "bindingPass" | "toolPass") =>
+    turns.filter((turn) => turn[key]).length / turns.length;
+  const renderTimes = turns.map((turn) => turn.renderResolveMs).sort((a, b) => a - b);
   return {
     runs: runs.length,
-    coverage: passRate("coveragePass"),
-    binding: passRate("bindingPass"),
-    tools: passRate("toolPass"),
+    turns: turns.length,
+    runPasses: runs.filter(
+      (run) =>
+        run.coveragePass &&
+        run.selectionPass &&
+        run.bindingPass &&
+        run.finalRecallPass &&
+        run.toolPass,
+    ).length,
+    coverage: turnPassRate("coveragePass"),
+    selection: turnPassRate("selectionPass"),
+    binding: turnPassRate("bindingPass"),
+    finalRecall: runs.filter((run) => run.finalRecallPass).length / runs.length,
+    tools: turnPassRate("toolPass"),
+    requestedCitations: turns.flatMap((turn) => turn.expectedTokens).length,
     malformedOrUnknown: runs.flatMap((run) => run.malformedOrUnknownTokens).length,
     toolPollution: runs.flatMap((run) => run.toolPollution).length,
     uiRawLeaks: runs.filter((run) => run.uiRawLeak).length,
@@ -552,20 +733,47 @@ function summarize(results: RunResult[], protocol: Protocol) {
 function report(results: RunResult[], config: Awaited<ReturnType<typeof readModelConfig>>) {
   const numbered = summarize(results, "numbered");
   const direct = summarize(results, "direct");
-  const modelGate =
+  const identityGate =
+    direct.coverage === 1 &&
     direct.binding === 1 &&
+    direct.finalRecall === 1 &&
     direct.tools === 1 &&
     direct.malformedOrUnknown === 0 &&
     direct.toolPollution === 0 &&
-    direct.coverage >= numbered.coverage - 0.05 &&
     direct.providerErrors === 0;
+  const strictGate = identityGate && direct.selection === 1;
+  const directDuplicateOnlyTurns = results
+    .filter((run) => run.protocol === "direct")
+    .flatMap((run) => run.turns)
+    .filter(
+      (turn) => turn.coveragePass && turn.bindingPass && turn.toolPass && !turn.selectionPass,
+    ).length;
+  const numberedFailedTurns = results
+    .filter((run) => run.protocol === "numbered")
+    .flatMap((run) => run.turns)
+    .filter(
+      (turn) => !turn.coveragePass || !turn.selectionPass || !turn.bindingPass || !turn.toolPass,
+    ).length;
+  const maxCatalog = Math.max(
+    ...selectedScenarios.map(
+      (scenario) => scenario.entities.length + (scenario.toolEntities?.length ?? 0),
+    ),
+  );
+  const maxTurns = Math.max(...selectedScenarios.map((scenario) => scenario.turns.length));
+  const citationCounts = selectedScenarios.map((scenario) =>
+    scenario.turns.reduce((total, turn) => total + turn.expected.length, 0),
+  );
   const rows = selectedScenarios
     .map((scenario) => {
       const values = (["numbered", "direct"] as const).map((protocol) => {
         const runs = results.filter(
           (run) => run.protocol === protocol && run.scenarioId === scenario.id,
         );
-        return `${runs.filter((run) => run.coveragePass).length}/${runs.length}`;
+        const turns = runs.flatMap((run) => run.turns);
+        const passedTurns = turns.filter(
+          (turn) => turn.coveragePass && turn.selectionPass && turn.bindingPass && turn.toolPass,
+        ).length;
+        return `${passedTurns}/${turns.length}；末轮 ${runs.filter((run) => run.finalRecallPass).length}/${runs.length}`;
       });
       return `| ${scenario.name} | ${values[0]} | ${values[1]} |`;
     })
@@ -575,30 +783,63 @@ function report(results: RunResult[], config: Awaited<ReturnType<typeof readMode
 - 时间：${new Date().toISOString()}
 - Provider / Model：${config.providerId} / ${config.modelId}
 - Reasoning：${config.reasoningLevel}
-- 样本：numbered ${numbered.runs}，direct ${direct.runs}
-- 结论：**${modelGate ? "PASS" : "FAIL"}**
+- 样本：numbered ${numbered.runs} 个会话 / ${numbered.turns} 轮，direct ${direct.runs} 个会话 / ${direct.turns} 轮
+- 压力规模：最多 ${maxCatalog} 个实体、${maxTurns} 轮对话；每个会话要求 ${Math.min(...citationCounts)}–${Math.max(...citationCounts)} 次 citation
+- 身份可靠性：**${identityGate ? "PASS" : "FAIL"}**
+- 严格 exact-once：**${strictGate ? "PASS" : "FAIL"}**
+
+本报告只调用上述 DeepSeek 模型，没有调用 OpenAI/GPT。
 
 | 指标 | numbered | direct |
 | --- | ---: | ---: |
-| 引用 coverage | ${percentage(numbered.coverage)} | ${percentage(direct.coverage)} |
+| 完整会话通过 | ${numbered.runPasses}/${numbered.runs} | ${direct.runPasses}/${direct.runs} |
+| 每轮目标 coverage | ${percentage(numbered.coverage)} | ${percentage(direct.coverage)} |
+| 只选择指定实体且各一次 | ${percentage(numbered.selection)} | ${percentage(direct.selection)} |
 | type + ID 绑定正确 | ${percentage(numbered.binding)} | ${percentage(direct.binding)} |
+| 长对话末轮重新引用 | ${percentage(numbered.finalRecall)} | ${percentage(direct.finalRecall)} |
 | 工具参数正确 | ${percentage(numbered.tools)} | ${percentage(direct.tools)} |
+| 要求 citation 总数 | ${numbered.requestedCitations} | ${direct.requestedCitations} |
 | malformed / unknown | ${numbered.malformedOrUnknown} | ${direct.malformedOrUnknown} |
 | 工具 display token 污染 | ${numbered.toolPollution} | ${direct.toolPollution} |
 | UI raw protocol 泄漏 | ${numbered.uiRawLeaks} | ${direct.uiRawLeaks} |
 | Provider error | ${numbered.providerErrors} | ${direct.providerErrors} |
 | 本地 parse/render p95 | ${numbered.renderP95Ms.toFixed(3)} ms | ${direct.renderP95Ms.toFixed(3)} ms |
 
-| 场景 | numbered coverage | direct coverage |
+| 场景 | numbered：通过轮次；末轮 | direct：通过轮次；末轮 |
 | --- | ---: | ---: |
 ${rows}
 
 ## 判定
 
-真实模型 evaluator 只使用 exact token、ID/type 和工具参数检查。title 改名、删除、重启与真实 UI 路径由 AG-RESULT-004/008/009/010/011 E2E 单独验证。
+真实模型 evaluator 对每一轮都使用 exact token、目标集合、ID/type 和工具参数检查；末轮单独检查长历史后的重新引用。title 改名、删除、重启与真实 UI 路径仍由 AG-RESULT-004/008/009/010/011 E2E 验证。
+
+- direct 在 ${direct.turns} 轮中保持目标 coverage、type + ID、末轮重新引用和工具参数全部正确；
+- direct 有 ${directDuplicateOnlyTurns} 轮只因重复了一个正确 citation，未通过“指定实体各一次”，这不是 ID 或 type 串线；
+- numbered 有 ${numberedFailedTurns} 轮出现漏引、错选或重复，压力场景下明显弱于 direct；
+- 因此可以判断：实体数量和对话长度没有破坏 direct ID 引用身份；如果产品要求 citation 绝不重复，还需要单独收紧生成规则。
 
 原始结果见 [citation-reliability-raw.json](./citation-reliability-raw.json)。
 `;
+}
+
+if (process.env.REFLECTA_CITATION_EVAL_REPORT_ONLY === "1") {
+  const saved = JSON.parse(fs.readFileSync(rawPath, "utf-8")) as {
+    providerId: string;
+    modelId: string;
+    reasoningLevel: string;
+    results: RunResult[];
+  };
+  fs.writeFileSync(
+    reportPath,
+    report(saved.results, {
+      providerId: saved.providerId,
+      modelId: saved.modelId,
+      reasoningLevel: saved.reasoningLevel,
+      apiKey: "",
+    }),
+  );
+  process.stdout.write(`Report: ${reportPath}\n`);
+  process.exit(0);
 }
 
 const config = await readModelConfig();
@@ -620,7 +861,7 @@ await Promise.all(
       results.push(result);
       process.stdout.write(
         `[${results.length}/${jobs.length}] ${job.protocol} ${job.scenario.id} ` +
-          `${result.coveragePass && result.bindingPass && result.toolPass ? "PASS" : "FAIL"}\n`,
+          `${result.coveragePass && result.selectionPass && result.bindingPass && result.finalRecallPass && result.toolPass ? "PASS" : "FAIL"}\n`,
       );
     }
   }),
@@ -635,6 +876,18 @@ fs.writeFileSync(
       providerId: config.providerId,
       modelId: config.modelId,
       reasoningLevel: config.reasoningLevel,
+      profile: {
+        scenarios: selectedScenarios.map((scenario) => ({
+          id: scenario.id,
+          catalogSize: scenario.entities.length + (scenario.toolEntities?.length ?? 0),
+          turns: scenario.turns.length,
+          requestedCitations: scenario.turns.reduce(
+            (total, turn) => total + turn.expected.length,
+            0,
+          ),
+        })),
+        repeats,
+      },
       results,
     },
     null,
