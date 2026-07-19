@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Bot, Check, ChevronDown, GitBranch, Inbox, Settings } from "lucide-react";
+import { Bot, Check, ChevronDown, Inbox, Settings } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,7 +12,6 @@ import { useModal } from "@renderer/modules/shared/hooks/use-modal";
 
 const moduleItems = [
   { label: "Capture", path: "/capture", Icon: Inbox },
-  { label: "Contemplate", path: "/contemplate", Icon: GitBranch },
   { label: "Agent", path: "/agent", Icon: Bot },
 ] as const;
 

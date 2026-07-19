@@ -23,7 +23,7 @@ import { useModal } from "@renderer/modules/shared/hooks/use-modal";
 import type { ContextDTO, ContextMedium } from "@shared/context";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { FileText, MessageCircle, Pencil, Plus, Trash2 } from "lucide-react";
+import { FileText, MessageCircle, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useUnderstandingDetail, useUnderstandingDetailActions } from "./hooks";
 import { CONTEXT_META, CONTEXT_PLACEHOLDER, CONTEXT_TYPES } from "./context/types";
@@ -32,6 +32,7 @@ import { useUnderstandingDraftSave } from "../useUnderstandingDraftSave";
 
 type UnderstandingDetailProps = {
   understandingId: string;
+  onClose?: () => void;
   onDeleted?: () => void;
   onWikiLinkClick?: (understandingId: string) => void;
   onChat?: (scope: CaptureAgentScope) => void;
@@ -262,6 +263,7 @@ function ContextDetailDrawerContent({
 
 function UnderstandingDetailInner({
   understandingId,
+  onClose,
   onDeleted,
   onWikiLinkClick,
   onChat,
@@ -432,6 +434,18 @@ function UnderstandingDetailInner({
             >
               <Trash2 size={15} />
             </Button>
+            {onClose ? (
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label="关闭详情"
+                title="关闭详情"
+                onClick={onClose}
+              >
+                <X size={15} />
+              </Button>
+            ) : null}
           </div>
           <Input
             value={title}

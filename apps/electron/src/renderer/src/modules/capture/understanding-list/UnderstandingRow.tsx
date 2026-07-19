@@ -14,17 +14,7 @@ import { FileText, Link2 } from "lucide-react";
 import { useModal } from "@renderer/modules/shared/hooks/use-modal";
 import { useUnderstandingListActions } from "./hooks";
 import { useCaptureStore, type CaptureAgentScope } from "../store";
-
-function getUnderstandingTitle(understanding: UnderstandingSummaryDTO): string {
-  const title = understanding.title?.trim();
-  if (title) return title;
-
-  const firstLine = understanding.body
-    .split("\n")
-    .map((line) => line.trim())
-    .find(Boolean);
-  return firstLine || "未命名理解";
-}
+import { getUnderstandingTitle } from "../understanding-title";
 
 export function UnderstandingRow({
   understanding,

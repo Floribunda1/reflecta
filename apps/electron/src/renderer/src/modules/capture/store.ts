@@ -23,7 +23,12 @@ export type CaptureAgentScope = {
   title?: string;
 };
 
+export type CaptureMode = "browse" | "wander";
+export type KnowledgeWanderView = "waterfall" | "graph";
+
 export type CaptureState = {
+  captureMode: CaptureMode;
+  wanderView: KnowledgeWanderView;
   selectedDomainId: string;
   selectedUnderstandingId: string | null;
   searchOpen: boolean;
@@ -40,6 +45,8 @@ export type CaptureState = {
 };
 
 export type CaptureActions = {
+  toggleKnowledgeWander: () => void;
+  setWanderView: (view: KnowledgeWanderView) => void;
   selectDomain: (domainId: string) => void;
   selectUnderstanding: (understandingId: string | null) => void;
   reconcileSelectedUnderstanding: (visibleUnderstandingIds: Set<string>) => void;
@@ -72,6 +79,8 @@ export type CaptureActions = {
 export type CaptureStore = CaptureState & CaptureActions;
 
 export const initialCaptureState: CaptureState = {
+  captureMode: "browse",
+  wanderView: "waterfall",
   selectedDomainId: "all",
   selectedUnderstandingId: null,
   searchOpen: false,
@@ -138,6 +147,15 @@ export function createCaptureState(
 ): StateCreator<CaptureStore> {
   return (set) => ({
     ...initialState,
+
+    toggleKnowledgeWander: () =>
+      set((state) =>
+        state.captureMode === "wander"
+          ? { captureMode: "browse" }
+          : { captureMode: "wander", wanderView: "waterfall" },
+      ),
+
+    setWanderView: (wanderView) => set({ wanderView }),
 
     selectDomain: (domainId) =>
       set((state) => ({
