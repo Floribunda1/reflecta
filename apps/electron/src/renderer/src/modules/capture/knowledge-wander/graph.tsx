@@ -1,20 +1,12 @@
 import type { Graph as G6Graph, IElementEvent } from "@antv/g6";
-import { Button } from "@renderer/components/ui/button";
-import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@renderer/components/ui/empty";
 import { Skeleton } from "@renderer/components/ui/skeleton";
-import { cn } from "@renderer/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@renderer/components/ui/tooltip";
-import { Link2, Maximize2, Unlink2, Waypoints, ZoomIn, ZoomOut } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KnowledgeGraphData } from "./graph-data";
-import { buildGraphSelectionStates, splitKnowledgeGraphData } from "./graph-data";
+import { buildGraphSelectionStates } from "./graph-data";
 import { readKnowledgeGraphTheme } from "./graph-theme";
+
+const LABEL_ZOOM_MULTIPLIER = 1.35;
 
 function topologyKey(data: KnowledgeGraphData): string {
   return `${data.nodes.map(({ id }) => id).join("|")}::${data.edges.map(({ id }) => id).join("|")}`;
@@ -24,7 +16,7 @@ function titleKey(data: KnowledgeGraphData): string {
   return data.nodes.map(({ id, data: nodeData }) => `${id}:${nodeData.title}`).join("|");
 }
 
-function ConnectedGraphCanvas({
+export function KnowledgeGraph({
   data,
   selectedUnderstandingId,
   onSelect,
@@ -38,6 +30,8 @@ function ConnectedGraphCanvas({
   const dataRef = useRef(data);
   const selectedRef = useRef(selectedUnderstandingId);
   const hoveredRef = useRef<string | null>(null);
+  const labelsVisibleRef = useRef<boolean | null>(null);
+  const labelZoomThresholdRef = useRef(1);
   const onSelectRef = useRef(onSelect);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -52,11 +46,28 @@ function ConnectedGraphCanvas({
   const applyElementStates = useCallback((graph: G6Graph) => {
     const focusId = hoveredRef.current ?? selectedRef.current;
     const states = buildGraphSelectionStates(dataRef.current, focusId);
+    if (labelsVisibleRef.current) {
+      for (const node of dataRef.current.nodes) {
+        states[node.id] = ["labels-visible", ...states[node.id]];
+      }
+    }
     if (hoveredRef.current && states[hoveredRef.current]) {
       states[hoveredRef.current] = [...states[hoveredRef.current], "hover"];
     }
     void graph.setElementState(states, false);
   }, []);
+
+  const syncLabelVisibility = useCallback(
+    (graph: G6Graph, force = false) => {
+      const zoom = graph.getZoom();
+      const labelsVisible = zoom >= labelZoomThresholdRef.current;
+      if (!force && labelsVisibleRef.current === labelsVisible) return;
+
+      labelsVisibleRef.current = labelsVisible;
+      applyElementStates(graph);
+    },
+    [applyElementStates],
+  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -65,11 +76,12 @@ function ConnectedGraphCanvas({
     let cancelled = false;
     let graph: G6Graph | null = null;
     let observer: ResizeObserver | null = null;
+    labelsVisibleRef.current = null;
     setReady(false);
     setFailed(false);
 
     void import("@antv/g6")
-      .then(async ({ Graph, NodeEvent }) => {
+      .then(async ({ Graph, GraphEvent, NodeEvent }) => {
         if (cancelled) return;
         const theme = readKnowledgeGraphTheme();
 
@@ -78,58 +90,72 @@ function ConnectedGraphCanvas({
           autoResize: false,
           animation: false,
           data: dataRef.current,
-          zoomRange: [0.15, 2],
-          padding: 56,
+          zoomRange: [0.1, 4],
+          padding: 48,
           layout: {
-            type: "force-atlas2",
+            type: "d3-force",
             preLayout: true,
             animation: false,
-            iterations: 320,
-            mode: "linlog",
-            preventOverlap: true,
-            nodeSize: 184,
-            kr: 24,
-            kg: 6,
+            iterations: 300,
+            manyBody: { strength: -80, distanceMax: 360 },
+            link: { distance: 72, strength: 0.45, iterations: 1 },
+            collide: { radius: 14, strength: 0.8, iterations: 1 },
+            x: { strength: 0.025 },
+            y: { strength: 0.025 },
           },
-          behaviors: ["drag-canvas", "zoom-canvas", "drag-element"],
+          behaviors: [
+            "drag-canvas",
+            { type: "zoom-canvas", animation: false },
+            {
+              type: "fix-element-size",
+              enable: true,
+              node: [{ shape: "label" }],
+              edge: [{ shape: "key", fields: ["lineWidth"] }],
+            },
+            { type: "drag-element-force", fixed: true },
+          ],
           node: {
-            type: "rect",
+            type: "circle",
             style: {
-              size: [176, 54],
-              radius: 12,
-              fill: theme.card,
-              stroke: theme.border,
-              lineWidth: 1.5,
+              size: 4.5,
+              fill: theme.foreground,
+              stroke: theme.foreground,
+              lineWidth: 0,
               cursor: "pointer",
               labelText: (datum) => String(datum.data?.title ?? "未命名理解"),
-              labelPlacement: "center",
+              labelPlacement: "bottom",
+              labelOffsetY: 5,
               labelFill: theme.foreground,
-              labelFontSize: 13,
-              labelFontWeight: 600,
-              labelLineHeight: 17,
+              labelFontSize: 12,
+              labelFontWeight: 400,
+              labelLineHeight: 16,
               labelTextAlign: "center",
-              labelTextBaseline: "middle",
               labelWordWrap: true,
-              labelMaxWidth: 148,
-              labelMaxLines: 2,
+              labelMaxWidth: 180,
+              labelMaxLines: 1,
               labelTextOverflow: "ellipsis",
+              labelOpacity: 0,
             },
             state: {
+              "labels-visible": {
+                labelOpacity: 1,
+              },
               hover: {
-                stroke: theme.primary,
-                lineWidth: 2,
+                size: 6,
+                labelOpacity: 1,
+                labelFontWeight: 500,
               },
               selected: {
-                stroke: theme.primary,
-                fill: theme.accent,
-                lineWidth: 2,
+                size: 6,
+                labelOpacity: 1,
+                labelFontWeight: 500,
               },
               related: {
-                stroke: theme.primary,
-                lineWidth: 1.5,
+                opacity: 1,
               },
               dimmed: {
-                opacity: 0.2,
+                opacity: 0.18,
+                labelOpacity: 0,
               },
             },
           },
@@ -137,17 +163,17 @@ function ConnectedGraphCanvas({
             type: "line",
             style: {
               stroke: theme.mutedForeground,
-              lineWidth: 1.5,
-              opacity: 0.58,
+              lineWidth: 0.8,
+              opacity: 0.3,
             },
             state: {
               selected: {
-                stroke: theme.primary,
-                lineWidth: 2.25,
-                opacity: 1,
+                stroke: theme.foreground,
+                lineWidth: 1.2,
+                opacity: 0.72,
               },
               dimmed: {
-                opacity: 0.08,
+                opacity: 0.05,
               },
             },
           },
@@ -165,17 +191,19 @@ function ConnectedGraphCanvas({
           hoveredRef.current = null;
           if (graph) applyElementStates(graph);
         });
-
         await graph.render();
         if (cancelled) return;
         await graph.fitView({ when: "always", direction: "both" }, false);
-        applyElementStates(graph);
+        labelZoomThresholdRef.current = graph.getZoom() * LABEL_ZOOM_MULTIPLIER;
+        syncLabelVisibility(graph, true);
+        if (cancelled) return;
+        graph.on(GraphEvent.AFTER_TRANSFORM, () => {
+          if (graph) void syncLabelVisibility(graph);
+        });
         setReady(true);
 
         observer = new ResizeObserver(() => {
-          if (container.clientWidth > 0 && container.clientHeight > 0) {
-            graph?.resize();
-          }
+          if (container.clientWidth > 0 && container.clientHeight > 0) graph?.resize();
         });
         observer.observe(container);
       })
@@ -189,7 +217,7 @@ function ConnectedGraphCanvas({
       graph?.destroy();
       if (graphRef.current === graph) graphRef.current = null;
     };
-  }, [applyElementStates, graphTopologyKey, resolvedTheme]);
+  }, [applyElementStates, graphTopologyKey, resolvedTheme, syncLabelVisibility]);
 
   useEffect(() => {
     const graph = graphRef.current;
@@ -200,21 +228,19 @@ function ConnectedGraphCanvas({
         data: node.data,
       })),
     );
-    void graph.draw();
-  }, [data.nodes, graphTitleKey]);
+    void graph.draw().then(() => applyElementStates(graph));
+  }, [applyElementStates, data.nodes, graphTitleKey]);
 
   useEffect(() => {
     const graph = graphRef.current;
     if (graph) applyElementStates(graph);
-  }, [selectedUnderstandingId, applyElementStates]);
-
-  const zoomIn = () => void graphRef.current?.zoomBy(1.2, false);
-  const zoomOut = () => void graphRef.current?.zoomBy(1 / 1.2, false);
-  const fitView = () =>
-    void graphRef.current?.fitView({ when: "always", direction: "both" }, false);
+  }, [applyElementStates, selectedUnderstandingId]);
 
   return (
-    <div data-testid="knowledge-wander-connected-graph" className="relative h-full overflow-hidden">
+    <section
+      data-testid="knowledge-wander-graph"
+      className="relative h-full overflow-hidden bg-background"
+    >
       <div ref={containerRef} className="h-full w-full" />
       <div className="sr-only" aria-label="图谱理解">
         {data.nodes.map((node) => (
@@ -226,122 +252,13 @@ function ConnectedGraphCanvas({
 
       {!ready && !failed ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <Skeleton className="h-24 w-52" />
+          <Skeleton className="size-24 rounded-full" />
         </div>
       ) : null}
 
       {failed ? (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
           图谱加载失败
-        </div>
-      ) : null}
-
-      {ready ? (
-        <TooltipProvider>
-          <div className="absolute bottom-3 left-3 flex flex-col overflow-hidden rounded-md bg-card shadow-sm ring-1 ring-foreground/10">
-            {[
-              { label: "放大", Icon: ZoomIn, action: zoomIn },
-              { label: "缩小", Icon: ZoomOut, action: zoomOut },
-              { label: "适应画布", Icon: Maximize2, action: fitView },
-            ].map(({ label, Icon, action }) => (
-              <Tooltip key={label}>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      className="rounded-none border-b last:border-b-0"
-                      aria-label={label}
-                      onClick={action}
-                    >
-                      <Icon size={15} />
-                    </Button>
-                  }
-                />
-                <TooltipContent side="right">{label}</TooltipContent>
-              </Tooltip>
-            ))}
-          </div>
-        </TooltipProvider>
-      ) : null}
-    </div>
-  );
-}
-
-export function KnowledgeGraph({
-  data,
-  selectedUnderstandingId,
-  onSelect,
-}: {
-  data: KnowledgeGraphData;
-  selectedUnderstandingId: string | null;
-  onSelect: (id: string) => void;
-}) {
-  const { connected, unconnected } = useMemo(() => splitKnowledgeGraphData(data), [data]);
-  const summary = `${connected.nodes.length} 条已连接 · ${unconnected.length} 条未连接 · ${connected.edges.length} 条显式连接`;
-
-  return (
-    <section
-      data-testid="knowledge-wander-graph"
-      className="flex h-full min-h-0 flex-col bg-muted/30"
-    >
-      <div className="relative min-h-0 flex-1">
-        <div
-          data-testid="knowledge-wander-graph-summary"
-          className="absolute top-3 left-3 z-10 inline-flex items-center gap-2 rounded-lg bg-card/95 px-3 py-2 text-xs text-muted-foreground shadow-sm ring-1 ring-foreground/10 backdrop-blur-sm"
-        >
-          <Link2 size={14} aria-hidden />
-          {summary}
-        </div>
-
-        {connected.nodes.length > 0 ? (
-          <ConnectedGraphCanvas
-            data={connected}
-            selectedUnderstandingId={selectedUnderstandingId}
-            onSelect={onSelect}
-          />
-        ) : (
-          <Empty className="h-full border-0 pt-20">
-            <EmptyContent>
-              <EmptyMedia variant="icon">
-                <Waypoints />
-              </EmptyMedia>
-              <EmptyDescription>这个领域还没有形成显式连接</EmptyDescription>
-            </EmptyContent>
-          </Empty>
-        )}
-      </div>
-
-      {unconnected.length > 0 ? (
-        <div
-          data-testid="knowledge-wander-unconnected"
-          className="max-h-56 shrink-0 overflow-y-auto border-t bg-background/95 p-3"
-        >
-          <div className="mb-2 flex items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
-            <Unlink2 size={14} aria-hidden />
-            未连接理解
-            <span className="font-normal">{unconnected.length}</span>
-          </div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-2">
-            {unconnected.map((node) => (
-              <Button
-                key={node.id}
-                type="button"
-                size="sm"
-                variant="outline"
-                title={node.data.title}
-                aria-current={selectedUnderstandingId === node.id ? "true" : undefined}
-                className={cn(
-                  "h-auto min-h-9 justify-start py-2 text-left font-normal whitespace-normal",
-                  selectedUnderstandingId === node.id && "border-primary bg-accent",
-                )}
-                onClick={() => onSelect(node.id)}
-              >
-                <span className="line-clamp-2">{node.data.title}</span>
-              </Button>
-            ))}
-          </div>
         </div>
       ) : null}
     </section>

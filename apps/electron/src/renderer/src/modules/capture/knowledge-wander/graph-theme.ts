@@ -1,10 +1,6 @@
 export type KnowledgeGraphTheme = {
-  card: string;
   foreground: string;
   mutedForeground: string;
-  accent: string;
-  border: string;
-  primary: string;
 };
 
 function readToken(styles: CSSStyleDeclaration, name: string): string {
@@ -14,11 +10,7 @@ function readToken(styles: CSSStyleDeclaration, name: string): string {
 export function readKnowledgeGraphTheme(): KnowledgeGraphTheme {
   const styles = getComputedStyle(document.documentElement);
   return {
-    card: readToken(styles, "--card"),
     foreground: readToken(styles, "--foreground"),
     mutedForeground: readToken(styles, "--muted-foreground"),
-    accent: readToken(styles, "--accent"),
-    border: readToken(styles, "--border"),
-    primary: readToken(styles, "--primary"),
   };
 }

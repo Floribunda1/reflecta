@@ -17,11 +17,6 @@ export type KnowledgeGraphData = {
   edges: KnowledgeGraphEdge[];
 };
 
-export type SplitKnowledgeGraphData = {
-  connected: KnowledgeGraphData;
-  unconnected: KnowledgeGraphNode[];
-};
-
 export function buildKnowledgeGraphData(
   understandings: UnderstandingSummaryDTO[],
 ): KnowledgeGraphData {
@@ -53,17 +48,6 @@ export function buildKnowledgeGraphData(
       }))
       .sort((left, right) => left.id.localeCompare(right.id)),
     edges: edges.sort((left, right) => left.id.localeCompare(right.id)),
-  };
-}
-
-export function splitKnowledgeGraphData(data: KnowledgeGraphData): SplitKnowledgeGraphData {
-  const connectedIds = new Set(data.edges.flatMap(({ source, target }) => [source, target]));
-  return {
-    connected: {
-      nodes: data.nodes.filter(({ id }) => connectedIds.has(id)),
-      edges: data.edges,
-    },
-    unconnected: data.nodes.filter(({ id }) => !connectedIds.has(id)),
   };
 }
 

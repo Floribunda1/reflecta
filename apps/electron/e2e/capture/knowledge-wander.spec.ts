@@ -69,14 +69,9 @@ test("@KW-WANDER-002 用户切换图谱观察真实关系", async () => {
     const scrollTop = await waterfall.evaluate((element) => element.scrollTop);
 
     await page.getByRole("button", { name: "图谱" }).click();
-    await expect(page.getByTestId("knowledge-wander-graph")).toBeVisible();
-    await expect(page.getByRole("button", { name: "适应画布" })).toBeVisible({
-      timeout: 30_000,
-    });
-    await expect(page.getByTestId("knowledge-wander-graph-summary")).toContainText(
-      /\d+ 条已连接 · \d+ 条未连接 · \d+ 条显式连接/,
-    );
-    await expect(page.getByTestId("knowledge-wander-unconnected")).toBeVisible();
+    const graph = page.getByTestId("knowledge-wander-graph");
+    await expect(graph).toBeVisible();
+    await expect(graph.locator("canvas").first()).toBeVisible({ timeout: 30_000 });
 
     const graphNode = page
       .getByLabel("图谱理解")

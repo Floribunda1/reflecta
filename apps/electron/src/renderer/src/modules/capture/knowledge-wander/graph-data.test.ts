@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
-import {
-  buildGraphSelectionStates,
-  buildKnowledgeGraphData,
-  splitKnowledgeGraphData,
-} from "./graph-data";
+import { buildGraphSelectionStates, buildKnowledgeGraphData } from "./graph-data";
 
 function understanding(
   id: string,
@@ -51,26 +47,6 @@ describe("buildKnowledgeGraphData", () => {
     const data = buildKnowledgeGraphData([understanding("a", [], null)]);
 
     expect(data.nodes[0]?.data.title).toBe("正文 a");
-  });
-
-  it("separates connected and unconnected understandings without dropping either", () => {
-    const data = buildKnowledgeGraphData([
-      understanding("a", ["b"]),
-      understanding("b"),
-      understanding("isolated"),
-    ]);
-
-    const split = splitKnowledgeGraphData(data);
-
-    expect(split.connected.nodes.map((node) => node.id)).toEqual(["a", "b"]);
-    expect(split.connected.edges).toEqual([
-      {
-        id: "connection:a->b",
-        source: "a",
-        target: "b",
-      },
-    ]);
-    expect(split.unconnected.map((node) => node.id)).toEqual(["isolated"]);
   });
 });
 

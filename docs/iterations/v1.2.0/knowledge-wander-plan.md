@@ -128,16 +128,15 @@ CapturePage
 
 正文使用知识漫步专用的静态 Markdown renderer，复用 Milkdown 周边已经安装的 unified、remark-parse、remark-gfm、remark-rehype 和 rehype-stringify，并覆盖为舒展阅读样式；保留标题、列表、引用、代码、表格和图片等正文结构，Understanding 双链沿用编辑器的主色浅底标记。卡片负责完整呈现可读文本；Context 和编辑能力仍留在打开后的 `UnderstandingDetail`。
 
-瀑布流使用占满可用宽度的双列阅读面，空间不足时回落为单列，不再随着宽屏扩展到三列以上。阅读面使用 muted surface，卡片复用现有 shadcn Card composition 拉开层级。内容顺序是确定的，但视觉列由布局组件按高度平衡；富文本完成首轮测高后允许 Masonic 重建一次 positioner，使卡片可以跨列重新平衡。它不是从左到右的严格表格，也不承诺卡片在不同窗口宽度下保持同一列。
+瀑布流使用占满可用宽度的双列阅读面，空间不足时回落为单列，不再随着宽屏扩展到三列以上。阅读面和卡片沿用 Capture 原有的安静背景、边框、hover 与 selected 状态。内容顺序是确定的，但视觉列由布局组件按高度平衡；富文本完成首轮测高后允许 Masonic 重建一次 positioner，使卡片可以跨列重新平衡。它不是从左到右的严格表格，也不承诺卡片在不同窗口宽度下保持同一列。
 
 ### 4.5 图谱
 
 图谱只展示当前领域范围内的 Understanding：
 
-- 参与真实 Connection 的 Understanding 进入 G6 关系画布，并对应一个紧凑标签节点。
-- 没有 Connection 的 Understanding 在画布下方单独列出，不再参与力导向布局。
+- 每条 Understanding 都进入同一张 G6 画布，并对应一个小圆点。
 - 每条 Connection 只有在两端节点都处于当前范围时才显示。
-- 图谱直接报告已连接、未连接和 Connection 数量；这些是中性事实，不表达健康度。
+- 没有 Connection 的 Understanding 仍作为孤立圆点参与力导向布局。
 - Domain 不作为节点或泳道；Context 不作为节点；不展示外部领域的补充节点。
 - 节点之间不按层级、时间或领域强行规定方向。
 
@@ -145,8 +144,7 @@ CapturePage
 
 图谱交互由 G6 提供：
 
-- 缩放、平移、节点拖动和 `fitView` 使用 G6 内置 behavior 与 viewport API。
-- 画布上的可见缩放按钮使用现有 shadcn Button 调用 G6 viewport API，不引入 G6 Toolbar 的另一套 UI 样式。
+- 缩放、平移、节点拖动、标题字号固定和初始 `fitView` 使用 G6 内置 behavior 与 viewport API；不增加可见工具栏。
 - 节点拖动只改变本次会话中的观察位置，不写回数据库。
 - Hover 或选择节点时突出该节点及一跳邻居，其他节点和边降低视觉权重。
 - 布局完成后停止力模拟，不让节点持续漂移。
@@ -185,22 +183,22 @@ CapturePage
 
 ### 5.2 图谱引擎：`@antv/g6`
 
-使用 [`@antv/g6`](https://github.com/antvis/G6) v5 作为关系画布的单一引擎，负责已连接节点和边的渲染、布局、交互与缩放平移。React 负责画布容器、关系摘要、未连接 Understanding 区域、右侧详情和 design-system 控件，不再保留 React Flow 适配层。
+使用 [`@antv/g6`](https://github.com/antvis/G6) v5 作为图谱的单一引擎，负责全部节点和边的渲染、布局、交互与缩放平移。React 只负责画布容器和右侧详情，不再保留 React Flow 适配层。
 
 G6 在本次知识漫步第一次切到图谱时动态加载。随后瀑布流与图谱在知识漫步内部保持挂载，用可见性切换保留滚动位置、节点位置和 viewport；退出知识漫步或 Capture 卸载时调用 `graph.destroy()` 释放资源。Capture 普通模式和从未打开图谱的知识漫步不承担 G6 bundle 与 canvas 生命周期。
 
-节点使用 G6 内置 `rect`，只显示标题并使用固定紧凑尺寸；不引入 `@antv/g6-extension-react`，也不为 V1 编写自定义 G6 node class。节点、边和 selected/highlight state 的颜色从当前 Reflecta CSS semantic token 解析，不维护平行色板。
+节点使用 G6 内置 `circle` 复刻 Obsidian Graph View 的小圆点；标题位于圆点下方，并随缩放阈值出现或隐藏。不引入 `@antv/g6-extension-react`，也不为 V1 编写自定义 G6 node class。节点、边和 selected/highlight state 的颜色从当前 Reflecta CSS semantic token 解析，不维护平行色板。
 
-### 5.3 图谱布局：G6 内置 ForceAtlas2
+### 5.3 图谱布局：G6 内置 D3 Force
 
-使用 G6 内置 `force-atlas2`：
+使用 G6 内置 `d3-force` 复刻 Obsidian Graph View 的整体形态，不直接安装 `d3-force`：
 
-- 只有至少参与一条真实 Connection 的 Understanding 进入布局。
-- 使用 `preventOverlap` 和节点尺寸避免紧凑标签重叠。
-- `linlog` 模式让真实连接自然形成关系岛，未连接 Understanding 不再被力模拟随机摆放。
+- `link` 让真实 Connection 参与布局。
+- `manyBody`、`collide` 和轻量 `x` / `y` 力让全部节点形成稳定云团。
+- 孤立节点保留在同一云团中，不额外标记或分区。
 - 使用正常模式，不按 Domain 或其他系统属性聚类。
 - 布局参数集中在图谱模块，以代表性 fixture 调整，不暴露给用户。
-- 节点拖动使用 G6 内置 `drag-element` behavior，只改变本次会话的观察位置。
+- 节点拖动使用 G6 内置 `drag-element-force` behavior，只改变本次会话的观察位置。
 - 默认直接使用 G6 内置实现；只有真实大图性能数据证明主线程布局不足时，才启用 G6 自带 worker，不预先引入 WASM 或额外 layout package。
 
 ### 5.4 详情与 Design System
@@ -304,12 +302,12 @@ apps/electron/src/renderer/src/modules/capture/knowledge-wander/
 ### Task 5：交付关系图谱
 
 1. 从 summary DTO 构建当前范围内的 node/edge 数据，只保留两端可见的真实 Connection。
-2. 将有 Connection 的 Understanding 交给 G6，将未连接 Understanding 放入独立的 shadcn 交互区。
-3. 动态加载 G6，并用 G6 内置 ForceAtlas2、behavior 与 viewport API 提供画布交互。
+2. 将全部 Understanding 作为小圆点交给 G6，只把真实 Connection 作为细线。
+3. 动态加载 G6，并用 G6 内置 D3 Force、behavior 与 viewport API 提供类似 Obsidian Graph View 的画布交互。
 4. 点击节点打开同一个详情 panel；选择节点突出一跳关系。
 5. 缓存本次会话内稳定位置和 viewport，详情开关不得重新模拟。
 
-完成条件：关系画布包含全部范围内真实 Connection，未连接 Understanding 独立可见且可打开，节点稳定且不持续漂移。
+完成条件：图谱包含范围内全部 Understanding 和真实 Connection；孤立节点仍在同一画布；标题随缩放出现或隐藏；节点稳定且不持续漂移。
 
 ### Task 6：退役 Contemplate
 
@@ -345,7 +343,7 @@ bun --cwd apps/electron test:e2e
 - 选择父领域包含子领域；选择「全部领域」包含全部 Understanding。
 - 普通列表搜索词不影响知识漫步数据。
 - Graph adapter 只生成真实 Connection，且边的两端必须都在可见范围。
-- 图谱 adapter 能稳定拆分已连接与未连接 Understanding，且不丢失任何范围内节点。
+- 孤立 Understanding 仍生成圆点，全部节点都不会丢失。
 - G6 只在图数据或容器范围变化时重新 render/layout；详情 selection 改变不重新布局。
 
 ### 组件测试

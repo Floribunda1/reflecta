@@ -10,7 +10,7 @@
     那么默认应该以瀑布流展示「全部领域」中的理解数量
     而且 Understanding「React Server Components」卡片应该展示完整正文
     而且瀑布流应该以最多双列占满可用阅读面
-    而且卡片与阅读面背景应该有清楚的层级区分
+    而且卡片应该沿用 Capture 原有的安静背景、边框和选择状态
     而且两列都应该连续向下铺排而不提前留下大片空白
     而且卡片中的 Markdown 结构应该以适合连续阅读的样式呈现
     而且正文中的双链应该与普通文本清晰区分
@@ -24,10 +24,10 @@
     假如 seed 数据中 Domain「Programming」的子领域包含 Understanding「React Server Components」
     当用户选择 Domain「Programming」并进入「知识漫步」
     而且切换到「图谱」
-    那么应该看到有 Connection 的 Understanding 形成清晰可辨的关系结构
-    而且没有 Connection 的 Understanding 应该在独立区域中完整列出
-    而且用户应该能直接看到已连接和未连接的 Understanding 数量
-    而且关系图应该可以缩放并适应画布
+    那么应该看到全部 Understanding 以圆点组成类似 Obsidian Graph View 的力导向图
+    而且有 Connection 的 Understanding 之间应该以细线连接
+    而且缩放时标题应该按可读尺度出现或隐藏
+    而且聚焦节点时应该突出它和一跳关系并淡化无关节点
     当用户在图谱中打开 Understanding「React Server Components」
     那么右侧应该打开同一条 Understanding 的可编辑详情
     当用户切回「瀑布流」

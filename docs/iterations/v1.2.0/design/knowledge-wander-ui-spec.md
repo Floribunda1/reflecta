@@ -117,8 +117,8 @@ header
 ### WaterfallView
 
 - 容器 token：
-  - Surface：`bg-muted/35`
-  - Spacing：viewport `p-5`；内容面占满可用宽度；列间距和行间距统一为 `gap-5`
+  - Surface：`bg-background/35`
+  - Spacing：viewport `px-5 py-6`；内容面占满可用宽度；列间距和行间距统一为 `gap-5`
   - Border / Radius / Shadow：无外层 border、radius 或 shadow
 
 ```text
@@ -134,55 +134,43 @@ section
 
 #### Detail: UnderstandingWanderCard
 
-- 组成：shadcn Card + CardHeader + CardContent + CardFooter
-- 布局：Card 默认 section composition；整张 Card 保持唯一点击入口
-- 间距：沿用 Card 的 `--card-spacing`
+- 组成：clickable article surface + title + KnowledgeWanderMarkdown + Context/Connection counts + meta
+- 布局：`flex w-full flex-col gap-4 text-left`
+- 间距：`p-5`
 - 状态规则：
-  - `hover` → 保持 card surface，轻微提升 ring / shadow
+  - `hover` → 只使用 `bg-muted/20`
   - `focus-visible` → 使用现有 focus-visible ring
-  - `selected` → 详情已打开时使用浅 accent surface 和 primary ring
+  - `selected` → 详情已打开时使用 `border-primary ring-1 ring-ring/20`
 - 展示规则：标题使用现有 Understanding fallback；正文为空时显示「空理解，可以直接开始写。」；正文使用知识漫步专用的静态 Markdown renderer，保留标题、段落、列表、引用、代码、表格和图片结构；Understanding 双链沿用编辑器的主色浅底标记；全部领域范围才显示领域路径，始终显示更新时间；Context/Connection 数量复用普通 List 的 `FileText` / `Link2` 表达
-- 约束：复用现有 shadcn Card 的 `rounded-xl bg-card shadow-xs ring-1 ring-foreground/10`；CardFooter 使用顶部边界分隔弱 meta；不显示操作按钮、摘要、评分或状态点；Markdown 链接在卡片中只显示为非交互文本；hover/selected 不改变尺寸和位置
+- 约束：使用 Capture 原有的 `rounded-lg border bg-card shadow-xs`；不显示操作按钮、摘要、评分或状态点；Markdown 链接在卡片中只显示为非交互文本；hover/selected 不改变尺寸和位置
 
 ### GraphView
 
 - 容器 token：
-  - Surface：`bg-muted/30`
-  - Spacing：关系 canvas 填满剩余空间；未连接区域固定在底部并内部滚动；controls 距左下 `m-3`
-  - Border / Radius / Shadow：canvas 无边框；summary、controls 和未连接区域使用现有 card/ring tokens
+  - Surface：`bg-background`
+  - Spacing：canvas 填满剩余空间
+  - Border / Radius / Shadow：canvas 无边框、无卡片 surface、无浮层摘要
 
 ```text
 section
-  RelationshipCanvas
-    RelationshipSummary
-    G6Canvas
-      ConnectedUnderstandingNode[]
-      ConnectionEdge[]
-    ViewportControls
-  UnconnectedUnderstandingRegion
-    Button[]
+  G6Canvas
+    UnderstandingDotNode[]
+    ConnectionEdge[]
 ```
 
 - 状态规则：
   - `node-selected` / `node-hover` → 当前节点和一跳邻居保持清晰，其他节点与边降低 opacity
   - `layout-running` → 不额外展示进度 UI；布局完成后节点停止漂移
-- 展示规则：summary 只报告「N 条已连接 · N 条未连接 · N 条显式连接」；没有边时明确显示当前领域尚未形成显式连接
-- 约束：G6 只接收至少参与一条真实 Connection 的 Understanding；使用内置 `rect` node、line edge、ForceAtlas2、drag-canvas、zoom-canvas 和 drag-element；未连接 Understanding 使用 shadcn Button 单独列出；不使用 MiniMap、React node extension、自定义 node class、Domain lane、Context node 或推断关系
+- 展示规则：全部 Understanding 都是同一画布里的小圆点；真实 Connection 使用低对比细线；低缩放隐藏标题，达到可读尺度后在圆点下方显示单行标题
+- 约束：使用 G6 内置 `circle` node、line edge、D3 Force、drag-canvas、zoom-canvas、fix-element-size 和 drag-element-force；标题在缩放时保持可读字号；不使用摘要、未连接分区、MiniMap、React node extension、自定义 node class、Domain lane、Context node 或推断关系
 
-#### Detail: UnderstandingRectNode
+#### Detail: UnderstandingDotNode
 
-- 组成：G6 built-in rect + wrapped label
-- 布局：固定短标签尺寸，label 居中，最多 2 行
+- 组成：G6 built-in circle + single-line label
+- 布局：固定小圆点，label 位于圆点下方且最多 1 行
 - 状态规则：default / hover / selected 全部从当前 CSS semantic tokens 解析到 G6 style
 - 展示规则：标题使用与瀑布流相同 fallback；不显示正文、领域、计数和状态点
-- 约束：节点视觉对应 Capture 卡片的 border/radius/typography，但不模拟完整 DOM Card
-
-#### Detail: ViewportControls
-
-- 组成：三个 shadcn Button
-- 布局：`absolute bottom-3 left-3 flex flex-col overflow-hidden rounded-md bg-card shadow-sm ring-1 ring-foreground/10`
-- 间距：组内 `gap-0`，Button 保持 `size="icon-sm"`
-- 约束：使用 shadcn Button 调用 G6 viewport API；不启用 G6 Toolbar plugin，避免第二套按钮样式
+- 约束：节点视觉直接参考 Obsidian Graph View，不模拟完整 DOM Card；缩放和平移直接使用滚轮与画布拖动，不增加可见工具栏
 
 ### UnderstandingDetailPanel
 
@@ -206,7 +194,7 @@ ResizablePanel
 
 #### Surface Hierarchy
 
-- 统一规则：DomainNavigation 使用窗口底层材质；WorkspaceStage 使用 `bg-card/95`；瀑布流和关系画布使用低强度 `bg-muted` 托起 `bg-card` 内容；详情回到 `bg-background`
+- 统一规则：DomainNavigation 使用窗口底层材质；WorkspaceStage 使用 `bg-card/95`；瀑布流使用 `bg-background/35`，图谱和详情使用 `bg-background`
 - 禁止：使用渐变、彩色图谱背景或脱离现有 card/ring tokens 的 dashboard surface
 
 #### Typography
@@ -216,7 +204,7 @@ ResizablePanel
 
 #### Spacing Rhythm
 
-- 统一规则：页面级无 padding；header 使用 `px-4`；瀑布流使用 `p-5` 和 Card spacing；controls 使用 `m-3`；未连接区域使用 `p-3`
+- 统一规则：页面级无 padding；header 使用 `px-4`；瀑布流使用 `px-5 py-6` 和卡片 `p-5`
 - 禁止：同一层级混用临时 `gap-1/2/4/6`，或通过卡片 margin 制造 Masonry gutter
 
 #### Interaction State
@@ -239,7 +227,7 @@ ResizablePanel
 | 组件                | Variant / 配置                                       | 使用位置                          |
 | ------------------- | ---------------------------------------------------- | --------------------------------- |
 | Button              | `ghost variant`, `size="sm"`                         | KnowledgeWanderEntry              |
-| Button              | `ghost variant`, `size="icon-sm"`                    | ViewportControls、详情关闭        |
+| Button              | `ghost variant`, `size="icon-sm"`                    | 详情关闭                          |
 | ToggleGroup         | `multiple={false}`, `variant="outline"`, `size="sm"` | WanderHeader                      |
 | ToggleGroupItem     | `outline variant`, `size="sm"`                       | 瀑布流 / 图谱切换                 |
 | Empty               | existing default configuration                       | 知识漫步共享空状态                |
