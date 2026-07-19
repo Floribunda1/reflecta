@@ -1,11 +1,14 @@
 import { MouseEvent, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { ArrowLeft, X } from "lucide-react";
 import type { AgentContextRef } from "@shared/agent";
+import { Button } from "@renderer/components/ui/button";
 import { ContextualAgentDock } from "@renderer/modules/chat/contextual-agent-dock";
 import { ContemplatePageProvider, useContemplatePageContext } from "./context";
 import { FilterPanel } from "./filter-panel";
 import { GraphCanvas } from "./graph";
 import { NodeDetail } from "./NodeDetail";
+import { ReviewWorkspace } from "./ReviewWorkspace";
 
 const MIN_PANEL_WIDTH = 440;
 const MAX_PANEL_WIDTH = 680;
@@ -22,6 +25,7 @@ function ContemplatePageInner() {
   const { setSelectedUnderstandingId } = ctx;
   const [searchParams] = useSearchParams();
   const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
+  const [mode, setMode] = useState<"review" | "map">("review");
   const [agentDockOpen, setAgentDockOpen] = useState(false);
   const [agentDockScope, setAgentDockScope] = useState<AgentContextRef | null>(null);
   const [agentDockThreadId, setAgentDockThreadId] = useState<string | null>(null);
@@ -78,8 +82,26 @@ function ContemplatePageInner() {
           right: `${rightPanelWidth}px`,
         }}
       />
-      <GraphCanvas onChat={openAgentDock} />
-      <FilterPanel />
+      {mode === "review" ? (
+        <ReviewWorkspace
+          onOpenMap={() => setMode("map")}
+          onEditUnderstanding={setSelectedUnderstandingId}
+        />
+      ) : (
+        <>
+          <GraphCanvas onChat={openAgentDock} />
+          <FilterPanel />
+          <Button
+            type="button"
+            variant="outline"
+            className="absolute right-4 top-12 z-20 bg-background"
+            onClick={() => setMode("review")}
+          >
+            <ArrowLeft size={15} />
+            领域回顾
+          </Button>
+        </>
+      )}
       {ctx.selectedUnderstandingId !== null && (
         <div
           className="absolute bottom-0 right-0 top-0 z-10 flex overflow-hidden"
@@ -92,6 +114,16 @@ function ContemplatePageInner() {
             className="absolute bottom-0 left-0 top-0 z-20 w-1 cursor-col-resize transition-colors hover:bg-primary/10"
             onMouseDown={onDragHandleMouseDown}
           />
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            className="absolute right-3 top-2 z-30"
+            aria-label="关闭理解详情"
+            onClick={() => setSelectedUnderstandingId(null)}
+          >
+            <X size={15} />
+          </Button>
           <div className="flex-1 overflow-hidden">
             <NodeDetail />
           </div>

@@ -14,6 +14,7 @@ async function openContemplatePage(page: Page) {
   await page.getByLabel("Switch module").click();
   await page.getByRole("menuitem", { name: "Contemplate" }).click();
   await expect(page.getByTestId("contemplate-page")).toBeVisible();
+  await page.getByRole("button", { name: "知识图谱" }).click();
 }
 
 function contextMention(page: Page, title: string) {
