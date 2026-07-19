@@ -28,7 +28,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@renderer/components/ui/context-menu";
-import { ChevronDown, ChevronRight, Layers, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Layers, Network, Plus } from "lucide-react";
 import type { DomainTreeNode } from "@shared/domain";
 import { cn } from "@renderer/lib/utils";
 import { useDomainActions } from "../hooks";
@@ -337,7 +337,9 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const selectedDomainId = useCaptureStore((state) => state.selectedDomainId);
+  const captureMode = useCaptureStore((state) => state.captureMode);
   const expandedDomainKeys = useCaptureStore((state) => state.expandedDomainIds);
+  const toggleKnowledgeWander = useCaptureStore((state) => state.toggleKnowledgeWander);
   const selectDomain = useCaptureStore((state) => state.selectDomain);
   const toggleDomainExpanded = useCaptureStore((state) => state.toggleDomainExpanded);
   const reconcileExpandedDomains = useCaptureStore((state) => state.reconcileExpandedDomains);
@@ -518,6 +520,23 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
           </DragOverlay>
         </DndContext>
       </ScrollArea>
+
+      <div className="border-t p-2">
+        <Button
+          data-testid="capture-knowledge-wander-entry"
+          type="button"
+          size="sm"
+          variant="ghost"
+          aria-pressed={captureMode === "wander"}
+          className={domainTreeButtonClassName(captureMode === "wander")}
+          onClick={toggleKnowledgeWander}
+        >
+          <span className="flex size-6 shrink-0 items-center justify-center text-muted-foreground">
+            <Network size={14} />
+          </span>
+          <span className="min-w-0 truncate">知识漫步</span>
+        </Button>
+      </div>
     </aside>
   );
 }
