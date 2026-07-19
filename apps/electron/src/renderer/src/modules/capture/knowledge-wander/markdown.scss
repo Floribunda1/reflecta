@@ -1,7 +1,7 @@
 .knowledge-wander-markdown {
-  color: color-mix(in srgb, var(--foreground), transparent 28%);
-  font-size: 0.875rem;
-  line-height: 1.65;
+  color: color-mix(in srgb, var(--foreground), transparent 32%);
+  font-size: 0.9375rem;
+  line-height: 1.75;
   overflow-wrap: anywhere;
 
   > :first-child {
@@ -13,7 +13,7 @@
   }
 
   p {
-    margin: 0.5rem 0;
+    margin: 0.65rem 0;
   }
 
   h1,
@@ -58,7 +58,7 @@
   }
 
   li {
-    margin: 0.16rem 0;
+    margin: 0.25rem 0;
     padding-left: 0.1rem;
   }
 
@@ -142,5 +142,16 @@
     text-decoration: underline;
     text-decoration-color: color-mix(in srgb, var(--primary), transparent 55%);
     text-underline-offset: 0.16em;
+  }
+
+  .knowledge-wander-markdown__wiki-link {
+    display: inline-block;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--primary), transparent 90%);
+    color: var(--primary);
+    padding: 0 0.25em;
+    font-weight: 500;
+    line-height: 1.45;
+    vertical-align: baseline;
   }
 }

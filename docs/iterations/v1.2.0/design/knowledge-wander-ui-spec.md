@@ -118,7 +118,7 @@ header
 
 - 容器 token：
   - Surface：`bg-background/35`
-  - Spacing：viewport `p-4`；列间距和行间距统一为 `gap-3`
+  - Spacing：viewport `px-5 py-6`；内容面 `max-w-6xl` 居中；列间距和行间距统一为 `gap-5`
   - Border / Radius / Shadow：无外层 border、radius 或 shadow
 
 ```text
@@ -130,18 +130,18 @@ section
 
 - 状态规则：
   - `empty` → EmptyDescription「这个领域还没有理解」
-- 约束：卡片最小目标列宽 320px、最大 4 列；由 masonic 负责高度测量、列平衡和虚拟化；正文不截断
+- 约束：卡片目标列宽 440px、最大 2 列，较窄空间自然回落为单列；由 masonic 负责高度测量、列平衡和虚拟化；正文不截断；富文本首轮测高后触发一次跨列重排，避免短列断流
 
 #### Detail: UnderstandingWanderCard
 
 - 组成：clickable card surface + title + KnowledgeWanderMarkdown + Context/Connection counts + meta
-- 布局：`flex w-full flex-col gap-3 text-left`
-- 间距：`p-4`
+- 布局：`flex w-full flex-col gap-4 text-left`
+- 间距：`p-5`
 - 状态规则：
   - `hover` → 只使用 `bg-muted/20`
   - `focus-visible` → 使用现有 focus-visible ring
   - `selected` → 详情已打开时使用 `border-primary ring-1 ring-ring/20`
-- 展示规则：标题使用现有 Understanding fallback；正文为空时显示「空理解，可以直接开始写。」；正文使用知识漫步专用的静态 Markdown renderer，保留标题、段落、列表、引用、代码、表格和图片结构；全部领域范围才显示领域路径，始终显示更新时间；Context/Connection 数量复用普通 List 的 `FileText` / `Link2` 表达
+- 展示规则：标题使用现有 Understanding fallback；正文为空时显示「空理解，可以直接开始写。」；正文使用知识漫步专用的静态 Markdown renderer，保留标题、段落、列表、引用、代码、表格和图片结构；Understanding 双链沿用编辑器的主色浅底标记；全部领域范围才显示领域路径，始终显示更新时间；Context/Connection 数量复用普通 List 的 `FileText` / `Link2` 表达
 - 约束：使用 `rounded-lg border bg-card shadow-xs`；不显示操作按钮、摘要、评分或状态点；Markdown 链接在卡片中只显示为非交互文本，整张卡片保持唯一点击入口；hover/selected 不改变尺寸和位置
 
 ### GraphView
@@ -212,12 +212,12 @@ ResizablePanel
 
 #### Typography
 
-- 统一规则：header 领域名使用 `text-sm font-medium`；数量与 meta 使用 `text-xs text-muted-foreground`；瀑布流标题使用 `text-base font-semibold`；正文使用现有 markdown preview typography；图谱节点只使用一个 label 层级
+- 统一规则：header 领域名使用 `text-sm font-medium`；数量与 meta 使用 `text-xs text-muted-foreground`；瀑布流标题使用 `text-base font-semibold`；正文使用 `text-[15px] leading-[1.75]` 的舒展阅读节奏；图谱节点只使用一个 label 层级
 - 禁止：为图谱另建字体、字号系统，或让 meta 与正文同权重
 
 #### Spacing Rhythm
 
-- 统一规则：页面级无 padding；header 使用 `px-4`；观察面使用 `p-4`；卡片内部使用 `p-4 gap-3`；controls 使用 `m-3`
+- 统一规则：页面级无 padding；header 使用 `px-4`；观察面使用 `px-5 py-6`；卡片内部使用 `p-5 gap-4`；controls 使用 `m-3`
 - 禁止：同一层级混用临时 `gap-1/2/4/6`，或通过卡片 margin 制造 Masonry gutter
 
 #### Interaction State

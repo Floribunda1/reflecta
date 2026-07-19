@@ -27,6 +27,25 @@ test("@KW-WANDER-001 用户连续阅读完整理解并打开详情", async () =>
     await expect(card.getByLabel(/\d+ 个上下文/)).toBeVisible();
     await expect(card.getByLabel(/\d+ 个双链关系/)).toBeVisible();
     await expect(page.getByTestId("knowledge-wander-markdown").locator("ul").first()).toBeVisible();
+
+    const layout = await page.getByTestId("knowledge-wander-waterfall").evaluate((waterfall) => {
+      const viewport = waterfall.getBoundingClientRect();
+      const cards = [
+        ...waterfall.querySelectorAll<HTMLElement>('[data-testid="knowledge-wander-card"]'),
+      ].map((item) => item.getBoundingClientRect());
+      const columnBottoms = new Map<number, number>();
+      for (const card of cards) {
+        const left = Math.round(card.left - viewport.left);
+        columnBottoms.set(left, Math.max(columnBottoms.get(left) ?? 0, card.bottom - viewport.top));
+      }
+      return {
+        columnCount: columnBottoms.size,
+        shortestColumnFill: Math.min(...columnBottoms.values()) / viewport.height,
+      };
+    });
+    expect(layout.columnCount).toBeLessThanOrEqual(2);
+    expect(layout.shortestColumnFill).toBeGreaterThan(0.75);
+
     await card.click();
     await expect(page.getByPlaceholder("写下一个刚形成的理解")).toHaveValue(UNDERSTANDING_TITLE);
 

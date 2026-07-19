@@ -126,9 +126,9 @@ CapturePage
 
 卡片不展示操作按钮、质量状态或 AI 内容；使用普通 Capture List 已有的图标语言展示 Context 数量和 Connection 数量。点击卡片打开右侧详情；右键行为不在本期扩展。
 
-正文使用知识漫步专用的静态 Markdown renderer，复用 Milkdown 周边已经安装的 unified、remark-parse、remark-gfm、remark-rehype 和 rehype-stringify，并覆盖为紧凑阅读样式；保留标题、列表、引用、代码、表格和图片等正文结构。卡片负责完整呈现可读文本；Context 和编辑能力仍留在打开后的 `UnderstandingDetail`。
+正文使用知识漫步专用的静态 Markdown renderer，复用 Milkdown 周边已经安装的 unified、remark-parse、remark-gfm、remark-rehype 和 rehype-stringify，并覆盖为舒展阅读样式；保留标题、列表、引用、代码、表格和图片等正文结构，Understanding 双链沿用编辑器的主色浅底标记。卡片负责完整呈现可读文本；Context 和编辑能力仍留在打开后的 `UnderstandingDetail`。
 
-瀑布流的内容顺序是确定的，但视觉列由布局组件按高度平衡。它不是从左到右的严格表格，也不承诺卡片在不同窗口宽度下保持同一列。
+瀑布流使用居中的双列阅读面，空间不足时回落为单列，不再随着宽屏扩展到三列以上。内容顺序是确定的，但视觉列由布局组件按高度平衡；富文本完成首轮测高后允许 Masonic 重建一次 positioner，使卡片可以跨列重新平衡。它不是从左到右的严格表格，也不承诺卡片在不同窗口宽度下保持同一列。
 
 ### 4.5 图谱
 
@@ -351,6 +351,8 @@ bun --cwd apps/electron test:e2e
 
 - footer Button 可进入和退出知识漫步，并有可访问的 active state。
 - 瀑布流正文没有 line clamp。
+- 瀑布流最多双列，富文本测高后两列仍连续铺排。
+- Understanding 双链与普通正文具有可辨别的静态样式。
 - ToggleGroup 在瀑布流和图谱间切换。
 - 两种视图点击卡片都打开相同详情 panel。
 - 关闭详情后保留底层 scroll/viewport。
@@ -379,6 +381,8 @@ bun --cwd apps/electron test:e2e
 - Capture 领域栏底部存在「知识漫步」，无「随机」相关文案或行为。
 - 知识漫步始终使用左侧选中的领域范围，父领域包含子领域。
 - 瀑布流默认展示全部完整正文，不截断、不总结、不随机。
+- 瀑布流最多双列并限制阅读宽度，不以增加同屏卡片数量换取信息密度。
+- 正文中的 Understanding 双链使用与编辑器一致的主色浅底语义。
 - 用户可以在瀑布流和关系图谱间切换。
 - 图谱不使用 Dagre，不展示 Domain lane，只展示 Understanding 和真实 Connection。
 - 图谱布局、渲染和画布交互由 G6 完成；仓库不包含自研布局或缩放平移引擎。

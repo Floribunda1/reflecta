@@ -6,7 +6,7 @@ import { cn } from "@renderer/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { FileText, Link2 } from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getUnderstandingTitle } from "../understanding-title";
 import { KnowledgeWanderMarkdown } from "./markdown";
 
@@ -34,7 +34,7 @@ function UnderstandingWanderCard({ data }: RenderComponentProps<WaterfallItem>) 
       data-understanding-title={title}
       aria-current={selected ? "true" : undefined}
       className={cn(
-        "flex w-full cursor-pointer flex-col gap-3 rounded-lg border bg-card p-4 text-left text-card-foreground shadow-xs outline-none transition-colors hover:bg-muted/20 focus-visible:ring-3 focus-visible:ring-ring/50",
+        "flex w-full cursor-pointer flex-col gap-4 rounded-lg border bg-card p-5 text-left text-card-foreground shadow-xs outline-none transition-colors hover:bg-muted/20 focus-visible:ring-3 focus-visible:ring-ring/50",
         selected && "border-primary ring-1 ring-ring/20",
       )}
       onClick={() => onSelect(understanding.id)}
@@ -93,8 +93,11 @@ export function KnowledgeWaterfall({
   onSelect: (id: string) => void;
 }) {
   const scrollRef = useRef<HTMLElement>(null);
-  const size = useSize(scrollRef);
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const viewportSize = useSize(scrollRef);
+  const layoutSize = useSize(layoutRef);
   const scroll = useScroll(scrollRef);
+  const [measurementPass, setMeasurementPass] = useState(0);
   const itemOrderKey = understandings.map(({ id }) => id).join("|");
   const items = useMemo<WaterfallItem[]>(
     () =>
@@ -108,13 +111,13 @@ export function KnowledgeWaterfall({
   );
   const positioner = usePositioner(
     {
-      width: Math.max(1, (size?.width ?? 1) - 32),
-      columnWidth: 320,
-      columnGutter: 12,
-      rowGutter: 12,
-      maxColumnCount: 4,
+      width: Math.max(1, layoutSize?.width ?? 1),
+      columnWidth: 440,
+      columnGutter: 20,
+      rowGutter: 20,
+      maxColumnCount: 2,
     },
-    [itemOrderKey],
+    [itemOrderKey, scopeKey, measurementPass],
   );
   const resizeObserver = useResizeObserver(positioner);
 
@@ -122,11 +125,18 @@ export function KnowledgeWaterfall({
     scrollRef.current?.scrollTo({ top: 0 });
   }, [scopeKey]);
 
+  useEffect(() => {
+    // Rich Markdown changes the measured card heights after Masonic's first placement.
+    // Rebuild once on the next frame so items can rebalance across columns.
+    const frame = window.requestAnimationFrame(() => setMeasurementPass((value) => value + 1));
+    return () => window.cancelAnimationFrame(frame);
+  }, [itemOrderKey, scopeKey, layoutSize?.width]);
+
   const masonry = useMasonry({
     items,
     positioner,
     resizeObserver,
-    height: Math.max(1, size?.height ?? 1),
+    height: Math.max(1, viewportSize?.height ?? 1),
     scrollTop: scroll?.top ?? 0,
     itemHeightEstimate: 240,
     itemKey: (item) => item.understanding.id,
@@ -139,9 +149,11 @@ export function KnowledgeWaterfall({
     <section
       ref={scrollRef}
       data-testid="knowledge-wander-waterfall"
-      className="h-full overflow-y-auto bg-background/35 p-4"
+      className="h-full overflow-y-auto bg-background/35 px-5 py-6"
     >
-      {masonry}
+      <div ref={layoutRef} className="mx-auto w-full max-w-6xl">
+        {masonry}
+      </div>
     </section>
   );
 }
