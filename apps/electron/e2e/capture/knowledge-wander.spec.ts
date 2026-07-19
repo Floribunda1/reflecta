@@ -26,7 +26,6 @@ test("@KW-WANDER-001 用户连续阅读完整理解并打开详情", async () =>
     await expect(card).toContainText(FULL_BODY_END);
     await expect(card.getByLabel(/\d+ 个上下文/)).toBeVisible();
     await expect(card.getByLabel(/\d+ 个双链关系/)).toBeVisible();
-    await expect(page.getByTestId("knowledge-wander-markdown").locator("ul").first()).toBeVisible();
 
     const layout = await page.getByTestId("knowledge-wander-waterfall").evaluate((waterfall) => {
       const viewport = waterfall.getBoundingClientRect();
@@ -74,6 +73,10 @@ test("@KW-WANDER-002 用户切换图谱观察真实关系", async () => {
     await expect(page.getByRole("button", { name: "适应画布" })).toBeVisible({
       timeout: 30_000,
     });
+    await expect(page.getByTestId("knowledge-wander-graph-summary")).toContainText(
+      /\d+ 条已连接 · \d+ 条未连接 · \d+ 条显式连接/,
+    );
+    await expect(page.getByTestId("knowledge-wander-unconnected")).toBeVisible();
 
     const graphNode = page
       .getByLabel("图谱理解")

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
-import { buildGraphSelectionStates, buildKnowledgeGraphData } from "./graph-data";
+import {
+  buildGraphSelectionStates,
+  buildKnowledgeGraphData,
+  splitKnowledgeGraphData,
+} from "./graph-data";
 
 function understanding(
   id: string,
@@ -48,22 +52,47 @@ describe("buildKnowledgeGraphData", () => {
 
     expect(data.nodes[0]?.data.title).toBe("正文 a");
   });
+
+  it("separates connected and unconnected understandings without dropping either", () => {
+    const data = buildKnowledgeGraphData([
+      understanding("a", ["b"]),
+      understanding("b"),
+      understanding("isolated"),
+    ]);
+
+    const split = splitKnowledgeGraphData(data);
+
+    expect(split.connected.nodes.map((node) => node.id)).toEqual(["a", "b"]);
+    expect(split.connected.edges).toEqual([
+      {
+        id: "connection:a->b",
+        source: "a",
+        target: "b",
+      },
+    ]);
+    expect(split.unconnected.map((node) => node.id)).toEqual(["isolated"]);
+  });
 });
 
 describe("buildGraphSelectionStates", () => {
-  it("selects the node and its incident edges without hiding other nodes", () => {
+  it("focuses the selected neighborhood and dims unrelated relationship islands", () => {
     const data = buildKnowledgeGraphData([
       understanding("a", ["b"]),
       understanding("b", ["c"]),
       understanding("c"),
+      understanding("d", ["e"]),
+      understanding("e"),
     ]);
 
     expect(buildGraphSelectionStates(data, "b")).toEqual({
-      a: [],
+      a: ["related"],
       b: ["selected"],
-      c: [],
+      c: ["related"],
+      d: ["dimmed"],
+      e: ["dimmed"],
       "connection:a->b": ["selected"],
       "connection:b->c": ["selected"],
+      "connection:d->e": ["dimmed"],
     });
   });
 });

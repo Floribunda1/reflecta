@@ -17,6 +17,11 @@ export type KnowledgeGraphData = {
   edges: KnowledgeGraphEdge[];
 };
 
+export type SplitKnowledgeGraphData = {
+  connected: KnowledgeGraphData;
+  unconnected: KnowledgeGraphNode[];
+};
+
 export function buildKnowledgeGraphData(
   understandings: UnderstandingSummaryDTO[],
 ): KnowledgeGraphData {
@@ -51,6 +56,17 @@ export function buildKnowledgeGraphData(
   };
 }
 
+export function splitKnowledgeGraphData(data: KnowledgeGraphData): SplitKnowledgeGraphData {
+  const connectedIds = new Set(data.edges.flatMap(({ source, target }) => [source, target]));
+  return {
+    connected: {
+      nodes: data.nodes.filter(({ id }) => connectedIds.has(id)),
+      edges: data.edges,
+    },
+    unconnected: data.nodes.filter(({ id }) => !connectedIds.has(id)),
+  };
+}
+
 export function buildGraphSelectionStates(
   data: KnowledgeGraphData,
   selectedId: string | null,
@@ -60,10 +76,13 @@ export function buildGraphSelectionStates(
   );
   if (!selectedId || !states[selectedId]) return states;
 
+  for (const id of Object.keys(states)) states[id] = ["dimmed"];
   states[selectedId] = ["selected"];
   for (const edge of data.edges) {
     if (edge.source === selectedId || edge.target === selectedId) {
       states[edge.id] = ["selected"];
+      const relatedId = edge.source === selectedId ? edge.target : edge.source;
+      states[relatedId] = ["related"];
     }
   }
   return states;

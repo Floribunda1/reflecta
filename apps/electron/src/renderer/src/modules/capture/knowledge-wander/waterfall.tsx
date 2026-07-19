@@ -2,6 +2,7 @@ import { useScroll, useSize } from "ahooks";
 import { useMasonry, usePositioner, useResizeObserver } from "masonic";
 import type { RenderComponentProps } from "masonic";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@renderer/components/ui/card";
 import { cn } from "@renderer/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
@@ -26,7 +27,7 @@ function UnderstandingWanderCard({ data }: RenderComponentProps<WaterfallItem>) 
   const title = getUnderstandingTitle(understanding);
 
   return (
-    <article
+    <Card
       role="button"
       tabIndex={0}
       data-testid="knowledge-wander-card"
@@ -34,8 +35,8 @@ function UnderstandingWanderCard({ data }: RenderComponentProps<WaterfallItem>) 
       data-understanding-title={title}
       aria-current={selected ? "true" : undefined}
       className={cn(
-        "flex w-full cursor-pointer flex-col gap-4 rounded-lg border bg-card p-5 text-left text-card-foreground shadow-xs outline-none transition-colors hover:bg-muted/20 focus-visible:ring-3 focus-visible:ring-ring/50",
-        selected && "border-primary ring-1 ring-ring/20",
+        "w-full cursor-pointer text-left shadow-sm outline-none ring-1 ring-foreground/10 transition-[box-shadow,background-color] hover:shadow-md hover:ring-foreground/15 focus-visible:ring-3 focus-visible:ring-ring/50",
+        selected && "bg-accent/25 ring-2 ring-primary/45",
       )}
       onClick={() => onSelect(understanding.id)}
       onKeyDown={(event) => {
@@ -44,21 +45,20 @@ function UnderstandingWanderCard({ data }: RenderComponentProps<WaterfallItem>) 
         onSelect(understanding.id);
       }}
     >
-      <div className="text-base font-semibold leading-snug text-foreground">{title}</div>
+      <CardHeader>
+        <CardTitle className="font-semibold leading-snug text-foreground">{title}</CardTitle>
+      </CardHeader>
 
-      <div className="min-w-0">
+      <CardContent className="min-w-0">
         {understanding.body ? (
           <KnowledgeWanderMarkdown content={understanding.body} />
         ) : (
           <span className="text-sm text-muted-foreground">空理解，可以直接开始写。</span>
         )}
-      </div>
+      </CardContent>
 
-      {domainLabel ? (
-        <div className="truncate text-xs text-muted-foreground/75">{domainLabel}</div>
-      ) : null}
-
-      <div className="flex min-w-0 items-center gap-3 text-xs text-muted-foreground/75">
+      <CardFooter className="min-w-0 gap-3 border-t text-xs text-muted-foreground/75">
+        {domainLabel ? <span className="min-w-0 flex-1 truncate">{domainLabel}</span> : null}
         <span
           className="inline-flex items-center gap-1"
           aria-label={`${understanding.contextCount} 个上下文`}
@@ -74,8 +74,8 @@ function UnderstandingWanderCard({ data }: RenderComponentProps<WaterfallItem>) 
           {understanding.connectionCount}
         </span>
         <span className="ml-auto shrink-0">{updatedLabel}</span>
-      </div>
-    </article>
+      </CardFooter>
+    </Card>
   );
 }
 
@@ -112,7 +112,7 @@ export function KnowledgeWaterfall({
   const positioner = usePositioner(
     {
       width: Math.max(1, layoutSize?.width ?? 1),
-      columnWidth: 440,
+      columnWidth: 520,
       columnGutter: 20,
       rowGutter: 20,
       maxColumnCount: 2,
@@ -149,9 +149,9 @@ export function KnowledgeWaterfall({
     <section
       ref={scrollRef}
       data-testid="knowledge-wander-waterfall"
-      className="h-full overflow-y-auto bg-background/35 px-5 py-6"
+      className="h-full overflow-y-auto bg-muted/35 p-5"
     >
-      <div ref={layoutRef} className="mx-auto w-full max-w-6xl">
+      <div ref={layoutRef} className="w-full">
         {masonry}
       </div>
     </section>

@@ -1,17 +1,19 @@
 import type { Graph as G6Graph, IElementEvent } from "@antv/g6";
 import { Button } from "@renderer/components/ui/button";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@renderer/components/ui/empty";
 import { Skeleton } from "@renderer/components/ui/skeleton";
+import { cn } from "@renderer/lib/utils";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@renderer/components/ui/tooltip";
-import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
+import { Link2, Maximize2, Unlink2, Waypoints, ZoomIn, ZoomOut } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KnowledgeGraphData } from "./graph-data";
-import { buildGraphSelectionStates } from "./graph-data";
+import { buildGraphSelectionStates, splitKnowledgeGraphData } from "./graph-data";
 import { readKnowledgeGraphTheme } from "./graph-theme";
 
 function topologyKey(data: KnowledgeGraphData): string {
@@ -22,7 +24,7 @@ function titleKey(data: KnowledgeGraphData): string {
   return data.nodes.map(({ id, data: nodeData }) => `${id}:${nodeData.title}`).join("|");
 }
 
-export function KnowledgeGraph({
+function ConnectedGraphCanvas({
   data,
   selectedUnderstandingId,
   onSelect,
@@ -48,7 +50,8 @@ export function KnowledgeGraph({
   onSelectRef.current = onSelect;
 
   const applyElementStates = useCallback((graph: G6Graph) => {
-    const states = buildGraphSelectionStates(dataRef.current, selectedRef.current);
+    const focusId = hoveredRef.current ?? selectedRef.current;
+    const states = buildGraphSelectionStates(dataRef.current, focusId);
     if (hoveredRef.current && states[hoveredRef.current]) {
       states[hoveredRef.current] = [...states[hoveredRef.current], "hover"];
     }
@@ -76,74 +79,57 @@ export function KnowledgeGraph({
           animation: false,
           data: dataRef.current,
           zoomRange: [0.15, 2],
-          padding: 48,
+          padding: 56,
           layout: {
-            type: "d3-force",
+            type: "force-atlas2",
             preLayout: true,
             animation: false,
-            iterations: 260,
-            manyBody: { strength: -520, distanceMax: 720 },
-            link: { distance: 210, strength: 0.45, iterations: 2 },
-            collide: { radius: 128, strength: 1, iterations: 2 },
-            x: { strength: 0.07 },
-            y: { strength: 0.07 },
+            iterations: 320,
+            mode: "linlog",
+            preventOverlap: true,
+            nodeSize: 184,
+            kr: 24,
+            kg: 6,
           },
-          behaviors: ["drag-canvas", "zoom-canvas", { type: "drag-element-force", fixed: true }],
-          plugins: [
-            {
-              type: "minimap",
-              key: "knowledge-wander-minimap",
-              className: "knowledge-wander-minimap",
-              size: [160, 104],
-              padding: 8,
-              position: "right-bottom",
-              containerStyle: {
-                backgroundColor: theme.card,
-                border: `1px solid ${theme.border}`,
-                borderRadius: "var(--radius-md)",
-                boxShadow: "var(--shadow-xs)",
-                margin: "12px",
-                overflow: "hidden",
-                zIndex: "1",
-              },
-              maskStyle: {
-                background: "color-mix(in srgb, var(--primary), transparent 84%)",
-                border: "1px solid var(--primary)",
-              },
-            },
-          ],
+          behaviors: ["drag-canvas", "zoom-canvas", "drag-element"],
           node: {
             type: "rect",
             style: {
-              size: [232, 84],
-              radius: 9,
+              size: [176, 54],
+              radius: 12,
               fill: theme.card,
               stroke: theme.border,
-              lineWidth: 1,
+              lineWidth: 1.5,
               cursor: "pointer",
               labelText: (datum) => String(datum.data?.title ?? "未命名理解"),
               labelPlacement: "center",
               labelFill: theme.foreground,
-              labelFontSize: 14,
+              labelFontSize: 13,
               labelFontWeight: 600,
-              labelLineHeight: 19,
+              labelLineHeight: 17,
               labelTextAlign: "center",
               labelTextBaseline: "middle",
               labelWordWrap: true,
-              labelMaxWidth: 196,
-              labelMaxLines: 3,
+              labelMaxWidth: 148,
+              labelMaxLines: 2,
               labelTextOverflow: "ellipsis",
             },
             state: {
               hover: {
-                stroke: theme.mutedForeground,
-                fill: theme.muted,
-                lineWidth: 1.5,
+                stroke: theme.primary,
+                lineWidth: 2,
               },
               selected: {
                 stroke: theme.primary,
                 fill: theme.accent,
                 lineWidth: 2,
+              },
+              related: {
+                stroke: theme.primary,
+                lineWidth: 1.5,
+              },
+              dimmed: {
+                opacity: 0.2,
               },
             },
           },
@@ -151,14 +137,17 @@ export function KnowledgeGraph({
             type: "line",
             style: {
               stroke: theme.mutedForeground,
-              lineWidth: 1.25,
-              opacity: 0.42,
+              lineWidth: 1.5,
+              opacity: 0.58,
             },
             state: {
               selected: {
                 stroke: theme.primary,
-                lineWidth: 2,
+                lineWidth: 2.25,
                 opacity: 1,
+              },
+              dimmed: {
+                opacity: 0.08,
               },
             },
           },
@@ -225,10 +214,7 @@ export function KnowledgeGraph({
     void graphRef.current?.fitView({ when: "always", direction: "both" }, false);
 
   return (
-    <section
-      data-testid="knowledge-wander-graph"
-      className="relative h-full overflow-hidden bg-background/35"
-    >
+    <div data-testid="knowledge-wander-connected-graph" className="relative h-full overflow-hidden">
       <div ref={containerRef} className="h-full w-full" />
       <div className="sr-only" aria-label="图谱理解">
         {data.nodes.map((node) => (
@@ -252,7 +238,7 @@ export function KnowledgeGraph({
 
       {ready ? (
         <TooltipProvider>
-          <div className="absolute bottom-3 left-3 flex flex-col overflow-hidden rounded-md border bg-card shadow-xs">
+          <div className="absolute bottom-3 left-3 flex flex-col overflow-hidden rounded-md bg-card shadow-sm ring-1 ring-foreground/10">
             {[
               { label: "放大", Icon: ZoomIn, action: zoomIn },
               { label: "缩小", Icon: ZoomOut, action: zoomOut },
@@ -278,6 +264,85 @@ export function KnowledgeGraph({
             ))}
           </div>
         </TooltipProvider>
+      ) : null}
+    </div>
+  );
+}
+
+export function KnowledgeGraph({
+  data,
+  selectedUnderstandingId,
+  onSelect,
+}: {
+  data: KnowledgeGraphData;
+  selectedUnderstandingId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  const { connected, unconnected } = useMemo(() => splitKnowledgeGraphData(data), [data]);
+  const summary = `${connected.nodes.length} 条已连接 · ${unconnected.length} 条未连接 · ${connected.edges.length} 条显式连接`;
+
+  return (
+    <section
+      data-testid="knowledge-wander-graph"
+      className="flex h-full min-h-0 flex-col bg-muted/30"
+    >
+      <div className="relative min-h-0 flex-1">
+        <div
+          data-testid="knowledge-wander-graph-summary"
+          className="absolute top-3 left-3 z-10 inline-flex items-center gap-2 rounded-lg bg-card/95 px-3 py-2 text-xs text-muted-foreground shadow-sm ring-1 ring-foreground/10 backdrop-blur-sm"
+        >
+          <Link2 size={14} aria-hidden />
+          {summary}
+        </div>
+
+        {connected.nodes.length > 0 ? (
+          <ConnectedGraphCanvas
+            data={connected}
+            selectedUnderstandingId={selectedUnderstandingId}
+            onSelect={onSelect}
+          />
+        ) : (
+          <Empty className="h-full border-0 pt-20">
+            <EmptyContent>
+              <EmptyMedia variant="icon">
+                <Waypoints />
+              </EmptyMedia>
+              <EmptyDescription>这个领域还没有形成显式连接</EmptyDescription>
+            </EmptyContent>
+          </Empty>
+        )}
+      </div>
+
+      {unconnected.length > 0 ? (
+        <div
+          data-testid="knowledge-wander-unconnected"
+          className="max-h-56 shrink-0 overflow-y-auto border-t bg-background/95 p-3"
+        >
+          <div className="mb-2 flex items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
+            <Unlink2 size={14} aria-hidden />
+            未连接理解
+            <span className="font-normal">{unconnected.length}</span>
+          </div>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-2">
+            {unconnected.map((node) => (
+              <Button
+                key={node.id}
+                type="button"
+                size="sm"
+                variant="outline"
+                title={node.data.title}
+                aria-current={selectedUnderstandingId === node.id ? "true" : undefined}
+                className={cn(
+                  "h-auto min-h-9 justify-start py-2 text-left font-normal whitespace-normal",
+                  selectedUnderstandingId === node.id && "border-primary bg-accent",
+                )}
+                onClick={() => onSelect(node.id)}
+              >
+                <span className="line-clamp-2">{node.data.title}</span>
+              </Button>
+            ))}
+          </div>
+        </div>
       ) : null}
     </section>
   );

@@ -2,7 +2,6 @@ export type KnowledgeGraphTheme = {
   card: string;
   foreground: string;
   mutedForeground: string;
-  muted: string;
   accent: string;
   border: string;
   primary: string;
@@ -18,7 +17,6 @@ export function readKnowledgeGraphTheme(): KnowledgeGraphTheme {
     card: readToken(styles, "--card"),
     foreground: readToken(styles, "--foreground"),
     mutedForeground: readToken(styles, "--muted-foreground"),
-    muted: readToken(styles, "--muted"),
     accent: readToken(styles, "--accent"),
     border: readToken(styles, "--border"),
     primary: readToken(styles, "--primary"),

@@ -20,7 +20,7 @@ import { KnowledgeWaterfall } from "./waterfall";
 
 function WanderLoading() {
   return (
-    <div className="grid h-full auto-rows-max grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3 bg-background/35 p-4">
+    <div className="grid h-full auto-rows-max grid-cols-2 gap-5 bg-muted/35 p-5">
       {[0, 1, 2, 3, 4, 5].map((item) => (
         <Skeleton key={item} className="h-48" />
       ))}
@@ -30,7 +30,7 @@ function WanderLoading() {
 
 function WanderEmpty({ failed }: { failed: boolean }) {
   return (
-    <Empty className="h-full bg-background/35">
+    <Empty className="h-full bg-muted/35">
       <EmptyContent>
         <EmptyMedia variant="icon">{failed ? <CircleAlert /> : <BookOpen />}</EmptyMedia>
         <EmptyDescription>
