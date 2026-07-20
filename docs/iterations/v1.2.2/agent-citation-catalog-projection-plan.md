@@ -2,9 +2,18 @@
 
 > 日期：2026-07-20
 >
-> 状态：In Progress
+> 状态：Implemented
 >
 > 架构依据：[Agent Citation 与 Entity Catalog 架构](../../references/technical/biz/agent/citation.md)
+
+## 0. 完成记录
+
+- `350389b` 保存本执行计划。
+- `96a0bd0` 将 session event 恢复改为当前活动分支，并补充编辑旧消息后废弃 Catalog 不再泄漏的回归测试。
+- `fcf6e7f` 完成非持久化 Model Context Projector、versioned runtime Catalog、旧会话严格清理、工具循环统一和 provider cache boundary。
+- `buildPiPromptText` 与只读工具结果不再注入 Catalog；Pi `context` hook 在每次 LLM 调用前读取同一个 `AgentEntityCatalog` 的最新 snapshot。
+- Anthropic-compatible payload 会把已有 `cache_control` 前移；direct OpenAI GPT-5.6 family 会在 Catalog 前添加显式 `prompt_cache_breakpoint`；其他 provider 保持 no-op。
+- 2026-07-20 验证通过：Electron main 23 个 test files / 142 tests、完整 Electron node + web typecheck、oxlint、oxfmt check、Prettier 和 `git diff --check`。
 
 ## 1. 目标
 
