@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0 - 2026-07-20
+
+- Replaced the standalone Contemplate module with Knowledge Wander inside Capture, leaving Capture and Agent as the two top-level product surfaces.
+- Rebuilt Knowledge Wander as an Obsidian-style force-directed graph of Understandings and explicit Connections, including isolated nodes, native pan/zoom/drag, smooth neighborhood focus, stable selection, and direct access to Understanding details and Context.
+- Moved the Knowledge Wander entry into the Capture toolbar and aligned graph controls, Markdown previews, metadata, and interaction styling with the current design system.
+- Made CLI release artifacts portable by packaging migrations and externalizing native runtime dependencies, while preventing CLI tests from resolving user profile databases.
+
 ## 1.1.22 - 2026-07-19
 
 - Switched Agent citations to direct stable entity markers for Understandings, Contexts, and Domains, rendered through current entity metadata.
