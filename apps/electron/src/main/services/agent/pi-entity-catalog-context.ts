@@ -1,6 +1,6 @@
 import type { ContextEvent, InlineExtension } from "@earendil-works/pi-coding-agent";
 import type { AgentEntityCatalogEntry } from "@shared/agent";
-import { formatEntityRecordsForPrompt, RUNTIME_ENTITY_CATALOG_OPEN_TAG } from "./agent-citations";
+import { formatEntityRecordsForPrompt } from "./agent-citations";
 
 type PiMessage = ContextEvent["messages"][number];
 
@@ -10,12 +10,6 @@ const RUNTIME_ENTITY_BLOCK_PATTERN =
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function containsRuntimeCatalog(value: unknown): boolean {
-  if (typeof value === "string") return value.includes(RUNTIME_ENTITY_CATALOG_OPEN_TAG);
-  if (Array.isArray(value)) return value.some(containsRuntimeCatalog);
-  return isRecord(value) && Object.values(value).some(containsRuntimeCatalog);
 }
 
 function citationFor(type: string, id: string) {
@@ -106,84 +100,6 @@ export function projectEntityCatalogMessages(
   return projected;
 }
 
-function applyAnthropicCacheBoundary(payload: Record<string, unknown>) {
-  if (!Array.isArray(payload.messages)) return;
-  let catalogBlock: Record<string, unknown> | undefined;
-  let candidate: Record<string, unknown> | undefined;
-  const cacheableTypes = new Set(["text", "image", "tool_use", "tool_result"]);
-
-  for (const message of payload.messages) {
-    if (!isRecord(message) || !Array.isArray(message.content)) continue;
-    for (const block of message.content) {
-      if (!isRecord(block)) continue;
-      if (containsRuntimeCatalog(block)) {
-        catalogBlock = block;
-        break;
-      }
-      if (typeof block.type === "string" && cacheableTypes.has(block.type)) candidate = block;
-    }
-    if (catalogBlock) break;
-  }
-
-  if (!catalogBlock || !isRecord(catalogBlock.cache_control) || !candidate) return;
-  candidate.cache_control = catalogBlock.cache_control;
-  delete catalogBlock.cache_control;
-}
-
-function isOpenAiCacheableBlock(value: Record<string, unknown>) {
-  return (
-    value.type === "input_text" ||
-    value.type === "input_image" ||
-    value.type === "input_file" ||
-    value.type === "text" ||
-    value.type === "image_url" ||
-    value.type === "input_audio" ||
-    value.type === "file" ||
-    value.type === "refusal"
-  );
-}
-
-function applyOpenAiCacheBoundary(payload: Record<string, unknown>) {
-  const sequence = Array.isArray(payload.input)
-    ? payload.input
-    : Array.isArray(payload.messages)
-      ? payload.messages
-      : undefined;
-  if (!sequence) return;
-  let candidate: Record<string, unknown> | undefined;
-
-  for (const item of sequence) {
-    if (!isRecord(item)) continue;
-    if (Array.isArray(item.content)) {
-      for (const block of item.content) {
-        if (!isRecord(block)) continue;
-        if (containsRuntimeCatalog(block)) {
-          if (candidate) candidate.prompt_cache_breakpoint = { mode: "explicit" };
-          return;
-        }
-        if (isOpenAiCacheableBlock(block)) candidate = block;
-      }
-      continue;
-    }
-    if (containsRuntimeCatalog(item)) {
-      if (candidate) candidate.prompt_cache_breakpoint = { mode: "explicit" };
-      return;
-    }
-  }
-}
-
-export function applyEntityCatalogCacheBoundary(
-  payload: unknown,
-  model: { provider?: string; id?: string } | undefined,
-): unknown {
-  if (!isRecord(payload) || !containsRuntimeCatalog(payload)) return payload;
-  applyAnthropicCacheBoundary(payload);
-  if (model?.provider === "openai" && /^gpt-5\.6(?:-|$)/.test(model.id ?? "")) {
-    applyOpenAiCacheBoundary(payload);
-  }
-  return payload;
-}
-
 export function createPiEntityCatalogContext(
   getEntries: () => AgentEntityCatalogEntry[],
 ): InlineExtension {
@@ -198,9 +114,6 @@ export function createPiEntityCatalogContext(
           throw error;
         }
       });
-      pi.on("before_provider_request", (event, ctx) =>
-        applyEntityCatalogCacheBoundary(event.payload, ctx.model),
-      );
     },
   };
 }

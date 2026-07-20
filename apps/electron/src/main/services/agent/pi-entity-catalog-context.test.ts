@@ -1,11 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type { ContextEvent } from "@earendil-works/pi-coding-agent";
 import type { AgentEntityCatalogEntry } from "@shared/agent";
-import { RUNTIME_ENTITY_CATALOG_OPEN_TAG } from "./agent-citations";
-import {
-  applyEntityCatalogCacheBoundary,
-  projectEntityCatalogMessages,
-} from "./pi-entity-catalog-context";
+import { projectEntityCatalogMessages } from "./pi-entity-catalog-context";
 
 const entries: AgentEntityCatalogEntry[] = [
   {
@@ -101,104 +97,5 @@ describe("projectEntityCatalogMessages", () => {
       last && "content" in last && Array.isArray(last.content) ? last.content.at(-1) : null,
     ).toMatchObject({ type: "text", text: expect.stringContaining("new_understanding") });
     expect(JSON.stringify(projected).match(/<reflecta_entities/g)).toHaveLength(1);
-  });
-});
-
-describe("applyEntityCatalogCacheBoundary", () => {
-  const catalogText = `\n\n${RUNTIME_ENTITY_CATALOG_OPEN_TAG}\n{"type":"understanding","id":"new_understanding","citation":"[[u:new_understanding]]","title":"Current title"}\n</reflecta_entities>`;
-
-  test("moves Anthropic cache control before the dynamic catalog", () => {
-    const cacheControl = { type: "ephemeral" };
-    const payload = {
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "question" },
-            { type: "text", text: catalogText, cache_control: cacheControl },
-          ],
-        },
-      ],
-    };
-
-    applyEntityCatalogCacheBoundary(payload, { provider: "anthropic", id: "claude" });
-
-    expect(payload.messages[0]!.content[0]).toMatchObject({ cache_control: cacheControl });
-    expect(payload.messages[0]!.content[1]).not.toHaveProperty("cache_control");
-    expect(payload.messages[0]!.content[1]?.text).toBe(catalogText);
-  });
-
-  test("moves Anthropic tool-loop caching before the catalog-bearing tool result", () => {
-    const cacheControl = { type: "ephemeral" };
-    const payload = {
-      messages: [
-        {
-          role: "assistant",
-          content: [{ type: "tool_use", id: "tool_1", name: "read", input: {} }],
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "tool_result",
-              tool_use_id: "tool_1",
-              content: [
-                { type: "text", text: "result" },
-                { type: "text", text: catalogText },
-              ],
-              cache_control: cacheControl,
-            },
-          ],
-        },
-      ],
-    };
-
-    applyEntityCatalogCacheBoundary(payload, { provider: "anthropic", id: "claude" });
-
-    expect(payload.messages[0]!.content[0]).toMatchObject({ cache_control: cacheControl });
-    expect(payload.messages[1]!.content[0]).not.toHaveProperty("cache_control");
-  });
-
-  test("adds an explicit OpenAI GPT-5.6 breakpoint before the catalog", () => {
-    const payload = {
-      model: "gpt-5.6",
-      input: [
-        {
-          role: "user",
-          content: [
-            { type: "input_text", text: "question" },
-            { type: "input_text", text: catalogText },
-          ],
-        },
-      ],
-    };
-
-    applyEntityCatalogCacheBoundary(payload, { provider: "openai", id: "gpt-5.6" });
-
-    expect(payload.input[0]!.content[0]).toMatchObject({
-      prompt_cache_breakpoint: { mode: "explicit" },
-    });
-    expect(payload.input[0]!.content[1]).not.toHaveProperty("prompt_cache_breakpoint");
-    expect(payload.input[0]!.content[1]?.text).toBe(catalogText);
-  });
-
-  test("does not add unknown cache fields for unsupported OpenAI models", () => {
-    const payload = {
-      model: "gpt-5.5",
-      input: [
-        {
-          role: "user",
-          content: [
-            { type: "input_text", text: "question" },
-            { type: "input_text", text: catalogText },
-          ],
-        },
-      ],
-    };
-
-    applyEntityCatalogCacheBoundary(payload, { provider: "openai", id: "gpt-5.5" });
-
-    expect(payload.input[0]!.content[0]).not.toHaveProperty("prompt_cache_breakpoint");
-    expect(payload.input[0]!.content[1]?.text).toBe(catalogText);
   });
 });

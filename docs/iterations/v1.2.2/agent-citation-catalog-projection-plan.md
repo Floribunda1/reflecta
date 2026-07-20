@@ -10,10 +10,10 @@
 
 - `350389b` 保存本执行计划。
 - `96a0bd0` 将 session event 恢复改为当前活动分支，并补充编辑旧消息后废弃 Catalog 不再泄漏的回归测试。
-- `fcf6e7f` 完成非持久化 Model Context Projector、versioned runtime Catalog、旧会话严格清理、工具循环统一和 provider cache boundary。
+- `fcf6e7f` 完成非持久化 Model Context Projector、versioned runtime Catalog、旧会话严格清理和工具循环统一。
 - `buildPiPromptText` 与只读工具结果不再注入 Catalog；Pi `context` hook 在每次 LLM 调用前读取同一个 `AgentEntityCatalog` 的最新 snapshot。
-- Anthropic-compatible payload 会把已有 `cache_control` 前移；direct OpenAI GPT-5.6 family 会在 Catalog 前添加显式 `prompt_cache_breakpoint`；其他 provider 保持 no-op。
-- 2026-07-20 验证通过：Electron main 23 个 test files / 142 tests、完整 Electron node + web typecheck、oxlint、oxfmt check、Prettier 和 `git diff --check`。
+- Reflecta 不修改任何 provider 的 Prompt Caching payload，缓存行为完全交给 Pi 和供应商默认实现。
+- 2026-07-21 验证通过：Electron main 23 个 test files / 138 tests、Electron node typecheck、oxlint、oxfmt check 和 `git diff --check`。
 
 ## 1. 目标
 
@@ -22,10 +22,9 @@
 - 保留当前 `[[u:id]] / [[c:id]] / [[d:id]]` Citation 协议和完整 Catalog 覆盖范围；
 - 保证 Catalog 只来自当前活动分支；
 - 保证用户首轮、后续轮次和工具循环中的每次模型调用都只看到一份最新 Catalog；
-- 把 provider 缓存边界放在动态 Catalog 之前，不以重复历史换缓存命中；
 - 兼容已经把旧 Catalog 写入 Pi 历史的会话，不重写旧 session 文件。
 
-本轮不做对话 Compaction、相关实体 top-k、Catalog 紧凑序列化、自建 KV cache 或前端 Citation 语义变化。
+本轮不做对话 Compaction、相关实体 top-k、Catalog 紧凑序列化或前端 Citation 语义变化。
 
 ## 2. Task 1：Catalog 只从活动分支重建
 
@@ -74,26 +73,7 @@
 - Resource Loader Test 证明 projection extension 与 Bash permission gate 同时加载；
 - Tool Test 证明工具结果不再拼接 Citation block，但 collector 仍收到完整输出。
 
-## 4. Task 3：设置 Catalog-aware Prompt Cache 边界
-
-缓存逻辑放在同一个 Pi extension 的 `before_provider_request` seam，不进入 System Prompt、Catalog serializer 或业务事件。
-
-### Anthropic-compatible payload
-
-- 找到包含 runtime Catalog 的 provider content block；
-- 移除 Pi 默认放在该动态 block 上的 `cache_control`；
-- 将同一份 `cache_control` 移到 Catalog 之前最近的 provider-level cacheable block；
-- 找不到已有 cache control 或安全候选时保持请求不变，不影响 Citation 正确性。
-
-### OpenAI payload
-
-- 保留 Pi 已有的 `prompt_cache_key` 和短期 cache retention；
-- 仅对明确支持显式 breakpoint 的 direct OpenAI GPT-5.6 family，在 Catalog 前一个普通 content block 上添加 `prompt_cache_breakpoint`；
-- 旧模型、OpenAI-compatible provider 和 Codex subscription payload 不添加未知字段。
-
-验证：用纯 payload 输入输出测试证明 boundary 位于 Catalog 之前、Catalog 内容不变、unsupported provider 为 no-op。
-
-## 5. Task 4：回归与验收
+## 4. Task 3：回归与验收
 
 ### 自动化验证
 
@@ -109,12 +89,12 @@
 - 工具新增实体在下一次模型调用前出现；
 - 旧会话无需迁移文件即可去除历史 Catalog 重复；
 - 编辑旧消息后不暴露废弃分支实体；
-- Provider 不支持显式缓存时功能完全一致；
-- 不增加依赖、不增加自建缓存层、不改变 Citation renderer。
+- Reflecta 不修改 provider Prompt Caching payload；
+- 不增加依赖、不改变 Citation renderer。
 
-## 6. 提交边界
+## 5. 提交边界
 
 1. `docs(agent): plan citation catalog projection`：保存本执行计划；
 2. `fix(agent): scope catalog state to active branch`：活动分支事实边界；
-3. `feat(agent): project entity catalog into model context`：投影、工具循环与缓存边界；
+3. `feat(agent): project entity catalog into model context`：投影与工具循环；
 4. 完成后把本文状态改为 `Implemented`，补充验证记录并提交。

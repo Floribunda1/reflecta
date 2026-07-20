@@ -1,6 +1,6 @@
 # Agent Citation 与 Entity Catalog 架构
 
-本文说明 Reflecta Agent 的实体引用（Citation）如何工作，以及 Entity Catalog、模型输入、Prompt Caching 之间的边界。
+本文说明 Reflecta Agent 的实体引用（Citation）如何工作，以及 Entity Catalog 与模型输入之间的边界。
 
 这里的 Citation 专指 Agent 在回答中生成的稳定实体引用，例如 `[[u:understanding_id]]`。它不是知识正文里的 Wiki Link，也不是供应商自带的网页 Citation。
 
@@ -192,12 +192,10 @@ v1.2.1 及以前会把完整 Catalog 拼进每一轮 Pi 用户消息。如果第
 Catalog 大小稳定时，它随轮数线性重复；Catalog 随工具发现持续增长时，累计量接近二次增长。结果不仅是价格问题：
 
 - 每一份旧 Catalog 都占模型 context window；
-- Transformer 仍会对缓存读取的 token 建立注意力，缓存不会让这些 token 从上下文消失；
+- 每一份旧 Catalog 都会参与模型注意力计算；
 - 同一实体改名后，历史里可能同时出现旧标题和新标题；
 - 多份地址簿形成重复噪声，反而比“一份末尾 Catalog”更容易分散注意力；
 - 当时附件元数据位于 Catalog 之后，Catalog 实际并非绝对末尾。
-
-Prompt Caching 能减少相同前缀的重复计算和费用，但不能解决这类上下文膨胀。
 
 ### Catalog 重建没有严格跟随当前分支
 
@@ -222,13 +220,11 @@ flowchart TD
   History["Pi 干净历史\n用户正文 / Assistant / 工具结果"]
   Projector["Model Context Projector\n每次 LLM 调用前运行"]
   ModelInput["模型实际输入\n干净历史 + 一份末尾 Catalog"]
-  Provider["Provider Adapter\n缓存策略与请求格式"]
 
   Branch --> Reduce
   Reduce --> Projector
   History --> Projector
   Projector --> ModelInput
-  ModelInput --> Provider
 ```
 
 请求形态是：
@@ -302,82 +298,6 @@ Projector 必须满足幂等性：对同一份输入执行一次或多次，结�
 
 未来如果改成紧凑格式，例如每行只保留类型、ID 和标题，必须把它视为 Citation Prompt 协议变更，并重新跑同一套真实模型评测。输入投影去重与序列化压缩是两个独立变量，不能在一次变更里同时发生。
 
-## Prompt Caching 架构
-
-### 缓存的是前缀，不是任意片段
-
-主流供应商的 Prompt Caching 都以 exact prefix 为基本心智模型。静态内容放前面，动态内容放后面；相同前缀可以复用，前缀中间发生变化后，后面的缓存不能继续命中。
-
-Pi 的 provider 层已经具备缓存能力：`cacheRetention` 默认使用短期策略，支持的 adapter 会把它映射成供应商的缓存字段，并使用 session ID 改善缓存亲和性。Reflecta 从 Pi usage 中保存 `cacheRead` 和 `cacheWrite`，并在 provider request 发送前声明 Catalog 的动态边界。
-
-Pi 的 Anthropic-style 兼容策略会在最后一个 user / assistant 文本 block 上放缓存标记。现行架构中最后一个 block 恰好是 Catalog，所以 Catalog-aware adapter 会把这份 `cache_control` 移到 Catalog 之前最近的 provider-level cacheable block。System Prompt 和最后一个 tool definition 的稳定缓存点不受影响。
-
-所以 Reflecta 不需要：
-
-- 自己保存 KV cache；
-- 按模型供应商复制一套会话历史；
-- 为缓存生成另一份隐藏对话；
-- 为提高命中率保留历史 Catalog 重复副本。
-
-Reflecta 需要定义的是哪一段属于稳定前缀，Pi/provider adapter 负责如何向供应商表达。
-
-### “在 Catalog 前设置缓存边界”是什么意思
-
-缓存边界不是插入 Prompt 的一行文字，也不是让模型忽略边界后的内容。它是 provider request 上的元数据，含义是：
-
-> 从请求开头到这里是希望复用的前缀；后面的 Catalog 仍然正常进入本次模型上下文，只是不要求它成为下一轮可复用前缀的一部分。
-
-请求可以简化成：
-
-```text
-第 1 轮：[System + Tools + User 1] | [Catalog 1]
-第 2 轮：[System + Tools + User 1 + Assistant 1 + User 2] | [Catalog 2]
-第 3 轮：[System + Tools + User 1 + Assistant 1 + User 2 + Assistant 2 + User 3] | [Catalog 3]
-```
-
-`|` 是供应商元数据中的缓存 breakpoint，不是发送给模型的字符。
-
-第 2 轮可以读取第 1 轮已经缓存的 `System + Tools + User 1`；第 2 轮完成后，又把增长后的干净历史写成下一轮可复用前缀。每轮 Catalog 仍位于模型输入绝对末尾，模型照常注意它，但旧 Catalog 不会进入下一轮历史。
-
-这解决了看似冲突的两个目标：
-
-- 为模型保留末尾完整 Catalog；
-- 为供应商保留可增长的干净会话前缀。
-
-如果不设这个边界，第 1 轮缓存的结尾是 `Catalog 1`，第 2 轮在同一位置却变成 `Assistant 1`，严格 exact-prefix provider 只能退回到更短的缓存点。边界的作用只是让供应商提前在正确位置留下可复用前缀。
-
-### 缓存策略归属
-
-缓存策略属于 provider adapter，不属于 Catalog serializer：
-
-| 层                      | 负责什么                                                     |
-| ----------------------- | ------------------------------------------------------------ |
-| Model Context Projector | 标记并放置唯一的动态 Catalog block                           |
-| Pi / Provider Adapter   | 把 Catalog 前一个普通内容 block 标成 cache breakpoint        |
-| Provider                | 实际保存、命中、过期和计费                                   |
-| Reflecta Usage          | 记录 `input / cacheRead / cacheWrite / contextWindow` 供验证 |
-
-当前 provider 映射是：
-
-- Anthropic-compatible payload 把 Pi 已有的 `cache_control` 从 Catalog block 移到前一个可缓存 block；
-- direct OpenAI GPT-5.6 family 在 Catalog 前一个普通 content block 上使用 `prompt_cache_breakpoint`，并保留 Pi 的稳定 session key；
-- Pi 已有的 system prompt、tool definitions 缓存能力继续保留。
-
-对于不支持显式 breakpoint 的 provider，adapter 不做额外处理。Citation 正确性和单份 Catalog 架构不依赖缓存；差别只体现在费用与延迟。不能为了迁就某个 provider 的缓存能力，把重复 Catalog 重新放回历史。
-
-供应商字段和支持范围会变化，具体映射必须留在 Pi/provider adapter，并以官方文档和实际 usage 为准，不能进入 System Prompt 或业务事件 schema。
-
-### Prompt Caching 不解决什么
-
-即使命中缓存，缓存 token 仍然属于模型输入上下文。Prompt Caching 主要优化重复前缀的计算、延迟和价格，不会：
-
-- 扩大模型 context window；
-- 消除 Transformer 对历史 token 的注意力；
-- 自动移除重复或冲突信息；
-- 替代对 Catalog 大小的度量。
-
-所以架构顺序是先保证模型输入只含一份 Catalog，再在正确前缀上利用缓存。高 cache hit rate 不能证明 Prompt 没有膨胀。
-
 ## 分支、编辑与 fork 的语义
 
 Citation Catalog 属于对话分支，不属于整个 session 文件的并集。
@@ -388,8 +308,6 @@ Citation Catalog 属于对话分支，不属于整个 session 文件的并集。
 2. 被替换消息及其后续旧分支产生的 Catalog 实体不自动进入新分支；
 3. 新分支重新通过用户选择或工具结果见到的实体才重新进入 Catalog；
 4. Projector 只投影当前活动分支的 snapshot。
-
-Provider cache 即使复用相同 session key，也必须做 exact-prefix 校验，因此不能把另一分支的不同内容当作命中。session key 只影响路由或缓存亲和性，不是缓存内容的身份。
 
 前端显示历史 Citation 时仍按消息所在分支的 Markdown 和实体当前状态解析；它不依赖当前输入 Catalog。这样编辑和 fork 改变未来模型可见状态，但不会重写已经生成的 Assistant 文本。
 
@@ -412,47 +330,35 @@ Provider cache 即使复用相同 session key，也必须做 exact-prefix 校验
 - 工具中新发现的实体必须在下一次 LLM 调用前可见；
 - 新的持久化用户 Prompt 不包含全量 Catalog 快照。
 
-### 缓存不变量
-
-- 缓存只是性能优化，不参与 Citation 正确性；
-- 缓存边界是 provider metadata，不是 Prompt 文本；
-- 稳定前缀在 Catalog 之前，Catalog 是每次调用的动态后缀；
-- 不支持缓存或缓存未命中时，模型看到的内容保持完全一致；
-- 不以重复持久化内容换取 cache hit rate。
-
 ## 可观测性
 
-现有 `AgentUsage` 已经记录 `input`、`output`、`cacheRead`、`cacheWrite` 和成本，`AgentContextUsage` 记录 context tokens、window 和占比。Catalog 投影还应提供只包含数量、不包含用户数据的本地指标：
+现有 `AgentUsage` 已经记录 `input`、`output` 和成本，`AgentContextUsage` 记录 context tokens、window 和占比。Catalog 投影还应提供只包含数量、不包含用户数据的本地指标：
 
-| 指标                         | 用途                                           |
-| ---------------------------- | ---------------------------------------------- |
-| `catalogEntityCount`         | 当前快照实体数量                               |
-| `catalogChars` / tokens      | 单份 Catalog 自身大小                          |
-| `legacyCatalogBlocksRemoved` | 旧会话清理是否生效                             |
-| `projectedCatalogBlocks`     | 必须始终为 0 或 1                              |
-| `cacheRead / cacheWrite`     | 供应商前缀缓存是否实际工作                     |
-| `contextUsage.percent`       | 缓存命中之外，真实 context window 是否继续增长 |
+| 指标                         | 用途                             |
+| ---------------------------- | -------------------------------- |
+| `catalogEntityCount`         | 当前快照实体数量                 |
+| `catalogChars` / tokens      | 单份 Catalog 自身大小            |
+| `legacyCatalogBlocksRemoved` | 旧会话清理是否生效               |
+| `projectedCatalogBlocks`     | 必须始终为 0 或 1                |
+| `contextUsage.percent`       | 真实 context window 是否继续增长 |
 
-日志不能写入 Catalog 内容、ID 或标题。判断架构是否有效时，要同时看 Citation 可靠性、Catalog token、总 context token 和缓存读写，不能只看缓存命中率。
+日志不能写入 Catalog 内容、ID 或标题。判断架构是否有效时，要同时看 Citation 可靠性、Catalog token 和总 context token。
 
 ## 失败行为
 
 - Projector 未加载或序列化失败时，应在模型调用前显式失败，不能静默发送一个没有 Catalog 的请求；
 - Projector 发现多个 runtime Catalog 时，应去重并记录诊断；
 - 旧 block 不能通过严格 schema 验证时，应保留原文，避免误删用户内容；
-- provider 不接受缓存字段时，只关闭该 adapter 的缓存标记，不回退 Citation 架构；
 - Citation 指向不存在或已删除实体时，前端降级为“引用不可用”，不能猜测替代实体。
 
 ## 不采用的方案
 
-| 方案                                   | 原因                                                        |
-| -------------------------------------- | ----------------------------------------------------------- |
-| 每轮继续持久化完整 Catalog             | 缓存命中看似稳定，但 context 与注意力持续膨胀               |
-| 每轮只注入相关或最近实体               | 引入选择偏差，改变 Agent 的全局实体可见性                   |
-| 把 Catalog 移到固定 System Prompt      | Catalog 随工具和分支变化，修改前部内容会破坏更多缓存前缀    |
-| 自建 Reflecta KV Prompt Cache          | Pi 和 provider 已拥有缓存能力，自建层无法复用供应商内部状态 |
-| 同时更换投影方式和 Citation 序列化协议 | 无法判断可靠性变化来自哪一个变量                            |
-| 用 Prompt Caching 代替 Prompt 去重     | 缓存不减少 context token，也不消除注意力噪声                |
+| 方案                                   | 原因                                               |
+| -------------------------------------- | -------------------------------------------------- |
+| 每轮继续持久化完整 Catalog             | context 与注意力持续膨胀                           |
+| 每轮只注入相关或最近实体               | 引入选择偏差，改变 Agent 的全局实体可见性          |
+| 把 Catalog 移到固定 System Prompt      | Catalog 随工具调用和活动分支变化，不是静态系统指令 |
+| 同时更换投影方式和 Citation 序列化协议 | 无法判断可靠性变化来自哪一个变量                   |
 
 ## 主要代码位置
 
@@ -460,7 +366,7 @@ Provider cache 即使复用相同 session key，也必须做 exact-prefix 校验
 - `apps/electron/src/main/services/agent/agent-citations.ts`：Catalog Prompt 序列化；
 - `apps/electron/src/main/services/agent/agent-entity-catalog.ts`：实体收集、去重与更新；
 - `apps/electron/src/main/services/agent/pi-prompt.ts`：当前用户 Prompt 拼接；
-- `apps/electron/src/main/services/agent/pi-entity-catalog-context.ts`：非持久化 Catalog 投影与 provider 缓存边界；
+- `apps/electron/src/main/services/agent/pi-entity-catalog-context.ts`：非持久化 Catalog 投影；
 - `apps/electron/src/main/services/agent/pi-agent-host.ts`：会话、工具循环与 Catalog 生命周期；
 - `apps/electron/src/main/services/agent/pi-session-log.ts`：Pi session 与 Reflecta 事件映射；
 - `apps/electron/src/preload/typings/agent-context.ts`：用户显式选择的轻量上下文；
@@ -471,7 +377,5 @@ Provider cache 即使复用相同 session key，也必须做 exact-prefix 校验
 
 ## 外部依据
 
-- [OpenAI Prompt Caching](https://developers.openai.com/api/docs/guides/prompt-caching)：exact-prefix、session cache key 和显式 breakpoint；
-- [Anthropic Prompt Caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)：cache prefix、`cache_control` 和多轮对话缓存；
 - [Pi Extensions](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md)：每次 LLM 调用前的 `context` hook；
 - [Citation 直接 ID 协议试验方案](../../../../iterations/v1.1.22/agent-direct-entity-citation-trial-plan.md)：当前协议的设计背景与评测口径。
