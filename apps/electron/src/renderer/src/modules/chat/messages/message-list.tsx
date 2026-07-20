@@ -1,4 +1,4 @@
-import { memo, useMemo, type ReactNode } from "react";
+import { Fragment, memo, useMemo, type ReactNode } from "react";
 import { Copy, FileText, GitFork, Pencil, RefreshCcw } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@renderer/comp
 import { cn } from "@renderer/lib/utils";
 import type {
   AgentContextRef,
+  AgentContextCompacted,
   AgentEntityCatalogEntry,
   AgentFileAttachment,
   AgentReducedMessage,
@@ -365,9 +366,12 @@ export const MessageRow = memo(MessageRowComponent, (previous, next) => {
 export function MessageList({
   messages,
   entityCatalog,
+  contextCompactions = [],
   isBusy,
+  isCompacting = false,
   stoppedMessageId,
   error,
+  compactionError,
   onRetry,
   onEdit,
   onRegenerate,
@@ -379,9 +383,12 @@ export function MessageList({
 }: {
   messages: AgentReducedMessage[];
   entityCatalog: AgentEntityCatalogEntry[];
+  contextCompactions?: AgentContextCompacted[];
   isBusy: boolean;
+  isCompacting?: boolean;
   stoppedMessageId: string | null;
   error?: Error;
+  compactionError?: Error;
   onRetry: () => void;
   onEdit: (message: AgentReducedMessage) => void;
   onRegenerate: (messageId: string) => void;
@@ -396,6 +403,19 @@ export function MessageList({
     ? messages.some((message) => message.id === stoppedMessageId)
     : true;
   const showPendingAssistant = shouldShowPendingAssistantPlaceholder(messages, isBusy);
+  const compactionsByMessage = useMemo(() => {
+    const grouped = new Map<string, AgentContextCompacted[]>();
+    for (const compaction of contextCompactions) {
+      if (!compaction.afterMessageId) continue;
+      const current = grouped.get(compaction.afterMessageId) ?? [];
+      grouped.set(compaction.afterMessageId, [...current, compaction]);
+    }
+    return grouped;
+  }, [contextCompactions]);
+  const messageIds = useMemo(() => new Set(messages.map((message) => message.id)), [messages]);
+  const unanchoredCompactions = contextCompactions.filter(
+    (compaction) => !compaction.afterMessageId || !messageIds.has(compaction.afterMessageId),
+  );
 
   const createdAtFor = (message: AgentReducedMessage) => message.createdAt;
 
@@ -410,23 +430,38 @@ export function MessageList({
         </Empty>
       ) : null}
       {messages.map((message) => (
-        <MessageRow
-          key={message.id}
-          message={message}
-          entityCatalog={entityCatalog}
-          createdAt={createdAtFor(message)}
-          isBusy={isBusy}
-          isLastAssistant={message.id === lastAssistantId}
-          highlighted={highlightedMessageId === message.id}
-          findQuery={findQuery}
-          stopped={stoppedMessageId === message.id}
-          onEdit={onEdit}
-          onRegenerate={onRegenerate}
-          onForkAssistant={onForkAssistant}
-          onApproveTool={onApproveTool}
-          onInspectContextRef={onInspectContextRef}
-        />
+        <Fragment key={message.id}>
+          <MessageRow
+            message={message}
+            entityCatalog={entityCatalog}
+            createdAt={createdAtFor(message)}
+            isBusy={isBusy}
+            isLastAssistant={message.id === lastAssistantId}
+            highlighted={highlightedMessageId === message.id}
+            findQuery={findQuery}
+            stopped={stoppedMessageId === message.id}
+            onEdit={onEdit}
+            onRegenerate={onRegenerate}
+            onForkAssistant={onForkAssistant}
+            onApproveTool={onApproveTool}
+            onInspectContextRef={onInspectContextRef}
+          />
+          {compactionsByMessage.get(message.id)?.map((compaction) => (
+            <ContextCompactionReceipt key={compaction.id} compaction={compaction} />
+          ))}
+        </Fragment>
       ))}
+      {unanchoredCompactions.map((compaction) => (
+        <ContextCompactionReceipt key={compaction.id} compaction={compaction} />
+      ))}
+      {isCompacting ? (
+        <div
+          data-testid="agent-context-compaction-progress"
+          className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground"
+        >
+          正在压缩较早的对话上下文…
+        </div>
+      ) : null}
       {showPendingAssistant ? <RunningResponsePlaceholder /> : null}
       {stoppedMessageId && !stoppedMessageVisible ? (
         <div
@@ -454,6 +489,45 @@ export function MessageList({
           </Button>
         </div>
       ) : null}
+      {compactionError ? (
+        <div
+          data-testid="agent-context-compaction-error"
+          className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          压缩上下文失败：{compactionError.message}
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+function compactTokenCount(tokens: number | undefined) {
+  if (tokens === undefined) return null;
+  return new Intl.NumberFormat("zh-CN", { notation: "compact", maximumFractionDigits: 1 }).format(
+    tokens,
+  );
+}
+
+function ContextCompactionReceipt({ compaction }: { compaction: AgentContextCompacted }) {
+  const before = compactTokenCount(compaction.tokensBefore);
+  const after = compactTokenCount(compaction.estimatedTokensAfter);
+  const tokenChange = before && after ? `${before} → ${after} tokens` : null;
+
+  return (
+    <details
+      data-testid="agent-context-compaction-receipt"
+      className="group rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm"
+    >
+      <summary className="cursor-pointer select-none text-muted-foreground outline-none marker:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50">
+        <span className="ml-1 font-medium text-foreground">已压缩较早的对话上下文</span>
+        {tokenChange ? <span className="ml-2 text-xs tabular-nums">{tokenChange}</span> : null}
+      </summary>
+      <div
+        data-testid="agent-context-compaction-summary"
+        className="mt-3 whitespace-pre-wrap border-t border-border pt-3 leading-6 text-muted-foreground"
+      >
+        {compaction.summary}
+      </div>
+    </details>
   );
 }

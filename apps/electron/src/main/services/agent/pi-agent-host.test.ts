@@ -298,6 +298,80 @@ describe("PiAgentHost", () => {
     ]);
   });
 
+  test("reports a short manual compaction without persisting a checkpoint", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("短对话");
+    const manager = await log.openSession(thread.id);
+    const userEvent: AgentSessionEvent = {
+      id: "evt_user",
+      sessionId: thread.id,
+      runId: "run_1",
+      type: "user.message",
+      messageId: "user_1",
+      text: "刚开始聊",
+      createdAt: "2026-07-21T00:00:00.000Z",
+    };
+    log.appendEvent(manager, userEvent);
+
+    let listener: ((event: unknown) => void) | undefined;
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        model: { contextWindow: 128_000 },
+        subscribe: (next: (event: unknown) => void) => {
+          listener = next;
+          return () => {};
+        },
+        compact: vi.fn(async () => {
+          listener?.({ type: "compaction_start", reason: "manual" });
+          listener?.({
+            type: "compaction_end",
+            reason: "manual",
+            errorMessage: "Compaction failed: Nothing to compact (session too small)",
+          });
+          throw new Error("Nothing to compact (session too small)");
+        }),
+        dispose: vi.fn(),
+        abort: vi.fn(),
+      },
+    });
+    const webContents = { isDestroyed: () => false, send: vi.fn() };
+
+    await expect(
+      new PiAgentHost(root).sendAgentCommand(
+        { type: "context.compact", sessionId: thread.id },
+        webContents as never,
+      ),
+    ).rejects.toThrow("当前对话还不需要压缩");
+
+    await expect(new AgentSessionLog(root).readEvents(thread.id)).resolves.toEqual([userEvent]);
+    expect(webContents.send.mock.calls.map(([, event]) => event)).toEqual([
+      expect.objectContaining({ type: "context.compaction.started" }),
+      expect.objectContaining({
+        type: "context.compaction.finished",
+        error: "当前对话还不需要压缩",
+      }),
+    ]);
+  });
+
+  test("rejects manual compaction while the conversation is already running", async () => {
+    const host = new PiAgentHost(tempRoot());
+    (
+      host as unknown as {
+        activeRuns: Map<string, unknown>;
+      }
+    ).activeRuns.set("session_busy", {});
+
+    await expect(
+      host.sendAgentCommand({ type: "context.compact", sessionId: "session_busy" }, {
+        isDestroyed: () => false,
+        send: vi.fn(),
+      } as never),
+    ).rejects.toThrow("当前对话正在处理中，请稍后再压缩上下文");
+    expect(createAgentSessionMock).not.toHaveBeenCalled();
+  });
+
   test("preserves Pi assistant error messages instead of reporting an empty response", () => {
     expect(
       extractAssistantError({

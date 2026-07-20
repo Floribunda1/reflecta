@@ -161,8 +161,10 @@ export function createPiContextCompaction(): InlineExtension {
             firstKeptEntryId: event.preparation.firstKeptEntryId,
             tokensBefore: event.preparation.tokensBefore,
             details: {
+              schema: "reflecta.context-checkpoint",
               promptId: REFLECTA_COMPACTION_PROMPT_ID,
               reason: event.reason,
+              tokensBefore: event.preparation.tokensBefore,
             },
           },
         };

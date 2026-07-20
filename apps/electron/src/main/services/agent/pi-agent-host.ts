@@ -87,6 +87,13 @@ type ActivePiRun = {
 
 type PiSessionCommand = Extract<AgentCommand, { type: "message.send" | "context.compact" }>;
 
+function contextCompactionErrorMessage(error: string): string {
+  const message = error.replace(/^Compaction failed:\s*/i, "");
+  if (message.includes("Nothing to compact")) return "当前对话还不需要压缩";
+  if (message.includes("Already compacted")) return "当前上下文已经是压缩后的状态";
+  return message;
+}
+
 type MutationPendingApproval = {
   kind: "mutation";
   resolve: (output: PiApprovedToolOutput | ReturnType<typeof rejectedToolResult>) => void;
@@ -784,7 +791,7 @@ export class PiAgentHost {
         type: "context.compaction.finished",
         sessionId,
         reason: event.reason,
-        ...(event.errorMessage ? { error: event.errorMessage } : {}),
+        ...(event.errorMessage ? { error: contextCompactionErrorMessage(event.errorMessage) } : {}),
       }),
     );
     if (!event.result) return true;
@@ -840,10 +847,8 @@ export class PiAgentHost {
     try {
       await session.compact();
     } catch (error) {
-      const message = formatAgentError(error);
-      if (message.includes("Nothing to compact")) throw new Error("当前对话还不需要压缩");
-      if (message.includes("Already compacted")) throw new Error("当前上下文已经是压缩后的状态");
-      throw error;
+      const message = contextCompactionErrorMessage(formatAgentError(error));
+      throw new Error(message);
     } finally {
       unsubscribe();
       session.dispose();

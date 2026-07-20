@@ -24,12 +24,23 @@ export type AgentFixtureEntityCatalogEntry = {
     | { kind: "tool_result"; toolCallId: string; toolName: string };
 };
 
+export type AgentFixtureContextCompaction = {
+  summary: string;
+  afterMessageId?: string;
+  reason?: "manual" | "threshold" | "overflow";
+  firstKeptEntryId?: string;
+  tokensBefore?: number;
+  estimatedTokensAfter?: number;
+  contextWindow?: number;
+};
+
 export type AgentFixtureThread = {
   id: string;
   title: string;
   createdAt?: string;
   updatedAt?: string;
   entityCatalog?: AgentFixtureEntityCatalogEntry[];
+  contextCompactions?: AgentFixtureContextCompaction[];
   messages?: AgentFixtureMessage[];
 };
 

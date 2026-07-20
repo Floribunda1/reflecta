@@ -176,6 +176,7 @@ function AttachmentPreview({
 
 export function ChatComposer({
   isBusy,
+  isCompacting = false,
   canStop,
   editingMessage,
   focusRequest,
@@ -194,6 +195,7 @@ export function ChatComposer({
   onInspectContextRef,
 }: {
   isBusy: boolean;
+  isCompacting?: boolean;
   canStop: boolean;
   editingMessage?: EditingMessage;
   focusRequest: number;
@@ -701,7 +703,7 @@ export function ChatComposer({
                   size="icon-sm"
                   variant="outline"
                   className="bg-background/70"
-                  aria-label="Agent 正在其他对话响应"
+                  aria-label={isCompacting ? "正在压缩上下文" : "Agent 正在其他对话响应"}
                   disabled
                 >
                   <Spinner />

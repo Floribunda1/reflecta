@@ -279,6 +279,71 @@ describe("AgentSessionLog", () => {
     ]);
   });
 
+  test("drops compaction receipts from an abandoned branch after editing a message", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const session = log.createSession();
+    const manager = await log.openSession(session.id);
+    const events: AgentSessionEvent[] = [
+      { ...baseEvent, id: "evt_1", sessionId: session.id, type: "run.started" },
+      {
+        ...baseEvent,
+        id: "evt_2",
+        sessionId: session.id,
+        type: "user.message",
+        messageId: "user_1",
+        text: "first",
+      },
+      { ...baseEvent, id: "evt_3", sessionId: session.id, type: "run.completed" },
+      {
+        ...baseEvent,
+        id: "evt_4",
+        sessionId: session.id,
+        runId: "run_2",
+        type: "run.started",
+      },
+      {
+        ...baseEvent,
+        id: "evt_5",
+        sessionId: session.id,
+        runId: "run_2",
+        type: "user.message",
+        messageId: "user_2",
+        text: "old second",
+      },
+      { ...baseEvent, id: "evt_6", sessionId: session.id, runId: "run_2", type: "run.completed" },
+      {
+        ...baseEvent,
+        id: "evt_7",
+        sessionId: session.id,
+        type: "context.compacted",
+        reason: "threshold",
+        summary: "discarded checkpoint",
+        firstKeptEntryId: "entry_1",
+        tokensBefore: 120_000,
+        estimatedTokensAfter: 18_000,
+        afterMessageId: "user_2",
+      },
+    ];
+    for (const event of events) log.appendEvent(manager, event);
+
+    const branched = await log.openSessionForEditedMessage(session.id, "user_2");
+    log.appendEvent(branched, {
+      ...baseEvent,
+      id: "evt_8",
+      sessionId: session.id,
+      runId: "run_3",
+      type: "run.started",
+    });
+
+    await expect(log.readEvents(session.id)).resolves.toEqual([
+      events[0],
+      events[1],
+      events[2],
+      expect.objectContaining({ id: "evt_8", type: "run.started" }),
+    ]);
+  });
+
   test("forks from an assistant message without keeping later turns", async () => {
     const root = tempRoot();
     const log = new AgentSessionLog(root);
@@ -314,6 +379,24 @@ describe("AgentSessionLog", () => {
         type: "user.message",
         messageId: "user_2",
         text: "later",
+      },
+      {
+        ...baseEvent,
+        id: "evt_7",
+        sessionId: session.id,
+        runId: "run_2",
+        type: "run.completed",
+      },
+      {
+        ...baseEvent,
+        id: "evt_8",
+        sessionId: session.id,
+        type: "context.compacted",
+        reason: "threshold",
+        summary: "later checkpoint",
+        firstKeptEntryId: "entry_1",
+        tokensBefore: 120_000,
+        afterMessageId: "user_2",
       },
     ];
     for (const event of events) log.appendEvent(manager, event);

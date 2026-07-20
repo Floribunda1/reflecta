@@ -128,13 +128,16 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     );
   }, [localStoppedMessageId, sessionId, state.status, visibleMessages]);
   const isBusy = state.status === "running";
+  const isCompacting = Boolean(state.activeCompaction);
+  const composerBusy = isBusy || isCompacting;
   const error = state.error ? new Error(state.error) : undefined;
-  const scrollKey = `${scrollKeyFor(visibleMessages)}:${isBusy ? "busy" : "idle"}`;
+  const compactionError = state.compactionError ? new Error(state.compactionError) : undefined;
+  const scrollKey = `${scrollKeyFor(visibleMessages)}:${state.contextCompactions.length}:${composerBusy ? "busy" : "idle"}`;
 
   useEffect(() => {
-    if (isBusy) chatUiStore.getState().setThreadRunning(sessionId, true);
+    if (composerBusy) chatUiStore.getState().setThreadRunning(sessionId, true);
     else chatUiStore.getState().setThreadRunning(sessionId, false);
-  }, [isBusy, sessionId]);
+  }, [composerBusy, sessionId]);
 
   const setScrollButtonVisible = useCallback((visible: boolean) => {
     setShowScrollToBottom((current) => (current === visible ? current : visible));
@@ -245,11 +248,14 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
   return {
     visibleMessages,
     entityCatalog: state.entityCatalog,
+    contextCompactions: state.contextCompactions,
     messagesFetching: eventsQuery.isFetching,
     isBusy,
-    composerBusy: isBusy,
+    isCompacting,
+    composerBusy,
     canStop: isBusy,
     error,
+    compactionError,
     editingMessage,
     stoppedMessageId,
     focusRequest,
@@ -279,8 +285,19 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
           reasoningLevel: input.reasoningLevel,
         });
       },
+      compact: async (modelSelection, reasoningLevel) => {
+        if (composerBusy || visibleMessages.length === 0) return;
+        shouldStickToBottom.current = true;
+        setScrollButtonVisible(false);
+        await ipcClient.chat.sendAgentCommand({
+          type: "context.compact",
+          sessionId,
+          modelSelection,
+          reasoningLevel,
+        });
+      },
       retry: async () => {
-        if (isBusy) return;
+        if (composerBusy) return;
         const userMessage = visibleMessages.findLast((message) => message.role === "user");
         if (!userMessage) return;
         chatUiStore.getState().setStoppedMessage(sessionId, null);
@@ -295,7 +312,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
         });
       },
       regenerate: async (messageId) => {
-        if (isBusy) return;
+        if (composerBusy) return;
         const assistantIndex = visibleMessages.findIndex((message) => message.id === messageId);
         const userMessage =
           assistantIndex >= 0
@@ -316,7 +333,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
         });
       },
       editMessage: (message) => {
-        if (isBusy || message.role !== "user") return;
+        if (composerBusy || message.role !== "user") return;
         setEditingMessage(editingMessageFromAgentMessage(message));
       },
       approveTool: async (input: ApproveToolInput) => {

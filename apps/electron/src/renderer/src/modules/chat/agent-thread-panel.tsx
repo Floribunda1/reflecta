@@ -6,6 +6,7 @@ import {
   ChevronUp,
   Copy,
   FileDown,
+  Minimize2,
   MoreHorizontal,
   Sparkles,
   Trash2,
@@ -118,6 +119,14 @@ export function AgentThreadPanel({
   const send = useMemoizedFn(threadView.actions.send);
   const cancelEdit = useMemoizedFn(threadView.actions.cancelEdit);
   const stop = useMemoizedFn(threadView.actions.stop);
+  const compact = useMemoizedFn(async () => {
+    try {
+      await threadView.actions.compact(activeModel ?? undefined, activeReasoningLevel);
+      toast.success("上下文已压缩");
+    } catch (error) {
+      toast.error("压缩上下文失败", { description: errorMessage(error) });
+    }
+  });
   const approveTool = useMemoizedFn((input: ApproveToolInput) =>
     threadView.actions.approveTool({
       ...input,
@@ -142,7 +151,9 @@ export function AgentThreadPanel({
           title={title}
           messages={threadView.visibleMessages}
           isBusy={threadView.isBusy}
+          isCompacting={threadView.isCompacting}
           titleGenerating={Boolean(titleGenerating)}
+          onCompact={compact}
           onRename={onRename}
           onGenerateTitle={onGenerateTitle}
           onArchive={onArchive}
@@ -174,9 +185,12 @@ export function AgentThreadPanel({
             <MessageList
               messages={threadView.visibleMessages}
               entityCatalog={threadView.entityCatalog}
+              contextCompactions={threadView.contextCompactions}
               isBusy={threadView.isBusy}
+              isCompacting={threadView.isCompacting}
               stoppedMessageId={threadView.stoppedMessageId}
               error={threadView.error}
+              compactionError={threadView.compactionError}
               onRetry={retry}
               onEdit={editMessage}
               onRegenerate={regenerate}
@@ -209,6 +223,7 @@ export function AgentThreadPanel({
 
       <ChatComposer
         isBusy={threadView.composerBusy}
+        isCompacting={threadView.isCompacting}
         canStop={threadView.canStop}
         editingMessage={threadView.editingMessage}
         focusRequest={threadView.focusRequest}
@@ -477,7 +492,9 @@ function AgentThreadHeader({
   title,
   messages,
   isBusy,
+  isCompacting,
   titleGenerating,
+  onCompact,
   onRename,
   onGenerateTitle,
   onArchive,
@@ -488,7 +505,9 @@ function AgentThreadHeader({
   title: string;
   messages: AgentReducedMessage[];
   isBusy: boolean;
+  isCompacting: boolean;
   titleGenerating: boolean;
+  onCompact: () => void;
   onRename: (title: string) => void;
   onGenerateTitle: () => void;
   onArchive: () => void;
@@ -572,11 +591,19 @@ function AgentThreadHeader({
             <DropdownMenuSeparator />
             <DropdownMenuItem
               data-testid="agent-generate-title-menu-item"
-              disabled={titleGenerating || isBusy}
+              disabled={titleGenerating || isBusy || isCompacting}
               onClick={onGenerateTitle}
             >
               <Sparkles />
               {titleGenerating ? "生成中..." : "生成标题"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              data-testid="agent-compact-context-menu-item"
+              disabled={messages.length === 0 || isBusy || isCompacting}
+              onClick={onCompact}
+            >
+              <Minimize2 />
+              {isCompacting ? "压缩中..." : "压缩上下文"}
             </DropdownMenuItem>
             <DropdownMenuItem
               data-testid="agent-copy-thread-id-menu-item"

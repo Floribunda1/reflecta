@@ -35,12 +35,23 @@ type FixtureEntityCatalogEntry = {
     | { kind: "tool_result"; toolCallId: string; toolName: string };
 };
 
+type FixtureContextCompaction = {
+  summary: string;
+  afterMessageId?: string;
+  reason?: "manual" | "threshold" | "overflow";
+  firstKeptEntryId?: string;
+  tokensBefore?: number;
+  estimatedTokensAfter?: number;
+  contextWindow?: number;
+};
+
 type FixtureThread = {
   id: string;
   title: string;
   createdAt?: string;
   updatedAt?: string;
   entityCatalog?: FixtureEntityCatalogEntry[];
+  contextCompactions?: FixtureContextCompaction[];
   messages?: FixtureMessage[];
 };
 
@@ -463,6 +474,21 @@ function threadEvents(thread: FixtureThread) {
     );
     events.push(createEvent({ type: "run.completed", runId }));
     activeRunId = null;
+  }
+
+  for (const compaction of thread.contextCompactions ?? []) {
+    events.push(
+      createEvent({
+        type: "context.compacted",
+        reason: compaction.reason ?? "manual",
+        summary: compaction.summary,
+        firstKeptEntryId: compaction.firstKeptEntryId ?? "fixture-kept-entry",
+        tokensBefore: compaction.tokensBefore ?? 120_000,
+        estimatedTokensAfter: compaction.estimatedTokensAfter ?? 18_000,
+        contextWindow: compaction.contextWindow ?? 128_000,
+        afterMessageId: compaction.afterMessageId,
+      }),
+    );
   }
 
   return events;

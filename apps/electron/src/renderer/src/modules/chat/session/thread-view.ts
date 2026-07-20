@@ -1,5 +1,11 @@
 import type { RefObject } from "react";
-import type { AgentEntityCatalogEntry, AgentReducedMessage } from "@shared/agent";
+import type {
+  AgentContextCompacted,
+  AgentEntityCatalogEntry,
+  AgentModelSelection,
+  AgentReasoningLevel,
+  AgentReducedMessage,
+} from "@shared/agent";
 import type { ComposerSendInput, EditingMessage } from "../composer/chat-composer";
 import type { ApproveToolInput } from "../messages/agent-message-content";
 import { findChatTextRanges } from "./chat-find";
@@ -7,11 +13,14 @@ import { findChatTextRanges } from "./chat-find";
 export type AgentThreadView = {
   visibleMessages: AgentReducedMessage[];
   entityCatalog: AgentEntityCatalogEntry[];
+  contextCompactions: AgentContextCompacted[];
   messagesFetching: boolean;
   isBusy: boolean;
+  isCompacting: boolean;
   composerBusy: boolean;
   canStop: boolean;
   error?: Error;
+  compactionError?: Error;
   editingMessage?: EditingMessage;
   stoppedMessageId: string | null;
   focusRequest: number;
@@ -25,6 +34,10 @@ export type AgentThreadView = {
   jumpToMessage(messageId: string): void;
   actions: {
     send(input: ComposerSendInput): Promise<void>;
+    compact(
+      modelSelection?: AgentModelSelection,
+      reasoningLevel?: AgentReasoningLevel,
+    ): Promise<void>;
     retry(): Promise<void>;
     regenerate(messageId: string): Promise<void>;
     editMessage(message: AgentReducedMessage): void;

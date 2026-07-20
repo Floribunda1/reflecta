@@ -13,6 +13,45 @@ const base = {
 };
 
 describe("reduceAgentSession", () => {
+  test("tracks compaction progress, persists the checkpoint, and resets context usage", () => {
+    const state = reduceAgentSession([
+      {
+        ...base,
+        id: "evt_assistant",
+        type: "assistant.turn",
+        messageId: "assistant_1",
+        text: "reply",
+        blocks: [{ kind: "text", text: "reply", createdAt: base.createdAt }],
+        contextUsage: { tokens: 120_000, contextWindow: 128_000, percent: 93.75 },
+      },
+      { ...base, id: "evt_started", type: "context.compaction.started", reason: "manual" },
+      { ...base, id: "evt_finished", type: "context.compaction.finished", reason: "manual" },
+      {
+        ...base,
+        id: "evt_compacted",
+        type: "context.compacted",
+        reason: "manual",
+        summary: "checkpoint",
+        firstKeptEntryId: "entry_1",
+        tokensBefore: 120_000,
+        estimatedTokensAfter: 18_000,
+        contextWindow: 128_000,
+        afterMessageId: "assistant_1",
+      },
+    ]);
+
+    expect(state.activeCompaction).toBeNull();
+    expect(state.compactionError).toBeNull();
+    expect(state.contextCompactions).toEqual([
+      expect.objectContaining({ id: "evt_compacted", summary: "checkpoint" }),
+    ]);
+    expect(state.messages[0]?.contextUsage).toEqual({
+      tokens: 18_000,
+      contextWindow: 128_000,
+      percent: 14.0625,
+    });
+  });
+
   test("restores entity catalog from session events", () => {
     const events: AgentSessionEvent[] = [
       {
