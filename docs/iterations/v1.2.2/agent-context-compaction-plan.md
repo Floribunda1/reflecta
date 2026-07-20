@@ -2,7 +2,7 @@
 
 > 日期：2026-07-21
 >
-> 状态：In Progress
+> 状态：Complete
 
 ## 1. 目标
 
@@ -114,7 +114,7 @@ Prompt 文本只保留一个集中定义和一个稳定调用点，后续修改 
 - 用户重启应用后仍能查看检查点和完整原消息；
 - 用户编辑检查点之前的消息后，废弃分支的检查点不再出现。
 
-实现一条不依赖真实 AI 的 Playwright E2E：使用 seed fixture 验证完整消息与 checkpoint 同时可见、摘要可展开，并在重启后保持。真实模型的自动阈值和手动调用不放入常规 E2E，因为外部模型会使测试昂贵且不稳定。
+实现不依赖真实 AI 的 Playwright E2E：使用 seed fixture 验证完整消息与 checkpoint 同时可见、摘要可展开，并在重启后保持。真实模型的自动阈值和手动调用不放入常规 E2E，因为外部模型会使测试昂贵且不稳定。
 
 ### Unit / integration
 
@@ -144,3 +144,24 @@ Prompt 文本只保留一个集中定义和一个稳定调用点，后续修改 
 2. `feat(agent): compact conversation context`：压缩策略、事件、自动与手动入口；
 3. `feat(agent): surface context compaction`：前端体验、test case 和 E2E；
 4. `test(agent): verify context compaction`：补齐回归、更新完成记录并执行全量验证。
+
+## 10. 完成记录
+
+已于 2026-07-21 完成：
+
+- Pi 自动阈值压缩、overflow 重试与手动压缩统一使用 `session_before_compact` 摘要 seam；
+- Reflecta 摘要 Prompt 集中在独立 module，可替换而不影响 session、event 和 UI 协议；
+- runtime Entity Catalog 在摘要输入中移除，并继续在后续模型调用末尾投影当前完整 Catalog；
+- durable checkpoint event、进行中与失败状态、手动菜单、输入锁定和可展开 receipt 已接通；
+- 原始消息没有删除或改写，编辑旧消息与 fork 均按 Pi 活动分支恢复 checkpoint；
+- Context Meter 在手动压缩完成后使用压缩后的 token 估计，下一次 Agent 回复会以 Provider 实际 usage 覆盖；
+- 未新增依赖、Provider-specific payload、缓存标记或第二套 session storage。
+
+验证结果：
+
+- Electron node/web typecheck 通过；
+- 主进程 145 项测试通过；
+- Renderer 154 项测试通过；
+- lint 与 format check 通过；
+- production build 通过；
+- `context-compaction.spec.ts` 两条 Electron E2E 通过，覆盖 receipt 展开、原消息保留、手动入口可用和重启恢复。
