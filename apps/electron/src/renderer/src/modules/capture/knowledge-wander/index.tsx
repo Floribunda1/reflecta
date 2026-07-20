@@ -1,4 +1,4 @@
-import { Network } from "lucide-react";
+import { Network, Share2 } from "lucide-react";
 import { useMemo } from "react";
 import { Button } from "@renderer/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@renderer/components/ui/empty";
@@ -114,19 +114,25 @@ export function KnowledgeWanderWorkspace({
               <div className="truncate text-sm font-medium">{scopeTitle}</div>
               <div className="text-xs text-muted-foreground">{graphData.nodes.length} 条理解</div>
             </div>
-            <Button
-              data-testid="capture-knowledge-wander-entry"
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              aria-label="退出知识漫步"
-              aria-pressed={true}
-              className="shrink-0"
-              onClick={toggleKnowledgeWander}
-            >
-              <Network size={14} />
-            </Button>
             <div className="app-drag-region min-w-0 flex-1 self-stretch" />
+            <div
+              data-testid="knowledge-wander-actions"
+              className="flex shrink-0 items-center"
+              data-no-drag
+            >
+              <Button
+                data-testid="capture-knowledge-wander-entry"
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label="退出知识漫步"
+                aria-pressed={true}
+                className="bg-muted text-foreground"
+                onClick={toggleKnowledgeWander}
+              >
+                <Share2 size={14} />
+              </Button>
+            </div>
           </header>
           <div className="min-h-0 min-w-0 flex-1">{graphContent}</div>
         </main>

@@ -14,21 +14,25 @@ test("@KW-GRAPH-011 用户从理解列表标题栏进入知识漫步", async () 
   try {
     await openCapturePage(page);
 
-    const listHeader = page.getByTestId("capture-understanding-list-header");
-    const entry = listHeader.getByTestId("capture-knowledge-wander-entry");
+    const listActions = page.getByTestId("capture-understanding-list-actions");
+    const entry = listActions.getByTestId("capture-knowledge-wander-entry");
     await expect(entry).toHaveAttribute("aria-label", "打开知识漫步");
     await expect(entry.locator("svg")).toHaveCount(1);
+    await expect(listActions.locator("button").first()).toHaveAttribute(
+      "data-testid",
+      "capture-knowledge-wander-entry",
+    );
     await expect(page.locator("aside").getByTestId("capture-knowledge-wander-entry")).toHaveCount(
       0,
     );
 
     await entry.click();
 
-    const graphHeader = page.getByTestId("knowledge-wander-header");
-    await expect(graphHeader.getByTestId("capture-knowledge-wander-entry")).toHaveAttribute(
-      "aria-label",
-      "退出知识漫步",
-    );
+    const graphEntry = page
+      .getByTestId("knowledge-wander-actions")
+      .getByTestId("capture-knowledge-wander-entry");
+    await expect(graphEntry).toHaveAttribute("aria-label", "退出知识漫步");
+    await expect(graphEntry).toHaveAttribute("aria-pressed", "true");
   } finally {
     await app.close();
   }

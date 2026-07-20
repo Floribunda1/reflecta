@@ -1,5 +1,5 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowUpDown, FileText, GitBranch, Network, Plus, Search } from "lucide-react";
+import { ArrowUpDown, FileText, GitBranch, Plus, Search, Share2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useUnderstandingList, useUnderstandingListActions } from "./hooks";
 import { UnderstandingRow } from "./UnderstandingRow";
@@ -80,11 +80,16 @@ export function UnderstandingList({ onChat }: { onChat?: (scope: CaptureAgentSco
           data-testid="capture-understanding-list-header"
           className="flex h-8 items-center gap-2"
         >
-          <div className="flex min-w-0 items-center gap-1">
-            <div className="app-drag-region min-w-0 self-stretch">
-              <div className="truncate text-sm font-medium">{domainLabel}</div>
-              <div className="text-xs text-muted-foreground">{countLabel}</div>
-            </div>
+          <div className="app-drag-region min-w-0 self-stretch">
+            <div className="truncate text-sm font-medium">{domainLabel}</div>
+            <div className="text-xs text-muted-foreground">{countLabel}</div>
+          </div>
+          <div className="app-drag-region min-w-0 flex-1 self-stretch" />
+          <div
+            data-testid="capture-understanding-list-actions"
+            className="flex shrink-0 items-center gap-1"
+            data-no-drag
+          >
             <Button
               data-testid="capture-knowledge-wander-entry"
               type="button"
@@ -94,11 +99,8 @@ export function UnderstandingList({ onChat }: { onChat?: (scope: CaptureAgentSco
               className="shrink-0"
               onClick={toggleKnowledgeWander}
             >
-              <Network size={14} />
+              <Share2 size={14} />
             </Button>
-          </div>
-          <div className="app-drag-region min-w-0 flex-1 self-stretch" />
-          <div className="flex shrink-0 items-center gap-1" data-no-drag>
             <Button
               type="button"
               size="icon-sm"

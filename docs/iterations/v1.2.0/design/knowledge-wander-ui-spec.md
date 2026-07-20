@@ -58,8 +58,8 @@ aside
 
 ### KnowledgeWanderEntry
 
-- 入口是理解列表标题栏中紧跟 Domain 名称与数量的 `Network` icon button，位于搜索等列表操作之前。
-- 进入图谱后，GraphHeader 在相同相对位置保留该 icon button，并设置 `aria-pressed=true`；再次点击退出知识漫步。
+- 入口使用 `Share2` 图标，作为理解列表标题栏右侧 icon toolbar 的第一个操作，位于搜索按钮之前；不单独悬在 Domain 名称与数量旁边。
+- 进入图谱后，GraphHeader 的右侧操作区保留该 icon button，并使用现有 `bg-muted text-foreground` active 样式与 `aria-pressed=true`；再次点击退出知识漫步。
 - 复用现有 `Button variant="ghost" size="icon-sm"`，仅显示一个图标，通过 aria-label 表达进入或退出。
 - 不显示独立文字、进度、徽章、说明文字或随机图标。
 
