@@ -21,34 +21,12 @@ describe("buildPiPromptText", () => {
           origin: { kind: "user_context", messageId: "user-1" },
         },
       ],
-      entityCatalog: [
-        {
-          key: "understanding:understanding-1",
-          entity: {
-            type: "understanding",
-            id: "understanding-1",
-            title: "React Server Components",
-          },
-          origin: { kind: "user_context", messageId: "user-1" },
-        },
-        {
-          key: "domain:domain-1",
-          entity: { type: "domain", id: "domain-1", title: "React" },
-          origin: { kind: "user_context", messageId: "user-1" },
-        },
-      ],
     });
 
     expect(prompt).toContain("请比较这些引用");
     expect(prompt).toContain("Understanding: React Server Components; id=understanding-1");
     expect(prompt).toContain("Domain: React; id=domain-1");
-    expect(prompt).toContain("<reflecta_entities>");
-    expect(prompt).toContain(
-      '{"type":"understanding","id":"understanding-1","citation":"[[u:understanding-1]]","title":"React Server Components"}',
-    );
-    expect(prompt).toContain(
-      '{"type":"domain","id":"domain-1","citation":"[[d:domain-1]]","title":"React"}',
-    );
+    expect(prompt).not.toContain("<reflecta_entities");
   });
 
   test("injects attachment metadata without embedding file data URLs", () => {

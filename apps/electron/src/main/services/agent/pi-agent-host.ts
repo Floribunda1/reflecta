@@ -25,6 +25,7 @@ import type {
   AgentCommand,
   AgentContextUsage,
   AgentContextRef,
+  AgentEntityCatalogEntry,
   AgentModelSelection,
   AgentReasoningLevel,
   AgentApprovalRequested,
@@ -52,8 +53,8 @@ import { formatAgentError } from "./error";
 import { buildPiPromptText } from "./pi-prompt";
 import { getCodexCredentials } from "./codex-auth";
 import agentSystemPrompt from "./agent-system-prompt.md?raw";
-import { formatEntityRecordsForPrompt } from "./agent-citations";
 import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-tools";
+import { createPiEntityCatalogContext } from "./pi-entity-catalog-context";
 import {
   approvalTitleForTool,
   createPiWriteTools,
@@ -124,6 +125,7 @@ export async function createPiResourceLoader(input: {
   agentDir: string;
   settingsManager: SettingsManager;
   onDangerousBashApproval: DangerousBashApprovalHandler;
+  getEntityCatalog: () => AgentEntityCatalogEntry[];
 }): Promise<DefaultResourceLoader> {
   const loader = new DefaultResourceLoader({
     cwd: input.cwd,
@@ -135,7 +137,10 @@ export async function createPiResourceLoader(input: {
     noPromptTemplates: true,
     noThemes: true,
     noContextFiles: true,
-    extensionFactories: [createPiBashPermissionGate(input.onDangerousBashApproval)],
+    extensionFactories: [
+      createPiBashPermissionGate(input.onDangerousBashApproval),
+      createPiEntityCatalogContext(input.getEntityCatalog),
+    ],
   });
   await loader.reload();
   return loader;
@@ -694,11 +699,7 @@ export class PiAgentHost {
   private async createSession(
     command: Extract<AgentCommand, { type: "message.send" }>,
     sessionManager: SessionManager,
-    collectToolOutput: (
-      toolName: string,
-      toolCallId: string,
-      output: unknown,
-    ) => string | undefined,
+    entityCatalog: AgentEntityCatalog,
     onDangerousBashApproval: DangerousBashApprovalHandler,
   ) {
     const modelConfig = getAiModelConfig(command.modelSelection as AiModelSelection | undefined);
@@ -717,6 +718,7 @@ export class PiAgentHost {
       agentDir,
       settingsManager,
       onDangerousBashApproval,
+      getEntityCatalog: () => entityCatalog.snapshot(),
     });
 
     const created = await createAgentSession({
@@ -725,7 +727,8 @@ export class PiAgentHost {
       customTools: [
         createPiBashTool(this.contentStorageRoot),
         ...createPiReadOnlyTools(command.files, {
-          collectToolOutput,
+          collectToolOutput: (toolName, toolCallId, output) =>
+            entityCatalog.collectToolOutput(toolName, toolCallId, output),
         }),
         ...createPiWriteTools({
           onApproval: ({ toolCallId }) => this.waitForToolApproval(command.sessionId, toolCallId),
@@ -966,16 +969,6 @@ export class PiAgentHost {
         entityCatalog,
       );
     };
-    const collectToolOutputEntities = (toolName: string, toolCallId: string, output: unknown) => {
-      const before = new Map(
-        entityCatalog.snapshot().map((entry) => [entry.key, JSON.stringify(entry.entity)]),
-      );
-      entityCatalog.collectToolOutput(toolName, toolCallId, output);
-      const changed = entityCatalog
-        .snapshot()
-        .filter((entry) => before.get(entry.key) !== JSON.stringify(entry.entity));
-      return formatEntityRecordsForPrompt(changed);
-    };
     const emitRunStarted = () => {
       if (runStarted) return;
       runStarted = true;
@@ -999,7 +992,7 @@ export class PiAgentHost {
       const created = await this.createSession(
         command,
         manager,
-        collectToolOutputEntities,
+        entityCatalog,
         requestDangerousBashApproval,
       );
       session = created.session;
@@ -1169,7 +1162,6 @@ export class PiAgentHost {
           text: command.text,
           contextRefs: command.contextRefs,
           contextCatalog,
-          entityCatalog: entityCatalog.snapshot(),
           files: command.files,
         }),
       );

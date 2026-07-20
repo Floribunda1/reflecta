@@ -158,12 +158,14 @@ describe("createPiResourceLoader", () => {
       agentDir: path.join(root, ".pi-agent"),
       settingsManager: SettingsManager.inMemory({}),
       onDangerousBashApproval: vi.fn().mockResolvedValue(true),
+      getEntityCatalog: () => [],
     });
 
     expect(loadAgentSystemPrompt()).toBe(expected);
     expect(loader.getSystemPrompt()).toBe(expected);
     expect(loader.getExtensions().extensions.map((extension) => extension.path)).toEqual([
       "<inline:reflecta-bash-permission-gate>",
+      "<inline:reflecta-entity-catalog-context>",
     ]);
     expect(loader.getSkills().skills).toEqual([]);
     expect(loader.getPrompts().prompts).toEqual([]);
@@ -515,9 +517,7 @@ describe("PiAgentHost", () => {
       }),
     );
     expect(promptCalls[0]).toContain("Context: 一次复盘; id=ctx_1");
-    expect(promptCalls[0]).toContain(
-      '{"type":"context","id":"ctx_1","citation":"[[c:ctx_1]]","title":"一次复盘"}',
-    );
+    expect(promptCalls[0]).not.toContain("<reflecta_entities");
     expect(promptCalls[0]).not.toContain("sourceId");
   });
 

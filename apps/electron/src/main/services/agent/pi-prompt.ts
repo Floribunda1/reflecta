@@ -3,7 +3,6 @@ import {
   selectedAgentContextBlockFromCatalog,
   selectedAgentContextBlockFromRefs,
 } from "@shared/agent-context";
-import { formatEntityRecordsForPrompt } from "./agent-citations";
 
 type ReflectaAttachmentMetadata = {
   attachmentId?: unknown;
@@ -44,13 +43,11 @@ export function buildPiPromptText({
   text,
   contextRefs = [],
   contextCatalog = [],
-  entityCatalog = [],
   files = [],
 }: {
   text: string;
   contextRefs?: AgentContextRef[];
   contextCatalog?: AgentEntityCatalogEntry[];
-  entityCatalog?: AgentEntityCatalogEntry[];
   files?: AgentFileAttachment[];
 }): string {
   const contextBlock =
@@ -58,5 +55,5 @@ export function buildPiPromptText({
       ? selectedAgentContextBlockFromCatalog(contextCatalog)
       : selectedAgentContextBlockFromRefs(contextRefs);
 
-  return `${text}${contextBlock}${formatEntityRecordsForPrompt(entityCatalog)}${attachmentBlockFromFiles(files)}`;
+  return `${text}${contextBlock}${attachmentBlockFromFiles(files)}`;
 }

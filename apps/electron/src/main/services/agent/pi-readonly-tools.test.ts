@@ -104,7 +104,6 @@ describe("createPiReadOnlyTools", () => {
     const tool = createPiReadOnlyTools([], {
       collectToolOutput: (toolName, toolCallId, output) => {
         catalog.collectToolOutput(toolName, toolCallId, output);
-        return undefined;
       },
     }).find((item) => item.name === "retrieve_knowledge");
     expect(tool).toBeDefined();
@@ -163,7 +162,6 @@ describe("createPiReadOnlyTools", () => {
     const tool = createPiReadOnlyTools([], {
       collectToolOutput: (toolName, toolCallId, output) => {
         catalog.collectToolOutput(toolName, toolCallId, output);
-        return undefined;
       },
     }).find((item) => item.name === "understanding_get");
     expect(tool).toBeDefined();
@@ -204,16 +202,13 @@ describe("createPiReadOnlyTools", () => {
     ]);
   });
 
-  test("appends host-provided entity records to model-facing content", async () => {
+  test("collects tool entities without decorating model-facing content", async () => {
     services.getUnderstanding.mockResolvedValue({
       id: "u_1",
       title: "Feedback Loop",
       body: "body",
     });
-    const collectToolOutput = vi.fn(
-      () =>
-        '\n\n<reflecta_entities>\n{"type":"understanding","id":"u_1","citation":"[[u:u_1]]","title":"Feedback Loop"}\n</reflecta_entities>',
-    );
+    const collectToolOutput = vi.fn();
     const tool = createPiReadOnlyTools([], { collectToolOutput }).find(
       (item) => item.name === "understanding_get",
     );
@@ -231,7 +226,7 @@ describe("createPiReadOnlyTools", () => {
       body: "body",
     });
     expect(output.content[0]?.text).toContain('"id": "u_1"');
-    expect(output.content[0]?.text).toContain('"citation":"[[u:u_1]]"');
+    expect(output.content[0]?.text).not.toContain("<reflecta_entities");
   });
 
   test("executes web_fetch through the web fetch seam", async () => {

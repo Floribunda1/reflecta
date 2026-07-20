@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { AgentEntityCatalogEntry } from "@shared/agent";
-import { formatEntityRecordsForPrompt } from "./agent-citations";
+import { formatEntityRecordsForPrompt, RUNTIME_ENTITY_CATALOG_OPEN_TAG } from "./agent-citations";
 
 const entries: AgentEntityCatalogEntry[] = [
   {
@@ -47,7 +47,7 @@ describe("formatEntityRecordsForPrompt", () => {
       },
     ]);
     const records = prompt
-      .split("<reflecta_entities>\n")[1]!
+      .split(`${RUNTIME_ENTITY_CATALOG_OPEN_TAG}\n`)[1]!
       .split("\n</reflecta_entities>")[0]!
       .split("\n")
       .map((line) => JSON.parse(line));
