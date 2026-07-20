@@ -183,10 +183,38 @@ test("@AG-START-008 用户收起后从对话标题重新展开对话列表", asy
 
     await page.getByTestId("agent-sidebar-expand-button").click();
     await expect(sidebarContainer).toHaveAttribute("aria-hidden", "false");
-    await expect(sidebarContainer).toHaveCSS("width", "248px");
+    await expect
+      .poll(async () => (await sidebarContainer.boundingBox())?.width ?? 0)
+      .toBeGreaterThan(240);
     await expect(page.getByTestId("agent-thread-sidebar")).toBeVisible();
     await expect(page.getByTestId("agent-sidebar-collapse-button")).toBeVisible();
   } finally {
+    await app.close();
+  }
+});
+
+test("@AG-START-009 用户调整对话列表宽度", async () => {
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await expect(page.getByTestId("agent-thread-title")).toBeVisible();
+    const listPanel = page.getByTestId("agent-thread-sidebar-panel");
+    const resizeHandle = page.getByTestId("agent-thread-sidebar-resize-handle");
+    await expect(resizeHandle.locator(":scope > div")).toHaveCount(0);
+    const handleBox = await resizeHandle.boundingBox();
+    const initialBox = await listPanel.boundingBox();
+    if (!handleBox || !initialBox) throw new Error("Thread list resize handle is not visible");
+
+    await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(handleBox.x + 100, handleBox.y + handleBox.height / 2, { steps: 8 });
+    await expect
+      .poll(async () => (await listPanel.boundingBox())?.width ?? 0)
+      .toBeGreaterThan(initialBox.width + 70);
+    await page.mouse.up();
+    await expect(page.getByTestId("agent-thread-title")).toBeVisible();
+  } finally {
+    await page.mouse.up().catch(() => undefined);
     await app.close();
   }
 });

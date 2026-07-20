@@ -1,4 +1,4 @@
-import { PanelLeft, PanelRight } from "lucide-react";
+import { PanelLeft, PanelLeftDashed } from "lucide-react";
 import { Button } from "@renderer/components/ui/button";
 import { cn } from "@renderer/lib/utils";
 
@@ -15,7 +15,7 @@ export function SidebarToggleButton({
   className?: string;
   onClick: () => void;
 }) {
-  const Icon = expanded ? PanelRight : PanelLeft;
+  const Icon = expanded ? PanelLeft : PanelLeftDashed;
 
   return (
     <Button

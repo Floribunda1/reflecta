@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { usePanelRef, type PanelSize } from "react-resizable-panels";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -69,7 +70,7 @@ function ThreadChat({
   onExpandSidebar?: () => void;
 }) {
   return (
-    <div className="h-full min-h-0 min-w-0 border-l">
+    <div className="h-full min-h-0 min-w-0">
       <AgentThreadPanel
         threadId={threadId}
         title={title}
@@ -89,6 +90,7 @@ function ThreadChat({
 
 function ChatPageContent() {
   const [threadSidebarOpen, setThreadSidebarOpen] = useState(true);
+  const threadSidebarPanelRef = usePanelRef();
   const { confirm } = useModal();
   const threadsQuery = useThreadsQuery();
   const activeThreadId = useActiveThreadId();
@@ -105,6 +107,17 @@ function ChatPageContent() {
   const activeThread = threads.find((thread) => thread.id === activeThreadId);
   const [threadScrollRequest, setThreadScrollRequest] = useState(0);
   const [draftThreadId, setDraftThreadId] = useState<string | null>(null);
+  const collapseThreadSidebar = useMemoizedFn(() => {
+    setThreadSidebarOpen(false);
+    threadSidebarPanelRef.current?.collapse();
+  });
+  const expandThreadSidebar = useMemoizedFn(() => {
+    setThreadSidebarOpen(true);
+    threadSidebarPanelRef.current?.expand();
+  });
+  const handleThreadSidebarResize = useMemoizedFn((size: PanelSize) => {
+    setThreadSidebarOpen(size.inPixels > 0);
+  });
   const confirmDeleteThread = useMemoizedFn((threadId: string) =>
     confirm({
       title: "删除对话",
@@ -197,112 +210,133 @@ function ChatPageContent() {
   ]);
 
   return (
-    <div
-      data-testid="agent-page"
-      className={cn(
-        "grid h-full min-h-0 w-full overflow-hidden bg-background/45 backdrop-blur-2xl transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
-        threadSidebarOpen ? "grid-cols-[248px_minmax(0,1fr)]" : "grid-cols-[0px_minmax(0,1fr)]",
-      )}
+    <ResizablePanelGroup
+      id="agent-page"
+      orientation="horizontal"
+      className="h-full min-h-0 w-full overflow-hidden bg-background/45 backdrop-blur-2xl [&>[data-panel]]:transition-[flex-grow] [&>[data-panel]]:duration-200 [&>[data-panel]]:ease-out [&:has([data-separator=active])>[data-panel]]:transition-none motion-reduce:[&>[data-panel]]:transition-none"
     >
-      <div
-        data-testid="agent-thread-sidebar-container"
-        aria-hidden={!threadSidebarOpen}
-        inert={!threadSidebarOpen}
-        className={cn(
-          "h-full min-w-0 overflow-hidden transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
-          threadSidebarOpen
-            ? "translate-x-0 opacity-100"
-            : "pointer-events-none -translate-x-3 opacity-0",
-        )}
+      <ResizablePanel
+        id="agent-thread-sidebar-panel"
+        panelRef={threadSidebarPanelRef}
+        defaultSize="248px"
+        minSize="200px"
+        maxSize="480px"
+        collapsedSize={0}
+        collapsible
+        groupResizeBehavior="preserve-pixel-size"
+        onResize={handleThreadSidebarResize}
+        style={{ overflow: "hidden" }}
       >
-        <ThreadSidebar
-          threads={threads}
-          pending={threadsQuery.isFetching}
-          activeThreadId={activeThreadId}
-          runningThreadId={runningThreadId}
-          onSelect={selectThread}
-          onCreate={createThread}
-          onCollapse={() => setThreadSidebarOpen(false)}
-          titleGeneratingThreadId={titleGeneratingThreadId}
-        />
-      </div>
-      <ResizablePanelGroup
-        orientation="horizontal"
-        defaultLayout={
-          inspectedRef
-            ? {
-                "agent-chat-main": 58,
-                "agent-chat-inspector": 42,
-              }
-            : {
-                "agent-chat-main": 100,
-              }
-        }
-        className="min-h-0 min-w-0 bg-card/70 backdrop-blur-sm"
-      >
-        <ResizablePanel
-          id="agent-chat-main"
-          minSize="28%"
-          defaultSize={inspectedRef ? "58%" : "100%"}
-          className="min-h-0 min-w-0"
+        <div
+          data-testid="agent-thread-sidebar-container"
+          aria-hidden={!threadSidebarOpen}
+          inert={!threadSidebarOpen}
+          className={cn(
+            "h-full min-w-0 overflow-hidden transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+            threadSidebarOpen
+              ? "translate-x-0 opacity-100"
+              : "pointer-events-none -translate-x-3 opacity-0",
+          )}
         >
-          <div className="h-full min-h-0 min-w-0">
-            {activeThreadId ? (
-              <ThreadChat
-                key={activeThreadId}
-                threadId={activeThreadId}
-                title={activeThread?.title ?? "新对话"}
-                scrollRequest={threadScrollRequest}
-                titleGenerating={titleGeneratingThreadId === activeThreadId}
-                onRename={renameThread}
-                onGenerateTitle={generateThreadTitle}
-                onForkAssistantMessage={forkThreadFromMessage}
-                onArchive={archiveThread}
-                onDelete={deleteThread}
-                onInspectContextRef={openInspector}
-                onExpandSidebar={threadSidebarOpen ? undefined : () => setThreadSidebarOpen(true)}
-              />
-            ) : (
-              <main className="relative flex h-full min-h-0 min-w-0 items-center justify-center overflow-hidden border-l bg-transparent text-sm text-muted-foreground">
-                {threadSidebarOpen ? null : (
-                  <SidebarToggleButton
-                    expanded={false}
-                    label="展开对话列表"
-                    testId="agent-sidebar-expand-button"
-                    className="absolute top-3 left-[86px]"
-                    onClick={() => setThreadSidebarOpen(true)}
-                  />
-                )}
-                加载 Agent...
-              </main>
-            )}
-          </div>
-        </ResizablePanel>
-        {inspectedRef ? (
-          <>
-            <ResizableHandle
-              withHandle
-              className="w-3 cursor-col-resize bg-transparent after:w-px after:bg-border/50 hover:after:bg-border data-[resize-handle-active]:after:bg-ring [&>div]:h-10 [&>div]:w-0.5 [&>div]:bg-border/70"
-            />
-            <ResizablePanel
-              id="agent-chat-inspector"
-              minSize="30%"
-              defaultSize="42%"
-              maxSize="68%"
-              className="min-h-0 min-w-0"
-            >
-              <div className="h-full min-h-0 min-w-0">
-                <ContextInspector
-                  refToInspect={inspectedRef}
-                  onClose={closeInspector}
-                  onInspect={openInspector}
+          <ThreadSidebar
+            threads={threads}
+            pending={threadsQuery.isFetching}
+            activeThreadId={activeThreadId}
+            runningThreadId={runningThreadId}
+            onSelect={selectThread}
+            onCreate={createThread}
+            onCollapse={collapseThreadSidebar}
+            titleGeneratingThreadId={titleGeneratingThreadId}
+          />
+        </div>
+      </ResizablePanel>
+      <ResizableHandle
+        id="agent-thread-sidebar-resize-handle"
+        disabled={!threadSidebarOpen}
+        className={cn(
+          "cursor-col-resize bg-transparent after:w-px after:bg-border/50 hover:after:bg-border data-[resize-handle-active]:after:bg-ring",
+          threadSidebarOpen ? "w-3" : "w-0 border-0 opacity-0 after:hidden",
+        )}
+      />
+      <ResizablePanel id="agent-workspace-panel" minSize="420px" className="min-h-0 min-w-0">
+        <ResizablePanelGroup
+          orientation="horizontal"
+          defaultLayout={
+            inspectedRef
+              ? {
+                  "agent-chat-main": 58,
+                  "agent-chat-inspector": 42,
+                }
+              : {
+                  "agent-chat-main": 100,
+                }
+          }
+          className="min-h-0 min-w-0 bg-card/70 backdrop-blur-sm"
+        >
+          <ResizablePanel
+            id="agent-chat-main"
+            minSize="28%"
+            defaultSize={inspectedRef ? "58%" : "100%"}
+            className="min-h-0 min-w-0"
+          >
+            <div className="h-full min-h-0 min-w-0">
+              {activeThreadId ? (
+                <ThreadChat
+                  key={activeThreadId}
+                  threadId={activeThreadId}
+                  title={activeThread?.title ?? "新对话"}
+                  scrollRequest={threadScrollRequest}
+                  titleGenerating={titleGeneratingThreadId === activeThreadId}
+                  onRename={renameThread}
+                  onGenerateTitle={generateThreadTitle}
+                  onForkAssistantMessage={forkThreadFromMessage}
+                  onArchive={archiveThread}
+                  onDelete={deleteThread}
+                  onInspectContextRef={openInspector}
+                  onExpandSidebar={threadSidebarOpen ? undefined : expandThreadSidebar}
                 />
-              </div>
-            </ResizablePanel>
-          </>
-        ) : null}
-      </ResizablePanelGroup>
-    </div>
+              ) : (
+                <main className="relative flex h-full min-h-0 min-w-0 items-center justify-center overflow-hidden bg-transparent text-sm text-muted-foreground">
+                  {threadSidebarOpen ? null : (
+                    <SidebarToggleButton
+                      expanded={false}
+                      label="展开对话列表"
+                      testId="agent-sidebar-expand-button"
+                      className="absolute top-3 left-[86px]"
+                      onClick={expandThreadSidebar}
+                    />
+                  )}
+                  加载 Agent...
+                </main>
+              )}
+            </div>
+          </ResizablePanel>
+          {inspectedRef ? (
+            <>
+              <ResizableHandle
+                withHandle
+                className="w-3 cursor-col-resize bg-transparent after:w-px after:bg-border/50 hover:after:bg-border data-[resize-handle-active]:after:bg-ring [&>div]:h-10 [&>div]:w-0.5 [&>div]:bg-border/70"
+              />
+              <ResizablePanel
+                id="agent-chat-inspector"
+                minSize="30%"
+                defaultSize="42%"
+                maxSize="68%"
+                className="min-h-0 min-w-0"
+              >
+                <div className="h-full min-h-0 min-w-0">
+                  <ContextInspector
+                    refToInspect={inspectedRef}
+                    onClose={closeInspector}
+                    onInspect={openInspector}
+                  />
+                </div>
+              </ResizablePanel>
+            </>
+          ) : null}
+        </ResizablePanelGroup>
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 }
 

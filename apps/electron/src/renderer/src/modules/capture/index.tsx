@@ -116,31 +116,54 @@ function CapturePageInner() {
               />
             </Suspense>
           ) : (
-            <div className="grid h-full min-h-0 min-w-0 grid-cols-[minmax(280px,360px)_minmax(0,1fr)] overflow-hidden bg-transparent">
-              <UnderstandingList
-                onChat={openAgentDock}
-                onExpandSidebar={domainSidebarOpen ? undefined : () => setDomainSidebarOpen(true)}
+            <ResizablePanelGroup
+              orientation="horizontal"
+              className="h-full min-h-0 min-w-0 bg-transparent"
+            >
+              <ResizablePanel
+                id="capture-understanding-list-panel"
+                defaultSize="420px"
+                minSize="280px"
+                maxSize="60%"
+                groupResizeBehavior="preserve-pixel-size"
+                className="min-h-0 min-w-0"
+              >
+                <UnderstandingList
+                  onChat={openAgentDock}
+                  onExpandSidebar={domainSidebarOpen ? undefined : () => setDomainSidebarOpen(true)}
+                />
+              </ResizablePanel>
+              <ResizableHandle
+                withHandle
+                id="capture-understanding-list-resize-handle"
+                className="w-3 cursor-col-resize bg-transparent after:w-px after:bg-border/50 hover:after:bg-border data-[resize-handle-active]:after:bg-ring [&>div]:h-10 [&>div]:w-0.5 [&>div]:bg-border/70"
               />
-              <main className="min-h-0 min-w-0 overflow-hidden bg-transparent">
-                {selectedUnderstandingId ? (
-                  <UnderstandingDetail
-                    understandingId={selectedUnderstandingId}
-                    onWikiLinkClick={handleWikiLinkClick}
-                    onChat={openAgentDock}
-                    onDeleted={() => resetAfterUnderstandingDeleted(selectedUnderstandingId)}
-                  />
-                ) : (
-                  <Empty className="h-full">
-                    <EmptyContent>
-                      <EmptyMedia variant="icon">
-                        <FileText />
-                      </EmptyMedia>
-                      <EmptyDescription>选择一条内容开始查看</EmptyDescription>
-                    </EmptyContent>
-                  </Empty>
-                )}
-              </main>
-            </div>
+              <ResizablePanel
+                id="capture-understanding-detail-panel"
+                minSize="320px"
+                className="min-h-0 min-w-0"
+              >
+                <main className="h-full min-h-0 min-w-0 overflow-hidden bg-transparent">
+                  {selectedUnderstandingId ? (
+                    <UnderstandingDetail
+                      understandingId={selectedUnderstandingId}
+                      onWikiLinkClick={handleWikiLinkClick}
+                      onChat={openAgentDock}
+                      onDeleted={() => resetAfterUnderstandingDeleted(selectedUnderstandingId)}
+                    />
+                  ) : (
+                    <Empty className="h-full">
+                      <EmptyContent>
+                        <EmptyMedia variant="icon">
+                          <FileText />
+                        </EmptyMedia>
+                        <EmptyDescription>选择一条内容开始查看</EmptyDescription>
+                      </EmptyContent>
+                    </Empty>
+                  )}
+                </main>
+              </ResizablePanel>
+            </ResizablePanelGroup>
           )}
         </ResizablePanel>
         {agentDockOpen ? (

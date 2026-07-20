@@ -33,7 +33,7 @@ function ThreadSidebarComponent({
   return (
     <aside
       data-testid="agent-thread-sidebar"
-      className="flex h-full min-h-0 w-[248px] shrink-0 flex-col overflow-hidden"
+      className="flex h-full min-h-0 w-full shrink-0 flex-col overflow-hidden"
     >
       <div className="app-drag-region relative pl-4 pr-2 pt-14 pb-3">
         <SidebarToggleButton

@@ -81,7 +81,7 @@ export function UnderstandingList({
   }, [selectedUnderstandingId, understandings, virtualizer]);
 
   return (
-    <section className="flex h-full min-h-0 min-w-0 flex-col border-r bg-transparent">
+    <section className="flex h-full min-h-0 min-w-0 flex-col bg-transparent">
       <div className="space-y-3 px-3 py-3">
         <header
           data-testid="capture-understanding-list-header"
@@ -204,7 +204,7 @@ export function UnderstandingList({
           </Empty>
         </div>
       ) : (
-        <div ref={listViewportRef} className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+        <div ref={listViewportRef} className="min-h-0 flex-1 overflow-y-auto pl-3 pb-3">
           <div className="relative w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>
             {virtualizer.getVirtualItems().map((virtualRow) => {
               const understanding = understandings[virtualRow.index];
