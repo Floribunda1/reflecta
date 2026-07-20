@@ -1,5 +1,5 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { FileText, GitBranch, Plus, Search, ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, FileText, GitBranch, Plus, Search, Share2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useUnderstandingList, useUnderstandingListActions } from "./hooks";
 import { UnderstandingRow } from "./UnderstandingRow";
@@ -31,6 +31,7 @@ export function UnderstandingList({ onChat }: { onChat?: (scope: CaptureAgentSco
   const setSearchOpen = useCaptureStore((state) => state.setSearchOpen);
   const setSearchQuery = useCaptureStore((state) => state.setSearchQuery);
   const setIncludeDescendants = useCaptureStore((state) => state.setIncludeDescendants);
+  const toggleKnowledgeWander = useCaptureStore((state) => state.toggleKnowledgeWander);
   const understandingListSortBy = useCaptureStore((state) => state.understandingListSortBy);
   const setUnderstandingListSortBy = useCaptureStore((state) => state.setUnderstandingListSortBy);
   const { domainList } = useCaptureDomains();
@@ -75,12 +76,31 @@ export function UnderstandingList({ onChat }: { onChat?: (scope: CaptureAgentSco
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col border-r bg-transparent">
       <div className="space-y-3 px-3 py-3">
-        <div className="flex h-8 items-center justify-between gap-2">
-          <div className="app-drag-region min-w-0 flex-1 self-stretch">
+        <header
+          data-testid="capture-understanding-list-header"
+          className="flex h-8 items-center gap-2"
+        >
+          <div className="app-drag-region min-w-0 self-stretch">
             <div className="truncate text-sm font-medium">{domainLabel}</div>
             <div className="text-xs text-muted-foreground">{countLabel}</div>
           </div>
-          <div className="flex shrink-0 items-center gap-1" data-no-drag>
+          <div className="app-drag-region min-w-0 flex-1 self-stretch" />
+          <div
+            data-testid="capture-understanding-list-actions"
+            className="flex shrink-0 items-center gap-1"
+            data-no-drag
+          >
+            <Button
+              data-testid="capture-knowledge-wander-entry"
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label="打开知识漫步"
+              className="shrink-0"
+              onClick={toggleKnowledgeWander}
+            >
+              <Share2 size={14} />
+            </Button>
             <Button
               type="button"
               size="icon-sm"
@@ -144,7 +164,7 @@ export function UnderstandingList({ onChat }: { onChat?: (scope: CaptureAgentSco
               <Plus size={14} />
             </Button>
           </div>
-        </div>
+        </header>
         {searchOpen && (
           <Input
             ref={searchInputRef}

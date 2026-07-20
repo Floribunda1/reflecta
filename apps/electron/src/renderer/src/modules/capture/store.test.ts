@@ -22,6 +22,30 @@ describe("capture store", () => {
     expect(store.getState().draft).toBeNull();
   });
 
+  test("toggleKnowledgeWander changes only the workspace mode", () => {
+    const store = createCaptureStore({
+      ...initialCaptureState,
+      selectedDomainId: "domain-1",
+      selectedUnderstandingId: "understanding-1",
+    });
+
+    store.getState().toggleKnowledgeWander();
+
+    expect(store.getState()).toMatchObject({
+      captureMode: "wander",
+      selectedDomainId: "domain-1",
+      selectedUnderstandingId: "understanding-1",
+    });
+
+    store.getState().toggleKnowledgeWander();
+
+    expect(store.getState()).toMatchObject({
+      captureMode: "browse",
+      selectedDomainId: "domain-1",
+      selectedUnderstandingId: "understanding-1",
+    });
+  });
+
   test("selectUnderstanding clears active context without changing domain", () => {
     const store = createCaptureStore({
       ...initialCaptureState,

@@ -50,4 +50,17 @@ describe("sortUnderstandingSummaries", () => {
 
     expect(sorted.map((item) => item.id)).toEqual(["new", "old"]);
   });
+
+  test("uses the id as a stable tie-breaker", () => {
+    const sameTimestamp = "2026-01-01T00:00:00.000Z";
+    const summaries = [
+      understanding({ id: "b", createdAt: sameTimestamp, updatedAt: sameTimestamp }),
+      understanding({ id: "a", createdAt: sameTimestamp, updatedAt: sameTimestamp }),
+    ];
+
+    expect(sortUnderstandingSummaries(summaries, "updatedAt").map(({ id }) => id)).toEqual([
+      "a",
+      "b",
+    ]);
+  });
 });
