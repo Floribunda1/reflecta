@@ -200,11 +200,21 @@ function ChatPageContent() {
     <div
       data-testid="agent-page"
       className={cn(
-        "grid h-full min-h-0 w-full overflow-hidden bg-background/45 backdrop-blur-2xl",
-        threadSidebarOpen ? "grid-cols-[248px_minmax(0,1fr)]" : "grid-cols-[minmax(0,1fr)]",
+        "grid h-full min-h-0 w-full overflow-hidden bg-background/45 backdrop-blur-2xl transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
+        threadSidebarOpen ? "grid-cols-[248px_minmax(0,1fr)]" : "grid-cols-[0px_minmax(0,1fr)]",
       )}
     >
-      {threadSidebarOpen ? (
+      <div
+        data-testid="agent-thread-sidebar-container"
+        aria-hidden={!threadSidebarOpen}
+        inert={!threadSidebarOpen}
+        className={cn(
+          "h-full min-w-0 overflow-hidden transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+          threadSidebarOpen
+            ? "translate-x-0 opacity-100"
+            : "pointer-events-none -translate-x-3 opacity-0",
+        )}
+      >
         <ThreadSidebar
           threads={threads}
           pending={threadsQuery.isFetching}
@@ -215,7 +225,7 @@ function ChatPageContent() {
           onCollapse={() => setThreadSidebarOpen(false)}
           titleGeneratingThreadId={titleGeneratingThreadId}
         />
-      ) : null}
+      </div>
       <ResizablePanelGroup
         orientation="horizontal"
         defaultLayout={
@@ -259,7 +269,7 @@ function ChatPageContent() {
                     expanded={false}
                     label="展开对话列表"
                     testId="agent-sidebar-expand-button"
-                    className="absolute top-2 left-6"
+                    className="absolute top-3 left-[86px]"
                     onClick={() => setThreadSidebarOpen(true)}
                   />
                 )}

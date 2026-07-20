@@ -60,13 +60,25 @@ function CapturePageInner() {
     <div
       data-testid="capture-page"
       className={cn(
-        "grid h-full min-h-0 w-full overflow-hidden bg-background/45 backdrop-blur-2xl",
-        domainSidebarOpen ? "grid-cols-[248px_minmax(0,1fr)]" : "grid-cols-[minmax(0,1fr)]",
+        "grid h-full min-h-0 w-full overflow-hidden bg-background/45 backdrop-blur-2xl transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
+        domainSidebarOpen ? "grid-cols-[248px_minmax(0,1fr)]" : "grid-cols-[0px_minmax(0,1fr)]",
       )}
     >
-      {domainSidebarOpen ? (
-        <DomainTree onChat={openAgentDock} onCollapse={() => setDomainSidebarOpen(false)} />
-      ) : null}
+      <div
+        data-testid="capture-domain-sidebar-container"
+        aria-hidden={!domainSidebarOpen}
+        inert={!domainSidebarOpen}
+        className={cn(
+          "h-full min-w-0 overflow-hidden transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+          domainSidebarOpen
+            ? "translate-x-0 opacity-100"
+            : "pointer-events-none -translate-x-3 opacity-0",
+        )}
+      >
+        <div className="h-full w-[248px]">
+          <DomainTree onChat={openAgentDock} onCollapse={() => setDomainSidebarOpen(false)} />
+        </div>
+      </div>
       <ResizablePanelGroup
         orientation="horizontal"
         defaultLayout={

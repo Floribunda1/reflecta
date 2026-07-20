@@ -8,6 +8,7 @@ import {
   ResizablePanelGroup,
 } from "@renderer/components/ui/resizable";
 import { Skeleton } from "@renderer/components/ui/skeleton";
+import { cn } from "@renderer/lib/utils";
 import { SidebarToggleButton } from "@renderer/modules/shared/layout/SidebarToggleButton";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import { useCaptureDomains, useCaptureUnderstandingList } from "../queries";
@@ -111,7 +112,10 @@ export function KnowledgeWanderWorkspace({
         <main className="flex h-full min-h-0 min-w-0 flex-col bg-background">
           <header
             data-testid="knowledge-wander-header"
-            className="flex h-14 shrink-0 items-center gap-1 border-b bg-background/90 px-5 backdrop-blur-sm"
+            className={cn(
+              "flex h-14 shrink-0 items-center gap-1 border-b bg-background/90 px-5 backdrop-blur-sm",
+              onExpandSidebar && "pl-[86px]",
+            )}
           >
             {onExpandSidebar ? (
               <SidebarToggleButton

@@ -109,10 +109,16 @@ test("@CP-DOMAIN-005 用户收起后从理解列表重新展开 Domain Tree", as
     await openCapturePage(page);
     await page.getByTestId("capture-sidebar-collapse-button").click();
 
-    await expect(page.getByTestId("capture-domain-sidebar")).toHaveCount(0);
+    const sidebarContainer = page.getByTestId("capture-domain-sidebar-container");
+    await expect(sidebarContainer).toHaveAttribute("aria-hidden", "true");
+    await expect(sidebarContainer).toHaveCSS("width", "0px");
     await expect(page.getByTestId("capture-sidebar-expand-button")).toBeVisible();
+    const expandButtonBox = await page.getByTestId("capture-sidebar-expand-button").boundingBox();
+    expect(expandButtonBox?.x).toBeGreaterThanOrEqual(86);
 
     await page.getByTestId("capture-sidebar-expand-button").click();
+    await expect(sidebarContainer).toHaveAttribute("aria-hidden", "false");
+    await expect(sidebarContainer).toHaveCSS("width", "248px");
     await expect(page.getByTestId("capture-domain-sidebar")).toBeVisible();
     await expect(page.getByTestId("capture-sidebar-collapse-button")).toBeVisible();
   } finally {

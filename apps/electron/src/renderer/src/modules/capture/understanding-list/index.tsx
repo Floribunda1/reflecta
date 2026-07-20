@@ -85,7 +85,7 @@ export function UnderstandingList({
       <div className="space-y-3 px-3 py-3">
         <header
           data-testid="capture-understanding-list-header"
-          className="flex h-8 items-center gap-2"
+          className={cn("flex h-8 items-center gap-2", onExpandSidebar && "pl-[75px]")}
         >
           {onExpandSidebar ? (
             <SidebarToggleButton

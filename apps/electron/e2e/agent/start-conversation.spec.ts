@@ -170,12 +170,20 @@ test("@AG-START-008 用户收起后从对话标题重新展开对话列表", asy
   const { app, page } = await launchAgentPage();
 
   try {
+    await expect(page.getByTestId("agent-thread-title")).toBeVisible();
     await page.getByTestId("agent-sidebar-collapse-button").click();
 
-    await expect(page.getByTestId("agent-thread-sidebar")).toHaveCount(0);
+    const sidebarContainer = page.getByTestId("agent-thread-sidebar-container");
+    await expect(sidebarContainer).toHaveAttribute("aria-hidden", "true");
+    await expect(sidebarContainer).toHaveCSS("width", "0px");
     await expect(page.getByTestId("agent-sidebar-expand-button")).toBeVisible();
+    const expandButtonBox = await page.getByTestId("agent-sidebar-expand-button").boundingBox();
+    expect(expandButtonBox?.x).toBeGreaterThanOrEqual(86);
+    expect((expandButtonBox?.y ?? 0) + (expandButtonBox?.height ?? 0) / 2).toBeCloseTo(24, 0);
 
     await page.getByTestId("agent-sidebar-expand-button").click();
+    await expect(sidebarContainer).toHaveAttribute("aria-hidden", "false");
+    await expect(sidebarContainer).toHaveCSS("width", "248px");
     await expect(page.getByTestId("agent-thread-sidebar")).toBeVisible();
     await expect(page.getByTestId("agent-sidebar-collapse-button")).toBeVisible();
   } finally {

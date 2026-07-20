@@ -513,7 +513,12 @@ function AgentThreadHeader({
   };
 
   return (
-    <header className="app-drag-region flex h-12 shrink-0 items-center justify-between gap-3 border-b px-6">
+    <header
+      className={cn(
+        "app-drag-region flex h-14 shrink-0 items-center justify-between gap-3 border-b px-6",
+        onExpandSidebar && "pl-[86px]",
+      )}
+    >
       <div className="flex min-w-0 flex-1 items-center gap-3">
         {onExpandSidebar ? (
           <SidebarToggleButton
