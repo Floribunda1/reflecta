@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.1 - 2026-07-20
+
+- Moved Capture and Agent navigation into the sidebar footer as direct contextual actions with consistent hover styling.
+- Added animated, collapsible page sidebars with distinct expand and collapse controls that stay aligned with the macOS window controls.
+- Made the Capture Understanding list and Agent thread list horizontally resizable while preserving collapsed layouts.
+- Preserved Unicode filenames in Agent Bash output.
+
 ## 1.2.0 - 2026-07-20
 
 - Replaced the standalone Contemplate module with Knowledge Wander inside Capture, leaving Capture and Agent as the two top-level product surfaces.
