@@ -1,4 +1,11 @@
-import { CanvasEvent, Graph, type ElementDatum, type IPointerEvent, type NodeData } from "@antv/g6";
+import {
+  CanvasEvent,
+  Graph,
+  NodeEvent,
+  type ElementDatum,
+  type IPointerEvent,
+  type NodeData,
+} from "@antv/g6";
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useMemo, useRef } from "react";
@@ -10,7 +17,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@renderer/components/ui/tooltip";
-import type { KnowledgeGraphData } from "./graph-data";
+import { buildGraphElementStates, type KnowledgeGraphData } from "./graph-data";
 
 type KnowledgeGraphProps = {
   data: KnowledgeGraphData;
@@ -25,7 +32,6 @@ type GraphColors = {
   border: string;
 };
 
-const SELECTION_STATES = new Set(["selected", "selected-neighbor", "selected-inactive"]);
 const FIT_VIEW_OPTIONS = { when: "overflow", direction: "both" } as const;
 
 function readGraphColors(): GraphColors {
@@ -68,6 +74,7 @@ function labelPriority(element: NodeData): number {
   const states = element.states ?? [];
   if (states.includes("hovered")) return 4;
   if (states.includes("selected")) return 3;
+  if (states.includes("hover-neighbor")) return 2;
   if (states.includes("selected-neighbor")) return 2;
   return getNodeDegree(element);
 }
@@ -80,53 +87,19 @@ function getEventTargetId(event: IPointerEvent): string | null {
   return "id" in event.target ? String(event.target.id) : null;
 }
 
-async function syncSelection(
+async function syncFocus(
   graph: Graph,
   data: KnowledgeGraphData,
   selectedUnderstandingId: string | null,
+  hoveredUnderstandingId: string | null,
 ) {
-  const selectedNeighbors = new Set<string>();
-  const selectedEdges = new Set<string>();
-
-  if (selectedUnderstandingId) {
-    for (const edge of data.edges) {
-      if (edge.source !== selectedUnderstandingId && edge.target !== selectedUnderstandingId)
-        continue;
-      selectedEdges.add(edge.id);
-      selectedNeighbors.add(edge.source === selectedUnderstandingId ? edge.target : edge.source);
-    }
-  }
-
-  const states: Record<string, string[]> = {};
-  for (const node of data.nodes) {
-    const persistentStates = graph
-      .getElementState(node.id)
-      .filter((state) => !SELECTION_STATES.has(state));
-
-    if (!selectedUnderstandingId) {
-      states[node.id] = persistentStates;
-    } else if (node.id === selectedUnderstandingId) {
-      states[node.id] = [...persistentStates, "selected"];
-    } else if (selectedNeighbors.has(node.id)) {
-      states[node.id] = [...persistentStates, "selected-neighbor"];
-    } else {
-      states[node.id] = [...persistentStates, "selected-inactive"];
-    }
-  }
-
-  for (const edge of data.edges) {
-    const persistentStates = graph
-      .getElementState(edge.id)
-      .filter((state) => !SELECTION_STATES.has(state));
-    states[edge.id] = !selectedUnderstandingId
-      ? persistentStates
-      : [
-          ...persistentStates,
-          selectedEdges.has(edge.id) ? "selected-neighbor" : "selected-inactive",
-        ];
-  }
-
-  await graph.setElementState(states, false);
+  await graph.setElementState(
+    buildGraphElementStates(data, {
+      selectedId: selectedUnderstandingId,
+      hoveredId: hoveredUnderstandingId,
+    }),
+    false,
+  );
 }
 
 function GraphControl({
@@ -164,6 +137,7 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
   const graphReadyRef = useRef(false);
   const dataRef = useRef(data);
   const selectedUnderstandingIdRef = useRef(selectedUnderstandingId);
+  const hoveredUnderstandingIdRef = useRef<string | null>(null);
   const onSelectRef = useRef(onSelect);
   const { resolvedTheme } = useTheme();
 
@@ -245,6 +219,10 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
             labelOpacity: 1,
             labelFontWeight: 500,
           },
+          "hover-neighbor": {
+            opacity: 0.9,
+            labelOpacity: 0.82,
+          },
           "hover-inactive": {
             opacity: 0.14,
             labelOpacity: 0.08,
@@ -279,6 +257,11 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
             lineWidth: 1.2,
             opacity: 0.72,
           },
+          "hover-neighbor": {
+            stroke: colors.foreground,
+            lineWidth: 1.2,
+            opacity: 0.72,
+          },
           "hover-inactive": { opacity: 0.06 },
           "selected-neighbor": {
             stroke: colors.primary,
@@ -298,29 +281,6 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
           enable: (event: IPointerEvent) => event.targetType === "node",
         },
         {
-          type: "hover-activate",
-          degree: 1,
-          direction: "both",
-          state: "hovered",
-          inactiveState: "hover-inactive",
-          animation: false,
-          enable: (event: IPointerEvent) => event.targetType === "node",
-        },
-        {
-          type: "click-select",
-          degree: 1,
-          state: "selected",
-          neighborState: "selected-neighbor",
-          unselectedState: "selected-inactive",
-          multiple: false,
-          animation: false,
-          enable: (event: IPointerEvent) => event.targetType === "node",
-          onClick: (event: IPointerEvent) => {
-            const id = getEventTargetId(event);
-            if (id) onSelectRef.current(id);
-          },
-        },
-        {
           type: "auto-adapt-label",
           padding: 5,
           sort: (left: ElementDatum, right: ElementDatum) =>
@@ -331,16 +291,42 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
 
     graphRef.current = graph;
     graphReadyRef.current = false;
+    hoveredUnderstandingIdRef.current = null;
     renderedTitleKeyRef.current = getTitleKey(dataRef.current);
 
-    const restoreSelection = () => {
-      if (!selectedUnderstandingIdRef.current) return;
-      queueMicrotask(() => {
-        if (graphRef.current !== graph || !graphReadyRef.current) return;
-        void syncSelection(graph, dataRef.current, selectedUnderstandingIdRef.current);
-      });
+    const applyFocus = () => {
+      if (graphRef.current !== graph || !graphReadyRef.current) return;
+      void syncFocus(
+        graph,
+        dataRef.current,
+        selectedUnderstandingIdRef.current,
+        hoveredUnderstandingIdRef.current,
+      );
     };
-    graph.on(CanvasEvent.CLICK, restoreSelection);
+    const previewNode = (event: IPointerEvent) => {
+      hoveredUnderstandingIdRef.current = getEventTargetId(event);
+      applyFocus();
+    };
+    const endNodePreview = (event: IPointerEvent) => {
+      if (hoveredUnderstandingIdRef.current !== getEventTargetId(event)) return;
+      hoveredUnderstandingIdRef.current = null;
+      applyFocus();
+    };
+    const selectNode = (event: IPointerEvent) => {
+      const id = getEventTargetId(event);
+      if (!id) return;
+      selectedUnderstandingIdRef.current = id;
+      onSelectRef.current(id);
+      applyFocus();
+    };
+    const keepSelection = () => {
+      hoveredUnderstandingIdRef.current = null;
+      applyFocus();
+    };
+    graph.on(NodeEvent.POINTER_ENTER, previewNode);
+    graph.on(NodeEvent.POINTER_LEAVE, endNodePreview);
+    graph.on(NodeEvent.CLICK, selectNode);
+    graph.on(CanvasEvent.CLICK, keepSelection);
 
     const resizeObserver = new ResizeObserver(([entry]) => {
       if (!entry) return;
@@ -365,13 +351,21 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
           await graph.draw();
           renderedTitleKeyRef.current = currentTitleKey;
         }
-        await syncSelection(graph, dataRef.current, selectedUnderstandingIdRef.current);
+        await syncFocus(
+          graph,
+          dataRef.current,
+          selectedUnderstandingIdRef.current,
+          hoveredUnderstandingIdRef.current,
+        );
       })
       .catch((error) => console.error("Failed to render knowledge graph", error));
 
     return () => {
       resizeObserver.disconnect();
-      graph.off(CanvasEvent.CLICK, restoreSelection);
+      graph.off(NodeEvent.POINTER_ENTER, previewNode);
+      graph.off(NodeEvent.POINTER_LEAVE, endNodePreview);
+      graph.off(NodeEvent.CLICK, selectNode);
+      graph.off(CanvasEvent.CLICK, keepSelection);
       graphReadyRef.current = false;
       graphRef.current = null;
       graph.destroy();
@@ -389,7 +383,12 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
   useEffect(() => {
     const graph = graphRef.current;
     if (!graph || !graphReadyRef.current) return;
-    void syncSelection(graph, dataRef.current, selectedUnderstandingId);
+    void syncFocus(
+      graph,
+      dataRef.current,
+      selectedUnderstandingId,
+      hoveredUnderstandingIdRef.current,
+    );
   }, [selectedUnderstandingId]);
 
   const withGraph = (action: (graph: Graph) => void) => {

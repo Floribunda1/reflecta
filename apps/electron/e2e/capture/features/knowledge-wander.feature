@@ -21,6 +21,60 @@
     那么图谱应该保留原来的视口
     而且节点选择状态应该被清除
 
+  @P0 @interaction @KW-GRAPH-005
+  场景: 用户悬停节点时临时查看它的直接邻域
+    假如图谱中存在相连的 Understanding「A」和「B」以及无关的 Understanding「C」
+    当用户将指针移到节点「A」
+    那么节点「A」应该成为当前主强调
+    而且节点「B」及「A」与「B」之间的 Connection 应该保持清晰
+    而且无关节点「C」应该退到背景
+    而且右侧不应该打开 Understanding 详情
+    当用户将指针移出节点「A」
+    那么所有节点和 Connection 应该恢复默认状态
+
+  @P0 @interaction @KW-GRAPH-006
+  场景: 用户选择节点后持续查看它的直接邻域
+    假如图谱中存在相连的 Understanding「A」和「B」以及无关的 Understanding「C」
+    当用户选择节点「A」
+    那么节点「A」应该成为唯一的选择主强调
+    而且节点「B」及「A」与「B」之间的 Connection 应该保持清晰
+    而且无关节点「C」应该退到背景
+    而且右侧应该打开 Understanding「A」的详情
+
+  @P0 @interaction @KW-GRAPH-007
+  场景: 用户在已选择节点时临时预览另一个节点
+    假如用户已经选择节点「A」
+    而且图谱中存在另一个节点「C」
+    当用户将指针移到节点「C」
+    那么节点「C」及其直接邻域应该临时成为当前视觉焦点
+    而且右侧应该继续显示 Understanding「A」的详情
+    当用户将指针移出节点「C」
+    那么节点「A」及其直接邻域应该恢复为选择状态
+    而且节点「C」不应该残留悬停强调
+
+  @P0 @interaction @KW-GRAPH-008
+  场景: 用户从一个选择节点切换到另一个节点
+    假如用户已经选择节点「A」
+    当用户选择节点「B」
+    那么节点「B」应该成为唯一的选择主强调
+    而且节点「A」不应该残留选择强调
+    而且右侧应该改为显示 Understanding「B」的详情
+
+  @P0 @interaction @KW-GRAPH-009
+  场景: 用户点击图谱空白区域时保留当前选择
+    假如用户已经选择节点「A」
+    当用户点击图谱空白区域
+    那么节点「A」及其直接邻域应该继续保持选择状态
+    而且右侧应该继续显示 Understanding「A」的详情
+
+  @P0 @interaction @KW-GRAPH-010
+  场景: 用户关闭详情后清除当前选择
+    假如用户已经选择节点「A」
+    当用户关闭 Understanding 详情
+    那么右侧详情应该关闭
+    而且节点「A」不应该继续显示选择强调
+    而且所有节点和 Connection 应该恢复默认状态
+
   @P0 @navigation @KW-GRAPH-003
   场景: 用户切换图谱的领域范围
     假如 seed 数据中存在 Domain「Programming」及其子领域

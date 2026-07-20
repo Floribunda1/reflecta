@@ -13,6 +13,48 @@ export type KnowledgeGraphData = {
   }>;
 };
 
+type GraphFocus = {
+  selectedId: string | null;
+  hoveredId: string | null;
+};
+
+export function buildGraphElementStates(
+  data: KnowledgeGraphData,
+  { selectedId, hoveredId }: GraphFocus,
+): Record<string, string[]> {
+  const states: Record<string, string[]> = {};
+  const nodeIds = new Set(data.nodes.map(({ id }) => id));
+  const validHoveredId = hoveredId && nodeIds.has(hoveredId) ? hoveredId : null;
+  const validSelectedId = selectedId && nodeIds.has(selectedId) ? selectedId : null;
+  const activeId = validHoveredId ?? validSelectedId;
+  const statePrefix = validHoveredId ? "hover" : "selected";
+  const neighborIds = new Set<string>();
+  const activeEdgeIds = new Set<string>();
+
+  if (activeId) {
+    for (const edge of data.edges) {
+      if (edge.source !== activeId && edge.target !== activeId) continue;
+      activeEdgeIds.add(edge.id);
+      neighborIds.add(edge.source === activeId ? edge.target : edge.source);
+    }
+  }
+
+  for (const node of data.nodes) {
+    if (!activeId) states[node.id] = [];
+    else if (node.id === activeId) states[node.id] = [validHoveredId ? "hovered" : "selected"];
+    else if (neighborIds.has(node.id)) states[node.id] = [`${statePrefix}-neighbor`];
+    else states[node.id] = [`${statePrefix}-inactive`];
+  }
+
+  for (const edge of data.edges) {
+    states[edge.id] = !activeId
+      ? []
+      : [activeEdgeIds.has(edge.id) ? `${statePrefix}-neighbor` : `${statePrefix}-inactive`];
+  }
+
+  return states;
+}
+
 export function buildKnowledgeGraphData(
   understandings: UnderstandingSummaryDTO[],
 ): KnowledgeGraphData {
