@@ -266,7 +266,7 @@ export class AgentSessionLog {
 
   eventsFromManager(manager: SessionManager): AgentSessionEvent[] {
     return manager
-      .getEntries()
+      .getBranch()
       .filter(isReflectaEventEntry)
       .flatMap((entry) => (entry.data ? [entry.data] : []));
   }

@@ -486,7 +486,6 @@ describe("PiAgentHost", () => {
       {
         type: "message.send",
         sessionId: thread.id,
-        messageId: "user_1",
         text: "请解释这个 context",
         contextRefs: [{ type: "context", id: "ctx_1", title: "一次复盘" }],
         modelSelection: { providerId: "openai", modelId: "gpt-4o" },
@@ -512,7 +511,7 @@ describe("PiAgentHost", () => {
       expect.objectContaining({
         key: "context:ctx_1",
         entity: { type: "context", id: "ctx_1", title: "一次复盘" },
-        origin: { kind: "user_context", messageId: "user_1" },
+        origin: { kind: "user_context", messageId: expect.any(String) },
       }),
     );
     expect(promptCalls[0]).toContain("Context: 一次复盘; id=ctx_1");
