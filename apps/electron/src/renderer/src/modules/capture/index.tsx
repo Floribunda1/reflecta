@@ -1,5 +1,5 @@
 import { FileText } from "lucide-react";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -11,6 +11,7 @@ import { UnderstandingDetail } from "./understanding-detail";
 import { UnderstandingList } from "./understanding-list";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@renderer/components/ui/empty";
 import { Skeleton } from "@renderer/components/ui/skeleton";
+import { cn } from "@renderer/lib/utils";
 import { useCaptureStore } from "./store";
 
 const KnowledgeWanderWorkspace = lazy(() =>
@@ -37,6 +38,7 @@ function CaptureAgentDock() {
 }
 
 function CapturePageInner() {
+  const [domainSidebarOpen, setDomainSidebarOpen] = useState(true);
   const captureMode = useCaptureStore((state) => state.captureMode);
   const selectedUnderstandingId = useCaptureStore((state) => state.selectedUnderstandingId);
   const agentDockOpen = useCaptureStore((state) => state.agentDockOpen);
@@ -57,9 +59,14 @@ function CapturePageInner() {
   return (
     <div
       data-testid="capture-page"
-      className="grid h-full min-h-0 w-full grid-cols-[248px_minmax(0,1fr)] overflow-hidden bg-background/45 backdrop-blur-2xl"
+      className={cn(
+        "grid h-full min-h-0 w-full overflow-hidden bg-background/45 backdrop-blur-2xl",
+        domainSidebarOpen ? "grid-cols-[248px_minmax(0,1fr)]" : "grid-cols-[minmax(0,1fr)]",
+      )}
     >
-      <DomainTree onChat={openAgentDock} />
+      {domainSidebarOpen ? (
+        <DomainTree onChat={openAgentDock} onCollapse={() => setDomainSidebarOpen(false)} />
+      ) : null}
       <ResizablePanelGroup
         orientation="horizontal"
         defaultLayout={
@@ -91,11 +98,17 @@ function CapturePageInner() {
                 </div>
               }
             >
-              <KnowledgeWanderWorkspace onChat={openAgentDock} />
+              <KnowledgeWanderWorkspace
+                onChat={openAgentDock}
+                onExpandSidebar={domainSidebarOpen ? undefined : () => setDomainSidebarOpen(true)}
+              />
             </Suspense>
           ) : (
             <div className="grid h-full min-h-0 min-w-0 grid-cols-[minmax(280px,360px)_minmax(0,1fr)] overflow-hidden bg-transparent">
-              <UnderstandingList onChat={openAgentDock} />
+              <UnderstandingList
+                onChat={openAgentDock}
+                onExpandSidebar={domainSidebarOpen ? undefined : () => setDomainSidebarOpen(true)}
+              />
               <main className="min-h-0 min-w-0 overflow-hidden bg-transparent">
                 {selectedUnderstandingId ? (
                   <UnderstandingDetail

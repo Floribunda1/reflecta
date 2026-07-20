@@ -37,6 +37,7 @@ import { DomainModalContent } from "./CreateDomainModal";
 import { useCaptureStore } from "../../store";
 import { useCaptureDomains } from "../../queries";
 import { AppChromeMenu } from "@renderer/modules/shared/layout/AppChromeMenu";
+import { SidebarToggleButton } from "@renderer/modules/shared/layout/SidebarToggleButton";
 import type { CaptureAgentScope } from "../../store";
 import { buildDomainParentLookup, buildSiblingDomainReorderItems } from "../reorder";
 
@@ -328,7 +329,13 @@ function DomainRootButton({ selected, onSelect }: { selected: boolean; onSelect:
   );
 }
 
-export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => void }) {
+export function DomainTree({
+  onChat,
+  onCollapse,
+}: {
+  onChat?: (scope: CaptureAgentScope) => void;
+  onCollapse: () => void;
+}) {
   const { domains } = useCaptureDomains();
   const { createDomain, updateDomain, deleteDomain, reorderDomains } = useDomainActions();
   const [activeDrag, setActiveDrag] = useState<{ id: string; width?: number } | null>(null);
@@ -453,8 +460,18 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
   };
 
   return (
-    <aside className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+    <aside
+      data-testid="capture-domain-sidebar"
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
+    >
       <div className="app-drag-region relative pl-5 pt-14 pb-3 pr-2">
+        <SidebarToggleButton
+          expanded
+          label="收起 Domain Tree"
+          testId="capture-sidebar-collapse-button"
+          className="absolute top-2 right-2"
+          onClick={onCollapse}
+        />
         <div className="flex h-8 items-center justify-between gap-1">
           <div className="min-w-0 truncate text-sm font-medium">领域</div>
           <Button

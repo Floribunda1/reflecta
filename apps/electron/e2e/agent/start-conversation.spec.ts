@@ -165,3 +165,20 @@ test("@AG-START-007 用户打开等待回复中的对话时看到对话区等待
     await app.close();
   }
 });
+
+test("@AG-START-008 用户收起后从对话标题重新展开对话列表", async () => {
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await page.getByTestId("agent-sidebar-collapse-button").click();
+
+    await expect(page.getByTestId("agent-thread-sidebar")).toHaveCount(0);
+    await expect(page.getByTestId("agent-sidebar-expand-button")).toBeVisible();
+
+    await page.getByTestId("agent-sidebar-expand-button").click();
+    await expect(page.getByTestId("agent-thread-sidebar")).toBeVisible();
+    await expect(page.getByTestId("agent-sidebar-collapse-button")).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});

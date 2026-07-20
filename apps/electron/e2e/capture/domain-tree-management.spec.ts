@@ -101,3 +101,21 @@ test("@CP-DOMAIN-004 用户拖动展开 Domain 时子树跟随移动", async () 
     await app.close();
   }
 });
+
+test("@CP-DOMAIN-005 用户收起后从理解列表重新展开 Domain Tree", async () => {
+  const { app, page } = await launchApp();
+
+  try {
+    await openCapturePage(page);
+    await page.getByTestId("capture-sidebar-collapse-button").click();
+
+    await expect(page.getByTestId("capture-domain-sidebar")).toHaveCount(0);
+    await expect(page.getByTestId("capture-sidebar-expand-button")).toBeVisible();
+
+    await page.getByTestId("capture-sidebar-expand-button").click();
+    await expect(page.getByTestId("capture-domain-sidebar")).toBeVisible();
+    await expect(page.getByTestId("capture-sidebar-collapse-button")).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});

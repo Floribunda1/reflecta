@@ -18,3 +18,13 @@
     并且把 Domain「Reading」拖到 Domain「Programming」的子节点区域
     那么 Domain Tree 中「Reading」应该显示在「Programming」后面
     而且 Domain Tree 中「Reading」应该显示在「Design」前面
+
+  @P1 @navigation @CP-DOMAIN-005
+  场景: 用户收起后从理解列表重新展开 Domain Tree
+    假如用户已经进入 Capture 页面
+    当用户收起 Domain Tree
+    那么 Domain Tree 应该完全隐藏
+    而且理解列表标题左侧应该显示展开 Domain Tree 的操作
+    当用户从理解列表标题左侧展开 Domain Tree
+    那么 Domain Tree 应该恢复显示
+    而且收起 Domain Tree 的操作应该显示在 Domain Tree 右上角

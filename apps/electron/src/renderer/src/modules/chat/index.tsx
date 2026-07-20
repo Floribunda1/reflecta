@@ -26,6 +26,8 @@ import {
   useThreadsQuery,
 } from "./session/server-state";
 import { ThreadSidebar } from "./session/thread-sidebar";
+import { SidebarToggleButton } from "@renderer/modules/shared/layout/SidebarToggleButton";
+import { cn } from "@renderer/lib/utils";
 
 function activeThreadIdFor(threads: { id: string }[], activeThreadId: string | null) {
   if (threads.length === 0) return null;
@@ -52,6 +54,7 @@ function ThreadChat({
   onArchive,
   onDelete,
   onInspectContextRef,
+  onExpandSidebar,
 }: {
   threadId: string;
   title: string;
@@ -63,6 +66,7 @@ function ThreadChat({
   onArchive: (threadId: string) => void;
   onDelete: (threadId: string) => void;
   onInspectContextRef: (ref: InspectableContextRef) => void;
+  onExpandSidebar?: () => void;
 }) {
   return (
     <div className="h-full min-h-0 min-w-0 border-l">
@@ -77,12 +81,14 @@ function ThreadChat({
         onArchive={() => onArchive(threadId)}
         onDelete={() => onDelete(threadId)}
         onInspectContextRef={onInspectContextRef}
+        onExpandSidebar={onExpandSidebar}
       />
     </div>
   );
 }
 
 function ChatPageContent() {
+  const [threadSidebarOpen, setThreadSidebarOpen] = useState(true);
   const { confirm } = useModal();
   const threadsQuery = useThreadsQuery();
   const activeThreadId = useActiveThreadId();
@@ -193,17 +199,23 @@ function ChatPageContent() {
   return (
     <div
       data-testid="agent-page"
-      className="grid h-full min-h-0 w-full grid-cols-[248px_minmax(0,1fr)] overflow-hidden bg-background/45 backdrop-blur-2xl"
+      className={cn(
+        "grid h-full min-h-0 w-full overflow-hidden bg-background/45 backdrop-blur-2xl",
+        threadSidebarOpen ? "grid-cols-[248px_minmax(0,1fr)]" : "grid-cols-[minmax(0,1fr)]",
+      )}
     >
-      <ThreadSidebar
-        threads={threads}
-        pending={threadsQuery.isFetching}
-        activeThreadId={activeThreadId}
-        runningThreadId={runningThreadId}
-        onSelect={selectThread}
-        onCreate={createThread}
-        titleGeneratingThreadId={titleGeneratingThreadId}
-      />
+      {threadSidebarOpen ? (
+        <ThreadSidebar
+          threads={threads}
+          pending={threadsQuery.isFetching}
+          activeThreadId={activeThreadId}
+          runningThreadId={runningThreadId}
+          onSelect={selectThread}
+          onCreate={createThread}
+          onCollapse={() => setThreadSidebarOpen(false)}
+          titleGeneratingThreadId={titleGeneratingThreadId}
+        />
+      ) : null}
       <ResizablePanelGroup
         orientation="horizontal"
         defaultLayout={
@@ -238,9 +250,19 @@ function ChatPageContent() {
                 onArchive={archiveThread}
                 onDelete={deleteThread}
                 onInspectContextRef={openInspector}
+                onExpandSidebar={threadSidebarOpen ? undefined : () => setThreadSidebarOpen(true)}
               />
             ) : (
-              <main className="flex h-full min-h-0 min-w-0 items-center justify-center overflow-hidden border-l bg-transparent text-sm text-muted-foreground">
+              <main className="relative flex h-full min-h-0 min-w-0 items-center justify-center overflow-hidden border-l bg-transparent text-sm text-muted-foreground">
+                {threadSidebarOpen ? null : (
+                  <SidebarToggleButton
+                    expanded={false}
+                    label="展开对话列表"
+                    testId="agent-sidebar-expand-button"
+                    className="absolute top-2 left-6"
+                    onClick={() => setThreadSidebarOpen(true)}
+                  />
+                )}
                 加载 Agent...
               </main>
             )}

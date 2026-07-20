@@ -46,6 +46,7 @@ import {
   useSelectAgentReasoningLevelMutation,
 } from "./session/server-state";
 import type { ChatJumpItem } from "./session/thread-view";
+import { SidebarToggleButton } from "@renderer/modules/shared/layout/SidebarToggleButton";
 
 const CHAT_JUMP_MIN_ITEMS = 4;
 
@@ -68,6 +69,7 @@ type AgentThreadPanelProps = {
   onArchive?: () => void;
   onDelete?: () => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
+  onExpandSidebar?: () => void;
 };
 
 export function AgentThreadPanel({
@@ -83,6 +85,7 @@ export function AgentThreadPanel({
   onArchive,
   onDelete,
   onInspectContextRef,
+  onExpandSidebar,
 }: AgentThreadPanelProps) {
   const threadView = usePiAgentThreadView(threadId, scrollRequest);
   const modelOptionsQuery = useAgentModelOptionsQuery();
@@ -144,6 +147,7 @@ export function AgentThreadPanel({
           onGenerateTitle={onGenerateTitle}
           onArchive={onArchive}
           onDelete={onDelete}
+          onExpandSidebar={onExpandSidebar}
         />
       ) : null}
       <div className="relative min-h-0 flex-1">
@@ -478,6 +482,7 @@ function AgentThreadHeader({
   onGenerateTitle,
   onArchive,
   onDelete,
+  onExpandSidebar,
 }: {
   threadId: string;
   title: string;
@@ -488,6 +493,7 @@ function AgentThreadHeader({
   onGenerateTitle: () => void;
   onArchive: () => void;
   onDelete: () => void;
+  onExpandSidebar?: () => void;
 }) {
   const [draft, setDraft] = useState(title);
   const displayTitle = draft.trim() || title.trim() || "新对话";
@@ -508,20 +514,30 @@ function AgentThreadHeader({
 
   return (
     <header className="app-drag-region flex h-12 shrink-0 items-center justify-between gap-3 border-b px-6">
-      <Input
-        data-no-drag
-        data-testid="agent-thread-title"
-        value={draft}
-        title={displayTitle}
-        onBlur={finishRename}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") event.currentTarget.blur();
-          if (event.key === "Escape") setDraft(title);
-        }}
-        className="h-8 min-w-0 max-w-[520px] flex-1 border-0 bg-transparent px-0 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent"
-        placeholder="新对话"
-      />
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        {onExpandSidebar ? (
+          <SidebarToggleButton
+            expanded={false}
+            label="展开对话列表"
+            testId="agent-sidebar-expand-button"
+            onClick={onExpandSidebar}
+          />
+        ) : null}
+        <Input
+          data-no-drag
+          data-testid="agent-thread-title"
+          value={draft}
+          title={displayTitle}
+          onBlur={finishRename}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+            if (event.key === "Escape") setDraft(title);
+          }}
+          className="h-8 min-w-0 max-w-[520px] flex-1 border-0 bg-transparent px-0 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent"
+          placeholder="新对话"
+        />
+      </div>
 
       <div data-no-drag className="flex shrink-0 items-center gap-1">
         <DropdownMenu>

@@ -4,6 +4,7 @@ import { Button } from "@renderer/components/ui/button";
 import { Spinner } from "@renderer/components/ui/spinner";
 import { ScrollArea } from "@renderer/components/ui/scroll-area";
 import { AppChromeMenu } from "@renderer/modules/shared/layout/AppChromeMenu";
+import { SidebarToggleButton } from "@renderer/modules/shared/layout/SidebarToggleButton";
 import { cn } from "@renderer/lib/utils";
 import type { AgentSessionSummary } from "@shared/agent";
 import { groupAgentThreads } from "./thread-groups";
@@ -15,6 +16,7 @@ function ThreadSidebarComponent({
   runningThreadId,
   onSelect,
   onCreate,
+  onCollapse,
   titleGeneratingThreadId,
 }: {
   threads: AgentSessionSummary[];
@@ -23,6 +25,7 @@ function ThreadSidebarComponent({
   runningThreadId: string | null;
   onSelect: (threadId: string) => void;
   onCreate: () => void;
+  onCollapse: () => void;
   titleGeneratingThreadId?: string | null;
 }) {
   const groups = useMemo(() => groupAgentThreads(threads), [threads]);
@@ -33,6 +36,13 @@ function ThreadSidebarComponent({
       className="flex h-full min-h-0 w-[248px] shrink-0 flex-col overflow-hidden"
     >
       <div className="app-drag-region relative pl-4 pr-2 pt-14 pb-3">
+        <SidebarToggleButton
+          expanded
+          label="收起对话列表"
+          testId="agent-sidebar-collapse-button"
+          className="absolute top-2 right-2"
+          onClick={onCollapse}
+        />
         <div className="flex h-8 items-center justify-between gap-1">
           <div className="min-w-0 truncate text-sm font-medium">对话</div>
           <Button

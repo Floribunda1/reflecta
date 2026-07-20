@@ -1,6 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
 export async function openCapturePage(page: Page) {
+  await expect(page.getByTestId("capture-page").or(page.getByTestId("agent-page"))).toBeVisible();
   if (await page.getByTestId("agent-page").isVisible()) {
     await page.getByTestId("app-module-switcher").click();
   }

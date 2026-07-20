@@ -8,6 +8,7 @@ import {
   ResizablePanelGroup,
 } from "@renderer/components/ui/resizable";
 import { Skeleton } from "@renderer/components/ui/skeleton";
+import { SidebarToggleButton } from "@renderer/modules/shared/layout/SidebarToggleButton";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import { useCaptureDomains, useCaptureUnderstandingList } from "../queries";
 import { useCaptureStore, type CaptureAgentScope } from "../store";
@@ -19,8 +20,10 @@ const EMPTY_UNDERSTANDINGS: UnderstandingSummaryDTO[] = [];
 
 export function KnowledgeWanderWorkspace({
   onChat,
+  onExpandSidebar,
 }: {
   onChat?: (scope: CaptureAgentScope) => void;
+  onExpandSidebar?: () => void;
 }) {
   const selectedDomainId = useCaptureStore((state) => state.selectedDomainId);
   const selectedUnderstandingId = useCaptureStore((state) => state.selectedUnderstandingId);
@@ -110,6 +113,14 @@ export function KnowledgeWanderWorkspace({
             data-testid="knowledge-wander-header"
             className="flex h-14 shrink-0 items-center gap-1 border-b bg-background/90 px-5 backdrop-blur-sm"
           >
+            {onExpandSidebar ? (
+              <SidebarToggleButton
+                expanded={false}
+                label="展开 Domain Tree"
+                testId="capture-sidebar-expand-button"
+                onClick={onExpandSidebar}
+              />
+            ) : null}
             <div className="app-drag-region min-w-0">
               <div className="truncate text-sm font-medium">{scopeTitle}</div>
               <div className="text-xs text-muted-foreground">{graphData.nodes.length} 条理解</div>

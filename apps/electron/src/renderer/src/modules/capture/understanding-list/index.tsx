@@ -19,8 +19,15 @@ import { cn } from "@renderer/lib/utils";
 import { useCaptureStore, type CaptureAgentScope } from "../store";
 import { useCaptureDomains } from "../queries";
 import type { UnderstandingListSortBy } from "./sort";
+import { SidebarToggleButton } from "@renderer/modules/shared/layout/SidebarToggleButton";
 
-export function UnderstandingList({ onChat }: { onChat?: (scope: CaptureAgentScope) => void }) {
+export function UnderstandingList({
+  onChat,
+  onExpandSidebar,
+}: {
+  onChat?: (scope: CaptureAgentScope) => void;
+  onExpandSidebar?: () => void;
+}) {
   const understandingList = useUnderstandingList();
   const understandingListActions = useUnderstandingListActions();
   const selectedDomainId = useCaptureStore((state) => state.selectedDomainId);
@@ -80,6 +87,14 @@ export function UnderstandingList({ onChat }: { onChat?: (scope: CaptureAgentSco
           data-testid="capture-understanding-list-header"
           className="flex h-8 items-center gap-2"
         >
+          {onExpandSidebar ? (
+            <SidebarToggleButton
+              expanded={false}
+              label="展开 Domain Tree"
+              testId="capture-sidebar-expand-button"
+              onClick={onExpandSidebar}
+            />
+          ) : null}
           <div className="app-drag-region min-w-0 self-stretch">
             <div className="truncate text-sm font-medium">{domainLabel}</div>
             <div className="text-xs text-muted-foreground">{countLabel}</div>
