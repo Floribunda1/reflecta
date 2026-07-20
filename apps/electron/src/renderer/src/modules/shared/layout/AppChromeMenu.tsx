@@ -41,6 +41,7 @@ export function AppChromeMenu() {
         type="button"
         size="icon-sm"
         variant="ghost"
+        className="hover:bg-foreground/5 hover:text-foreground"
         aria-label="设置"
         onClick={openSettings}
       >
