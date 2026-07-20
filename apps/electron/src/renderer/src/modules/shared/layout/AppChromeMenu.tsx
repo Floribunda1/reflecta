@@ -28,7 +28,7 @@ export function AppChromeMenu() {
         type="button"
         size="sm"
         variant="ghost"
-        className="min-w-0 flex-1 justify-start text-foreground/70"
+        className="min-w-0 flex-1 justify-start text-foreground/70 hover:bg-foreground/5 hover:text-foreground"
         aria-label={nextModule.label}
         onClick={() => navigate(nextModule.path)}
       >
