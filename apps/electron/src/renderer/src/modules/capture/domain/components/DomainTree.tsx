@@ -462,7 +462,7 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
             type="button"
             size="icon-sm"
             variant="ghost"
-            className="size-8"
+            className="size-8 hover:bg-foreground/5 hover:text-foreground"
             aria-label="新建领域"
             onClick={() => openCreateModal()}
           >
