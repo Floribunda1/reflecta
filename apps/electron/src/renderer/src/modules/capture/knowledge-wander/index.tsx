@@ -1,5 +1,6 @@
 import { Network } from "lucide-react";
 import { useMemo } from "react";
+import { Button } from "@renderer/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@renderer/components/ui/empty";
 import {
   ResizableHandle,
@@ -25,6 +26,7 @@ export function KnowledgeWanderWorkspace({
   const selectedUnderstandingId = useCaptureStore((state) => state.selectedUnderstandingId);
   const selectDomain = useCaptureStore((state) => state.selectDomain);
   const selectUnderstanding = useCaptureStore((state) => state.selectUnderstanding);
+  const toggleKnowledgeWander = useCaptureStore((state) => state.toggleKnowledgeWander);
   const setSearchOpen = useCaptureStore((state) => state.setSearchOpen);
   const resetAfterUnderstandingDeleted = useCaptureStore(
     (state) => state.resetAfterUnderstandingDeleted,
@@ -90,6 +92,7 @@ export function KnowledgeWanderWorkspace({
         data={graphData}
         selectedUnderstandingId={selectedUnderstandingId}
         onSelect={selectUnderstanding}
+        onClearSelection={() => selectUnderstanding(null)}
       />
     );
   }
@@ -105,12 +108,25 @@ export function KnowledgeWanderWorkspace({
         <main className="flex h-full min-h-0 min-w-0 flex-col bg-background">
           <header
             data-testid="knowledge-wander-header"
-            className="app-drag-region flex h-14 shrink-0 items-center border-b bg-background/90 px-5 backdrop-blur-sm"
+            className="flex h-14 shrink-0 items-center gap-1 border-b bg-background/90 px-5 backdrop-blur-sm"
           >
-            <div className="min-w-0">
+            <div className="app-drag-region min-w-0">
               <div className="truncate text-sm font-medium">{scopeTitle}</div>
               <div className="text-xs text-muted-foreground">{graphData.nodes.length} 条理解</div>
             </div>
+            <Button
+              data-testid="capture-knowledge-wander-entry"
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label="退出知识漫步"
+              aria-pressed={true}
+              className="shrink-0"
+              onClick={toggleKnowledgeWander}
+            >
+              <Network size={14} />
+            </Button>
+            <div className="app-drag-region min-w-0 flex-1 self-stretch" />
           </header>
           <div className="min-h-0 min-w-0 flex-1">{graphContent}</div>
         </main>

@@ -87,25 +87,40 @@ describe("buildGraphElementStates", () => {
     });
   });
 
-  test("lets hover temporarily replace selection and restores selection when hover ends", () => {
+  test("keeps selection visible while another node is hovered", () => {
     const hoverStates = buildGraphElementStates(focusData, {
       selectedId: "a",
       hoveredId: "c",
     });
 
     expect(hoverStates).toEqual({
-      a: ["hover-inactive"],
-      b: ["hover-neighbor"],
+      a: ["selected"],
+      b: ["selected-neighbor"],
       c: ["hovered"],
       isolated: ["hover-inactive"],
-      "a-b": ["hover-inactive"],
+      "a-b": ["selected-neighbor"],
       "b-c": ["hover-neighbor"],
     });
-    expect(Object.values(hoverStates).flat()).not.toContain("selected");
     expect(
       buildGraphElementStates(focusData, {
         selectedId: "a",
         hoveredId: null,
+      }),
+    ).toEqual({
+      a: ["selected"],
+      b: ["selected-neighbor"],
+      c: ["selected-inactive"],
+      isolated: ["selected-inactive"],
+      "a-b": ["selected-neighbor"],
+      "b-c": ["selected-inactive"],
+    });
+  });
+
+  test("does not downgrade the selected node when it is also hovered", () => {
+    expect(
+      buildGraphElementStates(focusData, {
+        selectedId: "a",
+        hoveredId: "a",
       }),
     ).toEqual({
       a: ["selected"],

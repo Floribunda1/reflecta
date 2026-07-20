@@ -22,12 +22,16 @@ CapturePage
     grid h-full grid-cols-[248px_minmax(0,1fr)]
     DomainNavigation
       ExistingDomainTree
-      KnowledgeWanderEntry
 
     WorkspaceStage
+      UnderstandingListHeader
+        DomainSummary
+        KnowledgeWanderIconButton
       KnowledgeWanderPanelGroup
         KnowledgeGraphSurface
           GraphHeader
+            DomainSummary
+            KnowledgeWanderIconButton(active)
           GraphCanvas
             UnderstandingNode[]
             ConnectionEdge[]
@@ -36,27 +40,28 @@ CapturePage
       ContextualAgentDock (existing, conditional)
 ```
 
-DomainNavigation 继续承担领域范围选择；进入知识漫步只替换 Capture 主工作区，不创建新路由。GraphCanvas 始终是主要表面；打开详情或 Agent 时从右侧分栏，不替换图谱。
+DomainNavigation 继续承担领域范围选择；理解列表标题栏中的图谱 icon button 进入知识漫步，只替换 Capture 主工作区，不创建新路由。GraphCanvas 始终是主要表面；打开详情或 Agent 时从右侧分栏，不替换图谱。
 
 ## 3. Organisms
 
 ### DomainNavigation
 
 - Surface：沿用 Capture 现有侧栏材质。
-- Spacing：树区域完全沿用现状；footer 使用 `p-2`。
-- Border：footer 仅使用 `border-t`。
+- Spacing：树区域完全沿用现状。
+- 不在底部增加知识漫步 footer 或其他全局入口。
 
 ```text
 aside
   ExistingDomainHeader
   ExistingDomainTreeScroll
-  KnowledgeWanderEntry
-    Button(icon: Network, label: 知识漫步)
 ```
 
-- `active` 使用与 Domain row selected 相同的 muted 语义，并设置 `aria-pressed=true`。
-- 再次点击入口退出知识漫步。
-- 不显示进度、徽章、说明文字或随机图标。
+### KnowledgeWanderEntry
+
+- 入口是理解列表标题栏中紧跟 Domain 名称与数量的 `Network` icon button，位于搜索等列表操作之前。
+- 进入图谱后，GraphHeader 在相同相对位置保留该 icon button，并设置 `aria-pressed=true`；再次点击退出知识漫步。
+- 复用现有 `Button variant="ghost" size="icon-sm"`，仅显示一个图标，通过 aria-label 表达进入或退出。
+- 不显示独立文字、进度、徽章、说明文字或随机图标。
 
 ### KnowledgeGraphSurface
 
@@ -118,6 +123,8 @@ canvas
 
 - 使用成熟图谱库提供的力导向布局，不自行实现物理模拟。
 - 初次进入时节点以短暂可见动画自然展开，收敛后停止持续扰动。
+- 布局展开期间保持 hover、选择、缩放和平移可用，不用“布局完成”作为交互锁。
+- 布局收敛后不自动执行 fit view；只有用户点击「适应画布」时才改变视口。
 - 用户拖动节点时该节点跟随指针，周围布局自然响应；释放后重新收敛。
 - 同一份图数据不因无关 React render 重启布局。
 - 打开和关闭详情不重建图实例，不改变节点坐标和视口。
@@ -134,9 +141,10 @@ canvas
 
 - 默认节点是无描边的中性圆点，颜色使用 `muted-foreground` 语义，保持足够点击热区。
 - 节点视觉半径可在很小范围内随真实 Connection 数量变化；孤立节点保留明确的最小尺寸。
-- 默认边使用低对比度 `border` 语义细线，不显示箭头。
+- 默认边使用 `muted-foreground` 语义细线并保持可辨识，不显示箭头。
 - 标签使用 UI sans 字体和 foreground 语义，不使用卡片背景、边框或阴影。
 - 默认只让当前缩放级别下可读的标签出现，避免满屏文字。
+- 图谱保持 Obsidian 式单色视觉；默认、hover 与 selected 只改变同一中性色系的明度、透明度和尺寸，不混用 primary 色。
 
 #### Hover state
 
@@ -144,13 +152,14 @@ canvas
 - 直接邻居与相连边保持清晰；无关节点、标签和边降低透明度，但仍能感知其存在。
 - 移开后恢复默认状态。
 - Hover 只用于预览，不打开详情，不改变持久 selection。
+- Hover、移出和邻域透明度变化使用图谱引擎的短时状态动画，不瞬时跳变。
 
 #### Selected state
 
 - 点击节点后将其设为 selected，并在右侧打开对应 UnderstandingDetail。
-- selected 节点使用 primary 强调；邻居和相连边保持清晰；无关内容退后。
-- Hover 其他节点时可以临时预览其邻居；移开后恢复 selected 状态。
-- 点击画布空白只清除 hover，不关闭详情；关闭详情按钮同时清除 selected。
+- selected 节点使用 foreground 强调；邻居和相连边保持清晰；无关内容退后。
+- Hover 其他节点时，selected 及其邻域持续可见，同时显示 hover 节点及其邻域；hover 不覆盖 selected。
+- 点击画布空白或关闭详情都会关闭详情并清除 selected。
 - 点击另一个节点直接切换右侧详情和 selected。
 
 ### GraphControls
@@ -189,9 +198,9 @@ div.absolute.bottom-4.left-4
 
 ### Interaction State
 
-- 默认：中性节点 + 低对比度边。
+- 默认：中性节点 + 清晰但不抢眼的中性边。
 - Hover：当前邻域清晰，无关元素退后。
-- Selected：primary 节点 + 持久邻域，直到切换或关闭详情。
+- Selected：foreground 节点 + 持久邻域，直到切换、点击空白或关闭详情；hover 不覆盖它。
 - Focus：图谱控制按钮使用现有 `focus-visible`；画布本身具备可访问名称。
 - 禁止 hover 位移、外发光、矩形选中背景或覆盖整条边的粗色带。
 
@@ -204,7 +213,7 @@ div.absolute.bottom-4.left-4
 
 | 组件                | Variant / 配置             | 使用位置                    |
 | ------------------- | -------------------------- | --------------------------- |
-| Button              | `ghost`, `size="sm"`       | KnowledgeWanderEntry        |
+| Button              | `ghost`, `size="icon-sm"`  | KnowledgeWanderEntry        |
 | Button              | icon-only existing variant | GraphControls               |
 | Tooltip             | existing configuration     | GraphControls               |
 | Empty               | `className="h-full"`       | 空领域 / 查询失败           |

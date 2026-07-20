@@ -8,6 +8,32 @@ async function openKnowledgeWander(page: Page) {
   await expect(page.getByTestId("knowledge-wander-graph")).toBeVisible();
 }
 
+test("@KW-GRAPH-011 用户从理解列表标题栏进入知识漫步", async () => {
+  const { app, page } = await launchApp();
+
+  try {
+    await openCapturePage(page);
+
+    const listHeader = page.getByTestId("capture-understanding-list-header");
+    const entry = listHeader.getByTestId("capture-knowledge-wander-entry");
+    await expect(entry).toHaveAttribute("aria-label", "打开知识漫步");
+    await expect(entry.locator("svg")).toHaveCount(1);
+    await expect(page.locator("aside").getByTestId("capture-knowledge-wander-entry")).toHaveCount(
+      0,
+    );
+
+    await entry.click();
+
+    const graphHeader = page.getByTestId("knowledge-wander-header");
+    await expect(graphHeader.getByTestId("capture-knowledge-wander-entry")).toHaveAttribute(
+      "aria-label",
+      "退出知识漫步",
+    );
+  } finally {
+    await app.close();
+  }
+});
+
 test("@KW-GRAPH-001 用户打开全部领域图谱", async () => {
   const { app, page } = await launchApp();
 
@@ -29,7 +55,7 @@ test("@KW-GRAPH-001 用户打开全部领域图谱", async () => {
   }
 });
 
-test("@KW-GRAPH-002 用户从图谱节点进入理解详情并返回", async () => {
+test("@KW-GRAPH-002 用户选择节点后点击空白区域返回图谱", async () => {
   const { app, page } = await launchApp();
 
   try {
@@ -51,7 +77,9 @@ test("@KW-GRAPH-002 用户从图谱节点进入理解详情并返回", async () 
     );
     await expect(graph).toHaveAttribute("data-selected-understanding-id", understandingId);
 
-    await page.getByRole("button", { name: "关闭详情" }).click();
+    const graphBounds = await graph.boundingBox();
+    if (!graphBounds) throw new Error("Expected graph bounds");
+    await page.mouse.click(graphBounds.x + 8, graphBounds.y + 8);
 
     await expect(page.getByRole("button", { name: "关闭详情" })).toBeHidden();
     await expect(graph).toHaveAttribute("data-selected-understanding-id", "");

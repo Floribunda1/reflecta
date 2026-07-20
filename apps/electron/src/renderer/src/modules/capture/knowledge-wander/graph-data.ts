@@ -24,32 +24,46 @@ export function buildGraphElementStates(
 ): Record<string, string[]> {
   const states: Record<string, string[]> = {};
   const nodeIds = new Set(data.nodes.map(({ id }) => id));
-  const validHoveredId = hoveredId && nodeIds.has(hoveredId) ? hoveredId : null;
   const validSelectedId = selectedId && nodeIds.has(selectedId) ? selectedId : null;
-  const activeId = validHoveredId ?? validSelectedId;
-  const statePrefix = validHoveredId ? "hover" : "selected";
-  const neighborIds = new Set<string>();
-  const activeEdgeIds = new Set<string>();
+  const validHoveredId =
+    hoveredId && nodeIds.has(hoveredId) && hoveredId !== validSelectedId ? hoveredId : null;
+  const selectedNeighborIds = new Set<string>();
+  const selectedEdgeIds = new Set<string>();
+  const hoveredNeighborIds = new Set<string>();
+  const hoveredEdgeIds = new Set<string>();
 
-  if (activeId) {
+  const collectNeighborhood = (
+    nodeId: string | null,
+    neighborIds: Set<string>,
+    edgeIds: Set<string>,
+  ) => {
+    if (!nodeId) return;
     for (const edge of data.edges) {
-      if (edge.source !== activeId && edge.target !== activeId) continue;
-      activeEdgeIds.add(edge.id);
-      neighborIds.add(edge.source === activeId ? edge.target : edge.source);
+      if (edge.source !== nodeId && edge.target !== nodeId) continue;
+      edgeIds.add(edge.id);
+      neighborIds.add(edge.source === nodeId ? edge.target : edge.source);
     }
-  }
+  };
+
+  collectNeighborhood(validSelectedId, selectedNeighborIds, selectedEdgeIds);
+  collectNeighborhood(validHoveredId, hoveredNeighborIds, hoveredEdgeIds);
 
   for (const node of data.nodes) {
-    if (!activeId) states[node.id] = [];
-    else if (node.id === activeId) states[node.id] = [validHoveredId ? "hovered" : "selected"];
-    else if (neighborIds.has(node.id)) states[node.id] = [`${statePrefix}-neighbor`];
-    else states[node.id] = [`${statePrefix}-inactive`];
+    if (node.id === validSelectedId) states[node.id] = ["selected"];
+    else if (node.id === validHoveredId) states[node.id] = ["hovered"];
+    else if (selectedNeighborIds.has(node.id)) states[node.id] = ["selected-neighbor"];
+    else if (hoveredNeighborIds.has(node.id)) states[node.id] = ["hover-neighbor"];
+    else if (validHoveredId) states[node.id] = ["hover-inactive"];
+    else if (validSelectedId) states[node.id] = ["selected-inactive"];
+    else states[node.id] = [];
   }
 
   for (const edge of data.edges) {
-    states[edge.id] = !activeId
-      ? []
-      : [activeEdgeIds.has(edge.id) ? `${statePrefix}-neighbor` : `${statePrefix}-inactive`];
+    if (selectedEdgeIds.has(edge.id)) states[edge.id] = ["selected-neighbor"];
+    else if (hoveredEdgeIds.has(edge.id)) states[edge.id] = ["hover-neighbor"];
+    else if (validHoveredId) states[edge.id] = ["hover-inactive"];
+    else if (validSelectedId) states[edge.id] = ["selected-inactive"];
+    else states[edge.id] = [];
   }
 
   return states;

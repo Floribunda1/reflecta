@@ -23,13 +23,12 @@ type KnowledgeGraphProps = {
   data: KnowledgeGraphData;
   selectedUnderstandingId: string | null;
   onSelect: (understandingId: string) => void;
+  onClearSelection: () => void;
 };
 
 type GraphColors = {
   foreground: string;
   mutedForeground: string;
-  primary: string;
-  border: string;
 };
 
 const FIT_VIEW_OPTIONS = { when: "overflow", direction: "both" } as const;
@@ -42,19 +41,12 @@ function readGraphColors(): GraphColors {
   foreground.className = "text-foreground";
   const mutedForeground = document.createElement("span");
   mutedForeground.className = "text-muted-foreground";
-  const primary = document.createElement("span");
-  primary.className = "bg-primary";
-  const border = document.createElement("span");
-  border.className = "border border-border";
-
-  probe.append(foreground, mutedForeground, primary, border);
+  probe.append(foreground, mutedForeground);
   document.body.append(probe);
 
   const colors = {
     foreground: getComputedStyle(foreground).color,
     mutedForeground: getComputedStyle(mutedForeground).color,
-    primary: getComputedStyle(primary).backgroundColor,
-    border: getComputedStyle(border).borderTopColor,
   };
   probe.remove();
   return colors;
@@ -98,7 +90,7 @@ async function syncFocus(
       selectedId: selectedUnderstandingId,
       hoveredId: hoveredUnderstandingId,
     }),
-    false,
+    true,
   );
 }
 
@@ -131,7 +123,12 @@ function GraphControl({
   );
 }
 
-export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: KnowledgeGraphProps) {
+export function KnowledgeGraph({
+  data,
+  selectedUnderstandingId,
+  onSelect,
+  onClearSelection,
+}: KnowledgeGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<Graph | null>(null);
   const graphReadyRef = useRef(false);
@@ -139,11 +136,13 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
   const selectedUnderstandingIdRef = useRef(selectedUnderstandingId);
   const hoveredUnderstandingIdRef = useRef<string | null>(null);
   const onSelectRef = useRef(onSelect);
+  const onClearSelectionRef = useRef(onClearSelection);
   const { resolvedTheme } = useTheme();
 
   dataRef.current = data;
   selectedUnderstandingIdRef.current = selectedUnderstandingId;
   onSelectRef.current = onSelect;
+  onClearSelectionRef.current = onClearSelection;
 
   const topologyKey = useMemo(
     () =>
@@ -163,7 +162,7 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
     const graph = new Graph({
       container,
       data: dataRef.current,
-      animation: true,
+      animation: { duration: 160, easing: "ease-out" },
       padding: 48,
       zoomRange: [0.2, 4],
       layout: {
@@ -229,8 +228,8 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
             labelOpacity: 0.08,
           },
           selected: {
-            fill: colors.primary,
-            size: 10,
+            fill: colors.foreground,
+            size: 11,
             opacity: 1,
             labelOpacity: 1,
             labelFontWeight: 500,
@@ -248,9 +247,9 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
       edge: {
         type: "line",
         style: {
-          stroke: colors.border,
-          lineWidth: 0.6,
-          opacity: 0.28,
+          stroke: colors.mutedForeground,
+          lineWidth: 0.8,
+          opacity: 0.4,
         },
         state: {
           hovered: {
@@ -265,9 +264,9 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
           },
           "hover-inactive": { opacity: 0.06 },
           "selected-neighbor": {
-            stroke: colors.primary,
-            lineWidth: 1.15,
-            opacity: 0.68,
+            stroke: colors.foreground,
+            lineWidth: 1.2,
+            opacity: 0.72,
           },
           "selected-inactive": { opacity: 0.06 },
         },
@@ -297,7 +296,7 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
     renderedTitleKeyRef.current = getTitleKey(dataRef.current);
 
     const applyFocus = () => {
-      if (graphRef.current !== graph || !graphReadyRef.current) return;
+      if (graphRef.current !== graph) return;
       void syncFocus(
         graph,
         dataRef.current,
@@ -321,14 +320,16 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
       onSelectRef.current(id);
       applyFocus();
     };
-    const keepSelection = () => {
+    const clearSelection = () => {
       hoveredUnderstandingIdRef.current = null;
+      selectedUnderstandingIdRef.current = null;
+      onClearSelectionRef.current();
       applyFocus();
     };
     graph.on(NodeEvent.POINTER_ENTER, previewNode);
     graph.on(NodeEvent.POINTER_LEAVE, endNodePreview);
     graph.on(NodeEvent.CLICK, selectNode);
-    graph.on(CanvasEvent.CLICK, keepSelection);
+    graph.on(CanvasEvent.CLICK, clearSelection);
 
     const resizeObserver = new ResizeObserver(([entry]) => {
       if (!entry) return;
@@ -343,8 +344,6 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
       .then(async () => {
         if (graphRef.current !== graph) return;
         graphReadyRef.current = true;
-        await graph.fitView(FIT_VIEW_OPTIONS, { duration: 180 });
-        if (graphRef.current !== graph) return;
         const currentTitleKey = getTitleKey(dataRef.current);
         if (renderedTitleKeyRef.current !== currentTitleKey) {
           graph.updateNodeData(
@@ -368,7 +367,7 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
       graph.off(NodeEvent.POINTER_ENTER, previewNode);
       graph.off(NodeEvent.POINTER_LEAVE, endNodePreview);
       graph.off(NodeEvent.CLICK, selectNode);
-      graph.off(CanvasEvent.CLICK, keepSelection);
+      graph.off(CanvasEvent.CLICK, clearSelection);
       graphReadyRef.current = false;
       delete container.dataset.graphReady;
       graphRef.current = null;
