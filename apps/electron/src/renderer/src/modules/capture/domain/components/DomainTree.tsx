@@ -469,7 +469,7 @@ export function DomainTree({
           expanded
           label="收起 Domain Tree"
           testId="capture-sidebar-collapse-button"
-          className="absolute top-2 right-2"
+          className="absolute top-2.5 right-2"
           onClick={onCollapse}
         />
         <div className="flex h-8 items-center justify-between gap-1">
