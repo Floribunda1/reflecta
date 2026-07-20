@@ -1,6 +1,6 @@
 # Agent 后端架构
 
-这份文档只描述 `main/services/agent` 的后端架构。前端只作为 IPC 调用方与 `UIMessageChunk` 消费方出现，前端状态架构见 `apps/electron/src/renderer/src/modules/chat/docs/state-architecture.md`。
+这份文档只描述 `main/services/agent` 的后端架构。前端只作为 IPC 调用方与 `UIMessageChunk` 消费方出现，前端状态架构见 `apps/electron/src/renderer/src/modules/chat/docs/state-architecture.md`。实体引用、Entity Catalog 与 Prompt Caching 的边界见 [Agent Citation 与 Entity Catalog 架构](./citation.md)。
 
 ## 心智模型
 
