@@ -196,6 +196,7 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
           fill: colors.mutedForeground,
           stroke: "transparent",
           lineWidth: 6,
+          opacity: 1,
           cursor: "pointer",
           label: true,
           labelText: getNodeTitle,
@@ -291,6 +292,7 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
 
     graphRef.current = graph;
     graphReadyRef.current = false;
+    container.dataset.graphReady = "false";
     hoveredUnderstandingIdRef.current = null;
     renderedTitleKeyRef.current = getTitleKey(dataRef.current);
 
@@ -357,6 +359,7 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
           selectedUnderstandingIdRef.current,
           hoveredUnderstandingIdRef.current,
         );
+        container.dataset.graphReady = "true";
       })
       .catch((error) => console.error("Failed to render knowledge graph", error));
 
@@ -367,6 +370,7 @@ export function KnowledgeGraph({ data, selectedUnderstandingId, onSelect }: Know
       graph.off(NodeEvent.CLICK, selectNode);
       graph.off(CanvasEvent.CLICK, keepSelection);
       graphReadyRef.current = false;
+      delete container.dataset.graphReady;
       graphRef.current = null;
       graph.destroy();
     };
