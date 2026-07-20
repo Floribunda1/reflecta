@@ -10,6 +10,7 @@ import {
   AGENT_EVENT_CHANNEL,
   buildThreadTitleContext,
   configurePiRuntimeAuth,
+  createPiBashTool,
   createPiResourceLoader,
   extractAssistantError,
   loadAgentSystemPrompt,
@@ -118,6 +119,7 @@ function modelConfig(input: {
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -170,6 +172,25 @@ describe("createPiResourceLoader", () => {
     expect(expected).toContain("你是 Reflecta 的认知辅助 Agent");
     expect(expected).toContain("原样复制该实体的 `citation` 字段");
     expect(expected).toContain("调用工具时只传 `id` 字段");
+  });
+});
+
+describe("createPiBashTool", () => {
+  test("keeps Chinese filenames readable when the app process has a C locale", async () => {
+    vi.stubEnv("LANG", "C");
+    vi.stubEnv("LC_ALL", "C");
+    vi.stubEnv("LC_CTYPE", "C");
+    const root = tempRoot();
+    fs.writeFileSync(path.join(root, "分析-页面.md"), "content");
+    const tool = createPiBashTool(root);
+    const execute = tool.execute as unknown as (
+      toolCallId: string,
+      params: { command: string },
+    ) => Promise<{ content: Array<{ type: string; text?: string }> }>;
+    const result = await execute("tool_1", { command: 'wc -c "分析-页面.md"' });
+
+    expect(result.content[0]?.text).toContain("分析-页面.md");
+    expect(result.content[0]?.text).not.toContain("??-??.md");
   });
 });
 

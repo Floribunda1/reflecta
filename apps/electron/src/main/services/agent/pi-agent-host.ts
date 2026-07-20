@@ -11,7 +11,9 @@ import {
 import {
   AuthStorage,
   createAgentSession,
+  createBashToolDefinition,
   DefaultResourceLoader,
+  defineTool,
   ModelRegistry,
   SessionManager,
   SettingsManager,
@@ -95,6 +97,23 @@ type BashGatePendingApproval = {
 type PendingApproval = MutationPendingApproval | BashGatePendingApproval;
 
 export const PI_BUILTIN_TOOL_NAMES = ["read", "bash", "edit", "write"] as const;
+
+const PI_BASH_UTF8_LOCALE = process.platform === "darwin" ? "en_US.UTF-8" : "C.UTF-8";
+
+export function createPiBashTool(cwd: string) {
+  return defineTool(
+    createBashToolDefinition(cwd, {
+      spawnHook: (context) => {
+        const effectiveLocale = context.env.LC_ALL ?? context.env.LC_CTYPE ?? context.env.LANG;
+        if (effectiveLocale && /utf-?8/i.test(effectiveLocale)) return context;
+        return {
+          ...context,
+          env: { ...context.env, LANG: PI_BASH_UTF8_LOCALE, LC_ALL: PI_BASH_UTF8_LOCALE },
+        };
+      },
+    }),
+  );
+}
 
 export function loadAgentSystemPrompt(): string {
   return agentSystemPrompt.trim();
@@ -704,6 +723,7 @@ export class PiAgentHost {
       agentDir,
       authStorage,
       customTools: [
+        createPiBashTool(this.contentStorageRoot),
         ...createPiReadOnlyTools(command.files, {
           collectToolOutput,
         }),
