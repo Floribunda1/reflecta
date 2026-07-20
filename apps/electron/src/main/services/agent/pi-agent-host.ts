@@ -18,6 +18,7 @@ import {
   SessionManager,
   SettingsManager,
   type AgentSession,
+  type AgentSessionEvent as PiAgentSessionEvent,
 } from "@earendil-works/pi-coding-agent";
 import { nanoid } from "nanoid";
 import { reduceAgentSession } from "@shared/agent";
@@ -55,6 +56,7 @@ import { getCodexCredentials } from "./codex-auth";
 import agentSystemPrompt from "./agent-system-prompt.md?raw";
 import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-tools";
 import { createPiEntityCatalogContext } from "./pi-entity-catalog-context";
+import { contextCompactionSettings, createPiContextCompaction } from "./pi-context-compaction";
 import {
   approvalTitleForTool,
   createPiWriteTools,
@@ -82,6 +84,8 @@ type ActivePiRun = {
   pendingApprovals: Map<string, PendingApproval>;
   entityCatalog: AgentEntityCatalog;
 };
+
+type PiSessionCommand = Extract<AgentCommand, { type: "message.send" | "context.compact" }>;
 
 type MutationPendingApproval = {
   kind: "mutation";
@@ -140,6 +144,7 @@ export async function createPiResourceLoader(input: {
     extensionFactories: [
       createPiBashPermissionGate(input.onDangerousBashApproval),
       createPiEntityCatalogContext(input.getEntityCatalog),
+      createPiContextCompaction(),
     ],
   });
   await loader.reload();
@@ -553,6 +558,7 @@ async function runtimeApiKey(modelConfig: ResolvedAiModelConfig): Promise<string
 export class PiAgentHost {
   private readonly sessionLog: AgentSessionLog;
   private readonly activeRuns = new Map<string, ActivePiRun>();
+  private readonly activeCompactions = new Map<string, AgentSession>();
   private readonly cancelledRunIds = new Set<string>();
 
   constructor(
@@ -669,6 +675,11 @@ export class PiAgentHost {
       return;
     }
 
+    if (command.type === "context.compact") {
+      await this.compactContext(command, webContents);
+      return;
+    }
+
     if (command.type === "run.cancel") {
       const active = this.activeRuns.get(command.sessionId);
       if (!active) return;
@@ -697,7 +708,7 @@ export class PiAgentHost {
   }
 
   private async createSession(
-    command: Extract<AgentCommand, { type: "message.send" }>,
+    command: PiSessionCommand,
     sessionManager: SessionManager,
     entityCatalog: AgentEntityCatalog,
     onDangerousBashApproval: DangerousBashApprovalHandler,
@@ -710,7 +721,7 @@ export class PiAgentHost {
     const modelRegistry = ModelRegistry.inMemory(authStorage);
     const model = resolvePiModel(modelConfig.definition.piProviderId, modelConfig.model.id);
     const settingsManager = SettingsManager.inMemory({
-      compaction: { enabled: false },
+      compaction: contextCompactionSettings(model),
       retry: { enabled: false },
     });
     const resourceLoader = await createPiResourceLoader({
@@ -726,7 +737,7 @@ export class PiAgentHost {
       authStorage,
       customTools: [
         createPiBashTool(this.contentStorageRoot),
-        ...createPiReadOnlyTools(command.files, {
+        ...createPiReadOnlyTools(command.type === "message.send" ? command.files : undefined, {
           collectToolOutput: (toolName, toolCallId, output) =>
             entityCatalog.collectToolOutput(toolName, toolCallId, output),
         }),
@@ -744,6 +755,100 @@ export class PiAgentHost {
       tools: [...PI_BUILTIN_TOOL_NAMES, ...PI_READ_ONLY_TOOL_NAMES, ...PI_APPROVAL_TOOL_NAMES],
     });
     return { ...created, modelConfig };
+  }
+
+  private handleCompactionEvent(
+    event: PiAgentSessionEvent,
+    manager: SessionManager,
+    webContents: WebContents,
+    sessionId: string,
+    contextWindow?: number,
+  ): boolean {
+    if (event.type === "compaction_start") {
+      this.emitLive(
+        webContents,
+        this.createEvent({
+          type: "context.compaction.started",
+          sessionId,
+          reason: event.reason,
+        }),
+      );
+      return true;
+    }
+
+    if (event.type !== "compaction_end") return false;
+
+    this.emitLive(
+      webContents,
+      this.createEvent({
+        type: "context.compaction.finished",
+        sessionId,
+        reason: event.reason,
+        ...(event.errorMessage ? { error: event.errorMessage } : {}),
+      }),
+    );
+    if (!event.result) return true;
+
+    const afterMessageId = reduceAgentSession(
+      this.sessionLog.eventsFromManager(manager),
+    ).messages.at(-1)?.id;
+    this.appendAndEmit(
+      manager,
+      webContents,
+      this.createEvent({
+        type: "context.compacted",
+        sessionId,
+        reason: event.reason,
+        summary: event.result.summary,
+        firstKeptEntryId: event.result.firstKeptEntryId,
+        tokensBefore: event.result.tokensBefore,
+        ...(event.result.estimatedTokensAfter !== undefined
+          ? { estimatedTokensAfter: event.result.estimatedTokensAfter }
+          : {}),
+        ...(contextWindow !== undefined ? { contextWindow } : {}),
+        afterMessageId,
+      }),
+    );
+    return true;
+  }
+
+  private async compactContext(
+    command: Extract<AgentCommand, { type: "context.compact" }>,
+    webContents: WebContents,
+  ): Promise<void> {
+    if (this.activeRuns.has(command.sessionId) || this.activeCompactions.has(command.sessionId)) {
+      throw new Error("当前对话正在处理中，请稍后再压缩上下文");
+    }
+
+    const manager = await this.sessionLog.openSession(command.sessionId);
+    const state = reduceAgentSession(this.sessionLog.eventsFromManager(manager));
+    if (state.messages.length === 0) throw new Error("当前对话还没有可压缩的内容");
+
+    const entityCatalog = new AgentEntityCatalog(state.entityCatalog);
+    const created = await this.createSession(command, manager, entityCatalog, async () => false);
+    const session = created.session;
+    const unsubscribe = session.subscribe((event) => {
+      this.handleCompactionEvent(
+        event,
+        manager,
+        webContents,
+        command.sessionId,
+        session.model?.contextWindow,
+      );
+    });
+    this.activeCompactions.set(command.sessionId, session);
+    try {
+      await session.compact();
+    } catch (error) {
+      const message = formatAgentError(error);
+      if (message.includes("Nothing to compact")) throw new Error("当前对话还不需要压缩");
+      if (message.includes("Already compacted")) throw new Error("当前上下文已经是压缩后的状态");
+      throw error;
+    } finally {
+      unsubscribe();
+      session.dispose();
+      this.activeCompactions.delete(command.sessionId);
+    }
   }
 
   private createEvent<T extends AgentEvent["type"]>(
@@ -1005,6 +1110,17 @@ export class PiAgentHost {
         entityCatalog,
       });
       unsubscribe = session.subscribe((event) => {
+        if (
+          this.handleCompactionEvent(
+            event,
+            manager,
+            webContents,
+            command.sessionId,
+            session?.model?.contextWindow,
+          )
+        )
+          return;
+
         if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
           piDraftText += event.assistantMessageEvent.delta;
           assistantActivity = true;

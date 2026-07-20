@@ -106,6 +106,30 @@ export type AgentEntityCatalogUpdated = AgentEventBase & {
   entries: AgentEntityCatalogEntry[];
 };
 
+export type AgentContextCompactionReason = "manual" | "threshold" | "overflow";
+
+export type AgentContextCompactionStarted = AgentEventBase & {
+  type: "context.compaction.started";
+  reason: AgentContextCompactionReason;
+};
+
+export type AgentContextCompactionFinished = AgentEventBase & {
+  type: "context.compaction.finished";
+  reason: AgentContextCompactionReason;
+  error?: string;
+};
+
+export type AgentContextCompacted = AgentEventBase & {
+  type: "context.compacted";
+  reason: AgentContextCompactionReason;
+  summary: string;
+  firstKeptEntryId: string;
+  tokensBefore: number;
+  estimatedTokensAfter?: number;
+  contextWindow?: number;
+  afterMessageId?: string;
+};
+
 export type AgentAssistantTextDelta = AgentEventBase & {
   type: "assistant.text.delta";
   runId: string;
@@ -229,6 +253,8 @@ export type AgentAssistantTurn = AgentEventBase & {
 export type AgentLiveEvent =
   | AgentAssistantTextDelta
   | AgentAssistantReasoningDelta
+  | AgentContextCompactionStarted
+  | AgentContextCompactionFinished
   | AgentToolStarted
   | AgentToolCompleted
   | AgentToolFailed;
@@ -240,6 +266,7 @@ export type AgentSessionEvent =
   | AgentRunCancelled
   | AgentUserMessage
   | AgentEntityCatalogUpdated
+  | AgentContextCompacted
   | AgentAssistantTurn
   | AgentApprovalRequested
   | AgentApprovalResolved
@@ -313,6 +340,12 @@ export type AgentCommand =
       sessionId: string;
     }
   | {
+      type: "context.compact";
+      sessionId: string;
+      modelSelection?: AgentModelSelection;
+      reasoningLevel?: AgentReasoningLevel;
+    }
+  | {
       type: "tool.approve";
       sessionId: string;
       approvalId: string;
@@ -357,6 +390,9 @@ export type AgentSessionState = {
   status: "idle" | "running" | "failed" | "cancelled";
   error: string | null;
   entityCatalog: AgentEntityCatalogEntry[];
+  contextCompactions: AgentContextCompacted[];
+  activeCompaction: AgentContextCompactionStarted | null;
+  compactionError: string | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -377,6 +413,7 @@ export function isAgentSessionEvent(value: unknown): value is AgentSessionEvent 
       "run.cancelled",
       "user.message",
       "entity.catalog.updated",
+      "context.compacted",
       "assistant.turn",
       "approval.requested",
       "approval.resolved",
@@ -398,6 +435,8 @@ export function isAgentEvent(value: unknown): value is AgentEvent {
     [
       "assistant.text.delta",
       "assistant.reasoning.delta",
+      "context.compaction.started",
+      "context.compaction.finished",
       "tool.started",
       "tool.completed",
       "tool.failed",
@@ -540,6 +579,35 @@ function mergeEntityCatalog(
     else next[index] = entry;
   }
   return next;
+}
+
+function applyCompactedContextUsage(
+  messages: AgentReducedMessage[],
+  event: AgentContextCompacted,
+): AgentReducedMessage[] {
+  if (
+    event.estimatedTokensAfter === undefined ||
+    event.contextWindow === undefined ||
+    event.contextWindow <= 0
+  ) {
+    return messages;
+  }
+  const estimatedTokensAfter = event.estimatedTokensAfter;
+  const contextWindow = event.contextWindow;
+  const assistantIndex = messages.findLastIndex((message) => message.role === "assistant");
+  if (assistantIndex < 0) return messages;
+  return messages.map((message, index) =>
+    index === assistantIndex
+      ? {
+          ...message,
+          contextUsage: {
+            tokens: estimatedTokensAfter,
+            contextWindow,
+            percent: Math.min(100, (estimatedTokensAfter / contextWindow) * 100),
+          },
+        }
+      : message,
+  );
 }
 
 function upsertTextBlock(
@@ -804,6 +872,9 @@ export const initialAgentSessionState: AgentSessionState = {
   status: "idle",
   error: null,
   entityCatalog: [],
+  contextCompactions: [],
+  activeCompaction: null,
+  compactionError: null,
 };
 
 export function reduceAgentSessionEvent(
@@ -846,6 +917,43 @@ export function reduceAgentSessionEvent(
       ...state,
       sessionId: event.sessionId,
       entityCatalog: mergeEntityCatalog(state.entityCatalog, event.entries),
+    };
+  }
+
+  if (event.type === "context.compaction.started") {
+    return {
+      ...state,
+      sessionId: event.sessionId,
+      activeCompaction: event,
+      compactionError: null,
+    };
+  }
+
+  if (event.type === "context.compaction.finished") {
+    return {
+      ...state,
+      sessionId: event.sessionId,
+      activeCompaction: null,
+      compactionError: event.error ?? null,
+    };
+  }
+
+  if (event.type === "context.compacted") {
+    const existingIndex = state.contextCompactions.findIndex(
+      (compaction) => compaction.id === event.id,
+    );
+    return {
+      ...state,
+      sessionId: event.sessionId,
+      messages: applyCompactedContextUsage(state.messages, event),
+      contextCompactions:
+        existingIndex < 0
+          ? [...state.contextCompactions, event]
+          : state.contextCompactions.map((compaction, index) =>
+              index === existingIndex ? event : compaction,
+            ),
+      activeCompaction: null,
+      compactionError: null,
     };
   }
 

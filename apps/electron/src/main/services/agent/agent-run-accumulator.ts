@@ -148,6 +148,8 @@ export class AgentRunAccumulator {
       return;
     }
 
+    if (event.type !== "approval.resolved") return;
+
     const index = this.blocks.findIndex(
       (block) => block.kind === "approval" && block.approvalId === event.approvalId,
     );

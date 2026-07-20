@@ -148,7 +148,7 @@ describe("configurePiRuntimeAuth", () => {
 });
 
 describe("createPiResourceLoader", () => {
-  test("loads only the shared system prompt and Reflecta permission gate", async () => {
+  test("loads the shared system prompt and Reflecta runtime policies", async () => {
     const expected = fs
       .readFileSync(new URL("./agent-system-prompt.md", import.meta.url), "utf8")
       .trim();
@@ -166,6 +166,7 @@ describe("createPiResourceLoader", () => {
     expect(loader.getExtensions().extensions.map((extension) => extension.path)).toEqual([
       "<inline:reflecta-bash-permission-gate>",
       "<inline:reflecta-entity-catalog-context>",
+      "<inline:reflecta-context-compaction>",
     ]);
     expect(loader.getSkills().skills).toEqual([]);
     expect(loader.getPrompts().prompts).toEqual([]);
@@ -197,6 +198,106 @@ describe("createPiBashTool", () => {
 });
 
 describe("PiAgentHost", () => {
+  test("manually compacts a conversation and persists a visible checkpoint event", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("需要整理的对话");
+    const manager = await log.openSession(thread.id);
+    const events: AgentSessionEvent[] = [
+      {
+        id: "evt_run",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "run.started",
+        createdAt: "2026-07-21T00:00:00.000Z",
+      },
+      {
+        id: "evt_user",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "user.message",
+        messageId: "user_1",
+        text: "请保留我的约束",
+        createdAt: "2026-07-21T00:00:01.000Z",
+      },
+      {
+        id: "evt_assistant",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "assistant.turn",
+        messageId: "assistant_1",
+        text: "好的",
+        blocks: [{ kind: "text", text: "好的", createdAt: "2026-07-21T00:00:02.000Z" }],
+        createdAt: "2026-07-21T00:00:02.000Z",
+      },
+      {
+        id: "evt_completed",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "run.completed",
+        createdAt: "2026-07-21T00:00:03.000Z",
+      },
+    ];
+    for (const event of events) log.appendEvent(manager, event);
+
+    let listener: ((event: unknown) => void) | undefined;
+    const compact = vi.fn(async () => {
+      listener?.({ type: "compaction_start", reason: "manual" });
+      listener?.({
+        type: "compaction_end",
+        reason: "manual",
+        result: {
+          summary: "## 当前意图\n继续验证上下文压缩",
+          firstKeptEntryId: "entry_kept",
+          tokensBefore: 120_000,
+          estimatedTokensAfter: 18_000,
+        },
+      });
+    });
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        model: { contextWindow: 128_000 },
+        subscribe: (next: (event: unknown) => void) => {
+          listener = next;
+          return () => {};
+        },
+        compact,
+        dispose: vi.fn(),
+        abort: vi.fn(),
+      },
+    });
+    const webContents = { isDestroyed: () => false, send: vi.fn() };
+
+    await new PiAgentHost(root).sendAgentCommand(
+      {
+        type: "context.compact",
+        sessionId: thread.id,
+        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+      },
+      webContents as never,
+    );
+
+    expect(compact).toHaveBeenCalledOnce();
+    await expect(new AgentSessionLog(root).readEvents(thread.id)).resolves.toEqual([
+      ...events,
+      expect.objectContaining({
+        type: "context.compacted",
+        reason: "manual",
+        summary: "## 当前意图\n继续验证上下文压缩",
+        tokensBefore: 120_000,
+        estimatedTokensAfter: 18_000,
+        contextWindow: 128_000,
+        afterMessageId: "assistant_1",
+      }),
+    ]);
+    expect(webContents.send.mock.calls.map(([, event]) => event.type)).toEqual([
+      "context.compaction.started",
+      "context.compaction.finished",
+      "context.compacted",
+    ]);
+  });
+
   test("preserves Pi assistant error messages instead of reporting an empty response", () => {
     expect(
       extractAssistantError({

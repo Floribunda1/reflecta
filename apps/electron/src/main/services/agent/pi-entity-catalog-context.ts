@@ -39,7 +39,7 @@ function isRuntimeEntityBlock(body: string): boolean {
   });
 }
 
-function stripRuntimeEntityBlocks(text: string): string {
+export function stripRuntimeEntityBlocks(text: string): string {
   return text.replace(RUNTIME_ENTITY_BLOCK_PATTERN, (block, body: string) =>
     isRuntimeEntityBlock(body) ? "" : block,
   );
