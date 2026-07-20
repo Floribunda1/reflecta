@@ -1,10 +1,10 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Bot, Check, ChevronDown, Inbox, Settings } from "lucide-react";
+import { Bot, Check, ChevronUp, Inbox, Settings } from "lucide-react";
+import { Button } from "@renderer/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@renderer/components/ui/dropdown-menu";
 import { SettingsDialogContent } from "@renderer/modules/settings/SettingsDialog";
@@ -14,8 +14,6 @@ const moduleItems = [
   { label: "Capture", path: "/capture", Icon: Inbox },
   { label: "Agent", path: "/agent", Icon: Bot },
 ] as const;
-
-export const APP_CHROME_MENU_HIT_AREA_CLASS = "absolute left-[86px] top-[11px] h-7 w-32";
 
 function getActiveModule(pathname: string) {
   return moduleItems.find((item) => pathname.startsWith(item.path)) ?? moduleItems[0];
@@ -27,20 +25,29 @@ export function AppChromeMenu() {
   const { openModal } = useModal();
   const activeModule = getActiveModule(location.pathname);
   const ActiveIcon = activeModule.Icon;
+  const openSettings = () =>
+    openModal(<SettingsDialogContent />, {
+      title: "设置",
+      widthClassName: "w-[min(80vw,calc(100vw-3rem))] max-w-none sm:max-w-none",
+    });
 
   return (
-    <div data-no-drag className={`${APP_CHROME_MENU_HIT_AREA_CLASS} z-50`}>
+    <div
+      data-no-drag
+      className="flex h-12 shrink-0 items-center gap-1 border-t border-border/60 px-2"
+    >
       <DropdownMenu>
         <DropdownMenuTrigger
           data-no-drag
-          className="inline-flex h-7 items-center gap-1.5 rounded-md bg-transparent px-1.5 text-sm font-medium text-foreground/65 outline-none transition-colors hover:bg-foreground/5 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 data-popup-open:bg-foreground/5 data-popup-open:text-foreground"
+          data-testid="app-module-switcher"
+          className="inline-flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-sm font-medium text-foreground/70 outline-none transition-colors hover:bg-foreground/5 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 data-popup-open:bg-foreground/5 data-popup-open:text-foreground"
           aria-label="Switch module"
         >
-          <ActiveIcon size={14} />
-          {activeModule.label}
-          <ChevronDown size={13} />
+          <ActiveIcon size={15} />
+          <span className="min-w-0 flex-1 truncate text-left">{activeModule.label}</span>
+          <ChevronUp size={13} />
         </DropdownMenuTrigger>
-        <DropdownMenuContent data-no-drag align="start" sideOffset={6} className="w-44">
+        <DropdownMenuContent data-no-drag align="start" side="top" sideOffset={6} className="w-44">
           {moduleItems.map(({ label, path, Icon }) => {
             const active = activeModule.path === path;
             return (
@@ -51,22 +58,19 @@ export function AppChromeMenu() {
               </DropdownMenuItem>
             );
           })}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            data-no-drag
-            data-testid="app-settings-menu-item"
-            onClick={() =>
-              openModal(<SettingsDialogContent />, {
-                title: "设置",
-                widthClassName: "w-[min(80vw,calc(100vw-3rem))] max-w-none sm:max-w-none",
-              })
-            }
-          >
-            <Settings size={14} />
-            <span className="flex-1">Settings</span>
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <Button
+        data-no-drag
+        data-testid="app-settings-menu-item"
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        aria-label="设置"
+        onClick={openSettings}
+      >
+        <Settings size={15} />
+      </Button>
     </div>
   );
 }

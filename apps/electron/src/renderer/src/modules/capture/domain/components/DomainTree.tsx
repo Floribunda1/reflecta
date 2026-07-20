@@ -36,7 +36,7 @@ import { useModal } from "@renderer/modules/shared/hooks/use-modal";
 import { DomainModalContent } from "./CreateDomainModal";
 import { useCaptureStore } from "../../store";
 import { useCaptureDomains } from "../../queries";
-import { APP_CHROME_MENU_HIT_AREA_CLASS } from "@renderer/modules/shared/layout/AppChromeMenu";
+import { AppChromeMenu } from "@renderer/modules/shared/layout/AppChromeMenu";
 import type { CaptureAgentScope } from "../../store";
 import { buildDomainParentLookup, buildSiblingDomainReorderItems } from "../reorder";
 
@@ -454,13 +454,7 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
 
   return (
     <aside className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-      <div className="app-drag-region relative px-5 pt-14 pb-3">
-        {/* Electron requires no-drag inside the same drag region to release this hit area. */}
-        <div
-          data-no-drag
-          aria-hidden="true"
-          className={`${APP_CHROME_MENU_HIT_AREA_CLASS} pointer-events-none`}
-        />
+      <div className="app-drag-region relative pl-5 pt-14 pb-3 pr-2">
         <div className="flex h-8 items-center justify-between gap-1">
           <div className="min-w-0 truncate text-sm font-medium">领域</div>
           <Button
@@ -518,6 +512,7 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
           </DragOverlay>
         </DndContext>
       </ScrollArea>
+      <AppChromeMenu />
     </aside>
   );
 }

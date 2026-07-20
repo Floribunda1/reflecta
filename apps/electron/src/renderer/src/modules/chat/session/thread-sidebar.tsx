@@ -3,7 +3,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@renderer/components/ui/button";
 import { Spinner } from "@renderer/components/ui/spinner";
 import { ScrollArea } from "@renderer/components/ui/scroll-area";
-import { APP_CHROME_MENU_HIT_AREA_CLASS } from "@renderer/modules/shared/layout/AppChromeMenu";
+import { AppChromeMenu } from "@renderer/modules/shared/layout/AppChromeMenu";
 import { cn } from "@renderer/lib/utils";
 import type { AgentSessionSummary } from "@shared/agent";
 import { groupAgentThreads } from "./thread-groups";
@@ -33,12 +33,6 @@ function ThreadSidebarComponent({
       className="flex h-full min-h-0 w-[248px] shrink-0 flex-col overflow-hidden"
     >
       <div className="app-drag-region relative pl-4 pr-2 pt-14 pb-3">
-        {/* Electron requires no-drag inside the same drag region to release this hit area. */}
-        <div
-          data-no-drag
-          aria-hidden="true"
-          className={`${APP_CHROME_MENU_HIT_AREA_CLASS} pointer-events-none`}
-        />
         <div className="flex h-8 items-center justify-between gap-1">
           <div className="min-w-0 truncate text-sm font-medium">对话</div>
           <Button
@@ -108,6 +102,7 @@ function ThreadSidebarComponent({
           ))}
         </div>
       </ScrollArea>
+      <AppChromeMenu />
     </aside>
   );
 }

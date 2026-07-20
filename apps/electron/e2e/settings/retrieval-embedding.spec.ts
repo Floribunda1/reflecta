@@ -93,7 +93,6 @@ test("@EMBEDDING-SETTINGS-001 用户查看默认本地 embedding 模型并触发
   const { app, page } = await launchApp({ REFLECTA_STUB_RETRIEVAL_MODEL_DOWNLOAD: "1" });
 
   try {
-    await page.getByLabel("Switch module").click();
     await page.getByTestId("app-settings-menu-item").click();
     await page.getByTestId("settings-menu-retrieval").click();
 
@@ -118,7 +117,6 @@ test("@EMBEDDING-SETTINGS-002 用户查看并重建 retrieval 索引", async () 
   const { app, page } = await launchApp();
 
   try {
-    await page.getByLabel("Switch module").click();
     await page.getByTestId("app-settings-menu-item").click();
     await page.getByTestId("settings-menu-retrieval").click();
 

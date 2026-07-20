@@ -24,7 +24,6 @@ async function launchIsolatedApp() {
 }
 
 async function openAiSettings(page: Awaited<ReturnType<typeof launchIsolatedApp>>["page"]) {
-  await page.getByLabel("Switch module").click();
   await page.getByTestId("app-settings-menu-item").click();
   await page.getByTestId("settings-menu-ai").click();
 }

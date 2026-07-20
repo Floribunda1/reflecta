@@ -36,7 +36,6 @@ export async function openAgentPage(page: Page) {
 
 export async function configureE2eAiKey(page: Page, apiKey: string) {
   const { providerId } = getE2eAiEnv();
-  await page.getByLabel("Switch module").click();
   await page.getByTestId("app-settings-menu-item").click();
   await page.getByTestId("settings-menu-ai").click();
   await page
