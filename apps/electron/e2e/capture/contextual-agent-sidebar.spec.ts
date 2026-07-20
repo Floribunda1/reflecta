@@ -102,8 +102,7 @@ test("@CP-AGENT-005 未发送消息的 Capture 上下文 Agent 不进入对话�
     await chooseChatFromContextMenu(page);
     await expectAgentDockWithContext(page, "Programming");
 
-    await page.getByLabel("Switch module").click();
-    await page.getByRole("menuitem", { name: "Agent" }).click();
+    await page.getByTestId("app-module-switcher").click();
     await expect(page.getByTestId("agent-page")).toBeVisible();
     await expect(
       page.getByTestId("agent-thread-item").filter({ hasText: "聊聊：Programming" }),

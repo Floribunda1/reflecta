@@ -29,8 +29,9 @@ export async function launchAgentPage(envOverrides: Record<string, string | unde
 }
 
 export async function openAgentPage(page: Page) {
-  await page.getByLabel("Switch module").click();
-  await page.getByRole("menuitem", { name: "Agent" }).click();
+  if (await page.getByTestId("capture-page").isVisible()) {
+    await page.getByTestId("app-module-switcher").click();
+  }
   await expect(page.getByTestId("agent-page")).toBeVisible();
 }
 

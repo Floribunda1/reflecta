@@ -93,10 +93,8 @@ test("@AG-PROPOSAL-003 用户重新打开对话后仍能看到提案处理结果
     await card.getByLabel("展开候选卡片").click();
     await expect(card).toContainText("CANDIDATE_TITLE");
 
-    await page.getByLabel("Switch module").click();
-    await page.getByRole("menuitem", { name: "Capture" }).click();
-    await page.getByLabel("Switch module").click();
-    await page.getByRole("menuitem", { name: "Agent" }).click();
+    await page.getByTestId("app-module-switcher").click();
+    await page.getByTestId("app-module-switcher").click();
     await openThread(page, "已处理提案");
     await expect(page.getByTestId("agent-proposal-card")).toContainText("已拒绝");
   } finally {

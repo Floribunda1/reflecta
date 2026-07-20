@@ -124,10 +124,7 @@ test("@KW-GRAPH-004 用户从旧 Contemplate 地址回到 Capture", async () => 
     });
 
     await expect(page.getByTestId("capture-page")).toBeVisible();
-    await page.getByLabel("Switch module").click();
-    await expect(page.getByRole("menuitem", { name: "Capture" })).toBeVisible();
-    await expect(page.getByRole("menuitem", { name: "Agent" })).toBeVisible();
-    await expect(page.getByRole("menuitem", { name: /Contemplate/i })).toHaveCount(0);
+    await expect(page.getByTestId("app-module-switcher")).toHaveAccessibleName("AI 对话");
   } finally {
     await app.close();
   }

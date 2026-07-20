@@ -83,8 +83,7 @@ test("@AG-HISTORY-003 用户离开后仍可处理等待确认的提案", async (
   const { app, page } = await launchAgentPage();
 
   try {
-    await page.getByLabel("Switch module").click();
-    await page.getByRole("menuitem", { name: "Capture" }).click();
+    await page.getByTestId("app-module-switcher").click();
     await openAgentPage(page);
     await openThread(page, "等待确认提案");
     await expect(page.getByTestId("agent-proposal-card")).toContainText("待确认");
