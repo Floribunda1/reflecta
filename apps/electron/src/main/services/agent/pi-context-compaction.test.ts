@@ -4,6 +4,7 @@ import {
   buildReflectaCompactionPrompt,
   compactionSummaryMaxTokens,
   contextCompactionSettings,
+  loadAgentContextCompactionPrompt,
 } from "./pi-context-compaction";
 
 const runtimeCatalog = `
@@ -69,8 +70,15 @@ describe("Reflecta context compaction", () => {
     expect(prompt).toContain("用户要求保留引用 [[c:ctx_1]]");
     expect(prompt).toContain("这是尚未被用户确认的建议");
     expect(prompt).toContain("当前轮次前半段");
-    expect(prompt).toContain("用户陈述 / AI 提议 / 工具观察");
     expect(prompt).not.toContain('<reflecta_entities source="reflecta-runtime"');
     expect(prompt).not.toContain('"title":"一次复盘"');
+  });
+
+  test("loads the static compaction instructions from the dedicated prompt file", () => {
+    const prompt = loadAgentContextCompactionPrompt();
+
+    expect(prompt).toContain("生成一份紧凑但足以继续对话的检查点");
+    expect(prompt).toContain("用户陈述 / AI 提议 / 工具观察");
+    expect(prompt).toContain("## 证据与引用");
   });
 });
