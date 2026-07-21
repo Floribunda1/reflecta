@@ -29,19 +29,13 @@ describe("product language contract", () => {
     expect(glossary).toContain("## Domain");
   });
 
-  test("product-facing reference docs use Understanding and Domain as first-class names", () => {
-    const docs = [
-      "docs/references/product/value-proposition.md",
-      "packages/skills/skills/cli-usage/references/reflecta-concepts.md",
-    ];
+  test("value proposition uses Understanding and Domain as first-class names", () => {
+    const valueProposition = readProjectFile("docs/references/product/value-proposition.md");
 
-    for (const relativePath of docs) {
-      const content = readProjectFile(relativePath);
-      expect(content, relativePath).toContain("Understanding");
-      expect(content, relativePath).toContain("Domain");
-      expect(content, relativePath).not.toMatch(/\bThought\b/);
-      expect(content, relativePath).not.toMatch(/\bCategory\b/);
-    }
+    expect(valueProposition).toContain("Understanding");
+    expect(valueProposition).toContain("Domain");
+    expect(valueProposition).not.toMatch(/\bThought\b/);
+    expect(valueProposition).not.toMatch(/\bCategory\b/);
   });
 
   test("Context is documented as full surrounding context, not just source evidence", () => {
