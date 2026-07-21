@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.2 - 2026-07-21
+
+- Added automatic and manual Agent context compaction with visible progress and durable compaction history.
+- Projected the active branch's entity catalog into model context without persisting repeated catalog payloads in conversation history.
+- Added the complete conversation action menu to thread-list context menus.
+- Fixed Agent resizer layout gaps and kept newly forked conversations at the top of the thread list after refresh or restart.
+
 ## 1.2.1 - 2026-07-20
 
 - Moved Capture and Agent navigation into the sidebar footer as direct contextual actions with consistent hover styling.
