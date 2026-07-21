@@ -151,7 +151,9 @@ export class AgentSessionLog {
           title: session.name?.trim() || titleFromEvents(events, session.firstMessage || "新对话"),
           status: "active" as const,
           createdAt: session.created.toISOString(),
-          updatedAt: session.modified.toISOString(),
+          updatedAt: new Date(
+            Math.max(session.created.getTime(), session.modified.getTime()),
+          ).toISOString(),
           runtime: "pi" as const,
         };
       })

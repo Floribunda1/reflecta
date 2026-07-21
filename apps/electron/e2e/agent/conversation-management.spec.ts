@@ -165,12 +165,21 @@ test("@AG-CONV-005 用户在 Agent 回复下方 Fork 对话分支后继续查看
   seedAgentThread({
     id: "conv-fork-source",
     title: "FORK_SOURCE",
+    createdAt: localIso(1, 9, 0),
+    updatedAt: localIso(1, 9, 0),
     messages: [
       userMessage("conv-fork-user-1", "FORK_USER_MESSAGE"),
       assistantMessage("conv-fork-assistant-1", [{ type: "text", text: "FORK_AGENT_REPLY" }]),
       userMessage("conv-fork-user-2", "FORK_LATER_USER_MESSAGE"),
       assistantMessage("conv-fork-assistant-2", [{ type: "text", text: "FORK_LATER_AGENT_REPLY" }]),
     ],
+  });
+  seedAgentThread({
+    id: "conv-fork-newer",
+    title: "NEWER_THREAD",
+    createdAt: localIso(0, 9, 0),
+    updatedAt: localIso(0, 9, 0),
+    messages: [userMessage("conv-fork-newer-user", "NEWER_THREAD_MESSAGE")],
   });
   const { app, page } = await launchAgentPage();
 
@@ -187,6 +196,15 @@ test("@AG-CONV-005 用户在 Agent 回复下方 Fork 对话分支后继续查看
     await expect(
       page.getByRole("button", { name: "Fork - FORK_SOURCE", exact: true }),
     ).toBeVisible();
+    await expect(page.getByTestId("agent-thread-item").first()).toHaveAttribute(
+      "data-thread-title",
+      "Fork - FORK_SOURCE",
+    );
+    await page.reload();
+    await expect(page.getByTestId("agent-thread-item").first()).toHaveAttribute(
+      "data-thread-title",
+      "Fork - FORK_SOURCE",
+    );
     await expect(page.getByTestId("agent-user-message")).toContainText("FORK_USER_MESSAGE");
     await expect(page.getByTestId("agent-assistant-text")).toContainText("FORK_AGENT_REPLY");
     await expect(

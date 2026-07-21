@@ -37,6 +37,7 @@ function customEntryByEventId(manager: { getEntries(): unknown[] }, eventId: str
 
 describe("AgentSessionLog", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.clearAllMocks();
     for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
   });
@@ -345,11 +346,18 @@ describe("AgentSessionLog", () => {
   });
 
   test("forks from an assistant message without keeping later turns", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2026-06-23T00:00:00.000Z");
     const root = tempRoot();
     const log = new AgentSessionLog(root);
     const session = log.createSession();
     const manager = await log.openSession(session.id);
     manager.appendSessionInfo("原对话");
+    manager.appendMessage({
+      role: "user",
+      content: [{ type: "text", text: "hello" }],
+      timestamp: Date.now(),
+    });
     const events: AgentSessionEvent[] = [
       { ...baseEvent, id: "evt_1", sessionId: session.id, type: "run.started" },
       {
@@ -401,6 +409,7 @@ describe("AgentSessionLog", () => {
     ];
     for (const event of events) log.appendEvent(manager, event);
 
+    vi.setSystemTime("2026-06-24T00:00:00.000Z");
     const fork = await log.forkSessionFromAssistantMessage(session.id, "assistant_1");
 
     expect(fork.id).not.toBe(session.id);
@@ -408,5 +417,7 @@ describe("AgentSessionLog", () => {
     await expect(log.readEvents(fork.id)).resolves.toEqual(
       events.slice(0, 4).map((event) => ({ ...event, sessionId: fork.id })),
     );
+    const persistedFork = (await log.listSessions()).find((item) => item.id === fork.id);
+    expect(persistedFork?.updatedAt).toBe(fork.updatedAt);
   });
 });
