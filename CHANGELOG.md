@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.3 - 2026-07-21
+
+- Added an MIT license and a public-facing README with the product value proposition, privacy notes, source setup, and real application screenshots using synthetic data.
+- Moved production-derived Retrieval quality evaluation code and datasets into an ignored private workspace while keeping public tests independent of those assets.
+- Removed the obsolete Skills package and anonymized local machine paths across tracked tests and documentation.
+- Audited and sanitized the repository history for public source distribution.
+
 ## 1.2.2 - 2026-07-21
 
 - Added automatic and manual Agent context compaction with visible progress and durable compaction history.
