@@ -753,8 +753,8 @@ rtk git commit -m "fix(chat): show approved tool execution failures"
 Input roots:
 
 ```bash
-rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts <projectRoot>/.local/reflecta-prod
-rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts <projectRoot>/.local/reflecta-test
+rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts ./.local/reflecta-prod
+rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts ./.local/reflecta-test
 ```
 
 Script interface:
@@ -795,8 +795,8 @@ Idempotency:
 - [ ] **Step 2: Dry run**
 
 ```bash
-rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts --dry-run --report /tmp/reflecta-v1.1.16-prod-migration.json <projectRoot>/.local/reflecta-prod
-rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts --dry-run --report /tmp/reflecta-v1.1.16-test-migration.json <projectRoot>/.local/reflecta-test
+rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts --dry-run --report /tmp/reflecta-v1.1.16-prod-migration.json ./.local/reflecta-prod
+rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts --dry-run --report /tmp/reflecta-v1.1.16-test-migration.json ./.local/reflecta-test
 ```
 
 Expected counters:
@@ -875,8 +875,8 @@ Expected: PASS.
 - [ ] **Step 4: Run migration, inspect reports, delete script/test, commit**
 
 ```bash
-rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts --report /tmp/reflecta-v1.1.16-prod-migration.json <projectRoot>/.local/reflecta-prod
-rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts --report /tmp/reflecta-v1.1.16-test-migration.json <projectRoot>/.local/reflecta-test
+rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts --report /tmp/reflecta-v1.1.16-prod-migration.json ./.local/reflecta-prod
+rtk bun scripts/migrations/v1.1.16-agent-entity-parts.ts --report /tmp/reflecta-v1.1.16-test-migration.json ./.local/reflecta-test
 rtk rm scripts/migrations/v1.1.16-agent-entity-parts.ts
 rtk rm scripts/migrations/v1.1.16-agent-entity-parts.test.ts
 rtk git add apps/electron/src scripts docs/iterations/v1.1.16

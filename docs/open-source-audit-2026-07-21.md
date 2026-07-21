@@ -3,6 +3,7 @@
 > 日期：2026-07-21  
 > 基线：`master` at `2db054d369256a0def45faa9a2af02e1cb33ef14`  
 > 审计分支：`codex/open-source-audit`  
+> 修复进度：审计分支当前树中的个人绝对路径已改为 project-based 示例；旧 commit 仍保留原值。
 > 结论：**NO-GO。完成本文 P0 后才能公开现有仓库或其历史。**
 
 ## 1. 审计范围
@@ -65,17 +66,17 @@ gitleaks dir --redact=100 --report-format json .
 
 ## 3. 总结
 
-| 等级 | 结论                                          | 数量/范围                                                       | 公开前动作                                             |
-| ---- | --------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ |
-| P0   | 存在生产会话派生的个人内容和生产 Session 标识 | 1 个代码 fixture、1 份说明文档，内容已进入 Git 历史             | 改成完全合成语料，并使用干净公开历史或重写历史         |
-| P0   | 存在个人用户名、个人博客和生产知识库绝对路径  | 当前 8 个文件，历史中还有已删除文件                             | 全部泛化；若公开旧历史则清洗历史                       |
-| P0   | commit 元数据公开个人邮箱                     | 537 个 commit 均为同一非 noreply 邮箱                           | 明确接受，或使用干净公开历史/重写作者信息              |
-| P0   | 缺少第三方复制内容的集中声明                  | `.agents` 116 个文件，另有历史 vendored 文档                    | 增加第三方 NOTICE，确认历史文档是否有权公开            |
-| P0   | AI Provider API Key 明文写入应用配置          | 当前实现                                                        | 改为系统安全存储，或至少建立明确威胁模型后再发布二进制 |
-| P1   | 大量内部产品与技术迭代文档会公开              | `docs/iterations` 68 个文件                                     | 明确选择公开、精简或迁移到私有仓库                     |
-| P1   | 当前 macOS 构建包包含 E2E 测试源码            | `app.asar` 解包后可见 `e2e/`                                    | 在 Electron builder 的 `files` 中排除测试目录          |
-| P1   | 发布元数据仍含模板/占位配置                   | Electron homepage、update URL、Linux maintainer、macOS 签名配置 | 在发布公开二进制前修正                                 |
-| 通过 | 未发现真实凭据、私钥、数据库或日志被 Git 追踪 | Gitleaks 5 条均为测试假值                                       | 清理后复扫，并将扫描加入 CI                            |
+| 等级 | 结论                                               | 数量/范围                                                       | 公开前动作                                             |
+| ---- | -------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ |
+| P0   | 存在生产会话派生的个人内容和生产 Session 标识      | 1 个代码 fixture、1 份说明文档，内容已进入 Git 历史             | 改成完全合成语料，并使用干净公开历史或重写历史         |
+| P0   | 个人用户名、个人博客和生产知识库绝对路径已进入历史 | 当前树已脱敏，旧 commit 中仍存在                                | 使用干净公开历史；若公开旧历史则清洗历史               |
+| P0   | commit 元数据公开个人邮箱                          | 537 个 commit 均为同一非 noreply 邮箱                           | 明确接受，或使用干净公开历史/重写作者信息              |
+| P0   | 缺少第三方复制内容的集中声明                       | `.agents` 116 个文件，另有历史 vendored 文档                    | 增加第三方 NOTICE，确认历史文档是否有权公开            |
+| P0   | AI Provider API Key 明文写入应用配置               | 当前实现                                                        | 改为系统安全存储，或至少建立明确威胁模型后再发布二进制 |
+| P1   | 大量内部产品与技术迭代文档会公开                   | `docs/iterations` 68 个文件                                     | 明确选择公开、精简或迁移到私有仓库                     |
+| P1   | 当前 macOS 构建包包含 E2E 测试源码                 | `app.asar` 解包后可见 `e2e/`                                    | 在 Electron builder 的 `files` 中排除测试目录          |
+| P1   | 发布元数据仍含模板/占位配置                        | Electron homepage、update URL、Linux maintainer、macOS 签名配置 | 在发布公开二进制前修正                                 |
+| 通过 | 未发现真实凭据、私钥、数据库或日志被 Git 追踪      | Gitleaks 5 条均为测试假值                                       | 清理后复扫，并将扫描加入 CI                            |
 
 ## 4. 详细发现
 
@@ -119,9 +120,11 @@ gitleaks dir --redact=100 --report-format json .
 3. 保留现有检索覆盖维度，但不要对原文只做同义改写。
 4. 选择“干净公开历史”或对所有公开 refs 做历史清洗。
 
-### 4.3 P0：当前树包含本机和个人项目路径
+不要把私有 retrieval 语料移到 `apps/electron/e2e/` 后只依赖 `.gitignore`：ignore 不会清除已有历史，公开 CI 也拿不到这些测试；而且当前 Electron builder 会把 `e2e/` 打进 `app.asar`。公开仓库应保留可运行的合成质量集，私有语料放在仓库和应用打包目录之外，通过显式本地路径按需加载。
 
-当前 8 个文件包含 `/Users/<个人用户名>/...` 路径：
+### 4.3 P0：基线曾包含本机和个人项目路径
+
+审计基线的 8 个文件包含 `/Users/<个人用户名>/...` 路径：
 
 - `apps/electron/src/renderer/src/modules/chat/messages/agent-turn-view.test.ts`
 - `docs/iterations/v1.0.0/design/domain-workspace-detail-ux-path.md`
@@ -140,7 +143,7 @@ gitleaks dir --redact=100 --report-format json .
 
 历史检查还发现路径曾存在于当前已删除的 `drafts/`、`docs/2-design/`、`docs/drafts/`、`docs/iterations/v0/`、`docs/superpowers/` 和旧 demo 文件中。
 
-公开前应统一替换为 `/Users/alice/...`、`/absolute/path/...` 或 `<contentStorageRoot>` 等中性示例。若保留现有 Git 历史，必须同时处理历史版本。
+审计分支已经把这些位置改为 `<projectRoot>/.local/...`、`./.local/...` 或其他 project-based 示例，当前树不再包含该个人用户名。若保留现有 Git 历史，仍必须处理历史版本。
 
 ### 4.4 P0：commit 作者邮箱会随历史公开
 

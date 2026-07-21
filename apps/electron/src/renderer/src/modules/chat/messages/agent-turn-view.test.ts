@@ -641,7 +641,7 @@ describe("buildAgentTurnView", () => {
   test("maps bash proposals to command-focused render data", () => {
     const turn = buildAgentTurnView([
       proposal("bash", "tool-1", {
-        command: "find <projectRoot>/.local/blog/content/posts -maxdepth 2 -type f | head -200",
+        command: 'find "<projectRoot>/fixtures/blog/content/posts" -maxdepth 2 -type f | head -200',
         cwd: "<projectRoot>",
         timeoutMs: 30000,
       }),
@@ -654,7 +654,8 @@ describe("buildAgentTurnView", () => {
         status: "pending",
         data: {
           kind: "bash",
-          command: "find <projectRoot>/.local/blog/content/posts -maxdepth 2 -type f | head -200",
+          command:
+            'find "<projectRoot>/fixtures/blog/content/posts" -maxdepth 2 -type f | head -200',
           cwd: "<projectRoot>",
           timeoutMs: 30000,
         },
