@@ -1,17 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  Archive,
-  ArrowDown,
-  ChevronDown,
-  ChevronUp,
-  Copy,
-  FileDown,
-  Minimize2,
-  MoreHorizontal,
-  Sparkles,
-  Trash2,
-  X,
-} from "lucide-react";
+import { ArrowDown, ChevronDown, ChevronUp, MoreHorizontal, X } from "lucide-react";
 import type {
   AgentContextRef,
   AgentModelSelection,
@@ -22,15 +10,12 @@ import { Button } from "@renderer/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@renderer/components/ui/dropdown-menu";
 import { Input } from "@renderer/components/ui/input";
 import { cn } from "@renderer/lib/utils";
 import { useDebounce, useMemoizedFn } from "ahooks";
 import { toast } from "sonner";
-import { ipcClient } from "@renderer/utils/ipc";
 import { ChatComposer } from "./composer/chat-composer";
 import type { InspectableContextRef } from "./context/context-reference";
 import type { ApproveToolInput } from "./messages/agent-message-content";
@@ -48,6 +33,7 @@ import {
 } from "./session/server-state";
 import type { ChatJumpItem } from "./session/thread-view";
 import { SidebarToggleButton } from "@renderer/modules/shared/layout/SidebarToggleButton";
+import { exportThreadMarkdown, ThreadActionMenuItems } from "./session/thread-action-menu-items";
 
 const CHAT_JUMP_MIN_ITEMS = 4;
 
@@ -243,34 +229,6 @@ export function AgentThreadPanel({
       />
     </main>
   );
-}
-
-async function exportMarkdown(title: string, messages: AgentReducedMessage[]) {
-  const parts = [`# ${title.trim() || "Agent 对话"}`];
-  for (const message of messages) {
-    const text = message.text.trim();
-    if (!text) continue;
-    parts.push(`## ${message.role === "user" ? "用户" : "Agent"}\n\n${text}`);
-  }
-
-  const filename = `${(title.trim() || "agent-chat").replace(/[\\/:*?"<>|]+/g, "-")}.md`;
-  try {
-    const filePath = await ipcClient.chat.exportMarkdown(filename, `${parts.join("\n\n")}\n`);
-    if (!filePath) return;
-    toast.success("已导出 Markdown", { description: filePath });
-  } catch (error) {
-    toast.error("导出 Markdown 失败", { description: errorMessage(error) });
-  }
-}
-
-async function copyThreadId(threadId: string) {
-  try {
-    if (!navigator.clipboard) throw new Error("当前环境不支持剪贴板");
-    await navigator.clipboard.writeText(threadId);
-    toast.success("已复制对话 ID");
-  } catch (error) {
-    toast.error("复制失败", { description: errorMessage(error) });
-  }
 }
 
 function ThreadFindBox({
@@ -580,51 +538,20 @@ function AgentThreadHeader({
             <MoreHorizontal />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" sideOffset={6} className="w-44">
-            <DropdownMenuItem
-              data-testid="agent-export-markdown-button"
-              disabled={!canExport}
-              onClick={() => void exportMarkdown(displayTitle, messages)}
-            >
-              <FileDown />
-              导出 Markdown
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              data-testid="agent-generate-title-menu-item"
-              disabled={titleGenerating || isBusy || isCompacting}
-              onClick={onGenerateTitle}
-            >
-              <Sparkles />
-              {titleGenerating ? "生成中..." : "生成标题"}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              data-testid="agent-compact-context-menu-item"
-              disabled={messages.length === 0 || isBusy || isCompacting}
-              onClick={onCompact}
-            >
-              <Minimize2 />
-              {isCompacting ? "压缩中..." : "压缩上下文"}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              data-testid="agent-copy-thread-id-menu-item"
-              onClick={() => void copyThreadId(threadId)}
-            >
-              <Copy />
-              复制对话 ID
-            </DropdownMenuItem>
-            <DropdownMenuItem data-testid="agent-archive-thread-menu-item" onClick={onArchive}>
-              <Archive />
-              归档
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              data-testid="agent-delete-thread-menu-item"
-              variant="destructive"
-              onClick={onDelete}
-            >
-              <Trash2 />
-              删除
-            </DropdownMenuItem>
+            <ThreadActionMenuItems
+              menu="dropdown"
+              threadId={threadId}
+              canExport={canExport}
+              hasMessages={messages.length > 0}
+              isBusy={isBusy}
+              isCompacting={isCompacting}
+              titleGenerating={titleGenerating}
+              onExport={() => void exportThreadMarkdown(displayTitle, messages)}
+              onGenerateTitle={onGenerateTitle}
+              onCompact={onCompact}
+              onArchive={onArchive}
+              onDelete={onDelete}
+            />
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

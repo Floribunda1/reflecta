@@ -1,13 +1,54 @@
 import { memo, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@renderer/components/ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuTrigger,
+} from "@renderer/components/ui/context-menu";
 import { Spinner } from "@renderer/components/ui/spinner";
 import { ScrollArea } from "@renderer/components/ui/scroll-area";
 import { AppChromeMenu } from "@renderer/modules/shared/layout/AppChromeMenu";
 import { SidebarToggleButton } from "@renderer/modules/shared/layout/SidebarToggleButton";
 import { cn } from "@renderer/lib/utils";
-import type { AgentSessionSummary } from "@shared/agent";
+import { ipcClient } from "@renderer/utils/ipc";
+import { reduceAgentSession, type AgentSessionSummary } from "@shared/agent";
+import { toast } from "sonner";
 import { groupAgentThreads } from "./thread-groups";
+import { exportThreadMarkdown, ThreadActionMenuItems } from "./thread-action-menu-items";
+
+function errorMessage(error: unknown) {
+  if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
+    return error.message;
+  return error instanceof Error ? error.message : "请稍后重试";
+}
+
+async function exportThread(thread: AgentSessionSummary) {
+  try {
+    const events = await ipcClient.chat.readSessionEvents(thread.id);
+    await exportThreadMarkdown(thread.title, reduceAgentSession(events).messages);
+  } catch (error) {
+    toast.error("导出 Markdown 失败", { description: errorMessage(error) });
+  }
+}
+
+async function compactThread(threadId: string) {
+  try {
+    const [modelSelection, reasoningLevel] = await Promise.all([
+      ipcClient.config.getActiveAgentModel(),
+      ipcClient.config.getActiveAgentReasoningLevel(),
+    ]);
+    await ipcClient.chat.sendAgentCommand({
+      type: "context.compact",
+      sessionId: threadId,
+      modelSelection: modelSelection ?? undefined,
+      reasoningLevel,
+    });
+    toast.success("上下文已压缩");
+  } catch (error) {
+    toast.error("压缩上下文失败", { description: errorMessage(error) });
+  }
+}
 
 function ThreadSidebarComponent({
   threads,
@@ -17,6 +58,9 @@ function ThreadSidebarComponent({
   onSelect,
   onCreate,
   onCollapse,
+  onGenerateTitle,
+  onArchive,
+  onDelete,
   titleGeneratingThreadId,
 }: {
   threads: AgentSessionSummary[];
@@ -26,6 +70,9 @@ function ThreadSidebarComponent({
   onSelect: (threadId: string) => void;
   onCreate: () => void;
   onCollapse: () => void;
+  onGenerateTitle: (threadId: string) => void;
+  onArchive: (threadId: string) => void;
+  onDelete: (threadId: string) => void;
   titleGeneratingThreadId?: string | null;
 }) {
   const groups = useMemo(() => groupAgentThreads(threads), [threads]);
@@ -82,30 +129,54 @@ function ThreadSidebarComponent({
                 const generatingTitle = thread.id === titleGeneratingThreadId;
                 const running = thread.id === runningThreadId;
                 return (
-                  <Button
-                    key={thread.id}
-                    data-testid="agent-thread-item"
-                    data-thread-title={thread.title}
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className={cn(
-                      "h-auto w-full min-w-0 justify-start p-1.5 text-left font-normal text-foreground/85 hover:bg-foreground/5 hover:text-foreground",
-                      thread.id === activeThreadId &&
-                        "bg-foreground/5 text-foreground font-medium hover:bg-foreground/5",
-                    )}
-                    onClick={() => onSelect(thread.id)}
-                  >
-                    <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                      <span className="block min-w-0 flex-1 truncate text-sm">{thread.title}</span>
-                      {generatingTitle || running ? (
-                        <Spinner
-                          aria-label={generatingTitle ? "正在生成标题" : "Agent 正在响应"}
-                          className="size-3 shrink-0 text-muted-foreground"
-                        />
-                      ) : null}
-                    </span>
-                  </Button>
+                  <ContextMenu key={thread.id}>
+                    <ContextMenuTrigger
+                      render={
+                        <Button
+                          data-testid="agent-thread-item"
+                          data-thread-title={thread.title}
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className={cn(
+                            "h-auto w-full min-w-0 justify-start p-1.5 text-left font-normal text-foreground/85 hover:bg-foreground/5 hover:text-foreground",
+                            thread.id === activeThreadId &&
+                              "bg-foreground/5 text-foreground font-medium hover:bg-foreground/5",
+                          )}
+                          onClick={() => onSelect(thread.id)}
+                          onContextMenu={() => onSelect(thread.id)}
+                        >
+                          <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                            <span className="block min-w-0 flex-1 truncate text-sm">
+                              {thread.title}
+                            </span>
+                            {generatingTitle || running ? (
+                              <Spinner
+                                aria-label={generatingTitle ? "正在生成标题" : "Agent 正在响应"}
+                                className="size-3 shrink-0 text-muted-foreground"
+                              />
+                            ) : null}
+                          </span>
+                        </Button>
+                      }
+                    />
+                    <ContextMenuContent data-testid="agent-thread-context-menu" className="w-44">
+                      <ThreadActionMenuItems
+                        menu="context"
+                        threadId={thread.id}
+                        canExport
+                        hasMessages
+                        isBusy={running}
+                        isCompacting={false}
+                        titleGenerating={generatingTitle}
+                        onExport={() => void exportThread(thread)}
+                        onGenerateTitle={() => onGenerateTitle(thread.id)}
+                        onCompact={() => void compactThread(thread.id)}
+                        onArchive={() => onArchive(thread.id)}
+                        onDelete={() => onDelete(thread.id)}
+                      />
+                    </ContextMenuContent>
+                  </ContextMenu>
                 );
               })}
             </div>

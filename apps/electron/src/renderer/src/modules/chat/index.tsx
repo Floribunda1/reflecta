@@ -246,6 +246,9 @@ function ChatPageContent() {
             onSelect={selectThread}
             onCreate={createThread}
             onCollapse={collapseThreadSidebar}
+            onGenerateTitle={generateThreadTitle}
+            onArchive={archiveThread}
+            onDelete={deleteThread}
             titleGeneratingThreadId={titleGeneratingThreadId}
           />
         </div>

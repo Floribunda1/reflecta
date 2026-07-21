@@ -241,3 +241,43 @@ test("@AG-CONV-007 用户导出当前对话为 Markdown", async () => {
     await app.close();
   }
 });
+
+test("@AG-CONV-008 用户从对话列表右键操作指定对话", async () => {
+  seedCompletedThread({
+    id: "conv-context-a",
+    title: "右键对话 A",
+    userText: "CONTEXT_A_USER_MESSAGE",
+    assistantText: "CONTEXT_A_AGENT_REPLY",
+  });
+  seedCompletedThread({
+    id: "conv-context-b",
+    title: "右键对话 B",
+    userText: "CONTEXT_B_USER_MESSAGE",
+    assistantText: "CONTEXT_B_AGENT_REPLY",
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await threadByTitle(page, "右键对话 A").click({ button: "right" });
+    const menu = page.getByTestId("agent-thread-context-menu");
+
+    for (const label of [
+      "导出 Markdown",
+      "生成标题",
+      "压缩上下文",
+      "复制对话 ID",
+      "归档",
+      "删除",
+    ]) {
+      await expect(menu.getByRole("menuitem", { name: label })).toBeVisible();
+    }
+
+    await menu.getByTestId("agent-delete-thread-menu-item").click();
+    await page.getByRole("button", { name: "删除" }).click();
+
+    await expect(threadByTitle(page, "右键对话 A")).toHaveCount(0);
+    await expect(threadByTitle(page, "右键对话 B")).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
