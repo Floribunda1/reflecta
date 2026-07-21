@@ -77,8 +77,8 @@ describe("Reflecta context compaction", () => {
   test("loads the static compaction instructions from the dedicated prompt file", () => {
     const prompt = loadAgentContextCompactionPrompt();
 
-    expect(prompt).toContain("生成一份紧凑但足以继续对话的检查点");
-    expect(prompt).toContain("用户陈述 / AI 提议 / 工具观察");
-    expect(prompt).toContain("## 证据与引用");
+    expect(prompt).toContain("You are performing a CONTEXT CHECKPOINT COMPACTION.");
+    expect(prompt).toContain("Current progress and key decisions made");
+    expect(prompt).toContain("Be concise, structured, and focused");
   });
 });
