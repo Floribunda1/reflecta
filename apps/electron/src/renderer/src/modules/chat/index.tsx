@@ -257,8 +257,8 @@ function ChatPageContent() {
         id="agent-thread-sidebar-resize-handle"
         disabled={!threadSidebarOpen}
         className={cn(
-          "cursor-col-resize bg-transparent after:w-px after:bg-border/50 hover:after:bg-border data-[resize-handle-active]:after:bg-ring",
-          threadSidebarOpen ? "w-3" : "w-0 border-0 opacity-0 after:hidden",
+          "cursor-col-resize bg-border/50 after:w-4 hover:bg-border data-[resize-handle-active]:bg-ring",
+          threadSidebarOpen ? "w-px" : "w-0 border-0 opacity-0 after:hidden",
         )}
       />
       <ResizablePanel id="agent-workspace-panel" minSize="420px" className="min-h-0 min-w-0">
@@ -318,7 +318,7 @@ function ChatPageContent() {
             <>
               <ResizableHandle
                 withHandle
-                className="w-3 cursor-col-resize bg-transparent after:w-px after:bg-border/50 hover:after:bg-border data-[resize-handle-active]:after:bg-ring [&>div]:h-10 [&>div]:w-0.5 [&>div]:bg-border/70"
+                className="w-px cursor-col-resize bg-border/50 after:w-4 hover:bg-border data-[resize-handle-active]:bg-ring [&>div]:h-10 [&>div]:w-0.5 [&>div]:bg-border/70"
               />
               <ResizablePanel
                 id="agent-chat-inspector"

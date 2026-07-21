@@ -204,6 +204,11 @@ test("@AG-START-009 用户调整对话列表宽度", async () => {
     const handleBox = await resizeHandle.boundingBox();
     const initialBox = await listPanel.boundingBox();
     if (!handleBox || !initialBox) throw new Error("Thread list resize handle is not visible");
+    const hitAreaWidth = await resizeHandle.evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element, "::after").width),
+    );
+    expect(handleBox.width).toBeLessThanOrEqual(2);
+    expect(hitAreaWidth).toBeGreaterThanOrEqual(12);
 
     await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
     await page.mouse.down();
