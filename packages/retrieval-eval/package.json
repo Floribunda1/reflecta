@@ -1,0 +1,20 @@
+{
+  "name": "@reflecta/retrieval-eval",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "retrieval:quality": "bun private/quality-benchmark.ts",
+    "test:private": "vitest run private",
+    "typecheck:private": "tsgo --noEmit"
+  },
+  "dependencies": {
+    "@reflecta/server": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.11",
+    "@typescript/native-preview": "^7.0.0-dev.20260616.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.2"
+  }
+}

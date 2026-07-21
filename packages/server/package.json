@@ -24,7 +24,6 @@
   "scripts": {
     "typecheck": "tsgo --noEmit",
     "test": "vitest --passWithNoTests",
-    "retrieval:quality": "bun src/domains/retrieval/quality-benchmark.ts",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt",

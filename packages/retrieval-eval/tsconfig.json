@@ -1,0 +1,7 @@
+{
+  "extends": "../server/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["private/**/*.ts"]
+}

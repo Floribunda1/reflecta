@@ -3,7 +3,7 @@
 > 日期：2026-07-21  
 > 基线：`master` at `2db054d369256a0def45faa9a2af02e1cb33ef14`  
 > 审计分支：`codex/open-source-audit`  
-> 修复进度：审计分支当前树中的个人绝对路径已改为 project-based 示例；旧 commit 仍保留原值。
+> 修复进度：审计分支当前树中的个人绝对路径已改为 project-based 示例，Retrieval 质量测试与语料已移入 ignored 私有目录；旧 commit 仍保留原值。
 > 结论：**NO-GO。完成本文 P0 后才能公开现有仓库或其历史。**
 
 ## 1. 审计范围
@@ -68,7 +68,7 @@ gitleaks dir --redact=100 --report-format json .
 
 | 等级 | 结论                                               | 数量/范围                                                       | 公开前动作                                             |
 | ---- | -------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ |
-| P0   | 存在生产会话派生的个人内容和生产 Session 标识      | 1 个代码 fixture、1 份说明文档，内容已进入 Git 历史             | 改成完全合成语料，并使用干净公开历史或重写历史         |
+| P0   | 生产会话派生内容和 Session 标识仍存在于 Git 历史   | 当前追踪树已移除，旧 commit 仍包含测试代码、fixture 和说明      | 使用干净公开历史或重写历史                             |
 | P0   | 个人用户名、个人博客和生产知识库绝对路径已进入历史 | 当前树已脱敏，旧 commit 中仍存在                                | 使用干净公开历史；若公开旧历史则清洗历史               |
 | P0   | commit 元数据公开个人邮箱                          | 537 个 commit 均为同一非 noreply 邮箱                           | 明确接受，或使用干净公开历史/重写作者信息              |
 | P0   | 缺少第三方复制内容的集中声明                       | `.agents` 116 个文件，另有历史 vendored 文档                    | 增加第三方 NOTICE，确认历史文档是否有权公开            |
@@ -96,7 +96,7 @@ gitleaks dir --redact=100 --report-format json .
 
 结论：不需要轮换上述值，但建议在 Gitleaks 配置中按 fingerprint 或精确测试值做最小 allowlist，使公开 CI 能保持零未解释告警。
 
-### 4.2 P0：测试代码包含生产会话派生的个人内容
+### 4.2 P0：Git 历史包含生产会话派生的个人内容
 
 `packages/server/src/domains/retrieval/session-quality-fixtures.ts` 包含：
 
@@ -113,14 +113,14 @@ gitleaks dir --redact=100 --report-format json .
 - Session 文件名和行号为私有数据建立了稳定关联标识。
 - 只修改当前文件无法从旧 commit 和 tag 中移除内容。
 
-公开前必须：
+当前追踪树已经完成以下隔离：
 
-1. 用完全虚构、与现有个人经历无关的语料重新构造检索质量集。
-2. 删除 `source.sessionFile`、生产 UUID、行号和生产来源说明。
-3. 保留现有检索覆盖维度，但不要对原文只做同义改写。
-4. 选择“干净公开历史”或对所有公开 refs 做历史清洗。
+1. `packages/retrieval-eval` 作为正常 workspace 提交，依赖进入 `bun.lock`。
+2. benchmark、指标测试和合并后的固定语料集中在该 package 的 ignored `private/` 目录。
+3. `packages/server` 不再包含或运行 Retrieval 质量测试。
+4. 公共默认 `test` 和 `typecheck` 不依赖 ignored 文件。
 
-不要把私有 retrieval 语料移到 `apps/electron/e2e/` 后只依赖 `.gitignore`：ignore 不会清除已有历史，公开 CI 也拿不到这些测试；而且当前 Electron builder 会把 `e2e/` 打进 `app.asar`。公开仓库应保留可运行的合成质量集，私有语料放在仓库和应用打包目录之外，通过显式本地路径按需加载。
+这只解决当前树，不能清除旧 commit 和 tag。公开前仍必须选择“干净公开历史”或对所有公开 refs 做历史清洗。不要把私有 retrieval 语料移到 `apps/electron/e2e/`：当前 Electron builder 会把 `e2e/` 打进 `app.asar`。
 
 ### 4.3 P0：基线曾包含本机和个人项目路径
 

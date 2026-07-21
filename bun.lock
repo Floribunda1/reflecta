@@ -154,6 +154,19 @@
         "vitest": "^4.1.2",
       },
     },
+    "packages/retrieval-eval": {
+      "name": "@reflecta/retrieval-eval",
+      "version": "0.0.0",
+      "dependencies": {
+        "@reflecta/server": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/node": "^22.19.11",
+        "@typescript/native-preview": "^7.0.0-dev.20260616.1",
+        "typescript": "^5.9.3",
+        "vitest": "^4.1.2",
+      },
+    },
     "packages/server": {
       "name": "@reflecta/server",
       "version": "1.2.2",
@@ -1061,6 +1074,8 @@
     "@reflecta/cli": ["@reflecta/cli@workspace:apps/cli"],
 
     "@reflecta/electron": ["@reflecta/electron@workspace:apps/electron"],
+
+    "@reflecta/retrieval-eval": ["@reflecta/retrieval-eval@workspace:packages/retrieval-eval"],
 
     "@reflecta/server": ["@reflecta/server@workspace:packages/server"],
 
