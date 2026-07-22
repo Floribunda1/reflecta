@@ -27,7 +27,7 @@ v1.2.4 不自行实现搜索 Provider、网页抽取器、PDF 解析、搜索结
 - 搜索 Provider 固定为 Exa，不提供 Provider 设置或切换 UI；
 - 搜索 workflow 固定为 `auto-summary`，Agent 不能切换为 `summary-review` 或 `none`；
 - 保留 Pi Web Access 的 `web_search`、`fetch_content` 和 `get_search_content` 三个工具；
-- 停用 Reflecta 现有的 `web_fetch`，避免两个重叠的网页读取入口同时暴露给 Agent；
+- 删除 Reflecta 现有的 `web_fetch` 工具及其展示逻辑，不保留历史兼容；
 - 搜索与摘要只进入对话，不自动创建 Context、Understanding 或 Connection；
 - v1.2.4 不 fork Pi Web Access，不删除其内部未使用的 Provider 实现。
 
@@ -167,8 +167,8 @@ Pi Web Access 的原始工具 schema 仍包含 `provider` 和 `workflow` 参数�
 ## 7. Task 2：替换现有 Web Fetch 与 Prompt 对齐
 
 - 从 active read-only tools 中移除 `web_fetch`；
-- 删除不再被调用的 `web_fetch` provider implementation 和对应单元测试；
-- 保留 renderer 对历史 `web_fetch` session event 的显示兼容；
+- 删除 `web_fetch` provider implementation、对应单元测试及 renderer 分支；
+- 不迁移旧 session 中的 `web_fetch` tool event，也不保证其继续获得专用展示；
 - system prompt 增加以下稳定规则：
   - 对新闻、当前状态、近期变更或模型不确定的外部事实优先使用 `web_search`；
   - 默认不传 `provider` 和 `workflow`；
@@ -240,7 +240,7 @@ Web Search 提供外部信息和候选证据，不生成用户的个人理解：
 - Policy：默认参数和 `exa + auto-summary` 通过，其他 Provider/workflow 被阻止；
 - Config：配置写入 app-specific `.pi-agent`，固定字段被校准，其他字段被保留；
 - Host：三个 extension tool 的 start/end/error 能转换为现有 Reflecta tool event；
-- Renderer：三个工具的中文状态和错误展示稳定，历史 `web_fetch` 仍可展示；
+- Renderer：三个工具的中文状态和错误展示稳定，旧 `web_fetch` 专用展示已删除；
 - Prompt：明确搜索、抓取、按需读取及不得自动沉淀的规则；
 - Packaging：production build 能包含并解析 Pi Web Access extension。
 
@@ -263,7 +263,7 @@ Web Search 提供外部信息和候选证据，不生成用户的个人理解：
 - 用户询问当前外部信息时，Agent 能自动搜索并直接回答；
 - 搜索固定使用 Exa，固定使用 `auto-summary`，全程不弹页面；
 - 摘要包含可点击来源，Agent 可继续读取具体页面或暂存内容；
-- 现有 `web_fetch` 不再暴露，历史会话仍能正常显示；
+- 现有 `web_fetch` 及其历史兼容逻辑已删除；
 - 没有 Provider UI、人工策展 UI、密钥管理 UI 或第二套搜索 implementation；
 - extension 在开发态和 production build 中均可加载；
 - Exa MCP/API 失败时返回明确错误，不自动切换其他 Provider、不从模型记忆伪装成搜索结果；
