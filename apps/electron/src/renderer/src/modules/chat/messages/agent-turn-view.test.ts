@@ -220,88 +220,54 @@ describe("buildAgentTurnView", () => {
     });
   });
 
-  test("shows web fetch URL and result details", () => {
+  test("shows concise web access tool lifecycle without duplicating result content", () => {
     const turn = buildAgentTurnView([
-      tool(
-        "web_fetch",
-        "tool-1",
-        {
-          url: "https://martinfowler.com/eaaDev/uiArchs.html",
-          finalUrl: "https://martinfowler.com/eaaDev/uiArchs.html",
-          title: "GUI Architectures",
-          markdown: "# GUI Architectures\nPresentation Model",
-          provider: "curl.md",
-          truncated: true,
-        },
-        "completed",
-        undefined,
-        { url: "https://martinfowler.com/eaaDev/uiArchs.html" },
-      ),
+      tool("web_search", "tool-1", undefined, "running", undefined, { query: "Pi Agent" }),
+      tool("fetch_content", "tool-2", { content: "hidden" }, "completed", undefined, {
+        url: "https://example.com/source",
+      }),
+      tool("get_search_content", "tool-3", { content: "hidden" }, "completed", undefined, {
+        responseId: "response-1",
+      }),
     ]);
 
-    expect(turn.blocks[0]).toMatchObject({
-      kind: "tool-activity",
-      activity: {
-        groupType: "lookup",
-        title: "读取网页",
-        status: "done",
-        summary: "读取了网页「GUI Architectures」",
-        items: [
-          expect.objectContaining({
-            label: "读取了网页「GUI Architectures」",
-            details: {
-              meta: [{ label: "网页", value: "https://martinfowler.com/eaaDev/uiArchs.html" }],
-              rows: [
-                {
-                  label: "网页内容",
-                  title: "GUI Architectures",
-                  description: "# GUI Architectures\nPresentation Model",
-                  format: "markdown",
-                  meta: ["内容已截断"],
-                },
-              ],
-            },
-          }),
-        ],
-      },
-    });
-  });
-
-  test("shows blocked web fetch as unreadable", () => {
-    const turn = buildAgentTurnView([
-      tool(
-        "web_fetch",
-        "tool-1",
-        {
-          url: "https://www.zhihu.com/question/1",
-          markdown: "安全验证 - 知乎",
-          provider: "curl.md",
-          truncated: false,
-          blocked: true,
-          error: "Page appears blocked or login-gated.",
+    expect(turn.blocks).toMatchObject([
+      {
+        kind: "tool-activity",
+        activity: {
+          groupType: "lookup",
+          title: "搜索网页",
+          status: "running",
+          summary: "正在搜索网页「Pi Agent」",
         },
-        "completed",
-        undefined,
-        { url: "https://www.zhihu.com/question/1" },
-      ),
-    ]);
-
-    expect(turn.blocks[0]).toMatchObject({
-      kind: "tool-activity",
-      activity: {
-        title: "读取网页",
-        summary: "网页无法读取「https://www.zhihu.com/question/1」",
-        items: [
-          expect.objectContaining({
-            details: {
-              meta: [{ label: "网页", value: "https://www.zhihu.com/question/1" }],
-              rows: [],
-              emptyText: "页面需要登录或被访问限制拦住了。",
-            },
-          }),
-        ],
       },
-    });
+      {
+        kind: "tool-activity",
+        activity: {
+          groupType: "lookup",
+          title: "读取来源",
+          status: "done",
+          summary: "已读取来源",
+          items: [
+            expect.objectContaining({
+              details: {
+                meta: [{ label: "来源", value: "https://example.com/source" }],
+                rows: [],
+              },
+            }),
+          ],
+        },
+      },
+      {
+        kind: "tool-activity",
+        activity: {
+          groupType: "lookup",
+          title: "读取搜索内容",
+          status: "done",
+          summary: "已读取搜索内容",
+        },
+      },
+    ]);
   });
 
   test("shows restored peripheral tool details", () => {

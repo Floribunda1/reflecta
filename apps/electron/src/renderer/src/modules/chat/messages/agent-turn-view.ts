@@ -468,7 +468,9 @@ function toolGroupType(name: string): ToolGroupType {
   if (
     name === "search" ||
     name === "graph" ||
-    name === "web_fetch" ||
+    name === "web_search" ||
+    name === "fetch_content" ||
+    name === "get_search_content" ||
     name.startsWith("understanding_") ||
     name.startsWith("context_") ||
     name.startsWith("domain_") ||
@@ -559,7 +561,9 @@ function toolTitle(name: string) {
   if (name === "understanding_get") return "读取 Understanding";
   if (name === "context_list") return "列出 Context";
   if (name === "context_get") return "读取 Context";
-  if (name === "web_fetch") return "读取网页";
+  if (name === "web_search") return "搜索网页";
+  if (name === "fetch_content") return "读取来源";
+  if (name === "get_search_content") return "读取搜索内容";
   if (name === "retrieve_knowledge") return "检索知识";
   if (name === "search") return "搜索相关内容";
   if (name === "graph") return "查看关联图";
@@ -577,7 +581,9 @@ function toolRunningVerb(name: string) {
   if (name === "edit") return "正在编辑本地文件";
   if (name === "write") return "正在写入本地文件";
   if (name === "bash") return "正在执行 Bash";
-  if (name === "web_fetch") return "正在读取网页";
+  if (name === "web_search") return "正在搜索网页";
+  if (name === "fetch_content") return "正在读取来源";
+  if (name === "get_search_content") return "正在读取搜索内容";
   if (name === "retrieve_knowledge") return "正在检索知识";
   if (name.includes("search")) return "正在搜索相关内容";
   if (name === "graph") return "正在查看关联图";
@@ -588,7 +594,13 @@ function toolRunningVerb(name: string) {
 
 function queryLabel(input: Record<string, unknown>) {
   const query = stringValue(input.query).trim();
-  return query ? `「${query}」` : "";
+  if (query) return `「${query}」`;
+  const queries = arrayValue(input.queries)
+    .map(stringValue)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (queries.length === 1) return `「${queries[0]}」`;
+  return queries.length > 1 ? `「${queries[0]}」等 ${queries.length} 个查询` : "";
 }
 
 function toolDetails(block: AgentToolBlock): ToolActivityDetailsView {
@@ -609,9 +621,20 @@ function inputMeta(name: string, input: Record<string, unknown>): ToolActivityDe
   const meta: ToolActivityDetailMeta[] = [];
   const query = stringValue(input.query).trim();
   if (query) meta.push({ label: "查询", value: query });
-  if (name === "web_fetch") {
+  const queries = arrayValue(input.queries)
+    .map(stringValue)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (!query && queries.length > 0) meta.push({ label: "查询", value: queries.join("；") });
+  if (name === "fetch_content" || name === "get_search_content") {
     const url = stringValue(input.url).trim();
-    if (url) meta.push({ label: "网页", value: url });
+    if (url) meta.push({ label: "来源", value: url });
+  }
+  if (name === "fetch_content") {
+    const urls = arrayValue(input.urls).map(stringValue).filter(Boolean);
+    if (!stringValue(input.url).trim() && urls.length > 0) {
+      meta.push({ label: "来源", value: urls.join("；") });
+    }
   }
   if (name === "read" || name === "edit" || name === "write") {
     const path = stringValue(input.path).trim();
@@ -637,7 +660,6 @@ function toolResultDetails(
   if (name === "read") return readFileDetails(output, input);
   if (name === "edit") return editFileDetails(output);
   if (name === "bash") return bashDetails(output);
-  if (name === "web_fetch") return webFetchDetails(output);
   if (name === "domain_list") return recordListDetails(output, "Domain", "domains");
   if (name === "understanding_list")
     return recordListDetails(output, "Understanding", "understandings");
@@ -709,36 +731,6 @@ function bashDetails(output: unknown) {
       stderr ? detailRow("stderr", "错误输出", stderr, rowMeta, "pre") : undefined,
     ].filter((row): row is ToolActivityDetailRow => Boolean(row)),
     emptyText: stdout || stderr ? undefined : "命令没有输出。",
-  });
-}
-
-function webFetchDetails(output: unknown) {
-  if (!isRecord(output)) return detailView({});
-  const title = stringValue(output.title);
-  const markdown = stringValue(output.markdown);
-  const error = stringValue(output.error);
-  const finalUrl = stringValue(output.finalUrl) || stringValue(output.url);
-  const blocked = output.blocked === true;
-  if (blocked) {
-    return detailView({
-      meta: finalUrl ? [{ label: "网页", value: finalUrl }] : [],
-      emptyText: "页面需要登录或被访问限制拦住了。",
-    });
-  }
-  return detailView({
-    meta: finalUrl ? [{ label: "网页", value: finalUrl }] : [],
-    rows: markdown
-      ? [
-          detailRow(
-            "网页内容",
-            title || finalUrl || "网页",
-            markdown,
-            output.truncated ? ["内容已截断"] : [],
-            "markdown",
-          ),
-        ]
-      : [],
-    emptyText: error ? `网页暂时无法读取：${truncateText(error)}` : undefined,
   });
 }
 
@@ -1021,6 +1013,7 @@ function truncateOutputPreview(text: string, maxLength = 1200, maxLines = 16) {
 }
 
 function toolRunningSummary(name: string, input: Record<string, unknown>) {
+  if (name === "web_search") return `正在搜索网页${queryLabel(input)}`;
   if (name === "search") return `正在搜索${queryLabel(input) || "相关内容"}`;
   if (name === "retrieve_knowledge") return `正在检索${queryLabel(input) || "知识"}`;
   return toolRunningVerb(name);
@@ -1032,7 +1025,9 @@ function toolDoneVerb(name: string) {
   if (name === "edit") return "编辑本地文件";
   if (name === "write") return "写入本地文件";
   if (name === "bash") return "执行 Bash";
-  if (name === "web_fetch") return "读取网页";
+  if (name === "web_search") return "搜索网页";
+  if (name === "fetch_content") return "读取来源";
+  if (name === "get_search_content") return "读取搜索内容";
   if (name === "retrieve_knowledge") return "检索";
   if (name.includes("search")) return "搜索";
   if (name === "graph") return "查看关联图";
@@ -1056,14 +1051,9 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
   if (name === "attachment_read") {
     return `读取了「${stringValue(outputRecord.filename) || stringValue(input.attachmentId) || "附件"}」`;
   }
-  if (name === "web_fetch") {
-    const label =
-      stringValue(outputRecord.title) ||
-      stringValue(outputRecord.finalUrl) ||
-      stringValue(input.url) ||
-      "网页";
-    return outputRecord.blocked ? `网页无法读取「${label}」` : `读取了网页「${label}」`;
-  }
+  if (name === "web_search") return `已搜索网页${queryLabel(input)}`;
+  if (name === "fetch_content") return "已读取来源";
+  if (name === "get_search_content") return "已读取搜索内容";
   if (name === "bash") {
     const command = stringValue(input.command).trim();
     return `执行了 Bash${command ? ` · ${command}` : ""}`;
