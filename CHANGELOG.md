@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.4 - 2026-07-22
+
+- Added direct Agent web search through Pi Web Access, fixed to Exa with automatic summaries and no browser confirmation page.
+- Added source reading and stored search-content retrieval with concise tool activity states in Agent conversations.
+- Removed the legacy `web_fetch` implementation and kept external-information guidance tool-agnostic in the system prompt.
+- Updated the Pi Agent runtime packages to 0.81.1 and verified the extension in development and packaged Electron builds.
+
 ## 1.2.3 - 2026-07-21
 
 - Added an MIT license and a public-facing README with the product value proposition, privacy notes, source setup, and real application screenshots using synthetic data.
