@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { WebContents } from "electron";
+import { InMemoryCredentialStore } from "@earendil-works/pi-ai";
 import { getModel, type Api, type Context, type Model } from "@earendil-works/pi-ai/compat";
 import {
   createAgentSession,
@@ -361,11 +362,7 @@ export async function generateAgentThreadTitle(
   });
   const agentDir = path.join(contentStorageRoot, ".pi-agent");
   fs.mkdirSync(agentDir, { recursive: true });
-  const modelRuntime = await ModelRuntime.create({
-    authPath: path.join(agentDir, "auth.json"),
-    modelsPath: null,
-  });
-  await configurePiRuntimeAuth(modelRuntime, modelConfig);
+  const modelRuntime = await createPiModelRuntime(agentDir, modelConfig);
   const model = resolvePiModel(modelConfig.provider.id, modelConfig.model.id, modelRuntime);
 
   const response = await modelRuntime.completeSimple(model, context, {
@@ -546,20 +543,32 @@ function withApprovalToolResult(
   );
 }
 
-export async function configurePiRuntimeAuth(
-  modelRuntime: Pick<ModelRuntime, "setRuntimeApiKey">,
+export async function createPiModelRuntime(
+  agentDir: string,
   modelConfig: ResolvedAiModelConfig,
-): Promise<void> {
+): Promise<ModelRuntime> {
+  if (modelConfig.definition.authType === "codex") {
+    const codex = await getCodexCredentials();
+    const credentials = new InMemoryCredentialStore();
+    await credentials.modify(modelConfig.definition.piProviderId, async () => ({
+      type: "oauth",
+      access: codex.accessToken,
+      refresh: codex.refreshToken,
+      expires: codex.expiresAt,
+      accountId: codex.accountId,
+    }));
+    return ModelRuntime.create({ credentials, modelsPath: null });
+  }
+
+  const modelRuntime = await ModelRuntime.create({
+    authPath: path.join(agentDir, "auth.json"),
+    modelsPath: null,
+  });
   await modelRuntime.setRuntimeApiKey(
     modelConfig.definition.piProviderId,
-    await runtimeApiKey(modelConfig),
+    modelConfig.provider.apiKey,
   );
-}
-
-async function runtimeApiKey(modelConfig: ResolvedAiModelConfig): Promise<string> {
-  return modelConfig.definition.authType === "codex"
-    ? (await getCodexCredentials()).accessToken
-    : modelConfig.provider.apiKey;
+  return modelRuntime;
 }
 
 export class PiAgentHost {
@@ -723,11 +732,7 @@ export class PiAgentHost {
     const modelConfig = getAiModelConfig(command.modelSelection as AiModelSelection | undefined);
     const agentDir = path.join(this.contentStorageRoot, ".pi-agent");
     fs.mkdirSync(agentDir, { recursive: true });
-    const modelRuntime = await ModelRuntime.create({
-      authPath: path.join(agentDir, "auth.json"),
-      modelsPath: null,
-    });
-    await configurePiRuntimeAuth(modelRuntime, modelConfig);
+    const modelRuntime = await createPiModelRuntime(agentDir, modelConfig);
     const model = resolvePiModel(
       modelConfig.definition.piProviderId,
       modelConfig.model.id,

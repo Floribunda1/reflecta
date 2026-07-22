@@ -2,15 +2,15 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { SettingsManager } from "@earendil-works/pi-coding-agent";
+import { ModelRegistry, SettingsManager } from "@earendil-works/pi-coding-agent";
 import type { KnownProvider } from "@earendil-works/pi-ai/compat";
 import type { AgentSessionEvent } from "@shared/agent";
 import type { ResolvedAiModelConfig } from "../../config";
 import {
   AGENT_EVENT_CHANNEL,
   buildThreadTitleContext,
-  configurePiRuntimeAuth,
   createPiBashTool,
+  createPiModelRuntime,
   createPiResourceLoader,
   extractAssistantError,
   loadAgentSystemPrompt,
@@ -86,6 +86,8 @@ vi.mock("./pi-write-tools", () => ({
 vi.mock("./codex-auth", () => ({
   getCodexCredentials: vi.fn(async () => ({
     accessToken: "codex-access-token",
+    refreshToken: "codex-refresh-token",
+    expiresAt: 4_102_444_800_000,
     accountId: "account-test",
   })),
 }));
@@ -124,30 +126,30 @@ afterEach(() => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
-describe("configurePiRuntimeAuth", () => {
-  test("uses Codex access token instead of the empty config key", async () => {
-    const modelRuntime = { setRuntimeApiKey: vi.fn().mockResolvedValue(undefined) };
-
-    await configurePiRuntimeAuth(
-      modelRuntime,
+describe("createPiModelRuntime", () => {
+  test("makes an existing Codex login usable by the Agent and extensions", async () => {
+    const root = tempRoot();
+    const modelRuntime = await createPiModelRuntime(
+      root,
       modelConfig({ providerId: "openai-codex", apiKey: "", authType: "codex" }),
     );
 
-    expect(modelRuntime.setRuntimeApiKey).toHaveBeenCalledWith(
-      "openai-codex",
-      "codex-access-token",
-    );
+    const model = modelRuntime.getModels("openai-codex")[0];
+    expect(model).toBeDefined();
+    const auth = await new ModelRegistry(modelRuntime).getApiKeyAndHeaders(model!);
+    expect(auth).toMatchObject({ ok: true, apiKey: "codex-access-token" });
   });
 
   test("uses configured API key for normal providers", async () => {
-    const modelRuntime = { setRuntimeApiKey: vi.fn().mockResolvedValue(undefined) };
-
-    await configurePiRuntimeAuth(
-      modelRuntime,
+    const modelRuntime = await createPiModelRuntime(
+      tempRoot(),
       modelConfig({ providerId: "opencode-go", apiKey: "opencode-key" }),
     );
 
-    expect(modelRuntime.setRuntimeApiKey).toHaveBeenCalledWith("opencode-go", "opencode-key");
+    const model = modelRuntime.getModels("opencode-go")[0];
+    expect(model).toBeDefined();
+    const auth = await new ModelRegistry(modelRuntime).getApiKeyAndHeaders(model!);
+    expect(auth).toMatchObject({ ok: true, apiKey: "opencode-key" });
   });
 });
 

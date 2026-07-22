@@ -25,6 +25,8 @@ describe("getCodexCredentials", () => {
 
     await expect(getCodexCredentials()).resolves.toEqual({
       accessToken: token,
+      refreshToken: "",
+      expiresAt: Number.MAX_SAFE_INTEGER,
       accountId: "account-test",
     });
   });

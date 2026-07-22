@@ -18,6 +18,8 @@ type CodexAuthFile = {
 
 type CodexCredentials = {
   accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
   accountId: string;
 };
 
@@ -46,9 +48,14 @@ function accountIdFromToken(token: string): string | undefined {
   return typeof accountId === "string" && accountId ? accountId : undefined;
 }
 
-function isExpiringSoon(token: string): boolean {
+function expiresAtFromToken(token: string): number | undefined {
   const exp = decodeJwtPayload(token)?.exp;
-  return typeof exp === "number" && exp * 1000 <= Date.now() + REFRESH_WINDOW_MS;
+  return typeof exp === "number" ? exp * 1000 : undefined;
+}
+
+function isExpiringSoon(token: string): boolean {
+  const expiresAt = expiresAtFromToken(token);
+  return expiresAt !== undefined && expiresAt <= Date.now() + REFRESH_WINDOW_MS;
 }
 
 async function refreshAccessToken(refreshToken: string): Promise<{
@@ -113,7 +120,12 @@ export async function getCodexCredentials(): Promise<CodexCredentials> {
   if (envToken) {
     const accountId = accountIdFromToken(envToken);
     if (!accountId) throw new Error("CODEX_ACCESS_TOKEN 缺少 Codex account id");
-    return { accessToken: envToken, accountId };
+    return {
+      accessToken: envToken,
+      refreshToken: "",
+      expiresAt: expiresAtFromToken(envToken) ?? Number.MAX_SAFE_INTEGER,
+      accountId,
+    };
   }
 
   let filePath: string;
@@ -133,7 +145,12 @@ export async function getCodexCredentials(): Promise<CodexCredentials> {
   if (!isExpiringSoon(accessToken)) {
     const accountId = auth.tokens?.account_id || accountIdFromToken(accessToken);
     if (!accountId) throw new Error("Codex access token 缺少 account id");
-    return { accessToken, accountId };
+    return {
+      accessToken,
+      refreshToken,
+      expiresAt: expiresAtFromToken(accessToken) ?? Number.MAX_SAFE_INTEGER,
+      accountId,
+    };
   }
 
   const refreshed = await refreshAccessToken(refreshToken);
@@ -149,5 +166,10 @@ export async function getCodexCredentials(): Promise<CodexCredentials> {
   auth.last_refresh = new Date().toISOString();
   writeAuthFile(filePath, auth);
 
-  return { accessToken: refreshed.accessToken, accountId };
+  return {
+    accessToken: refreshed.accessToken,
+    refreshToken: refreshed.refreshToken,
+    expiresAt: expiresAtFromToken(refreshed.accessToken) ?? Date.now() + refreshed.expiresIn * 1000,
+    accountId,
+  };
 }
