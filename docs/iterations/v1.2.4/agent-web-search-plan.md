@@ -2,7 +2,7 @@
 
 > 日期：2026-07-22
 >
-> 状态：Draft
+> 状态：Completed
 >
 > 方案：直接集成 `pi-web-access`，固定 Exa，默认使用 `auto-summary`，不打开策展页面。
 
@@ -110,7 +110,7 @@ Pi Web Access 的原始工具 schema 仍包含 `provider` 和 `workflow` 参数�
 - 显式请求其他 Provider 时阻止执行并返回稳定错误；
 - `web_search.workflow` 缺省或等于 `auto-summary` 时允许；
 - 显式请求 `summary-review` 或 `none` 时阻止执行；
-- system prompt 同时要求 Agent 不传 `provider` 和 `workflow`，使用产品默认值。
+- system prompt 不重复具体工具参数；默认值由 app 配置固定，显式越界调用由 policy extension 阻止。
 
 这层 policy 是 Reflecta 的产品 seam；搜索、抓取和摘要 implementation 仍完全属于 Pi Web Access。
 
@@ -273,3 +273,33 @@ Web Search 提供外部信息和候选证据，不生成用户的个人理解：
 3. `feat(agent): replace web fetch with pi web access`：工具启用、旧工具移除和 system prompt；
 4. `feat(agent): surface web access tool activity`：对话状态与错误展示；
 5. `test(agent): verify exa web search integration`：自动化回归、打包验证和完成记录。
+
+## 13. 完成记录
+
+完成日期：2026-07-22。
+
+已实现：
+
+- `@earendil-works/pi-ai` 与 `@earendil-works/pi-coding-agent` 已升级并锁定到 `0.81.1`；传递依赖 `pi-agent-core`、`pi-tui` 同步为 `0.81.1`；
+- `pi-web-access` 已锁定为 `0.13.0`，通过 Pi `additionalExtensionPaths` 原样加载，没有 fork 或复制其搜索、抽取、存储和摘要实现；
+- app-specific `.pi-agent/web-search.json` 会保留其他配置，并把 Provider/工作流校准为 `exa` / `auto-summary`；
+- policy extension 会拒绝显式使用其他 Provider 或工作流；
+- `web_search`、`fetch_content`、`get_search_content` 已加入 Agent active tools；任意 extension 自动发现仍保持关闭；
+- 旧 `web_fetch` 实现、测试和专用 renderer 分支已删除，不保留兼容；
+- 三项 Web Access 工具复用现有 tool activity UI，只显示中文生命周期和必要输入摘要，不重复渲染搜索正文；
+- system prompt 只保留跨工具稳定的外部信息规则，没有写入具体工具名和参数。
+
+验证结果：
+
+- 全仓 typecheck、lint、format check 通过；
+- 全仓测试通过：server 49、CLI 94、Electron main 142、renderer 153，共 438 项；
+- 无 `EXA_API_KEY` 的 Exa MCP 真实搜索通过，返回摘要和两个来源；
+- Electron production build 与 macOS arm64 unpack 成功；
+- 在打包后的 Electron runtime 中，Jiti 成功加载 `app.asar` / `app.asar.unpacked` 内的 Pi Web Access，并注册三项预期工具，无 extension error；
+- 当前验证环境没有 `EXA_API_KEY`，因此正式 Exa API 的真实请求分支未执行；该分支继续直接使用 Pi Web Access 上游实现。
+
+实现提交：
+
+- `2894284 feat(agent): load pi web access with exa policy`
+- `5c801ca feat(agent): replace web fetch with pi web access`
+- `4978d2e feat(agent): surface web access tool activity`
