@@ -169,12 +169,8 @@ Pi Web Access 的原始工具 schema 仍包含 `provider` 和 `workflow` 参数�
 - 从 active read-only tools 中移除 `web_fetch`；
 - 删除 `web_fetch` provider implementation、对应单元测试及 renderer 分支；
 - 不迁移旧 session 中的 `web_fetch` tool event，也不保证其继续获得专用展示；
-- system prompt 增加以下稳定规则：
-  - 对新闻、当前状态、近期变更或模型不确定的外部事实优先使用 `web_search`；
-  - 默认不传 `provider` 和 `workflow`；
-  - 已知 URL 使用 `fetch_content`；
-  - 需要搜索结果中的完整证据时使用 `get_search_content`；
-  - 不把工具摘要当作用户已经形成的 Understanding；
+- system prompt 只增加跨工具稳定的外部信息策略：何时需要外部证据、优先读取已有来源、最小化外发信息、保留来源、失败时不得伪装，以及不得把材料自动视为个人理解；
+- 具体工具名称、参数和调用方式只由 runtime tool description 描述，不在 system prompt 重复；
 - extension 工具输出只进入对话和 Pi Web Access 自己的 session storage，不收集进 Entity Catalog。
 
 验收：
@@ -241,7 +237,7 @@ Web Search 提供外部信息和候选证据，不生成用户的个人理解：
 - Config：配置写入 app-specific `.pi-agent`，固定字段被校准，其他字段被保留；
 - Host：三个 extension tool 的 start/end/error 能转换为现有 Reflecta tool event；
 - Renderer：三个工具的中文状态和错误展示稳定，旧 `web_fetch` 专用展示已删除；
-- Prompt：明确搜索、抓取、按需读取及不得自动沉淀的规则；
+- Prompt：只描述外部信息的稳定行为策略，不重复具体工具 contract；
 - Packaging：production build 能包含并解析 Pi Web Access extension。
 
 常规 CI 不调用真实 Exa，不断言第三方搜索内容。网络成功路径通过手动 smoke test 验证。
