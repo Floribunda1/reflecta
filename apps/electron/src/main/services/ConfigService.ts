@@ -1,4 +1,4 @@
-import { app, dialog } from "electron";
+import { app, dialog, shell } from "electron";
 import { IpcMethod, IpcService } from "electron-ipc-decorator";
 import {
   configureRetrievalEmbedding,
@@ -25,6 +25,7 @@ import {
   getAiProviderDefinition,
   getAiProviderDefinitions,
   getContentStorageRoot,
+  isCodexAuthenticated,
   getRetrievalConfig,
   getRetrievalEmbeddingModelStatus,
   normalizeAiConfig,
@@ -32,6 +33,7 @@ import {
   readConfig,
   writeConfig,
 } from "../config";
+import { createCodexBrowserAuthInteraction, createPiModelRuntime } from "./agent/pi-model-runtime";
 
 function toServerRetrievalEmbeddingConfig(
   config: RetrievalConfig,
@@ -102,11 +104,42 @@ export class ConfigService extends IpcService {
     const next = normalizeAiConfig(config);
     const incompleteProvider = next.providers.find((provider) => {
       const definition = getAiProviderDefinition(provider.id);
-      const authenticated = definition.authType === "codex" || !!provider.apiKey;
+      const authenticated =
+        definition.authType === "codex" ? isCodexAuthenticated() : !!provider.apiKey;
       return authenticated && provider.enabledModelIds.length === 0;
     });
     if (incompleteProvider) throw new Error("请至少选择一个用于 Chat 的模型");
     writeConfig({ ai: next });
+  }
+
+  @IpcMethod()
+  async getCodexAuthStatus(): Promise<boolean> {
+    return isCodexAuthenticated();
+  }
+
+  @IpcMethod()
+  async connectCodex(): Promise<boolean> {
+    const modelRuntime = await createPiModelRuntime();
+    await modelRuntime.login(
+      "openai-codex",
+      "oauth",
+      createCodexBrowserAuthInteraction((url) => shell.openExternal(url)),
+    );
+    app.focus({ steal: true });
+    return isCodexAuthenticated();
+  }
+
+  @IpcMethod()
+  async disconnectCodex(): Promise<void> {
+    const modelRuntime = await createPiModelRuntime();
+    await modelRuntime.logout("openai-codex");
+    const ai = getAiConfig();
+    writeConfig({
+      ai: normalizeAiConfig({
+        ...ai,
+        providers: ai.providers.filter((provider) => provider.id !== "openai-codex"),
+      }),
+    });
   }
 
   @IpcMethod()

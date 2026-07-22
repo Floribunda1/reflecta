@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, CheckCircle, Search, Trash2 } from "lucide-react";
+import { Check, CheckCircle, ExternalLink, LoaderCircle, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@renderer/components/ui/button";
 import { Checkbox } from "@renderer/components/ui/checkbox";
@@ -51,15 +51,19 @@ export function AiSection() {
   const [selectedProviderId, setSelectedProviderId] = useState("");
   const [modelQuery, setModelQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [codexConnected, setCodexConnected] = useState(false);
+  const [codexBusy, setCodexBusy] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     void Promise.all([
       ipcClient.config.getAiConfig(),
       ipcClient.config.listAiProviderDefinitions(),
-    ]).then(([nextConfig, nextProviders]) => {
+      ipcClient.config.getCodexAuthStatus(),
+    ]).then(([nextConfig, nextProviders, nextCodexConnected]) => {
       setConfig(nextConfig);
       setProviders(nextProviders);
+      setCodexConnected(nextCodexConnected);
       setSelectedProviderId((current) => current || nextProviders[0]?.id || "");
     });
   }, []);
@@ -67,6 +71,7 @@ export function AiSection() {
   const selectedProvider = providers.find((provider) => provider.id === selectedProviderId);
   const providerConfig = config.providers.find((provider) => provider.id === selectedProviderId);
   const usesCodexAuth = selectedProvider?.authType === "codex";
+  const providerAvailable = usesCodexAuth ? codexConnected : !!providerConfig?.apiKey.trim();
   const enabledModelIds = providerConfig?.enabledModelIds ?? [];
   const enabledModelIdSet = new Set(enabledModelIds);
   const normalizedQuery = modelQuery.trim().toLocaleLowerCase();
@@ -84,7 +89,11 @@ export function AiSection() {
     });
   const titleModelOptions = config.providers.flatMap((provider) => {
     const definition = providers.find((item) => item.id === provider.id);
-    if (!definition || (definition.authType !== "codex" && !provider.apiKey.trim())) return [];
+    if (
+      !definition ||
+      (definition.authType === "codex" ? !codexConnected : !provider.apiKey.trim())
+    )
+      return [];
     const modelsById = new Map(definition.models.map((model) => [model.id, model]));
     return provider.enabledModelIds.flatMap((modelId) => {
       const model = modelsById.get(modelId);
@@ -130,11 +139,6 @@ export function AiSection() {
     });
   };
 
-  const enableProvider = () => {
-    if (!selectedProvider) return;
-    upsertProvider(selectedProvider.id, {});
-  };
-
   const clearProvider = () => {
     setSaved(false);
     setConfig((current) => ({
@@ -145,6 +149,37 @@ export function AiSection() {
           ? undefined
           : current.titleGenerationModel,
     }));
+  };
+
+  const handleConnectCodex = async () => {
+    if (!selectedProvider) return;
+    setCodexBusy(true);
+    try {
+      const connected = await ipcClient.config.connectCodex();
+      if (!connected) throw new Error("OpenAI 授权未完成");
+      setCodexConnected(true);
+      upsertProvider(selectedProvider.id, {});
+      toast.success("已连接 ChatGPT 订阅");
+    } catch (error) {
+      toast.error("连接 Codex 失败", { description: errorMessage(error) });
+    } finally {
+      setCodexBusy(false);
+    }
+  };
+
+  const handleDisconnectCodex = async () => {
+    setCodexBusy(true);
+    try {
+      await ipcClient.config.disconnectCodex();
+      setCodexConnected(false);
+      clearProvider();
+      await queryClient.invalidateQueries({ queryKey: ["ai.model-options"] });
+      toast.success("已断开 ChatGPT 订阅");
+    } catch (error) {
+      toast.error("断开 Codex 失败", { description: errorMessage(error) });
+    } finally {
+      setCodexBusy(false);
+    }
   };
 
   const selectTitleGenerationModel = (value: string) => {
@@ -207,7 +242,8 @@ export function AiSection() {
               {providers.map((provider) => {
                 const configured = config.providers.some(
                   (item) =>
-                    item.id === provider.id && (provider.authType === "codex" || item.apiKey),
+                    item.id === provider.id &&
+                    (provider.authType === "codex" ? codexConnected : !!item.apiKey),
                 );
                 return (
                   <button
@@ -242,9 +278,9 @@ export function AiSection() {
                   </h4>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {usesCodexAuth
-                      ? providerConfig
-                        ? "已启用 Codex CLI 会话"
-                        : "未启用 Codex CLI 会话"
+                      ? codexConnected
+                        ? "已连接 ChatGPT 订阅"
+                        : "未连接 ChatGPT 订阅"
                       : providerConfig?.apiKey
                         ? "已配置 API Key"
                         : "未配置 API Key"}
@@ -254,25 +290,33 @@ export function AiSection() {
                   size="xs"
                   variant="ghost"
                   className="text-muted-foreground"
-                  disabled={!providerConfig}
-                  onClick={clearProvider}
+                  disabled={usesCodexAuth ? !codexConnected || codexBusy : !providerConfig}
+                  onClick={() => (usesCodexAuth ? void handleDisconnectCodex() : clearProvider())}
                 >
                   <Trash2 size={13} />
-                  清除
+                  {usesCodexAuth ? "断开" : "清除"}
                 </Button>
               </div>
 
               {usesCodexAuth ? (
                 <div className="flex shrink-0 items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
-                  <span className="text-sm text-muted-foreground">使用本机 codex login 会话</span>
+                  <span className="text-sm text-muted-foreground">
+                    {codexConnected
+                      ? "已通过 OpenAI 授权，凭据会自动刷新"
+                      : "通过浏览器登录 ChatGPT Plus/Pro，完成后自动返回 Reflecta"}
+                  </span>
                   <Button
                     size="xs"
                     variant="outline"
-                    disabled={!!providerConfig}
-                    onClick={enableProvider}
+                    disabled={codexBusy}
+                    onClick={() => void handleConnectCodex()}
                   >
-                    <Check size={13} />
-                    启用
+                    {codexBusy ? (
+                      <LoaderCircle size={13} className="animate-spin" />
+                    ) : (
+                      <ExternalLink size={13} />
+                    )}
+                    {codexBusy ? "等待授权" : codexConnected ? "重新连接" : "连接"}
                   </Button>
                 </div>
               ) : (
@@ -305,6 +349,7 @@ export function AiSection() {
                     value={modelQuery}
                     onChange={(event) => setModelQuery(event.target.value)}
                     placeholder="搜索模型名称或 ID"
+                    disabled={!providerAvailable}
                     className="pl-9"
                   />
                 </div>
@@ -319,6 +364,7 @@ export function AiSection() {
                       >
                         <Checkbox
                           checked={enabledModelIdSet.has(model.id)}
+                          disabled={!providerAvailable}
                           onCheckedChange={(checked) => toggleModel(model.id, checked)}
                         />
                         <span className="min-w-0 flex-1">
@@ -348,7 +394,7 @@ export function AiSection() {
         <Button
           data-testid="settings-ai-save-button"
           size="sm"
-          disabled={loading}
+          disabled={loading || codexBusy}
           onClick={() => void handleSave()}
         >
           <Check size={15} />

@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { WebContents } from "electron";
-import { InMemoryCredentialStore } from "@earendil-works/pi-ai";
 import { getModel, type Api, type Context, type Model } from "@earendil-works/pi-ai/compat";
 import {
   createAgentSession,
@@ -38,7 +37,6 @@ import {
   getContentStorageRoot,
   getTitleGenerationAiModelConfig,
   type AiModelSelection,
-  type ResolvedAiModelConfig,
 } from "../../config";
 import { agentLog } from "../../logger";
 import { AgentRunAccumulator } from "./agent-run-accumulator";
@@ -46,7 +44,7 @@ import { AgentEntityCatalog } from "./agent-entity-catalog";
 import { AgentSessionLog } from "./pi-session-log";
 import { formatAgentError } from "./error";
 import { buildPiPromptText } from "./pi-prompt";
-import { getCodexCredentials } from "./codex-auth";
+import { createPiModelRuntime } from "./pi-model-runtime";
 import agentSystemPrompt from "./agent-system-prompt.md?raw";
 import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-tools";
 import { createPiEntityCatalogContext } from "./pi-entity-catalog-context";
@@ -362,7 +360,7 @@ export async function generateAgentThreadTitle(
   });
   const agentDir = path.join(contentStorageRoot, ".pi-agent");
   fs.mkdirSync(agentDir, { recursive: true });
-  const modelRuntime = await createPiModelRuntime(agentDir, modelConfig);
+  const modelRuntime = await createPiModelRuntime(modelConfig);
   const model = resolvePiModel(modelConfig.provider.id, modelConfig.model.id, modelRuntime);
 
   const response = await modelRuntime.completeSimple(model, context, {
@@ -543,34 +541,6 @@ function withApprovalToolResult(
   );
 }
 
-export async function createPiModelRuntime(
-  agentDir: string,
-  modelConfig: ResolvedAiModelConfig,
-): Promise<ModelRuntime> {
-  if (modelConfig.definition.authType === "codex") {
-    const codex = await getCodexCredentials();
-    const credentials = new InMemoryCredentialStore();
-    await credentials.modify(modelConfig.definition.piProviderId, async () => ({
-      type: "oauth",
-      access: codex.accessToken,
-      refresh: codex.refreshToken,
-      expires: codex.expiresAt,
-      accountId: codex.accountId,
-    }));
-    return ModelRuntime.create({ credentials, modelsPath: null });
-  }
-
-  const modelRuntime = await ModelRuntime.create({
-    authPath: path.join(agentDir, "auth.json"),
-    modelsPath: null,
-  });
-  await modelRuntime.setRuntimeApiKey(
-    modelConfig.definition.piProviderId,
-    modelConfig.provider.apiKey,
-  );
-  return modelRuntime;
-}
-
 export class PiAgentHost {
   private readonly sessionLog: AgentSessionLog;
   private readonly activeRuns = new Map<string, ActivePiRun>();
@@ -732,7 +702,7 @@ export class PiAgentHost {
     const modelConfig = getAiModelConfig(command.modelSelection as AiModelSelection | undefined);
     const agentDir = path.join(this.contentStorageRoot, ".pi-agent");
     fs.mkdirSync(agentDir, { recursive: true });
-    const modelRuntime = await createPiModelRuntime(agentDir, modelConfig);
+    const modelRuntime = await createPiModelRuntime(modelConfig);
     const model = resolvePiModel(
       modelConfig.definition.piProviderId,
       modelConfig.model.id,

@@ -385,11 +385,28 @@ describe("Electron AI config", () => {
     });
   });
 
-  test("allows Codex subscription provider without an API key", async () => {
+  test("only enables Codex subscription models after Reflecta OAuth succeeds", async () => {
     const config = await import("./config");
-    const ai = config.normalizeAiConfig({
+    const input = {
       providers: [{ id: "openai-codex", apiKey: "", enabledModelIds: ["gpt-5.5"] }],
-    });
+    };
+
+    expect(config.normalizeAiConfig(input).activeAgentModel).toBeUndefined();
+
+    fs.mkdirSync(path.dirname(config.getPiAuthPath()), { recursive: true });
+    fs.writeFileSync(
+      config.getPiAuthPath(),
+      JSON.stringify({
+        "openai-codex": {
+          type: "oauth",
+          access: "codex-access-token",
+          refresh: "codex-refresh-token",
+          expires: 4_102_444_800_000,
+          accountId: "account-test",
+        },
+      }),
+    );
+    const ai = config.normalizeAiConfig(input);
 
     expect(ai.activeAgentModel).toEqual({ providerId: "openai-codex", modelId: "gpt-5.5" });
     expect(ai.titleGenerationModel).toEqual({ providerId: "openai-codex", modelId: "gpt-5.5" });

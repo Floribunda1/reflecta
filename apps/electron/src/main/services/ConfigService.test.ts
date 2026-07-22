@@ -26,6 +26,9 @@ vi.mock("electron", () => ({
   dialog: {
     showOpenDialog: vi.fn(),
   },
+  shell: {
+    openExternal: vi.fn().mockResolvedValue(undefined),
+  },
   ipcMain: {
     handle: vi.fn(),
   },
@@ -135,5 +138,32 @@ describe("ConfigService AI models", () => {
     await expect(service.setActiveAgentReasoningLevel("high")).rejects.toThrow(
       "当前模型不支持该推理等级",
     );
+  });
+
+  test("disconnects Codex and removes its models from the saved configuration", async () => {
+    const config = await import("../config");
+    fs.mkdirSync(path.dirname(config.getPiAuthPath()), { recursive: true });
+    fs.writeFileSync(
+      config.getPiAuthPath(),
+      JSON.stringify({
+        "openai-codex": {
+          type: "oauth",
+          access: "codex-access-token",
+          refresh: "codex-refresh-token",
+          expires: 4_102_444_800_000,
+          accountId: "account-test",
+        },
+      }),
+    );
+    const { ConfigService } = await import("./ConfigService");
+    const service = new ConfigService();
+    await service.setAiConfig({
+      providers: [{ id: "openai-codex", apiKey: "", enabledModelIds: ["gpt-5.5"] }],
+    });
+
+    await service.disconnectCodex();
+
+    await expect(service.getCodexAuthStatus()).resolves.toBe(false);
+    await expect(service.getAiConfig()).resolves.toMatchObject({ providers: [] });
   });
 });

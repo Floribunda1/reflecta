@@ -10,6 +10,7 @@ import {
   type KnownProvider,
   type ModelThinkingLevel,
 } from "@earendil-works/pi-ai/compat";
+import { readStoredCredential } from "@earendil-works/pi-coding-agent";
 import { resolveRuntimePaths, type RuntimeAppConfig } from "@reflecta/server/runtime";
 import { getRuntimeArg } from "./runtime-args";
 
@@ -148,6 +149,14 @@ export function getAppConfigFilePath(): string {
   return path.join(getAppConfigDir(), "reflecta-config.json");
 }
 
+export function getPiAuthPath(): string {
+  return path.join(getAppConfigDir(), "pi-auth.json");
+}
+
+export function isCodexAuthenticated(): boolean {
+  return readStoredCredential("openai-codex", getPiAuthPath())?.type === "oauth";
+}
+
 export function getDefaultContentStorageRoot(): string {
   return resolveElectronRuntime().contentStorageRoot;
 }
@@ -227,7 +236,7 @@ const AI_PROVIDER_IDS = new Set<string>(AI_PROVIDER_DEFINITIONS.map((provider) =
 
 function isProviderConfigured(provider: AiProviderConfig): boolean {
   const definition = getAiProviderDefinition(provider.id);
-  return definition.authType === "codex" || !!provider.apiKey;
+  return definition.authType === "codex" ? isCodexAuthenticated() : !!provider.apiKey;
 }
 
 function serializeConfig(config: AppConfig): string {

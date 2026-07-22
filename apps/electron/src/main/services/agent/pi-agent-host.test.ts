@@ -10,7 +10,6 @@ import {
   AGENT_EVENT_CHANNEL,
   buildThreadTitleContext,
   createPiBashTool,
-  createPiModelRuntime,
   createPiResourceLoader,
   extractAssistantError,
   loadAgentSystemPrompt,
@@ -18,6 +17,7 @@ import {
   PI_BUILTIN_TOOL_NAMES,
   PiAgentHost,
 } from "./pi-agent-host";
+import { createCodexBrowserAuthInteraction, createPiModelRuntime } from "./pi-model-runtime";
 import { AgentEntityCatalog } from "./agent-entity-catalog";
 import { AgentSessionLog } from "./pi-session-log";
 import { PI_WEB_ACCESS_TOOL_NAMES } from "./pi-web-access";
@@ -29,6 +29,7 @@ const hydratePiApprovalPayloadMock = vi.hoisted(() =>
 );
 const getModelMock = vi.hoisted(() => vi.fn(() => ({ id: "model-test" })));
 const isPiApprovalToolNameMock = vi.hoisted(() => vi.fn((_name: string) => false));
+const piAuthPathMock = vi.hoisted(() => `/tmp/reflecta-pi-agent-host-${process.pid}-auth.json`);
 
 vi.mock("@earendil-works/pi-ai/compat", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@earendil-works/pi-ai/compat")>()),
@@ -55,6 +56,7 @@ vi.mock("../../config", () => ({
     label: "OpenAI / gpt-4o",
   }),
   getContentStorageRoot: () => "/tmp/reflecta-pi-agent-host-test-content",
+  getPiAuthPath: () => piAuthPathMock,
   getTitleGenerationAiModelConfig: () => ({
     provider: { id: "openai", apiKey: "openai-key", enabledModelIds: ["gpt-4o"] },
     definition: {
@@ -81,15 +83,6 @@ vi.mock("./pi-write-tools", () => ({
   hydratePiApprovalPayload: hydratePiApprovalPayloadMock,
   isPiApprovalToolName: isPiApprovalToolNameMock,
   PI_APPROVAL_TOOL_NAMES: [],
-}));
-
-vi.mock("./codex-auth", () => ({
-  getCodexCredentials: vi.fn(async () => ({
-    accessToken: "codex-access-token",
-    refreshToken: "codex-refresh-token",
-    expiresAt: 4_102_444_800_000,
-    accountId: "account-test",
-  })),
 }));
 
 const roots: string[] = [];
@@ -124,13 +117,24 @@ afterEach(() => {
   vi.clearAllMocks();
   vi.unstubAllEnvs();
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(piAuthPathMock, { force: true });
 });
 
 describe("createPiModelRuntime", () => {
   test("makes an existing Codex login usable by the Agent and extensions", async () => {
-    const root = tempRoot();
+    fs.writeFileSync(
+      piAuthPathMock,
+      JSON.stringify({
+        "openai-codex": {
+          type: "oauth",
+          access: "codex-access-token",
+          refresh: "codex-refresh-token",
+          expires: 4_102_444_800_000,
+          accountId: "account-test",
+        },
+      }),
+    );
     const modelRuntime = await createPiModelRuntime(
-      root,
       modelConfig({ providerId: "openai-codex", apiKey: "", authType: "codex" }),
     );
 
@@ -142,7 +146,6 @@ describe("createPiModelRuntime", () => {
 
   test("uses configured API key for normal providers", async () => {
     const modelRuntime = await createPiModelRuntime(
-      tempRoot(),
       modelConfig({ providerId: "opencode-go", apiKey: "opencode-key" }),
     );
 
@@ -150,6 +153,25 @@ describe("createPiModelRuntime", () => {
     expect(model).toBeDefined();
     const auth = await new ModelRegistry(modelRuntime).getApiKeyAndHeaders(model!);
     expect(auth).toMatchObject({ ok: true, apiKey: "opencode-key" });
+  });
+
+  test("opens the OpenAI authorization page for Codex subscription login", async () => {
+    const openExternal = vi.fn().mockResolvedValue(undefined);
+    const interaction = createCodexBrowserAuthInteraction(openExternal);
+
+    await expect(
+      interaction.prompt({
+        type: "select",
+        message: "Select login method",
+        options: [
+          { id: "browser", label: "Browser login" },
+          { id: "device_code", label: "Device code" },
+        ],
+      }),
+    ).resolves.toBe("browser");
+    interaction.notify({ type: "auth_url", url: "https://auth.openai.com/authorize" });
+
+    expect(openExternal).toHaveBeenCalledWith("https://auth.openai.com/authorize");
   });
 });
 
