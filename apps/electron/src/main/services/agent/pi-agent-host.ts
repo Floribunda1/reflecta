@@ -1,20 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { WebContents } from "electron";
+import { getModel, type Api, type Context, type Model } from "@earendil-works/pi-ai/compat";
 import {
-  completeSimple,
-  getModel,
-  type Api,
-  type Context,
-  type Model,
-} from "@earendil-works/pi-ai/compat";
-import {
-  AuthStorage,
   createAgentSession,
   createBashToolDefinition,
   DefaultResourceLoader,
   defineTool,
-  ModelRegistry,
+  ModelRuntime,
   SessionManager,
   SettingsManager,
   type AgentSession,
@@ -73,6 +66,7 @@ import {
   dangerousBashRuleLabels,
   type DangerousBashApprovalHandler,
 } from "./pi-bash-permission-gate";
+import { createPiWebAccessResources, PI_WEB_ACCESS_TOOL_NAMES } from "./pi-web-access";
 
 export const AGENT_EVENT_CHANNEL = "agent:event";
 
@@ -138,6 +132,7 @@ export async function createPiResourceLoader(input: {
   onDangerousBashApproval: DangerousBashApprovalHandler;
   getEntityCatalog: () => AgentEntityCatalogEntry[];
 }): Promise<DefaultResourceLoader> {
+  const webAccess = createPiWebAccessResources(input.agentDir);
   const loader = new DefaultResourceLoader({
     cwd: input.cwd,
     agentDir: input.agentDir,
@@ -148,7 +143,9 @@ export async function createPiResourceLoader(input: {
     noPromptTemplates: true,
     noThemes: true,
     noContextFiles: true,
+    additionalExtensionPaths: webAccess.additionalExtensionPaths,
     extensionFactories: [
+      ...webAccess.extensionFactories,
       createPiBashPermissionGate(input.onDangerousBashApproval),
       createPiEntityCatalogContext(input.getEntityCatalog),
       createPiContextCompaction(),
@@ -158,11 +155,17 @@ export async function createPiResourceLoader(input: {
   return loader;
 }
 
-function resolvePiModel(providerId: string, modelId: string): Model<Api> {
-  const model = (getModel as (provider: string, modelId: string) => Model<Api> | undefined)(
-    providerId,
-    modelId,
-  );
+function resolvePiModel(
+  providerId: string,
+  modelId: string,
+  modelRuntime?: ModelRuntime,
+): Model<Api> {
+  const model = modelRuntime
+    ? modelRuntime.getModel(providerId, modelId)
+    : (getModel as (provider: string, modelId: string) => Model<Api> | undefined)(
+        providerId,
+        modelId,
+      );
   if (!model) throw new Error(`Pi model not found: ${providerId}/${modelId}`);
   return model;
 }
@@ -358,17 +361,14 @@ export async function generateAgentThreadTitle(
   });
   const agentDir = path.join(contentStorageRoot, ".pi-agent");
   fs.mkdirSync(agentDir, { recursive: true });
-  const authStorage = AuthStorage.create(path.join(agentDir, "auth.json"));
-  await configurePiRuntimeAuth(authStorage, modelConfig);
-  const modelRegistry = ModelRegistry.inMemory(authStorage);
-  const model = resolvePiModel(modelConfig.provider.id, modelConfig.model.id);
-  const auth = await modelRegistry.getApiKeyAndHeaders(model);
-  if (!auth.ok) throw new Error(auth.error);
+  const modelRuntime = await ModelRuntime.create({
+    authPath: path.join(agentDir, "auth.json"),
+    modelsPath: null,
+  });
+  await configurePiRuntimeAuth(modelRuntime, modelConfig);
+  const model = resolvePiModel(modelConfig.provider.id, modelConfig.model.id, modelRuntime);
 
-  const response = await completeSimple(model, context, {
-    apiKey: auth.apiKey,
-    env: auth.env,
-    headers: auth.headers,
+  const response = await modelRuntime.completeSimple(model, context, {
     maxTokens: 256,
     sessionId: `title_${sessionId}`,
   });
@@ -547,10 +547,10 @@ function withApprovalToolResult(
 }
 
 export async function configurePiRuntimeAuth(
-  authStorage: AuthStorage,
+  modelRuntime: Pick<ModelRuntime, "setRuntimeApiKey">,
   modelConfig: ResolvedAiModelConfig,
 ): Promise<void> {
-  authStorage.setRuntimeApiKey(
+  await modelRuntime.setRuntimeApiKey(
     modelConfig.definition.piProviderId,
     await runtimeApiKey(modelConfig),
   );
@@ -723,10 +723,16 @@ export class PiAgentHost {
     const modelConfig = getAiModelConfig(command.modelSelection as AiModelSelection | undefined);
     const agentDir = path.join(this.contentStorageRoot, ".pi-agent");
     fs.mkdirSync(agentDir, { recursive: true });
-    const authStorage = AuthStorage.create(path.join(agentDir, "auth.json"));
-    await configurePiRuntimeAuth(authStorage, modelConfig);
-    const modelRegistry = ModelRegistry.inMemory(authStorage);
-    const model = resolvePiModel(modelConfig.definition.piProviderId, modelConfig.model.id);
+    const modelRuntime = await ModelRuntime.create({
+      authPath: path.join(agentDir, "auth.json"),
+      modelsPath: null,
+    });
+    await configurePiRuntimeAuth(modelRuntime, modelConfig);
+    const model = resolvePiModel(
+      modelConfig.definition.piProviderId,
+      modelConfig.model.id,
+      modelRuntime,
+    );
     const settingsManager = SettingsManager.inMemory({
       compaction: contextCompactionSettings(model),
       retry: { enabled: false },
@@ -741,7 +747,6 @@ export class PiAgentHost {
 
     const created = await createAgentSession({
       agentDir,
-      authStorage,
       customTools: [
         createPiBashTool(this.contentStorageRoot),
         ...createPiReadOnlyTools(command.type === "message.send" ? command.files : undefined, {
@@ -754,12 +759,17 @@ export class PiAgentHost {
       ],
       cwd: this.contentStorageRoot,
       model,
-      modelRegistry,
+      modelRuntime,
       resourceLoader,
       sessionManager,
       settingsManager,
       thinkingLevel: thinkingLevelFor(command.reasoningLevel ?? getActiveAgentReasoningLevel()),
-      tools: [...PI_BUILTIN_TOOL_NAMES, ...PI_READ_ONLY_TOOL_NAMES, ...PI_APPROVAL_TOOL_NAMES],
+      tools: [
+        ...PI_BUILTIN_TOOL_NAMES,
+        ...PI_READ_ONLY_TOOL_NAMES,
+        ...PI_APPROVAL_TOOL_NAMES,
+        ...PI_WEB_ACCESS_TOOL_NAMES,
+      ],
     });
     return { ...created, modelConfig };
   }

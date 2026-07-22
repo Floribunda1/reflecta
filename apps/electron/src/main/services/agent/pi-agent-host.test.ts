@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { AuthStorage, SettingsManager } from "@earendil-works/pi-coding-agent";
+import { SettingsManager } from "@earendil-works/pi-coding-agent";
 import type { KnownProvider } from "@earendil-works/pi-ai/compat";
 import type { AgentSessionEvent } from "@shared/agent";
 import type { ResolvedAiModelConfig } from "../../config";
@@ -125,25 +125,28 @@ afterEach(() => {
 
 describe("configurePiRuntimeAuth", () => {
   test("uses Codex access token instead of the empty config key", async () => {
-    const authStorage = AuthStorage.inMemory();
+    const modelRuntime = { setRuntimeApiKey: vi.fn().mockResolvedValue(undefined) };
 
     await configurePiRuntimeAuth(
-      authStorage,
+      modelRuntime,
       modelConfig({ providerId: "openai-codex", apiKey: "", authType: "codex" }),
     );
 
-    await expect(authStorage.getApiKey("openai-codex")).resolves.toBe("codex-access-token");
+    expect(modelRuntime.setRuntimeApiKey).toHaveBeenCalledWith(
+      "openai-codex",
+      "codex-access-token",
+    );
   });
 
   test("uses configured API key for normal providers", async () => {
-    const authStorage = AuthStorage.inMemory();
+    const modelRuntime = { setRuntimeApiKey: vi.fn().mockResolvedValue(undefined) };
 
     await configurePiRuntimeAuth(
-      authStorage,
+      modelRuntime,
       modelConfig({ providerId: "opencode-go", apiKey: "opencode-key" }),
     );
 
-    await expect(authStorage.getApiKey("opencode-go")).resolves.toBe("opencode-key");
+    expect(modelRuntime.setRuntimeApiKey).toHaveBeenCalledWith("opencode-go", "opencode-key");
   });
 });
 
@@ -164,6 +167,8 @@ describe("createPiResourceLoader", () => {
     expect(loadAgentSystemPrompt()).toBe(expected);
     expect(loader.getSystemPrompt()).toBe(expected);
     expect(loader.getExtensions().extensions.map((extension) => extension.path)).toEqual([
+      expect.stringMatching(/pi-web-access\/index\.ts$/),
+      "<inline:reflecta-web-access-policy>",
       "<inline:reflecta-bash-permission-gate>",
       "<inline:reflecta-entity-catalog-context>",
       "<inline:reflecta-context-compaction>",

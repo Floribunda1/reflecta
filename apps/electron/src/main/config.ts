@@ -439,7 +439,9 @@ export function clampAiReasoningLevel(
   level: AiReasoningLevel,
 ): AiReasoningLevel {
   const definition = getAiProviderDefinition(selection.providerId);
-  const model = getModels(definition.piProviderId).find((item) => item.id === selection.modelId);
+  const model = (getModels as (provider: string) => ReturnType<typeof getModels>)(
+    definition.piProviderId,
+  ).find((item) => item.id === selection.modelId);
   return model ? clampThinkingLevel(model, level) : "off";
 }
 

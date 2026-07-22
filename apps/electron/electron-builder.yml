@@ -25,6 +25,10 @@ files:
   - "!**/node_modules/**/.github/**"
   - "!**/node_modules/**/.vscode/**"
   - "!**/node_modules/**/*.ts"
+  - "node_modules/pi-web-access/package.json"
+  - "node_modules/pi-web-access/*.ts"
+asarUnpack:
+  - "node_modules/pi-web-access/**/*"
 win:
   executableName: Reflecta
 nsis:

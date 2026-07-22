@@ -2,10 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { getModel, type Api, type Model } from "@earendil-works/pi-ai/compat";
 import {
-  AuthStorage,
   createAgentSession,
   createExtensionRuntime,
-  ModelRegistry,
+  ModelRuntime,
   SessionManager,
   SettingsManager,
   type ResourceLoader,
@@ -78,11 +77,14 @@ export async function runPiAgentSmoke(input: RunPiAgentSmokeInput): Promise<RunP
   fs.mkdirSync(sessionsRoot, { recursive: true });
   fs.mkdirSync(agentDir, { recursive: true });
 
-  const authStorage = AuthStorage.create(path.join(agentDir, "auth.json"));
-  authStorage.setRuntimeApiKey(input.providerId, input.apiKey);
-
-  const modelRegistry = ModelRegistry.inMemory(authStorage);
-  const model = resolvePiModel(input.providerId, input.modelId);
+  const modelRuntime = await ModelRuntime.create({
+    authPath: path.join(agentDir, "auth.json"),
+    modelsPath: null,
+  });
+  await modelRuntime.setRuntimeApiKey(input.providerId, input.apiKey);
+  const model =
+    modelRuntime.getModel(input.providerId, input.modelId) ??
+    resolvePiModel(input.providerId, input.modelId);
   const sessionManager = SessionManager.create(input.contentStorageRoot, sessionsRoot);
   const settingsManager = SettingsManager.inMemory({
     compaction: { enabled: false },
@@ -91,10 +93,9 @@ export async function runPiAgentSmoke(input: RunPiAgentSmokeInput): Promise<RunP
 
   const { session } = await createAgentSession({
     agentDir,
-    authStorage,
     cwd: input.contentStorageRoot,
     model,
-    modelRegistry,
+    modelRuntime,
     noTools: "all",
     resourceLoader: createSmokeResourceLoader(),
     sessionManager,
