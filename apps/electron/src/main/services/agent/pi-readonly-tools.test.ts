@@ -5,7 +5,6 @@ import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-to
 const services = vi.hoisted(() => ({
   getContext: vi.fn(),
   getUnderstanding: vi.fn(),
-  fetchWebPage: vi.fn(),
   readAttachmentForTool: vi.fn(),
   retrieveKnowledge: vi.fn(),
   writeDiagnosticEvent: vi.fn(),
@@ -14,10 +13,6 @@ const services = vi.hoisted(() => ({
 vi.mock("./attachment-read", () => ({
   HARD_ATTACHMENT_READ_MAX_CHARS: 500_000,
   readAttachmentForTool: services.readAttachmentForTool,
-}));
-
-vi.mock("./web-fetch", () => ({
-  fetchWebPage: services.fetchWebPage,
 }));
 
 vi.mock("../../logger", () => ({
@@ -46,7 +41,6 @@ const expectedReadToolNames = [
   "context_list",
   "context_get",
   "attachment_read",
-  "web_fetch",
   "retrieve_knowledge",
   "graph",
 ] as const;
@@ -227,27 +221,6 @@ describe("createPiReadOnlyTools", () => {
     });
     expect(output.content[0]?.text).toContain('"id": "u_1"');
     expect(output.content[0]?.text).not.toContain("<reflecta_entities");
-  });
-
-  test("executes web_fetch through the web fetch seam", async () => {
-    const result = {
-      url: "https://example.com",
-      markdown: "# Example",
-      provider: "curl.md",
-      truncated: false,
-    };
-    services.fetchWebPage.mockResolvedValue(result);
-    const tool = createPiReadOnlyTools().find((item) => item.name === "web_fetch");
-    expect(tool).toBeDefined();
-
-    const execute = tool!.execute as unknown as (
-      toolCallId: string,
-      params: Record<string, unknown>,
-    ) => Promise<{ details: unknown }>;
-    const output = await execute("tool-call-1", { url: "https://example.com" });
-
-    expect(services.fetchWebPage).toHaveBeenCalledWith("https://example.com");
-    expect(output.details).toEqual(result);
   });
 
   test("executes attachment_read through the current message files seam", async () => {

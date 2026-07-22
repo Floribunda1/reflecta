@@ -20,6 +20,7 @@ import {
 } from "./pi-agent-host";
 import { AgentEntityCatalog } from "./agent-entity-catalog";
 import { AgentSessionLog } from "./pi-session-log";
+import { PI_WEB_ACCESS_TOOL_NAMES } from "./pi-web-access";
 
 const createAgentSessionMock = vi.hoisted(() => vi.fn());
 const executePiApprovedToolMock = vi.hoisted(() => vi.fn());
@@ -180,6 +181,8 @@ describe("createPiResourceLoader", () => {
     expect(expected).toContain("你是 Reflecta 的认知辅助 Agent");
     expect(expected).toContain("原样复制该实体的 `citation` 字段");
     expect(expected).toContain("调用工具时只传 `id` 字段");
+    expect(expected).toContain("问题依赖可能变化的外部事实时");
+    expect(expected).not.toMatch(/web_search|fetch_content|get_search_content/);
   });
 });
 
@@ -869,6 +872,8 @@ describe("PiAgentHost", () => {
       "reflecta_final_answer",
     );
     expect(sessionOptions.tools).toEqual(expect.arrayContaining([...PI_BUILTIN_TOOL_NAMES]));
+    expect(sessionOptions.tools).toEqual(expect.arrayContaining([...PI_WEB_ACCESS_TOOL_NAMES]));
+    expect(sessionOptions.tools).not.toContain("web_fetch");
     expect(sessionOptions.tools).not.toContain("reflecta_final_answer");
     const events = await new AgentSessionLog(root).readEvents(thread.id);
     expect(events.slice(1).map((event) => event.type)).toEqual([

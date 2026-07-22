@@ -12,7 +12,6 @@ import {
   understandingCliService,
 } from "../core";
 import { HARD_ATTACHMENT_READ_MAX_CHARS, readAttachmentForTool } from "./attachment-read";
-import { fetchWebPage } from "./web-fetch";
 
 export const PI_READ_ONLY_TOOL_NAMES = [
   "domain_list",
@@ -22,7 +21,6 @@ export const PI_READ_ONLY_TOOL_NAMES = [
   "context_list",
   "context_get",
   "attachment_read",
-  "web_fetch",
   "retrieve_knowledge",
   "graph",
 ] as const;
@@ -272,18 +270,6 @@ export function createPiReadOnlyTools(
           await readAttachmentForTool(files, input),
           entityOptions,
         ),
-    }),
-    defineTool({
-      name: "web_fetch",
-      label: "读取网页",
-      description:
-        "Read a user-provided public http/https URL as markdown. Use this before answering questions about a pasted web page. Returns blocked=true when the page is login-gated or protected.",
-      promptSnippet: "web_fetch: read a user-provided public URL as markdown.",
-      parameters: Type.Object({
-        url: Type.String({ minLength: 1 }),
-      }),
-      execute: async (toolCallId, { url }) =>
-        createToolResult("web_fetch", toolCallId, await fetchWebPage(url), entityOptions),
     }),
     defineTool({
       name: "retrieve_knowledge",
