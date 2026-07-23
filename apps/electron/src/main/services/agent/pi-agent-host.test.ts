@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { ModelRegistry, SettingsManager } from "@earendil-works/pi-coding-agent";
 import type { KnownProvider } from "@earendil-works/pi-ai/compat";
-import type { AgentSessionEvent } from "@shared/agent";
+import { reduceAgentSession, type AgentSessionEvent } from "@shared/agent";
 import type { ResolvedAiModelConfig } from "../../config";
 import {
   AGENT_EVENT_CHANNEL,
@@ -822,6 +822,99 @@ describe("PiAgentHost", () => {
       AGENT_EVENT_CHANNEL,
       expect.objectContaining({ type: "assistant.text.delta", delta: "完成" }),
     );
+  });
+
+  test("keeps an in-run compaction in turn order and shows its reduced usage", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("自动压缩");
+    const manager = await log.openSession(thread.id);
+    log.appendEvent(manager, {
+      id: "evt_existing_cancel",
+      sessionId: thread.id,
+      runId: "run_existing",
+      type: "run.cancelled",
+      createdAt: "2026-06-23T00:00:00.000Z",
+    });
+    let listener: ((event: unknown) => void) | undefined;
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        model: { contextWindow: 272_000 },
+        subscribe: (next: (event: unknown) => void) => {
+          listener = next;
+          return () => {};
+        },
+        prompt: vi.fn(async () => {
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: { type: "text_delta", delta: "压缩前" },
+          });
+          listener?.({ type: "compaction_start", reason: "overflow" });
+          listener?.({
+            type: "compaction_end",
+            reason: "overflow",
+            result: {
+              summary: "保留当前进度",
+              firstKeptEntryId: "entry_kept",
+              tokensBefore: 218_728,
+              estimatedTokensAfter: 1_569,
+            },
+          });
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: { type: "text_delta", delta: "压缩后" },
+          });
+          listener?.({
+            type: "message_end",
+            message: {
+              role: "assistant",
+              content: [{ type: "text", text: "压缩前压缩后" }],
+              provider: "openai",
+              model: "gpt-5.6-sol",
+              stopReason: "stop",
+            },
+          });
+        }),
+        getContextUsage: vi.fn(() => ({
+          tokens: null,
+          contextWindow: 272_000,
+          percent: null,
+        })),
+        dispose: vi.fn(),
+        abort: vi.fn(),
+      },
+    });
+    const webContents = { isDestroyed: () => false, send: vi.fn() };
+
+    await (
+      new PiAgentHost(root) as unknown as {
+        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
+      }
+    ).sendMessage(
+      {
+        type: "message.send",
+        sessionId: thread.id,
+        text: "继续处理",
+        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+      },
+      webContents as never,
+    );
+
+    const events = await new AgentSessionLog(root).readEvents(thread.id);
+    const turn = events.find((event) => event.type === "assistant.turn");
+    expect(events.find((event) => event.type === "context.compacted")).toMatchObject({
+      messageId: turn?.messageId,
+    });
+    expect(turn?.blocks.map((block) => block.kind)).toEqual(["text", "context-compaction", "text"]);
+
+    const state = reduceAgentSession(events);
+    expect(state.contextCompactions).toEqual([]);
+    expect(state.messages.at(-1)?.contextUsage).toEqual({
+      tokens: 1_569,
+      contextWindow: 272_000,
+      percent: (1_569 / 272_000) * 100,
+    });
   });
 
   test("streams and persists plain text with direct entity citations", async () => {

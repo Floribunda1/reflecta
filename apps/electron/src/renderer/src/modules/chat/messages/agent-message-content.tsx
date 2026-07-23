@@ -11,6 +11,7 @@ import {
   CollapsibleTrigger,
 } from "@renderer/components/ui/collapsible";
 import type {
+  AgentContextCompacted,
   AgentEntityCatalogEntry,
   AgentModelSelection,
   AgentReasoningLevel,
@@ -51,6 +52,37 @@ export type ApproveToolInput = {
   modelSelection?: AgentModelSelection;
   reasoningLevel?: AgentReasoningLevel;
 };
+
+function compactTokenCount(tokens: number | undefined) {
+  if (tokens === undefined) return null;
+  return new Intl.NumberFormat("zh-CN", { notation: "compact", maximumFractionDigits: 1 }).format(
+    tokens,
+  );
+}
+
+export function ContextCompactionReceipt({ compaction }: { compaction: AgentContextCompacted }) {
+  const before = compactTokenCount(compaction.tokensBefore);
+  const after = compactTokenCount(compaction.estimatedTokensAfter);
+  const tokenChange = before && after ? `${before} → ${after} tokens` : null;
+
+  return (
+    <details
+      data-testid="agent-context-compaction-receipt"
+      className="group w-full rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm"
+    >
+      <summary className="cursor-pointer select-none text-muted-foreground outline-none marker:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50">
+        <span className="ml-1 font-medium text-foreground">已压缩较早的对话上下文</span>
+        {tokenChange ? <span className="ml-2 text-xs tabular-nums">{tokenChange}</span> : null}
+      </summary>
+      <div
+        data-testid="agent-context-compaction-summary"
+        className="mt-3 whitespace-pre-wrap border-t border-border pt-3 leading-6 text-muted-foreground"
+      >
+        {compaction.summary}
+      </div>
+    </details>
+  );
+}
 
 function statusLabel(status: ToolApprovalStatus | undefined, state?: ProposalView["state"]) {
   if (state === "input-streaming") return "运行中";
@@ -970,6 +1002,11 @@ export function AgentMessageContent({
               onInspectContextRef={onInspectContextRef}
               entityCatalog={entityCatalog}
             />
+          );
+        }
+        if (block.kind === "context-compaction") {
+          return (
+            <ContextCompactionReceipt key={block.compaction.id} compaction={block.compaction} />
           );
         }
         if (block.kind === "tool-activity") {

@@ -755,6 +755,11 @@ export class PiAgentHost {
     webContents: WebContents,
     sessionId: string,
     contextWindow?: number,
+    activeTurn?: {
+      runId: string;
+      messageId: string;
+      accumulator: AgentRunAccumulator;
+    },
   ): boolean {
     if (event.type === "compaction_start") {
       this.emitLive(
@@ -781,26 +786,25 @@ export class PiAgentHost {
     );
     if (!event.result) return true;
 
-    const afterMessageId = reduceAgentSession(
-      this.sessionLog.eventsFromManager(manager),
-    ).messages.at(-1)?.id;
-    this.appendAndEmit(
-      manager,
-      webContents,
-      this.createEvent({
-        type: "context.compacted",
-        sessionId,
-        reason: event.reason,
-        summary: event.result.summary,
-        firstKeptEntryId: event.result.firstKeptEntryId,
-        tokensBefore: event.result.tokensBefore,
-        ...(event.result.estimatedTokensAfter !== undefined
-          ? { estimatedTokensAfter: event.result.estimatedTokensAfter }
-          : {}),
-        ...(contextWindow !== undefined ? { contextWindow } : {}),
-        afterMessageId,
-      }),
-    );
+    const afterMessageId = activeTurn
+      ? undefined
+      : reduceAgentSession(this.sessionLog.eventsFromManager(manager)).messages.at(-1)?.id;
+    const compacted = this.createEvent({
+      type: "context.compacted",
+      sessionId,
+      ...(activeTurn ? { runId: activeTurn.runId, messageId: activeTurn.messageId } : {}),
+      reason: event.reason,
+      summary: event.result.summary,
+      firstKeptEntryId: event.result.firstKeptEntryId,
+      tokensBefore: event.result.tokensBefore,
+      ...(event.result.estimatedTokensAfter !== undefined
+        ? { estimatedTokensAfter: event.result.estimatedTokensAfter }
+        : {}),
+      ...(contextWindow !== undefined ? { contextWindow } : {}),
+      ...(afterMessageId ? { afterMessageId } : {}),
+    });
+    activeTurn?.accumulator.append(compacted);
+    this.appendAndEmit(manager, webContents, compacted);
     return true;
   }
 
@@ -1107,6 +1111,7 @@ export class PiAgentHost {
             webContents,
             command.sessionId,
             session?.model?.contextWindow,
+            { runId, messageId: assistantMessageId, accumulator },
           )
         )
           return;

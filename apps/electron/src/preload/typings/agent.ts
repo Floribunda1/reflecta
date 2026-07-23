@@ -122,6 +122,7 @@ export type AgentContextCompactionFinished = AgentEventBase & {
 export type AgentContextCompacted = AgentEventBase & {
   type: "context.compacted";
   reason: AgentContextCompactionReason;
+  messageId?: string;
   summary: string;
   firstKeptEntryId: string;
   tokensBefore: number;
@@ -317,6 +318,10 @@ export type AgentReducedAssistantBlock =
       state?: "streaming" | "done" | "failed";
       error?: string;
       createdAt: string;
+    }
+  | {
+      kind: "context-compaction";
+      compaction: AgentContextCompacted;
     };
 
 export type AgentCommand =
@@ -552,6 +557,23 @@ function upsertAssistantTurn(
 ): AgentReducedMessage[] {
   const index = messages.findIndex((message) => message.id === event.messageId);
   const existing = index >= 0 ? messages[index] : undefined;
+  const compaction = event.blocks.findLast(
+    (block): block is Extract<AgentReducedAssistantBlock, { kind: "context-compaction" }> =>
+      block.kind === "context-compaction",
+  )?.compaction;
+  const compactedContextUsage =
+    compaction?.estimatedTokensAfter !== undefined &&
+    compaction.contextWindow !== undefined &&
+    compaction.contextWindow > 0
+      ? {
+          tokens: compaction.estimatedTokensAfter,
+          contextWindow: compaction.contextWindow,
+          percent: Math.min(
+            100,
+            (compaction.estimatedTokensAfter / compaction.contextWindow) * 100,
+          ),
+        }
+      : undefined;
   const nextMessage: AgentReducedMessage = {
     id: event.messageId,
     role: "assistant",
@@ -560,7 +582,10 @@ function upsertAssistantTurn(
     createdAt: event.createdAt,
     blocks: mergeAssistantTurnBlocks(event.blocks, existing?.blocks),
     usage: event.usage,
-    contextUsage: event.contextUsage,
+    contextUsage:
+      event.contextUsage?.tokens == null
+        ? (compactedContextUsage ?? existing?.contextUsage ?? event.contextUsage)
+        : event.contextUsage,
     model: event.model,
     stopReason: event.stopReason,
   };
@@ -594,7 +619,9 @@ function applyCompactedContextUsage(
   }
   const estimatedTokensAfter = event.estimatedTokensAfter;
   const contextWindow = event.contextWindow;
-  const assistantIndex = messages.findLastIndex((message) => message.role === "assistant");
+  const assistantIndex = event.messageId
+    ? messages.findIndex((message) => message.id === event.messageId)
+    : messages.findLastIndex((message) => message.role === "assistant");
   if (assistantIndex < 0) return messages;
   return messages.map((message, index) =>
     index === assistantIndex
@@ -605,6 +632,36 @@ function applyCompactedContextUsage(
             contextWindow,
             percent: Math.min(100, (estimatedTokensAfter / contextWindow) * 100),
           },
+        }
+      : message,
+  );
+}
+
+function upsertAssistantCompaction(
+  messages: AgentReducedMessage[],
+  event: AgentContextCompacted,
+): AgentReducedMessage[] {
+  if (!event.messageId) return messages;
+  const block = { kind: "context-compaction" as const, compaction: event };
+  const index = messages.findIndex((message) => message.id === event.messageId);
+  if (index < 0) {
+    return [
+      ...messages,
+      {
+        id: event.messageId,
+        role: "assistant",
+        text: "",
+        runId: event.runId,
+        createdAt: event.createdAt,
+        blocks: [block],
+      },
+    ];
+  }
+  return messages.map((message, messageIndex) =>
+    messageIndex === index
+      ? {
+          ...message,
+          blocks: [...(message.blocks ?? []), block],
         }
       : message,
   );
@@ -942,12 +999,17 @@ export function reduceAgentSessionEvent(
     const existingIndex = state.contextCompactions.findIndex(
       (compaction) => compaction.id === event.id,
     );
+    const messages = applyCompactedContextUsage(
+      upsertAssistantCompaction(state.messages, event),
+      event,
+    );
     return {
       ...state,
       sessionId: event.sessionId,
-      messages: applyCompactedContextUsage(state.messages, event),
-      contextCompactions:
-        existingIndex < 0
+      messages,
+      contextCompactions: event.messageId
+        ? state.contextCompactions
+        : existingIndex < 0
           ? [...state.contextCompactions, event]
           : state.contextCompactions.map((compaction, index) =>
               index === existingIndex ? event : compaction,
@@ -1047,5 +1109,52 @@ export function reduceAgentSessionEvent(
 }
 
 export function reduceAgentSession(events: AgentEvent[]): AgentSessionState {
-  return events.reduce<AgentSessionState>(reduceAgentSessionEvent, initialAgentSessionState);
+  const restoredEvents = [...events];
+  for (let index = 0; index < restoredEvents.length - 1; index += 1) {
+    const event = restoredEvents[index];
+    const nextEvent = restoredEvents[index + 1];
+    if (
+      event?.type !== "context.compacted" ||
+      event.messageId ||
+      nextEvent?.type !== "assistant.turn" ||
+      (event.runId !== undefined && event.runId !== nextEvent.runId)
+    ) {
+      continue;
+    }
+
+    const compaction: AgentContextCompacted = {
+      ...event,
+      runId: nextEvent.runId,
+      messageId: nextEvent.messageId,
+      afterMessageId: undefined,
+    };
+    const compactionBlock: AgentReducedAssistantBlock = {
+      kind: "context-compaction",
+      compaction,
+    };
+    const insertAt = nextEvent.blocks.findIndex((block) => {
+      const createdAt =
+        block.kind === "context-compaction" ? block.compaction.createdAt : block.createdAt;
+      return createdAt > compaction.createdAt;
+    });
+    const blocks = nextEvent.blocks.some(
+      (block) => block.kind === "context-compaction" && block.compaction.id === compaction.id,
+    )
+      ? nextEvent.blocks
+      : insertAt < 0
+        ? [...nextEvent.blocks, compactionBlock]
+        : [
+            ...nextEvent.blocks.slice(0, insertAt),
+            compactionBlock,
+            ...nextEvent.blocks.slice(insertAt),
+          ];
+
+    restoredEvents[index] = compaction;
+    restoredEvents[index + 1] = { ...nextEvent, blocks };
+  }
+
+  return restoredEvents.reduce<AgentSessionState>(
+    reduceAgentSessionEvent,
+    initialAgentSessionState,
+  );
 }

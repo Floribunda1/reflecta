@@ -3,6 +3,7 @@ import type {
   AgentApprovalResolved,
   AgentAssistantTurn,
   AgentAssistantTurnBlock,
+  AgentContextCompacted,
   AgentEventBase,
   AgentLiveEvent,
   AgentToolApprovalState,
@@ -10,7 +11,11 @@ import type {
   AgentToolExecutionState,
 } from "@shared/agent";
 
-type AccumulatorEvent = AgentLiveEvent | AgentApprovalRequested | AgentApprovalResolved;
+type AccumulatorEvent =
+  | AgentLiveEvent
+  | AgentApprovalRequested
+  | AgentApprovalResolved
+  | AgentContextCompacted;
 type FinalAnswerEvent = AgentEventBase & {
   messageId: string;
   text: string;
@@ -41,6 +46,11 @@ export class AgentRunAccumulator {
   private blocks: AgentAssistantTurnBlock[] = [];
 
   append(event: AccumulatorEvent): void {
+    if (event.type === "context.compacted") {
+      this.blocks = [...this.blocks, { kind: "context-compaction", compaction: event }];
+      return;
+    }
+
     if (event.type === "assistant.reasoning.delta") {
       const last = this.blocks.at(-1);
       this.blocks =

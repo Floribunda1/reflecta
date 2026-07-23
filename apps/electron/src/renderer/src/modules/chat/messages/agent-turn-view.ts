@@ -1,4 +1,4 @@
-import type { AgentReducedAssistantBlock } from "@shared/agent";
+import type { AgentContextCompacted, AgentReducedAssistantBlock } from "@shared/agent";
 
 export type ProposalType =
   | "understanding_create"
@@ -147,6 +147,7 @@ export type AgentTurnBlock =
       error?: string;
     }
   | { kind: "reasoning"; reasoning: AgentReasoningView }
+  | { kind: "context-compaction"; compaction: AgentContextCompacted }
   | { kind: "tool-activity"; activity: ToolActivityView }
   | { kind: "proposal"; proposal: ProposalView };
 
@@ -167,6 +168,7 @@ type InternalTurnBlock =
       error?: string;
     }
   | { kind: "reasoning"; text: string; status: AgentReasoningView["status"] }
+  | { kind: "context-compaction"; compaction: AgentContextCompacted }
   | { kind: "tool-group"; groupType: ToolGroupType; blocks: AgentToolBlock[] }
   | { kind: "proposal"; proposal: ProposalView };
 
@@ -189,6 +191,10 @@ export function buildAgentTurnView(
         block.text,
         index === streamingReasoningIndex ? "streaming" : "done",
       );
+      continue;
+    }
+    if (block.kind === "context-compaction") {
+      internalBlocks.push(block);
       continue;
     }
     if (block.kind === "approval") {

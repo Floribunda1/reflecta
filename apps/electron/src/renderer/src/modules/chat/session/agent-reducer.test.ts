@@ -52,6 +52,61 @@ describe("reduceAgentSession", () => {
     });
   });
 
+  test("restores legacy in-run compaction inside the following assistant turn", () => {
+    const events: AgentSessionEvent[] = [
+      { ...base, id: "evt_started", type: "run.started" },
+      {
+        ...base,
+        id: "evt_user",
+        type: "user.message",
+        messageId: "user_1",
+        text: "continue",
+      },
+      {
+        ...base,
+        id: "evt_compacted",
+        type: "context.compacted",
+        runId: undefined,
+        createdAt: "2026-06-23T00:00:02.000Z",
+        reason: "threshold",
+        summary: "checkpoint",
+        firstKeptEntryId: "entry_1",
+        tokensBefore: 120_000,
+        estimatedTokensAfter: 18_000,
+        contextWindow: 128_000,
+        afterMessageId: "user_1",
+      },
+      {
+        ...base,
+        id: "evt_assistant",
+        type: "assistant.turn",
+        createdAt: "2026-06-23T00:00:03.000Z",
+        messageId: "assistant_1",
+        text: "done",
+        blocks: [
+          {
+            kind: "text",
+            text: "done",
+            createdAt: "2026-06-23T00:00:01.000Z",
+          },
+        ],
+        contextUsage: { tokens: null, contextWindow: 128_000, percent: null },
+      },
+      { ...base, id: "evt_completed", type: "run.completed" },
+    ];
+
+    const state = reduceAgentSession(events);
+    const assistant = state.messages.find((message) => message.id === "assistant_1");
+
+    expect(state.contextCompactions).toEqual([]);
+    expect(assistant?.blocks?.map((block) => block.kind)).toEqual(["text", "context-compaction"]);
+    expect(assistant?.contextUsage).toEqual({
+      tokens: 18_000,
+      contextWindow: 128_000,
+      percent: 14.0625,
+    });
+  });
+
   test("restores entity catalog from session events", () => {
     const events: AgentSessionEvent[] = [
       {

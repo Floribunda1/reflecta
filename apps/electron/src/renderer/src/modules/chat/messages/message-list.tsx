@@ -26,6 +26,7 @@ import {
 import type { ComposerJSON } from "../composer/composer-content";
 import {
   AgentMessageContent,
+  ContextCompactionReceipt,
   RunningResponsePlaceholder,
   type ApproveToolInput,
 } from "./agent-message-content";
@@ -498,36 +499,5 @@ export function MessageList({
         </div>
       ) : null}
     </div>
-  );
-}
-
-function compactTokenCount(tokens: number | undefined) {
-  if (tokens === undefined) return null;
-  return new Intl.NumberFormat("zh-CN", { notation: "compact", maximumFractionDigits: 1 }).format(
-    tokens,
-  );
-}
-
-function ContextCompactionReceipt({ compaction }: { compaction: AgentContextCompacted }) {
-  const before = compactTokenCount(compaction.tokensBefore);
-  const after = compactTokenCount(compaction.estimatedTokensAfter);
-  const tokenChange = before && after ? `${before} → ${after} tokens` : null;
-
-  return (
-    <details
-      data-testid="agent-context-compaction-receipt"
-      className="group rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm"
-    >
-      <summary className="cursor-pointer select-none text-muted-foreground outline-none marker:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50">
-        <span className="ml-1 font-medium text-foreground">已压缩较早的对话上下文</span>
-        {tokenChange ? <span className="ml-2 text-xs tabular-nums">{tokenChange}</span> : null}
-      </summary>
-      <div
-        data-testid="agent-context-compaction-summary"
-        className="mt-3 whitespace-pre-wrap border-t border-border pt-3 leading-6 text-muted-foreground"
-      >
-        {compaction.summary}
-      </div>
-    </details>
   );
 }

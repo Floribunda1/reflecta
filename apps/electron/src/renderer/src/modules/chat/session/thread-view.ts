@@ -135,6 +135,9 @@ function blockScrollKey(block: NonNullable<AgentReducedMessage["blocks"]>[number
   if (block.kind === "tool") {
     return `${block.kind}:${block.toolCallId}:${block.state}:${valueKey(block.input)}:${valueKey(block.output)}:${valueKey(block.error)}`;
   }
+  if (block.kind === "context-compaction") {
+    return `${block.kind}:${block.compaction.id}`;
+  }
   return `${block.kind}:${block.approvalId}:${block.state}:${valueKey(block.payload)}:${valueKey(block.output)}:${valueKey(block.error)}`;
 }
 

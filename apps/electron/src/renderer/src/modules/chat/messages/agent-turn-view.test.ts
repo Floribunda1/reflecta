@@ -10,6 +10,26 @@ function reasoning(text: string): AgentReducedAssistantBlock {
   return { kind: "reasoning", text, createdAt: "2026-06-23T00:00:00.000Z" };
 }
 
+function compaction(): AgentReducedAssistantBlock {
+  return {
+    kind: "context-compaction",
+    compaction: {
+      id: "compact-1",
+      type: "context.compacted",
+      sessionId: "session-1",
+      runId: "run-1",
+      messageId: "assistant-1",
+      reason: "overflow",
+      summary: "保留当前进度",
+      firstKeptEntryId: "entry-kept",
+      tokensBefore: 120_000,
+      estimatedTokensAfter: 18_000,
+      contextWindow: 128_000,
+      createdAt: "2026-06-23T00:00:01.000Z",
+    },
+  };
+}
+
 function tool(
   name: string,
   toolCallId: string,
@@ -101,6 +121,12 @@ describe("buildAgentTurnView", () => {
       kind: "tool-activity",
       activity: { groupType: "other" },
     });
+  });
+
+  test("keeps context compaction where it occurred in the turn", () => {
+    const turn = buildAgentTurnView([text("压缩前"), compaction(), text("压缩后")]);
+
+    expect(turn.blocks.map((block) => block.kind)).toEqual(["text", "context-compaction", "text"]);
   });
 
   test("keeps running reasoning content visible", () => {
