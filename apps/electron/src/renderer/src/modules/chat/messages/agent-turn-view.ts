@@ -609,6 +609,15 @@ function queryLabel(input: Record<string, unknown>) {
   return queries.length > 1 ? `「${queries[0]}」等 ${queries.length} 个查询` : "";
 }
 
+function readRangeLabel(input: Record<string, unknown>) {
+  if (input.offset === undefined && input.limit === undefined) return "";
+  const offset =
+    typeof input.offset === "number" && input.offset > 0 ? Math.floor(input.offset) : 1;
+  const limit =
+    typeof input.limit === "number" && input.limit > 0 ? Math.floor(input.limit) : undefined;
+  return limit === undefined ? `从第 ${offset} 行开始` : `第 ${offset} 行起，最多 ${limit} 行`;
+}
+
 function toolDetails(block: AgentToolBlock): ToolActivityDetailsView {
   const input = toolInput(block);
   const output = toolOutput(block);
@@ -645,6 +654,10 @@ function inputMeta(name: string, input: Record<string, unknown>): ToolActivityDe
   if (name === "read" || name === "edit" || name === "write") {
     const path = stringValue(input.path).trim();
     if (path) meta.push({ label: "文件", value: filenameFromPath(path) });
+  }
+  if (name === "read") {
+    const range = readRangeLabel(input);
+    if (range) meta.push({ label: "范围", value: range });
   }
   if (name === "bash") {
     const command = stringValue(input.command).trim();
@@ -1022,6 +1035,10 @@ function toolRunningSummary(name: string, input: Record<string, unknown>) {
   if (name === "web_search") return `正在搜索网页${queryLabel(input)}`;
   if (name === "search") return `正在搜索${queryLabel(input) || "相关内容"}`;
   if (name === "retrieve_knowledge") return `正在检索${queryLabel(input) || "知识"}`;
+  if (name === "read") {
+    const range = readRangeLabel(input);
+    return `正在读取「${filenameFromPath(stringValue(input.path)) || "本地文件"}」${range ? ` · ${range}` : ""}`;
+  }
   return toolRunningVerb(name);
 }
 
@@ -1046,7 +1063,8 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
   const outputRecord = isRecord(output) ? output : {};
   if (name === "read") {
     const path = stringValue(input.path);
-    return `读取了「${filenameFromPath(path) || "本地文件"}」`;
+    const range = readRangeLabel(input);
+    return `读取了「${filenameFromPath(path) || "本地文件"}」${range ? ` · ${range}` : ""}`;
   }
   if (name === "edit") {
     return `编辑了「${filenameFromPath(stringValue(input.path)) || "本地文件"}」`;
