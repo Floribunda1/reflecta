@@ -129,7 +129,7 @@ describe("buildAgentTurnView", () => {
     expect(turn.blocks.map((block) => block.kind)).toEqual(["text", "context-compaction", "text"]);
   });
 
-  test("shows the line range for segmented file reads", () => {
+  test("shows offset and limit for segmented file reads", () => {
     const turn = buildAgentTurnView([
       tool("read", "tool-1", { content: "next chunk" }, "completed", undefined, {
         path: "/tmp/note.txt",
@@ -141,14 +141,14 @@ describe("buildAgentTurnView", () => {
     expect(turn.blocks[0]).toMatchObject({
       kind: "tool-activity",
       activity: {
-        summary: "读取了「note.txt」 · 第 1151 行起，最多 1150 行",
+        summary: "读取了「note.txt」 · offset=1151 · limit=1150",
         items: [
           {
-            label: "读取了「note.txt」 · 第 1151 行起，最多 1150 行",
+            label: "读取了「note.txt」 · offset=1151 · limit=1150",
             details: {
               meta: [
                 { label: "文件", value: "note.txt" },
-                { label: "范围", value: "第 1151 行起，最多 1150 行" },
+                { label: "参数", value: "offset=1151 · limit=1150" },
               ],
             },
           },
@@ -165,7 +165,7 @@ describe("buildAgentTurnView", () => {
     ]);
     expect(running.blocks[0]).toMatchObject({
       kind: "tool-activity",
-      activity: { summary: "正在读取「note.txt」 · 第 1151 行起，最多 1150 行" },
+      activity: { summary: "正在读取「note.txt」 · offset=1151 · limit=1150" },
     });
   });
 
