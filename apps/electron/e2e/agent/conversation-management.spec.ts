@@ -17,6 +17,7 @@ import {
   resetAgentFixtures,
   seedAgentThread,
   seedCompletedThread,
+  seedDomain,
   toolPart,
   userMessage,
 } from "./agent-fixtures";
@@ -216,6 +217,7 @@ test("@AG-CONV-005 用户在 Agent 回复下方 Fork 对话分支后继续查看
 });
 
 test("@AG-CONV-007 用户导出当前对话为 Markdown", async () => {
+  seedDomain({ id: "domain-export", name: "EXPORT_DOMAIN" });
   seedAgentThread({
     id: "conv-export-source",
     title: "EXPORT_SOURCE",
@@ -223,7 +225,7 @@ test("@AG-CONV-007 用户导出当前对话为 Markdown", async () => {
       userMessage("conv-export-user", "EXPORT_USER_MESSAGE"),
       assistantMessage("conv-export-assistant", [
         reasoningPart("EXPORT_REASONING"),
-        { type: "text", text: "EXPORT_AGENT_REPLY" },
+        { type: "text", text: "EXPORT_AGENT_REPLY [[d:domain-export]]" },
         toolPart("search", "conv-export-tool", { markdown: "EXPORT_TOOL_OUTPUT" }),
       ]),
     ],
@@ -253,6 +255,8 @@ test("@AG-CONV-007 用户导出当前对话为 Markdown", async () => {
     expect(markdown).toContain("# EXPORT_SOURCE");
     expect(markdown).toContain("## 用户\n\nEXPORT_USER_MESSAGE");
     expect(markdown).toContain("## Agent\n\nEXPORT_AGENT_REPLY");
+    expect(markdown).toContain("EXPORT_DOMAIN");
+    expect(markdown).not.toContain("[[d:domain-export]]");
     expect(markdown).not.toContain("EXPORT_REASONING");
     expect(markdown).not.toContain("EXPORT_TOOL_OUTPUT");
   } finally {

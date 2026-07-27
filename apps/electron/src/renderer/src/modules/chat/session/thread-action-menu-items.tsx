@@ -1,9 +1,15 @@
 import { Archive, Copy, FileDown, Minimize2, Sparkles, Trash2 } from "lucide-react";
-import type { AgentReducedMessage } from "@shared/agent";
+import type { AgentContextRef, AgentReducedMessage } from "@shared/agent";
 import { ContextMenuItem, ContextMenuSeparator } from "@renderer/components/ui/context-menu";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@renderer/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { ipcClient } from "@renderer/utils/ipc";
+import { getEntityDisplay } from "../../capture/queries";
+import {
+  contextKey,
+  contextTypeLabel,
+  transformEntityCitationMarkdown,
+} from "../context/context-reference";
 
 function errorMessage(error: unknown) {
   if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
@@ -12,9 +18,37 @@ function errorMessage(error: unknown) {
 }
 
 export async function exportThreadMarkdown(title: string, messages: AgentReducedMessage[]) {
+  const references = new Map<string, AgentContextRef>();
+  for (const message of messages) {
+    transformEntityCitationMarkdown(message.text, (ref, source) => {
+      references.set(contextKey(ref), ref);
+      return source;
+    });
+  }
+  const labels = new Map(
+    await Promise.all(
+      [...references].map(async ([key, ref]) => {
+        try {
+          const display = await getEntityDisplay(ref);
+          return [
+            key,
+            display === null
+              ? "引用不可用"
+              : display.title || `未命名 ${contextTypeLabel(ref.type)}`,
+          ] as const;
+        } catch {
+          return [key, "引用加载失败"] as const;
+        }
+      }),
+    ),
+  );
+
   const parts = [`# ${title.trim() || "Agent 对话"}`];
   for (const message of messages) {
-    const text = message.text.trim();
+    const text = transformEntityCitationMarkdown(
+      message.text.trim(),
+      (ref, source) => labels.get(contextKey(ref)) ?? source,
+    );
     if (!text) continue;
     parts.push(`## ${message.role === "user" ? "用户" : "Agent"}\n\n${text}`);
   }

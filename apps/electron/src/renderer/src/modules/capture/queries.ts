@@ -46,7 +46,7 @@ export const captureQueryKeys = {
 
 export type EntityDisplay = { title: string | null };
 
-async function getEntityDisplay(ref: Pick<AgentContextRef, "type" | "id">) {
+export async function getEntityDisplay(ref: Pick<AgentContextRef, "type" | "id">) {
   if (ref.type === "understanding") {
     const entity = await ipcClient.understanding.getUnderstandingById(ref.id);
     return entity ? { title: entity.title?.trim() || null } : null;

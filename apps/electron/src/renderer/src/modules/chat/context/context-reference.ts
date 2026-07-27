@@ -102,28 +102,36 @@ function entityTypeFromPrefix(prefix: string): AgentContextRef["type"] {
   return "domain";
 }
 
-function entityCitationMarkdownToLinks(markdown: string) {
-  return markdown.replace(
-    /\[\[([ucd]):([A-Za-z0-9_-]+)\]\]/g,
-    (match, prefix: string, id: string, offset: number) => {
-      if (offset > 0 && markdown[offset - 1] === "\\") return match;
-      if (markdown[offset + match.length] === "(") return match;
-      const openLinkLabel = markdown.lastIndexOf("[", offset - 1);
-      const closeBefore = markdown.lastIndexOf("]", offset - 1);
-      if (openLinkLabel > closeBefore && markdown.indexOf("](", offset + match.length) >= 0) {
-        return match;
-      }
-      const type = entityTypeFromPrefix(prefix);
-      return `[${type}:${id}](${ENTITY_CITATION_HREF_PREFIX}${type}/${encodeURIComponent(id)})`;
-    },
-  );
+export function transformEntityCitationMarkdown(
+  markdown: string,
+  transform: (ref: AgentContextRef, source: string) => string,
+) {
+  return markdown
+    .split(/(```[\s\S]*?```|`[^`\n]*`)/g)
+    .map((part) =>
+      part.startsWith("`")
+        ? part
+        : part.replace(
+            /\[\[([ucd]):([A-Za-z0-9_-]+)\]\]/g,
+            (match, prefix: string, id: string, offset: number) => {
+              if (offset > 0 && part[offset - 1] === "\\") return match;
+              if (part[offset + match.length] === "(") return match;
+              const openLinkLabel = part.lastIndexOf("[", offset - 1);
+              const closeBefore = part.lastIndexOf("]", offset - 1);
+              if (openLinkLabel > closeBefore && part.indexOf("](", offset + match.length) >= 0) {
+                return match;
+              }
+              return transform({ type: entityTypeFromPrefix(prefix), id }, match);
+            },
+          ),
+    )
+    .join("");
 }
 
 export function referenceMarkdownToLinks(markdown: string) {
-  return markdown
-    .split(/(```[\s\S]*?```|`[^`\n]*`)/g)
-    .map((part) => (part.startsWith("`") ? part : entityCitationMarkdownToLinks(part)))
-    .join("");
+  return transformEntityCitationMarkdown(markdown, ({ type, id }) => {
+    return `[${type}:${id}](${ENTITY_CITATION_HREF_PREFIX}${type}/${encodeURIComponent(id)})`;
+  });
 }
 
 export function parseEntityCitationHref(href: string | undefined): AgentContextRef | null {

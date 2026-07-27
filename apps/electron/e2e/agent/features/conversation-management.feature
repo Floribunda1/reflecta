@@ -74,11 +74,13 @@
   场景: 用户导出当前对话为 Markdown
     假如存在对话 EXPORT_SOURCE
     而且对话 EXPORT_SOURCE 有用户消息 EXPORT_USER_MESSAGE 和一条 Agent 回复
+    而且这条 Agent 回复引用了名为 EXPORT_DOMAIN 的 Domain
     当用户打开对话 EXPORT_SOURCE
     而且用户执行导出 Markdown
     那么用户应该得到名为 EXPORT_SOURCE.md 的 Markdown 文件
     而且 Markdown 文件应该包含用户消息 EXPORT_USER_MESSAGE
     而且 Markdown 文件应该包含这条 Agent 回复
+    而且 Markdown 文件应该把这条引用显示为 EXPORT_DOMAIN
     而且 Markdown 文件应该只包含用户提问和 Agent 回复内容
 
   @P1 @management @AG-CONV-008
