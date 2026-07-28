@@ -4,6 +4,7 @@ import {
   formatUnderstandingWikiLink,
   normalizeUnderstandingWikiLinkBody,
   parseUnderstandingWikiLink,
+  renderUnderstandingWikiLinksAsHtml,
 } from "./wiki-links";
 
 describe("Understanding wiki links", () => {
@@ -32,5 +33,11 @@ describe("Understanding wiki links", () => {
   test("rejects links without a title or id", () => {
     expect(parseUnderstandingWikiLink("[[Alpha]]")).toBeNull();
     expect(parseUnderstandingWikiLink("[[#understanding-1]]")).toBeNull();
+  });
+
+  test("escapes wiki-link labels and ids before rendering HTML", () => {
+    expect(renderUnderstandingWikiLinksAsHtml(`[[<script>alert("x")</script>#id-"unsafe]]`)).toBe(
+      `<a href="#" data-wiki-link="id-&quot;unsafe" class="wiki-link">&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;</a>`,
+    );
   });
 });

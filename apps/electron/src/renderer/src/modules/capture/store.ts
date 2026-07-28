@@ -138,7 +138,7 @@ function sameAgentScope(left: CaptureAgentScope | null, right: CaptureAgentScope
   return Boolean(left && left.type === right.type && left.id === right.id);
 }
 
-export function createCaptureState(
+function createCaptureState(
   initialState: CaptureState = initialCaptureState,
 ): StateCreator<CaptureStore> {
   return (set) => ({

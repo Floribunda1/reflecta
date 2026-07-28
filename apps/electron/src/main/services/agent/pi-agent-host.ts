@@ -66,6 +66,7 @@ import {
   type DangerousBashApprovalHandler,
 } from "./pi-bash-permission-gate";
 import { createPiWebAccessResources, PI_WEB_ACCESS_TOOL_NAMES } from "./pi-web-access";
+import { extractPiAssistantError, extractPiAssistantText } from "./pi-message";
 
 export const AGENT_EVENT_CHANNEL = "agent:event";
 
@@ -120,7 +121,7 @@ export function createPiBashTool(cwd: string) {
   );
 }
 
-export function loadAgentSystemPrompt(): string {
+function loadAgentSystemPrompt(): string {
   return agentSystemPrompt.trim();
 }
 
@@ -242,34 +243,6 @@ function extractAssistantTurnMetadata(message: unknown): AssistantTurnMetadata |
   };
 }
 
-function extractAssistantText(message: unknown): string {
-  if (
-    !message ||
-    typeof message !== "object" ||
-    !("role" in message) ||
-    message.role !== "assistant" ||
-    !("content" in message) ||
-    !Array.isArray(message.content)
-  ) {
-    return "";
-  }
-
-  return message.content
-    .map((part) =>
-      part && typeof part === "object" && "type" in part && part.type === "text" && "text" in part
-        ? String(part.text)
-        : "",
-    )
-    .join("");
-}
-
-export function extractAssistantError(message: unknown): string {
-  if (!isRecord(message) || message.role !== "assistant" || message.stopReason !== "error") {
-    return "";
-  }
-  return typeof message.errorMessage === "string" ? message.errorMessage : "";
-}
-
 const TITLE_GENERATION_SYSTEM_PROMPT =
   "你是 Reflecta 的对话标题生成器。根据用户与 Agent 的对话内容生成一个简短、具体、可回看的标题。只输出标题本身。";
 const TITLE_GENERATION_MAX_SOURCE_LENGTH = 8000;
@@ -337,7 +310,7 @@ export function buildThreadTitleContext(events: AgentSessionEvent[]): Context | 
   };
 }
 
-export async function generateAgentThreadTitle(
+async function generateAgentThreadTitle(
   events: AgentSessionEvent[],
   contentStorageRoot = getContentStorageRoot(),
 ): Promise<string> {
@@ -1253,7 +1226,7 @@ export class PiAgentHost {
         if (event.type === "message_end") {
           const metadata = extractAssistantTurnMetadata(event.message);
           if (metadata) assistantMetadata = metadata;
-          const error = extractAssistantError(event.message);
+          const error = extractPiAssistantError(event.message);
           if (error) {
             assistantError = error;
             return;
@@ -1261,7 +1234,7 @@ export class PiAgentHost {
         }
 
         if (event.type === "message_end" && !piDraftText) {
-          const finalText = extractAssistantText(event.message);
+          const finalText = extractPiAssistantText(event.message);
           if (!finalText) return;
           piDraftText = finalText;
           assistantActivity = true;

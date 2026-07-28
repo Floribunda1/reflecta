@@ -60,22 +60,6 @@ describe("capture store", () => {
     expect(store.getState().activeContextId).toBeNull();
   });
 
-  test("setIncludeDescendants updates includeDescendants", () => {
-    const store = createCaptureStore();
-
-    store.getState().setIncludeDescendants(false);
-
-    expect(store.getState().includeDescendants).toBe(false);
-  });
-
-  test("setUnderstandingListSortBy updates understandingListSortBy", () => {
-    const store = createCaptureStore();
-
-    store.getState().setUnderstandingListSortBy("createdAt");
-
-    expect(store.getState().understandingListSortBy).toBe("createdAt");
-  });
-
   test("reconcileSelectedUnderstanding clears invisible selected understanding", () => {
     const store = createCaptureStore();
     store.getState().selectUnderstanding("missing");

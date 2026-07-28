@@ -66,7 +66,7 @@ export function invalidateEntityDisplay(
   return queryClient.invalidateQueries({ queryKey: captureQueryKeys.entityDisplay(ref) });
 }
 
-export function buildDomainTree(flat: Domain[]): DomainTreeNode[] {
+function buildDomainTree(flat: Domain[]): DomainTreeNode[] {
   const map = new Map<string, DomainTreeNode>();
   for (const domain of flat) {
     map.set(domain.id, {
@@ -96,7 +96,7 @@ export function buildDomainTree(flat: Domain[]): DomainTreeNode[] {
   return roots;
 }
 
-export function buildUnderstandingListFilter({
+function buildUnderstandingListFilter({
   selectedDomainId,
   includeDescendants,
   searchQuery,
@@ -171,7 +171,7 @@ export function useCaptureUnderstandingDetail(understandingId: string) {
   });
 }
 
-export function invalidateUnderstandingLists(queryClient: QueryClient) {
+function invalidateUnderstandingLists(queryClient: QueryClient) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: captureQueryKeys.understandingLists, exact: false }),
     queryClient.invalidateQueries({
@@ -181,20 +181,20 @@ export function invalidateUnderstandingLists(queryClient: QueryClient) {
   ]);
 }
 
-export function invalidateUnderstandingDetail(queryClient: QueryClient, understandingId: string) {
+function invalidateUnderstandingDetail(queryClient: QueryClient, understandingId: string) {
   return queryClient.invalidateQueries({
     queryKey: captureQueryKeys.understandingDetail(understandingId),
   });
 }
 
-export function invalidateAllUnderstandingDetails(queryClient: QueryClient) {
+function invalidateAllUnderstandingDetails(queryClient: QueryClient) {
   return queryClient.invalidateQueries({
     queryKey: captureQueryKeys.understandingDetails,
     exact: false,
   });
 }
 
-export function invalidateDomains(queryClient: QueryClient) {
+function invalidateDomains(queryClient: QueryClient) {
   return queryClient.invalidateQueries({ queryKey: captureQueryKeys.domains });
 }
 

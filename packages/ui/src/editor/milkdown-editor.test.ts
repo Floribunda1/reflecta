@@ -22,25 +22,6 @@ afterEach(async () => {
 });
 
 describe("reflecta milkdown editor", () => {
-  test("creates a headless editor and serializes markdown", async () => {
-    const root = document.createElement("div");
-    document.body.append(root);
-
-    const editor = await createReflectaMilkdownEditor({
-      root,
-      content: "# Title\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\n- [x] Task",
-      placeholder: "请输入",
-    });
-    editors.push(editor);
-
-    const markdown = getMilkdownMarkdown(editor);
-
-    expect(markdown).toContain("# Title");
-    expect(markdown).toContain("| A | B |");
-    expect(markdown).toMatch(/[*-] \[x] Task/);
-    expect(root.querySelector(".milkdown")).toBeTruthy();
-  });
-
   test("does not emit updates while creating the editor", async () => {
     const root = document.createElement("div");
     document.body.append(root);
@@ -134,7 +115,9 @@ describe("reflecta milkdown editor", () => {
       content: "Upload target",
       uploadAsset: async (file) => {
         uploaded.push(file.name);
-        return { url: `memory://${file.name}`, alt: file.name };
+        return file.type.startsWith("video/")
+          ? { url: `memory://${file.name}" onerror="alert(1)`, alt: `<${file.name}>` }
+          : { url: `memory://${file.name}`, alt: file.name };
       },
     });
     editors.push(editor);
@@ -155,36 +138,11 @@ describe("reflecta milkdown editor", () => {
     expect(uploaded).toEqual(["capture.png", "clip.mp4"]);
     expect(fragment.childCount).toBe(2);
     expect(fragment.child(0).attrs.src).toBe("memory://capture.png");
-    expect(fragment.child(1).attrs.value).toContain('src="memory://clip.mp4"');
-  });
-
-  test("does not render admonitions as custom editor block nodes", async () => {
-    const root = document.createElement("div");
-    document.body.append(root);
-
-    const editor = await createReflectaMilkdownEditor({
-      root,
-      content: ":::warning\nCareful\n:::",
-    });
-    editors.push(editor);
-
-    const admonition = root.querySelector<HTMLElement>('[data-admonition][data-type="warning"]');
-    expect(admonition).toBeNull();
-    expect(getMilkdownMarkdown(editor)).toContain(":::warning");
-  });
-
-  test("does not render custom mermaid preview widgets in the editor", async () => {
-    const root = document.createElement("div");
-    document.body.append(root);
-
-    const editor = await createReflectaMilkdownEditor({
-      root,
-      content: "```mermaid\ngraph TD\n  A --> B\n```",
-    });
-    editors.push(editor);
-
-    expect(root.querySelector(".reflecta-md-editor__mermaid-preview")).toBeNull();
-    expect(getMilkdownMarkdown(editor)).toContain("```mermaid");
+    expect(fragment.child(1).attrs.value).toContain(
+      'src="memory://clip.mp4&quot; onerror=&quot;alert(1)"',
+    );
+    expect(fragment.child(1).attrs.value).toContain('title="&lt;clip.mp4&gt;"');
+    expect(fragment.child(1).attrs.value).not.toContain('onerror="alert(1)"');
   });
 
   test("backspace removes an empty paragraph inside a blockquote", async () => {

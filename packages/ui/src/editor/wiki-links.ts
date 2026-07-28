@@ -1,3 +1,5 @@
+import { escape } from "lodash-es";
+
 export type UnderstandingWikiLink = {
   title: string;
   id: string;
@@ -27,15 +29,6 @@ export function parseUnderstandingWikiLink(raw: string): UnderstandingWikiLink |
   return { title, id };
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
 function unescapeMarkdownText(value: string): string {
   return value.replaceAll(/\\([\\[\]_`*#])/g, "$1");
 }
@@ -44,7 +37,7 @@ export function renderUnderstandingWikiLinksAsHtml(content: string): string {
   return content.replaceAll(understandingWikiLinkPattern, (match) => {
     const parsed = parseUnderstandingWikiLink(match);
     if (!parsed) return match;
-    return `<a href="#" data-wiki-link="${escapeHtml(parsed.id)}" class="wiki-link">${escapeHtml(parsed.title)}</a>`;
+    return `<a href="#" data-wiki-link="${escape(parsed.id)}" class="wiki-link">${escape(parsed.title)}</a>`;
   });
 }
 
@@ -79,30 +72,4 @@ export function findUnderstandingWikiLinkAtOffset(
   }
 
   return null;
-}
-
-export function findUnderstandingWikiLinkRanges(
-  text: string,
-): Array<{ from: number; to: number; link: UnderstandingWikiLink }> {
-  const ranges: Array<{ from: number; to: number; link: UnderstandingWikiLink }> = [];
-
-  for (const match of text.matchAll(understandingWikiLinkPattern)) {
-    const start = match.index ?? -1;
-    if (start === -1) continue;
-
-    const parsed = parseUnderstandingWikiLink(match[0]);
-    if (!parsed) continue;
-
-    ranges.push({
-      from: start,
-      to: start + match[0].length,
-      link: parsed,
-    });
-  }
-
-  return ranges;
-}
-
-export function formatUnderstandingWikiLinkDisplay(link: UnderstandingWikiLink): string {
-  return `[[${link.title}]]`;
 }

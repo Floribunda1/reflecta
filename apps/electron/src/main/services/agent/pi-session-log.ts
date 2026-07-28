@@ -9,7 +9,7 @@ import type { AgentSessionEvent, AgentSessionSummary } from "@shared/agent";
 import { isAgentSessionEvent, reduceAgentSession } from "@shared/agent";
 import { writeDiagnosticEvent } from "../../logger";
 
-export const REFLECTA_AGENT_EVENT_ENTRY = "reflecta.agent.event";
+const REFLECTA_AGENT_EVENT_ENTRY = "reflecta.agent.event";
 
 export function getPiAgentSessionsRoot(contentStorageRoot: string): string {
   return path.join(contentStorageRoot, "Sessions");

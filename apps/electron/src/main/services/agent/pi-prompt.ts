@@ -3,28 +3,9 @@ import {
   selectedAgentContextBlockFromCatalog,
   selectedAgentContextBlockFromRefs,
 } from "@shared/agent-context";
+import { attachmentIdFor, attachmentSizeFor } from "./attachment-metadata";
 
-type ReflectaAttachmentMetadata = {
-  attachmentId?: unknown;
-  size?: unknown;
-};
-
-function reflectaMetadata(file: AgentFileAttachment): ReflectaAttachmentMetadata {
-  const metadata = file.providerMetadata?.reflecta;
-  return metadata && typeof metadata === "object" && !Array.isArray(metadata) ? metadata : {};
-}
-
-function attachmentIdFor(file: AgentFileAttachment, index: number) {
-  const id = reflectaMetadata(file).attachmentId;
-  return typeof id === "string" && id.length > 0 ? id : `inline:${index}`;
-}
-
-function attachmentSizeFor(file: AgentFileAttachment) {
-  const size = reflectaMetadata(file).size;
-  return typeof size === "number" && Number.isFinite(size) ? size : undefined;
-}
-
-export function attachmentBlockFromFiles(files: AgentFileAttachment[] = []): string {
+function attachmentBlockFromFiles(files: AgentFileAttachment[] = []): string {
   if (files.length === 0) return "";
   const lines = files
     .map((file, index) => {

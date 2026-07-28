@@ -157,17 +157,13 @@ export function isCodexAuthenticated(): boolean {
   return readStoredCredential("openai-codex", getPiAuthPath())?.type === "oauth";
 }
 
-export function getDefaultContentStorageRoot(): string {
-  return resolveElectronRuntime().contentStorageRoot;
-}
-
 let _cache: AppConfig | null = null;
 let retrievalEmbeddingDownload: RetrievalEmbeddingDownloadStatus = {
   state: "idle",
   receivedBytes: 0,
 };
 
-export const DEFAULT_RETRIEVAL_EMBEDDING_MODEL: RetrievalEmbeddingModelManifest = {
+const DEFAULT_RETRIEVAL_EMBEDDING_MODEL: RetrievalEmbeddingModelManifest = {
   id: "qwen3-embedding-0.6b-q8_0",
   name: "Qwen3 Embedding 0.6B",
   runtime: "llama.cpp",
@@ -382,9 +378,7 @@ export function getRetrievalConfig(): RetrievalConfig {
   return normalizeRetrievalConfig(readConfig().retrieval);
 }
 
-export function getRetrievalEmbeddingModelPath(
-  manifest = DEFAULT_RETRIEVAL_EMBEDDING_MODEL,
-): string {
+function getRetrievalEmbeddingModelPath(manifest = DEFAULT_RETRIEVAL_EMBEDDING_MODEL): string {
   return path.join(getAppConfigDir(), "models", "retrieval", manifest.fileName);
 }
 
@@ -454,9 +448,7 @@ export function clampAiReasoningLevel(
   return model ? clampThinkingLevel(model, level) : "off";
 }
 
-export function getTitleGenerationAiModelSelection(
-  config = getAiConfig(),
-): AiModelSelection | undefined {
+function getTitleGenerationAiModelSelection(config = getAiConfig()): AiModelSelection | undefined {
   if (config.titleGenerationModel && hasModelSelection(config, config.titleGenerationModel)) {
     return config.titleGenerationModel;
   }
@@ -485,10 +477,6 @@ export function getAiModelConfig(
     selection: effectiveSelection,
     label: `${definition.name} / ${model.name}`,
   };
-}
-
-export function getActiveAiModelConfig(config = getAiConfig()): ResolvedAiModelConfig {
-  return getAiModelConfig(undefined, config);
 }
 
 export function getTitleGenerationAiModelConfig(config = getAiConfig()): ResolvedAiModelConfig {

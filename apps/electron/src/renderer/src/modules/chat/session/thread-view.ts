@@ -88,7 +88,7 @@ function fallbackMessageLabel(message: AgentReducedMessage) {
   return `工具：${actionBlock.toolName}`;
 }
 
-export function chatJumpLabelFor(message: AgentReducedMessage) {
+function chatJumpLabelFor(message: AgentReducedMessage) {
   return normalizedSnippet(message.text) || fallbackMessageLabel(message);
 }
 

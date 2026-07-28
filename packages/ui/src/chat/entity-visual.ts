@@ -20,12 +20,6 @@ export function entityIcon(type: ChatEntityType | null) {
   return "✦";
 }
 
-export function entityTypeLabel(type: ChatEntityType) {
-  if (type === "understanding") return "Understanding";
-  if (type === "context") return "Context";
-  return "Domain";
-}
-
 export function entityClassName(type: ChatEntityType | null) {
   const base =
     "mx-0.5 inline text-[1em] font-medium leading-[inherit] no-underline decoration-transparent";

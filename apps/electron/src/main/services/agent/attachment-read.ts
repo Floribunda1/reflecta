@@ -2,29 +2,15 @@ import { TextDecoder } from "node:util";
 import { isBinaryFile } from "isbinaryfile";
 import { extractText } from "unpdf";
 import type { AgentFileAttachment } from "@shared/agent";
+import { attachmentIdFor } from "./attachment-metadata";
 
 type AttachmentReadToolInput = {
   attachmentId: string;
   maxChars?: number;
 };
 
-type ReflectaAttachmentMetadata = {
-  attachmentId?: unknown;
-  size?: unknown;
-};
-
 const DEFAULT_ATTACHMENT_READ_MAX_CHARS = 120_000;
 export const HARD_ATTACHMENT_READ_MAX_CHARS = 500_000;
-
-function reflectaMetadata(file: AgentFileAttachment): ReflectaAttachmentMetadata {
-  const metadata = file.providerMetadata?.reflecta;
-  return metadata && typeof metadata === "object" && !Array.isArray(metadata) ? metadata : {};
-}
-
-export function attachmentIdFor(file: AgentFileAttachment, index: number) {
-  const id = reflectaMetadata(file).attachmentId;
-  return typeof id === "string" && id.length > 0 ? id : `inline:${index}`;
-}
 
 function clampInt(value: number | undefined, fallback: number, max: number) {
   if (!value || !Number.isFinite(value)) return fallback;

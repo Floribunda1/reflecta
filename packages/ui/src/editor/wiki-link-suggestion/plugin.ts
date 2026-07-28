@@ -24,7 +24,7 @@ type WikiLinkSuggestionMeta =
   | { type: "select"; selectedIndex: number }
   | { type: "close"; dismiss?: boolean };
 
-export const wikiLinkSuggestionPluginKey = new PluginKey<WikiLinkSuggestionState>(
+const wikiLinkSuggestionPluginKey = new PluginKey<WikiLinkSuggestionState>(
   "reflecta-wiki-link-suggestion",
 );
 
@@ -158,7 +158,7 @@ function applyDocumentState(
   };
 }
 
-export function insertWikiLinkSuggestion(
+function insertWikiLinkSuggestion(
   view: EditorView,
   state: WikiLinkSuggestionState,
   item: WikiLinkSuggestionItem,

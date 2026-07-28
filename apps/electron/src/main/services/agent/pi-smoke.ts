@@ -10,6 +10,7 @@ import {
   type ResourceLoader,
 } from "@earendil-works/pi-coding-agent";
 import { getPiAgentSessionsRoot } from "./pi-session-log";
+import { extractPiAssistantText } from "./pi-message";
 
 export type RunPiAgentSmokeInput = {
   apiKey: string;
@@ -47,27 +48,6 @@ function resolvePiModel(providerId: string, modelId: string): Model<Api> {
   );
   if (!model) throw new Error(`Pi model not found: ${providerId}/${modelId}`);
   return model;
-}
-
-function extractAssistantText(message: unknown): string {
-  if (
-    !message ||
-    typeof message !== "object" ||
-    !("role" in message) ||
-    message.role !== "assistant" ||
-    !("content" in message) ||
-    !Array.isArray(message.content)
-  ) {
-    return "";
-  }
-
-  return message.content
-    .map((part) =>
-      part && typeof part === "object" && "type" in part && part.type === "text" && "text" in part
-        ? String(part.text)
-        : "",
-    )
-    .join("");
 }
 
 export async function runPiAgentSmoke(input: RunPiAgentSmokeInput): Promise<RunPiAgentSmokeResult> {
@@ -110,7 +90,7 @@ export async function runPiAgentSmoke(input: RunPiAgentSmokeInput): Promise<RunP
       return;
     }
     if (event.type === "message_end") {
-      const finalText = extractAssistantText(event.message);
+      const finalText = extractPiAssistantText(event.message);
       if (finalText) assistantText = finalText;
     }
   });

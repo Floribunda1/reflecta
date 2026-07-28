@@ -6,6 +6,7 @@ import type { EditorView } from "@milkdown/prose/view";
 import type { Schema } from "@milkdown/prose/model";
 import { Crepe } from "@milkdown/crepe";
 import { replaceAll } from "@milkdown/utils";
+import { escape } from "lodash-es";
 import { reflectaMilkdownExtensions } from "./milkdown-extensions";
 import { markdownEquals, normalizeMarkdown } from "./markdown-normalize";
 import {
@@ -29,14 +30,6 @@ function isSupportedMedia(file: File): boolean {
   return file.type.startsWith("image/") || file.type.startsWith("video/");
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
 function createImageNode(schema: Schema, assetUrl: string, alt: string): ProseNode | null {
   const imageBlock = schema.nodes["image-block"];
   if (imageBlock) return imageBlock.createAndFill({ src: assetUrl, alt });
@@ -52,7 +45,7 @@ function createVideoNode(schema: Schema, assetUrl: string, title: string): Prose
   if (!html) return null;
 
   return html.create({
-    value: `<video src="${escapeHtml(assetUrl)}" controls title="${escapeHtml(title)}"></video>`,
+    value: `<video src="${escape(assetUrl)}" controls title="${escape(title)}"></video>`,
   });
 }
 

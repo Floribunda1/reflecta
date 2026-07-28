@@ -2,7 +2,7 @@ import type { AgentContextRef, AgentEntityCatalogEntry } from "@shared/agent";
 
 export const RUNTIME_ENTITY_CATALOG_OPEN_TAG =
   '<reflecta_entities source="reflecta-runtime" version="1">';
-export const RUNTIME_ENTITY_CATALOG_CLOSE_TAG = "</reflecta_entities>";
+const RUNTIME_ENTITY_CATALOG_CLOSE_TAG = "</reflecta_entities>";
 
 function entityKey(entity: AgentContextRef) {
   return `${entity.type}:${entity.id}`;

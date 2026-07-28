@@ -331,7 +331,7 @@ function ThreadFindBox({
       if (!activeMatch) return;
       root
         ?.querySelector<HTMLElement>(
-          `[data-agent-message-id="${escapeCssAttribute(activeMatch.messageId)}"]`,
+          `[data-agent-message-id="${CSS.escape(activeMatch.messageId)}"]`,
         )
         ?.scrollIntoView({ block: "center", inline: "nearest" });
     });
@@ -425,10 +425,6 @@ function ThreadFindBox({
       </Button>
     </div>
   );
-}
-
-function escapeCssAttribute(value: string) {
-  return globalThis.CSS?.escape?.(value) ?? value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 }
 
 function sameFindMatch(left: ChatFindMarkerMatch, right: ChatFindMarkerMatch) {

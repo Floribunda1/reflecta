@@ -11,8 +11,6 @@ import {
   buildThreadTitleContext,
   createPiBashTool,
   createPiResourceLoader,
-  extractAssistantError,
-  loadAgentSystemPrompt,
   normalizeGeneratedThreadTitle,
   PI_BUILTIN_TOOL_NAMES,
   PiAgentHost,
@@ -21,6 +19,7 @@ import { createCodexBrowserAuthInteraction, createPiModelRuntime } from "./pi-mo
 import { AgentEntityCatalog } from "./agent-entity-catalog";
 import { AgentSessionLog } from "./pi-session-log";
 import { PI_WEB_ACCESS_TOOL_NAMES } from "./pi-web-access";
+import { extractPiAssistantError } from "./pi-message";
 
 const createAgentSessionMock = vi.hoisted(() => vi.fn());
 const executePiApprovedToolMock = vi.hoisted(() => vi.fn());
@@ -180,10 +179,7 @@ describe("createPiModelRuntime", () => {
 });
 
 describe("createPiResourceLoader", () => {
-  test("loads the shared system prompt and Reflecta runtime policies", async () => {
-    const expected = fs
-      .readFileSync(new URL("./agent-system-prompt.md", import.meta.url), "utf8")
-      .trim();
+  test("loads Reflecta runtime extensions without user-level resources", async () => {
     const root = tempRoot();
     const loader = await createPiResourceLoader({
       cwd: root,
@@ -193,8 +189,6 @@ describe("createPiResourceLoader", () => {
       getEntityCatalog: () => [],
     });
 
-    expect(loadAgentSystemPrompt()).toBe(expected);
-    expect(loader.getSystemPrompt()).toBe(expected);
     expect(loader.getExtensions().extensions.map((extension) => extension.path)).toEqual([
       expect.stringMatching(/pi-web-access\/index\.ts$/),
       "<inline:reflecta-web-access-policy>",
@@ -206,11 +200,6 @@ describe("createPiResourceLoader", () => {
     expect(loader.getPrompts().prompts).toEqual([]);
     expect(loader.getThemes().themes).toEqual([]);
     expect(loader.getAgentsFiles().agentsFiles).toEqual([]);
-    expect(expected).toContain("你是 Reflecta 的认知辅助 Agent");
-    expect(expected).toContain("原样复制该实体的 `citation` 字段");
-    expect(expected).toContain("调用工具时只传 `id` 字段");
-    expect(expected).toContain("问题依赖可能变化的外部事实时");
-    expect(expected).not.toMatch(/web_search|fetch_content|get_search_content/);
   });
 });
 
@@ -410,7 +399,7 @@ describe("PiAgentHost", () => {
 
   test("preserves Pi assistant error messages instead of reporting an empty response", () => {
     expect(
-      extractAssistantError({
+      extractPiAssistantError({
         role: "assistant",
         stopReason: "error",
         errorMessage: "Cannot find module './openai-completions-old.js'",

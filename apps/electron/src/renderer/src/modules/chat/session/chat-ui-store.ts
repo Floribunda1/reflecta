@@ -3,7 +3,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
 import type { InspectableContextRef } from "../context/context-reference";
 
-export const CHAT_UI_STORAGE_KEY = "reflecta.chat-session:v3";
+const CHAT_UI_STORAGE_KEY = "reflecta.chat-session:v3";
 
 export type ChatUiState = {
   activeThreadId: string | null;
@@ -27,7 +27,7 @@ export type ChatUiActions = {
 
 export type ChatUiStore = ChatUiState & ChatUiActions;
 
-export const initialChatUiState: ChatUiState = {
+const initialChatUiState: ChatUiState = {
   activeThreadId: null,
   inspectedRef: null,
   focusNonceByThread: {},
@@ -36,7 +36,7 @@ export const initialChatUiState: ChatUiState = {
   stoppedMessageIdsByThread: {},
 };
 
-export function createChatUiState(
+function createChatUiState(
   initialState: ChatUiState = initialChatUiState,
 ): StateCreator<ChatUiStore> {
   return (set) => ({

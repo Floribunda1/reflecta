@@ -1,10 +1,6 @@
 import { app, dialog, shell } from "electron";
 import { IpcMethod, IpcService } from "electron-ipc-decorator";
-import {
-  configureRetrievalEmbedding,
-  type RetrievalEmbeddingConfig as ServerRetrievalEmbeddingConfig,
-  type RetrievalIndexStatus,
-} from "@reflecta/server";
+import { configureRetrievalEmbedding, type RetrievalIndexStatus } from "@reflecta/server";
 import type {
   AiConfig,
   AiModelOption,
@@ -35,27 +31,8 @@ import {
 } from "../config";
 import { createCodexBrowserAuthInteraction, createPiModelRuntime } from "./agent/pi-model-runtime";
 
-function toServerRetrievalEmbeddingConfig(
-  config: RetrievalConfig,
-): Partial<ServerRetrievalEmbeddingConfig> | undefined {
-  if (config.embedding.provider === "disabled") return undefined;
-  if (config.embedding.provider === "local-llama-cpp") {
-    return {
-      provider: "local-llama-cpp",
-      modelId: config.embedding.modelId,
-      modelPath: config.embedding.modelPath,
-    };
-  }
-  return {
-    provider: "openai-compatible",
-    modelId: config.embedding.modelId,
-    baseUrl: config.embedding.baseUrl,
-    apiKey: config.embedding.apiKey,
-  };
-}
-
-export function applyRetrievalConfigToServer(config = getRetrievalConfig()): void {
-  configureRetrievalEmbedding(toServerRetrievalEmbeddingConfig(config));
+function applyRetrievalConfigToServer(config = getRetrievalConfig()): void {
+  configureRetrievalEmbedding(config.embedding);
 }
 
 export class ConfigService extends IpcService {

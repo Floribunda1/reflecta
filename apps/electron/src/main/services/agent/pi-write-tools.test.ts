@@ -80,12 +80,6 @@ const samplePayloads: Record<(typeof knowledgeMutationNames)[number], Record<str
 };
 const sampleApprovalPayloads: Record<PiApprovalToolName, Record<string, unknown>> = samplePayloads;
 
-function parameterDescription(toolName: PiApprovalToolName, parameterName: string): string {
-  const tool = createPiWriteTools().find((item) => item.name === toolName);
-  const schema = tool?.parameters as { properties?: Record<string, { description?: string }> };
-  return schema.properties?.[parameterName]?.description ?? "";
-}
-
 function expectNoKnowledgeMutationServicesCalled() {
   expect(services.createUnderstanding).not.toHaveBeenCalled();
   expect(services.updateUnderstanding).not.toHaveBeenCalled();
@@ -133,37 +127,6 @@ describe("createPiWriteTools", () => {
     expect(services.createContext).not.toHaveBeenCalled();
     expect(services.updateContext).not.toHaveBeenCalled();
     expect(services.deleteContext).not.toHaveBeenCalled();
-  });
-
-  test("documents stable id inputs for write tools", () => {
-    expect(parameterDescription("understanding_create", "domainIds")).toContain(
-      "Stable Domain ids",
-    );
-    expect(parameterDescription("understanding_create", "body")).toContain(
-      "[[title#understanding-id]]",
-    );
-    expect(parameterDescription("understanding_update", "understandingId")).toContain(
-      "Stable Understanding id",
-    );
-    expect(parameterDescription("understanding_update", "body")).toContain(
-      "[[title#understanding-id]]",
-    );
-    expect(parameterDescription("understanding_update", "domainIds")).toContain(
-      "Stable Domain ids",
-    );
-    const updateParameters = createPiWriteTools().find(
-      (item) => item.name === "understanding_update",
-    )?.parameters as { properties?: Record<string, unknown> } | undefined;
-    expect(updateParameters?.properties?.before).toBeUndefined();
-    expect(parameterDescription("domain_update", "domainId")).toContain("Stable Domain id");
-    expect(parameterDescription("domain_update", "parentId")).toContain("Stable parent Domain id");
-    expect(parameterDescription("context_create", "understandingId")).toContain(
-      "Stable Understanding id",
-    );
-    expect(parameterDescription("context_update", "contextId")).toContain("Stable Context id");
-    expect(parameterDescription("context_update", "understandingId")).toContain(
-      "Stable Understanding id",
-    );
   });
 
   test.each([

@@ -12,7 +12,7 @@ const MAX_ACTIVE_CONTEXT_TOKENS = 160_000;
 const MAX_RECENT_TOKENS = 24_000;
 const MAX_SUMMARY_TOKENS = 6_000;
 
-export const REFLECTA_COMPACTION_PROMPT_ID = "reflecta-context-checkpoint";
+const REFLECTA_COMPACTION_PROMPT_ID = "reflecta-context-checkpoint";
 
 const REFLECTA_COMPACTION_SYSTEM_PROMPT = `你负责把一段较早的 Reflecta 对话整理成供另一个 AI 继续对话使用的上下文检查点。
 

@@ -19,7 +19,7 @@ type AstParent = AstNode & { children: AstNode[] };
 type TextNode = AstNode & { type: "text"; value?: unknown };
 type WikiLinkNode = AstNode & { type: "wikiLink"; title: string; id: string };
 
-export const remarkWikiLink = $remark("reflectaWikiLink", () => () => (tree) => {
+const remarkWikiLink = $remark("reflectaWikiLink", () => () => (tree) => {
   visit(tree, "text", (node, index, parent) => {
     const textNode = node as TextNode;
     const parentNode = parent as AstParent | undefined;
@@ -53,7 +53,7 @@ export const remarkWikiLink = $remark("reflectaWikiLink", () => () => (tree) => 
   });
 });
 
-export const wikiLinkSchema = $nodeSchema("wiki_link", () => ({
+const wikiLinkSchema = $nodeSchema("wiki_link", () => ({
   inline: true,
   group: "inline",
   atom: true,
@@ -128,7 +128,7 @@ const deleteEmptyNestedTextblock: Command = (state, dispatch) => {
   return true;
 };
 
-export const emptyNestedBlockKeymap = $prose(() =>
+const emptyNestedBlockKeymap = $prose(() =>
   keymap({
     Backspace: deleteEmptyNestedTextblock,
   }),

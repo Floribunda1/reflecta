@@ -38,10 +38,6 @@ function domainCandidate(domain: Domain): ContextCandidate {
   };
 }
 
-export function shouldSearchContexts(enabled: boolean, query: string) {
-  return enabled && query.trim().length > 0;
-}
-
 export function buildContextCandidates({
   query,
   understandings,
