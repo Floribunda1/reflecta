@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useState } from "react";
-import { Button } from "../../components/button";
+import { useAutoFrame } from "../../../.storybook/use-auto-frame";
 import type { ChatEntityReference } from "../entity";
 import { entityKey } from "../entity-visual";
 import { ChatMarkdown } from "./chat-markdown";
@@ -15,9 +14,7 @@ const presentations = new Map([
 
 const entityBindings = {
   resolveEntity: (reference: ChatEntityReference) => presentations.get(entityKey(reference)),
-  onEntityOpen: (reference: ChatEntityReference) => {
-    window.alert(`打开 ${entityKey(reference)}`);
-  },
+  onEntityOpen: () => undefined,
 };
 
 const completeMarkdown = `# Agent Markdown 完整语法
@@ -126,35 +123,25 @@ const streamingCases = [
   },
 ] as const;
 
-function StreamingSyntaxDemo() {
-  const [caseIndex, setCaseIndex] = useState(0);
-  const [frameIndex, setFrameIndex] = useState(0);
-  const currentCase = streamingCases[caseIndex];
+const streamingFrames = streamingCases.flatMap((entry) =>
+  entry.frames.map((value, index) => ({
+    label: entry.label,
+    value,
+    frame: index + 1,
+    frameCount: entry.frames.length,
+  })),
+);
 
-  const nextCase = () => {
-    setCaseIndex((current) => (current + 1) % streamingCases.length);
-    setFrameIndex(0);
-  };
+function StreamingSyntaxDemo() {
+  const current = streamingFrames[useAutoFrame(streamingFrames.length)];
 
   return (
     <div className="grid max-w-3xl gap-4">
       <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-        当前语法：{currentCase.label} · 第 {frameIndex + 1}/{currentCase.frames.length} 帧
+        当前语法：{current.label} · 第 {current.frame}/{current.frameCount} 帧 · 自动播放
       </div>
       <div className="min-h-40 rounded-lg border p-4">
-        <ChatMarkdown value={currentCase.frames[frameIndex]} {...entityBindings} />
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => setFrameIndex((current) => (current + 1) % currentCase.frames.length)}
-        >
-          下一帧
-        </Button>
-        <Button type="button" size="sm" variant="outline" onClick={nextCase}>
-          下一个流式语法
-        </Button>
+        <ChatMarkdown value={current.value} {...entityBindings} />
       </div>
     </div>
   );

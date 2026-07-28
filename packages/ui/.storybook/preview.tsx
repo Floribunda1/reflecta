@@ -53,11 +53,7 @@ const preview: Preview = {
             "组合场景样式",
           ],
           "Agent",
-          [
-            "基本组件",
-            ["Composer", "Message", "Markdown", "Execution", "Proposal"],
-            "组合场景样式",
-          ],
+          ["基本组件", ["Composer", "Message", "Markdown", "Tool"], "组合场景样式"],
           "Knowledge Wander",
           ["基本组件", ["Knowledge Graph"]],
         ],

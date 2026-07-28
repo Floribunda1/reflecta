@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useAutoFrame } from "../../../.storybook/use-auto-frame";
 import { Button } from "../../components/button";
 import { ChatComposer } from "../composer/chat-composer";
 import { ChatMessageRow } from "../message/chat-message-row";
@@ -62,7 +63,7 @@ function StorySurface({ children }: { children: React.ReactNode }) {
 }
 
 function TypicalTaskDemo() {
-  const [frame, setFrame] = useState(0);
+  const frame = useAutoFrame(3, 1_800);
   const blocks: AgentMessageBlockView[] =
     frame === 0
       ? []
@@ -146,15 +147,6 @@ function TypicalTaskDemo() {
       <div className="grid content-start gap-7 overflow-auto p-6">
         <ChatMessageRow row={userRow} />
         <ChatMessageRow row={assistantRow} />
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="w-fit"
-          onClick={() => setFrame((current) => (current + 1) % 3)}
-        >
-          下一状态：{frame === 0 ? "开始执行" : frame === 1 ? "完成任务" : "重新开始"}
-        </Button>
       </div>
       <div className="border-t bg-background p-4">
         <Composer running={frame !== 2} />
@@ -165,6 +157,13 @@ function TypicalTaskDemo() {
 
 function ApprovalTaskDemo() {
   const [lifecycle, setLifecycle] = useState<AgentProposalLifecycle>("pending");
+
+  useEffect(() => {
+    if (lifecycle !== "running") return;
+    const timer = window.setTimeout(() => setLifecycle("completed"), 1_200);
+    return () => window.clearTimeout(timer);
+  }, [lifecycle]);
+
   const proposal: AgentProposalView = {
     id: "approval-composition",
     kind: "bash",
@@ -230,21 +229,6 @@ function ApprovalTaskDemo() {
           }
         />
         <div className="flex flex-wrap gap-2">
-          {lifecycle === "running" ? (
-            <>
-              <Button type="button" size="sm" onClick={() => setLifecycle("completed")}>
-                执行完成
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="destructive"
-                onClick={() => setLifecycle("failed")}
-              >
-                执行失败
-              </Button>
-            </>
-          ) : null}
           <Button type="button" size="sm" variant="outline" onClick={() => setLifecycle("pending")}>
             重置确认
           </Button>

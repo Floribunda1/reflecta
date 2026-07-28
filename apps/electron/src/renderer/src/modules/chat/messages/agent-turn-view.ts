@@ -1,4 +1,13 @@
-import type { AgentContextCompacted, AgentReducedAssistantBlock } from "@shared/agent";
+import type {
+  AgentProposalLifecycle,
+  AgentProposalView,
+  AgentToolActivityView,
+  AgentToolDetailsView,
+} from "@reflecta/ui/chat";
+import type {
+  AgentContextCompacted,
+  AgentReducedAssistantBlock,
+} from "../../../../../preload/typings/agent";
 
 export type ProposalType =
   | "understanding_create"
@@ -61,6 +70,11 @@ export type ToolActivityItemView = {
   statusLabel: string;
   details: ToolActivityDetailsView;
   errorText?: string;
+};
+
+export type AgentViewPresentation = {
+  entityLabels: ReadonlyMap<string, string>;
+  domainPath: (id: string) => string;
 };
 
 type ProposalBase<TType extends ProposalType, TData extends { kind: string }> = {
@@ -442,6 +456,269 @@ function proposalValue(value: unknown) {
   if (Array.isArray(value)) return value.join(", ");
   if (isRecord(value)) return JSON.stringify(value);
   return String(value);
+}
+
+function toAgentToolDetailsView(
+  details: ToolActivityDetailsView | undefined,
+  ownerId: string,
+): AgentToolDetailsView | undefined {
+  if (!details) return undefined;
+  return {
+    ...(details.meta.length ? { meta: details.meta } : {}),
+    ...(details.rows.length
+      ? {
+          rows: details.rows.map((row, index) => {
+            const format = row.format ?? "text";
+            const content = row.description
+              ? format === "text"
+                ? { format: "text" as const, value: row.description }
+                : {
+                    format,
+                    preview: row.description,
+                    ...(row.fullDescription ? { full: row.fullDescription } : {}),
+                  }
+              : undefined;
+            return {
+              id: `${ownerId}:row:${index}`,
+              label: row.label,
+              title: row.title,
+              ...(content ? { content } : {}),
+              ...(row.meta.length ? { meta: row.meta } : {}),
+            };
+          }),
+        }
+      : {}),
+    ...(details.emptyText ? { emptyText: details.emptyText } : {}),
+  };
+}
+
+export function toAgentToolActivityView(
+  activity: ToolActivityView,
+  id = activity.items[0]?.toolCallId ?? "tool",
+): AgentToolActivityView {
+  return {
+    id,
+    status: activity.status,
+    summary: activity.summary,
+    items: activity.items.map((item) => ({
+      id: item.toolCallId,
+      label: item.label,
+      ...(item.details ? { details: toAgentToolDetailsView(item.details, item.toolCallId) } : {}),
+      ...(item.errorText ? { error: item.errorText } : {}),
+    })),
+  };
+}
+
+function lifecycleFor(block: AgentApprovalBlock): AgentProposalLifecycle {
+  if (block.preview) return "preview";
+  if (block.displayState === "pending_approval") return "pending";
+  if (block.displayState === "running") return "running";
+  if (block.displayState === "completed") return "completed";
+  if (block.displayState === "rejected") return "rejected";
+  if (block.displayState === "failed") return "failed";
+  return "preview";
+}
+
+function proposalNote(proposal: ProposalView, lifecycle: AgentProposalLifecycle) {
+  if (lifecycle === "completed" && proposal.resultRefType && proposal.resultRefId) {
+    return `已写入 ${proposal.resultRefType} · ${proposal.resultRefId}`;
+  }
+  if (lifecycle === "rejected") {
+    return proposal.type === "bash" ? "已拒绝，命令未执行" : "已拒绝，未写入知识库";
+  }
+  return undefined;
+}
+
+function proposalBase(proposal: ProposalView, raw: AgentApprovalBlock) {
+  const lifecycle = lifecycleFor(raw);
+  const note = proposalNote(proposal, lifecycle);
+  return {
+    id: raw.approvalId || raw.toolCallId,
+    title: raw.title || proposal.title,
+    lifecycle,
+    ...(note ? { note } : {}),
+    ...(raw.error ? { error: raw.error } : {}),
+    ...(proposal.result
+      ? { result: toAgentToolDetailsView(proposal.result, raw.approvalId || raw.toolCallId) }
+      : {}),
+    ...(lifecycle === "pending" ? { decisionEnabled: true } : {}),
+  };
+}
+
+function proposalEntityLabel(
+  type: "understanding" | "context",
+  id: string | undefined,
+  presentation: AgentViewPresentation,
+) {
+  if (!id) return undefined;
+  return presentation.entityLabels.get(`${type}:${id}`) ?? id;
+}
+
+function proposalDomainPath(
+  value: unknown,
+  presentation: AgentViewPresentation,
+): string | null | undefined {
+  if (value === null) return null;
+  if (typeof value !== "string") return undefined;
+  return value ? presentation.domainPath(value) : null;
+}
+
+export function toAgentProposalView(
+  proposal: ProposalView,
+  raw: AgentApprovalBlock,
+  presentation: AgentViewPresentation,
+): AgentProposalView {
+  const input = isRecord(raw.payload) ? raw.payload : {};
+  const base = proposalBase(proposal, raw);
+
+  if (raw.toolName === "understanding_create") {
+    const domainIds = optionalStringArray(input.domainIds);
+    return {
+      ...base,
+      kind: "understanding-create",
+      content: {
+        heading: optionalString(input.title),
+        body: optionalString(input.body),
+        ...(domainIds ? { domainPaths: domainIds.map(presentation.domainPath) } : {}),
+      },
+    };
+  }
+  if (raw.toolName === "understanding_update") {
+    const before = isRecord(input.before) ? input.before : {};
+    const after = isRecord(input.after) ? input.after : input;
+    const id = optionalString(input.understandingId);
+    const domainIds = optionalStringArray(after.domainIds) ?? optionalStringArray(input.domainIds);
+    return {
+      ...base,
+      kind: "understanding-update",
+      content: {
+        targetLabel: proposalEntityLabel("understanding", id, presentation),
+        beforeHeading: optionalString(before.title),
+        afterHeading: optionalString(after.title),
+        beforeBody: optionalString(before.body),
+        afterBody: optionalString(after.body),
+        ...(domainIds ? { domainPaths: domainIds.map(presentation.domainPath) } : {}),
+        reason: optionalString(input.reason),
+      },
+    };
+  }
+  if (raw.toolName === "understanding_delete") {
+    const id = optionalString(input.understandingId);
+    return {
+      ...base,
+      kind: "understanding-delete",
+      content: {
+        targetLabel: proposalEntityLabel("understanding", id, presentation),
+        reason: optionalString(input.reason),
+      },
+    };
+  }
+  if (raw.toolName === "domain_create") {
+    return {
+      ...base,
+      kind: "domain-create",
+      content: {
+        name: optionalString(input.name),
+        parentPath: proposalDomainPath(input.parentId, presentation),
+        reason: optionalString(input.reason),
+      },
+    };
+  }
+  if (raw.toolName === "domain_update") {
+    const id = optionalString(input.domainId);
+    return {
+      ...base,
+      kind: "domain-update",
+      content: {
+        targetPath: id ? presentation.domainPath(id) : undefined,
+        nextName: optionalString(input.name),
+        nextParentPath: proposalDomainPath(input.parentId, presentation),
+        reason: optionalString(input.reason),
+      },
+    };
+  }
+  if (raw.toolName === "domain_delete") {
+    const id = optionalString(input.domainId);
+    return {
+      ...base,
+      kind: "domain-delete",
+      content: {
+        targetPath: id ? presentation.domainPath(id) : undefined,
+        deleteUnderstandings:
+          typeof input.deleteUnderstandings === "boolean" ? input.deleteUnderstandings : undefined,
+        reason: optionalString(input.reason),
+      },
+    };
+  }
+  if (raw.toolName === "context_create") {
+    const understandingId = optionalString(input.understandingId);
+    return {
+      ...base,
+      kind: "context-create",
+      content: {
+        understandingLabel: proposalEntityLabel("understanding", understandingId, presentation),
+        mediumLabel:
+          mediumLabel(optionalString(input.medium) ?? "") || optionalString(input.medium),
+        contextLabel: optionalString(input.title),
+        body: optionalString(input.content),
+      },
+    };
+  }
+  if (raw.toolName === "context_update") {
+    const contextId = optionalString(input.contextId);
+    const understandingId = optionalString(input.understandingId);
+    return {
+      ...base,
+      kind: "context-update",
+      content: {
+        targetLabel: proposalEntityLabel("context", contextId, presentation),
+        understandingLabel: proposalEntityLabel("understanding", understandingId, presentation),
+        mediumLabel:
+          mediumLabel(optionalString(input.medium) ?? "") || optionalString(input.medium),
+        nextTitle: optionalString(input.title),
+        nextBody: optionalString(input.content),
+        reason: optionalString(input.reason),
+      },
+    };
+  }
+  if (raw.toolName === "context_delete") {
+    const id = optionalString(input.contextId);
+    return {
+      ...base,
+      kind: "context-delete",
+      content: {
+        targetLabel: proposalEntityLabel("context", id, presentation),
+        reason: optionalString(input.reason),
+      },
+    };
+  }
+  if (raw.toolName === "bash") {
+    return {
+      ...base,
+      kind: "bash",
+      content: {
+        command: optionalString(input.command),
+        cwd: optionalString(input.cwd),
+        timeoutMs: typeof input.timeoutMs === "number" ? input.timeoutMs : undefined,
+      },
+    };
+  }
+  return {
+    ...base,
+    kind: "unknown",
+    content: {
+      fields: Object.entries(input)
+        .filter(([key, value]) => key !== "proposalType" && value !== undefined)
+        .map(([key, value]) => ({
+          id: `${raw.approvalId}:${key}`,
+          label: key,
+          value: {
+            format: key === "body" || key === "content" ? ("markdown" as const) : ("text" as const),
+            value: proposalValue(value),
+          },
+        })),
+    },
+  };
 }
 
 function summarizeToolGroup(groupType: ToolGroupType, blocks: AgentToolBlock[]): ToolActivityView {
@@ -1210,6 +1487,10 @@ function stringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];
+}
+
+function optionalString(value: unknown) {
+  return typeof value === "string" ? value : undefined;
 }
 
 function optionalStringArray(value: unknown): string[] | undefined {

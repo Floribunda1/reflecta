@@ -1,6 +1,5 @@
-import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Button } from "../../components/button";
+import { useAutoFrame } from "../../../.storybook/use-auto-frame";
 import { ChatMessageRow } from "./chat-message-row";
 import type { ChatMessageRowView } from "./types";
 
@@ -128,7 +127,7 @@ export const Failed: Story = {
 
 function StreamingTextSequence() {
   const frames = ["正在", "正在生成", "正在生成 **流式内容**。"];
-  const [frame, setFrame] = useState(0);
+  const frame = useAutoFrame(frames.length);
   const row: ChatMessageRowView = {
     message: {
       kind: "assistant",
@@ -144,19 +143,7 @@ function StreamingTextSequence() {
       ],
     },
   };
-  return (
-    <div className="grid max-w-2xl gap-3">
-      <ChatMessageRow row={row} />
-      <Button
-        type="button"
-        className="w-fit"
-        size="sm"
-        onClick={() => setFrame((current) => (current + 1) % frames.length)}
-      >
-        下一帧
-      </Button>
-    </div>
-  );
+  return <ChatMessageRow row={row} />;
 }
 
 export const StreamingIdentity: Story = {

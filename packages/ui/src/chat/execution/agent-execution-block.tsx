@@ -61,7 +61,7 @@ function ReasoningBlock({
     <Collapsible
       data-slot="agent-reasoning"
       data-testid="agent-reasoning"
-      className="my-1 w-full rounded-md border-l-2 border-border/80 bg-muted/30 py-1.5 pl-3 pr-2 text-sm text-muted-foreground"
+      className="my-1 min-w-0 w-full rounded-md border-l-2 border-border/80 bg-muted/30 py-1.5 pl-3 pr-2 text-sm text-muted-foreground"
     >
       <CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-1.5 rounded-sm px-1 py-0.5 text-left hover:bg-muted/55">
         {streaming ? <Spinner className="size-3 shrink-0" /> : null}
@@ -103,7 +103,7 @@ function ToolActivityBlock({
       defaultOpen={defaultExpanded}
       data-testid="agent-tool-activity"
       data-activity-id={activity.id}
-      className="my-1 w-full rounded-md border-l-2 border-border/80 bg-muted/30 py-1.5 pl-3 pr-2 text-sm text-muted-foreground"
+      className="my-1 min-w-0 w-full rounded-md border-l-2 border-border/80 bg-muted/30 py-1.5 pl-3 pr-2 text-sm text-muted-foreground"
     >
       <CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-1.5 rounded-sm px-1 py-0.5 text-left hover:bg-muted/55">
         <span className="min-w-0 truncate">{activity.summary}</span>
