@@ -16,9 +16,9 @@ import { Input } from "@reflecta/ui/components/input";
 import { cn } from "@reflecta/ui/lib/utils";
 import { useDebounce, useMemoizedFn } from "ahooks";
 import { toast } from "sonner";
-import { ChatComposer } from "./composer/chat-composer";
+import { AgentChatComposer } from "./adapters/chat-composer-adapter";
 import type { InspectableContextRef } from "./context/context-reference";
-import type { ApproveToolInput } from "./messages/agent-message-content";
+import type { ApproveToolInput } from "./adapters/chat-message-adapter";
 import {
   activateChatFindMarker,
   chatFindMarkers,
@@ -81,10 +81,6 @@ export function AgentThreadPanel({
   const modelOptions = modelOptionsQuery.data?.options ?? [];
   const activeModel = modelOptionsQuery.data?.active ?? null;
   const activeReasoningLevel = modelOptionsQuery.data?.activeReasoningLevel ?? "off";
-  const modelSelectorDisabled =
-    modelOptionsQuery.isFetching ||
-    selectModelMutation.isPending ||
-    selectReasoningLevelMutation.isPending;
   const selectModel = useMemoizedFn((selection: AgentModelSelection) =>
     selectModelMutation.mutate(selection),
   );
@@ -207,7 +203,8 @@ export function AgentThreadPanel({
         ) : null}
       </div>
 
-      <ChatComposer
+      <AgentChatComposer
+        threadId={threadId}
         isBusy={threadView.composerBusy}
         isCompacting={threadView.isCompacting}
         canStop={threadView.canStop}
@@ -219,7 +216,6 @@ export function AgentThreadPanel({
         activeModel={activeModel}
         activeReasoningLevel={activeReasoningLevel}
         messages={threadView.visibleMessages}
-        modelSelectorDisabled={modelSelectorDisabled}
         onSelectModel={selectModel}
         onSelectReasoningLevel={selectReasoningLevel}
         onSend={send}

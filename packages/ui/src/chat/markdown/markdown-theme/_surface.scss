@@ -6,6 +6,11 @@
   line-height: $line-height-prose;
   overflow-wrap: anywhere;
 
+  &[data-tone="muted"],
+  &[data-tone="muted"] p {
+    color: var(--muted-foreground);
+  }
+
   > * {
     &:first-child {
       margin-top: 0;

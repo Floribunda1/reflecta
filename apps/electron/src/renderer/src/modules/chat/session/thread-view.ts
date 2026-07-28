@@ -6,9 +6,9 @@ import type {
   AgentReasoningLevel,
   AgentReducedMessage,
 } from "@shared/agent";
-import type { ComposerSendInput, EditingMessage } from "../composer/chat-composer";
-import type { ApproveToolInput } from "../messages/agent-message-content";
-import { findChatTextRanges } from "./chat-find";
+import type { ComposerSendInput, EditingMessage } from "../adapters/chat-composer-adapter";
+import type { ApproveToolInput } from "../adapters/chat-message-adapter";
+import { findChatTextRanges } from "@reflecta/ui/chat";
 
 export type AgentThreadView = {
   visibleMessages: AgentReducedMessage[];

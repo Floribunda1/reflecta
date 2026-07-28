@@ -59,13 +59,6 @@ export async function getEntityDisplay(ref: Pick<AgentContextRef, "type" | "id">
   return entity ? { title: entity.name?.trim() || null } : null;
 }
 
-export function useEntityDisplay(ref: Pick<AgentContextRef, "type" | "id">) {
-  return useQuery<EntityDisplay | null>({
-    queryKey: captureQueryKeys.entityDisplay(ref),
-    queryFn: () => getEntityDisplay(ref),
-  });
-}
-
 export function invalidateEntityDisplay(
   queryClient: QueryClient,
   ref: Pick<AgentContextRef, "type" | "id">,
@@ -133,7 +126,7 @@ function buildUnderstandingListTotalFilter({
 
 const EMPTY_DOMAIN_LIST: Domain[] = [];
 
-export function useCaptureDomains() {
+export function useCaptureDomains(enabled = true) {
   const {
     data: domainList,
     isFetching,
@@ -141,6 +134,7 @@ export function useCaptureDomains() {
   } = useQuery({
     queryKey: captureQueryKeys.domains,
     queryFn: () => ipcClient.domain.listDomains(),
+    enabled,
   });
 
   const normalizedDomainList = domainList ?? EMPTY_DOMAIN_LIST;

@@ -1,15 +1,25 @@
 import { Archive, Copy, FileDown, Minimize2, Sparkles, Trash2 } from "lucide-react";
-import type { AgentContextRef, AgentReducedMessage } from "@shared/agent";
+import type { AgentReducedMessage } from "@shared/agent";
+import {
+  collectChatEntityReferences,
+  replaceChatEntityReferences,
+  type ChatEntityReference,
+} from "@reflecta/ui/chat";
 import { ContextMenuItem, ContextMenuSeparator } from "@reflecta/ui/components/context-menu";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@reflecta/ui/components/dropdown-menu";
 import { toast } from "sonner";
 import { ipcClient } from "@renderer/utils/ipc";
 import { getEntityDisplay } from "../../capture/queries";
-import {
-  contextKey,
-  contextTypeLabel,
-  transformEntityCitationMarkdown,
-} from "../context/context-reference";
+
+function referenceKey(reference: Pick<ChatEntityReference, "type" | "id">) {
+  return `${reference.type}:${reference.id}`;
+}
+
+function referenceTypeLabel(reference: ChatEntityReference) {
+  if (reference.type === "understanding") return "Understanding";
+  if (reference.type === "context") return "Context";
+  return "Domain";
+}
 
 function errorMessage(error: unknown) {
   if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
@@ -18,12 +28,11 @@ function errorMessage(error: unknown) {
 }
 
 export async function exportThreadMarkdown(title: string, messages: AgentReducedMessage[]) {
-  const references = new Map<string, AgentContextRef>();
+  const references = new Map<string, ChatEntityReference>();
   for (const message of messages) {
-    transformEntityCitationMarkdown(message.text, (ref, source) => {
-      references.set(contextKey(ref), ref);
-      return source;
-    });
+    for (const reference of collectChatEntityReferences(message.text)) {
+      references.set(referenceKey(reference), reference);
+    }
   }
   const labels = new Map(
     await Promise.all(
@@ -32,9 +41,7 @@ export async function exportThreadMarkdown(title: string, messages: AgentReduced
           const display = await getEntityDisplay(ref);
           return [
             key,
-            display === null
-              ? "引用不可用"
-              : display.title || `未命名 ${contextTypeLabel(ref.type)}`,
+            display === null ? "引用不可用" : display.title || `未命名 ${referenceTypeLabel(ref)}`,
           ] as const;
         } catch {
           return [key, "引用加载失败"] as const;
@@ -45,9 +52,9 @@ export async function exportThreadMarkdown(title: string, messages: AgentReduced
 
   const parts = [`# ${title.trim() || "Agent 对话"}`];
   for (const message of messages) {
-    const text = transformEntityCitationMarkdown(
+    const text = replaceChatEntityReferences(
       message.text.trim(),
-      (ref, source) => labels.get(contextKey(ref)) ?? source,
+      (reference, source) => labels.get(referenceKey(reference)) ?? source,
     );
     if (!text) continue;
     parts.push(`## ${message.role === "user" ? "用户" : "Agent"}\n\n${text}`);

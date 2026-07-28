@@ -8,8 +8,8 @@ import {
   reduceAgentSession,
   reduceAgentSessionEvent,
 } from "@shared/agent";
-import type { ComposerSendInput, EditingMessage } from "../composer/chat-composer";
-import type { ApproveToolInput } from "../messages/agent-message-content";
+import type { ComposerSendInput, EditingMessage } from "../adapters/chat-composer-adapter";
+import type { ApproveToolInput } from "../adapters/chat-message-adapter";
 import { chatUiStore, useStoppedMessageId, useThreadFocusNonce } from "./chat-ui-store";
 import { chatQueryKeys } from "./query-keys";
 import { invalidateEntityDisplay } from "../../capture/queries";

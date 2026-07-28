@@ -22,17 +22,6 @@ body {
   -webkit-app-region: no-drag;
 }
 
-[data-chat-find-match="true"] {
-  border-radius: 2px;
-  background: color-mix(in srgb, #facc15, transparent 42%);
-  color: inherit;
-}
-
-[data-chat-find-active="true"] {
-  background: var(--primary);
-  color: var(--primary-foreground);
-}
-
 /* ─── Global scrollbar styling ─────────────────────────────────────────────── */
 * {
   scrollbar-width: thin;

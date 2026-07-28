@@ -7,7 +7,6 @@
       "@main/*": ["src/main/*"],
       "@shared/*": ["src/preload/typings/*"],
       "components/*": ["src/renderer/src/components/*"],
-      "ui/*": ["src/renderer/src/components/ui/*"],
       "lib/*": ["src/renderer/src/lib/*"],
       "hooks/*": ["src/renderer/src/hooks/*"],
       "utils": ["src/renderer/src/lib/utils.ts"]
