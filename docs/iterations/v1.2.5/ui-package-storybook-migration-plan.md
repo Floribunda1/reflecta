@@ -134,8 +134,9 @@ apps/electron/src/renderer/src/
 
 ```text
 @reflecta/ui/styles.css
-@reflecta/ui/primitives
 @reflecta/ui/theme
+@reflecta/ui/utils
+@reflecta/ui/primitives/*
 @reflecta/ui/chat
 ```
 
@@ -145,6 +146,8 @@ apps/electron/src/renderer/src/
 - `AgentExecutionBlock`
 - `AgentProposalCard`
 - `AgentMessageView`
+- `ChatEntityReference`、`ChatEntityBindings` 和各 Module View Model；
+- `collectChatEntityReferences`、`replaceChatEntityReferences`、`findChatTextRanges` 等跨 Renderer/Storybook 共用的纯 helper。
 
 以下内容保持 package internal：
 
@@ -170,6 +173,18 @@ UI View Model 遵守：
 - 缺少 display data 时显式使用稳定 fallback，不在组件内部发起请求。
 
 `agent-turn-view.ts` 继续留在 Electron：它解释 Agent tool payload 和 session state，是 App Adapter，而不是 UI implementation。它返回的 UI 类型改由 `@reflecta/ui/chat` 提供。
+
+### 3.4 Module Design 索引
+
+主计划定义迁移顺序、共同约束和出口；以下文档定义每个 Module 的组件清单与 TypeScript interface：
+
+1. [UI Foundation Module Design](./ui-foundation-module-design.md)
+2. [Chat Markdown Module Design](./chat-markdown-module-design.md)
+3. [Agent Execution Module Design](./agent-execution-module-design.md)
+4. [Agent Proposal Module Design](./agent-proposal-module-design.md)
+5. [Agent Message Module Design](./agent-message-module-design.md)
+
+实施时，Module Design 是对应组件归属和 interface 的详细依据；若与主计划摘要冲突，以保持依赖方向和详细 interface 的 Module Design 为准，并同步修正文档。
 
 ## 4. 所有模块共用的迁移闭环
 
@@ -236,10 +251,13 @@ UI View Model 遵守：
 
 该模块先迁移所有后续模块共同依赖的设计基础。
 
+详细组件与 interface：[UI Foundation Module Design](./ui-foundation-module-design.md)。
+
 ### 6.1 确认组件
 
 - [ ] 扫描 56 个现有 shadcn primitive 及其内部 import graph；
 - [ ] 扫描 Theme Provider、`cn` 和 semantic style helper 的实际调用方；
+- [ ] 扫描 `Sidebar` 使用的 `useIsMobile` 等 primitive 隐性依赖；
 - [ ] 将现有 `style.css` 分类为：
   - UI design tokens、字体、base layer、通用 scrollbar；
   - Electron App Shell、窗口拖拽、`#root` 尺寸和 Renderer-only 规则；
@@ -252,6 +270,7 @@ UI View Model 遵守：
 - `components/ui/*` 全部作为一个内部依赖图迁移；
 - `components/theme-provider.tsx`；
 - `lib/utils.ts` 中的 `cn`；
+- `hooks/use-mobile.ts` 作为 `Sidebar` package-internal 实现；
 - Reflecta design tokens 和通用基础样式。
 
 留在 Electron：
@@ -263,9 +282,9 @@ UI View Model 遵守：
 
 ### 6.2 重新设计 Interface
 
-- [ ] primitives 通过 `@reflecta/ui/primitives` 导出；
 - [ ] Theme Provider 通过 `@reflecta/ui/theme` 导出；
-- [ ] `cn` 只作为 package internal helper；只有确认外部调用方确实需要时才公开；
+- [ ] primitives 通过 `@reflecta/ui/primitives/*` 独立 subpath 导出；
+- [ ] `cn` 通过 `@reflecta/ui/utils` 导出，供现有非 primitive Renderer 调用方使用；
 - [ ] package 内 primitive 使用 package-local import，不使用 App alias；
 - [ ] 保持 shadcn 现有 props、样式和行为不变；
 - [ ] Electron `style.css` 改为加载 `@reflecta/ui/styles.css` 后追加 App-only 样式。
@@ -296,6 +315,8 @@ UI View Model 遵守：
 ## 7. Module 2：Chat Markdown
 
 该模块把 Markdown parsing、实体链接展示和视觉样式收拢成一个深 Module。
+
+详细组件与 interface：[Chat Markdown Module Design](./chat-markdown-module-design.md)。
 
 ### 7.1 确认组件
 
@@ -363,6 +384,8 @@ UI View Model 遵守：
 
 该模块覆盖不要求用户确认的 assistant 过程状态，与写操作 Proposal 分开。
 
+详细组件与 interface：[Agent Execution Module Design](./agent-execution-module-design.md)。
+
 ### 8.1 确认组件
 
 - [ ] 检查 `ToolActivityGroup`、Tool detail rows、Reasoning、Context Compaction、Running Placeholder；
@@ -426,6 +449,8 @@ UI View Model 遵守：
 
 该模块覆盖需要用户确认或展示写入结果的 Agent Tool UI。
 
+详细组件与 interface：[Agent Proposal Module Design](./agent-proposal-module-design.md)。
+
 ### 9.1 确认组件
 
 - [ ] 检查 Candidate Shell；
@@ -485,6 +510,8 @@ UI View Model 遵守：
 ## 10. Module 5：Agent Message 组合与最终替换
 
 最后一个模块将前四个模块组合成 Electron 和 Storybook 共用的消息渲染 interface。
+
+详细组件与 interface：[Agent Message Module Design](./agent-message-module-design.md)。
 
 ### 10.1 确认组件
 
