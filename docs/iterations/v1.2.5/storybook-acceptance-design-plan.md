@@ -6,1138 +6,742 @@
 >
 > 上位计划：[UI Package 与 Storybook 迁移计划](./ui-package-storybook-migration-plan.md)
 >
-> 组织逻辑：本文采用**空间/结构型主线**，先定义 Storybook 的组件验收边界和统一 Story 规则，再按“基础与共享、Capture、Agent、Knowledge Wander、Settings”五个 UI 区域平行展开，最后给出迁移顺序和验收标准。区域之间按组件的主要使用上下文做 MECE 划分；每个区域内部统一按“基本组件 → 组合场景样式”递进，基本组件再覆盖自身有意义的状态、交互和边界。这样既保留组件库式 Storybook 的可定位性，又能在必要时把多个组件放在一起观察真实密度和层级，而不把 Storybook 变成页面、业务流程或 E2E 的替代品。
+> 组织逻辑：本文采用“**准入门槛 → 区域白名单 → 状态矩阵 → 实施顺序**”的优先级/结构型混合主线。先回答“什么值得进入 Storybook”，再按 Capture、Agent、Knowledge Wander 三个区域列出高价值 UI Module，随后定义单组件与组合 Story 的验收方式，最后落到迁移和测试。这样组织是为了让 Storybook 保持小而有效：目录结构仍符合产品中的使用上下文，但收录与否只由组件的视觉和交互验收价值决定，不由页面、业务名或 React 文件数量决定。
 
 ## 1. 核心结论
 
-Reflecta Storybook 的验收对象是组件，不是页面，也不是产品流程。
+Reflecta Storybook 是一套**经过筛选的高价值组件验收面**，不是组件清单，也不是页面或业务流程的缩小版。
 
-它使用两种互补的 Story：
+一个组件进入 Storybook，必须同时满足：
 
-1. **基本组件 Story**：独立验收一个项目组件的状态、样式、交互和边界；
-2. **组合场景 Story**：把同一区域的多个真实组件放在一起，验收它们同时出现时的密度、节奏、层级和布局。
+1. 至少具备一种独特性：定制样式、独特交互或丰富且重要的可见状态；
+2. 独立展示确实能发现回归、降低人工验收成本。
 
-组合场景可以模拟页面中的正常使用片段，例如一轮典型 Agent 任务，但它只提供视觉上下文，不验证 route、query、IPC、store、数据库或业务 workflow。
+因此：
+
+- shadcn primitives 不单独展示；
+- 由标准 primitives 直接组合出的普通表单、列表和详情不展示；
+- Settings、`DomainForm`、`UnderstandingList`、`UnderstandingDetail`、Context preview/detail 当前不进入 Storybook；
+- Storybook 不反向推动所有 Renderer 组件迁入 `packages/ui`；
+- 只有当生产代码本身需要形成清晰 UI Module 时，才迁移组件并补 Story；
+- 多个组件必须放在一起才能判断视觉关系时，增加少量组合 Story，但不复制页面逻辑。
+
+一句话原则：
+
+> Storybook 只收录值得反复看、值得单独操作、也值得长期防回归的项目独有 UI。
+
+## 2. 高 ROI 准入门槛
+
+### 2.1 两道硬门槛
+
+候选组件必须依次通过两道门槛。
+
+#### 门槛 A：组件是否存在项目独有的验收对象
+
+至少满足一项：
+
+- **定制样式**：视觉语言明显超出标准 primitive 的直接组合；
+- **独特交互**：存在树操作、编辑器行为、流式更新、图谱操作、审批等项目特有交互；
+- **丰富状态**：存在 loading、streaming、running、completed、rejected、failed 等重要且视觉不同的状态；
+- **高风险边界**：长文本、大量项目、深层级、宽内容或异步增量更新容易破坏布局。
+
+#### 门槛 B：独立 Story 是否有实际收益
+
+至少满足一项：
+
+- 不启动 Electron 即可复现难造状态；
+- 人工横向比较能比页面验收更快发现问题；
+- 组件被多处使用，一次验收可保护多个入口；
+- 组合到真实密度后会出现单测无法回答的视觉问题；
+- 交互状态可在 Story 内稳定重放。
+
+若只通过门槛 A、没有通过门槛 B，则优先由现有页面、组件测试或 E2E 覆盖。
+
+### 2.2 决策流程
 
 ```mermaid
-flowchart LR
-    Component["基本组件 Story"] --> State["状态 / 交互 / 边界"]
-    Component --> Composition["区域内组合场景"]
-    State --> Review["组件验收"]
-    Composition --> Review
-    Review -.不承担.-> Workflow["页面与业务流程验收"]
+flowchart TD
+    Start["候选 UI"] --> Unique{"有定制样式、独特交互<br/>或丰富可见状态？"}
+    Unique -- 否 --> Exclude["不进入 Storybook"]
+    Unique -- 是 --> Value{"独立展示能发现真实回归<br/>或明显降低验收成本？"}
+    Value -- 否 --> Exclude
+    Value -- 是 --> Seam{"已有清晰 UI-owned interface？"}
+    Seam -- 是 --> Story["建立组件 Story"]
+    Seam -- 否 --> Product{"生产代码本身也值得形成<br/>独立 UI Module？"}
+    Product -- 否 --> Exclude
+    Product -- 是 --> Refactor["先深化生产 Module，再建立 Story"]
 ```
 
-一句话完成定义：
+Storybook 不是制造 seam 的理由。只有删除 Storybook 后仍然成立的生产架构收益，才值得为组件重新设计 interface。
 
-> 一级按 UI 区域找到组件，区域内先独立验收组件，再用少量组合 Story 观察这些组件一起出现时的整体效果。
+### 2.3 删除测试
 
-## 2. Storybook 边界
+每个 Story 都要能回答一个明确问题：
 
-### 2.1 Storybook 负责什么
+> 如果删除这个 Story，我们会失去哪个具体的视觉或交互判断？
 
-- Reflecta 独有组件的视觉语言；
-- 组件的 default、variant 和有业务意义的状态；
-- loading、streaming、running、completed、rejected、failed 等可见变化；
-- hover、focus、expand、select、approve、reject 等组件交互；
-- 长内容、大量项目、空数据、异常数据和窄宽度；
-- Light/Dark；
-- 同一区域组件组合后的视觉密度和信息层级；
-- 组件 interface 是否可以脱离 Electron runtime 独立驱动。
+回答不出来就删除。以下理由不成立：
 
-### 2.2 Storybook 不负责什么
+- “这个目录下有这个组件”；
+- “它是一个业务概念”；
+- “它已经被拆成 React component”；
+- “以后可能有更多状态”；
+- “其他组件都有 Story”。
 
-- route 跳转；
-- Electron IPC；
-- React Query cache；
-- session、store、reducer 和 autosave；
-- 数据库读写；
-- Agent 或 Tool protocol 是否正确；
-- 用户是否完成一条产品旅程；
-- 完整页面与真实 App wiring；
-- 用 Storybook 复制 E2E。
+## 3. 四种收录方式
 
-这些能力分别由 Electron Adapter tests、integration tests 和 E2E 负责。
+不是所有需要观察的 UI 都必须成为独立 Story。
 
-### 2.3 组合场景不是页面 Story
+| 方式             | 适用条件                                     | 例子                                   |
+| ---------------- | -------------------------------------------- | -------------------------------------- |
+| 独立组件 Story   | 自身通过两道准入门槛                         | Markdown Editor、Domain Tree、Composer |
+| 语义 Fixture     | 共用 renderer，但业务类型会改变内容结构      | 每一种 Tool、每一种 Proposal           |
+| 仅进入组合 Story | 自身较浅，但与核心组件一起出现时影响整体观感 | 普通容器、标准操作栏、简单状态说明     |
+| 不进入 Storybook | 标准组合、低状态、低回归收益                 | Settings、DomainForm、详情与普通列表   |
 
-组合场景允许出现：
+“语义 Fixture”不等于新的 public component。不同 Tool 可以共享同一个 visual renderer，同时各保留一个成功态 Story，确认类型到文案、图标和详情结构的映射。
 
-- 多条 Message Row；
-- Message Row 与 Composer；
-- Domain Tree 与 Understanding List；
-- Understanding Row 与 Editor/Preview；
-- Knowledge Graph 与选中信息；
-- Settings 导航与一个设置区域。
-
-组合场景不允许为了“像页面”而引入：
-
-- Router；
-- connected query hook；
-- Electron bridge；
-- production store；
-- 真实数据持久化；
-- 复制一份只在 Storybook 使用的 Page implementation。
-
-组合 Story 直接使用 UI-owned props、View Model 和本地 callback。它模拟的是组件摆在一起的视觉状态，不是业务流程执行器。
-
-## 3. 组件与 Story 的粒度
-
-### 3.1 什么值得有独立 Story
-
-满足任一条件即可：
-
-- 编码 Reflecta 独有的视觉或交互语义；
-- 存在多个需要人工比较的可见状态；
-- 内容长度或数量变化容易破坏布局；
-- 在区域组合中承担明确的信息层级；
-- 虽然是 package internal，但有独立视觉形状需要验收；
-- 同一 visual renderer 服务多个业务类型，需要分别验证语义 fixture。
-
-典型例子：
-
-- `UnderstandingRow`；
-- `DomainTree`；
-- `MarkdownEditor`；
-- `ChatComposer`；
-- `ChatMessageRow`；
-- `AgentExecutionBlock`；
-- `AgentProposalCard`；
-- `KnowledgeGraph`。
-
-### 3.2 什么不单独展示
-
-- 未修改的 shadcn primitives；
-- 只有一次调用、没有独立视觉规则的薄 wrapper；
-- 只转发 className 或 callback 的组件；
-- 纯 query、store、Adapter、codec；
-- Tool-specific renderer 中没有独立视觉差异的内部一行函数；
-- 为覆盖目录而制造的假组件。
-
-因此不建立 Button、Input、Select、Dialog、Card 等 shadcn 全量画廊。它们只在 Reflecta 组件中自然出现。
-
-### 3.3 “基础与共享”的收录标准
-
-`基础与共享` 不是 shadcn catalog，只收录：
-
-- Reflecta 自己定义的 theme/token 组合效果；
-- Reflecta 封装并规定了行为的 Modal/Drawer；
-- 跨区域复用的项目级 entity visual；
-- 具有项目语义的 empty/error/feedback pattern；
-- 其他至少被两个区域复用、且自身值得独立验收的组件。
-
-如果一个组件只属于 Capture 或 Agent，即使底层使用通用 primitive，也放回对应区域。
-
-### 3.4 不做 Story 笛卡尔积
-
-每个组件不需要为“状态 × 主题 × 宽度 × 数据量”生成全部组合。
-
-Story 选择遵循：
-
-- 一个 Default；
-- 每个视觉明显不同的状态；
-- 一个代表性交互 Story；
-- 一个或少数几个最危险边界；
-- Light/Dark 和 viewport 尽量使用全局 toolbar；
-- 只有主题或宽度会改变组件结构时才建立独立 Story。
+“仅进入组合 Story”也不是为低价值组件补一个隐形目录。它只作为高价值组件的视觉上下文出现。
 
 ## 4. 目标导航
 
 ```text
-基础与共享
-└── 基本组件
-    ├── Reflecta 视觉基线
-    ├── 确认弹窗
-    ├── 共享抽屉
-    └── Entity Visual
-
 Capture
 ├── 基本组件
-│   ├── Understanding Row
-│   ├── Understanding List
-│   ├── Understanding Detail
 │   ├── Markdown Editor
-│   ├── Markdown Preview
 │   ├── Domain Tree
-│   ├── Domain Form
 │   ├── Domain Tree Select
-│   └── Context Visual
+│   └── Understanding Row
 └── 组合场景样式
-    ├── Domain Tree 与 Understanding List
-    ├── Understanding List 与 Detail
-    └── Understanding 编辑与 Context
+    └── 知识整理核心组合
 
 Agent
 ├── 基本组件
 │   ├── Composer
 │   ├── Message
 │   ├── Markdown
-│   ├── Reasoning
-│   ├── Tools
-│   ├── Proposal
-│   ├── Context Compaction
-│   └── Thread Visual
+│   ├── Execution
+│   │   ├── Reasoning
+│   │   ├── Pending
+│   │   ├── Context Compaction
+│   │   └── Tools
+│   └── Proposal
 └── 组合场景样式
-    ├── 一个典型的 Agent 任务过程
-    ├── 多个 Tool 连续执行
-    ├── Reasoning、Tool 与最终回复
-    ├── Proposal 确认与拒绝
-    └── 失败、停止与长内容
+    ├── 典型任务
+    ├── 确认任务
+    └── 高密度与异常
 
 Knowledge Wander
-├── 基本组件
-│   ├── Knowledge Graph
-│   └── Graph Selection Visual
-└── 组合场景样式
-    ├── 图谱浏览
-    └── 节点选中与关联信息
-
-Settings
-├── 基本组件
-│   ├── AI Provider / Model
-│   ├── Retrieval Status
-│   ├── Storage
-│   └── Trash
-└── 组合场景样式
-    ├── AI 设置区域
-    └── Retrieval 生命周期
+└── 基本组件
+    └── Knowledge Graph
 ```
 
-规则：
+约束：
 
-- 一级始终是 UI 区域；
-- 二级始终是“基本组件”或“组合场景样式”；
-- 状态和边界归到对应组件，不建立全局“状态实验室”或“边界实验室”；
-- Storybook 通过 `storySort` 固定区域顺序；
-- 不建立空目录：某区域尚无 UI-owned component 时，等 seam 完成后再出现。
+- 一级按使用上下文定位，不把 Storybook 耦合成产品流程；
+- “基本组件”只展示通过准入门槛的项目组件；
+- 状态和边界归入组件自身，不建立全局状态实验室；
+- 没有高价值组件就不建立区域，禁止空目录；
+- 当前不建立“基础与共享”和“Settings”区域；
+- Light/Dark、viewport 等横切维度由全局 toolbar 覆盖；
+- 以后出现真正跨区域、项目独有的深 Module，再决定是否增加“基础与共享”。
 
-当前不单列 App Shell：`AppLayout`、`AppChromeMenu` 和 route wiring 主要是页面编排或薄 wrapper，没有足够独立的项目组件语义。以后若形成可由 props 驱动、值得独立验收的 Shell visual，再按相同标准决定归入“基础与共享”或建立新区域。
+## 5. 统一 Story 设计规则
 
-## 5. 统一 Story 结构
+### 5.1 Story 数量
 
-### 5.1 基本组件 Story 模板
+每个组件只从以下四类中选择有意义的 Story：
 
-每个核心组件先回答四个问题：
+1. 一个 Default；
+2. 视觉明显不同的状态；
+3. 一个代表性交互；
+4. 一个或少数几个最危险边界。
 
-| 维度 | 问题                                             | 常见 Story                     |
-| ---- | ------------------------------------------------ | ------------------------------ |
-| 默认 | 正常内容下组件是什么样                           | Default                        |
-| 状态 | 哪些状态会显著改变视觉或可操作性                 | Loading、Selected、Failed      |
-| 交互 | 用户操作时能否判断 feedback、focus 和 affordance | Interactive、Expanded、Editing |
-| 边界 | 什么内容最可能撑破布局或暴露降级问题             | Long、Many、Empty、Unavailable |
+禁止建立“状态 × Tool 类型 × 主题 × 宽度 × 数据量”的笛卡尔积。主题和 viewport 优先使用 toolbar；只有它们会改变组件结构时才单列 Story。
 
-Story title 使用中文区域路径，例如：
+### 5.2 中文化
 
-```ts
-title: "Agent/基本组件/Tools/Read";
-```
+必须中文化：
 
-Story name 使用中文，例如：
+- 区域、组件和 Story 展示名称；
+- fixture 中的用户可见内容；
+- 交互按钮、Controls label 和验收说明；
+- Reflecta 自己控制的 empty、error 和 placeholder。
 
-```ts
-export const 执行中 = {};
-export const 执行失败 = {};
-export const 超长路径 = {};
-```
+保留原文：
 
-源码 identifier 如需保持英文，可以通过 `name` 提供中文显示名。
+- `Understanding`、`Context`、`Domain` 等正式产品术语；
+- Tool、Provider、Model 名称；
+- 路径、命令、代码和协议字段；
+- Story 源码 identifier。
 
-### 5.2 组合场景 Story 模板
+Storybook Manager chrome 只使用官方支持的 locale；没有稳定官方能力时不 fork、不 patch。
 
-组合场景必须声明：
+### 5.3 Fixture
 
-- 要放在一起观察哪些组件；
-- 为什么单独看不能判断；
-- 采用什么宽度和内容密度；
-- 重点验收哪些视觉关系；
-- 哪些业务能力明确不在本 Story 验收。
+- 使用 UI-owned type，不直接传 raw DTO、Agent event 或 IPC response；
+- 使用接近真实产品的中文内容，不使用 `Lorem ipsum`；
+- fixture 默认与 Story 相邻；
+- 只有两个以上 Story 复用时才抽共享 fixture；
+- Tool 与 Proposal 使用各自真实语义数据，不共用万能 `details`；
+- 不建立全局 mock framework。
 
-组合场景默认使用正常宽度和真实中文 fixture。只有目标就是压力验收时才使用极端数据。
-
-### 5.3 Fixture 规则
-
-- 使用 UI-owned type；
-- 不使用 raw DTO、Agent event 或 IPC response；
-- 中文内容保持真实，不使用 `Lorem ipsum`；
-- 同一组件的状态 Story 复用同一组 fixture builder；
-- Tool 和 Proposal 使用符合自身语义的数据，不共享一个假的通用 details；
-- fixture 只在两个以上 Story 复用时才抽文件；
-- fixture 与 Story 相邻，不建立大型全局 mock framework。
-
-### 5.4 Interactive 规则
+### 5.4 Interactive Story
 
 - 首选 Story 内部 `useState`；
-- callback 只改变展示所需的本地状态；
-- streaming 使用稳定 ID 的 View Model 快照；
-- approve/reject 只模拟组件 lifecycle，不执行真实 mutation；
-- 至少三个 Story 复用同一切帧逻辑后，才提取小型 story-only helper；
-- 不引入状态机依赖和假 backend。
+- callback 只驱动组件自身的可见状态；
+- approve/reject 不执行真实 mutation；
+- suggestion、upload、search 使用内存 Adapter；
+- 不引入 Router、Electron bridge、React Query、production store 或假 backend；
+- 三个以上 Story 确实复用同一逻辑后，才提取 story-only helper。
 
-## 6. 基础与共享区域
+### 5.5 Streaming 兼容规则
 
-### 6.1 Reflecta 视觉基线
+Agent streaming Story 必须模拟同一个组件实例随时间增量更新，而不是用 remount 冒充更新：
 
-保留一个精简 Story，集中展示：
+- Tool root ID 稳定；
+- Tool item ID 稳定；
+- Message/Proposal ID 稳定；
+- 展开、滚动和选择状态在下一帧保留；
+- partial payload 允许字段暂缺；
+- unknown/future Tool 安全降级；
+- Story 结束后可以回到初始帧重复播放。
 
-- 背景、前景、muted、border、primary、destructive 等语义 token；
-- 主要文字层级；
-- 常用圆角、阴影和间距；
-- Light/Dark；
-- 一组 Reflecta 真实组件片段。
+这组规则同时用于确认 `packages/ui` interface 没有依赖只在 Renderer 中存在的事件顺序或对象 identity。
 
-它不是 shadcn showcase，不列出所有 primitive、variant 和 size。
+## 6. Capture 区域
 
-### 6.2 确认弹窗
+Capture 只保留四个有明显样式或交互价值的 UI Module。
 
-验收 `ModalProvider` 所定义的项目行为：
+### 6.1 Markdown Editor
 
-- 普通确认；
-- destructive 确认；
-- 自定义标题、说明和按钮；
-- 超长内容；
-- keyboard focus 与取消；
-- callback 触发。
+`MarkdownEditor`、`MarkdownPreview` 和 `SimpleMarkdownPreview` 作为同一个 Markdown UI Module 验收，不在导航中拆成三个同权组件。
 
-不单独展示底层 `Dialog`。
+核心 interface：
 
-### 6.3 共享抽屉
+| 输入/输出                 | 约束                                             |
+| ------------------------- | ------------------------------------------------ |
+| `value` / `onChange`      | controlled；外部更新可同步                       |
+| `readOnly`                | 同一主题下切换编辑与预览                         |
+| suggestion port           | 只返回 display-ready suggestion                  |
+| upload port               | 只暴露上传进度、结果和错误                       |
+| Wiki Link callback        | 输出 entity identity，不导航                     |
+| height/placeholder 配置   | 只保留真实调用方需要的选项                       |
+| Preview/SimplePreview API | 接收 Markdown 与显示选项，不读取 Capture runtime |
 
-验收 `DrawerProvider`：
+Story：
 
-- 默认抽屉；
-- 长内容；
-- 不同标题；
-- close callback；
-- 抽屉内出现表单或详情内容时的 spacing。
+- 完整文档；
+- 空白与 readonly；
+- Wiki Link suggestion：loading、empty、results、error、keyboard；
+- 图片/视频上传：进行中、成功、失败；
+- 文档切换与 controlled update；
+- 超长文档、代码、表格和窄容器。
 
-不单独展示底层 `Sheet`。
+完整文档至少覆盖：
 
-### 6.4 Entity Visual
-
-当 Understanding、Context、Domain 的视觉在至少两个区域复用时，集中验收：
-
-- 三种 entity type；
-- ready、loading、unavailable、error；
-- interactive / non-interactive；
-- 超长 label；
-- icon、颜色和 focus。
-
-如果只是 Agent Markdown 内部实现，则暂时留在 Agent，不为了“共享”提前抽象。
-
-## 7. Capture 区域
-
-Capture 的 Story 只验收知识沉淀相关组件，不运行 Capture store、query 和 autosave。
-
-### 7.1 当前可直接验收
-
-`packages/ui/editor` 已具备：
-
-- `MarkdownEditor`；
-- `MarkdownPreview`；
-- `SimpleMarkdownPreview`；
-- Wiki Link suggestion；
-- upload port；
-- Markdown theme。
-
-这些组件在 Storybook 导航中归入 `Capture/基本组件`，因为当前主要使用上下文是 Understanding 的编写与回看。
-
-### 7.2 Markdown Editor
-
-基本 Story：
-
-- 空白与 placeholder；
-- 完整中文文档；
-- controlled value 更新；
-- readonly；
-- auto height / max height；
-- document switch；
-- suggestion loading / empty / results / error；
-- keyboard select / cancel；
-- image/video upload success / failure；
-- 长文档、长代码和长表格；
-- Light/Dark。
-
-完整文档覆盖：
-
-- heading；
-- paragraph 与软/硬换行；
-- strong、em、strike、link、inline code；
-- ordered、unordered、nested、task list；
+- h1-h6、段落、软/硬换行；
+- strong、emphasis、strike、link、inline code；
+- 有序、无序、嵌套和 task list；
 - blockquote、divider；
 - fenced code 与语言标签；
 - table；
 - image、video；
 - Wiki Link。
 
-不为每一种 Markdown 语法创建独立 Story；使用一个完整文档加少量高风险 Story。
+不为每一种 Markdown 语法单建 Story；用一份完整文档和少量高风险边界覆盖。
 
-### 7.3 Markdown Preview
+### 6.2 Domain Tree
 
-基本 Story：
+保留原因：树层级、选中态、拖拽和菜单是项目独有交互，深层级和长名称又有明显布局风险。
 
-- 完整文档；
+期望 interface：
+
+| 输入/输出        | 约束                                      |
+| ---------------- | ----------------------------------------- |
+| `nodes`          | UI-owned tree node，不含 query 状态       |
+| `selectedId`     | controlled selection                      |
+| `expandedIds`    | controlled 或明确的内部状态               |
+| `onSelect`       | 只返回 Domain identity                    |
+| `onMove`         | 返回 source、target 和 position           |
+| action callbacks | create/rename/delete，不直接调用 mutation |
+
+Story：
+
+- 正常层级与选中；
+- 折叠、展开和拖拽；
 - empty；
-- Wiki Link click；
-- image zoom enabled / disabled；
-- long code / table；
-- Light/Dark。
+- 深树、多根和长名称；
+- context menu；
+- 窄容器。
 
-`SimpleMarkdownPreview`：
+### 6.3 Domain Tree Select
 
-- one line；
-- multi-line clamp；
-- Markdown syntax removal；
-- Wiki Link label；
-- image/link alt；
-- 超长中文。
+保留原因：它不是普通 Select，而是带树层级、路径、选择模式、排除项和异步状态的项目交互。
 
-### 7.4 Understanding Row
+期望 interface：
 
-在建立 UI-owned View Model 和 callback seam 后迁入 Storybook。
+| 输入/输出            | 约束                          |
+| -------------------- | ----------------------------- |
+| `nodes`              | display-ready tree            |
+| `value` / `onChange` | controlled selection          |
+| `mode`               | 只保留真实存在的单选/多选语义 |
+| `excludedIds`        | 控制不可选项，不内置业务判断  |
+| `loading`/`error`    | 由 Adapter 提供可见状态       |
+| `disabled`           | 标准不可操作状态              |
 
-基本 Story：
+Story：
 
-- 默认；
-- selected；
-- 空 body；
-- 有多个 Context / Connection；
-- 没有 Context / Connection；
-- 超长 title；
-- 超长 preview；
+- 无选择与已选路径；
+- 展开和键盘操作；
+- loading、empty、error；
+- 深层级、长路径和大量候选；
+- excluded/disabled；
+- 窄容器。
+
+只有生产代码也受益于这条 UI-owned seam 时才迁移；不为 Storybook 保留旧 query/compat interface。
+
+### 6.4 Understanding Row
+
+保留原因：它承载 Understanding 的项目视觉、选中反馈、内容摘要和操作入口；单行密度直接影响 Capture 的可读性。
+
+期望 interface：
+
+| 输入/输出  | 约束                                        |
+| ---------- | ------------------------------------------- |
+| `item`     | title、preview、metadata、display state     |
+| `selected` | 由列表/页面控制                             |
+| `onSelect` | 返回 Understanding identity                 |
+| `onAction` | 返回语义 action，不直接执行删除或打开 Modal |
+
+Story：
+
+- 默认与 selected；
+- 有/无 metadata；
+- 长标题与长 preview；
 - context menu；
 - disabled action；
-- narrow width。
+- 窄容器。
 
-Story 不调用 Capture store、query、delete mutation 或 Modal hook；这些由 Renderer Adapter 转成 props/callback。
-
-### 7.5 Understanding List
-
-只在列表本身形成有意义的 UI Module 后建立 Story：
-
-- loading；
-- empty；
-- populated；
-- selected item；
-- many items；
-- long items；
-- sort/filter header visual；
-- narrow width。
-
-如果 `UnderstandingList` 仍主要是 query/store orchestration，则先拆 `UnderstandingListView`，不把 connected component 原样接进 Storybook。
-
-### 7.6 Understanding Detail 与 Context
-
-候选基本组件：
-
-- Understanding title/body visual；
-- editing / readonly；
-- saving indicator / error visual；
-- Context preview；
-- Context detail；
-- empty Context；
-- many Contexts；
-- long Context；
-- Context drawer content。
-
-不在 Storybook 中实现 draft autosave、delete、IPC 和 navigation。
-
-### 7.7 Domain Tree 与 Domain Form
-
-`DomainTree` Story：
-
-- collapsed / expanded；
-- selected；
-- nested；
-- empty；
-- many roots / deep tree；
-- long names；
-- drag preview / reorder interaction；
-- context menu；
-- narrow width。
-
-`Domain Form` Story：
-
-- create / edit；
-- root / child；
-- validation；
-- duplicate name error；
-- long name。
-
-`DomainTreeSelect` Story：
-
-- no selection；
-- selected path；
-- expanded tree；
-- many/deep domains；
-- search result；
-- unavailable selection。
-
-这些组件必须先去掉 Capture query、store、toast 和 Modal ownership，再进入 `packages/ui`。
-
-### 7.8 Capture 组合场景样式
-
-#### Domain Tree 与 Understanding List
+### 6.5 Capture 组合：知识整理核心组合
 
 组合：
 
-- Domain Tree；
-- list header；
-- Understanding List；
-- selected state。
+- `DomainTree`；
+- 多个 `UnderstandingRow`；
+- `MarkdownEditor` 或 Preview。
 
-验收：
+只回答单个组件无法回答的问题：
 
-- 左右层级和选中态是否清楚；
-- 长 Domain、长 Understanding 是否互相挤压；
-- 列表较多时整体密度；
-- 320px/窄布局不要求模拟真实响应式页面，只验收组件容器内表现。
+- 左侧层级、列表密度和正文焦点是否清楚；
+- selected state 是否跨组件保持一致；
+- 长 Domain、长标题和长正文同时出现时是否互相挤压；
+- 编辑态是否过度抢占导航层级。
 
-不验收 Domain query、filter 请求和 selection store。
+组合使用简单容器和本地状态，不引入 `UnderstandingList`、Detail 页面、query、autosave 或 navigation。
 
-#### Understanding List 与 Detail
+## 7. Agent 区域
 
-组合：
+Agent 是状态最丰富的区域，但仍按 UI Module 而不是产品旅程组织。
 
-- 多个 Understanding Row；
-- selected row；
-- Understanding Detail；
-- Markdown Preview / Editor。
+### 7.1 Composer
 
-验收：
+保留原因：输入、entity、attachment、model、reasoning、context usage 和 running 控制形成独特交互。
 
-- list 与 detail 的视觉主次；
-- selected row 是否足够明显；
-- detail 编辑态是否压过导航；
-- 长内容滚动边界。
+Story：
 
-#### Understanding 编辑与 Context
-
-组合：
-
-- Markdown Editor；
-- Context previews；
-- Context drawer content；
-- saving/error visual。
-
-验收 Editor 与 Context 同时出现时的内容层级，不执行真实保存。
-
-## 8. Agent 区域
-
-Agent 目前拥有最完整的 UI-owned component seam，因此是 v1.2.5 首批重点补齐的区域，但它只是 Storybook 的一个区域。
-
-### 8.1 Composer
-
-基本 Story：
-
-- empty；
+- empty 与 editing；
 - initial entity；
-- editing；
+- entity suggestion：loading、empty、results、error；
+- attachment：adding、multiple、failed；
 - running + stop；
 - compacting；
 - model/reasoning selector；
-- Context usage 低/高；
-- attachment adding / failed；
-- multiple attachments；
-- entity suggestion loading / empty / results / error；
-- long input；
-- many model options；
-- narrow width。
+- context usage 低/高；
+- 长输入、大量选项和窄容器。
 
-Interactive Story 使用内存 search/upload Adapter，不访问 Electron。
+Story 使用内存 search/upload Adapter，不访问 Electron。
 
-### 8.2 Message
+### 7.2 Message
 
-`ChatMessageRow` Story：
+保留原因：同一行需要协调 User/Assistant 内容、attachment、状态、操作和 streaming identity。
 
-- User text；
-- User entity mentions；
-- User image/file attachments；
-- User text + entities + attachments；
-- Assistant text；
-- pending；
-- streaming；
-- done；
-- stopped；
-- failed；
+Story：
+
+- User：text、entity、attachment 及其组合；
+- Assistant：pending、streaming、done、stopped、failed；
 - highlighted/search；
-- actions enabled / disabled；
-- long text；
-- narrow width。
+- actions enabled/disabled；
+- 长内容和窄容器；
+- streaming identity。
 
-### 8.3 Markdown
+### 7.3 Markdown
 
-`ChatMarkdown` 使用三个主要 Story。
+`ChatMarkdown` 与 Capture Editor 分开验收：它面向流式只读消息，包含 Mermaid、KaTeX 和 entity reference，风险不同。
+
+只建立三组主 Story。
 
 #### 完整语法
 
-覆盖：
-
-- h1-h6；
-- paragraph 与软/硬换行；
-- strong、em、strike、link；
-- ordered、unordered、nested、task list；
+- h1-h6、段落、软/硬换行；
+- strong、emphasis、strike、link；
+- 有序、无序、嵌套和 task list；
 - blockquote、nested blockquote、divider；
 - inline code、fenced code、语言标签；
-- table；
-- KaTeX；
-- Mermaid；
-- entity reference；
-- image；
-- 长中文与中英混排。
+- table、image；
+- KaTeX、Mermaid、entity reference；
+- 长中文和中英混排。
 
 #### 流式不完整语法
 
-使用稳定组件实例逐帧覆盖：
+同一实例逐帧覆盖：
 
-- 未闭合 emphasis；
-- 未闭合 inline/fenced code；
-- 未完成 table；
-- 未完成 link；
-- 未完成 entity reference；
-- Mermaid/KaTeX 中间帧；
+- 未闭合 emphasis、inline code 和 fenced code；
+- 未完成 table、link 和 entity reference；
+- Mermaid、KaTeX 中间帧；
 - 最终闭合状态。
 
 #### 边界
 
-- empty / whitespace；
-- long code line；
-- wide table；
-- long URL；
-- long entity label；
-- 320px；
+- empty/whitespace；
+- 超长代码行、宽表格、长 URL 和长 entity label；
 - muted tone；
-- Light/Dark。
+- 窄容器。
 
-### 8.4 Reasoning 与 Pending
+### 7.4 Execution
 
-`AgentExecutionBlock` 中分别验收：
+`Reasoning`、`Pending`、`Context Compaction` 和 `Tools` 是 `AgentExecutionBlock` 的可见变体，不提升成四个 public component。
 
-- reasoning streaming empty；
-- reasoning streaming with Markdown；
-- reasoning done；
-- long reasoning；
-- entity reference；
-- pending default/custom label。
+共同状态：
 
-Reasoning 只是 execution block 的一种 visual，不为 Story 单独公开 production component。
+- running/streaming；
+- completed；
+- failed；
+- empty/partial details；
+- collapsed/expanded；
+- 长内容和窄容器。
 
-### 8.5 Tools
+变体重点：
 
-每个 active Tool 必须有独立 Story/fixture：
+| 变体               | 重点                                      |
+| ------------------ | ----------------------------------------- |
+| Reasoning          | 空流、Markdown 增量、完成态、长 reasoning |
+| Pending            | 默认/自定义 label、等待层级               |
+| Context Compaction | before/after tokens、缺失估算、长 summary |
+| Tools              | 类型语义、lifecycle、展开内容和危险边界   |
 
-- Read；
-- Edit；
-- Write；
-- Safe Bash；
-- Domain List；
-- Domain Inspect；
-- Understanding List；
-- Understanding Get；
-- Context List；
-- Context Get；
-- Attachment Read；
-- Retrieve Knowledge；
-- Graph；
-- Web Search；
-- Fetch Content；
-- Get Search Content；
-- Legacy Search；
+### 7.5 Tool 的二维覆盖
+
+Tool 覆盖拆成两个正交维度，避免“每种 Tool × 每种状态”的笛卡尔积。
+
+#### 类型维度：每种 Tool 一个成功态语义 Fixture
+
+- Read、Edit、Write、Safe Bash；
+- Domain List、Domain Inspect；
+- Understanding List、Understanding Get；
+- Context List、Context Get；
+- Attachment Read、Retrieve Knowledge、Graph；
+- Web Search、Fetch Content、Get Search Content、Legacy Search；
 - Unknown Tool。
 
-独立 Story 不代表独立 public component。视觉结构相同的 Tool 复用同一个 internal renderer。
+它验证：
 
-每个 visual family 至少覆盖：
+- Tool 名称映射；
+- 图标和摘要；
+- details 数据结构；
+- 属于哪个 visual family；
+- unknown/future type 的安全降级。
 
-- normal completed；
-- running；
-- failed；
-- no details；
-- single / multiple items；
-- details 与 error 同时存在；
-- preview / full；
-- long；
-- many；
-- narrow width；
-- collapsed / expanded。
+#### Visual family 维度：集中验收 lifecycle 与边界
 
-Tool-specific 高风险案例：
+以实际 renderer family 为准，每个 family 只补它真正拥有的风险：
 
-| Tool family              | 必须重点覆盖                                |
-| ------------------------ | ------------------------------------------- |
-| Read/Edit/Write          | 长路径、长 diff、空输出、失败               |
-| Safe Bash                | 超长 command、cwd、terminal output、失败    |
-| Domain/Understanding     | 长 label、很多 rows、空结果、缺失 entity    |
-| Context/Attachment       | 长正文、binary/unsupported、截断、读取失败  |
-| Retrieve Knowledge       | 很多结果、长 Markdown preview、部分结果失败 |
-| Graph                    | 很多 nodes/edges、空图、长标题              |
-| Web Search/Fetch Content | 很多来源、长 URL、长摘要、单个来源失败      |
-| Unknown                  | 安全字段展示，不暴露 raw payload            |
+| Family         | 代表风险                                   |
+| -------------- | ------------------------------------------ |
+| 文件读写       | 长路径、长 diff、空输出、失败              |
+| 命令执行       | 超长 command/cwd、长 output、running、失败 |
+| 列表与实体摘要 | empty、many、长 label、缺失 entity         |
+| 内容读取       | 长正文、截断、unsupported、读取失败        |
+| 搜索与来源     | many sources、长 URL、部分失败             |
+| Graph          | empty、many nodes/edges、长标题            |
+| Fallback       | partial/unknown payload、安全字段展示      |
 
-streaming/rerender Story 必须保持 Tool root、item 和展开状态的稳定 identity。
+例如 Safe Bash 的长命令只在“命令执行” family 覆盖一次，不复制到每个 Tool。
 
-### 8.6 Proposal
+### 7.6 Proposal
 
-每种 Proposal 类型有独立 Story：
+保留原因：Proposal 有明显的项目视觉、审批交互和不可逆操作风险。
 
-- Understanding Create / Update / Delete；
-- Domain Create / Update / Delete；
-- Context Create / Update / Delete；
+每种 Proposal 保留一个成功语义 Fixture：
+
+- Understanding Create/Update/Delete；
+- Domain Create/Update/Delete；
+- Context Create/Update/Delete；
 - dangerous Bash；
 - Unknown fallback。
 
-每个 visual family 至少覆盖：
-
-- partial preview；
-- later preview；
-- pending；
-- running；
-- completed；
-- rejected；
-- failed；
-- long content；
-- narrow width。
-
-Interactive Story：
+生命周期按 visual family 集中覆盖：
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Preview
-    Preview --> Pending
+    [*] --> Partial
+    Partial --> Pending
     Pending --> Running: 批准
     Pending --> Rejected: 拒绝
     Running --> Completed
     Running --> Failed
 ```
 
-它只切换 `AgentProposalView`，不执行真实 Tool mutation。
+还需覆盖长内容、窄容器和 unknown fallback。Interactive Story 只切换 `AgentProposalView`，不执行真实 mutation。
 
-### 8.7 Context Compaction
+### 7.7 Agent 组合场景
 
-基本 Story：
+只保留三个组合 Story。
 
-- tokens before / after；
-- missing estimate；
-- long multiline summary；
-- narrow width；
-- Light/Dark。
+#### 典型任务
 
-### 8.8 Thread Visual
+组合 User Message、Assistant pending、Reasoning、两到三个不同 family 的 Tool、Final Markdown 和 Composer。
 
-`ThreadSidebar`、Thread row、Thread action menu、Context Inspector 等只有在拆出 UI-owned View 后才进入 Storybook。
+验收：
 
-候选 Story：
+- 正常任务的信息顺序和层级；
+- streaming 时布局是否稳定；
+- Tool 是否压过最终回答；
+- Composer 与消息区是否有清楚边界。
 
-- thread default / active / running / failed；
-- many threads；
-- long title；
-- date groups；
-- collapsed/narrow；
-- Context Inspector ready/loading/unavailable/error；
-- long entity content。
+#### 确认任务
 
-Thread query、rename/delete mutation、active session store 和 inspector navigation 留在 Electron。
+组合 partial Proposal、pending、approve/reject、completed/rejected 和后续 Assistant Message。
 
-### 8.9 Agent 组合场景样式
+验收：
 
-#### 一个典型的 Agent 任务过程
+- 操作是否明确；
+- 确认、拒绝和完成态是否容易区分；
+- 状态切换时组件衔接是否自然。
 
-组合：
+#### 高密度与异常
 
-- User Message；
-- Assistant pending；
-- Reasoning；
-- 两到三个 Tool；
-- Final Markdown；
-- Composer。
+组合多个 Tool、expanded details、超长 command/output、Tool failed、Assistant stopped/failed、部分 Markdown 和恢复可用的 Composer。
 
-通过手动“下一状态”切换 running → completed。验收目标是：
+验收：
 
-- 组件顺序和层级；
-- streaming 时布局稳定；
-- Tool 不压过最终回答；
-- Composer 与消息区的视觉关系。
+- 多个 Tool 叠加后的密度；
+- 异常是否清楚但不过度抢占注意力；
+- 展开项是否破坏消息节奏；
+- 长内容和窄容器是否撑破布局。
 
-不验证 Agent 是否做出正确决策。
+三个组合都只使用 `packages/ui` 的真实组件、View Model 和本地状态；不复制 ChatPage、Agent reducer 或业务 workflow。
 
-#### 多个 Tool 连续执行
+## 8. Knowledge Wander 区域
 
-组合多个不同 visual family：
+### 8.1 Knowledge Graph
 
-- completed；
-- 当前 running；
-- failed；
-- expanded item；
-- long output。
+这是该区域当前唯一通过准入门槛的组件：图布局、节点/边关系、选择反馈、缩放和大量数据都具有明显的项目视觉与交互风险。
 
-验收折叠密度、状态可识别性和展开后的页面节奏。
+期望 interface：
 
-#### Reasoning、Tool 与最终回复
+| 输入/输出       | 约束                                          |
+| --------------- | --------------------------------------------- |
+| `data`          | UI-owned nodes/edges                          |
+| `selection`     | controlled selected/hovered identity          |
+| `onSelect`      | 返回 node identity                            |
+| viewport action | zoom、fit、resize，不读取 route/query         |
+| display state   | empty/loading/error 仅在 Graph 自身可见时保留 |
 
-同一 Assistant Message 内组合：
+Story：
 
-- reasoning；
-- Tool；
-- Markdown；
-- entity references。
+- small/normal graph；
+- empty 和 single node；
+- selected、hovered 和 neighbor states；
+- disconnected；
+- many nodes/edges；
+- 长标题；
+- resize、zoom 和 fit；
+- 窄容器。
 
-重点比较间距、字体层级和 muted/primary content 的平衡。
+Graph controls 作为 `KnowledgeGraph` 的内部交互一起验收，不单独建立 Story。选中后的普通详情不建立 Story，也不为了凑组合场景复制 Knowledge Wander 页面。
 
-#### Proposal 确认与拒绝
+## 9. 明确排除项
 
-组合：
+### 9.1 当前不进入 Storybook
 
-- partial Proposal；
-- pending Proposal；
-- approve/reject；
-- completed/rejected；
-- 后续 Assistant text。
+| 排除项                                        | 理由                                         | 由什么覆盖                      |
+| --------------------------------------------- | -------------------------------------------- | ------------------------------- |
+| shadcn Button/Input/Select/Dialog 等          | 第三方 primitive，没有 Reflecta 独有验收对象 | shadcn 自身 + 实际组件使用      |
+| Foundation gallery                            | 容易退化成 primitive 陈列，验收问题不明确    | 全局 theme + 各高价值 Story     |
+| ModalProvider/DrawerProvider                  | 当前主要是标准 Overlay 编排，独立视觉收益低  | component/integration test      |
+| Settings 各 section                           | 主要是标准表单组合和配置 wiring              | 页面验收 + integration/E2E      |
+| DomainForm                                    | 标准 Input/TreeSelect/Button 组合，状态少    | component test + E2E            |
+| UnderstandingList                             | 容器与数据编排为主，视觉由 Row 承担          | UnderstandingRow + Capture 组合 |
+| UnderstandingDetail                           | 标题、正文和操作编排为主，没有独立深交互     | Editor/Preview + E2E            |
+| Context preview/detail                        | 标准摘要/详情展示，独立验收收益低            | 所属页面 + E2E                  |
+| Graph selection 普通详情                      | 标准详情区域，Graph 本身才是高风险组件       | KnowledgeGraph + 页面验收       |
+| App Shell、完整页面、route/store/query wiring | 不是组件视觉验收对象                         | integration/E2E                 |
 
-只观察状态切换和组件衔接。
+### 9.2 重新进入的条件
 
-#### 失败、停止与长内容
+排除不是永久禁令。只有出现以下变化时才重新评估：
 
-组合：
+- 形成明显的项目视觉语言；
+- 新增多个重要且难以在页面稳定复现的状态；
+- 出现独特交互；
+- 被多个入口复用；
+- 真实回归证明独立 Story 能显著降低成本。
 
-- Tool failed；
-- Assistant stopped / failed；
-- 已生成的部分 Markdown；
-- Composer 恢复可用；
-- 超长 command/error。
+不能因为组件被迁入 `packages/ui` 就自动补 Story。
 
-验收异常状态是否清楚但不过度抢占注意力。
+## 10. 当前覆盖与迁移
 
-## 9. Knowledge Wander 区域
-
-Knowledge Wander 目前仍在 Electron，先拆 `KnowledgeGraph` 的 UI-owned data/callback seam，再进入 Storybook。
-
-### 9.1 Knowledge Graph
-
-基本 Story：
-
-- small graph；
-- normal graph；
-- empty；
-- single node；
-- selected node；
-- hovered node；
-- selected neighbor / hovered neighbor；
-- disconnected nodes；
-- many nodes / edges；
-- long node title；
-- Light/Dark；
-- resize；
-- zoom/fit controls。
-
-Story 使用静态 `KnowledgeGraphData`，不查询 Understanding。
-
-Graph controls 默认作为 `KnowledgeGraph` internal visual，不单独建立 Story。只有形成跨图表复用的项目交互模式后再提升。
-
-### 9.2 Graph Selection Visual
-
-如果节点选中后的信息区拆成独立 UI component，覆盖：
-
-- no selection；
-- selected Understanding；
-- long title/body；
-- missing entity；
-- narrow width。
-
-### 9.3 Knowledge Wander 组合场景样式
-
-#### 图谱浏览
-
-组合 Graph、controls 和范围选择 visual，观察正常尺寸下的层级和遮挡，不模拟 route。
-
-#### 节点选中与关联信息
-
-组合 selected graph state 与 selection visual，观察图与内容之间的主次和空间分配。
-
-## 10. Settings 区域
-
-Settings connected sections 当前直接读取和修改配置。进入 Storybook 前需要拆成 display-ready props、draft value 和 callback。
-
-### 10.1 AI Provider / Model
-
-候选基本 Story：
-
-- no provider；
-- configured provider；
-- enabled/disabled model；
-- selected chat/title model；
-- validation error；
-- authentication status；
-- many models；
-- long model/provider names；
-- narrow width。
-
-不请求真实 Provider，不保存 API key。
-
-### 10.2 Retrieval Status
-
-候选基本 Story：
-
-- disabled；
-- local model missing/downloading/ready/failed；
-- download progress；
-- index idle/building/ready/failed；
-- rebuild confirmation；
-- long error；
-- narrow width。
-
-### 10.3 Storage
-
-候选基本 Story：
-
-- default path；
-- custom path；
-- unavailable path；
-- long path；
-- action disabled/running/failed。
-
-### 10.4 Trash
-
-候选基本 Story：
-
-- empty；
-- populated；
-- selected items；
-- restore running/failed；
-- permanent delete confirmation；
-- many items。
-
-### 10.5 Settings 组合场景样式
-
-#### AI 设置区域
-
-组合 Provider、Model、reasoning 和 validation visual，观察长表单的分组、节奏和错误位置。
-
-#### Retrieval 生命周期
-
-组合 embedding download、progress、index status 和 action buttons，使用本地状态切换观察多个状态同时出现时的层级。
-
-不复制完整 SettingsDialog workflow。
-
-## 11. 当前覆盖与后续 seam
-
-信息架构覆盖整个产品，但实现只展示已经形成独立 UI component seam 的内容，不创建空 Story 或 connected fake。
-
-| 区域             | v1.2.5 已具备 UI seam                                         | 后续需要拆分                                            |
-| ---------------- | ------------------------------------------------------------- | ------------------------------------------------------- |
-| 基础与共享       | theme、ModalProvider、DrawerProvider、部分 entity visual      | 只在出现真实复用后增加                                  |
-| Capture          | MarkdownEditor、MarkdownPreview、SimpleMarkdownPreview        | Row、List、Detail、Context、Domain Tree/Form/Select     |
-| Agent            | Composer、Markdown、Execution、Proposal、Message Row          | Thread visual、Context Inspector 等                     |
-| Knowledge Wander | graph data 基本可 props 驱动，但 implementation 仍在 Renderer | package ownership、theme/runtime boundary、selection UI |
-| Settings         | 无独立 UI-owned section                                       | AI、Retrieval、Storage、Trash 的 View/Adapter seam      |
-
-约束：
-
-- Storybook 区域结构是长期稳定的；
-- v1.2.5 先完成现有 `packages/ui` 组件的 Story；
-- 后续组件迁移时进入对应区域，不新增另一套分类；
-- Storybook 不是促使所有 Renderer 文件立刻迁移的理由；
-- 每次迁移仍需经过 ownership review 和 interface design。
-
-## 12. 现有 Story 的重组
-
-| 当前 Story                          | 新位置                                        | 处理方式                                                |
-| ----------------------------------- | --------------------------------------------- | ------------------------------------------------------- |
-| `foundation.stories.tsx`            | `基础与共享/Reflecta 视觉基线`                | 删除 shadcn gallery 倾向，只保留项目语义和 Overlay 入口 |
-| `markdown-editor.stories.tsx`       | `Capture/基本组件/Markdown Editor`            | 补完整内容、suggestion、upload、preview 和边界          |
-| `chat-composer.stories.tsx`         | `Agent/基本组件/Composer`                     | 中文化，补交互和边界                                    |
-| `chat-markdown.stories.tsx`         | `Agent/基本组件/Markdown`                     | 重写为完整语法、流式不完整语法、边界三组                |
-| `agent-execution-block.stories.tsx` | `Agent/基本组件/Reasoning、Tools、Compaction` | 按组件语义拆 Story，保留 Tool 类型 fixture              |
-| `agent-proposal-card.stories.tsx`   | `Agent/基本组件/Proposal`                     | 补完整 lifecycle、拒绝、失败和长内容                    |
-| `chat-message-row.stories.tsx`      | `Agent/基本组件/Message`                      | 补 User/Assistant 组合内容与宽度                        |
-| `ActiveTools`                       | `Agent/组合场景样式/多个 Tool 连续执行`       | 用真实 Tool fixture 和消息上下文替换                    |
-| 各自 `StreamingLifecycle`           | 对应基本组件下                                | 保留组件局部 lifecycle，不上升为全局状态实验室          |
-
-新增组合 Story 文件可放在：
-
-```text
-packages/ui/src/chat/compositions/
-├── typical-agent-task.stories.tsx
-├── tool-stack.stories.tsx
-└── proposal-flow.stories.tsx
-```
-
-Capture、Knowledge Wander、Settings 在组件迁入 package 后使用相同目录策略。独立组件 Story 继续与 component colocate。
-
-## 13. 中文化规则
-
-必须中文化：
-
-- Storybook 区域、基本组件、组合场景的导航名称；
-- Story 展示名称；
-- fixture 中的用户可见内容；
-- 交互控制按钮；
-- Controls label/description；
-- Story Docs 和验收说明；
-- Reflecta 自己控制的 empty/error/placeholder。
-
-保留原文：
-
-- `Understanding`、`Context`、`Domain` 等正式产品术语；
-- Tool 名称；
-- 文件名、路径、命令、代码和 API field；
-- 第三方库、Provider 和 Model 名称。
-
-Storybook 第三方 Manager chrome 只使用官方支持的 locale；没有稳定官方配置时不 fork、不 patch。
-
-## 14. 测试职责
-
-| 层级              | 负责验证                                                |
-| ----------------- | ------------------------------------------------------- |
-| Storybook         | 组件视觉、状态、交互、边界，以及区域内组合效果          |
-| UI unit/component | callback、parser、DOM identity、本地状态保留、安全降级  |
-| Electron tests    | DTO/event → UI View Model、query/store/reducer、Adapter |
-| E2E               | 页面 wiring、真实业务流程、IPC、持久化和跨区域行为      |
-
-Storybook 不通过检查 Markdown 文件或静态 fixture 文案来测试“覆盖完成”。有行为风险的 interface 留 runnable component test；人工视觉矩阵由 Storybook 走查。
-
-## 15. 分阶段实施
-
-### Phase 1：区域导航与基础粒度
-
-工作：
-
-- 配置 `storySort`；
-- 将现有 Story 归入基础与共享、Capture、Agent；
-- 为 Knowledge Wander、Settings 预留排序规则，但不创建空目录；
-- 区域内使用“基本组件 / 组合场景样式”；
-- 中文化现有 Story；
-- 精简 Foundation Story，不展示 shadcn 全量组件。
+### 10.1 现有 Story 处理
+
+| 当前 Story                          | 处理                                                |
+| ----------------------------------- | --------------------------------------------------- |
+| `foundation.stories.tsx`            | 删除；不保留 primitive gallery                      |
+| `markdown-editor.stories.tsx`       | 迁到 `Capture/基本组件/Markdown Editor`，补完整矩阵 |
+| `chat-composer.stories.tsx`         | 迁到 `Agent/基本组件/Composer`，中文化并补交互/边界 |
+| `chat-markdown.stories.tsx`         | 重写为完整语法、流式不完整语法、边界三组            |
+| `agent-execution-block.stories.tsx` | 保留类型 fixture，按 visual family 去重状态和边界   |
+| `agent-proposal-card.stories.tsx`   | 保留类型 fixture，集中 lifecycle                    |
+| `chat-message-row.stories.tsx`      | 补 User/Assistant 组合、长内容和 streaming identity |
+| `ActiveTools`                       | 删除，由“高密度与异常”组合 Story 替代               |
+| 重复 `StreamingLifecycle`           | 合并到所属 Module，保留一个稳定 identity 的交互实现 |
+
+### 10.2 Production seam 优先级
+
+| Module              | 结论                                                 |
+| ------------------- | ---------------------------------------------------- |
+| Editor/Chat Modules | 已在 `packages/ui`，直接完善 Story                   |
+| Domain Tree         | 高价值；生产 interface 清理后迁移                    |
+| Domain Tree Select  | 高价值；只保留 UI-owned tree/select interface 后迁移 |
+| Understanding Row   | 高价值；拆掉 store/mutation/Modal ownership 后迁移   |
+| Knowledge Graph     | 高价值；拆 data/selection/runtime boundary 后迁移    |
+| 其他排除项          | 不为 Storybook 迁移；只有生产架构收益出现时再评估    |
+
+理想 Module 是“小 interface 承载大量行为”。如果为了 Storybook 暴露大量 query、compat flag、runtime object 或 callback 细节，说明 seam 仍然太浅，应先调整生产设计或放弃独立 Story。
+
+## 11. 分阶段实施
+
+### Phase 1：删减与中文化
+
+- 删除 Foundation gallery；
+- 按 Capture、Agent、Knowledge Wander 配置固定排序；
+- 将现有 Story 改为中文展示名和中文 fixture；
+- 删除重复、低价值和笛卡尔积 Story；
+- 不创建 Settings 或空目录。
 
 出口：
 
-- 导航只按区域和组件粒度组织；
-- 不存在全局状态/边界实验室；
-- 不存在产品旅程或页面 Story；
+- 每个保留 Story 都能回答删除测试；
 - Storybook build 通过。
 
-### Phase 2：Capture 当前组件
+### Phase 2：Markdown 与现有核心组件
 
-工作：
-
-- 重写 Markdown Editor Story；
-- 补 Markdown Preview / Simple Preview；
-- 覆盖完整文档、suggestion、upload、readonly 和边界；
-- 不迁移 connected Capture screen。
+- 完善 Capture Markdown Editor/Preview；
+- 完善 Agent Composer、Message、ChatMarkdown；
+- 覆盖完整 Markdown 语法、流式不完整语法和危险边界。
 
 出口：
 
-- 第 7.2、7.3 节无缺项；
-- Editor 可交互；
-- Light/Dark 和窄宽度通过；
-- package tests 通过。
-
-### Phase 3：Agent 基本组件
-
-工作：
-
-- 补 Composer、Message、Markdown；
-- 补 Reasoning、Pending、Compaction；
-- 为每种 active Tool 建立真实语义 fixture；
-- 补 Tool 状态、交互和边界；
-- 补 Proposal 类型和完整 lifecycle。
-
-出口：
-
-- 第 8.1 至 8.7 节无缺项；
-- 每种 Tool/Proposal 可单独定位；
-- streaming 保持稳定 identity；
+- Markdown 矩阵无缺项；
+- interactive Story 可重复操作；
 - 不依赖 Electron runtime。
 
-### Phase 4：Agent 组合场景
+### Phase 3：Agent lifecycle
 
-工作：
-
-- 一个典型的 Agent 任务过程；
-- 多个 Tool 连续执行；
-- Reasoning、Tool 与最终回复；
-- Proposal 确认与拒绝；
-- 失败、停止与长内容。
+- 为每种 Tool 和 Proposal 保留一个成功态语义 fixture；
+- 按 visual family 补 lifecycle 和边界；
+- 验证 streaming 的稳定 identity；
+- 删除类型 × 状态的重复 Story。
 
 出口：
 
-- 组合只使用真实 `packages/ui` 组件；
-- 不复制 ChatPage、AgentThreadPanel 或业务 reducer；
-- 能观察正常密度和极端密度；
-- 组件局部交互仍然可用。
+- 每种 Tool/Proposal 的语义可定位；
+- running、completed、rejected、failed 等关键状态可交互切换；
+- 长命令、大量项目和长内容可稳定展示。
 
-### Phase 5：后续区域组件
+### Phase 4：组合场景
 
-按独立 Module 推进：
+- 实现 Capture“知识整理核心组合”；
+- 实现 Agent“典型任务、确认任务、高密度与异常”；
+- 只复用真实 `packages/ui` 组件和 UI-owned fixture。
 
-1. Capture Knowledge Components；
-2. Knowledge Wander；
-3. Settings。
+出口：
 
-每个 Module 必须先完成：
+- 能验收多组件叠加后的密度、节奏和层级；
+- 不存在页面副本、Router、query、store 或假 backend。
 
-- ownership review；
-- UI-owned View Model；
-- callback seam；
-- package component；
-- 基本组件 Story；
-- 必要的组合场景 Story；
-- Renderer replacement。
+### Phase 5：后续高价值 Module
 
-不为了填满 Storybook 目录同时迁移所有区域。
+按生产需求逐个推进：
 
-### Phase 6：全局收口
+1. Domain Tree；
+2. Domain Tree Select；
+3. Understanding Row；
+4. Knowledge Graph。
 
-工作：
+每个 Module 顺序固定为：
 
-- 检查每个 Story 是否有明确组件验收对象；
-- 删除重复、薄弱和假语义 Story；
-- 检查中文化；
-- 运行 format、lint、typecheck、UI tests；
-- 构建 Storybook；
-- 运行全 workspace tests/build；
-- 运行完整 Electron E2E；
-- 更新计划状态并提交。
+1. 确认 production ownership；
+2. 设计深而小的 UI-owned interface；
+3. 迁入 `packages/ui`；
+4. Renderer 通过 Adapter 使用；
+5. 建立基本组件 Story；
+6. 只有存在组合问题时才加入组合 Story。
 
-## 16. 最终验收清单
+不批量迁移排除项。
 
-### 总体边界
+### Phase 6：全量验证
 
-- [ ] Storybook 一级目录按 UI 区域组织；
-- [ ] 每个区域按“基本组件 / 组合场景样式”组织；
-- [ ] 不存在页面 Story、产品旅程 Story 或 connected workflow；
-- [ ] 组合 Story 只提供组件视觉上下文；
-- [ ] 不展示未修改的 shadcn 全量组件。
+- format；
+- lint；
+- typecheck；
+- UI unit/component tests；
+- Storybook build；
+- 全 workspace tests/build；
+- 完整 Electron E2E；
+- 按 Angular Commit Convention 提交。
+
+## 12. 测试职责
+
+| 层级              | 负责验证                                               |
+| ----------------- | ------------------------------------------------------ |
+| Storybook         | 高价值组件的视觉、状态、交互、边界和少量组合效果       |
+| UI unit/component | callback、parser、DOM identity、本地状态保留、安全降级 |
+| Electron tests    | DTO/event → View Model、query/store/reducer、Adapter   |
+| E2E               | 页面 wiring、真实业务流程、IPC、持久化和跨区域行为     |
+
+不编写“检查 Story 文件是否包含某段 Markdown”之类的测试。Markdown parser、streaming identity 或 callback 有真实行为风险时，写最小且可运行的组件/单元测试；视觉覆盖由 Storybook 人工验收。
+
+## 13. 最终验收清单
+
+### 范围与 ROI
+
+- [ ] Storybook 只包含 Capture、Agent、Knowledge Wander 的高价值组件；
+- [ ] Settings、DomainForm、普通 List/Detail、Context preview/detail 没有独立 Story；
+- [ ] 没有 shadcn gallery、Foundation gallery、页面 Story 或空目录；
+- [ ] 每个 Story 都通过两道准入门槛和删除测试；
+- [ ] 未因 Storybook 单独制造 production seam。
 
 ### 基本组件
 
-- [ ] 每个 Story 都对应一个明确的 Reflecta 组件或 visual family；
-- [ ] 状态、交互和边界放在对应组件下；
-- [ ] 不建立状态 × 主题 × 宽度的笛卡尔积；
-- [ ] internal component 只有在存在独立视觉语义时才建 Story；
-- [ ] Tool/Proposal 类型完整，但不因此增加无意义 public component。
+- [ ] Markdown Editor/Preview 作为一个 Module 验收，语法与边界完整；
+- [ ] Agent Markdown 覆盖完整语法、流式不完整语法和边界；
+- [ ] Tool/Proposal 使用“类型语义 fixture + visual family 状态”二维覆盖；
+- [ ] streaming 使用稳定 identity，不依赖 remount；
+- [ ] Domain Tree、Domain Tree Select、Understanding Row、Knowledge Graph 只在清晰 UI seam 完成后加入。
 
 ### 组合场景
 
-- [ ] Capture、Agent 等组合分别留在所属区域；
-- [ ] 组合复用真实 component 和 fixture；
-- [ ] 不引入 Router、IPC、query、production store；
-- [ ] Agent 至少覆盖典型任务、多 Tool、Proposal 和异常组合；
-- [ ] 组合场景能观察信息层级、密度、节奏和布局。
-
-### 区域覆盖
-
-- [ ] 基础与共享只展示 Reflecta 独有内容；
-- [ ] Capture Editor/Preview 矩阵完整；
-- [ ] Agent Composer/Message/Markdown 矩阵完整；
-- [ ] 每种 active Tool 有真实语义 Story；
-- [ ] 每种 Proposal 有类型和 lifecycle Story；
-- [ ] Knowledge Wander、Settings 只在 UI seam 完成后进入 Storybook。
+- [ ] Capture 只有一个知识整理核心组合；
+- [ ] Agent 只有典型任务、确认任务、高密度与异常三个组合；
+- [ ] 组合 Story 能回答单组件无法回答的密度、节奏或层级问题；
+- [ ] 组合只使用真实组件和本地展示状态；
+- [ ] 不引入 Router、IPC、query、production store 或业务 workflow。
 
 ### 中文与工程验证
 
 - [ ] 导航、Story 名称、fixture、Controls 和说明为中文；
 - [ ] 正式产品术语、Tool、代码和命令保留原文；
-- [ ] Storybook 不依赖 Electron runtime；
-- [ ] Story-only helper 不进入 public exports；
 - [ ] format、lint、typecheck 通过；
 - [ ] UI unit/component tests 通过；
 - [ ] Storybook build 通过；
