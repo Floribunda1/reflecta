@@ -2,7 +2,7 @@
 
 > 状态：Planned
 >
-> 对应主计划：[Module 2：Chat Markdown](./ui-package-storybook-migration-plan.md#7-module-2chat-markdown)
+> 对应主计划：[Module 4：Chat Markdown](./ui-package-storybook-migration-plan.md)
 >
 > 组织逻辑：本文采用**递进型主线**，按“现有渲染链 → ownership 拆分 → Markdown interface → Electron Adapter → 状态验收”展开。原因是当前 Markdown component 隐藏了 React Query、Agent type 和搜索游标依赖，必须先拆清数据来源再确定 props；横向能力按 Markdown 内容、实体引用、搜索高亮三类做 MECE 划分。
 
@@ -34,7 +34,7 @@ Module 不负责：
 - 打开 Understanding/Context inspector；
 - Thread Find Box、当前结果导航和滚动；
 - Markdown 导出时的 IPC 写文件；
-- Milkdown Editor/Preview。
+- Milkdown Editor/Preview；它们由独立 Editor Module 负责。
 
 ## 2. 当前渲染链与问题
 
@@ -81,18 +81,23 @@ flowchart LR
 
 ### 3.2 留在 Electron
 
-| 现有资产                                | 原因                                          |
-| --------------------------------------- | --------------------------------------------- |
-| `useEntityDisplay`、`getEntityDisplay`  | App 数据读取与缓存                            |
-| `onInspectContextRef` 的真实处理        | 打开业务 inspector                            |
-| Thread Find Box 和 active result state  | Thread workflow                               |
-| `exportThreadMarkdown` 的查询与文件写入 | App query + IPC                               |
-| Composer mention node 解析              | Composer/App contract                         |
-| `contextKey`、`parseContextKey`         | Agent/App entity identity                     |
-| Milkdown Editor、Readonly Preview       | v1.2.5 明确不迁移                             |
-| `medium-zoom` 与其 overlay style        | 只服务 Milkdown Preview，不属于 Chat Markdown |
+| 现有资产                                | 原因                      |
+| --------------------------------------- | ------------------------- |
+| `useEntityDisplay`、`getEntityDisplay`  | App 数据读取与缓存        |
+| `onInspectContextRef` 的真实处理        | 打开业务 inspector        |
+| Thread Find Box 和 active result state  | Thread workflow           |
+| `exportThreadMarkdown` 的查询与文件写入 | App query + IPC           |
+| Composer mention node 解析              | Composer/App contract     |
+| `contextKey`、`parseContextKey`         | Agent/App entity identity |
 
-### 3.3 删除或收缩
+### 3.3 交给 Editor Module
+
+| 现有资产                                 | 决策                                        |
+| ---------------------------------------- | ------------------------------------------- |
+| Milkdown Editor、Readonly/Simple Preview | 迁入独立 `@reflecta/ui/editor` Module       |
+| `medium-zoom` 与其 overlay style         | 随 Editor Module 迁移，不属于 Chat Markdown |
+
+### 3.4 删除或收缩
 
 | 现有资产                                         | 决策                                                        |
 | ------------------------------------------------ | ----------------------------------------------------------- |
@@ -383,5 +388,5 @@ const exported = replaceChatEntityReferences(message.text, (reference, source) =
 - Thread Export 与 UI 使用同一个 marker parser；
 - Markdown theme 只有 `packages/ui` 一份；
 - search mutable cursor 不再泄漏给 Renderer；
-- Milkdown 和 medium-zoom 仍留在 Electron；
-- Module 3 可以直接复用 `ChatMarkdown tone="muted"` 渲染 reasoning 和 tool detail。
+- Milkdown 和 medium-zoom 由独立 Editor Module 管理；
+- Module 5 可以直接复用 `ChatMarkdown tone="muted"` 渲染 reasoning 和 tool detail。

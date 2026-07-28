@@ -2,15 +2,13 @@
 
 > 状态：Planned
 >
-> 对应主计划：[Module 4：Agent 写操作 Proposal](./ui-package-storybook-migration-plan.md#9-module-4agent-写操作-proposal)
+> 对应主计划：[Module 6：Agent Proposal](./ui-package-storybook-migration-plan.md)
 >
-> 组织逻辑：本文采用**递进型主线**，按“现有 Proposal 分支 → I/O 与展示拆分 → Proposal View Model → decision interface → Renderer Adapter 与验收”展开。原因是当前 Proposal component 依据字段 key 发起查询，interface 设计必须先消除隐藏 I/O；横向按 Understanding Create、Understanding Update、Context Create、Bash、Generic 五类互斥展示做 MECE 分类。
+> 组织逻辑：本文采用**递进型主线**，按“Tool protocol 全量盘点 → streaming lifecycle → UI-owned View Model → internal renderer → Adapter → Storybook 验收”展开。原因是 mutation Tool 会在参数生成期间连续更新 Proposal，必须先固定 identity 和 snapshot 语义，再设计每种 Tool 的 content；横向按 Understanding、Domain、Context、Bash、Unknown 五个 visual family 做 MECE 分类。
 
 ## 1. 结论
 
-Agent Proposal Module 负责所有需要用户确认、展示执行状态或展示写入结果的 Agent 操作卡片。
-
-公开 interface：
+所有需要用户确认的 Tool 都通过一个 public Module 渲染：
 
 ```text
 @reflecta/ui/chat
@@ -19,64 +17,72 @@ Agent Proposal Module 负责所有需要用户确认、展示执行状态或展�
   AgentProposalDecision
 ```
 
-UI component 只接收 display-ready Proposal View Model。Understanding title、Context title、Domain path、field label 和 status note 全部由 Electron Adapter 在进入 UI 前准备完成。
+但已知 Tool 不再被压进 `generic`：
 
-UI 不接收：
+```text
+understanding_create
+understanding_update
+understanding_delete
+domain_create
+domain_update
+domain_delete
+context_create
+context_update
+context_delete
+bash (dangerous)
+```
 
-- `AgentReducedMessage`；
-- React Query 或 query key；
-- raw tool payload/output；
-- `messageId`、`toolCallId`、`approvalId` 的业务语义；
-- model selection、reasoning level；
-- Domain tree；
-- IPC client。
+每个 Tool：
 
-## 2. 当前组件清单
+- 有明确 View Model kind；
+- 有独立 Story；
+- 有 Adapter mapping；
+- 若 visual shape 相同，可以共享 internal renderer；
+- 不成为单独 public export。
 
-### 2.1 迁移组件
+## 2. 当前 Component 处理
 
-| 当前实现                          | 新实现                         | 可见性           |
-| --------------------------------- | ------------------------------ | ---------------- |
-| `CandidateShell`                  | `ProposalCardShell`            | package internal |
-| `CandidateUnderstandingCard`      | `UnderstandingCreateProposal`  | package internal |
-| `UpdateUnderstandingDiffCard`     | `UnderstandingUpdateProposal`  | package internal |
-| `CandidateContextCard`            | `ContextCreateProposal`        | package internal |
-| `BashProposalCard`                | `BashProposal`                 | package internal |
-| `GenericProposalCard`             | `GenericProposal`              | package internal |
-| `GenericProposalValue`            | `ProposalFieldValue`           | package internal |
-| `ToolCard`                        | `AgentProposalCard` dispatcher | public           |
-| `statusLabel`                     | lifecycle-to-label mapping     | package internal |
-| `shouldCollapseProposalByDefault` | default open policy            | package internal |
-| `formatDurationMs`                | Bash duration formatter        | package internal |
-| result detail visual              | 复用 Module 3 `ToolDetails`    | package internal |
+### 2.1 迁入 package
+
+| 当前 implementation                 | 新 implementation                 | 可见性           |
+| ----------------------------------- | --------------------------------- | ---------------- |
+| `ToolCard`                          | `AgentProposalCard`               | public           |
+| `CandidateShell`                    | `ProposalCardShell`               | package internal |
+| `CandidateUnderstandingCard`        | `UnderstandingCreateProposal`     | package internal |
+| `UpdateUnderstandingDiffCard`       | `UnderstandingUpdateProposal`     | package internal |
+| generic delete fields               | `DeleteProposal`                  | package internal |
+| generic Domain fields               | Domain create/update renderer     | package internal |
+| `CandidateContextCard`              | `ContextCreateProposal`           | package internal |
+| generic Context update fields       | `ContextUpdateProposal`           | package internal |
+| `BashProposalCard`                  | `BashProposal`                    | package internal |
+| `GenericProposalCard`               | `UnknownProposal` fallback        | package internal |
+| status/default-open/duration visual | lifecycle visual helpers          | package internal |
+| result detail visual                | 复用 Agent Execution Tool Details | package internal |
 
 ### 2.2 留在 Electron
 
-| 当前实现或职责                               | 原因                         |
-| -------------------------------------------- | ---------------------------- |
-| `useUnderstandingDisplay`                    | React Query + IPC            |
-| `useContextDisplay`                          | React Query + IPC            |
-| `useCaptureDomains`、`getDomainPath`         | App domain tree              |
-| `UnderstandingReference`、`ContextReference` | 改为 Adapter 中的 label 投影 |
-| `DomainPathText`、`DomainIdsText`            | 改为 Adapter 中的 path 投影  |
-| approval mutation                            | App workflow                 |
-| query invalidation                           | App state                    |
-| toast                                        | App feedback                 |
-| `proposalViewFor` 的 raw payload parsing     | App/Agent tool contract      |
-| `proposalTypeFor`、proposal data parser      | App/Agent tool contract      |
+| 当前职责                      | 原因                      |
+| ----------------------------- | ------------------------- |
+| `proposalTypeFor`             | raw Tool protocol mapping |
+| `proposalViewFor` raw parsing | App/Agent Adapter         |
+| `hydratePiApprovalPayload`    | App service I/O           |
+| Understanding/Context query   | React Query/IPC           |
+| Domain path lookup            | Capture tree              |
+| approval mutation             | Agent workflow            |
+| query invalidation/toast      | App state/feedback        |
+| result ref mapping            | App entity contract       |
+| raw error/output              | trust-boundary projection |
 
-### 2.3 删除的展示模式
+### 2.3 删除
 
-| 当前模式                                           | 替代方案                                     |
-| -------------------------------------------------- | -------------------------------------------- |
-| `GenericProposalValue` 根据 `fieldKey` 判断 entity | Adapter 直接生成 field label + display value |
-| UI 收到 `domainIds` 后查询 Domain tree             | Adapter 提供 `domainPaths: string[]`         |
-| UI 收到 `understandingId/contextId` 后查询 title   | Adapter 提供 `targetLabel`                   |
-| `status + state + preview` 三组重叠字段            | 单一 `lifecycle`                             |
-| UI 根据 resultRef 拼接 note                        | Adapter 提供最终 `note`                      |
-| `ApproveToolInput` 穿过 UI package                 | UI 只发出 `AgentProposalDecision`            |
+- UI 根据 raw field key 查询 entity；
+- UI 接收 `AgentReducedMessage`、`ApproveToolInput`；
+- known Tool 使用 `GenericProposalView`；
+- `status + state + preview` 三套重叠状态；
+- React key 包含 lifecycle/status/index；
+- package 内创建 query hook。
 
-## 3. Proposal Lifecycle
+## 3. Streaming Lifecycle
 
 ```ts
 export type AgentProposalLifecycle =
@@ -88,33 +94,44 @@ export type AgentProposalLifecycle =
   | "failed";
 ```
 
-映射：
+### 3.1 Mutation Tool sequence
 
-| App display state / preview | UI lifecycle |
-| --------------------------- | ------------ |
-| `preview=true`              | `preview`    |
-| `pending_approval`          | `pending`    |
-| `running`                   | `running`    |
-| `completed`                 | `completed`  |
-| `rejected`                  | `rejected`   |
-| `failed`                    | `failed`     |
+九种 mutation Tool 在模型生成 arguments 时发送多个完整 snapshot：
 
-UI 统一 badge：
+```text
+preview(snapshot A)
+  -> preview(snapshot B)
+  -> pending(final hydrated snapshot)
+  -> running
+  -> completed | failed
+```
 
-| Lifecycle | Badge    |
-| --------- | -------- |
-| preview   | 运行中   |
-| pending   | 待确认   |
-| running   | 已响应   |
-| completed | 完成     |
-| rejected  | 已拒绝   |
-| failed    | 执行失败 |
+用户拒绝：
 
-`failed` 优先于 approval 已确认状态，不能显示“已确认”作为终态。
+```text
+preview* -> pending -> rejected
+```
 
-## 4. Public View Model
+规则：
 
-### 4.1 Base
+- preview event 是完整 snapshot，不是字段 delta；
+- 后一个 snapshot 替换前一个 content；
+- 所有 frame 使用同一 `approvalId`；-最终 pending payload 可能经过 hydration，与最后 preview 不完全相同；
+- preview 不显示确认/拒绝按钮；
+- 缺字段显示 skeleton/fallback，不抛错。
+
+### 3.2 Dangerous Bash sequence
+
+dangerous Bash 由 permission gate 创建 Proposal，不参与 mutation arguments preview：
+
+```text
+pending -> running -> completed | failed
+pending -> rejected
+```
+
+safe Bash 不进入本 Module，而是普通 Tool Activity。
+
+### 3.3 Stable identity
 
 ```ts
 export type AgentProposalBaseView = {
@@ -128,144 +145,234 @@ export type AgentProposalBaseView = {
 };
 ```
 
-字段规则：
+- `id` 在 production 使用 `approvalId`；
+- React key 只使用 `proposal.id`；
+- lifecycle 更新不能 remount component；
+- 手动折叠状态在 preview/frame 更新中保留；
+- `decisionEnabled` 只有 final `pending` 可以为 true；
+- `error` 只接受用户可见文本。
 
-- `id` 是 UI opaque identity；推荐 Adapter 使用 approvalId，不要求 UI 理解；
-- `note` 是 display-ready 文本，例如“已写入 Understanding · xxx”；
-- `error` 只在 `failed` 时展示；
-- `result` 复用 Module 3 的 detail View Model；
-- `decisionEnabled` 只有 `pending` 时有意义；
-- completed/rejected 默认折叠，其他状态默认展开。
+## 4. Understanding View Model
 
-### 4.2 Understanding Create
+### 4.1 Create
 
 ```ts
 export type UnderstandingCreateProposalView = AgentProposalBaseView & {
   kind: "understanding-create";
   content: {
     heading?: string;
-    body: string;
+    body?: string;
     domainPaths?: readonly string[];
   };
 };
 ```
 
-映射：
+preview 中 `body` 允许暂时缺失；final pending 时 Adapter 必须提供最终 body。
 
-```text
-payload.title     -> heading
-payload.body      -> body
-payload.domainIds -> Electron resolve -> domainPaths
-```
-
-`domainPaths` 为空时不显示 Domain row；不把“未归入 Domain”当成虚假路径。
-
-### 4.3 Understanding Update
+### 4.2 Update
 
 ```ts
 export type UnderstandingUpdateProposalView = AgentProposalBaseView & {
   kind: "understanding-update";
   content: {
-    targetLabel: string;
-    beforeBody: string;
-    afterBody: string;
+    targetLabel?: string;
+    beforeHeading?: string;
+    afterHeading?: string;
+    beforeBody?: string;
+    afterBody?: string;
     domainPaths?: readonly string[];
     reason?: string;
   };
 };
 ```
 
-`targetLabel` 必须由 Electron query/catalog 解析；查不到时使用稳定 fallback，例如原 id，不在 UI 发请求。
+`before*` 通常只在 final hydrated snapshot 出现。preview 先展示已生成的 after 内容，不能等待 hydration 才出现卡片。
 
 `domainPaths`：
 
-- `undefined`：Proposal 没有修改 Domain；
-- `[]`：明确改为不属于任何 Domain；
-- 非空：展示完整 path。
+- `undefined`：没有生成该字段；
+- `[]`：明确移出所有 Domain；
+- 非空：展示已解析 path。
 
-这三个状态不能合并。
+### 4.3 Delete
 
-### 4.4 Context Create
+```ts
+export type UnderstandingDeleteProposalView = AgentProposalBaseView & {
+  kind: "understanding-delete";
+  content: {
+    targetLabel?: string;
+    reason?: string;
+  };
+};
+```
+
+使用 shared `DeleteProposal` visual，显示 destructive warning。
+
+## 5. Domain View Model
+
+### 5.1 Create
+
+```ts
+export type DomainCreateProposalView = AgentProposalBaseView & {
+  kind: "domain-create";
+  content: {
+    name?: string;
+    parentPath?: string | null;
+    reason?: string;
+  };
+};
+```
+
+`parentPath`：
+
+- `undefined`：stream 尚未生成/没有提供；
+- `null`：明确创建为根 Domain；
+- string：完整父路径。
+
+### 5.2 Update
+
+```ts
+export type DomainUpdateProposalView = AgentProposalBaseView & {
+  kind: "domain-update";
+  content: {
+    targetPath?: string;
+    nextName?: string;
+    nextParentPath?: string | null;
+    reason?: string;
+  };
+};
+```
+
+只显示实际提供的 change；不把缺失字段误认为清空。
+
+### 5.3 Delete
+
+```ts
+export type DomainDeleteProposalView = AgentProposalBaseView & {
+  kind: "domain-delete";
+  content: {
+    targetPath?: string;
+    deleteUnderstandings?: boolean;
+    reason?: string;
+  };
+};
+```
+
+`deleteUnderstandings=true` 显示强化 warning；UI 不自行推断受影响数量。
+
+## 6. Context View Model
+
+### 6.1 Create
 
 ```ts
 export type ContextCreateProposalView = AgentProposalBaseView & {
   kind: "context-create";
   content: {
-    understandingLabel: string;
-    contextLabel: string;
-    body: string;
+    understandingLabel?: string;
+    mediumLabel?: string;
+    contextLabel?: string;
+    body?: string;
   };
 };
 ```
 
-`contextLabel` 是 title 或 medium 的 display text；medium 到“实践/视频/书籍/文章/观点/AI 对话/其他”的映射留在 Electron Adapter，因为它来自 App domain。
+medium code → 中文 label 由 Electron Adapter 处理。
 
-### 4.5 Bash
+### 6.2 Update
+
+```ts
+export type ContextUpdateProposalView = AgentProposalBaseView & {
+  kind: "context-update";
+  content: {
+    targetLabel?: string;
+    understandingLabel?: string;
+    mediumLabel?: string;
+    nextTitle?: string;
+    nextBody?: string;
+    reason?: string;
+  };
+};
+```
+
+只显示实际更新字段。v1.2.5 没有 before snapshot，不伪造 Diff UI。
+
+### 6.3 Delete
+
+```ts
+export type ContextDeleteProposalView = AgentProposalBaseView & {
+  kind: "context-delete";
+  content: {
+    targetLabel?: string;
+    reason?: string;
+  };
+};
+```
+
+使用 shared `DeleteProposal` visual。
+
+## 7. Bash 与 Unknown
+
+### 7.1 Bash
 
 ```ts
 export type BashProposalView = AgentProposalBaseView & {
   kind: "bash";
   content: {
-    command: string;
+    command?: string;
     cwd?: string;
     timeoutMs?: number;
   };
 };
 ```
 
-UI 只做通用 duration format：
+- command 缺失显示“正在生成命令”或“未提供命令”；
+- UI 不判断命令危险度；
+- output 复用 `AgentToolDetailsView`；
+- duration formatter 属于 UI。
 
-- 整秒：`N 秒`；
-- 其他正数：`N ms`；
-- 非有限值、0、负数：不显示。
-
-command 为空时显示“未提供命令”。UI 不执行 shell，不判断命令危险级别。
-
-### 4.6 Generic
+### 7.2 Unknown fallback
 
 ```ts
-export type AgentProposalFieldView = {
+export type UnknownProposalFieldView = {
   id: string;
   label: string;
-  value: { format: "text"; value: string } | { format: "markdown"; value: string };
+  value: {
+    format: "text" | "markdown" | "pre";
+    value: string;
+  };
 };
 
-export type GenericProposalView = AgentProposalBaseView & {
-  kind: "generic";
+export type UnknownProposalView = AgentProposalBaseView & {
+  kind: "unknown";
   content: {
-    fields: readonly AgentProposalFieldView[];
+    fields: readonly UnknownProposalFieldView[];
   };
 };
 ```
 
-Electron Adapter 负责：
+Unknown 只用于：
 
-```text
-domainId / parentId / domainIds -> label="Domain/上级 Domain" + resolved path
-understandingId                 -> label="Understanding" + resolved title
-contextId                       -> label="Context" + resolved title
-body / content                  -> markdown
-其他 key                        -> stable display label + text
-```
+- future Tool；-历史 persisted Tool；
+- Adapter 无法识别但仍需安全展示的 Proposal。
 
-UI 不再看到 raw key，也不维护 `proposalEntryLabel`。
+九种当前 mutation Tool 不允许映射到 unknown。
 
-### 4.7 Union
+## 8. Union 与 Component Interface
 
 ```ts
 export type AgentProposalView =
   | UnderstandingCreateProposalView
   | UnderstandingUpdateProposalView
+  | UnderstandingDeleteProposalView
+  | DomainCreateProposalView
+  | DomainUpdateProposalView
+  | DomainDeleteProposalView
   | ContextCreateProposalView
+  | ContextUpdateProposalView
+  | ContextDeleteProposalView
   | BashProposalView
-  | GenericProposalView;
-```
+  | UnknownProposalView;
 
-`understanding_delete`、`domain_create/update/delete`、`context_update/delete` 在 v1.2.5 继续映射为 `generic`；只有出现不同的稳定视觉结构时才新增 union member。
-
-## 5. Decision Interface
-
-```ts
 export type AgentProposalDecision = {
   proposalId: string;
   decision: "approve" | "reject";
@@ -280,195 +387,142 @@ export type AgentProposalCardProps = {
 export function AgentProposalCard(props: AgentProposalCardProps): React.ReactNode;
 ```
 
-行为：
+Button 规则：
 
-- 只有 `lifecycle === "pending"` 显示确认/拒绝；
-- `decisionEnabled !== true` 时两个按钮 disabled；
-- `onDecision` 缺失时按钮 disabled，Story 可以展示但不会产生副作用；
-- callback 只发出 UI proposal id 和 decision；
-- UI 不拼装 `ApproveToolInput`；
-- 防止 double click 的 busy/optimistic 状态由 Electron lifecycle 更新驱动，不在 component 内假装已批准。
+- 只在 `lifecycle="pending"` 且 `decisionEnabled=true` 时显示；-点击只发 UI decision；
+- Renderer 映射回 approval command；
+- preview/running/terminal state 不保留隐藏的 active decision button。
 
-Electron Adapter 收到 decision 后：
+## 9. Internal Renderer
 
 ```text
-proposalId
-  -> 找到对应 raw approval block
-  -> messageId + toolCallId + approvalId
-  -> 调用现有 approveTool/rejectTool action
+AgentProposalCard
+└── ProposalCardShell
+    ├── UnderstandingCreateProposal
+    ├── UnderstandingUpdateProposal
+    ├── DeleteProposal
+    │   ├── Understanding Delete
+    │   ├── Domain Delete
+    │   └── Context Delete
+    ├── DomainCreateProposal
+    ├── DomainUpdateProposal
+    ├── ContextCreateProposal
+    ├── ContextUpdateProposal
+    ├── BashProposal
+    └── UnknownProposal
 ```
 
-## 6. Internal Component 结构
+每个 Tool 不一定对应不同 React function，但每个 View Model kind 必须显式 dispatch；不允许 default 分支把已知 kind 静默降级。
 
-```mermaid
-flowchart TD
-  Card["AgentProposalCard"] --> Shell["ProposalCardShell"]
-  Card --> UC["UnderstandingCreateProposal"]
-  Card --> UU["UnderstandingUpdateProposal"]
-  Card --> CC["ContextCreateProposal"]
-  Card --> Bash["BashProposal"]
-  Card --> Generic["GenericProposal"]
-  Shell --> Result["ToolDetails"]
-  UC --> Markdown["ChatMarkdown"]
-  UU --> Markdown
-  CC --> Markdown
-  Generic --> Markdown
-```
+## 10. Electron Adapter Mapping
 
-`ProposalCardShell` 内部拥有：
+| Raw Tool               | UI kind              | 必须解析的数据                          |
+| ---------------------- | -------------------- | --------------------------------------- |
+| `understanding_create` | understanding-create | title/body/domain paths                 |
+| `understanding_update` | understanding-update | target/before/after/domain paths/reason |
+| `understanding_delete` | understanding-delete | target/reason                           |
+| `domain_create`        | domain-create        | name/parent path/reason                 |
+| `domain_update`        | domain-update        | target/new name/new parent/reason       |
+| `domain_delete`        | domain-delete        | target/deleteUnderstandings/reason      |
+| `context_create`       | context-create       | parent Understanding/medium/title/body  |
+| `context_update`       | context-update       | target/changed fields/reason            |
+| `context_delete`       | context-delete       | target/reason                           |
+| dangerous `bash`       | bash                 | command/cwd/timeout                     |
+| unknown                | unknown              | safe display fields                     |
 
-- header/title；
-- lifecycle badge；
-- note；
-- collapsible state；
-- result；
-- failed error；
-- decision buttons。
+Adapter 规则：
 
-各类型 component 只负责 body layout，不重复 lifecycle 逻辑。
+- `id = approvalId`；
+- partial preview 不做 required-field assertion；
+- final pending 尽可能解析 entity label/path；
+- 找不到 entity 时使用稳定 ID fallback；
+- raw field key、query key、DTO 不进入 View Model；
+- output/error 在 trust boundary 截断和脱敏；
+- lifecycle 从 reducer `displayState + preview` 映射。
 
-## 7. Status Note 归属
+## 11. Storybook Matrix
 
-UI 不接收 resultRefType/resultRefId。Electron Adapter生成 note：
+### 11.1 每种 Tool
 
-```text
-completed + result ref -> 已写入 {type} · {id}
-approved/running       -> 已确认
-rejected bash          -> 已拒绝，命令未执行
-rejected knowledge     -> 已拒绝，未写入知识库
-failed                 -> 无 note，只显示 error
-其他                   -> undefined
-```
+- Understanding Create；
+- Understanding Update；
+- Understanding Delete；
+- Domain Create；
+- Domain Update；
+- Domain Delete；
+- Context Create；
+- Context Update；
+- Context Delete；
+- dangerous Bash；
+- Unknown fallback。
 
-这样 `@reflecta/ui` 不需要理解数据库 result ref contract，但仍拥有 note 的布局。
+### 11.2 Lifecycle
 
-## 8. Electron Adapter
+每个 visual family 至少覆盖：
 
-建议分为两步：
-
-```ts
-function buildProposalDraft(block: AgentApprovalBlock): AppProposalDraft;
-
-function useProposalView(draft: AppProposalDraft): AgentProposalView;
-```
-
-第一步保持纯函数，解析 raw payload、lifecycle、result details。
-
-第二步使用 React Query/Domain tree 补齐：
-
-- target label；
-- Context label；
-- Domain path；
-- generic field display value。
-
-若一个 message 有多个 Proposal，使用批量 query input 去重，不让每张卡片重复请求同一 entity。
-
-Adapter 必须为 loading/error/missing 提供稳定 display fallback。Proposal card 不展示 entity loading spinner，避免历史消息不断改变布局；query 完成后允许 title 更新。
-
-## 9. Storybook 状态矩阵
-
-### 9.1 Lifecycle
-
-每种 Proposal 至少覆盖：
-
-- preview；
-- pending enabled；
-- pending disabled；
+- partial preview；
+- later preview；
+- final pending；
 - running；
-- completed with/without result；
+- completed；
 - rejected；
-- failed with error。
+- failed。
 
-### 9.2 Content
+### 11.3 Sequence Story
 
-Understanding Create：
+必须提供可交互/自动播放 sequence：
 
-- title/body/domain paths；
-- no title；
-- no domain；
-- long Markdown。
+```text
+preview A -> preview B -> pending -> running -> completed
+```
 
-Understanding Update：
+断言：
 
-- body change；
-- Domain unchanged；
-- Domain cleared；
-- multiple Domain paths；
-- long Before/After；
-- reason。
+- DOM root identity 不变；-内容按 snapshot 更新；
+- manual collapse state 保留；
+- decision 只在 pending 出现；
+- final hydrated fields 替换 preview；
+- error 终态不会被后续旧 snapshot 降级。
 
-Context Create：
+## 12. 测试归属
 
-- title medium；
-- resolved Understanding title；
-- Markdown body。
+package tests：
 
-Bash：
+- lifecycle badge/open policy；
+- known kind dispatch；
+- partial field fallback；
+- decision visibility/event；
+- collapse state survives rerender；
+- Delete warning；
+- unknown safe rendering。
 
-- command only；
-- cwd；
-- integer-second timeout；
-- millisecond timeout；
-- no command；
-- long command/output。
+Electron Adapter tests：
 
-Generic：
+- 九种 raw payload mapping；
+- preview → final hydration；
+- entity/path resolution；
+- dangerous/safe Bash 分流；
+- lifecycle mapping；
+- unknown/legacy fallback。
 
-- text fields；
-- Markdown field；
-- resolved Domain/Understanding/Context display；
-- empty fields；
-- long key/value。
+Reducer integration tests继续覆盖：
 
-### 9.3 Interaction
+- repeated preview request replace；
+- approval/execution state monotonic merge；
+- final assistant turn 不使状态倒退。
 
-- default open policy；
-- manual expand/collapse；
-- confirm callback；
-- reject callback；
-- disabled decision；
-- result detail full output；
-- entity open in Markdown；
-- keyboard focus；
-- light/dark、narrow width。
+## 13. Renderer 替换
 
-## 10. 测试重新归属
+- `agent-turn-view.ts` 保留并收缩为 Adapter；
+- 删除现有 Candidate/ToolCard JSX；
+- connected container 提供 entity/path presentation；
+- `onDecision` 映射到 approval mutation；-旧 message-list proposal tests 被 package + Adapter tests 替换。
 
-| 当前测试行为                             | 新归属                             |
-| ---------------------------------------- | ---------------------------------- |
-| raw approval block -> Proposal type/data | Electron Adapter test              |
-| preview/display state -> lifecycle       | Electron Adapter test              |
-| generic field display resolution         | Electron Adapter test              |
-| entity/Domain query result -> label/path | Electron Adapter test              |
-| lifecycle badge/note/error visual        | `packages/ui` component test/Story |
-| completed/rejected default collapse      | `packages/ui` interaction test     |
-| approve/reject callback                  | `packages/ui` interaction test     |
-| approved execution failure 显示 failed   | Adapter + UI component tests       |
-| long Bash output preview/full            | Module 3 detail interaction test   |
+## 14. Module 出口
 
-UI tests 不再包 `QueryClientProvider`，也不 mock `ipcClient`。
-
-## 11. Renderer 替换清单
-
-- 删除 `useUnderstandingDisplay`；
-- 删除 `useContextDisplay`；
-- 删除 `UnderstandingReference`；
-- 删除 `ContextReference`；
-- 删除 `DomainPathText`；
-- 删除 `DomainIdsText`；
-- 删除 `GenericProposalValue` 的 key-based query 分支；
-- 删除 Renderer Candidate components；
-- 新建 App-side proposal Adapter；
-- `AgentMessageContent` proposal branch 改用 `AgentProposalCard`；
-- `ApproveToolInput` 只留在 Electron action layer；
-- 把 Proposal 视觉测试迁入 `packages/ui`。
-
-## 12. Module 出口
-
-- `AgentProposalCard` 在 Storybook 中不需要 Query Client 或 IPC；
-- Proposal View Model 只有一组 lifecycle；
-- UI 不根据 raw field key 查询或格式化 App entity；
-- decision callback 不泄漏 Electron action 参数；
-- Candidate Shell 和各类型卡片只有 package internal implementation；
-- App 数据查询集中在 Electron Adapter；
-- Module 5 可以把 Proposal union 直接放入 `AgentMessageBlockView`。
+- 每个 known Proposal Tool 有明确 UI kind；
+- 每个 Tool 有独立 Story；
+- mutation preview 连续更新不 remount；
+- partial preview 不崩溃且不能决策；
+- package 不依赖 raw payload/query/IPC；
+- Renderer 只调用 `AgentProposalCard`。

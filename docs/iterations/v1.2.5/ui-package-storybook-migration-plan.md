@@ -1,668 +1,571 @@
 # v1.2.5 `@reflecta/ui` 与 Storybook 迁移计划
 
-> 日期：2026-07-28
->
 > 状态：Planned
 >
-> 组织逻辑：本文采用**递进型主线**，按“现状与约束 → 目标架构 → 模块划分 → 逐模块迁移 → 整体验收”展开。原因是本计划不只是罗列待办，而是要先确定正确的 package seam，再按依赖顺序迁移；调换一级章节会导致执行者在不了解依赖方向时提前搬代码。模块划分在横向上使用 MECE：设计基础、Markdown、Agent 执行过程、Agent 写操作候选、Agent 消息组合互不重叠，并共同覆盖 v1.2.5 的 UI 提取范围。
+> 组织逻辑：本文采用**递进型主线**，按“Ownership 判断 → 目标结构 → 技术闸门 → Module 迁移 → stream 兼容 → 全局验收”展开。原因是本次不是简单搬文件，而是先建立 Renderer Adapter 与 UI Module 的 seam，再按依赖顺序完成 replace；每个 Module 内统一执行“确认组件 → 设计 interface → 实现 Story → 替换 Renderer”四步。
 
 ## 1. 目标与完成定义
 
-v1.2.5 建立平台无关的 `@reflecta/ui` Module，把 Reflecta 的设计基础和 Agent 对话展示从 Electron Renderer 中提取出来，并使用 Storybook 作为该 Module 的视觉状态目录与人工验收入口。
+v1.2.5 建立独立 workspace package `@reflecta/ui`，用 Storybook 验收 Reflecta 的 UI design、Markdown Editor、Chat Composer、Markdown rendering 和 Agent Tool。
 
-完成后形成单向依赖：
+完成后：
+
+- `packages/ui` 是 shadcn 配置、组件、design tokens 和 product UI 的 ownership；
+- Electron Renderer 只保留 route、query、IPC、store 和 workflow Adapter；
+- UI Module 只接收 UI-owned props/View Model 和语义 callback；
+- 每个 active Agent Tool 都有独立 Story/fixture；
+- stream preview 和 running Tool 在迁移后保持稳定增量更新；
+- Renderer 中旧 implementation 在对应 Module 替换完成后删除；
+- Storybook 不依赖 Electron runtime。
+
+本计划不要求 v1.2.5 把所有 Capture、Settings 和 route screen 搬进 package。完整候选审查见 [UI Component Ownership Review](./ui-component-ownership-review.md)。
+
+## 2. Ownership Mental Model
 
 ```mermaid
 flowchart LR
-  Events["Agent Events / Electron State"] --> Adapter["Electron Adapter"]
-  Adapter --> ViewModel["UI-owned View Model"]
-  Fixtures["Storybook Fixtures"] --> ViewModel
-  ViewModel --> UI["@reflecta/ui"]
-  UI --> DOM["React DOM + Reflecta Styles"]
+  Events["Agent/App data"] --> Adapter["Electron Adapter"]
+  Adapter --> View["UI-owned View Model"]
+  View --> UI["@reflecta/ui"]
+  UI --> Event["semantic UI event"]
+  Event --> Workflow["Electron workflow"]
 ```
 
-完成定义：
+### 2.1 迁入 package
 
-- 新增 workspace package `packages/ui`，package name 为 `@reflecta/ui`；
-- Storybook 位于 `packages/ui/.storybook`，能够独立启动并生成静态产物；
-- Reflecta 设计 tokens、基础样式、Theme Provider、`cn` 和现有 shadcn primitives 归 `@reflecta/ui` 所有；
-- Chat Markdown、Agent Tool Activity、Agent Proposal 和 Agent Message View 归 `@reflecta/ui` 所有；
-- `packages/ui` 不依赖 Electron、IPC、Renderer alias、React Query 数据请求或 App 私有类型；
-- Electron 负责把 Agent session、查询结果和用户操作转换成 UI View Model 与回调；
-- Electron Renderer 使用 `@reflecta/ui` 替换原实现，不长期保留两份组件或兼容 re-export；
-- Storybook 覆盖 Agent Tool、Markdown 和 Proposal 的主要视觉状态；
-- Electron 原有行为、交互和产品语义不因迁移发生变化。
+同时满足：
 
-## 2. 当前状态与提取约束
+- 编码用户可见 visual 或交互规则；
+- 可由 props/callback 完整驱动，或可通过 Adapter 达成；
+- 迁移后形成有行为深度的 Module；
+- 值得通过稳定 interface 和 Story 验收。
 
-### 2.1 当前状态
+### 2.2 留在 Electron
 
-- `apps/electron/src/renderer/src/components/ui` 有 56 个 shadcn primitive 文件；
-- 85 个 Renderer 文件直接依赖 `@renderer/components/ui`、Theme Provider 或 `@renderer/lib/utils`；
-- `agent-message-content.tsx` 同时承担 Markdown、Tool Activity、Reasoning、Proposal、实体查询和 IPC，共 1052 行；
-- `agent-turn-view.ts` 负责把 Agent blocks 翻译成展示状态，共 1231 行；
-- Chat Markdown 样式、wiki link 和搜索高亮分散在 `messages`、`context`、`styles` 三个目录；
-- 仓库还没有 Storybook，也没有平台无关的 UI package。
+主要职责属于：
 
-### 2.2 必须保持的架构约束
+- IPC、React Query、cache；
+- raw Agent/tool payload 解析；
+- route、navigation、DOM scroll；
+- session/thread/capture/settings workflow；
+- toast、clipboard、file persistence；
+- screen composition。
 
-依赖方向固定为：
+### 2.3 Public 与 internal
 
-```text
-apps/electron -> packages/ui
-```
+- Renderer 直接调用的 Module 入口 public；
+- Tool-specific renderer、detail row、plugin 和 fixture package internal；
+- 每种 Tool 有独立 Story，不代表每种 Tool 有 public component；
+- 已知视觉结构相同的 Tool 复用 internal renderer；
+- 未使用的旧 implementation 删除。
 
-禁止：
-
-```text
-packages/ui -> apps/electron
-packages/ui -> @renderer/*
-packages/ui -> @shared/*
-packages/ui -> ipcClient
-packages/ui -> Electron preload globals
-```
-
-`@reflecta/ui` 可以依赖：
-
-- React / React DOM；
-- shadcn 当前使用的 Radix/Base UI 依赖；
-- Tailwind CSS、`class-variance-authority`、`clsx`、`tailwind-merge`；
-- `lucide-react`、`streamdown`、Markdown 渲染相关依赖；
-- 与展示直接相关、且不访问产品数据的浏览器能力。
-
-Electron 保留：
-
-- IPC 和 preload typings；
-- React Query 请求与缓存；
-- Agent reducer、session、tool payload 解释；
-- Router、窗口、拖拽区域和 App Shell；
-- 数据 mutation、toast 业务反馈、编辑、重试、fork 等 workflow；
-- 从 App 类型到 UI View Model 的 Adapter。
-
-### 2.3 迁移原则
-
-- 先建立 package seam，再迁移实现；
-- 每个模块都完成“确认组件 → 重设 interface → 实现 → 替换 Renderer”的闭环；
-- Renderer 和 Storybook 通过同一个 interface 使用组件；
-- Storybook 不 mock 整个 Electron，不让 UI story 理解 IPC contract；
-- UI View Model 必须包含渲染所需的 label、状态和格式，不允许组件为了补数据主动查询 App；
-- shadcn primitive 只做归属迁移和 package-local import 调整，不改实现、样式或行为；
-- 每个模块替换完成后立即删除旧实现；测试是替换，不是叠加；
-- 本轮只迁移已经存在且有明确消费者的 UI，不创建假想的通用 Design System。
-
-## 3. 目标结构与公开 Interface
-
-### 3.1 目录结构
+## 3. 目标 Workspace
 
 ```text
 packages/ui/
 ├── .storybook/
-│   ├── main.ts
-│   └── preview.tsx
 ├── src/
+│   ├── components/            # shadcn CLI-owned
+│   ├── hooks/                 # shadcn CLI-owned hooks
+│   ├── lib/
+│   │   └── utils.ts
 │   ├── styles/
-│   │   ├── index.css
-│   │   └── markdown-theme/
-│   ├── primitives/
+│   │   └── globals.css
+│   ├── overlays/
+│   ├── editor/
 │   ├── chat/
+│   │   ├── composer/
 │   │   ├── markdown/
 │   │   ├── execution/
 │   │   ├── proposal/
 │   │   └── message/
-│   ├── theme-provider.tsx
-│   └── utils.ts
+│   └── theme-provider.tsx
 ├── components.json
 ├── package.json
 └── tsconfig.json
-
-apps/electron/src/renderer/src/
-├── modules/chat/
-│   ├── adapters/
-│   │   └── agent-message-adapter.tsx
-│   ├── messages/
-│   │   ├── agent-turn-view.ts
-│   │   └── message-list.tsx
-│   └── ...
-└── style.css
 ```
 
-最终目录名可在实施时按现有命名微调，但 ownership 和依赖方向不得改变。
-
-### 3.2 Package 公开面
-
-使用明确 subpath export，避免一个无限增长的 root barrel：
+Electron：
 
 ```text
-@reflecta/ui/styles.css
+apps/electron/src/renderer/src/modules/chat/
+├── adapters/
+│   ├── chat-composer-adapter.tsx
+│   ├── chat-entity-adapter.ts
+│   └── agent-message-adapter.tsx
+├── session/
+├── screens/
+└── ...
+```
+
+目录名可在实施中按现有结构微调；ownership 和依赖方向不可反转。
+
+## 4. Package Interface
+
+```text
+@reflecta/ui/globals.css
+@reflecta/ui/components/*
+@reflecta/ui/lib/*
+@reflecta/ui/hooks/*
 @reflecta/ui/theme
-@reflecta/ui/utils
-@reflecta/ui/primitives/*
+@reflecta/ui/overlays
+@reflecta/ui/editor
 @reflecta/ui/chat
 ```
 
-`@reflecta/ui/chat` 的稳定 interface 只公开语义化入口与对应 View Model：
+不提供无限增长的 root barrel。
 
-- `ChatMarkdown`
-- `AgentExecutionBlock`
-- `AgentProposalCard`
-- `AgentMessageView`
-- `ChatEntityReference`、`ChatEntityBindings` 和各 Module View Model；
-- `collectChatEntityReferences`、`replaceChatEntityReferences`、`findChatTextRanges` 等跨 Renderer/Storybook 共用的纯 helper。
+`@reflecta/ui/editor`：
 
-以下内容保持 package internal：
+- `MarkdownEditor`；
+- `MarkdownPreview`；
+- `SimpleMarkdownPreview`；
+- suggestion/upload ports；
+- Markdown/Wiki Link codec helpers。
 
-- Tool detail rows；
-- Candidate shell；
-- Markdown AST/plugin 细节；
-- 单个 proposal 类型的内部卡片；
-- Story fixtures；
-- Storybook decorators；
-- 仅用于实现组合的辅助函数。
+`@reflecta/ui/chat`：
 
-### 3.3 View Model seam
+- `ChatComposer`；
+- `ChatMarkdown`；
+- `AgentExecutionBlock`；
+- `AgentProposalCard`；
+- `AgentMessageView`；
+- `ChatMessageRow`；
+- 对应 UI-owned types 和必要 pure helpers。
 
-`packages/ui` 定义展示所需的类型，Electron Adapter 从现有 `AgentReducedMessage`、`AgentTurnView`、entity catalog 和查询结果生成它们。
+保持 internal：
 
-UI View Model 遵守：
+- Tool detail renderer；
+- Proposal subtype renderer；
+- Milkdown/TipTap plugin；
+- Story fixture；
+- Storybook decorator；
+- status badge、row、candidate shell。
 
-- 只表达用户可见状态，不暴露 Pi、IPC 或数据库 DTO；
-- 使用稳定 discriminated union 表达 text、reasoning、tool activity、proposal、compaction；
-- Proposal 中使用已经解析完成的 entity label 和 Domain path；
-- callback 参数使用 UI action，例如 approve、reject、inspect entity，不暴露 query client 或 service；
-- Markdown entity ref 使用 UI-owned type，Electron Adapter 负责从 Agent catalog 投影；
-- 缺少 display data 时显式使用稳定 fallback，不在组件内部发起请求。
-
-`agent-turn-view.ts` 继续留在 Electron：它解释 Agent tool payload 和 session state，是 App Adapter，而不是 UI implementation。它返回的 UI 类型改由 `@reflecta/ui/chat` 提供。
-
-### 3.4 Module Design 索引
-
-主计划定义迁移顺序、共同约束和出口；以下文档定义每个 Module 的组件清单与 TypeScript interface：
+## 5. Module Design 索引
 
 1. [UI Foundation Module Design](./ui-foundation-module-design.md)
-2. [Chat Markdown Module Design](./chat-markdown-module-design.md)
-3. [Agent Execution Module Design](./agent-execution-module-design.md)
-4. [Agent Proposal Module Design](./agent-proposal-module-design.md)
-5. [Agent Message Module Design](./agent-message-module-design.md)
+2. [Markdown Editor Module Design](./markdown-editor-module-design.md)
+3. [Chat Composer Module Design](./chat-composer-module-design.md)
+4. [Chat Markdown Module Design](./chat-markdown-module-design.md)
+5. [Agent Execution Module Design](./agent-execution-module-design.md)
+6. [Agent Proposal Module Design](./agent-proposal-module-design.md)
+7. [Agent Message Module Design](./agent-message-module-design.md)
 
-实施时，Module Design 是对应组件归属和 interface 的详细依据；若与主计划摘要冲突，以保持依赖方向和详细 interface 的 Module Design 为准，并同步修正文档。
+主计划定义顺序、共同闸门和完成标准；Module Design 定义具体 component、View Model、Adapter 和 Story。
 
-## 4. 所有模块共用的迁移闭环
+## 6. 所有 Module 的迁移闭环
 
-每个模块必须依次完成下面四步，不跨步并行保留两套实现。
-
-### 4.1 确认要独立的组件
-
-- 列出当前组件、样式、类型、helper 和全部调用方；
-- 分类依赖为纯 UI、App 数据、平台能力；
-- 只迁移纯 UI；App 数据和平台能力留在 Electron Adapter；
-- 对未使用代码执行删除，不搬入新 package；
-- 在任务记录中写明“迁移 / 留在 Electron / 删除”的清单。
-
-### 4.2 重新设计 Interface 和调整逻辑
-
-- 从使用方需要的最小信息反推 props；
-- 把数据读取改为 display-ready View Model；
-- 把业务副作用改为语义化 callback；
-- 不为 Storybook增加生产 interface；Story 和 Renderer 使用同一个 interface；
-- 用 deletion test 检查 Module 深度：删除该 Module 后，复杂度应重新散回多个调用方，而不是直接消失；
-- 在开始实现前记录旧 interface 到新 interface 的映射。
-
-### 4.3 实现组件与 Story
-
-- 迁移或实现组件；
-- 为状态分支建立 typed stories；
-- stories 使用 UI View Model fixture，不构造 Electron events；
-- 保持迁移前视觉和交互，不在同一任务顺带 redesign；
-- 非平凡格式化或状态逻辑保留一个最小自动化检查。
-
-### 4.4 替换 Renderer 原逻辑
-
-- Electron Adapter 生成 View Model 并绑定 callback；
-- 替换全部生产调用方；
-- 删除旧组件、旧样式和无用 helper；
-- 不保留临时 re-export 或双写 CSS；
-- 执行 package、Renderer 和 production build 验证后再进入下一个模块。
-
-## 5. Task 0：建立 Package 与 Storybook 技术闸门
-
-该任务只建立运行环境，不迁移业务 UI。
-
-- [ ] 新建 `packages/ui/package.json`、`tsconfig.json` 和 package exports；
-- [ ] 参考现有 `@reflecta/server`，由 Vite 直接消费 TypeScript source，不新增独立 library bundler；
-- [ ] React 和 React DOM 使用 peer dependency；实际使用的 UI library 由 `@reflecta/ui` 声明；
-- [ ] CSS/SCSS 明确标为 side effect，避免 production tree-shaking 丢失样式；
-- [ ] 新建 `packages/ui/components.json`，让后续 shadcn 操作以 UI package 为根；
-- [ ] 新建 `packages/ui/.storybook/main.ts` 和 `preview.tsx`；
-- [ ] Storybook 使用 React + Vite，复用 Tailwind v4 和 UI package alias；
-- [ ] `preview.tsx` 加载真实 UI styles 和 Theme Provider；
-- [ ] 只建立必要的 viewport、light/dark 和内容宽度 decorator；
-- [ ] 增加 root 与 package 的 `storybook`、`storybook:build` scripts；
-- [ ] 建立一个临时技术闸门 story，验证 Tailwind class、CSS variables、字体、dark mode 和 HMR；
-- [ ] 技术闸门通过后删除临时 story，由 Module 1 的正式 story 替代。
-
-闸门：
-
-- `bun run --cwd packages/ui storybook:build` 成功；
-- Storybook 启动不加载 Electron main/preload plugin；
-- production Renderer 能导入一个最小 UI export；
-- package 中不存在 `@renderer`、`@shared`、`ipcClient` 或 Electron import。
-
-## 6. Module 1：设计基础与 shadcn Primitives
-
-该模块先迁移所有后续模块共同依赖的设计基础。
-
-详细组件与 interface：[UI Foundation Module Design](./ui-foundation-module-design.md)。
+每个 Module 按同一闭环完成，不长期保留两套 implementation。
 
 ### 6.1 确认组件
 
-- [ ] 扫描 56 个现有 shadcn primitive 及其内部 import graph；
-- [ ] 扫描 Theme Provider、`cn` 和 semantic style helper 的实际调用方；
-- [ ] 扫描 `Sidebar` 使用的 `useIsMobile` 等 primitive 隐性依赖；
-- [ ] 将现有 `style.css` 分类为：
-  - UI design tokens、字体、base layer、通用 scrollbar；
-  - Electron App Shell、窗口拖拽、`#root` 尺寸和 Renderer-only 规则；
-  - Markdown 与 chat-find 规则，留给 Module 2；
-- [ ] 未被任何调用方使用的 helper 不迁移；
-- [ ] 确认 Electron 直接使用的 UI dependencies，决定 dependency ownership。
+- 列出 current implementation、style、helper、test 和调用方；
+- 分成 UI implementation、App Adapter、删除项；
+- 标记 public、package internal；
+- 对 Tool 同时标记 protocol、visual family、Story。
 
-迁移：
+### 6.2 设计 Interface
 
-- `components/ui/*` 全部作为一个内部依赖图迁移；
-- `components/theme-provider.tsx`；
-- `lib/utils.ts` 中的 `cn`；
-- `hooks/use-mobile.ts` 作为 `Sidebar` package-internal 实现；
-- Reflecta design tokens 和通用基础样式。
+- 从 visual 所需的最小信息反推 props；
+- raw App model 由 Renderer 转成 display-ready View Model；
+- I/O 通过明确 port/callback 注入；
+- callback 使用 approve、reject、open、submit 等 UI 语义；
+- streaming state 使用 immutable snapshot 和稳定 identity；
+- 不公开第三方 editor instance、query client 或 IPC。
 
-留在 Electron：
+### 6.3 实现与 Story
 
-- App Shell 尺寸；
-- Electron drag/no-drag；
-- Renderer root 与透明窗口规则；
-- 只服务 Electron workflow 的 hooks 和业务组件。
-
-### 6.2 重新设计 Interface
-
-- [ ] Theme Provider 通过 `@reflecta/ui/theme` 导出；
-- [ ] primitives 通过 `@reflecta/ui/primitives/*` 独立 subpath 导出；
-- [ ] `cn` 通过 `@reflecta/ui/utils` 导出，供现有非 primitive Renderer 调用方使用；
-- [ ] package 内 primitive 使用 package-local import，不使用 App alias；
-- [ ] 保持 shadcn 现有 props、样式和行为不变；
-- [ ] Electron `style.css` 改为加载 `@reflecta/ui/styles.css` 后追加 App-only 样式。
-
-### 6.3 实现组件
-
-- [ ] 迁移 primitives、Theme Provider、utils 和 styles；
-- [ ] 更新 package dependencies；
-- [ ] 更新 `components.json` alias；
-- [ ] 建立 Foundation stories：颜色、排版、Button、Badge、Form controls、Overlay；
-- [ ] 在 stories 中验证 light/dark、focus、disabled 和 destructive 状态；
-- [ ] 不对现有 shadcn 组件进行视觉定制。
+- implementation、styles 和 stories 同 Module 放置；
+- Story 使用纯 fixture/in-memory Adapter；
+- 覆盖 loading、empty、running、streaming、completed、failed、dark/light；
+- Tool 必须逐 type 验收；
+- interface 行为由 package tests 验证。
 
 ### 6.4 替换 Renderer
 
-- [ ] 批量替换 85 个 Renderer 文件中的 primitive、Theme Provider 和 utils import；
-- [ ] 删除 `apps/electron/src/renderer/src/components/ui` 的旧文件；
-- [ ] 删除已迁移的 Theme Provider、utils 和 CSS token；
-- [ ] 确认 Renderer 没有继续从旧 alias 读取 primitives；
-- [ ] 运行 Renderer tests、web typecheck 和 production build。
+- 创建 production Adapter；
+- 调用方一次性切到 package interface；
+- 迁移/替换原测试；
+- 删除旧 implementation 和无用 import；
+- typecheck、targeted tests、Storybook build 通过后完成该 Module。
 
-模块出口：
+## 7. Task 0：Package 与 Storybook 技术闸门
 
-- Renderer 和 Storybook 使用同一份 tokens、Theme Provider 和 primitives；
-- Electron 中不存在第二份 shadcn primitive；
-- UI package 尚不包含 Markdown 或 Agent 业务展示。
+### 7.1 工作项
 
-## 7. Module 2：Chat Markdown
+- 创建 `packages/ui/package.json`；
+- 创建 package-local `#...` imports 和 exports；
+- 创建 TypeScript config；
+- 配置 Storybook Vite/React；
+- Storybook preview 加载 globals.css、Theme 和必要 Overlay Provider；
+- Electron 添加 `@reflecta/ui: workspace:*`；
+- 根脚本增加 UI typecheck/test/storybook build；
+- 确认 workspace build 不把 Storybook dev dependency打进 Electron bundle。
 
-该模块把 Markdown parsing、实体链接展示和视觉样式收拢成一个深 Module。
+### 7.2 闸门
 
-详细组件与 interface：[Chat Markdown Module Design](./chat-markdown-module-design.md)。
+- UI package 可独立 typecheck；
+- empty Storybook 可 build；
+- Electron 可 import 一个 UI package smoke export；
+- light/dark token 在 Storybook 生效；
+- package 不引用 `@renderer`、`@main`、`@shared`。
 
-### 7.1 确认组件
+## 8. Module 1：UI Foundation 与 shadcn 重建
 
-- [ ] 检查 `MarkdownBody` 的全部调用场景；
-- [ ] 检查 `markdown-theme.scss` 及所有 partial；
-- [ ] 检查 `wiki-link.tsx`、`context-reference.ts` 和 `chat-find-highlight.tsx`；
-- [ ] 区分 Markdown 语法/展示逻辑与 Electron entity inspection workflow；
-- [ ] 确认 Streamdown、KaTeX、Mermaid 和链接处理的真实能力范围。
-
-迁移候选：
-
-- `MarkdownBody`，重命名为 `ChatMarkdown`；
-- Chat Markdown theme；
-- Markdown 内部 entity link renderer；
-- Markdown 搜索高亮的纯展示部分；
-- URL transform 和纯解析 helper。
-
-留在 Electron：
-
-- 打开 Understanding、Context、Domain 的 inspector；
-- Agent catalog 到 UI entity reference 的投影；
-- 搜索框、当前命中项和滚动定位 orchestration；
-- 与导出、查询缓存或 IPC 有关的逻辑。
-
-### 7.2 重新设计 Interface
-
-- [ ] `ChatMarkdown` 接受 Markdown value、UI entity catalog、inspect callback 和可选 search state；
-- [ ] 使用 `tone` 等语义化 variant 表达默认/弱化文本，不依赖调用方覆盖所有后代颜色；
-- [ ] UI entity 类型由 `@reflecta/ui/chat` 定义，不引用 `AgentContextRef`；
-- [ ] entity link 缺少 label 时使用稳定 fallback；
-- [ ] custom Markdown 转换规则集中在 Module 内部，不让调用方组合 plugin；
-- [ ] 不公开 Streamdown plugin、AST node 或 wiki URL 内部格式。
-
-### 7.3 实现组件
-
-- [ ] 实现 `ChatMarkdown` 与内部 Markdown helpers；
-- [ ] 迁移 Markdown theme，确保 Storybook 和 Renderer 只加载一份；
-- [ ] 建立 Markdown stories：
-  - headings、paragraph、inline emphasis；
-  - ordered/unordered/task list；
-  - blockquote、divider；
-  - inline code、code block、超长行；
-  - table；
-  - link、entity ref；
-  - KaTeX、Mermaid；
-  - streaming 中的不完整 Markdown；
-  - 长内容、窄宽度、light/dark；
-- [ ] 对纯解析和 reference fallback 保留最小单元测试。
-
-### 7.4 替换 Renderer
-
-- [ ] 替换 assistant text、reasoning 和 tool detail 中的 Markdown 渲染；
-- [ ] Electron Adapter 把 Agent entity catalog 转换成 UI entity catalog；
-- [ ] 绑定现有 entity inspector callback 和 chat find state；
-- [ ] 删除旧 `MarkdownBody`、旧 theme 和已迁移 helper；
-- [ ] 验证引用点击、搜索高亮、代码、表格和流式输出。
-
-模块出口：
-
-- `ChatMarkdown` 可以在没有 Electron 环境的 Storybook 中完整渲染；
-- Renderer 不再组合 Markdown plugins 或直接加载旧 chat theme；
-- 产品中的 Chat Markdown 与 Storybook 使用同一 implementation。
-
-## 8. Module 3：Agent 执行过程展示
-
-该模块覆盖不要求用户确认的 assistant 过程状态，与写操作 Proposal 分开。
-
-详细组件与 interface：[Agent Execution Module Design](./agent-execution-module-design.md)。
+详细设计：[UI Foundation Module Design](./ui-foundation-module-design.md)。
 
 ### 8.1 确认组件
 
-- [ ] 检查 `ToolActivityGroup`、Tool detail rows、Reasoning、Context Compaction、Running Placeholder；
-- [ ] 列出 running、done、failed、empty、multi-item 和 long-output 状态；
-- [ ] 确认哪些字段来自 `agent-turn-view.ts`，哪些字段仍在 React 中推导；
-- [ ] 将 tool payload parsing 与纯展示格式化分开。
+- 当前 56 个 shadcn name 作为安装 manifest；
+- Theme Provider；
+- globals/tokens；
+- Modal/Drawer Providers；
+- `SidebarToggleButton` 留 App；
+- `FooterButton` 删除；
+- unused `badge-colors` 删除。
 
-迁移：
+### 8.2 设计 Interface
 
-- Tool activity 容器和明细；
-- Reasoning block；
-- Context compaction receipt；
-- Running response placeholder；
-- 展示层 status variant 和纯格式化。
+- public path 使用 `@reflecta/ui/components/*`；
+- package internal 使用 `#components/*`；
+- `components.json` ownership 移到 package；
+- Overlay Provider 通过 `@reflecta/ui/overlays` 导出。
 
-留在 Electron：
+### 8.3 实现
 
-- 原始 tool block 分组；
-- tool-specific payload 解析；
-- session running/stopped 判断；
-- Agent event 到 execution View Model 的转换。
-
-### 8.2 重新设计 Interface
-
-- [ ] 定义 UI-owned execution block union；
-- [ ] UI 只接收 summary、status、rows、meta、error 和 format；
-- [ ] Markdown detail 直接复用 `ChatMarkdown`；
-- [ ] 展开/收起属于组件内部 UI state；
-- [ ] 初始展开状态通过明确 prop 控制；
-- [ ] tool name 可以保留为调试 metadata，但不能驱动组件内业务查询。
-
-### 8.3 实现组件
-
-- [ ] 实现 `AgentExecutionBlock` 及 package-internal 子组件；
-- [ ] 建立 stories：
-  - reasoning running/done；
-  - single/multiple tool；
-  - running/done/failed；
-  - empty details；
-  - text/pre/Markdown details；
-  - 截断与展开完整输出；
-  - context compaction；
-  - running/stopped placeholder；
-- [ ] 用 interaction 检查折叠、展开和长内容滚动。
+- 创建 package config；
+- shadcn dry-run；
+- 删除 Electron `components/ui`；
+- CLI 重新安装相同 56 components；
+- 不复制、不修改旧 shadcn source；
+- 迁移 Theme/tokens/Overlay。
 
 ### 8.4 替换 Renderer
 
-- [ ] `agent-turn-view.ts` 返回 UI-owned execution types；
-- [ ] 替换原 Tool Activity、Reasoning、Compaction 和 Placeholder 分支；
-- [ ] 删除 Renderer 中对应 JSX、status style 和纯格式化 helper；
-- [ ] 保留并调整 `agent-turn-view.test.ts`，通过公开 View Model 验证转换；
-- [ ] 验证现有 Tool Activity UI 行为不变。
+- 全量替换 shadcn、utils、theme、overlay imports；
+- 删除 Electron `components.json`；
+- Electron `style.css` 只保留 App-only style。
 
-模块出口：
+### 8.5 闸门
 
-- Tool Activity 的每个状态可在 Storybook 独立验收；
-- Electron 只负责产生 execution View Model；
-- execution component 不知道任何 Agent service 或 IPC。
+- CLI 安装 name set 与当前 56 项相同；
+- generated source 无手工 diff；
+- Renderer 不存在旧 component import；
+- Storybook 与 Electron theme 一致。
 
-## 9. Module 4：Agent 写操作 Proposal
+## 9. Module 2：Markdown Editor
 
-该模块覆盖需要用户确认或展示写入结果的 Agent Tool UI。
-
-详细组件与 interface：[Agent Proposal Module Design](./agent-proposal-module-design.md)。
+详细设计：[Markdown Editor Module Design](./markdown-editor-module-design.md)。
 
 ### 9.1 确认组件
 
-- [ ] 检查 Candidate Shell；
-- [ ] 检查 Understanding create/update、Context create、Bash 和 Generic proposal；
-- [ ] 列出 pending、approved、rejected、running、completed、denied、failed；
-- [ ] 找出组件内的 Understanding、Context 和 Domain 查询；
-- [ ] 检查批准/拒绝 callback 和 result detail 的复用关系。
+- Milkdown Editor；
+- Readonly Preview；
+- Simple Preview；
+- Wiki Link extension/suggestion；
+- Markdown normalize/codec；
+- Editor theme 与 medium-zoom。
 
-迁移：
+### 9.2 设计 Interface
 
-- Proposal shell；
-- Understanding、Context、Bash、Generic proposal cards；
-- Before/After diff layout；
-- status label、status note 和 result details 展示；
-- 批准/拒绝按钮及卡片内部折叠状态。
+- controlled `value` + `documentId`；
+- asset upload port 返回最终 URL；
+- suggestion source 返回 display-ready item；
+- Wiki Link open callback；
+- low-level Milkdown type internal。
 
-留在 Electron：
+### 9.3 实现
 
-- React Query；
-- IPC entity lookup；
-- Domain tree/path 计算；
-- approval mutation 和真实执行；
-- error toast 与 query invalidation。
-
-### 9.2 重新设计 Interface
-
-- [ ] 定义 UI-owned proposal discriminated union；
-- [ ] Proposal View Model 包含已经解析的 Understanding label、Context label 和 Domain path；
-- [ ] 使用单一语义化 decision callback，不暴露 `approvalId` 以外的 App 内部状态；
-- [ ] approval、execution 和 result 状态在 View Model 中明确区分；
-- [ ] Generic proposal 的字段在 Adapter 中转换成 display rows，组件不根据 key 发起查询；
-- [ ] result details 复用 Module 3 的 detail implementation；
-- [ ] Markdown body 复用 Module 2。
-
-### 9.3 实现组件
-
-- [ ] 实现 `AgentProposalCard` 与内部 proposal cards；
-- [ ] 建立每种 proposal 的状态 stories；
-- [ ] 覆盖确认、拒绝、完成、拒绝执行、执行失败；
-- [ ] 覆盖空标题、长正文、长 path、Before/After 和 Markdown body；
-- [ ] 用 interaction 检查折叠、展开、confirm 和 reject callback。
+- Editor implementation 和 theme 迁入；
+- IPC upload/query 改为注入 Adapter；
+- `initialContent/content` 收敛为单一输入；
+- Story 覆盖 editor/preview/suggestion/upload。
 
 ### 9.4 替换 Renderer
 
-- [ ] 新建或调整 Electron proposal Adapter，负责 query 和 display data；
-- [ ] 替换 `agent-message-content.tsx` 中全部 proposal 分支；
-- [ ] 删除 `useUnderstandingDisplay`、`useContextDisplay`、`DomainPathText` 等组件内查询；
-- [ ] 删除 Renderer 中旧 Candidate cards 与 status helpers；
-- [ ] 验证 approval payload、pending disable 和执行结果展示。
+- Understanding Detail/List 和 Capture store 改用 package export；
+- Renderer 提供 asset/suggestion Adapter；
+- 删除旧 Markdown Editor 目录。
 
-模块出口：
+## 10. Module 3：Chat Composer
 
-- Storybook 不需要 Query Client 或 IPC 即可展示全部 Proposal；
-- Proposal component 只产生 decision action，不执行 App mutation；
-- Renderer 中所有 entity display 请求集中在 Adapter。
-
-## 10. Module 5：Agent Message 组合与最终替换
-
-最后一个模块将前四个模块组合成 Electron 和 Storybook 共用的消息渲染 interface。
-
-详细组件与 interface：[Agent Message Module Design](./agent-message-module-design.md)。
+详细设计：[Chat Composer Module Design](./chat-composer-module-design.md)。
 
 ### 10.1 确认组件
 
-- [ ] 检查 `AgentMessageContent` 剩余 text、stopped、empty 和 block sequencing 逻辑；
-- [ ] 检查 `MessageRow` 对 assistant content 的调用方式；
-- [ ] 确认 message id、busy、last assistant、stopped、find state 和 callback 的必要性；
-- [ ] 识别只用于 list orchestration 的 clipboard、edit、regenerate、fork、timestamp 和 toast。
+- Chat Composer；
+- Context Picker；
+- mention visual；
+- attachment preview；
+- context usage meter；
+- model/reasoning selector。
 
-迁移：
+### 10.2 设计 Interface
 
-- Assistant message block composition；
-- text/error/empty/stopped visual；
-- execution 和 proposal block sequencing；
-- UI-owned `AgentMessageViewModel`；
-- `AgentMessageView`。
+- UI-owned composer document/value；
+- async entity search port；
+- attachment Adapter；
+- display-ready model/reasoning/usage；
+- submit/stop/edit semantic callback。
 
-留在 Electron：
+### 10.3 实现
 
-- Message list virtualization/layout orchestration；
-- User message edit、copy、regenerate 和 fork workflow；
-- timestamp 和 session state；
-- View Model Adapter；
-- Context inspector orchestration。
-
-### 10.2 重新设计 Interface
-
-- [ ] `AgentMessageView` 接受一个完整 View Model、inspect callback 和 decision callback；
-- [ ] running/stopped/empty 由显式 message state 表达；
-- [ ] block key/identity 由 View Model 提供，不在 UI 猜测业务 id；
-- [ ] Renderer 不再把整个 `AgentReducedMessage` 直接传入 UI package；
-- [ ] Storybook fixtures 只创建 `AgentMessageViewModel`；
-- [ ] package internal block components 不额外公开。
-
-### 10.3 实现组件
-
-- [ ] 实现 `AgentMessageView`；
-- [ ] 建立组合 stories：
-  - 纯 Markdown answer；
-  - reasoning → tool → answer；
-  - 多 tool → proposal → result → answer；
-  - running、stopped、failed、empty；
-  - 长对话内容和窄宽度；
-  - light/dark；
-- [ ] 复用前述模块 stories，不重复 fixture implementation；
-- [ ] 确认 public exports 只包含稳定入口与 View Model。
+- TipTap 和 visual 迁入；
+- query/Agent DTO mapping 留在 Renderer；
+- Story 覆盖 draft、mention、attachment、status。
 
 ### 10.4 替换 Renderer
 
-- [ ] `message-list.tsx` 通过 Electron Adapter 构造 `AgentMessageViewModel`；
-- [ ] 使用 `AgentMessageView` 替换原 `AgentMessageContent`；
-- [ ] 删除旧 `agent-message-content.tsx` 或将其缩减为有实际 I/O 职责的 Adapter；
-- [ ] 删除不再使用的 App 私有 UI types、styles 和 helpers；
-- [ ] 检查 production bundle 中没有重复的旧/new UI implementation；
-- [ ] 跑通 Agent message renderer 的现有测试与 Electron smoke test。
+- `AgentThreadPanel` 使用 connected Composer Adapter；
+- 删除旧 Composer/Picker implementation；
+- submit mapping 保持 Agent command contract。
 
-模块出口：
+## 11. Module 4：Chat Markdown
 
-- Renderer 和 Storybook 通过同一个 `AgentMessageView` seam；
-- `packages/ui` 是完整的 Agent assistant message 视觉上下文；
-- Electron 只保留数据、workflow 和平台 Adapter。
+详细设计：[Chat Markdown Module Design](./chat-markdown-module-design.md)。
 
-## 11. v1.2.5 明确不迁移
+### 11.1 确认组件
 
-以下内容仍然属于 Electron App，不在本轮为了“目录统一”强行迁移：
+- Streamdown rendering；
+- entity reference visual；
+- Chat Markdown theme；
+- direct citation codec；
+- find highlight；
+- Milkdown 不再归入本 Module。
 
-- Router 与 App Shell；
-- Chat Composer 和输入 workflow；
-- Thread Sidebar、Thread Actions、消息列表 orchestration；
-- Capture 页面及其查询、编辑和布局；
-- Settings、Storage、Trash；
-- Electron-specific hooks；
-- Milkdown 编辑器；
-- G6 图谱；
-- 业务 Modal、Drawer 和 Domain workflow。
+### 11.2 设计 Interface
 
-未来只有出现第二个真实 UI consumer，或某个 UI 已经能以 display-ready View Model 独立运行时，才按同样闭环迁移。
+- `ChatMarkdown` 只接收 value、tone、search、entity bindings；
+- entity query 在 Renderer，resolver 同步返回 display state；
+- export codec 为 pure helper。
 
-本轮也不做：
+### 11.3 实现与替换
 
-- UI redesign；
-- Chromatic 或其他 SaaS；
-- 全仓 screenshot baseline；
-- 为每个 shadcn primitive 编写 exhaustive story；
-- Electron IPC mock framework；
-- 第二套 Design Token 系统；
-- package library bundler；
-- 与迁移无关的组件抽象。
+- package 内实现一致 Markdown visual；
+- Renderer 批量查询 entity 并创建 bindings；
+- thread export 使用 package codec；
+- 删除旧 Markdown body/wiki component/style。
 
-## 12. 验证策略
+## 12. Module 5：Agent Execution
 
-实施者在新增或修改测试前，先阅读：
+详细设计：[Agent Execution Module Design](./agent-execution-module-design.md)。
 
-- `docs/references/technical/architecture/unit-test-principles.md`；
-- 涉及 feature 文件时，再阅读 `docs/references/technical/architecture/test-case-principles.md`。
+### 12.1 确认组件
 
-### 12.1 每个模块的自动验证
+- Reasoning；
+- Tool Activity；
+- Tool Details；
+- Context Compaction；
+- Pending。
 
-- `@reflecta/ui` typecheck；
-- `@reflecta/ui` 定向 unit/interaction tests；
-- Storybook static build；
-- Electron Renderer unit tests；
-- Electron web typecheck；
-- `git diff --check`；
-- dependency scan，确认 `packages/ui` 没有禁止 import。
+### 12.2 设计 Interface
 
-### 12.2 最终自动验证
+- UI 不识别 raw tool name/payload；
+- Adapter 为每个 active Tool 生成 display-ready View Model；
+- visual family相同的 Tool 复用 renderer；
+- `id` 在 `running → done/failed` 中稳定。
 
-- 全仓 typecheck；
-- 全仓 lint；
-- 全仓 format check；
-- 全仓 tests；
-- Electron production build；
-- Storybook production build；
-- 现有 Electron E2E；
-- 检查 Renderer 中不存在旧 primitive 和 Agent Message UI 副本。
+### 12.3 实现与替换
 
-### 12.3 手动视觉验收
+- 实现一个 public `AgentExecutionBlock`；
+- 为 16 个普通 active Tool 和 unknown/legacy 建立 Story；
+- Renderer 保留 tool parsing；
+- 旧 Tool JSX 删除。
 
-按 Storybook 分组逐项检查：
+## 13. Module 6：Agent Proposal
 
-1. Foundation：light/dark、字体、颜色、focus、disabled；
-2. Markdown：常用语法、实体引用、代码、表格、Mermaid、流式文本；
-3. Execution：running/done/failed、单/多 Tool、长输出；
-4. Proposal：全部类型和 approval/execution 状态；
-5. Message：典型 block sequence、窄宽度和长内容；
-6. Electron：相同状态与 Storybook 一致，点击、折叠、确认、拒绝正常。
+详细设计：[Agent Proposal Module Design](./agent-proposal-module-design.md)。
 
-视觉验收发现设计问题时单独记录后续 UI 调整，不在迁移 commit 中同时修改基线。
+### 13.1 确认组件
 
-## 13. 出口标准
+- 九种 mutation Proposal；
+- dangerous Bash Proposal；
+- unknown fallback；
+- shared shell/result detail。
 
-- `packages/ui` 有清楚的 ownership、公开 interface 和 README；
-- package dependency graph 不包含 Electron/App 私有实现；
-- Storybook 可独立开发与静态构建；
-- UI tokens、primitives、Chat Markdown 和 Agent assistant message 只有一份 production implementation；
-- Electron 所有调用方已切换到 `@reflecta/ui`；
-- Agent Tool 与 Markdown 主要状态可以在 Storybook 中直接验收；
-- UI View Model 足以完整渲染，不需要 Storybook mock IPC；
-- App 行为、数据写入和 Agent session contract 没有因 UI 迁移改变；
-- 自动验证和手动 smoke test 全部通过；
-- 每个模块都有独立 Angular Convention commit。
+### 13.2 设计 Interface
 
-## 14. 提交边界
+- 每个已知 Tool 一个明确 View Model kind；
+- visual family 可共享 internal renderer；
+- lifecycle：preview/pending/running/completed/rejected/failed；
+- `id` 在全部 preview/final frame 中稳定；
+- preview fields 可缺失且不能显示 decision。
 
-1. `docs(ui): plan ui package and storybook migration`
-2. `build(ui): add ui package and storybook`
-3. `refactor(ui): move design foundations`
-4. `refactor(ui): extract chat markdown`
-5. `refactor(ui): extract agent execution blocks`
-6. `refactor(ui): extract agent proposal cards`
-7. `refactor(chat): adopt agent message view`
-8. `test(ui): verify storybook and renderer migration`
+### 13.3 实现与替换
 
-每个提交都必须是可验证的阶段性成果。若某个模块无法在一个提交内安全完成，可以按“interface 与 Adapter → implementation 与替换 → tests”拆分，但不能提交长期双实现状态。
+- public `AgentProposalCard` dispatch；
+- 每种 Proposal Tool 独立 Story；
+- Renderer 解析/hydrate raw payload；
+- UI 只发 `approve/reject` decision。
+
+## 14. Module 7：Chat Message
+
+详细设计：[Agent Message Module Design](./agent-message-module-design.md)。
+
+### 14.1 确认组件
+
+- assistant block composition；
+- user message content；
+- attachment/mention visual；
+- message row visual/actions；
+- search/stopped/error visual。
+
+### 14.2 设计 Interface
+
+- public message View Model；
+- semantic row callbacks；
+- stable block identity；
+- streaming update 不依赖 array index；
+- `MessageList` workflow 留在 Renderer。
+
+### 14.3 实现与替换
+
+- Agent/User message 与 row chrome 迁入；
+- Renderer Adapter 生成 UI message；
+- list 保留排序、compaction、pending 和 workflow；
+- 删除旧 message JSX。
+
+## 15. Agent Stream Compatibility Gate
+
+### 15.1 两种更新协议
+
+```mermaid
+stateDiagram-v2
+  state "Mutation Proposal" as Proposal {
+    Preview1: preview snapshot
+    Preview2: newer preview snapshot
+    Pending: final pending proposal
+    Running: approved execution
+    Completed: completed or failed
+    Preview1 --> Preview2
+    Preview2 --> Pending
+    Pending --> Running
+    Running --> Completed
+  }
+
+  state "Ordinary Tool" as Tool {
+    Started: running with input
+    Ended: completed or failed with output/error
+    Started --> Ended
+  }
+```
+
+### 15.2 硬约束
+
+- proposal 使用稳定 `approvalId`，普通 Tool 使用稳定 `toolCallId`；
+- React key 不能包含 lifecycle、status 或 array index；
+- proposal preview 是完整 snapshot 替换，不是字段 delta merge；
+- preview payload 允许缺字段，renderer 必须显示稳定 fallback；
+- final pending snapshot 可由 hydrate 后数据替换 preview；
+- decision 只在 final `pending` 可用；
+- 普通 running Tool 无 output 时只能展示 input meta；
+- final `assistant.turn` 替换 live state 时不得使 completed/rejected 状态倒退；
+- 手动折叠状态不能因 frame update remount 丢失。
+
+### 15.3 必须保留的回归序列
+
+- mutation：partial preview A → preview B → final pending；
+- mutation：pending → approved/running → completed；
+- mutation：pending → rejected；
+- mutation：running → failed；
+- dangerous Bash：pending → running → completed/failed；
+- safe Bash：running → completed/failed；
+- ordinary Tool：running → completed；
+- ordinary Tool：running → failed；
+- restored final turn 覆盖 live frame；
+- unknown/legacy Tool fallback。
+
+现有 reducer/turn/message tests 是迁移基线；package tests 与 Adapter tests 建立后替换旧 JSX tests。
+
+### 15.4 现状验证基线
+
+2026-07-28 Review 已验证：
+
+- Renderer `agent-reducer`、`agent-turn-view`、`message-list`：68 tests passed；
+- main-process `streams approval tool previews before persisting the executable proposal`：隔离运行通过；
+- 实际 event source 会发送多个同 `approvalId/toolCallId` 的完整 preview snapshot，随后发送无 `preview` 的 final approval；
+- reducer 按 `approvalId/toolCallId` upsert，而不是 append 新卡片；
+- 普通 Tool 使用 `tool.started → tool.completed/tool.failed`。
+
+main-process 整文件在默认 5 秒 timeout 下有 10 个既有 async timeout；隔离的 preview 用例 559ms 通过。该测试运行稳定性不表示 UI 协议不兼容，但在最终全局闸门前需要单独处理，不能通过放宽 UI assertion 掩盖。
+
+## 16. Active Tool 验收范围
+
+普通 Activity：
+
+```text
+read
+edit
+write
+bash (safe)
+domain_list
+domain_inspect
+understanding_list
+understanding_get
+context_list
+context_get
+attachment_read
+retrieve_knowledge
+graph
+web_search
+fetch_content
+get_search_content
+```
+
+Mutation Proposal：
+
+```text
+understanding_create
+understanding_update
+understanding_delete
+domain_create
+domain_update
+domain_delete
+context_create
+context_update
+context_delete
+```
+
+特殊：
+
+- dangerous `bash` → Proposal；-历史/未知 Tool → generic Activity/Proposal fallback。
+
+每项至少有一个 Story；stream-capable 项必须有 sequence Story。
+
+## 17. 验证与提交节奏
+
+每个 Module：
+
+1. UI package typecheck；
+2. package tests；
+3. Storybook build；
+4. Electron renderer typecheck；
+5. targeted Renderer tests；
+6. 删除旧 implementation；
+7. Angular Commit Convention commit。
+
+建议 commit：
+
+```text
+build(ui): scaffold ui package and storybook
+refactor(ui): regenerate shadcn components in ui package
+refactor(ui): move markdown editor to ui package
+refactor(ui): move chat composer to ui package
+refactor(ui): move chat markdown to ui package
+refactor(ui): move agent execution views to ui package
+refactor(ui): move agent proposal views to ui package
+refactor(ui): move chat message views to ui package
+```
+
+## 18. 全局完成标准
+
+- `packages/ui` workspace、exports 和 Storybook build 稳定；
+- Electron 不存在旧 shadcn source/config；
+- shadcn 56-item manifest 由 CLI 在 package 重建；
+- generated shadcn source 未手工修改；
+- Milkdown、Composer、Markdown、Agent Tool、Message visual 均可独立验收；
+- package 不依赖 Electron alias、IPC、React Query 或 raw Agent DTO；
+- 每个 active Tool 有 Story/fixture；
+- stream sequence 回归通过；
+- Renderer 只通过 Adapter 调用 UI interface；-旧 implementation 与重复 tests 已删除；-根级 typecheck/test/build 通过。

@@ -2,7 +2,7 @@
 
 > 状态：Planned
 >
-> 对应主计划：[Module 3：Agent 执行过程展示](./ui-package-storybook-migration-plan.md#8-module-3agent-执行过程展示)
+> 对应主计划：[Module 5：Agent Execution](./ui-package-storybook-migration-plan.md)
 >
 > 组织逻辑：本文采用**递进型主线**，按“现有执行状态 → 展示数据收缩 → component interface → Agent Adapter → 状态验收”展开。原因是 `agent-turn-view.ts` 当前同时产生大量 UI 未使用字段，必须先从真实 JSX 反推最小 View Model；横向按 Reasoning、Tool Activity、Context Compaction、Pending 四种互斥 block 做 MECE 分类。
 
@@ -69,6 +69,40 @@ Agent Execution Module 负责展示不要求用户做写入决策的 Agent 过�
 | Item `status` / `statusLabel`   | 删除 | 当前 JSX 只显示 group status 和 item label |
 
 删除这些字段让 Tool Module 的 interface 从 tool protocol 降为纯展示数据。
+
+### 2.4 Active Tool 与 visual family
+
+每个 Tool 都有独立 Adapter mapping 和 Story，但 UI component 只按 display-ready content 渲染：
+
+| Active Tool          | 更新协议           | Adapter visual family      |
+| -------------------- | ------------------ | -------------------------- |
+| `read`               | running → terminal | file content               |
+| `edit`               | running → terminal | file diff                  |
+| `write`              | running → terminal | file operation summary     |
+| safe `bash`          | running → terminal | command output             |
+| `domain_list`        | running → terminal | entity record list         |
+| `domain_inspect`     | running → terminal | Domain detail/list         |
+| `understanding_list` | running → terminal | entity record list         |
+| `understanding_get`  | running → terminal | entity record detail       |
+| `context_list`       | running → terminal | entity record list         |
+| `context_get`        | running → terminal | entity record detail       |
+| `attachment_read`    | running → terminal | attachment content         |
+| `retrieve_knowledge` | running → terminal | retrieval results/evidence |
+| `graph`              | running → terminal | graph result rows          |
+| `web_search`         | running → terminal | web search results         |
+| `fetch_content`      | running → terminal | fetched source             |
+| `get_search_content` | running → terminal | search content             |
+
+兼容项：
+
+| Tool                | 决策                                                |
+| ------------------- | --------------------------------------------------- |
+| legacy `search`     | 保留 search result Adapter，覆盖历史 persisted turn |
+| 其他 legacy/unknown | 映射为 generic summary/meta，不丢弃 block           |
+| dangerous `bash`    | 不进入 Execution，映射到 Agent Proposal             |
+| 九种 mutation Tool  | 不进入 Execution，映射到 Agent Proposal             |
+
+`web_search`、`fetch_content`、`get_search_content` 当前缺少 rich result detail builder；迁移时必须先建立各自 fixture，并根据真实 output 补齐 Adapter。不能因为共用 `ToolActivityBlock` 就省略 Tool-specific Adapter review。
 
 ## 3. Public View Model
 
@@ -224,7 +258,7 @@ Interface 规则：
 - 不接受自定义 status label、badge variant 或 class map；
 - 不暴露 `ToolDetails` 子组件。
 
-Module 5 内部组合时通过 package context 提供 `entityBindings`，不需要逐 block 重复传递；单独使用 `AgentExecutionBlock` 的 Story/消费者仍可显式传入。
+Module 7 内部组合时通过 package context 提供 `entityBindings`，不需要逐 block 重复传递；单独使用 `AgentExecutionBlock` 的 Story/消费者仍可显式传入。
 
 ## 5. Electron Adapter
 
@@ -258,7 +292,7 @@ function buildAgentMessageBlocks(
 ): AgentMessageBlockView[];
 ```
 
-Module 3 阶段可以暂时保留 `buildAgentTurnView` 名称，但 exported result 必须使用新的 execution types；Module 5 完成时再统一命名，避免同一提交同时改所有调用方。
+Module 5 阶段可以暂时保留 `buildAgentTurnView` 名称，但 exported result 必须使用新的 execution types；Module 7 完成时再统一命名，避免同一提交同时改所有调用方。
 
 ### 5.3 Detail 映射
 
@@ -286,6 +320,31 @@ Module 3 阶段可以暂时保留 `buildAgentTurnView` 名称，但 exported res
 ```
 
 `full` 只在确实与 preview 不同时提供。所有截断继续由 Adapter 完成，UI 不读取大 output 后自行截断。
+
+### 5.4 Streaming Compatibility
+
+普通 Tool 不接收 output delta；Renderer 看到的是两个 immutable snapshot：
+
+```text
+tool.started
+  -> { id: toolCallId, status: "running", input-derived summary/meta }
+
+tool.completed | tool.failed
+  -> { id: toolCallId, status: "done" | "failed", output/error-derived details }
+```
+
+硬约束：
+
+- Activity 和 item `id` 在 running/terminal snapshot 中保持稳定；
+- React key 不包含 status、summary 或 array index；
+- running 时 output 缺失是合法状态；
+- terminal snapshot 替换 content，不要求 UI 合并 raw output；
+- component 本地展开状态在 props 更新中保留；
+- failed snapshot 可以同时包含 input meta 和 error；
+- final `assistant.turn` 恢复时相同 toolCallId 不得生成第二张卡片；
+- unknown Tool 仍保留同一 stable identity。
+
+Reasoning 的文本 delta 继续由 reducer/Adapter 合并；UI 只接收最新完整 Markdown snapshot 和 `streaming/done`。
 
 ## 6. 内部 Component 行为
 
@@ -352,6 +411,31 @@ markdown
 - 320px width；
 - default collapsed/expanded。
 
+每个 active Tool 都建立独立 Story：
+
+```text
+Read
+Edit
+Write
+Safe Bash
+Domain List
+Domain Inspect
+Understanding List
+Understanding Get
+Context List
+Context Get
+Attachment Read
+Retrieve Knowledge
+Graph
+Web Search
+Fetch Content
+Get Search Content
+Legacy Search
+Unknown Tool
+```
+
+其中 Read、Safe Bash、Retrieve Knowledge、Web Search 至少提供 `running → completed` sequence Story；任一 visual family 还必须提供 `running → failed` sequence。
+
 ### 7.3 Compaction/Pending
 
 - tokens before/after；
@@ -365,20 +449,24 @@ Interaction checks：
 - Activity 展开/收起；
 - pre/Markdown full content 展开/收起；
 - keyboard focus；
-- Markdown entity callback。
+- Markdown entity callback；
+- running → terminal rerender 不 remount root；
+- rerender 后手动展开状态保留。
 
 ## 8. 测试重新归属
 
-| 当前测试行为                     | 新归属                                  |
-| -------------------------------- | --------------------------------------- |
-| tool block 顺序、group、summary  | Electron `agent-turn-view` Adapter test |
-| tool-specific result detail      | Electron Adapter test                   |
-| running/done/failed visual       | `packages/ui` component test/Story      |
-| detail preview/full 展开         | `packages/ui` interaction test          |
-| reasoning streaming/done mapping | Electron Adapter test                   |
-| reasoning visual                 | `packages/ui` component test            |
-| compaction 在 turn 中的位置      | Electron Adapter test                   |
-| compaction receipt visual        | `packages/ui` component test/Story      |
+| 当前测试行为                        | 新归属                                  |
+| ----------------------------------- | --------------------------------------- |
+| tool block 顺序、group、summary     | Electron `agent-turn-view` Adapter test |
+| tool-specific result detail         | Electron Adapter test                   |
+| running/done/failed visual          | `packages/ui` component test/Story      |
+| detail preview/full 展开            | `packages/ui` interaction test          |
+| reasoning streaming/done mapping    | Electron Adapter test                   |
+| reasoning visual                    | `packages/ui` component test            |
+| compaction 在 turn 中的位置         | Electron Adapter test                   |
+| compaction receipt visual           | `packages/ui` component test/Story      |
+| started → completed/failed identity | package rerender test + Adapter test    |
+| final turn 覆盖 live Tool           | reducer/Adapter integration test        |
 
 UI tests 只构造 View Model，不构造 `AgentReducedAssistantBlock`。
 
@@ -400,5 +488,7 @@ UI tests 只构造 View Model，不构造 `AgentReducedAssistantBlock`。
 - Tool Activity View Model 不再携带未渲染字段；
 - Tool detail 用合法 union 表达，不存在矛盾可选字段组合；
 - Reasoning、Tool、Compaction、Pending 都能独立 Story；
+- 16 个普通 active Tool、legacy search 和 unknown fallback 都有 Story；
+- running → terminal 更新保持 DOM identity 和展开状态；
 - Electron Adapter 仍是 tool payload 解释的唯一位置；
-- Module 4 可以复用 package-internal `ToolDetails` 展示 proposal result。
+- Module 6 可以复用 package-internal `ToolDetails` 展示 proposal result。

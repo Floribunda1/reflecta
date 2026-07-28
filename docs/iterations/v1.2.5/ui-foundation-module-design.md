@@ -2,309 +2,398 @@
 
 > 状态：Planned
 >
-> 对应主计划：[Module 1：设计基础与 shadcn Primitives](./ui-package-storybook-migration-plan.md#6-module-1设计基础与-shadcn-primitives)
+> 对应主计划：[Module 1：UI Foundation 与 shadcn 重建](./ui-package-storybook-migration-plan.md)
 >
-> 组织逻辑：本文采用**递进型主线**，按“现有资产 → ownership 决策 → package interface → Renderer 替换 → 验收”展开。原因是 Foundation 是其他 UI Module 的前置依赖，必须先确认哪些样式和 primitive 真正属于 UI，再设计 export；横向组件清单按表单输入、Overlay/导航、内容/布局做 MECE 分类。
+> 组织逻辑：本文采用**时序型主线**，按“记录当前安装集 → 创建 package 配置 → 删除旧 source → CLI 重建 → 替换消费方 → 验收”展开。原因是 shadcn source 由 CLI ownership 管理，正确动作不是逐文件迁移，而是在新 workspace 以同一配置重新生成；组件清单按当前 56 个 registry item 做穷尽校验。
 
 ## 1. 结论
 
-Foundation Module 一次性接管现有 56 个 shadcn primitive、Theme Provider、`cn`、`Sidebar` 的 `useIsMobile` 内部依赖，以及平台无关的 Reflecta design tokens 和基础样式。
+Foundation 不手工迁移 `apps/electron/src/renderer/src/components/ui`。
 
-它不重新设计 shadcn，不创建第二层 wrapper。现有 primitive 的 props、variants、slots、data attributes 和行为保持不变，只调整 ownership、package-local import 和消费路径。
+实施方式：
 
-公开 interface：
+1. 记录当前 56 个 shadcn component name；
+2. 创建 `packages/ui`、package-local imports 和 `components.json`；
+3. 删除 Electron 下全部 shadcn component source；
+4. 在 `packages/ui` 通过 shadcn CLI 重新安装同一清单；
+5. 迁移 design tokens、Theme Provider 和 Overlay Providers；
+6. 把 Renderer import 改到 `@reflecta/ui`。
 
-```text
-@reflecta/ui/styles.css
-@reflecta/ui/theme
-@reflecta/ui/utils
-@reflecta/ui/primitives/*
-```
-
-调用示例：
+生成后的公开路径遵循 shadcn monorepo 结构：
 
 ```tsx
-import { Button } from "@reflecta/ui/primitives/button";
-import { Dialog, DialogContent } from "@reflecta/ui/primitives/dialog";
+import { Button } from "@reflecta/ui/components/button";
+import { Dialog, DialogContent } from "@reflecta/ui/components/dialog";
 import { ThemeProvider } from "@reflecta/ui/theme";
-import { cn } from "@reflecta/ui/utils";
-import "@reflecta/ui/styles.css";
+import { ModalProvider } from "@reflecta/ui/overlays";
+import { cn } from "@reflecta/ui/lib/utils";
+import "@reflecta/ui/globals.css";
 ```
 
-不提供 `@reflecta/ui/primitives` 总 barrel。每个 primitive 继续按文件独立导入，保持调用点上下文和按需依赖清晰。
+不再使用 `@reflecta/ui/primitives/*` 命名；`components/*` 与 shadcn 的 monorepo convention 对齐。
 
-## 2. 当前资产清单
+## 2. CLI Ownership 规则
 
-### 2.1 表单与直接操作
+- `packages/ui/src/components/*.tsx` 是 shadcn CLI-owned source；
+- 不从旧目录复制任何 component；
+- 不对生成后的 shadcn component 做手工修改；
+- 自定义 product UI 放在 `src/chat`、`src/editor`、`src/overlays` 等目录；
+- 新增 shadcn component 统一在 `packages/ui` 运行 CLI；
+- 不使用 `shadcn add --all`，避免把当前没有消费者的新 registry item 引入项目；
+- CLI 生成结果与当前调用方不兼容时，调整调用方；不把旧 component implementation 搬回来。
 
-以下 19 个文件全部迁移，公开 export 保持现状：
+## 3. 当前 56 个 Component 安装集
 
-| 现有文件            | 主要公开组件或 helper                                                                    |
-| ------------------- | ---------------------------------------------------------------------------------------- |
-| `button.tsx`        | `Button`、`buttonVariants`                                                               |
-| `button-group.tsx`  | `ButtonGroup`、`ButtonGroupSeparator`、`ButtonGroupText`、`buttonGroupVariants`          |
-| `toggle.tsx`        | `Toggle`、`toggleVariants`                                                               |
-| `toggle-group.tsx`  | `ToggleGroup`、`ToggleGroupItem`                                                         |
-| `checkbox.tsx`      | `Checkbox`                                                                               |
-| `radio-group.tsx`   | `RadioGroup`、`RadioGroupItem`                                                           |
-| `switch.tsx`        | `Switch`                                                                                 |
-| `slider.tsx`        | `Slider`                                                                                 |
-| `input.tsx`         | `Input`                                                                                  |
-| `textarea.tsx`      | `Textarea`                                                                               |
-| `input-group.tsx`   | `InputGroup`、`InputGroupAddon`、`InputGroupButton`、`InputGroupText`、输入与文本域组件  |
-| `input-otp.tsx`     | `InputOTP`、`InputOTPGroup`、`InputOTPSlot`、`InputOTPSeparator`                         |
-| `native-select.tsx` | `NativeSelect`、`NativeSelectOptGroup`、`NativeSelectOption`                             |
-| `select.tsx`        | `Select` 及其 Trigger、Value、Content、Group、Item、Label、Separator、Scroll buttons     |
-| `combobox.tsx`      | `Combobox` 及其 Input、Content、List、Item、Group、Chips、Trigger、Value                 |
-| `calendar.tsx`      | `Calendar`、`CalendarDayButton`                                                          |
-| `form.tsx`          | `Form`、`FormField`、`FormItem`、`FormLabel`、`FormControl`、描述、错误与 `useFormField` |
-| `field.tsx`         | `Field`、Label、Description、Error、Group、Legend、Separator、Set、Content、Title        |
-| `label.tsx`         | `Label`                                                                                  |
+以下清单只作为重新安装 manifest，不作为 source migration list。
 
-### 2.2 Overlay、折叠与导航
+### 3.1 Form 与 direct action
 
-以下 14 个文件全部迁移：
-
-| 现有文件              | 主要公开组件或 helper                                                                      |
-| --------------------- | ------------------------------------------------------------------------------------------ |
-| `accordion.tsx`       | `Accordion`、`AccordionItem`、`AccordionTrigger`、`AccordionContent`                       |
-| `collapsible.tsx`     | `Collapsible`、`CollapsibleTrigger`、`CollapsibleContent`                                  |
-| `dialog.tsx`          | `Dialog` 及其 Trigger、Close、Portal、Overlay、Content、Header、Footer、Title、Description |
-| `alert-dialog.tsx`    | `AlertDialog` 全套结构组件                                                                 |
-| `drawer.tsx`          | `Drawer` 全套结构组件                                                                      |
-| `sheet.tsx`           | `Sheet` 全套结构组件                                                                       |
-| `popover.tsx`         | `Popover`、Trigger、Content、Header、Title、Description                                    |
-| `hover-card.tsx`      | `HoverCard`、Trigger、Content                                                              |
-| `tooltip.tsx`         | `TooltipProvider`、`Tooltip`、Trigger、Content                                             |
-| `dropdown-menu.tsx`   | Dropdown Menu 全套 Item、Group、Radio、Checkbox、Submenu 和 Portal                         |
-| `context-menu.tsx`    | Context Menu 全套 Item、Group、Radio、Checkbox、Submenu 和 Portal                          |
-| `menubar.tsx`         | Menubar 全套 Menu、Item、Group、Radio、Checkbox 和 Submenu                                 |
-| `navigation-menu.tsx` | Navigation Menu 全套结构组件与 `navigationMenuTriggerStyle`                                |
-| `command.tsx`         | `Command`、Dialog、Input、List、Empty、Group、Item、Shortcut、Separator                    |
-
-### 2.3 内容、反馈与布局
-
-以下 23 个文件全部迁移：
-
-| 现有文件           | 主要公开组件或 helper                                                                 |
-| ------------------ | ------------------------------------------------------------------------------------- |
-| `aspect-ratio.tsx` | `AspectRatio`                                                                         |
-| `card.tsx`         | `Card`、Header、Footer、Title、Action、Description、Content                           |
-| `item.tsx`         | `Item`、Media、Content、Actions、Group、Separator、Title、Description、Header、Footer |
-| `empty.tsx`        | `Empty`、Header、Title、Description、Content、Media                                   |
-| `alert.tsx`        | `Alert`、`AlertTitle`、`AlertDescription`、`AlertAction`                              |
-| `avatar.tsx`       | `Avatar`、Image、Fallback、Group、GroupCount、Badge                                   |
-| `badge.tsx`        | `Badge`、`badgeVariants`                                                              |
-| `breadcrumb.tsx`   | Breadcrumb 全套结构组件                                                               |
-| `pagination.tsx`   | Pagination 全套结构组件                                                               |
-| `progress.tsx`     | `Progress`、Track、Indicator、Label、Value                                            |
-| `separator.tsx`    | `Separator`                                                                           |
-| `skeleton.tsx`     | `Skeleton`                                                                            |
-| `spinner.tsx`      | `Spinner`                                                                             |
-| `table.tsx`        | `Table`、Header、Body、Footer、Head、Row、Cell、Caption                               |
-| `tabs.tsx`         | `Tabs`、List、Trigger、Content、`tabsListVariants`                                    |
-| `scroll-area.tsx`  | `ScrollArea`、`ScrollBar`                                                             |
-| `resizable.tsx`    | `ResizablePanelGroup`、`ResizablePanel`、`ResizableHandle`                            |
-| `carousel.tsx`     | `Carousel`、Content、Item、Previous、Next、`useCarousel`、`CarouselApi`               |
-| `sidebar.tsx`      | Sidebar Provider、结构、Group、Menu、Rail、Trigger、`useSidebar` 等完整集合           |
-| `chart.tsx`        | Chart Container、Tooltip、Legend、Style、`ChartConfig`                                |
-| `kbd.tsx`          | `Kbd`、`KbdGroup`                                                                     |
-| `direction.tsx`    | `DirectionProvider`、`useDirection`                                                   |
-| `sonner.tsx`       | `Toaster`                                                                             |
-
-### 2.4 非 primitive 资产
-
-| 现有资产                        | 决策         | 原因                                                   |
-| ------------------------------- | ------------ | ------------------------------------------------------ |
-| `components/theme-provider.tsx` | 迁移         | Storybook 与 Renderer 必须共享同一主题 implementation  |
-| `lib/utils.ts` 的 `cn`          | 迁移并公开   | 15 个非 primitive Renderer 文件直接使用                |
-| `hooks/use-mobile.ts`           | 迁移但不公开 | 只有 `Sidebar` 使用，是 primitive 的内部实现           |
-| `lib/badge-colors.ts`           | 删除         | 当前没有调用方，不把未使用 helper 搬进新 package       |
-| `apps/electron/components.json` | 替换         | shadcn 的 ownership 改为 `packages/ui/components.json` |
-
-## 3. 样式 Ownership
-
-### 3.1 迁移到 `@reflecta/ui/styles.css`
-
-- Tailwind v4、`tw-animate-css`、`shadcn/tailwind.css`；
-- Inter font import；
-- `dark` custom variant；
-- light/dark CSS variables；
-- Tailwind `@theme inline` token mapping；
-- `border-border`、`outline-ring`、background、foreground 等 base layer；
-- `html` 的主题 color scheme；
-- 通用字体渲染和 monospace family；
-- 通用 scrollbar。
-
-### 3.2 留在 Electron `style.css`
-
-- `body`、`#root` 的 `100vh` 和 `overflow: hidden`；
-- 透明 Electron window background；
-- `.app-window`、`.app-drag-region`、`[data-app-drag]`、`[data-no-drag]`；
-- 只服务 Electron App Shell 的布局；
-- Milkdown Preview 使用的 `medium-zoom` overlay/image style；
-- Module 2 完成前暂存的 chat-find 样式。
-
-Electron 入口固定为：
-
-```css
-@import "@reflecta/ui/styles.css";
-
-/* Electron-only App Shell rules follow. */
+```text
+button
+button-group
+toggle
+toggle-group
+checkbox
+radio-group
+switch
+slider
+input
+textarea
+input-group
+input-otp
+native-select
+select
+combobox
+calendar
+form
+field
+label
 ```
 
-UI package 不能通过 `styles.css` 假设宿主一定有 `#root`，也不能把宿主页面锁定为 `100vh` 或 `overflow: hidden`。
+共 19 个。
 
-## 4. Package Interface
+### 3.2 Overlay、navigation 与 disclosure
 
-### 4.1 `package.json` exports
+```text
+accordion
+collapsible
+dialog
+alert-dialog
+drawer
+sheet
+popover
+hover-card
+tooltip
+dropdown-menu
+context-menu
+menubar
+navigation-menu
+command
+```
 
-目标形态：
+共 14 个。
+
+### 3.3 Content、feedback 与 layout
+
+```text
+aspect-ratio
+card
+item
+empty
+alert
+badge
+avatar
+breadcrumb
+kbd
+progress
+skeleton
+spinner
+separator
+scroll-area
+table
+tabs
+pagination
+carousel
+chart
+resizable
+sidebar
+sonner
+direction
+```
+
+共 23 个。
+
+总数：`19 + 14 + 23 = 56`。
+
+重新安装前后必须以 name set 比较，不以文件行数或 Git rename 判断。
+
+## 4. Package 配置
+
+### 4.1 `packages/ui/package.json`
+
+使用 package-local `#...` imports 管理生成文件内部引用：
 
 ```json
 {
   "name": "@reflecta/ui",
   "private": true,
   "type": "module",
-  "sideEffects": ["**/*.css", "**/*.scss"],
+  "imports": {
+    "#components/*": "./src/components/*.tsx",
+    "#lib/*": "./src/lib/*.ts",
+    "#hooks/*": "./src/hooks/*.ts"
+  },
   "exports": {
-    "./styles.css": "./src/styles/index.css",
+    "./globals.css": "./src/styles/globals.css",
+    "./components/*": "./src/components/*.tsx",
+    "./lib/*": "./src/lib/*.ts",
+    "./hooks/*": "./src/hooks/*.ts",
     "./theme": "./src/theme-provider.tsx",
-    "./utils": "./src/utils.ts",
-    "./primitives/*": "./src/primitives/*.tsx"
+    "./overlays": "./src/overlays/index.ts",
+    "./editor": "./src/editor/index.ts",
+    "./chat": "./src/chat/index.ts"
   }
 }
 ```
 
-`exports` 中不暴露 `internal`、Story、Storybook config 或 `useIsMobile`。
+最终 dependency version 由 workspace lockfile 和 shadcn CLI 生成结果决定，不在设计文档复制 Electron 的 dependency block。
 
-### 4.2 Theme Interface
+React/React DOM 使用 workspace 一致版本；Storybook-related dependency 为 package dev dependency。
+
+### 4.2 `packages/ui/components.json`
+
+保留当前 visual preset，改变安装 ownership：
+
+```json
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "base-vega",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/styles/globals.css",
+    "baseColor": "taupe",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "aliases": {
+    "components": "#components",
+    "ui": "#components",
+    "lib": "#lib",
+    "hooks": "#hooks",
+    "utils": "#lib/utils"
+  },
+  "iconLibrary": "lucide",
+  "rtl": false,
+  "menuColor": "default",
+  "menuAccent": "subtle",
+  "registries": {}
+}
+```
+
+`apps/electron/components.json` 删除；shadcn 命令从 repo root 通过 `--cwd packages/ui` 执行。
+
+### 4.3 TypeScript
+
+UI package tsconfig 必须启用：
+
+```json
+{
+  "compilerOptions": {
+    "moduleResolution": "bundler",
+    "resolvePackageJsonImports": true,
+    "jsx": "react-jsx"
+  }
+}
+```
+
+package 内部使用 `#components/button`；Electron 只使用 `@reflecta/ui/components/button`。
+
+## 5. 重建命令
+
+先 dry-run：
+
+```bash
+bun x shadcn add accordion alert-dialog alert aspect-ratio avatar badge breadcrumb button-group button calendar card carousel chart checkbox collapsible combobox command context-menu dialog direction drawer dropdown-menu empty field form hover-card input-group input-otp input item kbd label menubar native-select navigation-menu pagination popover progress radio-group resizable scroll-area select separator sheet sidebar skeleton slider sonner spinner switch table tabs textarea toggle-group toggle tooltip --cwd packages/ui --dry-run
+```
+
+确认 target 全部位于 `packages/ui` 后执行：
+
+```bash
+bun x shadcn add accordion alert-dialog alert aspect-ratio avatar badge breadcrumb button-group button calendar card carousel chart checkbox collapsible combobox command context-menu dialog direction drawer dropdown-menu empty field form hover-card input-group input-otp input item kbd label menubar native-select navigation-menu pagination popover progress radio-group resizable scroll-area select separator sheet sidebar skeleton slider sonner spinner switch table tabs textarea toggle-group toggle tooltip --cwd packages/ui --yes
+```
+
+顺序不影响结果；清单必须保持 56 个 unique name。
+
+不使用 `--overwrite`：目标目录应为空，任何冲突都表示清理或配置步骤有误。
+
+## 6. 删除与生成顺序
+
+```mermaid
+flowchart LR
+  Manifest["记录 56 个 name"] --> Package["创建 packages/ui config"]
+  Package --> DryRun["shadcn dry-run"]
+  DryRun --> Delete["删除 Electron components/ui"]
+  Delete --> Generate["shadcn add 56 components"]
+  Generate --> Imports["替换 Renderer imports"]
+  Imports --> Verify["typecheck + Storybook + tests"]
+```
+
+删除目标：
+
+```text
+apps/electron/src/renderer/src/components/ui/
+apps/electron/components.json
+```
+
+删除是明确的 replace 操作；不是先保留两套 component 再逐步切换。
+
+## 7. 非 shadcn Foundation
+
+### 7.1 Theme Provider
 
 ```ts
-import type { ComponentProps } from "react";
-import type { ThemeProvider as NextThemesProvider } from "next-themes";
-
-export type ThemeProviderProps = ComponentProps<typeof NextThemesProvider>;
+export type ThemeProviderProps = React.ComponentProps<typeof NextThemesProvider>;
 
 export function ThemeProvider(props: ThemeProviderProps): React.ReactNode;
 ```
 
-稳定行为：
+迁移现有 Theme Provider implementation，不改变 theme contract。Storybook preview 和 Electron root 使用同一 Provider。
 
-- 默认 `attribute="class"`；
-- 默认 `defaultTheme="system"`；
-- 默认启用 system theme；
-- 允许 Storybook 使用 `forcedTheme="light" | "dark"`；
-- 不读取 Electron 设置或 IPC。
-
-### 4.3 Utility Interface
+### 7.2 Overlay Providers
 
 ```ts
-import type { ClassValue } from "clsx";
+export type ModalOptions = {
+  title?: string;
+  className?: string;
+  widthClassName?: string;
+};
 
-export function cn(...inputs: ClassValue[]): string;
+export type ConfirmOptions = {
+  title?: string;
+  message: React.ReactNode;
+  acceptLabel?: string;
+  rejectLabel?: string;
+  danger?: boolean;
+  onAccept: () => void | Promise<void>;
+};
+
+export function ModalProvider(props: { children: React.ReactNode }): React.ReactNode;
+export function useModal(): {
+  openModal(content: React.ReactNode, options?: ModalOptions): void;
+  closeModal(): void;
+  confirm(options: ConfirmOptions): void;
+};
 ```
-
-不新增 `styles()`、`cx()` 或 wrapper。现有 `clsx + tailwind-merge` implementation 原样迁移。
-
-### 4.4 Primitive Interface
-
-每个 primitive 的 interface 继续由原文件 export 决定，例如：
 
 ```ts
-import { Button, buttonVariants } from "@reflecta/ui/primitives/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@reflecta/ui/primitives/collapsible";
+export type DrawerOptions = {
+  header?: React.ReactNode;
+  title?: React.ReactNode;
+  className?: string;
+  widthClassName?: string;
+  onClose?: () => void;
+};
+
+export function DrawerProvider(props: { children: React.ReactNode }): React.ReactNode;
+export function useDrawer(): {
+  openDrawer(options: DrawerOptions, content: React.ReactNode): void;
+  closeDrawer(): void;
+};
 ```
 
-迁移期间禁止：
+命名统一：
 
-- 改名或合并现有 primitive；
-- 增加 Reflecta 业务 props；
-- 新建与 shadcn 重复的 Select、Dialog、Drawer、Menu 等组件；
-- 为 Storybook增加仅测试使用的 props；
-- 改动 variants、size、default class 或 DOM structure。
+- `DrawerContextProvider` → `DrawerProvider`；
+- `useSharedDrawer` → `useDrawer`。
 
-## 5. 内部依赖与 Dependency Ownership
+它们已有真实 state/lifecycle 行为，迁移后不是 shadcn wrapper，也不放进 CLI-owned component 目录。
 
-`@reflecta/ui` 声明它直接 import 的 runtime dependencies，包括：
+### 7.3 不迁移的薄 wrapper
 
-- `@base-ui/react`、`radix-ui`；
-- `class-variance-authority`、`clsx`、`tailwind-merge`；
-- `lucide-react`；
-- `cmdk`、`vaul`、`sonner`、`next-themes`；
-- `embla-carousel-react`、`input-otp`；
-- `react-day-picker`、`react-hook-form`；
-- `react-resizable-panels`、`recharts`。
+- `SidebarToggleButton` 暂留 Electron；
+- `FooterButton` 删除，调用方直接组合 `DialogFooter` 与 `Button`。
 
-React 与 React DOM 使用 peer dependencies，Storybook 和类型包使用 dev dependencies。
+## 8. Style Ownership
 
-迁移后，`apps/electron/package.json` 只保留它仍直接 import 的 dependency。不能因为 workspace hoist 能解析就省略 `@reflecta/ui` 的直接依赖声明。
+迁入 `@reflecta/ui/globals.css`：
 
-## 6. Renderer Adapter 与替换映射
+- Tailwind v4 import；
+- shadcn CSS variables；
+- light/dark semantic tokens；
+- font、background、foreground 基线；
+- reusable animation/utilities；
+- Chat/Editor Module 的 package-owned style imports。
 
-### 6.1 Import 映射
+留在 Electron：
+
+- `.app-window`；
+- Electron drag/no-drag；
+- route/screen shell sizing；
+- platform-specific scrollbar/window chrome；
+- 只服务 App layout 的 selector。
+
+Electron `style.css` 最终：
+
+```css
+@import "@reflecta/ui/globals.css";
+
+/* Electron/App-only styles */
+```
+
+## 9. Renderer Import 替换
 
 ```text
 @renderer/components/ui/button
-  -> @reflecta/ui/primitives/button
+  -> @reflecta/ui/components/button
 
 @renderer/components/ui/*
-  -> @reflecta/ui/primitives/*
+  -> @reflecta/ui/components/*
+
+@renderer/lib/utils
+  -> @reflecta/ui/lib/utils
 
 @renderer/components/theme-provider
   -> @reflecta/ui/theme
 
-@renderer/lib/utils
-  -> @reflecta/ui/utils
+@renderer/modules/shared/hooks/use-modal
+  -> @reflecta/ui/overlays
+
+@renderer/modules/shared/hooks/use-drawer
+  -> @reflecta/ui/overlays
 ```
 
-### 6.2 迁移顺序
+`apps/electron` 增加：
 
-1. 先迁移 `utils`、Theme Provider、`useIsMobile`；
-2. 按 primitive 内部依赖图迁移文件；
-3. 修正 primitive package-local import；
-4. Storybook 验证 styles；
-5. 批量替换 Renderer imports；
-6. 删除 Electron 原文件；
-7. 清理 Electron dependency declarations。
+```json
+{
+  "dependencies": {
+    "@reflecta/ui": "workspace:*"
+  }
+}
+```
 
-不建立临时 `@renderer/components/ui/* -> @reflecta/ui/*` re-export。迁移提交内直接替换调用方，避免两套合法入口长期存在。
+## 10. Storybook 验收
 
-## 7. Storybook 与验证矩阵
+不为 56 个 component 机械复制官方 documentation。Story 只覆盖：
 
-不为 56 个文件逐一创建 exhaustive story，按能力面覆盖：
+- Reflecta token/theme；
+- light/dark；
+- project 实际使用的 variants；
+- Overlay Provider 的 open/close/confirm；
+- Drawer close callback；
+- Sidebar、Dialog、Dropdown、Form 等高频组合 smoke；
+- CLI regeneration 后的 import/build smoke。
 
-| Story Group | 代表组件                                    | 必查状态                                     |
-| ----------- | ------------------------------------------- | -------------------------------------------- |
-| Actions     | Button、Toggle、Checkbox、Switch            | default、hover、focus、disabled、destructive |
-| Inputs      | Input、Textarea、Select、Combobox、Calendar | empty、filled、invalid、disabled、keyboard   |
-| Overlay     | Dialog、Drawer、Popover、Tooltip、Menu      | open/close、focus trap、escape、dark         |
-| Feedback    | Alert、Badge、Progress、Skeleton、Spinner   | semantic variants、loading                   |
-| Content     | Card、Item、Table、Tabs、Accordion          | dense content、long text、narrow width       |
-| Layout      | Sidebar、Resizable、ScrollArea、Carousel    | desktop/mobile viewport、overflow            |
-| Theme       | tokens、font、radius、chart colors          | light、dark、system                          |
+shadcn component 自身行为由 upstream 保证；项目只验证配置、theme 和消费兼容性。
 
-自动验证：
+## 11. Module 出口
 
-- package typecheck；
-- Storybook static build；
-- Renderer web typecheck；
-- 现有 Renderer component tests；
-- production build；
-- `rg '@renderer|@shared|ipcClient|electron' packages/ui/src` 无结果；
-- `rg '@renderer/components/ui|@renderer/components/theme-provider' apps/electron/src/renderer/src` 无结果。
-
-## 8. Module 出口
-
-- 56 个 primitive 只有 `packages/ui` 一份 implementation；
-- primitive public props 与迁移前一致；
-- Theme Provider 和 design tokens 在 Storybook/Renderer 中一致；
-- `Sidebar` 不再反向依赖 Electron hook；
-- `cn` 有唯一公开入口；
-- Electron `style.css` 只包含 App Shell 规则；
-- `badge-colors.ts` 等未使用资产没有被迁移；
-- Module 2 可以只依赖 `@reflecta/ui` 开始实现 Chat Markdown。
+- Electron 不再存在 `components/ui`；
+- `components.json` 的唯一 ownership 在 `packages/ui`；
+- 56 个 name set 完整重建；
+- generated source 没有手工修改；
+- Electron、Storybook 共用 tokens、Theme 和 Overlay Providers；
+- UI package 内部 import 使用 `#...`，workspace consumer 使用 package exports；
+- typecheck、Storybook build 和 Renderer tests 通过。
