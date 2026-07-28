@@ -125,3 +125,27 @@ test("@CP-DOMAIN-005 用户收起后从理解列表重新展开 Domain Tree", as
     await app.close();
   }
 });
+
+test("@CP-DOMAIN-006 子 Domain 选中时父 Domain 保留 hover 反馈", async () => {
+  const { app, page } = await launchApp();
+
+  try {
+    await openCapturePage(page);
+    await expandDomain(page, "Programming", "Frontend");
+
+    const parent = domainNode(page, "Programming");
+    const child = domainNode(page, "Frontend");
+    await child.click();
+
+    const transparent = "rgba(0, 0, 0, 0)";
+    await expect(child).not.toHaveCSS("background-color", transparent);
+    await expect(parent).toHaveCSS("background-color", transparent);
+
+    await parent.hover();
+
+    await expect(parent).not.toHaveCSS("background-color", transparent);
+    await expect(child).not.toHaveCSS("background-color", transparent);
+  } finally {
+    await app.close();
+  }
+});

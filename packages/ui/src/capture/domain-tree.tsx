@@ -80,7 +80,7 @@ function findNode(
 
 function buttonClassName(selected: boolean, dragging = false) {
   return cn(
-    "w-full min-w-0 cursor-default justify-start p-1.5 text-left font-normal text-foreground/85 hover:bg-foreground/5 hover:text-foreground aria-expanded:bg-transparent aria-expanded:text-foreground/85 focus-visible:border-transparent focus-visible:bg-foreground/5 focus-visible:ring-0",
+    "w-full min-w-0 cursor-default justify-start p-1.5 text-left font-normal text-foreground/85 hover:bg-foreground/5 hover:text-foreground aria-expanded:bg-transparent aria-expanded:text-foreground/85 aria-expanded:hover:bg-foreground/5 aria-expanded:hover:text-foreground focus-visible:border-transparent focus-visible:bg-foreground/5 focus-visible:ring-0",
     selected &&
       "bg-foreground/5 font-medium text-foreground hover:bg-foreground/5 aria-expanded:bg-foreground/5 aria-expanded:text-foreground",
     dragging &&
