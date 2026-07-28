@@ -70,12 +70,3 @@ body {
   flex-direction: column;
   background: transparent;
 }
-
-.medium-zoom-overlay {
-  z-index: 100;
-  background: color-mix(in srgb, var(--popover), transparent 8%) !important;
-}
-
-.medium-zoom-image {
-  z-index: 101;
-}

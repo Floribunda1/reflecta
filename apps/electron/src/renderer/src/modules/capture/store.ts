@@ -1,8 +1,8 @@
 import { create, type StateCreator } from "zustand";
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { markdownEquals } from "@reflecta/ui/editor";
 import type { UnderstandingListSortBy } from "./understanding-list/sort";
-import { milkdownMarkdownEquals } from "@renderer/modules/shared/components/markdown-editor/editor/markdown-normalize";
 
 export type CaptureDraft = {
   understandingId: string;
@@ -122,7 +122,7 @@ function makeDraft(input: { understandingId: string; title: string; body: string
 }
 
 function isDraftDirty(draft: Pick<CaptureDraft, "title" | "body" | "baseTitle" | "baseBody">) {
-  return draft.title !== draft.baseTitle || !milkdownMarkdownEquals(draft.body, draft.baseBody);
+  return draft.title !== draft.baseTitle || !markdownEquals(draft.body, draft.baseBody);
 }
 
 function clearUnderstandingState(state: CaptureStore): Partial<CaptureStore> {

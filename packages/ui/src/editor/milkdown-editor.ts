@@ -7,24 +7,22 @@ import type { Schema } from "@milkdown/prose/model";
 import { Crepe } from "@milkdown/crepe";
 import { replaceAll } from "@milkdown/utils";
 import { reflectaMilkdownExtensions } from "./milkdown-extensions";
-import { milkdownMarkdownEquals, normalizeMilkdownMarkdown } from "./markdown-normalize";
+import { markdownEquals, normalizeMarkdown } from "./markdown-normalize";
 import {
-  createUnderstandingWikiLinkSuggestionSource,
   createWikiLinkSuggestionPlugin,
   type WikiLinkSuggestionSource,
 } from "./wiki-link-suggestion";
-
-export type AssetUploader = (file: File) => Promise<string>;
+import type { MarkdownAssetUploader } from "./types";
 
 export type CreateReflectaMilkdownEditorOptions = {
   root: HTMLElement;
   content: string;
   placeholder?: string;
-  readonly?: boolean;
-  onUpdate?: (markdown: string) => void;
+  readOnly?: boolean;
+  onChange?: (markdown: string) => void;
   onBlur?: () => void;
-  uploadAsset?: AssetUploader;
-  wikiLinkSuggestionSource?: WikiLinkSuggestionSource;
+  uploadAsset?: MarkdownAssetUploader;
+  getSuggestions?: WikiLinkSuggestionSource;
 };
 
 function isSupportedMedia(file: File): boolean {
@@ -39,29 +37,29 @@ function escapeHtml(value: string): string {
     .replaceAll('"', "&quot;");
 }
 
-function createImageNode(schema: Schema, file: File, assetUrl: string): ProseNode | null {
+function createImageNode(schema: Schema, assetUrl: string, alt: string): ProseNode | null {
   const imageBlock = schema.nodes["image-block"];
-  if (imageBlock) return imageBlock.createAndFill({ src: assetUrl, alt: file.name });
+  if (imageBlock) return imageBlock.createAndFill({ src: assetUrl, alt });
 
   const image = schema.nodes.image;
-  if (image) return image.createAndFill({ src: assetUrl, alt: file.name, title: file.name });
+  if (image) return image.createAndFill({ src: assetUrl, alt, title: alt });
 
   return null;
 }
 
-function createVideoNode(schema: Schema, file: File, assetUrl: string): ProseNode | null {
+function createVideoNode(schema: Schema, assetUrl: string, title: string): ProseNode | null {
   const html = schema.nodes.html;
   if (!html) return null;
 
   return html.create({
-    value: `<video src="${escapeHtml(assetUrl)}" controls title="${escapeHtml(file.name)}"></video>`,
+    value: `<video src="${escapeHtml(assetUrl)}" controls title="${escapeHtml(title)}"></video>`,
   });
 }
 
 async function uploadFilesAsMarkdown(
   files: FileList,
   schema: Schema,
-  uploadAsset?: AssetUploader,
+  uploadAsset?: MarkdownAssetUploader,
 ): Promise<Fragment | ProseNode | ProseNode[]> {
   if (!uploadAsset) return Fragment.empty;
 
@@ -71,11 +69,12 @@ async function uploadFilesAsMarkdown(
     const file = files.item(index);
     if (!file || !isSupportedMedia(file)) continue;
 
-    const savedFilename = await uploadAsset(file);
-    const assetUrl = `asset:///${savedFilename}`;
+    const controller = new AbortController();
+    const result = await uploadAsset(file, controller.signal);
+    const alt = result.alt ?? file.name;
     const node = file.type.startsWith("image/")
-      ? createImageNode(schema, file, assetUrl)
-      : createVideoNode(schema, file, assetUrl);
+      ? createImageNode(schema, result.url, alt)
+      : createVideoNode(schema, result.url, alt);
     if (node) nodes.push(node);
   }
 
@@ -86,11 +85,11 @@ export function createReflectaMilkdownEditorBuilder({
   root,
   content,
   placeholder,
-  readonly,
-  onUpdate,
+  readOnly,
+  onChange,
   onBlur,
   uploadAsset,
-  wikiLinkSuggestionSource,
+  getSuggestions,
 }: CreateReflectaMilkdownEditorOptions): Editor {
   const editorRoot = document.createElement("div");
   editorRoot.className = "reflecta-milkdown";
@@ -126,8 +125,8 @@ export function createReflectaMilkdownEditorBuilder({
 
   crepe.on((listener) => {
     listener.markdownUpdated((_ctx, markdown, prevMarkdown) => {
-      if (prevMarkdown != null && milkdownMarkdownEquals(markdown, prevMarkdown)) return;
-      onUpdate?.(markdown);
+      if (prevMarkdown != null && markdownEquals(markdown, prevMarkdown)) return;
+      onChange?.(markdown);
     });
     listener.blur(() => {
       onBlur?.();
@@ -135,14 +134,10 @@ export function createReflectaMilkdownEditorBuilder({
   });
 
   editor.use(reflectaMilkdownExtensions);
-  if (!readonly) {
-    editor.use(
-      createWikiLinkSuggestionPlugin({
-        source: wikiLinkSuggestionSource ?? createUnderstandingWikiLinkSuggestionSource(),
-      }),
-    );
+  if (!readOnly && getSuggestions) {
+    editor.use(createWikiLinkSuggestionPlugin({ source: getSuggestions }));
   }
-  if (readonly) crepe.setReadonly(true);
+  if (readOnly) crepe.setReadonly(true);
 
   return editor;
 }
@@ -175,10 +170,10 @@ function patchSlashMenuScroll(root: HTMLElement): void {
 export function getMilkdownMarkdown(editor: Editor): string {
   const serializer = editor.ctx.get(serializerCtx);
   const view: EditorView = editor.ctx.get(editorViewCtx);
-  return normalizeMilkdownMarkdown(serializer(view.state.doc));
+  return normalizeMarkdown(serializer(view.state.doc));
 }
 
 export function setMilkdownMarkdown(editor: Editor, markdown: string): void {
-  if (milkdownMarkdownEquals(markdown, getMilkdownMarkdown(editor))) return;
+  if (markdownEquals(markdown, getMilkdownMarkdown(editor))) return;
   editor.action(replaceAll(markdown));
 }

@@ -6,7 +6,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@reflecta/ui/components/context-menu";
-import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/markdown-editor/preview";
+import { SimpleMarkdownPreview } from "@reflecta/ui/editor";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { cn } from "@reflecta/ui/lib/utils";
@@ -94,7 +94,7 @@ export function UnderstandingRow({
               )}
             >
               {understanding.body ? (
-                <SimpleMarkdownPreview content={understanding.body} lineClamp={2} />
+                <SimpleMarkdownPreview value={understanding.body} lineClamp={2} />
               ) : (
                 <span>空理解，可以直接开始写。</span>
               )}

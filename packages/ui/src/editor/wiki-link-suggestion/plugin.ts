@@ -11,7 +11,7 @@ export type WikiLinkSuggestionState = {
   to: number;
   query: string;
   selectedIndex: number;
-  items: WikiLinkSuggestionItem[];
+  items: readonly WikiLinkSuggestionItem[];
   loading: boolean;
   requestId: number;
   dismissedFrom: number | null;
@@ -19,7 +19,7 @@ export type WikiLinkSuggestionState = {
 
 type WikiLinkSuggestionMeta =
   | { type: "loading"; requestId: number }
-  | { type: "results"; requestId: number; items: WikiLinkSuggestionItem[] }
+  | { type: "results"; requestId: number; items: readonly WikiLinkSuggestionItem[] }
   | { type: "error"; requestId: number }
   | { type: "select"; selectedIndex: number }
   | { type: "close"; dismiss?: boolean };
@@ -164,7 +164,7 @@ export function insertWikiLinkSuggestion(
   item: WikiLinkSuggestionItem,
 ): void {
   const wikiLinkNode = view.state.schema.nodes.wiki_link?.create({
-    title: item.title,
+    title: item.label,
     id: item.id,
   });
   const transaction = (

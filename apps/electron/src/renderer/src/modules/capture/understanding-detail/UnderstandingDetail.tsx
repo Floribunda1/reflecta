@@ -11,13 +11,13 @@ import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@reflecta/ui/
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@reflecta/ui/components/field";
 import { Input } from "@reflecta/ui/components/input";
 import { Tabs, TabsList, TabsTrigger } from "@reflecta/ui/components/tabs";
-import { DomainTreeSelect } from "@renderer/modules/shared/biz-components/DomainTreeSelect";
-import { MarkdownEditor } from "@renderer/modules/shared/components/markdown-editor/editor";
-import { milkdownMarkdownEquals } from "@renderer/modules/shared/components/markdown-editor/editor/markdown-normalize";
 import {
+  markdownEquals,
+  MarkdownEditor,
   MarkdownPreview,
   SimpleMarkdownPreview,
-} from "@renderer/modules/shared/components/markdown-editor/preview";
+} from "@reflecta/ui/editor";
+import { DomainTreeSelect } from "@renderer/modules/shared/biz-components/DomainTreeSelect";
 import { useDrawer } from "@reflecta/ui/overlays";
 import { useModal } from "@reflecta/ui/overlays";
 import type { ContextDTO, ContextMedium } from "@shared/context";
@@ -29,6 +29,10 @@ import { useUnderstandingDetail, useUnderstandingDetailActions } from "./hooks";
 import { CONTEXT_META, CONTEXT_PLACEHOLDER, CONTEXT_TYPES } from "./context/types";
 import { useCaptureStore, type CaptureAgentScope } from "../store";
 import { useUnderstandingDraftSave } from "../useUnderstandingDraftSave";
+import {
+  getMarkdownEditorSuggestions,
+  uploadMarkdownAsset,
+} from "../adapters/markdown-editor-adapter";
 
 type UnderstandingDetailProps = {
   understandingId: string;
@@ -111,7 +115,7 @@ function ContextPreview({
 
             <div className="text-muted-foreground">
               {context.content ? (
-                <SimpleMarkdownPreview content={context.content} lineClamp={2} />
+                <SimpleMarkdownPreview value={context.content} lineClamp={2} />
               ) : (
                 <span>空上下文，可以直接补充内容。</span>
               )}
@@ -153,7 +157,7 @@ export function ContextPreviewDrawerContent({ context }: { context: ContextDTO }
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {context.content ? (
-          <MarkdownPreview content={context.content} />
+          <MarkdownPreview value={context.content} />
         ) : (
           <div className="text-sm text-muted-foreground">
             空上下文，可以通过右键菜单编辑补充内容。
@@ -235,15 +239,15 @@ function ContextDetailDrawerContent({
           <FieldLabel>上下文内容</FieldLabel>
           <FieldDescription>{draft.content.length} 字</FieldDescription>
           <MarkdownEditor
-            contentKey={editorKey}
-            initialContent={draft.content}
+            documentId={editorKey}
+            value={draft.content}
             height="100%"
             placeholder="记录这条上下文的具体内容"
-            onUpdate={(content) => {
+            uploadAsset={uploadMarkdownAsset}
+            getSuggestions={getMarkdownEditorSuggestions}
+            onChange={(content) => {
               setDraft((current) =>
-                milkdownMarkdownEquals(content, current.content)
-                  ? current
-                  : { ...current, content },
+                markdownEquals(content, current.content) ? current : { ...current, content },
               );
             }}
           />
@@ -461,17 +465,19 @@ function UnderstandingDetailInner({
 
         <section className="mt-5">
           <MarkdownEditor
-            contentKey={understanding.id}
-            initialContent={understanding.body}
+            documentId={understanding.id}
+            value={body}
             height="auto"
             maxHeight="clamp(320px, 50vh, 560px)"
             placeholder="用自己的语言写下这条理解。通过 [[已有理解标题]] 连接相关理解。"
-            onUpdate={(next) => {
-              if (milkdownMarkdownEquals(next, body)) return;
+            uploadAsset={uploadMarkdownAsset}
+            getSuggestions={getMarkdownEditorSuggestions}
+            onChange={(next) => {
+              if (markdownEquals(next, body)) return;
               updateDraftBody(next);
             }}
             onBlur={() => void saveDraft()}
-            onWikiLinkClick={onWikiLinkClick}
+            onWikiLinkOpen={onWikiLinkClick}
           />
         </section>
 

@@ -132,7 +132,7 @@ export function createWikiLinkSuggestionView(
 
       const title = document.createElement("div");
       title.className = "reflecta-md-editor__wiki-suggestion-title";
-      title.textContent = item.title;
+      title.textContent = item.label;
       button.append(title);
 
       if (item.preview) {

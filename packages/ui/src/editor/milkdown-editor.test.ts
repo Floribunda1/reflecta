@@ -44,34 +44,34 @@ describe("reflecta milkdown editor", () => {
   test("does not emit updates while creating the editor", async () => {
     const root = document.createElement("div");
     document.body.append(root);
-    const onUpdate = vi.fn();
+    const onChange = vi.fn();
 
     const editor = await createReflectaMilkdownEditor({
       root,
       content: "Initial",
-      onUpdate,
+      onChange,
     });
     editors.push(editor);
 
-    expect(onUpdate).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   test("skips replace when markdown is already equivalent", async () => {
     const root = document.createElement("div");
     document.body.append(root);
-    const onUpdate = vi.fn();
+    const onChange = vi.fn();
 
     const editor = await createReflectaMilkdownEditor({
       root,
       content: "Initial",
-      onUpdate,
+      onChange,
     });
     editors.push(editor);
 
     setMilkdownMarkdown(editor, "Initial\n");
 
     await new Promise((resolve) => setTimeout(resolve, 500));
-    expect(onUpdate).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   test("replaces the editor document from markdown", async () => {
@@ -134,7 +134,7 @@ describe("reflecta milkdown editor", () => {
       content: "Upload target",
       uploadAsset: async (file) => {
         uploaded.push(file.name);
-        return `saved-${file.name}`;
+        return { url: `memory://${file.name}`, alt: file.name };
       },
     });
     editors.push(editor);
@@ -154,8 +154,8 @@ describe("reflecta milkdown editor", () => {
 
     expect(uploaded).toEqual(["capture.png", "clip.mp4"]);
     expect(fragment.childCount).toBe(2);
-    expect(fragment.child(0).attrs.src).toBe("asset:///saved-capture.png");
-    expect(fragment.child(1).attrs.value).toContain('src="asset:///saved-clip.mp4"');
+    expect(fragment.child(0).attrs.src).toBe("memory://capture.png");
+    expect(fragment.child(1).attrs.value).toContain('src="memory://clip.mp4"');
   });
 
   test("does not render admonitions as custom editor block nodes", async () => {
