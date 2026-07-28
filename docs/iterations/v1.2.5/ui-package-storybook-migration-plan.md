@@ -144,6 +144,8 @@ apps/electron/src/renderer/src/modules/chat/
 
 ## 5. Module Design 索引
 
+Storybook 的导航、组合场景、状态实验室和边界验收统一由 [Storybook 验收体系设计计划](./storybook-acceptance-design-plan.md) 定义。
+
 1. [UI Foundation Module Design](./ui-foundation-module-design.md)
 2. [Markdown Editor Module Design](./markdown-editor-module-design.md)
 3. [Chat Composer Module Design](./chat-composer-module-design.md)
