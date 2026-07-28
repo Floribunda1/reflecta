@@ -50,7 +50,7 @@ export function UnderstandingRow({
             data-understanding-title={understanding.title}
             aria-current={selected ? "true" : undefined}
             className={cn(
-              "group relative flex w-full flex-col gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm text-card-foreground transition-colors outline-none hover:bg-muted/45 active:bg-muted/55 focus-visible:ring-3 focus-visible:ring-ring/50",
+              "group relative flex min-w-0 w-full flex-col gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm text-card-foreground transition-colors outline-none hover:bg-muted/45 active:bg-muted/55 focus-visible:ring-3 focus-visible:ring-ring/50",
               selected && "bg-muted/70 hover:bg-muted/75 active:bg-muted/80",
             )}
             onClick={() => onSelect(understanding.id)}
