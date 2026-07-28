@@ -3,9 +3,9 @@ import { ArrowUpDown, FileText, GitBranch, Plus, Search, Share2 } from "lucide-r
 import { useEffect, useRef } from "react";
 import { useUnderstandingList, useUnderstandingListActions } from "./hooks";
 import { UnderstandingRow } from "./UnderstandingRow";
-import { Button } from "@renderer/components/ui/button";
-import { Input } from "@renderer/components/ui/input";
-import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@renderer/components/ui/empty";
+import { Button } from "@reflecta/ui/components/button";
+import { Input } from "@reflecta/ui/components/input";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@reflecta/ui/components/empty";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,8 +14,8 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from "@renderer/components/ui/dropdown-menu";
-import { cn } from "@renderer/lib/utils";
+} from "@reflecta/ui/components/dropdown-menu";
+import { cn } from "@reflecta/ui/lib/utils";
 import { useCaptureStore, type CaptureAgentScope } from "../store";
 import { useCaptureDomains } from "../queries";
 import type { UnderstandingListSortBy } from "./sort";

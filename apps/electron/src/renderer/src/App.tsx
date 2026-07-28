@@ -1,9 +1,8 @@
 import { useEffect } from "react";
 import { RouterProvider } from "react-router-dom";
 import { toast } from "sonner";
-import { Toaster } from "@renderer/components/ui/sonner";
-import { DrawerContextProvider } from "./modules/shared/hooks/use-drawer";
-import { ModalProvider } from "./modules/shared/hooks/use-modal";
+import { Toaster } from "@reflecta/ui/components/sonner";
+import { DrawerProvider, ModalProvider } from "@reflecta/ui/overlays";
 import { router } from "./router";
 
 function fallbackToastMessage(error: unknown) {
@@ -43,11 +42,11 @@ function FallbackToastBoundary() {
 export function App() {
   return (
     <ModalProvider>
-      <DrawerContextProvider>
+      <DrawerProvider>
         <RouterProvider router={router} />
         <Toaster closeButton richColors position="bottom-right" />
         <FallbackToastBoundary />
-      </DrawerContextProvider>
+      </DrawerProvider>
     </ModalProvider>
   );
 }

@@ -4,14 +4,14 @@ import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
-} from "@renderer/components/ui/resizable";
+} from "@reflecta/ui/components/resizable";
 import { ContextualAgentDock } from "@renderer/modules/chat/contextual-agent-dock";
 import { DomainTree } from "./domain";
 import { UnderstandingDetail } from "./understanding-detail";
 import { UnderstandingList } from "./understanding-list";
-import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@renderer/components/ui/empty";
-import { Skeleton } from "@renderer/components/ui/skeleton";
-import { cn } from "@renderer/lib/utils";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@reflecta/ui/components/empty";
+import { Skeleton } from "@reflecta/ui/components/skeleton";
+import { cn } from "@reflecta/ui/lib/utils";
 import { useCaptureStore } from "./store";
 
 const KnowledgeWanderWorkspace = lazy(() =>

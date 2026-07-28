@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Button } from "@renderer/components/ui/button";
-import { ScrollArea } from "@renderer/components/ui/scroll-area";
-import { cn } from "@renderer/lib/utils";
+import { Button } from "@reflecta/ui/components/button";
+import { ScrollArea } from "@reflecta/ui/components/scroll-area";
+import { cn } from "@reflecta/ui/lib/utils";
 import { Database, Search, Sparkles, Trash2 } from "lucide-react";
 import { AiSection } from "./AiSection";
 import { RetrievalSection } from "./RetrievalSection";

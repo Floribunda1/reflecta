@@ -9,14 +9,14 @@ import {
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useMemo, useRef } from "react";
-import { Button } from "@renderer/components/ui/button";
-import { ButtonGroup } from "@renderer/components/ui/button-group";
+import { Button } from "@reflecta/ui/components/button";
+import { ButtonGroup } from "@reflecta/ui/components/button-group";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@renderer/components/ui/tooltip";
+} from "@reflecta/ui/components/tooltip";
 import { buildGraphElementStates, type KnowledgeGraphData } from "./graph-data";
 
 type KnowledgeGraphProps = {

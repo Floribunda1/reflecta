@@ -5,13 +5,13 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
-} from "@renderer/components/ui/context-menu";
+} from "@reflecta/ui/components/context-menu";
 import { SimpleMarkdownPreview } from "@renderer/modules/shared/components/markdown-editor/preview";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { cn } from "@renderer/lib/utils";
+import { cn } from "@reflecta/ui/lib/utils";
 import { FileText, Link2 } from "lucide-react";
-import { useModal } from "@renderer/modules/shared/hooks/use-modal";
+import { useModal } from "@reflecta/ui/overlays";
 import { useUnderstandingListActions } from "./hooks";
 import { useCaptureStore, type CaptureAgentScope } from "../store";
 import { getUnderstandingTitle } from "../understanding-title";

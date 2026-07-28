@@ -2,14 +2,14 @@ import { type ReactNode, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { Streamdown } from "streamdown";
 import { useQuery } from "@tanstack/react-query";
-import { Badge } from "@renderer/components/ui/badge";
-import { Button } from "@renderer/components/ui/button";
-import { Spinner } from "@renderer/components/ui/spinner";
+import { Badge } from "@reflecta/ui/components/badge";
+import { Button } from "@reflecta/ui/components/button";
+import { Spinner } from "@reflecta/ui/components/spinner";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@renderer/components/ui/collapsible";
+} from "@reflecta/ui/components/collapsible";
 import type {
   AgentContextCompacted,
   AgentEntityCatalogEntry,

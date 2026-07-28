@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Download, RefreshCw } from "lucide-react";
-import { Badge } from "@renderer/components/ui/badge";
-import { Button } from "@renderer/components/ui/button";
-import { Progress } from "@renderer/components/ui/progress";
-import { Switch } from "@renderer/components/ui/switch";
+import { Badge } from "@reflecta/ui/components/badge";
+import { Button } from "@reflecta/ui/components/button";
+import { Progress } from "@reflecta/ui/components/progress";
+import { Switch } from "@reflecta/ui/components/switch";
 import { ipcClient } from "@renderer/utils/ipc";
 
 type RetrievalConfig = Awaited<ReturnType<typeof ipcClient.config.getRetrievalConfig>>;

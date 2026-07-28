@@ -1,7 +1,7 @@
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/react";
 import { useCallback, useEffect, useRef } from "react";
 import type { MouseEvent } from "react";
-import { cn } from "@renderer/lib/utils";
+import { cn } from "@reflecta/ui/lib/utils";
 import { ipcClient } from "@renderer/utils/ipc";
 import {
   createReflectaMilkdownEditorBuilder,

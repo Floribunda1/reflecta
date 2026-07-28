@@ -9,6 +9,7 @@
   "compilerOptions": {
     "composite": true,
     "noImplicitAny": true,
+    "noUnusedLocals": false,
     "jsx": "react-jsx",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
@@ -16,11 +17,6 @@
       "@renderer/*": ["./src/renderer/src/*"],
       "@main/*": ["./src/main/*"],
       "@shared/*": ["./src/preload/typings/*"],
-      "components/*": ["./src/renderer/src/components/*"],
-      "ui/*": ["./src/renderer/src/components/ui/*"],
-      "lib/*": ["./src/renderer/src/lib/*"],
-      "hooks/*": ["./src/renderer/src/hooks/*"],
-      "utils": ["./src/renderer/src/lib/utils.ts"],
       "electron-ipc-decorator": ["./node_modules/electron-ipc-decorator/dist/index-07qxEjCM.d.ts"],
       "electron-ipc-decorator/client": [
         "./node_modules/electron-ipc-decorator/dist/client-CsZ0e3b_.d.ts"

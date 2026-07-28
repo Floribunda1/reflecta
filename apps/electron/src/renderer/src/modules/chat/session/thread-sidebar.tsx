@@ -1,16 +1,16 @@
 import { memo, useMemo } from "react";
 import { Plus } from "lucide-react";
-import { Button } from "@renderer/components/ui/button";
+import { Button } from "@reflecta/ui/components/button";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuTrigger,
-} from "@renderer/components/ui/context-menu";
-import { Spinner } from "@renderer/components/ui/spinner";
-import { ScrollArea } from "@renderer/components/ui/scroll-area";
+} from "@reflecta/ui/components/context-menu";
+import { Spinner } from "@reflecta/ui/components/spinner";
+import { ScrollArea } from "@reflecta/ui/components/scroll-area";
 import { AppChromeMenu } from "@renderer/modules/shared/layout/AppChromeMenu";
 import { SidebarToggleButton } from "@renderer/modules/shared/layout/SidebarToggleButton";
-import { cn } from "@renderer/lib/utils";
+import { cn } from "@reflecta/ui/lib/utils";
 import { ipcClient } from "@renderer/utils/ipc";
 import { reduceAgentSession, type AgentSessionSummary } from "@shared/agent";
 import { toast } from "sonner";

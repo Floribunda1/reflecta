@@ -4,8 +4,8 @@ import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
-} from "@renderer/components/ui/resizable";
-import { useModal } from "@renderer/modules/shared/hooks/use-modal";
+} from "@reflecta/ui/components/resizable";
+import { useModal } from "@reflecta/ui/overlays";
 import { useMemoizedFn } from "ahooks";
 import { toast } from "sonner";
 import { AgentThreadPanel } from "./agent-thread-panel";
@@ -28,7 +28,7 @@ import {
 } from "./session/server-state";
 import { ThreadSidebar } from "./session/thread-sidebar";
 import { SidebarToggleButton } from "@renderer/modules/shared/layout/SidebarToggleButton";
-import { cn } from "@renderer/lib/utils";
+import { cn } from "@reflecta/ui/lib/utils";
 
 function activeThreadIdFor(threads: { id: string }[], activeThreadId: string | null) {
   if (threads.length === 0) return null;

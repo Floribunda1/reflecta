@@ -1,8 +1,8 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Bot, NotepadText, Settings } from "lucide-react";
-import { Button } from "@renderer/components/ui/button";
+import { Button } from "@reflecta/ui/components/button";
 import { SettingsDialogContent } from "@renderer/modules/settings/SettingsDialog";
-import { useModal } from "@renderer/modules/shared/hooks/use-modal";
+import { useModal } from "@reflecta/ui/overlays";
 
 export function AppChromeMenu() {
   const navigate = useNavigate();

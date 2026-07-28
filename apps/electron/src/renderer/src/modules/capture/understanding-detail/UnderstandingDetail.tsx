@@ -1,16 +1,16 @@
-import { Badge } from "@renderer/components/ui/badge";
-import { Button } from "@renderer/components/ui/button";
+import { Badge } from "@reflecta/ui/components/badge";
+import { Button } from "@reflecta/ui/components/button";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
-} from "@renderer/components/ui/context-menu";
-import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@renderer/components/ui/empty";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@renderer/components/ui/field";
-import { Input } from "@renderer/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@renderer/components/ui/tabs";
+} from "@reflecta/ui/components/context-menu";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@reflecta/ui/components/empty";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@reflecta/ui/components/field";
+import { Input } from "@reflecta/ui/components/input";
+import { Tabs, TabsList, TabsTrigger } from "@reflecta/ui/components/tabs";
 import { DomainTreeSelect } from "@renderer/modules/shared/biz-components/DomainTreeSelect";
 import { MarkdownEditor } from "@renderer/modules/shared/components/markdown-editor/editor";
 import { milkdownMarkdownEquals } from "@renderer/modules/shared/components/markdown-editor/editor/markdown-normalize";
@@ -18,8 +18,8 @@ import {
   MarkdownPreview,
   SimpleMarkdownPreview,
 } from "@renderer/modules/shared/components/markdown-editor/preview";
-import { useSharedDrawer } from "@renderer/modules/shared/hooks/use-drawer";
-import { useModal } from "@renderer/modules/shared/hooks/use-modal";
+import { useDrawer } from "@reflecta/ui/overlays";
+import { useModal } from "@reflecta/ui/overlays";
 import type { ContextDTO, ContextMedium } from "@shared/context";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
@@ -177,7 +177,7 @@ function ContextDetailDrawerContent({
 }) {
   const [draft, setDraft] = useState<ContextDraftInput>(() => createContextDraft(context));
   const [saving, setSaving] = useState(false);
-  const { closeDrawer } = useSharedDrawer();
+  const { closeDrawer } = useDrawer();
 
   if (!creating && !context) return null;
 
@@ -273,7 +273,7 @@ function UnderstandingDetailInner({
   const { updateUnderstanding, deleteUnderstanding, createContext, updateContext, deleteContext } =
     useUnderstandingDetailActions(understandingId);
   const { confirm } = useModal();
-  const { openDrawer, closeDrawer } = useSharedDrawer();
+  const { openDrawer, closeDrawer } = useDrawer();
   const draft = useCaptureStore((state) =>
     state.draft?.understandingId === understandingId ? state.draft : null,
   );

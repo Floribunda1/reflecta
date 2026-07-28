@@ -6,14 +6,14 @@ import type {
   AgentReasoningLevel,
   AgentReducedMessage,
 } from "@shared/agent";
-import { Button } from "@renderer/components/ui/button";
+import { Button } from "@reflecta/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
-} from "@renderer/components/ui/dropdown-menu";
-import { Input } from "@renderer/components/ui/input";
-import { cn } from "@renderer/lib/utils";
+} from "@reflecta/ui/components/dropdown-menu";
+import { Input } from "@reflecta/ui/components/input";
+import { cn } from "@reflecta/ui/lib/utils";
 import { useDebounce, useMemoizedFn } from "ahooks";
 import { toast } from "sonner";
 import { ChatComposer } from "./composer/chat-composer";

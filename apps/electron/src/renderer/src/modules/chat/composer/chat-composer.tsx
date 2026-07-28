@@ -4,8 +4,8 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useLatest } from "ahooks";
 import { ChevronDown, FileText, Paperclip, Send, Square, X } from "lucide-react";
-import { Button } from "@renderer/components/ui/button";
-import { Spinner } from "@renderer/components/ui/spinner";
+import { Button } from "@reflecta/ui/components/button";
+import { Spinner } from "@reflecta/ui/components/spinner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +16,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@renderer/components/ui/dropdown-menu";
+} from "@reflecta/ui/components/dropdown-menu";
 import type { AiModelOption } from "@main/config";
 import type {
   AgentContextRef,

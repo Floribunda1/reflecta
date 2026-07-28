@@ -2,7 +2,7 @@ import "./style.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider } from "@renderer/components/theme-provider";
+import { ThemeProvider } from "@reflecta/ui/theme";
 import { App } from "./App";
 import { RendererErrorBoundary } from "./renderer-error-boundary";
 

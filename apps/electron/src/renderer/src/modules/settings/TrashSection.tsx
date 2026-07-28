@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@renderer/components/ui/button";
+import { Button } from "@reflecta/ui/components/button";
 import { Lightbulb, Loader2, RotateCcw, Trash2, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ipcClient } from "@renderer/utils/ipc";
 import type { TrashedUnderstandingDTO, TrashedContextDTO } from "@shared/trash";
-import { useModal } from "@renderer/modules/shared/hooks/use-modal";
+import { useModal } from "@reflecta/ui/overlays";
 
 function errorMessage(error: unknown) {
   if (typeof error === "object" && error && "message" in error && typeof error.message === "string")

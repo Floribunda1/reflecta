@@ -1,6 +1,6 @@
 import { PanelLeft, PanelLeftDashed } from "lucide-react";
-import { Button } from "@renderer/components/ui/button";
-import { cn } from "@renderer/lib/utils";
+import { Button } from "@reflecta/ui/components/button";
+import { cn } from "@reflecta/ui/lib/utils";
 
 export function SidebarToggleButton({
   expanded,

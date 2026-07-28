@@ -2,10 +2,10 @@ import { Fragment, memo, useMemo, type ReactNode } from "react";
 import { Copy, FileText, GitFork, Pencil, RefreshCcw } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Badge } from "@renderer/components/ui/badge";
-import { Button } from "@renderer/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@renderer/components/ui/empty";
-import { cn } from "@renderer/lib/utils";
+import { Badge } from "@reflecta/ui/components/badge";
+import { Button } from "@reflecta/ui/components/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@reflecta/ui/components/empty";
+import { cn } from "@reflecta/ui/lib/utils";
 import type {
   AgentContextRef,
   AgentContextCompacted,

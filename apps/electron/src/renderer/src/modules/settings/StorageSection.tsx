@@ -1,8 +1,8 @@
-import { Badge } from "@renderer/components/ui/badge";
+import { Badge } from "@reflecta/ui/components/badge";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Alert, AlertAction, AlertDescription, AlertTitle } from "@renderer/components/ui/alert";
-import { Button } from "@renderer/components/ui/button";
+import { Alert, AlertAction, AlertDescription, AlertTitle } from "@reflecta/ui/components/alert";
+import { Button } from "@reflecta/ui/components/button";
 import {
   CheckCircle,
   ExternalLink,
@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { ipcClient } from "@renderer/utils/ipc";
 import type { OrphanAssetInfo } from "@shared/asset";
-import { useModal } from "@renderer/modules/shared/hooks/use-modal";
+import { useModal } from "@reflecta/ui/overlays";
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;

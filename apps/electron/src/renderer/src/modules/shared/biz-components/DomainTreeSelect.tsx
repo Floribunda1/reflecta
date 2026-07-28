@@ -1,4 +1,4 @@
-import { Badge } from "@renderer/components/ui/badge";
+import { Badge } from "@reflecta/ui/components/badge";
 import { useMemo, useState } from "react";
 import {
   Combobox,
@@ -6,9 +6,9 @@ import {
   ComboboxItem,
   ComboboxList,
   ComboboxTrigger,
-} from "@renderer/components/ui/combobox";
+} from "@reflecta/ui/components/combobox";
 import { X } from "lucide-react";
-import { cn } from "@renderer/lib/utils";
+import { cn } from "@reflecta/ui/lib/utils";
 import type { DomainTreeNode } from "@shared/domain";
 import {
   convertToTreeNodes,

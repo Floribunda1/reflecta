@@ -1,7 +1,7 @@
 import { Archive, Copy, FileDown, Minimize2, Sparkles, Trash2 } from "lucide-react";
 import type { AgentContextRef, AgentReducedMessage } from "@shared/agent";
-import { ContextMenuItem, ContextMenuSeparator } from "@renderer/components/ui/context-menu";
-import { DropdownMenuItem, DropdownMenuSeparator } from "@renderer/components/ui/dropdown-menu";
+import { ContextMenuItem, ContextMenuSeparator } from "@reflecta/ui/components/context-menu";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@reflecta/ui/components/dropdown-menu";
 import { toast } from "sonner";
 import { ipcClient } from "@renderer/utils/ipc";
 import { getEntityDisplay } from "../../capture/queries";

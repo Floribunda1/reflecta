@@ -21,7 +21,9 @@
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
-    "typecheck": "bun run --filter '*' typecheck"
+    "typecheck": "bun run --filter '*' typecheck",
+    "storybook": "bun run --cwd packages/ui storybook",
+    "storybook:build": "bun run --cwd packages/ui build-storybook"
   },
   "devDependencies": {
     "@types/bun": "latest",

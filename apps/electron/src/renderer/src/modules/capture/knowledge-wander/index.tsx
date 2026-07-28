@@ -1,14 +1,14 @@
 import { Network, Share2 } from "lucide-react";
 import { useMemo } from "react";
-import { Button } from "@renderer/components/ui/button";
-import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@renderer/components/ui/empty";
+import { Button } from "@reflecta/ui/components/button";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@reflecta/ui/components/empty";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
-} from "@renderer/components/ui/resizable";
-import { Skeleton } from "@renderer/components/ui/skeleton";
-import { cn } from "@renderer/lib/utils";
+} from "@reflecta/ui/components/resizable";
+import { Skeleton } from "@reflecta/ui/components/skeleton";
+import { cn } from "@reflecta/ui/lib/utils";
 import { SidebarToggleButton } from "@renderer/modules/shared/layout/SidebarToggleButton";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import { useCaptureDomains, useCaptureUnderstandingList } from "../queries";

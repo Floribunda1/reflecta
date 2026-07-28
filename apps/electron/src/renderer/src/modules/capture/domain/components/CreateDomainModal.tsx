@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Input } from "@renderer/components/ui/input";
+import { Button } from "@reflecta/ui/components/button";
+import { DialogFooter } from "@reflecta/ui/components/dialog";
+import { Input } from "@reflecta/ui/components/input";
 import type { DomainTreeNode } from "@shared/domain";
-import { FooterButton } from "@renderer/modules/shared/components/footer-button";
 import { DomainTreeSelect } from "@renderer/modules/shared/biz-components/DomainTreeSelect";
 
 export type DomainModalData = {
@@ -51,14 +52,14 @@ export function DomainModalContent({ data }: { data: DomainModalData }) {
         />
       </div>
 
-      <FooterButton
-        cancelProps={{ onClick: data.onClose }}
-        okProps={{
-          onClick: () => void submit(),
-          disabled: !name.trim(),
-          children: isEditing ? "保存" : "新建",
-        }}
-      />
+      <DialogFooter>
+        <Button type="button" variant="outline" size="sm" onClick={data.onClose}>
+          取消
+        </Button>
+        <Button type="button" size="sm" disabled={!name.trim()} onClick={() => void submit()}>
+          {isEditing ? "保存" : "新建"}
+        </Button>
+      </DialogFooter>
     </div>
   );
 }

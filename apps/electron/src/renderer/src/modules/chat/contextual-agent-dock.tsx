@@ -2,7 +2,7 @@ import { useCallback, useEffect } from "react";
 import { Clock, ExternalLink, Plus, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { AgentContextRef, AgentSessionSummary } from "@shared/agent";
-import { Button } from "@renderer/components/ui/button";
+import { Button } from "@reflecta/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,8 +10,8 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-} from "@renderer/components/ui/dropdown-menu";
-import { cn } from "@renderer/lib/utils";
+} from "@reflecta/ui/components/dropdown-menu";
+import { cn } from "@reflecta/ui/lib/utils";
 import { AgentThreadPanel } from "./agent-thread-panel";
 import { useAgentUiActions } from "./session/chat-ui-store";
 import { useCreateThreadMutation, useThreadsQuery } from "./session/server-state";

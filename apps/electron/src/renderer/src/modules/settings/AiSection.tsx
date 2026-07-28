@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, CheckCircle, ExternalLink, LoaderCircle, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@renderer/components/ui/button";
-import { Checkbox } from "@renderer/components/ui/checkbox";
-import { Input } from "@renderer/components/ui/input";
-import { NativeSelect, NativeSelectOption } from "@renderer/components/ui/native-select";
-import { ScrollArea } from "@renderer/components/ui/scroll-area";
+import { Button } from "@reflecta/ui/components/button";
+import { Checkbox } from "@reflecta/ui/components/checkbox";
+import { Input } from "@reflecta/ui/components/input";
+import { NativeSelect, NativeSelectOption } from "@reflecta/ui/components/native-select";
+import { ScrollArea } from "@reflecta/ui/components/scroll-area";
 import { ipcClient } from "@renderer/utils/ipc";
 
 type AiConfig = Awaited<ReturnType<typeof ipcClient.config.getAiConfig>>;

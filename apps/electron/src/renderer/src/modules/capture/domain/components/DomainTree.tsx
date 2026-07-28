@@ -19,20 +19,20 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
-import { Button } from "@renderer/components/ui/button";
-import { ScrollArea } from "@renderer/components/ui/scroll-area";
+import { Button } from "@reflecta/ui/components/button";
+import { ScrollArea } from "@reflecta/ui/components/scroll-area";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
-} from "@renderer/components/ui/context-menu";
+} from "@reflecta/ui/components/context-menu";
 import { ChevronDown, ChevronRight, Layers, Plus } from "lucide-react";
 import type { DomainTreeNode } from "@shared/domain";
-import { cn } from "@renderer/lib/utils";
+import { cn } from "@reflecta/ui/lib/utils";
 import { useDomainActions } from "../hooks";
-import { useModal } from "@renderer/modules/shared/hooks/use-modal";
+import { useModal } from "@reflecta/ui/overlays";
 import { DomainModalContent } from "./CreateDomainModal";
 import { useCaptureStore } from "../../store";
 import { useCaptureDomains } from "../../queries";

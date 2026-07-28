@@ -6,7 +6,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@renderer/components/ui/command";
+} from "@reflecta/ui/components/command";
 import { contextMentionClass, contextMentionIcon, contextTitle } from "./context-reference";
 import type { ContextCandidate } from "./context-mention-lookup";
 
