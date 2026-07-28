@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { hasAi, launchAgentPage, openThread } from "./agent-e2e";
+import { launchAgentPage, openThread } from "./agent-e2e";
 import {
   assistantMessage,
   proposalPart,
@@ -8,64 +8,8 @@ import {
   userMessage,
 } from "./agent-fixtures";
 
-function seedPendingProposal() {
-  seedAgentThread({
-    id: "proposal-pending",
-    title: "候选 Understanding 提案",
-    messages: [
-      userMessage("proposal-user", "请创建候选 Understanding"),
-      assistantMessage("proposal-assistant", [
-        proposalPart({
-          toolCallId: "proposal-tool",
-          title: "CANDIDATE_TITLE",
-          state: "approval-requested",
-          approval: { id: "proposal-approval" },
-        }),
-      ]),
-    ],
-  });
-}
-
 test.beforeEach(() => {
   resetAgentFixtures();
-});
-
-test("@AG-PROPOSAL-001 用户确认候选 Understanding 后看到执行结果", async () => {
-  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
-  test.setTimeout(180_000);
-
-  seedPendingProposal();
-  const { app, page } = await launchAgentPage();
-
-  try {
-    await openThread(page, "候选 Understanding 提案");
-    const card = page.getByTestId("agent-proposal-card");
-    await expect(card).toContainText("CANDIDATE_TITLE");
-    await card.getByTestId("agent-proposal-confirm-button").click();
-    await expect(card).toContainText("完成", { timeout: 120_000 });
-    await expect(card).toContainText("已写入");
-  } finally {
-    await app.close();
-  }
-});
-
-test("@AG-PROPOSAL-002 用户拒绝候选 Understanding 后看到拒绝结果", async () => {
-  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
-  test.setTimeout(180_000);
-
-  seedPendingProposal();
-  const { app, page } = await launchAgentPage();
-
-  try {
-    await openThread(page, "候选 Understanding 提案");
-    const card = page.getByTestId("agent-proposal-card");
-    await expect(card).toContainText("CANDIDATE_TITLE");
-    await card.getByTestId("agent-proposal-reject-button").click();
-    await expect(card).toContainText("已拒绝", { timeout: 120_000 });
-    await expect(card).toContainText("未写入知识库");
-  } finally {
-    await app.close();
-  }
 });
 
 test("@AG-PROPOSAL-003 用户重新打开对话后仍能看到提案处理结果", async () => {

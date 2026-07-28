@@ -1,3 +1,4 @@
+# language: zh-CN
 @settings @ai
 功能: 选择 Reflecta 使用的 AI 模型
   用户希望从 Provider 提供的模型中选择少量常用模型，使 Chat 和标题生成只展示自己启用的模型。

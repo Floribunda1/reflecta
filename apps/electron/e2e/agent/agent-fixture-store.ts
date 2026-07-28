@@ -50,6 +50,7 @@ type FixtureThread = {
   title: string;
   createdAt?: string;
   updatedAt?: string;
+  includeRuntimeMessages?: boolean;
   entityCatalog?: FixtureEntityCatalogEntry[];
   contextCompactions?: FixtureContextCompaction[];
   messages?: FixtureMessage[];
@@ -58,7 +59,14 @@ type FixtureThread = {
 type Fixture =
   | { type: "reset" }
   | { type: "seedThread"; thread: FixtureThread }
-  | { type: "seedUnderstanding"; id: string; title: string; body: string }
+  | {
+      type: "seedUnderstanding";
+      id: string;
+      title: string;
+      body: string;
+      createdAt?: string;
+      updatedAt?: string;
+    }
   | { type: "seedContext"; id: string; understandingId: string; title: string; content: string }
   | { type: "seedDomain"; id: string; name: string }
   | { type: "deleteUnderstanding"; id: string }
@@ -526,6 +534,33 @@ function seedThread(thread: FixtureThread) {
   fs.mkdirSync(sessionsRoot(), { recursive: true });
   const manager = SessionManager.create(contentStorageRoot, sessionsRoot(), { id: thread.id });
   manager.appendSessionInfo(thread.title);
+  if (thread.includeRuntimeMessages) {
+    for (const message of thread.messages ?? []) {
+      const text = textFromParts(message.parts);
+      const timestamp = new Date(message.createdAt ?? thread.createdAt ?? BASE_TIME).getTime();
+      manager.appendMessage(
+        message.role === "user"
+          ? { role: "user", content: [{ type: "text", text }], timestamp }
+          : {
+              role: "assistant",
+              content: [{ type: "text", text }],
+              api: "openai-completions",
+              provider: "deepseek",
+              model: "fixture",
+              usage: {
+                input: 0,
+                output: 0,
+                cacheRead: 0,
+                cacheWrite: 0,
+                totalTokens: 0,
+                cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+              },
+              stopReason: "stop",
+              timestamp,
+            },
+      );
+    }
+  }
   for (const event of threadEvents(thread)) {
     manager.appendCustomEntry(REFLECTA_AGENT_EVENT_ENTRY, event);
   }
@@ -533,13 +568,20 @@ function seedThread(thread: FixtureThread) {
   rewriteHeaderTimestamp(manager, thread.updatedAt ?? thread.createdAt ?? BASE_TIME);
 }
 
-function seedUnderstanding(id: string, title: string, body: string) {
-  const now = new Date().toISOString();
+function seedUnderstanding(
+  id: string,
+  title: string,
+  body: string,
+  createdAt?: string,
+  updatedAt?: string,
+) {
+  const created = createdAt ?? new Date().toISOString();
+  const updated = updatedAt ?? created;
   db.query(
     `INSERT INTO understandings (id, title, body, created_at, updated_at, deleted_at)
      VALUES (?, ?, ?, ?, ?, NULL)
-     ON CONFLICT(id) DO UPDATE SET title = excluded.title, body = excluded.body, updated_at = excluded.updated_at, deleted_at = NULL`,
-  ).run(id, title, body, now, now);
+     ON CONFLICT(id) DO UPDATE SET title = excluded.title, body = excluded.body, created_at = excluded.created_at, updated_at = excluded.updated_at, deleted_at = NULL`,
+  ).run(id, title, body, created, updated);
 }
 
 function seedContext(id: string, understandingId: string, title: string, content: string) {
@@ -570,7 +612,13 @@ try {
   }
 
   if (fixture.type === "seedUnderstanding") {
-    seedUnderstanding(fixture.id, fixture.title, fixture.body);
+    seedUnderstanding(
+      fixture.id,
+      fixture.title,
+      fixture.body,
+      fixture.createdAt,
+      fixture.updatedAt,
+    );
   }
 
   if (fixture.type === "seedContext") {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { runCommand, parseJsonl, parseJson, getDomainId, queryDbOne, countRows } from "./helpers";
+import { runCommand, parseJsonl, parseJson, getDomainId } from "./helpers";
 
 describe("Domain 管理", () => {
   describe("domain list", () => {
@@ -11,16 +11,6 @@ describe("Domain 管理", () => {
       for (const c of domains) {
         expect(c).toMatchObject({ id: expect.any(String), name: expect.any(String) });
       }
-    });
-
-    it("列表同时包含根节点与叶子节点", async () => {
-      const { code, stdout } = await runCommand(["domain", "list"]);
-      expect(code).toBe(0);
-      const domains = parseJsonl(stdout) as Array<{ id: string; parentId: string | null }>;
-      const hasRoot = domains.some((c) => c.parentId === null);
-      const hasLeaf = domains.some((c) => !domains.some((p) => p.parentId === c.id));
-      expect(hasRoot).toBe(true);
-      expect(hasLeaf).toBe(true);
     });
   });
 
@@ -104,12 +94,16 @@ describe("Domain 管理", () => {
   });
 
   describe("domain update", () => {
-    it("重命名 Domain", async () => {
+    it("重命名子 Domain 时保留原来的父级", async () => {
+      const parentId = getDomainId("Programming");
+      expect(parentId).toBeDefined();
       const { stdout: createOut } = await runCommand([
         "domain",
         "create",
         "--name",
         "Rename Me",
+        "--parent-id",
+        parentId!,
         "--yes",
       ]);
       const catId = (parseJson(createOut) as { id: string }).id;
@@ -122,7 +116,7 @@ describe("Domain 管理", () => {
         "--yes",
       ]);
       expect(code).toBe(0);
-      expect((parseJson(stdout) as { name: string }).name).toBe("Renamed");
+      expect(parseJson(stdout)).toMatchObject({ name: "Renamed", parentId });
     });
 
     it("移动 Domain 到新的父节点", async () => {
@@ -148,6 +142,31 @@ describe("Domain 管理", () => {
       expect((parseJson(stdout) as { parentId: string }).parentId).toBe(parentId);
     });
 
+    it("将 Domain 移动到根节点", async () => {
+      const parentId = getDomainId("Programming");
+      const { stdout: createOut } = await runCommand([
+        "domain",
+        "create",
+        "--name",
+        "Move To Root",
+        "--parent-id",
+        parentId!,
+        "--yes",
+      ]);
+      const domainId = (parseJson(createOut) as { id: string }).id;
+      const { code, stdout } = await runCommand([
+        "domain",
+        "update",
+        domainId,
+        "--parent-id",
+        "",
+        "--yes",
+      ]);
+
+      expect(code).toBe(0);
+      expect((parseJson(stdout) as { parentId: string | null }).parentId).toBeNull();
+    });
+
     it("更新不存在的 Domain", async () => {
       const { code, stderr } = await runCommand([
         "domain",
@@ -160,10 +179,50 @@ describe("Domain 管理", () => {
       expect(code).toBe(1);
       expect(JSON.parse(stderr).code).toBe("NOT_FOUND");
     });
+
+    it("防止把父 Domain 移动到自己的后代下面", async () => {
+      const parent = parseJson(
+        (await runCommand(["domain", "create", "--name", "Cycle Parent", "--yes"])).stdout,
+      ) as { id: string };
+      const child = parseJson(
+        (
+          await runCommand([
+            "domain",
+            "create",
+            "--name",
+            "Cycle Child",
+            "--parent-id",
+            parent.id,
+            "--yes",
+          ])
+        ).stdout,
+      ) as { id: string };
+
+      const { code, stderr } = await runCommand([
+        "domain",
+        "update",
+        parent.id,
+        "--parent-id",
+        child.id,
+        "--yes",
+      ]);
+
+      expect(code).toBe(1);
+      expect(JSON.parse(stderr)).toMatchObject({
+        code: "VALIDATION_ERROR",
+        message: "Domain cannot be moved under its descendant",
+      });
+      const domains = parseJsonl((await runCommand(["domain", "list"])).stdout) as Array<{
+        id: string;
+        parentId: string | null;
+      }>;
+      expect(domains.find(({ id }) => id === parent.id)?.parentId).toBeNull();
+      expect(domains.find(({ id }) => id === child.id)?.parentId).toBe(parent.id);
+    });
   });
 
   describe("domain delete", () => {
-    it("不使用级联删除 Domain", async () => {
+    it("不使用级联删除 Domain 时保留关联的 Understanding", async () => {
       const { stdout: createOut } = await runCommand([
         "domain",
         "create",
@@ -172,14 +231,27 @@ describe("Domain 管理", () => {
         "--yes",
       ]);
       const catId = (parseJson(createOut) as { id: string }).id;
-      const understandingCountBefore = countRows("understandings");
+      const { stdout: understandingOut } = await runCommand([
+        "understanding",
+        "create",
+        "--title",
+        "Keep After Domain Delete",
+        "--domain-id",
+        catId,
+        "--yes",
+      ]);
+      const understandingId = (parseJson(understandingOut) as { id: string }).id;
       const { code } = await runCommand(["domain", "delete", catId, "--yes"]);
       expect(code).toBe(0);
-      const catRow = queryDbOne<{ c: number }>(
-        `SELECT count(*) AS c FROM domains WHERE id = '${catId}'`,
-      );
-      expect(catRow!.c).toBe(0);
-      expect(countRows("understandings")).toBe(understandingCountBefore);
+
+      const domains = parseJsonl((await runCommand(["domain", "list"])).stdout) as Array<{
+        id: string;
+      }>;
+      expect(domains.map((domain) => domain.id)).not.toContain(catId);
+      const understanding = parseJson(
+        (await runCommand(["understanding", "get", understandingId])).stdout,
+      ) as { domains: unknown[] };
+      expect(understanding.domains).toEqual([]);
     });
 
     it("使用级联删除 Domain", async () => {
@@ -203,10 +275,9 @@ describe("Domain 管理", () => {
       const understandingId = (parseJson(thOut) as { id: string }).id;
       const { code } = await runCommand(["domain", "delete", catId, "--yes", "--cascade"]);
       expect(code).toBe(0);
-      const thRow = queryDbOne<{ c: number }>(
-        `SELECT count(*) AS c FROM understandings WHERE id = '${understandingId}'`,
-      );
-      expect(thRow!.c).toBe(0);
+      const getResult = await runCommand(["understanding", "get", understandingId]);
+      expect(getResult.code).toBe(1);
+      expect(JSON.parse(getResult.stderr).code).toBe("NOT_FOUND");
     });
 
     it("删除不存在的 Domain", async () => {

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { launchApp } from "../agent/agent-e2e";
+import { seedDomain } from "../agent/agent-fixtures";
 import { domainNode, openCapturePage } from "./capture-e2e";
 
 async function openKnowledgeWander(page: Page) {
@@ -12,31 +13,23 @@ async function openKnowledgeWander(page: Page) {
   });
 }
 
-test("@KW-GRAPH-011 用户从理解列表标题栏进入知识漫步", async () => {
+test("@KW-GRAPH-011 用户从理解列表进入当前领域的知识漫步", async () => {
   const { app, page } = await launchApp();
 
   try {
     await openCapturePage(page);
-
-    const listActions = page.getByTestId("capture-understanding-list-actions");
-    const entry = listActions.getByTestId("capture-knowledge-wander-entry");
-    await expect(entry).toHaveAttribute("aria-label", "打开知识漫步");
-    await expect(entry.locator("svg")).toHaveCount(1);
-    await expect(listActions.locator("button").first()).toHaveAttribute(
-      "data-testid",
-      "capture-knowledge-wander-entry",
-    );
-    await expect(page.locator("aside").getByTestId("capture-knowledge-wander-entry")).toHaveCount(
-      0,
-    );
-
-    await entry.click();
+    await domainNode(page, "Programming").click();
+    await page.getByTestId("capture-knowledge-wander-entry").click();
 
     const graphEntry = page
       .getByTestId("knowledge-wander-actions")
       .getByTestId("capture-knowledge-wander-entry");
+    await expect(page.getByTestId("knowledge-wander-header")).toContainText("Programming");
     await expect(graphEntry).toHaveAttribute("aria-label", "退出知识漫步");
-    await expect(graphEntry).toHaveAttribute("aria-pressed", "true");
+    await graphEntry.click();
+    await expect(page.getByTestId("capture-understanding-list-header")).toContainText(
+      "Programming",
+    );
   } finally {
     await app.close();
   }
@@ -63,7 +56,7 @@ test("@KW-GRAPH-001 用户打开全部领域图谱", async () => {
   }
 });
 
-test("@KW-GRAPH-002 用户选择节点后点击空白区域返回图谱", async () => {
+test("@KW-GRAPH-002 用户从图谱节点进入理解详情并返回", async () => {
   const { app, page } = await launchApp();
 
   try {
@@ -85,13 +78,43 @@ test("@KW-GRAPH-002 用户选择节点后点击空白区域返回图谱", async 
     );
     await expect(graph).toHaveAttribute("data-selected-understanding-id", understandingId);
 
-    const graphBounds = await graph.boundingBox();
-    if (!graphBounds) throw new Error("Expected graph bounds");
-    await page.mouse.click(graphBounds.x + 8, graphBounds.y + 8);
+    await page.getByRole("button", { name: "关闭详情" }).click();
 
     await expect(page.getByRole("button", { name: "关闭详情" })).toBeHidden();
     await expect(graph).toHaveAttribute("data-selected-understanding-id", "");
     expect(await canvas.evaluate((element) => document.contains(element))).toBe(true);
+  } finally {
+    await app.close();
+  }
+});
+
+test("@KW-GRAPH-006 用户连续选择图谱节点并结束查看", async () => {
+  test.setTimeout(60_000);
+  const { app, page } = await launchApp();
+
+  try {
+    await openKnowledgeWander(page);
+    const graph = page.getByTestId("knowledge-wander-graph");
+
+    const currentNode = page.getByRole("button", {
+      name: "打开理解：React Server Components",
+    });
+    await currentNode.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByPlaceholder("写下一个刚形成的理解")).toHaveValue(
+      "React Server Components",
+    );
+
+    const nextNode = page.getByRole("button", { name: "打开理解：Vue Reactivity" });
+    const nextId = await nextNode.getAttribute("data-node-id");
+    await nextNode.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByPlaceholder("写下一个刚形成的理解")).toHaveValue("Vue Reactivity");
+    await expect(graph).toHaveAttribute("data-selected-understanding-id", nextId ?? "");
+
+    await page.getByRole("button", { name: "关闭详情" }).click();
+    await expect(page.locator("#knowledge-wander-detail-panel")).toHaveCount(0);
+    await expect(graph).toHaveAttribute("data-selected-understanding-id", "");
   } finally {
     await app.close();
   }
@@ -119,16 +142,17 @@ test("@KW-GRAPH-003 用户切换图谱的领域范围", async () => {
   }
 });
 
-test("@KW-GRAPH-004 用户从旧 Contemplate 地址回到 Capture", async () => {
+test("@KW-GRAPH-007 用户打开还没有 Understanding 的领域图谱", async () => {
+  seedDomain({ id: "empty-domain", name: "Empty Domain" });
   const { app, page } = await launchApp();
 
   try {
-    await page.evaluate(() => {
-      window.location.hash = "#/contemplate";
-    });
+    await openCapturePage(page);
+    await domainNode(page, "Empty Domain").click();
+    await page.getByTestId("capture-knowledge-wander-entry").click();
 
-    await expect(page.getByTestId("capture-page")).toBeVisible();
-    await expect(page.getByTestId("app-module-switcher")).toHaveAccessibleName("AI 对话");
+    await expect(page.getByTestId("knowledge-wander-header")).toContainText("Empty Domain");
+    await expect(page.getByText("这个领域还没有理解")).toBeVisible();
   } finally {
     await app.close();
   }

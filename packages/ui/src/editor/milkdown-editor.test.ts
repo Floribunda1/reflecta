@@ -72,6 +72,23 @@ describe("reflecta milkdown editor", () => {
     expect(getMilkdownMarkdown(editor)).not.toContain("Initial");
   });
 
+  test("reports the latest document when the editor loses focus", async () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+    const onBlur = vi.fn();
+    const editor = await createReflectaMilkdownEditor({
+      root,
+      content: "Initial",
+      onBlur,
+    });
+    editors.push(editor);
+
+    setMilkdownMarkdown(editor, "Latest body");
+    editor.ctx.get(editorViewCtx).dom.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+
+    expect(onBlur).toHaveBeenCalledWith("Latest body");
+  });
+
   test("preserves wiki links while leaving other markdown to Crepe", async () => {
     const root = document.createElement("div");
     document.body.append(root);

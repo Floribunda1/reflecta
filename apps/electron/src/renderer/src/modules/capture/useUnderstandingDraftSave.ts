@@ -1,3 +1,4 @@
+import { markdownEquals } from "@reflecta/ui/editor";
 import { useKeyPress, useMemoizedFn } from "ahooks";
 import { useEffect, useRef, type RefObject } from "react";
 import { useUpdateUnderstandingMutation } from "./queries";
@@ -69,6 +70,8 @@ export function useUnderstandingDraftSave({
 }: UseUnderstandingDraftSaveOptions) {
   const updateUnderstandingMutation = useUpdateUnderstandingMutation();
   const mutateAsyncRef = useRef(updateUnderstandingMutation.mutateAsync);
+  const latestSnapshotRef = useRef<DraftSaveSnapshot | null>(null);
+  const pendingSnapshotRef = useRef<DraftSaveSnapshot | null>(null);
   mutateAsyncRef.current = updateUnderstandingMutation.mutateAsync;
 
   const queueRef = useRef<ReturnType<typeof createDraftSaveQueue> | null>(null);
@@ -104,18 +107,32 @@ export function useUnderstandingDraftSave({
     });
   }
 
-  const saveDraft = useMemoizedFn(() => {
+  const saveDraft = useMemoizedFn((body?: string) => {
     const draft = useCaptureStore.getState().draft;
-    if (!draft?.dirty || draft.understandingId !== understandingId)
-      return Promise.resolve(undefined);
+    let snapshot =
+      draft?.dirty && draft.understandingId === understandingId
+        ? {
+            understandingId: draft.understandingId,
+            title: draft.title,
+            body: draft.body,
+          }
+        : pendingSnapshotRef.current;
+    if (body !== undefined) {
+      const latest =
+        draft?.understandingId === understandingId
+          ? {
+              understandingId: draft.understandingId,
+              title: draft.title,
+              body: draft.body,
+            }
+          : latestSnapshotRef.current;
+      if (latest && (!snapshot || !markdownEquals(body, latest.body))) {
+        snapshot = { ...latest, body };
+      }
+    }
+    if (!snapshot) return Promise.resolve(undefined);
 
-    return queueRef.current
-      ?.save({
-        understandingId: draft.understandingId,
-        title: draft.title,
-        body: draft.body,
-      })
-      .catch(() => undefined);
+    return queueRef.current?.save(snapshot).catch(() => undefined);
   });
 
   useKeyPress(
@@ -128,7 +145,21 @@ export function useUnderstandingDraftSave({
   );
 
   useEffect(() => {
+    const updatePendingSnapshot = () => {
+      const draft = useCaptureStore.getState().draft;
+      if (draft?.understandingId !== understandingId) return;
+      latestSnapshotRef.current = {
+        understandingId: draft.understandingId,
+        title: draft.title,
+        body: draft.body,
+      };
+      pendingSnapshotRef.current = draft.dirty ? latestSnapshotRef.current : null;
+    };
+    updatePendingSnapshot();
+    const unsubscribe = useCaptureStore.subscribe(updatePendingSnapshot);
+
     return () => {
+      unsubscribe();
       void saveDraft();
     };
   }, [understandingId, saveDraft]);

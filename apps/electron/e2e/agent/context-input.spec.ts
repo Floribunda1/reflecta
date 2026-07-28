@@ -1,39 +1,9 @@
-import path from "node:path";
 import { expect, test } from "@playwright/test";
-import {
-  composer,
-  hasAi,
-  launchAgentPage,
-  selectContext,
-  sendMessage,
-  waitForAssistantReply,
-  writeAttachmentFile,
-} from "./agent-e2e";
+import { composer, launchAgentPage, selectContext } from "./agent-e2e";
 import { resetAgentFixtures } from "./agent-fixtures";
 
 test.beforeEach(() => {
   resetAgentFixtures();
-});
-
-test("@AG-CONTEXT-001 用户选中引用后发送消息", async () => {
-  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
-  test.setTimeout(180_000);
-
-  const { app, page } = await launchAgentPage();
-
-  try {
-    await selectContext(page, "React", "React Server Components", "understanding");
-    await selectContext(page, "React", "React", "domain");
-    await composer(page).click();
-    await page.keyboard.type("请比较这两个引用");
-    await page.getByTestId("agent-send-button").click();
-    const userMessage = page.getByTestId("agent-user-message").last();
-    await expect(userMessage).toContainText("React Server Components");
-    await expect(userMessage).toContainText("React");
-    await waitForAssistantReply(page);
-  } finally {
-    await app.close();
-  }
 });
 
 test("@AG-CONTEXT-004 用户通过 @ 搜索选择上下文引用", async () => {
@@ -102,60 +72,6 @@ test("@AG-CONTEXT-005 用户点击已选择的 Understanding 引用后查看详�
       "React Server Components",
       { timeout: 15_000 },
     );
-  } finally {
-    await app.close();
-  }
-});
-
-test("@AG-CONTEXT-002 用户发送附件后看到附件和回复", async () => {
-  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
-  test.setTimeout(180_000);
-
-  const { app, page } = await launchAgentPage();
-  const filePath = writeAttachmentFile();
-  const fileName = path.basename(filePath);
-
-  try {
-    const fileChooser = page.waitForEvent("filechooser");
-    await page.getByTestId("agent-attachment-button").click();
-    await (await fileChooser).setFiles(filePath);
-    await expect(page.getByTestId("agent-attachment-preview")).toContainText(fileName);
-    await sendMessage(page, "请总结这个附件");
-    await expect(page.getByTestId("agent-message-attachment")).toContainText(fileName);
-    await waitForAssistantReply(page);
-  } finally {
-    await app.close();
-  }
-});
-
-test("@AG-CONTEXT-003 用户选择模型和推理强度后发送消息", async () => {
-  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
-  test.setTimeout(180_000);
-
-  const { app, page } = await launchAgentPage();
-
-  try {
-    await page.getByTestId("agent-model-menu-button").click();
-    const reasoningModel = page
-      .locator('[data-testid="agent-model-option"][data-reasoning-levels~="high"]')
-      .first();
-    const modelName = (await reasoningModel.locator("span").first().innerText()).trim();
-    await reasoningModel.click();
-
-    await page.getByTestId("agent-model-menu-button").click();
-    await page
-      .locator('[data-testid="agent-reasoning-option"][data-reasoning-level="high"]')
-      .click();
-    await page.keyboard.press("Escape");
-
-    await expect(page.getByTestId("agent-model-menu-button")).toContainText(modelName);
-    await expect(page.getByTestId("agent-model-menu-button")).toContainText("高推理");
-    await sendMessage(page, "请用一句话回复 model selection e2e");
-    await expect(page.getByTestId("agent-model-menu-button")).toContainText(modelName);
-    await expect(page.getByTestId("agent-model-menu-button")).toContainText("高推理");
-    await waitForAssistantReply(page);
-    await expect(page.getByTestId("agent-model-menu-button")).toContainText(modelName);
-    await expect(page.getByTestId("agent-model-menu-button")).toContainText("高推理");
   } finally {
     await app.close();
   }

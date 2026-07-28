@@ -74,7 +74,10 @@ export function DomainTree({
         data={{
           initialParentId,
           domains,
-          onConfirm: createDomain,
+          onConfirm: async (params) => {
+            await createDomain(params);
+            if (params.parentId) expandDomainAncestors([params.parentId]);
+          },
           onClose: closeModal,
         }}
       />,
@@ -88,7 +91,10 @@ export function DomainTree({
         data={{
           editDomain: { id: domain.id, name: domain.name, parentId: domain.parentId },
           domains,
-          onConfirm: (params) => updateDomain(domain.id, params),
+          onConfirm: async (params) => {
+            await updateDomain(domain.id, params);
+            if (params.parentId) expandDomainAncestors([params.parentId]);
+          },
           onClose: closeModal,
         }}
       />,

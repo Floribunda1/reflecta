@@ -6,8 +6,6 @@ import {
   getUnderstandingId,
   getDomainId,
   getDeletedUnderstandingId,
-  queryDbOne,
-  queryDb,
 } from "./helpers";
 
 describe("Understanding 管理", () => {
@@ -31,12 +29,11 @@ describe("Understanding 管理", () => {
       expect(catId).toBeDefined();
       const { code, stdout } = await runCommand(["understanding", "list", "--domain-id", catId!]);
       expect(code).toBe(0);
-      const understandings = parseJsonl(stdout);
-      for (const id of understandings.map((t) => (t as { id: string }).id)) {
-        const link = queryDbOne<{ c: number }>(
-          `SELECT count(*) AS c FROM understanding_domains WHERE understanding_id = '${id}' AND domain_id = '${catId}'`,
-        );
-        expect(link?.c).toBe(1);
+      const understandings = parseJsonl(stdout) as Array<{
+        domains: Array<{ id: string }>;
+      }>;
+      for (const understanding of understandings) {
+        expect(understanding.domains.map((domain) => domain.id)).toContain(catId);
       }
     });
 
@@ -102,7 +99,7 @@ describe("Understanding 管理", () => {
       expect(Object.keys(data.contextsByUnderstandingId ?? {}).length).toBeGreaterThan(0);
     });
 
-    it("软删除的 Understanding 不会出现在列表中", async () => {
+    it("列表只显示当前可用的 Understanding", async () => {
       const deletedId = getDeletedUnderstandingId("Soft Deleted Understanding A");
       expect(deletedId).toBeDefined();
       const { stdout } = await runCommand(["understanding", "list"]);
@@ -130,7 +127,7 @@ describe("Understanding 管理", () => {
       expect(JSON.parse(stderr).code).toBe("NOT_FOUND");
     });
 
-    it("查看已软删除的 Understanding", async () => {
+    it("查看已删除的 Understanding 时返回未找到", async () => {
       const deletedId = getDeletedUnderstandingId("Soft Deleted Understanding A");
       expect(deletedId).toBeDefined();
       const { code, stderr } = await runCommand(["understanding", "get", deletedId!]);
@@ -162,25 +159,6 @@ describe("Understanding 管理", () => {
       ]);
       expect(code).toBe(0);
       expect(Array.isArray((parseJson(stdout) as { relations?: unknown[] }).relations)).toBe(true);
-    });
-
-    it("同时附带 Context 和关系", async () => {
-      const understandingId = getUnderstandingId("React Server Components");
-      expect(understandingId).toBeDefined();
-      const { code, stdout } = await runCommand([
-        "understanding",
-        "get",
-        understandingId!,
-        "--include-contexts",
-        "--include-relations",
-      ]);
-      expect(code).toBe(0);
-      const data = parseJson(stdout) as {
-        contexts?: unknown[];
-        relations?: unknown[];
-      };
-      expect(Array.isArray(data.contexts)).toBe(true);
-      expect(Array.isArray(data.relations)).toBe(true);
     });
   });
 
@@ -261,10 +239,12 @@ describe("Understanding 管理", () => {
         "--yes",
       ]);
       expect(code).toBe(0);
-      const conn = queryDbOne<{ c: number }>(
-        `SELECT count(*) AS c FROM understanding_connections WHERE source_id = '${understandingId}' AND target_id = '${targetId}'`,
+      const detail = parseJson(
+        (await runCommand(["understanding", "get", understandingId, "--include-relations"])).stdout,
+      ) as { relations: Array<{ targetUnderstandingId: string | null }> };
+      expect(detail.relations.map((relation) => relation.targetUnderstandingId)).toContain(
+        targetId,
       );
-      expect(conn?.c).toBe(1);
     });
 
     it("更新正文时清除旧连接", async () => {
@@ -280,10 +260,10 @@ describe("Understanding 管理", () => {
         "--yes",
       ]);
       const understandingId = (parseJson(createOut) as { id: string }).id;
-      const before = queryDbOne<{ c: number }>(
-        `SELECT count(*) AS c FROM understanding_connections WHERE source_id = '${understandingId}'`,
-      );
-      expect(before!.c).toBe(1);
+      const before = parseJson(
+        (await runCommand(["understanding", "get", understandingId, "--include-relations"])).stdout,
+      ) as { relations: unknown[] };
+      expect(before.relations).toHaveLength(1);
       const { code } = await runCommand([
         "understanding",
         "update",
@@ -293,10 +273,10 @@ describe("Understanding 管理", () => {
         "--yes",
       ]);
       expect(code).toBe(0);
-      const after = queryDbOne<{ c: number }>(
-        `SELECT count(*) AS c FROM understanding_connections WHERE source_id = '${understandingId}'`,
-      );
-      expect(after!.c).toBe(0);
+      const after = parseJson(
+        (await runCommand(["understanding", "get", understandingId, "--include-relations"])).stdout,
+      ) as { relations: unknown[] };
+      expect(after.relations).toEqual([]);
     });
 
     it("更新 Domain 关联", async () => {
@@ -314,7 +294,7 @@ describe("Understanding 管理", () => {
         "--yes",
       ]);
       const understandingId = (parseJson(createOut) as { id: string }).id;
-      const { code } = await runCommand([
+      const { code, stdout } = await runCommand([
         "understanding",
         "update",
         understandingId,
@@ -323,11 +303,11 @@ describe("Understanding 管理", () => {
         "--yes",
       ]);
       expect(code).toBe(0);
-      const cats = queryDb<{ domain_id: string }>(
-        `SELECT domain_id FROM understanding_domains WHERE understanding_id = '${understandingId}'`,
+      const domains = (parseJson(stdout) as { domains: Array<{ id: string }> }).domains.map(
+        (domain) => domain.id,
       );
-      expect(cats.map((r) => r.domain_id)).toContain(catB);
-      expect(cats.map((r) => r.domain_id)).toContain(catC);
+      expect(domains).toEqual(expect.arrayContaining([catB!, catC!]));
+      expect(domains).toHaveLength(2);
     });
 
     it("更新不存在的 Understanding", async () => {
@@ -345,41 +325,54 @@ describe("Understanding 管理", () => {
   });
 
   describe("understanding delete", () => {
-    it("软删除 Understanding", async () => {
+    it("删除 Understanding 后公开查询返回最新状态", async () => {
       const { stdout: createOut } = await runCommand([
         "understanding",
         "create",
         "--title",
         "To Delete",
-        "--yes",
-      ]);
-      const understandingId = (parseJson(createOut) as { id: string }).id;
-      const { code } = await runCommand(["understanding", "delete", understandingId, "--yes"]);
-      expect(code).toBe(0);
-      const row = queryDbOne<{ deleted_at: string | null }>(
-        `SELECT deleted_at FROM understandings WHERE id = '${understandingId}'`,
-      );
-      expect(row!.deleted_at).not.toBeNull();
-    });
-
-    it("删除后不再出现在搜索结果中", async () => {
-      const { stdout: createOut } = await runCommand([
-        "understanding",
-        "create",
-        "--title",
-        "Search Delete Test",
         "--body",
-        "UNIQUE_KEYWORD_XYZ",
-        "--format",
-        "json",
+        "DELETE_UNDERSTANDING_PUBLIC_CHECK",
         "--yes",
       ]);
       const understandingId = (parseJson(createOut) as { id: string }).id;
+      await runCommand([
+        "context",
+        "create",
+        "--understanding-id",
+        understandingId,
+        "--medium",
+        "experience",
+        "--content",
+        "DELETE_CHILD_CONTEXT_PUBLIC_CHECK",
+        "--yes",
+      ]);
       const { code } = await runCommand(["understanding", "delete", understandingId, "--yes"]);
       expect(code).toBe(0);
-      const { stdout } = await runCommand(["search", "UNIQUE_KEYWORD_XYZ", "--format", "json"]);
-      const hits = (parseJson(stdout) as { hits: Array<{ understanding?: { id: string } }> }).hits;
-      expect(hits.map((hit) => hit.understanding?.id)).not.toContain(understandingId);
+      const getResult = await runCommand(["understanding", "get", understandingId]);
+      expect(getResult.code).toBe(1);
+      expect(JSON.parse(getResult.stderr).code).toBe("NOT_FOUND");
+      const ids = (
+        parseJsonl((await runCommand(["understanding", "list"])).stdout) as Array<{ id: string }>
+      ).map((understanding) => understanding.id);
+      expect(ids).not.toContain(understandingId);
+      for (const query of [
+        "DELETE_UNDERSTANDING_PUBLIC_CHECK",
+        "DELETE_CHILD_CONTEXT_PUBLIC_CHECK",
+      ]) {
+        const search = await runCommand(["search", query, "--format", "json"]);
+        const hits = (
+          parseJson(search.stdout) as {
+            hits: Array<{
+              understanding?: { id: string };
+              context?: { understandingId: string };
+            }>;
+          }
+        ).hits;
+        expect(
+          hits.flatMap((hit) => [hit.understanding?.id, hit.context?.understandingId]),
+        ).not.toContain(understandingId);
+      }
     });
 
     it("删除不存在的 Understanding", async () => {

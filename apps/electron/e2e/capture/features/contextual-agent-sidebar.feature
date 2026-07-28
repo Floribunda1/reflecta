@@ -33,13 +33,14 @@
     而且 Agent 输入框应该获得焦点
 
   @P1 @isolation @CP-AGENT-004
-  场景: 嵌入式 Understanding 详情不显示 Capture 专属聊天入口
+  场景: 用户在 Agent 页面内检查 Understanding 详情
     假如 seed 数据中存在 Understanding「React Server Components」
-    而且用户在 Agent 页面打开了 Understanding「React Server Components」详情面板
-    那么详情面板中不应该显示“聊聊”按钮
+    当用户在 Agent 页面打开 Understanding「React Server Components」详情面板
+    那么详情面板应该显示 Understanding「React Server Components」的标题和正文
+    而且用户应该可以关闭详情面板并继续当前对话
 
   @P1 @draft @CP-AGENT-005
-  场景: 未发送消息的 Capture 上下文 Agent 不进入对话列表
+  场景: 对话列表只收录已发送消息的 Capture 上下文对话
     假如 seed 数据中存在 Domain「Programming」
     当用户在 Capture 页面右键 Domain「Programming」
     而且用户选择“和 AI 聊聊”

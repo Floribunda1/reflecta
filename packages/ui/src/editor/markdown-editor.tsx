@@ -19,7 +19,7 @@ export type MarkdownEditorProps = {
   height?: number | string;
   maxHeight?: number | string;
   onChange?: (markdown: string) => void;
-  onBlur?: () => void;
+  onBlur?: (markdown: string) => void;
   uploadAsset?: MarkdownAssetUploader;
   getSuggestions?: MarkdownEditorSuggestionSource;
   onWikiLinkOpen?: (id: string) => void;
@@ -86,7 +86,7 @@ function MarkdownEditorSurface({
         uploadAsset: !readOnly && uploadAsset ? stableUploader : undefined,
         getSuggestions: !readOnly && getSuggestions ? stableSuggestionSource : undefined,
         onChange: (next) => onChangeRef.current?.(next),
-        onBlur: () => onBlurRef.current?.(),
+        onBlur: (markdown) => onBlurRef.current?.(markdown),
       }),
     [
       placeholder,

@@ -21,7 +21,7 @@ export type CreateReflectaMilkdownEditorOptions = {
   placeholder?: string;
   readOnly?: boolean;
   onChange?: (markdown: string) => void;
-  onBlur?: () => void;
+  onBlur?: (markdown: string) => void;
   uploadAsset?: MarkdownAssetUploader;
   getSuggestions?: WikiLinkSuggestionSource;
 };
@@ -116,14 +116,28 @@ export function createReflectaMilkdownEditorBuilder({
     }));
   });
 
+  let lastMarkdown = normalizeMarkdown(content);
   crepe.on((listener) => {
+    const currentMarkdown = (ctx: Parameters<Parameters<typeof listener.blur>[0]>[0]) => {
+      const serializer = ctx.get(serializerCtx);
+      const view: EditorView = ctx.get(editorViewCtx);
+      return normalizeMarkdown(serializer(view.state.doc));
+    };
+    const flush = (ctx: Parameters<Parameters<typeof listener.blur>[0]>[0]) => {
+      const markdown = currentMarkdown(ctx);
+      if (!markdownEquals(markdown, lastMarkdown)) {
+        lastMarkdown = markdown;
+        onChange?.(markdown);
+      }
+      onBlur?.(markdown);
+    };
+
     listener.markdownUpdated((_ctx, markdown, prevMarkdown) => {
       if (prevMarkdown != null && markdownEquals(markdown, prevMarkdown)) return;
+      lastMarkdown = markdown;
       onChange?.(markdown);
     });
-    listener.blur(() => {
-      onBlur?.();
-    });
+    listener.blur(flush);
   });
 
   editor.use(reflectaMilkdownExtensions);

@@ -119,9 +119,7 @@ export function extractIds(arr: Array<{ id?: string }>): string[] {
 /**
  * Query the test SQLite database directly via sqlite3 CLI.
  */
-export function queryDb<T extends Record<string, unknown> = Record<string, unknown>>(
-  sql: string,
-): T[] {
+function queryDb<T extends Record<string, unknown> = Record<string, unknown>>(sql: string): T[] {
   const dbPath = process.env.REFLECTA_DB_PATH;
   if (!dbPath) {
     throw new Error("REFLECTA_DB_PATH is required for test database queries.");
@@ -141,7 +139,7 @@ export function queryDb<T extends Record<string, unknown> = Record<string, unkno
 /**
  * Get a single row from the test database.
  */
-export function queryDbOne<T extends Record<string, unknown> = Record<string, unknown>>(
+function queryDbOne<T extends Record<string, unknown> = Record<string, unknown>>(
   sql: string,
 ): T | undefined {
   const rows = queryDb<T>(sql);
@@ -186,12 +184,4 @@ export function getContextId(title: string): string | undefined {
     `SELECT id FROM contexts WHERE title = '${title.replace(/'/g, "''")}' AND deleted_at IS NULL`,
   );
   return row?.id;
-}
-
-/**
- * Count rows in a table.
- */
-export function countRows(table: string): number {
-  const row = queryDbOne<{ c: number }>(`SELECT count(*) AS c FROM ${table}`);
-  return row?.c ?? 0;
 }

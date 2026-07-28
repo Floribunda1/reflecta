@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { launchAgentPage, openThread } from "./agent-e2e";
+import { composer, hasAi, launchAgentPage, openThread } from "./agent-e2e";
 import {
   assistantMessage,
   resetAgentFixtures,
@@ -29,6 +29,43 @@ function seedCompactedThread() {
     ],
   });
 }
+
+test("@AG-COMPACT-002 用户可以手动压缩当前对话", async () => {
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
+  test.setTimeout(180_000);
+
+  const messages = Array.from({ length: 8 }, (_, index) => [
+    userMessage(`manual-user-${index}`, `第 ${index + 1} 轮约束：${"重要背景。".repeat(1_600)}`),
+    assistantMessage(`manual-assistant-${index}`, [
+      { type: "text", text: `第 ${index + 1} 轮确认：${"已记录。".repeat(1_600)}` },
+    ]),
+  ]).flat();
+  seedAgentThread({
+    id: "manual-compaction",
+    title: "手动压缩长对话",
+    includeRuntimeMessages: true,
+    messages,
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "手动压缩长对话");
+    await page.getByTestId("agent-thread-actions-button").click();
+    await page.getByTestId("agent-compact-context-menu-item").click();
+
+    await expect(page.getByTestId("agent-context-compaction-progress")).toBeVisible();
+    await expect(page.getByRole("button", { name: "正在压缩上下文" })).toBeDisabled();
+    await page.getByTestId("agent-thread-actions-button").click();
+    await expect(page.getByTestId("agent-compact-context-menu-item")).toBeDisabled();
+
+    await expect(page.getByTestId("agent-context-compaction-progress")).toBeHidden({
+      timeout: 120_000,
+    });
+    await expect(page.getByTestId("agent-context-compaction-receipt")).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
 
 test("@AG-COMPACT-003 用户可以检查压缩回执且原消息保持可见", async () => {
   seedCompactedThread();
@@ -68,6 +105,33 @@ test("@AG-COMPACT-004 用户重启应用后压缩回执仍然存在", async () =
     await expect(page.getByTestId("agent-context-compaction-summary")).toContainText(
       "保留原始消息",
     );
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-COMPACT-005 当前对话过短时用户得到清晰反馈", async () => {
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
+  seedAgentThread({
+    id: "short-compaction",
+    title: "较短对话",
+    includeRuntimeMessages: true,
+    messages: [
+      userMessage("short-user", "简短问题"),
+      assistantMessage("short-assistant", [{ type: "text", text: "简短回复" }]),
+    ],
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "较短对话");
+    await page.getByTestId("agent-thread-actions-button").click();
+    await page.getByTestId("agent-compact-context-menu-item").click();
+
+    await expect(page.getByTestId("agent-context-compaction-error")).toContainText(
+      "当前对话还不需要压缩",
+    );
+    await expect(composer(page)).toBeEditable();
   } finally {
     await app.close();
   }

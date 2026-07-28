@@ -74,7 +74,7 @@ test("@CP-AGENT-003 用户从 Understanding 详情页按钮打开上下文 Agent
   }
 });
 
-test("@CP-AGENT-004 嵌入式 Understanding 详情不显示 Capture 专属聊天入口", async () => {
+test("@CP-AGENT-004 用户在 Agent 页面内检查 Understanding 详情", async () => {
   const { app, page } = await launchAgentPage();
 
   try {
@@ -87,13 +87,18 @@ test("@CP-AGENT-004 嵌入式 Understanding 详情不显示 Capture 专属聊天
       "React Server Components",
       { timeout: 15_000 },
     );
-    await expect(inspector.getByTestId("capture-understanding-chat-button")).toHaveCount(0);
+    await expect(inspector.locator(".ProseMirror")).toContainText(
+      "RSC allows server-side rendering of components",
+    );
+    await inspector.getByLabel("关闭详情").click();
+    await expect(inspector).toHaveCount(0);
+    await expect(composer(page)).toBeEditable();
   } finally {
     await app.close();
   }
 });
 
-test("@CP-AGENT-005 未发送消息的 Capture 上下文 Agent 不进入对话列表", async () => {
+test("@CP-AGENT-005 对话列表只收录已发送消息的 Capture 上下文对话", async () => {
   const { app, page } = await launchApp();
 
   try {

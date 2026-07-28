@@ -12,6 +12,40 @@ export function domainNode(page: Page, name: string) {
   return page.locator(`[data-testid="capture-domain-node"][data-domain-name="${name}"]`);
 }
 
+export function understandingRow(page: Page, title: string) {
+  return page.locator(
+    `[data-testid="capture-understanding-row"][data-understanding-title="${title}"]`,
+  );
+}
+
+export function understandingTitleInput(page: Page) {
+  return page.getByPlaceholder("写下一个刚形成的理解");
+}
+
+export function understandingEditor(page: Page) {
+  return page.locator(".ProseMirror[contenteditable='true']").first();
+}
+
+export async function openUnderstanding(page: Page, title: string) {
+  await understandingRow(page, title).click();
+  await expect(understandingTitleInput(page)).toHaveValue(title);
+}
+
+export function contextCard(page: Page, title: string) {
+  return page.getByRole("button").filter({ hasText: title });
+}
+
+export async function addContext(page: Page, title: string, content: string) {
+  await page.getByRole("button", { name: "添加上下文" }).click();
+  const drawer = page.locator('[data-slot="sheet-content"]');
+  await expect(drawer).toContainText("添加上下文");
+  await drawer.getByRole("tab", { name: "个人经历" }).click();
+  await drawer.getByPlaceholder("上下文标题或场景").fill(title);
+  await drawer.locator(".ProseMirror[contenteditable='true']").fill(content);
+  await drawer.getByRole("button", { name: "保存" }).click();
+  await expect(drawer).toBeHidden();
+}
+
 export function sortableDomainNode(page: Page, name: string) {
   return page.locator(`[data-testid="capture-domain-sortable-node"][data-domain-name="${name}"]`);
 }

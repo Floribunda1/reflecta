@@ -801,9 +801,12 @@ test("@AG-PROPOSAL-005 用户重新打开对话后仍能处理等待确认的提
   try {
     await createNewThread(first.page);
     await sendMessage(first.page, prompt);
-    await expect(
-      first.page.getByTestId("agent-proposal-card").filter({ hasText: PI_RELOAD_PROPOSAL_TITLE }),
-    ).toBeVisible({ timeout: 120_000 });
+    const pendingCard = first.page
+      .getByTestId("agent-proposal-card")
+      .filter({ hasText: PI_RELOAD_PROPOSAL_TITLE });
+    await expect(pendingCard.getByTestId("agent-proposal-reject-button")).toBeVisible({
+      timeout: 120_000,
+    });
   } finally {
     await first.app.close();
   }
@@ -812,10 +815,16 @@ test("@AG-PROPOSAL-005 用户重新打开对话后仍能处理等待确认的提
 
   try {
     await openThread(second.page, prompt.slice(0, 20));
-    const card = second.page.getByTestId("agent-proposal-card").last();
-    await expect(card).toBeVisible({ timeout: 15_000 });
+    const card = second.page
+      .getByTestId("agent-proposal-card")
+      .filter({ hasText: PI_RELOAD_PROPOSAL_TITLE });
+    await expect(card.getByTestId("agent-proposal-reject-button")).toBeVisible({
+      timeout: 15_000,
+    });
     await card.getByTestId("agent-proposal-reject-button").click();
-    await expect(card).toContainText("已拒绝", { timeout: 120_000 });
+    await expect(second.page.getByTestId("agent-proposal-card").last()).toContainText("已拒绝", {
+      timeout: 120_000,
+    });
     expect(understandingExistsByTitle(PI_RELOAD_PROPOSAL_TITLE)).toBe(false);
   } finally {
     await second.app.close();
@@ -899,7 +908,7 @@ test("@AG-PROPOSAL-006 用户确认危险 Bash 后 Agent 继续回复", async ()
   }
 });
 
-test("@AG-PROPOSAL-008 用户拒绝危险 Bash 后命令不执行", async () => {
+test("@AG-PROPOSAL-008 用户拒绝危险 Bash 后看到拒绝结果", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(240_000);
 

@@ -1,8 +1,9 @@
 # language: zh-CN
-功能: Context 管理
+功能: 用户通过 CLI 管理 Understanding 的 Context
+  用户需要从脚本或 Agent 中查看、添加、修正和移除具体上下文，并通过命令结果确认知识库已经反映这些操作。
 
   背景:
-    假设 数据库已初始化并包含 Understanding 与 Context
+    假设 测试知识库中存在可操作的 Understanding 与 Context
 
   # context list
 
@@ -12,7 +13,7 @@
     当 用户执行命令 "context list --understanding-id UNDERSTANDING_ID"
     那么 标准输出包含 3 个 Context 对象
     并且 每个对象包含 id、understandingId、medium、title、content
-    并且 Context 按 created_at 降序排列
+    并且 最新创建的 Context 显示在最前面
 
   @CLI-CONTEXT-002
   场景: Understanding 下没有任何 Context
@@ -21,7 +22,7 @@
     那么 标准输出为空
 
   @CLI-CONTEXT-003
-  场景: 排除已软删除的 Context
+  场景: 列表只显示仍可使用的 Context
     假设 存在一条活跃 Understanding UNDERSTANDING_ID，其下有 2 个活跃 Context 和 1 个已删除 Context
     当 用户执行命令 "context list --understanding-id UNDERSTANDING_ID"
     那么 标准输出仅包含 2 个活跃 Context
@@ -34,7 +35,7 @@
 
   @CLI-CONTEXT-005
   场景: 对不存在的 Understanding 列出 Context
-    假设 存在一个数据库中不存在的 ID MISSING_ID
+    假设 测试知识库中不存在 ID MISSING_ID
     当 用户执行命令 "context list --understanding-id MISSING_ID"
     那么 标准输出为空
 
@@ -47,15 +48,15 @@
     那么 标准输出包含该 Context 的全部字段
 
   @CLI-CONTEXT-007
-  场景: 查看已软删除的 Context
-    假设 存在一条已软删除的 Context，其 ID 为 DELETED_CONTEXT_ID
+  场景: 查看已删除的 Context
+    假设 存在一条已删除的 Context，其 ID 为 DELETED_CONTEXT_ID
     当 用户执行命令 "context get DELETED_CONTEXT_ID"
     那么 命令退出码应为 1
     并且 标准错误输出应包含 NOT_FOUND
 
   @CLI-CONTEXT-008
   场景: 查看不存在的 Context
-    假设 存在一个数据库中不存在的 ID MISSING_ID
+    假设 测试知识库中不存在 ID MISSING_ID
     当 用户执行命令 "context get MISSING_ID"
     那么 命令退出码应为 1
     并且 标准错误输出应包含 NOT_FOUND
@@ -66,7 +67,7 @@
   场景: 创建最简 Context
     假设 存在一条活跃 Understanding，其 ID 为 UNDERSTANDING_ID
     当 用户执行命令 "context create --understanding-id UNDERSTANDING_ID --medium other --yes"
-    那么 数据库中新增一条 Context，其 understandingId 为 UNDERSTANDING_ID，medium 为 "other"
+    那么 标准输出包含新 Context，其 understandingId 为 UNDERSTANDING_ID，medium 为 "other"
     并且 title 为 null
     并且 content 为 ""
 
@@ -74,7 +75,8 @@
   场景: 创建完整的 Context
     假设 存在一条活跃 Understanding，其 ID 为 UNDERSTANDING_ID
     当 用户执行命令 "context create --understanding-id UNDERSTANDING_ID --medium article --title 'Blog Post' --content 'Important context' --yes"
-    那么 数据库中新增一条 Context，所有字段与输入一致
+    那么 标准输出包含新 Context
+    并且 新 Context 的 Understanding、媒介、标题和内容与输入一致
 
   @CLI-CONTEXT-011
   场景: 创建 Context 后可被搜索到
@@ -100,60 +102,51 @@
     假设 存在一条活跃 Understanding，其 ID 为 UNDERSTANDING_ID
     当 用户执行命令 "context create --understanding-id UNDERSTANDING_ID --medium other"
     那么 命令退出码应为 3
-    并且 数据库中未新增任何 Context
+    并且 再次列出该 Understanding 的 Context 时结果保持不变
 
   @CLI-CONTEXT-015
   场景: 为不存在的 Understanding 创建 Context
-    假设 存在一个数据库中不存在的 ID MISSING_ID
+    假设 测试知识库中不存在 ID MISSING_ID
     当 用户执行命令 "context create --understanding-id MISSING_ID --medium other --yes"
     那么 命令退出码应为 1
-    并且 标准错误输出应包含外键约束或 NOT_FOUND 错误
+    并且 标准错误输出应包含 NOT_FOUND
 
   # context update
 
   @CLI-CONTEXT-016
-  场景: 更新 Context 内容
+  场景: 更新 Context 的标题、媒介和内容
     假设 存在一条活跃 Context，其 ID 为 CONTEXT_ID
-    当 用户执行命令 "context update CONTEXT_ID --content 'Updated content' --yes"
-    那么 该 Context 的 content 被更新
-    并且 标准输出包含更新后的 Context 详情
-
-  @CLI-CONTEXT-017
-  场景: 更新 Context 标题
-    假设 存在一条活跃 Context，其 ID 为 CONTEXT_ID
-    当 用户执行命令 "context update CONTEXT_ID --title 'New Context' --yes"
-    那么 该 Context 的 title 被更新
-
-  @CLI-CONTEXT-018
-  场景: 更新 Context medium
-    假设 存在一条活跃 Context，其 ID 为 CONTEXT_ID
-    当 用户执行命令 "context update CONTEXT_ID --medium video --yes"
-    那么 该 Context 的 medium 被更新
+    当 用户执行命令 "context update CONTEXT_ID --title 'New Context' --medium video --content 'Updated content' --yes"
+    那么 标准输出中的 Context 标题应为 "New Context"
+    并且 标准输出中的 Context 媒介应为 "video"
+    并且 标准输出中的 Context 内容应为 "Updated content"
+    并且 再次查看 CONTEXT_ID 时内容仍为 "Updated content"
 
   @CLI-CONTEXT-027
   场景: 调整 Context 所属 Understanding
     假设 存在一条活跃 Context，其 ID 为 CONTEXT_ID
     并且 存在另一个活跃 Understanding，其 ID 为 TARGET_UNDERSTANDING_ID
     当 用户执行命令 "context update CONTEXT_ID --understanding-id TARGET_UNDERSTANDING_ID --yes"
-    那么 该 Context 的 understandingId 被更新为 TARGET_UNDERSTANDING_ID
+    那么 标准输出中的 understandingId 应为 TARGET_UNDERSTANDING_ID
+    并且 为 TARGET_UNDERSTANDING_ID 列出 Context 时应该包含 CONTEXT_ID
 
   @CLI-CONTEXT-019
   场景: 更新内容后搜索结果同步变化
     假设 存在一条活跃 Context CONTEXT_ID，其内容为 "OLD_TEXT"
     当 用户执行命令 "context update CONTEXT_ID --content 'NEW_TEXT' --yes"
-    那么 搜索 "OLD_TEXT" 不再返回该 Context
+    那么 搜索 "OLD_TEXT" 应该只显示当前内容仍然匹配的对象
     并且 搜索 "NEW_TEXT" 可返回该 Context
 
   @CLI-CONTEXT-020
   场景: 部分更新保留未更改字段
     假设 存在一条活跃 Context CONTEXT_ID，其 title 为 "Old Name"，content 为 "Old Content"
     当 用户执行命令 "context update CONTEXT_ID --content 'New Content' --yes"
-    那么 content 已更新
-    并且 title 仍为 "Old Name"
+    那么 标准输出中的 content 应为 "New Content"
+    并且 标准输出中的 title 仍为 "Old Name"
 
   @CLI-CONTEXT-021
   场景: 更新不存在的 Context
-    假设 存在一个数据库中不存在的 ID MISSING_ID
+    假设 测试知识库中不存在 ID MISSING_ID
     当 用户执行命令 "context update MISSING_ID --content 'X' --yes"
     那么 命令退出码应为 1
     并且 标准错误输出应包含 NOT_FOUND
@@ -167,22 +160,16 @@
   # context delete
 
   @CLI-CONTEXT-023
-  场景: 软删除 Context
+  场景: 删除 Context 后相关入口反映最新知识状态
     假设 存在一条活跃 Context，其 ID 为 CONTEXT_ID
     当 用户执行命令 "context delete CONTEXT_ID --yes"
-    那么 该 Context 的 deleted_at 被设置
-    并且 该 Context 不再出现在 context list 的结果中
-    并且 该 Context 不再出现在搜索结果中
-
-  @CLI-CONTEXT-024
-  场景: 删除 Context 后不再出现在搜索结果中
-    假设 存在一条活跃 Context CONTEXT_ID，其内容为 "DELETE_ME_KEYWORD"
-    当 用户执行命令 "context delete CONTEXT_ID --yes"
-    那么 搜索 "DELETE_ME_KEYWORD" 不再返回该 Context
+    那么 再次查看 CONTEXT_ID 时应该返回 NOT_FOUND
+    并且 列出所属 Understanding 的 Context 时应该只显示剩余的 Context
+    并且 搜索该 Context 的唯一内容时应该只显示当前可用的知识库对象
 
   @CLI-CONTEXT-025
   场景: 删除不存在的 Context
-    假设 存在一个数据库中不存在的 ID MISSING_ID
+    假设 测试知识库中不存在 ID MISSING_ID
     当 用户执行命令 "context delete MISSING_ID --yes"
     那么 命令退出码应为 1
     并且 标准错误输出应包含 NOT_FOUND

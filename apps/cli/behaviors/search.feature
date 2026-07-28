@@ -1,8 +1,9 @@
 # language: zh-CN
-功能: 知识搜索
+功能: 用户通过 CLI 找回相关 Understanding 和 Context
+  用户需要用关键词或语义描述找到自己的理解和具体上下文，并在内容修改或删除后得到与当前知识库一致的结果。
 
   背景:
-    假设 数据库中已存在可搜索的 Understanding 与 Context
+    假设 测试知识库中已存在可搜索的 Understanding 与 Context
 
   @CLI-SEARCH-001
   场景: 搜索返回混合命中
@@ -13,7 +14,7 @@
 
   @CLI-SEARCH-002
   场景: Context 命中带所属 Understanding ID
-    假设 数据库中存在一条活跃 Context，其内容包含 "Dockerfile"
+    假设 测试知识库中存在一条活跃 Context，其内容包含 "Dockerfile"
     当 用户执行命令 "search 'Dockerfile'"
     那么 Context 命中包含 understandingId
 
@@ -39,7 +40,7 @@
   场景: 搜索结果反映知识更新和删除
     假设 用户创建了一条 Understanding，其正文包含 "searchstatebeforemarker"
     当 用户将该 Understanding 的正文更新为 "searchstateaftermarker"
-    那么 搜索 "searchstatebeforemarker" 不再返回该 Understanding
-    并且 搜索 "searchstateaftermarker" 可返回该 Understanding
+    那么 搜索 "searchstatebeforemarker" 应该只显示当前内容仍然匹配的对象
+    并且 搜索 "searchstateaftermarker" 应该返回该 Understanding
     当 用户删除该 Understanding
-    那么 搜索 "searchstateaftermarker" 不再返回该 Understanding
+    那么 搜索 "searchstateaftermarker" 应该只显示当前仍可用的知识库对象

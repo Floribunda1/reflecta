@@ -480,7 +480,7 @@ function UnderstandingDetailInner({
               if (markdownEquals(next, body)) return;
               updateDraftBody(next);
             }}
-            onBlur={() => void saveDraft()}
+            onBlur={(markdown) => void saveDraft(markdown)}
             onWikiLinkOpen={onWikiLinkClick}
           />
         </section>
@@ -522,5 +522,5 @@ function UnderstandingDetailInner({
 }
 
 export function UnderstandingDetail(props: UnderstandingDetailProps) {
-  return <UnderstandingDetailInner {...props} />;
+  return <UnderstandingDetailInner key={props.understandingId} {...props} />;
 }

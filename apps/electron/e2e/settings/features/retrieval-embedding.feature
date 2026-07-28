@@ -1,6 +1,6 @@
 # language: zh-CN
 @settings @retrieval @v1.1.0
-功能: 语义检索设置
+功能: 用户准备和维护本地语义检索
   用户希望 Reflecta 能用本地 embedding 模型做语义检索，同时在模型未准备好时仍能继续使用基础检索。
 
   @P0 @settings @retrieval @EMBEDDING-SETTINGS-001
@@ -21,4 +21,5 @@
     当用户点击重新构建检索索引
     那么用户应该看到索引进入构建中
     而且用户应该看到生成 embedding 的已完成数量增加
-    那么用户应该看到检索索引已完成
+    当用户等待索引构建完成
+    那么用户应该看到检索索引状态为“已就绪”

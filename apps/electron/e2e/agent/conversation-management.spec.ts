@@ -34,7 +34,7 @@ function localIso(daysAgo: number, hour: number, minute: number) {
   return date.toISOString();
 }
 
-test("@AG-CONV-001 对话 A 正在回复时切换到对话 B 不影响 B", async () => {
+test("@AG-CONV-001 对话 A 正在回复时切换到对话 B 仍保持 B 的状态", async () => {
   seedAgentThread({
     id: "conv-a",
     title: "对话 A",

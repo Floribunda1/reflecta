@@ -39,6 +39,7 @@ export type AgentFixtureThread = {
   title: string;
   createdAt?: string;
   updatedAt?: string;
+  includeRuntimeMessages?: boolean;
   entityCatalog?: AgentFixtureEntityCatalogEntry[];
   contextCompactions?: AgentFixtureContextCompaction[];
   messages?: AgentFixtureMessage[];
@@ -79,7 +80,13 @@ export function seedAgentThread(thread: AgentFixtureThread) {
   runFixture({ type: "seedThread", thread });
 }
 
-export function seedUnderstanding(input: { id: string; title: string; body: string }) {
+export function seedUnderstanding(input: {
+  id: string;
+  title: string;
+  body: string;
+  createdAt?: string;
+  updatedAt?: string;
+}) {
   runFixture({ type: "seedUnderstanding", ...input });
 }
 

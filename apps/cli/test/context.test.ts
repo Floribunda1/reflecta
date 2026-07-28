@@ -1,12 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  runCommand,
-  parseJsonl,
-  parseJson,
-  getUnderstandingId,
-  getContextId,
-  queryDbOne,
-} from "./helpers";
+import { runCommand, parseJsonl, parseJson, getUnderstandingId, getContextId } from "./helpers";
 
 describe("Context 管理", () => {
   describe("context list", () => {
@@ -61,8 +54,8 @@ describe("Context 管理", () => {
   describe("context get", () => {
     it("查看一条活跃 Context", async () => {
       const ctxId = getContextId("github.com/vercel/next.js");
-      if (!ctxId) return;
-      const { code, stdout } = await runCommand(["context", "get", ctxId]);
+      expect(ctxId).toBeDefined();
+      const { code, stdout } = await runCommand(["context", "get", ctxId!]);
       expect(code).toBe(0);
       const data = parseJson(stdout) as Record<string, unknown>;
       expect(data.id).toBe(ctxId);
@@ -278,7 +271,7 @@ describe("Context 管理", () => {
   });
 
   describe("context delete", () => {
-    it("软删除 Context", async () => {
+    it("删除 Context 后公开查询返回最新状态", async () => {
       const understandingId = getUnderstandingId("React Server Components");
       expect(understandingId).toBeDefined();
       const { stdout: createOut } = await runCommand([
@@ -288,15 +281,41 @@ describe("Context 管理", () => {
         understandingId!,
         "--medium",
         "experience",
+        "--content",
+        "DELETE_CONTEXT_PUBLIC_CHECK",
         "--yes",
       ]);
       const ctxId = (parseJson(createOut) as { id: string }).id;
       const { code } = await runCommand(["context", "delete", ctxId, "--yes"]);
       expect(code).toBe(0);
-      const row = queryDbOne<{ deleted_at: string | null }>(
-        `SELECT deleted_at FROM contexts WHERE id = '${ctxId}'`,
+
+      const getResult = await runCommand(["context", "get", ctxId]);
+      expect(getResult.code).toBe(1);
+      expect(JSON.parse(getResult.stderr).code).toBe("NOT_FOUND");
+
+      const listResult = await runCommand([
+        "context",
+        "list",
+        "--understanding-id",
+        understandingId!,
+      ]);
+      const contextIds = (parseJsonl(listResult.stdout) as Array<{ id: string }>).map(
+        (context) => context.id,
       );
-      expect(row!.deleted_at).not.toBeNull();
+      expect(contextIds).not.toContain(ctxId);
+
+      const searchResult = await runCommand([
+        "search",
+        "DELETE_CONTEXT_PUBLIC_CHECK",
+        "--format",
+        "json",
+      ]);
+      const hits = (
+        parseJson(searchResult.stdout) as {
+          hits: Array<{ context?: { id: string } }>;
+        }
+      ).hits;
+      expect(hits.map((hit) => hit.context?.id)).not.toContain(ctxId);
     });
 
     it("删除不存在的 Context", async () => {

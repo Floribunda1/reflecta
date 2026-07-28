@@ -20,7 +20,7 @@ export type ConfirmOptions = {
 type ModalState = {
   content: ReactNode;
   options: ModalOptions;
-} | null;
+};
 
 type ModalContextValue = {
   openModal: (content: ReactNode, options?: ModalOptions) => void;
@@ -31,10 +31,10 @@ type ModalContextValue = {
 const ModalContext = createContext<ModalContextValue | null>(null);
 
 export function ModalProvider({ children }: { children: ReactNode }) {
-  const [modal, setModal] = useState<ModalState>(null);
-  const closeModal = useCallback(() => setModal(null), []);
+  const [modals, setModals] = useState<ModalState[]>([]);
+  const closeModal = useCallback(() => setModals((current) => current.slice(0, -1)), []);
   const openModal = useCallback((content: ReactNode, options: ModalOptions = {}) => {
-    setModal({ content, options });
+    setModals([{ content, options }]);
   }, []);
   const confirm = useCallback(
     ({
@@ -45,27 +45,30 @@ export function ModalProvider({ children }: { children: ReactNode }) {
       danger,
       onAccept,
     }: ConfirmOptions) => {
-      setModal({
-        options: { title, widthClassName: "max-w-md" },
-        content: (
-          <div className="space-y-5">
-            <div className="text-sm leading-6 text-muted-foreground">{message}</div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={closeModal}>
-                {rejectLabel}
-              </Button>
-              <Button
-                type="button"
-                variant={danger ? "destructive" : "default"}
-                size="sm"
-                onClick={() => void Promise.resolve(onAccept()).finally(closeModal)}
-              >
-                {acceptLabel}
-              </Button>
+      setModals((current) => [
+        ...current,
+        {
+          options: { title, widthClassName: "max-w-md" },
+          content: (
+            <div className="space-y-5">
+              <div className="text-sm leading-6 text-muted-foreground">{message}</div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={closeModal}>
+                  {rejectLabel}
+                </Button>
+                <Button
+                  type="button"
+                  variant={danger ? "destructive" : "default"}
+                  size="sm"
+                  onClick={() => void Promise.resolve(onAccept()).finally(closeModal)}
+                >
+                  {acceptLabel}
+                </Button>
+              </div>
             </div>
-          </div>
-        ),
-      });
+          ),
+        },
+      ]);
     },
     [closeModal],
   );
@@ -77,8 +80,8 @@ export function ModalProvider({ children }: { children: ReactNode }) {
   return (
     <ModalContext.Provider value={value}>
       {children}
-      {modal && (
-        <Dialog open onOpenChange={(isOpen) => !isOpen && closeModal()}>
+      {modals.map((modal, index) => (
+        <Dialog key={index} open onOpenChange={(isOpen) => !isOpen && closeModal()}>
           <DialogContent
             className={[
               modal.options.widthClassName ?? "max-w-3xl",
@@ -94,7 +97,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
             {modal.content}
           </DialogContent>
         </Dialog>
-      )}
+      ))}
     </ModalContext.Provider>
   );
 }

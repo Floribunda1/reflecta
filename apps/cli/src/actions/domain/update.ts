@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import { getServices } from "../../services";
+import { CliError, ErrorCodes } from "../../error";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
 
 import { registerActionMeta } from "../meta";
@@ -29,10 +30,19 @@ export async function updateDomainAction(id: string, cli: Command): Promise<void
   await runCommand(
     async () => {
       const services = await getServices();
-      return services.domains.updateDomainSummary(id, {
-        name: options.name,
-        parentId: options.parentId ?? null,
-      });
+      try {
+        return await services.domains.updateDomainSummary(id, {
+          name: options.name,
+          ...(options.parentId !== undefined
+            ? { parentId: options.parentId === "" ? null : options.parentId }
+            : {}),
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message.startsWith("Domain cannot be")) {
+          throw new CliError(ErrorCodes.VALIDATION_ERROR, error.message);
+        }
+        throw error;
+      }
     },
     { ...options, mutates: true },
   );

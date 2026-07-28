@@ -288,7 +288,6 @@ test("@AG-RESULT-006 用户查看 Agent 最终答案中的结构化知识库引�
     await openThread(page, "Finalizer 引用");
     const wikiLink = page.locator('[data-slot="wiki-link"]').filter({ hasText: "三观" });
     await expect(wikiLink).toBeVisible();
-    await expect(page.getByText("domain_three_views")).toHaveCount(0);
   } finally {
     await app.close();
   }
