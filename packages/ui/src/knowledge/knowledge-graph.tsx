@@ -9,48 +9,18 @@ import {
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useMemo, useRef } from "react";
-import { Button } from "@reflecta/ui/components/button";
-import { ButtonGroup } from "@reflecta/ui/components/button-group";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@reflecta/ui/components/tooltip";
-import { buildGraphElementStates, type KnowledgeGraphData } from "./graph-data";
+import { Button } from "../components/button";
+import { ButtonGroup } from "../components/button-group";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/tooltip";
+import { buildGraphElementStates, type KnowledgeGraphData } from "./knowledge-graph-state";
 
-type KnowledgeGraphProps = {
+export type KnowledgeGraphProps = {
   data: KnowledgeGraphData;
-  selectedUnderstandingId: string | null;
-  onSelect: (understandingId: string) => void;
-  onClearSelection: () => void;
-};
-
-type GraphColors = {
-  foreground: string;
-  mutedForeground: string;
+  selectedId: string | null;
+  onSelectionChange: (id: string | null) => void;
 };
 
 const FIT_VIEW_OPTIONS = { when: "overflow", direction: "both" } as const;
-
-function readGraphColors(): GraphColors {
-  const probe = document.createElement("div");
-  probe.className = "pointer-events-none fixed invisible";
-
-  const foreground = document.createElement("span");
-  foreground.className = "text-foreground";
-  const mutedForeground = document.createElement("span");
-  mutedForeground.className = "text-muted-foreground";
-  probe.append(foreground, mutedForeground);
-  document.body.append(probe);
-
-  const colors = {
-    foreground: getComputedStyle(foreground).color,
-    mutedForeground: getComputedStyle(mutedForeground).color,
-  };
-  probe.remove();
-  return colors;
-}
 
 function getNodeDegree(node: NodeData): number {
   const degree = node.data?.degree;
@@ -123,26 +93,20 @@ function GraphControl({
   );
 }
 
-export function KnowledgeGraph({
-  data,
-  selectedUnderstandingId,
-  onSelect,
-  onClearSelection,
-}: KnowledgeGraphProps) {
+export function KnowledgeGraph({ data, selectedId, onSelectionChange }: KnowledgeGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<Graph | null>(null);
   const graphReadyRef = useRef(false);
   const dataRef = useRef(data);
-  const selectedUnderstandingIdRef = useRef(selectedUnderstandingId);
+  const selectedIdRef = useRef(selectedId);
   const hoveredUnderstandingIdRef = useRef<string | null>(null);
-  const onSelectRef = useRef(onSelect);
-  const onClearSelectionRef = useRef(onClearSelection);
-  const { resolvedTheme } = useTheme();
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  const { forcedTheme, resolvedTheme } = useTheme();
+  const graphTheme = forcedTheme ?? resolvedTheme;
 
   dataRef.current = data;
-  selectedUnderstandingIdRef.current = selectedUnderstandingId;
-  onSelectRef.current = onSelect;
-  onClearSelectionRef.current = onClearSelection;
+  selectedIdRef.current = selectedId;
+  onSelectionChangeRef.current = onSelectionChange;
 
   const topologyKey = useMemo(
     () =>
@@ -158,7 +122,11 @@ export function KnowledgeGraph({
     const container = containerRef.current;
     if (!container) return;
 
-    const colors = readGraphColors();
+    // G6 canvas styles do not parse the app's OKLCH CSS tokens reliably.
+    const colors =
+      graphTheme === "dark"
+        ? { foreground: "#fafaf9", mutedForeground: "#a8a29e" }
+        : { foreground: "#1c1917", mutedForeground: "#78716c" };
     const graph = new Graph({
       container,
       data: dataRef.current,
@@ -300,7 +268,7 @@ export function KnowledgeGraph({
       void syncFocus(
         graph,
         dataRef.current,
-        selectedUnderstandingIdRef.current,
+        selectedIdRef.current,
         hoveredUnderstandingIdRef.current,
       );
     };
@@ -316,14 +284,14 @@ export function KnowledgeGraph({
     const selectNode = (event: IPointerEvent) => {
       const id = getEventTargetId(event);
       if (!id) return;
-      selectedUnderstandingIdRef.current = id;
-      onSelectRef.current(id);
+      selectedIdRef.current = id;
+      onSelectionChangeRef.current(id);
       applyFocus();
     };
     const clearSelection = () => {
       hoveredUnderstandingIdRef.current = null;
-      selectedUnderstandingIdRef.current = null;
-      onClearSelectionRef.current();
+      selectedIdRef.current = null;
+      onSelectionChangeRef.current(null);
       applyFocus();
     };
     graph.on(NodeEvent.POINTER_ENTER, previewNode);
@@ -355,7 +323,7 @@ export function KnowledgeGraph({
         await syncFocus(
           graph,
           dataRef.current,
-          selectedUnderstandingIdRef.current,
+          selectedIdRef.current,
           hoveredUnderstandingIdRef.current,
         );
         container.dataset.graphReady = "true";
@@ -373,7 +341,7 @@ export function KnowledgeGraph({
       graphRef.current = null;
       graph.destroy();
     };
-  }, [resolvedTheme, topologyKey]);
+  }, [graphTheme, topologyKey]);
 
   useEffect(() => {
     const graph = graphRef.current;
@@ -386,13 +354,23 @@ export function KnowledgeGraph({
   useEffect(() => {
     const graph = graphRef.current;
     if (!graph || !graphReadyRef.current) return;
-    void syncFocus(
-      graph,
-      dataRef.current,
-      selectedUnderstandingId,
-      hoveredUnderstandingIdRef.current,
+    void syncFocus(graph, dataRef.current, selectedId, hoveredUnderstandingIdRef.current);
+  }, [selectedId]);
+
+  if (data.nodes.length === 0) {
+    return (
+      <div
+        data-testid="knowledge-wander-graph"
+        data-node-count="0"
+        data-edge-count="0"
+        className="flex h-full min-h-64 w-full items-center justify-center bg-background px-6 text-center text-sm text-muted-foreground"
+        role="application"
+        aria-label="知识漫步图谱"
+      >
+        还没有可展示的 Understanding 关系
+      </div>
     );
-  }, [selectedUnderstandingId]);
+  }
 
   const withGraph = (action: (graph: Graph) => void) => {
     const graph = graphRef.current;
@@ -404,7 +382,7 @@ export function KnowledgeGraph({
       data-testid="knowledge-wander-graph"
       data-node-count={data.nodes.length}
       data-edge-count={data.edges.length}
-      data-selected-understanding-id={selectedUnderstandingId ?? ""}
+      data-selected-understanding-id={selectedId ?? ""}
       className="relative h-full min-h-0 w-full overflow-hidden bg-background"
       role="application"
       aria-label="知识漫步图谱"
@@ -418,7 +396,7 @@ export function KnowledgeGraph({
             type="button"
             data-node-id={node.id}
             data-node-degree={node.data.degree}
-            onClick={() => onSelect(node.id)}
+            onClick={() => onSelectionChange(node.id)}
           >
             打开理解：{node.data.title}
           </button>

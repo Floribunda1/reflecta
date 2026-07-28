@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { Button } from "../../components/button";
 import { ChatMessageRow } from "./chat-message-row";
 import type { ChatMessageRowView } from "./types";
 
@@ -15,11 +16,16 @@ const userRow: ChatMessageRowView = {
     attachments: [
       {
         id: "attachment-1",
-        name: "layout.png",
+        name: "agent-layout.png",
         mediaType: "image/png",
-        previewUrl: "https://placehold.co/480x240/png",
+        previewUrl:
+          "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='240'%3E%3Crect width='100%25' height='100%25' fill='%23dbeafe'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%231e3a8a' font-size='24'%3EAgent Layout%3C/text%3E%3C/svg%3E",
       },
-      { id: "attachment-2", name: "notes.pdf", mediaType: "application/pdf" },
+      {
+        id: "attachment-2",
+        name: "Storybook-组件验收说明-长文件名.pdf",
+        mediaType: "application/pdf",
+      },
     ],
   },
   timestampLabel: "7月28日 13:00:00",
@@ -62,7 +68,7 @@ const assistantRow: ChatMessageRowView = {
 };
 
 const meta = {
-  title: "Chat/Message Row",
+  title: "Agent/基本组件/Message",
   component: ChatMessageRow,
   args: {
     row: assistantRow,
@@ -72,12 +78,19 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const User: Story = { args: { row: userRow } };
-export const Assistant: Story = {};
+export const User: Story = {
+  name: "用户消息",
+  args: { row: userRow },
+};
+export const Assistant: Story = {
+  name: "Assistant 完成态",
+};
 export const SearchHighlight: Story = {
+  name: "搜索高亮与操作",
   args: { row: { ...assistantRow, highlighted: true }, search: { query: "流式" } },
 };
 export const Pending: Story = {
+  name: "等待回复",
   args: {
     row: {
       message: { kind: "assistant", id: "assistant-pending", status: "streaming", blocks: [] },
@@ -85,6 +98,7 @@ export const Pending: Story = {
   },
 };
 export const Stopped: Story = {
+  name: "已停止",
   args: {
     row: {
       ...assistantRow,
@@ -98,6 +112,7 @@ export const Stopped: Story = {
   },
 };
 export const Failed: Story = {
+  name: "回复失败",
   args: {
     row: {
       message: {
@@ -132,15 +147,54 @@ function StreamingTextSequence() {
   return (
     <div className="grid max-w-2xl gap-3">
       <ChatMessageRow row={row} />
-      <button
+      <Button
         type="button"
-        className="w-fit rounded-md border px-3 py-1.5 text-sm"
+        className="w-fit"
+        size="sm"
         onClick={() => setFrame((current) => (current + 1) % frames.length)}
       >
         下一帧
-      </button>
+      </Button>
     </div>
   );
 }
 
-export const StreamingIdentity: Story = { render: () => <StreamingTextSequence /> };
+export const StreamingIdentity: Story = {
+  name: "流式更新与稳定 Identity",
+  render: () => <StreamingTextSequence />,
+};
+
+export const DangerousBoundaries: Story = {
+  name: "长内容与窄容器",
+  args: {
+    row: {
+      message: {
+        kind: "assistant",
+        id: "assistant-long",
+        status: "done",
+        blocks: [
+          {
+            kind: "text",
+            id: "assistant-long:text:0",
+            status: "done",
+            markdown: `## 长回复
+
+${"这是一段用于观察中文长内容换行、段落间距和消息宽度的回答。".repeat(16)}
+
+\`\`\`bash
+${"bun run --cwd packages/ui build-storybook --verbose ".repeat(8)}
+\`\`\``,
+          },
+        ],
+      },
+      enabledActions: ["copy", "fork", "regenerate"],
+    },
+  },
+  decorators: [
+    (Story) => (
+      <div className="w-[360px] max-w-full">
+        <Story />
+      </div>
+    ),
+  ],
+};

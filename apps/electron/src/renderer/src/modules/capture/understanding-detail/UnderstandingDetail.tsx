@@ -1,5 +1,6 @@
 import { Badge } from "@reflecta/ui/components/badge";
 import { Button } from "@reflecta/ui/components/button";
+import { DomainTreeSelect } from "@reflecta/ui/capture";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -17,7 +18,6 @@ import {
   MarkdownPreview,
   SimpleMarkdownPreview,
 } from "@reflecta/ui/editor";
-import { DomainTreeSelect } from "@renderer/modules/shared/biz-components/DomainTreeSelect";
 import { useDrawer } from "@reflecta/ui/overlays";
 import { useModal } from "@reflecta/ui/overlays";
 import type { ContextDTO, ContextMedium } from "@shared/context";
@@ -33,6 +33,7 @@ import {
   getMarkdownEditorSuggestions,
   uploadMarkdownAsset,
 } from "../adapters/markdown-editor-adapter";
+import { useCaptureDomains } from "../queries";
 
 type UnderstandingDetailProps = {
   understandingId: string;
@@ -274,6 +275,7 @@ function UnderstandingDetailInner({
 }: UnderstandingDetailProps) {
   const detailRef = useRef<HTMLElement>(null);
   const { understanding } = useUnderstandingDetail(understandingId);
+  const { domains, loading: domainsLoading } = useCaptureDomains();
   const { updateUnderstanding, deleteUnderstanding, createContext, updateContext, deleteContext } =
     useUnderstandingDetailActions(understandingId);
   const { confirm } = useModal();
@@ -400,11 +402,13 @@ function UnderstandingDetailInner({
             <span>{updatedLabel}</span>
             <span aria-hidden>·</span>
             <DomainTreeSelect
-              modelValue={understanding.domainIds}
-              onUpdateModelValue={(domainIds) => void updateUnderstanding({ domainIds })}
+              value={understanding.domainIds}
+              onValueChange={(domainIds) => void updateUnderstanding({ domainIds })}
+              nodes={domains}
+              status={domainsLoading ? "loading" : "ready"}
               placeholder="未归入 Domain"
               fluid={false}
-              usePathLabel={false}
+              showPath={false}
               variant="inline"
             />
             {onChat ? (

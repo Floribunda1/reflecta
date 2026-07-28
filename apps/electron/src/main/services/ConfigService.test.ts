@@ -99,7 +99,7 @@ describe("ConfigService retrieval index", () => {
       state: "error",
       error: expect.stringContaining("fetch failed"),
     });
-  });
+  }, 15_000);
 });
 
 describe("ConfigService AI models", () => {

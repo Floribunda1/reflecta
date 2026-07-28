@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Button } from "@reflecta/ui/components/button";
 import { DialogFooter } from "@reflecta/ui/components/dialog";
 import { Input } from "@reflecta/ui/components/input";
+import { DomainTreeSelect } from "@reflecta/ui/capture";
 import type { DomainTreeNode } from "@shared/domain";
-import { DomainTreeSelect } from "@renderer/modules/shared/biz-components/DomainTreeSelect";
 
 export type DomainModalData = {
   initialParentId?: string | null;
@@ -46,8 +46,8 @@ export function DomainModalContent({ data }: { data: DomainModalData }) {
           mode="single"
           value={parentId}
           onValueChange={setParentId}
-          domains={data.domains}
-          excludeIds={data.editDomain ? [data.editDomain.id] : []}
+          nodes={data.domains}
+          excludedIds={data.editDomain ? [data.editDomain.id] : []}
           placeholder="无父领域"
         />
       </div>

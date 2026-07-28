@@ -1,8 +1,10 @@
 # v1.2.5 Storybook 组件验收设计计划
 
-> 状态：Planned
+> 状态：Completed
 >
 > 日期：2026-07-28
+>
+> 完成日期：2026-07-28
 >
 > 上位计划：[UI Package 与 Storybook 迁移计划](./ui-package-storybook-migration-plan.md)
 >
@@ -29,6 +31,19 @@ Reflecta Storybook 是一套**经过筛选的高价值组件验收面**，不是
 一句话原则：
 
 > Storybook 只收录值得反复看、值得单独操作、也值得长期防回归的项目独有 UI。
+
+### 1.1 实施结果
+
+本计划已按高 ROI 白名单落地：
+
+- Storybook 只保留 Capture、Agent、Knowledge Wander 三个区域；
+- Capture 收录 Markdown Editor、Domain Tree、Domain Tree Select、Understanding Row，以及一个知识整理核心组合；
+- Agent 收录 Composer、Message、Markdown、Execution、Proposal，以及典型任务、确认任务、高密度与异常三个组合；
+- Knowledge Wander 只收录 Knowledge Graph；
+- Domain Tree、Domain Tree Select、Understanding Row、Knowledge Graph 的展示与交互 ownership 已迁入 `packages/ui`，Renderer 只保留 query、store、mutation、Modal、IPC 与 DTO Adapter；
+- Foundation gallery 已删除，Settings、普通 Form/List/Detail 和 shadcn primitives 未进入 Storybook；
+- 自有导航、Story 名称、fixture 和交互文案已中文化；Storybook Manager 没有稳定的官方 locale 能力，因此未 fork 或 patch；
+- 已通过浅色/深色与交互人工验收，并完成 format、lint、typecheck、unit/component tests、Storybook build、workspace build/tests 和 93 条 Electron E2E。
 
 ## 2. 高 ROI 准入门槛
 
@@ -263,7 +278,7 @@ Story：
 | `selectedId`     | controlled selection                      |
 | `expandedIds`    | controlled 或明确的内部状态               |
 | `onSelect`       | 只返回 Domain identity                    |
-| `onMove`         | 返回 source、target 和 position           |
+| `onReorder`      | 返回同层级的 active、over identity        |
 | action callbacks | create/rename/delete，不直接调用 mutation |
 
 Story：
@@ -281,14 +296,14 @@ Story：
 
 期望 interface：
 
-| 输入/输出            | 约束                          |
-| -------------------- | ----------------------------- |
-| `nodes`              | display-ready tree            |
-| `value` / `onChange` | controlled selection          |
-| `mode`               | 只保留真实存在的单选/多选语义 |
-| `excludedIds`        | 控制不可选项，不内置业务判断  |
-| `loading`/`error`    | 由 Adapter 提供可见状态       |
-| `disabled`           | 标准不可操作状态              |
+| 输入/输出                 | 约束                                    |
+| ------------------------- | --------------------------------------- |
+| `nodes`                   | display-ready tree                      |
+| `value` / `onValueChange` | controlled selection                    |
+| `multiple`                | discriminated single/multiple interface |
+| `excludedIds`             | 控制不可选项，不内置业务判断            |
+| `loading`/`error`         | 由 Adapter 提供可见状态                 |
+| `disabled`                | 标准不可操作状态                        |
 
 Story：
 
@@ -540,13 +555,13 @@ stateDiagram-v2
 
 期望 interface：
 
-| 输入/输出       | 约束                                          |
-| --------------- | --------------------------------------------- |
-| `data`          | UI-owned nodes/edges                          |
-| `selection`     | controlled selected/hovered identity          |
-| `onSelect`      | 返回 node identity                            |
-| viewport action | zoom、fit、resize，不读取 route/query         |
-| display state   | empty/loading/error 仅在 Graph 自身可见时保留 |
+| 输入/输出           | 约束                                          |
+| ------------------- | --------------------------------------------- |
+| `data`              | UI-owned nodes/edges                          |
+| `selectedId`        | controlled selected identity                  |
+| `onSelectionChange` | 返回 node identity；hover 由图谱内部管理      |
+| viewport action     | zoom、fit、resize，不读取 route/query         |
+| display state       | empty/loading/error 仅在 Graph 自身可见时保留 |
 
 Story：
 
@@ -716,35 +731,35 @@ Graph controls 作为 `KnowledgeGraph` 的内部交互一起验收，不单独�
 
 ### 范围与 ROI
 
-- [ ] Storybook 只包含 Capture、Agent、Knowledge Wander 的高价值组件；
-- [ ] Settings、DomainForm、普通 List/Detail、Context preview/detail 没有独立 Story；
-- [ ] 没有 shadcn gallery、Foundation gallery、页面 Story 或空目录；
-- [ ] 每个 Story 都通过两道准入门槛和删除测试；
-- [ ] 未因 Storybook 单独制造 production seam。
+- [x] Storybook 只包含 Capture、Agent、Knowledge Wander 的高价值组件；
+- [x] Settings、DomainForm、普通 List/Detail、Context preview/detail 没有独立 Story；
+- [x] 没有 shadcn gallery、Foundation gallery、页面 Story 或空目录；
+- [x] 每个 Story 都通过两道准入门槛和删除测试；
+- [x] 未因 Storybook 单独制造 production seam。
 
 ### 基本组件
 
-- [ ] Markdown Editor/Preview 作为一个 Module 验收，语法与边界完整；
-- [ ] Agent Markdown 覆盖完整语法、流式不完整语法和边界；
-- [ ] Tool/Proposal 使用“类型语义 fixture + visual family 状态”二维覆盖；
-- [ ] streaming 使用稳定 identity，不依赖 remount；
-- [ ] Domain Tree、Domain Tree Select、Understanding Row、Knowledge Graph 只在清晰 UI seam 完成后加入。
+- [x] Markdown Editor/Preview 作为一个 Module 验收，语法与边界完整；
+- [x] Agent Markdown 覆盖完整语法、流式不完整语法和边界；
+- [x] Tool/Proposal 使用“类型语义 fixture + visual family 状态”二维覆盖；
+- [x] streaming 使用稳定 identity，不依赖 remount；
+- [x] Domain Tree、Domain Tree Select、Understanding Row、Knowledge Graph 只在清晰 UI seam 完成后加入。
 
 ### 组合场景
 
-- [ ] Capture 只有一个知识整理核心组合；
-- [ ] Agent 只有典型任务、确认任务、高密度与异常三个组合；
-- [ ] 组合 Story 能回答单组件无法回答的密度、节奏或层级问题；
-- [ ] 组合只使用真实组件和本地展示状态；
-- [ ] 不引入 Router、IPC、query、production store 或业务 workflow。
+- [x] Capture 只有一个知识整理核心组合；
+- [x] Agent 只有典型任务、确认任务、高密度与异常三个组合；
+- [x] 组合 Story 能回答单组件无法回答的密度、节奏或层级问题；
+- [x] 组合只使用真实组件和本地展示状态；
+- [x] 不引入 Router、IPC、query、production store 或业务 workflow。
 
 ### 中文与工程验证
 
-- [ ] 导航、Story 名称、fixture、Controls 和说明为中文；
-- [ ] 正式产品术语、Tool、代码和命令保留原文；
-- [ ] format、lint、typecheck 通过；
-- [ ] UI unit/component tests 通过；
-- [ ] Storybook build 通过；
-- [ ] 全 workspace tests/build 通过；
-- [ ] 完整 Electron E2E 通过；
-- [ ] 全部变更按 Angular Commit Convention 提交。
+- [x] 自有导航、Story 名称、fixture、操作文案和说明为中文；
+- [x] 正式产品术语、Tool、代码和命令保留原文；
+- [x] format、lint、typecheck 通过；
+- [x] UI unit/component tests 通过；
+- [x] Storybook build 通过；
+- [x] 全 workspace tests/build 通过；
+- [x] 完整 Electron E2E 通过；
+- [x] 全部变更按 Angular Commit Convention 提交。

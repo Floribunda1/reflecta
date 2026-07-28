@@ -8,6 +8,7 @@ import {
   ResizablePanelGroup,
 } from "@reflecta/ui/components/resizable";
 import { Skeleton } from "@reflecta/ui/components/skeleton";
+import { KnowledgeGraph } from "@reflecta/ui/knowledge";
 import { cn } from "@reflecta/ui/lib/utils";
 import { SidebarToggleButton } from "@renderer/modules/shared/layout/SidebarToggleButton";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
@@ -15,7 +16,6 @@ import { useCaptureDomains, useCaptureUnderstandingList } from "../queries";
 import { useCaptureStore, type CaptureAgentScope } from "../store";
 import { UnderstandingDetail } from "../understanding-detail";
 import { buildKnowledgeGraphData } from "./graph-data";
-import { KnowledgeGraph } from "./graph";
 
 const EMPTY_UNDERSTANDINGS: UnderstandingSummaryDTO[] = [];
 
@@ -94,9 +94,8 @@ export function KnowledgeWanderWorkspace({
     graphContent = (
       <KnowledgeGraph
         data={graphData}
-        selectedUnderstandingId={selectedUnderstandingId}
-        onSelect={selectUnderstanding}
-        onClearSelection={() => selectUnderstanding(null)}
+        selectedId={selectedUnderstandingId}
+        onSelectionChange={selectUnderstanding}
       />
     );
   }

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { Button } from "../../components/button";
 import { AgentProposalCard } from "./agent-proposal-card";
-import type { AgentProposalView } from "./types";
+import type { AgentProposalLifecycle, AgentProposalView } from "./types";
 
 const base = {
   id: "approval-1",
@@ -100,7 +101,7 @@ const proposals = {
 } satisfies Record<string, AgentProposalView>;
 
 const meta = {
-  title: "Chat/Agent Proposal",
+  title: "Agent/基本组件/Proposal",
   component: AgentProposalCard,
   args: {
     proposal: proposals.understandingCreate,
@@ -111,61 +112,137 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const UnderstandingCreate: Story = {};
-export const UnderstandingUpdate: Story = { args: { proposal: proposals.understandingUpdate } };
-export const UnderstandingDelete: Story = { args: { proposal: proposals.understandingDelete } };
-export const DomainCreate: Story = { args: { proposal: proposals.domainCreate } };
-export const DomainUpdate: Story = { args: { proposal: proposals.domainUpdate } };
-export const DomainDelete: Story = { args: { proposal: proposals.domainDelete } };
-export const ContextCreate: Story = { args: { proposal: proposals.contextCreate } };
-export const ContextUpdate: Story = { args: { proposal: proposals.contextUpdate } };
-export const ContextDelete: Story = { args: { proposal: proposals.contextDelete } };
-export const DangerousBash: Story = { args: { proposal: proposals.bash } };
-export const Unknown: Story = { args: { proposal: proposals.unknown } };
+export const UnderstandingCreate: Story = {
+  name: "类型 · 新建 Understanding",
+};
+export const UnderstandingUpdate: Story = {
+  name: "类型 · 修改 Understanding",
+  args: { proposal: proposals.understandingUpdate },
+};
+export const UnderstandingDelete: Story = {
+  name: "类型 · 删除 Understanding",
+  args: { proposal: proposals.understandingDelete },
+};
+export const DomainCreate: Story = {
+  name: "类型 · 新建 Domain",
+  args: { proposal: proposals.domainCreate },
+};
+export const DomainUpdate: Story = {
+  name: "类型 · 修改 Domain",
+  args: { proposal: proposals.domainUpdate },
+};
+export const DomainDelete: Story = {
+  name: "类型 · 删除 Domain",
+  args: { proposal: proposals.domainDelete },
+};
+export const ContextCreate: Story = {
+  name: "类型 · 新建 Context",
+  args: { proposal: proposals.contextCreate },
+};
+export const ContextUpdate: Story = {
+  name: "类型 · 修改 Context",
+  args: { proposal: proposals.contextUpdate },
+};
+export const ContextDelete: Story = {
+  name: "类型 · 删除 Context",
+  args: { proposal: proposals.contextDelete },
+};
+export const DangerousBash: Story = {
+  name: "类型 · Dangerous Bash",
+  args: { proposal: proposals.bash },
+};
+export const Unknown: Story = {
+  name: "类型 · Unknown 回退",
+  args: { proposal: proposals.unknown },
+};
 
-const sequence = [
-  {
+function ProposalLifecycleDemo() {
+  const [previewComplete, setPreviewComplete] = useState(false);
+  const [lifecycle, setLifecycle] = useState<AgentProposalLifecycle>("preview");
+  const proposal: AgentProposalView = {
     ...proposals.understandingCreate,
-    lifecycle: "preview" as const,
-    decisionEnabled: false,
-    content: { heading: "组件" },
-  },
-  {
-    ...proposals.understandingCreate,
-    lifecycle: "preview" as const,
-    decisionEnabled: false,
-    content: { heading: "组件边界", body: "把展示语义放在 UI…" },
-  },
-  proposals.understandingCreate,
-  {
-    ...proposals.understandingCreate,
-    lifecycle: "running" as const,
-    decisionEnabled: false,
-  },
-  {
-    ...proposals.understandingCreate,
-    lifecycle: "completed" as const,
-    decisionEnabled: false,
-    note: "已写入 Understanding",
-  },
-];
+    lifecycle,
+    decisionEnabled: lifecycle === "pending",
+    content: previewComplete
+      ? proposals.understandingCreate.content
+      : { heading: "组件", body: "把展示语义放在…" },
+    note: lifecycle === "completed" ? "已写入 Understanding" : undefined,
+    error: lifecycle === "failed" ? "写入失败，请检查本地存储后重试。" : undefined,
+  };
 
-function StreamingSequence() {
-  const [frame, setFrame] = useState(0);
+  const reset = () => {
+    setPreviewComplete(false);
+    setLifecycle("preview");
+  };
+
   return (
     <div className="grid max-w-2xl gap-3">
-      <AgentProposalCard proposal={sequence[frame]} onDecision={() => undefined} />
-      <button
-        type="button"
-        className="w-fit rounded-md border px-3 py-1.5 text-sm"
-        onClick={() => setFrame((current) => (current + 1) % sequence.length)}
-      >
-        下一帧
-      </button>
+      <AgentProposalCard
+        proposal={proposal}
+        onDecision={({ decision }) => setLifecycle(decision === "approve" ? "running" : "rejected")}
+      />
+      <div className="flex flex-wrap gap-2">
+        {lifecycle === "preview" ? (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              if (previewComplete) setLifecycle("pending");
+              else setPreviewComplete(true);
+            }}
+          >
+            {previewComplete ? "进入待确认" : "补全流式预览"}
+          </Button>
+        ) : null}
+        {lifecycle === "running" ? (
+          <>
+            <Button type="button" size="sm" onClick={() => setLifecycle("completed")}>
+              执行完成
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              onClick={() => setLifecycle("failed")}
+            >
+              执行失败
+            </Button>
+          </>
+        ) : null}
+        <Button type="button" size="sm" variant="outline" onClick={reset}>
+          重置
+        </Button>
+      </div>
     </div>
   );
 }
 
 export const StreamingLifecycle: Story = {
-  render: () => <StreamingSequence />,
+  name: "交互 · 流式、确认、拒绝与结果",
+  render: () => <ProposalLifecycleDemo />,
+};
+
+export const DangerousBoundaries: Story = {
+  name: "边界 · 超长命令与窄容器",
+  args: {
+    proposal: {
+      ...proposals.bash,
+      title: "执行一条包含大量参数和很深工作目录的危险 Bash 命令",
+      content: {
+        command:
+          "bun run --cwd packages/ui build-storybook --debug --profile --output-dir ./artifacts/storybook-static ".repeat(
+            5,
+          ),
+        cwd: "/Users/example/projects/reflecta/packages/ui/a/very/deep/storybook/acceptance/path",
+        timeoutMs: 300_000,
+      },
+    },
+  },
+  decorators: [
+    (Story) => (
+      <div className="w-[360px] max-w-full">
+        <Story />
+      </div>
+    ),
+  ],
 };
