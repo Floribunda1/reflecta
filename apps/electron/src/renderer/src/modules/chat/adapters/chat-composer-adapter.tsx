@@ -201,7 +201,9 @@ export function AgentChatComposer({
     () =>
       modelOptions.map((option) => ({
         id: modelId(option),
+        modelId: option.modelId,
         label: option.modelName || option.modelId,
+        providerLabel: option.providerName,
         reasoningOptions: option.supportedReasoningLevels.map((id) => ({
           id,
           label: reasoningLabels[id],

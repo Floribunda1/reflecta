@@ -112,6 +112,7 @@ test("@AG-MESSAGE-003 用户按 Enter 发送后编辑时仍看到原来的单行
       .filter({ hasText: "ENTER_SEND_SINGLE_LINE" });
     await expect(userRow).toBeVisible();
     await expect(page.getByTestId("agent-stop-button")).toBeVisible();
+    await expect(page.getByTestId("agent-stop-button")).toBeEnabled();
     await page.getByTestId("agent-stop-button").click();
     await expect(page.getByTestId("agent-stop-button")).toBeHidden();
 

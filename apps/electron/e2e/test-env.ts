@@ -179,6 +179,7 @@ function writeE2eAiConfigFile(env: E2eTestEnv, baseEnv = process.env): boolean {
         ai: {
           providers: [{ id: providerId, apiKey, enabledModelIds: [modelId] }],
           activeAgentModel: { providerId, modelId },
+          activeAgentReasoningLevel: "high",
         },
       },
       null,

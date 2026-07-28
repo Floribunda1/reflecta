@@ -137,35 +137,35 @@ test("@AG-CONTEXT-003 用户选择模型和推理强度后发送消息", async (
   try {
     await page.getByTestId("agent-model-menu-button").click();
     const reasoningModel = page
-      .locator('[data-testid="agent-model-option"][data-reasoning-levels~="medium"]')
+      .locator('[data-testid="agent-model-option"][data-reasoning-levels~="high"]')
       .first();
     const modelName = (await reasoningModel.locator("span").first().innerText()).trim();
     await reasoningModel.click();
 
     await page.getByTestId("agent-model-menu-button").click();
     await page
-      .locator('[data-testid="agent-reasoning-option"][data-reasoning-level="medium"]')
+      .locator('[data-testid="agent-reasoning-option"][data-reasoning-level="high"]')
       .click();
     await page.keyboard.press("Escape");
 
     await expect(page.getByTestId("agent-model-menu-button")).toContainText(modelName);
-    await expect(page.getByTestId("agent-model-menu-button")).toContainText("中推理");
+    await expect(page.getByTestId("agent-model-menu-button")).toContainText("高推理");
     await sendMessage(page, "请用一句话回复 model selection e2e");
     await expect(page.getByTestId("agent-model-menu-button")).toContainText(modelName);
-    await expect(page.getByTestId("agent-model-menu-button")).toContainText("中推理");
+    await expect(page.getByTestId("agent-model-menu-button")).toContainText("高推理");
     await waitForAssistantReply(page);
     await expect(page.getByTestId("agent-model-menu-button")).toContainText(modelName);
-    await expect(page.getByTestId("agent-model-menu-button")).toContainText("中推理");
+    await expect(page.getByTestId("agent-model-menu-button")).toContainText("高推理");
   } finally {
     await app.close();
   }
 });
 
-test("@AG-CONTEXT-006 用户打开 Agent 页面时默认使用中推理", async () => {
+test("@AG-CONTEXT-006 用户打开 Agent 页面时默认使用高推理", async () => {
   const { app, page } = await launchAgentPage();
 
   try {
-    await expect(page.getByTestId("agent-model-menu-button")).toContainText("中推理");
+    await expect(page.getByTestId("agent-model-menu-button")).toContainText("高推理");
   } finally {
     await app.close();
   }

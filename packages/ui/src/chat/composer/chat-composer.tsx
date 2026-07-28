@@ -2,7 +2,7 @@ import { Mention } from "@tiptap/extension-mention";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { ChevronDown, FileText, Paperclip, Send, Square, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "#components/button";
 import {
   DropdownMenu,
@@ -50,7 +50,9 @@ export type ChatComposerReasoningOption = {
 
 export type ChatComposerModelOption = {
   id: string;
+  modelId?: string;
   label: string;
+  providerLabel?: string;
   reasoningOptions: readonly ChatComposerReasoningOption[];
 };
 
@@ -273,6 +275,8 @@ export function ChatComposer({
   const selectedReasoning = selectedModel?.reasoningOptions.find(
     (option) => option.id === selectedReasoningId,
   );
+  const showReasoningOptions =
+    selectedModel?.reasoningOptions.some((option) => option.id !== "off") ?? false;
 
   const markMentionKeyHandled = () => {
     mentionKeyHandledRef.current = true;
@@ -441,7 +445,7 @@ export function ChatComposer({
     entitySearchRef.current.close();
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!editor) return;
     const initialized = initializedDraftRef.current;
     if (initialized.ready && initialized.id === draftId) return;
@@ -683,7 +687,7 @@ export function ChatComposer({
                   <ChevronDown size={16} className="text-muted-foreground" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" side="top" className="w-64">
-                  {selectedModel && selectedModel.reasoningOptions.length ? (
+                  {selectedModel && showReasoningOptions ? (
                     <>
                       <DropdownMenuRadioGroup
                         value={selectedReasoningId}
@@ -710,10 +714,18 @@ export function ChatComposer({
                       <DropdownMenuItem
                         key={option.id}
                         data-testid="agent-model-option"
-                        data-model-id={option.id}
+                        data-model-id={option.modelId ?? option.id}
+                        data-reasoning-levels={option.reasoningOptions
+                          .map((reasoning) => reasoning.id)
+                          .join(" ")}
                         onClick={() => onModelChange?.(option.id)}
                       >
                         <span className="truncate">{option.label}</span>
+                        {option.providerLabel ? (
+                          <span className="ml-auto truncate text-xs text-muted-foreground">
+                            {option.providerLabel}
+                          </span>
+                        ) : null}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuGroup>

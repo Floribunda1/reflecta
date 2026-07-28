@@ -13,6 +13,7 @@ export async function createPiModelRuntime(
     await modelRuntime.setRuntimeApiKey(
       modelConfig.definition.piProviderId,
       modelConfig.provider.apiKey,
+      { allowNetwork: false },
     );
   }
   return modelRuntime;

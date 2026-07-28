@@ -144,7 +144,11 @@ describe("createPiModelRuntime", () => {
     expect(auth).toMatchObject({ ok: true, apiKey: "codex-access-token" });
   });
 
-  test("uses configured API key for normal providers", async () => {
+  test("uses configured API key without refreshing remote model catalogs", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>(() => {})),
+    );
     const modelRuntime = await createPiModelRuntime(
       modelConfig({ providerId: "opencode-go", apiKey: "opencode-key" }),
     );

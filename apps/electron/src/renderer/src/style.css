@@ -1,3 +1,4 @@
+@source "./**/*.{ts,tsx}";
 @import "@reflecta/ui/globals.css";
 
 body {

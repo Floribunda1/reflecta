@@ -125,6 +125,7 @@ export function AgentThreadPanel({
   return (
     <main
       data-testid="agent-thread-chat"
+      data-thread-id={threadId}
       className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-transparent"
     >
       {title !== undefined && onRename && onGenerateTitle && onArchive && onDelete ? (

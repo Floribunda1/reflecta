@@ -29,11 +29,15 @@ export async function launchAgentPage(envOverrides: Record<string, string | unde
 }
 
 export async function openAgentPage(page: Page) {
-  await expect(page.getByTestId("capture-page").or(page.getByTestId("agent-page"))).toBeVisible();
-  if (await page.getByTestId("capture-page").isVisible()) {
+  await expect(page.getByTestId("capture-page").or(page.getByTestId("agent-page"))).toBeVisible({
+    timeout: 15_000,
+  });
+  const agentPage = page.getByTestId("agent-page");
+  await expect(async () => {
+    if (await agentPage.isVisible()) return;
     await page.getByTestId("app-module-switcher").click();
-  }
-  await expect(page.getByTestId("agent-page")).toBeVisible();
+    await expect(agentPage).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: 15_000 });
 }
 
 export async function configureE2eAiKey(page: Page, apiKey: string) {
@@ -62,7 +66,9 @@ export async function sendMessage(page: Page, text: string) {
   await typeComposer(page, text);
   await expect(page.getByTestId("agent-send-button")).toBeEnabled();
   await page.getByTestId("agent-send-button").click();
-  await expect(page.getByTestId("agent-user-message").filter({ hasText: text })).toBeVisible();
+  await expect(page.getByTestId("agent-user-message").filter({ hasText: text })).toBeVisible({
+    timeout: 15_000,
+  });
 }
 
 export async function selectContext(page: Page, query: string, title: string, type: string) {
@@ -83,7 +89,10 @@ export async function waitForAssistantReply(page: Page) {
 }
 
 export async function createNewThread(page: Page) {
+  const thread = page.getByTestId("agent-thread-chat");
+  const previousId = await thread.getAttribute("data-thread-id");
   await page.getByTestId("agent-new-thread-button").click();
+  if (previousId) await expect(thread).not.toHaveAttribute("data-thread-id", previousId);
   await expect(page.getByTestId("agent-empty-state")).toBeVisible();
 }
 

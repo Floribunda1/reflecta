@@ -29,7 +29,7 @@ export type AgentProposalCardProps = {
 function lifecycleLabel(lifecycle: AgentProposalLifecycle) {
   if (lifecycle === "preview") return "生成中";
   if (lifecycle === "pending") return "待确认";
-  if (lifecycle === "running") return "执行中";
+  if (lifecycle === "running") return "已确认 · 执行中";
   if (lifecycle === "completed") return "完成";
   if (lifecycle === "rejected") return "已拒绝";
   return "执行失败";

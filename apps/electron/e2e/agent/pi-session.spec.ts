@@ -639,25 +639,25 @@ test("@AG-CONTEXT-003 用户选择模型和推理强度后发送消息", async (
     await createNewThread(page);
     await page.getByTestId("agent-model-menu-button").click();
     const reasoningModel = page
-      .locator('[data-testid="agent-model-option"][data-reasoning-levels~="medium"]')
+      .locator('[data-testid="agent-model-option"][data-reasoning-levels~="high"]')
       .first();
     const modelName = (await reasoningModel.locator("span").first().innerText()).trim();
     await reasoningModel.click();
 
     await page.getByTestId("agent-model-menu-button").click();
     await page
-      .locator('[data-testid="agent-reasoning-option"][data-reasoning-level="medium"]')
+      .locator('[data-testid="agent-reasoning-option"][data-reasoning-level="high"]')
       .click();
     await page.keyboard.press("Escape");
 
     await expect(page.getByTestId("agent-model-menu-button")).toContainText(modelName);
-    await expect(page.getByTestId("agent-model-menu-button")).toContainText("中推理");
+    await expect(page.getByTestId("agent-model-menu-button")).toContainText("高推理");
     await sendMessage(
       page,
       "请用一句话回复 model selection e2e。不要调用任何工具，只输出普通文本。",
     );
     await expect(page.getByTestId("agent-model-menu-button")).toContainText(modelName);
-    await expect(page.getByTestId("agent-model-menu-button")).toContainText("中推理");
+    await expect(page.getByTestId("agent-model-menu-button")).toContainText("高推理");
     await waitForAssistantReply(page);
   } finally {
     await app.close();
@@ -813,7 +813,7 @@ test("@AG-PROPOSAL-005 用户重新打开对话后仍能处理等待确认的提
   try {
     await openThread(second.page, prompt.slice(0, 20));
     const card = second.page.getByTestId("agent-proposal-card").last();
-    await expect(card).toBeVisible();
+    await expect(card).toBeVisible({ timeout: 15_000 });
     await card.getByTestId("agent-proposal-reject-button").click();
     await expect(card).toContainText("已拒绝", { timeout: 120_000 });
     expect(understandingExistsByTitle(PI_RELOAD_PROPOSAL_TITLE)).toBe(false);

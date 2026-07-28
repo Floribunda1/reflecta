@@ -5,7 +5,11 @@ import { domainNode, openCapturePage } from "./capture-e2e";
 async function openKnowledgeWander(page: Page) {
   await openCapturePage(page);
   await page.getByTestId("capture-knowledge-wander-entry").click();
-  await expect(page.getByTestId("knowledge-wander-graph")).toBeVisible();
+  const graph = page.getByTestId("knowledge-wander-graph");
+  await expect(graph).toBeVisible();
+  await expect(graph.locator(":scope > div").first()).toHaveAttribute("data-graph-ready", "true", {
+    timeout: 30_000,
+  });
 }
 
 test("@KW-GRAPH-011 用户从理解列表标题栏进入知识漫步", async () => {
