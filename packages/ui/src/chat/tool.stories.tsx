@@ -19,17 +19,124 @@ type ApprovalBlock = Extract<AgentReducedAssistantBlock, { kind: "approval" }>;
 const createdAt = "2026-07-29T00:00:00.000Z";
 const presentation: AgentViewPresentation = {
   entityLabels: new Map([
-    ["understanding:u-components", "组件边界"],
-    ["context:c-storybook", "Storybook 验收"],
+    ["understanding:u-irrigation", "极地温室的分区灌溉策略"],
+    ["context:c-night-shift", "夜班联调记录"],
   ]),
   domainPath: (id) =>
     (
       ({
-        "d-technology": "技术",
-        "d-ui": "技术 / UI 架构",
+        "d-engineering": "设施工程",
+        "d-irrigation": "设施工程 / 灌溉控制",
       }) as Record<string, string>
     )[id] ?? id,
 };
+
+const syntheticSections = [
+  {
+    heading: "观测条件",
+    body: "温室外部风速维持在每秒十八米，西侧保温帘出现间歇抖动。控制台记录到基质含水率在二十分钟内连续下降，但回水槽液位没有同步变化。值班人员先核对传感器时间戳，再用独立探头复测三个种植槽，排除了单点漂移。",
+  },
+  {
+    heading: "控制策略",
+    body: "系统按种植槽而不是整间温室分配灌溉窗口。每轮先开启回路旁通阀，待主管压力稳定后再依次开启支路；如果相邻两次采样的压力差超过阈值，本轮只保留低流量脉冲，并把后续动作延迟到下一观察窗。",
+  },
+  {
+    heading: "现场反馈",
+    body: "操作员反馈自动模式下的告警顺序容易造成误判：界面先显示水泵异常，数秒后才补充说明实际原因是入口温度过低。联调时将两条信号合并为一条可操作提示，并保留原始测点用于事后追溯。",
+  },
+  {
+    heading: "判定依据",
+    body: "本轮不追求瞬时恢复到目标值，而是观察三十分钟移动平均是否回到安全区间。只要回水温度、主管压力和三个种植槽的含水率同时满足约束，就认为策略有效；任何单项越界都会触发人工复核。",
+  },
+  {
+    heading: "遗留问题",
+    body: "东侧支路在低温时仍偶发两到三秒的通信空窗，目前没有证据表明它会造成错误灌溉。下一轮计划增加本地缓存计数和阀门实际开度采样，以区分网络延迟、执行器迟滞与传感器刷新频率不足。",
+  },
+  {
+    heading: "复验计划",
+    body: "复验分为冷启动、稳定运行和故障注入三个阶段。每个阶段保存同样的测点集合，并使用固定编号记录人工观察，避免不同班次采用不同描述。结束后只比较趋势和状态迁移，不以单个峰值作为结论。",
+  },
+] as const;
+
+function syntheticMarkdown(title: string, sectionCount: number) {
+  return [
+    `# ${title}`,
+    ...Array.from({ length: sectionCount }, (_, index) => {
+      const section = syntheticSections[index % syntheticSections.length];
+      return `## ${index + 1}. ${section.heading}\n\n${section.body}\n\n- 采样批次：SIM-${String(index + 1).padStart(2, "0")}\n- 复核状态：${index % 3 === 0 ? "等待下一观察窗" : "已完成交叉检查"}`;
+    }),
+  ].join("\n\n");
+}
+
+function syntheticUnderstandings(count: number) {
+  const titles = [
+    "极地温室的分区灌溉策略",
+    "低温条件下的阀门启动顺序",
+    "回水温度与流量补偿",
+    "传感器漂移的复核方法",
+    "夜班告警的合并规则",
+    "故障注入期间的安全边界",
+  ];
+  return Array.from({ length: count }, (_, index) => ({
+    id: `u-sim-${index + 1}`,
+    title: titles[index % titles.length],
+    body: syntheticMarkdown(`模拟结论 ${index + 1}`, 1),
+    domains: [{ id: "d-irrigation", name: "灌溉控制" }],
+  }));
+}
+
+function syntheticContexts(count: number) {
+  const media = ["experience", "article", "video", "ai"] as const;
+  return Array.from({ length: count }, (_, index) => ({
+    id: `c-sim-${index + 1}`,
+    title: `第 ${index + 1} 轮联调记录`,
+    content: syntheticMarkdown(`联调记录 ${index + 1}`, 1),
+    medium: media[index % media.length],
+  }));
+}
+
+function syntheticCandidates(count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `u-candidate-${index + 1}`,
+    title: `候选策略 ${index + 1}：${syntheticSections[index % syntheticSections.length].heading}`,
+    type: "understanding",
+    score: Number((0.96 - index * 0.035).toFixed(3)),
+    snippet: syntheticSections[index % syntheticSections.length].body,
+    evidence: index % 3 === 0 ? "context" : "understanding",
+    suggestedRead: index < 4,
+    matchedContexts:
+      index % 3 === 0
+        ? [
+            {
+              id: `c-evidence-${index + 1}`,
+              title: `现场证据 ${index + 1}`,
+              snippet: syntheticSections[(index + 2) % syntheticSections.length].body,
+              medium: "experience",
+            },
+          ]
+        : [],
+  }));
+}
+
+const mediumMarkdown = syntheticMarkdown("极地温室控制策略", 3);
+const longMarkdown = syntheticMarkdown("极地温室夜班联调纪要", 8);
+const attachmentContent = Array.from(
+  { length: 240 },
+  (_, index) =>
+    `第 ${index + 1} 条模拟观测：${syntheticSections[index % syntheticSections.length].body} 本条记录仅用于检验长附件的折叠、展开与复制，不对应任何真实项目。`,
+)
+  .join("\n\n")
+  .slice(0, 30_000);
+const sourceFile = Array.from(
+  { length: 96 },
+  (_, index) =>
+    `export const zone${String(index + 1).padStart(2, "0")} = { sensor: "sim-${index + 1}", threshold: ${(18 + (index % 7) * 0.5).toFixed(1)}, enabled: ${index % 5 !== 0} };`,
+).join("\n");
+const commandOutput = Array.from(
+  { length: 34 },
+  (_, index) =>
+    `[${String(index + 1).padStart(2, "0")}/34] zone-${(index % 8) + 1} pressure=${(1.8 + index * 0.03).toFixed(2)} temperature=${(-24 + index * 0.4).toFixed(1)} status=checked`,
+).join("\n");
 
 function tool(
   toolName: string,
@@ -86,165 +193,215 @@ function proposalView(block: ApprovalBlock) {
 const completedTools: readonly ToolBlock[] = [
   tool(
     "read",
-    { path: "packages/ui/src/chat/message/chat-message-row.tsx", offset: 1, limit: 120 },
     {
-      content: "export function ChatMessageRow() {\n  return <article />;\n}",
-      truncated: false,
+      path: "/workspace/polar-greenhouse/apps/control/src/irrigation-zones.ts",
+      offset: 1,
+      limit: 120,
+    },
+    {
+      path: "/workspace/polar-greenhouse/apps/control/src/irrigation-zones.ts",
+      bytes: sourceFile.length,
+      encoding: "utf-8",
+      content: sourceFile,
+      truncated: true,
     },
   ),
   tool(
     "edit",
-    { path: "packages/ui/src/chat/message/chat-message-row.tsx" },
+    {
+      path: "/workspace/polar-greenhouse/apps/control/src/irrigation-zones.ts",
+    },
     {
       patch:
-        "--- a/chat-message-row.tsx\n+++ b/chat-message-row.tsx\n@@\n-  return null;\n+  return <article />;",
+        "--- a/irrigation-zones.ts\n+++ b/irrigation-zones.ts\n@@\n-export const retryWindowMs = 8_000;\n+export const retryWindowMs = 12_000;\n+export const minimumPressureBar = 1.85;",
     },
   ),
-  tool("write", { path: "packages/ui/src/chat/tool.stories.tsx" }, { bytesWritten: 8_420 }),
+  tool(
+    "write",
+    { path: "/workspace/polar-greenhouse/artifacts/night-shift-summary.md" },
+    { bytesWritten: 8_742 },
+  ),
   tool(
     "bash",
-    { command: "bun run storybook:build", cwd: "/workspace/reflecta" },
-    { exitCode: 0, stdout: "storybook build\n✓ built in 3.25s", stderr: "" },
+    {
+      command:
+        "bun run --cwd apps/control verify:telemetry --station polar-bay-07 --window 30m --format detailed",
+      cwd: "/workspace/polar-greenhouse",
+      timeoutMs: 120_000,
+    },
+    {
+      approvalStatus: "approved",
+      proposalType: "bash",
+      command:
+        "bun run --cwd apps/control verify:telemetry --station polar-bay-07 --window 30m --format detailed",
+      cwd: "/workspace/polar-greenhouse",
+      exitCode: 0,
+      stdout: commandOutput,
+      stderr: "",
+      truncated: false,
+    },
   ),
   tool("domain_list", {}, [
-    { id: "d-technology", name: "技术" },
-    { id: "d-ui", name: "UI 架构" },
+    { id: "d-engineering", name: "设施工程" },
+    { id: "d-irrigation", name: "灌溉控制", parentId: "d-engineering" },
+    { id: "d-climate", name: "气候调节", parentId: "d-engineering" },
+    { id: "d-energy", name: "能源管理", parentId: "d-engineering" },
+    { id: "d-sensors", name: "传感器校准", parentId: "d-engineering" },
+    { id: "d-operations", name: "轮班运营" },
+    { id: "d-safety", name: "安全演练", parentId: "d-operations" },
+    { id: "d-supplies", name: "物资补给", parentId: "d-operations" },
+    { id: "d-training", name: "人员培训", parentId: "d-operations" },
+    { id: "d-research", name: "实验记录" },
+    { id: "d-growth", name: "作物生长", parentId: "d-research" },
+    { id: "d-water", name: "水循环观测", parentId: "d-research" },
   ]),
   tool(
     "domain_inspect",
-    { domainId: "d-ui" },
     {
-      domain: { id: "d-ui", name: "UI 架构" },
-      domains: [],
-      understandings: [
-        {
-          id: "u-components",
-          title: "组件边界",
-          body: "展示语义属于 UI，runtime 只提供事实。",
-        },
+      domainId: "d-irrigation",
+      includeContexts: true,
+      includeRelations: true,
+      limit: 25,
+      offset: 0,
+    },
+    {
+      domain: {
+        id: "d-irrigation",
+        name: "灌溉控制",
+        parentId: "d-engineering",
+      },
+      domains: [
+        { id: "d-valves", name: "阀门控制" },
+        { id: "d-pressure", name: "管路压力" },
+        { id: "d-recovery", name: "回水处理" },
+        { id: "d-alerts", name: "告警策略" },
+        { id: "d-maintenance", name: "维护窗口" },
+        { id: "d-simulation", name: "仿真演练" },
       ],
-      contexts: [
-        {
-          id: "c-storybook",
-          title: "Storybook 验收",
-          content: "验收真实的 production presentation。",
-          medium: "experience",
-        },
+      understandings: syntheticUnderstandings(14),
+      contexts: syntheticContexts(8),
+      edges: [
+        { source: "u-sim-1", target: "u-sim-2" },
+        { source: "u-sim-2", target: "u-sim-5" },
       ],
+      page: { limit: 25, offset: 0, total: 28 },
     },
   ),
   tool(
     "understanding_list",
-    { domainIds: ["d-ui"] },
+    { domainIds: ["d-irrigation"], limit: 20, offset: 0 },
     {
-      understandings: [
-        {
-          id: "u-components",
-          title: "组件边界",
-          body: "展示语义属于 UI，runtime 只提供事实。",
-          domains: [{ id: "d-ui", name: "UI 架构" }],
-        },
-        {
-          id: "u-streaming",
-          title: "Streaming identity",
-          body: "流式更新期间保持稳定 ID。",
-          domains: [{ id: "d-ui", name: "UI 架构" }],
-        },
-      ],
+      understandings: syntheticUnderstandings(12),
+      contextsByUnderstandingId: Object.fromEntries(
+        syntheticUnderstandings(4).map((item, index) => [item.id, syntheticContexts(index + 1)]),
+      ),
     },
   ),
   tool(
     "understanding_get",
-    { understandingId: "u-components" },
     {
-      understanding: {
-        id: "u-components",
-        title: "组件边界",
-        body: "把 **展示语义** 放在 UI 层，把 runtime 事实留给 Adapter。",
-        contextCount: 3,
-        connectionCount: 4,
-        domains: [{ id: "d-ui", name: "UI 架构" }],
-      },
+      understandingId: "u-irrigation",
+      includeContexts: true,
+      includeRelations: true,
+    },
+    {
+      id: "u-irrigation",
+      title: "极地温室的分区灌溉策略",
+      body: mediumMarkdown,
+      contextCount: 2,
+      referenceCount: 1,
+      referencedByCount: 2,
+      domains: [{ id: "d-irrigation", name: "灌溉控制" }],
+      contexts: syntheticContexts(2),
+      relations: [
+        {
+          direction: "outgoing",
+          targetTitle: "低温条件下的阀门启动顺序",
+          rawText: "分区灌溉依赖阀门按压力稳定顺序启动。",
+        },
+        {
+          direction: "incoming",
+          sourceTitle: "夜班告警的合并规则",
+          rawText: "告警展示需要引用分区策略的降级状态。",
+        },
+      ],
     },
   ),
   tool(
     "context_list",
-    { understandingId: "u-components" },
+    { understandingId: "u-irrigation", limit: 10, offset: 0 },
     {
-      contexts: [
-        {
-          id: "c-storybook",
-          title: "Storybook 验收",
-          content: "重点观察 streaming、确认、拒绝与失败。",
-          medium: "experience",
-        },
-      ],
+      contexts: syntheticContexts(7),
     },
   ),
   tool(
     "context_get",
-    { contextId: "c-storybook" },
+    { contextId: "c-night-shift" },
     {
-      context: {
-        id: "c-storybook",
-        title: "Storybook 验收",
-        content: "Story 必须消费和 production 相同的 presentation seam。",
-        medium: "experience",
-      },
+      id: "c-night-shift",
+      understandingId: "u-irrigation",
+      title: "夜班联调记录",
+      content: syntheticMarkdown("夜班联调记录", 5),
+      medium: "experience",
     },
   ),
   tool(
     "attachment_read",
-    { attachmentId: "attachment-design" },
+    { attachmentId: "attachment-simulated-log", maxChars: 30_000, offset: 0 },
     {
-      filename: "design-notes.pdf",
-      kind: "pdf",
-      totalPages: 18,
-      content: "只验收有定制样式、独特交互或丰富状态的组件。",
+      attachmentId: "attachment-simulated-log",
+      filename: "polar-greenhouse-night-shift-log.txt",
+      kind: "text",
+      mediaType: "text/plain",
+      encoding: "utf-8",
+      bytes: attachmentContent.length,
+      content: attachmentContent,
+      truncated: true,
     },
   ),
   tool(
     "retrieve_knowledge",
-    { query: "Storybook 组件验收" },
+    { query: "低温环境下分区灌溉压力波动的处理方式", limit: 12 },
     {
-      candidates: [
-        {
-          id: "u-components",
-          title: "组件边界",
-          snippet: "Storybook 与 production 共用展示转换。",
-          matchedContexts: [
-            {
-              id: "c-storybook",
-              title: "Storybook 验收",
-              snippet: "不要在 Story 里重写 Tool 展示语义。",
-              medium: "experience",
-            },
-          ],
-        },
-      ],
+      candidates: syntheticCandidates(12),
+      trace: {
+        strategy: "hybrid",
+        searchedUnderstandings: 48,
+        searchedContexts: 126,
+        elapsedMs: 84,
+      },
     },
   ),
   tool(
     "graph",
-    { understandingId: "u-components", depth: 2 },
+    { understandingId: "u-irrigation", depth: 2 },
     {
       nodes: [
-        { id: "u-components", title: "组件边界" },
-        { id: "u-streaming", title: "Streaming identity" },
+        {
+          id: "u-irrigation",
+          title: "极地温室的分区灌溉策略",
+          body: syntheticSections[1].body,
+          domains: [{ id: "d-irrigation", name: "灌溉控制" }],
+        },
       ],
-      edges: [{ source: "u-components", target: "u-streaming" }],
+      edges: [],
+      seed: "u-irrigation",
     },
   ),
-  tool("web_search", { query: "Storybook interaction testing" }, { results: [] }),
+  tool(
+    "web_search",
+    { query: "polar greenhouse irrigation pressure control simulation" },
+    { results: [] },
+  ),
   tool(
     "fetch_content",
-    { urls: ["https://storybook.js.org/docs/writing-tests/interaction-testing"] },
+    { urls: ["https://example.com/simulated-greenhouse-control"] },
     { pages: [] },
   ),
   tool(
     "get_search_content",
-    { url: "https://storybook.js.org/docs/writing-tests/interaction-testing" },
-    { content: "Interaction tests render the story and play interactions." },
+    { url: "https://example.com/simulated-greenhouse-control" },
+    { content: syntheticMarkdown("公开资料摘录", 4) },
   ),
 ];
 
@@ -259,90 +416,165 @@ const approvalTools: readonly ApprovalFixture[] = [
       "understanding_create",
       "候选 Understanding",
       {
-        title: "组件边界",
-        body: "把 **展示语义** 放在 UI 层。",
-        domainIds: ["d-ui"],
+        title: "低温条件下的阀门启动顺序",
+        body: syntheticMarkdown("低温条件下的阀门启动顺序", 3),
+        domainIds: ["d-irrigation"],
       },
       { preview: true },
     ),
-    output: { resultRefType: "understanding", resultRefId: "u-new" },
+    output: {
+      approvalStatus: "approved",
+      proposalType: "understanding_create",
+      resultRefType: "understanding",
+      resultRefId: "u-valve-sequence",
+      resultRefTitle: "低温条件下的阀门启动顺序",
+    },
   },
   {
     block: approval("understanding_update", "候选修改 Understanding", {
-      understandingId: "u-components",
-      before: { title: "组件边界", body: "Renderer 持有 UI。" },
-      after: { title: "组件边界", body: "UI 持有展示，Renderer 只做 Adapter。" },
-      domainIds: ["d-ui"],
-      reason: "让 Storybook 与 production 共用展示入口。",
+      understandingId: "u-irrigation",
+      before: {
+        title: "极地温室的分区灌溉策略",
+        body: syntheticMarkdown("修订前策略", 2),
+      },
+      after: {
+        title: "极地温室的分区灌溉与降级策略",
+        body: syntheticMarkdown("修订后策略", 4),
+        domainIds: ["d-irrigation"],
+      },
+      reason:
+        "连续三轮故障注入都表明，主管压力恢复需要比原计划更长的观察窗，因此补充分区降级条件和人工复核入口。",
     }),
-    output: { resultRefType: "understanding", resultRefId: "u-components" },
+    output: {
+      approvalStatus: "approved",
+      proposalType: "understanding_update",
+      resultRefType: "understanding",
+      resultRefId: "u-irrigation",
+      resultRefTitle: "极地温室的分区灌溉与降级策略",
+    },
   },
   {
     block: approval("understanding_delete", "候选删除 Understanding", {
-      understandingId: "u-components",
-      reason: "内容已经合并。",
+      understandingId: "u-obsolete-sensor",
+      reason:
+        "这条结论只适用于已经退役的第一代探头，当前校准流程不会再引用它，历史数据已经保留在实验归档中。",
     }),
-    output: { resultRefType: "understanding", resultRefId: "u-components" },
+    output: {
+      approvalStatus: "approved",
+      proposalType: "understanding_delete",
+      resultRefType: "understanding",
+      resultRefId: "u-obsolete-sensor",
+    },
   },
   {
     block: approval("domain_create", "候选 Domain", {
-      name: "组件验收",
-      parentId: "d-technology",
-      reason: "集中 UI 验收相关理解。",
+      name: "故障注入",
+      parentId: "d-engineering",
+      reason: "集中记录演练条件、预期降级行为和复验结论。",
     }),
-    output: { resultRefType: "domain", resultRefId: "d-new" },
+    output: {
+      approvalStatus: "approved",
+      proposalType: "domain_create",
+      resultRefType: "domain",
+      resultRefId: "d-fault-injection",
+    },
   },
   {
     block: approval("domain_update", "候选修改 Domain", {
-      domainId: "d-ui",
-      name: "UI 与交互",
-      parentId: null,
+      domainId: "d-irrigation",
+      name: "灌溉与回水控制",
+      parentId: "d-engineering",
+      reason: "现有记录已经同时覆盖供水和回水，原名称无法准确表达边界。",
     }),
-    output: { resultRefType: "domain", resultRefId: "d-ui" },
+    output: {
+      approvalStatus: "approved",
+      proposalType: "domain_update",
+      resultRefType: "domain",
+      resultRefId: "d-irrigation",
+    },
   },
   {
     block: approval("domain_delete", "候选删除 Domain", {
-      domainId: "d-ui",
-      deleteUnderstandings: true,
-      reason: "这个 Domain 已经不再使用。",
+      domainId: "d-retired-prototype",
+      deleteUnderstandings: false,
+      reason: "原型设备已经拆除，仍有价值的结论会保留并迁移到设施工程。",
     }),
-    output: { resultRefType: "domain", resultRefId: "d-ui" },
+    output: {
+      approvalStatus: "approved",
+      proposalType: "domain_delete",
+      resultRefType: "domain",
+      resultRefId: "d-retired-prototype",
+    },
   },
   {
     block: approval("context_create", "候选 Context", {
-      understandingId: "u-components",
+      understandingId: "u-irrigation",
       medium: "experience",
-      title: "Storybook 验收",
-      content: "用真实 production adapter 构造所有 Tool 卡片。",
+      title: "夜班联调纪要",
+      content: longMarkdown,
     }),
-    output: { resultRefType: "context", resultRefId: "c-new" },
+    output: {
+      approvalStatus: "approved",
+      proposalType: "context_create",
+      resultRefType: "context",
+      resultRefId: "c-night-shift-2",
+      resultRefTitle: "夜班联调纪要",
+    },
   },
   {
     block: approval("context_update", "候选修改 Context", {
-      contextId: "c-storybook",
-      understandingId: "u-components",
+      contextId: "c-night-shift",
+      understandingId: "u-irrigation",
       medium: "ai",
-      title: "Storybook Tool 验收",
-      content: "覆盖 streaming、确认、拒绝、完成和失败。",
+      title: "夜班联调记录（复核版）",
+      content: syntheticMarkdown("夜班联调记录（复核版）", 6),
+      reason: "补充独立探头的复测结果，并将未经验证的原因判断改为待确认假设。",
     }),
-    output: { resultRefType: "context", resultRefId: "c-storybook" },
+    output: {
+      approvalStatus: "approved",
+      proposalType: "context_update",
+      resultRefType: "context",
+      resultRefId: "c-night-shift",
+      resultRefTitle: "夜班联调记录（复核版）",
+    },
   },
   {
     block: approval("context_delete", "候选删除 Context", {
-      contextId: "c-storybook",
-      reason: "内容重复。",
+      contextId: "c-duplicate-log",
+      reason: "同一班次的设备日志被重复导入，校验和与已有记录一致。",
     }),
-    output: { resultRefType: "context", resultRefId: "c-storybook" },
+    output: {
+      approvalStatus: "approved",
+      proposalType: "context_delete",
+      resultRefType: "context",
+      resultRefId: "c-duplicate-log",
+    },
   },
   {
     block: approval("bash", "确认危险 Bash", {
-      command: "bun run --cwd packages/ui build-storybook",
-      cwd: "/workspace/reflecta",
+      command:
+        "bun run --cwd apps/control inject:fault --station polar-bay-07 --zone west-03 --signal inlet-temperature --value -38 --duration 90s",
+      cwd: "/workspace/polar-greenhouse",
       timeoutMs: 120_000,
     }),
-    output: { exitCode: 0, stdout: "Storybook build completed", stderr: "" },
+    output: {
+      approvalStatus: "approved",
+      proposalType: "bash",
+      exitCode: 0,
+      stdout: commandOutput,
+      stderr: "",
+      truncated: false,
+    },
   },
 ];
+
+const initiallyExpandedTools = new Set([
+  "bash",
+  "domain_inspect",
+  "understanding_get",
+  "attachment_read",
+  "retrieve_knowledge",
+]);
 
 function ToolCard({
   block,
@@ -367,8 +599,11 @@ function AutoStreamingTool() {
   const completed = frame === 3;
   const block = tool(
     "bash",
-    { command: "bun run storybook:build", cwd: "/workspace/reflecta" },
-    completed ? { exitCode: 0, stdout: "✓ Storybook build completed", stderr: "" } : undefined,
+    {
+      command: "bun run --cwd apps/control verify:telemetry --station polar-bay-07 --window 30m",
+      cwd: "/workspace/polar-greenhouse",
+    },
+    completed ? { exitCode: 0, stdout: commandOutput, stderr: "", truncated: false } : undefined,
     {
       toolCallId: "tool-auto-streaming",
       state: completed ? "completed" : "running",
@@ -435,40 +670,40 @@ function ToolGallery() {
   const [proposalGeneration, setProposalGeneration] = useState(0);
   const failed = tool(
     "bash",
-    { command: "bun run storybook:build", cwd: "/workspace/reflecta" },
+    {
+      command:
+        "bun run --cwd apps/control verify:telemetry --station polar-bay-07 --window 30m --strict",
+      cwd: "/workspace/polar-greenhouse",
+      timeoutMs: 120_000,
+    },
     undefined,
     {
       toolCallId: "tool-bash-failed",
       state: "failed",
-      error: "命令执行超时，请检查进程输出后重试。",
+      error:
+        "遥测校验在等待 west-03 支路的稳定压力时超时。最近三次采样都低于最低阈值，控制程序已经停止后续阀门动作并保留现场状态。请先核对入口温度、旁通阀实际开度和压力探头时间戳，再决定是否重试；不要直接跳过安全检查。",
     },
   );
   const manyResults = tool(
     "understanding_list",
-    { domainIds: ["d-ui"], limit: 36 },
+    { domainIds: ["d-irrigation"], limit: 36, offset: 0 },
     {
-      understandings: Array.from({ length: 36 }, (_, index) => ({
-        id: `u-${index + 1}`,
-        title: `第 ${index + 1} 条 Understanding · ${"较长标题 ".repeat((index % 3) + 1)}`,
-        body: "用于观察大量结果时的折叠策略。",
-        domains: [{ id: "d-ui", name: "UI 架构" }],
-      })),
+      understandings: syntheticUnderstandings(36),
     },
   );
   const longCommand = tool(
     "bash",
     {
       command:
-        "bun run --cwd packages/ui build-storybook --debug --profile --output-dir ./artifacts/storybook-static ".repeat(
-          5,
-        ),
-      cwd: "/Users/example/projects/reflecta/packages/ui/a/very/deep/storybook/acceptance/path",
+        "bun run --cwd apps/control simulate:night-shift --station polar-bay-07 --zones west-01,west-02,west-03,east-01,east-02 --include pressure,temperature,flow,valve-position --window 8h --sample-interval 5s --output ./artifacts/simulations/2026-07-29/night-shift-detailed-observation.json",
+      cwd: "/workspace/polar-greenhouse/apps/control/simulations/acceptance/fixtures/very-deep-directory",
     },
     {
       exitCode: 0,
       stdout: Array.from(
-        { length: 40 },
-        (_, index) => `[${index + 1}/40] 构建 Storybook 资源与组件预览`,
+        { length: 96 },
+        (_, index) =>
+          `[${String(index + 1).padStart(2, "0")}/96] zone-${(index % 8) + 1} sample accepted · pressure=${(1.7 + index * 0.012).toFixed(3)}bar · temperature=${(-31 + index * 0.11).toFixed(2)}°C`,
       ).join("\n"),
       stderr: "",
       truncated: true,
@@ -478,7 +713,7 @@ function ToolGallery() {
   return (
     <StoryShowcase
       title="Tool"
-      description="集中验收所有 production Tool 的完成、确认、拒绝、自动流式、失败和极端内容状态。"
+      description="集中验收所有 production Tool 的完成、确认、拒绝、自动流式、失败和极端内容状态。样本体量参照正式会话，业务内容与标识均为完全虚构。"
     >
       <StoryCase
         title="自动流式展示"
@@ -488,13 +723,18 @@ function ToolGallery() {
         <AutoStreamingTool />
       </StoryCase>
       <StoryCase
-        title="生产环境 Tool"
-        description="以下卡片由 production 的 runtime block 转换函数生成，可点击展开或折叠详情。"
+        title="生产密度的合成 Tool"
+        description="以下卡片走 production 的 runtime 转换函数；高频且高信息量的 Tool 默认展开，其余可点击查看。"
         className="xl:col-span-2"
       >
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="columns-1 xl:columns-2">
           {completedTools.map((block) => (
-            <ToolCard key={block.toolCallId} block={block} />
+            <div key={block.toolCallId} className="mb-4 break-inside-avoid">
+              <ToolCard
+                block={block}
+                defaultExpanded={initiallyExpandedTools.has(block.toolName)}
+              />
+            </div>
           ))}
         </div>
       </StoryCase>
@@ -514,9 +754,11 @@ function ToolGallery() {
             重置全部
           </Button>
         </div>
-        <div key={proposalGeneration} className="grid items-start gap-4 xl:grid-cols-2">
+        <div key={proposalGeneration} className="columns-1 xl:columns-2">
           {approvalTools.map((fixture) => (
-            <InteractiveProposalCard key={fixture.block.approvalId} fixture={fixture} />
+            <div key={fixture.block.approvalId} className="mb-4 break-inside-avoid">
+              <InteractiveProposalCard fixture={fixture} />
+            </div>
           ))}
         </div>
       </StoryCase>
