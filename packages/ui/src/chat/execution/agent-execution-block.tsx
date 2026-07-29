@@ -59,14 +59,25 @@ function ReasoningBlock({
     <Collapsible
       data-slot="agent-reasoning"
       data-testid="agent-reasoning"
-      className="my-1 min-w-0 w-full rounded-md border-l-2 border-border/80 bg-muted/30 py-1.5 pl-3 pr-2 text-sm text-muted-foreground"
+      className="my-0.5 min-w-0 w-full text-sm text-muted-foreground"
     >
-      <CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-1.5 rounded-sm px-1 py-0.5 text-left hover:bg-muted/55">
-        {streaming ? <Spinner className="size-3 shrink-0" /> : null}
+      <CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-2 rounded-sm px-1 py-0.5 text-left hover:text-foreground">
+        {streaming ? (
+          <Spinner
+            className="size-3.5 shrink-0 text-sky-600 dark:text-sky-400"
+            role="presentation"
+            aria-hidden="true"
+          />
+        ) : (
+          <CheckCircle2
+            className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400"
+            aria-hidden="true"
+          />
+        )}
         <span>{streaming ? "正在思考" : "思考过程"}</span>
         <ChevronDown className="size-3 shrink-0 -rotate-90 text-muted-foreground opacity-0 transition group-data-[panel-open]:rotate-0 group-data-[panel-open]:opacity-100 group-hover:opacity-100 group-focus-visible:opacity-100" />
       </CollapsibleTrigger>
-      <CollapsibleContent className="mt-1 px-1 pb-1 text-muted-foreground">
+      <CollapsibleContent className="ml-[7px] mt-1 border-l border-border/60 py-1 pl-[17px] pr-2 text-muted-foreground">
         {reasoning.markdown ? (
           <ChatMarkdown value={reasoning.markdown} tone="muted" {...entityBindings} />
         ) : (

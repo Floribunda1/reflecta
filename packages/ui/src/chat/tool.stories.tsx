@@ -589,6 +589,49 @@ function ToolCard({ block }: { block: ToolBlock }) {
   return <AgentExecutionBlock block={{ kind: "tool-activity", activity: toolActivity(block) }} />;
 }
 
+function ToolGroupCase() {
+  return (
+    <div className="grid max-w-4xl gap-0">
+      <AgentExecutionBlock
+        block={{
+          kind: "reasoning",
+          reasoning: {
+            id: "reasoning-tool-group-1",
+            status: "done",
+            markdown: "先读取相关记录和本地配置，再核对现有知识与现场数据。",
+          },
+        }}
+      />
+      {completedTools.slice(0, 5).map((block) => (
+        <ToolCard key={block.toolCallId} block={block} />
+      ))}
+      <AgentExecutionBlock
+        block={{
+          kind: "reasoning",
+          reasoning: {
+            id: "reasoning-tool-group-2",
+            status: "done",
+            markdown: "已有信息足够，继续检查知识库、关联关系和领域结构。",
+          },
+        }}
+      />
+      {completedTools.slice(5).map((block) => (
+        <ToolCard key={block.toolCallId} block={block} />
+      ))}
+      <AgentExecutionBlock
+        block={{
+          kind: "reasoning",
+          reasoning: {
+            id: "reasoning-tool-group-3",
+            status: "streaming",
+            markdown: "正在汇总执行结果。",
+          },
+        }}
+      />
+    </div>
+  );
+}
+
 function AutoStreamingTool() {
   const frame = useAutoFrame(streamingCommands.length);
   const completed = frame === streamingCommands.length - 1;
@@ -725,6 +768,9 @@ function ToolGallery() {
       title="Tool"
       description="集中验收所有 production Tool 的完成、确认、拒绝、自动流式、失败和极端内容状态。样本体量参照正式会话，业务内容与标识均为完全虚构。"
     >
+      <StoryCase title="Tool Group">
+        <ToolGroupCase />
+      </StoryCase>
       <StoryCase
         title="自动流式展示"
         description="使用稳定的 toolCallId 自动补全命令，再从运行中推进到完成。"
