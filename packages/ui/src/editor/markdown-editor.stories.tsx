@@ -183,11 +183,7 @@ function MarkdownEditorShowcase() {
       title="Markdown Editor"
       description="集中验收完整编辑、空白自动高度、只读、联想与上传、外部文档切换、危险边界和两级预览。"
     >
-      <StoryCase
-        title="完整文档"
-        description="覆盖主要 Markdown 结构、Wiki Link、联想和图片上传。"
-        className="xl:col-span-2"
-      >
+      <StoryCase title="完整文档" description="覆盖主要 Markdown 结构、Wiki Link、联想和图片上传。">
         <CompleteEditorDemo />
       </StoryCase>
       <StoryCase title="空白与自动高度" description="输入区域从占位文案开始，最高增长到 420px。">
@@ -211,7 +207,6 @@ function MarkdownEditorShowcase() {
       <StoryCase
         title="联想、上传与外部更新"
         description="切换文档后同步外部 value；输入 Wiki Link 或拖入文件可继续验收。"
-        className="xl:col-span-2"
       >
         <ExternalUpdateDemo />
       </StoryCase>

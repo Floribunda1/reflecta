@@ -149,7 +149,6 @@ function DomainTreeShowcase() {
       <StoryCase
         title="深层级与长名称"
         description="窄容器内保持层级可读、文字截断和父子 Hover 关系。"
-        className="xl:col-span-2"
       >
         <InteractiveTree
           initialNodes={deepDomains}

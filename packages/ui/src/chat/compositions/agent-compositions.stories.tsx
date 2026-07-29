@@ -593,7 +593,6 @@ function AgentCompositionShowcase() {
       <StoryCase
         title="典型任务"
         description="自动经历等待、流式思考、多次 Tool 调用和最终回答。"
-        className="xl:col-span-2"
         contentClassName="p-0"
       >
         <TypicalTaskDemo />
@@ -601,7 +600,6 @@ function AgentCompositionShowcase() {
       <StoryCase
         title="确认任务"
         description="先读取已有 Understanding，再确认或拒绝一条生产形态的长 Context 写入。"
-        className="xl:col-span-2"
         contentClassName="p-0"
       >
         <ApprovalTaskDemo />
@@ -609,7 +607,6 @@ function AgentCompositionShowcase() {
       <StoryCase
         title="高密度与异常"
         description="领域批量结果、十条检索候选、三万字附件、长命令失败和停止状态叠加。"
-        className="xl:col-span-2"
         contentClassName="p-0"
       >
         <DenseFailureDemo />

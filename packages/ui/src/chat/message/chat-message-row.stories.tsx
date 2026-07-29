@@ -188,11 +188,7 @@ function MessageShowcase() {
       <StoryCase title="上下文压缩" description="可展开查看压缩摘要与 Token 变化。">
         <ChatMessageRow row={compactionRow} />
       </StoryCase>
-      <StoryCase
-        title="长内容与窄容器"
-        description="长中文、超长命令和操作栏不能撑破消息宽度。"
-        className="xl:col-span-2"
-      >
+      <StoryCase title="长内容与窄容器" description="长中文、超长命令和操作栏不能撑破消息宽度。">
         <div className="w-[360px] max-w-full">
           <ChatMessageRow row={longRow} />
         </div>

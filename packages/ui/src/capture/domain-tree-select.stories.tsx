@@ -127,7 +127,6 @@ function DomainTreeSelectShowcase() {
       <StoryCase
         title="大量候选、深路径与窄容器"
         description="展开候选后可观察长名称截断、深层缩进和滚动边界。"
-        className="xl:col-span-2"
       >
         <div className="w-72 max-w-full">
           <MultipleDemo nodes={manyDeepDomains} initialValue={[]} />

@@ -177,7 +177,6 @@ function ComposerShowcase() {
       <StoryCase
         title="长输入、大量模型与高上下文"
         description="窄容器、高上下文占用和长模型名称不能破坏布局。"
-        className="xl:col-span-2"
       >
         <div className="w-[360px] max-w-full">
           <ComposerDemo

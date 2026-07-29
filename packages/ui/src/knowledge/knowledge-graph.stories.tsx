@@ -77,11 +77,7 @@ function KnowledgeGraphShowcase() {
       title="Knowledge Graph"
       description="同页验收完整交互、空图、单节点、大规模关系图和窄容器 Resize。"
     >
-      <StoryCase
-        title="完整交互"
-        description="选择、悬停、缩放、平移和适应画布。"
-        className="xl:col-span-2"
-      >
+      <StoryCase title="完整交互" description="选择、悬停、缩放、平移和适应画布。">
         <GraphDemo height={560} />
       </StoryCase>
       <StoryCase title="空图" description="没有 Understanding 和 Connection。">
@@ -100,14 +96,12 @@ function KnowledgeGraphShowcase() {
       <StoryCase
         title="大量节点、关系与长标题"
         description="60 个节点和 92 条边下保持层级、选中和操作响应。"
-        className="xl:col-span-2"
       >
         <GraphDemo data={manyGraph} initialSelection="node-0" height={560} />
       </StoryCase>
       <StoryCase
         title="窄容器与 Resize"
         description="画布在 360px 宽度内重新布局，不向页面外溢出。"
-        className="xl:col-span-2"
       >
         <div className="w-[360px] max-w-full">
           <GraphDemo height={480} />

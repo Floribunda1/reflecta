@@ -173,7 +173,6 @@ function MarkdownShowcase() {
       <StoryCase
         title="完整语法"
         description="覆盖标题、强调、列表、引用、表格、代码、公式、Mermaid、图片和 Entity。"
-        className="xl:col-span-2"
       >
         <ChatMarkdown value={completeMarkdown} {...entityBindings} />
       </StoryCase>

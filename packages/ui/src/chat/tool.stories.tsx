@@ -718,14 +718,12 @@ function ToolGallery() {
       <StoryCase
         title="自动流式展示"
         description="使用稳定的 toolCallId 自动从运行中推进到完成，然后重新开始。"
-        className="xl:col-span-2"
       >
         <AutoStreamingTool />
       </StoryCase>
       <StoryCase
         title="生产密度的合成 Tool"
         description="以下卡片走 production 的 runtime 转换函数；高频且高信息量的 Tool 默认展开，其余可点击查看。"
-        className="xl:col-span-2"
       >
         <div className="columns-1 xl:columns-2">
           {completedTools.map((block) => (
@@ -741,7 +739,6 @@ function ToolGallery() {
       <StoryCase
         title="需要确认的 Tool"
         description="确认后自动进入执行中并完成；拒绝后直接显示 production 拒绝态。"
-        className="xl:col-span-2"
         contentClassName="grid gap-4"
       >
         <div className="flex justify-end">
@@ -765,7 +762,6 @@ function ToolGallery() {
       <StoryCase
         title="异常与边界"
         description="仍然使用实际 bash 与 understanding_list Tool，只改变输入、输出和执行状态。"
-        className="xl:col-span-2"
         contentClassName="grid gap-4"
       >
         <div className="grid gap-4">
