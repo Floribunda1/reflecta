@@ -1,9 +1,8 @@
-import { ChevronDown } from "lucide-react";
+import { CheckCircle2, ChevronDown, TriangleAlert } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/collapsible";
 import { Spinner } from "../../components/spinner";
 import type { ChatEntityBindings } from "../entity";
 import { ChatMarkdown } from "../markdown/chat-markdown";
-import { hasToolDetails, ToolDetails } from "./tool-details";
 import type {
   AgentContextCompactionView,
   AgentExecutionBlockView,
@@ -13,7 +12,6 @@ import type {
 
 export type AgentExecutionBlockProps = {
   block: AgentExecutionBlockView;
-  defaultExpanded?: boolean;
   entityBindings?: ChatEntityBindings;
 };
 
@@ -79,59 +77,54 @@ function ReasoningBlock({
   );
 }
 
-function ToolActivityBlock({
-  activity,
-  defaultExpanded,
-  entityBindings,
-}: {
-  activity: AgentToolActivityView;
-  defaultExpanded: boolean;
-  entityBindings?: ChatEntityBindings;
-}) {
+function ToolActivityBlock({ activity }: { activity: AgentToolActivityView }) {
   const statusLabel =
     activity.status === "failed" ? "出错" : activity.status === "running" ? "运行中" : "完成";
-  const statusClass =
-    activity.status === "failed"
-      ? "bg-destructive/10 text-destructive"
-      : "bg-background/70 text-muted-foreground";
-  const hasContent = activity.items.some(
-    (item) => hasToolDetails(item.details) || Boolean(item.error),
-  );
+  const [summary, ...meta] = activity.summary.split(" · ");
+  const summaryParts = summary?.split(/(「[^」]+」)/g).filter(Boolean) ?? [];
 
   return (
-    <Collapsible
-      defaultOpen={defaultExpanded}
+    <div
       data-testid="agent-tool-activity"
       data-activity-id={activity.id}
-      className="my-1 min-w-0 w-full rounded-md border-l-2 border-border/80 bg-muted/30 py-1.5 pl-3 pr-2 text-sm text-muted-foreground"
+      className="my-0.5 flex min-w-0 w-full items-center gap-2 px-1 py-0.5 text-sm text-muted-foreground"
     >
-      <CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-1.5 rounded-sm px-1 py-0.5 text-left hover:bg-muted/55">
-        <span className="min-w-0 truncate">{activity.summary}</span>
-        <span className={`shrink-0 rounded-sm px-1.5 py-0.5 text-[11px] leading-4 ${statusClass}`}>
-          {statusLabel}
-        </span>
-        {hasContent ? (
-          <ChevronDown className="size-3 shrink-0 -rotate-90 text-muted-foreground opacity-0 transition group-data-[panel-open]:rotate-0 group-data-[panel-open]:opacity-100 group-hover:opacity-100 group-focus-visible:opacity-100" />
+      {activity.status === "running" ? (
+        <Spinner
+          className="size-3.5 shrink-0 text-sky-600 dark:text-sky-400"
+          role="presentation"
+          aria-hidden="true"
+        />
+      ) : activity.status === "failed" ? (
+        <TriangleAlert className="size-3.5 shrink-0 text-destructive" aria-hidden="true" />
+      ) : (
+        <CheckCircle2
+          className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400"
+          aria-hidden="true"
+        />
+      )}
+      <span className="min-w-0 flex-1 truncate">
+        {summaryParts.map((part, index) =>
+          part.startsWith("「") && part.endsWith("」") ? (
+            <span
+              key={`${part}-${index}`}
+              data-slot="agent-tool-target"
+              className="font-medium text-foreground"
+            >
+              {part}
+            </span>
+          ) : (
+            part
+          ),
+        )}
+        {meta.length > 0 ? (
+          <span data-slot="agent-tool-meta" className="ml-1.5 text-xs text-muted-foreground/65">
+            · {meta.join(" · ")}
+          </span>
         ) : null}
-      </CollapsibleTrigger>
-      {hasContent ? (
-        <CollapsibleContent className="mt-2 px-1 pb-1 text-muted-foreground">
-          <div className="grid gap-2">
-            {activity.items.map((item) => (
-              <div key={item.id} className="grid gap-1">
-                {activity.items.length > 1 ? (
-                  <div className="px-1 text-xs font-medium text-foreground/70">{item.label}</div>
-                ) : null}
-                {hasToolDetails(item.details) ? (
-                  <ToolDetails details={item.details!} entityBindings={entityBindings} />
-                ) : null}
-                {item.error ? <div className="px-1 text-destructive">{item.error}</div> : null}
-              </div>
-            ))}
-          </div>
-        </CollapsibleContent>
-      ) : null}
-    </Collapsible>
+      </span>
+      <span className="sr-only">{statusLabel}</span>
+    </div>
   );
 }
 
@@ -147,22 +140,12 @@ export function AgentPendingBlock({ label = "正在思考" }: { label?: string }
   );
 }
 
-export function AgentExecutionBlock({
-  block,
-  defaultExpanded = false,
-  entityBindings,
-}: AgentExecutionBlockProps) {
+export function AgentExecutionBlock({ block, entityBindings }: AgentExecutionBlockProps) {
   if (block.kind === "reasoning") {
     return <ReasoningBlock reasoning={block.reasoning} entityBindings={entityBindings} />;
   }
   if (block.kind === "tool-activity") {
-    return (
-      <ToolActivityBlock
-        activity={block.activity}
-        defaultExpanded={defaultExpanded}
-        entityBindings={entityBindings}
-      />
-    );
+    return <ToolActivityBlock activity={block.activity} />;
   }
   if (block.kind === "context-compaction") {
     return <ContextCompactionBlock compaction={block.compaction} />;

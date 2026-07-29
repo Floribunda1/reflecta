@@ -578,13 +578,6 @@ const approvalTools: readonly ApprovalFixture[] = [
   },
 ];
 
-const initiallyExpandedTools = new Set([
-  "bash",
-  "domain_inspect",
-  "understanding_get",
-  "attachment_read",
-  "retrieve_knowledge",
-]);
 const streamingCommands = [
   "bun",
   "bun run --cwd apps/control",
@@ -592,22 +585,8 @@ const streamingCommands = [
   "bun run --cwd apps/control verify:telemetry --station polar-bay-07 --window 30m",
 ];
 
-function ToolCard({
-  block,
-  defaultExpanded = false,
-}: {
-  block: ToolBlock;
-  defaultExpanded?: boolean;
-}) {
-  return (
-    <div className="grid min-w-0 gap-1">
-      <code className="px-3 text-xs text-muted-foreground">{block.toolName}</code>
-      <AgentExecutionBlock
-        block={{ kind: "tool-activity", activity: toolActivity(block) }}
-        defaultExpanded={defaultExpanded}
-      />
-    </div>
-  );
+function ToolCard({ block }: { block: ToolBlock }) {
+  return <AgentExecutionBlock block={{ kind: "tool-activity", activity: toolActivity(block) }} />;
 }
 
 function AutoStreamingTool() {
@@ -626,7 +605,7 @@ function AutoStreamingTool() {
     },
   );
 
-  return <ToolCard block={block} defaultExpanded />;
+  return <ToolCard block={block} />;
 }
 
 function InteractiveProposalCard({ fixture }: { fixture: ApprovalFixture }) {
@@ -754,26 +733,20 @@ function ToolGallery() {
       </StoryCase>
       <StoryCase
         title="生命周期"
-        description="执行 Tool 的运行、完成、空结果与失败使用生产转换和生产卡片。"
+        description="执行 Tool 的运行、完成、空结果与失败使用生产转换和单行状态。"
       >
-        <div className="grid gap-4">
-          <ToolCard block={running} defaultExpanded />
-          <ToolCard block={completedTools[4]} defaultExpanded />
-          <ToolCard block={emptyResults} defaultExpanded />
-          <ToolCard block={failed} defaultExpanded />
+        <div className="grid gap-1">
+          <ToolCard block={running} />
+          <ToolCard block={completedTools[4]} />
+          <ToolCard block={emptyResults} />
+          <ToolCard block={failed} />
         </div>
       </StoryCase>
-      <StoryCase
-        title="生产类型图谱"
-        description="以下卡片走 production 的 runtime 转换函数；高频且高信息量的 Tool 默认展开，其余可点击查看。"
-      >
-        <div className="grid gap-4">
+      <StoryCase title="生产类型图谱" description="以下状态行走 production 的 runtime 转换函数。">
+        <div className="grid gap-1">
           {completedTools.map((block) => (
             <div key={block.toolCallId}>
-              <ToolCard
-                block={block}
-                defaultExpanded={initiallyExpandedTools.has(block.toolName)}
-              />
+              <ToolCard block={block} />
             </div>
           ))}
         </div>
