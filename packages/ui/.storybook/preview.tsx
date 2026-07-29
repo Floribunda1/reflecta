@@ -45,6 +45,7 @@ const preview: Preview = {
     },
     options: {
       storySort: {
+        includeNames: true,
         order: [
           "Capture",
           [

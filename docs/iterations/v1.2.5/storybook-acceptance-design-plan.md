@@ -1,6 +1,6 @@
 # Storybook 组件验收设计方案
 
-> 状态：Revised，待按本方案重新实施
+> 状态：Implemented，已按本方案完成并通过非 E2E 全量验证
 >
 > 日期：2026-07-29
 >
@@ -622,35 +622,35 @@ Tool 优先修复生产类型、真实 adapter、自动 streaming 和交互式�
 
 ### 组件范围
 
-- [ ] 导航只保留本文 13 个独立组件页和 2 个组合页；
-- [ ] `MarkdownPreview` 与 `SimpleMarkdownPreview` 拥有独立 Story；
-- [ ] 内部实现放在所属业务组件页，不占独立导航；
-- [ ] Settings、普通 Form/List/Detail、Context preview/detail、页面和 shadcn gallery 未进入；
-- [ ] `ThreadSidebar` 与 `ChatJumpNav` 只有在形成清晰 UI-owned seam 后加入。
+- [x] 导航只保留本文 13 个独立组件页和 2 个组合页；
+- [x] `MarkdownPreview` 与 `SimpleMarkdownPreview` 拥有独立 Story；
+- [x] 内部实现放在所属业务组件页，不占独立导航；
+- [x] Settings、普通 Form/List/Detail、Context preview/detail、页面和 shadcn gallery 未进入；
+- [x] `ThreadSidebar` 与 `ChatJumpNav` 只有在形成清晰 UI-owned seam 后加入。
 
 ### Case 质量
 
-- [ ] 每个组件只有一个高信息密度页面；
-- [ ] 每个 Section 有明确验收问题，而非空泛状态分类；
-- [ ] Section 只用标题和 Divider 组织，没有多层 Showcase 卡片；
-- [ ] 正常、异常、生命周期和边界按组件真实风险取舍；
-- [ ] 用户无需频繁切换侧栏即可比较核心状态；
-- [ ] 所有 interactive Case 可重复操作和局部重置。
+- [x] 每个组件只有一个高信息密度页面；
+- [x] 每个 Section 有明确验收问题，而非空泛状态分类；
+- [x] Section 只用标题和 Divider 组织，没有多层 Showcase 卡片；
+- [x] 正常、异常、生命周期和边界按组件真实风险取舍；
+- [x] 用户无需频繁切换侧栏即可比较核心状态；
+- [x] 所有 interactive Case 可重复操作和局部重置。
 
 ### Agent 与数据
 
-- [ ] Tool 使用生产类型、生产组件与生产 adapter；
-- [ ] Tool fixture 的字段、长度和密度接近生产数据且已完全脱敏；
-- [ ] Tool/Message/Markdown streaming 自动推进并保持稳定 identity；
-- [ ] 确认、拒绝、失败等操作直接反映在组件 lifecycle 中，不使用 `alert`；
-- [ ] Agent 组合页已覆盖典型任务、确认任务、高密度与异常。
+- [x] Tool 使用生产类型、生产组件与生产 adapter；
+- [x] Tool fixture 的字段、长度和密度接近生产数据且已完全脱敏；
+- [x] Tool/Message/Markdown streaming 自动推进并保持稳定 identity；
+- [x] 确认、拒绝、失败等操作直接反映在组件 lifecycle 中，不使用 `alert`；
+- [x] Agent 组合页已覆盖典型任务、确认任务、高密度与异常。
 
 ### Markdown 与边界
 
-- [ ] 用户提供的 Markdown 语法集合按验收主题拆分覆盖；
-- [ ] Editor、完整 Preview、摘要 Preview 和 Chat Markdown 的职责没有混合；
-- [ ] 长代码、宽表格、长链接、深层列表、图片、公式、Mermaid、Entity 和窄容器均可定位；
-- [ ] `UnderstandingRow`、Domain Tree 与 Select 的截断、选择和 hover 回归均有可视 Case。
+- [x] 用户提供的 Markdown 语法集合按验收主题拆分覆盖；
+- [x] Editor、完整 Preview、摘要 Preview 和 Chat Markdown 的职责没有混合；
+- [x] 长代码、宽表格、长链接、深层列表、图片、公式、Mermaid、Entity 和窄容器均可定位；
+- [x] `UnderstandingRow`、Domain Tree 与 Select 的截断、选择和 hover 回归均有可视 Case。
 
 ### 自检
 
