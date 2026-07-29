@@ -40,7 +40,7 @@ flowchart LR
 
 因此：
 
-- Tool Call 的产品含义是“可审计的工作证据”，不是技术日志。
+- Tool Call 只是实现事件；用户真正操作和理解的单位应该是 **Agent Action**。它既要留下可审计的工作证据，也要说明动作的意图、对象、影响、结果和当前球权。
 - Thinking 的产品含义是“Agent 仍在承担工作、当前正在做什么”，不是展示隐藏的思维链。
 - Loading 的产品含义是“解释时间花在哪里、下一步由谁推进”，不是一个通用转圈。
 - Final Response 的产品含义是“一次委托的交付”，不是活动日志末尾的另一条 assistant message。
@@ -109,7 +109,8 @@ assistant final
 ```text
 用户的一次委托
 └── Agent 的一次工作回合
-    ├── Activity：过程说明、工具和状态
+    ├── Activity：过程说明与 Agent Actions
+    ├── Decision / Candidate：需要用户接球的行动
     └── Response：最终交付
 ```
 
@@ -161,6 +162,7 @@ UX 负责定义：
 - 当前是谁在行动；
 - 什么算进展、等待、阻塞、完成；
 - 中间过程与最终答复是什么关系；
+- 每个 Agent Action 会造成什么后果、谁拥有最终判断权；
 - 用户何时可以停止、重试、补充、确认；
 - 权限和失败如何恢复；
 - 页面刷新或事件乱序后，用户看到的状态是否仍可信。
@@ -174,7 +176,7 @@ UI 负责表达：
 - Turn 的视觉边界；
 - Activity 与 Response 的层级；
 - 当前 phase 的文案、图标和轻量动效；
-- 工具摘要和详情如何渐进展开；
+- Action、Outcome、Decision、Candidate 与 Receipt 如何渐进展开；
 - 最终响应何时出现、如何保持阅读稳定；
 - 授权、失败、中止如何获得足够但不过度的视觉权重。
 
@@ -192,7 +194,7 @@ UI 的评价标准不是“看起来像 Agent”，而是：
 | ---------------------- | ------------------------------------------------ |
 | 一次请求是否保持连续   | 一个 Turn Card 承载整次工作                      |
 | Agent 是否还在负责     | Turn phase + 持续可见的进度提示                  |
-| 工具做了什么           | 一个可折叠 Activity 区域中的语义摘要             |
+| Agent 采取了什么行动   | 一个可折叠 Activity 区域中的语义化 tool activity |
 | 工具结束后为何还没回答 | `awaiting` 状态填补无工具、无文本的间隙          |
 | 哪部分是最终结果       | 独立的 Response 区域                             |
 | 是否需要用户决定       | 内联 permission / credential form 替代普通等待态 |
@@ -296,19 +298,32 @@ Renderer 侧的 [`event-processor/processor.ts`](https://github.com/craft-ai-age
 
 ---
 
-## 4. Tool Call：不是日志，而是可审计的工作证据
+## 4. Tool 是实现事实，Agent Action 才是交互单位
 
-### 4.1 Tool UI 要回答的三个问题
+Craft 证明了 tool event 不应该以技术日志的形式直接暴露给用户。但从 Reflecta 的价值主张继续往下推，只把 tool call 改写成一行语义摘要仍然不够。
 
-一个 tool call 对用户真正有价值的信息是：
+真正稳定的第一性原理是：
 
-1. **Agent 为什么要做这一步？**
-2. **它对什么对象做了什么？**
-3. **结果是否成功，以及是否影响下一步？**
+> **用户不关心 Agent 调用了哪个函数，而关心 Agent 为完成委托采取了什么行动、行动会造成什么后果，以及自己是否需要作决定。**
 
-原始函数名、JSON 参数和完整返回值通常不能直接回答这些问题。
+因此，本节先记录 Craft 已经解决了什么，再给出 Reflecta 应该进一步采用的 Agent Action 心智。后者是基于 Craft 机制和 Reflecta 产品边界得到的设计推论，不是对 Craft 当前 UI 的逐字复述。
 
-Craft 的处理方式是把 tool call 转成语义化 activity row：
+### 4.1 为什么 Tool Call 不是正确的产品抽象
+
+`tool.started`、`tool.completed`、函数名、参数和返回值都属于执行协议。它们能帮助程序恢复状态，却不能直接回答用户的问题：
+
+1. Agent 为什么要做这一步？
+2. 它正在对什么对象做什么？
+3. 这是只读观察，还是会改变数据或外部环境？
+4. Agent 可以自行继续，还是必须由用户批准或确认？
+5. 完成之后得到了什么有用结果？
+6. 失败后 Turn 会继续，还是已经停止？
+
+如果 UI 仍以“调用名称 + 运行状态 + JSON 详情”为中心，即使样式更漂亮，用户仍然在阅读一份开发者日志。
+
+### 4.2 Craft 已经完成的关键转换
+
+Craft 把 tool call 转成语义化 activity row：
 
 - 用人类可理解的动作名称替代底层事件名；
 - 用路径、资源名或目标对象形成摘要；
@@ -318,28 +333,212 @@ Craft 的处理方式是把 tool call 转成语义化 activity row：
 - 把同一 Turn 的多个 activity 聚合到一个区域；
 - 步骤很多时限制区域高度，避免挤压最终响应。
 
-### 4.2 Activity 的默认层级
+这个转换解决了“技术事件如何变成可扫描工作证据”。但 Reflecta 还有一层更强的约束：有些动作只是在读取证据，有些会改变系统，有些则试图把内容沉淀成用户的个人理解。三者不能只靠同一种 tool row 加一个 approval badge 区分。
 
-推荐把 tool 信息分成三层：
+### 4.3 Action 由三个用户相关变量决定
 
-| 层级          | 默认状态       | 内容                               |
-| ------------- | -------------- | ---------------------------------- |
-| Turn 摘要     | 始终可见       | 当前动作或“完成了 N 个步骤”        |
-| Activity 列表 | 折叠或有限展开 | 每一步的语义标签、对象、状态       |
-| Tool 详情     | 用户主动打开   | 输入、输出、错误、diff、技术元数据 |
+一个 action 应该根据三个维度设计，而不是根据 `toolName` 设计。
 
-这个层级同时满足两类需求：
+#### 后果：行动是否改变世界
 
-- 大多数时候，用户只需要知道 Agent 没有失联，以及它大致做了什么；
+- 只读取、检索、比较已有信息；
+- 改变 Reflecta 数据、文件、命令或外部系统；
+- 删除或覆盖已有内容，形成不可逆或高成本后果。
+
+#### 所有权：谁有权作最终判断
+
+- Agent 可以在委托范围内自行完成；
+- 用户只需要授予一次操作权限；
+- 用户必须判断候选内容是否准确表达自己的理解。
+
+#### 注意力：现在是否需要用户接球
+
+- Agent 正在自主推进，用户只需知道进度；
+- Action 正等待用户决定，Turn 已暂停；
+- Action 已完成、拒绝或失败，只需作为可追溯 receipt 保留。
+
+后果、所有权和注意力共同决定 UI。`readonly`、`approval` 只是底层策略结果，不足以直接决定用户界面。
+
+### 4.4 Reflecta 的三种 Action Mode
+
+按照“是否改变状态”和“谁拥有最终判断权”两步判断，可以得到三个互斥的用户模式：
+
+```mermaid
+flowchart TD
+  A["Agent 准备采取行动"] --> Q1{"是否改变持久数据或外部环境？"}
+  Q1 -- "否" --> O["Observe<br/>收集、读取和核对证据"]
+  Q1 -- "是" --> Q2{"是否在形成用户拥有的内容或结构？"}
+  Q2 -- "否" --> E["Operate<br/>执行有后果的操作"]
+  Q2 -- "是" --> P["Propose<br/>提出可编辑候选"]
+```
+
+| Action Mode | 用户心智                                     | Reflecta 示例                                                                                    | 默认权限                          | 主要 UI                       |
+| ----------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------- | ----------------------------- |
+| `observe`   | Agent 正在收集完成任务所需的证据             | `domain_list`、`understanding_get`、`context_get`、`retrieve_knowledge`、`graph`、附件与网页读取 | 委托范围内自动执行                | Activity Row                  |
+| `operate`   | Agent 将改变系统或外部环境                   | Bash、文件写入、删除 Understanding / Context / Domain                                            | 根据风险策略自动或请求 permission | Activity Row 或 Decision Card |
+| `propose`   | Agent 提出一个用户可以采用、修改或放弃的候选 | 创建 / 更新 Understanding、Context、Domain，未来的 Connection                                    | 永远不能自动成为用户的个人沉淀    | Candidate Card                |
+
+这里有两个重要结论：
+
+- `operate` 不等于一定 approval。低风险操作可以自动执行，高风险或越界操作才需要 permission。
+- `propose` 不等于高风险工具。即使技术上容易回滚，只要它试图表达或组织用户的个人理解，就必须让用户参与内容判断。
+
+删除动作属于 `operate`，因为它要求用户判断后果，而不是判断一段候选内容是否表达自己。创建或更新知识对象属于 `propose`，因为用户应该能在确认前修改候选。
+
+### 4.5 每个 Action 的共同语法
+
+无论 mode 如何，用户层的 Action 都应尽量回答同一组问题：
+
+| 字段      | 回答的问题         | 示例                                            |
+| --------- | ------------------ | ----------------------------------------------- |
+| Intent    | 为什么现在做这一步 | 为了核对这条观点是否已有相关理解                |
+| Verb      | Agent 做了什么     | 检索、读取、比较、创建、更新、删除、执行        |
+| Target    | 对什么对象         | 「Agent Chat 核心心智」、3 个 Context、某条命令 |
+| Impact    | 会发生什么变化     | 只读；新增 Context；覆盖正文；删除 4 条关联内容 |
+| Lifecycle | 进行到哪里         | 运行中、需要你决定、保存中、完成、放弃、失败    |
+| Outcome   | 得到了什么         | 找到 12 条，采用 3 条；已创建；没有匹配结果     |
+| Details   | 如何核验           | 查询参数、来源、diff、命令、原始结果、错误      |
+
+不是每个 Action 都要把七项同时铺开。默认视图只显示完成当前判断所需的信息：
+
+- Agent 自主推进时：Verb + Target + Lifecycle；
+- Action 完成后：Verb + Outcome；
+- 等待 permission 时：Intent + Impact + 预览 + 决策；
+- 等待确认候选时：候选内容 + 依据 + 可编辑范围 + 决策；
+- 出错时：失败点 + 影响 + 是否继续。
+
+这是一套信息优先级，不是一张字段齐全的表单。
+
+### 4.6 Action 的渐进披露
+
+Action 信息仍然遵循三层结构，但层级名称需要从 Tool 提升为 Action：
+
+| 层级                 | 默认状态       | 内容                                           |
+| -------------------- | -------------- | ---------------------------------------------- |
+| Turn Activity 摘要   | 始终可见       | 当前行动，或“完成了 N 个步骤”                  |
+| Action Row / Receipt | 折叠或有限展开 | 动作、对象、状态和结果摘要                     |
+| Action Details       | 用户主动打开   | 依据、影响、diff、输入、输出、错误与技术元数据 |
+
+这套层级同时满足两类需求：
+
+- 大多数时候，用户只需要知道 Agent 没有失联、当前在做什么、得到了什么；
 - 出现错误、敏感操作或需要验证时，用户可以追到底层证据。
 
-### 4.3 Tool Call 的体验底线
+### 4.7 Action 生命周期必须区分“执行失败”和“用户不采用”
+
+统一的用户生命周期可以表达为：
+
+```mermaid
+stateDiagram-v2
+  [*] --> Preparing: 形成行动或候选
+  Preparing --> Running: 可自主执行
+  Preparing --> NeedsUser: 需要 permission 或内容确认
+  NeedsUser --> Running: 用户允许或确认
+  NeedsUser --> Declined: 用户不允许或暂不采用
+  Running --> Completed
+  Running --> Failed
+  Preparing --> Cancelled
+  NeedsUser --> Cancelled
+  Running --> Cancelled
+```
+
+其中：
+
+- `Declined` 是正常决策结果，不是错误；
+- `Failed` 表示已经尝试执行，但没有得到预期结果；
+- `Cancelled` 表示整个 Turn 或行动被终止；
+- `NeedsUser` 表示球权已经在用户手里，不能继续显示普通 loading；
+- `Preparing` 只在候选内容尚未形成完整可判断单元时使用。
+
+### 4.8 四种视觉形态承担不同注意力
+
+Action 不是永远固定成一张卡片。同一个 Action 应随球权和生命周期改变视觉权重。
+
+#### Activity Row：Agent 正在自主推进
+
+适用于：
+
+- `observe`；
+- 无需审批的 `operate`；
+- 尚未要求用户介入的运行中 Action。
+
+它位于 Turn 的 Activity 中，默认紧凑：
+
+```text
+✓ 检索相关理解    找到 12 条，采用 3 条
+✓ 读取两个 Context 已获得所需材料
+```
+
+#### Decision Card：用户授予操作权限
+
+适用于需要 permission 的 `operate`。它必须在默认视图中完整回答：
+
+- 将执行什么；
+- 为什么需要；
+- 影响范围；
+- 是否可逆；
+- 命令、diff 或变更预览；
+- 允许与不允许的明确后果。
+
+用户批准后，卡片保持前景状态直到执行完成；完成后收敛为 receipt。
+
+#### Candidate Card：用户判断和编辑候选内容
+
+适用于 `propose`。它不只是把“确认 / 拒绝”按钮放在工具详情下，而要支持：
+
+- 阅读候选内容；
+- 查看形成依据与目标位置；
+- 在确认前修改候选；
+- 确认采用；
+- 暂不沉淀。
+
+对于 Understanding，按钮语义应该是“编辑”“暂不沉淀”“确认是我的理解”，而不是抽象的“批准 / 拒绝”。
+
+#### Receipt：决策或执行结束后的审计记录
+
+Action 一旦完成、被拒绝或失败，就不应永久以重卡片占据对话主视图。它回到 Activity，成为紧凑 receipt：
+
+```text
+✓ 已创建 Understanding「Agent Chat 的核心心智」
+— 暂未沉淀候选 Context
+! 执行命令失败
+```
+
+Receipt 仍可展开查看原候选、用户最终确认的版本、影响范围和执行结果。
+
+### 4.9 Readonly Action 也必须重新设计
+
+只读不代表只需显示“执行成功”。它最重要的是说明获取了什么证据：
+
+- “检索知识完成”不如“找到 12 条相关理解，采用 3 条”；
+- “读取 Context 完成”不如“读取了 2 个相关 Context”；
+- “搜索网页完成”不如“查看了 5 个来源，其中 2 个用于回答”；
+- 没有结果应该明确显示“没有找到匹配内容”，而不是一个绿色完成状态。
+
+因此 readonly redesign 的重点不是增加卡片，而是把 `output` 转成对当前委托有意义的 Outcome。
+
+### 4.10 Approval 不能把两种用户判断混成一个按钮
+
+Permission 和 authorship 是两类不同决定：
+
+| 决定               | 用户在判断什么                 | 合适的动作文案             |
+| ------------------ | ------------------------------ | -------------------------- |
+| Permission         | 是否允许 Agent 产生某个后果    | 允许执行 / 不允许          |
+| Candidate adoption | 候选内容是否准确表达并值得沉淀 | 编辑 / 暂不沉淀 / 确认采用 |
+
+如果两者都使用“确认 / 拒绝”，用户无法分辨自己是在批准技术动作，还是在承认某段内容属于自己的理解。
+
+### 4.11 Agent Action 的体验底线
 
 - 不用裸 JSON 充当默认界面。
-- 不把每个工具事件都升级成和最终回答同等重量的消息。
-- 工具已经完成但 Agent 还没交付时，不能直接消失或静止。
-- 失败必须明确属于哪一步，并说明回合是否还会继续。
-- 权限请求不能伪装成普通 tool loading。
+- 不把每个 tool event 都升级成和最终回答同等重量的消息。
+- 不用 tool name 决定视觉，而用后果、所有权和当前注意力决定。
+- readonly action 必须显示有意义的 outcome，而不只是“完成”。
+- permission 必须展示影响与预览。
+- personal knowledge candidate 必须允许用户修改后确认。
+- 用户拒绝或暂不采用不是错误。
+- pending decision 必须停止普通 loading，明确球权在用户。
+- action 完成后收敛成 receipt，不能让历史对话堆满重卡片。
 - 技术细节可以隐藏，但不能不可追溯。
 
 ---
@@ -551,7 +750,7 @@ Craft 在 Agent 工作时仍允许用户编辑输入：
 
 Reflecta 当前“可以继续编辑，但 busy 时不能发送；发送按钮改为停止”已经覆盖最基本的控制需求。没有真实用户需求前，不需要复制完整的中途排队系统。
 
-### 8.3 Permission 是球权切换，不是 loading
+### 8.3 Permission 与 Candidate 都是球权切换，但不是同一种判断
 
 Craft 把权限设计为 Explore / Ask to Edit / Auto 等明确模式，并用结构化内联请求呈现：
 
@@ -562,7 +761,13 @@ Craft 把权限设计为 Explore / Ask to Edit / Auto 等明确模式，并用�
 
 请求权限时，普通 composer 会被决策表单替代或让位。这告诉用户：Agent 没有卡住，而是已经把球交给你。
 
-这与 Reflecta 的候选 proposal / confirm 机制高度相关。候选理解、候选连接或知识库变更一旦等待用户确认，就必须优先表现为“需要你决定”，不能继续显示成 Agent 正在思考。
+这与 Reflecta 的候选 proposal / confirm 机制高度相关，但不能直接等同：
+
+- 对 Bash、删除或外部副作用，用户是在授予 permission；
+- 对 Understanding、Context、Domain 与未来 Connection 的创建或更新，用户是在判断并共同编辑候选；
+- 两者都会进入 `needs-user`，但需要不同的说明、动作文案和可编辑能力。
+
+一旦等待用户决定，就必须优先表现为“需要你决定”，不能继续显示成 Agent 正在思考。对于候选内容，只有“确认 / 拒绝”仍不够；如果用户拥有最终意义，UI 就必须给用户修改后确认的路径。
 
 ### 8.4 错误必须说明回合是否结束
 
@@ -657,7 +862,7 @@ Craft 的测试重点包括：
 
 - 工具调用已经有语义化摘要与详情，不再只是裸 JSON。
 - reasoning、tool、proposal、text、context compaction 已形成有序 block。
-- proposal 支持确认和拒绝，符合“用户拥有个人理解”的产品边界。
+- proposal 已支持预览、确认、拒绝和持久化结果，建立了“知识写入必须经过用户”的基础边界。
 - 支持 stop、retry、sticky scroll、context meter。
 - Agent 工作时输入框仍可编辑，发送位置切换为停止。
 - UI package、Electron adapter 和 Storybook 已有清晰的模块边界。
@@ -696,18 +901,70 @@ run is busy && 最后一条消息不是 assistant
 
 当前 UI 使用“正在思考 / 思考过程”，把 Provider 的 `thinking_delta` 直接提升为产品概念。它需要降级为“过程说明”，避免让用户把模型过程材料当成完整、可信的内部解释。
 
-### 11.4 工具已经语义化，但仍缺 Turn 级 Activity
+### 11.4 Tool 与 Proposal 仍是两套事件 UI，缺少统一 Agent Action
 
-当前每个普通 tool 基本形成自己的 tool group。单步时可读，多步时仍容易形成日志墙。
+当前普通 tool 进入 `ToolActivityBlock`，知识写入和危险 Bash 进入 `AgentProposalCard`。两边都已有产品化摘要，但分类依据仍是底层事件类型：
 
-需要的不是重新设计 tool card，而是在更高一层：
+- 普通 tool 主要表达“调用了什么、是否完成”；
+- approval 主要表达“候选内容是什么、确认还是拒绝”；
+- 同一个动作从 pending approval 到 running、completed 后，仍长期保持 proposal card 形态；
+- UI 没有一套共同语法表达 Intent、Target、Impact、Outcome 和当前球权。
 
-- 将同一 Turn 的过程说明和普通工具聚合为一个 Activity；
-- 默认显示当前动作或完成步骤摘要；
-- 详情保留原有语义化 tool view；
-- 最终 Response 从 Activity 中脱离。
+因此需要先建立统一的 Agent Action view model，再根据 mode 和 lifecycle 选择 Activity Row、Decision Card、Candidate Card 或 Receipt。Activity Group 是容器，不能替代 Action 本身的 redesign。
 
-### 11.5 缺少明确的 intermediate / final 文本语义
+### 11.5 Readonly Tool 已有摘要，但 Outcome 仍不够任务化
+
+当前 `agent-turn-view.ts` 已对 `domain_list`、`understanding_get`、`retrieve_knowledge`、`graph`、附件、网页和文件读取等工具提供中文名称与详情，这是可靠基础。
+
+仍需继续从“工具完成”走向“行动得到了什么”：
+
+- 查询命中数、读取对象数、空结果；
+- 哪些结果被用于当前回答；
+- 是否发现冲突、缺口或证据不足；
+- 失败是否被 Agent 恢复。
+
+并非所有 output 都能自动推导“采用了几条”，不能虚构使用情况。首版只展示由 tool output 可以确定的事实；“采用了哪些证据”需要 Provider 或 Agent 明确提供 attribution 后再展示。
+
+### 11.6 Permission 与 Personal Knowledge Candidate 被同一个 Approval 心智混合
+
+当前 `AgentProposalCard` 同时承载：
+
+- 危险 Bash permission；
+- Understanding / Context / Domain 的创建、更新和删除。
+
+这些事件都需要用户接球，但判断问题并不相同：
+
+- Bash 在问“是否允许这个后果”；
+- Understanding create / update 在问“这是否准确表达我的理解”；
+- Context create / update 在问“这段材料是否应该以这种方式成为我的上下文”；
+- Domain create / update 在问“这是否是我认可的组织方式”；
+- delete 在问“是否接受这个不可逆或高成本后果”。
+
+UI 必须将 permission、candidate adoption 和 destructive confirmation 分开表达，不能只换标题后继续共用“确认 / 拒绝”。
+
+### 11.7 Candidate 缺少“修改后确认”
+
+当前 proposal decision 只有 `approve | reject`，协议命令也只有 `tool.approve` 与 `tool.reject`。
+
+这意味着当候选 Understanding “大致正确但不是我的表达”时，用户只能：
+
+- 原样接受；
+- 完全拒绝；
+- 拒绝后重新发一轮消息。
+
+这不符合“AI 辅助形成理解、用户拥有最终表达”的价值主张。`propose` action 必须允许用户在卡片内修改候选，并将修改后的 payload 作为最终确认版本提交。编辑不是附加便利，而是 personal knowledge ownership 的必要交互。
+
+### 11.8 已决 Proposal 仍然长期占据重卡片
+
+当前 completed / rejected proposal 默认折叠，但仍保留完整 card shell。长对话中多次确认会积累大量同等重量的卡片。
+
+更合理的状态变化是：
+
+- `needs-user` 与确认后的 `running` 保持前景 card；
+- `completed`、`declined`、`failed` 收敛为 Activity receipt；
+- receipt 可展开查看候选、用户最终版本和执行结果。
+
+### 11.9 缺少明确的 intermediate / final 文本语义
 
 当前有序 text block 保留了顺序，但协议没有稳定表达某段 assistant text 是：
 
@@ -716,13 +973,13 @@ run is busy && 最后一条消息不是 assistant
 
 只靠 UI 猜“最后一段就是 final”在历史兼容时可用，但不应该成为长期协议。
 
-### 11.6 Final Response 首段会立即暴露碎片
+### 11.10 Final Response 首段会立即暴露碎片
 
 当前 final text 一有 delta 就开始渲染。短碎片、Markdown 未闭合和 Activity 到 Response 的快速切换会造成抖动。
 
 需要一个很短、适配中文的展示缓冲，但不能延迟事件持久化，也不需要复制 Craft 的英文单词算法。
 
-### 11.7 Proposal 等待态需要压过普通 processing
+### 11.11 Proposal 等待态需要压过普通 processing
 
 当候选方案等待用户确认时，球权已经在用户手里。此时若继续突出通用“Agent 正在处理”，会误导用户继续等待。
 
@@ -739,8 +996,8 @@ run is busy && 最后一条消息不是 assistant
 - 从事实派生 Turn phase。
 - 明确定义 tool completed 后的 `awaiting`。
 - intermediate / final 在 Provider 边界分类。
-- 工具摘要默认简洁，详情可追溯。
-- permission / proposal 表达为用户决策态。
+- action 摘要默认简洁，详情可追溯。
+- permission / proposal 表达为用户决策态，并在用户决定后收敛为 receipt。
 - final response 首段做轻量缓冲。
 - 自动滚动尊重用户当前阅读位置。
 - 围绕生命周期、乱序、恢复和中止测试。
@@ -748,6 +1005,7 @@ run is busy && 最后一条消息不是 assistant
 ### 12.2 只借原则，不复制实现
 
 - Craft 的 `TurnCard.tsx` 和 `ChatDisplay.tsx` 体量很大，Reflecta 不应复制其单体结构。
+- Craft 的通用 tool / permission 表达不足以覆盖 Reflecta 对个人理解所有权的要求；需要在其原则上增加 Candidate 与可编辑确认。
 - Craft 的英文单词与句法阈值不适合中文。
 - 轮换式趣味状态文案不一定符合 Reflecta 安静、反思型的语气。
 - elapsed timer 只有在真实等待足够长、能降低焦虑时才值得加入。
@@ -757,7 +1015,8 @@ run is busy && 最后一条消息不是 assistant
 
 - 不展示或声称展示完整思维链。
 - 不让 Agent 自动写入用户的个人理解或推断关系。
-- 不让 tool activity 成为对话主体。
+- 不让 action activity 成为对话主体。
+- 不把 readonly、permission 和 personal knowledge candidate 粗暴做成同一种 tool card。
 - 不为状态模型引入新的依赖或一套并行 store。
 - 不在没有需求证据时加入中途 steer、消息队列和后台任务系统。
 - 不把编码 Agent 的 terminal、diff、command 权重直接迁移到 Reflecta。
@@ -768,37 +1027,50 @@ run is busy && 最后一条消息不是 assistant
 
 综合 Craft 的机制和 Reflecta 的价值主张，目标心智应该是：
 
-> **用户把一个探索、检索、比较或整理任务交给 Agent；Agent 以可追溯但不打扰的方式推进；遇到意义判断或知识变更时把选择权交回用户；最后交付一个可继续理解和行动的结果。**
+> **用户把一个探索、检索、比较或整理任务交给 Agent；Agent 通过可理解、可追溯的 Actions 安静推进；遇到系统后果时请求权限，遇到个人理解时提交可编辑候选；最后交付一个可继续理解和行动的结果。**
 
-可以进一步压缩为五条产品原则：
+可以进一步压缩为六条产品原则：
 
 1. **Turn 是委托，不是消息集合。**
-2. **过程可见，但不喧宾夺主。**
-3. **状态说明责任，不虚构思维。**
-4. **结果由 Agent 交付，意义由用户确认。**
-5. **实时、历史和异常状态必须讲同一个故事。**
+2. **Tool 是协议事件，Action 才是用户单位。**
+3. **过程可见，但不喧宾夺主。**
+4. **状态说明责任，不虚构思维。**
+5. **Permission 由用户授权，个人意义由用户编辑并确认。**
+6. **实时、历史和异常状态必须讲同一个故事。**
+
+目标 Turn 的视觉和责任结构是：
+
+```text
+Agent Turn
+├── Activity
+│   └── Agent Actions：自主推进的过程与已决 receipt
+├── Decision / Candidate
+│   └── 当前需要用户授予权限或确认内容的 Action
+└── Response
+    └── Agent 对整次委托的最终交付
+```
 
 ### 13.1 目标生命周期
 
 ```mermaid
 stateDiagram-v2
   [*] --> Pending: 用户发送委托
-  Pending --> ToolActive: 开始使用工具
+  Pending --> ActionActive: 开始执行 Action
   Pending --> Responding: 直接回答
-  ToolActive --> Awaiting: 当前工具完成
-  Awaiting --> ToolActive: 继续使用工具
+  ActionActive --> Awaiting: 当前 Action 完成
+  Awaiting --> ActionActive: 继续执行 Action
   Awaiting --> Responding: 开始最终交付
   Pending --> NeedsUser: 需要确认
-  ToolActive --> NeedsUser: 需要授权或确认
+  ActionActive --> NeedsUser: 需要 permission 或确认候选
   Awaiting --> NeedsUser: 需要用户判断
   NeedsUser --> Pending: 用户确认后继续
   Responding --> Complete: 最终回答完成
   Pending --> Failed
-  ToolActive --> Failed
+  ActionActive --> Failed
   Awaiting --> Failed
   Responding --> Failed
   Pending --> Stopped
-  ToolActive --> Stopped
+  ActionActive --> Stopped
   Awaiting --> Stopped
   Responding --> Stopped
   Complete --> [*]
@@ -818,13 +1090,19 @@ stateDiagram-v2
 - 任何非终态时，用户能否判断 Agent、外部工具还是自己拥有下一步行动权？
 - tool completed 到下一动作之间是否仍有明确反馈？
 - 用户能否区分过程说明、工作证据和最终交付？
-- proposal / permission 是否被表达为“需要用户决定”？
+- 每个 Action 是否说明了动作、对象、后果与有意义的结果？
+- readonly Action 是否表达 Outcome，而不只是“执行完成”？
+- permission 与 personal knowledge candidate 是否被表达成不同的用户判断？
+- personal knowledge candidate 是否允许修改后确认？
+- 已决 Action 是否收敛为 receipt？
 - stop、failed、retry、reload 后的状态是否自洽？
 - Agent 是否越过用户对个人理解和知识关系的所有权？
 
 ### UI 检查
 
 - Activity 是否默认收敛且可追溯？
+- pending Decision / Candidate 是否从 Activity 中升格为当前焦点？
+- Action 结束后是否回到紧凑 Activity receipt？
 - Response 是否是完成后的主视觉？
 - phase 是否同时有文本语义，而不只靠颜色和动画？
 - 动画是否局部、克制并支持 reduced motion？
@@ -837,6 +1115,8 @@ stateDiagram-v2
 - Provider 差异是否在 adapter 边界消化？
 - intermediate / final 是否有明确协议语义？
 - phase 是否由现有事实纯派生？
+- tool / approval / proposal 是否统一映射到 Agent Action view，而没有强迫底层协议合并？
+- 修改后确认的候选 payload 是否在主进程信任边界重新校验？
 - 重复、乱序、错误和中止是否有统一收口？
 - 流式高频事件是否批处理？
 - 测试是否覆盖生命周期，而不是只验证 DOM 和 class？
@@ -850,10 +1130,13 @@ Craft Agents 的 Agent 对话体验之所以可靠，不是因为它展示了更
 - 底层允许复杂、流式、乱序；
 - 中层把这些事实归约成连续 Turn；
 - UX 始终说明球权与责任；
-- UI 用 Activity 收纳证据，用 Response 承担交付；
+- UI 用 Agent Action 表达意图、后果和结果，用 Activity 收纳自主过程与 receipts，用 Decision / Candidate 承担用户接球，用 Response 承担最终交付；
 - 权限、失败和恢复都延续同一套心智。
 
-Reflecta 已经拥有 ordered blocks、语义化 tool view、proposal、纯 reducer、事件 batching、stop/retry 和 sticky scroll 等扎实基础。下一步不是重写聊天系统，而是补上一层真正面向用户的 Turn 语义：**phase、awaiting、Activity/Response 分层、诚实的过程术语，以及稳定的首段交付。**
+Reflecta 已经拥有 ordered blocks、语义化 tool view、proposal、纯 reducer、事件 batching、stop/retry 和 sticky scroll 等扎实基础。下一步不是重写聊天系统，而是在这些事实之上补两层用户语义：
+
+1. **Turn 层**：phase、awaiting、Activity / Decision / Response 分层、诚实的过程术语与稳定首段交付；
+2. **Action 层**：Observe / Operate / Propose、Outcome、Impact、Permission / Candidate 分流、修改后确认与已决 Receipt。
 
 这会让 Reflecta 从“能正确显示 Agent 事件”，前进到“用户能持续理解自己与 Agent 正在如何协作”。
 
@@ -866,4 +1149,5 @@ Reflecta 已经拥有 ordered blocks、语义化 tool view、proposal、纯 redu
 - [x] 同层内容按职责拆分，避免混淆 UX、UI 与协议实现。
 - [x] 关键结论均给出源码机制或 Reflecta 现状作为支撑。
 - [x] 明确记录适用边界、不可照搬项与价值主张约束。
+- [x] 明确区分 Craft 的源码事实与基于 Reflecta 第一性原理得到的 Agent Action 设计推论。
 - [x] 未将新增复杂能力包装成当前必需项。
