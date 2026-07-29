@@ -189,6 +189,14 @@ cx + dy
 \\end{pmatrix}
 $$
 
+## Mermaid 图表
+
+\`\`\`mermaid
+flowchart LR
+  Capture["记录"] --> Reflect["反思"]
+  Reflect --> Understand["形成理解"]
+\`\`\`
+
 ## 综合嵌套示例
 
 > ### 引用中的标题

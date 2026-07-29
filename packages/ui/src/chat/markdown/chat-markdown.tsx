@@ -1,11 +1,35 @@
+import { createMathPlugin } from "@streamdown/math";
 import type { ComponentProps, ReactNode } from "react";
-import { defaultUrlTransform, Streamdown, type Components, type UrlTransform } from "streamdown";
+import {
+  defaultUrlTransform,
+  Streamdown,
+  type Components,
+  type DiagramPlugin,
+  type UrlTransform,
+} from "streamdown";
+import { renderMermaid } from "#lib/mermaid";
 import type { ChatEntityBindings, ChatEntityPresentation, ChatEntityReference } from "../entity";
 import { entityClassName, entityIcon } from "../entity-visual";
 import { entityHref, isEntityHref, parseEntityHref } from "./entity-href";
 import { collectChatEntityReferences, replaceChatEntityReferences } from "./entity-reference-codec";
 import { createChatSearchRehypePlugin, useChatSearchState } from "../message/chat-search";
+import "katex/dist/katex.min.css";
 import "./markdown-theme.scss";
+
+const mermaidPlugin: DiagramPlugin = {
+  name: "mermaid",
+  type: "diagram",
+  language: "mermaid",
+  getMermaid: (config) => ({
+    initialize: () => undefined,
+    render: (id, source) => renderMermaid(id, source, config),
+  }),
+};
+
+const chatMarkdownPlugins = {
+  math: createMathPlugin({ singleDollarTextMath: true }),
+  mermaid: mermaidPlugin,
+};
 
 export type ChatMarkdownProps = ChatEntityBindings & {
   value: string;
@@ -119,6 +143,7 @@ export function ChatMarkdown({
       <Streamdown
         key={`${searchState?.query ?? "plain"}:${entityRenderKey}`}
         components={markdownComponents({ resolveEntity, onEntityOpen })}
+        plugins={chatMarkdownPlugins}
         rehypePlugins={searchState ? [createChatSearchRehypePlugin(searchState)] : undefined}
         urlTransform={entityUrlTransform}
       >

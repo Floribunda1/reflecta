@@ -70,4 +70,18 @@
       background: var(--accent);
     }
   }
+
+  .preview {
+    > svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .reflecta-mermaid-error {
+      margin: 0;
+      color: var(--destructive);
+      font-family: var(--crepe-font-default);
+      font-size: $font-size-code;
+    }
+  }
 }

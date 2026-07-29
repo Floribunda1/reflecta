@@ -8,11 +8,19 @@ import type { Editor } from "@milkdown/core";
 import type { Fragment } from "@milkdown/prose/model";
 import { Fragment as ProseFragment } from "@milkdown/prose/model";
 import { TextSelection } from "@milkdown/prose/state";
-import {
-  createReflectaMilkdownEditor,
-  getMilkdownMarkdown,
-  setMilkdownMarkdown,
-} from "./milkdown-editor";
+
+if (!document.doctype) {
+  document.insertBefore(
+    document.implementation.createDocumentType("html", "", ""),
+    document.documentElement,
+  );
+}
+if (document.compatMode !== "CSS1Compat") {
+  Object.defineProperty(document, "compatMode", { configurable: true, value: "CSS1Compat" });
+}
+
+const { createReflectaMilkdownEditor, getMilkdownMarkdown, setMilkdownMarkdown } =
+  await import("./milkdown-editor");
 
 const editors: Editor[] = [];
 
@@ -89,20 +97,22 @@ describe("reflecta milkdown editor", () => {
     expect(onBlur).toHaveBeenCalledWith("Latest body");
   });
 
-  test("preserves wiki links while leaving other markdown to Crepe", async () => {
+  test("preserves wiki links, formulas, and Mermaid while leaving other markdown to Crepe", async () => {
     const root = document.createElement("div");
     document.body.append(root);
 
     const editor = await createReflectaMilkdownEditor({
       root,
       content:
-        "Connect [[Alpha#understanding-1]].\n\n```mermaid\ngraph TD\n  A --> B\n```\n\n:::warning\nCareful\n:::",
+        "Connect [[Alpha#understanding-1]] with $E = mc^2$.\n\n$$\n\\int_0^1 x^2 dx\n$$\n\n```mermaid\ngraph TD\n  A --> B\n```\n\n:::warning\nCareful\n:::",
     });
     editors.push(editor);
 
     const markdown = getMilkdownMarkdown(editor);
 
     expect(markdown).toContain("[[Alpha#understanding-1]]");
+    expect(markdown).toContain("$E = mc^2$");
+    expect(markdown).toContain("\\int_0^1 x^2 dx");
     expect(markdown).toContain("```mermaid");
     expect(markdown).toContain(":::warning");
   });

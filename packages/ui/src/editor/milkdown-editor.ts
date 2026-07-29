@@ -7,6 +7,7 @@ import type { Schema } from "@milkdown/prose/model";
 import { Crepe } from "@milkdown/crepe";
 import { replaceAll } from "@milkdown/utils";
 import { escape } from "lodash-es";
+import { renderMermaid } from "#lib/mermaid";
 import { reflectaMilkdownExtensions } from "./milkdown-extensions";
 import { markdownEquals, normalizeMarkdown } from "./markdown-normalize";
 import {
@@ -25,6 +26,29 @@ export type CreateReflectaMilkdownEditorOptions = {
   uploadAsset?: MarkdownAssetUploader;
   getSuggestions?: WikiLinkSuggestionSource;
 };
+
+let mermaidPreviewId = 0;
+
+function renderMermaidPreview(
+  language: string,
+  content: string,
+  applyPreview: (value: null | string | HTMLElement) => void,
+): null | undefined {
+  if (language.toLowerCase() !== "mermaid" || !content.trim()) return null;
+
+  const id = `reflecta-mermaid-${++mermaidPreviewId}`;
+  void renderMermaid(id, content).then(
+    ({ svg }) => applyPreview(svg),
+    (error) => {
+      const message = document.createElement("p");
+      message.className = "reflecta-mermaid-error";
+      message.textContent = "Mermaid 图表渲染失败";
+      message.title = error instanceof Error ? error.message : String(error);
+      applyPreview(message);
+    },
+  );
+  return undefined;
+}
 
 function isSupportedMedia(file: File): boolean {
   return file.type.startsWith("image/") || file.type.startsWith("video/");
@@ -98,6 +122,9 @@ export function createReflectaMilkdownEditorBuilder({
       [Crepe.Feature.TopBar]: false,
     },
     featureConfigs: {
+      [Crepe.Feature.CodeMirror]: {
+        renderPreview: renderMermaidPreview,
+      },
       [Crepe.Feature.Cursor]: {
         virtual: false,
       },

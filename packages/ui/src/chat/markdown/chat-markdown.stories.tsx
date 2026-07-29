@@ -20,14 +20,7 @@ const presentations = new Map([
 
 const resolveEntity = (reference: ChatEntityReference) => presentations.get(entityKey(reference));
 
-const diagramsAndMath = `${markdownStorySections.mathAndNested}
-
-\`\`\`mermaid
-flowchart LR
-  User["用户消息"] --> Tool["Tool 执行"]
-  Tool --> Answer["最终回复"]
-\`\`\`
-`;
+const diagramsAndMath = markdownStorySections.mathAndNested;
 
 const entityMarkdown = `## Reflecta Entity
 
