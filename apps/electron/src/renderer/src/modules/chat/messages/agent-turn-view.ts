@@ -1,12 +1,15 @@
 import type {
+  AgentMessageBlockView,
   AgentProposalLifecycle,
   AgentProposalView,
   AgentToolActivityView,
   AgentToolDetailsView,
+  ChatAssistantMessageView,
 } from "@reflecta/ui/chat";
 import type {
   AgentContextCompacted,
   AgentReducedAssistantBlock,
+  AgentReducedMessage,
 } from "../../../../../preload/typings/agent";
 
 export type ProposalType =
@@ -75,6 +78,12 @@ export type ToolActivityItemView = {
 export type AgentViewPresentation = {
   entityLabels: ReadonlyMap<string, string>;
   domainPath: (id: string) => string;
+};
+
+export type AgentMessageViewOptions = {
+  assistantRunning: boolean;
+  stopped: boolean;
+  presentation: AgentViewPresentation;
 };
 
 type ProposalBase<TType extends ProposalType, TData extends { kind: string }> = {
@@ -221,6 +230,97 @@ export function buildAgentTurnView(
   return {
     blocks: internalBlocks.map(toPublicBlock),
   };
+}
+
+function approvalMap(blocks: readonly AgentReducedAssistantBlock[]) {
+  return new Map(
+    blocks.flatMap((block) =>
+      block.kind === "approval" ? [[block.toolCallId, block] as const] : [],
+    ),
+  );
+}
+
+function toAgentMessageBlocks(
+  messageId: string,
+  turnBlocks: readonly AgentTurnBlock[],
+  rawBlocks: readonly AgentReducedAssistantBlock[],
+  presentation: AgentViewPresentation,
+): AgentMessageBlockView[] {
+  const approvals = approvalMap(rawBlocks);
+  const result: AgentMessageBlockView[] = [];
+  let textIndex = 0;
+  let reasoningIndex = 0;
+
+  for (const block of turnBlocks) {
+    if (block.kind === "text") {
+      const id = `${messageId}:text:${textIndex}`;
+      textIndex += 1;
+      if (!block.text && !block.error) continue;
+      result.push({
+        kind: "text",
+        id,
+        markdown: block.text,
+        status: block.state ?? "done",
+        ...(block.error ? { error: block.error } : {}),
+      });
+      continue;
+    }
+    if (block.kind === "reasoning") {
+      const id = `${messageId}:reasoning:${reasoningIndex}`;
+      reasoningIndex += 1;
+      result.push({
+        kind: "reasoning",
+        reasoning: {
+          id,
+          status: block.reasoning.status,
+          markdown: block.reasoning.text,
+        },
+      });
+      continue;
+    }
+    if (block.kind === "context-compaction") {
+      result.push({
+        kind: "context-compaction",
+        compaction: {
+          id: block.compaction.id,
+          summary: block.compaction.summary,
+          tokensBefore: block.compaction.tokensBefore,
+          estimatedTokensAfter: block.compaction.estimatedTokensAfter,
+        },
+      });
+      continue;
+    }
+    if (block.kind === "tool-activity") {
+      const id = block.activity.items[0]?.toolCallId ?? `${messageId}:tool`;
+      result.push({
+        kind: "tool-activity",
+        activity: toAgentToolActivityView(block.activity, id),
+      });
+      continue;
+    }
+    const raw = approvals.get(block.proposal.toolCallId);
+    if (!raw) continue;
+    result.push({
+      kind: "proposal",
+      proposal: toAgentProposalView(block.proposal, raw, presentation),
+    });
+  }
+  return result;
+}
+
+export function toAgentAssistantMessageView(
+  message: AgentReducedMessage,
+  options: AgentMessageViewOptions,
+): ChatAssistantMessageView {
+  const rawBlocks = message.blocks ?? [];
+  const turn = buildAgentTurnView(rawBlocks, options.assistantRunning);
+  const blocks = toAgentMessageBlocks(message.id, turn.blocks, rawBlocks, options.presentation);
+  const status: ChatAssistantMessageView["status"] = options.stopped
+    ? "stopped"
+    : options.assistantRunning
+      ? "streaming"
+      : "done";
+  return { kind: "assistant", id: message.id, status, blocks };
 }
 
 function toPublicBlock(block: InternalTurnBlock): AgentTurnBlock {

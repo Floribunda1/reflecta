@@ -5,9 +5,7 @@ import { toast } from "sonner";
 import {
   ChatMessageRow,
   getChatComposerEntities,
-  type AgentMessageBlockView,
   type AgentToolDetailsView,
-  type ChatAssistantMessageView,
   type ChatComposerDocument,
   type ChatEntityReference,
   type ChatMessageAction,
@@ -30,11 +28,9 @@ import { captureQueryKeys, getEntityDisplay, useCaptureDomains } from "../../cap
 import { getDomainPath } from "../../capture/domain/util";
 import type { InspectableContextRef } from "../context/context-reference";
 import {
-  buildAgentTurnView,
-  toAgentProposalView,
-  toAgentToolActivityView,
+  toAgentAssistantMessageView,
+  type AgentMessageViewOptions,
   type AgentViewPresentation,
-  type AgentTurnBlock,
 } from "../messages/agent-turn-view";
 import { useChatEntityBindings } from "./chat-entity-adapter";
 
@@ -47,11 +43,7 @@ export type ApproveToolInput = {
   reasoningLevel?: AgentReasoningLevel;
 };
 
-type MessageAdapterOptions = {
-  assistantRunning: boolean;
-  stopped: boolean;
-  presentation: AgentViewPresentation;
-};
+type MessageAdapterOptions = AgentMessageViewOptions;
 
 type ConnectedChatMessageRowProps = {
   message: AgentReducedMessage;
@@ -151,96 +143,12 @@ function toUserMessage(message: AgentReducedMessage): ChatUserMessageView {
   };
 }
 
-function approvalMap(blocks: readonly AgentReducedAssistantBlock[]) {
-  return new Map(
-    blocks.flatMap((block) =>
-      block.kind === "approval" ? [[block.toolCallId, block] as const] : [],
-    ),
-  );
-}
-
-function toMessageBlocks(
-  messageId: string,
-  turnBlocks: readonly AgentTurnBlock[],
-  rawBlocks: readonly AgentReducedAssistantBlock[],
-  presentation: AgentViewPresentation,
-): AgentMessageBlockView[] {
-  const approvals = approvalMap(rawBlocks);
-  const result: AgentMessageBlockView[] = [];
-  let textIndex = 0;
-  let reasoningIndex = 0;
-
-  for (const block of turnBlocks) {
-    if (block.kind === "text") {
-      const id = `${messageId}:text:${textIndex}`;
-      textIndex += 1;
-      if (!block.text && !block.error) continue;
-      result.push({
-        kind: "text",
-        id,
-        markdown: block.text,
-        status: block.state ?? "done",
-        ...(block.error ? { error: block.error } : {}),
-      });
-      continue;
-    }
-    if (block.kind === "reasoning") {
-      const id = `${messageId}:reasoning:${reasoningIndex}`;
-      reasoningIndex += 1;
-      result.push({
-        kind: "reasoning",
-        reasoning: {
-          id,
-          status: block.reasoning.status,
-          markdown: block.reasoning.text,
-        },
-      });
-      continue;
-    }
-    if (block.kind === "context-compaction") {
-      result.push({
-        kind: "context-compaction",
-        compaction: {
-          id: block.compaction.id,
-          summary: block.compaction.summary,
-          tokensBefore: block.compaction.tokensBefore,
-          estimatedTokensAfter: block.compaction.estimatedTokensAfter,
-        },
-      });
-      continue;
-    }
-    if (block.kind === "tool-activity") {
-      const id = block.activity.items[0]?.toolCallId ?? `${messageId}:tool`;
-      result.push({
-        kind: "tool-activity",
-        activity: toAgentToolActivityView(block.activity, id),
-      });
-      continue;
-    }
-    const raw = approvals.get(block.proposal.toolCallId);
-    if (!raw) continue;
-    result.push({
-      kind: "proposal",
-      proposal: toAgentProposalView(block.proposal, raw, presentation),
-    });
-  }
-  return result;
-}
-
 export function toChatMessageView(
   message: AgentReducedMessage,
   options: MessageAdapterOptions,
 ): ChatMessageView {
   if (message.role === "user") return toUserMessage(message);
-  const rawBlocks = message.blocks ?? [];
-  const turn = buildAgentTurnView(rawBlocks, options.assistantRunning);
-  const blocks = toMessageBlocks(message.id, turn.blocks, rawBlocks, options.presentation);
-  const status: ChatAssistantMessageView["status"] = options.stopped
-    ? "stopped"
-    : options.assistantRunning
-      ? "streaming"
-      : "done";
-  return { kind: "assistant", id: message.id, status, blocks };
+  return toAgentAssistantMessageView(message, options);
 }
 
 function markdownValues(message: ChatMessageView) {
