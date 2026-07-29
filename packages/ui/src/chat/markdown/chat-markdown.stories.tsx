@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { StoryCase, StoryShowcase } from "../../../.storybook/story-showcase";
 import { useAutoFrame } from "../../../.storybook/use-auto-frame";
 import type { ChatEntityReference } from "../entity";
 import { entityKey } from "../entity-visual";
@@ -163,8 +164,39 @@ ${longCode}
 超长 Entity：[[u:u_1]]
 `;
 
+function MarkdownShowcase() {
+  return (
+    <StoryShowcase
+      title="Markdown"
+      description="同页验收完整 Markdown 语法、流式未闭合语法，以及长代码和宽表格在窄容器中的表现。"
+    >
+      <StoryCase
+        title="完整语法"
+        description="覆盖标题、强调、列表、引用、表格、代码、公式、Mermaid、图片和 Entity。"
+        className="xl:col-span-2"
+      >
+        <ChatMarkdown value={completeMarkdown} {...entityBindings} />
+      </StoryCase>
+      <StoryCase
+        title="流式不完整语法"
+        description="自动循环未闭合强调、代码块、表格、链接、Mermaid 和公式。"
+      >
+        <StreamingSyntaxDemo />
+      </StoryCase>
+      <StoryCase
+        title="长代码、宽表格与窄容器"
+        description="内容可以内部滚动或换行，但不能撑破 360px 容器。"
+      >
+        <div className="w-[360px] max-w-full rounded-lg border p-4">
+          <ChatMarkdown value={boundaryMarkdown} tone="muted" {...entityBindings} />
+        </div>
+      </StoryCase>
+    </StoryShowcase>
+  );
+}
+
 const meta = {
-  title: "Agent/基本组件/Markdown",
+  title: "Agent/基本组件",
   component: ChatMarkdown,
   args: {
     value: completeMarkdown,
@@ -175,20 +207,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const CompleteSyntax: Story = {
-  name: "完整语法",
-};
-
-export const StreamingIncompleteSyntax: Story = {
-  name: "流式不完整语法",
-  render: () => <StreamingSyntaxDemo />,
-};
-
-export const DangerousBoundaries: Story = {
-  name: "长代码、宽表格与窄容器",
-  render: () => (
-    <div className="w-[360px] max-w-full rounded-lg border p-4">
-      <ChatMarkdown value={boundaryMarkdown} tone="muted" {...entityBindings} />
-    </div>
-  ),
+export const MarkdownStory: Story = {
+  name: "Markdown",
+  render: () => <MarkdownShowcase />,
 };

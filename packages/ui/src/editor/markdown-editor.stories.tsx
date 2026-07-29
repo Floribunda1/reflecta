@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { Button } from "#components/button";
+import { StoryCase, StoryShowcase } from "../../.storybook/story-showcase";
 import {
   MarkdownEditor,
   MarkdownPreview,
@@ -145,8 +146,96 @@ function ExternalUpdateDemo() {
   );
 }
 
+function CompleteEditorDemo() {
+  const [openedLink, setOpenedLink] = useState("尚未打开 Wiki Link");
+  return (
+    <div className="grid gap-3">
+      <ControlledEditor
+        documentId="showcase-complete"
+        initialValue={completeDocument}
+        height={560}
+        getSuggestions={getSuggestions}
+        uploadAsset={async (file) => ({ url: URL.createObjectURL(file), alt: file.name })}
+        onWikiLinkOpen={setOpenedLink}
+      />
+      <div className="text-xs text-muted-foreground">{openedLink}</div>
+    </div>
+  );
+}
+
+function PreviewLevelsDemo() {
+  const [openedLink, setOpenedLink] = useState("尚未打开 Wiki Link");
+  return (
+    <div className="grid gap-8">
+      <MarkdownPreview value={completeDocument} zoomImages={false} onWikiLinkOpen={setOpenedLink} />
+      <div className="text-xs text-muted-foreground">{openedLink}</div>
+      <div className="grid gap-3 rounded-lg border p-4">
+        <span className="text-xs font-medium text-muted-foreground">Understanding Row 摘要</span>
+        <SimpleMarkdownPreview value={completeDocument} lineClamp={3} />
+      </div>
+    </div>
+  );
+}
+
+function MarkdownEditorShowcase() {
+  return (
+    <StoryShowcase
+      title="Markdown Editor"
+      description="集中验收完整编辑、空白自动高度、只读、联想与上传、外部文档切换、危险边界和两级预览。"
+    >
+      <StoryCase
+        title="完整文档"
+        description="覆盖主要 Markdown 结构、Wiki Link、联想和图片上传。"
+        className="xl:col-span-2"
+      >
+        <CompleteEditorDemo />
+      </StoryCase>
+      <StoryCase title="空白与自动高度" description="输入区域从占位文案开始，最高增长到 420px。">
+        <ControlledEditor
+          documentId="showcase-empty"
+          initialValue=""
+          height="auto"
+          maxHeight={420}
+          placeholder="记录一个值得长期保留的想法…"
+          getSuggestions={getSuggestions}
+        />
+      </StoryCase>
+      <StoryCase title="只读" description="复用编辑器排版，但不允许修改内容。">
+        <MarkdownEditor
+          documentId="showcase-readonly"
+          value={completeDocument}
+          readOnly
+          height={420}
+        />
+      </StoryCase>
+      <StoryCase
+        title="联想、上传与外部更新"
+        description="切换文档后同步外部 value；输入 Wiki Link 或拖入文件可继续验收。"
+        className="xl:col-span-2"
+      >
+        <ExternalUpdateDemo />
+      </StoryCase>
+      <StoryCase
+        title="长代码、宽表格与窄容器"
+        description="360px 容器内保持内部滚动，不产生页面级横向溢出。"
+      >
+        <div className="w-[360px] max-w-full">
+          <ControlledEditor
+            documentId="showcase-boundaries"
+            initialValue={longDocument}
+            height={640}
+          />
+        </div>
+      </StoryCase>
+      <StoryCase title="完整预览与列表摘要" description="对比完整正文和三行摘要的排版层级。">
+        <PreviewLevelsDemo />
+      </StoryCase>
+    </StoryShowcase>
+  );
+}
+
 const meta = {
-  title: "Capture/基本组件/Markdown Editor",
+  title: "Capture/基本组件",
   component: MarkdownEditor,
   parameters: {
     layout: "padded",
@@ -160,79 +249,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const CompleteDocument: Story = {
-  name: "完整文档",
-  render: (args) => (
-    <ControlledEditor
-      documentId="storybook-complete"
-      initialValue={args.value}
-      height={args.height}
-      maxHeight={args.maxHeight}
-      placeholder={args.placeholder}
-      getSuggestions={getSuggestions}
-      uploadAsset={async (file) => ({ url: URL.createObjectURL(file), alt: file.name })}
-      onWikiLinkOpen={(id) => window.alert(`打开 ${id}`)}
-    />
-  ),
-};
-
-export const EmptyDocument: Story = {
-  name: "空白与自动高度",
-  args: {
-    value: "",
-    placeholder: "记录一个值得长期保留的想法…",
-  },
-  render: (args) => (
-    <ControlledEditor
-      documentId="storybook-empty"
-      initialValue={args.value}
-      height="auto"
-      maxHeight={420}
-      placeholder={args.placeholder}
-      getSuggestions={getSuggestions}
-    />
-  ),
-};
-
-export const ReadOnly: Story = {
-  name: "只读预览",
-  args: {
-    readOnly: true,
-    height: "auto",
-  },
-};
-
-export const SuggestionsUploadAndExternalUpdate: Story = {
-  name: "联想、上传与外部更新",
-  render: () => <ExternalUpdateDemo />,
-};
-
-export const DangerousBoundaries: Story = {
-  name: "长代码、宽表格与窄容器",
-  render: () => (
-    <div className="w-[360px] max-w-full">
-      <ControlledEditor
-        documentId="storybook-boundaries"
-        initialValue={longDocument}
-        height={640}
-      />
-    </div>
-  ),
-};
-
-export const PreviewLevels: Story = {
-  name: "完整预览与列表摘要",
-  render: () => (
-    <div className="grid max-w-4xl gap-8">
-      <MarkdownPreview
-        value={completeDocument}
-        zoomImages={false}
-        onWikiLinkOpen={(id) => window.alert(`打开 ${id}`)}
-      />
-      <div className="grid gap-3 rounded-lg border p-4">
-        <span className="text-xs font-medium text-muted-foreground">Understanding Row 摘要</span>
-        <SimpleMarkdownPreview value={completeDocument} lineClamp={3} />
-      </div>
-    </div>
-  ),
+export const MarkdownEditorStory: Story = {
+  name: "Markdown Editor",
+  render: () => <MarkdownEditorShowcase />,
 };

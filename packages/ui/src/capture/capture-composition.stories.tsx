@@ -128,7 +128,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const KnowledgeCapture: Story = {
+export const CompositionStory: Story = {
   name: "知识整理核心组合",
   render: () => <KnowledgeCaptureDemo />,
 };

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { StoryCase, StoryShowcase } from "../../../.storybook/story-showcase";
 import { useAutoFrame } from "../../../.storybook/use-auto-frame";
 import { ChatMessageRow } from "./chat-message-row";
 import type { ChatMessageRowView } from "./types";
@@ -66,65 +67,6 @@ const assistantRow: ChatMessageRowView = {
   enabledActions: ["copy", "fork", "regenerate"],
 };
 
-const meta = {
-  title: "Agent/基本组件/Message",
-  component: ChatMessageRow,
-  args: {
-    row: assistantRow,
-  },
-} satisfies Meta<typeof ChatMessageRow>;
-
-export default meta;
-type Story = StoryObj<typeof meta>;
-
-export const User: Story = {
-  name: "用户消息",
-  args: { row: userRow },
-};
-export const Assistant: Story = {
-  name: "Assistant 完成态",
-};
-export const SearchHighlight: Story = {
-  name: "搜索高亮与操作",
-  args: { row: { ...assistantRow, highlighted: true }, search: { query: "流式" } },
-};
-export const Pending: Story = {
-  name: "等待回复",
-  args: {
-    row: {
-      message: { kind: "assistant", id: "assistant-pending", status: "streaming", blocks: [] },
-    },
-  },
-};
-export const Stopped: Story = {
-  name: "已停止",
-  args: {
-    row: {
-      ...assistantRow,
-      message: {
-        kind: "assistant",
-        id: assistantRow.message.id,
-        status: "stopped",
-        blocks: assistantRow.message.kind === "assistant" ? assistantRow.message.blocks : [],
-      },
-    },
-  },
-};
-export const Failed: Story = {
-  name: "回复失败",
-  args: {
-    row: {
-      message: {
-        kind: "assistant",
-        id: "assistant-failed",
-        status: "failed",
-        blocks: [],
-        error: "模型连接中断。",
-      },
-    },
-  },
-};
-
 function StreamingTextSequence() {
   const frames = ["正在", "正在生成", "正在生成 **流式内容**。"];
   const frame = useAutoFrame(frames.length);
@@ -146,42 +88,131 @@ function StreamingTextSequence() {
   return <ChatMessageRow row={row} />;
 }
 
-export const StreamingIdentity: Story = {
-  name: "流式更新与稳定 Identity",
-  render: () => <StreamingTextSequence />,
+const pendingRow: ChatMessageRowView = {
+  message: { kind: "assistant", id: "assistant-pending", status: "streaming", blocks: [] },
 };
 
-export const DangerousBoundaries: Story = {
-  name: "长内容与窄容器",
-  args: {
-    row: {
-      message: {
-        kind: "assistant",
-        id: "assistant-long",
+const stoppedRow: ChatMessageRowView = {
+  ...assistantRow,
+  message: {
+    kind: "assistant",
+    id: assistantRow.message.id,
+    status: "stopped",
+    blocks: assistantRow.message.kind === "assistant" ? assistantRow.message.blocks : [],
+  },
+};
+
+const failedRow: ChatMessageRowView = {
+  message: {
+    kind: "assistant",
+    id: "assistant-failed",
+    status: "failed",
+    blocks: [],
+    error: "模型连接中断。",
+  },
+};
+
+const compactionRow: ChatMessageRowView = {
+  message: {
+    kind: "assistant",
+    id: "assistant-compaction",
+    status: "done",
+    blocks: [
+      {
+        kind: "context-compaction",
+        compaction: {
+          id: "compaction-1",
+          summary:
+            "保留了用户目标、Storybook 高 ROI 准入门槛、组件迁移边界、Streaming identity 约束，以及尚未完成的测试工作。\n\n删除了已经完成的中间排查细节。",
+          tokensBefore: 128_400,
+          estimatedTokensAfter: 29_200,
+        },
+      },
+    ],
+  },
+};
+
+const longRow: ChatMessageRowView = {
+  message: {
+    kind: "assistant",
+    id: "assistant-long",
+    status: "done",
+    blocks: [
+      {
+        kind: "text",
+        id: "assistant-long:text:0",
         status: "done",
-        blocks: [
-          {
-            kind: "text",
-            id: "assistant-long:text:0",
-            status: "done",
-            markdown: `## 长回复
+        markdown: `## 长回复
 
 ${"这是一段用于观察中文长内容换行、段落间距和消息宽度的回答。".repeat(16)}
 
 \`\`\`bash
 ${"bun run --cwd packages/ui build-storybook --verbose ".repeat(8)}
 \`\`\``,
-          },
-        ],
       },
-      enabledActions: ["copy", "fork", "regenerate"],
-    },
+    ],
   },
-  decorators: [
-    (Story) => (
-      <div className="w-[360px] max-w-full">
-        <Story />
-      </div>
-    ),
-  ],
+  enabledActions: ["copy", "fork", "regenerate"],
+};
+
+function MessageShowcase() {
+  return (
+    <StoryShowcase
+      title="Message"
+      description="集中验收用户与 Assistant 消息、搜索高亮、流式 identity、等待、停止、失败、上下文压缩和窄容器边界。"
+    >
+      <StoryCase title="用户消息" description="Entity、图片、长文件名和消息操作。">
+        <ChatMessageRow row={userRow} />
+      </StoryCase>
+      <StoryCase title="Assistant 完成态" description="思考、Tool 与最终文本组合。">
+        <ChatMessageRow row={assistantRow} />
+      </StoryCase>
+      <StoryCase title="搜索高亮与操作">
+        <ChatMessageRow row={{ ...assistantRow, highlighted: true }} search={{ query: "流式" }} />
+      </StoryCase>
+      <StoryCase
+        title="流式更新与稳定 Identity"
+        description="文本自动逐帧更新，消息和 block id 保持不变。"
+      >
+        <StreamingTextSequence />
+      </StoryCase>
+      <StoryCase title="等待回复">
+        <ChatMessageRow row={pendingRow} />
+      </StoryCase>
+      <StoryCase title="已停止">
+        <ChatMessageRow row={stoppedRow} />
+      </StoryCase>
+      <StoryCase title="回复失败">
+        <ChatMessageRow row={failedRow} />
+      </StoryCase>
+      <StoryCase title="上下文压缩" description="可展开查看压缩摘要与 Token 变化。">
+        <ChatMessageRow row={compactionRow} />
+      </StoryCase>
+      <StoryCase
+        title="长内容与窄容器"
+        description="长中文、超长命令和操作栏不能撑破消息宽度。"
+        className="xl:col-span-2"
+      >
+        <div className="w-[360px] max-w-full">
+          <ChatMessageRow row={longRow} />
+        </div>
+      </StoryCase>
+    </StoryShowcase>
+  );
+}
+
+const meta = {
+  title: "Agent/基本组件",
+  component: ChatMessageRow,
+  args: {
+    row: assistantRow,
+  },
+} satisfies Meta<typeof ChatMessageRow>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const MessageStory: Story = {
+  name: "Message",
+  render: () => <MessageShowcase />,
 };

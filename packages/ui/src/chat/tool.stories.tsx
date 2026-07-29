@@ -7,6 +7,7 @@ import {
   toAgentToolActivityView,
   type AgentViewPresentation,
 } from "../../../../apps/electron/src/renderer/src/modules/chat/messages/agent-turn-view";
+import { StoryCase, StoryShowcase } from "../../.storybook/story-showcase";
 import { useAutoFrame } from "../../.storybook/use-auto-frame";
 import { Button } from "../components/button";
 import { AgentExecutionBlock } from "./execution/agent-execution-block";
@@ -475,39 +476,35 @@ function ToolGallery() {
   );
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl gap-10">
-      <section className="grid gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">自动流式展示</h2>
-          <p className="text-sm text-muted-foreground">
-            使用稳定的 toolCallId 自动从运行中推进到完成，然后重新开始。
-          </p>
-        </div>
+    <StoryShowcase
+      title="Tool"
+      description="集中验收所有 production Tool 的完成、确认、拒绝、自动流式、失败和极端内容状态。"
+    >
+      <StoryCase
+        title="自动流式展示"
+        description="使用稳定的 toolCallId 自动从运行中推进到完成，然后重新开始。"
+        className="xl:col-span-2"
+      >
         <AutoStreamingTool />
-      </section>
-
-      <section className="grid gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">生产环境 Tool</h2>
-          <p className="text-sm text-muted-foreground">
-            以下卡片由 production 的 runtime block 转换函数生成，可点击展开或折叠详情。
-          </p>
-        </div>
+      </StoryCase>
+      <StoryCase
+        title="生产环境 Tool"
+        description="以下卡片由 production 的 runtime block 转换函数生成，可点击展开或折叠详情。"
+        className="xl:col-span-2"
+      >
         <div className="grid gap-4 xl:grid-cols-2">
           {completedTools.map((block) => (
             <ToolCard key={block.toolCallId} block={block} />
           ))}
         </div>
-      </section>
-
-      <section className="grid gap-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold">需要确认的 Tool</h2>
-            <p className="text-sm text-muted-foreground">
-              确认后自动进入执行中并完成；拒绝后直接显示 production 拒绝态。
-            </p>
-          </div>
+      </StoryCase>
+      <StoryCase
+        title="需要确认的 Tool"
+        description="确认后自动进入执行中并完成；拒绝后直接显示 production 拒绝态。"
+        className="xl:col-span-2"
+        contentClassName="grid gap-4"
+      >
+        <div className="flex justify-end">
           <Button
             type="button"
             size="sm"
@@ -522,27 +519,25 @@ function ToolGallery() {
             <InteractiveProposalCard key={fixture.block.approvalId} fixture={fixture} />
           ))}
         </div>
-      </section>
-
-      <section className="grid gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">异常与边界</h2>
-          <p className="text-sm text-muted-foreground">
-            仍然使用实际 bash 与 understanding_list Tool，只改变输入、输出和执行状态。
-          </p>
-        </div>
+      </StoryCase>
+      <StoryCase
+        title="异常与边界"
+        description="仍然使用实际 bash 与 understanding_list Tool，只改变输入、输出和执行状态。"
+        className="xl:col-span-2"
+        contentClassName="grid gap-4"
+      >
         <div className="grid gap-4">
           <ToolCard block={failed} defaultExpanded />
           <ToolCard block={longCommand} />
           <ToolCard block={manyResults} />
         </div>
-      </section>
-    </div>
+      </StoryCase>
+    </StoryShowcase>
   );
 }
 
 const meta = {
-  title: "Agent/基本组件/Tool",
+  title: "Agent/基本组件",
   parameters: {
     layout: "fullscreen",
   },
@@ -551,7 +546,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const AllTools: Story = {
-  name: "全部 Tool",
+export const ToolStory: Story = {
+  name: "Tool",
   render: () => <ToolGallery />,
 };

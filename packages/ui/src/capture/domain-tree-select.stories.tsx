@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
+import { StoryCase, StoryShowcase } from "../../.storybook/story-showcase";
 import type { DomainTreeNodeView } from "./domain-tree";
 import { DomainTreeSelect } from "./domain-tree-select";
 
@@ -29,8 +30,14 @@ const domains: DomainTreeNodeView[] = [
   },
 ];
 
-function MultipleDemo({ nodes = domains }: { nodes?: DomainTreeNodeView[] }) {
-  const [value, setValue] = useState<string[]>(["storybook", "research"]);
+function MultipleDemo({
+  nodes = domains,
+  initialValue = ["storybook", "research"],
+}: {
+  nodes?: DomainTreeNodeView[];
+  initialValue?: string[];
+}) {
+  const [value, setValue] = useState<string[]>(initialValue);
   return (
     <DomainTreeSelect
       nodes={nodes}
@@ -55,87 +62,95 @@ function SingleDemo() {
   );
 }
 
+const manyDeepDomains: DomainTreeNodeView[] = [
+  {
+    id: "long-root",
+    name: "一个非常长的顶级 Domain",
+    children: Array.from({ length: 24 }, (_, index) => ({
+      id: `long-child-${index}`,
+      name: `第 ${index + 1} 个候选 Domain · 包含较长名称`,
+      children:
+        index === 0
+          ? [
+              {
+                id: "deep-child",
+                name: "第二层 / 第三层 / 最深的候选项",
+                children: [],
+              },
+            ]
+          : [],
+    })),
+  },
+];
+
+function SelectSurface({ children }: { children: React.ReactNode }) {
+  return <div className="w-[420px] max-w-full">{children}</div>;
+}
+
+function DomainTreeSelectShowcase() {
+  return (
+    <StoryShowcase
+      title="Domain Tree Select"
+      description="集中验收单选、多选、异步状态，以及大量深层候选在窄容器中的表现。"
+    >
+      <StoryCase title="多选" description="展示完整路径、多个已选项和排除项。">
+        <SelectSurface>
+          <MultipleDemo />
+        </SelectSurface>
+      </StoryCase>
+      <StoryCase title="单选" description="用于选择唯一父 Domain。">
+        <SelectSurface>
+          <SingleDemo />
+        </SelectSurface>
+      </StoryCase>
+      <StoryCase title="加载中">
+        <SelectSurface>
+          <DomainTreeSelect
+            nodes={[]}
+            value={[]}
+            status="loading"
+            onValueChange={() => undefined}
+          />
+        </SelectSurface>
+      </StoryCase>
+      <StoryCase title="加载失败">
+        <SelectSurface>
+          <DomainTreeSelect
+            nodes={[]}
+            value={[]}
+            status="error"
+            errorText="无法加载 Domain，请稍后重试"
+            onValueChange={() => undefined}
+          />
+        </SelectSurface>
+      </StoryCase>
+      <StoryCase
+        title="大量候选、深路径与窄容器"
+        description="展开候选后可观察长名称截断、深层缩进和滚动边界。"
+        className="xl:col-span-2"
+      >
+        <div className="w-72 max-w-full">
+          <MultipleDemo nodes={manyDeepDomains} initialValue={[]} />
+        </div>
+      </StoryCase>
+    </StoryShowcase>
+  );
+}
+
 const meta = {
-  title: "Capture/基本组件/Domain Tree Select",
+  title: "Capture/基本组件",
   component: DomainTreeSelect,
   args: {
     nodes: domains,
     value: [],
     onValueChange: () => undefined,
   },
-  decorators: [
-    (Story) => (
-      <div className="w-[420px] max-w-full">
-        <Story />
-      </div>
-    ),
-  ],
 } satisfies Meta;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Multiple: Story = {
-  name: "多选、路径与排除项",
-  render: () => <MultipleDemo />,
-};
-
-export const Single: Story = {
-  name: "单选",
-  render: () => <SingleDemo />,
-};
-
-export const Loading: Story = {
-  name: "加载中",
-  render: () => (
-    <DomainTreeSelect nodes={[]} value={[]} status="loading" onValueChange={() => undefined} />
-  ),
-};
-
-export const Error: Story = {
-  name: "加载失败",
-  render: () => (
-    <DomainTreeSelect
-      nodes={[]}
-      value={[]}
-      status="error"
-      errorText="无法加载 Domain，请稍后重试"
-      onValueChange={() => undefined}
-    />
-  ),
-};
-
-export const ManyDeepAndNarrow: Story = {
-  name: "大量候选、深路径与窄容器",
-  decorators: [
-    (Story) => (
-      <div className="w-72 max-w-full">
-        <Story />
-      </div>
-    ),
-  ],
-  render: () => (
-    <MultipleDemo
-      nodes={[
-        {
-          id: "long-root",
-          name: "一个非常长的顶级 Domain",
-          children: Array.from({ length: 24 }, (_, index) => ({
-            id: `long-child-${index}`,
-            name: `第 ${index + 1} 个候选 Domain · 包含较长名称`,
-            children:
-              index === 0
-                ? [
-                    {
-                      id: "deep-child",
-                      name: "第二层 / 第三层 / 最深的候选项",
-                      children: [],
-                    },
-                  ]
-                : [],
-          })),
-        },
-      ]}
-    />
-  ),
+export const DomainTreeSelectStory: Story = {
+  name: "Domain Tree Select",
+  render: () => <DomainTreeSelectShowcase />,
 };

@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
+import { StoryCase, StoryShowcase } from "../../.storybook/story-showcase";
 import { KnowledgeGraph } from "./knowledge-graph";
 import type { KnowledgeGraphData } from "./knowledge-graph-state";
 
@@ -31,13 +32,18 @@ const normalGraph: KnowledgeGraphData = {
 function GraphDemo({
   data = normalGraph,
   initialSelection = "storybook",
+  height = 480,
 }: {
   data?: KnowledgeGraphData;
   initialSelection?: string | null;
+  height?: number;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(initialSelection);
   return (
-    <div className="h-[680px] min-h-0 w-full overflow-hidden rounded-xl border bg-background">
+    <div
+      className="min-h-0 w-full overflow-hidden rounded-xl border bg-background"
+      style={{ height }}
+    >
       <KnowledgeGraph data={data} selectedId={selectedId} onSelectionChange={setSelectedId} />
     </div>
   );
@@ -65,8 +71,54 @@ const manyGraph: KnowledgeGraphData = {
   }),
 };
 
+function KnowledgeGraphShowcase() {
+  return (
+    <StoryShowcase
+      title="Knowledge Graph"
+      description="同页验收完整交互、空图、单节点、大规模关系图和窄容器 Resize。"
+    >
+      <StoryCase
+        title="完整交互"
+        description="选择、悬停、缩放、平移和适应画布。"
+        className="xl:col-span-2"
+      >
+        <GraphDemo height={560} />
+      </StoryCase>
+      <StoryCase title="空图" description="没有 Understanding 和 Connection。">
+        <GraphDemo data={{ nodes: [], edges: [] }} initialSelection={null} height={320} />
+      </StoryCase>
+      <StoryCase title="单节点" description="孤立 Understanding 不应被当成错误。">
+        <GraphDemo
+          data={{
+            nodes: [{ id: "single", data: { title: "唯一的 Understanding", degree: 0 } }],
+            edges: [],
+          }}
+          initialSelection="single"
+          height={320}
+        />
+      </StoryCase>
+      <StoryCase
+        title="大量节点、关系与长标题"
+        description="60 个节点和 92 条边下保持层级、选中和操作响应。"
+        className="xl:col-span-2"
+      >
+        <GraphDemo data={manyGraph} initialSelection="node-0" height={560} />
+      </StoryCase>
+      <StoryCase
+        title="窄容器与 Resize"
+        description="画布在 360px 宽度内重新布局，不向页面外溢出。"
+        className="xl:col-span-2"
+      >
+        <div className="w-[360px] max-w-full">
+          <GraphDemo height={480} />
+        </div>
+      </StoryCase>
+    </StoryShowcase>
+  );
+}
+
 const meta = {
-  title: "Knowledge Wander/基本组件/Knowledge Graph",
+  title: "Knowledge Wander/基本组件",
   component: KnowledgeGraph,
   args: {
     data: normalGraph,
@@ -81,42 +133,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Interactive: Story = {
-  name: "选择、悬停、缩放与适应画布",
-  render: () => <GraphDemo />,
-};
-
-export const Empty: Story = {
-  name: "空图",
-  render: () => <GraphDemo data={{ nodes: [], edges: [] }} initialSelection={null} />,
-};
-
-export const SingleNode: Story = {
-  name: "单节点",
-  render: () => (
-    <GraphDemo
-      data={{
-        nodes: [{ id: "single", data: { title: "唯一的 Understanding", degree: 0 } }],
-        edges: [],
-      }}
-      initialSelection="single"
-    />
-  ),
-};
-
-export const ManyNodesAndLongTitles: Story = {
-  name: "大量节点、关系与长标题",
-  render: () => <GraphDemo data={manyGraph} initialSelection="node-0" />,
-};
-
-export const NarrowContainer: Story = {
-  name: "窄容器与 Resize",
-  decorators: [
-    (Story) => (
-      <div className="mx-auto w-[360px] max-w-full">
-        <Story />
-      </div>
-    ),
-  ],
-  render: () => <GraphDemo />,
+export const KnowledgeGraphStory: Story = {
+  name: "Knowledge Graph",
+  render: () => <KnowledgeGraphShowcase />,
 };

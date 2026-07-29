@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useEffect, useState } from "react";
+import { StoryCase, StoryShowcase } from "../../../.storybook/story-showcase";
 import { useAutoFrame } from "../../../.storybook/use-auto-frame";
 import { Button } from "../../components/button";
 import { ChatComposer } from "../composer/chat-composer";
@@ -322,6 +323,40 @@ function DenseFailureDemo() {
   );
 }
 
+function AgentCompositionShowcase() {
+  return (
+    <StoryShowcase
+      title="Agent 组合场景"
+      description="把核心组件放回完整对话密度中，同页观察典型任务、用户确认以及高密度异常任务。"
+    >
+      <StoryCase
+        title="典型任务"
+        description="自动经历等待、思考、Tool 执行和最终回答。"
+        className="xl:col-span-2"
+        contentClassName="p-0"
+      >
+        <TypicalTaskDemo />
+      </StoryCase>
+      <StoryCase
+        title="确认任务"
+        description="确认或拒绝后，任务状态自动推进并保留完整对话上下文。"
+        className="xl:col-span-2"
+        contentClassName="p-0"
+      >
+        <ApprovalTaskDemo />
+      </StoryCase>
+      <StoryCase
+        title="高密度与异常"
+        description="多个 Tool、长结果、失败和停止状态叠加后的整体信息层级。"
+        className="xl:col-span-2"
+        contentClassName="p-0"
+      >
+        <DenseFailureDemo />
+      </StoryCase>
+    </StoryShowcase>
+  );
+}
+
 const meta = {
   title: "Agent/组合场景样式",
   parameters: {
@@ -332,17 +367,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const TypicalTask: Story = {
-  name: "典型任务",
-  render: () => <TypicalTaskDemo />,
-};
-
-export const ApprovalTask: Story = {
-  name: "确认任务",
-  render: () => <ApprovalTaskDemo />,
-};
-
-export const DenseAndFailure: Story = {
-  name: "高密度与异常",
-  render: () => <DenseFailureDemo />,
+export const CompositionStory: Story = {
+  name: "全部场景",
+  render: () => <AgentCompositionShowcase />,
 };
