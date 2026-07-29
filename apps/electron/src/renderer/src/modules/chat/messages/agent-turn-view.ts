@@ -51,17 +51,18 @@ export type ToolActivityDetailMeta = {
 };
 
 export type ToolActivityDetailRow = {
-  label: string;
-  title: string;
+  label?: string;
+  title?: string;
   description?: string;
   fullDescription?: string;
-  format?: "text" | "pre" | "markdown";
+  format?: "text" | "pre" | "markdown" | "diff";
   meta: string[];
 };
 
 export type ToolActivityDetailsView = {
   meta: ToolActivityDetailMeta[];
   rows: ToolActivityDetailRow[];
+  badges?: string[];
   emptyText?: string;
 };
 
@@ -565,6 +566,7 @@ function toAgentToolDetailsView(
   if (!details) return undefined;
   return {
     ...(details.meta.length ? { meta: details.meta } : {}),
+    ...(details.badges?.length ? { badges: details.badges } : {}),
     ...(details.rows.length
       ? {
           rows: details.rows.map((row, index) => {
@@ -572,16 +574,18 @@ function toAgentToolDetailsView(
             const content = row.description
               ? format === "text"
                 ? { format: "text" as const, value: row.description }
-                : {
-                    format,
-                    preview: row.description,
-                    ...(row.fullDescription ? { full: row.fullDescription } : {}),
-                  }
+                : format === "diff"
+                  ? { format: "diff" as const, value: row.description }
+                  : {
+                      format,
+                      preview: row.description,
+                      ...(row.fullDescription ? { full: row.fullDescription } : {}),
+                    }
               : undefined;
             return {
               id: `${ownerId}:row:${index}`,
-              label: row.label,
-              title: row.title,
+              ...(row.label ? { label: row.label } : {}),
+              ...(row.title ? { title: row.title } : {}),
               ...(content ? { content } : {}),
               ...(row.meta.length ? { meta: row.meta } : {}),
             };
@@ -1029,11 +1033,13 @@ function toolDetails(block: AgentToolBlock): ToolActivityDetailsView {
   return detailView({
     meta: [...meta, ...resultDetails.meta],
     rows: resultDetails.rows,
+    badges: resultDetails.badges,
     emptyText: resultDetails.emptyText,
   });
 }
 
 function inputMeta(name: string, input: Record<string, unknown>): ToolActivityDetailMeta[] {
+  if (["read", "file_read", "edit", "write", "bash", "domain_list"].includes(name)) return [];
   const meta: ToolActivityDetailMeta[] = [];
   const query = stringValue(input.query).trim();
   if (query) meta.push({ label: "查询", value: query });
@@ -1051,14 +1057,6 @@ function inputMeta(name: string, input: Record<string, unknown>): ToolActivityDe
     if (!stringValue(input.url).trim() && urls.length > 0) {
       meta.push({ label: "来源", value: urls.join("；") });
     }
-  }
-  if (name === "read" || name === "file_read" || name === "edit" || name === "write") {
-    const path = stringValue(input.path).trim();
-    if (path) meta.push({ label: "文件", value: filenameFromPath(path) });
-  }
-  if (name === "read" || name === "file_read") {
-    const parameters = readParameterLabel(input);
-    if (parameters) meta.push({ label: "参数", value: parameters });
   }
   if (name === "attachment_read") {
     const attachmentId = stringValue(input.attachmentId).trim();
@@ -1087,12 +1085,6 @@ function inputMeta(name: string, input: Record<string, unknown>): ToolActivityDe
   if (name === "graph" && typeof input.depth === "number") {
     meta.push({ label: "深度", value: String(input.depth) });
   }
-  if (name === "bash") {
-    const command = stringValue(input.command).trim();
-    const cwd = stringValue(input.cwd).trim();
-    if (command) meta.push({ label: "命令", value: truncateText(command, 120) });
-    if (cwd) meta.push({ label: "目录", value: cwd });
-  }
   return meta;
 }
 
@@ -1104,14 +1096,14 @@ function toolResultDetails(
   if (name === "search") return searchHitDetails(output);
   if (name === "retrieve_knowledge") return retrievalCandidateDetails(output);
   if (name === "attachment_read") return attachmentReadDetails(output);
-  if (name === "read" || name === "file_read") return readFileDetails(output, input);
+  if (name === "read" || name === "file_read") return readFileDetails(output);
   if (name === "edit") return editFileDetails(output);
-  if (name === "write") return writeFileDetails(output);
+  if (name === "write") return writeFileDetails(input);
   if (name === "bash") return bashDetails(output);
   if (name === "web_search" || name === "fetch_content" || name === "get_search_content") {
     return webAccessDetails(output);
   }
-  if (name === "domain_list") return recordListDetails(output, "Domain", "domains");
+  if (name === "domain_list") return domainListDetails(output);
   if (name === "understanding_list")
     return recordListDetails(output, "Understanding", "understandings");
   if (name === "context_list") return recordListDetails(output, "Context", "contexts");
@@ -1139,22 +1131,11 @@ function attachmentReadDetails(output: unknown) {
   });
 }
 
-function readFileDetails(output: unknown, input: Record<string, unknown>) {
+function readFileDetails(output: unknown) {
   if (!isRecord(output)) return detailView({});
   const content = stringValue(output.content);
-  const meta = [output.truncated ? "内容已截断" : ""].filter(Boolean);
   return detailView({
-    rows: content
-      ? [
-          detailRow(
-            "文件内容",
-            filenameFromPath(stringValue(input.path)) || "本地文件",
-            content,
-            meta,
-            "pre",
-          ),
-        ]
-      : [],
+    rows: content ? [detailRow("", "", content, [], "pre")] : [],
   });
 }
 
@@ -1162,15 +1143,14 @@ function editFileDetails(output: unknown) {
   if (!isRecord(output)) return detailView({});
   const patch = stringValue(output.patch) || stringValue(output.diff);
   return detailView({
-    rows: patch ? [detailRow("文件修改", "Diff", patch, [], "pre")] : [],
+    rows: patch ? [detailRow("", "", patch, [], "diff")] : [],
   });
 }
 
-function writeFileDetails(output: unknown) {
-  if (!isRecord(output)) return detailView({});
-  const bytes = numberValue(output.bytesWritten);
+function writeFileDetails(input: Record<string, unknown>) {
+  const content = stringValue(input.content);
   return detailView({
-    meta: bytes === undefined ? [] : [{ label: "写入", value: formatBytes(bytes) }],
+    rows: content ? [detailRow("", "", content, [], "pre")] : [],
   });
 }
 
@@ -1183,12 +1163,6 @@ function numericDetail(value: unknown, label: string): ToolActivityDetailMeta | 
   return number === undefined ? undefined : { label, value: String(number) };
 }
 
-function formatBytes(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
 function webAccessDetails(output: unknown) {
   if (!isRecord(output)) return detailView({});
   const meta = [
@@ -1199,26 +1173,39 @@ function webAccessDetails(output: unknown) {
     numericDetail(output.totalChars ?? output.contentLength, "字符"),
   ].filter((item): item is ToolActivityDetailMeta => Boolean(item));
   const error = stringValue(output.error).trim();
-  return detailView({ meta, emptyText: error || undefined });
+  const nestedSummary = isRecord(output.summary) ? stringValue(output.summary.text).trim() : "";
+  const summary = stringValue(output.summary).trim() || nestedSummary;
+  return detailView({
+    meta,
+    rows: summary ? [detailRow("", "", summary, [], "markdown")] : [],
+    emptyText: error || undefined,
+  });
 }
 
 function bashDetails(output: unknown) {
   if (!isRecord(output)) return detailView({});
-  const meta: ToolActivityDetailMeta[] = [];
-  if (typeof output.exitCode === "number" || output.exitCode === null)
-    meta.push({ label: "退出码", value: String(output.exitCode) });
   const stdout = stringValue(output.stdout);
   const stderr = stringValue(output.stderr);
-  const rowMeta = [output.timedOut ? "命令超时" : "", output.truncated ? "输出已截断" : ""].filter(
-    Boolean,
-  );
   return detailView({
-    meta,
     rows: [
-      stdout ? detailRow("stdout", "标准输出", stdout, rowMeta, "pre") : undefined,
-      stderr ? detailRow("stderr", "错误输出", stderr, rowMeta, "pre") : undefined,
+      stdout ? detailRow("stdout", "", stdout, [], "pre") : undefined,
+      stderr ? detailRow("stderr", "", stderr, [], "pre") : undefined,
     ].filter((row): row is ToolActivityDetailRow => Boolean(row)),
-    emptyText: stdout || stderr ? undefined : "命令没有输出。",
+  });
+}
+
+function domainListDetails(output: unknown) {
+  const domains = Array.isArray(output)
+    ? output
+    : isRecord(output)
+      ? arrayValue(output.domains)
+      : [];
+  return detailView({
+    badges: domains.flatMap((domain) => {
+      const title = isRecord(domain) ? entityTitle(domain) : undefined;
+      return title ? [title] : [];
+    }),
+    emptyText: domains.length === 0 ? "没有找到 Domain。" : undefined,
   });
 }
 
@@ -1431,10 +1418,12 @@ function entityRecord(output: unknown, key: string) {
 function detailView({
   meta = [],
   rows = [],
+  badges = [],
   emptyText,
 }: {
   meta?: ToolActivityDetailMeta[];
   rows?: Array<ToolActivityDetailRow | undefined>;
+  badges?: string[];
   emptyText?: string;
 }): ToolActivityDetailsView {
   const seenMeta = new Set<string>();
@@ -1446,6 +1435,7 @@ function detailView({
       return true;
     }),
     rows: rows.filter((row): row is ToolActivityDetailRow => Boolean(row)),
+    ...(badges.length ? { badges: badges.filter(Boolean) } : {}),
   };
   return emptyText ? { ...view, emptyText } : view;
 }
@@ -1457,11 +1447,13 @@ function detailRow(
   meta: string[] = [],
   format: ToolActivityDetailRow["format"] = "text",
 ): ToolActivityDetailRow {
-  const keepsLineBreaks = format === "pre" || format === "markdown";
+  const keepsLineBreaks = format === "pre" || format === "markdown" || format === "diff";
   const compactDescription = description
-    ? keepsLineBreaks
-      ? truncateOutputPreview(description)
-      : truncateText(description, 140)
+    ? format === "diff"
+      ? description
+      : keepsLineBreaks
+        ? truncateOutputPreview(description)
+        : truncateText(description, 140)
     : undefined;
   const shouldKeepFullDescription =
     keepsLineBreaks &&
@@ -1469,8 +1461,8 @@ function detailRow(
     compactDescription &&
     description.trim() !== compactDescription.trim();
   return {
-    label,
-    title: title || "未命名",
+    ...(label ? { label } : {}),
+    ...(title ? { title } : {}),
     meta: meta.filter(Boolean),
     ...(format !== "text" ? { format } : {}),
     ...(compactDescription ? { description: compactDescription } : {}),
@@ -1551,7 +1543,8 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
     return `写入了「${filenameFromPath(stringValue(input.path)) || "本地文件"}」`;
   }
   if (name === "attachment_read") {
-    return `读取了「${stringValue(outputRecord.filename) || stringValue(input.attachmentId) || "附件"}」`;
+    const target = stringValue(outputRecord.filename) || stringValue(input.attachmentId);
+    return `读取了附件${target ? `「${target}」` : ""}`;
   }
   if (name === "web_search") {
     const results = numberValue(outputRecord.totalResults);

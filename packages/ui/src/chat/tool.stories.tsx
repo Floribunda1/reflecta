@@ -230,7 +230,10 @@ const completedTools: readonly ToolBlock[] = [
   ),
   tool(
     "write",
-    { path: "/workspace/polar-greenhouse/artifacts/night-shift-summary.md" },
+    {
+      path: "/workspace/polar-greenhouse/artifacts/night-shift-summary.md",
+      content: syntheticMarkdown("夜班摘要", 2),
+    },
     { bytesWritten: 8_742 },
   ),
   tool(
@@ -403,12 +406,21 @@ const completedTools: readonly ToolBlock[] = [
   tool(
     "web_search",
     { query: "polar greenhouse irrigation pressure control simulation" },
-    { results: [] },
+    {
+      results: [],
+      summary: {
+        text: "公开资料普遍建议在低温环境下先稳定主管压力，再逐步开启支路阀门，以避免瞬时压降触发错误告警。",
+        workflow: "auto-summary",
+      },
+    },
   ),
   tool(
     "fetch_content",
     { urls: ["https://example.com/simulated-greenhouse-control"] },
-    { pages: [] },
+    {
+      pages: [],
+      summary: "页面总结了极地温室在低温条件下进行灌溉压力控制和阀门降级的常见策略。",
+    },
   ),
   tool(
     "get_search_content",

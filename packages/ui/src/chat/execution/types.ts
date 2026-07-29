@@ -7,12 +7,16 @@ export type AgentToolDetailContent =
       format: "pre" | "markdown";
       preview: string;
       full?: string;
+    }
+  | {
+      format: "diff";
+      value: string;
     };
 
 export type AgentToolDetailRowView = {
   id: string;
-  label: string;
-  title: string;
+  label?: string;
+  title?: string;
   content?: AgentToolDetailContent;
   meta?: readonly string[];
 };
@@ -25,6 +29,7 @@ export type AgentToolDetailMetaView = {
 export type AgentToolDetailsView = {
   meta?: readonly AgentToolDetailMetaView[];
   rows?: readonly AgentToolDetailRowView[];
+  badges?: readonly string[];
   emptyText?: string;
 };
 

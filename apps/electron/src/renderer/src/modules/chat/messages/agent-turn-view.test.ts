@@ -129,7 +129,7 @@ describe("buildAgentTurnView", () => {
     expect(turn.blocks.map((block) => block.kind)).toEqual(["text", "context-compaction", "text"]);
   });
 
-  test("shows offset and limit for segmented file reads", () => {
+  test("keeps segmented read parameters in the summary and only content in details", () => {
     const turn = buildAgentTurnView([
       tool("read", "tool-1", { content: "next chunk" }, "completed", undefined, {
         path: "/tmp/note.txt",
@@ -146,10 +146,8 @@ describe("buildAgentTurnView", () => {
           {
             label: "读取了「note.txt」 · offset=1151 · limit=1150",
             details: {
-              meta: [
-                { label: "文件", value: "note.txt" },
-                { label: "参数", value: "offset=1151 · limit=1150" },
-              ],
+              meta: [],
+              rows: [{ description: "next chunk", format: "pre", meta: [] }],
             },
           },
         ],
@@ -286,12 +284,19 @@ describe("buildAgentTurnView", () => {
     });
   });
 
-  test("shows concise web access tool lifecycle without duplicating result content", () => {
+  test("shows web summaries when the tool returns them", () => {
     const turn = buildAgentTurnView([
       tool("web_search", "tool-1", undefined, "running", undefined, { query: "Pi Agent" }),
-      tool("fetch_content", "tool-2", { content: "hidden" }, "completed", undefined, {
-        url: "https://example.com/source",
-      }),
+      tool(
+        "fetch_content",
+        "tool-2",
+        { summary: "这篇文章介绍了 Agent 的活动展示方式。" },
+        "completed",
+        undefined,
+        {
+          url: "https://example.com/source",
+        },
+      ),
       tool("get_search_content", "tool-3", { content: "hidden" }, "completed", undefined, {
         responseId: "response-1",
       }),
@@ -318,7 +323,13 @@ describe("buildAgentTurnView", () => {
             expect.objectContaining({
               details: {
                 meta: [{ label: "来源", value: "https://example.com/source" }],
-                rows: [],
+                rows: [
+                  {
+                    description: "这篇文章介绍了 Agent 的活动展示方式。",
+                    format: "markdown",
+                    meta: [],
+                  },
+                ],
               },
             }),
           ],
@@ -404,16 +415,8 @@ describe("buildAgentTurnView", () => {
             toolName: "read",
             label: "读取了「note.txt」",
             details: {
-              meta: [{ label: "文件", value: "note.txt" }],
-              rows: [
-                {
-                  label: "文件内容",
-                  title: "note.txt",
-                  description: "hello",
-                  format: "pre",
-                  meta: [],
-                },
-              ],
+              meta: [],
+              rows: [{ description: "hello", format: "pre", meta: [] }],
             },
           }),
         ],
@@ -427,14 +430,10 @@ describe("buildAgentTurnView", () => {
             toolName: "bash",
             label: "执行 Bash「printf hello」 · 退出码 0",
             details: {
-              meta: [
-                { label: "命令", value: "printf hello" },
-                { label: "退出码", value: "0" },
-              ],
+              meta: [],
               rows: [
                 {
                   label: "stdout",
-                  title: "标准输出",
                   description: "hello",
                   format: "pre",
                   meta: [],
@@ -603,12 +602,17 @@ describe("buildAgentTurnView", () => {
     ["read", { path: "/tmp/note.md" }, { content: "body" }, "读取了「note.md」"],
     ["file_read", { path: "/tmp/legacy.md" }, { content: "body" }, "读取了「legacy.md」"],
     ["edit", { path: "/tmp/app.ts" }, { patch: "diff" }, "编辑了「app.ts」"],
-    ["write", { path: "/tmp/report.md" }, { bytesWritten: 2048 }, "写入了「report.md」"],
+    [
+      "write",
+      { path: "/tmp/report.md", content: "# Report" },
+      { bytesWritten: 2048 },
+      "写入了「report.md」",
+    ],
     [
       "attachment_read",
       { attachmentId: "att-1" },
       { filename: "brief.pdf" },
-      "读取了「brief.pdf」",
+      "读取了附件「brief.pdf」",
     ],
     ["bash", { command: "bun test" }, { exitCode: 0 }, "执行 Bash「bun test」 · 退出码 0"],
     ["domain_list", {}, [{ id: "d1" }, { id: "d2" }], "列出 Domain · 2 个"],
@@ -688,6 +692,98 @@ describe("buildAgentTurnView", () => {
       kind: "tool-activity",
       activity: { summary },
     });
+  });
+
+  test("uses content, diff and badges for focused tool details", () => {
+    const turn = buildAgentTurnView([
+      tool(
+        "edit",
+        "tool-edit",
+        { patch: "--- a/app.ts\n+++ b/app.ts\n@@\n-old\n+new" },
+        "completed",
+        undefined,
+        { path: "/tmp/app.ts" },
+      ),
+      tool("write", "tool-write", { bytesWritten: 12 }, "completed", undefined, {
+        path: "/tmp/report.md",
+        content: "# New report",
+      }),
+      tool("domain_list", "tool-domains", [
+        { id: "d1", name: "产品" },
+        { id: "d2", name: "工程" },
+      ]),
+      tool(
+        "web_search",
+        "tool-web",
+        { summary: { text: "检索结果的摘要。", workflow: "auto-summary" } },
+        "completed",
+        undefined,
+        { query: "Agent UX" },
+      ),
+    ]);
+
+    expect(turn.blocks).toMatchObject([
+      {
+        kind: "tool-activity",
+        activity: {
+          items: [
+            expect.objectContaining({
+              details: {
+                meta: [],
+                rows: [
+                  {
+                    description: "--- a/app.ts\n+++ b/app.ts\n@@\n-old\n+new",
+                    format: "diff",
+                    meta: [],
+                  },
+                ],
+              },
+            }),
+          ],
+        },
+      },
+      {
+        kind: "tool-activity",
+        activity: {
+          items: [
+            expect.objectContaining({
+              details: {
+                meta: [],
+                rows: [{ description: "# New report", format: "pre", meta: [] }],
+              },
+            }),
+          ],
+        },
+      },
+      {
+        kind: "tool-activity",
+        activity: {
+          items: [
+            expect.objectContaining({
+              details: { meta: [], rows: [], badges: ["产品", "工程"] },
+            }),
+          ],
+        },
+      },
+      {
+        kind: "tool-activity",
+        activity: {
+          items: [
+            expect.objectContaining({
+              details: {
+                meta: [{ label: "查询", value: "Agent UX" }],
+                rows: [{ description: "检索结果的摘要。", format: "markdown", meta: [] }],
+              },
+            }),
+          ],
+        },
+      },
+    ]);
+    expect(
+      turn.blocks[2]?.kind === "tool-activity"
+        ? turn.blocks[2].activity.items[0]?.details.badges
+        : undefined,
+    ).toEqual(["产品", "工程"]);
   });
 
   test("keeps running and failed tool activity states in thinking", () => {
@@ -868,10 +964,8 @@ describe("buildAgentTurnView", () => {
       proposal: {
         state: "output-available",
         result: {
-          meta: [{ label: "退出码", value: "0" }],
-          rows: [
-            { label: "stdout", title: "标准输出", description: "hello", format: "pre", meta: [] },
-          ],
+          meta: [],
+          rows: [{ label: "stdout", description: "hello", format: "pre", meta: [] }],
         },
       },
     });
