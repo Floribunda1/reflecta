@@ -1,8 +1,11 @@
+import type { ReactNode } from "react";
 import { Copy, FileText, GitFork, Pencil, RefreshCcw } from "lucide-react";
 import { Button } from "../../components/button";
 import { cn } from "../../lib/utils";
 import type { ChatEntityBindings } from "../entity";
 import { entityClassName, entityIcon } from "../entity-visual";
+import { AgentActivityGroup } from "../execution/agent-activity-group";
+import { isAgentActivityBlock } from "../execution/activity-presentation";
 import { AgentExecutionBlock, AgentPendingBlock } from "../execution/agent-execution-block";
 import { ChatMarkdown } from "../markdown/chat-markdown";
 import { AgentProposalCard } from "../proposal/agent-proposal-card";
@@ -149,44 +152,73 @@ function AgentMessageContent({
   entityBindings,
   onProposalDecision,
 }: Omit<AgentMessageViewProps, "search">) {
+  const renderedBlocks: ReactNode[] = [];
+
+  for (let index = 0; index < message.blocks.length; index += 1) {
+    const block = message.blocks[index];
+    if (!block) continue;
+
+    if (isAgentActivityBlock(block)) {
+      const activities = [block];
+      while (index + 1 < message.blocks.length) {
+        const next = message.blocks[index + 1];
+        if (!next || !isAgentActivityBlock(next)) break;
+        activities.push(next);
+        index += 1;
+      }
+      renderedBlocks.push(
+        <AgentActivityGroup
+          key={`activity-group:${blockId(block)}`}
+          blocks={activities}
+          entityBindings={entityBindings}
+        />,
+      );
+      continue;
+    }
+
+    if (block.kind === "text") {
+      renderedBlocks.push(
+        <div
+          key={block.id}
+          data-testid="agent-assistant-text"
+          data-block-id={block.id}
+          className="w-full px-1 py-1"
+        >
+          {block.status === "failed" ? (
+            <div
+              data-testid="agent-final-answer-error"
+              className="rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+            >
+              最终答案生成失败：{block.error ?? "未知错误"}
+            </div>
+          ) : (
+            <ChatMarkdown value={block.markdown} {...entityBindings} />
+          )}
+        </div>,
+      );
+      continue;
+    }
+
+    if (block.kind === "proposal") {
+      renderedBlocks.push(
+        <AgentProposalCard
+          key={block.proposal.id}
+          proposal={block.proposal}
+          entityBindings={entityBindings}
+          onDecision={onProposalDecision}
+        />,
+      );
+      continue;
+    }
+
+    renderedBlocks.push(
+      <AgentExecutionBlock key={blockId(block)} block={block} entityBindings={entityBindings} />,
+    );
+  }
+
   return (
     <>
-      {message.blocks.map((block) => {
-        if (block.kind === "text") {
-          return (
-            <div
-              key={block.id}
-              data-testid="agent-assistant-text"
-              data-block-id={block.id}
-              className="w-full px-1 py-1"
-            >
-              {block.status === "failed" ? (
-                <div
-                  data-testid="agent-final-answer-error"
-                  className="rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm text-destructive"
-                >
-                  最终答案生成失败：{block.error ?? "未知错误"}
-                </div>
-              ) : (
-                <ChatMarkdown value={block.markdown} {...entityBindings} />
-              )}
-            </div>
-          );
-        }
-        if (block.kind === "proposal") {
-          return (
-            <AgentProposalCard
-              key={block.proposal.id}
-              proposal={block.proposal}
-              entityBindings={entityBindings}
-              onDecision={onProposalDecision}
-            />
-          );
-        }
-        return (
-          <AgentExecutionBlock key={blockId(block)} block={block} entityBindings={entityBindings} />
-        );
-      })}
+      {renderedBlocks}
       {message.status === "stopped" ? (
         <div
           data-testid="agent-stopped-state"

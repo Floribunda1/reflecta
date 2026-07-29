@@ -39,6 +39,7 @@ export type AgentToolActivityItemView = {
 
 export type AgentToolActivityView = {
   id: string;
+  toolName?: string;
   status: AgentExecutionStatus;
   summary: string;
   items: readonly AgentToolActivityItemView[];
@@ -67,3 +68,8 @@ export type AgentExecutionBlockView =
   | { kind: "tool-activity"; activity: AgentToolActivityView }
   | { kind: "context-compaction"; compaction: AgentContextCompactionView }
   | { kind: "pending"; pending: AgentPendingView };
+
+export type AgentActivityBlockView = Extract<
+  AgentExecutionBlockView,
+  { kind: "reasoning" | "tool-activity" }
+>;

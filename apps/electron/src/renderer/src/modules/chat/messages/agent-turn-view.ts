@@ -598,6 +598,7 @@ export function toAgentToolActivityView(
 ): AgentToolActivityView {
   return {
     id,
+    toolName: activity.items[0]?.toolName,
     status: activity.status,
     summary: activity.summary,
     items: activity.items.map((item) => ({

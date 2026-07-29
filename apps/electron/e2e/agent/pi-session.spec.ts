@@ -304,6 +304,7 @@ function normalizeProgressText(text: string) {
 async function readVisibleProgressText(page: Page) {
   for (const locator of [
     page.getByTestId("agent-assistant-text").last(),
+    page.getByTestId("agent-activity-group-trigger").last(),
     page.getByTestId("agent-reasoning").last(),
   ]) {
     if (!(await locator.isVisible().catch(() => false))) continue;
@@ -311,6 +312,12 @@ async function readVisibleProgressText(page: Page) {
     if (text) return text;
   }
   return "";
+}
+
+async function expandLatestActivityGroup(page: Page) {
+  const group = page.getByTestId("agent-activity-group").last();
+  await expect(group).toBeVisible({ timeout: 120_000 });
+  await group.getByTestId("agent-activity-group-trigger").click();
 }
 
 async function waitForVisibleProgressText(page: Page) {
@@ -578,6 +585,7 @@ test("@AG-CONTEXT-007 用户发送可读附件后看到 Agent 使用附件", asy
     await expect(page.getByTestId("agent-attachment-preview")).toContainText(fileName);
     await sendMessage(page, "请读取这个 PDF 附件，并直接回复其中的唯一英文单词");
     await expect(page.getByTestId("agent-message-attachment")).toContainText(fileName);
+    await expandLatestActivityGroup(page);
     const attachmentTool = page.getByTestId("agent-tool-activity").filter({ hasText: fileName });
     await expect(attachmentTool).toBeVisible({
       timeout: 120_000,
@@ -674,6 +682,7 @@ test("@AG-RETRIEVAL-003 用户要求 Agent 检索知识库后看到检索结果"
       page,
       "请必须使用知识检索工具 retrieve_knowledge 查找 React Server Components，并简短总结你找到的内容。",
     );
+    await expandLatestActivityGroup(page);
     await expect(page.getByTestId("agent-tool-activity")).toBeVisible({ timeout: 120_000 });
     await waitForAssistantReply(page);
     const toolActivity = page.getByTestId("agent-tool-activity").first();
@@ -958,6 +967,7 @@ test("@AG-PROPOSAL-009 用户让 Agent 执行普通 Bash 后直接看到结果",
       `请必须先调用 bash 工具原样执行这个命令：printf safe > ${PI_BASH_SAFE_MARKER}; printf done。工具返回后，再简短说明已经完成。`,
     );
     await waitForAssistantReply(page);
+    await expandLatestActivityGroup(page);
     const activity = page.getByTestId("agent-tool-activity").filter({ hasText: "Bash" });
     await expect(activity).toContainText("完成", { timeout: 120_000 });
     await expect(page.getByTestId("agent-assistant-text").last()).toBeVisible();

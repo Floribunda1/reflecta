@@ -10,7 +10,9 @@ import {
 import { StoryCase, StoryShowcase } from "../../.storybook/story-showcase";
 import { useAutoFrame } from "../../.storybook/use-auto-frame";
 import { Button } from "../components/button";
+import { AgentActivityGroup } from "./execution/agent-activity-group";
 import { AgentExecutionBlock } from "./execution/agent-execution-block";
+import type { AgentActivityBlockView } from "./execution/types";
 import { AgentProposalCard } from "./proposal/agent-proposal-card";
 
 type ToolBlock = Extract<AgentReducedAssistantBlock, { kind: "tool" }>;
@@ -415,6 +417,23 @@ const completedTools: readonly ToolBlock[] = [
   ),
 ];
 
+const failedTool = tool(
+  "bash",
+  {
+    command:
+      "bun run --cwd apps/control verify:telemetry --station polar-bay-07 --window 30m --strict",
+    cwd: "/workspace/polar-greenhouse",
+    timeoutMs: 120_000,
+  },
+  undefined,
+  {
+    toolCallId: "tool-bash-failed",
+    state: "failed",
+    error:
+      "遥测校验在等待 west-03 支路的稳定压力时超时。最近三次采样都低于最低阈值，控制程序已经停止后续阀门动作并保留现场状态。",
+  },
+);
+
 type ApprovalFixture = {
   block: ApprovalBlock;
   output: unknown;
@@ -590,44 +609,52 @@ function ToolCard({ block }: { block: ToolBlock }) {
 }
 
 function ToolGroupCase() {
+  const blocks: AgentActivityBlockView[] = [
+    {
+      kind: "reasoning",
+      reasoning: {
+        id: "reasoning-tool-group-1",
+        status: "done",
+        markdown: "先读取相关记录和本地配置，再核对现有知识与现场数据。",
+      },
+    },
+    ...completedTools.slice(0, 5).map(
+      (block): AgentActivityBlockView => ({
+        kind: "tool-activity",
+        activity: toolActivity(block),
+      }),
+    ),
+    {
+      kind: "reasoning",
+      reasoning: {
+        id: "reasoning-tool-group-2",
+        status: "done",
+        markdown: "已有信息足够，继续检查知识库、关联关系和领域结构。",
+      },
+    },
+    ...completedTools.slice(5).map(
+      (block): AgentActivityBlockView => ({
+        kind: "tool-activity",
+        activity: toolActivity(block),
+      }),
+    ),
+    {
+      kind: "tool-activity",
+      activity: toolActivity(failedTool),
+    },
+    {
+      kind: "reasoning",
+      reasoning: {
+        id: "reasoning-tool-group-3",
+        status: "streaming",
+        markdown: "正在汇总执行结果。",
+      },
+    },
+  ];
+
   return (
-    <div className="grid max-w-4xl gap-0">
-      <AgentExecutionBlock
-        block={{
-          kind: "reasoning",
-          reasoning: {
-            id: "reasoning-tool-group-1",
-            status: "done",
-            markdown: "先读取相关记录和本地配置，再核对现有知识与现场数据。",
-          },
-        }}
-      />
-      {completedTools.slice(0, 5).map((block) => (
-        <ToolCard key={block.toolCallId} block={block} />
-      ))}
-      <AgentExecutionBlock
-        block={{
-          kind: "reasoning",
-          reasoning: {
-            id: "reasoning-tool-group-2",
-            status: "done",
-            markdown: "已有信息足够，继续检查知识库、关联关系和领域结构。",
-          },
-        }}
-      />
-      {completedTools.slice(5).map((block) => (
-        <ToolCard key={block.toolCallId} block={block} />
-      ))}
-      <AgentExecutionBlock
-        block={{
-          kind: "reasoning",
-          reasoning: {
-            id: "reasoning-tool-group-3",
-            status: "streaming",
-            markdown: "正在汇总执行结果。",
-          },
-        }}
-      />
+    <div className="max-w-4xl">
+      <AgentActivityGroup blocks={blocks} />
     </div>
   );
 }
@@ -715,22 +742,6 @@ function ToolGallery() {
     undefined,
     { toolCallId: "tool-bash-running", state: "running" },
   );
-  const failed = tool(
-    "bash",
-    {
-      command:
-        "bun run --cwd apps/control verify:telemetry --station polar-bay-07 --window 30m --strict",
-      cwd: "/workspace/polar-greenhouse",
-      timeoutMs: 120_000,
-    },
-    undefined,
-    {
-      toolCallId: "tool-bash-failed",
-      state: "failed",
-      error:
-        "遥测校验在等待 west-03 支路的稳定压力时超时。最近三次采样都低于最低阈值，控制程序已经停止后续阀门动作并保留现场状态。请先核对入口温度、旁通阀实际开度和压力探头时间戳，再决定是否重试；不要直接跳过安全检查。",
-    },
-  );
   const manyResults = tool(
     "understanding_list",
     { domainIds: ["d-irrigation"], limit: 36, offset: 0 },
@@ -785,7 +796,7 @@ function ToolGallery() {
           <ToolCard block={running} />
           <ToolCard block={completedTools[4]} />
           <ToolCard block={emptyResults} />
-          <ToolCard block={failed} />
+          <ToolCard block={failedTool} />
         </div>
       </StoryCase>
       <StoryCase title="生产类型图谱" description="以下状态行走 production 的 runtime 转换函数。">

@@ -1,8 +1,26 @@
-import { CheckCircle2, ChevronDown, TriangleAlert } from "lucide-react";
+import {
+  ArrowUpRight,
+  FilePenLine,
+  FileText,
+  FolderTree,
+  Globe2,
+  Lightbulb,
+  MessageCircleDashed,
+  Network,
+  NotebookText,
+  Paperclip,
+  Pencil,
+  Search,
+  Terminal,
+  Wrench,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/collapsible";
 import { Spinner } from "../../components/spinner";
 import type { ChatEntityBindings } from "../entity";
 import { ChatMarkdown } from "../markdown/chat-markdown";
+import { reasoningSummary, toolIconKind, type AgentToolIconKind } from "./activity-presentation";
 import type {
   AgentContextCompactionView,
   AgentExecutionBlockView,
@@ -22,6 +40,21 @@ function compactTokenCount(tokens: number | undefined) {
     maximumFractionDigits: 1,
   }).format(tokens);
 }
+
+const TOOL_ICONS: Record<AgentToolIconKind, LucideIcon> = {
+  attachment: Paperclip,
+  command: Terminal,
+  context: NotebookText,
+  domain: FolderTree,
+  edit: Pencil,
+  file: FileText,
+  graph: Network,
+  search: Search,
+  understanding: Lightbulb,
+  web: Globe2,
+  write: FilePenLine,
+  other: Wrench,
+};
 
 function ContextCompactionBlock({ compaction }: { compaction: AgentContextCompactionView }) {
   const before = compactTokenCount(compaction.tokensBefore);
@@ -55,29 +88,35 @@ function ReasoningBlock({
   entityBindings?: ChatEntityBindings;
 }) {
   const streaming = reasoning.status === "streaming";
+  const summary = reasoningSummary(reasoning.markdown);
   return (
     <Collapsible
       data-slot="agent-reasoning"
       data-testid="agent-reasoning"
-      className="my-0.5 min-w-0 w-full text-sm text-muted-foreground"
+      className="my-0.5 min-w-0 w-full text-[13px] text-foreground/75"
     >
       <CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-2 rounded-sm px-1 py-0.5 text-left hover:text-foreground">
         {streaming ? (
           <Spinner
-            className="size-3.5 shrink-0 text-sky-600 dark:text-sky-400"
+            className="size-3 shrink-0 text-sky-600 dark:text-sky-400"
             role="presentation"
             aria-hidden="true"
           />
         ) : (
-          <CheckCircle2
-            className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400"
+          <MessageCircleDashed
+            className="size-3 shrink-0 text-muted-foreground"
             aria-hidden="true"
           />
         )}
-        <span>{streaming ? "正在思考" : "思考过程"}</span>
-        <ChevronDown className="size-3 shrink-0 -rotate-90 text-muted-foreground opacity-0 transition group-data-[panel-open]:rotate-0 group-data-[panel-open]:opacity-100 group-hover:opacity-100 group-focus-visible:opacity-100" />
+        <span className="min-w-0 flex-1 truncate">{streaming ? "正在思考" : summary}</span>
+        {!streaming ? (
+          <ArrowUpRight className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+        ) : null}
       </CollapsibleTrigger>
-      <CollapsibleContent className="ml-[7px] mt-1 border-l border-border/60 py-1 pl-[17px] pr-2 text-muted-foreground">
+      <CollapsibleContent
+        data-testid="agent-reasoning-detail"
+        className="ml-[7px] mt-1 border-l border-border/60 py-1 pl-[17px] pr-2 text-muted-foreground"
+      >
         {reasoning.markdown ? (
           <ChatMarkdown value={reasoning.markdown} tone="muted" {...entityBindings} />
         ) : (
@@ -91,6 +130,8 @@ function ReasoningBlock({
 function ToolActivityBlock({ activity }: { activity: AgentToolActivityView }) {
   const statusLabel =
     activity.status === "failed" ? "出错" : activity.status === "running" ? "运行中" : "完成";
+  const iconKind = toolIconKind(activity);
+  const ToolIcon = TOOL_ICONS[iconKind];
   const [summary, ...meta] = activity.summary.split(" · ");
   const summaryParts = summary?.split(/(「[^」]+」)/g).filter(Boolean) ?? [];
 
@@ -98,19 +139,21 @@ function ToolActivityBlock({ activity }: { activity: AgentToolActivityView }) {
     <div
       data-testid="agent-tool-activity"
       data-activity-id={activity.id}
-      className="my-0.5 flex min-w-0 w-full items-center gap-2 px-1 py-0.5 text-sm text-muted-foreground"
+      className="flex min-w-0 w-full items-center gap-2 px-1 py-1 text-[13px] text-muted-foreground/70"
     >
       {activity.status === "running" ? (
         <Spinner
-          className="size-3.5 shrink-0 text-sky-600 dark:text-sky-400"
+          className="size-3 shrink-0 text-sky-600 dark:text-sky-400"
           role="presentation"
           aria-hidden="true"
         />
       ) : activity.status === "failed" ? (
-        <TriangleAlert className="size-3.5 shrink-0 text-destructive" aria-hidden="true" />
+        <XCircle className="size-3 shrink-0 text-destructive" aria-hidden="true" />
       ) : (
-        <CheckCircle2
-          className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400"
+        <ToolIcon
+          data-slot="agent-tool-icon"
+          data-tool-icon={iconKind}
+          className="size-3 shrink-0 text-muted-foreground/70"
           aria-hidden="true"
         />
       )}
@@ -120,7 +163,7 @@ function ToolActivityBlock({ activity }: { activity: AgentToolActivityView }) {
             <span
               key={`${part}-${index}`}
               data-slot="agent-tool-target"
-              className="font-medium text-foreground"
+              className="font-medium text-foreground/75"
             >
               {part}
             </span>
@@ -129,7 +172,7 @@ function ToolActivityBlock({ activity }: { activity: AgentToolActivityView }) {
           ),
         )}
         {meta.length > 0 ? (
-          <span data-slot="agent-tool-meta" className="ml-1.5 text-xs text-muted-foreground/65">
+          <span data-slot="agent-tool-meta" className="ml-1.5 text-xs text-muted-foreground/50">
             · {meta.join(" · ")}
           </span>
         ) : null}

@@ -23,12 +23,14 @@ export {
   collectChatEntityReferences,
   replaceChatEntityReferences,
 } from "./markdown/entity-reference-codec";
+export { AgentActivityGroup, type AgentActivityGroupProps } from "./execution/agent-activity-group";
 export {
   AgentExecutionBlock,
   AgentPendingBlock,
   type AgentExecutionBlockProps,
 } from "./execution/agent-execution-block";
 export type {
+  AgentActivityBlockView,
   AgentContextCompactionView,
   AgentExecutionBlockView,
   AgentExecutionStatus,

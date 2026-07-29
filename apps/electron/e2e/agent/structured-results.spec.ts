@@ -136,14 +136,14 @@ test("@AG-RESULT-002 用户可以区分提案的不同状态", async () => {
   }
 });
 
-test("@AG-RESULT-003 用户展开思考过程并看到单行工具状态", async () => {
+test("@AG-RESULT-003 用户展开 Agent 活动并看到思考过程和单行工具摘要", async () => {
   seedAgentThread({
     id: "result-expand",
     title: "展开详情",
     messages: [
       userMessage("result-expand-user", "展示可展开内容"),
       assistantMessage("result-expand-assistant", [
-        reasoningPart("THINKING_DETAIL"),
+        reasoningPart("THINKING DETAIL"),
         toolPart(
           "search",
           "result-search",
@@ -166,16 +166,23 @@ test("@AG-RESULT-003 用户展开思考过程并看到单行工具状态", async
 
   try {
     await openThread(page, "展开详情");
-    await expect(page.getByTestId("agent-reasoning")).toContainText("思考过程");
-    await expect(page.getByText("THINKING_DETAIL")).toHaveCount(0);
+    const activityGroup = page.getByTestId("agent-activity-group");
+    const activityTrigger = activityGroup.getByTestId("agent-activity-group-trigger");
+    await expect(activityTrigger).toContainText("2");
+    await expect(activityTrigger).toContainText("搜索「代价」 · 1 条 Understanding / 0 条 Context");
+    await expect(page.getByTestId("agent-reasoning")).toHaveCount(0);
+    await expect(page.getByTestId("agent-tool-activity")).toHaveCount(0);
+
+    await activityTrigger.click();
+    await expect(page.getByTestId("agent-reasoning")).toContainText("THINKING DETAIL");
+    await expect(page.getByTestId("agent-reasoning-detail")).not.toBeVisible();
     await expect(page.getByText("搜索「代价」 · 1 条 Understanding / 0 条 Context")).toBeVisible();
     await expect(page.getByText("搜索相关内容", { exact: true })).toHaveCount(0);
     await expect(page.getByText("查询：代价")).toHaveCount(0);
 
-    await page.getByTestId("agent-reasoning").getByText("思考过程").click();
+    await page.getByTestId("agent-reasoning").click();
     const toolActivity = page.getByTestId("agent-tool-activity");
-    await expect(page.getByText("THINKING_DETAIL")).toBeVisible();
-    await expect(toolActivity).toContainText("完成");
+    await expect(page.getByTestId("agent-reasoning-detail")).toBeVisible();
     await expect(toolActivity.locator("button")).toHaveCount(0);
     await expect(toolActivity.getByText("查询：代价")).toHaveCount(0);
   } finally {
