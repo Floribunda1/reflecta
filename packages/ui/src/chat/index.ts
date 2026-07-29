@@ -88,3 +88,11 @@ export type {
   ChatEntityType,
   ResolveChatEntity,
 } from "./entity";
+export {
+  ChatThreadActionMenuItems,
+  ChatThreadSidebar,
+  type ChatThreadAction,
+  type ChatThreadGroupView,
+  type ChatThreadSummaryView,
+} from "./thread/chat-thread-sidebar";
+export { ChatJumpNav, type ChatJumpNavItem } from "./navigation/chat-jump-nav";

@@ -1,12 +1,11 @@
-import { Archive, Copy, FileDown, Minimize2, Sparkles, Trash2 } from "lucide-react";
 import type { AgentReducedMessage } from "@shared/agent";
 import {
+  ChatThreadActionMenuItems,
   collectChatEntityReferences,
   replaceChatEntityReferences,
+  type ChatThreadAction,
   type ChatEntityReference,
 } from "@reflecta/ui/chat";
-import { ContextMenuItem, ContextMenuSeparator } from "@reflecta/ui/components/context-menu";
-import { DropdownMenuItem, DropdownMenuSeparator } from "@reflecta/ui/components/dropdown-menu";
 import { toast } from "sonner";
 import { ipcClient } from "@renderer/utils/ipc";
 import { getEntityDisplay } from "../../capture/queries";
@@ -70,7 +69,7 @@ export async function exportThreadMarkdown(title: string, messages: AgentReduced
   }
 }
 
-async function copyThreadId(threadId: string) {
+export async function copyThreadId(threadId: string) {
   try {
     if (!navigator.clipboard) throw new Error("当前环境不支持剪贴板");
     await navigator.clipboard.writeText(threadId);
@@ -107,48 +106,24 @@ export function ThreadActionMenuItems({
   onArchive: () => void;
   onDelete: () => void;
 }) {
-  const Item = menu === "context" ? ContextMenuItem : DropdownMenuItem;
-  const Separator = menu === "context" ? ContextMenuSeparator : DropdownMenuSeparator;
+  const handleAction = (action: ChatThreadAction) => {
+    if (action === "export") onExport();
+    else if (action === "generate-title") onGenerateTitle();
+    else if (action === "compact") onCompact();
+    else if (action === "copy-id") void copyThreadId(threadId);
+    else if (action === "archive") onArchive();
+    else onDelete();
+  };
 
   return (
-    <>
-      <Item data-testid="agent-export-markdown-button" disabled={!canExport} onClick={onExport}>
-        <FileDown />
-        导出 Markdown
-      </Item>
-      <Separator />
-      <Item
-        data-testid="agent-generate-title-menu-item"
-        disabled={titleGenerating || isBusy || isCompacting}
-        onClick={onGenerateTitle}
-      >
-        <Sparkles />
-        {titleGenerating ? "生成中..." : "生成标题"}
-      </Item>
-      <Item
-        data-testid="agent-compact-context-menu-item"
-        disabled={!hasMessages || isBusy || isCompacting}
-        onClick={onCompact}
-      >
-        <Minimize2 />
-        {isCompacting ? "压缩中..." : "压缩上下文"}
-      </Item>
-      <Item
-        data-testid="agent-copy-thread-id-menu-item"
-        onClick={() => void copyThreadId(threadId)}
-      >
-        <Copy />
-        复制对话 ID
-      </Item>
-      <Item data-testid="agent-archive-thread-menu-item" onClick={onArchive}>
-        <Archive />
-        归档
-      </Item>
-      <Separator />
-      <Item data-testid="agent-delete-thread-menu-item" variant="destructive" onClick={onDelete}>
-        <Trash2 />
-        删除
-      </Item>
-    </>
+    <ChatThreadActionMenuItems
+      menu={menu}
+      canExport={canExport}
+      hasMessages={hasMessages}
+      isBusy={isBusy}
+      isCompacting={isCompacting}
+      titleGenerating={titleGenerating}
+      onAction={handleAction}
+    />
   );
 }
