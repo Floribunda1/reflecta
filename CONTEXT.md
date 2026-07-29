@@ -60,33 +60,55 @@ or visual polish.
 
 ## Agent Turn
 
-One assistant response cycle in the chat, including visible text, thinking summary, tool activity,
-proposal cards, evidence, and recovery states in the order they happened.
+One delegated work cycle in the chat, from the user's request until the Agent hands back a response,
+needs a user decision, fails, or stops. A Turn organizes process, Actions, receipts, and the final
+response by user meaning rather than presenting a raw event timeline.
 
 ## Turn Renderer
 
-The UI layer that renders an Agent Turn from ordered message parts. It preserves the sequence of
-thinking, tool activity, text, proposal, and evidence instead of separating text from tools.
+The UI layer that derives one user-facing Agent Turn from ordered message parts. It translates raw
+events into phase, Activity, blocking Actions, receipts, and Response without inventing facts that
+the protocol cannot prove.
 
-## Tool Activity Group
+## Agent Action
 
-A user-readable group of adjacent Agent tool calls that belong to the same work phase, such as
-searching related content or inspecting graph relationships.
+A user-meaningful unit of work performed or proposed by the Agent. One Action may use a tool or an
+approval flow underneath, but its UI is defined by intent, consequence, lifecycle, and outcome
+rather than by the raw tool name.
 
-## Thinking Summary
+**Action mode**:
 
-A user-readable summary of what the Agent is currently doing or has done in a turn. It is not the
-model's raw chain-of-thought.
+- `observe`: reads information without changing durable state.
+- `operate`: changes a system or performs a consequential operation, including deletion.
+- `propose`: offers a create or update candidate for user-owned knowledge.
 
-## Ignore
+## Activity
 
-An Agent proposal action that stops the current proposal flow without writing anything. After a
-proposal is ignored, the Agent chat waits for the user to decide what to type next.
+The compact, inspectable record of autonomous work inside an Agent Turn. It can contain process
+explanations, running Actions, and terminal Action receipts, while the final Response remains the
+primary reading surface.
 
-## Reject
+## Decision
 
-An Agent proposal action that declines the current proposal without writing anything, then returns
-the next step to the Agent so it can continue or revise the response.
+A blocking request for the user to allow or decline a consequential Agent operation. A Decision
+must explain the intended action, target, impact, and what happens if permission is withheld.
+
+## Candidate
+
+An editable proposal to create or update user-owned Understanding, Context, Domain, or Connection
+content. AI authors the draft; only the user's reviewed and confirmed payload may become durable
+personal knowledge.
+
+## Receipt
+
+The compact terminal record of an Agent Action after it completes, is declined, fails, or is
+cancelled. A Receipt preserves the outcome and can expose the original candidate, the user's final
+payload, impact, and execution evidence when those facts exist.
+
+## Process Explanation
+
+A user-readable description of what the Agent is doing or has done. It is not raw chain-of-thought
+and must not imply access to hidden reasoning.
 
 ## AI Configuration
 

@@ -566,23 +566,34 @@ Terminal status（失败或停止时）
 
 ### 4.1 Page Goal
 
-Agent 对话页需要让用户在任何时刻看懂这一轮工作由谁推进、Agent 正在采取什么 Action、行动会产生什么后果，以及哪部分是最终交付。用户需要接球时，permission 与 personal knowledge candidate 必须成为明确焦点；完成后则收敛为可追溯 Receipt，把 Response 留作主要阅读对象。
+桌面端高频使用 Reflecta Agent 的用户，需要在长短不同的工作回合中持续看懂谁在推进、Action 的后果，以及哪部分是最终交付。需要用户接球时，permission 与 personal knowledge candidate 成为明确焦点；完成后收敛为 Receipt，把 Response 留作主要阅读对象。
 
 ### 4.2 Template
 
-页面整体结构、侧栏和 composer 保持现状；只替换 assistant message 内部 template。
+页面整体结构、侧栏和 composer 保持现状；本次只替换 assistant message 内部 template。
 
 ```text
-Assistant Turn
-├── Phase indicator（仅非 complete 或 terminal 时）
-├── Activity group（自主 Actions + 已决 Receipts）
-├── Context compaction receipts（可选）
-├── Blocking Action Stack（一个主要焦点，其余紧凑排队）
-│   ├── Decision Card（permission）
-│   └── Candidate Card（personal knowledge）
-├── Response（可选）
-└── Terminal notice（failed / stopped 时）
+AgentThreadPanel
+└── ScrollContent
+    └── MessageList
+        └── Assistant Turn
+            ├── Phase indicator（仅非 complete 时）
+            ├── Activity group（自主 Actions + 已决 Receipts）
+            ├── Context compaction receipts（可选）
+            ├── Blocking Action Stack（一个主要焦点，其余紧凑排队）
+            │   ├── Decision Card（permission）
+            │   └── Candidate Card（personal knowledge）
+            ├── Response（可选）
+            └── Terminal notice（failed / stopped 时）
 ```
+
+容器约束：
+
+- `ScrollContent` 保持 `h-full min-h-0 overflow-y-auto px-6 py-6`，本版本只面向现有桌面布局。
+- `MessageList` 保持 `mx-auto flex w-full max-w-4xl flex-col gap-5`。
+- `Assistant Turn` 使用 `w-full min-w-0 space-y-3`。
+
+排列逻辑：Phase 先说明当前球权；Activity 提供已发生工作的低权重证据；Blocking Action 在 Response 之前接住必须完成的用户决定；Response 最后承担交付。Context receipt 保持现有锚点，不因 Action 重组丢失历史位置。
 
 目标布局与 class：
 
@@ -620,9 +631,24 @@ Assistant Turn
 - Response 不加背景卡片，延续当前 `ChatMarkdown` 的正文阅读感。
 - 不改变用户消息气泡、对话最大宽度和列表间距。
 
-### 4.3 Organisms + Details
+### 4.3 Organisms
 
-#### `AgentMessageView`（复用）
+### AgentTurn
+
+- 容器 token：
+  - Surface：透明，不新增聊天气泡背景。
+  - Spacing：`space-y-3`；继承 MessageList 的 `gap-5`。
+  - Border / Radius / Shadow：Turn 本身无 border、radius、shadow。
+
+```text
+section
+├── AgentTurnPhaseIndicator
+├── AgentActivityGroup
+├── ContextCompactionReceipt
+├── AgentBlockingActionStack
+├── AgentResponseBlock
+└── TerminalNotice
+```
 
 职责：
 
@@ -639,7 +665,13 @@ Assistant Turn
 - 将现有 `onProposalDecision` 收敛为 `onActionDecision`，另增加可返回保存结果的 `onCandidateDraftChange`；
 - 移除顶层逐个 reasoning / tool / proposal 的默认渲染路径。
 
-#### `AgentActivityGroup`（新增 UI 组合，不新增基础组件）
+- 状态规则：
+  - `needs-user`：Activity 停止 spinner，Blocking Action Stack 成为唯一主要交互。
+  - `complete`：Phase indicator 隐藏，Activity 默认折叠，Response 保持正文权重。
+  - `failed / stopped`：保留已有内容并显示 terminal notice，不清空部分 Response。
+- 约束：不读取 Electron store，不在 UI package 解释 toolName 或 approval payload。
+
+#### Detail: AgentActivityGroup
 
 实现位置：
 
@@ -663,7 +695,7 @@ Assistant Turn
 - 无详情时 trigger 不显示 Chevron；
 - 键盘操作与 focus ring 沿用 shadcn Collapsible。
 
-#### `AgentActionRow`（新增）
+#### Detail: AgentActionRow
 
 职责：
 
@@ -682,7 +714,7 @@ Assistant Turn
        [Outcome / Impact 摘要]          [展开]
 ```
 
-#### `AgentActionReceipt`（`AgentActionRow` 的 terminal variant）
+#### Detail: AgentActionReceipt
 
 不创建独立基础组件，只通过 `AgentActionRow` 的 lifecycle 和 details 表达：
 
@@ -698,7 +730,7 @@ Receipt 展开内容包括：
 - permission impact；
 - 执行输出或失败原因。
 
-#### `AgentBlockingActionStack`（新增）
+#### Detail: AgentBlockingActionStack
 
 职责：
 
@@ -712,7 +744,7 @@ Receipt 展开内容包括：
 
 它只是 Turn 内的组合组件，不新增全局 approval queue 或独立 store。
 
-#### `AgentDecisionCard`（新增）
+#### Detail: AgentDecisionCard
 
 适用于 permission：
 
@@ -725,7 +757,7 @@ Receipt 展开内容包括：
 
 首版不提供通用 payload 编辑器。需要调整操作时，用户先选择“不允许 / 取消”，再通过正常对话提出修改。
 
-#### `AgentCandidateCard`（由现有 `AgentProposalCard` 演进）
+#### Detail: AgentCandidateCard
 
 复用现有候选内容 renderer 和实体 label 解析，但重写外层状态与 footer。
 
@@ -778,7 +810,7 @@ Candidate 按钮：
 - Context：`确认添加 Context` / `暂不添加`；
 - Domain：`确认创建` 或 `确认更新` / `暂不修改`。
 
-#### `AgentProposalCard`（迁移后删除或降为兼容 wrapper）
+#### Detail: AgentProposalCard migration
 
 现有组件不能继续同时承担危险 Bash 和 personal knowledge candidate：
 
@@ -788,7 +820,7 @@ Candidate 按钮：
 - 所有调用方迁移完成后删除旧外层；
 - 现有内容 subviews、diff、`ToolDetails` 和测试 fixture 尽量复用。
 
-#### 焦点与可访问性
+#### Detail: 焦点与可访问性
 
 - 新 Decision / Candidate 出现时用 `aria-live="polite"` 宣告“需要你处理”，但不强制抢走当前焦点。
 - 每张卡片有可关联的 heading、description 与 impact；表单字段都有可见 label 和内联 error。
@@ -798,7 +830,7 @@ Candidate 按钮：
 - Activity Row 有 details 时使用真正的 `CollapsibleTrigger`；无 details 时不伪装成 button。
 - icon 均为辅助信息，lifecycle 和 outcome 必须有可读文本。
 
-#### `AgentTurnPhaseIndicator`（新增轻量内部组件）
+#### Detail: AgentTurnPhaseIndicator
 
 职责：
 
@@ -825,7 +857,7 @@ Candidate 按钮：
 
 当 Action label 可用时，Activity header 显示具体动作；phase indicator 不重复完整 summary。
 
-#### `AgentResponseBlock`（新增内部渲染分支）
+#### Detail: AgentResponseBlock
 
 职责：
 
@@ -838,7 +870,7 @@ Candidate 按钮：
 
 不新增卡片背景，不新增“Response”英文标题。内容本身是层级中心，状态文案只在 streaming 时出现。
 
-#### `AgentPendingBlock`（缩小职责）
+#### Detail: AgentPendingBlock
 
 只用于两种情况：
 
@@ -849,45 +881,50 @@ Candidate 按钮：
 
 ### 4.4 Token Review
 
-本次只使用现有设计 token：
+#### Surface Hierarchy
 
-| 用途               | Token / class                                                   | 理由                                  |
-| ------------------ | --------------------------------------------------------------- | ------------------------------------- |
-| 过程背景           | `bg-muted/20`、hover `bg-muted/45`                              | Activity 是次级信息                   |
-| 前景卡片           | `bg-card`、`border-border`、`shadow-sm`                         | Decision / Candidate 当前需要用户注意 |
-| 普通边框           | `border-border/80`、分隔 `border-border/70`                     | 建立边界但不形成重卡片                |
-| 次级文字           | `text-muted-foreground`                                         | 过程不抢 Response                     |
-| 正文               | `text-foreground` / `ChatMarkdown` 默认 tone                    | Candidate 内容与 Response 可阅读      |
-| 风险提醒           | `bg-muted/35` 或 caution 语义                                   | 普通影响不伪装成错误                  |
-| 失败 / destructive | `text-destructive`、`border-destructive/25`、`bg-destructive/5` | 只用于真实失败和破坏性后果            |
-| 焦点               | `focus-visible:ring-ring/50`                                    | 与当前可交互元素一致                  |
-| 密度               | `gap-2`、`gap-3`、`px-3 py-2`、`p-4`                            | Receipt 紧凑，Blocking Action 完整    |
-| 圆角               | `rounded-lg` / `rounded-md`                                     | 复用现有层级，不创造新 radius         |
+- 统一规则：Response 保持透明正文；Activity 使用 `bg-muted/20` 和 `border-border/80`；Blocking Action 使用 `bg-card border-border shadow-sm`。
+- 禁止：给整个 Turn 添加气泡背景，或让 Activity 与 Blocking Action 使用相同视觉权重。
 
-检查结论：
+#### Typography
 
-- 无硬编码颜色；
-- 无新全局 token；
-- 无暗色模式特判；
-- 无需要修改 shadcn 源码的样式；
-- spinner 应继承文本颜色；
-- declined 不使用 destructive token；
-- reduced motion 沿用现有 Spinner / Tailwind 全局策略，新增过渡不超过 opacity 和 Chevron rotation。
+- 统一规则：Response 使用 `ChatMarkdown` 默认正文；过程与状态使用 `text-sm` / `text-xs text-muted-foreground`；失败和 destructive 后果使用 `text-destructive`。
+- 禁止：用字号或全大写制造新的标题层级；declined 不使用 destructive 文本颜色。
+
+#### Spacing Rhythm
+
+- 统一规则：Turn 使用 `space-y-3`，紧凑列表使用 `gap-1` / `gap-2`，字段组使用 `gap-3`，完整 Blocking Action 使用 `p-4`。
+- 禁止：加入不在 `gap-1/2/3`、`px-3 py-2`、`p-4` 节奏内的任意间距。
+
+#### Interaction State
+
+- 统一规则：可交互元素使用 `focus-visible:ring-2 focus-visible:ring-ring/50`；spinner 继承当前文本颜色；只允许 Chevron rotation 和 opacity 过渡。
+- 禁止：用颜色作为唯一状态信号、在 `needs-user` 显示持续 spinner，或引入脉冲与循环文案动画。
+
+#### Component Variants
+
+- 统一规则：普通操作用 `Button` default / outline，次要取消用 ghost / outline，破坏性确认只用现有 destructive variant；容器只用 `rounded-md` / `rounded-lg`。
+- 禁止：修改 shadcn 源码、创建新的全局 variant，或为单个 Action 发明专属视觉组件。
+
+#### Hard-coded Values
+
+- 统一规则：颜色、圆角、阴影和焦点全部使用现有语义 token；详情高度上限固定为 `max-h-80`。
+- 禁止：硬编码颜色、暗色模式特判、新全局 token 或任意像素值。
 
 ### 4.5 Atoms
 
-| Atom                                    | 来源                      | 用法                                                 | 是否新增 |
-| --------------------------------------- | ------------------------- | ---------------------------------------------------- | -------- |
-| `Spinner`                               | existing                  | pending、action-active、awaiting、responding、保存中 | 否       |
-| `Collapsible`                           | shadcn existing           | Activity 与 Action details                           | 否       |
-| `ChevronDown`                           | `lucide-react` existing   | details 展开提示                                     | 否       |
-| `CircleCheck` / `Ban` / `TriangleAlert` | `lucide-react` existing   | completed、declined、failed                          | 否       |
-| `ChatMarkdown`                          | existing chat module      | commentary、候选预览与 Response                      | 否       |
-| `Button`                                | shadcn existing           | Decision / Candidate actions                         | 否       |
-| `Input` / `Textarea`                    | shadcn existing           | Candidate 编辑                                       | 否       |
-| `Select` / `Combobox`                   | shadcn existing           | medium、Domain、Understanding 选择                   | 否       |
-| `ToolDetails`                           | existing execution module | Action 技术详情                                      | 否       |
-| `cn`                                    | existing utility          | mode / lifecycle 条件 class                          | 否       |
+| Component                               | Variant / config                                           | Usage                                                |
+| --------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------- |
+| `Spinner`                               | `size="sm"`，继承文字颜色                                  | pending、action-active、awaiting、responding、保存中 |
+| `Collapsible`                           | 默认；trigger 带 focus ring                                | Activity 与有详情的 Action Row                       |
+| `ChevronDown`                           | `size-4`，展开时 `rotate-180`                              | details 展开提示                                     |
+| `CircleCheck` / `Ban` / `TriangleAlert` | `size-4`，分别使用 muted / muted / destructive 语义色      | completed、declined、failed                          |
+| `ChatMarkdown`                          | 默认 tone 用于 Response；`tone="muted"` 用于过程说明       | commentary、候选预览与 Response                      |
+| `Button`                                | primary=`default`；secondary=`outline`；删除=`destructive` | Decision / Candidate actions                         |
+| `Input` / `Textarea`                    | 默认尺寸；错误时使用现有 `aria-invalid`                    | Candidate 文本字段                                   |
+| `Select` / `Combobox`                   | 默认尺寸；选项来自现有 entity catalog                      | medium、Domain、Understanding 选择                   |
+| `ToolDetails`                           | 现有 renderer；外层限制 `max-h-80 overflow-y-auto`         | Action 技术详情                                      |
+| `cn`                                    | 仅组合 mode / lifecycle 对应的现有 token                   | 条件 class                                           |
 
 不新增 Timeline、ProgressBar、Skeleton、动画库或新的 spinner 变体。只有现有 Select / Combobox 无法满足字段语义时，才在 chat module 内做最小组合。
 
@@ -895,19 +932,19 @@ Candidate 按钮：
 
 以下内容在本计划中明确不改：
 
-1. 不改变 Agent 页的 sidebar、header、消息列宽度和 composer 布局。
-2. 不重做用户消息气泡或消息 action bar。
-3. 不修改 shadcn 组件源码，也不建立新的基础组件层。
-4. 不改变每个底层 tool 的执行能力、prompt 或权限政策；本次只改变用户模型与候选确认 payload。
-5. 不把所有 Action 都做成重卡片，也不为每个 tool 建独立 React 组件。
-6. 不重写现有 `ToolDetails` 的底层详情 renderer；重做的是 Action 摘要、Outcome、Decision / Candidate 和 Receipt。
-7. 不为 Bash / delete 提供任意 payload 编辑器。
-8. 不在没有 attribution 协议时声称某条检索结果“被最终回答采用”。
-9. 不建立通用表单草稿系统；只为 pending Candidate 增加一个作用域明确的 durable `draftPayload`，避免用户切换对话或重启后丢失已经编辑的个人内容。
-10. 不增加时间线连线、节点图、脉冲光效或渐变背景。
-11. 不加入 Craft 风格的状态轮播文案和 elapsed timer。
-12. 不加入多会话后台状态、未读徽标、child task 或 queued message。
-13. 不调整全局颜色、字体、圆角和 motion token。
+- ❌ **重排 Agent 页整体布局** → sidebar、header、消息列宽度和 composer 不在本次范围。
+- ❌ **重做用户消息气泡或 action bar** → 本次只调整 assistant Turn。
+- ❌ **修改 shadcn 源码或新增基础组件层** → 现有 primitives 已覆盖需求。
+- ❌ **改变底层 tool 能力、prompt 或权限政策** → 只改变用户模型与候选确认 payload。
+- ❌ **把所有 Action 做成重卡片或独立组件** → 只有需要接球的 Action 占据前景。
+- ❌ **重写 ToolDetails renderer** → 保留技术详情，只重做摘要、Outcome、Decision、Candidate 和 Receipt。
+- ❌ **为 Bash / delete 提供任意 payload 编辑器** → 避免绕过原操作的风险判断。
+- ❌ **推断检索结果被最终回答采用** → 当前协议没有可靠 attribution。
+- ❌ **建立通用表单草稿系统** → 只持久化 pending Candidate 的作用域内 draft。
+- ❌ **加入时间线、节点图、脉冲、渐变或轮播文案** → 它们不提升球权和后果的可读性。
+- ❌ **加入 elapsed timer** → 当前阶段和 Action Outcome 已足够表达推进。
+- ❌ **加入多会话后台状态、未读、child task 或 queued message** → 属于另一套任务管理范围。
+- ❌ **调整全局颜色、字体、圆角和 motion token** → 本次复用现有视觉系统。
 
 ---
 
