@@ -376,7 +376,7 @@ function TypicalTaskDemo() {
   });
 
   return (
-    <StorySurface>
+    <StorySurface className="max-w-6xl">
       <div className="grid content-start gap-7 overflow-auto p-6">
         <ChatMessageRow
           row={userRow(

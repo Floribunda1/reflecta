@@ -756,7 +756,7 @@ function ToolGallery() {
         title="生命周期"
         description="执行 Tool 的运行、完成、空结果与失败使用生产转换和生产卡片。"
       >
-        <div className="grid items-start gap-4 xl:grid-cols-2">
+        <div className="grid gap-4">
           <ToolCard block={running} defaultExpanded />
           <ToolCard block={completedTools[4]} defaultExpanded />
           <ToolCard block={emptyResults} defaultExpanded />
@@ -767,7 +767,7 @@ function ToolGallery() {
         title="生产类型图谱"
         description="以下卡片走 production 的 runtime 转换函数；高频且高信息量的 Tool 默认展开，其余可点击查看。"
       >
-        <div className="grid items-start gap-4 xl:grid-cols-2">
+        <div className="grid gap-4">
           {completedTools.map((block) => (
             <div key={block.toolCallId}>
               <ToolCard
@@ -793,7 +793,7 @@ function ToolGallery() {
             重置全部
           </Button>
         </div>
-        <div key={proposalGeneration} className="grid items-start gap-4 xl:grid-cols-2">
+        <div key={proposalGeneration} className="grid gap-4">
           {approvalTools.map((fixture) => (
             <div key={fixture.block.approvalId}>
               <InteractiveProposalCard fixture={fixture} />
