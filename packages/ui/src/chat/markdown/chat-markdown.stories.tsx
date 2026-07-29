@@ -1,84 +1,42 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useState } from "react";
 import { StoryCase, StoryShowcase } from "../../../.storybook/story-showcase";
 import { useAutoFrame } from "../../../.storybook/use-auto-frame";
+import {
+  markdownBoundaryDocument,
+  markdownStorySections,
+} from "../../editor/markdown-story-fixtures";
 import type { ChatEntityReference } from "../entity";
 import { entityKey } from "../entity-visual";
 import { ChatMarkdown } from "./chat-markdown";
 
 const presentations = new Map([
-  ["understanding:u_1", { state: "ready" as const, label: "组件边界", canOpen: true }],
-  ["context:c_1", { state: "loading" as const, label: "Context 加载中" }],
-  ["domain:d_1", { state: "ready" as const, label: "UI 架构", canOpen: false }],
+  ["understanding:u_irrigation", { state: "ready" as const, label: "分区灌溉策略", canOpen: true }],
+  ["context:c_night_shift", { state: "loading" as const, label: "夜班联调记录加载中" }],
+  ["domain:d_facility", { state: "ready" as const, label: "设施工程", canOpen: false }],
   ["context:missing", { state: "unavailable" as const, label: "引用不可用" }],
   ["understanding:error", { state: "error" as const, label: "引用加载失败" }],
 ]);
 
-const entityBindings = {
-  resolveEntity: (reference: ChatEntityReference) => presentations.get(entityKey(reference)),
-  onEntityOpen: () => undefined,
-};
+const resolveEntity = (reference: ChatEntityReference) => presentations.get(entityKey(reference));
 
-const completeMarkdown = `# Agent Markdown 完整语法
-
-正文支持 **粗体**、_斜体_、~~删除线~~、[外部链接](https://example.com) 与 \`inline code\`。
-
-## 列表
-
-- 普通列表
-  - 嵌套列表
-  - [x] 已完成任务
-  - [ ] 待确认任务
-
-1. 分析组件边界
-2. 执行 Tool
-3. 汇总结果
-
-> Agent 的回答可以包含引用。
->
-> > 嵌套引用仍需保持清晰层级。
-
----
-
-### 表格
-
-| Module | 状态 | 负责人 |
-| --- | --- | --- |
-| Markdown | streaming | UI |
-| Tool | completed | Agent |
-
-#### 代码
-
-\`\`\`ts
-type AgentStatus = "streaming" | "done" | "failed";
-const stableBlockId = "assistant-1:text:0";
-\`\`\`
-
-##### 数学公式与 Mermaid
-
-行内公式：$E = mc^2$
-
-$$
-\\text{ROI} = \\frac{\\text{发现的回归}}{\\text{维护成本}}
-$$
+const diagramsAndMath = `${markdownStorySections.mathAndNested}
 
 \`\`\`mermaid
 flowchart LR
   User["用户消息"] --> Tool["Tool 执行"]
   Tool --> Answer["最终回复"]
 \`\`\`
+`;
 
-###### Entity reference
+const entityMarkdown = `## Reflecta Entity
 
-- 可打开：[[u:u_1]]
-- 加载中：[[c:c_1]]
-- 不可打开 Domain：[[d:d_1]]
+- 可打开：[[u:u_irrigation]]
+- 加载中：[[c:c_night_shift]]
+- 不可打开 Domain：[[d:d_facility]]
 - 不可用：[[c:missing]]
 - 错误：[[u:error]]
 - 无 resolver 结果：[[u:unknown]]
-
-![示例图片](data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='160'%3E%3Crect width='100%25' height='100%25' fill='%23dbeafe'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%231e3a8a' font-size='26'%3EAgent Markdown%3C/text%3E%3C/svg%3E)
-
-最后是一段中英混排：Storybook 用于验证 component streaming behavior，而 E2E 负责真实 workflow。
 `;
 
 const streamingCases = [
@@ -110,7 +68,7 @@ const streamingCases = [
       "[Storybook",
       "[Storybook](https://",
       "[Storybook](https://example.com)\n\n[[u:",
-      "[Storybook](https://example.com)\n\n[[u:u_1]]",
+      "[Storybook](https://example.com)\n\n[[u:u_irrigation]]",
     ],
   },
   {
@@ -137,57 +95,94 @@ function StreamingSyntaxDemo() {
   const current = streamingFrames[useAutoFrame(streamingFrames.length)];
 
   return (
-    <div className="grid max-w-3xl gap-4">
-      <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+    <div className="grid max-w-4xl gap-3">
+      <p className="text-sm text-muted-foreground">
         当前语法：{current.label} · 第 {current.frame}/{current.frameCount} 帧 · 自动播放
-      </div>
-      <div className="min-h-40 rounded-lg border p-4">
-        <ChatMarkdown value={current.value} {...entityBindings} />
+      </p>
+      <div className="min-h-40">
+        <ChatMarkdown value={current.value} resolveEntity={resolveEntity} />
       </div>
     </div>
   );
 }
 
-const longCode = "const payload = " + JSON.stringify({ content: "非常长的连续内容".repeat(80) });
-const boundaryMarkdown = `# 边界内容
-
-超长 URL：https://example.com/${"storybook/agent/markdown/".repeat(12)}
-
-\`\`\`ts
-${longCode}
-\`\`\`
-
-| ${"很宽的表头 ".repeat(10)} | 第二列 | 第三列 | 第四列 |
-| --- | --- | --- | --- |
-| ${"很长的表格内容 ".repeat(16)} | A | B | C |
-
-超长 Entity：[[u:u_1]]
-`;
+function EntityDemo() {
+  const [opened, setOpened] = useState("尚未打开 Entity");
+  return (
+    <div className="grid gap-3">
+      <ChatMarkdown
+        value={entityMarkdown}
+        resolveEntity={resolveEntity}
+        onEntityOpen={(reference) => setOpened(`已打开：${reference.type}:${reference.id}`)}
+      />
+      <p className="text-xs text-muted-foreground">{opened}</p>
+    </div>
+  );
+}
 
 function MarkdownShowcase() {
   return (
     <StoryShowcase
       title="Markdown"
-      description="同页验收完整 Markdown 语法、流式未闭合语法，以及长代码和宽表格在窄容器中的表现。"
+      description="按语法族集中验收 Agent Markdown 的完整内容、Reflecta 扩展、自动 Streaming 和几何边界。"
     >
-      <StoryCase
-        title="完整语法"
-        description="覆盖标题、强调、列表、引用、表格、代码、公式、Mermaid、图片和 Entity。"
-      >
-        <ChatMarkdown value={completeMarkdown} {...entityBindings} />
+      <StoryCase title="标题与行内样式">
+        <ChatMarkdown value={markdownStorySections.headingsAndInline} />
       </StoryCase>
+
+      <StoryCase title="列表与引用">
+        <ChatMarkdown value={markdownStorySections.listsAndQuotes} />
+      </StoryCase>
+
       <StoryCase
-        title="流式不完整语法"
-        description="自动循环未闭合强调、代码块、表格、链接、Mermaid 和公式。"
+        title="代码与表格"
+        description="覆盖 JavaScript、Python、CSS、JSON、Bash 和多种表格对齐。"
+      >
+        <ChatMarkdown value={markdownStorySections.codeAndTables} />
+      </StoryCase>
+
+      <StoryCase
+        title="媒体与扩展语法"
+        description="图片、HTML、details、kbd、脚注和定义列表按 renderer 支持能力展示或安全降级。"
+      >
+        <ChatMarkdown value={markdownStorySections.mediaAndExtensions} />
+      </StoryCase>
+
+      <StoryCase title="数学公式与 Mermaid">
+        <ChatMarkdown value={diagramsAndMath} />
+      </StoryCase>
+
+      <StoryCase
+        title="Reflecta Entity"
+        description="并排包含 ready、loading、不可打开、unavailable、error 和 fallback。"
+      >
+        <EntityDemo />
+      </StoryCase>
+
+      <StoryCase
+        title="自动 Streaming"
+        description="同一个组件实例自动循环未闭合强调、代码块、表格、链接、Entity、Mermaid 和公式。"
       >
         <StreamingSyntaxDemo />
       </StoryCase>
+
       <StoryCase
-        title="长代码、宽表格与窄容器"
-        description="内容可以内部滚动或换行，但不能撑破 360px 容器。"
+        title="空内容与几何边界"
+        description="空白内容、长 URL、长代码、宽表格和连续字符串不能撑破窄容器。"
       >
-        <div className="w-[360px] max-w-full rounded-lg border p-4">
-          <ChatMarkdown value={boundaryMarkdown} tone="muted" {...entityBindings} />
+        <div className="grid items-start gap-8 lg:grid-cols-[240px_360px]">
+          <div className="min-h-24">
+            <span className="mb-2 block text-xs font-medium text-muted-foreground">空字符串</span>
+            <ChatMarkdown value="" />
+          </div>
+          <div className="w-[360px] max-w-full">
+            <span className="mb-2 block text-xs font-medium text-muted-foreground">窄容器</span>
+            <ChatMarkdown
+              value={markdownBoundaryDocument}
+              tone="muted"
+              resolveEntity={resolveEntity}
+            />
+          </div>
         </div>
       </StoryCase>
     </StoryShowcase>
@@ -198,8 +193,8 @@ const meta = {
   title: "Agent/基本组件",
   component: ChatMarkdown,
   args: {
-    value: completeMarkdown,
-    ...entityBindings,
+    value: markdownStorySections.headingsAndInline,
+    resolveEntity,
   },
 } satisfies Meta<typeof ChatMarkdown>;
 

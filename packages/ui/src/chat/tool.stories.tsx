@@ -207,6 +207,16 @@ const completedTools: readonly ToolBlock[] = [
     },
   ),
   tool(
+    "file_read",
+    { path: "/workspace/polar-greenhouse/docs/legacy-observation.md" },
+    {
+      path: "/workspace/polar-greenhouse/docs/legacy-observation.md",
+      content: mediumMarkdown,
+      truncated: false,
+    },
+    { toolCallId: "tool-file-read-legacy" },
+  ),
+  tool(
     "edit",
     {
       path: "/workspace/polar-greenhouse/apps/control/src/irrigation-zones.ts",
@@ -575,6 +585,12 @@ const initiallyExpandedTools = new Set([
   "attachment_read",
   "retrieve_knowledge",
 ]);
+const streamingCommands = [
+  "bun",
+  "bun run --cwd apps/control",
+  "bun run --cwd apps/control verify:telemetry --station polar-bay-07",
+  "bun run --cwd apps/control verify:telemetry --station polar-bay-07 --window 30m",
+];
 
 function ToolCard({
   block,
@@ -595,12 +611,12 @@ function ToolCard({
 }
 
 function AutoStreamingTool() {
-  const frame = useAutoFrame(4);
-  const completed = frame === 3;
+  const frame = useAutoFrame(streamingCommands.length);
+  const completed = frame === streamingCommands.length - 1;
   const block = tool(
     "bash",
     {
-      command: "bun run --cwd apps/control verify:telemetry --station polar-bay-07 --window 30m",
+      command: streamingCommands[frame],
       cwd: "/workspace/polar-greenhouse",
     },
     completed ? { exitCode: 0, stdout: commandOutput, stderr: "", truncated: false } : undefined,
@@ -668,6 +684,15 @@ function InteractiveProposalCard({ fixture }: { fixture: ApprovalFixture }) {
 
 function ToolGallery() {
   const [proposalGeneration, setProposalGeneration] = useState(0);
+  const running = tool(
+    "bash",
+    {
+      command: "bun run --cwd apps/control verify:telemetry --station polar-bay-07",
+      cwd: "/workspace/polar-greenhouse",
+    },
+    undefined,
+    { toolCallId: "tool-bash-running", state: "running" },
+  );
   const failed = tool(
     "bash",
     {
@@ -690,6 +715,12 @@ function ToolGallery() {
     {
       understandings: syntheticUnderstandings(36),
     },
+  );
+  const emptyResults = tool(
+    "understanding_list",
+    { domainIds: ["d-irrigation"], limit: 20, offset: 0 },
+    { understandings: [] },
+    { toolCallId: "tool-understanding-list-empty" },
   );
   const longCommand = tool(
     "bash",
@@ -717,17 +748,28 @@ function ToolGallery() {
     >
       <StoryCase
         title="自动流式展示"
-        description="使用稳定的 toolCallId 自动从运行中推进到完成，然后重新开始。"
+        description="使用稳定的 toolCallId 自动补全命令，再从运行中推进到完成。"
       >
         <AutoStreamingTool />
       </StoryCase>
       <StoryCase
-        title="生产密度的合成 Tool"
+        title="生命周期"
+        description="执行 Tool 的运行、完成、空结果与失败使用生产转换和生产卡片。"
+      >
+        <div className="grid items-start gap-4 xl:grid-cols-2">
+          <ToolCard block={running} defaultExpanded />
+          <ToolCard block={completedTools[4]} defaultExpanded />
+          <ToolCard block={emptyResults} defaultExpanded />
+          <ToolCard block={failed} defaultExpanded />
+        </div>
+      </StoryCase>
+      <StoryCase
+        title="生产类型图谱"
         description="以下卡片走 production 的 runtime 转换函数；高频且高信息量的 Tool 默认展开，其余可点击查看。"
       >
-        <div className="columns-1 xl:columns-2">
+        <div className="grid items-start gap-4 xl:grid-cols-2">
           {completedTools.map((block) => (
-            <div key={block.toolCallId} className="mb-4 break-inside-avoid">
+            <div key={block.toolCallId}>
               <ToolCard
                 block={block}
                 defaultExpanded={initiallyExpandedTools.has(block.toolName)}
@@ -751,9 +793,9 @@ function ToolGallery() {
             重置全部
           </Button>
         </div>
-        <div key={proposalGeneration} className="columns-1 xl:columns-2">
+        <div key={proposalGeneration} className="grid items-start gap-4 xl:grid-cols-2">
           {approvalTools.map((fixture) => (
-            <div key={fixture.block.approvalId} className="mb-4 break-inside-avoid">
+            <div key={fixture.block.approvalId}>
               <InteractiveProposalCard fixture={fixture} />
             </div>
           ))}
@@ -761,11 +803,10 @@ function ToolGallery() {
       </StoryCase>
       <StoryCase
         title="异常与边界"
-        description="仍然使用实际 bash 与 understanding_list Tool，只改变输入、输出和执行状态。"
+        description="长命令、深路径、大量输出和大量结果仍然使用实际生产 Tool。"
         contentClassName="grid gap-4"
       >
         <div className="grid gap-4">
-          <ToolCard block={failed} defaultExpanded />
           <ToolCard block={longCommand} />
           <ToolCard block={manyResults} />
         </div>

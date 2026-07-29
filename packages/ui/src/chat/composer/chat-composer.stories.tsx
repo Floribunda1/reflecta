@@ -64,8 +64,8 @@ const attachmentAdapter: ChatComposerAttachmentAdapter = {
     if (files.some((file) => file.name.includes("失败"))) {
       throw new Error("模拟附件上传失败");
     }
-    return files.map((file) => ({
-      id: crypto.randomUUID(),
+    return files.map((file, index) => ({
+      id: `storybook-${file.name}-${index}`,
       name: file.name,
       mediaType: file.type || "application/octet-stream",
       size: file.size,
@@ -91,6 +91,20 @@ const baseComposerProps: ChatComposerProps = {
   onSubmit: async () => undefined,
 };
 
+const maximumAttachments = Array.from({ length: 8 }, (_, index) => ({
+  id: `attachment-${index + 1}`,
+  name:
+    index === 7
+      ? "第八个附件使用非常长的文件名来检查达到上限时的截断与布局.pdf"
+      : `现场记录-${index + 1}.txt`,
+  mediaType: index === 0 ? "image/png" : "text/plain",
+  size: 32_000 + index * 1_024,
+  previewUrl:
+    index === 0
+      ? "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='100'%3E%3Crect width='100%25' height='100%25' fill='%23dcfce7'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23166534'%3E现场%3C/text%3E%3C/svg%3E"
+      : undefined,
+}));
+
 function ComposerDemo({ draftId, ...overrides }: Partial<ChatComposerProps> & { draftId: string }) {
   return <ChatComposer {...baseComposerProps} {...overrides} draftId={draftId} />;
 }
@@ -101,7 +115,7 @@ function ComposerShowcase() {
       title="Composer"
       description="在一个页面内验收空白、Entity、历史编辑、运行、上下文压缩、附件联想和危险边界。每个输入框使用独立 draft identity。"
     >
-      <StoryCase title="空白输入" description="默认模型、推理等级和上下文用量。">
+      <StoryCase title="基础输入" description="空白输入、默认模型、推理等级和上下文用量。">
         <ComposerDemo draftId="showcase-empty" />
       </StoryCase>
       <StoryCase title="初始 Entity" description="初始化时已经携带 Understanding 引用。">
@@ -140,15 +154,24 @@ function ComposerShowcase() {
           }}
         />
       </StoryCase>
-      <StoryCase title="运行与停止" description="发送入口切换为停止操作。">
-        <ComposerDemo draftId="showcase-running" status="running" />
-      </StoryCase>
-      <StoryCase title="压缩上下文" description="压缩期间输入不可提交，也不能停止。">
-        <ComposerDemo draftId="showcase-compacting" status="compacting" canStop={false} />
+      <StoryCase
+        title="运行状态"
+        description="运行中显示停止入口；压缩期间输入不可提交，也不能停止。"
+      >
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-2">
+            <span className="text-xs font-medium text-muted-foreground">运行与停止</span>
+            <ComposerDemo draftId="showcase-running" status="running" />
+          </div>
+          <div className="grid gap-2">
+            <span className="text-xs font-medium text-muted-foreground">压缩上下文</span>
+            <ComposerDemo draftId="showcase-compacting" status="compacting" canStop={false} />
+          </div>
+        </div>
       </StoryCase>
       <StoryCase
-        title="附件与 Entity 联想"
-        description="包含图片、长文件名；输入 @ 可验收 Entity 搜索。"
+        title="Entity 联想与附件"
+        description="输入 @，继续输入“空”或“错误”验收生命周期；也可上传成功/失败文件。"
       >
         <ComposerDemo
           draftId="showcase-attachments"
@@ -175,7 +198,57 @@ function ComposerShowcase() {
         />
       </StoryCase>
       <StoryCase
-        title="长输入、大量模型与高上下文"
+        title="附件上限"
+        description="8 个图片/文件达到上限，长文件名和删除入口不能挤压 Composer。"
+      >
+        <ComposerDemo
+          draftId="showcase-attachment-limit"
+          initialValue={{
+            text: "请结合全部附件复核记录。",
+            document: createChatComposerDocument("请结合全部附件复核记录。"),
+            entities: [],
+            attachments: maximumAttachments,
+          }}
+        />
+      </StoryCase>
+      <StoryCase
+        title="提交失败恢复"
+        description="点击发送后模拟失败，原文本、Entity 与附件必须回到输入框。"
+      >
+        <ComposerDemo
+          draftId="showcase-submit-failure"
+          initialValue={{
+            text: "这段内容在发送失败后仍应可继续编辑。",
+            document: createChatComposerDocument("这段内容在发送失败后仍应可继续编辑。", [
+              {
+                type: "understanding",
+                id: "understanding-1",
+                label: "组件边界",
+              },
+            ]),
+            entities: [
+              {
+                type: "understanding",
+                id: "understanding-1",
+                label: "组件边界",
+              },
+            ],
+            attachments: [
+              {
+                id: "attachment-submit-failure",
+                name: "需要保留的现场记录.txt",
+                mediaType: "text/plain",
+              },
+            ],
+          }}
+          onSubmit={async () => {
+            await new Promise((resolve) => window.setTimeout(resolve, 500));
+            throw new Error("模拟发送失败，请检查草稿是否恢复");
+          }}
+        />
+      </StoryCase>
+      <StoryCase
+        title="模型、上下文与几何边界"
         description="窄容器、高上下文占用和长模型名称不能破坏布局。"
       >
         <div className="w-[360px] max-w-full">

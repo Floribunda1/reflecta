@@ -32,6 +32,25 @@ const userRow: ChatMessageRowView = {
   enabledActions: ["copy", "edit"],
 };
 
+const userTextRow: ChatMessageRowView = {
+  message: {
+    kind: "user",
+    id: "user-text",
+    text: "请复核低温窗口中的阀门启动顺序。",
+  },
+  timestampLabel: "7月28日 12:58:00",
+  enabledActions: ["copy", "edit"],
+};
+
+const userEmptyRow: ChatMessageRowView = {
+  message: {
+    kind: "user",
+    id: "user-empty",
+  },
+  timestampLabel: "7月28日 12:59:00",
+  enabledActions: ["copy"],
+};
+
 const assistantRow: ChatMessageRowView = {
   message: {
     kind: "assistant",
@@ -161,13 +180,23 @@ function MessageShowcase() {
       title="Message"
       description="集中验收用户与 Assistant 消息、搜索高亮、流式 identity、等待、停止、失败、上下文压缩和窄容器边界。"
     >
-      <StoryCase title="用户消息" description="Entity、图片、长文件名和消息操作。">
-        <ChatMessageRow row={userRow} />
+      <StoryCase
+        title="用户消息"
+        description="纯文本、Entity + 混合附件和空内容 fallback 连续比较。"
+      >
+        <div className="grid gap-6">
+          <ChatMessageRow row={userTextRow} />
+          <ChatMessageRow row={userRow} />
+          <ChatMessageRow row={userEmptyRow} />
+        </div>
       </StoryCase>
       <StoryCase title="Assistant 完成态" description="思考、Tool 与最终文本组合。">
         <ChatMessageRow row={assistantRow} />
       </StoryCase>
-      <StoryCase title="搜索高亮与操作">
+      <StoryCase
+        title="搜索高亮与操作"
+        description="Hover 或聚焦消息检查操作栏，并比较当前命中与文字命中。"
+      >
         <ChatMessageRow row={{ ...assistantRow, highlighted: true }} search={{ query: "流式" }} />
       </StoryCase>
       <StoryCase
@@ -176,14 +205,21 @@ function MessageShowcase() {
       >
         <StreamingTextSequence />
       </StoryCase>
-      <StoryCase title="等待回复">
-        <ChatMessageRow row={pendingRow} />
-      </StoryCase>
-      <StoryCase title="已停止">
-        <ChatMessageRow row={stoppedRow} />
-      </StoryCase>
-      <StoryCase title="回复失败">
-        <ChatMessageRow row={failedRow} />
+      <StoryCase title="生命周期" description="等待、停止和失败在同一页面位置连续比较。">
+        <div className="grid gap-6">
+          <div>
+            <span className="mb-2 block text-xs font-medium text-muted-foreground">等待回复</span>
+            <ChatMessageRow row={pendingRow} />
+          </div>
+          <div>
+            <span className="mb-2 block text-xs font-medium text-muted-foreground">已停止</span>
+            <ChatMessageRow row={stoppedRow} />
+          </div>
+          <div>
+            <span className="mb-2 block text-xs font-medium text-muted-foreground">回复失败</span>
+            <ChatMessageRow row={failedRow} />
+          </div>
+        </div>
       </StoryCase>
       <StoryCase title="上下文压缩" description="可展开查看压缩摘要与 Token 变化。">
         <ChatMessageRow row={compactionRow} />
