@@ -49,10 +49,12 @@ function InteractiveTree({
   initialNodes = initialDomains,
   initialSelectedId = "storybook",
   initialExpandedIds = ["technology", "ui"],
+  canChat = true,
 }: {
   initialNodes?: DomainTreeNodeView[];
   initialSelectedId?: string | null;
   initialExpandedIds?: string[];
+  canChat?: boolean;
 }) {
   const [nodes, setNodes] = useState(initialNodes);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
@@ -76,12 +78,12 @@ function InteractiveTree({
   };
 
   return (
-    <div className="grid w-72 max-w-full gap-3 rounded-lg border bg-background p-2">
+    <div className="grid w-72 max-w-full gap-3">
       <DomainTree
         nodes={nodes}
         selectedId={selectedId}
         expandedIds={expandedIds}
-        canChat
+        canChat={canChat}
         onSelect={setSelectedId}
         onToggle={handleToggle}
         onAction={handleAction}
@@ -89,9 +91,7 @@ function InteractiveTree({
           setNodes((current) => reorderSiblings(current, activeId, overId))
         }
       />
-      <div className="rounded-md bg-muted/50 px-2 py-1.5 text-xs text-muted-foreground">
-        {lastAction}
-      </div>
+      <p className="px-2 text-xs text-muted-foreground">{lastAction}</p>
     </div>
   );
 }
@@ -129,13 +129,31 @@ function DomainTreeShowcase() {
       description="在一个页面内验收选择、展开、菜单、拖拽、空状态，以及深层级和长名称边界。"
     >
       <StoryCase
-        title="完整交互"
+        title="层级、选择与拖拽"
         description="选择节点、展开层级、右键菜单和同级拖拽都可以直接操作。"
       >
         <InteractiveTree />
       </StoryCase>
+      <StoryCase
+        title="选择与 Hover 关系"
+        description="子节点保持选中时，依次 Hover 父节点、兄弟节点和自身，背景层级都应存在。"
+      >
+        <InteractiveTree initialSelectedId="storybook" />
+      </StoryCase>
+      <StoryCase title="节点操作" description="并排比较允许与不允许“和 AI 聊聊”的真实菜单结构。">
+        <div className="grid items-start gap-8 md:grid-cols-2">
+          <div className="grid gap-2">
+            <span className="text-xs font-medium text-muted-foreground">允许聊天</span>
+            <InteractiveTree />
+          </div>
+          <div className="grid gap-2">
+            <span className="text-xs font-medium text-muted-foreground">不允许聊天</span>
+            <InteractiveTree canChat={false} />
+          </div>
+        </div>
+      </StoryCase>
       <StoryCase title="空状态" description="没有 Domain 时仍保留稳定的树容器。">
-        <div className="w-72 max-w-full rounded-lg border bg-background p-2">
+        <div className="w-72 max-w-full">
           <DomainTree
             nodes={[]}
             selectedId={null}

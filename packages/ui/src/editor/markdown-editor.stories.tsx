@@ -2,90 +2,27 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { Button } from "#components/button";
 import { StoryCase, StoryShowcase } from "../../.storybook/story-showcase";
-import {
-  MarkdownEditor,
-  MarkdownPreview,
-  SimpleMarkdownPreview,
-  type MarkdownEditorProps,
-  type MarkdownEditorSuggestionSource,
-} from ".";
-
-const completeDocument = `# Storybook 组件验收
-
-这份文档集中覆盖编辑器最常见和最危险的 Markdown 结构，包括 **粗体**、_斜体_、~~删除线~~、[链接](https://example.com) 与 \`inline code\`。
-
-## 列表与引用
-
-- 普通列表
-  - 嵌套列表
-  - [x] 已完成任务
-  - [ ] 待处理任务
-
-1. 确认组件边界
-2. 补齐交互状态
-
-> Storybook 验收组件本身。
->
-> > E2E 验收真实产品流程。
-
----
-
-### 表格
-
-| Module | 验收重点 | 状态 |
-| --- | --- | --- |
-| Capture | 编辑、预览、Wiki Link | 进行中 |
-| Agent | Streaming、Tool、Proposal | 待验收 |
-
-#### 代码
-
-\`\`\`ts
-type StoryState = "默认" | "交互" | "边界";
-const packageName = "@reflecta/ui";
-\`\`\`
-
-##### 媒体与引用
-
-![Reflecta 示例图](data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='720' height='180'%3E%3Crect width='100%25' height='100%25' fill='%23e2e8f0'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23334155' font-size='28'%3EReflecta Markdown%3C/text%3E%3C/svg%3E)
-
-关联内容：[[组件边界#understanding-boundary]]、[[Storybook 验收#context-storybook]]。
-
-###### 最末级标题
-
-中英混排与超长链接也应保持正常换行：https://example.com/a/very/long/path/that/should/not-break/the/editor/layout?from=storybook
-`;
-
-const longDocument = `${completeDocument}
-
-## 长内容压力
-
-\`\`\`text
-${"pnpm --filter @reflecta/ui build-storybook --reporter=verbose ".repeat(8)}
-\`\`\`
-
-| 很长的列标题 | 第二列 | 第三列 | 第四列 |
-| --- | --- | --- | --- |
-| ${"不会主动截断但必须留在容器内 ".repeat(8)} | A | B | C |
-`;
+import { fullMarkdownStoryDocument, markdownBoundaryDocument } from "./markdown-story-fixtures";
+import { MarkdownEditor, type MarkdownEditorProps, type MarkdownEditorSuggestionSource } from ".";
 
 const suggestions = [
   {
-    id: "understanding-boundary",
-    label: "组件边界",
-    preview: "展示语义属于 UI package，查询和 IPC 留在 Adapter。",
-    markdown: "[[组件边界#understanding-boundary]]",
+    id: "understanding-irrigation",
+    label: "分区灌溉策略",
+    preview: "不同种植槽根据含水率和回水温度获得独立灌溉窗口。",
+    markdown: "[[分区灌溉策略#understanding-irrigation]]",
   },
   {
-    id: "context-storybook",
-    label: "Storybook 验收",
-    preview: "集中观察组件状态、交互与危险边界。",
-    markdown: "[[Storybook 验收#context-storybook]]",
+    id: "context-night-shift",
+    label: "夜班联调记录",
+    preview: "记录低温环境中的阀门启动顺序和现场复核结果。",
+    markdown: "[[夜班联调记录#context-night-shift]]",
   },
   {
-    id: "domain-ui",
-    label: "UI 架构",
-    preview: "Capture 与 Agent 的组件归属。",
-    markdown: "[[UI 架构#domain-ui]]",
+    id: "domain-facility",
+    label: "设施工程",
+    preview: "温室控制、灌溉和设备维护相关的领域。",
+    markdown: "[[设施工程#domain-facility]]",
   },
 ] as const;
 
@@ -109,10 +46,52 @@ function ControlledEditor(
   return <MarkdownEditor {...editorProps} value={value} onChange={setValue} />;
 }
 
+function CompleteEditorDemo() {
+  const [openedLink, setOpenedLink] = useState("尚未打开 Wiki Link");
+  return (
+    <div className="grid gap-3">
+      <ControlledEditor
+        documentId="editor-complete"
+        initialValue={fullMarkdownStoryDocument}
+        height={560}
+        getSuggestions={getSuggestions}
+        uploadAsset={async (file) => ({ url: URL.createObjectURL(file), alt: file.name })}
+        onWikiLinkOpen={(id) => setOpenedLink(`已打开：${id}`)}
+      />
+      <p className="text-xs text-muted-foreground">{openedLink}</p>
+    </div>
+  );
+}
+
+function SuggestionAndUploadDemo() {
+  const [message, setMessage] = useState(
+    "输入 [[ 查看候选；继续输入“空”或“错误”验收空结果与失败状态。",
+  );
+  return (
+    <div className="grid max-w-4xl gap-3">
+      <ControlledEditor
+        documentId="editor-suggestion-upload"
+        initialValue="## Wiki Link 与上传\n\n在这里继续输入："
+        height={300}
+        getSuggestions={getSuggestions}
+        uploadAsset={async (file) => {
+          if (file.name.includes("失败")) {
+            setMessage(`上传失败：${file.name}`);
+            throw new Error("模拟上传失败");
+          }
+          setMessage(`上传完成：${file.name}`);
+          return { url: URL.createObjectURL(file), alt: file.name };
+        }}
+      />
+      <p className="text-xs text-muted-foreground">{message}</p>
+    </div>
+  );
+}
+
 function ExternalUpdateDemo() {
   const documents = [
-    { id: "capture-a", value: "# 第一份文档\n\n可以在这里继续编辑。" },
-    { id: "capture-b", value: "# 第二份文档\n\n切换后编辑器需要同步外部内容。" },
+    { id: "editor-controlled-a", value: "# 第一份文档\n\n可以在这里继续编辑。" },
+    { id: "editor-controlled-b", value: "# 第二份文档\n\n切换后应同步外部内容。" },
   ] as const;
   const [index, setIndex] = useState(0);
   const [value, setValue] = useState<string>(documents[0].value);
@@ -134,45 +113,9 @@ function ExternalUpdateDemo() {
       <MarkdownEditor
         documentId={documents[index].id}
         value={value}
-        height={420}
-        getSuggestions={getSuggestions}
-        uploadAsset={async (file) => {
-          if (file.name.includes("失败")) throw new Error("模拟上传失败");
-          return { url: URL.createObjectURL(file), alt: file.name };
-        }}
+        height={320}
         onChange={setValue}
       />
-    </div>
-  );
-}
-
-function CompleteEditorDemo() {
-  const [openedLink, setOpenedLink] = useState("尚未打开 Wiki Link");
-  return (
-    <div className="grid gap-3">
-      <ControlledEditor
-        documentId="showcase-complete"
-        initialValue={completeDocument}
-        height={560}
-        getSuggestions={getSuggestions}
-        uploadAsset={async (file) => ({ url: URL.createObjectURL(file), alt: file.name })}
-        onWikiLinkOpen={setOpenedLink}
-      />
-      <div className="text-xs text-muted-foreground">{openedLink}</div>
-    </div>
-  );
-}
-
-function PreviewLevelsDemo() {
-  const [openedLink, setOpenedLink] = useState("尚未打开 Wiki Link");
-  return (
-    <div className="grid gap-8">
-      <MarkdownPreview value={completeDocument} zoomImages={false} onWikiLinkOpen={setOpenedLink} />
-      <div className="text-xs text-muted-foreground">{openedLink}</div>
-      <div className="grid gap-3 rounded-lg border p-4">
-        <span className="text-xs font-medium text-muted-foreground">Understanding Row 摘要</span>
-        <SimpleMarkdownPreview value={completeDocument} lineClamp={3} />
-      </div>
     </div>
   );
 }
@@ -181,49 +124,67 @@ function MarkdownEditorShowcase() {
   return (
     <StoryShowcase
       title="Markdown Editor"
-      description="集中验收完整编辑、空白自动高度、只读、联想与上传、外部文档切换、危险边界和两级预览。"
+      description="在一个页面内验收编辑、尺寸、只读、Wiki Link、上传、受控更新和复杂内容边界。"
     >
-      <StoryCase title="完整文档" description="覆盖主要 Markdown 结构、Wiki Link、联想和图片上传。">
+      <StoryCase title="基础编辑" description="使用完整 Markdown 文档验收工具栏、输入和块级结构。">
         <CompleteEditorDemo />
       </StoryCase>
-      <StoryCase title="空白与自动高度" description="输入区域从占位文案开始，最高增长到 420px。">
-        <ControlledEditor
-          documentId="showcase-empty"
-          initialValue=""
-          height="auto"
-          maxHeight={420}
-          placeholder="记录一个值得长期保留的想法…"
-          getSuggestions={getSuggestions}
-        />
+
+      <StoryCase title="空白与尺寸" description="固定高度与自动增长使用相同的空白初始状态。">
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-2">
+            <span className="text-xs font-medium text-muted-foreground">固定高度 260px</span>
+            <ControlledEditor
+              documentId="editor-fixed-height"
+              initialValue=""
+              height={260}
+              placeholder="记录一个值得长期保留的想法…"
+            />
+          </div>
+          <div className="grid gap-2">
+            <span className="text-xs font-medium text-muted-foreground">自动增长，最大 420px</span>
+            <ControlledEditor
+              documentId="editor-auto-height"
+              initialValue=""
+              height="auto"
+              maxHeight={420}
+              placeholder="从空白开始输入…"
+            />
+          </div>
+        </div>
       </StoryCase>
-      <StoryCase title="只读" description="复用编辑器排版，但不允许修改内容。">
+
+      <StoryCase title="只读模式" description="同一份正文不可编辑，也不显示编辑控件。">
         <MarkdownEditor
-          documentId="showcase-readonly"
-          value={completeDocument}
+          documentId="editor-readonly"
+          value={fullMarkdownStoryDocument}
           readOnly
           height={420}
         />
       </StoryCase>
+
       <StoryCase
-        title="联想、上传与外部更新"
-        description="切换文档后同步外部 value；输入 Wiki Link 或拖入文件可继续验收。"
+        title="Wiki Link 与媒体上传"
+        description="联想覆盖 loading、ready、empty、error；支持粘贴或拖入图片和视频。"
       >
+        <SuggestionAndUploadDemo />
+      </StoryCase>
+
+      <StoryCase title="受控更新" description="外部切换 documentId 与 value 后，编辑器同步新文档。">
         <ExternalUpdateDemo />
       </StoryCase>
+
       <StoryCase
-        title="长代码、宽表格与窄容器"
-        description="360px 容器内保持内部滚动，不产生页面级横向溢出。"
+        title="复杂内容与窄容器"
+        description="长代码、宽表格、深层内容和连续字符串不能造成页面级横向溢出。"
       >
         <div className="w-[360px] max-w-full">
           <ControlledEditor
-            documentId="showcase-boundaries"
-            initialValue={longDocument}
+            documentId="editor-boundaries"
+            initialValue={markdownBoundaryDocument}
             height={640}
           />
         </div>
-      </StoryCase>
-      <StoryCase title="完整预览与列表摘要" description="对比完整正文和三行摘要的排版层级。">
-        <PreviewLevelsDemo />
       </StoryCase>
     </StoryShowcase>
   );
@@ -236,7 +197,7 @@ const meta = {
     layout: "padded",
   },
   args: {
-    value: completeDocument,
+    value: fullMarkdownStoryDocument,
     height: 620,
   },
 } satisfies Meta<typeof MarkdownEditor>;
