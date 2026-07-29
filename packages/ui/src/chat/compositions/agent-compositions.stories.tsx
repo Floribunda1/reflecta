@@ -279,9 +279,17 @@ function Composer({ running = false }: { running?: boolean }) {
   );
 }
 
-function StorySurface({ children }: { children: ReactNode }) {
+function StorySurface({
+  children,
+  className = "max-w-4xl",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="mx-auto grid h-[760px] w-full max-w-4xl grid-rows-[1fr_auto] overflow-hidden rounded-xl border bg-background shadow-sm">
+    <div
+      className={`mx-auto grid h-[760px] w-full ${className} grid-rows-[1fr_auto] overflow-hidden rounded-xl border bg-background shadow-sm`}
+    >
       {children}
     </div>
   );
@@ -567,7 +575,7 @@ const denseAssistantRow = assistantRow("dense-assistant", denseBlocks, {
 
 function DenseFailureDemo() {
   return (
-    <StorySurface>
+    <StorySurface className="max-w-2xl">
       <div className="grid content-start gap-7 overflow-auto p-6">
         <ChatMessageRow
           row={userRow(
