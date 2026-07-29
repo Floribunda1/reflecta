@@ -859,6 +859,7 @@ function toolGroupType(name: string): ToolGroupType {
     name.startsWith("context_") ||
     name.startsWith("domain_") ||
     name === "read" ||
+    name === "file_read" ||
     name === "attachment_read"
   ) {
     return "lookup";
@@ -880,7 +881,7 @@ function toolItemView(block: AgentToolBlock): ToolActivityItemView {
     return {
       toolCallId: block.toolCallId,
       toolName,
-      label: `${toolDoneVerb(toolName)}失败`,
+      label: toolFailedSummary(toolName, toolInput(block)),
       status: "failed",
       statusLabel: "出错",
       details: toolDetails(block),
@@ -953,27 +954,11 @@ function toolTitle(name: string) {
   if (name === "graph") return "查看关联图";
   if (name === "attachment_read") return "读取附件";
   if (name === "read") return "读取本地文件";
+  if (name === "file_read") return "读取本地文件";
   if (name === "edit") return "编辑本地文件";
   if (name === "write") return "写入本地文件";
   if (name === "bash") return "执行 Bash";
   return "使用工具";
-}
-
-function toolRunningVerb(name: string) {
-  if (name === "attachment_read") return "正在读取附件";
-  if (name === "read") return "正在读取本地文件";
-  if (name === "edit") return "正在编辑本地文件";
-  if (name === "write") return "正在写入本地文件";
-  if (name === "bash") return "正在执行 Bash";
-  if (name === "web_search") return "正在搜索网页";
-  if (name === "fetch_content") return "正在读取来源";
-  if (name === "get_search_content") return "正在读取搜索内容";
-  if (name === "retrieve_knowledge") return "正在检索知识";
-  if (name.includes("search")) return "正在搜索相关内容";
-  if (name === "graph") return "正在查看关联图";
-  if (name.includes("get")) return "正在读取内容";
-  if (name.startsWith("domain_")) return "正在查看领域目录";
-  return "正在使用工具";
 }
 
 function queryLabel(input: Record<string, unknown>) {
@@ -985,6 +970,44 @@ function queryLabel(input: Record<string, unknown>) {
     .filter(Boolean);
   if (queries.length === 1) return `「${queries[0]}」`;
   return queries.length > 1 ? `「${queries[0]}」等 ${queries.length} 个查询` : "";
+}
+
+function quotedValue(value: unknown) {
+  const text = stringValue(value).trim();
+  return text ? `「${truncateText(text, 72)}」` : "";
+}
+
+function webSourceUrls(input: Record<string, unknown>) {
+  const urls = stringArray(input.urls);
+  const url = stringValue(input.url).trim();
+  return urls.length > 0 ? urls : url ? [url] : [];
+}
+
+function webSourceCount(input: Record<string, unknown>) {
+  return webSourceUrls(input).length;
+}
+
+function webSourceLabel(input: Record<string, unknown>) {
+  const urls = webSourceUrls(input);
+  if (urls.length > 1) return `（${urls.length} 个来源）`;
+  const url = urls[0];
+  if (!url) return "";
+  try {
+    const parsed = new URL(url);
+    return `「${truncateText(`${parsed.hostname}${parsed.pathname === "/" ? "" : parsed.pathname}`, 60)}」`;
+  } catch {
+    return `「${truncateText(url, 60)}」`;
+  }
+}
+
+function searchContentTarget(input: Record<string, unknown>) {
+  const query = stringValue(input.query).trim();
+  if (query) return `搜索「${truncateText(query, 60)}」的完整内容`;
+  const url = stringValue(input.url).trim();
+  if (url) return `网页${webSourceLabel({ url })}`;
+  if (typeof input.queryIndex === "number") return `第 ${input.queryIndex + 1} 组搜索结果`;
+  if (typeof input.urlIndex === "number") return `第 ${input.urlIndex + 1} 个网页来源`;
+  return "";
 }
 
 function readParameterLabel(input: Record<string, unknown>) {
@@ -1029,13 +1052,40 @@ function inputMeta(name: string, input: Record<string, unknown>): ToolActivityDe
       meta.push({ label: "来源", value: urls.join("；") });
     }
   }
-  if (name === "read" || name === "edit" || name === "write") {
+  if (name === "read" || name === "file_read" || name === "edit" || name === "write") {
     const path = stringValue(input.path).trim();
     if (path) meta.push({ label: "文件", value: filenameFromPath(path) });
   }
-  if (name === "read") {
+  if (name === "read" || name === "file_read") {
     const parameters = readParameterLabel(input);
     if (parameters) meta.push({ label: "参数", value: parameters });
+  }
+  if (name === "attachment_read") {
+    const attachmentId = stringValue(input.attachmentId).trim();
+    if (attachmentId) meta.push({ label: "附件", value: attachmentId });
+  }
+  if (name === "domain_inspect") {
+    const domainId = stringValue(input.domainId).trim();
+    if (domainId) meta.push({ label: "Domain", value: domainId });
+  }
+  if (name === "understanding_list") {
+    const domainIds = stringArray(input.domainIds);
+    if (domainIds.length > 0) meta.push({ label: "Domain", value: domainIds.join("、") });
+  }
+  if (name === "understanding_get" || name === "context_list" || name === "graph") {
+    const understandingId = stringValue(input.understandingId).trim();
+    if (understandingId) meta.push({ label: "Understanding", value: understandingId });
+  }
+  if (name === "context_get") {
+    const contextId = stringValue(input.contextId).trim();
+    if (contextId) meta.push({ label: "Context", value: contextId });
+  }
+  if (name === "get_search_content") {
+    const responseId = stringValue(input.responseId).trim();
+    if (responseId) meta.push({ label: "搜索结果", value: responseId });
+  }
+  if (name === "graph" && typeof input.depth === "number") {
+    meta.push({ label: "深度", value: String(input.depth) });
   }
   if (name === "bash") {
     const command = stringValue(input.command).trim();
@@ -1054,9 +1104,13 @@ function toolResultDetails(
   if (name === "search") return searchHitDetails(output);
   if (name === "retrieve_knowledge") return retrievalCandidateDetails(output);
   if (name === "attachment_read") return attachmentReadDetails(output);
-  if (name === "read") return readFileDetails(output, input);
+  if (name === "read" || name === "file_read") return readFileDetails(output, input);
   if (name === "edit") return editFileDetails(output);
+  if (name === "write") return writeFileDetails(output);
   if (name === "bash") return bashDetails(output);
+  if (name === "web_search" || name === "fetch_content" || name === "get_search_content") {
+    return webAccessDetails(output);
+  }
   if (name === "domain_list") return recordListDetails(output, "Domain", "domains");
   if (name === "understanding_list")
     return recordListDetails(output, "Understanding", "understandings");
@@ -1080,7 +1134,7 @@ function attachmentReadDetails(output: unknown) {
     output.truncated ? "内容已截断" : "",
   ].filter(Boolean);
   return detailView({
-    rows: content ? [detailRow("附件内容", filename || "附件", content, meta)] : [],
+    rows: content ? [detailRow("附件内容", filename || "附件", content, meta, "pre")] : [],
     emptyText: error ? `附件暂时无法读取：${truncateText(error)}` : undefined,
   });
 }
@@ -1097,6 +1151,7 @@ function readFileDetails(output: unknown, input: Record<string, unknown>) {
             filenameFromPath(stringValue(input.path)) || "本地文件",
             content,
             meta,
+            "pre",
           ),
         ]
       : [],
@@ -1109,6 +1164,42 @@ function editFileDetails(output: unknown) {
   return detailView({
     rows: patch ? [detailRow("文件修改", "Diff", patch, [], "pre")] : [],
   });
+}
+
+function writeFileDetails(output: unknown) {
+  if (!isRecord(output)) return detailView({});
+  const bytes = numberValue(output.bytesWritten);
+  return detailView({
+    meta: bytes === undefined ? [] : [{ label: "写入", value: formatBytes(bytes) }],
+  });
+}
+
+function numberValue(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function numericDetail(value: unknown, label: string): ToolActivityDetailMeta | undefined {
+  const number = numberValue(value);
+  return number === undefined ? undefined : { label, value: String(number) };
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function webAccessDetails(output: unknown) {
+  if (!isRecord(output)) return detailView({});
+  const meta = [
+    numericDetail(output.queryCount, "查询"),
+    numericDetail(output.totalResults ?? output.resultCount, "来源"),
+    numericDetail(output.urlCount, "网页"),
+    numericDetail(output.successful, "成功"),
+    numericDetail(output.totalChars ?? output.contentLength, "字符"),
+  ].filter((item): item is ToolActivityDetailMeta => Boolean(item));
+  const error = stringValue(output.error).trim();
+  return detailView({ meta, emptyText: error || undefined });
 }
 
 function bashDetails(output: unknown) {
@@ -1413,33 +1504,42 @@ function toolRunningSummary(name: string, input: Record<string, unknown>) {
   if (name === "web_search") return `正在搜索网页${queryLabel(input)}`;
   if (name === "search") return `正在搜索${queryLabel(input) || "相关内容"}`;
   if (name === "retrieve_knowledge") return `正在检索${queryLabel(input) || "知识"}`;
-  if (name === "read") {
+  if (name === "read" || name === "file_read") {
     const parameters = readParameterLabel(input);
     return `正在读取「${filenameFromPath(stringValue(input.path)) || "本地文件"}」${parameters ? ` · ${parameters}` : ""}`;
   }
-  return toolRunningVerb(name);
+  if (name === "edit")
+    return `正在编辑「${filenameFromPath(stringValue(input.path)) || "本地文件"}」`;
+  if (name === "write")
+    return `正在写入「${filenameFromPath(stringValue(input.path)) || "本地文件"}」`;
+  if (name === "bash") return `正在执行 Bash${quotedValue(input.command)}`;
+  if (name === "fetch_content") return `正在读取网页${webSourceLabel(input)}`;
+  if (name === "get_search_content")
+    return `正在读取${searchContentTarget(input) || "已保存的搜索内容"}`;
+  if (name === "domain_list") return "正在列出 Domain";
+  if (name === "domain_inspect") return `正在查看 Domain${quotedValue(input.domainId)}`;
+  if (name === "understanding_list") return "正在列出 Understanding";
+  if (name === "understanding_get")
+    return `正在读取 Understanding${quotedValue(input.understandingId)}`;
+  if (name === "context_list")
+    return `正在列出 Understanding${quotedValue(input.understandingId)}的 Context`;
+  if (name === "context_get") return `正在读取 Context${quotedValue(input.contextId)}`;
+  if (name === "graph")
+    return `正在查看 Understanding${quotedValue(input.understandingId)}的关联图`;
+  if (name === "attachment_read") return "正在读取附件";
+  return `正在使用「${name}」`;
 }
 
-function toolDoneVerb(name: string) {
-  if (name === "attachment_read") return "读取附件";
-  if (name === "read") return "读取本地文件";
-  if (name === "edit") return "编辑本地文件";
-  if (name === "write") return "写入本地文件";
-  if (name === "bash") return "执行 Bash";
-  if (name === "web_search") return "搜索网页";
-  if (name === "fetch_content") return "读取来源";
-  if (name === "get_search_content") return "读取搜索内容";
-  if (name === "retrieve_knowledge") return "检索";
-  if (name.includes("search")) return "搜索";
-  if (name === "graph") return "查看关联图";
-  if (name.includes("get")) return "读取";
-  if (name.startsWith("domain_")) return "查看领域目录";
-  return "使用工具";
+function toolFailedSummary(name: string, input: Record<string, unknown>) {
+  const [action, ...meta] = toolRunningSummary(name, input)
+    .replace(/^正在/, "")
+    .split(" · ");
+  return `${action}失败${meta.length > 0 ? ` · ${meta.join(" · ")}` : ""}`;
 }
 
 function toolDoneSummary(name: string, input: Record<string, unknown>, output: unknown) {
   const outputRecord = isRecord(output) ? output : {};
-  if (name === "read") {
+  if (name === "read" || name === "file_read") {
     const path = stringValue(input.path);
     const parameters = readParameterLabel(input);
     return `读取了「${filenameFromPath(path) || "本地文件"}」${parameters ? ` · ${parameters}` : ""}`;
@@ -1453,19 +1553,45 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
   if (name === "attachment_read") {
     return `读取了「${stringValue(outputRecord.filename) || stringValue(input.attachmentId) || "附件"}」`;
   }
-  if (name === "web_search") return `已搜索网页${queryLabel(input)}`;
-  if (name === "fetch_content") return "已读取来源";
-  if (name === "get_search_content") return "已读取搜索内容";
+  if (name === "web_search") {
+    const results = numberValue(outputRecord.totalResults);
+    return `搜索网页${queryLabel(input)}${results === undefined ? "" : ` · ${results} 个来源`}`;
+  }
+  if (name === "fetch_content") {
+    const title = stringValue(outputRecord.title).trim();
+    const urlCount = numberValue(outputRecord.urlCount) ?? webSourceCount(input);
+    const successful = numberValue(outputRecord.successful);
+    if (title) return `读取网页「${truncateText(title, 60)}」`;
+    if (urlCount > 1) {
+      return `读取 ${urlCount} 个网页来源${successful === undefined ? "" : ` · ${successful} 个成功`}`;
+    }
+    return `读取网页${webSourceLabel(input)}`;
+  }
+  if (name === "get_search_content") {
+    const title = stringValue(outputRecord.title).trim();
+    const target = title ? `网页「${truncateText(title, 60)}」` : searchContentTarget(input);
+    const count = numberValue(outputRecord.resultCount);
+    return `读取${target || "已保存的搜索内容"}${count === undefined ? "" : ` · ${count} 个来源`}`;
+  }
   if (name === "bash") {
     const command = stringValue(input.command).trim();
-    return `执行了 Bash${command ? ` · ${command}` : ""}`;
+    const exitCode = numberValue(outputRecord.exitCode);
+    return `执行 Bash${command ? `「${truncateText(command, 72)}」` : ""}${exitCode === undefined ? "" : ` · 退出码 ${exitCode}`}`;
   }
-  if (name === "domain_list") return `列出 ${outputCount(output, "domains")} 个 Domain`;
+  if (name === "domain_list") return `列出 Domain · ${outputCount(output, "domains")} 个`;
   if (name === "domain_inspect") {
-    return `查看了「${entityTitle(outputRecord.domain) || entityTitle(outputRecord) || stringValue(input.domainId) || "领域"}」下的内容`;
+    const target =
+      entityTitle(outputRecord.domain) ||
+      entityTitle(outputRecord) ||
+      stringValue(input.domainId) ||
+      "Domain";
+    const understandings = outputCount(output, "understandings");
+    const contexts = outputCount(output, "contexts");
+    return `查看 Domain「${target}」 · ${understandings} 条 Understanding / ${contexts} 条 Context`;
   }
   if (name === "understanding_list") {
-    return `列出 ${outputCount(output, "understandings")} 条 Understanding`;
+    const domainCount = stringArray(input.domainIds).length;
+    return `列出${domainCount > 0 ? ` ${domainCount} 个 Domain 中的` : ""} Understanding · ${outputCount(output, "understandings")} 条`;
   }
   if (name === "search") {
     const counts = searchHitCounts(output);
@@ -1482,14 +1608,22 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
       : `检索到 ${counts.understandings} 条 Understanding / ${counts.contexts} 条 Context 证据`;
   }
   if (name === "graph") {
-    return `查看了 ${outputCount(output, "nodes")} 条 Understanding 的关联图`;
+    const nodes = arrayValue(outputRecord.nodes);
+    const seedId = stringValue(input.understandingId);
+    const seed = nodes.find((node) => isRecord(node) && stringValue(node.id) === seedId);
+    const target =
+      (isRecord(seed) ? entityTitle(seed) : undefined) ||
+      (isRecord(nodes[0]) ? entityTitle(nodes[0]) : undefined) ||
+      seedId;
+    return `查看 Understanding${target ? `「${target}」` : " "}的关联图 · ${nodes.length} 个节点 / ${arrayValue(outputRecord.edges).length} 条关联`;
   }
   if (name === "understanding_get")
     return `读取了「${entityTitle(outputRecord.understanding) || entityTitle(outputRecord) || stringValue(input.understandingId) || "Understanding"}」`;
-  if (name === "context_list") return `列出 ${outputCount(output, "contexts")} 条 Context`;
+  if (name === "context_list")
+    return `列出 Understanding「${stringValue(input.understandingId) || "未知"}」的 Context · ${outputCount(output, "contexts")} 条`;
   if (name === "context_get")
     return `读取了「${entityTitle(outputRecord.context) || entityTitle(outputRecord) || stringValue(input.contextId) || "Context"}」`;
-  return `使用了 ${name}`;
+  return `使用工具「${name}」`;
 }
 
 function entityTitle(value: unknown) {

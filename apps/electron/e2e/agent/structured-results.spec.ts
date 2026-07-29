@@ -136,7 +136,7 @@ test("@AG-RESULT-002 用户可以区分提案的不同状态", async () => {
   }
 });
 
-test("@AG-RESULT-003 用户展开 Agent 活动并看到思考过程和单行工具摘要", async () => {
+test("@AG-RESULT-003 用户原地展开思考过程和工具详情", async () => {
   seedAgentThread({
     id: "result-expand",
     title: "展开详情",
@@ -179,12 +179,14 @@ test("@AG-RESULT-003 用户展开 Agent 活动并看到思考过程和单行工�
     await expect(page.getByText("搜索「代价」 · 1 条 Understanding / 0 条 Context")).toBeVisible();
     await expect(page.getByText("搜索相关内容", { exact: true })).toHaveCount(0);
     await expect(page.getByText("查询：代价")).toHaveCount(0);
+    await expect(page.getByTestId("agent-tool-detail")).not.toBeVisible();
 
     await page.getByTestId("agent-reasoning").click();
     const toolActivity = page.getByTestId("agent-tool-activity");
     await expect(page.getByTestId("agent-reasoning-detail")).toBeVisible();
-    await expect(toolActivity.locator("button")).toHaveCount(0);
-    await expect(toolActivity.getByText("查询：代价")).toHaveCount(0);
+    await toolActivity.click();
+    await expect(page.getByTestId("agent-tool-detail")).toBeVisible();
+    await expect(toolActivity.getByText("查询：代价")).toBeVisible();
   } finally {
     await app.close();
   }

@@ -590,7 +590,9 @@ test("@AG-CONTEXT-007 用户发送可读附件后看到 Agent 使用附件", asy
     await expect(attachmentTool).toBeVisible({
       timeout: 120_000,
     });
-    await expect(attachmentTool.locator("button")).toHaveCount(0);
+    await expect(attachmentTool.getByTestId("agent-tool-detail")).not.toBeVisible();
+    await attachmentTool.click();
+    await expect(attachmentTool.getByTestId("agent-tool-detail")).toBeVisible();
     await expect(page.getByTestId("agent-assistant-text").last()).toContainText(
       PDF_ATTACHMENT_PHRASE,
       { timeout: 120_000 },
@@ -687,7 +689,9 @@ test("@AG-RETRIEVAL-003 用户要求 Agent 检索知识库后看到检索结果"
     await waitForAssistantReply(page);
     const toolActivity = page.getByTestId("agent-tool-activity").first();
     await expect(toolActivity).toContainText("检索「React Server Components」");
-    await expect(toolActivity.locator("button")).toHaveCount(0);
+    await expect(toolActivity.getByTestId("agent-tool-detail")).not.toBeVisible();
+    await toolActivity.click();
+    await expect(toolActivity.getByTestId("agent-tool-detail")).toBeVisible();
 
     const eventTypes = readPiEventTypes();
     expect(eventTypes).not.toContain("tool.started");

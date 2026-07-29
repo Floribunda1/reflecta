@@ -313,7 +313,7 @@ describe("buildAgentTurnView", () => {
           groupType: "lookup",
           title: "读取来源",
           status: "done",
-          summary: "已读取来源",
+          summary: "读取网页「example.com/source」",
           items: [
             expect.objectContaining({
               details: {
@@ -330,7 +330,7 @@ describe("buildAgentTurnView", () => {
           groupType: "lookup",
           title: "读取搜索内容",
           status: "done",
-          summary: "已读取搜索内容",
+          summary: "读取已保存的搜索内容",
         },
       },
     ]);
@@ -381,12 +381,13 @@ describe("buildAgentTurnView", () => {
           expect.objectContaining({
             toolName: "attachment_read",
             details: {
-              meta: [],
+              meta: [{ label: "附件", value: "att-pdf" }],
               rows: [
                 {
                   label: "附件内容",
                   title: "fixture.pdf",
                   description: "PDF body",
+                  format: "pre",
                   meta: ["PDF 附件", "1 页"],
                 },
               ],
@@ -404,7 +405,15 @@ describe("buildAgentTurnView", () => {
             label: "读取了「note.txt」",
             details: {
               meta: [{ label: "文件", value: "note.txt" }],
-              rows: [{ label: "文件内容", title: "note.txt", description: "hello", meta: [] }],
+              rows: [
+                {
+                  label: "文件内容",
+                  title: "note.txt",
+                  description: "hello",
+                  format: "pre",
+                  meta: [],
+                },
+              ],
             },
           }),
         ],
@@ -416,7 +425,7 @@ describe("buildAgentTurnView", () => {
         items: [
           expect.objectContaining({
             toolName: "bash",
-            label: "执行了 Bash · printf hello",
+            label: "执行 Bash「printf hello」 · 退出码 0",
             details: {
               meta: [
                 { label: "命令", value: "printf hello" },
@@ -447,10 +456,10 @@ describe("buildAgentTurnView", () => {
       kind: "tool-activity",
       activity: {
         title: "列出 Understanding",
-        summary: "列出 2 条 Understanding",
+        summary: "列出 Understanding · 2 条",
         items: [
           expect.objectContaining({
-            label: "列出 2 条 Understanding",
+            label: "列出 Understanding · 2 条",
             status: "done",
           }),
         ],
@@ -478,8 +487,12 @@ describe("buildAgentTurnView", () => {
       kind: "tool-activity",
       activity: {
         title: "查看 Domain",
-        summary: "查看了「三观」下的内容",
-        items: [expect.objectContaining({ label: "查看了「三观」下的内容" })],
+        summary: "查看 Domain「三观」 · 0 条 Understanding / 0 条 Context",
+        items: [
+          expect.objectContaining({
+            label: "查看 Domain「三观」 · 0 条 Understanding / 0 条 Context",
+          }),
+        ],
       },
     });
   });
@@ -581,8 +594,99 @@ describe("buildAgentTurnView", () => {
       kind: "tool-activity",
       activity: {
         title: "查看关联图",
-        summary: "查看了 2 条 Understanding 的关联图",
+        summary: "查看 Understanding 的关联图 · 2 个节点 / 1 条关联",
       },
+    });
+  });
+
+  test.each([
+    ["read", { path: "/tmp/note.md" }, { content: "body" }, "读取了「note.md」"],
+    ["file_read", { path: "/tmp/legacy.md" }, { content: "body" }, "读取了「legacy.md」"],
+    ["edit", { path: "/tmp/app.ts" }, { patch: "diff" }, "编辑了「app.ts」"],
+    ["write", { path: "/tmp/report.md" }, { bytesWritten: 2048 }, "写入了「report.md」"],
+    [
+      "attachment_read",
+      { attachmentId: "att-1" },
+      { filename: "brief.pdf" },
+      "读取了「brief.pdf」",
+    ],
+    ["bash", { command: "bun test" }, { exitCode: 0 }, "执行 Bash「bun test」 · 退出码 0"],
+    ["domain_list", {}, [{ id: "d1" }, { id: "d2" }], "列出 Domain · 2 个"],
+    [
+      "domain_inspect",
+      { domainId: "d1" },
+      { domain: { id: "d1", name: "产品" }, understandings: [{}], contexts: [{}, {}] },
+      "查看 Domain「产品」 · 1 条 Understanding / 2 条 Context",
+    ],
+    [
+      "understanding_list",
+      { domainIds: ["d1", "d2"] },
+      { understandings: [{ id: "u1" }] },
+      "列出 2 个 Domain 中的 Understanding · 1 条",
+    ],
+    [
+      "understanding_get",
+      { understandingId: "u1" },
+      { understanding: { id: "u1", title: "反馈回路" } },
+      "读取了「反馈回路」",
+    ],
+    [
+      "context_list",
+      { understandingId: "u1" },
+      { contexts: [{ id: "c1" }] },
+      "列出 Understanding「u1」的 Context · 1 条",
+    ],
+    [
+      "context_get",
+      { contextId: "c1" },
+      { context: { id: "c1", title: "发布复盘" } },
+      "读取了「发布复盘」",
+    ],
+    [
+      "search",
+      { query: "反馈" },
+      { hits: [{ type: "understanding", understanding: { id: "u1" } }] },
+      "搜索「反馈」 · 1 条 Understanding / 0 条 Context",
+    ],
+    [
+      "retrieve_knowledge",
+      { query: "反馈" },
+      { candidates: [{ id: "u1", matchedContexts: [{}] }] },
+      "检索「反馈」 · 1 条 Understanding / 1 条 Context 证据",
+    ],
+    [
+      "graph",
+      { understandingId: "u1" },
+      {
+        nodes: [
+          { id: "u1", title: "反馈回路" },
+          { id: "u2", title: "快速验证" },
+        ],
+        edges: [{ from: "u1", to: "u2" }],
+      },
+      "查看 Understanding「反馈回路」的关联图 · 2 个节点 / 1 条关联",
+    ],
+    ["web_search", { query: "agent ux" }, { totalResults: 5 }, "搜索网页「agent ux」 · 5 个来源"],
+    [
+      "fetch_content",
+      { url: "https://example.com/craft" },
+      { title: "Craft Agents", urlCount: 1, successful: 1 },
+      "读取网页「Craft Agents」",
+    ],
+    [
+      "get_search_content",
+      { responseId: "search-1", query: "agent ux" },
+      { query: "agent ux", resultCount: 3 },
+      "读取搜索「agent ux」的完整内容 · 3 个来源",
+    ],
+  ])("describes the action, target and result for %s", (name, input, output, summary) => {
+    const turn = buildAgentTurnView([
+      tool(name as string, `tool-${name}`, output, "completed", undefined, input),
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "tool-activity",
+      activity: { summary },
     });
   });
 

@@ -1,5 +1,6 @@
 import {
   ArrowUpRight,
+  ChevronRight,
   FilePenLine,
   FileText,
   FolderTree,
@@ -21,6 +22,7 @@ import { Spinner } from "../../components/spinner";
 import type { ChatEntityBindings } from "../entity";
 import { ChatMarkdown } from "../markdown/chat-markdown";
 import { reasoningSummary, toolIconKind, type AgentToolIconKind } from "./activity-presentation";
+import { hasToolDetails, ToolDetails } from "./tool-details";
 import type {
   AgentContextCompactionView,
   AgentExecutionBlockView,
@@ -127,58 +129,97 @@ function ReasoningBlock({
   );
 }
 
-function ToolActivityBlock({ activity }: { activity: AgentToolActivityView }) {
+function ToolActivityBlock({
+  activity,
+  entityBindings,
+}: {
+  activity: AgentToolActivityView;
+  entityBindings?: ChatEntityBindings;
+}) {
   const statusLabel =
     activity.status === "failed" ? "出错" : activity.status === "running" ? "运行中" : "完成";
   const iconKind = toolIconKind(activity);
   const ToolIcon = TOOL_ICONS[iconKind];
   const [summary, ...meta] = activity.summary.split(" · ");
   const summaryParts = summary?.split(/(「[^」]+」)/g).filter(Boolean) ?? [];
+  const hasContent = activity.items.some(
+    (item) => hasToolDetails(item.details) || Boolean(item.error),
+  );
 
   return (
-    <div
+    <Collapsible
       data-testid="agent-tool-activity"
       data-activity-id={activity.id}
-      className="flex min-w-0 w-full items-center gap-2 px-1 py-1 text-[13px] text-muted-foreground/70"
+      className="min-w-0 w-full text-[13px] text-muted-foreground/70"
     >
-      {activity.status === "running" ? (
-        <Spinner
-          className="size-3 shrink-0 text-sky-600 dark:text-sky-400"
-          role="presentation"
-          aria-hidden="true"
-        />
-      ) : activity.status === "failed" ? (
-        <XCircle className="size-3 shrink-0 text-destructive" aria-hidden="true" />
-      ) : (
-        <ToolIcon
-          data-slot="agent-tool-icon"
-          data-tool-icon={iconKind}
-          className="size-3 shrink-0 text-muted-foreground/70"
-          aria-hidden="true"
-        />
-      )}
-      <span className="min-w-0 flex-1 truncate">
-        {summaryParts.map((part, index) =>
-          part.startsWith("「") && part.endsWith("」") ? (
-            <span
-              key={`${part}-${index}`}
-              data-slot="agent-tool-target"
-              className="font-medium text-foreground/75"
-            >
-              {part}
-            </span>
-          ) : (
-            part
-          ),
+      <CollapsibleTrigger
+        disabled={!hasContent}
+        className="group flex w-full items-center gap-2 rounded-sm px-1 py-1 text-left outline-none enabled:cursor-pointer enabled:hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/40"
+      >
+        {activity.status === "running" ? (
+          <Spinner
+            className="size-3 shrink-0 text-sky-600 dark:text-sky-400"
+            role="presentation"
+            aria-hidden="true"
+          />
+        ) : activity.status === "failed" ? (
+          <XCircle className="size-3 shrink-0 text-destructive" aria-hidden="true" />
+        ) : (
+          <ToolIcon
+            data-slot="agent-tool-icon"
+            data-tool-icon={iconKind}
+            className="size-3 shrink-0 text-muted-foreground/70"
+            aria-hidden="true"
+          />
         )}
-        {meta.length > 0 ? (
-          <span data-slot="agent-tool-meta" className="ml-1.5 text-xs text-muted-foreground/50">
-            · {meta.join(" · ")}
-          </span>
+        <span className="min-w-0 flex-1 truncate">
+          {summaryParts.map((part, index) =>
+            part.startsWith("「") && part.endsWith("」") ? (
+              <span
+                key={`${part}-${index}`}
+                data-slot="agent-tool-target"
+                className="font-medium text-foreground/75"
+              >
+                {part}
+              </span>
+            ) : (
+              part
+            ),
+          )}
+          {meta.length > 0 ? (
+            <span data-slot="agent-tool-meta" className="ml-1.5 text-xs text-muted-foreground/50">
+              · {meta.join(" · ")}
+            </span>
+          ) : null}
+        </span>
+        {hasContent ? (
+          <ChevronRight className="size-3 shrink-0 opacity-0 transition group-data-[panel-open]:rotate-90 group-data-[panel-open]:opacity-100 group-hover:opacity-100 group-focus-visible:opacity-100" />
         ) : null}
-      </span>
-      <span className="sr-only">{statusLabel}</span>
-    </div>
+        <span className="sr-only">{statusLabel}</span>
+      </CollapsibleTrigger>
+      {hasContent ? (
+        <CollapsibleContent
+          data-testid="agent-tool-detail"
+          className="ml-[7px] border-l border-border/60 py-1 pl-[17px] pr-2 text-muted-foreground"
+        >
+          <div className="grid gap-2">
+            {activity.items.map((item) => (
+              <div key={item.id} className="grid gap-1">
+                {activity.items.length > 1 ? (
+                  <div className="px-1 text-xs font-medium text-foreground/70">{item.label}</div>
+                ) : null}
+                {hasToolDetails(item.details) ? (
+                  <ToolDetails details={item.details!} entityBindings={entityBindings} />
+                ) : null}
+                {item.error ? (
+                  <div className="break-words px-1 text-destructive">{item.error}</div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </CollapsibleContent>
+      ) : null}
+    </Collapsible>
   );
 }
 
@@ -199,7 +240,7 @@ export function AgentExecutionBlock({ block, entityBindings }: AgentExecutionBlo
     return <ReasoningBlock reasoning={block.reasoning} entityBindings={entityBindings} />;
   }
   if (block.kind === "tool-activity") {
-    return <ToolActivityBlock activity={block.activity} />;
+    return <ToolActivityBlock activity={block.activity} entityBindings={entityBindings} />;
   }
   if (block.kind === "context-compaction") {
     return <ContextCompactionBlock compaction={block.compaction} />;
