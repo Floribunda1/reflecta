@@ -4,15 +4,15 @@ import { StoryCase, StoryShowcase } from "../../../.storybook/story-showcase";
 import { ChatJumpNav, type ChatJumpNavItem } from "./chat-jump-nav";
 
 const typicalItems: ChatJumpNavItem[] = [
-  { messageId: "message-1", label: "帮我复核低温环境下的分区灌溉策略" },
-  { messageId: "message-2", label: "先读取相关 Understanding 和夜班联调记录" },
-  { messageId: "message-3", label: "比较三种可能原因并指出证据缺口" },
-  { messageId: "message-4", label: "把结论整理成可以长期维护的 Understanding" },
-  { messageId: "message-5", label: "最后给出下一轮复验计划" },
+  { turnId: "turn-1", label: "帮我复核低温环境下的分区灌溉策略" },
+  { turnId: "turn-2", label: "先读取相关 Understanding 和夜班联调记录" },
+  { turnId: "turn-3", label: "比较三种可能原因并指出证据缺口" },
+  { turnId: "turn-4", label: "把结论整理成可以长期维护的 Understanding" },
+  { turnId: "turn-5", label: "最后给出下一轮复验计划" },
 ];
 
 const manyItems: ChatJumpNavItem[] = Array.from({ length: 24 }, (_, index) => ({
-  messageId: `message-many-${index + 1}`,
+  turnId: `turn-many-${index + 1}`,
   label:
     index % 4 === 0
       ? `第 ${index + 1} 条用户消息有一个非常长的标签，用来观察展开导航时的单行截断和可点击区域`
@@ -28,9 +28,7 @@ function JumpNavSurface({
   height?: string;
   expanded?: boolean;
 }) {
-  const [activeMessageId, setActiveMessageId] = useState<string | null>(
-    items[1]?.messageId ?? null,
-  );
+  const [activeTurnId, setActiveTurnId] = useState<string | null>(items[1]?.turnId ?? null);
   const surfaceRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,13 +43,13 @@ function JumpNavSurface({
       <div ref={surfaceRef} className={`relative ${height} min-w-0 overflow-hidden bg-muted/15`}>
         <div className="mx-auto grid max-w-3xl gap-4 px-12 py-8 text-sm text-muted-foreground">
           {items.slice(0, 8).map((item) => (
-            <p key={item.messageId}>{item.label}</p>
+            <p key={item.turnId}>{item.label}</p>
           ))}
         </div>
-        <ChatJumpNav items={items} activeMessageId={activeMessageId} onJump={setActiveMessageId} />
+        <ChatJumpNav items={items} activeTurnId={activeTurnId} onJump={setActiveTurnId} />
       </div>
       <p className="text-xs text-muted-foreground">
-        当前消息：{activeMessageId ?? "无"}。Hover 右侧入口或使用 Tab 展开导航。
+        当前轮次：{activeTurnId ?? "无"}。Hover 右侧入口或使用 Tab 展开导航。
       </p>
     </div>
   );
@@ -61,11 +59,11 @@ function ChatJumpNavShowcase() {
   return (
     <StoryShowcase
       title="Message Jump Nav"
-      description="验收长对话导航的出现阈值、折叠入口、Hover/Focus 展开、当前消息和短视口滚动。"
+      description="验收长对话导航的出现阈值、折叠入口、Hover/Focus 展开、当前轮次和短视口滚动。"
     >
       <StoryCase
         title="出现阈值"
-        description="少于 4 条用户消息时不显示导航；达到阈值后出现右侧入口。"
+        description="少于 4 个对话轮次时不显示导航；达到阈值后出现右侧入口。"
       >
         <div className="grid gap-8 lg:grid-cols-2">
           <JumpNavSurface items={typicalItems.slice(0, 3)} height="h-56" />
@@ -95,7 +93,7 @@ const meta = {
   },
   args: {
     items: typicalItems,
-    activeMessageId: "message-2",
+    activeTurnId: "turn-2",
     onJump: () => undefined,
   },
 } satisfies Meta<typeof ChatJumpNav>;

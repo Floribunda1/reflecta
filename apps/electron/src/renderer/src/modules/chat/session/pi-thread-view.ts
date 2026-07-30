@@ -15,13 +15,13 @@ import { chatQueryKeys } from "./query-keys";
 import { invalidateEntityDisplay } from "../../capture/queries";
 import type { AgentThreadView } from "./thread-view";
 import {
-  buildChatJumpItems,
   editingMessageFromAgentMessage,
   mergeAgentEvents,
   scrollKeyFor,
   scrollTopForChildBottom,
   shouldShowScrollToBottomButton,
 } from "./thread-view";
+import { activeChatTurnIdAtViewport, buildChatTurnNavigationItems } from "./chat-turn-navigation";
 
 const CHAT_JUMP_BOTTOM_OFFSET = 24;
 
@@ -68,9 +68,9 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
   const pendingEventsRef = useRef<AgentEvent[]>([]);
   const flushFrameRef = useRef<number | null>(null);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastJumpMessageIdRef = useRef<string | null>(null);
+  const lastTurnIdRef = useRef<string | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
-  const [activeJumpMessageId, setActiveJumpMessageId] = useState<string | null>(null);
+  const [trackedTurnId, setTrackedTurnId] = useState<string | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const eventsQuery = useQuery({
     queryKey: chatQueryKeys.sessionEvents(sessionId),
@@ -128,8 +128,16 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
   }, [queryClient, sessionId]);
 
   const visibleMessages = state.messages;
-  const jumpItems = useMemo(() => buildChatJumpItems(visibleMessages), [visibleMessages]);
-  lastJumpMessageIdRef.current = jumpItems.at(-1)?.messageId ?? null;
+  const turnNavigationItems = useMemo(
+    () => buildChatTurnNavigationItems(visibleMessages),
+    [visibleMessages],
+  );
+  const lastTurnId = turnNavigationItems.at(-1)?.turnId ?? null;
+  lastTurnIdRef.current = lastTurnId;
+  const activeTurnId =
+    trackedTurnId && turnNavigationItems.some((item) => item.turnId === trackedTurnId)
+      ? trackedTurnId
+      : lastTurnId;
   const stoppedMessageId = useMemo(() => {
     if (localStoppedMessageId) return localStoppedMessageId;
     if (state.status !== "cancelled") return null;
@@ -165,46 +173,38 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     [setScrollButtonVisible],
   );
 
-  const updateActiveJumpMessage = useCallback(() => {
+  const updateActiveTurn = useCallback(() => {
     const element = scrollRef.current;
     if (!element) return;
-    const rows = Array.from(
+    const turnAnchors = Array.from(
       element.querySelectorAll<HTMLElement>('[data-agent-message-id][data-message-role="user"]'),
-    );
-    const containerTop = element.getBoundingClientRect().top;
-    const anchorTop =
-      containerTop + Math.max(element.clientHeight * 0.75, element.clientHeight - 96);
-    let candidateId: string | null = null;
+      (row) => ({
+        turnId: row.dataset.agentMessageId ?? "",
+        top: row.getBoundingClientRect().top,
+      }),
+    ).filter((turn) => turn.turnId);
+    const resolvedTurnId = activeChatTurnIdAtViewport({
+      turnAnchors,
+      viewportTop: element.getBoundingClientRect().top,
+      viewportHeight: element.clientHeight,
+    });
 
-    for (const row of rows) {
-      const messageId = row.dataset.agentMessageId;
-      if (!messageId) continue;
-      const rect = row.getBoundingClientRect();
-      if (rect.bottom < containerTop + 8) continue;
-      if (rect.top <= anchorTop) {
-        candidateId = messageId;
-        continue;
-      }
-      candidateId ??= messageId;
-      break;
-    }
-
-    setActiveJumpMessageId((current) => (current === candidateId ? current : candidateId));
+    setTrackedTurnId((current) => (current === resolvedTurnId ? current : resolvedTurnId));
   }, []);
 
-  const jumpToMessage = useCallback((messageId: string) => {
+  const jumpToTurn = useCallback((turnId: string) => {
     const element = scrollRef.current;
     if (!element) return;
     const row = Array.from(element.querySelectorAll<HTMLElement>("[data-agent-message-id]")).find(
-      (candidate) => candidate.dataset.agentMessageId === messageId,
+      (candidate) => candidate.dataset.agentMessageId === turnId,
     );
     if (!row) return;
 
     scrollRowToBottom(element, row);
     requestAnimationFrame(() => scrollRowToBottom(element, row));
     shouldStickToBottom.current = false;
-    setActiveJumpMessageId(messageId);
-    setHighlightedMessageId(messageId);
+    setTrackedTurnId(turnId);
+    setHighlightedMessageId(turnId);
 
     if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
     highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 1_400);
@@ -217,19 +217,11 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
   }, []);
 
   useEffect(() => {
-    setActiveJumpMessageId((current) =>
-      current && jumpItems.some((item) => item.messageId === current)
-        ? current
-        : (jumpItems.at(-1)?.messageId ?? null),
-    );
-  }, [jumpItems]);
-
-  useEffect(() => {
     shouldStickToBottom.current = true;
     setScrollButtonVisible(false);
     const frame = requestAnimationFrame(() => {
       scrollToBottom("auto");
-      setActiveJumpMessageId(lastJumpMessageIdRef.current);
+      setTrackedTurnId(lastTurnIdRef.current);
     });
     return () => cancelAnimationFrame(frame);
   }, [scrollRequest, scrollToBottom, setScrollButtonVisible, sessionId]);
@@ -238,7 +230,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     if (!shouldStickToBottom.current) return;
     const frame = requestAnimationFrame(() => {
       scrollToBottom("auto");
-      setActiveJumpMessageId(lastJumpMessageIdRef.current);
+      setTrackedTurnId(lastTurnIdRef.current);
     });
     return () => cancelAnimationFrame(frame);
   }, [scrollKey, scrollToBottom]);
@@ -264,8 +256,8 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     });
     shouldStickToBottom.current = !shouldShowButton;
     setScrollButtonVisible(shouldShowButton);
-    updateActiveJumpMessage();
-  }, [setScrollButtonVisible, updateActiveJumpMessage]);
+    updateActiveTurn();
+  }, [setScrollButtonVisible, updateActiveTurn]);
 
   return {
     visibleMessages,
@@ -284,13 +276,13 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     stoppedMessageId,
     focusRequest,
     showScrollToBottom,
-    jumpItems,
-    activeJumpMessageId,
+    turnNavigationItems,
+    activeTurnId,
     highlightedMessageId,
     scrollRef: scrollRef as RefObject<HTMLDivElement | null>,
     handleScroll,
     scrollToBottom,
-    jumpToMessage,
+    jumpToTurn,
     actions: {
       send: async (input: ComposerSendInput) => {
         setEditingMessage(undefined);

@@ -5,7 +5,6 @@ import type { AgentEvent, AgentReducedMessage } from "@shared/agent";
 import {
   activeAssistantMessageId,
   buildChatFindMatches,
-  buildChatJumpItems,
   mergeAgentEvents,
   scrollTopForChildBottom,
   shouldShowScrollToBottomButton,
@@ -43,35 +42,6 @@ describe("shouldShowScrollToBottomButton", () => {
         clientHeight: 300,
       }),
     ).toBe(false);
-  });
-});
-
-describe("buildChatJumpItems", () => {
-  test("uses compact user message snippets for chat navigation", () => {
-    const items = buildChatJumpItems([
-      message("user-1", "user", "第一条\n用户消息"),
-      message("assistant-1", "assistant", "第一条 Agent 回复"),
-    ]);
-
-    expect(items).toEqual([{ messageId: "user-1", role: "user", label: "第一条 用户消息" }]);
-  });
-
-  test("keeps attachment-only messages jumpable", () => {
-    const items = buildChatJumpItems([
-      {
-        ...message("user-1", "user", ""),
-        files: [
-          {
-            type: "file",
-            mediaType: "application/pdf",
-            url: "file:///tmp/report.pdf",
-            filename: "report.pdf",
-          },
-        ],
-      },
-    ]);
-
-    expect(items[0]?.label).toBe("附件：report.pdf");
   });
 });
 

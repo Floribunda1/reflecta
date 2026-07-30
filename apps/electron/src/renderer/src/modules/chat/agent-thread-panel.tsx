@@ -205,9 +205,9 @@ export function AgentThreadPanel({
           )}
         </div>
         <ChatJumpNav
-          items={threadView.jumpItems}
-          activeMessageId={threadView.activeJumpMessageId}
-          onJump={threadView.jumpToMessage}
+          items={threadView.turnNavigationItems}
+          activeTurnId={threadView.activeTurnId}
+          onJump={threadView.jumpToTurn}
         />
         {threadView.showScrollToBottom ? (
           <Button

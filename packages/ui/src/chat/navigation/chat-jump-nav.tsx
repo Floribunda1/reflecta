@@ -2,7 +2,7 @@ import { ListTree } from "lucide-react";
 import { cn } from "#lib/utils";
 
 export type ChatJumpNavItem = {
-  messageId: string;
+  turnId: string;
   label: string;
 };
 
@@ -10,22 +10,22 @@ const MIN_ITEMS = 4;
 
 export function ChatJumpNav({
   items,
-  activeMessageId,
+  activeTurnId,
   onJump,
 }: {
   items: readonly ChatJumpNavItem[];
-  activeMessageId: string | null;
-  onJump: (messageId: string) => void;
+  activeTurnId: string | null;
+  onJump: (turnId: string) => void;
 }) {
   if (items.length < MIN_ITEMS) return null;
 
-  const activeIndex = items.findIndex((item) => item.messageId === activeMessageId);
+  const activeIndex = items.findIndex((item) => item.turnId === activeTurnId);
   const activePosition = activeIndex >= 0 ? activeIndex + 1 : null;
 
   return (
     <nav
       data-testid="agent-chat-jump-nav"
-      aria-label="消息跳转"
+      aria-label="对话轮次跳转"
       className="group/jump pointer-events-auto absolute top-1/2 right-3 z-20 hidden max-h-[58%] -translate-y-1/2 xl:block"
     >
       <button
@@ -33,8 +33,8 @@ export function ChatJumpNav({
         data-testid="agent-chat-jump-trigger"
         aria-label={
           activePosition
-            ? `打开消息导航，当前第 ${activePosition} 条，共 ${items.length} 条`
-            : `打开消息导航，共 ${items.length} 条`
+            ? `打开对话轮次导航，当前第 ${activePosition} 轮，共 ${items.length} 轮`
+            : `打开对话轮次导航，共 ${items.length} 轮`
         }
         className="flex h-9 items-center gap-1.5 rounded-full border border-border/80 bg-background/90 px-2.5 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur transition-opacity focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none group-hover/jump:pointer-events-none group-hover/jump:absolute group-hover/jump:opacity-0 group-focus-within/jump:pointer-events-none group-focus-within/jump:absolute group-focus-within/jump:opacity-0"
       >
@@ -46,17 +46,17 @@ export function ChatJumpNav({
 
       <div className="hidden max-h-[58vh] w-72 flex-col overflow-hidden rounded-xl border border-border bg-popover p-2 text-popover-foreground shadow-lg group-hover/jump:flex group-focus-within/jump:flex">
         <div className="flex shrink-0 items-center justify-between px-2 py-1.5">
-          <span className="text-xs font-medium">消息导航</span>
+          <span className="text-xs font-medium">对话轮次</span>
           <span className="text-xs tabular-nums text-muted-foreground">
             {activePosition ?? "–"} / {items.length}
           </span>
         </div>
         <div className="min-h-0 overflow-y-auto">
           {items.map((item) => {
-            const active = item.messageId === activeMessageId;
+            const active = item.turnId === activeTurnId;
             return (
               <button
-                key={item.messageId}
+                key={item.turnId}
                 type="button"
                 data-testid="agent-chat-jump-item"
                 data-active={active ? "true" : undefined}
@@ -66,7 +66,7 @@ export function ChatJumpNav({
                   "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground focus-visible:outline-none",
                   active && "bg-accent font-medium text-foreground",
                 )}
-                onClick={() => onJump(item.messageId)}
+                onClick={() => onJump(item.turnId)}
               >
                 <span
                   data-testid="agent-chat-jump-marker"
