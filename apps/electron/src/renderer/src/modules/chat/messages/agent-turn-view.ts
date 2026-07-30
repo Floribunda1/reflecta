@@ -51,6 +51,7 @@ export type ToolActivityDetailRow = {
   description?: string;
   format?: "text" | "pre" | "markdown" | "code";
   language?: string;
+  appearance?: "list-item" | "nested-list-item";
 };
 
 export type ToolActivityDetailsView = {
@@ -580,6 +581,7 @@ function toAgentToolDetailsView(
               ...(row.label ? { label: row.label } : {}),
               ...(row.title ? { title: row.title } : {}),
               ...(content ? { content } : {}),
+              ...(row.appearance ? { appearance: row.appearance } : {}),
             };
           }),
         }
@@ -1214,24 +1216,31 @@ function recordListDetails(output: unknown, label: string, emptyLabel: string) {
       ? output.contextsByUnderstandingId
       : {};
   return detailView({
-    rows: limitedRows(
-      records.flatMap((record) => {
-        if (!isRecord(record)) return [];
-        return [
-          detailRow(
-            label,
-            label === "Context" ? contextTitle(record) : entityTitle(record),
-            recordText(record),
-            "markdown",
-          ),
-          ...arrayValue(contextsByUnderstandingId[stringValue(record.id)]).map((context) =>
-            isRecord(context)
-              ? detailRow("Context", contextTitle(context), recordText(context), "markdown")
-              : undefined,
-          ),
-        ];
-      }),
-    ),
+    rows: records.flatMap((record) => {
+      if (!isRecord(record)) return [];
+      return [
+        detailRow(
+          label,
+          label === "Context" ? contextTitle(record) : entityTitle(record),
+          recordText(record),
+          "markdown",
+          undefined,
+          label === "Understanding" ? "list-item" : undefined,
+        ),
+        ...arrayValue(contextsByUnderstandingId[stringValue(record.id)]).map((context) =>
+          isRecord(context)
+            ? detailRow(
+                "Context",
+                contextTitle(context),
+                undefined,
+                "text",
+                undefined,
+                "nested-list-item",
+              )
+            : undefined,
+        ),
+      ];
+    }),
     emptyText: records.length === 0 ? "没有找到相关内容。" : undefined,
   });
 }
@@ -1332,6 +1341,7 @@ function detailRow(
   description?: string,
   format: ToolActivityDetailRow["format"] = "text",
   language?: string,
+  appearance?: ToolActivityDetailRow["appearance"],
 ): ToolActivityDetailRow {
   const keepsLineBreaks = format === "pre" || format === "markdown" || format === "code";
   const compactDescription = description
@@ -1344,6 +1354,7 @@ function detailRow(
     ...(title ? { title } : {}),
     ...(format !== "text" ? { format } : {}),
     ...(language ? { language } : {}),
+    ...(appearance ? { appearance } : {}),
     ...(compactDescription ? { description: compactDescription } : {}),
   };
 }

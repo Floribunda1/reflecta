@@ -513,12 +513,12 @@ describe("buildAgentTurnView", () => {
                   title: "反馈回路",
                   description: "Understanding body",
                   format: "markdown",
+                  appearance: "list-item",
                 },
                 {
                   label: "Context",
                   title: "发布复盘",
-                  description: "Context body",
-                  format: "markdown",
+                  appearance: "nested-list-item",
                 },
               ],
             },
@@ -526,6 +526,22 @@ describe("buildAgentTurnView", () => {
         ],
       },
     });
+  });
+
+  test("shows every understanding result without an inert more row", () => {
+    const turn = buildAgentTurnView([
+      tool("understanding_list", "tool-1", {
+        understandings: Array.from({ length: 9 }, (_, index) => ({
+          id: `u${index + 1}`,
+          title: `Understanding ${index + 1}`,
+        })),
+      }),
+    ]);
+    const block = turn.blocks[0];
+    if (block?.kind !== "tool-activity") throw new Error("Expected tool activity");
+
+    expect(block.activity.items[0]?.details?.rows).toHaveLength(9);
+    expect(block.activity.items[0]?.details?.rows.at(-1)?.title).toBe("Understanding 9");
   });
 
   test("summarizes inspected domains by name instead of id", () => {
