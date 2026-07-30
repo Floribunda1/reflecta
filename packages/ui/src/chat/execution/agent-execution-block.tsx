@@ -129,13 +129,7 @@ function ReasoningBlock({
   );
 }
 
-function ToolActivityBlock({
-  activity,
-  entityBindings,
-}: {
-  activity: AgentToolActivityView;
-  entityBindings?: ChatEntityBindings;
-}) {
+function ToolActivityBlock({ activity }: { activity: AgentToolActivityView }) {
   const statusLabel =
     activity.status === "failed" ? "出错" : activity.status === "running" ? "运行中" : "完成";
   const iconKind = toolIconKind(activity);
@@ -208,9 +202,7 @@ function ToolActivityBlock({
                 {activity.items.length > 1 ? (
                   <div className="px-1 text-xs font-medium text-foreground/70">{item.label}</div>
                 ) : null}
-                {hasToolDetails(item.details) ? (
-                  <ToolDetails details={item.details!} entityBindings={entityBindings} />
-                ) : null}
+                {hasToolDetails(item.details) ? <ToolDetails details={item.details!} /> : null}
                 {item.error ? (
                   <div className="break-words px-1 text-destructive">{item.error}</div>
                 ) : null}
@@ -240,7 +232,7 @@ export function AgentExecutionBlock({ block, entityBindings }: AgentExecutionBlo
     return <ReasoningBlock reasoning={block.reasoning} entityBindings={entityBindings} />;
   }
   if (block.kind === "tool-activity") {
-    return <ToolActivityBlock activity={block.activity} entityBindings={entityBindings} />;
+    return <ToolActivityBlock activity={block.activity} />;
   }
   if (block.kind === "context-compaction") {
     return <ContextCompactionBlock compaction={block.compaction} />;

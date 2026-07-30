@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Badge } from "../../components/badge";
-import type { ChatEntityBindings } from "../entity";
-import { ChatMarkdown } from "../markdown/chat-markdown";
+import { MarkdownPreview } from "../../editor/markdown-preview";
 import type { AgentToolDetailContent, AgentToolDetailRowView, AgentToolDetailsView } from "./types";
 
 function fencedCodeBlock(value: string, language: string) {
@@ -13,13 +12,7 @@ function fencedCodeBlock(value: string, language: string) {
   return `${fence}${language}\n${value}\n${fence}`;
 }
 
-function ToolDetailContent({
-  content,
-  entityBindings,
-}: {
-  content: AgentToolDetailContent;
-  entityBindings?: ChatEntityBindings;
-}) {
+function ToolDetailContent({ content }: { content: AgentToolDetailContent }) {
   const [expanded, setExpanded] = useState(false);
   if (content.format === "text") {
     return <div className="line-clamp-2 text-muted-foreground/85">{content.value}</div>;
@@ -37,14 +30,18 @@ function ToolDetailContent({
     <div className="grid gap-1">
       {content.format === "markdown" ? (
         <div className={containerClass}>
-          <ChatMarkdown value={value} tone="muted" {...entityBindings} />
+          <MarkdownPreview
+            value={value}
+            zoomImages={false}
+            className="[&_.ProseMirror]:text-muted-foreground"
+          />
         </div>
       ) : content.format === "code" ? (
         <div className={containerClass}>
-          <ChatMarkdown
+          <MarkdownPreview
             value={fencedCodeBlock(value, content.language)}
-            tone="muted"
-            {...entityBindings}
+            zoomImages={false}
+            className="[&_.ProseMirror]:text-muted-foreground"
           />
         </div>
       ) : (
@@ -73,13 +70,7 @@ function ToolDetailContent({
   );
 }
 
-function ToolDetailRow({
-  row,
-  entityBindings,
-}: {
-  row: AgentToolDetailRowView;
-  entityBindings?: ChatEntityBindings;
-}) {
+function ToolDetailRow({ row }: { row: AgentToolDetailRowView }) {
   const hasHeader = Boolean(row.label || row.title);
   return (
     <li className="grid gap-0.5 rounded-sm py-1">
@@ -93,9 +84,7 @@ function ToolDetailRow({
           ) : null}
         </div>
       ) : null}
-      {row.content ? (
-        <ToolDetailContent content={row.content} entityBindings={entityBindings} />
-      ) : null}
+      {row.content ? <ToolDetailContent content={row.content} /> : null}
       {row.meta?.length ? (
         <div className="flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground/80">
           {row.meta.map((item) => (
@@ -113,13 +102,7 @@ export function hasToolDetails(details: AgentToolDetailsView | undefined) {
   );
 }
 
-export function ToolDetails({
-  details,
-  entityBindings,
-}: {
-  details: AgentToolDetailsView;
-  entityBindings?: ChatEntityBindings;
-}) {
+export function ToolDetails({ details }: { details: AgentToolDetailsView }) {
   return (
     <div className="grid gap-2">
       {details.meta?.length ? (
@@ -135,7 +118,7 @@ export function ToolDetails({
       {details.rows?.length ? (
         <ul className="grid gap-1">
           {details.rows.map((row) => (
-            <ToolDetailRow key={row.id} row={row} entityBindings={entityBindings} />
+            <ToolDetailRow key={row.id} row={row} />
           ))}
         </ul>
       ) : null}

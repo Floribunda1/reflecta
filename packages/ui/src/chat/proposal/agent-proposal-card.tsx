@@ -412,7 +412,7 @@ export function AgentProposalCard({
         {hasToolDetails(proposal.result) ? (
           <div className="mt-3 rounded-md bg-muted/35 p-2 text-sm text-muted-foreground">
             <div className="mb-1 px-1 text-xs font-medium text-foreground/70">执行结果</div>
-            <ToolDetails details={proposal.result!} entityBindings={entityBindings} />
+            <ToolDetails details={proposal.result!} />
           </div>
         ) : null}
         {proposal.lifecycle === "failed" && proposal.error ? (
