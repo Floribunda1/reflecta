@@ -472,11 +472,7 @@ export class AgentSessionLog {
   }
 
   private upsertIndexedSession(summary: AgentSessionSummary, sessionFile: string): void {
-    const index = this.readSessionIndex();
-    if (!index) {
-      if (fs.existsSync(this.sessionIndexPath)) fs.rmSync(this.sessionIndexPath, { force: true });
-      return;
-    }
+    const index = this.readSessionIndex() ?? emptySessionIndex();
     const indexed = index.sessions.findIndex((session) => session.id === summary.id);
     const nextSummary = {
       ...summary,
