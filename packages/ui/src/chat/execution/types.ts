@@ -9,8 +9,10 @@ export type AgentToolDetailContent =
       full?: string;
     }
   | {
-      format: "diff";
-      value: string;
+      format: "code";
+      preview: string;
+      full?: string;
+      language: string;
     };
 
 export type AgentToolDetailRowView = {

@@ -55,7 +55,8 @@ export type ToolActivityDetailRow = {
   title?: string;
   description?: string;
   fullDescription?: string;
-  format?: "text" | "pre" | "markdown" | "diff";
+  format?: "text" | "pre" | "markdown" | "code";
+  language?: string;
   meta: string[];
 };
 
@@ -574,8 +575,13 @@ function toAgentToolDetailsView(
             const content = row.description
               ? format === "text"
                 ? { format: "text" as const, value: row.description }
-                : format === "diff"
-                  ? { format: "diff" as const, value: row.description }
+                : format === "code"
+                  ? {
+                      format: "code" as const,
+                      preview: row.description,
+                      ...(row.fullDescription ? { full: row.fullDescription } : {}),
+                      language: row.language ?? "text",
+                    }
                   : {
                       format,
                       preview: row.description,
@@ -1096,7 +1102,7 @@ function toolResultDetails(
   if (name === "search") return searchHitDetails(output);
   if (name === "retrieve_knowledge") return retrievalCandidateDetails(output);
   if (name === "attachment_read") return attachmentReadDetails(output);
-  if (name === "read" || name === "file_read") return readFileDetails(output);
+  if (name === "read" || name === "file_read") return readFileDetails(output, input);
   if (name === "edit") return editFileDetails(output);
   if (name === "write") return writeFileDetails(input);
   if (name === "bash") return bashDetails(output);
@@ -1120,22 +1126,36 @@ function attachmentReadDetails(output: unknown) {
   const filename = stringValue(output.filename);
   const content = stringValue(output.content);
   const error = stringValue(output.error);
+  const isText = output.kind === "text";
   const meta = [
     output.kind ? `${String(output.kind).toUpperCase()} 附件` : "",
     typeof output.totalPages === "number" ? `${output.totalPages} 页` : "",
     output.truncated ? "内容已截断" : "",
   ].filter(Boolean);
   return detailView({
-    rows: content ? [detailRow("附件内容", filename || "附件", content, meta, "pre")] : [],
+    rows: content
+      ? [
+          detailRow(
+            "附件内容",
+            filename || "附件",
+            content,
+            meta,
+            isText ? "code" : "pre",
+            isText ? codeLanguage(filename) : undefined,
+          ),
+        ]
+      : [],
     emptyText: error ? `附件暂时无法读取：${truncateText(error)}` : undefined,
   });
 }
 
-function readFileDetails(output: unknown) {
+function readFileDetails(output: unknown, input: Record<string, unknown>) {
   if (!isRecord(output)) return detailView({});
   const content = stringValue(output.content);
   return detailView({
-    rows: content ? [detailRow("", "", content, [], "pre")] : [],
+    rows: content
+      ? [detailRow("", "", content, [], "code", codeLanguage(stringValue(input.path)))]
+      : [],
   });
 }
 
@@ -1143,14 +1163,16 @@ function editFileDetails(output: unknown) {
   if (!isRecord(output)) return detailView({});
   const patch = stringValue(output.patch) || stringValue(output.diff);
   return detailView({
-    rows: patch ? [detailRow("", "", patch, [], "diff")] : [],
+    rows: patch ? [detailRow("", "", patch, [], "code", "diff")] : [],
   });
 }
 
 function writeFileDetails(input: Record<string, unknown>) {
   const content = stringValue(input.content);
   return detailView({
-    rows: content ? [detailRow("", "", content, [], "pre")] : [],
+    rows: content
+      ? [detailRow("", "", content, [], "code", codeLanguage(stringValue(input.path)))]
+      : [],
   });
 }
 
@@ -1188,8 +1210,8 @@ function bashDetails(output: unknown) {
   const stderr = stringValue(output.stderr);
   return detailView({
     rows: [
-      stdout ? detailRow("stdout", "", stdout, [], "pre") : undefined,
-      stderr ? detailRow("stderr", "", stderr, [], "pre") : undefined,
+      stdout ? detailRow("stdout", "", stdout, [], "code", "text") : undefined,
+      stderr ? detailRow("stderr", "", stderr, [], "code", "text") : undefined,
     ].filter((row): row is ToolActivityDetailRow => Boolean(row)),
   });
 }
@@ -1446,14 +1468,13 @@ function detailRow(
   description?: string,
   meta: string[] = [],
   format: ToolActivityDetailRow["format"] = "text",
+  language?: string,
 ): ToolActivityDetailRow {
-  const keepsLineBreaks = format === "pre" || format === "markdown" || format === "diff";
+  const keepsLineBreaks = format === "pre" || format === "markdown" || format === "code";
   const compactDescription = description
-    ? format === "diff"
-      ? description
-      : keepsLineBreaks
-        ? truncateOutputPreview(description)
-        : truncateText(description, 140)
+    ? keepsLineBreaks
+      ? truncateOutputPreview(description)
+      : truncateText(description, 140)
     : undefined;
   const shouldKeepFullDescription =
     keepsLineBreaks &&
@@ -1465,9 +1486,19 @@ function detailRow(
     ...(title ? { title } : {}),
     meta: meta.filter(Boolean),
     ...(format !== "text" ? { format } : {}),
+    ...(language ? { language } : {}),
     ...(compactDescription ? { description: compactDescription } : {}),
     ...(shouldKeepFullDescription ? { fullDescription: description } : {}),
   };
+}
+
+function codeLanguage(path: string) {
+  const extension = filenameFromPath(path).split(".").pop()?.toLowerCase();
+  if (!extension || extension === filenameFromPath(path)) return "text";
+  if (extension === "md" || extension === "mdx") return "markdown";
+  if (extension === "yml") return "yaml";
+  if (extension === "txt" || extension === "log") return "text";
+  return extension;
 }
 
 function limitedRows(rows: Array<ToolActivityDetailRow | undefined>) {

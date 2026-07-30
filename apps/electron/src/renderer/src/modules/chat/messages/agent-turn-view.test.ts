@@ -147,7 +147,7 @@ describe("buildAgentTurnView", () => {
             label: "读取了「note.txt」 · offset=1151 · limit=1150",
             details: {
               meta: [],
-              rows: [{ description: "next chunk", format: "pre", meta: [] }],
+              rows: [{ description: "next chunk", format: "code", language: "text", meta: [] }],
             },
           },
         ],
@@ -416,7 +416,7 @@ describe("buildAgentTurnView", () => {
             label: "读取了「note.txt」",
             details: {
               meta: [],
-              rows: [{ description: "hello", format: "pre", meta: [] }],
+              rows: [{ description: "hello", format: "code", language: "text", meta: [] }],
             },
           }),
         ],
@@ -435,11 +435,49 @@ describe("buildAgentTurnView", () => {
                 {
                   label: "stdout",
                   description: "hello",
-                  format: "pre",
+                  format: "code",
+                  language: "text",
                   meta: [],
                 },
               ],
             },
+          }),
+        ],
+      },
+    });
+  });
+
+  test("uses a code block for readable text attachments", () => {
+    const turn = buildAgentTurnView([
+      tool(
+        "attachment_read",
+        "tool-1",
+        {
+          filename: "settings.json",
+          kind: "text",
+          content: '{"enabled":true}',
+          truncated: false,
+        },
+        "completed",
+        undefined,
+        { attachmentId: "att-text" },
+      ),
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "tool-activity",
+      activity: {
+        items: [
+          expect.objectContaining({
+            details: expect.objectContaining({
+              rows: [
+                expect.objectContaining({
+                  description: '{"enabled":true}',
+                  format: "code",
+                  language: "json",
+                }),
+              ],
+            }),
           }),
         ],
       },
@@ -733,7 +771,8 @@ describe("buildAgentTurnView", () => {
                 rows: [
                   {
                     description: "--- a/app.ts\n+++ b/app.ts\n@@\n-old\n+new",
-                    format: "diff",
+                    format: "code",
+                    language: "diff",
                     meta: [],
                   },
                 ],
@@ -749,7 +788,14 @@ describe("buildAgentTurnView", () => {
             expect.objectContaining({
               details: {
                 meta: [],
-                rows: [{ description: "# New report", format: "pre", meta: [] }],
+                rows: [
+                  {
+                    description: "# New report",
+                    format: "code",
+                    language: "markdown",
+                    meta: [],
+                  },
+                ],
               },
             }),
           ],
@@ -965,7 +1011,15 @@ describe("buildAgentTurnView", () => {
         state: "output-available",
         result: {
           meta: [],
-          rows: [{ label: "stdout", description: "hello", format: "pre", meta: [] }],
+          rows: [
+            {
+              label: "stdout",
+              description: "hello",
+              format: "code",
+              language: "text",
+              meta: [],
+            },
+          ],
         },
       },
     });
@@ -1028,7 +1082,8 @@ describe("buildAgentTurnView", () => {
           rows: [
             {
               label: "stdout",
-              format: "pre",
+              format: "code",
+              language: "text",
               description: expect.stringContaining("line 16"),
               fullDescription: stdout,
             },
