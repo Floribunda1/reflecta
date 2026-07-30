@@ -1,0 +1,104 @@
+name: Release Electron
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release-macos:
+    if: github.repository == 'Floribunda1/reflecta'
+    runs-on: macos-26
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Verify release metadata
+        run: |
+          version="$(bun -e 'console.log(require("./apps/electron/package.json").version)')"
+          test "v$version" = "$GITHUB_REF_NAME"
+          grep -q "^## $version " CHANGELOG.md
+          test -n "$SPARKLE_PRIVATE_KEY"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build macOS app
+        run: bun run package:electron
+
+      - name: Verify packaged updater
+        run: |
+          app="apps/electron/dist/mac-arm64/Reflecta.app"
+          test -x "$app/Contents/Resources/sparkle.app/Contents/MacOS/sparkle"
+          test -f "$app/Contents/Resources/licenses/Sparkle-LICENSE.txt"
+          test "$(plutil -extract SUPublicEDKey raw "$app/Contents/Info.plist")" = \
+            "DYePZoCJq199EnWefYhAcFT90sGJw9zKrBfHDe8BD0Q="
+          codesign --deep --verify "$app"
+
+      - name: Prepare Sparkle appcast
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          updates="$RUNNER_TEMP/updates"
+          mkdir -p "$updates"
+
+          current_zip="$(find apps/electron/dist -maxdepth 1 -name '*-arm64-mac.zip' -print -quit)"
+          cp "$current_zip" "$updates/"
+
+          awk -v version="$version" '
+            $0 ~ "^## " version " " { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
+          cp "$RUNNER_TEMP/release-notes.md" \
+            "$updates/$(basename "${current_zip%.zip}").md"
+
+          previous_tag="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" \
+            --jq .tag_name 2>/dev/null || true)"
+          if [[ -n "$previous_tag" && "$previous_tag" != "$GITHUB_REF_NAME" ]]; then
+            gh release download "$previous_tag" \
+              --pattern '*-arm64-mac.zip' \
+              --dir "$updates" || true
+          fi
+
+          sparkle="$RUNNER_TEMP/Sparkle"
+          curl -fsSL \
+            https://github.com/sparkle-project/Sparkle/releases/download/2.9.4/Sparkle-2.9.4.tar.xz \
+            -o "$RUNNER_TEMP/Sparkle.tar.xz"
+          mkdir -p "$sparkle"
+          tar -xf "$RUNNER_TEMP/Sparkle.tar.xz" -C "$sparkle"
+
+          printf '%s' "$SPARKLE_PRIVATE_KEY" |
+            "$sparkle/bin/generate_appcast" \
+              --ed-key-file - \
+              --versions "$version" \
+              --embed-release-notes \
+              --download-url-prefix \
+              "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/" \
+              --link "https://github.com/$GITHUB_REPOSITORY/releases/tag/$GITHUB_REF_NAME" \
+              -o "$updates/appcast.xml" \
+              "$updates"
+
+      - name: Publish GitHub Release
+        run: |
+          assets=(
+            apps/electron/dist/*.dmg
+            apps/electron/dist/*-arm64-mac.zip
+            "$RUNNER_TEMP/updates/appcast.xml"
+          )
+          while IFS= read -r delta; do
+            assets+=("$delta")
+          done < <(find "$RUNNER_TEMP/updates" -maxdepth 1 -name '*.delta' -print)
+
+          gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"

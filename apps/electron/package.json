@@ -24,9 +24,10 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "postinstall": "electron-builder install-app-deps",
+    "build:sparkle": "bash scripts/build-sparkle-cli.sh",
     "build:unpack": "bun run clean:dist && bun run build && electron-builder --dir",
     "build:win": "bun run clean:dist && bun run build && electron-builder --win",
-    "build:mac": "bun run clean:dist && bun run build && electron-builder --mac",
+    "build:mac": "bun run build:sparkle && bun run clean:dist && bun run build && electron-builder --mac --arm64",
     "build:linux": "bun run clean:dist && bun run build && electron-builder --linux"
   },
   "dependencies": {

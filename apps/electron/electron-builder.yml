@@ -38,11 +38,18 @@ mac:
   identity: "-"
   hardenedRuntime: false
   entitlementsInherit: build/entitlements.mac.plist
+  extraResources:
+    - from: .cache/sparkle-cli/sparkle.app
+      to: sparkle.app
+    - from: .cache/sparkle-cli/Sparkle-LICENSE.txt
+      to: licenses/Sparkle-LICENSE.txt
   extendInfo:
     - NSCameraUsageDescription: Application requests access to the device's camera.
     - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+    - SUFeedURL: https://github.com/Floribunda1/reflecta/releases/latest/download/appcast.xml
+    - SUPublicEDKey: DYePZoCJq199EnWefYhAcFT90sGJw9zKrBfHDe8BD0Q=
   notarize: false
 dmg:
   artifactName: ${productName}-${version}.${ext}
@@ -56,8 +63,5 @@ linux:
 appImage:
   artifactName: ${productName}-${version}.${ext}
 npmRebuild: false
-publish:
-  provider: generic
-  url: https://example.com/auto-updates
 electronDownload:
   mirror: https://npmmirror.com/mirrors/electron/
