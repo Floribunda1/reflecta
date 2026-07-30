@@ -4,6 +4,11 @@
   "description": "Reflecta Electron application",
   "homepage": "https://github.com/electron-vite/vite-plugin-electron",
   "author": "com.acnoo.reflecta",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Floribunda1/reflecta.git",
+    "directory": "apps/electron"
+  },
   "type": "module",
   "main": "./out/main/index.js",
   "scripts": {
