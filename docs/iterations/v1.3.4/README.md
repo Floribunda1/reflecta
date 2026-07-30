@@ -2,7 +2,7 @@
 
 > 日期：2026-07-31
 >
-> 状态：Accepted
+> 状态：Accepted / Implemented
 >
 > 决策：ChatMarkdown 使用 `streamdown@2.5.0`
 >
@@ -24,7 +24,7 @@ Reflecta v1.3.4 的 ChatMarkdown 应从 `markstream-react@0.0.55` 切回 `stream
 4. Markstream 已有的稳定布局、外层虚拟滚动协调修复都只修改 Vue 实现，没有进入 React 包。
 5. Streamdown 是原生 React 库；静态历史消息、流式消息、自定义组件和插件都有官方用法。它的已知流式缺陷在 Reflecta 场景中有明确配置规避。
 
-Streamdown 的边界也必须如实记录：它不虚拟整篇 Markdown，100 turns × 400 blocks 时会产生约 10.2 万 DOM，滚动帧 p95 为 51.8ms。这个极端场景会卡，但内容仍然存在；按本次裁决顺序，它优于“滚动很快但大量帧只显示 spacer”。
+Streamdown 的边界也必须如实记录：它不虚拟整篇 Markdown，100 turns × 400 blocks 时会产生约 11.5 万 DOM，滚动帧 p95 为 53.4ms。这个极端场景会卡，但内容仍然存在；按本次裁决顺序，它优于“滚动很快但大量帧只显示 spacer”。
 
 ## 2. 问题边界
 
@@ -92,12 +92,12 @@ Reflecta 所需能力都有公开接口：
 
 #### 已知缺陷与处理
 
-| 缺陷                                                                               | 状态                                                           | Reflecta 处理                                                                               |
-| ---------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| streaming block 更新与 auto-scroll 冲突，出现 scrollbar jumping                    | [#339](https://github.com/vercel/streamdown/issues/339) 已关闭 | 历史消息使用 `mode="static"`；只有当前活动回复使用 streaming                                |
-| 代码块 fallback 替换导致 CLS                                                       | [#391](https://github.com/vercel/streamdown/issues/391)        | [#392](https://github.com/vercel/streamdown/pull/392) 已合并，fallback 保持可读且占位更稳定 |
-| streaming 且未传 `animated` 时，`useTransition` 更新可能被高频 sibling update 饿死 | [#550](https://github.com/vercel/streamdown/issues/550) 仍开放 | 活跃回复始终传 `animated`；issue 明确说明该分支直接更新且可规避冻结                         |
-| 大量解析与高亮成本                                                                 | [#237](https://github.com/vercel/streamdown/pull/237) 已合并   | 使用当前 2.5.0；历史消息走 static mode                                                      |
+| 缺陷                                                                               | 状态                                                           | Reflecta 处理                                                                                              |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| streaming block 更新与宿主 auto-scroll 集成不当，出现 scrollbar jumping            | [#339](https://github.com/vercel/streamdown/issues/339) 已关闭 | 历史消息使用 `mode="static"`；当前活动回复使用 `animated` 直接更新，底部跟随仍由 Reflecta 管理并做回归验证 |
+| 代码块 fallback 替换导致 CLS                                                       | [#391](https://github.com/vercel/streamdown/issues/391)        | [#392](https://github.com/vercel/streamdown/pull/392) 已合并，fallback 保持可读且占位更稳定                |
+| streaming 且未传 `animated` 时，`useTransition` 更新可能被高频 sibling update 饿死 | [#550](https://github.com/vercel/streamdown/issues/550) 仍开放 | 活跃回复始终传 `animated`；issue 明确说明该分支直接更新且可规避冻结                                        |
+| 大量解析与高亮成本                                                                 | [#237](https://github.com/vercel/streamdown/pull/237) 已合并   | 使用当前 2.5.0；历史消息走 static mode                                                                     |
 
 这些问题没有被忽略，但都存在已经合并的修复或与 Reflecta 状态能一一对应的配置方案。
 
@@ -158,7 +158,7 @@ benchmark 使用真实 Chromium 生产构建，不使用 Vite dev server 或 Rea
 - 每次向下和向上各采样 120 个 animation frames；
 - “空白帧”定义：viewport 中心落在 Markstream `.node-spacer` 或滚动容器裸露区域；
 - heap 使用 Chromium `performance.memory.usedJSHeapSize`；
-- Streamdown 使用 `mode="static"`；
+- Streamdown 使用 `mode="static"` 和生产实现相同的官方 `@streamdown/code` 插件；
 - Markstream 使用 `final=true` 和包默认虚拟参数。
 
 可复现命令：
@@ -190,12 +190,12 @@ bun run --cwd apps/electron benchmark:chat-markdown
 
 | 场景      | 库         | 打开中位数 |     DOM | JS Heap | Scroll frame p95 | 空白帧 / 240 | 高度变化 | 锚点漂移 |
 | --------- | ---------- | ---------: | ------: | ------: | ---------------: | -----------: | -------: | -------: |
-| 100 × 120 | Streamdown |     1450ms |  30,713 |  39 MiB |           15.6ms |            0 | 12,526px |      0px |
-| 100 × 120 | Markstream |      819ms |  48,956 | 100 MiB |           15.2ms |            0 | 65,915px |      0px |
-| 100 × 400 | Streamdown |     4651ms | 102,313 | 118 MiB |           51.8ms |            0 |  9,900px |    101px |
-| 100 × 400 | Markstream |     5107ms | 142,412 | 771 MiB |            6.5ms |          118 |      0px |      0px |
-| 1 × 5000  | Streamdown |      888ms |  12,746 |  21 MiB |            9.9ms |            0 |  9,698px |      0px |
-| 1 × 5000  | Markstream |      631ms |   1,432 |  78 MiB |            9.5ms |          228 |      0px |      0px |
+| 100 × 120 | Streamdown |     1591ms |  35,514 |  51 MiB |           16.2ms |            0 | 12,526px |      0px |
+| 100 × 120 | Markstream |      873ms |  48,956 |  99 MiB |           14.3ms |            0 | 65,915px |      0px |
+| 100 × 400 | Streamdown |     4807ms | 115,114 | 129 MiB |           53.4ms |            0 |  9,900px |    101px |
+| 100 × 400 | Markstream |     5291ms | 142,412 | 776 MiB |            6.3ms |          118 |      0px |      0px |
+| 1 × 5000  | Streamdown |      918ms |  14,347 |  26 MiB |           10.8ms |            0 |  9,698px |      0px |
+| 1 × 5000  | Markstream |      678ms |   1,432 |  79 MiB |           10.2ms |          228 |      0px |      0px |
 
 原始逐轮数据保存在 [chat-markdown-benchmark.raw.json](./chat-markdown-benchmark.raw.json)。
 
@@ -211,12 +211,12 @@ bun run --cwd apps/electron benchmark:chat-markdown
 
 每条回复都超过 Markstream 阈值，因此 100 条消息各自保留一个内部 live window。结果是：
 
-- Markstream DOM 比 Streamdown 多约 4 万；
-- heap 约为 Streamdown 的 6.5 倍；
+- Markstream DOM 比 Streamdown 多约 2.7 万；
+- heap 约为 Streamdown 的 6 倍；
 - 240 个滚动位置中有 118 个位置中心是 spacer；
-- 6.5ms p95 不能解释为内容滚动更快，因为大量帧没有渲染真实内容。
+- 6.3ms p95 不能解释为内容滚动更快，因为大量帧没有渲染真实内容。
 
-Streamdown 的 51.8ms p95 和 101px anchor drift 是明确性能/体验缺陷，但它没有丢失内容。
+Streamdown 的 53.4ms p95 和 101px anchor drift 是明确性能/体验缺陷，但它没有丢失内容。
 
 #### 1 × 5000
 
@@ -241,7 +241,7 @@ Streamdown 的 51.8ms p95 和 101px anchor drift 是明确性能/体验缺陷，
 
 ### 6.2 性能
 
-Streamdown 在 100 × 120 的产品重度场景中保持约一帧 p95、39 MiB heap，表现可接受。
+Streamdown 在 100 × 120 的产品重度场景中保持约一帧 p95、51 MiB heap，表现可接受。
 
 在 100 × 400 的极端场景中，Streamdown 的全量 DOM 明显卡顿。Markstream 也没有形成有效优势：打开更慢、DOM 更多、heap 高得多，并通过显示 spacer 获得低帧时间。
 
@@ -274,7 +274,7 @@ Streamdown 的极端场景可能出现异步代码块导致的高度变化和短
 
 ### 7.3 删除
 
-- 删除 `markstream-react` 和仅为其接入引入的依赖。
+- 删除生产路径中的 `markstream-react` 和仅为其接入引入的依赖；仅保留 devDependency 供决策 benchmark 复现。
 - 删除 `_markstream.scss`。
 - 恢复并校准 `_streamdown.scss`。
 - 删除 Markstream AST 搜索预解析路径，恢复统一 rehype 搜索路径。
@@ -288,3 +288,16 @@ Streamdown 的极端场景可能出现异步代码块导致的高度变化和短
 3. 或社区出现能同时覆盖动态消息高度、搜索定位、JumpNav 和流式增长的成熟 React conversation virtualizer。
 
 重新评估时仍使用本报告的红/绿空白断言，不能只比较 DOM 和帧时间。
+
+## 9. 实现验证
+
+最终实现已经按本报告约束完成：
+
+- `ChatMarkdown` 已切换到 Streamdown，代码、数学公式、Mermaid、表格控制、实体引用、安全链接和搜索高亮均接回；
+- 活跃回复在真实 Storybook 自动流式故事中从第 1 帧更新到后续帧，没有出现内容冻结；
+- Storybook DOM 中 9 个 Markdown 根节点、6 种实体状态和 2 个 Mermaid block 均存在，Markstream node/spacer 为 0；
+- Markdown 根节点没有横向溢出，长代码和宽表格由各自容器承接；
+- Chromium 控制台没有应用 error；仅有 Storybook 11 预告和仓库现有 Vue feature-flag warning；
+- 单条 5000 blocks 的 Streamdown 空白断言通过：0/240 空白帧；
+- UI 与 Electron typecheck、Electron 生产构建和 Storybook build 通过；
+- UI 66 个单元测试、Electron main 146 个测试、Electron renderer 158 个测试全部通过。

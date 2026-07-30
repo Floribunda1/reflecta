@@ -297,7 +297,8 @@ async function main() {
           priority: ["functional reliability", "performance", "experience"],
           renderers: {
             markstream: "markstream-react@0.0.55, final render, package defaults",
-            streamdown: "streamdown@2.5.0, mode=static",
+            streamdown:
+              "streamdown@2.5.0 + @streamdown/code@1.1.1, mode=static, official code plugin",
           },
           scrollFramesPerRun: 240,
           repeats,

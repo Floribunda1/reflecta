@@ -1,3 +1,4 @@
+import { code } from "@streamdown/code";
 import MarkdownRender from "markstream-react";
 import { useLayoutEffect, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
@@ -7,6 +8,8 @@ import "streamdown/styles.css";
 import "./style.css";
 
 type Renderer = "markstream" | "streamdown";
+
+const streamdownPlugins = { code };
 
 const params = new URLSearchParams(window.location.search);
 const renderer: Renderer = params.get("renderer") === "streamdown" ? "streamdown" : "markstream";
@@ -54,7 +57,11 @@ function markdownForTurn(turn: number) {
 
 function BenchmarkMarkdown({ value }: { value: string }) {
   if (renderer === "streamdown") {
-    return <Streamdown mode="static">{value}</Streamdown>;
+    return (
+      <Streamdown mode="static" plugins={streamdownPlugins}>
+        {value}
+      </Streamdown>
+    );
   }
   return (
     <MarkdownRender
