@@ -4,14 +4,17 @@
 @source "../../node_modules/markstream-react/dist/*.js";
 
 [data-chat-find-match="true"] {
-  border-radius: 2px;
-  background: color-mix(in srgb, #facc15, transparent 42%);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--primary), transparent 88%);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--primary), transparent 45%);
   color: inherit;
+  padding-inline: 0.08em;
 }
 
 [data-chat-find-active="true"] {
-  background: var(--primary);
-  color: var(--primary-foreground);
+  background: color-mix(in srgb, var(--primary), transparent 78%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary), transparent 58%);
+  color: var(--foreground);
 }
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
@@ -109,11 +112,7 @@
 html {
   font-size: 14px;
   line-height: normal;
-  font-family:
-    "MiSans",
-    -apple-system,
-    system-ui,
-    "Segoe UI";
+  font-family: -apple-system, system-ui, "Segoe UI";
   font-variation-settings: normal;
 }
 

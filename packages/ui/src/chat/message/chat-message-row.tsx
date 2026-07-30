@@ -308,9 +308,9 @@ export function ChatMessageRow({
         data-highlighted={row.highlighted ? "true" : undefined}
         data-message-role={message.kind}
         className={cn(
-          "group/message flex flex-col gap-1 [contain-intrinsic-size:auto_180px] [content-visibility:auto]",
+          "group/message flex flex-col gap-1 transition-colors duration-300 [contain-intrinsic-size:auto_180px] [content-visibility:auto]",
           message.kind === "user" ? "items-end" : "items-start",
-          row.highlighted && "scroll-mt-6 rounded-lg bg-primary/5 ring-2 ring-primary/20",
+          row.highlighted && "scroll-mt-6 rounded-md bg-accent/50",
         )}
       >
         {message.kind === "user" ? (
