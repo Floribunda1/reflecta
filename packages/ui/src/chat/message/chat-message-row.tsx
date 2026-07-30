@@ -322,34 +322,38 @@ export function ChatMessageRow({
             onProposalDecision={onProposalDecision}
           />
         )}
-        {row.timestampLabel ? (
-          <time
-            data-slot="message-time"
-            className="px-1 text-[11px] leading-4 text-muted-foreground/70"
-          >
-            {row.timestampLabel}
-          </time>
-        ) : null}
-        {row.enabledActions?.length ? (
-          <div className="flex gap-1 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
-            {row.enabledActions.map((type) => {
-              const presentation = actionPresentation[type];
-              const Icon = presentation.icon;
-              return (
-                <Button
-                  key={type}
-                  data-testid={"testId" in presentation ? presentation.testId : undefined}
-                  type="button"
-                  size="icon-xs"
-                  variant="ghost"
-                  title={presentation.title}
-                  disabled={row.actionsDisabled}
-                  onClick={() => onAction?.({ messageId: message.id, type })}
-                >
-                  <Icon />
-                </Button>
-              );
-            })}
+        {row.timestampLabel || row.enabledActions?.length ? (
+          <div className="flex items-center gap-1">
+            {row.timestampLabel ? (
+              <time
+                data-slot="message-time"
+                className="px-1 text-[11px] leading-4 text-muted-foreground/70"
+              >
+                {row.timestampLabel}
+              </time>
+            ) : null}
+            {row.enabledActions?.length ? (
+              <div className="flex gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
+                {row.enabledActions.map((type) => {
+                  const presentation = actionPresentation[type];
+                  const Icon = presentation.icon;
+                  return (
+                    <Button
+                      key={type}
+                      data-testid={"testId" in presentation ? presentation.testId : undefined}
+                      type="button"
+                      size="icon-sm"
+                      variant="ghost"
+                      title={presentation.title}
+                      disabled={row.actionsDisabled}
+                      onClick={() => onAction?.({ messageId: message.id, type })}
+                    >
+                      <Icon />
+                    </Button>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
