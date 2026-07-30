@@ -333,7 +333,12 @@ export function ChatMessageRow({
               </time>
             ) : null}
             {row.enabledActions?.length ? (
-              <div className="flex gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
+              <div
+                className={cn(
+                  "flex gap-1 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100",
+                  message.kind === "user" && "order-first",
+                )}
+              >
                 {row.enabledActions.map((type) => {
                   const presentation = actionPresentation[type];
                   const Icon = presentation.icon;
@@ -342,7 +347,7 @@ export function ChatMessageRow({
                       key={type}
                       data-testid={"testId" in presentation ? presentation.testId : undefined}
                       type="button"
-                      size="icon-sm"
+                      size="icon-xs"
                       variant="ghost"
                       title={presentation.title}
                       disabled={row.actionsDisabled}
