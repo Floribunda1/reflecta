@@ -27,6 +27,7 @@ const editors: Editor[] = [];
 afterEach(async () => {
   await Promise.all(editors.map((editor) => editor.destroy()));
   editors.length = 0;
+  vi.restoreAllMocks();
 });
 
 describe("reflecta milkdown editor", () => {
@@ -78,6 +79,34 @@ describe("reflecta milkdown editor", () => {
     expect(getMilkdownMarkdown(editor)).toContain("## Next");
     expect(getMilkdownMarkdown(editor)).toContain("Updated body");
     expect(getMilkdownMarkdown(editor)).not.toContain("Initial");
+  });
+
+  test("replaces an equivalent list document without reusing stale selections", async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) =>
+      frames.push(callback),
+    );
+    const root = document.createElement("div");
+    document.body.append(root);
+
+    const editor = await createReflectaMilkdownEditor({
+      root,
+      content: "- List item",
+    });
+    editors.push(editor);
+
+    setMilkdownMarkdown(editor, "Plain paragraph");
+    frames.length = 0;
+    setMilkdownMarkdown(editor, "- List item");
+    const originalDocument = editor.ctx.get(editorViewCtx).state.doc;
+    setMilkdownMarkdown(editor, "Plain paragraph");
+    setMilkdownMarkdown(editor, "- List item");
+
+    const currentDocument = editor.ctx.get(editorViewCtx).state.doc;
+    expect(originalDocument.eq(currentDocument)).toBe(true);
+    expect(originalDocument).not.toBe(currentDocument);
+    expect(root.querySelector("li")?.textContent).toContain("List item");
+    expect(() => frames.forEach((frame) => frame(0))).not.toThrow();
   });
 
   test("reports the latest document when the editor loses focus", async () => {
