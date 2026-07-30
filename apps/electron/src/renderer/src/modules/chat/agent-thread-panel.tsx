@@ -187,6 +187,7 @@ export function AgentThreadPanel({
               messages={threadView.visibleMessages}
               entityCatalog={threadView.entityCatalog}
               contextCompactions={threadView.contextCompactions}
+              activeRunId={threadView.activeRunId}
               isBusy={threadView.isBusy}
               isCompacting={threadView.isCompacting}
               stoppedMessageId={threadView.stoppedMessageId}

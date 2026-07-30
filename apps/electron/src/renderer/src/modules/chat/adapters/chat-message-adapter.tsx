@@ -52,6 +52,7 @@ type ConnectedChatMessageRowProps = {
   entityCatalog: AgentEntityCatalogEntry[];
   isBusy: boolean;
   isLastAssistant: boolean;
+  assistantRunning: boolean;
   highlighted: boolean;
   findQuery?: string;
   stopped: boolean;
@@ -257,6 +258,7 @@ export const ConnectedChatMessageRow = memo(function ConnectedChatMessageRow({
   entityCatalog,
   isBusy,
   isLastAssistant,
+  assistantRunning,
   highlighted,
   findQuery,
   stopped,
@@ -271,11 +273,11 @@ export const ConnectedChatMessageRow = memo(function ConnectedChatMessageRow({
   const view = useMemo(
     () =>
       toChatMessageView(message, {
-        assistantRunning: isBusy && isLastAssistant,
+        assistantRunning,
         stopped,
         presentation,
       }),
-    [isBusy, isLastAssistant, message, presentation, stopped],
+    [assistantRunning, message, presentation, stopped],
   );
   const values = useMemo(() => markdownValues(view), [view]);
   const entityBindings = useChatEntityBindings(values, onInspectContextRef);

@@ -3,11 +3,11 @@
 import { describe, expect, test } from "vitest";
 import type { AgentEvent, AgentReducedMessage } from "@shared/agent";
 import {
+  activeAssistantMessageId,
   buildChatFindMatches,
   buildChatJumpItems,
   mergeAgentEvents,
   scrollTopForChildBottom,
-  shouldShowPendingAssistantPlaceholder,
   shouldShowScrollToBottomButton,
 } from "./thread-view";
 
@@ -122,17 +122,16 @@ describe("buildChatFindMatches", () => {
   });
 });
 
-describe("shouldShowPendingAssistantPlaceholder", () => {
-  test("shows a pending assistant placeholder before the first response block arrives", () => {
-    expect(shouldShowPendingAssistantPlaceholder([message("user-1", "user", "hello")], true)).toBe(
-      true,
-    );
-    expect(
-      shouldShowPendingAssistantPlaceholder([message("assistant-1", "assistant", "")], true),
-    ).toBe(false);
-    expect(shouldShowPendingAssistantPlaceholder([message("user-1", "user", "hello")], false)).toBe(
-      false,
-    );
+describe("activeAssistantMessageId", () => {
+  test("matches the active run instead of the previous assistant position", () => {
+    const messages = [
+      { ...message("assistant-old", "assistant", "old response"), runId: "run-old" },
+      message("user-new", "user", "new prompt"),
+    ];
+
+    expect(activeAssistantMessageId(messages, "run-new")).toBeUndefined();
+    expect(activeAssistantMessageId(messages, "run-old")).toBe("assistant-old");
+    expect(activeAssistantMessageId(messages, null)).toBeUndefined();
   });
 });
 

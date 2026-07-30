@@ -39,11 +39,15 @@ afterEach(() => {
 function renderMessageList({
   messages,
   entityCatalog,
+  activeRunId = null,
+  isBusy = false,
   onInspectContextRef = vi.fn(),
   findQuery,
 }: {
   messages: AgentReducedMessage[];
   entityCatalog: AgentEntityCatalogEntry[];
+  activeRunId?: string | null;
+  isBusy?: boolean;
   onInspectContextRef?: (ref: {
     type: "understanding" | "context";
     id: string;
@@ -61,7 +65,8 @@ function renderMessageList({
         <MessageList
           messages={messages}
           entityCatalog={entityCatalog}
-          isBusy={false}
+          activeRunId={activeRunId}
+          isBusy={isBusy}
           stoppedMessageId={null}
           onRetry={vi.fn()}
           onEdit={vi.fn()}
@@ -90,6 +95,7 @@ function rerenderMessageList({
         <MessageList
           messages={messages}
           entityCatalog={entityCatalog}
+          activeRunId={null}
           isBusy={false}
           stoppedMessageId={null}
           onRetry={vi.fn()}
@@ -112,6 +118,43 @@ async function flushEntityQuery() {
 }
 
 describe("MessageList entity refs", () => {
+  test("keeps a new run's pending state off the previous assistant message", () => {
+    renderMessageList({
+      messages: [
+        {
+          id: "assistant-old",
+          role: "assistant",
+          text: "old response",
+          runId: "run-old",
+          createdAt: "2026-06-26T00:00:00.000Z",
+          blocks: [
+            {
+              kind: "text",
+              text: "old response",
+              state: "done",
+              createdAt: "2026-06-26T00:00:00.000Z",
+            },
+          ],
+        },
+        {
+          id: "user-new",
+          role: "user",
+          text: "new prompt",
+          createdAt: "2026-06-26T00:00:01.000Z",
+        },
+      ],
+      entityCatalog: [],
+      activeRunId: "run-new",
+      isBusy: true,
+    });
+
+    const previousAssistant = container?.querySelector('[data-agent-message-id="assistant-old"]');
+    expect(previousAssistant?.textContent).not.toContain("Reflecta 工作中");
+    expect(container?.querySelectorAll('[data-testid="agent-running-placeholder"]')).toHaveLength(
+      1,
+    );
+  });
+
   test("collapses completed proposal cards until the user expands them", () => {
     renderMessageList({
       messages: [

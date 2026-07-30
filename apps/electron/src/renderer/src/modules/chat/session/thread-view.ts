@@ -17,6 +17,7 @@ export type AgentThreadView = {
   contextCompactions: AgentContextCompacted[];
   messagesFetching: boolean;
   messagesError?: Error;
+  activeRunId: string | null;
   isBusy: boolean;
   isCompacting: boolean;
   composerBusy: boolean;
@@ -126,11 +127,14 @@ export function buildChatFindMatches(
   );
 }
 
-export function shouldShowPendingAssistantPlaceholder(
+export function activeAssistantMessageId(
   messages: AgentReducedMessage[],
-  isBusy: boolean,
+  activeRunId: string | null,
 ) {
-  return isBusy && messages.at(-1)?.role !== "assistant";
+  if (!activeRunId) return undefined;
+  return messages.findLast(
+    (message) => message.role === "assistant" && message.runId === activeRunId,
+  )?.id;
 }
 
 function valueKey(value: unknown) {

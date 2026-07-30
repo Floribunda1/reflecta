@@ -14,7 +14,7 @@ import type {
 } from "@shared/agent";
 import { ConnectedChatMessageRow, type ApproveToolInput } from "../adapters/chat-message-adapter";
 import type { InspectableContextRef } from "../context/context-reference";
-import { shouldShowPendingAssistantPlaceholder } from "../session/thread-view";
+import { activeAssistantMessageId } from "../session/thread-view";
 
 function compactionBlock(compaction: AgentContextCompacted) {
   return {
@@ -32,6 +32,7 @@ export function MessageList({
   messages,
   entityCatalog,
   contextCompactions = [],
+  activeRunId,
   isBusy,
   isCompacting = false,
   stoppedMessageId,
@@ -49,6 +50,7 @@ export function MessageList({
   messages: AgentReducedMessage[];
   entityCatalog: AgentEntityCatalogEntry[];
   contextCompactions?: AgentContextCompacted[];
+  activeRunId: string | null;
   isBusy: boolean;
   isCompacting?: boolean;
   stoppedMessageId: string | null;
@@ -64,10 +66,11 @@ export function MessageList({
   findQuery?: string;
 }) {
   const lastAssistantId = messages.findLast((message) => message.role === "assistant")?.id;
+  const activeAssistantId = activeAssistantMessageId(messages, activeRunId);
   const stoppedMessageVisible = stoppedMessageId
     ? messages.some((message) => message.id === stoppedMessageId)
     : true;
-  const showPendingAssistant = shouldShowPendingAssistantPlaceholder(messages, isBusy);
+  const showPendingAssistant = isBusy && !activeAssistantId;
   const compactionsByMessage = useMemo(() => {
     const grouped = new Map<string, AgentContextCompacted[]>();
     for (const compaction of contextCompactions) {
@@ -99,6 +102,7 @@ export function MessageList({
             entityCatalog={entityCatalog}
             isBusy={isBusy}
             isLastAssistant={message.id === lastAssistantId}
+            assistantRunning={message.id === activeAssistantId}
             highlighted={highlightedMessageId === message.id}
             findQuery={findQuery}
             stopped={stoppedMessageId === message.id}

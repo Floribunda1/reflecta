@@ -273,6 +273,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     contextCompactions: state.contextCompactions,
     messagesFetching: eventsQuery.isFetching,
     messagesError: eventsQuery.error ?? undefined,
+    activeRunId: state.activeRunId,
     isBusy,
     isCompacting,
     composerBusy,

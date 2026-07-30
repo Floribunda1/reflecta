@@ -13,6 +13,7 @@ afterEach(() => {
   container?.remove();
   root = undefined;
   container = undefined;
+  vi.unstubAllGlobals();
 });
 
 function render(row: ChatMessageRowView, query?: string) {
@@ -46,6 +47,42 @@ function streamingRow(markdown: string, done = false): ChatMessageRowView {
 }
 
 describe("ChatMessageRow", () => {
+  test("keeps rendered markdown visible when a long response grows", async () => {
+    class ImmediateIntersectionObserver {
+      readonly root = null;
+      readonly rootMargin = "0px";
+      readonly thresholds = [0];
+
+      constructor(private readonly callback: IntersectionObserverCallback) {}
+
+      observe(target: Element) {
+        this.callback(
+          [{ target, isIntersecting: true, intersectionRatio: 1 } as IntersectionObserverEntry],
+          this as unknown as IntersectionObserver,
+        );
+      }
+
+      unobserve() {}
+      disconnect() {}
+      takeRecords() {
+        return [];
+      }
+    }
+    vi.stubGlobal("IntersectionObserver", ImmediateIntersectionObserver);
+    const markdown = (count: number) =>
+      Array.from({ length: count }, (_, index) => `# section ${index}`).join("\n");
+    const first = render(streamingRow(markdown(41), true));
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    });
+    render(streamingRow(`${markdown(41)}\n`, true));
+    expect(first.textContent).toContain("section 40");
+    const next = render(streamingRow(markdown(42), true));
+
+    expect(next.textContent).toContain("section 40");
+  });
+
   test("preserves row and block identity across streaming snapshots", () => {
     const first = render(streamingRow("正在生成"));
     const row = first.querySelector('[data-agent-message-id="assistant-1"]');

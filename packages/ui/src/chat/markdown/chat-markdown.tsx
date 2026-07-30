@@ -221,8 +221,6 @@ export function ChatMarkdown({
           final={!streaming}
           fade={false}
           smoothStreaming={streaming}
-          maxLiveNodes={0}
-          batchRendering
           viewportPriority
           deferNodesUntilVisible
           codeBlockStream={streaming}
