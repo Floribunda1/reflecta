@@ -164,7 +164,7 @@ export function AgentThreadPanel({
         <div
           ref={threadView.scrollRef}
           onScroll={threadView.handleScroll}
-          className="h-full min-h-0 overflow-y-auto px-6 py-6"
+          className="h-full min-h-0 overflow-y-auto px-6 py-6 [scrollbar-gutter:stable_both-edges]"
         >
           {threadView.messagesError && threadView.visibleMessages.length === 0 ? (
             <Empty data-testid="agent-history-error" className="h-full border-0">
