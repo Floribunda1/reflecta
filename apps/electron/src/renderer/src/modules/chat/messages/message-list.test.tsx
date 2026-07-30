@@ -148,14 +148,14 @@ describe("MessageList entity refs", () => {
 
     act(() => {
       container
-        ?.querySelector('[aria-label="展开候选卡片"]')
+        ?.querySelector('[aria-label="展开 Proposal"]')
         ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     expect(card?.getAttribute("data-proposal-open")).toBe("true");
   });
 
-  test("shows approved tool execution failures instead of confirmed state", () => {
+  test("shows approved tool execution failures after the confirmed state", () => {
     renderMessageList({
       messages: [
         {
@@ -190,7 +190,7 @@ describe("MessageList entity refs", () => {
     const card = container?.querySelector('[data-testid="agent-proposal-card"]');
     expect(card?.textContent).toContain("执行失败");
     expect(card?.textContent).toContain("Domain not found: domain_1");
-    expect(card?.textContent).not.toContain("已确认");
+    expect(card?.textContent).toContain("已确认");
   });
 
   test("describes a rejected Bash command as not executed", () => {
