@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StoryCase, StoryShowcase } from "../../../.storybook/story-showcase";
 import { ChatJumpNav, type ChatJumpNavItem } from "./chat-jump-nav";
 
@@ -19,13 +19,30 @@ const manyItems: ChatJumpNavItem[] = Array.from({ length: 24 }, (_, index) => ({
       : `第 ${index + 1} 条用户消息 · 继续复核观测结果`,
 }));
 
-function JumpNavSurface({ items, height = "h-80" }: { items: ChatJumpNavItem[]; height?: string }) {
+function JumpNavSurface({
+  items,
+  height = "h-80",
+  expanded = false,
+}: {
+  items: ChatJumpNavItem[];
+  height?: string;
+  expanded?: boolean;
+}) {
   const [activeMessageId, setActiveMessageId] = useState<string | null>(
     items[1]?.messageId ?? null,
   );
+  const surfaceRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!expanded) return;
+    surfaceRef.current
+      ?.querySelector<HTMLButtonElement>('[data-testid="agent-chat-jump-trigger"]')
+      ?.focus();
+  }, [expanded]);
+
   return (
     <div className="grid gap-3">
-      <div className={`relative ${height} min-w-0 overflow-hidden bg-muted/15`}>
+      <div ref={surfaceRef} className={`relative ${height} min-w-0 overflow-hidden bg-muted/15`}>
         <div className="mx-auto grid max-w-3xl gap-4 px-12 py-8 text-sm text-muted-foreground">
           {items.slice(0, 8).map((item) => (
             <p key={item.messageId}>{item.label}</p>
@@ -34,7 +51,7 @@ function JumpNavSurface({ items, height = "h-80" }: { items: ChatJumpNavItem[]; 
         <ChatJumpNav items={items} activeMessageId={activeMessageId} onJump={setActiveMessageId} />
       </div>
       <p className="text-xs text-muted-foreground">
-        当前消息：{activeMessageId ?? "无"}。Hover 右侧标记或使用 Tab 展开导航。
+        当前消息：{activeMessageId ?? "无"}。Hover 右侧入口或使用 Tab 展开导航。
       </p>
     </div>
   );
@@ -44,11 +61,11 @@ function ChatJumpNavShowcase() {
   return (
     <StoryShowcase
       title="Message Jump Nav"
-      description="验收长对话导航的出现阈值、折叠标记、Hover/Focus 展开、当前消息和短视口滚动。"
+      description="验收长对话导航的出现阈值、折叠入口、Hover/Focus 展开、当前消息和短视口滚动。"
     >
       <StoryCase
         title="出现阈值"
-        description="少于 4 条用户消息时不显示导航；达到阈值后出现右侧标记。"
+        description="少于 4 条用户消息时不显示导航；达到阈值后出现右侧入口。"
       >
         <div className="grid gap-8 lg:grid-cols-2">
           <JumpNavSurface items={typicalItems.slice(0, 3)} height="h-56" />
@@ -56,11 +73,8 @@ function ChatJumpNavShowcase() {
         </div>
       </StoryCase>
 
-      <StoryCase
-        title="折叠、展开与跳转"
-        description="Hover 或键盘聚焦展开；点击后当前 marker 立即更新。"
-      >
-        <JumpNavSurface items={typicalItems} />
+      <StoryCase title="折叠、展开与跳转" description="默认展示展开态；点击后当前位置立即更新。">
+        <JumpNavSurface items={typicalItems} expanded />
       </StoryCase>
 
       <StoryCase
