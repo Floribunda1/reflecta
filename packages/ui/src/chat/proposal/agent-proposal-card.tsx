@@ -1,19 +1,8 @@
 import { type ReactNode, useState } from "react";
-import {
-  Check,
-  ChevronDown,
-  CircleAlert,
-  FileText,
-  FolderTree,
-  Lightbulb,
-  Terminal,
-  Trash2,
-  TriangleAlert,
-  X,
-} from "lucide-react";
+import { ArrowUpRight, Check, TriangleAlert } from "lucide-react";
+import { Badge } from "../../components/badge";
 import { Button } from "../../components/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/collapsible";
-import { cn } from "../../lib/utils";
 import type { ChatEntityBindings } from "../entity";
 import { AgentWorkingIndicator } from "../execution/agent-working-indicator";
 import { hasToolDetails, ToolDetails } from "../execution/tool-details";
@@ -38,94 +27,18 @@ export type AgentProposalCardProps = {
   entityBindings?: ChatEntityBindings;
 };
 
-function isDecision(proposal: AgentProposalView) {
-  return proposal.kind === "bash" || proposal.kind.endsWith("-delete");
-}
-
-function lifecycleLabel(proposal: AgentProposalView) {
-  const decision = isDecision(proposal);
-  if (proposal.lifecycle === "preview") return decision ? "正在准备" : "正在起草";
-  if (proposal.lifecycle === "pending") return "等待你确认";
-  if (proposal.lifecycle === "running") return decision ? "正在执行" : "正在写入";
-  if (proposal.lifecycle === "completed") return decision ? "已完成" : "已写入";
-  if (proposal.lifecycle === "rejected") return "已取消";
-  return decision ? "执行失败" : "写入失败";
-}
-
-function proposalEyebrow(proposal: AgentProposalView) {
-  if (proposal.kind === "understanding-create") return "新的 Understanding";
-  if (proposal.kind === "understanding-update") return "修改 Understanding";
-  if (proposal.kind === "understanding-delete") return "删除 Understanding";
-  if (proposal.kind === "context-create") return "新的 Context";
-  if (proposal.kind === "context-update") return "修改 Context";
-  if (proposal.kind === "context-delete") return "删除 Context";
-  if (proposal.kind === "domain-create") return "新的 Domain";
-  if (proposal.kind === "domain-update") return "修改 Domain";
-  if (proposal.kind === "domain-delete") return "删除 Domain";
-  if (proposal.kind === "bash") return "执行 Bash";
-  return proposal.title;
-}
-
-function proposalHeading(proposal: AgentProposalView) {
-  if (proposal.kind === "understanding-create") return proposal.content.heading;
-  if (proposal.kind === "understanding-update")
-    return proposal.content.afterHeading || proposal.content.targetLabel;
-  if (proposal.kind === "understanding-delete") return proposal.content.targetLabel;
-  if (proposal.kind === "context-create") return proposal.content.contextLabel;
-  if (proposal.kind === "context-update")
-    return proposal.content.nextTitle || proposal.content.targetLabel;
-  if (proposal.kind === "context-delete") return proposal.content.targetLabel;
-  if (proposal.kind === "domain-create") return proposal.content.name;
-  if (proposal.kind === "domain-update")
-    return proposal.content.nextName || proposal.content.targetPath;
-  if (proposal.kind === "domain-delete") return proposal.content.targetPath;
-  return proposal.title;
-}
-
-function ProposalIcon({
-  proposal,
-  className,
-}: {
-  proposal: AgentProposalView;
-  className?: string;
-}) {
-  const Icon =
-    proposal.kind === "bash"
-      ? Terminal
-      : proposal.kind.endsWith("-delete")
-        ? Trash2
-        : proposal.kind.startsWith("understanding")
-          ? Lightbulb
-          : proposal.kind.startsWith("context")
-            ? FileText
-            : FolderTree;
-  return <Icon className={className} />;
-}
-
-function decisionLabels(proposal: AgentProposalView) {
-  if (proposal.kind === "bash") return { approve: "允许执行", reject: "不允许" };
-  if (proposal.kind.endsWith("-delete")) return { approve: "确认删除", reject: "取消删除" };
-  if (proposal.kind.startsWith("understanding"))
-    return {
-      approve: proposal.kind === "understanding-create" ? "确认是我的理解" : "确认更新",
-      reject: proposal.kind === "understanding-create" ? "暂不沉淀" : "暂不修改",
-    };
-  if (proposal.kind.startsWith("context"))
-    return {
-      approve: proposal.kind === "context-create" ? "确认添加 Context" : "确认更新",
-      reject: proposal.kind === "context-create" ? "暂不添加" : "暂不修改",
-    };
-  if (proposal.kind.startsWith("domain"))
-    return {
-      approve: proposal.kind === "domain-create" ? "确认创建" : "确认更新",
-      reject: "暂不修改",
-    };
-  return { approve: "确认", reject: "取消" };
+function lifecycleLabel(lifecycle: AgentProposalLifecycle) {
+  if (lifecycle === "preview") return "生成中";
+  if (lifecycle === "pending") return "待确认";
+  if (lifecycle === "running") return "已确认 · 执行中";
+  if (lifecycle === "completed") return "完成";
+  if (lifecycle === "rejected") return "已拒绝";
+  return "执行失败";
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-3">
+    <div className="grid grid-cols-[7rem_minmax(0,1fr)] gap-2">
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="min-w-0 break-words">{children}</dd>
     </div>
@@ -141,12 +54,7 @@ function fallback(value: string | undefined, pending = "正在生成…") {
 }
 
 function Reason({ value }: { value?: string }) {
-  return value ? (
-    <div className="border-t pt-3">
-      <div className="mb-1 text-xs text-muted-foreground">Reflecta 的依据</div>
-      <div className="text-sm leading-6">{value}</div>
-    </div>
-  ) : null;
+  return value ? <div className="text-xs text-muted-foreground">{value}</div> : null;
 }
 
 function MarkdownPanel({
@@ -159,7 +67,7 @@ function MarkdownPanel({
   entityBindings?: ChatEntityBindings;
 }) {
   return (
-    <div className="min-w-0 leading-6">
+    <div className="rounded-md bg-muted/50 p-3 leading-6">
       {value ? (
         <ChatMarkdown value={value} {...entityBindings} />
       ) : (
@@ -177,14 +85,15 @@ function UnderstandingCreate({
   entityBindings?: ChatEntityBindings;
 }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
+      <div className="font-medium">{fallback(proposal.content.heading, "正在生成标题…")}</div>
       <MarkdownPanel
         value={proposal.content.body}
         placeholder="正在生成内容…"
         entityBindings={entityBindings}
       />
       {proposal.content.domainPaths !== undefined ? (
-        <div className="border-t pt-3 text-xs text-muted-foreground">
+        <div className="text-xs text-muted-foreground">
           Domain：
           {proposal.content.domainPaths.length
             ? proposal.content.domainPaths.join("、")
@@ -203,13 +112,13 @@ function UnderstandingUpdate({
   entityBindings?: ChatEntityBindings;
 }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <div className="text-xs text-muted-foreground">
         Understanding：{fallback(proposal.content.targetLabel)}
       </div>
-      <div className="space-y-4">
-        <div className="border-l-2 border-border pl-4 text-foreground/70">
-          <div className="mb-2 text-xs font-medium text-muted-foreground">
+      <div className="grid gap-2 md:grid-cols-2">
+        <div className="rounded-md bg-muted/50 p-3">
+          <div className="mb-1 font-medium">
             {fallback(proposal.content.beforeHeading, "Before")}
           </div>
           {proposal.content.beforeBody ? (
@@ -218,8 +127,8 @@ function UnderstandingUpdate({
             <span className="text-muted-foreground">等待原内容…</span>
           )}
         </div>
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">修改后</div>
+        <div className="rounded-md bg-muted/50 p-3">
+          <div className="mb-1 font-medium">{fallback(proposal.content.afterHeading, "After")}</div>
           {proposal.content.afterBody ? (
             <ChatMarkdown value={proposal.content.afterBody} {...entityBindings} />
           ) : (
@@ -228,7 +137,7 @@ function UnderstandingUpdate({
         </div>
       </div>
       {proposal.content.domainPaths !== undefined ? (
-        <div className="border-t pt-3 text-xs text-muted-foreground">
+        <div className="text-xs text-muted-foreground">
           Domain：
           {proposal.content.domainPaths.length
             ? proposal.content.domainPaths.join("、")
@@ -251,10 +160,10 @@ function DeleteProposal({
 }) {
   return (
     <div className="space-y-2">
-      <div className="flex items-start gap-3 rounded-lg border border-destructive/25 p-3">
+      <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-destructive">
         <TriangleAlert className="mt-0.5 size-4 shrink-0" />
         <div>
-          <div className="font-medium text-destructive">{warning}</div>
+          <div className="font-medium">{warning}</div>
           <div className="mt-1 break-words text-sm">{fallback(target, "正在读取目标…")}</div>
         </div>
       </div>
@@ -265,7 +174,7 @@ function DeleteProposal({
 
 function DomainCreate({ proposal }: { proposal: DomainCreateProposalView }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <FieldList>
         <Field label="名称">{fallback(proposal.content.name)}</Field>
         {proposal.content.parentPath !== undefined ? (
@@ -279,7 +188,7 @@ function DomainCreate({ proposal }: { proposal: DomainCreateProposalView }) {
 
 function DomainUpdate({ proposal }: { proposal: DomainUpdateProposalView }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <FieldList>
         <Field label="目标">{fallback(proposal.content.targetPath)}</Field>
         {proposal.content.nextName !== undefined ? (
@@ -302,7 +211,7 @@ function ContextCreate({
   entityBindings?: ChatEntityBindings;
 }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <FieldList>
         <Field label="Understanding">{fallback(proposal.content.understandingLabel)}</Field>
         {proposal.content.mediumLabel ? (
@@ -327,7 +236,7 @@ function ContextUpdate({
   entityBindings?: ChatEntityBindings;
 }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <FieldList>
         <Field label="目标">{fallback(proposal.content.targetLabel)}</Field>
         {proposal.content.understandingLabel !== undefined ? (
@@ -361,7 +270,7 @@ function BashProposal({ proposal }: { proposal: BashProposalView }) {
   const timeout = formatDurationMs(proposal.content.timeoutMs);
   return (
     <div className="space-y-2">
-      <div className="rounded-lg border bg-muted/20 px-3 py-2 font-mono text-xs leading-5 text-foreground/85">
+      <div className="rounded-md bg-muted/50 px-3 py-2 font-mono text-xs leading-5 text-foreground/85">
         <pre className="m-0 whitespace-pre-wrap break-words font-mono">
           {fallback(
             proposal.content.command,
@@ -472,107 +381,68 @@ export function AgentProposalCard({
     manualOpen?.id === proposal.id && manualOpen.lifecycle === proposal.lifecycle
       ? manualOpen.open
       : shouldOpenByDefault(proposal);
+  const destructive = proposal.lifecycle === "failed" || proposal.lifecycle === "rejected";
   const working = proposal.lifecycle === "preview" || proposal.lifecycle === "running";
-  const terminal = proposal.lifecycle === "completed" || proposal.lifecycle === "rejected";
-  const failed = proposal.lifecycle === "failed";
-  const destructiveAction = proposal.kind.endsWith("-delete");
   const showDecision =
     proposal.lifecycle === "pending" && proposal.decisionEnabled && Boolean(onDecision);
-  const labels = decisionLabels(proposal);
-  const heading = fallback(proposalHeading(proposal), proposal.title);
 
   return (
     <Collapsible
       open={open}
       onOpenChange={(nextOpen) =>
-        setManualOpen({
-          id: proposal.id,
-          lifecycle: proposal.lifecycle,
-          open: nextOpen,
-        })
+        setManualOpen({ id: proposal.id, lifecycle: proposal.lifecycle, open: nextOpen })
       }
       data-testid="agent-proposal-card"
       data-proposal-id={proposal.id}
       data-proposal-kind={proposal.kind}
       data-proposal-state={proposal.lifecycle}
       data-proposal-open={open ? "true" : "false"}
-      className={cn(
-        "w-full overflow-hidden border bg-card text-sm",
-        terminal ? "rounded-lg border-border/60" : "rounded-xl border-border/80 shadow-xs",
-        failed && "border-destructive/30",
-      )}
+      className="w-full rounded-lg border border-border/70 bg-card px-3 py-3 text-sm"
     >
-      <div
-        className={cn(
-          "flex items-start justify-between gap-3",
-          terminal ? "px-3 py-2.5" : "px-4 py-3",
-        )}
-      >
-        <div className="flex min-w-0 items-start gap-3">
-          <ProposalIcon
-            proposal={proposal}
-            className={cn(
-              "mt-0.5 size-4 shrink-0 text-muted-foreground",
-              failed && "text-destructive",
-            )}
-          />
-          <div className="min-w-0">
-            {terminal ? null : (
-              <div className="text-xs leading-5 text-muted-foreground">
-                {proposalEyebrow(proposal)}
-              </div>
-            )}
-            <div className={cn("truncate font-medium", !terminal && "text-base leading-6")}>
-              {heading}
-            </div>
-            {proposal.lifecycle === "rejected" && proposal.note ? (
-              <div className="mt-0.5 text-xs text-muted-foreground">{proposal.note}</div>
-            ) : null}
-          </div>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate font-medium">{proposal.title}</div>
+          {proposal.note ? (
+            <div className="mt-0.5 text-xs text-muted-foreground">{proposal.note}</div>
+          ) : null}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <div
-            className={cn(
-              "flex items-center gap-1.5 text-xs text-muted-foreground",
-              failed && "text-destructive",
-            )}
-          >
-            {working ? (
-              <AgentWorkingIndicator className="size-3.5" aria-hidden="true" />
-            ) : failed ? (
-              <CircleAlert className="size-3.5" />
-            ) : proposal.lifecycle === "completed" ? (
-              <Check className="size-3.5" />
-            ) : proposal.lifecycle === "rejected" ? (
-              <X className="size-3.5" />
-            ) : null}
-            {lifecycleLabel(proposal)}
-          </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Badge variant={destructive ? "destructive" : "outline"}>
+            {working ? <AgentWorkingIndicator className="size-3" aria-hidden="true" /> : null}
+            {lifecycleLabel(proposal.lifecycle)}
+          </Badge>
           <CollapsibleTrigger
             className="group flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground"
             aria-label={open ? "折叠候选卡片" : "展开候选卡片"}
           >
-            <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} />
+            <ArrowUpRight className="size-3 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
           </CollapsibleTrigger>
         </div>
       </div>
-      <CollapsibleContent>
-        <div className="max-h-[34rem] overflow-y-auto border-t px-4 py-4">
-          <ProposalContent proposal={proposal} entityBindings={entityBindings} />
-          {proposal.kind === "bash" && hasToolDetails(proposal.result) ? (
-            <div className="mt-4 border-t pt-4 text-sm text-muted-foreground">
-              <ToolDetails details={proposal.result!} />
-            </div>
-          ) : null}
-          {proposal.lifecycle === "failed" && proposal.error ? (
-            <div className="mt-4 flex items-start gap-2 rounded-lg border border-destructive/25 p-3 text-sm text-destructive">
-              <CircleAlert className="mt-0.5 size-4 shrink-0" />
-              <span>{proposal.error}</span>
-            </div>
-          ) : null}
-        </div>
+      <CollapsibleContent className="mt-2">
+        <ProposalContent proposal={proposal} entityBindings={entityBindings} />
+        {hasToolDetails(proposal.result) ? (
+          <div className="mt-3 rounded-md bg-muted/35 p-2 text-sm text-muted-foreground">
+            <div className="mb-1 px-1 text-xs font-medium text-foreground/70">执行结果</div>
+            <ToolDetails details={proposal.result!} />
+          </div>
+        ) : null}
+        {proposal.lifecycle === "failed" && proposal.error ? (
+          <div className="mt-3 rounded-md bg-destructive/10 p-2 text-sm text-destructive">
+            {proposal.error}
+          </div>
+        ) : null}
         {showDecision ? (
-          <div className="flex flex-wrap items-center justify-end gap-2 border-t bg-background/60 px-4 py-3">
+          <div className="mt-3 flex gap-2">
+            <Button
+              data-testid="agent-proposal-confirm-button"
+              type="button"
+              size="sm"
+              onClick={() => onDecision?.({ proposalId: proposal.id, decision: "approve" })}
+            >
+              <Check />
+              确认
+            </Button>
             <Button
               data-testid="agent-proposal-reject-button"
               type="button"
@@ -580,16 +450,7 @@ export function AgentProposalCard({
               variant="outline"
               onClick={() => onDecision?.({ proposalId: proposal.id, decision: "reject" })}
             >
-              {labels.reject}
-            </Button>
-            <Button
-              data-testid="agent-proposal-confirm-button"
-              type="button"
-              size="sm"
-              variant={destructiveAction ? "destructive" : "default"}
-              onClick={() => onDecision?.({ proposalId: proposal.id, decision: "approve" })}
-            >
-              {labels.approve}
+              拒绝
             </Button>
           </div>
         ) : null}
