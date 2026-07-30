@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.2 - 2026-07-30
+
+- Replaced the split Electron update prompts with Sparkle's standard macOS flow for silent automatic checks, foreground manual results, release notes, skip/install choices, download progress, installation, and relaunch.
+
 ## 1.3.1 - 2026-07-30
 
 - Fixed Understanding switching failures by disabling Crepe's unsafe enhanced list-item view while preserving standard Markdown list editing.
