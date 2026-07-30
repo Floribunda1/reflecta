@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { StoryCase, StoryShowcase } from "../../../.storybook/story-showcase";
 import { useAutoFrame } from "../../../.storybook/use-auto-frame";
+import { AgentContextCompactionStatus } from "../execution/agent-execution-block";
 import { ChatMessageRow } from "./chat-message-row";
 import type { ChatMessageRowView } from "./types";
 
@@ -222,7 +223,10 @@ function MessageShowcase() {
         </div>
       </StoryCase>
       <StoryCase title="上下文压缩" description="可展开查看压缩摘要与 Token 变化。">
-        <ChatMessageRow row={compactionRow} />
+        <div className="grid gap-4">
+          <AgentContextCompactionStatus />
+          <ChatMessageRow row={compactionRow} />
+        </div>
       </StoryCase>
       <StoryCase title="长内容与窄容器" description="长中文、超长命令和操作栏不能撑破消息宽度。">
         <div className="w-[360px] max-w-full">

@@ -1,6 +1,10 @@
 import { Fragment, useMemo } from "react";
 import { RefreshCcw } from "lucide-react";
-import { AgentExecutionBlock, AgentPendingBlock } from "@reflecta/ui/chat";
+import {
+  AgentContextCompactionStatus,
+  AgentExecutionBlock,
+  AgentPendingBlock,
+} from "@reflecta/ui/chat";
 import { Button } from "@reflecta/ui/components/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@reflecta/ui/components/empty";
 import type {
@@ -112,14 +116,7 @@ export function MessageList({
       {unanchoredCompactions.map((compaction) => (
         <AgentExecutionBlock key={compaction.id} block={compactionBlock(compaction)} />
       ))}
-      {isCompacting ? (
-        <div
-          data-testid="agent-context-compaction-progress"
-          className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground"
-        >
-          正在压缩较早的对话上下文…
-        </div>
-      ) : null}
+      {isCompacting ? <AgentContextCompactionStatus /> : null}
       {showPendingAssistant ? <AgentPendingBlock /> : null}
       {stoppedMessageId && !stoppedMessageVisible ? (
         <div

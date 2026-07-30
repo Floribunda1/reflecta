@@ -25,6 +25,7 @@ export {
 } from "./markdown/entity-reference-codec";
 export { AgentActivityGroup, type AgentActivityGroupProps } from "./execution/agent-activity-group";
 export {
+  AgentContextCompactionStatus,
   AgentExecutionBlock,
   AgentPendingBlock,
   type AgentExecutionBlockProps,
