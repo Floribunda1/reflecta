@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.1 - 2026-07-30
+
+- Fixed Understanding switching failures by disabling Crepe's unsafe enhanced list-item view while preserving standard Markdown list editing.
+
 ## 1.3.0 - 2026-07-30
 
 - Introduced the shared `@reflecta/ui` workspace and Storybook acceptance surface for UI foundations, Markdown editing, Agent chat, Capture, and Knowledge Wander components.
