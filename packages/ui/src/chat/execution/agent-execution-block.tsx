@@ -17,11 +17,13 @@ import {
   XCircle,
   type LucideIcon,
 } from "lucide-react";
+import { AnimatePresence, motion, MotionConfig } from "motion/react";
+import { cn } from "#lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/collapsible";
-import { Spinner } from "../../components/spinner";
 import type { ChatEntityBindings } from "../entity";
 import { ChatMarkdown } from "../markdown/chat-markdown";
 import { reasoningSummary, toolIconKind, type AgentToolIconKind } from "./activity-presentation";
+import { AgentWorkingIndicator } from "./agent-working-indicator";
 import { hasToolDetails, ToolDetails } from "./tool-details";
 import type {
   AgentContextCompactionView,
@@ -57,6 +59,56 @@ const TOOL_ICONS: Record<AgentToolIconKind, LucideIcon> = {
   write: FilePenLine,
   other: Wrench,
 };
+
+function ToolStatusIcon({
+  status,
+  iconKind,
+}: {
+  status: AgentToolActivityView["status"];
+  iconKind: AgentToolIconKind;
+}) {
+  const ToolIcon = TOOL_ICONS[iconKind];
+  return (
+    <MotionConfig reducedMotion="user">
+      <span className="relative size-4 shrink-0" aria-hidden="true">
+        <AnimatePresence initial={false} mode="popLayout">
+          {status === "running" ? (
+            <motion.span
+              key="running"
+              data-slot="agent-tool-loading"
+              className="absolute inset-0"
+              initial={{ opacity: 0, scale: 0.65 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.45, filter: "blur(2px)" }}
+              transition={{ duration: 0.2 }}
+            >
+              <AgentWorkingIndicator className="size-full" />
+            </motion.span>
+          ) : (
+            <motion.span
+              key={status}
+              className="absolute inset-0"
+              initial={{ opacity: 0, rotate: -35, scale: 0.55 }}
+              animate={{ opacity: 1, rotate: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.7 }}
+              transition={{ type: "spring", stiffness: 450, damping: 28 }}
+            >
+              {status === "failed" ? (
+                <XCircle className="mx-auto my-0.5 size-3 text-destructive" />
+              ) : (
+                <ToolIcon
+                  data-slot="agent-tool-icon"
+                  data-tool-icon={iconKind}
+                  className="mx-auto my-0.5 size-3 text-muted-foreground/70"
+                />
+              )}
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </span>
+    </MotionConfig>
+  );
+}
 
 function ContextCompactionBlock({ compaction }: { compaction: AgentContextCompactionView }) {
   const before = compactTokenCount(compaction.tokensBefore);
@@ -97,18 +149,18 @@ function ReasoningBlock({
       data-testid="agent-reasoning"
       className="my-0.5 min-w-0 w-full text-[13px] text-foreground/75"
     >
-      <CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-2 rounded-sm px-1 py-0.5 text-left hover:text-foreground">
+      <CollapsibleTrigger
+        className={cn(
+          "group flex w-full cursor-pointer items-center gap-2 rounded-sm px-1 py-0.5 text-left hover:text-foreground",
+          streaming && "bg-muted/45 font-medium text-foreground/85",
+        )}
+      >
         {streaming ? (
-          <Spinner
-            className="size-3 shrink-0 text-sky-600 dark:text-sky-400"
-            role="presentation"
-            aria-hidden="true"
-          />
+          <AgentWorkingIndicator aria-hidden="true" />
         ) : (
-          <MessageCircleDashed
-            className="size-3 shrink-0 text-muted-foreground"
-            aria-hidden="true"
-          />
+          <span className="flex size-4 shrink-0 items-center justify-center">
+            <MessageCircleDashed className="size-3 text-muted-foreground" aria-hidden="true" />
+          </span>
         )}
         <span className="min-w-0 flex-1 truncate">{streaming ? "正在思考" : summary}</span>
         {!streaming ? (
@@ -133,7 +185,6 @@ function ToolActivityBlock({ activity }: { activity: AgentToolActivityView }) {
   const statusLabel =
     activity.status === "failed" ? "出错" : activity.status === "running" ? "运行中" : "完成";
   const iconKind = toolIconKind(activity);
-  const ToolIcon = TOOL_ICONS[iconKind];
   const [summary, ...meta] = activity.summary.split(" · ");
   const summaryParts = summary?.split(/(「[^」]+」)/g).filter(Boolean) ?? [];
   const hasContent = activity.items.some(
@@ -148,24 +199,12 @@ function ToolActivityBlock({ activity }: { activity: AgentToolActivityView }) {
     >
       <CollapsibleTrigger
         disabled={!hasContent}
-        className="group flex w-full items-center gap-2 rounded-sm px-1 py-1 text-left outline-none enabled:cursor-pointer enabled:hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/40"
-      >
-        {activity.status === "running" ? (
-          <Spinner
-            className="size-3 shrink-0 text-sky-600 dark:text-sky-400"
-            role="presentation"
-            aria-hidden="true"
-          />
-        ) : activity.status === "failed" ? (
-          <XCircle className="size-3 shrink-0 text-destructive" aria-hidden="true" />
-        ) : (
-          <ToolIcon
-            data-slot="agent-tool-icon"
-            data-tool-icon={iconKind}
-            className="size-3 shrink-0 text-muted-foreground/70"
-            aria-hidden="true"
-          />
+        className={cn(
+          "group flex w-full items-center gap-2 rounded-sm px-1 py-1 text-left outline-none enabled:cursor-pointer enabled:hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/40",
+          activity.status === "running" && "bg-muted/45 font-medium text-foreground/85",
         )}
+      >
+        <ToolStatusIcon status={activity.status} iconKind={iconKind} />
         <span className="min-w-0 flex-1 truncate">
           {summaryParts.map((part, index) =>
             part.startsWith("「") && part.endsWith("」") ? (
@@ -221,7 +260,7 @@ export function AgentPendingBlock({ label = "正在思考" }: { label?: string }
       data-testid="agent-running-placeholder"
       className="flex max-w-full items-center gap-2 rounded-md bg-muted/35 px-2.5 py-1.5 text-xs text-muted-foreground"
     >
-      <Spinner className="size-3 shrink-0" />
+      <AgentWorkingIndicator role="status" aria-label="执行中" />
       <span>{label}</span>
     </div>
   );

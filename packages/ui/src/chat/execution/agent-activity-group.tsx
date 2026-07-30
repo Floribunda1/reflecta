@@ -1,10 +1,10 @@
 import { ChevronRight } from "lucide-react";
 import { Badge } from "../../components/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/collapsible";
-import { Spinner } from "../../components/spinner";
 import type { ChatEntityBindings } from "../entity";
 import { activityGroupPresentation } from "./activity-presentation";
 import { AgentExecutionBlock } from "./agent-execution-block";
+import { AgentWorkingIndicator } from "./agent-working-indicator";
 import type { AgentActivityBlockView } from "./types";
 
 export type AgentActivityGroupProps = {
@@ -37,11 +37,7 @@ export function AgentActivityGroup({
         </Badge>
         {presentation.running ? (
           <>
-            <Spinner
-              className="size-3 shrink-0 text-sky-600 dark:text-sky-400"
-              role="presentation"
-              aria-hidden="true"
-            />
+            <AgentWorkingIndicator aria-hidden="true" />
             <span className="sr-only">执行中</span>
           </>
         ) : null}
