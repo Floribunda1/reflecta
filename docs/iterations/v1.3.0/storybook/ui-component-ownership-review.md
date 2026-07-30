@@ -1,14 +1,14 @@
-# v1.2.5 UI Component Ownership Review
+# v1.3.0 UI Component Ownership Review
 
 > 状态：Reviewed
 >
 > 对应主计划：[UI Package & Storybook Migration Plan](./ui-package-storybook-migration-plan.md)
 >
-> 组织逻辑：本文采用**递进型主线**，按“判断规则 → 全量候选审查 → v1.2.5 范围 → 后续候选 → 验收约束”展开。原因是本轮要回答的核心不是文件怎么搬，而是每项 UI 为什么迁移、为什么公开、为什么只作为内部 implementation；各候选在同一章节内按 Foundation、Editor、Chat、App Screen 做 MECE 分类。
+> 组织逻辑：本文采用**递进型主线**，按“判断规则 → 全量候选审查 → v1.3.0 范围 → 后续候选 → 验收约束”展开。原因是本轮要回答的核心不是文件怎么搬，而是每项 UI 为什么迁移、为什么公开、为什么只作为内部 implementation；各候选在同一章节内按 Foundation、Editor、Chat、App Screen 做 MECE 分类。
 
 ## 1. Review 结论
 
-v1.2.5 的 `packages/ui` 迁移范围从原来的五个 Module 调整为七个：
+v1.3.0 的 `packages/ui` 迁移范围从原来的五个 Module 调整为七个：
 
 1. UI Foundation；
 2. Markdown Editor；
@@ -66,7 +66,7 @@ flowchart TD
 
 ## 4. Foundation 与共享 UI 审查
 
-| 当前资产                                    | v1.2.5 决策                     | Public | 原因                                                                   |
+| 当前资产                                    | v1.3.0 决策                     | Public | 原因                                                                   |
 | ------------------------------------------- | ------------------------------- | ------ | ---------------------------------------------------------------------- |
 | `components/ui/*.tsx` 56 个 shadcn 文件     | 删除旧目录，在 package 重新生成 | 是     | CLI-owned source，不手工搬运、不修改                                   |
 | `components.json`                           | 从 Electron 迁到 package        | 否     | shadcn 安装位置和依赖 ownership 随 package 迁移                        |
@@ -85,7 +85,7 @@ Foundation 详细方案见 [UI Foundation Module Design](./ui-foundation-module-
 
 ## 5. Markdown Editor 审查
 
-| 当前资产                                    | v1.2.5 决策        | Public | 原因                                                |
+| 当前资产                                    | v1.3.0 决策        | Public | 原因                                                |
 | ------------------------------------------- | ------------------ | ------ | --------------------------------------------------- |
 | `MarkdownEditor`                            | 迁移               | 是     | 深 UI Module，已有多个生产消费者                    |
 | `MarkdownPreview`                           | 迁移               | 是     | Readonly Milkdown + image zoom 是独立可验收 visual  |
@@ -102,7 +102,7 @@ Foundation 详细方案见 [UI Foundation Module Design](./ui-foundation-module-
 
 ## 6. Chat Composer 与 Context Input 审查
 
-| 当前资产                       | v1.2.5 决策   | Public | 原因                                                  |
+| 当前资产                       | v1.3.0 决策   | Public | 原因                                                  |
 | ------------------------------ | ------------- | ------ | ----------------------------------------------------- |
 | `ChatComposer`                 | 迁移          | 是     | 深 UI Module，包含 TipTap、键盘、附件和 selector 交互 |
 | `ContextPicker`                | 迁移          | 否     | Composer 内部交互，可独立 Story 但无第二个生产调用方  |
@@ -215,7 +215,7 @@ Foundation 详细方案见 [UI Foundation Module Design](./ui-foundation-module-
 
 ## 9. 后续独立迁移候选
 
-这些资产符合 UI ownership，但不应塞进 v1.2.5 Chat/Editor 迁移：
+这些资产符合 UI ownership，但不应塞进 v1.3.0 Chat/Editor 迁移：
 
 | 后续 Module      | 候选 visual                                            | 需要先解决的 seam                      |
 | ---------------- | ------------------------------------------------------ | -------------------------------------- |
@@ -249,7 +249,7 @@ Foundation 详细方案见 [UI Foundation Module Design](./ui-foundation-module-
 
 - 所有现有 UI 候选都有“迁移 / 留下 / 删除 / 后续”的明确结论；
 - ownership、public interface 和 visual shape 不再混为一谈；
-- v1.2.5 不再遗漏 Milkdown、Composer 和 user message visual；
+- v1.3.0 不再遗漏 Milkdown、Composer 和 user message visual；
 - 每个 active Agent Tool 都有验收入口；
 - stream preview 和普通 running Tool 都通过稳定 View Model identity 更新；
 - shadcn source 只由 CLI 生成，不从 Electron 复制。

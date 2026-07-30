@@ -1,4 +1,4 @@
-# v1.2.5 Chat Message / Agent Message Module Design
+# v1.3.0 Chat Message / Agent Message Module Design
 
 > 状态：Planned
 >

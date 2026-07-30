@@ -2,7 +2,7 @@
 
 > 状态：Ready for Implementation  
 > 关联调研：[Craft Agents 的 Agent Chat 体验机制与核心心智](./craft-agents-agent-chat-experience-research.md)  
-> 目标版本：v1.2.6  
+> 目标版本：v1.3.0  
 > 原则：保留当前事件流、纯 reducer、ordered blocks 与 `@reflecta/ui` 模块边界，在其上建立用户可感知的 Turn 和 Agent Action；不让底层 tool / approval 事件直接决定交互。
 
 ## 本文的组织逻辑

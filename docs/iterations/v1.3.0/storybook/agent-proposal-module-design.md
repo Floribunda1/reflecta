@@ -1,4 +1,4 @@
-# v1.2.5 Agent Proposal Module Design
+# v1.3.0 Agent Proposal Module Design
 
 > 状态：Planned
 >
@@ -294,7 +294,7 @@ export type ContextUpdateProposalView = AgentProposalBaseView & {
 };
 ```
 
-只显示实际更新字段。v1.2.5 没有 before snapshot，不伪造 Diff UI。
+只显示实际更新字段。v1.3.0 没有 before snapshot，不伪造 Diff UI。
 
 ### 6.3 Delete
 

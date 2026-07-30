@@ -1,4 +1,4 @@
-# v1.2.5 Markdown Editor Module Design
+# v1.3.0 Markdown Editor Module Design
 
 > 状态：Planned
 >

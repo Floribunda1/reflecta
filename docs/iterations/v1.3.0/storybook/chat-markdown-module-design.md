@@ -1,4 +1,4 @@
-# v1.2.5 Chat Markdown Module Design
+# v1.3.0 Chat Markdown Module Design
 
 > 状态：Planned
 >

@@ -1,4 +1,4 @@
-# v1.2.5 Agent Execution Module Design
+# v1.3.0 Agent Execution Module Design
 
 > 状态：Planned
 >

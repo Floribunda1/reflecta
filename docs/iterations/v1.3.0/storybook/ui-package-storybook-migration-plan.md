@@ -1,4 +1,4 @@
-# v1.2.5 `@reflecta/ui` 与 Storybook 迁移计划
+# v1.3.0 `@reflecta/ui` 与 Storybook 迁移计划
 
 > 状态：Planned
 >
@@ -6,7 +6,7 @@
 
 ## 1. 目标与完成定义
 
-v1.2.5 建立独立 workspace package `@reflecta/ui`，用 Storybook 验收 Reflecta 的 UI design、Markdown Editor、Chat Composer、Markdown rendering 和 Agent Tool。
+v1.3.0 建立独立 workspace package `@reflecta/ui`，用 Storybook 验收 Reflecta 的 UI design、Markdown Editor、Chat Composer、Markdown rendering 和 Agent Tool。
 
 完成后：
 
@@ -18,7 +18,7 @@ v1.2.5 建立独立 workspace package `@reflecta/ui`，用 Storybook 验收 Refl
 - Renderer 中旧 implementation 在对应 Module 替换完成后删除；
 - Storybook 不依赖 Electron runtime。
 
-本计划不要求 v1.2.5 把所有 Capture、Settings 和 route screen 搬进 package。完整候选审查见 [UI Component Ownership Review](./ui-component-ownership-review.md)。
+本计划不要求 v1.3.0 把所有 Capture、Settings 和 route screen 搬进 package。完整候选审查见 [UI Component Ownership Review](./ui-component-ownership-review.md)。
 
 ## 2. Ownership Mental Model
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0 - 2026-07-30
+
+- Introduced the shared `@reflecta/ui` workspace and Storybook acceptance surface for UI foundations, Markdown editing, Agent chat, Capture, and Knowledge Wander components.
+- Reworked the Agent conversation experience with continuous streaming feedback, grouped reasoning and tool activity, richer proposal decisions, improved search and jump navigation, and Markstream-based Markdown rendering.
+- Improved Agent session recovery and continuity with cached summaries, durable live events, stable approval ownership, and clearer context-compaction states.
+- Refined Capture composition, Domain organization, Understanding editing, Context management, and knowledge graph interactions around reusable product-level UI modules.
+- Added Sparkle-powered macOS update checks, signed incremental updates, changelog display, automatic relaunch, and tag-driven GitHub Releases without requiring an Apple Developer account.
+
 ## 1.2.4 - 2026-07-22
 
 - Added direct Agent web search through Pi Web Access, fixed to Exa with automatic summaries and no browser confirmation page.
