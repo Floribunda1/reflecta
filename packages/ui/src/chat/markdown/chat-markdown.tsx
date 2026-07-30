@@ -4,6 +4,7 @@ import {
   defaultUrlTransform,
   Streamdown,
   type Components,
+  type ControlsConfig,
   type DiagramPlugin,
   type UrlTransform,
 } from "streamdown";
@@ -30,6 +31,12 @@ const chatMarkdownPlugins = {
   math: createMathPlugin({ singleDollarTextMath: true }),
   mermaid: mermaidPlugin,
 };
+
+const chatMarkdownControls = {
+  code: { copy: true, download: true },
+  table: { copy: true, download: true, fullscreen: true },
+  mermaid: { copy: true, download: true, fullscreen: true, panZoom: false },
+} satisfies ControlsConfig;
 
 export type ChatMarkdownProps = ChatEntityBindings & {
   value: string;
@@ -143,6 +150,7 @@ export function ChatMarkdown({
       <Streamdown
         key={`${searchState?.query ?? "plain"}:${entityRenderKey}`}
         components={markdownComponents({ resolveEntity, onEntityOpen })}
+        controls={chatMarkdownControls}
         plugins={chatMarkdownPlugins}
         rehypePlugins={searchState ? [createChatSearchRehypePlugin(searchState)] : undefined}
         urlTransform={entityUrlTransform}

@@ -4,9 +4,7 @@
   table {
     width: 100%;
     margin: 0;
-    overflow: hidden;
-    border: 1px solid color-mix(in srgb, var(--border), var(--foreground) 10%);
-    border-radius: var(--radius-md);
+    border: 0;
     border-collapse: separate;
     border-spacing: 0;
     background: color-mix(in srgb, var(--muted), var(--background) 35%);
@@ -31,6 +29,22 @@
 
   tr:last-child td {
     border-bottom: 0;
+  }
+
+  thead:first-child tr:first-child th:first-child {
+    border-top-left-radius: var(--radius-md);
+  }
+
+  thead:first-child tr:first-child th:last-child {
+    border-top-right-radius: var(--radius-md);
+  }
+
+  tbody:last-child tr:last-child td:first-child {
+    border-bottom-left-radius: var(--radius-md);
+  }
+
+  tbody:last-child tr:last-child td:last-child {
+    border-bottom-right-radius: var(--radius-md);
   }
 
   th:last-child,
