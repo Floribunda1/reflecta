@@ -43,11 +43,11 @@ function SimpleMarkdownPreviewShowcase() {
   return (
     <StoryShowcase
       title="Markdown 摘要预览"
-      description="验收 Markdown 降噪、行数限制、生产宽度和极端文本下的摘要可读性。"
+      description="验收紧凑 Markdown 渲染、行数限制、生产宽度和极端文本下的摘要可读性。"
     >
       <StoryCase
-        title="Markdown 降噪"
-        description="标题、强调、链接、列表、引用和 Wiki Link 变成可读摘要。"
+        title="紧凑 Markdown"
+        description="保留标题、强调、列表和引用层级，链接与 Wiki Link 仅展示文本。"
       >
         <PreviewSample label="完整摘要文本" />
       </StoryCase>

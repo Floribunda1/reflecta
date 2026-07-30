@@ -86,7 +86,7 @@ function ToolDetailRow({ row }: { row: AgentToolDetailRowView }) {
             <span
               className={
                 isListItem
-                  ? "min-w-0 break-words font-medium text-foreground/85"
+                  ? "min-w-0 break-words font-semibold text-foreground/90"
                   : "min-w-0 break-words font-medium text-foreground/75"
               }
             >

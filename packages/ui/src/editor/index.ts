@@ -1,6 +1,5 @@
 export { MarkdownEditor, type MarkdownEditorProps } from "./markdown-editor";
 export {
-  getMarkdownPreviewText,
   MarkdownPreview,
   type MarkdownPreviewProps,
   SimpleMarkdownPreview,
