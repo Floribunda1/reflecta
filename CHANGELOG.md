@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.3 - 2026-07-30
+
+- Standardized the macOS update menu and fallback messages in English.
+- Stabilized streaming Agent responses by keeping Markstream's live rendering window enabled and attaching the working state only to the active run.
+- Reworked JumpNav around complete conversation turns so long Agent responses retain the correct current-turn position without flickering or falling back to an empty index.
+
 ## 1.3.2 - 2026-07-30
 
 - Replaced the split Electron update prompts with Sparkle's standard macOS flow for silent automatic checks, foreground manual results, release notes, skip/install choices, download progress, installation, and relaunch.
