@@ -515,18 +515,47 @@ export async function hydratePiApprovalPayload(
   payload: unknown,
 ): Promise<Record<string, unknown>> {
   const record = asPayload(payload);
-  if (toolName !== "understanding_update") return record;
-  const understanding = await understandingService.getUnderstandingById(
-    requiredStableEntityId(record, "understandingId"),
-  );
-  if (!understanding) return record;
-  return {
-    ...record,
-    before: {
-      title: understanding.title,
-      body: understanding.body,
-    },
-  };
+  if (toolName === "understanding_update") {
+    const understanding = await understandingService.getUnderstandingById(
+      requiredStableEntityId(record, "understandingId"),
+    );
+    if (!understanding) return record;
+    return {
+      ...record,
+      before: {
+        title: understanding.title,
+        body: understanding.body,
+        domainIds: understanding.domainIds,
+      },
+    };
+  }
+  if (toolName === "domain_update") {
+    const domain = await domainService.getDomainById(requiredStableEntityId(record, "domainId"));
+    if (!domain) return record;
+    return {
+      ...record,
+      before: {
+        name: domain.name,
+        parentId: domain.parentId,
+      },
+    };
+  }
+  if (toolName === "context_update") {
+    const context = await contextService.getContextById(
+      requiredStableEntityId(record, "contextId"),
+    );
+    if (!context) return record;
+    return {
+      ...record,
+      before: {
+        understandingId: context.understandingId,
+        medium: context.medium,
+        title: context.title,
+        content: context.content,
+      },
+    };
+  }
+  return record;
 }
 
 export async function executePiApprovedTool(

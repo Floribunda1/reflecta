@@ -705,6 +705,7 @@ export function toAgentProposalView(
     const before = isRecord(input.before) ? input.before : {};
     const after = isRecord(input.after) ? input.after : input;
     const id = optionalString(input.understandingId);
+    const beforeDomainIds = optionalStringArray(before.domainIds);
     const domainIds = optionalStringArray(after.domainIds) ?? optionalStringArray(input.domainIds);
     return {
       ...base,
@@ -715,6 +716,9 @@ export function toAgentProposalView(
         afterHeading: optionalString(after.title),
         beforeBody: optionalString(before.body),
         afterBody: optionalString(after.body),
+        ...(beforeDomainIds
+          ? { beforeDomainPaths: beforeDomainIds.map(presentation.domainPath) }
+          : {}),
         ...(domainIds ? { domainPaths: domainIds.map(presentation.domainPath) } : {}),
         reason: optionalString(input.reason),
       },
@@ -743,12 +747,15 @@ export function toAgentProposalView(
     };
   }
   if (raw.toolName === "domain_update") {
+    const before = isRecord(input.before) ? input.before : {};
     const id = optionalString(input.domainId);
     return {
       ...base,
       kind: "domain-update",
       content: {
         targetPath: id ? presentation.domainPath(id) : undefined,
+        beforeName: optionalString(before.name),
+        beforeParentPath: proposalDomainPath(before.parentId, presentation),
         nextName: optionalString(input.name),
         nextParentPath: proposalDomainPath(input.parentId, presentation),
         reason: optionalString(input.reason),
@@ -783,13 +790,24 @@ export function toAgentProposalView(
     };
   }
   if (raw.toolName === "context_update") {
+    const before = isRecord(input.before) ? input.before : {};
     const contextId = optionalString(input.contextId);
+    const beforeUnderstandingId = optionalString(before.understandingId);
     const understandingId = optionalString(input.understandingId);
     return {
       ...base,
       kind: "context-update",
       content: {
         targetLabel: proposalEntityLabel("context", contextId, presentation),
+        beforeUnderstandingLabel: proposalEntityLabel(
+          "understanding",
+          beforeUnderstandingId,
+          presentation,
+        ),
+        beforeMediumLabel:
+          mediumLabel(optionalString(before.medium) ?? "") || optionalString(before.medium),
+        beforeTitle: optionalString(before.title),
+        beforeBody: optionalString(before.content),
         understandingLabel: proposalEntityLabel("understanding", understandingId, presentation),
         mediumLabel:
           mediumLabel(optionalString(input.medium) ?? "") || optionalString(input.medium),

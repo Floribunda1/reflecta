@@ -99,8 +99,9 @@ describe("AgentProposalCard", () => {
     const rendered = render(proposal("preview"));
     const card = rendered.container.querySelector('[data-proposal-id="approval-1"]');
     const trigger = rendered.container.querySelector<HTMLButtonElement>(
-      '[aria-label="折叠候选卡片"]',
+      '[aria-label="折叠 Proposal"]',
     );
+    expect(trigger?.textContent).toContain("新增 Understanding");
     act(() => trigger?.click());
     expect(card?.getAttribute("data-proposal-open")).toBe("false");
 

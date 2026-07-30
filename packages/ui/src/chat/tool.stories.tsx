@@ -485,6 +485,7 @@ const approvalTools: readonly ApprovalFixture[] = [
       before: {
         title: "极地温室的分区灌溉策略",
         body: syntheticMarkdown("修订前策略", 2),
+        domainIds: ["d-irrigation"],
       },
       after: {
         title: "极地温室的分区灌溉与降级策略",
@@ -531,6 +532,10 @@ const approvalTools: readonly ApprovalFixture[] = [
   {
     block: approval("domain_update", "候选修改 Domain", {
       domainId: "d-irrigation",
+      before: {
+        name: "灌溉控制",
+        parentId: "d-engineering",
+      },
       name: "灌溉与回水控制",
       parentId: "d-engineering",
       reason: "现有记录已经同时覆盖供水和回水，原名称无法准确表达边界。",
@@ -573,6 +578,12 @@ const approvalTools: readonly ApprovalFixture[] = [
   {
     block: approval("context_update", "候选修改 Context", {
       contextId: "c-night-shift",
+      before: {
+        understandingId: "u-irrigation",
+        medium: "experience",
+        title: "夜班联调记录",
+        content: syntheticMarkdown("夜班联调记录", 4),
+      },
       understandingId: "u-irrigation",
       medium: "ai",
       title: "夜班联调记录（复核版）",

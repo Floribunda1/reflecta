@@ -11,6 +11,8 @@ import {
 
 const services = vi.hoisted(() => ({
   getUnderstandingById: vi.fn(),
+  getDomainById: vi.fn(),
+  getContextById: vi.fn(),
   createUnderstanding: vi.fn(),
   updateUnderstanding: vi.fn(),
   deleteUnderstanding: vi.fn(),
@@ -24,11 +26,13 @@ const services = vi.hoisted(() => ({
 
 vi.mock("../core", () => ({
   domainService: {
+    getDomainById: services.getDomainById,
     createDomain: services.createDomain,
     updateDomain: services.updateDomain,
     deleteDomain: services.deleteDomain,
   },
   contextService: {
+    getContextById: services.getContextById,
     createContext: services.createContext,
     updateContext: services.updateContext,
     deleteContext: services.deleteContext,
@@ -270,6 +274,43 @@ describe("createPiWriteTools", () => {
       after: { body: "Updated body" },
     });
     expect(services.getUnderstandingById).toHaveBeenCalledWith("understanding-1");
+  });
+
+  test("hydrates domain and context updates with their current state", async () => {
+    services.getDomainById.mockResolvedValue({
+      id: "cat-1",
+      name: "灌溉控制",
+      parentId: "cat-parent",
+    });
+    services.getContextById.mockResolvedValue({
+      id: "context-1",
+      understandingId: "understanding-1",
+      medium: "experience",
+      title: "夜班联调记录",
+      content: "原始记录",
+    });
+
+    await expect(
+      hydratePiApprovalPayload("domain_update", {
+        domainId: "cat-1",
+        name: "灌溉与回水控制",
+      }),
+    ).resolves.toMatchObject({
+      before: { name: "灌溉控制", parentId: "cat-parent" },
+    });
+    await expect(
+      hydratePiApprovalPayload("context_update", {
+        contextId: "context-1",
+        content: "复核后的记录",
+      }),
+    ).resolves.toMatchObject({
+      before: {
+        understandingId: "understanding-1",
+        medium: "experience",
+        title: "夜班联调记录",
+        content: "原始记录",
+      },
+    });
   });
 
   test("executes approved mutation tools through domain services", async () => {

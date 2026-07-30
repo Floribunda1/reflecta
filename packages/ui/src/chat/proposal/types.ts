@@ -36,6 +36,7 @@ export type UnderstandingUpdateProposalView = AgentProposalBaseView & {
     afterHeading?: string;
     beforeBody?: string;
     afterBody?: string;
+    beforeDomainPaths?: readonly string[];
     domainPaths?: readonly string[];
     reason?: string;
   };
@@ -62,6 +63,8 @@ export type DomainUpdateProposalView = AgentProposalBaseView & {
   kind: "domain-update";
   content: {
     targetPath?: string;
+    beforeName?: string;
+    beforeParentPath?: string | null;
     nextName?: string;
     nextParentPath?: string | null;
     reason?: string;
@@ -91,6 +94,10 @@ export type ContextUpdateProposalView = AgentProposalBaseView & {
   kind: "context-update";
   content: {
     targetLabel?: string;
+    beforeUnderstandingLabel?: string;
+    beforeMediumLabel?: string;
+    beforeTitle?: string;
+    beforeBody?: string;
     understandingLabel?: string;
     mediumLabel?: string;
     nextTitle?: string;
