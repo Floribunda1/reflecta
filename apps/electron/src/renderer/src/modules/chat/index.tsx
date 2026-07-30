@@ -213,7 +213,7 @@ function ChatPageContent() {
     <ResizablePanelGroup
       id="agent-page"
       orientation="horizontal"
-      className="h-full min-h-0 w-full overflow-hidden bg-background/45 backdrop-blur-2xl [&>[data-panel]]:transition-[flex-grow] [&>[data-panel]]:duration-200 [&>[data-panel]]:ease-out [&:has([data-separator=active])>[data-panel]]:transition-none motion-reduce:[&>[data-panel]]:transition-none"
+      className="h-full min-h-0 w-full overflow-hidden bg-background/45 [&>[data-panel]]:transition-[flex-grow] [&>[data-panel]]:duration-200 [&>[data-panel]]:ease-out [&:has([data-separator=active])>[data-panel]]:transition-none motion-reduce:[&>[data-panel]]:transition-none"
     >
       <ResizablePanel
         id="agent-thread-sidebar-panel"
@@ -274,7 +274,7 @@ function ChatPageContent() {
                   "agent-chat-main": 100,
                 }
           }
-          className="min-h-0 min-w-0 bg-card/70 backdrop-blur-sm"
+          className="min-h-0 min-w-0 bg-card/70"
         >
           <ResizablePanel
             id="agent-chat-main"

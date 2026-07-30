@@ -60,7 +60,7 @@ function CapturePageInner() {
     <div
       data-testid="capture-page"
       className={cn(
-        "grid h-full min-h-0 w-full overflow-hidden bg-background/45 backdrop-blur-2xl transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
+        "grid h-full min-h-0 w-full overflow-hidden bg-background/45 transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
         domainSidebarOpen ? "grid-cols-[248px_minmax(0,1fr)]" : "grid-cols-[0px_minmax(0,1fr)]",
       )}
     >
@@ -91,7 +91,7 @@ function CapturePageInner() {
                 "capture-main": 100,
               }
         }
-        className="min-h-0 min-w-0 border-l bg-card/95 backdrop-blur-sm"
+        className="min-h-0 min-w-0 border-l bg-card/95"
       >
         <ResizablePanel
           id="capture-main"
