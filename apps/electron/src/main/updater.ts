@@ -64,7 +64,7 @@ function launchUpdater(manual: boolean): void {
     if (manual) {
       void showMessage({
         type: "error",
-        message: "检查更新失败",
+        message: "Check for Updates Failed",
         detail: error,
       });
     }
@@ -76,7 +76,7 @@ export async function checkForUpdates(manual = false): Promise<void> {
     if (manual) {
       await showMessage({
         type: "info",
-        message: "检查更新只在已安装的 macOS 版本中可用",
+        message: "Check for Updates is only available on the installed macOS version",
       });
     }
     return;
@@ -89,7 +89,7 @@ export async function checkForUpdates(manual = false): Promise<void> {
     if (manual) {
       await showMessage({
         type: "error",
-        message: "检查更新失败",
+        message: "Check for Updates Failed",
         detail: error instanceof Error ? error.message : String(error),
       });
     }
@@ -109,7 +109,7 @@ export function installUpdateMenu(): void {
   appMenu.insert(
     1,
     new MenuItem({
-      label: "检查更新…",
+      label: "Check For Updates…",
       click: () => void checkForUpdates(true),
     }),
   );
