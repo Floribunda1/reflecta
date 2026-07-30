@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { SessionManager } from "@earendil-works/pi-coding-agent";
 import type { AgentSessionEvent } from "@shared/agent";
 import { AgentSessionLog, getPiAgentSessionsRoot } from "./pi-session-log";
 
@@ -141,6 +142,72 @@ describe("AgentSessionLog", () => {
     await expect(log.listSessions()).resolves.toEqual([
       expect.objectContaining({ id: session.id, title: "hello" }),
     ]);
+  });
+
+  test("backfills once, then restores the list and selected conversation without rescanning", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const session = log.createSession();
+    const manager = await log.openSession(session.id);
+    const userMessage: AgentSessionEvent = {
+      ...baseEvent,
+      id: "evt_user",
+      sessionId: session.id,
+      type: "user.message",
+      messageId: "user_1",
+      text: "冷启动也应该立即出现",
+    };
+    log.appendEvent(manager, userMessage);
+    const hiddenSession = log.createSession();
+    const hiddenManager = await log.openSession(hiddenSession.id);
+    log.appendEvent(hiddenManager, {
+      ...baseEvent,
+      id: "evt_hidden_run",
+      sessionId: hiddenSession.id,
+      type: "run.started",
+    });
+
+    fs.rmSync(path.join(getPiAgentSessionsRoot(root), "sessions-index.json"));
+    await expect(new AgentSessionLog(root).listSessions()).resolves.toEqual([
+      expect.objectContaining({ id: session.id, title: "冷启动也应该立即出现" }),
+    ]);
+
+    const listSpy = vi
+      .spyOn(SessionManager, "list")
+      .mockRejectedValue(new Error("full session scan should not run"));
+    try {
+      const restored = new AgentSessionLog(root);
+      await expect(restored.listSessions()).resolves.toEqual([
+        expect.objectContaining({ id: session.id, title: "冷启动也应该立即出现" }),
+      ]);
+      await expect(restored.readEvents(session.id)).resolves.toEqual([userMessage]);
+      expect(listSpy).not.toHaveBeenCalled();
+    } finally {
+      listSpy.mockRestore();
+    }
+  });
+
+  test("keeps the indexed title and deletion in sync with the session file", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const session = log.createSession();
+    const manager = await log.openSession(session.id);
+    log.appendEvent(manager, {
+      ...baseEvent,
+      id: "evt_user",
+      sessionId: session.id,
+      type: "user.message",
+      messageId: "user_1",
+      text: "原始标题",
+    });
+
+    await log.renameSession(session.id, "整理后的标题");
+    await expect(new AgentSessionLog(root).listSessions()).resolves.toEqual([
+      expect.objectContaining({ id: session.id, title: "整理后的标题" }),
+    ]);
+
+    await log.deleteSession(session.id);
+    await expect(new AgentSessionLog(root).listSessions()).resolves.toEqual([]);
   });
 
   test("branches before the edited user message run without keeping later output", async () => {

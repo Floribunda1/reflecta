@@ -10,6 +10,8 @@ import { isAgentSessionEvent, reduceAgentSession } from "@shared/agent";
 import { writeDiagnosticEvent } from "../../logger";
 
 const REFLECTA_AGENT_EVENT_ENTRY = "reflecta.agent.event";
+const SESSION_INDEX_FILE = "sessions-index.json";
+const SESSION_INDEX_VERSION = 1;
 
 export function getPiAgentSessionsRoot(contentStorageRoot: string): string {
   return path.join(contentStorageRoot, "Sessions");
@@ -110,6 +112,48 @@ type FlushablePiSessionInternals = {
   flushed?: boolean;
 };
 
+type IndexedSessionSummary = AgentSessionSummary & { fileName: string };
+
+type SessionIndex = {
+  version: typeof SESSION_INDEX_VERSION;
+  files: string[];
+  sessions: IndexedSessionSummary[];
+};
+
+function emptySessionIndex(): SessionIndex {
+  return { version: SESSION_INDEX_VERSION, files: [], sessions: [] };
+}
+
+function isIndexedSessionSummary(value: unknown): value is IndexedSessionSummary {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === "string" &&
+    typeof value.title === "string" &&
+    value.status === "active" &&
+    typeof value.createdAt === "string" &&
+    typeof value.updatedAt === "string" &&
+    value.runtime === "pi" &&
+    typeof value.fileName === "string" &&
+    path.basename(value.fileName) === value.fileName
+  );
+}
+
+function parseSessionIndex(value: unknown): SessionIndex | undefined {
+  if (
+    !isRecord(value) ||
+    value.version !== SESSION_INDEX_VERSION ||
+    !Array.isArray(value.files) ||
+    !Array.isArray(value.sessions) ||
+    !value.files.every(
+      (fileName) => typeof fileName === "string" && path.basename(fileName) === fileName,
+    ) ||
+    !value.sessions.every(isIndexedSessionSummary)
+  ) {
+    return undefined;
+  }
+  return value as SessionIndex;
+}
+
 export class AgentSessionLog {
   private readonly pendingSessionFiles = new Map<string, string>();
   private readonly pendingSummaries = new Map<string, AgentSessionSummary>();
@@ -118,6 +162,10 @@ export class AgentSessionLog {
 
   get sessionsRoot() {
     return getPiAgentSessionsRoot(this.contentStorageRoot);
+  }
+
+  private get sessionIndexPath() {
+    return path.join(this.sessionsRoot, SESSION_INDEX_FILE);
   }
 
   createSession(title = "新对话"): AgentSessionSummary {
@@ -140,13 +188,33 @@ export class AgentSessionLog {
 
   async listSessions(): Promise<AgentSessionSummary[]> {
     fs.mkdirSync(this.sessionsRoot, { recursive: true });
+    const cached = this.readSessionIndex();
+    const index =
+      cached && this.isSessionIndexCurrent(cached) ? cached : await this.rebuildSessionIndex();
+    for (const session of index.sessions) this.pendingSummaries.delete(session.id);
+    return index.sessions
+      .map((summary) => ({
+        id: summary.id,
+        title: summary.title,
+        status: summary.status,
+        createdAt: summary.createdAt,
+        updatedAt: summary.updatedAt,
+        runtime: summary.runtime,
+      }))
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  }
+
+  private async rebuildSessionIndex(): Promise<SessionIndex> {
     const sessions = await SessionManager.list(this.contentStorageRoot, this.sessionsRoot);
-    const persisted = sessions
-      .flatMap((session) => {
-        const events = this.readEventsFromFile(session.path);
+    const index: SessionIndex = {
+      ...emptySessionIndex(),
+      files: fs.readdirSync(this.sessionsRoot).filter((name) => name.endsWith(".jsonl")),
+    };
+    for (const session of sessions) {
+      const events = this.readEventsFromFile(session.path);
+      if (events.some((event) => event.type === "user.message")) {
         this.pendingSummaries.delete(session.id);
-        if (!events.some((event) => event.type === "user.message")) return [];
-        return {
+        index.sessions.push({
           id: session.id,
           title: session.name?.trim() || titleFromEvents(events, session.firstMessage || "新对话"),
           status: "active" as const,
@@ -155,10 +223,12 @@ export class AgentSessionLog {
             Math.max(session.created.getTime(), session.modified.getTime()),
           ).toISOString(),
           runtime: "pi" as const,
-        };
-      })
-      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-    return persisted;
+          fileName: path.basename(session.path),
+        });
+      }
+    }
+    this.writeSessionIndex(index);
+    return index;
   }
 
   async openSession(sessionId: string): Promise<SessionManager> {
@@ -175,11 +245,10 @@ export class AgentSessionLog {
       return manager;
     }
 
-    const sessions = await SessionManager.list(this.contentStorageRoot, this.sessionsRoot);
-    const session = sessions.find((item) => item.id === sessionId);
-    if (!session) throw new Error("Pi session not found");
-    this.pendingSessionFiles.set(sessionId, session.path);
-    return SessionManager.open(session.path, this.sessionsRoot, this.contentStorageRoot);
+    const sessionFile = this.findSessionFile(sessionId);
+    if (!sessionFile) throw new Error("Pi session not found");
+    this.pendingSessionFiles.set(sessionId, sessionFile);
+    return SessionManager.open(sessionFile, this.sessionsRoot, this.contentStorageRoot);
   }
 
   async openSessionForEditedMessage(sessionId: string, messageId: string): Promise<SessionManager> {
@@ -237,7 +306,7 @@ export class AgentSessionLog {
     }
 
     const now = new Date().toISOString();
-    return {
+    const summary: AgentSessionSummary = {
       id: forkedSessionId,
       title,
       status: "active",
@@ -245,6 +314,8 @@ export class AgentSessionLog {
       updatedAt: now,
       runtime: "pi",
     };
+    if (sessionFile) this.upsertIndexedSession(summary, sessionFile);
+    return summary;
   }
 
   appendEvent(manager: SessionManager, event: AgentSessionEvent): void {
@@ -254,15 +325,28 @@ export class AgentSessionLog {
     const sessionFile = manager.getSessionFile();
     if (sessionFile) this.pendingSessionFiles.set(manager.getSessionId(), sessionFile);
     const pending = this.pendingSummaries.get(event.sessionId);
+    if (event.type === "run.started" && pending && sessionFile) {
+      this.ensureIndexedFile(sessionFile);
+    }
+    let summary = pending;
     if (pending) {
-      this.pendingSummaries.set(event.sessionId, {
+      summary = {
         ...pending,
         title:
           event.type === "user.message" && pending.title === "新对话"
             ? event.text.slice(0, 40)
             : pending.title,
         updatedAt: event.createdAt,
-      });
+      };
+      this.pendingSummaries.set(event.sessionId, summary);
+    } else if (event.type === "user.message") {
+      const indexed = this.readSessionIndex()?.sessions.find(
+        (session) => session.id === event.sessionId,
+      );
+      if (indexed) summary = { ...indexed, updatedAt: event.createdAt };
+    }
+    if (event.type === "user.message" && summary && sessionFile) {
+      this.upsertIndexedSession(summary, sessionFile);
     }
   }
 
@@ -307,28 +391,110 @@ export class AgentSessionLog {
   async renameSession(sessionId: string, title: string): Promise<void> {
     const manager = await this.openSession(sessionId);
     manager.appendSessionInfo(title);
+    const pending = this.pendingSummaries.get(sessionId);
+    if (pending) this.pendingSummaries.set(sessionId, { ...pending, title });
+    const index = this.readSessionIndex();
+    const indexed = index?.sessions.findIndex((session) => session.id === sessionId) ?? -1;
+    if (index && indexed >= 0) {
+      index.sessions[indexed] = { ...index.sessions[indexed], title };
+      this.writeSessionIndex(index);
+    }
   }
 
   async deleteSession(sessionId: string): Promise<void> {
-    const pendingFile = this.pendingSessionFiles.get(sessionId);
-    const sessions = pendingFile
-      ? [{ id: sessionId, path: pendingFile }]
-      : await SessionManager.list(this.contentStorageRoot, this.sessionsRoot);
-    const session = sessions.find((item) => item.id === sessionId);
-    if (session?.path) fs.rmSync(session.path, { force: true });
+    const sessionFile = this.findSessionFile(sessionId);
+    if (sessionFile) fs.rmSync(sessionFile, { force: true });
     this.pendingSessionFiles.delete(sessionId);
     this.pendingSummaries.delete(sessionId);
+    const index = this.readSessionIndex();
+    if (index) {
+      index.sessions = index.sessions.filter((session) => session.id !== sessionId);
+      if (sessionFile) {
+        index.files = index.files.filter((fileName) => fileName !== path.basename(sessionFile));
+      }
+      this.writeSessionIndex(index);
+    }
   }
 
   async readEvents(sessionId: string): Promise<AgentSessionEvent[]> {
-    const pendingFile = this.pendingSessionFiles.get(sessionId);
-    if (pendingFile && fs.existsSync(pendingFile)) return this.readEventsFromFile(pendingFile);
+    const sessionFile = this.findSessionFile(sessionId);
+    if (!sessionFile) return [];
+    this.pendingSessionFiles.set(sessionId, sessionFile);
+    return this.readEventsFromFile(sessionFile);
+  }
 
-    const sessions = await SessionManager.list(this.contentStorageRoot, this.sessionsRoot);
-    const session = sessions.find((item) => item.id === sessionId);
-    if (!session) return [];
-    this.pendingSessionFiles.set(sessionId, session.path);
-    return this.readEventsFromFile(session.path);
+  private findSessionFile(sessionId: string): string | undefined {
+    const pendingFile = this.pendingSessionFiles.get(sessionId);
+    if (pendingFile && fs.existsSync(pendingFile)) return pendingFile;
+
+    const indexedFileName = this.readSessionIndex()?.sessions.find(
+      (session) => session.id === sessionId,
+    )?.fileName;
+    if (indexedFileName) {
+      const indexedFile = path.join(this.sessionsRoot, indexedFileName);
+      if (fs.existsSync(indexedFile)) return indexedFile;
+    }
+
+    if (!fs.existsSync(this.sessionsRoot)) return undefined;
+    const suffix = `_${sessionId}.jsonl`;
+    const fileName = fs.readdirSync(this.sessionsRoot).find((name) => name.endsWith(suffix));
+    return fileName ? path.join(this.sessionsRoot, fileName) : undefined;
+  }
+
+  private readSessionIndex(): SessionIndex | undefined {
+    if (!fs.existsSync(this.sessionIndexPath)) return undefined;
+    try {
+      return parseSessionIndex(JSON.parse(fs.readFileSync(this.sessionIndexPath, "utf-8")));
+    } catch {
+      return undefined;
+    }
+  }
+
+  private isSessionIndexCurrent(index: SessionIndex): boolean {
+    const sessionFiles = new Set(
+      fs
+        .readdirSync(this.sessionsRoot)
+        .filter((name) => name.endsWith(".jsonl"))
+        .map((name) => path.basename(name)),
+    );
+    const knownFiles = new Set(index.files);
+    return (
+      sessionFiles.size === knownFiles.size &&
+      Array.from(sessionFiles).every((fileName) => knownFiles.has(fileName))
+    );
+  }
+
+  private writeSessionIndex(index: SessionIndex): void {
+    fs.mkdirSync(this.sessionsRoot, { recursive: true });
+    const temporaryPath = `${this.sessionIndexPath}.${process.pid}.tmp`;
+    fs.writeFileSync(temporaryPath, JSON.stringify(index), "utf-8");
+    fs.renameSync(temporaryPath, this.sessionIndexPath);
+  }
+
+  private upsertIndexedSession(summary: AgentSessionSummary, sessionFile: string): void {
+    const index = this.readSessionIndex();
+    if (!index) {
+      if (fs.existsSync(this.sessionIndexPath)) fs.rmSync(this.sessionIndexPath, { force: true });
+      return;
+    }
+    const indexed = index.sessions.findIndex((session) => session.id === summary.id);
+    const nextSummary = {
+      ...summary,
+      fileName: path.basename(sessionFile),
+    };
+    if (indexed >= 0) index.sessions[indexed] = nextSummary;
+    else index.sessions.push(nextSummary);
+    if (!index.files.includes(nextSummary.fileName)) index.files.push(nextSummary.fileName);
+    this.writeSessionIndex(index);
+  }
+
+  private ensureIndexedFile(sessionFile: string): void {
+    const index = this.readSessionIndex();
+    if (!index) return;
+    const fileName = path.basename(sessionFile);
+    if (index.files.includes(fileName)) return;
+    index.files.push(fileName);
+    this.writeSessionIndex(index);
   }
 
   private readEventsFromFile(sessionFile: string): AgentSessionEvent[] {
