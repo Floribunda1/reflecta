@@ -31,3 +31,8 @@
     margin: 1rem 0;
   }
 }
+
+#{$preview-root}.markdown-preview-tool-detail .milkdown-code-block .cm-scroller {
+  max-height: 20rem;
+  overflow-y: auto;
+}

@@ -1055,7 +1055,7 @@ describe("buildAgentTurnView", () => {
     });
   });
 
-  test("keeps long bash output folded behind a preview", () => {
+  test("keeps complete long bash output in tool details", () => {
     const stdout = Array.from({ length: 24 }, (_, index) => `line ${index + 1}`).join("\n");
     const turn = buildAgentTurnView([
       {
@@ -1084,18 +1084,12 @@ describe("buildAgentTurnView", () => {
               label: "stdout",
               format: "code",
               language: "text",
-              description: expect.stringContaining("line 16"),
-              fullDescription: stdout,
+              description: stdout,
             },
           ],
         },
       },
     });
-    expect(
-      turn.blocks[0]?.kind === "proposal"
-        ? turn.blocks[0].proposal.result?.rows[0]?.description
-        : "",
-    ).not.toContain("line 24");
   });
 
   test("shows completed approval tool result stable ids", () => {

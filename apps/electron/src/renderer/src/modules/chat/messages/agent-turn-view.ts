@@ -54,7 +54,6 @@ export type ToolActivityDetailRow = {
   label?: string;
   title?: string;
   description?: string;
-  fullDescription?: string;
   format?: "text" | "pre" | "markdown" | "code";
   language?: string;
   meta: string[];
@@ -578,14 +577,12 @@ function toAgentToolDetailsView(
                 : format === "code"
                   ? {
                       format: "code" as const,
-                      preview: row.description,
-                      ...(row.fullDescription ? { full: row.fullDescription } : {}),
+                      value: row.description,
                       language: row.language ?? "text",
                     }
                   : {
                       format,
-                      preview: row.description,
-                      ...(row.fullDescription ? { full: row.fullDescription } : {}),
+                      value: row.description,
                     }
               : undefined;
             return {
@@ -1473,14 +1470,9 @@ function detailRow(
   const keepsLineBreaks = format === "pre" || format === "markdown" || format === "code";
   const compactDescription = description
     ? keepsLineBreaks
-      ? truncateOutputPreview(description)
+      ? description.trim()
       : truncateText(description, 140)
     : undefined;
-  const shouldKeepFullDescription =
-    keepsLineBreaks &&
-    description &&
-    compactDescription &&
-    description.trim() !== compactDescription.trim();
   return {
     ...(label ? { label } : {}),
     ...(title ? { title } : {}),
@@ -1488,7 +1480,6 @@ function detailRow(
     ...(format !== "text" ? { format } : {}),
     ...(language ? { language } : {}),
     ...(compactDescription ? { description: compactDescription } : {}),
-    ...(shouldKeepFullDescription ? { fullDescription: description } : {}),
   };
 }
 
@@ -1512,15 +1503,6 @@ function limitedRows(rows: Array<ToolActivityDetailRow | undefined>) {
 function truncateText(text: string, maxLength = 80) {
   const compact = text.replace(/\s+/g, " ").trim();
   return compact.length > maxLength ? `${compact.slice(0, maxLength)}...` : compact;
-}
-
-function truncateOutputPreview(text: string, maxLength = 1200, maxLines = 16) {
-  const normalized = text.trim();
-  if (!normalized) return "";
-  const lines = normalized.split(/\r?\n/);
-  const lineLimited =
-    lines.length > maxLines ? `${lines.slice(0, maxLines).join("\n")}\n...` : normalized;
-  return lineLimited.length > maxLength ? `${lineLimited.slice(0, maxLength)}\n...` : lineLimited;
 }
 
 function toolRunningSummary(name: string, input: Record<string, unknown>) {

@@ -46,6 +46,12 @@
     background: color-mix(in srgb, var(--primary), transparent 94%);
   }
 
+  .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
+  .cm-selectionBackground,
+  .cm-content ::selection {
+    background-color: color-mix(in srgb, var(--primary), transparent 84%);
+  }
+
   .cm-gutterElement.cm-activeLineGutter {
     background: transparent;
     color: var(--muted-foreground);

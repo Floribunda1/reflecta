@@ -5,13 +5,11 @@ export type AgentToolDetailContent =
     }
   | {
       format: "pre" | "markdown";
-      preview: string;
-      full?: string;
+      value: string;
     }
   | {
       format: "code";
-      preview: string;
-      full?: string;
+      value: string;
       language: string;
     };
 

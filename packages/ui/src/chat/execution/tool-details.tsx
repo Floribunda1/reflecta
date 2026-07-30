@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Badge } from "../../components/badge";
 import { MarkdownPreview } from "../../editor/markdown-preview";
 import type { AgentToolDetailContent, AgentToolDetailRowView, AgentToolDetailsView } from "./types";
@@ -13,60 +12,31 @@ function fencedCodeBlock(value: string, language: string) {
 }
 
 function ToolDetailContent({ content }: { content: AgentToolDetailContent }) {
-  const [expanded, setExpanded] = useState(false);
   if (content.format === "text") {
     return <div className="line-clamp-2 text-muted-foreground/85">{content.value}</div>;
   }
-
-  const value = expanded && content.full ? content.full : content.preview;
-  const expandable = Boolean(content.full);
-  const containerClass = expandable
-    ? expanded
-      ? "max-h-80 overflow-auto"
-      : "max-h-32 overflow-hidden"
-    : "";
-
+  if (content.format === "markdown") {
+    return (
+      <MarkdownPreview
+        value={content.value}
+        zoomImages={false}
+        className="[&_.ProseMirror]:text-muted-foreground"
+      />
+    );
+  }
+  if (content.format === "code") {
+    return (
+      <MarkdownPreview
+        value={fencedCodeBlock(content.value, content.language)}
+        zoomImages={false}
+        className="markdown-preview-tool-detail [&_.ProseMirror]:text-muted-foreground"
+      />
+    );
+  }
   return (
-    <div className="grid gap-1">
-      {content.format === "markdown" ? (
-        <div className={containerClass}>
-          <MarkdownPreview
-            value={value}
-            zoomImages={false}
-            className="[&_.ProseMirror]:text-muted-foreground"
-          />
-        </div>
-      ) : content.format === "code" ? (
-        <div className={containerClass}>
-          <MarkdownPreview
-            value={fencedCodeBlock(value, content.language)}
-            zoomImages={false}
-            className="[&_.ProseMirror]:text-muted-foreground"
-          />
-        </div>
-      ) : (
-        <pre
-          className={`whitespace-pre-wrap break-words rounded-sm bg-background/65 px-2 py-1.5 font-mono text-xs leading-5 text-muted-foreground ${containerClass}`}
-        >
-          {value}
-        </pre>
-      )}
-      {expandable ? (
-        <button
-          type="button"
-          className="w-fit rounded-sm px-1 text-xs text-muted-foreground hover:bg-background/70 hover:text-foreground"
-          onClick={() => setExpanded((current) => !current)}
-        >
-          {expanded
-            ? content.format === "markdown"
-              ? "收起内容"
-              : "收起输出"
-            : content.format === "markdown"
-              ? "展开完整内容"
-              : "展开完整输出"}
-        </button>
-      ) : null}
-    </div>
+    <pre className="whitespace-pre-wrap break-words rounded-sm bg-background/65 px-2 py-1.5 font-mono text-xs leading-5 text-muted-foreground">
+      {content.value}
+    </pre>
   );
 }
 

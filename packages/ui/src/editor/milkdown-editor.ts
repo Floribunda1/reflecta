@@ -1,4 +1,6 @@
+import { EditorView as CodeMirrorView } from "@codemirror/view";
 import { Editor, editorViewCtx, serializerCtx } from "@milkdown/core";
+import { trailingConfig } from "@milkdown/plugin-trailing";
 import { uploadConfig } from "@milkdown/plugin-upload";
 import type { Node as ProseNode } from "@milkdown/prose/model";
 import { Fragment } from "@milkdown/prose/model";
@@ -124,6 +126,7 @@ export function createReflectaMilkdownEditorBuilder({
     featureConfigs: {
       [Crepe.Feature.CodeMirror]: {
         renderPreview: renderMermaidPreview,
+        extensions: [CodeMirrorView.lineWrapping],
       },
       [Crepe.Feature.Cursor]: {
         virtual: false,
@@ -141,6 +144,12 @@ export function createReflectaMilkdownEditorBuilder({
       enableHtmlFileUploader: true,
       uploader: (files, schema) => uploadFilesAsMarkdown(files, schema, uploadAsset),
     }));
+    if (readOnly) {
+      ctx.update(trailingConfig.key, (prev) => ({
+        ...prev,
+        shouldAppend: () => false,
+      }));
+    }
   });
 
   let lastMarkdown = normalizeMarkdown(content);

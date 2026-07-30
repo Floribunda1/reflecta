@@ -157,8 +157,7 @@ function markdownValues(message: ChatMessageView) {
   const addDetails = (details: AgentToolDetailsView | undefined) => {
     details?.rows?.forEach((row) => {
       if (row.content?.format === "markdown") {
-        values.push(row.content.preview);
-        if (row.content.full) values.push(row.content.full);
+        values.push(row.content.value);
       }
     });
   };

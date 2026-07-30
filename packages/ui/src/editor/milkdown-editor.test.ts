@@ -117,6 +117,26 @@ describe("reflecta milkdown editor", () => {
     expect(markdown).toContain(":::warning");
   });
 
+  test("keeps readonly code previews from gaining an empty paragraph after interaction", async () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+
+    const editor = await createReflectaMilkdownEditor({
+      root,
+      content: "```diff\n-old\n+new\n```",
+      readOnly: true,
+    });
+    editors.push(editor);
+
+    const view = editor.ctx.get(editorViewCtx);
+    expect(view.state.doc.childCount).toBe(1);
+
+    view.dispatch(view.state.tr.setMeta("preview-interaction", true));
+
+    expect(view.state.doc.childCount).toBe(1);
+    expect(view.state.doc.lastChild?.type.name).toBe("code_block");
+  });
+
   test("renders id-backed wiki links as inline anchors in the editor", async () => {
     const root = document.createElement("div");
     document.body.append(root);
