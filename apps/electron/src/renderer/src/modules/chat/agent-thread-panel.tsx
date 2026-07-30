@@ -9,6 +9,13 @@ import type {
 import { ChatJumpNav } from "@reflecta/ui/chat";
 import { Button } from "@reflecta/ui/components/button";
 import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@reflecta/ui/components/empty";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
@@ -99,6 +106,7 @@ export function AgentThreadPanel({
   const send = useMemoizedFn(threadView.actions.send);
   const cancelEdit = useMemoizedFn(threadView.actions.cancelEdit);
   const stop = useMemoizedFn(threadView.actions.stop);
+  const reloadMessages = useMemoizedFn(threadView.actions.reloadMessages);
   const compact = useMemoizedFn(async () => {
     try {
       await threadView.actions.compact(activeModel ?? undefined, activeReasoningLevel);
@@ -158,9 +166,21 @@ export function AgentThreadPanel({
           onScroll={threadView.handleScroll}
           className="h-full min-h-0 overflow-y-auto px-6 py-6"
         >
-          {threadView.messagesFetching && threadView.visibleMessages.length === 0 ? (
+          {threadView.messagesError && threadView.visibleMessages.length === 0 ? (
+            <Empty data-testid="agent-history-error" className="h-full border-0">
+              <EmptyHeader>
+                <EmptyTitle>无法加载对话</EmptyTitle>
+                <EmptyDescription>{errorMessage(threadView.messagesError)}</EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button type="button" variant="outline" onClick={() => void reloadMessages()}>
+                  重新加载
+                </Button>
+              </EmptyContent>
+            </Empty>
+          ) : threadView.messagesFetching && threadView.visibleMessages.length === 0 ? (
             <div className="flex h-full min-h-0 min-w-0 items-center justify-center text-sm text-muted-foreground">
-              加载 Agent...
+              加载对话...
             </div>
           ) : (
             <MessageList

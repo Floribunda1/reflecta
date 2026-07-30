@@ -255,6 +255,7 @@ export function ChatComposer({
   const [attachmentError, setAttachmentError] = useState("");
   const [activeEntityIndex, setActiveEntityIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const busyRef = useRef(status !== "idle");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const mentionCommandRef = useRef<((attrs: MentionAttrs) => void) | null>(null);
   const mentionActiveRef = useRef(false);
@@ -270,6 +271,7 @@ export function ChatComposer({
   entitySearchRef.current = entitySearch;
   activeEntityIndexRef.current = activeEntityIndex;
   onEntityOpenRef.current = onEntityOpen;
+  busyRef.current = status !== "idle" || submitting;
 
   const selectedModel = modelOptions.find((model) => model.id === selectedModelId);
   const selectedReasoning = selectedModel?.reasoningOptions.find(
@@ -413,6 +415,7 @@ export function ChatComposer({
             selectActiveEntity();
             return true;
           }
+          if (busyRef.current) return false;
           event.preventDefault();
           if (mentionKeyHandledRef.current) {
             mentionKeyHandledRef.current = false;
@@ -604,7 +607,9 @@ export function ChatComposer({
           <div className="relative min-w-0">
             {!text.trim() && entities.length === 0 && attachments.length === 0 ? (
               <span className="pointer-events-none absolute top-3 left-4 text-sm text-muted-foreground">
-                询问、比较，或 @ 引用知识库内容...
+                {busy
+                  ? "可以先整理下一轮想法，回复完成后发送..."
+                  : "询问、比较，或 @ 引用知识库内容..."}
               </span>
             ) : null}
             <EditorContent

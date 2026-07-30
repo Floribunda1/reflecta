@@ -127,3 +127,27 @@ test("@AG-MESSAGE-003 用户按 Enter 发送后编辑时仍看到原来的单行
     await app.close();
   }
 });
+
+test("@AG-MESSAGE-004 Agent 回复期间用户可以整理下一轮想法", async () => {
+  test.setTimeout(120_000);
+  writeE2eAiConfig({ ...process.env, REFLECTA_E2E_AI_API_KEY: "invalid-reflecta-e2e-key" });
+
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await createNewThread(page);
+    await composer(page).fill("FIRST_TURN");
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("agent-stop-button")).toBeVisible();
+
+    await composer(page).fill("NEXT_TURN_DRAFT");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("SECOND_LINE");
+
+    await expect(composer(page)).toContainText("NEXT_TURN_DRAFT");
+    await expect(composer(page)).toContainText("SECOND_LINE");
+    await expect(page.getByTestId("agent-user-message")).toHaveCount(1);
+  } finally {
+    await app.close();
+  }
+});

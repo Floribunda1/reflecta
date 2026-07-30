@@ -15,6 +15,7 @@ export type AgentThreadView = {
   entityCatalog: AgentEntityCatalogEntry[];
   contextCompactions: AgentContextCompacted[];
   messagesFetching: boolean;
+  messagesError?: Error;
   isBusy: boolean;
   isCompacting: boolean;
   composerBusy: boolean;
@@ -44,6 +45,7 @@ export type AgentThreadView = {
     approveTool(input: ApproveToolInput): Promise<void>;
     cancelEdit(): void;
     stop(): void;
+    reloadMessages(): Promise<void>;
   };
 };
 

@@ -232,6 +232,17 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     return () => cancelAnimationFrame(frame);
   }, [scrollKey, scrollToBottom]);
 
+  useEffect(() => {
+    const element = scrollRef.current;
+    const content = element?.firstElementChild;
+    if (!element || !content || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      if (shouldStickToBottom.current) scrollToBottom("auto");
+    });
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [eventsQuery.isFetching, scrollToBottom, sessionId]);
+
   const handleScroll = useCallback(() => {
     const element = scrollRef.current;
     if (!element) return;
@@ -250,6 +261,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     entityCatalog: state.entityCatalog,
     contextCompactions: state.contextCompactions,
     messagesFetching: eventsQuery.isFetching,
+    messagesError: eventsQuery.error ?? undefined,
     isBusy,
     isCompacting,
     composerBusy,
@@ -350,6 +362,9 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
         )?.id;
         if (lastAssistantId) chatUiStore.getState().setStoppedMessage(sessionId, lastAssistantId);
         void ipcClient.chat.sendAgentCommand({ type: "run.cancel", sessionId });
+      },
+      reloadMessages: async () => {
+        await eventsQuery.refetch();
       },
     },
   };

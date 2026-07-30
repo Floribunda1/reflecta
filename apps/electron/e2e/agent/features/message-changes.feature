@@ -37,3 +37,11 @@
     而且用户编辑该用户消息
     那么输入框应该显示 ENTER_SEND_SINGLE_LINE
     而且输入框内容应该仍然是单行文本
+
+  @P0 @draft @AG-MESSAGE-004
+  场景: Agent 回复期间用户可以整理下一轮想法
+    假如用户已经发送一条消息且 Agent 正在回复
+    当用户在输入框输入 NEXT_TURN_DRAFT
+    而且用户按 Enter 继续输入 SECOND_LINE
+    那么输入框应该保留 NEXT_TURN_DRAFT 和 SECOND_LINE
+    而且这段草稿不应该在 Agent 回复期间发送
