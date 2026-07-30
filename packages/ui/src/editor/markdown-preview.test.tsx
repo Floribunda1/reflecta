@@ -43,7 +43,7 @@ describe("SimpleMarkdownPreview", () => {
   test("clips the rendered preview to the configured line height", () => {
     const preview = render("one\n\ntwo\n\nthree", 2).firstElementChild as HTMLElement;
 
-    expect(preview.style.maxHeight).toBe("3em");
+    expect(preview.style.maxHeight).toBe("3rem");
     expect(preview.style.overflow).toBe("hidden");
   });
 });

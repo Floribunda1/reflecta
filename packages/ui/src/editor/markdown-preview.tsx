@@ -61,7 +61,7 @@ export function SimpleMarkdownPreview({ value, lineClamp, className }: SimpleMar
     [value],
   );
   const style: CSSProperties = {
-    maxHeight: lineClamp != null ? `${lineClamp * 1.5}em` : undefined,
+    maxHeight: lineClamp != null ? `${lineClamp * 1.5}rem` : undefined,
     overflow: lineClamp != null ? "hidden" : undefined,
   };
 
@@ -83,6 +83,7 @@ export function SimpleMarkdownPreview({ value, lineClamp, className }: SimpleMar
         "[&_table]:my-1 [&_table]:w-full [&_table]:text-xs",
         "[&_th]:border-b [&_th]:border-border [&_th]:pr-2 [&_th]:text-left [&_th]:font-medium",
         "[&_td]:border-b [&_td]:border-border/60 [&_td]:pr-2",
+        lineClamp != null && "[&>*]:!my-0",
         className,
       )}
       dangerouslySetInnerHTML={{ __html: html }}
