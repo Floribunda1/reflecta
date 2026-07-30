@@ -1,11 +1,11 @@
 import { Fragment, useMemo } from "react";
-import { RefreshCcw } from "lucide-react";
 import {
   AgentContextCompactionStatus,
   AgentExecutionBlock,
+  AgentFailureStatus,
   AgentPendingBlock,
+  AgentStoppedStatus,
 } from "@reflecta/ui/chat";
-import { Button } from "@reflecta/ui/components/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@reflecta/ui/components/empty";
 import type {
   AgentContextCompacted,
@@ -118,32 +118,8 @@ export function MessageList({
       ))}
       {isCompacting ? <AgentContextCompactionStatus /> : null}
       {showPendingAssistant ? <AgentPendingBlock /> : null}
-      {stoppedMessageId && !stoppedMessageVisible ? (
-        <div
-          data-testid="agent-stopped-state"
-          className="max-w-full rounded-md border border-border px-3 py-2 text-xs text-muted-foreground"
-        >
-          已停止
-        </div>
-      ) : null}
-      {error ? (
-        <div
-          data-testid="agent-error-banner"
-          className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          <span>回复失败：{error.message}</span>
-          <Button
-            data-testid="agent-retry-button"
-            type="button"
-            size="sm"
-            variant="destructive"
-            onClick={onRetry}
-          >
-            <RefreshCcw />
-            重试
-          </Button>
-        </div>
-      ) : null}
+      {stoppedMessageId && !stoppedMessageVisible ? <AgentStoppedStatus /> : null}
+      {error ? <AgentFailureStatus error={error.message} onRetry={onRetry} /> : null}
       {compactionError ? (
         <div
           data-testid="agent-context-compaction-error"

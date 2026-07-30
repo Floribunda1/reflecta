@@ -208,18 +208,9 @@ function MessageShowcase() {
       </StoryCase>
       <StoryCase title="生命周期" description="等待、停止和失败在同一页面位置连续比较。">
         <div className="grid gap-6">
-          <div>
-            <span className="mb-2 block text-xs font-medium text-muted-foreground">等待回复</span>
-            <ChatMessageRow row={pendingRow} />
-          </div>
-          <div>
-            <span className="mb-2 block text-xs font-medium text-muted-foreground">已停止</span>
-            <ChatMessageRow row={stoppedRow} />
-          </div>
-          <div>
-            <span className="mb-2 block text-xs font-medium text-muted-foreground">回复失败</span>
-            <ChatMessageRow row={failedRow} />
-          </div>
+          <ChatMessageRow row={pendingRow} />
+          <ChatMessageRow row={stoppedRow} />
+          <ChatMessageRow row={failedRow} />
         </div>
       </StoryCase>
       <StoryCase title="上下文压缩" description="可展开查看压缩摘要与 Token 变化。">

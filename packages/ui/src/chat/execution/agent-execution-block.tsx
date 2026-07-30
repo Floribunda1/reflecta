@@ -2,10 +2,12 @@ import {
   ArrowUpRight,
   CheckCircle2,
   ChevronRight,
+  CircleAlert,
   FilePenLine,
   FileText,
   FolderTree,
   Globe2,
+  Info,
   Lightbulb,
   MessageCircleDashed,
   Network,
@@ -20,6 +22,8 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { cn } from "#lib/utils";
+import { Alert, AlertAction, AlertDescription, AlertTitle } from "../../components/alert";
+import { Button } from "../../components/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/collapsible";
 import type { ChatEntityBindings } from "../entity";
 import { ChatMarkdown } from "../markdown/chat-markdown";
@@ -296,6 +300,46 @@ export function AgentPendingBlock({ label = "正在思考" }: { label?: string }
         aria-label="执行中"
       />
       <span>{label}</span>
+    </div>
+  );
+}
+
+export function AgentStoppedStatus() {
+  return (
+    <div
+      data-testid="agent-stopped-state"
+      className="flex min-w-0 items-center gap-2 px-3 py-1 text-[13px] text-muted-foreground select-none"
+    >
+      <Info className="size-3 shrink-0" aria-hidden="true" />
+      <span>已停止</span>
+    </div>
+  );
+}
+
+export function AgentFailureStatus({ error, onRetry }: { error?: string; onRetry?: () => void }) {
+  return (
+    <div data-testid="agent-error-banner" className="w-full pt-2">
+      <Alert
+        variant="destructive"
+        className="max-w-none has-data-[slot=alert-action]:pr-4 has-[>svg]:grid-cols-[auto_minmax(0,1fr)_auto]"
+      >
+        <CircleAlert aria-hidden="true" />
+        <AlertTitle>回复失败</AlertTitle>
+        <AlertDescription className="break-words leading-5">{error ?? "未知错误"}</AlertDescription>
+        {onRetry ? (
+          <AlertAction className="static col-start-3 row-span-2 row-start-1 self-start">
+            <Button
+              data-testid="agent-retry-button"
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={onRetry}
+            >
+              重试
+            </Button>
+          </AlertAction>
+        ) : null}
+      </Alert>
     </div>
   );
 }

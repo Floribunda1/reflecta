@@ -27,7 +27,9 @@ export { AgentActivityGroup, type AgentActivityGroupProps } from "./execution/ag
 export {
   AgentContextCompactionStatus,
   AgentExecutionBlock,
+  AgentFailureStatus,
   AgentPendingBlock,
+  AgentStoppedStatus,
   type AgentExecutionBlockProps,
 } from "./execution/agent-execution-block";
 export type {

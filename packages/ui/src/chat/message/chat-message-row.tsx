@@ -6,7 +6,12 @@ import type { ChatEntityBindings } from "../entity";
 import { entityClassName, entityIcon } from "../entity-visual";
 import { AgentActivityGroup } from "../execution/agent-activity-group";
 import { isAgentActivityBlock } from "../execution/activity-presentation";
-import { AgentExecutionBlock, AgentPendingBlock } from "../execution/agent-execution-block";
+import {
+  AgentExecutionBlock,
+  AgentFailureStatus,
+  AgentPendingBlock,
+  AgentStoppedStatus,
+} from "../execution/agent-execution-block";
 import { ChatMarkdown } from "../markdown/chat-markdown";
 import { AgentProposalCard } from "../proposal/agent-proposal-card";
 import type { AgentProposalDecision } from "../proposal/types";
@@ -238,19 +243,10 @@ function AgentMessageContent({
   return (
     <>
       {renderedBlocks}
-      {message.status === "stopped" ? (
-        <div
-          data-testid="agent-stopped-state"
-          className="max-w-full rounded-md border border-border px-3 py-2 text-xs text-muted-foreground"
-        >
-          已停止
-        </div>
-      ) : null}
+      {message.status === "stopped" ? <AgentStoppedStatus /> : null}
       {workingLabel ? <AgentPendingBlock label={workingLabel} /> : null}
       {message.status === "failed" && message.blocks.length === 0 ? (
-        <div className="rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          回复失败：{message.error ?? "未知错误"}
-        </div>
+        <AgentFailureStatus error={message.error} />
       ) : null}
       {message.status === "done" && message.blocks.length === 0 ? (
         <div className="max-w-full rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">
