@@ -1,5 +1,4 @@
 import { type ReactNode, useState } from "react";
-import { diffLines } from "diff";
 import { ArrowUpRight, Trash2 } from "lucide-react";
 import { Badge } from "../../components/badge";
 import { Button } from "../../components/button";
@@ -10,8 +9,8 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "../../components/input-group";
-import { MarkdownPreview } from "../../editor/markdown-preview";
-import type { ChatEntityBindings } from "../entity";
+import type { ChatEntityBindings, ChatEntityType } from "../entity";
+import { entityClassName, entityIcon } from "../entity-visual";
 import { AgentWorkingIndicator } from "../execution/agent-working-indicator";
 import { hasToolDetails, ToolDetails } from "../execution/tool-details";
 import { ChatMarkdown } from "../markdown/chat-markdown";
@@ -92,55 +91,50 @@ function proposalReason(proposal: AgentProposalView) {
 
 function Reason({ value }: { value?: string }) {
   return value ? (
-    <div className="mt-3 border-t pt-3">
+    <div className="mt-5">
       <div className="mb-1 text-xs text-muted-foreground">建议依据</div>
       <div className="text-sm leading-6">{value}</div>
     </div>
   ) : null;
 }
 
-function fencedCodeBlock(value: string, language: string) {
-  let fenceLength = 3;
-  for (const match of value.matchAll(/`+/g)) {
-    fenceLength = Math.max(fenceLength, match[0].length + 1);
-  }
-  const fence = "`".repeat(fenceLength);
-  return `${fence}${language}\n${value}\n${fence}`;
-}
-
-function ProposalDiff({
-  before,
-  after,
-  pending,
+function MetaItem({
+  label,
+  children,
+  entityType,
 }: {
-  before?: string;
-  after?: string;
-  pending: string;
+  label: string;
+  children: ReactNode;
+  entityType?: ChatEntityType;
 }) {
-  if (after === undefined) return <span className="text-muted-foreground">{pending}</span>;
-  const value = diffLines(before ?? "", after)
-    .flatMap((part) => {
-      const prefix = part.added ? "+" : part.removed ? "-" : " ";
-      return part.value
-        .replace(/\n$/, "")
-        .split("\n")
-        .map((line) => `${prefix}${line}`);
-    })
-    .join("\n");
   return (
-    <MarkdownPreview
-      value={fencedCodeBlock(value, "diff")}
-      zoomImages={false}
-      className="markdown-preview-tool-detail"
-    />
+    <div className="flex min-w-0 items-center gap-1.5">
+      <dt className="shrink-0 text-muted-foreground/70">{label}</dt>
+      <dd
+        className={
+          entityType
+            ? `${entityClassName(entityType)} min-w-0 break-words`
+            : "min-w-0 break-words font-medium text-foreground/80"
+        }
+      >
+        {entityType ? <span className="mr-1">{entityIcon(entityType)}</span> : null}
+        {children}
+      </dd>
+    </div>
   );
 }
 
-function MetaItem({ label, children }: { label: string; children: ReactNode }) {
+function KnowledgeComparison({ before, after }: { before: ReactNode; after: ReactNode }) {
   return (
-    <div className="flex min-w-0 items-baseline gap-1.5">
-      <dt className="shrink-0 text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 break-words text-foreground/80">{children}</dd>
+    <div className="grid gap-6 md:grid-cols-2">
+      <section className="min-w-0">
+        <div className="mb-2 text-xs font-medium text-muted-foreground">修改前</div>
+        <div className="max-h-[28rem] overflow-auto text-foreground/65">{before}</div>
+      </section>
+      <section className="min-w-0">
+        <div className="mb-2 text-xs font-medium text-foreground/80">修改后</div>
+        <div className="max-h-[28rem] overflow-auto">{after}</div>
+      </section>
     </div>
   );
 }
@@ -174,30 +168,56 @@ function ProposalMeta({ proposal }: { proposal: AgentProposalView }) {
   let content: ReactNode = null;
   if (proposal.kind === "understanding-create") {
     const domains = domainPaths(proposal.content.domainPaths);
-    content = domains ? <MetaItem label="Domain">{domains}</MetaItem> : null;
+    content = domains ? (
+      <MetaItem label="Domain" entityType="domain">
+        {domains}
+      </MetaItem>
+    ) : null;
   } else if (proposal.kind === "understanding-update") {
     const domains = domainPaths(proposal.content.domainPaths ?? proposal.content.beforeDomainPaths);
     content = (
       <>
-        <MetaItem label="Understanding">{fallback(proposal.content.targetLabel)}</MetaItem>
-        {domains ? <MetaItem label="Domain">{domains}</MetaItem> : null}
+        <MetaItem label="Understanding" entityType="understanding">
+          {fallback(proposal.content.targetLabel)}
+        </MetaItem>
+        {domains ? (
+          <MetaItem label="Domain" entityType="domain">
+            {domains}
+          </MetaItem>
+        ) : null}
       </>
     );
   } else if (proposal.kind === "understanding-delete") {
-    content = <MetaItem label="Understanding">{fallback(proposal.content.targetLabel)}</MetaItem>;
+    content = (
+      <MetaItem label="Understanding" entityType="understanding">
+        {fallback(proposal.content.targetLabel)}
+      </MetaItem>
+    );
   } else if (proposal.kind === "domain-create") {
     content =
       proposal.content.parentPath !== undefined ? (
-        <MetaItem label="上级 Domain">{proposal.content.parentPath ?? "根 Domain"}</MetaItem>
+        <MetaItem label="上级 Domain" entityType="domain">
+          {proposal.content.parentPath ?? "根 Domain"}
+        </MetaItem>
       ) : null;
   } else if (proposal.kind === "domain-update") {
-    content = <MetaItem label="Domain">{fallback(proposal.content.targetPath)}</MetaItem>;
+    content = (
+      <MetaItem label="Domain" entityType="domain">
+        {fallback(proposal.content.targetPath)}
+      </MetaItem>
+    );
   } else if (proposal.kind === "domain-delete") {
-    content = <MetaItem label="Domain">{fallback(proposal.content.targetPath)}</MetaItem>;
+    content = (
+      <MetaItem label="Domain" entityType="domain">
+        {fallback(proposal.content.targetPath)}
+      </MetaItem>
+    );
   } else if (proposal.kind === "context-create") {
     content = (
       <>
-        <MetaItem label="Understanding">{fallback(proposal.content.understandingLabel)}</MetaItem>
+        <MetaItem label="Understanding" entityType="understanding">
+          {fallback(proposal.content.understandingLabel)}
+        </MetaItem>
         {proposal.content.mediumLabel ? (
           <MetaItem label="类型">{proposal.content.mediumLabel}</MetaItem>
         ) : null}
@@ -206,9 +226,11 @@ function ProposalMeta({ proposal }: { proposal: AgentProposalView }) {
   } else if (proposal.kind === "context-update") {
     content = (
       <>
-        <MetaItem label="Context">{fallback(proposal.content.targetLabel)}</MetaItem>
+        <MetaItem label="Context" entityType="context">
+          {fallback(proposal.content.targetLabel)}
+        </MetaItem>
         {proposal.content.understandingLabel || proposal.content.beforeUnderstandingLabel ? (
-          <MetaItem label="Understanding">
+          <MetaItem label="Understanding" entityType="understanding">
             {proposal.content.understandingLabel ?? proposal.content.beforeUnderstandingLabel}
           </MetaItem>
         ) : null}
@@ -220,7 +242,11 @@ function ProposalMeta({ proposal }: { proposal: AgentProposalView }) {
       </>
     );
   } else if (proposal.kind === "context-delete") {
-    content = <MetaItem label="Context">{fallback(proposal.content.targetLabel)}</MetaItem>;
+    content = (
+      <MetaItem label="Context" entityType="context">
+        {fallback(proposal.content.targetLabel)}
+      </MetaItem>
+    );
   } else if (proposal.kind === "bash") {
     const timeout = formatDurationMs(proposal.content.timeoutMs);
     content = (
@@ -231,7 +257,7 @@ function ProposalMeta({ proposal }: { proposal: AgentProposalView }) {
     );
   }
   return content ? (
-    <dl className="mb-3 flex flex-wrap gap-x-5 gap-y-1 border-b pb-3 text-xs">{content}</dl>
+    <dl className="mb-5 flex flex-wrap gap-x-6 gap-y-2 text-xs">{content}</dl>
   ) : null;
 }
 
@@ -254,25 +280,56 @@ function UnderstandingCreate({
   );
 }
 
-function UnderstandingUpdate({ proposal }: { proposal: UnderstandingUpdateProposalView }) {
-  const before = [proposal.content.beforeHeading, proposal.content.beforeBody]
-    .filter(Boolean)
-    .join("\n\n");
-  const after = [
-    proposal.content.afterHeading ?? proposal.content.beforeHeading,
-    proposal.content.afterBody ?? proposal.content.beforeBody,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+function KnowledgeDocument({
+  title,
+  body,
+  entityBindings,
+}: {
+  title?: string;
+  body?: string;
+  entityBindings?: ChatEntityBindings;
+}) {
   return (
-    <ProposalDiff
-      before={before || undefined}
-      after={
-        proposal.content.afterHeading !== undefined || proposal.content.afterBody !== undefined
-          ? after
-          : undefined
+    <div className="space-y-2">
+      {title ? <div className="font-medium text-foreground/90">{title}</div> : null}
+      {body ? (
+        <ChatMarkdown value={body} {...entityBindings} />
+      ) : (
+        <span className="text-muted-foreground">暂无内容</span>
+      )}
+    </div>
+  );
+}
+
+function UnderstandingUpdate({
+  proposal,
+  entityBindings,
+}: {
+  proposal: UnderstandingUpdateProposalView;
+  entityBindings?: ChatEntityBindings;
+}) {
+  const hasAfter =
+    proposal.content.afterHeading !== undefined || proposal.content.afterBody !== undefined;
+  return (
+    <KnowledgeComparison
+      before={
+        <KnowledgeDocument
+          title={proposal.content.beforeHeading}
+          body={proposal.content.beforeBody}
+          entityBindings={entityBindings}
+        />
       }
-      pending="正在生成修改…"
+      after={
+        hasAfter ? (
+          <KnowledgeDocument
+            title={proposal.content.afterHeading ?? proposal.content.beforeHeading}
+            body={proposal.content.afterBody ?? proposal.content.beforeBody}
+            entityBindings={entityBindings}
+          />
+        ) : (
+          <span className="text-muted-foreground">正在生成修改…</span>
+        )
+      }
     />
   );
 }
@@ -291,27 +348,32 @@ function DomainCreate({ proposal }: { proposal: DomainCreateProposalView }) {
 }
 
 function DomainUpdate({ proposal }: { proposal: DomainUpdateProposalView }) {
-  const before = [
-    `名称：${fallback(proposal.content.beforeName, "未读取")}`,
-    `上级 Domain：${proposal.content.beforeParentPath ?? "根 Domain"}`,
-  ].join("\n");
-  const after = [
-    `名称：${proposal.content.nextName ?? proposal.content.beforeName ?? "未读取"}`,
-    `上级 Domain：${
-      proposal.content.nextParentPath !== undefined
-        ? (proposal.content.nextParentPath ?? "根 Domain")
-        : (proposal.content.beforeParentPath ?? "根 Domain")
-    }`,
-  ].join("\n");
+  const hasAfter =
+    proposal.content.nextName !== undefined || proposal.content.nextParentPath !== undefined;
   return (
-    <ProposalDiff
-      before={before}
-      after={
-        proposal.content.nextName !== undefined || proposal.content.nextParentPath !== undefined
-          ? after
-          : undefined
+    <KnowledgeComparison
+      before={
+        <FieldList>
+          <Field label="名称">{fallback(proposal.content.beforeName, "未读取")}</Field>
+          <Field label="上级 Domain">{proposal.content.beforeParentPath ?? "根 Domain"}</Field>
+        </FieldList>
       }
-      pending="正在生成修改…"
+      after={
+        hasAfter ? (
+          <FieldList>
+            <Field label="名称">
+              {proposal.content.nextName ?? proposal.content.beforeName ?? "未读取"}
+            </Field>
+            <Field label="上级 Domain">
+              {proposal.content.nextParentPath !== undefined
+                ? (proposal.content.nextParentPath ?? "根 Domain")
+                : (proposal.content.beforeParentPath ?? "根 Domain")}
+            </Field>
+          </FieldList>
+        ) : (
+          <span className="text-muted-foreground">正在生成修改…</span>
+        )
+      }
     />
   );
 }
@@ -335,25 +397,35 @@ function ContextCreate({
   );
 }
 
-function ContextUpdate({ proposal }: { proposal: ContextUpdateProposalView }) {
-  const before = [proposal.content.beforeTitle, proposal.content.beforeBody]
-    .filter(Boolean)
-    .join("\n\n");
-  const after = [
-    proposal.content.nextTitle ?? proposal.content.beforeTitle,
-    proposal.content.nextBody ?? proposal.content.beforeBody,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+function ContextUpdate({
+  proposal,
+  entityBindings,
+}: {
+  proposal: ContextUpdateProposalView;
+  entityBindings?: ChatEntityBindings;
+}) {
+  const hasAfter =
+    proposal.content.nextTitle !== undefined || proposal.content.nextBody !== undefined;
   return (
-    <ProposalDiff
-      before={before || undefined}
-      after={
-        proposal.content.nextTitle !== undefined || proposal.content.nextBody !== undefined
-          ? after
-          : undefined
+    <KnowledgeComparison
+      before={
+        <KnowledgeDocument
+          title={proposal.content.beforeTitle}
+          body={proposal.content.beforeBody}
+          entityBindings={entityBindings}
+        />
       }
-      pending="正在生成修改…"
+      after={
+        hasAfter ? (
+          <KnowledgeDocument
+            title={proposal.content.nextTitle ?? proposal.content.beforeTitle}
+            body={proposal.content.nextBody ?? proposal.content.beforeBody}
+            entityBindings={entityBindings}
+          />
+        ) : (
+          <span className="text-muted-foreground">正在生成修改…</span>
+        )
+      }
     />
   );
 }
@@ -411,7 +483,8 @@ function ProposalContent({
 }) {
   if (proposal.kind === "understanding-create")
     return <UnderstandingCreate proposal={proposal} entityBindings={entityBindings} />;
-  if (proposal.kind === "understanding-update") return <UnderstandingUpdate proposal={proposal} />;
+  if (proposal.kind === "understanding-update")
+    return <UnderstandingUpdate proposal={proposal} entityBindings={entityBindings} />;
   if (proposal.kind === "understanding-delete")
     return <DeleteProposal>确认后，这条 Understanding 将移入回收站。</DeleteProposal>;
   if (proposal.kind === "domain-create") return <DomainCreate proposal={proposal} />;
@@ -426,7 +499,8 @@ function ProposalContent({
     );
   if (proposal.kind === "context-create")
     return <ContextCreate proposal={proposal} entityBindings={entityBindings} />;
-  if (proposal.kind === "context-update") return <ContextUpdate proposal={proposal} />;
+  if (proposal.kind === "context-update")
+    return <ContextUpdate proposal={proposal} entityBindings={entityBindings} />;
   if (proposal.kind === "context-delete")
     return <DeleteProposal>确认后，这条 Context 将移入回收站。</DeleteProposal>;
   if (proposal.kind === "bash") return <BashProposal proposal={proposal} />;
@@ -500,13 +574,12 @@ export function AgentProposalCard({
         <ArrowUpRight className="size-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="max-h-[34rem] overflow-y-auto border-t px-3 py-3">
+        <div className="max-h-[34rem] overflow-y-auto px-3 pb-3 pt-1">
           <ProposalMeta proposal={proposal} />
           <ProposalContent proposal={proposal} entityBindings={entityBindings} />
           <Reason value={proposalReason(proposal)} />
           {hasToolDetails(proposal.result) ? (
-            <div className="mt-3 border-t pt-3 text-sm text-muted-foreground">
-              <div className="mb-1 px-1 text-xs font-medium text-foreground/70">执行结果</div>
+            <div className="mt-5 text-sm text-muted-foreground">
               <ToolDetails details={proposal.result!} />
             </div>
           ) : null}
@@ -516,14 +589,14 @@ export function AgentProposalCard({
             </div>
           ) : null}
           {proposal.lifecycle === "rejected" && proposal.rejectionReason ? (
-            <div className="mt-3 border-t pt-3">
+            <div className="mt-5">
               <div className="mb-1 text-xs text-muted-foreground">拒绝原因</div>
               <div className="text-sm leading-6">{proposal.rejectionReason}</div>
             </div>
           ) : null}
         </div>
         {showDecision ? (
-          <div className="flex flex-wrap items-center justify-end gap-2 border-t px-3 py-2.5">
+          <div className="flex flex-wrap items-center justify-end gap-2 px-3 pb-3 pt-1">
             <InputGroup className="w-[28rem] max-w-full">
               <InputGroupInput
                 data-testid="agent-proposal-rejection-reason"
