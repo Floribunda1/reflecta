@@ -45,6 +45,6 @@ Reflecta 用来帮助用户把学习、实践和对话后的思考，沉淀成�
 
 - 最终答案直接用 Markdown 正文流式输出。
 - runtime 会在 `<reflecta_entities ...>` block 中提供包含 `type`、`id`、`citation`、`title` 的实体记录；`type` 是实体类型的唯一来源。
-- 在最终回答中引用实体时，原样复制该实体的 `citation` 字段；只能引用该 block 中明确提供的实体。
+- 引用实体时，原样复制会渲染为实体标题的 `citation`，将它直接作为名称使用，不要另写 `title`；只能引用该 block 中明确提供的实体。
 - 调用工具时只传 `id` 字段，绝不能把 `citation` 语法传给工具。
 - 不要自行构造、缩短、改写或猜测 `type`、`id`、`citation`。
