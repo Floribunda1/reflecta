@@ -324,7 +324,7 @@ const typicalBashInput = {
 };
 
 function TypicalTaskDemo() {
-  const frame = useAutoFrame(4, 1_800);
+  const frame = useAutoFrame(6, 1_800);
   const blocks: AgentReducedAssistantBlock[] =
     frame === 0
       ? []
@@ -348,7 +348,7 @@ function TypicalTaskDemo() {
               "typical-bash",
               "bash",
               typicalBashInput,
-              frame === 3
+              frame >= 3
                 ? {
                     exitCode: 0,
                     stdout: telemetryOutput,
@@ -356,23 +356,23 @@ function TypicalTaskDemo() {
                     truncated: false,
                   }
                 : undefined,
-              { state: frame === 3 ? "completed" : "running" },
+              { state: frame >= 3 ? "completed" : "running" },
             ),
-            ...(frame === 3
+            ...(frame >= 4
               ? ([
                   {
                     kind: "text",
                     text: "检查完成：\n\n- 西侧支路的压力波动与低温启动顺序一致；\n- 十条候选理解中有四条包含现场 Context 证据；\n- 遥测校验通过，当前不需要修改控制参数。\n\n建议保留下一观察窗，确认回水温度的移动平均仍处于安全区间。",
-                    state: "done",
+                    state: frame === 4 ? "streaming" : "done",
                     createdAt,
                   },
                 ] satisfies AgentReducedAssistantBlock[])
               : []),
           ];
   const row = assistantRow("typical-assistant", blocks, {
-    running: frame !== 3,
-    timestampLabel: frame === 3 ? "18:21" : undefined,
-    enabledActions: frame === 3 ? ["copy", "fork", "regenerate"] : [],
+    running: frame !== 5,
+    timestampLabel: frame === 5 ? "18:21" : undefined,
+    enabledActions: frame === 5 ? ["copy", "fork", "regenerate"] : [],
   });
 
   return (
@@ -387,7 +387,7 @@ function TypicalTaskDemo() {
         <ChatMessageRow row={row} />
       </div>
       <div className="border-t bg-background p-4">
-        <Composer running={frame !== 3} />
+        <Composer running={frame !== 5} />
       </div>
     </StorySurface>
   );

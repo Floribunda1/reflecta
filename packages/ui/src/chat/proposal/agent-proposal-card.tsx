@@ -4,6 +4,7 @@ import { Badge } from "../../components/badge";
 import { Button } from "../../components/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/collapsible";
 import type { ChatEntityBindings } from "../entity";
+import { AgentWorkingIndicator } from "../execution/agent-working-indicator";
 import { hasToolDetails, ToolDetails } from "../execution/tool-details";
 import { ChatMarkdown } from "../markdown/chat-markdown";
 import type {
@@ -374,6 +375,7 @@ export function AgentProposalCard({
   const [manualOpen, setManualOpen] = useState<{ id: string; open: boolean }>();
   const open = manualOpen?.id === proposal.id ? manualOpen.open : shouldOpenByDefault(proposal);
   const destructive = proposal.lifecycle === "failed" || proposal.lifecycle === "rejected";
+  const working = proposal.lifecycle === "preview" || proposal.lifecycle === "running";
   const showDecision =
     proposal.lifecycle === "pending" && proposal.decisionEnabled && Boolean(onDecision);
 
@@ -397,6 +399,7 @@ export function AgentProposalCard({
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           <Badge variant={destructive ? "destructive" : "outline"}>
+            {working ? <AgentWorkingIndicator className="size-3" aria-hidden="true" /> : null}
             {lifecycleLabel(proposal.lifecycle)}
           </Badge>
           <CollapsibleTrigger

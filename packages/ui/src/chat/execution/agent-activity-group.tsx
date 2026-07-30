@@ -9,16 +9,18 @@ import type { AgentActivityBlockView } from "./types";
 
 export type AgentActivityGroupProps = {
   blocks: readonly AgentActivityBlockView[];
+  active?: boolean;
   defaultExpanded?: boolean;
   entityBindings?: ChatEntityBindings;
 };
 
 export function AgentActivityGroup({
   blocks,
+  active = false,
   defaultExpanded = false,
   entityBindings,
 }: AgentActivityGroupProps) {
-  const presentation = activityGroupPresentation(blocks);
+  const presentation = activityGroupPresentation(blocks, active);
   if (presentation.stepCount === 0) return null;
 
   return (

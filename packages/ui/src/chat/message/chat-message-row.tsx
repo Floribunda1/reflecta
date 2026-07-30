@@ -147,6 +147,19 @@ function blockId(block: AgentMessageBlockView) {
   return block.proposal.id;
 }
 
+function tailWorkingLabel(message: ChatAssistantMessageView) {
+  if (message.status !== "streaming") return null;
+  const last = message.blocks.at(-1);
+  if (!last) return "正在思考";
+  if (isAgentActivityBlock(last)) return null;
+  if (last.kind === "proposal") {
+    if (last.proposal.lifecycle === "pending") return null;
+    if (last.proposal.lifecycle === "preview" || last.proposal.lifecycle === "running") return null;
+  }
+  if (last.kind === "text" && last.status === "streaming") return "正在回复";
+  return "正在继续";
+}
+
 function AgentMessageContent({
   message,
   entityBindings,
@@ -170,6 +183,7 @@ function AgentMessageContent({
         <AgentActivityGroup
           key={`activity-group:${blockId(block)}`}
           blocks={activities}
+          active={message.status === "streaming" && index === message.blocks.length - 1}
           entityBindings={entityBindings}
         />,
       );
@@ -216,6 +230,7 @@ function AgentMessageContent({
     );
   }
 
+  const workingLabel = tailWorkingLabel(message);
   return (
     <>
       {renderedBlocks}
@@ -227,7 +242,7 @@ function AgentMessageContent({
           已停止
         </div>
       ) : null}
-      {message.status === "streaming" && message.blocks.length === 0 ? <AgentPendingBlock /> : null}
+      {workingLabel ? <AgentPendingBlock label={workingLabel} /> : null}
       {message.status === "failed" && message.blocks.length === 0 ? (
         <div className="rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm text-destructive">
           回复失败：{message.error ?? "未知错误"}

@@ -83,4 +83,56 @@ describe("ChatMessageRow", () => {
 
     expect(onAction).toHaveBeenCalledWith({ messageId: "user-1", type: "edit" });
   });
+
+  test("keeps a continuous working signal between completed agent steps", () => {
+    const next = render({
+      message: {
+        kind: "assistant",
+        id: "assistant-1",
+        status: "streaming",
+        blocks: [
+          {
+            kind: "tool-activity",
+            activity: {
+              id: "tool-1",
+              toolName: "read",
+              status: "done",
+              summary: "读取了「journal.md」",
+              items: [],
+            },
+          },
+        ],
+      },
+    });
+
+    expect(next.querySelector('[data-testid="agent-activity-group"]')).not.toBeNull();
+    expect(next.querySelector('[data-slot="agent-working-indicator"]')).not.toBeNull();
+    expect(next.querySelector('[data-testid="agent-running-placeholder"]')).toBeNull();
+  });
+
+  test("hands ownership to the user while an approval is pending", () => {
+    const next = render({
+      message: {
+        kind: "assistant",
+        id: "assistant-1",
+        status: "streaming",
+        blocks: [
+          {
+            kind: "proposal",
+            proposal: {
+              id: "proposal-1",
+              kind: "bash",
+              title: "执行 Bash",
+              lifecycle: "pending",
+              decisionEnabled: true,
+              content: { command: "bun test" },
+            },
+          },
+        ],
+      },
+    });
+
+    expect(next.querySelector('[data-slot="agent-working-indicator"]')).toBeNull();
+    expect(next.querySelector('[data-testid="agent-running-placeholder"]')).toBeNull();
+  });
 });

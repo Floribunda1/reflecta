@@ -57,6 +57,17 @@ describe("agent activity presentation", () => {
     });
   });
 
+  test("keeps the tail activity running while the agent still owns the turn", () => {
+    const blocks: AgentActivityBlockView[] = [
+      {
+        kind: "tool-activity",
+        activity: toolActivity("read", "done"),
+      },
+    ];
+
+    expect(activityGroupPresentation(blocks, true).running).toBe(true);
+  });
+
   test.each<[readonly string[], AgentToolIconKind]>([
     [["read", "file_read", "fetch_content", "get_search_content"], "file"],
     [["edit"], "edit"],

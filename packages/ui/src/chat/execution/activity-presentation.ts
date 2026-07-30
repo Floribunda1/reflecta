@@ -46,6 +46,7 @@ export function activitySummary(block: AgentActivityBlockView) {
 
 export function activityGroupPresentation(
   blocks: readonly AgentActivityBlockView[],
+  active = false,
 ): AgentActivityGroupPresentation {
   const latest = blocks.at(-1);
   return {
@@ -54,11 +55,13 @@ export function activityGroupPresentation(
     errorCount: blocks.filter(
       (block) => block.kind === "tool-activity" && block.activity.status === "failed",
     ).length,
-    running: blocks.some(
-      (block) =>
-        (block.kind === "reasoning" && block.reasoning.status === "streaming") ||
-        (block.kind === "tool-activity" && block.activity.status === "running"),
-    ),
+    running:
+      active ||
+      blocks.some(
+        (block) =>
+          (block.kind === "reasoning" && block.reasoning.status === "streaming") ||
+          (block.kind === "tool-activity" && block.activity.status === "running"),
+      ),
   };
 }
 
