@@ -263,10 +263,10 @@ export function AgentPendingBlock({ label = "正在思考" }: { label?: string }
   return (
     <div
       data-testid="agent-running-placeholder"
-      className="flex max-w-full items-center gap-2 px-1 py-1 text-[13px] font-medium text-foreground/70"
+      className="mt-1 flex w-fit max-w-full items-center gap-1.5 rounded-full border border-border/70 px-2.5 py-1 text-xs font-medium text-muted-foreground"
     >
       <AgentWorkingIndicator
-        className="size-5 text-foreground/65"
+        className="size-4 text-foreground/60"
         role="status"
         aria-label="执行中"
       />

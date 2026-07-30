@@ -34,7 +34,7 @@ export function AgentActivityGroup({
         className="group flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] text-muted-foreground transition-colors hover:bg-muted/50"
       >
         <ChevronRight className="size-3 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
-        <Badge variant="secondary" className="tabular-nums">
+        <Badge variant="outline" className="bg-background font-semibold tabular-nums shadow-xs">
           {presentation.stepCount}
         </Badge>
         {presentation.running ? (

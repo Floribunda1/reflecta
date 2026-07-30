@@ -1529,8 +1529,37 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
     return `查看 Domain「${target}」 · ${understandings} 条 Understanding / ${contexts} 条 Context`;
   }
   if (name === "understanding_list") {
-    const domainCount = stringArray(input.domainIds).length;
-    return `列出${domainCount > 0 ? ` ${domainCount} 个 Domain 中的` : ""} Understanding · ${outputCount(output, "understandings")} 条`;
+    const domainIds = stringArray(input.domainIds);
+    const domainCount = domainIds.length;
+    const understandings = Array.isArray(output)
+      ? output
+      : isRecord(output)
+        ? arrayValue(output.understandings)
+        : [];
+    const domainNames = [
+      ...new Set(
+        understandings.flatMap((understanding) =>
+          isRecord(understanding)
+            ? arrayValue(understanding.domains).flatMap((domain) => {
+                const title =
+                  isRecord(domain) && domainIds.includes(stringValue(domain.id))
+                    ? entityTitle(domain)
+                    : undefined;
+                return title ? [title] : [];
+              })
+            : [],
+        ),
+      ),
+    ];
+    const domainLabel =
+      domainNames.length === 1
+        ? `「${domainNames[0]}」下的 `
+        : domainNames.length > 1
+          ? `「${domainNames[0]}」等 ${domainNames.length} 个 Domain 下的 `
+          : domainCount > 0
+            ? ` ${domainCount} 个 Domain 下的 `
+            : " ";
+    return `列出${domainLabel}Understanding · ${outputCount(output, "understandings")} 条`;
   }
   if (name === "search") {
     const counts = searchHitCounts(output);

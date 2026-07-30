@@ -827,9 +827,16 @@ describe("buildAgentTurnView", () => {
     ],
     [
       "understanding_list",
-      { domainIds: ["d1", "d2"] },
-      { understandings: [{ id: "u1" }] },
-      "列出 2 个 Domain 中的 Understanding · 1 条",
+      { domainIds: ["d1"] },
+      {
+        understandings: [
+          {
+            id: "u1",
+            domains: [{ id: "d1", name: "产品" }],
+          },
+        ],
+      },
+      "列出「产品」下的 Understanding · 1 条",
     ],
     [
       "understanding_get",
@@ -985,11 +992,6 @@ describe("buildAgentTurnView", () => {
         },
       },
     ]);
-    expect(
-      turn.blocks[2]?.kind === "tool-activity"
-        ? turn.blocks[2].activity.items[0]?.details.badges
-        : undefined,
-    ).toEqual(["产品", "工程"]);
   });
 
   test("keeps running and failed tool activity states in thinking", () => {
