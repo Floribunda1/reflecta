@@ -225,7 +225,7 @@ const completedTools: readonly ToolBlock[] = [
     },
     {
       patch:
-        "--- a/irrigation-zones.ts\n+++ b/irrigation-zones.ts\n@@\n-export const retryWindowMs = 8_000;\n+export const retryWindowMs = 12_000;\n+export const minimumPressureBar = 1.85;",
+        "--- a/irrigation-zones.ts\n+++ b/irrigation-zones.ts\n@@ -1 +1,2 @@\n-export const retryWindowMs = 8_000;\n+export const retryWindowMs = 12_000;\n+export const minimumPressureBar = 1.85;",
     },
   ),
   tool(
