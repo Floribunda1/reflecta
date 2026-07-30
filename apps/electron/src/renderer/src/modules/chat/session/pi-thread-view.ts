@@ -17,6 +17,7 @@ import type { AgentThreadView } from "./thread-view";
 import {
   buildChatJumpItems,
   editingMessageFromAgentMessage,
+  mergeAgentEvents,
   scrollKeyFor,
   scrollTopForChildBottom,
   shouldShowScrollToBottomButton,
@@ -63,6 +64,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const shouldStickToBottom = useRef(true);
   const eventIdsRef = useRef<Set<string>>(new Set());
+  const liveEventsRef = useRef<AgentEvent[]>([]);
   const pendingEventsRef = useRef<AgentEvent[]>([]);
   const flushFrameRef = useRef<number | null>(null);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -76,9 +78,17 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
   });
 
   useEffect(() => {
+    setState(initialAgentSessionState);
+    setEditingMessage(undefined);
+    eventIdsRef.current.clear();
+    liveEventsRef.current = [];
+  }, [sessionId]);
+
+  useEffect(() => {
     if (!eventsQuery.data) return;
-    eventIdsRef.current = new Set(eventsQuery.data.map((event) => event.id));
-    setState(reduceAgentSession(eventsQuery.data));
+    const events = mergeAgentEvents(eventsQuery.data, liveEventsRef.current);
+    eventIdsRef.current = new Set(events.map((event) => event.id));
+    setState(reduceAgentSession(events));
   }, [eventsQuery.data]);
 
   useEffect(() => {
@@ -94,6 +104,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
       if (!isAgentEvent(payload) || payload.sessionId !== sessionId) return;
       if (eventIdsRef.current.has(payload.id)) return;
       eventIdsRef.current.add(payload.id);
+      liveEventsRef.current.push(payload);
       pendingEventsRef.current.push(payload);
       flushFrameRef.current ??= requestAnimationFrame(flushPendingEvents);
       const entityRef = completedEntityRef(payload);

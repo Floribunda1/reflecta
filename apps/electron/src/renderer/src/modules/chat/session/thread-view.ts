@@ -2,6 +2,7 @@ import type { RefObject } from "react";
 import type {
   AgentContextCompacted,
   AgentEntityCatalogEntry,
+  AgentEvent,
   AgentModelSelection,
   AgentReasoningLevel,
   AgentReducedMessage,
@@ -60,6 +61,14 @@ export type ChatFindMatch = {
   matchIndex: number;
   role: AgentReducedMessage["role"];
 };
+
+export function mergeAgentEvents(
+  historical: readonly AgentEvent[],
+  live: readonly AgentEvent[],
+): AgentEvent[] {
+  const eventIds = new Set(historical.map((event) => event.id));
+  return [...historical, ...live.filter((event) => !eventIds.has(event.id))];
+}
 
 export function editingMessageFromAgentMessage(message: AgentReducedMessage): EditingMessage {
   return {

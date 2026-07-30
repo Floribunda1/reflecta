@@ -1,14 +1,28 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, test } from "vitest";
-import type { AgentReducedMessage } from "@shared/agent";
+import type { AgentEvent, AgentReducedMessage } from "@shared/agent";
 import {
   buildChatFindMatches,
   buildChatJumpItems,
+  mergeAgentEvents,
   scrollTopForChildBottom,
   shouldShowPendingAssistantPlaceholder,
   shouldShowScrollToBottomButton,
 } from "./thread-view";
+
+describe("mergeAgentEvents", () => {
+  test("keeps live events that arrive before history finishes loading without duplicating history", () => {
+    const historical = [event("history"), event("shared")];
+    const live = [event("shared"), event("live")];
+
+    expect(mergeAgentEvents(historical, live).map((item) => item.id)).toEqual([
+      "history",
+      "shared",
+      "live",
+    ]);
+  });
+});
 
 describe("shouldShowScrollToBottomButton", () => {
   test("shows the button after scrolling away from the bottom", () => {
@@ -127,6 +141,16 @@ function message(id: string, role: AgentReducedMessage["role"], text: string): A
     id,
     role,
     text,
+    createdAt: "2026-06-24T00:00:00.000Z",
+  };
+}
+
+function event(id: string): AgentEvent {
+  return {
+    id,
+    type: "run.started",
+    sessionId: "session-1",
+    runId: "run-1",
     createdAt: "2026-06-24T00:00:00.000Z",
   };
 }

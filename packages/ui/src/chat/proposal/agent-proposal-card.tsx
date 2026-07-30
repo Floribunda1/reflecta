@@ -372,8 +372,15 @@ export function AgentProposalCard({
   onDecision,
   entityBindings,
 }: AgentProposalCardProps) {
-  const [manualOpen, setManualOpen] = useState<{ id: string; open: boolean }>();
-  const open = manualOpen?.id === proposal.id ? manualOpen.open : shouldOpenByDefault(proposal);
+  const [manualOpen, setManualOpen] = useState<{
+    id: string;
+    lifecycle: AgentProposalLifecycle;
+    open: boolean;
+  }>();
+  const open =
+    manualOpen?.id === proposal.id && manualOpen.lifecycle === proposal.lifecycle
+      ? manualOpen.open
+      : shouldOpenByDefault(proposal);
   const destructive = proposal.lifecycle === "failed" || proposal.lifecycle === "rejected";
   const working = proposal.lifecycle === "preview" || proposal.lifecycle === "running";
   const showDecision =
@@ -382,7 +389,9 @@ export function AgentProposalCard({
   return (
     <Collapsible
       open={open}
-      onOpenChange={(nextOpen) => setManualOpen({ id: proposal.id, open: nextOpen })}
+      onOpenChange={(nextOpen) =>
+        setManualOpen({ id: proposal.id, lifecycle: proposal.lifecycle, open: nextOpen })
+      }
       data-testid="agent-proposal-card"
       data-proposal-id={proposal.id}
       data-proposal-kind={proposal.kind}

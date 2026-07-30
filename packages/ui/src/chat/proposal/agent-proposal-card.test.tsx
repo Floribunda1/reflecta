@@ -60,7 +60,7 @@ describe("AgentProposalCard", () => {
     ).toBeNull();
   });
 
-  test("keeps card identity and manual collapse state across snapshots", () => {
+  test("keeps card identity but reveals the card when ownership moves to the user", () => {
     const rendered = render(proposal("preview"));
     const card = rendered.container.querySelector('[data-proposal-id="approval-1"]');
     const trigger = rendered.container.querySelector<HTMLButtonElement>(
@@ -71,6 +71,6 @@ describe("AgentProposalCard", () => {
 
     render(proposal("pending"), rendered.onDecision);
     expect(rendered.container.querySelector('[data-proposal-id="approval-1"]')).toBe(card);
-    expect(card?.getAttribute("data-proposal-open")).toBe("false");
+    expect(card?.getAttribute("data-proposal-open")).toBe("true");
   });
 });
