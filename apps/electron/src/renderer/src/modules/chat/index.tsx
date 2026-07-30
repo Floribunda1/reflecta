@@ -274,7 +274,7 @@ function ChatPageContent() {
                   "agent-chat-main": 100,
                 }
           }
-          className="min-h-0 min-w-0 bg-card/70"
+          className="min-h-0 min-w-0 bg-card/95"
         >
           <ResizablePanel
             id="agent-chat-main"
