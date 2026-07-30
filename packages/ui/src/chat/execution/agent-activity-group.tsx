@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { Badge } from "../../components/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/collapsible";
 import type { ChatEntityBindings } from "../entity";
@@ -31,9 +31,8 @@ export function AgentActivityGroup({
     >
       <CollapsibleTrigger
         data-testid="agent-activity-group-trigger"
-        className="group flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] text-muted-foreground transition-colors hover:bg-muted/50"
+        className="group flex w-full cursor-pointer items-center gap-2 rounded-lg py-1.5 pl-0 pr-2.5 text-left text-[13px] text-muted-foreground transition-colors hover:bg-muted/50"
       >
-        <ChevronRight className="size-3 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
         <Badge variant="outline" className="bg-background font-semibold tabular-nums shadow-xs">
           {presentation.stepCount}
         </Badge>
@@ -43,12 +42,13 @@ export function AgentActivityGroup({
             <span className="sr-only">执行中</span>
           </>
         ) : null}
-        <span className="min-w-0 flex-1 truncate">{presentation.latestSummary}</span>
+        <span className="min-w-0 flex-1 truncate">{presentation.summary}</span>
         {presentation.errorCount > 0 ? (
           <span className="shrink-0 text-[11px] text-destructive">
             {presentation.errorCount} 个错误
           </span>
         ) : null}
+        <ArrowUpRight className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="ml-[13px] border-l-2 border-border/60 py-0.5 pl-4 pr-2">

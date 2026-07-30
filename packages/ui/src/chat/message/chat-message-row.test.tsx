@@ -111,9 +111,10 @@ describe("ChatMessageRow", () => {
       },
     });
 
-    expect(next.querySelector('[data-testid="agent-activity-group"]')).not.toBeNull();
+    expect(next.querySelector('[data-testid="agent-activity-group"]')).toBeNull();
+    expect(next.querySelector('[data-testid="agent-tool-activity"]')).not.toBeNull();
     expect(next.querySelector('[data-slot="agent-working-indicator"]')).not.toBeNull();
-    expect(next.querySelector('[data-testid="agent-running-placeholder"]')).toBeNull();
+    expect(next.querySelector('[data-testid="agent-running-placeholder"]')).not.toBeNull();
   });
 
   test("hands ownership to the user while an approval is pending", () => {

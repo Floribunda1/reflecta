@@ -156,7 +156,13 @@ function tailWorkingLabel(message: ChatAssistantMessageView) {
   if (message.status !== "streaming") return null;
   const last = message.blocks.at(-1);
   if (!last) return "正在思考";
-  if (isAgentActivityBlock(last)) return null;
+  if (isAgentActivityBlock(last)) {
+    const previous = message.blocks.at(-2);
+    if (previous && isAgentActivityBlock(previous)) return null;
+    if (last.kind === "reasoning" && last.reasoning.status === "streaming") return null;
+    if (last.kind === "tool-activity" && last.activity.status === "running") return null;
+    return "Reflecta 工作中...";
+  }
   if (last.kind === "proposal") {
     if (last.proposal.lifecycle === "pending") return null;
     if (last.proposal.lifecycle === "preview" || last.proposal.lifecycle === "running") return null;
@@ -185,12 +191,16 @@ function AgentMessageContent({
         index += 1;
       }
       renderedBlocks.push(
-        <AgentActivityGroup
-          key={`activity-group:${blockId(block)}`}
-          blocks={activities}
-          active={message.status === "streaming" && index === message.blocks.length - 1}
-          entityBindings={entityBindings}
-        />,
+        activities.length === 1 ? (
+          <AgentExecutionBlock key={blockId(block)} block={block} entityBindings={entityBindings} />
+        ) : (
+          <AgentActivityGroup
+            key={`activity-group:${blockId(block)}`}
+            blocks={activities}
+            active={message.status === "streaming" && index === message.blocks.length - 1}
+            entityBindings={entityBindings}
+          />
+        ),
       );
       continue;
     }

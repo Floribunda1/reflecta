@@ -15,7 +15,7 @@ export type AgentToolIconKind =
   | "other";
 
 export type AgentActivityGroupPresentation = {
-  latestSummary: string;
+  summary: string;
   stepCount: number;
   errorCount: number;
   running: boolean;
@@ -47,19 +47,23 @@ export function activityGroupPresentation(
   active = false,
 ): AgentActivityGroupPresentation {
   const latest = blocks.at(-1);
+  const running =
+    active ||
+    blocks.some(
+      (block) =>
+        (block.kind === "reasoning" && block.reasoning.status === "streaming") ||
+        (block.kind === "tool-activity" && block.activity.status === "running"),
+    );
+  const summaryBlock = running
+    ? latest
+    : ([...blocks].reverse().find((block) => block.kind === "reasoning") ?? latest);
   return {
-    latestSummary: latest ? activitySummary(latest) : "",
+    summary: summaryBlock ? activitySummary(summaryBlock) : "",
     stepCount: blocks.length,
     errorCount: blocks.filter(
       (block) => block.kind === "tool-activity" && block.activity.status === "failed",
     ).length,
-    running:
-      active ||
-      blocks.some(
-        (block) =>
-          (block.kind === "reasoning" && block.reasoning.status === "streaming") ||
-          (block.kind === "tool-activity" && block.activity.status === "running"),
-      ),
+    running,
   };
 }
 

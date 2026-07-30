@@ -1,7 +1,6 @@
 import {
   ArrowUpRight,
   CheckCircle2,
-  ChevronRight,
   CircleAlert,
   FilePenLine,
   FileText,
@@ -151,7 +150,7 @@ export function AgentContextCompactionStatus({
         {tokenChange ? (
           <span className="text-xs tabular-nums text-muted-foreground/70">{tokenChange}</span>
         ) : null}
-        <ChevronRight className="ml-auto size-3 shrink-0 opacity-0 transition group-data-[panel-open]/compaction:rotate-90 group-hover:opacity-100 group-focus-visible:opacity-100" />
+        <ArrowUpRight className="ml-auto size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
       </CollapsibleTrigger>
       <CollapsibleContent
         data-testid="agent-context-compaction-summary"
@@ -260,7 +259,7 @@ function ToolActivityBlock({ activity }: { activity: AgentToolActivityView }) {
           ) : null}
         </span>
         {hasContent ? (
-          <ChevronRight className="size-3 shrink-0 opacity-0 transition group-data-[panel-open]:rotate-90 group-data-[panel-open]:opacity-100 group-hover:opacity-100 group-focus-visible:opacity-100" />
+          <ArrowUpRight className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
         ) : null}
         <span className="sr-only">{statusLabel}</span>
       </CollapsibleTrigger>

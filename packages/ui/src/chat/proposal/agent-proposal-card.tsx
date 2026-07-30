@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from "react";
-import { Check, ChevronDown, TriangleAlert } from "lucide-react";
+import { ArrowUpRight, Check, TriangleAlert } from "lucide-react";
 import { Badge } from "../../components/badge";
 import { Button } from "../../components/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/collapsible";
@@ -415,7 +415,7 @@ export function AgentProposalCard({
             className="group flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground"
             aria-label={open ? "折叠候选卡片" : "展开候选卡片"}
           >
-            <ChevronDown className="size-4 -rotate-90 transition group-data-[panel-open]:rotate-0" />
+            <ArrowUpRight className="size-3 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
           </CollapsibleTrigger>
         </div>
       </div>

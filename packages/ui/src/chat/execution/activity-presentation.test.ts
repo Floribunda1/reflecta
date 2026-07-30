@@ -50,11 +50,29 @@ describe("agent activity presentation", () => {
     ];
 
     expect(activityGroupPresentation(blocks)).toEqual({
-      latestSummary: "正在检索「Agent UX」",
+      summary: "正在检索「Agent UX」",
       stepCount: 3,
       errorCount: 1,
       running: true,
     });
+  });
+
+  test("uses the last thinking block as the completed group summary", () => {
+    const blocks: AgentActivityBlockView[] = [
+      {
+        kind: "reasoning",
+        reasoning: { id: "reasoning-1", status: "done", markdown: "已经确认实现边界" },
+      },
+      {
+        kind: "tool-activity",
+        activity: {
+          ...toolActivity("read"),
+          summary: "读取了「chat-message-row.tsx」",
+        },
+      },
+    ];
+
+    expect(activityGroupPresentation(blocks).summary).toBe("已经确认实现边界");
   });
 
   test("keeps the tail activity running while the agent still owns the turn", () => {
@@ -79,7 +97,7 @@ describe("agent activity presentation", () => {
             markdown: "先浏览知识库，再筛选值得展开的笔记",
           },
         },
-      ]).latestSummary,
+      ]).summary,
     ).toBe("先浏览知识库，再筛选值得展开的笔记");
   });
 
