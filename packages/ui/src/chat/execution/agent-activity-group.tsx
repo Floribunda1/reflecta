@@ -39,7 +39,7 @@ export function AgentActivityGroup({
         </Badge>
         {presentation.running ? (
           <>
-            <AgentWorkingIndicator aria-hidden="true" />
+            <AgentWorkingIndicator className="size-[18px] text-foreground/65" aria-hidden="true" />
             <span className="sr-only">执行中</span>
           </>
         ) : null}

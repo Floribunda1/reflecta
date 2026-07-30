@@ -39,9 +39,7 @@ export function reasoningSummary(markdown: string) {
 
 export function activitySummary(block: AgentActivityBlockView) {
   if (block.kind === "tool-activity") return block.activity.summary;
-  return block.reasoning.status === "streaming"
-    ? "正在思考"
-    : reasoningSummary(block.reasoning.markdown);
+  return reasoningSummary(block.reasoning.markdown);
 }
 
 export function activityGroupPresentation(

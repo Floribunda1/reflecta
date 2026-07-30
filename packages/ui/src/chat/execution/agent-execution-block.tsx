@@ -82,7 +82,7 @@ function ToolStatusIcon({
               exit={{ opacity: 0, scale: 1.45, filter: "blur(2px)" }}
               transition={{ duration: 0.2 }}
             >
-              <AgentWorkingIndicator className="size-full" />
+              <AgentWorkingIndicator className="size-full text-foreground/65" />
             </motion.span>
           ) : (
             <motion.span
@@ -152,17 +152,17 @@ function ReasoningBlock({
       <CollapsibleTrigger
         className={cn(
           "group flex w-full cursor-pointer items-center gap-2 rounded-sm px-1 py-0.5 text-left hover:text-foreground",
-          streaming && "bg-muted/45 font-medium text-foreground/85",
+          streaming && "font-medium text-foreground/85",
         )}
       >
         {streaming ? (
-          <AgentWorkingIndicator aria-hidden="true" />
+          <AgentWorkingIndicator className="text-foreground/65" aria-hidden="true" />
         ) : (
           <span className="flex size-4 shrink-0 items-center justify-center">
             <MessageCircleDashed className="size-3 text-muted-foreground" aria-hidden="true" />
           </span>
         )}
-        <span className="min-w-0 flex-1 truncate">{streaming ? "正在思考" : summary}</span>
+        <span className="min-w-0 flex-1 truncate">{summary}</span>
         {!streaming ? (
           <ArrowUpRight className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
         ) : null}
@@ -172,7 +172,12 @@ function ReasoningBlock({
         className="ml-[7px] mt-1 border-l border-border/60 py-1 pl-[17px] pr-2 text-muted-foreground"
       >
         {reasoning.markdown ? (
-          <ChatMarkdown value={reasoning.markdown} tone="muted" {...entityBindings} />
+          <ChatMarkdown
+            value={reasoning.markdown}
+            tone="muted"
+            streaming={streaming}
+            {...entityBindings}
+          />
         ) : (
           <span>等待模型输出思考内容</span>
         )}
@@ -201,7 +206,7 @@ function ToolActivityBlock({ activity }: { activity: AgentToolActivityView }) {
         disabled={!hasContent}
         className={cn(
           "group flex w-full items-center gap-2 rounded-sm px-1 py-1 text-left outline-none enabled:cursor-pointer enabled:hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/40",
-          activity.status === "running" && "bg-muted/45 font-medium text-foreground/85",
+          activity.status === "running" && "font-medium text-foreground/85",
         )}
       >
         <ToolStatusIcon status={activity.status} iconKind={iconKind} />
@@ -258,9 +263,13 @@ export function AgentPendingBlock({ label = "正在思考" }: { label?: string }
   return (
     <div
       data-testid="agent-running-placeholder"
-      className="flex max-w-full items-center gap-2 rounded-md bg-muted/35 px-2.5 py-1.5 text-xs text-muted-foreground"
+      className="flex max-w-full items-center gap-2 px-1 py-1 text-[13px] font-medium text-foreground/70"
     >
-      <AgentWorkingIndicator role="status" aria-label="执行中" />
+      <AgentWorkingIndicator
+        className="size-5 text-foreground/65"
+        role="status"
+        aria-label="执行中"
+      />
       <span>{label}</span>
     </div>
   );

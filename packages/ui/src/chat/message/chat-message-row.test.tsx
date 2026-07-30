@@ -58,6 +58,12 @@ describe("ChatMessageRow", () => {
     expect(next.textContent).toContain("完整内容");
   });
 
+  test("uses the streaming response itself as the working signal without a trailing loading row", () => {
+    const next = render(streamingRow("正在生成"));
+
+    expect(next.querySelector('[data-testid="agent-running-placeholder"]')).toBeNull();
+  });
+
   test("renders search markers without changing block identity", () => {
     const first = render(streamingRow("流式内容，继续流式"));
     const block = first.querySelector('[data-block-id="assistant-1:text:0"]');

@@ -156,7 +156,7 @@ function tailWorkingLabel(message: ChatAssistantMessageView) {
     if (last.proposal.lifecycle === "pending") return null;
     if (last.proposal.lifecycle === "preview" || last.proposal.lifecycle === "running") return null;
   }
-  if (last.kind === "text" && last.status === "streaming") return "正在回复";
+  if (last.kind === "text" && last.status === "streaming") return null;
   return "正在继续";
 }
 
@@ -206,7 +206,11 @@ function AgentMessageContent({
               最终答案生成失败：{block.error ?? "未知错误"}
             </div>
           ) : (
-            <ChatMarkdown value={block.markdown} {...entityBindings} />
+            <ChatMarkdown
+              value={block.markdown}
+              streaming={block.status === "streaming"}
+              {...entityBindings}
+            />
           )}
         </div>,
       );

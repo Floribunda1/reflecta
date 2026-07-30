@@ -624,6 +624,11 @@ function ToolCard({ block }: { block: ToolBlock }) {
 }
 
 function ToolGroupCase() {
+  const streamingReasoning = [
+    "正在汇总",
+    "正在汇总 Tool 的执行结果",
+    "正在汇总 Tool 的执行结果，并检查失败步骤。",
+  ][useAutoFrame(3)];
   const blocks: AgentActivityBlockView[] = [
     {
       kind: "reasoning",
@@ -662,7 +667,7 @@ function ToolGroupCase() {
       reasoning: {
         id: "reasoning-tool-group-3",
         status: "streaming",
-        markdown: "正在汇总执行结果。",
+        markdown: streamingReasoning,
       },
     },
   ];

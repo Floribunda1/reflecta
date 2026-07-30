@@ -68,6 +68,21 @@ describe("agent activity presentation", () => {
     expect(activityGroupPresentation(blocks, true).running).toBe(true);
   });
 
+  test("shows partial reasoning in the activity summary while it streams", () => {
+    expect(
+      activityGroupPresentation([
+        {
+          kind: "reasoning",
+          reasoning: {
+            id: "reasoning-streaming",
+            status: "streaming",
+            markdown: "先浏览知识库，再筛选值得展开的笔记",
+          },
+        },
+      ]).latestSummary,
+    ).toBe("先浏览知识库，再筛选值得展开的笔记");
+  });
+
   test.each<[readonly string[], AgentToolIconKind]>([
     [["read", "file_read", "fetch_content", "get_search_content"], "file"],
     [["edit"], "edit"],

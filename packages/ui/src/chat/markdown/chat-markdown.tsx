@@ -42,6 +42,7 @@ export type ChatMarkdownProps = ChatEntityBindings & {
   value: string;
   tone?: "default" | "muted";
   className?: string;
+  streaming?: boolean;
 };
 
 function fallbackPresentation(reference: ChatEntityReference): ChatEntityPresentation {
@@ -125,6 +126,7 @@ export function ChatMarkdown({
   value,
   tone = "default",
   className,
+  streaming = false,
   resolveEntity,
   onEntityOpen,
 }: ChatMarkdownProps): ReactNode {
@@ -149,8 +151,11 @@ export function ChatMarkdown({
     >
       <Streamdown
         key={`${searchState?.query ?? "plain"}:${entityRenderKey}`}
+        animated={streaming}
+        caret="circle"
         components={markdownComponents({ resolveEntity, onEntityOpen })}
         controls={chatMarkdownControls}
+        isAnimating={streaming}
         plugins={chatMarkdownPlugins}
         rehypePlugins={searchState ? [createChatSearchRehypePlugin(searchState)] : undefined}
         urlTransform={entityUrlTransform}
