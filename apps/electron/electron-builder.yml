@@ -1,17 +1,29 @@
 appId: com.acnoo.reflecta
 productName: Reflecta
+compression: maximum
+electronLanguages:
+  - en
+  - zh_CN
+  - zh_TW
 directories:
   buildResources: build
 files:
   - "!**/.vscode/*"
-  - "!src/*"
+  - "!src/**"
+  - "!e2e/**"
+  - "!logs/**"
+  - "!native/**"
+  - "!scripts/**"
+  - "!playwright.config.ts"
   - "!vite.config.{js,ts,mjs,cjs}"
   - "!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}"
   - "!{.env,.env.*,.npmrc,pnpm-lock.yaml}"
   - "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}"
   - "!**/*.map"
+  - "!**/*.tsbuildinfo"
   - "!**/node_modules/@types/**"
   - "!**/node_modules/**/*.d.ts"
+  - "!**/node_modules/**/*.d.{cts,mts}"
   - "!**/node_modules/**/test/**"
   - "!**/node_modules/**/tests/**"
   - "!**/node_modules/**/__tests__/**"
@@ -25,6 +37,13 @@ files:
   - "!**/node_modules/**/.github/**"
   - "!**/node_modules/**/.vscode/**"
   - "!**/node_modules/!(pi-web-access)/**/*.ts"
+  - "!**/node_modules/@huggingface/transformers/**"
+  - "!**/node_modules/@img/**"
+  - "!**/node_modules/better-sqlite3/{deps,src}/**"
+  - "!**/node_modules/node-llama-cpp/llama/gitRelease.bundle"
+  - "!**/node_modules/onnxruntime-*/**"
+  - "!**/node_modules/pi-web-access/pi-web-fetch-demo.mp4"
+  - "!**/node_modules/sharp/**"
 asarUnpack:
   - "node_modules/pi-web-access/**/*"
 win:

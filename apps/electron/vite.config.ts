@@ -8,7 +8,16 @@ import electron from "vite-plugin-electron/simple";
 
 const appRoot = fileURLToPath(new URL(".", import.meta.url));
 
-const mainExternals = ["@lancedb/lancedb", "better-sqlite3", "libsql", "node-llama-cpp"];
+const mainExternals = [
+  "@earendil-works/pi-ai",
+  "@earendil-works/pi-ai/bun-oauth",
+  "@earendil-works/pi-ai/compat",
+  "@earendil-works/pi-coding-agent",
+  "@lancedb/lancedb",
+  "better-sqlite3",
+  "libsql",
+  "node-llama-cpp",
+];
 
 const esmOutput = {
   format: "es" as const,
