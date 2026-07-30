@@ -25,5 +25,5 @@ export function entityClassName(type: ChatEntityType | null) {
     "mx-0.5 inline text-[1em] font-medium leading-[inherit] no-underline decoration-transparent";
   if (type === "context") return `${base} text-emerald-700 dark:text-emerald-300`;
   if (type === "domain") return `${base} text-violet-700 dark:text-violet-300`;
-  return `${base} text-sky-700 dark:text-sky-300`;
+  return `${base} text-primary`;
 }

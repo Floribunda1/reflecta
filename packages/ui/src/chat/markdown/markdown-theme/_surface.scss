@@ -1,14 +1,20 @@
 @use "./config" as *;
 
 #{$chat-markdown-root} {
-  color: var(--foreground);
+  --reflecta-chat-background: var(--card);
+  --reflecta-chat-foreground: var(--card-foreground);
+  --reflecta-chat-muted: var(--accent);
+  --reflecta-chat-muted-foreground: color-mix(in srgb, var(--card-foreground), transparent 45%);
+  --reflecta-chat-border: var(--sidebar-border);
+
+  color: var(--reflecta-chat-foreground);
   font-size: $font-size-body;
   line-height: $line-height-prose;
   overflow-wrap: anywhere;
 
   &[data-tone="muted"],
   &[data-tone="muted"] p {
-    color: var(--muted-foreground);
+    color: var(--reflecta-chat-muted-foreground);
   }
 
   > * {

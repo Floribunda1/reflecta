@@ -5,9 +5,9 @@
     box-sizing: border-box;
     position: relative;
     margin: 0.75rem 0;
-    border-left: 2px solid color-mix(in srgb, var(--border), var(--primary) 18%);
+    border-left: 2px solid color-mix(in srgb, var(--reflecta-chat-border), var(--primary) 18%);
     background: transparent;
-    color: var(--muted-foreground);
+    color: var(--reflecta-chat-muted-foreground);
     padding: 0.05rem 0 0.05rem 0.75rem;
 
     p {
@@ -24,7 +24,7 @@
     min-height: 0;
     margin: 1.25rem 0;
     border: 0;
-    background: var(--border);
+    background: var(--reflecta-chat-border);
     padding: 0;
   }
 }

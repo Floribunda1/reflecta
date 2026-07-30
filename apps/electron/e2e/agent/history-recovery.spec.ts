@@ -80,7 +80,7 @@ test("@AG-HISTORY-006 用户重启应用后仍可打开 Agent 回复中的知识
 
     await expect(page.locator("h2", { hasText: "相关资料" })).toBeVisible();
     await expect(page.locator("h3", { hasText: "React Server Components" })).toBeVisible();
-    await expect(page.locator('[data-streamdown="strong"]', { hasText: "重点" })).toBeVisible();
+    await expect(page.locator("strong", { hasText: "重点" })).toBeVisible();
     const wikiLink = page
       .locator('[data-slot="wiki-link"]')
       .filter({

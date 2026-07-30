@@ -23,13 +23,13 @@ function render(value: string, lineClamp?: number) {
 }
 
 describe("SimpleMarkdownPreview", () => {
-  test("renders compact Markdown without interactive descendants", () => {
+  test("renders compact Markdown without exposing wiki ids", () => {
     const preview = render(
       "# Heading\n\nConnect **Alpha** to [[Night shift#context-1]] and [source](https://example.com).\n\n- checked\n\n> note\n\n- [x] done\n\n![diagram](asset:///diagram.png)",
     );
 
     expect(preview.querySelector("h1")?.textContent).toBe("Heading");
-    expect(preview.querySelector('[data-streamdown="strong"]')?.textContent).toBe("Alpha");
+    expect(preview.querySelector("strong")?.textContent).toBe("Alpha");
     expect(preview.querySelector("ul")).not.toBeNull();
     expect(preview.querySelector("blockquote")?.textContent).toContain("note");
     expect(preview.textContent).toContain("Night shift");

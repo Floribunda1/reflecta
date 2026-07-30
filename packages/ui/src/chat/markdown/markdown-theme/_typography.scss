@@ -2,9 +2,9 @@
 
 #{$chat-markdown-root} {
   p {
-    margin: 0.42rem 0;
+    margin: 0.6rem 0;
     padding: 2px 0;
-    color: var(--foreground);
+    color: var(--reflecta-chat-foreground);
   }
 
   h1,
@@ -13,9 +13,9 @@
   h4,
   h5,
   h6 {
-    margin: 1.35rem 0 0.5rem;
+    margin: 1.55rem 0 0.6rem;
     padding: 0;
-    color: var(--foreground);
+    color: var(--reflecta-chat-foreground);
     font-family: inherit;
     font-weight: 650;
     letter-spacing: 0;

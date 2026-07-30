@@ -543,7 +543,7 @@ describe("MessageList entity refs", () => {
 
     expect(container?.querySelector("h2")?.textContent).toContain("标题");
     expect(container?.querySelector("h3")?.textContent).toContain("用户需求");
-    expect(container?.querySelector('li [data-streamdown="strong"]')?.textContent).toBe("重点");
+    expect(container?.querySelector("li strong")?.textContent).toBe("重点");
     expect(container?.querySelector('[data-slot="wiki-link"]')?.textContent).toContain("用户需求");
   });
 
