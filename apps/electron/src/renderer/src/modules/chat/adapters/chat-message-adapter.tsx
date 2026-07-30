@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { format } from "date-fns";
 import { useQueries } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -250,7 +250,7 @@ function useMessagePresentation(
   );
 }
 
-export function ConnectedChatMessageRow({
+export const ConnectedChatMessageRow = memo(function ConnectedChatMessageRow({
   message,
   entityCatalog,
   isBusy,
@@ -334,4 +334,4 @@ export function ConnectedChatMessageRow({
       }}
     />
   );
-}
+});

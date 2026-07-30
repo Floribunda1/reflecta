@@ -93,7 +93,7 @@ function StreamingSyntaxDemo() {
         当前语法：{current.label} · 第 {current.frame}/{current.frameCount} 帧 · 自动播放
       </p>
       <div className="min-h-40">
-        <ChatMarkdown value={current.value} resolveEntity={resolveEntity} />
+        <ChatMarkdown value={current.value} streaming resolveEntity={resolveEntity} />
       </div>
     </div>
   );

@@ -1,8 +1,9 @@
 import { createMathPlugin } from "@streamdown/math";
-import type { ComponentProps, ReactNode } from "react";
+import { createContext, useContext, useMemo, type ComponentProps, type ReactNode } from "react";
 import {
   defaultUrlTransform,
   Streamdown,
+  type AnimateOptions,
   type Components,
   type ControlsConfig,
   type DiagramPlugin,
@@ -15,6 +16,7 @@ import { entityHref, isEntityHref, parseEntityHref } from "./entity-href";
 import { collectChatEntityReferences, replaceChatEntityReferences } from "./entity-reference-codec";
 import { createChatSearchRehypePlugin, useChatSearchState } from "../message/chat-search";
 import "katex/dist/katex.min.css";
+import "streamdown/styles.css";
 import "./markdown-theme.scss";
 
 const mermaidPlugin: DiagramPlugin = {
@@ -38,6 +40,14 @@ const chatMarkdownControls = {
   mermaid: { copy: true, download: true, fullscreen: true, panZoom: false },
 } satisfies ControlsConfig;
 
+const chatMarkdownAnimation = {
+  animation: "fadeIn",
+  duration: 120,
+  easing: "ease-out",
+  sep: "char",
+  stagger: 4,
+} satisfies AnimateOptions;
+
 export type ChatMarkdownProps = ChatEntityBindings & {
   value: string;
   tone?: "default" | "muted";
@@ -51,6 +61,8 @@ function fallbackPresentation(reference: ChatEntityReference): ChatEntityPresent
     label: reference.labelHint?.trim() || `${reference.type}:${reference.id}`,
   };
 }
+
+const ChatMarkdownEntityContext = createContext<ChatEntityBindings>({});
 
 function EntityMention({
   reference,
@@ -89,13 +101,9 @@ function ChatMarkdownAnchor({
   href,
   children,
   node: _node,
-  resolveEntity,
-  onEntityOpen,
   ...props
-}: ComponentProps<"a"> &
-  ChatEntityBindings & {
-    node?: unknown;
-  }) {
+}: ComponentProps<"a"> & { node?: unknown }) {
+  const { resolveEntity, onEntityOpen } = useContext(ChatMarkdownEntityContext);
   const reference = parseEntityHref(href);
   if (reference) {
     return (
@@ -116,11 +124,7 @@ function ChatMarkdownAnchor({
 const entityUrlTransform: UrlTransform = (url, key, node) =>
   isEntityHref(url) ? url : defaultUrlTransform(url, key, node);
 
-function markdownComponents(bindings: ChatEntityBindings): Components {
-  return {
-    a: (props) => <ChatMarkdownAnchor {...props} {...bindings} />,
-  };
-}
+const chatMarkdownComponents = { a: ChatMarkdownAnchor } satisfies Components;
 
 export function ChatMarkdown({
   value,
@@ -131,6 +135,7 @@ export function ChatMarkdown({
   onEntityOpen,
 }: ChatMarkdownProps): ReactNode {
   const searchState = useChatSearchState();
+  const bindings = useMemo(() => ({ resolveEntity, onEntityOpen }), [onEntityOpen, resolveEntity]);
   const markdown = replaceChatEntityReferences(value, (reference) => {
     return `[${reference.type}:${reference.id}](${entityHref(reference)})`;
   });
@@ -144,24 +149,26 @@ export function ChatMarkdown({
     .join("|");
 
   return (
-    <div
-      data-slot="chat-markdown"
-      data-tone={tone}
-      className={["reflecta-chat-markdown", className].filter(Boolean).join(" ")}
-    >
-      <Streamdown
-        key={`${searchState?.query ?? "plain"}:${entityRenderKey}`}
-        animated={streaming}
-        caret="circle"
-        components={markdownComponents({ resolveEntity, onEntityOpen })}
-        controls={chatMarkdownControls}
-        isAnimating={streaming}
-        plugins={chatMarkdownPlugins}
-        rehypePlugins={searchState ? [createChatSearchRehypePlugin(searchState)] : undefined}
-        urlTransform={entityUrlTransform}
+    <ChatMarkdownEntityContext value={bindings}>
+      <div
+        data-slot="chat-markdown"
+        data-tone={tone}
+        className={["reflecta-chat-markdown", className].filter(Boolean).join(" ")}
       >
-        {markdown}
-      </Streamdown>
-    </div>
+        <Streamdown
+          key={`${searchState?.query ?? "plain"}:${entityRenderKey}`}
+          animated={streaming ? chatMarkdownAnimation : false}
+          caret="circle"
+          components={chatMarkdownComponents}
+          controls={chatMarkdownControls}
+          isAnimating={streaming}
+          plugins={chatMarkdownPlugins}
+          rehypePlugins={searchState ? [createChatSearchRehypePlugin(searchState)] : undefined}
+          urlTransform={entityUrlTransform}
+        >
+          {markdown}
+        </Streamdown>
+      </div>
+    </ChatMarkdownEntityContext>
   );
 }
