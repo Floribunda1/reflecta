@@ -52,6 +52,7 @@ export type ToolActivityDetailRow = {
   format?: "text" | "pre" | "markdown" | "code";
   language?: string;
   appearance?: "list-item" | "nested-list-item";
+  previewLines?: number;
 };
 
 export type ToolActivityDetailsView = {
@@ -582,6 +583,7 @@ function toAgentToolDetailsView(
               ...(row.title ? { title: row.title } : {}),
               ...(content ? { content } : {}),
               ...(row.appearance ? { appearance: row.appearance } : {}),
+              ...(row.previewLines ? { previewLines: row.previewLines } : {}),
             };
           }),
         }
@@ -1184,23 +1186,27 @@ function retrievalCandidateDetails(output: unknown) {
         entityTitle(candidate),
         stringValue(candidate.snippet),
         "markdown",
+        undefined,
+        "list-item",
+        2,
       ),
-      ...arrayValue(candidate.matchedContexts)
-        .slice(0, 2)
-        .map((context) =>
-          isRecord(context)
-            ? detailRow(
-                "Context 证据",
-                contextTitle(context),
-                stringValue(context.snippet),
-                "markdown",
-              )
-            : undefined,
-        ),
+      ...arrayValue(candidate.matchedContexts).map((context) =>
+        isRecord(context)
+          ? detailRow(
+              "Context 证据",
+              contextTitle(context),
+              stringValue(context.snippet),
+              "markdown",
+              undefined,
+              "nested-list-item",
+              1,
+            )
+          : undefined,
+      ),
     ];
   });
   return detailView({
-    rows: limitedRows(rows),
+    rows,
     emptyText: candidates.length === 0 ? "没有找到直接相关的理解。" : undefined,
   });
 }
@@ -1225,7 +1231,8 @@ function recordListDetails(output: unknown, label: string, emptyLabel: string) {
           recordText(record),
           "markdown",
           undefined,
-          label === "Understanding" ? "list-item" : undefined,
+          "list-item",
+          2,
         ),
         ...arrayValue(contextsByUnderstandingId[stringValue(record.id)]).map((context) =>
           isRecord(context)
@@ -1247,27 +1254,64 @@ function recordListDetails(output: unknown, label: string, emptyLabel: string) {
 
 function inspectDomainDetails(output: unknown) {
   if (!isRecord(output)) return detailView({});
-  const domain = entityRecord(output, "domain");
   const understandings = arrayValue(output.understandings);
-  const contexts = arrayValue(output.contexts);
+  const contexts = arrayValue(output.contexts).filter(isRecord);
   const domains = arrayValue(output.domains);
+  const contextsByUnderstandingId = new Map<string, Array<Record<string, unknown>>>();
+  for (const context of contexts) {
+    const understandingId = stringValue(context.understandingId);
+    if (!understandingId) continue;
+    const items = contextsByUnderstandingId.get(understandingId) ?? [];
+    items.push(context);
+    contextsByUnderstandingId.set(understandingId, items);
+  }
+  const attachedContexts = new Set<Record<string, unknown>>();
   return detailView({
-    rows: limitedRows([
-      detailRow("Domain", entityTitle(domain)),
-      ...domains.map((record) =>
-        isRecord(record) ? detailRow("子 Domain", entityTitle(record)) : undefined,
-      ),
-      ...understandings.map((record) =>
-        isRecord(record)
-          ? detailRow("Understanding", entityTitle(record), recordText(record), "markdown")
-          : undefined,
-      ),
-      ...contexts.map((record) =>
-        isRecord(record)
-          ? detailRow("Context", contextTitle(record), recordText(record), "markdown")
-          : undefined,
-      ),
-    ]),
+    badges: domains.flatMap((domain) => {
+      const title = isRecord(domain) ? entityTitle(domain) : undefined;
+      return title ? [title] : [];
+    }),
+    rows: [
+      ...understandings.flatMap((record) => {
+        if (!isRecord(record)) return [];
+        const nestedContexts = contextsByUnderstandingId.get(stringValue(record.id)) ?? [];
+        nestedContexts.forEach((context) => attachedContexts.add(context));
+        return [
+          detailRow(
+            "Understanding",
+            entityTitle(record),
+            recordText(record),
+            "markdown",
+            undefined,
+            "list-item",
+            2,
+          ),
+          ...nestedContexts.map((context) =>
+            detailRow(
+              "Context",
+              contextTitle(context),
+              undefined,
+              "text",
+              undefined,
+              "nested-list-item",
+            ),
+          ),
+        ];
+      }),
+      ...contexts
+        .filter((context) => !attachedContexts.has(context))
+        .map((context) =>
+          detailRow(
+            "Context",
+            contextTitle(context),
+            recordText(context),
+            "markdown",
+            undefined,
+            "list-item",
+            2,
+          ),
+        ),
+    ],
   });
 }
 
@@ -1279,21 +1323,26 @@ function recordDetailView(record: Record<string, unknown>, label: string) {
         label === "Context" ? contextTitle(record) : entityTitle(record),
         recordText(record),
         "markdown",
+        undefined,
+        "list-item",
       ),
-      ...arrayValue(record.contexts)
-        .slice(0, 3)
-        .map((context) =>
-          isRecord(context)
-            ? detailRow("Context", contextTitle(context), recordText(context), "markdown")
-            : undefined,
-        ),
-      ...arrayValue(record.relations)
-        .slice(0, 3)
-        .map((relation) =>
-          isRecord(relation)
-            ? detailRow("关联", relationTitle(relation), stringValue(relation.rawText))
-            : undefined,
-        ),
+      ...arrayValue(record.contexts).map((context) =>
+        isRecord(context)
+          ? detailRow(
+              "Context",
+              contextTitle(context),
+              undefined,
+              "text",
+              undefined,
+              "nested-list-item",
+            )
+          : undefined,
+      ),
+      ...arrayValue(record.relations).map((relation) =>
+        isRecord(relation)
+          ? detailRow("关联", relationTitle(relation), stringValue(relation.rawText))
+          : undefined,
+      ),
     ].filter((row): row is ToolActivityDetailRow => Boolean(row)),
   });
 }
@@ -1302,12 +1351,18 @@ function graphDetails(output: unknown) {
   if (!isRecord(output)) return detailView({});
   const nodes = arrayValue(output.nodes);
   return detailView({
-    rows: limitedRows(
-      nodes.map((node) =>
-        isRecord(node)
-          ? detailRow("Understanding", entityTitle(node), recordText(node), "markdown")
-          : undefined,
-      ),
+    rows: nodes.map((node) =>
+      isRecord(node)
+        ? detailRow(
+            "Understanding",
+            entityTitle(node),
+            recordText(node),
+            "markdown",
+            undefined,
+            "list-item",
+            2,
+          )
+        : undefined,
     ),
     emptyText: nodes.length === 0 ? "这条 Understanding 暂时没有显式关联。" : undefined,
   });
@@ -1342,6 +1397,7 @@ function detailRow(
   format: ToolActivityDetailRow["format"] = "text",
   language?: string,
   appearance?: ToolActivityDetailRow["appearance"],
+  previewLines?: number,
 ): ToolActivityDetailRow {
   const keepsLineBreaks = format === "pre" || format === "markdown" || format === "code";
   const compactDescription = description
@@ -1355,6 +1411,7 @@ function detailRow(
     ...(format !== "text" ? { format } : {}),
     ...(language ? { language } : {}),
     ...(appearance ? { appearance } : {}),
+    ...(previewLines ? { previewLines } : {}),
     ...(compactDescription ? { description: compactDescription } : {}),
   };
 }

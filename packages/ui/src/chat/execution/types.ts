@@ -19,6 +19,7 @@ export type AgentToolDetailRowView = {
   title?: string;
   content?: AgentToolDetailContent;
   appearance?: "list-item" | "nested-list-item";
+  previewLines?: number;
 };
 
 export type AgentToolDetailsView = {

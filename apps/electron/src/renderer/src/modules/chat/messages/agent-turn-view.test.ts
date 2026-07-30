@@ -514,6 +514,7 @@ describe("buildAgentTurnView", () => {
                   description: "Understanding body",
                   format: "markdown",
                   appearance: "list-item",
+                  previewLines: 2,
                 },
                 {
                   label: "Context",
@@ -572,6 +573,113 @@ describe("buildAgentTurnView", () => {
         ],
       },
     });
+  });
+
+  test("uses compact result rows for domain and knowledge read tools", () => {
+    const turn = buildAgentTurnView([
+      tool("domain_inspect", "tool-domain", {
+        domain: { id: "d1", name: "产品" },
+        domains: [{ id: "d2", name: "研究" }],
+        understandings: [{ id: "u1", title: "反馈回路", body: "Understanding body" }],
+        contexts: [{ id: "c1", understandingId: "u1", title: "发布复盘", content: "Context body" }],
+      }),
+      tool("context_list", "tool-context-list", {
+        contexts: [{ id: "c1", title: "发布复盘", content: "Context body" }],
+      }),
+      tool("understanding_get", "tool-understanding", {
+        id: "u1",
+        title: "反馈回路",
+        body: "Understanding body",
+        contexts: [{ id: "c1", title: "发布复盘", content: "Context body" }],
+      }),
+      tool("context_get", "tool-context", {
+        id: "c1",
+        title: "发布复盘",
+        content: "Context body",
+      }),
+    ]);
+
+    expect(turn.blocks).toMatchObject([
+      {
+        kind: "tool-activity",
+        activity: {
+          items: [
+            expect.objectContaining({
+              details: {
+                badges: ["研究"],
+                rows: expect.arrayContaining([
+                  expect.objectContaining({
+                    title: "反馈回路",
+                    appearance: "list-item",
+                    previewLines: 2,
+                  }),
+                  expect.objectContaining({
+                    title: "发布复盘",
+                    appearance: "nested-list-item",
+                  }),
+                ]),
+              },
+            }),
+          ],
+        },
+      },
+      {
+        kind: "tool-activity",
+        activity: {
+          items: [
+            expect.objectContaining({
+              details: {
+                rows: [
+                  expect.objectContaining({
+                    title: "发布复盘",
+                    appearance: "list-item",
+                    previewLines: 2,
+                  }),
+                ],
+              },
+            }),
+          ],
+        },
+      },
+      {
+        kind: "tool-activity",
+        activity: {
+          items: [
+            expect.objectContaining({
+              details: {
+                rows: [
+                  expect.objectContaining({
+                    title: "反馈回路",
+                    appearance: "list-item",
+                  }),
+                  expect.objectContaining({
+                    title: "发布复盘",
+                    appearance: "nested-list-item",
+                  }),
+                ],
+              },
+            }),
+          ],
+        },
+      },
+      {
+        kind: "tool-activity",
+        activity: {
+          items: [
+            expect.objectContaining({
+              details: {
+                rows: [
+                  expect.objectContaining({
+                    title: "发布复盘",
+                    appearance: "list-item",
+                  }),
+                ],
+              },
+            }),
+          ],
+        },
+      },
+    ]);
   });
 
   test("summarizes mixed search hits", () => {
@@ -641,12 +749,16 @@ describe("buildAgentTurnView", () => {
                   title: "反馈回路能降低试错代价",
                   description: "先用小反馈验证判断，再扩大投入。",
                   format: "markdown",
+                  appearance: "list-item",
+                  previewLines: 2,
                 },
                 {
                   label: "Context 证据",
                   title: "一次项目复盘",
                   description: "这次失败来自没有及时设检查点。",
                   format: "markdown",
+                  appearance: "nested-list-item",
+                  previewLines: 1,
                 },
               ],
             },
@@ -669,6 +781,22 @@ describe("buildAgentTurnView", () => {
       activity: {
         title: "查看关联图",
         summary: "查看 Understanding 的关联图 · 2 个节点 / 1 条关联",
+        items: [
+          expect.objectContaining({
+            details: {
+              rows: [
+                expect.objectContaining({
+                  appearance: "list-item",
+                  previewLines: 2,
+                }),
+                expect.objectContaining({
+                  appearance: "list-item",
+                  previewLines: 2,
+                }),
+              ],
+            },
+          }),
+        ],
       },
     });
   });

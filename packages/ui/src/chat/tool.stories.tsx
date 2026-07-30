@@ -294,7 +294,10 @@ const completedTools: readonly ToolBlock[] = [
         { id: "d-simulation", name: "仿真演练" },
       ],
       understandings: syntheticUnderstandings(14),
-      contexts: syntheticContexts(8),
+      contexts: syntheticContexts(8).map((context, index) => ({
+        ...context,
+        understandingId: `u-sim-${index + 1}`,
+      })),
       edges: [
         { source: "u-sim-1", target: "u-sim-2" },
         { source: "u-sim-2", target: "u-sim-5" },

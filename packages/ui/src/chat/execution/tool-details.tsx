@@ -13,16 +13,18 @@ function fencedCodeBlock(value: string, language: string) {
 
 function ToolDetailContent({
   content,
+  simpleMarkdown,
   lineClamp,
 }: {
   content: AgentToolDetailContent;
+  simpleMarkdown?: boolean;
   lineClamp?: number;
 }) {
   if (content.format === "text") {
     return <div className="line-clamp-2 text-muted-foreground/85">{content.value}</div>;
   }
   if (content.format === "markdown") {
-    if (lineClamp) {
+    if (simpleMarkdown) {
       return (
         <SimpleMarkdownPreview
           value={content.value}
@@ -96,7 +98,8 @@ function ToolDetailRow({ row }: { row: AgentToolDetailRowView }) {
       {row.content ? (
         <ToolDetailContent
           content={row.content}
-          lineClamp={isListItem ? 2 : isNestedListItem ? 1 : undefined}
+          simpleMarkdown={Boolean(row.appearance)}
+          lineClamp={row.previewLines}
         />
       ) : null}
     </li>
@@ -111,6 +114,15 @@ export function ToolDetails({ details }: { details: AgentToolDetailsView }) {
   const hasResultList = details.rows?.some((row) => row.appearance === "list-item");
   return (
     <div className="grid gap-2">
+      {details.badges?.length ? (
+        <div className="flex flex-wrap gap-1.5 px-1">
+          {details.badges.map((badge) => (
+            <Badge key={badge} variant="secondary">
+              {badge}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
       {details.rows?.length ? (
         <ul
           className={
@@ -123,15 +135,6 @@ export function ToolDetails({ details }: { details: AgentToolDetailsView }) {
             <ToolDetailRow key={row.id} row={row} />
           ))}
         </ul>
-      ) : null}
-      {details.badges?.length ? (
-        <div className="flex flex-wrap gap-1.5 px-1">
-          {details.badges.map((badge) => (
-            <Badge key={badge} variant="secondary">
-              {badge}
-            </Badge>
-          ))}
-        </div>
       ) : null}
       {details.emptyText ? (
         <div className="break-words px-1 py-1 text-muted-foreground">{details.emptyText}</div>
