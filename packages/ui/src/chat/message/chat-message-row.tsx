@@ -157,7 +157,7 @@ function tailWorkingLabel(message: ChatAssistantMessageView) {
     if (last.proposal.lifecycle === "preview" || last.proposal.lifecycle === "running") return null;
   }
   if (last.kind === "text" && last.status === "streaming") return null;
-  return "正在继续";
+  return "Reflecta 工作中...";
 }
 
 function AgentMessageContent({
