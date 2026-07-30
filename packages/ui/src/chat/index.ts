@@ -39,7 +39,6 @@ export type {
   AgentToolActivityItemView,
   AgentToolActivityView,
   AgentToolDetailContent,
-  AgentToolDetailMetaView,
   AgentToolDetailRowView,
   AgentToolDetailsView,
 } from "./execution/types";

@@ -146,8 +146,7 @@ describe("buildAgentTurnView", () => {
           {
             label: "读取了「note.txt」 · offset=1151 · limit=1150",
             details: {
-              meta: [],
-              rows: [{ description: "next chunk", format: "code", language: "text", meta: [] }],
+              rows: [{ description: "next chunk", format: "code", language: "text" }],
             },
           },
         ],
@@ -266,16 +265,14 @@ describe("buildAgentTurnView", () => {
             label: "搜索「拖延」 · 1 条 Understanding / 1 条 Context",
             status: "done",
             details: {
-              meta: [{ label: "查询", value: "拖延" }],
               rows: [
                 {
                   label: "Understanding",
                   title: "拖延与自我保护",
                   description: "拖延有时是在保护自己",
                   format: "markdown",
-                  meta: [],
                 },
-                { label: "Context", title: "复盘片段", format: "markdown", meta: [] },
+                { label: "Context", title: "复盘片段", format: "markdown" },
               ],
             },
           }),
@@ -322,12 +319,10 @@ describe("buildAgentTurnView", () => {
           items: [
             expect.objectContaining({
               details: {
-                meta: [{ label: "来源", value: "https://example.com/source" }],
                 rows: [
                   {
                     description: "这篇文章介绍了 Agent 的活动展示方式。",
                     format: "markdown",
-                    meta: [],
                   },
                 ],
               },
@@ -392,14 +387,10 @@ describe("buildAgentTurnView", () => {
           expect.objectContaining({
             toolName: "attachment_read",
             details: {
-              meta: [{ label: "附件", value: "att-pdf" }],
               rows: [
                 {
-                  label: "附件内容",
-                  title: "fixture.pdf",
                   description: "PDF body",
                   format: "pre",
-                  meta: ["PDF 附件", "1 页"],
                 },
               ],
             },
@@ -415,8 +406,7 @@ describe("buildAgentTurnView", () => {
             toolName: "read",
             label: "读取了「note.txt」",
             details: {
-              meta: [],
-              rows: [{ description: "hello", format: "code", language: "text", meta: [] }],
+              rows: [{ description: "hello", format: "code", language: "text" }],
             },
           }),
         ],
@@ -430,14 +420,11 @@ describe("buildAgentTurnView", () => {
             toolName: "bash",
             label: "执行 Bash「printf hello」 · 退出码 0",
             details: {
-              meta: [],
               rows: [
                 {
-                  label: "stdout",
                   description: "hello",
                   format: "code",
                   language: "text",
-                  meta: [],
                 },
               ],
             },
@@ -595,21 +582,18 @@ describe("buildAgentTurnView", () => {
         items: [
           expect.objectContaining({
             details: {
-              meta: [{ label: "查询", value: "反馈 成本" }],
               rows: [
                 {
                   label: "Understanding",
                   title: "反馈回路能降低试错代价",
                   description: "先用小反馈验证判断，再扩大投入。",
                   format: "markdown",
-                  meta: ["1 条 Context 证据"],
                 },
                 {
                   label: "Context 证据",
                   title: "一次项目复盘",
                   description: "这次失败来自没有及时设检查点。",
                   format: "markdown",
-                  meta: ["类型：实践"],
                 },
               ],
             },
@@ -767,13 +751,11 @@ describe("buildAgentTurnView", () => {
           items: [
             expect.objectContaining({
               details: {
-                meta: [],
                 rows: [
                   {
                     description: "--- a/app.ts\n+++ b/app.ts\n@@\n-old\n+new",
                     format: "code",
                     language: "diff",
-                    meta: [],
                   },
                 ],
               },
@@ -787,13 +769,11 @@ describe("buildAgentTurnView", () => {
           items: [
             expect.objectContaining({
               details: {
-                meta: [],
                 rows: [
                   {
                     description: "# New report",
                     format: "code",
                     language: "markdown",
-                    meta: [],
                   },
                 ],
               },
@@ -806,7 +786,7 @@ describe("buildAgentTurnView", () => {
         activity: {
           items: [
             expect.objectContaining({
-              details: { meta: [], rows: [], badges: ["产品", "工程"] },
+              details: { rows: [], badges: ["产品", "工程"] },
             }),
           ],
         },
@@ -817,8 +797,7 @@ describe("buildAgentTurnView", () => {
           items: [
             expect.objectContaining({
               details: {
-                meta: [{ label: "查询", value: "Agent UX" }],
-                rows: [{ description: "检索结果的摘要。", format: "markdown", meta: [] }],
+                rows: [{ description: "检索结果的摘要。", format: "markdown" }],
               },
             }),
           ],
@@ -1010,14 +989,11 @@ describe("buildAgentTurnView", () => {
       proposal: {
         state: "output-available",
         result: {
-          meta: [],
           rows: [
             {
-              label: "stdout",
               description: "hello",
               format: "code",
               language: "text",
-              meta: [],
             },
           ],
         },
@@ -1081,7 +1057,6 @@ describe("buildAgentTurnView", () => {
         result: {
           rows: [
             {
-              label: "stdout",
               format: "code",
               language: "text",
               description: stdout,
@@ -1122,7 +1097,6 @@ describe("buildAgentTurnView", () => {
               label: "执行结果",
               title: "Understanding 已完成",
               description: "understanding_1",
-              meta: [],
             },
           ],
         },

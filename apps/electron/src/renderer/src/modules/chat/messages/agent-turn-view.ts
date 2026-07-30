@@ -45,22 +45,15 @@ export type ToolActivityView = {
   items: ToolActivityItemView[];
 };
 
-export type ToolActivityDetailMeta = {
-  label: string;
-  value: string;
-};
-
 export type ToolActivityDetailRow = {
   label?: string;
   title?: string;
   description?: string;
   format?: "text" | "pre" | "markdown" | "code";
   language?: string;
-  meta: string[];
 };
 
 export type ToolActivityDetailsView = {
-  meta: ToolActivityDetailMeta[];
   rows: ToolActivityDetailRow[];
   badges?: string[];
   emptyText?: string;
@@ -508,8 +501,6 @@ function proposalResultDetails(
         "执行结果",
         `${proposalResultTypeLabel(stringValue(output.resultRefType))} 已完成`,
         resultRefId,
-        [],
-        "text",
       ),
     ],
   });
@@ -565,7 +556,6 @@ function toAgentToolDetailsView(
 ): AgentToolDetailsView | undefined {
   if (!details) return undefined;
   return {
-    ...(details.meta.length ? { meta: details.meta } : {}),
     ...(details.badges?.length ? { badges: details.badges } : {}),
     ...(details.rows.length
       ? {
@@ -590,7 +580,6 @@ function toAgentToolDetailsView(
               ...(row.label ? { label: row.label } : {}),
               ...(row.title ? { title: row.title } : {}),
               ...(content ? { content } : {}),
-              ...(row.meta.length ? { meta: row.meta } : {}),
             };
           }),
         }
@@ -1029,66 +1018,9 @@ function readParameterLabel(input: Record<string, unknown>) {
 function toolDetails(block: AgentToolBlock): ToolActivityDetailsView {
   const input = toolInput(block);
   const output = toolOutput(block);
-  const meta = inputMeta(block.toolName, input);
-  if (block.state !== "completed") return detailView({ meta });
+  if (block.state !== "completed") return detailView({});
 
-  const resultDetails = toolResultDetails(block.toolName, output, input);
-  return detailView({
-    meta: [...meta, ...resultDetails.meta],
-    rows: resultDetails.rows,
-    badges: resultDetails.badges,
-    emptyText: resultDetails.emptyText,
-  });
-}
-
-function inputMeta(name: string, input: Record<string, unknown>): ToolActivityDetailMeta[] {
-  if (["read", "file_read", "edit", "write", "bash", "domain_list"].includes(name)) return [];
-  const meta: ToolActivityDetailMeta[] = [];
-  const query = stringValue(input.query).trim();
-  if (query) meta.push({ label: "查询", value: query });
-  const queries = arrayValue(input.queries)
-    .map(stringValue)
-    .map((item) => item.trim())
-    .filter(Boolean);
-  if (!query && queries.length > 0) meta.push({ label: "查询", value: queries.join("；") });
-  if (name === "fetch_content" || name === "get_search_content") {
-    const url = stringValue(input.url).trim();
-    if (url) meta.push({ label: "来源", value: url });
-  }
-  if (name === "fetch_content") {
-    const urls = arrayValue(input.urls).map(stringValue).filter(Boolean);
-    if (!stringValue(input.url).trim() && urls.length > 0) {
-      meta.push({ label: "来源", value: urls.join("；") });
-    }
-  }
-  if (name === "attachment_read") {
-    const attachmentId = stringValue(input.attachmentId).trim();
-    if (attachmentId) meta.push({ label: "附件", value: attachmentId });
-  }
-  if (name === "domain_inspect") {
-    const domainId = stringValue(input.domainId).trim();
-    if (domainId) meta.push({ label: "Domain", value: domainId });
-  }
-  if (name === "understanding_list") {
-    const domainIds = stringArray(input.domainIds);
-    if (domainIds.length > 0) meta.push({ label: "Domain", value: domainIds.join("、") });
-  }
-  if (name === "understanding_get" || name === "context_list" || name === "graph") {
-    const understandingId = stringValue(input.understandingId).trim();
-    if (understandingId) meta.push({ label: "Understanding", value: understandingId });
-  }
-  if (name === "context_get") {
-    const contextId = stringValue(input.contextId).trim();
-    if (contextId) meta.push({ label: "Context", value: contextId });
-  }
-  if (name === "get_search_content") {
-    const responseId = stringValue(input.responseId).trim();
-    if (responseId) meta.push({ label: "搜索结果", value: responseId });
-  }
-  if (name === "graph" && typeof input.depth === "number") {
-    meta.push({ label: "深度", value: String(input.depth) });
-  }
-  return meta;
+  return toolResultDetails(block.toolName, output, input);
 }
 
 function toolResultDetails(
@@ -1124,19 +1056,13 @@ function attachmentReadDetails(output: unknown) {
   const content = stringValue(output.content);
   const error = stringValue(output.error);
   const isText = output.kind === "text";
-  const meta = [
-    output.kind ? `${String(output.kind).toUpperCase()} 附件` : "",
-    typeof output.totalPages === "number" ? `${output.totalPages} 页` : "",
-    output.truncated ? "内容已截断" : "",
-  ].filter(Boolean);
   return detailView({
     rows: content
       ? [
           detailRow(
-            "附件内容",
-            filename || "附件",
+            "",
+            "",
             content,
-            meta,
             isText ? "code" : "pre",
             isText ? codeLanguage(filename) : undefined,
           ),
@@ -1151,7 +1077,7 @@ function readFileDetails(output: unknown, input: Record<string, unknown>) {
   const content = stringValue(output.content);
   return detailView({
     rows: content
-      ? [detailRow("", "", content, [], "code", codeLanguage(stringValue(input.path)))]
+      ? [detailRow("", "", content, "code", codeLanguage(stringValue(input.path)))]
       : [],
   });
 }
@@ -1160,7 +1086,7 @@ function editFileDetails(output: unknown) {
   if (!isRecord(output)) return detailView({});
   const patch = stringValue(output.patch) || stringValue(output.diff);
   return detailView({
-    rows: patch ? [detailRow("", "", patch, [], "code", "diff")] : [],
+    rows: patch ? [detailRow("", "", patch, "code", "diff")] : [],
   });
 }
 
@@ -1168,7 +1094,7 @@ function writeFileDetails(input: Record<string, unknown>) {
   const content = stringValue(input.content);
   return detailView({
     rows: content
-      ? [detailRow("", "", content, [], "code", codeLanguage(stringValue(input.path)))]
+      ? [detailRow("", "", content, "code", codeLanguage(stringValue(input.path)))]
       : [],
   });
 }
@@ -1177,26 +1103,13 @@ function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
-function numericDetail(value: unknown, label: string): ToolActivityDetailMeta | undefined {
-  const number = numberValue(value);
-  return number === undefined ? undefined : { label, value: String(number) };
-}
-
 function webAccessDetails(output: unknown) {
   if (!isRecord(output)) return detailView({});
-  const meta = [
-    numericDetail(output.queryCount, "查询"),
-    numericDetail(output.totalResults ?? output.resultCount, "来源"),
-    numericDetail(output.urlCount, "网页"),
-    numericDetail(output.successful, "成功"),
-    numericDetail(output.totalChars ?? output.contentLength, "字符"),
-  ].filter((item): item is ToolActivityDetailMeta => Boolean(item));
   const error = stringValue(output.error).trim();
   const nestedSummary = isRecord(output.summary) ? stringValue(output.summary.text).trim() : "";
   const summary = stringValue(output.summary).trim() || nestedSummary;
   return detailView({
-    meta,
-    rows: summary ? [detailRow("", "", summary, [], "markdown")] : [],
+    rows: summary ? [detailRow("", "", summary, "markdown")] : [],
     emptyText: error || undefined,
   });
 }
@@ -1207,8 +1120,8 @@ function bashDetails(output: unknown) {
   const stderr = stringValue(output.stderr);
   return detailView({
     rows: [
-      stdout ? detailRow("stdout", "", stdout, [], "code", "text") : undefined,
-      stderr ? detailRow("stderr", "", stderr, [], "code", "text") : undefined,
+      stdout ? detailRow("", "", stdout, "code", "text") : undefined,
+      stderr ? detailRow("", "", stderr, "code", "text") : undefined,
     ].filter((row): row is ToolActivityDetailRow => Boolean(row)),
   });
 }
@@ -1240,7 +1153,6 @@ function searchHitDetails(output: unknown) {
             "Understanding",
             entityTitle(understanding),
             stringValue(hit.matchedText) || stringValue(understanding.body),
-            domainMeta(understanding),
             "markdown",
           );
         }
@@ -1250,7 +1162,6 @@ function searchHitDetails(output: unknown) {
             "Context",
             contextTitle(context),
             stringValue(hit.matchedText),
-            contextMeta(context),
             "markdown",
           );
         }
@@ -1265,13 +1176,11 @@ function retrievalCandidateDetails(output: unknown) {
   const candidates = isRecord(output) ? arrayValue(output.candidates) : [];
   const rows = candidates.flatMap((candidate) => {
     if (!isRecord(candidate)) return [];
-    const contexts = arrayValue(candidate.matchedContexts).length;
     return [
       detailRow(
         "Understanding",
         entityTitle(candidate),
         stringValue(candidate.snippet),
-        contexts > 0 ? [`${contexts} 条 Context 证据`] : [],
         "markdown",
       ),
       ...arrayValue(candidate.matchedContexts)
@@ -1282,7 +1191,6 @@ function retrievalCandidateDetails(output: unknown) {
                 "Context 证据",
                 contextTitle(context),
                 stringValue(context.snippet),
-                contextMeta(context),
                 "markdown",
               )
             : undefined,
@@ -1309,7 +1217,6 @@ function recordListDetails(output: unknown, label: string, emptyLabel: string) {
               label,
               label === "Context" ? contextTitle(record) : entityTitle(record),
               recordText(record),
-              [...domainMeta(record), ...contextMeta(record)],
               "markdown",
             )
           : undefined,
@@ -1327,39 +1234,18 @@ function inspectDomainDetails(output: unknown) {
   const domains = arrayValue(output.domains);
   return detailView({
     rows: limitedRows([
-      detailRow(
-        "Domain",
-        entityTitle(domain),
-        undefined,
-        [
-          `${understandings.length} 条 Understanding`,
-          `${contexts.length} 条 Context`,
-          domains.length > 0 ? `${domains.length} 个子 Domain` : "",
-        ].filter(Boolean),
-      ),
+      detailRow("Domain", entityTitle(domain)),
       ...domains.map((record) =>
         isRecord(record) ? detailRow("子 Domain", entityTitle(record)) : undefined,
       ),
       ...understandings.map((record) =>
         isRecord(record)
-          ? detailRow(
-              "Understanding",
-              entityTitle(record),
-              recordText(record),
-              domainMeta(record),
-              "markdown",
-            )
+          ? detailRow("Understanding", entityTitle(record), recordText(record), "markdown")
           : undefined,
       ),
       ...contexts.map((record) =>
         isRecord(record)
-          ? detailRow(
-              "Context",
-              contextTitle(record),
-              recordText(record),
-              contextMeta(record),
-              "markdown",
-            )
+          ? detailRow("Context", contextTitle(record), recordText(record), "markdown")
           : undefined,
       ),
     ]),
@@ -1373,32 +1259,20 @@ function recordDetailView(record: Record<string, unknown>, label: string) {
         label,
         label === "Context" ? contextTitle(record) : entityTitle(record),
         recordText(record),
-        [...domainMeta(record), ...contextMeta(record), ...recordCountMeta(record)],
         "markdown",
       ),
       ...arrayValue(record.contexts)
         .slice(0, 3)
         .map((context) =>
           isRecord(context)
-            ? detailRow(
-                "Context",
-                contextTitle(context),
-                recordText(context),
-                contextMeta(context),
-                "markdown",
-              )
+            ? detailRow("Context", contextTitle(context), recordText(context), "markdown")
             : undefined,
         ),
       ...arrayValue(record.relations)
         .slice(0, 3)
         .map((relation) =>
           isRecord(relation)
-            ? detailRow(
-                "关联",
-                relationTitle(relation),
-                stringValue(relation.rawText),
-                [relation.direction === "incoming" ? "被引用" : "引用"].filter(Boolean),
-              )
+            ? detailRow("关联", relationTitle(relation), stringValue(relation.rawText))
             : undefined,
         ),
     ].filter((row): row is ToolActivityDetailRow => Boolean(row)),
@@ -1408,19 +1282,11 @@ function recordDetailView(record: Record<string, unknown>, label: string) {
 function graphDetails(output: unknown) {
   if (!isRecord(output)) return detailView({});
   const nodes = arrayValue(output.nodes);
-  const edges = arrayValue(output.edges);
   return detailView({
-    meta: [{ label: "关联", value: `${edges.length} 条` }],
     rows: limitedRows(
       nodes.map((node) =>
         isRecord(node)
-          ? detailRow(
-              "Understanding",
-              entityTitle(node),
-              recordText(node),
-              domainMeta(node),
-              "markdown",
-            )
+          ? detailRow("Understanding", entityTitle(node), recordText(node), "markdown")
           : undefined,
       ),
     ),
@@ -1435,24 +1301,15 @@ function entityRecord(output: unknown, key: string) {
 }
 
 function detailView({
-  meta = [],
   rows = [],
   badges = [],
   emptyText,
 }: {
-  meta?: ToolActivityDetailMeta[];
   rows?: Array<ToolActivityDetailRow | undefined>;
   badges?: string[];
   emptyText?: string;
 }): ToolActivityDetailsView {
-  const seenMeta = new Set<string>();
   const view = {
-    meta: meta.filter((item) => {
-      const key = `${item.label}:${item.value}`;
-      if (!item.value.trim() || seenMeta.has(key)) return false;
-      seenMeta.add(key);
-      return true;
-    }),
     rows: rows.filter((row): row is ToolActivityDetailRow => Boolean(row)),
     ...(badges.length ? { badges: badges.filter(Boolean) } : {}),
   };
@@ -1463,7 +1320,6 @@ function detailRow(
   label: string,
   title?: string,
   description?: string,
-  meta: string[] = [],
   format: ToolActivityDetailRow["format"] = "text",
   language?: string,
 ): ToolActivityDetailRow {
@@ -1476,7 +1332,6 @@ function detailRow(
   return {
     ...(label ? { label } : {}),
     ...(title ? { title } : {}),
-    meta: meta.filter(Boolean),
     ...(format !== "text" ? { format } : {}),
     ...(language ? { language } : {}),
     ...(compactDescription ? { description: compactDescription } : {}),
@@ -1643,31 +1498,6 @@ function contextTitle(value: Record<string, unknown>) {
 
 function recordText(value: Record<string, unknown>) {
   return stringValue(value.body) || stringValue(value.content) || stringValue(value.snippet);
-}
-
-function domainMeta(value: Record<string, unknown>) {
-  const domains = arrayValue(value.domains)
-    .map(entityTitle)
-    .filter((name): name is string => Boolean(name));
-  return domains.length > 0 ? [`Domain：${domains.join("、")}`] : [];
-}
-
-function contextMeta(value: Record<string, unknown>) {
-  const medium = mediumLabel(stringValue(value.medium));
-  return medium ? [`类型：${medium}`] : [];
-}
-
-function recordCountMeta(value: Record<string, unknown>) {
-  return [
-    numberMeta(value.contextCount, "Context"),
-    numberMeta(value.referenceCount, "引用"),
-    numberMeta(value.referencedByCount, "被引用"),
-    numberMeta(value.connectionCount, "关联"),
-  ].filter((item): item is string => Boolean(item));
-}
-
-function numberMeta(value: unknown, label: string) {
-  return typeof value === "number" ? `${value} 条${label}` : undefined;
 }
 
 function relationTitle(value: Record<string, unknown>) {

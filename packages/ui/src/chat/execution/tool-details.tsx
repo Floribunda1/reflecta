@@ -55,36 +55,17 @@ function ToolDetailRow({ row }: { row: AgentToolDetailRowView }) {
         </div>
       ) : null}
       {row.content ? <ToolDetailContent content={row.content} /> : null}
-      {row.meta?.length ? (
-        <div className="flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground/80">
-          {row.meta.map((item) => (
-            <span key={item}>{item}</span>
-          ))}
-        </div>
-      ) : null}
     </li>
   );
 }
 
 export function hasToolDetails(details: AgentToolDetailsView | undefined) {
-  return Boolean(
-    details?.meta?.length || details?.rows?.length || details?.badges?.length || details?.emptyText,
-  );
+  return Boolean(details?.rows?.length || details?.badges?.length || details?.emptyText);
 }
 
 export function ToolDetails({ details }: { details: AgentToolDetailsView }) {
   return (
     <div className="grid gap-2">
-      {details.meta?.length ? (
-        <div className="flex flex-wrap gap-x-3 gap-y-1 px-1 text-xs text-muted-foreground">
-          {details.meta.map((detail) => (
-            <span key={`${detail.label}:${detail.value}`} className="min-w-0">
-              <span>{detail.label}：</span>
-              <span className="break-words">{detail.value}</span>
-            </span>
-          ))}
-        </div>
-      ) : null}
       {details.rows?.length ? (
         <ul className="grid gap-1">
           {details.rows.map((row) => (

@@ -18,16 +18,9 @@ export type AgentToolDetailRowView = {
   label?: string;
   title?: string;
   content?: AgentToolDetailContent;
-  meta?: readonly string[];
-};
-
-export type AgentToolDetailMetaView = {
-  label: string;
-  value: string;
 };
 
 export type AgentToolDetailsView = {
-  meta?: readonly AgentToolDetailMetaView[];
   rows?: readonly AgentToolDetailRowView[];
   badges?: readonly string[];
   emptyText?: string;
