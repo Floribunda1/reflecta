@@ -304,7 +304,7 @@ const completedTools: readonly ToolBlock[] = [
   ),
   tool(
     "understanding_list",
-    { domainIds: ["d-irrigation"], limit: 20, offset: 0 },
+    { domainIds: ["d-irrigation"], includeContexts: true, limit: 20, offset: 0 },
     {
       understandings: syntheticUnderstandings(12),
       contextsByUnderstandingId: Object.fromEntries(
@@ -756,9 +756,12 @@ function ToolGallery() {
   );
   const manyResults = tool(
     "understanding_list",
-    { domainIds: ["d-irrigation"], limit: 36, offset: 0 },
+    { domainIds: ["d-irrigation"], includeContexts: true, limit: 36, offset: 0 },
     {
       understandings: syntheticUnderstandings(36),
+      contextsByUnderstandingId: Object.fromEntries(
+        syntheticUnderstandings(4).map((item, index) => [item.id, syntheticContexts(index + 1)]),
+      ),
     },
   );
   const emptyResults = tool(

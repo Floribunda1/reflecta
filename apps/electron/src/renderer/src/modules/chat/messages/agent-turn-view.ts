@@ -1209,18 +1209,28 @@ function recordListDetails(output: unknown, label: string, emptyLabel: string) {
     : isRecord(output)
       ? arrayValue(output[emptyLabel])
       : [];
+  const contextsByUnderstandingId =
+    isRecord(output) && isRecord(output.contextsByUnderstandingId)
+      ? output.contextsByUnderstandingId
+      : {};
   return detailView({
     rows: limitedRows(
-      records.map((record) =>
-        isRecord(record)
-          ? detailRow(
-              label,
-              label === "Context" ? contextTitle(record) : entityTitle(record),
-              recordText(record),
-              "markdown",
-            )
-          : undefined,
-      ),
+      records.flatMap((record) => {
+        if (!isRecord(record)) return [];
+        return [
+          detailRow(
+            label,
+            label === "Context" ? contextTitle(record) : entityTitle(record),
+            recordText(record),
+            "markdown",
+          ),
+          ...arrayValue(contextsByUnderstandingId[stringValue(record.id)]).map((context) =>
+            isRecord(context)
+              ? detailRow("Context", contextTitle(context), recordText(context), "markdown")
+              : undefined,
+          ),
+        ];
+      }),
     ),
     emptyText: records.length === 0 ? "没有找到相关内容。" : undefined,
   });

@@ -3,7 +3,7 @@
 
 /* Code */
 .reflecta-md-editor .milkdown-code-block {
-  margin: 0.8rem 0;
+  margin: 0.8rem 0 !important;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--muted), var(--background) 58%);

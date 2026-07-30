@@ -491,6 +491,43 @@ describe("buildAgentTurnView", () => {
     });
   });
 
+  test("shows contexts with their understandings when list output includes them", () => {
+    const turn = buildAgentTurnView([
+      tool("understanding_list", "tool-1", {
+        understandings: [{ id: "u1", title: "反馈回路", body: "Understanding body" }],
+        contextsByUnderstandingId: {
+          u1: [{ id: "c1", title: "发布复盘", content: "Context body" }],
+        },
+      }),
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "tool-activity",
+      activity: {
+        items: [
+          expect.objectContaining({
+            details: {
+              rows: [
+                {
+                  label: "Understanding",
+                  title: "反馈回路",
+                  description: "Understanding body",
+                  format: "markdown",
+                },
+                {
+                  label: "Context",
+                  title: "发布复盘",
+                  description: "Context body",
+                  format: "markdown",
+                },
+              ],
+            },
+          }),
+        ],
+      },
+    });
+  });
+
   test("summarizes inspected domains by name instead of id", () => {
     const turn = buildAgentTurnView([
       tool(
