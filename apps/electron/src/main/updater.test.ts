@@ -16,12 +16,17 @@ vi.mock("./logger", () => ({
   },
 }));
 
-describe("Sparkle update probe", () => {
-  test("distinguishes an available update from an up-to-date app", async () => {
-    const { classifySparkleProbeExitCode } = await import("./updater");
+describe("Sparkle update interaction", () => {
+  test("keeps manual checks foreground and automatic checks in the background", async () => {
+    const { createUpdaterArguments } = await import("./updater");
 
-    expect(classifySparkleProbeExitCode(0)).toBe("available");
-    expect(classifySparkleProbeExitCode(4)).toBe("current");
-    expect(() => classifySparkleProbeExitCode(1)).toThrow("退出码 1");
+    expect(createUpdaterArguments("/Applications/Reflecta.app", true)).toEqual([
+      "/Applications/Reflecta.app",
+      "--foreground",
+    ]);
+    expect(createUpdaterArguments("/Applications/Reflecta.app", false)).toEqual([
+      "/Applications/Reflecta.app",
+      "--background",
+    ]);
   });
 });

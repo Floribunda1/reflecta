@@ -39,9 +39,9 @@ mac:
   hardenedRuntime: false
   entitlementsInherit: build/entitlements.mac.plist
   extraResources:
-    - from: .cache/sparkle-cli/sparkle.app
-      to: sparkle.app
-    - from: .cache/sparkle-cli/Sparkle-LICENSE.txt
+    - from: .cache/sparkle-updater/reflecta-updater.app
+      to: reflecta-updater.app
+    - from: .cache/sparkle-updater/Sparkle-LICENSE.txt
       to: licenses/Sparkle-LICENSE.txt
   extendInfo:
     NSCameraUsageDescription: Application requests access to the device's camera.

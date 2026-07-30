@@ -39,7 +39,9 @@ jobs:
       - name: Verify packaged updater
         run: |
           app="apps/electron/dist/mac-arm64/Reflecta.app"
-          test -x "$app/Contents/Resources/sparkle.app/Contents/MacOS/sparkle"
+          updater="$app/Contents/Resources/reflecta-updater.app"
+          test -x "$updater/Contents/MacOS/reflecta-updater"
+          test -d "$updater/Contents/Frameworks/Sparkle.framework"
           test -f "$app/Contents/Resources/licenses/Sparkle-LICENSE.txt"
           test "$(plutil -extract SUPublicEDKey raw "$app/Contents/Info.plist")" = \
             "DYePZoCJq199EnWefYhAcFT90sGJw9zKrBfHDe8BD0Q="
