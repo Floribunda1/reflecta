@@ -527,7 +527,7 @@ function AgentThreadHeader({
             if (event.key === "Enter") event.currentTarget.blur();
             if (event.key === "Escape") setDraft(title);
           }}
-          className="h-8 min-w-0 max-w-[520px] flex-1 border-0 bg-transparent px-0 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent"
+          className="h-8 min-w-0 max-w-[min(520px,100%)] field-sizing-content border-0 bg-transparent px-0 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent"
           placeholder="新对话"
         />
       </div>
