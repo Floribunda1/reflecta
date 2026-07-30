@@ -5,6 +5,8 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { AgentProposalCard } from "./agent-proposal-card";
 import type { AgentProposalView } from "./types";
 
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
 
@@ -58,6 +60,39 @@ describe("AgentProposalCard", () => {
     expect(
       rendered.container.querySelector('[data-testid="agent-proposal-confirm-button"]'),
     ).toBeNull();
+  });
+
+  test("rejects immediately and forwards an optional reason", () => {
+    const rendered = render(proposal("pending"));
+    const reject = rendered.container.querySelector<HTMLButtonElement>(
+      '[data-testid="agent-proposal-reject-button"]',
+    );
+    const input = rendered.container.querySelector<HTMLInputElement>(
+      '[data-testid="agent-proposal-rejection-reason"]',
+    );
+    expect(input).not.toBeNull();
+
+    act(() => reject?.click());
+    expect(rendered.onDecision).toHaveBeenCalledWith({
+      proposalId: "approval-1",
+      decision: "reject",
+    });
+
+    act(() => {
+      if (!input) return;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        input,
+        "这个结论缺少适用边界",
+      );
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    act(() => reject?.click());
+
+    expect(rendered.onDecision).toHaveBeenLastCalledWith({
+      proposalId: "approval-1",
+      decision: "reject",
+      reason: "这个结论缺少适用边界",
+    });
   });
 
   test("keeps card identity but reveals the card when ownership moves to the user", () => {

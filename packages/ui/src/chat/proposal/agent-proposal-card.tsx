@@ -1,8 +1,14 @@
 import { type ReactNode, useState } from "react";
-import { ArrowUpRight, Check, TriangleAlert } from "lucide-react";
+import { ArrowUpRight, TriangleAlert } from "lucide-react";
 import { Badge } from "../../components/badge";
 import { Button } from "../../components/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/collapsible";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "../../components/input-group";
 import type { ChatEntityBindings } from "../entity";
 import { AgentWorkingIndicator } from "../execution/agent-working-indicator";
 import { hasToolDetails, ToolDetails } from "../execution/tool-details";
@@ -54,7 +60,12 @@ function fallback(value: string | undefined, pending = "正在生成…") {
 }
 
 function Reason({ value }: { value?: string }) {
-  return value ? <div className="text-xs text-muted-foreground">{value}</div> : null;
+  return value ? (
+    <div className="border-t pt-3">
+      <div className="mb-1 text-xs text-muted-foreground">建议依据</div>
+      <div className="text-sm leading-6">{value}</div>
+    </div>
+  ) : null;
 }
 
 function MarkdownPanel({
@@ -67,7 +78,7 @@ function MarkdownPanel({
   entityBindings?: ChatEntityBindings;
 }) {
   return (
-    <div className="rounded-md bg-muted/50 p-3 leading-6">
+    <div className="min-w-0 leading-6">
       {value ? (
         <ChatMarkdown value={value} {...entityBindings} />
       ) : (
@@ -116,9 +127,9 @@ function UnderstandingUpdate({
       <div className="text-xs text-muted-foreground">
         Understanding：{fallback(proposal.content.targetLabel)}
       </div>
-      <div className="grid gap-2 md:grid-cols-2">
-        <div className="rounded-md bg-muted/50 p-3">
-          <div className="mb-1 font-medium">
+      <div className="grid gap-3">
+        <div className="border-l-2 border-border pl-3 text-foreground/70">
+          <div className="mb-1 text-xs text-muted-foreground">
             {fallback(proposal.content.beforeHeading, "Before")}
           </div>
           {proposal.content.beforeBody ? (
@@ -127,8 +138,8 @@ function UnderstandingUpdate({
             <span className="text-muted-foreground">等待原内容…</span>
           )}
         </div>
-        <div className="rounded-md bg-muted/50 p-3">
-          <div className="mb-1 font-medium">{fallback(proposal.content.afterHeading, "After")}</div>
+        <div>
+          <div className="mb-1 text-xs text-muted-foreground">修改后</div>
           {proposal.content.afterBody ? (
             <ChatMarkdown value={proposal.content.afterBody} {...entityBindings} />
           ) : (
@@ -160,10 +171,10 @@ function DeleteProposal({
 }) {
   return (
     <div className="space-y-2">
-      <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-destructive">
-        <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+      <div className="flex items-start gap-2 rounded-md border border-destructive/30 p-3">
+        <TriangleAlert className="mt-0.5 size-4 shrink-0 text-destructive" />
         <div>
-          <div className="font-medium">{warning}</div>
+          <div className="font-medium text-destructive">{warning}</div>
           <div className="mt-1 break-words text-sm">{fallback(target, "正在读取目标…")}</div>
         </div>
       </div>
@@ -270,7 +281,7 @@ function BashProposal({ proposal }: { proposal: BashProposalView }) {
   const timeout = formatDurationMs(proposal.content.timeoutMs);
   return (
     <div className="space-y-2">
-      <div className="rounded-md bg-muted/50 px-3 py-2 font-mono text-xs leading-5 text-foreground/85">
+      <div className="rounded-md border px-3 py-2 font-mono text-xs leading-5 text-foreground/85">
         <pre className="m-0 whitespace-pre-wrap break-words font-mono">
           {fallback(
             proposal.content.command,
@@ -377,33 +388,47 @@ export function AgentProposalCard({
     lifecycle: AgentProposalLifecycle;
     open: boolean;
   }>();
+  const [rejectionDraft, setRejectionDraft] = useState<{
+    proposalId: string;
+    value: string;
+  }>();
   const open =
     manualOpen?.id === proposal.id && manualOpen.lifecycle === proposal.lifecycle
       ? manualOpen.open
       : shouldOpenByDefault(proposal);
-  const destructive = proposal.lifecycle === "failed" || proposal.lifecycle === "rejected";
+  const destructive = proposal.lifecycle === "failed";
   const working = proposal.lifecycle === "preview" || proposal.lifecycle === "running";
   const showDecision =
     proposal.lifecycle === "pending" && proposal.decisionEnabled && Boolean(onDecision);
+  const rejectionReason =
+    rejectionDraft?.proposalId === proposal.id ? rejectionDraft.value.trim() : "";
+  const headerNote =
+    proposal.lifecycle === "rejected" && proposal.rejectionReason
+      ? proposal.rejectionReason
+      : proposal.note;
 
   return (
     <Collapsible
       open={open}
       onOpenChange={(nextOpen) =>
-        setManualOpen({ id: proposal.id, lifecycle: proposal.lifecycle, open: nextOpen })
+        setManualOpen({
+          id: proposal.id,
+          lifecycle: proposal.lifecycle,
+          open: nextOpen,
+        })
       }
       data-testid="agent-proposal-card"
       data-proposal-id={proposal.id}
       data-proposal-kind={proposal.kind}
       data-proposal-state={proposal.lifecycle}
       data-proposal-open={open ? "true" : "false"}
-      className="w-full rounded-lg border border-border/70 bg-card px-3 py-3 text-sm"
+      className="w-full overflow-hidden rounded-lg border border-border/70 bg-card text-sm"
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-2 px-3 py-3">
         <div className="min-w-0">
           <div className="truncate font-medium">{proposal.title}</div>
-          {proposal.note ? (
-            <div className="mt-0.5 text-xs text-muted-foreground">{proposal.note}</div>
+          {headerNote ? (
+            <div className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{headerNote}</div>
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -419,38 +444,67 @@ export function AgentProposalCard({
           </CollapsibleTrigger>
         </div>
       </div>
-      <CollapsibleContent className="mt-2">
-        <ProposalContent proposal={proposal} entityBindings={entityBindings} />
-        {hasToolDetails(proposal.result) ? (
-          <div className="mt-3 rounded-md bg-muted/35 p-2 text-sm text-muted-foreground">
-            <div className="mb-1 px-1 text-xs font-medium text-foreground/70">执行结果</div>
-            <ToolDetails details={proposal.result!} />
-          </div>
-        ) : null}
-        {proposal.lifecycle === "failed" && proposal.error ? (
-          <div className="mt-3 rounded-md bg-destructive/10 p-2 text-sm text-destructive">
-            {proposal.error}
-          </div>
-        ) : null}
+      <CollapsibleContent>
+        <div className="max-h-[34rem] overflow-y-auto border-t px-3 py-3">
+          <ProposalContent proposal={proposal} entityBindings={entityBindings} />
+          {hasToolDetails(proposal.result) ? (
+            <div className="mt-3 border-t pt-3 text-sm text-muted-foreground">
+              <div className="mb-1 px-1 text-xs font-medium text-foreground/70">执行结果</div>
+              <ToolDetails details={proposal.result!} />
+            </div>
+          ) : null}
+          {proposal.lifecycle === "failed" && proposal.error ? (
+            <div className="mt-3 rounded-md border border-destructive/30 p-2 text-sm text-destructive">
+              {proposal.error}
+            </div>
+          ) : null}
+          {proposal.lifecycle === "rejected" && proposal.rejectionReason ? (
+            <div className="mt-3 border-t pt-3">
+              <div className="mb-1 text-xs text-muted-foreground">拒绝原因</div>
+              <div className="text-sm leading-6">{proposal.rejectionReason}</div>
+            </div>
+          ) : null}
+        </div>
         {showDecision ? (
-          <div className="mt-3 flex gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t px-3 py-2.5">
+            <InputGroup className="w-[28rem] max-w-full">
+              <InputGroupInput
+                data-testid="agent-proposal-rejection-reason"
+                value={rejectionDraft?.proposalId === proposal.id ? rejectionDraft.value : ""}
+                placeholder="拒绝原因…"
+                aria-label="拒绝原因"
+                onChange={(event) =>
+                  setRejectionDraft({
+                    proposalId: proposal.id,
+                    value: event.target.value,
+                  })
+                }
+              />
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  data-testid="agent-proposal-reject-button"
+                  size="xs"
+                  className="px-2.5"
+                  onClick={() =>
+                    onDecision?.({
+                      proposalId: proposal.id,
+                      decision: "reject",
+                      ...(rejectionReason ? { reason: rejectionReason } : {}),
+                    })
+                  }
+                >
+                  拒绝
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
             <Button
               data-testid="agent-proposal-confirm-button"
               type="button"
               size="sm"
+              className="h-9 px-4"
               onClick={() => onDecision?.({ proposalId: proposal.id, decision: "approve" })}
             >
-              <Check />
               确认
-            </Button>
-            <Button
-              data-testid="agent-proposal-reject-button"
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onDecision?.({ proposalId: proposal.id, decision: "reject" })}
-            >
-              拒绝
             </Button>
           </div>
         ) : null}

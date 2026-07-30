@@ -21,7 +21,10 @@ const DANGEROUS_BASH_RULES: DangerousBashRule[] = [
   { label: "清理未跟踪文件", pattern: /\bgit\s+clean\s+-[^\s]*f/iu },
   { label: "丢弃工作区修改", pattern: /\bgit\s+checkout\s+\.\s*(?:$|[;&|])/iu },
   { label: "恢复并覆盖文件", pattern: /\bgit\s+restore\b/iu },
-  { label: "下载后直接执行", pattern: /\b(?:curl|wget)\b[^\n|]*\|\s*(?:ba)?sh\b/iu },
+  {
+    label: "下载后直接执行",
+    pattern: /\b(?:curl|wget)\b[^\n|]*\|\s*(?:ba)?sh\b/iu,
+  },
   {
     label: "修改 GitHub 仓库",
     pattern: /\bgh\s+repo\s+(?:create|delete|rename|archive)\b/iu,
@@ -38,9 +41,13 @@ export type DangerousBashApprovalRequest = {
   matchedRules: string[];
 };
 
+export type DangerousBashApprovalDecision =
+  | { approved: true }
+  | { approved: false; reason?: string };
+
 export type DangerousBashApprovalHandler = (
   request: DangerousBashApprovalRequest,
-) => Promise<boolean>;
+) => Promise<DangerousBashApprovalDecision>;
 
 export function dangerousBashRuleLabels(command: string): string[] {
   return DANGEROUS_BASH_RULES.filter((rule) => rule.pattern.test(command)).map(
@@ -59,16 +66,18 @@ export function createPiBashPermissionGate(
         const command = event.input.command;
         const matchedRules = dangerousBashRuleLabels(command);
         if (matchedRules.length === 0) return undefined;
-        const approved = await onApproval({
+        const decision = await onApproval({
           toolCallId: event.toolCallId,
           command,
           matchedRules,
         });
-        return approved
+        return decision.approved
           ? undefined
           : {
               block: true,
-              reason: `用户拒绝执行危险 Bash 命令（${matchedRules.join("、")}）。`,
+              reason: decision.reason
+                ? `用户拒绝执行危险 Bash 命令（${matchedRules.join("、")}）。原因：${decision.reason}`
+                : `用户拒绝执行危险 Bash 命令（${matchedRules.join("、")}）。`,
             };
       });
     },

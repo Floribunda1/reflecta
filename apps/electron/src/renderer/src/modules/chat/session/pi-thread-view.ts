@@ -360,11 +360,20 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
         setEditingMessage(editingMessageFromAgentMessage(message));
       },
       approveTool: async (input: ApproveToolInput) => {
-        await ipcClient.chat.sendAgentCommand({
-          type: input.approved ? "tool.approve" : "tool.reject",
-          sessionId,
-          approvalId: input.approvalId,
-        });
+        await ipcClient.chat.sendAgentCommand(
+          input.approved
+            ? {
+                type: "tool.approve",
+                sessionId,
+                approvalId: input.approvalId,
+              }
+            : {
+                type: "tool.reject",
+                sessionId,
+                approvalId: input.approvalId,
+                ...(input.rejectionReason ? { reason: input.rejectionReason } : {}),
+              },
+        );
       },
       cancelEdit: () => setEditingMessage(undefined),
       stop: () => {

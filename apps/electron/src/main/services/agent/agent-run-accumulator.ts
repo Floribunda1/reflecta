@@ -58,7 +58,14 @@ export class AgentRunAccumulator {
           ? this.blocks.map((block, index) =>
               index === this.blocks.length - 1 ? { ...last, text: last.text + event.delta } : block,
             )
-          : [...this.blocks, { kind: "reasoning", text: event.delta, createdAt: event.createdAt }];
+          : [
+              ...this.blocks,
+              {
+                kind: "reasoning",
+                text: event.delta,
+                createdAt: event.createdAt,
+              },
+            ];
       return;
     }
 
@@ -168,6 +175,7 @@ export class AgentRunAccumulator {
       blockIndex === index && block.kind === "approval"
         ? this.updateApprovalState(block, event.approved ? "approved" : "rejected", {
             approved: event.approved,
+            rejectionReason: event.rejectionReason,
           })
         : block,
     );

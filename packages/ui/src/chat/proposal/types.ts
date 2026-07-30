@@ -13,6 +13,7 @@ export type AgentProposalBaseView = {
   title: string;
   lifecycle: AgentProposalLifecycle;
   note?: string;
+  rejectionReason?: string;
   error?: string;
   result?: AgentToolDetailsView;
   decisionEnabled?: boolean;
@@ -144,7 +145,6 @@ export type AgentProposalView =
   | BashProposalView
   | UnknownProposalView;
 
-export type AgentProposalDecision = {
-  proposalId: string;
-  decision: "approve" | "reject";
-};
+export type AgentProposalDecision =
+  | { proposalId: string; decision: "approve" }
+  | { proposalId: string; decision: "reject"; reason?: string };

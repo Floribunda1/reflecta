@@ -72,6 +72,7 @@ type PiRejectedToolOutput = {
   approvalStatus: "rejected";
   proposalType: PiApprovalToolName;
   message: string;
+  reason?: string;
 };
 
 export type PiApprovalToolRequest = {
@@ -107,7 +108,10 @@ const toolSpecs: PiWriteToolSpec[] = [
     ],
     parameters: Type.Object({
       title: Type.Optional(Type.String({ description: "Short Understanding title." })),
-      body: Type.String({ minLength: 1, description: understandingBodyParameterDescription }),
+      body: Type.String({
+        minLength: 1,
+        description: understandingBodyParameterDescription,
+      }),
       domainIds: domainIdsParameter,
     }),
   },
@@ -247,11 +251,15 @@ function pendingToolResult(toolName: PiApprovalToolName, params: Record<string, 
   };
 }
 
-export function rejectedToolResult(toolName: PiApprovalToolName): PiRejectedToolOutput {
+export function rejectedToolResult(
+  toolName: PiApprovalToolName,
+  reason?: string,
+): PiRejectedToolOutput {
   return {
     approvalStatus: "rejected",
     proposalType: toolName,
-    message: "用户已拒绝执行该操作。",
+    message: reason ? `用户已拒绝执行该操作。原因：${reason}` : "用户已拒绝执行该操作。",
+    ...(reason ? { reason } : {}),
   };
 }
 
@@ -438,7 +446,10 @@ function domainCreateInput(payload: unknown): CreateDomainInput {
   };
 }
 
-function domainUpdateInput(payload: unknown): { domainId: string; input: UpdateDomainInput } {
+function domainUpdateInput(payload: unknown): {
+  domainId: string;
+  input: UpdateDomainInput;
+} {
   const record = asPayload(payload);
   return {
     domainId: requiredStableEntityId(record, "domainId"),
@@ -449,7 +460,10 @@ function domainUpdateInput(payload: unknown): { domainId: string; input: UpdateD
   };
 }
 
-function domainDeleteInput(payload: unknown): { domainId: string; deleteUnderstandings?: boolean } {
+function domainDeleteInput(payload: unknown): {
+  domainId: string;
+  deleteUnderstandings?: boolean;
+} {
   const record = asPayload(payload);
   return {
     domainId: requiredStableEntityId(record, "domainId"),
@@ -467,7 +481,10 @@ function contextCreateInput(payload: unknown): CreateContextInput {
   };
 }
 
-function contextUpdateInput(payload: unknown): { contextId: string; input: UpdateContextInput } {
+function contextUpdateInput(payload: unknown): {
+  contextId: string;
+  input: UpdateContextInput;
+} {
   const record = asPayload(payload);
   return {
     contextId: requiredStableEntityId(record, "contextId"),

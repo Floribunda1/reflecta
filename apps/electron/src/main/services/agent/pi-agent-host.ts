@@ -96,7 +96,7 @@ type MutationPendingApproval = {
 
 type BashGatePendingApproval = {
   kind: "bash_gate";
-  resolve: (approved: boolean) => void;
+  resolve: (decision: { approved: true } | { approved: false; reason?: string }) => void;
   reject: (error: Error) => void;
 };
 
@@ -114,7 +114,11 @@ export function createPiBashTool(cwd: string) {
         if (effectiveLocale && /utf-?8/i.test(effectiveLocale)) return context;
         return {
           ...context,
-          env: { ...context.env, LANG: PI_BASH_UTF8_LOCALE, LC_ALL: PI_BASH_UTF8_LOCALE },
+          env: {
+            ...context.env,
+            LANG: PI_BASH_UTF8_LOCALE,
+            LC_ALL: PI_BASH_UTF8_LOCALE,
+          },
         };
       },
     }),
@@ -317,7 +321,10 @@ async function generateAgentThreadTitle(
   const sessionId = events[0]?.sessionId ?? "session";
   const context = buildThreadTitleContext(events);
   if (!context) {
-    agentLog.warn("title.generate.noContext", { sessionId, eventCount: events.length });
+    agentLog.warn("title.generate.noContext", {
+      sessionId,
+      eventCount: events.length,
+    });
     return "";
   }
 
@@ -564,7 +571,10 @@ export class PiAgentHost {
     });
     const fallbackTitle = fallbackGeneratedThreadTitle(events);
     if (!fallbackTitle) {
-      agentLog.warn("title.persist.noFallback", { sessionId, eventCount: events.length });
+      agentLog.warn("title.persist.noFallback", {
+        sessionId,
+        eventCount: events.length,
+      });
       throw new Error("没有可用于生成标题的对话内容");
     }
     const generatedTitle = normalizeGeneratedThreadTitle(
@@ -794,7 +804,10 @@ export class PiAgentHost {
     if (state.messages.length === 0) throw new Error("当前对话还没有可压缩的内容");
 
     const entityCatalog = new AgentEntityCatalog(state.entityCatalog);
-    const created = await this.createSession(command, manager, entityCatalog, async () => false);
+    const created = await this.createSession(command, manager, entityCatalog, async () => ({
+      approved: false,
+      reason: "上下文压缩期间不执行 Bash",
+    }));
     const session = created.session;
     const unsubscribe = session.subscribe((event) => {
       this.handleCompactionEvent(
@@ -819,7 +832,9 @@ export class PiAgentHost {
   }
 
   private createEvent<T extends AgentEvent["type"]>(
-    input: Omit<Extract<AgentEvent, { type: T }>, "createdAt" | "id"> & { type: T },
+    input: Omit<Extract<AgentEvent, { type: T }>, "createdAt" | "id"> & {
+      type: T;
+    },
   ): Extract<AgentEvent, { type: T }> {
     return {
       ...input,
@@ -1044,7 +1059,13 @@ export class PiAgentHost {
     const emitRunStarted = () => {
       if (runStarted) return;
       runStarted = true;
-      emit(this.createEvent({ type: "run.started", sessionId: command.sessionId, runId }));
+      emit(
+        this.createEvent({
+          type: "run.started",
+          sessionId: command.sessionId,
+          runId,
+        }),
+      );
       emitEntityCatalogUpdates();
       emit(
         this.createEvent({
@@ -1084,7 +1105,11 @@ export class PiAgentHost {
             webContents,
             command.sessionId,
             session?.model?.contextWindow,
-            { runId, messageId: assistantMessageId, accumulator },
+            {
+              runId,
+              messageId: assistantMessageId,
+              accumulator,
+            },
           )
         )
           return;
@@ -1280,7 +1305,13 @@ export class PiAgentHost {
           }),
         ),
       );
-      emit(this.createEvent({ type: "run.completed", sessionId: command.sessionId, runId }));
+      emit(
+        this.createEvent({
+          type: "run.completed",
+          sessionId: command.sessionId,
+          runId,
+        }),
+      );
     } catch (error) {
       emitRunStarted();
       if (this.cancelledRunIds.has(runId)) return;
@@ -1348,7 +1379,10 @@ export class PiAgentHost {
     });
   }
 
-  private waitForBashGateApproval(sessionId: string, toolCallId: string): Promise<boolean> {
+  private waitForBashGateApproval(
+    sessionId: string,
+    toolCallId: string,
+  ): Promise<{ approved: true } | { approved: false; reason?: string }> {
     const active = this.activeRuns.get(sessionId);
     if (!active) throw new Error("Approval requested without an active run");
     const approvalId = approvalIdForToolCall(toolCallId);
@@ -1356,13 +1390,15 @@ export class PiAgentHost {
       throw new Error(`Duplicate approval request: ${approvalId}`);
     }
 
-    return new Promise<boolean>((resolve, reject) => {
-      active.pendingApprovals.set(approvalId, {
-        kind: "bash_gate",
-        resolve,
-        reject,
-      });
-    }).finally(() => {
+    return new Promise<{ approved: true } | { approved: false; reason?: string }>(
+      (resolve, reject) => {
+        active.pendingApprovals.set(approvalId, {
+          kind: "bash_gate",
+          resolve,
+          reject,
+        });
+      },
+    ).finally(() => {
       this.activeRuns.get(sessionId)?.pendingApprovals.delete(approvalId);
     });
   }
@@ -1389,6 +1425,8 @@ export class PiAgentHost {
     if (alreadyResolved) return;
 
     const approved = command.type === "tool.approve";
+    const rejectionReason =
+      command.type === "tool.reject" ? command.reason?.trim() || undefined : undefined;
     const resolved = this.createEvent({
       type: "approval.resolved",
       sessionId: command.sessionId,
@@ -1398,6 +1436,7 @@ export class PiAgentHost {
       toolCallId: requested.toolCallId,
       toolName: requested.toolName,
       approved,
+      ...(rejectionReason ? { rejectionReason } : {}),
     });
     this.appendAndEmit(manager, webContents, resolved);
     const active = this.activeRuns.get(command.sessionId);
@@ -1408,7 +1447,14 @@ export class PiAgentHost {
         : undefined;
 
     if (pending?.kind === "bash_gate") {
-      pending.resolve(approved);
+      pending.resolve(
+        approved
+          ? { approved: true }
+          : {
+              approved: false,
+              ...(rejectionReason ? { reason: rejectionReason } : {}),
+            },
+      );
       return;
     }
 
@@ -1419,7 +1465,7 @@ export class PiAgentHost {
         return;
       }
       if (!approved) {
-        pending.resolve(rejectedToolResult(requested.toolName));
+        pending.resolve(rejectedToolResult(requested.toolName, rejectionReason));
         return;
       }
       this.appendToolExecutionStarted(manager, webContents, requested);
@@ -1524,7 +1570,11 @@ export class PiAgentHost {
         id: output.resultRefId,
         ...(output.resultRefTitle ? { title: output.resultRefTitle } : {}),
       },
-      { kind: "tool_result", toolCallId: requested.toolCallId, toolName: requested.toolName },
+      {
+        kind: "tool_result",
+        toolCallId: requested.toolCallId,
+        toolName: requested.toolName,
+      },
     );
     return output;
   }

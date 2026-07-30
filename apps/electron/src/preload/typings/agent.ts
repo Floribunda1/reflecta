@@ -226,6 +226,7 @@ export type AgentApprovalResolved = AgentEventBase & {
   toolCallId: string;
   toolName: string;
   approved: boolean;
+  rejectionReason?: string;
 };
 
 export type AgentAssistantTurnBlock = AgentReducedAssistantBlock;
@@ -306,6 +307,7 @@ export type AgentReducedAssistantBlock =
       error?: string;
       executionError?: AgentToolExecutionError;
       approved?: boolean;
+      rejectionReason?: string;
       state: "pending" | "approved" | "rejected" | "completed" | "failed";
       approvalState: AgentToolApprovalState;
       executionState: AgentToolExecutionState;
@@ -359,6 +361,7 @@ export type AgentCommand =
       type: "tool.reject";
       sessionId: string;
       approvalId: string;
+      reason?: string;
     }
   | {
       type: "session.rename";
@@ -692,7 +695,11 @@ function upsertAssistantReasoning(
     if (last?.kind !== "reasoning") {
       return [
         ...blocks,
-        { kind: "reasoning" as const, text: event.delta, createdAt: event.createdAt },
+        {
+          kind: "reasoning" as const,
+          text: event.delta,
+          createdAt: event.createdAt,
+        },
       ];
     }
     return blocks.map((block, blockIndex) =>
@@ -880,6 +887,7 @@ function upsertAssistantApproval(
       return {
         ...block,
         approved: event.approved,
+        rejectionReason: event.rejectionReason,
         approvalState,
         executionState,
         displayState,

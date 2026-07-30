@@ -307,7 +307,12 @@ const completedTools: readonly ToolBlock[] = [
   ),
   tool(
     "understanding_list",
-    { domainIds: ["d-irrigation"], includeContexts: true, limit: 20, offset: 0 },
+    {
+      domainIds: ["d-irrigation"],
+      includeContexts: true,
+      limit: 20,
+      offset: 0,
+    },
     {
       understandings: syntheticUnderstandings(12),
       contextsByUnderstandingId: Object.fromEntries(
@@ -727,9 +732,9 @@ function InteractiveProposalCard({ fixture }: { fixture: ApprovalFixture }) {
       <code className="px-3 text-xs text-muted-foreground">{block.toolName}</code>
       <AgentProposalCard
         proposal={proposalView(block)}
-        onDecision={({ decision }) =>
+        onDecision={(result) =>
           setBlock((current) =>
-            decision === "approve"
+            result.decision === "approve"
               ? {
                   ...current,
                   state: "approved",
@@ -743,6 +748,7 @@ function InteractiveProposalCard({ fixture }: { fixture: ApprovalFixture }) {
                   approvalState: "rejected",
                   executionState: "not_started",
                   displayState: "rejected",
+                  ...(result.reason ? { rejectionReason: result.reason } : {}),
                 },
           )
         }
@@ -764,7 +770,12 @@ function ToolGallery() {
   );
   const manyResults = tool(
     "understanding_list",
-    { domainIds: ["d-irrigation"], includeContexts: true, limit: 36, offset: 0 },
+    {
+      domainIds: ["d-irrigation"],
+      includeContexts: true,
+      limit: 36,
+      offset: 0,
+    },
     {
       understandings: syntheticUnderstandings(36),
       contextsByUnderstandingId: Object.fromEntries(

@@ -4,6 +4,7 @@ import {
   executePiApprovedTool,
   hydratePiApprovalPayload,
   PI_APPROVAL_TOOL_NAMES,
+  rejectedToolResult,
   type PiApprovedToolOutput,
   type PiApprovalToolName,
 } from "./pi-write-tools";
@@ -55,14 +56,29 @@ const knowledgeMutationNames = [
 const expectedApprovalToolNames = knowledgeMutationNames;
 
 const samplePayloads: Record<(typeof knowledgeMutationNames)[number], Record<string, unknown>> = {
-  understanding_create: { title: "New Understanding", body: "Body", domainIds: ["cat-1"] },
+  understanding_create: {
+    title: "New Understanding",
+    body: "Body",
+    domainIds: ["cat-1"],
+  },
   understanding_update: {
     understandingId: "understanding-1",
-    after: { title: "Updated Understanding", body: "Updated body", domainIds: ["cat-1"] },
+    after: {
+      title: "Updated Understanding",
+      body: "Updated body",
+      domainIds: ["cat-1"],
+    },
   },
-  understanding_delete: { understandingId: "understanding-1", reason: "Duplicate" },
+  understanding_delete: {
+    understandingId: "understanding-1",
+    reason: "Duplicate",
+  },
   domain_create: { name: "New Domain", parentId: "cat-parent" },
-  domain_update: { domainId: "cat-1", name: "Renamed Domain", parentId: "cat-parent" },
+  domain_update: {
+    domainId: "cat-1",
+    name: "Renamed Domain",
+    parentId: "cat-parent",
+  },
   domain_delete: { domainId: "cat-1", deleteUnderstandings: false },
   context_create: {
     understandingId: "understanding-1",
@@ -129,6 +145,23 @@ describe("createPiWriteTools", () => {
     expect(services.deleteContext).not.toHaveBeenCalled();
   });
 
+  test("returns the user's reason to the agent when a proposal is rejected", () => {
+    expect(rejectedToolResult("understanding_create", "这个结论缺少适用边界")).toEqual({
+      approvalStatus: "rejected",
+      proposalType: "understanding_create",
+      message: "用户已拒绝执行该操作。原因：这个结论缺少适用边界",
+      reason: "这个结论缺少适用边界",
+    });
+  });
+
+  test("allows rejecting a proposal without a reason", () => {
+    expect(rejectedToolResult("understanding_create")).toEqual({
+      approvalStatus: "rejected",
+      proposalType: "understanding_create",
+      message: "用户已拒绝执行该操作。",
+    });
+  });
+
   test.each([
     {
       toolName: "domain_update" as const,
@@ -152,11 +185,18 @@ describe("createPiWriteTools", () => {
     },
     {
       toolName: "understanding_update" as const,
-      payload: { understandingId: "understanding-1", after: { domainIds: ["[1]"] } },
+      payload: {
+        understandingId: "understanding-1",
+        after: { domainIds: ["[1]"] },
+      },
     },
     {
       toolName: "context_create" as const,
-      payload: { understandingId: "[U1]", medium: "ai", content: "Supporting context" },
+      payload: {
+        understandingId: "[U1]",
+        medium: "ai",
+        content: "Supporting context",
+      },
     },
     {
       toolName: "context_delete" as const,
@@ -243,7 +283,10 @@ describe("createPiWriteTools", () => {
     });
     services.createDomain.mockResolvedValue({ id: "domain-created" });
     services.updateDomain.mockResolvedValue({ id: "domain-updated" });
-    services.createContext.mockResolvedValue({ id: "context-created", title: "Stored Context" });
+    services.createContext.mockResolvedValue({
+      id: "context-created",
+      title: "Stored Context",
+    });
     services.updateContext.mockResolvedValue({
       id: "context-updated",
       title: "Stored Updated Context",
@@ -271,7 +314,10 @@ describe("createPiWriteTools", () => {
       },
       {
         toolName: "understanding_delete",
-        expected: { resultRefType: "understanding", resultRefId: "understanding-1" },
+        expected: {
+          resultRefType: "understanding",
+          resultRefId: "understanding-1",
+        },
       },
       {
         toolName: "domain_create",

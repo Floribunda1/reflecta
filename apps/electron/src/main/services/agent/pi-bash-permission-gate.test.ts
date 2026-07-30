@@ -7,7 +7,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { createPiBashPermissionGate, dangerousBashRuleLabels } from "./pi-bash-permission-gate";
 
-function captureToolCallHandler(onApproval = vi.fn().mockResolvedValue(true)) {
+function captureToolCallHandler(onApproval = vi.fn().mockResolvedValue({ approved: true })) {
   let handler:
     | ((
         event: ToolCallEvent,
@@ -53,7 +53,12 @@ describe("createPiBashPermissionGate", () => {
 
     await expect(
       handler(
-        { type: "tool_call", toolName: "bash", toolCallId: "safe", input: { command: "pwd" } },
+        {
+          type: "tool_call",
+          toolName: "bash",
+          toolCallId: "safe",
+          input: { command: "pwd" },
+        },
         {} as ExtensionContext,
       ),
     ).resolves.toBeUndefined();
@@ -82,7 +87,9 @@ describe("createPiBashPermissionGate", () => {
   });
 
   test("blocks a dangerous Bash call after rejection", async () => {
-    const { handler } = captureToolCallHandler(vi.fn().mockResolvedValue(false));
+    const { handler } = captureToolCallHandler(
+      vi.fn().mockResolvedValue({ approved: false, reason: "请先保存当前修改" }),
+    );
 
     await expect(
       handler(
@@ -96,7 +103,7 @@ describe("createPiBashPermissionGate", () => {
       ),
     ).resolves.toEqual({
       block: true,
-      reason: "用户拒绝执行危险 Bash 命令（提权执行）。",
+      reason: "用户拒绝执行危险 Bash 命令（提权执行）。原因：请先保存当前修改",
     });
   });
 });

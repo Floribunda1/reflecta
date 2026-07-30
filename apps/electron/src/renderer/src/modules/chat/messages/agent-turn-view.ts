@@ -217,7 +217,10 @@ export function buildAgentTurnView(
       continue;
     }
     if (block.kind === "approval") {
-      internalBlocks.push({ kind: "proposal", proposal: proposalViewFor(block) });
+      internalBlocks.push({
+        kind: "proposal",
+        proposal: proposalViewFor(block),
+      });
       continue;
     }
     appendTool(internalBlocks, block);
@@ -321,7 +324,10 @@ export function toAgentAssistantMessageView(
 
 function toPublicBlock(block: InternalTurnBlock): AgentTurnBlock {
   if (block.kind === "tool-group") {
-    return { kind: "tool-activity", activity: summarizeToolGroup(block.groupType, block.blocks) };
+    return {
+      kind: "tool-activity",
+      activity: summarizeToolGroup(block.groupType, block.blocks),
+    };
   }
   if (block.kind === "reasoning") {
     return {
@@ -356,7 +362,11 @@ function appendText(
 }
 
 function appendTool(blocks: InternalTurnBlock[], block: AgentToolBlock) {
-  blocks.push({ kind: "tool-group", groupType: toolGroupType(block.toolName), blocks: [block] });
+  blocks.push({
+    kind: "tool-group",
+    groupType: toolGroupType(block.toolName),
+    blocks: [block],
+  });
 }
 
 function appendReasoning(
@@ -533,7 +543,11 @@ function genericProposalData(output: Record<string, unknown>): GenericProposalVi
       .filter(([key, value]) => key !== "proposalType" && value !== undefined)
       .map(([key, value]) => {
         const format = genericProposalEntryFormat(key);
-        return { key, value: proposalValue(value), ...(format ? { format } : {}) };
+        return {
+          key,
+          value: proposalValue(value),
+          ...(format ? { format } : {}),
+        };
       }),
   };
 }
@@ -638,9 +652,12 @@ function proposalBase(proposal: ProposalView, raw: AgentApprovalBlock) {
     title: raw.title || proposal.title,
     lifecycle,
     ...(note ? { note } : {}),
+    ...(raw.rejectionReason ? { rejectionReason: raw.rejectionReason } : {}),
     ...(raw.error ? { error: raw.error } : {}),
     ...(proposal.result
-      ? { result: toAgentToolDetailsView(proposal.result, raw.approvalId || raw.toolCallId) }
+      ? {
+          result: toAgentToolDetailsView(proposal.result, raw.approvalId || raw.toolCallId),
+        }
       : {}),
     ...(lifecycle === "pending" ? { decisionEnabled: true } : {}),
   };

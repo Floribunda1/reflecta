@@ -34,14 +34,16 @@ import {
 } from "../messages/agent-turn-view";
 import { useChatEntityBindings } from "./chat-entity-adapter";
 
-export type ApproveToolInput = {
+type ApproveToolInputBase = {
   messageId: string;
   toolCallId: string;
   approvalId: string;
-  approved: boolean;
   modelSelection?: AgentModelSelection;
   reasoningLevel?: AgentReasoningLevel;
 };
+
+export type ApproveToolInput = ApproveToolInputBase &
+  ({ approved: true } | { approved: false; rejectionReason?: string });
 
 type MessageAdapterOptions = AgentMessageViewOptions;
 
@@ -325,12 +327,22 @@ export const ConnectedChatMessageRow = memo(function ConnectedChatMessageRow({
       onProposalDecision={(decision) => {
         const block = approvalById.get(decision.proposalId);
         if (!block) return;
-        onApproveTool({
-          messageId: message.id,
-          toolCallId: block.toolCallId,
-          approvalId: block.approvalId,
-          approved: decision.decision === "approve",
-        });
+        onApproveTool(
+          decision.decision === "approve"
+            ? {
+                messageId: message.id,
+                toolCallId: block.toolCallId,
+                approvalId: block.approvalId,
+                approved: true,
+              }
+            : {
+                messageId: message.id,
+                toolCallId: block.toolCallId,
+                approvalId: block.approvalId,
+                approved: false,
+                ...(decision.reason ? { rejectionReason: decision.reason } : {}),
+              },
+        );
       }}
     />
   );
