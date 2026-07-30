@@ -628,6 +628,38 @@ const approvalTools: readonly ApprovalFixture[] = [
   },
 ];
 
+const approvedExecutionFailure = approval(
+  "understanding_update",
+  "修改 Understanding",
+  {
+    understandingId: "u-irrigation",
+    before: {
+      title: "极地温室的分区灌溉策略",
+      body: syntheticMarkdown("修订前策略", 2),
+      domainIds: ["d-irrigation"],
+    },
+    after: {
+      title: "极地温室的分区灌溉与降级策略",
+      body: syntheticMarkdown("修订后策略", 3),
+      domainIds: ["d-irrigation"],
+    },
+    reason: "补充分区降级条件和人工复核入口。",
+  },
+  {
+    approvalId: "approval-understanding-update-failed",
+    toolCallId: "approval-tool-understanding-update-failed",
+    approved: true,
+    state: "failed",
+    approvalState: "approved",
+    executionState: "failed",
+    displayState: "failed",
+    error: "写入 Understanding 失败：目标版本已发生变化，请重新读取后再确认。",
+    executionError: {
+      message: "写入 Understanding 失败：目标版本已发生变化，请重新读取后再确认。",
+    },
+  },
+);
+
 const streamingCommands = [
   "bun",
   "bun run --cwd apps/control",
@@ -874,6 +906,17 @@ function ToolGallery() {
               <InteractiveProposalCard fixture={fixture} />
             </div>
           ))}
+        </div>
+      </StoryCase>
+      <StoryCase
+        title="确认后执行失败"
+        description="审批已经通过，但实际写入失败；审批状态与执行状态同时保留。"
+      >
+        <div className="grid min-w-0 gap-1">
+          <code className="px-3 text-xs text-muted-foreground">
+            {approvedExecutionFailure.toolName}
+          </code>
+          <AgentProposalCard proposal={proposalView(approvedExecutionFailure)} />
         </div>
       </StoryCase>
       <StoryCase

@@ -34,13 +34,33 @@ export type AgentProposalCardProps = {
   entityBindings?: ChatEntityBindings;
 };
 
-function lifecycleLabel(lifecycle: AgentProposalLifecycle) {
-  if (lifecycle === "preview") return "生成中";
-  if (lifecycle === "pending") return "待确认";
-  if (lifecycle === "running") return "已确认 · 执行中";
-  if (lifecycle === "completed") return "完成";
-  if (lifecycle === "rejected") return "已拒绝";
-  return "执行失败";
+function ProposalStatus({ lifecycle }: { lifecycle: AgentProposalLifecycle }) {
+  if (lifecycle === "preview") {
+    return (
+      <Badge variant="outline" className="shrink-0">
+        <AgentWorkingIndicator className="size-3" aria-hidden="true" />
+        生成中
+      </Badge>
+    );
+  }
+  if (lifecycle === "pending" || lifecycle === "rejected") {
+    return (
+      <Badge variant="outline" className="shrink-0">
+        {lifecycle === "pending" ? "待确认" : "已拒绝"}
+      </Badge>
+    );
+  }
+  return (
+    <div className="flex shrink-0 items-center gap-1.5">
+      <Badge variant="outline">已确认</Badge>
+      <Badge variant={lifecycle === "failed" ? "destructive" : "outline"}>
+        {lifecycle === "running" ? (
+          <AgentWorkingIndicator className="size-3" aria-hidden="true" />
+        ) : null}
+        {lifecycle === "running" ? "执行中" : lifecycle === "completed" ? "执行完成" : "执行失败"}
+      </Badge>
+    </div>
+  );
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -129,11 +149,11 @@ function KnowledgeComparison({ before, after }: { before: ReactNode; after: Reac
     <div className="grid gap-6 md:grid-cols-2">
       <section className="min-w-0">
         <div className="mb-2 text-xs font-medium text-muted-foreground">修改前</div>
-        <div className="max-h-[28rem] overflow-auto text-foreground/65">{before}</div>
+        <div className="text-foreground/65">{before}</div>
       </section>
       <section className="min-w-0">
         <div className="mb-2 text-xs font-medium text-foreground/80">修改后</div>
-        <div className="max-h-[28rem] overflow-auto">{after}</div>
+        <div>{after}</div>
       </section>
     </div>
   );
@@ -160,6 +180,22 @@ function MarkdownPanel({
       ) : (
         <span className="text-muted-foreground">{placeholder}</span>
       )}
+    </div>
+  );
+}
+
+function EntityTitle({
+  type,
+  children,
+}: {
+  type: Extract<ChatEntityType, "understanding" | "context">;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <span className={entityClassName(type)}>
+        {entityIcon(type)} {children}
+      </span>
     </div>
   );
 }
@@ -270,7 +306,9 @@ function UnderstandingCreate({
 }) {
   return (
     <div className="space-y-2">
-      <div className="font-medium">{fallback(proposal.content.heading, "正在生成标题…")}</div>
+      <EntityTitle type="understanding">
+        {fallback(proposal.content.heading, "正在生成标题…")}
+      </EntityTitle>
       <MarkdownPanel
         value={proposal.content.body}
         placeholder="正在生成内容…"
@@ -281,17 +319,19 @@ function UnderstandingCreate({
 }
 
 function KnowledgeDocument({
+  type,
   title,
   body,
   entityBindings,
 }: {
+  type: Extract<ChatEntityType, "understanding" | "context">;
   title?: string;
   body?: string;
   entityBindings?: ChatEntityBindings;
 }) {
   return (
     <div className="space-y-2">
-      {title ? <div className="font-medium text-foreground/90">{title}</div> : null}
+      {title ? <EntityTitle type={type}>{title}</EntityTitle> : null}
       {body ? (
         <ChatMarkdown value={body} {...entityBindings} />
       ) : (
@@ -314,6 +354,7 @@ function UnderstandingUpdate({
     <KnowledgeComparison
       before={
         <KnowledgeDocument
+          type="understanding"
           title={proposal.content.beforeHeading}
           body={proposal.content.beforeBody}
           entityBindings={entityBindings}
@@ -322,6 +363,7 @@ function UnderstandingUpdate({
       after={
         hasAfter ? (
           <KnowledgeDocument
+            type="understanding"
             title={proposal.content.afterHeading ?? proposal.content.beforeHeading}
             body={proposal.content.afterBody ?? proposal.content.beforeBody}
             entityBindings={entityBindings}
@@ -387,7 +429,9 @@ function ContextCreate({
 }) {
   return (
     <div className="space-y-2">
-      <div className="font-medium">{fallback(proposal.content.contextLabel, "正在生成标题…")}</div>
+      <EntityTitle type="context">
+        {fallback(proposal.content.contextLabel, "正在生成标题…")}
+      </EntityTitle>
       <MarkdownPanel
         value={proposal.content.body}
         placeholder="正在生成内容…"
@@ -410,6 +454,7 @@ function ContextUpdate({
     <KnowledgeComparison
       before={
         <KnowledgeDocument
+          type="context"
           title={proposal.content.beforeTitle}
           body={proposal.content.beforeBody}
           entityBindings={entityBindings}
@@ -418,6 +463,7 @@ function ContextUpdate({
       after={
         hasAfter ? (
           <KnowledgeDocument
+            type="context"
             title={proposal.content.nextTitle ?? proposal.content.beforeTitle}
             body={proposal.content.nextBody ?? proposal.content.beforeBody}
             entityBindings={entityBindings}
@@ -529,8 +575,6 @@ export function AgentProposalCard({
     manualOpen?.id === proposal.id && manualOpen.lifecycle === proposal.lifecycle
       ? manualOpen.open
       : shouldOpenByDefault(proposal);
-  const destructive = proposal.lifecycle === "failed";
-  const working = proposal.lifecycle === "preview" || proposal.lifecycle === "running";
   const showDecision =
     proposal.lifecycle === "pending" && proposal.decisionEnabled && Boolean(onDecision);
   const rejectionReason =
@@ -567,15 +611,14 @@ export function AgentProposalCard({
             <div className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{headerNote}</div>
           ) : null}
         </div>
-        <Badge variant={destructive ? "destructive" : "outline"} className="shrink-0">
-          {working ? <AgentWorkingIndicator className="size-3" aria-hidden="true" /> : null}
-          {lifecycleLabel(proposal.lifecycle)}
-        </Badge>
+        <ProposalStatus lifecycle={proposal.lifecycle} />
         <ArrowUpRight className="size-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="max-h-[34rem] overflow-y-auto px-3 pb-3 pt-1">
+        <div className="px-3 pt-1">
           <ProposalMeta proposal={proposal} />
+        </div>
+        <div className="max-h-[34rem] overflow-y-auto px-3 pb-3">
           <ProposalContent proposal={proposal} entityBindings={entityBindings} />
           <Reason value={proposalReason(proposal)} />
           {hasToolDetails(proposal.result) ? (
