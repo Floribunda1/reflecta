@@ -515,7 +515,7 @@ test("@AG-CONV-006 用户在长对话中通过右侧摘录跳转到指定消息"
   const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
 
   try {
-    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.setViewportSize({ width: 720, height: 900 });
     await openThread(page, CHAT_JUMP_THREAD_TITLE);
     await expect(page.getByTestId("agent-chat-jump-nav")).toBeVisible();
     await expect(page.getByTestId("agent-chat-jump-marker")).toHaveCount(6);
