@@ -256,6 +256,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
   useEffect(() => {
     if (!shouldStickToBottom.current) return;
     const frame = requestAnimationFrame(() => {
+      if (!shouldStickToBottom.current) return;
       scrollToBottom("auto");
       setTrackedTurnId(lastTurnIdRef.current);
     });
