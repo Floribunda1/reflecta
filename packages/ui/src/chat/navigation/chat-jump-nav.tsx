@@ -1,4 +1,3 @@
-import { ListTree } from "lucide-react";
 import { cn } from "#lib/utils";
 
 export type ChatJumpNavItem = {
@@ -26,7 +25,7 @@ export function ChatJumpNav({
     <nav
       data-testid="agent-chat-jump-nav"
       aria-label="对话轮次跳转"
-      className="group/jump pointer-events-auto absolute top-1/2 right-3 z-20 hidden max-h-[58%] -translate-y-1/2 min-[18rem]:block"
+      className="group/jump pointer-events-auto absolute top-1/2 right-0 z-20 hidden max-h-[58%] -translate-y-1/2 min-[18rem]:block"
     >
       <button
         type="button"
@@ -36,13 +35,8 @@ export function ChatJumpNav({
             ? `打开对话轮次导航，当前第 ${activePosition} 轮，共 ${items.length} 轮`
             : `打开对话轮次导航，共 ${items.length} 轮`
         }
-        className="flex h-8 items-center gap-1 rounded-lg bg-muted/70 px-2 text-xs font-medium text-muted-foreground/80 transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none group-hover/jump:pointer-events-none group-hover/jump:absolute group-hover/jump:opacity-0 group-focus-within/jump:pointer-events-none group-focus-within/jump:absolute group-focus-within/jump:opacity-0"
-      >
-        <ListTree aria-hidden className="size-3.5 opacity-70" />
-        <span className="tabular-nums">
-          {activePosition ?? "–"}/{items.length}
-        </span>
-      </button>
+        className="h-24 w-4 opacity-0 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none group-hover/jump:pointer-events-none group-hover/jump:absolute group-focus-within/jump:pointer-events-none group-focus-within/jump:absolute"
+      />
 
       <div className="hidden max-h-[58vh] w-72 flex-col overflow-hidden rounded-xl border border-border bg-popover p-2 text-popover-foreground shadow-lg group-hover/jump:flex group-focus-within/jump:flex">
         <div className="flex shrink-0 items-center justify-between px-2 py-1.5">
