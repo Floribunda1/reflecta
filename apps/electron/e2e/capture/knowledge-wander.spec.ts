@@ -1,7 +1,7 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { launchApp } from "../agent/agent-e2e";
 import { seedDomain } from "../agent/agent-fixtures";
-import { domainNode, openCapturePage } from "./capture-e2e";
+import { domainNode, graphNodeCanvas, openCapturePage, visibleGraphNodePoint } from "./capture-e2e";
 
 async function openKnowledgeWander(page: Page) {
   await openCapturePage(page);
@@ -10,55 +10,6 @@ async function openKnowledgeWander(page: Page) {
   await expect(graph).toBeVisible();
   await expect(graph.locator(":scope > div").first()).toHaveAttribute("data-graph-ready", "true", {
     timeout: 30_000,
-  });
-}
-
-async function renderedCanvas(graph: Locator) {
-  const canvases = graph.locator("canvas");
-  const index = await canvases.evaluateAll((elements) => {
-    const counts = elements.map((element) => {
-      const canvas = element as HTMLCanvasElement;
-      const pixels = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height).data;
-      let opaque = 0;
-      for (let offset = 3; offset < pixels.length; offset += 4) {
-        if (pixels[offset] !== 0) opaque += 1;
-      }
-      return opaque;
-    });
-    return counts.indexOf(Math.max(...counts));
-  });
-  return canvases.nth(index);
-}
-
-async function visibleNodePoint(canvas: Locator) {
-  return canvas.evaluate((element) => {
-    const target = element as HTMLCanvasElement;
-    const pixels = target.getContext("2d")!.getImageData(0, 0, target.width, target.height).data;
-    const colors = new Map<string, number>();
-    for (let offset = 0; offset < pixels.length; offset += 4) {
-      if (pixels[offset + 3] !== 255) continue;
-      const key = `${pixels[offset]},${pixels[offset + 1]},${pixels[offset + 2]}`;
-      colors.set(key, (colors.get(key) ?? 0) + 1);
-    }
-    const color = [...colors].sort((left, right) => right[1] - left[1])[0]?.[0];
-    if (!color) throw new Error("Expected a rendered graph node");
-    const [red, green, blue] = color.split(",").map(Number);
-    for (let offset = 0, pixel = 0; offset < pixels.length; offset += 4, pixel += 1) {
-      if (
-        pixels[offset] === red &&
-        pixels[offset + 1] === green &&
-        pixels[offset + 2] === blue &&
-        pixels[offset + 3] === 255
-      ) {
-        return {
-          x: pixel % target.width,
-          y: Math.floor(pixel / target.width),
-          width: target.width,
-          height: target.height,
-        };
-      }
-    }
-    throw new Error("Expected a rendered graph node point");
   });
 }
 
@@ -216,7 +167,8 @@ test("@KW-GRAPH-004 用户直接调整知识漫步的图谱视口", async () => 
     await page.getByTestId("capture-knowledge-wander-entry").click();
     const graph = page.getByTestId("knowledge-wander-graph");
     await expect(graph.locator('[data-graph-ready="true"]')).toBeAttached({ timeout: 15_000 });
-    const canvas = await renderedCanvas(graph);
+    const canvas = graphNodeCanvas(graph);
+    await expect(canvas).toBeVisible();
     const initial = await canvas.screenshot();
 
     await page.getByRole("button", { name: "放大图谱" }).click();
@@ -233,7 +185,7 @@ test("@KW-GRAPH-004 用户直接调整知识漫步的图谱视口", async () => 
     await page.mouse.up();
     await expect.poll(async () => !(await canvas.screenshot()).equals(zoomed)).toBe(true);
 
-    const point = await visibleNodePoint(canvas);
+    const point = await visibleGraphNodePoint(page, canvas);
     await page.mouse.move(
       bounds.x + (point.x * bounds.width) / point.width,
       bounds.y + (point.y * bounds.height) / point.height,

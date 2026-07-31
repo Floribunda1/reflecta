@@ -145,11 +145,11 @@ function LabeledGraph({ label, ...props }: { label: string } & Parameters<typeof
   );
 }
 
-function KnowledgeGraphShowcase() {
+function KnowledgeGraphInteractionShowcase() {
   return (
     <StoryShowcase
-      title="Knowledge Graph"
-      description="集中验收关系图的选择、邻接、数据拓扑、内容密度、主题与容器变化。"
+      title="Knowledge Graph · 核心交互"
+      description="验收关系图的默认布局、选择、邻接与视口交互。"
     >
       <StoryCase
         title="基础图谱"
@@ -163,6 +163,16 @@ function KnowledgeGraphShowcase() {
       >
         <GraphDemo initialSelection="storybook" />
       </StoryCase>
+    </StoryShowcase>
+  );
+}
+
+function KnowledgeGraphTopologyShowcase() {
+  return (
+    <StoryShowcase
+      title="Knowledge Graph · 数据拓扑"
+      description="比较空、单节点、完全断开、多簇和环形关系。"
+    >
       <StoryCase
         title="数据拓扑"
         description="空、单节点、完全断开、多簇和环形关系在同一位置比较。"
@@ -188,6 +198,16 @@ function KnowledgeGraphShowcase() {
           <LabeledGraph label="循环关系" data={cycleGraph} height={260} />
         </div>
       </StoryCase>
+    </StoryShowcase>
+  );
+}
+
+function KnowledgeGraphScaleShowcase() {
+  return (
+    <StoryShowcase
+      title="Knowledge Graph · 规模与内容"
+      description="验收大数据量、长标题、Emoji 与主题变化。"
+    >
       <StoryCase
         title="大规模图谱"
         description="60 个节点和 92 条边下观察标签优先级、密度、选择与操作响应。"
@@ -200,6 +220,16 @@ function KnowledgeGraphShowcase() {
       >
         <GraphDemo data={contentGraph} initialSelection="long-cn" height={360} />
       </StoryCase>
+    </StoryShowcase>
+  );
+}
+
+function KnowledgeGraphContainerShowcase() {
+  return (
+    <StoryShowcase
+      title="Knowledge Graph · 容器变化"
+      description="验收同一张图在不同画布尺寸下的布局和边界。"
+    >
       <StoryCase
         title="容器变化"
         description="同一张图在宽、窄和矮容器中重新布局，不向页面外溢出。"
@@ -233,6 +263,21 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const KnowledgeGraphStory: Story = {
-  name: "Knowledge Graph",
-  render: () => <KnowledgeGraphShowcase />,
+  name: "Knowledge Graph · 核心交互",
+  render: () => <KnowledgeGraphInteractionShowcase />,
+};
+
+export const KnowledgeGraphTopologies: Story = {
+  name: "Knowledge Graph · 数据拓扑",
+  render: () => <KnowledgeGraphTopologyShowcase />,
+};
+
+export const KnowledgeGraphScale: Story = {
+  name: "Knowledge Graph · 规模与内容",
+  render: () => <KnowledgeGraphScaleShowcase />,
+};
+
+export const KnowledgeGraphContainers: Story = {
+  name: "Knowledge Graph · 容器变化",
+  render: () => <KnowledgeGraphContainerShowcase />,
 };

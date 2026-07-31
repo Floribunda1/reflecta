@@ -1,14 +1,10 @@
-import {
-  CanvasEvent,
-  Graph,
-  NodeEvent,
-  type ElementDatum,
-  type IPointerEvent,
-  type NodeData,
-} from "@antv/g6";
+import { MultiUndirectedGraph } from "graphology";
+import FA2Layout from "graphology-layout-forceatlas2/worker";
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useMemo, useRef } from "react";
+import Sigma from "sigma";
+import type { EdgeDisplayData, NodeDisplayData } from "sigma/types";
 import { Button } from "../components/button";
 import { ButtonGroup } from "../components/button-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/tooltip";
@@ -20,48 +16,135 @@ export type KnowledgeGraphProps = {
   onSelectionChange: (id: string | null) => void;
 };
 
-const FIT_VIEW_OPTIONS = { when: "overflow", direction: "both" } as const;
+type GraphNodeAttributes = {
+  x: number;
+  y: number;
+  size: number;
+  label: string;
+  color: string;
+  degree: number;
+  fixed?: boolean;
+};
 
-function getNodeDegree(node: NodeData): number {
-  const degree = node.data?.degree;
-  return typeof degree === "number" ? degree : 0;
+type GraphEdgeAttributes = {
+  size: number;
+  color: string;
+};
+
+type GraphModel = MultiUndirectedGraph<GraphNodeAttributes, GraphEdgeAttributes>;
+type GraphRenderer = Sigma<GraphNodeAttributes, GraphEdgeAttributes>;
+
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+const LAYOUT_DURATION_MS = 1_400;
+const DRAG_LAYOUT_DURATION_MS = 800;
+
+const GRAPH_PALETTES = {
+  light: {
+    foreground: "#1c1917",
+    node: "#78716c",
+    neighbor: "#44403c",
+    inactiveNode: "#d6d3d1",
+    edge: "#d6d3d1",
+    inactiveEdge: "#f5f5f4",
+  },
+  dark: {
+    foreground: "#fafaf9",
+    node: "#a8a29e",
+    neighbor: "#d6d3d1",
+    inactiveNode: "#44403c",
+    edge: "#57534e",
+    inactiveEdge: "#292524",
+  },
+} as const;
+
+type GraphPalette = (typeof GRAPH_PALETTES)[keyof typeof GRAPH_PALETTES];
+
+function getNodeSize(degree: number): number {
+  return Math.min(10, 5 + Math.sqrt(Math.max(0, degree)));
 }
 
-function getNodeTitle(node: NodeData): string {
-  const title = node.data?.title;
-  return typeof title === "string" ? title : "";
-}
+function buildGraph(data: KnowledgeGraphData, palette: GraphPalette): GraphModel {
+  const graph = new MultiUndirectedGraph<GraphNodeAttributes, GraphEdgeAttributes>();
+  const radius = Math.max(1, Math.sqrt(data.nodes.length));
 
-function labelPriority(element: NodeData): number {
-  const states = element.states ?? [];
-  if (states.includes("hovered")) return 4;
-  if (states.includes("selected")) return 3;
-  if (states.includes("hover-neighbor")) return 2;
-  if (states.includes("selected-neighbor")) return 2;
-  return getNodeDegree(element);
+  data.nodes.forEach((node, index) => {
+    const angle = index * GOLDEN_ANGLE;
+    const distance = radius * Math.sqrt((index + 1) / data.nodes.length);
+    graph.addNode(node.id, {
+      x: Math.cos(angle) * distance,
+      y: Math.sin(angle) * distance,
+      size: getNodeSize(node.data.degree),
+      label: node.data.title,
+      color: palette.node,
+      degree: node.data.degree,
+    });
+  });
+
+  for (const edge of data.edges) {
+    graph.addUndirectedEdgeWithKey(edge.id, edge.source, edge.target, {
+      size: 0.8,
+      color: palette.edge,
+    });
+  }
+
+  return graph;
 }
 
 function getTitleKey(data: KnowledgeGraphData): string {
   return data.nodes.map(({ id, data: { title } }) => `${id}:${title}`).join("|");
 }
 
-function getEventTargetId(event: IPointerEvent): string | null {
-  return "id" in event.target ? String(event.target.id) : null;
+function reduceNode(
+  node: string,
+  attributes: GraphNodeAttributes,
+  states: Record<string, string[]>,
+  palette: GraphPalette,
+): Partial<NodeDisplayData> {
+  const nodeStates = states[node] ?? [];
+  if (nodeStates.includes("selected") || nodeStates.includes("hovered")) {
+    return {
+      ...attributes,
+      color: palette.foreground,
+      forceLabel: true,
+      size: attributes.size * 1.5,
+      zIndex: 2,
+    };
+  }
+  if (nodeStates.includes("selected-neighbor") || nodeStates.includes("hover-neighbor")) {
+    return {
+      ...attributes,
+      color: palette.neighbor,
+      forceLabel: true,
+      size: attributes.size * 1.12,
+      zIndex: 1,
+    };
+  }
+  if (nodeStates.includes("selected-inactive") || nodeStates.includes("hover-inactive")) {
+    return { ...attributes, color: palette.inactiveNode, label: null };
+  }
+  return {
+    ...attributes,
+    color: palette.node,
+    forceLabel: false,
+    size: attributes.size,
+    zIndex: 0,
+  };
 }
 
-async function syncFocus(
-  graph: Graph,
-  data: KnowledgeGraphData,
-  selectedUnderstandingId: string | null,
-  hoveredUnderstandingId: string | null,
-) {
-  await graph.setElementState(
-    buildGraphElementStates(data, {
-      selectedId: selectedUnderstandingId,
-      hoveredId: hoveredUnderstandingId,
-    }),
-    true,
-  );
+function reduceEdge(
+  edge: string,
+  attributes: GraphEdgeAttributes,
+  states: Record<string, string[]>,
+  palette: GraphPalette,
+): Partial<EdgeDisplayData> {
+  const edgeStates = states[edge] ?? [];
+  if (edgeStates.includes("selected-neighbor") || edgeStates.includes("hover-neighbor")) {
+    return { ...attributes, color: palette.foreground, size: 1.3, zIndex: 1 };
+  }
+  if (edgeStates.includes("selected-inactive") || edgeStates.includes("hover-inactive")) {
+    return { ...attributes, color: palette.inactiveEdge, size: 0.5 };
+  }
+  return { ...attributes, color: palette.edge, size: attributes.size, zIndex: 0 };
 }
 
 function GraphControl({
@@ -95,11 +178,13 @@ function GraphControl({
 
 export function KnowledgeGraph({ data, selectedId, onSelectionChange }: KnowledgeGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const graphRef = useRef<Graph | null>(null);
-  const graphReadyRef = useRef(false);
+  const rendererRef = useRef<GraphRenderer | null>(null);
+  const graphRef = useRef<GraphModel | null>(null);
+  const layoutTimerRef = useRef<number | null>(null);
+  const focusStatesRef = useRef<Record<string, string[]>>({});
   const dataRef = useRef(data);
   const selectedIdRef = useRef(selectedId);
-  const hoveredUnderstandingIdRef = useRef<string | null>(null);
+  const hoveredIdRef = useRef<string | null>(null);
   const onSelectionChangeRef = useRef(onSelectionChange);
   const { forcedTheme, resolvedTheme } = useTheme();
   const graphTheme = forcedTheme ?? resolvedTheme;
@@ -110,9 +195,10 @@ export function KnowledgeGraph({ data, selectedId, onSelectionChange }: Knowledg
 
   const topologyKey = useMemo(
     () =>
-      [data.nodes.map(({ id }) => id).join(","), data.edges.map(({ id }) => id).join(",")].join(
-        "|",
-      ),
+      [
+        data.nodes.map(({ id }) => id).join(","),
+        data.edges.map(({ id, source, target }) => `${id}:${source}:${target}`).join(","),
+      ].join("|"),
     [data],
   );
   const titleKey = useMemo(() => getTitleKey(data), [data]);
@@ -122,239 +208,187 @@ export function KnowledgeGraph({ data, selectedId, onSelectionChange }: Knowledg
     const container = containerRef.current;
     if (!container) return;
 
-    // G6 canvas styles do not parse the app's OKLCH CSS tokens reliably.
-    const colors =
-      graphTheme === "dark"
-        ? { foreground: "#fafaf9", mutedForeground: "#a8a29e" }
-        : { foreground: "#1c1917", mutedForeground: "#78716c" };
-    const graph = new Graph({
-      container,
-      data: dataRef.current,
-      animation: { duration: 160, easing: "ease-out" },
-      padding: 48,
-      zoomRange: [0.2, 4],
-      layout: {
-        type: "d3-force",
-        animation: true,
-        iterations: 220,
-        alphaDecay: 0.035,
-        velocityDecay: 0.38,
-        manyBody: {
-          strength: -180,
-          distanceMax: 720,
-        },
-        link: {
-          distance: 128,
-          strength: 0.26,
-          iterations: 1,
-        },
-        collide: {
-          radius: 20,
-          strength: 0.82,
-          iterations: 1,
-        },
-        x: { strength: 0.014 },
-        y: { strength: 0.014 },
-      },
-      node: {
-        type: "circle",
-        style: {
-          size: (node) => Math.min(10, 7 + Math.sqrt(getNodeDegree(node))),
-          fill: colors.mutedForeground,
-          stroke: "transparent",
-          lineWidth: 6,
-          opacity: 1,
-          cursor: "pointer",
-          label: true,
-          labelText: getNodeTitle,
-          labelPlacement: "bottom",
-          labelOffsetY: 3,
-          labelFill: colors.foreground,
-          labelFontFamily: "ui-sans-serif, system-ui, sans-serif",
-          labelFontSize: 9,
-          labelFontWeight: 400,
-          labelOpacity: 0.68,
-          labelWordWrap: true,
-          labelMaxWidth: 120,
-          labelMaxLines: 1,
-          labelTextOverflow: "...",
-        },
-        state: {
-          hovered: {
-            fill: colors.foreground,
-            size: 10,
-            opacity: 1,
-            labelOpacity: 1,
-            labelFontWeight: 500,
-          },
-          "hover-neighbor": {
-            opacity: 0.9,
-            labelOpacity: 0.82,
-          },
-          "hover-inactive": {
-            opacity: 0.14,
-            labelOpacity: 0.08,
-          },
-          selected: {
-            fill: colors.foreground,
-            size: 11,
-            opacity: 1,
-            labelOpacity: 1,
-            labelFontWeight: 500,
-          },
-          "selected-neighbor": {
-            opacity: 0.9,
-            labelOpacity: 0.82,
-          },
-          "selected-inactive": {
-            opacity: 0.16,
-            labelOpacity: 0.08,
-          },
-        },
-      },
-      edge: {
-        type: "line",
-        style: {
-          stroke: colors.mutedForeground,
-          lineWidth: 0.8,
-          opacity: 0.4,
-        },
-        state: {
-          hovered: {
-            stroke: colors.foreground,
-            lineWidth: 1.2,
-            opacity: 0.72,
-          },
-          "hover-neighbor": {
-            stroke: colors.foreground,
-            lineWidth: 1.2,
-            opacity: 0.72,
-          },
-          "hover-inactive": { opacity: 0.06 },
-          "selected-neighbor": {
-            stroke: colors.foreground,
-            lineWidth: 1.2,
-            opacity: 0.72,
-          },
-          "selected-inactive": { opacity: 0.06 },
-        },
-      },
-      behaviors: [
-        "drag-canvas",
-        { type: "zoom-canvas", animation: false, sensitivity: 1 },
-        {
-          type: "drag-element-force",
-          trigger: [],
-          fixed: false,
-          enable: (event: IPointerEvent) => event.targetType === "node",
-        },
-        {
-          type: "auto-adapt-label",
-          padding: 5,
-          sort: (left: ElementDatum, right: ElementDatum) =>
-            labelPriority(right as NodeData) - labelPriority(left as NodeData),
-        },
-      ],
+    const palette = graphTheme === "dark" ? GRAPH_PALETTES.dark : GRAPH_PALETTES.light;
+    const graph = buildGraph(dataRef.current, palette);
+    focusStatesRef.current = buildGraphElementStates(dataRef.current, {
+      selectedId: selectedIdRef.current,
+      hoveredId: hoveredIdRef.current,
     });
 
+    const renderer = new Sigma(graph, container, {
+      defaultNodeColor: palette.node,
+      defaultEdgeColor: palette.edge,
+      defaultDrawNodeHover: () => undefined,
+      hideLabelsOnMove: true,
+      labelColor: { color: palette.foreground },
+      labelDensity: 0.72,
+      labelFont: "ui-sans-serif, system-ui, sans-serif",
+      labelGridCellSize: 120,
+      labelRenderedSizeThreshold: 5.5,
+      labelSize: 11,
+      labelWeight: "400",
+      maxCameraRatio: 8,
+      minCameraRatio: 0.08,
+      minEdgeThickness: 0.6,
+      nodeReducer: (node, attributes) =>
+        reduceNode(node, attributes, focusStatesRef.current, palette),
+      edgeReducer: (edge, attributes) =>
+        reduceEdge(edge, attributes, focusStatesRef.current, palette),
+      stagePadding: 56,
+      zIndex: true,
+      zoomDuration: 120,
+    });
+    const layout = new FA2Layout(graph, {
+      settings: {
+        adjustSizes: true,
+        barnesHutOptimize: graph.order >= 100,
+        gravity: 0.06,
+        linLogMode: true,
+        scalingRatio: 12,
+        slowDown: 5,
+        strongGravityMode: true,
+      },
+    });
+
+    rendererRef.current = renderer;
     graphRef.current = graph;
-    graphReadyRef.current = false;
     container.dataset.graphReady = "false";
-    hoveredUnderstandingIdRef.current = null;
+    hoveredIdRef.current = null;
     renderedTitleKeyRef.current = getTitleKey(dataRef.current);
 
+    let pinnedNode: string | null = null;
+    const stopLayout = () => {
+      layout.stop();
+      layoutTimerRef.current = null;
+      if (pinnedNode) {
+        graph.removeNodeAttribute(pinnedNode, "fixed");
+        pinnedNode = null;
+      }
+      renderer.setCustomBBox(renderer.getBBox());
+      renderer.refresh();
+      container.dataset.graphReady = "true";
+    };
+    const startLayout = (duration: number) => {
+      if (layoutTimerRef.current !== null) window.clearTimeout(layoutTimerRef.current);
+      renderer.setCustomBBox(null);
+      layout.start();
+      container.dataset.graphReady = "false";
+      layoutTimerRef.current = window.setTimeout(stopLayout, duration);
+    };
     const applyFocus = () => {
-      if (graphRef.current !== graph) return;
-      void syncFocus(
-        graph,
-        dataRef.current,
-        selectedIdRef.current,
-        hoveredUnderstandingIdRef.current,
-      );
+      focusStatesRef.current = buildGraphElementStates(dataRef.current, {
+        selectedId: selectedIdRef.current,
+        hoveredId: hoveredIdRef.current,
+      });
+      renderer.scheduleRefresh();
     };
-    const previewNode = (event: IPointerEvent) => {
-      hoveredUnderstandingIdRef.current = getEventTargetId(event);
+    const previewNode = ({ node }: { node: string }) => {
+      hoveredIdRef.current = node;
+      container.style.cursor = "pointer";
       applyFocus();
     };
-    const endNodePreview = (event: IPointerEvent) => {
-      if (hoveredUnderstandingIdRef.current !== getEventTargetId(event)) return;
-      hoveredUnderstandingIdRef.current = null;
+    const endNodePreview = ({ node }: { node: string }) => {
+      if (hoveredIdRef.current !== node) return;
+      hoveredIdRef.current = null;
+      container.style.cursor = "";
       applyFocus();
     };
-    const selectNode = (event: IPointerEvent) => {
-      const id = getEventTargetId(event);
-      if (!id) return;
-      selectedIdRef.current = id;
-      onSelectionChangeRef.current(id);
+    const selectNode = ({ node }: { node: string }) => {
+      selectedIdRef.current = node;
+      onSelectionChangeRef.current(node);
       applyFocus();
     };
     const clearSelection = () => {
-      hoveredUnderstandingIdRef.current = null;
+      hoveredIdRef.current = null;
       selectedIdRef.current = null;
       onSelectionChangeRef.current(null);
       applyFocus();
     };
-    graph.on(NodeEvent.POINTER_ENTER, previewNode);
-    graph.on(NodeEvent.POINTER_LEAVE, endNodePreview);
-    graph.on(NodeEvent.CLICK, selectNode);
-    graph.on(CanvasEvent.CLICK, clearSelection);
 
-    const resizeObserver = new ResizeObserver(([entry]) => {
-      if (!entry) return;
-      const { width, height } = entry.contentRect;
-      if (width <= 0 || height <= 0) return;
-      graph.resize(width, height);
+    let draggedNode: string | null = null;
+    const mouseCaptor = renderer.getMouseCaptor();
+    const startNodeDrag = ({
+      node,
+      event,
+    }: {
+      node: string;
+      event: { preventSigmaDefault(): void };
+    }) => {
+      event.preventSigmaDefault();
+      if (layoutTimerRef.current !== null) window.clearTimeout(layoutTimerRef.current);
+      layoutTimerRef.current = null;
+      layout.stop();
+      if (pinnedNode) {
+        graph.removeNodeAttribute(pinnedNode, "fixed");
+        pinnedNode = null;
+      }
+      draggedNode = node;
+      container.style.cursor = "grabbing";
+      renderer.getCamera().disable();
+    };
+    const moveNode = (event: { x: number; y: number; preventSigmaDefault(): void }) => {
+      if (!draggedNode) return;
+      event.preventSigmaDefault();
+      const position = renderer.viewportToGraph(event);
+      graph.mergeNodeAttributes(draggedNode, position);
+    };
+    const endNodeDrag = () => {
+      if (!draggedNode) return;
+      graph.setNodeAttribute(draggedNode, "fixed", true);
+      pinnedNode = draggedNode;
+      draggedNode = null;
+      container.style.cursor = "";
+      renderer.getCamera().enable();
+      startLayout(DRAG_LAYOUT_DURATION_MS);
+    };
+
+    renderer.on("enterNode", previewNode);
+    renderer.on("leaveNode", endNodePreview);
+    renderer.on("clickNode", selectNode);
+    renderer.on("clickStage", clearSelection);
+    renderer.on("downNode", startNodeDrag);
+    mouseCaptor.on("mousemovebody", moveNode);
+    mouseCaptor.on("mouseup", endNodeDrag);
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (container.offsetWidth && container.offsetHeight) renderer.resize();
     });
     resizeObserver.observe(container);
-
-    void graph
-      .render()
-      .then(async () => {
-        if (graphRef.current !== graph) return;
-        graphReadyRef.current = true;
-        const currentTitleKey = getTitleKey(dataRef.current);
-        if (renderedTitleKeyRef.current !== currentTitleKey) {
-          graph.updateNodeData(
-            dataRef.current.nodes.map(({ id, data: nodeData }) => ({ id, data: nodeData })),
-          );
-          await graph.draw();
-          renderedTitleKeyRef.current = currentTitleKey;
-        }
-        await syncFocus(
-          graph,
-          dataRef.current,
-          selectedIdRef.current,
-          hoveredUnderstandingIdRef.current,
-        );
-        container.dataset.graphReady = "true";
-      })
-      .catch((error) => console.error("Failed to render knowledge graph", error));
+    startLayout(LAYOUT_DURATION_MS);
 
     return () => {
       resizeObserver.disconnect();
-      graph.off(NodeEvent.POINTER_ENTER, previewNode);
-      graph.off(NodeEvent.POINTER_LEAVE, endNodePreview);
-      graph.off(NodeEvent.CLICK, selectNode);
-      graph.off(CanvasEvent.CLICK, clearSelection);
-      graphReadyRef.current = false;
+      if (layoutTimerRef.current !== null) window.clearTimeout(layoutTimerRef.current);
+      layoutTimerRef.current = null;
+      layout.kill();
+      renderer.kill();
       delete container.dataset.graphReady;
+      container.style.cursor = "";
+      rendererRef.current = null;
       graphRef.current = null;
-      graph.destroy();
     };
   }, [graphTheme, topologyKey]);
 
   useEffect(() => {
     const graph = graphRef.current;
-    if (!graph || !graphReadyRef.current || renderedTitleKeyRef.current === titleKey) return;
+    if (!graph || renderedTitleKeyRef.current === titleKey) return;
+
+    const titles = new Map(data.nodes.map((node) => [node.id, node.data.title]));
+    graph.updateEachNodeAttributes(
+      (node, attributes) => ({ ...attributes, label: titles.get(node) ?? attributes.label }),
+      { attributes: ["label"] },
+    );
     renderedTitleKeyRef.current = titleKey;
-    graph.updateNodeData(data.nodes.map(({ id, data }) => ({ id, data })));
-    void graph.draw();
   }, [data.nodes, titleKey]);
 
   useEffect(() => {
-    const graph = graphRef.current;
-    if (!graph || !graphReadyRef.current) return;
-    void syncFocus(graph, dataRef.current, selectedId, hoveredUnderstandingIdRef.current);
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    focusStatesRef.current = buildGraphElementStates(dataRef.current, {
+      selectedId,
+      hoveredId: hoveredIdRef.current,
+    });
+    renderer.scheduleRefresh();
   }, [selectedId]);
 
   if (data.nodes.length === 0) {
@@ -372,9 +406,9 @@ export function KnowledgeGraph({ data, selectedId, onSelectionChange }: Knowledg
     );
   }
 
-  const withGraph = (action: (graph: Graph) => void) => {
-    const graph = graphRef.current;
-    if (graph) action(graph);
+  const withRenderer = (action: (renderer: GraphRenderer) => void) => {
+    const renderer = rendererRef.current;
+    if (renderer) action(renderer);
   };
 
   return (
@@ -410,20 +444,30 @@ export function KnowledgeGraph({ data, selectedId, onSelectionChange }: Knowledg
         >
           <GraphControl
             label="缩小图谱"
-            onClick={() => withGraph((graph) => void graph.zoomBy(0.8, { duration: 120 }))}
+            onClick={() =>
+              withRenderer((renderer) => {
+                void renderer.getCamera().animatedUnzoom({ duration: 120, factor: 1.25 });
+              })
+            }
           >
             <ZoomOut />
           </GraphControl>
           <GraphControl
             label="放大图谱"
-            onClick={() => withGraph((graph) => void graph.zoomBy(1.25, { duration: 120 }))}
+            onClick={() =>
+              withRenderer((renderer) => {
+                void renderer.getCamera().animatedZoom({ duration: 120, factor: 1.25 });
+              })
+            }
           >
             <ZoomIn />
           </GraphControl>
           <GraphControl
             label="适应画布"
             onClick={() =>
-              withGraph((graph) => void graph.fitView(FIT_VIEW_OPTIONS, { duration: 180 }))
+              withRenderer((renderer) => {
+                void renderer.getCamera().animatedReset({ duration: 180 });
+              })
             }
           >
             <Maximize2 />
