@@ -204,7 +204,7 @@ test("@CP-AGENT-008 用户调整并关闭上下文 Agent", async () => {
 
     const dock = page.getByTestId("capture-agent-dock");
     const initialBox = await dock.boundingBox();
-    const handle = page.getByRole("separator").last();
+    const handle = page.locator("#capture-agent-dock-resize-handle");
     const handleBox = await handle.boundingBox();
     if (!initialBox || !handleBox) throw new Error("Contextual Agent resize handle is not visible");
     await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);

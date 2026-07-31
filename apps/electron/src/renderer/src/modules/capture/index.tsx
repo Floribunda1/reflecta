@@ -170,6 +170,7 @@ function CapturePageInner() {
           <>
             <ResizableHandle
               withHandle
+              id="capture-agent-dock-resize-handle"
               className="w-3 cursor-col-resize bg-transparent after:w-px after:bg-border/50 hover:after:bg-border data-[resize-handle-active]:after:bg-ring [&>div]:h-10 [&>div]:w-0.5 [&>div]:bg-border/70"
             />
             <ResizablePanel

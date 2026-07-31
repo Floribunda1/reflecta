@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.8 - 2026-08-01
+
+- Preserved Agent conversation scroll position while responses stream and remain interactive.
+- Kept streaming reasoning details expandable and made grouped reasoning blocks independently toggleable.
+- Stabilized Agent conversation branching and Contextual Agent panel resizing across the Electron workflow.
+
 ## 1.3.7 - 2026-07-31
 
 - Virtualized long Agent conversations so loading, scrolling, search, menus, and distant message jumps remain responsive with large histories.

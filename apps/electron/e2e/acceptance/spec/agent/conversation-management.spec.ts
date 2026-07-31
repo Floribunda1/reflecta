@@ -178,8 +178,8 @@ test("@AG-CONV-005 用户在 Agent 回复下方 Fork 对话分支后继续查看
   seedAgentThread({
     id: "conv-fork-newer",
     title: "NEWER_THREAD",
-    createdAt: localIso(0, 9, 0),
-    updatedAt: localIso(0, 9, 0),
+    createdAt: localIso(0, 0, 30),
+    updatedAt: localIso(0, 0, 30),
     messages: [userMessage("conv-fork-newer-user", "NEWER_THREAD_MESSAGE")],
   });
   const { app, page } = await launchAgentPage();
