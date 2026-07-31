@@ -23,10 +23,11 @@ workflow 只用它创建当前仓库的 Release。
 
 ## 步骤
 
-1. 切到 master。
+1. 切到 master 并同步远程最新改动。
 
    ```bash
    git switch master
+   git pull --rebase
    ```
 
 2. 确认当前 commit 是要发布的版本。

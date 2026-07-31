@@ -7,7 +7,6 @@
 - tailwindv4
 - vite
 - @tanstack/react-query
-- xstate / @xstate/react
 - zustand
 - ahooks
 - lodash-es
@@ -18,7 +17,7 @@
 - 在开发新模块/功能时，优先利用项目现有的三方依赖完成功能（见上面的技术栈），除非没有替代**不要自己造轮子**
   - 页面搭建优先使用 shadcn + tailwind
   - 通用的 hook 优先使用 ahooks
-  - 有严格状态迁移约束的 workflow 优先使用 xstate / @xstate/react；普通多层级 UI state 优先使用 zustand、请求优先使用 @tanstack/react-query
+  - 多层级 UI state 优先使用 zustand、请求优先使用 @tanstack/react-query
   - 功能函数优先使用 lodash-es、date-fns
 
 ## React 性能相关
