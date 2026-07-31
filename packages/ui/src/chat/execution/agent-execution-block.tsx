@@ -171,8 +171,7 @@ function ReasoningBlock({
 }) {
   const streaming = reasoning.status === "streaming";
   const summary = reasoningSummary(reasoning.markdown);
-  const hasDetail =
-    !streaming && (reasoning.markdown.length > 120 || reasoning.markdown.includes("\n"));
+  const hasDetail = reasoning.markdown.length > 120 || reasoning.markdown.includes("\n");
   return (
     <Collapsible
       data-slot="agent-reasoning"
@@ -203,7 +202,12 @@ function ReasoningBlock({
           data-testid="agent-reasoning-detail"
           className="pb-1 pl-7 pr-2 text-muted-foreground"
         >
-          <ChatMarkdown value={reasoning.markdown} tone="muted" {...entityBindings} />
+          <ChatMarkdown
+            value={reasoning.markdown}
+            tone="muted"
+            streaming={streaming}
+            {...entityBindings}
+          />
         </CollapsibleContent>
       ) : null}
     </Collapsible>
