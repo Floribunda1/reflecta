@@ -1,6 +1,4 @@
-import { useState } from "react";
 import { Badge } from "../../components/badge";
-import { Button } from "../../components/button";
 import { MarkdownPreview, SimpleMarkdownPreview } from "../../editor/markdown-preview";
 import type { AgentToolDetailContent, AgentToolDetailRowView, AgentToolDetailsView } from "./types";
 
@@ -22,58 +20,40 @@ function ToolDetailContent({
   simpleMarkdown?: boolean;
   lineClamp?: number;
 }) {
-  const [expanded, setExpanded] = useState(false);
   if (content.format === "text") {
     return <div className="line-clamp-2 text-muted-foreground/85">{content.value}</div>;
   }
-
-  const outputLines = content.value.split(/\r?\n/);
-  const expandable =
-    (content.format === "code" || content.format === "pre") &&
-    lineClamp !== undefined &&
-    outputLines.length > lineClamp;
-  const value =
-    expandable && !expanded ? `${outputLines.slice(0, lineClamp).join("\n")}\n...` : content.value;
-
-  return (
-    <div className="grid gap-1">
-      {content.format === "markdown" && simpleMarkdown ? (
+  if (content.format === "markdown") {
+    if (simpleMarkdown) {
+      return (
         <SimpleMarkdownPreview
-          value={value}
+          value={content.value}
           lineClamp={lineClamp}
           className="text-muted-foreground/85"
         />
-      ) : content.format === "markdown" ? (
-        <MarkdownPreview
-          value={value}
-          zoomImages={false}
-          className="[&_.ProseMirror]:text-muted-foreground"
-        />
-      ) : content.format === "code" ? (
-        <MarkdownPreview
-          key={expanded ? "expanded" : "collapsed"}
-          value={fencedCodeBlock(value, content.language)}
-          zoomImages={false}
-          className="markdown-preview-tool-detail [&_.ProseMirror]:text-muted-foreground"
-        />
-      ) : (
-        <pre className="whitespace-pre-wrap break-words rounded-sm bg-background/65 px-2 py-1.5 font-mono text-xs leading-5 text-muted-foreground">
-          {value}
-        </pre>
-      )}
-      {expandable ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="xs"
-          className="w-fit text-muted-foreground"
-          aria-expanded={expanded}
-          onClick={() => setExpanded((value) => !value)}
-        >
-          {expanded ? "收起输出" : "展开完整输出"}
-        </Button>
-      ) : null}
-    </div>
+      );
+    }
+    return (
+      <MarkdownPreview
+        value={content.value}
+        zoomImages={false}
+        className="[&_.ProseMirror]:text-muted-foreground"
+      />
+    );
+  }
+  if (content.format === "code") {
+    return (
+      <MarkdownPreview
+        value={fencedCodeBlock(content.value, content.language)}
+        zoomImages={false}
+        className="markdown-preview-tool-detail [&_.ProseMirror]:text-muted-foreground"
+      />
+    );
+  }
+  return (
+    <pre className="whitespace-pre-wrap break-words rounded-sm bg-background/65 px-2 py-1.5 font-mono text-xs leading-5 text-muted-foreground">
+      {content.value}
+    </pre>
   );
 }
 
