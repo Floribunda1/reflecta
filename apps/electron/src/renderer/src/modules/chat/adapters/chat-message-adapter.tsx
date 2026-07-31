@@ -12,6 +12,7 @@ import {
   type ChatMessageAttachmentView,
   type ChatMessageEntityView,
   type ChatMessageRowView,
+  type ChatUserMessageContentPart,
   type ChatMessageView,
   type ChatUserMessageView,
 } from "@reflecta/ui/chat";
@@ -104,14 +105,18 @@ function toAttachment(
   };
 }
 
-function documentTextWithoutMentions(node: ChatComposerDocument): string {
-  if (node.type === "text") return node.text ?? "";
-  if (node.type === "mention") return "";
-  if (node.type === "hardBreak") return "\n";
-  return (node.content ?? [])
-    .map(documentTextWithoutMentions)
-    .join(node.type === "doc" ? "\n" : "")
-    .trim();
+function documentContent(node: ChatComposerDocument): ChatUserMessageContentPart[] {
+  if (node.type === "text") return node.text ? [{ kind: "text", text: node.text }] : [];
+  if (node.type === "mention") {
+    const [entity] = getChatComposerEntities(node);
+    return entity ? [{ kind: "entity", entity }] : [];
+  }
+  if (node.type === "hardBreak") return [{ kind: "text", text: "\n" }];
+
+  return (node.content ?? []).flatMap((child, index) => [
+    ...(node.type === "doc" && index > 0 ? [{ kind: "text" as const, text: "\n" }] : []),
+    ...documentContent(child),
+  ]);
 }
 
 function toEntity(reference: AgentContextRef): ChatMessageEntityView {
@@ -124,20 +129,16 @@ function toEntity(reference: AgentContextRef): ChatMessageEntityView {
 
 function toUserMessage(message: AgentReducedMessage): ChatUserMessageView {
   const document = message.composerContent as ChatComposerDocument | undefined;
-  const documentEntities = document ? getChatComposerEntities(document) : [];
-  const entities = documentEntities.length
-    ? documentEntities.map((reference) => ({
-        id: reference.id,
-        type: reference.type,
-        label: reference.label,
-      }))
-    : (message.contextRefs ?? []).map(toEntity);
-  const text = document ? documentTextWithoutMentions(document) : message.text;
+  const entities = (message.contextRefs ?? []).map(toEntity);
   return {
     kind: "user",
     id: message.id,
-    ...(text ? { text } : {}),
-    ...(entities.length ? { entities } : {}),
+    ...(document
+      ? { content: documentContent(document) }
+      : {
+          ...(message.text ? { text: message.text } : {}),
+          ...(entities.length ? { entities } : {}),
+        }),
     ...(message.files?.length
       ? {
           attachments: message.files.map((file, index) => toAttachment(file, message.id, index)),

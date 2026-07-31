@@ -201,6 +201,30 @@ export function AgentThreadPanel({
               onInspectContextRef={onInspectContextRef}
               highlightedMessageId={threadView.highlightedMessageId}
               findQuery={renderedFindQuery}
+              editingMessageId={threadView.editingMessage?.id}
+              editingMessageEditor={
+                threadView.editingMessage ? (
+                  <AgentChatComposer
+                    variant="message-edit"
+                    threadId={threadId}
+                    isBusy={threadView.composerBusy}
+                    isCompacting={threadView.isCompacting}
+                    canStop={false}
+                    editingMessage={threadView.editingMessage}
+                    focusRequest={0}
+                    modelOptions={modelOptions}
+                    activeModel={activeModel}
+                    activeReasoningLevel={activeReasoningLevel}
+                    messages={threadView.visibleMessages}
+                    onSelectModel={selectModel}
+                    onSelectReasoningLevel={selectReasoningLevel}
+                    onSend={send}
+                    onCancelEdit={cancelEdit}
+                    onStop={stop}
+                    onInspectContextRef={onInspectContextRef}
+                  />
+                ) : null
+              }
             />
           )}
         </div>
@@ -228,7 +252,6 @@ export function AgentThreadPanel({
         isBusy={threadView.composerBusy}
         isCompacting={threadView.isCompacting}
         canStop={threadView.canStop}
-        editingMessage={threadView.editingMessage}
         focusRequest={threadView.focusRequest}
         initialContextKey={initialContextKey}
         initialContextRefs={initialContextRefs}
@@ -239,7 +262,6 @@ export function AgentThreadPanel({
         onSelectModel={selectModel}
         onSelectReasoningLevel={selectReasoningLevel}
         onSend={send}
-        onCancelEdit={cancelEdit}
         onStop={stop}
         onInspectContextRef={onInspectContextRef}
       />

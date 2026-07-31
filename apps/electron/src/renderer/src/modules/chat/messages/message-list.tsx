@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import {
   AgentContextCompactionStatus,
   AgentExecutionBlock,
@@ -46,6 +46,8 @@ export function MessageList({
   onInspectContextRef,
   highlightedMessageId,
   findQuery,
+  editingMessageId,
+  editingMessageEditor,
 }: {
   messages: AgentReducedMessage[];
   entityCatalog: AgentEntityCatalogEntry[];
@@ -64,9 +66,16 @@ export function MessageList({
   onInspectContextRef?: (ref: InspectableContextRef) => void;
   highlightedMessageId?: string | null;
   findQuery?: string;
+  editingMessageId?: string;
+  editingMessageEditor?: ReactNode;
 }) {
   const lastAssistantId = messages.findLast((message) => message.role === "assistant")?.id;
   const activeAssistantId = activeAssistantMessageId(messages, activeRunId);
+  const editingMessageIndex = editingMessageId
+    ? messages.findIndex((message) => message.id === editingMessageId)
+    : -1;
+  // The editor stays outside the mapped message branch; flex order places it visually in situ.
+  const firstMessageOrder = -messages.length * 2;
   const stoppedMessageVisible = stoppedMessageId
     ? messages.some((message) => message.id === stoppedMessageId)
     : true;
@@ -95,28 +104,51 @@ export function MessageList({
           </EmptyHeader>
         </Empty>
       ) : null}
-      {messages.map((message) => (
-        <Fragment key={message.id}>
-          <ConnectedChatMessageRow
-            message={message}
-            entityCatalog={entityCatalog}
-            isBusy={isBusy}
-            isLastAssistant={message.id === lastAssistantId}
-            assistantRunning={message.id === activeAssistantId}
-            highlighted={highlightedMessageId === message.id}
-            findQuery={findQuery}
-            stopped={stoppedMessageId === message.id}
-            onEdit={onEdit}
-            onRegenerate={onRegenerate}
-            onForkAssistant={onForkAssistant}
-            onApproveTool={onApproveTool}
-            onInspectContextRef={onInspectContextRef}
-          />
-          {compactionsByMessage.get(message.id)?.map((compaction) => (
-            <AgentExecutionBlock key={compaction.id} block={compactionBlock(compaction)} />
-          ))}
-        </Fragment>
-      ))}
+      {messages.map((message, index) => {
+        const editing = editingMessageId === message.id;
+        const compactions = compactionsByMessage.get(message.id) ?? [];
+        return (
+          <div
+            key={message.id}
+            className={editing && compactions.length === 0 ? "hidden" : "flex flex-col gap-5"}
+            style={{ order: firstMessageOrder + index * 2 + 1 }}
+          >
+            {editing ? null : (
+              <ConnectedChatMessageRow
+                message={message}
+                entityCatalog={entityCatalog}
+                isBusy={isBusy}
+                isLastAssistant={message.id === lastAssistantId}
+                assistantRunning={message.id === activeAssistantId}
+                highlighted={highlightedMessageId === message.id}
+                findQuery={findQuery}
+                stopped={stoppedMessageId === message.id}
+                onEdit={onEdit}
+                onRegenerate={onRegenerate}
+                onForkAssistant={onForkAssistant}
+                onApproveTool={onApproveTool}
+                onInspectContextRef={onInspectContextRef}
+              />
+            )}
+            {compactions.map((compaction) => (
+              <AgentExecutionBlock key={compaction.id} block={compactionBlock(compaction)} />
+            ))}
+          </div>
+        );
+      })}
+      <div
+        data-testid={editingMessageIndex >= 0 ? "agent-message-edit-row" : undefined}
+        data-agent-message-id={editingMessageIndex >= 0 ? editingMessageId : undefined}
+        data-message-role={editingMessageIndex >= 0 ? "user" : undefined}
+        className={
+          editingMessageIndex >= 0 && editingMessageEditor
+            ? "flex w-full flex-col items-end gap-1"
+            : "hidden"
+        }
+        style={{ order: firstMessageOrder + editingMessageIndex * 2 }}
+      >
+        {editingMessageEditor}
+      </div>
       {unanchoredCompactions.map((compaction) => (
         <AgentExecutionBlock key={compaction.id} block={compactionBlock(compaction)} />
       ))}

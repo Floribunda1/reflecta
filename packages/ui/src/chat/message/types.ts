@@ -8,6 +8,10 @@ export type ChatMessageEntityView = {
   label: string;
 };
 
+export type ChatUserMessageContentPart =
+  | { kind: "text"; text: string }
+  | { kind: "entity"; entity: ChatMessageEntityView };
+
 export type ChatMessageAttachmentView = {
   id: string;
   name: string;
@@ -18,6 +22,7 @@ export type ChatMessageAttachmentView = {
 export type ChatUserMessageView = {
   kind: "user";
   id: string;
+  content?: readonly ChatUserMessageContentPart[];
   text?: string;
   entities?: readonly ChatMessageEntityView[];
   attachments?: readonly ChatMessageAttachmentView[];

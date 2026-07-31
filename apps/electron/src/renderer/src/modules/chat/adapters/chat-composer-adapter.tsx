@@ -19,6 +19,7 @@ import {
   type ChatComposerModelOption,
   type ChatComposerSubmit,
   type ChatComposerValue,
+  type ChatComposerProps,
 } from "@reflecta/ui/chat";
 import { ipcClient } from "@renderer/utils/ipc";
 import { buildContextCandidates, CONTEXT_LOOKUP_LIMIT } from "../context/context-candidates";
@@ -49,6 +50,7 @@ export type ComposerSendInput = {
 };
 
 type AgentChatComposerProps = {
+  variant?: ChatComposerProps["variant"];
   threadId: string;
   isBusy: boolean;
   isCompacting?: boolean;
@@ -64,7 +66,7 @@ type AgentChatComposerProps = {
   onSend: (input: ComposerSendInput) => Promise<void> | void;
   onSelectModel: (selection: AgentModelSelection) => void;
   onSelectReasoningLevel: (level: AgentReasoningLevel) => void;
-  onCancelEdit: () => void;
+  onCancelEdit?: () => void;
   onStop: () => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
 };
@@ -177,6 +179,7 @@ function useAttachmentAdapter() {
 }
 
 export function AgentChatComposer({
+  variant,
   threadId,
   isBusy,
   isCompacting = false,
@@ -289,6 +292,7 @@ export function AgentChatComposer({
 
   return (
     <ChatComposer
+      variant={variant}
       draftId={editingMessage ? `edit:${editingMessage.id}` : `thread:${threadId}`}
       initialValue={initialValue}
       editingMessageId={editingMessage?.id}

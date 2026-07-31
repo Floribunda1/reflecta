@@ -81,6 +81,7 @@ export type {
   ChatMessageEntityView,
   ChatMessageRowView,
   ChatMessageView,
+  ChatUserMessageContentPart,
   ChatUserMessageView,
 } from "./message/types";
 export type {

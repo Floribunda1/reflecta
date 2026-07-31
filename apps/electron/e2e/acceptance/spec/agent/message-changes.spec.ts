@@ -4,10 +4,11 @@ import {
   createNewThread,
   hasAi,
   launchAgentPage,
+  openThread,
   sendMessage,
   waitForAssistantReply,
 } from "./agent-e2e";
-import { resetAgentFixtures } from "./agent-fixtures";
+import { resetAgentFixtures, seedCompletedThread } from "./agent-fixtures";
 import { writeE2eAiConfig } from "../../../test-env";
 
 test.beforeEach(() => {
@@ -28,16 +29,32 @@ test("@AG-MESSAGE-001 用户编辑历史消息后看到新的当前回复", asyn
     );
     await waitForAssistantReply(page);
 
-    await page
+    const originalMessage = page
       .locator('[data-testid="agent-message-row"][data-message-role="user"]')
-      .filter({ hasText: "ORIGINAL_USER_MESSAGE" })
-      .hover();
-    await page.getByTestId("agent-edit-message-button").click();
-    await page
-      .getByTestId("agent-composer-editor")
-      .locator('[contenteditable="true"]')
-      .fill("EDITED_USER_MESSAGE。请直接回复 EDITED_AGENT_REPLY，不要调用任何工具。");
-    await page.getByTestId("agent-send-button").click();
+      .filter({ hasText: "ORIGINAL_USER_MESSAGE" });
+    await composer(page).fill("PRESERVED_DRAFT");
+    await originalMessage.hover();
+    await originalMessage.getByTestId("agent-edit-message-button").click();
+    const editRow = page.getByTestId("agent-message-edit-row");
+    const editEditor = page
+      .getByTestId("agent-message-edit-editor")
+      .locator('[contenteditable="true"]');
+    const assistantMessage = page
+      .locator('[data-testid="agent-message-row"][data-message-role="assistant"]')
+      .last();
+    await expect(editEditor).toContainText("ORIGINAL_USER_MESSAGE");
+    await expect
+      .poll(async () => {
+        const [editBox, assistantBox] = await Promise.all([
+          editRow.boundingBox(),
+          assistantMessage.boundingBox(),
+        ]);
+        return editBox && assistantBox ? editBox.y + editBox.height <= assistantBox.y : false;
+      })
+      .toBe(true);
+    await expect(composer(page)).toContainText("PRESERVED_DRAFT");
+    await editEditor.fill("EDITED_USER_MESSAGE。请直接回复 EDITED_AGENT_REPLY，不要调用任何工具。");
+    await page.getByTestId("agent-message-edit-submit").click();
     await waitForAssistantReply(page);
 
     await expect(
@@ -55,6 +72,41 @@ test("@AG-MESSAGE-001 用户编辑历史消息后看到新的当前回复", asyn
       "data-message-role",
       "assistant",
     );
+    await expect(composer(page)).toContainText("PRESERVED_DRAFT");
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-MESSAGE-005 用户取消编辑后保留原对话和底部草稿", async () => {
+  seedCompletedThread({
+    id: "cancel-message-edit",
+    title: "取消消息编辑",
+    userText: "CANCEL_EDIT_USER_MESSAGE",
+    assistantText: "CANCEL_EDIT_AGENT_REPLY",
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "取消消息编辑");
+    const originalMessage = page
+      .locator('[data-testid="agent-message-row"][data-message-role="user"]')
+      .filter({ hasText: "CANCEL_EDIT_USER_MESSAGE" });
+    await composer(page).fill("PRESERVED_DRAFT");
+    await originalMessage.hover();
+    await originalMessage.getByTestId("agent-edit-message-button").click();
+    await page
+      .getByTestId("agent-message-edit-editor")
+      .locator('[contenteditable="true"]')
+      .fill("UNSAVED_EDIT");
+    await page.getByTestId("agent-message-edit-cancel").click();
+
+    await expect(page.getByTestId("agent-message-edit-row")).toHaveCount(0);
+    await expect(originalMessage).toBeVisible();
+    await expect(
+      page.getByTestId("agent-assistant-text").filter({ hasText: "CANCEL_EDIT_AGENT_REPLY" }),
+    ).toBeVisible();
+    await expect(composer(page)).toContainText("PRESERVED_DRAFT");
   } finally {
     await app.close();
   }

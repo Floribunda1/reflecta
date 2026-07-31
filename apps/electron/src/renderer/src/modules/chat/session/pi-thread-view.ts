@@ -285,7 +285,6 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     jumpToTurn,
     actions: {
       send: async (input: ComposerSendInput) => {
-        setEditingMessage(undefined);
         shouldStickToBottom.current = true;
         setScrollButtonVisible(false);
         chatUiStore.getState().setStoppedMessage(sessionId, null);
@@ -300,6 +299,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
           modelSelection: input.modelSelection,
           reasoningLevel: input.reasoningLevel,
         });
+        setEditingMessage(undefined);
       },
       compact: async (modelSelection, reasoningLevel) => {
         if (composerBusy || visibleMessages.length === 0) return;

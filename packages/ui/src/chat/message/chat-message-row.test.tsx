@@ -110,6 +110,27 @@ describe("ChatMessageRow", () => {
     expect(next.querySelectorAll('[data-chat-find-match="true"]')).toHaveLength(2);
   });
 
+  test("renders entity mentions where they occur in user message content", () => {
+    const next = render({
+      message: {
+        kind: "user",
+        id: "user-1",
+        content: [
+          { kind: "text", text: "Before " },
+          {
+            kind: "entity",
+            entity: { type: "understanding", id: "u-1", label: "First idea" },
+          },
+          { kind: "text", text: " after" },
+        ],
+      },
+    });
+
+    expect(next.querySelector('[data-testid="agent-user-message"]')?.textContent).toBe(
+      "Before ✦ First idea after",
+    );
+  });
+
   test("emits message actions without performing workflow side effects", () => {
     const onAction = vi.fn();
     const row: ChatMessageRowView = {
