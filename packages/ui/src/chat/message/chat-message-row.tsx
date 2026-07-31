@@ -216,7 +216,13 @@ function AgentMessageContent({
       }
       renderedBlocks.push(
         activities.length === 1 ? (
-          <AgentExecutionBlock key={blockId(block)} block={block} entityBindings={entityBindings} />
+          <div
+            key={blockId(block)}
+            data-slot="agent-activity-receipt"
+            className="my-1 min-w-0 w-full rounded-lg border border-border/70 px-2.5"
+          >
+            <AgentExecutionBlock block={block} entityBindings={entityBindings} />
+          </div>
         ) : (
           <AgentActivityGroup
             key={`activity-group:${blockId(block)}`}

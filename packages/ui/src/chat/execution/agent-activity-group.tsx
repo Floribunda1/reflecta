@@ -27,11 +27,11 @@ export function AgentActivityGroup({
     <Collapsible
       defaultOpen={defaultExpanded}
       data-testid="agent-activity-group"
-      className="group/activity my-1 min-w-0 w-full"
+      className="group/activity my-1 min-w-0 w-full rounded-lg border border-border/70 px-2.5"
     >
       <CollapsibleTrigger
         data-testid="agent-activity-group-trigger"
-        className="group flex w-full cursor-pointer items-center gap-2 rounded-lg py-1.5 pl-0 pr-2.5 text-left text-[13px] text-foreground/75 transition-colors hover:bg-muted/50"
+        className="group flex w-full cursor-pointer items-center gap-2 py-1.5 text-left text-[13px] text-foreground/75 transition-colors hover:text-foreground"
       >
         <Badge variant="outline" className="bg-background font-semibold tabular-nums shadow-xs">
           {presentation.stepCount}
@@ -51,7 +51,7 @@ export function AgentActivityGroup({
         <ArrowUpRight className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="ml-[13px] border-l-2 border-border/60 py-0.5 pl-4 pr-2">
+        <div className="pb-1 pl-9 pr-2">
           {blocks.map((block) => (
             <AgentExecutionBlock
               key={block.kind === "reasoning" ? block.reasoning.id : block.activity.id}
