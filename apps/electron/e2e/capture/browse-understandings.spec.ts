@@ -11,7 +11,7 @@ function understandingCount(page: Page) {
     .first();
 }
 
-test("@CP-LIST-005 用户按更新时间或创建时间排序", async () => {
+test("@CP-LIST-005 用户切换 Understanding 的排序方式", async () => {
   seedUnderstanding({
     id: "sort-old-created",
     title: "较早创建但最近更新",

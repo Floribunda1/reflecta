@@ -836,7 +836,7 @@ test("@AG-PROPOSAL-005 用户重新打开对话后仍能处理等待确认的提
   }
 });
 
-test("@AG-PROPOSAL-007 用户重新打开对话后看到已批准工具执行失败原因", async () => {
+test("@AG-PROPOSAL-007 用户重新打开对话后看到已确认操作的失败原因", async () => {
   seedAgentThread({
     id: "failed-approved-tool-recovery",
     title: FAILED_APPROVED_TOOL_THREAD_TITLE,
@@ -874,7 +874,7 @@ test("@AG-PROPOSAL-007 用户重新打开对话后看到已批准工具执行失
   }
 });
 
-test("@AG-PROPOSAL-006 用户确认危险 Bash 后 Agent 继续回复", async () => {
+test("@AG-PROPOSAL-006 用户确认危险 Bash 后看到 Agent 继续回复", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(240_000);
 

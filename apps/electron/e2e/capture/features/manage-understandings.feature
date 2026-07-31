@@ -43,12 +43,12 @@
     而且详情区应该回到未选择 Understanding 的状态
 
   @P1 @content @CP-UNDERSTANDING-005
-  场景: 用户在 Understanding 中编辑和查看 Mermaid 图表
-    假如用户已经打开一条 Understanding
-    当用户在正文中写入一个有效的 Mermaid 图表
+  场景: 用户查看 Understanding 中的 Mermaid 图表
+    假如一条 Understanding 的正文包含有效的 Mermaid 图表
+    当用户打开这条 Understanding
     那么正文中应该显示渲染后的图表
-    当用户修改图表源码并重新打开这条 Understanding
-    那么正文应该显示修改后的图表
+    当用户离开后重新打开这条 Understanding
+    那么正文中仍应该显示渲染后的图表
 
   @P1 @error @CP-UNDERSTANDING-006
   场景: Mermaid 图表无效时用户仍能继续修改正文

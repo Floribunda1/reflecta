@@ -21,7 +21,7 @@ import {
   toolPart,
   userMessage,
 } from "./agent-fixtures";
-import { readE2eTestEnv } from "../test-env";
+import { readE2eTestEnv, writeE2eAiConfig } from "../test-env";
 
 test.beforeEach(() => {
   resetAgentFixtures();
@@ -264,41 +264,145 @@ test("@AG-CONV-007 用户导出当前对话为 Markdown", async () => {
   }
 });
 
-test("@AG-CONV-008 用户从对话列表右键操作指定对话", async () => {
+test("@AG-CONV-008 用户从对话列表删除指定对话", async () => {
   seedCompletedThread({
     id: "conv-context-a",
-    title: "右键对话 A",
+    title: "列表对话 A",
     userText: "CONTEXT_A_USER_MESSAGE",
     assistantText: "CONTEXT_A_AGENT_REPLY",
   });
   seedCompletedThread({
     id: "conv-context-b",
-    title: "右键对话 B",
+    title: "列表对话 B",
     userText: "CONTEXT_B_USER_MESSAGE",
     assistantText: "CONTEXT_B_AGENT_REPLY",
   });
   const { app, page } = await launchAgentPage();
 
   try {
-    await threadByTitle(page, "右键对话 A").click({ button: "right" });
+    await threadByTitle(page, "列表对话 A").click({ button: "right" });
     const menu = page.getByTestId("agent-thread-context-menu");
-
-    for (const label of [
-      "导出 Markdown",
-      "生成标题",
-      "压缩上下文",
-      "复制对话 ID",
-      "归档",
-      "删除",
-    ]) {
-      await expect(menu.getByRole("menuitem", { name: label })).toBeVisible();
-    }
-
     await menu.getByTestId("agent-delete-thread-menu-item").click();
     await page.getByRole("button", { name: "删除" }).click();
 
-    await expect(threadByTitle(page, "右键对话 A")).toHaveCount(0);
-    await expect(threadByTitle(page, "右键对话 B")).toBeVisible();
+    await expect(threadByTitle(page, "列表对话 A")).toHaveCount(0);
+    await expect(threadByTitle(page, "列表对话 B")).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-CONV-009 用户重命名对话", async () => {
+  seedCompletedThread({
+    id: "rename-thread",
+    title: "重命名前",
+    userText: "RENAME_USER_MESSAGE",
+    assistantText: "RENAME_AGENT_REPLY",
+  });
+  let launched = await launchAgentPage();
+
+  try {
+    await openThread(launched.page, "重命名前");
+    await launched.page.getByTestId("agent-thread-title").fill("RENAMED_THREAD");
+    await launched.page.getByTestId("agent-thread-title").press("Enter");
+    await expect(threadByTitle(launched.page, "RENAMED_THREAD")).toBeVisible();
+
+    await launched.app.close();
+    launched = await launchAgentPage();
+    await expect(threadByTitle(launched.page, "RENAMED_THREAD")).toBeVisible();
+  } finally {
+    await launched.app.close();
+  }
+});
+
+test("@AG-CONV-010 用户为对话生成标题", async () => {
+  expect(hasAi).toBe(true);
+  seedCompletedThread({
+    id: "generate-title-thread",
+    title: "ORIGINAL_GENERATED_TITLE",
+    userText: "请解释为什么反馈回路可以降低试错成本",
+    assistantText: "反馈回路让行动结果及时回到下一轮决策。",
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "ORIGINAL_GENERATED_TITLE");
+    await page.getByTestId("agent-thread-actions-button").click();
+    await page.getByTestId("agent-generate-title-menu-item").click();
+    await expect(page.getByText("已生成标题")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId("agent-thread-title")).not.toHaveValue(
+      "ORIGINAL_GENERATED_TITLE",
+    );
+    const nextTitle = await page.getByTestId("agent-thread-title").inputValue();
+    await expect(threadByTitle(page, nextTitle)).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-CONV-011 用户归档不再活跃的对话", async () => {
+  seedCompletedThread({
+    id: "archive-thread-a",
+    title: "归档对话 A",
+    userText: "ARCHIVE_A",
+    assistantText: "ARCHIVE_A_REPLY",
+  });
+  seedCompletedThread({
+    id: "archive-thread-b",
+    title: "保留对话 B",
+    userText: "ARCHIVE_B",
+    assistantText: "ARCHIVE_B_REPLY",
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await threadByTitle(page, "归档对话 A").click({ button: "right" });
+    await page.getByTestId("agent-archive-thread-menu-item").click();
+    await expect(threadByTitle(page, "归档对话 A")).toHaveCount(0);
+    await expect(threadByTitle(page, "保留对话 B")).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-CONV-012 用户复制对话 ID", async () => {
+  seedCompletedThread({
+    id: "copy-thread-id",
+    title: "复制 ID 对话",
+    userText: "COPY_ID_USER",
+    assistantText: "COPY_ID_REPLY",
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "复制 ID 对话");
+    await page.getByTestId("agent-thread-actions-button").click();
+    await page.getByTestId("agent-copy-thread-id-menu-item").click();
+    await expect
+      .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+      .toBe("copy-thread-id");
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-CONV-013 生成对话标题失败时保留原标题", async () => {
+  seedCompletedThread({
+    id: "generate-title-failure",
+    title: "ORIGINAL_THREAD_TITLE",
+    userText: "FAIL_TITLE_USER",
+    assistantText: "FAIL_TITLE_REPLY",
+  });
+  writeE2eAiConfig({ ...process.env, REFLECTA_E2E_AI_API_KEY: "invalid-reflecta-e2e-key" });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "ORIGINAL_THREAD_TITLE");
+    await page.getByTestId("agent-thread-actions-button").click();
+    await page.getByTestId("agent-generate-title-menu-item").click();
+    await expect(page.getByText("生成标题失败")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId("agent-thread-title")).toHaveValue("ORIGINAL_THREAD_TITLE");
+    await expect(threadByTitle(page, "ORIGINAL_THREAD_TITLE")).toBeVisible();
   } finally {
     await app.close();
   }

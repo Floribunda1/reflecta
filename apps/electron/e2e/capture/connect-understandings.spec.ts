@@ -62,7 +62,7 @@ test("@CP-CONNECTION-002 用户从 wiki-link 打开被引用的 Understanding", 
   }
 });
 
-test("@CP-CONNECTION-003 用户在知识漫步中看到自己建立的 Connection", async () => {
+test("@CP-CONNECTION-003 用户建立 Connection 后在知识漫步中看到关系", async () => {
   const { app, page } = await launchApp();
 
   try {

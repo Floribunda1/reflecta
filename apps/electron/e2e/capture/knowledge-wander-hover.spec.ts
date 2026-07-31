@@ -65,7 +65,7 @@ async function readNodePixels(canvas: Locator, requestedColor?: Rgb) {
   }, requestedColor);
 }
 
-test("@KW-GRAPH-005 用户移出悬停节点后恢复其他节点", async () => {
+test("@KW-GRAPH-005 用户悬停节点时临时查看它的直接邻域", async () => {
   const { app, page } = await launchApp();
 
   try {
@@ -87,6 +87,7 @@ test("@KW-GRAPH-005 用户移出悬停节点后恢复其他节点", async () => 
     await expect
       .poll(async () => (await readNodePixels(canvas, baseline.color)).count)
       .toBeLessThan(baseline.count * 0.5);
+    await expect(page.getByTestId("capture-understanding-detail-panel")).not.toBeVisible();
 
     await page.mouse.move(bounds.x + 4, bounds.y + 4);
     await expect

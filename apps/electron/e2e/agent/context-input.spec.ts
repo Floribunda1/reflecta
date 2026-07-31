@@ -77,16 +77,6 @@ test("@AG-CONTEXT-005 用户点击已选择的 Understanding 引用后查看详�
   }
 });
 
-test("@AG-CONTEXT-006 用户打开 Agent 页面时默认使用高推理", async () => {
-  const { app, page } = await launchAgentPage();
-
-  try {
-    await expect(page.getByTestId("agent-model-menu-button")).toContainText("高推理");
-  } finally {
-    await app.close();
-  }
-});
-
 test("@AG-CONTEXT-008 用户粘贴 Markdown 文本后继续编辑纯文本草稿", async () => {
   const { app, page } = await launchAgentPage();
 

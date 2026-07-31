@@ -1,5 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { composer, hasAi, launchAgentPage, openThread } from "./agent-e2e";
+import {
+  composer,
+  hasAi,
+  launchAgentPage,
+  openThread,
+  sendMessage,
+  waitForAssistantReply,
+} from "./agent-e2e";
 import {
   assistantMessage,
   resetAgentFixtures,
@@ -30,7 +37,39 @@ function seedCompactedThread() {
   });
 }
 
-test("@AG-COMPACT-002 用户可以手动压缩当前对话", async () => {
+test("@AG-COMPACT-001 过长对话在继续回复前自动压缩上下文", async () => {
+  expect(hasAi).toBe(true);
+  test.setTimeout(180_000);
+  const messages = Array.from({ length: 8 }, (_, index) => [
+    userMessage(`automatic-user-${index}`, `第 ${index + 1} 轮背景：${"重要约束。".repeat(4_500)}`),
+    assistantMessage(`automatic-assistant-${index}`, [
+      { type: "text", text: `第 ${index + 1} 轮记录：${"已经理解。".repeat(4_500)}` },
+    ]),
+  ]).flat();
+  seedAgentThread({
+    id: "automatic-compaction",
+    title: "自动压缩长对话",
+    includeRuntimeMessages: true,
+    messages,
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "自动压缩长对话");
+    await sendMessage(page, "请继续回答");
+    await expect(page.getByTestId("agent-context-compaction-progress")).toBeVisible({
+      timeout: 60_000,
+    });
+    await expect(page.getByTestId("agent-context-compaction-receipt")).toBeVisible({
+      timeout: 120_000,
+    });
+    await waitForAssistantReply(page);
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-COMPACT-002 用户手动压缩当前对话上下文", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
 
@@ -67,7 +106,7 @@ test("@AG-COMPACT-002 用户可以手动压缩当前对话", async () => {
   }
 });
 
-test("@AG-COMPACT-003 用户可以检查压缩回执且原消息保持可见", async () => {
+test("@AG-COMPACT-003 用户检查压缩后的上下文检查点", async () => {
   seedCompactedThread();
   const { app, page } = await launchAgentPage();
 
@@ -91,7 +130,7 @@ test("@AG-COMPACT-003 用户可以检查压缩回执且原消息保持可见", a
   }
 });
 
-test("@AG-COMPACT-004 用户重启应用后压缩回执仍然存在", async () => {
+test("@AG-COMPACT-004 用户重启应用后仍能检查压缩回执", async () => {
   seedCompactedThread();
   const first = await launchAgentPage();
   await first.app.close();

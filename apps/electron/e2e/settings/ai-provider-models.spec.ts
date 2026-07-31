@@ -102,3 +102,72 @@ test("@AI-SETTINGS-002 用户停用当前模型后自动使用仍然启用的模
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("@AI-SETTINGS-003 用户连接和断开 Codex", async () => {
+  const { app, page, root } = await launchIsolatedApp();
+
+  try {
+    await app.evaluate(({ ipcMain }) => {
+      ipcMain.removeHandler("config.connectCodex");
+      ipcMain.handle("config.connectCodex", async () => true);
+      ipcMain.removeHandler("config.disconnectCodex");
+      ipcMain.handle("config.disconnectCodex", async () => undefined);
+    });
+    await openAiSettings(page);
+    await page
+      .locator('[data-testid="settings-ai-provider"][data-provider-id="openai-codex"]')
+      .click();
+    await page.getByRole("button", { name: "连接", exact: true }).click();
+    await expect(page.getByText("已连接 ChatGPT 订阅", { exact: true }).last()).toBeVisible();
+
+    await page.getByRole("button", { name: "断开", exact: true }).click();
+    await expect(page.getByText("未连接 ChatGPT 订阅", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "连接", exact: true })).toBeVisible();
+  } finally {
+    await app.close();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("@AI-SETTINGS-004 用户选择标题生成模型", async () => {
+  const { app, page, root } = await launchIsolatedApp();
+
+  try {
+    await configureOpenAiModels(page);
+    await page.getByTestId("settings-ai-title-model").selectOption("openai:o3");
+    await page.getByTestId("settings-ai-save-button").click();
+    await expect(page.getByText("已保存")).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await openAiSettings(page);
+    await expect(page.getByTestId("settings-ai-title-model")).toHaveValue("openai:o3");
+  } finally {
+    await app.close();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("@AI-SETTINGS-005 Codex 连接失败后用户可以重试", async () => {
+  const { app, page, root } = await launchIsolatedApp();
+
+  try {
+    await app.evaluate(({ ipcMain }) => {
+      ipcMain.removeHandler("config.connectCodex");
+      ipcMain.handle("config.connectCodex", async () => {
+        throw new Error("TEST_CODEX_CONNECT_FAILED");
+      });
+    });
+    await openAiSettings(page);
+    await page
+      .locator('[data-testid="settings-ai-provider"][data-provider-id="openai-codex"]')
+      .click();
+    await page.getByRole("button", { name: "连接", exact: true }).click();
+
+    await expect(page.getByText("连接 Codex 失败")).toBeVisible();
+    await expect(page.getByText("未连接 ChatGPT 订阅", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "连接", exact: true })).toBeEnabled();
+  } finally {
+    await app.close();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

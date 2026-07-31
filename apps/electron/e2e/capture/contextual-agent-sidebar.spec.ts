@@ -1,6 +1,11 @@
 import { expect, type Page, test } from "@playwright/test";
 import { composer, launchAgentPage, launchApp, selectContext } from "../agent/agent-e2e";
-import { resetAgentFixtures } from "../agent/agent-fixtures";
+import {
+  assistantMessage,
+  resetAgentFixtures,
+  seedAgentThread,
+  userMessage,
+} from "../agent/agent-fixtures";
 import { domainNode, openCapturePage } from "./capture-e2e";
 
 test.beforeEach(() => {
@@ -113,6 +118,103 @@ test("@CP-AGENT-005 对话列表只收录已发送消息的 Capture 上下文对
       page.getByTestId("agent-thread-item").filter({ hasText: "聊聊：Programming" }),
     ).toHaveCount(0);
   } finally {
+    await app.close();
+  }
+});
+
+test("@CP-AGENT-006 用户在上下文 Agent 中继续历史对话并开始新对话", async () => {
+  seedAgentThread({
+    id: "context-history-thread",
+    title: "历史上下文对话",
+    messages: [
+      userMessage("context-history-user", "HISTORY_CONTEXT_MESSAGE"),
+      assistantMessage("context-history-assistant", [{ type: "text", text: "历史回复" }]),
+    ],
+  });
+  const { app, page } = await launchApp();
+
+  try {
+    await openCapturePage(page);
+    await domainNode(page, "Programming").click({ button: "right" });
+    await chooseChatFromContextMenu(page);
+    await expectAgentDockWithContext(page, "Programming");
+
+    await page.getByTestId("contextual-agent-history-button").click();
+    await page
+      .getByTestId("contextual-agent-history-thread")
+      .filter({ hasText: "历史上下文对话" })
+      .click();
+    await expect(page.getByText("HISTORY_CONTEXT_MESSAGE")).toBeVisible();
+
+    await page.getByTestId("contextual-agent-new-button").click();
+    await expect(contextMention(page, "Programming")).toBeVisible();
+    await expect(composer(page)).toBeEditable();
+    await expect(page.getByText("HISTORY_CONTEXT_MESSAGE")).toHaveCount(0);
+  } finally {
+    await app.close();
+  }
+});
+
+test("@CP-AGENT-007 用户把当前上下文对话转到完整 Agent 页面", async () => {
+  seedAgentThread({
+    id: "context-jump-thread",
+    title: "待转到完整 Agent 的对话",
+    messages: [
+      userMessage("context-jump-user", "CONTEXT_JUMP_MESSAGE"),
+      assistantMessage("context-jump-assistant", [{ type: "text", text: "跳转前的回复" }]),
+    ],
+  });
+  const { app, page } = await launchApp();
+
+  try {
+    await openCapturePage(page);
+    await domainNode(page, "Programming").click({ button: "right" });
+    await chooseChatFromContextMenu(page);
+    await expectAgentDockWithContext(page, "Programming");
+
+    await page.getByTestId("contextual-agent-history-button").click();
+    await page
+      .getByTestId("contextual-agent-history-thread")
+      .filter({ hasText: "待转到完整 Agent 的对话" })
+      .click();
+    await expect(page.getByText("CONTEXT_JUMP_MESSAGE")).toBeVisible();
+
+    await page.getByTestId("contextual-agent-jump-button").click();
+    await expect(page.getByTestId("agent-page")).toBeVisible();
+    await expect(page.getByTestId("agent-thread-title")).toHaveValue("待转到完整 Agent 的对话");
+    await expect(page.getByText("CONTEXT_JUMP_MESSAGE")).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
+
+test("@CP-AGENT-008 用户调整并关闭上下文 Agent", async () => {
+  const { app, page } = await launchApp();
+
+  try {
+    await openCapturePage(page);
+    await domainNode(page, "Programming").click({ button: "right" });
+    await chooseChatFromContextMenu(page);
+    await expectAgentDockWithContext(page, "Programming");
+
+    const dock = page.getByTestId("capture-agent-dock");
+    const initialBox = await dock.boundingBox();
+    const handle = page.getByRole("separator").last();
+    const handleBox = await handle.boundingBox();
+    if (!initialBox || !handleBox) throw new Error("Contextual Agent resize handle is not visible");
+    await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(handleBox.x - 100, handleBox.y + handleBox.height / 2, { steps: 8 });
+    await page.mouse.up();
+    await expect
+      .poll(async () => (await dock.boundingBox())?.width ?? 0)
+      .toBeGreaterThan(initialBox.width + 60);
+
+    await dock.getByRole("button", { name: "关闭 Agent" }).click();
+    await expect(dock).toHaveCount(0);
+    await expect(page.getByTestId("capture-understanding-list-panel")).toBeVisible();
+  } finally {
+    await page.mouse.up().catch(() => undefined);
     await app.close();
   }
 });

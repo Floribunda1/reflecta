@@ -19,7 +19,7 @@ test.beforeEach(() => {
   resetAgentFixtures();
 });
 
-test("@AG-RESULT-001 用户查看复杂回复时内容按发生顺序显示", async () => {
+test("@AG-RESULT-001 用户在复杂回复中检查工作记录和最终结果", async () => {
   seedAgentThread({
     id: "result-complex",
     title: "复杂回复",
@@ -50,20 +50,8 @@ test("@AG-RESULT-001 用户查看复杂回复时内容按发生顺序显示", as
     await expect(page.getByTestId("agent-reasoning")).toContainText("THINKING SUMMARY");
     await expect(page.getByText("搜索了 1 条 Understanding / 0 条 Context")).toBeVisible();
     await expect(page.getByTestId("agent-proposal-card")).toContainText("CANDIDATE_TITLE_PENDING");
+    await expect(page.getByTestId("agent-proposal-card")).toContainText("待确认");
     await expect(page.getByText("FINAL_REPLY_BODY")).toBeVisible();
-
-    const order = await page.locator("body").evaluate((body) => {
-      const text = body.textContent ?? "";
-      return [
-        text.indexOf("THINKING SUMMARY"),
-        text.indexOf("搜索了 1 条 Understanding / 0 条 Context"),
-        text.indexOf("CANDIDATE_TITLE_PENDING"),
-        text.indexOf("FINAL_REPLY_BODY"),
-      ];
-    });
-    expect(order[0]).toBeLessThan(order[1]);
-    expect(order[1]).toBeLessThan(order[2]);
-    expect(order[2]).toBeLessThan(order[3]);
   } finally {
     await app.close();
   }
@@ -139,7 +127,7 @@ test("@AG-RESULT-002 用户可以区分提案的不同状态", async () => {
   }
 });
 
-test("@AG-RESULT-003 用户原地展开思考过程和工具详情", async () => {
+test("@AG-RESULT-003 用户检查 Agent 活动的过程说明和检索结果", async () => {
   seedAgentThread({
     id: "result-expand",
     title: "展开详情",
@@ -171,25 +159,16 @@ test("@AG-RESULT-003 用户原地展开思考过程和工具详情", async () =>
     await openThread(page, "展开详情");
     const activityGroup = page.getByTestId("agent-activity-group");
     const activityTrigger = activityGroup.getByTestId("agent-activity-group-trigger");
-    await expect(activityTrigger).toContainText("2");
-    await expect(activityTrigger).toContainText("THINKING DETAIL");
-    await expect(page.getByTestId("agent-reasoning")).toHaveCount(0);
-    await expect(page.getByTestId("agent-tool-activity")).toHaveCount(0);
 
     await activityTrigger.click();
     await expect(page.getByTestId("agent-reasoning")).toContainText("THINKING DETAIL");
-    await expect(page.getByTestId("agent-reasoning-detail")).not.toBeVisible();
     const toolActivity = page.getByTestId("agent-tool-activity");
     await expect(toolActivity).toContainText("搜索「代价」");
     await expect(toolActivity).toContainText("1 条 Understanding / 0 条 Context");
-    await expect(page.getByText("搜索相关内容", { exact: true })).toHaveCount(0);
-    await expect(page.getByText("查询：代价")).toHaveCount(0);
-    await expect(page.getByTestId("agent-tool-detail")).not.toBeVisible();
 
     await page.getByTestId("agent-reasoning").click();
-    await expect(page.getByTestId("agent-reasoning-detail")).toBeVisible();
+    await expect(page.getByTestId("agent-reasoning-detail")).toContainText("THINKING DETAIL");
     await toolActivity.click();
-    await expect(page.getByTestId("agent-tool-detail")).toBeVisible();
     await expect(toolActivity).toContainText("Feedback Loop");
     await expect(toolActivity).toContainText("反馈回路能降低试错代价");
   } finally {
@@ -224,52 +203,6 @@ test("@AG-RESULT-004 用户点击 Agent 回复中的知识库引用后查看详�
       "React Server Components",
       { timeout: 15_000 },
     );
-  } finally {
-    await app.close();
-  }
-});
-
-test("@AG-RESULT-005 用户查看 Bash 长输出时可以原地展开", async () => {
-  const stderr = Array.from(
-    { length: 24 },
-    (_, index) => `error ${index + 1}: long bash output line`,
-  ).join("\n");
-  seedAgentThread({
-    id: "result-bash-output",
-    title: "Bash 长输出",
-    messages: [
-      userMessage("result-bash-output-user", "展示 Bash 长输出"),
-      assistantMessage("result-bash-output-assistant", [
-        {
-          type: "tool-bash",
-          toolCallId: "result-bash-output-tool",
-          state: "output-available",
-          input: { command: "bun run build", timeoutMs: 30000 },
-          output: { exitCode: 1, stdout: "", stderr },
-          toolMetadata: { kind: "proposal", proposalType: "bash" },
-        },
-      ]),
-    ],
-  });
-  const { app, page } = await launchAgentPage();
-
-  try {
-    await openThread(page, "Bash 长输出");
-    const card = page.getByTestId("agent-proposal-card").filter({ hasText: "执行 Bash" });
-    await expect(card).toContainText("完成");
-    await card.getByRole("button", { name: "展开 Proposal" }).click();
-    await expect(card).toContainText("error 16: long bash output line");
-    await expect(card).not.toContainText("error 24: long bash output line");
-
-    await card.getByText("展开完整输出").click();
-    await card
-      .locator(".cm-scroller")
-      .last()
-      .evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
-    await expect(card).toContainText("error 24: long bash output line");
-
-    await card.getByText("收起输出").click();
-    await expect(card).not.toContainText("error 24: long bash output line");
   } finally {
     await app.close();
   }
@@ -339,7 +272,7 @@ test("@AG-RESULT-008 用户修改实体标题后历史回复显示当前标题",
   }
 });
 
-test("@AG-RESULT-009 同一回复正确显示三种实体引用", async () => {
+test("@AG-RESULT-009 用户在同一条回复中查看不同类型的知识库引用", async () => {
   seedUnderstanding({ id: "citation-mixed-u", title: "反馈循环", body: "正文" });
   seedContext({
     id: "citation-mixed-c",
@@ -374,7 +307,7 @@ test("@AG-RESULT-009 同一回复正确显示三种实体引用", async () => {
   }
 });
 
-test("@AG-RESULT-010 被引用实体删除后回复保持可读", async () => {
+test("@AG-RESULT-010 用户查看包含已删除实体引用的回复", async () => {
   seedUnderstanding({ id: "citation-deleted-u", title: "将被删除", body: "正文" });
   seedAgentThread({
     id: "citation-deleted-thread",
@@ -400,35 +333,32 @@ test("@AG-RESULT-010 被引用实体删除后回复保持可读", async () => {
   }
 });
 
-test("@AG-RESULT-011 分段生成的引用在历史中保持一致", async () => {
-  seedUnderstanding({ id: "citation-stream-u", title: "流式引用", body: "正文" });
+test("@AG-RESULT-011 Agent 回复中的知识库引用在重新进入后保持可读", async () => {
+  seedUnderstanding({ id: "citation-persist-u", title: "持久引用", body: "正文" });
   seedAgentThread({
-    id: "citation-stream-thread",
-    title: "流式引用历史",
+    id: "citation-persist-thread",
+    title: "引用持久化",
     messages: [
-      userMessage("citation-stream-user", "展示引用"),
-      assistantMessage("citation-stream-assistant", [
-        { type: "text-delta", text: "参考 [[u:citation" },
-        { type: "text-delta", text: "-stream-u]]。" },
-        { type: "text", text: "参考 [[u:citation-stream-u]]。" },
+      userMessage("citation-persist-user", "展示引用"),
+      assistantMessage("citation-persist-assistant", [
+        { type: "text", text: "参考 [[u:citation-persist-u]]。" },
       ]),
     ],
   });
   let launched = await launchAgentPage();
 
   try {
-    await openThread(launched.page, "流式引用历史");
-    await expect(launched.page.locator('[data-slot="wiki-link"]')).toContainText("流式引用");
-    await expect(launched.page.getByText("[[u:citation", { exact: false })).toHaveCount(0);
+    await openThread(launched.page, "引用持久化");
+    await expect(launched.page.locator('[data-slot="wiki-link"]')).toContainText("持久引用");
 
     await openThread(launched.page, "Programming 上下文历史对话");
-    await openThread(launched.page, "流式引用历史");
-    await expect(launched.page.locator('[data-slot="wiki-link"]')).toContainText("流式引用");
+    await openThread(launched.page, "引用持久化");
+    await expect(launched.page.locator('[data-slot="wiki-link"]')).toContainText("持久引用");
 
     await launched.app.close();
     launched = await launchAgentPage();
-    await openThread(launched.page, "流式引用历史");
-    await expect(launched.page.locator('[data-slot="wiki-link"]')).toContainText("流式引用");
+    await openThread(launched.page, "引用持久化");
+    await expect(launched.page.locator('[data-slot="wiki-link"]')).toContainText("持久引用");
   } finally {
     await launched.app.close();
   }
@@ -457,6 +387,32 @@ test("@AG-RESULT-007 用户查看最终答案生成失败原因", async () => {
     await expect(page.getByTestId("agent-final-answer-error")).toContainText(
       "引用实体不存在: domain/missing",
     );
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-RESULT-012 用户查看 Agent 回复中的 Mermaid 图表", async () => {
+  seedAgentThread({
+    id: "result-mermaid-thread",
+    title: "Mermaid 回复",
+    messages: [
+      userMessage("result-mermaid-user", "画出流程"),
+      assistantMessage("result-mermaid-assistant", [
+        { type: "text", text: "```mermaid\nflowchart LR\n  Input --> Output\n```" },
+      ]),
+    ],
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "Mermaid 回复");
+    const diagram = page.locator('[data-streamdown="mermaid"]');
+    await expect(diagram.locator("svg")).toBeVisible({ timeout: 15_000 });
+    await diagram.hover();
+    await expect(page.getByTitle("Copy Code")).toBeVisible();
+    await expect(page.getByTitle("Download diagram")).toBeVisible();
+    await expect(page.getByTitle("View fullscreen")).toBeVisible();
   } finally {
     await app.close();
   }

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { launchApp } from "../agent/agent-e2e";
+import { seedUnderstanding } from "../agent/agent-fixtures";
 import {
   domainNode,
   openCapturePage,
@@ -82,6 +83,59 @@ test("@CP-UNDERSTANDING-004 用户删除不再需要的 Understanding", async ()
     await expect(understandingRow(page, "React Server Components")).toHaveCount(0);
     await expect(understandingRow(page, "Vue Reactivity")).toBeVisible();
     await expect(page.getByText("选择一条内容开始查看")).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
+
+test("@CP-UNDERSTANDING-005 用户查看 Understanding 中的 Mermaid 图表", async () => {
+  seedUnderstanding({
+    id: "mermaid-understanding",
+    title: "Mermaid Understanding",
+    body: "```mermaid\nflowchart LR\n  Input --> Output\n```",
+  });
+  const { app, page } = await launchApp();
+
+  try {
+    await openCapturePage(page);
+    await openUnderstanding(page, "Mermaid Understanding");
+    const editor = understandingEditor(page);
+    await expect(editor.locator("svg").filter({ hasText: "Input" })).toBeVisible({
+      timeout: 15_000,
+    });
+
+    await openUnderstanding(page, "Vue Reactivity");
+    await openUnderstanding(page, "Mermaid Understanding");
+    await expect(understandingEditor(page).locator("svg").filter({ hasText: "Input" })).toBeVisible(
+      {
+        timeout: 15_000,
+      },
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("@CP-UNDERSTANDING-006 Mermaid 图表无效时用户仍能继续修改正文", async () => {
+  seedUnderstanding({
+    id: "invalid-mermaid-understanding",
+    title: "Invalid Mermaid Understanding",
+    body: "```mermaid\nflowchart INVALID\n  A -->\n```\n\n仍可编辑",
+  });
+  const { app, page } = await launchApp();
+
+  try {
+    await openCapturePage(page);
+    await openUnderstanding(page, "Invalid Mermaid Understanding");
+    const editor = understandingEditor(page);
+    await expect(editor.locator(".reflecta-mermaid-error")).toContainText("Mermaid 图表渲染失败", {
+      timeout: 15_000,
+    });
+    await expect(editor.locator(".cm-content").first()).toBeEditable();
+    await editor.getByText("仍可编辑").click();
+    await page.keyboard.press("End");
+    await page.keyboard.type("正文");
+    await expect(editor).toContainText("仍可编辑正文");
   } finally {
     await app.close();
   }

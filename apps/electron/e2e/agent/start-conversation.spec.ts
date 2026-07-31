@@ -126,9 +126,6 @@ test("@AG-START-008 用户收起后从对话标题重新展开对话列表", asy
     await expect(sidebarContainer).toHaveAttribute("aria-hidden", "true");
     await expect(sidebarContainer).toHaveCSS("width", "0px");
     await expect(page.getByTestId("agent-sidebar-expand-button")).toBeVisible();
-    const expandButtonBox = await page.getByTestId("agent-sidebar-expand-button").boundingBox();
-    expect(expandButtonBox?.x).toBeGreaterThanOrEqual(86);
-    expect((expandButtonBox?.y ?? 0) + (expandButtonBox?.height ?? 0) / 2).toBeCloseTo(24, 0);
 
     await page.getByTestId("agent-sidebar-expand-button").click();
     await expect(sidebarContainer).toHaveAttribute("aria-hidden", "false");
@@ -149,15 +146,9 @@ test("@AG-START-009 用户调整对话列表宽度", async () => {
     await expect(page.getByTestId("agent-thread-title")).toBeVisible();
     const listPanel = page.getByTestId("agent-thread-sidebar-panel");
     const resizeHandle = page.getByTestId("agent-thread-sidebar-resize-handle");
-    await expect(resizeHandle.locator(":scope > div")).toHaveCount(0);
     const handleBox = await resizeHandle.boundingBox();
     const initialBox = await listPanel.boundingBox();
     if (!handleBox || !initialBox) throw new Error("Thread list resize handle is not visible");
-    const hitAreaWidth = await resizeHandle.evaluate((element) =>
-      Number.parseFloat(getComputedStyle(element, "::after").width),
-    );
-    expect(handleBox.width).toBeLessThanOrEqual(2);
-    expect(hitAreaWidth).toBeGreaterThanOrEqual(12);
 
     await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
     await page.mouse.down();

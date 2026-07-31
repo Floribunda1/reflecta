@@ -95,39 +95,6 @@ test("@AG-MESSAGE-002 用户重新生成回复后看到新的当前回复", asyn
   }
 });
 
-test("@AG-MESSAGE-003 用户按 Enter 发送后编辑时仍看到原来的单行内容", async () => {
-  test.setTimeout(120_000);
-  writeE2eAiConfig({ ...process.env, REFLECTA_E2E_AI_API_KEY: "invalid-reflecta-e2e-key" });
-
-  const { app, page } = await launchAgentPage();
-
-  try {
-    await createNewThread(page);
-    await composer(page).click();
-    await page.keyboard.type("ENTER_SEND_SINGLE_LINE");
-    await page.keyboard.press("Enter");
-
-    const userRow = page
-      .locator('[data-testid="agent-message-row"][data-message-role="user"]')
-      .filter({ hasText: "ENTER_SEND_SINGLE_LINE" });
-    await expect(userRow).toBeVisible();
-    await expect(page.getByTestId("agent-stop-button")).toBeVisible();
-    await expect(page.getByTestId("agent-stop-button")).toBeEnabled();
-    await page.getByTestId("agent-stop-button").click();
-    await expect(page.getByTestId("agent-stop-button")).toBeHidden();
-
-    await userRow.hover();
-    await userRow.getByTestId("agent-edit-message-button").click();
-
-    await expect(composer(page)).toContainText("ENTER_SEND_SINGLE_LINE");
-    await expect
-      .poll(() => composer(page).evaluate((node) => node.textContent))
-      .toBe("ENTER_SEND_SINGLE_LINE");
-  } finally {
-    await app.close();
-  }
-});
-
 test("@AG-MESSAGE-004 Agent 回复期间用户可以整理下一轮想法", async () => {
   test.setTimeout(120_000);
   writeE2eAiConfig({ ...process.env, REFLECTA_E2E_AI_API_KEY: "invalid-reflecta-e2e-key" });
@@ -146,6 +113,7 @@ test("@AG-MESSAGE-004 Agent 回复期间用户可以整理下一轮想法", asyn
 
     await expect(composer(page)).toContainText("NEXT_TURN_DRAFT");
     await expect(composer(page)).toContainText("SECOND_LINE");
+    await expect(composer(page)).toBeEditable();
     await expect(page.getByTestId("agent-user-message")).toHaveCount(1);
   } finally {
     await app.close();

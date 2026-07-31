@@ -111,7 +111,7 @@ test("@EMBEDDING-SETTINGS-001 用户查看默认本地 embedding 模型并触发
   }
 });
 
-test("@EMBEDDING-SETTINGS-002 用户查看并重建 retrieval 索引", async () => {
+test("@EMBEDDING-SETTINGS-002 用户在语义检索模型准备好后重建检索索引", async () => {
   const embeddingServer = await startSlowEmbeddingServer();
   writePreparedSemanticRetrievalConfig(embeddingServer.baseUrl);
   const { app, page } = await launchApp();
@@ -130,5 +130,65 @@ test("@EMBEDDING-SETTINGS-002 用户查看并重建 retrieval 索引", async () 
   } finally {
     await app.close();
     await embeddingServer.close();
+  }
+});
+
+test("@EMBEDDING-SETTINGS-003 用户决定是否让 Agent 使用语义检索", async () => {
+  writePreparedSemanticRetrievalConfig();
+  const { app, page } = await launchApp();
+
+  try {
+    await page.getByTestId("app-settings-menu-item").click();
+    await page.getByTestId("settings-menu-retrieval").click();
+    const toggle = page.getByRole("switch", { name: "启用 Agent 语义检索" });
+    await expect(toggle).toBeChecked();
+
+    await toggle.click();
+    await expect(toggle).not.toBeChecked();
+    await toggle.click();
+    await expect(toggle).toBeChecked();
+  } finally {
+    await app.close();
+  }
+});
+
+test("@EMBEDDING-SETTINGS-004 模型下载失败后用户可以重新下载", async () => {
+  const { app, page } = await launchApp();
+
+  try {
+    await app.evaluate(() => {
+      globalThis.fetch = async () => {
+        throw new Error("TEST_DOWNLOAD_FAILED");
+      };
+    });
+    await page.getByTestId("app-settings-menu-item").click();
+    await page.getByTestId("settings-menu-retrieval").click();
+    await page.getByTestId("settings-retrieval-download-button").click();
+
+    await expect(page.getByTestId("settings-retrieval-model-status")).toContainText("下载失败");
+    await expect(page.getByText("TEST_DOWNLOAD_FAILED")).toBeVisible();
+    await expect(page.getByTestId("settings-retrieval-download-button")).toContainText("重新下载");
+  } finally {
+    await app.close();
+  }
+});
+
+test("@EMBEDDING-SETTINGS-005 索引构建失败后用户可以重新构建", async () => {
+  writePreparedSemanticRetrievalConfig("http://127.0.0.1:1/v1");
+  const { app, page } = await launchApp();
+
+  try {
+    await page.getByTestId("app-settings-menu-item").click();
+    await page.getByTestId("settings-menu-retrieval").click();
+    await page.getByTestId("settings-retrieval-rebuild-button").click();
+
+    await expect(page.getByTestId("settings-retrieval-index-status")).toContainText("构建失败", {
+      timeout: 20_000,
+    });
+    await expect(page.getByTestId("settings-retrieval-rebuild-button")).toContainText(
+      "重新构建检索索引",
+    );
+  } finally {
+    await app.close();
   }
 });
