@@ -26,7 +26,7 @@ test("@AG-RESULT-001 用户查看复杂回复时内容按发生顺序显示", as
     messages: [
       userMessage("result-complex-user", "请给出复杂回复"),
       assistantMessage("result-complex-assistant", [
-        reasoningPart("THINKING_SUMMARY"),
+        reasoningPart("THINKING SUMMARY"),
         toolPart("search", "result-search", {
           hits: [{ type: "understanding", understanding: { id: "understanding-1" } }],
         }),
@@ -44,17 +44,20 @@ test("@AG-RESULT-001 用户查看复杂回复时内容按发生顺序显示", as
 
   try {
     await openThread(page, "复杂回复");
-    await expect(page.getByText("思考过程")).toBeVisible();
+    const activityGroup = page.getByTestId("agent-activity-group");
+    await expect(activityGroup).toBeVisible();
+    await activityGroup.getByTestId("agent-activity-group-trigger").click();
+    await expect(page.getByTestId("agent-reasoning")).toContainText("THINKING SUMMARY");
     await expect(page.getByText("搜索了 1 条 Understanding / 0 条 Context")).toBeVisible();
-    await expect(page.getByText("候选 Understanding")).toBeVisible();
+    await expect(page.getByTestId("agent-proposal-card")).toContainText("CANDIDATE_TITLE_PENDING");
     await expect(page.getByText("FINAL_REPLY_BODY")).toBeVisible();
 
     const order = await page.locator("body").evaluate((body) => {
       const text = body.textContent ?? "";
       return [
-        text.indexOf("思考过程"),
+        text.indexOf("THINKING SUMMARY"),
         text.indexOf("搜索了 1 条 Understanding / 0 条 Context"),
-        text.indexOf("候选 Understanding"),
+        text.indexOf("CANDIDATE_TITLE_PENDING"),
         text.indexOf("FINAL_REPLY_BODY"),
       ];
     });
@@ -169,24 +172,26 @@ test("@AG-RESULT-003 用户原地展开思考过程和工具详情", async () =>
     const activityGroup = page.getByTestId("agent-activity-group");
     const activityTrigger = activityGroup.getByTestId("agent-activity-group-trigger");
     await expect(activityTrigger).toContainText("2");
-    await expect(activityTrigger).toContainText("搜索「代价」 · 1 条 Understanding / 0 条 Context");
+    await expect(activityTrigger).toContainText("THINKING DETAIL");
     await expect(page.getByTestId("agent-reasoning")).toHaveCount(0);
     await expect(page.getByTestId("agent-tool-activity")).toHaveCount(0);
 
     await activityTrigger.click();
     await expect(page.getByTestId("agent-reasoning")).toContainText("THINKING DETAIL");
     await expect(page.getByTestId("agent-reasoning-detail")).not.toBeVisible();
-    await expect(page.getByText("搜索「代价」 · 1 条 Understanding / 0 条 Context")).toBeVisible();
+    const toolActivity = page.getByTestId("agent-tool-activity");
+    await expect(toolActivity).toContainText("搜索「代价」");
+    await expect(toolActivity).toContainText("1 条 Understanding / 0 条 Context");
     await expect(page.getByText("搜索相关内容", { exact: true })).toHaveCount(0);
     await expect(page.getByText("查询：代价")).toHaveCount(0);
     await expect(page.getByTestId("agent-tool-detail")).not.toBeVisible();
 
     await page.getByTestId("agent-reasoning").click();
-    const toolActivity = page.getByTestId("agent-tool-activity");
     await expect(page.getByTestId("agent-reasoning-detail")).toBeVisible();
     await toolActivity.click();
     await expect(page.getByTestId("agent-tool-detail")).toBeVisible();
-    await expect(toolActivity.getByText("查询：代价")).toBeVisible();
+    await expect(toolActivity).toContainText("Feedback Loop");
+    await expect(toolActivity).toContainText("反馈回路能降低试错代价");
   } finally {
     await app.close();
   }
@@ -252,11 +257,15 @@ test("@AG-RESULT-005 用户查看 Bash 长输出时可以原地展开", async ()
     await openThread(page, "Bash 长输出");
     const card = page.getByTestId("agent-proposal-card").filter({ hasText: "执行 Bash" });
     await expect(card).toContainText("完成");
-    await card.getByRole("button", { name: "展开候选卡片" }).click();
+    await card.getByRole("button", { name: "展开 Proposal" }).click();
     await expect(card).toContainText("error 16: long bash output line");
     await expect(card).not.toContainText("error 24: long bash output line");
 
     await card.getByText("展开完整输出").click();
+    await card
+      .locator(".cm-scroller")
+      .last()
+      .evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
     await expect(card).toContainText("error 24: long bash output line");
 
     await card.getByText("收起输出").click();

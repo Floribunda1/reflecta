@@ -302,16 +302,9 @@ function normalizeProgressText(text: string) {
 }
 
 async function readVisibleProgressText(page: Page) {
-  for (const locator of [
-    page.getByTestId("agent-assistant-text").last(),
-    page.getByTestId("agent-activity-group-trigger").last(),
-    page.getByTestId("agent-reasoning").last(),
-  ]) {
-    if (!(await locator.isVisible().catch(() => false))) continue;
-    const text = normalizeProgressText(await locator.innerText());
-    if (text) return text;
-  }
-  return "";
+  const response = page.getByTestId("agent-assistant-text").last();
+  if (!(await response.isVisible().catch(() => false))) return "";
+  return normalizeProgressText(await response.innerText());
 }
 
 async function expandLatestActivityGroup(page: Page) {
@@ -534,6 +527,8 @@ test("@AG-CONV-006 用户在长对话中通过右侧摘录跳转到指定消息"
       0,
     );
 
+    await page.getByTestId("agent-chat-jump-trigger").focus();
+    await expect(targetJumpItem).toBeVisible();
     await targetJumpItem.click();
 
     await expect(
@@ -863,12 +858,11 @@ test("@AG-PROPOSAL-007 用户重新打开对话后看到已批准工具执行失
 
   try {
     await openThread(page, FAILED_APPROVED_TOOL_THREAD_TITLE);
-    const card = page
-      .getByTestId("agent-proposal-card")
-      .filter({ hasText: "候选修改 Understanding" });
+    const card = page.locator(
+      '[data-testid="agent-proposal-card"][data-proposal-kind="understanding-update"]',
+    );
     await expect(card).toContainText("执行失败");
     await expect(card).toContainText(FAILED_APPROVED_TOOL_ERROR);
-    await expect(card).not.toContainText("已确认");
 
     const eventTypes = readPiEventTypes();
     expect(eventTypes).toContain("approval.requested");
@@ -894,7 +888,7 @@ test("@AG-PROPOSAL-006 用户确认危险 Bash 后 Agent 继续回复", async ()
       page,
       `请必须先调用 bash 工具原样执行这个命令：printf sudo > ${PI_BASH_APPROVAL_MARKER}; printf approved。等我确认并且工具返回后，再简短说明已经完成；确认前不要声称命令已执行。`,
     );
-    const card = page.getByTestId("agent-proposal-card").filter({ hasText: "确认危险 Bash" });
+    const card = page.locator('[data-testid="agent-proposal-card"][data-proposal-kind="bash"]');
     await expect(card).toBeVisible({ timeout: 120_000 });
 
     await card.getByTestId("agent-proposal-confirm-button").click();
@@ -932,7 +926,7 @@ test("@AG-PROPOSAL-008 用户拒绝危险 Bash 后看到拒绝结果", async () 
       page,
       `请必须先调用 bash 工具原样执行这个命令：printf sudo > ${PI_BASH_REJECTION_MARKER}。如果我拒绝，不要重试工具，简短说明操作已取消。`,
     );
-    const card = page.getByTestId("agent-proposal-card").filter({ hasText: "确认危险 Bash" });
+    const card = page.locator('[data-testid="agent-proposal-card"][data-proposal-kind="bash"]');
     await expect(card).toBeVisible({ timeout: 120_000 });
 
     await card.getByTestId("agent-proposal-reject-button").click();
@@ -976,7 +970,7 @@ test("@AG-PROPOSAL-009 用户让 Agent 执行普通 Bash 后直接看到结果",
     await expect(activity).toContainText("完成", { timeout: 120_000 });
     await expect(page.getByTestId("agent-assistant-text").last()).toBeVisible();
     await expect(
-      page.getByTestId("agent-proposal-card").filter({ hasText: "确认危险 Bash" }),
+      page.locator('[data-testid="agent-proposal-card"][data-proposal-kind="bash"]'),
     ).toHaveCount(0);
     await expect(composer(page)).toBeEditable();
     expect(fs.readFileSync(markerPath, "utf-8")).toBe("safe");

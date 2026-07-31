@@ -79,7 +79,7 @@ test("@AG-COMPACT-003 用户可以检查压缩回执且原消息保持可见", a
     const receipt = page.getByTestId("agent-context-compaction-receipt");
     await expect(receipt).toContainText("已压缩较早的对话上下文");
     await expect(page.getByTestId("agent-context-compaction-summary")).toBeHidden();
-    await receipt.locator("summary").click();
+    await receipt.getByTestId("agent-context-compaction-trigger").click();
     await expect(page.getByTestId("agent-context-compaction-summary")).toContainText(
       "继续验证压缩后的上下文",
     );
@@ -101,7 +101,7 @@ test("@AG-COMPACT-004 用户重启应用后压缩回执仍然存在", async () =
     await openThread(page, "上下文压缩回执");
     const receipt = page.getByTestId("agent-context-compaction-receipt");
     await expect(receipt).toBeVisible();
-    await receipt.locator("summary").click();
+    await receipt.getByTestId("agent-context-compaction-trigger").click();
     await expect(page.getByTestId("agent-context-compaction-summary")).toContainText(
       "保留原始消息",
     );

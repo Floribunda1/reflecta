@@ -34,7 +34,7 @@ test("@AG-PROPOSAL-003 用户重新打开对话后仍能看到提案处理结果
     await openThread(page, "已处理提案");
     const card = page.getByTestId("agent-proposal-card");
     await expect(card).toContainText("已拒绝");
-    await card.getByLabel("展开候选卡片").click();
+    await card.getByLabel("展开 Proposal").click();
     await expect(card).toContainText("CANDIDATE_TITLE");
 
     await page.getByTestId("app-module-switcher").click();

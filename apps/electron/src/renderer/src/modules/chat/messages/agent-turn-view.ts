@@ -1159,8 +1159,8 @@ function bashDetails(output: unknown) {
   const stderr = stringValue(output.stderr);
   return detailView({
     rows: [
-      stdout ? detailRow("", "", stdout, "code", "text") : undefined,
-      stderr ? detailRow("", "", stderr, "code", "text") : undefined,
+      stdout ? detailRow("", "", stdout, "code", "text", undefined, 16) : undefined,
+      stderr ? detailRow("", "", stderr, "code", "text", undefined, 16) : undefined,
     ].filter((row): row is ToolActivityDetailRow => Boolean(row)),
   });
 }
