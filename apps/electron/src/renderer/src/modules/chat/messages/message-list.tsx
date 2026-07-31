@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, type ReactNode } from "react";
 import {
   AgentContextCompactionStatus,
   AgentExecutionBlock,
@@ -46,6 +46,8 @@ export function MessageList({
   onInspectContextRef,
   highlightedMessageId,
   findQuery,
+  editingMessageId,
+  editingMessageEditor,
 }: {
   messages: AgentReducedMessage[];
   entityCatalog: AgentEntityCatalogEntry[];
@@ -64,6 +66,8 @@ export function MessageList({
   onInspectContextRef?: (ref: InspectableContextRef) => void;
   highlightedMessageId?: string | null;
   findQuery?: string;
+  editingMessageId?: string;
+  editingMessageEditor?: ReactNode;
 }) {
   const lastAssistantId = messages.findLast((message) => message.role === "assistant")?.id;
   const activeAssistantId = activeAssistantMessageId(messages, activeRunId);
@@ -97,21 +101,32 @@ export function MessageList({
       ) : null}
       {messages.map((message) => (
         <Fragment key={message.id}>
-          <ConnectedChatMessageRow
-            message={message}
-            entityCatalog={entityCatalog}
-            isBusy={isBusy}
-            isLastAssistant={message.id === lastAssistantId}
-            assistantRunning={message.id === activeAssistantId}
-            highlighted={highlightedMessageId === message.id}
-            findQuery={findQuery}
-            stopped={stoppedMessageId === message.id}
-            onEdit={onEdit}
-            onRegenerate={onRegenerate}
-            onForkAssistant={onForkAssistant}
-            onApproveTool={onApproveTool}
-            onInspectContextRef={onInspectContextRef}
-          />
+          {editingMessageId === message.id && editingMessageEditor ? (
+            <div
+              data-testid="agent-message-edit-row"
+              data-agent-message-id={message.id}
+              data-message-role="user"
+              className="flex w-full flex-col items-end gap-1"
+            >
+              {editingMessageEditor}
+            </div>
+          ) : (
+            <ConnectedChatMessageRow
+              message={message}
+              entityCatalog={entityCatalog}
+              isBusy={isBusy}
+              isLastAssistant={message.id === lastAssistantId}
+              assistantRunning={message.id === activeAssistantId}
+              highlighted={highlightedMessageId === message.id}
+              findQuery={findQuery}
+              stopped={stoppedMessageId === message.id}
+              onEdit={onEdit}
+              onRegenerate={onRegenerate}
+              onForkAssistant={onForkAssistant}
+              onApproveTool={onApproveTool}
+              onInspectContextRef={onInspectContextRef}
+            />
+          )}
           {compactionsByMessage.get(message.id)?.map((compaction) => (
             <AgentExecutionBlock key={compaction.id} block={compactionBlock(compaction)} />
           ))}

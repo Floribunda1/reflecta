@@ -8,8 +8,10 @@
     假如用户已经发送 ORIGINAL_USER_MESSAGE
     而且 Agent 已经完成一条回复
     而且 Agent 可以完成回复
-    当用户编辑 ORIGINAL_USER_MESSAGE
-    而且用户将内容改为 EDITED_USER_MESSAGE
+    当用户对 ORIGINAL_USER_MESSAGE 执行编辑
+    那么 ORIGINAL_USER_MESSAGE 应该在原消息位置进入编辑状态
+    而且底部输入框中的草稿应该保持不变
+    当用户将内容改为 EDITED_USER_MESSAGE
     而且用户提交编辑
     而且用户等待 Agent 完成回复
     那么用户消息应该变成 EDITED_USER_MESSAGE

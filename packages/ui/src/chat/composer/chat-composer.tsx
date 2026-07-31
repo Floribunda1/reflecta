@@ -1,7 +1,7 @@
 import { Mention } from "@tiptap/extension-mention";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { ChevronDown, FileText, Paperclip, Pencil, Send, Square, X } from "lucide-react";
+import { ChevronDown, FileText, Paperclip, Send, Square, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "#components/button";
 import {
@@ -84,6 +84,7 @@ export type ChatComposerSubmit = {
 };
 
 export type ChatComposerProps = {
+  variant?: "default" | "message-edit";
   draftId?: string;
   initialValue?: ChatComposerValue;
   editingMessageId?: string;
@@ -229,6 +230,7 @@ function useEntitySearch(
 }
 
 export function ChatComposer({
+  variant = "default",
   draftId,
   initialValue,
   editingMessageId,
@@ -455,7 +457,8 @@ export function ChatComposer({
     initializedDraftRef.current = { ready: true, id: draftId };
     appliedInitialEntitiesRef.current = null;
     setComposerValue(initialValue);
-  }, [draftId, editor]);
+    if (variant === "message-edit") editor.commands.focus("end");
+  }, [draftId, editor, variant]);
 
   useEffect(() => {
     const requestChanged = appliedInitialEntitiesRef.current !== initialEntities;
@@ -560,8 +563,17 @@ export function ChatComposer({
   };
 
   return (
-    <div data-testid="agent-composer" className="px-6 py-4">
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-2">
+    <div
+      data-testid={variant === "message-edit" ? "agent-message-editor" : "agent-composer"}
+      className={variant === "message-edit" ? "w-full" : "px-6 py-4"}
+    >
+      <div
+        className={
+          variant === "message-edit"
+            ? "flex w-full flex-col gap-2"
+            : "mx-auto flex w-full max-w-4xl flex-col gap-2"
+        }
+      >
         {entitySearch.open ? (
           <ChatContextPicker
             state={entitySearch.state}
@@ -595,30 +607,6 @@ export function ChatComposer({
             editingMessageId ? "border-primary/30" : "border-border/80"
           }`}
         >
-          {editingMessageId ? (
-            <div
-              data-testid="agent-composer-editing-banner"
-              className="flex h-9 items-center justify-between gap-3 border-b border-primary/10 bg-primary/5 px-3 text-xs"
-            >
-              <div className="flex min-w-0 items-center gap-1.5">
-                <Pencil className="size-3.5 shrink-0 text-primary" />
-                <span className="shrink-0 font-medium text-foreground">编辑消息</span>
-                <span className="truncate text-muted-foreground">
-                  · 发送后将从这里重新生成后续对话
-                </span>
-              </div>
-              <Button
-                type="button"
-                size="xs"
-                variant="ghost"
-                className="-mr-1 text-muted-foreground"
-                title="取消编辑"
-                onClick={cancelEdit}
-              >
-                取消
-              </Button>
-            </div>
-          ) : null}
           <div className="relative min-w-0">
             {!text.trim() && entities.length === 0 && attachments.length === 0 ? (
               <span className="pointer-events-none absolute top-3 left-4 text-base text-muted-foreground">
@@ -629,8 +617,10 @@ export function ChatComposer({
             ) : null}
             <EditorContent
               editor={editor}
-              data-testid="agent-composer-editor"
-              className="flex min-w-0"
+              data-testid={
+                variant === "message-edit" ? "agent-message-edit-editor" : "agent-composer-editor"
+              }
+              className={`flex min-w-0 ${variant === "message-edit" ? "[&_.tiptap]:min-h-20" : ""}`}
               onKeyDownCapture={(event) => {
                 if (event.nativeEvent.isComposing) return;
                 if (
@@ -670,7 +660,11 @@ export function ChatComposer({
               }}
             />
           </div>
-          <div className="flex h-10 shrink-0 items-center justify-between gap-3 px-3 pb-2">
+          <div
+            className={`flex shrink-0 items-center justify-between gap-3 px-3 pb-2 ${
+              variant === "message-edit" ? "min-h-11" : "h-10"
+            }`}
+          >
             <div className="flex min-w-0 items-center gap-1">
               <input
                 ref={fileInputRef}
@@ -694,113 +688,145 @@ export function ChatComposer({
               >
                 <Paperclip />
               </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      data-testid="agent-model-menu-button"
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={busy || modelOptions.length === 0}
-                      className="h-8 min-w-0 max-w-[320px] gap-1.5 px-2 text-muted-foreground hover:bg-muted"
-                    />
-                  }
-                >
-                  <span className="truncate text-foreground">
-                    {selectedModel?.label ?? "Model"}
-                  </span>
-                  {selectedReasoning ? (
-                    <span className="truncate text-muted-foreground">
-                      {selectedReasoning.label}
+              {variant === "message-edit" ? (
+                <span className="truncate text-xs text-muted-foreground">
+                  发送后将从这里重新生成后续对话
+                </span>
+              ) : (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        data-testid="agent-model-menu-button"
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={busy || modelOptions.length === 0}
+                        className="h-8 min-w-0 max-w-[320px] gap-1.5 px-2 text-muted-foreground hover:bg-muted"
+                      />
+                    }
+                  >
+                    <span className="truncate text-foreground">
+                      {selectedModel?.label ?? "Model"}
                     </span>
-                  ) : null}
-                  <ChevronDown size={16} className="text-muted-foreground" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" side="top" className="w-64">
-                  {selectedModel && showReasoningOptions ? (
-                    <>
-                      <DropdownMenuRadioGroup
-                        value={selectedReasoningId}
-                        onValueChange={(value) => onReasoningChange?.(value)}
-                      >
-                        <DropdownMenuLabel>推理等级</DropdownMenuLabel>
-                        {selectedModel.reasoningOptions.map((option) => (
-                          <DropdownMenuRadioItem
-                            key={option.id}
-                            value={option.id}
-                            data-testid="agent-reasoning-option"
-                            data-reasoning-level={option.id}
-                          >
-                            {option.label}
-                          </DropdownMenuRadioItem>
-                        ))}
-                      </DropdownMenuRadioGroup>
-                      <DropdownMenuSeparator />
-                    </>
-                  ) : null}
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel>模型</DropdownMenuLabel>
-                    {modelOptions.map((option) => (
-                      <DropdownMenuItem
-                        key={option.id}
-                        data-testid="agent-model-option"
-                        data-model-id={option.modelId ?? option.id}
-                        data-reasoning-levels={option.reasoningOptions
-                          .map((reasoning) => reasoning.id)
-                          .join(" ")}
-                        onClick={() => onModelChange?.(option.id)}
-                      >
-                        <span className="truncate">{option.label}</span>
-                        {option.providerLabel ? (
-                          <span className="ml-auto truncate text-xs text-muted-foreground">
-                            {option.providerLabel}
-                          </span>
-                        ) : null}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    {selectedReasoning ? (
+                      <span className="truncate text-muted-foreground">
+                        {selectedReasoning.label}
+                      </span>
+                    ) : null}
+                    <ChevronDown size={16} className="text-muted-foreground" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" side="top" className="w-64">
+                    {selectedModel && showReasoningOptions ? (
+                      <>
+                        <DropdownMenuRadioGroup
+                          value={selectedReasoningId}
+                          onValueChange={(value) => onReasoningChange?.(value)}
+                        >
+                          <DropdownMenuLabel>推理等级</DropdownMenuLabel>
+                          {selectedModel.reasoningOptions.map((option) => (
+                            <DropdownMenuRadioItem
+                              key={option.id}
+                              value={option.id}
+                              data-testid="agent-reasoning-option"
+                              data-reasoning-level={option.id}
+                            >
+                              {option.label}
+                            </DropdownMenuRadioItem>
+                          ))}
+                        </DropdownMenuRadioGroup>
+                        <DropdownMenuSeparator />
+                      </>
+                    ) : null}
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>模型</DropdownMenuLabel>
+                      {modelOptions.map((option) => (
+                        <DropdownMenuItem
+                          key={option.id}
+                          data-testid="agent-model-option"
+                          data-model-id={option.modelId ?? option.id}
+                          data-reasoning-levels={option.reasoningOptions
+                            .map((reasoning) => reasoning.id)
+                            .join(" ")}
+                          onClick={() => onModelChange?.(option.id)}
+                        >
+                          <span className="truncate">{option.label}</span>
+                          {option.providerLabel ? (
+                            <span className="ml-auto truncate text-xs text-muted-foreground">
+                              {option.providerLabel}
+                            </span>
+                          ) : null}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              {contextUsage ? <ContextUsageMeter usage={contextUsage} /> : null}
-              {status === "running" && canStop ? (
-                <Button
-                  data-testid="agent-stop-button"
-                  type="button"
-                  size="icon-sm"
-                  variant="outline"
-                  className="bg-background/70"
-                  aria-label="停止"
-                  onClick={onStop}
-                >
-                  <Square />
-                </Button>
-              ) : busy ? (
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="outline"
-                  className="bg-background/70"
-                  aria-label={status === "compacting" ? "正在压缩上下文" : "Agent 正在响应"}
-                  disabled
-                >
-                  <Spinner />
-                </Button>
+              {variant === "message-edit" ? (
+                <>
+                  <Button
+                    data-testid="agent-message-edit-cancel"
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={cancelEdit}
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    data-testid="agent-message-edit-submit"
+                    type="button"
+                    size="sm"
+                    aria-label="更新并重新发送"
+                    disabled={!canSubmit}
+                    onClick={() => void submit()}
+                  >
+                    <Send />
+                    更新并发送
+                  </Button>
+                </>
               ) : (
-                <Button
-                  data-testid="agent-send-button"
-                  type="button"
-                  size="icon-sm"
-                  className="disabled:bg-muted disabled:text-muted-foreground"
-                  aria-label={editingMessageId ? "更新并重新发送" : "发送"}
-                  title={editingMessageId ? "更新并重新发送" : undefined}
-                  disabled={!canSubmit}
-                  onClick={() => void submit()}
-                >
-                  <Send />
-                </Button>
+                <>
+                  {contextUsage ? <ContextUsageMeter usage={contextUsage} /> : null}
+                  {status === "running" && canStop ? (
+                    <Button
+                      data-testid="agent-stop-button"
+                      type="button"
+                      size="icon-sm"
+                      variant="outline"
+                      className="bg-background/70"
+                      aria-label="停止"
+                      onClick={onStop}
+                    >
+                      <Square />
+                    </Button>
+                  ) : busy ? (
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="outline"
+                      className="bg-background/70"
+                      aria-label={status === "compacting" ? "正在压缩上下文" : "Agent 正在响应"}
+                      disabled
+                    >
+                      <Spinner />
+                    </Button>
+                  ) : (
+                    <Button
+                      data-testid="agent-send-button"
+                      type="button"
+                      size="icon-sm"
+                      className="disabled:bg-muted disabled:text-muted-foreground"
+                      aria-label="发送"
+                      disabled={!canSubmit}
+                      onClick={() => void submit()}
+                    >
+                      <Send />
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </div>
