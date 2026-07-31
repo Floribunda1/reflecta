@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 export async function openCapturePage(page: Page) {
   await expect(page.getByTestId("capture-page").or(page.getByTestId("agent-page"))).toBeVisible();
@@ -24,6 +24,105 @@ export function understandingTitleInput(page: Page) {
 
 export function understandingEditor(page: Page) {
   return page.locator(".ProseMirror[contenteditable='true']").first();
+}
+
+export function graphNodeCanvas(graph: Locator) {
+  return graph.locator("canvas.sigma-nodes");
+}
+
+export async function visibleGraphContentPixelCount(page: Page, graph: Locator) {
+  const screenshot = await graph.screenshot();
+  return page.evaluate(
+    async (src) => {
+      const image = new Image();
+      image.src = src;
+      await image.decode();
+
+      const surface = document.createElement("canvas");
+      surface.width = image.naturalWidth;
+      surface.height = image.naturalHeight;
+      const context = surface.getContext("2d");
+      if (!context) throw new Error("Expected a 2D screenshot context");
+      context.drawImage(image, 0, 0);
+
+      const pixels = context.getImageData(0, 0, surface.width, surface.height).data;
+      const background = [pixels[0], pixels[1], pixels[2]];
+      let visible = 0;
+
+      for (let y = surface.height * 0.1; y < surface.height * 0.9; y += 2) {
+        for (let x = surface.width * 0.1; x < surface.width * 0.9; x += 2) {
+          const offset = (Math.floor(y) * surface.width + Math.floor(x)) * 4;
+          const difference =
+            Math.abs(pixels[offset] - background[0]) +
+            Math.abs(pixels[offset + 1] - background[1]) +
+            Math.abs(pixels[offset + 2] - background[2]);
+          if (difference >= 60) visible += 1;
+        }
+      }
+
+      return visible;
+    },
+    `data:image/png;base64,${screenshot.toString("base64")}`,
+  );
+}
+
+export async function visibleGraphNodePoints(page: Page, canvas: Locator) {
+  const screenshot = await canvas.screenshot();
+  return page.evaluate(
+    async (src) => {
+      const image = new Image();
+      image.src = src;
+      await image.decode();
+
+      const surface = document.createElement("canvas");
+      surface.width = image.naturalWidth;
+      surface.height = image.naturalHeight;
+      const context = surface.getContext("2d");
+      if (!context) throw new Error("Expected a 2D screenshot context");
+      context.drawImage(image, 0, 0);
+
+      const pixels = context.getImageData(0, 0, surface.width, surface.height).data;
+      const background = [pixels[0], pixels[1], pixels[2]];
+      const targets: Array<{ x: number; y: number; distance: number }> = [];
+      const isNodePixel = (x: number, y: number) => {
+        const offset = (y * surface.width + x) * 4;
+        const difference =
+          Math.abs(pixels[offset] - background[0]) +
+          Math.abs(pixels[offset + 1] - background[1]) +
+          Math.abs(pixels[offset + 2] - background[2]);
+        return pixels[offset + 3] > 0 && difference >= 60;
+      };
+
+      for (let y = 2; y < surface.height - 2; y += 6) {
+        for (let x = 2; x < surface.width - 2; x += 6) {
+          if (
+            isNodePixel(x, y) &&
+            isNodePixel(x - 2, y) &&
+            isNodePixel(x + 2, y) &&
+            isNodePixel(x, y - 2) &&
+            isNodePixel(x, y + 2)
+          ) {
+            targets.push({
+              x,
+              y,
+              distance: Math.hypot(x - surface.width / 2, y - surface.height / 2),
+            });
+          }
+        }
+      }
+
+      return targets
+        .sort((left, right) => left.distance - right.distance)
+        .map(({ x, y }) => ({ x, y, width: surface.width, height: surface.height }));
+    },
+    `data:image/png;base64,${screenshot.toString("base64")}`,
+  );
+}
+
+export async function visibleGraphNodePoint(page: Page, canvas: Locator) {
+  const [point] = await visibleGraphNodePoints(page, canvas);
+  if (!point) throw new Error("Expected a rendered graph node");
+  return point;
 }
 
 export async function openUnderstanding(page: Page, title: string) {
