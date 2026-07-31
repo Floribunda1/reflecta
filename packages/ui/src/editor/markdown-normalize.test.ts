@@ -8,6 +8,10 @@ describe("Markdown normalization", () => {
     );
   });
 
+  test("normalizes escaped underscores inside typed wiki-link ids", () => {
+    expect(normalizeMarkdown(String.raw`\[\[u:th\_example\_1]]`)).toBe("[[u:th_example_1]]");
+  });
+
   test("compares normalized documents", () => {
     expect(markdownEquals("Body\n", "Body")).toBe(true);
     expect(markdownEquals("Body", "Changed")).toBe(false);
