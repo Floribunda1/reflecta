@@ -33,9 +33,11 @@ export function AgentActivityGroup({
         data-testid="agent-activity-group-trigger"
         className="group flex w-full cursor-pointer items-center gap-2 rounded-lg py-1.5 pl-0 pr-2.5 text-left text-[13px] text-foreground/75 outline-none transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/40"
       >
-        <Badge variant="outline" className="bg-background font-semibold tabular-nums shadow-xs">
-          {presentation.stepCount}
-        </Badge>
+        {presentation.stepCount > 1 ? (
+          <Badge variant="outline" className="bg-background font-semibold tabular-nums shadow-xs">
+            {presentation.stepCount}
+          </Badge>
+        ) : null}
         {presentation.running ? (
           <>
             <AgentWorkingIndicator className="size-[18px] text-foreground/65" aria-hidden="true" />

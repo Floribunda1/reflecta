@@ -215,16 +215,12 @@ function AgentMessageContent({
         index += 1;
       }
       renderedBlocks.push(
-        activities.length === 1 ? (
-          <AgentExecutionBlock key={blockId(block)} block={block} entityBindings={entityBindings} />
-        ) : (
-          <AgentActivityGroup
-            key={`activity-group:${blockId(block)}`}
-            blocks={activities}
-            active={message.status === "streaming" && index === message.blocks.length - 1}
-            entityBindings={entityBindings}
-          />
-        ),
+        <AgentActivityGroup
+          key={`activity-group:${blockId(block)}`}
+          blocks={activities}
+          active={message.status === "streaming" && index === message.blocks.length - 1}
+          entityBindings={entityBindings}
+        />,
       );
       continue;
     }

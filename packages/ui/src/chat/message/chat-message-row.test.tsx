@@ -148,7 +148,7 @@ describe("ChatMessageRow", () => {
     expect(onAction).toHaveBeenCalledWith({ messageId: "user-1", type: "edit" });
   });
 
-  test("keeps a continuous working signal between completed agent steps", () => {
+  test("keeps a single completed activity expandable while the agent still owns the turn", () => {
     const next = render({
       message: {
         kind: "assistant",
@@ -162,15 +162,36 @@ describe("ChatMessageRow", () => {
               toolName: "read",
               status: "done",
               summary: "读取了「journal.md」",
-              items: [],
+              items: [
+                {
+                  id: "tool-1:item",
+                  label: "读取了「journal.md」",
+                  details: {
+                    rows: [
+                      {
+                        id: "tool-1:content",
+                        content: { format: "text", value: "只在展开后显示的文件内容" },
+                      },
+                    ],
+                  },
+                },
+              ],
             },
           },
         ],
       },
     });
 
-    expect(next.querySelector('[data-testid="agent-activity-group"]')).toBeNull();
-    expect(next.querySelector('[data-testid="agent-tool-activity"]')).not.toBeNull();
+    expect(next.textContent).not.toContain("只在展开后显示的文件内容");
+    act(() =>
+      next
+        .querySelector<HTMLButtonElement>('[data-testid="agent-activity-group-trigger"]')
+        ?.click(),
+    );
+    act(() =>
+      next.querySelector<HTMLButtonElement>('[data-testid="agent-tool-activity"] button')?.click(),
+    );
+    expect(next.textContent).toContain("只在展开后显示的文件内容");
     expect(next.querySelector('[data-slot="agent-working-indicator"]')).not.toBeNull();
     expect(next.querySelector('[data-testid="agent-running-placeholder"]')).not.toBeNull();
   });
