@@ -66,9 +66,15 @@ async function check(): Promise<void> {
   const misplacedFeatures = featureSources
     .map(([file]) => file)
     .filter((file) => !file.startsWith("e2e/acceptance/feature/"));
+  const misplacedAcceptanceSpecs = acceptanceSources
+    .map(([file]) => file)
+    .filter((file) => !file.startsWith("e2e/acceptance/spec/"));
   const problems = [
     ...misplacedFeatures.map(
       (file) => `Feature 文件必须放在 e2e/acceptance/feature/<module>/: ${file}`,
+    ),
+    ...misplacedAcceptanceSpecs.map(
+      (file) => `Acceptance spec 必须放在 e2e/acceptance/spec/<module>/: ${file}`,
     ),
     ...duplicates(declaredIds).map((id) => `Feature ID 重复声明: ${id}`),
     ...difference(declaredIds, implementedIds).map((id) => `Feature 缺少 acceptance 实现: ${id}`),

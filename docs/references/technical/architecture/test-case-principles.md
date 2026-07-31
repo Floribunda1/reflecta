@@ -167,7 +167,7 @@ Acceptance test 证明产品已经兑现 Feature 中的产品承诺：
 - 同一个 Scenario 可以由多个自动化层级共同支撑，但必须有一个明确的主要验收实现；
 - 不为 acceptance test 反向创造 Feature。
 
-Electron 中需要通过真实入口验收的 Feature 集中放在 `e2e/acceptance/feature/<module>/`，对应的 spec 放在 `e2e/acceptance/<module>/`。产品契约和自动化实现形成两棵清晰的目录树，并通过稳定 ID 双向关联。
+Electron 中需要通过真实入口验收的 Feature 放在 `e2e/acceptance/feature/<module>/`，对应 spec 和模块内 helper 放在 `e2e/acceptance/spec/<module>/`。产品契约和验收实现形成对称目录，并通过稳定 ID 双向关联。
 
 ### Regression test 保护技术风险
 

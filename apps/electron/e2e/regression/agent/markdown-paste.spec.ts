@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { composer, launchAgentPage } from "../../acceptance/agent/agent-e2e";
-import { resetAgentFixtures } from "../../acceptance/agent/agent-fixtures";
+import { composer, launchAgentPage } from "../../acceptance/spec/agent/agent-e2e";
+import { resetAgentFixtures } from "../../acceptance/spec/agent/agent-fixtures";
 
 test.beforeEach(() => {
   resetAgentFixtures();

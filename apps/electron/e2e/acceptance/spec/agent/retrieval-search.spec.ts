@@ -4,7 +4,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { composer, launchAgentPage } from "./agent-e2e";
 import { resetAgentFixtures, seedUnderstanding } from "./agent-fixtures";
-import { readE2eTestEnv } from "../../test-env";
+import { readE2eTestEnv } from "../../../test-env";
 
 test.beforeEach(() => {
   resetAgentFixtures();

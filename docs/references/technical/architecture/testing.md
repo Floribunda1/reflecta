@@ -28,14 +28,14 @@ bun run --filter '@reflecta/electron' test:renderer
 
 ## 测试分层
 
-| 层级              | 位置                                    | 说明                             |
-| ----------------- | --------------------------------------- | -------------------------------- |
-| CLI tests         | `apps/cli/test`                         | 测 CLI 命令、profile、DB 路径    |
-| Electron main     | `apps/electron/src/main/**/*.test`      | 测 main process 服务和配置       |
-| Electron renderer | `apps/electron/src/renderer/**/*.test`  | 测前端 store、组件和编辑器逻辑   |
-| Feature contract  | `apps/electron/e2e/acceptance/feature`  | 集中维护按产品模块组织的 Feature |
-| E2E acceptance    | `apps/electron/e2e/acceptance/<module>` | 通过真实入口验收产品 Feature     |
-| E2E regression    | `apps/electron/e2e/regression`          | 保护必须经过真实应用的技术风险   |
+| 层级              | 位置                                            | 说明                           |
+| ----------------- | ----------------------------------------------- | ------------------------------ |
+| CLI tests         | `apps/cli/test`                                 | 测 CLI 命令、profile、DB 路径  |
+| Electron main     | `apps/electron/src/main/**/*.test`              | 测 main process 服务和配置     |
+| Electron renderer | `apps/electron/src/renderer/**/*.test`          | 测前端 store、组件和编辑器逻辑 |
+| Feature contract  | `apps/electron/e2e/acceptance/feature/<module>` | 按模块维护产品 Feature         |
+| E2E acceptance    | `apps/electron/e2e/acceptance/spec/<module>`    | 按相同模块维护验收实现         |
+| E2E regression    | `apps/electron/e2e/regression`                  | 保护必须经过真实应用的技术风险 |
 
 Electron 的 `test` script 会先跑 main tests，再跑 renderer tests：
 
@@ -99,7 +99,7 @@ bun run test:e2e:acceptance
 bun run test:e2e:regression
 ```
 
-`acceptance/feature/<module>/` 集中维护产品契约，`acceptance/<module>/` 保存对应测试实现。每条 acceptance test 必须以稳定 Feature ID 开头。`regression/` 不维护 Feature 文件，也禁止使用 Feature ID。完整 E2E 在构建前运行 `bun run feature:check`，校验目录边界和映射。
+`acceptance/feature/<module>/` 维护产品契约，`acceptance/spec/<module>/` 维护对应 spec 和模块内 helper。每条 acceptance test 必须以稳定 Feature ID 开头。`regression/` 不维护 Feature 文件，也禁止使用 Feature ID。完整 E2E 在构建前运行 `bun run feature:check`，校验目录边界和映射。
 
 人工 review Feature 变化时运行：
 
