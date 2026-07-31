@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.5 - 2026-07-31
+
+- Refined Agent activity receipts so single and grouped reasoning, tools, and proposals remain visually distinct from the final response while preserving inline disclosure and execution status.
+- Unified Reflecta entity references around stable typed markers, with Understanding bodies limited to `[[u:<id>]]`, consistent Agent rendering, and automatic migration of legacy Understanding links.
+- Simplified completed proposal receipts, preserved approval and execution outcomes, and removed redundant result metadata from the visible conversation.
+
 ## 1.3.4 - 2026-07-31
 
 - Reduced the packaged Electron footprint with maximum compression, focused locale/runtime inclusion, and stricter exclusions for development-only files and unused native payloads.
