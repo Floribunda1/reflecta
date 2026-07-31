@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.6 - 2026-07-31
+
+- Clarified proposal lifecycle states and kept rejection reasons visible in proposal details, including when the reason is long.
+- Improved Agent chat in narrow windows by keeping jump navigation accessible, aligning its responsive breakpoint, and preventing stale hover state.
+- Simplified inline editing actions by removing redundant guidance and shortening the action label.
+
 ## 1.3.5 - 2026-07-31
 
 - Refined Agent activity receipts so single and grouped reasoning, tools, and proposals remain visually distinct from the final response while preserving inline disclosure and execution status.
