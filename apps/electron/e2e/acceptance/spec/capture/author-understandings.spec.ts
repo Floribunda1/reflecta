@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { launchApp } from "../agent/agent-e2e";
-import { seedUnderstanding } from "../agent/agent-fixtures";
+import { seedUnderstanding, understandingExistsByTitle } from "../agent/agent-fixtures";
 import {
   domainNode,
   openCapturePage,
@@ -23,6 +23,7 @@ test("@CP-UNDERSTANDING-001 用户在当前 Domain 下新建 Understanding", asy
     await understandingEditor(page).fill("NEW_UNDERSTANDING_BODY");
     await expect(understandingEditor(page)).toContainText("NEW_UNDERSTANDING_BODY");
     await understandingEditor(page).press("Tab");
+    await expect.poll(() => understandingExistsByTitle("NEW_UNDERSTANDING_TITLE")).toBe(true);
     await openUnderstanding(page, "React Server Components");
     await openUnderstanding(page, "NEW_UNDERSTANDING_TITLE");
 
@@ -44,6 +45,8 @@ test("@CP-UNDERSTANDING-002 用户修改已有 Understanding 后重新打开仍�
     await page.keyboard.press("Meta+a");
     await understandingEditor(page).pressSequentially("UPDATED_UNDERSTANDING_BODY");
     await expect(understandingEditor(page)).toContainText("UPDATED_UNDERSTANDING_BODY");
+    await understandingTitleInput(page).click();
+    await expect.poll(() => understandingExistsByTitle("UPDATED_UNDERSTANDING_TITLE")).toBe(true);
 
     await openUnderstanding(page, "Vue Reactivity");
     await openUnderstanding(page, "UPDATED_UNDERSTANDING_TITLE");

@@ -71,6 +71,7 @@ type Fixture =
   | { type: "seedDomain"; id: string; name: string }
   | { type: "deleteUnderstanding"; id: string }
   | { type: "understandingIdByTitle"; title: string }
+  | { type: "understandingBodyByTitle"; title: string }
   | { type: "understandingExistsByTitle"; title: string }
   | { type: "domainExistsByName"; name: string };
 
@@ -642,6 +643,14 @@ try {
       .get(fixture.title) as { id: string } | null;
     if (!row) throw new Error(`Seed understanding not found: ${fixture.title}`);
     console.log(row.id);
+  }
+
+  if (fixture.type === "understandingBodyByTitle") {
+    const row = db
+      .query(`SELECT body FROM understandings WHERE title = ? AND deleted_at IS NULL LIMIT 1`)
+      .get(fixture.title) as { body: string } | null;
+    if (!row) throw new Error(`Seed understanding not found: ${fixture.title}`);
+    console.log(row.body);
   }
 
   if (fixture.type === "understandingExistsByTitle") {

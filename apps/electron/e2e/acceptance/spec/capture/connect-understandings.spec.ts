@@ -1,6 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 import { launchApp } from "../agent/agent-e2e";
-import { seedUnderstanding, seedUnderstandingIdByTitle } from "../agent/agent-fixtures";
+import {
+  seedUnderstanding,
+  seedUnderstandingIdByTitle,
+  understandingBodyByTitle,
+} from "../agent/agent-fixtures";
 import {
   openCapturePage,
   openUnderstanding,
@@ -15,7 +19,14 @@ async function connectToUnconnectedNode(page: Page) {
   await editor.click();
   await page.keyboard.press("Meta+ArrowDown");
   await editor.pressSequentially("\n\n[[Unconnected");
-  await page.getByRole("option", { name: /Unconnected Node/ }).click();
+  const targetId = seedUnderstandingIdByTitle("Unconnected Node");
+  await expect(page.getByRole("option", { name: /Unconnected Node/ })).toBeVisible();
+  await editor.press("Enter");
+  await expect(editor.locator(`a[data-wiki-link="${targetId}"]`)).toBeVisible();
+  await understandingTitleInput(page).click();
+  await expect
+    .poll(() => understandingBodyByTitle("React Server Components"))
+    .toContain(`[[u:${targetId}]]`);
 }
 
 test("@CP-CONNECTION-001 用户通过 wiki-link 连接另一条 Understanding", async () => {

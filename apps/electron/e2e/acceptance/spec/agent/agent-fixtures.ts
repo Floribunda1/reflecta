@@ -111,6 +111,10 @@ export function seedUnderstandingIdByTitle(title: string) {
   return runFixture({ type: "understandingIdByTitle", title }).trim();
 }
 
+export function understandingBodyByTitle(title: string) {
+  return runFixture({ type: "understandingBodyByTitle", title }).trim();
+}
+
 export function understandingExistsByTitle(title: string) {
   return runFixture({ type: "understandingExistsByTitle", title }).trim() === "true";
 }

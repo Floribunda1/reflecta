@@ -717,7 +717,7 @@ test("@AG-PROPOSAL-002 用户拒绝候选 Understanding 后看到拒绝结果", 
     await pendingCard.getByTestId("agent-proposal-reject-button").click();
     const card = page.getByTestId("agent-proposal-card").last();
     await expect(card).toContainText("已拒绝", { timeout: 120_000 });
-    await expect(card).toContainText("未写入知识库");
+    await expect(card).toHaveAttribute("data-proposal-state", "rejected");
 
     expect(understandingExistsByTitle(PI_REJECT_PROPOSAL_TITLE)).toBe(false);
     const eventTypes = readPiEventTypes();
@@ -747,7 +747,7 @@ test("@AG-PROPOSAL-001 用户确认候选 Understanding 后看到执行结果", 
     await pendingCard.getByTestId("agent-proposal-confirm-button").click();
     const card = page.getByTestId("agent-proposal-card").last();
     await expect(card).toContainText("完成", { timeout: 120_000 });
-    await expect(card).toContainText("已写入");
+    await expect(card).toHaveAttribute("data-proposal-state", "completed");
 
     expect(understandingExistsByTitle(PI_APPROVE_PROPOSAL_TITLE)).toBe(true);
     const eventTypes = readPiEventTypes();
@@ -780,7 +780,7 @@ test("@AG-PROPOSAL-004 用户确认候选 Domain 后看到执行结果", async (
     await pendingCard.getByTestId("agent-proposal-confirm-button").click();
     const card = page.getByTestId("agent-proposal-card").last();
     await expect(card).toContainText("完成", { timeout: 120_000 });
-    await expect(card).toContainText("已写入");
+    await expect(card).toHaveAttribute("data-proposal-state", "completed");
 
     expect(domainExistsByName(PI_DOMAIN_PROPOSAL_NAME)).toBe(true);
     const events = readPiEvents();

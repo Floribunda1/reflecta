@@ -102,26 +102,20 @@ test("@AG-RESULT-002 用户可以区分提案的不同状态", async () => {
 
   try {
     await openThread(page, "提案状态");
-    await expect(
-      page.getByTestId("agent-proposal-card").filter({ hasText: "CANDIDATE_TITLE_PENDING" }),
-    ).toContainText("待确认");
-    await expect(
-      page.getByTestId("agent-proposal-card").filter({ hasText: "CANDIDATE_TITLE_APPROVED" }),
-    ).toContainText("已确认");
-    await expect(
-      page.getByTestId("agent-proposal-card").filter({ hasText: "已拒绝，未写入知识库" }),
-    ).toContainText("已拒绝");
-    await expect(
-      page
-        .getByTestId("agent-proposal-card")
-        .filter({ hasText: "已写入 understanding · done-understanding" }),
-    ).toContainText("完成");
-    await expect(
-      page.getByTestId("agent-proposal-card").filter({ hasText: "CANDIDATE_TITLE_ERROR" }),
-    ).toContainText("执行失败");
-    await expect(
-      page.getByTestId("agent-proposal-card").filter({ hasText: "CANDIDATE_TITLE_ERROR" }),
-    ).toContainText("RESULT_ERROR_MESSAGE");
+    const cards = page.getByTestId("agent-proposal-card");
+    await expect(cards).toHaveCount(5);
+    await expect(cards.nth(0)).toHaveAttribute("data-proposal-state", "pending");
+    await expect(cards.nth(0)).toContainText("待确认");
+    await expect(cards.nth(1)).toHaveAttribute("data-proposal-state", "running");
+    await expect(cards.nth(1)).toContainText("已确认");
+    await expect(cards.nth(1)).toContainText("执行中");
+    await expect(cards.nth(2)).toHaveAttribute("data-proposal-state", "rejected");
+    await expect(cards.nth(2)).toContainText("已拒绝");
+    await expect(cards.nth(3)).toHaveAttribute("data-proposal-state", "completed");
+    await expect(cards.nth(3)).toContainText("执行完成");
+    await expect(cards.nth(4)).toHaveAttribute("data-proposal-state", "failed");
+    await expect(cards.nth(4)).toContainText("执行失败");
+    await expect(cards.nth(4)).toContainText("RESULT_ERROR_MESSAGE");
   } finally {
     await app.close();
   }
@@ -134,7 +128,9 @@ test("@AG-RESULT-003 用户检查 Agent 活动的过程说明和检索结果", a
     messages: [
       userMessage("result-expand-user", "展示可展开内容"),
       assistantMessage("result-expand-assistant", [
-        reasoningPart("THINKING DETAIL"),
+        reasoningPart(
+          "THINKING SUMMARY\n\nTHINKING DETAIL：先核对检索范围，再比较候选结果，最后确认哪些内容值得展示给用户。",
+        ),
         toolPart(
           "search",
           "result-search",
@@ -161,7 +157,7 @@ test("@AG-RESULT-003 用户检查 Agent 活动的过程说明和检索结果", a
     const activityTrigger = activityGroup.getByTestId("agent-activity-group-trigger");
 
     await activityTrigger.click();
-    await expect(page.getByTestId("agent-reasoning")).toContainText("THINKING DETAIL");
+    await expect(page.getByTestId("agent-reasoning")).toContainText("THINKING SUMMARY");
     const toolActivity = page.getByTestId("agent-tool-activity");
     await expect(toolActivity).toContainText("搜索「代价」");
     await expect(toolActivity).toContainText("1 条 Understanding / 0 条 Context");
