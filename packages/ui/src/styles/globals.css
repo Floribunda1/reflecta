@@ -114,7 +114,11 @@
 html {
   font-size: 14px;
   line-height: normal;
-  font-family: -apple-system, system-ui, "Segoe UI";
+  font-family:
+    MiSans,
+    -apple-system,
+    system-ui,
+    "Segoe UI";
   font-variation-settings: normal;
 }
 
