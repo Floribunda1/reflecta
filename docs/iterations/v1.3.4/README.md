@@ -161,22 +161,7 @@ benchmark 使用真实 Chromium 生产构建，不使用 Vite dev server 或 Rea
 - Streamdown 使用 `mode="static"` 和生产实现相同的官方 `@streamdown/code` 插件；
 - Markstream 使用 `final=true` 和包默认虚拟参数。
 
-可复现命令：
-
-```bash
-bun run --cwd apps/electron benchmark:chat-markdown
-```
-
-精确空白回归命令：
-
-```bash
-BENCHMARK_REPEATS=1 \
-BENCHMARK_SCENARIOS=single-pathological \
-BENCHMARK_RENDERERS=streamdown \
-BENCHMARK_FAIL_ON_BLANKS=1 \
-BENCHMARK_OUTPUT=/tmp/reflecta-streamdown-green.json \
-bun run --cwd apps/electron benchmark:chat-markdown
-```
+决策完成后已删除一次性 benchmark harness；本节与原始数据仅作为当时裁决的历史记录。
 
 ### 5.2 场景
 
@@ -274,7 +259,7 @@ Streamdown 的极端场景可能出现异步代码块导致的高度变化和短
 
 ### 7.3 删除
 
-- 删除生产路径中的 `markstream-react` 和仅为其接入引入的依赖；仅保留 devDependency 供决策 benchmark 复现。
+- 删除 `markstream-react` 和仅为其接入引入的依赖。
 - 删除 `_markstream.scss`。
 - 恢复并校准 `_streamdown.scss`。
 - 删除 Markstream AST 搜索预解析路径，恢复统一 rehype 搜索路径。
