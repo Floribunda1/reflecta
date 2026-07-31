@@ -15,7 +15,9 @@ import { cn } from "#lib/utils";
 import { Badge } from "../components/badge";
 import { Button } from "../components/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../components/collapsible";
+import { useAutoFrame } from "../../.storybook/use-auto-frame";
 import { AgentExecutionBlock } from "./execution/agent-execution-block";
+import { AgentWorkingIndicator } from "./execution/agent-working-indicator";
 import type { AgentActivityBlockView } from "./execution/types";
 
 const variants = [
@@ -119,17 +121,23 @@ function ReceiptDisclosure({
   label,
   summary,
   blocks,
+  running = false,
 }: {
   icon: LucideIcon;
   label?: string;
   summary: string;
   blocks: readonly AgentActivityBlockView[];
+  running?: boolean;
 }) {
   return (
     <Collapsible className="group/activity min-w-0 rounded-xl border border-border/70 px-3">
       <CollapsibleTrigger className="flex w-full items-center gap-3 py-2.5 text-left">
         <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-          <Icon className="size-4" aria-hidden="true" />
+          {running ? (
+            <AgentWorkingIndicator className="size-4" aria-hidden="true" />
+          ) : (
+            <Icon className="size-4" aria-hidden="true" />
+          )}
         </span>
         <span className={cn("min-w-0 flex-1", label && "grid")}>
           {label ? (
@@ -326,6 +334,118 @@ function ReceiptFamilyPrototype() {
   );
 }
 
+const streamingThinkingFrames = [
+  "确认这次讨论与已有知识的关系",
+  "确认这次讨论与已有 Understanding 的关系",
+  "确认这次讨论与已有 Understanding 的关系，并判断是否需要读取原文",
+] as const;
+
+const streamingSynthesisFrames = [
+  "比较已有理解与用户这次想讨论的实践",
+  "比较已有理解与用户这次想讨论的实践，寻找尚未被记录的上下文",
+  "比较已有理解与用户这次想讨论的实践，确认应该先追问具体经历",
+] as const;
+
+const streamingResponseFrames = [
+  "已有内容强调代码修改最终应保持整体架构干净。",
+  "已有内容强调代码修改最终应保持整体架构干净，但还没有记录你如何在真实项目里形成这个判断。",
+  "已有内容强调代码修改最终应保持整体架构干净，但还没有记录你如何在真实项目里形成这个判断。你可以从最近一次让你印象深刻的实践开始说。",
+] as const;
+
+function StreamingReceiptPrototype() {
+  const frame = useAutoFrame(13, 950);
+  const thinking = frame < 3;
+  const reading = frame >= 3 && frame < 5;
+  const synthesizing = frame >= 5 && frame < 8;
+  const responding = frame >= 8;
+
+  const thinkingText = streamingThinkingFrames[Math.min(frame, 2)];
+  const synthesisText = streamingSynthesisFrames[Math.min(Math.max(frame - 5, 0), 2)];
+  const responseText = streamingResponseFrames[Math.min(Math.max(frame - 8, 0), 2)];
+
+  const thinkingBlock: AgentActivityBlockView = {
+    kind: "reasoning",
+    reasoning: {
+      id: "prototype-streaming-thinking",
+      status: thinking ? "streaming" : "done",
+      markdown: thinkingText,
+    },
+  };
+  const toolBlock: AgentActivityBlockView = {
+    kind: "tool-activity",
+    activity: {
+      id: "prototype-streaming-tool",
+      toolName: "read-understanding",
+      status: frame === 3 ? "running" : "done",
+      summary:
+        frame === 3
+          ? "正在读取「AI 代码修改的目标是整体架构干净」"
+          : "读取了「AI 代码修改的目标是整体架构干净」",
+      items: [
+        {
+          id: "prototype-streaming-tool-item",
+          label: "读取了「AI 代码修改的目标是整体架构干净」",
+        },
+      ],
+    },
+  };
+  const synthesisBlock: AgentActivityBlockView = {
+    kind: "reasoning",
+    reasoning: {
+      id: "prototype-streaming-synthesis",
+      status: synthesizing ? "streaming" : "done",
+      markdown: synthesisText,
+    },
+  };
+
+  const receipt = thinking
+    ? {
+        icon: Lightbulb,
+        summary: thinkingText,
+        blocks: [thinkingBlock],
+        running: true,
+      }
+    : reading
+      ? {
+          icon: FolderTree,
+          summary: toolBlock.activity.summary,
+          blocks: [toolBlock],
+          running: frame === 3,
+        }
+      : {
+          icon: MessageCircleDashed,
+          label: "2 个执行步骤",
+          summary: synthesizing
+            ? synthesisText
+            : "读取了已有 Understanding，并确认下一步需要追问具体经历",
+          blocks: [toolBlock, synthesisBlock],
+          running: synthesizing,
+        };
+
+  return (
+    <main className="mx-auto grid min-h-screen w-full max-w-5xl content-start gap-8 px-8 py-16">
+      <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+        <MessageCircleDashed className="size-4 shrink-0" aria-hidden="true" />
+        <span className="truncate">
+          用户想聊聊最近 vibe coding 的实践，并把新的认识沉淀到 AI Coding Domain。
+        </span>
+      </div>
+
+      <div className="grid gap-7 text-[17px] leading-8">
+        <p>好的，我先看看这次讨论和你已有理解之间的关系。</p>
+
+        <ReceiptDisclosure {...receipt} />
+
+        {responding ? (
+          <p className="animate-in fade-in duration-300" aria-live="polite">
+            {responseText}
+          </p>
+        ) : null}
+      </div>
+    </main>
+  );
+}
+
 const meta = {
   title: "Agent/Prototype/Activity 与正文层级",
   parameters: {
@@ -344,4 +464,9 @@ export const Compare: Story = {
 export const ReceiptFamily: Story = {
   name: "过程回执家族",
   render: () => <ReceiptFamilyPrototype />,
+};
+
+export const StreamingReceipt: Story = {
+  name: "流式过程",
+  render: () => <StreamingReceiptPrototype />,
 };
