@@ -196,7 +196,7 @@ describe("ChatMessageRow", () => {
     expect(next.querySelector('[data-testid="agent-running-placeholder"]')).not.toBeNull();
   });
 
-  test("keeps working reasoning expandable", () => {
+  test("toggles short single-line reasoning details", () => {
     const next = render({
       message: {
         kind: "assistant",
@@ -208,7 +208,7 @@ describe("ChatMessageRow", () => {
             reasoning: {
               id: "reasoning-1",
               status: "streaming",
-              markdown: "先检查现有实现。\n\n这里是展开后显示的完整工作过程。",
+              markdown: "先检查现有实现。",
             },
           },
         ],
@@ -224,6 +224,10 @@ describe("ChatMessageRow", () => {
       next.querySelector<HTMLButtonElement>('[data-testid="agent-reasoning"] button')?.click(),
     );
     expect(next.querySelector('[data-testid="agent-reasoning-detail"]')).not.toBeNull();
+    act(() =>
+      next.querySelector<HTMLButtonElement>('[data-testid="agent-reasoning"] button')?.click(),
+    );
+    expect(next.querySelector('[data-testid="agent-reasoning-detail"]')).toBeNull();
   });
 
   test("hands ownership to the user while an approval is pending", () => {

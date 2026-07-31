@@ -171,7 +171,6 @@ function ReasoningBlock({
 }) {
   const streaming = reasoning.status === "streaming";
   const summary = reasoningSummary(reasoning.markdown);
-  const hasDetail = reasoning.markdown.length > 120 || reasoning.markdown.includes("\n");
   return (
     <Collapsible
       data-slot="agent-reasoning"
@@ -179,9 +178,8 @@ function ReasoningBlock({
       className="my-0.5 min-w-0 w-full text-[13px] text-foreground/75"
     >
       <CollapsibleTrigger
-        disabled={!hasDetail}
         className={cn(
-          "group flex w-full items-center gap-2 rounded-sm px-1 py-0.5 text-left enabled:cursor-pointer enabled:hover:text-foreground",
+          "group flex w-full cursor-pointer items-center gap-2 rounded-sm px-1 py-0.5 text-left hover:text-foreground",
           streaming && "font-medium text-foreground/85",
         )}
       >
@@ -193,23 +191,19 @@ function ReasoningBlock({
           </span>
         )}
         <span className="min-w-0 flex-1 truncate">{summary}</span>
-        {hasDetail ? (
-          <ArrowUpRight className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
-        ) : null}
+        <ArrowUpRight className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
       </CollapsibleTrigger>
-      {hasDetail ? (
-        <CollapsibleContent
-          data-testid="agent-reasoning-detail"
-          className="pb-1 pl-7 pr-2 text-muted-foreground"
-        >
-          <ChatMarkdown
-            value={reasoning.markdown}
-            tone="muted"
-            streaming={streaming}
-            {...entityBindings}
-          />
-        </CollapsibleContent>
-      ) : null}
+      <CollapsibleContent
+        data-testid="agent-reasoning-detail"
+        className="pb-1 pl-7 pr-2 text-muted-foreground"
+      >
+        <ChatMarkdown
+          value={reasoning.markdown}
+          tone="muted"
+          streaming={streaming}
+          {...entityBindings}
+        />
+      </CollapsibleContent>
     </Collapsible>
   );
 }
