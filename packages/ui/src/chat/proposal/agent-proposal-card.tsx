@@ -612,7 +612,7 @@ export function AgentProposalCard({
           ) : null}
         </div>
         <ProposalStatus lifecycle={proposal.lifecycle} />
-        <ArrowUpRight className="size-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+        <ArrowUpRight className="size-3 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-muted-foreground group-focus-visible:text-muted-foreground" />
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="px-3 pt-1">
