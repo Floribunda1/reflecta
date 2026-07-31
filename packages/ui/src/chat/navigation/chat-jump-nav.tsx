@@ -36,9 +36,15 @@ export function ChatJumpNav({
             ? `打开对话轮次导航，当前第 ${activePosition} 轮，共 ${items.length} 轮`
             : `打开对话轮次导航，共 ${items.length} 轮`
         }
-        className="flex h-10 w-5 items-center justify-center rounded-l-md border-y border-l border-border/40 bg-background/70 text-muted-foreground/45 backdrop-blur-sm focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none group-hover/jump:pointer-events-none group-hover/jump:absolute group-hover/jump:opacity-0 group-focus-within/jump:pointer-events-none group-focus-within/jump:absolute group-focus-within/jump:opacity-0"
+        className="flex h-11 min-w-7 flex-col items-center justify-center gap-0.5 rounded-l-md border-y border-l border-border/40 bg-background/70 px-1 text-muted-foreground/55 backdrop-blur-sm focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none group-hover/jump:pointer-events-none group-hover/jump:absolute group-hover/jump:opacity-0 group-focus-within/jump:pointer-events-none group-focus-within/jump:absolute group-focus-within/jump:opacity-0"
       >
         <ListTree aria-hidden className="size-3.5" />
+        <span
+          data-testid="agent-chat-jump-position"
+          className="text-[9px] leading-none tabular-nums"
+        >
+          {activePosition ?? "–"}/{items.length}
+        </span>
       </button>
 
       <div className="hidden max-h-[58vh] w-72 flex-col overflow-hidden rounded-xl border border-border bg-popover p-2 text-popover-foreground shadow-lg group-hover/jump:flex group-focus-within/jump:flex">
