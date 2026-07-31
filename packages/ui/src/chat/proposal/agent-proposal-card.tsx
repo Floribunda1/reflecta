@@ -34,7 +34,13 @@ export type AgentProposalCardProps = {
   entityBindings?: ChatEntityBindings;
 };
 
-function ProposalStatus({ lifecycle }: { lifecycle: AgentProposalLifecycle }) {
+function ProposalStatus({
+  lifecycle,
+  rejectionReason,
+}: {
+  lifecycle: AgentProposalLifecycle;
+  rejectionReason?: string;
+}) {
   if (lifecycle === "preview") {
     return (
       <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
@@ -43,15 +49,29 @@ function ProposalStatus({ lifecycle }: { lifecycle: AgentProposalLifecycle }) {
       </span>
     );
   }
-  if (lifecycle === "pending" || lifecycle === "rejected") {
+  if (lifecycle === "pending") {
     return (
       <span className="shrink-0 text-xs">
         <span className="text-muted-foreground">审批</span>
         <span className="text-muted-foreground/50"> · </span>
-        <span className={lifecycle === "rejected" ? "text-destructive" : "text-foreground/80"}>
-          {lifecycle === "pending" ? "待确认" : "已拒绝"}
-        </span>
+        <span className="text-foreground/80">待确认</span>
       </span>
+    );
+  }
+  if (lifecycle === "rejected") {
+    return (
+      <div className="flex min-w-0 max-w-72 shrink items-center gap-2 text-xs">
+        <span className="shrink-0">
+          <span className="text-muted-foreground">审批</span>
+          <span className="text-muted-foreground/50"> · </span>
+          <span className="text-destructive">已拒绝</span>
+        </span>
+        {rejectionReason ? (
+          <span className="min-w-0 truncate text-muted-foreground" title={rejectionReason}>
+            · {rejectionReason}
+          </span>
+        ) : null}
+      </div>
     );
   }
   return (
@@ -627,7 +647,7 @@ export function AgentProposalCard({
             <div className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{headerNote}</div>
           ) : null}
         </div>
-        <ProposalStatus lifecycle={proposal.lifecycle} />
+        <ProposalStatus lifecycle={proposal.lifecycle} rejectionReason={proposal.rejectionReason} />
         <ArrowUpRight className="size-3 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-muted-foreground group-focus-visible:text-muted-foreground" />
       </CollapsibleTrigger>
       <CollapsibleContent>
@@ -645,12 +665,6 @@ export function AgentProposalCard({
           {proposal.lifecycle === "failed" && proposal.error ? (
             <div className="mt-3 rounded-md border border-destructive/30 p-2 text-sm text-destructive">
               {proposal.error}
-            </div>
-          ) : null}
-          {proposal.lifecycle === "rejected" && proposal.rejectionReason ? (
-            <div className="mt-5">
-              <div className="mb-1 text-xs text-muted-foreground">拒绝原因</div>
-              <div className="text-sm leading-6">{proposal.rejectionReason}</div>
             </div>
           ) : null}
         </div>
