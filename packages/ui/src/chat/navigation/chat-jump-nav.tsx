@@ -36,7 +36,7 @@ export function ChatJumpNav({
             ? `打开对话轮次导航，当前第 ${activePosition} 轮，共 ${items.length} 轮`
             : `打开对话轮次导航，共 ${items.length} 轮`
         }
-        className="flex h-11 min-w-7 flex-col items-center justify-center gap-0.5 rounded-l-md border-y border-l border-border/40 bg-background/70 px-1 text-muted-foreground/55 backdrop-blur-sm focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none group-hover/jump:pointer-events-none group-hover/jump:absolute group-hover/jump:opacity-0 group-focus-within/jump:pointer-events-none group-focus-within/jump:absolute group-focus-within/jump:opacity-0"
+        className="flex h-11 min-w-7 flex-col items-center justify-center gap-0.5 rounded-l-md border-y border-l border-border/60 bg-background/90 px-1 text-muted-foreground/70 backdrop-blur-sm focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none group-hover/jump:pointer-events-none group-hover/jump:absolute group-hover/jump:opacity-0 group-focus-within/jump:pointer-events-none group-focus-within/jump:absolute group-focus-within/jump:opacity-0"
       >
         <ListTree aria-hidden className="size-3.5" />
         <span
