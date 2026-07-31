@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.4 - 2026-07-31
+
+- Reduced the packaged Electron footprint with maximum compression, focused locale/runtime inclusion, and stricter exclusions for development-only files and unused native payloads.
+- Replaced the experimental Markstream React chat renderer with Streamdown so long Markdown responses remain visible while preserving streaming, search highlighting, entity links, code, math, and diagram controls.
+- Refined Milkdown and Streamdown Mermaid rendering with restrained VS Code-inspired light and dark themes, solid backgrounds, improved contrast, and broader diagram coverage.
+
 ## 1.3.3 - 2026-07-30
 
 - Standardized the macOS update menu and fallback messages in English.
