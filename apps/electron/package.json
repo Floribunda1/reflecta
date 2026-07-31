@@ -22,7 +22,7 @@
     "dev": "vite",
     "build": "bun run typecheck && vite build",
     "clean:dist": "rm -rf dist",
-    "test:e2e": "bun run build && playwright test --pass-with-no-tests",
+    "test:e2e": "bun run build && playwright test --forbid-only",
     "test:e2e:ui": "playwright test --ui",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",

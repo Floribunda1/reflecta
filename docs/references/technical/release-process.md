@@ -43,33 +43,44 @@ workflow 只用它创建当前仓库的 Release。
    - iteration 文档按版本号放到 `docs/iterations/vX.Y.Z/`。
    - 如果补发历史版本，也要在同一次改动里补齐对应 changelog。
 
-4. 跑发版前校验。
+4. 准备完整回归测试环境。
+   - 仓库根目录的 `.env.test.local` 必须提供有效的
+     `REFLECTA_E2E_AI_API_KEY`；可按需覆盖 `REFLECTA_E2E_AI_PROVIDER` 和
+     `REFLECTA_E2E_AI_MODEL`。
+   - 该文件只保存在本地，不能提交或复制到日志。
+
+5. 跑完全部发版前回归。
 
    ```bash
    bun run typecheck
    bun run test
+   bun run test:e2e
    ```
 
-5. 提交发版改动。
+   三条命令必须全部成功，并且测试汇总中不能出现 failed、skipped、todo 或
+   未发现测试。任何用例未实际执行都视为回归未通过，禁止继续提交 release commit
+   或创建 tag。
+
+6. 提交发版改动。
 
    ```bash
    git add CHANGELOG.md package.json apps packages bun.lock docs/references/technical/release-process.md
    git commit -m "chore(release): vX.Y.Z"
    ```
 
-6. 创建版本 tag。
+7. 创建版本 tag。
 
    ```bash
    git tag vX.Y.Z
    ```
 
-7. 推送 master。
+8. 推送 master。
 
    ```bash
    git push origin master
    ```
 
-8. 推送版本 tag。
+9. 推送版本 tag。
 
    ```bash
    git push origin vX.Y.Z
