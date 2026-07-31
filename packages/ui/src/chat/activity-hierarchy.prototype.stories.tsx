@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
-  ChevronDown,
   FolderTree,
   Lightbulb,
   ListChecks,
@@ -118,40 +117,54 @@ function ActivityLane() {
 
 function ReceiptDisclosure({
   icon: Icon,
-  label,
+  stepCount,
   summary,
   blocks,
   running = false,
+  expandable = blocks.length > 1,
 }: {
   icon: LucideIcon;
-  label?: string;
+  stepCount?: number;
   summary: string;
   blocks: readonly AgentActivityBlockView[];
   running?: boolean;
+  expandable?: boolean;
 }) {
+  const summaryRow = (
+    <>
+      {stepCount ? (
+        <Badge
+          variant="secondary"
+          className="h-5 min-w-7 justify-center rounded-full px-2 font-semibold tabular-nums"
+        >
+          {stepCount}
+        </Badge>
+      ) : null}
+      {running ? (
+        <AgentWorkingIndicator className="size-4 shrink-0 text-foreground/65" aria-hidden="true" />
+      ) : stepCount ? null : (
+        <Icon className="size-4 shrink-0 text-muted-foreground/70" aria-hidden="true" />
+      )}
+      <span className="min-w-0 flex-1 truncate text-[13px] text-foreground/75">{summary}</span>
+    </>
+  );
+
+  if (!expandable) {
+    return (
+      <div className="flex min-w-0 items-center gap-2 rounded-lg border border-border/70 px-2.5 py-1.5">
+        {summaryRow}
+      </div>
+    );
+  }
+
   return (
-    <Collapsible className="group/activity min-w-0 rounded-xl border border-border/70 px-3">
-      <CollapsibleTrigger className="flex w-full items-center gap-3 py-2.5 text-left">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-          {running ? (
-            <AgentWorkingIndicator className="size-4" aria-hidden="true" />
-          ) : (
-            <Icon className="size-4" aria-hidden="true" />
-          )}
-        </span>
-        <span className={cn("min-w-0 flex-1", label && "grid")}>
-          {label ? (
-            <span className="text-xs font-medium text-muted-foreground">{label}</span>
-          ) : null}
-          <span className="block truncate text-sm text-foreground/80">{summary}</span>
-        </span>
-        <ChevronDown
-          className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[panel-open]/activity:rotate-180"
-          aria-hidden="true"
-        />
+    <Collapsible className="group/activity min-w-0 rounded-lg border border-border/70 px-2.5">
+      <CollapsibleTrigger className="flex w-full items-center gap-2 py-1.5 text-left">
+        {summaryRow}
+        <ArrowUpRight className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="grid gap-1 border-t border-border/60 py-2">
+        <div className="grid gap-1 pb-1 pl-9 pr-2">
           {blocks.map((block) => (
             <AgentExecutionBlock
               key={block.kind === "reasoning" ? block.reasoning.id : block.activity.id}
@@ -168,7 +181,7 @@ function ProcessReceipt() {
   return (
     <ReceiptDisclosure
       icon={MessageCircleDashed}
-      label="2 个执行步骤"
+      stepCount={2}
       summary="查看了「AI Coding」Domain · 1 条 Understanding"
       blocks={activityBlocks}
     />
@@ -414,7 +427,7 @@ function StreamingReceiptPrototype() {
         }
       : {
           icon: MessageCircleDashed,
-          label: "2 个执行步骤",
+          stepCount: 2,
           summary: synthesizing
             ? synthesisText
             : "读取了已有 Understanding，并确认下一步需要追问具体经历",
