@@ -191,10 +191,188 @@ $$
 
 ## Mermaid 图表
 
+### 复杂流程图
+
 \`\`\`mermaid
-flowchart LR
-  Capture["记录"] --> Reflect["反思"]
-  Reflect --> Understand["形成理解"]
+flowchart TD
+  subgraph Persist["写入链路"]
+    Save["用户保存 Understanding 或 Context"] --> SQLite["先写入 SQLite"]
+    SQLite --> Notify["通知后台：搜索数据需要更新"]
+    Notify --> Index["更新 LanceDB 中的搜索副本"]
+  end
+
+  subgraph Retrieve["检索链路"]
+    Query["Agent 要查一个问题"]
+    Query -->|字面匹配| Keyword["按关键词查"]
+    Query -->|语义召回| Semantic["按意思相近查"]
+    Index --> Keyword
+    Index --> Semantic
+    Keyword --> Rank["合并两路排名"]
+    Semantic --> Rank
+    Rank --> Context["组装候选上下文"]
+    Context --> Agent["返回给 Agent"]
+  end
+\`\`\`
+
+### 时序图
+
+\`\`\`mermaid
+sequenceDiagram
+  autonumber
+  actor User as 用户
+  participant UI as Reflecta UI
+  participant API as API
+  participant DB as SQLite
+  participant Index as LanceDB
+
+  User->>UI: 保存 Understanding
+  UI->>API: 提交内容和版本号
+  activate API
+  API->>DB: 开启事务并写入
+  DB-->>API: 提交成功
+  API-->>UI: 返回最新版本
+  API-)Index: 异步刷新搜索副本
+  deactivate API
+
+  alt 索引刷新成功
+    Index-->>UI: 推送 index.ready
+    UI-->>User: 内容可被搜索
+  else 索引刷新失败
+    Index-->>UI: 推送 index.failed
+    UI-->>User: 显示可重试状态
+  end
+\`\`\`
+
+### 状态图
+
+\`\`\`mermaid
+stateDiagram-v2
+  [*] --> Draft
+  Draft --> Saving: 用户保存
+  Saving --> Saved: SQLite 提交成功
+  Saving --> Failed: 写入失败
+  Failed --> Saving: 重试
+  Failed --> Draft: 返回编辑
+  Saved --> Indexing: 触发索引任务
+
+  state Indexing {
+    [*] --> Keyword
+    Keyword --> Semantic: 字面索引完成
+    Semantic --> [*]: 向量索引完成
+  }
+
+  Indexing --> Ready: 两路索引就绪
+  Indexing --> Degraded: 仅一路成功
+  Degraded --> Indexing: 后台补偿
+  Ready --> [*]
+\`\`\`
+
+### 实体关系图
+
+\`\`\`mermaid
+erDiagram
+  DOMAIN ||--o{ UNDERSTANDING : "组织"
+  DOMAIN ||--o{ CONTEXT : "包含"
+  UNDERSTANDING ||--o{ CONTEXT : "产生"
+  UNDERSTANDING ||--o{ INDEX_ENTRY : "建立索引"
+  CONTEXT ||--o{ INDEX_ENTRY : "建立索引"
+  AGENT }o--o{ INDEX_ENTRY : "检索"
+
+  DOMAIN {
+    uuid id PK
+    string name
+  }
+  UNDERSTANDING {
+    uuid id PK
+    uuid domain_id FK
+    string title
+    int version
+  }
+  CONTEXT {
+    uuid id PK
+    uuid understanding_id FK
+    text content
+  }
+  INDEX_ENTRY {
+    uuid entity_id FK
+    string entity_type
+    vector embedding
+  }
+  AGENT {
+    uuid id PK
+    string name
+  }
+\`\`\`
+
+### 类图
+
+\`\`\`mermaid
+classDiagram
+  direction LR
+
+  class Searchable {
+    <<interface>>
+    +getSearchText() string
+    +getEmbedding() number[]
+  }
+  class Understanding {
+    +string id
+    +string title
+    +number version
+    +save()
+  }
+  class Context {
+    +string id
+    +string content
+    +attachTo(understandingId)
+  }
+  class IndexService {
+    +index(entity)
+    +search(query, limit)
+    +remove(entityId)
+  }
+  class SearchResult {
+    +string entityId
+    +number score
+    +string[] highlights
+  }
+
+  Searchable <|.. Understanding
+  Searchable <|.. Context
+  Understanding "1" *-- "0..*" Context
+  IndexService ..> Searchable : 建立索引
+  IndexService --> SearchResult : 返回
+\`\`\`
+
+### 甘特图
+
+\`\`\`mermaid
+gantt
+  title 搜索索引刷新计划
+  dateFormat YYYY-MM-DD
+  axisFormat %m-%d
+
+  section 写入链路
+  内容校验           :done, validate, 2026-07-28, 1d
+  写入 SQLite        :done, persist, after validate, 1d
+  发布索引任务       :active, enqueue, after persist, 1d
+
+  section 检索链路
+  构建关键词索引     :keyword, after enqueue, 2d
+  生成向量           :vector, after enqueue, 3d
+  合并并抽样验收     :crit, verify, after keyword, 2d
+  切换搜索副本       :milestone, release, after verify, 0d
+\`\`\`
+
+### 饼图
+
+\`\`\`mermaid
+pie showData
+  title Agent 检索结果来源
+  "关键词精确匹配" : 42
+  "语义相似召回" : 33
+  "关联 Context" : 18
+  "历史缓存" : 7
 \`\`\`
 
 ## 综合嵌套示例

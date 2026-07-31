@@ -1,0 +1,25 @@
+@use "./config" as *;
+
+#{$chat-markdown-root} {
+  [data-streamdown="mermaid-block"] {
+    > :last-child {
+      overflow: auto;
+      border: 0;
+      background: var(--sidebar);
+    }
+  }
+
+  [data-streamdown="mermaid"] {
+    background: var(--sidebar);
+    padding: 0.75rem;
+
+    [role="img"] {
+      width: 100%;
+    }
+
+    svg {
+      max-width: 100%;
+      height: auto;
+    }
+  }
+}
