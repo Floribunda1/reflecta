@@ -503,26 +503,7 @@ function proposalResultDetails(
   displayState: AgentApprovalBlock["displayState"],
 ) {
   if (displayState !== "completed") return undefined;
-  if (type === "bash") return bashDetails(output);
-
-  const resultRefId = stringValue(output.resultRefId);
-  if (!resultRefId) return undefined;
-  return detailView({
-    rows: [
-      detailRow(
-        "执行结果",
-        `${proposalResultTypeLabel(stringValue(output.resultRefType))} 已完成`,
-        resultRefId,
-      ),
-    ],
-  });
-}
-
-function proposalResultTypeLabel(type: string) {
-  if (type === "understanding") return "Understanding";
-  if (type === "domain") return "Domain";
-  if (type === "context") return "Context";
-  return "操作";
+  return type === "bash" ? bashDetails(output) : undefined;
 }
 
 function bashProposalData(output: Record<string, unknown>): BashProposalView["data"] {
@@ -634,24 +615,12 @@ function lifecycleFor(block: AgentApprovalBlock): AgentProposalLifecycle {
   return "preview";
 }
 
-function proposalNote(proposal: ProposalView, lifecycle: AgentProposalLifecycle) {
-  if (lifecycle === "completed" && proposal.resultRefType && proposal.resultRefId) {
-    return `已写入 ${proposal.resultRefType} · ${proposal.resultRefId}`;
-  }
-  if (lifecycle === "rejected") {
-    return proposal.type === "bash" ? "已拒绝，命令未执行" : "已拒绝，未写入知识库";
-  }
-  return undefined;
-}
-
 function proposalBase(proposal: ProposalView, raw: AgentApprovalBlock) {
   const lifecycle = lifecycleFor(raw);
-  const note = proposalNote(proposal, lifecycle);
   return {
     id: raw.approvalId || raw.toolCallId,
     title: raw.title || proposal.title,
     lifecycle,
-    ...(note ? { note } : {}),
     ...(raw.rejectionReason ? { rejectionReason: raw.rejectionReason } : {}),
     ...(raw.error ? { error: raw.error } : {}),
     ...(proposal.result

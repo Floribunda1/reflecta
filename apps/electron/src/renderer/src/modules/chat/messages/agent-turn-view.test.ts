@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { AgentReducedAssistantBlock } from "@shared/agent";
-import { buildAgentTurnView } from "./agent-turn-view";
+import { buildAgentTurnView, toAgentProposalView } from "./agent-turn-view";
 
 function text(text: string): AgentReducedAssistantBlock {
   return { kind: "text", text, createdAt: "2026-06-23T00:00:00.000Z" };
@@ -1250,40 +1250,38 @@ describe("buildAgentTurnView", () => {
     });
   });
 
-  test("shows completed approval tool result stable ids", () => {
-    const turn = buildAgentTurnView([
-      {
-        kind: "approval",
-        approvalId: "approval-tool-1",
-        toolCallId: "tool-1",
-        toolName: "understanding_create",
-        title: "候选 Understanding",
-        payload: { title: "A", body: "B" },
-        output: { resultRefType: "understanding", resultRefId: "understanding_1" },
-        approved: true,
-        state: "completed",
-        approvalState: "approved",
-        executionState: "completed",
-        displayState: "completed",
-        createdAt: "2026-06-23T00:00:00.000Z",
-      },
-    ]);
+  test("does not surface internal result metadata for completed knowledge proposals", () => {
+    const approval = {
+      kind: "approval" as const,
+      approvalId: "approval-tool-1",
+      toolCallId: "tool-1",
+      toolName: "understanding_create",
+      title: "候选 Understanding",
+      payload: { title: "A", body: "B" },
+      output: { resultRefType: "understanding", resultRefId: "understanding_1" },
+      approved: true,
+      state: "completed" as const,
+      approvalState: "approved" as const,
+      executionState: "completed" as const,
+      displayState: "completed" as const,
+      createdAt: "2026-06-23T00:00:00.000Z",
+    };
+    const turn = buildAgentTurnView([approval]);
 
     expect(turn.blocks[0]).toMatchObject({
       kind: "proposal",
       proposal: {
         state: "output-available",
         resultRefId: "understanding_1",
-        result: {
-          rows: [
-            {
-              label: "执行结果",
-              title: "Understanding 已完成",
-              description: "understanding_1",
-            },
-          ],
-        },
       },
     });
+    if (turn.blocks[0]?.kind !== "proposal") throw new Error("Expected proposal block");
+    expect(turn.blocks[0].proposal.result).toBeUndefined();
+    const proposalView = toAgentProposalView(turn.blocks[0].proposal, approval, {
+      entityLabels: new Map(),
+      domainPath: (id) => id,
+    });
+    expect(proposalView.note).toBeUndefined();
+    expect(proposalView.result).toBeUndefined();
   });
 });
