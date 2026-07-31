@@ -5,8 +5,11 @@ import {
   ArrowRight,
   ArrowUpRight,
   ChevronDown,
+  FolderTree,
+  Lightbulb,
   ListChecks,
   MessageCircleDashed,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "#lib/utils";
 import { Badge } from "../components/badge";
@@ -111,18 +114,28 @@ function ActivityLane() {
   );
 }
 
-function ProcessReceipt() {
+function ReceiptDisclosure({
+  icon: Icon,
+  label,
+  summary,
+  blocks,
+}: {
+  icon: LucideIcon;
+  label?: string;
+  summary: string;
+  blocks: readonly AgentActivityBlockView[];
+}) {
   return (
     <Collapsible className="group/activity min-w-0 rounded-xl border border-border/70 px-3">
       <CollapsibleTrigger className="flex w-full items-center gap-3 py-2.5 text-left">
         <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-          <MessageCircleDashed className="size-4" aria-hidden="true" />
+          <Icon className="size-4" aria-hidden="true" />
         </span>
-        <span className="grid min-w-0 flex-1">
-          <span className="text-xs font-medium text-muted-foreground">2 个执行步骤</span>
-          <span className="truncate text-sm text-foreground/80">
-            查看了「AI Coding」Domain · 1 条 Understanding
-          </span>
+        <span className={cn("min-w-0 flex-1", label && "grid")}>
+          {label ? (
+            <span className="text-xs font-medium text-muted-foreground">{label}</span>
+          ) : null}
+          <span className="block truncate text-sm text-foreground/80">{summary}</span>
         </span>
         <ChevronDown
           className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[panel-open]/activity:rotate-180"
@@ -130,9 +143,27 @@ function ProcessReceipt() {
         />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <ActivityDetails className="border-t border-border/60" />
+        <div className="grid gap-1 border-t border-border/60 py-2">
+          {blocks.map((block) => (
+            <AgentExecutionBlock
+              key={block.kind === "reasoning" ? block.reasoning.id : block.activity.id}
+              block={block}
+            />
+          ))}
+        </div>
       </CollapsibleContent>
     </Collapsible>
+  );
+}
+
+function ProcessReceipt() {
+  return (
+    <ReceiptDisclosure
+      icon={MessageCircleDashed}
+      label="2 个执行步骤"
+      summary="查看了「AI Coding」Domain · 1 条 Understanding"
+      blocks={activityBlocks}
+    />
   );
 }
 
@@ -229,6 +260,72 @@ function ActivityHierarchyPrototype() {
   );
 }
 
+const standaloneThinking: AgentActivityBlockView = {
+  kind: "reasoning",
+  reasoning: {
+    id: "prototype-standalone-thinking",
+    status: "done",
+    markdown: "先确认这次讨论应该延续已有 Understanding，还是形成一条边界不同的新理解。",
+  },
+};
+
+const standaloneTool: AgentActivityBlockView = {
+  kind: "tool-activity",
+  activity: {
+    id: "prototype-standalone-tool",
+    toolName: "read-understanding",
+    status: "done",
+    summary: "读取了「AI 代码修改的目标是整体架构干净」",
+    items: [
+      {
+        id: "prototype-standalone-tool-item",
+        label: "读取了「AI 代码修改的目标是整体架构干净」",
+      },
+    ],
+  },
+};
+
+function ReceiptFamilyPrototype() {
+  return (
+    <main className="mx-auto grid min-h-screen w-full max-w-5xl content-start gap-8 px-8 py-16">
+      <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+        <MessageCircleDashed className="size-4 shrink-0" aria-hidden="true" />
+        <span className="truncate">
+          用户想聊聊最近 vibe coding 的实践，并把新的认识沉淀到 AI Coding Domain。
+        </span>
+      </div>
+
+      <div className="grid gap-7 text-[17px] leading-8">
+        <p>我先判断这次讨论和你已有理解之间的关系。</p>
+
+        <ReceiptDisclosure
+          icon={Lightbulb}
+          summary="确认这次讨论与已有 Understanding 的关系"
+          blocks={[standaloneThinking]}
+        />
+
+        <p>目前最相关的是关于代码修改目标的理解，我读取一下它的完整内容。</p>
+
+        <ReceiptDisclosure
+          icon={FolderTree}
+          summary="读取了「AI 代码修改的目标是整体架构干净」"
+          blocks={[standaloneTool]}
+        />
+
+        <p>已有内容强调架构结果，但还没有记录你如何在真实项目里形成这个判断。</p>
+
+        <ProcessReceipt />
+
+        <p>
+          现在可以从最近一次让你印象深刻的实践开始说。我会和你一起把经历讲清楚，等结论足够稳定，再由你确认是否写入知识库。
+        </p>
+      </div>
+
+      <p className="text-xs text-muted-foreground">7月31日 10:42:18</p>
+    </main>
+  );
+}
+
 const meta = {
   title: "Agent/Prototype/Activity 与正文层级",
   parameters: {
@@ -242,4 +339,9 @@ type Story = StoryObj<typeof meta>;
 export const Compare: Story = {
   name: "三种结构",
   render: () => <ActivityHierarchyPrototype />,
+};
+
+export const ReceiptFamily: Story = {
+  name: "过程回执家族",
+  render: () => <ReceiptFamilyPrototype />,
 };
