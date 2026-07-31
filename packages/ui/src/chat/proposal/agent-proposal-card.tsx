@@ -598,10 +598,7 @@ export function AgentProposalCard({
     proposal.lifecycle === "pending" && proposal.decisionEnabled && Boolean(onDecision);
   const rejectionReason =
     rejectionDraft?.proposalId === proposal.id ? rejectionDraft.value.trim() : "";
-  const headerNote =
-    proposal.lifecycle === "rejected" && proposal.rejectionReason
-      ? proposal.rejectionReason
-      : proposal.note;
+  const headerNote = proposal.note;
 
   return (
     <Collapsible
