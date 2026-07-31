@@ -218,7 +218,7 @@ function ChatPageContent() {
       <ResizablePanel
         id="agent-thread-sidebar-panel"
         panelRef={threadSidebarPanelRef}
-        defaultSize="248px"
+        defaultSize="280px"
         minSize="200px"
         maxSize="480px"
         collapsedSize={0}
