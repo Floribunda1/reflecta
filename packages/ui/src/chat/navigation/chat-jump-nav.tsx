@@ -1,3 +1,4 @@
+import { ListTree } from "lucide-react";
 import { cn } from "#lib/utils";
 
 export type ChatJumpNavItem = {
@@ -20,7 +21,6 @@ export function ChatJumpNav({
 
   const activeIndex = items.findIndex((item) => item.turnId === activeTurnId);
   const activePosition = activeIndex >= 0 ? activeIndex + 1 : null;
-  const activeProgress = activeIndex >= 0 ? (activeIndex / (items.length - 1)) * 100 : null;
 
   return (
     <nav
@@ -36,18 +36,11 @@ export function ChatJumpNav({
             ? `打开对话轮次导航，当前第 ${activePosition} 轮，共 ${items.length} 轮`
             : `打开对话轮次导航，共 ${items.length} 轮`
         }
-        className="flex h-20 w-9 items-center justify-end overflow-hidden rounded-md pr-1 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none group-hover/jump:pointer-events-none group-hover/jump:absolute group-hover/jump:opacity-0 group-focus-within/jump:pointer-events-none group-focus-within/jump:absolute group-focus-within/jump:opacity-0"
+        className="flex h-8 items-center gap-1 rounded-lg bg-muted/70 px-2 text-xs font-medium text-muted-foreground/80 transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none group-hover/jump:pointer-events-none group-hover/jump:absolute group-hover/jump:opacity-0 group-focus-within/jump:pointer-events-none group-focus-within/jump:absolute group-focus-within/jump:opacity-0"
       >
-        <span aria-hidden className="relative h-16 w-4">
-          <span className="absolute inset-y-0 right-1 w-px rounded-full bg-border/60" />
-          {activeProgress !== null ? (
-            <span
-              data-testid="agent-chat-jump-rail-marker"
-              data-active="true"
-              className="absolute right-0 h-px w-3 -translate-y-1/2 rounded-full bg-primary/50"
-              style={{ top: `${activeProgress}%` }}
-            />
-          ) : null}
+        <ListTree aria-hidden className="size-3.5 opacity-70" />
+        <span className="tabular-nums">
+          {activePosition ?? "–"}/{items.length}
         </span>
       </button>
 
