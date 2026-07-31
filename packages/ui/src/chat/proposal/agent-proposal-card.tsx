@@ -8,6 +8,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "../../components/input-group";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/tooltip";
 import { MarkdownPreview } from "../../editor/markdown-preview";
 import type { ChatEntityBindings, ChatEntityType } from "../entity";
 import { entityClassName, entityIcon } from "../entity-visual";
@@ -67,9 +68,28 @@ function ProposalStatus({
           <span className="text-destructive">已拒绝</span>
         </span>
         {rejectionReason ? (
-          <span className="min-w-0 truncate text-muted-foreground" title={rejectionReason}>
-            · {rejectionReason}
-          </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label={`查看完整拒绝原因：${rejectionReason}`}
+                    className="min-w-0 cursor-help truncate text-muted-foreground underline decoration-dotted decoration-muted-foreground/40 underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  >
+                    · {rejectionReason}
+                  </button>
+                }
+              />
+              <TooltipContent
+                side="bottom"
+                align="end"
+                className="max-w-sm whitespace-normal break-words leading-5"
+              >
+                {rejectionReason}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         ) : null}
       </div>
     );
@@ -637,19 +657,26 @@ export function AgentProposalCard({
       data-proposal-open={open ? "true" : "false"}
       className="w-full overflow-hidden rounded-lg border border-border/70 bg-card text-sm"
     >
-      <CollapsibleTrigger
-        className="group flex min-h-12 w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left outline-none hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
-        aria-label={open ? "折叠 Proposal" : "展开 Proposal"}
-      >
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-medium">{proposalTitle(proposal)}</div>
-          {headerNote ? (
-            <div className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{headerNote}</div>
-          ) : null}
-        </div>
+      <div className="flex min-h-12 w-full items-center gap-3 hover:bg-muted/30">
+        <CollapsibleTrigger
+          className="flex min-w-0 flex-1 cursor-pointer self-stretch items-center px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+          aria-label={open ? "折叠 Proposal" : "展开 Proposal"}
+        >
+          <div className="min-w-0 flex-1">
+            <div className="truncate font-medium">{proposalTitle(proposal)}</div>
+            {headerNote ? (
+              <div className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{headerNote}</div>
+            ) : null}
+          </div>
+        </CollapsibleTrigger>
         <ProposalStatus lifecycle={proposal.lifecycle} rejectionReason={proposal.rejectionReason} />
-        <ArrowUpRight className="size-3 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-muted-foreground group-focus-visible:text-muted-foreground" />
-      </CollapsibleTrigger>
+        <CollapsibleTrigger
+          className="group flex min-h-12 shrink-0 cursor-pointer items-center pr-3 pl-0 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+          aria-label={open ? "收起详情" : "展开详情"}
+        >
+          <ArrowUpRight className="size-3 text-muted-foreground/60 transition-colors group-hover:text-muted-foreground group-focus-visible:text-muted-foreground" />
+        </CollapsibleTrigger>
+      </div>
       <CollapsibleContent>
         <div className="px-3 pt-1">
           <ProposalMeta proposal={proposal} />
