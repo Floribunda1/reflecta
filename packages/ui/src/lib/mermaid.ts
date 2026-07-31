@@ -74,7 +74,7 @@ function getThemeVariables(): MermaidConfig["themeVariables"] {
     loopTextColor: palette.text,
     activationBorderColor: palette.accent,
     activationBkgColor: palette.surfaceMuted,
-    sequenceNumberColor: palette.text,
+    sequenceNumberColor: "#ffffff",
     transitionColor: palette.accent,
     transitionLabelColor: palette.text,
     stateLabelColor: palette.text,

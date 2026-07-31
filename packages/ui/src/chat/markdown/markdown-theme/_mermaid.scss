@@ -2,15 +2,17 @@
 
 #{$chat-markdown-root} {
   [data-streamdown="mermaid-block"] {
+    background: var(--background);
+
     > :last-child {
       overflow: auto;
       border: 0;
-      background: var(--sidebar);
+      background: var(--background);
     }
   }
 
   [data-streamdown="mermaid"] {
-    background: var(--sidebar);
+    background: var(--background);
     padding: 0.75rem;
 
     [role="img"] {
