@@ -196,6 +196,36 @@ describe("ChatMessageRow", () => {
     expect(next.querySelector('[data-testid="agent-running-placeholder"]')).not.toBeNull();
   });
 
+  test("keeps working reasoning expandable", () => {
+    const next = render({
+      message: {
+        kind: "assistant",
+        id: "assistant-1",
+        status: "streaming",
+        blocks: [
+          {
+            kind: "reasoning",
+            reasoning: {
+              id: "reasoning-1",
+              status: "streaming",
+              markdown: "先检查现有实现。\n\n这里是展开后显示的完整工作过程。",
+            },
+          },
+        ],
+      },
+    });
+
+    act(() =>
+      next
+        .querySelector<HTMLButtonElement>('[data-testid="agent-activity-group-trigger"]')
+        ?.click(),
+    );
+    act(() =>
+      next.querySelector<HTMLButtonElement>('[data-testid="agent-reasoning"] button')?.click(),
+    );
+    expect(next.querySelector('[data-testid="agent-reasoning-detail"]')).not.toBeNull();
+  });
+
   test("hands ownership to the user while an approval is pending", () => {
     const next = render({
       message: {
