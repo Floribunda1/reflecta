@@ -530,6 +530,7 @@ test("@AG-CONV-006 用户在长对话中通过右侧摘录跳转到指定消息"
     await expect(page.getByTestId("agent-chat-jump-position")).toContainText("/6");
     const jumpTriggerBounds = await jumpTrigger.boundingBox();
     if (!jumpTriggerBounds) throw new Error("Jump navigation trigger is not visible");
+    expect(jumpTriggerBounds.y).toBeLessThan(200);
     await page.mouse.move(
       jumpTriggerBounds.x + jumpTriggerBounds.width / 2,
       jumpTriggerBounds.y + jumpTriggerBounds.height / 2,

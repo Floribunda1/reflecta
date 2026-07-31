@@ -26,7 +26,7 @@ export function ChatJumpNav({
     <nav
       data-testid="agent-chat-jump-nav"
       aria-label="对话轮次跳转"
-      className="group/jump pointer-events-auto absolute top-1/2 right-0 z-20 hidden max-h-[58%] -translate-y-1/2 min-[18rem]:block"
+      className="group/jump pointer-events-auto absolute top-4 right-0 z-20 hidden max-h-[58%] min-[18rem]:block"
     >
       <button
         type="button"
