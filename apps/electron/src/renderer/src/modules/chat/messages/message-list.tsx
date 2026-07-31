@@ -110,7 +110,11 @@ export function MessageList({
         return (
           <div
             key={message.id}
-            className={editing && compactions.length === 0 ? "hidden" : "flex flex-col gap-5"}
+            className={
+              editing && compactions.length === 0
+                ? "hidden"
+                : "flex flex-col gap-5 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
+            }
             style={{ order: firstMessageOrder + index * 2 + 1 }}
           >
             {editing ? null : (
