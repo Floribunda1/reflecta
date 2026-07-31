@@ -518,6 +518,11 @@ test("@AG-CONV-006 用户在长对话中通过右侧摘录跳转到指定消息"
     await page.setViewportSize({ width: 720, height: 900 });
     await openThread(page, CHAT_JUMP_THREAD_TITLE);
     await expect(page.getByTestId("agent-chat-jump-nav")).toBeVisible();
+    await page.setViewportSize({ width: 287, height: 900 });
+    await expect(page.getByTestId("agent-chat-jump-nav")).toBeHidden();
+    await page.setViewportSize({ width: 288, height: 900 });
+    await expect(page.getByTestId("agent-chat-jump-nav")).toBeVisible();
+    await page.setViewportSize({ width: 720, height: 900 });
     await expect(page.getByTestId("agent-chat-jump-marker")).toHaveCount(6);
     const targetJumpItem = page
       .getByTestId("agent-chat-jump-item")
