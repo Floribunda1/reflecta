@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ChevronDown, ChevronUp, MoreHorizontal, X } from "lucide-react";
 import type {
   AgentContextRef,
@@ -27,13 +27,10 @@ import { toast } from "sonner";
 import { AgentChatComposer } from "./adapters/chat-composer-adapter";
 import type { InspectableContextRef } from "./context/context-reference";
 import type { ApproveToolInput } from "./adapters/chat-message-adapter";
-import {
-  activateChatFindMarker,
-  chatFindMarkers,
-  type ChatFindMarkerMatch,
-} from "./messages/chat-find-highlight";
+import { activateChatFindMarker, type ChatFindMarkerMatch } from "./messages/chat-find-highlight";
 import { MessageList } from "./messages/message-list";
 import { usePiAgentThreadView } from "./session/pi-thread-view";
+import { buildChatFindMatches } from "./session/thread-view";
 import {
   useAgentModelOptionsQuery,
   useSelectAgentModelMutation,
@@ -157,6 +154,7 @@ export function AgentThreadPanel({
           renderedQuery={renderedFindQuery}
           isComposing={findComposing}
           activeMatch={activeFindMatch}
+          onJumpToMessage={threadView.jumpToMessage}
           onQueryChange={setFindQuery}
           onQueryComposingChange={setFindComposing}
           onActiveMatchChange={setActiveFindMatch}
@@ -225,6 +223,7 @@ export function AgentThreadPanel({
                   />
                 ) : null
               }
+              virtualizer={threadView.messageVirtualizer}
             />
           )}
         </div>
@@ -275,6 +274,7 @@ function ThreadFindBox({
   renderedQuery,
   isComposing,
   activeMatch,
+  onJumpToMessage,
   onQueryChange,
   onQueryComposingChange,
   onActiveMatchChange,
@@ -284,19 +284,28 @@ function ThreadFindBox({
   renderedQuery: string;
   isComposing: boolean;
   activeMatch: ChatFindMarkerMatch | null;
+  onJumpToMessage: (messageId: string) => void;
   onQueryChange: (query: string) => void;
   onQueryComposingChange: (isComposing: boolean) => void;
   onActiveMatchChange: (match: ChatFindMarkerMatch | null) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [renderedMatches, setRenderedMatches] = useState<ChatFindMarkerMatch[]>([]);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const renderedMatches = useMemo<ChatFindMarkerMatch[]>(
+    () =>
+      open && renderedQuery.trim()
+        ? buildChatFindMatches(messages, renderedQuery).map(({ messageId, matchIndex }) => ({
+            messageId,
+            matchIndex,
+          }))
+        : [],
+    [messages, open, renderedQuery],
+  );
   const close = useMemoizedFn(() => {
     setOpen(false);
     onQueryChange("");
     onQueryComposingChange(false);
     onActiveMatchChange(null);
-    setRenderedMatches([]);
   });
   const activeIndex = activeMatch
     ? renderedMatches.findIndex((match) => sameFindMatch(match, activeMatch))
@@ -343,24 +352,16 @@ function ThreadFindBox({
 
   useEffect(() => {
     if (!open || !renderedQuery.trim()) {
-      setRenderedMatches([]);
       onActiveMatchChange(null);
       return;
     }
-
-    const frame = requestAnimationFrame(() => {
-      const root = inputRef.current?.closest<HTMLElement>('[data-testid="agent-thread-chat"]');
-      const nextMatches = chatFindMarkers(root ?? null);
-      setRenderedMatches((previous) =>
-        sameFindMatchList(previous, nextMatches) ? previous : nextMatches,
-      );
-      onActiveMatchChange(nextMatches[0] ?? null);
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [messages, onActiveMatchChange, open, renderedQuery]);
+    onActiveMatchChange(renderedMatches[0] ?? null);
+  }, [onActiveMatchChange, open, renderedMatches, renderedQuery]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !activeMatch) return;
+    onJumpToMessage(activeMatch.messageId);
+    let retryFrame = 0;
     const frame = requestAnimationFrame(() => {
       const root = inputRef.current?.closest<HTMLElement>('[data-testid="agent-thread-chat"]');
       const active = activateChatFindMarker(root ?? null, activeMatch);
@@ -368,16 +369,16 @@ function ThreadFindBox({
         active.scrollIntoView({ block: "center", inline: "nearest" });
         return;
       }
-
-      if (!activeMatch) return;
-      root
-        ?.querySelector<HTMLElement>(
-          `[data-agent-message-id="${CSS.escape(activeMatch.messageId)}"]`,
-        )
-        ?.scrollIntoView({ block: "center", inline: "nearest" });
+      retryFrame = requestAnimationFrame(() => {
+        const marker = activateChatFindMarker(root ?? null, activeMatch);
+        marker?.scrollIntoView({ block: "center", inline: "nearest" });
+      });
     });
-    return () => cancelAnimationFrame(frame);
-  }, [activeMatch, open, renderedQuery]);
+    return () => {
+      cancelAnimationFrame(frame);
+      cancelAnimationFrame(retryFrame);
+    };
+  }, [activeMatch, onJumpToMessage, open, renderedQuery]);
 
   if (!open) return null;
 
@@ -399,20 +400,17 @@ function ThreadFindBox({
         onCompositionStart={() => {
           onQueryComposingChange(true);
           onActiveMatchChange(null);
-          setRenderedMatches([]);
         }}
         onCompositionEnd={(event) => {
           onQueryChange(event.currentTarget.value);
           onQueryComposingChange(false);
           onActiveMatchChange(null);
-          setRenderedMatches([]);
         }}
         onChange={(event) => {
           const nextQuery = event.target.value;
           onQueryChange(nextQuery);
           if ((event.nativeEvent as InputEvent).isComposing) onQueryComposingChange(true);
           onActiveMatchChange(null);
-          setRenderedMatches([]);
         }}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
@@ -470,13 +468,6 @@ function ThreadFindBox({
 
 function sameFindMatch(left: ChatFindMarkerMatch, right: ChatFindMarkerMatch) {
   return left.messageId === right.messageId && left.matchIndex === right.matchIndex;
-}
-
-function sameFindMatchList(left: ChatFindMarkerMatch[], right: ChatFindMarkerMatch[]) {
-  return (
-    left.length === right.length &&
-    left.every((match, index) => sameFindMatch(match, right[index]!))
-  );
 }
 
 function AgentThreadHeader({

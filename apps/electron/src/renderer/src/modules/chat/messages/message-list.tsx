@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from "react";
+import type { ReactVirtualizer } from "@tanstack/react-virtual";
 import {
   AgentContextCompactionStatus,
   AgentExecutionBlock,
@@ -48,6 +49,7 @@ export function MessageList({
   findQuery,
   editingMessageId,
   editingMessageEditor,
+  virtualizer,
 }: {
   messages: AgentReducedMessage[];
   entityCatalog: AgentEntityCatalogEntry[];
@@ -68,14 +70,10 @@ export function MessageList({
   findQuery?: string;
   editingMessageId?: string;
   editingMessageEditor?: ReactNode;
+  virtualizer?: ReactVirtualizer<HTMLDivElement, HTMLDivElement>;
 }) {
   const lastAssistantId = messages.findLast((message) => message.role === "assistant")?.id;
   const activeAssistantId = activeAssistantMessageId(messages, activeRunId);
-  const editingMessageIndex = editingMessageId
-    ? messages.findIndex((message) => message.id === editingMessageId)
-    : -1;
-  // The editor stays outside the mapped message branch; flex order places it visually in situ.
-  const firstMessageOrder = -messages.length * 2;
   const stoppedMessageVisible = stoppedMessageId
     ? messages.some((message) => message.id === stoppedMessageId)
     : true;
@@ -93,9 +91,55 @@ export function MessageList({
   const unanchoredCompactions = contextCompactions.filter(
     (compaction) => !compaction.afterMessageId || !messageIds.has(compaction.afterMessageId),
   );
+  const virtualItems = virtualizer?.getVirtualItems();
+
+  const renderMessage = (message: AgentReducedMessage, index: number, virtualized: boolean) => {
+    const editing = editingMessageId === message.id;
+    const compactions = compactionsByMessage.get(message.id) ?? [];
+    return (
+      <div
+        key={message.id}
+        ref={virtualized ? virtualizer?.measureElement : undefined}
+        data-index={virtualized ? index : undefined}
+        data-agent-message-id={message.id}
+        data-message-role={message.role}
+        className={
+          virtualized ? "absolute top-0 left-0 flex w-full flex-col gap-5" : "flex flex-col gap-5"
+        }
+      >
+        {editing && editingMessageEditor ? (
+          <div
+            data-testid="agent-message-edit-row"
+            className="flex w-full flex-col items-end gap-1"
+          >
+            {editingMessageEditor}
+          </div>
+        ) : (
+          <ConnectedChatMessageRow
+            message={message}
+            entityCatalog={entityCatalog}
+            isBusy={isBusy}
+            isLastAssistant={message.id === lastAssistantId}
+            assistantRunning={message.id === activeAssistantId}
+            highlighted={highlightedMessageId === message.id}
+            findQuery={findQuery}
+            stopped={stoppedMessageId === message.id}
+            onEdit={onEdit}
+            onRegenerate={onRegenerate}
+            onForkAssistant={onForkAssistant}
+            onApproveTool={onApproveTool}
+            onInspectContextRef={onInspectContextRef}
+          />
+        )}
+        {compactions.map((compaction) => (
+          <AgentExecutionBlock key={compaction.id} block={compactionBlock(compaction)} />
+        ))}
+      </div>
+    );
+  };
 
   return (
-    <div data-testid="agent-message-list" className="mx-auto flex w-full max-w-4xl flex-col gap-5">
+    <div data-testid="agent-message-list" className="mx-auto w-full max-w-4xl">
       {messages.length === 0 && !showPendingAssistant ? (
         <Empty data-testid="agent-empty-state" className="border-0 py-16">
           <EmptyHeader>
@@ -104,70 +148,32 @@ export function MessageList({
           </EmptyHeader>
         </Empty>
       ) : null}
-      {messages.map((message, index) => {
-        const editing = editingMessageId === message.id;
-        const compactions = compactionsByMessage.get(message.id) ?? [];
-        return (
-          <div
-            key={message.id}
-            className={
-              editing && compactions.length === 0
-                ? "hidden"
-                : "flex flex-col gap-5 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
-            }
-            style={{ order: firstMessageOrder + index * 2 + 1 }}
-          >
-            {editing ? null : (
-              <ConnectedChatMessageRow
-                message={message}
-                entityCatalog={entityCatalog}
-                isBusy={isBusy}
-                isLastAssistant={message.id === lastAssistantId}
-                assistantRunning={message.id === activeAssistantId}
-                highlighted={highlightedMessageId === message.id}
-                findQuery={findQuery}
-                stopped={stoppedMessageId === message.id}
-                onEdit={onEdit}
-                onRegenerate={onRegenerate}
-                onForkAssistant={onForkAssistant}
-                onApproveTool={onApproveTool}
-                onInspectContextRef={onInspectContextRef}
-              />
-            )}
-            {compactions.map((compaction) => (
-              <AgentExecutionBlock key={compaction.id} block={compactionBlock(compaction)} />
-            ))}
-          </div>
-        );
-      })}
-      <div
-        data-testid={editingMessageIndex >= 0 ? "agent-message-edit-row" : undefined}
-        data-agent-message-id={editingMessageIndex >= 0 ? editingMessageId : undefined}
-        data-message-role={editingMessageIndex >= 0 ? "user" : undefined}
-        className={
-          editingMessageIndex >= 0 && editingMessageEditor
-            ? "flex w-full flex-col items-end gap-1"
-            : "hidden"
-        }
-        style={{ order: firstMessageOrder + editingMessageIndex * 2 }}
-      >
-        {editingMessageEditor}
-      </div>
-      {unanchoredCompactions.map((compaction) => (
-        <AgentExecutionBlock key={compaction.id} block={compactionBlock(compaction)} />
-      ))}
-      {isCompacting ? <AgentContextCompactionStatus /> : null}
-      {showPendingAssistant ? <AgentPendingBlock /> : null}
-      {stoppedMessageId && !stoppedMessageVisible ? <AgentStoppedStatus /> : null}
-      {error ? <AgentFailureStatus error={error.message} onRetry={onRetry} /> : null}
-      {compactionError ? (
-        <div
-          data-testid="agent-context-compaction-error"
-          className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          压缩上下文失败：{compactionError.message}
+      {virtualizer ? (
+        <div ref={virtualizer.containerRef} className="relative w-full">
+          {virtualItems?.map((item) => renderMessage(messages[item.index]!, item.index, true))}
         </div>
-      ) : null}
+      ) : (
+        <div className="flex flex-col gap-5">
+          {messages.map((message, index) => renderMessage(message, index, false))}
+        </div>
+      )}
+      <div className={messages.length > 0 ? "mt-5 flex flex-col gap-5" : "flex flex-col gap-5"}>
+        {unanchoredCompactions.map((compaction) => (
+          <AgentExecutionBlock key={compaction.id} block={compactionBlock(compaction)} />
+        ))}
+        {isCompacting ? <AgentContextCompactionStatus /> : null}
+        {showPendingAssistant ? <AgentPendingBlock /> : null}
+        {stoppedMessageId && !stoppedMessageVisible ? <AgentStoppedStatus /> : null}
+        {error ? <AgentFailureStatus error={error.message} onRetry={onRetry} /> : null}
+        {compactionError ? (
+          <div
+            data-testid="agent-context-compaction-error"
+            className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          >
+            压缩上下文失败：{compactionError.message}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

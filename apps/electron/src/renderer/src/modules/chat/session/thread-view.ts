@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import type { ReactVirtualizer } from "@tanstack/react-virtual";
 import type {
   AgentContextCompacted,
   AgentEntityCatalogEntry,
@@ -33,8 +34,10 @@ export type AgentThreadView = {
   activeTurnId: string | null;
   highlightedMessageId: string | null;
   scrollRef: RefObject<HTMLDivElement | null>;
+  messageVirtualizer: ReactVirtualizer<HTMLDivElement, HTMLDivElement>;
   handleScroll(): void;
   scrollToBottom(behavior?: ScrollBehavior): void;
+  jumpToMessage(messageId: string): void;
   jumpToTurn(turnId: string): void;
   actions: {
     send(input: ComposerSendInput): Promise<void>;

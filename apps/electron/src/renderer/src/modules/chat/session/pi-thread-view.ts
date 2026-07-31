@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { ipcClient } from "@renderer/utils/ipc";
 import type { AgentEvent, AgentSessionState } from "@shared/agent";
 import {
@@ -18,12 +19,13 @@ import {
   editingMessageFromAgentMessage,
   mergeAgentEvents,
   scrollKeyFor,
-  scrollTopForChildBottom,
   shouldShowScrollToBottomButton,
 } from "./thread-view";
-import { activeChatTurnIdAtViewport, buildChatTurnNavigationItems } from "./chat-turn-navigation";
+import { buildChatTurnNavigationItems } from "./chat-turn-navigation";
 
 const CHAT_JUMP_BOTTOM_OFFSET = 24;
+const CHAT_READING_LINE_RATIO = 0.75;
+const CHAT_READING_LINE_BOTTOM_MARGIN = 96;
 
 function completedEntityRef(event: AgentEvent) {
   if (event.type !== "tool.completed" || typeof event.output !== "object" || !event.output) {
@@ -39,20 +41,6 @@ function completedEntityRef(event: AgentEvent) {
     return null;
   }
   return { type, id } as const;
-}
-
-function scrollRowToBottom(element: HTMLElement, row: HTMLElement) {
-  const elementRect = element.getBoundingClientRect();
-  const rowRect = row.getBoundingClientRect();
-  element.scrollTo({
-    top: scrollTopForChildBottom({
-      scrollTop: element.scrollTop,
-      containerBottom: elementRect.bottom,
-      childBottom: rowRect.bottom,
-      bottomOffset: CHAT_JUMP_BOTTOM_OFFSET,
-    }),
-    behavior: "auto",
-  });
 }
 
 export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): AgentThreadView {
@@ -128,6 +116,29 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
   }, [queryClient, sessionId]);
 
   const visibleMessages = state.messages;
+  const visibleMessagesRef = useRef(visibleMessages);
+  visibleMessagesRef.current = visibleMessages;
+  const getVirtualMessageKey = useCallback(
+    (index: number) => visibleMessagesRef.current[index]?.id ?? index,
+    [],
+  );
+  const messageVirtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>({
+    count: visibleMessages.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 240,
+    getItemKey: getVirtualMessageKey,
+    overscan: 5,
+    gap: 20,
+    anchorTo: "end",
+    followOnAppend: true,
+    scrollEndThreshold: 96,
+    scrollPaddingEnd: CHAT_JUMP_BOTTOM_OFFSET,
+    directDomUpdates: true,
+  });
+  const messageIndexById = useMemo(
+    () => new Map(visibleMessages.map((message, index) => [message.id, index])),
+    [visibleMessages],
+  );
   const turnNavigationItems = useMemo(
     () => buildChatTurnNavigationItems(visibleMessages),
     [visibleMessages],
@@ -176,39 +187,55 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
   const updateActiveTurn = useCallback(() => {
     const element = scrollRef.current;
     if (!element) return;
-    const turnAnchors = Array.from(
-      element.querySelectorAll<HTMLElement>('[data-agent-message-id][data-message-role="user"]'),
-      (row) => ({
-        turnId: row.dataset.agentMessageId ?? "",
-        top: row.getBoundingClientRect().top,
-      }),
-    ).filter((turn) => turn.turnId);
-    const resolvedTurnId = activeChatTurnIdAtViewport({
-      turnAnchors,
-      viewportTop: element.getBoundingClientRect().top,
-      viewportHeight: element.clientHeight,
-    });
+    const virtualItems = messageVirtualizer.getVirtualItems();
+    const firstItem = virtualItems[0];
+    if (!firstItem) return;
+    const readingOffset =
+      element.scrollTop +
+      Math.max(
+        element.clientHeight * CHAT_READING_LINE_RATIO,
+        element.clientHeight - CHAT_READING_LINE_BOTTOM_MARGIN,
+      );
+    let activeMessageIndex = firstItem.index;
+    for (const item of virtualItems) {
+      if (item.start > readingOffset) break;
+      activeMessageIndex = item.index;
+    }
+    let resolvedTurnId: string | null = null;
+    for (let index = activeMessageIndex; index >= 0; index -= 1) {
+      const message = visibleMessages[index];
+      if (message?.role !== "user") continue;
+      resolvedTurnId = message.id;
+      break;
+    }
 
     setTrackedTurnId((current) => (current === resolvedTurnId ? current : resolvedTurnId));
-  }, []);
+  }, [messageVirtualizer, visibleMessages]);
 
-  const jumpToTurn = useCallback((turnId: string) => {
-    const element = scrollRef.current;
-    if (!element) return;
-    const row = Array.from(element.querySelectorAll<HTMLElement>("[data-agent-message-id]")).find(
-      (candidate) => candidate.dataset.agentMessageId === turnId,
-    );
-    if (!row) return;
+  const jumpToMessage = useCallback(
+    (messageId: string) => {
+      const index = messageIndexById.get(messageId);
+      if (index === undefined) return;
+      messageVirtualizer.scrollToIndex(index, { align: "center", behavior: "auto" });
+      shouldStickToBottom.current = false;
+    },
+    [messageIndexById, messageVirtualizer],
+  );
 
-    scrollRowToBottom(element, row);
-    requestAnimationFrame(() => scrollRowToBottom(element, row));
-    shouldStickToBottom.current = false;
-    setTrackedTurnId(turnId);
-    setHighlightedMessageId(turnId);
+  const jumpToTurn = useCallback(
+    (turnId: string) => {
+      const index = messageIndexById.get(turnId);
+      if (index === undefined) return;
+      messageVirtualizer.scrollToIndex(index, { align: "end", behavior: "auto" });
+      shouldStickToBottom.current = false;
+      setTrackedTurnId(turnId);
+      setHighlightedMessageId(turnId);
 
-    if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
-    highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 1_400);
-  }, []);
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
+      highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 1_400);
+    },
+    [messageIndexById, messageVirtualizer],
+  );
 
   useEffect(() => {
     return () => {
@@ -234,17 +261,6 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     });
     return () => cancelAnimationFrame(frame);
   }, [scrollKey, scrollToBottom]);
-
-  useEffect(() => {
-    const element = scrollRef.current;
-    const content = element?.firstElementChild;
-    if (!element || !content || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => {
-      if (shouldStickToBottom.current) scrollToBottom("auto");
-    });
-    observer.observe(content);
-    return () => observer.disconnect();
-  }, [eventsQuery.isFetching, scrollToBottom, sessionId]);
 
   const handleScroll = useCallback(() => {
     const element = scrollRef.current;
@@ -280,8 +296,10 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     activeTurnId,
     highlightedMessageId,
     scrollRef: scrollRef as RefObject<HTMLDivElement | null>,
+    messageVirtualizer,
     handleScroll,
     scrollToBottom,
+    jumpToMessage,
     jumpToTurn,
     actions: {
       send: async (input: ComposerSendInput) => {
