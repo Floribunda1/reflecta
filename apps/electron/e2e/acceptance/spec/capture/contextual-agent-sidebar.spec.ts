@@ -88,6 +88,11 @@ test("@CP-AGENT-004 用户在 Agent 页面内检查 Understanding 详情", async
 
     const inspector = page.getByTestId("agent-context-inspector");
     await expect(inspector).toBeVisible();
+    const threadHeader = page.getByTestId("agent-thread-title").locator("xpath=ancestor::header");
+    const inspectorHeader = inspector.locator(":scope > div").first();
+    expect(
+      await inspectorHeader.evaluate((element) => element.getBoundingClientRect().height),
+    ).toBe(await threadHeader.evaluate((element) => element.getBoundingClientRect().height));
     await expect(inspector.getByPlaceholder("写下一个刚形成的理解")).toHaveValue(
       "React Server Components",
       { timeout: 15_000 },

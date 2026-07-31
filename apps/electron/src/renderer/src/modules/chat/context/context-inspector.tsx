@@ -28,7 +28,7 @@ export function ContextInspector({
       data-testid="agent-context-inspector"
       className="flex h-full min-h-0 min-w-0 animate-in slide-in-from-right-3 fade-in-0 flex-col bg-transparent duration-150"
     >
-      <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-4">
+      <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b px-4">
         <div className="text-sm font-medium">详情</div>
         <Button
           type="button"
