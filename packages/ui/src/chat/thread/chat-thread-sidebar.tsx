@@ -170,7 +170,7 @@ export function ChatThreadSidebar({
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-3 px-2">
+        <div className="space-y-5 px-2">
           {pending && threadCount === 0 ? (
             <div className="px-2 py-3 text-xs leading-5 text-muted-foreground">加载对话...</div>
           ) : null}
@@ -182,9 +182,9 @@ export function ChatThreadSidebar({
               key={group.id}
               data-testid="agent-thread-group"
               data-thread-group-id={group.id}
-              className="space-y-0.5"
+              className="space-y-1"
             >
-              <div className="px-2 pb-1 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+              <div className="px-2.5 pb-1.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
                 {group.label}
               </div>
               {group.threads.map((thread) => (
@@ -198,7 +198,7 @@ export function ChatThreadSidebar({
                         variant="ghost"
                         size="sm"
                         className={cn(
-                          "h-auto w-full min-w-0 justify-start p-1.5 text-left font-normal text-foreground/85 hover:bg-foreground/5 hover:text-foreground",
+                          "h-auto w-full min-w-0 justify-start px-2.5 py-2 text-left font-normal text-foreground/85 hover:bg-foreground/5 hover:text-foreground",
                           thread.id === activeThreadId &&
                             "bg-foreground/5 font-medium text-foreground hover:bg-foreground/5",
                         )}

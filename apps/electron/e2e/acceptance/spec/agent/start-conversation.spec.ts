@@ -131,7 +131,7 @@ test("@AG-START-008 用户收起后从对话标题重新展开对话列表", asy
     await expect(sidebarContainer).toHaveAttribute("aria-hidden", "false");
     await expect
       .poll(async () => (await sidebarContainer.boundingBox())?.width ?? 0)
-      .toBeGreaterThan(240);
+      .toBeGreaterThan(270);
     await expect(page.getByTestId("agent-thread-sidebar")).toBeVisible();
     await expect(page.getByTestId("agent-sidebar-collapse-button")).toBeVisible();
   } finally {
