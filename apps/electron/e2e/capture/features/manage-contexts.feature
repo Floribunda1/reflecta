@@ -28,7 +28,6 @@
 
   @P0 @deletion @CP-CONTEXT-003
   场景: 用户删除不再需要的 Context
-    假如 seed 数据中存在带有 Context 的 Understanding
-    当用户从 Context 菜单选择删除并确认
-    那么 Understanding 详情中的 Context 数量应该减少
-    而且剩余 Context 应该继续显示
+    假如用户已经为一条 Understanding 添加 Context CONTEXT_TO_DELETE 和 CONTEXT_TO_KEEP
+    当用户从 CONTEXT_TO_DELETE 的菜单选择删除并确认
+    那么 Understanding 详情中应该继续显示 CONTEXT_TO_KEEP

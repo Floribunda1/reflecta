@@ -1,12 +1,12 @@
 # language: zh-CN
 @agent @v1.1.0
-功能: 用户修改已有 Agent 对话内容
+功能: 用户修订已有 Agent 对话
   用户需要能编辑历史用户消息或重新生成回复，并看到当前对话结果被正确更新。
 
   @P1 @happy_path @AG-MESSAGE-001
   场景: 用户编辑历史消息后看到新的当前回复
     假如用户已经发送 ORIGINAL_USER_MESSAGE
-    而且 Agent 已经完成一条真实回复
+    而且 Agent 已经完成一条回复
     而且 Agent 可以完成回复
     当用户编辑 ORIGINAL_USER_MESSAGE
     而且用户将内容改为 EDITED_USER_MESSAGE
@@ -20,28 +20,10 @@
   @P1 @happy_path @AG-MESSAGE-002
   场景: 用户重新生成回复后看到新的当前回复
     假如用户已经发送 REGENERATE_USER_MESSAGE
-    而且 Agent 已经完成一条真实回复
+    而且 Agent 已经完成一条回复
     而且 Agent 可以完成回复
     当用户对当前 Agent 回复执行重新生成
     而且用户等待 Agent 完成回复
     那么对话中应该保留用户消息 REGENERATE_USER_MESSAGE
     而且当前对话应该只显示一条完成状态的 Agent 回复
     而且消息顺序应该保持用户消息在前、Agent 回复在后
-
-  @P1 @editing @AG-MESSAGE-003
-  场景: 用户按 Enter 发送后编辑时仍看到原来的单行内容
-    假如用户已经打开一个新对话
-    当用户在输入框输入 ENTER_SEND_SINGLE_LINE
-    而且用户按 Enter 发送消息
-    而且用户停止正在进行的 Agent 回复
-    而且用户编辑该用户消息
-    那么输入框应该显示 ENTER_SEND_SINGLE_LINE
-    而且输入框内容应该仍然是单行文本
-
-  @P0 @draft @AG-MESSAGE-004
-  场景: Agent 回复期间用户可以整理下一轮想法
-    假如用户已经发送一条消息且 Agent 正在回复
-    当用户在输入框输入 NEXT_TURN_DRAFT
-    而且用户按 Enter 继续输入 SECOND_LINE
-    那么输入框应该保留 NEXT_TURN_DRAFT 和 SECOND_LINE
-    而且这段草稿不应该在 Agent 回复期间发送

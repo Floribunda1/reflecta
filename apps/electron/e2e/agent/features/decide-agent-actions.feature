@@ -1,6 +1,6 @@
 # language: zh-CN
 @agent @v1.1.0
-功能: 用户处理 Agent 提案
+功能: 用户决定 Agent 提议的操作
   用户需要能确认或拒绝 Agent 提案，并在之后继续看到处理结果。
 
   @P0 @proposal @AG-PROPOSAL-001
@@ -57,13 +57,13 @@
     当用户点击该提案卡片上的拒绝
     那么该提案状态应该显示为已拒绝
 
-  @P0 @proposal @tool @AG-PROPOSAL-006
+  @P0 @proposal @decision @AG-PROPOSAL-006
   场景: 用户确认危险 Bash 后看到 Agent 继续回复
     假如 Agent 已经请求用户确认执行危险 Bash 命令
-    当用户点击该工具提案卡片上的确认
+    当用户点击该 Bash 确认卡片上的确认
     而且用户等待 Agent 完成回复
-    那么该工具提案状态应该显示为完成
-    而且页面应该显示工具执行后的 Agent 回复正文
+    那么该 Bash 操作状态应该显示为完成
+    而且页面应该显示命令执行后的 Agent 回复正文
     而且输入框应该可操作
 
   @P1 @proposal @recovery @AG-PROPOSAL-007
@@ -75,18 +75,10 @@
     而且该提案状态应该显示为执行失败
     而且卡片应该显示之前保存的失败原因
 
-  @P0 @proposal @tool @AG-PROPOSAL-008
+  @P0 @proposal @decision @AG-PROPOSAL-008
   场景: 用户拒绝危险 Bash 后看到拒绝结果
     假如 Agent 已经请求用户确认执行危险 Bash 命令
-    当用户点击该工具提案卡片上的拒绝
-    那么该工具提案状态应该显示为已拒绝
+    当用户点击该 Bash 确认卡片上的拒绝
+    那么该 Bash 操作状态应该显示为已拒绝
     而且卡片应该显示命令未执行
-    而且输入框应该可操作
-
-  @P0 @tool @AG-PROPOSAL-009
-  场景: 用户让 Agent 执行普通 Bash 后直接看到结果
-    假如用户已经要求 Agent 执行普通 Bash 命令
-    当 Agent 完成该命令
-    那么页面应该显示该工具执行完成
-    而且页面应该显示工具执行后的 Agent 回复正文
     而且输入框应该可操作

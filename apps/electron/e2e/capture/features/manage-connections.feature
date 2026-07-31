@@ -1,6 +1,6 @@
 # language: zh-CN
 @capture @connection @v1.2.5
-功能: 用户显式连接相关 Understanding
+功能: 用户管理 Understanding 之间的显式 Connection
   用户需要在写作时指出两条理解之间的关系，并从当前理解回到被引用的理解和它所在的知识图谱。
 
   @P0 @happy_path @CP-CONNECTION-001

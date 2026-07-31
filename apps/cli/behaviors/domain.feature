@@ -2,9 +2,6 @@
 功能: 用户通过 CLI 组织和检查 Domain
   用户需要从脚本或 Agent 中创建领域层级、调整分类并检查某个领域内已经沉淀的 Understanding。
 
-  背景:
-    假设 测试知识库中存在多级嵌套的 Domain
-
   # domain list
 
   @CLI-DOMAIN-001

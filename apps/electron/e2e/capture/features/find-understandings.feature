@@ -1,6 +1,6 @@
 # language: zh-CN
 @capture @understanding @v1.2.5
-功能: 用户在当前领域中找到要回看的理解
+功能: 用户找到要回看的 Understanding
   用户需要按 Domain、关键词和时间范围缩小 Understanding 列表，并在列表与详情之间调整合适的阅读空间。
 
   @P0 @filter @CP-LIST-002

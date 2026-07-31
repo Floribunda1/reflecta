@@ -1,6 +1,6 @@
 # language: zh-CN
 @capture @agent @v1.1.0
-功能: 用户从 Capture 对象打开上下文 Agent
+功能: 用户围绕 Capture 对象使用上下文 Agent
   用户在回看和整理理解时，需要能从当前 Domain 或 Understanding 旁边打开 Agent，并让当前对象自动进入这轮对话上下文。
 
   @P0 @context @CP-AGENT-001
@@ -47,3 +47,28 @@
     而且用户不发送任何消息
     而且用户进入 Agent 页面
     那么对话列表应该保持打开上下文 Agent 前的历史内容
+
+  @P1 @history @CP-AGENT-006
+  场景: 用户在上下文 Agent 中继续历史对话并开始新对话
+    假如当前 Capture 对象已有一条发送过消息的上下文对话
+    当用户打开上下文 Agent 的历史
+    那么用户应该可以重新打开这条对话并看到原有消息
+    当用户开始新对话
+    那么输入区应该清空
+    而且当前 Capture 对象应该继续作为初始上下文
+
+  @P1 @navigation @CP-AGENT-007
+  场景: 用户把当前上下文对话转到完整 Agent 页面
+    假如用户正在 Capture 的上下文 Agent 中查看一条对话
+    当用户选择在完整 Agent 页面中继续
+    那么用户应该进入 Agent 页面
+    而且 Agent 页面应该打开同一条对话
+
+  @P1 @layout @CP-AGENT-008
+  场景: 用户调整并关闭上下文 Agent
+    假如 Capture 右侧已经打开上下文 Agent
+    当用户向左拖动 Capture 内容与上下文 Agent 之间的分隔条
+    那么上下文 Agent 应该变宽
+    而且 Capture 当前内容应该继续显示
+    当用户关闭上下文 Agent
+    那么 Capture 应该恢复为不显示上下文 Agent 的工作区

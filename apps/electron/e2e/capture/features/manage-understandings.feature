@@ -1,6 +1,6 @@
 # language: zh-CN
 @capture @understanding @v1.2.5
-功能: 用户用自己的语言沉淀和修正 Understanding
+功能: 用户管理自己的 Understanding
   用户需要在一个 Domain 中写下刚形成的理解，并在离开或继续编辑后看到自己的内容被可靠保存。
 
   @P0 @happy_path @CP-UNDERSTANDING-001
@@ -41,3 +41,18 @@
     当用户删除 Understanding「React Server Components」并确认
     那么理解列表应该继续显示 Understanding「Vue Reactivity」
     而且详情区应该回到未选择 Understanding 的状态
+
+  @P1 @content @CP-UNDERSTANDING-005
+  场景: 用户在 Understanding 中编辑和查看 Mermaid 图表
+    假如用户已经打开一条 Understanding
+    当用户在正文中写入一个有效的 Mermaid 图表
+    那么正文中应该显示渲染后的图表
+    当用户修改图表源码并重新打开这条 Understanding
+    那么正文应该显示修改后的图表
+
+  @P1 @error @CP-UNDERSTANDING-006
+  场景: Mermaid 图表无效时用户仍能继续修改正文
+    假如用户已经打开一条 Understanding
+    当用户在正文中写入一个无效的 Mermaid 图表
+    那么正文应该说明 Mermaid 图表渲染失败
+    而且用户应该仍能编辑原来的图表源码和其他正文
