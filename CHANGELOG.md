@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.7 - 2026-07-31
+
+- Virtualized long Agent conversations so loading, scrolling, search, menus, and distant message jumps remain responsive with large histories.
+- Refined jump navigation into a quieter top-right rail with clearer progress, stronger contrast, and less idle visual noise.
+- Relaxed Agent thread sidebar spacing and widened its default layout for easier scanning.
+
 ## 1.3.6 - 2026-07-31
 
 - Clarified proposal lifecycle states and kept rejection reasons visible in proposal details, including when the reason is long.
