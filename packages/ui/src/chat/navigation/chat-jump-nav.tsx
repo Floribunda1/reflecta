@@ -26,7 +26,7 @@ export function ChatJumpNav({
     <nav
       data-testid="agent-chat-jump-nav"
       aria-label="对话轮次跳转"
-      className="group/jump pointer-events-auto absolute top-1/2 right-3 z-20 hidden max-h-[58%] -translate-y-1/2 min-[18rem]:block"
+      className="group/jump pointer-events-auto absolute top-4 right-0 z-20 hidden max-h-[58%] min-[18rem]:block"
     >
       <button
         type="button"
@@ -36,10 +36,13 @@ export function ChatJumpNav({
             ? `打开对话轮次导航，当前第 ${activePosition} 轮，共 ${items.length} 轮`
             : `打开对话轮次导航，共 ${items.length} 轮`
         }
-        className="flex h-9 items-center gap-1.5 rounded-full border border-border/80 bg-background/90 px-2.5 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none group-hover/jump:pointer-events-none group-hover/jump:absolute group-hover/jump:opacity-0 group-focus-within/jump:pointer-events-none group-focus-within/jump:absolute group-focus-within/jump:opacity-0"
+        className="flex h-11 min-w-7 flex-col items-center justify-center gap-0.5 rounded-l-md border-y border-l border-border/60 bg-background/90 px-1 text-muted-foreground/70 backdrop-blur-sm focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none group-hover/jump:pointer-events-none group-hover/jump:absolute group-hover/jump:opacity-0 group-focus-within/jump:pointer-events-none group-focus-within/jump:absolute group-focus-within/jump:opacity-0"
       >
-        <ListTree className="size-4" />
-        <span className="tabular-nums">
+        <ListTree aria-hidden className="size-3.5" />
+        <span
+          data-testid="agent-chat-jump-position"
+          className="text-[9px] leading-none tabular-nums"
+        >
           {activePosition ?? "–"}/{items.length}
         </span>
       </button>
