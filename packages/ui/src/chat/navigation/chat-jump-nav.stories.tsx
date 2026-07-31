@@ -73,7 +73,7 @@ function ChatJumpNavShowcase() {
 
       <StoryCase
         title="折叠、展开与跳转"
-        description="静止阅读时隐藏；靠近右侧中部或键盘聚焦后展开导航。"
+        description="静止态只展示贴边抓手；靠近右侧中部后展开导航。"
       >
         <JumpNavSurface items={typicalItems} expanded />
       </StoryCase>

@@ -526,7 +526,7 @@ test("@AG-CONV-006 用户在长对话中通过右侧摘录跳转到指定消息"
     await expect(page.getByTestId("agent-chat-jump-marker")).toHaveCount(6);
     const jumpTrigger = page.getByTestId("agent-chat-jump-trigger");
     await expect(jumpTrigger).toHaveAttribute("aria-label", /打开对话轮次导航.*共 6 轮/);
-    await expect(jumpTrigger).toHaveCSS("opacity", "0");
+    await expect(jumpTrigger).toHaveCSS("opacity", "1");
     const jumpTriggerBounds = await jumpTrigger.boundingBox();
     if (!jumpTriggerBounds) throw new Error("Jump navigation trigger is not visible");
     await page.mouse.move(
