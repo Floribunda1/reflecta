@@ -133,13 +133,13 @@ describe("reflecta milkdown editor", () => {
     const editor = await createReflectaMilkdownEditor({
       root,
       content:
-        "Connect [[Alpha#understanding-1]] with $E = mc^2$.\n\n$$\n\\int_0^1 x^2 dx\n$$\n\n```mermaid\ngraph TD\n  A --> B\n```\n\n:::warning\nCareful\n:::",
+        "Connect [[u:understanding-1]] with $E = mc^2$.\n\n$$\n\\int_0^1 x^2 dx\n$$\n\n```mermaid\ngraph TD\n  A --> B\n```\n\n:::warning\nCareful\n:::",
     });
     editors.push(editor);
 
     const markdown = getMilkdownMarkdown(editor);
 
-    expect(markdown).toContain("[[Alpha#understanding-1]]");
+    expect(markdown).toContain("[[u:understanding-1]]");
     expect(markdown).toContain("$E = mc^2$");
     expect(markdown).toContain("\\int_0^1 x^2 dx");
     expect(markdown).toContain("```mermaid");
@@ -172,13 +172,13 @@ describe("reflecta milkdown editor", () => {
 
     const editor = await createReflectaMilkdownEditor({
       root,
-      content: "Connect [[Alpha#understanding-1]].",
+      content: "Connect [[u:understanding-1]].",
     });
     editors.push(editor);
 
     const link = root.querySelector<HTMLAnchorElement>('a[data-wiki-link="understanding-1"]');
-    expect(link?.textContent).toBe("Alpha");
-    expect(getMilkdownMarkdown(editor)).toContain("[[Alpha#understanding-1]]");
+    expect(link?.textContent).toBe("✦ understanding-1");
+    expect(getMilkdownMarkdown(editor)).toContain("[[u:understanding-1]]");
   });
 
   test("uses the Crepe upload hook for pasted images and videos", async () => {

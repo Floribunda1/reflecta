@@ -145,4 +145,48 @@ describe("versioned migrations", () => {
       content: "这段上下文后来支撑了这条理解。",
     });
   });
+
+  test("migrates legacy knowledge links to typed entity references in v1.3.5", async () => {
+    const db = await createTestDb("1.1.0");
+    const createdAt = "2026-07-31T00:00:00.000Z";
+
+    db.$client
+      .prepare(
+        `INSERT INTO understandings (id, title, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "understanding-source",
+        "来源",
+        "参见 [[旧标题#understanding-target]]，再次参见 [[另一标题#understanding-other]]。",
+        createdAt,
+        createdAt,
+      );
+    db.$client
+      .prepare(
+        `INSERT INTO contexts (id, understanding_id, medium, title, content, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "context-1",
+        "understanding-source",
+        "ai",
+        "一次讨论",
+        "关联 [[旧标题#understanding-target]]，保留 [[u:already-canonical]]。",
+        createdAt,
+      );
+
+    await performDbMigration(db, "1.3.5");
+
+    expect(
+      db.$client
+        .prepare(`SELECT body FROM understandings WHERE id = ?`)
+        .get("understanding-source"),
+    ).toMatchObject({
+      body: "参见 [[u:understanding-target]]，再次参见 [[u:understanding-other]]。",
+    });
+    expect(
+      db.$client.prepare(`SELECT content FROM contexts WHERE id = ?`).get("context-1"),
+    ).toMatchObject({
+      content: "关联 [[u:understanding-target]]，保留 [[u:already-canonical]]。",
+    });
+  });
 });

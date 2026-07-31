@@ -165,6 +165,7 @@ function insertWikiLinkSuggestion(
 ): void {
   const wikiLinkNode = view.state.schema.nodes.wiki_link?.create({
     title: item.label,
+    entityType: item.type ?? "understanding",
     id: item.id,
   });
   const transaction = (

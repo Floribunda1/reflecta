@@ -53,8 +53,9 @@ describe("Markdown editor adapter", () => {
     await expect(getMarkdownEditorSuggestions("", new AbortController().signal)).resolves.toEqual([
       {
         id: "understanding-1",
+        type: "understanding",
         label: "Alpha",
-        markdown: "[[Alpha#understanding-1]]",
+        markdown: "[[u:understanding-1]]",
       },
     ]);
     expect(ipcClient.understanding.listUnderstandings).toHaveBeenCalledWith(undefined);
@@ -79,9 +80,10 @@ describe("Markdown editor adapter", () => {
     expect(suggestions).toHaveLength(8);
     expect(suggestions[0]).toEqual({
       id: "understanding-0",
+      type: "understanding",
       label: "Beta body",
       preview: "Beta body Second line",
-      markdown: "[[Beta body#understanding-0]]",
+      markdown: "[[u:understanding-0]]",
     });
   });
 });

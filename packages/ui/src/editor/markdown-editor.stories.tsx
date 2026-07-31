@@ -8,21 +8,24 @@ import { MarkdownEditor, type MarkdownEditorProps, type MarkdownEditorSuggestion
 const suggestions = [
   {
     id: "understanding-irrigation",
+    type: "understanding",
     label: "分区灌溉策略",
     preview: "不同种植槽根据含水率和回水温度获得独立灌溉窗口。",
-    markdown: "[[分区灌溉策略#understanding-irrigation]]",
+    markdown: "[[u:understanding-irrigation]]",
   },
   {
     id: "context-night-shift",
+    type: "context",
     label: "夜班联调记录",
     preview: "记录低温环境中的阀门启动顺序和现场复核结果。",
-    markdown: "[[夜班联调记录#context-night-shift]]",
+    markdown: "[[c:context-night-shift]]",
   },
   {
     id: "domain-facility",
+    type: "domain",
     label: "设施工程",
     preview: "温室控制、灌溉和设备维护相关的领域。",
-    markdown: "[[设施工程#domain-facility]]",
+    markdown: "[[d:domain-facility]]",
   },
 ] as const;
 
@@ -56,7 +59,7 @@ function CompleteEditorDemo() {
         height={560}
         getSuggestions={getSuggestions}
         uploadAsset={async (file) => ({ url: URL.createObjectURL(file), alt: file.name })}
-        onWikiLinkOpen={(id) => setOpenedLink(`已打开：${id}`)}
+        onWikiLinkOpen={(reference) => setOpenedLink(`已打开：${reference.type}:${reference.id}`)}
       />
       <p className="text-xs text-muted-foreground">{openedLink}</p>
     </div>

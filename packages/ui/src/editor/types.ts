@@ -1,5 +1,6 @@
 export type MarkdownEditorSuggestion = {
   id: string;
+  type?: "understanding" | "context" | "domain";
   label: string;
   preview?: string;
   markdown: string;

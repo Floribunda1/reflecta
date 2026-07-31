@@ -9,7 +9,7 @@ import { ipcClient } from "@renderer/utils/ipc";
 
 const suggestionLimit = 8;
 const fallbackTitle = "未命名理解";
-const wikiLinkPattern = /\[\[([^\]\n#]+)#([^\]\n#]+)\]\]/g;
+const wikiLinkPattern = /\[\[[ucd]:[A-Za-z0-9_-]+\]\]/g;
 
 function getUnderstandingTitle(understanding: UnderstandingSummaryDTO): string {
   const title = understanding.title?.trim();
@@ -26,7 +26,7 @@ function getUnderstandingTitle(understanding: UnderstandingSummaryDTO): string {
 function toSuggestion(understanding: UnderstandingSummaryDTO): MarkdownEditorSuggestion {
   const label = getUnderstandingTitle(understanding);
   const preview = understanding.body
-    .replace(wikiLinkPattern, "$1")
+    .replace(wikiLinkPattern, "")
     .replaceAll(/!\[([^\]]*)]\([^)]+\)/g, "$1")
     .replaceAll(/\[([^\]]+)]\([^)]+\)/g, "$1")
     .replaceAll(/[`*_~>#-]/g, "")
@@ -38,6 +38,7 @@ function toSuggestion(understanding: UnderstandingSummaryDTO): MarkdownEditorSug
 
   return {
     id: understanding.id,
+    type: "understanding",
     label,
     ...(preview ? { preview } : {}),
     markdown: formatUnderstandingWikiLink({ id: understanding.id, title: label }),

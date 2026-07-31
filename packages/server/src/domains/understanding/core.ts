@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, isNull, or, count } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import {
   domains,
   contexts,
@@ -255,18 +255,13 @@ export class UnderstandingCore {
       const rows = tx
         .select()
         .from(understandings)
-        .where(
-          and(
-            isNull(understandings.deletedAt),
-            or(inArray(understandings.id, linkTargets), inArray(understandings.title, linkTargets)),
-          ),
-        )
+        .where(and(isNull(understandings.deletedAt), inArray(understandings.id, linkTargets)))
         .orderBy(desc(understandings.updatedAt))
         .all();
 
       const targetIds = new Set<string>();
       for (const target of linkTargets) {
-        const row = rows.find((t) => t.id === target) ?? rows.find((t) => t.title === target);
+        const row = rows.find((candidate) => candidate.id === target);
         if (row && row.id !== sourceId) targetIds.add(row.id);
       }
 

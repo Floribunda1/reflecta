@@ -8,36 +8,32 @@ import {
 } from "./wiki-links";
 
 describe("Understanding wiki links", () => {
-  test("formats and parses an id-backed link", () => {
-    const markdown = formatUnderstandingWikiLink({ id: "understanding-1", title: " Alpha " });
+  test("uses the shared typed entity-reference syntax", () => {
+    const markdown = formatUnderstandingWikiLink({ id: "understanding-1", title: "Alpha" });
 
-    expect(markdown).toBe("[[Alpha#understanding-1]]");
-    expect(parseUnderstandingWikiLink(markdown)).toEqual({
-      id: "understanding-1",
-      title: "Alpha",
-    });
+    expect(markdown).toBe("[[u:understanding-1]]");
+    expect(parseUnderstandingWikiLink(markdown)).toEqual({ id: "understanding-1" });
   });
 
   test("normalizes escaped links and resolves a link at the cursor", () => {
     const markdown = normalizeUnderstandingWikiLinkBody(
-      String.raw`Before \[\[Alpha#understanding-1]] after`,
+      String.raw`Before \[\[u:understanding-1]] after`,
     );
 
-    expect(markdown).toBe("Before [[Alpha#understanding-1]] after");
+    expect(markdown).toBe("Before [[u:understanding-1]] after");
     expect(findUnderstandingWikiLinkAtOffset(markdown, 12)).toEqual({
       id: "understanding-1",
-      title: "Alpha",
     });
   });
 
-  test("rejects links without a title or id", () => {
+  test("rejects legacy and untyped links", () => {
     expect(parseUnderstandingWikiLink("[[Alpha]]")).toBeNull();
-    expect(parseUnderstandingWikiLink("[[#understanding-1]]")).toBeNull();
+    expect(parseUnderstandingWikiLink("[[Alpha#understanding-1]]")).toBeNull();
   });
 
-  test("escapes wiki-link labels and ids before rendering HTML", () => {
-    expect(renderUnderstandingWikiLinksAsHtml(`[[<script>alert("x")</script>#id-"unsafe]]`)).toBe(
-      `<a href="#" data-wiki-link="id-&quot;unsafe" class="wiki-link">&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;</a>`,
+  test("renders canonical links as entity anchors", () => {
+    expect(renderUnderstandingWikiLinksAsHtml("[[u:understanding-1]]")).toBe(
+      '<a href="#" data-wiki-link="understanding-1" data-entity-type="understanding" class="wiki-link">✦ understanding-1</a>',
     );
   });
 });

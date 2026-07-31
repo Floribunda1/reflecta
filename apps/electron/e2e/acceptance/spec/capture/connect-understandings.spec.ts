@@ -43,7 +43,7 @@ test("@CP-CONNECTION-002 用户从 wiki-link 打开被引用的 Understanding", 
   seedUnderstanding({
     id: sourceId,
     title: "React Server Components",
-    body: `RSC links to [[React Suspense#${targetId}]].`,
+    body: `RSC links to [[u:${targetId}]].`,
   });
   const { app, page } = await launchApp();
 

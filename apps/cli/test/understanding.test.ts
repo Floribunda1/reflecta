@@ -235,7 +235,7 @@ describe("Understanding 管理", () => {
         "update",
         understandingId,
         "--body",
-        `See [[Star Center#${targetId}]]`,
+        `See [[u:${targetId}]]`,
         "--yes",
       ]);
       expect(code).toBe(0);
@@ -256,7 +256,7 @@ describe("Understanding 管理", () => {
         "--title",
         "Link Then Unlink",
         "--body",
-        `See [[Star Center#${targetId}]]`,
+        `See [[u:${targetId}]]`,
         "--yes",
       ]);
       const understandingId = (parseJson(createOut) as { id: string }).id;

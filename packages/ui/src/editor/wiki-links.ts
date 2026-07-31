@@ -1,58 +1,35 @@
 import { escape } from "lodash-es";
+import {
+  formatChatEntityReference,
+  parseChatEntityReference,
+} from "../chat/markdown/entity-reference-codec";
 
 export type UnderstandingWikiLink = {
-  title: string;
+  title?: string;
   id: string;
 };
 
-const understandingWikiLinkPattern = /\[\[([^\]\n]+)\]\]/g;
-const escapedUnderstandingWikiLinkPattern = /\\\[\\\[([^\]\n]+)]]/g;
+const understandingWikiLinkPattern = /\[\[u:([A-Za-z0-9_-]+)\]\]/g;
+const escapedUnderstandingWikiLinkPattern = /\\\[\\\[u:([A-Za-z0-9_-]+)]]/g;
 
 export function formatUnderstandingWikiLink(link: UnderstandingWikiLink): string {
-  const id = link.id.trim();
-  const title = link.title.trim() || id;
-  return `[[${title}#${id}]]`;
+  return formatChatEntityReference({ type: "understanding", id: link.id });
 }
 
 export function parseUnderstandingWikiLink(raw: string): UnderstandingWikiLink | null {
-  const match = /^\[\[([^\]\n]+)\]\]$/.exec(raw.trim());
-  if (!match) return null;
-
-  const content = unescapeMarkdownText(match[1]?.trim() ?? "");
-  const separatorIndex = content.lastIndexOf("#");
-  if (separatorIndex <= 0 || separatorIndex === content.length - 1) return null;
-
-  const title = content.slice(0, separatorIndex).trim();
-  const id = content.slice(separatorIndex + 1).trim();
-  if (!title || !id) return null;
-
-  return { title, id };
-}
-
-function unescapeMarkdownText(value: string): string {
-  return value.replaceAll(/\\([\\[\]_`*#])/g, "$1");
+  const reference = parseChatEntityReference(raw);
+  return reference?.type === "understanding" ? { id: reference.id } : null;
 }
 
 export function renderUnderstandingWikiLinksAsHtml(content: string): string {
-  return content.replaceAll(understandingWikiLinkPattern, (match) => {
-    const parsed = parseUnderstandingWikiLink(match);
-    if (!parsed) return match;
-    return `<a href="#" data-wiki-link="${escape(parsed.id)}" class="wiki-link">${escape(parsed.title)}</a>`;
+  return content.replaceAll(understandingWikiLinkPattern, (_match, id: string) => {
+    return `<a href="#" data-wiki-link="${escape(id)}" data-entity-type="understanding" class="wiki-link">✦ ${escape(id)}</a>`;
   });
 }
 
 export function normalizeUnderstandingWikiLinkBody(body: string): string {
-  const unescapedBody = body.replaceAll(
-    escapedUnderstandingWikiLinkPattern,
-    (_match, rawContent) => {
-      const content = unescapeMarkdownText(String(rawContent).trim());
-      return `[[${content}]]`;
-    },
-  );
-
-  return unescapedBody.replaceAll(understandingWikiLinkPattern, (match) => {
-    const parsed = parseUnderstandingWikiLink(match);
-    return parsed ? formatUnderstandingWikiLink(parsed) : match;
+  return body.replaceAll(escapedUnderstandingWikiLinkPattern, (_match, id: string) => {
+    return formatUnderstandingWikiLink({ id });
   });
 }
 
@@ -63,13 +40,8 @@ export function findUnderstandingWikiLinkAtOffset(
   for (const match of text.matchAll(understandingWikiLinkPattern)) {
     const start = match.index ?? -1;
     if (start === -1) continue;
-
     const end = start + match[0].length;
-    if (offset < start || offset > end) continue;
-
-    const parsed = parseUnderstandingWikiLink(match[0]);
-    if (parsed) return parsed;
+    if (offset >= start && offset <= end) return { id: match[1] };
   }
-
   return null;
 }

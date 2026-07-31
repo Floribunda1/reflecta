@@ -9,6 +9,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "../../components/input-group";
+import { MarkdownPreview } from "../../editor/markdown-preview";
 import type { ChatEntityBindings, ChatEntityType } from "../entity";
 import { entityClassName, entityIcon } from "../entity-visual";
 import { AgentWorkingIndicator } from "../execution/agent-working-indicator";
@@ -309,11 +310,16 @@ function UnderstandingCreate({
       <EntityTitle type="understanding">
         {fallback(proposal.content.heading, "正在生成标题…")}
       </EntityTitle>
-      <MarkdownPanel
-        value={proposal.content.body}
-        placeholder="正在生成内容…"
-        entityBindings={entityBindings}
-      />
+      {proposal.content.body ? (
+        <MarkdownPreview
+          value={proposal.content.body}
+          zoomImages={false}
+          resolveWikiLink={entityBindings?.resolveEntity}
+          onWikiLinkOpen={entityBindings?.onEntityOpen}
+        />
+      ) : (
+        <span className="text-muted-foreground">正在生成内容…</span>
+      )}
     </div>
   );
 }

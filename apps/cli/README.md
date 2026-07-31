@@ -76,7 +76,7 @@ reflecta --db /absolute/path/to/reflecta.db domain list
 
 Understanding relationships are inferred from wiki links in the understanding body.
 
-In the CLI, write `[[understanding title#target-understanding-id]]` in `understanding create --body` or `understanding update --body`. The CLI stores that syntax directly and derives understanding relationships from it.
+In the CLI, write `[[u:target-understanding-id]]` in `understanding create --body` or `understanding update --body`. The CLI stores that syntax directly and derives understanding relationships from it.
 
 ## Development
 

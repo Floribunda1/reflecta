@@ -159,14 +159,8 @@ export class UnderstandingCliBff extends UnderstandingCore {
             .from(understandings)
             .where(and(inArray(understandings.id, relatedIds), isNull(understandings.deletedAt)));
     const relatedById = new Map(relatedRows.map((relatedRow) => [relatedRow.id, relatedRow]));
-    const relatedByTitle = new Map(
-      relatedRows.flatMap((relatedRow) =>
-        relatedRow.title ? [[relatedRow.title, relatedRow] as const] : [],
-      ),
-    );
-
     const relations: UnderstandingRelation[] = outgoingLinks.map((link) => {
-      const targetRow = relatedById.get(link.target) ?? relatedByTitle.get(link.target);
+      const targetRow = relatedById.get(link.target);
       return {
         direction: "outgoing",
         sourceUnderstandingId: row.id,
@@ -182,10 +176,7 @@ export class UnderstandingCliBff extends UnderstandingCore {
       const sourceRow = relatedById.get(connection.sourceId);
       if (!sourceRow) continue;
       const sourceLinks = extractUnderstandingWikiLinks(sourceRow.body);
-      const sourceLink = sourceLinks.find(
-        (link) =>
-          link.target === row.id || (summary.title !== null && link.target === summary.title),
-      );
+      const sourceLink = sourceLinks.find((link) => link.target === row.id);
       relations.push({
         direction: "incoming",
         sourceUnderstandingId: sourceRow.id,

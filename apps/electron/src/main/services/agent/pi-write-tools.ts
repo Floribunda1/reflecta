@@ -49,7 +49,7 @@ const contextIdParameter = Type.String({
   description: "Stable Context id returned by Reflecta tools. Do not pass chat refs.",
 });
 const understandingBodyParameterDescription =
-  "Markdown body. Use [[title#understanding-id]] when linking another Understanding.";
+  "Markdown body. Use [[u:understanding-id]] when linking another Understanding.";
 const parentIdParameter = Type.Optional(
   Type.Union([Type.String({ minLength: 1 }), Type.Null()], {
     description:

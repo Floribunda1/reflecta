@@ -393,7 +393,7 @@ pie showData
 > | --- | --- |
 > | 引用中 | 的表格 |
 
-关联内容：[[分区灌溉策略#understanding-irrigation]]、[[夜班联调记录#context-night-shift]]。
+关联内容：[[u:understanding-irrigation]]、[[c:context-night-shift]]。
 `;
 
 export const markdownStorySections = {

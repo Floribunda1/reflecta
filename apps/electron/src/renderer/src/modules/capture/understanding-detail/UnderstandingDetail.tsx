@@ -18,13 +18,19 @@ import {
   MarkdownPreview,
   SimpleMarkdownPreview,
 } from "@reflecta/ui/editor";
+import {
+  collectChatEntityReferences,
+  type ChatEntityPresentation,
+  type ChatEntityReference,
+} from "@reflecta/ui/chat";
 import { useDrawer } from "@reflecta/ui/overlays";
 import { useModal } from "@reflecta/ui/overlays";
 import type { ContextDTO, ContextMedium } from "@shared/context";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { FileText, MessageCircle, Pencil, Plus, Trash2, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useQueries } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUnderstandingDetail, useUnderstandingDetailActions } from "./hooks";
 import { CONTEXT_META, CONTEXT_PLACEHOLDER, CONTEXT_TYPES } from "./context/types";
 import { useCaptureStore, type CaptureAgentScope } from "../store";
@@ -33,7 +39,7 @@ import {
   getMarkdownEditorSuggestions,
   uploadMarkdownAsset,
 } from "../adapters/markdown-editor-adapter";
-import { useCaptureDomains } from "../queries";
+import { captureQueryKeys, getEntityDisplay, useCaptureDomains } from "../queries";
 
 type UnderstandingDetailProps = {
   understandingId: string;
@@ -289,6 +295,36 @@ function UnderstandingDetailInner({
   const updateDraftBody = useCaptureStore((state) => state.updateDraftBody);
   const setActiveContextId = useCaptureStore((state) => state.setActiveContextId);
   const { saveDraft } = useUnderstandingDraftSave({ understandingId, scopeRef: detailRef });
+  const referenceSource = draft?.body ?? understanding?.body ?? "";
+  const entityReferences = useMemo(
+    () => collectChatEntityReferences(referenceSource),
+    [referenceSource],
+  );
+  const entityQueries = useQueries({
+    queries: entityReferences.map((reference) => ({
+      queryKey: captureQueryKeys.entityDisplay(reference),
+      queryFn: () => getEntityDisplay(reference),
+    })),
+  });
+  const entityPresentations = useMemo(() => {
+    const result = new Map<string, ChatEntityPresentation>();
+    entityReferences.forEach((reference, index) => {
+      const query = entityQueries[index];
+      if (query?.data) {
+        result.set(`${reference.type}:${reference.id}`, {
+          state: "ready",
+          label: query.data.title || reference.id,
+          canOpen: reference.type !== "domain",
+        });
+      }
+    });
+    return result;
+  }, [entityQueries, entityReferences]);
+  const resolveWikiLink = useCallback(
+    (reference: ChatEntityReference) =>
+      entityPresentations.get(`${reference.type}:${reference.id}`),
+    [entityPresentations],
+  );
 
   useEffect(() => {
     if (!understanding) return;
@@ -473,15 +509,18 @@ function UnderstandingDetailInner({
             value={body}
             height="auto"
             maxHeight="clamp(320px, 50vh, 560px)"
-            placeholder="用自己的语言写下这条理解。通过 [[已有理解标题]] 连接相关理解。"
+            placeholder="用自己的语言写下这条理解。输入 [[ 连接相关理解。"
             uploadAsset={uploadMarkdownAsset}
             getSuggestions={getMarkdownEditorSuggestions}
+            resolveWikiLink={resolveWikiLink}
             onChange={(next) => {
               if (markdownEquals(next, body)) return;
               updateDraftBody(next);
             }}
             onBlur={(markdown) => void saveDraft(markdown)}
-            onWikiLinkOpen={onWikiLinkClick}
+            onWikiLinkOpen={(reference) => {
+              if (reference.type === "understanding") onWikiLinkClick?.(reference.id);
+            }}
           />
         </section>
 

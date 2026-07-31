@@ -3,7 +3,22 @@ import { keymap } from "@milkdown/prose/keymap";
 import { TextSelection, type Command } from "@milkdown/prose/state";
 import { visit } from "unist-util-visit";
 
-const wikiLinkPattern = /\[\[([^\]\n#]+)#([^\]\n#]+)\]\]/g;
+const wikiLinkPattern = /\[\[([ucd]):([A-Za-z0-9_-]+)\]\]/g;
+const entityTypeByPrefix = {
+  u: "understanding",
+  c: "context",
+  d: "domain",
+} as const;
+const prefixByEntityType = {
+  understanding: "u",
+  context: "c",
+  domain: "d",
+} as const;
+const entityIcon = {
+  understanding: "✦",
+  context: "↳",
+  domain: "#",
+} as const;
 
 function cleanWikiValue(value: unknown): string {
   return String(value ?? "")
@@ -17,7 +32,11 @@ type AstNode = {
 };
 type AstParent = AstNode & { children: AstNode[] };
 type TextNode = AstNode & { type: "text"; value?: unknown };
-type WikiLinkNode = AstNode & { type: "wikiLink"; title: string; id: string };
+type WikiLinkNode = AstNode & {
+  type: "wikiLink";
+  entityType: keyof typeof prefixByEntityType;
+  id: string;
+};
 
 const remarkWikiLink = $remark("reflectaWikiLink", () => () => (tree) => {
   visit(tree, "text", (node, index, parent) => {
@@ -38,7 +57,7 @@ const remarkWikiLink = $remark("reflectaWikiLink", () => () => (tree) => {
 
       replacements.push({
         type: "wikiLink",
-        title: cleanWikiValue(match[1]),
+        entityType: entityTypeByPrefix[match[1] as keyof typeof entityTypeByPrefix],
         id: cleanWikiValue(match[2]),
       });
       cursor = start + match[0].length;
@@ -60,6 +79,7 @@ const wikiLinkSchema = $nodeSchema("wiki_link", () => ({
   selectable: false,
   attrs: {
     title: { default: "", validate: "string" },
+    entityType: { default: "understanding", validate: "string" },
     id: { default: "", validate: "string" },
   },
   parseDOM: [
@@ -69,25 +89,32 @@ const wikiLinkSchema = $nodeSchema("wiki_link", () => ({
         if (!(dom instanceof HTMLElement)) return false;
         return {
           title: dom.textContent?.trim() ?? "",
+          entityType: dom.dataset.entityType ?? "understanding",
           id: dom.dataset.wikiLink ?? "",
         };
       },
     },
   ],
-  toDOM: (node) => [
-    "a",
-    {
-      href: "#",
-      class: "wiki-link reflecta-wiki-link",
-      "data-wiki-link": cleanWikiValue(node.attrs.id),
-    },
-    cleanWikiValue(node.attrs.title),
-  ],
+  toDOM: (node) => {
+    const entityType = cleanWikiValue(node.attrs.entityType) as keyof typeof prefixByEntityType;
+    const id = cleanWikiValue(node.attrs.id);
+    const title = cleanWikiValue(node.attrs.title);
+    return [
+      "a",
+      {
+        href: "#",
+        class: `wiki-link reflecta-wiki-link wiki-link--${entityType}`,
+        "data-wiki-link": id,
+        "data-entity-type": entityType,
+      },
+      `${entityIcon[entityType] ?? "○"} ${title || id}`,
+    ];
+  },
   parseMarkdown: {
     match: (node) => node.type === "wikiLink",
     runner: (state, node, type) => {
       state.addNode(type, {
-        title: cleanWikiValue(node.title),
+        entityType: cleanWikiValue(node.entityType),
         id: cleanWikiValue(node.id),
       });
     },
@@ -95,9 +122,13 @@ const wikiLinkSchema = $nodeSchema("wiki_link", () => ({
   toMarkdown: {
     match: (node) => node.type.name === "wiki_link",
     runner: (state, node) => {
-      const title = cleanWikiValue(node.attrs.title);
+      const entityType = cleanWikiValue(node.attrs.entityType) as keyof typeof prefixByEntityType;
       const id = cleanWikiValue(node.attrs.id);
-      state.addNode("text", undefined, title && id ? `[[${title}#${id}]]` : "");
+      state.addNode(
+        "text",
+        undefined,
+        entityType && id ? `[[${prefixByEntityType[entityType]}:${id}]]` : "",
+      );
     },
   },
 }));

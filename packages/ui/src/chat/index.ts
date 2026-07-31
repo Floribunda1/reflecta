@@ -21,6 +21,8 @@ export {
 export { ChatMarkdown, type ChatMarkdownProps } from "./markdown/chat-markdown";
 export {
   collectChatEntityReferences,
+  formatChatEntityReference,
+  parseChatEntityReference,
   replaceChatEntityReferences,
 } from "./markdown/entity-reference-codec";
 export { AgentActivityGroup, type AgentActivityGroupProps } from "./execution/agent-activity-group";

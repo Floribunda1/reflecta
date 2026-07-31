@@ -23,17 +23,16 @@ function render(value: string, lineClamp?: number) {
 }
 
 describe("SimpleMarkdownPreview", () => {
-  test("renders compact Markdown without exposing wiki ids", () => {
+  test("renders compact Markdown with typed entity references", () => {
     const preview = render(
-      "# Heading\n\nConnect **Alpha** to [[Night shift#context-1]] and [source](https://example.com).\n\n- checked\n\n> note\n\n- [x] done\n\n![diagram](asset:///diagram.png)",
+      "# Heading\n\nConnect **Alpha** to [[c:context-1]] and [source](https://example.com).\n\n- checked\n\n> note\n\n- [x] done\n\n![diagram](asset:///diagram.png)",
     );
 
     expect(preview.querySelector("h1")?.textContent).toBe("Heading");
     expect(preview.querySelector("strong")?.textContent).toBe("Alpha");
     expect(preview.querySelector("ul")).not.toBeNull();
     expect(preview.querySelector("blockquote")?.textContent).toContain("note");
-    expect(preview.textContent).toContain("Night shift");
-    expect(preview.textContent).not.toContain("context-1");
+    expect(preview.textContent).toContain("↳ context-1");
     expect(preview.textContent).toContain("diagram");
     expect(preview.querySelector("a")).toBeNull();
     expect(preview.querySelector("input")).toBeNull();

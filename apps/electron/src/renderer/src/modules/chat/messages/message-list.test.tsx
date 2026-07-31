@@ -236,7 +236,7 @@ describe("MessageList entity refs", () => {
     expect(card?.textContent).toContain("已确认");
   });
 
-  test("describes a rejected Bash command as not executed", () => {
+  test("shows the rejected state without adding a generated explanation", () => {
     renderMessageList({
       messages: [
         {
@@ -267,8 +267,62 @@ describe("MessageList entity refs", () => {
     });
 
     const card = container?.querySelector('[data-testid="agent-proposal-card"]');
-    expect(card?.textContent).toContain("已拒绝，命令未执行");
-    expect(card?.textContent).not.toContain("知识库");
+    expect(card?.textContent).toContain("已拒绝");
+    expect(card?.textContent).not.toContain("命令未执行");
+  });
+
+  test("renders and opens Understanding links in a create proposal body", async () => {
+    const onInspectContextRef = vi.fn();
+    ipcMocks.getUnderstandingById.mockResolvedValue({
+      id: "understanding_existing",
+      title: "已有理解",
+      body: "",
+    });
+    renderMessageList({
+      messages: [
+        {
+          id: "assistant_1",
+          role: "assistant",
+          text: "",
+          runId: "run_1",
+          createdAt: "2026-06-26T00:00:00.000Z",
+          blocks: [
+            {
+              kind: "approval",
+              approvalId: "approval_tool_1",
+              toolCallId: "tool_1",
+              toolName: "understanding_create",
+              title: "新增 Understanding",
+              payload: {
+                title: "新的理解",
+                body: "这条理解建立在 [[u:understanding_existing]] 之上。",
+                domainIds: [],
+              },
+              approved: false,
+              state: "pending",
+              approvalState: "pending",
+              executionState: "not_started",
+              displayState: "pending_approval",
+              createdAt: "2026-06-26T00:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      entityCatalog: [],
+      onInspectContextRef,
+    });
+    await flushEntityQuery();
+
+    const link = container?.querySelector<HTMLAnchorElement>(
+      '[data-testid="agent-proposal-card"] a[data-wiki-link="understanding_existing"]',
+    );
+    expect(link?.textContent).toContain("已有理解");
+    act(() => link?.click());
+    expect(onInspectContextRef).toHaveBeenCalledWith({
+      type: "understanding",
+      id: "understanding_existing",
+      title: "已有理解",
+    });
   });
 
   test("preserves paragraph breaks in user messages restored from composer content", () => {

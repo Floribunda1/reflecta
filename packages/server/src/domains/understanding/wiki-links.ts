@@ -1,56 +1,29 @@
 export type UnderstandingWikiLink = {
-  title: string;
+  title?: string;
   id: string;
 };
 
 export type ExtractedUnderstandingWikiLink = {
   rawText: string;
-  title: string | null;
+  title: null;
   target: string;
 };
 
-const understandingWikiLinkPattern = /\[\[([^\]\n]+)\]\]/g;
-const escapedUnderstandingWikiLinkPattern = /\\\[\\\[([^\]\n]+)]]/g;
-
-function unescapeMarkdownText(value: string): string {
-  return value.replaceAll(/\\([\\[\]_`*#])/g, "$1");
-}
+const understandingWikiLinkPattern = /\[\[u:([A-Za-z0-9_-]+)\]\]/g;
+const escapedUnderstandingWikiLinkPattern = /\\\[\\\[u:([A-Za-z0-9_-]+)]]/g;
 
 export function formatUnderstandingWikiLink(link: UnderstandingWikiLink): string {
-  const id = link.id.trim();
-  const title = link.title.trim() || id;
-  return `[[${title}#${id}]]`;
+  return `[[u:${link.id.trim()}]]`;
 }
 
 export function parseUnderstandingWikiLink(raw: string): UnderstandingWikiLink | null {
-  const match = /^\[\[([^\]\n]+)\]\]$/.exec(raw.trim());
-  if (!match) return null;
-
-  const content = unescapeMarkdownText(match[1]?.trim() ?? "");
-  const separatorIndex = content.lastIndexOf("#");
-  if (separatorIndex <= 0 || separatorIndex === content.length - 1) return null;
-
-  const title = content.slice(0, separatorIndex).trim();
-  const id = content.slice(separatorIndex + 1).trim();
-  if (!title || !id) return null;
-
-  return { title, id };
+  const match = /^\[\[u:([A-Za-z0-9_-]+)\]\]$/.exec(raw.trim());
+  return match ? { id: match[1] } : null;
 }
 
 export function normalizeUnderstandingWikiLinkBody(body: string | undefined): string | undefined {
-  if (body === undefined) return undefined;
-
-  const unescapedBody = body.replaceAll(
-    escapedUnderstandingWikiLinkPattern,
-    (_match, rawContent) => {
-      const content = unescapeMarkdownText(String(rawContent).trim());
-      return `[[${content}]]`;
-    },
-  );
-
-  return unescapedBody.replaceAll(understandingWikiLinkPattern, (match) => {
-    const parsed = parseUnderstandingWikiLink(match);
-    return parsed ? formatUnderstandingWikiLink(parsed) : match;
+  return body?.replaceAll(escapedUnderstandingWikiLinkPattern, (_match, id: string) => {
+    return formatUnderstandingWikiLink({ id });
   });
 }
 
@@ -59,25 +32,11 @@ export function extractUnderstandingWikiLinkTargets(body: string): string[] {
 }
 
 export function extractUnderstandingWikiLinks(body: string): ExtractedUnderstandingWikiLink[] {
-  const links: ExtractedUnderstandingWikiLink[] = [];
-  const seen = new Set<string>();
-
+  const links = new Map<string, ExtractedUnderstandingWikiLink>();
   for (const match of body.matchAll(understandingWikiLinkPattern)) {
     const rawText = match[0];
-    const raw = unescapeMarkdownText(match[1]?.trim() ?? "");
-    if (!raw) continue;
-
-    const parsed = parseUnderstandingWikiLink(rawText);
-    const link = {
-      rawText,
-      title: parsed?.title ?? null,
-      target: parsed?.id ?? raw,
-    };
-    const key = `${link.rawText}:${link.target}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    links.push(link);
+    const target = match[1];
+    links.set(target, { rawText, title: null, target });
   }
-
-  return links;
+  return [...links.values()];
 }

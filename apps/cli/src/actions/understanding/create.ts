@@ -14,7 +14,7 @@ export function registerCreateUnderstandingAction(cli: Command): void {
       { flags: "--title <title>", description: "Understanding title", required: false },
       {
         flags: "--body <body>",
-        description: "Understanding body. Use [[title#understanding-id]] to create links",
+        description: "Understanding body. Use [[u:understanding-id]] to create links",
         required: false,
       },
       {
@@ -30,7 +30,7 @@ export function registerCreateUnderstandingAction(cli: Command): void {
     .command("create")
     .description("Create a understanding")
     .option("--title <title>", "Understanding title")
-    .option("--body <body>", "Understanding body. Use [[title#understanding-id]] to create links")
+    .option("--body <body>", "Understanding body. Use [[u:understanding-id]] to create links")
     .option("--domain-id <ids>", "Domain IDs, comma-separated")
     .action((_options, actionCli) => createUnderstandingAction(actionCli));
 }

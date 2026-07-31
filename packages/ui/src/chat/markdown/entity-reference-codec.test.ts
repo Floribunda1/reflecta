@@ -1,7 +1,22 @@
 import { describe, expect, test } from "vitest";
-import { collectChatEntityReferences, replaceChatEntityReferences } from "./entity-reference-codec";
+import {
+  collectChatEntityReferences,
+  formatChatEntityReference,
+  parseChatEntityReference,
+  replaceChatEntityReferences,
+} from "./entity-reference-codec";
 
 describe("chat entity reference codec", () => {
+  test("formats and parses the shared typed syntax", () => {
+    expect(formatChatEntityReference({ type: "understanding", id: "u_1" })).toBe("[[u:u_1]]");
+    expect(formatChatEntityReference({ type: "context", id: "c_1" })).toBe("[[c:c_1]]");
+    expect(formatChatEntityReference({ type: "domain", id: "d_1" })).toBe("[[d:d_1]]");
+    expect(parseChatEntityReference("[[u:u_1]]")).toEqual({
+      type: "understanding",
+      id: "u_1",
+    });
+  });
+
   test("collects unique direct references in first-seen order", () => {
     expect(
       collectChatEntityReferences("见 [[u:u_1]]、[[c:ctx_1]]、[[u:u_1]] 和 [[d:domain-1]]"),

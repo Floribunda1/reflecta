@@ -1,6 +1,8 @@
+import { editorViewCtx } from "@milkdown/core";
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/react";
 import { type CSSProperties, type MouseEvent, useCallback, useEffect, useRef } from "react";
 import { cn } from "#lib/utils";
+import type { ChatEntityReference, ChatEntityType, ResolveChatEntity } from "../chat/entity";
 import {
   createReflectaMilkdownEditorBuilder,
   getMilkdownMarkdown,
@@ -22,7 +24,8 @@ export type MarkdownEditorProps = {
   onBlur?: (markdown: string) => void;
   uploadAsset?: MarkdownAssetUploader;
   getSuggestions?: MarkdownEditorSuggestionSource;
-  onWikiLinkOpen?: (id: string) => void;
+  resolveWikiLink?: ResolveChatEntity;
+  onWikiLinkOpen?: (reference: ChatEntityReference) => void;
 };
 
 function toCssSize(value: number | string): string {
@@ -38,6 +41,7 @@ function MarkdownEditorSurface({
   onBlur,
   uploadAsset,
   getSuggestions,
+  resolveWikiLink,
   onWikiLinkOpen,
 }: Omit<MarkdownEditorProps, "className" | "height" | "maxHeight"> & {
   placeholder: string;
@@ -59,10 +63,11 @@ function MarkdownEditorSurface({
       "a[data-wiki-link]",
     );
     const id = link?.dataset.wikiLink;
-    if (!id) return;
+    const type = link?.dataset.entityType as ChatEntityType | undefined;
+    if (!id || !type) return;
 
     event.preventDefault();
-    onWikiLinkOpenRef.current?.(id);
+    onWikiLinkOpenRef.current?.({ type, id });
   }, []);
 
   const stableUploader = useCallback<MarkdownAssetUploader>((file, signal) => {
@@ -104,6 +109,29 @@ function MarkdownEditorSurface({
     setMilkdownMarkdown(instance, value);
   }, [documentId, editor, value]);
 
+  useEffect(() => {
+    const instance = editor.get();
+    if (!instance || !resolveWikiLink) return;
+    const view = instance.ctx.get(editorViewCtx);
+    let transaction = view.state.tr;
+
+    view.state.doc.descendants((node, position) => {
+      if (node.type.name !== "wiki_link") return;
+      const reference = {
+        type: node.attrs.entityType as ChatEntityType,
+        id: String(node.attrs.id),
+      };
+      const label = resolveWikiLink(reference)?.label;
+      if (!label || label === node.attrs.title) return;
+      transaction = transaction.setNodeMarkup(position, undefined, {
+        ...node.attrs,
+        title: label,
+      });
+    });
+
+    if (transaction.docChanged) view.dispatch(transaction);
+  }, [editor, resolveWikiLink, value]);
+
   return (
     <div className="reflecta-md-editor__surface" onClick={handleClick}>
       <Milkdown />
@@ -123,6 +151,7 @@ export function MarkdownEditor({
   onBlur,
   uploadAsset,
   getSuggestions,
+  resolveWikiLink,
   onWikiLinkOpen,
 }: MarkdownEditorProps) {
   const autoGrow = height === "auto";
@@ -149,6 +178,7 @@ export function MarkdownEditor({
           onBlur={onBlur}
           uploadAsset={uploadAsset}
           getSuggestions={getSuggestions}
+          resolveWikiLink={resolveWikiLink}
           onWikiLinkOpen={onWikiLinkOpen}
         />
       </MilkdownProvider>

@@ -9,15 +9,17 @@ import remarkRehype from "remark-rehype";
 import { unified } from "unified";
 import { visit } from "unist-util-visit";
 import { cn } from "#lib/utils";
+import type { ChatEntityReference, ResolveChatEntity } from "../chat/entity";
 import { MarkdownEditor } from "./markdown-editor";
-import { parseUnderstandingWikiLink } from "./wiki-links";
 
-const understandingWikiLinkPattern = /\[\[([^\]\n]+)\]\]/g;
+const entityReferencePattern = /\[\[([ucd]):([A-Za-z0-9_-]+)\]\]/g;
+const entityIcon = { u: "✦", c: "↳", d: "#" } as const;
 
 function compactMarkdown(value: string): string {
-  return value.replaceAll(understandingWikiLinkPattern, (match) => {
-    return parseUnderstandingWikiLink(match)?.title ?? match;
-  });
+  return value.replaceAll(
+    entityReferencePattern,
+    (_match, prefix: keyof typeof entityIcon, id: string) => `${entityIcon[prefix]} ${id}`,
+  );
 }
 
 function rehypeCompactPreview() {
@@ -95,13 +97,15 @@ export type MarkdownPreviewProps = {
   value: string;
   className?: string;
   zoomImages?: boolean;
-  onWikiLinkOpen?: (id: string) => void;
+  resolveWikiLink?: ResolveChatEntity;
+  onWikiLinkOpen?: (reference: ChatEntityReference) => void;
 };
 
 export function MarkdownPreview({
   value,
   className,
   zoomImages = true,
+  resolveWikiLink,
   onWikiLinkOpen,
 }: MarkdownPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -128,7 +132,13 @@ export function MarkdownPreview({
 
   return (
     <div ref={containerRef} className={cn("markdown-preview", className)}>
-      <MarkdownEditor value={value} height="auto" readOnly onWikiLinkOpen={onWikiLinkOpen} />
+      <MarkdownEditor
+        value={value}
+        height="auto"
+        readOnly
+        resolveWikiLink={resolveWikiLink}
+        onWikiLinkOpen={onWikiLinkOpen}
+      />
     </div>
   );
 }

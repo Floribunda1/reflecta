@@ -1171,6 +1171,17 @@ const understandingSeeds: UnderstandingSeed[] = allUnderstandingTemplates.map((t
   updatedAt: isoDate(t.daysAgo, t.hoursOffset ?? 0),
   deletedAt: t.deleted ? isoDate(t.daysAgo, (t.hoursOffset ?? 0) - 1) : null,
 }));
+const understandingIdByTitle = new Map(
+  understandingSeeds.flatMap((understanding) =>
+    understanding.title ? [[understanding.title, understanding.id] as const] : [],
+  ),
+);
+for (const understanding of understandingSeeds) {
+  understanding.body = understanding.body.replace(/\[\[([^\]\n]+)\]\]/g, (source, title) => {
+    const targetId = understandingIdByTitle.get(String(title).trim());
+    return targetId ? `[[u:${targetId}]]` : source;
+  });
+}
 
 const insertUnderstanding = db.prepare(
   "INSERT INTO understandings (id, title, body, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -1217,10 +1228,11 @@ let connCount = 0;
 
 for (const t of understandingSeeds) {
   if (t.deleted) continue;
-  const matches = t.body.matchAll(/\[\[(.+?)\]\]/g);
+  const matches = t.body.matchAll(/\[\[u:([A-Za-z0-9_-]+)\]\]/g);
   for (const match of matches) {
-    const linkTitle = match[1];
-    const target = understandingSeeds.find((x) => x.title === linkTitle && !x.deleted);
+    const target = understandingSeeds.find(
+      (candidate) => candidate.id === match[1] && !candidate.deleted,
+    );
     if (target && target.id !== t.id) {
       const key = `${t.id}->${target.id}`;
       if (!connectionSet.has(key)) {

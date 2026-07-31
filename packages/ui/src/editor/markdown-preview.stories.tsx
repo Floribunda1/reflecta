@@ -18,8 +18,8 @@ function WikiLinkPreview() {
       <MarkdownPreview
         value={`## 关联内容
 
-可以继续查看 [[分区灌溉策略#understanding-irrigation]]，也可以打开 [[这是一个很长的 Understanding 标题，用于检查链接换行与点击区域#understanding-long-title]]。`}
-        onWikiLinkOpen={(id) => setOpened(`已打开：${id}`)}
+可以继续查看 [[u:understanding-irrigation]]，也可以打开 [[u:understanding-long-title]]。`}
+        onWikiLinkOpen={(reference) => setOpened(`已打开：${reference.type}:${reference.id}`)}
       />
       <p className="text-xs text-muted-foreground">{opened}</p>
     </div>
