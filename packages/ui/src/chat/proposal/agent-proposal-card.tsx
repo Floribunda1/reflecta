@@ -1,6 +1,5 @@
 import { type ReactNode, useState } from "react";
 import { ArrowUpRight, Trash2 } from "lucide-react";
-import { Badge } from "../../components/badge";
 import { Button } from "../../components/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/collapsible";
 import {
@@ -9,6 +8,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "../../components/input-group";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/tooltip";
 import { MarkdownPreview } from "../../editor/markdown-preview";
 import type { ChatEntityBindings, ChatEntityType } from "../entity";
 import { entityClassName, entityIcon } from "../entity-visual";
@@ -35,31 +35,84 @@ export type AgentProposalCardProps = {
   entityBindings?: ChatEntityBindings;
 };
 
-function ProposalStatus({ lifecycle }: { lifecycle: AgentProposalLifecycle }) {
+function ProposalStatus({
+  lifecycle,
+  rejectionReason,
+}: {
+  lifecycle: AgentProposalLifecycle;
+  rejectionReason?: string;
+}) {
   if (lifecycle === "preview") {
     return (
-      <Badge variant="outline" className="shrink-0">
+      <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
         <AgentWorkingIndicator className="size-3" aria-hidden="true" />
         生成中
-      </Badge>
+      </span>
     );
   }
-  if (lifecycle === "pending" || lifecycle === "rejected") {
+  if (lifecycle === "pending") {
     return (
-      <Badge variant="outline" className="shrink-0">
-        {lifecycle === "pending" ? "待确认" : "已拒绝"}
-      </Badge>
+      <span className="shrink-0 text-xs">
+        <span className="text-muted-foreground">审批</span>
+        <span className="text-muted-foreground/50"> · </span>
+        <span className="text-foreground/80">待确认</span>
+      </span>
+    );
+  }
+  if (lifecycle === "rejected") {
+    return (
+      <div className="flex min-w-0 max-w-72 shrink items-center gap-2 text-xs">
+        <span className="shrink-0">
+          <span className="text-muted-foreground">审批</span>
+          <span className="text-muted-foreground/50"> · </span>
+          <span className="text-destructive">已拒绝</span>
+        </span>
+        {rejectionReason ? (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label={`查看完整拒绝原因：${rejectionReason}`}
+                    className="min-w-0 cursor-help truncate text-muted-foreground underline decoration-dotted decoration-muted-foreground/40 underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  >
+                    · {rejectionReason}
+                  </button>
+                }
+              />
+              <TooltipContent
+                side="bottom"
+                align="end"
+                className="max-w-sm whitespace-normal break-words leading-5"
+              >
+                {rejectionReason}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : null}
+      </div>
     );
   }
   return (
-    <div className="flex shrink-0 items-center gap-1.5">
-      <Badge variant="outline">已确认</Badge>
-      <Badge variant={lifecycle === "failed" ? "destructive" : "outline"}>
+    <div className="flex shrink-0 items-center gap-2 text-xs">
+      <span className="text-muted-foreground">审批 · 已确认</span>
+      <span className="h-3 border-l border-border" aria-hidden="true" />
+      <span
+        className={
+          lifecycle === "running"
+            ? "flex items-center gap-1.5 text-foreground/80"
+            : lifecycle === "failed"
+              ? "text-destructive"
+              : "text-muted-foreground"
+        }
+      >
         {lifecycle === "running" ? (
           <AgentWorkingIndicator className="size-3" aria-hidden="true" />
         ) : null}
+        运行 ·{" "}
         {lifecycle === "running" ? "执行中" : lifecycle === "completed" ? "执行完成" : "执行失败"}
-      </Badge>
+      </span>
     </div>
   );
 }
@@ -585,10 +638,7 @@ export function AgentProposalCard({
     proposal.lifecycle === "pending" && proposal.decisionEnabled && Boolean(onDecision);
   const rejectionReason =
     rejectionDraft?.proposalId === proposal.id ? rejectionDraft.value.trim() : "";
-  const headerNote =
-    proposal.lifecycle === "rejected" && proposal.rejectionReason
-      ? proposal.rejectionReason
-      : proposal.note;
+  const headerNote = proposal.note;
 
   return (
     <Collapsible
@@ -607,19 +657,26 @@ export function AgentProposalCard({
       data-proposal-open={open ? "true" : "false"}
       className="w-full overflow-hidden rounded-lg border border-border/70 bg-card text-sm"
     >
-      <CollapsibleTrigger
-        className="group flex min-h-12 w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left outline-none hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
-        aria-label={open ? "折叠 Proposal" : "展开 Proposal"}
-      >
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-medium">{proposalTitle(proposal)}</div>
-          {headerNote ? (
-            <div className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{headerNote}</div>
-          ) : null}
-        </div>
-        <ProposalStatus lifecycle={proposal.lifecycle} />
-        <ArrowUpRight className="size-3 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-muted-foreground group-focus-visible:text-muted-foreground" />
-      </CollapsibleTrigger>
+      <div className="flex min-h-12 w-full items-center gap-3 hover:bg-muted/30">
+        <CollapsibleTrigger
+          className="flex min-w-0 flex-1 cursor-pointer self-stretch items-center px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+          aria-label={open ? "折叠 Proposal" : "展开 Proposal"}
+        >
+          <div className="min-w-0 flex-1">
+            <div className="truncate font-medium">{proposalTitle(proposal)}</div>
+            {headerNote ? (
+              <div className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{headerNote}</div>
+            ) : null}
+          </div>
+        </CollapsibleTrigger>
+        <ProposalStatus lifecycle={proposal.lifecycle} rejectionReason={proposal.rejectionReason} />
+        <CollapsibleTrigger
+          className="group flex min-h-12 shrink-0 cursor-pointer items-center pr-3 pl-0 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+          aria-label={open ? "收起详情" : "展开详情"}
+        >
+          <ArrowUpRight className="size-3 text-muted-foreground/60 transition-colors group-hover:text-muted-foreground group-focus-visible:text-muted-foreground" />
+        </CollapsibleTrigger>
+      </div>
       <CollapsibleContent>
         <div className="px-3 pt-1">
           <ProposalMeta proposal={proposal} />
@@ -635,12 +692,6 @@ export function AgentProposalCard({
           {proposal.lifecycle === "failed" && proposal.error ? (
             <div className="mt-3 rounded-md border border-destructive/30 p-2 text-sm text-destructive">
               {proposal.error}
-            </div>
-          ) : null}
-          {proposal.lifecycle === "rejected" && proposal.rejectionReason ? (
-            <div className="mt-5">
-              <div className="mb-1 text-xs text-muted-foreground">拒绝原因</div>
-              <div className="text-sm leading-6">{proposal.rejectionReason}</div>
             </div>
           ) : null}
         </div>
