@@ -1,7 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 import { launchApp } from "../agent/agent-e2e";
 import { seedDomain } from "../agent/agent-fixtures";
-import { domainNode, graphNodeCanvas, openCapturePage, visibleGraphNodePoint } from "./capture-e2e";
+import {
+  domainNode,
+  graphNodeCanvas,
+  openCapturePage,
+  visibleGraphContentPixelCount,
+  visibleGraphNodePoint,
+} from "./capture-e2e";
 
 async function openKnowledgeWander(page: Page) {
   await openCapturePage(page);
@@ -170,6 +176,19 @@ test("@KW-GRAPH-004 用户直接调整知识漫步的图谱视口", async () => 
     const canvas = graphNodeCanvas(graph);
     await expect(canvas).toBeVisible();
     const initial = await canvas.screenshot();
+    expect(await visibleGraphContentPixelCount(page, graph)).toBeGreaterThan(0);
+
+    const expandedBounds = await canvas.boundingBox();
+    if (!expandedBounds) throw new Error("Expected graph canvas bounds");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.getByTestId("capture-sidebar-collapse-button").click();
+    await expect(page.getByTestId("capture-domain-sidebar-container")).toHaveCSS("width", "0px");
+    await expect
+      .poll(async () => (await canvas.boundingBox())?.width ?? 0)
+      .toBeGreaterThan(expandedBounds.width);
+    await expect.poll(() => visibleGraphContentPixelCount(page, graph)).toBeGreaterThan(0);
+    await page.getByTestId("capture-sidebar-expand-button").click();
+    await expect(page.getByTestId("capture-domain-sidebar-container")).toHaveCSS("width", "248px");
 
     await page.getByRole("button", { name: "放大图谱" }).click();
     await expect.poll(async () => !(await canvas.screenshot()).equals(initial)).toBe(true);

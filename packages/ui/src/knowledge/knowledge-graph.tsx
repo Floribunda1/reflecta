@@ -351,7 +351,7 @@ export function KnowledgeGraph({ data, selectedId, onSelectionChange }: Knowledg
     mouseCaptor.on("mouseup", endNodeDrag);
 
     const resizeObserver = new ResizeObserver(() => {
-      if (container.offsetWidth && container.offsetHeight) renderer.resize();
+      if (container.offsetWidth && container.offsetHeight) renderer.scheduleRender();
     });
     resizeObserver.observe(container);
     startLayout(LAYOUT_DURATION_MS);
