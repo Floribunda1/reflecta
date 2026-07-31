@@ -53,7 +53,7 @@ ID 只允许 `[A-Za-z0-9_-]+`。类型前缀和 ID 一起构成引用身份，�
 2. 同名实体和跨类型同名实体不会发生歧义；
 3. 模型只需要复制 runtime 提供的 token，不需要自己拼接标题、类型和 ID。
 
-用户在编辑器中 `@` 某个实体时，前端传递的是结构化 `contextRefs`；知识正文里的 `[[标题#id]]` 是 Wiki Link。两者都不是 Assistant Citation，不能混用。
+用户在编辑器中 `@` 某个实体时，前端传递的是结构化 `contextRefs`。Understanding 正文里的 Understanding 引用使用同一套 `[[u:<id>]]` 语法与渲染逻辑；Context 内容不支持实体引用。知识正文引用和 Assistant Citation 的区别只在于允许的实体范围、内容来源和持久化位置。
 
 ### Catalog 记录
 

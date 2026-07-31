@@ -146,7 +146,7 @@ describe("versioned migrations", () => {
     });
   });
 
-  test("migrates legacy knowledge links to typed entity references in v1.3.5", async () => {
+  test("migrates legacy Understanding links without rewriting Context content in v1.3.5", async () => {
     const db = await createTestDb("1.1.0");
     const createdAt = "2026-07-31T00:00:00.000Z";
 
@@ -186,7 +186,7 @@ describe("versioned migrations", () => {
     expect(
       db.$client.prepare(`SELECT content FROM contexts WHERE id = ?`).get("context-1"),
     ).toMatchObject({
-      content: "关联 [[u:understanding-target]]，保留 [[u:already-canonical]]。",
+      content: "关联 [[旧标题#understanding-target]]，保留 [[u:already-canonical]]。",
     });
   });
 });

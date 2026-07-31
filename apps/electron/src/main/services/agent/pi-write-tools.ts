@@ -49,7 +49,7 @@ const contextIdParameter = Type.String({
   description: "Stable Context id returned by Reflecta tools. Do not pass chat refs.",
 });
 const understandingBodyParameterDescription =
-  "Markdown body. Use [[u:understanding-id]] when linking another Understanding.";
+  "Markdown body. Understanding may only reference another Understanding, using [[u:understanding-id]] with a stable id returned by Reflecta. Never put titles or aliases inside [[...]].";
 const parentIdParameter = Type.Optional(
   Type.Union([Type.String({ minLength: 1 }), Type.Null()], {
     description:
@@ -198,7 +198,10 @@ const toolSpecs: PiWriteToolSpec[] = [
       understandingId: understandingIdParameter,
       medium: mediumParameter,
       title: Type.Optional(Type.String()),
-      content: Type.String({ minLength: 1 }),
+      content: Type.String({
+        minLength: 1,
+        description: "Context content. Entity references are not supported.",
+      }),
     }),
   },
   {
@@ -211,7 +214,9 @@ const toolSpecs: PiWriteToolSpec[] = [
       understandingId: Type.Optional(understandingIdParameter),
       medium: Type.Optional(mediumParameter),
       title: Type.Optional(Type.String()),
-      content: Type.Optional(Type.String()),
+      content: Type.Optional(
+        Type.String({ description: "Context content. Entity references are not supported." }),
+      ),
       reason: Type.Optional(Type.String()),
     }),
   },

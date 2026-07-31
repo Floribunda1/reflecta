@@ -149,6 +149,27 @@ describe("createPiWriteTools", () => {
     expect(services.deleteContext).not.toHaveBeenCalled();
   });
 
+  test("describes the canonical entity reference syntax for knowledge Markdown", () => {
+    const tools = createPiWriteTools();
+
+    for (const toolName of ["understanding_create", "understanding_update"]) {
+      const schema = JSON.stringify(tools.find((tool) => tool.name === toolName)?.parameters);
+      expect(schema).toContain("[[u:understanding-id]]");
+      expect(schema).toContain("may only reference another Understanding");
+      expect(schema).not.toContain("[[c:context-id]]");
+      expect(schema).not.toContain("[[d:domain-id]]");
+      expect(schema).toContain("Never put titles or aliases inside [[...]]");
+    }
+
+    for (const toolName of ["context_create", "context_update"]) {
+      const schema = JSON.stringify(tools.find((tool) => tool.name === toolName)?.parameters);
+      expect(schema).toContain("Entity references are not supported");
+      expect(schema).not.toContain("[[u:understanding-id]]");
+      expect(schema).not.toContain("[[c:context-id]]");
+      expect(schema).not.toContain("[[d:domain-id]]");
+    }
+  });
+
   test("returns the user's reason to the agent when a proposal is rejected", () => {
     expect(rejectedToolResult("understanding_create", "这个结论缺少适用边界")).toEqual({
       approvalStatus: "rejected",

@@ -15,7 +15,7 @@ export function registerUpdateUnderstandingAction(cli: Command): void {
       { flags: "--title <title>", description: "Understanding title", required: false },
       {
         flags: "--body <body>",
-        description: "Understanding body. Use [[u:understanding-id]] to create links",
+        description: "Markdown body. Understanding references use [[u:understanding-id]]",
         required: false,
       },
       {
@@ -31,7 +31,7 @@ export function registerUpdateUnderstandingAction(cli: Command): void {
     .command("update <id>")
     .description("Update a understanding")
     .option("--title <title>", "Understanding title")
-    .option("--body <body>", "Understanding body. Use [[u:understanding-id]] to create links")
+    .option("--body <body>", "Markdown body. Understanding references use [[u:id]]")
     .option("--domain-id <ids>", "Replace domain IDs, comma-separated")
     .action((id, _options, actionCli) => updateUnderstandingAction(id, actionCli));
 }
