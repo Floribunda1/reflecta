@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from "react";
-import { ArrowUpRight, Trash2 } from "lucide-react";
+import { ArrowUpRight, Check, CircleX, Clock3, Trash2 } from "lucide-react";
 import { Badge } from "../../components/badge";
 import { Button } from "../../components/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/collapsible";
@@ -35,31 +35,88 @@ export type AgentProposalCardProps = {
   entityBindings?: ChatEntityBindings;
 };
 
+function StatusBadge({
+  category,
+  status,
+  icon,
+  className,
+}: {
+  category: string;
+  status: string;
+  icon?: ReactNode;
+  className: string;
+}) {
+  return (
+    <Badge variant="outline" className={`h-6 gap-1.5 rounded-md px-2 ${className}`}>
+      <span className="font-normal opacity-65">{category}</span>
+      <span className="h-3 w-px bg-current opacity-20" aria-hidden="true" />
+      {icon}
+      <span>{status}</span>
+    </Badge>
+  );
+}
+
 function ProposalStatus({ lifecycle }: { lifecycle: AgentProposalLifecycle }) {
   if (lifecycle === "preview") {
     return (
-      <Badge variant="outline" className="shrink-0">
-        <AgentWorkingIndicator className="size-3" aria-hidden="true" />
-        生成中
-      </Badge>
+      <StatusBadge
+        category="提案"
+        status="生成中"
+        icon={<AgentWorkingIndicator className="size-3" aria-hidden="true" />}
+        className="border-primary/20 bg-primary/5 text-primary"
+      />
     );
   }
-  if (lifecycle === "pending" || lifecycle === "rejected") {
+  if (lifecycle === "pending") {
     return (
-      <Badge variant="outline" className="shrink-0">
-        {lifecycle === "pending" ? "待确认" : "已拒绝"}
-      </Badge>
+      <StatusBadge
+        category="审批"
+        status="待确认"
+        icon={<Clock3 aria-hidden="true" />}
+        className="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+      />
+    );
+  }
+  if (lifecycle === "rejected") {
+    return (
+      <StatusBadge
+        category="审批"
+        status="已拒绝"
+        icon={<CircleX aria-hidden="true" />}
+        className="border-destructive/30 bg-destructive/10 text-destructive"
+      />
     );
   }
   return (
     <div className="flex shrink-0 items-center gap-1.5">
-      <Badge variant="outline">已确认</Badge>
-      <Badge variant={lifecycle === "failed" ? "destructive" : "outline"}>
-        {lifecycle === "running" ? (
-          <AgentWorkingIndicator className="size-3" aria-hidden="true" />
-        ) : null}
-        {lifecycle === "running" ? "执行中" : lifecycle === "completed" ? "执行完成" : "执行失败"}
-      </Badge>
+      <StatusBadge
+        category="审批"
+        status="已确认"
+        icon={<Check aria-hidden="true" />}
+        className="border-border/80 bg-muted/50 text-muted-foreground"
+      />
+      <StatusBadge
+        category="运行"
+        status={
+          lifecycle === "running" ? "执行中" : lifecycle === "completed" ? "执行完成" : "执行失败"
+        }
+        icon={
+          lifecycle === "running" ? (
+            <AgentWorkingIndicator className="size-3" aria-hidden="true" />
+          ) : lifecycle === "completed" ? (
+            <Check aria-hidden="true" />
+          ) : (
+            <CircleX aria-hidden="true" />
+          )
+        }
+        className={
+          lifecycle === "running"
+            ? "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300"
+            : lifecycle === "completed"
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+              : "border-destructive/30 bg-destructive/10 text-destructive"
+        }
+      />
     </div>
   );
 }
@@ -605,7 +662,7 @@ export function AgentProposalCard({
       data-proposal-kind={proposal.kind}
       data-proposal-state={proposal.lifecycle}
       data-proposal-open={open ? "true" : "false"}
-      className="w-full overflow-hidden rounded-lg border border-border/70 bg-card text-sm"
+      className="relative w-full overflow-hidden rounded-lg border border-border/70 bg-card text-sm before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:content-[''] data-[proposal-state=preview]:before:bg-primary/40 data-[proposal-state=pending]:before:bg-amber-500 data-[proposal-state=running]:before:bg-blue-500 data-[proposal-state=completed]:before:bg-emerald-500/70 data-[proposal-state=rejected]:before:bg-destructive/70 data-[proposal-state=failed]:before:bg-destructive"
     >
       <CollapsibleTrigger
         className="group flex min-h-12 w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left outline-none hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
