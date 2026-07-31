@@ -71,7 +71,10 @@ function ChatJumpNavShowcase() {
         </div>
       </StoryCase>
 
-      <StoryCase title="折叠、展开与跳转" description="默认展示展开态；点击后当前位置立即更新。">
+      <StoryCase
+        title="折叠、展开与跳转"
+        description="折叠态以低对比轮次刻度常驻；展开后点击条目立即更新当前位置。"
+      >
         <JumpNavSurface items={typicalItems} expanded />
       </StoryCase>
 
