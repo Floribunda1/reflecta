@@ -10,7 +10,7 @@ const summaryDocument = `# 分区灌溉策略
 - 再依次开启支路
 - 异常时转入人工复核
 
-关联 [[c:context-night-shift]]。
+关联 [[u:understanding-pressure-check]]。
 
 > 单个峰值不作为最终结论。
 `;

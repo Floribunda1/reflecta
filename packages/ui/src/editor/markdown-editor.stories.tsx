@@ -14,18 +14,18 @@ const suggestions = [
     markdown: "[[u:understanding-irrigation]]",
   },
   {
-    id: "context-night-shift",
-    type: "context",
-    label: "夜班联调记录",
-    preview: "记录低温环境中的阀门启动顺序和现场复核结果。",
-    markdown: "[[c:context-night-shift]]",
+    id: "understanding-pressure-check",
+    type: "understanding",
+    label: "主管压力稳定后再开启支路",
+    preview: "每轮灌溉先验证主管压力，再依次开启各支路。",
+    markdown: "[[u:understanding-pressure-check]]",
   },
   {
-    id: "domain-facility",
-    type: "domain",
-    label: "设施工程",
-    preview: "温室控制、灌溉和设备维护相关的领域。",
-    markdown: "[[d:domain-facility]]",
+    id: "understanding-return-temperature",
+    type: "understanding",
+    label: "回水温度用于识别异常灌溉窗口",
+    preview: "回水温度偏离稳定区间时，当前灌溉窗口需要人工复核。",
+    markdown: "[[u:understanding-return-temperature]]",
   },
 ] as const;
 
