@@ -67,14 +67,6 @@
     而且 Agent 活动中应该显示附件读取记录
     而且页面应该出现一条 Agent 回复正文
 
-  @P1 @context @AG-CONTEXT-008
-  场景: 用户粘贴 Markdown 文本后继续编辑纯文本草稿
-    假如用户已经打开 Agent 页面
-    当用户把 Markdown 文本粘贴到输入框
-    而且用户继续输入内容
-    那么输入框应该保留 Markdown 原文
-    而且继续输入的内容应该保持纯文本
-
   @P0 @lexical @AG-RETRIEVAL-001
   场景: 用户通过关键词搜索找到 Understanding
     假如 seed 数据中存在带唯一关键词的 Understanding

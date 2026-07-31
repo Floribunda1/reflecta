@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { openAgentPage } from "../agent/agent-e2e";
-import { getE2eElectronEnv } from "../test-env";
+import { getE2eElectronEnv } from "../../test-env";
 
 async function launchIsolatedApp() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "reflecta-ai-settings-e2e-"));

@@ -3,7 +3,7 @@ import http from "node:http";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { launchApp } from "../agent/agent-e2e";
-import { readE2eTestEnv } from "../test-env";
+import { readE2eTestEnv } from "../../test-env";
 
 const RETRIEVAL_MODEL_FILE_NAME = "Qwen3-Embedding-0.6B-Q8_0.gguf";
 

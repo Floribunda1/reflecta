@@ -128,7 +128,7 @@ Recovery 描述用户在中断或失败后回到可继续使用状态，不需�
 
 后两项只有在产品明确承诺时才需要，并分别归入对应功能的 happy path 或 expected error behavior。
 
-## 3. 先定义 Test Case，再实现测试
+## 3. 分开测试意图与自动化层级
 
 Test case 应该先于 E2E、unit、integration 等自动化实现方式被定义。
 
@@ -137,14 +137,81 @@ Test case 应该先于 E2E、unit、integration 等自动化实现方式被定�
 ```mermaid
 flowchart LR
     A["已确认的产品意图"] --> B["Feature test case"]
-    B --> C["E2E 验收实现"]
-    B --> D["必要的 integration / unit 支撑"]
-    E["技术风险或历史实现缺陷"] --> D
+    B --> C["Acceptance test"]
+    D["技术风险或历史实现缺陷"] --> E["Regression test"]
+    C --> F{"选择最小的自动化层级"}
+    E --> F
+    F --> G["E2E"]
+    F --> H["Integration"]
+    F --> I["Unit"]
 ```
 
 不要从已有 E2E、unit、integration 或代码路径倒推 test case，也不要为了给现有自动化测试找理由而创建 Feature。
 
-E2E 负责证明用户从真实入口能够完成 Feature 场景。Unit 和 integration test 可以更细地覆盖状态组合、边界条件与历史技术回归，但这些技术测试不应反向污染 Feature 的产品语言。
+测试有两个相互独立的分类轴：
+
+| 分类轴     | 类别                     | 回答的问题                           |
+| ---------- | ------------------------ | ------------------------------------ |
+| 测试意图   | Acceptance / Regression  | 为什么要保护这个行为？               |
+| 自动化层级 | E2E / Integration / Unit | 在哪一层能够以最低成本获得可信证据？ |
+
+不能把 E2E 等同于 Feature。Feature 可以由 E2E 验收；技术回归也可能因为跨进程、真实窗口或平台边界而必须使用 E2E。相反，Feature 的一部分规则也可以由 integration 或 unit 提供补充证据。
+
+### Acceptance test 兑现 Feature
+
+Acceptance test 证明产品已经兑现 Feature 中的产品承诺：
+
+- 每个 Feature Scenario 都必须有可追踪的 acceptance 实现；
+- acceptance test 使用 Scenario 的稳定 ID；
+- acceptance test 的断言忠于 Scenario 的用户操作和可观察结果；
+- 同一个 Scenario 可以由多个自动化层级共同支撑，但必须有一个明确的主要验收实现；
+- 不为 acceptance test 反向创造 Feature。
+
+Electron 中需要通过真实入口验收的 Feature 集中放在 `e2e/acceptance/feature/<module>/`，对应的 spec 放在 `e2e/acceptance/<module>/`。产品契约和自动化实现形成两棵清晰的目录树，并通过稳定 ID 双向关联。
+
+### Regression test 保护技术风险
+
+Regression test 保护产品契约之外、但仍值得防止复发的技术风险，例如：
+
+- 特定平台或浏览器事件的兼容问题；
+- 跨进程通信、启动参数和窗口生命周期的边界；
+- 曾经发生过、而且无法由已有 Feature 的可观察结果准确表达的实现缺陷；
+- 第三方组件升级容易破坏的集成行为。
+
+Regression test 不使用 Feature ID，也不创建 Feature 文件。它应该用技术语言准确说明被保护的风险。如果该风险不需要真实应用边界，应优先下沉到 integration 或 unit；只有真实 Electron 运行环境不可替代时，才保留为 regression E2E。
+
+Electron 的这类测试放在 `e2e/regression/`，与 Feature 驱动的 acceptance E2E 物理隔离。目录边界比 tag 更可靠：reviewer 不需要阅读测试正文，就能先判断变更是在修改产品契约还是技术保护网。
+
+### Edge case 不自动属于 Regression
+
+“边界情况”描述输入或状态是否少见，不决定测试意图。
+
+- 如果产品有意设计了用户可见的处理方式，它仍然是 Feature，并作为 happy path 或 expected error behavior 验收。
+- 如果只是实现层的特殊事件、参数组合或兼容性风险，它是 regression，不写入 Feature。
+- 如果无法判断产品是否承诺该行为，先确认产品意图，不能用测试目录替代产品决策。
+
+### 自动化对应关系
+
+这里不追求“所有 E2E 都有 Feature”的机械一一对应，而维护以下不变量：
+
+```text
+每个 Feature Scenario -> 至少一个主要 acceptance 实现
+每个 acceptance test -> 恰好一个稳定 Feature ID
+每个 regression test -> 不使用 Feature ID
+```
+
+自动校验负责发现 Feature 缺少实现、acceptance 孤儿、重复 ID 和 regression 冒用 Feature ID；人负责判断产品意图、场景边界和断言是否忠实。
+
+### 让 Feature 变更适合人工 Review
+
+Feature review 的目标是让 reviewer 先看清产品契约变化，再进入测试实现。遵循以下规则：
+
+1. 稳定 ID 一经发布不因文件移动、措辞优化或测试重构而改变。
+2. 新增、修改和删除 Scenario 时，提供按稳定 ID 汇总的 Feature diff。
+3. 产品契约变化与大规模目录迁移、格式化或 helper 重构分开提交。
+4. 纯技术 regression 变更不修改 Feature；Feature 变更也不夹带无关 regression。
+5. 一个提交如果同时改变 Feature 和 acceptance，应让两者能够按相同 ID 逐条对应。
+6. 删除 Feature 时，同时删除对应 acceptance；需要长期保留的技术风险必须显式改写为无 Feature ID 的 regression。
 
 ## 4. 只用 Feature 文件维护 Test Case
 
@@ -308,5 +375,7 @@ Review 每个 Feature Scenario 时逐项确认：
 10. 所有 intentionally designed expected error behaviors 是否已经覆盖？
 11. 是否存在仅为参数组合、DOM、样式或内部状态新增的 Scenario？
 12. 产品已经移除的功能是否同步删除了 Scenario？
+13. 这个测试的意图是产品验收还是技术回归，目录是否与意图一致？
+14. Acceptance 是否能通过稳定 ID 找到唯一 Feature，Regression 是否没有冒用 Feature ID？
 
 只要第 1—3 项有一项无法回答，这个 Scenario 就不应直接进入 Feature 文件，应先回到产品定义。

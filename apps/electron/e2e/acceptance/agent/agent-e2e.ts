@@ -7,7 +7,7 @@ import {
   type ElectronApplication,
   type Page,
 } from "@playwright/test";
-import { getE2eAiEnv, getE2eElectronArgs, getE2eElectronEnv, hasE2eAiConfig } from "../test-env";
+import { getE2eAiEnv, getE2eElectronArgs, getE2eElectronEnv, hasE2eAiConfig } from "../../test-env";
 
 export const hasAi = hasE2eAiConfig();
 

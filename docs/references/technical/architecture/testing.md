@@ -1,6 +1,6 @@
 # 测试架构说明
 
-Reflecta 现在的测试以 Vitest 为主。E2E 有 Playwright 入口和隔离数据目录，但当前还不是核心测试路径。
+Reflecta 的测试由 Vitest 和 Playwright 共同组成。Feature 驱动的产品验收与技术回归采用不同的测试意图，但都选择能提供可信证据的最小自动化层级。
 
 ## 测试入口
 
@@ -10,6 +10,9 @@ Reflecta 现在的测试以 Vitest 为主。E2E 有 Playwright 入口和隔离�
 bun run test
 bun run typecheck
 bun run fmt:check
+bun run test:e2e
+bun run test:e2e:acceptance
+bun run test:e2e:regression
 ```
 
 单包命令：
@@ -25,12 +28,14 @@ bun run --filter '@reflecta/electron' test:renderer
 
 ## 测试分层
 
-| 层级              | 位置                                   | 说明                           |
-| ----------------- | -------------------------------------- | ------------------------------ |
-| CLI tests         | `apps/cli/test`                        | 测 CLI 命令、profile、DB 路径  |
-| Electron main     | `apps/electron/src/main/**/*.test`     | 测 main process 服务和配置     |
-| Electron renderer | `apps/electron/src/renderer/**/*.test` | 测前端 store、组件和编辑器逻辑 |
-| E2E               | `apps/electron/e2e`                    | Playwright 入口和隔离数据基建  |
+| 层级              | 位置                                    | 说明                             |
+| ----------------- | --------------------------------------- | -------------------------------- |
+| CLI tests         | `apps/cli/test`                         | 测 CLI 命令、profile、DB 路径    |
+| Electron main     | `apps/electron/src/main/**/*.test`      | 测 main process 服务和配置       |
+| Electron renderer | `apps/electron/src/renderer/**/*.test`  | 测前端 store、组件和编辑器逻辑   |
+| Feature contract  | `apps/electron/e2e/acceptance/feature`  | 集中维护按产品模块组织的 Feature |
+| E2E acceptance    | `apps/electron/e2e/acceptance/<module>` | 通过真实入口验收产品 Feature     |
+| E2E regression    | `apps/electron/e2e/regression`          | 保护必须经过真实应用的技术风险   |
 
 Electron 的 `test` script 会先跑 main tests，再跑 renderer tests：
 
@@ -86,11 +91,23 @@ Electron main tests 如果需要文件系统状态，应使用临时目录并在
 
 ## E2E 测试数据库
 
-Playwright 配置在 `apps/electron/playwright.config.ts`，入口命令是：
+Playwright 配置在 `apps/electron/playwright.config.ts`。完整运行和分 suite 运行的命令是：
 
 ```bash
 bun run test:e2e
+bun run test:e2e:acceptance
+bun run test:e2e:regression
 ```
+
+`acceptance/feature/<module>/` 集中维护产品契约，`acceptance/<module>/` 保存对应测试实现。每条 acceptance test 必须以稳定 Feature ID 开头。`regression/` 不维护 Feature 文件，也禁止使用 Feature ID。完整 E2E 在构建前运行 `bun run feature:check`，校验目录边界和映射。
+
+人工 review Feature 变化时运行：
+
+```bash
+bun run feature:diff -- origin/master
+```
+
+输出按稳定 ID 汇总 Added、Removed、Changed 和 Moved，避免 reviewer 从目录级 diff 中手工重建产品契约变化。
 
 E2E 复用 CLI 的 seed 数据，但不复用 CLI 的 DB 文件。
 
@@ -113,7 +130,7 @@ import { getE2eElectronArgs, getE2eElectronEnv } from "./test-env";
 
 测试结束后，`global-teardown.ts` 会删除临时目录。
 
-当前 E2E 仍然没有 fake AI server，不承担 Agent AI 调用路径验证。
+当前 E2E 仍然没有 fake AI server。需要真实 AI key 的 acceptance 会按环境条件跳过；其余路径必须保持可独立回归。
 
 ## 新增测试的判断
 
@@ -123,6 +140,8 @@ import { getE2eElectronArgs, getE2eElectronEnv } from "./test-env";
 - 改 DB path/profile：加 `apps/cli/test/profile.test.ts` 或 Electron config test。
 - 改 Electron main 服务：加 `apps/electron/src/main/**/*.test.ts`。
 - 改纯前端逻辑：加 renderer test。
-- 只有跨进程、真实窗口交互无法用 Vitest 覆盖时，才考虑 E2E。
+- Feature 需要从真实用户入口证明跨进程或窗口行为时，放入 acceptance E2E。
+- 技术风险只有在真实 Electron 边界无法替代时，才放入 regression E2E。
+- 不需要真实应用边界的状态组合、事件边界和历史缺陷，优先使用 integration 或 unit。
 
 不要为了产品里没有的功能写测试。测试应覆盖当前真实行为和已决定要交付的行为。
