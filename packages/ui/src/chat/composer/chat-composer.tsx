@@ -775,12 +775,12 @@ export function ChatComposer({
                     data-testid="agent-message-edit-submit"
                     type="button"
                     size="sm"
-                    aria-label="更新并重新发送"
+                    aria-label="发送"
                     disabled={!canSubmit}
                     onClick={() => void submit()}
                   >
                     <Send />
-                    更新并发送
+                    发送
                   </Button>
                 </>
               ) : (
