@@ -53,6 +53,46 @@ function view(block: AgentReducedAssistantBlock) {
 }
 
 describe("chat message adapter", () => {
+  test("keeps entity mentions in their original positions when displaying an editable message", () => {
+    const message: AgentReducedMessage = {
+      id: "user-1",
+      role: "user",
+      text: "Before First idea after",
+      createdAt: "2026-07-28T00:00:00.000Z",
+      composerContent: {
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [
+              { type: "text", text: "Before " },
+              { type: "mention", attrs: { id: "understanding:u-1", label: "First idea" } },
+              { type: "text", text: " after" },
+            ],
+          },
+        ],
+      },
+    };
+
+    expect(
+      toChatMessageView(message, {
+        assistantRunning: false,
+        stopped: false,
+        presentation,
+      }),
+    ).toMatchObject({
+      kind: "user",
+      content: [
+        { kind: "text", text: "Before " },
+        {
+          kind: "entity",
+          entity: { type: "understanding", id: "u-1", label: "First idea" },
+        },
+        { kind: "text", text: " after" },
+      ],
+    });
+  });
+
   test.each([
     [
       "understanding_create",

@@ -104,7 +104,10 @@ function UserMessageContent({
 }) {
   const searchState = useChatSearchState();
   const hasContent = Boolean(
-    message.text || message.entities?.length || message.attachments?.length,
+    message.content?.length ||
+    message.text ||
+    message.entities?.length ||
+    message.attachments?.length,
   );
   return (
     <div
@@ -112,12 +115,33 @@ function UserMessageContent({
       data-testid="agent-user-message"
       className="flex max-w-full flex-col gap-2 whitespace-pre-wrap rounded-lg bg-muted px-4 py-3 text-foreground"
     >
-      {message.text || message.entities?.length ? (
+      {message.content?.length || message.text || message.entities?.length ? (
         <div data-slot="user-message-text" className="leading-6">
-          {message.text
-            ? renderTextWithChatSearchHighlights(message.text, searchState, `message-${message.id}`)
-            : null}
-          {message.entities?.length ? (
+          {message.content?.map((part, index) =>
+            part.kind === "entity" ? (
+              <MessageEntityMention
+                key={`${part.entity.type}:${part.entity.id}:${index}`}
+                entity={part.entity}
+                onOpen={onEntityOpen}
+              />
+            ) : (
+              <span key={`text:${index}`}>
+                {renderTextWithChatSearchHighlights(
+                  part.text,
+                  searchState,
+                  `message-${message.id}-${index}`,
+                )}
+              </span>
+            ),
+          ) ??
+            (message.text
+              ? renderTextWithChatSearchHighlights(
+                  message.text,
+                  searchState,
+                  `message-${message.id}`,
+                )
+              : null)}
+          {!message.content?.length && message.entities?.length ? (
             <>
               {message.text ? " " : null}
               {message.entities.map((entity) => (
