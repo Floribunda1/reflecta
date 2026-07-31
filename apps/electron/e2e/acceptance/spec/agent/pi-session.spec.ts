@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
-import { getE2eAiEnv, readE2eTestEnv, writeE2eAiConfig } from "../test-env";
+import { getE2eAiEnv, readE2eTestEnv, writeE2eAiConfig } from "../../../test-env";
 import {
   composer,
   configureE2eAiKey,

@@ -3,7 +3,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { launchApp } from "../agent/agent-e2e";
 import { seedUnderstanding } from "../agent/agent-fixtures";
-import { readE2eTestEnv } from "../test-env";
+import { readE2eTestEnv } from "../../../test-env";
 
 async function openStorageSettings(page: Awaited<ReturnType<typeof launchApp>>["page"]) {
   await page.getByTestId("app-settings-menu-item").click();

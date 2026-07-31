@@ -21,7 +21,7 @@ import {
   toolPart,
   userMessage,
 } from "./agent-fixtures";
-import { readE2eTestEnv, writeE2eAiConfig } from "../test-env";
+import { readE2eTestEnv, writeE2eAiConfig } from "../../../test-env";
 
 test.beforeEach(() => {
   resetAgentFixtures();

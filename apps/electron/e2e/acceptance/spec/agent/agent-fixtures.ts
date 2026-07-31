@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { readE2eTestEnv } from "../test-env";
+import { readE2eTestEnv } from "../../../test-env";
 
 export type AgentFixtureMessage = {
   id: string;

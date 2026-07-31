@@ -8,7 +8,7 @@ import {
   waitForAssistantReply,
 } from "./agent-e2e";
 import { resetAgentFixtures } from "./agent-fixtures";
-import { writeE2eAiConfig } from "../test-env";
+import { writeE2eAiConfig } from "../../../test-env";
 
 test.beforeEach(() => {
   resetAgentFixtures();

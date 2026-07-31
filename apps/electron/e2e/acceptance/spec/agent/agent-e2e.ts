@@ -7,7 +7,12 @@ import {
   type ElectronApplication,
   type Page,
 } from "@playwright/test";
-import { getE2eAiEnv, getE2eElectronArgs, getE2eElectronEnv, hasE2eAiConfig } from "../test-env";
+import {
+  getE2eAiEnv,
+  getE2eElectronArgs,
+  getE2eElectronEnv,
+  hasE2eAiConfig,
+} from "../../../test-env";
 
 export const hasAi = hasE2eAiConfig();
 
@@ -15,7 +20,7 @@ export async function launchApp(
   envOverrides: Record<string, string | undefined> = {},
 ): Promise<{ app: ElectronApplication; page: Page }> {
   const app = await electron.launch({
-    args: [path.resolve(import.meta.dirname, "../.."), ...getE2eElectronArgs()],
+    args: [path.resolve(import.meta.dirname, "../../../.."), ...getE2eElectronArgs()],
     env: { ...getE2eElectronEnv(), ...envOverrides },
   });
   const page = await app.firstWindow();

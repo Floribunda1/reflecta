@@ -8,6 +8,16 @@ export default defineConfig({
   reporter: process.env.CI ? "github" : "list",
   retries: process.env.CI ? 2 : 0,
   fullyParallel: true,
+  projects: [
+    {
+      name: "acceptance",
+      testDir: "./e2e/acceptance",
+    },
+    {
+      name: "regression",
+      testDir: "./e2e/regression",
+    },
+  ],
   use: {
     trace: "on-first-retry",
   },
