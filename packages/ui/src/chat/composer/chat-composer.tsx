@@ -1,7 +1,7 @@
 import { Mention } from "@tiptap/extension-mention";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { ChevronDown, FileText, Paperclip, Send, Square, X } from "lucide-react";
+import { ChevronDown, FileText, Paperclip, Pencil, Send, Square, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "#components/button";
 import {
@@ -554,27 +554,14 @@ export function ChatComposer({
   const busy = status !== "idle" || submitting;
   const canSubmit = Boolean(text.trim() || attachments.length);
   const activeEntity = entitySearch.options[activeEntityIndex];
+  const cancelEdit = () => {
+    setComposerValue();
+    onCancelEdit?.();
+  };
 
   return (
     <div data-testid="agent-composer" className="px-6 py-4">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-2">
-        {editingMessageId ? (
-          <div className="flex items-center justify-between rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-            正在编辑上一条消息
-            <Button
-              type="button"
-              size="icon-xs"
-              variant="ghost"
-              title="取消编辑"
-              onClick={() => {
-                setComposerValue();
-                onCancelEdit?.();
-              }}
-            >
-              <X />
-            </Button>
-          </div>
-        ) : null}
         {entitySearch.open ? (
           <ChatContextPicker
             state={entitySearch.state}
@@ -603,7 +590,35 @@ export function ChatComposer({
         {attachmentError ? (
           <div className="px-1 text-xs text-destructive">{attachmentError}</div>
         ) : null}
-        <div className="flex min-w-0 flex-col rounded-lg border border-border/80 bg-card shadow-sm transition-colors focus-within:border-ring">
+        <div
+          className={`flex min-w-0 flex-col overflow-hidden rounded-lg border bg-card shadow-sm transition-colors focus-within:border-ring ${
+            editingMessageId ? "border-primary/30" : "border-border/80"
+          }`}
+        >
+          {editingMessageId ? (
+            <div
+              data-testid="agent-composer-editing-banner"
+              className="flex h-9 items-center justify-between gap-3 border-b border-primary/10 bg-primary/5 px-3 text-xs"
+            >
+              <div className="flex min-w-0 items-center gap-1.5">
+                <Pencil className="size-3.5 shrink-0 text-primary" />
+                <span className="shrink-0 font-medium text-foreground">编辑消息</span>
+                <span className="truncate text-muted-foreground">
+                  · 发送后将从这里重新生成后续对话
+                </span>
+              </div>
+              <Button
+                type="button"
+                size="xs"
+                variant="ghost"
+                className="-mr-1 text-muted-foreground"
+                title="取消编辑"
+                onClick={cancelEdit}
+              >
+                取消
+              </Button>
+            </div>
+          ) : null}
           <div className="relative min-w-0">
             {!text.trim() && entities.length === 0 && attachments.length === 0 ? (
               <span className="pointer-events-none absolute top-3 left-4 text-base text-muted-foreground">
@@ -617,8 +632,19 @@ export function ChatComposer({
               data-testid="agent-composer-editor"
               className="flex min-w-0"
               onKeyDownCapture={(event) => {
-                if (event.nativeEvent.isComposing || event.key !== "Enter" || event.shiftKey)
+                if (event.nativeEvent.isComposing) return;
+                if (
+                  event.key === "Escape" &&
+                  editingMessageId &&
+                  !entitySearchRef.current.open &&
+                  !mentionActiveRef.current
+                ) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  cancelEdit();
                   return;
+                }
+                if (event.key !== "Enter" || event.shiftKey) return;
                 if (!entitySearchRef.current.open && !mentionActiveRef.current) return;
                 event.preventDefault();
                 event.stopPropagation();
@@ -768,7 +794,8 @@ export function ChatComposer({
                   type="button"
                   size="icon-sm"
                   className="disabled:bg-muted disabled:text-muted-foreground"
-                  aria-label="发送"
+                  aria-label={editingMessageId ? "更新并重新发送" : "发送"}
+                  title={editingMessageId ? "更新并重新发送" : undefined}
                   disabled={!canSubmit}
                   onClick={() => void submit()}
                 >

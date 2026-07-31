@@ -130,7 +130,10 @@ function ComposerShowcase() {
           ]}
         />
       </StoryCase>
-      <StoryCase title="编辑历史消息" description="编辑态需要恢复文本和稳定的 Entity 节点。">
+      <StoryCase
+        title="编辑历史消息"
+        description="编辑态标题栏与 Composer 共用外框，并恢复文本和稳定的 Entity 节点。"
+      >
         <ComposerDemo
           draftId="showcase-edit"
           editingMessageId="user-message-1"

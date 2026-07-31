@@ -28,15 +28,27 @@ test("@AG-MESSAGE-001 用户编辑历史消息后看到新的当前回复", asyn
     );
     await waitForAssistantReply(page);
 
-    await page
+    const originalMessage = page
       .locator('[data-testid="agent-message-row"][data-message-role="user"]')
-      .filter({ hasText: "ORIGINAL_USER_MESSAGE" })
-      .hover();
+      .filter({ hasText: "ORIGINAL_USER_MESSAGE" });
+    await originalMessage.hover();
     await page.getByTestId("agent-edit-message-button").click();
-    await page
-      .getByTestId("agent-composer-editor")
-      .locator('[contenteditable="true"]')
-      .fill("EDITED_USER_MESSAGE。请直接回复 EDITED_AGENT_REPLY，不要调用任何工具。");
+    await expect(page.getByTestId("agent-composer-editing-banner")).toContainText(
+      "编辑消息· 发送后将从这里重新生成后续对话",
+    );
+    await expect(page.getByTestId("agent-send-button")).toHaveAttribute(
+      "aria-label",
+      "更新并重新发送",
+    );
+
+    await composer(page).press("Escape");
+    await expect(page.getByTestId("agent-composer-editing-banner")).toHaveCount(0);
+
+    await originalMessage.hover();
+    await page.getByTestId("agent-edit-message-button").click();
+    await composer(page).fill(
+      "EDITED_USER_MESSAGE。请直接回复 EDITED_AGENT_REPLY，不要调用任何工具。",
+    );
     await page.getByTestId("agent-send-button").click();
     await waitForAssistantReply(page);
 
