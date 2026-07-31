@@ -20,6 +20,7 @@ export function ChatJumpNav({
 
   const activeIndex = items.findIndex((item) => item.turnId === activeTurnId);
   const activePosition = activeIndex >= 0 ? activeIndex + 1 : null;
+  const activeProgress = activeIndex >= 0 ? (activeIndex / (items.length - 1)) * 100 : null;
 
   return (
     <nav
@@ -35,23 +36,19 @@ export function ChatJumpNav({
             ? `打开对话轮次导航，当前第 ${activePosition} 轮，共 ${items.length} 轮`
             : `打开对话轮次导航，共 ${items.length} 轮`
         }
-        className="flex min-h-9 w-9 flex-col items-end justify-center gap-1 overflow-hidden rounded-md py-2 pr-1 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none group-hover/jump:pointer-events-none group-hover/jump:absolute group-hover/jump:opacity-0 group-focus-within/jump:pointer-events-none group-focus-within/jump:absolute group-focus-within/jump:opacity-0"
+        className="flex h-20 w-9 items-center justify-end overflow-hidden rounded-md pr-1 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none group-hover/jump:pointer-events-none group-hover/jump:absolute group-hover/jump:opacity-0 group-focus-within/jump:pointer-events-none group-focus-within/jump:absolute group-focus-within/jump:opacity-0"
       >
-        {items.map((item) => {
-          const active = item.turnId === activeTurnId;
-          return (
+        <span aria-hidden className="relative h-16 w-4">
+          <span className="absolute inset-y-0 right-1 w-px rounded-full bg-border/60" />
+          {activeProgress !== null ? (
             <span
-              key={item.turnId}
               data-testid="agent-chat-jump-rail-marker"
-              data-active={active ? "true" : undefined}
-              aria-hidden
-              className={cn(
-                "h-px w-2 shrink-0 rounded-full bg-muted-foreground/25",
-                active && "w-4 bg-primary/70",
-              )}
+              data-active="true"
+              className="absolute right-0 h-px w-3 -translate-y-1/2 rounded-full bg-primary/50"
+              style={{ top: `${activeProgress}%` }}
             />
-          );
-        })}
+          ) : null}
+        </span>
       </button>
 
       <div className="hidden max-h-[58vh] w-72 flex-col overflow-hidden rounded-xl border border-border bg-popover p-2 text-popover-foreground shadow-lg group-hover/jump:flex group-focus-within/jump:flex">
