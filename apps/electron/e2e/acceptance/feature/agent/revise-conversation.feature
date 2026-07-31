@@ -9,7 +9,8 @@
     而且 Agent 已经完成一条回复
     而且 Agent 可以完成回复
     当用户对 ORIGINAL_USER_MESSAGE 执行编辑
-    那么 ORIGINAL_USER_MESSAGE 应该在原消息位置进入编辑状态
+    那么 ORIGINAL_USER_MESSAGE 所在的消息应该切换为显示原内容的编辑框
+    而且编辑框应该仍然位于后续 Agent 回复之前
     而且底部输入框中的草稿应该保持不变
     当用户将内容改为 EDITED_USER_MESSAGE
     而且用户提交编辑
@@ -18,6 +19,19 @@
     而且当前对话应该只显示一条用户消息
     而且当前对话应该只显示一条完成状态的 Agent 回复
     而且消息顺序应该仍然是用户消息在前、Agent 回复在后
+    而且底部输入框中的草稿应该仍然保持不变
+
+  @P1 @happy_path @editing @AG-MESSAGE-005
+  场景: 用户取消编辑后保留原对话和底部草稿
+    假如用户已经发送 CANCEL_EDIT_USER_MESSAGE
+    而且 Agent 已经完成一条回复
+    而且用户已经在底部输入框输入 PRESERVED_DRAFT
+    当用户编辑 CANCEL_EDIT_USER_MESSAGE
+    而且用户将编辑内容改为 UNSAVED_EDIT
+    而且用户取消编辑
+    那么 CANCEL_EDIT_USER_MESSAGE 应该退出编辑状态并重新显示原内容
+    而且原来的 Agent 回复应该保持不变
+    而且底部输入框应该仍然显示 PRESERVED_DRAFT
 
   @P1 @happy_path @AG-MESSAGE-002
   场景: 用户重新生成回复后看到新的当前回复
