@@ -688,11 +688,7 @@ export function ChatComposer({
               >
                 <Paperclip />
               </Button>
-              {variant === "message-edit" ? (
-                <span className="truncate text-xs text-muted-foreground">
-                  发送后将从这里重新生成后续对话
-                </span>
-              ) : (
+              {variant !== "message-edit" ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
@@ -761,7 +757,7 @@ export function ChatComposer({
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              )}
+              ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-1">
               {variant === "message-edit" ? (
@@ -779,12 +775,12 @@ export function ChatComposer({
                     data-testid="agent-message-edit-submit"
                     type="button"
                     size="sm"
-                    aria-label="更新并重新发送"
+                    aria-label="发送"
                     disabled={!canSubmit}
                     onClick={() => void submit()}
                   >
                     <Send />
-                    更新并发送
+                    发送
                   </Button>
                 </>
               ) : (
