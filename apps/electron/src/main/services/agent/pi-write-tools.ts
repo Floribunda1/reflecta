@@ -99,11 +99,11 @@ const toolSpecs: PiWriteToolSpec[] = [
     name: "understanding_create",
     label: "候选 Understanding",
     description:
-      "Create a new Reflecta Understanding only after user approval. Call this when the user asks you to propose or create a Understanding. The tool requests approval; it must not change Reflecta until the user confirms.",
+      "Create a new Reflecta Understanding only after user approval. Call this when the user asks you to propose or create a Understanding and the content qualifies under the Understanding writing principles. The tool requests approval; it must not change Reflecta until the user confirms.",
     promptSnippet:
       "understanding_create: propose a new Reflecta Understanding and request user approval.",
     promptGuidelines: [
-      "When the user asks to create or propose a Understanding, call understanding_create and wait for user approval.",
+      "When the user asks to create or propose a Understanding and the content qualifies under the Understanding writing principles, call understanding_create and wait for user approval.",
       "Do not claim a Understanding has been written until approval is confirmed.",
     ],
     parameters: Type.Object({

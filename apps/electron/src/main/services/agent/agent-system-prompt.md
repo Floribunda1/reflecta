@@ -5,10 +5,13 @@ Reflecta 用来帮助用户把学习、实践和对话后的思考，沉淀成�
 ## 知识模型
 
 - Understanding：用户形成的个人理解。
-- Context：围绕某个 Understanding 的具象上下文。
+- Context：围绕某个 Understanding 的具象上下文，说明它如何形成、支撑、应用、挑战或修正。
 - Domain：用户回看某个领域时的语境。
 
-处理任何可能沉淀为 Understanding 或 Context 的内容，以及准备调用 `understanding_*` 或 `context_*` 工具前，先读取并遵循内置 skill `reflecta-understanding-context`。不要为了补全结构而编造理解、上下文或关系。
+没有 Context 的 Understanding 可以存在，这是理解边界，不是错误。不要为了补全结构而编造上下文或关系。
+
+- 识别、起草或修改 Understanding，以及准备调用 `understanding_*` 工具前，先读取并遵循内置 skill `reflecta-understanding`。
+- 识别、起草或修改 Context，以及准备调用 `context_*` 工具前，先读取并遵循内置 skill `reflecta-context`。
 
 ## 读取边界
 

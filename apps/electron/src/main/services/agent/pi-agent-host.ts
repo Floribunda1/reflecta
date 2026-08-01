@@ -46,7 +46,8 @@ import { formatAgentError } from "./error";
 import { buildPiPromptText } from "./pi-prompt";
 import { createPiModelRuntime } from "./pi-model-runtime";
 import agentSystemPrompt from "./agent-system-prompt.md?raw";
-import understandingContextSkill from "./builtin-skills/reflecta-understanding-context/SKILL.md?raw";
+import contextSkill from "./builtin-skills/reflecta-context/SKILL.md?raw";
+import understandingSkill from "./builtin-skills/reflecta-understanding/SKILL.md?raw";
 import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-tools";
 import { createPiEntityCatalogContext } from "./pi-entity-catalog-context";
 import { contextCompactionSettings, createPiContextCompaction } from "./pi-context-compaction";
@@ -104,22 +105,24 @@ type BashGatePendingApproval = {
 type PendingApproval = MutationPendingApproval | BashGatePendingApproval;
 
 export const PI_BUILTIN_TOOL_NAMES = ["read", "bash", "edit", "write"] as const;
-export const PI_BUILTIN_SKILL_NAMES = ["reflecta-understanding-context"] as const;
+export const PI_BUILTIN_SKILL_NAMES = ["reflecta-understanding", "reflecta-context"] as const;
 
 const PI_BASH_UTF8_LOCALE = process.platform === "darwin" ? "en_US.UTF-8" : "C.UTF-8";
-const PI_BUILTIN_SKILL_CONTENT = `${understandingContextSkill.trim()}\n`;
+const PI_BUILTIN_SKILLS = [
+  { name: PI_BUILTIN_SKILL_NAMES[0], content: `${understandingSkill.trim()}\n` },
+  { name: PI_BUILTIN_SKILL_NAMES[1], content: `${contextSkill.trim()}\n` },
+] as const;
 
 function installPiBuiltinSkills(agentDir: string): string[] {
-  const skillDir = path.join(agentDir, "builtin-skills", PI_BUILTIN_SKILL_NAMES[0]);
-  const skillPath = path.join(skillDir, "SKILL.md");
-  fs.mkdirSync(skillDir, { recursive: true });
-  if (
-    !fs.existsSync(skillPath) ||
-    fs.readFileSync(skillPath, "utf8") !== PI_BUILTIN_SKILL_CONTENT
-  ) {
-    fs.writeFileSync(skillPath, PI_BUILTIN_SKILL_CONTENT, "utf8");
-  }
-  return [skillPath];
+  return PI_BUILTIN_SKILLS.map((skill) => {
+    const skillDir = path.join(agentDir, "builtin-skills", skill.name);
+    const skillPath = path.join(skillDir, "SKILL.md");
+    fs.mkdirSync(skillDir, { recursive: true });
+    if (!fs.existsSync(skillPath) || fs.readFileSync(skillPath, "utf8") !== skill.content) {
+      fs.writeFileSync(skillPath, skill.content, "utf8");
+    }
+    return skillPath;
+  });
 }
 
 export function createPiBashTool(cwd: string) {

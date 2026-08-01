@@ -198,27 +198,49 @@ describe("createPiResourceLoader", () => {
       "<inline:reflecta-entity-catalog-context>",
       "<inline:reflecta-context-compaction>",
     ]);
-    expect(loader.getSkills().skills).toEqual([
-      expect.objectContaining({
-        name: PI_BUILTIN_SKILL_NAMES[0],
-        description: expect.stringContaining("Understanding 与 Context"),
-        filePath: path.join(agentDir, "builtin-skills", PI_BUILTIN_SKILL_NAMES[0], "SKILL.md"),
-      }),
-    ]);
-    const builtinSkillPath = loader.getSkills().skills[0]?.filePath;
-    expect(builtinSkillPath).toBeDefined();
-    const builtinSkill = fs.readFileSync(builtinSkillPath!, "utf8");
-    expect(builtinSkill).toContain("## 起草 Understanding");
-    expect(builtinSkill).toContain("保留用户原本的确定程度、适用范围和明确存在的未知");
-    expect(builtinSkill).toContain("只有用户明确把它认作自己的判断后，才写入 Understanding");
-    expect(builtinSkill).toContain("Case 不是 Understanding 的默认组成部分");
-    expect(builtinSkill).toContain("每次只提交一个候选项");
+    const skills = loader.getSkills().skills;
+    expect(skills.map((skill) => skill.name)).toEqual([...PI_BUILTIN_SKILL_NAMES]);
+    for (const skillName of PI_BUILTIN_SKILL_NAMES) {
+      expect(skills).toContainEqual(
+        expect.objectContaining({
+          name: skillName,
+          filePath: path.join(agentDir, "builtin-skills", skillName, "SKILL.md"),
+        }),
+      );
+    }
+
+    const understandingResource = skills.find((skill) => skill.name === "reflecta-understanding");
+    expect(understandingResource?.description).toContain("understanding_*");
+    expect(understandingResource?.description).not.toContain("context_*");
+    const understandingSkillPath = understandingResource?.filePath;
+    expect(understandingSkillPath).toBeDefined();
+    const understandingSkill = fs.readFileSync(understandingSkillPath!, "utf8");
+    expect(understandingSkill).toContain("## 起草 Understanding");
+    expect(understandingSkill).toContain("保留用户原本的确定程度、适用范围和明确存在的未知");
+    expect(understandingSkill).toContain("只有用户明确把它认作自己的判断后，才写入 Understanding");
+    expect(understandingSkill).toContain("Case 不是 Understanding 的默认组成部分");
+    expect(understandingSkill).not.toContain("## 起草 Context");
+    expect(understandingSkill).not.toContain("## Context 怎么写");
+    expect(understandingSkill).not.toContain("Context 承载某个 Understanding 的具体来源和场景");
+
+    const contextResource = skills.find((skill) => skill.name === "reflecta-context");
+    expect(contextResource?.description).toContain("context_*");
+    expect(contextResource?.description).not.toContain("understanding_*");
+    const contextSkillPath = contextResource?.filePath;
+    expect(contextSkillPath).toBeDefined();
+    const contextSkill = fs.readFileSync(contextSkillPath!, "utf8");
+    expect(contextSkill).toContain("Context 承载某个 Understanding 的具体来源和场景");
+    expect(contextSkill).toContain("保留足够细节，不要为了简洁省略关键信息");
+    expect(contextSkill).toContain("Context 一定要具体、详细、丰富");
+    expect(contextSkill).not.toContain("尚未解决的问题、反例和不确定性");
+    expect(contextSkill).not.toContain("完整会议纪要或材料摘要");
+
     expect(loader.getPrompts().prompts).toEqual([]);
     expect(loader.getThemes().themes).toEqual([]);
     expect(loader.getAgentsFiles().agentsFiles).toEqual([]);
-    expect(loader.getSystemPrompt()).toContain("内置 skill `reflecta-understanding-context`");
-    expect(loader.getSystemPrompt()).not.toContain("## Understanding 的默认写作风格");
-    expect(loader.getSystemPrompt()).not.toContain("## Understanding 正文风格参考");
+    expect(loader.getSystemPrompt()).toContain("内置 skill `reflecta-understanding`");
+    expect(loader.getSystemPrompt()).toContain("内置 skill `reflecta-context`");
+    expect(loader.getSystemPrompt()).not.toContain("reflecta-understanding-context");
   });
 });
 

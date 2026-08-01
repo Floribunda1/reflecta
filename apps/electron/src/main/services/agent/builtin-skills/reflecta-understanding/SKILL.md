@@ -1,9 +1,9 @@
 ---
-name: reflecta-understanding-context
-description: 负责 Reflecta 中 Understanding 与 Context 的识别、区分、起草和修改。只要对话可能沉淀为个人理解、用户想记录/复盘/保存一段思考、需要判断内容属于 Understanding 还是 Context，或准备调用 understanding_* / context_* 工具，就必须先读取并遵循此 skill。
+name: reflecta-understanding
+description: 负责 Reflecta 中 Understanding 的识别、起草和修改。只要对话可能形成个人判断、用户想沉淀一条理解，或准备调用 understanding_* 工具，就必须先读取并遵循此 skill。
 ---
 
-# Reflecta Understanding 与 Context
+# Reflecta Understanding
 
 ## 目标
 
@@ -22,13 +22,11 @@ Understanding 记录用户已经形成的个人判断。它可以局部、初步
 - “有道理”“很触动”等反应不等于用户已经形成或采纳了判断。无法确认时先追问。
 - 没有可依附的 Understanding 时，不要为了保存材料而编造一条 Understanding。
 
-## 区分 Understanding 与 Context
+## Understanding 放什么
 
-- **Understanding** 表达用户形成的判断本身，不是案例流水账。
-- **Context** 是围绕某条 Understanding 的具象上下文，记录它如何形成、被支撑、应用、挑战或修正。
-- Understanding 可以没有 Context；这表示当前理解的边界，不是需要自动修复的错误。
-- Understanding 只保留重新进入这副心智所必需的内容。完整经历、材料、对话、证据、推演和变化过程放进 Context。
-- 具体项目历史默认属于 Context，除非缺少其中某个最小片段就难以理解该判断。
+- Understanding 表达用户形成的判断本身，不是案例流水账。
+- 完整经历、材料、对话、证据、推演和变化过程不放进 Understanding。
+- 只有缺少某个最小片段就难以理解判断时，才保留必要的代表性场景。
 
 ## 起草 Understanding
 
@@ -73,29 +71,16 @@ Case 不是 Understanding 的默认组成部分。
 - 用户没有形成额外总结时，不要求结尾收束。
 - 不要用“只有……才”“本质上”“关键在于”等措辞，把描述强化成必要条件或普遍结论。
 
-## 起草 Context
-
-Context 的目标是让用户以后能够回到现场，而不是再写一遍抽象结论。
-
-- 说明这条 Understanding 周围发生了什么：经历、材料、对话、实践、观察、应用、挑战或修正。
-- 保留理解形成所需的具体对象、过程、证据和变化，但不要编造用户没有提供的事实。
-- 让 Context 的详略服务于“未来能否重新理解当时为什么形成这个判断”，而不是追求完整会议纪要或材料摘要。
-- Context 可以保留尚未解决的问题、反例和不确定性；不要把过程修饰成比实际更完整的论证。
-- Context 内容不支持实体引用，不要生成 `[[...]]`。
-
 ## 提交候选前检查
 
 逐项检查：
 
 1. 每个实质命题是否来自用户表达或明确采纳的判断？
 2. 确定程度、范围和未知是否被如实保留？
-3. Understanding 与 Context 是否各自承担了正确内容？
-4. 主逻辑是否一眼可见，且只有一条视觉主线？
-5. 解释是否足够，但没有新增认知？
-6. Case 是否真的必要，并直接解释前面的抽象关系？
-7. 是否删掉了为了完整、漂亮或收束而添加的额外结论？
-
-需要同时创建 Understanding 和 Context 时，先提交 Understanding 候选；等待用户确认后，再提交 Context 候选。每次只提交一个候选项。
+3. 主逻辑是否一眼可见，且只有一条视觉主线？
+4. 解释是否足够，但没有新增认知？
+5. Case 是否真的必要，并直接解释前面的抽象关系？
+6. 是否删掉了为了完整、漂亮或收束而添加的额外结论？
 
 ## 正文风格参考
 
