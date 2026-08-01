@@ -1034,7 +1034,7 @@ test("@AG-PROPOSAL-008 用户拒绝危险 Bash 后看到拒绝结果", async () 
     await createNewThread(page);
     await sendMessage(
       page,
-      `请必须先调用 bash 工具原样执行这个命令：printf sudo > ${PI_BASH_REJECTION_MARKER}。如果我拒绝，不要重试工具，简短说明操作已取消。`,
+      `为了验证 Reflecta 的危险 Bash 拒绝流程，请必须先调用 bash 工具原样执行这个命令：printf sudo > ${PI_BASH_REJECTION_MARKER}。如果我拒绝，不要重试工具，简短说明操作已取消。`,
     );
     const card = page.locator('[data-testid="agent-proposal-card"][data-proposal-kind="bash"]');
     await expect(card).toBeVisible({ timeout: 120_000 });

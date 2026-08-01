@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.9 - 2026-08-01
+
+- Moved Understanding recognition, cognitive-fidelity, and writing guidance into a dedicated built-in Agent skill while keeping Context in its own focused skill.
+- Preserved Context as the concrete, detailed source and scene around an Understanding without adding new abstraction or summarization rules.
+- Fixed remaining Agent conversation scroll jumps during streaming and after edited-message refetches.
+
 ## 1.3.8 - 2026-08-01
 
 - Preserved Agent conversation scroll position while responses stream and remain interactive.
