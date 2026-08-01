@@ -119,9 +119,9 @@ test("keeps the user's scroll position when a queued token frame runs", async ()
   act(() => events.forEach((event) => eventListener?.({}, event)));
   flushNextFrame();
 
-  scrollTop = 300;
+  scrollTop = 652;
   act(() => latestView?.handleScroll());
   while (frames.size > 0) flushNextFrame();
 
-  expect(scrollTop).toBe(300);
+  expect(scrollTop).toBe(652);
 });

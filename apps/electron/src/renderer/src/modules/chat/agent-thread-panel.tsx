@@ -160,6 +160,7 @@ export function AgentThreadPanel({
           onActiveMatchChange={setActiveFindMatch}
         />
         <div
+          data-testid="agent-message-scroll"
           ref={threadView.scrollRef}
           onScroll={threadView.handleScroll}
           className="h-full min-h-0 overflow-y-auto px-6 py-6 [scrollbar-gutter:stable_both-edges]"

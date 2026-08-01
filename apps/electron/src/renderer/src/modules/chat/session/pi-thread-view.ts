@@ -26,6 +26,7 @@ import { buildChatTurnNavigationItems } from "./chat-turn-navigation";
 const CHAT_JUMP_BOTTOM_OFFSET = 24;
 const CHAT_READING_LINE_RATIO = 0.75;
 const CHAT_READING_LINE_BOTTOM_MARGIN = 96;
+const CHAT_SCROLL_END_THRESHOLD = 1;
 
 function completedEntityRef(event: AgentEvent) {
   if (event.type !== "tool.completed" || typeof event.output !== "object" || !event.output) {
@@ -130,8 +131,9 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     overscan: 5,
     gap: 20,
     anchorTo: "end",
-    followOnAppend: true,
-    scrollEndThreshold: 96,
+    followOnAppend: false,
+    // The hook owns end-following so user scrolling can cancel it immediately.
+    scrollEndThreshold: -1,
     scrollPaddingEnd: CHAT_JUMP_BOTTOM_OFFSET,
     directDomUpdates: true,
   });
@@ -271,7 +273,8 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
       scrollTop: element.scrollTop,
       clientHeight: element.clientHeight,
     });
-    shouldStickToBottom.current = !shouldShowButton;
+    shouldStickToBottom.current =
+      element.scrollHeight - element.scrollTop - element.clientHeight <= CHAT_SCROLL_END_THRESHOLD;
     setScrollButtonVisible(shouldShowButton);
     updateActiveTurn();
   }, [setScrollButtonVisible, updateActiveTurn]);
