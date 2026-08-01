@@ -1211,6 +1211,281 @@ describe("PiAgentHost", () => {
     expect(persistedApprovals[0]).not.toHaveProperty("preview");
   });
 
+  test("hydrates update previews before tool arguments finish streaming", async () => {
+    isPiApprovalToolNameMock.mockImplementation((name) => name === "understanding_update");
+    const hydrationResolvers: Array<() => void> = [];
+    hydratePiApprovalPayloadMock.mockImplementation(
+      (_toolName: string, payload: Record<string, unknown>) =>
+        new Promise<Record<string, unknown>>((resolve) => {
+          hydrationResolvers.push(() =>
+            resolve({
+              ...payload,
+              before: {
+                title: "Existing title",
+                body: "Existing body",
+                domainIds: ["domain_1"],
+              },
+            }),
+          );
+        }),
+    );
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("新对话");
+    const manager = await log.openSession(thread.id);
+    log.appendEvent(manager, {
+      id: "evt_existing_cancel",
+      sessionId: thread.id,
+      runId: "run_existing",
+      type: "run.cancelled",
+      createdAt: "2026-06-23T00:00:00.000Z",
+    });
+    let listener: ((event: unknown) => void) | undefined;
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        subscribe: (next: (event: unknown) => void) => {
+          listener = next;
+          return () => {};
+        },
+        prompt: vi.fn(async () => {
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: {
+              type: "toolcall_delta",
+              contentIndex: 0,
+              partial: {
+                content: [
+                  {
+                    type: "toolCall",
+                    id: "tool_1",
+                    name: "understanding_update",
+                    arguments: { understandingId: "under" },
+                  },
+                ],
+              },
+            },
+          });
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: {
+              type: "toolcall_delta",
+              contentIndex: 0,
+              partial: {
+                content: [
+                  {
+                    type: "toolCall",
+                    id: "tool_1",
+                    name: "understanding_update",
+                    arguments: {
+                      understandingId: "understanding_1",
+                      after: { body: "Draft" },
+                    },
+                  },
+                ],
+              },
+            },
+          });
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: {
+              type: "toolcall_end",
+              toolCall: {
+                type: "toolCall",
+                id: "tool_1",
+                name: "understanding_update",
+                arguments: {
+                  understandingId: "understanding_1",
+                  after: { body: "Final body" },
+                },
+              },
+            },
+          });
+          listener?.({
+            type: "tool_execution_start",
+            toolCallId: "tool_1",
+            toolName: "understanding_update",
+            args: {
+              understandingId: "understanding_1",
+              after: { body: "Final body" },
+            },
+          });
+          expect(hydratePiApprovalPayloadMock).toHaveBeenCalledTimes(1);
+          hydrationResolvers.forEach((resolve) => resolve());
+          await Promise.resolve();
+          listener?.({
+            type: "message_end",
+            message: {
+              role: "assistant",
+              content: [
+                {
+                  type: "toolCall",
+                  id: "tool_1",
+                  name: "understanding_update",
+                  arguments: {
+                    understandingId: "understanding_1",
+                    after: { body: "Final body" },
+                  },
+                },
+              ],
+              provider: "openai",
+              model: "gpt-4o",
+              stopReason: "toolUse",
+            },
+          });
+        }),
+        getContextUsage: vi.fn(() => undefined),
+        dispose: vi.fn(),
+        abort: vi.fn(),
+      },
+    });
+    const webContents = { isDestroyed: () => false, send: vi.fn() };
+
+    await (
+      new PiAgentHost(root) as unknown as {
+        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
+      }
+    ).sendMessage(
+      {
+        type: "message.send",
+        sessionId: thread.id,
+        text: "更新这个 Understanding",
+        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+      },
+      webContents as never,
+    );
+
+    expect(hydratePiApprovalPayloadMock).toHaveBeenCalledTimes(1);
+    const previewApprovals = webContents.send.mock.calls
+      .map((call) => call[1])
+      .filter((event) => event.type === "approval.requested" && event.preview);
+    expect(previewApprovals).toContainEqual(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          understandingId: "understanding_1",
+          before: {
+            title: "Existing title",
+            body: "Existing body",
+            domainIds: ["domain_1"],
+          },
+        }),
+      }),
+    );
+  });
+
+  test("hydrates a completed update preview when the entity id is the last property", async () => {
+    isPiApprovalToolNameMock.mockImplementation((name) => name === "understanding_update");
+    hydratePiApprovalPayloadMock.mockImplementation(
+      async (_toolName: string, payload: Record<string, unknown>) => ({
+        ...payload,
+        before: {
+          title: "Existing title",
+          body: "Existing body",
+          domainIds: ["domain_1"],
+        },
+      }),
+    );
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("新对话");
+    const manager = await log.openSession(thread.id);
+    log.appendEvent(manager, {
+      id: "evt_existing_cancel",
+      sessionId: thread.id,
+      runId: "run_existing",
+      type: "run.cancelled",
+      createdAt: "2026-06-23T00:00:00.000Z",
+    });
+    let listener: ((event: unknown) => void) | undefined;
+    const finalArguments = {
+      after: { body: "Final body" },
+      before: { body: "Model-supplied body" },
+      understandingId: "understanding_1",
+    };
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        subscribe: (next: (event: unknown) => void) => {
+          listener = next;
+          return () => {};
+        },
+        prompt: vi.fn(async () => {
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: {
+              type: "toolcall_end",
+              toolCall: {
+                type: "toolCall",
+                id: "tool_1",
+                name: "understanding_update",
+                arguments: finalArguments,
+              },
+            },
+          });
+          listener?.({
+            type: "tool_execution_start",
+            toolCallId: "tool_1",
+            toolName: "understanding_update",
+            args: finalArguments,
+          });
+          listener?.({
+            type: "message_end",
+            message: {
+              role: "assistant",
+              content: [
+                {
+                  type: "toolCall",
+                  id: "tool_1",
+                  name: "understanding_update",
+                  arguments: finalArguments,
+                },
+              ],
+              provider: "openai",
+              model: "gpt-4o",
+              stopReason: "toolUse",
+            },
+          });
+        }),
+        getContextUsage: vi.fn(() => undefined),
+        dispose: vi.fn(),
+        abort: vi.fn(),
+      },
+    });
+    const webContents = { isDestroyed: () => false, send: vi.fn() };
+
+    await (
+      new PiAgentHost(root) as unknown as {
+        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
+      }
+    ).sendMessage(
+      {
+        type: "message.send",
+        sessionId: thread.id,
+        text: "更新这个 Understanding",
+        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+      },
+      webContents as never,
+    );
+
+    const approvals = webContents.send.mock.calls
+      .map((call) => call[1])
+      .filter((event) => event.type === "approval.requested");
+    expect(approvals).toHaveLength(2);
+    expect(approvals.map((event) => event.preview)).toEqual([true, undefined]);
+    expect(approvals.map((event) => event.payload.before)).toEqual([
+      {
+        title: "Existing title",
+        body: "Existing body",
+        domainIds: ["domain_1"],
+      },
+      {
+        title: "Existing title",
+        body: "Existing body",
+        domainIds: ["domain_1"],
+      },
+    ]);
+  });
+
   test("restores the active streaming turn when reopening a running session", async () => {
     const root = tempRoot();
     const log = new AgentSessionLog(root);

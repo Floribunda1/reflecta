@@ -440,11 +440,51 @@ function approvalIdForToolCall(toolCallId: string) {
   return `approval_${toolCallId}`;
 }
 
+function approvalEntityId(
+  toolName: PiApprovalToolName,
+  payload: Record<string, unknown>,
+): { key: string; value: string } | undefined {
+  const key =
+    toolName === "understanding_update"
+      ? "understandingId"
+      : toolName === "domain_update"
+        ? "domainId"
+        : toolName === "context_update"
+          ? "contextId"
+          : undefined;
+  const value = key ? payload[key] : undefined;
+  return key && typeof value === "string" && value.trim() ? { key, value } : undefined;
+}
+
+function previewEntityId(
+  toolName: PiApprovalToolName,
+  payload: Record<string, unknown>,
+  complete = false,
+): string | undefined {
+  const entity = approvalEntityId(toolName, payload);
+  if (!entity) return undefined;
+  const keys = Object.keys(payload);
+  return complete || keys.indexOf(entity.key) < keys.length - 1 ? entity.value : undefined;
+}
+
+function hasHydratedBefore(payload: Record<string, unknown>): boolean {
+  return isRecord(payload.before);
+}
+
+function mergeHydratedApprovalPayload(
+  hydrated: Record<string, unknown>,
+  latest: Record<string, unknown>,
+): Record<string, unknown> {
+  const merged = { ...hydrated, ...latest };
+  return hasHydratedBefore(hydrated) ? { ...merged, before: hydrated.before } : merged;
+}
+
 function toolCallFromAssistantEvent(value: unknown):
   | {
       toolCallId: string;
       toolName: string;
       args: Record<string, unknown>;
+      complete: boolean;
     }
   | undefined {
   if (!isRecord(value)) return undefined;
@@ -457,7 +497,7 @@ function toolCallFromAssistantEvent(value: unknown):
   const toolName = typeof source.name === "string" ? source.name : "";
   const args = isRecord(source.arguments) ? source.arguments : undefined;
   if (!toolCallId || !toolName || !args) return undefined;
-  return { toolCallId, toolName, args };
+  return { toolCallId, toolName, args, complete: value.type === "toolcall_end" };
 }
 
 function toolCallFromPartial(
@@ -962,7 +1002,17 @@ export class PiAgentHost {
     let runStarted = false;
     const accumulator = new AgentRunAccumulator();
     const requestedApprovalIds = new Set<string>();
+    const emittedApprovalRequestIds = new Set<string>();
     const approvalRequestTasks: Promise<void>[] = [];
+    const latestApprovalPreviewPayloads = new Map<string, Record<string, unknown>>();
+    const hydratedApprovalPreviewPayloads = new Map<
+      string,
+      { entityId: string; payload: Record<string, unknown> }
+    >();
+    const approvalPreviewHydrationTasks = new Map<
+      string,
+      { entityId: string; task: Promise<Record<string, unknown>> }
+    >();
     const emit = (event: AgentSessionEvent) => this.appendAndEmit(manager, webContents, event);
     const emitAccumulated = (event: AgentLiveEvent) => {
       accumulator.append(event);
@@ -986,14 +1036,82 @@ export class PiAgentHost {
         payload,
         ...(preview ? { preview: true } : {}),
       });
-    const emitApprovalPreview = (
+    const sendApprovalPreview = (
       toolCallId: string,
       toolName: PiApprovalToolName,
       payload: Record<string, unknown>,
     ) => {
-      if (requestedApprovalIds.has(approvalIdForToolCall(toolCallId))) return;
-      const requested = createApprovalRequested(toolCallId, toolName, payload, true);
-      if (!webContents.isDestroyed()) webContents.send(AGENT_EVENT_CHANNEL, requested);
+      const approvalId = approvalIdForToolCall(toolCallId);
+      const active = this.activeRuns.get(command.sessionId);
+      if (
+        emittedApprovalRequestIds.has(approvalId) ||
+        this.cancelledRunIds.has(runId) ||
+        active?.runId !== runId ||
+        webContents.isDestroyed()
+      ) {
+        return;
+      }
+      webContents.send(
+        AGENT_EVENT_CHANNEL,
+        createApprovalRequested(toolCallId, toolName, payload, true),
+      );
+    };
+    const emitApprovalPreview = (
+      toolCallId: string,
+      toolName: PiApprovalToolName,
+      payload: Record<string, unknown>,
+      complete: boolean,
+    ) => {
+      const approvalId = approvalIdForToolCall(toolCallId);
+      if (emittedApprovalRequestIds.has(approvalId)) return;
+      latestApprovalPreviewPayloads.set(approvalId, payload);
+
+      const entityId = previewEntityId(toolName, payload, complete);
+      if (!entityId) {
+        sendApprovalPreview(toolCallId, toolName, payload);
+        return;
+      }
+      const hydrated = hydratedApprovalPreviewPayloads.get(approvalId);
+      if (hydrated?.entityId === entityId) {
+        sendApprovalPreview(
+          toolCallId,
+          toolName,
+          mergeHydratedApprovalPayload(hydrated.payload, payload),
+        );
+        return;
+      }
+      const inFlight = approvalPreviewHydrationTasks.get(approvalId);
+      if (inFlight?.entityId === entityId) return;
+
+      const hydration = hydratePiApprovalPayload(toolName, payload).catch((error) => {
+        agentLog.warn("pi.approval.previewHydrateFailed", {
+          sessionId: command.sessionId,
+          runId,
+          toolName,
+          toolCallId,
+          error: formatAgentError(error),
+        });
+        return payload;
+      });
+      approvalPreviewHydrationTasks.set(approvalId, { entityId, task: hydration });
+      const task = hydration.then((hydratedPayload) => {
+        const latestPayload = latestApprovalPreviewPayloads.get(approvalId) ?? payload;
+        if (approvalEntityId(toolName, latestPayload)?.value !== entityId) return;
+        if (hasHydratedBefore(hydratedPayload)) {
+          hydratedApprovalPreviewPayloads.set(approvalId, {
+            entityId,
+            payload: hydratedPayload,
+          });
+        } else if (approvalPreviewHydrationTasks.get(approvalId)?.task === hydration) {
+          approvalPreviewHydrationTasks.delete(approvalId);
+        }
+        sendApprovalPreview(
+          toolCallId,
+          toolName,
+          mergeHydratedApprovalPayload(hydratedPayload, latestPayload),
+        );
+      });
+      approvalRequestTasks.push(task);
     };
     const emitApprovalRequest = (
       toolCallId: string,
@@ -1003,22 +1121,31 @@ export class PiAgentHost {
       const approvalId = approvalIdForToolCall(toolCallId);
       if (requestedApprovalIds.has(approvalId)) return;
       requestedApprovalIds.add(approvalId);
-      const task = hydratePiApprovalPayload(toolName, payload)
-        .catch((error) => {
-          agentLog.warn("pi.approval.hydrateFailed", {
-            sessionId: command.sessionId,
-            runId,
-            toolName,
-            toolCallId,
-            error: formatAgentError(error),
-          });
-          return payload;
-        })
-        .then((hydratedPayload) => {
-          const requested = createApprovalRequested(toolCallId, toolName, hydratedPayload);
-          accumulator.append(requested);
-          emit(requested);
-        });
+      const entityId = approvalEntityId(toolName, payload)?.value;
+      const previewHydration = approvalPreviewHydrationTasks.get(approvalId);
+      const hydration =
+        entityId && previewHydration?.entityId === entityId
+          ? previewHydration.task
+          : hydratePiApprovalPayload(toolName, payload).catch((error) => {
+              agentLog.warn("pi.approval.hydrateFailed", {
+                sessionId: command.sessionId,
+                runId,
+                toolName,
+                toolCallId,
+                error: formatAgentError(error),
+              });
+              return payload;
+            });
+      const task = hydration.then((hydratedPayload) => {
+        const requested = createApprovalRequested(
+          toolCallId,
+          toolName,
+          mergeHydratedApprovalPayload(hydratedPayload, payload),
+        );
+        emittedApprovalRequestIds.add(approvalId);
+        accumulator.append(requested);
+        emit(requested);
+      });
       approvalRequestTasks.push(task);
     };
     const requestDangerousBashApproval: DangerousBashApprovalHandler = async ({
@@ -1150,7 +1277,12 @@ export class PiAgentHost {
           const toolCall = toolCallFromAssistantEvent(event.assistantMessageEvent);
           if (toolCall && isPiApprovalToolName(toolCall.toolName)) {
             assistantActivity = true;
-            emitApprovalPreview(toolCall.toolCallId, toolCall.toolName, toolCall.args);
+            emitApprovalPreview(
+              toolCall.toolCallId,
+              toolCall.toolName,
+              toolCall.args,
+              toolCall.complete,
+            );
             return;
           }
         }
