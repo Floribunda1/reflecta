@@ -94,8 +94,12 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
       if (eventIdsRef.current.has(payload.id)) return;
       eventIdsRef.current.add(payload.id);
       liveEventsRef.current.push(payload);
-      pendingEventsRef.current.push(payload);
-      flushFrameRef.current ??= requestAnimationFrame(flushPendingEvents);
+      if (payload.type === "assistant.text.delta" || payload.type === "assistant.reasoning.delta") {
+        pendingEventsRef.current.push(payload);
+        flushFrameRef.current ??= requestAnimationFrame(flushPendingEvents);
+      } else {
+        setState((current) => reduceAgentSessionEvent(current, payload));
+      }
       const entityRef = completedEntityRef(payload);
       if (entityRef) void invalidateEntityDisplay(queryClient, entityRef);
       if (
