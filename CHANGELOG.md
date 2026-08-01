@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.10 - 2026-08-02
+
+- Hydrated Understanding update previews while tool arguments stream so existing content is available before confirmation.
+- Applied Proposal lifecycle events immediately instead of waiting for an animation frame, preventing cards from remaining stuck in the generating state until the conversation is reopened.
+- Matched Understanding and Domain title prefixes in mention search while preserving ranked retrieval for broader queries.
+
 ## 1.3.9 - 2026-08-01
 
 - Moved Understanding recognition, cognitive-fidelity, and writing guidance into a dedicated built-in Agent skill while keeping Context in its own focused skill.
