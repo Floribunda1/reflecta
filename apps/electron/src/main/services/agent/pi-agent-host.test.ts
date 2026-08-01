@@ -12,6 +12,7 @@ import {
   createPiBashTool,
   createPiResourceLoader,
   normalizeGeneratedThreadTitle,
+  PI_BUILTIN_SKILL_NAMES,
   PI_BUILTIN_TOOL_NAMES,
   PiAgentHost,
 } from "./pi-agent-host";
@@ -179,11 +180,12 @@ describe("createPiModelRuntime", () => {
 });
 
 describe("createPiResourceLoader", () => {
-  test("loads Reflecta runtime extensions without user-level resources", async () => {
+  test("loads Reflecta runtime extensions and builtin skills without user-level resources", async () => {
     const root = tempRoot();
+    const agentDir = path.join(root, ".pi-agent");
     const loader = await createPiResourceLoader({
       cwd: root,
-      agentDir: path.join(root, ".pi-agent"),
+      agentDir,
       settingsManager: SettingsManager.inMemory({}),
       onDangerousBashApproval: vi.fn().mockResolvedValue(true),
       getEntityCatalog: () => [],
@@ -196,10 +198,27 @@ describe("createPiResourceLoader", () => {
       "<inline:reflecta-entity-catalog-context>",
       "<inline:reflecta-context-compaction>",
     ]);
-    expect(loader.getSkills().skills).toEqual([]);
+    expect(loader.getSkills().skills).toEqual([
+      expect.objectContaining({
+        name: PI_BUILTIN_SKILL_NAMES[0],
+        description: expect.stringContaining("Understanding 与 Context"),
+        filePath: path.join(agentDir, "builtin-skills", PI_BUILTIN_SKILL_NAMES[0], "SKILL.md"),
+      }),
+    ]);
+    const builtinSkillPath = loader.getSkills().skills[0]?.filePath;
+    expect(builtinSkillPath).toBeDefined();
+    const builtinSkill = fs.readFileSync(builtinSkillPath!, "utf8");
+    expect(builtinSkill).toContain("## 起草 Understanding");
+    expect(builtinSkill).toContain("保留用户原本的确定程度、适用范围和明确存在的未知");
+    expect(builtinSkill).toContain("只有用户明确把它认作自己的判断后，才写入 Understanding");
+    expect(builtinSkill).toContain("Case 不是 Understanding 的默认组成部分");
+    expect(builtinSkill).toContain("每次只提交一个候选项");
     expect(loader.getPrompts().prompts).toEqual([]);
     expect(loader.getThemes().themes).toEqual([]);
     expect(loader.getAgentsFiles().agentsFiles).toEqual([]);
+    expect(loader.getSystemPrompt()).toContain("内置 skill `reflecta-understanding-context`");
+    expect(loader.getSystemPrompt()).not.toContain("## Understanding 的默认写作风格");
+    expect(loader.getSystemPrompt()).not.toContain("## Understanding 正文风格参考");
   });
 });
 

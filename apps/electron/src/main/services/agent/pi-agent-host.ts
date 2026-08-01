@@ -46,6 +46,7 @@ import { formatAgentError } from "./error";
 import { buildPiPromptText } from "./pi-prompt";
 import { createPiModelRuntime } from "./pi-model-runtime";
 import agentSystemPrompt from "./agent-system-prompt.md?raw";
+import understandingContextSkill from "./builtin-skills/reflecta-understanding-context/SKILL.md?raw";
 import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-tools";
 import { createPiEntityCatalogContext } from "./pi-entity-catalog-context";
 import { contextCompactionSettings, createPiContextCompaction } from "./pi-context-compaction";
@@ -103,8 +104,23 @@ type BashGatePendingApproval = {
 type PendingApproval = MutationPendingApproval | BashGatePendingApproval;
 
 export const PI_BUILTIN_TOOL_NAMES = ["read", "bash", "edit", "write"] as const;
+export const PI_BUILTIN_SKILL_NAMES = ["reflecta-understanding-context"] as const;
 
 const PI_BASH_UTF8_LOCALE = process.platform === "darwin" ? "en_US.UTF-8" : "C.UTF-8";
+const PI_BUILTIN_SKILL_CONTENT = `${understandingContextSkill.trim()}\n`;
+
+function installPiBuiltinSkills(agentDir: string): string[] {
+  const skillDir = path.join(agentDir, "builtin-skills", PI_BUILTIN_SKILL_NAMES[0]);
+  const skillPath = path.join(skillDir, "SKILL.md");
+  fs.mkdirSync(skillDir, { recursive: true });
+  if (
+    !fs.existsSync(skillPath) ||
+    fs.readFileSync(skillPath, "utf8") !== PI_BUILTIN_SKILL_CONTENT
+  ) {
+    fs.writeFileSync(skillPath, PI_BUILTIN_SKILL_CONTENT, "utf8");
+  }
+  return [skillPath];
+}
 
 export function createPiBashTool(cwd: string) {
   return defineTool(
@@ -144,6 +160,7 @@ export async function createPiResourceLoader(input: {
     systemPrompt: loadAgentSystemPrompt(),
     noExtensions: true,
     noSkills: true,
+    additionalSkillPaths: installPiBuiltinSkills(input.agentDir),
     noPromptTemplates: true,
     noThemes: true,
     noContextFiles: true,
