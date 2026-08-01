@@ -68,9 +68,9 @@
     而且页面应该出现一条 Agent 回复正文
 
   @P0 @lexical @AG-RETRIEVAL-001
-  场景: 用户通过关键词搜索找到 Understanding
-    假如 seed 数据中存在带唯一关键词的 Understanding
-    当用户在 Agent 输入框中搜索该唯一关键词
+  场景: 用户通过标题前缀搜索找到 Understanding
+    假如 seed 数据中存在带唯一标题的 Understanding
+    当用户在 Agent 输入框中搜索该标题的前缀
     那么上下文候选列表应该包含该 Understanding
 
   @P0 @lexical @AG-RETRIEVAL-002

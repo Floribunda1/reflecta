@@ -73,22 +73,22 @@ async function startEmbeddingServer() {
   };
 }
 
-test("@AG-RETRIEVAL-001 用户通过关键词搜索找到 Understanding", async () => {
+test("@AG-RETRIEVAL-001 用户通过标题前缀搜索找到 Understanding", async () => {
   seedUnderstanding({
     id: "e2e-lexical-target",
-    title: "Lexical Retrieval Canary",
-    body: "This body contains E2E_LEXICAL_CANARY_927 for retrieval.",
+    title: "PrefixSearchCanary927",
+    body: "A target whose title should support search as you type.",
   });
   const { app, page } = await launchAgentPage();
 
   try {
     await composer(page).click();
-    await page.keyboard.type("@E2E_LEXICAL_CANARY_927");
+    await page.keyboard.type("@PrefixSearchCan");
     await expect(page.getByTestId("agent-context-picker")).toBeVisible({ timeout: 15_000 });
     await expect(
       page
         .locator('[data-testid="agent-context-option"][data-context-type="understanding"]')
-        .filter({ hasText: "Lexical Retrieval Canary" }),
+        .filter({ hasText: "PrefixSearchCanary927" }),
     ).toBeVisible();
   } finally {
     await app.close();

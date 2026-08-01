@@ -1,4 +1,4 @@
-import { inArray } from "drizzle-orm";
+import { and, desc, inArray, isNull, sql } from "drizzle-orm";
 import { understandings } from "../../db/schema";
 import type { SearchContextResult, SearchOptions, SearchResult } from "./types";
 import type { UnderstandingSummaryDTO } from "../understanding/types";
@@ -6,6 +6,10 @@ import { SearchCore } from "./core";
 import { getLimitOffset } from "./core";
 import type { ReflectaServerContext } from "../shared/types-electron";
 import type { UnderstandingElectronBff } from "../understanding/bff-electron";
+
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
 
 export class SearchElectronBff extends SearchCore {
   private readonly understandingService: UnderstandingElectronBff;
@@ -20,10 +24,37 @@ export class SearchElectronBff extends SearchCore {
     options?: SearchOptions,
   ): Promise<UnderstandingSummaryDTO[]> {
     const { limit, offset } = getLimitOffset(options);
-    const retrievalRows = await this.searchUnderstandingIds(query, { limit, offset });
-    if (retrievalRows.length === 0) return [];
+    const candidateLimit = limit + offset;
+    const escapedQuery = escapeLike(query.trim());
+    const [titleRows, retrievalRows] = await Promise.all([
+      this.db
+        .select({ id: understandings.id })
+        .from(understandings)
+        .where(
+          and(
+            isNull(understandings.deletedAt),
+            sql`lower(${understandings.title}) LIKE lower(${`%${escapedQuery}%`}) ESCAPE '\\'`,
+          ),
+        )
+        .orderBy(
+          sql`CASE
+            WHEN lower(${understandings.title}) = lower(${escapedQuery}) THEN 0
+            WHEN lower(${understandings.title}) LIKE lower(${`${escapedQuery}%`}) ESCAPE '\\' THEN 1
+            ELSE 2
+          END`,
+          desc(understandings.updatedAt),
+        )
+        .limit(candidateLimit),
+      this.searchUnderstandingIds(query, { limit: candidateLimit }),
+    ]);
 
-    const understandingIds = retrievalRows.map((r) => r.understandingId);
+    const understandingIds = [
+      ...new Set([
+        ...titleRows.map((row) => row.id),
+        ...retrievalRows.map((r) => r.understandingId),
+      ]),
+    ].slice(offset, offset + limit);
+    if (understandingIds.length === 0) return [];
     const understandingRows = await this.db
       .select()
       .from(understandings)
