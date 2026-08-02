@@ -34,6 +34,11 @@ test("streaming follows at the bottom and pauses after the user scrolls away", a
         window.setSize(900, 500);
       },
     );
+    await page.evaluate(() => {
+      const errors: string[] = [];
+      window.addEventListener("error", (event) => errors.push(event.message));
+      (window as Window & { __streamingScrollErrors?: string[] }).__streamingScrollErrors = errors;
+    });
     await openThread(page, THREAD_TITLE);
     const scroll = page.getByTestId("agent-message-scroll");
     const activeReply = page.locator('[data-index][data-message-role="assistant"]').last();
@@ -47,6 +52,12 @@ test("streaming follows at the bottom and pauses after the user scrolls away", a
         { timeout: 15_000 },
       )
       .toBeGreaterThan(360);
+    expect(
+      await page.evaluate(
+        () =>
+          (window as Window & { __streamingScrollErrors?: string[] }).__streamingScrollErrors ?? [],
+      ),
+    ).not.toContain("ResizeObserver loop completed with undelivered notifications.");
 
     await scroll.evaluate((element) => {
       element.scrollTop = element.scrollHeight;

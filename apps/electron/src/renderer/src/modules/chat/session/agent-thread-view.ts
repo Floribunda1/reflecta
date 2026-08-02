@@ -72,6 +72,7 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
   const focusRequest = useThreadFocusNonce(sessionId);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const shouldStickToBottom = useRef(true);
+  const virtualContentSize = useRef(0);
   const invalidatedEntityRefs = useRef<Set<string>>(new Set());
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTurnIdRef = useRef<string | null>(null);
@@ -114,11 +115,16 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
     overscan: 5,
     gap: 20,
     anchorTo: "end",
-    followOnAppend: false,
-    // Content resize observation below owns bottom-following.
-    scrollEndThreshold: -1,
+    followOnAppend: "auto",
+    scrollEndThreshold: CHAT_SCROLL_END_THRESHOLD,
     scrollPaddingEnd: CHAT_JUMP_BOTTOM_OFFSET,
     directDomUpdates: true,
+    onChange: (instance) => {
+      const nextSize = instance.getTotalSize();
+      if (virtualContentSize.current === nextSize) return;
+      virtualContentSize.current = nextSize;
+      if (shouldStickToBottom.current) instance.scrollToEnd({ behavior: "auto" });
+    },
   });
   messageVirtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, _delta, instance) =>
     item.end < (instance.scrollOffset ?? 0) && instance.scrollDirection !== "backward";
@@ -232,19 +238,6 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
     });
     return () => cancelAnimationFrame(frame);
   }, [scrollRequest, scrollToBottom, setScrollButtonVisible, sessionId]);
-
-  useEffect(() => {
-    const element = scrollRef.current;
-    const content = element?.firstElementChild;
-    if (!content || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => {
-      if (!shouldStickToBottom.current) return;
-      scrollToBottom("auto");
-      setTrackedTurnId(lastTurnIdRef.current);
-    });
-    observer.observe(content);
-    return () => observer.disconnect();
-  }, [scrollToBottom, sessionId, sessionRead.status]);
 
   const handleScroll = useCallback(() => {
     const element = scrollRef.current;
