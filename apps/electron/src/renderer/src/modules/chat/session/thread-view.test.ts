@@ -22,6 +22,44 @@ describe("mergeAgentEvents", () => {
     ]);
   });
 
+  test("does not replay streamed text already covered by a refetched assistant snapshot", () => {
+    const base = {
+      sessionId: "session-1",
+      runId: "run-1",
+      messageId: "assistant-1",
+    };
+    const historical: AgentEvent[] = [
+      {
+        ...base,
+        id: "snapshot",
+        type: "assistant.turn",
+        text: "完整回复",
+        blocks: [{ kind: "text", text: "完整回复", createdAt: "2026-08-02T00:00:01.000Z" }],
+        createdAt: "2026-08-02T00:00:02.000Z",
+      },
+    ];
+    const live: AgentEvent[] = [
+      {
+        ...base,
+        id: "covered-delta",
+        type: "assistant.text.delta",
+        delta: "完整回复",
+        createdAt: "2026-08-02T00:00:02.000Z",
+      },
+      {
+        ...base,
+        id: "new-delta",
+        type: "assistant.text.delta",
+        delta: "后的新内容",
+        createdAt: "2026-08-02T00:00:03.000Z",
+      },
+    ];
+
+    expect(reduceAgentSession(mergeAgentEvents(historical, live)).messages[0]?.text).toBe(
+      "完整回复后的新内容",
+    );
+  });
+
   test("does not replay an abandoned live branch after history switches to an edited branch", () => {
     const base = {
       sessionId: "session-1",

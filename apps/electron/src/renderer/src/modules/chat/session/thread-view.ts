@@ -69,14 +69,26 @@ export function mergeAgentEvents(
   const historicalRunIds = new Set(
     historical.flatMap((event) => (event.runId ? [event.runId] : [])),
   );
+  const snapshotCreatedAtByMessage = new Map(
+    historical.flatMap((event) =>
+      event.type === "assistant.turn" ? [[event.messageId, event.createdAt] as const] : [],
+    ),
+  );
   const latestLiveRunId = live.findLast((event) => event.type === "run.started")?.runId;
   return [
     ...historical,
-    ...live.filter(
-      (event) =>
+    ...live.filter((event) => {
+      const snapshotCreatedAt =
+        "messageId" in event && event.messageId
+          ? snapshotCreatedAtByMessage.get(event.messageId)
+          : undefined;
+      // ponytail: timestamps are millisecond-granular; add event sequences if IPC ordering changes.
+      return (
         !eventIds.has(event.id) &&
-        (!event.runId || historicalRunIds.has(event.runId) || event.runId === latestLiveRunId),
-    ),
+        (!event.runId || historicalRunIds.has(event.runId) || event.runId === latestLiveRunId) &&
+        (!snapshotCreatedAt || event.createdAt > snapshotCreatedAt)
+      );
+    }),
   ];
 }
 
