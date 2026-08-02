@@ -288,7 +288,7 @@ git diff --check
 - Main Runtime 统一归并 durable records 与 live changes，并从同一 Projection 冻结 completion、failure、cancel 的 Assistant snapshot；重复的 `AgentRunAccumulator` 已删除。
 - 原生 MessagePort 负责首帧与后续 revision 的 FIFO 交付；受控初始化 barrier、port close/error、旧 revision、branch replacement 与后台运行 retention 均有自动化测试。
 - Renderer 已删除 raw Agent event subscription、Session events Query、`mergeAgentEvents`、运行/停止镜像状态；窗口 focus 与组件重建不再触发 event refetch/replay。
-- 自动验证通过：Main 26 files / 172 tests，Renderer 17 files / 145 tests，Electron typecheck、lint、format、production build、feature coverage、完整 E2E 133 / 133 与 `git diff --check`。
+- 自动验证通过：Main 26 files / 172 tests，Renderer 17 files / 145 tests，Electron typecheck、lint、format、production build、feature coverage、完整 E2E 134 / 134 与 `git diff --check`；新增窗口失焦后恢复时回复不重复的 regression。
 
 ## 结构化写作自检
 
