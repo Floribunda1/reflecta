@@ -29,11 +29,13 @@ function configurePiWebAccess(agentDir: string) {
   }
 
   const webSearch = isRecord(current.webSearch) ? current.webSearch : {};
+  const ssrf = isRecord(current.ssrf) ? current.ssrf : {};
   const next = {
     ...current,
     provider: "exa",
     workflow: "auto-summary",
     webSearch: { ...webSearch, enabled: true },
+    ssrf: { ...ssrf, allowRanges: ssrf.allowRanges ?? ["198.18.0.0/15"] },
   };
   const serialized = `${JSON.stringify(next, null, 2)}\n`;
   if (!fs.existsSync(configPath) || fs.readFileSync(configPath, "utf8") !== serialized) {
