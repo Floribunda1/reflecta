@@ -23,7 +23,7 @@ test.beforeEach(() => {
   });
 });
 
-test("streaming follows at the bottom and pauses after the user scrolls away", async () => {
+test("用户离开底部后只有回到底部才恢复自动跟随", async () => {
   const { app, page } = await launchAgentPage();
 
   try {
@@ -52,13 +52,6 @@ test("streaming follows at the bottom and pauses after the user scrolls away", a
         { timeout: 15_000 },
       )
       .toBeGreaterThan(360);
-    expect(
-      await page.evaluate(
-        () =>
-          (window as Window & { __streamingScrollErrors?: string[] }).__streamingScrollErrors ?? [],
-      ),
-    ).not.toContain("ResizeObserver loop completed with undelivered notifications.");
-
     await scroll.evaluate((element) => {
       element.scrollTop = element.scrollHeight;
       element.dispatchEvent(new Event("scroll"));
@@ -108,6 +101,31 @@ test("streaming follows at the bottom and pauses after the user scrolls away", a
       .toBeGreaterThan(heightBeforeDownGrowth + 200);
     await page.waitForTimeout(250);
     expect(await scroll.evaluate((element) => element.scrollTop)).toBe(readingPosition);
+
+    await scroll.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+      element.dispatchEvent(new Event("scroll"));
+    });
+    const heightBeforeResumedGrowth = await scroll.evaluate((element) => element.scrollHeight);
+    await activeReply.evaluate((element) => {
+      (element as HTMLElement).style.paddingBottom = "480px";
+    });
+    await expect
+      .poll(() => scroll.evaluate((element) => element.scrollHeight))
+      .toBeGreaterThan(heightBeforeResumedGrowth + 100);
+    await expect
+      .poll(() =>
+        scroll.evaluate(
+          (element) => element.scrollHeight - element.scrollTop - element.clientHeight,
+        ),
+      )
+      .toBeLessThanOrEqual(1);
+    expect(
+      await page.evaluate(
+        () =>
+          (window as Window & { __streamingScrollErrors?: string[] }).__streamingScrollErrors ?? [],
+      ),
+    ).not.toContain("ResizeObserver loop completed with undelivered notifications.");
   } finally {
     await app.close();
   }
