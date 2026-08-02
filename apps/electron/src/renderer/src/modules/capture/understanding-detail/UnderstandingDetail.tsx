@@ -28,7 +28,16 @@ import { useModal } from "@reflecta/ui/overlays";
 import type { ContextDTO, ContextMedium } from "@shared/context";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { FileText, MessageCircle, Pencil, Plus, Trash2, X } from "lucide-react";
+import {
+  FileText,
+  Maximize2,
+  MessageCircle,
+  Minimize2,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useQueries } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUnderstandingDetail, useUnderstandingDetailActions } from "./hooks";
@@ -47,6 +56,8 @@ type UnderstandingDetailProps = {
   onDeleted?: () => void;
   onWikiLinkClick?: (understandingId: string) => void;
   onChat?: (scope: CaptureAgentScope) => void;
+  focusMode?: boolean;
+  onFocusModeChange?: (focused: boolean) => void;
 };
 
 type ContextDraftInput = {
@@ -278,6 +289,8 @@ function UnderstandingDetailInner({
   onDeleted,
   onWikiLinkClick,
   onChat,
+  focusMode = false,
+  onFocusModeChange,
 }: UnderstandingDetailProps) {
   const detailRef = useRef<HTMLElement>(null);
   const { understanding } = useUnderstandingDetail(understandingId);
@@ -447,13 +460,27 @@ function UnderstandingDetailInner({
               showPath={false}
               variant="inline"
             />
+            {onFocusModeChange ? (
+              <Button
+                data-testid="capture-understanding-focus-button"
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                className="ml-auto"
+                aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
+                title={focusMode ? "退出专注模式（Esc）" : "进入专注模式"}
+                onClick={() => onFocusModeChange(!focusMode)}
+              >
+                {focusMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+              </Button>
+            ) : null}
             {onChat ? (
               <Button
                 data-testid="capture-understanding-chat-button"
                 type="button"
                 size="icon-sm"
                 variant="ghost"
-                className="ml-auto"
+                className={onFocusModeChange ? undefined : "ml-auto"}
                 aria-label="聊聊"
                 title="聊聊"
                 onClick={() =>
@@ -471,7 +498,7 @@ function UnderstandingDetailInner({
               type="button"
               size="icon-sm"
               variant="ghost"
-              className={`${onChat ? "" : "ml-auto"} text-destructive hover:bg-destructive/10 hover:text-destructive`}
+              className={`${onChat || onFocusModeChange ? "" : "ml-auto"} text-destructive hover:bg-destructive/10 hover:text-destructive`}
               aria-label="删除"
               title="删除"
               onClick={handleDeleteUnderstanding}

@@ -126,3 +126,28 @@ test("@CP-LIST-001 用户调整 Understanding 列表宽度", async () => {
     await app.close();
   }
 });
+
+test("@CP-LIST-006 用户专注阅读当前 Understanding", async () => {
+  const { app, page } = await launchApp();
+
+  try {
+    await openCapturePage(page);
+    await understandingRow(page, "React Server Components").click();
+
+    const domainSidebar = page.getByTestId("capture-domain-sidebar-container");
+    const listPanel = page.getByTestId("capture-understanding-list-panel");
+    const focusButton = page.getByRole("button", { name: "进入专注模式" });
+
+    await focusButton.click();
+    await expect(domainSidebar).toHaveAttribute("aria-hidden", "true");
+    await expect(listPanel).toHaveCSS("width", "0px");
+    await expect(page.getByRole("button", { name: "退出专注模式" })).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(domainSidebar).toHaveAttribute("aria-hidden", "false");
+    await expect.poll(async () => (await listPanel.boundingBox())?.width ?? 0).toBeGreaterThan(280);
+    await expect(page.getByRole("button", { name: "进入专注模式" })).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
