@@ -124,6 +124,8 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
     scrollPaddingEnd: CHAT_JUMP_BOTTOM_OFFSET,
     directDomUpdates: true,
   });
+  messageVirtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, _delta, instance) =>
+    item.end < (instance.scrollOffset ?? 0) && instance.scrollDirection !== "backward";
   const messageIndexById = useMemo(
     () => new Map(visibleMessages.map((message, index) => [message.id, index])),
     [visibleMessages],
@@ -254,7 +256,7 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
       scrollTop: element.scrollTop,
       clientHeight: element.clientHeight,
     });
-    shouldStickToBottom.current &&=
+    shouldStickToBottom.current =
       element.scrollHeight - element.scrollTop - element.clientHeight <= CHAT_SCROLL_END_THRESHOLD;
     setScrollButtonVisible(shouldShowButton);
     updateActiveTurn();
