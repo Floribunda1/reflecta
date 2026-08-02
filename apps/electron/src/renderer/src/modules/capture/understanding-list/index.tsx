@@ -95,9 +95,9 @@ export function UnderstandingList({
               onClick={onExpandSidebar}
             />
           ) : null}
-          <div className="app-drag-region min-w-0 self-stretch">
+          <div className="app-drag-region flex min-w-0 items-center gap-2 self-stretch">
             <div className="truncate text-sm font-medium">{domainLabel}</div>
-            <div className="text-xs text-muted-foreground">{countLabel}</div>
+            <div className="shrink-0 text-xs text-muted-foreground">{countLabel}</div>
           </div>
           <div className="app-drag-region min-w-0 flex-1 self-stretch" />
           <div
