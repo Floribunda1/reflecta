@@ -59,10 +59,6 @@ export function UnderstandingList({
       ? "全部领域"
       : (domainList.find((c) => c.id === selectedDomainId)?.name ?? "");
   const hasSearchQuery = searchQuery.trim().length > 0;
-  const countLabel =
-    hasSearchQuery && understandings.length !== understandingList.totalCount
-      ? `${understandings.length} / ${understandingList.totalCount} 条理解`
-      : `${understandingList.totalCount} 条理解`;
 
   useEffect(() => {
     if (!searchOpen) return;
@@ -95,9 +91,8 @@ export function UnderstandingList({
               onClick={onExpandSidebar}
             />
           ) : null}
-          <div className="app-drag-region flex min-w-0 items-center gap-2 self-stretch">
+          <div className="app-drag-region flex min-w-0 items-center self-stretch">
             <div className="truncate text-sm font-medium">{domainLabel}</div>
-            <div className="shrink-0 text-xs text-muted-foreground">{countLabel}</div>
           </div>
           <div className="app-drag-region min-w-0 flex-1 self-stretch" />
           <div
