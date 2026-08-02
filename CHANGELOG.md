@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.13 - 2026-08-03
+
+- Stabilized Agent streaming scroll behavior so replies stay pinned only at the bottom, preserve the user's reading position after scrolling away, resume following after returning to the bottom, and no longer trigger ResizeObserver errors.
+
 ## 1.3.12 - 2026-08-02
 
 - Kept Agent conversations at the user's reading position when a streaming reply grows after scrolling up and then slightly down.
