@@ -452,54 +452,18 @@ test("@AG-RUN-002 用户停止回复后切换回来仍看到停止状态", async
 });
 
 test("@AG-RUN-003 用户在 Agent 回复期间上翻后保持阅读位置", async () => {
-  const sessionId = "stream-scroll-position";
-  seedAgentThread({
-    id: sessionId,
-    title: "STREAM_SCROLL_POSITION",
-    messages: Array.from({ length: 8 }, (_, index) => [
-      userMessage(`scroll-user-${index}`, `USER_${index}`),
-      assistantMessage(`scroll-assistant-${index}`, [
-        { type: "text", text: `HISTORY_${index}\n`.repeat(30) },
-      ]),
-    ]).flat(),
-  });
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
+  test.setTimeout(180_000);
   const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
 
   try {
-    await openThread(page, "STREAM_SCROLL_POSITION");
+    await createNewThread(page);
+    await sendMessage(page, SLOW_PROMPT);
+    const firstProgress = await waitForVisibleProgressText(page);
     const scroll = page.getByTestId("agent-message-scroll");
     await expect
-      .poll(() => scroll.evaluate((element) => element.scrollHeight))
-      .toBeGreaterThan(900);
-
-    await app.evaluate(({ BrowserWindow }, sessionId) => {
-      const window = BrowserWindow.getAllWindows()[0];
-      const base = {
-        sessionId,
-        runId: "run-stream-scroll",
-        createdAt: "2026-08-01T00:00:00.000Z",
-      };
-      window?.webContents.send("agent:event", {
-        ...base,
-        id: "stream-scroll-run",
-        type: "run.started",
-      });
-      window?.webContents.send("agent:event", {
-        ...base,
-        id: "stream-scroll-user",
-        type: "user.message",
-        messageId: "stream-scroll-user",
-        text: "STREAM_SCROLL_USER",
-      });
-      window?.webContents.send("agent:event", {
-        ...base,
-        id: "stream-scroll-delta-0",
-        type: "assistant.text.delta",
-        messageId: "stream-scroll-assistant",
-        delta: "STREAM_START\n".repeat(20),
-      });
-    }, sessionId);
-    await expect(page.getByTestId("agent-assistant-text").last()).toContainText("STREAM_START");
+      .poll(() => scroll.evaluate((element) => element.scrollHeight - element.clientHeight))
+      .toBeGreaterThan(96);
 
     await scroll.evaluate((element) => {
       element.scrollTop = element.scrollHeight - element.clientHeight - 48;
@@ -513,22 +477,7 @@ test("@AG-RUN-003 用户在 Agent 回复期间上翻后保持阅读位置", asyn
       )
       .toBe(48);
     const readingPosition = await scroll.evaluate((element) => element.scrollTop);
-    await app.evaluate(({ BrowserWindow }, sessionId) => {
-      const window = BrowserWindow.getAllWindows()[0];
-      const base = {
-        sessionId,
-        runId: "run-stream-scroll",
-        createdAt: "2026-08-01T00:00:00.000Z",
-      };
-      window?.webContents.send("agent:event", {
-        ...base,
-        id: "stream-scroll-delta-1",
-        type: "assistant.text.delta",
-        messageId: "stream-scroll-assistant",
-        delta: "STREAM_TOKEN_1\n".repeat(20),
-      });
-    }, sessionId);
-    await expect(page.getByTestId("agent-assistant-text").last()).toContainText("STREAM_TOKEN_1");
+    await expect.poll(() => readVisibleProgressText(page)).not.toBe(firstProgress);
 
     await expect.poll(() => scroll.evaluate((element) => element.scrollTop)).toBe(readingPosition);
   } finally {

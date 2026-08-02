@@ -4,7 +4,7 @@
 
 > 日期：2026-08-02
 >
-> 状态：Ready for Implementation
+> 状态：Implemented
 >
 > 架构依据：[Agent Session Projection 与实时 Feed 架构](../../references/technical/biz/agent/session-projection.md)
 
@@ -150,19 +150,18 @@ Preload 暴露窄 API：
 watchAgentSession(
   sessionId: string,
   receive: (frame: AgentSessionFeedFrame) => void,
-  signal: AbortSignal,
-): void;
+): () => void;
 ```
 
-Adapter 创建原生 `MessageChannel`，把一个 port 传给 Main，另一个 port 留给 Renderer。Adapter 验证 frame、忽略非递增 revision，并在 abort 时关闭 port。
+Adapter 创建原生 `MessageChannel`，把一个 port 传给 Main，另一个 port 留给 Renderer。Adapter 验证 frame、忽略非递增 revision，并在 unsubscribe 时关闭 port。
 
-### 4.3 In-memory Adapter 与契约测试
+### 4.3 Runtime / Replica 契约测试
 
-In-memory Adapter 不 mock Electron globals，只实现同一 watch Interface。Production 与 In-memory Adapter 共用以下契约：
+测试 harness 不 mock Electron globals，直接驱动 Runtime 与 Replica 的同一 watch Interface。Production Adapter 与 harness 覆盖以下契约：
 
 - 首帧必为完整 state；
 - state revision 单调递增；
-- abort 后不再 receive；
+- unsubscribe 后不再 receive；
 - transport error 与 run failure 不混淆；
 - 重复/旧 frame 不导致第二次状态变化。
 
@@ -277,12 +276,19 @@ git diff --check
 
 ## 9. 执行状态
 
-- [ ] Task 1：建立 Projection 事实模型
-- [ ] Task 2：建立 Main-side AgentSessionRuntime
-- [ ] Task 3：建立 MessagePort Feed 与 Adapters
-- [ ] Task 4：切换 Renderer Session Replica
-- [ ] Task 5：删除旧协议与补丁链
-- [ ] Task 6：验证与回归
+- [x] Task 1：建立 Projection 事实模型
+- [x] Task 2：建立 Main-side AgentSessionRuntime
+- [x] Task 3：建立 MessagePort Feed 与 Adapters
+- [x] Task 4：切换 Renderer Session Replica
+- [x] Task 5：删除旧协议与补丁链
+- [x] Task 6：验证与回归
+
+## 10. 完成记录
+
+- Main Runtime 统一归并 durable records 与 live changes，并从同一 Projection 冻结 completion、failure、cancel 的 Assistant snapshot；重复的 `AgentRunAccumulator` 已删除。
+- 原生 MessagePort 负责首帧与后续 revision 的 FIFO 交付；受控初始化 barrier、port close/error、旧 revision、branch replacement 与后台运行 retention 均有自动化测试。
+- Renderer 已删除 raw Agent event subscription、Session events Query、`mergeAgentEvents`、运行/停止镜像状态；窗口 focus 与组件重建不再触发 event refetch/replay。
+- 自动验证通过：Main 26 files / 172 tests，Renderer 17 files / 145 tests，Electron typecheck、lint、format、production build、feature coverage、regression E2E 与 `git diff --check`。
 
 ## 结构化写作自检
 

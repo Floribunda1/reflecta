@@ -3,7 +3,6 @@ import type { ReactVirtualizer } from "@tanstack/react-virtual";
 import type {
   AgentContextCompacted,
   AgentEntityCatalogEntry,
-  AgentEvent,
   AgentModelSelection,
   AgentReasoningLevel,
   AgentReducedMessage,
@@ -60,37 +59,6 @@ export type ChatFindMatch = {
   matchIndex: number;
   role: AgentReducedMessage["role"];
 };
-
-export function mergeAgentEvents(
-  historical: readonly AgentEvent[],
-  live: readonly AgentEvent[],
-): AgentEvent[] {
-  const eventIds = new Set(historical.map((event) => event.id));
-  const historicalRunIds = new Set(
-    historical.flatMap((event) => (event.runId ? [event.runId] : [])),
-  );
-  const snapshotCreatedAtByMessage = new Map(
-    historical.flatMap((event) =>
-      event.type === "assistant.turn" ? [[event.messageId, event.createdAt] as const] : [],
-    ),
-  );
-  const latestLiveRunId = live.findLast((event) => event.type === "run.started")?.runId;
-  return [
-    ...historical,
-    ...live.filter((event) => {
-      const snapshotCreatedAt =
-        "messageId" in event && event.messageId
-          ? snapshotCreatedAtByMessage.get(event.messageId)
-          : undefined;
-      // ponytail: timestamps are millisecond-granular; add event sequences if IPC ordering changes.
-      return (
-        !eventIds.has(event.id) &&
-        (!event.runId || historicalRunIds.has(event.runId) || event.runId === latestLiveRunId) &&
-        (!snapshotCreatedAt || event.createdAt > snapshotCreatedAt)
-      );
-    }),
-  ];
-}
 
 export function editingMessageFromAgentMessage(message: AgentReducedMessage): EditingMessage {
   return {

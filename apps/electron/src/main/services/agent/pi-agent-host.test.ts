@@ -4,10 +4,14 @@ import path from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { ModelRegistry, SettingsManager } from "@earendil-works/pi-coding-agent";
 import type { KnownProvider } from "@earendil-works/pi-ai/compat";
-import { reduceAgentSession, type AgentSessionEvent } from "@shared/agent";
+import {
+  reduceAgentSession,
+  type AgentSessionEvent,
+  type AgentSessionFeedFrame,
+  type AgentSessionProjection,
+} from "@shared/agent";
 import type { ResolvedAiModelConfig } from "../../config";
 import {
-  AGENT_EVENT_CHANNEL,
   buildThreadTitleContext,
   createPiBashTool,
   createPiResourceLoader,
@@ -30,6 +34,29 @@ const hydratePiApprovalPayloadMock = vi.hoisted(() =>
 const getModelMock = vi.hoisted(() => vi.fn(() => ({ id: "model-test" })));
 const isPiApprovalToolNameMock = vi.hoisted(() => vi.fn((_name: string) => false));
 const piAuthPathMock = vi.hoisted(() => `/tmp/reflecta-pi-agent-host-${process.pid}-auth.json`);
+
+async function recordSessionFrames(host: PiAgentHost, sessionId: string) {
+  const frames: AgentSessionFeedFrame[] = [];
+  const stop = await host.watchSession(sessionId, (frame) => frames.push(frame));
+  return { frames, stop };
+}
+
+function stateFrames(frames: AgentSessionFeedFrame[]): AgentSessionProjection[] {
+  return frames.flatMap((frame) => (frame.kind === "state" ? [frame.session] : []));
+}
+
+function approvalTransitions(frames: AgentSessionFeedFrame[]) {
+  const transitions = stateFrames(frames).flatMap((session) =>
+    session.messages.flatMap((message) =>
+      (message.blocks ?? []).filter((block) => block.kind === "approval"),
+    ),
+  );
+  return transitions.filter((block, index) => {
+    if (index === 0) return true;
+    const previous = transitions[index - 1];
+    return JSON.stringify(block) !== JSON.stringify(previous);
+  });
+}
 
 vi.mock("@earendil-works/pi-ai/compat", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@earendil-works/pi-ai/compat")>()),
@@ -333,16 +360,14 @@ describe("PiAgentHost", () => {
         abort: vi.fn(),
       },
     });
-    const webContents = { isDestroyed: () => false, send: vi.fn() };
+    const host = new PiAgentHost(root);
+    const { frames } = await recordSessionFrames(host, thread.id);
 
-    await new PiAgentHost(root).sendAgentCommand(
-      {
-        type: "context.compact",
-        sessionId: thread.id,
-        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
-      },
-      webContents as never,
-    );
+    await host.sendAgentCommand({
+      type: "context.compact",
+      sessionId: thread.id,
+      modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+    });
 
     expect(compact).toHaveBeenCalledOnce();
     await expect(new AgentSessionLog(root).readEvents(thread.id)).resolves.toEqual([
@@ -357,11 +382,19 @@ describe("PiAgentHost", () => {
         afterMessageId: "assistant_1",
       }),
     ]);
-    expect(webContents.send.mock.calls.map(([, event]) => event.type)).toEqual([
-      "context.compaction.started",
-      "context.compaction.finished",
-      "context.compacted",
-    ]);
+    expect(stateFrames(frames)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          activeCompaction: expect.objectContaining({ reason: "manual" }),
+        }),
+        expect.objectContaining({
+          activeCompaction: null,
+          contextCompactions: [
+            expect.objectContaining({ summary: "## 当前意图\n继续验证上下文压缩" }),
+          ],
+        }),
+      ]),
+    );
   });
 
   test("reports a short manual compaction without persisting a checkpoint", async () => {
@@ -402,23 +435,24 @@ describe("PiAgentHost", () => {
         abort: vi.fn(),
       },
     });
-    const webContents = { isDestroyed: () => false, send: vi.fn() };
-
+    const host = new PiAgentHost(root);
+    const { frames } = await recordSessionFrames(host, thread.id);
     await expect(
-      new PiAgentHost(root).sendAgentCommand(
-        { type: "context.compact", sessionId: thread.id },
-        webContents as never,
-      ),
+      host.sendAgentCommand({ type: "context.compact", sessionId: thread.id }),
     ).rejects.toThrow("当前对话还不需要压缩");
 
     await expect(new AgentSessionLog(root).readEvents(thread.id)).resolves.toEqual([userEvent]);
-    expect(webContents.send.mock.calls.map(([, event]) => event)).toEqual([
-      expect.objectContaining({ type: "context.compaction.started" }),
-      expect.objectContaining({
-        type: "context.compaction.finished",
-        error: "当前对话还不需要压缩",
-      }),
-    ]);
+    expect(stateFrames(frames)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          activeCompaction: expect.objectContaining({ reason: "manual" }),
+        }),
+        expect.objectContaining({
+          activeCompaction: null,
+          compactionError: "当前对话还不需要压缩",
+        }),
+      ]),
+    );
   });
 
   test("rejects manual compaction while the conversation is already running", async () => {
@@ -430,10 +464,7 @@ describe("PiAgentHost", () => {
     ).activeRuns.set("session_busy", {});
 
     await expect(
-      host.sendAgentCommand({ type: "context.compact", sessionId: "session_busy" }, {
-        isDestroyed: () => false,
-        send: vi.fn(),
-      } as never),
+      host.sendAgentCommand({ type: "context.compact", sessionId: "session_busy" }),
     ).rejects.toThrow("当前对话正在处理中，请稍后再压缩上下文");
     expect(createAgentSessionMock).not.toHaveBeenCalled();
   });
@@ -528,16 +559,15 @@ describe("PiAgentHost", () => {
       payload: { understandingId: "understanding_1", body: "next" },
       createdAt: "2026-06-26T00:00:00.000Z",
     });
-    const webContents = { isDestroyed: () => false, send: vi.fn() };
-
     await (
       new PiAgentHost(root) as unknown as {
-        resolveToolApproval: (command: unknown, webContents: unknown) => Promise<void>;
+        resolveToolApproval: (command: unknown) => Promise<void>;
       }
-    ).resolveToolApproval(
-      { type: "tool.approve", sessionId: thread.id, approvalId: "approval_tool_1" },
-      webContents,
-    );
+    ).resolveToolApproval({
+      type: "tool.approve",
+      sessionId: thread.id,
+      approvalId: "approval_tool_1",
+    });
 
     const events = await new AgentSessionLog(root).readEvents(thread.id);
     expect(events.map((event) => event.type)).toEqual([
@@ -579,16 +609,15 @@ describe("PiAgentHost", () => {
       payload: { understandingId: "understanding_1", domainIds: ["domain_1"] },
       createdAt: "2026-06-26T00:00:00.000Z",
     });
-    const webContents = { isDestroyed: () => false, send: vi.fn() };
-
     await (
       new PiAgentHost(root) as unknown as {
-        resolveToolApproval: (command: unknown, webContents: unknown) => Promise<void>;
+        resolveToolApproval: (command: unknown) => Promise<void>;
       }
-    ).resolveToolApproval(
-      { type: "tool.approve", sessionId: thread.id, approvalId: "approval_tool_1" },
-      webContents,
-    );
+    ).resolveToolApproval({
+      type: "tool.approve",
+      sessionId: thread.id,
+      approvalId: "approval_tool_1",
+    });
 
     const events = await new AgentSessionLog(root).readEvents(thread.id);
     expect(events.map((event) => event.type)).toEqual([
@@ -716,25 +745,17 @@ describe("PiAgentHost", () => {
         abort: vi.fn(),
       },
     });
-    const webContents = {
-      isDestroyed: () => false,
-      send: vi.fn(),
-    };
-
     await (
       new PiAgentHost(root) as unknown as {
-        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
+        sendMessage: (command: unknown) => Promise<void>;
       }
-    ).sendMessage(
-      {
-        type: "message.send",
-        sessionId: thread.id,
-        text: "请解释这个 context",
-        contextRefs: [{ type: "context", id: "ctx_1", title: "一次复盘" }],
-        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
-      },
-      webContents as never,
-    );
+    ).sendMessage({
+      type: "message.send",
+      sessionId: thread.id,
+      text: "请解释这个 context",
+      contextRefs: [{ type: "context", id: "ctx_1", title: "一次复盘" }],
+      modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+    });
 
     const events = await new AgentSessionLog(root).readEvents(thread.id);
     const newEvents = events.slice(3);
@@ -816,23 +837,18 @@ describe("PiAgentHost", () => {
         abort: vi.fn(),
       },
     });
-    const webContents = {
-      isDestroyed: () => false,
-      send: vi.fn(),
-    };
+    const host = new PiAgentHost(root);
+    const { frames } = await recordSessionFrames(host, thread.id);
     await (
-      new PiAgentHost(root) as unknown as {
-        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
+      host as unknown as {
+        sendMessage: (command: unknown) => Promise<void>;
       }
-    ).sendMessage(
-      {
-        type: "message.send",
-        sessionId: thread.id,
-        text: "统计上下文",
-        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
-      },
-      webContents as never,
-    );
+    ).sendMessage({
+      type: "message.send",
+      sessionId: thread.id,
+      text: "统计上下文",
+      modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+    });
 
     const events = await new AgentSessionLog(root).readEvents(thread.id);
     const turn = events.find((event) => event.type === "assistant.turn");
@@ -852,9 +868,14 @@ describe("PiAgentHost", () => {
       }),
     );
     expect(events.map((event) => event.type)).not.toContain("assistant.text.delta");
-    expect(webContents.send).toHaveBeenCalledWith(
-      AGENT_EVENT_CHANNEL,
-      expect.objectContaining({ type: "assistant.text.delta", delta: "完成" }),
+    expect(stateFrames(frames)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          messages: expect.arrayContaining([
+            expect.objectContaining({ role: "assistant", text: "完成" }),
+          ]),
+        }),
+      ]),
     );
   });
 
@@ -919,21 +940,16 @@ describe("PiAgentHost", () => {
         abort: vi.fn(),
       },
     });
-    const webContents = { isDestroyed: () => false, send: vi.fn() };
-
     await (
       new PiAgentHost(root) as unknown as {
-        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
+        sendMessage: (command: unknown) => Promise<void>;
       }
-    ).sendMessage(
-      {
-        type: "message.send",
-        sessionId: thread.id,
-        text: "继续处理",
-        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
-      },
-      webContents as never,
-    );
+    ).sendMessage({
+      type: "message.send",
+      sessionId: thread.id,
+      text: "继续处理",
+      modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+    });
 
     const events = await new AgentSessionLog(root).readEvents(thread.id);
     const turn = events.find((event) => event.type === "assistant.turn");
@@ -995,25 +1011,20 @@ describe("PiAgentHost", () => {
         abort: vi.fn(),
       },
     });
-    const webContents = {
-      isDestroyed: () => false,
-      send: vi.fn(),
-    };
+    const host = new PiAgentHost(root);
+    const { frames } = await recordSessionFrames(host, thread.id);
 
     await (
-      new PiAgentHost(root) as unknown as {
-        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
+      host as unknown as {
+        sendMessage: (command: unknown) => Promise<void>;
       }
-    ).sendMessage(
-      {
-        type: "message.send",
-        sessionId: thread.id,
-        text: "放在哪个 domain",
-        contextRefs: [{ type: "domain", id: "domain_1", title: "三观" }],
-        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
-      },
-      webContents as never,
-    );
+    ).sendMessage({
+      type: "message.send",
+      sessionId: thread.id,
+      text: "放在哪个 domain",
+      contextRefs: [{ type: "domain", id: "domain_1", title: "三观" }],
+      modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+    });
 
     const sessionOptions = createAgentSessionMock.mock.calls.at(-1)?.[0] as {
       customTools?: { name: string }[];
@@ -1044,13 +1055,15 @@ describe("PiAgentHost", () => {
         },
       ],
     });
-    const textDeltas = webContents.send.mock.calls
-      .map((call) => call[1])
-      .filter((event) => event.type === "assistant.text.delta");
-    expect(textDeltas).toEqual(
+    expect(stateFrames(frames)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          delta: "放在三观下面 [[d:domain_1]]。",
+          messages: expect.arrayContaining([
+            expect.objectContaining({
+              role: "assistant",
+              text: "放在三观下面 [[d:domain_1]]。",
+            }),
+          ]),
         }),
       ]),
     );
@@ -1097,22 +1110,17 @@ describe("PiAgentHost", () => {
         abort: vi.fn(),
       },
     });
-    const webContents = { isDestroyed: () => false, send: vi.fn() };
-
     await (
       new PiAgentHost(root) as unknown as {
-        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
+        sendMessage: (command: unknown) => Promise<void>;
       }
-    ).sendMessage(
-      {
-        type: "message.send",
-        sessionId: thread.id,
-        text: "放在哪里",
-        contextRefs: [{ type: "domain", id: "domain_1", title: "三观" }],
-        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
-      },
-      webContents as never,
-    );
+    ).sendMessage({
+      type: "message.send",
+      sessionId: thread.id,
+      text: "放在哪里",
+      contextRefs: [{ type: "domain", id: "domain_1", title: "三观" }],
+      modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+    });
 
     const events = await new AgentSessionLog(root).readEvents(thread.id);
     expect(events.find((event) => event.type === "assistant.turn")).toMatchObject({
@@ -1206,25 +1214,21 @@ describe("PiAgentHost", () => {
         abort: vi.fn(),
       },
     });
-    const webContents = { isDestroyed: () => false, send: vi.fn() };
+    const host = new PiAgentHost(root);
+    const { frames } = await recordSessionFrames(host, thread.id);
 
     await (
-      new PiAgentHost(root) as unknown as {
-        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
+      host as unknown as {
+        sendMessage: (command: unknown) => Promise<void>;
       }
-    ).sendMessage(
-      {
-        type: "message.send",
-        sessionId: thread.id,
-        text: "创建一个 Understanding",
-        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
-      },
-      webContents as never,
-    );
+    ).sendMessage({
+      type: "message.send",
+      sessionId: thread.id,
+      text: "创建一个 Understanding",
+      modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+    });
 
-    const sentApprovals = webContents.send.mock.calls
-      .map((call) => call[1])
-      .filter((event) => event.type === "approval.requested");
+    const sentApprovals = approvalTransitions(frames);
     expect(sentApprovals).toEqual([
       expect.objectContaining({
         preview: true,
@@ -1238,7 +1242,7 @@ describe("PiAgentHost", () => {
         payload: { title: "Final", body: "Final body" },
       }),
     ]);
-    expect(sentApprovals[2]).not.toHaveProperty("preview");
+    expect(sentApprovals[2]?.preview).toBeFalsy();
 
     const persistedApprovals = (await new AgentSessionLog(root).readEvents(thread.id)).filter(
       (event) => event.type === "approval.requested",
@@ -1380,26 +1384,22 @@ describe("PiAgentHost", () => {
         abort: vi.fn(),
       },
     });
-    const webContents = { isDestroyed: () => false, send: vi.fn() };
+    const host = new PiAgentHost(root);
+    const { frames } = await recordSessionFrames(host, thread.id);
 
     await (
-      new PiAgentHost(root) as unknown as {
-        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
+      host as unknown as {
+        sendMessage: (command: unknown) => Promise<void>;
       }
-    ).sendMessage(
-      {
-        type: "message.send",
-        sessionId: thread.id,
-        text: "更新这个 Understanding",
-        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
-      },
-      webContents as never,
-    );
+    ).sendMessage({
+      type: "message.send",
+      sessionId: thread.id,
+      text: "更新这个 Understanding",
+      modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+    });
 
     expect(hydratePiApprovalPayloadMock).toHaveBeenCalledTimes(1);
-    const previewApprovals = webContents.send.mock.calls
-      .map((call) => call[1])
-      .filter((event) => event.type === "approval.requested" && event.preview);
+    const previewApprovals = approvalTransitions(frames).filter((block) => block.preview);
     expect(previewApprovals).toContainEqual(
       expect.objectContaining({
         payload: expect.objectContaining({
@@ -1492,28 +1492,24 @@ describe("PiAgentHost", () => {
         abort: vi.fn(),
       },
     });
-    const webContents = { isDestroyed: () => false, send: vi.fn() };
+    const host = new PiAgentHost(root);
+    const { frames } = await recordSessionFrames(host, thread.id);
 
     await (
-      new PiAgentHost(root) as unknown as {
-        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
+      host as unknown as {
+        sendMessage: (command: unknown) => Promise<void>;
       }
-    ).sendMessage(
-      {
-        type: "message.send",
-        sessionId: thread.id,
-        text: "更新这个 Understanding",
-        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
-      },
-      webContents as never,
-    );
+    ).sendMessage({
+      type: "message.send",
+      sessionId: thread.id,
+      text: "更新这个 Understanding",
+      modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+    });
 
-    const approvals = webContents.send.mock.calls
-      .map((call) => call[1])
-      .filter((event) => event.type === "approval.requested");
+    const approvals = approvalTransitions(frames);
     expect(approvals).toHaveLength(2);
     expect(approvals.map((event) => event.preview)).toEqual([true, undefined]);
-    expect(approvals.map((event) => event.payload.before)).toEqual([
+    expect(approvals.map((event) => (event.payload as { before: unknown }).before)).toEqual([
       {
         title: "Existing title",
         body: "Existing body",
@@ -1582,33 +1578,25 @@ describe("PiAgentHost", () => {
         abort: vi.fn(),
       },
     });
-    const webContents = {
-      isDestroyed: () => false,
-      send: vi.fn(),
-    };
     const host = new PiAgentHost(root);
 
     const sendPromise = (
       host as unknown as {
-        sendMessage: (command: unknown, webContents: unknown) => Promise<void>;
+        sendMessage: (command: unknown) => Promise<void>;
       }
-    ).sendMessage(
-      {
-        type: "message.send",
-        sessionId: thread.id,
-        text: "开始流式回复",
-        modelSelection: { providerId: "openai", modelId: "gpt-4o" },
-      },
-      webContents as never,
-    );
+    ).sendMessage({
+      type: "message.send",
+      sessionId: thread.id,
+      text: "开始流式回复",
+      modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+    });
     await textStartedPromise;
 
-    const restored = await host.readSessionEvents(thread.id);
-    const restoredTurn = restored.find((event) => event.type === "assistant.turn");
+    const restored = await host.readSessionProjection(thread.id);
+    const restoredTurn = restored.messages.find((message) => message.role === "assistant");
 
     expect(restoredTurn).toEqual(
       expect.objectContaining({
-        type: "assistant.turn",
         text: "前半段回复",
         blocks: [expect.objectContaining({ kind: "text", text: "前半段回复" })],
       }),
@@ -1619,6 +1607,77 @@ describe("PiAgentHost", () => {
 
     finishTextStream();
     await sendPromise;
+  });
+
+  test("persists the visible partial response when a run is cancelled", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("新对话");
+    const manager = await log.openSession(thread.id);
+    log.appendEvent(manager, {
+      id: "evt_existing_cancel",
+      sessionId: thread.id,
+      runId: "run_existing",
+      type: "run.cancelled",
+      createdAt: "2026-06-23T00:00:00.000Z",
+    });
+    let listener: ((event: unknown) => void) | undefined;
+    let finishPrompt!: () => void;
+    let textStarted!: () => void;
+    const promptFinished = new Promise<void>((resolve) => (finishPrompt = resolve));
+    const textStartedPromise = new Promise<void>((resolve) => (textStarted = resolve));
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        subscribe: (next: (event: unknown) => void) => {
+          listener = next;
+          return () => {};
+        },
+        prompt: vi.fn(async () => {
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: { type: "text_delta", delta: "已经生成的部分" },
+          });
+          textStarted();
+          await promptFinished;
+        }),
+        getContextUsage: vi.fn(() => undefined),
+        dispose: vi.fn(),
+        abort: vi.fn(async () => {
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: { type: "text_delta", delta: "取消后的迟到内容" },
+          });
+          finishPrompt();
+        }),
+      },
+    });
+    const host = new PiAgentHost(root);
+    const sendPromise = (
+      host as unknown as { sendMessage: (command: unknown) => Promise<void> }
+    ).sendMessage({
+      type: "message.send",
+      sessionId: thread.id,
+      text: "开始流式回复",
+      modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+    });
+    await textStartedPromise;
+
+    await host.sendAgentCommand({ type: "run.cancel", sessionId: thread.id });
+    await sendPromise;
+
+    const events = await log.readEvents(thread.id);
+    expect(events.slice(-2)).toMatchObject([
+      { type: "assistant.turn", text: "已经生成的部分" },
+      { type: "run.cancelled" },
+    ]);
+    await expect(host.readSessionProjection(thread.id)).resolves.toMatchObject({
+      status: "cancelled",
+      messages: [
+        { role: "user", text: "开始流式回复" },
+        { role: "assistant", text: "已经生成的部分" },
+      ],
+    });
   });
 
   test("does not overwrite a non-empty thread with the generic generated-title fallback", async () => {
@@ -1667,13 +1726,13 @@ describe("PiAgentHost", () => {
     ];
     for (const event of events) log.appendEvent(manager, event);
 
-    const restored = await new PiAgentHost(root).readSessionEvents(session.id);
+    const restored = await new PiAgentHost(root).readSessionProjection(session.id);
 
-    expect(restored.map((event) => event.type)).toEqual([
-      "run.started",
-      "user.message",
-      "run.cancelled",
+    expect(restored).toMatchObject({ status: "cancelled", activeRunId: null });
+    await expect(new AgentSessionLog(root).readEvents(session.id)).resolves.toMatchObject([
+      { type: "run.started" },
+      { type: "user.message" },
+      { type: "run.cancelled" },
     ]);
-    await expect(new AgentSessionLog(root).readEvents(session.id)).resolves.toEqual(restored);
   });
 });

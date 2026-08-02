@@ -1,40 +1,33 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ipcClient } from "@renderer/utils/ipc";
-import type { AgentEvent, AgentSessionState } from "@shared/agent";
-import {
-  initialAgentSessionState,
-  isAgentEvent,
-  reduceAgentSession,
-  reduceAgentSessionEvent,
-} from "@shared/agent";
+import type { AgentCommand, AgentReducedMessage } from "@shared/agent";
+import { initialAgentSessionState } from "@shared/agent";
 import type { ComposerSendInput, EditingMessage } from "../adapters/chat-composer-adapter";
 import type { ApproveToolInput } from "../adapters/chat-message-adapter";
-import { chatUiStore, useStoppedMessageId, useThreadFocusNonce } from "./chat-ui-store";
+import { useThreadFocusNonce } from "./chat-ui-store";
 import { chatQueryKeys } from "./query-keys";
 import { invalidateEntityDisplay } from "../../capture/queries";
 import type { AgentThreadView } from "./thread-view";
 import {
   editingMessageFromAgentMessage,
-  mergeAgentEvents,
   scrollKeyFor,
   shouldShowScrollToBottomButton,
 } from "./thread-view";
 import { buildChatTurnNavigationItems } from "./chat-turn-navigation";
+import { agentSessionReplica, useAgentSession } from "./agent-session-replica";
 
 const CHAT_JUMP_BOTTOM_OFFSET = 24;
 const CHAT_READING_LINE_RATIO = 0.75;
 const CHAT_READING_LINE_BOTTOM_MARGIN = 96;
 const CHAT_SCROLL_END_THRESHOLD = 1;
 
-function completedEntityRef(event: AgentEvent) {
-  if (event.type !== "tool.completed" || typeof event.output !== "object" || !event.output) {
-    return null;
-  }
-  const output = event.output as Record<string, unknown>;
-  const type = output.resultRefType;
-  const id = output.resultRefId;
+function completedEntityRef(output: unknown) {
+  if (typeof output !== "object" || !output) return null;
+  const record = output as Record<string, unknown>;
+  const type = record.resultRefType;
+  const id = record.resultRefId;
   if (
     (type !== "understanding" && type !== "context" && type !== "domain") ||
     typeof id !== "string"
@@ -44,81 +37,71 @@ function completedEntityRef(event: AgentEvent) {
   return { type, id } as const;
 }
 
-export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): AgentThreadView {
+function completedEntityRefs(messages: readonly AgentReducedMessage[]) {
+  return messages.flatMap((message) =>
+    (message.blocks ?? []).flatMap((block) => {
+      if (block.kind === "tool" && block.state === "completed") {
+        const ref = completedEntityRef(block.output);
+        return ref ? [{ ...ref, key: `tool:${block.toolCallId}:${ref.type}:${ref.id}` }] : [];
+      }
+      if (block.kind === "approval" && block.executionState === "completed") {
+        const ref = completedEntityRef(block.output);
+        return ref ? [{ ...ref, key: `approval:${block.approvalId}:${ref.type}:${ref.id}` }] : [];
+      }
+      return [];
+    }),
+  );
+}
+
+async function sendRetainedAgentCommand(
+  command: Extract<AgentCommand, { type: "message.send" | "context.compact" }>,
+) {
+  const release = agentSessionReplica.retainUntilSettled(command.sessionId);
+  try {
+    await ipcClient.chat.sendAgentCommand(command);
+  } catch (error) {
+    release();
+    throw error;
+  }
+}
+
+export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentThreadView {
   const queryClient = useQueryClient();
-  const [state, setState] = useState<AgentSessionState>(initialAgentSessionState);
+  const sessionRead = useAgentSession(sessionId);
+  const state =
+    sessionRead.status === "ready"
+      ? sessionRead.session
+      : { ...initialAgentSessionState, sessionId };
   const [editingMessage, setEditingMessage] = useState<EditingMessage | undefined>();
   const focusRequest = useThreadFocusNonce(sessionId);
-  const localStoppedMessageId = useStoppedMessageId(sessionId);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const shouldStickToBottom = useRef(true);
-  const eventIdsRef = useRef<Set<string>>(new Set());
-  const liveEventsRef = useRef<AgentEvent[]>([]);
-  const pendingEventsRef = useRef<AgentEvent[]>([]);
-  const flushFrameRef = useRef<number | null>(null);
+  const invalidatedEntityRefs = useRef<Set<string>>(new Set());
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTurnIdRef = useRef<string | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [trackedTurnId, setTrackedTurnId] = useState<string | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
-  const eventsQuery = useQuery({
-    queryKey: chatQueryKeys.sessionEvents(sessionId),
-    queryFn: () => ipcClient.chat.readSessionEvents(sessionId),
-  });
-
   useEffect(() => {
-    setState(initialAgentSessionState);
     setEditingMessage(undefined);
-    eventIdsRef.current.clear();
-    liveEventsRef.current = [];
+    invalidatedEntityRefs.current.clear();
   }, [sessionId]);
 
   useEffect(() => {
-    if (!eventsQuery.data) return;
-    const events = mergeAgentEvents(eventsQuery.data, liveEventsRef.current);
-    eventIdsRef.current = new Set(events.map((event) => event.id));
-    setState(reduceAgentSession(events));
-  }, [eventsQuery.data]);
+    for (const ref of completedEntityRefs(state.messages)) {
+      if (invalidatedEntityRefs.current.has(ref.key)) continue;
+      invalidatedEntityRefs.current.add(ref.key);
+      void invalidateEntityDisplay(queryClient, ref);
+    }
+  }, [queryClient, state.messages]);
 
+  const threadSummaryKey = `${state.messages.filter((message) => message.role === "user").length}:${state.status}`;
+  const previousThreadSummaryKey = useRef(threadSummaryKey);
   useEffect(() => {
-    const flushPendingEvents = () => {
-      flushFrameRef.current = null;
-      const pending = pendingEventsRef.current;
-      pendingEventsRef.current = [];
-      if (pending.length === 0) return;
-      setState((current) => pending.reduce(reduceAgentSessionEvent, current));
-    };
-
-    const listener = (_event: unknown, payload: unknown) => {
-      if (!isAgentEvent(payload) || payload.sessionId !== sessionId) return;
-      if (eventIdsRef.current.has(payload.id)) return;
-      eventIdsRef.current.add(payload.id);
-      liveEventsRef.current.push(payload);
-      if (payload.type === "assistant.text.delta" || payload.type === "assistant.reasoning.delta") {
-        pendingEventsRef.current.push(payload);
-        flushFrameRef.current ??= requestAnimationFrame(flushPendingEvents);
-      } else {
-        setState((current) => reduceAgentSessionEvent(current, payload));
-      }
-      const entityRef = completedEntityRef(payload);
-      if (entityRef) void invalidateEntityDisplay(queryClient, entityRef);
-      if (
-        payload.type === "user.message" ||
-        payload.type === "run.completed" ||
-        payload.type === "run.failed" ||
-        payload.type === "run.cancelled"
-      ) {
-        void queryClient.invalidateQueries({ queryKey: chatQueryKeys.threads });
-      }
-    };
-    window.ipcRenderer.on("agent:event", listener);
-    return () => {
-      window.ipcRenderer.removeListener("agent:event", listener);
-      if (flushFrameRef.current !== null) cancelAnimationFrame(flushFrameRef.current);
-      pendingEventsRef.current = [];
-      flushFrameRef.current = null;
-    };
-  }, [queryClient, sessionId]);
+    if (previousThreadSummaryKey.current === threadSummaryKey) return;
+    previousThreadSummaryKey.current = threadSummaryKey;
+    void queryClient.invalidateQueries({ queryKey: chatQueryKeys.threads });
+  }, [queryClient, threadSummaryKey]);
 
   const visibleMessages = state.messages;
   const visibleMessagesRef = useRef(visibleMessages);
@@ -156,24 +139,18 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
       ? trackedTurnId
       : lastTurnId;
   const stoppedMessageId = useMemo(() => {
-    if (localStoppedMessageId) return localStoppedMessageId;
     if (state.status !== "cancelled") return null;
     return (
       visibleMessages.findLast((message) => message.role === "assistant")?.id ??
       `${sessionId}:cancelled`
     );
-  }, [localStoppedMessageId, sessionId, state.status, visibleMessages]);
+  }, [sessionId, state.status, visibleMessages]);
   const isBusy = state.status === "running";
   const isCompacting = Boolean(state.activeCompaction);
   const composerBusy = isBusy || isCompacting;
   const error = state.error ? new Error(state.error) : undefined;
   const compactionError = state.compactionError ? new Error(state.compactionError) : undefined;
   const scrollKey = `${scrollKeyFor(visibleMessages)}:${state.contextCompactions.length}:${composerBusy ? "busy" : "idle"}`;
-
-  useEffect(() => {
-    if (composerBusy) chatUiStore.getState().setThreadRunning(sessionId, true);
-    else chatUiStore.getState().setThreadRunning(sessionId, false);
-  }, [composerBusy, sessionId]);
 
   const setScrollButtonVisible = useCallback((visible: boolean) => {
     setShowScrollToBottom((current) => (current === visible ? current : visible));
@@ -287,8 +264,9 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
     visibleMessages,
     entityCatalog: state.entityCatalog,
     contextCompactions: state.contextCompactions,
-    messagesFetching: eventsQuery.isFetching,
-    messagesError: eventsQuery.error ?? undefined,
+    messagesFetching: sessionRead.status === "loading",
+    messagesError:
+      sessionRead.status === "unavailable" ? new Error(sessionRead.error.message) : undefined,
     activeRunId: state.activeRunId,
     isBusy,
     isCompacting,
@@ -313,8 +291,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
       send: async (input: ComposerSendInput) => {
         shouldStickToBottom.current = true;
         setScrollButtonVisible(false);
-        chatUiStore.getState().setStoppedMessage(sessionId, null);
-        await ipcClient.chat.sendAgentCommand({
+        await sendRetainedAgentCommand({
           type: "message.send",
           sessionId,
           text: input.text,
@@ -331,7 +308,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
         if (composerBusy || visibleMessages.length === 0) return;
         shouldStickToBottom.current = true;
         setScrollButtonVisible(false);
-        await ipcClient.chat.sendAgentCommand({
+        await sendRetainedAgentCommand({
           type: "context.compact",
           sessionId,
           modelSelection,
@@ -342,8 +319,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
         if (composerBusy) return;
         const userMessage = visibleMessages.findLast((message) => message.role === "user");
         if (!userMessage) return;
-        chatUiStore.getState().setStoppedMessage(sessionId, null);
-        await ipcClient.chat.sendAgentCommand({
+        await sendRetainedAgentCommand({
           type: "message.send",
           sessionId,
           text: userMessage.text,
@@ -363,8 +339,7 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
                 .findLast((message) => message.role === "user")
             : undefined;
         if (!userMessage) return;
-        chatUiStore.getState().setStoppedMessage(sessionId, null);
-        await ipcClient.chat.sendAgentCommand({
+        await sendRetainedAgentCommand({
           type: "message.send",
           sessionId,
           text: userMessage.text,
@@ -396,14 +371,10 @@ export function usePiAgentThreadView(sessionId: string, scrollRequest = 0): Agen
       },
       cancelEdit: () => setEditingMessage(undefined),
       stop: () => {
-        const lastAssistantId = visibleMessages.findLast(
-          (message) => message.role === "assistant",
-        )?.id;
-        if (lastAssistantId) chatUiStore.getState().setStoppedMessage(sessionId, lastAssistantId);
         void ipcClient.chat.sendAgentCommand({ type: "run.cancel", sessionId });
       },
       reloadMessages: async () => {
-        await eventsQuery.refetch();
+        agentSessionReplica.reconnect(sessionId);
       },
     },
   };

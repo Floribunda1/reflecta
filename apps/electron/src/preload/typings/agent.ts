@@ -373,7 +373,7 @@ export type AgentCommand =
       sessionId: string;
     };
 
-export type AgentReducedMessage = {
+export type AgentMessageProjection = {
   id: string;
   role: "user" | "assistant";
   text: string;
@@ -389,6 +389,9 @@ export type AgentReducedMessage = {
   stopReason?: string;
 };
 
+/** @deprecated Use AgentMessageProjection. */
+export type AgentReducedMessage = AgentMessageProjection;
+
 type AgentApprovalBlock = Extract<AgentReducedAssistantBlock, { kind: "approval" }>;
 
 export type AgentSessionState = {
@@ -402,6 +405,29 @@ export type AgentSessionState = {
   activeCompaction: AgentContextCompactionStarted | null;
   compactionError: string | null;
 };
+
+export type AgentSessionProjection = Omit<AgentSessionState, "sessionId"> & {
+  sessionId: string;
+};
+
+export type AgentSessionFeedError = {
+  code: "SESSION_NOT_FOUND" | "SESSION_LOG_CORRUPT" | "TRANSPORT_CLOSED" | "PROJECTION_FAILED";
+  message: string;
+  retryable: boolean;
+};
+
+export type AgentSessionFeedFrame =
+  | {
+      kind: "state";
+      sessionId: string;
+      revision: number;
+      session: AgentSessionProjection;
+    }
+  | {
+      kind: "error";
+      sessionId: string;
+      error: AgentSessionFeedError;
+    };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -449,6 +475,27 @@ export function isAgentEvent(value: unknown): value is AgentEvent {
       "tool.completed",
       "tool.failed",
     ].includes(value.type)
+  );
+}
+
+export function isAgentSessionFeedFrame(value: unknown): value is AgentSessionFeedFrame {
+  if (!isRecord(value) || typeof value.sessionId !== "string") return false;
+  if (value.kind === "state") {
+    return (
+      typeof value.revision === "number" &&
+      Number.isInteger(value.revision) &&
+      value.revision >= 0 &&
+      isRecord(value.session) &&
+      value.session.sessionId === value.sessionId &&
+      Array.isArray(value.session.messages)
+    );
+  }
+  return (
+    value.kind === "error" &&
+    isRecord(value.error) &&
+    typeof value.error.code === "string" &&
+    typeof value.error.message === "string" &&
+    typeof value.error.retryable === "boolean"
   );
 }
 
@@ -1165,4 +1212,14 @@ export function reduceAgentSession(events: AgentEvent[]): AgentSessionState {
     reduceAgentSessionEvent,
     initialAgentSessionState,
   );
+}
+
+export function projectAgentSessionEvents(
+  sessionId: string,
+  events: readonly AgentEvent[],
+): AgentSessionProjection {
+  return {
+    ...reduceAgentSession([...events]),
+    sessionId,
+  };
 }

@@ -6,7 +6,6 @@ export function removeThreadFromCache(queryClient: QueryClient, threadId: string
   queryClient.setQueryData<AgentSessionSummary[]>(chatQueryKeys.threads, (threads) =>
     threads?.filter((thread) => thread.id !== threadId),
   );
-  queryClient.removeQueries({ queryKey: chatQueryKeys.sessionEvents(threadId) });
 }
 
 export function renameThreadInCache(queryClient: QueryClient, threadId: string, title: string) {

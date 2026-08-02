@@ -115,11 +115,7 @@ Renderer 只依赖一个窄 Interface：
 
 ```ts
 export interface AgentSessionFeed {
-  watch(
-    sessionId: string,
-    receive: (frame: AgentSessionFeedFrame) => void,
-    signal: AbortSignal,
-  ): void;
+  watch(sessionId: string, receive: (frame: AgentSessionFeedFrame) => void): () => void;
 }
 
 export type AgentSessionFeedFrame =
@@ -140,7 +136,7 @@ Interface 必须满足：
 2. 同一 watch 内，后续 revision 严格递增并通过同一 FIFO channel 到达。
 3. 每份 `state` 都是完整、权威、替换式状态；调用者不解释增量。
 4. 重复或旧 revision 最多被 Adapter 丢弃，绝不能再次归约为业务变化。
-5. `AbortSignal` 生效后，不再向该订阅交付 frame。
+5. 调用 watch 返回的 unsubscribe 后，不再向该订阅交付 frame。
 6. `run.failed` 属于 Session Projection；读取失败和 transport 关闭属于 Feed error。
 
 revision 是 Main 进程内的交付顺序，不进入 Session log。应用重启或 Renderer 重连直接取得新快照，不需要持久 cursor、delta replay 或补发协议。
@@ -150,7 +146,7 @@ revision 是 Main 进程内的交付顺序，不进入 Session log。应用重�
 Electron IPC 是跨进程 Seam，因此存在两个 Adapter：
 
 - Production Adapter 使用 Electron 原生 `MessageChannel` / `MessagePort`；
-- In-memory Adapter 直接发布 frame，用于 Interface 测试。
+- 测试 harness 直接驱动 Runtime 与 Replica 的同一 watch 契约，不模拟 Electron globals。
 
 建立 watch 的顺序是：
 
@@ -281,13 +277,12 @@ Feed 不是 exactly-once side-effect 队列。知识写入后的 entity cache in
 目标代码按职责放置：
 
 - `main/services/agent/agent-session-runtime.ts`：单写者、active attempt 与发布；
-- `main/services/agent/agent-session-projector.ts`：从 records/change 生成 Projection；
+- `preload/typings/agent.ts`：共享事实、Projection、Feed protocol types 与纯 projector；projector 仅由 Main 生产链路调用；
 - `main/services/agent/pi-agent-host.ts`：Pi Adapter 与命令编排；
 - `main/services/agent/pi-session-log.ts`：legacy log 兼容与 durable records；
 - `preload/agent-session-feed.ts`：MessagePort Adapter；
 - `renderer/modules/chat/session/agent-session-replica.ts`：最后一帧状态与 React subscription；
 - `renderer/modules/chat/messages/agent-turn-view.ts`：Turn Renderer；
-- `preload/typings/agent.ts`：共享事实、Projection 和 Feed protocol types。
 
 命名目录可以随现有工程约定微调，但职责不能重新混合。
 

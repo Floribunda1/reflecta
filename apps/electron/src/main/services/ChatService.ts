@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { dialog, shell } from "electron";
-import { getIpcContext, IpcMethod, IpcService } from "electron-ipc-decorator";
+import { IpcMethod, IpcService } from "electron-ipc-decorator";
 import type { AgentCommand } from "@shared/agent";
 import { ipcLog } from "../logger";
 import { piAgentHost } from "./core";
@@ -66,17 +66,16 @@ export class ChatService extends IpcService {
   }
 
   @IpcMethod()
-  readSessionEvents(sessionId: string) {
-    return piAgentHost.readSessionEvents(sessionId);
+  readSessionProjection(sessionId: string) {
+    return piAgentHost.readSessionProjection(sessionId);
   }
 
   @IpcMethod()
   sendAgentCommand(command: AgentCommand) {
-    const ctx = getIpcContext();
     ipcLog.info("chat.sendAgentCommand", {
       type: command.type,
       sessionId: "sessionId" in command ? command.sessionId : undefined,
     });
-    return piAgentHost.sendAgentCommand(command, ctx.sender);
+    return piAgentHost.sendAgentCommand(command);
   }
 }

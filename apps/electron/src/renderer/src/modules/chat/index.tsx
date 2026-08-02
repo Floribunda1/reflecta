@@ -11,12 +11,8 @@ import { toast } from "sonner";
 import { AgentThreadPanel } from "./agent-thread-panel";
 import { ContextInspector } from "./context/context-inspector";
 import type { InspectableContextRef } from "./context/context-reference";
-import {
-  useActiveThreadId,
-  useInspectorRef,
-  useAgentUiActions,
-  useRunningThreadId,
-} from "./session/chat-ui-store";
+import { useActiveThreadId, useInspectorRef, useAgentUiActions } from "./session/chat-ui-store";
+import { useRunningAgentSessionId } from "./session/agent-session-replica";
 import {
   useArchiveThreadMutation,
   useCreateThreadMutation,
@@ -95,7 +91,7 @@ function ChatPageContent() {
   const threadsQuery = useThreadsQuery();
   const activeThreadId = useActiveThreadId();
   const inspectedRef = useInspectorRef();
-  const runningThreadId = useRunningThreadId();
+  const runningThreadId = useRunningAgentSessionId();
   const uiActions = useAgentUiActions();
   const createThreadMutation = useCreateThreadMutation();
   const deleteThreadMutation = useDeleteThreadMutation();
