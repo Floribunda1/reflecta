@@ -254,7 +254,7 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
       scrollTop: element.scrollTop,
       clientHeight: element.clientHeight,
     });
-    shouldStickToBottom.current =
+    shouldStickToBottom.current &&=
       element.scrollHeight - element.scrollTop - element.clientHeight <= CHAT_SCROLL_END_THRESHOLD;
     setScrollButtonVisible(shouldShowButton);
     updateActiveTurn();
