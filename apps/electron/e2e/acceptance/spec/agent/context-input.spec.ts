@@ -94,6 +94,7 @@ test("@AG-CONTEXT-011 用户专注阅读 Agent 中打开的 Understanding", asyn
     await expect
       .poll(async () => (await inspector.boundingBox())?.width ?? 0)
       .toBeGreaterThan(viewportWidth * 0.9);
+    await expect(inspector).toHaveCSS("animation-name", "none");
     await expect(page.getByText("上下文", { exact: true })).toBeHidden();
 
     await page.keyboard.press("Escape");

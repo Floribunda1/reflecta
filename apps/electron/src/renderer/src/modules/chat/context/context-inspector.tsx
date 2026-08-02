@@ -30,7 +30,7 @@ export function ContextInspector({
   return (
     <aside
       data-testid="agent-context-inspector"
-      className={`flex min-h-0 min-w-0 animate-in slide-in-from-right-3 fade-in-0 flex-col duration-150 ${focusMode ? "fixed inset-0 z-50 h-auto bg-background" : "h-full bg-transparent"}`}
+      className={`flex min-h-0 min-w-0 flex-col ${focusMode ? "fixed inset-0 z-50 h-auto bg-background" : "h-full bg-transparent"}`}
     >
       <div
         className={`h-14 shrink-0 items-center justify-between gap-3 border-b px-4 ${focusMode ? "hidden" : "flex"}`}
