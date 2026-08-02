@@ -12,7 +12,7 @@ const base = {
   createdAt: "2026-06-23T00:00:00.000Z",
 };
 
-describe("reduceAgentSession", () => {
+describe("Agent Session projector", () => {
   test("tracks compaction progress, persists the checkpoint, and resets context usage", () => {
     const state = reduceAgentSession([
       {

@@ -1,6 +1,7 @@
 import { electronAPI } from "@electron-toolkit/preload";
 import { contextBridge, ipcRenderer } from "electron";
 import "electron-log/preload";
+import { agentSessionFeedApi } from "./agent-session-feed";
 
 const DIAGNOSTIC_RENDERER_ERROR_CHANNEL = "diagnostic:renderer-error";
 
@@ -59,6 +60,7 @@ window.addEventListener("unhandledrejection", (event) => {
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld("electron", electronAPI);
+    contextBridge.exposeInMainWorld("agentSessionFeed", agentSessionFeedApi);
 
     const ipcRendererProxy = {
       invoke: (channel: string, ...args: unknown[]) => ipcRenderer.invoke(channel, ...args),
@@ -88,6 +90,8 @@ if (process.contextIsolated) {
 } else {
   // @ts-expect-error (define in dts)
   window.electron = electronAPI;
+  // @ts-expect-error (define in dts)
+  window.agentSessionFeed = agentSessionFeedApi;
   // @ts-expect-error (define in dts)
   window.ipcRenderer = ipcRenderer;
 }

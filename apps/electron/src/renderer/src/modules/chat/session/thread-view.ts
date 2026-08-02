@@ -3,7 +3,6 @@ import type { ReactVirtualizer } from "@tanstack/react-virtual";
 import type {
   AgentContextCompacted,
   AgentEntityCatalogEntry,
-  AgentEvent,
   AgentModelSelection,
   AgentReasoningLevel,
   AgentReducedMessage,
@@ -60,25 +59,6 @@ export type ChatFindMatch = {
   matchIndex: number;
   role: AgentReducedMessage["role"];
 };
-
-export function mergeAgentEvents(
-  historical: readonly AgentEvent[],
-  live: readonly AgentEvent[],
-): AgentEvent[] {
-  const eventIds = new Set(historical.map((event) => event.id));
-  const historicalRunIds = new Set(
-    historical.flatMap((event) => (event.runId ? [event.runId] : [])),
-  );
-  const latestLiveRunId = live.findLast((event) => event.type === "run.started")?.runId;
-  return [
-    ...historical,
-    ...live.filter(
-      (event) =>
-        !eventIds.has(event.id) &&
-        (!event.runId || historicalRunIds.has(event.runId) || event.runId === latestLiveRunId),
-    ),
-  ];
-}
 
 export function editingMessageFromAgentMessage(message: AgentReducedMessage): EditingMessage {
   return {

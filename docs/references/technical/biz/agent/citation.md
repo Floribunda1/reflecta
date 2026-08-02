@@ -373,7 +373,9 @@ Citation Catalog 属于对话分支，不属于整个 session 文件的并集。
 - `apps/electron/src/renderer/src/modules/chat/context/context-reference.ts`：Citation 语法解析；
 - `apps/electron/src/renderer/src/modules/chat/context/wiki-link.tsx`：实体实时查询和渲染。
 
-相关架构见 [Agent 后端架构](./server.md)、[Chat 前端状态架构](./frontend.md) 和 [知识检索与 RAG 如何工作](../../rag.md)。
+Session facts、实时 Projection 与前端呈现的边界见
+[Agent Session Projection 与实时 Feed 架构](./session-projection.md)；知识检索见
+[知识检索与 RAG 如何工作](./rag.md)。
 
 ## 外部依据
 

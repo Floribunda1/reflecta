@@ -10,8 +10,6 @@ export type ChatUiState = {
   inspectedRef: InspectableContextRef | null;
   focusNonceByThread: Record<string, number>;
   collapsedToolIds: Record<string, boolean>;
-  runningThreadIds: Record<string, boolean>;
-  stoppedMessageIdsByThread: Record<string, string>;
 };
 
 export type ChatUiActions = {
@@ -21,8 +19,6 @@ export type ChatUiActions = {
   closeInspector(): void;
   requestComposerFocus(threadId: string): void;
   setToolCollapsed(toolCallId: string, collapsed: boolean): void;
-  setThreadRunning(threadId: string, running: boolean): void;
-  setStoppedMessage(threadId: string, messageId: string | null): void;
 };
 
 export type ChatUiStore = ChatUiState & ChatUiActions;
@@ -32,8 +28,6 @@ const initialChatUiState: ChatUiState = {
   inspectedRef: null,
   focusNonceByThread: {},
   collapsedToolIds: {},
-  runningThreadIds: {},
-  stoppedMessageIdsByThread: {},
 };
 
 function createChatUiState(
@@ -49,13 +43,10 @@ function createChatUiState(
     clearThread: (threadId) =>
       set((state) => {
         const { [threadId]: _removedFocus, ...focusNonceByThread } = state.focusNonceByThread;
-        const { [threadId]: _removedStopped, ...stoppedMessageIdsByThread } =
-          state.stoppedMessageIdsByThread;
         return {
           activeThreadId: state.activeThreadId === threadId ? null : state.activeThreadId,
           inspectedRef: state.activeThreadId === threadId ? null : state.inspectedRef,
           focusNonceByThread,
-          stoppedMessageIdsByThread,
         };
       }),
     openInspector: (ref) => set({ inspectedRef: ref }),
@@ -73,20 +64,6 @@ function createChatUiState(
         if (collapsed) collapsedToolIds[toolCallId] = true;
         else delete collapsedToolIds[toolCallId];
         return { collapsedToolIds };
-      }),
-    setThreadRunning: (threadId, running) =>
-      set((state) => {
-        const runningThreadIds = { ...state.runningThreadIds };
-        if (running) runningThreadIds[threadId] = true;
-        else delete runningThreadIds[threadId];
-        return { runningThreadIds };
-      }),
-    setStoppedMessage: (threadId, messageId) =>
-      set((state) => {
-        const stoppedMessageIdsByThread = { ...state.stoppedMessageIdsByThread };
-        if (messageId) stoppedMessageIdsByThread[threadId] = messageId;
-        else delete stoppedMessageIdsByThread[threadId];
-        return { stoppedMessageIdsByThread };
       }),
   });
 }
@@ -109,14 +86,6 @@ export function useInspectorRef() {
 
 export function useThreadFocusNonce(threadId: string) {
   return chatUiStore((state) => state.focusNonceByThread[threadId] ?? 0);
-}
-
-export function useStoppedMessageId(threadId: string) {
-  return chatUiStore((state) => state.stoppedMessageIdsByThread[threadId] ?? null);
-}
-
-export function useRunningThreadId() {
-  return chatUiStore((state) => Object.keys(state.runningThreadIds)[0] ?? null);
 }
 
 export function useAgentUiActions() {

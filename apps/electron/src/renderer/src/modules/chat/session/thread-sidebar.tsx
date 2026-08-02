@@ -6,7 +6,7 @@ import {
 } from "@reflecta/ui/chat";
 import { AppChromeMenu } from "@renderer/modules/shared/layout/AppChromeMenu";
 import { ipcClient } from "@renderer/utils/ipc";
-import { reduceAgentSession, type AgentSessionSummary } from "@shared/agent";
+import type { AgentSessionSummary } from "@shared/agent";
 import { toast } from "sonner";
 import { groupAgentThreads } from "./thread-groups";
 import { copyThreadId, exportThreadMarkdown } from "./thread-action-menu-items";
@@ -19,8 +19,8 @@ function errorMessage(error: unknown) {
 
 async function exportThread(thread: AgentSessionSummary) {
   try {
-    const events = await ipcClient.chat.readSessionEvents(thread.id);
-    await exportThreadMarkdown(thread.title, reduceAgentSession(events).messages);
+    const projection = await ipcClient.chat.readSessionProjection(thread.id);
+    await exportThreadMarkdown(thread.title, projection.messages);
   } catch (error) {
     toast.error("导出 Markdown 失败", { description: errorMessage(error) });
   }

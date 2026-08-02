@@ -29,7 +29,7 @@ import type { InspectableContextRef } from "./context/context-reference";
 import type { ApproveToolInput } from "./adapters/chat-message-adapter";
 import { activateChatFindMarker, type ChatFindMarkerMatch } from "./messages/chat-find-highlight";
 import { MessageList } from "./messages/message-list";
-import { usePiAgentThreadView } from "./session/pi-thread-view";
+import { useAgentThreadView } from "./session/agent-thread-view";
 import { buildChatFindMatches } from "./session/thread-view";
 import {
   useAgentModelOptionsQuery,
@@ -76,7 +76,7 @@ export function AgentThreadPanel({
   onInspectContextRef,
   onExpandSidebar,
 }: AgentThreadPanelProps) {
-  const threadView = usePiAgentThreadView(threadId, scrollRequest);
+  const threadView = useAgentThreadView(threadId, scrollRequest);
   const modelOptionsQuery = useAgentModelOptionsQuery();
   const selectModelMutation = useSelectAgentModelMutation();
   const selectReasoningLevelMutation = useSelectAgentReasoningLevelMutation();

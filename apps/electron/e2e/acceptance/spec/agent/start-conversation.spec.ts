@@ -9,12 +9,7 @@ import {
   threadByTitle,
   waitForAssistantReply,
 } from "./agent-e2e";
-import {
-  assistantMessage,
-  resetAgentFixtures,
-  seedAgentThread,
-  userMessage,
-} from "./agent-fixtures";
+import { resetAgentFixtures } from "./agent-fixtures";
 
 test.beforeEach(() => {
   resetAgentFixtures();
@@ -72,39 +67,16 @@ test("@AG-START-005 对话列表只收录已经发送消息的对话", async () 
 });
 
 test("@AG-START-007 用户打开等待回复中的对话时看到对话区等待状态", async () => {
-  const sessionId = "waiting-reply";
-  seedAgentThread({
-    id: sessionId,
-    title: "等待回复",
-    messages: [
-      userMessage("waiting-existing-user", "OLD_USER_MESSAGE"),
-      assistantMessage("waiting-existing-assistant", [{ type: "text", text: "OLD_REPLY" }]),
-    ],
-  });
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
+  test.setTimeout(180_000);
   const { app, page } = await launchAgentPage();
 
   try {
-    await openThread(page, "等待回复");
-    await app.evaluate(({ BrowserWindow }, sessionId) => {
-      const window = BrowserWindow.getAllWindows()[0];
-      const base = {
-        sessionId,
-        runId: "run-waiting",
-        createdAt: "2026-06-25T05:20:00.000Z",
-      };
-      window?.webContents.send("agent:event", {
-        ...base,
-        id: "evt-waiting-run",
-        type: "run.started",
-      });
-      window?.webContents.send("agent:event", {
-        ...base,
-        id: "evt-waiting-user",
-        type: "user.message",
-        messageId: "waiting-user",
-        text: "WAITING_USER_MESSAGE",
-      });
-    }, sessionId);
+    await createNewThread(page);
+    await composer(page).fill("WAITING_USER_MESSAGE：请慢慢输出 1 到 400，每个数字单独一行。");
+    await page.getByTestId("agent-send-button").click();
+    await createNewThread(page);
+    await openThread(page, "WAITING_USER_MESSAGE");
     await expect(
       page.getByTestId("agent-user-message").filter({ hasText: "WAITING_USER_MESSAGE" }),
     ).toBeVisible();

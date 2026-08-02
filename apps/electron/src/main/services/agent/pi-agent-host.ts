@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { WebContents } from "electron";
 import { getModel, type Api, type Context, type Model } from "@earendil-works/pi-ai/compat";
 import {
   createAgentSession,
@@ -27,6 +26,8 @@ import type {
   AgentEvent,
   AgentLiveEvent,
   AgentSessionEvent,
+  AgentSessionFeedFrame,
+  AgentSessionProjection,
   AgentSessionSummary,
   AgentToolExecutionError,
   AgentUsage,
@@ -39,7 +40,7 @@ import {
   type AiModelSelection,
 } from "../../config";
 import { agentLog } from "../../logger";
-import { AgentRunAccumulator } from "./agent-run-accumulator";
+import { AgentSessionRuntime } from "./agent-session-runtime";
 import { AgentEntityCatalog } from "./agent-entity-catalog";
 import { AgentSessionLog } from "./pi-session-log";
 import { formatAgentError } from "./error";
@@ -70,13 +71,10 @@ import {
 import { createPiWebAccessResources, PI_WEB_ACCESS_TOOL_NAMES } from "./pi-web-access";
 import { extractPiAssistantError, extractPiAssistantText } from "./pi-message";
 
-export const AGENT_EVENT_CHANNEL = "agent:event";
-
 type ActivePiRun = {
   runId: string;
   assistantMessageId: string;
   session: AgentSession;
-  accumulator: AgentRunAccumulator;
   pendingApprovals: Map<string, PendingApproval>;
   entityCatalog: AgentEntityCatalog;
 };
@@ -583,6 +581,7 @@ function withApprovalToolResult(
 
 export class PiAgentHost {
   private readonly sessionLog: AgentSessionLog;
+  private readonly sessionRuntime: AgentSessionRuntime;
   private readonly activeRuns = new Map<string, ActivePiRun>();
   private readonly activeCompactions = new Map<string, AgentSession>();
   private readonly cancelledRunIds = new Set<string>();
@@ -592,6 +591,9 @@ export class PiAgentHost {
     private readonly titleGenerator = generateAgentThreadTitle,
   ) {
     this.sessionLog = new AgentSessionLog(contentStorageRoot);
+    this.sessionRuntime = new AgentSessionRuntime((sessionId) =>
+      this.sessionLog.readEvents(sessionId),
+    );
   }
 
   listThreads(): Promise<AgentSessionSummary[]> {
@@ -611,7 +613,9 @@ export class PiAgentHost {
   }
 
   async deleteThread(sessionId: string): Promise<void> {
+    await this.sessionRuntime.projection(sessionId);
     await this.sessionLog.deleteSession(sessionId);
+    this.sessionRuntime.forget(sessionId);
   }
 
   forkThreadFromMessage(sessionId: string, messageId: string): Promise<AgentSessionSummary> {
@@ -654,13 +658,23 @@ export class PiAgentHost {
     return title;
   }
 
-  async readSessionEvents(sessionId: string): Promise<AgentSessionEvent[]> {
-    const events = await this.sessionLog.readEvents(sessionId);
-    const activeRunId = reduceAgentSession(events).activeRunId;
-    if (!activeRunId) return events;
+  async readSessionProjection(sessionId: string): Promise<AgentSessionProjection> {
+    await this.reconcileInterruptedRun(sessionId);
+    return this.sessionRuntime.projection(sessionId);
+  }
 
-    const active = this.activeRuns.get(sessionId);
-    if (active?.runId === activeRunId) return this.withActiveRunSnapshot(sessionId, events, active);
+  async watchSession(
+    sessionId: string,
+    receive: (frame: AgentSessionFeedFrame) => void,
+  ): Promise<() => void> {
+    await this.reconcileInterruptedRun(sessionId);
+    return this.sessionRuntime.watch(sessionId, receive);
+  }
+
+  private async reconcileInterruptedRun(sessionId: string): Promise<void> {
+    const projection = await this.sessionRuntime.projection(sessionId);
+    const activeRunId = projection.activeRunId;
+    if (!activeRunId || this.activeRuns.get(sessionId)?.runId === activeRunId) return;
 
     const manager = await this.sessionLog.openSession(sessionId);
     const cancelled = this.createEvent({
@@ -669,33 +683,12 @@ export class PiAgentHost {
       runId: activeRunId,
     });
     this.sessionLog.appendEvent(manager, cancelled);
-    return [...events, cancelled];
+    this.sessionRuntime.apply(cancelled);
   }
 
-  private withActiveRunSnapshot(
-    sessionId: string,
-    events: AgentSessionEvent[],
-    active: ActivePiRun,
-  ): AgentSessionEvent[] {
-    if (active.accumulator.isEmpty()) return events;
-    return [
-      ...events,
-      active.accumulator.toAssistantTurn(
-        this.createEvent({
-          type: "assistant.turn",
-          sessionId,
-          runId: active.runId,
-          messageId: active.assistantMessageId,
-          blocks: [],
-          text: "",
-        }),
-      ),
-    ];
-  }
-
-  async sendAgentCommand(command: AgentCommand, webContents: WebContents): Promise<void> {
+  async sendAgentCommand(command: AgentCommand): Promise<void> {
     if (command.type === "message.send") {
-      void this.sendMessage(command, webContents).catch((error) => {
+      void this.sendMessage(command).catch((error) => {
         agentLog.error("pi.run.unhandledError", {
           sessionId: command.sessionId,
           error: formatAgentError(error),
@@ -705,7 +698,7 @@ export class PiAgentHost {
     }
 
     if (command.type === "context.compact") {
-      await this.compactContext(command, webContents);
+      await this.compactContext(command);
       return;
     }
 
@@ -713,13 +706,28 @@ export class PiAgentHost {
       const active = this.activeRuns.get(command.sessionId);
       if (!active) return;
       this.cancelledRunIds.add(active.runId);
+      const manager = active.session.sessionManager;
+      if (this.sessionRuntime.hasAssistantContent(command.sessionId, active.assistantMessageId)) {
+        this.appendAndPublish(
+          manager,
+          this.sessionRuntime.assistantTurn(
+            this.createEvent({
+              type: "assistant.turn",
+              sessionId: command.sessionId,
+              runId: active.runId,
+              messageId: active.assistantMessageId,
+              blocks: [],
+              text: "",
+            }),
+          ),
+        );
+      }
       const event = this.createEvent({
         sessionId: command.sessionId,
         runId: active.runId,
         type: "run.cancelled",
       });
-      const manager = active.session.sessionManager;
-      this.appendAndEmit(manager, webContents, event);
+      this.appendAndPublish(manager, event);
       this.rejectPendingApprovals(active, new Error("Run cancelled"));
       this.activeRuns.delete(command.sessionId);
       void active.session.abort().catch((error) => {
@@ -732,7 +740,7 @@ export class PiAgentHost {
     }
 
     if (command.type === "tool.approve" || command.type === "tool.reject") {
-      await this.resolveToolApproval(command, webContents);
+      await this.resolveToolApproval(command);
     }
   }
 
@@ -795,18 +803,15 @@ export class PiAgentHost {
   private handleCompactionEvent(
     event: PiAgentSessionEvent,
     manager: SessionManager,
-    webContents: WebContents,
     sessionId: string,
     contextWindow?: number,
     activeTurn?: {
       runId: string;
       messageId: string;
-      accumulator: AgentRunAccumulator;
     },
   ): boolean {
     if (event.type === "compaction_start") {
       this.emitLive(
-        webContents,
         this.createEvent({
           type: "context.compaction.started",
           sessionId,
@@ -819,7 +824,6 @@ export class PiAgentHost {
     if (event.type !== "compaction_end") return false;
 
     this.emitLive(
-      webContents,
       this.createEvent({
         type: "context.compaction.finished",
         sessionId,
@@ -846,20 +850,22 @@ export class PiAgentHost {
       ...(contextWindow !== undefined ? { contextWindow } : {}),
       ...(afterMessageId ? { afterMessageId } : {}),
     });
-    activeTurn?.accumulator.append(compacted);
-    this.appendAndEmit(manager, webContents, compacted);
+    this.appendAndPublish(manager, compacted);
     return true;
   }
 
   private async compactContext(
     command: Extract<AgentCommand, { type: "context.compact" }>,
-    webContents: WebContents,
   ): Promise<void> {
     if (this.activeRuns.has(command.sessionId) || this.activeCompactions.has(command.sessionId)) {
       throw new Error("当前对话正在处理中，请稍后再压缩上下文");
     }
 
     const manager = await this.sessionLog.openSession(command.sessionId);
+    await this.sessionRuntime.replace(
+      command.sessionId,
+      this.sessionLog.eventsFromManager(manager),
+    );
     const state = reduceAgentSession(this.sessionLog.eventsFromManager(manager));
     if (state.messages.length === 0) throw new Error("当前对话还没有可压缩的内容");
 
@@ -870,13 +876,7 @@ export class PiAgentHost {
     }));
     const session = created.session;
     const unsubscribe = session.subscribe((event) => {
-      this.handleCompactionEvent(
-        event,
-        manager,
-        webContents,
-        command.sessionId,
-        session.model?.contextWindow,
-      );
+      this.handleCompactionEvent(event, manager, command.sessionId, session.model?.contextWindow);
     });
     this.activeCompactions.set(command.sessionId, session);
     try {
@@ -903,27 +903,21 @@ export class PiAgentHost {
     } as Extract<AgentEvent, { type: T }>;
   }
 
-  private appendAndEmit(
-    manager: SessionManager,
-    webContents: WebContents,
-    event: AgentSessionEvent,
-  ): void {
+  private appendAndPublish(manager: SessionManager, event: AgentSessionEvent): void {
     this.sessionLog.appendEvent(manager, event);
-    if (!webContents.isDestroyed()) webContents.send(AGENT_EVENT_CHANNEL, event);
+    this.sessionRuntime.apply(event);
   }
 
   private appendEntityCatalogUpdates(
     manager: SessionManager,
-    webContents: WebContents,
     sessionId: string,
     runId: string,
     registry: AgentEntityCatalog,
   ): void {
     const catalogUpdates = registry.drainUpdates();
     if (catalogUpdates.length === 0) return;
-    this.appendAndEmit(
+    this.appendAndPublish(
       manager,
-      webContents,
       this.createEvent({
         type: "entity.catalog.updated",
         sessionId,
@@ -933,18 +927,21 @@ export class PiAgentHost {
     );
   }
 
-  private emitLive(webContents: WebContents, event: AgentLiveEvent): void {
-    if (!webContents.isDestroyed()) webContents.send(AGENT_EVENT_CHANNEL, event);
+  private emitLive(event: AgentLiveEvent): void {
+    this.sessionRuntime.apply(
+      event,
+      event.type === "assistant.text.delta" || event.type === "assistant.reasoning.delta"
+        ? "deferred"
+        : "immediate",
+    );
   }
 
   private appendToolExecutionStarted(
     manager: SessionManager,
-    webContents: WebContents,
     requested: AgentApprovalRequested,
   ): void {
-    this.appendAndEmit(
+    this.appendAndPublish(
       manager,
-      webContents,
       this.createEvent({
         type: "tool.execution.started",
         sessionId: requested.sessionId,
@@ -959,13 +956,11 @@ export class PiAgentHost {
 
   private appendToolExecutionCompleted(
     manager: SessionManager,
-    webContents: WebContents,
     requested: AgentApprovalRequested,
     output: unknown,
   ): void {
-    this.appendAndEmit(
+    this.appendAndPublish(
       manager,
-      webContents,
       this.createEvent({
         type: "tool.execution.completed",
         sessionId: requested.sessionId,
@@ -980,13 +975,11 @@ export class PiAgentHost {
 
   private appendToolExecutionFailed(
     manager: SessionManager,
-    webContents: WebContents,
     requested: AgentApprovalRequested,
     error: unknown,
   ): void {
-    this.appendAndEmit(
+    this.appendAndPublish(
       manager,
-      webContents,
       this.createEvent({
         type: "tool.execution.failed",
         sessionId: requested.sessionId,
@@ -999,16 +992,17 @@ export class PiAgentHost {
     );
   }
 
-  private async sendMessage(
-    command: Extract<AgentCommand, { type: "message.send" }>,
-    webContents: WebContents,
-  ) {
+  private async sendMessage(command: Extract<AgentCommand, { type: "message.send" }>) {
     const runId = `run_${nanoid()}`;
     const userMessageId = command.messageId ?? `msg_${nanoid()}`;
     const assistantMessageId = `msg_${nanoid()}`;
     const manager = command.messageId
       ? await this.sessionLog.openSessionForEditedMessage(command.sessionId, command.messageId)
       : await this.sessionLog.openSession(command.sessionId);
+    await this.sessionRuntime.replace(
+      command.sessionId,
+      this.sessionLog.eventsFromManager(manager),
+    );
     const entityCatalog = new AgentEntityCatalog(
       reduceAgentSession(this.sessionLog.eventsFromManager(manager)).entityCatalog,
     );
@@ -1020,7 +1014,6 @@ export class PiAgentHost {
     let assistantMetadata: AssistantTurnMetadata | undefined;
     let assistantActivity = false;
     let runStarted = false;
-    const accumulator = new AgentRunAccumulator();
     const requestedApprovalIds = new Set<string>();
     const emittedApprovalRequestIds = new Set<string>();
     const approvalRequestTasks: Promise<void>[] = [];
@@ -1033,11 +1026,8 @@ export class PiAgentHost {
       string,
       { entityId: string; task: Promise<Record<string, unknown>> }
     >();
-    const emit = (event: AgentSessionEvent) => this.appendAndEmit(manager, webContents, event);
-    const emitAccumulated = (event: AgentLiveEvent) => {
-      accumulator.append(event);
-      this.emitLive(webContents, event);
-    };
+    const emit = (event: AgentSessionEvent) => this.appendAndPublish(manager, event);
+    const emitLive = (event: AgentLiveEvent) => this.emitLive(event);
     const createApprovalRequested = (
       toolCallId: string,
       toolName: PiApprovalToolName,
@@ -1066,15 +1056,12 @@ export class PiAgentHost {
       if (
         emittedApprovalRequestIds.has(approvalId) ||
         this.cancelledRunIds.has(runId) ||
-        active?.runId !== runId ||
-        webContents.isDestroyed()
+        active?.runId !== runId
       ) {
         return;
       }
-      webContents.send(
-        AGENT_EVENT_CHANNEL,
-        createApprovalRequested(toolCallId, toolName, payload, true),
-      );
+      const preview = createApprovalRequested(toolCallId, toolName, payload, true);
+      this.sessionRuntime.apply(preview);
     };
     const emitApprovalPreview = (
       toolCallId: string,
@@ -1163,7 +1150,6 @@ export class PiAgentHost {
           mergeHydratedApprovalPayload(hydratedPayload, payload),
         );
         emittedApprovalRequestIds.add(approvalId);
-        accumulator.append(requested);
         emit(requested);
       });
       approvalRequestTasks.push(task);
@@ -1190,18 +1176,11 @@ export class PiAgentHost {
         description: `命中危险规则：${matchedRules.join("、")}`,
         payload: { command: bashCommand, matchedRules },
       });
-      accumulator.append(requested);
       emit(requested);
       return this.waitForBashGateApproval(command.sessionId, toolCallId);
     };
     const emitEntityCatalogUpdates = () => {
-      this.appendEntityCatalogUpdates(
-        manager,
-        webContents,
-        command.sessionId,
-        runId,
-        entityCatalog,
-      );
+      this.appendEntityCatalogUpdates(manager, command.sessionId, runId, entityCatalog);
     };
     const emitRunStarted = () => {
       if (runStarted) return;
@@ -1240,22 +1219,20 @@ export class PiAgentHost {
         runId,
         assistantMessageId,
         session,
-        accumulator,
         pendingApprovals: new Map(),
         entityCatalog,
       });
       unsubscribe = session.subscribe((event) => {
+        if (this.cancelledRunIds.has(runId)) return;
         if (
           this.handleCompactionEvent(
             event,
             manager,
-            webContents,
             command.sessionId,
             session?.model?.contextWindow,
             {
               runId,
               messageId: assistantMessageId,
-              accumulator,
             },
           )
         )
@@ -1264,7 +1241,7 @@ export class PiAgentHost {
         if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
           piDraftText += event.assistantMessageEvent.delta;
           assistantActivity = true;
-          emitAccumulated(
+          emitLive(
             this.createEvent({
               type: "assistant.text.delta",
               sessionId: command.sessionId,
@@ -1281,7 +1258,7 @@ export class PiAgentHost {
           event.assistantMessageEvent.type === "thinking_delta"
         ) {
           assistantActivity = true;
-          emitAccumulated(
+          emitLive(
             this.createEvent({
               type: "assistant.reasoning.delta",
               sessionId: command.sessionId,
@@ -1325,7 +1302,7 @@ export class PiAgentHost {
           ) {
             return;
           }
-          emitAccumulated(
+          emitLive(
             this.createEvent({
               type: "tool.started",
               sessionId: command.sessionId,
@@ -1344,7 +1321,7 @@ export class PiAgentHost {
             const output = piToolOutput(event.toolName, event.result);
             if (isRejectedApprovalOutput(output)) return;
             if (event.isError) {
-              emitAccumulated(
+              emitLive(
                 this.createEvent({
                   type: "tool.failed",
                   sessionId: command.sessionId,
@@ -1358,7 +1335,7 @@ export class PiAgentHost {
               return;
             }
             emitEntityCatalogUpdates();
-            emitAccumulated(
+            emitLive(
               this.createEvent({
                 type: "tool.completed",
                 sessionId: command.sessionId,
@@ -1372,7 +1349,7 @@ export class PiAgentHost {
             return;
           }
           if (event.isError) {
-            emitAccumulated(
+            emitLive(
               this.createEvent({
                 type: "tool.failed",
                 sessionId: command.sessionId,
@@ -1386,7 +1363,7 @@ export class PiAgentHost {
             return;
           }
           emitEntityCatalogUpdates();
-          emitAccumulated(
+          emitLive(
             this.createEvent({
               type: "tool.completed",
               sessionId: command.sessionId,
@@ -1434,17 +1411,9 @@ export class PiAgentHost {
       if (!piDraftText.trim() && !assistantActivity) {
         throw new Error("Agent response was empty");
       }
-      accumulator.appendFinalAnswer({
-        id: `evt_${nanoid()}`,
-        sessionId: command.sessionId,
-        runId,
-        messageId: assistantMessageId,
-        createdAt: new Date().toISOString(),
-        text: piDraftText,
-      });
       const contextUsage = session.getContextUsage?.();
       emit(
-        accumulator.toAssistantTurn(
+        this.sessionRuntime.assistantTurn(
           this.createEvent({
             type: "assistant.turn",
             sessionId: command.sessionId,
@@ -1455,6 +1424,7 @@ export class PiAgentHost {
             ...assistantMetadata,
             contextUsage,
           }),
+          piDraftText,
         ),
       );
       emit(
@@ -1475,7 +1445,7 @@ export class PiAgentHost {
         stack: errorStack(error),
       });
       emit(
-        accumulator.toAssistantTurn(
+        this.sessionRuntime.assistantTurn(
           this.createEvent({
             type: "assistant.turn",
             sessionId: command.sessionId,
@@ -1562,10 +1532,10 @@ export class PiAgentHost {
 
   private async resolveToolApproval(
     command: Extract<AgentCommand, { type: "tool.approve" | "tool.reject" }>,
-    webContents: WebContents,
   ) {
     const manager = await this.sessionLog.openSession(command.sessionId);
     const events = await this.sessionLog.readEvents(command.sessionId);
+    await this.sessionRuntime.projection(command.sessionId);
     const requested = events.findLast(
       (event): event is AgentApprovalRequested =>
         event.type === "approval.requested" && event.approvalId === command.approvalId,
@@ -1590,9 +1560,8 @@ export class PiAgentHost {
       approved,
       ...(rejectionReason ? { rejectionReason } : {}),
     });
-    this.appendAndEmit(manager, webContents, resolved);
+    this.appendAndPublish(manager, resolved);
     const active = this.activeRuns.get(command.sessionId);
-    if (active?.runId === requested.runId) active.accumulator.append(resolved);
     const pending =
       active?.runId === requested.runId
         ? active.pendingApprovals.get(requested.approvalId)
@@ -1620,21 +1589,20 @@ export class PiAgentHost {
         pending.resolve(rejectedToolResult(requested.toolName, rejectionReason));
         return;
       }
-      this.appendToolExecutionStarted(manager, webContents, requested);
+      this.appendToolExecutionStarted(manager, requested);
       void this.executeApprovedTool(requested, active.entityCatalog).then(
         (output) => {
           this.appendEntityCatalogUpdates(
             manager,
-            webContents,
             requested.sessionId,
             requested.runId,
             active.entityCatalog,
           );
-          this.appendToolExecutionCompleted(manager, webContents, requested, output);
+          this.appendToolExecutionCompleted(manager, requested, output);
           pending.resolve(output);
         },
         (error) => {
-          this.appendToolExecutionFailed(manager, webContents, requested, error);
+          this.appendToolExecutionFailed(manager, requested, error);
           pending.reject(error);
         },
       );
@@ -1645,7 +1613,7 @@ export class PiAgentHost {
 
     if (requested.toolName === "bash") {
       const error = new Error("危险 Bash 确认已过期，请让 Agent 重新发起命令。");
-      this.appendToolExecutionFailed(manager, webContents, requested, error);
+      this.appendToolExecutionFailed(manager, requested, error);
       return;
     }
 
@@ -1654,20 +1622,13 @@ export class PiAgentHost {
         event.type === "assistant.turn" && event.messageId === requested.messageId,
     );
     try {
-      this.appendToolExecutionStarted(manager, webContents, requested);
+      this.appendToolExecutionStarted(manager, requested);
       const registry = new AgentEntityCatalog(reduceAgentSession(events).entityCatalog);
       const output = await this.executeApprovedTool(requested, registry);
-      this.appendEntityCatalogUpdates(
+      this.appendEntityCatalogUpdates(manager, requested.sessionId, requested.runId, registry);
+      this.appendToolExecutionCompleted(manager, requested, output);
+      this.appendAndPublish(
         manager,
-        webContents,
-        requested.sessionId,
-        requested.runId,
-        registry,
-      );
-      this.appendToolExecutionCompleted(manager, webContents, requested, output);
-      this.appendAndEmit(
-        manager,
-        webContents,
         this.createEvent({
           type: "assistant.turn",
           sessionId: command.sessionId,
@@ -1678,10 +1639,9 @@ export class PiAgentHost {
         }),
       );
     } catch (error) {
-      this.appendToolExecutionFailed(manager, webContents, requested, error);
-      this.appendAndEmit(
+      this.appendToolExecutionFailed(manager, requested, error);
+      this.appendAndPublish(
         manager,
-        webContents,
         this.createEvent({
           type: "assistant.turn",
           sessionId: command.sessionId,

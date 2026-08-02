@@ -14,6 +14,8 @@ import { DiagnosticsService } from "./DiagnosticsService";
 import { SearchService } from "./SearchService";
 import { UnderstandingService } from "./UnderstandingService";
 import { TrashService } from "./TrashService";
+import { piAgentHost } from "./core";
+import { registerAgentSessionFeed } from "./agent/agent-session-feed-ipc";
 
 const originalHandle = ipcMain.handle.bind(ipcMain);
 type IpcHandleListener = (
@@ -73,6 +75,8 @@ ipcMain.handle = (channel: string, listener: IpcHandleListener) => {
   };
   return originalHandle(channel, wrapped);
 };
+
+registerAgentSessionFeed(piAgentHost);
 
 export const services = createServices([
   AssetService,
