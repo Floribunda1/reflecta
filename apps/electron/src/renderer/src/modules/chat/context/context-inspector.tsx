@@ -12,10 +12,14 @@ export function ContextInspector({
   refToInspect,
   onClose,
   onInspect,
+  focusMode = false,
+  onFocusModeChange,
 }: {
   refToInspect: InspectableContextRef;
   onClose: () => void;
   onInspect: (ref: InspectableContextRef) => void;
+  focusMode?: boolean;
+  onFocusModeChange?: (focused: boolean) => void;
 }) {
   const contextQuery = useQuery({
     queryKey: ["agent.inspector.context", refToInspect.id],
@@ -26,9 +30,11 @@ export function ContextInspector({
   return (
     <aside
       data-testid="agent-context-inspector"
-      className="flex h-full min-h-0 min-w-0 animate-in slide-in-from-right-3 fade-in-0 flex-col bg-transparent duration-150"
+      className={`flex min-h-0 min-w-0 animate-in slide-in-from-right-3 fade-in-0 flex-col duration-150 ${focusMode ? "fixed inset-0 z-50 h-auto bg-background" : "h-full bg-transparent"}`}
     >
-      <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b px-4">
+      <div
+        className={`h-14 shrink-0 items-center justify-between gap-3 border-b px-4 ${focusMode ? "hidden" : "flex"}`}
+      >
         <div className="text-sm font-medium">详情</div>
         <Button
           type="button"
@@ -45,6 +51,8 @@ export function ContextInspector({
         {refToInspect.type === "understanding" ? (
           <UnderstandingDetail
             understandingId={refToInspect.id}
+            focusMode={focusMode}
+            onFocusModeChange={onFocusModeChange}
             onWikiLinkClick={(understandingId: string) =>
               onInspect({ type: "understanding", id: understandingId })
             }

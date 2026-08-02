@@ -447,7 +447,9 @@ function UnderstandingDetailInner({
     <div className="h-full min-h-0 min-w-0 overflow-hidden">
       <article ref={detailRef} className="mx-auto h-full overflow-y-auto px-6 py-3">
         <header className="space-y-4">
-          <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <div
+            className={`flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground ${focusMode ? "pl-[75px]" : ""}`}
+          >
             <span>{updatedLabel}</span>
             <span aria-hidden>·</span>
             <DomainTreeSelect
@@ -535,7 +537,7 @@ function UnderstandingDetailInner({
             documentId={understanding.id}
             value={body}
             height="auto"
-            maxHeight="clamp(320px, 50vh, 560px)"
+            maxHeight={focusMode ? "calc(100vh - 140px)" : "clamp(320px, 50vh, 560px)"}
             placeholder="用自己的语言写下这条理解。输入 [[ 连接相关理解。"
             uploadAsset={uploadMarkdownAsset}
             getSuggestions={getMarkdownEditorSuggestions}
@@ -551,7 +553,9 @@ function UnderstandingDetailInner({
           />
         </section>
 
-        <section className="mt-10 flex flex-col gap-3 border-t border-border/70 pt-8 pb-6">
+        <section
+          className={`mt-10 flex flex-col gap-3 border-t border-border/70 pt-8 pb-6 ${focusMode ? "hidden" : ""}`}
+        >
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm leading-8 font-medium">上下文</div>
             <Button type="button" size="sm" variant="ghost" onClick={handleAddContext}>

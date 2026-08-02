@@ -76,3 +76,32 @@ test("@AG-CONTEXT-005 用户点击已选择的 Understanding 引用后查看详�
     await app.close();
   }
 });
+
+test("@AG-CONTEXT-011 用户专注阅读 Agent 中打开的 Understanding", async () => {
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await selectContext(page, "React", "React Server Components", "understanding");
+    await page
+      .locator('[data-slot="composer-context-mention"]')
+      .filter({ hasText: "React Server Components" })
+      .click();
+
+    const inspector = page.getByTestId("agent-context-inspector");
+    const viewportWidth = await page.evaluate(() => window.innerWidth);
+    await page.getByRole("button", { name: "进入专注模式" }).click();
+
+    await expect
+      .poll(async () => (await inspector.boundingBox())?.width ?? 0)
+      .toBeGreaterThan(viewportWidth * 0.9);
+    await expect(page.getByText("上下文", { exact: true })).toBeHidden();
+
+    await page.keyboard.press("Escape");
+    await expect
+      .poll(async () => (await inspector.boundingBox())?.width ?? 0)
+      .toBeLessThan(viewportWidth * 0.8);
+    await expect(page.getByRole("button", { name: "进入专注模式" })).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});

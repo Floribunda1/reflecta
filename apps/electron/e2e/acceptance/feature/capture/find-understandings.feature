@@ -50,5 +50,7 @@
     当用户进入专注模式
     那么 Domain 侧栏和 Understanding 列表应该收起
     而且详情区应该占满可用空间
+    而且详情区应该只显示 Understanding 的笔记内容
+    而且顶部操作应该避开窗口控制区
     当用户按下 Esc
     那么 Domain 侧栏和 Understanding 列表应该恢复

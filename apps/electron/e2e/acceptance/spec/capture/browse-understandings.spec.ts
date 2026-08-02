@@ -142,6 +142,9 @@ test("@CP-LIST-006 用户专注阅读当前 Understanding", async () => {
     await expect(domainSidebar).toHaveAttribute("aria-hidden", "true");
     await expect(listPanel).toHaveCSS("width", "0px");
     await expect(page.getByRole("button", { name: "退出专注模式" })).toBeVisible();
+    await expect.soft(page.getByText("上下文", { exact: true })).toBeHidden();
+    const focusHeaderBox = await page.locator("article header > div").first().boundingBox();
+    expect.soft(focusHeaderBox?.x ?? 0).toBeGreaterThanOrEqual(75);
 
     await page.keyboard.press("Escape");
     await expect(domainSidebar).toHaveAttribute("aria-hidden", "false");

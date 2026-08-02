@@ -47,6 +47,15 @@
     那么页面应该打开详情面板
     而且详情面板应该显示 Understanding「React Server Components」
 
+  @P1 @context @layout @AG-CONTEXT-011
+  场景: 用户专注阅读 Agent 中打开的 Understanding
+    假如用户已经在 Agent 的详情面板中打开一条 Understanding
+    当用户进入专注模式
+    那么详情区应该占满可用空间
+    而且详情区应该只显示 Understanding 的笔记内容
+    当用户按下 Esc
+    那么 Agent 对话和详情面板应该恢复原布局
+
   @P1 @context @AG-CONTEXT-009
   场景: 用户通过 @ 搜索后按 Enter 选择上下文引用
     假如 seed 数据中存在 Understanding「React Server Components」
