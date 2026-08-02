@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.12 - 2026-08-02
+
+- Kept Agent conversations at the user's reading position when a streaming reply grows after scrolling up and then slightly down.
+
 ## 1.3.11 - 2026-08-02
 
 - Unified persisted and live Agent events behind a revisioned session projection, preventing duplicate replies after switching conversations or refocusing the app window.
