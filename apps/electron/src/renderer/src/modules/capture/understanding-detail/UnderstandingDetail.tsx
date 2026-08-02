@@ -183,7 +183,7 @@ export function ContextPreviewDrawerContent({
       <article className="mx-auto h-full overflow-y-auto px-6 py-3">
         <header className="space-y-4">
           <div
-            className={`flex min-h-8 min-w-0 items-center gap-2 text-xs text-muted-foreground ${focusMode ? "justify-end pl-[75px]" : ""}`}
+            className={`flex min-h-8 min-w-0 items-center gap-2 text-xs text-muted-foreground ${focusMode ? "pl-[75px]" : ""}`}
           >
             {focusMode ? null : (
               <>
@@ -194,21 +194,20 @@ export function ContextPreviewDrawerContent({
                 <span className="shrink-0">{context.content.length} 字</span>
               </>
             )}
-            {onFocusModeChange ? (
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                className={focusMode ? undefined : "ml-auto"}
-                aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
-                title={focusMode ? "退出专注模式（Esc）" : "进入专注模式"}
-                onClick={() => onFocusModeChange(!focusMode)}
-              >
-                {focusMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-              </Button>
-            ) : null}
-            {onClose ? (
-              <div className="ml-1 border-l pl-2">
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              {onFocusModeChange ? (
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
+                  title={focusMode ? "退出专注模式（Esc）" : "进入专注模式"}
+                  onClick={() => onFocusModeChange(!focusMode)}
+                >
+                  {focusMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                </Button>
+              ) : null}
+              {onClose && !focusMode ? (
                 <Button
                   type="button"
                   size="icon-sm"
@@ -219,8 +218,8 @@ export function ContextPreviewDrawerContent({
                 >
                   <X size={15} />
                 </Button>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
           <h1 className="text-2xl font-semibold">{context.title?.trim() || meta.label}</h1>
         </header>
@@ -524,7 +523,7 @@ function UnderstandingDetailInner({
       <article ref={detailRef} className="mx-auto h-full overflow-y-auto px-6 py-3">
         <header className="space-y-4">
           <div
-            className={`flex min-h-8 min-w-0 items-center gap-2 text-xs text-muted-foreground ${focusMode ? "justify-end pl-[75px]" : ""}`}
+            className={`flex min-h-8 min-w-0 items-center gap-2 text-xs text-muted-foreground ${focusMode ? "pl-[75px]" : ""}`}
           >
             {focusMode ? null : (
               <>
@@ -542,66 +541,63 @@ function UnderstandingDetailInner({
                 />
               </>
             )}
-            {onFocusModeChange ? (
-              <Button
-                data-testid="capture-understanding-focus-button"
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                className={focusMode ? undefined : "ml-auto"}
-                aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
-                title={focusMode ? "退出专注模式（Esc）" : "进入专注模式"}
-                onClick={() => onFocusModeChange(!focusMode)}
-              >
-                {focusMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-              </Button>
-            ) : null}
-            {onChat && !focusMode ? (
-              <Button
-                data-testid="capture-understanding-chat-button"
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                className={onFocusModeChange ? undefined : "ml-auto"}
-                aria-label="聊聊"
-                title="聊聊"
-                onClick={() =>
-                  onChat({
-                    type: "understanding",
-                    id: understanding.id,
-                    title: title.trim() || understanding.title || undefined,
-                  })
-                }
-              >
-                <MessageCircle size={15} />
-              </Button>
-            ) : null}
-            {!focusMode ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      className={onChat || onFocusModeChange ? undefined : "ml-auto"}
-                      aria-label="更多操作"
-                      title="更多操作"
-                    />
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              {onFocusModeChange ? (
+                <Button
+                  data-testid="capture-understanding-focus-button"
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
+                  title={focusMode ? "退出专注模式（Esc）" : "进入专注模式"}
+                  onClick={() => onFocusModeChange(!focusMode)}
+                >
+                  {focusMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                </Button>
+              ) : null}
+              {onChat && !focusMode ? (
+                <Button
+                  data-testid="capture-understanding-chat-button"
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label="聊聊"
+                  title="聊聊"
+                  onClick={() =>
+                    onChat({
+                      type: "understanding",
+                      id: understanding.id,
+                      title: title.trim() || understanding.title || undefined,
+                    })
                   }
                 >
-                  <MoreHorizontal size={15} />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" sideOffset={6}>
-                  <DropdownMenuItem variant="destructive" onClick={handleDeleteUnderstanding}>
-                    <Trash2 size={15} />
-                    删除
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
-            {onClose ? (
-              <div className="ml-1 border-l pl-2">
+                  <MessageCircle size={15} />
+                </Button>
+              ) : null}
+              {!focusMode ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label="更多操作"
+                        title="更多操作"
+                      />
+                    }
+                  >
+                    <MoreHorizontal size={15} />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" sideOffset={6}>
+                    <DropdownMenuItem variant="destructive" onClick={handleDeleteUnderstanding}>
+                      <Trash2 size={15} />
+                      删除
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
+              {onClose && !focusMode ? (
                 <Button
                   type="button"
                   size="icon-sm"
@@ -612,8 +608,8 @@ function UnderstandingDetailInner({
                 >
                   <X size={15} />
                 </Button>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
           <Input
             value={title}
