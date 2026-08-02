@@ -2,6 +2,12 @@ import { Badge } from "@reflecta/ui/components/badge";
 import { Button } from "@reflecta/ui/components/button";
 import { DomainTreeSelect } from "@reflecta/ui/capture";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@reflecta/ui/components/dropdown-menu";
+import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
@@ -33,6 +39,7 @@ import {
   Maximize2,
   MessageCircle,
   Minimize2,
+  MoreHorizontal,
   Pencil,
   Plus,
   Trash2,
@@ -156,9 +163,78 @@ function ContextPreview({
   );
 }
 
-export function ContextPreviewDrawerContent({ context }: { context: ContextDTO }) {
+export function ContextPreviewDrawerContent({
+  context,
+  focusMode = false,
+  onFocusModeChange,
+  onClose,
+}: {
+  context: ContextDTO;
+  focusMode?: boolean;
+  onFocusModeChange?: (focused: boolean) => void;
+  onClose?: () => void;
+}) {
   const meta = contextMeta(context.medium);
   const Icon = meta.Icon;
+  const inspectorMode = Boolean(onFocusModeChange || onClose);
+
+  if (inspectorMode) {
+    return (
+      <article className="mx-auto h-full overflow-y-auto px-6 py-3">
+        <header className="space-y-4">
+          <div
+            className={`flex min-h-8 min-w-0 items-center gap-2 text-xs text-muted-foreground ${focusMode ? "justify-end pl-[75px]" : ""}`}
+          >
+            {focusMode ? null : (
+              <>
+                <Badge variant="outline" className="gap-1">
+                  <Icon size={11} />
+                  {meta.label}
+                </Badge>
+                <span className="shrink-0">{context.content.length} 字</span>
+              </>
+            )}
+            {onFocusModeChange ? (
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                className={focusMode ? undefined : "ml-auto"}
+                aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
+                title={focusMode ? "退出专注模式（Esc）" : "进入专注模式"}
+                onClick={() => onFocusModeChange(!focusMode)}
+              >
+                {focusMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+              </Button>
+            ) : null}
+            {onClose ? (
+              <div className="ml-1 border-l pl-2">
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label="关闭详情"
+                  title="关闭详情"
+                  onClick={onClose}
+                >
+                  <X size={15} />
+                </Button>
+              </div>
+            ) : null}
+          </div>
+          <h1 className="text-2xl font-semibold">{context.title?.trim() || meta.label}</h1>
+        </header>
+
+        <section className="mt-5">
+          {context.content ? (
+            <MarkdownPreview value={context.content} />
+          ) : (
+            <div className="text-sm text-muted-foreground">空上下文。</div>
+          )}
+        </section>
+      </article>
+    );
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5">
@@ -448,27 +524,31 @@ function UnderstandingDetailInner({
       <article ref={detailRef} className="mx-auto h-full overflow-y-auto px-6 py-3">
         <header className="space-y-4">
           <div
-            className={`flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground ${focusMode ? "pl-[75px]" : ""}`}
+            className={`flex min-h-8 min-w-0 items-center gap-2 text-xs text-muted-foreground ${focusMode ? "justify-end pl-[75px]" : ""}`}
           >
-            <span>{updatedLabel}</span>
-            <span aria-hidden>·</span>
-            <DomainTreeSelect
-              value={understanding.domainIds}
-              onValueChange={(domainIds) => void updateUnderstanding({ domainIds })}
-              nodes={domains}
-              status={domainsLoading ? "loading" : "ready"}
-              placeholder="未归入 Domain"
-              fluid={false}
-              showPath={false}
-              variant="inline"
-            />
+            {focusMode ? null : (
+              <>
+                <span>{updatedLabel}</span>
+                <span aria-hidden>·</span>
+                <DomainTreeSelect
+                  value={understanding.domainIds}
+                  onValueChange={(domainIds) => void updateUnderstanding({ domainIds })}
+                  nodes={domains}
+                  status={domainsLoading ? "loading" : "ready"}
+                  placeholder="未归入 Domain"
+                  fluid={false}
+                  showPath={false}
+                  variant="inline"
+                />
+              </>
+            )}
             {onFocusModeChange ? (
               <Button
                 data-testid="capture-understanding-focus-button"
                 type="button"
                 size="icon-sm"
                 variant="ghost"
-                className="ml-auto"
+                className={focusMode ? undefined : "ml-auto"}
                 aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
                 title={focusMode ? "退出专注模式（Esc）" : "进入专注模式"}
                 onClick={() => onFocusModeChange(!focusMode)}
@@ -476,7 +556,7 @@ function UnderstandingDetailInner({
                 {focusMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
               </Button>
             ) : null}
-            {onChat ? (
+            {onChat && !focusMode ? (
               <Button
                 data-testid="capture-understanding-chat-button"
                 type="button"
@@ -496,28 +576,43 @@ function UnderstandingDetailInner({
                 <MessageCircle size={15} />
               </Button>
             ) : null}
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              className={`${onChat || onFocusModeChange ? "" : "ml-auto"} text-destructive hover:bg-destructive/10 hover:text-destructive`}
-              aria-label="删除"
-              title="删除"
-              onClick={handleDeleteUnderstanding}
-            >
-              <Trash2 size={15} />
-            </Button>
+            {!focusMode ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="ghost"
+                      className={onChat || onFocusModeChange ? undefined : "ml-auto"}
+                      aria-label="更多操作"
+                      title="更多操作"
+                    />
+                  }
+                >
+                  <MoreHorizontal size={15} />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" sideOffset={6}>
+                  <DropdownMenuItem variant="destructive" onClick={handleDeleteUnderstanding}>
+                    <Trash2 size={15} />
+                    删除
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
             {onClose ? (
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                aria-label="关闭详情"
-                title="关闭详情"
-                onClick={onClose}
-              >
-                <X size={15} />
-              </Button>
+              <div className="ml-1 border-l pl-2">
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label="关闭详情"
+                  title="关闭详情"
+                  onClick={onClose}
+                >
+                  <X size={15} />
+                </Button>
+              </div>
             ) : null}
           </div>
           <Input

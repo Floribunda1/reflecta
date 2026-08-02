@@ -80,7 +80,8 @@ test("@CP-UNDERSTANDING-004 用户删除不再需要的 Understanding", async ()
   try {
     await openCapturePage(page);
     await openUnderstanding(page, "React Server Components");
-    await page.getByRole("article").getByRole("button", { name: "删除" }).click();
+    await page.getByRole("article").getByRole("button", { name: "更多操作" }).click();
+    await page.getByRole("menuitem", { name: "删除" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "删除" }).click();
 
     await expect(understandingRow(page, "React Server Components")).toHaveCount(0);

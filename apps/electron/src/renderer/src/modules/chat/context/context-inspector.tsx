@@ -1,6 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { X } from "lucide-react";
-import { Button } from "@reflecta/ui/components/button";
 import {
   ContextPreviewDrawerContent,
   UnderstandingDetail,
@@ -32,36 +30,25 @@ export function ContextInspector({
       data-testid="agent-context-inspector"
       className={`flex min-h-0 min-w-0 flex-col ${focusMode ? "fixed inset-0 z-50 h-auto bg-background" : "h-full bg-transparent"}`}
     >
-      <div
-        className={`h-14 shrink-0 items-center justify-between gap-3 border-b px-4 ${focusMode ? "hidden" : "flex"}`}
-      >
-        <div className="text-sm font-medium">详情</div>
-        <Button
-          type="button"
-          size="icon-xs"
-          variant="ghost"
-          aria-label="关闭详情"
-          onClick={onClose}
-        >
-          <X />
-        </Button>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-hidden">
         {refToInspect.type === "understanding" ? (
           <UnderstandingDetail
             understandingId={refToInspect.id}
             focusMode={focusMode}
             onFocusModeChange={onFocusModeChange}
+            onClose={onClose}
             onWikiLinkClick={(understandingId: string) =>
               onInspect({ type: "understanding", id: understandingId })
             }
           />
         ) : null}
         {refToInspect.type === "context" && contextQuery.data ? (
-          <div className="p-4">
-            <ContextPreviewDrawerContent context={contextQuery.data} />
-          </div>
+          <ContextPreviewDrawerContent
+            context={contextQuery.data}
+            focusMode={focusMode}
+            onFocusModeChange={onFocusModeChange}
+            onClose={onClose}
+          />
         ) : null}
         {refToInspect.type === "context" && contextQuery.isFetching ? (
           <div className="p-4 text-sm text-muted-foreground">加载中...</div>

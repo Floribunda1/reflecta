@@ -340,6 +340,7 @@ export function ChatComposer({
           },
           suggestion: {
             char: "@",
+            allowSpaces: true,
             items: () => [],
             command: ({ editor, range, props }) => {
               const attrs = props as MentionAttrs;
