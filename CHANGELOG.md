@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.11 - 2026-08-02
+
+- Unified persisted and live Agent events behind a revisioned session projection, preventing duplicate replies after switching conversations or refocusing the app window.
+- Added a distraction-free Understanding focus mode and aligned Understanding and Context inspector actions for a more consistent editing workflow.
+- Restored subtle item counts in Capture list and Knowledge Wander headers.
+
 ## 1.3.10 - 2026-08-02
 
 - Hydrated Understanding update previews while tool arguments stream so existing content is available before confirmation.
