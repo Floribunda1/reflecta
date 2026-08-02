@@ -10,11 +10,7 @@ import { useThreadFocusNonce } from "./chat-ui-store";
 import { chatQueryKeys } from "./query-keys";
 import { invalidateEntityDisplay } from "../../capture/queries";
 import type { AgentThreadView } from "./thread-view";
-import {
-  editingMessageFromAgentMessage,
-  scrollKeyFor,
-  shouldShowScrollToBottomButton,
-} from "./thread-view";
+import { editingMessageFromAgentMessage, shouldShowScrollToBottomButton } from "./thread-view";
 import { buildChatTurnNavigationItems } from "./chat-turn-navigation";
 import { agentSessionReplica, useAgentSession } from "./agent-session-replica";
 
@@ -119,7 +115,7 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
     gap: 20,
     anchorTo: "end",
     followOnAppend: false,
-    // The hook owns end-following so user scrolling can cancel it immediately.
+    // Content resize observation below owns bottom-following.
     scrollEndThreshold: -1,
     scrollPaddingEnd: CHAT_JUMP_BOTTOM_OFFSET,
     directDomUpdates: true,
@@ -152,7 +148,6 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
   const composerBusy = isBusy || isCompacting;
   const error = state.error ? new Error(state.error) : undefined;
   const compactionError = state.compactionError ? new Error(state.compactionError) : undefined;
-  const scrollKey = `${scrollKeyFor(visibleMessages)}:${state.contextCompactions.length}:${composerBusy ? "busy" : "idle"}`;
 
   const setScrollButtonVisible = useCallback((visible: boolean) => {
     setShowScrollToBottom((current) => (current === visible ? current : visible));
@@ -239,14 +234,17 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
   }, [scrollRequest, scrollToBottom, setScrollButtonVisible, sessionId]);
 
   useEffect(() => {
-    if (!shouldStickToBottom.current) return;
-    const frame = requestAnimationFrame(() => {
+    const element = scrollRef.current;
+    const content = element?.firstElementChild;
+    if (!content || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
       if (!shouldStickToBottom.current) return;
       scrollToBottom("auto");
       setTrackedTurnId(lastTurnIdRef.current);
     });
-    return () => cancelAnimationFrame(frame);
-  }, [scrollKey, scrollToBottom]);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [scrollToBottom, sessionId, sessionRead.status]);
 
   const handleScroll = useCallback(() => {
     const element = scrollRef.current;

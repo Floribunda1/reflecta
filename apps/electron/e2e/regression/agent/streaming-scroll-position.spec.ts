@@ -23,7 +23,7 @@ test.beforeEach(() => {
   });
 });
 
-test("streaming does not resume auto-scroll after the user scrolls down slightly", async () => {
+test("streaming follows at the bottom and pauses after the user scrolls away", async () => {
   const { app, page } = await launchAgentPage();
 
   try {
@@ -52,6 +52,22 @@ test("streaming does not resume auto-scroll after the user scrolls down slightly
       element.scrollTop = element.scrollHeight;
       element.dispatchEvent(new Event("scroll"));
     });
+    const heightBeforeStickyGrowth = await scroll.evaluate((element) => element.scrollHeight);
+    // Trigger the same ResizeObserver path as the next streamed render, without a live model.
+    await activeReply.evaluate((element) => {
+      (element as HTMLElement).style.paddingBottom = "120px";
+    });
+    await expect
+      .poll(() => scroll.evaluate((element) => element.scrollHeight))
+      .toBeGreaterThan(heightBeforeStickyGrowth + 100);
+    await expect
+      .poll(() =>
+        scroll.evaluate(
+          (element) => element.scrollHeight - element.scrollTop - element.clientHeight,
+        ),
+      )
+      .toBeLessThanOrEqual(1);
+
     await scroll.hover();
     await page.mouse.wheel(0, -320);
     await expect
@@ -73,9 +89,8 @@ test("streaming does not resume auto-scroll after the user scrolls down slightly
     const readingPosition = await scroll.evaluate((element) => element.scrollTop);
     const heightBeforeDownGrowth = await scroll.evaluate((element) => element.scrollHeight);
     expect(readingPosition).toBeGreaterThan(afterUp);
-    // Trigger the same ResizeObserver path as the next streamed render, without a live model.
     await activeReply.evaluate((element) => {
-      (element as HTMLElement).style.paddingBottom = "240px";
+      (element as HTMLElement).style.paddingBottom = "360px";
     });
     await expect
       .poll(() => scroll.evaluate((element) => element.scrollHeight))
