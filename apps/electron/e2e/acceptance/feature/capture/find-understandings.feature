@@ -43,3 +43,14 @@
     当用户向右拖动 Understanding 列表与详情区之间的分隔条
     那么 Understanding 列表应该变宽
     而且详情区应该继续显示
+
+  @P1 @layout @CP-LIST-006
+  场景: 用户专注阅读当前 Understanding
+    假如用户已经打开一条 Understanding
+    当用户进入专注模式
+    那么 Domain 侧栏和 Understanding 列表应该收起
+    而且详情区应该占满可用空间
+    而且详情区应该只显示 Understanding 的笔记内容
+    而且顶部操作应该避开窗口控制区
+    当用户按下 Esc
+    那么 Domain 侧栏和 Understanding 列表应该恢复

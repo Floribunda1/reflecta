@@ -2,6 +2,12 @@ import { Badge } from "@reflecta/ui/components/badge";
 import { Button } from "@reflecta/ui/components/button";
 import { DomainTreeSelect } from "@reflecta/ui/capture";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@reflecta/ui/components/dropdown-menu";
+import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
@@ -28,7 +34,17 @@ import { useModal } from "@reflecta/ui/overlays";
 import type { ContextDTO, ContextMedium } from "@shared/context";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { FileText, MessageCircle, Pencil, Plus, Trash2, X } from "lucide-react";
+import {
+  FileText,
+  Maximize2,
+  MessageCircle,
+  Minimize2,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useQueries } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUnderstandingDetail, useUnderstandingDetailActions } from "./hooks";
@@ -47,6 +63,8 @@ type UnderstandingDetailProps = {
   onDeleted?: () => void;
   onWikiLinkClick?: (understandingId: string) => void;
   onChat?: (scope: CaptureAgentScope) => void;
+  focusMode?: boolean;
+  onFocusModeChange?: (focused: boolean) => void;
 };
 
 type ContextDraftInput = {
@@ -145,9 +163,77 @@ function ContextPreview({
   );
 }
 
-export function ContextPreviewDrawerContent({ context }: { context: ContextDTO }) {
+export function ContextPreviewDrawerContent({
+  context,
+  focusMode = false,
+  onFocusModeChange,
+  onClose,
+}: {
+  context: ContextDTO;
+  focusMode?: boolean;
+  onFocusModeChange?: (focused: boolean) => void;
+  onClose?: () => void;
+}) {
   const meta = contextMeta(context.medium);
   const Icon = meta.Icon;
+  const inspectorMode = Boolean(onFocusModeChange || onClose);
+
+  if (inspectorMode) {
+    return (
+      <article className="mx-auto h-full overflow-y-auto px-6 py-3">
+        <header className="space-y-4">
+          <div
+            className={`flex min-h-8 min-w-0 items-center gap-2 text-xs text-muted-foreground ${focusMode ? "pl-[75px]" : ""}`}
+          >
+            {focusMode ? null : (
+              <>
+                <Badge variant="outline" className="gap-1">
+                  <Icon size={11} />
+                  {meta.label}
+                </Badge>
+                <span className="shrink-0">{context.content.length} 字</span>
+              </>
+            )}
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              {onFocusModeChange ? (
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
+                  title={focusMode ? "退出专注模式（Esc）" : "进入专注模式"}
+                  onClick={() => onFocusModeChange(!focusMode)}
+                >
+                  {focusMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                </Button>
+              ) : null}
+              {onClose && !focusMode ? (
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label="关闭详情"
+                  title="关闭详情"
+                  onClick={onClose}
+                >
+                  <X size={15} />
+                </Button>
+              ) : null}
+            </div>
+          </div>
+          <h1 className="text-2xl font-semibold">{context.title?.trim() || meta.label}</h1>
+        </header>
+
+        <section className="mt-5">
+          {context.content ? (
+            <MarkdownPreview value={context.content} />
+          ) : (
+            <div className="text-sm text-muted-foreground">空上下文。</div>
+          )}
+        </section>
+      </article>
+    );
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5">
@@ -278,6 +364,8 @@ function UnderstandingDetailInner({
   onDeleted,
   onWikiLinkClick,
   onChat,
+  focusMode = false,
+  onFocusModeChange,
 }: UnderstandingDetailProps) {
   const detailRef = useRef<HTMLElement>(null);
   const { understanding } = useUnderstandingDetail(understandingId);
@@ -434,62 +522,94 @@ function UnderstandingDetailInner({
     <div className="h-full min-h-0 min-w-0 overflow-hidden">
       <article ref={detailRef} className="mx-auto h-full overflow-y-auto px-6 py-3">
         <header className="space-y-4">
-          <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>{updatedLabel}</span>
-            <span aria-hidden>·</span>
-            <DomainTreeSelect
-              value={understanding.domainIds}
-              onValueChange={(domainIds) => void updateUnderstanding({ domainIds })}
-              nodes={domains}
-              status={domainsLoading ? "loading" : "ready"}
-              placeholder="未归入 Domain"
-              fluid={false}
-              showPath={false}
-              variant="inline"
-            />
-            {onChat ? (
-              <Button
-                data-testid="capture-understanding-chat-button"
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                className="ml-auto"
-                aria-label="聊聊"
-                title="聊聊"
-                onClick={() =>
-                  onChat({
-                    type: "understanding",
-                    id: understanding.id,
-                    title: title.trim() || understanding.title || undefined,
-                  })
-                }
-              >
-                <MessageCircle size={15} />
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              className={`${onChat ? "" : "ml-auto"} text-destructive hover:bg-destructive/10 hover:text-destructive`}
-              aria-label="删除"
-              title="删除"
-              onClick={handleDeleteUnderstanding}
-            >
-              <Trash2 size={15} />
-            </Button>
-            {onClose ? (
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                aria-label="关闭详情"
-                title="关闭详情"
-                onClick={onClose}
-              >
-                <X size={15} />
-              </Button>
-            ) : null}
+          <div
+            className={`flex min-h-8 min-w-0 items-center gap-2 text-xs text-muted-foreground ${focusMode ? "pl-[75px]" : ""}`}
+          >
+            {focusMode ? null : (
+              <>
+                <span>{updatedLabel}</span>
+                <span aria-hidden>·</span>
+                <DomainTreeSelect
+                  value={understanding.domainIds}
+                  onValueChange={(domainIds) => void updateUnderstanding({ domainIds })}
+                  nodes={domains}
+                  status={domainsLoading ? "loading" : "ready"}
+                  placeholder="未归入 Domain"
+                  fluid={false}
+                  showPath={false}
+                  variant="inline"
+                />
+              </>
+            )}
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              {onFocusModeChange ? (
+                <Button
+                  data-testid="capture-understanding-focus-button"
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
+                  title={focusMode ? "退出专注模式（Esc）" : "进入专注模式"}
+                  onClick={() => onFocusModeChange(!focusMode)}
+                >
+                  {focusMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                </Button>
+              ) : null}
+              {onChat && !focusMode ? (
+                <Button
+                  data-testid="capture-understanding-chat-button"
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label="聊聊"
+                  title="聊聊"
+                  onClick={() =>
+                    onChat({
+                      type: "understanding",
+                      id: understanding.id,
+                      title: title.trim() || understanding.title || undefined,
+                    })
+                  }
+                >
+                  <MessageCircle size={15} />
+                </Button>
+              ) : null}
+              {!focusMode ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label="更多操作"
+                        title="更多操作"
+                      />
+                    }
+                  >
+                    <MoreHorizontal size={15} />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" sideOffset={6}>
+                    <DropdownMenuItem variant="destructive" onClick={handleDeleteUnderstanding}>
+                      <Trash2 size={15} />
+                      删除
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
+              {onClose && !focusMode ? (
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label="关闭详情"
+                  title="关闭详情"
+                  onClick={onClose}
+                >
+                  <X size={15} />
+                </Button>
+              ) : null}
+            </div>
           </div>
           <Input
             value={title}
@@ -508,7 +628,7 @@ function UnderstandingDetailInner({
             documentId={understanding.id}
             value={body}
             height="auto"
-            maxHeight="clamp(320px, 50vh, 560px)"
+            maxHeight={focusMode ? "calc(100vh - 140px)" : "clamp(320px, 50vh, 560px)"}
             placeholder="用自己的语言写下这条理解。输入 [[ 连接相关理解。"
             uploadAsset={uploadMarkdownAsset}
             getSuggestions={getMarkdownEditorSuggestions}
@@ -524,7 +644,9 @@ function UnderstandingDetailInner({
           />
         </section>
 
-        <section className="mt-10 flex flex-col gap-3 border-t border-border/70 pt-8 pb-6">
+        <section
+          className={`mt-10 flex flex-col gap-3 border-t border-border/70 pt-8 pb-6 ${focusMode ? "hidden" : ""}`}
+        >
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm leading-8 font-medium">上下文</div>
             <Button type="button" size="sm" variant="ghost" onClick={handleAddContext}>

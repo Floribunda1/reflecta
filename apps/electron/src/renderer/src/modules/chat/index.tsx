@@ -6,7 +6,7 @@ import {
   ResizablePanelGroup,
 } from "@reflecta/ui/components/resizable";
 import { useModal } from "@reflecta/ui/overlays";
-import { useMemoizedFn } from "ahooks";
+import { useKeyPress, useMemoizedFn } from "ahooks";
 import { toast } from "sonner";
 import { AgentThreadPanel } from "./agent-thread-panel";
 import { ContextInspector } from "./context/context-inspector";
@@ -90,6 +90,7 @@ function ThreadChat({
 
 function ChatPageContent() {
   const [threadSidebarOpen, setThreadSidebarOpen] = useState(true);
+  const [inspectorFocusMode, setInspectorFocusMode] = useState(false);
   const threadSidebarPanelRef = usePanelRef();
   const { confirm } = useModal();
   const threadsQuery = useThreadsQuery();
@@ -118,6 +119,10 @@ function ChatPageContent() {
   const handleThreadSidebarResize = useMemoizedFn((size: PanelSize) => {
     setThreadSidebarOpen(size.inPixels > 0);
   });
+  const enterInspectorFocusMode = useMemoizedFn(() => {
+    setInspectorFocusMode(true);
+  });
+  const exitInspectorFocusMode = useMemoizedFn(() => setInspectorFocusMode(false));
   const confirmDeleteThread = useMemoizedFn((threadId: string) =>
     confirm({
       title: "删除对话",
@@ -130,7 +135,10 @@ function ChatPageContent() {
       },
     }),
   );
-  const closeInspector = useMemoizedFn(() => uiActions.closeInspector());
+  const closeInspector = useMemoizedFn(() => {
+    exitInspectorFocusMode();
+    uiActions.closeInspector();
+  });
   const openInspector = useMemoizedFn((ref: InspectableContextRef) => uiActions.openInspector(ref));
   const createThread = useMemoizedFn(() =>
     createThreadMutation.mutate(undefined, {
@@ -170,6 +178,14 @@ function ChatPageContent() {
     archiveThreadMutation.mutate(threadId);
   });
   const deleteThread = useMemoizedFn((threadId: string) => confirmDeleteThread(threadId));
+
+  useKeyPress(
+    "esc",
+    () => {
+      if (inspectorFocusMode) exitInspectorFocusMode();
+    },
+    { exactMatch: true },
+  );
 
   useEffect(() => {
     if (draftThreadId && threads.some((thread) => thread.id === draftThreadId)) {
@@ -229,8 +245,8 @@ function ChatPageContent() {
       >
         <div
           data-testid="agent-thread-sidebar-container"
-          aria-hidden={!threadSidebarOpen}
-          inert={!threadSidebarOpen}
+          aria-hidden={!threadSidebarOpen || inspectorFocusMode}
+          inert={!threadSidebarOpen || inspectorFocusMode}
           className={cn(
             "h-full min-w-0 overflow-hidden transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
             threadSidebarOpen
@@ -282,7 +298,11 @@ function ChatPageContent() {
             defaultSize={inspectedRef ? "58%" : "100%"}
             className="min-h-0 min-w-0"
           >
-            <div className="h-full min-h-0 min-w-0">
+            <div
+              aria-hidden={inspectorFocusMode}
+              inert={inspectorFocusMode}
+              className="h-full min-h-0 min-w-0"
+            >
               {activeThreadId ? (
                 <ThreadChat
                   key={activeThreadId}
@@ -318,7 +338,11 @@ function ChatPageContent() {
             <>
               <ResizableHandle
                 withHandle
-                className="w-px cursor-col-resize bg-border/50 after:w-4 hover:bg-border data-[resize-handle-active]:bg-ring [&>div]:h-10 [&>div]:w-0.5 [&>div]:bg-border/70"
+                disabled={inspectorFocusMode}
+                className={cn(
+                  "cursor-col-resize bg-border/50 after:w-4 hover:bg-border data-[resize-handle-active]:bg-ring [&>div]:h-10 [&>div]:w-0.5 [&>div]:bg-border/70",
+                  inspectorFocusMode ? "w-0 opacity-0 after:hidden" : "w-px",
+                )}
               />
               <ResizablePanel
                 id="agent-chat-inspector"
@@ -332,6 +356,10 @@ function ChatPageContent() {
                     refToInspect={inspectedRef}
                     onClose={closeInspector}
                     onInspect={openInspector}
+                    focusMode={inspectorFocusMode}
+                    onFocusModeChange={(focused) =>
+                      focused ? enterInspectorFocusMode() : exitInspectorFocusMode()
+                    }
                   />
                 </div>
               </ResizablePanel>

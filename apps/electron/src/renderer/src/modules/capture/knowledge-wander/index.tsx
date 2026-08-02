@@ -124,9 +124,13 @@ export function KnowledgeWanderWorkspace({
                 onClick={onExpandSidebar}
               />
             ) : null}
-            <div className="app-drag-region min-w-0">
-              <div className="truncate text-sm font-medium">{scopeTitle}</div>
-              <div className="text-xs text-muted-foreground">{graphData.nodes.length} 条理解</div>
+            <div className="app-drag-region flex min-w-0 items-center">
+              <div className="flex min-w-0 items-baseline text-sm font-medium">
+                <span className="truncate">{scopeTitle}</span>
+                <span className="shrink-0 text-xs font-normal text-muted-foreground">
+                  （{graphData.nodes.length}）
+                </span>
+              </div>
             </div>
             <div className="app-drag-region min-w-0 flex-1 self-stretch" />
             <div
