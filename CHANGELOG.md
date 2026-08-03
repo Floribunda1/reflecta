@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.14 - 2026-08-03
+
+- Refined Agent Understanding guidance to preserve the user's mental model, retain meaningful detail, use natural Markdown structure, and avoid invented rhetorical tension.
+- Routed knowledge-base retrieval, external research, and continued discussion by the concrete information gap so the Agent searches more purposefully and stops when the current material is sufficient.
+
 ## 1.3.13 - 2026-08-03
 
 - Stabilized Agent streaming scroll behavior so replies stay pinned only at the bottom, preserve the user's reading position after scrolling away, resume following after returning to the bottom, and no longer trigger ResizeObserver errors.
