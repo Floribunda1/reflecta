@@ -242,10 +242,10 @@ describe("createPiResourceLoader", () => {
     const understandingSkillPath = understandingResource?.filePath;
     expect(understandingSkillPath).toBeDefined();
     const understandingSkill = fs.readFileSync(understandingSkillPath!, "utf8");
-    expect(understandingSkill).toContain("## 起草 Understanding");
-    expect(understandingSkill).toContain("保留用户原本的确定程度、适用范围和明确存在的未知");
-    expect(understandingSkill).toContain("只有用户明确把它认作自己的判断后，才写入 Understanding");
-    expect(understandingSkill).toContain("Case 不是 Understanding 的默认组成部分");
+    expect(understandingSkill).toContain("# Reflecta Understanding");
+    expect(understandingSkill).toContain("命题保真");
+    expect(understandingSkill).toContain("心智形状保真");
+    expect(understandingSkill).toContain("## Principle 5：Case 必须解释一个具体难点，否则不加");
     expect(understandingSkill).not.toContain("## 起草 Context");
     expect(understandingSkill).not.toContain("## Context 怎么写");
     expect(understandingSkill).not.toContain("Context 承载某个 Understanding 的具体来源和场景");
