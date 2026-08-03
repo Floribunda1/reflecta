@@ -275,8 +275,9 @@ export function createPiReadOnlyTools(
       name: "retrieve_knowledge",
       label: "检索知识",
       description:
-        "Retrieve Reflecta knowledge for answering the user. Returns relevant Understanding candidates grouped with matched Context evidence. Use this for knowledge lookup instead of choosing a search strategy.",
-      promptSnippet: "retrieve_knowledge: find relevant Reflecta knowledge for answering the user.",
+        "Retrieve the user's existing Understandings and supporting Contexts when the current discussion depends on their prior views, experiences, comparisons, revisions, or possible conflicts. Do not use it for general external knowledge or when the current materials already contain what is needed.",
+      promptSnippet:
+        "retrieve_knowledge: recall the user's prior Understandings and supporting Contexts when the current discussion depends on them.",
       parameters: Type.Object({
         query: Type.String({ minLength: 1 }),
         limit: paginationParameters.limit,
