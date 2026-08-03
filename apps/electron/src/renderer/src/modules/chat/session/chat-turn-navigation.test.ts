@@ -2,7 +2,7 @@
 
 import { describe, expect, test } from "vitest";
 import type { AgentReducedMessage } from "@shared/agent";
-import { activeChatTurnIdAtViewport, buildChatTurnNavigationItems } from "./chat-turn-navigation";
+import { buildChatTurnNavigationItems } from "./chat-turn-navigation";
 
 describe("buildChatTurnNavigationItems", () => {
   test("uses compact user message snippets for chat navigation", () => {
@@ -30,66 +30,6 @@ describe("buildChatTurnNavigationItems", () => {
     ]);
 
     expect(items[0]?.label).toBe("附件：report.pdf");
-  });
-});
-
-describe("activeChatTurnIdAtViewport", () => {
-  const turnAnchors = [
-    { turnId: "turn-1", top: -1_600 },
-    { turnId: "turn-2", top: -700 },
-    { turnId: "turn-3", top: -120 },
-  ];
-
-  test("keeps the latest turn active throughout its long Agent response", () => {
-    expect(
-      activeChatTurnIdAtViewport({
-        turnAnchors,
-        viewportTop: 0,
-        viewportHeight: 800,
-      }),
-    ).toBe("turn-3");
-  });
-
-  test("switches turns when the next user message reaches the reading line", () => {
-    expect(
-      activeChatTurnIdAtViewport({
-        turnAnchors: [
-          { turnId: "turn-1", top: 0 },
-          { turnId: "turn-2", top: 705 },
-        ],
-        viewportTop: 0,
-        viewportHeight: 800,
-      }),
-    ).toBe("turn-1");
-
-    expect(
-      activeChatTurnIdAtViewport({
-        turnAnchors: [
-          { turnId: "turn-1", top: 0 },
-          { turnId: "turn-2", top: 704 },
-        ],
-        viewportTop: 0,
-        viewportHeight: 800,
-      }),
-    ).toBe("turn-2");
-  });
-
-  test("has no active turn only when the conversation has no user turn", () => {
-    expect(
-      activeChatTurnIdAtViewport({
-        turnAnchors: [{ turnId: "turn-1", top: 900 }],
-        viewportTop: 0,
-        viewportHeight: 800,
-      }),
-    ).toBe("turn-1");
-
-    expect(
-      activeChatTurnIdAtViewport({
-        turnAnchors: [],
-        viewportTop: 0,
-        viewportHeight: 800,
-      }),
-    ).toBeNull();
   });
 });
 

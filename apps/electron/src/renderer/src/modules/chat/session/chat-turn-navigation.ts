@@ -38,34 +38,3 @@ export function buildChatTurnNavigationItems(
       label: normalizedSnippet(message.text) || fallbackTurnLabel(message),
     }));
 }
-
-const CHAT_READING_LINE_RATIO = 0.75;
-const CHAT_READING_LINE_BOTTOM_MARGIN = 96;
-
-export function activeChatTurnIdAtViewport({
-  turnAnchors,
-  viewportTop,
-  viewportHeight,
-}: {
-  turnAnchors: readonly { turnId: string; top: number }[];
-  viewportTop: number;
-  viewportHeight: number;
-}): string | null {
-  const firstTurn = turnAnchors[0];
-  if (!firstTurn) return null;
-
-  const readingLine =
-    viewportTop +
-    Math.max(
-      viewportHeight * CHAT_READING_LINE_RATIO,
-      viewportHeight - CHAT_READING_LINE_BOTTOM_MARGIN,
-    );
-  let activeTurnId = firstTurn.turnId;
-
-  for (const turn of turnAnchors) {
-    if (turn.top > readingLine) break;
-    activeTurnId = turn.turnId;
-  }
-
-  return activeTurnId;
-}
