@@ -1,5 +1,9 @@
 import { describe, expect, test } from "vitest";
-import type { ContextEvent } from "@earendil-works/pi-coding-agent";
+import {
+  DEFAULT_COMPACTION_SETTINGS,
+  shouldCompact,
+  type ContextEvent,
+} from "@earendil-works/pi-coding-agent";
 import {
   buildReflectaCompactionPrompt,
   compactionSummaryMaxTokens,
@@ -14,17 +18,10 @@ const runtimeCatalog = `
 </reflecta_entities>`;
 
 describe("Reflecta context compaction", () => {
-  test("keeps a bounded recent tail and triggers before the model window is exhausted", () => {
-    expect(contextCompactionSettings({ contextWindow: 128_000 })).toEqual({
-      enabled: true,
-      reserveTokens: 32_000,
-      keepRecentTokens: 24_000,
-    });
-    expect(contextCompactionSettings({ contextWindow: 1_000_000 })).toEqual({
-      enabled: true,
-      reserveTokens: 840_000,
-      keepRecentTokens: 24_000,
-    });
+  test("uses Pi's near-limit compaction defaults", () => {
+    expect(contextCompactionSettings).toBe(DEFAULT_COMPACTION_SETTINGS);
+    expect(shouldCompact(160_001, 272_000, contextCompactionSettings)).toBe(false);
+    expect(shouldCompact(255_617, 272_000, contextCompactionSettings)).toBe(true);
   });
 
   test("caps the checkpoint independently from the provider output limit", () => {

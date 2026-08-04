@@ -804,7 +804,7 @@ export class PiAgentHost {
       modelRuntime,
     );
     const settingsManager = SettingsManager.inMemory({
-      compaction: contextCompactionSettings(model),
+      compaction: contextCompactionSettings,
       retry: { enabled: false },
     });
     const resourceLoader = await createPiResourceLoader({

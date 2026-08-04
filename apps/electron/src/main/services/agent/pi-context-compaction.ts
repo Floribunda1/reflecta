@@ -1,6 +1,7 @@
 import { completeSimple, type Api, type Model } from "@earendil-works/pi-ai/compat";
 import {
   convertToLlm,
+  DEFAULT_COMPACTION_SETTINGS,
   serializeConversation,
   type InlineExtension,
 } from "@earendil-works/pi-coding-agent";
@@ -8,8 +9,6 @@ import agentContextCompactionPrompt from "./agent-context-compaction-prompt.md?r
 import { stripRuntimeEntityBlocks } from "./pi-entity-catalog-context";
 
 const DEFAULT_CONTEXT_WINDOW = 128_000;
-const MAX_ACTIVE_CONTEXT_TOKENS = 160_000;
-const MAX_RECENT_TOKENS = 24_000;
 const MAX_SUMMARY_TOKENS = 6_000;
 
 const REFLECTA_COMPACTION_PROMPT_ID = "reflecta-context-checkpoint";
@@ -34,19 +33,7 @@ function modelContextWindow(model: Pick<Model<Api>, "contextWindow">): number {
     : DEFAULT_CONTEXT_WINDOW;
 }
 
-export function contextCompactionSettings(model: Pick<Model<Api>, "contextWindow">): {
-  enabled: true;
-  reserveTokens: number;
-  keepRecentTokens: number;
-} {
-  const contextWindow = modelContextWindow(model);
-  const triggerTokens = Math.min(Math.floor(contextWindow * 0.75), MAX_ACTIVE_CONTEXT_TOKENS);
-  return {
-    enabled: true,
-    reserveTokens: contextWindow - triggerTokens,
-    keepRecentTokens: Math.max(1, Math.min(Math.floor(contextWindow * 0.2), MAX_RECENT_TOKENS)),
-  };
-}
+export const contextCompactionSettings = DEFAULT_COMPACTION_SETTINGS;
 
 export function compactionSummaryMaxTokens(model: ContextWindowModel): number {
   const contextWindow = modelContextWindow(model);
