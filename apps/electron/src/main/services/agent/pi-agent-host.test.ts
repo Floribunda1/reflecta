@@ -15,6 +15,8 @@ import {
   buildThreadTitleContext,
   createPiBashTool,
   createPiResourceLoader,
+  expandDollarSkillInvocation,
+  listGlobalAgentSkills,
   normalizeGeneratedThreadTitle,
   PI_BUILTIN_SKILL_NAMES,
   PI_BUILTIN_TOOL_NAMES,
@@ -120,6 +122,15 @@ function tempRoot() {
   return root;
 }
 
+function writeSkill(skillsDir: string, name: string, description = `${name} description`) {
+  const skillDir = path.join(skillsDir, name);
+  fs.mkdirSync(skillDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(skillDir, "SKILL.md"),
+    `---\nname: ${name}\ndescription: ${description}\n---\n\n# ${name}\n`,
+  );
+}
+
 function modelConfig(input: {
   providerId: string;
   apiKey: string;
@@ -207,12 +218,15 @@ describe("createPiModelRuntime", () => {
 });
 
 describe("createPiResourceLoader", () => {
-  test("loads Reflecta runtime extensions and builtin skills without user-level resources", async () => {
+  test("loads Reflecta builtin skills and valid global Agent Skills only", async () => {
     const root = tempRoot();
     const agentDir = path.join(root, ".pi-agent");
+    const globalSkillsDir = path.join(root, ".agents", "skills");
+    writeSkill(globalSkillsDir, "explain-note", "Explain a note clearly");
     const loader = await createPiResourceLoader({
       cwd: root,
       agentDir,
+      globalSkillsDir,
       settingsManager: SettingsManager.inMemory({}),
       onDangerousBashApproval: vi.fn().mockResolvedValue(true),
       getEntityCatalog: () => [],
@@ -226,7 +240,7 @@ describe("createPiResourceLoader", () => {
       "<inline:reflecta-context-compaction>",
     ]);
     const skills = loader.getSkills().skills;
-    expect(skills.map((skill) => skill.name)).toEqual([...PI_BUILTIN_SKILL_NAMES]);
+    expect(skills.map((skill) => skill.name)).toEqual([...PI_BUILTIN_SKILL_NAMES, "explain-note"]);
     for (const skillName of PI_BUILTIN_SKILL_NAMES) {
       expect(skills).toContainEqual(
         expect.objectContaining({
@@ -268,6 +282,26 @@ describe("createPiResourceLoader", () => {
     expect(loader.getSystemPrompt()).toContain("内置 skill `reflecta-understanding`");
     expect(loader.getSystemPrompt()).toContain("内置 skill `reflecta-context`");
     expect(loader.getSystemPrompt()).not.toContain("reflecta-understanding-context");
+  });
+});
+
+describe("global Agent Skills", () => {
+  test("lists global skills without Reflecta builtins and expands only a leading known $ skill", () => {
+    const root = tempRoot();
+    const globalSkillsDir = path.join(root, ".agents", "skills");
+    writeSkill(globalSkillsDir, "explain-note", "Explain a note clearly");
+    writeSkill(globalSkillsDir, "reflecta-context", "Do not expose the builtin skill");
+
+    expect(listGlobalAgentSkills(globalSkillsDir)).toEqual([
+      { name: "explain-note", description: "Explain a note clearly" },
+    ]);
+    expect(expandDollarSkillInvocation("  $explain-note this", ["explain-note"])).toBe(
+      "/skill:explain-note this",
+    );
+    expect(expandDollarSkillInvocation("prefix $explain-note", ["explain-note"])).toBe(
+      "prefix $explain-note",
+    );
+    expect(expandDollarSkillInvocation("$missing this", ["explain-note"])).toBe("$missing this");
   });
 });
 
@@ -707,6 +741,8 @@ describe("PiAgentHost", () => {
 
   test("persists entity catalog entries for user context refs before the user message", async () => {
     const root = tempRoot();
+    const globalSkillsDir = path.join(root, ".agents", "skills");
+    writeSkill(globalSkillsDir, "explain-note", "Explain a note clearly");
     const log = new AgentSessionLog(root);
     const thread = log.createSession("新对话");
     const manager = await log.openSession(thread.id);
@@ -746,13 +782,13 @@ describe("PiAgentHost", () => {
       },
     });
     await (
-      new PiAgentHost(root) as unknown as {
+      new PiAgentHost(root, undefined, globalSkillsDir) as unknown as {
         sendMessage: (command: unknown) => Promise<void>;
       }
     ).sendMessage({
       type: "message.send",
       sessionId: thread.id,
-      text: "请解释这个 context",
+      text: "$explain-note 请解释这个 context",
       contextRefs: [{ type: "context", id: "ctx_1", title: "一次复盘" }],
       modelSelection: { providerId: "openai", modelId: "gpt-4o" },
     });
@@ -779,8 +815,12 @@ describe("PiAgentHost", () => {
       }),
     );
     expect(promptCalls[0]).toContain("Context: 一次复盘; id=ctx_1");
+    expect(promptCalls[0]).toMatch(/^\/skill:explain-note 请解释这个 context/);
     expect(promptCalls[0]).not.toContain("<reflecta_entities");
     expect(promptCalls[0]).not.toContain("sourceId");
+    expect(newEvents.find((event) => event.type === "user.message")).toMatchObject({
+      text: "$explain-note 请解释这个 context",
+    });
   });
 
   test("persists provider usage on the assistant turn", async () => {

@@ -20,6 +20,11 @@ export class ChatService extends IpcService {
   }
 
   @IpcMethod()
+  listSkills() {
+    return piAgentHost.listSkills();
+  }
+
+  @IpcMethod()
   createThread(title?: string) {
     return piAgentHost.createThread(title);
   }

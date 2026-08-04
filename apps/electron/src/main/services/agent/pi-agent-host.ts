@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { getModel, type Api, type Context, type Model } from "@earendil-works/pi-ai/compat";
 import {
@@ -6,6 +7,7 @@ import {
   createBashToolDefinition,
   DefaultResourceLoader,
   defineTool,
+  loadSkillsFromDir,
   ModelRuntime,
   SessionManager,
   SettingsManager,
@@ -105,6 +107,29 @@ type PendingApproval = MutationPendingApproval | BashGatePendingApproval;
 export const PI_BUILTIN_TOOL_NAMES = ["read", "bash", "edit", "write"] as const;
 export const PI_BUILTIN_SKILL_NAMES = ["reflecta-understanding", "reflecta-context"] as const;
 
+export type AgentSkillSummary = { name: string; description: string };
+
+export function getGlobalAgentSkillsDir(homeDirectory = os.homedir()): string {
+  return path.join(homeDirectory, ".agents", "skills");
+}
+
+export function listGlobalAgentSkills(skillsDir = getGlobalAgentSkillsDir()): AgentSkillSummary[] {
+  const hiddenNames = new Set<string>(PI_BUILTIN_SKILL_NAMES);
+  const summaries: AgentSkillSummary[] = [];
+  for (const skill of loadSkillsFromDir({ dir: skillsDir, source: "user" }).skills) {
+    if (hiddenNames.has(skill.name)) continue;
+    hiddenNames.add(skill.name);
+    summaries.push({ name: skill.name, description: skill.description });
+  }
+  return summaries.sort((left, right) => left.name.localeCompare(right.name));
+}
+
+export function expandDollarSkillInvocation(text: string, skillNames: readonly string[]): string {
+  const match = /^\s*\$([^\s$]+)(?=\s|$)/.exec(text);
+  if (!match || !skillNames.includes(match[1])) return text;
+  return `/skill:${match[1]}${text.slice(match[0].length)}`;
+}
+
 const PI_BASH_UTF8_LOCALE = process.platform === "darwin" ? "en_US.UTF-8" : "C.UTF-8";
 const PI_BUILTIN_SKILLS = [
   { name: PI_BUILTIN_SKILL_NAMES[0], content: `${understandingSkill.trim()}\n` },
@@ -149,11 +174,13 @@ function loadAgentSystemPrompt(): string {
 export async function createPiResourceLoader(input: {
   cwd: string;
   agentDir: string;
+  globalSkillsDir?: string;
   settingsManager: SettingsManager;
   onDangerousBashApproval: DangerousBashApprovalHandler;
   getEntityCatalog: () => AgentEntityCatalogEntry[];
 }): Promise<DefaultResourceLoader> {
   const webAccess = createPiWebAccessResources(input.agentDir);
+  const globalSkillsDir = input.globalSkillsDir ?? getGlobalAgentSkillsDir();
   const loader = new DefaultResourceLoader({
     cwd: input.cwd,
     agentDir: input.agentDir,
@@ -161,7 +188,10 @@ export async function createPiResourceLoader(input: {
     systemPrompt: loadAgentSystemPrompt(),
     noExtensions: true,
     noSkills: true,
-    additionalSkillPaths: installPiBuiltinSkills(input.agentDir),
+    additionalSkillPaths: [
+      ...installPiBuiltinSkills(input.agentDir),
+      ...(fs.existsSync(globalSkillsDir) ? [globalSkillsDir] : []),
+    ],
     noPromptTemplates: true,
     noThemes: true,
     noContextFiles: true,
@@ -589,6 +619,7 @@ export class PiAgentHost {
   constructor(
     private readonly contentStorageRoot = getContentStorageRoot(),
     private readonly titleGenerator = generateAgentThreadTitle,
+    private readonly globalSkillsDir = getGlobalAgentSkillsDir(),
   ) {
     this.sessionLog = new AgentSessionLog(contentStorageRoot);
     this.sessionRuntime = new AgentSessionRuntime((sessionId) =>
@@ -598,6 +629,10 @@ export class PiAgentHost {
 
   listThreads(): Promise<AgentSessionSummary[]> {
     return this.sessionLog.listSessions();
+  }
+
+  listSkills(): AgentSkillSummary[] {
+    return listGlobalAgentSkills(this.globalSkillsDir);
   }
 
   createThread(title?: string): AgentSessionSummary {
@@ -766,6 +801,7 @@ export class PiAgentHost {
     const resourceLoader = await createPiResourceLoader({
       cwd: this.contentStorageRoot,
       agentDir,
+      globalSkillsDir: this.globalSkillsDir,
       settingsManager,
       onDangerousBashApproval,
       getEntityCatalog: () => entityCatalog.snapshot(),
@@ -797,7 +833,11 @@ export class PiAgentHost {
         ...PI_WEB_ACCESS_TOOL_NAMES,
       ],
     });
-    return { ...created, modelConfig };
+    const globalSkillNames = resourceLoader
+      .getSkills()
+      .skills.map((skill) => skill.name)
+      .filter((name) => !(PI_BUILTIN_SKILL_NAMES as readonly string[]).includes(name));
+    return { ...created, modelConfig, globalSkillNames };
   }
 
   private handleCompactionEvent(
@@ -1397,7 +1437,7 @@ export class PiAgentHost {
       emitRunStarted();
       await session.prompt(
         buildPiPromptText({
-          text: command.text,
+          text: expandDollarSkillInvocation(command.text, created.globalSkillNames),
           contextRefs: command.contextRefs,
           contextCatalog,
           files: command.files,

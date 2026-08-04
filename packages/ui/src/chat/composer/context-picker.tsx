@@ -10,6 +10,23 @@ export function nextContextPickerIndex(currentIndex: number, count: number, step
 
 export type ChatContextPickerState = "idle" | "loading" | "ready" | "empty" | "error";
 
+export type ChatComposerSkill = { name: string; description: string };
+
+export function isLeadingSkillTrigger(textBeforeTrigger: string): boolean {
+  return textBeforeTrigger.trim().length === 0;
+}
+
+export function filterChatComposerSkills(
+  skills: readonly ChatComposerSkill[],
+  query: string,
+): readonly ChatComposerSkill[] {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return skills;
+  return skills.filter((skill) =>
+    `${skill.name} ${skill.description}`.toLowerCase().includes(normalized),
+  );
+}
+
 type ChatContextPickerProps = {
   state: ChatContextPickerState;
   options: readonly ChatComposerEntityOption[];
@@ -80,6 +97,61 @@ export function ChatContextPicker({
               </CommandItem>
             );
           })}
+        </CommandGroup>
+      </CommandList>
+    </Command>
+  );
+}
+
+export function ChatSkillPicker({
+  options,
+  activeName,
+  onSelect,
+  onCancel,
+}: {
+  options: readonly ChatComposerSkill[];
+  activeName?: string;
+  onSelect: (skill: ChatComposerSkill) => void;
+  onCancel: () => void;
+}) {
+  const activeItemRef = useRef<HTMLSpanElement | null>(null);
+
+  useEffect(() => {
+    activeItemRef.current?.scrollIntoView({ block: "nearest" });
+  }, [activeName]);
+
+  return (
+    <Command
+      data-testid="agent-skill-picker"
+      className="rounded-md border border-border shadow-sm"
+      shouldFilter={false}
+      value={activeName}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") onCancel();
+      }}
+    >
+      <CommandList>
+        <CommandEmpty>没有匹配的 Skill</CommandEmpty>
+        <CommandGroup heading="Skills">
+          {options.map((skill) => (
+            <CommandItem
+              key={skill.name}
+              data-testid="agent-skill-option"
+              value={skill.name}
+              onMouseDown={(event) => event.preventDefault()}
+              onSelect={() => onSelect(skill)}
+            >
+              <span
+                ref={skill.name === activeName ? activeItemRef : undefined}
+                className="min-w-0 flex-1"
+              >
+                <span className="block truncate font-medium">${skill.name}</span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {skill.description}
+                </span>
+              </span>
+            </CommandItem>
+          ))}
         </CommandGroup>
       </CommandList>
     </Command>

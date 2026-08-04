@@ -7,6 +7,7 @@ export {
   type ChatComposerModelOption,
   type ChatComposerProps,
   type ChatComposerReasoningOption,
+  type ChatComposerSkill,
   type ChatComposerStatus,
   type ChatComposerSubmit,
   type ChatComposerValue,
