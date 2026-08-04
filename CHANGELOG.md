@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.18 - 2026-08-05
+
+- Restored enhanced bullet, ordered, and task-list rendering after Milkdown fixed stale selection handling, with regression coverage for controlled document replacement.
+
 ## 1.3.17 - 2026-08-04
 
 - Stabilized long Agent conversations by deferring virtual-list resize measurements and avoiding ResizeObserver delivery errors.

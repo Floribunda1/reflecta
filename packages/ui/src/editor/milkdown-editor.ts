@@ -121,7 +121,6 @@ export function createReflectaMilkdownEditorBuilder({
     features: {
       [Crepe.Feature.AI]: false,
       [Crepe.Feature.BlockEdit]: false,
-      [Crepe.Feature.ListItem]: false,
       [Crepe.Feature.TopBar]: false,
     },
     featureConfigs: {

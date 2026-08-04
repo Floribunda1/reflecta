@@ -105,6 +105,7 @@ describe("reflecta milkdown editor", () => {
     const currentDocument = editor.ctx.get(editorViewCtx).state.doc;
     expect(originalDocument.eq(currentDocument)).toBe(true);
     expect(originalDocument).not.toBe(currentDocument);
+    expect(root.querySelector(".milkdown-list-item-block")).not.toBeNull();
     expect(root.querySelector("li")?.textContent).toContain("List item");
     expect(() => frames.forEach((frame) => frame(0))).not.toThrow();
   });
