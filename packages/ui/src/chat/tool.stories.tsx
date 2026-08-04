@@ -686,12 +686,10 @@ function ToolGroupCase() {
         markdown: "先读取相关记录和本地配置，再核对现有知识与现场数据。",
       },
     },
-    ...completedTools.slice(0, 5).map(
-      (block): AgentActivityBlockView => ({
-        kind: "tool-activity",
-        activity: toolActivity(block),
-      }),
-    ),
+    ...completedTools.slice(0, 5).map((block): AgentActivityBlockView => ({
+      kind: "tool-activity",
+      activity: toolActivity(block),
+    })),
     {
       kind: "reasoning",
       reasoning: {
@@ -700,12 +698,10 @@ function ToolGroupCase() {
         markdown: "已有信息足够，继续检查知识库、关联关系和领域结构。",
       },
     },
-    ...completedTools.slice(5).map(
-      (block): AgentActivityBlockView => ({
-        kind: "tool-activity",
-        activity: toolActivity(block),
-      }),
-    ),
+    ...completedTools.slice(5).map((block): AgentActivityBlockView => ({
+      kind: "tool-activity",
+      activity: toolActivity(block),
+    })),
     {
       kind: "tool-activity",
       activity: toolActivity(failedTool),

@@ -183,10 +183,7 @@ P1 如果顺手补：
 ```ts
 type ProposalOutput = {
   proposalType:
-    | "understanding_create"
-    | "understanding_update"
-    | "context_create"
-    | "connection_create";
+    "understanding_create" | "understanding_update" | "context_create" | "connection_create";
   approvalStatus: "pending" | "approved" | "rejected" | "failed";
   resultRefType?: "understanding" | "context" | "connection";
   resultRefId?: string;
