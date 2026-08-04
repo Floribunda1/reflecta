@@ -879,6 +879,93 @@ describe("PiAgentHost", () => {
     );
   });
 
+  test("projects web access result errors as failed tools", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("网页读取失败");
+    const manager = await log.openSession(thread.id);
+    log.appendEvent(manager, {
+      id: "evt_existing_cancel",
+      sessionId: thread.id,
+      runId: "run_existing",
+      type: "run.cancelled",
+      createdAt: "2026-06-23T00:00:00.000Z",
+    });
+    let listener: ((event: unknown) => void) | undefined;
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        subscribe: (next: (event: unknown) => void) => {
+          listener = next;
+          return () => {};
+        },
+        prompt: vi.fn(async () => {
+          listener?.({
+            type: "tool_execution_start",
+            toolCallId: "tool_fetch",
+            toolName: "fetch_content",
+            args: { url: "https://example.com" },
+          });
+          listener?.({
+            type: "tool_execution_end",
+            toolCallId: "tool_fetch",
+            toolName: "fetch_content",
+            result: {
+              content: [{ type: "text", text: "Error: Blocked internal address" }],
+              details: { error: "Blocked internal address" },
+            },
+            isError: false,
+          });
+          listener?.({
+            type: "message_end",
+            message: {
+              role: "assistant",
+              content: [
+                {
+                  type: "toolCall",
+                  id: "tool_fetch",
+                  name: "fetch_content",
+                  arguments: { url: "https://example.com" },
+                },
+              ],
+              provider: "openai",
+              model: "gpt-4o",
+              stopReason: "toolUse",
+            },
+          });
+        }),
+        getContextUsage: vi.fn(() => undefined),
+        dispose: vi.fn(),
+        abort: vi.fn(),
+      },
+    });
+
+    await (
+      new PiAgentHost(root) as unknown as {
+        sendMessage: (command: unknown) => Promise<void>;
+      }
+    ).sendMessage({
+      type: "message.send",
+      sessionId: thread.id,
+      text: "读取网页",
+      modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+    });
+
+    expect(
+      (await log.readEvents(thread.id)).find((event) => event.type === "assistant.turn"),
+    ).toMatchObject({
+      blocks: [
+        {
+          kind: "tool",
+          toolCallId: "tool_fetch",
+          toolName: "fetch_content",
+          state: "failed",
+          error: "Blocked internal address",
+        },
+      ],
+    });
+  });
+
   test("keeps an in-run compaction in turn order and shows its reduced usage", async () => {
     const root = tempRoot();
     const log = new AgentSessionLog(root);

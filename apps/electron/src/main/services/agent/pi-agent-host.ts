@@ -450,6 +450,14 @@ function piToolError(result: unknown): string {
   return typeof result === "string" ? result : JSON.stringify(result);
 }
 
+function piWebAccessResultError(toolName: string, result: unknown): string | undefined {
+  if (!(PI_WEB_ACCESS_TOOL_NAMES as readonly string[]).includes(toolName) || !isRecord(result)) {
+    return undefined;
+  }
+  const details = isRecord(result.details) ? result.details : {};
+  return typeof details.error === "string" && details.error.trim() ? details.error : undefined;
+}
+
 function isRejectedApprovalOutput(output: unknown): boolean {
   return isRecord(output) && output.approvalStatus === "rejected";
 }
@@ -1348,7 +1356,8 @@ export class PiAgentHost {
             );
             return;
           }
-          if (event.isError) {
+          const resultError = piWebAccessResultError(event.toolName, event.result);
+          if (event.isError || resultError) {
             emitLive(
               this.createEvent({
                 type: "tool.failed",
@@ -1357,7 +1366,7 @@ export class PiAgentHost {
                 messageId: assistantMessageId,
                 toolCallId: event.toolCallId,
                 toolName: event.toolName,
-                error: piToolError(event.result),
+                error: resultError ?? piToolError(event.result),
               }),
             );
             return;

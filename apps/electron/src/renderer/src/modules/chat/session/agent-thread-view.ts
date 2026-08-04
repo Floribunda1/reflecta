@@ -75,12 +75,14 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
   const virtualContentSize = useRef(0);
   const invalidatedEntityRefs = useRef<Set<string>>(new Set());
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingJumpTurnIdRef = useRef<string | null>(null);
   const lastTurnIdRef = useRef<string | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [trackedTurnId, setTrackedTurnId] = useState<string | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   useEffect(() => {
     setEditingMessage(undefined);
+    pendingJumpTurnIdRef.current = null;
     invalidatedEntityRefs.current.clear();
   }, [sessionId]);
 
@@ -120,10 +122,17 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
     scrollPaddingEnd: CHAT_JUMP_BOTTOM_OFFSET,
     directDomUpdates: true,
     onChange: (instance) => {
+      const pendingJumpTurnId = pendingJumpTurnIdRef.current;
+      if (pendingJumpTurnId && !instance.isScrolling) {
+        pendingJumpTurnIdRef.current = null;
+        setTrackedTurnId(pendingJumpTurnId);
+      }
+
       const nextSize = instance.getTotalSize();
-      if (virtualContentSize.current === nextSize) return;
-      virtualContentSize.current = nextSize;
-      if (shouldStickToBottom.current) instance.scrollToEnd({ behavior: "auto" });
+      if (virtualContentSize.current !== nextSize) {
+        virtualContentSize.current = nextSize;
+        if (shouldStickToBottom.current) instance.scrollToEnd({ behavior: "auto" });
+      }
     },
   });
   messageVirtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, _delta, instance) =>
@@ -163,6 +172,7 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
     (behavior: ScrollBehavior = "smooth") => {
       const element = scrollRef.current;
       if (!element) return;
+      pendingJumpTurnIdRef.current = null;
       element.scrollTo({ top: element.scrollHeight, behavior });
       shouldStickToBottom.current = true;
       setScrollButtonVisible(false);
@@ -202,8 +212,9 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
     (messageId: string) => {
       const index = messageIndexById.get(messageId);
       if (index === undefined) return;
-      messageVirtualizer.scrollToIndex(index, { align: "center", behavior: "auto" });
+      pendingJumpTurnIdRef.current = null;
       shouldStickToBottom.current = false;
+      messageVirtualizer.scrollToIndex(index, { align: "center", behavior: "auto" });
     },
     [messageIndexById, messageVirtualizer],
   );
@@ -212,10 +223,17 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
     (turnId: string) => {
       const index = messageIndexById.get(turnId);
       if (index === undefined) return;
-      messageVirtualizer.scrollToIndex(index, { align: "end", behavior: "auto" });
       shouldStickToBottom.current = false;
+      const targetOffset = messageVirtualizer.getOffsetForIndex(index, "end")?.[0];
+      const currentOffset = scrollRef.current?.scrollTop ?? messageVirtualizer.scrollOffset ?? 0;
+      pendingJumpTurnIdRef.current =
+        targetOffset !== undefined &&
+        Math.abs(targetOffset - currentOffset) > CHAT_SCROLL_END_THRESHOLD
+          ? turnId
+          : null;
       setTrackedTurnId(turnId);
       setHighlightedMessageId(turnId);
+      messageVirtualizer.scrollToIndex(index, { align: "end", behavior: "auto" });
 
       if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
       highlightTimeoutRef.current = setTimeout(() => setHighlightedMessageId(null), 1_400);
@@ -250,7 +268,7 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
     shouldStickToBottom.current =
       element.scrollHeight - element.scrollTop - element.clientHeight <= CHAT_SCROLL_END_THRESHOLD;
     setScrollButtonVisible(shouldShowButton);
-    updateActiveTurn();
+    if (!pendingJumpTurnIdRef.current) updateActiveTurn();
   }, [setScrollButtonVisible, updateActiveTurn]);
 
   return {

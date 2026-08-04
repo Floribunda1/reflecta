@@ -587,6 +587,7 @@ test("@AG-CONV-006 用户在长对话中通过右侧摘录跳转到指定消息"
         .locator('[data-testid="agent-message-row"][data-highlighted="true"]')
         .filter({ hasText: CHAT_JUMP_TARGET_MESSAGE }),
     ).toBeVisible();
+    await expect(targetJumpItem).toHaveAttribute("aria-current", "location");
     await expect(composer(page)).toBeEditable();
   } finally {
     await app.close();

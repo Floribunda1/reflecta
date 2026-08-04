@@ -63,6 +63,7 @@ export function ChatJumpNav({
                 type="button"
                 data-testid="agent-chat-jump-item"
                 data-active={active ? "true" : undefined}
+                aria-current={active ? "location" : undefined}
                 title={item.label}
                 aria-label={item.label}
                 className={cn(

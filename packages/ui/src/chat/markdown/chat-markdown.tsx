@@ -1,5 +1,6 @@
 import { code } from "@streamdown/code";
 import { createMathPlugin } from "@streamdown/math";
+import { useTheme } from "next-themes";
 import { createContext, useContext, useMemo, type ComponentProps, type ReactNode } from "react";
 import {
   defaultUrlTransform,
@@ -165,6 +166,7 @@ export function ChatMarkdown({
   onEntityOpen,
 }: ChatMarkdownProps): ReactNode {
   const searchState = useChatSearchState();
+  const { forcedTheme, resolvedTheme } = useTheme();
   const bindings = useMemo(() => ({ resolveEntity, onEntityOpen }), [onEntityOpen, resolveEntity]);
   const markdown = replaceChatEntityReferences(value, (reference) => {
     return `[${reference.type}:${reference.id}](${entityHref(reference)})`;
@@ -186,7 +188,7 @@ export function ChatMarkdown({
         className={["reflecta-chat-markdown", className].filter(Boolean).join(" ")}
       >
         <Streamdown
-          key={`${searchState?.query ?? "plain"}:${entityRenderKey}`}
+          key={`${forcedTheme ?? resolvedTheme}:${searchState?.query ?? "plain"}:${entityRenderKey}`}
           mode={streaming ? "streaming" : "static"}
           animated={streaming ? chatMarkdownAnimation : false}
           caret="circle"

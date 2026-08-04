@@ -21,6 +21,20 @@ afterEach(() => {
 });
 
 describe("createPiWebAccessResources", () => {
+  test("defaults the SSRF allowlist for TUN fake-IP proxies", () => {
+    const root = tempRoot();
+    const agentDir = path.join(root, ".pi-agent");
+
+    createPiWebAccessResources(agentDir);
+
+    expect(JSON.parse(fs.readFileSync(path.join(agentDir, "web-search.json"), "utf8"))).toEqual({
+      provider: "exa",
+      workflow: "auto-summary",
+      webSearch: { enabled: true },
+      ssrf: { allowRanges: ["198.18.0.0/15"] },
+    });
+  });
+
   test("loads only the bundled web access tools with app-isolated Exa policy", async () => {
     const root = tempRoot();
     const agentDir = path.join(root, ".pi-agent");
