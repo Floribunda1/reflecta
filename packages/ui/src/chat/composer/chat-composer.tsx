@@ -158,7 +158,7 @@ function AttachmentPreview({
   return (
     <div
       data-testid="agent-attachment-preview"
-      className="flex max-w-60 items-center gap-2 rounded-md border border-border bg-card px-2 py-1.5 text-xs"
+      className="flex max-w-60 items-center gap-2 rounded-md border border-border bg-card px-1.5 py-1 text-xs"
     >
       {attachment.mediaType.startsWith("image/") && attachment.previewUrl ? (
         <img
