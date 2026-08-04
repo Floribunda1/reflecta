@@ -169,6 +169,7 @@ function UserMessageContent({
 
 function blockId(block: AgentMessageBlockView) {
   if (block.kind === "text") return block.id;
+  if (block.kind === "image") return block.id;
   if (block.kind === "reasoning") return block.reasoning.id;
   if (block.kind === "tool-activity") return block.activity.id;
   if (block.kind === "context-compaction") return block.compaction.id;
@@ -248,6 +249,20 @@ function AgentMessageContent({
             />
           )}
         </div>,
+      );
+      continue;
+    }
+
+    if (block.kind === "image") {
+      renderedBlocks.push(
+        <img
+          key={block.id}
+          data-testid="agent-generated-image"
+          data-block-id={block.id}
+          src={block.src}
+          alt={block.alt}
+          className="max-h-[32rem] max-w-full rounded-lg border border-border object-contain"
+        />,
       );
       continue;
     }

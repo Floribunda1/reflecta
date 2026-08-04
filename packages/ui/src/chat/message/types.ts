@@ -36,8 +36,16 @@ export type AgentTextBlockView = {
   error?: string;
 };
 
+export type AgentImageBlockView = {
+  kind: "image";
+  id: string;
+  src: string;
+  alt: string;
+};
+
 export type AgentMessageBlockView =
   | AgentTextBlockView
+  | AgentImageBlockView
   | AgentExecutionBlockView
   | {
       kind: "proposal";

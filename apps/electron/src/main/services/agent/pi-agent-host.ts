@@ -70,6 +70,7 @@ import {
 } from "./pi-bash-permission-gate";
 import { createPiWebAccessResources, PI_WEB_ACCESS_TOOL_NAMES } from "./pi-web-access";
 import { extractPiAssistantError, extractPiAssistantText } from "./pi-message";
+import { createPiImageTools, PI_IMAGE_TOOL_NAMES } from "./codex-image-generation";
 
 type ActivePiRun = {
   runId: string;
@@ -790,6 +791,7 @@ export class PiAgentHost {
         ...createPiWriteTools({
           onApproval: ({ toolCallId }) => this.waitForToolApproval(command.sessionId, toolCallId),
         }),
+        ...createPiImageTools(this.contentStorageRoot),
       ],
       cwd: this.contentStorageRoot,
       model,
@@ -803,6 +805,7 @@ export class PiAgentHost {
         ...PI_READ_ONLY_TOOL_NAMES,
         ...PI_APPROVAL_TOOL_NAMES,
         ...PI_WEB_ACCESS_TOOL_NAMES,
+        ...PI_IMAGE_TOOL_NAMES,
       ],
     });
     return { ...created, modelConfig };

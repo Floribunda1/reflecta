@@ -131,6 +131,31 @@ describe("ChatMessageRow", () => {
     );
   });
 
+  test("renders a generated image with accessible text", () => {
+    const next = render({
+      message: {
+        kind: "assistant",
+        id: "assistant-image",
+        status: "done",
+        blocks: [
+          {
+            kind: "image",
+            id: "tool-image:image",
+            src: "asset:///generated.png",
+            alt: "AI 生成图片：雨中的上海街道",
+          },
+        ],
+      },
+    });
+
+    expect(
+      next.querySelector<HTMLImageElement>('[data-testid="agent-generated-image"]'),
+    ).toMatchObject({
+      src: "asset:///generated.png",
+      alt: "AI 生成图片：雨中的上海街道",
+    });
+  });
+
   test("emits message actions without performing workflow side effects", () => {
     const onAction = vi.fn();
     const row: ChatMessageRowView = {
