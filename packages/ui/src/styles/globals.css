@@ -18,6 +18,15 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary), transparent 58%);
   color: var(--foreground);
 }
+
+.medium-zoom-overlay {
+  z-index: 100;
+  background: color-mix(in srgb, var(--popover), transparent 8%) !important;
+}
+
+.medium-zoom-image {
+  z-index: 101;
+}
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
 

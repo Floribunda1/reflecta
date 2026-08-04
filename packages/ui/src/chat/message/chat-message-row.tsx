@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import mediumZoom, { type Zoom } from "medium-zoom";
+import { type ComponentProps, type ReactNode, useEffect, useRef } from "react";
 import { Copy, FileText, GitFork, Pencil, RefreshCcw } from "lucide-react";
 import { Button } from "../../components/button";
 import { cn } from "../../lib/utils";
@@ -46,6 +47,40 @@ export type ChatMessageRowProps = {
   onProposalDecision?: (decision: AgentProposalDecision) => void;
 };
 
+function ZoomableChatImage({ src, alt, className, ...props }: ComponentProps<"img">) {
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const zoomRef = useRef<Zoom | null>(null);
+
+  useEffect(() => {
+    const image = imageRef.current;
+    if (!image) return;
+    const zoom = mediumZoom(image);
+    zoomRef.current = zoom;
+    return () => {
+      zoomRef.current = null;
+      zoom.detach();
+    };
+  }, [src]);
+
+  return (
+    <img
+      {...props}
+      ref={imageRef}
+      src={src}
+      alt={alt}
+      role="button"
+      tabIndex={0}
+      aria-label={`${alt || "图片"}，点击放大`}
+      className={cn(className, "cursor-zoom-in")}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        void zoomRef.current?.toggle({ target: event.currentTarget });
+      }}
+    />
+  );
+}
+
 function MessageEntityMention({
   entity,
   onOpen,
@@ -77,7 +112,7 @@ function MessageEntityMention({
 function MessageAttachment({ attachment }: { attachment: ChatMessageAttachmentView }) {
   if (attachment.mediaType.startsWith("image/") && attachment.previewUrl) {
     return (
-      <img
+      <ZoomableChatImage
         src={attachment.previewUrl}
         alt={attachment.name}
         className="max-h-72 max-w-full rounded-md border border-border object-contain"
@@ -255,7 +290,7 @@ function AgentMessageContent({
 
     if (block.kind === "image") {
       renderedBlocks.push(
-        <img
+        <ZoomableChatImage
           key={block.id}
           data-testid="agent-generated-image"
           data-block-id={block.id}
