@@ -39,6 +39,18 @@
     当用户选择 Understanding「React Server Components」
     那么输入框中应该显示 Understanding「React Server Components」
 
+  @P0 @skill @AG-SKILL-001
+  场景: 用户通过 $ 选择系统全局 Skill
+    假如 ~/.agents/skills 中存在 Skill「explain-note」
+    当用户在输入框开头输入 $ex
+    那么页面应该显示 Skill 候选列表
+    而且候选列表应该包含 Skill「explain-note」
+    而且候选列表不应该包含 Reflecta 内置 Skill
+    当用户选择 Skill「explain-note」
+    那么输入框中应该显示 $explain-note
+    当用户在已有正文后输入 $
+    那么页面不应该显示 Skill 候选列表
+
   @P1 @context @AG-CONTEXT-005
   场景: 用户点击已选择的 Understanding 引用后查看详情
     假如 seed 数据中存在 Understanding「React Server Components」

@@ -27,6 +27,11 @@ const models = [
   },
 ];
 
+const skills = [
+  { name: "explain-note", description: "把当前笔记解释成清晰、可验证的结论。" },
+  { name: "release-check", description: "检查版本发布前的必要步骤。" },
+];
+
 const searchEntities: ChatComposerEntitySearch = async (query, signal) => {
   await new Promise((resolve) => window.setTimeout(resolve, 350));
   if (signal.aborted) return [];
@@ -86,6 +91,7 @@ const baseComposerProps: ChatComposerProps = {
     label: "36%",
     description: "当前上下文：46.1K / 128K",
   },
+  skills,
   searchEntities,
   attachmentAdapter,
   onSubmit: async () => undefined,
@@ -129,6 +135,9 @@ function ComposerShowcase() {
             },
           ]}
         />
+      </StoryCase>
+      <StoryCase title="$ Skill 联想" description="在输入框开头输入 $，按名称或描述筛选 Skill。">
+        <ComposerDemo draftId="showcase-skills" />
       </StoryCase>
       <StoryCase
         title="原地编辑历史消息"

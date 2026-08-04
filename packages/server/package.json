@@ -30,17 +30,17 @@
     "fmt:check": "oxfmt --check"
   },
   "dependencies": {
-    "@lancedb/lancedb": "0.31.0",
-    "better-sqlite3": "^12.11.1",
+    "@lancedb/lancedb": "0.33.0",
+    "better-sqlite3": "^13.0.2",
     "drizzle-orm": "^0.45.2",
     "libsql": "^0.5.29",
-    "nanoid": "^5.1.7",
-    "node-llama-cpp": "^3.18.1"
+    "nanoid": "^6.0.1",
+    "node-llama-cpp": "^3.19.1"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^22.19.11",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.2"
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.1.2",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   }
 }

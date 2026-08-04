@@ -35,7 +35,9 @@ function createSmokeResourceLoader(): ResourceLoader {
     getAgentsFiles: () => ({ agentsFiles: [] }),
     getSystemPrompt: () =>
       "You are Reflecta's Pi Agent smoke test assistant. Reply briefly and plainly.",
+    getSystemPromptSource: () => undefined,
     getAppendSystemPrompt: () => [],
+    getAppendSystemPromptSources: () => [],
     extendResources: () => {},
     reload: async () => {},
   };

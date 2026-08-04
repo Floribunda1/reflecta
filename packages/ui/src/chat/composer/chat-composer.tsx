@@ -26,10 +26,16 @@ import {
 } from "./document";
 import {
   ChatContextPicker,
+  ChatSkillPicker,
+  filterChatComposerSkills,
+  isLeadingSkillTrigger,
   nextContextPickerIndex,
+  type ChatComposerSkill,
   type ChatContextPickerState,
 } from "./context-picker";
 import { shouldApplyInitialEntities } from "./initial-entities";
+
+export type { ChatComposerSkill } from "./context-picker";
 
 export type ChatComposerAttachment = {
   id: string;
@@ -96,6 +102,7 @@ export type ChatComposerProps = {
   selectedModelId?: string;
   selectedReasoningId?: string;
   contextUsage?: ChatComposerContextUsage;
+  skills?: readonly ChatComposerSkill[];
   searchEntities: ChatComposerEntitySearch;
   attachmentAdapter?: ChatComposerAttachmentAdapter;
   onSubmit: (submission: ChatComposerSubmit) => void | Promise<void>;
@@ -113,6 +120,7 @@ type MentionAttrs = {
 
 const MAX_ATTACHMENTS = 8;
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const EMPTY_SKILLS: readonly ChatComposerSkill[] = [];
 
 function ContextUsageMeter({ usage }: { usage: ChatComposerContextUsage }) {
   const progress = Math.max(0, Math.min(usage.percent ?? 0, 100));
@@ -229,6 +237,23 @@ function useEntitySearch(
   };
 }
 
+function useSkillSearch(skills: readonly ChatComposerSkill[]) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  return {
+    open,
+    options: filterChatComposerSkills(skills, query),
+    start(nextQuery: string) {
+      setOpen(true);
+      setQuery(nextQuery);
+    },
+    close() {
+      setOpen(false);
+      setQuery("");
+    },
+  };
+}
+
 export function ChatComposer({
   variant = "default",
   draftId,
@@ -242,6 +267,7 @@ export function ChatComposer({
   selectedModelId,
   selectedReasoningId,
   contextUsage,
+  skills = EMPTY_SKILLS,
   searchEntities,
   attachmentAdapter,
   onSubmit,
@@ -256,22 +282,32 @@ export function ChatComposer({
   const [attachments, setAttachments] = useState<ChatComposerAttachment[]>([]);
   const [attachmentError, setAttachmentError] = useState("");
   const [activeEntityIndex, setActiveEntityIndex] = useState(0);
+  const [activeSkillIndex, setActiveSkillIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const busyRef = useRef(status !== "idle");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const mentionCommandRef = useRef<((attrs: MentionAttrs) => void) | null>(null);
+  const skillCommandRef = useRef<((skill: ChatComposerSkill) => void) | null>(null);
   const mentionActiveRef = useRef(false);
+  const skillActiveRef = useRef(false);
   const mentionKeyHandledRef = useRef(false);
   const sendRef = useRef<() => void>(() => undefined);
   const initializedDraftRef = useRef<{ ready: boolean; id?: string }>({ ready: false });
   const appliedInitialEntitiesRef = useRef<readonly ChatComposerEntityReference[] | null>(null);
   const attachmentControllerRef = useRef<AbortController | null>(null);
   const entitySearch = useEntitySearch(searchEntities, entities);
+  const skillSearch = useSkillSearch(skills);
   const entitySearchRef = useRef(entitySearch);
+  const skillSearchRef = useRef(skillSearch);
+  const skillsRef = useRef(skills);
   const activeEntityIndexRef = useRef(activeEntityIndex);
+  const activeSkillIndexRef = useRef(activeSkillIndex);
   const onEntityOpenRef = useRef(onEntityOpen);
   entitySearchRef.current = entitySearch;
+  skillSearchRef.current = skillSearch;
+  skillsRef.current = skills;
   activeEntityIndexRef.current = activeEntityIndex;
+  activeSkillIndexRef.current = activeSkillIndex;
   onEntityOpenRef.current = onEntityOpen;
   busyRef.current = status !== "idle" || submitting;
 
@@ -300,6 +336,23 @@ export function ChatComposer({
     search.close();
     return true;
   };
+
+  const selectActiveSkill = () => {
+    const search = skillSearchRef.current;
+    const option = search.options[activeSkillIndexRef.current] ?? search.options[0];
+    const command = skillCommandRef.current;
+    if (!option || !command) return false;
+    markMentionKeyHandled();
+    command(option);
+    skillActiveRef.current = false;
+    search.close();
+    return true;
+  };
+
+  const selectActiveSuggestion = () =>
+    skillActiveRef.current || skillSearchRef.current.open
+      ? selectActiveSkill()
+      : selectActiveEntity();
 
   const editor = useEditor(
     {
@@ -338,60 +391,119 @@ export function ChatComposer({
               label,
             ];
           },
-          suggestion: {
-            char: "@",
-            allowSpaces: true,
-            items: () => [],
-            command: ({ editor, range, props }) => {
-              const attrs = props as MentionAttrs;
-              editor
-                .chain()
-                .focus()
-                .insertContentAt(range, [
-                  { type: "mention", attrs },
-                  { type: "text", text: " " },
-                ])
-                .run();
-            },
-            render: () => ({
-              onStart: (props) => {
-                mentionActiveRef.current = true;
-                mentionCommandRef.current = props.command;
-                setActiveEntityIndex(0);
-                entitySearchRef.current.start(props.query);
+          suggestions: [
+            {
+              char: "@",
+              allowSpaces: true,
+              items: () => [],
+              command: ({ editor, range, props }) => {
+                const attrs = props as MentionAttrs;
+                editor
+                  .chain()
+                  .focus()
+                  .insertContentAt(range, [
+                    { type: "mention", attrs },
+                    { type: "text", text: " " },
+                  ])
+                  .run();
               },
-              onUpdate: (props) => {
-                mentionActiveRef.current = true;
-                mentionCommandRef.current = props.command;
-                setActiveEntityIndex(0);
-                entitySearchRef.current.start(props.query);
-              },
-              onExit: () => {
-                mentionActiveRef.current = false;
-                mentionCommandRef.current = null;
-                entitySearchRef.current.close();
-              },
-              onKeyDown: ({ event }) => {
-                if (event.key === "Escape") {
-                  event.preventDefault();
+              render: () => ({
+                onStart: (props) => {
+                  mentionActiveRef.current = true;
+                  mentionCommandRef.current = props.command;
+                  skillSearchRef.current.close();
+                  setActiveEntityIndex(0);
+                  entitySearchRef.current.start(props.query);
+                },
+                onUpdate: (props) => {
+                  mentionActiveRef.current = true;
+                  mentionCommandRef.current = props.command;
+                  setActiveEntityIndex(0);
+                  entitySearchRef.current.start(props.query);
+                },
+                onExit: () => {
                   mentionActiveRef.current = false;
+                  mentionCommandRef.current = null;
                   entitySearchRef.current.close();
-                  return true;
-                }
-                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                },
+                onKeyDown: ({ event }) => {
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    mentionActiveRef.current = false;
+                    entitySearchRef.current.close();
+                    return true;
+                  }
+                  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                    event.preventDefault();
+                    const step = event.key === "ArrowDown" ? 1 : -1;
+                    setActiveEntityIndex((index) =>
+                      nextContextPickerIndex(index, entitySearchRef.current.options.length, step),
+                    );
+                    return true;
+                  }
+                  if (event.key !== "Enter" && event.key !== "Tab") return false;
                   event.preventDefault();
-                  const step = event.key === "ArrowDown" ? 1 : -1;
-                  setActiveEntityIndex((index) =>
-                    nextContextPickerIndex(index, entitySearchRef.current.options.length, step),
-                  );
-                  return true;
-                }
-                if (event.key !== "Enter" && event.key !== "Tab") return false;
-                event.preventDefault();
-                return selectActiveEntity();
+                  return selectActiveEntity();
+                },
+              }),
+            },
+            {
+              char: "$",
+              items: () => [],
+              allow: ({ state, range }) =>
+                skillsRef.current.length > 0 &&
+                isLeadingSkillTrigger(state.doc.textBetween(0, range.from, "\n")),
+              command: ({ editor, range, props }) => {
+                const skill = props as unknown as ChatComposerSkill;
+                editor
+                  .chain()
+                  .focus()
+                  .insertContentAt(range, { type: "text", text: `$${skill.name} ` })
+                  .run();
               },
-            }),
-          },
+              render: () => ({
+                onStart: (props) => {
+                  skillActiveRef.current = true;
+                  skillCommandRef.current = (skill) =>
+                    props.command(skill as unknown as MentionAttrs);
+                  entitySearchRef.current.close();
+                  setActiveSkillIndex(0);
+                  skillSearchRef.current.start(props.query);
+                },
+                onUpdate: (props) => {
+                  skillActiveRef.current = true;
+                  skillCommandRef.current = (skill) =>
+                    props.command(skill as unknown as MentionAttrs);
+                  setActiveSkillIndex(0);
+                  skillSearchRef.current.start(props.query);
+                },
+                onExit: () => {
+                  skillActiveRef.current = false;
+                  skillCommandRef.current = null;
+                  skillSearchRef.current.close();
+                },
+                onKeyDown: ({ event }) => {
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    skillActiveRef.current = false;
+                    skillSearchRef.current.close();
+                    return true;
+                  }
+                  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                    event.preventDefault();
+                    const step = event.key === "ArrowDown" ? 1 : -1;
+                    setActiveSkillIndex((index) =>
+                      nextContextPickerIndex(index, skillSearchRef.current.options.length, step),
+                    );
+                    return true;
+                  }
+                  if (event.key !== "Enter" && event.key !== "Tab") return false;
+                  event.preventDefault();
+                  return selectActiveSkill();
+                },
+              }),
+            },
+          ],
         }),
       ],
       content: createChatComposerDocument(""),
@@ -413,9 +525,14 @@ export function ChatComposer({
         },
         handleKeyDown: (_view, event) => {
           if (event.isComposing || event.key !== "Enter" || event.shiftKey) return false;
-          if (mentionActiveRef.current || entitySearchRef.current.open) {
+          if (
+            mentionActiveRef.current ||
+            entitySearchRef.current.open ||
+            skillActiveRef.current ||
+            skillSearchRef.current.open
+          ) {
             event.preventDefault();
-            selectActiveEntity();
+            selectActiveSuggestion();
             return true;
           }
           if (busyRef.current) return false;
@@ -449,6 +566,7 @@ export function ChatComposer({
     setAttachments([...value.attachments]);
     setAttachmentError("");
     entitySearchRef.current.close();
+    skillSearchRef.current.close();
   };
 
   useLayoutEffect(() => {
@@ -496,6 +614,14 @@ export function ChatComposer({
     }
     setActiveEntityIndex((index) => Math.min(index, Math.max(entitySearch.options.length - 1, 0)));
   }, [entitySearch.open, entitySearch.options.length]);
+
+  useEffect(() => {
+    if (!skillSearch.open) {
+      setActiveSkillIndex(0);
+      return;
+    }
+    setActiveSkillIndex((index) => Math.min(index, Math.max(skillSearch.options.length - 1, 0)));
+  }, [skillSearch.open, skillSearch.options.length]);
 
   const addFiles = async (files: readonly File[]) => {
     if (!files.length || !attachmentAdapter) return;
@@ -555,6 +681,12 @@ export function ChatComposer({
     entitySearchRef.current.close();
   };
 
+  const selectSkill = (skill: ChatComposerSkill) => {
+    skillCommandRef.current?.(skill);
+    skillActiveRef.current = false;
+    skillSearchRef.current.close();
+  };
+
   const busy = status !== "idle" || submitting;
   const canSubmit = Boolean(text.trim() || attachments.length);
   const activeEntity = entitySearch.options[activeEntityIndex];
@@ -575,7 +707,17 @@ export function ChatComposer({
             : "mx-auto flex w-full max-w-4xl flex-col gap-2"
         }
       >
-        {entitySearch.open ? (
+        {skillSearch.open ? (
+          <ChatSkillPicker
+            options={skillSearch.options}
+            activeName={skillSearch.options[activeSkillIndex]?.name}
+            onSelect={selectSkill}
+            onCancel={() => {
+              skillActiveRef.current = false;
+              skillSearchRef.current.close();
+            }}
+          />
+        ) : entitySearch.open ? (
           <ChatContextPicker
             state={entitySearch.state}
             options={entitySearch.options}
@@ -613,7 +755,7 @@ export function ChatComposer({
               <span className="pointer-events-none absolute top-3 left-4 text-base text-muted-foreground">
                 {busy
                   ? "可以先整理下一轮想法，回复完成后发送..."
-                  : "询问、比较，或 @ 引用知识库内容..."}
+                  : "询问、比较，@ 引用内容，或 $ 使用 Skill..."}
               </span>
             ) : null}
             <EditorContent
@@ -628,7 +770,9 @@ export function ChatComposer({
                   event.key === "Escape" &&
                   editingMessageId &&
                   !entitySearchRef.current.open &&
-                  !mentionActiveRef.current
+                  !mentionActiveRef.current &&
+                  !skillSearchRef.current.open &&
+                  !skillActiveRef.current
                 ) {
                   event.preventDefault();
                   event.stopPropagation();
@@ -636,11 +780,17 @@ export function ChatComposer({
                   return;
                 }
                 if (event.key !== "Enter" || event.shiftKey) return;
-                if (!entitySearchRef.current.open && !mentionActiveRef.current) return;
+                if (
+                  !entitySearchRef.current.open &&
+                  !mentionActiveRef.current &&
+                  !skillSearchRef.current.open &&
+                  !skillActiveRef.current
+                )
+                  return;
                 event.preventDefault();
                 event.stopPropagation();
                 event.nativeEvent.stopImmediatePropagation();
-                selectActiveEntity();
+                selectActiveSuggestion();
               }}
               onClick={(event) => {
                 const target = event.target;

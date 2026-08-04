@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef } from "react";
+import { useRequest } from "ahooks";
 import type { AiModelOption } from "@main/config";
 import type {
   AgentComposerContentNode,
@@ -200,6 +201,7 @@ export function AgentChatComposer({
   onInspectContextRef,
 }: AgentChatComposerProps) {
   const attachments = useAttachmentAdapter();
+  const { data: skills } = useRequest(() => ipcClient.chat.listSkills());
   const uiModels = useMemo<ChatComposerModelOption[]>(
     () =>
       modelOptions.map((option) => ({
@@ -304,6 +306,7 @@ export function AgentChatComposer({
       selectedModelId={activeModel ? modelId(activeModel) : undefined}
       selectedReasoningId={activeReasoningLevel}
       contextUsage={contextUsage}
+      skills={skills}
       searchEntities={searchEntities}
       attachmentAdapter={attachments.adapter}
       onSubmit={submit}

@@ -5,6 +5,7 @@ import type { InlineExtension } from "@earendil-works/pi-coding-agent";
 
 export const PI_WEB_ACCESS_TOOL_NAMES = [
   "web_search",
+  "source_check",
   "fetch_content",
   "get_search_content",
 ] as const;

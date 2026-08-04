@@ -23,20 +23,20 @@
     "fmt:check": "oxfmt --check"
   },
   "dependencies": {
-    "@lancedb/lancedb": "0.31.0",
+    "@lancedb/lancedb": "0.33.0",
     "@reflecta/server": "workspace:*",
-    "better-sqlite3": "^12.11.1",
-    "commander": "^14.0.3",
+    "better-sqlite3": "^13.0.2",
+    "commander": "^15.0.0",
     "drizzle-orm": "^0.45.2",
     "libsql": "^0.5.29",
-    "node-llama-cpp": "^3.18.1",
-    "zod": "^3.25.0"
+    "node-llama-cpp": "^3.19.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/node": "^22.19.11",
-    "typescript": "^5.9.3",
-    "vite": "^8.0.3",
-    "vitest": "^4.1.2"
+    "@types/node": "^26.1.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.0",
+    "vitest": "^4.1.10"
   }
 }

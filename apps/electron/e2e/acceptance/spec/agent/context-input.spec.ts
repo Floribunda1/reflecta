@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { composer, launchAgentPage, openAgentPage, selectContext } from "./agent-e2e";
 import { resetAgentFixtures } from "./agent-fixtures";
@@ -55,6 +58,36 @@ test("@AG-CONTEXT-009 用户通过 @ 搜索后按 Enter 选择上下文引用", 
     await expect(composer(page)).toBeEditable();
   } finally {
     await app.close();
+  }
+});
+
+test("@AG-SKILL-001 用户通过 $ 选择系统全局 Skill", async () => {
+  const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "reflecta-e2e-skill-home-"));
+  const skillDir = path.join(homeDir, ".agents", "skills", "explain-note");
+  fs.mkdirSync(skillDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(skillDir, "SKILL.md"),
+    "---\nname: explain-note\ndescription: Explain a note clearly\n---\n\n# Explain note\n",
+  );
+  const { app, page } = await launchAgentPage({ HOME: homeDir });
+
+  try {
+    await composer(page).click();
+    await page.keyboard.type("$ex");
+    const picker = page.getByTestId("agent-skill-picker");
+    await expect(picker).toBeVisible();
+    await expect(picker.getByTestId("agent-skill-option")).toContainText("$explain-note");
+    await expect(picker).not.toContainText("reflecta-context");
+    await expect(picker).not.toContainText("reflecta-understanding");
+
+    await picker.getByTestId("agent-skill-option").click();
+    await expect(composer(page)).toContainText("$explain-note");
+
+    await composer(page).fill("已有正文 $");
+    await expect(picker).toBeHidden();
+  } finally {
+    await app.close();
+    fs.rmSync(homeDir, { recursive: true, force: true });
   }
 });
 

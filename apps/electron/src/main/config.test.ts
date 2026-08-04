@@ -292,7 +292,7 @@ describe("Electron AI config", () => {
       expect.objectContaining({
         modelId: "o3",
         modelName: "o3",
-        supportedReasoningLevels: ["off", "minimal", "low", "medium", "high"],
+        supportedReasoningLevels: ["low", "medium", "high"],
       }),
     ]);
   });
