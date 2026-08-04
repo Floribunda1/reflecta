@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.15 - 2026-08-04
+
+- Added system-wide Agent Skills from `~/.agents/skills` with a `$` picker that keeps the selected Skill visible in conversation history while invoking it through the Agent runtime.
+- Added Codex image generation in Agent conversations, stored generated images in local assets, and made rendered chat images open in a zoomed preview.
+- Stabilized Agent web access on fake-IP networks, preserved the active turn during jump navigation, and kept Mermaid diagrams synchronized with the system theme.
+
 ## 1.3.14 - 2026-08-03
 
 - Refined Agent Understanding guidance to preserve the user's mental model, retain meaningful detail, use natural Markdown structure, and avoid invented rhetorical tension.

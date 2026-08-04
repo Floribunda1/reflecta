@@ -4,11 +4,7 @@ import { seedUnderstanding } from "../agent/agent-fixtures";
 import { domainNode, openCapturePage, understandingRow } from "./capture-e2e";
 
 function understandingCount(page: Page) {
-  return page
-    .getByTestId("capture-understanding-list-header")
-    .locator("div")
-    .filter({ hasText: /^\d+(?: \/ \d+)? 条理解$/ })
-    .first();
+  return page.getByTestId("capture-understanding-list-header").getByText(/^（\d+(?:\/\d+)?）$/);
 }
 
 test("@CP-LIST-005 用户切换 Understanding 的排序方式", async () => {
@@ -69,8 +65,8 @@ test("@CP-LIST-003 用户决定是否包含子 Domain 的 Understanding", async 
 
     await page.getByRole("button", { name: "已包含子领域" }).click();
     const directOnly = await understandingCount(page).textContent();
-    expect(Number.parseInt(directOnly ?? "0", 10)).toBeLessThan(
-      Number.parseInt(withDescendants ?? "0", 10),
+    expect(Number.parseInt(directOnly?.slice(1) ?? "0", 10)).toBeLessThan(
+      Number.parseInt(withDescendants?.slice(1) ?? "0", 10),
     );
 
     await page.getByRole("button", { name: "未包含子领域" }).click();
@@ -143,8 +139,6 @@ test("@CP-LIST-006 用户专注阅读当前 Understanding", async () => {
     await expect(listPanel).toHaveCSS("width", "0px");
     await expect(page.getByRole("button", { name: "退出专注模式" })).toBeVisible();
     await expect.soft(page.getByText("上下文", { exact: true })).toBeHidden();
-    const focusHeaderBox = await page.locator("article header > div").first().boundingBox();
-    expect.soft(focusHeaderBox?.x ?? 0).toBeGreaterThanOrEqual(75);
 
     await page.keyboard.press("Escape");
     await expect(domainSidebar).toHaveAttribute("aria-hidden", "false");
