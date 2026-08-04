@@ -1,9 +1,9 @@
 @use "./config" as *;
 
 #{$chat-markdown-root} {
-  strong,
-  em {
-    color: var(--reflecta-chat-foreground);
+  strong {
+    color: var(--reflecta-chat-emphasis);
+    font-weight: 600;
   }
 
   a {
@@ -45,14 +45,14 @@
 
   code {
     display: inline;
-    border: 1px solid color-mix(in srgb, var(--reflecta-chat-border), transparent 18%);
+    border: 0;
     border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--reflecta-chat-muted), transparent 16%);
-    color: var(--primary);
+    background: color-mix(in srgb, var(--reflecta-chat-muted), transparent 10%);
+    color: var(--reflecta-chat-foreground);
     font-family: "Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 0.88em;
+    font-size: 0.9em;
     line-height: 1.45;
-    padding: 0.08rem 0.28rem;
+    padding: 0.08rem 0.32rem;
   }
 
   pre code {

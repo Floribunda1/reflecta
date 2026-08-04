@@ -37,7 +37,7 @@ const userTextRow: ChatMessageRowView = {
   message: {
     kind: "user",
     id: "user-text",
-    text: "请复核低温窗口中的阀门启动顺序。",
+    text: "我希望用一份架构记录承载项目当前的边界和判断依据。实现细节会持续变化，直接阅读代码很容易把临时方案误认为核心设计；文档则应该解释模块为什么存在、职责如何划分，以及哪些约束不能被后续实现破坏。这样无论是团队成员还是 Agent，都能先建立正确上下文，再进入具体代码。",
   },
   timestampLabel: "7月28日 12:58:00",
   enabledActions: ["copy", "edit"],

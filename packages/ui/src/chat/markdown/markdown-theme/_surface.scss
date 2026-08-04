@@ -2,7 +2,8 @@
 
 #{$chat-markdown-root} {
   --reflecta-chat-background: var(--card);
-  --reflecta-chat-foreground: var(--card-foreground);
+  --reflecta-chat-foreground: color-mix(in srgb, var(--card-foreground), transparent 12%);
+  --reflecta-chat-emphasis: var(--card-foreground);
   --reflecta-chat-muted: var(--accent);
   --reflecta-chat-muted-foreground: color-mix(in srgb, var(--card-foreground), transparent 45%);
   --reflecta-chat-border: var(--sidebar-border);
