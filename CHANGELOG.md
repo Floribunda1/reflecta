@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.16 - 2026-08-04
+
+- Split Agent model and reasoning effort into separate selectors, standardized effort labels in English, and kept the selected effort synchronized when switching models.
+
 ## 1.3.15 - 2026-08-04
 
 - Added system-wide Agent Skills from `~/.agents/skills` with a `$` picker that keeps the selected Skill visible in conversation history while invoking it through the Agent runtime.
