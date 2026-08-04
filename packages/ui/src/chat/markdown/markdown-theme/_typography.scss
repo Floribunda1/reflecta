@@ -2,7 +2,7 @@
 
 #{$chat-markdown-root} {
   p {
-    margin: 0.75rem 0;
+    margin: 0.65rem 0;
     padding: 0;
     color: var(--reflecta-chat-foreground);
   }
@@ -13,13 +13,13 @@
   h4,
   h5,
   h6 {
-    margin: 1.9rem 0 0.65rem;
+    margin: 1.75rem 0 0.55rem;
     padding: 0;
     color: var(--reflecta-chat-emphasis);
     font-family: inherit;
     font-weight: 600;
     letter-spacing: 0;
-    line-height: 1.35;
+    line-height: 1.3;
   }
 
   @each $level, $size in $heading-sizes {
