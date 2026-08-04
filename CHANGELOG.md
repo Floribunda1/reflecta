@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.17 - 2026-08-04
+
+- Stabilized long Agent conversations by deferring virtual-list resize measurements and avoiding ResizeObserver delivery errors.
+- Adopted Pi's near-limit context compaction defaults so Agent sessions retain more usable context before automatic compaction.
+
 ## 1.3.16 - 2026-08-04
 
 - Split Agent model and reasoning effort into separate selectors, standardized effort labels in English, and kept the selected effort synchronized when switching models.
