@@ -1,4 +1,4 @@
-# v1.3.15 `.agents/skills` 与 `$` 选择器执行计划
+# v1.3.15 系统全局 Skill 与 `$` 选择器执行计划
 
 本文按“固定 Skill 来源 → 建立唯一目录 → 接通 runtime 调用 → 增加 `$` 入口 → 用产品行为验收”的依赖顺序组织。后一阶段都依赖前一阶段对 Skill 身份和调用语义的确定；如果先做弹层，Renderer 就会拥有一份可能与 Agent runtime 不一致的 Skill 列表。
 
@@ -8,11 +8,11 @@
 
 ## 结论先行
 
-v1.3.15 直接读取 Reflecta 内容目录中的 `.agents/skills`，复用 Pi 已有的 `SKILL.md` 解析与 `/skill:name` 展开能力。Composer 只增加一个轻量 `$` 选择入口：用户在消息开头输入 `$`，选择一个 Skill 后得到普通文本 `$skill-name `；发送时 Main 将已存在的 Skill 调用转换为 Pi 原生 `/skill:skill-name`，用户消息仍保存和显示 `$skill-name`。
+v1.3.15 直接读取当前系统用户 Home 下的 `~/.agents/skills`，复用 Pi 已有的 `SKILL.md` 解析与 `/skill:name` 展开能力。Composer 只增加一个轻量 `$` 选择入口：用户在消息开头输入 `$`，选择一个 Skill 后得到普通文本 `$skill-name `；发送时 Main 将已存在的 Skill 调用转换为 Pi 原生 `/skill:skill-name`，用户消息仍保存和显示 `$skill-name`。
 
 ```mermaid
 flowchart LR
-  D["<contentStorageRoot>/.agents/skills"] --> C["Main Skill catalog"]
+  D["~/.agents/skills"] --> C["Main Skill catalog"]
   C --> R["Pi ResourceLoader"]
   C --> I["Chat IPC listSkills"]
   I --> P["Composer $ picker"]
@@ -40,23 +40,23 @@ flowchart LR
 第一版只有一个外部 Skill 来源：
 
 ```text
-<contentStorageRoot>/.agents/skills/<skill-directory>/SKILL.md
+~/.agents/skills/<skill-directory>/SKILL.md
 ```
 
-`contentStorageRoot` 已经是 `PiAgentHost` 的工作目录，因此 `.agents/skills` 是 Reflecta Agent 的项目级 Skill 目录。目录不存在时返回空目录，不创建示例 Skill，也不把它当成错误。
+`~` 是运行 Reflecta 的当前系统用户 Home。Main 使用 Node `os.homedir()` 解析绝对路径，不依赖 Agent 工作目录，也不从 Reflecta 内容目录或源码仓库寻找 Skill。目录不存在时返回空目录，不创建示例 Skill，也不把它当成错误。
 
 继续保留当前两个 Reflecta 内置 Skill：
 
 - `reflecta-understanding`；
 - `reflecta-context`。
 
-它们仍由 runtime 自动使用，不进入 `$` 选项。`$` 只列出 `.agents/skills` 中的 Skill，避免把产品内部认知规则变成需要用户理解的命令。
+它们仍由 runtime 自动使用，不进入 `$` 选项。`$` 只列出 `~/.agents/skills` 中的 Skill，避免把产品内部认知规则变成需要用户理解的命令。
 
 ### 1.3 明确不做
 
 - 不增加审核、白名单、安装、删除、启停或管理页面；
-- 不读取 `~/.agents/skills`、`.pi/skills`、Skill package 或仓库祖先目录；
-- 不把本仓库的工程 Skill 自动复制进用户内容目录或安装包；
+- 不读取 `<contentStorageRoot>/.agents/skills`、`.pi/skills`、Skill package 或仓库祖先目录；
+- 不把系统全局 Skill 复制进用户内容目录、源码仓库或安装包；
 - 不监听文件变化；重新打开 Composer 或重启应用后重新读取即可；
 - 不支持一条消息调用多个 Skill；
 - 不在消息中间触发 `$`，只允许它作为第一个非空白 token；
@@ -70,7 +70,7 @@ flowchart LR
 
 在 Electron Main 的 Agent 模块中增加一个小型 Skill catalog，隐藏以下实现细节：
 
-- `.agents/skills` 的绝对路径；
+- `~/.agents/skills` 的绝对路径；
 - Pi `loadSkillsFromDir` 的调用；
 - `SKILL.md` frontmatter 校验结果；
 - 名称冲突与稳定排序；
@@ -101,17 +101,17 @@ agentSkillPaths(): string[];
 
 ### 2.3 Runtime 接入
 
-保持 `noSkills: true`，把 Catalog 返回的 `.agents/skills` 路径与现有 builtin Skill 路径一起传给 `additionalSkillPaths`。这样只打开本次明确要求的目录，不顺带启用 Pi 的其他默认资源来源。
+保持 `noSkills: true`，把 Catalog 返回的 `~/.agents/skills` 路径与现有 builtin Skill 路径一起传给 `additionalSkillPaths`。这样只打开本次明确要求的系统全局目录，不顺带启用 Pi 的其他默认资源来源。
 
-路径顺序必须让 Reflecta builtin Skill 先注册；若 `.agents/skills` 出现同名 `reflecta-understanding` 或 `reflecta-context`，现有内置版本继续生效。
+路径顺序必须让 Reflecta builtin Skill 先注册；若 `~/.agents/skills` 出现同名 `reflecta-understanding` 或 `reflecta-context`，现有内置版本继续生效。
 
 ### 2.4 完成条件
 
-- Main test 能从临时 `<contentStorageRoot>/.agents/skills` 发现合法 Skill；
+- Main test 能从注入的临时全局 Skill 目录发现合法 Skill；
 - 缺少 description 的 Skill 不进入目录，diagnostic 可观察；
 - 目录不存在时返回空数组；
 - 同名时结果稳定，Reflecta builtin 不被覆盖；
-- Runtime system prompt 中同时存在 builtin Skill 和 `.agents/skills` 的可自动调用 Skill。
+- Runtime system prompt 中同时存在 builtin Skill 和 `~/.agents/skills` 的可自动调用 Skill。
 
 ## 3. Task 2：通过现有 Chat IPC 暴露目录
 
@@ -288,6 +288,6 @@ git diff --check
 - [x] 一级目录沿 Skill 从文件系统进入 runtime、进入 UI、再回到 runtime 执行的真实生命周期展开；调换后会失去实现前提。
 - [x] Catalog 是唯一 Skill 事实来源，Main runtime 与 Renderer 选项不会各自扫描或解析。
 - [x] 产品行为、实现机制和测试证据分别归入对应阶段，没有按文件清单组织计划。
-- [x] `.agents/skills` 路径、builtin Skill、用户可见 `$` 与内部 `/skill:` 的职责互不重叠。
+- [x] `~/.agents/skills`、builtin Skill、用户可见 `$` 与内部 `/skill:` 的职责互不重叠。
 - [x] 明确区分材料支持的现状、v1.3.15 的选择和不在本次范围内的后续能力。
 - [x] 遵循奥卡姆剃刀：复用 Pi parser、Pi expansion、Tiptap Suggestion 和现有 Chat IPC；无新依赖、无新 schema、无管理页、无热更新。
