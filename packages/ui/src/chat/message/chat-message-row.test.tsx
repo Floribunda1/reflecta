@@ -260,7 +260,56 @@ describe("ChatMessageRow", () => {
     act(() =>
       next.querySelector<HTMLButtonElement>('[data-testid="agent-reasoning"] button')?.click(),
     );
-    expect(next.querySelector('[data-testid="agent-reasoning-detail"]')).toBeNull();
+    expect(
+      next.querySelector('[data-testid="agent-reasoning-detail"]')?.hasAttribute("hidden"),
+    ).toBe(true);
+  });
+
+  test("keeps streaming markdown mounted while reasoning is collapsed", () => {
+    const reasoningRow = (suffix = ""): ChatMessageRowView => ({
+      message: {
+        kind: "assistant",
+        id: "assistant-reasoning",
+        status: "streaming",
+        blocks: [
+          {
+            kind: "reasoning",
+            reasoning: {
+              id: "reasoning-stream",
+              status: "streaming",
+              markdown: `## Plan\n\nInspect **existing code**.${suffix}`,
+            },
+          },
+        ],
+      },
+    });
+    const next = render(reasoningRow());
+
+    act(() =>
+      next
+        .querySelector<HTMLButtonElement>('[data-testid="agent-activity-group-trigger"]')
+        ?.click(),
+    );
+    act(() =>
+      next.querySelector<HTMLButtonElement>('[data-testid="agent-reasoning"] button')?.click(),
+    );
+    const detail = next.querySelector('[data-testid="agent-reasoning-detail"]');
+    expect(detail?.querySelector('[data-slot="chat-markdown"]')).not.toBeNull();
+    expect(detail?.querySelector("[data-sd-animate]")).not.toBeNull();
+    expect(detail?.textContent).not.toContain("## Plan");
+
+    act(() =>
+      next.querySelector<HTMLButtonElement>('[data-testid="agent-reasoning"] button')?.click(),
+    );
+    expect(next.querySelector('[data-testid="agent-reasoning-detail"]')).toBe(detail);
+    render(reasoningRow(" NEW_TOKEN"));
+    expect(detail?.textContent).not.toContain("NEW_TOKEN");
+
+    act(() =>
+      next.querySelector<HTMLButtonElement>('[data-testid="agent-reasoning"] button')?.click(),
+    );
+    expect(next.querySelector('[data-testid="agent-reasoning-detail"]')).toBe(detail);
+    expect(detail?.textContent).toContain("NEW_TOKEN");
   });
 
   test("hands ownership to the user while an approval is pending", () => {
