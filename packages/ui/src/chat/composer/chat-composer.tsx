@@ -1,18 +1,15 @@
 import { Mention } from "@tiptap/extension-mention";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { ChevronDown, FileText, Paperclip, Send, Square, X } from "lucide-react";
+import { Brain, ChevronDown, FileText, Paperclip, Send, Square, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "#components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "#components/dropdown-menu";
 import { Spinner } from "#components/spinner";
@@ -840,41 +837,84 @@ export function ChatComposer({
                 <Paperclip />
               </Button>
               {variant !== "message-edit" ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        data-testid="agent-model-menu-button"
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={busy || modelOptions.length === 0}
-                        className="h-8 min-w-0 max-w-[320px] gap-1.5 px-2 text-muted-foreground hover:bg-muted"
-                      />
-                    }
-                  >
-                    <span className="truncate text-foreground">
-                      {selectedModel?.label ?? "Model"}
-                    </span>
-                    {selectedReasoning ? (
-                      <span className="truncate text-muted-foreground">
-                        {selectedReasoning.label}
+                <>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          data-testid="agent-model-menu-button"
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={busy || modelOptions.length === 0}
+                          className="h-8 min-w-0 max-w-[240px] shrink gap-1.5 px-2 text-muted-foreground hover:bg-muted"
+                        />
+                      }
+                    >
+                      <span className="truncate text-foreground">
+                        {selectedModel?.label ?? "Model"}
                       </span>
-                    ) : null}
-                    <ChevronDown size={16} className="text-muted-foreground" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" side="top" className="w-64">
-                    {selectedModel && showReasoningOptions ? (
-                      <>
+                      <ChevronDown size={16} className="text-muted-foreground" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" side="top" className="w-64">
+                      <DropdownMenuRadioGroup
+                        value={selectedModelId}
+                        onValueChange={(value) => onModelChange?.(value)}
+                      >
+                        <DropdownMenuLabel>模型</DropdownMenuLabel>
+                        {modelOptions.map((option) => (
+                          <DropdownMenuRadioItem
+                            key={option.id}
+                            value={option.id}
+                            closeOnClick
+                            data-testid="agent-model-option"
+                            data-model-id={option.modelId ?? option.id}
+                            data-reasoning-levels={option.reasoningOptions
+                              .map((reasoning) => reasoning.id)
+                              .join(" ")}
+                          >
+                            <span className="truncate">{option.label}</span>
+                            {option.providerLabel ? (
+                              <span className="ml-auto truncate text-xs text-muted-foreground">
+                                {option.providerLabel}
+                              </span>
+                            ) : null}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  {selectedModel && showReasoningOptions ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            data-testid="agent-reasoning-menu-button"
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={busy}
+                            className="h-8 min-w-0 gap-1.5 px-2 text-muted-foreground hover:bg-muted"
+                          />
+                        }
+                      >
+                        <Brain size={16} />
+                        <span className="truncate text-foreground">
+                          {selectedReasoning?.label ?? "Reasoning"}
+                        </span>
+                        <ChevronDown size={16} />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" side="top" className="w-44">
                         <DropdownMenuRadioGroup
                           value={selectedReasoningId}
                           onValueChange={(value) => onReasoningChange?.(value)}
                         >
-                          <DropdownMenuLabel>推理等级</DropdownMenuLabel>
+                          <DropdownMenuLabel>Reasoning Effort</DropdownMenuLabel>
                           {selectedModel.reasoningOptions.map((option) => (
                             <DropdownMenuRadioItem
                               key={option.id}
                               value={option.id}
+                              closeOnClick
                               data-testid="agent-reasoning-option"
                               data-reasoning-level={option.id}
                             >
@@ -882,32 +922,10 @@ export function ChatComposer({
                             </DropdownMenuRadioItem>
                           ))}
                         </DropdownMenuRadioGroup>
-                        <DropdownMenuSeparator />
-                      </>
-                    ) : null}
-                    <DropdownMenuGroup>
-                      <DropdownMenuLabel>模型</DropdownMenuLabel>
-                      {modelOptions.map((option) => (
-                        <DropdownMenuItem
-                          key={option.id}
-                          data-testid="agent-model-option"
-                          data-model-id={option.modelId ?? option.id}
-                          data-reasoning-levels={option.reasoningOptions
-                            .map((reasoning) => reasoning.id)
-                            .join(" ")}
-                          onClick={() => onModelChange?.(option.id)}
-                        >
-                          <span className="truncate">{option.label}</span>
-                          {option.providerLabel ? (
-                            <span className="ml-auto truncate text-xs text-muted-foreground">
-                              {option.providerLabel}
-                            </span>
-                          ) : null}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : null}
+                </>
               ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-1">

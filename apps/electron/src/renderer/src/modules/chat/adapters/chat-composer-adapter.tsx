@@ -73,13 +73,13 @@ type AgentChatComposerProps = {
 };
 
 const reasoningLabels: Record<AgentReasoningLevel, string> = {
-  off: "关闭推理",
-  minimal: "最低推理",
-  low: "低推理",
-  medium: "中推理",
-  high: "高推理",
-  xhigh: "超高推理",
-  max: "最大推理",
+  off: "Off",
+  minimal: "Minimal",
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  xhigh: "X High",
+  max: "Max",
 };
 
 function modelId(selection: Pick<AgentModelSelection, "providerId" | "modelId">) {

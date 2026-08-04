@@ -123,7 +123,9 @@ describe("ConfigService AI models", () => {
       activeAgentReasoningLevel: "high",
     });
 
-    await service.setActiveAgentModel({ providerId: "openai", modelId: "gpt-4o" });
+    await expect(
+      service.setActiveAgentModel({ providerId: "openai", modelId: "gpt-4o" }),
+    ).resolves.toBe("off");
 
     await expect(service.getActiveAgentReasoningLevel()).resolves.toBe("off");
   });

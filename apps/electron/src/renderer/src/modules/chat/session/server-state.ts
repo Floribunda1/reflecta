@@ -105,9 +105,9 @@ export function useSelectAgentModelMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (selection: AgentModelSelection) => ipcClient.config.setActiveAgentModel(selection),
-    onMutate: (selection) => {
+    onSuccess: (activeReasoningLevel, selection) => {
       queryClient.setQueryData<AiModelsQueryData>(chatQueryKeys.modelOptions, (current) =>
-        current ? { ...current, active: selection } : current,
+        current ? { ...current, active: selection, activeReasoningLevel } : current,
       );
     },
     onSettled: async () => {

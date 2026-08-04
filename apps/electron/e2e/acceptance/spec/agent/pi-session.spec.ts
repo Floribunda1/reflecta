@@ -696,23 +696,24 @@ test("@AG-CONTEXT-003 用户选择模型和推理强度后发送消息", async (
     const reasoningModel = page
       .locator('[data-testid="agent-model-option"][data-reasoning-levels~="high"]')
       .first();
-    const modelName = (await reasoningModel.locator("span").first().innerText()).trim();
+    const modelName = (
+      await reasoningModel.locator("span").filter({ hasText: /\S/ }).first().innerText()
+    ).trim();
     await reasoningModel.click();
 
-    await page.getByTestId("agent-model-menu-button").click();
+    await page.getByTestId("agent-reasoning-menu-button").click();
     await page
       .locator('[data-testid="agent-reasoning-option"][data-reasoning-level="high"]')
       .click();
-    await page.keyboard.press("Escape");
 
     await expect(page.getByTestId("agent-model-menu-button")).toContainText(modelName);
-    await expect(page.getByTestId("agent-model-menu-button")).toContainText("高推理");
+    await expect(page.getByTestId("agent-reasoning-menu-button")).toContainText("High");
     await sendMessage(
       page,
       "请用一句话回复 model selection e2e。不要调用任何工具，只输出普通文本。",
     );
     await expect(page.getByTestId("agent-model-menu-button")).toContainText(modelName);
-    await expect(page.getByTestId("agent-model-menu-button")).toContainText("高推理");
+    await expect(page.getByTestId("agent-reasoning-menu-button")).toContainText("High");
     await waitForAssistantReply(page);
   } finally {
     await app.close();

@@ -176,7 +176,7 @@ export class ConfigService extends IpcService {
   }
 
   @IpcMethod()
-  async setActiveAgentModel(selection: AiModelSelection): Promise<void> {
+  async setActiveAgentModel(selection: AiModelSelection): Promise<AiReasoningLevel> {
     const ai = getAiConfig();
     const requested = {
       providerId: selection.providerId.trim(),
@@ -195,6 +195,7 @@ export class ConfigService extends IpcService {
       activeAgentReasoningLevel: reasoningLevel,
     });
     writeConfig({ ai: next });
+    return reasoningLevel;
   }
 
   @IpcMethod()

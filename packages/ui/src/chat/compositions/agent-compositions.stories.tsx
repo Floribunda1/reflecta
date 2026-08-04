@@ -40,9 +40,9 @@ const modelOptions = [
     label: "GPT-5.2",
     providerLabel: "OpenAI",
     reasoningOptions: [
-      { id: "off", label: "关闭推理" },
-      { id: "medium", label: "中推理" },
-      { id: "high", label: "高推理" },
+      { id: "off", label: "Off" },
+      { id: "medium", label: "Medium" },
+      { id: "high", label: "High" },
     ],
   },
 ] as const;

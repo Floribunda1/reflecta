@@ -58,9 +58,9 @@ test("@AI-SETTINGS-001 用户为 Provider 选择用于 Chat 的模型", async ()
     await openAgentPage(page);
     await page.getByTestId("agent-model-menu-button").click();
     await expect(page.getByTestId("agent-model-option")).toHaveCount(2);
-    await expect(page.getByTestId("agent-reasoning-option")).toHaveCount(0);
+    await expect(page.getByTestId("agent-reasoning-menu-button")).toHaveCount(0);
     await page.locator('[data-testid="agent-model-option"][data-model-id="o3"]').click();
-    await page.getByTestId("agent-model-menu-button").click();
+    await page.getByTestId("agent-reasoning-menu-button").click();
     await expect(
       page.locator('[data-testid="agent-reasoning-option"][data-reasoning-level="medium"]'),
     ).toBeVisible();

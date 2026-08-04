@@ -14,16 +14,16 @@ const models = [
     label: "GPT-5.2",
     providerLabel: "OpenAI",
     reasoningOptions: [
-      { id: "off", label: "关闭推理" },
-      { id: "medium", label: "中推理" },
-      { id: "high", label: "高推理" },
+      { id: "off", label: "Off" },
+      { id: "medium", label: "Medium" },
+      { id: "high", label: "High" },
     ],
   },
   {
     id: "anthropic:claude",
     label: "Claude Sonnet 4.5",
     providerLabel: "Anthropic",
-    reasoningOptions: [{ id: "off", label: "关闭推理" }],
+    reasoningOptions: [{ id: "off", label: "Off" }],
   },
 ];
 
@@ -282,8 +282,8 @@ function ComposerShowcase() {
                 label: `本地测试模型 ${index + 1} · 一个较长的模型名称`,
                 providerLabel: "Local",
                 reasoningOptions: [
-                  { id: "off", label: "关闭推理" },
-                  { id: "high", label: "高推理" },
+                  { id: "off", label: "Off" },
+                  { id: "high", label: "High" },
                 ],
               })),
             ]}
