@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.19 - 2026-08-05
+
+- Resumed pending Agent decisions after app restarts while preserving their prompts, options, and previews.
+- Reused the same Markdown rendering for streaming and persisted reasoning, and refined conversation typography, spacing, lists, and attachment previews around the system font.
+
 ## 1.3.18 - 2026-08-05
 
 - Restored enhanced bullet, ordered, and task-list rendering after Milkdown fixed stale selection handling, with regression coverage for controlled document replacement.
