@@ -51,7 +51,6 @@ const RRF_K = 60;
 
 function lexicalFtsIndex() {
   return lancedb.Index.fts({
-    // @ts-expect-error LanceDB 0.31 supports ICU at runtime but omits it from FtsOptions.
     baseTokenizer: "icu",
     withPosition: false,
   });
