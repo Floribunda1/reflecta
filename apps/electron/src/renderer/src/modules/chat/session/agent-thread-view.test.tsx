@@ -169,6 +169,23 @@ test("replaces proposal and text from one authoritative projection frame", async
   expect(latestView()?.visibleMessages[0]?.text).toBe("正式");
 }, 10_000);
 
+test("does not present a session waiting for approval as running", async () => {
+  installBrowserStubs();
+  const sendFrame = installFeed();
+  const latestView = await renderProbe(() => null);
+
+  act(() =>
+    sendFrame({
+      kind: "state",
+      sessionId: "session-1",
+      revision: 1,
+      session: { ...projection([]), status: "waiting", activeRunId: null },
+    }),
+  );
+
+  expect(latestView()).toMatchObject({ isBusy: false, composerBusy: true, canStop: false });
+});
+
 test("keeps the user's scroll position when a new projection arrives", async () => {
   const frames = installBrowserStubs();
   const sendFrame = installFeed();

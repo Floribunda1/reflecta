@@ -356,12 +356,16 @@ export type AgentCommand =
       type: "tool.approve";
       sessionId: string;
       approvalId: string;
+      modelSelection?: AgentModelSelection;
+      reasoningLevel?: AgentReasoningLevel;
     }
   | {
       type: "tool.reject";
       sessionId: string;
       approvalId: string;
       reason?: string;
+      modelSelection?: AgentModelSelection;
+      reasoningLevel?: AgentReasoningLevel;
     }
   | {
       type: "session.rename";
@@ -398,7 +402,7 @@ export type AgentSessionState = {
   sessionId: string | null;
   messages: AgentReducedMessage[];
   activeRunId: string | null;
-  status: "idle" | "running" | "failed" | "cancelled";
+  status: "idle" | "running" | "waiting" | "failed" | "cancelled";
   error: string | null;
   entityCatalog: AgentEntityCatalogEntry[];
   contextCompactions: AgentContextCompacted[];
@@ -1122,10 +1126,23 @@ export function reduceAgentSessionEvent(
     };
   }
 
-  if (event.type === "approval.requested" || event.type === "approval.resolved") {
+  if (event.type === "approval.requested") {
+    const waiting = !event.preview;
     return {
       ...state,
       sessionId: event.sessionId,
+      messages: upsertAssistantApproval(state.messages, event),
+      ...(waiting ? { activeRunId: null, status: "waiting" as const, error: null } : {}),
+    };
+  }
+
+  if (event.type === "approval.resolved") {
+    return {
+      ...state,
+      sessionId: event.sessionId,
+      activeRunId: event.runId,
+      status: "running",
+      error: null,
       messages: upsertAssistantApproval(state.messages, event),
     };
   }

@@ -967,6 +967,17 @@ export function ChatComposer({
                     >
                       <Square />
                     </Button>
+                  ) : status === "running" ? (
+                    <Button
+                      data-testid="agent-send-button"
+                      type="button"
+                      size="icon-sm"
+                      className="disabled:bg-muted disabled:text-muted-foreground"
+                      aria-label="等待用户决定"
+                      disabled
+                    >
+                      <Send />
+                    </Button>
                   ) : busy ? (
                     <Button
                       type="button"

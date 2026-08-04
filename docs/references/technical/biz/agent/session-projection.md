@@ -59,7 +59,7 @@ Projection 不是新的事实来源。应用重启后，它从活动 branch 的 
 
 ### Agent Turn
 
-一个由用户意义定义的工作周期，从用户请求开始，到 Agent 返回 Response、需要用户 Decision、失败或停止。Turn 从用户消息开始，并拥有下一条用户消息之前的有序 message parts；发起消息 ID 是稳定的 `turnId`。
+一个由用户意义定义的工作周期，从用户请求开始，到 Agent 返回最终 Response、失败或停止。需要用户 Decision 时 Turn 暂停但不结束；发起消息 ID 是稳定的 `turnId`。
 
 ### Agent Attempt
 
@@ -199,6 +199,18 @@ Turn Renderer 仍位于 Renderer。它接收 Projection 中的 ordered messages/
 
 重新生成保留用户消息的稳定 `turnId`，但创建新的 `runId`。当前 branch 只显示新 Attempt。
 
+### 等待用户决定
+
+Decision 是可恢复的暂停点，不是仍在执行的 Attempt。实际审批请求进入 durable log 前，Runtime 必须先把用户已经看到的 Assistant 内容冻结为 durable snapshot，再记录审批请求。Projection 随后进入 `waiting`，且没有 active `runId`。
+
+用户确认或拒绝本身就是继续信号，不需要再发送一条消息：
+
+- Main 进程仍在时，原 Attempt 直接取得决定并继续；
+- Main 进程已经重启时，从 durable snapshot 与审批请求恢复卡片，处理决定后创建新的内部 Attempt 继续；
+- 确认会执行已保存的操作，拒绝不会执行；两条路径都自动继续生成 Response。
+
+内部续跑提示只进入模型上下文，不投影成新的用户消息。Renderer 只提交决定，不负责判断当前应恢复原 Attempt 还是创建新 Attempt。
+
 ### 完成、失败与停止
 
 成功、失败和停止采用同一提交顺序：
@@ -232,6 +244,7 @@ Feed 不是 exactly-once side-effect 队列。知识写入后的 entity cache in
 | MessagePort 关闭           | 当前 watch 结束；UI 可重新 watch 获取新快照     |
 | Projection 构建失败        | 记录诊断并返回 feed error，不把旧状态冒充新状态 |
 | Main 进程退出              | 不保存 revision；下次启动从 durable facts 重建  |
+| 等待 Decision 时退出       | 恢复已见内容与待处理 Decision，不取消为中断运行 |
 | Renderer 失焦              | watch 保持，状态不 refetch、不重放              |
 | Renderer reload            | 旧 watch 关闭，新 watch 从完整快照开始          |
 
@@ -247,6 +260,7 @@ Feed 不是 exactly-once side-effect 队列。知识写入后的 entity cache in
 8. `createdAt` 不参与排序、去重、分支选择或覆盖判断。
 9. Turn Renderer 只负责用户意义和视觉分组，不拥有运行状态。
 10. Session summaries 等有限查询与活动 Session Feed 使用不同的状态机制。
+11. durable Decision 前必须已有可重建的 Assistant snapshot；`waiting` 不等同于 `running`。
 
 ## 不采用的方案
 
@@ -268,6 +282,7 @@ Feed 不是 exactly-once side-effect 队列。知识写入后的 entity cache in
 - 相同或旧 revision 不产生第二次业务归约；
 - 编辑历史后完整替换旧 branch，包括 Catalog 与 compactions；
 - Decision → approved/rejected → Receipt；
+- Decision 等待期间重启，恢复已见内容，处理决定后无需新用户消息即可继续；
 - completion、failure、stop 后重开与最后一帧 live Projection 等价；
 - port 关闭、日志损坏和 Session 不存在返回正确 Feed error；
 - Production MessagePort Adapter 与 In-memory Adapter 遵守同一组契约测试。

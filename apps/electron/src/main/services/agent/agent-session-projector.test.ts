@@ -511,20 +511,24 @@ describe("Agent Session projector", () => {
     };
 
     expect(
-      reduceAgentSession([
-        requested,
-        {
-          ...base,
-          id: "evt_2",
-          type: "approval.resolved",
-          messageId: "assistant_1",
-          approvalId: "approval_1",
-          toolCallId: "tool_1",
-          toolName: "understanding_create",
-          approved: false,
-        },
-      ]).messages[0]?.blocks?.[0],
-    ).toMatchObject({
+      reduceAgentSession([{ ...base, id: "evt_run", type: "run.started" }, requested]),
+    ).toMatchObject({ status: "waiting", activeRunId: null });
+
+    const rejected = reduceAgentSession([
+      requested,
+      {
+        ...base,
+        id: "evt_2",
+        type: "approval.resolved",
+        messageId: "assistant_1",
+        approvalId: "approval_1",
+        toolCallId: "tool_1",
+        toolName: "understanding_create",
+        approved: false,
+      },
+    ]);
+    expect(rejected).toMatchObject({ status: "running", activeRunId: base.runId });
+    expect(rejected.messages[0]?.blocks?.[0]).toMatchObject({
       kind: "approval",
       approvalId: "approval_1",
       state: "rejected",

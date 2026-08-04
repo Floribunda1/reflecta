@@ -24,6 +24,7 @@ import type {
   AgentModelSelection,
   AgentReasoningLevel,
   AgentApprovalRequested,
+  AgentAssistantTurn,
   AgentReducedAssistantBlock,
   AgentEvent,
   AgentLiveEvent,
@@ -83,6 +84,9 @@ type ActivePiRun = {
 };
 
 type PiSessionCommand = Extract<AgentCommand, { type: "message.send" | "context.compact" }>;
+type PiMessageCommand = Extract<AgentCommand, { type: "message.send" }> & {
+  visibleUserMessage?: boolean;
+};
 
 function contextCompactionErrorMessage(error: string): string {
   const message = error.replace(/^Compaction failed:\s*/i, "");
@@ -495,6 +499,32 @@ function isRejectedApprovalOutput(output: unknown): boolean {
 
 function approvalIdForToolCall(toolCallId: string) {
   return `approval_${toolCallId}`;
+}
+
+function approvalContinuationPrompt(input: {
+  requested: AgentApprovalRequested;
+  approved: boolean;
+  rejectionReason?: string;
+  outcome?: unknown;
+  error?: string;
+}): string {
+  const decision = input.approved
+    ? "The user approved the requested action."
+    : input.rejectionReason
+      ? `The user rejected the requested action. Reason: ${input.rejectionReason}`
+      : "The user rejected the requested action.";
+  const outcome = input.error
+    ? `The action failed: ${input.error}`
+    : input.approved
+      ? `The action result is: ${JSON.stringify(input.outcome ?? null)}`
+      : "The action was not executed.";
+  return [
+    "Continue the existing user task after the saved decision below.",
+    `Requested action: ${input.requested.toolName}`,
+    decision,
+    outcome,
+    "Respond directly to the user. Do not ask them to repeat the decision.",
+  ].join("\n");
 }
 
 function approvalEntityId(
@@ -1043,7 +1073,7 @@ export class PiAgentHost {
     );
   }
 
-  private async sendMessage(command: Extract<AgentCommand, { type: "message.send" }>) {
+  private async sendMessage(command: PiMessageCommand) {
     const runId = `run_${nanoid()}`;
     const userMessageId = command.messageId ?? `msg_${nanoid()}`;
     const assistantMessageId = `msg_${nanoid()}`;
@@ -1097,6 +1127,31 @@ export class PiAgentHost {
         payload,
         ...(preview ? { preview: true } : {}),
       });
+    const checkpointForDecision = (requested: AgentApprovalRequested) => {
+      const checkpoint = this.sessionRuntime.assistantTurn(
+        this.createEvent({
+          type: "assistant.turn",
+          sessionId: command.sessionId,
+          runId,
+          messageId: assistantMessageId,
+          blocks: [],
+          text: "",
+          ...assistantMetadata,
+          contextUsage: session?.getContextUsage?.(),
+        }),
+        piDraftText,
+      );
+      const blocks = checkpoint.blocks.filter(
+        (block) => block.kind !== "approval" || !block.preview,
+      );
+      const durableCheckpoint: AgentAssistantTurn = {
+        ...checkpoint,
+        blocks,
+        text: blocks.flatMap((block) => (block.kind === "text" ? [block.text] : [])).join(""),
+      };
+      this.appendAndPublish(manager, durableCheckpoint);
+      this.appendAndPublish(manager, requested);
+    };
     const sendApprovalPreview = (
       toolCallId: string,
       toolName: PiApprovalToolName,
@@ -1201,7 +1256,7 @@ export class PiAgentHost {
           mergeHydratedApprovalPayload(hydratedPayload, payload),
         );
         emittedApprovalRequestIds.add(approvalId);
-        emit(requested);
+        checkpointForDecision(requested);
       });
       approvalRequestTasks.push(task);
     };
@@ -1227,7 +1282,7 @@ export class PiAgentHost {
         description: `命中危险规则：${matchedRules.join("、")}`,
         payload: { command: bashCommand, matchedRules },
       });
-      emit(requested);
+      checkpointForDecision(requested);
       return this.waitForBashGateApproval(command.sessionId, toolCallId);
     };
     const emitEntityCatalogUpdates = () => {
@@ -1244,18 +1299,20 @@ export class PiAgentHost {
         }),
       );
       emitEntityCatalogUpdates();
-      emit(
-        this.createEvent({
-          type: "user.message",
-          sessionId: command.sessionId,
-          runId,
-          messageId: userMessageId,
-          text: command.text,
-          contextRefs: command.contextRefs,
-          files: command.files,
-          composerContent: command.composerContent,
-        }),
-      );
+      if (command.visibleUserMessage !== false) {
+        emit(
+          this.createEvent({
+            type: "user.message",
+            sessionId: command.sessionId,
+            runId,
+            messageId: userMessageId,
+            text: command.text,
+            contextRefs: command.contextRefs,
+            files: command.files,
+            composerContent: command.composerContent,
+          }),
+        );
+      }
     };
 
     try {
@@ -1582,6 +1639,55 @@ export class PiAgentHost {
     active.pendingApprovals.clear();
   }
 
+  private async continueAfterDecision(
+    manager: SessionManager,
+    command: Extract<AgentCommand, { type: "tool.approve" | "tool.reject" }>,
+    requested: AgentApprovalRequested,
+    result: { approved: boolean; outcome?: unknown; error?: string; rejectionReason?: string },
+  ): Promise<void> {
+    const branch = manager.getBranch();
+    const hasToolCall = branch.some(
+      (entry) =>
+        entry.type === "message" &&
+        entry.message.role === "assistant" &&
+        entry.message.content.some(
+          (part) => part.type === "toolCall" && part.id === requested.toolCallId,
+        ),
+    );
+    const hasToolResult = branch.some(
+      (entry) =>
+        entry.type === "message" &&
+        entry.message.role === "toolResult" &&
+        entry.message.toolCallId === requested.toolCallId,
+    );
+    if (hasToolCall && !hasToolResult) {
+      const text = result.error
+        ? `The action failed: ${result.error}`
+        : result.approved
+          ? `The action result is: ${JSON.stringify(result.outcome ?? null)}`
+          : result.rejectionReason
+            ? `The user rejected the action: ${result.rejectionReason}`
+            : "The user rejected the action.";
+      manager.appendMessage({
+        role: "toolResult",
+        toolCallId: requested.toolCallId,
+        toolName: requested.toolName,
+        content: [{ type: "text", text }],
+        ...(result.outcome !== undefined ? { details: result.outcome } : {}),
+        isError: Boolean(result.error),
+        timestamp: Date.now(),
+      });
+    }
+    await this.sendMessage({
+      type: "message.send",
+      sessionId: command.sessionId,
+      text: approvalContinuationPrompt({ requested, ...result }),
+      modelSelection: command.modelSelection,
+      reasoningLevel: command.reasoningLevel,
+      visibleUserMessage: false,
+    });
+  }
+
   private async resolveToolApproval(
     command: Extract<AgentCommand, { type: "tool.approve" | "tool.reject" }>,
   ) {
@@ -1661,11 +1767,11 @@ export class PiAgentHost {
       return;
     }
 
-    if (!approved) return;
-
-    if (requested.toolName === "bash") {
-      const error = new Error("危险 Bash 确认已过期，请让 Agent 重新发起命令。");
-      this.appendToolExecutionFailed(manager, requested, error);
+    if (!approved) {
+      await this.continueAfterDecision(manager, command, requested, {
+        approved: false,
+        rejectionReason,
+      });
       return;
     }
 
@@ -1676,7 +1782,10 @@ export class PiAgentHost {
     try {
       this.appendToolExecutionStarted(manager, requested);
       const registry = new AgentEntityCatalog(reduceAgentSession(events).entityCatalog);
-      const output = await this.executeApprovedTool(requested, registry);
+      const output =
+        requested.toolName === "bash"
+          ? await this.executeApprovedBash(requested)
+          : await this.executeApprovedTool(requested, registry);
       this.appendEntityCatalogUpdates(manager, requested.sessionId, requested.runId, registry);
       this.appendToolExecutionCompleted(manager, requested, output);
       this.appendAndPublish(
@@ -1690,6 +1799,10 @@ export class PiAgentHost {
           blocks: withApprovalToolResult(existingTurn?.blocks ?? [], requested, { output }),
         }),
       );
+      await this.continueAfterDecision(manager, command, requested, {
+        approved: true,
+        outcome: output,
+      });
     } catch (error) {
       this.appendToolExecutionFailed(manager, requested, error);
       this.appendAndPublish(
@@ -1705,6 +1818,10 @@ export class PiAgentHost {
           }),
         }),
       );
+      await this.continueAfterDecision(manager, command, requested, {
+        approved: true,
+        error: formatAgentError(error),
+      });
     }
   }
 
@@ -1720,6 +1837,18 @@ export class PiAgentHost {
       await executePiApprovedTool(requested.toolName, requested.payload),
       registry,
     );
+  }
+
+  private async executeApprovedBash(requested: AgentApprovalRequested): Promise<unknown> {
+    const command = isRecord(requested.payload) ? requested.payload.command : undefined;
+    if (typeof command !== "string" || !command.trim()) {
+      throw new Error("危险 Bash 确认缺少待执行命令");
+    }
+    const execute = createPiBashTool(this.contentStorageRoot).execute as unknown as (
+      toolCallId: string,
+      params: { command: string },
+    ) => Promise<unknown>;
+    return piToolOutput("bash", await execute(requested.toolCallId, { command }));
   }
 
   private decorateApprovedToolOutput(
