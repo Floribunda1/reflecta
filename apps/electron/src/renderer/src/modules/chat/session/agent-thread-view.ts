@@ -121,6 +121,7 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
     scrollEndThreshold: CHAT_SCROLL_END_THRESHOLD,
     scrollPaddingEnd: CHAT_JUMP_BOTTOM_OFFSET,
     directDomUpdates: true,
+    useAnimationFrameWithResizeObserver: true,
     onChange: (instance) => {
       const pendingJumpTurnId = pendingJumpTurnIdRef.current;
       if (pendingJumpTurnId && !instance.isScrolling) {
