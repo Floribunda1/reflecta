@@ -1,18 +1,23 @@
 // @vitest-environment happy-dom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import mediumZoom from "medium-zoom";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { ChatMessageRow } from "./chat-message-row";
 import type { ChatMessageRowView } from "./types";
 
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
+const zoom = vi.hoisted(() => ({ detach: vi.fn(), toggle: vi.fn() }));
+
+vi.mock("medium-zoom", () => ({ default: vi.fn(() => zoom) }));
 
 afterEach(() => {
   act(() => root?.unmount());
   container?.remove();
   root = undefined;
   container = undefined;
+  vi.clearAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -129,6 +134,34 @@ describe("ChatMessageRow", () => {
     expect(next.querySelector('[data-testid="agent-user-message"]')?.textContent).toBe(
       "Before ✦ First idea after",
     );
+  });
+
+  test("renders a generated image with accessible zoom", () => {
+    const next = render({
+      message: {
+        kind: "assistant",
+        id: "assistant-image",
+        status: "done",
+        blocks: [
+          {
+            kind: "image",
+            id: "tool-image:image",
+            src: "asset:///generated.png",
+            alt: "AI 生成图片：雨中的上海街道",
+          },
+        ],
+      },
+    });
+
+    const image = next.querySelector<HTMLImageElement>('[data-testid="agent-generated-image"]');
+    expect(image).toMatchObject({
+      src: "asset:///generated.png",
+      alt: "AI 生成图片：雨中的上海街道",
+      tabIndex: 0,
+    });
+    expect(mediumZoom).toHaveBeenCalledWith(image);
+    act(() => image?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    expect(zoom.toggle).toHaveBeenCalledWith({ target: image });
   });
 
   test("emits message actions without performing workflow side effects", () => {

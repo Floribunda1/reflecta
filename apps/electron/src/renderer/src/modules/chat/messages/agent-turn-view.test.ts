@@ -129,6 +129,29 @@ describe("buildAgentTurnView", () => {
     expect(turn.blocks.map((block) => block.kind)).toEqual(["text", "context-compaction", "text"]);
   });
 
+  test("derives an inline image from a completed image tool", () => {
+    const turn = buildAgentTurnView([
+      tool(
+        "image_generate",
+        "tool-image",
+        { kind: "generated-image", assetUrl: "asset:///generated.png", mediaType: "image/png" },
+        "completed",
+        undefined,
+        { prompt: "雨中的上海街道" },
+      ),
+    ]);
+
+    expect(turn.blocks).toMatchObject([
+      { kind: "tool-activity", activity: { summary: "已生成图片" } },
+      {
+        kind: "image",
+        id: "tool-image:image",
+        src: "asset:///generated.png",
+        alt: "AI 生成图片：雨中的上海街道",
+      },
+    ]);
+  });
+
   test("keeps segmented read parameters in the summary and only content in details", () => {
     const turn = buildAgentTurnView([
       tool("read", "tool-1", { content: "next chunk" }, "completed", undefined, {

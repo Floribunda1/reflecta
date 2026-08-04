@@ -74,6 +74,7 @@ export {
 } from "./message/chat-message-row";
 export { findChatTextRanges, type ChatTextRange } from "./message/chat-search";
 export type {
+  AgentImageBlockView,
   AgentMessageBlockView,
   AgentTextBlockView,
   ChatAssistantMessageView,

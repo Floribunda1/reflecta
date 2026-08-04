@@ -168,6 +168,7 @@ export type AgentTurnBlock =
   | { kind: "reasoning"; reasoning: AgentReasoningView }
   | { kind: "context-compaction"; compaction: AgentContextCompacted }
   | { kind: "tool-activity"; activity: ToolActivityView }
+  | { kind: "image"; id: string; src: string; alt: string }
   | { kind: "proposal"; proposal: ProposalView };
 
 export type AgentReasoningView = {
@@ -189,6 +190,7 @@ type InternalTurnBlock =
   | { kind: "reasoning"; text: string; status: AgentReasoningView["status"] }
   | { kind: "context-compaction"; compaction: AgentContextCompacted }
   | { kind: "tool-group"; groupType: ToolGroupType; blocks: AgentToolBlock[] }
+  | { kind: "image"; id: string; src: string; alt: string }
   | { kind: "proposal"; proposal: ProposalView };
 
 export function buildAgentTurnView(
@@ -224,6 +226,8 @@ export function buildAgentTurnView(
       continue;
     }
     appendTool(internalBlocks, block);
+    const image = generatedImageBlock(block);
+    if (image) internalBlocks.push(image);
   }
 
   return {
@@ -297,6 +301,10 @@ function toAgentMessageBlocks(
       });
       continue;
     }
+    if (block.kind === "image") {
+      result.push(block);
+      continue;
+    }
     const raw = approvals.get(block.proposal.toolCallId);
     if (!raw) continue;
     result.push({
@@ -367,6 +375,27 @@ function appendTool(blocks: InternalTurnBlock[], block: AgentToolBlock) {
     groupType: toolGroupType(block.toolName),
     blocks: [block],
   });
+}
+
+function generatedImageBlock(block: AgentToolBlock): InternalTurnBlock | undefined {
+  if (block.toolName !== "image_generate" || block.state !== "completed") return undefined;
+  const output = isRecord(block.output) ? block.output : {};
+  const assetUrl = stringValue(output.assetUrl);
+  const mediaType = stringValue(output.mediaType);
+  if (
+    output.kind !== "generated-image" ||
+    !/^asset:\/\/\/[^/\\]+$/.test(assetUrl) ||
+    !mediaType.startsWith("image/")
+  ) {
+    return undefined;
+  }
+  const prompt = stringValue(toolInput(block).prompt).replace(/\s+/g, " ").trim();
+  return {
+    kind: "image",
+    id: `${block.toolCallId}:image`,
+    src: assetUrl,
+    alt: prompt ? `AI 生成图片：${truncateText(prompt, 160)}` : "AI 生成图片",
+  };
 }
 
 function appendReasoning(
@@ -944,6 +973,7 @@ function toolActivityTitle(groupType: ToolGroupType, blocks: AgentToolBlock[]) {
 }
 
 function toolTitle(name: string) {
+  if (name === "image_generate") return "生成图片";
   if (name === "domain_list") return "列出 Domain";
   if (name === "domain_inspect") return "查看 Domain";
   if (name === "understanding_list") return "列出 Understanding";
@@ -1443,6 +1473,7 @@ function truncateText(text: string, maxLength = 80) {
 }
 
 function toolRunningSummary(name: string, input: Record<string, unknown>) {
+  if (name === "image_generate") return "正在生成图片";
   if (name === "web_search") return `正在搜索网页${queryLabel(input)}`;
   if (name === "search") return `正在搜索${queryLabel(input) || "相关内容"}`;
   if (name === "retrieve_knowledge") return `正在检索${queryLabel(input) || "知识"}`;
@@ -1480,6 +1511,7 @@ function toolFailedSummary(name: string, input: Record<string, unknown>) {
 }
 
 function toolDoneSummary(name: string, input: Record<string, unknown>, output: unknown) {
+  if (name === "image_generate") return "已生成图片";
   const outputRecord = isRecord(output) ? output : {};
   if (name === "read" || name === "file_read") {
     const path = stringValue(input.path);

@@ -1,12 +1,12 @@
-import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { mkdir, readFile, readdir, rm, stat } from "node:fs/promises";
+import { join } from "node:path";
 import { shell } from "electron";
 import { getDBInstance } from "@main/db";
 import { contexts, understandings } from "@reflecta/server";
 import type { OrphanAssetInfo } from "@shared/asset";
 import { IpcMethod, IpcService } from "electron-ipc-decorator";
-import { nanoid } from "nanoid";
 import { getContentStorageRoot } from "../config";
+import { saveAssetFile } from "./asset-storage";
 
 /** Extract all asset filenames referenced in a piece of markdown/html content. */
 function extractAssetRefs(content: string): Set<string> {
@@ -20,22 +20,31 @@ function extractAssetRefs(content: string): Set<string> {
   return refs;
 }
 
+async function readSessionContents(contentStorageRoot: string): Promise<string[]> {
+  const sessionsDir = join(contentStorageRoot, "Sessions");
+  let files: string[];
+  try {
+    files = (await readdir(sessionsDir)).filter((name) => name.endsWith(".jsonl"));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw error;
+  }
+  // ponytail: scan session logs only during manual orphan cleanup; add an index if this becomes slow.
+  return Promise.all(files.map((name) => readFile(join(sessionsDir, name), "utf8")));
+}
+
 export class AssetService extends IpcService {
   static groupName = "asset";
 
   @IpcMethod()
   async saveAsset(buffer: ArrayBuffer, filename: string): Promise<string> {
-    const dir = join(getContentStorageRoot(), "assets");
-    await mkdir(dir, { recursive: true });
-    const ext = extname(filename) || ".bin";
-    const id = `${nanoid()}${ext}`;
-    await writeFile(join(dir, id), Buffer.from(buffer));
-    return id;
+    return saveAssetFile(getContentStorageRoot(), buffer, filename);
   }
 
   @IpcMethod()
   async scanOrphanAssets(): Promise<OrphanAssetInfo[]> {
-    const assetsDir = join(getContentStorageRoot(), "assets");
+    const contentStorageRoot = getContentStorageRoot();
+    const assetsDir = join(contentStorageRoot, "assets");
     await mkdir(assetsDir, { recursive: true });
 
     // Collect all files present on disk
@@ -55,6 +64,9 @@ export class AssetService extends IpcService {
     }
     for (const row of contextRows) {
       for (const ref of extractAssetRefs(row.content)) referenced.add(ref);
+    }
+    for (const content of await readSessionContents(contentStorageRoot)) {
+      for (const ref of extractAssetRefs(content)) referenced.add(ref);
     }
 
     // Orphans = on disk but not referenced
