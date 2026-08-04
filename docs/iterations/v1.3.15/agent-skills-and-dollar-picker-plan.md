@@ -153,7 +153,7 @@ Renderer 在 Composer 建立时读取一次目录。第一版不加 query cache�
 选择时使用 Tiptap range 直接插入普通文本：
 
 ```text
-$skill-name 
+$skill-name
 ```
 
 不增加 Skill mention node，因此：
@@ -236,12 +236,12 @@ $skill-name 用户任务
 
 ### 6.2 自动化分层
 
-| 层级 | 保护内容 |
-|---|---|
-| Main unit | 目录发现、invalid frontmatter、冲突顺序、`$` 转换、Pi 展开输入 |
-| UI component | 过滤、键盘、Escape、IME、文本插入、`@` 共存 |
-| Renderer integration | Chat IPC 结果映射到 Composer props 和错误状态 |
-| Acceptance E2E | 用户从 `$` 选择到发送、可见消息和回复完成的完整入口 |
+| 层级                 | 保护内容                                                       |
+| -------------------- | -------------------------------------------------------------- |
+| Main unit            | 目录发现、invalid frontmatter、冲突顺序、`$` 转换、Pi 展开输入 |
+| UI component         | 过滤、键盘、Escape、IME、文本插入、`@` 共存                    |
+| Renderer integration | Chat IPC 结果映射到 Composer props 和错误状态                  |
+| Acceptance E2E       | 用户从 `$` 选择到发送、可见消息和回复完成的完整入口            |
 
 E2E 不断言 AI 必须输出某段语义文本。Skill 是否真正展开由 Main 的确定性测试证明，E2E 只验收用户能够使用并继续对话。
 
