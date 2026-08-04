@@ -160,8 +160,9 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
     );
   }, [sessionId, state.status, visibleMessages]);
   const isBusy = state.status === "running";
+  const isWaiting = state.status === "waiting";
   const isCompacting = Boolean(state.activeCompaction);
-  const composerBusy = isBusy || isCompacting;
+  const composerBusy = isBusy || isWaiting || isCompacting;
   const error = state.error ? new Error(state.error) : undefined;
   const compactionError = state.compactionError ? new Error(state.compactionError) : undefined;
 
@@ -372,12 +373,16 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
                 type: "tool.approve",
                 sessionId,
                 approvalId: input.approvalId,
+                modelSelection: input.modelSelection,
+                reasoningLevel: input.reasoningLevel,
               }
             : {
                 type: "tool.reject",
                 sessionId,
                 approvalId: input.approvalId,
                 ...(input.rejectionReason ? { reason: input.rejectionReason } : {}),
+                modelSelection: input.modelSelection,
+                reasoningLevel: input.reasoningLevel,
               },
         );
       },

@@ -116,6 +116,7 @@ export function AgentThreadPanel({
     threadView.actions.approveTool({
       ...input,
       modelSelection: activeModel ?? undefined,
+      reasoningLevel: activeReasoningLevel,
     }),
   );
 

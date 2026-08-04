@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { ModelRegistry, SettingsManager } from "@earendil-works/pi-coding-agent";
+import { ModelRegistry, SessionManager, SettingsManager } from "@earendil-works/pi-coding-agent";
 import type { KnownProvider } from "@earendil-works/pi-ai/compat";
 import {
   reduceAgentSession,
@@ -57,6 +57,38 @@ function approvalTransitions(frames: AgentSessionFeedFrame[]) {
     if (index === 0) return true;
     const previous = transitions[index - 1];
     return JSON.stringify(block) !== JSON.stringify(previous);
+  });
+}
+
+function mockAgentReply(manager: SessionManager, text: string) {
+  let listener: ((event: unknown) => void) | undefined;
+  createAgentSessionMock.mockResolvedValueOnce({
+    session: {
+      sessionManager: manager,
+      subscribe: (next: (event: unknown) => void) => {
+        listener = next;
+        return () => {};
+      },
+      prompt: vi.fn(async () => {
+        listener?.({
+          type: "message_update",
+          assistantMessageEvent: { type: "text_delta", delta: text },
+        });
+        listener?.({
+          type: "message_end",
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text }],
+            provider: "openai",
+            model: "gpt-4o",
+            stopReason: "stop",
+          },
+        });
+      }),
+      getContextUsage: vi.fn(() => undefined),
+      dispose: vi.fn(),
+      abort: vi.fn(),
+    },
   });
 }
 
@@ -593,6 +625,7 @@ describe("PiAgentHost", () => {
       payload: { understandingId: "understanding_1", body: "next" },
       createdAt: "2026-06-26T00:00:00.000Z",
     });
+    mockAgentReply(manager, "操作已经完成。");
     await (
       new PiAgentHost(root) as unknown as {
         resolveToolApproval: (command: unknown) => Promise<void>;
@@ -611,6 +644,9 @@ describe("PiAgentHost", () => {
       "entity.catalog.updated",
       "tool.execution.completed",
       "assistant.turn",
+      "run.started",
+      "assistant.turn",
+      "run.completed",
     ]);
     expect(events.find((event) => event.type === "tool.execution.completed")).toMatchObject({
       type: "tool.execution.completed",
@@ -643,6 +679,7 @@ describe("PiAgentHost", () => {
       payload: { understandingId: "understanding_1", domainIds: ["domain_1"] },
       createdAt: "2026-06-26T00:00:00.000Z",
     });
+    mockAgentReply(manager, "操作执行失败。");
     await (
       new PiAgentHost(root) as unknown as {
         resolveToolApproval: (command: unknown) => Promise<void>;
@@ -660,6 +697,9 @@ describe("PiAgentHost", () => {
       "tool.execution.started",
       "tool.execution.failed",
       "assistant.turn",
+      "run.started",
+      "assistant.turn",
+      "run.completed",
     ]);
     expect(events.find((event) => event.type === "tool.execution.failed")).toMatchObject({
       type: "tool.execution.failed",
@@ -1648,6 +1688,228 @@ describe("PiAgentHost", () => {
         domainIds: ["domain_1"],
       },
     ]);
+  });
+
+  test("restores the complete turn while an approval waits across an app restart", async () => {
+    isPiApprovalToolNameMock.mockImplementation((name) => name === "understanding_update");
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("新对话");
+    const manager = await log.openSession(thread.id);
+    log.appendEvent(manager, {
+      id: "evt_existing_cancel",
+      sessionId: thread.id,
+      runId: "run_existing",
+      type: "run.cancelled",
+      createdAt: "2026-06-23T00:00:00.000Z",
+    });
+    let listener: ((event: unknown) => void) | undefined;
+    let finishPrompt!: () => void;
+    const promptFinished = new Promise<void>((resolve) => (finishPrompt = resolve));
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        subscribe: (next: (event: unknown) => void) => {
+          listener = next;
+          return () => {};
+        },
+        prompt: vi.fn(async () => {
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: { type: "thinking_delta", delta: "先检查已有内容。" },
+          });
+          listener?.({
+            type: "tool_execution_start",
+            toolCallId: "read_1",
+            toolName: "understanding_get",
+            args: { understandingId: "understanding_1" },
+          });
+          listener?.({
+            type: "tool_execution_end",
+            toolCallId: "read_1",
+            toolName: "understanding_get",
+            result: { content: [{ type: "text", text: "旧内容" }] },
+            isError: false,
+          });
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: { type: "text_delta", delta: "我建议这样修改。" },
+          });
+          listener?.({
+            type: "tool_execution_start",
+            toolCallId: "write_1",
+            toolName: "understanding_update",
+            args: { understandingId: "understanding_1", after: { body: "新内容" } },
+          });
+          await promptFinished;
+        }),
+        getContextUsage: vi.fn(() => undefined),
+        dispose: vi.fn(),
+        abort: vi.fn(),
+      },
+    });
+    const originalHost = new PiAgentHost(root);
+    const sendPromise = (
+      originalHost as unknown as { sendMessage: (command: unknown) => Promise<void> }
+    ).sendMessage({
+      type: "message.send",
+      sessionId: thread.id,
+      text: "更新这个 Understanding",
+      modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+    });
+
+    await vi.waitFor(async () => {
+      await expect(log.readEvents(thread.id)).resolves.toEqual(
+        expect.arrayContaining([expect.objectContaining({ type: "approval.requested" })]),
+      );
+    });
+
+    try {
+      const restored = await new PiAgentHost(root).readSessionProjection(thread.id);
+      const assistant = restored.messages.find((message) => message.role === "assistant");
+
+      expect(restored).toMatchObject({ status: "waiting", activeRunId: null });
+      expect(assistant?.blocks?.map((block) => block.kind)).toEqual([
+        "reasoning",
+        "tool",
+        "text",
+        "approval",
+      ]);
+    } finally {
+      finishPrompt();
+      await sendPromise;
+    }
+  });
+
+  test.each([
+    { approved: true, expectedReply: "已经按你的确认完成。" },
+    { approved: false, expectedReply: "已经按你的决定取消。" },
+    { approved: true, expectedReply: "危险命令已经执行完成。", bash: true },
+  ])("continues automatically after a restored approval is decided", async (decision) => {
+    isPiApprovalToolNameMock.mockImplementation((name) => name === "understanding_update");
+    executePiApprovedToolMock.mockResolvedValue({
+      resultRefType: "understanding",
+      resultRefId: "understanding_1",
+    });
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("新对话");
+    const manager = await log.openSession(thread.id);
+    const bashMarker = path.join(root, "restored-bash.txt");
+    const toolName = decision.bash ? "bash" : "understanding_update";
+    const toolPayload = decision.bash
+      ? { command: `printf restored > "${bashMarker}"` }
+      : { understandingId: "understanding_1", after: { body: "新内容" } };
+    manager.appendMessage({
+      role: "user",
+      content: [{ type: "text", text: "更新这个 Understanding" }],
+      timestamp: Date.now(),
+    });
+    manager.appendMessage({
+      role: "assistant",
+      content: [{ type: "toolCall", id: "tool_1", name: toolName, arguments: toolPayload }],
+      api: "openai-completions",
+      provider: "openai",
+      model: "gpt-4o",
+      usage: {
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+        totalTokens: 0,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+      },
+      stopReason: "toolUse",
+      timestamp: Date.now(),
+    });
+    const waitingEvents: AgentSessionEvent[] = [
+      {
+        id: "evt_run",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "run.started",
+        createdAt: "2026-06-23T00:00:00.000Z",
+      },
+      {
+        id: "evt_user",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "user.message",
+        messageId: "user_1",
+        text: "更新这个 Understanding",
+        createdAt: "2026-06-23T00:00:01.000Z",
+      },
+      {
+        id: "evt_checkpoint",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "assistant.turn",
+        messageId: "assistant_1",
+        text: "我建议这样修改。",
+        blocks: [
+          {
+            kind: "text",
+            text: "我建议这样修改。",
+            state: "done",
+            createdAt: "2026-06-23T00:00:02.000Z",
+          },
+        ],
+        createdAt: "2026-06-23T00:00:02.000Z",
+      },
+      {
+        id: "evt_approval",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "approval.requested",
+        messageId: "assistant_1",
+        approvalId: "approval_tool_1",
+        toolCallId: "tool_1",
+        toolName,
+        title: decision.bash ? "确认危险 Bash" : "候选修改 Understanding",
+        payload: toolPayload,
+        createdAt: "2026-06-23T00:00:03.000Z",
+      },
+    ];
+    for (const event of waitingEvents) log.appendEvent(manager, event);
+
+    mockAgentReply(manager, decision.expectedReply);
+    const restoredHost = new PiAgentHost(root);
+
+    await restoredHost.sendAgentCommand(
+      decision.approved
+        ? {
+            type: "tool.approve",
+            sessionId: thread.id,
+            approvalId: "approval_tool_1",
+          }
+        : {
+            type: "tool.reject",
+            sessionId: thread.id,
+            approvalId: "approval_tool_1",
+          },
+    );
+
+    const restored = await restoredHost.readSessionProjection(thread.id);
+    expect(restored.status).toBe("idle");
+    expect(restored.messages.filter((message) => message.role === "user")).toHaveLength(1);
+    expect(restored.messages.at(-1)).toMatchObject({
+      role: "assistant",
+      text: decision.expectedReply,
+    });
+    expect(
+      (await log.openSession(thread.id))
+        .getBranch()
+        .some(
+          (entry) =>
+            entry.type === "message" &&
+            entry.message.role === "toolResult" &&
+            entry.message.toolCallId === "tool_1",
+        ),
+    ).toBe(true);
+    expect(executePiApprovedToolMock).toHaveBeenCalledTimes(
+      decision.approved && !decision.bash ? 1 : 0,
+    );
+    if (decision.bash) expect(fs.readFileSync(bashMarker, "utf8")).toBe("restored");
   });
 
   test("restores the active streaming turn when reopening a running session", async () => {

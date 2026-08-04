@@ -849,12 +849,13 @@ test("@AG-PROPOSAL-004 用户确认候选 Domain 后看到执行结果", async (
   }
 });
 
-test("@AG-PROPOSAL-005 用户重新打开对话后仍能处理等待确认的提案", async () => {
+test("@AG-PROPOSAL-005 用户重启应用后仍能处理等待确认的提案并让 Agent 自动继续", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(300_000);
 
-  const prompt = `创建待确认 Understanding：请必须调用 understanding_create 工具提出候选 Understanding。标题必须是 ${PI_RELOAD_PROPOSAL_TITLE}，正文写一行中文。等待我确认，不要直接写入。`;
+  const prompt = `创建待确认 Understanding：先用一句中文说明你准备做什么，再必须调用 understanding_create 工具提出候选 Understanding。标题必须是 ${PI_RELOAD_PROPOSAL_TITLE}，正文写一行中文。等待我确认，不要直接写入。`;
   const first = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+  let replyBeforeProposal = "";
 
   try {
     await createNewThread(first.page);
@@ -865,6 +866,11 @@ test("@AG-PROPOSAL-005 用户重新打开对话后仍能处理等待确认的提
     await expect(pendingCard.getByTestId("agent-proposal-reject-button")).toBeVisible({
       timeout: 120_000,
     });
+    const reply = first.page.getByTestId("agent-assistant-text").last();
+    await expect(reply).toBeVisible();
+    replyBeforeProposal = (await reply.textContent())?.trim() ?? "";
+    expect(replyBeforeProposal).not.toBe("");
+    await expect(first.page.getByTestId("agent-stop-button")).toBeHidden();
   } finally {
     await first.app.close();
   }
@@ -879,10 +885,22 @@ test("@AG-PROPOSAL-005 用户重新打开对话后仍能处理等待确认的提
     await expect(card.getByTestId("agent-proposal-reject-button")).toBeVisible({
       timeout: 15_000,
     });
+    await expect(
+      second.page.getByTestId("agent-assistant-text").filter({ hasText: replyBeforeProposal }),
+    ).toBeVisible();
+    await expect(second.page.getByTestId("agent-stop-button")).toBeHidden();
+    const assistantTextCount = await second.page.getByTestId("agent-assistant-text").count();
+    const userMessageCount = await second.page.getByTestId("agent-user-message").count();
     await card.getByTestId("agent-proposal-reject-button").click();
     await expect(second.page.getByTestId("agent-proposal-card").last()).toContainText("已拒绝", {
       timeout: 120_000,
     });
+    await expect(second.page.getByTestId("agent-assistant-text")).toHaveCount(
+      assistantTextCount + 1,
+      { timeout: 120_000 },
+    );
+    await expect(second.page.getByTestId("agent-user-message")).toHaveCount(userMessageCount);
+    await waitForAssistantReply(second.page);
     expect(understandingExistsByTitle(PI_RELOAD_PROPOSAL_TITLE)).toBe(false);
   } finally {
     await second.app.close();
