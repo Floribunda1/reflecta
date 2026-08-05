@@ -266,6 +266,7 @@ describe("ChatMessageRow", () => {
   });
 
   test("keeps streaming markdown mounted while reasoning is collapsed", () => {
+    const suppressedAnimationClass = "[&_[data-sd-animate]]:animate-none!";
     const reasoningRow = (suffix = ""): ChatMessageRowView => ({
       message: {
         kind: "assistant",
@@ -296,20 +297,28 @@ describe("ChatMessageRow", () => {
     const detail = next.querySelector('[data-testid="agent-reasoning-detail"]');
     expect(detail?.querySelector('[data-slot="chat-markdown"]')).not.toBeNull();
     expect(detail?.querySelector("[data-sd-animate]")).not.toBeNull();
+    expect(detail?.classList.contains(suppressedAnimationClass)).toBe(true);
     expect(detail?.textContent).not.toContain("## Plan");
 
-    act(() =>
-      next.querySelector<HTMLButtonElement>('[data-testid="agent-reasoning"] button')?.click(),
-    );
-    expect(next.querySelector('[data-testid="agent-reasoning-detail"]')).toBe(detail);
-    render(reasoningRow(" NEW_TOKEN"));
-    expect(detail?.textContent).not.toContain("NEW_TOKEN");
+    render(reasoningRow(" LIVE_TOKEN"));
+    expect(detail?.classList.contains(suppressedAnimationClass)).toBe(false);
 
     act(() =>
       next.querySelector<HTMLButtonElement>('[data-testid="agent-reasoning"] button')?.click(),
     );
     expect(next.querySelector('[data-testid="agent-reasoning-detail"]')).toBe(detail);
-    expect(detail?.textContent).toContain("NEW_TOKEN");
+    render(reasoningRow(" LIVE_TOKEN HIDDEN_TOKEN"));
+    expect(detail?.textContent).not.toContain("HIDDEN_TOKEN");
+
+    act(() =>
+      next.querySelector<HTMLButtonElement>('[data-testid="agent-reasoning"] button')?.click(),
+    );
+    expect(next.querySelector('[data-testid="agent-reasoning-detail"]')).toBe(detail);
+    expect(detail?.textContent).toContain("HIDDEN_TOKEN");
+    expect(detail?.classList.contains(suppressedAnimationClass)).toBe(true);
+
+    render(reasoningRow(" LIVE_TOKEN HIDDEN_TOKEN NEW_TOKEN"));
+    expect(detail?.classList.contains(suppressedAnimationClass)).toBe(false);
   });
 
   test("hands ownership to the user while an approval is pending", () => {

@@ -195,10 +195,16 @@ function ReasoningBlock({
   const summary = reasoningSummary(reasoning.markdown);
   const [open, setOpen] = useState(false);
   const opened = useRef(false);
+  const animationBaselineLength = useRef(0);
   const deferredMarkdown = useDeferredValue(reasoning.markdown);
+  const suppressBacklogAnimation =
+    streaming && open && deferredMarkdown.length <= animationBaselineLength.current;
 
   const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) opened.current = true;
+    if (nextOpen) {
+      opened.current = true;
+      animationBaselineLength.current = reasoning.markdown.length;
+    }
     setOpen(nextOpen);
   };
 
@@ -229,7 +235,10 @@ function ReasoningBlock({
       <CollapsibleContent
         keepMounted={opened.current}
         data-testid="agent-reasoning-detail"
-        className="pb-1 pl-7 pr-2 text-muted-foreground"
+        className={cn(
+          "pb-1 pl-7 pr-2 text-muted-foreground",
+          suppressBacklogAnimation && "[&_[data-sd-animate]]:animate-none!",
+        )}
       >
         <ReasoningMarkdown
           markdown={deferredMarkdown}
