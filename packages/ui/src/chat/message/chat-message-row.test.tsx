@@ -266,6 +266,7 @@ describe("ChatMessageRow", () => {
   });
 
   test("keeps streaming markdown mounted while reasoning is collapsed", () => {
+    const suppressedAnimationClass = "[&_[data-sd-animate]]:animate-none!";
     const reasoningRow = (suffix = ""): ChatMessageRowView => ({
       message: {
         kind: "assistant",
@@ -296,20 +297,91 @@ describe("ChatMessageRow", () => {
     const detail = next.querySelector('[data-testid="agent-reasoning-detail"]');
     expect(detail?.querySelector('[data-slot="chat-markdown"]')).not.toBeNull();
     expect(detail?.querySelector("[data-sd-animate]")).not.toBeNull();
+    expect(detail?.classList.contains(suppressedAnimationClass)).toBe(true);
     expect(detail?.textContent).not.toContain("## Plan");
 
-    act(() =>
-      next.querySelector<HTMLButtonElement>('[data-testid="agent-reasoning"] button')?.click(),
-    );
-    expect(next.querySelector('[data-testid="agent-reasoning-detail"]')).toBe(detail);
-    render(reasoningRow(" NEW_TOKEN"));
-    expect(detail?.textContent).not.toContain("NEW_TOKEN");
+    render(reasoningRow(" LIVE_TOKEN"));
+    expect(detail?.classList.contains(suppressedAnimationClass)).toBe(false);
 
     act(() =>
       next.querySelector<HTMLButtonElement>('[data-testid="agent-reasoning"] button')?.click(),
     );
     expect(next.querySelector('[data-testid="agent-reasoning-detail"]')).toBe(detail);
-    expect(detail?.textContent).toContain("NEW_TOKEN");
+    render(reasoningRow(" LIVE_TOKEN HIDDEN_TOKEN"));
+    expect(detail?.textContent).not.toContain("HIDDEN_TOKEN");
+
+    act(() =>
+      next.querySelector<HTMLButtonElement>('[data-testid="agent-reasoning"] button')?.click(),
+    );
+    expect(next.querySelector('[data-testid="agent-reasoning-detail"]')).toBe(detail);
+    expect(detail?.textContent).toContain("HIDDEN_TOKEN");
+    expect(detail?.classList.contains(suppressedAnimationClass)).toBe(true);
+
+    render(reasoningRow(" LIVE_TOKEN HIDDEN_TOKEN NEW_TOKEN"));
+    expect(detail?.classList.contains(suppressedAnimationClass)).toBe(false);
+  });
+
+  test("tracks animation baselines independently across long reasoning blocks", () => {
+    const suppressedAnimationClass = "[&_[data-sd-animate]]:animate-none!";
+    const longMarkdown = Array.from(
+      { length: 40 },
+      (_, index) => `## 分析 ${index}\n\n逐步检查现有状态、比较候选路径，并确认下一步。`,
+    ).join("\n\n");
+    const reasoningRow = (suffix = ""): ChatMessageRowView => ({
+      message: {
+        kind: "assistant",
+        id: "assistant-many-reasoning",
+        status: "streaming",
+        blocks: Array.from({ length: 4 }, (_, index) => ({
+          kind: "reasoning" as const,
+          reasoning: {
+            id: `reasoning-${index}`,
+            status: "streaming" as const,
+            markdown: `${longMarkdown}\n\n${index}${suffix}`,
+          },
+        })),
+      },
+    });
+    const next = render(reasoningRow());
+
+    act(() =>
+      next
+        .querySelector<HTMLButtonElement>('[data-testid="agent-activity-group-trigger"]')
+        ?.click(),
+    );
+    const triggers = Array.from(
+      next.querySelectorAll<HTMLButtonElement>('[data-testid="agent-reasoning"] button'),
+    );
+    const toggleAll = () => act(() => triggers.forEach((trigger) => trigger.click()));
+    toggleAll();
+    const details = Array.from(
+      next.querySelectorAll<HTMLElement>('[data-testid="agent-reasoning-detail"]'),
+    );
+    const animationsSuppressed = () =>
+      details.every((detail) => detail.classList.contains(suppressedAnimationClass));
+    const allContain = (value: string) =>
+      details.every((detail) => detail.textContent?.includes(value));
+    expect(details).toHaveLength(4);
+    expect(animationsSuppressed()).toBe(true);
+
+    let suffix = " LIVE_0";
+    render(reasoningRow(suffix));
+    expect(animationsSuppressed()).toBe(false);
+
+    for (let cycle = 1; cycle <= 3; cycle += 1) {
+      toggleAll();
+      suffix += ` HIDDEN_${cycle}`;
+      render(reasoningRow(suffix));
+      expect(allContain(`HIDDEN_${cycle}`)).toBe(false);
+
+      toggleAll();
+      expect(allContain(`HIDDEN_${cycle}`)).toBe(true);
+      expect(animationsSuppressed()).toBe(true);
+
+      suffix += ` LIVE_${cycle}`;
+      render(reasoningRow(suffix));
+      expect(animationsSuppressed()).toBe(false);
+    }
   });
 
   test("hands ownership to the user while an approval is pending", () => {
