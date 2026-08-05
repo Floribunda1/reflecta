@@ -168,8 +168,8 @@ function CapturePageInner() {
                 id="capture-understanding-list-resize-handle"
                 disabled={focusMode}
                 className={cn(
-                  "cursor-col-resize bg-transparent after:w-px after:bg-border/50 hover:after:bg-border data-[resize-handle-active]:after:bg-ring [&>div]:h-10 [&>div]:w-0.5 [&>div]:bg-border/70",
-                  focusMode ? "w-0 opacity-0 after:hidden" : "w-3",
+                  "cursor-col-resize bg-border/50 after:w-4 hover:bg-border data-[resize-handle-active]:bg-ring [&>div]:h-10 [&>div]:w-0.5 [&>div]:bg-border/70",
+                  focusMode ? "w-0 opacity-0 after:hidden" : "w-px",
                 )}
               />
               <ResizablePanel
