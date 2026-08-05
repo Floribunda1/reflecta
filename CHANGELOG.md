@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.22 - 2026-08-05
+
+- Kept Mermaid diagrams sharp when opened in the zoomed preview.
+- Aligned the Capture list scrollbar with its panel divider.
+
 ## 1.3.21 - 2026-08-05
 
 - Improved long Agent conversation performance by skipping entry animations for restored reasoning blocks while preserving animation for live reasoning.
