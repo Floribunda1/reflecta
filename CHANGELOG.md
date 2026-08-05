@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.21 - 2026-08-05
+
+- Improved long Agent conversation performance by skipping entry animations for restored reasoning blocks while preserving animation for live reasoning.
+
 ## 1.3.20 - 2026-08-05
 
 - Refined Agent conversation reading rhythm with clearer Markdown hierarchy, calmer emphasis and blockquotes, and more comfortable letter spacing.
