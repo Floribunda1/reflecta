@@ -151,7 +151,7 @@ function UserMessageContent({
       className="flex max-w-full flex-col gap-2 whitespace-pre-wrap rounded-lg bg-muted px-4 py-3 text-foreground"
     >
       {message.content?.length || message.text || message.entities?.length ? (
-        <div data-slot="user-message-text" className="text-[13px] leading-[1.7]">
+        <div data-slot="user-message-text" className="text-[13px] leading-[1.7] tracking-[0.01em]">
           {message.content?.map((part, index) =>
             part.kind === "entity" ? (
               <MessageEntityMention
