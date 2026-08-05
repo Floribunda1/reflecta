@@ -404,11 +404,36 @@ test("@AG-RESULT-012 用户查看 Agent 回复中的 Mermaid 图表", async () =
   try {
     await openThread(page, "Mermaid 回复");
     const diagram = page.locator('[data-streamdown="mermaid"]');
-    await expect(diagram.locator("svg")).toBeVisible({ timeout: 15_000 });
+    await expect(diagram.locator("svg[aria-roledescription]")).toBeVisible({ timeout: 15_000 });
     await diagram.hover();
     await expect(page.getByTitle("Copy Code")).toBeVisible();
     await expect(page.getByTitle("Download diagram")).toBeVisible();
     await expect(page.getByTitle("View fullscreen")).toBeVisible();
+    await page.getByTitle("View fullscreen").click();
+    const fullscreenDiagram = page.locator('[data-streamdown="mermaid"]').last();
+    const fullscreenChart = fullscreenDiagram.locator("svg[aria-roledescription]");
+    const zoomIn = fullscreenDiagram.getByTitle("Zoom in");
+    const zoomOut = fullscreenDiagram.getByTitle("Zoom out");
+    const reset = fullscreenDiagram.getByTitle("Reset zoom and pan");
+    const initialBox = await fullscreenChart.boundingBox();
+    if (!initialBox) throw new Error("Fullscreen Mermaid chart is not visible");
+    await expect(fullscreenChart.locator("foreignObject")).toHaveCount(0);
+
+    await zoomIn.click();
+    await expect
+      .poll(async () => (await fullscreenChart.boundingBox())?.width ?? 0)
+      .toBeGreaterThan(initialBox.width);
+    await zoomOut.click();
+    await zoomOut.click();
+    await expect
+      .poll(async () => (await fullscreenChart.boundingBox())?.width ?? 0)
+      .toBeLessThan(initialBox.width);
+    await reset.click();
+    await expect
+      .poll(async () =>
+        Math.abs(((await fullscreenChart.boundingBox())?.width ?? 0) - initialBox.width),
+      )
+      .toBeLessThan(1);
   } finally {
     await app.close();
   }

@@ -40,7 +40,7 @@ const chatMarkdownPlugins = {
 const chatMarkdownControls = {
   code: { copy: true, download: true },
   table: { copy: true, download: true, fullscreen: true },
-  mermaid: { copy: true, download: true, fullscreen: true, panZoom: false },
+  mermaid: { copy: true, download: true, fullscreen: true },
 } satisfies ControlsConfig;
 
 const chatMarkdownAnimation = {
@@ -195,6 +195,7 @@ export function ChatMarkdown({
           components={chatMarkdownComponents}
           controls={chatMarkdownControls}
           isAnimating={streaming}
+          mermaid={{ config: { htmlLabels: false } }}
           plugins={chatMarkdownPlugins}
           rehypePlugins={searchState ? [createChatSearchRehypePlugin(searchState)] : undefined}
           urlTransform={entityUrlTransform}
