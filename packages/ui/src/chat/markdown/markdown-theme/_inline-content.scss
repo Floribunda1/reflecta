@@ -3,7 +3,7 @@
 #{$chat-markdown-root} {
   strong {
     color: var(--reflecta-chat-emphasis);
-    font-weight: 600;
+    font-weight: 500;
   }
 
   a {
@@ -47,7 +47,7 @@
     display: inline;
     border: 0;
     border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--reflecta-chat-muted), transparent 10%);
+    background: color-mix(in srgb, var(--card-foreground), transparent 92%);
     color: var(--reflecta-chat-foreground);
     font-family: "Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     font-size: 0.9em;
