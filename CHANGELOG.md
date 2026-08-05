@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.20 - 2026-08-05
+
+- Refined Agent conversation reading rhythm with clearer Markdown hierarchy, calmer emphasis and blockquotes, and more comfortable letter spacing.
+
 ## 1.3.19 - 2026-08-05
 
 - Resumed pending Agent decisions after app restarts while preserving their prompts, options, and previews.
