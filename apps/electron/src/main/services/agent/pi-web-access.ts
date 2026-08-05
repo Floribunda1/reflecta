@@ -56,18 +56,13 @@ function createPiWebAccessPolicy(): InlineExtension {
       pi.on("tool_call", (event) => {
         if (event.toolName !== "web_search" || !isRecord(event.input)) return undefined;
 
-        if (event.input.provider !== undefined && event.input.provider !== "exa") {
-          return {
-            block: true,
-            reason: "Reflecta 只允许使用 Exa 进行网页搜索。",
-          };
-        }
-        if (event.input.workflow !== undefined && event.input.workflow !== "auto-summary") {
-          return {
-            block: true,
-            reason: "Reflecta 网页搜索固定使用自动摘要流程。",
-          };
-        }
+        // 模型显式传入的 provider / workflow 一律就地删除，回落到
+        // web-search.json 固定的 provider: "exa" + workflow: "auto-summary"。
+        // 不直接 block：模型会把描述中的 "auto" / "none" 当成合理取值，
+        // 阻止后它会反复用同样的越界参数重试而持续失败；
+        // 静默归一化让任何显式值都等价于缺省，稳定走自动摘要。
+        delete event.input.provider;
+        delete event.input.workflow;
         return undefined;
       });
     },

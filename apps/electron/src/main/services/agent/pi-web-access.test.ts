@@ -84,7 +84,7 @@ describe("createPiWebAccessResources", () => {
     expect(loader.getSkills().skills).toEqual([]);
   });
 
-  test("allows only the fixed Exa auto-summary search policy", async () => {
+  test("normalizes explicit provider/workflow to the fixed Exa auto-summary policy", async () => {
     const resources = createPiWebAccessResources(tempRoot());
     const policy = resources.extensionFactories[0];
     const factory = typeof policy === "function" ? policy : policy.factory;
@@ -101,23 +101,35 @@ describe("createPiWebAccessResources", () => {
     } as ExtensionAPI);
     if (!handler) throw new Error("web access policy did not register a tool_call handler");
 
-    const call = (input: Record<string, unknown>) =>
-      handler!(
-        { type: "tool_call", toolName: "web_search", toolCallId: "search", input },
-        {} as ExtensionContext,
-      );
+    const run = (input: Record<string, unknown>) => {
+      const event: ToolCallEvent = {
+        type: "tool_call",
+        toolName: "web_search",
+        toolCallId: "search",
+        input,
+      };
+      return { result: handler!(event, {} as ExtensionContext), input };
+    };
 
-    expect(await call({ query: "Reflecta" })).toBeUndefined();
-    expect(
-      await call({ query: "Reflecta", provider: "exa", workflow: "auto-summary" }),
-    ).toBeUndefined();
-    expect(await call({ query: "Reflecta", provider: "openai" })).toEqual({
-      block: true,
-      reason: "Reflecta 只允许使用 Exa 进行网页搜索。",
+    // 缺省参数：不 block，也不改动输入。
+    const omitted = run({ query: "Reflecta" });
+    expect(await omitted.result).toBeUndefined();
+    expect(omitted.input).toEqual({ query: "Reflecta" });
+
+    // 显式合法值：不 block，但被归一化为缺省（删除后由配置决定 exa + auto-summary）。
+    const allowed = run({ query: "Reflecta", provider: "exa", workflow: "auto-summary" });
+    expect(await allowed.result).toBeUndefined();
+    expect(allowed.input).toEqual({ query: "Reflecta" });
+
+    // 越界值（provider: "auto"/"openai"、workflow: "none"/"summary-review"）：
+    // 不再阻止执行，而是就地删除，避免模型用同样的参数反复重试失败。
+    const outOfPolicy = run({
+      query: "Reflecta",
+      provider: "auto",
+      workflow: "none",
+      numResults: 5,
     });
-    expect(await call({ query: "Reflecta", workflow: "summary-review" })).toEqual({
-      block: true,
-      reason: "Reflecta 网页搜索固定使用自动摘要流程。",
-    });
+    expect(await outOfPolicy.result).toBeUndefined();
+    expect(outOfPolicy.input).toEqual({ query: "Reflecta", numResults: 5 });
   });
 });
