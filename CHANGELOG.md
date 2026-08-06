@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.0 - 2026-08-06
+
+- Made the Thinking panel expand/collapse responsive while tokens stream: collapsed reasoning no longer re-renders, streaming reasoning renders without per-character animation, and collapsed panels release their DOM.
+- Normalized the web search policy so unsupported queries are no longer silently blocked.
+- Refactored knowledge retrieval into a memory-continuation flow: unified matches list, tool-level behavior contract, quote-style snippets with sentence boundaries, and code-migrated rebuild linkage.
+
 ## 1.3.22 - 2026-08-05
 
 - Kept Mermaid diagrams sharp when opened in the zoomed preview.
