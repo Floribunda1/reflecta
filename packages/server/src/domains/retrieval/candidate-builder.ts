@@ -1,9 +1,5 @@
 import type { UnderstandingSummary } from "../understanding/types";
-import type {
-  CandidateMatch,
-  RetrievalSearchHit,
-  UnderstandingCandidate,
-} from "./types";
+import type { CandidateMatch, RetrievalSearchHit, UnderstandingCandidate } from "./types";
 
 export type RankedRetrievalHit = RetrievalSearchHit & { rank: number; snippet: string };
 

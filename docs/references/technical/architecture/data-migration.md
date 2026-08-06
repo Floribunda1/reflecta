@@ -25,7 +25,7 @@ export default {
   name: "v1.4.0",
   version: [1, 4, 0],
   up: async (ctx) => {
-    ctx.sql(`...`);            // SQLite 迁移逻辑（可选）
+    ctx.sql(`...`); // SQLite 迁移逻辑（可选）
     // ... 任意数据迁移逻辑（session、数据改写等）
   },
 };
@@ -48,9 +48,9 @@ app.whenReady().then(async () => {
   // initializeDB 内：createDBInstance(runMigrations: false)
   //                + 显式 performDbMigration(db, appVersion) → 返回本次执行的迁移
   if (needsVectorRebuild(executed)) {
-    await retrievalIndexCoordinator.rebuild();   // 数据版本推进到 v1.4.0+，重建向量库
+    await retrievalIndexCoordinator.rebuild(); // 数据版本推进到 v1.4.0+，重建向量库
   } else {
-    retrievalIndexCoordinator.start();           // 常规 reconcile
+    retrievalIndexCoordinator.start(); // 常规 reconcile
   }
 });
 ```

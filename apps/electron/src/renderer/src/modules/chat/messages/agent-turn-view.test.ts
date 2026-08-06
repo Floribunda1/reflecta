@@ -892,7 +892,24 @@ describe("buildAgentTurnView", () => {
     [
       "retrieve_knowledge",
       { query: "反馈" },
-      { candidates: [{ id: "u1", matches: [{ entityType: "context", id: "ctx1", snippet: "", channels: ["dense"], rank: 0, medium: "", reason: "" }] }] },
+      {
+        candidates: [
+          {
+            id: "u1",
+            matches: [
+              {
+                entityType: "context",
+                id: "ctx1",
+                snippet: "",
+                channels: ["dense"],
+                rank: 0,
+                medium: "",
+                reason: "",
+              },
+            ],
+          },
+        ],
+      },
       "检索「反馈」 · 1 条 Understanding / 1 条 Context 证据",
     ],
     [

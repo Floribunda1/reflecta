@@ -58,7 +58,8 @@ export function compareVersions(a: Version, b: Version): number {
 /** 从 migration/code/ 加载 code migrations（按版本排序） */
 async function loadCodeMigrations(): Promise<Migration[]> {
   const toMigration = (mod: { default: CodeMigration } | CodeMigration): Migration => {
-    const code = "default" in mod ? (mod as { default: CodeMigration }).default : (mod as CodeMigration);
+    const code =
+      "default" in mod ? (mod as { default: CodeMigration }).default : (mod as CodeMigration);
     return { name: code.name, version: code.version, up: code.up };
   };
 
@@ -77,11 +78,11 @@ async function loadCodeMigrations(): Promise<Migration[]> {
   const migrationDir = path.resolve(import.meta.dirname, "migration/code");
   const files = fs.readdirSync(migrationDir).filter((file) => file.endsWith(".ts"));
   const mods = await Promise.all(
-    files.map((file) => import(path.join(migrationDir, file)) as Promise<{ default: CodeMigration }>),
+    files.map(
+      (file) => import(path.join(migrationDir, file)) as Promise<{ default: CodeMigration }>,
+    ),
   );
-  return mods
-    .map(toMigration)
-    .sort((a, b) => compareVersions(a.version, b.version));
+  return mods.map(toMigration).sort((a, b) => compareVersions(a.version, b.version));
 }
 
 let codeMigrationsCache: Promise<Migration[]> | undefined;
@@ -171,4 +172,3 @@ export async function performDbMigration(
 
   return { executed: executedThisRun };
 }
-

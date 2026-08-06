@@ -19,8 +19,6 @@ import type {
 
 export const RETRIEVAL_SNIPPET_MAX_CHARS = 240;
 
-
-
 /**
  * 引文式 snippet（A5）：按句子边界截断，避免截到 Markdown 语法/句子中间。
  * 优先在句号/感叹/问号/换行处断；无合适边界时截断并加省略号。
@@ -129,7 +127,6 @@ export class SearchCore {
       { limit: retrievalDocumentLimit },
       "hybrid",
     );
-
 
     const parentIds = [...new Set(hits.map((hit) => hit.parentUnderstandingId))];
     const rows =
