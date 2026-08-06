@@ -20,7 +20,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
-import { memo, useDeferredValue, useRef, useState } from "react";
+import { memo, useDeferredValue, useState } from "react";
 import { cn } from "#lib/utils";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "../../components/alert";
 import { Button } from "../../components/button";
@@ -208,18 +208,12 @@ function ReasoningBlock({
   const streaming = reasoning.status === "streaming";
   const summary = reasoningSummary(reasoning.markdown);
   const [open, setOpen] = useState(false);
-  const opened = useRef(false);
   const deferredMarkdown = useDeferredValue(reasoning.markdown);
-
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) opened.current = true;
-    setOpen(nextOpen);
-  };
 
   return (
     <Collapsible
       open={open}
-      onOpenChange={handleOpenChange}
+      onOpenChange={setOpen}
       data-slot="agent-reasoning"
       data-testid="agent-reasoning"
       className="my-0.5 min-w-0 w-full text-[13px] text-foreground/75"
@@ -241,7 +235,6 @@ function ReasoningBlock({
         <ArrowUpRight className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
       </CollapsibleTrigger>
       <CollapsibleContent
-        keepMounted={opened.current}
         data-testid="agent-reasoning-detail"
         className="pb-1 pl-7 pr-2 text-muted-foreground"
       >

@@ -260,9 +260,7 @@ test("benchmark: toggle latency mid-stream (C)", () => {
       trigger()?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })),
     );
     closeLatency.push(performance.now() - t1);
-    expect(
-      container?.querySelector('[data-testid="agent-reasoning-detail"]')?.getAttribute("hidden"),
-    ).toBe("");
+    expect(container?.querySelector('[data-testid="agent-reasoning-detail"]')).toBeNull();
     rawRounds.push(
       `round ${round}: open=${(openLatency.at(-1) ?? 0).toFixed(2)}ms close=${(closeLatency.at(-1) ?? 0).toFixed(2)}ms`,
     );
@@ -318,6 +316,7 @@ test("benchmark: many mounted-collapsed panels while one streams (D)", () => {
     ),
   );
   const setupMs = performance.now() - setupT0;
+  expect(container?.querySelectorAll('[data-testid="agent-reasoning-detail"]')).toHaveLength(0);
   const elementCount = container?.querySelectorAll("*").length ?? 0;
   const textNodeCount = Array.from(container?.querySelectorAll("*") ?? []).reduce(
     (count, node) =>
@@ -343,16 +342,14 @@ test("benchmark: many mounted-collapsed panels while one streams (D)", () => {
   }
 
   console.log(
-    `[D] ${PANELS} mounted-collapsed panels (each ~10k chars) while 1 streams (${U - 10} updates)`,
+    `[D] ${PANELS} panels opened then collapsed (each ~10k chars) while 1 streams (${U - 10} updates)`,
   );
   console.log(`  setup (mount + open/close all) = ${setupMs.toFixed(1)}ms`);
   console.log(
-    `  DOM: ${elementCount} elements, ${textNodeCount} text nodes (all panels collapsed)`,
+    `  DOM after closing all: ${elementCount} elements, ${textNodeCount} text nodes (collapsed panels unmounted)`,
   );
   summary("wall clock/update", perUpdate);
-  expect(container?.querySelectorAll('[data-testid="agent-reasoning-detail"]')).toHaveLength(
-    PANELS,
-  );
+  expect(container?.querySelectorAll('[data-testid="agent-reasoning-detail"]')).toHaveLength(0);
 }, 180_000);
 
 test("benchmark: unmount cost of a large panel (keepMounted=false close) (E)", () => {
