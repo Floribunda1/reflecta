@@ -37,14 +37,23 @@ function seedCompactedThread() {
   });
 }
 
+// 自动压缩判定（pi agent-session）取最后一次 assistant 消息的 usage：
+// shouldCompact(contextTokens, contextWindow) = contextTokens > contextWindow - reserveTokens(16384)。
+// 默认模型 deepseek-v4-flash 窗口 1M，因此 usage 超过 ~984K 才会触发 pre-prompt 阈值压缩。
+// 这里用 990_000 模拟"已接近上下文上限"的会话，让压缩在真实模型调用之前发生；
+// 若换更大窗口模型，需同步调大该值。
+const COMPACTION_TRIGGER_USAGE_TOKENS = 990_000;
+
 test("@AG-COMPACT-001 过长对话在继续回复前自动压缩上下文", async () => {
   expect(hasAi).toBe(true);
   test.setTimeout(180_000);
   const messages = Array.from({ length: 8 }, (_, index) => [
-    userMessage(`automatic-user-${index}`, `第 ${index + 1} 轮背景：${"重要约束。".repeat(4_500)}`),
-    assistantMessage(`automatic-assistant-${index}`, [
-      { type: "text", text: `第 ${index + 1} 轮记录：${"已经理解。".repeat(4_500)}` },
-    ]),
+    userMessage(`automatic-user-${index}`, `第 ${index + 1} 轮背景：${"重要约束。".repeat(1_600)}`),
+    assistantMessage(
+      `automatic-assistant-${index}`,
+      [{ type: "text", text: `第 ${index + 1} 轮记录：${"已经理解。".repeat(1_600)}` }],
+      COMPACTION_TRIGGER_USAGE_TOKENS,
+    ),
   ]).flat();
   seedAgentThread({
     id: "automatic-compaction",

@@ -260,13 +260,10 @@ describe("ChatMessageRow", () => {
     act(() =>
       next.querySelector<HTMLButtonElement>('[data-testid="agent-reasoning"] button')?.click(),
     );
-    expect(
-      next.querySelector('[data-testid="agent-reasoning-detail"]')?.hasAttribute("hidden"),
-    ).toBe(true);
+    expect(next.querySelector('[data-testid="agent-reasoning-detail"]')).toBeNull();
   });
 
-  test("keeps streaming markdown mounted while reasoning is collapsed", () => {
-    const suppressedAnimationClass = "[&_[data-sd-animate]]:animate-none!";
+  test("unmounts streaming reasoning while collapsed and re-renders on open", () => {
     const reasoningRow = (suffix = ""): ChatMessageRowView => ({
       message: {
         kind: "assistant",
@@ -296,33 +293,34 @@ describe("ChatMessageRow", () => {
     );
     const detail = next.querySelector('[data-testid="agent-reasoning-detail"]');
     expect(detail?.querySelector('[data-slot="chat-markdown"]')).not.toBeNull();
-    expect(detail?.querySelector("[data-sd-animate]")).not.toBeNull();
-    expect(detail?.classList.contains(suppressedAnimationClass)).toBe(true);
-    expect(detail?.textContent).not.toContain("## Plan");
+    expect(detail?.textContent).toContain("Inspect");
 
+    // streaming while open renders the new tokens
     render(reasoningRow(" LIVE_TOKEN"));
-    expect(detail?.classList.contains(suppressedAnimationClass)).toBe(false);
+    expect(detail?.textContent).toContain("LIVE_TOKEN");
 
+    // collapse: the panel unmounts (no keepMounted), freeing the rendered DOM
     act(() =>
       next.querySelector<HTMLButtonElement>('[data-testid="agent-reasoning"] button')?.click(),
     );
-    expect(next.querySelector('[data-testid="agent-reasoning-detail"]')).toBe(detail);
+    expect(next.querySelector('[data-testid="agent-reasoning-detail"]')).toBeNull();
     render(reasoningRow(" LIVE_TOKEN HIDDEN_TOKEN"));
-    expect(detail?.textContent).not.toContain("HIDDEN_TOKEN");
+    expect(next.querySelector('[data-testid="agent-reasoning-detail"]')).toBeNull();
 
+    // re-open: mounts fresh and renders the latest content
     act(() =>
       next.querySelector<HTMLButtonElement>('[data-testid="agent-reasoning"] button')?.click(),
     );
-    expect(next.querySelector('[data-testid="agent-reasoning-detail"]')).toBe(detail);
-    expect(detail?.textContent).toContain("HIDDEN_TOKEN");
-    expect(detail?.classList.contains(suppressedAnimationClass)).toBe(true);
+    const reopened = next.querySelector('[data-testid="agent-reasoning-detail"]');
+    expect(reopened).not.toBeNull();
+    expect(reopened?.textContent).toContain("HIDDEN_TOKEN");
 
+    // streaming while open keeps updating after a re-open
     render(reasoningRow(" LIVE_TOKEN HIDDEN_TOKEN NEW_TOKEN"));
-    expect(detail?.classList.contains(suppressedAnimationClass)).toBe(false);
+    expect(reopened?.textContent).toContain("NEW_TOKEN");
   });
 
-  test("tracks animation baselines independently across long reasoning blocks", () => {
-    const suppressedAnimationClass = "[&_[data-sd-animate]]:animate-none!";
+  test("tracks streaming updates independently across long reasoning blocks", () => {
     const longMarkdown = Array.from(
       { length: 40 },
       (_, index) => `## 分析 ${index}\n\n逐步检查现有状态、比较候选路径，并确认下一步。`,
@@ -354,33 +352,36 @@ describe("ChatMessageRow", () => {
     );
     const toggleAll = () => act(() => triggers.forEach((trigger) => trigger.click()));
     toggleAll();
-    const details = Array.from(
-      next.querySelectorAll<HTMLElement>('[data-testid="agent-reasoning-detail"]'),
-    );
-    const animationsSuppressed = () =>
-      details.every((detail) => detail.classList.contains(suppressedAnimationClass));
+    const details = () =>
+      Array.from(next.querySelectorAll<HTMLElement>('[data-testid="agent-reasoning-detail"]'));
     const allContain = (value: string) =>
-      details.every((detail) => detail.textContent?.includes(value));
-    expect(details).toHaveLength(4);
-    expect(animationsSuppressed()).toBe(true);
+      details().every((detail) => detail.textContent?.includes(value));
+    expect(details()).toHaveLength(4);
 
+    // open state renders the current content of every block
+    expect(allContain("分析 39")).toBe(true);
+
+    // streams while open: each block tracks its own growing text
     let suffix = " LIVE_0";
     render(reasoningRow(suffix));
-    expect(animationsSuppressed()).toBe(false);
+    expect(allContain("LIVE_0")).toBe(true);
 
     for (let cycle = 1; cycle <= 3; cycle += 1) {
+      // collapse: panels unmount (no keepMounted), freeing the rendered DOM
       toggleAll();
+      expect(details()).toHaveLength(0);
       suffix += ` HIDDEN_${cycle}`;
       render(reasoningRow(suffix));
-      expect(allContain(`HIDDEN_${cycle}`)).toBe(false);
+      expect(details()).toHaveLength(0);
 
+      // re-open: each block mounts fresh and catches up to its own latest content
       toggleAll();
+      expect(details()).toHaveLength(4);
       expect(allContain(`HIDDEN_${cycle}`)).toBe(true);
-      expect(animationsSuppressed()).toBe(true);
 
       suffix += ` LIVE_${cycle}`;
       render(reasoningRow(suffix));
-      expect(animationsSuppressed()).toBe(false);
+      expect(allContain(`LIVE_${cycle}`)).toBe(true);
     }
   });
 

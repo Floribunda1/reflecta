@@ -20,7 +20,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
-import { memo, useDeferredValue, useRef, useState } from "react";
+import { memo, useDeferredValue, useState } from "react";
 import { cn } from "#lib/utils";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "../../components/alert";
 import { Button } from "../../components/button";
@@ -174,14 +174,28 @@ const ReasoningMarkdown = memo(
     open: boolean;
     entityBindings?: ChatEntityBindings;
   }) {
-    return <ChatMarkdown value={markdown} tone="muted" streaming={streaming} {...entityBindings} />;
+    return (
+      <ChatMarkdown
+        value={markdown}
+        tone="muted"
+        streaming={streaming}
+        animateStreaming={false}
+        {...entityBindings}
+      />
+    );
   },
-  (previous, next) =>
-    previous.open === next.open &&
-    (!next.open ||
-      (previous.markdown === next.markdown &&
-        previous.streaming === next.streaming &&
-        previous.entityBindings === next.entityBindings)),
+  (previous, next) => {
+    // While closed (or while collapsing), keep the last rendered DOM: the
+    // panel is hidden via CSS and only needs a re-render when re-opened.
+    if (!next.open) return true;
+    // Opening: render the latest markdown (it may be stale from being skipped).
+    if (!previous.open) return false;
+    return (
+      previous.markdown === next.markdown &&
+      previous.streaming === next.streaming &&
+      previous.entityBindings === next.entityBindings
+    );
+  },
 );
 
 function ReasoningBlock({
@@ -194,24 +208,12 @@ function ReasoningBlock({
   const streaming = reasoning.status === "streaming";
   const summary = reasoningSummary(reasoning.markdown);
   const [open, setOpen] = useState(false);
-  const opened = useRef(false);
-  const animationBaselineLength = useRef(0);
   const deferredMarkdown = useDeferredValue(reasoning.markdown);
-  const suppressBacklogAnimation =
-    streaming && open && deferredMarkdown.length <= animationBaselineLength.current;
-
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) {
-      opened.current = true;
-      animationBaselineLength.current = reasoning.markdown.length;
-    }
-    setOpen(nextOpen);
-  };
 
   return (
     <Collapsible
       open={open}
-      onOpenChange={handleOpenChange}
+      onOpenChange={setOpen}
       data-slot="agent-reasoning"
       data-testid="agent-reasoning"
       className="my-0.5 min-w-0 w-full text-[13px] text-foreground/75"
@@ -233,12 +235,8 @@ function ReasoningBlock({
         <ArrowUpRight className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
       </CollapsibleTrigger>
       <CollapsibleContent
-        keepMounted={opened.current}
         data-testid="agent-reasoning-detail"
-        className={cn(
-          "pb-1 pl-7 pr-2 text-muted-foreground",
-          suppressBacklogAnimation && "[&_[data-sd-animate]]:animate-none!",
-        )}
+        className="pb-1 pl-7 pr-2 text-muted-foreground"
       >
         <ReasoningMarkdown
           markdown={deferredMarkdown}

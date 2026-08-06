@@ -21,6 +21,7 @@ type FixtureMessage = {
   parts: unknown[];
   metadata?: unknown;
   createdAt?: string;
+  usageTokens?: number;
 };
 
 type FixtureEntityCatalogEntry = {
@@ -549,11 +550,11 @@ function seedThread(thread: FixtureThread) {
               provider: "deepseek",
               model: "fixture",
               usage: {
-                input: 0,
+                input: message.usageTokens ?? 0,
                 output: 0,
                 cacheRead: 0,
                 cacheWrite: 0,
-                totalTokens: 0,
+                totalTokens: message.usageTokens ?? 0,
                 cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
               },
               stopReason: "stop",
