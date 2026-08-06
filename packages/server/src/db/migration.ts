@@ -1,6 +1,7 @@
 import type { Database } from "libsql";
-import fs from "node:fs";
-import path from "node:path";
+import v100 from "./migration/code/v1.0.0";
+import v110 from "./migration/code/v1.1.0";
+import v135 from "./migration/code/v1.3.5";
 import type { ReflectaDb } from "./types";
 
 export type MigrationContext = {
@@ -56,33 +57,10 @@ export function compareVersions(a: Version, b: Version): number {
 }
 
 /** 从 migration/code/ 加载 code migrations（按版本排序） */
+const codeMigrations: CodeMigration[] = [v100, v110, v135];
+
 async function loadCodeMigrations(): Promise<Migration[]> {
-  const toMigration = (mod: { default: CodeMigration } | CodeMigration): Migration => {
-    const code =
-      "default" in mod ? (mod as { default: CodeMigration }).default : (mod as CodeMigration);
-    return { name: code.name, version: code.version, up: code.up };
-  };
-
-  // @ts-ignore import.meta.glob is provided by Vite when bundled for Electron.
-  if (typeof import.meta.glob === "function") {
-    // @ts-ignore import.meta.glob is provided by Vite when bundled for Electron.
-    const mods = import.meta.glob("./migration/code/*.ts", {
-      eager: true,
-      import: "default",
-    }) as Record<string, CodeMigration>;
-    return Object.values(mods)
-      .map((m) => ({ name: m.name, version: m.version, up: m.up }))
-      .sort((a, b) => compareVersions(a.version, b.version));
-  }
-
-  const migrationDir = path.resolve(import.meta.dirname, "migration/code");
-  const files = fs.readdirSync(migrationDir).filter((file) => file.endsWith(".ts"));
-  const mods = await Promise.all(
-    files.map(
-      (file) => import(path.join(migrationDir, file)) as Promise<{ default: CodeMigration }>,
-    ),
-  );
-  return mods.map(toMigration).sort((a, b) => compareVersions(a.version, b.version));
+  return codeMigrations.map(({ name, version, up }) => ({ name, version, up }));
 }
 
 let codeMigrationsCache: Promise<Migration[]> | undefined;

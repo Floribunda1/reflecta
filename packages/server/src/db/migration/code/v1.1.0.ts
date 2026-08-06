@@ -5,9 +5,9 @@
  * SQLite 部分通过 ctx.sql 执行；如需重建向量库/迁移 session，在此声明或由 Electron 按版本执行。
  * name 保留 ".sql" 后缀以兼容历史 _migrations 记录。
  */
-import type { MigrationContext } from "../../migration";
+import type { CodeMigration, MigrationContext } from "../../migration";
 
-export default {
+const migration: CodeMigration = {
   name: "v1.1.0.sql",
   version: [1, 1, 0],
   up: (ctx: MigrationContext) => {
@@ -16,3 +16,5 @@ export default {
     );
   },
 };
+
+export default migration;
