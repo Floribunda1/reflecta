@@ -39,7 +39,12 @@ test("@KW-GRAPH-005 用户悬停节点时临时查看它的直接邻域", async 
     await expect(page.getByTestId("capture-understanding-detail-panel")).not.toBeVisible();
 
     await page.mouse.move(bounds.x + 4, bounds.y + 4);
-    await expect.poll(async () => (await canvas.screenshot()).equals(baseline)).toBe(true);
+    // 并行负载下 canvas 清除 hover 高亮可能超过默认 5s 轮询,放宽到与 graph-ready 一致
+    await expect
+      .poll(async () => (await canvas.screenshot()).equals(baseline), {
+        timeout: 15_000,
+      })
+      .toBe(true);
   } finally {
     await app.close();
   }

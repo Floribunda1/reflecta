@@ -736,7 +736,8 @@ test("@AG-RETRIEVAL-003 用户要求 Agent 检索知识库后看到检索结果"
     await expect(page.getByTestId("agent-tool-activity")).toBeVisible({ timeout: 120_000 });
     await waitForAssistantReply(page);
     const toolActivity = page.getByTestId("agent-tool-activity").first();
-    await expect(toolActivity).toContainText("检索「React Server Components」");
+    // 行为契约要求自然语言查询,模型可能把专有名词扩展成完整句子,只断言查询围绕 RSC
+    await expect(toolActivity).toContainText(/检索「[^」]*React Server Components/);
     await expect(toolActivity.getByTestId("agent-tool-detail")).not.toBeVisible();
     await toolActivity.click();
     await expect(toolActivity.getByTestId("agent-tool-detail")).toBeVisible();
