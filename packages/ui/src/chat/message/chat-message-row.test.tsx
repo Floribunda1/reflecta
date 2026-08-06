@@ -266,7 +266,6 @@ describe("ChatMessageRow", () => {
   });
 
   test("keeps streaming markdown mounted while reasoning is collapsed", () => {
-    const suppressedAnimationClass = "[&_[data-sd-animate]]:animate-none!";
     const reasoningRow = (suffix = ""): ChatMessageRowView => ({
       message: {
         kind: "assistant",
@@ -296,13 +295,13 @@ describe("ChatMessageRow", () => {
     );
     const detail = next.querySelector('[data-testid="agent-reasoning-detail"]');
     expect(detail?.querySelector('[data-slot="chat-markdown"]')).not.toBeNull();
-    expect(detail?.querySelector("[data-sd-animate]")).not.toBeNull();
-    expect(detail?.classList.contains(suppressedAnimationClass)).toBe(true);
-    expect(detail?.textContent).not.toContain("## Plan");
+    expect(detail?.textContent).toContain("Inspect");
 
+    // streaming while open renders the new tokens
     render(reasoningRow(" LIVE_TOKEN"));
-    expect(detail?.classList.contains(suppressedAnimationClass)).toBe(false);
+    expect(detail?.textContent).toContain("LIVE_TOKEN");
 
+    // collapse: the panel stays mounted (keepMounted) with the last rendered content
     act(() =>
       next.querySelector<HTMLButtonElement>('[data-testid="agent-reasoning"] button')?.click(),
     );
@@ -310,19 +309,19 @@ describe("ChatMessageRow", () => {
     render(reasoningRow(" LIVE_TOKEN HIDDEN_TOKEN"));
     expect(detail?.textContent).not.toContain("HIDDEN_TOKEN");
 
+    // re-open: renders the latest content (catch-up on open)
     act(() =>
       next.querySelector<HTMLButtonElement>('[data-testid="agent-reasoning"] button')?.click(),
     );
     expect(next.querySelector('[data-testid="agent-reasoning-detail"]')).toBe(detail);
     expect(detail?.textContent).toContain("HIDDEN_TOKEN");
-    expect(detail?.classList.contains(suppressedAnimationClass)).toBe(true);
 
+    // streaming while open keeps updating after a re-open
     render(reasoningRow(" LIVE_TOKEN HIDDEN_TOKEN NEW_TOKEN"));
-    expect(detail?.classList.contains(suppressedAnimationClass)).toBe(false);
+    expect(detail?.textContent).toContain("NEW_TOKEN");
   });
 
-  test("tracks animation baselines independently across long reasoning blocks", () => {
-    const suppressedAnimationClass = "[&_[data-sd-animate]]:animate-none!";
+  test("tracks streaming updates independently across long reasoning blocks", () => {
     const longMarkdown = Array.from(
       { length: 40 },
       (_, index) => `## 分析 ${index}\n\n逐步检查现有状态、比较候选路径，并确认下一步。`,
@@ -357,30 +356,32 @@ describe("ChatMessageRow", () => {
     const details = Array.from(
       next.querySelectorAll<HTMLElement>('[data-testid="agent-reasoning-detail"]'),
     );
-    const animationsSuppressed = () =>
-      details.every((detail) => detail.classList.contains(suppressedAnimationClass));
     const allContain = (value: string) =>
       details.every((detail) => detail.textContent?.includes(value));
     expect(details).toHaveLength(4);
-    expect(animationsSuppressed()).toBe(true);
 
+    // open state renders the current content of every block
+    expect(allContain("分析 39")).toBe(true);
+
+    // streams while open: each block tracks its own growing text
     let suffix = " LIVE_0";
     render(reasoningRow(suffix));
-    expect(animationsSuppressed()).toBe(false);
+    expect(allContain("LIVE_0")).toBe(true);
 
     for (let cycle = 1; cycle <= 3; cycle += 1) {
+      // collapse: content freezes, panels stay mounted
       toggleAll();
       suffix += ` HIDDEN_${cycle}`;
       render(reasoningRow(suffix));
       expect(allContain(`HIDDEN_${cycle}`)).toBe(false);
 
+      // re-open: each block catches up to its own latest content
       toggleAll();
       expect(allContain(`HIDDEN_${cycle}`)).toBe(true);
-      expect(animationsSuppressed()).toBe(true);
 
       suffix += ` LIVE_${cycle}`;
       render(reasoningRow(suffix));
-      expect(animationsSuppressed()).toBe(false);
+      expect(allContain(`LIVE_${cycle}`)).toBe(true);
     }
   });
 

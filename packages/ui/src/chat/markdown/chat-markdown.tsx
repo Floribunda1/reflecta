@@ -56,6 +56,14 @@ export type ChatMarkdownProps = ChatEntityBindings & {
   tone?: "default" | "muted";
   className?: string;
   streaming?: boolean;
+  /**
+   * When streaming, animate newly appended content char-by-char.
+   * Creating one animated span per character is expensive for very long text;
+   * disable it for large secondary surfaces (e.g. streaming reasoning) where
+   * the reveal animation isn't worth the render cost.
+   * @default true
+   */
+  animateStreaming?: boolean;
 };
 
 function fallbackPresentation(reference: ChatEntityReference): ChatEntityPresentation {
@@ -162,6 +170,7 @@ export function ChatMarkdown({
   tone = "default",
   className,
   streaming = false,
+  animateStreaming = true,
   resolveEntity,
   onEntityOpen,
 }: ChatMarkdownProps): ReactNode {
@@ -190,11 +199,11 @@ export function ChatMarkdown({
         <Streamdown
           key={`${forcedTheme ?? resolvedTheme}:${searchState?.query ?? "plain"}:${entityRenderKey}`}
           mode={streaming ? "streaming" : "static"}
-          animated={streaming ? chatMarkdownAnimation : false}
+          animated={streaming && animateStreaming ? chatMarkdownAnimation : false}
           caret="circle"
           components={chatMarkdownComponents}
           controls={chatMarkdownControls}
-          isAnimating={streaming}
+          isAnimating={streaming && animateStreaming}
           mermaid={{ config: { htmlLabels: false } }}
           plugins={chatMarkdownPlugins}
           rehypePlugins={searchState ? [createChatSearchRehypePlugin(searchState)] : undefined}
