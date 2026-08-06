@@ -63,7 +63,7 @@ export async function runPiAgentSmoke(input: RunPiAgentSmokeInput): Promise<RunP
     authPath: path.join(agentDir, "auth.json"),
     modelsPath: null,
   });
-  await modelRuntime.setRuntimeApiKey(input.providerId, input.apiKey, { allowNetwork: false });
+  await modelRuntime.setRuntimeApiKey(input.providerId, input.apiKey);
   const model =
     modelRuntime.getModel(input.providerId, input.modelId) ??
     resolvePiModel(input.providerId, input.modelId);

@@ -40,8 +40,8 @@
     "build:linux": "bun run clean:dist && bun run build && electron-builder --linux"
   },
   "dependencies": {
-    "@earendil-works/pi-ai": "0.83.0",
-    "@earendil-works/pi-coding-agent": "0.83.0",
+    "@earendil-works/pi-ai": "0.84.0",
+    "@earendil-works/pi-coding-agent": "0.84.0",
     "@lancedb/lancedb": "0.33.0",
     "apache-arrow": "18.1.0",
     "better-sqlite3": "^13.0.2",
