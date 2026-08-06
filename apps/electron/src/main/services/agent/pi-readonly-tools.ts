@@ -275,18 +275,35 @@ export function createPiReadOnlyTools(
       name: "retrieve_knowledge",
       label: "检索知识",
       description:
-        "Retrieve the user's existing Understandings and supporting Contexts when the current discussion depends on their prior views, experiences, comparisons, revisions, or possible conflicts. Do not use it for general external knowledge or when the current materials already contain what is needed.",
+        "Retrieve the user's prior Understandings and supporting Contexts when the discussion depends on their earlier views, experiences, comparisons, revisions, or possible conflicts.\n\nHow to query: describe in natural language the object and judgment the user is discussing, keeping proper nouns (titles, names, terms). Don't use keyword lists.\n\nAfter retrieval: read the 2-3 most relevant candidates. If coverage is insufficient, re-query using new clues from what you read (terms, experiences, connections), at most 2 more rounds — stop as soon as it's enough. If nothing relevant exists, say so instead of forcing an answer.\n\nA candidate Understanding is the user's judgment; matched Contexts are supporting material (experience/ai/article/video) — cite them as evidence, never as the user's understanding. When the user explicitly @-mentioned an entity, read it directly with understanding_get instead of retrieving.",
       promptSnippet:
-        "retrieve_knowledge: recall the user's prior Understandings and supporting Contexts when the current discussion depends on them.",
+        "retrieve_knowledge: recall prior Understandings when the discussion depends on them; query with natural language + proper nouns, iterate at most 2 rounds if insufficient, @-mentioned entities are read directly.",
       parameters: Type.Object({
         query: Type.String({ minLength: 1 }),
-        limit: paginationParameters.limit,
+        // A3：检索候选上限遵循社区 top-k 实践（默认 10，上限 20）
+        limit: Type.Optional(
+          Type.Integer({
+            minimum: 1,
+            maximum: 20,
+            description: "Maximum number of candidates to return.",
+          }),
+        ),
+        // A4：先圈定领域范围再检索（透传为 domain anchors）
+        domainIds: Type.Optional(
+          Type.Array(Type.String({ minLength: 1 }), {
+            description: "Restrict retrieval to these Domains.",
+          }),
+        ),
       }),
-      execute: async (toolCallId, { query, limit }) =>
+      execute: async (toolCallId, { query, limit, domainIds }) =>
         createToolResult(
           "retrieve_knowledge",
           toolCallId,
-          await searchCliService.retrieveKnowledge({ query, limit }),
+          await searchCliService.retrieveKnowledge({
+            query,
+            limit,
+            anchors: domainIds?.map((id) => ({ type: "domain" as const, id })),
+          }),
           entityOptions,
         ),
     }),
