@@ -168,12 +168,12 @@ export class AgentEntityCatalog {
       this.addEntity({ type: "understanding", id: value.id, title: titleFor(value) }, origin);
     }
 
-    // A1：matches 里的命中（entityType 区分判断/材料）
+    // A1：matches 里的命中（entityType 区分判断/材料，title 随命中携带）
     if (parentKey === "matches") {
       if (value.entityType === "context" && typeof value.id === "string") {
-        this.addEntity({ type: "context", id: value.id }, origin);
+        this.addEntity({ type: "context", id: value.id, title: titleFor(value) }, origin);
       } else if (value.entityType === "understanding" && typeof value.id === "string") {
-        this.addEntity({ type: "understanding", id: value.id }, origin);
+        this.addEntity({ type: "understanding", id: value.id, title: titleFor(value) }, origin);
       }
     }
 

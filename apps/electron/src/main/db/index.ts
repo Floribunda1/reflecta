@@ -27,6 +27,10 @@ export const initializeDB = async (): Promise<{ executed: string[] }> => {
   const dbPath = path.join(contentStorageRoot, "reflecta.db");
   const retrievalIndexPath = getRetrievalIndexPath();
   const profile = getReflectaProfile();
+  // TS7 native-preview control-flow bug: a `let` declared inside try and
+  // conditionally assigned after `await` is misread as never-in-scope at the
+  // trailing return; declaring here keeps the exact same semantics.
+  let executed: string[] = [];
   try {
     process.env.REFLECTA_RETRIEVAL_INDEX_PATH = retrievalIndexPath;
     configureRetrievalEmbeddingProviderFactory(createUtilityProcessEmbeddingProvider);
@@ -35,7 +39,6 @@ export const initializeDB = async (): Promise<{ executed: string[] }> => {
       fs.mkdirSync(contentStorageRoot, { recursive: true });
     }
 
-    let executed: string[] = [];
     db = await createDBInstance(dbPath, {
       appVersion: app.getVersion(),
       runMigrations: false,

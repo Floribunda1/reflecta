@@ -1,7 +1,10 @@
 import {
+  compareVersions,
   configureRetrievalEmbedding,
   createDBInstance,
   ensureStoreDataEnvironment,
+  parseAppVersion,
+  readDataVersion,
   type ReflectaDb,
   type RetrievalEmbeddingConfig,
 } from "@reflecta/server";

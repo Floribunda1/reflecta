@@ -123,6 +123,7 @@ describe("createPiReadOnlyTools", () => {
             {
               entityType: "context",
               id: "ctx_1",
+              title: "一次复盘",
               medium: "experience",
               snippet: "excerpt",
               channels: ["dense"],
@@ -157,6 +158,7 @@ describe("createPiReadOnlyTools", () => {
             {
               entityType: "context",
               id: "ctx_1",
+              title: "一次复盘",
               medium: "experience",
               snippet: "excerpt",
               channels: ["dense"],

@@ -200,7 +200,7 @@ describe("code migrations (A7)", () => {
       codeMigrations: [
         {
           name: "v1.1.0-code.sql",
-          version: [1, 1, 0],
+          version: [1, 1, 0] as const,
           up: (ctx: MigrationContext) => {
             ctx.sql("CREATE TABLE IF NOT EXISTS code_migrated (id TEXT)");
           },
@@ -217,7 +217,7 @@ describe("code migrations (A7)", () => {
       codeMigrations: [
         {
           name: "v1.1.0-request-rebuild.ts",
-          version: [1, 1, 0],
+          version: [1, 1, 0] as const,
           up: async (ctx: MigrationContext) => {
             await Promise.resolve();
             ctx.sql("CREATE TABLE IF NOT EXISTS async_migrated (id TEXT)");
@@ -237,7 +237,7 @@ describe("code migrations (A7)", () => {
       codeMigrations: [
         {
           name: "v1.1.0-count.ts",
-          version: [1, 1, 0],
+          version: [1, 1, 0] as const,
           up: (ctx: MigrationContext) => {
             runs += 1;
             ctx.sql("CREATE TABLE IF NOT EXISTS counted (id TEXT)");
@@ -252,11 +252,11 @@ describe("code migrations (A7)", () => {
 
   test("code migration runs alongside SQL migrations up to the target version", async () => {
     const db = await createTestDb("1.0.0");
-    const result = await performDbMigration(db, "1.1.0", {
+    await performDbMigration(db, "1.1.0", {
       codeMigrations: [
         {
           name: "v1.1.0-after-sql.ts",
-          version: [1, 1, 0],
+          version: [1, 1, 0] as const,
           up: (ctx: MigrationContext) => {
             ctx.sql("CREATE TABLE IF NOT EXISTS after_sql (id TEXT)");
           },
@@ -270,11 +270,11 @@ describe("code migrations (A7)", () => {
 
   test("skips code migrations newer than target version", async () => {
     const db = await createTestDb("1.0.0");
-    const result = await performDbMigration(db, "1.0.0", {
+    await performDbMigration(db, "1.0.0", {
       codeMigrations: [
         {
           name: "v1.1.0-too-new.ts",
-          version: [1, 1, 0],
+          version: [1, 1, 0] as const,
           up: (ctx: MigrationContext) => {
             ctx.sql("CREATE TABLE IF NOT EXISTS should_not_exist (id TEXT)");
           },
