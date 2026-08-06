@@ -274,3 +274,129 @@ test("benchmark: toggle latency mid-stream (C)", () => {
   summary("close click -> commit", closeLatency);
   expect(trigger()).toBeTruthy();
 });
+
+test("benchmark: many mounted-collapsed panels while one streams (D)", () => {
+  mount();
+  const PANELS = 24;
+  const panelCorpus = thinkingCorpus(10_000); // ~10k chars per thinking block
+  // Realistic: only the active (last) panel streams; the others are frozen
+  // finished messages that stay mounted (row-level memo keeps them from re-rendering).
+  const blocks = (streamingSuffix = "") =>
+    Array.from({ length: PANELS }, (_, index) =>
+      reasoningBlock(
+        index === PANELS - 1
+          ? `${panelCorpus}\n\n块 ${index}${streamingSuffix}`
+          : `${panelCorpus}\n\n块 ${index}`,
+      ),
+    );
+
+  const setupT0 = performance.now();
+  act(() =>
+    root?.render(
+      <>
+        {blocks().map((block, index) => (
+          <AgentExecutionBlock key={index} block={block} entityBindings={freshBindings()} />
+        ))}
+      </>,
+    ),
+  );
+  // open + close every panel once so keepMounted activates (mirrors a user who peeked at each)
+  const triggers = Array.from(
+    container?.querySelectorAll(
+      '[data-testid="agent-reasoning"] [data-slot="collapsible-trigger"]',
+    ) ?? [],
+  );
+  expect(triggers).toHaveLength(PANELS);
+  act(() =>
+    triggers.forEach((trigger) =>
+      trigger.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })),
+    ),
+  );
+  act(() =>
+    triggers.forEach((trigger) =>
+      trigger.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })),
+    ),
+  );
+  const setupMs = performance.now() - setupT0;
+  const elementCount = container?.querySelectorAll("*").length ?? 0;
+  const textNodeCount = Array.from(container?.querySelectorAll("*") ?? []).reduce(
+    (count, node) =>
+      count + Array.from(node.childNodes).filter((child) => child.nodeType === 3).length,
+    0,
+  );
+
+  // one panel streams (index PANELS-1), the rest stay mounted + collapsed
+  const perUpdate: number[] = [];
+  const U = 80;
+  for (let i = 0; i < U; i += 1) {
+    const t0 = performance.now();
+    act(() =>
+      root?.render(
+        <>
+          {blocks(` LIVE_${i}`).map((block, index) => (
+            <AgentExecutionBlock key={index} block={block} entityBindings={freshBindings()} />
+          ))}
+        </>,
+      ),
+    );
+    if (i >= 10) perUpdate.push(performance.now() - t0);
+  }
+
+  console.log(
+    `[D] ${PANELS} mounted-collapsed panels (each ~10k chars) while 1 streams (${U - 10} updates)`,
+  );
+  console.log(`  setup (mount + open/close all) = ${setupMs.toFixed(1)}ms`);
+  console.log(
+    `  DOM: ${elementCount} elements, ${textNodeCount} text nodes (all panels collapsed)`,
+  );
+  summary("wall clock/update", perUpdate);
+  expect(container?.querySelectorAll('[data-testid="agent-reasoning-detail"]')).toHaveLength(
+    PANELS,
+  );
+}, 180_000);
+
+test("benchmark: unmount cost of a large panel (keepMounted=false close) (E)", () => {
+  container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+
+  const large = corpus.slice(0, 80_000);
+  act(() =>
+    root?.render(
+      <div>
+        <AgentExecutionBlock block={reasoningBlock(large)} entityBindings={freshBindings()} />
+      </div>,
+    ),
+  );
+  act(() =>
+    container
+      ?.querySelector('[data-testid="agent-reasoning"] [data-slot="collapsible-trigger"]')
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })),
+  );
+
+  // simulate collapsing without keepMounted: unmount the panel subtree
+  const samples: number[] = [];
+  for (let i = 0; i < 3; i += 1) {
+    act(() =>
+      root?.render(
+        <div>
+          <AgentExecutionBlock block={reasoningBlock(large)} entityBindings={freshBindings()} />
+        </div>,
+      ),
+    );
+    act(() =>
+      container
+        ?.querySelector('[data-testid="agent-reasoning"] [data-slot="collapsible-trigger"]')
+        ?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })),
+    );
+    const t1 = performance.now();
+    act(() => root?.render(<div />)); // unmount subtree (open panel)
+    samples.push(performance.now() - t1);
+    act(() => root?.render(<div />));
+  }
+
+  console.log(`[E] unmount cost of an open 80k-char panel (3 samples)`);
+  samples.forEach((sample, index) => console.log(`  unmount #${index}: ${sample.toFixed(2)}ms`));
+  summary("unmount", samples);
+  expect(container?.querySelector('[data-testid="agent-reasoning"]')).toBeNull();
+}, 180_000);
