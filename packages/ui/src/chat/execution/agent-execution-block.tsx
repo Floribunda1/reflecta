@@ -20,7 +20,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
-import { memo, useDeferredValue, useState } from "react";
+import { memo, useDeferredValue, useEffect, useRef, useState } from "react";
 import { cn } from "#lib/utils";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "../../components/alert";
 import { Button } from "../../components/button";
@@ -49,6 +49,8 @@ function compactTokenCount(tokens: number | undefined) {
     maximumFractionDigits: 1,
   }).format(tokens);
 }
+
+const REASONING_SCROLL_END_THRESHOLD = 32;
 
 const TOOL_ICONS: Record<AgentToolIconKind, LucideIcon> = {
   attachment: Paperclip,
@@ -209,6 +211,36 @@ function ReasoningBlock({
   const summary = reasoningSummary(reasoning.markdown);
   const [open, setOpen] = useState(false);
   const deferredMarkdown = useDeferredValue(reasoning.markdown);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const stickToBottomRef = useRef(true);
+
+  // 展开时重新开始跟随底部，并滚到最新内容。
+  useEffect(() => {
+    if (!open) return;
+    stickToBottomRef.current = true;
+    const frame = requestAnimationFrame(() => {
+      const element = scrollRef.current;
+      if (!element) return;
+      element.scrollTop = element.scrollHeight;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [open]);
+
+  // 流式输出新 token 时跟随底部；用户向上滚动后暂停跟随。
+  useEffect(() => {
+    if (!open || !stickToBottomRef.current) return;
+    const element = scrollRef.current;
+    if (!element) return;
+    element.scrollTop = element.scrollHeight;
+  }, [open, deferredMarkdown]);
+
+  const handleScroll = () => {
+    const element = scrollRef.current;
+    if (!element) return;
+    stickToBottomRef.current =
+      element.scrollHeight - element.scrollTop - element.clientHeight <=
+      REASONING_SCROLL_END_THRESHOLD;
+  };
 
   return (
     <Collapsible
@@ -238,12 +270,19 @@ function ReasoningBlock({
         data-testid="agent-reasoning-detail"
         className="pb-1 pl-7 pr-2 text-muted-foreground"
       >
-        <ReasoningMarkdown
-          markdown={deferredMarkdown}
-          streaming={streaming}
-          open={open}
-          entityBindings={entityBindings}
-        />
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          data-testid="agent-reasoning-scroll"
+          className="max-h-96 overflow-y-auto"
+        >
+          <ReasoningMarkdown
+            markdown={deferredMarkdown}
+            streaming={streaming}
+            open={open}
+            entityBindings={entityBindings}
+          />
+        </div>
       </CollapsibleContent>
     </Collapsible>
   );
