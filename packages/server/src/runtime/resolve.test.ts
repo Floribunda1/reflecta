@@ -21,7 +21,7 @@ describe("runtime path resolution", () => {
     expect(electron.dataTarget).toBe("prod");
     expect(cli.dataTarget).toBe("prod");
     expect(cli.appConfigDir).toBe(electron.appConfigDir);
-    expect(cli.migrationPolicy).toBe("auto");
+    expect(cli.migrationPolicy).toBe("verify");
   });
 
   test("source product entrypoints default to dev data and do not run migrations", () => {

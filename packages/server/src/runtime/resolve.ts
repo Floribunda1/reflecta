@@ -6,7 +6,7 @@ export type ProcessKind = "electron" | "cli" | "test" | "script";
 export type BuildKind = "release" | "source";
 export type DataTarget = "prod" | "dev" | "test";
 export type StoreMode = "full-store" | "explicit-db";
-export type MigrationPolicy = "auto" | "disabled" | "dev-only";
+export type MigrationPolicy = "auto" | "verify" | "disabled" | "dev-only";
 
 export interface RuntimeAppConfig {
   contentStorageRoot?: string;
@@ -160,8 +160,13 @@ function migrationPolicy(
     return "disabled";
   }
 
-  if (input.processKind === "electron" || input.processKind === "cli") {
+  if (input.processKind === "electron") {
     return buildKind === "release" ? "auto" : "disabled";
+  }
+
+  if (input.processKind === "cli") {
+    // A7：CLI 不执行迁移，只做数据版本校验（Electron 是唯一迁移执行者）
+    return buildKind === "release" ? "verify" : "disabled";
   }
 
   if (input.processKind === "script") {

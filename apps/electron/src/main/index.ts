@@ -3,6 +3,7 @@ import { app, BrowserWindow, ipcMain, nativeTheme, shell } from "electron";
 import { merge } from "lodash-es";
 import "./services";
 import { initializeDB } from "./db";
+import { parseMigrationVersion, compareVersions } from "@reflecta/server";
 import { registerAssetScheme, handleAssetProtocol } from "./assetProtocol";
 import { APP_NAME, appLog, initializeLogging } from "./logger";
 import { preloadScript, rendererHtml } from "./paths";
@@ -85,9 +86,30 @@ const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?:
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
+// A7：数据版本推进到 v1.4.0 及以上时重建向量库（投影变更随数据迁移生效）
+const VECTOR_REBUILD_THRESHOLD: [number, number, number] = [1, 4, 0];
+
+function needsVectorRebuild(executed: string[]): boolean {
+  return executed.some((name) => {
+    try {
+      return compareVersions(parseMigrationVersion(name), VECTOR_REBUILD_THRESHOLD) >= 0;
+    } catch {
+      return false;
+    }
+  });
+}
+
 app.whenReady().then(async () => {
-  await initializeDB();
-  retrievalIndexCoordinator.start();
+  const { executed } = await initializeDB();
+  if (needsVectorRebuild(executed)) {
+    try {
+      await retrievalIndexCoordinator.rebuild();
+    } catch (error) {
+      appLog.error("retrieval index rebuild failed on startup", error);
+    }
+  } else {
+    retrievalIndexCoordinator.start();
+  }
   app.once("before-quit", () => {
     retrievalIndexCoordinator.stop();
     retrievalEmbeddingRunner.stop();
