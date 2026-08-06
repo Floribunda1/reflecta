@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.2 - 2026-08-06
+
+- Reverted the composer input font to text-sm so the chat composition area stays compact on smaller windows.
+- Upgraded @earendil-works/pi-ai and @earendil-works/pi-coding-agent to 0.84.0 and aligned runtime API key calls with the new model runtime signature.
+
 ## 1.4.1 - 2026-08-06
 
 - Fixed the production startup crash introduced in 1.4.0: after updating, Reflecta stayed running in the background without ever showing a window. Code migrations are now statically imported and bundled into the app instead of being discovered at runtime from a filesystem path that the packaged app does not contain.
