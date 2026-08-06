@@ -1,7 +1,6 @@
 import type { UnderstandingSummary } from "../understanding/types";
 import type {
-  CandidateEvidence,
-  MatchedContext,
+  CandidateMatch,
   RetrievalSearchHit,
   UnderstandingCandidate,
 } from "./types";
@@ -10,29 +9,24 @@ export type RankedRetrievalHit = RetrievalSearchHit & { rank: number; snippet: s
 
 type CandidateWithRank = UnderstandingCandidate & { bestRank: number };
 
-function evidenceFor(hit: RankedRetrievalHit): CandidateEvidence[] {
-  return hit.channels.map((channel) => ({
-    channel,
-    documentId: hit.id,
-    entityType: hit.entityType,
-    score: hit.score,
-    rank: hit.rank,
-    reason:
-      channel === "dense"
-        ? "semantic similarity on RetrievalDocument"
-        : "lexical hit on RetrievalDocument",
-  }));
-}
-
-function matchedContextFor(hit: RankedRetrievalHit): MatchedContext {
-  const reason = hit.channels.includes("dense")
-    ? "semantic hit on Context"
-    : "lexical hit on Context";
+function matchFor(hit: RankedRetrievalHit): CandidateMatch {
+  const dense = hit.channels.includes("dense");
+  const reason =
+    hit.entityType === "context"
+      ? dense
+        ? "semantic hit on Context"
+        : "lexical hit on Context"
+      : dense
+        ? "semantic hit on Understanding"
+        : "lexical hit on Understanding";
   return {
-    contextId: hit.entityId,
+    entityType: hit.entityType,
+    id: hit.entityId,
     medium: hit.metadata.medium ?? "",
     title: hit.metadata.title ?? null,
     snippet: hit.snippet,
+    channels: hit.channels,
+    rank: hit.rank,
     reason,
   };
 }
@@ -61,12 +55,11 @@ export function buildUnderstandingCandidates({
         title: summary.title,
         snippet: hit.snippet,
         score: hit.score,
-        matchedContexts: [],
+        matches: [],
         suggestedRead: {
           tool: "understanding_get",
           input: { understandingId: summary.id, includeContexts: true },
         },
-        evidence: [],
         bestRank: hit.rank,
       };
       candidates.set(summary.id, candidate);
@@ -74,10 +67,7 @@ export function buildUnderstandingCandidates({
 
     candidate.score = Math.max(candidate.score, hit.score);
     candidate.bestRank = Math.min(candidate.bestRank, hit.rank);
-    candidate.evidence.push(...evidenceFor(hit));
-    if (hit.entityType === "context") {
-      candidate.matchedContexts.push(matchedContextFor(hit));
-    }
+    candidate.matches.push(matchFor(hit));
   }
 
   return [...candidates.values()]

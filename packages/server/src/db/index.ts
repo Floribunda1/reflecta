@@ -7,6 +7,7 @@ import type { Database as BetterSqliteDatabase } from "better-sqlite3";
 
 export type { ReflectaDb } from "./types";
 export * from "./store-marker";
+export * from "./migration";
 
 export interface CreateDBInstanceOptions {
   runMigrations?: boolean;

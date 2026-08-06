@@ -55,6 +55,14 @@ describe("createPiReadOnlyTools", () => {
     expect(createPiReadOnlyTools().map((tool) => tool.name)).toEqual(expectedReadToolNames);
   });
 
+  test("retrieve_knowledge caps limit at 20 (A3)", () => {
+    const tool = createPiReadOnlyTools().find((item) => item.name === "retrieve_knowledge");
+    expect(tool).toBeDefined();
+    const schemaText = JSON.stringify(tool!.parameters);
+    expect(schemaText).toContain('"maximum":20');
+    expect(schemaText).not.toContain('"maximum":200');
+  });
+
   test("executes retrieve_knowledge through the retrieval seam", async () => {
     const result = { candidates: [], trace: { query: "agent 标准" } };
     services.retrieveKnowledge.mockResolvedValue(result);
@@ -84,12 +92,44 @@ describe("createPiReadOnlyTools", () => {
     expect(output.details).toEqual(result);
   });
 
+  test("retrieve_knowledge forwards domainIds as domain anchors (A4)", async () => {
+    const result = { candidates: [], trace: { query: "q" } };
+    services.retrieveKnowledge.mockResolvedValue(result);
+    const tool = createPiReadOnlyTools().find((item) => item.name === "retrieve_knowledge");
+    expect(tool).toBeDefined();
+
+    const execute = tool!.execute as unknown as (
+      toolCallId: string,
+      params: Record<string, unknown>,
+    ) => Promise<{ details: unknown }>;
+    await execute("tool-1", { query: "q", domainIds: ["d-1", "d-2"] });
+
+    expect(services.retrieveKnowledge).toHaveBeenCalledWith({
+      query: "q",
+      anchors: [
+        { type: "domain", id: "d-1" },
+        { type: "domain", id: "d-2" },
+      ],
+    });
+  });
+
   test("retrieve_knowledge exposes stable ids without display refs", async () => {
     const result = {
       candidates: [
         {
-          understanding: { id: "u_1", title: "Feedback Loop", body: "body" },
-          matchedContexts: [{ context: { id: "ctx_1", title: "一次复盘", excerpt: "excerpt" } }],
+          id: "u_1",
+          title: "Feedback Loop",
+          matches: [
+            {
+              entityType: "context",
+              id: "ctx_1",
+              medium: "experience",
+              snippet: "excerpt",
+              channels: ["dense"],
+              rank: 0,
+              reason: "semantic hit on Context",
+            },
+          ],
         },
       ],
     };
@@ -111,18 +151,17 @@ describe("createPiReadOnlyTools", () => {
     expect(output.details).toEqual({
       candidates: [
         {
-          understanding: {
-            id: "u_1",
-            title: "Feedback Loop",
-            body: "body",
-          },
-          matchedContexts: [
+          id: "u_1",
+          title: "Feedback Loop",
+          matches: [
             {
-              context: {
-                id: "ctx_1",
-                title: "一次复盘",
-                excerpt: "excerpt",
-              },
+              entityType: "context",
+              id: "ctx_1",
+              medium: "experience",
+              snippet: "excerpt",
+              channels: ["dense"],
+              rank: 0,
+              reason: "semantic hit on Context",
             },
           ],
         },

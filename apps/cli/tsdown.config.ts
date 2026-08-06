@@ -1,50 +1,10 @@
 import { defineConfig } from "tsdown";
-import fs from "node:fs";
 import path from "node:path";
 
 const cliRoot = import.meta.dirname;
 
-/**
- * Rollup plugin to handle `?raw` imports for SQL files.
- * Reads the file and exports its contents as a default string.
- */
-function rawSqlPlugin() {
-  const resolvedPaths = new Map<string, string>();
-
-  return {
-    name: "raw-sql",
-    resolveId(source: string, importer: string | undefined) {
-      if (source.endsWith(".sql?raw")) {
-        const realPath = path.resolve(path.dirname(importer ?? ""), source.replace("?raw", ""));
-        resolvedPaths.set(source, realPath);
-        return source;
-      }
-      return null;
-    },
-    load(id: string) {
-      const realPath = resolvedPaths.get(id);
-      if (realPath) {
-        const content = fs.readFileSync(realPath, "utf-8");
-        return `export default ${JSON.stringify(content)};`;
-      }
-      return null;
-    },
-  };
-}
-
-function copyMigrationSql() {
-  return {
-    name: "copy-migration-sql",
-    closeBundle() {
-      fs.cpSync(
-        path.resolve(cliRoot, "../../packages/server/src/db/migration/sql"),
-        path.resolve(cliRoot, "dist/migration/sql"),
-        { recursive: true },
-      );
-    },
-  };
-}
-
+// 注：CLI 不执行数据迁移（Electron 是唯一迁移执行者，CLI 只做数据版本校验），
+// 因此不需要把 migration 文件复制进产物。
 export default defineConfig({
   clean: true,
   define: {
@@ -60,5 +20,5 @@ export default defineConfig({
   deps: {
     alwaysBundle: [/^@reflecta\//],
   },
-  plugins: [rawSqlPlugin(), copyMigrationSql()],
+  plugins: [],
 });

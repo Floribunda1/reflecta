@@ -105,11 +105,15 @@ describe("AgentEntityCatalog", () => {
           id: "u_1",
           title: "Feedback Loop",
           snippet: "snippet",
-          matchedContexts: [
+          matches: [
             {
-              contextId: "ctx_1",
-              title: "一次复盘",
+              entityType: "context",
+              id: "ctx_1",
+              medium: "experience",
               snippet: "context snippet",
+              channels: ["dense"],
+              rank: 0,
+              reason: "semantic hit on Context",
             },
           ],
           suggestedRead: {
@@ -129,7 +133,7 @@ describe("AgentEntityCatalog", () => {
         },
         {
           key: "context:ctx_1",
-          entity: { type: "context", id: "ctx_1", title: "一次复盘" },
+          entity: { type: "context", id: "ctx_1" },
           origin: { kind: "tool_result", toolCallId: "tool_1", toolName: "retrieve_knowledge" },
         },
       ]),

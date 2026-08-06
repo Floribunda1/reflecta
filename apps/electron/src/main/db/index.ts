@@ -6,6 +6,7 @@ import {
   configureRetrievalEmbeddingProviderFactory,
   createDBInstance,
   ensureStoreDataEnvironment,
+  performDbMigration,
   type ReflectaDb,
 } from "@reflecta/server";
 import {
@@ -21,7 +22,7 @@ import { createUtilityProcessEmbeddingProvider } from "../retrievalEmbeddingRunn
 
 let db: ReflectaDb;
 
-export const initializeDB = async () => {
+export const initializeDB = async (): Promise<{ executed: string[] }> => {
   const contentStorageRoot = getContentStorageRoot();
   const dbPath = path.join(contentStorageRoot, "reflecta.db");
   const retrievalIndexPath = getRetrievalIndexPath();
@@ -34,10 +35,16 @@ export const initializeDB = async () => {
       fs.mkdirSync(contentStorageRoot, { recursive: true });
     }
 
+    let executed: string[] = [];
     db = await createDBInstance(dbPath, {
       appVersion: app.getVersion(),
-      runMigrations: profile === "prod",
+      runMigrations: false,
     });
+    // A7：Electron 是唯一的迁移执行者；显式跑 migration 以便按版本决定向量库 rebuild
+    if (profile === "prod") {
+      const result = await performDbMigration(db, app.getVersion());
+      executed = result.executed;
+    }
     if (!getRuntimeArg("reflecta-app-config-dir") && !getRuntimeArg("reflecta-content-root")) {
       ensureStoreDataEnvironment(db, profile);
     }
@@ -67,6 +74,7 @@ export const initializeDB = async () => {
     });
     throw error;
   }
+  return { executed };
 };
 
 export const getDBInstance = () => db;

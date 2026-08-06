@@ -8,6 +8,8 @@ import {
   parseAppVersion,
   parseMigrationVersion,
   performDbMigration,
+  readDataVersion,
+  type MigrationContext,
 } from "./migration";
 
 let tempDirs: string[] = [];
@@ -188,5 +190,114 @@ describe("versioned migrations", () => {
     ).toMatchObject({
       content: "关联 [[旧标题#understanding-target]]，保留 [[u:already-canonical]]。",
     });
+  });
+});
+
+describe("code migrations (A7)", () => {
+  test("executes a registered code migration with db + sql context", async () => {
+    const db = await createTestDb("1.0.0");
+    const result = await performDbMigration(db, "1.1.0", {
+      codeMigrations: [
+        {
+          name: "v1.1.0-code.sql",
+          version: [1, 1, 0],
+          up: (ctx: MigrationContext) => {
+            ctx.sql("CREATE TABLE IF NOT EXISTS code_migrated (id TEXT)");
+          },
+        },
+      ],
+    });
+    expect(hasTable(db, "code_migrated")).toBe(true);
+    expect(result.executed).toEqual(["v1.1.0.sql", "v1.1.0-code.sql"]);
+  });
+
+  test("supports async up and records index rebuild request", async () => {
+    const db = await createTestDb("1.0.0");
+    const result = await performDbMigration(db, "1.1.0", {
+      codeMigrations: [
+        {
+          name: "v1.1.0-request-rebuild.ts",
+          version: [1, 1, 0],
+          up: async (ctx: MigrationContext) => {
+            await Promise.resolve();
+            ctx.sql("CREATE TABLE IF NOT EXISTS async_migrated (id TEXT)");
+            ctx.requestRetrievalIndexRebuild();
+          },
+        },
+      ],
+    });
+    expect(hasTable(db, "async_migrated")).toBe(true);
+    expect(result.executed).toContain("v1.1.0-request-rebuild.ts");
+  });
+
+  test("runs a code migration once even when migration is re-invoked", async () => {
+    const db = await createTestDb("1.0.0");
+    let runs = 0;
+    const options = {
+      codeMigrations: [
+        {
+          name: "v1.1.0-count.ts",
+          version: [1, 1, 0],
+          up: (ctx: MigrationContext) => {
+            runs += 1;
+            ctx.sql("CREATE TABLE IF NOT EXISTS counted (id TEXT)");
+          },
+        },
+      ],
+    };
+    await performDbMigration(db, "1.1.0", options);
+    await performDbMigration(db, "1.1.0", options);
+    expect(runs).toBe(1);
+  });
+
+  test("code migration runs alongside SQL migrations up to the target version", async () => {
+    const db = await createTestDb("1.0.0");
+    const result = await performDbMigration(db, "1.1.0", {
+      codeMigrations: [
+        {
+          name: "v1.1.0-after-sql.ts",
+          version: [1, 1, 0],
+          up: (ctx: MigrationContext) => {
+            ctx.sql("CREATE TABLE IF NOT EXISTS after_sql (id TEXT)");
+          },
+        },
+      ],
+    });
+    // SQL v1.1.0 建了统一语言表
+    expect(hasTable(db, "understandings")).toBe(true);
+    expect(hasTable(db, "after_sql")).toBe(true);
+  });
+
+  test("skips code migrations newer than target version", async () => {
+    const db = await createTestDb("1.0.0");
+    const result = await performDbMigration(db, "1.0.0", {
+      codeMigrations: [
+        {
+          name: "v1.1.0-too-new.ts",
+          version: [1, 1, 0],
+          up: (ctx: MigrationContext) => {
+            ctx.sql("CREATE TABLE IF NOT EXISTS should_not_exist (id TEXT)");
+          },
+        },
+      ],
+    });
+    expect(hasTable(db, "should_not_exist")).toBe(false);
+  });
+});
+
+describe("readDataVersion (A7)", () => {
+  test("returns max executed migration version", async () => {
+    const db = await createTestDb("1.1.0");
+    expect(readDataVersion(db)).toEqual([1, 1, 0]);
+  });
+
+  test("returns undefined when no migrations executed", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "reflecta-migration-"));
+    tempDirs.push(tempDir);
+    const db = await createDBInstance(join(tempDir, "test.db"), {
+      appVersion: "1.0.0",
+      runMigrations: false,
+    });
+    expect(readDataVersion(db)).toBeUndefined();
   });
 });

@@ -343,10 +343,14 @@ describe("buildUnderstandingCandidates", () => {
     expect(candidate).toMatchObject({
       id: "understanding-1",
       type: "understanding",
-      matchedContexts: [
+      matches: [
         {
-          contextId: "context-1",
-          title: "一次写 human readable 文档失败的经历",
+          entityType: "context",
+          id: "context-1",
+          medium: "experience",
+          snippet: "debug 很久后发现问题不是 prompt",
+          channels: ["lexical"],
+          rank: 0,
         },
       ],
       suggestedRead: {

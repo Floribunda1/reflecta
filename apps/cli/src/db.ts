@@ -69,8 +69,11 @@ export async function initializeDb(
 
   db = await createDBInstance(dbPath, {
     appVersion: packageJson.version,
-    runMigrations: runtime.migrationPolicy === "auto",
+    runMigrations: false,
   });
+  if (runtime.migrationPolicy === "verify") {
+    verifyDataVersion(db, packageJson.version);
+  }
   if (
     runtime.storeMode === "full-store" &&
     !options.appConfigDir &&
@@ -80,6 +83,23 @@ export async function initializeDb(
     ensureStoreDataEnvironment(db, runtime.dataTarget);
   }
   return db;
+}
+
+/** CLI 只校验数据版本，不执行迁移（Electron 是唯一迁移执行者）。数据版本低于 CLI 期望时拒绝。 */
+function verifyDataVersion(db: ReflectaDb, cliVersion: string): void {
+  const dataVersion = readDataVersion(db);
+  if (dataVersion === undefined) {
+    throw new Error(
+      `数据尚未初始化（无迁移记录）。请先打开 Reflecta 完成初始化与数据迁移，再使用 CLI。`,
+    );
+  }
+  const expected = parseAppVersion(cliVersion);
+  if (compareVersions(dataVersion, expected) < 0) {
+    throw new Error(
+      `数据版本低于 CLI 期望：数据 v${dataVersion.join(".")} < CLI v${cliVersion}。` +
+        `请先打开 Reflecta（Electron）完成数据迁移，再使用 CLI。`,
+    );
+  }
 }
 
 export function getDb(): ReflectaDb {

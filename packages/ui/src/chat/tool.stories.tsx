@@ -104,16 +104,18 @@ function syntheticCandidates(count: number) {
     type: "understanding",
     score: Number((0.96 - index * 0.035).toFixed(3)),
     snippet: syntheticSections[index % syntheticSections.length].body,
-    evidence: index % 3 === 0 ? "context" : "understanding",
     suggestedRead: index < 4,
-    matchedContexts:
+    matches:
       index % 3 === 0
         ? [
             {
+              entityType: "context",
               id: `c-evidence-${index + 1}`,
-              title: `现场证据 ${index + 1}`,
-              snippet: syntheticSections[(index + 2) % syntheticSections.length].body,
               medium: "experience",
+              snippet: syntheticSections[(index + 2) % syntheticSections.length].body,
+              channels: ["dense"],
+              rank: index,
+              reason: "semantic hit on Context",
             },
           ]
         : [],

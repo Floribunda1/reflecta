@@ -1,3 +1,5 @@
+- 完成长任务或阶段性成果后及时 commit，commit 遵循 `Angular Commit Convention`。
+
 - `docs/references/**` 是现行规范；`docs/iterations/**` 默认只作历史背景，
   除非任务明确涉及对应版本或需要追溯设计决策。
 
@@ -22,5 +24,3 @@
 - 修改业务模块语义或跨层流程前，检查
   `docs/references/technical/biz/<module>/`，只阅读与当前子领域相关的文档。
 
-- 完成长任务或阶段性成果后及时 commit，commit 遵循
-  Angular Commit Convention。

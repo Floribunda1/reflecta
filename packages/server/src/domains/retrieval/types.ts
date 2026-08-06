@@ -44,20 +44,27 @@ export type RetrieveKnowledgeInput = {
   limit?: number;
 };
 
-export type MatchedContext = {
-  contextId: string;
-  medium: string;
-  title?: string | null;
-  snippet: string;
-  reason: string;
-};
+export type RetrievalMatchChannel = "dense" | "lexical" | "relation" | "anchor";
 
-export type CandidateEvidence = {
-  channel: "dense" | "lexical" | "relation" | "anchor";
-  documentId?: string;
-  entityType?: RetrievalDocumentEntityType;
-  score?: number;
-  rank?: number;
+/**
+ * 候选的单一命中记录（A1：合并原 matchedContexts + evidence）。
+ * 一条命中 = 一个实体被一路或多路渠道命中；检索命中带 snippet，关系补充无 snippet。
+ */
+export type CandidateMatch = {
+  /** 判断命中还是材料命中 */
+  entityType: RetrievalDocumentEntityType;
+  /** 实体 id（Understanding 或 Context 的稳定 id） */
+  id: string;
+  /** 材料来源（理解命中时为空串） */
+  medium: string;
+  /** 命中的实体标题（Context 的 title；理解命中时为空） */
+  title?: string | null;
+  /** 命中原文片段（检索命中） */
+  snippet: string;
+  /** 命中的渠道（同一实体多路命中合并） */
+  channels: RetrievalMatchChannel[];
+  /** 该实体的最佳名次 */
+  rank: number;
   reason: string;
 };
 
@@ -67,12 +74,12 @@ export type UnderstandingCandidate = {
   title?: string | null;
   snippet?: string;
   score: number;
-  matchedContexts: MatchedContext[];
+  /** 单一命中列表（A1：替代 matchedContexts + evidence） */
+  matches: CandidateMatch[];
   suggestedRead: {
     tool: "understanding_get";
     input: { understandingId: string; includeContexts: true };
   };
-  evidence: CandidateEvidence[];
 };
 
 export type RetrievalTrace = {
@@ -84,6 +91,7 @@ export type RetrievalTrace = {
   fusion: { method: "rrf"; documentsAfterFusion: number };
   grouping: { understandingCandidates: number; matchedContexts: number };
   relation: { expandedFrom: number; candidates: number };
+  /** 相关性信号（Agent 弃权判断依据） */
   returnedCandidates: number;
 };
 

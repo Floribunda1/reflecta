@@ -122,7 +122,7 @@ export class AgentEntityCatalog {
         ENTITY_KEYS.has(key) ||
         ENTITY_ARRAY_KEYS.has(key) ||
         key === "candidates" ||
-        key === "matchedContexts"
+        key === "matches"
           ? key
           : undefined;
       this.collectValue(child, origin, nextParent);
@@ -168,8 +168,13 @@ export class AgentEntityCatalog {
       this.addEntity({ type: "understanding", id: value.id, title: titleFor(value) }, origin);
     }
 
-    if (parentKey === "matchedContexts" && typeof value.contextId === "string") {
-      this.addEntity({ type: "context", id: value.contextId, title: titleFor(value) }, origin);
+    // A1：matches 里的命中（entityType 区分判断/材料）
+    if (parentKey === "matches") {
+      if (value.entityType === "context" && typeof value.id === "string") {
+        this.addEntity({ type: "context", id: value.id }, origin);
+      } else if (value.entityType === "understanding" && typeof value.id === "string") {
+        this.addEntity({ type: "understanding", id: value.id }, origin);
+      }
     }
 
     if (isRecord(value.suggestedRead) && isRecord(value.suggestedRead.input)) {
@@ -181,7 +186,7 @@ export class AgentEntityCatalog {
 
     this.collectValue(value, origin, parentKey);
     for (const [key, child] of Object.entries(value)) {
-      const nextParent = key === "candidates" || key === "matchedContexts" ? key : undefined;
+      const nextParent = key === "candidates" || key === "matches" ? key : undefined;
       this.collectRetrievalValue(child, origin, nextParent);
     }
   }
