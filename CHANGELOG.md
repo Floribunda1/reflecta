@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1 - 2026-08-06
+
+- Fixed the production startup crash introduced in 1.4.0: after updating, Reflecta stayed running in the background without ever showing a window. Code migrations are now statically imported and bundled into the app instead of being discovered at runtime from a filesystem path that the packaged app does not contain.
+
 ## 1.4.0 - 2026-08-06
 
 - Made the Thinking panel expand/collapse responsive while tokens stream: collapsed reasoning no longer re-renders, streaming reasoning renders without per-character animation, and collapsed panels release their DOM.
