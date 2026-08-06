@@ -10,6 +10,11 @@ export type AgentFixtureMessage = {
   parts: unknown[];
   metadata?: unknown;
   createdAt?: string;
+  /**
+   * 写入 assistant 消息的 usage（totalTokens/input），用于模拟"已接近模型上下文上限"的会话。
+   * Pi 的自动压缩判定取最后一次 assistant 的 usage，0 值会被跳过。
+   */
+  usageTokens?: number;
 };
 
 export type AgentFixtureEntityCatalogEntry = {
@@ -153,8 +158,12 @@ export function userMessage(id: string, text: string, metadata?: unknown): Agent
   };
 }
 
-export function assistantMessage(id: string, parts: unknown[]): AgentFixtureMessage {
-  return { id, role: "assistant", parts };
+export function assistantMessage(
+  id: string,
+  parts: unknown[],
+  usageTokens?: number,
+): AgentFixtureMessage {
+  return { id, role: "assistant", parts, usageTokens };
 }
 
 export function toolPart(name: string, toolCallId: string, output: unknown, input: unknown = {}) {
