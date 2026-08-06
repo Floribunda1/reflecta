@@ -1224,19 +1224,22 @@ function retrievalCandidateDetails(output: unknown) {
         "list-item",
         2,
       ),
-      ...arrayValue(candidate.matchedContexts).map((context) =>
-        isRecord(context)
-          ? detailRow(
-              "Context 证据",
-              contextTitle(context),
-              stringValue(context.snippet),
-              "markdown",
-              undefined,
-              "nested-list-item",
-              1,
-            )
-          : undefined,
-      ),
+      // A1：matches 里的 Context 命中作为证据展示
+      ...arrayValue(candidate.matches)
+        .filter((match) => isRecord(match) && match.entityType === "context")
+        .map((context) =>
+          isRecord(context)
+            ? detailRow(
+                "Context 证据",
+                contextTitle(context),
+                stringValue(context.snippet),
+                "markdown",
+                undefined,
+                "nested-list-item",
+                1,
+              )
+            : undefined,
+        ),
     ];
   });
   return detailView({
@@ -1692,7 +1695,9 @@ function retrievalCandidateCounts(output: unknown) {
   let contexts = 0;
   for (const candidate of candidates) {
     if (!isRecord(candidate)) continue;
-    contexts += arrayValue(candidate.matchedContexts).length;
+    contexts += arrayValue(candidate.matches).filter(
+      (match) => isRecord(match) && match.entityType === "context",
+    ).length;
   }
   return { understandings: candidates.length, contexts };
 }

@@ -741,12 +741,16 @@ describe("buildAgentTurnView", () => {
               id: "u1",
               title: "反馈回路能降低试错代价",
               snippet: "先用小反馈验证判断，再扩大投入。",
-              matchedContexts: [
+              matches: [
                 {
-                  contextId: "c1",
+                  entityType: "context",
+                  id: "c1",
                   medium: "experience",
                   title: "一次项目复盘",
                   snippet: "这次失败来自没有及时设检查点。",
+                  channels: ["dense"],
+                  rank: 0,
+                  reason: "semantic hit on Context",
                 },
               ],
             },
@@ -888,7 +892,7 @@ describe("buildAgentTurnView", () => {
     [
       "retrieve_knowledge",
       { query: "反馈" },
-      { candidates: [{ id: "u1", matchedContexts: [{}] }] },
+      { candidates: [{ id: "u1", matches: [{ entityType: "context", id: "ctx1", snippet: "", channels: ["dense"], rank: 0, medium: "", reason: "" }] }] },
       "检索「反馈」 · 1 条 Understanding / 1 条 Context 证据",
     ],
     [
