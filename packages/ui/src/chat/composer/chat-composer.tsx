@@ -507,7 +507,7 @@ export function ChatComposer({
       editorProps: {
         attributes: {
           class:
-            "max-h-64 min-h-24 flex-1 overflow-y-auto whitespace-pre-wrap break-words px-4 pt-3 pb-2 text-base leading-6 outline-none",
+            "max-h-64 min-h-24 flex-1 overflow-y-auto whitespace-pre-wrap break-words px-4 pt-3 pb-2 text-sm leading-6 outline-none",
         },
         handlePaste: (view, event) => {
           if (event.clipboardData?.files.length) return false;
@@ -749,7 +749,7 @@ export function ChatComposer({
         >
           <div className="relative min-w-0">
             {!text.trim() && entities.length === 0 && attachments.length === 0 ? (
-              <span className="pointer-events-none absolute top-3 left-4 text-base text-muted-foreground">
+              <span className="pointer-events-none absolute top-3 left-4 text-sm text-muted-foreground">
                 {busy
                   ? "可以先整理下一轮想法，回复完成后发送..."
                   : "询问、比较，@ 引用内容，或 $ 使用 Skill..."}
