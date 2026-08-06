@@ -17,6 +17,32 @@ import type {
   UnderstandingCandidate,
 } from "../retrieval";
 
+export const RETRIEVAL_SNIPPET_MAX_CHARS = 240;
+
+
+
+/**
+ * 引文式 snippet（A5）：按句子边界截断，避免截到 Markdown 语法/句子中间。
+ * 优先在句号/感叹/问号/换行处断；无合适边界时截断并加省略号。
+ */
+export function buildSnippet(text: string, maxChars = RETRIEVAL_SNIPPET_MAX_CHARS): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= maxChars) return trimmed;
+
+  const cut = trimmed.slice(0, maxChars);
+  const boundary = Math.max(
+    cut.lastIndexOf("。"),
+    cut.lastIndexOf("！"),
+    cut.lastIndexOf("？"),
+    cut.lastIndexOf("."),
+    cut.lastIndexOf("!"),
+    cut.lastIndexOf("?"),
+    cut.lastIndexOf("\n"),
+  );
+  if (boundary > maxChars * 0.5) return trimmed.slice(0, boundary + 1);
+  return `${trimmed.slice(0, maxChars)}…`;
+}
+
 export function getLimitOffset(options?: SearchOptions) {
   return {
     limit: options?.limit ?? 20,
@@ -48,7 +74,7 @@ export class SearchCore {
     return hits.slice(offset).map((hit, index) => ({
       ...hit,
       rank: index + offset,
-      snippet: hit.textForLexicalSearch.slice(0, 160),
+      snippet: buildSnippet(hit.textForLexicalSearch),
     }));
   }
 
@@ -103,6 +129,8 @@ export class SearchCore {
       { limit: retrievalDocumentLimit },
       "hybrid",
     );
+
+
     const parentIds = [...new Set(hits.map((hit) => hit.parentUnderstandingId))];
     const rows =
       parentIds.length === 0
@@ -127,7 +155,8 @@ export class SearchCore {
     const denseHits = hits.filter((hit) => hit.channels.includes("dense")).length;
     const lexicalHits = hits.filter((hit) => hit.channels.includes("lexical")).length;
     const matchedContexts = returnedCandidates.reduce(
-      (count, candidate) => count + candidate.matchedContexts.length,
+      (count, candidate) =>
+        count + candidate.matches.filter((match) => match.entityType === "context").length,
       0,
     );
 
@@ -211,23 +240,25 @@ export class SearchCore {
       id: summary.id,
       type: "understanding" as const,
       title: summary.title,
-      snippet: summary.body.slice(0, 160),
+      snippet: buildSnippet(summary.body),
       score: 0,
-      matchedContexts: [],
-      suggestedRead: {
-        tool: "understanding_get" as const,
-        input: { understandingId: summary.id, includeContexts: true },
-      },
-      evidence: [
+      matches: [
         {
-          channel: domainAnchorUnderstandingIds.has(summary.id) ? "anchor" : "relation",
           entityType: "understanding" as const,
+          id: summary.id,
+          medium: "",
+          snippet: summary.body.slice(0, 160),
+          channels: [domainAnchorUnderstandingIds.has(summary.id) ? "anchor" : "relation"],
           rank: candidates.length + index,
           reason: domainAnchorUnderstandingIds.has(summary.id)
             ? "direct Understanding from Domain anchor"
             : "one-hop explicit Understanding relation",
         },
       ],
+      suggestedRead: {
+        tool: "understanding_get" as const,
+        input: { understandingId: summary.id, includeContexts: true },
+      },
     }));
   }
 }
