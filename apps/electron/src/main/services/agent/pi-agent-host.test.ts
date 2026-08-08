@@ -105,6 +105,8 @@ vi.mock("@earendil-works/pi-coding-agent", async (importOriginal) => ({
 vi.mock("../../config", () => ({
   getActiveAgentReasoningLevel: () => "medium",
   getAppConfigDir: () => "/tmp/reflecta-pi-agent-host-test-config",
+  getAiConfig: () => ({ providers: [] }),
+  getAiProviderDefinition: () => ({ id: "", name: "", piProviderId: "", models: [] }),
   getAiModelConfig: () => ({
     provider: { id: "openai", apiKey: "openai-key", enabledModelIds: ["gpt-4o"] },
     definition: {

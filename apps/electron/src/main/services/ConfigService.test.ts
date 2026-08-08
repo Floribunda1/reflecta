@@ -39,8 +39,8 @@ vi.mock("electron-ipc-decorator", () => ({
   IpcService: class {},
 }));
 
-vi.mock("./agent/pi-model-runtime", () => ({
-  createPiModelRuntime: vi.fn(async () => ({
+vi.mock("./agent/pi-model-runtime", () => {
+  const mockRuntime = () => ({
     login: vi.fn(async () => undefined),
     logout: vi.fn(async () => {
       // Mirror the real ModelRuntime.logout: drop the stored Codex credential.
@@ -55,9 +55,14 @@ vi.mock("./agent/pi-model-runtime", () => ({
         // No stored credential — nothing to remove.
       }
     }),
-  })),
-  createCodexBrowserAuthInteraction: vi.fn(),
-}));
+  });
+  return {
+    createPiModelRuntime: vi.fn(async () => mockRuntime()),
+    getSharedModelRuntime: vi.fn(async () => mockRuntime()),
+    refreshSharedModelRuntime: vi.fn(async () => mockRuntime()),
+    createCodexBrowserAuthInteraction: vi.fn(),
+  };
+});
 
 let tempDir: string;
 const originalIndexPath = process.env.REFLECTA_RETRIEVAL_INDEX_PATH;

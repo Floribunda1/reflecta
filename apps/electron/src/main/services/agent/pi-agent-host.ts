@@ -48,7 +48,7 @@ import { AgentEntityCatalog } from "./agent-entity-catalog";
 import { AgentSessionLog } from "./pi-session-log";
 import { formatAgentError } from "./error";
 import { buildPiPromptText } from "./pi-prompt";
-import { createPiModelRuntime } from "./pi-model-runtime";
+import { getSharedModelRuntime } from "./pi-model-runtime";
 import agentSystemPrompt from "./agent-system-prompt.md?raw";
 import contextSkill from "./builtin-skills/reflecta-context/SKILL.md?raw";
 import understandingSkill from "./builtin-skills/reflecta-understanding/SKILL.md?raw";
@@ -393,7 +393,7 @@ async function generateAgentThreadTitle(
   });
   const agentDir = path.join(contentStorageRoot, ".pi-agent");
   fs.mkdirSync(agentDir, { recursive: true });
-  const modelRuntime = await createPiModelRuntime(modelConfig);
+  const modelRuntime = await getSharedModelRuntime();
   const model = resolvePiModel(modelConfig.provider.id, modelConfig.model.id, modelRuntime);
 
   const response = await modelRuntime.completeSimple(model, context, {
@@ -827,7 +827,7 @@ export class PiAgentHost {
     const modelConfig = getAiModelConfig(command.modelSelection as AiModelSelection | undefined);
     const agentDir = path.join(this.contentStorageRoot, ".pi-agent");
     fs.mkdirSync(agentDir, { recursive: true });
-    const modelRuntime = await createPiModelRuntime(modelConfig);
+    const modelRuntime = await getSharedModelRuntime();
     const model = resolvePiModel(
       modelConfig.definition.piProviderId,
       modelConfig.model.id,

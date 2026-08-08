@@ -29,7 +29,11 @@ import {
   readConfig,
   writeConfig,
 } from "../config";
-import { createCodexBrowserAuthInteraction, createPiModelRuntime } from "./agent/pi-model-runtime";
+import {
+  createCodexBrowserAuthInteraction,
+  getSharedModelRuntime,
+  refreshSharedModelRuntime,
+} from "./agent/pi-model-runtime";
 
 function applyRetrievalConfigToServer(config = getRetrievalConfig()): void {
   configureRetrievalEmbedding(config.embedding);
@@ -87,6 +91,9 @@ export class ConfigService extends IpcService {
     });
     if (incompleteProvider) throw new Error("请至少选择一个用于 Chat 的模型");
     writeConfig({ ai: next });
+    // API keys / providers changed: rebuild the shared runtime in the background
+    // so the next agent message never waits on a model catalog refresh.
+    void refreshSharedModelRuntime().catch(() => undefined);
   }
 
   @IpcMethod()
@@ -96,7 +103,7 @@ export class ConfigService extends IpcService {
 
   @IpcMethod()
   async connectCodex(): Promise<boolean> {
-    const modelRuntime = await createPiModelRuntime();
+    const modelRuntime = await getSharedModelRuntime();
     await modelRuntime.login(
       "openai-codex",
       "oauth",
@@ -108,7 +115,7 @@ export class ConfigService extends IpcService {
 
   @IpcMethod()
   async disconnectCodex(): Promise<void> {
-    const modelRuntime = await createPiModelRuntime();
+    const modelRuntime = await getSharedModelRuntime();
     await modelRuntime.logout("openai-codex");
     const ai = getAiConfig();
     writeConfig({

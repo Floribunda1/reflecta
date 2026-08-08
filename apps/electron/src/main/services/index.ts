@@ -16,6 +16,7 @@ import { UnderstandingService } from "./UnderstandingService";
 import { TrashService } from "./TrashService";
 import { piAgentHost } from "./core";
 import { registerAgentSessionFeed } from "./agent/agent-session-feed-ipc";
+import { getSharedModelRuntime } from "./agent/pi-model-runtime";
 
 const originalHandle = ipcMain.handle.bind(ipcMain);
 type IpcHandleListener = (
@@ -77,6 +78,12 @@ ipcMain.handle = (channel: string, listener: IpcHandleListener) => {
 };
 
 registerAgentSessionFeed(piAgentHost);
+
+// Prewarm the shared ModelRuntime at startup (background, non-blocking) so the
+// first agent message never waits on the pi.dev catalog refresh / provider
+// availability checks. ModelRuntime.create is intentionally not called on the
+// per-message hot path.
+void getSharedModelRuntime().catch(() => undefined);
 
 export const services = createServices([
   AssetService,

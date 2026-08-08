@@ -2,7 +2,13 @@ import path from "node:path";
 import type { AuthInteraction } from "@earendil-works/pi-ai";
 import { registerBunOAuthFlows } from "@earendil-works/pi-ai/bun-oauth";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
-import { getAppConfigDir, getPiAuthPath, type ResolvedAiModelConfig } from "../../config";
+import {
+  getAiConfig,
+  getAiProviderDefinition,
+  getAppConfigDir,
+  getPiAuthPath,
+  type ResolvedAiModelConfig,
+} from "../../config";
 
 registerBunOAuthFlows();
 
@@ -30,6 +36,68 @@ export async function createPiModelRuntime(
     );
   }
   return modelRuntime;
+}
+
+let sharedModelRuntime: ModelRuntime | undefined;
+let pendingSharedModelRuntime: Promise<ModelRuntime> | undefined;
+let runtimeGeneration = 0;
+
+/**
+ * Apply the currently configured non-OAuth API keys to a runtime.
+ * Called once per runtime creation; setRuntimeApiKey re-runs a per-provider
+ * availability pass, so it must not run on the per-message hot path.
+ */
+async function applyConfiguredApiKeys(runtime: ModelRuntime): Promise<void> {
+  for (const provider of getAiConfig().providers) {
+    if (!provider.apiKey) continue;
+    let definition;
+    try {
+      definition = getAiProviderDefinition(provider.id);
+    } catch {
+      // Unknown provider ids are dropped by config normalization; stay defensive.
+      continue;
+    }
+    if (definition.authType === "codex") continue;
+    await runtime.setRuntimeApiKey(definition.piProviderId, provider.apiKey);
+  }
+}
+
+function buildSharedModelRuntime(): Promise<ModelRuntime> {
+  const generation = ++runtimeGeneration;
+  return createPiModelRuntime().then(async (runtime) => {
+    await applyConfiguredApiKeys(runtime);
+    // Only the newest build may become the shared runtime, so a stale prewarm
+    // can never overwrite a refresh triggered by newer settings.
+    if (generation === runtimeGeneration) sharedModelRuntime = runtime;
+    return runtime;
+  });
+}
+
+/**
+ * The shared ModelRuntime used by every agent session and title generation.
+ * Creating a runtime refreshes the pi.dev catalog and re-checks provider
+ * availability, so it must happen once (see services/index.ts prewarm), not on
+ * every message like the previous per-sendModelRuntime creation.
+ */
+export function getSharedModelRuntime(): Promise<ModelRuntime> {
+  if (sharedModelRuntime) return Promise.resolve(sharedModelRuntime);
+  pendingSharedModelRuntime ??= buildSharedModelRuntime().finally(() => {
+    pendingSharedModelRuntime = undefined;
+  });
+  return pendingSharedModelRuntime;
+}
+
+/**
+ * Rebuild the shared runtime in the background after AI settings or
+ * credentials change. The previous runtime keeps serving until the new one is
+ * ready; callers awaiting the returned promise get the fresh runtime.
+ */
+export function refreshSharedModelRuntime(): Promise<ModelRuntime> {
+  const next = buildSharedModelRuntime();
+  next.catch(() => {
+    // Keep serving the previous runtime; getSharedModelRuntime() retries lazily.
+  });
+  return next;
 }
 
 export function createCodexBrowserAuthInteraction(
