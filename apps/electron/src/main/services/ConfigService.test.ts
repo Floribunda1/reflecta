@@ -39,6 +39,26 @@ vi.mock("electron-ipc-decorator", () => ({
   IpcService: class {},
 }));
 
+vi.mock("./agent/pi-model-runtime", () => ({
+  createPiModelRuntime: vi.fn(async () => ({
+    login: vi.fn(async () => undefined),
+    logout: vi.fn(async () => {
+      // Mirror the real ModelRuntime.logout: drop the stored Codex credential.
+      const { getPiAuthPath } = await import("../config");
+      const fs = await import("node:fs");
+      const authPath = getPiAuthPath();
+      try {
+        const data = JSON.parse(fs.readFileSync(authPath, "utf-8")) as Record<string, unknown>;
+        delete data["openai-codex"];
+        fs.writeFileSync(authPath, JSON.stringify(data));
+      } catch {
+        // No stored credential — nothing to remove.
+      }
+    }),
+  })),
+  createCodexBrowserAuthInteraction: vi.fn(),
+}));
+
 let tempDir: string;
 const originalIndexPath = process.env.REFLECTA_RETRIEVAL_INDEX_PATH;
 const originalArgv = process.argv;

@@ -7,7 +7,9 @@ import {
   clampThinkingLevel,
   getModels,
   getSupportedThinkingLevels,
+  type Api,
   type KnownProvider,
+  type Model,
   type ModelThinkingLevel,
 } from "@earendil-works/pi-ai/compat";
 import { readStoredCredential } from "@earendil-works/pi-coding-agent";
@@ -353,14 +355,63 @@ export function normalizeRetrievalConfig(input: RetrievalConfig | undefined): Re
   };
 }
 
+/** Path of the persisted pi.dev catalog overlay written by ModelRuntime (FileModelsStore). */
+function getPiModelsStorePath(): string {
+  return path.join(getAppConfigDir(), "pi-models", "models-store.json");
+}
+
+/**
+ * Read the dynamic catalog overlay persisted by ModelRuntime: a map of
+ * provider id -> raw model entries. Absent/partial files fall back to {}.
+ */
+function readDynamicModelOverrides(): Readonly<Record<string, readonly unknown[]>> {
+  try {
+    const raw = fs.readFileSync(getPiModelsStorePath(), "utf-8");
+    const data = JSON.parse(raw) as Record<string, { models?: unknown }>;
+    const overrides: Record<string, readonly unknown[]> = {};
+    for (const [providerId, entry] of Object.entries(data)) {
+      if (entry && Array.isArray(entry.models)) overrides[providerId] = entry.models;
+    }
+    return overrides;
+  } catch {
+    return {};
+  }
+}
+
+/** Same id wins over the baseline; new ids are appended (mirrors pi's overlay merge). */
+function mergeDynamicModels(
+  baseline: readonly AiProviderModel[],
+  dynamic: readonly unknown[],
+): AiProviderModel[] {
+  const merged = [...baseline];
+  for (const raw of dynamic) {
+    if (typeof raw !== "object" || raw === null) continue;
+    const { id, name } = raw as { id?: unknown; name?: unknown };
+    if (typeof id !== "string" || !id) continue;
+    const model: AiProviderModel = {
+      id,
+      name: typeof name === "string" && name ? name : id,
+      supportedReasoningLevels: getSupportedThinkingLevels(raw as Model<Api>),
+    };
+    const index = merged.findIndex((item) => item.id === model.id);
+    if (index >= 0) merged[index] = model;
+    else merged.push(model);
+  }
+  return merged;
+}
+
 export function getAiProviderDefinitions(): AiProviderDefinition[] {
+  const dynamic = readDynamicModelOverrides();
   return AI_PROVIDER_DEFINITIONS.map((provider) => ({
     ...provider,
-    models: getModels(provider.piProviderId).map((model) => ({
-      id: model.id,
-      name: model.name,
-      supportedReasoningLevels: getSupportedThinkingLevels(model),
-    })),
+    models: mergeDynamicModels(
+      getModels(provider.piProviderId).map((model) => ({
+        id: model.id,
+        name: model.name,
+        supportedReasoningLevels: getSupportedThinkingLevels(model),
+      })),
+      dynamic[provider.piProviderId] ?? [],
+    ),
   }));
 }
 

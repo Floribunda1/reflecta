@@ -277,6 +277,41 @@ describe("Electron AI config", () => {
     );
   });
 
+  test("merges the persisted pi.dev catalog overlay into provider models", async () => {
+    const config = await import("./config");
+    const storePath = path.join(config.getAppConfigDir(), "pi-models", "models-store.json");
+    fs.mkdirSync(path.dirname(storePath), { recursive: true });
+    fs.writeFileSync(
+      storePath,
+      JSON.stringify({
+        "opencode-go": {
+          models: [
+            // Overrides the built-in entry for an existing id.
+            { id: "gpt-5.6-luna", name: "GPT-5.6 Luna (dynamic)" },
+            // Brand-new model not present in the built-in catalog.
+            { id: "future-model-x", name: "Future Model X" },
+          ],
+          checkedAt: Date.now(),
+          lastModified: Date.now(),
+        },
+      }),
+    );
+
+    const models = config.getAiProviderDefinition("opencode-go").models;
+    expect(models.map((model) => model.id)).toContain("future-model-x");
+    expect(models.find((model) => model.id === "gpt-5.6-luna")?.name).toBe(
+      "GPT-5.6 Luna (dynamic)",
+    );
+  });
+
+  test("falls back to built-in models without a persisted overlay", async () => {
+    const config = await import("./config");
+    const models = config.getAiProviderDefinition("opencode-go").models;
+
+    expect(models.map((model) => model.id)).toContain("gpt-5.6-luna");
+    expect(models.some((model) => model.id === "future-model-x")).toBe(false);
+  });
+
   test("lists only enabled models with pi-ai names and reasoning levels", async () => {
     const config = await import("./config");
     const ai = config.normalizeAiConfig({

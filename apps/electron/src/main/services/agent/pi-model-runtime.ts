@@ -1,14 +1,28 @@
+import path from "node:path";
 import type { AuthInteraction } from "@earendil-works/pi-ai";
 import { registerBunOAuthFlows } from "@earendil-works/pi-ai/bun-oauth";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
-import { getPiAuthPath, type ResolvedAiModelConfig } from "../../config";
+import { getAppConfigDir, getPiAuthPath, type ResolvedAiModelConfig } from "../../config";
 
 registerBunOAuthFlows();
+
+/** Persist the dynamic pi.dev catalog alongside the app config for UI reads. */
+export function getPiModelsPath(): string {
+  return path.join(getAppConfigDir(), "pi-models", "models.json");
+}
 
 export async function createPiModelRuntime(
   modelConfig?: ResolvedAiModelConfig,
 ): Promise<ModelRuntime> {
-  const modelRuntime = await ModelRuntime.create({ authPath: getPiAuthPath(), modelsPath: null });
+  const modelRuntime = await ModelRuntime.create({
+    authPath: getPiAuthPath(),
+    modelsPath: getPiModelsPath(),
+    // Refresh the provider catalog from pi.dev at startup (then every 4h),
+    // so new models/providers show up without bumping the pi-ai dependency.
+    allowModelNetwork: true,
+    // Cap the first refresh so a slow catalog endpoint never blocks agent setup.
+    modelRefreshTimeoutMs: 10_000,
+  });
   if (modelConfig && modelConfig.definition.authType !== "codex") {
     await modelRuntime.setRuntimeApiKey(
       modelConfig.definition.piProviderId,
