@@ -1316,6 +1316,13 @@ export class PiAgentHost {
     };
 
     try {
+      // Regenerate/edit re-runs from a branch point: the projection was already
+      // replaced with the truncated events above, so publish the run start and
+      // the user question right away. Otherwise the question (and the previous
+      // answer) vanish from the UI while createSession() spins up the model
+      // runtime. Later call sites of emitRunStarted() are no-ops via the
+      // `runStarted` guard.
+      emitRunStarted();
       const created = await this.createSession(
         command,
         manager,
@@ -1503,7 +1510,6 @@ export class PiAgentHost {
           assistantActivity = true;
         }
       });
-      emitRunStarted();
       await session.prompt(
         buildPiPromptText({
           text: expandDollarSkillInvocation(command.text, created.globalSkillNames),
