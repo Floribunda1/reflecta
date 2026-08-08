@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.3 - 2026-08-08
+
+- Capped expanded thinking (reasoning) content at a fixed height with an internal scroll area; while streaming it now sticks to the bottom like the chat body, scrolling up pauses the follow, and scrolling back to the bottom resumes it.
+- Refreshed the provider/model catalog from pi.dev at startup and every 4 hours, so new models and providers appear in the settings and model picker without upgrading the app.
+
 ## 1.4.2 - 2026-08-06
 
 - Reverted the composer input font to text-sm so the chat composition area stays compact on smaller windows.
