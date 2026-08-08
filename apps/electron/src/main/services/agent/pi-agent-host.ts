@@ -1080,10 +1080,9 @@ export class PiAgentHost {
     const manager = command.messageId
       ? await this.sessionLog.openSessionForEditedMessage(command.sessionId, command.messageId)
       : await this.sessionLog.openSession(command.sessionId);
-    await this.sessionRuntime.replace(
-      command.sessionId,
-      this.sessionLog.eventsFromManager(manager),
-    );
+    // Ensure the runtime entry exists before any apply()/replace() below (the
+    // feed watch normally does this; direct callers rely on it too).
+    await this.sessionRuntime.projection(command.sessionId);
     const entityCatalog = new AgentEntityCatalog(
       reduceAgentSession(this.sessionLog.eventsFromManager(manager)).entityCatalog,
     );
@@ -1316,13 +1315,18 @@ export class PiAgentHost {
     };
 
     try {
-      // Regenerate/edit re-runs from a branch point: the projection was already
-      // replaced with the truncated events above, so publish the run start and
-      // the user question right away. Otherwise the question (and the previous
-      // answer) vanish from the UI while createSession() spins up the model
-      // runtime. Later call sites of emitRunStarted() are no-ops via the
-      // `runStarted` guard.
+      // Regenerate/edit re-runs from a branch point: publish the run start and
+      // the user question BEFORE the projection is replaced, then replace with
+      // the complete (truncated + start) event list. Every published frame then
+      // keeps the question visible; a single authoritative frame drops only the
+      // old answer. Publishing the truncated state first (the previous order)
+      // let the renderer paint a frame without the question between IPC frames.
+      // Later call sites of emitRunStarted() are no-ops via the `runStarted` guard.
       emitRunStarted();
+      await this.sessionRuntime.replace(
+        command.sessionId,
+        this.sessionLog.eventsFromManager(manager),
+      );
       const created = await this.createSession(
         command,
         manager,
