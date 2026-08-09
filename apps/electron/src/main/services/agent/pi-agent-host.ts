@@ -48,7 +48,7 @@ import { AgentEntityCatalog } from "./agent-entity-catalog";
 import { AgentSessionLog } from "./pi-session-log";
 import { formatAgentError } from "./error";
 import { buildPiPromptText } from "./pi-prompt";
-import { createPiModelRuntime } from "./pi-model-runtime";
+import { getSharedModelRuntime } from "./pi-model-runtime";
 import agentSystemPrompt from "./agent-system-prompt.md?raw";
 import contextSkill from "./builtin-skills/reflecta-context/SKILL.md?raw";
 import understandingSkill from "./builtin-skills/reflecta-understanding/SKILL.md?raw";
@@ -393,7 +393,7 @@ async function generateAgentThreadTitle(
   });
   const agentDir = path.join(contentStorageRoot, ".pi-agent");
   fs.mkdirSync(agentDir, { recursive: true });
-  const modelRuntime = await createPiModelRuntime(modelConfig);
+  const modelRuntime = await getSharedModelRuntime();
   const model = resolvePiModel(modelConfig.provider.id, modelConfig.model.id, modelRuntime);
 
   const response = await modelRuntime.completeSimple(model, context, {
@@ -827,7 +827,7 @@ export class PiAgentHost {
     const modelConfig = getAiModelConfig(command.modelSelection as AiModelSelection | undefined);
     const agentDir = path.join(this.contentStorageRoot, ".pi-agent");
     fs.mkdirSync(agentDir, { recursive: true });
-    const modelRuntime = await createPiModelRuntime(modelConfig);
+    const modelRuntime = await getSharedModelRuntime();
     const model = resolvePiModel(
       modelConfig.definition.piProviderId,
       modelConfig.model.id,
@@ -1080,10 +1080,9 @@ export class PiAgentHost {
     const manager = command.messageId
       ? await this.sessionLog.openSessionForEditedMessage(command.sessionId, command.messageId)
       : await this.sessionLog.openSession(command.sessionId);
-    await this.sessionRuntime.replace(
-      command.sessionId,
-      this.sessionLog.eventsFromManager(manager),
-    );
+    // Ensure the runtime entry exists before any apply()/replace() below (the
+    // feed watch normally does this; direct callers rely on it too).
+    await this.sessionRuntime.projection(command.sessionId);
     const entityCatalog = new AgentEntityCatalog(
       reduceAgentSession(this.sessionLog.eventsFromManager(manager)).entityCatalog,
     );
@@ -1316,6 +1315,18 @@ export class PiAgentHost {
     };
 
     try {
+      // Regenerate/edit re-runs from a branch point: publish the run start and
+      // the user question BEFORE the projection is replaced, then replace with
+      // the complete (truncated + start) event list. Every published frame then
+      // keeps the question visible; a single authoritative frame drops only the
+      // old answer. Publishing the truncated state first (the previous order)
+      // let the renderer paint a frame without the question between IPC frames.
+      // Later call sites of emitRunStarted() are no-ops via the `runStarted` guard.
+      emitRunStarted();
+      await this.sessionRuntime.replace(
+        command.sessionId,
+        this.sessionLog.eventsFromManager(manager),
+      );
       const created = await this.createSession(
         command,
         manager,
@@ -1503,7 +1514,6 @@ export class PiAgentHost {
           assistantActivity = true;
         }
       });
-      emitRunStarted();
       await session.prompt(
         buildPiPromptText({
           text: expandDollarSkillInvocation(command.text, created.globalSkillNames),

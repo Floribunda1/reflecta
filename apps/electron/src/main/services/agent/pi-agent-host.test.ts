@@ -105,6 +105,8 @@ vi.mock("@earendil-works/pi-coding-agent", async (importOriginal) => ({
 vi.mock("../../config", () => ({
   getActiveAgentReasoningLevel: () => "medium",
   getAppConfigDir: () => "/tmp/reflecta-pi-agent-host-test-config",
+  getAiConfig: () => ({ providers: [] }),
+  getAiProviderDefinition: () => ({ id: "", name: "", piProviderId: "", models: [] }),
   getAiModelConfig: () => ({
     provider: { id: "openai", apiKey: "openai-key", enabledModelIds: ["gpt-4o"] },
     definition: {
@@ -1235,6 +1237,154 @@ describe("PiAgentHost", () => {
         }),
       ]),
     );
+  });
+
+  test("keeps the regenerated user question visible while the model restarts", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("重新生成对话");
+    const manager = await log.openSession(thread.id);
+    const events: AgentSessionEvent[] = [
+      {
+        id: "evt_1",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "run.started",
+        createdAt: "2026-08-08T00:00:00.000Z",
+      },
+      {
+        id: "evt_2",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "user.message",
+        messageId: "user_1",
+        text: "第一个问题",
+        createdAt: "2026-08-08T00:00:01.000Z",
+      },
+      {
+        id: "evt_3",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "assistant.turn",
+        messageId: "assistant_1",
+        text: "第一个回答",
+        blocks: [{ kind: "text", text: "第一个回答", createdAt: "2026-08-08T00:00:02.000Z" }],
+        createdAt: "2026-08-08T00:00:02.000Z",
+      },
+      {
+        id: "evt_4",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "run.completed",
+        createdAt: "2026-08-08T00:00:03.000Z",
+      },
+      {
+        id: "evt_5",
+        sessionId: thread.id,
+        runId: "run_2",
+        type: "run.started",
+        createdAt: "2026-08-08T00:00:04.000Z",
+      },
+      {
+        id: "evt_6",
+        sessionId: thread.id,
+        runId: "run_2",
+        type: "user.message",
+        messageId: "user_2",
+        text: "第二个问题",
+        createdAt: "2026-08-08T00:00:05.000Z",
+      },
+      {
+        id: "evt_7",
+        sessionId: thread.id,
+        runId: "run_2",
+        type: "assistant.turn",
+        messageId: "assistant_2",
+        text: "第二个回答",
+        blocks: [{ kind: "text", text: "第二个回答", createdAt: "2026-08-08T00:00:06.000Z" }],
+        createdAt: "2026-08-08T00:00:06.000Z",
+      },
+      {
+        id: "evt_8",
+        sessionId: thread.id,
+        runId: "run_2",
+        type: "run.completed",
+        createdAt: "2026-08-08T00:00:07.000Z",
+      },
+    ];
+    for (const event of events) log.appendEvent(manager, event);
+
+    // 挂起 createAgentSession，模拟模型运行时尚未就绪的窗口：
+    // 重新生成期间，最新投影必须始终保留被重新生成的问题。
+    let resolveAgentSession!: (session: unknown) => void;
+    createAgentSessionMock.mockReturnValueOnce(
+      new Promise((resolve) => (resolveAgentSession = resolve)),
+    );
+    const host = new PiAgentHost(root);
+    const { frames } = await recordSessionFrames(host, thread.id);
+
+    host.sendAgentCommand({
+      type: "message.send",
+      sessionId: thread.id,
+      text: "第二个问题",
+      messageId: "user_2",
+    });
+
+    await vi.waitFor(() => {
+      const latest = stateFrames(frames).at(-1);
+      expect(latest?.status).toBe("running");
+      expect(latest?.messages.some((message) => message.id === "user_2")).toBe(true);
+    });
+    expect(
+      stateFrames(frames)
+        .at(-1)
+        ?.messages.map((message) => message.id),
+    ).toEqual(["user_1", "assistant_1", "user_2"]);
+
+    let listener: ((event: unknown) => void) | undefined;
+    resolveAgentSession({
+      session: {
+        sessionManager: manager,
+        subscribe: (next: (event: unknown) => void) => {
+          listener = next;
+          return () => {};
+        },
+        prompt: vi.fn(async () => {
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: { type: "text_delta", delta: "新的回答" },
+          });
+          listener?.({
+            type: "message_end",
+            message: {
+              role: "assistant",
+              content: [{ type: "text", text: "新的回答" }],
+              provider: "openai",
+              model: "gpt-4o",
+              stopReason: "stop",
+            },
+          });
+        }),
+        getContextUsage: vi.fn(() => undefined),
+        dispose: vi.fn(),
+        abort: vi.fn(),
+      },
+    });
+    await vi.waitFor(() => {
+      expect(stateFrames(frames).at(-1)?.status).toBe("idle");
+    });
+
+    const finalSession = stateFrames(frames).at(-1);
+    expect(finalSession?.messages.map((message) => message.id)).toEqual([
+      "user_1",
+      "assistant_1",
+      "user_2",
+      expect.any(String),
+    ]);
+    expect(finalSession?.messages[3]).toMatchObject({
+      role: "assistant",
+      text: "新的回答",
+    });
   });
 
   test("persists plain text when catalog is present and no citation is used", async () => {
