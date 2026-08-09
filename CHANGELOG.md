@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.4 - 2026-08-08
+
+- Fixed regenerated or edited replies briefly hiding the current question and the previous answer while the new reply was being prepared; the conversation now keeps the question visible throughout.
+- Reused a single shared model runtime across sessions: sending a message or regenerating a reply no longer waits on a fresh model catalog refresh, so responses start noticeably faster. Model settings changes are applied in the background.
+
 ## 1.4.3 - 2026-08-08
 
 - Capped expanded thinking (reasoning) content at a fixed height with an internal scroll area; while streaming it now sticks to the bottom like the chat body, scrolling up pauses the follow, and scrolling back to the bottom resumes it.
