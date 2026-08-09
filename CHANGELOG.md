@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.5 - 2026-08-09
+
+- Automatic update checks (startup and every 6 hours) now wait until the app window is focused, so the update prompt no longer interrupts you while working in another app. Manual "Check For Updates…" is unaffected.
+- Stopping a reply that produced no output no longer marks the previous completed answer as stopped; the stopped marker now attaches to the cancelled run itself.
+
 ## 1.4.4 - 2026-08-08
 
 - Fixed regenerated or edited replies briefly hiding the current question and the previous answer while the new reply was being prepared; the conversation now keeps the question visible throughout.
