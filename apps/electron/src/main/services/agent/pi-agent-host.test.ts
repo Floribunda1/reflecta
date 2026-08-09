@@ -194,28 +194,35 @@ afterEach(() => {
 });
 
 describe("createPiModelRuntime", () => {
-  test("makes an existing Codex login usable by the Agent and extensions", async () => {
-    fs.writeFileSync(
-      piAuthPathMock,
-      JSON.stringify({
-        "openai-codex": {
-          type: "oauth",
-          access: "codex-access-token",
-          refresh: "codex-refresh-token",
-          expires: 4_102_444_800_000,
-          accountId: "account-test",
-        },
-      }),
-    );
-    const modelRuntime = await createPiModelRuntime(
-      modelConfig({ providerId: "openai-codex", apiKey: "", authType: "codex" }),
-    );
+  test(
+    "makes an existing Codex login usable by the Agent and extensions",
+    // ModelRuntime.create refreshes the pi.dev provider catalog on the network
+    // (capped at modelRefreshTimeoutMs = 10s), so the default 5s timeout is too
+    // tight whenever the catalog endpoint is slow or unreachable.
+    { timeout: 15_000 },
+    async () => {
+      fs.writeFileSync(
+        piAuthPathMock,
+        JSON.stringify({
+          "openai-codex": {
+            type: "oauth",
+            access: "codex-access-token",
+            refresh: "codex-refresh-token",
+            expires: 4_102_444_800_000,
+            accountId: "account-test",
+          },
+        }),
+      );
+      const modelRuntime = await createPiModelRuntime(
+        modelConfig({ providerId: "openai-codex", apiKey: "", authType: "codex" }),
+      );
 
-    const model = modelRuntime.getModels("openai-codex")[0];
-    expect(model).toBeDefined();
-    const auth = await new ModelRegistry(modelRuntime).getApiKeyAndHeaders(model!);
-    expect(auth).toMatchObject({ ok: true, apiKey: "codex-access-token" });
-  });
+      const model = modelRuntime.getModels("openai-codex")[0];
+      expect(model).toBeDefined();
+      const auth = await new ModelRegistry(modelRuntime).getApiKeyAndHeaders(model!);
+      expect(auth).toMatchObject({ ok: true, apiKey: "codex-access-token" });
+    },
+  );
 
   test("uses configured API key without refreshing remote model catalogs", async () => {
     vi.stubGlobal(
