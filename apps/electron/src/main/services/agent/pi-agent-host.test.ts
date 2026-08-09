@@ -2216,13 +2216,104 @@ describe("PiAgentHost", () => {
     const events = await log.readEvents(thread.id);
     expect(events.slice(-2)).toMatchObject([
       { type: "assistant.turn", text: "已经生成的部分" },
-      { type: "run.cancelled" },
+      { type: "run.cancelled", assistantMessageId: expect.any(String) },
     ]);
     await expect(host.readSessionProjection(thread.id)).resolves.toMatchObject({
       status: "cancelled",
+      cancelledAssistantMessageId: expect.any(String),
       messages: [
         { role: "user", text: "开始流式回复" },
         { role: "assistant", text: "已经生成的部分" },
+      ],
+    });
+  });
+
+  test("does not attach the cancelled marker to a previous reply when stopped before any token", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("新对话");
+    const manager = await log.openSession(thread.id);
+    const previousTurn: AgentSessionEvent[] = [
+      {
+        id: "evt_1",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "run.started",
+        createdAt: "2026-06-23T00:00:00.000Z",
+      },
+      {
+        id: "evt_2",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "user.message",
+        messageId: "user_1",
+        text: "第一个问题",
+        createdAt: "2026-06-23T00:00:00.000Z",
+      },
+      {
+        id: "evt_3",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "assistant.turn",
+        messageId: "assistant_1",
+        text: "第一个回答",
+        blocks: [{ kind: "text", text: "第一个回答", createdAt: "2026-06-23T00:00:00.000Z" }],
+        createdAt: "2026-06-23T00:00:00.000Z",
+      },
+      {
+        id: "evt_4",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "run.completed",
+        createdAt: "2026-06-23T00:00:00.000Z",
+      },
+    ];
+    for (const event of previousTurn) log.appendEvent(manager, event);
+
+    let finishPrompt!: () => void;
+    const promptFinished = new Promise<void>((resolve) => (finishPrompt = resolve));
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        subscribe: vi.fn(() => () => {}),
+        prompt: vi.fn(async () => {
+          // The model never emits a single token before the user stops.
+          await promptFinished;
+        }),
+        getContextUsage: vi.fn(() => undefined),
+        dispose: vi.fn(),
+        abort: vi.fn(async () => finishPrompt()),
+      },
+    });
+    const host = new PiAgentHost(root);
+    const sendPromise = (
+      host as unknown as { sendMessage: (command: unknown) => Promise<void> }
+    ).sendMessage({
+      type: "message.send",
+      sessionId: thread.id,
+      text: "第二个问题",
+      modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    await host.sendAgentCommand({ type: "run.cancel", sessionId: thread.id });
+    await sendPromise;
+
+    const events = await log.readEvents(thread.id);
+    const cancelled = events.at(-1);
+    expect(cancelled).toMatchObject({ type: "run.cancelled" });
+    expect(cancelled).toHaveProperty("assistantMessageId", expect.any(String));
+    // No empty assistant turn is persisted for the cancelled run.
+    expect(events.filter((event) => event.type === "assistant.turn")).toHaveLength(1);
+    await expect(host.readSessionProjection(thread.id)).resolves.toMatchObject({
+      status: "cancelled",
+      cancelledAssistantMessageId: (
+        cancelled as AgentSessionEvent & { assistantMessageId?: string }
+      )?.assistantMessageId,
+      messages: [
+        { role: "user", text: "第一个问题" },
+        { role: "assistant", text: "第一个回答" },
+        { role: "user", text: "第二个问题" },
       ],
     });
   });

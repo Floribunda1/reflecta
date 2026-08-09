@@ -68,6 +68,7 @@ function projection(messages: AgentReducedMessage[]): AgentSessionProjection {
     contextCompactions: [],
     activeCompaction: null,
     compactionError: null,
+    cancelledAssistantMessageId: null,
   };
 }
 
@@ -250,4 +251,73 @@ test("keeps the user's scroll position when a new projection arrives", async () 
   while (frames.size > 0) flushNextFrame();
 
   expect(scrollTop).toBe(652);
+});
+
+test("attaches the stopped marker to the cancelled run's assistant message", async () => {
+  installBrowserStubs();
+  const sendFrame = installFeed();
+  const latestView = await renderProbe(() => null);
+
+  act(() =>
+    sendFrame({
+      kind: "state",
+      sessionId: "session-1",
+      revision: 1,
+      session: {
+        ...projection([
+          {
+            id: "assistant-1",
+            role: "assistant",
+            text: "partial",
+            runId: "run-1",
+            createdAt: "2026-08-01T00:00:00.000Z",
+            blocks: [{ kind: "text", text: "partial", createdAt: "2026-08-01T00:00:00.000Z" }],
+          },
+        ]),
+        status: "cancelled",
+        activeRunId: null,
+        cancelledAssistantMessageId: "assistant-1",
+      },
+    }),
+  );
+
+  expect(latestView()?.stoppedMessageId).toBe("assistant-1");
+});
+
+test("falls back to a standalone stopped marker when the cancelled run has no message", async () => {
+  installBrowserStubs();
+  const sendFrame = installFeed();
+  const latestView = await renderProbe(() => null);
+
+  act(() =>
+    sendFrame({
+      kind: "state",
+      sessionId: "session-1",
+      revision: 1,
+      session: {
+        ...projection([
+          {
+            id: "assistant-1",
+            role: "assistant",
+            text: "previous reply",
+            runId: "run-0",
+            createdAt: "2026-08-01T00:00:00.000Z",
+            blocks: [
+              {
+                kind: "text",
+                text: "previous reply",
+                createdAt: "2026-08-01T00:00:00.000Z",
+              },
+            ],
+          },
+        ]),
+        status: "cancelled",
+        activeRunId: null,
+        cancelledAssistantMessageId: null,
+      },
+    }),
+  );
+
+  // The previous assistant reply must never receive the stopped marker.
+  expect(latestView()?.stoppedMessageId).toBe("session-1:cancelled");
 });

@@ -751,10 +751,28 @@ export class PiAgentHost {
     if (!activeRunId || this.activeRuns.get(sessionId)?.runId === activeRunId) return;
 
     const manager = await this.sessionLog.openSession(sessionId);
+    // The interrupted run may have a persisted assistant message (e.g. an
+    // approval checkpoint); carry it so the stopped marker attaches to that
+    // turn. Streaming-only content is not persisted, so it is usually absent.
+    const interruptedEvent = this.sessionLog
+      .eventsFromManager(manager)
+      .findLast(
+        (event) =>
+          event.runId === activeRunId &&
+          typeof (event as AgentSessionEvent & { messageId?: unknown }).messageId === "string",
+      );
+    const interruptedAssistantMessageId =
+      typeof (interruptedEvent as (AgentSessionEvent & { messageId?: string }) | undefined)
+        ?.messageId === "string"
+        ? (interruptedEvent as AgentSessionEvent & { messageId?: string }).messageId
+        : undefined;
     const cancelled = this.createEvent({
       type: "run.cancelled",
       sessionId,
       runId: activeRunId,
+      ...(interruptedAssistantMessageId
+        ? { assistantMessageId: interruptedAssistantMessageId }
+        : {}),
     });
     this.sessionLog.appendEvent(manager, cancelled);
     this.sessionRuntime.apply(cancelled);
@@ -800,6 +818,7 @@ export class PiAgentHost {
         sessionId: command.sessionId,
         runId: active.runId,
         type: "run.cancelled",
+        assistantMessageId: active.assistantMessageId,
       });
       this.appendAndPublish(manager, event);
       this.rejectPendingApprovals(active, new Error("Run cancelled"));
