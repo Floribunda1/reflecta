@@ -79,6 +79,15 @@
     而且 Agent 继续生成新内容
     那么对话应该保持用户的阅读位置
 
+  @P1 @recovery @AG-RUN-004
+  场景: 用户在回复开始前停止后停止标记位于当前提问之后
+    假如对话中已有用户消息 PREVIOUS_USER_MESSAGE 和对应的 Agent 回复 PREVIOUS_AGENT_REPLY
+    当用户发送 NEXT_USER_MESSAGE
+    而且用户在 Agent 输出任何内容前点击停止
+    那么界面应该显示已停止状态
+    而且已停止状态应该位于 NEXT_USER_MESSAGE 之后
+    而且输入框应该恢复可操作
+
   @P0 @recovery @control @AG-HISTORY-004
   场景: 用户重新打开有未完成回复的对话后可以继续操作
     假如用户上次关闭 Reflecta 时，当前对话中有一条未完成的 Agent 回复

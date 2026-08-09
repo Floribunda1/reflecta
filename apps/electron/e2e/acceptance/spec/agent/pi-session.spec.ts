@@ -468,6 +468,51 @@ test("@AG-RUN-003 用户在 Agent 回复期间上翻后保持阅读位置", asyn
   }
 });
 
+test("@AG-RUN-004 用户在回复开始前停止后停止标记位于当前提问之后", async () => {
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
+  test.setTimeout(180_000);
+
+  const PREVIOUS_REPLY_ID = "ag-run-004-previous-assistant";
+  seedAgentThread({
+    id: "ag-run-004",
+    title: "停止标记位置",
+    messages: [
+      userMessage("ag-run-004-previous-user", "PREVIOUS_USER_MESSAGE"),
+      assistantMessage(PREVIOUS_REPLY_ID, [{ type: "text", text: "PREVIOUS_AGENT_REPLY" }]),
+    ],
+  });
+  const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+
+  try {
+    await openThread(page, "停止标记位置");
+    await sendMessage(page, SLOW_PROMPT);
+    // 停止按钮出现后立即点击，尽量在 Agent 输出任何内容前停止。
+    await expect(page.getByTestId("agent-stop-button")).toBeVisible({ timeout: 30_000 });
+    await page.getByTestId("agent-stop-button").click();
+
+    const stopped = page.getByTestId("agent-stopped-state");
+    await expect(stopped).toContainText("已停止", { timeout: 30_000 });
+
+    // 已停止标记必须位于本轮提问之后，绝不能挂在上一条回复的消息下方。
+    const previousReply = page.locator(
+      `[data-testid="agent-message-row"][data-agent-message-id="${PREVIOUS_REPLY_ID}"]`,
+    );
+    await expect(previousReply).toBeVisible();
+    await expect(previousReply.getByTestId("agent-stopped-state")).toHaveCount(0);
+    const followsQuestion = await stopped.evaluate(
+      (el, question) =>
+        Boolean(el.compareDocumentPosition(question) & Node.DOCUMENT_POSITION_PRECEDING),
+      await page.getByTestId("agent-user-message").filter({ hasText: SLOW_PROMPT }).elementHandle(),
+    );
+    expect(followsQuestion).toBe(true);
+
+    await expect(composer(page)).toBeEditable();
+    expect(readPiEventTypes()).toContain("run.cancelled");
+  } finally {
+    await app.close();
+  }
+});
+
 test("@AG-HISTORY-004 用户重新打开有未完成回复的对话后可以继续操作", async () => {
   seedAbandonedPiSession();
   const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });

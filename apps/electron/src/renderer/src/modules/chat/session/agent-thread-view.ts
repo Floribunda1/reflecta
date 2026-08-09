@@ -154,11 +154,12 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
       : lastTurnId;
   const stoppedMessageId = useMemo(() => {
     if (state.status !== "cancelled") return null;
-    return (
-      visibleMessages.findLast((message) => message.role === "assistant")?.id ??
-      `${sessionId}:cancelled`
-    );
-  }, [sessionId, state.status, visibleMessages]);
+    // Attach the stopped marker to the cancelled run's own assistant message
+    // (when it produced any content). With no content the server carries no
+    // message id, so fall back to a synthetic id: message-list renders a
+    // standalone status row instead of tagging a previous reply.
+    return state.cancelledAssistantMessageId ?? `${sessionId}:cancelled`;
+  }, [sessionId, state.status, state.cancelledAssistantMessageId]);
   const isBusy = state.status === "running";
   const isWaiting = state.status === "waiting";
   const isCompacting = Boolean(state.activeCompaction);

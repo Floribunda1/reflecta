@@ -82,6 +82,8 @@ export type AgentRunFailed = AgentEventBase & {
 export type AgentRunCancelled = AgentEventBase & {
   type: "run.cancelled";
   runId: string;
+  /** Assistant message of the cancelled run, when it produced any content. */
+  assistantMessageId?: string;
 };
 
 export type AgentUserMessage = AgentEventBase & {
@@ -408,6 +410,12 @@ export type AgentSessionState = {
   contextCompactions: AgentContextCompacted[];
   activeCompaction: AgentContextCompactionStarted | null;
   compactionError: string | null;
+  /**
+   * Assistant message of the last cancelled run (if any). Lets the UI attach
+   * the stopped marker to the cancelled turn instead of a previous reply.
+   * Cleared when the next run starts.
+   */
+  cancelledAssistantMessageId: string | null;
 };
 
 export type AgentSessionProjection = Omit<AgentSessionState, "sessionId"> & {
@@ -991,6 +999,7 @@ export const initialAgentSessionState: AgentSessionState = {
   contextCompactions: [],
   activeCompaction: null,
   compactionError: null,
+  cancelledAssistantMessageId: null,
 };
 
 export function reduceAgentSessionEvent(
@@ -1004,6 +1013,7 @@ export function reduceAgentSessionEvent(
       activeRunId: event.runId,
       status: "running",
       error: null,
+      cancelledAssistantMessageId: null,
     };
   }
 
@@ -1174,6 +1184,7 @@ export function reduceAgentSessionEvent(
       activeRunId: null,
       status: "cancelled",
       error: null,
+      cancelledAssistantMessageId: event.assistantMessageId ?? null,
     };
   }
 

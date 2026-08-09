@@ -12,6 +12,7 @@ const projection: AgentSessionProjection = {
   contextCompactions: [],
   activeCompaction: null,
   compactionError: null,
+  cancelledAssistantMessageId: null,
 };
 
 describe("AgentSessionReplica", () => {

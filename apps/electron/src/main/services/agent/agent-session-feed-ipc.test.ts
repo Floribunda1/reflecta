@@ -38,6 +38,7 @@ describe("agent session feed IPC", () => {
         contextCompactions: [],
         activeCompaction: null,
         compactionError: null,
+        cancelledAssistantMessageId: null,
       },
     };
     const stop = vi.fn();

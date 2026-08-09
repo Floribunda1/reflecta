@@ -926,4 +926,46 @@ describe("Agent Session projector", () => {
     expect(next).toEqual(reduceAgentSession([...restoredEvents, liveEvent]));
     expect(next.messages[0]).toBe(firstMessage);
   });
+
+  test("tracks the cancelled run's assistant message for the stopped marker", () => {
+    const cancelledWithMessage = reduceAgentSession([
+      { ...base, id: "evt_started", type: "run.started", runId: "run_2" },
+      {
+        ...base,
+        id: "evt_turn",
+        runId: "run_2",
+        type: "assistant.turn",
+        messageId: "assistant_2",
+        text: "partial",
+        blocks: [{ kind: "text", text: "partial", createdAt: base.createdAt }],
+      },
+      {
+        ...base,
+        id: "evt_cancelled",
+        runId: "run_2",
+        type: "run.cancelled",
+        assistantMessageId: "assistant_2",
+      },
+    ]);
+
+    expect(cancelledWithMessage.status).toBe("cancelled");
+    expect(cancelledWithMessage.cancelledAssistantMessageId).toBe("assistant_2");
+
+    const cancelledWithoutMessage = reduceAgentSession([
+      { ...base, id: "evt_started", type: "run.started", runId: "run_3" },
+      { ...base, id: "evt_cancelled", runId: "run_3", type: "run.cancelled" },
+    ]);
+
+    expect(cancelledWithoutMessage.cancelledAssistantMessageId).toBeNull();
+
+    const restarted = reduceAgentSessionEvent(cancelledWithoutMessage, {
+      ...base,
+      id: "evt_restart",
+      runId: "run_4",
+      type: "run.started",
+    });
+
+    expect(restarted.cancelledAssistantMessageId).toBeNull();
+    expect(initialAgentSessionState.cancelledAssistantMessageId).toBeNull();
+  });
 });
