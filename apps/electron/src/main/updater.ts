@@ -5,7 +5,28 @@ import { app, BrowserWindow, dialog, Menu, MenuItem } from "electron";
 import { appLog } from "./logger";
 
 const AUTOMATIC_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const INITIAL_CHECK_DELAY_MS = 15_000;
 let activeUpdater: ChildProcess | null = null;
+let pendingAutomaticCheck = false;
+
+function appWindowIsFocused(): boolean {
+  return BrowserWindow.getFocusedWindow() != null;
+}
+
+/**
+ * Run one automatic update check. Sparkle's standard user driver shows the
+ * update prompt as soon as a new version is found, so an automatic check must
+ * never run while the user is in another app: defer it until a window regains
+ * focus (see startAutomaticUpdateChecks). Manual checks are never gated.
+ */
+function runAutomaticUpdateCheck(): void {
+  if (appWindowIsFocused()) {
+    pendingAutomaticCheck = false;
+    void checkForUpdates();
+    return;
+  }
+  pendingAutomaticCheck = true;
+}
 
 function appBundlePath(): string {
   return path.resolve(path.dirname(process.execPath), "../..");
@@ -119,8 +140,16 @@ export function installUpdateMenu(): void {
 export function startAutomaticUpdateChecks(): void {
   if (process.platform !== "darwin" || !app.isPackaged) return;
 
-  const initialCheck = setTimeout(() => void checkForUpdates(), 15_000);
-  const interval = setInterval(() => void checkForUpdates(), AUTOMATIC_CHECK_INTERVAL_MS);
+  const initialCheck = setTimeout(runAutomaticUpdateCheck, INITIAL_CHECK_DELAY_MS);
+  const interval = setInterval(runAutomaticUpdateCheck, AUTOMATIC_CHECK_INTERVAL_MS);
   initialCheck.unref();
   interval.unref();
+
+  // A check that fired while the app was unfocused runs as soon as the user
+  // comes back, instead of popping up over other software.
+  app.on("browser-window-focus", () => {
+    if (!pendingAutomaticCheck) return;
+    pendingAutomaticCheck = false;
+    void checkForUpdates();
+  });
 }
