@@ -8,8 +8,10 @@ cache_dir="$app_dir/.cache/sparkle-updater"
 destination="$cache_dir/reflecta-updater.app"
 native_dir="$app_dir/native/reflecta-updater"
 executable="$destination/Contents/MacOS/reflecta-updater"
+framework="$cache_dir/Sparkle.framework"
 
 if [[ -x "$executable" &&
+      -d "$framework" &&
       -f "$cache_dir/Sparkle-LICENSE.txt" &&
       "$executable" -nt "$native_dir/main.m" &&
       "$executable" -nt "$native_dir/Info.plist" &&
@@ -28,10 +30,14 @@ curl -fsSL \
 mkdir -p "$products"
 tar -xf "$archive" -C "$products"
 
-rm -rf "$destination"
-mkdir -p "$destination/Contents/MacOS" "$destination/Contents/Frameworks"
+rm -rf "$destination" "$framework"
+mkdir -p "$destination/Contents/MacOS"
 cp "$native_dir/Info.plist" "$destination/Contents/Info.plist"
-ditto "$products/Sparkle.framework" "$destination/Contents/Frameworks/Sparkle.framework"
+
+# Sparkle.framework lives in the main app's Contents/Frameworks (standard
+# Sparkle layout). The updater host loads it at runtime through its rpath,
+# so the helper bundle itself stays framework-free.
+ditto "$products/Sparkle.framework" "$framework"
 xcrun clang \
   -fobjc-arc \
   -fmodules \
@@ -40,7 +46,7 @@ xcrun clang \
   -F "$products" \
   -framework AppKit \
   -framework Sparkle \
-  -Wl,-rpath,@executable_path/../Frameworks \
+  -Wl,-rpath,@executable_path/../../../../Frameworks \
   "$native_dir/main.m" \
   -o "$executable"
 

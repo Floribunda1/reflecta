@@ -62,6 +62,9 @@ mac:
       to: reflecta-updater.app
     - from: .cache/sparkle-updater/Sparkle-LICENSE.txt
       to: licenses/Sparkle-LICENSE.txt
+  extraFiles:
+    - from: .cache/sparkle-updater/Sparkle.framework
+      to: Frameworks/Sparkle.framework
   extendInfo:
     NSCameraUsageDescription: Application requests access to the device's camera.
     NSMicrophoneUsageDescription: Application requests access to the device's microphone.

@@ -41,7 +41,11 @@ jobs:
           app="apps/electron/dist/mac-arm64/Reflecta.app"
           updater="$app/Contents/Resources/reflecta-updater.app"
           test -x "$updater/Contents/MacOS/reflecta-updater"
-          test -d "$updater/Contents/Frameworks/Sparkle.framework"
+          test -d "$app/Contents/Frameworks/Sparkle.framework"
+          test -x "$app/Contents/Frameworks/Sparkle.framework/Sparkle"
+          test -d "$app/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app"
+          test ! -d "$updater/Contents/Frameworks/Sparkle.framework"
+          otool -l "$updater/Contents/MacOS/reflecta-updater" | grep -q "../../../../Frameworks"
           test -f "$app/Contents/Resources/licenses/Sparkle-LICENSE.txt"
           test "$(plutil -extract SUPublicEDKey raw "$app/Contents/Info.plist")" = \
             "DYePZoCJq199EnWefYhAcFT90sGJw9zKrBfHDe8BD0Q="
