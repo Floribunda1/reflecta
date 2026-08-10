@@ -404,23 +404,46 @@ function sameStringArray(a: readonly string[], b: readonly string[]) {
   return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
-function MetaOnlyChange({
-  label,
-  before,
-  after,
-  unchangedLabel,
+type UpdateSideField = { label: string; value: string };
+
+function UpdateDocSide({
+  fields,
+  body,
+  entityType,
+  entityBindings,
+  streaming,
+  streamingLabel,
+  hint,
 }: {
-  label: string;
-  before?: readonly string[];
-  after?: readonly string[];
-  unchangedLabel: string;
+  fields: UpdateSideField[];
+  body?: string;
+  entityType: Extract<ChatEntityType, "understanding" | "context">;
+  entityBindings?: ChatEntityBindings;
+  streaming?: boolean;
+  streamingLabel?: string;
+  hint?: string;
 }) {
-  return before && after && !sameStringArray(before, after) ? (
-    <span className="text-muted-foreground">
-      {label}：{domainPaths(before)} → {domainPaths(after)}
-    </span>
-  ) : (
-    <span className="text-muted-foreground">{unchangedLabel}</span>
+  if (streaming && !fields.length && !body) {
+    return <span className="text-muted-foreground">{streamingLabel ?? "正在生成修改…"}</span>;
+  }
+  return (
+    <div className="space-y-3">
+      {fields.length ? (
+        <FieldList>
+          {fields.map((field) => (
+            <Field key={field.label} label={field.label}>
+              {field.value}
+            </Field>
+          ))}
+        </FieldList>
+      ) : null}
+      {body ? (
+        <KnowledgeDocument type={entityType} body={body} entityBindings={entityBindings} />
+      ) : (
+        <span className="text-muted-foreground">{streaming ? "正在生成正文…" : "暂无正文"}</span>
+      )}
+      {hint ? <div className="text-xs text-muted-foreground">{hint}</div> : null}
+    </div>
   );
 }
 
@@ -431,36 +454,67 @@ function UnderstandingUpdate({
   proposal: UnderstandingUpdateProposalView;
   entityBindings?: ChatEntityBindings;
 }) {
-  const hasAfter =
-    proposal.content.afterHeading !== undefined || proposal.content.afterBody !== undefined;
+  const {
+    beforeHeading,
+    beforeBody,
+    afterHeading,
+    afterBody,
+    beforeDomainPaths,
+    domainPaths: afterDomainPaths,
+  } = proposal.content;
+  const hasAfter = afterHeading !== undefined || afterBody !== undefined;
+  const streaming = proposal.lifecycle === "preview" && !hasAfter;
+  const domainsChanged =
+    beforeDomainPaths !== undefined &&
+    afterDomainPaths !== undefined &&
+    !sameStringArray(beforeDomainPaths, afterDomainPaths);
+
+  let hint: string | undefined;
+  if (!streaming && !hasAfter) {
+    if (domainsChanged) {
+      hint = `仅调整所属 Domain：${domainPaths(beforeDomainPaths)} → ${domainPaths(afterDomainPaths)}`;
+    } else if (beforeHeading !== undefined || beforeBody !== undefined) {
+      hint = "标题与正文不变";
+    }
+  }
+
+  const beforeFields: UpdateSideField[] = [
+    { label: "标题", value: fallback(beforeHeading, "未提供标题") },
+    { label: "Domain", value: domainPaths(beforeDomainPaths) ?? "未归入 Domain" },
+  ];
+  const afterFields: UpdateSideField[] = streaming
+    ? []
+    : [
+        {
+          label: "标题",
+          value: fallback(afterHeading ?? beforeHeading, "未提供标题"),
+        },
+        {
+          label: "Domain",
+          value: domainPaths(afterDomainPaths ?? beforeDomainPaths) ?? "未归入 Domain",
+        },
+      ];
+
   return (
     <KnowledgeComparison
       before={
-        <KnowledgeDocument
-          type="understanding"
-          title={proposal.content.beforeHeading}
-          body={proposal.content.beforeBody}
+        <UpdateDocSide
+          fields={beforeFields}
+          body={beforeBody}
+          entityType="understanding"
           entityBindings={entityBindings}
         />
       }
       after={
-        hasAfter ? (
-          <KnowledgeDocument
-            type="understanding"
-            title={proposal.content.afterHeading ?? proposal.content.beforeHeading}
-            body={proposal.content.afterBody ?? proposal.content.beforeBody}
-            entityBindings={entityBindings}
-          />
-        ) : proposal.lifecycle === "preview" ? (
-          <span className="text-muted-foreground">正在生成修改…</span>
-        ) : (
-          <MetaOnlyChange
-            label="仅调整所属 Domain"
-            before={proposal.content.beforeDomainPaths}
-            after={proposal.content.domainPaths}
-            unchangedLabel="标题与内容不变"
-          />
-        )
+        <UpdateDocSide
+          fields={afterFields}
+          body={afterBody ?? (streaming ? undefined : beforeBody)}
+          entityType="understanding"
+          entityBindings={entityBindings}
+          streaming={streaming}
+          streamingLabel="正在生成修改…"
+          hint={hint}
+        />
       }
     />
   );
@@ -533,34 +587,6 @@ function ContextCreate({
   );
 }
 
-function ContextMetaOnlyChange({ proposal }: { proposal: ContextUpdateProposalView }) {
-  const { beforeUnderstandingLabel, beforeMediumLabel, understandingLabel, mediumLabel } =
-    proposal.content;
-  if (
-    beforeUnderstandingLabel !== undefined &&
-    understandingLabel !== undefined &&
-    beforeUnderstandingLabel !== understandingLabel
-  ) {
-    return (
-      <span className="text-muted-foreground">
-        仅调整所属 Understanding：{beforeUnderstandingLabel} → {understandingLabel}
-      </span>
-    );
-  }
-  if (
-    beforeMediumLabel !== undefined &&
-    mediumLabel !== undefined &&
-    beforeMediumLabel !== mediumLabel
-  ) {
-    return (
-      <span className="text-muted-foreground">
-        仅调整类型：{beforeMediumLabel} → {mediumLabel}
-      </span>
-    );
-  }
-  return <span className="text-muted-foreground">标题与内容不变</span>;
-}
-
 function ContextUpdate({
   proposal,
   entityBindings,
@@ -568,31 +594,78 @@ function ContextUpdate({
   proposal: ContextUpdateProposalView;
   entityBindings?: ChatEntityBindings;
 }) {
-  const hasAfter =
-    proposal.content.nextTitle !== undefined || proposal.content.nextBody !== undefined;
+  const {
+    beforeTitle,
+    beforeBody,
+    nextTitle,
+    nextBody,
+    beforeUnderstandingLabel,
+    understandingLabel,
+    beforeMediumLabel,
+    mediumLabel,
+  } = proposal.content;
+  const hasAfter = nextTitle !== undefined || nextBody !== undefined;
+  const streaming = proposal.lifecycle === "preview" && !hasAfter;
+
+  let hint: string | undefined;
+  if (!streaming && !hasAfter) {
+    if (
+      beforeUnderstandingLabel !== undefined &&
+      understandingLabel !== undefined &&
+      beforeUnderstandingLabel !== understandingLabel
+    ) {
+      hint = `仅调整所属 Understanding：${beforeUnderstandingLabel} → ${understandingLabel}`;
+    } else if (
+      beforeMediumLabel !== undefined &&
+      mediumLabel !== undefined &&
+      beforeMediumLabel !== mediumLabel
+    ) {
+      hint = `仅调整类型：${beforeMediumLabel} → ${mediumLabel}`;
+    } else if (beforeTitle !== undefined || beforeBody !== undefined) {
+      hint = "标题与正文不变";
+    }
+  }
+
+  const beforeFields: UpdateSideField[] = [];
+  if (beforeTitle !== undefined) beforeFields.push({ label: "标题", value: beforeTitle });
+  if (beforeUnderstandingLabel !== undefined) {
+    beforeFields.push({ label: "所属 Understanding", value: beforeUnderstandingLabel });
+  }
+  if (beforeMediumLabel !== undefined) {
+    beforeFields.push({ label: "类型", value: beforeMediumLabel });
+  }
+
+  const afterFields: UpdateSideField[] = streaming
+    ? []
+    : [
+        { label: "标题", value: nextTitle ?? beforeTitle ?? "未提供标题" },
+        {
+          label: "所属 Understanding",
+          value: understandingLabel ?? beforeUnderstandingLabel ?? "未提供",
+        },
+        { label: "类型", value: mediumLabel ?? beforeMediumLabel ?? "未提供" },
+      ];
+
   return (
     <KnowledgeComparison
       before={
-        <KnowledgeDocument
-          type="context"
-          title={proposal.content.beforeTitle}
-          body={proposal.content.beforeBody}
+        <UpdateDocSide
+          fields={beforeFields}
+          body={beforeBody}
+          entityType="context"
           entityBindings={entityBindings}
         />
       }
       after={
-        hasAfter ? (
-          <KnowledgeDocument
-            type="context"
-            title={proposal.content.nextTitle ?? proposal.content.beforeTitle}
-            body={proposal.content.nextBody ?? proposal.content.beforeBody}
-            entityBindings={entityBindings}
-          />
-        ) : proposal.lifecycle === "preview" ? (
-          <span className="text-muted-foreground">正在生成修改…</span>
-        ) : (
-          <ContextMetaOnlyChange proposal={proposal} />
-        )
+        <UpdateDocSide
+          fields={afterFields}
+          body={nextBody ?? (streaming ? undefined : beforeBody)}
+          entityType="context"
+          entityBindings={entityBindings}
+          streaming={streaming}
+          streamingLabel="正在生成修改…"
+          hint={hint}
+        />
       }
     />
   );

@@ -127,7 +127,36 @@ describe("AgentProposalCard", () => {
     };
     const rendered = render(view);
     expect(rendered.container.textContent).toContain("仅调整所属 Domain：Agent Skill → AI 直属");
+    expect(rendered.container.textContent).toContain("认知边界：判断力在我，知识面在 AI");
+    expect(rendered.container.textContent).toContain("内容不变");
     expect(rendered.container.textContent).not.toContain("正在生成修改");
+  });
+
+  test("understanding update with content change shows title, domain and body on each side", () => {
+    const view: AgentProposalView = {
+      id: "approval-update-4",
+      kind: "understanding-update",
+      title: "修改 Understanding",
+      lifecycle: "pending",
+      decisionEnabled: true,
+      content: {
+        beforeHeading: "旧标题",
+        afterHeading: "新标题",
+        beforeBody: "旧正文",
+        afterBody: "新正文",
+        beforeDomainPaths: ["Agent Skill"],
+        domainPaths: ["AI 直属"],
+      },
+    };
+    const rendered = render(view);
+    const text = rendered.container.textContent ?? "";
+    expect(text).toContain("旧标题");
+    expect(text).toContain("新标题");
+    expect(text).toContain("旧正文");
+    expect(text).toContain("新正文");
+    expect(text).toContain("Agent Skill");
+    expect(text).toContain("AI 直属");
+    expect(text).not.toContain("正在生成修改");
   });
 
   test("understanding update keeps the placeholder only while the preview is streaming", () => {
@@ -188,7 +217,7 @@ describe("AgentProposalCard", () => {
       },
     };
     const rendered = render(view);
-    expect(rendered.container.textContent).toContain("标题与内容不变");
+    expect(rendered.container.textContent).toContain("标题与正文不变");
     expect(rendered.container.textContent).not.toContain("正在生成修改");
   });
 });
