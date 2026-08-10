@@ -109,4 +109,86 @@ describe("AgentProposalCard", () => {
     expect(rendered.container.querySelector('[data-proposal-id="approval-1"]')).toBe(card);
     expect(card?.getAttribute("data-proposal-open")).toBe("true");
   });
+
+  test("understanding update with only a domain move shows the change instead of a generation placeholder", () => {
+    const view: AgentProposalView = {
+      id: "approval-update-1",
+      kind: "understanding-update",
+      title: "修改 Understanding",
+      lifecycle: "pending",
+      decisionEnabled: true,
+      content: {
+        beforeHeading: "认知边界：判断力在我，知识面在 AI",
+        beforeBody: "内容不变",
+        beforeDomainPaths: ["Agent Skill"],
+        domainPaths: ["AI 直属"],
+        reason: "移到 AI 直属 domain 与主干归拢。",
+      },
+    };
+    const rendered = render(view);
+    expect(rendered.container.textContent).toContain("仅调整所属 Domain：Agent Skill → AI 直属");
+    expect(rendered.container.textContent).not.toContain("正在生成修改");
+  });
+
+  test("understanding update keeps the placeholder only while the preview is streaming", () => {
+    const base = {
+      id: "approval-update-2",
+      kind: "understanding-update" as const,
+      title: "修改 Understanding",
+      content: {
+        beforeHeading: "认知边界：判断力在我，知识面在 AI",
+        beforeBody: "内容不变",
+        beforeDomainPaths: ["Agent Skill"],
+        domainPaths: ["AI 直属"],
+      },
+    };
+    const streaming: AgentProposalView = { ...base, lifecycle: "preview" };
+    expect(render(streaming).container.textContent).toContain("正在生成修改…");
+
+    const completed: AgentProposalView = { ...base, lifecycle: "completed" };
+    const rendered = render(completed);
+    const trigger = rendered.container.querySelector<HTMLButtonElement>(
+      '[data-slot="collapsible-trigger"]',
+    );
+    act(() => trigger?.click());
+    expect(rendered.container.textContent).toContain("仅调整所属 Domain：Agent Skill → AI 直属");
+    expect(rendered.container.textContent).not.toContain("正在生成修改");
+  });
+
+  test("context update with only a medium change shows the change instead of a generation placeholder", () => {
+    const view: AgentProposalView = {
+      id: "approval-context-update-1",
+      kind: "context-update",
+      title: "修改 Context",
+      lifecycle: "pending",
+      decisionEnabled: true,
+      content: {
+        targetLabel: "AI 输出的困惑",
+        beforeTitle: "标题不变",
+        beforeBody: "内容不变",
+        beforeMediumLabel: "经验",
+        mediumLabel: "视频",
+      },
+    };
+    const rendered = render(view);
+    expect(rendered.container.textContent).toContain("仅调整类型：经验 → 视频");
+    expect(rendered.container.textContent).not.toContain("正在生成修改");
+  });
+
+  test("understanding update without any visible change reports unchanged content", () => {
+    const view: AgentProposalView = {
+      id: "approval-update-3",
+      kind: "understanding-update",
+      title: "修改 Understanding",
+      lifecycle: "pending",
+      decisionEnabled: true,
+      content: {
+        beforeHeading: "认知边界",
+        beforeBody: "内容不变",
+      },
+    };
+    const rendered = render(view);
+    expect(rendered.container.textContent).toContain("标题与内容不变");
+    expect(rendered.container.textContent).not.toContain("正在生成修改");
+  });
 });

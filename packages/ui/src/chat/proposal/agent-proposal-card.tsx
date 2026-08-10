@@ -400,6 +400,30 @@ function KnowledgeDocument({
   );
 }
 
+function sameStringArray(a: readonly string[], b: readonly string[]) {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+function MetaOnlyChange({
+  label,
+  before,
+  after,
+  unchangedLabel,
+}: {
+  label: string;
+  before?: readonly string[];
+  after?: readonly string[];
+  unchangedLabel: string;
+}) {
+  return before && after && !sameStringArray(before, after) ? (
+    <span className="text-muted-foreground">
+      {label}：{domainPaths(before)} → {domainPaths(after)}
+    </span>
+  ) : (
+    <span className="text-muted-foreground">{unchangedLabel}</span>
+  );
+}
+
 function UnderstandingUpdate({
   proposal,
   entityBindings,
@@ -427,8 +451,15 @@ function UnderstandingUpdate({
             body={proposal.content.afterBody ?? proposal.content.beforeBody}
             entityBindings={entityBindings}
           />
-        ) : (
+        ) : proposal.lifecycle === "preview" ? (
           <span className="text-muted-foreground">正在生成修改…</span>
+        ) : (
+          <MetaOnlyChange
+            label="仅调整所属 Domain"
+            before={proposal.content.beforeDomainPaths}
+            after={proposal.content.domainPaths}
+            unchangedLabel="标题与内容不变"
+          />
         )
       }
     />
@@ -471,8 +502,10 @@ function DomainUpdate({ proposal }: { proposal: DomainUpdateProposalView }) {
                 : (proposal.content.beforeParentPath ?? "根 Domain")}
             </Field>
           </FieldList>
-        ) : (
+        ) : proposal.lifecycle === "preview" ? (
           <span className="text-muted-foreground">正在生成修改…</span>
+        ) : (
+          <span className="text-muted-foreground">名称与上级 Domain 不变</span>
         )
       }
     />
@@ -498,6 +531,34 @@ function ContextCreate({
       />
     </div>
   );
+}
+
+function ContextMetaOnlyChange({ proposal }: { proposal: ContextUpdateProposalView }) {
+  const { beforeUnderstandingLabel, beforeMediumLabel, understandingLabel, mediumLabel } =
+    proposal.content;
+  if (
+    beforeUnderstandingLabel !== undefined &&
+    understandingLabel !== undefined &&
+    beforeUnderstandingLabel !== understandingLabel
+  ) {
+    return (
+      <span className="text-muted-foreground">
+        仅调整所属 Understanding：{beforeUnderstandingLabel} → {understandingLabel}
+      </span>
+    );
+  }
+  if (
+    beforeMediumLabel !== undefined &&
+    mediumLabel !== undefined &&
+    beforeMediumLabel !== mediumLabel
+  ) {
+    return (
+      <span className="text-muted-foreground">
+        仅调整类型：{beforeMediumLabel} → {mediumLabel}
+      </span>
+    );
+  }
+  return <span className="text-muted-foreground">标题与内容不变</span>;
 }
 
 function ContextUpdate({
@@ -527,8 +588,10 @@ function ContextUpdate({
             body={proposal.content.nextBody ?? proposal.content.beforeBody}
             entityBindings={entityBindings}
           />
-        ) : (
+        ) : proposal.lifecycle === "preview" ? (
           <span className="text-muted-foreground">正在生成修改…</span>
+        ) : (
+          <ContextMetaOnlyChange proposal={proposal} />
         )
       }
     />

@@ -506,6 +506,33 @@ const approvalTools: readonly ApprovalFixture[] = [
     },
   },
   {
+    block: approval(
+      "understanding_update",
+      "候选修改 Understanding",
+      {
+        understandingId: "u-valve-sequence",
+        before: {
+          title: "低温条件下的阀门启动顺序",
+          body: syntheticMarkdown("低温条件下的阀门启动顺序", 2),
+          domainIds: ["d-irrigation"],
+        },
+        domainIds: ["d-engineering"],
+        reason: "阀门启动结论属于设施工程共性问题，不再局限于灌溉子系统，移到上级 Domain。",
+      },
+      {
+        approvalId: "approval-understanding-update-move",
+        toolCallId: "approval-tool-understanding-update-move",
+      },
+    ),
+    output: {
+      approvalStatus: "approved",
+      proposalType: "understanding_update",
+      resultRefType: "understanding",
+      resultRefId: "u-valve-sequence",
+      resultRefTitle: "低温条件下的阀门启动顺序",
+    },
+  },
+  {
     block: approval("understanding_delete", "候选删除 Understanding", {
       understandingId: "u-obsolete-sensor",
       reason:
