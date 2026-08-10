@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.6 - 2026-08-09
+
+- Update proposals now show the actual change for meta-only updates (moved to another Domain, changed type or Understanding) instead of a placeholder that never finished; unchanged-content updates get a clear note.
+- Reworked the update proposal card into 修改前/修改后 columns with 标题, Domain, and 正文 fields, so domain-only moves are readable directly instead of as a bare document diff.
+
 ## 1.4.5 - 2026-08-09
 
 - Automatic update checks (startup and every 6 hours) now wait until the app window is focused, so the update prompt no longer interrupts you while working in another app. Manual "Check For Updates…" is unaffected.
