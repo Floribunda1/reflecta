@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.7 - 2026-08-10
+
+- Embedded Sparkle.framework into the app bundle using the standard layout (Contents/Frameworks) and made the update checker load it from the app itself, so delta updates become eligible instead of always downloading the full package, and the updater components ship as part of the app.
+
 ## 1.4.6 - 2026-08-09
 
 - Update proposals now show the actual change for meta-only updates (moved to another Domain, changed type or Understanding) instead of a placeholder that never finished; unchanged-content updates get a clear note.
