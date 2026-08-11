@@ -73,29 +73,20 @@ test("@CP-CONNECTION-002 用户从 wiki-link 打开被引用的 Understanding", 
   }
 });
 
-test("@CP-CONNECTION-003 用户建立 Connection 后在知识漫步中看到关系", async () => {
+test("@CP-CONNECTION-003 用户建立 Connection 后理解列表显示连接数量", async () => {
   const { app, page } = await launchApp();
 
   try {
     await openCapturePage(page);
-    await page.getByRole("button", { name: "打开知识漫步" }).click();
-    const graph = page.getByTestId("knowledge-wander-graph");
-    await expect(graph.locator(":scope > div").first()).toHaveAttribute(
-      "data-graph-ready",
-      "true",
-      { timeout: 15_000 },
-    );
-    const edgeCountBefore = Number(await graph.getAttribute("data-edge-count"));
-    await page.getByRole("button", { name: "退出知识漫步" }).click();
+    const connectionCount = async () => {
+      const badge = understandingRow(page, "React Server Components").getByLabel(/个双链关系/);
+      return Number((await badge.getAttribute("aria-label"))?.match(/\d+/)?.[0] ?? "0");
+    };
+    const before = await connectionCount();
 
     await connectToUnconnectedNode(page);
-    await openUnderstanding(page, "Vue Reactivity");
-    await page.getByRole("button", { name: "打开知识漫步" }).click();
-    await expect(graph).toHaveAttribute("data-edge-count", String(edgeCountBefore + 1));
-    await expect(
-      page.getByRole("button", { name: "打开理解：React Server Components" }),
-    ).toBeVisible();
-    await expect(page.getByRole("button", { name: "打开理解：Unconnected Node" })).toBeVisible();
+
+    await expect.poll(connectionCount).toBe(before + 1);
   } finally {
     await app.close();
   }

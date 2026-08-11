@@ -20,10 +20,8 @@
     那么详情页应该打开 Understanding「React Suspense」
     而且理解列表应该选中 Understanding「React Suspense」
 
-  @P1 @graph @CP-CONNECTION-003
-  场景: 用户建立 Connection 后在知识漫步中看到关系
+  @P1 @list @CP-CONNECTION-003
+  场景: 用户建立 Connection 后理解列表显示连接数量
     假如 seed 数据中存在尚未连接的 Understanding「React Server Components」和「Unconnected Node」
     当用户通过 wiki-link 将 Understanding「React Server Components」连接到「Unconnected Node」
-    而且用户进入知识漫步
-    那么两条 Understanding 都应该显示为图谱节点
-    而且两条节点之间应该显示一条 Connection
+    那么理解列表中「React Server Components」的连接数量应该增加

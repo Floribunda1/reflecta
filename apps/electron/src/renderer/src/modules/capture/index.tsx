@@ -1,5 +1,5 @@
 import { FileText } from "lucide-react";
-import { lazy, Suspense, useState } from "react";
+import { useState } from "react";
 import { useKeyPress, useMemoizedFn } from "ahooks";
 import { usePanelRef } from "react-resizable-panels";
 import {
@@ -14,19 +14,13 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@reflecta/ui/components/resizable";
-import { PanelHeader } from "@renderer/modules/shared/layout/PanelHeader";
 import { ContextualAgentDock } from "@renderer/modules/chat/contextual-agent-dock";
 import { DomainTree } from "./domain";
 import { UnderstandingDetail } from "./understanding-detail";
 import { UnderstandingList } from "./understanding-list";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@reflecta/ui/components/empty";
-import { Skeleton } from "@reflecta/ui/components/skeleton";
 import { cn } from "@reflecta/ui/lib/utils";
 import { useCaptureStore } from "./store";
-
-const KnowledgeWanderWorkspace = lazy(() =>
-  import("./knowledge-wander").then((module) => ({ default: module.KnowledgeWanderWorkspace })),
-);
 
 function CaptureAgentDock() {
   const agentDockScope = useCaptureStore((state) => state.agentDockScope);
@@ -51,7 +45,6 @@ function CapturePageInner() {
   const [domainSidebarOpen, setDomainSidebarOpen] = useState(true);
   const [focusMode, setFocusMode] = useState(false);
   const understandingListPanelRef = usePanelRef();
-  const captureMode = useCaptureStore((state) => state.captureMode);
   const selectedUnderstandingId = useCaptureStore((state) => state.selectedUnderstandingId);
   const agentDockOpen = useCaptureStore((state) => state.agentDockOpen);
   const selectDomain = useCaptureStore((state) => state.selectDomain);
@@ -134,94 +127,72 @@ function CapturePageInner() {
           defaultSize={agentDockOpen && !focusMode ? "64%" : "100%"}
           className="min-h-0 min-w-0"
         >
-          {captureMode === "wander" ? (
-            <Suspense
-              fallback={
-                <div className="flex h-full min-h-0 flex-col bg-background">
-                  <PanelHeader>
-                    <Skeleton className="h-8 w-28" />
-                  </PanelHeader>
-                  <div className="min-h-0 flex-1" />
-                </div>
-              }
+          <ResizablePanelGroup
+            orientation="horizontal"
+            className="h-full min-h-0 min-w-0 bg-transparent"
+          >
+            <ResizablePanel
+              id="capture-understanding-list-panel"
+              panelRef={understandingListPanelRef}
+              defaultSize="420px"
+              minSize="280px"
+              maxSize="60%"
+              collapsedSize={0}
+              collapsible
+              groupResizeBehavior="preserve-pixel-size"
+              className="min-h-0 min-w-0"
             >
-              <KnowledgeWanderWorkspace
-                onChat={openAgentDock}
-                onExpandSidebar={domainSidebarOpen ? undefined : () => setDomainSidebarOpen(true)}
-              />
-            </Suspense>
-          ) : (
-            <ResizablePanelGroup
-              orientation="horizontal"
-              className="h-full min-h-0 min-w-0 bg-transparent"
+              <div aria-hidden={focusMode} inert={focusMode} className="h-full">
+                <UnderstandingList
+                  onChat={openAgentDock}
+                  onExpandSidebar={domainSidebarOpen ? undefined : () => setDomainSidebarOpen(true)}
+                />
+              </div>
+            </ResizablePanel>
+            <ResizableHandle
+              withHandle
+              id="capture-understanding-list-resize-handle"
+              disabled={focusMode}
+              className={cn(
+                RESIZE_HANDLE_SLIM_CLASS,
+                RESIZE_HANDLE_GRIP_CHILD_CLASS,
+                focusMode ? "w-0 opacity-0 after:hidden" : "w-px",
+              )}
+            />
+            <ResizablePanel
+              id="capture-understanding-detail-panel"
+              minSize="320px"
+              className="min-h-0 min-w-0"
             >
-              <ResizablePanel
-                id="capture-understanding-list-panel"
-                panelRef={understandingListPanelRef}
-                defaultSize="420px"
-                minSize="280px"
-                maxSize="60%"
-                collapsedSize={0}
-                collapsible
-                groupResizeBehavior="preserve-pixel-size"
-                className="min-h-0 min-w-0"
-              >
-                <div aria-hidden={focusMode} inert={focusMode} className="h-full">
-                  <UnderstandingList
-                    onChat={openAgentDock}
-                    onExpandSidebar={
-                      domainSidebarOpen ? undefined : () => setDomainSidebarOpen(true)
-                    }
+              <main className="h-full min-h-0 min-w-0 overflow-hidden bg-transparent">
+                {selectedUnderstandingId ? (
+                  <UnderstandingDetail
+                    understandingId={selectedUnderstandingId}
+                    focusMode={focusMode}
+                    onFocusModeChange={(focused) => (focused ? enterFocusMode() : exitFocusMode())}
+                    onWikiLinkClick={handleWikiLinkClick}
+                    onChat={(scope) => {
+                      exitFocusMode();
+                      openAgentDock(scope);
+                    }}
+                    onDeleted={() => {
+                      exitFocusMode();
+                      resetAfterUnderstandingDeleted(selectedUnderstandingId);
+                    }}
                   />
-                </div>
-              </ResizablePanel>
-              <ResizableHandle
-                withHandle
-                id="capture-understanding-list-resize-handle"
-                disabled={focusMode}
-                className={cn(
-                  RESIZE_HANDLE_SLIM_CLASS,
-                  RESIZE_HANDLE_GRIP_CHILD_CLASS,
-                  focusMode ? "w-0 opacity-0 after:hidden" : "w-px",
+                ) : (
+                  <Empty className="h-full">
+                    <EmptyContent>
+                      <EmptyMedia variant="icon">
+                        <FileText />
+                      </EmptyMedia>
+                      <EmptyDescription>选择一条内容开始查看</EmptyDescription>
+                    </EmptyContent>
+                  </Empty>
                 )}
-              />
-              <ResizablePanel
-                id="capture-understanding-detail-panel"
-                minSize="320px"
-                className="min-h-0 min-w-0"
-              >
-                <main className="h-full min-h-0 min-w-0 overflow-hidden bg-transparent">
-                  {selectedUnderstandingId ? (
-                    <UnderstandingDetail
-                      understandingId={selectedUnderstandingId}
-                      focusMode={focusMode}
-                      onFocusModeChange={(focused) =>
-                        focused ? enterFocusMode() : exitFocusMode()
-                      }
-                      onWikiLinkClick={handleWikiLinkClick}
-                      onChat={(scope) => {
-                        exitFocusMode();
-                        openAgentDock(scope);
-                      }}
-                      onDeleted={() => {
-                        exitFocusMode();
-                        resetAfterUnderstandingDeleted(selectedUnderstandingId);
-                      }}
-                    />
-                  ) : (
-                    <Empty className="h-full">
-                      <EmptyContent>
-                        <EmptyMedia variant="icon">
-                          <FileText />
-                        </EmptyMedia>
-                        <EmptyDescription>选择一条内容开始查看</EmptyDescription>
-                      </EmptyContent>
-                    </Empty>
-                  )}
-                </main>
-              </ResizablePanel>
-            </ResizablePanelGroup>
-          )}
+              </main>
+            </ResizablePanel>
+          </ResizablePanelGroup>
         </ResizablePanel>
         {agentDockOpen && !focusMode ? (
           <>

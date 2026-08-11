@@ -1,7 +1,7 @@
 import { useQueries } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { FOCUS_MODE_OFFSET_CLASS } from "@renderer/modules/shared/layout/layout-constants";
-import { ArrowUpDown, FileText, GitBranch, Plus, Search, Share2 } from "lucide-react";
+import { ArrowUpDown, FileText, GitBranch, Plus, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useUnderstandingList, useUnderstandingListActions } from "./hooks";
 import { UnderstandingRow } from "./UnderstandingRow";
@@ -79,7 +79,6 @@ export function UnderstandingList({
   const setSearchOpen = useCaptureStore((state) => state.setSearchOpen);
   const setSearchQuery = useCaptureStore((state) => state.setSearchQuery);
   const setIncludeDescendants = useCaptureStore((state) => state.setIncludeDescendants);
-  const toggleKnowledgeWander = useCaptureStore((state) => state.toggleKnowledgeWander);
   const understandingListSortBy = useCaptureStore((state) => state.understandingListSortBy);
   const setUnderstandingListSortBy = useCaptureStore((state) => state.setUnderstandingListSortBy);
   const { domainList } = useCaptureDomains();
@@ -152,16 +151,6 @@ export function UnderstandingList({
             className="flex shrink-0 items-center gap-1"
             data-no-drag
           >
-            <Button
-              data-testid="capture-knowledge-wander-entry"
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              aria-label="打开知识漫步"
-              onClick={toggleKnowledgeWander}
-            >
-              <Share2 size={14} />
-            </Button>
             <Button
               type="button"
               size="icon-sm"
