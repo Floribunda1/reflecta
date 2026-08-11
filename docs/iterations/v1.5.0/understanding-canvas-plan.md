@@ -73,12 +73,30 @@ React Flow（MIT）能力与 React 生态集成优秀，但不满足"基础编�
 - 该问题出现在**大规模图**场景；理解画布的规模是 **5-50 张卡片**，该量级下 X6 无性能问题。
 - 大数据量官方建议 G6（另一个库），不影响 X6 在本场景的适用性。
 
-### 2.5 React 19 兼容性（实现第一步 spike 关卡）
+### 2.5 React 19 兼容性（spike 已验证通过）
 
 - `@antv/x6-react-shape@3.0.1` peer 声明 `react: >=18.0.0`，React 19 满足，无依赖冲突。
 - 源码确认使用 `createRoot`（React 18+ API，React 19 兼容），未使用已移除的 legacy `ReactDOM.render`。
-- "官方未支持"指未做官方测试（GitHub 有悬赏 issue），运行时大概率可用。
-- **实现第一步先做 spike 验证**：React 19 + x6-react-shape 能否正常运行；失败则切换 React Flow。
+
+**Spike 验证结论（2026-08-11，14/14 通过）**：
+
+| 验证项                               | 结果                               |
+| ------------------------------------ | ---------------------------------- |
+| React 19 + x6-react-shape 启动       | ✅ 无错误                          |
+| shadcn 风格卡片节点（理解卡/文本卡） | ✅ DOM 渲染、内容正确              |
+| 有向连线 + 标签（编辑/联动）         | ✅ 标签创建、选中联动              |
+| History 撤销/重做                    | ✅                                 |
+| Snapline 参考线（真实拖拽触发）      | ✅ 对齐时出现 `x6-widget-snapline` |
+| DnD 从面板拖入画布落点               | ✅                                 |
+| 快照序列化 round-trip / localStorage | ✅                                 |
+
+**Spike 发现的实现要点（对正式集成有直接影响）**：
+
+1. **X6 3.x 运行时需要 `tslib`**：其 ESM 构建 `import ... from "tslib"`，但未声明为依赖，需在 `packages/ui` 显式添加（vite 解析失败坑）。
+2. **History 在 3.x 是插件**：`graph.use(new History({ enabled: true }))`，不再是 `history: true` 选项；`graph.undo()/redo()` 由插件 API 挂载。
+3. **插件全部并入核心包**：`@antv/x6@3.x` 直接导出 `Dnd`/`Snapline`/`Selection`/`Keyboard`/`History`，无需单独安装 `@antv/x6-plugin-*`（那些还是 2.x 且 peer `^2.x`）。
+4. **`dnd.start()` 需传节点实例**（`graph.createNode(config)` 后传入），不能传纯配置对象。
+5. Snapline 渲染类名为 `x6-widget-snapline`（前缀可配置）。
 
 ## 3. 需求形状
 
