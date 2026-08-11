@@ -110,8 +110,6 @@ const preview: Preview = {
             ],
             "组合场景样式",
           ],
-          "Styles",
-          ["Design Tokens"],
         ],
       },
     },
