@@ -44,7 +44,7 @@
 | F8  | 连线标签            | **双击连线内联编辑**自由文本标签（工具栏不放标签输入框，配合精简）                                                             | 标签持久化、移动卡片时随动                           |
 | F9  | 参考线对齐          | 拖动卡片时与其它卡片边缘 / 中心对齐                                                                                            | 对齐出现指示线、松手后位置落齐                       |
 | F10 | 撤销 / 重做         | X6 History：位置、增删、标签、文本；**仅键盘快捷键**（Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z），无工具栏按钮                            | 快捷键可用                                           |
-| F11 | 框选多选 / 整组拖动 | 橡皮筋框选、Shift 多选、整体移动                                                                                               | 多选移动后各自位置持久化                             |
+| F11 | 框选多选 / 整组拖动 | **CAD 框选逻辑**：左→右完全包含才选中、右→左相交即选中；Shift 追加；整体移动                                                   | 多选移动后各自位置持久化                             |
 | F12 | 删除                | 选中卡片 / 连线后 Delete / Backspace（确认）                                                                                   | 级联删除连线                                         |
 | F13 | 打开理解详情        | 点击理解卡 → **右侧单面板切换为详情模式**，复用 UnderstandingDetail，编辑在详情内                                              | 详情可编辑、保存后画布卡片内容同步                   |
 | F14 | 持久化与恢复        | 位置 / 尺寸 / 文本 / 连线 / 标签落库；视口（缩放平移）恢复                                                                     | 重进画布完整还原                                     |
@@ -285,6 +285,7 @@ type CanvasDocument = {
 - **图形元素**：`rect` / `circle` 为 X6 内置 shape，DnD 直接 `createNode`，无需自定义注册。
 - **打组（embedding）**：graph 配置 `embedding: { enabled, findParent: "center", validate }`（只允许 `group` 容器作为父）；入组用 `child.addTo(parent)`（**双向**设置 parent + children，`setParent` 只设单向）；交互拖拽组时子元素自动跟随（内部 `translate` 语义），程序化移动需用 `translate()` 而非 `position()`；快照中 `children` 以 id 数组持久化，round-trip 自动恢复。
 - **连线吸附 / 重路由（F18）**：`connecting: { router: "manhattan", connector: "smooth", connectionPoint: "boundary" }`（spike 已验证）。
+- **CAD 框选（F11）**：X6 默认 rubberband 为相交判定；自定义 marquee 按拖拽方向切换判定——左→右用 `model.getNodesInArea(rect, { strict: true })`（完全包含）、右→左用 `strict: false`（相交即中）；`getEdgesInArea` 同理；判定方向以起点与当前点 x 坐标比较。
 - **画布内搜索（F19）**：命中元素用 `graph.centerCell()` / `graph.zoomToCells()` 平移缩放定位。
 - **PNG 导出（F23）**：X6 核心 `Export` 插件 `graph.toPNG(cb)`（plugin/export 在核心包）。
 - **演示模式（F22）**：按组 / 容器构建步骤，每步 `graph.zoomToRect()` 动画聚焦（X6 camera 动画）。
