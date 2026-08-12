@@ -1,0 +1,216 @@
+/* ============================================================
+ * Reflecta Design Tokens —— token 定义单一文件（Base16 驱动版）
+ *
+ * 结构：
+ *   :root / .dark —— Base16 色值（--base00~0F）+ shadcn 契约层 + 状态色家族
+ *   @theme inline —— 暴露为 utility（--color-* 引用语义变量）
+ *   @theme        —— 主题无关比例尺（radius/排版/字体）
+ *
+ * Base16 语义映射（chriskempson/base16）：
+ *   base00=默认背景 → background/card/popover（shadcn 契约：浮层/卡片与画布同色，
+ *                    层级由 shadow/ring/overlay 提供）
+ *   base01=浅背景   → sidebar
+ *   base02=选中背景 → muted/accent/secondary/border/input（shadcn 默认边框档：
+ *                    若有若无的分隔，light 1.3:1，层级靠 shadow）
+ *   base03=注释     → （不映射：对比度不足，弱化文字统一用 muted-foreground）
+ *   base04=暗前景   → muted-foreground
+ *   base05=默认前景 → foreground
+ *   base08=红       → destructive/danger     base0B=绿 → success
+ *   base0A=黄       → warning                base0D=蓝 → info
+ *   base0C=青       → 默认主题 primary/ring（Ghostty 方案改用 cursor-color）
+ *
+ * 派生色（状态色 muted/foreground）统一用 OKLCH 空间 color-mix：
+ * sRGB 空间混色会出泥泞的中间调，OKLCH 等感知明度，混色平滑。
+ * UI 中出现的所有颜色必须来自 16 个槽位或基于槽位的 OKLCH 派生，
+ * 不引入槽位外的裸色值（换 scheme = 换一组 base 值，整套自动和谐）。
+ *
+ * 换主题 = 换一组 base 值（默认 .light/.dark；未来加 .theme-* 类即可）。
+ * 查看：Storybook → Styles / Design Tokens
+ * ============================================================ */
+
+/* ---------------- :root（Base16 Default Light + 定制青绿主色） ---------------- */
+:root {
+  /* Base16 Default Light（base0C 定制为 teal，满足青绿主色诉求） */
+  --base00: #f8f8f8; /* 默认背景 */
+  --base01: #e8e8e8; /* 浅背景（raised 容器） */
+  --base02: #d8d8d8; /* 选中背景（muted/accent） */
+  --base03: #b8b8b8; /* 注释/弱化文字（不映射为语义 token，对比度不足） */
+  --base04: #585858; /* 次级前景 */
+  --base05: #383838; /* 默认前景 */
+  --base06: #282828; /* 亮前景 */
+  --base07: #181818; /* 反色前景（深端） */
+  --base08: #ab4642; /* 红（destructive/danger） */
+  --base09: #dc9656; /* 橙（chart-4） */
+  --base0a: #b58900; /* 黄（warning/chart-5） */
+  --base0b: #86a361; /* 绿（success/chart-2） */
+  --base0c: #0d9488; /* 青（primary/ring —— 定制 teal-600） */
+  --base0d: #3c6fb4; /* 蓝（info） */
+  --base0e: #7c5c9e; /* 紫（chart-3） */
+  --base0f: #8a5a3b; /* 棕 */
+
+  /* —— shadcn 接口层（引用 base，名不可改） ——
+   * card / popover 与 background 同色（shadcn 契约：浮层与卡片靠
+   * shadow / ring / overlay 抬升，不换底色）。 */
+  --background: var(--base00);
+  --foreground: var(--base05);
+  --card: var(--base00);
+  --card-foreground: var(--base05);
+  --popover: var(--base00);
+  --popover-foreground: var(--base05);
+  --primary: var(--base0c);
+  --primary-foreground: var(--base07); /* Light theme: teal uses dark text */
+  --secondary: var(--base02);
+  --secondary-foreground: var(--base05);
+  --muted: var(--base02);
+  /* shadcn's muted foreground is readable secondary text（base04，对比度 ~5.5:1）。 */
+  --muted-foreground: var(--base04);
+  --accent: var(--base02);
+  --accent-foreground: var(--base05);
+  --destructive: var(--base08);
+  --destructive-foreground: color-mix(in oklch, var(--base08) 10%, var(--base00));
+  --border: var(--base02);
+  --input: var(--base02);
+  --ring: var(--base0c);
+  --chart-1: var(--base0c);
+  --chart-2: var(--base0b);
+  --chart-3: var(--base0e);
+  --chart-4: var(--base09);
+  --chart-5: var(--base0a);
+  --sidebar: var(--base01);
+  --sidebar-foreground: var(--base05);
+  --sidebar-primary: var(--base0c);
+  --sidebar-primary-foreground: var(--base07);
+  --sidebar-accent: var(--base02);
+  --sidebar-accent-foreground: var(--base05);
+  --sidebar-border: var(--base02);
+  --sidebar-ring: var(--base0c);
+
+  /* —— 状态色家族（社区标准扩展，OKLCH 派生） ——
+   * foreground：mix 到正文色，light 出深字 / dark 出浅字，对比度自动成立。
+   * muted：mix 到画布色，出淡底（失败条、徽标等）。 */
+  --success: var(--base0b);
+  --success-foreground: color-mix(in oklch, var(--base0b) 15%, var(--foreground));
+  --success-muted: color-mix(in oklch, var(--base0b) 12%, var(--base00));
+  --warning: var(--base0a);
+  --warning-foreground: color-mix(in oklch, var(--base0a) 15%, var(--foreground));
+  --warning-muted: color-mix(in oklch, var(--base0a) 14%, var(--base00));
+  --info: var(--base0d);
+  --info-foreground: color-mix(in oklch, var(--base0d) 15%, var(--foreground));
+  --info-muted: color-mix(in oklch, var(--base0d) 10%, var(--base00));
+  --danger: var(--base08);
+  --danger-foreground: color-mix(in oklch, var(--base08) 15%, var(--foreground));
+  --danger-muted: color-mix(in oklch, var(--base08) 10%, var(--base00));
+}
+
+/* ---------------- .dark（Base16 Default Dark） ---------------- */
+.dark {
+  --base00: #181818; /* 默认背景 */
+  --base01: #282828; /* 浅背景 */
+  --base02: #383838; /* 选中背景 */
+  --base03: #585858; /* 注释/弱化 */
+  --base04: #b8b8b8; /* 次级前景 */
+  --base05: #d8d8d8; /* 默认前景 */
+  --base06: #e8e8e8; /* 亮前景 */
+  --base07: #f8f8f8; /* 反色（白端） */
+  --base08: #ab4642; /* 红 */
+  --base09: #dc9656; /* 橙 */
+  --base0a: #e8c15a; /* 黄（dark 亮一档） */
+  --base0b: #9fc06f; /* 绿 */
+  --base0c: #2dd4bf; /* 青（teal-400，dark 亮一档） */
+  --destructive-foreground: color-mix(in oklch, var(--base08) 10%, var(--base07)); /* 浅端 */
+  --primary-foreground: var(--base00); /* Dark theme: bright teal uses dark text */
+  --sidebar-primary-foreground: var(--base00);
+  --base0d: #7cafc2; /* 蓝 */
+  --base0e: #ba8baf; /* 紫 */
+  --base0f: #a16946; /* 棕 */
+}
+
+/* ---------------- @theme inline：语义层暴露为 utility ---------------- */
+@theme inline {
+  /* 字体 */
+  --font-heading: var(--font-sans);
+  /* Inter is imported in globals.css; keep system fonts as fallbacks for CJK glyphs. */
+  --font-sans: "Inter Variable", -apple-system, system-ui, "Segoe UI", sans-serif;
+
+  /* shadcn 接口层 */
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+
+  /* 状态色家族 */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-muted: var(--success-muted);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-muted: var(--warning-muted);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-muted: var(--info-muted);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-danger-muted: var(--danger-muted);
+
+  /* —— 主题无关比例尺（直接值，变量按需输出；showcase 展示即触发） —— */
+
+  /* —— 动效（主题无关）—— */
+
+  /* 缓动（Beautiful UI 启发：进入用 expo-out，面板展开用 drawer） */
+  --ease-out-expo: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* 时长 */
+  --duration-enter: 220ms; /* pop-in / 进入 */
+  --duration-enter-slow: 300ms; /* 展开 / fade-up */
+  --duration-transition: 150ms; /* 状态过渡 / 按压 */
+  --duration-width: 320ms; /* 宽度变形 */
+
+  /* 按压反馈（统一 active:scale） */
+  --press-scale: 0.96;
+
+  /* 圆角（shadcn 兼容名） */
+  --radius: 0.5rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2rem;
+
+  /* 排版（--text-* 生成 text-* utility） */
+  --text-body: 0.875rem; /* 14px —— chat 正文基线 */
+  --text-body--line-height: 1.25rem;
+  --text-body-large: 1rem;
+  --text-body-large--line-height: 1.5rem;
+  --text-body-small: 0.75rem; /* 12px —— 次级内容 */
+  --text-body-small--line-height: 1rem;
+}

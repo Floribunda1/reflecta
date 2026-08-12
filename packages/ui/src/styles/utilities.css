@@ -1,0 +1,42 @@
+/* ============================================================
+ * Reflecta Utilities —— 业务级 utility 类（独立于 globals/tokens）
+ *
+ * 归属：非组件库、非 token 的通用样式行为。放入 @layer utilities
+ * 与 tailwind 工具层同序（可被使用处的 tailwind 类覆盖）。
+ * 新增 utility 前先确认：不能用 shadcn 组件 / variant 表达，
+ * 且不是 tokens.css 层的语义 token。
+ * ============================================================ */
+
+@layer utilities {
+  /* DESIGN: 按压反馈（完整版）：背景 / 前景 / 缩放一起过渡。
+   * 对应 --press-scale / --duration-transition / --ease-out-expo。
+   * 与 Button 内置按压（active:not-aria-[haspopup]:translate-y-px）叠加使用：
+   * 位移 + 缩放双重反馈，按压更丝滑——叠加是刻意设计，勿删。 */
+  .pressable {
+    transition:
+      background-color var(--duration-transition) var(--ease-out-expo),
+      color var(--duration-transition) var(--ease-out-expo),
+      transform var(--duration-transition) var(--ease-out-expo);
+  }
+  .pressable:active {
+    transform: scale(var(--press-scale));
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pressable {
+      transition: none;
+    }
+  }
+
+  /* 按压反馈（仅缩放）：只需 transform 过渡的按钮（如 pill 操作钮）。 */
+  .pressable-transform {
+    transition: transform var(--duration-transition) var(--ease-out-expo);
+  }
+  .pressable-transform:active {
+    transform: scale(var(--press-scale));
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pressable-transform {
+      transition: none;
+    }
+  }
+}
