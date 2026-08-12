@@ -360,7 +360,7 @@ apps/electron/src/renderer/src/modules/understanding-canvas/
     EdgeStyleControls.tsx        # 连线样式控件（拐点 / 线型 / 色板 / 粗细 / 箭头），选中连线时出现
     RightPanel.tsx               # 右侧单面板容器：mode = library | detail 互斥切换
     LibraryPanel.tsx             # 理解库模式：复用 understanding-list 的 domain filter / 搜索 / 排序能力，主动作是拖入画布
-    UnderstandingDetailPanel.tsx # 理解详情模式：复用 UnderstandingDetail
+    UnderstandingDetailPanel.tsx # 理解详情模式：复用 UnderstandingDetail + M6-6 画布归属（listCanvasesByUnderstanding）
   adapters/
     document.ts                  # CanvasDTO ↔ CanvasDocument（纯函数）
     document.test.ts

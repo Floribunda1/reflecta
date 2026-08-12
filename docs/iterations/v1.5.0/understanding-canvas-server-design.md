@@ -126,20 +126,21 @@ renderer: ipcClient.understandingCanvas.*        # MergeIpcService 自动派生�
 
 ### 2.2 接口清单
 
-| 方法                             | 输入                       | 返回                      | 说明                                                                     |
-| -------------------------------- | -------------------------- | ------------------------- | ------------------------------------------------------------------------ |
-| `listCanvases()`                 | —                          | `CanvasSummaryDTO[]`      | 摘要列表（含 element/edge 计数），按 updatedAt 倒序                      |
-| `getCanvas(id)`                  | `string`                   | `CanvasDetailDTO \| null` | 详情：canvas + elements + edges + understandingRefs + referencedCanvases |
-| `createCanvas(input)`            | `{ title }`                | `CanvasDTO`               | 新建画布                                                                 |
-| `updateCanvas(id, input)`        | `{ title? }`               | `CanvasDTO`               | 改名                                                                     |
-| `deleteCanvas(id)`               | `string`                   | `void`                    | 硬删除（级联）                                                           |
-| `updateViewport(id, viewport)`   | `{ x, y, zoom }`           | `void`                    | 视口持久化                                                               |
-| `createElement(canvasId, input)` | `CreateCanvasElementInput` | `CanvasElementDTO`        | 新建元素（理解卡 / 文本卡 / 图形 / 组 / 画布引用）                       |
-| `updateElement(id, input)`       | `UpdateCanvasElementInput` | `CanvasElementDTO`        | 位置 / 尺寸 / 文本 / 标签 / 锁定 / 入组出组                              |
-| `deleteElement(id)`              | `string`                   | `void`                    | 删除（级联连线）                                                         |
-| `createEdge(canvasId, input)`    | `CreateCanvasEdgeInput`    | `CanvasEdgeDTO`           | 新建连线                                                                 |
-| `updateEdge(id, input)`          | `{ label?, style? }`       | `CanvasEdgeDTO`           | 改标签 / 样式                                                            |
-| `deleteEdge(id)`                 | `string`                   | `void`                    | 删除连线                                                                 |
+| 方法                                           | 输入                       | 返回                      | 说明                                                                     |
+| ---------------------------------------------- | -------------------------- | ------------------------- | ------------------------------------------------------------------------ |
+| `listCanvases()`                               | —                          | `CanvasSummaryDTO[]`      | 摘要列表（含 element/edge 计数），按 updatedAt 倒序                      |
+| `listCanvasesByUnderstanding(understandingId)` | `string`                   | `CanvasSummaryDTO[]`      | 反向查询：该理解出现在哪些画布（M6-6 画布归属）                          |
+| `getCanvas(id)`                                | `string`                   | `CanvasDetailDTO \| null` | 详情：canvas + elements + edges + understandingRefs + referencedCanvases |
+| `createCanvas(input)`                          | `{ title }`                | `CanvasDTO`               | 新建画布                                                                 |
+| `updateCanvas(id, input)`                      | `{ title? }`               | `CanvasDTO`               | 改名                                                                     |
+| `deleteCanvas(id)`                             | `string`                   | `void`                    | 硬删除（级联）                                                           |
+| `updateViewport(id, viewport)`                 | `{ x, y, zoom }`           | `void`                    | 视口持久化                                                               |
+| `createElement(canvasId, input)`               | `CreateCanvasElementInput` | `CanvasElementDTO`        | 新建元素（理解卡 / 文本卡 / 图形 / 组 / 画布引用）                       |
+| `updateElement(id, input)`                     | `UpdateCanvasElementInput` | `CanvasElementDTO`        | 位置 / 尺寸 / 文本 / 标签 / 锁定 / 入组出组                              |
+| `deleteElement(id)`                            | `string`                   | `void`                    | 删除（级联连线）                                                         |
+| `createEdge(canvasId, input)`                  | `CreateCanvasEdgeInput`    | `CanvasEdgeDTO`           | 新建连线                                                                 |
+| `updateEdge(id, input)`                        | `{ label?, style? }`       | `CanvasEdgeDTO`           | 改标签 / 样式                                                            |
+| `deleteEdge(id)`                               | `string`                   | `void`                    | 删除连线                                                                 |
 
 ### 2.3 DTO 定义
 
