@@ -47,6 +47,8 @@ export function DrawerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const openDrawer = useCallback((options: DrawerOptions, content: ReactNode) => {
+    // DESIGN: 先挂载内容、下一帧再 setOpen(true)——让 Sheet 内容挂载到 DOM 后再
+    // 播放入场动画（直接 setOpen 会在内容未就绪时开动画，导致入场闪烁/不播放）。
     if (openFrameRef.current !== null) cancelAnimationFrame(openFrameRef.current);
     closingRef.current = false;
     setOpen(false);
@@ -83,9 +85,7 @@ export function DrawerProvider({ children }: { children: ReactNode }) {
           >
             {(drawer.options.header ?? drawer.options.title) && (
               <SheetHeader>
-                <SheetTitle className="text-lg font-semibold">
-                  {drawer.options.header ?? drawer.options.title}
-                </SheetTitle>
+                <SheetTitle>{drawer.options.header ?? drawer.options.title}</SheetTitle>
               </SheetHeader>
             )}
             <div className="flex min-h-0 flex-1 flex-col px-4 pb-4">{drawer.content}</div>

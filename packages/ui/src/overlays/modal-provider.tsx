@@ -34,6 +34,9 @@ export function ModalProvider({ children }: { children: ReactNode }) {
   const [modals, setModals] = useState<ModalState[]>([]);
   const closeModal = useCallback(() => setModals((current) => current.slice(0, -1)), []);
   const openModal = useCallback((content: ReactNode, options: ModalOptions = {}) => {
+    // DESIGN: openModal 是「主内容浮层」——排他替换当前 modal（Settings 对话框、
+    // 编辑弹窗场景）；confirm 则是叠加确认（push 到现有 modal 之上）。两个 API
+    // 行为不同是有意的：主内容不叠加，确认浮在主内容之上。
     setModals([{ content, options }]);
   }, []);
   const confirm = useCallback(
@@ -91,7 +94,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
           >
             {modal.options.title && (
               <DialogHeader>
-                <DialogTitle className="font-semibold">{modal.options.title}</DialogTitle>
+                <DialogTitle>{modal.options.title}</DialogTitle>
               </DialogHeader>
             )}
             {modal.content}
