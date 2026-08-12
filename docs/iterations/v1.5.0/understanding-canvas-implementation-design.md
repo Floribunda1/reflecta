@@ -23,8 +23,9 @@
 ├── 左栏：画布列表（新建 / 重命名 / 删除，按更新时间排序）
 └── 主区：画布工作区
      ├── 顶部工具栏（极简）：画布标题、理解库（开右侧面板）、文本卡（可拖拽 icon）、矩形（可拖拽 icon）、圆形（可拖拽 icon）
-     ├── 画布左下工具栏：放大 / 缩小 / 适应视图
+     ├── 画布左下工具栏：放大 / 缩小 / 适应视图 / 演示模式
      ├── 画布右下：缩略图（minimap）
+     ├── 画布内搜索（Cmd/Ctrl+F 浮层，结果平移定位）
      ├── X6 画布（无限画布、点状网格、平移缩放、参考线、框选多选、键盘）
      └── 右侧单面板（互斥切换）：理解库模式（domain filter + 搜索 + 排序 + 理解列表，卡片拖入画布）/ 理解详情模式（点击理解卡打开，复用 UnderstandingDetail）
 ```
@@ -50,6 +51,12 @@
 | F15 | 画布控制            | **左下工具栏**：放大 / 缩小 / 适应视图；**右下缩略图**（minimap）                                                              | 缩放生效、适应视图回到全部元素、缩略图随视口联动     |
 | F16 | 图形元素            | 工具栏「矩形 / 圆形」icon（可拖拽）创建；用于画布内标记；无文字标签（v1）                                                      | 拖入后渲染为对应图形、位置持久化                     |
 | F17 | 打组                | 「组」为可命名的容器元素（显式边框 + 标题栏）；元素拖入组即入组、拖出即出组；拖组时组内元素跟随；删除组 = 解组（组内元素保留） | 组名可编辑、分组关系持久化、拖组子元素跟随           |
+| F18 | 连线吸附与重路由    | 连线自动吸附元素边界、绕行避开遮挡（X6 manhattan router + boundary connection）                                                | 拖线自动绕行、端点吸附元素边界                       |
+| F19 | 画布内搜索          | Cmd/Ctrl+F 浮层搜索元素文本（卡标题 / 正文、组名、边标签），结果平移缩放定位                                                   | 搜索命中并定位到对应元素                             |
+| F20 | 元素锁定            | 选中元素可锁定（防误拖）；锁定元素不可拖动 / 框选移动，可解锁                                                                  | 锁定后无法拖动，解锁恢复                             |
+| F21 | 嵌套画布引用        | 「画布引用」元素：引用另一张画布（显示其标题），点击跳转；形成画布间层级                                                       | 引用元素点击打开目标画布、目标被删显示占位           |
+| F22 | 演示模式            | 按组 / 容器逐段走查：每步动画聚焦到该容器内容（prev / next 控制）                                                              | 分步聚焦、可退出                                     |
+| F23 | 画布导出            | 导出当前视口 / 全部内容为 PNG（X6 Export 插件）                                                                                | 导出文件可保存                                       |
 
 ### 1.4 待后续讨论（本轮不定）
 
@@ -113,12 +120,14 @@ CREATE TABLE understanding_canvases (
 CREATE TABLE understanding_canvas_elements (
   id               TEXT PRIMARY KEY,
   canvas_id        TEXT NOT NULL REFERENCES understanding_canvases(id) ON DELETE CASCADE,
-  kind             TEXT NOT NULL CHECK (kind IN ('understanding', 'text', 'shape', 'group')),
+  kind             TEXT NOT NULL CHECK (kind IN ('understanding', 'text', 'shape', 'group', 'canvas_ref')),
   understanding_id TEXT REFERENCES understandings(id) ON DELETE SET NULL, -- 被删理解置空 → 占位
   shape_type       TEXT CHECK (shape_type IN ('rect', 'circle')),         -- kind='shape' 时必填
+  canvas_ref_id    TEXT REFERENCES understanding_canvases(id) ON DELETE SET NULL, -- 嵌套画布引用（kind='canvas_ref' 时）
   text             TEXT,              -- 文本卡内容（Markdown）；图形的可选标签
   label            TEXT,              -- 组名（kind='group' 时）
   parent_id        TEXT REFERENCES understanding_canvas_elements(id) ON DELETE SET NULL, -- 所属组（解组保留子元素）
+  locked           INTEGER NOT NULL DEFAULT 0, -- 元素锁定（防误拖）
   x                REAL NOT NULL,     -- X6 模型坐标（组内子元素为相对坐标）
   y                REAL NOT NULL,
   width            REAL NOT NULL,
@@ -158,6 +167,7 @@ CREATE INDEX idx_canvas_edges_canvas ON understanding_canvas_edges(canvas_id);
 | 连线创建                         | `createEdge`（source / target / label）                                     |
 | 元素入组 / 出组（embedding）     | `updateElement` parent_id（组内子元素坐标为相对坐标，随父移动）             |
 | 组名 / 图形标签编辑              | `updateElement` label / text                                                |
+| 锁定 / 解锁元素                  | `updateElement` locked                                                      |
 | 删除卡片 / 连线                  | `deleteElement` / `deleteEdge`（级联）                                      |
 | 删除组                           | `updateElement` parent_id 置空（解组，子元素保留），再删组元素              |
 | 画布平移缩放停止                 | `updateViewport`（防抖）                                                    |
@@ -233,9 +243,22 @@ type CanvasDocument = {
         height: number;
         children: string[]; // 组内元素 id（相对坐标）
       }
+    | {
+        id: string;
+        kind: "canvas_ref";
+        canvasRefId: string;
+        deleted: boolean;
+        title: string;
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      }
   >;
   edges: Array<{ id: string; sourceElementId: string; targetElementId: string; label: string }>;
 };
+
+// 锁定（F20）：DB `locked` 列 → 元素可选字段 `locked?: boolean` → X6 节点 `draggable: false`
 ```
 
 ### 3.2 X6 事件 → 语义事件 → 持久化映射
@@ -247,6 +270,7 @@ type CanvasDocument = {
 | 文本卡 data.text 变化（失焦）           | `onElementTextChanged(id, text)`                                        | `updateElement`                |
 | 组 / 图形 data.label / text 变化        | `onElementLabelChanged(id, label)`                                      | `updateElement`                |
 | 入组 / 出组（change:parent / children） | `onElementGroupChanged(id, parentId \| null)`                           | `updateElement`                |
+| 锁定 / 解锁                             | `onElementLockChanged(id, locked)`                                      | `updateElement`                |
 | `edge:change:labels`（失焦）            | `onEdgeLabelChanged(id, label)`                                         | `updateEdge`                   |
 | DnD 拖入落点                            | `onElementDropped({ kind, understandingId?, text?, shapeType?, x, y })` | `createElement`                |
 | 端口连线完成                            | `onConnect(sourceId, targetId)`                                         | `createEdge`                   |
@@ -260,6 +284,10 @@ type CanvasDocument = {
 - **MiniMap 可用**（spike 验证通过）；右下缩略图直接封装。
 - **图形元素**：`rect` / `circle` 为 X6 内置 shape，DnD 直接 `createNode`，无需自定义注册。
 - **打组（embedding）**：graph 配置 `embedding: { enabled, findParent: "center", validate }`（只允许 `group` 容器作为父）；入组用 `child.addTo(parent)`（**双向**设置 parent + children，`setParent` 只设单向）；交互拖拽组时子元素自动跟随（内部 `translate` 语义），程序化移动需用 `translate()` 而非 `position()`；快照中 `children` 以 id 数组持久化，round-trip 自动恢复。
+- **连线吸附 / 重路由（F18）**：`connecting: { router: "manhattan", connector: "smooth", connectionPoint: "boundary" }`（spike 已验证）。
+- **画布内搜索（F19）**：命中元素用 `graph.centerCell()` / `graph.zoomToCells()` 平移缩放定位。
+- **PNG 导出（F23）**：X6 核心 `Export` 插件 `graph.toPNG(cb)`（plugin/export 在核心包）。
+- **演示模式（F22）**：按组 / 容器构建步骤，每步 `graph.zoomToRect()` 动画聚焦（X6 camera 动画）。
 
 ### 3.3 数据流转
 
@@ -312,8 +340,11 @@ apps/electron/src/renderer/src/modules/understanding-canvas/
   canvas/
     CanvasWorkspace.tsx          # 工具栏 + 画布 + 右侧面板编排
     CanvasToolbar.tsx            # 标题、理解库（开右侧面板）、文本卡 / 矩形 / 圆形（可拖拽 icon）
-    CanvasControls.tsx           # 画布左下工具栏：放大 / 缩小 / 适应视图
+    CanvasControls.tsx           # 画布左下工具栏：放大 / 缩小 / 适应视图 / 演示模式
     CanvasMinimap.tsx            # 画布右下缩略图（封装 X6 MiniMap）
+    CanvasSearch.tsx             # 画布内搜索（Cmd/Ctrl+F 浮层 + 结果定位）
+    CanvasPresentation.tsx       # 演示模式（按组逐段聚焦走查）
+    export.ts                    # PNG 导出（X6 Export 插件封装）
     RightPanel.tsx               # 右侧单面板容器：mode = library | detail 互斥切换
     LibraryPanel.tsx             # 理解库模式：复用 understanding-list 的 domain filter / 搜索 / 排序能力，主动作是拖入画布
     UnderstandingDetailPanel.tsx # 理解详情模式：复用 UnderstandingDetail
@@ -329,6 +360,7 @@ packages/ui/src/understanding-canvas/
     understanding-card.tsx       # 理解卡 shape（标题 + 正文全文，只读）
     text-card.tsx                # 文本卡 shape（简单 Markdown，可编辑）
     group.tsx                    # 组容器 shape（显式边框 + 标题栏，组名可编辑）
+    canvas-ref.tsx               # 画布引用 shape（标题 + 点击跳转）
     shape-rect.tsx / shape-circle.tsx  # 图形元素（X6 内置 rect / circle，可选标签）
   index.ts
   canvas-graph.stories.tsx       # Showcase（基线 / 空 / 长文 / 连线标签 / 选中态）
