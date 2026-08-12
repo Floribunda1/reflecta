@@ -1,11 +1,11 @@
 @use "./config" as *;
 
 #{$chat-markdown-root} {
-  --reflecta-chat-background: var(--card);
-  --reflecta-chat-foreground: color-mix(in srgb, var(--card-foreground), transparent 12%);
+  --reflecta-chat-body-font-size: #{$font-size-body};
+  --reflecta-chat-foreground: color-mix(in oklch, var(--card-foreground), transparent 12%);
   --reflecta-chat-emphasis: var(--card-foreground);
   --reflecta-chat-muted: var(--accent);
-  --reflecta-chat-muted-foreground: color-mix(in srgb, var(--card-foreground), transparent 45%);
+  --reflecta-chat-muted-foreground: color-mix(in oklch, var(--card-foreground), transparent 45%);
   --reflecta-chat-border: var(--sidebar-border);
 
   color: var(--reflecta-chat-foreground);

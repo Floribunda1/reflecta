@@ -178,7 +178,8 @@ describe("reflecta milkdown editor", () => {
     editors.push(editor);
 
     const link = root.querySelector<HTMLAnchorElement>('a[data-wiki-link="understanding-1"]');
-    expect(link?.textContent).toBe("✦ understanding-1");
+    expect(link?.textContent).toBe("understanding-1");
+    expect(link?.querySelector("svg")).not.toBeNull();
     expect(getMilkdownMarkdown(editor)).toContain("[[u:understanding-1]]");
   });
 

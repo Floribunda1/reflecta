@@ -83,7 +83,7 @@ function MarkdownPreviewShowcase() {
 }
 
 const meta = {
-  title: "Capture/基本组件",
+  title: "Editor/基本组件",
   component: MarkdownPreview,
   args: {
     value: fullMarkdownStoryDocument,

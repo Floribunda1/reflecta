@@ -14,19 +14,19 @@
 
   th,
   td {
-    border: 1px solid color-mix(in srgb, var(--border), var(--foreground) 10%);
+    border: 1px solid color-mix(in oklch, var(--border), var(--foreground) 10%);
     padding: 0.38rem 0.55rem;
     vertical-align: top;
   }
 
   th {
-    background: color-mix(in srgb, var(--muted), var(--background) 34%);
+    background: color-mix(in oklch, var(--muted), var(--background) 34%);
     color: var(--foreground);
     font-weight: 600;
   }
 
   .selectedCell::after {
-    background: color-mix(in srgb, var(--primary), transparent 84%);
+    background: color-mix(in oklch, var(--primary), transparent 84%);
   }
 
   .cell-handle,

@@ -9,32 +9,20 @@
   a {
     color: var(--primary);
     text-decoration: underline;
-    text-decoration-color: color-mix(in srgb, var(--primary), transparent 48%);
+    text-decoration-color: color-mix(in oklch, var(--primary), transparent 48%);
     text-underline-offset: 0.18em;
   }
 
+  // wiki-link 视觉由 entityClassName 统一提供（chat 与 milkdown 编辑器共用）；
+  // 这里只保留 entityClassName 无法表达的交互/状态/下划线部分。
   [data-slot="wiki-link"] {
-    display: inline-flex;
-    align-items: center;
-    margin: 0 0.08em;
-    border: 0;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    padding: 0;
-    font-size: inherit;
-    font-weight: 600;
-    line-height: inherit;
-    text-decoration: none;
-    vertical-align: baseline;
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
   }
 
   button[data-slot="wiki-link"]:hover {
     text-decoration: underline;
     text-underline-offset: 0.18em;
-  }
-
-  [data-slot="wiki-link"][data-entity-type="understanding"] {
-    color: var(--primary);
   }
 
   [data-slot="wiki-link"][data-state="unavailable"],
@@ -47,7 +35,7 @@
     display: inline;
     border: 0;
     border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--card-foreground), transparent 92%);
+    background: color-mix(in oklch, var(--card-foreground), transparent 92%);
     color: var(--reflecta-chat-foreground);
     font-family: "Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     font-size: 0.9em;

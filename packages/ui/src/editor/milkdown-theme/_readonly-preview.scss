@@ -19,7 +19,7 @@
 
   .milkdown-code-block {
     margin: 1rem 0;
-    background: color-mix(in srgb, var(--muted), var(--background) 68%);
+    background: color-mix(in oklch, var(--muted), var(--background) 68%);
   }
 
   .milkdown-table-block {

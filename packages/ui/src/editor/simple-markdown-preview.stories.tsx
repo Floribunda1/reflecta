@@ -127,7 +127,7 @@ function SimpleMarkdownPreviewShowcase() {
 }
 
 const meta = {
-  title: "Capture/基本组件",
+  title: "Editor/基本组件",
   component: SimpleMarkdownPreview,
   args: {
     value: summaryDocument,

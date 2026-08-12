@@ -32,7 +32,8 @@ describe("SimpleMarkdownPreview", () => {
     expect(preview.querySelector("strong")?.textContent).toBe("Alpha");
     expect(preview.querySelector("ul")).not.toBeNull();
     expect(preview.querySelector("blockquote")?.textContent).toContain("note");
-    expect(preview.textContent).toContain("↳ context-1");
+    expect(preview.textContent).toContain("context-1");
+    expect(preview.querySelector("svg")).not.toBeNull();
     expect(preview.textContent).toContain("diagram");
     expect(preview.querySelector("a")).toBeNull();
     expect(preview.querySelector("input")).toBeNull();
@@ -42,7 +43,8 @@ describe("SimpleMarkdownPreview", () => {
   test("clips the rendered preview to the configured line height", () => {
     const preview = render("one\n\ntwo\n\nthree", 2).firstElementChild as HTMLElement;
 
-    expect(preview.style.maxHeight).toBe("3rem");
+    // 12px 字体 + 20px 行高（text-body-small + leading-5）→ 每行 1.25rem
+    expect(preview.style.maxHeight).toBe("2.5rem");
     expect(preview.style.overflow).toBe("hidden");
   });
 });

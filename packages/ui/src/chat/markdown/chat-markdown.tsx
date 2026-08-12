@@ -2,6 +2,7 @@ import { code } from "@streamdown/code";
 import { createMathPlugin } from "@streamdown/math";
 import { useTheme } from "next-themes";
 import { createContext, useContext, useMemo, type ComponentProps, type ReactNode } from "react";
+import { AlertCircle, Circle } from "lucide-react";
 import {
   defaultUrlTransform,
   Streamdown,
@@ -13,7 +14,7 @@ import {
 } from "streamdown";
 import { renderMermaid } from "#lib/mermaid";
 import type { ChatEntityBindings, ChatEntityPresentation, ChatEntityReference } from "../entity";
-import { entityClassName, entityIcon } from "../entity-visual";
+import { entityClassName, ENTITY_ICON_CLASS, entityIcon } from "../entity-visual";
 import { createChatSearchRehypePlugin, useChatSearchState } from "../message/chat-search";
 import { entityHref, isEntityHref, parseEntityHref } from "./entity-href";
 import { collectChatEntityReferences, replaceChatEntityReferences } from "./entity-reference-codec";
@@ -85,21 +86,26 @@ function EntityMention({
   onOpen?: (reference: ChatEntityReference) => void;
 }) {
   const available = presentation.state === "ready" || presentation.state === "loading";
-  const statusIcon =
+  const StatusIcon =
     presentation.state === "error"
-      ? "!"
+      ? AlertCircle
       : presentation.state === "unavailable"
-        ? "○"
+        ? Circle
         : entityIcon(reference.type);
   const content = (
     <>
-      {statusIcon} {presentation.label}
+      {StatusIcon ? (
+        // DESIGN: icon 用 ENTITY_ICON_CLASS 的 size-[1em] 跟随上下文字号——
+        // 标题（h1-h3）里引用时 icon 随标题字号放大；正文里 = chat 容器 13px。
+        <StatusIcon className={ENTITY_ICON_CLASS} />
+      ) : null}
+      {presentation.label}
     </>
   );
   const visualClassName = available
     ? entityClassName(reference.type)
     : "mx-0.5 inline text-[1em] font-medium leading-[inherit] text-(--reflecta-chat-muted-foreground) no-underline decoration-transparent";
-  const className = `${visualClassName} m-0 appearance-none text-left align-baseline outline-none focus-visible:ring-2 focus-visible:ring-ring/50`;
+  const className = `${visualClassName} m-0 appearance-none text-left align-baseline outline-none focus-visible:ring-2 focus-visible:ring-ring`;
   const interactive = presentation.state === "ready" && presentation.canOpen && onOpen;
 
   return interactive ? (

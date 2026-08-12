@@ -164,6 +164,6 @@
   .reflecta-md-editor__wiki-suggestion-item:hover .reflecta-md-editor__wiki-suggestion-preview,
   .reflecta-md-editor__wiki-suggestion-item[aria-selected="true"]
     .reflecta-md-editor__wiki-suggestion-preview {
-    color: color-mix(in srgb, var(--accent-foreground), transparent 24%);
+    color: color-mix(in oklch, var(--accent-foreground), transparent 24%);
   }
 }

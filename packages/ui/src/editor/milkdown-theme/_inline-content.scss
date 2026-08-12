@@ -2,48 +2,22 @@
 .reflecta-md-editor .milkdown .ProseMirror {
   strong,
   em {
-    color: color-mix(in srgb, var(--foreground), var(--primary) 42%);
+    color: var(--foreground);
   }
 
   a {
     color: var(--primary);
     text-decoration: underline;
-    text-decoration-color: color-mix(in srgb, var(--primary), transparent 48%);
+    text-decoration-color: color-mix(in oklch, var(--primary), transparent 48%);
     text-underline-offset: 0.18em;
-
-    &.wiki-link,
-    &[data-wiki-link] {
-      display: inline-block;
-      color: var(--primary);
-      font-weight: 600;
-      text-decoration: none;
-      line-height: inherit;
-      vertical-align: baseline;
-    }
-
-    &.wiki-link--context {
-      color: var(--color-emerald-700);
-    }
-
-    &.wiki-link--domain {
-      color: var(--color-violet-700);
-    }
-
-    .dark &.wiki-link--context {
-      color: var(--color-emerald-300);
-    }
-
-    .dark &.wiki-link--domain {
-      color: var(--color-violet-300);
-    }
   }
 
   code {
     display: inline;
-    border: 1px solid color-mix(in srgb, var(--border), transparent 18%);
+    border: 1px solid color-mix(in oklch, var(--border), transparent 18%);
     border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--muted), transparent 16%);
-    color: var(--primary);
+    background: color-mix(in oklch, var(--muted), transparent 16%);
+    color: var(--foreground);
     font-family: var(--crepe-font-code);
     font-size: 0.88em;
     line-height: 1.45;

@@ -2,6 +2,11 @@ import { $nodeSchema, $prose, $remark } from "@milkdown/utils";
 import { keymap } from "@milkdown/prose/keymap";
 import { TextSelection, type Command } from "@milkdown/prose/state";
 import { visit } from "unist-util-visit";
+import {
+  entityClassName,
+  EDITOR_ENTITY_ICON_FONT_SIZE,
+  entityIconDomNode,
+} from "../chat/entity-visual";
 
 const wikiLinkPattern = /\[\[([ucd]):([A-Za-z0-9_-]+)\]\]/g;
 const entityTypeByPrefix = {
@@ -13,11 +18,6 @@ const prefixByEntityType = {
   understanding: "u",
   context: "c",
   domain: "d",
-} as const;
-const entityIcon = {
-  understanding: "✦",
-  context: "↳",
-  domain: "#",
 } as const;
 
 function cleanWikiValue(value: unknown): string {
@@ -103,11 +103,12 @@ const wikiLinkSchema = $nodeSchema("wiki_link", () => ({
       "a",
       {
         href: "#",
-        class: `wiki-link reflecta-wiki-link wiki-link--${entityType}`,
+        class: entityClassName(entityType),
         "data-wiki-link": id,
         "data-entity-type": entityType,
       },
-      `${entityIcon[entityType] ?? "○"} ${title || id}`,
+      entityIconDomNode(entityType, EDITOR_ENTITY_ICON_FONT_SIZE) ?? "○",
+      title || id,
     ];
   },
   parseMarkdown: {

@@ -10,17 +10,11 @@ import { unified } from "unified";
 import { visit } from "unist-util-visit";
 import { cn } from "#lib/utils";
 import type { ChatEntityReference, ResolveChatEntity } from "../chat/entity";
+import { EDITOR_ENTITY_ICON_FONT_SIZE, entityIconSvg } from "../chat/entity-visual";
 import { MarkdownEditor } from "./markdown-editor";
+import "./compact-preview.scss";
 
 const entityReferencePattern = /\[\[([ucd]):([A-Za-z0-9_-]+)\]\]/g;
-const entityIcon = { u: "✦", c: "↳", d: "#" } as const;
-
-function compactMarkdown(value: string): string {
-  return value.replaceAll(
-    entityReferencePattern,
-    (_match, prefix: keyof typeof entityIcon, id: string) => `${entityIcon[prefix]} ${id}`,
-  );
-}
 
 function rehypeCompactPreview() {
   return (tree: Root) => {
@@ -55,15 +49,55 @@ export type SimpleMarkdownPreviewProps = {
   value: string;
   lineClamp?: number;
   className?: string;
+  /** 实体引用解析（id → label）；不传时引用退化为显示 id */
+  resolveWikiLink?: ResolveChatEntity;
 };
 
-export function SimpleMarkdownPreview({ value, lineClamp, className }: SimpleMarkdownPreviewProps) {
-  const html = useMemo(
-    () => compactMarkdownProcessor.processSync(compactMarkdown(value)).toString(),
-    [value],
-  );
+/** HTML 字符串拼接用的最小转义（entity label 可能含特殊字符） */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/** 解析前按行截断：lineClamp 场景只解析可见部分，减少 unified 解析量与
+ *  resolve 调用。未闭合的围栏代码块补闭合，避免截断后整段被解析成 code。 */
+function truncateMarkdownForPreview(value: string, lineClamp: number): string {
+  const lines = value.split("\n");
+  if (lines.length <= lineClamp) return value;
+  const kept = lines.slice(0, lineClamp);
+  const openFences = kept.filter((line) => /^\s*```/.test(line)).length;
+  if (openFences % 2 === 1) kept.push("```");
+  return kept.join("\n");
+}
+
+export function SimpleMarkdownPreview({
+  value,
+  lineClamp,
+  className,
+  resolveWikiLink,
+}: SimpleMarkdownPreviewProps) {
+  const html = useMemo(() => {
+    const source = lineClamp ? truncateMarkdownForPreview(value, lineClamp) : value;
+    const processed = compactMarkdownProcessor.processSync(source).toString();
+    // [[u:id]] survives parsing as plain text; inject the entity icon SVG into
+    // the final HTML (svg cannot pass the sanitize allowlist)。
+    return processed.replaceAll(
+      entityReferencePattern,
+      (_match, prefix: "u" | "c" | "d", id: string) => {
+        const type = prefix === "u" ? "understanding" : prefix === "c" ? "context" : "domain";
+        const label = resolveWikiLink?.({ type, id } as ChatEntityReference)?.label;
+        // 与完整版 wiki-link 一致：title 用主色标记「可点击的实体引用」（icon 同色）。
+        const text = label ? escapeHtml(label) : id;
+        return `${entityIconSvg(type, EDITOR_ENTITY_ICON_FONT_SIZE)} <span class="text-primary">${text}</span>`;
+      },
+    );
+  }, [value, lineClamp, resolveWikiLink]);
   const style: CSSProperties = {
-    maxHeight: lineClamp != null ? `${lineClamp * 1.5}rem` : undefined,
+    maxHeight: lineClamp != null ? `${lineClamp * 1.25}rem` : undefined,
     overflow: lineClamp != null ? "hidden" : undefined,
   };
 
@@ -71,20 +105,7 @@ export function SimpleMarkdownPreview({ value, lineClamp, className }: SimpleMar
     <div
       style={style}
       className={cn(
-        "markdown-preview-compact min-w-0 break-words text-sm leading-6 text-muted-foreground",
-        "[&_h1]:my-1 [&_h1]:text-sm [&_h1]:font-medium [&_h1]:text-foreground/75",
-        "[&_h2]:my-1 [&_h2]:text-sm [&_h2]:font-medium [&_h2]:text-foreground/75",
-        "[&_h3]:my-1 [&_h3]:text-sm [&_h3]:font-medium [&_h3]:text-foreground/75",
-        "[&_h4]:my-1 [&_h4]:text-sm [&_h4]:font-medium [&_h4]:text-foreground/75",
-        "[&_h5]:my-1 [&_h5]:text-sm [&_h5]:font-medium [&_h5]:text-foreground/75",
-        "[&_h6]:my-1 [&_h6]:text-sm [&_h6]:font-medium [&_h6]:text-foreground/75",
-        "[&_p]:my-1 [&_ul]:my-1 [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:pl-5 [&_li]:my-0",
-        "[&_blockquote]:my-1 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-2",
-        "[&_pre]:my-1 [&_pre]:overflow-hidden [&_pre]:rounded-md [&_pre]:bg-muted [&_pre]:p-2",
-        "[&_code]:break-words [&_code]:font-mono [&_code]:text-[0.9em]",
-        "[&_table]:my-1 [&_table]:w-full [&_table]:text-xs",
-        "[&_th]:border-b [&_th]:border-border [&_th]:pr-2 [&_th]:text-left [&_th]:font-medium",
-        "[&_td]:border-b [&_td]:border-border/60 [&_td]:pr-2",
+        "markdown-preview-compact min-w-0 break-words text-body-small leading-5 text-muted-foreground",
         lineClamp != null && "[&>*]:!my-0",
         className,
       )}

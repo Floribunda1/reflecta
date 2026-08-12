@@ -3,7 +3,7 @@
   blockquote {
     box-sizing: border-box;
     margin: 0.75rem 0;
-    border-left: 2px solid color-mix(in srgb, var(--border), var(--primary) 18%);
+    border-left: 2px solid var(--border);
     background: transparent;
     color: var(--muted-foreground);
     padding: 0.05rem 0 0.05rem 0.75rem;

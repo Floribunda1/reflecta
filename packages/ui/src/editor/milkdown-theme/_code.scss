@@ -6,7 +6,7 @@
   margin: 0.8rem 0 !important;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--muted), var(--background) 58%);
+  background: color-mix(in oklch, var(--muted), var(--background) 58%);
   padding: 0.55rem 0.65rem 0.65rem;
 
   &.selected {
@@ -43,13 +43,13 @@
 
   .cm-activeLine,
   .cm-activeLineGutter {
-    background: color-mix(in srgb, var(--primary), transparent 94%);
+    background: color-mix(in oklch, var(--primary), transparent 94%);
   }
 
   .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
   .cm-selectionBackground,
   .cm-content ::selection {
-    background-color: color-mix(in srgb, var(--primary), transparent 84%);
+    background-color: color-mix(in oklch, var(--primary), transparent 84%);
   }
 
   .cm-gutterElement.cm-activeLineGutter {
