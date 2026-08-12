@@ -48,27 +48,42 @@
 
 #### `understanding_canvas_edges`（连线，画布局部）
 
-| 字段                | 类型 | 约束                              | 说明               |
-| ------------------- | ---- | --------------------------------- | ------------------ |
-| `id`                | TEXT | PK                                | 与 X6 edge id 一致 |
-| `canvas_id`         | TEXT | NOT NULL, FK→canvases **CASCADE** |                    |
-| `source_element_id` | TEXT | NOT NULL, FK→elements **CASCADE** | 删卡片级联删其连线 |
-| `target_element_id` | TEXT | NOT NULL, FK→elements **CASCADE** |                    |
-| `label`             | TEXT | 可空                              | 自由文本关系描述   |
-| `created_at`        | TEXT | NOT NULL                          |                    |
+| 字段                | 类型 | 约束                              | 说明                              |
+| ------------------- | ---- | --------------------------------- | --------------------------------- |
+| `id`                | TEXT | PK                                | 与 X6 edge id 一致                |
+| `canvas_id`         | TEXT | NOT NULL, FK→canvases **CASCADE** |                                   |
+| `source_element_id` | TEXT | NOT NULL, FK→elements **CASCADE** | 删卡片级联删其连线                |
+| `target_element_id` | TEXT | NOT NULL, FK→elements **CASCADE** |                                   |
+| `label`             | TEXT | 可空                              | 自由文本关系描述（语义字段 → 列） |
+| `props`             | TEXT | NOT NULL DEFAULT '{}'             | 样式载荷 JSON（见 EdgeStyle）     |
+| `created_at`        | TEXT | NOT NULL                          |                                   |
 
 索引：`canvas_id`、`source_element_id`、`target_element_id`。
 
+**EdgeStyle（props JSON，社区连线样式四维模型）**：
+
+```ts
+EdgeStyle = {
+  routing?:    "straight" | "curve" | "orthogonal"; // 拐点类型：直线 / 贝塞尔弧线 / 正交直角
+  lineStyle?:  "solid" | "dashed" | "dotted";       // 线型：实线 / 虚线 / 点线
+  color?:      string;                                  // 颜色：预设色板 key 或 hex
+  width?:      "thin" | "medium" | "thick";           // 粗细
+  arrowhead?:  "arrow" | "block" | "none";           // 箭头：默认 arrow（有向），可去
+}
+// 默认：straight + solid + 灰 + medium + arrow
+```
+
 ### 1.2 关键设计决策
 
-| 决策                                             | 理由                                                                             |
-| ------------------------------------------------ | -------------------------------------------------------------------------------- |
-| **元素 / 连线为行，增量写回**                    | 拖一次卡只更新 x/y，不整文档重写；与社区 node/edge 关系表路线一致（见调研文档）  |
-| **FK 一律 SET NULL / CASCADE，不硬删除业务字段** | 理解被删 → 置空占位（不静默丢卡）；删组 → 子元素解组保留；删画布/卡片 → 级联清理 |
-| **`z_index` 持久化**                             | 白板 shape 模型标配，跨会话保持叠放次序                                          |
-| **组内子元素为相对坐标**                         | 对齐 X6 embedding 语义（子坐标相对父，随父移动），避免每次移动重算绝对坐标       |
-| **`locked` 独立列而非 X6 attrs 内嵌**            | 锁定是业务状态，可查询、可被 Agent / CLI 感知                                    |
-| **元素 id == X6 cell id**                        | 事件回写零映射成本                                                               |
+| 决策                                             | 理由                                                                                                                                             |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **元素 / 连线为行，增量写回**                    | 拖一次卡只更新 x/y，不整文档重写；与社区 node/edge 关系表路线一致（见调研文档）                                                                  |
+| **FK 一律 SET NULL / CASCADE，不硬删除业务字段** | 理解被删 → 置空占位（不静默丢卡）；删组 → 子元素解组保留；删画布/卡片 → 级联清理                                                                 |
+| **`z_index` 持久化**                             | 白板 shape 模型标配，跨会话保持叠放次序                                                                                                          |
+| **呈现载荷一律进 `props` JSON**                  | 元素 kind 专属字段与连线样式都是纯展示、不被 SQL 查询；进 JSON 后新增样式字段（箭头样式、圆角等）无需迁移；语义字段（引用 FK、连线 label）留在列 |
+| **组内子元素为相对坐标**                         | 对齐 X6 embedding 语义（子坐标相对父，随父移动），避免每次移动重算绝对坐标                                                                       |
+| **`locked` 独立列而非 X6 attrs 内嵌**            | 锁定是业务状态，可查询、可被 Agent / CLI 感知                                                                                                    |
+| **元素 id == X6 cell id**                        | 事件回写零映射成本                                                                                                                               |
 
 ### 1.3 迁移逻辑（v1.5.0）
 
@@ -123,7 +138,7 @@ renderer: ipcClient.understandingCanvas.*        # MergeIpcService 自动派生�
 | `updateElement(id, input)`       | `UpdateCanvasElementInput` | `CanvasElementDTO`        | 位置 / 尺寸 / 文本 / 标签 / 锁定 / 入组出组                              |
 | `deleteElement(id)`              | `string`                   | `void`                    | 删除（级联连线）                                                         |
 | `createEdge(canvasId, input)`    | `CreateCanvasEdgeInput`    | `CanvasEdgeDTO`           | 新建连线                                                                 |
-| `updateEdge(id, input)`          | `{ label? }`               | `CanvasEdgeDTO`           | 改标签                                                                   |
+| `updateEdge(id, input)`          | `{ label?, style? }`       | `CanvasEdgeDTO`           | 改标签 / 样式                                                            |
 | `deleteEdge(id)`                 | `string`                   | `void`                    | 删除连线                                                                 |
 
 ### 2.3 DTO 定义
@@ -134,7 +149,8 @@ CanvasSummaryDTO     CanvasDTO & { elementCount, edgeCount }
 CanvasElementDTO     { id, canvasId, kind, understandingId, shapeType, canvasRefId,
                        text, label, parentId, locked, x, y, width, height, zIndex,
                        createdAt, updatedAt }
-CanvasEdgeDTO        { id, canvasId, sourceElementId, targetElementId, label, createdAt }
+CanvasEdgeDTO        { id, canvasId, sourceElementId, targetElementId, label, style: EdgeStyle | null, createdAt }
+EdgeStyle           { routing?, lineStyle?, color?, width?, arrowhead? }
 CanvasUnderstandingRef  { id, title, body, deleted }
 CanvasReferencedCanvas  { id, title, deleted }
 CanvasDetailDTO      { canvas: CanvasDTO, elements: CanvasElementDTO[],
