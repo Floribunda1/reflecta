@@ -1,15 +1,16 @@
-import { X } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Badge } from "../components/badge";
 import {
   Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxItem,
   ComboboxList,
-  ComboboxTrigger,
+  useComboboxAnchor,
 } from "../components/combobox";
-import { cn } from "../lib/utils";
+import { cn } from "#lib/utils";
 import type { DomainTreeNodeView } from "./domain-tree";
 import {
   excludeDomainTreeSelectNodes,
@@ -44,25 +45,16 @@ export type DomainTreeSelectProps = DomainTreeSelectCommonProps &
       }
   );
 
-function DomainTreeItems({
-  nodes,
-  level = 0,
-}: {
-  nodes: readonly DomainTreeSelectNode[];
-  level?: number;
-}) {
-  return nodes.map((node) => (
-    <div key={node.id}>
-      <ComboboxItem
-        value={node.id}
-        className="rounded-md"
-        style={{ paddingLeft: `calc(0.5rem + ${level} * 1rem)` }}
-      >
-        <span className="min-w-0 flex-1 truncate">{node.label}</span>
-      </ComboboxItem>
-      {node.children.length ? <DomainTreeItems nodes={node.children} level={level + 1} /> : null}
-    </div>
-  ));
+/** id → 层级深度映射（候选面板按树形缩进展示，过滤后扁平渲染仍保留缩进） */
+function collectLevels(
+  nodes: readonly DomainTreeSelectNode[],
+  level: number,
+  out: Map<string, number>,
+) {
+  for (const node of nodes) {
+    out.set(node.id, level);
+    collectLevels(node.children, level + 1, out);
+  }
 }
 
 export function DomainTreeSelect(props: DomainTreeSelectProps) {
@@ -97,16 +89,19 @@ export function DomainTreeSelect(props: DomainTreeSelectProps) {
     props.onValueChange(next);
   };
 
-  const remove = (id: string) => {
-    if (props.mode === "single") {
-      props.onValueChange(null);
-      return;
-    }
-    props.onValueChange(selectedIds.filter((selectedId) => selectedId !== id));
-  };
-
   const statusLabel =
     status === "loading" ? "加载中…" : status === "error" ? errorText : placeholder;
+  const anchorRef = useComboboxAnchor();
+  const levelById = useMemo(() => {
+    const map = new Map<string, number>();
+    collectLevels(treeOptions, 0, map);
+    return map;
+  }, [treeOptions]);
+  const labelById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const node of flatOptions) map.set(node.id, node.label);
+    return map;
+  }, [flatOptions]);
 
   return (
     <Combobox<string, true>
@@ -119,45 +114,51 @@ export function DomainTreeSelect(props: DomainTreeSelectProps) {
       items={flatOptions.map((node) => node.id)}
       itemToStringLabel={(id) => flatOptions.find((node) => node.id === id)?.label ?? id}
     >
-      <div className={cn(fluid ? "w-full" : "inline-flex", variant === "inline" && "max-w-full")}>
-        <ComboboxTrigger
-          disabled={disabled || status !== "ready"}
+      <div
+        ref={anchorRef}
+        className={cn(fluid ? "w-full" : "inline-flex", variant === "inline" && "max-w-full")}
+      >
+        <ComboboxChips
           className={cn(
-            "flex min-h-9 w-full items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted",
-            variant === "inline" && "border-none bg-transparent px-0 py-0 hover:bg-transparent",
+            "min-h-9 w-full gap-2 bg-background dark:bg-background hover:bg-muted",
+            variant === "inline" &&
+              "border-none bg-transparent dark:bg-transparent px-0 py-0 shadow-none hover:bg-transparent focus-within:border-transparent focus-within:ring-0",
           )}
         >
-          <span className="flex min-w-0 flex-1 flex-wrap gap-1.5">
-            {selectedNodes.length === 0 ? (
-              <span
-                className={cn("text-muted-foreground", status === "error" && "text-destructive")}
-              >
-                {statusLabel}
-              </span>
-            ) : (
-              selectedNodes.map((node) => (
-                <Badge key={node.id} variant="secondary" className="max-w-full">
-                  <span className="truncate">{showPath ? node.pathLabel : node.label}</span>
-                  <X
-                    size={12}
-                    className="shrink-0 text-muted-foreground"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      remove(node.id);
-                    }}
-                  />
-                </Badge>
-              ))
-            )}
-          </span>
-        </ComboboxTrigger>
+          {selectedNodes.length === 0 && status !== "ready" ? (
+            <span
+              className={cn(
+                "shrink-0 text-sm",
+                status === "error" ? "text-destructive" : "text-muted-foreground",
+              )}
+            >
+              {statusLabel}
+            </span>
+          ) : null}
+          {selectedNodes.map((node) => (
+            <ComboboxChip key={node.id} className="max-w-full">
+              <span className="min-w-0 truncate">{showPath ? node.pathLabel : node.label}</span>
+            </ComboboxChip>
+          ))}
+          <ComboboxChipsInput
+            disabled={disabled || status !== "ready"}
+            placeholder={selectedNodes.length === 0 && status === "ready" ? placeholder : undefined}
+          />
+        </ComboboxChips>
       </div>
-      <ComboboxContent className="min-w-64 p-1">
+      <ComboboxContent className="min-w-64 p-1" anchor={anchorRef}>
         <ComboboxList className="max-h-72 p-0">
-          <DomainTreeItems nodes={treeOptions} />
-          <ComboboxEmpty>没有可选 Domain</ComboboxEmpty>
+          {(item) => (
+            <ComboboxItem
+              key={item}
+              value={item}
+              style={{ paddingLeft: `calc(0.5rem + ${levelById.get(item) ?? 0} * 1rem)` }}
+            >
+              <span className="min-w-0 flex-1 truncate">{labelById.get(item) ?? item}</span>
+            </ComboboxItem>
+          )}
         </ComboboxList>
+        <ComboboxEmpty>没有可选 Domain</ComboboxEmpty>
       </ComboboxContent>
     </Combobox>
   );

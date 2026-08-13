@@ -6,7 +6,8 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "../components/context-menu";
-import { cn } from "../lib/utils";
+import { cn } from "#lib/utils";
+import type { ResolveChatEntity } from "../chat/entity";
 import { SimpleMarkdownPreview } from "../editor";
 
 export type UnderstandingRowView = {
@@ -28,6 +29,8 @@ export type UnderstandingRowProps = {
   selected?: boolean;
   canChat?: boolean;
   actionsDisabled?: boolean;
+  /** 实体引用解析（id → label），用于 body 摘要里的 [[u:id]] 显示标题 */
+  resolveWikiLink?: ResolveChatEntity;
   onSelect: (id: string) => void;
   onAction: (action: UnderstandingRowAction) => void;
 };
@@ -37,9 +40,12 @@ export function UnderstandingRow({
   selected = false,
   canChat = false,
   actionsDisabled = false,
+  resolveWikiLink,
   onSelect,
   onAction,
 }: UnderstandingRowProps) {
+  // DESIGN: selected state = muted 选中约定（与 domain-tree 一致）——bg-muted 强调选中行；
+  // 标题 foreground + semibold 引导行内容；body 保持 muted 大小颜色。
   return (
     <ContextMenu>
       <ContextMenuTrigger
@@ -50,46 +56,27 @@ export function UnderstandingRow({
             data-understanding-title={understanding.title}
             aria-current={selected ? "true" : undefined}
             className={cn(
-              "group relative flex min-w-0 w-full flex-col gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm text-card-foreground transition-colors outline-none hover:bg-muted/45 active:bg-muted/55 focus-visible:ring-3 focus-visible:ring-ring/50",
-              selected && "bg-muted/70 hover:bg-muted/75 active:bg-muted/80",
+              "group flex min-w-0 w-full flex-col gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm text-foreground transition-colors outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
+              selected && "bg-muted active:bg-muted",
             )}
             onClick={() => onSelect(understanding.id)}
           >
-            <span
-              aria-hidden
-              className={cn(
-                "absolute top-2 bottom-2 left-0 w-0.5 rounded-full bg-transparent transition-colors",
-                selected && "bg-primary",
-              )}
-            />
-
             <div className="flex min-w-0 items-start justify-between gap-3">
-              <span
-                className={cn(
-                  "min-w-0 flex-1 truncate font-medium",
-                  selected ? "text-foreground" : "text-foreground/70",
-                )}
-              >
+              <span className="min-w-0 flex-1 truncate font-semibold text-foreground">
                 {understanding.title}
               </span>
-              <span
-                className={cn(
-                  "shrink-0 text-xs",
-                  selected ? "text-muted-foreground" : "text-muted-foreground/70",
-                )}
-              >
+              <span className="shrink-0 text-xs text-muted-foreground">
                 {understanding.updatedLabel}
               </span>
             </div>
 
-            <div
-              className={cn(
-                "min-h-9 text-sm leading-5",
-                selected ? "text-muted-foreground" : "text-muted-foreground/70",
-              )}
-            >
+            <div className="min-h-9 text-sm leading-5 text-muted-foreground">
               {understanding.body ? (
-                <SimpleMarkdownPreview value={understanding.body} lineClamp={2} />
+                <SimpleMarkdownPreview
+                  value={understanding.body}
+                  lineClamp={2}
+                  resolveWikiLink={resolveWikiLink}
+                />
               ) : (
                 <span>空理解，可以直接开始写。</span>
               )}
@@ -98,7 +85,7 @@ export function UnderstandingRow({
             <div
               className={cn(
                 "flex flex-wrap items-center gap-3 text-xs",
-                selected ? "text-muted-foreground" : "text-muted-foreground/65",
+                selected ? "text-muted-foreground" : "text-muted-foreground",
               )}
             >
               <span

@@ -27,7 +27,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "../components/context-menu";
-import { cn } from "../lib/utils";
+import { cn } from "#lib/utils";
 
 export type DomainTreeNodeView = {
   id: string;
@@ -80,11 +80,11 @@ function findNode(
 
 function buttonClassName(selected: boolean, dragging = false) {
   return cn(
-    "w-full min-w-0 cursor-default justify-start p-1.5 text-left font-normal text-foreground/85 hover:bg-foreground/5 hover:text-foreground aria-expanded:bg-transparent aria-expanded:text-foreground/85 aria-expanded:hover:bg-foreground/5 aria-expanded:hover:text-foreground focus-visible:border-transparent focus-visible:bg-foreground/5 focus-visible:ring-0",
+    "w-full min-w-0 cursor-default justify-start p-1.5 text-left font-normal text-muted-foreground hover:bg-muted hover:text-foreground aria-expanded:bg-transparent aria-expanded:text-muted-foreground aria-expanded:hover:bg-muted aria-expanded:hover:text-foreground focus-visible:border-transparent focus-visible:bg-muted focus-visible:ring-0",
     selected &&
-      "bg-foreground/5 font-medium text-foreground hover:bg-foreground/5 aria-expanded:bg-foreground/5 aria-expanded:text-foreground",
+      "bg-muted font-medium text-foreground hover:bg-muted aria-expanded:bg-muted aria-expanded:text-foreground",
     dragging &&
-      "bg-transparent text-foreground/85 hover:bg-transparent hover:text-foreground/85 focus-visible:bg-transparent",
+      "bg-transparent text-muted-foreground hover:bg-transparent hover:text-muted-foreground focus-visible:bg-transparent",
   );
 }
 
