@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
 import {
+  activityElapsedLabel,
   activityGroupPresentation,
+  activityStartedAt,
+  completedGroupSummary,
+  elapsedBetween,
   reasoningSummary,
   toolIconKind,
   type AgentToolIconKind,
@@ -27,7 +31,7 @@ describe("agent activity presentation", () => {
     ).toBe("分析 先读取 Journal，再核对相关理解。");
   });
 
-  test("summarizes a group with its latest step, total steps, errors and running state", () => {
+  test("shows a running-state label while the group is working", () => {
     const blocks: AgentActivityBlockView[] = [
       {
         kind: "reasoning",
@@ -49,15 +53,15 @@ describe("agent activity presentation", () => {
       },
     ];
 
-    expect(activityGroupPresentation(blocks)).toEqual({
-      summary: "正在检索「Agent UX」",
+    expect(activityGroupPresentation(blocks)).toMatchObject({
+      summary: "执行工具中",
       stepCount: 3,
       errorCount: 1,
       running: true,
     });
   });
 
-  test("uses the last thinking block as the completed group summary", () => {
+  test("summarizes a completed group with thinking and tool counts", () => {
     const blocks: AgentActivityBlockView[] = [
       {
         kind: "reasoning",
@@ -72,7 +76,96 @@ describe("agent activity presentation", () => {
       },
     ];
 
-    expect(activityGroupPresentation(blocks).summary).toBe("已经确认实现边界");
+    expect(activityGroupPresentation(blocks).summary).toBe("完成思考，运行了 1 个工具");
+    expect(completedGroupSummary(blocks, "3.2s")).toBe("思考了 3.2s，运行了 1 个工具");
+  });
+
+  test("sums every thinking segment from session timestamps", () => {
+    const blocks: AgentActivityBlockView[] = [
+      {
+        kind: "reasoning",
+        reasoning: {
+          id: "r1",
+          status: "done",
+          markdown: "先读策略",
+          createdAt: "2026-06-23T00:00:00.000Z",
+        },
+      },
+      {
+        kind: "tool-activity",
+        activity: {
+          ...toolActivity("read"),
+          createdAt: "2026-06-23T00:00:02.000Z",
+        },
+      },
+      {
+        kind: "reasoning",
+        reasoning: {
+          id: "r2",
+          status: "done",
+          markdown: "再核对遥测",
+          createdAt: "2026-06-23T00:00:05.000Z",
+        },
+      },
+      {
+        kind: "tool-activity",
+        activity: {
+          ...toolActivity("bash"),
+          createdAt: "2026-06-23T00:00:08.500Z",
+        },
+      },
+    ];
+
+    expect(activityElapsedLabel(blocks)).toBe("5.5s");
+    expect(activityGroupPresentation(blocks).summary).toBe("思考了 5.5s，运行了 2 个工具");
+  });
+
+  test("uses the earliest block timestamp as the group start", () => {
+    expect(
+      activityStartedAt([
+        {
+          kind: "reasoning",
+          reasoning: {
+            id: "r1",
+            status: "streaming",
+            markdown: "先读策略",
+            createdAt: "2026-06-23T00:00:00.000Z",
+          },
+        },
+        {
+          kind: "tool-activity",
+          activity: {
+            ...toolActivity("read", "running"),
+            createdAt: "2026-06-23T00:00:02.000Z",
+          },
+        },
+      ]),
+    ).toBe("2026-06-23T00:00:00.000Z");
+    expect(
+      activityStartedAt([{ kind: "tool-activity", activity: toolActivity("read") }]),
+    ).toBeNull();
+  });
+
+  test("formats a single thinking span between two timestamps", () => {
+    expect(elapsedBetween("2026-06-23T00:00:00.000Z", "2026-06-23T00:00:03.200Z")).toBe("3.2s");
+    expect(elapsedBetween("2026-06-23T00:00:00.000Z", "2026-06-23T00:00:00.040Z")).toBeNull();
+    expect(elapsedBetween(undefined, "2026-06-23T00:00:03.200Z")).toBeNull();
+  });
+
+  test("uses the following text timestamp to close a trailing thinking segment", () => {
+    const blocks: AgentActivityBlockView[] = [
+      {
+        kind: "reasoning",
+        reasoning: {
+          id: "r1",
+          status: "done",
+          markdown: "整理结论",
+          createdAt: "2026-06-23T00:00:10.000Z",
+        },
+      },
+    ];
+
+    expect(activityElapsedLabel(blocks, "2026-06-23T00:00:11.400Z")).toBe("1.4s");
   });
 
   test("keeps the tail activity running while the agent still owns the turn", () => {
@@ -86,7 +179,7 @@ describe("agent activity presentation", () => {
     expect(activityGroupPresentation(blocks, true).running).toBe(true);
   });
 
-  test("shows partial reasoning in the activity summary while it streams", () => {
+  test("shows a thinking label while reasoning streams", () => {
     expect(
       activityGroupPresentation([
         {
@@ -98,7 +191,7 @@ describe("agent activity presentation", () => {
           },
         },
       ]).summary,
-    ).toBe("先浏览知识库，再筛选值得展开的笔记");
+    ).toBe("思考中");
   });
 
   test.each<[readonly string[], AgentToolIconKind]>([

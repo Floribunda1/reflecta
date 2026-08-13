@@ -21,7 +21,7 @@ function ToolDetailContent({
   lineClamp?: number;
 }) {
   if (content.format === "text") {
-    return <div className="line-clamp-2 text-muted-foreground/85">{content.value}</div>;
+    return <div className="line-clamp-2 text-muted-foreground">{content.value}</div>;
   }
   if (content.format === "markdown") {
     if (simpleMarkdown) {
@@ -29,7 +29,7 @@ function ToolDetailContent({
         <SimpleMarkdownPreview
           value={content.value}
           lineClamp={lineClamp}
-          className="text-muted-foreground/85"
+          className="text-muted-foreground"
         />
       );
     }
@@ -51,7 +51,7 @@ function ToolDetailContent({
     );
   }
   return (
-    <pre className="whitespace-pre-wrap break-words rounded-sm bg-background/65 px-2 py-1.5 font-mono text-xs leading-5 text-muted-foreground">
+    <pre className="whitespace-pre-wrap break-words rounded-sm bg-muted px-2 py-1.5 font-mono text-xs leading-5 text-muted-foreground">
       {content.value}
     </pre>
   );
@@ -65,9 +65,9 @@ function ToolDetailRow({ row }: { row: AgentToolDetailRowView }) {
     <li
       className={
         isListItem
-          ? "mt-2 grid gap-1 rounded-md border border-border/60 bg-background/40 px-3 py-2.5 first:mt-0"
+          ? "mt-2 grid gap-1 rounded-md border border-border bg-background px-3 py-2.5 first:mt-0"
           : isNestedListItem
-            ? "ml-5 grid gap-0.5 border-l border-border/70 py-1 pl-3"
+            ? "ml-5 grid gap-0.5 border-l border-border py-1 pl-3"
             : "grid gap-0.5 rounded-sm py-1"
       }
     >
@@ -86,8 +86,8 @@ function ToolDetailRow({ row }: { row: AgentToolDetailRowView }) {
             <span
               className={
                 isListItem
-                  ? "min-w-0 break-words font-semibold text-foreground/90"
-                  : "min-w-0 break-words font-medium text-foreground/75"
+                  ? "min-w-0 break-words font-semibold text-foreground"
+                  : "min-w-0 break-words font-medium text-muted-foreground"
               }
             >
               {row.title}

@@ -43,12 +43,14 @@ export type AgentToolActivityView = {
   status: AgentExecutionStatus;
   summary: string;
   items: readonly AgentToolActivityItemView[];
+  createdAt?: string;
 };
 
 export type AgentReasoningView = {
   id: string;
   status: "streaming" | "done";
   markdown: string;
+  createdAt?: string;
 };
 
 export type AgentContextCompactionView = {

@@ -1,15 +1,76 @@
-import { ArrowUpRight } from "lucide-react";
-import { Badge } from "../../components/badge";
+import { ChevronDown, ChevronRight, Zap } from "lucide-react";
+import { motion, MotionConfig } from "motion/react";
+import { Fragment, useState } from "react";
+import { EASE_OUT_EXPO, ENTER_DURATION, FADE_UP_Y } from "#lib/motion";
+import { useElapsed } from "#hooks/use-elapsed";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/collapsible";
 import type { ChatEntityBindings } from "../entity";
-import { activityGroupPresentation } from "./activity-presentation";
+import {
+  activityGroupPresentation,
+  activityStartedAt,
+  type AgentActivityGroupPresentation,
+} from "./activity-presentation";
 import { AgentExecutionBlock } from "./agent-execution-block";
 import { AgentWorkingIndicator } from "./agent-working-indicator";
 import type { AgentActivityBlockView } from "./types";
 
+function MonoNumber({ children }: { children: string | number }) {
+  return <span className="font-mono tabular-nums">{children}</span>;
+}
+
+function ActivityGroupSummary({
+  presentation,
+  runningElapsed,
+}: {
+  presentation: AgentActivityGroupPresentation;
+  runningElapsed: string | null;
+}) {
+  if (presentation.running) {
+    // DESIGN: 组概览 = 状态（X中，无省略号）+ 步数 + 耗时；数字均等宽。
+    // 进行时细节（文案省略号/三点动画/shimmer）由 thinking 行承载，避免回声。
+    return (
+      <>
+        <span className="shimmer-text">{presentation.summary}</span>
+        <span aria-hidden="true"> · </span>
+        <span>
+          共 <MonoNumber>{presentation.stepCount}</MonoNumber> 步
+        </span>
+        {runningElapsed ? <MonoNumber>{runningElapsed}</MonoNumber> : null}
+      </>
+    );
+  }
+  const parts = [];
+  if (presentation.hasReasoning) {
+    parts.push(
+      presentation.elapsed ? (
+        <span key="think">
+          思考了 <MonoNumber>{presentation.elapsed}</MonoNumber>
+        </span>
+      ) : (
+        <span key="think">完成思考</span>
+      ),
+    );
+  }
+  if (presentation.toolCount > 0) {
+    parts.push(
+      <span key="tools">
+        运行了 <MonoNumber>{presentation.toolCount}</MonoNumber> 个工具
+      </span>,
+    );
+  }
+  if (parts.length === 0) return "已完成";
+  return parts.map((part, index) => (
+    <Fragment key={part.key}>
+      {index > 0 ? "，" : null}
+      {part}
+    </Fragment>
+  ));
+}
+
 export type AgentActivityGroupProps = {
   blocks: readonly AgentActivityBlockView[];
   active?: boolean;
+  endedAt?: string;
   defaultExpanded?: boolean;
   entityBindings?: ChatEntityBindings;
 };
@@ -17,50 +78,91 @@ export type AgentActivityGroupProps = {
 export function AgentActivityGroup({
   blocks,
   active = false,
+  endedAt,
   defaultExpanded = false,
   entityBindings,
 }: AgentActivityGroupProps) {
-  const presentation = activityGroupPresentation(blocks, active);
+  const presentation = activityGroupPresentation(blocks, active, endedAt);
+  const [manualOpen, setManualOpen] = useState(defaultExpanded);
+  const liveElapsed = useElapsed(
+    presentation.running ? (activityStartedAt(blocks) ?? true) : false,
+  );
+  const runningElapsed = presentation.running && liveElapsed !== "0.0s" ? liveElapsed : null;
   if (presentation.stepCount === 0) return null;
 
+  // 进行中保持展开（可见活动推进），完成由用户控制（默认收成一行摘要）
+  const open = presentation.running ? true : manualOpen;
+
   return (
-    <Collapsible
-      defaultOpen={defaultExpanded}
-      data-testid="agent-activity-group"
-      className="group/activity my-1 min-w-0 w-full"
-    >
-      <CollapsibleTrigger
-        data-testid="agent-activity-group-trigger"
-        className="group flex w-full cursor-pointer items-center gap-2 rounded-lg py-1.5 pl-0 pr-2.5 text-left text-[13px] text-foreground/75 outline-none transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/40"
+    <MotionConfig reducedMotion="user">
+      <Collapsible
+        open={open}
+        onOpenChange={setManualOpen}
+        data-testid="agent-activity-group"
+        data-state={presentation.running ? "working" : open ? "open" : "closed"}
+        className="group/activity my-0.5 min-w-0 w-full"
       >
-        <Badge variant="outline" className="bg-background font-semibold tabular-nums shadow-xs">
-          {presentation.stepCount}
-        </Badge>
-        {presentation.running ? (
-          <>
-            <AgentWorkingIndicator className="size-[18px] text-foreground/65" aria-hidden="true" />
-            <span className="sr-only">执行中</span>
-          </>
-        ) : null}
-        <span className="min-w-0 flex-1 truncate">{presentation.summary}</span>
-        {presentation.errorCount > 0 ? (
-          <span className="shrink-0 text-[11px] text-destructive">
-            {presentation.errorCount} 个错误
+        <CollapsibleTrigger
+          data-testid="agent-activity-group-trigger"
+          // DESIGN: pill hover（w-fit 内容宽）；Zap 图标表「执行动作」，running 换三点指示器；
+          // chevron 常显在文本右侧（收起 → / 展开 ↓），让可点击性一眼可见。
+          className="group/row flex w-fit cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-left text-body text-muted-foreground outline-none transition-colors duration-100 hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
+            {presentation.running ? (
+              <AgentWorkingIndicator className="size-3.5 text-muted-foreground" />
+            ) : (
+              <Zap className="size-3.5 text-muted-foreground" />
+            )}
           </span>
-        ) : null}
-        <ArrowUpRight className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="ml-[13px] border-l-2 border-border/60 py-0.5 pl-4 pr-2">
-          {blocks.map((block) => (
-            <AgentExecutionBlock
-              key={block.kind === "reasoning" ? block.reasoning.id : block.activity.id}
-              block={block}
-              entityBindings={entityBindings}
-            />
-          ))}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
+          {/* DESIGN: summary 14px font-medium；运行中文案 shimmer，耗时在外侧等宽数字（与思考行一致）。 */}
+          <span className="flex min-w-0 items-center gap-0 text-body font-medium">
+            <ActivityGroupSummary presentation={presentation} runningElapsed={runningElapsed} />
+          </span>
+          {presentation.errorCount > 0 ? (
+            <span className="shrink-0 text-xs text-destructive">
+              <MonoNumber>{presentation.errorCount}</MonoNumber> 个错误
+            </span>
+          ) : null}
+          {open ? (
+            <ChevronDown className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+          ) : (
+            <ChevronRight className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+          )}
+        </CollapsibleTrigger>
+        <CollapsibleContent keepMounted className="collapse-grid">
+          {/* DESIGN: 折叠内容竖线起始 ml-[13px] 与 trigger 行首元素视觉中线对齐；取整 ml-3(12px) 会可见偏移 1px。 */}
+          <div className="ml-[13px] min-w-0 border-l-2 border-border py-0.5 pl-4 pr-2">
+            {blocks.map((block, index) => {
+              const next = blocks[index + 1];
+              const blockEndedAt = next
+                ? next.kind === "reasoning"
+                  ? next.reasoning.createdAt
+                  : next.activity.createdAt
+                : endedAt;
+              return (
+                <motion.div
+                  key={block.kind === "reasoning" ? block.reasoning.id : block.activity.id}
+                  initial={{ opacity: 0, y: FADE_UP_Y }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: ENTER_DURATION,
+                    ease: EASE_OUT_EXPO,
+                    delay: Math.min(index, 8) * 0.04,
+                  }}
+                  className="min-w-0"
+                >
+                  <AgentExecutionBlock
+                    block={block}
+                    entityBindings={entityBindings}
+                    endedAt={blockEndedAt}
+                  />
+                </motion.div>
+              );
+            })}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    </MotionConfig>
   );
 }
