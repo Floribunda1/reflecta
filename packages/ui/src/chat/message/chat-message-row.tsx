@@ -2,9 +2,23 @@ import mediumZoom, { type Zoom } from "medium-zoom";
 import { type ComponentProps, type ReactNode, useEffect, useRef } from "react";
 import { Copy, FileText, GitFork, Pencil, RefreshCcw } from "lucide-react";
 import { Button } from "../../components/button";
-import { cn } from "../../lib/utils";
+import {
+  Attachment,
+  AttachmentContent,
+  AttachmentDescription,
+  AttachmentMedia,
+  AttachmentTitle,
+  AttachmentTrigger,
+} from "../../components/attachment";
+import { cn } from "#lib/utils";
+import { attachmentMeta } from "#lib/file-meta";
 import type { ChatEntityBindings } from "../entity";
-import { entityClassName, entityIcon } from "../entity-visual";
+import {
+  entityClassName,
+  CHAT_ENTITY_ICON_FONT_SIZE,
+  ENTITY_ICON_CLASS,
+  entityIcon,
+} from "../entity-visual";
 import { AgentActivityGroup } from "../execution/agent-activity-group";
 import { isAgentActivityBlock } from "../execution/activity-presentation";
 import {
@@ -44,6 +58,8 @@ export type ChatMessageRowProps = {
   entityBindings?: ChatEntityBindings;
   onAction?: (action: ChatMessageAction) => void;
   onEntityOpen?: (entity: ChatMessageEntityView) => void;
+  /** 附件打开（有本地路径时用系统应用打开）。 */
+  onAttachmentOpen?: (attachment: ChatMessageAttachmentView) => void;
   onProposalDecision?: (decision: AgentProposalDecision) => void;
 };
 
@@ -88,54 +104,82 @@ function MessageEntityMention({
   entity: ChatMessageEntityView;
   onOpen?: (entity: ChatMessageEntityView) => void;
 }) {
-  const content = `${entityIcon(entity.type)} ${entity.label}`;
+  const Icon = entityIcon(entity.type);
   const className = entityClassName(entity.type);
   if (entity.type === "domain" || !onOpen) {
     return (
       <span data-slot="user-context-mention" className={className}>
-        {content}
+        {Icon ? (
+          <Icon className={ENTITY_ICON_CLASS} style={{ fontSize: CHAT_ENTITY_ICON_FONT_SIZE }} />
+        ) : null}
+        {entity.label}
       </span>
     );
   }
+  // DESIGN: 可点击提及不能用 shadcn Button（inline-flex 会破坏正文基线），
+  // 只能原生 button + reset。hover:opacity-80 仅可点击版有——span 版（domain /
+  // 不可点击）刻意无 hover，可点击性靠 text-primary 颜色表达，hover 是第二重反馈。
   return (
     <button
       type="button"
       data-slot="user-context-mention"
-      className={`${className} m-0 cursor-pointer appearance-none rounded-sm border-0 bg-transparent p-0 text-left align-baseline outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring/50`}
+      className={`${className} m-0 cursor-pointer appearance-none rounded-sm border-0 bg-transparent p-0 text-left align-baseline outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring`}
       onClick={() => onOpen(entity)}
     >
-      {content}
+      {Icon ? (
+        <Icon className={ENTITY_ICON_CLASS} style={{ fontSize: CHAT_ENTITY_ICON_FONT_SIZE }} />
+      ) : null}
+      {entity.label}
     </button>
   );
 }
 
-function MessageAttachment({ attachment }: { attachment: ChatMessageAttachmentView }) {
-  if (attachment.mediaType.startsWith("image/") && attachment.previewUrl) {
+function MessageAttachment({
+  attachment,
+  onOpen,
+}: {
+  attachment: ChatMessageAttachmentView;
+  onOpen?: (attachment: ChatMessageAttachmentView) => void;
+}) {
+  const isImage = attachment.mediaType.startsWith("image/") && Boolean(attachment.previewUrl);
+  const canOpen = Boolean(attachment.filePath);
+  // 图片无本地路径（粘贴/生成）→ 应用内 medium-zoom 放大；否则统一系统应用打开。
+  if (isImage && !canOpen) {
     return (
       <ZoomableChatImage
         src={attachment.previewUrl}
         alt={attachment.name}
-        className="max-h-72 max-w-full rounded-md border border-border object-contain"
+        className="max-h-72 max-w-full rounded-md border border-border object-contain shadow-xs"
       />
     );
   }
   return (
-    <div
-      data-testid="agent-message-attachment"
-      className="flex max-w-72 items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm"
-    >
-      <FileText className="size-4 shrink-0 text-muted-foreground" />
-      <span className="min-w-0 truncate">{attachment.name}</span>
-    </div>
+    <Attachment data-testid="agent-message-attachment" state="done">
+      <AttachmentMedia variant={isImage ? "image" : "icon"}>
+        {isImage ? <img src={attachment.previewUrl} alt={attachment.name} /> : <FileText />}
+      </AttachmentMedia>
+      <AttachmentContent>
+        <AttachmentTitle>{attachment.name}</AttachmentTitle>
+        <AttachmentDescription>{attachmentMeta(attachment.name, undefined)}</AttachmentDescription>
+      </AttachmentContent>
+      {canOpen ? (
+        <AttachmentTrigger
+          aria-label={`打开 ${attachment.name}`}
+          onClick={() => onOpen?.(attachment)}
+        />
+      ) : null}
+    </Attachment>
   );
 }
 
 function UserMessageContent({
   message,
   onEntityOpen,
+  onAttachmentOpen,
 }: {
   message: ChatUserMessageView;
   onEntityOpen?: (entity: ChatMessageEntityView) => void;
+  onAttachmentOpen?: (attachment: ChatMessageAttachmentView) => void;
 }) {
   const searchState = useChatSearchState();
   const hasContent = Boolean(
@@ -148,10 +192,10 @@ function UserMessageContent({
     <div
       data-slot="user-message-content"
       data-testid="agent-user-message"
-      className="flex max-w-full flex-col gap-2 whitespace-pre-wrap rounded-lg bg-muted px-4 py-3 text-foreground"
+      className="flex max-w-full flex-col gap-2 whitespace-pre-wrap rounded-lg border border-border bg-card px-4 py-3 text-foreground shadow-xs"
     >
       {message.content?.length || message.text || message.entities?.length ? (
-        <div data-slot="user-message-text" className="text-[13px] leading-[1.7] tracking-[0.01em]">
+        <div data-slot="user-message-text" className="text-body">
           {message.content?.map((part, index) =>
             part.kind === "entity" ? (
               <MessageEntityMention
@@ -193,7 +237,11 @@ function UserMessageContent({
       {message.attachments?.length ? (
         <div className="flex max-w-full flex-wrap gap-2">
           {message.attachments.map((attachment) => (
-            <MessageAttachment key={attachment.id} attachment={attachment} />
+            <MessageAttachment
+              key={attachment.id}
+              attachment={attachment}
+              onOpen={onAttachmentOpen}
+            />
           ))}
         </div>
       ) : null}
@@ -212,23 +260,44 @@ function blockId(block: AgentMessageBlockView) {
   return block.proposal.id;
 }
 
+/** 取块的时间戳；无法解析的块（image/compaction/proposal/pending）返回 undefined */
+function blockCreatedAt(block?: AgentMessageBlockView) {
+  if (!block) return undefined;
+  if (block.kind === "text") return block.createdAt;
+  if (block.kind === "reasoning") return block.reasoning.createdAt;
+  if (block.kind === "tool-activity") return block.activity.createdAt;
+  return undefined;
+}
+
+/** 从 fromIndex 起找下一个有时间戳的块（跳过空 text / 无法解析的块），
+ *  作为 thinking 块的结束时刻。 */
+function followingCreatedAt(blocks: readonly AgentMessageBlockView[], fromIndex: number) {
+  for (let i = fromIndex; i < blocks.length; i += 1) {
+    const createdAt = blockCreatedAt(blocks[i]);
+    if (createdAt) return createdAt;
+  }
+  return undefined;
+}
+
 function tailWorkingLabel(message: ChatAssistantMessageView) {
   if (message.status !== "streaming") return null;
   const last = message.blocks.at(-1);
-  if (!last) return "正在思考";
+  if (!last) return "等待中...";
   if (isAgentActivityBlock(last)) {
     const previous = message.blocks.at(-2);
     if (previous && isAgentActivityBlock(previous)) return null;
     if (last.kind === "reasoning" && last.reasoning.status === "streaming") return null;
     if (last.kind === "tool-activity" && last.activity.status === "running") return null;
-    return "Reflecta 工作中...";
+    return "等待中...";
   }
   if (last.kind === "proposal") {
     if (last.proposal.lifecycle === "pending") return null;
     if (last.proposal.lifecycle === "preview" || last.proposal.lifecycle === "running") return null;
   }
-  if (last.kind === "text" && last.status === "streaming") return null;
-  return "Reflecta 工作中...";
+  // text 块在数据层无 state（view 构造时 status 恒为 done），正文流式的判据
+  // 用消息级 status + 尾部是 text 块（text 在尾部 = 正文输出中）。
+  if (last.kind === "text") return null;
+  return "等待中...";
 }
 
 function AgentMessageContent({
@@ -255,6 +324,7 @@ function AgentMessageContent({
           key={`activity-group:${blockId(block)}`}
           blocks={activities}
           active={message.status === "streaming" && index === message.blocks.length - 1}
+          endedAt={followingCreatedAt(message.blocks, index + 1)}
           entityBindings={entityBindings}
         />,
       );
@@ -272,7 +342,7 @@ function AgentMessageContent({
           {block.status === "failed" ? (
             <div
               data-testid="agent-final-answer-error"
-              className="rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+              className="rounded-md border border-danger bg-danger-muted px-3 py-2 text-sm text-destructive"
             >
               最终答案生成失败：{block.error ?? "未知错误"}
             </div>
@@ -296,7 +366,7 @@ function AgentMessageContent({
           data-block-id={block.id}
           src={block.src}
           alt={block.alt}
-          className="max-h-[32rem] max-w-full rounded-lg border border-border object-contain"
+          className="max-h-128 max-w-full rounded-lg border border-border object-contain"
         />,
       );
       continue;
@@ -355,7 +425,7 @@ export function AgentMessageView({
 }
 
 const actionPresentation = {
-  copy: { title: "复制", icon: Copy },
+  copy: { title: "复制", icon: Copy, testId: "agent-copy-message-button" },
   edit: { title: "编辑并重发", icon: Pencil, testId: "agent-edit-message-button" },
   fork: { title: "Fork 到这里", icon: GitFork, testId: "agent-fork-message-button" },
   regenerate: { title: "重新生成", icon: RefreshCcw, testId: "agent-regenerate-button" },
@@ -367,6 +437,7 @@ export function ChatMessageRow({
   entityBindings,
   onAction,
   onEntityOpen,
+  onAttachmentOpen,
   onProposalDecision,
 }: ChatMessageRowProps) {
   const { message } = row;
@@ -380,11 +451,15 @@ export function ChatMessageRow({
         className={cn(
           "group/message flex flex-col gap-1 transition-colors duration-300",
           message.kind === "user" ? "items-end" : "items-start",
-          row.highlighted && "scroll-mt-6 rounded-md bg-accent/50",
+          row.highlighted && "scroll-mt-6 rounded-md bg-muted",
         )}
       >
         {message.kind === "user" ? (
-          <UserMessageContent message={message} onEntityOpen={onEntityOpen} />
+          <UserMessageContent
+            message={message}
+            onEntityOpen={onEntityOpen}
+            onAttachmentOpen={onAttachmentOpen}
+          />
         ) : (
           <AgentMessageContent
             message={message}
@@ -395,10 +470,7 @@ export function ChatMessageRow({
         {row.timestampLabel || row.enabledActions?.length ? (
           <div className="flex items-center gap-1">
             {row.timestampLabel ? (
-              <time
-                data-slot="message-time"
-                className="px-1 text-[11px] leading-4 text-muted-foreground/70"
-              >
+              <time data-slot="message-time" className="px-1 text-xs text-muted-foreground">
                 {row.timestampLabel}
               </time>
             ) : null}

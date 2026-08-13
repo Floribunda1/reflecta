@@ -145,7 +145,7 @@ export function ChatThreadSidebar({
           type="button"
           size="icon-sm"
           variant="ghost"
-          className="absolute top-2.5 right-2 size-8 hover:bg-foreground/5 hover:text-foreground"
+          className="absolute top-2.5 right-2"
           aria-label="收起对话列表"
           title="收起对话列表"
           onClick={onCollapse}
@@ -153,14 +153,15 @@ export function ChatThreadSidebar({
           <PanelLeft size={16} />
         </Button>
         <div className="flex h-8 items-center justify-between gap-1">
-          <div className="min-w-0 truncate text-sm font-medium">对话</div>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-sm font-medium">对话</span>
+          </div>
           <Button
             data-no-drag
             data-testid="agent-new-thread-button"
             type="button"
             size="icon-sm"
             variant="ghost"
-            className="size-8 hover:bg-foreground/5 hover:text-foreground"
             aria-label="新建对话"
             onClick={onCreate}
           >
@@ -184,7 +185,8 @@ export function ChatThreadSidebar({
               data-thread-group-id={group.id}
               className="space-y-1"
             >
-              <div className="px-2.5 pb-1.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+              {/* DESIGN: 时间分组 eyebrow label——10px 用户特批字号（排版尺外，尺最小 12px）+ tracking-wider 字距 + 紧凑行高。 */}
+              <div className="px-2.5 pb-1.5 text-[10px] leading-4 font-medium tracking-wider text-muted-foreground">
                 {group.label}
               </div>
               {group.threads.map((thread) => (
@@ -195,20 +197,18 @@ export function ChatThreadSidebar({
                         data-testid="agent-thread-item"
                         data-thread-title={thread.title}
                         type="button"
-                        variant="ghost"
+                        variant={thread.id === activeThreadId ? "secondary" : "ghost"}
                         size="sm"
+                        // DESIGN: sm 用 0.8rem，避免和面板「对话」同档；h-8 盖掉 sm 的 h-7，行高略撑开。
                         className={cn(
-                          "h-auto w-full min-w-0 justify-start px-2.5 py-2 text-left font-normal text-foreground/85 hover:bg-foreground/5 hover:text-foreground",
-                          thread.id === activeThreadId &&
-                            "bg-foreground/5 font-medium text-foreground hover:bg-foreground/5",
+                          "h-8 w-full min-w-0 justify-start px-2.5 text-left font-normal",
+                          thread.id === activeThreadId ? "font-medium" : "text-muted-foreground",
                         )}
                         onClick={() => onSelect(thread.id)}
                         onContextMenu={() => onSelect(thread.id)}
                       >
                         <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                          <span className="block min-w-0 flex-1 truncate text-sm">
-                            {thread.title}
-                          </span>
+                          <span className="block min-w-0 flex-1 truncate">{thread.title}</span>
                           {thread.titleGenerating || thread.running || thread.compacting ? (
                             <Spinner
                               aria-label={

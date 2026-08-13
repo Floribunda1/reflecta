@@ -17,6 +17,10 @@ export function ChatJumpNav({
   activeTurnId: string | null;
   onJump: (turnId: string) => void;
 }) {
+  // DESIGN: 跳转导航是「贴右边缘的展开条」——hover/focus 时 trigger 原地隐藏、
+  // 面板在同一位置展开（group-hover/jump + group-focus-within/jump 纯 CSS 实现，
+  // 无 JS 状态）。刻意不用 HoverCard：那会让面板浮在 trigger 旁，破坏「沿边缘
+  // 滑出」的交互；且展开/收起由鼠标停留状态驱动，无需 Popper 定位成本。
   if (items.length < MIN_ITEMS) return null;
 
   const activeIndex = items.findIndex((item) => item.turnId === activeTurnId);
@@ -36,9 +40,11 @@ export function ChatJumpNav({
             ? `打开对话轮次导航，当前第 ${activePosition} 轮，共 ${items.length} 轮`
             : `打开对话轮次导航，共 ${items.length} 轮`
         }
-        className="flex h-11 min-w-7 flex-col items-center justify-center gap-0.5 rounded-l-md border-y border-l border-border/60 bg-background/90 px-1 text-muted-foreground/70 backdrop-blur-sm focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none group-hover/jump:pointer-events-none group-hover/jump:absolute group-hover/jump:opacity-0 group-focus-within/jump:pointer-events-none group-focus-within/jump:absolute group-focus-within/jump:opacity-0"
+        className="flex h-11 min-w-7 flex-col items-center justify-center gap-0.5 rounded-l-md border-y border-l border-border bg-background px-1 text-muted-foreground backdrop-blur-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none group-hover/jump:pointer-events-none group-hover/jump:absolute group-hover/jump:opacity-0 group-focus-within/jump:pointer-events-none group-focus-within/jump:absolute group-focus-within/jump:opacity-0"
       >
         <ListTree aria-hidden className="size-3.5" />
+        {/* DESIGN: 位置数字用 9px——触发条是窄竖条（min-w-7=28px），text-body-small
+        （12px）放不下「3/42」这类宽度；9px 是功能指示非正文，刻意不套字号 token。 */}
         <span
           data-testid="agent-chat-jump-position"
           className="text-[9px] leading-none tabular-nums"
@@ -76,7 +82,7 @@ export function ChatJumpNav({
                   data-testid="agent-chat-jump-marker"
                   aria-hidden
                   className={cn(
-                    "size-1.5 shrink-0 rounded-full bg-muted-foreground/35",
+                    "size-1.5 shrink-0 rounded-full bg-muted-foreground",
                     active && "bg-primary",
                   )}
                 />

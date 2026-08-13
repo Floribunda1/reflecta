@@ -17,6 +17,8 @@ export type ChatMessageAttachmentView = {
   name: string;
   mediaType: string;
   previewUrl?: string;
+  /** 本地磁盘路径（系统应用打开用；粘贴等来源为空）。 */
+  filePath?: string;
 };
 
 export type ChatUserMessageView = {
@@ -34,6 +36,7 @@ export type AgentTextBlockView = {
   markdown: string;
   status: "streaming" | "done" | "failed";
   error?: string;
+  createdAt?: string;
 };
 
 export type AgentImageBlockView = {

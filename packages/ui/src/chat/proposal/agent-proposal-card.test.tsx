@@ -104,6 +104,7 @@ describe("AgentProposalCard", () => {
     expect(trigger?.textContent).toContain("新增 Understanding");
     act(() => trigger?.click());
     expect(card?.getAttribute("data-proposal-open")).toBe("false");
+    expect(card?.querySelector("svg.lucide-chevron-down")).not.toBeNull();
 
     render(proposal("pending"), rendered.onDecision);
     expect(rendered.container.querySelector('[data-proposal-id="approval-1"]')).toBe(card);

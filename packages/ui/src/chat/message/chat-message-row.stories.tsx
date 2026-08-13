@@ -64,6 +64,7 @@ const assistantRow: ChatMessageRowView = {
           id: "reasoning-1",
           status: "done",
           markdown: "先确认 ownership，再验证 stream identity。",
+          createdAt: new Date(Date.now() - 5_000).toISOString(),
         },
       },
       {
@@ -72,6 +73,7 @@ const assistantRow: ChatMessageRowView = {
           id: "tool-1",
           status: "done",
           summary: "读取了组件实现",
+          createdAt: new Date(Date.now() - 1_800).toISOString(),
           items: [{ id: "tool-1", label: "读取了组件实现" }],
         },
       },

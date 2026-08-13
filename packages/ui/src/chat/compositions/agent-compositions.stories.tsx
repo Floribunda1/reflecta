@@ -9,7 +9,6 @@ import {
   type AgentViewPresentation,
 } from "../../../../../apps/electron/src/renderer/src/modules/chat/messages/agent-turn-view";
 import { StoryCase, StoryShowcase } from "../../../.storybook/story-showcase";
-import { useAutoFrame } from "../../../.storybook/use-auto-frame";
 import { Button } from "../../components/button";
 import { ChatComposer } from "../composer/chat-composer";
 import { ChatMessageRow } from "../message/chat-message-row";
@@ -19,7 +18,7 @@ type ToolBlock = Extract<AgentReducedAssistantBlock, { kind: "tool" }>;
 type ApprovalBlock = Extract<AgentReducedAssistantBlock, { kind: "approval" }>;
 type ApprovalLifecycle = "pending" | "running" | "completed" | "rejected";
 
-const createdAt = "2026-07-29T00:00:00.000Z";
+const createdAt = new Date(Date.now() - 60_000).toISOString();
 const presentation: AgentViewPresentation = {
   entityLabels: new Map([
     ["understanding:u-irrigation", "极地温室的分区灌溉策略"],
@@ -325,12 +324,50 @@ const typicalBashInput = {
   timeoutMs: 120_000,
 };
 
+const typicalAnswer =
+  "检查完成：\n\n- 西侧支路的压力波动与低温启动顺序一致；\n- 十条候选理解中有四条包含现场 Context 证据；\n- 遥测校验通过，当前不需要修改控制参数。\n\n建议保留下一观察窗，确认回水温度的移动平均仍处于安全区间。";
+
+const TYPICAL_SETUP_STEPS = 4;
+const TYPICAL_ANSWER_STEP_CHARS = 6;
+const typicalAnswerPrefixes = Array.from(
+  { length: Math.ceil(typicalAnswer.length / TYPICAL_ANSWER_STEP_CHARS) },
+  (_, index) => typicalAnswer.slice(0, (index + 1) * TYPICAL_ANSWER_STEP_CHARS),
+);
+
+function useTypicalTaskPlayback() {
+  const doneStep = TYPICAL_SETUP_STEPS + typicalAnswerPrefixes.length;
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const delayMs = step < TYPICAL_SETUP_STEPS ? 1_800 : step < doneStep ? 520 : 2_200;
+    const timer = window.setTimeout(
+      () => setStep((current) => (current + 1) % (doneStep + 1)),
+      delayMs,
+    );
+    return () => window.clearTimeout(timer);
+  }, [doneStep, step]);
+
+  const setup = Math.min(step, TYPICAL_SETUP_STEPS - 1);
+  if (step < TYPICAL_SETUP_STEPS) {
+    return { setup: step, text: "", streaming: false, done: false };
+  }
+  if (step < doneStep) {
+    return {
+      setup,
+      text: typicalAnswerPrefixes[step - TYPICAL_SETUP_STEPS] ?? typicalAnswer,
+      streaming: true,
+      done: false,
+    };
+  }
+  return { setup, text: typicalAnswer, streaming: false, done: true };
+}
+
 function TypicalTaskDemo() {
-  const frame = useAutoFrame(6, 1_800);
+  const { setup, text, streaming, done } = useTypicalTaskPlayback();
   const blocks: AgentReducedAssistantBlock[] =
-    frame === 0
+    setup === 0
       ? []
-      : frame === 1
+      : setup === 1
         ? [
             {
               kind: "reasoning",
@@ -350,7 +387,7 @@ function TypicalTaskDemo() {
               "typical-bash",
               "bash",
               typicalBashInput,
-              frame >= 3
+              setup >= 3
                 ? {
                     exitCode: 0,
                     stdout: telemetryOutput,
@@ -358,23 +395,23 @@ function TypicalTaskDemo() {
                     truncated: false,
                   }
                 : undefined,
-              { state: frame >= 3 ? "completed" : "running" },
+              { state: setup >= 3 ? "completed" : "running" },
             ),
-            ...(frame >= 4
+            ...(text
               ? ([
                   {
                     kind: "text",
-                    text: "检查完成：\n\n- 西侧支路的压力波动与低温启动顺序一致；\n- 十条候选理解中有四条包含现场 Context 证据；\n- 遥测校验通过，当前不需要修改控制参数。\n\n建议保留下一观察窗，确认回水温度的移动平均仍处于安全区间。",
-                    state: frame === 4 ? "streaming" : "done",
+                    text,
+                    state: streaming ? "streaming" : "done",
                     createdAt,
                   },
                 ] satisfies AgentReducedAssistantBlock[])
               : []),
           ];
   const row = assistantRow("typical-assistant", blocks, {
-    running: frame !== 5,
-    timestampLabel: frame === 5 ? "18:21" : undefined,
-    enabledActions: frame === 5 ? ["copy", "fork", "regenerate"] : [],
+    running: !done,
+    timestampLabel: done ? "18:21" : undefined,
+    enabledActions: done ? ["copy", "fork", "regenerate"] : [],
   });
 
   return (
@@ -389,7 +426,7 @@ function TypicalTaskDemo() {
         <ChatMessageRow row={row} />
       </div>
       <div className="border-t bg-background p-4">
-        <Composer running={frame !== 5} />
+        <Composer running={!done} />
       </div>
     </StorySurface>
   );

@@ -131,9 +131,9 @@ describe("ChatMessageRow", () => {
       },
     });
 
-    expect(next.querySelector('[data-testid="agent-user-message"]')?.textContent).toBe(
-      "Before ✦ First idea after",
-    );
+    const message = next.querySelector('[data-testid="agent-user-message"]');
+    expect(message?.textContent).toBe("Before First idea after");
+    expect(message?.querySelector("svg")).not.toBeNull();
   });
 
   test("renders a generated image with accessible zoom", () => {
@@ -215,7 +215,9 @@ describe("ChatMessageRow", () => {
       },
     });
 
-    expect(next.textContent).not.toContain("只在展开后显示的文件内容");
+    // 收起时详情内容保持挂载但隐藏（keepMounted + grid-rows 折叠动画）。
+    const collapsedDetail = next.querySelector('[data-testid="agent-tool-detail"]');
+    expect(collapsedDetail?.hasAttribute("hidden")).toBe(true);
     act(() =>
       next
         .querySelector<HTMLButtonElement>('[data-testid="agent-activity-group-trigger"]')

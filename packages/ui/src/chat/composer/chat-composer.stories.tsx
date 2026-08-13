@@ -1,11 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useState } from "react";
 import {
   ChatComposer,
   createChatComposerDocument,
   type ChatComposerAttachmentAdapter,
   type ChatComposerEntitySearch,
   type ChatComposerProps,
+  type ChatComposerStatus,
 } from "..";
+import { Button } from "../../components/button";
 import { StoryCase, StoryShowcase } from "../../../.storybook/story-showcase";
 
 const models = [
@@ -115,6 +118,32 @@ function ComposerDemo({ draftId, ...overrides }: Partial<ChatComposerProps> & { 
   return <ChatComposer {...baseComposerProps} {...overrides} draftId={draftId} />;
 }
 
+function ComposerLifecycleDemo() {
+  const [status, setStatus] = useState<ChatComposerStatus>("idle");
+  return (
+    <div className="grid gap-4">
+      <ComposerDemo
+        draftId="showcase-lifecycle"
+        status={status}
+        canStop={status === "running"}
+        onSubmit={async () => {
+          // 发送 → 进入运行：输入已由 Composer 清空，Send 变 Stop，输入禁用。
+          setStatus("running");
+        }}
+        onStop={() => setStatus("idle")}
+      />
+      <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
+        <span>当前状态：{status === "idle" ? "idle（可输入）" : status}</span>
+        {status === "running" ? (
+          <Button size="sm" variant="outline" onClick={() => setStatus("idle")}>
+            模拟执行完成
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function ComposerShowcase() {
   return (
     <StoryShowcase
@@ -166,6 +195,12 @@ function ComposerShowcase() {
             attachments: [],
           }}
         />
+      </StoryCase>
+      <StoryCase
+        title="完整生命周期"
+        description="输入文字 → 点击发送（提交清空、Send 变 Stop、输入禁用）→ 运行中可停止或模拟完成 → 回到可编辑。同一实例连续操作。"
+      >
+        <ComposerLifecycleDemo />
       </StoryCase>
       <StoryCase
         title="运行状态"

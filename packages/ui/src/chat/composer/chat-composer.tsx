@@ -1,9 +1,25 @@
 import { Mention } from "@tiptap/extension-mention";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { Brain, ChevronDown, FileText, Paperclip, Send, Square, X } from "lucide-react";
+import { ArrowUp, Brain, ChevronDown, FileText, Paperclip, Send, Square, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { cn } from "#lib/utils";
+import { attachmentMeta } from "#lib/file-meta";
+import { SPRING_SWAP } from "#lib/motion";
 import { Button } from "#components/button";
+import {
+  Attachment,
+  AttachmentAction,
+  AttachmentActions,
+  AttachmentContent,
+  AttachmentDescription,
+  AttachmentGroup,
+  AttachmentMedia,
+  AttachmentTitle,
+  AttachmentTrigger,
+} from "#components/attachment";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "#components/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,8 +29,15 @@ import {
   DropdownMenuTrigger,
 } from "#components/dropdown-menu";
 import { Spinner } from "#components/spinner";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "#components/tooltip";
 import type { ChatComposerEntityOption, ChatComposerEntityReference } from "../entity";
-import { entityClassName, entityIcon, entityKey, parseEntityKey } from "../entity-visual";
+import {
+  entityClassName,
+  CHAT_ENTITY_ICON_FONT_SIZE,
+  entityIconDomNode,
+  entityKey,
+  parseEntityKey,
+} from "../entity-visual";
 import {
   createChatComposerDocument,
   getChatComposerEntities,
@@ -34,12 +57,19 @@ import { shouldApplyInitialEntities } from "./initial-entities";
 
 export type { ChatComposerSkill } from "./context-picker";
 
+export type ChatComposerAttachmentStatus = "queued" | "uploading" | "done" | "error";
+
 export type ChatComposerAttachment = {
   id: string;
   name: string;
   mediaType: string;
   size?: number;
   previewUrl?: string;
+  /** 上传生命周期状态；缺省 = done（草稿恢复 / adapter 返回的已完成附件）。 */
+  status?: ChatComposerAttachmentStatus;
+  error?: string;
+  /** 本地磁盘路径（用户选择/拖拽的文件；粘贴等来源为空）。用于系统应用打开。 */
+  filePath?: string;
 };
 
 export type ChatComposerAttachmentAdapter = {
@@ -102,6 +132,8 @@ export type ChatComposerProps = {
   skills?: readonly ChatComposerSkill[];
   searchEntities: ChatComposerEntitySearch;
   attachmentAdapter?: ChatComposerAttachmentAdapter;
+  /** 附件打开（有本地路径时用系统应用打开）。 */
+  onAttachmentOpen?: (attachment: ChatComposerAttachment) => void;
   onSubmit: (submission: ChatComposerSubmit) => void | Promise<void>;
   onModelChange?: (modelId: string) => void;
   onReasoningChange?: (reasoningId: string) => void;
@@ -122,58 +154,114 @@ const EMPTY_SKILLS: readonly ChatComposerSkill[] = [];
 function ContextUsageMeter({ usage }: { usage: ChatComposerContextUsage }) {
   const progress = Math.max(0, Math.min(usage.percent ?? 0, 100));
   return (
-    <div data-slot="context-usage" className="group relative flex shrink-0 items-center">
-      <div
-        tabIndex={0}
-        aria-label={usage.description}
-        className="flex h-8 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-ring/50"
-      >
-        <span
-          className="relative size-4 rounded-full"
-          style={{
-            background: `conic-gradient(var(--primary) ${progress * 3.6}deg, color-mix(in srgb, var(--muted-foreground), transparent 55%) 0deg)`,
-          }}
-        >
-          <span className="absolute inset-[3px] rounded-full bg-card" />
-        </span>
-        <span className="tabular-nums">{usage.label}</span>
-      </div>
-      <div
-        role="tooltip"
-        className="pointer-events-none absolute right-0 bottom-full z-20 mb-2 whitespace-nowrap rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground opacity-0 shadow-[0_8px_24px_rgba(0,0,0,0.28)] transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
-      >
-        {usage.description}
-      </div>
-    </div>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label={usage.description}
+              className="shrink-0 gap-2 px-2"
+            >
+              <span
+                // DESIGN: 上下文用量环形进度——组件库 Progress 仅线性，环形为必要自造
+                // （recharts RadialBar 对 16px 迷你指示器过重）。conic-gradient 画弧，
+                // inset-[3px] 内孔决定环宽（16/2-3=5px），取整 inset-1 会细 1px。
+                className="relative size-4 rounded-full"
+                style={{
+                  background: `conic-gradient(var(--primary) ${progress * 3.6}deg, color-mix(in srgb, var(--muted-foreground), transparent 55%) 0deg)`,
+                }}
+              >
+                <span className="absolute inset-[3px] rounded-full bg-card" />
+              </span>
+              <span className="tabular-nums">{usage.label}</span>
+            </Button>
+          }
+        />
+        <TooltipContent side="top" align="end">
+          {usage.description}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
 function AttachmentPreview({
   attachment,
   onRemove,
+  onOpen,
 }: {
   attachment: ChatComposerAttachment;
   onRemove: () => void;
+  onOpen?: (attachment: ChatComposerAttachment) => void;
 }) {
+  const status = attachment.status ?? "done";
+  const isImage = attachment.mediaType.startsWith("image/");
+  const isPreviewableImage = status === "done" && isImage && Boolean(attachment.previewUrl);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  // status 的 queued 未实际使用；官方 state 用 idle 表达空态。
+  const state = status === "queued" ? ("idle" as const) : status;
   return (
-    <div
-      data-testid="agent-attachment-preview"
-      className="flex max-w-60 items-center gap-2 rounded-md border border-border bg-card px-1.5 py-1 text-xs"
-    >
-      {attachment.mediaType.startsWith("image/") && attachment.previewUrl ? (
-        <img
-          src={attachment.previewUrl}
-          alt={attachment.name}
-          className="size-8 rounded-sm object-cover"
-        />
-      ) : (
-        <FileText className="size-4 shrink-0 text-muted-foreground" />
-      )}
-      <span className="min-w-0 flex-1 truncate">{attachment.name}</span>
-      <Button type="button" size="icon-xs" variant="ghost" title="移除附件" onClick={onRemove}>
-        <X />
-      </Button>
-    </div>
+    <>
+      <Attachment
+        data-testid="agent-attachment-preview"
+        data-attachment-status={status}
+        state={state}
+        size="sm"
+      >
+        <AttachmentMedia variant={isImage && attachment.previewUrl ? "image" : "icon"}>
+          {isImage && attachment.previewUrl ? (
+            <img src={attachment.previewUrl} alt={attachment.name} />
+          ) : (
+            <FileText />
+          )}
+        </AttachmentMedia>
+        <AttachmentContent>
+          <AttachmentTitle>{attachment.name}</AttachmentTitle>
+          <AttachmentDescription>
+            {status === "uploading"
+              ? "读取中…"
+              : status === "error"
+                ? (attachment.error ?? "读取失败")
+                : attachmentMeta(attachment.name, attachment.size)}
+          </AttachmentDescription>
+        </AttachmentContent>
+        <AttachmentActions>
+          <AttachmentAction aria-label={`移除附件 ${attachment.name}`} onClick={onRemove}>
+            <X />
+          </AttachmentAction>
+        </AttachmentActions>
+        {attachment.filePath ? (
+          // 有本地路径 → 系统默认应用打开（不在应用内预览）。
+          <AttachmentTrigger
+            aria-label={`打开 ${attachment.name}`}
+            onClick={() => onOpen?.(attachment)}
+          />
+        ) : isPreviewableImage ? (
+          // 粘贴等无路径的图片 → 应用内预览兜底。
+          <>
+            <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+              <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>{attachment.name}</DialogTitle>
+                </DialogHeader>
+                <img
+                  src={attachment.previewUrl}
+                  alt={attachment.name}
+                  className="max-h-[75vh] w-full rounded-md object-contain"
+                />
+              </DialogContent>
+            </Dialog>
+            <AttachmentTrigger
+              aria-label={`预览图片 ${attachment.name}`}
+              onClick={() => setPreviewOpen(true)}
+            />
+          </>
+        ) : null}
+      </Attachment>
+    </>
   );
 }
 
@@ -251,6 +339,83 @@ function useSkillSearch(skills: readonly ChatComposerSkill[]) {
   };
 }
 
+function ComposerSendButton({
+  status,
+  canStop,
+  canSubmit,
+  submitting,
+  onSend,
+  onStop,
+}: {
+  status: ChatComposerStatus;
+  canStop: boolean;
+  canSubmit: boolean;
+  submitting: boolean;
+  onSend: () => void;
+  onStop: () => void;
+}) {
+  const busy = status !== "idle" || submitting;
+  const showStop = status === "running" && canStop;
+  const waiting = status === "running" && !canStop;
+  const compacting = status === "compacting";
+
+  const testId = showStop
+    ? "agent-stop-button"
+    : waiting || !busy
+      ? "agent-send-button"
+      : undefined;
+  const ariaLabel = showStop
+    ? "停止"
+    : waiting
+      ? "等待用户决定"
+      : compacting
+        ? "正在压缩上下文"
+        : busy
+          ? "Agent 正在响应"
+          : "发送";
+  const disabled = busy && !showStop ? true : !busy ? !canSubmit : false;
+  const handleClick = busy ? (showStop ? onStop : () => {}) : onSend;
+  const iconKey = showStop ? "stop" : waiting || !busy ? "send" : "loading";
+  const icon = showStop ? (
+    <Square className="size-3 fill-current" />
+  ) : waiting || !busy ? (
+    <ArrowUp className="size-4" />
+  ) : (
+    <Spinner />
+  );
+
+  return (
+    <Button
+      data-testid={testId}
+      type="button"
+      size="icon-sm"
+      variant={busy ? "outline" : undefined}
+      className={cn(
+        "disabled:bg-muted disabled:text-muted-foreground",
+        // DESIGN: pressable 按压语言（utilities.css）——与 Button 内置 translate 位移叠加为
+        // 位移+缩放双重反馈，动效更丝滑；composer 按钮组统一此语言，刻意设计。
+        "pressable",
+      )}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={handleClick}
+    >
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span
+          key={iconKey}
+          initial={{ opacity: 0, y: 3, scale: 0.8 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -3, scale: 0.8 }}
+          transition={SPRING_SWAP}
+          className="grid place-items-center"
+        >
+          {icon}
+        </motion.span>
+      </AnimatePresence>
+    </Button>
+  );
+}
+
 export function ChatComposer({
   variant = "default",
   draftId,
@@ -271,6 +436,7 @@ export function ChatComposer({
   onModelChange,
   onReasoningChange,
   onEntityOpen,
+  onAttachmentOpen,
   onCancelEdit,
   onStop,
 }: ChatComposerProps) {
@@ -372,6 +538,7 @@ export function ChatComposer({
               typeof node.attrs.id === "string" ? node.attrs.id : String(node.attrs.id ?? "");
             const label =
               typeof node.attrs.label === "string" ? node.attrs.label : String(node.attrs.id ?? "");
+            const iconNode = entityIconDomNode(reference?.type ?? null, CHAT_ENTITY_ICON_FONT_SIZE);
             return [
               "span",
               {
@@ -384,7 +551,7 @@ export function ChatComposer({
                   onEntityOpenRef.current ? "cursor-pointer hover:opacity-80" : "",
                 ].join(" "),
               },
-              `${entityIcon(reference?.type ?? null)} `,
+              ...(iconNode ? [iconNode] : []),
               label,
             ];
           },
@@ -632,14 +799,43 @@ export function ChatComposer({
     attachmentControllerRef.current?.abort();
     const controller = new AbortController();
     attachmentControllerRef.current = controller;
+    // G2: 先为每个文件创建 uploading 占位（立即可见），adapter 完成后按顺序
+    // 替换为 done；整批失败时批量标 error。清理上一批被 abort 的残留占位，
+    // 保证顺序匹配安全。
+    setAttachments((current) => current.filter((attachment) => attachment.status !== "uploading"));
+    const placeholders: ChatComposerAttachment[] = incoming.map((file) => ({
+      id: crypto.randomUUID(),
+      name: file.name,
+      mediaType: file.type || "application/octet-stream",
+      size: file.size,
+      status: "uploading",
+    }));
+    setAttachments((current) => [...current, ...placeholders].slice(0, MAX_ATTACHMENTS));
+    setAttachmentError("");
     try {
       const added = await attachmentAdapter.addFiles(incoming, controller.signal);
       if (controller.signal.aborted) return;
-      setAttachments((current) => [...current, ...added].slice(0, MAX_ATTACHMENTS));
-      setAttachmentError("");
+      setAttachments((current) => {
+        let index = 0;
+        return current.map((attachment) => {
+          if (attachment.status === "uploading" && index < added.length) {
+            const done = added[index];
+            index += 1;
+            return { ...done, status: "done" };
+          }
+          return attachment;
+        });
+      });
     } catch (error) {
       if (controller.signal.aborted) return;
-      setAttachmentError(error instanceof Error ? error.message : "读取附件失败");
+      const message = error instanceof Error ? error.message : "读取附件失败";
+      setAttachments((current) =>
+        current.map((attachment) =>
+          attachment.status === "uploading"
+            ? { ...attachment, status: "error", error: message }
+            : attachment,
+        ),
+      );
     }
   };
 
@@ -685,7 +881,10 @@ export function ChatComposer({
   };
 
   const busy = status !== "idle" || submitting;
-  const canSubmit = Boolean(text.trim() || attachments.length);
+  const canSubmit =
+    Boolean(
+      text.trim() || attachments.some((attachment) => (attachment.status ?? "done") === "done"),
+    ) && !attachments.some((attachment) => attachment.status === "uploading");
   const activeEntity = entitySearch.options[activeEntityIndex];
   const cancelEdit = () => {
     setComposerValue();
@@ -727,7 +926,7 @@ export function ChatComposer({
           />
         ) : null}
         {attachments.length ? (
-          <div className="flex max-w-full flex-wrap gap-2">
+          <AttachmentGroup className="max-w-full">
             {attachments.map((attachment) => (
               <AttachmentPreview
                 key={attachment.id}
@@ -735,16 +934,17 @@ export function ChatComposer({
                 onRemove={() =>
                   setAttachments((current) => current.filter((item) => item.id !== attachment.id))
                 }
+                onOpen={onAttachmentOpen}
               />
             ))}
-          </div>
+          </AttachmentGroup>
         ) : null}
         {attachmentError ? (
           <div className="px-1 text-xs text-destructive">{attachmentError}</div>
         ) : null}
         <div
           className={`flex min-w-0 flex-col overflow-hidden rounded-lg border bg-card shadow-sm transition-colors focus-within:border-ring ${
-            editingMessageId ? "border-primary/30" : "border-border/80"
+            editingMessageId ? "border-primary" : "border-border"
           }`}
         >
           <div className="relative min-w-0">
@@ -828,10 +1028,11 @@ export function ChatComposer({
               <Button
                 data-testid="agent-attachment-button"
                 type="button"
-                size="icon-sm"
+                size="sm"
                 variant="ghost"
                 title="上传附件"
                 disabled={busy || !attachmentAdapter || attachments.length >= MAX_ATTACHMENTS}
+                className="pressable"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Paperclip />
@@ -847,7 +1048,7 @@ export function ChatComposer({
                           variant="ghost"
                           size="sm"
                           disabled={busy || modelOptions.length === 0}
-                          className="h-8 min-w-0 max-w-[240px] shrink gap-1.5 px-2 text-muted-foreground hover:bg-muted"
+                          className="min-w-0 max-w-60 shrink gap-1.5 px-2 pressable"
                         />
                       }
                     >
@@ -894,7 +1095,7 @@ export function ChatComposer({
                             variant="ghost"
                             size="sm"
                             disabled={busy}
-                            className="h-8 min-w-0 gap-1.5 px-2 text-muted-foreground hover:bg-muted"
+                            className="min-w-0 gap-1.5 px-2 pressable"
                           />
                         }
                       >
@@ -936,6 +1137,7 @@ export function ChatComposer({
                     type="button"
                     size="sm"
                     variant="ghost"
+                    className="pressable"
                     onClick={cancelEdit}
                   >
                     取消
@@ -946,6 +1148,7 @@ export function ChatComposer({
                     size="sm"
                     aria-label="发送"
                     disabled={!canSubmit}
+                    className="pressable"
                     onClick={() => void submit()}
                   >
                     <Send />
@@ -955,53 +1158,14 @@ export function ChatComposer({
               ) : (
                 <>
                   {contextUsage ? <ContextUsageMeter usage={contextUsage} /> : null}
-                  {status === "running" && canStop ? (
-                    <Button
-                      data-testid="agent-stop-button"
-                      type="button"
-                      size="icon-sm"
-                      variant="outline"
-                      className="bg-background/70"
-                      aria-label="停止"
-                      onClick={onStop}
-                    >
-                      <Square />
-                    </Button>
-                  ) : status === "running" ? (
-                    <Button
-                      data-testid="agent-send-button"
-                      type="button"
-                      size="icon-sm"
-                      className="disabled:bg-muted disabled:text-muted-foreground"
-                      aria-label="等待用户决定"
-                      disabled
-                    >
-                      <Send />
-                    </Button>
-                  ) : busy ? (
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="outline"
-                      className="bg-background/70"
-                      aria-label={status === "compacting" ? "正在压缩上下文" : "Agent 正在响应"}
-                      disabled
-                    >
-                      <Spinner />
-                    </Button>
-                  ) : (
-                    <Button
-                      data-testid="agent-send-button"
-                      type="button"
-                      size="icon-sm"
-                      className="disabled:bg-muted disabled:text-muted-foreground"
-                      aria-label="发送"
-                      disabled={!canSubmit}
-                      onClick={() => void submit()}
-                    >
-                      <Send />
-                    </Button>
-                  )}
+                  <ComposerSendButton
+                    status={status}
+                    canStop={Boolean(canStop)}
+                    canSubmit={canSubmit}
+                    submitting={submitting}
+                    onSend={() => void submit()}
+                    onStop={onStop ?? (() => {})}
+                  />
                 </>
               )}
             </div>

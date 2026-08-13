@@ -18,7 +18,8 @@ import { AgentProposalCard } from "./proposal/agent-proposal-card";
 type ToolBlock = Extract<AgentReducedAssistantBlock, { kind: "tool" }>;
 type ApprovalBlock = Extract<AgentReducedAssistantBlock, { kind: "approval" }>;
 
-const createdAt = "2026-07-29T00:00:00.000Z";
+// storybook 相对时间：进入（模块加载）时作为基准，不写死历史时间。
+const createdAt = new Date(Date.now() - 10_000).toISOString();
 const presentation: AgentViewPresentation = {
   entityLabels: new Map([
     ["understanding:u-irrigation", "极地温室的分区灌溉策略"],
@@ -700,6 +701,48 @@ function ToolCard({ block }: { block: ToolBlock }) {
   return <AgentExecutionBlock block={{ kind: "tool-activity", activity: toolActivity(block) }} />;
 }
 
+function ActivityGroupLifecycle() {
+  const [running, setRunning] = useState(true);
+  // 前面块已完成，只有最后一个块在运行/收尾。
+  const blocks: AgentActivityBlockView[] = [
+    {
+      kind: "reasoning",
+      reasoning: {
+        id: "reasoning-lifecycle-1",
+        status: "done",
+        markdown: "已核对现场记录、本地配置与知识库。",
+        createdAt: new Date(Date.now() - 5_000).toISOString(),
+      },
+    },
+    ...completedTools.slice(0, 3).map((block): AgentActivityBlockView => ({
+      kind: "tool-activity",
+      activity: toolActivity(block),
+    })),
+    {
+      kind: "reasoning",
+      reasoning: {
+        id: "reasoning-lifecycle-2",
+        status: running ? "streaming" : "done",
+        markdown: running ? "正在汇总 Tool 的执行结果…" : "汇总完成，给出结论。",
+      },
+    },
+  ];
+
+  return (
+    <div className="grid max-w-4xl gap-4">
+      <AgentActivityGroup blocks={blocks} />
+      <div className="flex items-center gap-2">
+        <Button size="sm" onClick={() => setRunning((current) => !current)}>
+          {running ? "模拟完成" : "重新运行"}
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          {running ? "运行中：组强制展开，手动收起会被覆盖" : "已完成：默认收成一行，可手动展开"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function ToolGroupCase() {
   const streamingReasoning = [
     "正在汇总",
@@ -883,6 +926,12 @@ function ToolGallery() {
     >
       <StoryCase title="Tool Group">
         <ToolGroupCase />
+      </StoryCase>
+      <StoryCase
+        title="活动组生命周期"
+        description="同一组块连续操作：运行中强制展开（手动收起被覆盖）→ 模拟完成 → 默认收成一行。"
+      >
+        <ActivityGroupLifecycle />
       </StoryCase>
       <StoryCase
         title="自动流式展示"

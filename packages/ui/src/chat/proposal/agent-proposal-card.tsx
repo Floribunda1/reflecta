@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from "react";
-import { ArrowUpRight, Trash2 } from "lucide-react";
+import { ChevronDown, Trash2 } from "lucide-react";
 import { Button } from "../../components/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/collapsible";
 import {
@@ -11,7 +11,12 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/tooltip";
 import { MarkdownPreview } from "../../editor/markdown-preview";
 import type { ChatEntityBindings, ChatEntityType } from "../entity";
-import { entityClassName, entityIcon } from "../entity-visual";
+import {
+  entityClassName,
+  CHAT_ENTITY_ICON_FONT_SIZE,
+  ENTITY_ICON_CLASS,
+  entityIcon,
+} from "../entity-visual";
 import { AgentWorkingIndicator } from "../execution/agent-working-indicator";
 import { hasToolDetails, ToolDetails } from "../execution/tool-details";
 import { ChatMarkdown } from "../markdown/chat-markdown";
@@ -42,31 +47,22 @@ function ProposalStatus({
   lifecycle: AgentProposalLifecycle;
   rejectionReason?: string;
 }) {
+  // 状态用文本 + 状态色家族（success/warning/info/danger），不引入槽位外色。
   if (lifecycle === "preview") {
     return (
-      <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+      <span className="flex shrink-0 items-center gap-1.5 text-warning">
         <AgentWorkingIndicator className="size-3" aria-hidden="true" />
         生成中
       </span>
     );
   }
   if (lifecycle === "pending") {
-    return (
-      <span className="shrink-0 text-xs">
-        <span className="text-muted-foreground">审批</span>
-        <span className="text-muted-foreground/50"> · </span>
-        <span className="text-foreground/80">待确认</span>
-      </span>
-    );
+    return <span className="shrink-0 text-warning">审批 · 待确认</span>;
   }
   if (lifecycle === "rejected") {
     return (
-      <div className="flex min-w-0 max-w-72 shrink items-center gap-2 text-xs">
-        <span className="shrink-0">
-          <span className="text-muted-foreground">审批</span>
-          <span className="text-muted-foreground/50"> · </span>
-          <span className="text-destructive">已拒绝</span>
-        </span>
+      <div className="flex min-w-0 max-w-72 shrink items-center gap-2 text-danger">
+        <span className="shrink-0">审批 · 已拒绝</span>
         {rejectionReason ? (
           <TooltipProvider>
             <Tooltip>
@@ -75,7 +71,10 @@ function ProposalStatus({
                   <button
                     type="button"
                     aria-label={`查看完整拒绝原因：${rejectionReason}`}
-                    className="min-w-0 cursor-help truncate text-muted-foreground underline decoration-dotted decoration-muted-foreground/40 underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    // DESIGN: tooltip trigger 的「链接样式」文字按钮——虚线装饰是刻意设计（区别于
+                    // 可点击链接的实线下划线）；处于 text-danger 语义上下文，Button link variant
+                    // 的 text-primary 颜色语义不匹配，故保留原生 button + 自绘 focus ring。
+                    className="min-w-0 cursor-help truncate underline decoration-dotted decoration-muted-foreground underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     · {rejectionReason}
                   </button>
@@ -95,22 +94,21 @@ function ProposalStatus({
     );
   }
   return (
-    <div className="flex shrink-0 items-center gap-2 text-xs">
-      <span className="text-muted-foreground">审批 · 已确认</span>
+    <div className="flex shrink-0 items-center gap-2 text-muted-foreground">
+      <span className="text-success">已确认</span>
       <span className="h-3 border-l border-border" aria-hidden="true" />
       <span
         className={
           lifecycle === "running"
-            ? "flex items-center gap-1.5 text-foreground/80"
+            ? "flex items-center gap-1.5 text-info"
             : lifecycle === "failed"
-              ? "text-destructive"
-              : "text-muted-foreground"
+              ? "text-danger"
+              : undefined
         }
       >
         {lifecycle === "running" ? (
           <AgentWorkingIndicator className="size-3" aria-hidden="true" />
         ) : null}
-        运行 ·{" "}
         {lifecycle === "running" ? "执行中" : lifecycle === "completed" ? "执行完成" : "执行失败"}
       </span>
     </div>
@@ -183,15 +181,27 @@ function MetaItem({
 }) {
   return (
     <div className="flex min-w-0 items-center gap-1.5">
-      <dt className="shrink-0 text-muted-foreground/70">{label}</dt>
+      <dt className="shrink-0 text-muted-foreground">{label}</dt>
       <dd
         className={
           entityType
             ? `${entityClassName(entityType)} min-w-0 break-words`
-            : "min-w-0 break-words font-medium text-foreground/80"
+            : "min-w-0 break-words font-medium text-muted-foreground"
         }
       >
-        {entityType ? <span className="mr-1">{entityIcon(entityType)}</span> : null}
+        {entityType ? (
+          <span>
+            {(() => {
+              const Icon = entityIcon(entityType);
+              return Icon ? (
+                <Icon
+                  className={ENTITY_ICON_CLASS}
+                  style={{ fontSize: CHAT_ENTITY_ICON_FONT_SIZE }}
+                />
+              ) : null;
+            })()}
+          </span>
+        ) : null}
         {children}
       </dd>
     </div>
@@ -203,10 +213,10 @@ function KnowledgeComparison({ before, after }: { before: ReactNode; after: Reac
     <div className="grid gap-6 md:grid-cols-2">
       <section className="min-w-0">
         <div className="mb-2 text-xs font-medium text-muted-foreground">修改前</div>
-        <div className="text-foreground/65">{before}</div>
+        <div className="text-muted-foreground">{before}</div>
       </section>
       <section className="min-w-0">
-        <div className="mb-2 text-xs font-medium text-foreground/80">修改后</div>
+        <div className="mb-2 text-xs font-medium text-muted-foreground">修改后</div>
         <div>{after}</div>
       </section>
     </div>
@@ -248,7 +258,13 @@ function EntityTitle({
   return (
     <div>
       <span className={entityClassName(type)}>
-        {entityIcon(type)} {children}
+        {(() => {
+          const Icon = entityIcon(type);
+          return Icon ? (
+            <Icon className={ENTITY_ICON_CLASS} style={{ fontSize: CHAT_ENTITY_ICON_FONT_SIZE }} />
+          ) : null;
+        })()}
+        {children}
       </span>
     </div>
   );
@@ -522,7 +538,7 @@ function UnderstandingUpdate({
 
 function DeleteProposal({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-start gap-2 text-sm text-foreground/80">
+    <div className="flex items-start gap-2 text-sm text-muted-foreground">
       <Trash2 className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       <div className="leading-6">{children}</div>
     </div>
@@ -678,7 +694,7 @@ function formatDurationMs(ms: number | undefined) {
 
 function BashProposal({ proposal }: { proposal: BashProposalView }) {
   return (
-    <div className="rounded-md border px-3 py-2 font-mono text-xs leading-5 text-foreground/85">
+    <div className="rounded-md border px-3 py-2 font-mono text-xs leading-5 text-muted-foreground">
       <pre className="m-0 whitespace-pre-wrap break-words font-mono">
         {fallback(
           proposal.content.command,
@@ -791,11 +807,11 @@ export function AgentProposalCard({
       data-proposal-kind={proposal.kind}
       data-proposal-state={proposal.lifecycle}
       data-proposal-open={open ? "true" : "false"}
-      className="w-full overflow-hidden rounded-lg border border-border/70 bg-card text-sm"
+      className="w-full overflow-hidden rounded-lg border border-border bg-card text-sm"
     >
-      <div className="flex min-h-12 w-full items-center gap-3 hover:bg-muted/30">
+      <div className="flex min-h-12 w-full items-center gap-3 hover:bg-muted">
         <CollapsibleTrigger
-          className="flex min-w-0 flex-1 cursor-pointer self-stretch items-center px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+          className="flex min-w-0 flex-1 cursor-pointer self-stretch items-center px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           aria-label={open ? "折叠 Proposal" : "展开 Proposal"}
         >
           <div className="min-w-0 flex-1">
@@ -807,73 +823,76 @@ export function AgentProposalCard({
         </CollapsibleTrigger>
         <ProposalStatus lifecycle={proposal.lifecycle} rejectionReason={proposal.rejectionReason} />
         <CollapsibleTrigger
-          className="group flex min-h-12 shrink-0 cursor-pointer items-center pr-3 pl-0 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+          className="flex min-h-12 shrink-0 cursor-pointer items-center pr-3 pl-0 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           aria-label={open ? "收起详情" : "展开详情"}
         >
-          <ArrowUpRight className="size-3 text-muted-foreground/60 transition-colors group-hover:text-muted-foreground group-focus-visible:text-muted-foreground" />
+          <ChevronDown
+            className="size-3 shrink-0 text-muted-foreground transition-transform duration-150"
+            style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
+          />
         </CollapsibleTrigger>
       </div>
-      <CollapsibleContent>
-        <div className="px-3 pt-1">
-          <ProposalMeta proposal={proposal} />
-        </div>
-        <div className="max-h-[34rem] overflow-y-auto px-3 pb-3">
-          <ProposalContent proposal={proposal} entityBindings={entityBindings} />
-          <Reason value={proposalReason(proposal)} />
-          {hasToolDetails(proposal.result) ? (
-            <div className="mt-5 text-sm text-muted-foreground">
-              <ToolDetails details={proposal.result!} />
-            </div>
-          ) : null}
-          {proposal.lifecycle === "failed" && proposal.error ? (
-            <div className="mt-3 rounded-md border border-destructive/30 p-2 text-sm text-destructive">
-              {proposal.error}
-            </div>
-          ) : null}
-        </div>
-        {showDecision ? (
-          <div className="flex flex-wrap items-center justify-end gap-2 px-3 pb-3 pt-1">
-            <InputGroup className="w-[28rem] max-w-full">
-              <InputGroupInput
-                data-testid="agent-proposal-rejection-reason"
-                value={rejectionDraft?.proposalId === proposal.id ? rejectionDraft.value : ""}
-                placeholder="拒绝原因…"
-                aria-label="拒绝原因"
-                onChange={(event) =>
-                  setRejectionDraft({
-                    proposalId: proposal.id,
-                    value: event.target.value,
-                  })
-                }
-              />
-              <InputGroupAddon align="inline-end">
-                <InputGroupButton
-                  data-testid="agent-proposal-reject-button"
-                  size="xs"
-                  className="px-2.5"
-                  onClick={() =>
-                    onDecision?.({
+      <CollapsibleContent keepMounted className="collapse-grid">
+        {/* collapse-grid 只动画第一行：内容必须包成单一子项，否则正文/操作区不参与 0fr↔1fr。 */}
+        <div>
+          <div className="px-3 pt-1">
+            <ProposalMeta proposal={proposal} />
+          </div>
+          <div className="max-h-136 overflow-y-auto px-3 pb-3">
+            <ProposalContent proposal={proposal} entityBindings={entityBindings} />
+            <Reason value={proposalReason(proposal)} />
+            {hasToolDetails(proposal.result) ? (
+              <div className="mt-5 text-sm text-muted-foreground">
+                <ToolDetails details={proposal.result!} />
+              </div>
+            ) : null}
+            {proposal.lifecycle === "failed" && proposal.error ? (
+              <div className="mt-3 rounded-md border border-danger p-2 text-sm text-danger">
+                {proposal.error}
+              </div>
+            ) : null}
+          </div>
+          {showDecision ? (
+            <div className="flex flex-wrap items-center justify-end gap-2 px-3 pb-3 pt-1">
+              <InputGroup className="w-112 max-w-full">
+                <InputGroupInput
+                  data-testid="agent-proposal-rejection-reason"
+                  value={rejectionDraft?.proposalId === proposal.id ? rejectionDraft.value : ""}
+                  placeholder="拒绝原因…"
+                  aria-label="拒绝原因"
+                  onChange={(event) =>
+                    setRejectionDraft({
                       proposalId: proposal.id,
-                      decision: "reject",
-                      ...(rejectionReason ? { reason: rejectionReason } : {}),
+                      value: event.target.value,
                     })
                   }
-                >
-                  拒绝
-                </InputGroupButton>
-              </InputGroupAddon>
-            </InputGroup>
-            <Button
-              data-testid="agent-proposal-confirm-button"
-              type="button"
-              size="sm"
-              className="h-9 px-4"
-              onClick={() => onDecision?.({ proposalId: proposal.id, decision: "approve" })}
-            >
-              确认
-            </Button>
-          </div>
-        ) : null}
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    data-testid="agent-proposal-reject-button"
+                    size="xs"
+                    onClick={() =>
+                      onDecision?.({
+                        proposalId: proposal.id,
+                        decision: "reject",
+                        ...(rejectionReason ? { reason: rejectionReason } : {}),
+                      })
+                    }
+                  >
+                    拒绝
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
+              <Button
+                data-testid="agent-proposal-confirm-button"
+                type="button"
+                onClick={() => onDecision?.({ proposalId: proposal.id, decision: "approve" })}
+              >
+                确认
+              </Button>
+            </div>
+          ) : null}
+        </div>
       </CollapsibleContent>
     </Collapsible>
   );
