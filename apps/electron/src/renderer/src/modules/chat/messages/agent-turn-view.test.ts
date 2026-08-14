@@ -195,7 +195,11 @@ describe("buildAgentTurnView", () => {
     expect(turn.blocks).toEqual([
       {
         kind: "reasoning",
-        reasoning: { text: "正在比较已有理解", status: "streaming" },
+        reasoning: {
+          text: "正在比较已有理解",
+          status: "streaming",
+          createdAt: "2026-06-23T00:00:00.000Z",
+        },
       },
     ]);
   });

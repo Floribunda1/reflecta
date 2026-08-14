@@ -141,7 +141,7 @@ export function MessageList({
   return (
     <div data-testid="agent-message-list" className="mx-auto w-full max-w-4xl">
       {messages.length === 0 && !showPendingAssistant ? (
-        <Empty data-testid="agent-empty-state" className="border-0 py-16">
+        <Empty data-testid="agent-empty-state" className="py-16">
           <EmptyHeader>
             <EmptyTitle>开始和 Agent 对话</EmptyTitle>
             <EmptyDescription>直接提问，或通过 @ 选择知识库对象。</EmptyDescription>
@@ -168,7 +168,7 @@ export function MessageList({
         {compactionError ? (
           <div
             data-testid="agent-context-compaction-error"
-            className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+            className="rounded-lg border border-danger bg-danger-muted px-4 py-3 text-sm text-destructive"
           >
             压缩上下文失败：{compactionError.message}
           </div>

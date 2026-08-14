@@ -2,6 +2,7 @@ import { memo, useMemo } from "react";
 import { format } from "date-fns";
 import { useQueries } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { ipcClient } from "@renderer/utils/ipc";
 import {
   ChatMessageRow,
   getChatComposerEntities,
@@ -102,6 +103,7 @@ function toAttachment(
     name: file.filename || file.mediaType,
     mediaType: file.mediaType,
     ...(file.mediaType.startsWith("image/") ? { previewUrl: file.url } : {}),
+    ...(file.filePath ? { filePath: file.filePath } : {}),
   };
 }
 
@@ -326,6 +328,9 @@ export const ConnectedChatMessageRow = memo(function ConnectedChatMessageRow({
           id: entity.id,
           title: entity.label,
         });
+      }}
+      onAttachmentOpen={(attachment) => {
+        if (attachment.filePath) void ipcClient.asset.openExternalPath(attachment.filePath);
       }}
       onProposalDecision={(decision) => {
         const block = approvalById.get(decision.proposalId);

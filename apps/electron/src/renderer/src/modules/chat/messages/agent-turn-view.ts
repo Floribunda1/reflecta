@@ -43,6 +43,7 @@ export type ToolActivityView = {
   statusLabel: string;
   summary: string;
   items: ToolActivityItemView[];
+  createdAt?: string;
 };
 
 export type ToolActivityDetailRow = {
@@ -164,6 +165,7 @@ export type AgentTurnBlock =
       text: string;
       state?: "streaming" | "done" | "failed";
       error?: string;
+      createdAt?: string;
     }
   | { kind: "reasoning"; reasoning: AgentReasoningView }
   | { kind: "context-compaction"; compaction: AgentContextCompacted }
@@ -174,6 +176,7 @@ export type AgentTurnBlock =
 export type AgentReasoningView = {
   text: string;
   status: "streaming" | "done";
+  createdAt?: string;
 };
 
 export type AgentTurnView = {
@@ -186,8 +189,9 @@ type InternalTurnBlock =
       text: string;
       state?: "streaming" | "done" | "failed";
       error?: string;
+      createdAt?: string;
     }
-  | { kind: "reasoning"; text: string; status: AgentReasoningView["status"] }
+  | { kind: "reasoning"; text: string; status: AgentReasoningView["status"]; createdAt?: string }
   | { kind: "context-compaction"; compaction: AgentContextCompacted }
   | { kind: "tool-group"; groupType: ToolGroupType; blocks: AgentToolBlock[] }
   | { kind: "image"; id: string; src: string; alt: string }
@@ -203,7 +207,7 @@ export function buildAgentTurnView(
 
   for (const [index, block] of blocks.entries()) {
     if (block.kind === "text") {
-      appendText(internalBlocks, block.text, block.state, block.error);
+      appendText(internalBlocks, block.text, block.state, block.error, block.createdAt);
       continue;
     }
     if (block.kind === "reasoning") {
@@ -211,6 +215,7 @@ export function buildAgentTurnView(
         internalBlocks,
         block.text,
         index === streamingReasoningIndex ? "streaming" : "done",
+        block.createdAt,
       );
       continue;
     }
@@ -265,6 +270,7 @@ function toAgentMessageBlocks(
         markdown: block.text,
         status: block.state ?? "done",
         ...(block.error ? { error: block.error } : {}),
+        ...(block.createdAt ? { createdAt: block.createdAt } : {}),
       });
       continue;
     }
@@ -277,6 +283,7 @@ function toAgentMessageBlocks(
           id,
           status: block.reasoning.status,
           markdown: block.reasoning.text,
+          ...(block.reasoning.createdAt ? { createdAt: block.reasoning.createdAt } : {}),
         },
       });
       continue;
@@ -343,6 +350,7 @@ function toPublicBlock(block: InternalTurnBlock): AgentTurnBlock {
       reasoning: {
         text: block.text.trim(),
         status: block.status,
+        ...(block.createdAt ? { createdAt: block.createdAt } : {}),
       },
     };
   }
@@ -354,6 +362,7 @@ function appendText(
   text: string,
   state?: "streaming" | "done" | "failed",
   error?: string,
+  createdAt?: string,
 ) {
   if (!text && !error) return;
   const last = blocks.at(-1);
@@ -366,6 +375,7 @@ function appendText(
     text,
     ...(state ? { state } : {}),
     ...(error ? { error } : {}),
+    ...(createdAt ? { createdAt } : {}),
   });
 }
 
@@ -402,6 +412,7 @@ function appendReasoning(
   blocks: InternalTurnBlock[],
   text: string,
   status: AgentReasoningView["status"],
+  createdAt?: string,
 ) {
   if (!text) return;
   const last = blocks.at(-1);
@@ -410,7 +421,7 @@ function appendReasoning(
     last.status = last.status === "streaming" || status === "streaming" ? "streaming" : "done";
     return;
   }
-  blocks.push({ kind: "reasoning", text, status });
+  blocks.push({ kind: "reasoning", text, status, ...(createdAt ? { createdAt } : {}) });
 }
 
 function proposalViewFor(block: AgentApprovalBlock): ProposalView {
@@ -625,12 +636,14 @@ export function toAgentToolActivityView(
     toolName: activity.items[0]?.toolName,
     status: activity.status,
     summary: activity.summary,
+    ...(activity.createdAt ? { createdAt: activity.createdAt } : {}),
     items: activity.items.map((item) => ({
       id: item.toolCallId,
       label: item.label,
       ...(item.details ? { details: toAgentToolDetailsView(item.details, item.toolCallId) } : {}),
       ...(item.errorText ? { error: item.errorText } : {}),
     })),
+    ...(activity.createdAt ? { createdAt: activity.createdAt } : {}),
   };
 }
 
@@ -878,6 +891,7 @@ function summarizeToolGroup(groupType: ToolGroupType, blocks: AgentToolBlock[]):
     statusLabel: status === "failed" ? "出错" : status === "running" ? "运行中" : "完成",
     summary,
     items: blocks.map(toolItemView),
+    ...(blocks[0]?.createdAt ? { createdAt: blocks[0].createdAt } : {}),
   };
 }
 

@@ -90,7 +90,10 @@ export function ContextualAgentDock({
   return (
     <aside
       data-testid={testId}
-      className={cn("flex h-full min-h-0 min-w-0 flex-col bg-card", className)}
+      className={cn(
+        "flex h-full min-h-0 min-w-0 flex-col border-l border-border bg-background",
+        className,
+      )}
     >
       <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-4">
         <div className="min-w-0 flex-1">
@@ -115,7 +118,6 @@ export function ContextualAgentDock({
               render={<Button type="button" size="icon-xs" variant="ghost" />}
               data-testid="contextual-agent-history-button"
               aria-label="历史对话"
-              className="data-popup-open:bg-muted data-popup-open:text-foreground"
               disabled={!scope}
             >
               <Clock />

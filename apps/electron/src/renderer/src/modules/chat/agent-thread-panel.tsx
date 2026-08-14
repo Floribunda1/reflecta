@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SIDEBAR_COLLAPSED_OFFSET_CLASS } from "@renderer/modules/shared/layout/layout-constants";
+import { PanelHeader } from "@renderer/modules/shared/layout/PanelHeader";
 import { ArrowDown, ChevronDown, ChevronUp, MoreHorizontal, X } from "lucide-react";
 import type {
   AgentContextRef,
@@ -167,7 +169,7 @@ export function AgentThreadPanel({
           className="h-full min-h-0 overflow-y-auto px-6 py-6 [scrollbar-gutter:stable_both-edges]"
         >
           {threadView.messagesError && threadView.visibleMessages.length === 0 ? (
-            <Empty data-testid="agent-history-error" className="h-full border-0">
+            <Empty data-testid="agent-history-error" className="h-full">
               <EmptyHeader>
                 <EmptyTitle>无法加载对话</EmptyTitle>
                 <EmptyDescription>{errorMessage(threadView.messagesError)}</EmptyDescription>
@@ -240,7 +242,7 @@ export function AgentThreadPanel({
             size="icon-sm"
             variant="outline"
             aria-label="滚动到底部"
-            className="absolute right-6 bottom-4 z-10 rounded-full bg-background/90 shadow-sm backdrop-blur"
+            className="absolute right-6 bottom-4 z-10 rounded-full bg-background shadow-sm backdrop-blur"
             onClick={() => threadView.scrollToBottom()}
           >
             <ArrowDown />
@@ -393,7 +395,7 @@ function ThreadFindBox({
     <div
       data-no-drag
       data-testid="agent-thread-find-box"
-      className="absolute top-2 right-4 z-50 flex h-14 w-[min(420px,calc(100%-2rem))] items-center rounded-xl border border-border/70 bg-background shadow-xl"
+      className="absolute top-2 right-4 z-50 flex h-14 w-[min(420px,calc(100%-2rem))] items-center rounded-xl border border-border bg-popover shadow-xl"
     >
       <Input
         ref={inputRef}
@@ -424,7 +426,8 @@ function ThreadFindBox({
             close();
           }
         }}
-        className="h-full min-w-0 flex-1 border-0 bg-transparent px-5 text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
+        // DESIGN: chrome 式搜索框——无边框、聚焦无大 ring，与浏览器搜索栏主流做法一致（focus-visible:ring-0 有意关闭）。
+        className="h-full min-w-0 flex-1 border-0 dark:bg-transparent bg-transparent px-5 text-base shadow-none focus-visible:ring-0 md:text-base"
         placeholder="搜索对话"
       />
       <div className="px-3 text-base tabular-nums text-muted-foreground">{countLabel}</div>
@@ -436,7 +439,7 @@ function ThreadFindBox({
         aria-label="上一个匹配项"
         title="上一个匹配项"
         disabled={!canJump}
-        className="mx-1 text-muted-foreground"
+        className="mx-1"
         onClick={() => jumpBy(-1)}
       >
         <ChevronUp />
@@ -448,7 +451,6 @@ function ThreadFindBox({
         aria-label="下一个匹配项"
         title="下一个匹配项"
         disabled={!canJump}
-        className="text-muted-foreground"
         onClick={() => jumpBy(1)}
       >
         <ChevronDown />
@@ -459,7 +461,7 @@ function ThreadFindBox({
         variant="ghost"
         aria-label="关闭搜索"
         title="关闭搜索"
-        className="mx-2 text-muted-foreground"
+        className="mx-2"
         onClick={close}
       >
         <X />
@@ -517,10 +519,10 @@ function AgentThreadHeader({
   };
 
   return (
-    <header
+    <PanelHeader
       className={cn(
-        "app-drag-region flex h-14 shrink-0 items-center justify-between gap-3 border-b px-6",
-        onExpandSidebar && "pl-[86px]",
+        "app-drag-region justify-between gap-3 px-6",
+        onExpandSidebar && SIDEBAR_COLLAPSED_OFFSET_CLASS,
       )}
     >
       <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -543,7 +545,8 @@ function AgentThreadHeader({
             if (event.key === "Enter") event.currentTarget.blur();
             if (event.key === "Escape") setDraft(title);
           }}
-          className="h-8 w-auto min-w-0 max-w-[min(520px,100%)] field-sizing-content border-0 bg-transparent px-0 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent"
+          // DESIGN: EditableText 语义——线程标题重命名，内联编辑聚焦不显示输入框外壳（focus-visible:ring-0 有意关闭）。
+          className="h-8 w-auto min-w-0 max-w-[min(520px,100%)] field-sizing-content border-0 dark:bg-transparent bg-transparent px-0 text-sm font-medium shadow-none focus-visible:ring-0"
           placeholder="新对话"
         />
       </div>
@@ -582,6 +585,6 @@ function AgentThreadHeader({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </header>
+    </PanelHeader>
   );
 }

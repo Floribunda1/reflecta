@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { usePanelRef, type PanelSize } from "react-resizable-panels";
 import {
+  SIDEBAR_COLLAPSED_BUTTON_CLASS,
+  RESIZE_HANDLE_CLASS,
+  RESIZE_HANDLE_GRIP_CHILD_CLASS,
+} from "@renderer/modules/shared/layout/layout-constants";
+import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
@@ -225,7 +230,7 @@ function ChatPageContent() {
     <ResizablePanelGroup
       id="agent-page"
       orientation="horizontal"
-      className="h-full min-h-0 w-full overflow-hidden bg-background/45 [&>[data-panel]]:transition-[flex-grow] [&>[data-panel]]:duration-200 [&>[data-panel]]:ease-out [&:has([data-separator=active])>[data-panel]]:transition-none motion-reduce:[&>[data-panel]]:transition-none"
+      className="h-full min-h-0 w-full overflow-hidden bg-transparent [&>[data-panel]]:transition-[flex-grow] [&>[data-panel]]:duration-200 [&>[data-panel]]:ease-out [&:has([data-separator=active])>[data-panel]]:transition-none motion-reduce:[&>[data-panel]]:transition-none"
     >
       <ResizablePanel
         id="agent-thread-sidebar-panel"
@@ -239,12 +244,18 @@ function ChatPageContent() {
         onResize={handleThreadSidebarResize}
         style={{ overflow: "hidden" }}
       >
+        {/* DESIGN: translucent sidebar is intentional — macOS-style vibrancy.
+            The window is configured transparent + vibrancy: under-window; the
+            raised-surface alpha tint (base01) lets the frosted material show
+            through while keeping the sidebar's raised-container semantic.
+            Not covered by any token (it is a window-level effect, not a
+            surface color), and required by the product design. */}
         <div
           data-testid="agent-thread-sidebar-container"
           aria-hidden={!threadSidebarOpen || inspectorFocusMode}
           inert={!threadSidebarOpen || inspectorFocusMode}
           className={cn(
-            "h-full min-w-0 overflow-hidden transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+            "h-full min-w-0 overflow-hidden bg-sidebar/50 transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
             threadSidebarOpen
               ? "translate-x-0 opacity-100"
               : "pointer-events-none -translate-x-3 opacity-0",
@@ -269,7 +280,7 @@ function ChatPageContent() {
         id="agent-thread-sidebar-resize-handle"
         disabled={!threadSidebarOpen}
         className={cn(
-          "cursor-col-resize bg-border/50 after:w-4 hover:bg-border data-[resize-handle-active]:bg-ring",
+          RESIZE_HANDLE_CLASS,
           threadSidebarOpen ? "w-px" : "w-0 border-0 opacity-0 after:hidden",
         )}
       />
@@ -286,7 +297,7 @@ function ChatPageContent() {
                   "agent-chat-main": 100,
                 }
           }
-          className="min-h-0 min-w-0 bg-card/95"
+          className="min-h-0 min-w-0 bg-background"
         >
           <ResizablePanel
             id="agent-chat-main"
@@ -321,7 +332,7 @@ function ChatPageContent() {
                       expanded={false}
                       label="展开对话列表"
                       testId="agent-sidebar-expand-button"
-                      className="absolute top-3 left-[86px]"
+                      className={`absolute top-3 ${SIDEBAR_COLLAPSED_BUTTON_CLASS}`}
                       onClick={expandThreadSidebar}
                     />
                   )}
@@ -336,7 +347,8 @@ function ChatPageContent() {
                 withHandle
                 disabled={inspectorFocusMode}
                 className={cn(
-                  "cursor-col-resize bg-border/50 after:w-4 hover:bg-border data-[resize-handle-active]:bg-ring [&>div]:h-10 [&>div]:w-0.5 [&>div]:bg-border/70",
+                  RESIZE_HANDLE_CLASS,
+                  RESIZE_HANDLE_GRIP_CHILD_CLASS,
                   inspectorFocusMode ? "w-0 opacity-0 after:hidden" : "w-px",
                 )}
               />

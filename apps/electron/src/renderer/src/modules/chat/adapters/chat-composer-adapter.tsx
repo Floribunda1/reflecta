@@ -22,6 +22,7 @@ import {
   type ChatComposerValue,
   type ChatComposerProps,
 } from "@reflecta/ui/chat";
+import { inferMediaType } from "@reflecta/ui/lib/file-meta";
 import { ipcClient } from "@renderer/utils/ipc";
 import { buildContextCandidates, CONTEXT_LOOKUP_LIMIT } from "../context/context-candidates";
 import {
@@ -140,11 +141,14 @@ function useAttachmentAdapter() {
         return Promise.all(
           files.map(async (file) => {
             const id = crypto.randomUUID();
+            // 用户选择/拖拽的文件有真实路径（webUtils）；粘贴等来源为空串。
+            const filePath = window.fileSystem?.getPathForFile?.(file) || undefined;
             const attachment: AgentFileAttachment = {
               type: "file",
-              mediaType: file.type || "application/octet-stream",
+              mediaType: inferMediaType(file),
               filename: file.name,
               url: await readFileAsDataUrl(file, signal),
+              filePath,
               providerMetadata: {
                 reflecta: {
                   attachmentId: id,
@@ -159,6 +163,7 @@ function useAttachmentAdapter() {
               mediaType: attachment.mediaType,
               size: file.size,
               previewUrl: attachment.mediaType.startsWith("image/") ? attachment.url : undefined,
+              filePath,
             };
           }),
         );
@@ -310,6 +315,9 @@ export function AgentChatComposer({
       searchEntities={searchEntities}
       attachmentAdapter={attachments.adapter}
       onSubmit={submit}
+      onAttachmentOpen={(attachment) => {
+        if (attachment.filePath) void ipcClient.asset.openExternalPath(attachment.filePath);
+      }}
       onModelChange={(id) => {
         const option = modelById.get(id);
         if (option) onSelectModel({ providerId: option.providerId, modelId: option.modelId });
