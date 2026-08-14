@@ -1,4 +1,5 @@
 import { Badge } from "@reflecta/ui/components/badge";
+import { Item, ItemContent, ItemMedia } from "@reflecta/ui/components/item";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@reflecta/ui/components/alert";
@@ -136,7 +137,7 @@ export function StorageSection() {
         <p className="mt-1 text-sm text-muted-foreground">数据文件、媒体资源和本地维护操作。</p>
       </div>
 
-      <section className="border-t border-border/70 pt-5">
+      <section className="section-divider">
         <div>
           <h4 className="text-sm font-medium text-foreground">数据目录</h4>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
@@ -144,16 +145,20 @@ export function StorageSection() {
           </p>
         </div>
         <div className="mt-3 min-w-0 space-y-3">
-          <div className="flex min-w-0 items-center gap-2 rounded-md border border-border/70 bg-muted/30 px-3 py-2">
-            <Folder size={15} className="shrink-0 text-muted-foreground" />
-            <span
-              className="min-w-0 flex-1 truncate font-mono text-xs text-foreground"
-              title={contentStorageRoot}
-            >
-              {contentStorageRoot}
-            </span>
+          <Item variant="outline" size="xs" className="min-w-0 gap-2">
+            <ItemMedia>
+              <Folder size={15} className="shrink-0 text-muted-foreground" />
+            </ItemMedia>
+            <ItemContent>
+              <span
+                className="min-w-0 flex-1 truncate font-mono text-xs text-foreground"
+                title={contentStorageRoot}
+              >
+                {contentStorageRoot}
+              </span>
+            </ItemContent>
             {isCustomContentStorageRoot && <Badge variant="secondary">自定义</Badge>}
-          </div>
+          </Item>
 
           <div className="flex flex-wrap gap-2">
             <Button
@@ -193,7 +198,7 @@ export function StorageSection() {
         </Alert>
       )}
 
-      <section className="border-t border-border/70 pt-5">
+      <section className="section-divider">
         <div>
           <h4 className="text-sm font-medium text-foreground">无效媒体文件</h4>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
@@ -228,7 +233,7 @@ export function StorageSection() {
             <div className="mt-3">
               {orphans.length === 0 ? (
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CheckCircle size={14} className="text-emerald-600" /> 未发现无效文件
+                  <CheckCircle size={14} className="text-success" /> 未发现无效文件
                 </p>
               ) : (
                 <div className="flex flex-col gap-2">
@@ -236,11 +241,11 @@ export function StorageSection() {
                     发现 {orphans.length} 个无效文件，共占用{" "}
                     {formatSize(orphans.reduce((s, o) => s + o.size, 0))}。
                   </p>
-                  <div className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-md border border-border/70 p-1">
+                  <div className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-md border border-border p-1">
                     {orphans.map((orphan) => (
                       <div
                         key={orphan.filename}
-                        className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-muted/60"
+                        className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-muted"
                       >
                         <span className="min-w-0 flex-1 truncate font-mono text-foreground">
                           {orphan.filename}

@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@reflecta/ui/components/button";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemTitle,
+} from "@reflecta/ui/components/item";
 import { Lightbulb, Loader2, RotateCcw, Trash2, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ipcClient } from "@renderer/utils/ipc";
@@ -168,40 +175,37 @@ export function TrashSection() {
         </div>
       </div>
 
-      <section className="border-t border-border/70 pt-5">
+      <section className="section-divider">
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="animate-spin text-muted-foreground" size={22} />
           </div>
         ) : totalCount === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border/70 py-10">
-            <Trash2 size={24} className="text-muted-foreground opacity-50" />
+          <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border py-10">
+            <Trash2 size={24} className="text-muted-foreground" />
             <span className="text-sm text-muted-foreground">回收站为空</span>
           </div>
         ) : (
           <div className="flex flex-col gap-5">
             {understandings.length > 0 && (
               <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
                   <Lightbulb size={13} />
                   <span>理解 ({understandings.length})</span>
                 </div>
                 {understandings.map((understanding) => (
-                  <div
-                    key={understanding.id}
-                    className="group flex items-center gap-3 rounded-md border border-border/70 bg-muted/20 px-3 py-2.5 transition-colors hover:bg-muted/45"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm text-foreground">
+                  <Item key={understanding.id} variant="outline" size="xs" className="gap-3">
+                    <ItemContent>
+                      <ItemTitle>
                         {understanding.title || truncate(understanding.body) || (
                           <span className="italic text-muted-foreground">（无内容）</span>
                         )}
-                      </div>
-                      <div className="mt-0.5 text-xs text-muted-foreground">
+                      </ItemTitle>
+                      <ItemDescription>
                         删除于 {formatDate(understanding.deletedAt)}
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      </ItemDescription>
+                    </ItemContent>
+                    <ItemActions className="gap-1 opacity-0 transition-opacity group-hover/item:opacity-100">
                       <Button
                         type="button"
                         size="icon-sm"
@@ -220,34 +224,31 @@ export function TrashSection() {
                       >
                         <X size={15} />
                       </Button>
-                    </div>
-                  </div>
+                    </ItemActions>
+                  </Item>
                 ))}
               </div>
             )}
 
             {contexts.length > 0 && (
               <div className="flex flex-col gap-2">
-                <div className="text-xs font-medium text-muted-foreground">
+                <div className="text-xs font-medium text-foreground">
                   上下文 ({contexts.length})
                 </div>
                 {contexts.map((context) => (
-                  <div
-                    key={context.id}
-                    className="group flex items-center gap-3 rounded-md border border-border/70 bg-muted/20 px-3 py-2.5 transition-colors hover:bg-muted/45"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm text-foreground">
+                  <Item key={context.id} variant="outline" size="xs" className="gap-3">
+                    <ItemContent>
+                      <ItemTitle>
                         {context.title
                           ? `${context.title} - ${truncate(context.content, 40)}`
                           : truncate(context.content)}
-                      </div>
-                      <div className="mt-0.5 text-xs text-muted-foreground">
+                      </ItemTitle>
+                      <ItemDescription>
                         来自「{context.understandingTitle || "无标题理解"}」 · 删除于{" "}
                         {formatDate(context.deletedAt)}
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      </ItemDescription>
+                    </ItemContent>
+                    <ItemActions className="gap-1 opacity-0 transition-opacity group-hover/item:opacity-100">
                       <Button
                         type="button"
                         size="icon-sm"
@@ -266,8 +267,8 @@ export function TrashSection() {
                       >
                         <X size={15} />
                       </Button>
-                    </div>
-                  </div>
+                    </ItemActions>
+                  </Item>
                 ))}
               </div>
             )}

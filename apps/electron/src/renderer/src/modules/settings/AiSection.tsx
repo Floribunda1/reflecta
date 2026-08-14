@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { Button } from "@reflecta/ui/components/button";
 import { Checkbox } from "@reflecta/ui/components/checkbox";
 import { Input } from "@reflecta/ui/components/input";
+import { Item, ItemActions, ItemContent } from "@reflecta/ui/components/item";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@reflecta/ui/components/input-group";
 import { NativeSelect, NativeSelectOption } from "@reflecta/ui/components/native-select";
 import { ScrollArea } from "@reflecta/ui/components/scroll-area";
 import { ipcClient } from "@renderer/utils/ipc";
@@ -212,11 +214,11 @@ export function AiSection() {
         <p className="mt-2 text-sm text-muted-foreground">用于摘要标题生成和 Agent 对话。</p>
       </div>
 
-      <section className="flex shrink-0 flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center sm:justify-between">
+      <section className="flex shrink-0 flex-col gap-3 section-divider sm:flex-row sm:items-center sm:justify-between">
         <span className="text-sm font-medium text-foreground">标题生成模型</span>
         <NativeSelect
           data-testid="settings-ai-title-model"
-          className="w-full sm:w-[360px]"
+          className="w-full sm:w-90"
           value={selectedTitleModelValue}
           disabled={titleModelOptions.length === 0}
           onChange={(event) => selectTitleGenerationModel(event.target.value)}
@@ -235,8 +237,8 @@ export function AiSection() {
         </NativeSelect>
       </section>
 
-      <section className="grid min-h-0 flex-1 overflow-hidden border-t border-border/70 pt-5 sm:grid-cols-[220px_minmax(0,1fr)]">
-        <div className="min-h-0 border-r border-border/70 pr-3">
+      <section className="grid min-h-0 flex-1 overflow-hidden section-divider sm:grid-cols-[220px_minmax(0,1fr)]">
+        <div className="min-h-0 border-r border-border pr-3">
           <ScrollArea className="h-full">
             <div className="space-y-1 pr-2">
               {providers.map((provider) => {
@@ -246,22 +248,19 @@ export function AiSection() {
                     (provider.authType === "codex" ? codexConnected : !!item.apiKey),
                 );
                 return (
-                  <button
+                  <Button
                     key={provider.id}
                     data-testid="settings-ai-provider"
                     data-provider-id={provider.id}
                     type="button"
-                    className={[
-                      "flex h-9 w-full items-center justify-between rounded-md px-3 text-left text-sm transition-colors",
-                      selectedProviderId === provider.id
-                        ? "bg-muted text-foreground"
-                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-                    ].join(" ")}
+                    variant={selectedProviderId === provider.id ? "secondary" : "ghost"}
+                    size="default"
+                    className={`w-full justify-between px-3 ${selectedProviderId === provider.id ? "" : "text-muted-foreground"}`}
                     onClick={() => setSelectedProviderId(provider.id)}
                   >
                     <span className="truncate">{provider.name}</span>
-                    {configured ? <span className="size-1.5 rounded-full bg-emerald-500" /> : null}
-                  </button>
+                    {configured ? <span className="size-1.5 rounded-full bg-success" /> : null}
+                  </Button>
                 );
               })}
             </div>
@@ -289,7 +288,6 @@ export function AiSection() {
                 <Button
                   size="xs"
                   variant="ghost"
-                  className="text-muted-foreground"
                   disabled={usesCodexAuth ? !codexConnected || codexBusy : !providerConfig}
                   onClick={() => (usesCodexAuth ? void handleDisconnectCodex() : clearProvider())}
                 >
@@ -299,26 +297,30 @@ export function AiSection() {
               </div>
 
               {usesCodexAuth ? (
-                <div className="flex shrink-0 items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
-                  <span className="text-sm text-muted-foreground">
-                    {codexConnected
-                      ? "已通过 OpenAI 授权，凭据会自动刷新"
-                      : "通过浏览器登录 ChatGPT Plus/Pro，完成后自动返回 Reflecta"}
-                  </span>
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    disabled={codexBusy}
-                    onClick={() => void handleConnectCodex()}
-                  >
-                    {codexBusy ? (
-                      <LoaderCircle size={13} className="animate-spin" />
-                    ) : (
-                      <ExternalLink size={13} />
-                    )}
-                    {codexBusy ? "等待授权" : codexConnected ? "重新连接" : "连接"}
-                  </Button>
-                </div>
+                <Item variant="outline" size="xs" className="shrink-0 justify-between">
+                  <ItemContent>
+                    <span className="text-sm text-muted-foreground">
+                      {codexConnected
+                        ? "已通过 OpenAI 授权，凭据会自动刷新"
+                        : "通过浏览器登录 ChatGPT Plus/Pro，完成后自动返回 Reflecta"}
+                    </span>
+                  </ItemContent>
+                  <ItemActions>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      disabled={codexBusy}
+                      onClick={() => void handleConnectCodex()}
+                    >
+                      {codexBusy ? (
+                        <LoaderCircle size={13} className="animate-spin" />
+                      ) : (
+                        <ExternalLink size={13} />
+                      )}
+                      {codexBusy ? "等待授权" : codexConnected ? "重新连接" : "连接"}
+                    </Button>
+                  </ItemActions>
+                </Item>
               ) : (
                 <label className="flex shrink-0 flex-col gap-2">
                   <span className="text-sm font-medium text-foreground">API Key</span>
@@ -342,17 +344,18 @@ export function AiSection() {
                     已选择 {enabledModelIds.length} 个
                   </span>
                 </div>
-                <div className="relative shrink-0">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
+                <InputGroup className="shrink-0">
+                  <InputGroupAddon align="inline-start">
+                    <Search className="size-4 text-muted-foreground" />
+                  </InputGroupAddon>
+                  <InputGroupInput
                     data-testid="settings-ai-model-search"
                     value={modelQuery}
                     onChange={(event) => setModelQuery(event.target.value)}
                     placeholder="搜索模型名称或 ID"
                     disabled={!providerAvailable}
-                    className="pl-9"
                   />
-                </div>
+                </InputGroup>
                 <ScrollArea className="min-h-0 flex-1">
                   <div className="space-y-1 pr-3">
                     {models.map((model) => (
@@ -360,7 +363,7 @@ export function AiSection() {
                         key={model.id}
                         data-testid="settings-ai-model-option"
                         data-model-id={model.id}
-                        className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-muted/60"
+                        className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-muted"
                       >
                         <Checkbox
                           checked={enabledModelIdSet.has(model.id)}
@@ -390,7 +393,7 @@ export function AiSection() {
         </div>
       </section>
 
-      <div className="flex shrink-0 items-center gap-3 border-t border-border/70 pt-5">
+      <div className="flex shrink-0 items-center gap-3 section-divider">
         <Button
           data-testid="settings-ai-save-button"
           size="sm"
@@ -402,7 +405,7 @@ export function AiSection() {
         </Button>
         {saved && (
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-            <CheckCircle size={14} className="text-emerald-600" />
+            <CheckCircle size={14} className="text-success" />
             已保存
           </span>
         )}

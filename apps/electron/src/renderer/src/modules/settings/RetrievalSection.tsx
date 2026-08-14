@@ -156,10 +156,10 @@ export function RetrievalSection() {
 
       {manifest && status && embedding ? (
         <>
-          <section className="border-t border-border/70 pt-5">
+          <section className="section-divider">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="mb-3 text-xs font-medium text-muted-foreground">本地模型</p>
+                <p className="mb-3 text-xs font-medium text-foreground">本地模型</p>
                 <h4
                   data-testid="settings-retrieval-model-name"
                   className="truncate text-sm font-medium text-foreground"
@@ -225,10 +225,10 @@ export function RetrievalSection() {
           </section>
 
           {indexStatus ? (
-            <section className="border-t border-border/70 pt-5">
+            <section className="section-divider">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="mb-3 text-xs font-medium text-muted-foreground">检索索引</p>
+                  <p className="mb-3 text-xs font-medium text-foreground">检索索引</p>
                   <h4 className="text-sm font-medium text-foreground">
                     {semanticEnabled && !status.downloaded
                       ? "等待模型"
