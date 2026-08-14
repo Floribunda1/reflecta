@@ -16,6 +16,7 @@ import {
 } from "@reflecta/ui/components/context-menu";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@reflecta/ui/components/empty";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@reflecta/ui/components/field";
+import { FOCUS_MODE_OFFSET_CLASS } from "@renderer/modules/shared/layout/layout-constants";
 import { Input } from "@reflecta/ui/components/input";
 import { Tabs, TabsList, TabsTrigger } from "@reflecta/ui/components/tabs";
 import {
@@ -28,6 +29,7 @@ import {
   collectChatEntityReferences,
   type ChatEntityPresentation,
   type ChatEntityReference,
+  type ResolveChatEntity,
 } from "@reflecta/ui/chat";
 import { useDrawer } from "@reflecta/ui/overlays";
 import { useModal } from "@reflecta/ui/overlays";
@@ -107,11 +109,13 @@ function ContextPreview({
   onPreview,
   onEdit,
   onDelete,
+  resolveWikiLink,
 }: {
   context: ContextDTO;
   onPreview: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  resolveWikiLink: ResolveChatEntity;
 }) {
   const meta = contextMeta(context.medium);
   const Icon = meta.Icon;
@@ -122,11 +126,11 @@ function ContextPreview({
         render={
           <button
             type="button"
-            className="group flex w-full min-w-0 flex-col gap-2 rounded-lg border bg-card px-4 py-3 text-left text-sm text-card-foreground transition-colors outline-none hover:bg-accent/30 active:bg-accent/40 focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="group flex w-full min-w-0 flex-col gap-2 rounded-lg border bg-card px-4 py-3 text-left text-sm text-card-foreground transition-colors outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
             onClick={onPreview}
           >
             <div className="flex min-w-0 items-center gap-2">
-              <Badge variant="outline" className="gap-1">
+              <Badge variant="outline">
                 <Icon size={11} />
                 {meta.label}
               </Badge>
@@ -140,7 +144,11 @@ function ContextPreview({
 
             <div className="text-muted-foreground">
               {context.content ? (
-                <SimpleMarkdownPreview value={context.content} lineClamp={2} />
+                <SimpleMarkdownPreview
+                  value={context.content}
+                  lineClamp={2}
+                  resolveWikiLink={resolveWikiLink}
+                />
               ) : (
                 <span>空上下文，可以直接补充内容。</span>
               )}
@@ -168,11 +176,13 @@ export function ContextPreviewDrawerContent({
   focusMode = false,
   onFocusModeChange,
   onClose,
+  resolveWikiLink,
 }: {
   context: ContextDTO;
   focusMode?: boolean;
   onFocusModeChange?: (focused: boolean) => void;
   onClose?: () => void;
+  resolveWikiLink?: ResolveChatEntity;
 }) {
   const meta = contextMeta(context.medium);
   const Icon = meta.Icon;
@@ -183,11 +193,11 @@ export function ContextPreviewDrawerContent({
       <article className="mx-auto h-full overflow-y-auto px-6 py-3">
         <header className="space-y-4">
           <div
-            className={`flex min-h-8 min-w-0 items-center gap-2 text-xs text-muted-foreground ${focusMode ? "pl-[75px]" : ""}`}
+            className={`flex min-h-8 min-w-0 items-center gap-2 text-xs text-muted-foreground ${focusMode ? FOCUS_MODE_OFFSET_CLASS : ""}`}
           >
             {focusMode ? null : (
               <>
-                <Badge variant="outline" className="gap-1">
+                <Badge variant="outline">
                   <Icon size={11} />
                   {meta.label}
                 </Badge>
@@ -226,7 +236,7 @@ export function ContextPreviewDrawerContent({
 
         <section className="mt-5">
           {context.content ? (
-            <MarkdownPreview value={context.content} />
+            <MarkdownPreview value={context.content} resolveWikiLink={resolveWikiLink} />
           ) : (
             <div className="text-sm text-muted-foreground">空上下文。</div>
           )}
@@ -238,7 +248,7 @@ export function ContextPreviewDrawerContent({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5">
       <div className="flex min-w-0 flex-wrap items-center gap-2 border-b pb-4">
-        <Badge variant="outline" className="gap-1">
+        <Badge variant="outline">
           <Icon size={11} />
           {meta.label}
         </Badge>
@@ -250,7 +260,7 @@ export function ContextPreviewDrawerContent({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {context.content ? (
-          <MarkdownPreview value={context.content} />
+          <MarkdownPreview value={context.content} resolveWikiLink={resolveWikiLink} />
         ) : (
           <div className="text-sm text-muted-foreground">
             空上下文，可以通过右键菜单编辑补充内容。
@@ -346,7 +356,7 @@ function ContextDetailDrawerContent({
           />
         </Field>
       </FieldGroup>
-      <div className="mt-4 flex shrink-0 justify-end gap-2 border-t bg-popover pt-4">
+      <div className="mt-4 flex shrink-0 justify-end gap-2 border-t border-border pt-4">
         <Button type="button" variant="outline" onClick={closeDrawer}>
           取消
         </Button>
@@ -498,7 +508,7 @@ function UnderstandingDetailInner({
         widthClassName: CONTEXT_DRAWER_WIDTH_CLASS,
         onClose: () => setActiveContextId(null),
       },
-      <ContextPreviewDrawerContent context={context} />,
+      <ContextPreviewDrawerContent context={context} resolveWikiLink={resolveWikiLink} />,
     );
   };
 
@@ -523,7 +533,7 @@ function UnderstandingDetailInner({
       <article ref={detailRef} className="mx-auto h-full overflow-y-auto px-6 py-3">
         <header className="space-y-4">
           <div
-            className={`flex min-h-8 min-w-0 items-center gap-2 text-xs text-muted-foreground ${focusMode ? "pl-[75px]" : ""}`}
+            className={`flex min-h-8 min-w-0 items-center gap-2 text-xs text-muted-foreground ${focusMode ? FOCUS_MODE_OFFSET_CLASS : ""}`}
           >
             {focusMode ? null : (
               <>
@@ -618,7 +628,10 @@ function UnderstandingDetailInner({
               updateDraftTitle(next);
             }}
             onBlur={() => void saveDraft()}
-            className="h-auto border-0 bg-transparent px-0 py-0 text-2xl font-semibold shadow-none focus-visible:ring-0 md:text-2xl dark:bg-transparent"
+            // DESIGN: EditableText 语义——标题内联编辑，聚焦不显示输入框外壳，视觉与页面标题一致（focus-visible:ring-0 有意关闭）。
+            // Input 组件内置 text-base + md:text-sm，tailwind-merge 无法移除
+            // 响应式 md:text-sm，需要 md:text-2xl 在 md+ 重新声明标题字号。
+            className="h-auto border-0 dark:bg-transparent bg-transparent px-0 py-0 text-2xl font-semibold shadow-none focus-visible:ring-0 md:text-2xl"
             placeholder="写下一个刚形成的理解"
           />
         </header>
@@ -645,7 +658,7 @@ function UnderstandingDetailInner({
         </section>
 
         <section
-          className={`mt-10 flex flex-col gap-3 border-t border-border/70 pt-8 pb-6 ${focusMode ? "hidden" : ""}`}
+          className={`mt-10 flex flex-col gap-3 border-t border-border pt-8 pb-6 ${focusMode ? "hidden" : ""}`}
         >
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm leading-8 font-medium">上下文</div>
@@ -663,6 +676,7 @@ function UnderstandingDetailInner({
                   onPreview={() => openContextPreview(context)}
                   onEdit={() => openContextDrawer(context)}
                   onDelete={() => handleDeleteContext(context)}
+                  resolveWikiLink={resolveWikiLink}
                 />
               ))}
             </div>

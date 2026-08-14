@@ -1,4 +1,8 @@
 import { Network, Share2 } from "lucide-react";
+import {
+  RESIZE_HANDLE_SLIM_CLASS,
+  SIDEBAR_COLLAPSED_OFFSET_CLASS,
+} from "@renderer/modules/shared/layout/layout-constants";
 import { useMemo } from "react";
 import { Button } from "@reflecta/ui/components/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@reflecta/ui/components/empty";
@@ -10,6 +14,7 @@ import {
 import { Skeleton } from "@reflecta/ui/components/skeleton";
 import { KnowledgeGraph } from "@reflecta/ui/knowledge";
 import { cn } from "@reflecta/ui/lib/utils";
+import { PanelHeader } from "@renderer/modules/shared/layout/PanelHeader";
 import { SidebarToggleButton } from "@renderer/modules/shared/layout/SidebarToggleButton";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import { useCaptureDomains, useCaptureUnderstandingList } from "../queries";
@@ -109,11 +114,11 @@ export function KnowledgeWanderWorkspace({
         className="min-h-0 min-w-0"
       >
         <main className="flex h-full min-h-0 min-w-0 flex-col bg-background">
-          <header
+          <PanelHeader
             data-testid="knowledge-wander-header"
             className={cn(
-              "flex h-14 shrink-0 items-center gap-1 border-b bg-background/90 px-5 backdrop-blur-sm",
-              onExpandSidebar && "pl-[86px]",
+              "gap-1 bg-background backdrop-blur-sm",
+              onExpandSidebar && SIDEBAR_COLLAPSED_OFFSET_CLASS,
             )}
           >
             {onExpandSidebar ? (
@@ -142,26 +147,21 @@ export function KnowledgeWanderWorkspace({
                 data-testid="capture-knowledge-wander-entry"
                 type="button"
                 size="icon-sm"
-                variant="ghost"
+                variant="secondary"
                 aria-label="退出知识漫步"
-                aria-pressed={true}
-                className="bg-muted text-foreground"
                 onClick={toggleKnowledgeWander}
               >
                 <Share2 size={14} />
               </Button>
             </div>
-          </header>
+          </PanelHeader>
           <div className="min-h-0 min-w-0 flex-1">{graphContent}</div>
         </main>
       </ResizablePanel>
 
       {selectedUnderstandingId ? (
         <>
-          <ResizableHandle
-            withHandle
-            className="w-3 cursor-col-resize bg-transparent after:w-px after:bg-border/50 hover:after:bg-border data-[resize-handle-active]:after:bg-ring [&>div]:h-10 [&>div]:w-0.5 [&>div]:bg-border/70"
-          />
+          <ResizableHandle withHandle className={RESIZE_HANDLE_SLIM_CLASS} />
           <ResizablePanel
             id="knowledge-wander-detail-panel"
             minSize="34%"

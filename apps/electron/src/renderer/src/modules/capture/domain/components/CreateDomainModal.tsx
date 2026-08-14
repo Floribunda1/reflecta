@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@reflecta/ui/components/button";
 import { DialogFooter } from "@reflecta/ui/components/dialog";
 import { Input } from "@reflecta/ui/components/input";
+import { Label } from "@reflecta/ui/components/label";
 import { DomainTreeSelect } from "@reflecta/ui/capture";
 import type { DomainTreeNode } from "@shared/domain";
 
@@ -30,7 +31,7 @@ export function DomainModalContent({ data }: { data: DomainModalData }) {
   return (
     <div className="space-y-4">
       <div className="grid gap-2">
-        <label className="text-sm font-medium">名称</label>
+        <Label>名称</Label>
         <Input
           value={name}
           onChange={(event) => setName(event.target.value)}
@@ -41,7 +42,7 @@ export function DomainModalContent({ data }: { data: DomainModalData }) {
       </div>
 
       <div className="grid gap-2">
-        <label className="text-sm font-medium">父领域</label>
+        <Label>父领域</Label>
         <DomainTreeSelect
           mode="single"
           value={parentId}

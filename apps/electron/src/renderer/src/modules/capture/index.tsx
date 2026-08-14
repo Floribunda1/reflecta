@@ -3,10 +3,18 @@ import { lazy, Suspense, useState } from "react";
 import { useKeyPress, useMemoizedFn } from "ahooks";
 import { usePanelRef } from "react-resizable-panels";
 import {
+  RESIZE_HANDLE_GRIP_CHILD_CLASS,
+  RESIZE_HANDLE_SLIM_CLASS,
+  SIDEBAR_GRID_COLS_CLOSED,
+  SIDEBAR_GRID_COLS_OPEN,
+  SIDEBAR_WIDTH_CLASS,
+} from "@renderer/modules/shared/layout/layout-constants";
+import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@reflecta/ui/components/resizable";
+import { PanelHeader } from "@renderer/modules/shared/layout/PanelHeader";
 import { ContextualAgentDock } from "@renderer/modules/chat/contextual-agent-dock";
 import { DomainTree } from "./domain";
 import { UnderstandingDetail } from "./understanding-detail";
@@ -81,10 +89,8 @@ function CapturePageInner() {
     <div
       data-testid="capture-page"
       className={cn(
-        "grid h-full min-h-0 w-full overflow-hidden bg-background/45 transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
-        domainSidebarOpen && !focusMode
-          ? "grid-cols-[248px_minmax(0,1fr)]"
-          : "grid-cols-[0px_minmax(0,1fr)]",
+        "grid h-full min-h-0 w-full overflow-hidden bg-transparent transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
+        domainSidebarOpen && !focusMode ? SIDEBAR_GRID_COLS_OPEN : SIDEBAR_GRID_COLS_CLOSED,
       )}
     >
       <div
@@ -98,7 +104,13 @@ function CapturePageInner() {
             : "pointer-events-none -translate-x-3 opacity-0",
         )}
       >
-        <div className="h-full w-[248px]">
+        {/* DESIGN: translucent sidebar is intentional — macOS-style vibrancy.
+            The window is configured transparent + vibrancy: under-window; the
+            raised-surface alpha tint (base01) lets the frosted material show
+            through while keeping the sidebar's raised-container semantic.
+            Not covered by any token (it is a window-level effect, not a
+            surface color), and required by the product design. */}
+        <div className={`h-full ${SIDEBAR_WIDTH_CLASS} bg-sidebar/50`}>
           <DomainTree onChat={openAgentDock} onCollapse={() => setDomainSidebarOpen(false)} />
         </div>
       </div>
@@ -114,7 +126,7 @@ function CapturePageInner() {
                 "capture-main": 100,
               }
         }
-        className="min-h-0 min-w-0 border-l bg-card/95"
+        className="min-h-0 min-w-0 border-l bg-background"
       >
         <ResizablePanel
           id="capture-main"
@@ -126,9 +138,9 @@ function CapturePageInner() {
             <Suspense
               fallback={
                 <div className="flex h-full min-h-0 flex-col bg-background">
-                  <div className="flex h-14 shrink-0 items-center border-b px-5">
+                  <PanelHeader>
                     <Skeleton className="h-8 w-28" />
-                  </div>
+                  </PanelHeader>
                   <div className="min-h-0 flex-1" />
                 </div>
               }
@@ -168,7 +180,8 @@ function CapturePageInner() {
                 id="capture-understanding-list-resize-handle"
                 disabled={focusMode}
                 className={cn(
-                  "cursor-col-resize bg-border/50 after:w-4 hover:bg-border data-[resize-handle-active]:bg-ring [&>div]:h-10 [&>div]:w-0.5 [&>div]:bg-border/70",
+                  RESIZE_HANDLE_SLIM_CLASS,
+                  RESIZE_HANDLE_GRIP_CHILD_CLASS,
                   focusMode ? "w-0 opacity-0 after:hidden" : "w-px",
                 )}
               />
@@ -215,7 +228,7 @@ function CapturePageInner() {
             <ResizableHandle
               withHandle
               id="capture-agent-dock-resize-handle"
-              className="w-3 cursor-col-resize bg-transparent after:w-px after:bg-border/50 hover:after:bg-border data-[resize-handle-active]:after:bg-ring [&>div]:h-10 [&>div]:w-0.5 [&>div]:bg-border/70"
+              className={RESIZE_HANDLE_SLIM_CLASS}
             />
             <ResizablePanel
               id="capture-agent"

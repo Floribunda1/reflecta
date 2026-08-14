@@ -2,6 +2,7 @@ import {
   UnderstandingRow as UnderstandingRowView,
   type UnderstandingRowAction,
 } from "@reflecta/ui/capture";
+import type { ResolveChatEntity } from "@reflecta/ui/chat";
 import { useModal } from "@reflecta/ui/overlays";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import { formatDistanceToNow } from "date-fns";
@@ -14,10 +15,12 @@ export function UnderstandingRow({
   understanding,
   selected = false,
   onChat,
+  resolveWikiLink,
 }: {
   understanding: UnderstandingSummaryDTO;
   selected?: boolean;
   onChat?: (scope: CaptureAgentScope) => void;
+  resolveWikiLink?: ResolveChatEntity;
 }) {
   const selectUnderstanding = useCaptureStore((state) => state.selectUnderstanding);
   const { deleteUnderstanding } = useUnderstandingListActions();
@@ -55,6 +58,7 @@ export function UnderstandingRow({
       }}
       selected={selected}
       canChat={Boolean(onChat)}
+      resolveWikiLink={resolveWikiLink}
       onSelect={selectUnderstanding}
       onAction={handleAction}
     />

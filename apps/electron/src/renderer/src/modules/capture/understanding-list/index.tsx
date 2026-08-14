@@ -1,10 +1,13 @@
+import { useQueries } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { FOCUS_MODE_OFFSET_CLASS } from "@renderer/modules/shared/layout/layout-constants";
 import { ArrowUpDown, FileText, GitBranch, Plus, Search, Share2 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useUnderstandingList, useUnderstandingListActions } from "./hooks";
 import { UnderstandingRow } from "./UnderstandingRow";
 import { Button } from "@reflecta/ui/components/button";
 import { Input } from "@reflecta/ui/components/input";
+import { ScrollArea } from "@reflecta/ui/components/scroll-area";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@reflecta/ui/components/empty";
 import {
   DropdownMenu,
@@ -17,7 +20,12 @@ import {
 } from "@reflecta/ui/components/dropdown-menu";
 import { cn } from "@reflecta/ui/lib/utils";
 import { useCaptureStore, type CaptureAgentScope } from "../store";
-import { useCaptureDomains } from "../queries";
+import {
+  type ChatEntityPresentation,
+  type ChatEntityReference,
+  collectChatEntityReferences,
+} from "@reflecta/ui/chat";
+import { captureQueryKeys, getEntityDisplay, useCaptureDomains } from "../queries";
 import type { UnderstandingListSortBy } from "./sort";
 import { SidebarToggleButton } from "@renderer/modules/shared/layout/SidebarToggleButton";
 
@@ -30,6 +38,39 @@ export function UnderstandingList({
 }) {
   const understandingList = useUnderstandingList();
   const understandingListActions = useUnderstandingListActions();
+  // 收集列表内所有理解 body 的实体引用，统一查询后供行内摘要显示标题。
+  const entityReferences = useMemo(
+    () =>
+      understandingList.displayedUnderstandings.flatMap((u) =>
+        collectChatEntityReferences(u.body ?? ""),
+      ),
+    [understandingList.displayedUnderstandings],
+  );
+  const entityQueries = useQueries({
+    queries: entityReferences.map((reference) => ({
+      queryKey: captureQueryKeys.entityDisplay(reference),
+      queryFn: () => getEntityDisplay(reference),
+    })),
+  });
+  const entityPresentations = useMemo(() => {
+    const map = new Map<string, ChatEntityPresentation>();
+    entityReferences.forEach((reference, index) => {
+      const query = entityQueries[index];
+      if (query?.data) {
+        map.set(`${reference.type}:${reference.id}`, {
+          state: "ready",
+          label: query.data.title || reference.id,
+          canOpen: reference.type !== "domain",
+        });
+      }
+    });
+    return map;
+  }, [entityReferences, entityQueries]);
+  const resolveWikiLink = useCallback(
+    (reference: ChatEntityReference) =>
+      entityPresentations.get(`${reference.type}:${reference.id}`),
+    [entityPresentations],
+  );
   const selectedDomainId = useCaptureStore((state) => state.selectedDomainId);
   const selectedUnderstandingId = useCaptureStore((state) => state.selectedUnderstandingId);
   const searchOpen = useCaptureStore((state) => state.searchOpen);
@@ -43,12 +84,14 @@ export function UnderstandingList({
   const setUnderstandingListSortBy = useCaptureStore((state) => state.setUnderstandingListSortBy);
   const { domainList } = useCaptureDomains();
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const listViewportRef = useRef<HTMLDivElement | null>(null);
+  const scrollAreaHostRef = useRef<HTMLDivElement | null>(null);
   const understandings = understandingList.displayedUnderstandings;
 
   const virtualizer = useVirtualizer({
     count: understandings.length,
-    getScrollElement: () => listViewportRef.current,
+    getScrollElement: () =>
+      scrollAreaHostRef.current?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]') ??
+      null,
     estimateSize: () => 108,
     gap: 4,
     overscan: 8,
@@ -82,10 +125,10 @@ export function UnderstandingList({
 
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col bg-transparent">
-      <div className="space-y-3 px-3 pl-4 py-3">
+      <div className="space-y-3 px-3 pl-4 py-2">
         <header
           data-testid="capture-understanding-list-header"
-          className={cn("flex h-8 items-center gap-2", onExpandSidebar && "pl-[75px]")}
+          className={cn("flex h-8 items-center gap-2", onExpandSidebar && FOCUS_MODE_OFFSET_CLASS)}
         >
           {onExpandSidebar ? (
             <SidebarToggleButton
@@ -115,7 +158,6 @@ export function UnderstandingList({
               size="icon-sm"
               variant="ghost"
               aria-label="打开知识漫步"
-              className="shrink-0"
               onClick={toggleKnowledgeWander}
             >
               <Share2 size={14} />
@@ -123,10 +165,8 @@ export function UnderstandingList({
             <Button
               type="button"
               size="icon-sm"
-              variant="ghost"
+              variant={searchOpen ? "secondary" : "ghost"}
               aria-label={searchOpen ? "收起搜索" : "搜索理解"}
-              aria-pressed={searchOpen}
-              className={cn(searchOpen && "bg-muted text-foreground")}
               onClick={() => setSearchOpen(!searchOpen)}
             >
               <Search size={14} />
@@ -134,10 +174,8 @@ export function UnderstandingList({
             <Button
               type="button"
               size="icon-sm"
-              variant="ghost"
+              variant={includeDescendants ? "secondary" : "ghost"}
               aria-label={includeDescendants ? "已包含子领域" : "未包含子领域"}
-              aria-pressed={includeDescendants}
-              className={cn(includeDescendants && "bg-muted text-foreground")}
               onClick={() => setIncludeDescendants(!includeDescendants)}
             >
               <GitBranch size={14} />
@@ -148,11 +186,8 @@ export function UnderstandingList({
                   <Button
                     type="button"
                     size="icon-sm"
-                    variant="ghost"
+                    variant={understandingListSortBy === "createdAt" ? "secondary" : "ghost"}
                     aria-label="排序理解"
-                    className={cn(
-                      understandingListSortBy === "createdAt" && "bg-muted text-foreground",
-                    )}
                   >
                     <ArrowUpDown size={14} />
                   </Button>
@@ -208,29 +243,37 @@ export function UnderstandingList({
           </Empty>
         </div>
       ) : (
-        <div ref={listViewportRef} className="min-h-0 flex-1 overflow-y-auto pl-1 pb-3">
-          <div className="relative w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>
-            {virtualizer.getVirtualItems().map((virtualRow) => {
-              const understanding = understandings[virtualRow.index];
-              if (!understanding) return null;
+        <div ref={scrollAreaHostRef} className="min-h-0 min-w-0 flex-1">
+          <ScrollArea className="h-full w-full [&_[data-slot=scroll-area-thumb]]:bg-muted-foreground/30 [&_[data-slot=scroll-area-thumb]]:hover:bg-muted-foreground/50">
+            <div className="px-1 pb-3">
+              <div
+                className="relative w-full"
+                style={{ height: `${virtualizer.getTotalSize()}px` }}
+              >
+                {virtualizer.getVirtualItems().map((virtualRow) => {
+                  const understanding = understandings[virtualRow.index];
+                  if (!understanding) return null;
 
-              return (
-                <div
-                  key={understanding.id}
-                  data-index={virtualRow.index}
-                  ref={virtualizer.measureElement}
-                  className="absolute top-0 left-0 w-full"
-                  style={{ transform: `translateY(${virtualRow.start}px)` }}
-                >
-                  <UnderstandingRow
-                    understanding={understanding}
-                    selected={understanding.id === selectedUnderstandingId}
-                    onChat={onChat}
-                  />
-                </div>
-              );
-            })}
-          </div>
+                  return (
+                    <div
+                      key={understanding.id}
+                      data-index={virtualRow.index}
+                      ref={virtualizer.measureElement}
+                      className="absolute top-0 left-0 w-full"
+                      style={{ transform: `translateY(${virtualRow.start}px)` }}
+                    >
+                      <UnderstandingRow
+                        understanding={understanding}
+                        selected={understanding.id === selectedUnderstandingId}
+                        onChat={onChat}
+                        resolveWikiLink={resolveWikiLink}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </ScrollArea>
         </div>
       )}
     </section>
