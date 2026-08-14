@@ -44,6 +44,8 @@ export type AgentFileAttachment = {
   mediaType: string;
   url: string;
   filename?: string;
+  /** 本地磁盘路径（用户选择/拖拽的文件；粘贴等来源为空）。用于系统应用打开。 */
+  filePath?: string;
   providerMetadata?: Record<string, unknown>;
 };
 

@@ -9,6 +9,9 @@ declare global {
   interface Window {
     electron: ElectronAPI;
     agentSessionFeed: AgentSessionFeedApi;
+    fileSystem: {
+      getPathForFile: (file: File) => string;
+    };
     ipcRenderer: typeof ipcRenderer;
   }
 }

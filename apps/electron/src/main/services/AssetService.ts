@@ -108,6 +108,13 @@ export class AssetService extends IpcService {
     await shell.openPath(filePath);
   }
 
+  /** 用系统默认应用打开外部文件（聊天附件等；路径由 renderer 的 webUtils 提供）。 */
+  @IpcMethod()
+  async openExternalPath(filePath: string): Promise<void> {
+    if (!filePath) return;
+    await shell.openPath(filePath);
+  }
+
   @IpcMethod()
   async revealAsset(filename: string): Promise<void> {
     if (filename.includes("/") || filename.includes("\\")) return;

@@ -1,5 +1,5 @@
 import { electronAPI } from "@electron-toolkit/preload";
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 import "electron-log/preload";
 import { agentSessionFeedApi } from "./agent-session-feed";
 
@@ -61,6 +61,10 @@ if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld("electron", electronAPI);
     contextBridge.exposeInMainWorld("agentSessionFeed", agentSessionFeedApi);
+    contextBridge.exposeInMainWorld("fileSystem", {
+      /** 取用户选择/拖拽文件的真实磁盘路径（粘贴等无路径来源返回空串）。 */
+      getPathForFile: (file: File) => webUtils.getPathForFile(file),
+    });
 
     const ipcRendererProxy = {
       invoke: (channel: string, ...args: unknown[]) => ipcRenderer.invoke(channel, ...args),
