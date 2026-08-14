@@ -11,6 +11,12 @@ body {
   -webkit-app-region: no-drag;
 }
 
+/* settings section 分隔（border-t border-border pt-5 组合类） */
+.section-divider {
+  border-top: 1px solid var(--border);
+  padding-top: 1.25rem;
+}
+
 .app-drag-region,
 [data-app-drag] {
   -webkit-app-region: drag;

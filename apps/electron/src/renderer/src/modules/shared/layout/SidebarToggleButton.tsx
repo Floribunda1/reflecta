@@ -24,7 +24,7 @@ export function SidebarToggleButton({
       type="button"
       size="icon-sm"
       variant="ghost"
-      className={cn("size-8 hover:bg-foreground/5 hover:text-foreground", className)}
+      className={cn(className)}
       aria-label={label}
       title={label}
       onClick={onClick}

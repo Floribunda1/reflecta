@@ -5,6 +5,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@reflecta/ui/theme";
 import { App } from "./App";
 import { RendererErrorBoundary } from "./renderer-error-boundary";
+import { useAppliedTheme } from "./modules/settings/use-applied-theme";
+
+function ThemeBridge() {
+  useAppliedTheme();
+  return null;
+}
 
 const queryClient = new QueryClient();
 const root = document.getElementById("root");
@@ -17,6 +23,7 @@ createRoot(root).render(
   <StrictMode>
     <RendererErrorBoundary>
       <ThemeProvider>
+        <ThemeBridge />
         <QueryClientProvider client={queryClient}>
           <App />
         </QueryClientProvider>

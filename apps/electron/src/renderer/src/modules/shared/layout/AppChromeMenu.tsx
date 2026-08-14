@@ -15,20 +15,18 @@ export function AppChromeMenu() {
     openModal(<SettingsDialogContent />, {
       title: "设置",
       widthClassName: "w-[min(80vw,calc(100vw-3rem))] max-w-none sm:max-w-none",
+      className: "flex h-[90vh] max-h-[90vh] flex-col overflow-hidden",
     });
 
   return (
-    <div
-      data-no-drag
-      className="flex h-12 shrink-0 items-center gap-1 border-t border-border/60 px-2"
-    >
+    <div data-no-drag className="flex h-12 shrink-0 items-center gap-1 border-t border-border px-2">
       <Button
         data-no-drag
         data-testid="app-module-switcher"
         type="button"
         size="sm"
         variant="ghost"
-        className="min-w-0 flex-1 justify-start text-foreground/70 hover:bg-foreground/5 hover:text-foreground"
+        className="min-w-0 flex-1 justify-start"
         aria-label={nextModule.label}
         onClick={() => navigate(nextModule.path)}
       >
@@ -41,7 +39,6 @@ export function AppChromeMenu() {
         type="button"
         size="icon-sm"
         variant="ghost"
-        className="hover:bg-foreground/5 hover:text-foreground"
         aria-label="设置"
         onClick={openSettings}
       >
