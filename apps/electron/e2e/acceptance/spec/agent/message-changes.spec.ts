@@ -147,6 +147,34 @@ test("@AG-MESSAGE-002 用户重新生成回复后看到新的当前回复", asyn
   }
 });
 
+test("@AG-MESSAGE-003 用户复制一条消息后剪贴板包含该消息正文", async () => {
+  seedCompletedThread({
+    id: "copy-message",
+    title: "复制消息",
+    userText: "COPY_USER_MESSAGE",
+    assistantText: "COPY_AGENT_REPLY",
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "复制消息");
+    const userRow = page
+      .locator('[data-testid="agent-message-row"][data-message-role="user"]')
+      .filter({ hasText: "COPY_USER_MESSAGE" });
+    await userRow.hover();
+    await userRow.getByTestId("agent-copy-message-button").click();
+    await expect
+      .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+      .toBe("COPY_USER_MESSAGE");
+    await expect(userRow).toBeVisible();
+    await expect(
+      page.getByTestId("agent-assistant-text").filter({ hasText: "COPY_AGENT_REPLY" }),
+    ).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
+
 test("@AG-MESSAGE-004 Agent 回复期间用户可以整理下一轮想法", async () => {
   test.setTimeout(120_000);
   writeE2eAiConfig({ ...process.env, REFLECTA_E2E_AI_API_KEY: "invalid-reflecta-e2e-key" });

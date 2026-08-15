@@ -24,7 +24,7 @@ test("@APP-NAV-002 用户打开设置并返回原工作区", async () => {
   try {
     const title = await page.getByTestId("agent-thread-title").textContent();
     await page.getByTestId("app-settings-menu-item").click();
-    for (const section of ["ai", "storage", "retrieval", "trash"]) {
+    for (const section of ["ai", "storage", "retrieval", "appearance", "trash"]) {
       await page.getByTestId(`settings-menu-${section}`).click();
     }
     await page.keyboard.press("Escape");

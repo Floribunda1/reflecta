@@ -80,7 +80,7 @@ test("@AG-START-007 用户打开等待回复中的对话时看到对话区等待
     await expect(
       page.getByTestId("agent-user-message").filter({ hasText: "WAITING_USER_MESSAGE" }),
     ).toBeVisible();
-    await expect(page.getByTestId("agent-running-placeholder")).toContainText("正在思考");
+    await expect(page.getByTestId("agent-running-placeholder")).toContainText("等待中");
     await expect(page.getByTestId("agent-empty-state")).toHaveCount(0);
   } finally {
     await app.close();

@@ -1,7 +1,7 @@
 # language: zh-CN
 @agent @v1.1.0
 功能: 用户修订已有 Agent 对话
-  用户需要能编辑历史用户消息或重新生成回复，并看到当前对话结果被正确更新。
+  用户需要能复制、编辑历史用户消息或重新生成回复，并看到当前对话结果被正确更新。
 
   @P1 @happy_path @AG-MESSAGE-001
   场景: 用户编辑历史消息后看到新的当前回复
@@ -43,3 +43,11 @@
     那么对话中应该保留用户消息 REGENERATE_USER_MESSAGE
     而且当前对话应该只显示一条完成状态的 Agent 回复
     而且消息顺序应该保持用户消息在前、Agent 回复在后
+
+  @P1 @happy_path @AG-MESSAGE-003
+  场景: 用户复制一条消息后剪贴板包含该消息正文
+    假如对话中有用户消息 COPY_USER_MESSAGE
+    而且 Agent 已经回复 COPY_AGENT_REPLY
+    当用户复制 COPY_USER_MESSAGE
+    那么系统剪贴板应该包含 COPY_USER_MESSAGE
+    而且对话中的 COPY_USER_MESSAGE 和 COPY_AGENT_REPLY 应该保持不变

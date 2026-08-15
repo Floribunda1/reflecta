@@ -375,12 +375,15 @@ function assistantTurnBlocks(
   const blocks: Record<string, unknown>[] = [];
   for (const part of parts) {
     if (!isRecord(part)) continue;
+    // DESIGN: seed 块时间戳按构造顺序递增（每块 +1s）——reasoning 早于正文/工具，
+    // 让「思考了 Xs」等依赖块间时间差的展示在 fixture 场景下成立。
+    const blockAt = timeAt(createdAt, blocks.length);
     if (part.type === "text") {
       appendTextBlock(
         blocks,
         "text",
         String(part.text ?? ""),
-        createdAt,
+        blockAt,
         Array.isArray(part.parts) ? part.parts : undefined,
         part.state,
         part.previewText,
@@ -389,7 +392,7 @@ function assistantTurnBlocks(
       continue;
     }
     if (part.type === "reasoning") {
-      appendTextBlock(blocks, "reasoning", String(part.text ?? ""), createdAt);
+      appendTextBlock(blocks, "reasoning", String(part.text ?? ""), blockAt);
       continue;
     }
     const type = String(part.type ?? "");
@@ -406,11 +409,11 @@ function assistantTurnBlocks(
         messageId,
         toolName,
         toolCallId,
-        createdAt,
+        blockAt,
       );
       continue;
     }
-    appendToolBlock(blocks, part, toolName, toolCallId, createdAt);
+    appendToolBlock(blocks, part, toolName, toolCallId, blockAt);
   }
   return blocks;
 }

@@ -8,7 +8,8 @@ test("Understanding list scrollbar stays flush with the divider", async () => {
   try {
     await openCapturePage(page);
     const listPanel = page.getByTestId("capture-understanding-list-panel");
-    const viewportBox = await listPanel.locator(".overflow-y-auto").boundingBox();
+    // 理解列表用 shadcn ScrollArea（overlay scrollbar），滚动区是 viewport 而非 .overflow-y-auto。
+    const viewportBox = await listPanel.locator('[data-slot="scroll-area-viewport"]').boundingBox();
     const handleBox = await page
       .getByTestId("capture-understanding-list-resize-handle")
       .boundingBox();

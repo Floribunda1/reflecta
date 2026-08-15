@@ -777,9 +777,10 @@ test("@AG-RETRIEVAL-003 用户要求 Agent 检索知识库后看到检索结果"
       page,
       "请必须使用知识检索工具 retrieve_knowledge 查找 React Server Components，并简短总结你找到的内容。",
     );
-    await expandLatestActivityGroup(page);
+    // 运行中 group 自动展开（可见 tool 行）；完成后默认收起，展开后再交互。
     await expect(page.getByTestId("agent-tool-activity")).toBeVisible({ timeout: 120_000 });
     await waitForAssistantReply(page);
+    await expandLatestActivityGroup(page);
     const toolActivity = page.getByTestId("agent-tool-activity").first();
     // 行为契约要求自然语言查询,模型可能把专有名词扩展成完整句子,只断言查询围绕 RSC
     await expect(toolActivity).toContainText(/检索「[^」]*React Server Components/);

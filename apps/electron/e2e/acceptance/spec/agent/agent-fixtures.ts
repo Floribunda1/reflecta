@@ -166,13 +166,20 @@ export function assistantMessage(
   return { id, role: "assistant", parts, usageTokens };
 }
 
-export function toolPart(name: string, toolCallId: string, output: unknown, input: unknown = {}) {
+export function toolPart(
+  name: string,
+  toolCallId: string,
+  output: unknown,
+  input: unknown = {},
+  extra?: { state?: string; errorText?: string },
+) {
   return {
     type: `tool-${name}`,
     toolCallId,
-    state: "output-available",
+    state: extra?.state ?? "output-available",
     input,
     output,
+    ...(extra?.errorText ? { errorText: extra.errorText } : {}),
   };
 }
 

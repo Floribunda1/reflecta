@@ -65,7 +65,10 @@ test("@CP-UNDERSTANDING-003 用户调整 Understanding 所属的 Domain", async 
 
     await page.getByRole("combobox").click();
     await page.getByRole("option", { name: "Design", exact: true }).click();
-    await expect(page.getByRole("button", { name: /Design/ })).toBeVisible();
+    // Chips 形态：选中项渲染为 combobox chip（非 button）
+    await expect(
+      page.locator('[data-slot="combobox-chip"]').filter({ hasText: "Design" }),
+    ).toBeVisible();
 
     await domainNode(page, "Design").click();
     await expect(understandingRow(page, "React Server Components")).toBeVisible();

@@ -12,7 +12,8 @@
     而且该回复包含最终回复正文
     当用户打开该对话
     而且用户展开 Agent 活动
-    那么 Agent 活动中应该显示过程说明和知识检索结果
+    那么 Agent 活动中应该显示思考条目和知识检索结果
+    而且思考条目在未展开时不应该显示完整过程说明
     而且提案卡片应该显示待确认的候选内容
     而且页面应该显示最终回复正文
 
@@ -20,16 +21,16 @@
   场景: 用户可以区分提案的不同状态
     假如存在一个对话，里面包含 5 张提案卡片
     而且候选标题 CANDIDATE_TITLE_PENDING 的状态为待确认
-    而且候选标题 CANDIDATE_TITLE_APPROVED 的状态为已确认
+    而且候选标题 CANDIDATE_TITLE_APPROVED 的状态为已确认且正在执行
     而且候选标题 CANDIDATE_TITLE_REJECTED 的状态为已拒绝
-    而且候选标题 CANDIDATE_TITLE_DONE 的状态为完成
-    而且候选标题 CANDIDATE_TITLE_ERROR 的状态为出错
+    而且候选标题 CANDIDATE_TITLE_DONE 的状态为执行完成
+    而且候选标题 CANDIDATE_TITLE_ERROR 的状态为执行失败
     当用户打开该对话
     那么 CANDIDATE_TITLE_PENDING 所在卡片应该显示“待确认”
-    而且 CANDIDATE_TITLE_APPROVED 所在卡片应该显示“已确认”
+    而且 CANDIDATE_TITLE_APPROVED 所在卡片应该显示“已确认”和“执行中”
     而且 CANDIDATE_TITLE_REJECTED 所在卡片应该显示“已拒绝”
-    而且 CANDIDATE_TITLE_DONE 所在卡片应该显示“完成”
-    而且 CANDIDATE_TITLE_ERROR 所在卡片应该显示“出错”并显示错误信息
+    而且 CANDIDATE_TITLE_DONE 所在卡片应该显示“执行完成”
+    而且 CANDIDATE_TITLE_ERROR 所在卡片应该显示“执行失败”并显示错误信息
 
   @P1 @result @AG-RESULT-003
   场景: 用户检查 Agent 活动的过程说明和检索结果
@@ -38,9 +39,12 @@
     而且该回复包含一条有结果的知识检索活动
     当用户打开该对话
     而且用户展开 Agent 活动
-    那么页面应该显示过程说明和知识检索摘要
-    当用户分别展开过程说明和知识检索摘要
-    那么页面应该显示完整过程说明和命中的 Understanding 内容
+    那么页面应该显示思考条目和知识检索摘要
+    而且思考条目在未展开时不应该显示完整过程说明
+    当用户展开该思考条目
+    那么页面应该显示完整过程说明
+    当用户展开知识检索摘要
+    那么页面应该显示命中的 Understanding 内容
 
   @P1 @context @AG-RESULT-004
   场景: 用户点击 Agent 回复中的知识库引用后查看详情
@@ -136,3 +140,27 @@
     那么用户应该可以复制、下载或全屏查看该图表
     当用户全屏查看图表
     那么用户应该可以放大、缩小和重置图表视图
+
+  @P1 @result @AG-RESULT-013
+  场景: 用户在思考进行中看到进行中状态和已用时间
+    假如用户已经发送一条消息且 Agent 正在思考
+    当用户查看当前回复
+    那么页面应该显示正在思考的状态
+    而且页面应该显示这段思考已经用去的时间
+
+  @P1 @result @AG-RESULT-014
+  场景: 用户在思考结束后看到思考耗时
+    假如对话中有一条已完成的思考活动
+    当用户打开该对话
+    而且用户展开 Agent 活动
+    那么思考条目应该显示这段思考用去的时间
+
+  @P1 @error @AG-RESULT-015
+  场景: 用户查看失败的工具活动
+    假如对话中有一条 Agent 回复
+    而且该回复包含一次失败的工具活动
+    而且失败原因是 TOOL_ERROR_MESSAGE
+    当用户打开该对话
+    而且用户展开 Agent 活动
+    而且用户展开该失败的工具活动
+    那么用户应该看到失败原因 TOOL_ERROR_MESSAGE

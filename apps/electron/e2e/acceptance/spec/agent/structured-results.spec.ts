@@ -13,7 +13,7 @@ import {
   toolPart,
   userMessage,
 } from "./agent-fixtures";
-import { launchAgentPage, openThread } from "./agent-e2e";
+import { createNewThread, hasAi, launchAgentPage, openThread, sendMessage } from "./agent-e2e";
 
 test.beforeEach(() => {
   resetAgentFixtures();
@@ -47,7 +47,9 @@ test("@AG-RESULT-001 用户在复杂回复中检查工作记录和最终结果",
     const activityGroup = page.getByTestId("agent-activity-group");
     await expect(activityGroup).toBeVisible();
     await activityGroup.getByTestId("agent-activity-group-trigger").click();
-    await expect(page.getByTestId("agent-reasoning")).toContainText("THINKING SUMMARY");
+    const reasoning = page.getByTestId("agent-reasoning");
+    await expect(reasoning).toBeVisible();
+    await expect(reasoning).not.toContainText("THINKING SUMMARY");
     await expect(page.getByText("搜索了 1 条 Understanding / 0 条 Context")).toBeVisible();
     await expect(page.getByTestId("agent-proposal-card")).toContainText("CANDIDATE_TITLE_PENDING");
     await expect(page.getByTestId("agent-proposal-card")).toContainText("待确认");
@@ -157,12 +159,14 @@ test("@AG-RESULT-003 用户检查 Agent 活动的过程说明和检索结果", a
     const activityTrigger = activityGroup.getByTestId("agent-activity-group-trigger");
 
     await activityTrigger.click();
-    await expect(page.getByTestId("agent-reasoning")).toContainText("THINKING SUMMARY");
+    const reasoning = page.getByTestId("agent-reasoning");
+    await expect(reasoning).toBeVisible();
+    await expect(reasoning).not.toContainText("THINKING DETAIL");
     const toolActivity = page.getByTestId("agent-tool-activity");
     await expect(toolActivity).toContainText("搜索「代价」");
     await expect(toolActivity).toContainText("1 条 Understanding / 0 条 Context");
 
-    await page.getByTestId("agent-reasoning").click();
+    await reasoning.click();
     await expect(page.getByTestId("agent-reasoning-detail")).toContainText("THINKING DETAIL");
     await toolActivity.click();
     await expect(toolActivity).toContainText("Feedback Loop");
@@ -434,6 +438,81 @@ test("@AG-RESULT-012 用户查看 Agent 回复中的 Mermaid 图表", async () =
         Math.abs(((await fullscreenChart.boundingBox())?.width ?? 0) - initialBox.width),
       )
       .toBeLessThan(1);
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-RESULT-013 用户在思考进行中看到进行中状态和已用时间", async () => {
+  test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
+  test.setTimeout(180_000);
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await createNewThread(page);
+    await sendMessage(page, "THINKING_WAIT：请慢慢输出 1 到 200，每个数字单独一行。");
+    // 思考进行中：activity group 与 thinking 行都可能显示「正在思考...」，取第一个。
+    await expect(page.getByText("正在思考").first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/\d+(\.\d+)?s/).first()).toBeVisible({ timeout: 15_000 });
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-RESULT-014 用户在思考结束后看到思考耗时", async () => {
+  seedAgentThread({
+    id: "result-thought-time",
+    title: "思考耗时",
+    messages: [
+      userMessage("result-thought-time-user", "请思考"),
+      assistantMessage("result-thought-time-assistant", [
+        reasoningPart("先核对范围再给出结论。"),
+        { type: "text", text: "DONE" },
+      ]),
+    ],
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "思考耗时");
+    await page.getByTestId("agent-activity-group-trigger").click();
+    await expect(page.getByTestId("agent-reasoning")).toContainText("思考了");
+    await expect(page.getByTestId("agent-reasoning")).toContainText(/\d+(\.\d+)?s/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-RESULT-015 用户查看失败的工具活动", async () => {
+  seedAgentThread({
+    id: "result-tool-failed",
+    title: "工具失败",
+    messages: [
+      userMessage("result-tool-failed-user", "读取文件"),
+      assistantMessage("result-tool-failed-assistant", [
+        toolPart(
+          "read",
+          "failed-read",
+          undefined,
+          { path: "missing.ts" },
+          {
+            state: "output-error",
+            errorText: "TOOL_ERROR_MESSAGE",
+          },
+        ),
+        { type: "text", text: "没能读到文件。" },
+      ]),
+    ],
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "工具失败");
+    await page.getByTestId("agent-activity-group-trigger").click();
+    const toolActivity = page.getByTestId("agent-tool-activity");
+    await expect(toolActivity).toBeVisible();
+    await toolActivity.click();
+    await expect(toolActivity.getByTestId("agent-tool-detail")).toContainText("TOOL_ERROR_MESSAGE");
   } finally {
     await app.close();
   }
