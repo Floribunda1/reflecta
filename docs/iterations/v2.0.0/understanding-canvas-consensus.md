@@ -337,6 +337,28 @@
 
 ---
 
+## 待决定清单（TBD）
+
+> 已提出、尚未讨论定论的议题，逐个讨论后移入对应共识或否决。
+
+### TBD-1 Agent tool 清单（用户方案 vs 推导方案）
+
+- **用户提出的 tool 清单**：`read_canvas`（读画布内容）/ `list_canvas(titleSearchKeyword, limit)` / `create_canvas` / `update_canvas` / `delete_canvas` / `search(titleKeyword, query)`（query 逻辑待定）。具体参数由设计者定，此处仅列 tool。
+- **此前推导的方案**：T1 画布展示（C15 已确认）/ T2 定位 / T3 读取；应用（新建/更新画布）为前端动作而非 tool。
+- **待讨论**：写侧 create/update/delete 是否进 tool（与 draft 应用的关系）；search 的 query 语义；list / search / 定位三者的关系与是否冗余；展示 tool 与读侧工具的关系。
+
+### TBD-2 understanding DTO 是否加 `referencedByCanvases: string[]`
+
+- 问题：understanding 相关 tool 返回的数据结构，是否需要加上"引用它的画布"列表。
+- 待讨论：必要性 / 成本（每次读理解 join 画布）/ 与画布侧工具的职责分工。
+
+### TBD-3 双链（understanding_connections）权重是否会让 Agent 误解
+
+- 问题：understanding_connections / 双链自动解析自正文，无向无类型（弱引用），但当前在工具输出中权重较大（类似 understanding_graph）；是否会导致 Agent 把"引用网"误当成"结构网"（画布连线）。
+- 待讨论：工具输出如何区分两类关系（标注 / 降权 / 只暴露画布边作为结构）。
+
+---
+
 ## 附：共识的文档映射
 
 | 文档                                    | 覆盖共识                                                      |
