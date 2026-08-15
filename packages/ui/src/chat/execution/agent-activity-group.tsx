@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Zap } from "lucide-react";
+import { ChevronDown, ChevronRight, Clock, Zap } from "lucide-react";
 import { motion, MotionConfig } from "motion/react";
 import { Fragment, useState } from "react";
 import { EASE_OUT_EXPO, ENTER_DURATION, FADE_UP_Y } from "#lib/motion";
@@ -27,15 +27,28 @@ function ActivityGroupSummary({
 }) {
   if (presentation.running) {
     // DESIGN: 组概览 = 状态（X中，无省略号）+ 步数 + 耗时；数字均等宽。
-    // 进行时细节（文案省略号/三点动画/shimmer）由 thinking 行承载，避免回声。
+    // 进行时细节（文案省略号/三点动画）由 thinking 行承载，避免回声。
+    // 整行 shimmer（状态/分隔点/步数/耗时），间距由容器 flex gap 提供，
+    // 不依赖文本里的空格——flex item 内的行首尾空格会被 white-space 折叠掉。
     return (
       <>
         <span className="shimmer-text">{presentation.summary}</span>
-        <span aria-hidden="true"> · </span>
-        <span>
+        <span aria-hidden="true" className="shimmer-text">
+          ·
+        </span>
+        <span className="shimmer-text">
           共 <MonoNumber>{presentation.stepCount}</MonoNumber> 步
         </span>
-        {runningElapsed ? <MonoNumber>{runningElapsed}</MonoNumber> : null}
+        {runningElapsed ? (
+          // 时钟图标不能进 shimmer span：shimmer-text 的 color: transparent 会让
+          // lucide 的 currentColor 描边隐形；图标保持 muted 色，仅时间数字 shimmer。
+          <span className="flex shrink-0 items-center gap-1">
+            <Clock className="size-3 text-muted-foreground" aria-hidden="true" />
+            <span className="shimmer-text" role="timer">
+              <MonoNumber>{runningElapsed}</MonoNumber>
+            </span>
+          </span>
+        ) : null}
       </>
     );
   }
@@ -115,8 +128,12 @@ export function AgentActivityGroup({
               <Zap className="size-3.5 text-muted-foreground" />
             )}
           </span>
-          {/* DESIGN: summary 14px font-medium；运行中文案 shimmer，耗时在外侧等宽数字（与思考行一致）。 */}
-          <span className="flex min-w-0 items-center gap-0 text-body font-medium">
+          {/* DESIGN: summary 14px font-medium；运行中整行 shimmer，耗时在外侧等宽数字（与思考行一致）。 */}
+          <span
+            className={`flex min-w-0 items-center text-body font-medium ${
+              presentation.running ? "gap-1.5" : "gap-0"
+            }`}
+          >
             <ActivityGroupSummary presentation={presentation} runningElapsed={runningElapsed} />
           </span>
           {presentation.errorCount > 0 ? (
