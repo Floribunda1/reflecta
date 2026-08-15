@@ -302,7 +302,7 @@ type CanvasDocument = {
 
 ## 3. 给 Agent 开放的能力与 tool 设计
 
-> 工具集已定（见共识 C9/TBD-1 与 PRD 模块八）；`update_canvas` 参数与 preview tool 数据契约待定（§6.2）。
+> 工具集已定（见共识 C9/TBD-1 与 PRD 模块八）；`update_canvas` 参数与 preview tool 数据契约已定（见 §6.2）。
 
 ### 3.1 能力定位
 
@@ -325,7 +325,7 @@ Agent 对理解画布：**读 + 写（内容级、审批制）+ 展示**：
 | `canvas_create`  | `{ title, initial? }`                                                        | `CanvasDTO`                                                                      | 新建画布（审批制）                                            |
 | `canvas_update`  | `{ canvasId, document: CanvasDocument }`（**目标文档，与 saveCanvas 同构**） | 变更提案（C15 展示）                                                             | 内容级写：增元素 / 连线 / 分组 / 改内容（审批制）             |
 | `canvas_delete`  | `{ canvasId }`                                                               | `void`                                                                           | 删除画布（审批制）                                            |
-| 展示 tool（C15） | 结构化画布数据（CanvasDocument 形状）                                        | 只读渲染预览（**数据契约待定，§6.2**）                                           | draft-preview：消息内联渲染，用户诊断后「应用 / 修改 / 拒绝」 |
+| 展示 tool（C15） | 结构化画布数据（CanvasDocument 形状）                                        | 只读渲染预览（**数据契约已定，见 §6.2**）                                        | draft-preview：消息内联渲染，用户诊断后「应用 / 修改 / 拒绝」 |
 
 > 命名遵循工具家族惯例 `entity_verb`（domain_list / understanding_get / context_create…），统一为 `canvas_*`；此前草案的 verb_entity（read_canvas 等）已弃用。
 
@@ -343,7 +343,7 @@ Agent 对理解画布：**读 + 写（内容级、审批制）+ 展示**：
 ### 3.4 审批机制
 
 - 写工具（create / update / delete_canvas）走现有审批链路（与 `pi-write-tools.ts` 的 understanding/context/domain 写工具同构）：Agent 产出候选变更（含 C15 预览数据）→ 用户审批 → 应用。
-- 审批通过后的应用接口与 draft 是否持久化：**待定（§6.2）**。
+- **审批应用与 draft 持久化（已定）**：审批通过后，前端将 draft（即目标文档）经 `saveCanvas` 落库（文档级写，与 renderer 同一接口）；**draft 本身不持久化**——它活在对话内（C15 块），apply = 全量写入，无需单独的 draft 存储。
 
 ### 3.5 成果可见性（C14，归口说明）
 
