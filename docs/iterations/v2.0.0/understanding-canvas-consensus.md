@@ -129,7 +129,7 @@
   - 共同字段（x/y/width/height/z_index/locked/parent_id/时间戳）→ 列（需排序 / 索引 / 约束）。
   - 跨实体引用（`understanding_id` / `canvas_ref_id`）→ 引用 FK 列（需要 FK 完整性 SET NULL 占位 + 可查询"哪些画布用了理解 X"）。
   - kind 专属载荷（文本内容、组名、图形类型）与连线样式 → `props` JSON（从不被 SQL 查询，新增 kind / 样式字段无需迁移）。
-- 增量写回（拖一次卡只改 x/y）；元素 / 连线 id 与 X6 cell id 一致。
+- 文档级写回（`saveCanvas(document)` 整文档同步，服务端按 id 机械对账；画布小整文档便宜——修订自增量写回）；元素 / 连线 id 与 X6 cell id 一致。
 - `canvases.updated_at` 随任何子变更联动（列表按最近活跃排序）。
 - 迁移：v2.0.0 代码迁移（`CREATE TABLE IF NOT EXISTS` 幂等）。
 

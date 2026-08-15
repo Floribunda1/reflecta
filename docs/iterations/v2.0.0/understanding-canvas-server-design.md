@@ -113,14 +113,14 @@ EdgeStyle = {
 
 ### 1.2 关键设计决策
 
-| 决策                                             | 理由                                                                                                                                                                                    |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **元素 / 连线为行，增量写回**                    | 拖一次卡只更新 x/y，不整文档重写；与社区 node/edge 关系表路线一致（见调研文档）                                                                                                         |
-| **FK 一律 SET NULL / CASCADE，不硬删除业务字段** | 理解被删 → 置空占位（不静默丢卡）；删组 → 子元素解组保留；删画布/卡片 → 级联清理                                                                                                        |
-| **`z_index` 持久化**                             | 白板 shape 模型标配，跨会话保持叠放次序                                                                                                                                                 |
-| **呈现 / 锁定状态一律进 `props` JSON**           | 元素 kind 专属字段、连线样式、`locked`（防误拖锁定）都是呈现状态，不是业务状态——不被 SQL 查询、不被 Agent / CLI 感知；进 JSON 后新增字段无需迁移；语义字段（引用 FK、连线 label）留在列 |
-| **组内子元素为相对坐标**                         | 对齐 X6 embedding 语义（子坐标相对父，随父移动），避免每次移动重算绝对坐标                                                                                                              |
-| **元素 id == X6 cell id**                        | 事件回写零映射成本                                                                                                                                                                      |
+| 决策                                             | 理由                                                                                                                                                                                                     |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **文档级写回（前端权威）**                       | 编辑器（X6）是交互 / 语义权威，`saveCanvas(document)` 整文档同步，服务端按 id 机械对账落行；画布小（几 KB）整文档便宜；级联 / 解组等联动不复制到服务端（社区标准：tldraw / Excalidraw 均为整文档持久化） |
+| **FK 一律 SET NULL / CASCADE，不硬删除业务字段** | 理解被删 → 置空占位（不静默丢卡）；删组 → 子元素解组保留；删画布/卡片 → 级联清理                                                                                                                         |
+| **`z_index` 持久化**                             | 白板 shape 模型标配，跨会话保持叠放次序                                                                                                                                                                  |
+| **呈现 / 锁定状态一律进 `props` JSON**           | 元素 kind 专属字段、连线样式、`locked`（防误拖锁定）都是呈现状态，不是业务状态——不被 SQL 查询、不被 Agent / CLI 感知；进 JSON 后新增字段无需迁移；语义字段（引用 FK、连线 label）留在列                  |
+| **组内子元素为相对坐标**                         | 对齐 X6 embedding 语义（子坐标相对父，随父移动），避免每次移动重算绝对坐标                                                                                                                               |
+| **元素 id == X6 cell id**                        | 事件回写零映射成本                                                                                                                                                                                       |
 
 ### 1.3 迁移逻辑（v2.0.0）
 
@@ -182,21 +182,20 @@ renderer: ipcClient.understandingCanvas.*        # MergeIpcService 自动派生�
 
 ### 2.2 接口清单
 
-| 方法                                           | 输入                       | 返回                      | 说明                                                                     |
-| ---------------------------------------------- | -------------------------- | ------------------------- | ------------------------------------------------------------------------ |
-| `listCanvases()`                               | —                          | `CanvasDTO[]`             | 画布列表，按 updatedAt 倒序                                              |
-| `listCanvasesByUnderstanding(understandingId)` | `string`                   | `CanvasDTO[]`             | 反向查询：该理解出现在哪些画布（M6-6 画布归属）                          |
-| `getCanvas(id)`                                | `string`                   | `CanvasDetailDTO \| null` | 详情：canvas + elements + edges + understandingRefs + referencedCanvases |
-| `createCanvas(input)`                          | `{ title }`                | `CanvasDTO`               | 新建画布                                                                 |
-| `updateCanvas(id, input)`                      | `{ title? }`               | `CanvasDTO`               | 改名                                                                     |
-| `deleteCanvas(id)`                             | `string`                   | `void`                    | 硬删除（级联）                                                           |
-| `updateViewport(id, viewport)`                 | `{ x, y, zoom }`           | `void`                    | 视口持久化                                                               |
-| `createElement(canvasId, input)`               | `CreateCanvasElementInput` | `CanvasElementDTO`        | 新建元素（理解卡 / 文本卡 / 图形 / 组 / 画布引用）                       |
-| `updateElement(id, input)`                     | `UpdateCanvasElementInput` | `CanvasElementDTO`        | 位置 / 尺寸 / 文本 / 标签 / 锁定 / 入组出组                              |
-| `deleteElement(id)`                            | `string`                   | `void`                    | 删除（级联连线）                                                         |
-| `createEdge(canvasId, input)`                  | `CreateCanvasEdgeInput`    | `CanvasEdgeDTO`           | 新建连线                                                                 |
-| `updateEdge(id, input)`                        | `{ label?, style? }`       | `CanvasEdgeDTO`           | 改标签 / 样式                                                            |
-| `deleteEdge(id)`                               | `string`                   | `void`                    | 删除连线                                                                 |
+**写路径为文档级（前端是交互 / 语义权威，服务端只做机械 diff 持久化）**——画布编辑器（X6）知道手势之后的完整文档状态，前端发目标文档，服务端按 id 对账落行；级联删组、解组、多选删等联动逻辑全部在前端文档模型中天然发生，服务端不感知手势语义（社区标准：tldraw / Excalidraw 均为整文档持久化）。
+
+| 方法                                           | 输入             | 返回                      | 说明                                                                                             |
+| ---------------------------------------------- | ---------------- | ------------------------- | ------------------------------------------------------------------------------------------------ |
+| `listCanvases()`                               | —                | `CanvasDTO[]`             | 画布列表，按 updatedAt 倒序                                                                      |
+| `listCanvasesByUnderstanding(understandingId)` | `string`         | `CanvasDTO[]`             | 反向查询：该理解出现在哪些画布（M6-6 画布归属）                                                  |
+| `getCanvas(id)`                                | `string`         | `CanvasDetailDTO \| null` | 详情：canvas + elements + edges + understandingRefs + referencedCanvases                         |
+| `createCanvas(input)`                          | `{ title }`      | `CanvasDTO`               | 新建画布                                                                                         |
+| `updateCanvas(id, input)`                      | `{ title? }`     | `CanvasDTO`               | 改名（元数据，不参与文档 diff）                                                                  |
+| `deleteCanvas(id)`                             | `string`         | `void`                    | 硬删除（级联）                                                                                   |
+| `updateViewport(id, viewport)`                 | `{ x, y, zoom }` | `void`                    | 视口持久化（元数据）                                                                             |
+| `saveCanvas(canvasId, document)`               | `CanvasDocument` | `void`                    | **文档级写（唯一的内容写接口）**：事务原子，按 id 对账（存在 upsert / 缺失删除）；不感知手势语义 |
+
+> **已移除的 per-gesture 接口**：createElement / updateElement / deleteElement / createEdge / updateEdge / deleteEdge —— 这些不再是外部 API；前端文档模型的每次变更（含撤销 / 重做 / Agent 提案应用）统一经 `saveCanvas` 落库。
 
 ### 2.3 DTO 定义
 
@@ -212,55 +211,31 @@ CanvasDetailDTO      { canvas: CanvasDTO, elements: CanvasElementDTO[],
                        referencedCanvases: CanvasReferencedCanvas[] }
 ```
 
-**输入类型（与判别联合一致，kind 收窄）**：
+**写接口载荷（CanvasDocument——`saveCanvas` 的唯一参数，与读出的 `CanvasDetailDTO` 内容同构）**：
 
 ```ts
-type CreateCanvasElementInput = {
-  [K in CanvasElementKind]: {
-    kind: K;
-    understandingId?: K extends "understanding" ? string : never; // kind=understanding 必填
-    canvasRefId?: K extends "canvas_ref" ? string : never; // kind=canvas_ref 必填
-    props?: ElementPropsMap[K]; // kind 专属载荷
-    parentId?: string | null; // 入组
-    x: number;
-    y: number;
-    width: number;
-    height: number; // 前端创建带坐标（agent 创建无坐标，见 §6.2）
-  };
-}[CanvasElementKind];
-
-type UpdateCanvasElementInput = {
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  props?: Partial<ElementPropsMap[CanvasElementKind]>; // 文本 / 图形类型 / 组名 / locked 更新
-  parentId?: string | null; // 入组 / 出组
+type CanvasDocument = {
+  elements: CanvasElementDTO[]; // 判别联合；含 id / kind / props / parentId / x / y / w / h / zIndex
+  edges: CanvasEdgeDTO[]; // 含 id / sourceElementId / targetElementId / label / style
 };
-
-type CreateCanvasEdgeInput = {
-  sourceElementId: string;
-  targetElementId: string;
-  label?: string | null;
-  style?: EdgeStyle | null;
-};
-
-type UpdateCanvasEdgeInput = {
-  label?: string | null;
-  style?: EdgeStyle | null;
-};
+// 对账语义：按 id——文档中存在的行 upsert；DB 中缺失于文档的行删除；级联删组、解组、多选删等
+// 联动已在前端文档模型中体现（目标文档即结果态），服务端只做机械对齐。
 ```
 
 ### 2.4 校验与错误边界（domain core 层）
 
-| 场景                     | 行为                                                                                                                |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| 画布 / 元素 / 连线不存在 | 抛错（`Canvas not found: <id>` 等），IPC 包装为错误返回                                                             |
-| kind 不变量              | `understanding` 必须带 `understanding_id`；`shape` 的 props 必须带 `shapeType`；`canvas_ref` 必须带 `canvas_ref_id` |
-| 连线端点                 | 两端元素必须存在且属于同一画布；禁止自环（source === target）                                                       |
-| 入组（parent_id）        | 父元素必须是 `group` kind、同一画布、不能是自己或自己的后代（防环）                                                 |
-| 理解卡引用               | 创建时校验理解存在（允许引用软删理解？——**允许**，占位语义由前端呈现）                                              |
-| 空更新                   | 无有效字段时抛「No canvas element fields to update」类错误                                                          |
+文档级写路径下，**服务端只做机械校验，不做手势语义校验**（级联删组 / 解组 / 多选删等联动由前端文档模型保证，服务端按目标文档对账）：
+
+| 场景                    | 行为                                                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| 画布不存在              | 抛错（`Canvas not found: <id>`），IPC 包装为错误返回                                                                |
+| `saveCanvas` 事务原子性 | 对账（upsert / 删除）在同一事务内完成，失败整体回滚，不产生半状态                                                   |
+| 元素 id 唯一性          | 文档内元素 / 连线 id 冲突抛错；与 DB 既有 id 冲突按 upsert 处理（同 id = 同一实体）                                 |
+| kind 不变量             | `understanding` 必须带 `understanding_id`；`shape` 的 props 必须带 `shapeType`；`canvas_ref` 必须带 `canvas_ref_id` |
+| 连线端点                | 两端元素必须存在于同一文档且属于该画布；禁止自环（source === target）                                               |
+| 入组（parent_id）       | 父元素必须是 `group` kind、同一文档、不能是自己或自己的后代（防环）                                                 |
+| 理解卡引用              | 校验理解存在（允许引用软删理解——**允许**，占位语义由前端呈现）                                                      |
+| 空文档                  | 允许保存空文档（清空画布）——合法操作，不视为错误                                                                    |
 
 ## 3. 给 Agent 开放的能力与 tool 设计
 
@@ -361,7 +336,7 @@ apps/cli/src/cli.ts                         # registerXxxAction 注册；getActi
 
 ### 6.2 未定待解决（本文档步骤内定）
 
-- **`update_canvas` 参数**：内容级写（增元素/连线/分组/改内容），候选形态 = 分桶变更 `{ addElements, updateElements, removeElements, addEdges, updateEdges, removeEdges, rename? }`；**无坐标字段**（Agent 不做布局，位置由前端自动排开）。
+- **`update_canvas` 参数**：已随「文档级写」消解——与 renderer 的 `saveCanvas` 统一为**目标文档**（CanvasDocument 形状）；Agent 提案 = 目标文档，审批后经同一文档级写落库；**无坐标字段**（Agent 不做布局，位置由前端自动排开）。
 - **search 后置项**：
   - `query` 是否匹配引用理解正文（先只匹配标题，正文命中为增强，需评估 join 成本）；
   - 多词 AND 模式（`understandingIds[] + match: "all" | "any"` 升级路径，先单 id）。
