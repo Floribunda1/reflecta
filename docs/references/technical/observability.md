@@ -63,14 +63,16 @@ log.error("pi.run.failed", { ... }); // message: "[run_abc] pi.run.failed"
 
 ## 3. 错误捕获路径
 
-| 路径            | 事件                 | 说明                                                                                                         |
-| --------------- | -------------------- | ------------------------------------------------------------------------------------------------------------ |
-| main 未捕获     | `app.fallback.error` | `uncaughtExceptionMonitor` / `unhandledRejection`                                                            |
-| 进程崩溃        | `app.fallback.error` | `render-process-gone` / `child-process-gone`（含 reason/exitCode）                                           |
-| 原生崩溃        | minidump             | `crashReporter`（Crashpad），打包构建启用，`uploadToServer: false` 只本地收集到 `<appConfigDir>/crash-dumps` |
-| renderer 未捕获 | `renderer.error`     | preload 的 `window.error` / `unhandledrejection`，经 `diagnostic:renderer-error` IPC 上报                    |
-| React 渲染错误  | `renderer.error`     | `RendererErrorBoundary`，带 componentStack                                                                   |
-| IPC 调用失败    | `ipc.request.failed` | `ipcMain.handle` 统一包装，带 requestId + durationMs + error attrs；成功为 `ipc.request.completed`(debug)    |
+| 路径            | 事件                 | 说明                                                                                                                                                           |
+| --------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| main 未捕获     | `app.fallback.error` | `uncaughtExceptionMonitor` / `unhandledRejection`                                                                                                              |
+| 进程崩溃        | `app.fallback.error` | `render-process-gone` / `child-process-gone`（含 reason/exitCode）                                                                                             |
+| 原生崩溃        | minidump             | `crashReporter`（Crashpad），打包构建启用，`uploadToServer: false` 只本地收集到 `<appConfigDir>/crash-dumps`                                                   |
+| renderer 未捕获 | `renderer.error`     | preload 的 `window.error` / `unhandledrejection`，经 `diagnostic:renderer-error` IPC 上报                                                                      |
+| React 渲染错误  | `renderer.error`     | `RendererErrorBoundary`，带 componentStack                                                                                                                     |
+| React 根错误    | `renderer.error`     | `createRoot` 的 `onUncaughtError` / `onCaughtError`（source=react.uncaught / react.caught，带 componentStack）                                                 |
+| feed 接收错误   | `renderer.error`     | preload port 回调 try/catch（source=feed.receive），附 `feed.kind` / `feed.sessionId` / `feed.revision`——从 port 回调逃逸的渲染错误（如 #185）在此带上帧上下文 |
+| IPC 调用失败    | `ipc.request.failed` | `ipcMain.handle` 统一包装，带 requestId + durationMs + error attrs；成功为 `ipc.request.completed`(debug)                                                      |
 
 约定：业务代码 `catch` 到错误后，**至少写一条 error 级日志**再决定是否给用户 toast；不要把错误对象丢弃。
 

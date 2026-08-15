@@ -173,16 +173,29 @@ function rendererErrorAttrs(payload: unknown): Record<string, unknown> {
   if (!isRecord(payload)) {
     return { source: "renderer", payloadType: typeof payload };
   }
+  const {
+    source,
+    message,
+    stack,
+    componentStack,
+    filename,
+    lineno,
+    colno,
+    href,
+    userAgent,
+    ...extra
+  } = payload;
   return {
-    source: typeof payload.source === "string" ? payload.source : "renderer",
-    message: typeof payload.message === "string" ? payload.message : undefined,
-    stack: typeof payload.stack === "string" ? payload.stack : undefined,
-    componentStack: typeof payload.componentStack === "string" ? payload.componentStack : undefined,
-    filename: typeof payload.filename === "string" ? payload.filename : undefined,
-    lineno: typeof payload.lineno === "number" ? payload.lineno : undefined,
-    colno: typeof payload.colno === "number" ? payload.colno : undefined,
-    href: typeof payload.href === "string" ? payload.href : undefined,
-    userAgent: typeof payload.userAgent === "string" ? payload.userAgent : undefined,
+    source: typeof source === "string" ? source : "renderer",
+    message: typeof message === "string" ? message : undefined,
+    stack: typeof stack === "string" ? stack : undefined,
+    componentStack: typeof componentStack === "string" ? componentStack : undefined,
+    filename: typeof filename === "string" ? filename : undefined,
+    lineno: typeof lineno === "number" ? lineno : undefined,
+    colno: typeof colno === "number" ? colno : undefined,
+    href: typeof href === "string" ? href : undefined,
+    userAgent: typeof userAgent === "string" ? userAgent : undefined,
+    ...extra,
   };
 }
 

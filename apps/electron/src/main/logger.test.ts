@@ -271,6 +271,42 @@ describe("Electron logging profile", () => {
     });
   });
 
+  test("passes through extra renderer error attrs (feed context)", async () => {
+    const appConfigRoot = tempRoot();
+    useRuntimeRoots(appConfigRoot);
+    const { DIAGNOSTIC_RENDERER_ERROR_CHANNEL, getLogFilePath, initializeLogging } =
+      await import("./logger");
+
+    initializeLogging();
+    const handler = mockElectron.ipcMainOn.mock.calls.find(
+      ([channel]) => channel === DIAGNOSTIC_RENDERER_ERROR_CHANNEL,
+    )?.[1];
+    expect(typeof handler).toBe("function");
+    handler(
+      {},
+      {
+        source: "feed.receive",
+        message: "Maximum update depth exceeded",
+        stack: "Error: loop",
+        "feed.kind": "state",
+        "feed.sessionId": "session_1",
+        "feed.revision": 7,
+      },
+    );
+
+    const events = readJsonl(getLogFilePath());
+    expect(events.find((event) => event.event === "renderer.error")).toMatchObject({
+      attrs: {
+        source: "feed.receive",
+        message: "Maximum update depth exceeded",
+        stack: "Error: loop",
+        "feed.kind": "state",
+        "feed.sessionId": "session_1",
+        "feed.revision": 7,
+      },
+    });
+  });
+
   test("aggregates repeated fallback errors into an error.aggregate event", async () => {
     const appConfigRoot = tempRoot();
     useRuntimeRoots(appConfigRoot);
