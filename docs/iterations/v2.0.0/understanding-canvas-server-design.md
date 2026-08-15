@@ -124,7 +124,17 @@ EdgeStyle = {
 
 ### 1.3 迁移逻辑（v2.0.0）
 
-采用项目既有**版本化代码迁移**机制（`packages/server/src/db/migration/code/`）。v2.0.0 迁移包含**两部分**：
+#### 迁移前的 wiki-link 语义（现状基线）
+
+本次迁移的 B 部分重命名 `understanding_connections`，因此先明确这条表**迁移前**承载的语义：
+
+- **机制**：Understanding 正文中的 `[[u:<id>]]` 在写入 / 更新时由 `wiki-links.ts` 自动解析，落成 `understanding_connections` 行（`source_id` → `target_id`，无方向、无类型、无标签、无时间戳）。
+- **语义定性（C16）**：这是**弱引用**（"A 的正文提到了 B"），属于**事实层**（文本状态，机器可判），不是结构信念——不承诺"A 与 B 在用户心智中什么关系"。
+- **产品可见面**：理解列表行徽标「N 个双链关系」（`connectionCount`）；理解详情的 relations（wiki-link 邻域）。
+- **Agent 面**：`understanding_get` 的 includeRelations（wiki-link relations）、`graph` tool（wiki-link graph，本版删除）。
+- **问题**：表名 / 字段 / 工具命名（connection / relation / graph）把弱引用暗示成结构关系——这正是 TBD-3 修正的对象。
+
+#### 迁移内容（两部分）
 
 **A. 新增三张画布表**（本模块）：
 
@@ -133,7 +143,8 @@ EdgeStyle = {
 **B. TBD-3 表名迁移（wiki-link 降级，understanding domain）**：
 
 - `ALTER TABLE understanding_connections RENAME TO understanding_mentions;`（SQLite 支持，索引随表保留）——同一迁移内完成，避免两次数据版本升级。
-- 同步：schema.ts 的 `understandingConnections` → `understandingMentions`（understanding domain），全部代码引用改名。
+- 同步：schema.ts 的 `understandingConnections` → `understandingMentions`（understanding domain），全部代码引用改名（`UnderstandingConnection` → `UnderstandingMention`；`connectionCount` / `connectionIds` → `mentionCount` / `mentionIds`；`UnderstandingRelation` 改为引用（mention）语义）。
+- 产品可见同步：UI 文案「N 个双链关系」→「N 条引用」。
 
 **注册**：`migration.ts` 的 `codeMigrations` 数组追加 `v200`（版本排序自动处理，大于最新已执行版本即生效）。
 
