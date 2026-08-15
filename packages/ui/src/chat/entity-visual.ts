@@ -67,7 +67,7 @@ export function entityClassName(_type: ChatEntityType | null) {
  *  align-[-0.125em] 是图标行内垂直对齐的标准偏移（Bootstrap/Radix 同款），
  *  任何字号下都与正文基线对齐。 */
 export const ENTITY_ICON_CLASS =
-  "mr-1 inline-block align-[-0.125em] size-[1em] shrink-0 text-primary";
+  "mr-0.5! inline-block align-[-0.125em] size-[1em] shrink-0 text-primary";
 
 // DESIGN: 实体图标字号不靠 1em 隐式跟随 DOM 继承链——chat 界面里实体提及散布在
 // 不同容器（markdown 流 13px、user 气泡/卡片 14px），1em 会各自跟随导致同一界面

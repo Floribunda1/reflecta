@@ -1,0 +1,19 @@
+@use "./config" as *;
+
+/* Tables —— 覆盖 streamdown 默认样式，与 milkdown 统一：
+   - 外层容器 bg-sidebar（base01 抬升面板）→ --card 画布
+   - thead bg-muted/80（偏重）→ muted 打淡 60% 中性浅灰 */
+#{$chat-markdown-root} [data-streamdown="table-wrapper"] {
+  background: var(--card);
+}
+
+/* 内层滚动盒扁平化：去 border / 去 bg / 去圆角，像 code block 一样只留外层 --card 框 */
+#{$chat-markdown-root} [data-streamdown="table-wrapper"] > div:last-child {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#{$chat-markdown-root} [data-streamdown="table-header"] {
+  background: color-mix(in oklch, var(--muted) 60%, var(--background));
+}

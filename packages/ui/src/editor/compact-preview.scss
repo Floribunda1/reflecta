@@ -43,8 +43,9 @@
   pre {
     margin-block: 0.25rem;
     overflow: hidden;
+    border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    background: var(--muted);
+    background: var(--card);
     padding: 0.5rem;
   }
 

@@ -2,11 +2,13 @@
 @use "./mixins" as *;
 
 /* Code */
+/* DESIGN: 代码块底色 = 卡片画布（--card，即 base00），与消息同面、靠 1px 边框成形；
+   用 semantic token，不直接引用 base16 槽位，换 scheme 自动跟随。 */
 .reflecta-md-editor .milkdown-code-block {
   margin: 0.8rem 0 !important;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: color-mix(in oklch, var(--muted), var(--background) 58%);
+  background: var(--card);
   padding: 0.55rem 0.65rem 0.65rem;
 
   &.selected {
@@ -43,13 +45,13 @@
 
   .cm-activeLine,
   .cm-activeLineGutter {
-    background: color-mix(in oklch, var(--primary), transparent 94%);
+    background: var(--active-line);
   }
 
   .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
   .cm-selectionBackground,
   .cm-content ::selection {
-    background-color: color-mix(in oklch, var(--primary), transparent 84%);
+    background-color: var(--selection);
   }
 
   .cm-gutterElement.cm-activeLineGutter {

@@ -11,21 +11,21 @@
   .milkdown {
     --crepe-color-background: var(--background);
     --crepe-color-on-background: var(--foreground);
-    --crepe-color-surface: color-mix(in oklch, var(--popover), var(--muted) 32%);
-    --crepe-color-surface-low: color-mix(in oklch, var(--background), var(--muted) 64%);
+    --crepe-color-surface: var(--popover);
+    --crepe-color-surface-low: var(--card);
     --crepe-color-on-surface: var(--foreground);
     --crepe-color-on-surface-variant: var(--muted-foreground);
     --crepe-color-outline: var(--border);
     --crepe-color-primary: var(--primary);
-    --crepe-color-secondary: color-mix(in oklch, var(--primary), transparent 88%);
+    --crepe-color-secondary: var(--secondary);
     --crepe-color-on-secondary: var(--foreground);
     --crepe-color-inverse: var(--foreground);
     --crepe-color-on-inverse: var(--background);
     --crepe-color-inline-code: var(--primary);
     --crepe-color-error: var(--destructive);
     --crepe-color-hover: var(--accent);
-    --crepe-color-selected: color-mix(in oklch, var(--primary), transparent 86%);
-    --crepe-color-inline-area: color-mix(in oklch, var(--muted), transparent 18%);
+    --crepe-color-selected: var(--selection);
+    --crepe-color-inline-area: var(--muted);
     --crepe-font-title: inherit;
     --crepe-font-default: inherit;
     --crepe-font-code: "Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;

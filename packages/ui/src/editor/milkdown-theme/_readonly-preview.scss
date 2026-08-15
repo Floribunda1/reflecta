@@ -16,20 +16,6 @@
   .milkdown-table-block .handle {
     display: none !important;
   }
-
-  .milkdown-code-block {
-    margin: 1rem 0;
-    background: color-mix(in oklch, var(--muted), var(--background) 68%);
-  }
-
-  .milkdown-table-block {
-    overflow-x: auto;
-  }
-
-  .milkdown-image-block,
-  .milkdown-image-inline {
-    margin: 1rem 0;
-  }
 }
 
 #{$preview-root}.markdown-preview-tool-detail .milkdown-code-block .cm-scroller {

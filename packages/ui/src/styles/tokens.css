@@ -71,6 +71,13 @@
   --border: var(--base02);
   --input: var(--base02);
   --ring: var(--base0c);
+  /* 文本/代码选区底色：primary 打淡（16%，青色调；语法高亮/系统文字都有自身前景色，
+     选区不需要为其调对比度，主色系的淡底让选中态可辨识） */
+  --selection: color-mix(in oklch, var(--primary) 16%, var(--background));
+  /* 当前行底色：比选区更轻（muted 20% 透明化），与选区拉开层级，避免“整行复制 vs 部分选中”不可分辨。
+     注意：必须与 transparent 混（半透明）——CodeMirror 的选区层画在内容之下，
+     当前行背景若是不透明色会盖住选区。 */
+  --active-line: color-mix(in oklch, var(--muted) 20%, transparent);
   --chart-1: var(--base0c);
   --chart-2: var(--base0b);
   --chart-3: var(--base0e);

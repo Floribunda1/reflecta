@@ -2,8 +2,10 @@
 @use "./mixins" as *;
 
 /* Tables */
+/* DESIGN: 宽表格横向滚动（编辑器与 readonly preview 共用同一行为）。 */
 .reflecta-md-editor .milkdown-table-block {
   margin: 0.75rem 0;
+  overflow-x: auto;
 
   table {
     width: 100%;
@@ -14,19 +16,21 @@
 
   th,
   td {
-    border: 1px solid color-mix(in oklch, var(--border), var(--foreground) 10%);
+    border: 1px solid var(--border);
     padding: 0.38rem 0.55rem;
     vertical-align: top;
   }
 
   th {
-    background: color-mix(in oklch, var(--muted), var(--background) 34%);
+    /* 表头是中性表面，不跟随选区 token（--selection 已是 primary 打淡的青调）；
+       muted 打淡 60% 是之前验证过的浅灰档，先内联，需要命名可收进 token 层 */
+    background: color-mix(in oklch, var(--muted) 60%, var(--background));
     color: var(--foreground);
     font-weight: 600;
   }
 
   .selectedCell::after {
-    background: color-mix(in oklch, var(--primary), transparent 84%);
+    background: var(--selection);
   }
 
   .cell-handle,

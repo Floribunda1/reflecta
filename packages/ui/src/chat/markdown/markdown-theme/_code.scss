@@ -1,0 +1,19 @@
+@use "./config" as *;
+
+/* Fenced code block —— 覆盖 streamdown 默认样式：
+   - 外层容器 bg-sidebar（base01 抬升面板）→ --card 画布
+   - 内层卡片（code-block-body）扁平化：去 border / 去 p-4 / 去 bg，像 mermaid 一样
+   - shiki 的 --sdm-bg/--sdm-tbg/--shiki-dark-bg 打透为透明（inline 变量可被 !important 覆盖），
+     代码区直接露出外层 --card，不再有内部白卡 */
+#{$chat-markdown-root} [data-streamdown="code-block"] {
+  background: var(--card);
+  --sdm-bg: transparent !important;
+  --sdm-tbg: transparent !important;
+  --shiki-dark-bg: transparent !important;
+}
+
+#{$chat-markdown-root} [data-streamdown="code-block-body"] {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}

@@ -15,20 +15,22 @@
 
   // wiki-link 视觉由 entityClassName 统一提供（chat 与 milkdown 编辑器共用）；
   // 这里只保留 entityClassName 无法表达的交互/状态/下划线部分。
+  // 下划线用 border-bottom（跨过 inline-block 图标连续），颜色跟随 currentColor（可用 primary / 不可用 muted）。
   [data-slot="wiki-link"] {
-    text-decoration: underline;
-    text-underline-offset: 0.18em;
-  }
-
-  button[data-slot="wiki-link"]:hover {
-    text-decoration: underline;
-    text-underline-offset: 0.18em;
+    border-bottom: 1px solid currentColor;
+    text-decoration: none;
   }
 
   [data-slot="wiki-link"][data-state="unavailable"],
   [data-slot="wiki-link"][data-state="error"] {
     color: var(--reflecta-chat-muted-foreground);
     font-weight: 500;
+
+    /* 图标继承链接色：ENTITY_ICON_CLASS 自带 text-primary，
+       不可用/失败态需要把图标也压成 muted，否则青图标+灰文字不协调 */
+    svg {
+      color: inherit;
+    }
   }
 
   code {

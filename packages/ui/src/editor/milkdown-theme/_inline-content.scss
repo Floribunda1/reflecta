@@ -8,15 +8,22 @@
   a {
     color: var(--primary);
     text-decoration: underline;
-    text-decoration-color: color-mix(in oklch, var(--primary), transparent 48%);
+    text-decoration-color: var(--primary);
     text-underline-offset: 0.18em;
+  }
+
+  /* wiki-link：下划线改用 border-bottom，跨过 inline-block 图标保持连续
+     （text-decoration 到图标处会断）；颜色跟随 currentColor（= primary） */
+  a[data-wiki-link] {
+    border-bottom: 1px solid currentColor;
+    text-decoration: none;
   }
 
   code {
     display: inline;
-    border: 1px solid color-mix(in oklch, var(--border), transparent 18%);
+    border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    background: color-mix(in oklch, var(--muted), transparent 16%);
+    background: var(--muted);
     color: var(--foreground);
     font-family: var(--crepe-font-code);
     font-size: 0.88em;

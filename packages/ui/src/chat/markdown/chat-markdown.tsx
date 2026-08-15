@@ -2,7 +2,7 @@ import { code } from "@streamdown/code";
 import { createMathPlugin } from "@streamdown/math";
 import { useTheme } from "next-themes";
 import { createContext, useContext, useMemo, type ComponentProps, type ReactNode } from "react";
-import { AlertCircle, Circle } from "lucide-react";
+import { CircleOff, XCircle } from "lucide-react";
 import {
   defaultUrlTransform,
   Streamdown,
@@ -88,9 +88,9 @@ function EntityMention({
   const available = presentation.state === "ready" || presentation.state === "loading";
   const StatusIcon =
     presentation.state === "error"
-      ? AlertCircle
+      ? XCircle
       : presentation.state === "unavailable"
-        ? Circle
+        ? CircleOff
         : entityIcon(reference.type);
   const content = (
     <>
