@@ -366,19 +366,43 @@ Agent 对理解画布：**读 + 写（内容级、审批制）+ 展示**：
 - 第二条：引用 vs 结构的精确区分（C16 落地）——正向行为指导收在"以 Canvas 连线为准"。
 - 设计过程：早期草案含"信念层 / 事实层"等哲学表达，被否（抒情、不精确）；收敛为两条条目。
 
-#### 3.6.2 实体引用（待设计）
+#### 3.6.2 实体引用（已定稿）
 
-- 现状：`[[u:<id>]]` / `[[c:<id>]]` / `[[d:<id>]]`。
-- 待定：加 `[[cv:<id>]]`（Canvas）——措辞与位置（与既有引用类型同句并列）。
+在现有「实体引用」节的引用类型列表**同句并列**追加 Canvas：
 
-#### 3.6.3 写入边界（待设计）
+```markdown
+- Reflecta 统一使用 `[[<type>:<id>]]`：Understanding 为 `[[u:<id>]]`，Context 为 `[[c:<id>]]`，Domain 为 `[[d:<id>]]`，Canvas 为 `[[cv:<id>]]`。
+```
 
-- 现状：已有"不要替你自动构建关系网""只提交候选项，等确认"（底子对）。
-- 待定：画布写操作的扩展——结构提案走 C15 展示 tool（消息内联 draft 预览）→ 用户「应用 / 修改 / 拒绝」；Agent 不直接调写接口落库；Agent 不做布局（不写坐标）。
+- 选择同句并列（而非独立一句）：实体引用是机械规则，Canvas 不需要特殊待遇；知识模型层（3.6.1）已用独立条目解释结构语义，这里只需登记格式。
+- 现有引用规则（只放稳定 id、不写标题别名、实体 id 参数只传裸 id）对 `[[cv:]]` 同样适用，无需改动。
 
-#### 3.6.4 工具 description（待设计）
+#### 3.6.3 写入边界（已定稿）
 
-- 画布工具 + 现有 understanding/domain 工具里关系相关描述重写（"wiki-link relations" → 弱引用语义）。
+在现有「写入边界」节追加两条（保持既有条目风格）：
+
+```markdown
+- 画布结构变更以 draft 提案呈现，等待用户应用 / 修改 / 拒绝；不要直接写入画布。
+- 画布提案中不写坐标，位置由用户或自动布局决定。
+```
+
+- 不重复知识模型已有的"结构以画布连线为准"（知识模型管"是什么"，写入边界只管"怎么提交"）。
+- 不点名展示工具（prompt 不绑死工具名，工具 description 自有）。
+
+#### 3.6.4 工具 description（已定稿）
+
+现有关系相关描述重写（弱引用语义）：
+
+```ts
+// domain_inspect
+"Inspect a Reflecta domain by stable id and optionally include its Understandings, Contexts, and wiki-link mentions (weak citations, not structural relations).";
+
+// understanding_get
+"Get a Reflecta Understanding by stable id. Use includeContexts for its Context and includeRelations for its wiki-link mentions (weak citations, not structural relations).";
+```
+
+- "wiki-link relations" → "wiki-link mentions"（弱引用语义）；括注 "weak citations, not structural relations" 是**工具级必要提示**——工具返回的数据语义，Agent 必须知道这不是结构关系。
+- **参数名 `includeRelations` 暂不改**：description 是 LLM 现在就读的语义层，必须立刻修正；参数改名是 breaking change、牵动理解域（bff/CLI/前端），应随 TBD-3 实施（表名迁移 + 类型改名）整体重构时一并改，避免中间态。
 
 ---
 
