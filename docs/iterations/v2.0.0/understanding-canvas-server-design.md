@@ -32,11 +32,9 @@
 | `id`                        | TEXT    | PK                                | 与 X6 cell id 一致（前端直用）                              |
 | `canvas_id`                 | TEXT    | NOT NULL, FK→canvases **CASCADE** | 删除画布级联清元素                                          |
 | `kind`                      | TEXT    | NOT NULL                          | `understanding` / `text` / `shape` / `group` / `canvas_ref` |
-| `understanding_id`          | TEXT    | FK→understandings **SET NULL**    | 理解卡引用；理解被删置空 → 前端占位                         |
-| `shape_type`                | TEXT    | 可空                              | `rect` / `circle`（kind=`shape` 时必填）                    |
-| `canvas_ref_id`             | TEXT    | FK→canvases **SET NULL**          | 嵌套画布引用（kind=`canvas_ref` 时）                        |
-| `text`                      | TEXT    | 可空                              | 文本卡内容（Markdown）；图形的可选标签                      |
-| `label`                     | TEXT    | 可空                              | 组名（kind=`group` 时）                                     |
+| `understanding_id`          | TEXT    | FK→understandings **SET NULL**    | 理解卡引用（跨实体引用 → 列）；理解被删置空 → 前端占位      |
+| `canvas_ref_id`             | TEXT    | FK→canvases **SET NULL**          | 嵌套画布引用（跨实体引用 → 列）；目标被删置空 → 占位        |
+| `props`                     | TEXT    | NOT NULL DEFAULT '{}'             | kind 专属载荷 JSON（见 ElementProps，共享列之外的一切）     |
 | `parent_id`                 | TEXT    | FK→elements **SET NULL**          | 所属组；删组 = 解组保留子元素                               |
 | `locked`                    | INTEGER | NOT NULL DEFAULT 0                | 元素锁定（防误拖）                                          |
 | `x` / `y`                   | REAL    | NOT NULL                          | X6 模型坐标（组内子元素为相对坐标）                         |
@@ -45,6 +43,22 @@
 | `created_at` / `updated_at` | TEXT    | NOT NULL                          | 时间戳                                                      |
 
 索引：`canvas_id`、`understanding_id`、`parent_id`。
+
+**ElementProps（props JSON，kind 专属载荷——共享列之外的一切）**：
+
+```ts
+ElementProps = {
+  // kind = "text"：文本卡内容（Markdown）
+  text?:      string;
+  // kind = "shape"：图形类型
+  shapeType?: "rect" | "circle";
+  // kind = "group"：组名
+  label?:     string;
+  // kind = "understanding" / "canvas_ref"：无载荷（引用在 FK 列）
+}
+```
+
+**划分逻辑（C5）**：共同字段（位置/尺寸/z/锁定/父级/时间戳）→ 列（需排序 / 索引 / 约束）；跨实体引用（`understanding_id` / `canvas_ref_id`）→ 引用 FK 列（FK 完整性 + 可查询）；kind 专属载荷 → `props` JSON（不被 SQL 查询，新增 kind / 字段无需迁移）。
 
 #### `understanding_canvas_edges`（连线，画布局部）
 
@@ -147,9 +161,10 @@ renderer: ipcClient.understandingCanvas.*        # MergeIpcService 自动派生�
 ```ts
 CanvasDTO            { id, title, description, viewport, createdAt, updatedAt }
 CanvasSummaryDTO     CanvasDTO & { elementCount, edgeCount }
-CanvasElementDTO     { id, canvasId, kind, understandingId, shapeType, canvasRefId,
-                       text, label, parentId, locked, x, y, width, height, zIndex,
+CanvasElementDTO     { id, canvasId, kind, understandingId, canvasRefId,
+                       props: ElementProps, parentId, locked, x, y, width, height, zIndex,
                        createdAt, updatedAt }
+// 注意：shapeType / text / label 不再是 DTO 顶层字段，统一在 props 内（与 DB 存储一致）
 CanvasEdgeDTO        { id, canvasId, sourceElementId, targetElementId, label, style: EdgeStyle | null, createdAt }
 EdgeStyle           { routing?, lineStyle?, color?, width?, arrowhead? }
 CanvasUnderstandingRef  { id, title, body, deleted }
@@ -159,16 +174,48 @@ CanvasDetailDTO      { canvas: CanvasDTO, elements: CanvasElementDTO[],
                        referencedCanvases: CanvasReferencedCanvas[] }
 ```
 
+**输入类型（与 props JSON 一致）**：
+
+```ts
+CreateCanvasElementInput = {
+  kind: "understanding" | "text" | "shape" | "group" | "canvas_ref",
+  understandingId?: string,   // kind=understanding 必填
+  canvasRefId?: string,       // kind=canvas_ref 必填
+  props?: ElementProps,       // kind 专属载荷（text / shapeType / label）
+  parentId?: string | null,   // 入组
+  x: number; y: number; width: number; height: number,  // 前端创建带坐标（agent 创建无坐标，见 §6.2）
+}
+
+UpdateCanvasElementInput = {
+  x?: number; y?: number; width?: number; height?: number,
+  props?: Partial<ElementProps>,  // 文本 / 图形类型 / 组名更新
+  parentId?: string | null,        // 入组 / 出组
+  locked?: boolean,
+}
+
+CreateCanvasEdgeInput = {
+  sourceElementId: string,
+  targetElementId: string,
+  label?: string | null,
+  style?: EdgeStyle | null,
+}
+
+UpdateCanvasEdgeInput = {
+  label?: string | null,
+  style?: EdgeStyle | null,
+}
+```
+
 ### 2.4 校验与错误边界（domain core 层）
 
-| 场景                     | 行为                                                                                                        |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| 画布 / 元素 / 连线不存在 | 抛错（`Canvas not found: <id>` 等），IPC 包装为错误返回                                                     |
-| kind 不变量              | `understanding` 必须带 `understanding_id`；`shape` 必须带 `shape_type`；`canvas_ref` 必须带 `canvas_ref_id` |
-| 连线端点                 | 两端元素必须存在且属于同一画布；禁止自环（source === target）                                               |
-| 入组（parent_id）        | 父元素必须是 `group` kind、同一画布、不能是自己或自己的后代（防环）                                         |
-| 理解卡引用               | 创建时校验理解存在（允许引用软删理解？——**允许**，占位语义由前端呈现）                                      |
-| 空更新                   | 无有效字段时抛「No canvas element fields to update」类错误                                                  |
+| 场景                     | 行为                                                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| 画布 / 元素 / 连线不存在 | 抛错（`Canvas not found: <id>` 等），IPC 包装为错误返回                                                             |
+| kind 不变量              | `understanding` 必须带 `understanding_id`；`shape` 的 props 必须带 `shapeType`；`canvas_ref` 必须带 `canvas_ref_id` |
+| 连线端点                 | 两端元素必须存在且属于同一画布；禁止自环（source === target）                                                       |
+| 入组（parent_id）        | 父元素必须是 `group` kind、同一画布、不能是自己或自己的后代（防环）                                                 |
+| 理解卡引用               | 创建时校验理解存在（允许引用软删理解？——**允许**，占位语义由前端呈现）                                              |
+| 空更新                   | 无有效字段时抛「No canvas element fields to update」类错误                                                          |
 
 ## 3. 给 Agent 开放的能力与 tool 设计
 
