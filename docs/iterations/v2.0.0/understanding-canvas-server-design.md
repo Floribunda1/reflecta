@@ -234,3 +234,25 @@ apps/cli/src/cli.ts                         # registerXxxAction 注册；getActi
 | domain bff 单测  | getCanvas 装配（元素 + 连线 + understandingRefs + referencedCanvases）、列表计数   |
 | 迁移单测         | v2.0.0 在空库 / 已有数据上执行幂等，schema 与 SQL 一致                             |
 | CLI              | `canvas list/get/create/update/delete` 注册与帮助输出（对齐 global.test.ts 模式）  |
+
+## 6. 待办（承接共识 TBD，Server 归口）
+
+> 从共识文档迁移的 Server 层待办。已定的在此实施；未定的在此文档步骤内解决。
+
+### 6.1 已定待实施
+
+- **TBD-3 修正清单（wiki-link 降级）**：
+  1. 表名 `understanding_connections` → `understanding_mentions`（v2.0.0 迁移 `ALTER TABLE ... RENAME TO` + schema.ts + 全部代码引用）。
+  2. 类型/字段：`UnderstandingConnection` → `UnderstandingMention`；`connectionCount` / `connectionIds` → `mentionCount` / `mentionIds`；`UnderstandingRelation` 改为引用（mention）语义。
+  3. Agent tool：**删除 `graph` tool**；`understanding_get` / `domain_inspect` 描述中 "wiki-link relations" / "relations" 改为 "wiki-link mentions / citations（弱引用，非结构）"。
+  4. CLI：`reflecta graph` 命令与 `GraphCliBff` domain 一并删除。
+- **TBD-2**：understanding detail DTO（agent 侧 `understanding_get` 与 UI 共用）加 `referencedByCanvases: Array<{ id, title }>`——查询 `canvas_elements.understanding_id` 索引反向 join 画布标题。
+- **C13**：`listCanvasesByUnderstanding(understandingId)` IPC 方法（反向查询，与 M6-6 共用数据）。
+
+### 6.2 未定待解决（本文档步骤内定）
+
+- **`update_canvas` 参数**：内容级写（增元素/连线/分组/改内容），候选形态 = 分桶变更 `{ addElements, updateElements, removeElements, addEdges, updateEdges, removeEdges, rename? }`；**无坐标字段**（Agent 不做布局，位置由前端自动排开）。
+- **search 后置项**：
+  - `query` 是否匹配引用理解正文（先只匹配标题，正文命中为增强，需评估 join 成本）；
+  - 多词 AND 模式（`understandingIds[] + match: "all" | "any"` 升级路径，先单 id）。
+- **preview tool 数据契约**（C15）：Agent 输出结构化画布数据（CanvasDocument 形状：元素/连线/分组）→ 前端只读渲染；契约与序列化格式需在此定义（参考 mermaid "文本块 → 渲染"模式；代码库无先例，需调研）。
