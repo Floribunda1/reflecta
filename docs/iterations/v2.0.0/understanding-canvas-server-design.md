@@ -332,7 +332,7 @@ apps/cli/src/cli.ts                         # registerXxxAction 注册；getActi
 
 ### 4.3 输出约定
 
-- 列表输出：表格（id 截断 / title / elementCount / edgeCount / updatedAt）。
+- 列表输出：表格（id 截断 / title / updatedAt）。
 - 详情输出：JSON（与 DTO 一致，便于脚本消费）。
 - 复用 `runner.ts` 的 `runCommand` / `getCommandOptions` / 全局选项（`--json` 等）。
 
