@@ -343,9 +343,15 @@
 
 ### TBD-1 Agent tool 清单（用户方案 vs 推导方案）
 
-- **用户提出的 tool 清单**：`read_canvas`（读画布内容）/ `list_canvas(titleSearchKeyword, limit)` / `create_canvas` / `update_canvas` / `delete_canvas` / `search(titleKeyword, query)`（query 逻辑待定）。具体参数由设计者定，此处仅列 tool。
-- **此前推导的方案**：T1 画布展示（C15 已确认）/ T2 定位 / T3 读取；应用（新建/更新画布）为前端动作而非 tool。
-- **待讨论**：写侧 create/update/delete 是否进 tool（与 draft 应用的关系）；search 的 query 语义；list / search / 定位三者的关系与是否冗余；展示 tool 与读侧工具的关系。
+- **已锁定的 tool 集**：
+  - 读侧：`read_canvas`（读单张结构）/ `list_canvas(titleSearchKeyword, limit)`（简单枚举，review all 场景 = list + 逐个 read）/ `search`（发现定位）
+  - 写侧：`create_canvas` / `update_canvas` / `delete_canvas`——**内容级写**（Agent 画、用户验收；审批门保留，C15 为验收界面）；`update_canvas` 参数待产品方案定后设计（分桶 add/update/remove 为候选，无坐标字段）
+  - 展示：C15 画布展示 tool（已单独确认）
+- **search 参数已定稿**：`{ query?, understandingId?, limit? }`
+  - `query`：自由文本 1-5 词；匹配范围 = 画布标题 + 元素标题 + 文本卡内容 + 连线标签 + 组名 + 引用理解标题（正文后置）；大小写不敏感、空白拆词、**任一命中即命中（OR，发现导向）**；`reason` 字段帮助 Agent 判断相关性
+  - `understandingId`：**单个 string**（反向查询）；多理解 AND/OR 场景证据不足 + query 文本可兜底 + 升级路径便宜（`understandingIds[] + match`），后置
+  - **已砍**：`titleKeyword`（query 含标题匹配，list_canvas 已覆盖枚举）、`canvasId`（画布小 read_canvas 够用；向外找是普通 query）、`includeBody`（恒带 snippet）
+- **待定**：`update_canvas` 参数；`search` 的引用理解正文匹配（后置）；多词 AND 模式（后置）
 
 ### TBD-2 understanding DTO 是否加 `referencedByCanvases: string[]`
 
