@@ -52,12 +52,14 @@ workflow 只用它创建当前仓库的 Release。
 5. 跑完全部发版前回归。
 
    ```bash
+   bun run lint
+   bun run fmt:check
    bun run typecheck
    bun run test
    bun run test:e2e
    ```
 
-   三条命令必须全部成功，并且测试汇总中不能出现 failed、skipped、todo 或
+   五条命令必须全部成功，并且测试汇总中不能出现 failed、skipped、todo 或
    未发现测试。任何用例未实际执行都视为回归未通过，禁止继续提交 release commit
    或创建 tag。
 
