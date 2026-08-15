@@ -317,15 +317,15 @@ Agent 对理解画布：**读 + 写（内容级、审批制）+ 展示**：
 
 读工具挂载于 `pi-readonly-tools.ts`；写工具走现有审批机制（requireApproval，Agent 提案 → 用户审批 → 应用）。语言风格沿用现有工具（英文 description + 中文 label）；输出经既有 `createToolResult` 包装（诊断日志 / 实体目录统一处理）。
 
-| Tool             | 参数                                           | 返回                                                                             | 用途                                                          |
-| ---------------- | ---------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| `read_canvas`    | `{ canvasId, includeBodies? }`                 | `CanvasDetailDTO`（结构骨架：元素 / 连线 / 分组 / 引用理解标题；正文默认不返回） | 读一张画布结构（讨论 / 审视 / 修改的输入）                    |
-| `list_canvas`    | `{ titleSearchKeyword?, limit? }`              | `CanvasDTO[]`                                                                    | 简单枚举（review all 场景 = list + 逐个 read）                |
-| `search`         | `{ query?, understandingId?, limit? }`         | `CanvasHit[]`（画布 + 命中片段 snippet + reason）                                | 发现定位；query 语义见下                                      |
-| `create_canvas`  | `{ title, initial? }`                          | `CanvasDTO`                                                                      | 新建画布（审批制）                                            |
-| `update_canvas`  | `{ canvasId, changes? }`（**参数待定，§6.2**） | 变更提案（C15 展示）                                                             | 内容级写：增元素 / 连线 / 分组 / 改内容（审批制）             |
-| `delete_canvas`  | `{ canvasId }`                                 | `void`                                                                           | 删除画布（审批制）                                            |
-| 展示 tool（C15） | 结构化画布数据（CanvasDocument 形状）          | 只读渲染预览（**数据契约待定，§6.2**）                                           | draft-preview：消息内联渲染，用户诊断后「应用 / 修改 / 拒绝」 |
+| Tool             | 参数                                                                         | 返回                                                                             | 用途                                                          |
+| ---------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `read_canvas`    | `{ canvasId, includeBodies? }`                                               | `CanvasDetailDTO`（结构骨架：元素 / 连线 / 分组 / 引用理解标题；正文默认不返回） | 读一张画布结构（讨论 / 审视 / 修改的输入）                    |
+| `list_canvas`    | `{ titleSearchKeyword?, limit? }`                                            | `CanvasDTO[]`                                                                    | 简单枚举（review all 场景 = list + 逐个 read）                |
+| `search`         | `{ query?, understandingId?, limit? }`                                       | `CanvasHit[]`（画布 + 命中片段 snippet + reason）                                | 发现定位；query 语义见下                                      |
+| `create_canvas`  | `{ title, initial? }`                                                        | `CanvasDTO`                                                                      | 新建画布（审批制）                                            |
+| `update_canvas`  | `{ canvasId, document: CanvasDocument }`（**目标文档，与 saveCanvas 同构**） | 变更提案（C15 展示）                                                             | 内容级写：增元素 / 连线 / 分组 / 改内容（审批制）             |
+| `delete_canvas`  | `{ canvasId }`                                                               | `void`                                                                           | 删除画布（审批制）                                            |
+| 展示 tool（C15） | 结构化画布数据（CanvasDocument 形状）                                        | 只读渲染预览（**数据契约待定，§6.2**）                                           | draft-preview：消息内联渲染，用户诊断后「应用 / 修改 / 拒绝」 |
 
 **search 的 query 语义（已定稿）**：
 
@@ -399,7 +399,7 @@ apps/cli/src/cli.ts                         # registerXxxAction 注册；getActi
 
 ### 6.2 未定待解决（本文档步骤内定）
 
-- **`update_canvas` 参数**：已随「文档级写」消解——与 renderer 的 `saveCanvas` 统一为**目标文档**（CanvasDocument 形状）；Agent 提案 = 目标文档，审批后经同一文档级写落库；**无坐标字段**（Agent 不做布局，位置由前端自动排开）。
+- **`update_canvas` 参数（已定：A 整目标文档）**：`{ canvasId, document: CanvasDocument }`——与 renderer 的 `saveCanvas` 同构；C15 的 draft 本就是目标结构（提案=展示=应用同一形状，零转换）；画布小（5-50 卡），Agent 小改动重发全量的 token 代价被接受；增量方案（没提到=不变 vs 删除）有歧义、语义操作重新引入 N²，均否决。
 - **search 后置项**：
   - `query` 是否匹配引用理解正文（先只匹配标题，正文命中为增强，需评估 join 成本）；
   - 多词 AND 模式（`understandingIds[] + match: "all" | "any"` 升级路径，先单 id）。
