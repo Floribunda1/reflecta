@@ -241,7 +241,7 @@
 - 画布对现有产品模块（除 Agent 协作外）的**唯一影响**：理解详情面板显示「出现于 N 张画布」+ 画布标题列表。
 - **点击行为**：跳转画布模块并打开该画布（**编辑模式**）——从理解详情过去的意图是"去整理这个结构"；与 Agent 引用点击（只读 Modal，对话语境）行为不同、不冲突。
 - **不做**：理解列表行画布徽标（v1 避免噪音）；任何其它模块整合。
-- 数据支撑：`listCanvasesByUnderstanding(understandingId)` → CanvasSummaryDTO[]（`understanding_id` 索引列反向查询，已设计）。
+- 数据支撑：`listCanvasesByUnderstanding(understandingId)` → CanvasDTO[]（`understanding_id` 索引列反向查询，已设计）。
 
 **理由**：这是 C6「素材互通」在理解侧的最小落点，直接让"这条理解在哪些心智结构里"可见；实现成本最低；不引入新概念、不重做现有模块。
 

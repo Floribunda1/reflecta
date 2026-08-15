@@ -184,8 +184,8 @@ renderer: ipcClient.understandingCanvas.*        # MergeIpcService 自动派生�
 
 | 方法                                           | 输入                       | 返回                      | 说明                                                                     |
 | ---------------------------------------------- | -------------------------- | ------------------------- | ------------------------------------------------------------------------ |
-| `listCanvases()`                               | —                          | `CanvasSummaryDTO[]`      | 摘要列表（含 element/edge 计数），按 updatedAt 倒序                      |
-| `listCanvasesByUnderstanding(understandingId)` | `string`                   | `CanvasSummaryDTO[]`      | 反向查询：该理解出现在哪些画布（M6-6 画布归属）                          |
+| `listCanvases()`                               | —                          | `CanvasDTO[]`             | 画布列表，按 updatedAt 倒序                                              |
+| `listCanvasesByUnderstanding(understandingId)` | `string`                   | `CanvasDTO[]`             | 反向查询：该理解出现在哪些画布（M6-6 画布归属）                          |
 | `getCanvas(id)`                                | `string`                   | `CanvasDetailDTO \| null` | 详情：canvas + elements + edges + understandingRefs + referencedCanvases |
 | `createCanvas(input)`                          | `{ title }`                | `CanvasDTO`               | 新建画布                                                                 |
 | `updateCanvas(id, input)`                      | `{ title? }`               | `CanvasDTO`               | 改名                                                                     |
@@ -202,7 +202,6 @@ renderer: ipcClient.understandingCanvas.*        # MergeIpcService 自动派生�
 
 ```ts
 CanvasDTO            { id, title, description, viewport, createdAt, updatedAt }
-CanvasSummaryDTO     CanvasDTO & { elementCount, edgeCount }
 CanvasElementDTO     // 判别联合（见 §1.1 ElementProps）：kind 收窄 props / understandingId / canvasRefId
 CanvasEdgeDTO        { id, canvasId, sourceElementId, targetElementId, label, style: EdgeStyle | null, createdAt }
 EdgeStyle           { routing?, lineStyle?, color?, width?, arrowhead? }
@@ -283,7 +282,7 @@ Agent 对理解画布：**读 + 写（内容级、审批制）+ 展示**：
 | Tool             | 参数                                           | 返回                                                                             | 用途                                                          |
 | ---------------- | ---------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------- |
 | `read_canvas`    | `{ canvasId, includeBodies? }`                 | `CanvasDetailDTO`（结构骨架：元素 / 连线 / 分组 / 引用理解标题；正文默认不返回） | 读一张画布结构（讨论 / 审视 / 修改的输入）                    |
-| `list_canvas`    | `{ titleSearchKeyword?, limit? }`              | `CanvasSummaryDTO[]`                                                             | 简单枚举（review all 场景 = list + 逐个 read）                |
+| `list_canvas`    | `{ titleSearchKeyword?, limit? }`              | `CanvasDTO[]`                                                                    | 简单枚举（review all 场景 = list + 逐个 read）                |
 | `search`         | `{ query?, understandingId?, limit? }`         | `CanvasHit[]`（画布 + 命中片段 snippet + reason）                                | 发现定位；query 语义见下                                      |
 | `create_canvas`  | `{ title, initial? }`                          | `CanvasDTO`                                                                      | 新建画布（审批制）                                            |
 | `update_canvas`  | `{ canvasId, changes? }`（**参数待定，§6.2**） | 变更提案（C15 展示）                                                             | 内容级写：增元素 / 连线 / 分组 / 改内容（审批制）             |
