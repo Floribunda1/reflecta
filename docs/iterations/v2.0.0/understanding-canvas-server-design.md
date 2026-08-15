@@ -27,20 +27,19 @@
 
 #### `understanding_canvas_elements`（画布元素 = 卡片 / 图形 / 组）
 
-| 字段                        | 类型    | 约束                              | 说明                                                        |
-| --------------------------- | ------- | --------------------------------- | ----------------------------------------------------------- |
-| `id`                        | TEXT    | PK                                | 与 X6 cell id 一致（前端直用）                              |
-| `canvas_id`                 | TEXT    | NOT NULL, FK→canvases **CASCADE** | 删除画布级联清元素                                          |
-| `kind`                      | TEXT    | NOT NULL                          | `understanding` / `text` / `shape` / `group` / `canvas_ref` |
-| `understanding_id`          | TEXT    | FK→understandings **SET NULL**    | 理解卡引用（跨实体引用 → 列）；理解被删置空 → 前端占位      |
-| `canvas_ref_id`             | TEXT    | FK→canvases **SET NULL**          | 嵌套画布引用（跨实体引用 → 列）；目标被删置空 → 占位        |
-| `props`                     | TEXT    | NOT NULL DEFAULT '{}'             | kind 专属载荷 JSON（见 ElementProps，共享列之外的一切）     |
-| `parent_id`                 | TEXT    | FK→elements **SET NULL**          | 所属组；删组 = 解组保留子元素                               |
-| `locked`                    | INTEGER | NOT NULL DEFAULT 0                | 元素锁定（防误拖）                                          |
-| `x` / `y`                   | REAL    | NOT NULL                          | X6 模型坐标（组内子元素为相对坐标）                         |
-| `width` / `height`          | REAL    | NOT NULL                          | 尺寸                                                        |
-| `z_index`                   | INTEGER | NOT NULL DEFAULT 0                | 图层顺序（跨会话保持叠放）                                  |
-| `created_at` / `updated_at` | TEXT    | NOT NULL                          | 时间戳                                                      |
+| 字段                        | 类型    | 约束                              | 说明                                                           |
+| --------------------------- | ------- | --------------------------------- | -------------------------------------------------------------- |
+| `id`                        | TEXT    | PK                                | 与 X6 cell id 一致（前端直用）                                 |
+| `canvas_id`                 | TEXT    | NOT NULL, FK→canvases **CASCADE** | 删除画布级联清元素                                             |
+| `kind`                      | TEXT    | NOT NULL                          | `understanding` / `text` / `shape` / `group` / `canvas_ref`    |
+| `understanding_id`          | TEXT    | FK→understandings **SET NULL**    | 理解卡引用（跨实体引用 → 列）；理解被删置空 → 前端占位         |
+| `canvas_ref_id`             | TEXT    | FK→canvases **SET NULL**          | 嵌套画布引用（跨实体引用 → 列）；目标被删置空 → 占位           |
+| `props`                     | TEXT    | NOT NULL DEFAULT '{}'             | 呈现 / kind 专属载荷 JSON（见 ElementProps，共享列之外的一切） |
+| `parent_id`                 | TEXT    | FK→elements **SET NULL**          | 所属组；删组 = 解组保留子元素                                  |
+| `x` / `y`                   | REAL    | NOT NULL                          | X6 模型坐标（组内子元素为相对坐标）                            |
+| `width` / `height`          | REAL    | NOT NULL                          | 尺寸                                                           |
+| `z_index`                   | INTEGER | NOT NULL DEFAULT 0                | 图层顺序（跨会话保持叠放）                                     |
+| `created_at` / `updated_at` | TEXT    | NOT NULL                          | 时间戳                                                         |
 
 索引：`canvas_id`、`understanding_id`、`parent_id`。
 
@@ -125,12 +124,20 @@ EdgeStyle = {
 
 ### 1.3 迁移逻辑（v2.0.0）
 
-采用项目既有**版本化代码迁移**机制（`packages/server/src/db/migration/code/`）：
+采用项目既有**版本化代码迁移**机制（`packages/server/src/db/migration/code/`）。v2.0.0 迁移包含**两部分**：
 
-- 新增 `v2.0.0.ts`：`CodeMigration { name: "v2.0.0.sql", version: [2,0,0], up(ctx) }`，通过 `ctx.sql` 执行三张表的 `CREATE TABLE IF NOT EXISTS` 与 `CREATE INDEX IF NOT EXISTS`（SQL 列名用 snake_case，与 drizzle schema 列定义一致）。
-- **幂等**：全部 `IF NOT EXISTS`；重复执行安全（与 v1.0.0 建表风格一致）。
-- **注册**：`migration.ts` 的 `codeMigrations` 数组追加 `v150`（版本排序自动处理，大于 v1.3.5 即生效）。
-- **无检索索引影响**：本模块内容不进全文检索（不调用 `requestRetrievalIndexRebuild`）。
+**A. 新增三张画布表**（本模块）：
+
+- `CREATE TABLE IF NOT EXISTS` 与 `CREATE INDEX IF NOT EXISTS`（SQL 列名用 snake_case，与 drizzle schema 列定义一致）；幂等，与 v1.0.0 建表风格一致。
+
+**B. TBD-3 表名迁移（wiki-link 降级，understanding domain）**：
+
+- `ALTER TABLE understanding_connections RENAME TO understanding_mentions;`（SQLite 支持，索引随表保留）——同一迁移内完成，避免两次数据版本升级。
+- 同步：schema.ts 的 `understandingConnections` → `understandingMentions`（understanding domain），全部代码引用改名。
+
+**注册**：`migration.ts` 的 `codeMigrations` 数组追加 `v200`（版本排序自动处理，大于最新已执行版本即生效）。
+
+- **无检索索引影响**：本模块内容不进全文检索（不调用 `requestRetrievalIndexRebuild`）；表名重命名不影响 FTS（FTS 只关联 understandings / contexts）。
 - **schema.ts 同步**：drizzle 表定义（`understandingCanvases` / `understandingCanvasElements` / `understandingCanvasEdges`）与迁移 SQL 保持一致，供 ORM 查询与类型推导使用；`real` 类型从 drizzle 导入。
 
 ### 1.4 查询装配（getCanvas）
