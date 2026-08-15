@@ -431,7 +431,7 @@
 - **修正清单（已定，待实施）**：
   1. **表名**：`understanding_connections` → `understanding_mentions`（新迁移 ALTER TABLE RENAME + schema.ts + 全部代码引用）。
   2. **类型/字段**：`UnderstandingConnection` → `UnderstandingMention`；`connectionCount` / `connectionIds` → `mentionCount` / `mentionIds`；`UnderstandingRelation` 改为引用（mention）语义。
-  3. **Agent tool**：**删除 `graph` tool**（label「查看关联图」，wiki-link graph 概念根源，生产低频 8 次）；`understanding_get` / `domain_inspect` 描述中的 "wiki-link relations" / "relations" 改为 "wiki-link mentions / citations（弱引用，非结构）"。
+  3. **Agent tool**：**删除 `graph` tool**（label「查看关联图」，wiki-link graph 概念根源，生产低频 8 次）；`understanding_get` / `domain_inspect` 描述中的 "wiki-link relations" / "relations" 改为 "wiki-link mentions / citations（弱引用，非结构）"；参数名 `includeRelations` → `includeMentions`（随降级一并改名）。
   4. **System prompt**：补充 C16 推论 2——「正文 `[[u:]]` 是弱引用（提到过），不是结构关系；结构以画布连线为准」。
   5. **UI**：aria-label「N 个双链关系」→「N 条引用」；`connectionCount` prop 改名。
   6. **CLI**：`reflecta graph` 命令与 `GraphCliBff` domain 一并删除（与 agent tool 同因：wiki-link as graph 概念）。

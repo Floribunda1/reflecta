@@ -402,7 +402,7 @@ Agent 对理解画布：**读 + 写（内容级、审批制）+ 展示**：
 ```
 
 - "wiki-link relations" → "wiki-link mentions"（弱引用语义）；括注 "weak citations, not structural relations" 是**工具级必要提示**——工具返回的数据语义，Agent 必须知道这不是结构关系。
-- **参数名 `includeRelations` 不在已达成共识内**（TBD-3 修正清单只涉及描述措辞，未约定参数改名）；本文不预判其改名，实施时如需要单独决策。
+- 参数改名（`includeRelations`）属 TBD-3 实施项，见 §6.1，不在本节。
 
 ---
 
@@ -451,7 +451,7 @@ apps/cli/src/cli.ts                         # registerXxxAction 注册；getActi
 - **TBD-3 修正清单（wiki-link 降级）**：
   1. 表名 `understanding_connections` → `understanding_mentions`（v2.0.0 迁移 `ALTER TABLE ... RENAME TO` + schema.ts + 全部代码引用）。
   2. 类型/字段：`UnderstandingConnection` → `UnderstandingMention`；`connectionCount` / `connectionIds` → `mentionCount` / `mentionIds`；`UnderstandingRelation` 改为引用（mention）语义。
-  3. Agent tool：**删除 `graph` tool**；`understanding_get` / `domain_inspect` 描述中 "wiki-link relations" / "relations" 改为 "wiki-link mentions / citations（弱引用，非结构）"。
+  3. Agent tool：**删除 `graph` tool**；`understanding_get` / `domain_inspect` 描述中 "wiki-link relations" / "relations" 改为 "wiki-link mentions / citations（弱引用，非结构）"；参数名 `includeRelations` → `includeMentions`（随降级一并改名）。
   4. CLI：`reflecta graph` 命令与 `GraphCliBff` domain 一并删除。
 - **TBD-2**：understanding detail DTO（agent 侧 `understanding_get` 与 UI 共用）加 `referencedByCanvases: Array<{ id, title }>`——查询 `canvas_elements.understanding_id` 索引反向 join 画布标题。
 - **C13**：`listCanvasesByUnderstanding(understandingId)` IPC 方法（反向查询，与 M6-6 共用数据）。
