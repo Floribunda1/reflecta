@@ -30,6 +30,14 @@
 - 减少过多的 shadcn 本身的样式定制，尽量让整体的设计符合 shadcn 的 design system
 - **不允许对 shadcn 里的任何组件进行修改**
 
+### 样式设计原则（minimalist）
+
+- 能不手动写 style token 的地方就不要手动写 style token
+- 组件库能覆盖的样式就不要自己手动写（例如 ghost 按钮的 hover 态、icon-sm 的尺寸，组件已内置）
+- 所有手动写的 style token 都需要被 carefully reviewed：每一处都有存在理由，且理由不能是"方便"或"顺手"
+- 优先使用语义 token 与组件默认样式，重复组件默认行为的 className 直接删除
+- **token 值一旦变更，必须重新扫描该 token 的所有消费点**：表面 token（如 popover、card）的可见性可能因画布变化而翻转，之前"不可见所以无害"的用法可能变成"可见但不该存在"
+
 ## Review 检查顺序
 
 在 review 前端模块时，按下面顺序逐项扫描，避免只看 UI 层而漏掉状态和 hook：
