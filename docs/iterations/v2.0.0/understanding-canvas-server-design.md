@@ -48,12 +48,14 @@
 
 ```ts
 // 1. kind → 专属载荷映射（lookup）：每个 kind 只有自己的合法载荷，无意义组合在类型层面不可能
+type WithLocked<T> = T & { locked?: boolean }; // 呈现状态（防误拖锁定）随 props 走，非业务状态
+
 type ElementPropsMap = {
-  understanding: Record<string, never>; // 引用在 FK 列，无载荷（DB 存 {}）
-  text: { text: string }; // 文本卡内容（Markdown）
-  shape: { shapeType: "rect" | "circle" }; // 图形
-  group: { label: string }; // 组名
-  canvas_ref: Record<string, never>; // 引用在 FK 列，无载荷（DB 存 {}）
+  understanding: WithLocked<Record<string, never>>; // 引用在 FK 列，无载荷（DB 存 {}）
+  text: WithLocked<{ text: string }>; // 文本卡内容（Markdown）
+  shape: WithLocked<{ shapeType: "rect" | "circle" }>; // 图形
+  group: WithLocked<{ label: string }>; // 组名
+  canvas_ref: WithLocked<Record<string, never>>; // 引用在 FK 列，无载荷（DB 存 {}）
 };
 
 // 2. 元素共享字段（列）
@@ -61,7 +63,6 @@ type CanvasElementBase = {
   id: string;
   canvasId: string;
   parentId: string | null;
-  locked: boolean;
   x: number;
   y: number;
   width: number;
@@ -113,15 +114,14 @@ EdgeStyle = {
 
 ### 1.2 关键设计决策
 
-| 决策                                             | 理由                                                                                                                                             |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **元素 / 连线为行，增量写回**                    | 拖一次卡只更新 x/y，不整文档重写；与社区 node/edge 关系表路线一致（见调研文档）                                                                  |
-| **FK 一律 SET NULL / CASCADE，不硬删除业务字段** | 理解被删 → 置空占位（不静默丢卡）；删组 → 子元素解组保留；删画布/卡片 → 级联清理                                                                 |
-| **`z_index` 持久化**                             | 白板 shape 模型标配，跨会话保持叠放次序                                                                                                          |
-| **呈现载荷一律进 `props` JSON**                  | 元素 kind 专属字段与连线样式都是纯展示、不被 SQL 查询；进 JSON 后新增样式字段（箭头样式、圆角等）无需迁移；语义字段（引用 FK、连线 label）留在列 |
-| **组内子元素为相对坐标**                         | 对齐 X6 embedding 语义（子坐标相对父，随父移动），避免每次移动重算绝对坐标                                                                       |
-| **`locked` 独立列而非 X6 attrs 内嵌**            | 锁定是业务状态，可查询、可被 Agent / CLI 感知                                                                                                    |
-| **元素 id == X6 cell id**                        | 事件回写零映射成本                                                                                                                               |
+| 决策                                             | 理由                                                                                                                                                                                    |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **元素 / 连线为行，增量写回**                    | 拖一次卡只更新 x/y，不整文档重写；与社区 node/edge 关系表路线一致（见调研文档）                                                                                                         |
+| **FK 一律 SET NULL / CASCADE，不硬删除业务字段** | 理解被删 → 置空占位（不静默丢卡）；删组 → 子元素解组保留；删画布/卡片 → 级联清理                                                                                                        |
+| **`z_index` 持久化**                             | 白板 shape 模型标配，跨会话保持叠放次序                                                                                                                                                 |
+| **呈现 / 锁定状态一律进 `props` JSON**           | 元素 kind 专属字段、连线样式、`locked`（防误拖锁定）都是呈现状态，不是业务状态——不被 SQL 查询、不被 Agent / CLI 感知；进 JSON 后新增字段无需迁移；语义字段（引用 FK、连线 label）留在列 |
+| **组内子元素为相对坐标**                         | 对齐 X6 embedding 语义（子坐标相对父，随父移动），避免每次移动重算绝对坐标                                                                                                              |
+| **元素 id == X6 cell id**                        | 事件回写零映射成本                                                                                                                                                                      |
 
 ### 1.3 迁移逻辑（v2.0.0）
 
@@ -217,9 +217,8 @@ type UpdateCanvasElementInput = {
   y?: number;
   width?: number;
   height?: number;
-  props?: Partial<ElementPropsMap[CanvasElementKind]>; // 文本 / 图形类型 / 组名更新
+  props?: Partial<ElementPropsMap[CanvasElementKind]>; // 文本 / 图形类型 / 组名 / locked 更新
   parentId?: string | null; // 入组 / 出组
-  locked?: boolean;
 };
 
 type CreateCanvasEdgeInput = {
