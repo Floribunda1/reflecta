@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.0 - 2026-08-15
+
+- Added an agent chat workspace: message composer, conversation threads, agent dock and contextual chat panels for starting and revising agent conversations.
+- Streamed agent execution live with thinking, tool and compaction blocks, reasoning summaries and grouped activity so long-running work stays readable while it runs.
+- Added capture pages for the domain tree, understanding list and understanding detail, plus a domain tree select with searchable chips.
+- Added appearance settings with a theme picker: Base16 semantic design tokens and a collection of Ghostty color schemes are applied live.
+- Rebuilt the shared UI component library on Base UI with drawer and modal overlay providers, and exposed package styles for reuse.
+- Reworked the Milkdown editor theme and markdown rendering for lists, tables, inline content and blockquotes, with a compact preview mode.
+- Hardened the release pipeline: lint and format checks now gate publishing, and flaky e2e failures are triaged with targeted reruns instead of full reruns.
+
 ## 1.4.7 - 2026-08-10
 
 - Embedded Sparkle.framework into the app bundle using the standard layout (Contents/Frameworks) and made the update checker load it from the app itself, so delta updates become eligible instead of always downloading the full package, and the updater components ship as part of the app.
