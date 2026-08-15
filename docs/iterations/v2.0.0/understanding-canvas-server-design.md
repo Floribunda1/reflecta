@@ -172,6 +172,8 @@ CanvasDetailDTO      { canvas: CanvasDTO, elements: CanvasElementDTO[],
 
 ## 3. 给 Agent 开放的能力与 tool 设计
 
+> ⚠️ **本节为未确认提案**：tool 清单未经用户拍板（见共识记录 C9），仅作讨论材料；协作形态已确认（AI 提案者 / 用户裁判者，见 PRD §1.4）。
+
 ### 3.1 能力定位
 
 Agent（AI 对话）对理解画布**只读**：
