@@ -462,9 +462,9 @@ apps/cli/src/cli.ts                         # registerXxxAction 注册；getActi
 - **search 后置项**：
   - `query` 是否匹配引用理解正文（先只匹配标题，正文命中为增强，需评估 join 成本）；
   - 多词 AND 模式（`understandingIds[] + match: "all" | "any"` 升级路径，先单 id）。
-- **preview tool 数据契约（C15，已定稿）**：
-  - **嵌入方式（mermaid 式，已调研）**：Agent 消息中的 fenced code block，语言标记 `canvas-draft`，内容为 CanvasDocument 的 JSON 序列化；renderer 检测该语言 → 路由到只读 canvas 组件（三用组件之一），而非普通代码块。
-  - **数据格式**：CanvasDocument（elements 判别联合 + edges）——与 `saveCanvas` 载荷同一形状（提案 = 展示 = 应用同构，零转换）。
-  - **流式兼容**：聊天渲染器需 streaming-aware（半流式 JSON 容错；块未闭合时显示加载占位，闭合后渲染）。
-  - **校验失败降级**：JSON 解析 / 校验失败 → 回退为普通代码块展示，不阻塞消息。
-  - **归口**：数据契约在此定义（Server）；渲染管线归口 Frontend 文档（F1）。
+- **preview tool 数据契约（C15，已定稿——Inline Widget 形态）**：
+  - **渲染形态**：消息内联 **widget**（Generative UI 模式）——工具结果 / 消息 part 携带 `widgetType` + 结构化 payload，聊天渲染器按 widget 注册表路由到自定义 React 渲染器；**不是代码块转渲染**（mermaid 式已否决）。
+  - **widgetType**：`canvas-draft`（画布草稿预览，只读画布卡，三用组件之一）。
+  - **payload**：CanvasDocument（elements 判别联合 + edges）——与 `saveCanvas` 载荷同一形状（提案 = 展示 = 应用同构，零转换）。
+  - **widget 注册表**：`{ widgetType → React 渲染器 }`，是聊天渲染基建（不仅画布，天气卡等任何工具可用）；归属 UI/UX 与 Frontend 文档。
+  - **校验失败降级**：payload 解析 / 校验失败 → 回退为通用工具活动块，不阻塞消息。

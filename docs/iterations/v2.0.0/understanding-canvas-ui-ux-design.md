@@ -12,7 +12,18 @@
 
 > 以下为共识文档标记归口本层的待办；本文档步骤内解决并展开为具体设计。
 
-### U1 artifact panel 的 UX/UI 形态（C14，待调研）
+### U1 Inline Widget 机制（消息内联富组件，头号待办）
+
+- **来源**：C15 画布展示 tool 的渲染形态讨论——用户明确要"Inline Widget 的感觉（如天气卡片）"，非代码块转渲染。
+- **已定约束**：
+  - 消息 part / 工具结果携带 `widgetType` + 结构化 payload；聊天渲染器按 **widget 注册表**（`{ widgetType → React 渲染器 }`）路由到自定义富组件；
+  - 这是**聊天渲染基建**（不仅画布——天气卡、理解卡等任何工具可用），非画布专属；
+  - 首个 widget：`canvas-draft`（画布草稿预览，只读画布卡，三用组件之一）；
+  - 数据契约见 Server 文档 §6.2（CanvasDocument payload）。
+- **待设计**：注册表的形态与扩展方式（新增 widget 的成本）、widget 的布局 / 密度 / 与消息流其它元素的层级、加载 / 失败 / 流式状态、是否支持交互（如画布 widget 内的"应用 / 修改 / 拒绝"）。
+- **待调研**：现有聊天渲染器（agent-turn-view / AgentToolActivityView）改造点；Generative UI 模式（Vercel AI SDK genUI、Anthropic show_widget）的可借鉴形态。
+
+### U2 artifact panel 的 UX/UI 形态（C14，待调研）
 
 - **来源**：C14 成果可见性。
 - **已定约束**：只聚合本对话**已落地**的产出（approve 并保存的 understanding / 新建 context / sketch 应用后的 canvas）；pending 提案留在消息流，panel 只显示已落地；随 v1 发布。
