@@ -112,6 +112,54 @@ afterEach(() => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
+describe("DiagnosticLogger prefix logging", () => {
+  test("keeps the event/scope/attrs contract and puts prefixes in the message", async () => {
+    const appConfigRoot = tempRoot();
+    useRuntimeRoots(appConfigRoot);
+    const { appLog, getLogFilePath } = await import("./logger");
+
+    appLog.withPrefix("run-123").error("agent.run.failed", { code: "E1" });
+
+    expect(readJsonl(getLogFilePath())[0]).toMatchObject({
+      level: "error",
+      event: "agent.run.failed",
+      scope: "app",
+      message: "[run-123] agent.run.failed",
+      attrs: { code: "E1" },
+    });
+  });
+
+  test("withPrefix chains and does not mutate the original logger", async () => {
+    const appConfigRoot = tempRoot();
+    useRuntimeRoots(appConfigRoot);
+    const { appLog, getLogFilePath } = await import("./logger");
+
+    const scoped = appLog.withPrefix("module").withPrefix("instance-1");
+    scoped.info("scoped.event");
+    appLog.info("plain.event");
+
+    const events = readJsonl(getLogFilePath());
+    expect(events[0]).toMatchObject({
+      event: "scoped.event",
+      message: "[module] [instance-1] scoped.event",
+    });
+    expect(events[1]).toMatchObject({ event: "plain.event", message: "plain.event" });
+  });
+
+  test("shortens overly long prefixes", async () => {
+    const appConfigRoot = tempRoot();
+    useRuntimeRoots(appConfigRoot);
+    const { appLog, getLogFilePath } = await import("./logger");
+
+    appLog.withPrefix("x".repeat(50)).warn("long.prefix");
+
+    expect(readJsonl(getLogFilePath())[0]).toMatchObject({
+      event: "long.prefix",
+      message: "[xxxxxxxxxxxxxxxxx...] long.prefix",
+    });
+  });
+});
+
 describe("Electron logging profile", () => {
   test("uses Reflecta Dev as the dev log app name", async () => {
     const appConfigRoot = tempRoot();

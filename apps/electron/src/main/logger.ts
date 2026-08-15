@@ -156,22 +156,63 @@ function installRendererErrorLogging() {
   });
 }
 
-function createScopedLog(scope: DiagnosticScope) {
-  const write = (level: DiagnosticLevel, eventName: string, ...data: unknown[]) => {
+// Prefix logging follows the Logger wrapper pattern from Mattermost Desktop
+// (Apache-2.0, https://github.com/mattermost/desktop/blob/master/src/common/log.ts):
+// a scope logger can be narrowed with `withPrefix(...)` so every entry carries
+// module / instance context in the human-readable message while the machine
+// readable `event` name stays clean for grouping.
+const PREFIX_MAX_LENGTH = 20;
+
+export function shortenPrefix(value: string): string {
+  if (value.length < PREFIX_MAX_LENGTH) return value;
+  return `${value.slice(0, PREFIX_MAX_LENGTH - 3)}...`;
+}
+
+export class DiagnosticLogger {
+  private readonly prefixes: readonly string[];
+
+  constructor(
+    private readonly scope: DiagnosticScope,
+    ...prefixes: string[]
+  ) {
+    this.prefixes = prefixes;
+  }
+
+  withPrefix(...prefixes: string[]): DiagnosticLogger {
+    return new DiagnosticLogger(this.scope, ...this.prefixes, ...prefixes);
+  }
+
+  debug(eventName: string, ...data: unknown[]): void {
+    this.write("debug", eventName, ...data);
+  }
+
+  error(eventName: string, ...data: unknown[]): void {
+    this.write("error", eventName, ...data);
+  }
+
+  info(eventName: string, ...data: unknown[]): void {
+    this.write("info", eventName, ...data);
+  }
+
+  warn(eventName: string, ...data: unknown[]): void {
+    this.write("warn", eventName, ...data);
+  }
+
+  private write(level: DiagnosticLevel, eventName: string, ...data: unknown[]): void {
     writeDiagnosticEvent({
       level,
       event: eventName,
-      scope,
-      message: eventName,
+      scope: this.scope,
+      message: this.formatMessage(eventName),
       attrs: attrsFromData(data),
     });
-  };
-  return {
-    debug: (eventName: string, ...data: unknown[]) => write("debug", eventName, ...data),
-    error: (eventName: string, ...data: unknown[]) => write("error", eventName, ...data),
-    info: (eventName: string, ...data: unknown[]) => write("info", eventName, ...data),
-    warn: (eventName: string, ...data: unknown[]) => write("warn", eventName, ...data),
-  };
+  }
+
+  private formatMessage(eventName: string): string {
+    if (this.prefixes.length === 0) return eventName;
+    const prefixText = this.prefixes.map((prefix) => `[${shortenPrefix(prefix)}]`).join(" ");
+    return `${prefixText} ${eventName}`;
+  }
 }
 
 function createElectronDiagnosticTransport() {
@@ -226,6 +267,6 @@ export function initializeLogging() {
   });
 }
 
-export const appLog = createScopedLog("app");
-export const agentLog = createScopedLog("agent");
-export const ipcLog = createScopedLog("ipc");
+export const appLog = new DiagnosticLogger("app");
+export const agentLog = new DiagnosticLogger("agent");
+export const ipcLog = new DiagnosticLogger("ipc");
