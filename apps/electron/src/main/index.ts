@@ -7,6 +7,7 @@ import { parseMigrationVersion, compareVersions } from "@reflecta/server";
 import { registerAssetScheme, handleAssetProtocol } from "./assetProtocol";
 import { APP_NAME, appLog, initializeLogging } from "./logger";
 import { preloadScript, rendererHtml } from "./paths";
+import { forwardDiagnosticEvents } from "./remote-diagnostics";
 import { retrievalEmbeddingRunner } from "./retrievalEmbeddingRunner";
 import { retrievalIndexCoordinator } from "./retrievalIndexCoordinator";
 import { getRuntimeArg } from "./runtime-args";
@@ -20,6 +21,14 @@ if (explicitUserDataDir) {
   app.setPath("userData", explicitUserDataDir);
 }
 initializeLogging();
+
+// Telemetry seam: opt-in only, off by default. Setting this runtime arg
+// forwards warn/error diagnostic events to the endpoint (redacted at the
+// boundary). The product decision to collect telemetry stays in the future.
+const telemetryUrl = getRuntimeArg("reflecta-telemetry-url");
+if (telemetryUrl) {
+  forwardDiagnosticEvents(telemetryUrl, { level: "warn" });
+}
 
 const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?: string) => {
   // Create the browser window.

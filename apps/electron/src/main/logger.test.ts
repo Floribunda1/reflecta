@@ -9,6 +9,8 @@ const mockElectron = vi.hoisted(() => ({
   userData: "/tmp/user-data",
   on: vi.fn(),
   ipcMainOn: vi.fn(),
+  setPath: vi.fn(),
+  crashReporterStart: vi.fn(),
   version: "1.1.0",
 }));
 
@@ -58,6 +60,10 @@ vi.mock("electron", () => ({
       return mockElectron.version;
     },
     on: mockElectron.on,
+    setPath: mockElectron.setPath,
+  },
+  crashReporter: {
+    start: mockElectron.crashReporterStart,
   },
   ipcMain: {
     on: mockElectron.ipcMainOn,
@@ -261,6 +267,58 @@ describe("Electron logging profile", () => {
         filename: "app.js",
         lineno: 12,
         colno: 34,
+      },
+    });
+  });
+
+  test("aggregates repeated fallback errors into an error.aggregate event", async () => {
+    const appConfigRoot = tempRoot();
+    useRuntimeRoots(appConfigRoot);
+    const { flushErrorAggregates, getLogFilePath, initializeLogging, writeFallbackError } =
+      await import("./logger");
+
+    initializeLogging();
+    writeFallbackError("test-source", new Error("boom"));
+    writeFallbackError("test-source", new Error("boom"));
+    writeFallbackError("test-source", new Error("boom"));
+    flushErrorAggregates();
+
+    const aggregate = readJsonl(getLogFilePath()).find(
+      (event) => event.event === "error.aggregate",
+    );
+    expect(aggregate).toMatchObject({
+      level: "error",
+      event: "error.aggregate",
+      scope: "app",
+      attrs: {
+        "error.count": 3,
+        "error.event": "app.fallback.error",
+        "error.scope": "app",
+        "error.name": "Error",
+        "error.message": "boom",
+      },
+    });
+  });
+
+  test("collects native crash dumps locally when packaged", async () => {
+    const appConfigRoot = tempRoot();
+    useRuntimeRoots(appConfigRoot);
+    mockElectron.isPackaged = true;
+    const { initializeLogging } = await import("./logger");
+
+    initializeLogging();
+
+    expect(mockElectron.setPath).toHaveBeenCalledWith(
+      "crashDumps",
+      expect.stringContaining(path.join(appConfigRoot, "crash-dumps")),
+    );
+    expect(mockElectron.crashReporterStart).toHaveBeenCalledWith({
+      productName: "Reflecta",
+      uploadToServer: false,
+      compress: true,
+      extra: {
+        profile: "prod",
+        version: "1.1.0",
       },
     });
   });

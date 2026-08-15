@@ -8,13 +8,15 @@
 
 ## 总览
 
-Reflecta 的可观测性由三层组成，职责互补：
+Reflecta 的可观测性由四层组成，职责互补：
 
 1. **DiagnosticLog**：本地 JSONL 结构化日志，AI-first，按天滚动、30 天保留、密钥脱敏。
-2. **错误捕获**：main / renderer / IPC 三层兜底，任何未处理错误都有痕迹。
-3. **Telemetry 接缝**：所有事件都经过统一出口 `writeDiagnosticEvent`，将来接远端只是换/加 sink，不改调用点。
+2. **错误捕获**：main / renderer / IPC / 原生崩溃四层兜底，任何未处理错误都有痕迹。
+3. **错误聚合**：重复错误按指纹计数，输出 `error.aggregate` 汇总，日志既能看单条详情也能看频率。
+4. **Telemetry 接缝**：所有事件都经过统一出口 `writeDiagnosticEvent`，将来接远端只是换/加 sink，不改调用点。
 
-> 原则：**任何被 catch 的错误都不应被静默吞掉**——用户可见的 toast 之外，至少要有对应的 error 级日志。
+> 原则：**任何被 catch 的错误都不应被静默吞掉**——至少要有对应的 error 级日志。
+> 原则：**system crash 不进 toast**。`window.onerror` / `unhandledrejection` 只进日志（preload 上报）；toast 只用于业务操作失败（如「导出失败」），由业务代码主动弹出。
 
 ## 1. 日志写入
 
@@ -61,27 +63,37 @@ log.error("pi.run.failed", { ... }); // message: "[run_abc] pi.run.failed"
 
 ## 3. 错误捕获路径
 
-| 路径            | 事件                 | 说明                                                                                                      |
-| --------------- | -------------------- | --------------------------------------------------------------------------------------------------------- |
-| main 未捕获     | `app.fallback.error` | `uncaughtExceptionMonitor` / `unhandledRejection`                                                         |
-| 进程崩溃        | `app.fallback.error` | `render-process-gone` / `child-process-gone`（含 reason/exitCode）                                        |
-| renderer 未捕获 | `renderer.error`     | preload 的 `window.error` / `unhandledrejection`，经 `diagnostic:renderer-error` IPC 上报                 |
-| React 渲染错误  | `renderer.error`     | `RendererErrorBoundary`，带 componentStack                                                                |
-| IPC 调用失败    | `ipc.request.failed` | `ipcMain.handle` 统一包装，带 requestId + durationMs + error attrs；成功为 `ipc.request.completed`(debug) |
+| 路径            | 事件                 | 说明                                                                                                         |
+| --------------- | -------------------- | ------------------------------------------------------------------------------------------------------------ |
+| main 未捕获     | `app.fallback.error` | `uncaughtExceptionMonitor` / `unhandledRejection`                                                            |
+| 进程崩溃        | `app.fallback.error` | `render-process-gone` / `child-process-gone`（含 reason/exitCode）                                           |
+| 原生崩溃        | minidump             | `crashReporter`（Crashpad），打包构建启用，`uploadToServer: false` 只本地收集到 `<appConfigDir>/crash-dumps` |
+| renderer 未捕获 | `renderer.error`     | preload 的 `window.error` / `unhandledrejection`，经 `diagnostic:renderer-error` IPC 上报                    |
+| React 渲染错误  | `renderer.error`     | `RendererErrorBoundary`，带 componentStack                                                                   |
+| IPC 调用失败    | `ipc.request.failed` | `ipcMain.handle` 统一包装，带 requestId + durationMs + error attrs；成功为 `ipc.request.completed`(debug)    |
 
 约定：业务代码 `catch` 到错误后，**至少写一条 error 级日志**再决定是否给用户 toast；不要把错误对象丢弃。
 
-## 4. Telemetry 接缝（预留）
+## 4. 错误聚合
 
-- 统一出口是 `writeDiagnosticEvent(event: DiagnosticEventInput)`（`apps/electron/src/main/diagnostic-log.ts` 定义契约）。
-- 当前 sink 是本地 JSONL；将来接远端（如 electron-log remote transport 或 Sentry）只是**增加一个 transport**，调用点零改动。
+重复错误由 `ErrorAggregator`（`apps/electron/src/main/error-aggregator.ts`）计数：
+
+- **指纹**：`scope|event|ipc.channel|source|error.name|error.message`，栈帧故意排除（跨构建稳定）。
+- **触发**：同一指纹当天累计 ≥ 3 次后，输出 `error.aggregate`（error 级，scope=app），带 `error.count` / `error.firstSeen` / `error.lastSeen` / `error.fingerprint` 与首次样本 attrs。
+- **周期**：60s 定时 flush + 退出前 flush；跨天自动切分（昨天的桶写完最终 count 后清理）。
+- **不抑制**：每条原始错误照常记录，聚合只是附加的计数汇总——日志始终如实。
+
+## 5. Telemetry 接缝（预留）
+
+- 统一出口是 `writeDiagnosticEvent(event: DiagnosticEventInput)`（`apps/electron/src/main/diagnostic-log.ts` 定义契约），`onDiagnosticEvent(listener)` 订阅出口。
+- 当前 sink 是本地 JSONL；`remote-diagnostics.ts` 提供 `forwardDiagnosticEvents(url, opts)`（JSON POST，出口处脱敏），由 `--reflecta-telemetry-url` 运行时参数显式开启，**默认关闭**。
 - 隐私边界：远端上报必须是 opt-in 的产品决策；脱敏（redact）留在出口边界，保证任何 sink 都不携带用户内容。
 
-## 5. 参考来源
+## 6. 参考来源
 
 本模块的 Logger 封装参考 Mattermost Desktop（Apache-2.0）的
 [`src/common/log.ts`](https://github.com/mattermost/desktop/blob/master/src/common/log.ts)；
 main/renderer 分离结构参考 GitHub Desktop（MIT）的
 [`app/src/lib/logging/`](https://github.com/desktop/desktop/tree/development/app/src/lib/logging)；
-聚合去重模式（buffer + callstack 指纹 + count + flush）参考 VS Code（MIT）的
-[`BaseErrorTelemetry`](https://github.com/microsoft/vscode/blob/e8db8ed8/src/vs/platform/telemetry/common/errorTelemetry.ts)（尚未落地，见迭代计划）。
+聚合去重模式（buffer + 指纹 + count + flush）参考 VS Code（MIT）的
+[`BaseErrorTelemetry`](https://github.com/microsoft/vscode/blob/e8db8ed8/src/vs/platform/telemetry/common/errorTelemetry.ts)。

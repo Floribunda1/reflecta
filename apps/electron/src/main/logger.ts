@@ -1,7 +1,9 @@
+import path from "node:path";
 import log from "electron-log/main";
-import { app, ipcMain } from "electron";
+import { app, crashReporter, ipcMain } from "electron";
 import type { DiagnosticLevel, DiagnosticScope, DiagnosticEventInput } from "./diagnostic-log";
 import { DiagnosticLog, diagnosticErrorAttrs } from "./diagnostic-log";
+import { ErrorAggregator } from "./error-aggregator";
 import { getAppConfigDir, getReflectaProfile } from "./config";
 
 export const APP_NAME = "Reflecta";
@@ -83,6 +85,25 @@ export function writeDiagnosticEvent(event: DiagnosticEventInput): void {
   } catch {
     // Logging must never become the crash path.
   }
+  for (const listener of diagnosticEventListeners) {
+    try {
+      listener(event);
+    } catch {
+      // Observers must never break logging.
+    }
+  }
+}
+
+const diagnosticEventListeners = new Set<(event: DiagnosticEventInput) => void>();
+
+/**
+ * Subscribe to every event flowing through the diagnostic outlet. This is the
+ * telemetry seam: aggregation, remote forwarding and future sinks attach here
+ * without touching any call site. Returns an unsubscribe function.
+ */
+export function onDiagnosticEvent(listener: (event: DiagnosticEventInput) => void): () => void {
+  diagnosticEventListeners.add(listener);
+  return () => diagnosticEventListeners.delete(listener);
 }
 
 export function writeFallbackError(
@@ -126,6 +147,26 @@ function installFallbackErrorLogging() {
       name: details.name,
     });
   });
+}
+
+// Collect native crashes (Crashpad minidumps) locally. No upload happens until
+// a telemetry decision is made; `uploadToServer: false` keeps reports on disk
+// under the app config dir.
+function installNativeCrashCollection(): void {
+  try {
+    app.setPath("crashDumps", path.join(getAppConfigDir(), "crash-dumps"));
+    crashReporter.start({
+      productName: APP_NAME,
+      uploadToServer: false,
+      compress: true,
+      extra: {
+        profile: getReflectaProfile(),
+        version: app.getVersion(),
+      },
+    });
+  } catch {
+    // Crash reporting must never block startup.
+  }
 }
 
 function rendererErrorAttrs(payload: unknown): Record<string, unknown> {
@@ -235,6 +276,13 @@ function createElectronDiagnosticTransport() {
   return transport;
 }
 
+let errorAggregator: ErrorAggregator | undefined;
+
+/** Flush aggregated error counts to the diagnostic log (also called on quit). */
+export function flushErrorAggregates(): void {
+  errorAggregator?.flush();
+}
+
 export function initializeLogging() {
   if (initialized) return;
   initialized = true;
@@ -250,6 +298,14 @@ export function initializeLogging() {
   log.eventLogger.startLogging({ level: "warn", scope: "electron" });
   installFallbackErrorLogging();
   installRendererErrorLogging();
+  if (app.isPackaged) {
+    installNativeCrashCollection();
+  }
+
+  errorAggregator = new ErrorAggregator({ write: writeDiagnosticEvent });
+  errorAggregator.start();
+  onDiagnosticEvent((event) => errorAggregator?.observe(event));
+  app.on("before-quit", () => errorAggregator?.flush());
 
   writeDiagnosticEvent({
     level: "info",
