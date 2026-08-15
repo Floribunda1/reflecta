@@ -319,13 +319,15 @@ Agent 对理解画布：**读 + 写（内容级、审批制）+ 展示**：
 
 | Tool             | 参数                                                                         | 返回                                                                             | 用途                                                          |
 | ---------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| `read_canvas`    | `{ canvasId, includeBodies? }`                                               | `CanvasDetailDTO`（结构骨架：元素 / 连线 / 分组 / 引用理解标题；正文默认不返回） | 读一张画布结构（讨论 / 审视 / 修改的输入）                    |
-| `list_canvas`    | `{ titleSearchKeyword?, limit? }`                                            | `CanvasDTO[]`                                                                    | 简单枚举（review all 场景 = list + 逐个 read）                |
-| `search`         | `{ query?, understandingId?, limit? }`                                       | `CanvasHit[]`（画布 + 命中片段 snippet + reason）                                | 发现定位；query 语义见下                                      |
-| `create_canvas`  | `{ title, initial? }`                                                        | `CanvasDTO`                                                                      | 新建画布（审批制）                                            |
-| `update_canvas`  | `{ canvasId, document: CanvasDocument }`（**目标文档，与 saveCanvas 同构**） | 变更提案（C15 展示）                                                             | 内容级写：增元素 / 连线 / 分组 / 改内容（审批制）             |
-| `delete_canvas`  | `{ canvasId }`                                                               | `void`                                                                           | 删除画布（审批制）                                            |
+| `canvas_read`    | `{ canvasId, includeBodies? }`                                               | `CanvasDetailDTO`（结构骨架：元素 / 连线 / 分组 / 引用理解标题；正文默认不返回） | 读一张画布结构（讨论 / 审视 / 修改的输入）                    |
+| `canvas_list`    | `{ titleSearchKeyword?, limit? }`                                            | `CanvasDTO[]`                                                                    | 简单枚举（review all 场景 = list + 逐个 read）                |
+| `canvas_search`  | `{ query?, understandingId?, limit? }`                                       | `CanvasHit[]`（画布 + 命中片段 snippet + reason）                                | 发现定位；query 语义见下                                      |
+| `canvas_create`  | `{ title, initial? }`                                                        | `CanvasDTO`                                                                      | 新建画布（审批制）                                            |
+| `canvas_update`  | `{ canvasId, document: CanvasDocument }`（**目标文档，与 saveCanvas 同构**） | 变更提案（C15 展示）                                                             | 内容级写：增元素 / 连线 / 分组 / 改内容（审批制）             |
+| `canvas_delete`  | `{ canvasId }`                                                               | `void`                                                                           | 删除画布（审批制）                                            |
 | 展示 tool（C15） | 结构化画布数据（CanvasDocument 形状）                                        | 只读渲染预览（**数据契约待定，§6.2**）                                           | draft-preview：消息内联渲染，用户诊断后「应用 / 修改 / 拒绝」 |
+
+> 命名遵循工具家族惯例 `entity_verb`（domain_list / understanding_get / context_create…），统一为 `canvas_*`；此前草案的 verb_entity（read_canvas 等）已弃用。
 
 **search 的 query 语义（已定稿）**：
 
@@ -346,6 +348,39 @@ Agent 对理解画布：**读 + 写（内容级、审批制）+ 展示**：
 ### 3.5 成果可见性（C14，归口说明）
 
 - artifact panel 聚合"本对话已落地的产出"（approve 并保存的 understanding / 新建 context / 应用后的 canvas）——**属于 Agent / 会话层（审批结果 + 实体目录），不是 canvas domain 的新 API**；canvas domain 无需为此新增接口，前端从会话审批结果聚合即可。UX/UI 归口 UI/UX 文档。
+
+### 3.6 prompt 设计（careful design，逐节）
+
+> 原则（用户定）：system-prompt 尽量简洁、precisely-structured，不塞无关或抒情逻辑；工具 description 重新设计；本节逐节定稿，不一句话带过。
+
+#### 3.6.1 知识模型（已定稿）
+
+在现有 `## 知识模型` 节新增两条（保持既有条目风格，不展开哲学）：
+
+```markdown
+- Canvas：用户显式搭建的心智结构。卡片引用 Understanding 或承载文本 / 图形 / 组；连线为有向、带标签的结构关系。
+- Understanding 正文中的 `[[u:]]` 是弱引用（提到过），不是结构关系；心智结构以 Canvas 连线为准。
+```
+
+- 第一条：Canvas 是什么（一句，结构化定义）。
+- 第二条：引用 vs 结构的精确区分（C16 落地）——正向行为指导收在"以 Canvas 连线为准"。
+- 设计过程：早期草案含"信念层 / 事实层"等哲学表达，被否（抒情、不精确）；收敛为两条条目。
+
+#### 3.6.2 实体引用（待设计）
+
+- 现状：`[[u:<id>]]` / `[[c:<id>]]` / `[[d:<id>]]`。
+- 待定：加 `[[cv:<id>]]`（Canvas）——措辞与位置（与既有引用类型同句并列）。
+
+#### 3.6.3 写入边界（待设计）
+
+- 现状：已有"不要替你自动构建关系网""只提交候选项，等确认"（底子对）。
+- 待定：画布写操作的扩展——结构提案走 C15 展示 tool（消息内联 draft 预览）→ 用户「应用 / 修改 / 拒绝」；Agent 不直接调写接口落库；Agent 不做布局（不写坐标）。
+
+#### 3.6.4 工具 description（待设计）
+
+- 画布工具 + 现有 understanding/domain 工具里关系相关描述重写（"wiki-link relations" → 弱引用语义）。
+
+---
 
 ## 4. CLI 接口
 
