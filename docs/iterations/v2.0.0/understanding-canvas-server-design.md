@@ -402,7 +402,7 @@ Agent 对理解画布：**读 + 写（内容级、审批制）+ 展示**：
 ```
 
 - "wiki-link relations" → "wiki-link mentions"（弱引用语义）；括注 "weak citations, not structural relations" 是**工具级必要提示**——工具返回的数据语义，Agent 必须知道这不是结构关系。
-- **参数名 `includeRelations` 暂不改**：description 是 LLM 现在就读的语义层，必须立刻修正；参数改名是 breaking change、牵动理解域（bff/CLI/前端），应随 TBD-3 实施（表名迁移 + 类型改名）整体重构时一并改，避免中间态。
+- **参数名 `includeRelations` 不在已达成共识内**（TBD-3 修正清单只涉及描述措辞，未约定参数改名）；本文不预判其改名，实施时如需要单独决策。
 
 ---
 
