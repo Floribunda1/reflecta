@@ -1,4 +1,4 @@
-# v1.5.0 理解画布服务端实现设计
+# v2.0.0 理解画布服务端实现设计
 
 > 日期：2026-08-11
 >
@@ -85,11 +85,11 @@ EdgeStyle = {
 | **`locked` 独立列而非 X6 attrs 内嵌**            | 锁定是业务状态，可查询、可被 Agent / CLI 感知                                                                                                    |
 | **元素 id == X6 cell id**                        | 事件回写零映射成本                                                                                                                               |
 
-### 1.3 迁移逻辑（v1.5.0）
+### 1.3 迁移逻辑（v2.0.0）
 
 采用项目既有**版本化代码迁移**机制（`packages/server/src/db/migration/code/`）：
 
-- 新增 `v1.5.0.ts`：`CodeMigration { name: "v1.5.0.sql", version: [1,5,0], up(ctx) }`，通过 `ctx.sql` 执行三张表的 `CREATE TABLE IF NOT EXISTS` 与 `CREATE INDEX IF NOT EXISTS`（SQL 列名用 snake_case，与 drizzle schema 列定义一致）。
+- 新增 `v2.0.0.ts`：`CodeMigration { name: "v2.0.0.sql", version: [2,0,0], up(ctx) }`，通过 `ctx.sql` 执行三张表的 `CREATE TABLE IF NOT EXISTS` 与 `CREATE INDEX IF NOT EXISTS`（SQL 列名用 snake_case，与 drizzle schema 列定义一致）。
 - **幂等**：全部 `IF NOT EXISTS`；重复执行安全（与 v1.0.0 建表风格一致）。
 - **注册**：`migration.ts` 的 `codeMigrations` 数组追加 `v150`（版本排序自动处理，大于 v1.3.5 即生效）。
 - **无检索索引影响**：本模块内容不进全文检索（不调用 `requestRetrievalIndexRebuild`）。
@@ -230,5 +230,5 @@ apps/cli/src/cli.ts                         # registerXxxAction 注册；getActi
 | ---------------- | ---------------------------------------------------------------------------------- |
 | domain core 单测 | CRUD 校验：kind 不变量、连线同画布 / 禁自环、入组防环、级联删除、被删理解 ref 标记 |
 | domain bff 单测  | getCanvas 装配（元素 + 连线 + understandingRefs + referencedCanvases）、列表计数   |
-| 迁移单测         | v1.5.0 在空库 / 已有数据上执行幂等，schema 与 SQL 一致                             |
+| 迁移单测         | v2.0.0 在空库 / 已有数据上执行幂等，schema 与 SQL 一致                             |
 | CLI              | `canvas list/get/create/update/delete` 注册与帮助输出（对齐 global.test.ts 模式）  |
