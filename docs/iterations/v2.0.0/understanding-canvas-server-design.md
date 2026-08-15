@@ -462,4 +462,9 @@ apps/cli/src/cli.ts                         # registerXxxAction 注册；getActi
 - **search 后置项**：
   - `query` 是否匹配引用理解正文（先只匹配标题，正文命中为增强，需评估 join 成本）；
   - 多词 AND 模式（`understandingIds[] + match: "all" | "any"` 升级路径，先单 id）。
-- **preview tool 数据契约**（C15）：Agent 输出结构化画布数据（CanvasDocument 形状：元素/连线/分组）→ 前端只读渲染；契约与序列化格式需在此定义（参考 mermaid "文本块 → 渲染"模式；代码库无先例，需调研）。
+- **preview tool 数据契约（C15，已定稿）**：
+  - **嵌入方式（mermaid 式，已调研）**：Agent 消息中的 fenced code block，语言标记 `canvas-draft`，内容为 CanvasDocument 的 JSON 序列化；renderer 检测该语言 → 路由到只读 canvas 组件（三用组件之一），而非普通代码块。
+  - **数据格式**：CanvasDocument（elements 判别联合 + edges）——与 `saveCanvas` 载荷同一形状（提案 = 展示 = 应用同构，零转换）。
+  - **流式兼容**：聊天渲染器需 streaming-aware（半流式 JSON 容错；块未闭合时显示加载占位，闭合后渲染）。
+  - **校验失败降级**：JSON 解析 / 校验失败 → 回退为普通代码块展示，不阻塞消息。
+  - **归口**：数据契约在此定义（Server）；渲染管线归口 Frontend 文档（F1）。
