@@ -33,7 +33,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-test("appends a live clock while the activity group is running", () => {
+test("shows status with ellipsis and a live elapsed timer while running", () => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-06-23T00:00:03.200Z"));
   act(() => {
@@ -58,21 +58,18 @@ test("appends a live clock while the activity group is running", () => {
   });
 
   const trigger = container?.querySelector('[data-testid="agent-activity-group-trigger"]');
-  expect(trigger?.textContent).toContain("思考中");
-  expect(trigger?.textContent).toContain("共 1 步");
+  // 简式概览 = 「思考中...」+ 耗时，不再显示「共 N 步」/ 分隔点 / 图标
+  expect(trigger?.textContent).toContain("思考中...");
   expect(trigger?.textContent).toMatch(/\d+(\.\d+)?s/);
+  expect(trigger?.textContent).not.toContain("步");
   expect(trigger?.querySelector(".font-mono")).not.toBeNull();
+  expect(trigger?.querySelector(".lucide-clock")).toBeNull();
 
-  // 整行 shimmer：状态、分隔点、步数、耗时四段都带 shimmer-text，而非只有「思考中」
+  // 整行 shimmer：状态 + 耗时都带 shimmer-text
   const shimmer = Array.from(trigger?.querySelectorAll(".shimmer-text") ?? []);
-  expect(shimmer).toHaveLength(4);
+  expect(shimmer).toHaveLength(2);
   expect(shimmer.every((node) => (node.textContent ?? "").length > 0)).toBe(true);
 
-  // 耗时前有时钟图标做视觉区分；图标不能进 shimmer span（color: transparent 会隐形）
-  const clock = trigger?.querySelector(".lucide-clock");
-  expect(clock).not.toBeNull();
-  expect(clock?.getAttribute("aria-hidden")).toBe("true");
-  expect(clock?.closest(".shimmer-text")).toBeNull();
   const timer = trigger?.querySelector('[role="timer"]');
   expect(timer).not.toBeNull();
   expect(timer?.closest(".shimmer-text")).not.toBeNull();
