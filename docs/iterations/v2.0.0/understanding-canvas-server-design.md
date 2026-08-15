@@ -248,32 +248,50 @@ type UpdateCanvasEdgeInput = {
 
 ## 3. 给 Agent 开放的能力与 tool 设计
 
-> ⚠️ **本节为未确认提案**：tool 清单未经用户拍板（见共识记录 C9），仅作讨论材料；协作形态已确认（AI 提案者 / 用户裁判者，见 PRD §1.4）。
+> 工具集已定（见共识 C9/TBD-1 与 PRD 模块八）；`update_canvas` 参数与 preview tool 数据契约待定（§6.2）。
 
 ### 3.1 能力定位
 
-Agent（AI 对话）对理解画布**只读**：
+Agent 对理解画布：**读 + 写（内容级、审批制）+ 展示**：
 
-- **用户是大脑**：画布的结构、连线、分组必须由用户亲手标记；Agent 不创建 / 不修改画布内容。
-- Agent 的价值是**读懂用户的心智结构**：在对话中引用某张画布的结构、指出孤岛、结合理解库讨论。
+- **用户是大脑**：画布的结构、连线、分组由用户认可后落地——**写操作全部经用户审批**（Agent 画，用户验收；验收界面 = C15 展示 tool）。
+- **Agent 不做布局**：写操作不携带坐标，位置由前端自动排开。
+- Agent 的价值：读懂用户的心智结构（读），结合线头提出结构提案（写，审批制），在对话中引用画布（`[[cv:]]`）。
+- **引用**（C8）：Agent 回答可引用画布 `[[cv:<id>]]`（与其他实体同一引用体系）；点击不跳路由，打开只读 Modal 展示画布元素。
 
-与现有只读工具集（`pi-readonly-tools.ts` 的 `domain_list` / `understanding_get` 等）一致，本版只加读取工具；修改类（如"帮我把这张卡连到那张"）作为提案制后续版本，需配合用户审批流程。
+### 3.2 Tool 设计（已定工具集）
 
-### 3.2 Tool 设计（2 个）
+读工具挂载于 `pi-readonly-tools.ts`；写工具走现有审批机制（requireApproval，Agent 提案 → 用户审批 → 应用）。语言风格沿用现有工具（英文 description + 中文 label）；输出经既有 `createToolResult` 包装（诊断日志 / 实体目录统一处理）。
 
-挂载于 `pi-readonly-tools.ts`，由 `canvasCliService`（CliBff）支撑，纳入 `PI_READ_ONLY_TOOL_NAMES`：
+| Tool             | 参数                                           | 返回                                                                             | 用途                                                          |
+| ---------------- | ---------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `read_canvas`    | `{ canvasId, includeBodies? }`                 | `CanvasDetailDTO`（结构骨架：元素 / 连线 / 分组 / 引用理解标题；正文默认不返回） | 读一张画布结构（讨论 / 审视 / 修改的输入）                    |
+| `list_canvas`    | `{ titleSearchKeyword?, limit? }`              | `CanvasSummaryDTO[]`                                                             | 简单枚举（review all 场景 = list + 逐个 read）                |
+| `search`         | `{ query?, understandingId?, limit? }`         | `CanvasHit[]`（画布 + 命中片段 snippet + reason）                                | 发现定位；query 语义见下                                      |
+| `create_canvas`  | `{ title, initial? }`                          | `CanvasDTO`                                                                      | 新建画布（审批制）                                            |
+| `update_canvas`  | `{ canvasId, changes? }`（**参数待定，§6.2**） | 变更提案（C15 展示）                                                             | 内容级写：增元素 / 连线 / 分组 / 改内容（审批制）             |
+| `delete_canvas`  | `{ canvasId }`                                 | `void`                                                                           | 删除画布（审批制）                                            |
+| 展示 tool（C15） | 结构化画布数据（CanvasDocument 形状）          | 只读渲染预览（**数据契约待定，§6.2**）                                           | draft-preview：消息内联渲染，用户诊断后「应用 / 修改 / 拒绝」 |
 
-| Tool          | 参数                   | 返回                                                                | 用途                                     |
-| ------------- | ---------------------- | ------------------------------------------------------------------- | ---------------------------------------- |
-| `canvas_list` | `{}`                   | `CanvasSummaryDTO[]`（标题 + 元素/连线计数 + 更新时间）             | Agent 知道用户有哪些心智结构、哪些活跃   |
-| `canvas_get`  | `{ canvasId: string }` | `CanvasDetailDTO`（元素 + 连线标签 + 引用理解标题/正文 + 被删占位） | Agent 读取一张画布的结构，识别孤岛与关系 |
+**search 的 query 语义（已定稿）**：
 
-- 语言风格沿用现有工具（英文 description + 中文 label）。
-- 输出经既有 `createToolResult` 包装（诊断日志 / 实体目录统一处理）。
+- `query`：自由文本 1-5 词；匹配范围 = 画布标题 + 元素标题 + 文本卡内容 + 连线标签 + 组名 + 引用理解标题（引用理解正文后置）；大小写不敏感、空白拆词、任一命中即命中（OR，发现导向）。
+- `understandingId`：单个 string（反向查询：哪些画布引用了该理解）；多理解 AND/OR 后置（升级路径 `understandingIds[] + match`）。
+- 返回 `CanvasHit[]`：画布 + 命中片段（snippet + reason），便于 Agent 判断相关性。
 
-### 3.3 后续（不在本版）
+### 3.3 展示与引用（C15 / C8）
 
-- `canvas_suggest_edit`：提案式修改（入组 / 连线 / 加文本卡），走现有 proposal + 审批链路——需要前端提案渲染支持，独立排期。
+- **展示 tool（C15）**：Agent 输出结构化画布数据 → 前端只读渲染（mermaid 式"输出即渲染、纯展示、不写入"）；一个渲染组件三用：`[[cv:]]` 引用 Modal / sketch 提案预览 / 对话内 draft 预览。
+- **引用（C8）**：`AgentContextRef` 增加 `canvas` 态；`[[cv:<id>]]` 进 citations / entity catalog；点击 → 只读 Modal（不跳路由）。
+
+### 3.4 审批机制
+
+- 写工具（create / update / delete_canvas）走现有审批链路（与 `pi-write-tools.ts` 的 understanding/context/domain 写工具同构）：Agent 产出候选变更（含 C15 预览数据）→ 用户审批 → 应用。
+- 审批通过后的应用接口与 draft 是否持久化：**待定（§6.2）**。
+
+### 3.5 成果可见性（C14，归口说明）
+
+- artifact panel 聚合"本对话已落地的产出"（approve 并保存的 understanding / 新建 context / 应用后的 canvas）——**属于 Agent / 会话层（审批结果 + 实体目录），不是 canvas domain 的新 API**；canvas domain 无需为此新增接口，前端从会话审批结果聚合即可。UX/UI 归口 UI/UX 文档。
 
 ## 4. CLI 接口
 
