@@ -44,21 +44,45 @@
 
 索引：`canvas_id`、`understanding_id`、`parent_id`。
 
-**ElementProps（props JSON，kind 专属载荷——共享列之外的一切）**：
+**ElementProps（props JSON，kind 专属载荷——判别联合，kind 为判别字段）**：
 
 ```ts
-ElementProps = {
-  // kind = "text"：文本卡内容（Markdown）
-  text?:      string;
-  // kind = "shape"：图形类型
-  shapeType?: "rect" | "circle";
-  // kind = "group"：组名
-  label?:     string;
-  // kind = "understanding" / "canvas_ref"：无载荷（引用在 FK 列）
-}
+// 1. kind → 专属载荷映射（lookup）：每个 kind 只有自己的合法载荷，无意义组合在类型层面不可能
+type ElementPropsMap = {
+  understanding: Record<string, never>; // 引用在 FK 列，无载荷（DB 存 {}）
+  text: { text: string }; // 文本卡内容（Markdown）
+  shape: { shapeType: "rect" | "circle" }; // 图形
+  group: { label: string }; // 组名
+  canvas_ref: Record<string, never>; // 引用在 FK 列，无载荷（DB 存 {}）
+};
+
+// 2. 元素共享字段（列）
+type CanvasElementBase = {
+  id: string;
+  canvasId: string;
+  parentId: string | null;
+  locked: boolean;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  zIndex: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+// 3. DTO 判别联合（映射类型自动生成：kind 收窄 props 与引用字段）
+type CanvasElementDTO = {
+  [K in CanvasElementKind]: CanvasElementBase & {
+    kind: K;
+    understandingId: K extends "understanding" ? string | null : null;
+    canvasRefId: K extends "canvas_ref" ? string | null : null;
+    props: ElementPropsMap[K];
+  };
+}[CanvasElementKind];
 ```
 
-**划分逻辑（C5）**：共同字段（位置/尺寸/z/锁定/父级/时间戳）→ 列（需排序 / 索引 / 约束）；跨实体引用（`understanding_id` / `canvas_ref_id`）→ 引用 FK 列（FK 完整性 + 可查询）；kind 专属载荷 → `props` JSON（不被 SQL 查询，新增 kind / 字段无需迁移）。
+**划分逻辑（C5）**：共同字段（位置/尺寸/z/锁定/父级/时间戳）→ 列（需排序 / 索引 / 约束）；跨实体引用（`understanding_id` / `canvas_ref_id`）→ 引用 FK 列（FK 完整性 + 可查询）；kind 专属载荷 → `props` JSON（不被 SQL 查询，新增 kind / 字段无需迁移）。**props 内不重复 kind**——判别字段在 DTO 层（DB 的 kind 列即判别）。
 
 #### `understanding_canvas_edges`（连线，画布局部）
 
@@ -161,10 +185,7 @@ renderer: ipcClient.understandingCanvas.*        # MergeIpcService 自动派生�
 ```ts
 CanvasDTO            { id, title, description, viewport, createdAt, updatedAt }
 CanvasSummaryDTO     CanvasDTO & { elementCount, edgeCount }
-CanvasElementDTO     { id, canvasId, kind, understandingId, canvasRefId,
-                       props: ElementProps, parentId, locked, x, y, width, height, zIndex,
-                       createdAt, updatedAt }
-// 注意：shapeType / text / label 不再是 DTO 顶层字段，统一在 props 内（与 DB 存储一致）
+CanvasElementDTO     // 判别联合（见 §1.1 ElementProps）：kind 收窄 props / understandingId / canvasRefId
 CanvasEdgeDTO        { id, canvasId, sourceElementId, targetElementId, label, style: EdgeStyle | null, createdAt }
 EdgeStyle           { routing?, lineStyle?, color?, width?, arrowhead? }
 CanvasUnderstandingRef  { id, title, body, deleted }
@@ -174,36 +195,44 @@ CanvasDetailDTO      { canvas: CanvasDTO, elements: CanvasElementDTO[],
                        referencedCanvases: CanvasReferencedCanvas[] }
 ```
 
-**输入类型（与 props JSON 一致）**：
+**输入类型（与判别联合一致，kind 收窄）**：
 
 ```ts
-CreateCanvasElementInput = {
-  kind: "understanding" | "text" | "shape" | "group" | "canvas_ref",
-  understandingId?: string,   // kind=understanding 必填
-  canvasRefId?: string,       // kind=canvas_ref 必填
-  props?: ElementProps,       // kind 专属载荷（text / shapeType / label）
-  parentId?: string | null,   // 入组
-  x: number; y: number; width: number; height: number,  // 前端创建带坐标（agent 创建无坐标，见 §6.2）
-}
+type CreateCanvasElementInput = {
+  [K in CanvasElementKind]: {
+    kind: K;
+    understandingId?: K extends "understanding" ? string : never; // kind=understanding 必填
+    canvasRefId?: K extends "canvas_ref" ? string : never; // kind=canvas_ref 必填
+    props?: ElementPropsMap[K]; // kind 专属载荷
+    parentId?: string | null; // 入组
+    x: number;
+    y: number;
+    width: number;
+    height: number; // 前端创建带坐标（agent 创建无坐标，见 §6.2）
+  };
+}[CanvasElementKind];
 
-UpdateCanvasElementInput = {
-  x?: number; y?: number; width?: number; height?: number,
-  props?: Partial<ElementProps>,  // 文本 / 图形类型 / 组名更新
-  parentId?: string | null,        // 入组 / 出组
-  locked?: boolean,
-}
+type UpdateCanvasElementInput = {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  props?: Partial<ElementPropsMap[CanvasElementKind]>; // 文本 / 图形类型 / 组名更新
+  parentId?: string | null; // 入组 / 出组
+  locked?: boolean;
+};
 
-CreateCanvasEdgeInput = {
-  sourceElementId: string,
-  targetElementId: string,
-  label?: string | null,
-  style?: EdgeStyle | null,
-}
+type CreateCanvasEdgeInput = {
+  sourceElementId: string;
+  targetElementId: string;
+  label?: string | null;
+  style?: EdgeStyle | null;
+};
 
-UpdateCanvasEdgeInput = {
-  label?: string | null,
-  style?: EdgeStyle | null,
-}
+type UpdateCanvasEdgeInput = {
+  label?: string | null;
+  style?: EdgeStyle | null;
+};
 ```
 
 ### 2.4 校验与错误边界（domain core 层）
