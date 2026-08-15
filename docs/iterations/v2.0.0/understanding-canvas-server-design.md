@@ -122,6 +122,12 @@ EdgeStyle = {
 | **组内子元素为相对坐标**                         | 对齐 X6 embedding 语义（子坐标相对父，随父移动），避免每次移动重算绝对坐标                                                                                                                               |
 | **元素 id == X6 cell id**                        | 事件回写零映射成本                                                                                                                                                                                       |
 
+**决策记录：`locked` 为何移入 props（不是业务状态）**
+
+- **触发**：初版把 `locked` 设计为独立列（理由是「可查询、可被 Agent / CLI 感知」），用户质疑「locked 作为业务状态无意义」。
+- **推理**：防误拖锁定是**编辑 / 呈现状态**，不是语义内容——Agent 不感知（Agent 不做布局）、CLI 不需要、不被任何 SQL 查询；把它做成列 + DTO 字段 + 校验项，是「把呈现状态建模成业务状态」的过度建模。
+- **结论**：`locked` 随 `props` 走（`WithLocked<T>` 包装，各 kind 载荷可带 `locked?: boolean`），从共享列 / DTO 顶层字段 / UpdateCanvasElementInput 移除。
+
 ### 1.3 迁移逻辑（v2.0.0）
 
 #### 迁移前的 wiki-link 语义（现状基线）
@@ -210,6 +216,12 @@ CanvasDetailDTO      { canvas: CanvasDTO, elements: CanvasElementDTO[],
                        edges: CanvasEdgeDTO[], understandingRefs: CanvasUnderstandingRef[],
                        referencedCanvases: CanvasReferencedCanvas[] }
 ```
+
+**决策记录：不设 `CanvasSummaryDTO`（无 elementCount / edgeCount）**
+
+- **触发**：初版设计了 `CanvasSummaryDTO = CanvasDTO & { elementCount, edgeCount }`，用户质疑「我要 node 和 edge count 有啥用」。
+- **推理**：① PRD 画布列表（M1）只要求标题 + 更新时间排序，无计数展示；② 计数是「数量」——value-proposition 明确 Never「用输入量/打卡/收藏量作为核心激励」「把知识边界做成抽象分数或仪表盘」，展示计数是把价值导向数量统计，画布的价值在结构（为什么/怎么连）不在数字；③ 计数可推导（Agent 需要时 read_canvas 即得）。
+- **结论**：砍掉计数后 `CanvasSummaryDTO` 与 `CanvasDTO` 完全同构，**合并为 `CanvasDTO` 一个类型**；`listCanvases()` / `listCanvasesByUnderstanding` / `list_canvas` 均返回 `CanvasDTO[]`，CLI 列表输出去计数。
 
 **写接口载荷（CanvasDocument——`saveCanvas` 的唯一参数，与读出的 `CanvasDetailDTO` 内容同构）**：
 
