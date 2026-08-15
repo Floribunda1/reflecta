@@ -415,8 +415,9 @@
 
 ### TBD-2 understanding DTO 是否加 `referencedByCanvases: string[]`
 
-- 问题：understanding 相关 tool 返回的数据结构，是否需要加上"引用它的画布"列表。
-- 待讨论：必要性 / 成本（每次读理解 join 画布）/ 与画布侧工具的职责分工。
+- **已解决（2026-08-15）**：加。形态为 `referencedByCanvases: Array<{ id, title }>`（id + 标题，便于 Agent 直接 `[[cv:]]` 引用）。
+- **理由**：结构位置是理解的一部分（C16 推论 1）——Agent 读一条理解时立即知道它出现在哪些心智结构，上下文理解更准确；成本低（标题短、`canvas_elements.understanding_id` 索引查询）；`understanding_get` 是最常用 tool 之一，最常见的读路径免费获得结构上下文。
+- **落点**：`understanding_get`（agent tool）返回该字段；understanding detail DTO 同一字段，C13（UI 理解详情显示画布）复用同一数据，不单独建端点。
 
 ### TBD-3 双链（understanding_connections）权重是否会让 Agent 误解
 
