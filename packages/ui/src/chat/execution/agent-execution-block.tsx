@@ -1,7 +1,6 @@
 import {
   ChevronDown,
   ChevronRight,
-  CheckCircle2,
   CircleAlert,
   FilePenLine,
   FileText,
@@ -10,6 +9,7 @@ import {
   Info,
   Lightbulb,
   MessageCircleDashed,
+  Minimize2,
   NotebookText,
   Paperclip,
   Pencil,
@@ -132,7 +132,7 @@ export function AgentContextCompactionStatus({
     return (
       <div
         data-testid="agent-context-compaction-progress"
-        className="flex min-w-0 items-center gap-2 py-0.5 text-body font-medium text-muted-foreground"
+        className="flex min-w-0 items-center gap-2 py-0.5 pl-1.5 text-body font-medium text-muted-foreground"
         role="status"
       >
         <AgentWorkingIndicator
@@ -168,7 +168,9 @@ export function AgentContextCompactionStatus({
         // DESIGN: pill hover 与 activity group 一致（w-fit + rounded-md + hover:bg-muted）
         className="group/row flex w-fit cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-left text-body text-muted-foreground outline-none transition-colors duration-100 hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
       >
-        <CheckCircle2 className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        {/* DESIGN: 压缩语义 icon 与「压缩上下文」菜单项一致（Minimize2），
+            非「完成/成功」——压缩是过程事件，不是任务验收。 */}
+        <Minimize2 className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span className="font-medium text-muted-foreground">已压缩较早的对话上下文</span>
         {tokenChange ? (
           <span className="font-mono text-xs tabular-nums text-muted-foreground">
@@ -477,7 +479,7 @@ export function AgentPendingBlock({ label = "等待中..." }: { label?: string }
         initial={{ opacity: 0, y: FADE_UP_Y }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: ENTER_DURATION, ease: EASE_OUT_EXPO }}
-        className="mt-1 flex w-fit max-w-full items-center gap-2 text-body font-medium text-muted-foreground"
+        className="mt-1 flex w-fit max-w-full items-center gap-2 pl-1.5 text-body font-medium text-muted-foreground"
       >
         <AgentWorkingIndicator
           variant="drive"
@@ -502,9 +504,9 @@ export function AgentStoppedStatus() {
   return (
     <div
       data-testid="agent-stopped-state"
-      className="flex min-w-0 items-center gap-2 px-3 py-1 text-body text-muted-foreground select-none"
+      className="flex min-w-0 items-center gap-2 px-1.5 py-1 text-body text-muted-foreground select-none"
     >
-      <Info className="size-3 shrink-0" aria-hidden="true" />
+      <Info className="size-3.5 shrink-0" aria-hidden="true" />
       <span>已停止</span>
     </div>
   );
