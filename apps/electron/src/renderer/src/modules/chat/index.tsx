@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
-import { usePanelRef, type PanelSize } from "react-resizable-panels";
+import { useEffect, useMemo, useState } from "react";
 import {
-  SIDEBAR_COLLAPSED_BUTTON_CLASS,
   RESIZE_HANDLE_CLASS,
   RESIZE_HANDLE_GRIP_CHILD_CLASS,
 } from "@renderer/modules/shared/layout/layout-constants";
+import { useRailMenu } from "@renderer/modules/shared/layout/rail-menu-context";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -28,7 +27,6 @@ import {
   useThreadsQuery,
 } from "./session/server-state";
 import { ThreadSidebar } from "./session/thread-sidebar";
-import { SidebarToggleButton } from "@renderer/modules/shared/layout/SidebarToggleButton";
 import { cn } from "@reflecta/ui/lib/utils";
 
 function activeThreadIdFor(threads: { id: string }[], activeThreadId: string | null) {
@@ -56,7 +54,6 @@ function ThreadChat({
   onArchive,
   onDelete,
   onInspectContextRef,
-  onExpandSidebar,
 }: {
   threadId: string;
   title: string;
@@ -68,7 +65,6 @@ function ThreadChat({
   onArchive: (threadId: string) => void;
   onDelete: (threadId: string) => void;
   onInspectContextRef: (ref: InspectableContextRef) => void;
-  onExpandSidebar?: () => void;
 }) {
   return (
     <div className="h-full min-h-0 min-w-0">
@@ -83,16 +79,13 @@ function ThreadChat({
         onArchive={() => onArchive(threadId)}
         onDelete={() => onDelete(threadId)}
         onInspectContextRef={onInspectContextRef}
-        onExpandSidebar={onExpandSidebar}
       />
     </div>
   );
 }
 
 function ChatPageContent() {
-  const [threadSidebarOpen, setThreadSidebarOpen] = useState(true);
   const [inspectorFocusMode, setInspectorFocusMode] = useState(false);
-  const threadSidebarPanelRef = usePanelRef();
   const { confirm } = useModal();
   const threadsQuery = useThreadsQuery();
   const activeThreadId = useActiveThreadId();
@@ -109,17 +102,6 @@ function ChatPageContent() {
   const activeThread = threads.find((thread) => thread.id === activeThreadId);
   const [threadScrollRequest, setThreadScrollRequest] = useState(0);
   const [draftThreadId, setDraftThreadId] = useState<string | null>(null);
-  const collapseThreadSidebar = useMemoizedFn(() => {
-    setThreadSidebarOpen(false);
-    threadSidebarPanelRef.current?.collapse();
-  });
-  const expandThreadSidebar = useMemoizedFn(() => {
-    setThreadSidebarOpen(true);
-    threadSidebarPanelRef.current?.expand();
-  });
-  const handleThreadSidebarResize = useMemoizedFn((size: PanelSize) => {
-    setThreadSidebarOpen(size.inPixels > 0);
-  });
   const enterInspectorFocusMode = useMemoizedFn(() => {
     setInspectorFocusMode(true);
   });
@@ -180,6 +162,38 @@ function ChatPageContent() {
   });
   const deleteThread = useMemoizedFn((threadId: string) => confirmDeleteThread(threadId));
 
+  // 对话列表迁入全局导航 rail（slot 模式：rail 是纯壳，不依赖业务模块）
+  const railMenu = useMemo(
+    () => (
+      <ThreadSidebar
+        inRail
+        threads={threads}
+        pending={threadsQuery.isFetching}
+        activeThreadId={activeThreadId}
+        runningThreadId={runningThreadId}
+        onSelect={selectThread}
+        onCreate={createThread}
+        onGenerateTitle={generateThreadTitle}
+        onArchive={archiveThread}
+        onDelete={deleteThread}
+        titleGeneratingThreadId={titleGeneratingThreadId}
+      />
+    ),
+    [
+      threads,
+      threadsQuery.isFetching,
+      activeThreadId,
+      runningThreadId,
+      selectThread,
+      createThread,
+      generateThreadTitle,
+      archiveThread,
+      deleteThread,
+      titleGeneratingThreadId,
+    ],
+  );
+  useRailMenu("agent", railMenu);
+
   useKeyPress(
     "esc",
     () => {
@@ -230,60 +244,8 @@ function ChatPageContent() {
     <ResizablePanelGroup
       id="agent-page"
       orientation="horizontal"
-      className="h-full min-h-0 w-full overflow-hidden bg-transparent [&>[data-panel]]:transition-[flex-grow] [&>[data-panel]]:duration-200 [&>[data-panel]]:ease-out [&:has([data-separator=active])>[data-panel]]:transition-none motion-reduce:[&>[data-panel]]:transition-none"
+      className="h-full min-h-0 w-full overflow-hidden bg-transparent"
     >
-      <ResizablePanel
-        id="agent-thread-sidebar-panel"
-        panelRef={threadSidebarPanelRef}
-        defaultSize="280px"
-        minSize="200px"
-        maxSize="480px"
-        collapsedSize={0}
-        collapsible
-        groupResizeBehavior="preserve-pixel-size"
-        onResize={handleThreadSidebarResize}
-        style={{ overflow: "hidden" }}
-      >
-        {/* DESIGN: translucent sidebar is intentional — macOS-style vibrancy.
-            The window is configured transparent + vibrancy: under-window; the
-            raised-surface alpha tint (base01) lets the frosted material show
-            through while keeping the sidebar's raised-container semantic.
-            Not covered by any token (it is a window-level effect, not a
-            surface color), and required by the product design. */}
-        <div
-          data-testid="agent-thread-sidebar-container"
-          aria-hidden={!threadSidebarOpen || inspectorFocusMode}
-          inert={!threadSidebarOpen || inspectorFocusMode}
-          className={cn(
-            "h-full min-w-0 overflow-hidden bg-sidebar/50 transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
-            threadSidebarOpen
-              ? "translate-x-0 opacity-100"
-              : "pointer-events-none -translate-x-3 opacity-0",
-          )}
-        >
-          <ThreadSidebar
-            threads={threads}
-            pending={threadsQuery.isFetching}
-            activeThreadId={activeThreadId}
-            runningThreadId={runningThreadId}
-            onSelect={selectThread}
-            onCreate={createThread}
-            onCollapse={collapseThreadSidebar}
-            onGenerateTitle={generateThreadTitle}
-            onArchive={archiveThread}
-            onDelete={deleteThread}
-            titleGeneratingThreadId={titleGeneratingThreadId}
-          />
-        </div>
-      </ResizablePanel>
-      <ResizableHandle
-        id="agent-thread-sidebar-resize-handle"
-        disabled={!threadSidebarOpen}
-        className={cn(
-          RESIZE_HANDLE_CLASS,
-          threadSidebarOpen ? "w-px" : "w-0 border-0 opacity-0 after:hidden",
-        )}
-      />
       <ResizablePanel id="agent-workspace-panel" minSize="420px" className="min-h-0 min-w-0">
         <ResizablePanelGroup
           orientation="horizontal"
@@ -323,19 +285,9 @@ function ChatPageContent() {
                   onArchive={archiveThread}
                   onDelete={deleteThread}
                   onInspectContextRef={openInspector}
-                  onExpandSidebar={threadSidebarOpen ? undefined : expandThreadSidebar}
                 />
               ) : (
-                <main className="relative flex h-full min-h-0 min-w-0 items-center justify-center overflow-hidden bg-transparent text-sm text-muted-foreground">
-                  {threadSidebarOpen ? null : (
-                    <SidebarToggleButton
-                      expanded={false}
-                      label="展开对话列表"
-                      testId="agent-sidebar-expand-button"
-                      className={`absolute top-3 ${SIDEBAR_COLLAPSED_BUTTON_CLASS}`}
-                      onClick={expandThreadSidebar}
-                    />
-                  )}
+                <main className="flex h-full min-h-0 min-w-0 items-center justify-center bg-transparent text-sm text-muted-foreground">
                   加载 Agent...
                 </main>
               )}

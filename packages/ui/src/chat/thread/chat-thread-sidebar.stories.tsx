@@ -98,6 +98,29 @@ function SidebarDemo({
   );
 }
 
+function RailSidebarDemo() {
+  const [activeThreadId, setActiveThreadId] = useState<string | null>("thread-active");
+  const [lastAction, setLastAction] = useState("尚未执行菜单操作");
+
+  return (
+    <div className="grid gap-3">
+      <div className="flex h-[620px] w-[248px] max-w-full border-r bg-sidebar/50">
+        <ChatThreadSidebar
+          inRail
+          groups={typicalGroups}
+          pending={false}
+          activeThreadId={activeThreadId}
+          onSelect={setActiveThreadId}
+          onCreate={() => setLastAction("create")}
+          onCollapse={() => setLastAction("collapse")}
+          onAction={(threadId, action) => setLastAction(`${action}：${threadId}`)}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">{lastAction}</p>
+    </div>
+  );
+}
+
 function ThreadSidebarShowcase() {
   return (
     <StoryShowcase
@@ -136,6 +159,12 @@ function ThreadSidebarShowcase() {
         description="280px × 620px 容器内保持标题截断、状态图标和垂直滚动。"
       >
         <SidebarDemo groups={manyGroups} />
+      </StoryCase>
+      <StoryCase
+        title="全局导航 rail 内嵌形态"
+        description="inRail 变体：titlebar 区与折叠按钮收归 rail，保留标题与新建入口。"
+      >
+        <RailSidebarDemo />
       </StoryCase>
     </StoryShowcase>
   );

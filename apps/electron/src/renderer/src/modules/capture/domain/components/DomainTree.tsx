@@ -6,8 +6,6 @@ import { Button } from "@reflecta/ui/components/button";
 import { ScrollArea } from "@reflecta/ui/components/scroll-area";
 import { useModal } from "@reflecta/ui/overlays";
 import type { DomainTreeNode } from "@shared/domain";
-import { AppChromeMenu } from "@renderer/modules/shared/layout/AppChromeMenu";
-import { SidebarToggleButton } from "@renderer/modules/shared/layout/SidebarToggleButton";
 import { useCaptureDomains } from "../../queries";
 import { useCaptureStore, type CaptureAgentScope } from "../../store";
 import { useDomainActions } from "../hooks";
@@ -40,13 +38,7 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "请稍后重试";
 }
 
-export function DomainTree({
-  onChat,
-  onCollapse,
-}: {
-  onChat?: (scope: CaptureAgentScope) => void;
-  onCollapse: () => void;
-}) {
+export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => void }) {
   const { domains } = useCaptureDomains();
   const { createDomain, updateDomain, deleteDomain, reorderDomains } = useDomainActions();
   const selectedDomainId = useCaptureStore((state) => state.selectedDomainId);
@@ -144,27 +136,18 @@ export function DomainTree({
       data-testid="capture-domain-sidebar"
       className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
     >
-      <div className="app-drag-region relative pl-5 pt-14 pb-3 pr-2">
-        <SidebarToggleButton
-          expanded
-          label="收起 Domain Tree"
-          testId="capture-sidebar-collapse-button"
-          className="absolute top-2.5 right-2"
-          onClick={onCollapse}
-        />
-        <div className="flex h-8 items-center justify-between gap-1">
-          <div className="min-w-0 truncate text-sm font-medium">领域</div>
-          <Button
-            data-no-drag
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            aria-label="新建领域"
-            onClick={() => openCreateModal()}
-          >
-            <Plus size={16} />
-          </Button>
-        </div>
+      <div className="flex h-10 shrink-0 items-center justify-between gap-1 px-3 pr-2">
+        <div className="min-w-0 truncate text-sm font-medium">领域</div>
+        <Button
+          data-no-drag
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          aria-label="新建领域"
+          onClick={() => openCreateModal()}
+        >
+          <Plus size={16} />
+        </Button>
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
@@ -180,7 +163,6 @@ export function DomainTree({
           onReorder={handleReorder}
         />
       </ScrollArea>
-      <AppChromeMenu />
     </aside>
   );
 }

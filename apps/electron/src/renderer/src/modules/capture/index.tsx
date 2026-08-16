@@ -1,25 +1,19 @@
-import { FileText } from "lucide-react";
-import { useState } from "react";
-import { useKeyPress, useMemoizedFn } from "ahooks";
-import { usePanelRef } from "react-resizable-panels";
+import { useMemo } from "react";
+import { useRailMenu } from "@renderer/modules/shared/layout/rail-menu-context";
 import {
+  RESIZE_HANDLE_CLASS,
   RESIZE_HANDLE_GRIP_CHILD_CLASS,
-  RESIZE_HANDLE_SLIM_CLASS,
-  SIDEBAR_GRID_COLS_CLOSED,
-  SIDEBAR_GRID_COLS_OPEN,
-  SIDEBAR_WIDTH_CLASS,
 } from "@renderer/modules/shared/layout/layout-constants";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@reflecta/ui/components/resizable";
+import { Sheet, SheetContent } from "@reflecta/ui/components/sheet";
 import { ContextualAgentDock } from "@renderer/modules/chat/contextual-agent-dock";
 import { DomainTree } from "./domain";
 import { UnderstandingDetail } from "./understanding-detail";
-import { UnderstandingList } from "./understanding-list";
-import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@reflecta/ui/components/empty";
-import { cn } from "@reflecta/ui/lib/utils";
+import { CaptureDashboard } from "./dashboard/CaptureDashboard";
 import { useCaptureStore } from "./store";
 
 function CaptureAgentDock() {
@@ -41,76 +35,78 @@ function CaptureAgentDock() {
   );
 }
 
-function CapturePageInner() {
-  const [domainSidebarOpen, setDomainSidebarOpen] = useState(true);
-  const [focusMode, setFocusMode] = useState(false);
-  const understandingListPanelRef = usePanelRef();
+/** 详情抽屉 —— 复用 UnderstandingDetail 的完整编辑/上下文/AI 能力，宽 960px。 */
+function UnderstandingDetailDrawer({ onClose }: { onClose: () => void }) {
   const selectedUnderstandingId = useCaptureStore((state) => state.selectedUnderstandingId);
-  const agentDockOpen = useCaptureStore((state) => state.agentDockOpen);
-  const selectDomain = useCaptureStore((state) => state.selectDomain);
   const selectUnderstanding = useCaptureStore((state) => state.selectUnderstanding);
+  const selectDomain = useCaptureStore((state) => state.selectDomain);
+  const openAgentDock = useCaptureStore((state) => state.openAgentDock);
   const resetAfterUnderstandingDeleted = useCaptureStore(
     (state) => state.resetAfterUnderstandingDeleted,
   );
-  const setSearchOpen = useCaptureStore((state) => state.setSearchOpen);
-  const openAgentDock = useCaptureStore((state) => state.openAgentDock);
-
-  const enterFocusMode = useMemoizedFn(() => {
-    setFocusMode(true);
-    understandingListPanelRef.current?.collapse();
-  });
-  const exitFocusMode = useMemoizedFn(() => {
-    setFocusMode(false);
-    understandingListPanelRef.current?.expand();
-  });
-
-  useKeyPress(
-    "esc",
-    () => {
-      if (focusMode) exitFocusMode();
-    },
-    { exactMatch: true },
-  );
 
   const handleWikiLinkClick = (understandingId: string) => {
+    // 切到全部领域，保证跳转目标在网格可见
     selectDomain("all");
-    setSearchOpen(false);
     selectUnderstanding(understandingId);
   };
 
   return (
+    <Sheet
+      open={Boolean(selectedUnderstandingId)}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) selectUnderstanding(null);
+      }}
+    >
+      <SheetContent
+        side="right"
+        data-testid="capture-understanding-detail-drawer"
+        showCloseButton={false}
+        className="w-[min(960px,calc(100vw-2rem))] max-w-none p-0"
+      >
+        {selectedUnderstandingId ? (
+          <div className="h-full min-h-0 w-full overflow-hidden">
+            <UnderstandingDetail
+              understandingId={selectedUnderstandingId}
+              onClose={onClose}
+              onWikiLinkClick={handleWikiLinkClick}
+              onChat={(scope) => {
+                onClose();
+                openAgentDock(scope);
+              }}
+              onDeleted={() => {
+                if (selectedUnderstandingId) {
+                  resetAfterUnderstandingDeleted(selectedUnderstandingId);
+                }
+              }}
+            />
+          </div>
+        ) : null}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function CapturePageInner() {
+  const agentDockOpen = useCaptureStore((state) => state.agentDockOpen);
+  const selectUnderstanding = useCaptureStore((state) => state.selectUnderstanding);
+  const openAgentDock = useCaptureStore((state) => state.openAgentDock);
+
+  const closeDetailDrawer = () => selectUnderstanding(null);
+
+  // 领域树迁入全局导航 rail（slot 模式）；领域级 AI 对话入口保留
+  const railMenu = useMemo(() => <DomainTree onChat={openAgentDock} />, [openAgentDock]);
+  useRailMenu("capture", railMenu);
+
+  return (
     <div
       data-testid="capture-page"
-      className={cn(
-        "grid h-full min-h-0 w-full overflow-hidden bg-transparent transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
-        domainSidebarOpen && !focusMode ? SIDEBAR_GRID_COLS_OPEN : SIDEBAR_GRID_COLS_CLOSED,
-      )}
+      className="relative h-full min-h-0 w-full overflow-hidden bg-background"
     >
-      <div
-        data-testid="capture-domain-sidebar-container"
-        aria-hidden={!domainSidebarOpen || focusMode}
-        inert={!domainSidebarOpen || focusMode}
-        className={cn(
-          "h-full min-w-0 overflow-hidden transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
-          domainSidebarOpen && !focusMode
-            ? "translate-x-0 opacity-100"
-            : "pointer-events-none -translate-x-3 opacity-0",
-        )}
-      >
-        {/* DESIGN: translucent sidebar is intentional — macOS-style vibrancy.
-            The window is configured transparent + vibrancy: under-window; the
-            raised-surface alpha tint (base01) lets the frosted material show
-            through while keeping the sidebar's raised-container semantic.
-            Not covered by any token (it is a window-level effect, not a
-            surface color), and required by the product design. */}
-        <div className={`h-full ${SIDEBAR_WIDTH_CLASS} bg-sidebar/50`}>
-          <DomainTree onChat={openAgentDock} onCollapse={() => setDomainSidebarOpen(false)} />
-        </div>
-      </div>
       <ResizablePanelGroup
         orientation="horizontal"
         defaultLayout={
-          agentDockOpen && !focusMode
+          agentDockOpen
             ? {
                 "capture-main": 64,
                 "capture-agent": 36,
@@ -119,87 +115,22 @@ function CapturePageInner() {
                 "capture-main": 100,
               }
         }
-        className="min-h-0 min-w-0 border-l bg-background"
+        className="h-full min-h-0 min-w-0 bg-transparent"
       >
         <ResizablePanel
           id="capture-main"
-          minSize={agentDockOpen && !focusMode ? "44%" : "100%"}
-          defaultSize={agentDockOpen && !focusMode ? "64%" : "100%"}
+          minSize={agentDockOpen ? "44%" : "100%"}
+          defaultSize={agentDockOpen ? "64%" : "100%"}
           className="min-h-0 min-w-0"
         >
-          <ResizablePanelGroup
-            orientation="horizontal"
-            className="h-full min-h-0 min-w-0 bg-transparent"
-          >
-            <ResizablePanel
-              id="capture-understanding-list-panel"
-              panelRef={understandingListPanelRef}
-              defaultSize="420px"
-              minSize="280px"
-              maxSize="60%"
-              collapsedSize={0}
-              collapsible
-              groupResizeBehavior="preserve-pixel-size"
-              className="min-h-0 min-w-0"
-            >
-              <div aria-hidden={focusMode} inert={focusMode} className="h-full">
-                <UnderstandingList
-                  onChat={openAgentDock}
-                  onExpandSidebar={domainSidebarOpen ? undefined : () => setDomainSidebarOpen(true)}
-                />
-              </div>
-            </ResizablePanel>
-            <ResizableHandle
-              withHandle
-              id="capture-understanding-list-resize-handle"
-              disabled={focusMode}
-              className={cn(
-                RESIZE_HANDLE_SLIM_CLASS,
-                RESIZE_HANDLE_GRIP_CHILD_CLASS,
-                focusMode ? "w-0 opacity-0 after:hidden" : "w-px",
-              )}
-            />
-            <ResizablePanel
-              id="capture-understanding-detail-panel"
-              minSize="320px"
-              className="min-h-0 min-w-0"
-            >
-              <main className="h-full min-h-0 min-w-0 overflow-hidden bg-transparent">
-                {selectedUnderstandingId ? (
-                  <UnderstandingDetail
-                    understandingId={selectedUnderstandingId}
-                    focusMode={focusMode}
-                    onFocusModeChange={(focused) => (focused ? enterFocusMode() : exitFocusMode())}
-                    onWikiLinkClick={handleWikiLinkClick}
-                    onChat={(scope) => {
-                      exitFocusMode();
-                      openAgentDock(scope);
-                    }}
-                    onDeleted={() => {
-                      exitFocusMode();
-                      resetAfterUnderstandingDeleted(selectedUnderstandingId);
-                    }}
-                  />
-                ) : (
-                  <Empty className="h-full">
-                    <EmptyContent>
-                      <EmptyMedia variant="icon">
-                        <FileText />
-                      </EmptyMedia>
-                      <EmptyDescription>选择一条内容开始查看</EmptyDescription>
-                    </EmptyContent>
-                  </Empty>
-                )}
-              </main>
-            </ResizablePanel>
-          </ResizablePanelGroup>
+          <CaptureDashboard onChat={openAgentDock} />
         </ResizablePanel>
-        {agentDockOpen && !focusMode ? (
+        {agentDockOpen ? (
           <>
             <ResizableHandle
               withHandle
               id="capture-agent-dock-resize-handle"
-              className={RESIZE_HANDLE_SLIM_CLASS}
+              className={RESIZE_HANDLE_CLASS + " " + RESIZE_HANDLE_GRIP_CHILD_CLASS}
             />
             <ResizablePanel
               id="capture-agent"
@@ -213,6 +144,8 @@ function CapturePageInner() {
           </>
         ) : null}
       </ResizablePanelGroup>
+
+      <UnderstandingDetailDrawer onClose={closeDetailDrawer} />
     </div>
   );
 }

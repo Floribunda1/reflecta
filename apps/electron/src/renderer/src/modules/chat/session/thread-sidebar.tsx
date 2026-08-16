@@ -4,7 +4,6 @@ import {
   type ChatThreadAction,
   type ChatThreadGroupView,
 } from "@reflecta/ui/chat";
-import { AppChromeMenu } from "@renderer/modules/shared/layout/AppChromeMenu";
 import { ipcClient } from "@renderer/utils/ipc";
 import type { AgentSessionSummary } from "@shared/agent";
 import { toast } from "sonner";
@@ -56,6 +55,7 @@ function ThreadSidebarComponent({
   onArchive,
   onDelete,
   titleGeneratingThreadId,
+  inRail = false,
 }: {
   threads: AgentSessionSummary[];
   pending?: boolean;
@@ -63,11 +63,13 @@ function ThreadSidebarComponent({
   runningThreadId: string | null;
   onSelect: (threadId: string) => void;
   onCreate: () => void;
-  onCollapse: () => void;
+  onCollapse?: () => void;
   onGenerateTitle: (threadId: string) => void;
   onArchive: (threadId: string) => void;
   onDelete: (threadId: string) => void;
   titleGeneratingThreadId?: string | null;
+  /** 渲染在全局导航 rail 内：titlebar 区与折叠权归 rail */
+  inRail?: boolean;
 }) {
   const groups = useMemo<ChatThreadGroupView[]>(
     () =>
@@ -98,15 +100,15 @@ function ThreadSidebarComponent({
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
       <ChatThreadSidebar
+        inRail={inRail}
         groups={groups}
         pending={pending}
         activeThreadId={activeThreadId}
         onSelect={onSelect}
         onCreate={onCreate}
-        onCollapse={onCollapse}
+        onCollapse={() => onCollapse?.()}
         onAction={handleAction}
       />
-      <AppChromeMenu />
     </div>
   );
 }

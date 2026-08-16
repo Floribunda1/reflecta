@@ -121,6 +121,7 @@ export function ChatThreadSidebar({
   onCreate,
   onCollapse,
   onAction,
+  inRail = false,
 }: {
   groups: readonly ChatThreadGroupView[];
   pending?: boolean;
@@ -130,6 +131,8 @@ export function ChatThreadSidebar({
   onCreate: () => void;
   onCollapse: () => void;
   onAction: (threadId: string, action: ChatThreadAction) => void;
+  /** 渲染在全局导航 rail 内：titlebar 区（红绿灯）由 rail 承接，折叠权也收归 rail */
+  inRail?: boolean;
 }) {
   const threadCount = groups.reduce((count, group) => count + group.threads.length, 0);
 
@@ -138,36 +141,39 @@ export function ChatThreadSidebar({
       data-testid="agent-thread-sidebar"
       className={cn("flex min-h-0 w-full flex-1 flex-col overflow-hidden", className)}
     >
-      <div className="app-drag-region relative pt-14 pr-2 pb-3 pl-4">
-        <Button
-          data-no-drag
-          data-testid="agent-sidebar-collapse-button"
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          className="absolute top-2.5 right-2"
-          aria-label="收起对话列表"
-          title="收起对话列表"
-          onClick={onCollapse}
-        >
-          <PanelLeft size={16} />
-        </Button>
-        <div className="flex h-8 items-center justify-between gap-1">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-sm font-medium">对话</span>
-          </div>
+      <div
+        className={cn(
+          "relative flex shrink-0 items-center justify-between gap-1",
+          inRail ? "h-10 px-3 pr-2" : "app-drag-region pt-14 pr-2 pb-3 pl-4",
+        )}
+      >
+        {!inRail ? (
           <Button
             data-no-drag
-            data-testid="agent-new-thread-button"
+            data-testid="agent-sidebar-collapse-button"
             type="button"
             size="icon-sm"
             variant="ghost"
-            aria-label="新建对话"
-            onClick={onCreate}
+            className="absolute top-2.5 right-2"
+            aria-label="收起对话列表"
+            title="收起对话列表"
+            onClick={onCollapse}
           >
-            <Plus size={16} />
+            <PanelLeft size={16} />
           </Button>
-        </div>
+        ) : null}
+        <div className="min-w-0 truncate text-sm font-medium">对话</div>
+        <Button
+          data-no-drag
+          data-testid="agent-new-thread-button"
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          aria-label="新建对话"
+          onClick={onCreate}
+        >
+          <Plus size={16} />
+        </Button>
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
