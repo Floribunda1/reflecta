@@ -132,7 +132,7 @@ export function AgentContextCompactionStatus({
     return (
       <div
         data-testid="agent-context-compaction-progress"
-        className="flex min-w-0 items-center gap-2 py-0.5 pl-1.5 text-body font-medium text-muted-foreground"
+        className="flex min-w-0 items-center gap-2 px-1.5 py-1 text-body font-medium text-muted-foreground"
         role="status"
       >
         <AgentWorkingIndicator
@@ -479,11 +479,11 @@ export function AgentPendingBlock({ label = "等待中..." }: { label?: string }
         initial={{ opacity: 0, y: FADE_UP_Y }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: ENTER_DURATION, ease: EASE_OUT_EXPO }}
-        className="mt-1 flex w-fit max-w-full items-center gap-2 pl-1.5 text-body font-medium text-muted-foreground"
+        className="mt-1 flex w-fit max-w-full items-center gap-2 px-1.5 py-1 text-body font-medium text-muted-foreground"
       >
         <AgentWorkingIndicator
           variant="drive"
-          className="size-3 text-muted-foreground"
+          className="size-3.5 text-muted-foreground"
           role="status"
           aria-label="执行中"
         />
