@@ -351,6 +351,12 @@ export type AgentCommand =
       sessionId: string;
     }
   | {
+      type: "run.retry";
+      sessionId: string;
+      modelSelection?: AgentModelSelection;
+      reasoningLevel?: AgentReasoningLevel;
+    }
+  | {
       type: "context.compact";
       sessionId: string;
       modelSelection?: AgentModelSelection;

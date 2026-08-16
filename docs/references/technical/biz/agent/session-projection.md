@@ -224,6 +224,8 @@ flowchart LR
 
 停止不能只保存 `run.cancelled` 而丢失用户已经看见的 partial Response。持久化失败时不得发布一个伪造的 durable terminal state；Feed 应保留最后可证明状态并报告失败。
 
+失败后重试创建新的 Attempt，不原地复活已失败 Attempt。如果失败发生在用户已经做出 Decision 之后，或失败的是一条没有可见用户消息的续跑，重试从当前 leaf 继续，不从原始用户消息回退；已沉淀的正文、提案和拒绝理由保留。如果失败发生在该 Turn 第一次回复、尚无 Decision，重试仍从该用户消息重新发起 Attempt。
+
 ### Context compaction
 
 运行内 compaction 属于当前 Assistant message parts；独立 compaction 属于 Session-level history。开始和结束状态可以仅存在于 active Projection，成功结果仍以 durable semantic record 保存。Renderer 不从相邻时间戳猜测 compaction 应插入哪个 Turn。

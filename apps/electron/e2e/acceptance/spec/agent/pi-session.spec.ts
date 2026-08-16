@@ -41,6 +41,10 @@ const PI_BASH_REJECTION_MARKER = "pi-bash-rejected.marker";
 const PI_BASH_SAFE_MARKER = "pi-bash-safe.marker";
 const ABANDONED_RUN_MESSAGE = "ABANDONED_RUN_MESSAGE";
 const FAILED_RETRY_MESSAGE = "请只回复 RETRY_OK，不要添加其他内容。";
+const FAILED_AFTER_REJECT_MESSAGE = "请创建一条理解";
+const FAILED_AFTER_REJECT_TEXT = "我先提一个候选。";
+const FAILED_AFTER_REJECT_TITLE = "FIRST_REJECTED_TITLE";
+const FAILED_AFTER_REJECT_REASON = "范围太窄，先不要写进去";
 const CHAT_JUMP_THREAD_TITLE = "CHAT_JUMP_LONG_SESSION";
 const CHAT_JUMP_TARGET_MESSAGE = "CHAT_JUMP_TARGET_PAYPAL_STATUS";
 const FAILED_APPROVED_TOOL_THREAD_TITLE = "FAILED_APPROVED_TOOL_RECOVERY";
@@ -154,6 +158,102 @@ function seedAbandonedPiSession() {
     manager.appendCustomEntry(REFLECTA_AGENT_EVENT_ENTRY, event);
   }
   manager.appendSessionInfo(ABANDONED_RUN_MESSAGE);
+  flushPiSession(manager);
+}
+
+function seedFailedAfterRejectPiSession() {
+  const root = readE2eTestEnv().contentStorageRoot;
+  fs.mkdirSync(sessionsRoot(), { recursive: true });
+  const manager = SessionManager.create(root, sessionsRoot());
+  const sessionId = manager.getSessionId();
+  const createdAt = "2026-08-16T00:00:00.000Z";
+  const base = { sessionId, createdAt };
+  for (const event of [
+    { ...base, id: "evt_reject_1", runId: "run_1", type: "run.started" },
+    {
+      ...base,
+      id: "evt_reject_2",
+      runId: "run_1",
+      type: "user.message",
+      messageId: "user_failed_after_reject",
+      text: FAILED_AFTER_REJECT_MESSAGE,
+    },
+    {
+      ...base,
+      id: "evt_reject_3",
+      runId: "run_1",
+      type: "assistant.turn",
+      messageId: "assistant_failed_after_reject",
+      text: FAILED_AFTER_REJECT_TEXT,
+      blocks: [
+        { kind: "text", text: FAILED_AFTER_REJECT_TEXT, state: "done", createdAt },
+        {
+          kind: "approval",
+          approvalId: "approval_failed_after_reject",
+          toolCallId: "tool_failed_after_reject",
+          toolName: "understanding_create",
+          title: "候选 Understanding",
+          payload: { title: FAILED_AFTER_REJECT_TITLE },
+          state: "rejected",
+          approvalState: "rejected",
+          executionState: "not_started",
+          displayState: "rejected",
+          approved: false,
+          rejectionReason: FAILED_AFTER_REJECT_REASON,
+          createdAt,
+        },
+      ],
+    },
+    {
+      ...base,
+      id: "evt_reject_4",
+      runId: "run_1",
+      type: "approval.requested",
+      messageId: "assistant_failed_after_reject",
+      approvalId: "approval_failed_after_reject",
+      toolCallId: "tool_failed_after_reject",
+      toolName: "understanding_create",
+      title: "候选 Understanding",
+      payload: { title: FAILED_AFTER_REJECT_TITLE },
+    },
+    {
+      ...base,
+      id: "evt_reject_5",
+      runId: "run_1",
+      type: "approval.resolved",
+      messageId: "assistant_failed_after_reject",
+      approvalId: "approval_failed_after_reject",
+      toolCallId: "tool_failed_after_reject",
+      toolName: "understanding_create",
+      approved: false,
+      rejectionReason: FAILED_AFTER_REJECT_REASON,
+    },
+    {
+      ...base,
+      id: "evt_reject_6",
+      runId: "run_2",
+      type: "run.started",
+    },
+    {
+      ...base,
+      id: "evt_reject_7",
+      runId: "run_2",
+      type: "assistant.turn",
+      messageId: "assistant_failed_after_reject_tail",
+      text: "那我换一个方向",
+      blocks: [{ kind: "text", text: "那我换一个方向", createdAt }],
+    },
+    {
+      ...base,
+      id: "evt_reject_8",
+      runId: "run_2",
+      type: "run.failed",
+      error: "network error",
+    },
+  ]) {
+    manager.appendCustomEntry(REFLECTA_AGENT_EVENT_ENTRY, event);
+  }
+  manager.appendSessionInfo(FAILED_AFTER_REJECT_MESSAGE);
   flushPiSession(manager);
 }
 
@@ -377,6 +477,41 @@ test("@AG-START-006 用户重试失败回复后看到新的回复", async () => 
     await expect(
       page.getByTestId("agent-user-message").filter({ hasText: FAILED_RETRY_MESSAGE }),
     ).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-START-010 用户在拒绝提案后的失败回复上重试时保留已拒绝的提案", async () => {
+  seedFailedAfterRejectPiSession();
+  const { app, page } = await launchAgentPage({ REFLECTA_AGENT_RUNTIME: "pi" });
+
+  try {
+    await openThread(page, FAILED_AFTER_REJECT_MESSAGE);
+    await expect(page.getByTestId("agent-error-banner")).toContainText("回复失败");
+    await expect(
+      page.getByTestId("agent-user-message").filter({ hasText: FAILED_AFTER_REJECT_MESSAGE }),
+    ).toBeVisible();
+    await expect(page.getByTestId("agent-assistant-text").first()).toContainText(
+      FAILED_AFTER_REJECT_TEXT,
+    );
+    const card = page.getByTestId("agent-proposal-card");
+    await expect(card).toContainText("已拒绝");
+    await card.getByLabel("展开 Proposal").click();
+    await expect(card).toContainText(FAILED_AFTER_REJECT_TITLE);
+    await expect(card).toContainText(FAILED_AFTER_REJECT_REASON);
+
+    await page.getByTestId("agent-retry-button").click();
+
+    await expect(
+      page.getByTestId("agent-user-message").filter({ hasText: FAILED_AFTER_REJECT_MESSAGE }),
+    ).toBeVisible();
+    await expect(page.getByTestId("agent-assistant-text").first()).toContainText(
+      FAILED_AFTER_REJECT_TEXT,
+    );
+    await expect(page.getByTestId("agent-proposal-card")).toContainText("已拒绝");
+    await expect(page.getByTestId("agent-proposal-card")).toContainText(FAILED_AFTER_REJECT_TITLE);
+    await expect(page.getByTestId("agent-proposal-card")).toContainText(FAILED_AFTER_REJECT_REASON);
   } finally {
     await app.close();
   }

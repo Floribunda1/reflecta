@@ -501,6 +501,25 @@ function approvalIdForToolCall(toolCallId: string) {
   return `approval_${toolCallId}`;
 }
 
+function retryContinuationPrompt(): string {
+  return [
+    "The previous attempt failed before it finished.",
+    "Continue the existing user task from the current conversation.",
+    "Respond directly to the user. Do not ask them to repeat earlier decisions.",
+  ].join("\n");
+}
+
+function shouldContinueFailedRunFromLeaf(events: readonly AgentSessionEvent[]): boolean {
+  const lastUserIndex = events.findLastIndex((event) => event.type === "user.message");
+  if (lastUserIndex < 0) return false;
+  if (events.slice(lastUserIndex + 1).some((event) => event.type === "approval.resolved")) {
+    return true;
+  }
+  const lastFailed = events.findLast((event) => event.type === "run.failed");
+  if (!lastFailed) return false;
+  return !events.some((event) => event.type === "user.message" && event.runId === lastFailed.runId);
+}
+
 function approvalContinuationPrompt(input: {
   requested: AgentApprovalRequested;
   approved: boolean;
@@ -791,6 +810,16 @@ export class PiAgentHost {
 
     if (command.type === "context.compact") {
       await this.compactContext(command);
+      return;
+    }
+
+    if (command.type === "run.retry") {
+      void this.retryRun(command).catch((error) => {
+        agentLog.error("pi.run.unhandledError", {
+          sessionId: command.sessionId,
+          error: formatAgentError(error),
+        });
+      });
       return;
     }
 
@@ -1090,6 +1119,39 @@ export class PiAgentHost {
         error: toolExecutionError(error),
       }),
     );
+  }
+
+  private async retryRun(command: Extract<AgentCommand, { type: "run.retry" }>) {
+    const events = await this.sessionLog.readEvents(command.sessionId);
+    const lastUser = events.findLast(
+      (event): event is Extract<AgentSessionEvent, { type: "user.message" }> =>
+        event.type === "user.message",
+    );
+    if (!lastUser) return;
+
+    if (shouldContinueFailedRunFromLeaf(events)) {
+      await this.sendMessage({
+        type: "message.send",
+        sessionId: command.sessionId,
+        text: retryContinuationPrompt(),
+        visibleUserMessage: false,
+        modelSelection: command.modelSelection,
+        reasoningLevel: command.reasoningLevel,
+      });
+      return;
+    }
+
+    await this.sendMessage({
+      type: "message.send",
+      sessionId: command.sessionId,
+      text: lastUser.text,
+      messageId: lastUser.messageId,
+      contextRefs: lastUser.contextRefs,
+      files: lastUser.files,
+      composerContent: lastUser.composerContent,
+      modelSelection: command.modelSelection,
+      reasoningLevel: command.reasoningLevel,
+    });
   }
 
   private async sendMessage(command: PiMessageCommand) {
