@@ -6,6 +6,7 @@ import {
   ContextElectronBff,
   SearchCliBff,
   SearchElectronBff,
+  UnderstandingCanvasCliBff,
   UnderstandingCanvasElectronBff,
   UnderstandingCliBff,
   UnderstandingElectronBff,
@@ -31,6 +32,9 @@ export const understandingService = createLazy(() => new UnderstandingElectronBf
 export const understandingCliService = createLazy(() => new UnderstandingCliBff(getDBInstance()));
 export const understandingCanvasService = createLazy(
   () => new UnderstandingCanvasElectronBff(getDBInstance()),
+);
+export const understandingCanvasCliService = createLazy(
+  () => new UnderstandingCanvasCliBff(getDBInstance()),
 );
 export const domainService = createLazy(() => new DomainElectronBff(options));
 export const domainCliService = createLazy(() => new DomainCliBff(getDBInstance()));

@@ -8,7 +8,6 @@ import {
   type PiApprovedToolOutput,
   type PiApprovalToolName,
 } from "./pi-write-tools";
-
 const services = vi.hoisted(() => ({
   getUnderstandingById: vi.fn(),
   getDomainById: vi.fn(),
@@ -22,6 +21,9 @@ const services = vi.hoisted(() => ({
   createContext: vi.fn(),
   updateContext: vi.fn(),
   deleteContext: vi.fn(),
+  createCanvas: vi.fn(),
+  saveCanvas: vi.fn(),
+  deleteCanvas: vi.fn(),
 }));
 
 vi.mock("../core", () => ({
@@ -43,6 +45,11 @@ vi.mock("../core", () => ({
     updateUnderstanding: services.updateUnderstanding,
     deleteUnderstanding: services.deleteUnderstanding,
   },
+  understandingCanvasService: {
+    createCanvas: services.createCanvas,
+    saveCanvas: services.saveCanvas,
+    deleteCanvas: services.deleteCanvas,
+  },
 }));
 
 const knowledgeMutationNames = [
@@ -55,6 +62,9 @@ const knowledgeMutationNames = [
   "context_create",
   "context_update",
   "context_delete",
+  "canvas_create",
+  "canvas_update",
+  "canvas_delete",
 ] as const;
 
 const expectedApprovalToolNames = knowledgeMutationNames;
@@ -97,6 +107,12 @@ const samplePayloads: Record<(typeof knowledgeMutationNames)[number], Record<str
     content: "Updated context",
   },
   context_delete: { contextId: "context-1", reason: "No longer relevant" },
+  canvas_create: { title: "新画布" },
+  canvas_update: {
+    canvasId: "canvas-1",
+    document: { elements: [], edges: [] },
+  },
+  canvas_delete: { canvasId: "canvas-1", reason: "过时结构" },
 };
 const sampleApprovalPayloads: Record<PiApprovalToolName, Record<string, unknown>> = samplePayloads;
 
@@ -110,6 +126,9 @@ function expectNoKnowledgeMutationServicesCalled() {
   expect(services.createContext).not.toHaveBeenCalled();
   expect(services.updateContext).not.toHaveBeenCalled();
   expect(services.deleteContext).not.toHaveBeenCalled();
+  expect(services.createCanvas).not.toHaveBeenCalled();
+  expect(services.saveCanvas).not.toHaveBeenCalled();
+  expect(services.deleteCanvas).not.toHaveBeenCalled();
 }
 
 describe("createPiWriteTools", () => {
@@ -353,6 +372,7 @@ describe("createPiWriteTools", () => {
       id: "context-updated",
       title: "Stored Updated Context",
     });
+    services.createCanvas.mockResolvedValue({ id: "canvas-created", title: "新建结构" });
 
     const cases: Array<{
       toolName: (typeof knowledgeMutationNames)[number];
@@ -413,6 +433,22 @@ describe("createPiWriteTools", () => {
         toolName: "context_delete",
         expected: { resultRefType: "context", resultRefId: "context-1" },
       },
+      {
+        toolName: "canvas_create",
+        expected: {
+          resultRefType: "canvas",
+          resultRefId: "canvas-created",
+          resultRefTitle: "新建结构",
+        },
+      },
+      {
+        toolName: "canvas_update",
+        expected: { resultRefType: "canvas", resultRefId: "canvas-1" },
+      },
+      {
+        toolName: "canvas_delete",
+        expected: { resultRefType: "canvas", resultRefId: "canvas-1" },
+      },
     ];
 
     for (const item of cases) {
@@ -454,5 +490,11 @@ describe("createPiWriteTools", () => {
       content: "Updated context",
     });
     expect(services.deleteContext).toHaveBeenCalledWith("context-1");
+    expect(services.createCanvas).toHaveBeenCalledWith({ title: "新画布" });
+    expect(services.saveCanvas).toHaveBeenCalledWith("canvas-1", {
+      elements: [],
+      edges: [],
+    });
+    expect(services.deleteCanvas).toHaveBeenCalledWith("canvas-1");
   });
 });

@@ -1,6 +1,7 @@
 import { Type } from "@earendil-works/pi-ai";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import type {
+  CanvasDocument,
   CreateDomainInput,
   CreateContextInput,
   CreateUnderstandingInput,
@@ -9,7 +10,12 @@ import type {
   UpdateContextInput,
   UpdateUnderstandingInput,
 } from "@reflecta/server";
-import { domainService, contextService, understandingService } from "../core";
+import {
+  domainService,
+  contextService,
+  understandingService,
+  understandingCanvasService,
+} from "../core";
 
 export const PI_APPROVAL_TOOL_NAMES = [
   "understanding_create",
@@ -21,6 +27,9 @@ export const PI_APPROVAL_TOOL_NAMES = [
   "context_create",
   "context_update",
   "context_delete",
+  "canvas_create",
+  "canvas_update",
+  "canvas_delete",
 ] as const;
 export type PiApprovalToolName = (typeof PI_APPROVAL_TOOL_NAMES)[number];
 
@@ -59,7 +68,7 @@ const parentIdParameter = Type.Optional(
 const mediumParameter = Type.Union(mediums.map((medium) => Type.Literal(medium)));
 
 type PiMutationOutput = {
-  resultRefType: "understanding" | "domain" | "context";
+  resultRefType: "understanding" | "domain" | "context" | "canvas";
   resultRefId?: string;
   resultRefTitle?: string;
 };
@@ -227,6 +236,62 @@ const toolSpecs: PiWriteToolSpec[] = [
     promptSnippet: "context_delete: propose deleting an existing Context.",
     parameters: Type.Object({
       contextId: contextIdParameter,
+      reason: Type.Optional(Type.String()),
+    }),
+  },
+  {
+    name: "canvas_create",
+    label: "候选画布",
+    description:
+      "Create a new Reflecta canvas (a user-built mental structure) only after user approval. Call this when the user asks to lay out a structure as a canvas. Optionally pass initial to seed the canvas with a document (same shape as the target document for updates).",
+    promptSnippet: "canvas_create: propose a new Reflecta canvas and request user approval.",
+    promptGuidelines: [
+      "Propose the canvas structure as a draft for the user to review, apply, modify, or reject.",
+      "Do not write coordinates; layout is decided by the user or auto-layout.",
+    ],
+    parameters: Type.Object({
+      title: Type.String({ minLength: 1, description: "Canvas title." }),
+      initial: Type.Optional(
+        Type.Object({
+          elements: Type.Array(Type.Unknown()),
+          edges: Type.Array(Type.Unknown()),
+        }),
+      ),
+    }),
+  },
+  {
+    name: "canvas_update",
+    label: "候选修改画布",
+    description:
+      "Update an existing Reflecta canvas only after user approval. Pass the whole target document (elements + edges, same shape as the read canvas) — the server reconciles by id. The document is rendered as a draft for the user to diagnose before applying.",
+    promptSnippet: "canvas_update: propose a whole-document change to an existing canvas.",
+    promptGuidelines: [
+      "Read the canvas first (canvas_read), then pass the full target document.",
+      "Do not write coordinates; layout is decided by the user or auto-layout.",
+    ],
+    parameters: Type.Object({
+      canvasId: Type.String({
+        minLength: 1,
+        description: "Stable canvas id returned by Reflecta tools. Do not pass chat refs.",
+      }),
+      document: Type.Object({
+        elements: Type.Array(Type.Unknown()),
+        edges: Type.Array(Type.Unknown()),
+      }),
+      reason: Type.Optional(Type.String()),
+    }),
+  },
+  {
+    name: "canvas_delete",
+    label: "候选删除画布",
+    description:
+      "Delete an existing Reflecta canvas (cascades its elements and edges) only after user approval.",
+    promptSnippet: "canvas_delete: propose deleting an existing canvas.",
+    parameters: Type.Object({
+      canvasId: Type.String({
+        minLength: 1,
+        description: "Stable canvas id returned by Reflecta tools. Do not pass chat refs.",
+      }),
       reason: Type.Optional(Type.String()),
     }),
   },
@@ -506,6 +571,49 @@ function contextDeleteInput(payload: unknown): string {
   return requiredStableEntityId(asPayload(payload), "contextId");
 }
 
+function canvasCreateInput(payload: unknown): {
+  title: string;
+  initial?: { elements: unknown[]; edges: unknown[] };
+} {
+  const record = asPayload(payload);
+  const title = requiredString(record, "title");
+  const initial = record.initial;
+  if (
+    initial !== undefined &&
+    (typeof initial !== "object" ||
+      initial === null ||
+      !Array.isArray((initial as { elements?: unknown }).elements) ||
+      !Array.isArray((initial as { edges?: unknown }).edges))
+  ) {
+    throw new Error("initial 必须是 { elements: [...], edges: [...] }。");
+  }
+  return { title, initial: initial as { elements: unknown[]; edges: unknown[] } | undefined };
+}
+
+function canvasUpdateInput(payload: unknown): {
+  canvasId: string;
+  document: { elements: unknown[]; edges: unknown[] };
+} {
+  const record = asPayload(payload);
+  const document = record.document;
+  if (
+    typeof document !== "object" ||
+    document === null ||
+    !Array.isArray((document as { elements?: unknown }).elements) ||
+    !Array.isArray((document as { edges?: unknown }).edges)
+  ) {
+    throw new Error("document 必须是 { elements: [...], edges: [...] }。");
+  }
+  return {
+    canvasId: requiredStableEntityId(record, "canvasId"),
+    document: document as { elements: unknown[]; edges: unknown[] },
+  };
+}
+
+function canvasDeleteInput(payload: unknown): string {
+  return requiredStableEntityId(asPayload(payload), "canvasId");
+}
+
 function mutationOutput(
   resultRefType: PiMutationOutput["resultRefType"],
   entity: { id: string; title?: string | null },
@@ -614,7 +722,34 @@ export async function executePiApprovedTool(
     return mutationOutput("context", context);
   }
 
-  const contextId = contextDeleteInput(payload);
-  await contextService.deleteContext(contextId);
-  return { resultRefType: "context", resultRefId: contextId };
+  if (toolName === "context_delete") {
+    const contextId = contextDeleteInput(payload);
+    await contextService.deleteContext(contextId);
+    return { resultRefType: "context", resultRefId: contextId };
+  }
+
+  // --- canvas（审批后经 CanvasCore 落库；C15 draft 提案由前端渲染） ---
+
+  if (toolName === "canvas_create") {
+    const { title, initial } = canvasCreateInput(payload);
+    const canvas = await understandingCanvasService.createCanvas({ title });
+    if (initial) {
+      await understandingCanvasService.saveCanvas(canvas.id, initial as unknown as CanvasDocument);
+    }
+    return { resultRefType: "canvas", resultRefId: canvas.id, resultRefTitle: canvas.title };
+  }
+
+  if (toolName === "canvas_update") {
+    const { canvasId, document } = canvasUpdateInput(payload);
+    await understandingCanvasService.saveCanvas(canvasId, document as unknown as CanvasDocument);
+    return { resultRefType: "canvas", resultRefId: canvasId };
+  }
+
+  if (toolName === "canvas_delete") {
+    const canvasId = canvasDeleteInput(payload);
+    await understandingCanvasService.deleteCanvas(canvasId);
+    return { resultRefType: "canvas", resultRefId: canvasId };
+  }
+
+  throw new Error(`Unhandled approval tool: ${toolName}`);
 }

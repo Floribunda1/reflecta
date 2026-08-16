@@ -8,6 +8,9 @@ const services = vi.hoisted(() => ({
   readAttachmentForTool: vi.fn(),
   retrieveKnowledge: vi.fn(),
   writeDiagnosticEvent: vi.fn(),
+  getCanvasDetail: vi.fn(),
+  listCanvases: vi.fn(),
+  searchCanvases: vi.fn(),
 }));
 
 vi.mock("./attachment-read", () => ({
@@ -27,6 +30,11 @@ vi.mock("../core", () => ({
   searchCliService: {
     retrieveKnowledge: services.retrieveKnowledge,
   },
+  understandingCanvasCliService: {
+    getCanvasDetail: services.getCanvasDetail,
+    listCanvases: services.listCanvases,
+    searchCanvases: services.searchCanvases,
+  },
   understandingCliService: {
     getUnderstanding: services.getUnderstanding,
   },
@@ -41,6 +49,9 @@ const expectedReadToolNames = [
   "context_get",
   "attachment_read",
   "retrieve_knowledge",
+  "canvas_read",
+  "canvas_list",
+  "canvas_search",
 ] as const;
 
 describe("createPiReadOnlyTools", () => {
@@ -292,5 +303,65 @@ describe("createPiReadOnlyTools", () => {
 
     expect(services.readAttachmentForTool).toHaveBeenCalledWith(files, { attachmentId: "att-pdf" });
     expect(output.details).toEqual(result);
+  });
+
+  test("canvas_read passes includeBodies through and returns skeleton by default", async () => {
+    const detail = {
+      canvas: { id: "canvas-1", title: "调度" },
+      elements: [],
+      edges: [],
+      understandingRefs: [{ id: "u_1", title: "反馈回路", body: "", deleted: false }],
+      referencedCanvases: [],
+    };
+    services.getCanvasDetail.mockResolvedValue(detail);
+    const tool = createPiReadOnlyTools().find((item) => item.name === "canvas_read");
+    expect(tool).toBeDefined();
+
+    const execute = tool!.execute as unknown as (
+      toolCallId: string,
+      params: Record<string, unknown>,
+    ) => Promise<{ details: unknown }>;
+    const output = await execute("tool-call-1", { canvasId: "canvas-1" });
+    expect(services.getCanvasDetail).toHaveBeenCalledWith("canvas-1", { includeBodies: undefined });
+    expect(output.details).toEqual(detail);
+
+    await execute("tool-call-2", { canvasId: "canvas-1", includeBodies: true });
+    expect(services.getCanvasDetail).toHaveBeenCalledWith("canvas-1", { includeBodies: true });
+  });
+
+  test("canvas_search passes query / understandingId / limit through", async () => {
+    const hits = [{ canvas: { id: "canvas-1", title: "调度" }, snippet: "x", reason: "标题" }];
+    services.searchCanvases.mockResolvedValue(hits);
+    const tool = createPiReadOnlyTools().find((item) => item.name === "canvas_search");
+    expect(tool).toBeDefined();
+
+    const execute = tool!.execute as unknown as (
+      toolCallId: string,
+      params: Record<string, unknown>,
+    ) => Promise<{ details: unknown }>;
+    const output = await execute("tool-call-1", {
+      query: "灌溉",
+      understandingId: "u_1",
+      limit: 5,
+    });
+    expect(services.searchCanvases).toHaveBeenCalledWith({
+      query: "灌溉",
+      understandingId: "u_1",
+      limit: 5,
+    });
+    expect(output.details).toEqual(hits);
+  });
+
+  test("canvas_list passes titleSearchKeyword and limit through", async () => {
+    services.listCanvases.mockResolvedValue([]);
+    const tool = createPiReadOnlyTools().find((item) => item.name === "canvas_list");
+    expect(tool).toBeDefined();
+
+    const execute = tool!.execute as unknown as (
+      toolCallId: string,
+      params: Record<string, unknown>,
+    ) => Promise<{ details: unknown }>;
+    await execute("tool-call-1", { titleSearchKeyword: "调度", limit: 10 });
+    expect(services.listCanvases).toHaveBeenCalledWith({ titleSearchKeyword: "调度", limit: 10 });
   });
 });

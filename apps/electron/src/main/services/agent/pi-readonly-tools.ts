@@ -8,6 +8,7 @@ import {
   domainCliService,
   contextCliService,
   searchCliService,
+  understandingCanvasCliService,
   understandingCliService,
 } from "../core";
 import { HARD_ATTACHMENT_READ_MAX_CHARS, readAttachmentForTool } from "./attachment-read";
@@ -21,6 +22,9 @@ export const PI_READ_ONLY_TOOL_NAMES = [
   "context_get",
   "attachment_read",
   "retrieve_knowledge",
+  "canvas_read",
+  "canvas_list",
+  "canvas_search",
 ] as const;
 
 const paginationParameters = {
@@ -302,6 +306,91 @@ export function createPiReadOnlyTools(
             limit,
             anchors: domainIds?.map((id) => ({ type: "domain" as const, id })),
           }),
+          entityOptions,
+        ),
+    }),
+    defineTool({
+      name: "canvas_read",
+      label: "读取画布",
+      description:
+        "Read one Reflecta canvas structure (elements / edges / groups / labels and referenced Understanding titles). Bodies of referenced Understandings are omitted by default to save tokens; pass includeBodies to fetch them.",
+      promptSnippet:
+        "canvas_read: read one Reflecta canvas structure by stable id (skeleton by default, bodies opt-in).",
+      parameters: Type.Object({
+        canvasId: Type.String({
+          minLength: 1,
+          description: "Stable canvas id returned by Reflecta tools. Do not pass chat refs.",
+        }),
+        includeBodies: Type.Optional(Type.Boolean()),
+      }),
+      execute: async (toolCallId, { canvasId, includeBodies }) =>
+        createToolResult(
+          "canvas_read",
+          toolCallId,
+          await understandingCanvasCliService.getCanvasDetail(canvasId, {
+            includeBodies,
+          }),
+          entityOptions,
+        ),
+    }),
+    defineTool({
+      name: "canvas_list",
+      label: "列出画布",
+      description: "List Reflecta canvases, optionally filtered by title keyword, newest first.",
+      promptSnippet: "canvas_list: list Reflecta canvases.",
+      parameters: Type.Object({
+        titleSearchKeyword: Type.Optional(Type.String()),
+        limit: Type.Optional(
+          Type.Integer({
+            minimum: 1,
+            maximum: 200,
+            description: "Maximum number of canvases to return.",
+          }),
+        ),
+      }),
+      execute: async (toolCallId, { titleSearchKeyword, limit }) =>
+        createToolResult(
+          "canvas_list",
+          toolCallId,
+          await understandingCanvasCliService.listCanvases({ titleSearchKeyword, limit }),
+          entityOptions,
+        ),
+    }),
+    defineTool({
+      name: "canvas_search",
+      label: "搜索画布",
+      description:
+        "Discover Reflecta canvases. Pass a free-text query (matched OR across canvas title, elements, edge labels, group names, referenced Understanding titles) or an understandingId to find canvases that reference that Understanding.",
+      promptSnippet:
+        "canvas_search: discover canvases by free-text query or by referenced Understanding id.",
+      parameters: Type.Object({
+        query: Type.Optional(
+          Type.String({
+            minLength: 1,
+            maxLength: 200,
+            description: "Free-text query, 1-5 words, whitespace-split OR matching.",
+          }),
+        ),
+        understandingId: Type.Optional(
+          Type.String({
+            minLength: 1,
+            description:
+              "Stable Understanding id returned by Reflecta tools. Do not pass chat refs.",
+          }),
+        ),
+        limit: Type.Optional(
+          Type.Integer({
+            minimum: 1,
+            maximum: 100,
+            description: "Maximum number of hits to return.",
+          }),
+        ),
+      }),
+      execute: async (toolCallId, { query, understandingId, limit }) =>
+        createToolResult(
+          "canvas_search",
+          toolCallId,
+          await understandingCanvasCliService.searchCanvases({ query, understandingId, limit }),
           entityOptions,
         ),
     }),
