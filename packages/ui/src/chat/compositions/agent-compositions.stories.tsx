@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import type {
+  AgentContextCompacted,
   AgentReducedAssistantBlock,
   AgentReducedMessage,
 } from "../../../../../apps/electron/src/preload/typings/agent";
@@ -11,6 +12,7 @@ import {
 import { StoryCase, StoryShowcase } from "../../../.storybook/story-showcase";
 import { Button } from "../../components/button";
 import { ChatComposer } from "../composer/chat-composer";
+import { AgentContextCompactionStatus } from "../execution/agent-execution-block";
 import { ChatMessageRow } from "../message/chat-message-row";
 import type { ChatMessageRowView } from "../message/types";
 
@@ -259,19 +261,29 @@ function assistantRow(
 
 const searchEntities = async () => [];
 
-function Composer({ running = false }: { running?: boolean }) {
+function Composer({
+  running = false,
+  compacting = false,
+}: {
+  running?: boolean;
+  compacting?: boolean;
+}) {
   return (
     <ChatComposer
       draftId="composition-draft"
-      status={running ? "running" : "idle"}
-      canStop
+      status={compacting ? "compacting" : running ? "running" : "idle"}
+      canStop={!compacting && running}
       modelOptions={modelOptions}
       selectedModelId="openai:gpt-5"
       selectedReasoningId="medium"
       contextUsage={{
-        percent: running ? 61 : 58,
-        label: running ? "61%" : "58%",
-        description: running ? "当前上下文：78.1K / 128K" : "当前上下文：74.2K / 128K",
+        percent: compacting ? 96 : running ? 66 : 58,
+        label: compacting ? "96%" : running ? "66%" : "58%",
+        description: compacting
+          ? "当前上下文：122K / 128K，压缩中…"
+          : running
+            ? "当前上下文：84.6K / 128K"
+            : "当前上下文：74.2K / 128K",
       }}
       searchEntities={searchEntities}
       onSubmit={async () => undefined}
@@ -631,6 +643,112 @@ function DenseFailureDemo() {
   );
 }
 
+const compactReceipt: AgentContextCompacted = {
+  id: "compaction-overflow-1",
+  sessionId: "session-polar-greenhouse",
+  runId: "run-polar-greenhouse",
+  type: "context.compacted",
+  reason: "overflow",
+  createdAt,
+  summary: [
+    "保留了用户目标（最终控制方案）、已确认的分区灌溉策略、夜班联调记录中的复验细节，以及尚未执行的待办。",
+    "删除了较早 6 轮中已经收敛的排查过程与重复的遥测中间值。",
+  ].join("\n"),
+  firstKeptEntryId: "message-kept-001",
+  tokensBefore: 121_600,
+  estimatedTokensAfter: 28_400,
+  contextWindow: 128_000,
+};
+
+type CompactPhase = "compacting" | "receipt" | "answering" | "done";
+
+const COMPACT_ANSWER =
+  "压缩完成，上下文已回到安全区间。基于保留的分区灌溉策略与夜班联调记录：西侧支路维持现有低流量脉冲窗口，东侧支路在下一轮加入阀门实际开度与本地缓存计数，以区分网络延迟与执行器迟滞。最终控制方案已经汇总。";
+
+function CompactTaskDemo() {
+  const [phase, setPhase] = useState<CompactPhase>("compacting");
+
+  useEffect(() => {
+    const delayMs =
+      phase === "compacting"
+        ? 2_800
+        : phase === "receipt"
+          ? 1_200
+          : phase === "answering"
+            ? 2_400
+            : 2_800;
+    const timer = window.setTimeout(
+      () =>
+        setPhase((current) =>
+          current === "compacting"
+            ? "receipt"
+            : current === "receipt"
+              ? "answering"
+              : current === "answering"
+                ? "done"
+                : "compacting",
+        ),
+      delayMs,
+    );
+    return () => window.clearTimeout(timer);
+  }, [phase]);
+
+  const compacted = phase === "receipt" || phase === "answering" || phase === "done";
+  const answering = phase === "answering" || phase === "done";
+  const blocks: AgentReducedAssistantBlock[] = [
+    {
+      kind: "reasoning",
+      text: "上下文已接近窗口上限。先把较早几轮讨论压缩为结论，保留用户目标与关键证据，再读取已有策略并汇总最终方案。",
+      createdAt,
+    },
+    typicalUnderstanding,
+    ...(compacted
+      ? ([
+          { kind: "context-compaction", compaction: compactReceipt },
+        ] satisfies AgentReducedAssistantBlock[])
+      : []),
+    ...(answering
+      ? ([
+          {
+            kind: "text",
+            text: COMPACT_ANSWER,
+            state: phase === "done" ? "done" : "streaming",
+            createdAt,
+          },
+        ] satisfies AgentReducedAssistantBlock[])
+      : []),
+  ];
+  const row = assistantRow("compact-assistant", blocks, {
+    running: phase !== "done",
+    timestampLabel: phase === "done" ? "18:44" : undefined,
+    enabledActions: phase === "done" ? ["copy", "fork", "regenerate"] : [],
+  });
+
+  return (
+    <StorySurface>
+      <div className="grid content-start gap-7 overflow-auto p-6">
+        <ChatMessageRow
+          row={userRow(
+            "compact-user",
+            "上下文快满了。把之前几轮联调记录和候选策略一起整合，继续推进分区灌溉的最终控制方案。",
+          )}
+        />
+        <ChatMessageRow row={row} />
+        {/* 压缩进行中：与 message-list 一致，压缩未完成时是独立进度行（无 compaction 数据）。 */}
+        {phase === "compacting" ? <AgentContextCompactionStatus /> : null}
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" variant="outline" onClick={() => setPhase("compacting")}>
+            重置压缩流程
+          </Button>
+        </div>
+      </div>
+      <div className="border-t bg-background p-4">
+        <Composer compacting={phase === "compacting"} running={phase === "answering"} />
+      </div>
+    </StorySurface>
+  );
+}
+
 function AgentCompositionShowcase() {
   return (
     <StoryShowcase
@@ -650,6 +768,13 @@ function AgentCompositionShowcase() {
         contentClassName="p-0"
       >
         <ApprovalTaskDemo />
+      </StoryCase>
+      <StoryCase
+        title="压缩上下文"
+        description="长对话触发上下文溢出压缩：先经历压缩进度，完成后在消息流中留下 Token 变化回执，Agent 继续输出最终结论。"
+        contentClassName="p-0"
+      >
+        <CompactTaskDemo />
       </StoryCase>
       <StoryCase
         title="高密度与异常"
