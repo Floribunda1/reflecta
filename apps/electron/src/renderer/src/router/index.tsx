@@ -10,7 +10,6 @@ export const router = createHashRouter([
     children: [
       { index: true, element: <Navigate to="/capture" replace /> },
       { path: "capture", id: "Capture", element: <CapturePage /> },
-      { path: "contemplate", element: <Navigate to="/capture" replace /> },
       { path: "agent", id: "Agent", element: <ChatPage /> },
     ],
   },
