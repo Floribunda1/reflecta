@@ -35,7 +35,9 @@ export function CaptureStats({
       <div className="flex min-w-0 items-center gap-6">
         {statItems.map((item) => (
           <div key={item.label} className="flex min-w-0 flex-col gap-0.5">
-            <span className="text-lg leading-6 font-semibold tabular-nums">{item.value}</span>
+            <span data-stat={item.label} className="text-lg leading-6 font-semibold tabular-nums">
+              {item.value}
+            </span>
             <span className="text-xs text-muted-foreground">{item.label}</span>
           </div>
         ))}

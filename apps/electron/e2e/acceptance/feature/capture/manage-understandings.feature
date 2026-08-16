@@ -33,14 +33,14 @@
     而且用户把它归入 Domain「Design」
     那么详情页应该显示 Domain「Design」
     当用户选择 Domain「Design」
-    那么理解列表应该显示 Understanding「React Server Components」
+    那么卡片网格应该显示 Understanding「React Server Components」
 
   @P0 @deletion @CP-UNDERSTANDING-004
   场景: 用户删除不再需要的 Understanding
     假如 seed 数据中存在 Understanding「React Server Components」和「Vue Reactivity」
     当用户删除 Understanding「React Server Components」并确认
-    那么理解列表应该继续显示 Understanding「Vue Reactivity」
-    而且详情区应该回到未选择 Understanding 的状态
+    那么卡片网格应该继续显示 Understanding「Vue Reactivity」
+    而且详情抽屉应该回到未选择 Understanding 的状态
 
   @P1 @content @CP-UNDERSTANDING-005
   场景: 用户查看 Understanding 中的 Mermaid 图表

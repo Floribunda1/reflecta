@@ -3,10 +3,11 @@ import { launchApp } from "../agent/agent-e2e";
 import { deleteUnderstanding, seedUnderstandingIdByTitle } from "../agent/agent-fixtures";
 import {
   addContext,
+  closeDetailDrawer,
   contextCard,
   openCapturePage,
   openUnderstanding,
-  understandingRow,
+  understandingCard,
 } from "../capture/capture-e2e";
 
 async function openTrash(page: Page) {
@@ -43,9 +44,8 @@ test("@TRASH-001 用户恢复已删除的 Understanding", async () => {
     await expect(page.getByText("已恢复 Understanding")).toBeVisible();
     await page.keyboard.press("Escape");
 
-    await page.getByRole("button", { name: "搜索理解" }).click();
     await page.getByPlaceholder("查找已有理解").fill("React Server Components");
-    await expect(understandingRow(page, "React Server Components")).toBeVisible();
+    await expect(understandingCard(page, "React Server Components")).toBeVisible();
     await openUnderstanding(page, "React Server Components");
   } finally {
     await app.close();
@@ -60,6 +60,8 @@ test("@TRASH-002 用户恢复已删除的 Context", async () => {
     await openUnderstanding(page, "React Server Components");
     await addContext(page, "待恢复上下文", "这条上下文应该可以恢复");
     await deleteContext(page, "待恢复上下文");
+    // 详情抽屉是模态浮层，会挡住设置入口；先关闭再打开回收站
+    await closeDetailDrawer(page);
 
     await openTrash(page);
     const item = trashItem(page, "待恢复上下文");
@@ -68,6 +70,7 @@ test("@TRASH-002 用户恢复已删除的 Context", async () => {
     await expect(page.getByText("已恢复 Context")).toBeVisible();
     await page.keyboard.press("Escape");
 
+    await openUnderstanding(page, "React Server Components");
     await expect(contextCard(page, "待恢复上下文")).toBeVisible();
   } finally {
     await app.close();

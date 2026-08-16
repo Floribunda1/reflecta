@@ -6,7 +6,7 @@ import {
   seedAgentThread,
   userMessage,
 } from "../agent/agent-fixtures";
-import { domainNode, openCapturePage } from "./capture-e2e";
+import { domainNode, openCapturePage, understandingCard } from "./capture-e2e";
 
 test.beforeEach(() => {
   resetAgentFixtures();
@@ -49,7 +49,7 @@ test("@CP-AGENT-002 用户从 Understanding 列表右键菜单打开上下文 Ag
     await openCapturePage(page);
     await page
       .locator(
-        '[data-testid="capture-understanding-row"][data-understanding-title="React Server Components"]',
+        '[data-testid="capture-understanding-card"][data-understanding-title="React Server Components"]',
       )
       .click({ button: "right" });
     await chooseChatFromContextMenu(page);
@@ -65,11 +65,7 @@ test("@CP-AGENT-003 用户从 Understanding 详情页按钮打开上下文 Agent
 
   try {
     await openCapturePage(page);
-    await page
-      .locator(
-        '[data-testid="capture-understanding-row"][data-understanding-title="React Server Components"]',
-      )
-      .click();
+    await understandingCard(page, "React Server Components").click();
     await expect(page.getByTestId("capture-understanding-chat-button")).toBeVisible();
     await page.getByTestId("capture-understanding-chat-button").click();
 
@@ -112,7 +108,7 @@ test("@CP-AGENT-005 对话列表只收录已发送消息的 Capture 上下文对
     await chooseChatFromContextMenu(page);
     await expectAgentDockWithContext(page, "Programming");
 
-    await page.getByTestId("app-module-switcher").click();
+    await page.getByTestId("app-nav-module-agent").click();
     await expect(page.getByTestId("agent-page")).toBeVisible();
     await expect(
       page.getByTestId("agent-thread-item").filter({ hasText: "聊聊：Programming" }),
@@ -212,7 +208,7 @@ test("@CP-AGENT-008 用户调整并关闭上下文 Agent", async () => {
 
     await dock.getByRole("button", { name: "关闭 Agent" }).click();
     await expect(dock).toHaveCount(0);
-    await expect(page.getByTestId("capture-understanding-list-panel")).toBeVisible();
+    await expect(page.getByTestId("capture-dashboard")).toBeVisible();
   } finally {
     await page.mouse.up().catch(() => undefined);
     await app.close();

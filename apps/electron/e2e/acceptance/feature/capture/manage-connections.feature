@@ -18,10 +18,10 @@
     当用户打开 Understanding「React Server Components」
     而且用户选择正文中的 Understanding「React Suspense」链接
     那么详情页应该打开 Understanding「React Suspense」
-    而且理解列表应该选中 Understanding「React Suspense」
+    而且卡片网格应该选中 Understanding「React Suspense」
 
   @P1 @list @CP-CONNECTION-003
   场景: 用户建立 Connection 后理解列表显示引用数量
     假如 seed 数据中存在尚未连接的 Understanding「React Server Components」和「Unconnected Node」
     当用户通过 wiki-link 将 Understanding「React Server Components」连接到「Unconnected Node」
-    那么理解列表中「React Server Components」的引用数量应该增加
+    那么「React Server Components」卡片上的引用数量应该增加

@@ -87,51 +87,21 @@ test("@AG-START-007 用户打开等待回复中的对话时看到对话区等待
   }
 });
 
-test("@AG-START-008 用户收起后从对话标题重新展开对话列表", async () => {
+test("@AG-START-008 用户收起后从导航栏恢复对话列表", async () => {
   const { app, page } = await launchAgentPage();
 
   try {
     await expect(page.getByTestId("agent-thread-title")).toBeVisible();
-    await page.getByTestId("agent-sidebar-collapse-button").click();
+    await page.getByTestId("app-nav-rail-collapse-button").click();
 
-    const sidebarContainer = page.getByTestId("agent-thread-sidebar-container");
-    await expect(sidebarContainer).toHaveAttribute("aria-hidden", "true");
-    await expect(sidebarContainer).toHaveCSS("width", "0px");
-    await expect(page.getByTestId("agent-sidebar-expand-button")).toBeVisible();
+    const rail = page.getByTestId("app-nav-rail");
+    await expect(rail).toHaveCSS("width", "56px");
+    await expect(page.getByTestId("agent-thread-sidebar")).toBeHidden();
 
-    await page.getByTestId("agent-sidebar-expand-button").click();
-    await expect(sidebarContainer).toHaveAttribute("aria-hidden", "false");
-    await expect
-      .poll(async () => (await sidebarContainer.boundingBox())?.width ?? 0)
-      .toBeGreaterThan(270);
+    await page.getByTestId("app-nav-rail-collapse-button").click();
+    await expect(rail).toHaveCSS("width", "248px");
     await expect(page.getByTestId("agent-thread-sidebar")).toBeVisible();
-    await expect(page.getByTestId("agent-sidebar-collapse-button")).toBeVisible();
   } finally {
-    await app.close();
-  }
-});
-
-test("@AG-START-009 用户调整对话列表宽度", async () => {
-  const { app, page } = await launchAgentPage();
-
-  try {
-    await expect(page.getByTestId("agent-thread-title")).toBeVisible();
-    const listPanel = page.getByTestId("agent-thread-sidebar-panel");
-    const resizeHandle = page.getByTestId("agent-thread-sidebar-resize-handle");
-    const handleBox = await resizeHandle.boundingBox();
-    const initialBox = await listPanel.boundingBox();
-    if (!handleBox || !initialBox) throw new Error("Thread list resize handle is not visible");
-
-    await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(handleBox.x + 100, handleBox.y + handleBox.height / 2, { steps: 8 });
-    await expect
-      .poll(async () => (await listPanel.boundingBox())?.width ?? 0)
-      .toBeGreaterThan(initialBox.width + 70);
-    await page.mouse.up();
-    await expect(page.getByTestId("agent-thread-title")).toBeVisible();
-  } finally {
-    await page.mouse.up().catch(() => undefined);
     await app.close();
   }
 });

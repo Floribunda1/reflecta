@@ -8,7 +8,7 @@
     假如用户已经进入 Capture 页面
     当用户新建名为 NEW_ROOT_DOMAIN 的根 Domain
     那么 Domain Tree 应该显示 NEW_ROOT_DOMAIN
-    而且用户选择 NEW_ROOT_DOMAIN 后，理解列表应该显示这个 Domain 的名称
+    而且用户选择 NEW_ROOT_DOMAIN 后，Dashboard 的领域 chips 应该选中 NEW_ROOT_DOMAIN
 
   @P0 @happy_path @CP-DOMAIN-008
   场景: 用户在已有 Domain 下创建子 Domain
@@ -24,7 +24,7 @@
     当用户把 Domain「DevOps」重命名为 RENAMED_DOMAIN
     而且用户把它的父 Domain 改为「Design」
     那么 RENAMED_DOMAIN 应该显示在 Domain「Design」下面
-    而且用户选择 RENAMED_DOMAIN 后，理解列表应该显示这个新名称
+    而且用户选择 RENAMED_DOMAIN 后，Dashboard 的领域 chips 应该选中 RENAMED_DOMAIN
 
   @P0 @safety @CP-DOMAIN-010
   场景: 用户删除 Domain 后仍能从全部领域找到原有理解
@@ -34,7 +34,7 @@
     当用户删除 Domain「Programming」并确认
     那么 Domain Tree 应该回到“全部领域”
     而且原来的子 Domain「Frontend」应该作为根 Domain 继续显示
-    而且理解列表应该继续显示 Understanding「React Server Components」
+    而且卡片网格应该继续显示 Understanding「React Server Components」
 
   @P0 @safety @CP-DOMAIN-011
   场景: 用户修改父 Domain 时只看到有效选项
@@ -48,16 +48,15 @@
   @P0 @happy_path @CP-DOMAIN-001
   场景: 用户拖动根级 Domain 调整顺序
     假如 seed 数据中存在根级 Domain「Programming」和「Design」
-    当用户在 Capture 页面把 Domain「Design」拖到 Domain「Programming」前面
+    当用户把左导航栏中的 Domain「Design」拖到 Domain「Programming」前面
     那么 Domain Tree 中「Design」应该显示在「Programming」前面
     而且用户离开并回到 Capture 页面后，Domain Tree 仍然保持「Design」在「Programming」前面
 
   @P1 @navigation @CP-DOMAIN-005
-  场景: 用户收起后从理解列表重新展开 Domain Tree
+  场景: 用户收起后从导航栏恢复 Domain Tree
     假如用户已经进入 Capture 页面
-    当用户收起 Domain Tree
-    那么 Domain Tree 应该完全隐藏
-    而且理解列表标题左侧应该显示展开 Domain Tree 的操作
-    当用户从理解列表标题左侧展开 Domain Tree
+    当用户收起导航栏
+    那么导航栏应该收窄为模块图标
+    而且 Domain Tree 应该隐藏
+    当用户展开导航栏
     那么 Domain Tree 应该恢复显示
-    而且收起 Domain Tree 的操作应该显示在 Domain Tree 右上角

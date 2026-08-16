@@ -3,7 +3,7 @@ import { expect, type Page } from "@playwright/test";
 export async function openCapturePage(page: Page) {
   await expect(page.getByTestId("capture-page").or(page.getByTestId("agent-page"))).toBeVisible();
   if (await page.getByTestId("agent-page").isVisible()) {
-    await page.getByTestId("app-module-switcher").click();
+    await page.getByTestId("app-nav-module-capture").click();
   }
   await expect(page.getByTestId("capture-page")).toBeVisible();
 }
@@ -12,14 +12,35 @@ export function domainNode(page: Page, name: string) {
   return page.locator(`[data-testid="capture-domain-node"][data-domain-name="${name}"]`);
 }
 
-export function understandingRow(page: Page, title: string) {
+export function understandingCard(page: Page, title: string) {
   return page.locator(
-    `[data-testid="capture-understanding-row"][data-understanding-title="${title}"]`,
+    `[data-testid="capture-understanding-card"][data-understanding-title="${title}"]`,
   );
+}
+
+export function domainChip(page: Page, name: string) {
+  return page.locator(`[data-testid="capture-domain-chip"][data-domain-name="${name}"]`);
+}
+
+export async function statsValue(page: Page, label: string): Promise<number> {
+  const text = await page
+    .getByTestId("capture-dashboard-stats")
+    .locator(`[data-stat="${label}"]`)
+    .textContent();
+  return Number.parseInt(text?.match(/\d+/)?.[0] ?? "0", 10);
 }
 
 export function understandingTitleInput(page: Page) {
   return page.getByPlaceholder("写下一个刚形成的理解");
+}
+
+/** 详情抽屉是模态浮层；切卡片/切模块前先关闭（用抽屉内关闭按钮，Escape 在编辑器/控件内可能被吞）。 */
+export async function closeDetailDrawer(page: Page) {
+  const drawer = page.getByTestId("capture-understanding-detail-drawer");
+  if (await drawer.isVisible()) {
+    await drawer.getByLabel("关闭详情").click();
+    await expect(drawer).toBeHidden();
+  }
 }
 
 export function understandingEditor(page: Page) {
@@ -27,7 +48,8 @@ export function understandingEditor(page: Page) {
 }
 
 export async function openUnderstanding(page: Page, title: string) {
-  await understandingRow(page, title).click();
+  await closeDetailDrawer(page);
+  await understandingCard(page, title).click();
   await expect(understandingTitleInput(page)).toHaveValue(title);
 }
 
@@ -37,7 +59,10 @@ export function contextCard(page: Page, title: string) {
 
 export async function addContext(page: Page, title: string, content: string) {
   await page.getByRole("button", { name: "添加上下文" }).click();
-  const drawer = page.locator('[data-slot="sheet-content"]');
+  // 详情抽屉与上下文抽屉都是 Sheet；排除详情抽屉，只指向上下文抽屉
+  const drawer = page.locator(
+    '[data-slot="sheet-content"]:not([data-testid="capture-understanding-detail-drawer"])',
+  );
   await expect(drawer).toContainText("添加上下文");
   await drawer.getByRole("tab", { name: "个人经历" }).click();
   await drawer.getByPlaceholder("上下文标题或场景").fill(title);

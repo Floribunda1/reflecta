@@ -14,9 +14,9 @@
     而且 Agent 侧栏应该显示当前范围为「Programming」
 
   @P0 @context @CP-AGENT-002
-  场景: 用户从 Understanding 列表右键菜单打开上下文 Agent
+  场景: 用户从 Dashboard 卡片右键菜单打开上下文 Agent
     假如 seed 数据中存在 Understanding「React Server Components」
-    当用户在 Capture 页面右键 Understanding「React Server Components」
+    当用户在 Dashboard 卡片网格中右键 Understanding「React Server Components」
     而且用户选择“和 AI 聊聊”
     那么页面右侧应该打开 Agent 侧栏
     而且 Agent 输入框中应该显示 Understanding「React Server Components」上下文

@@ -40,7 +40,7 @@ export async function openAgentPage(page: Page) {
   const agentPage = page.getByTestId("agent-page");
   await expect(async () => {
     if (await agentPage.isVisible()) return;
-    await page.getByTestId("app-module-switcher").click();
+    await page.getByTestId("app-nav-module-agent").click();
     await expect(agentPage).toBeVisible({ timeout: 3_000 });
   }).toPass({ timeout: 15_000 });
 }

@@ -23,8 +23,20 @@ function DomainFilterChips({
   onSelect: (domainId: string) => void;
 }) {
   const { domains } = useCaptureDomains();
-  // chips 平铺根领域；子领域通过 includeDescendants 归入父领域筛选（Domain = cluster 标签语义）
-  const roots = useMemo(() => domains.filter((domain) => !domain.parentId), [domains]);
+  // chips 平铺全部领域（含子领域，路径化展示），选中任意层级都可达；
+  // 子领域通过 includeDescendants 归入父领域筛选（Domain = cluster 标签语义）
+  const flatChips = useMemo(() => {
+    const result: { id: string; label: string }[] = [];
+    const walk = (nodes: typeof domains, prefix: string) => {
+      for (const node of nodes) {
+        const label = prefix ? `${prefix}/${node.name}` : node.name;
+        result.push({ id: node.id, label });
+        walk(node.children, label);
+      }
+    };
+    walk(domains, "");
+    return result;
+  }, [domains]);
 
   return (
     <div
@@ -37,20 +49,24 @@ function DomainFilterChips({
         size="sm"
         variant={selectedDomainId === "all" ? "secondary" : "ghost"}
         className="px-2.5"
+        aria-pressed={selectedDomainId === "all"}
         onClick={() => onSelect("all")}
       >
         全部
       </Button>
-      {roots.map((domain) => (
+      {flatChips.map(({ id, label }) => (
         <Button
-          key={domain.id}
+          key={id}
           type="button"
           size="sm"
-          variant={selectedDomainId === domain.id ? "secondary" : "ghost"}
-          className="max-w-36 px-2.5"
-          onClick={() => onSelect(domain.id)}
+          variant={selectedDomainId === id ? "secondary" : "ghost"}
+          className="max-w-44 px-2.5"
+          data-testid="capture-domain-chip"
+          data-domain-name={label}
+          aria-pressed={selectedDomainId === id}
+          onClick={() => onSelect(id)}
         >
-          <span className="truncate">{domain.name}</span>
+          <span className="truncate">{label}</span>
         </Button>
       ))}
     </div>

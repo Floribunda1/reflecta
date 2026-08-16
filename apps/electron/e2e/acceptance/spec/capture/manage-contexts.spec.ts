@@ -27,7 +27,9 @@ test("@CP-CONTEXT-002 用户查看并修改已有 Context", async () => {
     await addContext(page, "待修改上下文", "这是原始上下文内容");
 
     await contextCard(page, "待修改上下文").click();
-    const drawer = page.locator('[data-slot="sheet-content"]');
+    const drawer = page.locator(
+      '[data-slot="sheet-content"]:not([data-testid="capture-understanding-detail-drawer"])',
+    );
     await expect(drawer).toContainText("待修改上下文");
     await expect(drawer).toContainText("这是原始上下文内容");
     await expect(drawer).toContainText("个人经历");
