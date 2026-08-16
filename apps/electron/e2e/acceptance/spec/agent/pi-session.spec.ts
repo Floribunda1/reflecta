@@ -780,8 +780,13 @@ test("@AG-RETRIEVAL-003 用户要求 Agent 检索知识库后看到检索结果"
     // 运行中 group 自动展开（可见 tool 行）；完成后默认收起，展开后再交互。
     await expect(page.getByTestId("agent-tool-activity")).toBeVisible({ timeout: 120_000 });
     await waitForAssistantReply(page);
-    await expandLatestActivityGroup(page);
+    // 模型可能产生多组活动（检索后按工具指引读取候选理解）：展开包含首个 tool 活动的 group
     const toolActivity = page.getByTestId("agent-tool-activity").first();
+    const groups = page.getByTestId("agent-activity-group");
+    for (let i = (await groups.count()) - 1; i >= 0; i--) {
+      await groups.nth(i).getByTestId("agent-activity-group-trigger").click();
+      if (await toolActivity.isVisible()) break;
+    }
     // 行为契约要求自然语言查询,模型可能把专有名词扩展成完整句子,只断言查询围绕 RSC
     await expect(toolActivity).toContainText(/检索「[^」]*React Server Components/);
     await expect(toolActivity.getByTestId("agent-tool-detail")).not.toBeVisible();

@@ -14,7 +14,11 @@ async function openStorageSettings(page: Awaited<ReturnType<typeof launchApp>>["
 function writeCustomStorageRoot(customRoot: string) {
   const env = readE2eTestEnv();
   const configPath = path.join(env.appConfigDir, "reflecta-config.json");
-  const config = JSON.parse(fs.readFileSync(configPath, "utf-8")) as Record<string, unknown>;
+  // config 文件由 app 首次启动时创建；测试在启动前写入时文件可能不存在，按空配置合并
+  let config: Record<string, unknown> = {};
+  if (fs.existsSync(configPath)) {
+    config = JSON.parse(fs.readFileSync(configPath, "utf-8")) as Record<string, unknown>;
+  }
   fs.writeFileSync(
     configPath,
     JSON.stringify({ ...config, contentStorageRoot: customRoot }, null, 2),
