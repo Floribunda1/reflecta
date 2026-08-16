@@ -87,9 +87,9 @@
 **细化（2026-08-16 二轮）**：
 
 - **header 模块化 slot**：新增 `header-content-context.tsx`（`HeaderContentProvider` / `useHeaderContent`，仿 RailMenu）。AppHeader 默认显示模块标题；如 Agent 模块通过 `useHeaderContent` 注入 `{ title, actions }`，渲染为 `[collapse] ┃ 线程标题 …… 线程操作`，消除了原先 Agent 页「全局 header + 线程 header」双栏。agent dock（嵌入场景，不传 title/回调）不注入，避免误覆盖。
-- **内容区浮层卡（inset）**：`main` 改为 `mx-2 my-2 rounded-xl bg-background shadow-sm ring-1 ring-foreground/10`，对齐 dashboard-01 `SidebarInset` 的 card-with-shadow。
+- **内容区浮层卡（inset）**：`main` 改为 `mx-2 mb-2 rounded-xl bg-background shadow-sm ring-1 ring-foreground/10`，对齐 dashboard-01 `SidebarInset` 的 card-with-shadow；顶部贴边作为 macOS titlebar 行（仅左右/底部留 inset）。
 - **整栏透明**：rail 移除 `bg-sidebar/50`，改为完全透明，透出 macOS vibrancy。
-- **红绿灯避让**：offcanvas 收起时 `main` 顶到窗口最左，AppHeader 在收起态额外 `pl-[76px]` 为 macOS 红绿灯（trafficLightPosition.x=16，约占至 x:76）预留横向空间。
+- **红绿灯 titlebar 行对齐**：header 顶到窗口最上沿（无顶部 margin）、高 `h-11`（44px），`items-center` 使 collapse 按钮中心落在 y≈22，与红绿灯中心（pos y=16 + 高 12）同一条水平线；offcanvas 收起时 header 顶到窗口最左，额外 `pl-[72px]` 让按钮紧贴红绿灯（横向约占至 x≈72）右侧。
 
 待定（承接 0.1）：带参跨模块跳转机制仍未定；Canvas 模块接入后 rail 第三个入口的激活态与跳转行为需补齐。
 

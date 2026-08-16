@@ -27,10 +27,11 @@ export function AppHeader() {
     <header
       data-testid="app-header"
       className={cn(
-        "app-drag-region flex h-12 shrink-0 items-center gap-2 border-b",
-        // offcanvas 收起时 rail 宽度归 0，header 落到窗口最左 → 预留红绿灯
-        //（trafficLightPosition.x=16，红绿灯横向约占到 ~x:76）。
-        open ? "px-4" : "pl-[76px] pr-4",
+        "app-drag-region flex h-11 shrink-0 items-center gap-2 border-b",
+        // offcanvas 收起时 rail 宽度归 0，header 顶到窗口最左 → 预留红绿灯。
+        // h-11（44px）让 items-center 落到 y≈22，与红绿灯中心（pos y=16 + 高 12 ≈ 22）同线；
+        // 红绿灯横向约占至 x≈72，pl-[72px] 使 collapse 按钮紧贴其右。
+        open ? "px-4" : "pl-[72px] pr-4",
       )}
     >
       <div data-no-drag>

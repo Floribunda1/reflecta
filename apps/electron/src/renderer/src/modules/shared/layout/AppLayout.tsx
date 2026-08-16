@@ -14,9 +14,10 @@ export function AppLayout() {
         <RailMenuProvider>
           <div className="flex flex-1 overflow-hidden">
             <AppNavRail />
-            {/* 内容区 = 一个圆角浮层卡（对齐 dashboard-01 SidebarInset：m+rounded+shadow）。
+            {/* 内容区 = 一个圆角浮层卡（对齐 dashboard-01 SidebarInset：shadow）。
+                顶部贴边作为 macOS titlebar 行（红绿灯落在此行），仅左右/底部留 inset。
                 HeaderContentProvider 同时包住 AppHeader 与路由内容，模块才能注入 header slot。 */}
-            <main className="mx-2 my-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-background shadow-sm ring-1 ring-foreground/10">
+            <main className="mx-2 mb-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-background shadow-sm ring-1 ring-foreground/10">
               <HeaderContentProvider>
                 <AppHeader />
                 <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
