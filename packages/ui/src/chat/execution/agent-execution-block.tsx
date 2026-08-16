@@ -127,6 +127,7 @@ export function AgentContextCompactionStatus({
 }) {
   // 进行中计时（与 AgentPendingBlock 的「等待」占位同语义：小字 + 计时）。
   const elapsed = useElapsed(!compaction);
+  const [open, setOpen] = useState(false);
   if (!compaction) {
     return (
       <div
@@ -156,12 +157,16 @@ export function AgentContextCompactionStatus({
 
   return (
     <Collapsible
+      open={open}
+      onOpenChange={setOpen}
       data-testid="agent-context-compaction-receipt"
-      className="group/compaction min-w-0 w-full text-body text-muted-foreground"
+      data-state={open ? "open" : "closed"}
+      className="group/activity my-0.5 min-w-0 w-full text-body text-muted-foreground"
     >
       <CollapsibleTrigger
         data-testid="agent-context-compaction-trigger"
-        className="group flex w-full cursor-pointer items-center gap-2 py-0.5 text-left outline-none transition-colors duration-100 hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
+        // DESIGN: pill hover 与 activity group 一致（w-fit + rounded-md + hover:bg-muted）
+        className="group/row flex w-fit cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-left text-body text-muted-foreground outline-none transition-colors duration-100 hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
       >
         <CheckCircle2 className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span className="font-medium text-muted-foreground">已压缩较早的对话上下文</span>
@@ -170,15 +175,21 @@ export function AgentContextCompactionStatus({
             {tokenChange}
           </span>
         ) : null}
-        <ChevronRight className="ml-auto size-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 group-aria-expanded:hidden" />
-        <ChevronDown className="ml-auto hidden size-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 group-aria-expanded:block" />
+        {open ? (
+          <ChevronDown className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+        ) : (
+          <ChevronRight className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+        )}
       </CollapsibleTrigger>
       <CollapsibleContent
         data-testid="agent-context-compaction-summary"
         keepMounted
-        className="collapse-grid ml-[7px] border-l border-border py-1 pl-[17px] pr-2"
+        className="collapse-grid"
       >
-        <div className="whitespace-pre-wrap leading-6">{compaction.summary}</div>
+        {/* DESIGN: 折叠内容竖线 ml-[13px] 与 pill 行首图标视觉中线对齐（同 activity group）。 */}
+        <div className="ml-[13px] min-w-0 border-l-2 border-border py-0.5 pl-4 pr-2">
+          <div className="whitespace-pre-wrap leading-6">{compaction.summary}</div>
+        </div>
       </CollapsibleContent>
     </Collapsible>
   );
