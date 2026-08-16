@@ -84,13 +84,11 @@ export function AppNavRail() {
         open ? SIDEBAR_WIDTH_CLASS : "w-0",
       )}
     >
-      {/* DESIGN: translucent sidebar is intentional — macOS-style vibrancy.
-          The window is configured transparent + vibrancy: under-window; the
-          raised-surface alpha tint (base01) lets the frosted material show
-          through while keeping the sidebar's raised-container semantic.
-          Not covered by any token (it is a window-level effect, not a
-          surface color), and required by the product design. */}
-      <div className="flex h-full min-h-0 flex-col bg-sidebar/50">
+      {/* DESIGN: fully transparent sidebar — macOS-style vibrancy shows straight through.
+          The window is configured transparent + vibrancy: under-window; the rail carries no
+          surface tint so the frosted material remains visible across the whole rail.
+          Not covered by any token (it is a window-level effect, not a surface color). */}
+      <div className="flex h-full min-h-0 flex-col">
         <div className="app-drag-region shrink-0 px-2 pt-14 pb-2">
           <nav
             data-testid="app-nav-label-area"

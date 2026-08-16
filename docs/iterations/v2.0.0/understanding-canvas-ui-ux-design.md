@@ -84,6 +84,13 @@
 - **全局 header**：新增 `AppHeader.tsx`（对齐 `SiteHeader`：`SidebarTrigger + separator + 模块标题 + 右侧操作位`），位于 `main` 顶部、承担窗口拖拽区；chat 内嵌 thread header 移除重复的 `app-drag-region`。
 - **e2e 语义**：`@CP-DOMAIN-005` / `@AG-START-008` 由「收起 56px / 展开 248px」改为「收起 0px / 展开 248px」，域树 / 对话列表在收起时隐藏、经 header 恢复。
 
+**细化（2026-08-16 二轮）**：
+
+- **header 模块化 slot**：新增 `header-content-context.tsx`（`HeaderContentProvider` / `useHeaderContent`，仿 RailMenu）。AppHeader 默认显示模块标题；如 Agent 模块通过 `useHeaderContent` 注入 `{ title, actions }`，渲染为 `[collapse] ┃ 线程标题 …… 线程操作`，消除了原先 Agent 页「全局 header + 线程 header」双栏。agent dock（嵌入场景，不传 title/回调）不注入，避免误覆盖。
+- **内容区浮层卡（inset）**：`main` 改为 `mx-2 my-2 rounded-xl bg-background shadow-sm ring-1 ring-foreground/10`，对齐 dashboard-01 `SidebarInset` 的 card-with-shadow。
+- **整栏透明**：rail 移除 `bg-sidebar/50`，改为完全透明，透出 macOS vibrancy。
+- **红绿灯避让**：offcanvas 收起时 `main` 顶到窗口最左，AppHeader 在收起态额外 `pl-[76px]` 为 macOS 红绿灯（trafficLightPosition.x=16，约占至 x:76）预留横向空间。
+
 待定（承接 0.1）：带参跨模块跳转机制仍未定；Canvas 模块接入后 rail 第三个入口的激活态与跳转行为需补齐。
 
 ---

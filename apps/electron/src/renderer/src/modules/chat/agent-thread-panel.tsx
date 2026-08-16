@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SIDEBAR_COLLAPSED_OFFSET_CLASS } from "@renderer/modules/shared/layout/layout-constants";
-import { PanelHeader } from "@renderer/modules/shared/layout/PanelHeader";
+import {
+  useHeaderContent,
+  type HeaderContent,
+} from "@renderer/modules/shared/layout/header-content-context";
 import { ArrowDown, ChevronDown, ChevronUp, MoreHorizontal, X } from "lucide-react";
 import type {
   AgentContextRef,
@@ -23,7 +25,6 @@ import {
   DropdownMenuTrigger,
 } from "@reflecta/ui/components/dropdown-menu";
 import { Input } from "@reflecta/ui/components/input";
-import { cn } from "@reflecta/ui/lib/utils";
 import { useDebounce, useMemoizedFn } from "ahooks";
 import { toast } from "sonner";
 import { AgentChatComposer } from "./adapters/chat-composer-adapter";
@@ -38,7 +39,6 @@ import {
   useSelectAgentModelMutation,
   useSelectAgentReasoningLevelMutation,
 } from "./session/server-state";
-import { SidebarToggleButton } from "@renderer/modules/shared/layout/SidebarToggleButton";
 import { exportThreadMarkdown, ThreadActionMenuItems } from "./session/thread-action-menu-items";
 
 function errorMessage(error: unknown) {
@@ -60,7 +60,6 @@ type AgentThreadPanelProps = {
   onArchive?: () => void;
   onDelete?: () => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
-  onExpandSidebar?: () => void;
 };
 
 export function AgentThreadPanel({
@@ -76,7 +75,6 @@ export function AgentThreadPanel({
   onArchive,
   onDelete,
   onInspectContextRef,
-  onExpandSidebar,
 }: AgentThreadPanelProps) {
   const threadView = useAgentThreadView(threadId, scrollRequest);
   const modelOptionsQuery = useAgentModelOptionsQuery();
@@ -128,28 +126,54 @@ export function AgentThreadPanel({
     setActiveFindMatch(null);
   }, [threadId]);
 
+  const hasHeader = title !== undefined && onRename && onGenerateTitle && onArchive && onDelete;
+
+  // 把「线程标题 + 操作」注入全局 AppHeader（[collapse] ┃ 标题 …… 操作），
+  // 避免与全局 header 叠出两个栏。嵌入场景（agent dock）不传 title/回调，hasHeader 为 false。
+  const headerContent = useMemo<HeaderContent>(
+    () =>
+      hasHeader
+        ? {
+            title: <AgentThreadTitle title={title} onRename={onRename} />,
+            actions: (
+              <AgentThreadActions
+                threadId={threadId}
+                title={title}
+                messages={threadView.visibleMessages}
+                isBusy={threadView.isBusy}
+                isCompacting={threadView.isCompacting}
+                titleGenerating={Boolean(titleGenerating)}
+                onCompact={compact}
+                onGenerateTitle={onGenerateTitle}
+                onArchive={onArchive}
+                onDelete={onDelete}
+              />
+            ),
+          }
+        : null,
+    [
+      hasHeader,
+      title,
+      threadId,
+      threadView.visibleMessages,
+      threadView.isBusy,
+      threadView.isCompacting,
+      titleGenerating,
+      compact,
+      onRename,
+      onGenerateTitle,
+      onArchive,
+      onDelete,
+    ],
+  );
+  useHeaderContent(headerContent);
+
   return (
     <main
       data-testid="agent-thread-chat"
       data-thread-id={threadId}
       className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-transparent"
     >
-      {title !== undefined && onRename && onGenerateTitle && onArchive && onDelete ? (
-        <AgentThreadHeader
-          threadId={threadId}
-          title={title}
-          messages={threadView.visibleMessages}
-          isBusy={threadView.isBusy}
-          isCompacting={threadView.isCompacting}
-          titleGenerating={Boolean(titleGenerating)}
-          onCompact={compact}
-          onRename={onRename}
-          onGenerateTitle={onGenerateTitle}
-          onArchive={onArchive}
-          onDelete={onDelete}
-          onExpandSidebar={onExpandSidebar}
-        />
-      ) : null}
       <div className="relative min-h-0 flex-1">
         <ThreadFindBox
           messages={threadView.visibleMessages}
@@ -474,36 +498,15 @@ function sameFindMatch(left: ChatFindMarkerMatch, right: ChatFindMarkerMatch) {
   return left.messageId === right.messageId && left.matchIndex === right.matchIndex;
 }
 
-function AgentThreadHeader({
-  threadId,
+function AgentThreadTitle({
   title,
-  messages,
-  isBusy,
-  isCompacting,
-  titleGenerating,
-  onCompact,
   onRename,
-  onGenerateTitle,
-  onArchive,
-  onDelete,
-  onExpandSidebar,
 }: {
-  threadId: string;
   title: string;
-  messages: AgentReducedMessage[];
-  isBusy: boolean;
-  isCompacting: boolean;
-  titleGenerating: boolean;
-  onCompact: () => void;
   onRename: (title: string) => void;
-  onGenerateTitle: () => void;
-  onArchive: () => void;
-  onDelete: () => void;
-  onExpandSidebar?: () => void;
 }) {
   const [draft, setDraft] = useState(title);
   const displayTitle = draft.trim() || title.trim() || "新对话";
-  const canExport = messages.some((message) => message.text.trim());
 
   useEffect(() => {
     setDraft(title);
@@ -519,72 +522,81 @@ function AgentThreadHeader({
   };
 
   return (
-    <PanelHeader
-      className={cn(
-        "justify-between gap-3 px-6",
-        onExpandSidebar && SIDEBAR_COLLAPSED_OFFSET_CLASS,
-      )}
-    >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        {onExpandSidebar ? (
-          <SidebarToggleButton
-            expanded={false}
-            label="展开对话列表"
-            testId="agent-sidebar-expand-button"
-            onClick={onExpandSidebar}
-          />
-        ) : null}
-        <Input
-          data-no-drag
-          data-testid="agent-thread-title"
-          value={draft}
-          title={displayTitle}
-          onBlur={finishRename}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") event.currentTarget.blur();
-            if (event.key === "Escape") setDraft(title);
-          }}
-          // DESIGN: EditableText 语义——线程标题重命名，内联编辑聚焦不显示输入框外壳（focus-visible:ring-0 有意关闭）。
-          className="h-8 w-auto min-w-0 max-w-[min(520px,100%)] field-sizing-content border-0 dark:bg-transparent bg-transparent px-0 text-sm font-medium shadow-none focus-visible:ring-0"
-          placeholder="新对话"
-        />
-      </div>
+    <Input
+      data-testid="agent-thread-title"
+      value={draft}
+      title={displayTitle}
+      onBlur={finishRename}
+      onChange={(event) => setDraft(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") event.currentTarget.blur();
+        if (event.key === "Escape") setDraft(title);
+      }}
+      // DESIGN: EditableText 语义——线程标题重命名，内联编辑聚焦不显示输入框外壳（focus-visible:ring-0 有意关闭）。
+      className="h-8 w-full min-w-0 border-0 dark:bg-transparent bg-transparent px-0 text-sm font-medium shadow-none focus-visible:ring-0"
+      placeholder="新对话"
+    />
+  );
+}
 
-      <div data-no-drag className="flex shrink-0 items-center gap-1">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                data-testid="agent-thread-actions-button"
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                aria-label="对话操作"
-                title="对话操作"
-              />
-            }
-          >
-            <MoreHorizontal />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" sideOffset={6} className="w-44">
-            <ThreadActionMenuItems
-              menu="dropdown"
-              threadId={threadId}
-              canExport={canExport}
-              hasMessages={messages.length > 0}
-              isBusy={isBusy}
-              isCompacting={isCompacting}
-              titleGenerating={titleGenerating}
-              onExport={() => void exportThreadMarkdown(displayTitle, messages)}
-              onGenerateTitle={onGenerateTitle}
-              onCompact={onCompact}
-              onArchive={onArchive}
-              onDelete={onDelete}
-            />
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </PanelHeader>
+function AgentThreadActions({
+  threadId,
+  title,
+  messages,
+  isBusy,
+  isCompacting,
+  titleGenerating,
+  onCompact,
+  onGenerateTitle,
+  onArchive,
+  onDelete,
+}: {
+  threadId: string;
+  title: string;
+  messages: AgentReducedMessage[];
+  isBusy: boolean;
+  isCompacting: boolean;
+  titleGenerating: boolean;
+  onCompact: () => void;
+  onGenerateTitle: () => void;
+  onArchive: () => void;
+  onDelete: () => void;
+}) {
+  const displayTitle = title.trim() || "新对话";
+  const canExport = messages.some((message) => message.text.trim());
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            data-testid="agent-thread-actions-button"
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            aria-label="对话操作"
+            title="对话操作"
+          />
+        }
+      >
+        <MoreHorizontal />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={6} className="w-44">
+        <ThreadActionMenuItems
+          menu="dropdown"
+          threadId={threadId}
+          canExport={canExport}
+          hasMessages={messages.length > 0}
+          isBusy={isBusy}
+          isCompacting={isCompacting}
+          titleGenerating={titleGenerating}
+          onExport={() => void exportThreadMarkdown(displayTitle, messages)}
+          onGenerateTitle={onGenerateTitle}
+          onCompact={onCompact}
+          onArchive={onArchive}
+          onDelete={onDelete}
+        />
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
