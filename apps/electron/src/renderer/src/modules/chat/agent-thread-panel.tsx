@@ -521,7 +521,7 @@ function AgentThreadHeader({
   return (
     <PanelHeader
       className={cn(
-        "app-drag-region justify-between gap-3 px-6",
+        "justify-between gap-3 px-6",
         onExpandSidebar && SIDEBAR_COLLAPSED_OFFSET_CLASS,
       )}
     >

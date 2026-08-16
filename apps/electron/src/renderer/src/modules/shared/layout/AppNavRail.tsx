@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Bot, Network, NotepadText, Settings } from "lucide-react";
 import { Button } from "@reflecta/ui/components/button";
@@ -6,8 +5,8 @@ import { cn } from "@reflecta/ui/lib/utils";
 import { useModal } from "@reflecta/ui/overlays";
 import { SettingsDialogContent } from "@renderer/modules/settings/SettingsDialog";
 import { SIDEBAR_WIDTH_CLASS } from "./layout-constants";
-import { SidebarToggleButton } from "./SidebarToggleButton";
 import { useRailMenuSlot } from "./rail-menu-context";
+import { useRail } from "./rail-provider";
 
 /**
  * 模块注册表 —— 左 rail 的 NavigationLabelArea 与路由一一对应。
@@ -30,27 +29,59 @@ function openSettingsModal(openModal: ReturnType<typeof useModal>["openModal"]) 
   });
 }
 
+/** 导航标签区左侧对齐的一行按钮（模块或设置）。 */
+function RailNavButton({
+  icon,
+  label,
+  active = false,
+  testId,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active?: boolean;
+  testId?: string;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      data-no-drag
+      data-testid={testId}
+      type="button"
+      size="default"
+      variant={active ? "secondary" : "ghost"}
+      aria-pressed={active}
+      className="w-full justify-start gap-2 px-2.5"
+      onClick={onClick}
+    >
+      {icon}
+      <span className="min-w-0 truncate">{label}</span>
+    </Button>
+  );
+}
+
 export function AppNavRail() {
-  const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { openModal } = useModal();
   const menu = useRailMenuSlot();
+  const { open, state } = useRail();
 
   const activeModule: NavModule =
     NAV_MODULES.find((module) => location.pathname.startsWith(module.path)) ?? NAV_MODULES[0];
 
   const handleModuleClick = (module: NavModule) => {
-    if (collapsed) setCollapsed(false);
     navigate(module.path);
   };
 
   return (
     <aside
       data-testid="app-nav-rail"
+      data-state={state}
+      data-collapsible={state === "collapsed" ? "offcanvas" : undefined}
       className={cn(
         "flex h-full min-h-0 shrink-0 flex-col overflow-hidden transition-[width] duration-200 ease-out motion-reduce:transition-none",
-        collapsed ? "w-14" : SIDEBAR_WIDTH_CLASS,
+        open ? SIDEBAR_WIDTH_CLASS : "w-0",
       )}
     >
       {/* DESIGN: translucent sidebar is intentional — macOS-style vibrancy.
@@ -61,61 +92,39 @@ export function AppNavRail() {
           surface color), and required by the product design. */}
       <div className="flex h-full min-h-0 flex-col bg-sidebar/50">
         <div className="app-drag-region shrink-0 px-2 pt-14 pb-2">
-          <div data-no-drag className="flex h-8 items-center justify-end">
-            <SidebarToggleButton
-              expanded={!collapsed}
-              label={collapsed ? "展开导航栏" : "收起导航栏"}
-              testId="app-nav-rail-collapse-button"
-              onClick={() => setCollapsed((current) => !current)}
-            />
-          </div>
           <nav
             data-testid="app-nav-label-area"
-            className="flex flex-col gap-1"
+            className="mt-1 flex flex-col gap-1"
             aria-label="模块导航"
           >
             {NAV_MODULES.map((module) => {
               const active = module.id === activeModule.id;
               return (
-                <Button
-                  data-no-drag
+                <RailNavButton
                   key={module.id}
-                  data-testid={`app-nav-module-${module.id}`}
-                  data-nav-module={module.id}
-                  aria-current={active ? "page" : undefined}
-                  type="button"
-                  size="sm"
-                  variant={active ? "secondary" : "ghost"}
-                  className="flex shrink-0 items-center gap-2 px-2"
+                  icon={<module.Icon size={16} />}
+                  label={module.label}
+                  active={active}
+                  testId={`app-nav-module-${module.id}`}
                   onClick={() => handleModuleClick(module)}
-                >
-                  <module.Icon size={15} />
-                  {!collapsed ? <span className="min-w-0 truncate">{module.label}</span> : null}
-                </Button>
+                />
               );
             })}
+
+            <div data-no-drag aria-hidden className="my-1 border-t border-border" />
+
+            {/* 设置与模块按钮同列放置（不居中、尺寸一致） */}
+            <RailNavButton
+              icon={<Settings size={16} />}
+              label="设置"
+              testId="app-settings-menu-item"
+              onClick={() => openSettingsModal(openModal)}
+            />
           </nav>
         </div>
 
         <div className="min-h-0 flex-1 overflow-hidden border-t border-border">
-          {!collapsed ? (menu?.node ?? null) : null}
-        </div>
-
-        <div
-          data-no-drag
-          className="flex h-11 shrink-0 items-center justify-center border-t border-border"
-        >
-          <Button
-            data-testid="app-settings-menu-item"
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            aria-label="设置"
-            title="设置"
-            onClick={() => openSettingsModal(openModal)}
-          >
-            <Settings size={15} />
-          </Button>
+          {menu?.node ?? null}
         </div>
       </div>
     </aside>

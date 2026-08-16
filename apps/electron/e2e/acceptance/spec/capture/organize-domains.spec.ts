@@ -141,7 +141,7 @@ test("@CP-DOMAIN-005 用户收起后从导航栏恢复 Domain Tree", async () =>
     await page.getByTestId("app-nav-rail-collapse-button").click();
 
     const rail = page.getByTestId("app-nav-rail");
-    await expect(rail).toHaveCSS("width", "56px");
+    await expect(rail).toHaveCSS("width", "0px");
     await expect(page.getByTestId("capture-domain-sidebar")).toBeHidden();
 
     await page.getByTestId("app-nav-rail-collapse-button").click();

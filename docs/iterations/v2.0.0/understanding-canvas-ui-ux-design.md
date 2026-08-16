@@ -71,6 +71,23 @@
 
 ---
 
+### 0.6 App Shell 现状（更新）与 dashboard-01 对齐
+
+> 日期：2026-08-16。本节修正 0.1 中已过时的底栏 AppChromeMenu 描述，并记录本次 app shell 改造（对齐 shadcn `dashboard-01`）。
+>
+> 现状事实：顶层模块由左侧 `AppNavRail` 承载（Capture / Agent / Canvas + 设置），不再是底部二元切换；每个模块的二级菜单（领域树 / 对话列表）通过 `useRailMenu` 注入 rail 的菜单 slot（rail 是纯壳，不依赖业务模块）。
+
+对齐点（本次落地）：
+
+- **collapse 状态提升**：新建 `rail-provider.tsx`（`RailProvider` / `useRail`，仿 shadcn `SidebarProvider`），`open/state/toggle` 脱离 AppNavRail 局部 state，供全局 header 与 ⌘/Ctrl+B 读写；持久化到 localStorage；暴露 `data-state` 供 CSS。
+- **offcanvas 收起语义**：对齐 dashboard-01 安装态 `collapsible="offcanvas"`——收起时整栏宽度归 0（内容全宽），恢复由全局 header 的 hamburger + ⌘/Ctrl+B 完成，不再残留固定图标栏。
+- **全局 header**：新增 `AppHeader.tsx`（对齐 `SiteHeader`：`SidebarTrigger + separator + 模块标题 + 右侧操作位`），位于 `main` 顶部、承担窗口拖拽区；chat 内嵌 thread header 移除重复的 `app-drag-region`。
+- **e2e 语义**：`@CP-DOMAIN-005` / `@AG-START-008` 由「收起 56px / 展开 248px」改为「收起 0px / 展开 248px」，域树 / 对话列表在收起时隐藏、经 header 恢复。
+
+待定（承接 0.1）：带参跨模块跳转机制仍未定；Canvas 模块接入后 rail 第三个入口的激活态与跳转行为需补齐。
+
+---
+
 ## 待办（承接共识，UI/UX 归口）
 
 > 以下为共识文档标记归口本层的待办；本文档步骤内解决并展开为具体设计。

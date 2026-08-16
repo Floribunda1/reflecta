@@ -95,7 +95,7 @@ test("@AG-START-008 用户收起后从导航栏恢复对话列表", async () => 
     await page.getByTestId("app-nav-rail-collapse-button").click();
 
     const rail = page.getByTestId("app-nav-rail");
-    await expect(rail).toHaveCSS("width", "56px");
+    await expect(rail).toHaveCSS("width", "0px");
     await expect(page.getByTestId("agent-thread-sidebar")).toBeHidden();
 
     await page.getByTestId("app-nav-rail-collapse-button").click();
