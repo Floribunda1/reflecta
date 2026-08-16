@@ -199,7 +199,7 @@ export function createPiReadOnlyTools(
       name: "understanding_get",
       label: "读取 Understanding",
       description:
-        "Get a Reflecta Understanding by stable id. Use includeContexts for its Context and includeMentions for its wiki-link mentions (weak citations, not structural relations).",
+        "Get a Reflecta Understanding by stable id. Use includeContexts for its Context and includeMentions for its wiki-link mentions (weak citations, not structural relations). Also returns referencedByCanvases: the canvases this Understanding appears in.",
       promptSnippet: "understanding_get: read one Reflecta Understanding by stable id.",
       parameters: Type.Object({
         understandingId: Type.String({ minLength: 1 }),

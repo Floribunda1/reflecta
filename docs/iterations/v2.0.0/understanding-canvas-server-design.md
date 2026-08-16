@@ -449,13 +449,15 @@ apps/cli/src/cli.ts                         # registerXxxAction 注册；getActi
 
 ### 6.1 已定待实施
 
-- **TBD-3 修正清单（wiki-link 降级）**：
-  1. 表名 `understanding_connections` → `understanding_mentions`（v2.0.0 迁移 `ALTER TABLE ... RENAME TO` + schema.ts + 全部代码引用）。
-  2. 类型/字段：`UnderstandingConnection` → `UnderstandingMention`；`connectionCount` / `connectionIds` → `mentionCount` / `mentionIds`；`UnderstandingRelation` 改为引用（mention）语义。
-  3. Agent tool：**删除 `graph` tool**；`understanding_get` / `domain_inspect` 描述中 "wiki-link relations" / "relations" 改为 "wiki-link mentions / citations（弱引用，非结构）"；参数名 `includeRelations` → `includeMentions`（随降级一并改名）。
-  4. CLI：`reflecta graph` 命令与 `GraphCliBff` domain 一并删除。
-- **TBD-2**：understanding detail DTO（agent 侧 `understanding_get` 与 UI 共用）加 `referencedByCanvases: Array<{ id, title }>`——查询 `canvas_elements.understanding_id` 索引反向 join 画布标题。
-- **C13**：`listCanvasesByUnderstanding(understandingId)` IPC 方法（反向查询，与 M6-6 共用数据）。
+> 状态：**已实施**（2026-08-16，见 `understanding-canvas-backend-implementation-plan.md`；commit 24ee967 / 0a3daa0 / ade499b / 7861ae8 / 61802db）。
+
+- **TBD-3 修正清单（wiki-link 降级）** ✅：
+  1. 表名 `understanding_connections` → `understanding_mentions`（v2.0.0 迁移 + schema.ts + 全部代码引用）。
+  2. 类型/字段：`UnderstandingConnection` → `UnderstandingMention`；`connectionCount` / `connectionIds` → `mentionCount` / `mentionIds`；`UnderstandingRelation` → `UnderstandingMentionRef`（引用语义，字段 `relations` → `mentions`）。
+  3. Agent tool：删除 `graph` tool；描述改 "wiki-link mentions (weak citations, not structural relations)"；`includeRelations` → `includeMentions`（含 CLI flag `--include-mentions`）。
+  4. CLI：`reflecta graph` 命令与 `GraphCliBff` domain 已删除（含 graph 域、graphCliService、renderer graph 渲染分支、packages/ui graph icon）。
+- **TBD-2** ✅：`UnderstandingDetail.referencedByCanvases: Array<{ id, title }>`（`canvas_elements.understanding_id` 反向 join 画布标题，updatedAt 降序）；`understanding_get` 工具描述已更新。
+- **C13** ✅：`listCanvasesByUnderstanding(understandingId)` IPC + CLI `canvas search --understanding-id`。
 
 ### 6.2 未定待解决（本文档步骤内定）
 

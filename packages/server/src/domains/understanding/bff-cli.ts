@@ -1,6 +1,12 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { UnderstandingCore } from "./core";
-import { contexts, understandingMentions, understandings } from "../../db/schema";
+import {
+  contexts,
+  understandingCanvases,
+  understandingCanvasElements,
+  understandingMentions,
+  understandings,
+} from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type { ContextDetail, ContextMedium } from "../context/types";
 import type {
@@ -72,7 +78,25 @@ export class UnderstandingCliBff extends UnderstandingCore {
       detail.mentions = await this.listUnderstandingMentions(row, summary);
     }
 
+    // TBD-2：该理解出现在哪些画布（C13 反向查询，understanding_get 与 UI 共用）
+    detail.referencedByCanvases = await this.listReferencedByCanvases(id);
+
     return detail;
+  }
+
+  private async listReferencedByCanvases(
+    understandingId: string,
+  ): Promise<Array<{ id: string; title: string }>> {
+    const rows = await this.db
+      .select({ id: understandingCanvases.id, title: understandingCanvases.title })
+      .from(understandingCanvasElements)
+      .innerJoin(
+        understandingCanvases,
+        eq(understandingCanvases.id, understandingCanvasElements.canvasId),
+      )
+      .where(eq(understandingCanvasElements.understandingId, understandingId))
+      .orderBy(desc(understandingCanvases.updatedAt));
+    return rows;
   }
 
   async createUnderstanding(input: CreateUnderstandingInput): Promise<UnderstandingDetail> {

@@ -193,4 +193,23 @@ describe("UnderstandingCanvasElectronBff.getCanvasDetail", () => {
     const detail = await service.getCanvasDetail(canvasId);
     expect(detail!.canvas.title).toBe("新名字");
   });
+
+  test("TBD-2: understanding detail reports referencedByCanvases", async () => {
+    const u = new UnderstandingCliBff(db);
+    const understanding = await u.createUnderstanding({ title: "被引用的理解", body: "x" });
+    await service.saveCanvas(canvasId, {
+      elements: [element("u-card", "understanding", { understandingId: understanding.id })],
+      edges: [],
+    });
+
+    const detail = await u.getUnderstanding(understanding.id);
+    expect(detail.referencedByCanvases).toEqual([
+      expect.objectContaining({ id: canvasId, title: "主画布" }),
+    ]);
+
+    // 未被任何画布引用的理解返回空数组
+    const orphan = await u.createUnderstanding({ title: "孤立理解", body: "y" });
+    const orphanDetail = await u.getUnderstanding(orphan.id);
+    expect(orphanDetail.referencedByCanvases).toEqual([]);
+  });
 });

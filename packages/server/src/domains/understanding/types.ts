@@ -93,6 +93,8 @@ export type UnderstandingDetail = UnderstandingSummary & {
   referencedByCount: number;
   contexts?: ContextDetail[];
   mentions?: UnderstandingMentionRef[];
+  /** TBD-2：该理解出现在哪些画布（canvas_elements.understanding_id 反向 join 画布标题） */
+  referencedByCanvases?: Array<{ id: string; title: string }>;
 };
 
 export type GetUnderstandingOptions = {
