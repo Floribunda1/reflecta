@@ -2,6 +2,7 @@ import type { Database } from "libsql";
 import v100 from "./migration/code/v1.0.0";
 import v110 from "./migration/code/v1.1.0";
 import v135 from "./migration/code/v1.3.5";
+import v200 from "./migration/code/v2.0.0";
 import type { ReflectaDb } from "./types";
 
 export type MigrationContext = {
@@ -57,7 +58,7 @@ export function compareVersions(a: Version, b: Version): number {
 }
 
 /** 从 migration/code/ 加载 code migrations（按版本排序） */
-const codeMigrations: CodeMigration[] = [v100, v110, v135];
+const codeMigrations: CodeMigration[] = [v100, v110, v135, v200];
 
 async function loadCodeMigrations(): Promise<Migration[]> {
   return codeMigrations.map(({ name, version, up }) => ({ name, version, up }));

@@ -898,7 +898,6 @@ function summarizeToolGroup(groupType: ToolGroupType, blocks: AgentToolBlock[]):
 function toolGroupType(name: string): ToolGroupType {
   if (
     name === "search" ||
-    name === "graph" ||
     name === "web_search" ||
     name === "fetch_content" ||
     name === "get_search_content" ||
@@ -999,7 +998,6 @@ function toolTitle(name: string) {
   if (name === "get_search_content") return "读取搜索内容";
   if (name === "retrieve_knowledge") return "检索知识";
   if (name === "search") return "搜索相关内容";
-  if (name === "graph") return "查看关联图";
   if (name === "attachment_read") return "读取附件";
   if (name === "read") return "读取本地文件";
   if (name === "file_read") return "读取本地文件";
@@ -1098,7 +1096,6 @@ function toolResultDetails(
   if (name === "understanding_get")
     return recordDetailView(entityRecord(output, "understanding"), "Understanding");
   if (name === "context_get") return recordDetailView(entityRecord(output, "context"), "Context");
-  if (name === "graph") return graphDetails(output);
   return detailView({});
 }
 
@@ -1389,33 +1386,12 @@ function recordDetailView(record: Record<string, unknown>, label: string) {
             )
           : undefined,
       ),
-      ...arrayValue(record.relations).map((relation) =>
-        isRecord(relation)
-          ? detailRow("关联", relationTitle(relation), stringValue(relation.rawText))
+      ...arrayValue(record.mentions).map((mention) =>
+        isRecord(mention)
+          ? detailRow("引用", mentionTitle(mention), stringValue(mention.rawText))
           : undefined,
       ),
     ].filter((row): row is ToolActivityDetailRow => Boolean(row)),
-  });
-}
-
-function graphDetails(output: unknown) {
-  if (!isRecord(output)) return detailView({});
-  const nodes = arrayValue(output.nodes);
-  return detailView({
-    rows: nodes.map((node) =>
-      isRecord(node)
-        ? detailRow(
-            "Understanding",
-            entityTitle(node),
-            recordText(node),
-            "markdown",
-            undefined,
-            "list-item",
-            2,
-          )
-        : undefined,
-    ),
-    emptyText: nodes.length === 0 ? "这条 Understanding 暂时没有显式关联。" : undefined,
   });
 }
 
@@ -1514,8 +1490,6 @@ function toolRunningSummary(name: string, input: Record<string, unknown>) {
   if (name === "context_list")
     return `正在列出 Understanding${quotedValue(input.understandingId)}的 Context`;
   if (name === "context_get") return `正在读取 Context${quotedValue(input.contextId)}`;
-  if (name === "graph")
-    return `正在查看 Understanding${quotedValue(input.understandingId)}的关联图`;
   if (name === "attachment_read") return "正在读取附件";
   return `正在使用「${name}」`;
 }
@@ -1628,16 +1602,6 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
       ? `检索${query} · ${counts.understandings} 条 Understanding / ${counts.contexts} 条 Context 证据`
       : `检索到 ${counts.understandings} 条 Understanding / ${counts.contexts} 条 Context 证据`;
   }
-  if (name === "graph") {
-    const nodes = arrayValue(outputRecord.nodes);
-    const seedId = stringValue(input.understandingId);
-    const seed = nodes.find((node) => isRecord(node) && stringValue(node.id) === seedId);
-    const target =
-      (isRecord(seed) ? entityTitle(seed) : undefined) ||
-      (isRecord(nodes[0]) ? entityTitle(nodes[0]) : undefined) ||
-      seedId;
-    return `查看 Understanding${target ? `「${target}」` : " "}的关联图 · ${nodes.length} 个节点 / ${arrayValue(outputRecord.edges).length} 条关联`;
-  }
   if (name === "understanding_get")
     return `读取了「${entityTitle(outputRecord.understanding) || entityTitle(outputRecord) || stringValue(input.understandingId) || "Understanding"}」`;
   if (name === "context_list")
@@ -1660,7 +1624,7 @@ function recordText(value: Record<string, unknown>) {
   return stringValue(value.body) || stringValue(value.content) || stringValue(value.snippet);
 }
 
-function relationTitle(value: Record<string, unknown>) {
+function mentionTitle(value: Record<string, unknown>) {
   const direction = stringValue(value.direction);
   if (direction === "incoming") return stringValue(value.sourceTitle) || "被引用的 Understanding";
   return stringValue(value.targetTitle) || "引用的 Understanding";

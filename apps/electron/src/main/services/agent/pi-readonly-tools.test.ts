@@ -24,7 +24,6 @@ vi.mock("../core", () => ({
     getContext: services.getContext,
   },
   domainCliService: {},
-  graphCliService: {},
   searchCliService: {
     retrieveKnowledge: services.retrieveKnowledge,
   },
@@ -42,7 +41,6 @@ const expectedReadToolNames = [
   "context_get",
   "attachment_read",
   "retrieve_knowledge",
-  "graph",
 ] as const;
 
 describe("createPiReadOnlyTools", () => {

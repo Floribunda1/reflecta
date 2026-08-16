@@ -14,8 +14,8 @@ export function registerGetUnderstandingAction(cli: Command): void {
     options: [
       { flags: "--include-contexts", description: "Include full context objects", required: false },
       {
-        flags: "--include-relations",
-        description: "Include wiki-link relations",
+        flags: "--include-mentions",
+        description: "Include wiki-link mentions",
         required: false,
       },
     ],
@@ -26,7 +26,7 @@ export function registerGetUnderstandingAction(cli: Command): void {
     .command("get <id>")
     .description("Get a understanding by ID")
     .option("--include-contexts", "Include full context objects")
-    .option("--include-relations", "Include wiki-link relations")
+    .option("--include-mentions", "Include wiki-link mentions")
     .action((id, _options, actionCli) => getUnderstandingAction(id, actionCli));
 }
 
@@ -37,13 +37,13 @@ export async function getUnderstandingAction(id: string, cli: Command): Promise<
     quiet: boolean;
     verbose: boolean;
     includeContexts?: boolean;
-    includeRelations?: boolean;
+    includeMentions?: boolean;
   };
   await runCommand(async () => {
     const services = await getServices();
     const understanding = await services.understandings.getUnderstanding(id, {
       includeContexts: options.includeContexts,
-      includeRelations: options.includeRelations,
+      includeMentions: options.includeMentions,
     });
     if (!understanding) {
       throw new CliError(ErrorCodes.NOT_FOUND, `Understanding "${id}" not found.`);

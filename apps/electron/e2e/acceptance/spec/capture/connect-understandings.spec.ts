@@ -73,13 +73,13 @@ test("@CP-CONNECTION-002 用户从 wiki-link 打开被引用的 Understanding", 
   }
 });
 
-test("@CP-CONNECTION-003 用户建立 Connection 后理解列表显示连接数量", async () => {
+test("@CP-CONNECTION-003 用户建立 Connection 后理解列表显示引用数量", async () => {
   const { app, page } = await launchApp();
 
   try {
     await openCapturePage(page);
     const connectionCount = async () => {
-      const badge = understandingRow(page, "React Server Components").getByLabel(/个双链关系/);
+      const badge = understandingRow(page, "React Server Components").getByLabel(/条引用/);
       return Number((await badge.getAttribute("aria-label"))?.match(/\d+/)?.[0] ?? "0");
     };
     const before = await connectionCount();

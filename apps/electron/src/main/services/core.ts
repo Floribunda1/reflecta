@@ -4,7 +4,6 @@ import {
   DomainElectronBff,
   ContextCliBff,
   ContextElectronBff,
-  GraphCliBff,
   SearchCliBff,
   SearchElectronBff,
   UnderstandingCliBff,
@@ -33,7 +32,6 @@ export const domainService = createLazy(() => new DomainElectronBff(options));
 export const domainCliService = createLazy(() => new DomainCliBff(getDBInstance()));
 export const contextService = createLazy(() => new ContextElectronBff(options));
 export const contextCliService = createLazy(() => new ContextCliBff(getDBInstance()));
-export const graphCliService = createLazy(() => new GraphCliBff(getDBInstance()));
 export const searchService = createLazy(
   () => new SearchElectronBff({ ...options, understandingService }),
 );

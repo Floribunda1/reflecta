@@ -23,8 +23,8 @@ function understanding(
     body: partial.body ?? "",
     domainIds: partial.domainIds ?? [],
     contextCount: partial.contextCount ?? 0,
-    connectionCount: partial.connectionCount ?? 0,
-    connectionIds: partial.connectionIds ?? [],
+    mentionCount: partial.mentionCount ?? 0,
+    mentionIds: partial.mentionIds ?? [],
     createdAt: partial.createdAt ?? "2026-01-01T00:00:00.000Z",
     updatedAt: partial.updatedAt ?? "2026-01-01T00:00:00.000Z",
   };

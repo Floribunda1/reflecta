@@ -4,7 +4,7 @@ export type {
   NewUnderstanding,
   Understanding,
   UnderstandingDomain,
-  UnderstandingConnection,
+  UnderstandingMention,
   UnderstandingDTO,
   UnderstandingSummaryDTO,
   UpdateUnderstandingInput,

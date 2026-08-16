@@ -54,7 +54,7 @@ export function UnderstandingRow({
           locale: zhCN,
         }),
         contextCount: understanding.contextCount,
-        connectionCount: understanding.connectionCount,
+        mentionCount: understanding.mentionCount,
       }}
       selected={selected}
       canChat={Boolean(onChat)}

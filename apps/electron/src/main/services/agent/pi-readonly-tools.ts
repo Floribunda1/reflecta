@@ -7,7 +7,6 @@ import { writeDiagnosticEvent } from "../../logger";
 import {
   domainCliService,
   contextCliService,
-  graphCliService,
   searchCliService,
   understandingCliService,
 } from "../core";
@@ -22,7 +21,6 @@ export const PI_READ_ONLY_TOOL_NAMES = [
   "context_get",
   "attachment_read",
   "retrieve_knowledge",
-  "graph",
 ] as const;
 
 const paginationParameters = {
@@ -153,21 +151,21 @@ export function createPiReadOnlyTools(
       name: "domain_inspect",
       label: "查看 Domain",
       description:
-        "Inspect a Reflecta domain by stable id and optionally include its Understandings, Contexts, and relations.",
+        "Inspect a Reflecta domain by stable id and optionally include its Understandings, Contexts, and wiki-link mentions.",
       promptSnippet: "domain_inspect: inspect one Reflecta domain by stable id.",
       parameters: Type.Object({
         domainId: Type.String({ minLength: 1 }),
         includeContexts: Type.Optional(Type.Boolean()),
-        includeRelations: Type.Optional(Type.Boolean()),
+        includeMentions: Type.Optional(Type.Boolean()),
         ...paginationParameters,
       }),
-      execute: async (toolCallId, { domainId, includeRelations, ...options }) =>
+      execute: async (toolCallId, { domainId, includeMentions, ...options }) =>
         createToolResult(
           "domain_inspect",
           toolCallId,
           await domainCliService.inspectDomain(domainId, {
             ...options,
-            includeEdges: includeRelations,
+            includeEdges: includeMentions,
           }),
           entityOptions,
         ),
@@ -197,20 +195,20 @@ export function createPiReadOnlyTools(
       name: "understanding_get",
       label: "读取 Understanding",
       description:
-        "Get a Reflecta Understanding by stable id. Use includeContexts for its Context and includeRelations for its wiki-link relations.",
+        "Get a Reflecta Understanding by stable id. Use includeContexts for its Context and includeMentions for its wiki-link mentions (weak citations, not structural relations).",
       promptSnippet: "understanding_get: read one Reflecta Understanding by stable id.",
       parameters: Type.Object({
         understandingId: Type.String({ minLength: 1 }),
         includeContexts: Type.Optional(Type.Boolean()),
-        includeRelations: Type.Optional(Type.Boolean()),
+        includeMentions: Type.Optional(Type.Boolean()),
       }),
-      execute: async (toolCallId, { understandingId, includeRelations, ...options }) =>
+      execute: async (toolCallId, { understandingId, includeMentions, ...options }) =>
         createToolResult(
           "understanding_get",
           toolCallId,
           await understandingCliService.getUnderstanding(understandingId, {
             ...options,
-            includeRelations,
+            includeMentions,
           }),
           entityOptions,
         ),
@@ -304,25 +302,6 @@ export function createPiReadOnlyTools(
             limit,
             anchors: domainIds?.map((id) => ({ type: "domain" as const, id })),
           }),
-          entityOptions,
-        ),
-    }),
-    defineTool({
-      name: "graph",
-      label: "查看关联图",
-      description: "Get the wiki-link graph around one Reflecta Understanding by stable id.",
-      promptSnippet:
-        "graph: get the wiki-link graph around one Reflecta Understanding by stable id.",
-      parameters: Type.Object({
-        understandingId: Type.String({ minLength: 1 }),
-        includeContext: Type.Optional(Type.Boolean()),
-        depth: Type.Optional(Type.Integer({ minimum: 0, maximum: 6 })),
-      }),
-      execute: async (toolCallId, { understandingId, ...options }) =>
-        createToolResult(
-          "graph",
-          toolCallId,
-          await graphCliService.graph(understandingId, options),
           entityOptions,
         ),
     }),

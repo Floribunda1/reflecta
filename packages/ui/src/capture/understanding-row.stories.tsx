@@ -9,7 +9,7 @@ const understanding: UnderstandingRowView = {
   body: "不同种植槽根据 **基质含水率**、回水温度和主管压力获得独立灌溉窗口。",
   updatedLabel: "12 分钟前",
   contextCount: 4,
-  connectionCount: 7,
+  mentionCount: 7,
 };
 
 const emptyUnderstanding: UnderstandingRowView = {
@@ -19,7 +19,7 @@ const emptyUnderstanding: UnderstandingRowView = {
   body: "",
   updatedLabel: "刚刚",
   contextCount: 0,
-  connectionCount: 0,
+  mentionCount: 0,
 };
 
 const longUnderstanding: UnderstandingRowView = {
@@ -31,7 +31,7 @@ const longUnderstanding: UnderstandingRowView = {
   ),
   updatedLabel: "大约 1 年前",
   contextCount: 128,
-  connectionCount: 256,
+  mentionCount: 256,
 };
 
 function RowDemo({

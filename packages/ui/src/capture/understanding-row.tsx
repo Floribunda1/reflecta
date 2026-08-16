@@ -16,7 +16,7 @@ export type UnderstandingRowView = {
   body: string;
   updatedLabel: string;
   contextCount: number;
-  connectionCount: number;
+  mentionCount: number;
 };
 
 export type UnderstandingRowAction = {
@@ -97,10 +97,10 @@ export function UnderstandingRow({
               </span>
               <span
                 className="inline-flex items-center gap-1"
-                aria-label={`${understanding.connectionCount} 个双链关系`}
+                aria-label={`${understanding.mentionCount} 条引用`}
               >
                 <Link2 size={13} aria-hidden />
-                {understanding.connectionCount}
+                {understanding.mentionCount}
               </span>
             </div>
           </button>

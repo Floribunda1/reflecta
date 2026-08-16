@@ -191,6 +191,33 @@ describe("versioned migrations", () => {
       content: "关联 [[旧标题#understanding-target]]，保留 [[u:already-canonical]]。",
     });
   });
+
+  test("renames wiki-link connections to mentions in v2.0.0 (TBD-3)", async () => {
+    const db = await createTestDb("1.1.0");
+    const createdAt = "2026-08-01T00:00:00.000Z";
+
+    for (const [id, title] of [
+      ["understanding-source", "来源"],
+      ["understanding-target", "目标"],
+    ] as const) {
+      db.$client
+        .prepare(
+          `INSERT INTO understandings (id, title, body, created_at, updated_at) VALUES (?, ?, '', ?, ?)`,
+        )
+        .run(id, title, createdAt, createdAt);
+    }
+    db.$client
+      .prepare(`INSERT INTO understanding_connections (source_id, target_id) VALUES (?, ?)`)
+      .run("understanding-source", "understanding-target");
+
+    await performDbMigration(db, "2.0.0");
+
+    expect(hasTable(db, "understanding_mentions")).toBe(true);
+    expect(hasTable(db, "understanding_connections")).toBe(false);
+    expect(
+      db.$client.prepare(`SELECT source_id, target_id FROM understanding_mentions`).all(),
+    ).toEqual([{ source_id: "understanding-source", target_id: "understanding-target" }]);
+  });
 });
 
 describe("code migrations (A7)", () => {

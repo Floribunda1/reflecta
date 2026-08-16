@@ -278,7 +278,7 @@ const completedTools: readonly ToolBlock[] = [
     {
       domainId: "d-irrigation",
       includeContexts: true,
-      includeRelations: true,
+      includeMentions: true,
       limit: 25,
       offset: 0,
     },
@@ -328,7 +328,7 @@ const completedTools: readonly ToolBlock[] = [
     {
       understandingId: "u-irrigation",
       includeContexts: true,
-      includeRelations: true,
+      includeMentions: true,
     },
     {
       id: "u-irrigation",
@@ -339,7 +339,7 @@ const completedTools: readonly ToolBlock[] = [
       referencedByCount: 2,
       domains: [{ id: "d-irrigation", name: "灌溉控制" }],
       contexts: syntheticContexts(2),
-      relations: [
+      mentions: [
         {
           direction: "outgoing",
           targetTitle: "低温条件下的阀门启动顺序",
@@ -396,22 +396,6 @@ const completedTools: readonly ToolBlock[] = [
         searchedContexts: 126,
         elapsedMs: 84,
       },
-    },
-  ),
-  tool(
-    "graph",
-    { understandingId: "u-irrigation", depth: 2 },
-    {
-      nodes: [
-        {
-          id: "u-irrigation",
-          title: "极地温室的分区灌溉策略",
-          body: syntheticSections[1].body,
-          domains: [{ id: "d-irrigation", name: "灌溉控制" }],
-        },
-      ],
-      edges: [],
-      seed: "u-irrigation",
     },
   ),
   tool(

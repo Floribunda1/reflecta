@@ -32,7 +32,10 @@ async function setup(automatic = false) {
   const tempDir = await mkdtemp(join(tmpdir(), "reflecta-retrieval-rebuild-"));
   tempDirs.push(tempDir);
   process.env.REFLECTA_RETRIEVAL_INDEX_PATH = join(tempDir, "index");
-  const db = await createDBInstance(join(tempDir, "test.db"), { runMigrations: true });
+  const db = await createDBInstance(join(tempDir, "test.db"), {
+    appVersion: "2.0.0",
+    runMigrations: true,
+  });
   const coordinator = new RetrievalIndexCoordinator({ getDb: () => db });
   const sink = automatic ? coordinator : undefined;
   return {

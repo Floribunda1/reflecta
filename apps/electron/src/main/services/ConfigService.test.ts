@@ -19,7 +19,7 @@ vi.mock("electron", () => ({
       if (name === "userData") return mockElectron.userData;
       throw new Error(`Unexpected app path: ${name}`);
     },
-    getVersion: () => "1.1.0",
+    getVersion: () => "2.0.0",
     relaunch: vi.fn(),
     quit: vi.fn(),
   },
@@ -102,6 +102,7 @@ describe("ConfigService retrieval index", () => {
     const contentRoot = path.join(tempDir, "content");
     fs.mkdirSync(contentRoot, { recursive: true });
     const seededDb = await createDBInstance(path.join(contentRoot, "reflecta.db"), {
+      appVersion: "2.0.0",
       runMigrations: true,
     });
     seededDb.$client.close();

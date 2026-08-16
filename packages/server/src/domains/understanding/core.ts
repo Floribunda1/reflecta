@@ -3,7 +3,7 @@ import {
   domains,
   contexts,
   understandingDomains,
-  understandingConnections,
+  understandingMentions,
   understandings,
 } from "../../db/schema";
 import {
@@ -22,7 +22,7 @@ import { resolveDomainRefs } from "../domain/core";
 import type { RetrievalIndexUpdateSink } from "../shared/types";
 import { createEntityId } from "../shared/id";
 
-export async function getUnderstandingConnectionCounts(
+export async function getUnderstandingMentionCounts(
   db: ReflectaDb,
   understandingId: string,
 ): Promise<{ contextCount: number; referenceCount: number; referencedByCount: number }> {
@@ -33,12 +33,12 @@ export async function getUnderstandingConnectionCounts(
       .where(and(eq(contexts.understandingId, understandingId), isNull(contexts.deletedAt))),
     db
       .select({ count: count() })
-      .from(understandingConnections)
-      .where(eq(understandingConnections.sourceId, understandingId)),
+      .from(understandingMentions)
+      .where(eq(understandingMentions.sourceId, understandingId)),
     db
       .select({ count: count() })
-      .from(understandingConnections)
-      .where(eq(understandingConnections.targetId, understandingId)),
+      .from(understandingMentions)
+      .where(eq(understandingMentions.targetId, understandingId)),
   ]);
 
   return {
@@ -149,7 +149,7 @@ export class UnderstandingCore {
       }
     });
 
-    await this.syncWikiLinkConnections(id, body);
+    await this.syncWikiLinkMentions(id, body);
 
     const row = await this.getUnderstandingRow(id);
     if (!row) throw new Error(`Understanding not found after creation: ${id}`);
@@ -196,7 +196,7 @@ export class UnderstandingCore {
     });
 
     if (normalizedBody !== undefined) {
-      await this.syncWikiLinkConnections(id, normalizedBody);
+      await this.syncWikiLinkMentions(id, normalizedBody);
     }
 
     const row = await this.getUnderstandingRow(id);
@@ -242,13 +242,11 @@ export class UnderstandingCore {
     this.retrievalIndex?.enqueue([id]);
   }
 
-  async syncWikiLinkConnections(sourceId: string, body: string): Promise<void> {
+  async syncWikiLinkMentions(sourceId: string, body: string): Promise<void> {
     const linkTargets = extractUnderstandingWikiLinkTargets(body);
 
     await this.db.transaction((tx) => {
-      tx.delete(understandingConnections)
-        .where(eq(understandingConnections.sourceId, sourceId))
-        .run();
+      tx.delete(understandingMentions).where(eq(understandingMentions.sourceId, sourceId)).run();
 
       if (linkTargets.length === 0) return;
 
@@ -266,7 +264,7 @@ export class UnderstandingCore {
       }
 
       if (targetIds.size === 0) return;
-      tx.insert(understandingConnections)
+      tx.insert(understandingMentions)
         .values([...targetIds].map((targetId) => ({ sourceId, targetId })))
         .onConflictDoNothing()
         .run();

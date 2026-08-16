@@ -12,7 +12,10 @@ let db: ReflectaDb;
 
 beforeEach(async () => {
   tempDir = await mkdtemp(join(tmpdir(), "reflecta-domain-"));
-  db = await createDBInstance(join(tempDir, "test.db"), { runMigrations: true });
+  db = await createDBInstance(join(tempDir, "test.db"), {
+    appVersion: "2.0.0",
+    runMigrations: true,
+  });
 });
 
 afterEach(async () => {

@@ -48,8 +48,8 @@ export const understandingDomains = sqliteTable(
   ],
 );
 
-export const understandingConnections = sqliteTable(
-  "understanding_connections",
+export const understandingMentions = sqliteTable(
+  "understanding_mentions",
   {
     sourceId: text("source_id")
       .notNull()
@@ -60,7 +60,7 @@ export const understandingConnections = sqliteTable(
   },
   (t) => [
     primaryKey({ columns: [t.sourceId, t.targetId] }),
-    index("idx_conn_target").on(t.targetId),
+    index("idx_mentions_target").on(t.targetId),
   ],
 );
 

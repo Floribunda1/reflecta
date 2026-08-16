@@ -204,7 +204,6 @@ describe("agent activity presentation", () => {
     [["understanding_list", "understanding_get"], "understanding"],
     [["context_list", "context_get"], "context"],
     [["retrieve_knowledge", "search"], "search"],
-    [["graph"], "graph"],
     [["web_search"], "web"],
   ])("assigns %s tools to the %s icon", (toolNames, icon) => {
     for (const toolName of toolNames) {

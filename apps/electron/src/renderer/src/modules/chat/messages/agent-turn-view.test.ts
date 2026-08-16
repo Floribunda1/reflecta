@@ -799,39 +799,6 @@ describe("buildAgentTurnView", () => {
     });
   });
 
-  test("summarizes graph tool output", () => {
-    const turn = buildAgentTurnView([
-      tool("graph", "tool-1", {
-        nodes: [{ id: "t1" }, { id: "t2" }],
-        edges: [{ from: "t1", to: "t2" }],
-      }),
-    ]);
-
-    expect(turn.blocks[0]).toMatchObject({
-      kind: "tool-activity",
-      activity: {
-        title: "查看关联图",
-        summary: "查看 Understanding 的关联图 · 2 个节点 / 1 条关联",
-        items: [
-          expect.objectContaining({
-            details: {
-              rows: [
-                expect.objectContaining({
-                  appearance: "list-item",
-                  previewLines: 2,
-                }),
-                expect.objectContaining({
-                  appearance: "list-item",
-                  previewLines: 2,
-                }),
-              ],
-            },
-          }),
-        ],
-      },
-    });
-  });
-
   test.each([
     ["read", { path: "/tmp/note.md" }, { content: "body" }, "读取了「note.md」"],
     ["file_read", { path: "/tmp/legacy.md" }, { content: "body" }, "读取了「legacy.md」"],
@@ -915,18 +882,6 @@ describe("buildAgentTurnView", () => {
         ],
       },
       "检索「反馈」 · 1 条 Understanding / 1 条 Context 证据",
-    ],
-    [
-      "graph",
-      { understandingId: "u1" },
-      {
-        nodes: [
-          { id: "u1", title: "反馈回路" },
-          { id: "u2", title: "快速验证" },
-        ],
-        edges: [{ from: "u1", to: "u2" }],
-      },
-      "查看 Understanding「反馈回路」的关联图 · 2 个节点 / 1 条关联",
     ],
     ["web_search", { query: "agent ux" }, { totalResults: 5 }, "搜索网页「agent ux」 · 5 个来源"],
     [

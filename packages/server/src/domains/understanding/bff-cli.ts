@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { UnderstandingCore } from "./core";
-import { contexts, understandingConnections, understandings } from "../../db/schema";
+import { contexts, understandingMentions, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type { ContextDetail, ContextMedium } from "../context/types";
 import type {
@@ -8,12 +8,12 @@ import type {
   GetUnderstandingOptions,
   UnderstandingListWithContexts,
   UnderstandingDetail,
-  UnderstandingRelation,
+  UnderstandingMentionRef,
   UnderstandingSummary,
   UpdateUnderstandingInput,
 } from "./types";
 import type { ListUnderstandingsFilter } from "./types";
-import { getUnderstandingConnectionCounts } from "./core";
+import { getUnderstandingMentionCounts } from "./core";
 import { toUnderstandingSummaries } from "./core";
 import { extractUnderstandingWikiLinks, formatUnderstandingWikiLink } from "./wiki-links";
 import type { RetrievalIndexUpdateSink } from "../shared/types";
@@ -55,7 +55,7 @@ export class UnderstandingCliBff extends UnderstandingCore {
     }
 
     const summary = (await toUnderstandingSummaries(this.db, [row]))[0];
-    const counts = await getUnderstandingConnectionCounts(this.db, id);
+    const counts = await getUnderstandingMentionCounts(this.db, id);
 
     const detail: UnderstandingDetail = {
       ...summary,
@@ -68,8 +68,8 @@ export class UnderstandingCliBff extends UnderstandingCore {
       detail.contexts = (await this.listContextsByUnderstandingId([id]))[id] ?? [];
     }
 
-    if (options?.includeRelations) {
-      detail.relations = await this.listUnderstandingRelations(row, summary);
+    if (options?.includeMentions) {
+      detail.mentions = await this.listUnderstandingMentions(row, summary);
     }
 
     return detail;
@@ -131,25 +131,25 @@ export class UnderstandingCliBff extends UnderstandingCore {
     return result;
   }
 
-  private async listUnderstandingRelations(
+  private async listUnderstandingMentions(
     row: typeof understandings.$inferSelect,
     summary: UnderstandingSummary,
-  ): Promise<UnderstandingRelation[]> {
+  ): Promise<UnderstandingMentionRef[]> {
     const outgoingLinks = extractUnderstandingWikiLinks(row.body);
     const [outgoingRows, incomingRows] = await Promise.all([
       this.db
         .select()
-        .from(understandingConnections)
-        .where(eq(understandingConnections.sourceId, row.id)),
+        .from(understandingMentions)
+        .where(eq(understandingMentions.sourceId, row.id)),
       this.db
         .select()
-        .from(understandingConnections)
-        .where(eq(understandingConnections.targetId, row.id)),
+        .from(understandingMentions)
+        .where(eq(understandingMentions.targetId, row.id)),
     ]);
 
     const relatedIds = [
-      ...outgoingRows.map((connection) => connection.targetId),
-      ...incomingRows.map((connection) => connection.sourceId),
+      ...outgoingRows.map((mention) => mention.targetId),
+      ...incomingRows.map((mention) => mention.sourceId),
     ];
     const relatedRows =
       relatedIds.length === 0
@@ -159,7 +159,7 @@ export class UnderstandingCliBff extends UnderstandingCore {
             .from(understandings)
             .where(and(inArray(understandings.id, relatedIds), isNull(understandings.deletedAt)));
     const relatedById = new Map(relatedRows.map((relatedRow) => [relatedRow.id, relatedRow]));
-    const relations: UnderstandingRelation[] = outgoingLinks.map((link) => {
+    const mentions: UnderstandingMentionRef[] = outgoingLinks.map((link) => {
       const targetRow = relatedById.get(link.target);
       return {
         direction: "outgoing",
@@ -172,12 +172,12 @@ export class UnderstandingCliBff extends UnderstandingCore {
       };
     });
 
-    for (const connection of incomingRows) {
-      const sourceRow = relatedById.get(connection.sourceId);
+    for (const mention of incomingRows) {
+      const sourceRow = relatedById.get(mention.sourceId);
       if (!sourceRow) continue;
       const sourceLinks = extractUnderstandingWikiLinks(sourceRow.body);
       const sourceLink = sourceLinks.find((link) => link.target === row.id);
-      relations.push({
+      mentions.push({
         direction: "incoming",
         sourceUnderstandingId: sourceRow.id,
         targetUnderstandingId: row.id,
@@ -193,6 +193,6 @@ export class UnderstandingCliBff extends UnderstandingCore {
       });
     }
 
-    return relations;
+    return mentions;
   }
 }

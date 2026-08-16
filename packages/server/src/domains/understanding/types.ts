@@ -1,16 +1,12 @@
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import type {
-  understandingDomains,
-  understandingConnections,
-  understandings,
-} from "../../db/schema";
+import type { understandingDomains, understandingMentions, understandings } from "../../db/schema";
 import type { DomainRef } from "../domain/types";
 import type { ContextDTO, ContextDetail } from "../context/types";
 
 export type Understanding = InferSelectModel<typeof understandings>;
 export type NewUnderstanding = InferInsertModel<typeof understandings>;
 export type UnderstandingDomain = InferSelectModel<typeof understandingDomains>;
-export type UnderstandingConnection = InferSelectModel<typeof understandingConnections>;
+export type UnderstandingMention = InferSelectModel<typeof understandingMentions>;
 
 export type UnderstandingSummaryDTO = {
   id: string;
@@ -18,8 +14,8 @@ export type UnderstandingSummaryDTO = {
   body: string;
   domainIds: string[];
   contextCount: number;
-  connectionCount: number;
-  connectionIds: string[];
+  mentionCount: number;
+  mentionIds: string[];
   createdAt: string;
   updatedAt: string;
 };
@@ -30,7 +26,7 @@ export type UnderstandingDTO = {
   body: string;
   domainIds: string[];
   contexts: ContextDTO[];
-  connections: UnderstandingSummaryDTO[];
+  mentions: UnderstandingSummaryDTO[];
   referencedBy: UnderstandingSummaryDTO[];
   createdAt: string;
   updatedAt: string;
@@ -77,7 +73,11 @@ export type UnderstandingSearchHit = UnderstandingSummary & {
   rank: number;
 };
 
-export type UnderstandingRelation = {
+/**
+ * 一条 wiki-link 引用（mention）：一个 Understanding 正文中提及另一个 Understanding。
+ * 弱引用、无方向语义的引用网（事实/材料层）；与画布的结构连线（强语义、信念/成果层）彻底分离。
+ */
+export type UnderstandingMentionRef = {
   direction: "outgoing" | "incoming";
   sourceUnderstandingId: string;
   targetUnderstandingId: string | null;
@@ -92,10 +92,10 @@ export type UnderstandingDetail = UnderstandingSummary & {
   referenceCount: number;
   referencedByCount: number;
   contexts?: ContextDetail[];
-  relations?: UnderstandingRelation[];
+  mentions?: UnderstandingMentionRef[];
 };
 
 export type GetUnderstandingOptions = {
   includeContexts?: boolean;
-  includeRelations?: boolean;
+  includeMentions?: boolean;
 };

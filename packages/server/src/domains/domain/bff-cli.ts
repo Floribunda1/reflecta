@@ -2,7 +2,7 @@ import { and, desc, inArray, isNull } from "drizzle-orm";
 import {
   contexts,
   understandingDomains,
-  understandingConnections,
+  understandingMentions,
   understandings,
 } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
@@ -116,12 +116,12 @@ export class DomainCliBff extends DomainCore {
       const [outRows, inRows] = await Promise.all([
         this.db
           .select()
-          .from(understandingConnections)
-          .where(inArray(understandingConnections.sourceId, understandingIds)),
+          .from(understandingMentions)
+          .where(inArray(understandingMentions.sourceId, understandingIds)),
         this.db
           .select()
-          .from(understandingConnections)
-          .where(inArray(understandingConnections.targetId, understandingIds)),
+          .from(understandingMentions)
+          .where(inArray(understandingMentions.targetId, understandingIds)),
       ]);
 
       const edgeSet = new Set<string>();

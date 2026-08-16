@@ -2,7 +2,7 @@ import { and, eq, inArray, isNull, count } from "drizzle-orm";
 import {
   contexts,
   understandingDomains,
-  understandingConnections,
+  understandingMentions,
   understandings,
 } from "../../db/schema";
 import type { ContextMedium } from "../context/types";
@@ -29,7 +29,7 @@ export class UnderstandingElectronBff extends UnderstandingCore {
     const db = this.db;
     const ids = understandingRows.map((t) => t.id);
 
-    const [tcRows, ctxCountRows, connRows] = await Promise.all([
+    const [tcRows, ctxCountRows, mentionRows] = await Promise.all([
       db
         .select()
         .from(understandingDomains)
@@ -39,10 +39,7 @@ export class UnderstandingElectronBff extends UnderstandingCore {
         .from(contexts)
         .where(and(inArray(contexts.understandingId, ids), isNull(contexts.deletedAt)))
         .groupBy(contexts.understandingId),
-      db
-        .select()
-        .from(understandingConnections)
-        .where(inArray(understandingConnections.sourceId, ids)),
+      db.select().from(understandingMentions).where(inArray(understandingMentions.sourceId, ids)),
     ]);
 
     const tcMap = new Map<string, string[]>();
@@ -57,11 +54,11 @@ export class UnderstandingElectronBff extends UnderstandingCore {
       ctxCountMap.set(r.understandingId, r.count);
     }
 
-    const connMap = new Map<string, string[]>();
-    for (const r of connRows) {
-      const arr = connMap.get(r.sourceId) ?? [];
+    const mentionMap = new Map<string, string[]>();
+    for (const r of mentionRows) {
+      const arr = mentionMap.get(r.sourceId) ?? [];
       arr.push(r.targetId);
-      connMap.set(r.sourceId, arr);
+      mentionMap.set(r.sourceId, arr);
     }
 
     return understandingRows.map((t) => ({
@@ -70,8 +67,8 @@ export class UnderstandingElectronBff extends UnderstandingCore {
       body: t.body,
       domainIds: tcMap.get(t.id) ?? [],
       contextCount: ctxCountMap.get(t.id) ?? 0,
-      connectionCount: (connMap.get(t.id) ?? []).length,
-      connectionIds: connMap.get(t.id) ?? [],
+      mentionCount: (mentionMap.get(t.id) ?? []).length,
+      mentionIds: mentionMap.get(t.id) ?? [],
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
     }));
@@ -99,7 +96,7 @@ export class UnderstandingElectronBff extends UnderstandingCore {
     const row = await this.getUnderstandingRow(id);
     if (!row) return null;
 
-    const [tcRows, ctxRows, connRows, refRows] = await Promise.all([
+    const [tcRows, ctxRows, mentionRows, refRows] = await Promise.all([
       this.db
         .select()
         .from(understandingDomains)
@@ -108,24 +105,18 @@ export class UnderstandingElectronBff extends UnderstandingCore {
         .select()
         .from(contexts)
         .where(and(eq(contexts.understandingId, id), isNull(contexts.deletedAt))),
-      this.db
-        .select()
-        .from(understandingConnections)
-        .where(eq(understandingConnections.sourceId, id)),
-      this.db
-        .select()
-        .from(understandingConnections)
-        .where(eq(understandingConnections.targetId, id)),
+      this.db.select().from(understandingMentions).where(eq(understandingMentions.sourceId, id)),
+      this.db.select().from(understandingMentions).where(eq(understandingMentions.targetId, id)),
     ]);
 
-    const connectionIds = connRows.map((r) => r.targetId);
-    const connections =
-      connectionIds.length > 0
+    const mentionIds = mentionRows.map((r) => r.targetId);
+    const mentions =
+      mentionIds.length > 0
         ? await this.assembleUnderstandingSummaryDTOs(
             await this.db
               .select()
               .from(understandings)
-              .where(inArray(understandings.id, connectionIds)),
+              .where(inArray(understandings.id, mentionIds)),
           )
         : [];
 
@@ -146,7 +137,7 @@ export class UnderstandingElectronBff extends UnderstandingCore {
       body: row.body,
       domainIds: tcRows.map((r) => r.domainId),
       contexts: ctxRows.map((r) => ({ ...r, medium: r.medium as ContextMedium })),
-      connections,
+      mentions,
       referencedBy,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,

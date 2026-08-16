@@ -8,7 +8,6 @@ export type AgentToolIconKind =
   | "domain"
   | "edit"
   | "file"
-  | "graph"
   | "search"
   | "understanding"
   | "web"
@@ -149,7 +148,6 @@ export function toolIconKind(activity: AgentToolActivityView): AgentToolIconKind
   if (name === "write") return "write";
   if (name === "attachment_read") return "attachment";
   if (name === "web_search") return "web";
-  if (name === "graph") return "graph";
   if (name.startsWith("domain_")) return "domain";
   if (name.startsWith("understanding_")) return "understanding";
   if (name.startsWith("context_")) return "context";

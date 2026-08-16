@@ -29,7 +29,7 @@ const typicalUnderstandings: UnderstandingRowView[] = [
     body: "标准表单、普通列表和详情的 ROI 较低，不单独建立 Story。",
     updatedLabel: "12 分钟前",
     contextCount: 4,
-    connectionCount: 7,
+    mentionCount: 7,
   },
   {
     id: "streaming",
@@ -37,7 +37,7 @@ const typicalUnderstandings: UnderstandingRowView[] = [
     body: "Tool root、item、Message 和 Proposal ID 在逐帧更新中保持不变。",
     updatedLabel: "1 小时前",
     contextCount: 2,
-    connectionCount: 5,
+    mentionCount: 5,
   },
   {
     id: "seam",
@@ -45,7 +45,7 @@ const typicalUnderstandings: UnderstandingRowView[] = [
     body: "query、store、IPC 和 mutation 由 Adapter 持有。",
     updatedLabel: "昨天",
     contextCount: 3,
-    connectionCount: 9,
+    mentionCount: 9,
   },
 ];
 
@@ -92,7 +92,7 @@ const denseUnderstandings: UnderstandingRowView[] = Array.from({ length: 12 }, (
       : "分区灌溉需要同时观察入口温度、主管压力和支路阀门实际开度。",
   updatedLabel: index === 0 ? "大约 1 年前" : `${index + 2} 小时前`,
   contextCount: index * 3,
-  connectionCount: index * 5,
+  mentionCount: index * 5,
 }));
 
 const typicalDocument = `# Storybook 组件验收

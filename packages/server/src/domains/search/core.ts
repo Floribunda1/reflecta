@@ -1,5 +1,5 @@
 import { and, inArray, isNull, or } from "drizzle-orm";
-import { understandingConnections, understandingDomains, understandings } from "../../db/schema";
+import { understandingMentions, understandingDomains, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type { SearchOptions } from "./types";
 import { toUnderstandingSummaries } from "../understanding/core";
@@ -198,16 +198,16 @@ export class SearchCore {
     if (seedIds.length === 0 && anchorDomainIds.length === 0) return [];
     if (existingIds.size >= limit) return [];
 
-    const connectionRows =
+    const mentionRows =
       seedIds.length === 0
         ? []
         : await this.db
             .select()
-            .from(understandingConnections)
+            .from(understandingMentions)
             .where(
               or(
-                inArray(understandingConnections.sourceId, seedIds),
-                inArray(understandingConnections.targetId, seedIds),
+                inArray(understandingMentions.sourceId, seedIds),
+                inArray(understandingMentions.targetId, seedIds),
               ),
             );
     const domainRows =
@@ -220,7 +220,7 @@ export class SearchCore {
     const relatedIds = [
       ...new Set(
         [
-          ...connectionRows.flatMap((connection) => [connection.sourceId, connection.targetId]),
+          ...mentionRows.flatMap((mention) => [mention.sourceId, mention.targetId]),
           ...domainRows.map((row) => row.understandingId),
         ].filter((id) => !existingIds.has(id) && !seedIds.includes(id)),
       ),

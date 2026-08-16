@@ -1,7 +1,7 @@
 # language: zh-CN
 @capture @connection @v1.2.5
 功能: 用户管理 Understanding 之间的显式 Connection
-  用户需要在写作时指出两条理解之间的关系，并从当前理解回到被引用的理解和它所在的知识图谱。
+  用户需要在写作时指出两条理解之间的引用关系（wiki-link mention），并从当前理解回到被引用的理解。
 
   @P0 @happy_path @CP-CONNECTION-001
   场景: 用户通过 wiki-link 连接另一条 Understanding
@@ -21,7 +21,7 @@
     而且理解列表应该选中 Understanding「React Suspense」
 
   @P1 @list @CP-CONNECTION-003
-  场景: 用户建立 Connection 后理解列表显示连接数量
+  场景: 用户建立 Connection 后理解列表显示引用数量
     假如 seed 数据中存在尚未连接的 Understanding「React Server Components」和「Unconnected Node」
     当用户通过 wiki-link 将 Understanding「React Server Components」连接到「Unconnected Node」
-    那么理解列表中「React Server Components」的连接数量应该增加
+    那么理解列表中「React Server Components」的引用数量应该增加

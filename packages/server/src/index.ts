@@ -4,7 +4,6 @@ export * from "./runtime/resolve";
 
 export * from "./domains/domain";
 export * from "./domains/context";
-export * from "./domains/graph";
 export * from "./domains/retrieval";
 export * from "./domains/search";
 export * from "./domains/shared";

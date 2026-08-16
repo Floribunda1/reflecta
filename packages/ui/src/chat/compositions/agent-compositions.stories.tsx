@@ -107,7 +107,7 @@ const understandingOutput = {
   referencedByCount: 2,
   domains: [{ id: "d-irrigation", name: "灌溉控制" }],
   contexts: syntheticContexts(2),
-  relations: [
+  mentions: [
     {
       direction: "outgoing",
       targetTitle: "低温条件下的阀门启动顺序",
@@ -302,7 +302,7 @@ const typicalUnderstanding = tool(
   {
     understandingId: "u-irrigation",
     includeContexts: true,
-    includeRelations: true,
+    includeMentions: true,
   },
   understandingOutput,
 );
@@ -557,7 +557,7 @@ const denseBlocks: AgentReducedAssistantBlock[] = [
     {
       domainId: "d-irrigation",
       includeContexts: true,
-      includeRelations: true,
+      includeMentions: true,
       limit: 25,
       offset: 0,
     },
