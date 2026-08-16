@@ -155,10 +155,10 @@ describe("Understanding 管理", () => {
         "understanding",
         "get",
         understandingId!,
-        "--include-relations",
+        "--include-mentions",
       ]);
       expect(code).toBe(0);
-      expect(Array.isArray((parseJson(stdout) as { relations?: unknown[] }).relations)).toBe(true);
+      expect(Array.isArray((parseJson(stdout) as { relations?: unknown[] }).mentions)).toBe(true);
     });
   });
 
@@ -240,11 +240,9 @@ describe("Understanding 管理", () => {
       ]);
       expect(code).toBe(0);
       const detail = parseJson(
-        (await runCommand(["understanding", "get", understandingId, "--include-relations"])).stdout,
+        (await runCommand(["understanding", "get", understandingId, "--include-mentions"])).stdout,
       ) as { relations: Array<{ targetUnderstandingId: string | null }> };
-      expect(detail.relations.map((relation) => relation.targetUnderstandingId)).toContain(
-        targetId,
-      );
+      expect(detail.mentions.map((relation) => relation.targetUnderstandingId)).toContain(targetId);
     });
 
     it("更新正文时清除旧连接", async () => {
@@ -261,9 +259,9 @@ describe("Understanding 管理", () => {
       ]);
       const understandingId = (parseJson(createOut) as { id: string }).id;
       const before = parseJson(
-        (await runCommand(["understanding", "get", understandingId, "--include-relations"])).stdout,
+        (await runCommand(["understanding", "get", understandingId, "--include-mentions"])).stdout,
       ) as { relations: unknown[] };
-      expect(before.relations).toHaveLength(1);
+      expect(before.mentions).toHaveLength(1);
       const { code } = await runCommand([
         "understanding",
         "update",
@@ -274,9 +272,9 @@ describe("Understanding 管理", () => {
       ]);
       expect(code).toBe(0);
       const after = parseJson(
-        (await runCommand(["understanding", "get", understandingId, "--include-relations"])).stdout,
+        (await runCommand(["understanding", "get", understandingId, "--include-mentions"])).stdout,
       ) as { relations: unknown[] };
-      expect(after.relations).toEqual([]);
+      expect(after.mentions).toEqual([]);
     });
 
     it("更新 Domain 关联", async () => {

@@ -46,15 +46,12 @@ const isNewDb = !fs.existsSync(dbPath);
 console.log(`Opening database at: ${dbPath}`);
 
 if (isNewDb) {
-  const packageJson = JSON.parse(
-    fs.readFileSync(new URL("../package.json", import.meta.url), "utf-8"),
-  ) as { version: string };
   const migratedDb = await createDBInstance(dbPath, {
-    appVersion: packageJson.version,
+    appVersion: "2.0.0",
     runMigrations: true,
   });
   migratedDb.$client.close();
-  console.log(`Applied migrations through v${packageJson.version}`);
+  console.log("Applied migrations through v2.0.0");
 }
 
 const db = new Database(dbPath);
@@ -99,7 +96,7 @@ if (!isNewDb) {
   try {
     db.exec(`
       DELETE FROM understanding_domains;
-      DELETE FROM understanding_connections;
+      DELETE FROM understanding_mentions;
       DELETE FROM contexts;
       DELETE FROM understandings;
       DELETE FROM domains;
@@ -1217,11 +1214,11 @@ for (const t of understandingSeeds) {
 console.log(`Inserted ${tcCount} understanding-domain links`);
 
 // ---------------------------------------------------------------------------
-// Understanding-Connections (via wiki-link resolution)
+// Understanding-Mentions (via wiki-link resolution)
 // ---------------------------------------------------------------------------
 
 const insertConn = db.prepare(
-  "INSERT INTO understanding_connections (source_id, target_id) VALUES (?, ?)",
+  "INSERT INTO understanding_mentions (source_id, target_id) VALUES (?, ?)",
 );
 const connectionSet = new Set<string>();
 let connCount = 0;
@@ -1258,7 +1255,7 @@ for (let i = 0; i < 80; i++) {
   }
 }
 
-console.log(`Inserted ${connCount} understanding connections`);
+console.log(`Inserted ${connCount} understanding mentions`);
 
 // ---------------------------------------------------------------------------
 // Contexts (varied mediums, titles, deletion states)
@@ -1455,7 +1452,7 @@ const deletedUnderstandingCount = (
   }
 ).c;
 const connectionCount = (
-  db.query("SELECT count(*) AS c FROM understanding_connections").get() as { c: number }
+  db.query("SELECT count(*) AS c FROM understanding_mentions").get() as { c: number }
 ).c;
 const contextTotal = (db.query("SELECT count(*) AS c FROM contexts").get() as { c: number }).c;
 const activeCtxCount = (
