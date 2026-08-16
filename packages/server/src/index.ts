@@ -8,4 +8,5 @@ export * from "./domains/retrieval";
 export * from "./domains/search";
 export * from "./domains/shared";
 export * from "./domains/understanding";
+export * from "./domains/understanding-canvas";
 export * from "./domains/trash";

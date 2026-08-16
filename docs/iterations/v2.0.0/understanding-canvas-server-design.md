@@ -408,15 +408,16 @@ Agent 对理解画布：**读 + 写（内容级、审批制）+ 展示**：
 
 ## 4. CLI 接口
 
-### 4.1 命令清单（`reflecta canvas <action>`）
+### 4.1 命令清单（`reflecta canvas <action>`，与 Agent `canvas_*` 工具契约一致）
 
-| 命令                                             | 说明                               | mutates            |
-| ------------------------------------------------ | ---------------------------------- | ------------------ |
-| `reflecta canvas list`                           | 列出画布（标题 / 计数 / 更新时间） | 否                 |
-| `reflecta canvas get <canvas-id>`                | 画布详情（元素 / 连线 / 引用理解） | 否                 |
-| `reflecta canvas create <title>`                 | 新建画布                           | 是（`--yes` 确认） |
-| `reflecta canvas update <canvas-id> --title <t>` | 改名                               | 是                 |
-| `reflecta canvas delete <canvas-id>`             | 删除画布（级联）                   | 是                 |
+| 命令                                                                     | 说明                                                                     | mutates            |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------ | ------------------ |
+| `reflecta canvas list [--title-keyword <kw>] [--limit <n>]`              | 列出画布（标题过滤 / 更新时间排序）                                      | 否                 |
+| `reflecta canvas get <canvas-id> [--with-bodies]`                        | 画布详情（默认骨架：元素 / 连线 / 引用理解标题；`--with-bodies` 带正文） | 否                 |
+| `reflecta canvas search [query] [--understanding-id <id>] [--limit <n>]` | 发现定位（query OR 拆词 / 反向查询），返回 `CanvasHit[]`                 | 否                 |
+| `reflecta canvas create <title>`                                         | 新建画布                                                                 | 是（`--yes` 确认） |
+| `reflecta canvas update <canvas-id> --title <t> \| --document <json>`    | 改名 / 整文档写（saveCanvas 对账）                                       | 是                 |
+| `reflecta canvas delete <canvas-id>`                                     | 删除画布（级联）                                                         | 是                 |
 
 ### 4.2 注册链路（沿用既有模式）
 

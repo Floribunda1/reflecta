@@ -24,6 +24,12 @@ import { registerDeleteUnderstandingAction } from "./actions/understanding/delet
 import { registerGetUnderstandingAction } from "./actions/understanding/get";
 import { registerListUnderstandingsAction } from "./actions/understanding/list";
 import { registerUpdateUnderstandingAction } from "./actions/understanding/update";
+import { registerListCanvasesAction } from "./actions/canvas/list";
+import { registerGetCanvasAction } from "./actions/canvas/get";
+import { registerSearchCanvasesAction } from "./actions/canvas/search";
+import { registerCreateCanvasAction } from "./actions/canvas/create";
+import { registerUpdateCanvasAction } from "./actions/canvas/update";
+import { registerDeleteCanvasAction } from "./actions/canvas/delete";
 import { flushRetrievalIndexUpdates } from "./services";
 
 function formatRows(rows: Array<{ key: string; desc: string }>, indent = 2, width = 22): string[] {
@@ -208,6 +214,14 @@ export async function runCli(argv = process.argv.slice(2)): Promise<number> {
   registerCreateUnderstandingAction(understanding);
   registerUpdateUnderstandingAction(understanding);
   registerDeleteUnderstandingAction(understanding);
+
+  const canvas = cli.command("canvas").description("Manage understanding canvases");
+  registerListCanvasesAction(canvas);
+  registerGetCanvasAction(canvas);
+  registerSearchCanvasesAction(canvas);
+  registerCreateCanvasAction(canvas);
+  registerUpdateCanvasAction(canvas);
+  registerDeleteCanvasAction(canvas);
 
   const context = cli.command("context").description("Manage contexts");
   registerListContextsAction(context);

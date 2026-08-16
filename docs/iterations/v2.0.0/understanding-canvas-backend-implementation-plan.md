@@ -27,6 +27,16 @@ Phase 0 (TBD-3 降级) ──┬──> Phase 1 (Canvas 域) ──> Phase 2 (Ag
 - **严格顺序执行**：Phase 0 先行保证新代码不落在旧命名（connection/relation/graph）上；Phase 1 表结构不依赖 connection 改名（elements FK 直指 `understandings`），但命名卫生要求先降级。
 - **每 phase 独立可合并、可验证**：phase 结束时测试全绿 + commit（Angular 约定）。
 - **测试与实现同 phase 推进**：核心算法（对账、校验、search 语义）先写单测再实现（TDD 节奏），迁移与注册类测试随实现同步补。
+- **Agent 工具 ↔ CLI 契约一致（用户原则）**：CLI 也是给 Agent 用的（bash tool 路径），`reflecta canvas <action>` 与 `canvas_*` 工具必须同一套契约（操作 / 参数 / 返回形状），否则 Agent 走 CLI 与走工具出现两条分叉。对齐表（P1 已实施）：
+
+  | `canvas_*` 工具（§3.2）                            | CLI                                                    | 对齐点                                                                                                          |
+  | -------------------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+  | `canvas_read {canvasId, includeBodies?}`           | `canvas get <id> [--with-bodies]`                      | 骨架默认（引用理解无正文），`--with-bodies` 显式要正文；renderer IPC 走 `includeBodies: true`（编辑器需要全文） |
+  | `canvas_list {titleSearchKeyword?, limit?}`        | `canvas list [--title-keyword] [--limit]`              | 同参同返 `CanvasDTO[]`                                                                                          |
+  | `canvas_search {query?, understandingId?, limit?}` | `canvas search [query] [--understanding-id] [--limit]` | 同语义（query OR 拆词 / 反向查询），同返回 `CanvasHit[]`（画布 + snippet + reason）                             |
+  | `canvas_create {title}`                            | `canvas create <title>`                                | 同                                                                                                              |
+  | `canvas_update {canvasId, document}`               | `canvas update <id> --title \| --document <json>`      | `--document` 走 saveCanvas（同一对账实现）                                                                      |
+  | `canvas_delete {canvasId}`                         | `canvas delete <id>`                                   | 同                                                                                                              |
 
 ---
 

@@ -1,5 +1,5 @@
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
-import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const domains = sqliteTable(
   "domains",
@@ -87,3 +87,73 @@ export const migrations = sqliteTable("_migrations", {
   name: text("name").notNull().primaryKey(),
   runAt: text("run_at").notNull(),
 });
+
+export const understandingCanvases = sqliteTable(
+  "understanding_canvases",
+  {
+    id: text("id").notNull().primaryKey(),
+    title: text("title").notNull(),
+    description: text("description"),
+    viewport: text("viewport"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [index("idx_canvases_updated_at").on(t.updatedAt)],
+);
+
+export const understandingCanvasElements = sqliteTable(
+  "understanding_canvas_elements",
+  {
+    id: text("id").notNull().primaryKey(),
+    canvasId: text("canvas_id")
+      .notNull()
+      .references(() => understandingCanvases.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    understandingId: text("understanding_id").references(() => understandings.id, {
+      onDelete: "set null",
+    }),
+    canvasRefId: text("canvas_ref_id").references(() => understandingCanvases.id, {
+      onDelete: "set null",
+    }),
+    props: text("props").notNull().default("{}"),
+    parentId: text("parent_id").references((): AnySQLiteColumn => understandingCanvasElements.id, {
+      onDelete: "set null",
+    }),
+    x: real("x").notNull(),
+    y: real("y").notNull(),
+    width: real("width").notNull(),
+    height: real("height").notNull(),
+    zIndex: integer("z_index").notNull().default(0),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [
+    index("idx_canvas_elements_canvas").on(t.canvasId),
+    index("idx_canvas_elements_understanding").on(t.understandingId),
+    index("idx_canvas_elements_parent").on(t.parentId),
+  ],
+);
+
+export const understandingCanvasEdges = sqliteTable(
+  "understanding_canvas_edges",
+  {
+    id: text("id").notNull().primaryKey(),
+    canvasId: text("canvas_id")
+      .notNull()
+      .references(() => understandingCanvases.id, { onDelete: "cascade" }),
+    sourceElementId: text("source_element_id")
+      .notNull()
+      .references(() => understandingCanvasElements.id, { onDelete: "cascade" }),
+    targetElementId: text("target_element_id")
+      .notNull()
+      .references(() => understandingCanvasElements.id, { onDelete: "cascade" }),
+    label: text("label"),
+    props: text("props").notNull().default("{}"),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [
+    index("idx_canvas_edges_canvas").on(t.canvasId),
+    index("idx_canvas_edges_source").on(t.sourceElementId),
+    index("idx_canvas_edges_target").on(t.targetElementId),
+  ],
+);

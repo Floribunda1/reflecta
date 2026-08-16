@@ -214,6 +214,9 @@ describe("versioned migrations", () => {
 
     expect(hasTable(db, "understanding_mentions")).toBe(true);
     expect(hasTable(db, "understanding_connections")).toBe(false);
+    expect(hasTable(db, "understanding_canvases")).toBe(true);
+    expect(hasTable(db, "understanding_canvas_elements")).toBe(true);
+    expect(hasTable(db, "understanding_canvas_edges")).toBe(true);
     expect(
       db.$client.prepare(`SELECT source_id, target_id FROM understanding_mentions`).all(),
     ).toEqual([{ source_id: "understanding-source", target_id: "understanding-target" }]);

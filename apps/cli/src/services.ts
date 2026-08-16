@@ -2,6 +2,7 @@ import {
   DomainCliBff,
   ContextCliBff,
   SearchCliBff,
+  UnderstandingCanvasCliBff,
   UnderstandingCliBff,
   RetrievalIndexCoordinator,
   type RetrievalIndexUpdateSink,
@@ -11,6 +12,7 @@ import { getActiveRuntimeKey, getDb } from "./db";
 export type ReflectaCliServices = {
   domains: DomainCliBff;
   contexts: ContextCliBff;
+  canvases: UnderstandingCanvasCliBff;
   search: SearchCliBff;
   understandings: UnderstandingCliBff;
 };
@@ -40,6 +42,7 @@ export async function getServices(): Promise<ReflectaCliServices> {
   services = {
     domains: new DomainCliBff(db, retrievalIndexSink),
     contexts: new ContextCliBff(db, retrievalIndexSink),
+    canvases: new UnderstandingCanvasCliBff(db),
     search: new SearchCliBff(db),
     understandings: new UnderstandingCliBff(db, retrievalIndexSink),
   };

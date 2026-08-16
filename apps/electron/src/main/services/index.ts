@@ -13,6 +13,7 @@ import { ContextService } from "./ContextService";
 import { DiagnosticsService } from "./DiagnosticsService";
 import { SearchService } from "./SearchService";
 import { UnderstandingService } from "./UnderstandingService";
+import { UnderstandingCanvasService } from "./UnderstandingCanvasService";
 import { TrashService } from "./TrashService";
 import { piAgentHost } from "./core";
 import { registerAgentSessionFeed } from "./agent/agent-session-feed-ipc";
@@ -92,6 +93,7 @@ export const services = createServices([
   ConfigService,
   DiagnosticsService,
   UnderstandingService,
+  UnderstandingCanvasService,
   ContextService,
   SearchService,
   TrashService,
