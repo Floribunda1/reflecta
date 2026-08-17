@@ -10,15 +10,7 @@ export function todayDateKey(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function todayTitle(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const day = now.getDate();
-  return `${year}年${month}月${day}日`;
-}
-
-/** 热力图中代表今天的格子（今天可能尚未参与，格子仍可点击查看明细） */
-export function todayHeatmapCell(page: Page) {
-  return page.getByRole("button", { name: new RegExp(`^${todayTitle()}`) }).first();
+/** 热力图中代表某一天的格子（react-activity-calendar 渲染的 SVG rect） */
+export function heatmapCell(page: Page, dateKey: string) {
+  return page.locator(`[data-testid="recap-heatmap"] rect[data-date="${dateKey}"]`);
 }

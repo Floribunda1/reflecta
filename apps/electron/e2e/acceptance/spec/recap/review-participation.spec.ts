@@ -6,7 +6,7 @@ import {
   seedUnderstanding,
   userMessage,
 } from "../agent/agent-fixtures";
-import { openRecapPage, todayHeatmapCell } from "./recap-e2e";
+import { heatmapCell, openRecapPage, todayDateKey } from "./recap-e2e";
 
 test("@RECAP-001 用户打开回顾页看到过程数据与沉淀资产", async () => {
   const now = Date.now();
@@ -32,16 +32,19 @@ test("@RECAP-001 用户打开回顾页看到过程数据与沉淀资产", async 
   try {
     await openRecapPage(page);
 
-    // 过程数据：参与热力图
-    await expect(page.getByRole("heading", { name: "参与热力图" })).toBeVisible();
+    // 过程数据：参与热力图（带月/周标注的日历网格，整周对齐补全，窗口内天数带 data-date）
+    const heatmap = page.getByTestId("recap-heatmap");
+    await expect(heatmap.locator("rect[data-date]").first()).toBeVisible();
+    await expect(heatmap.locator("rect[data-date]")).toHaveCount(7); // 本周 = 7 天
 
-    // 已沉淀资产：理解总数 1，且今天创建 → 期内新增 1
+    // hover 细分：今天格子带细分 title（对话 1 次 · 消息 1 条 · 沉淀资产 1 个）
+    const todayCell = heatmapCell(page, todayDateKey());
+    await expect(todayCell).toHaveAttribute("title", /对话 1 次/);
+
+    // 已沉淀资产：双显示 —— 今天创建的理解计入期内新增 +1（总量含全局 seed）
     await expect(page.getByTestId("recap-assets")).toBeVisible();
-    await expect(page.locator('[data-stat="理解"]')).toHaveText("1");
+    await expect(page.locator('[data-stat="理解"]')).not.toHaveText("0");
     await expect(page.getByTestId("recap-assets")).toContainText("期内 +1");
-
-    // 今日对话在热力图中可见（今天开始且有消息的会话）
-    await expect(page.getByTestId("recap-participation")).toContainText("对话 1 次");
   } finally {
     await app.close();
   }
@@ -61,11 +64,15 @@ test("@RECAP-002 用户切换时间范围筛选", async () => {
   try {
     await openRecapPage(page);
 
+    const heatmap = page.getByTestId("recap-heatmap");
+    await expect(heatmap.locator("rect[data-date]").first()).toBeVisible();
+
     await page.getByRole("tab", { name: "近一月" }).click();
-    await expect(page.getByRole("heading", { name: "参与热力图" })).toBeVisible();
-    // 今天创建的理解在 30 天窗口内 → 期内新增仍为 1
-    await expect(page.locator('[data-stat="理解"]')).toHaveText("1");
-    await expect(page.getByTestId("recap-assets")).toContainText("期内 +1");
+    await expect(heatmap.locator("rect[data-date]")).toHaveCount(30); // 近一月 = 30 天
+
+    // 今天创建的理解在 30 天窗口内 → 资产区显示期内新增标记（seed 环境本月另有存量）
+    await expect(page.locator('[data-stat="理解"]')).not.toHaveText("0");
+    await expect(page.getByTestId("recap-assets")).toContainText("期内 +");
   } finally {
     await app.close();
   }
@@ -85,7 +92,7 @@ test("@RECAP-003 用户点击热力图某天回看当天参与记录", async () 
   try {
     await openRecapPage(page);
 
-    await todayHeatmapCell(page).click();
+    await heatmapCell(page, todayDateKey()).click();
     await expect(page.getByText("热力图回看理解")).toBeVisible();
   } finally {
     await app.close();

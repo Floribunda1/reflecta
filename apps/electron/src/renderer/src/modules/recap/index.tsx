@@ -1,9 +1,11 @@
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { useState } from "react";
-import { cn } from "@reflecta/ui/lib/utils";
+import { cloneElement, useState, type ReactElement, type SVGAttributes } from "react";
+import { ActivityCalendar, type Activity } from "react-activity-calendar";
+import "react-activity-calendar/tooltips.css";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -12,71 +14,11 @@ import {
 import { Button } from "@reflecta/ui/components/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@reflecta/ui/components/empty";
 import { Tabs, TabsList, TabsTrigger } from "@reflecta/ui/components/tabs";
-import { RECAP_PERIODS, computeRecapStats, type HeatmapCell, type RecapPeriodId } from "./stats";
+import { RECAP_PERIODS, buildActivityData, computeRecapStats, type RecapPeriodId } from "./stats";
 import { useRecapData, type RecapDataQuery } from "./queries";
 
-const HEATMAP_LEVEL_CLASS = [
-  "bg-muted",
-  "bg-primary/25",
-  "bg-primary/50",
-  "bg-primary/75",
-  "bg-primary",
-] as const;
-
-function dayTitle(date: string | null): string {
-  if (!date) return "尚未到来";
+function dayTitle(date: string): string {
   return `${format(new Date(`${date}T00:00:00`), "yyyy年M月d日 EEEE", { locale: zhCN })}`;
-}
-
-function RecapHeatmap({
-  heatmapWeeks,
-  selectedDate,
-  onHover,
-  onSelect,
-}: {
-  heatmapWeeks: readonly (readonly HeatmapCell[])[];
-  selectedDate: string | null;
-  onHover: (cell: HeatmapCell | null) => void;
-  onSelect: (date: string | null) => void;
-}) {
-  return (
-    <div
-      className="grid grid-flow-col gap-[3px] overflow-x-auto pb-1"
-      style={{ gridTemplateRows: `repeat(7, minmax(0, 1fr))` }}
-      aria-label="参与热力图"
-      role="img"
-    >
-      {heatmapWeeks.flatMap((week, weekIndex) =>
-        week.map((cell, dayIndex) => {
-          const label = cell.date
-            ? `${dayTitle(cell.date)}：对话 ${cell.conversations} 次，沉淀资产 ${cell.assets} 个`
-            : "不在窗口内";
-          return (
-            <button
-              key={`${weekIndex}-${dayIndex}`}
-              type="button"
-              title={label}
-              aria-label={label}
-              aria-pressed={cell.date !== null && cell.date === selectedDate}
-              disabled={cell.date === null}
-              onMouseEnter={() => onHover(cell.date !== null ? cell : null)}
-              onMouseLeave={() => onHover(null)}
-              onFocus={() => onHover(cell.date !== null ? cell : null)}
-              onBlur={() => onHover(null)}
-              onClick={() => onSelect(cell.date !== selectedDate ? cell.date : null)}
-              className={cn(
-                "size-2.5 rounded-[3px] transition-transform disabled:opacity-40",
-                HEATMAP_LEVEL_CLASS[cell.level],
-                cell.date !== null &&
-                  cell.date === selectedDate &&
-                  "ring-2 ring-ring ring-offset-1",
-              )}
-            />
-          );
-        }),
-      )}
-    </div>
-  );
 }
 
 function DayDetail({ date, data }: { date: string; data: RecapDataQuery }) {
@@ -137,7 +79,7 @@ function AssetCounter({
     <Card size="sm">
       <CardContent className="flex flex-col gap-0.5">
         <span className="flex items-baseline gap-1.5">
-          <span data-stat={stat} className="text-xl font-semibold tabular-nums">
+          <span data-stat={stat} className="text-2xl font-semibold tabular-nums">
             {total}
           </span>
           <span className="text-xs text-muted-foreground tabular-nums">期内 +{period}</span>
@@ -151,7 +93,6 @@ function AssetCounter({
 export function RecapPage() {
   const { data, isLoading } = useRecapData();
   const [period, setPeriod] = useState<RecapPeriodId>("week");
-  const [hoveredCell, setHoveredCell] = useState<HeatmapCell | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   if (isLoading || !data) {
@@ -163,6 +104,11 @@ export function RecapPage() {
   }
 
   const stats = computeRecapStats({ ...data, domains: data.domainList, period });
+  const { days: activityDays, details: activityDetails } = buildActivityData({
+    ...data,
+    domains: data.domainList,
+    period,
+  });
   const noAssets =
     stats.assets.understanding.total === 0 &&
     stats.assets.canvas.total === 0 &&
@@ -174,20 +120,22 @@ export function RecapPage() {
       data-testid="recap-page"
       className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto px-4 pt-2 pb-6"
     >
-      {/* Section 1：period 筛选 */}
-      <Tabs value={period} onValueChange={(value) => setPeriod(value as RecapPeriodId)}>
-        <TabsList aria-label="回顾时间范围">
-          {RECAP_PERIODS.map((item) => (
-            <TabsTrigger key={item.id} value={item.id}>
-              {item.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      {/* Section 1：period 筛选（全局，作用于过程数据与资产期内新增） */}
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-muted-foreground">回顾</h2>
+        <Tabs value={period} onValueChange={(value) => setPeriod(value as RecapPeriodId)}>
+          <TabsList aria-label="回顾时间范围">
+            {RECAP_PERIODS.map((item) => (
+              <TabsTrigger key={item.id} value={item.id}>
+                {item.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      </div>
 
       {/* Section 2.1：过程数据 */}
       <section aria-label="过程数据" data-testid="recap-participation">
-        <h2 className="mb-2 text-sm font-semibold text-muted-foreground">过程数据</h2>
         <Card>
           <CardHeader>
             <CardTitle>参与热力图</CardTitle>
@@ -195,43 +143,89 @@ export function RecapPage() {
               按天着色：这一天是否有对话或沉淀动作。悬停查看当天细分，点击某天查看当天参与记录。
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            {hoveredCell?.date ? (
-              <p
-                data-testid="recap-heatmap-tooltip"
-                className="text-sm tabular-nums"
-                aria-live="polite"
-              >
-                {dayTitle(hoveredCell.date)} · 对话 {hoveredCell.conversations} 次 · 消息{" "}
-                {hoveredCell.messages} 条 · 沉淀资产 {hoveredCell.assets} 个
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">悬停查看某一天的参与明细</p>
-            )}
-            <RecapHeatmap
-              heatmapWeeks={stats.heatmapWeeks}
-              selectedDate={selectedDate}
-              onHover={setHoveredCell}
-              onSelect={setSelectedDate}
-            />
-            {selectedDate ? (
-              <div className="rounded-lg border bg-muted/30 p-3">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium">{dayTitle(selectedDate)}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedDate(null)}
-                  >
-                    关闭
-                  </Button>
-                </div>
-                <DayDetail date={selectedDate} data={data} />
-              </div>
-            ) : null}
+          <CardContent className="overflow-x-auto">
+            <div data-testid="recap-heatmap">
+              <ActivityCalendar
+                data={activityDays}
+                weekStart={1}
+                blockSize={13}
+                blockMargin={3}
+                blockRadius={3}
+                fontSize={12}
+                theme={{
+                  light: ["#e6e6e6", "#0d9488"],
+                  dark: ["#2a2a2a", "#2dd4bf"],
+                }}
+                labels={{
+                  months: [
+                    "1月",
+                    "2月",
+                    "3月",
+                    "4月",
+                    "5月",
+                    "6月",
+                    "7月",
+                    "8月",
+                    "9月",
+                    "10月",
+                    "11月",
+                    "12月",
+                  ],
+                  weekdays: ["日", "一", "二", "三", "四", "五", "六"],
+                  totalCount: "共 {{count}} 次参与",
+                  legend: { less: "少", more: "多" },
+                }}
+                showWeekdayLabels={["mon", "wed", "fri"]}
+                showTotalCount={false}
+                tooltips={{
+                  activity: {
+                    text: (activity: Activity) => {
+                      const detail = activityDetails.get(activity.date);
+                      if (!detail) return `${dayTitle(activity.date)}：无参与`;
+                      return (
+                        `${dayTitle(activity.date)}：` +
+                        `对话 ${detail.conversations} 次 · 消息 ${detail.messages} 条 · ` +
+                        `沉淀资产 ${detail.assets} 个`
+                      );
+                    },
+                  },
+                }}
+                renderBlock={(block: ReactElement, activity: Activity) => {
+                  const detail = activityDetails.get(activity.date);
+                  const tip = detail
+                    ? `${dayTitle(activity.date)}：对话 ${detail.conversations} 次 · 消息 ${detail.messages} 条 · 沉淀资产 ${detail.assets} 个`
+                    : `${dayTitle(activity.date)}：无参与`;
+                  return cloneElement(block, {
+                    "data-date": activity.date,
+                    title: tip,
+                    onClick: () => setSelectedDate(activity.date),
+                  } as unknown as SVGAttributes<SVGRectElement>);
+                }}
+              />
+            </div>
           </CardContent>
         </Card>
+
+        {selectedDate ? (
+          <Card className="mt-3">
+            <CardHeader>
+              <CardTitle>{dayTitle(selectedDate)}</CardTitle>
+              <CardAction>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedDate(null)}
+                >
+                  关闭
+                </Button>
+              </CardAction>
+            </CardHeader>
+            <CardContent>
+              <DayDetail date={selectedDate} data={data} />
+            </CardContent>
+          </Card>
+        ) : null}
       </section>
 
       {/* Section 2.2：已沉淀资产 */}

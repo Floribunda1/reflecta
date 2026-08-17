@@ -70,6 +70,20 @@ export type RecapInput = {
   period: RecapPeriodId;
 };
 
+/** 热力图库（react-activity-calendar）的输入条目：窗口内每天一条，空天 count=0。 */
+export type ActivityDay = {
+  date: string;
+  count: number;
+  level: number;
+};
+
+/** 某天的 hover 细分（对话/消息/创建资产） */
+export type DayDetailCounts = {
+  conversations: number;
+  messages: number;
+  assets: number;
+};
+
 const DAY_KEY_FORMAT = "yyyy-MM-dd";
 
 function dayKey(date: Date): string {
@@ -243,4 +257,43 @@ export function computeRecapStats(input: RecapInput, now: Date = new Date()): Re
     assets: computeAssets(input, start),
     domainRank: computeDomainRank(input, start),
   };
+}
+
+/**
+ * 窗口内逐日活动数据（供 react-activity-calendar 渲染）：
+ * 每天一条（含空天 count=0），首尾条目决定库的时间跨度；
+ * details 提供同一日的 hover 细分（对话/消息/创建资产）。
+ */
+export function buildActivityData(
+  input: RecapInput,
+  now: Date = new Date(),
+): { days: ActivityDay[]; details: Map<string, DayDetailCounts> } {
+  const period = RECAP_PERIODS.find((item) => item.id === input.period) ?? RECAP_PERIODS[0];
+  const start = windowStart(period, now);
+  const participation = buildDayParticipation(input);
+  const todayKey = dayKey(now);
+
+  const days: ActivityDay[] = [];
+  let cursor = start;
+  while (dayKey(cursor) <= todayKey) {
+    const key = dayKey(cursor);
+    const cell = participation.get(key);
+    const conversations = cell?.conversations ?? 0;
+    const assets = cell?.assets ?? 0;
+    const total = conversations + assets;
+    days.push({ date: key, count: total, level: levelForCount(total) });
+    cursor = addDays(cursor, 1);
+  }
+
+  const details = new Map<string, DayDetailCounts>();
+  for (const [key, cell] of participation) {
+    if (key >= dayKey(start) && key <= todayKey) {
+      details.set(key, {
+        conversations: cell.conversations,
+        messages: cell.messages,
+        assets: cell.assets,
+      });
+    }
+  }
+  return { days, details };
 }
