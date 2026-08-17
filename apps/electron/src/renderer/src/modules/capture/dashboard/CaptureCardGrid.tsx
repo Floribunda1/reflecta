@@ -1,7 +1,8 @@
 import { FileText } from "lucide-react";
 import { useQueries } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSize } from "ahooks";
+import { memo, useCallback, useMemo, useRef, type RefObject } from "react";
 import {
   UnderstandingCard,
   type UnderstandingCardAction,
@@ -35,18 +36,9 @@ const CARD_ROW_ESTIMATE_PX = 188;
 const CARD_ROW_GAP_PX = 12;
 const CARD_ROW_OVERSCAN = 3;
 
-function useCaptureGridColumnCount() {
-  const [columns, setColumns] = useState(() =>
-    typeof window === "undefined" ? 1 : captureGridColumnCount(window.innerWidth),
-  );
-
-  useEffect(() => {
-    const update = () => setColumns(captureGridColumnCount(window.innerWidth));
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-
-  return columns;
+function useCaptureGridColumnCount(containerRef: RefObject<HTMLElement | null>) {
+  const size = useSize(containerRef);
+  return captureGridColumnCount(size?.width ?? 0);
 }
 
 function useCardEntityPresentations(understandings: readonly UnderstandingSummaryDTO[]) {
@@ -142,7 +134,7 @@ export function CaptureCardGrid({
   searchActive?: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const columns = useCaptureGridColumnCount();
+  const columns = useCaptureGridColumnCount(scrollRef);
   const { domainList } = useCaptureDomains();
   const domainNameById = useMemo(() => {
     const map = new Map<string, string>();

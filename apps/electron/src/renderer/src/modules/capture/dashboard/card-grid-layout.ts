@@ -1,9 +1,14 @@
-/** 与 Tailwind `sm` / `lg` / `xl` 视口断点对齐，对应原来的 grid-cols-1/2/3/4。 */
-export function captureGridColumnCount(viewportWidth: number): number {
-  if (viewportWidth >= 1280) return 4;
-  if (viewportWidth >= 1024) return 3;
-  if (viewportWidth >= 640) return 2;
-  return 1;
+/** 卡片可接受的最小宽度；列数按网格容器宽度算，随详情拖拽变化。 */
+export const CAPTURE_GRID_MIN_CARD_PX = 240;
+export const CAPTURE_GRID_GAP_PX = 12;
+export const CAPTURE_GRID_MAX_COLUMNS = 4;
+
+export function captureGridColumnCount(containerWidth: number): number {
+  if (containerWidth <= 0) return 1;
+  const columns = Math.floor(
+    (containerWidth + CAPTURE_GRID_GAP_PX) / (CAPTURE_GRID_MIN_CARD_PX + CAPTURE_GRID_GAP_PX),
+  );
+  return Math.min(CAPTURE_GRID_MAX_COLUMNS, Math.max(1, columns));
 }
 
 export function captureGridRowCount(itemCount: number, columns: number): number {

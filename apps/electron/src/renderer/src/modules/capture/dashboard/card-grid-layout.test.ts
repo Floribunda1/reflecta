@@ -7,13 +7,14 @@ import {
 } from "./card-grid-layout";
 
 describe("captureGridColumnCount", () => {
-  test("follows the dashboard viewport breakpoints", () => {
-    expect(captureGridColumnCount(375)).toBe(1);
-    expect(captureGridColumnCount(640)).toBe(2);
-    expect(captureGridColumnCount(1023)).toBe(2);
-    expect(captureGridColumnCount(1024)).toBe(3);
-    expect(captureGridColumnCount(1279)).toBe(3);
-    expect(captureGridColumnCount(1280)).toBe(4);
+  test("follows the grid container width, not the viewport", () => {
+    expect(captureGridColumnCount(0)).toBe(1);
+    expect(captureGridColumnCount(239)).toBe(1);
+    expect(captureGridColumnCount(240)).toBe(1);
+    expect(captureGridColumnCount(492)).toBe(2);
+    expect(captureGridColumnCount(744)).toBe(3);
+    expect(captureGridColumnCount(996)).toBe(4);
+    expect(captureGridColumnCount(1600)).toBe(4);
   });
 });
 
