@@ -5,6 +5,7 @@ import { cn } from "@reflecta/ui/lib/utils";
 import { useModal } from "@reflecta/ui/overlays";
 import { SettingsDialogContent } from "@renderer/modules/settings/SettingsDialog";
 import { SIDEBAR_WIDTH_CLASS } from "./layout-constants";
+import { SidebarToggleButton } from "./SidebarToggleButton";
 import { useRailMenuSlot } from "./rail-menu-context";
 import { useRail } from "./rail-provider";
 
@@ -65,7 +66,7 @@ export function AppNavRail() {
   const location = useLocation();
   const { openModal } = useModal();
   const menu = useRailMenuSlot();
-  const { open, state } = useRail();
+  const { open, state, toggle } = useRail();
 
   const activeModule: NavModule =
     NAV_MODULES.find((module) => location.pathname.startsWith(module.path)) ?? NAV_MODULES[0];
@@ -89,10 +90,22 @@ export function AppNavRail() {
           surface tint so the frosted material remains visible across the whole rail.
           Not covered by any token (it is a window-level effect, not a surface color). */}
       <div className="flex h-full min-h-0 flex-col">
-        <div className="app-drag-region shrink-0 px-2 pt-10 pb-2">
+        {open ? (
+          <div className="app-drag-region flex h-12 shrink-0 items-center justify-end border-b px-2">
+            <div data-no-drag>
+              <SidebarToggleButton
+                expanded
+                label="收起导航栏"
+                testId="app-nav-rail-collapse-button"
+                onClick={toggle}
+              />
+            </div>
+          </div>
+        ) : null}
+        <div className="app-drag-region shrink-0 px-2 pt-2 pb-2">
           <nav
             data-testid="app-nav-label-area"
-            className="mt-1 flex flex-col gap-1"
+            className="flex flex-col gap-1"
             aria-label="模块导航"
           >
             {NAV_MODULES.map((module) => {

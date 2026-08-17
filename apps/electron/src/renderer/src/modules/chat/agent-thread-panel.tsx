@@ -1,8 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  useHeaderContent,
-  type HeaderContent,
-} from "@renderer/modules/shared/layout/header-content-context";
+import { PageTopBar } from "@renderer/modules/shared/layout/PageTopBar";
 import { ArrowDown, ChevronDown, ChevronUp, MoreHorizontal, X } from "lucide-react";
 import type {
   AgentContextRef,
@@ -126,47 +123,10 @@ export function AgentThreadPanel({
     setActiveFindMatch(null);
   }, [threadId]);
 
-  const hasHeader = title !== undefined && onRename && onGenerateTitle && onArchive && onDelete;
-
-  // 把「线程标题 + 操作」注入全局 AppHeader（[collapse] ┃ 标题 …… 操作），
-  // 避免与全局 header 叠出两个栏。嵌入场景（agent dock）不传 title/回调，hasHeader 为 false。
-  const headerContent = useMemo<HeaderContent>(
-    () =>
-      hasHeader
-        ? {
-            title: <AgentThreadTitle title={title} onRename={onRename} />,
-            actions: (
-              <AgentThreadActions
-                threadId={threadId}
-                title={title}
-                messages={threadView.visibleMessages}
-                isBusy={threadView.isBusy}
-                isCompacting={threadView.isCompacting}
-                titleGenerating={Boolean(titleGenerating)}
-                onCompact={compact}
-                onGenerateTitle={onGenerateTitle}
-                onArchive={onArchive}
-                onDelete={onDelete}
-              />
-            ),
-          }
-        : null,
-    [
-      hasHeader,
-      title,
-      threadId,
-      threadView.visibleMessages,
-      threadView.isBusy,
-      threadView.isCompacting,
-      titleGenerating,
-      compact,
-      onRename,
-      onGenerateTitle,
-      onArchive,
-      onDelete,
-    ],
-  );
-  useHeaderContent(headerContent);
+  const header =
+    title !== undefined && onRename && onGenerateTitle && onArchive && onDelete
+      ? { title, onRename, onGenerateTitle, onArchive, onDelete }
+      : null;
 
   return (
     <main
@@ -174,6 +134,26 @@ export function AgentThreadPanel({
       data-thread-id={threadId}
       className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-transparent"
     >
+      {header ? (
+        <PageTopBar
+          actions={
+            <AgentThreadActions
+              threadId={threadId}
+              title={header.title}
+              messages={threadView.visibleMessages}
+              isBusy={threadView.isBusy}
+              isCompacting={threadView.isCompacting}
+              titleGenerating={Boolean(titleGenerating)}
+              onCompact={compact}
+              onGenerateTitle={header.onGenerateTitle}
+              onArchive={header.onArchive}
+              onDelete={header.onDelete}
+            />
+          }
+        >
+          <AgentThreadTitle title={header.title} onRename={header.onRename} />
+        </PageTopBar>
+      ) : null}
       <div className="relative min-h-0 flex-1">
         <ThreadFindBox
           messages={threadView.visibleMessages}

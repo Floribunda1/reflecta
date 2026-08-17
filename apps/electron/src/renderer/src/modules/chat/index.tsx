@@ -27,6 +27,7 @@ import {
   useThreadsQuery,
 } from "./session/server-state";
 import { ThreadSidebar } from "./session/thread-sidebar";
+import { PageTopBar } from "@renderer/modules/shared/layout/PageTopBar";
 import { cn } from "@reflecta/ui/lib/utils";
 
 function activeThreadIdFor(threads: { id: string }[], activeThreadId: string | null) {
@@ -287,9 +288,12 @@ function ChatPageContent() {
                   onInspectContextRef={openInspector}
                 />
               ) : (
-                <main className="flex h-full min-h-0 min-w-0 items-center justify-center bg-transparent text-sm text-muted-foreground">
-                  加载 Agent...
-                </main>
+                <div className="flex h-full min-h-0 min-w-0 flex-col">
+                  <PageTopBar />
+                  <main className="flex min-h-0 flex-1 items-center justify-center bg-transparent text-sm text-muted-foreground">
+                    加载 Agent...
+                  </main>
+                </div>
               )}
             </div>
           </ResizablePanel>

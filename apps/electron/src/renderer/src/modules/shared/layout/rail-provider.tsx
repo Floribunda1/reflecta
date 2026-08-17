@@ -13,11 +13,11 @@ import { useKeyPress } from "ahooks";
  * 全局左 rail 的展开状态（对齐 shadcn dashboard-01 的 SidebarProvider）。
  *
  * 设计：collapse 状态不再属于 AppNavRail 单个组件，而是提升到 Provider——
- * 全局 AppHeader 的 trigger、⌘/Ctrl+B 快捷键、业务模块页面都能读写，
+ * rail 顶栏 / 各页 PageTopBar 的 trigger、⌘/Ctrl+B 快捷键都能读写，
  * 并通过 `state`（expanded/collapsed）暴露给 tailwind 的 data-state 选择器。
  *
  * 语义采用 dashboard-01 安装态的 `offcanvas`：收起时整栏宽度归 0（内容全宽），
- * 恢复入口是全局 header 的 hamburger（+ 快捷键），而不是残留的图标栏。
+ * 展开时汉堡在 rail 顶栏（与红绿灯同行）；收起后由各页 PageTopBar 提供恢复入口。
  * 状态持久化到 localStorage（Electron 桌面应用；shadcn 用 cookie，思路一致）。
  */
 

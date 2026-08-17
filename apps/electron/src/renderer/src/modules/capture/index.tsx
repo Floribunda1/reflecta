@@ -12,7 +12,7 @@ import {
 import { ContextualAgentDock } from "@renderer/modules/chat/contextual-agent-dock";
 import { DomainTree } from "./domain";
 import { UnderstandingDetail } from "./understanding-detail";
-import { CaptureDashboard } from "./dashboard/CaptureDashboard";
+import { CaptureDashboard, CaptureToolbar } from "./dashboard/CaptureDashboard";
 import { useCaptureStore } from "./store";
 
 function CaptureAgentDock() {
@@ -101,12 +101,13 @@ function CapturePageInner() {
   return (
     <div
       data-testid="capture-page"
-      className="relative h-full min-h-0 w-full overflow-hidden bg-background"
+      className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-background"
     >
+      <CaptureToolbar />
       <ResizablePanelGroup
         orientation="horizontal"
         defaultLayout={defaultLayout}
-        className="h-full min-h-0 min-w-0 bg-transparent"
+        className="min-h-0 min-w-0 flex-1 bg-transparent"
       >
         <ResizablePanel
           id="capture-main"

@@ -14,7 +14,7 @@ export const SIDEBAR_WIDTH_CLASS = "w-62";
 export const SIDEBAR_GRID_COLS_OPEN = "grid-cols-[248px_minmax(0,1fr)]";
 export const SIDEBAR_GRID_COLS_CLOSED = "grid-cols-[0px_minmax(0,1fr)]";
 
-/** 侧栏收起态内容偏移 —— header 左侧内边距（chat / knowledge-wander） */
+/** 侧栏收起态内容偏移 —— 页顶栏左侧内边距，给红绿灯让位 */
 export const SIDEBAR_COLLAPSED_OFFSET_CLASS = "pl-21.5";
 /** 侧栏收起态展开按钮定位（chat） */
 export const SIDEBAR_COLLAPSED_BUTTON_CLASS = "left-21.5";
