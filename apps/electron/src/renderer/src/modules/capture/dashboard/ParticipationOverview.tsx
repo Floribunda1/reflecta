@@ -16,7 +16,6 @@ import {
 import type { Activity, ThemeInput } from "react-activity-calendar";
 import "react-activity-calendar/tooltips.css";
 import { Button } from "@reflecta/ui/components/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@reflecta/ui/components/card";
 import {
   Popover,
   PopoverContent,
@@ -104,9 +103,11 @@ function DayDetail({ date, data }: { date: string; data: ParticipationOverviewDa
 
 function AssetStat({ stat, label, total }: { stat: string; label: string; total: number }) {
   return (
-    <div data-stat={stat} className="flex items-baseline justify-between gap-6">
-      <CardTitle className="text-xl tabular-nums">{total}</CardTitle>
-      <CardDescription>{label}</CardDescription>
+    <div data-stat={stat} className="flex items-baseline gap-2">
+      <span className="min-w-8 text-right text-lg font-semibold tabular-nums leading-none">
+        {total}
+      </span>
+      <span className="text-xs text-muted-foreground">{label}</span>
     </div>
   );
 }
@@ -179,16 +180,14 @@ export function ParticipationOverview() {
     <div
       data-testid="participation-overview"
       hidden={collapsed}
-      className={collapsed ? "hidden" : "flex shrink-0 items-end gap-3 px-4"}
+      className={collapsed ? "hidden" : "flex shrink-0 items-center gap-4 px-4"}
     >
       {assets ? (
-        <Card size="sm" className="shrink-0">
-          <CardHeader className="gap-2">
-            <AssetStat stat="理解" label="理解" total={assets.understanding} />
-            <AssetStat stat="画布" label="画布" total={assets.canvas} />
-            <AssetStat stat="上下文" label="上下文" total={assets.context} />
-          </CardHeader>
-        </Card>
+        <div className="flex shrink-0 flex-col justify-center gap-3 border-r pr-4">
+          <AssetStat stat="理解" label="理解" total={assets.understanding} />
+          <AssetStat stat="画布" label="画布" total={assets.canvas} />
+          <AssetStat stat="上下文" label="上下文" total={assets.context} />
+        </div>
       ) : null}
 
       {calendar ? (
