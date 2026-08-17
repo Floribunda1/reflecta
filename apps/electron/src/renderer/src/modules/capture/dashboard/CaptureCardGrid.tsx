@@ -1,13 +1,13 @@
 import { FileText } from "lucide-react";
 import { useQueries } from "@tanstack/react-query";
-import { memo, useCallback, useMemo } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   UnderstandingCard,
   type UnderstandingCardAction,
   type UnderstandingCardView,
 } from "@reflecta/ui/capture";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@reflecta/ui/components/empty";
-import { ScrollArea } from "@reflecta/ui/components/scroll-area";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import type { CaptureAgentScope } from "../store";
 import { useCaptureStore } from "../store";
@@ -24,6 +24,30 @@ import {
   presentationsFromUnderstandings,
   remoteEntityReferences,
 } from "./card-entity-presentations";
+import {
+  captureGridColumnCount,
+  captureGridRowCount,
+  captureGridRowSlice,
+  captureGridVisibleSlice,
+} from "./card-grid-layout";
+
+const CARD_ROW_ESTIMATE_PX = 188;
+const CARD_ROW_GAP_PX = 12;
+const CARD_ROW_OVERSCAN = 3;
+
+function useCaptureGridColumnCount() {
+  const [columns, setColumns] = useState(() =>
+    typeof window === "undefined" ? 1 : captureGridColumnCount(window.innerWidth),
+  );
+
+  useEffect(() => {
+    const update = () => setColumns(captureGridColumnCount(window.innerWidth));
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  return columns;
+}
 
 function useCardEntityPresentations(understandings: readonly UnderstandingSummaryDTO[]) {
   const localPresentations = useMemo(
@@ -117,26 +141,50 @@ export function CaptureCardGrid({
   onDelete?: (understandingId: string) => void;
   searchActive?: boolean;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const columns = useCaptureGridColumnCount();
   const { domainList } = useCaptureDomains();
   const domainNameById = useMemo(() => {
     const map = new Map<string, string>();
     for (const domain of domainList) map.set(domain.id, domain.name);
     return map;
   }, [domainList]);
+
+  const rowCount = captureGridRowCount(understandings.length, columns);
+  const rowVirtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => CARD_ROW_ESTIMATE_PX,
+    overscan: CARD_ROW_OVERSCAN,
+    gap: CARD_ROW_GAP_PX,
+    getItemKey: (index) => `${columns}:${index}`,
+  });
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const visibleStartRow = virtualRows[0]?.index ?? 0;
+  const visibleEndRow = virtualRows.at(-1)?.index ?? -1;
+  const visibleUnderstandings = useMemo(
+    () => captureGridVisibleSlice(understandings, visibleStartRow, visibleEndRow, columns),
+    [columns, understandings, visibleEndRow, visibleStartRow],
+  );
   const cardViews = useMemo(
     () =>
-      understandings.map((understanding) =>
+      visibleUnderstandings.map((understanding) =>
         buildUnderstandingCardView(understanding, domainNameById),
       ),
-    [domainNameById, understandings],
+    [domainNameById, visibleUnderstandings],
   );
-  const entityPresentations = useCardEntityPresentations(understandings);
+  const entityPresentations = useCardEntityPresentations(visibleUnderstandings);
   const resolveWikiLink = useMemo(
     () => (reference: ChatEntityReference) =>
       entityPresentations.get(entityPresentationKey(reference)),
     [entityPresentations],
   );
   const canChat = Boolean(onChat);
+  const cardViewById = useMemo(() => {
+    const map = new Map<string, UnderstandingCardView>();
+    for (const view of cardViews) map.set(view.id, view);
+    return map;
+  }, [cardViews]);
 
   if (understandings.length === 0) {
     return (
@@ -157,21 +205,45 @@ export function CaptureCardGrid({
 
   return (
     <div className="min-h-0 min-w-0 flex-1">
-      <ScrollArea className="h-full w-full [&_[data-slot=scroll-area-thumb]]:bg-muted-foreground/30 [&_[data-slot=scroll-area-thumb]]:hover:bg-muted-foreground/50">
-        <div className="grid grid-cols-1 gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 px-4">
-          {cardViews.map((understanding) => (
-            <CaptureUnderstandingCard
-              key={understanding.id}
-              understanding={understanding}
-              canChat={canChat}
-              resolveWikiLink={resolveWikiLink}
-              onSelect={onSelect}
-              onChat={onChat}
-              onDelete={onDelete}
-            />
-          ))}
+      <div
+        ref={scrollRef}
+        data-testid="capture-card-grid"
+        className="h-full min-h-0 overflow-y-auto [scrollbar-gutter:stable]"
+      >
+        <div className="relative w-full pb-4" style={{ height: rowVirtualizer.getTotalSize() }}>
+          {virtualRows.map((virtualRow) => {
+            const rowItems = captureGridRowSlice(understandings, virtualRow.index, columns);
+            return (
+              <div
+                key={virtualRow.key}
+                data-index={virtualRow.index}
+                ref={rowVirtualizer.measureElement}
+                className="absolute top-0 left-0 grid w-full gap-3"
+                style={{
+                  transform: `translateY(${virtualRow.start}px)`,
+                  gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+                }}
+              >
+                {rowItems.map((understanding) => {
+                  const view = cardViewById.get(understanding.id);
+                  if (!view) return null;
+                  return (
+                    <CaptureUnderstandingCard
+                      key={understanding.id}
+                      understanding={view}
+                      canChat={canChat}
+                      resolveWikiLink={resolveWikiLink}
+                      onSelect={onSelect}
+                      onChat={onChat}
+                      onDelete={onDelete}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

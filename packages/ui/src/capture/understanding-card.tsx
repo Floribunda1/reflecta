@@ -64,7 +64,7 @@ export const UnderstandingCard = memo(function UnderstandingCard({
             data-understanding-title={understanding.title}
             aria-current={selected ? "true" : undefined}
             className={cn(
-              "group flex h-full min-w-0 flex-col gap-2 rounded-xl border bg-card p-3.5 text-left text-sm text-foreground transition-colors outline-none [content-visibility:auto] [contain-intrinsic-size:auto_180px] hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring",
+              "group flex h-full min-w-0 flex-col gap-2 rounded-xl border bg-card p-3.5 text-left text-sm text-foreground transition-colors outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring",
               selected && "bg-muted active:bg-muted",
             )}
             onClick={() => onSelect(understanding.id)}
