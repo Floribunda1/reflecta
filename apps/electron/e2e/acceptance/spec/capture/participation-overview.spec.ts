@@ -13,7 +13,7 @@ import {
   todayDateKey,
 } from "./capture-e2e";
 
-test("@CP-OVERVIEW-001 用户打开捕获页看到足迹热力图", async () => {
+test("@CP-OVERVIEW-001 用户打开捕获页看到足迹热力图与资产数量", async () => {
   const now = Date.now();
   seedUnderstanding({
     id: "participation-understanding",
@@ -43,7 +43,9 @@ test("@CP-OVERVIEW-001 用户打开捕获页看到足迹热力图", async () => 
     const heatmap = page.getByTestId("participation-heatmap");
     await expect(heatmap.locator("rect[data-date]").first()).toBeVisible();
     await expect(heatmap.locator("rect[data-date]")).toHaveCount(PARTICIPATION_HEATMAP_DAY_COUNT);
-    await expect(overview.locator("[data-stat]")).toHaveCount(0);
+    await expect(overview.locator('[data-stat="理解"]')).not.toHaveText("0");
+    await expect(overview.getByText("画布", { exact: true })).toBeVisible();
+    await expect(overview.getByText("上下文", { exact: true })).toBeVisible();
   } finally {
     await app.close();
   }

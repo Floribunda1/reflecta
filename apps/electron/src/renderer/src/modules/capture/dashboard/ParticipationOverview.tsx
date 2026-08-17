@@ -16,6 +16,7 @@ import {
 import type { Activity, ThemeInput } from "react-activity-calendar";
 import "react-activity-calendar/tooltips.css";
 import { Button } from "@reflecta/ui/components/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "@reflecta/ui/components/card";
 import {
   Popover,
   PopoverContent,
@@ -25,7 +26,11 @@ import {
 } from "@reflecta/ui/components/popover";
 import { useCaptureStore } from "../store";
 import { useParticipationOverview, type ParticipationOverviewData } from "../queries";
-import { buildParticipationActivity, type DayDetailCounts } from "./participation-stats";
+import {
+  buildParticipationActivity,
+  computeParticipationAssets,
+  type DayDetailCounts,
+} from "./participation-stats";
 
 const ActivityCalendar = lazy(async () => {
   const module = await import("react-activity-calendar");
@@ -97,6 +102,15 @@ function DayDetail({ date, data }: { date: string; data: ParticipationOverviewDa
   );
 }
 
+function AssetStat({ stat, label, total }: { stat: string; label: string; total: number }) {
+  return (
+    <div data-stat={stat} className="flex items-baseline justify-between gap-6">
+      <CardTitle className="text-xl tabular-nums">{total}</CardTitle>
+      <CardDescription>{label}</CardDescription>
+    </div>
+  );
+}
+
 /** 空格与实心都走语义色；light/dark 都写同一组 var，实际色随 `.dark` 解析，不跟系统 media 分叉。 */
 const PARTICIPATION_CALENDAR_THEME: ThemeInput = {
   light: ["var(--muted)", "var(--success)"],
@@ -131,7 +145,7 @@ export function ParticipationOverviewToggle() {
   );
 }
 
-/** 捕获页顶部足迹：只展示热力图；收起后保持挂载，避免 365 格反复卸载。 */
+/** 捕获页顶部足迹：指标卡与热力图同排；收起后保持挂载，避免 365 格反复卸载。 */
 export function ParticipationOverview() {
   const collapsed = useCaptureStore((state) => state.participationOverviewCollapsed);
   const [mounted, setMounted] = useState(() => !collapsed);
@@ -140,6 +154,7 @@ export function ParticipationOverview() {
   const [dayPopover, setDayPopover] = useState<{ date: string } | null>(null);
   const dayAnchorRef = useRef<{ x: number; y: number } | null>(null);
 
+  const assets = useMemo(() => (data ? computeParticipationAssets(data) : null), [data]);
   const calendar = useMemo(() => (data ? buildParticipationActivity(data) : null), [data]);
   const detailsRef = useRef(calendar?.details);
   detailsRef.current = calendar?.details;
@@ -164,8 +179,18 @@ export function ParticipationOverview() {
     <div
       data-testid="participation-overview"
       hidden={collapsed}
-      className={collapsed ? "hidden" : "flex shrink-0 px-4"}
+      className={collapsed ? "hidden" : "flex shrink-0 items-end gap-3 px-4"}
     >
+      {assets ? (
+        <Card size="sm" className="shrink-0">
+          <CardHeader className="gap-2">
+            <AssetStat stat="理解" label="理解" total={assets.understanding} />
+            <AssetStat stat="画布" label="画布" total={assets.canvas} />
+            <AssetStat stat="上下文" label="上下文" total={assets.context} />
+          </CardHeader>
+        </Card>
+      ) : null}
+
       {calendar ? (
         <div
           data-testid="participation-heatmap"
