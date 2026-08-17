@@ -100,10 +100,29 @@ const PARTICIPATION_CALENDAR_THEME: ThemeInput = {
   dark: ["var(--muted)", "var(--primary)"],
 };
 
-/** 捕获页顶部「参与概览」：热力图与资产指标同排，无卡片壳；可折叠并记忆状态。 */
-export function ParticipationOverview() {
+/** 工具栏里的展开/收起入口；收起后概览不再单独占一行。 */
+export function ParticipationOverviewToggle() {
   const collapsed = useCaptureStore((state) => state.participationOverviewCollapsed);
   const toggleCollapsed = useCaptureStore((state) => state.toggleParticipationOverviewCollapsed);
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant={collapsed ? "ghost" : "secondary"}
+      aria-label={collapsed ? "展开参与概览" : "收起参与概览"}
+      aria-pressed={!collapsed}
+      data-testid="capture-participation-overview-toggle"
+      onClick={toggleCollapsed}
+    >
+      参与概览
+      {collapsed ? <ChevronDown /> : <ChevronUp />}
+    </Button>
+  );
+}
+
+/** 捕获页顶部「参与概览」：热力图与资产指标同排；收起时不渲染。 */
+export function ParticipationOverview() {
+  const collapsed = useCaptureStore((state) => state.participationOverviewCollapsed);
   // 折叠时不再拉取全局参与数据；展开后按需恢复（同一会话内由 react-query 缓存）
   const { data } = useParticipationOverview(!collapsed);
   const [dayPopover, setDayPopover] = useState<{ date: string } | null>(null);
@@ -118,99 +137,76 @@ export function ParticipationOverview() {
     setDayPopover({ date });
   };
 
-  return (
-    <div data-testid="participation-overview" className="shrink-0">
-      {collapsed ? (
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          aria-label="展开参与概览"
-          onClick={toggleCollapsed}
-        >
-          参与概览
-          <ChevronDown />
-        </Button>
-      ) : (
-        <div className="flex items-start gap-3">
-          {assets ? (
-            <div className="flex shrink-0 flex-col justify-center gap-1 pt-4">
-              <MiniStat stat="理解" label="理解" total={assets.understanding} />
-              <MiniStat stat="画布" label="画布" total={assets.canvas} />
-              <MiniStat stat="上下文" label="上下文" total={assets.context} />
-            </div>
-          ) : null}
+  if (collapsed) return null;
 
-          {calendar ? (
-            <div
-              data-testid="participation-heatmap"
-              className="min-w-0 flex-1 overflow-x-auto text-muted-foreground"
-            >
-              <ActivityCalendar
-                data={calendar.days}
-                weekStart={1}
-                blockSize={10}
-                blockMargin={3}
-                blockRadius={2}
-                fontSize={11}
-                theme={PARTICIPATION_CALENDAR_THEME}
-                labels={{
-                  months: [
-                    "1月",
-                    "2月",
-                    "3月",
-                    "4月",
-                    "5月",
-                    "6月",
-                    "7月",
-                    "8月",
-                    "9月",
-                    "10月",
-                    "11月",
-                    "12月",
-                  ],
-                  weekdays: ["日", "一", "二", "三", "四", "五", "六"],
-                  totalCount: "共 {{count}} 次参与",
-                }}
-                showWeekdayLabels={["mon", "wed", "fri"]}
-                showTotalCount={false}
-                showColorLegend={false}
-                tooltips={{
-                  activity: {
-                    text: (activity: Activity) => {
-                      const detail = calendar.details.get(activity.date);
-                      return detail
-                        ? `${dayTitle(activity.date)}：${buildParticipationTip(detail)}`
-                        : `${dayTitle(activity.date)}：无参与`;
-                    },
-                  },
-                }}
-                renderBlock={(block: ReactElement, activity: Activity) => {
+  return (
+    <div data-testid="participation-overview" className="flex shrink-0 items-start gap-3">
+      {assets ? (
+        <div className="flex shrink-0 flex-col justify-center gap-1 pt-4">
+          <MiniStat stat="理解" label="理解" total={assets.understanding} />
+          <MiniStat stat="画布" label="画布" total={assets.canvas} />
+          <MiniStat stat="上下文" label="上下文" total={assets.context} />
+        </div>
+      ) : null}
+
+      {calendar ? (
+        <div
+          data-testid="participation-heatmap"
+          className="min-w-0 flex-1 overflow-x-auto text-muted-foreground"
+        >
+          <ActivityCalendar
+            data={calendar.days}
+            weekStart={1}
+            blockSize={10}
+            blockMargin={3}
+            blockRadius={2}
+            fontSize={11}
+            theme={PARTICIPATION_CALENDAR_THEME}
+            labels={{
+              months: [
+                "1月",
+                "2月",
+                "3月",
+                "4月",
+                "5月",
+                "6月",
+                "7月",
+                "8月",
+                "9月",
+                "10月",
+                "11月",
+                "12月",
+              ],
+              weekdays: ["日", "一", "二", "三", "四", "五", "六"],
+              totalCount: "共 {{count}} 次参与",
+            }}
+            showWeekdayLabels={["mon", "wed", "fri"]}
+            showTotalCount={false}
+            showColorLegend={false}
+            tooltips={{
+              activity: {
+                text: (activity: Activity) => {
                   const detail = calendar.details.get(activity.date);
-                  const tip = detail
+                  return detail
                     ? `${dayTitle(activity.date)}：${buildParticipationTip(detail)}`
                     : `${dayTitle(activity.date)}：无参与`;
-                  return cloneElement(block, {
-                    "data-date": activity.date,
-                    title: tip,
-                    onClick: (event: MouseEvent<SVGRectElement>) => openDay(event, activity.date),
-                  } as unknown as SVGAttributes<SVGRectElement>);
-                }}
-              />
-            </div>
-          ) : null}
-
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            aria-label="收起参与概览"
-            onClick={toggleCollapsed}
-          >
-            <ChevronUp />
-          </Button>
+                },
+              },
+            }}
+            renderBlock={(block: ReactElement, activity: Activity) => {
+              const detail = calendar.details.get(activity.date);
+              const tip = detail
+                ? `${dayTitle(activity.date)}：${buildParticipationTip(detail)}`
+                : `${dayTitle(activity.date)}：无参与`;
+              return cloneElement(block, {
+                "data-date": activity.date,
+                title: tip,
+                onClick: (event: MouseEvent<SVGRectElement>) => openDay(event, activity.date),
+              } as unknown as SVGAttributes<SVGRectElement>);
+            }}
+          />
         </div>
-      )}
+      ) : null}
 
       {dayPopover && dayAnchorRef.current && data ? (
         <Popover open onOpenChange={(open) => !open && setDayPopover(null)}>

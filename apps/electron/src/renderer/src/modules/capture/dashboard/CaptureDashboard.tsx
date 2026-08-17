@@ -21,7 +21,7 @@ import {
 } from "../queries";
 import { sortUnderstandingSummaries, type UnderstandingListSortBy } from "./sort";
 import { CaptureCardGrid } from "./CaptureCardGrid";
-import { ParticipationOverview } from "./ParticipationOverview";
+import { ParticipationOverview, ParticipationOverviewToggle } from "./ParticipationOverview";
 
 /**
  * 搜索输入：本地即时输入 + 300ms 防抖写入 store；IME 组合期（isComposing）不推送，
@@ -173,6 +173,8 @@ export function CaptureDashboard({ onChat }: { onChat?: (scope: CaptureAgentScop
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <ParticipationOverviewToggle />
 
         <div className="ml-auto" />
         <Button

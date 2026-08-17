@@ -37,9 +37,11 @@ export type UnderstandingCardProps = {
   onAction: (action: UnderstandingCardAction) => void;
 };
 
+/** 网格预览行数：扫标题用，不在首页铺全文。 */
+const PREVIEW_LINES = 5;
+
 /**
- * dashboard 瀑布流中的理解卡片 —— 标题 + 全文摘要 + 领域/时间/上下文元数据。
- * 高度随正文走，不要 h-full / flex-1，否则 masonry 列被视口撑高后卡片会跟着拉长。
+ * dashboard 网格中的理解卡片 —— 标题 + 预览 + 领域/时间/上下文元数据。
  * 与列表行（UnderstandingRow）同族的选中约定：bg-muted 高亮当前项。
  */
 export function UnderstandingCard({
@@ -61,7 +63,7 @@ export function UnderstandingCard({
             data-understanding-title={understanding.title}
             aria-current={selected ? "true" : undefined}
             className={cn(
-              "group flex min-w-0 flex-col gap-2 rounded-xl border bg-card p-3.5 text-left text-sm text-foreground transition-colors outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring",
+              "group flex h-full min-w-0 flex-col gap-2 rounded-xl border bg-card p-3.5 text-left text-sm text-foreground transition-colors outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring",
               selected && "bg-muted active:bg-muted",
             )}
             onClick={() => onSelect(understanding.id)}
@@ -75,10 +77,11 @@ export function UnderstandingCard({
               </span>
             </div>
 
-            <div className="text-sm leading-5 text-muted-foreground">
+            <div className="min-w-0 flex-1 text-sm leading-5 text-muted-foreground">
               {understanding.body ? (
                 <SimpleMarkdownPreview
                   value={understanding.body}
+                  lineClamp={PREVIEW_LINES}
                   resolveWikiLink={resolveWikiLink}
                 />
               ) : (

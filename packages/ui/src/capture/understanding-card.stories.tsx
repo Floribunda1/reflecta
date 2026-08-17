@@ -46,7 +46,7 @@ const longUnderstanding: UnderstandingCardView = {
   domainNames: ["工作", "前端", "后端", "AI"],
 };
 
-const masonryItems: UnderstandingCardView[] = [
+const gridItems: UnderstandingCardView[] = [
   understanding,
   emptyUnderstanding,
   longUnderstanding,
@@ -110,20 +110,19 @@ function CardDemo({
   );
 }
 
-function MasonryDemo() {
+function GridDemo() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   return (
-    <div className="columns-1 gap-3 sm:columns-2 lg:columns-3">
-      {masonryItems.map((item) => (
-        <div key={item.id} className="mb-3 break-inside-avoid">
-          <UnderstandingCard
-            understanding={item}
-            selected={selectedId === item.id}
-            canChat
-            onSelect={setSelectedId}
-            onAction={() => undefined}
-          />
-        </div>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {gridItems.map((item) => (
+        <UnderstandingCard
+          key={item.id}
+          understanding={item}
+          selected={selectedId === item.id}
+          canChat
+          onSelect={setSelectedId}
+          onAction={() => undefined}
+        />
       ))}
     </div>
   );
@@ -133,7 +132,7 @@ function UnderstandingCardShowcase() {
   return (
     <StoryShowcase
       title="Understanding Card"
-      description="dashboard 瀑布流中的理解卡片：标题 + 全文摘要 + 领域/时间/上下文元数据。高度随正文变化。"
+      description="dashboard 网格中的理解卡片：标题 + 五行预览 + 领域/时间/上下文元数据。同行等高。"
     >
       <StoryCase
         title="常规卡片"
@@ -150,18 +149,15 @@ function UnderstandingCardShowcase() {
           </div>
           <div>
             <span className="mb-2 block text-xs font-medium text-muted-foreground">
-              长正文与多领域
+              长正文截断与多领域
             </span>
             <CardDemo item={longUnderstanding} />
           </div>
         </div>
       </StoryCase>
 
-      <StoryCase
-        title="不等高瀑布流"
-        description="正文长短不同时卡片各吃各的高度，不拉齐到同一行。"
-      >
-        <MasonryDemo />
+      <StoryCase title="网格" description="长短正文都停在预览窗内，同一行卡片拉齐。">
+        <GridDemo />
       </StoryCase>
 
       <StoryCase title="无 AI 对话能力" description="canChat=false 时右键菜单只保留删除。">

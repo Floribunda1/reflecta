@@ -1,7 +1,6 @@
 import { FileText } from "lucide-react";
 import { useQueries } from "@tanstack/react-query";
 import { useMemo } from "react";
-import Masonry from "react-masonry-css";
 import { UnderstandingCard } from "@reflecta/ui/capture";
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@reflecta/ui/components/empty";
 import { ScrollArea } from "@reflecta/ui/components/scroll-area";
@@ -16,16 +15,6 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { getUnderstandingTitle } from "../understanding-title";
-
-/** 瀑布流列数（按窗口宽度分档）——卡片高度不等，用 masonry 让每一列自然堆叠 */
-const MASONRY_COLUMN_COUNT = {
-  default: 6,
-  2200: 5,
-  1800: 4,
-  1400: 3,
-  900: 2,
-  520: 1,
-} as const;
 
 function useCardEntityPresentations(understandings: readonly UnderstandingSummaryDTO[]) {
   // 收集网格内所有理解 body 的实体引用，统一查询后供行内摘要显示标题。
@@ -106,11 +95,7 @@ export function CaptureCardGrid({
   return (
     <div className="min-h-0 min-w-0 flex-1">
       <ScrollArea className="h-full w-full [&_[data-slot=scroll-area-thumb]]:bg-muted-foreground/30 [&_[data-slot=scroll-area-thumb]]:hover:bg-muted-foreground/50">
-        <Masonry
-          breakpointCols={MASONRY_COLUMN_COUNT}
-          className="flex w-auto -ml-3 items-start pb-4"
-          columnClassName="flex min-w-0 flex-1 flex-col gap-3 pl-3"
-        >
+        <div className="grid grid-cols-1 gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {understandings.map((understanding) => (
             <UnderstandingCard
               key={understanding.id}
@@ -146,7 +131,7 @@ export function CaptureCardGrid({
               }}
             />
           ))}
-        </Masonry>
+        </div>
       </ScrollArea>
     </div>
   );
