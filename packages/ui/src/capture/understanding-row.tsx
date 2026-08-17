@@ -8,7 +8,7 @@ import {
 } from "../components/context-menu";
 import { cn } from "#lib/utils";
 import type { ResolveChatEntity } from "../chat/entity";
-import { SimpleMarkdownPreview } from "../editor";
+import { SimpleMarkdownPreview } from "../editor/simple-markdown-preview";
 
 export type UnderstandingRowView = {
   id: string;

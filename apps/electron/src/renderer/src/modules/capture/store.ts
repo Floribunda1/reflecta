@@ -1,7 +1,7 @@
 import { create, type StateCreator } from "zustand";
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { markdownEquals } from "@reflecta/ui/editor";
+import { markdownEquals } from "@reflecta/ui/editor/markdown-normalize";
 import type { UnderstandingListSortBy } from "./dashboard/sort";
 
 export type CaptureDraft = {

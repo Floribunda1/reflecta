@@ -20,6 +20,8 @@
     "./theme": "./src/theme-provider.tsx",
     "./overlays": "./src/overlays/index.ts",
     "./editor": "./src/editor/index.ts",
+    "./editor/markdown-normalize": "./src/editor/markdown-normalize.ts",
+    "./editor/simple-markdown-preview": "./src/editor/simple-markdown-preview.tsx",
     "./chat": "./src/chat/index.ts",
     "./capture": "./src/capture/index.ts",
     "./styles/*": "./src/styles/*.ts"

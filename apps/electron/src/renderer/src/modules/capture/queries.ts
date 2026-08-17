@@ -26,6 +26,12 @@ export type UnderstandingListFilterKey = {
   searchQuery: string;
 };
 
+export const ALL_UNDERSTANDINGS_LIST_FILTER: UnderstandingListFilterKey = {
+  selectedDomainId: "all",
+  includeDescendants: true,
+  searchQuery: "",
+};
+
 export type UnderstandingListTotalKey = {
   selectedDomainId: string;
   includeDescendants: boolean;
@@ -43,6 +49,8 @@ export const captureQueryKeys = {
   understandingDetail: (understandingId: string) =>
     ["understanding.getUnderstandingById", understandingId] as const,
   participationOverview: ["capture.participation.overview"] as const,
+  canvases: ["understandingCanvas.listCanvases"] as const,
+  recap: ["insights.getRecapData"] as const,
   entityDisplay: (ref: Pick<AgentContextRef, "type" | "id">) =>
     ["entity.display", ref.type, ref.id] as const,
 };
@@ -180,20 +188,37 @@ export type ParticipationOverviewData = {
   recap: RecapData;
 };
 
-/** 参与概览（捕获页顶部）：理解/画布沿用现有服务，会话/上下文/画布元素的参与数据来自 insights 服务。 */
+/** 参与概览（捕获页顶部）：理解列表与网格默认筛选共用 query，避免进页拉两次全文。 */
 export function useParticipationOverview(enabled = true) {
-  return useQuery<ParticipationOverviewData>({
-    queryKey: captureQueryKeys.participationOverview,
-    queryFn: async () => {
-      const [understandings, canvases, recap] = await Promise.all([
-        ipcClient.understanding.listUnderstandings(),
-        ipcClient.understandingCanvas.listCanvases(),
-        ipcClient.insights.getRecapData(),
-      ]);
-      return { understandings, canvases, recap };
-    },
+  const understandingsQuery = useQuery<UnderstandingSummaryDTO[]>({
+    queryKey: captureQueryKeys.understandingList(ALL_UNDERSTANDINGS_LIST_FILTER),
+    queryFn: () =>
+      ipcClient.understanding.listUnderstandings(
+        buildUnderstandingListFilter(ALL_UNDERSTANDINGS_LIST_FILTER),
+      ),
     enabled,
   });
+  const canvasesQuery = useQuery({
+    queryKey: captureQueryKeys.canvases,
+    queryFn: () => ipcClient.understandingCanvas.listCanvases(),
+    enabled,
+  });
+  const recapQuery = useQuery({
+    queryKey: captureQueryKeys.recap,
+    queryFn: () => ipcClient.insights.getRecapData(),
+    enabled,
+  });
+
+  const data = useMemo<ParticipationOverviewData | undefined>(() => {
+    if (!understandingsQuery.data || !canvasesQuery.data || !recapQuery.data) return undefined;
+    return {
+      understandings: understandingsQuery.data,
+      canvases: canvasesQuery.data,
+      recap: recapQuery.data,
+    };
+  }, [canvasesQuery.data, recapQuery.data, understandingsQuery.data]);
+
+  return { data };
 }
 
 function invalidateUnderstandingLists(queryClient: QueryClient) {
@@ -224,7 +249,10 @@ function invalidateDomains(queryClient: QueryClient) {
 }
 
 function invalidateParticipationOverview(queryClient: QueryClient) {
-  return queryClient.invalidateQueries({ queryKey: captureQueryKeys.participationOverview });
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: captureQueryKeys.canvases }),
+    queryClient.invalidateQueries({ queryKey: captureQueryKeys.recap }),
+  ]);
 }
 
 export function useCreateUnderstandingMutation() {

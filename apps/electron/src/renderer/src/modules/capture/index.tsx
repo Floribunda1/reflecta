@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { lazy, Suspense, startTransition, useEffect, useMemo, useState } from "react";
 import { useRailMenu } from "@renderer/modules/shared/layout/rail-menu-context";
 import {
   RESIZE_HANDLE_CLASS,
@@ -9,11 +9,19 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@reflecta/ui/components/resizable";
-import { ContextualAgentDock } from "@renderer/modules/chat/contextual-agent-dock";
 import { DomainTree } from "./domain";
-import { UnderstandingDetail } from "./understanding-detail";
 import { CaptureDashboard, CaptureToolbar } from "./dashboard/CaptureDashboard";
 import { useCaptureStore } from "./store";
+
+const UnderstandingDetail = lazy(async () => {
+  const module = await import("./understanding-detail");
+  return { default: module.UnderstandingDetail };
+});
+
+const ContextualAgentDock = lazy(async () => {
+  const module = await import("@renderer/modules/chat/contextual-agent-dock");
+  return { default: module.ContextualAgentDock };
+});
 
 function CaptureAgentDock() {
   const agentDockScope = useCaptureStore((state) => state.agentDockScope);
@@ -23,14 +31,16 @@ function CaptureAgentDock() {
   const closeAgentDock = useCaptureStore((state) => state.closeAgentDock);
 
   return (
-    <ContextualAgentDock
-      testId="capture-agent-dock"
-      scope={agentDockScope}
-      threadId={agentDockThreadId}
-      contextNonce={agentDockContextNonce}
-      onBindThread={bindAgentDockThread}
-      onClose={closeAgentDock}
-    />
+    <Suspense fallback={null}>
+      <ContextualAgentDock
+        testId="capture-agent-dock"
+        scope={agentDockScope}
+        threadId={agentDockThreadId}
+        contextNonce={agentDockContextNonce}
+        onBindThread={bindAgentDockThread}
+        onClose={closeAgentDock}
+      />
+    </Suspense>
   );
 }
 
@@ -43,6 +53,15 @@ function UnderstandingDetailPanel() {
   const resetAfterUnderstandingDeleted = useCaptureStore(
     (state) => state.resetAfterUnderstandingDeleted,
   );
+  const [editorId, setEditorId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedUnderstandingId) {
+      setEditorId(null);
+      return;
+    }
+    startTransition(() => setEditorId(selectedUnderstandingId));
+  }, [selectedUnderstandingId]);
 
   if (!selectedUnderstandingId) return null;
 
@@ -58,17 +77,21 @@ function UnderstandingDetailPanel() {
         data-testid="capture-understanding-detail-panel"
         className="h-full min-h-0 w-full overflow-hidden"
       >
-        <UnderstandingDetail
-          understandingId={selectedUnderstandingId}
-          onClose={() => selectUnderstanding(null)}
-          onWikiLinkClick={handleWikiLinkClick}
-          onChat={openAgentDock}
-          onDeleted={() => {
-            if (selectedUnderstandingId) {
-              resetAfterUnderstandingDeleted(selectedUnderstandingId);
-            }
-          }}
-        />
+        {editorId ? (
+          <Suspense fallback={null}>
+            <UnderstandingDetail
+              understandingId={editorId}
+              onClose={() => selectUnderstanding(null)}
+              onWikiLinkClick={handleWikiLinkClick}
+              onChat={openAgentDock}
+              onDeleted={() => {
+                if (selectedUnderstandingId) {
+                  resetAfterUnderstandingDeleted(selectedUnderstandingId);
+                }
+              }}
+            />
+          </Suspense>
+        ) : null}
       </div>
     </ResizablePanel>
   );
@@ -80,6 +103,18 @@ function CapturePageInner() {
   const openAgentDock = useCaptureStore((state) => state.openAgentDock);
 
   const detailOpen = Boolean(selectedUnderstandingId);
+
+  useEffect(() => {
+    const prefetch = () => {
+      void import("./understanding-detail");
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      const idleId = window.requestIdleCallback(prefetch);
+      return () => window.cancelIdleCallback(idleId);
+    }
+    const timeoutId = window.setTimeout(prefetch, 1);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   // 领域树迁入全局导航 rail（slot 模式）；领域级 AI 对话入口保留
   const railMenu = useMemo(() => <DomainTree onChat={openAgentDock} />, [openAgentDock]);

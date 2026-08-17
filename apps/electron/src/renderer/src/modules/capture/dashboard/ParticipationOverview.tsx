@@ -3,14 +3,23 @@ import { zhCN } from "date-fns/locale";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import {
   cloneElement,
+  lazy,
+  Suspense,
+  useCallback,
+  useMemo,
   useRef,
   useState,
   type MouseEvent,
   type ReactElement,
   type SVGAttributes,
 } from "react";
-import { ActivityCalendar, type Activity, type ThemeInput } from "react-activity-calendar";
+import type { Activity, ThemeInput } from "react-activity-calendar";
 import "react-activity-calendar/tooltips.css";
+
+const ActivityCalendar = lazy(async () => {
+  const module = await import("react-activity-calendar");
+  return { default: module.ActivityCalendar };
+});
 import { Button } from "@reflecta/ui/components/button";
 import {
   Popover,
@@ -40,6 +49,13 @@ function buildParticipationTip(detail: DayDetailCounts): string {
   if (detail.canvasCreated > 0) parts.push(`创建画布 ${detail.canvasCreated} 个`);
   if (detail.contextCreated > 0) parts.push(`创建上下文 ${detail.contextCreated} 条`);
   return parts.length > 0 ? parts.join(" · ") : "无参与";
+}
+
+function activityTip(date: string, details: ReadonlyMap<string, DayDetailCounts>): string {
+  const detail = details.get(date);
+  return detail
+    ? `${dayTitle(date)}：${buildParticipationTip(detail)}`
+    : `${dayTitle(date)}：无参与`;
 }
 
 function DayDetail({ date, data }: { date: string; data: ParticipationOverviewData }) {
@@ -100,6 +116,14 @@ const PARTICIPATION_CALENDAR_THEME: ThemeInput = {
   dark: ["var(--muted)", "var(--primary)"],
 };
 
+const EMPTY_DAY_DETAILS = new Map<string, DayDetailCounts>();
+
+const PARTICIPATION_CALENDAR_LABELS = {
+  months: ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
+  weekdays: ["日", "一", "二", "三", "四", "五", "六"],
+  totalCount: "共 {{count}} 次参与",
+};
+
 /** 工具栏里的展开/收起入口；收起后概览不再单独占一行。 */
 export function ParticipationOverviewToggle() {
   const collapsed = useCaptureStore((state) => state.participationOverviewCollapsed);
@@ -120,27 +144,42 @@ export function ParticipationOverviewToggle() {
   );
 }
 
-/** 捕获页顶部「参与概览」：热力图与资产指标同排；收起时不渲染。 */
+/** 捕获页顶部「参与概览」：热力图与资产指标同排；收起后保持挂载，避免 365 格反复卸载。 */
 export function ParticipationOverview() {
   const collapsed = useCaptureStore((state) => state.participationOverviewCollapsed);
-  // 折叠时不再拉取全局参与数据；展开后按需恢复（同一会话内由 react-query 缓存）
-  const { data } = useParticipationOverview(!collapsed);
+  const [mounted, setMounted] = useState(() => !collapsed);
+  if (!collapsed && !mounted) setMounted(true);
+  const { data } = useParticipationOverview(mounted);
   const [dayPopover, setDayPopover] = useState<{ date: string } | null>(null);
   const dayAnchorRef = useRef<{ x: number; y: number } | null>(null);
 
-  const assets = data ? computeParticipationAssets(data) : null;
-  const calendar = data ? buildParticipationActivity(data) : null;
+  const assets = useMemo(() => (data ? computeParticipationAssets(data) : null), [data]);
+  const calendar = useMemo(() => (data ? buildParticipationActivity(data) : null), [data]);
+  const detailsRef = useRef(calendar?.details);
+  detailsRef.current = calendar?.details;
 
-  const openDay = (event: MouseEvent<SVGRectElement>, date: string) => {
-    const rect = event.currentTarget.getBoundingClientRect();
+  const openDay = useCallback((event: MouseEvent, date: string) => {
+    const target = (event.target as Element | null)?.closest("rect[data-date]");
+    const rect = (target ?? (event.currentTarget as Element)).getBoundingClientRect();
     dayAnchorRef.current = { x: rect.left, y: rect.bottom };
     setDayPopover({ date });
-  };
+  }, []);
 
-  if (collapsed) return null;
+  const renderBlock = useCallback((block: ReactElement, activity: Activity) => {
+    return cloneElement(block, {
+      "data-date": activity.date,
+      title: activityTip(activity.date, detailsRef.current ?? EMPTY_DAY_DETAILS),
+    } as unknown as SVGAttributes<SVGRectElement>);
+  }, []);
+
+  if (!mounted) return null;
 
   return (
-    <div data-testid="participation-overview" className="flex shrink-0 items-start gap-3">
+    <div
+      data-testid="participation-overview"
+      hidden={collapsed}
+      className={collapsed ? "hidden" : "flex shrink-0 items-start gap-3"}
+    >
       {assets ? (
         <div className="flex shrink-0 flex-col justify-center gap-1 pt-4">
           <MiniStat stat="理解" label="理解" total={assets.understanding} />
@@ -153,58 +192,34 @@ export function ParticipationOverview() {
         <div
           data-testid="participation-heatmap"
           className="min-w-0 flex-1 overflow-x-auto text-muted-foreground"
+          onClick={(event) => {
+            const target = (event.target as Element | null)?.closest("rect[data-date]");
+            const date = target?.getAttribute("data-date");
+            if (date) openDay(event, date);
+          }}
         >
-          <ActivityCalendar
-            data={calendar.days}
-            weekStart={1}
-            blockSize={10}
-            blockMargin={3}
-            blockRadius={2}
-            fontSize={11}
-            theme={PARTICIPATION_CALENDAR_THEME}
-            labels={{
-              months: [
-                "1月",
-                "2月",
-                "3月",
-                "4月",
-                "5月",
-                "6月",
-                "7月",
-                "8月",
-                "9月",
-                "10月",
-                "11月",
-                "12月",
-              ],
-              weekdays: ["日", "一", "二", "三", "四", "五", "六"],
-              totalCount: "共 {{count}} 次参与",
-            }}
-            showWeekdayLabels={["mon", "wed", "fri"]}
-            showTotalCount={false}
-            showColorLegend={false}
-            tooltips={{
-              activity: {
-                text: (activity: Activity) => {
-                  const detail = calendar.details.get(activity.date);
-                  return detail
-                    ? `${dayTitle(activity.date)}：${buildParticipationTip(detail)}`
-                    : `${dayTitle(activity.date)}：无参与`;
+          <Suspense fallback={<div className="h-[118px] min-w-0" />}>
+            <ActivityCalendar
+              data={calendar.days}
+              weekStart={1}
+              blockSize={10}
+              blockMargin={3}
+              blockRadius={2}
+              fontSize={11}
+              theme={PARTICIPATION_CALENDAR_THEME}
+              labels={PARTICIPATION_CALENDAR_LABELS}
+              showWeekdayLabels={["mon", "wed", "fri"]}
+              showTotalCount={false}
+              showColorLegend={false}
+              tooltips={{
+                activity: {
+                  text: (activity: Activity) =>
+                    activityTip(activity.date, detailsRef.current ?? EMPTY_DAY_DETAILS),
                 },
-              },
-            }}
-            renderBlock={(block: ReactElement, activity: Activity) => {
-              const detail = calendar.details.get(activity.date);
-              const tip = detail
-                ? `${dayTitle(activity.date)}：${buildParticipationTip(detail)}`
-                : `${dayTitle(activity.date)}：无参与`;
-              return cloneElement(block, {
-                "data-date": activity.date,
-                title: tip,
-                onClick: (event: MouseEvent<SVGRectElement>) => openDay(event, activity.date),
-              } as unknown as SVGAttributes<SVGRectElement>);
-            }}
-          />
+              }}
+              renderBlock={renderBlock}
+            />
+          </Suspense>
         </div>
       ) : null}
 

@@ -1,4 +1,4 @@
-import { markdownEquals } from "@reflecta/ui/editor";
+import { markdownEquals } from "@reflecta/ui/editor/markdown-normalize";
 import { useKeyPress, useMemoizedFn } from "ahooks";
 import { useEffect, useRef, type RefObject } from "react";
 import { useUpdateUnderstandingMutation } from "./queries";

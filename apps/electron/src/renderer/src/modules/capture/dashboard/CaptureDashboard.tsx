@@ -1,5 +1,5 @@
 import { ArrowUpDown, GitBranch, Plus, Search } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDebounce } from "ahooks";
 import { Button } from "@reflecta/ui/components/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@reflecta/ui/components/input-group";
@@ -146,9 +146,12 @@ export function CaptureToolbar() {
   );
 }
 
-export function CaptureDashboard({ onChat }: { onChat?: (scope: CaptureAgentScope) => void }) {
+export const CaptureDashboard = memo(function CaptureDashboard({
+  onChat,
+}: {
+  onChat?: (scope: CaptureAgentScope) => void;
+}) {
   const selectedDomainId = useCaptureStore((state) => state.selectedDomainId);
-  const selectedUnderstandingId = useCaptureStore((state) => state.selectedUnderstandingId);
   const storeSearchQuery = useCaptureStore((state) => state.searchQuery);
   const includeDescendants = useCaptureStore((state) => state.includeDescendants);
   const understandingListSortBy = useCaptureStore((state) => state.understandingListSortBy);
@@ -199,7 +202,6 @@ export function CaptureDashboard({ onChat }: { onChat?: (scope: CaptureAgentScop
 
       <CaptureCardGrid
         understandings={displayedUnderstandings}
-        selectedUnderstandingId={selectedUnderstandingId}
         searchActive={storeSearchQuery.trim().length > 0}
         onSelect={selectUnderstanding}
         onChat={onChat}
@@ -207,4 +209,4 @@ export function CaptureDashboard({ onChat }: { onChat?: (scope: CaptureAgentScop
       />
     </section>
   );
-}
+});

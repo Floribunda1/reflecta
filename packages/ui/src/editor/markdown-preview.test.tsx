@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, test } from "vitest";
-import { SimpleMarkdownPreview } from "./markdown-preview";
+import { SimpleMarkdownPreview } from "./simple-markdown-preview";
 
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;

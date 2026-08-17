@@ -1,5 +1,6 @@
 import { Badge } from "../../components/badge";
-import { MarkdownPreview, SimpleMarkdownPreview } from "../../editor/markdown-preview";
+import { MarkdownPreview } from "../../editor/markdown-preview";
+import { SimpleMarkdownPreview } from "../../editor/simple-markdown-preview";
 import type { AgentToolDetailContent, AgentToolDetailRowView, AgentToolDetailsView } from "./types";
 
 function fencedCodeBlock(value: string, language: string) {

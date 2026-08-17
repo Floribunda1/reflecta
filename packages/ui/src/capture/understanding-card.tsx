@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { FileText, Link2 } from "lucide-react";
 import {
   ContextMenu,
@@ -8,7 +9,7 @@ import {
 } from "../components/context-menu";
 import { cn } from "#lib/utils";
 import type { ResolveChatEntity } from "../chat/entity";
-import { SimpleMarkdownPreview } from "../editor";
+import { SimpleMarkdownPreview } from "../editor/simple-markdown-preview";
 
 export type UnderstandingCardView = {
   id: string;
@@ -44,7 +45,7 @@ const PREVIEW_LINES = 5;
  * dashboard 网格中的理解卡片 —— 标题 + 预览 + 领域/时间/上下文元数据。
  * 与列表行（UnderstandingRow）同族的选中约定：bg-muted 高亮当前项。
  */
-export function UnderstandingCard({
+export const UnderstandingCard = memo(function UnderstandingCard({
   understanding,
   selected = false,
   canChat = false,
@@ -63,7 +64,7 @@ export function UnderstandingCard({
             data-understanding-title={understanding.title}
             aria-current={selected ? "true" : undefined}
             className={cn(
-              "group flex h-full min-w-0 flex-col gap-2 rounded-xl border bg-card p-3.5 text-left text-sm text-foreground transition-colors outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring",
+              "group flex h-full min-w-0 flex-col gap-2 rounded-xl border bg-card p-3.5 text-left text-sm text-foreground transition-colors outline-none [content-visibility:auto] [contain-intrinsic-size:auto_180px] hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring",
               selected && "bg-muted active:bg-muted",
             )}
             onClick={() => onSelect(understanding.id)}
@@ -145,4 +146,4 @@ export function UnderstandingCard({
       </ContextMenuContent>
     </ContextMenu>
   );
-}
+});

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { StoryCase, StoryShowcase } from "../../.storybook/story-showcase";
-import { SimpleMarkdownPreview } from "./markdown-preview";
+import { SimpleMarkdownPreview } from "./simple-markdown-preview";
 
 const summaryDocument = `# 分区灌溉策略
 
