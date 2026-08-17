@@ -8,7 +8,7 @@ import {
 } from "../agent/agent-fixtures";
 import { openRecapPage, todayHeatmapCell } from "./recap-e2e";
 
-test("@RECAP-001 用户打开回顾页看到今日参与与资产计数", async () => {
+test("@RECAP-001 用户打开回顾页看到过程数据与沉淀资产", async () => {
   const now = Date.now();
   seedUnderstanding({
     id: "recap-understanding",
@@ -32,22 +32,46 @@ test("@RECAP-001 用户打开回顾页看到今日参与与资产计数", async 
   try {
     await openRecapPage(page);
 
-    // 参与区块：今日对话 / 今日消息 / 今日沉淀动作
-    await expect(page.getByTestId("recap-participation")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "近 12 周参与" })).toBeVisible();
+    // 过程数据：参与热力图
+    await expect(page.getByRole("heading", { name: "参与热力图" })).toBeVisible();
 
-    // 资产区块：今天的理解数量为 1
+    // 已沉淀资产：理解总数 1，且今天创建 → 期内新增 1
     await expect(page.getByTestId("recap-assets")).toBeVisible();
     await expect(page.locator('[data-stat="理解"]')).toHaveText("1");
+    await expect(page.getByTestId("recap-assets")).toContainText("期内 +1");
 
-    // 今日参与非空（seed 会话与理解都发生在今天）
-    await expect(page.locator('[data-stat="今日对话"]')).not.toHaveText("0");
+    // 今日对话在热力图中可见（今天开始且有消息的会话）
+    await expect(page.getByTestId("recap-participation")).toContainText("对话 1 次");
   } finally {
     await app.close();
   }
 });
 
-test("@RECAP-002 用户点击热力图某天回看当天参与记录", async () => {
+test("@RECAP-002 用户切换时间范围筛选", async () => {
+  const now = Date.now();
+  seedUnderstanding({
+    id: "recap-understanding-period",
+    title: "时间范围验收理解",
+    body: "用于验收 period 筛选",
+    createdAt: new Date(now).toISOString(),
+    updatedAt: new Date(now).toISOString(),
+  });
+  const { app, page } = await launchApp();
+
+  try {
+    await openRecapPage(page);
+
+    await page.getByRole("tab", { name: "近一月" }).click();
+    await expect(page.getByRole("heading", { name: "参与热力图" })).toBeVisible();
+    // 今天创建的理解在 30 天窗口内 → 期内新增仍为 1
+    await expect(page.locator('[data-stat="理解"]')).toHaveText("1");
+    await expect(page.getByTestId("recap-assets")).toContainText("期内 +1");
+  } finally {
+    await app.close();
+  }
+});
+
+test("@RECAP-003 用户点击热力图某天回看当天参与记录", async () => {
   const now = Date.now();
   seedUnderstanding({
     id: "recap-understanding-2",

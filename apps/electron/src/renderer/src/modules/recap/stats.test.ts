@@ -5,9 +5,9 @@ import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import {
   computeRecapStats,
   HEATMAP_DAYS_PER_WEEK,
-  HEATMAP_WEEKS,
-  STATE_LIST_LIMIT,
+  RECAP_PERIODS,
   type RecapInput,
+  type RecapPeriodId,
 } from "./stats";
 
 function understanding(
@@ -38,7 +38,13 @@ function canvas(partial: Partial<CanvasDTO> & { id: string }): CanvasDTO {
 }
 
 function input(
-  overrides: { understandings?: unknown[]; canvases?: unknown[]; recap?: Partial<RecapData> } = {},
+  overrides: {
+    understandings?: unknown[];
+    canvases?: unknown[];
+    recap?: Partial<RecapData>;
+    domains?: { id: string; name: string }[];
+    period?: RecapPeriodId;
+  } = {},
 ): RecapInput {
   const recap: RecapData = {
     sessions: [],
@@ -52,6 +58,8 @@ function input(
     understandings: (overrides.understandings ?? []) as RecapInput["understandings"],
     canvases: (overrides.canvases ?? []) as RecapInput["canvases"],
     recap,
+    domains: overrides.domains ?? [],
+    period: overrides.period ?? "week",
   };
 }
 
@@ -67,20 +75,17 @@ function session(partial: Partial<RecapData["sessions"][number]> = {}) {
   };
 }
 
-// 固定「今天」：2026-06-18（周四），保证热力图/周界可复现
+// 固定「今天」：2026-06-18（周四）
 const NOW = new Date("2026-06-18T12:00:00.000Z");
 
 describe("computeRecapStats", () => {
-  test("空输入：全部归零，热力图铺满 12 周空白格", () => {
+  test("空输入：热力图覆盖滚动窗口、资产与领域排名归零", () => {
     const stats = computeRecapStats(input(), NOW);
 
-    expect(stats.today).toEqual({ conversations: 0, messages: 0, actions: 0 });
-    expect(stats.assets).toEqual({
-      understandingTotal: 0,
-      canvasTotal: 0,
-      contextTotal: 0,
-    });
-    expect(stats.heatmapWeeks).toHaveLength(HEATMAP_WEEKS);
+    expect(stats.assets.understanding).toEqual({ total: 0, period: 0 });
+    expect(stats.assets.canvas).toEqual({ total: 0, period: 0 });
+    expect(stats.assets.context).toEqual({ total: 0, period: 0 });
+    expect(stats.domainRank).toEqual([]);
     for (const week of stats.heatmapWeeks) {
       expect(week).toHaveLength(HEATMAP_DAYS_PER_WEEK);
       for (const cell of week) {
@@ -89,159 +94,148 @@ describe("computeRecapStats", () => {
     }
   });
 
-  test("今日实时层：统计今天的对话/消息数与沉淀动作", () => {
+  test("滚动窗口「本周」：窗口起点为今天向前 6 天，窗口外格子为空", () => {
+    const stats = computeRecapStats(input(), NOW);
+
+    // 今天 06-18（周四），窗口起点 06-12；起点所在周一 = 06-08
+    const firstWeek = stats.heatmapWeeks[0]!;
+    // 06-08（周一）在窗口起点 06-12 之前 → 空白
+    expect(firstWeek[0]?.date).toBeNull();
+    // 06-12（周五）是窗口起点 → 有值（空数据）
+    expect(firstWeek[4]?.date).toBe("2026-06-12");
+    // 未来格子空白：本周（06-15 起）的周五 06-19 在窗口外
+    const thisWeek = stats.heatmapWeeks.at(-1)!;
+    expect(thisWeek[4]?.date).toBeNull();
+  });
+
+  test("热力图按日细分：对话（会话数/消息数）与创建资产分开计", () => {
     const stats = computeRecapStats(
       input({
-        understandings: [
-          understanding({ id: "today-create", createdAt: "2026-06-18T08:00:00.000Z" }),
-          understanding({
-            id: "today-edit",
-            createdAt: "2026-06-01T00:00:00.000Z",
-            updatedAt: "2026-06-18T10:00:00.000Z",
-          }),
-          understanding({ id: "old", createdAt: "2026-06-01T00:00:00.000Z" }),
-        ],
-        canvases: [canvas({ id: "c1", createdAt: "2026-06-18T09:00:00.000Z" })],
+        understandings: [understanding({ id: "a", createdAt: "2026-06-15T08:00:00.000Z" })],
+        canvases: [canvas({ id: "c1", createdAt: "2026-06-15T09:00:00.000Z" })],
         recap: {
           sessions: [
             session({
-              sessionId: "today",
-              userMessageDates: ["2026-06-18T08:00:00.000Z", "2026-06-18T09:00:00.000Z"],
-            }),
-            session({
-              sessionId: "old",
-              createdAt: "2026-06-01T00:00:00.000Z",
-              updatedAt: "2026-06-01T00:00:00.000Z",
-              userMessageDates: ["2026-06-01T00:00:00.000Z"],
+              sessionId: "s1",
+              createdAt: "2026-06-15T10:00:00.000Z",
+              userMessageDates: [
+                "2026-06-15T10:00:00.000Z",
+                "2026-06-15T11:00:00.000Z",
+                "2026-06-15T12:00:00.000Z",
+              ],
             }),
           ],
-          contextCreates: ["2026-06-18T07:00:00.000Z", "2026-06-01T00:00:00.000Z"],
-          canvasElementCreates: ["2026-06-18T09:30:00.000Z"],
-          canvasEdgeCreates: [],
+          contextCreates: ["2026-06-15T13:00:00.000Z"],
         },
       }),
       NOW,
     );
 
-    expect(stats.today.conversations).toBe(1); // 只有今天有消息的会话
-    expect(stats.today.messages).toBe(2);
-    // 今天动作 = 创建 1 + 编辑 1 + 画布创建 1 + 上下文 1 + 元素 1
-    expect(stats.today.actions).toBe(5);
-  });
-
-  test("热力图：列=周（旧→新）、行=周一→周日、参与事件计入对应日期", () => {
-    const stats = computeRecapStats(
-      input({
-        understandings: [
-          understanding({ id: "a", createdAt: "2026-06-15T08:00:00.000Z" }),
-          understanding({ id: "b", createdAt: "2026-06-14T08:00:00.000Z" }),
-        ],
-        recap: {
-          sessions: [session({ sessionId: "s", createdAt: "2026-06-15T09:00:00.000Z" })],
-          contextCreates: ["2026-06-15T10:00:00.000Z"],
-        },
-      }),
-      NOW,
-    );
-
-    // 2026-06-18 是周四，本周一 = 06-15
     const thisWeek = stats.heatmapWeeks.at(-1)!;
-    expect(thisWeek[0]?.date).toBe("2026-06-15");
-    // 06-15：理解创建 + 会话 + 上下文 = 3 次参与 → 档位 2
-    expect(thisWeek[0]?.count).toBe(3);
-    expect(thisWeek[0]?.level).toBe(2);
-    expect(thisWeek[4]?.date).toBeNull(); // 周五（06-19）是未来 → 空白格
+    const monday = thisWeek[0]!; // 06-15 周一
+    expect(monday.date).toBe("2026-06-15");
+    expect(monday.conversations).toBe(1);
+    expect(monday.messages).toBe(3);
+    // 资产 = 理解 1 + 画布 1 + 上下文 1 = 3
+    expect(monday.assets).toBe(3);
+    // 档位按 对话+资产 = 4 → 2 档
+    expect(monday.level).toBe(2);
   });
 
-  test("热力图：12 周起点是 11 周前的周一", () => {
-    const stats = computeRecapStats(input(), NOW);
-    const firstWeek = stats.heatmapWeeks[0]!;
-    expect(firstWeek[0]?.date).toBe("2026-03-30");
-  });
-
-  test("资产分列计数：理解/画布/上下文各自统计", () => {
-    const stats = computeRecapStats(
-      input({
-        understandings: [understanding({ id: "a" }), understanding({ id: "b" })],
-        canvases: [canvas({ id: "c1" })],
-        recap: {
-          contextCreates: [
-            "2026-06-01T00:00:00.000Z",
-            "2026-06-02T00:00:00.000Z",
-            "2026-06-03T00:00:00.000Z",
-          ],
-        },
-      }),
-      NOW,
-    );
-
-    expect(stats.assets.understandingTotal).toBe(2);
-    expect(stats.assets.canvasTotal).toBe(1);
-    expect(stats.assets.contextTotal).toBe(3);
-  });
-
-  test("结构状态 · 孤岛：出现在任意画布的理解被排除", () => {
+  test("资产双计数：总量 + period 窗口内新增", () => {
     const stats = computeRecapStats(
       input({
         understandings: [
-          understanding({ id: "island", title: "孤岛理解", createdAt: "2026-06-01T00:00:00.000Z" }),
-          understanding({ id: "linked", title: "已入画布", createdAt: "2026-06-02T00:00:00.000Z" }),
+          understanding({ id: "old", createdAt: "2026-06-01T00:00:00.000Z" }),
+          understanding({ id: "recent", createdAt: "2026-06-15T00:00:00.000Z" }),
         ],
-        recap: { canvasReferencedUnderstandingIds: ["linked"] },
+        canvases: [canvas({ id: "c1", createdAt: "2026-06-15T00:00:00.000Z" })],
+        recap: { contextCreates: ["2026-06-01T00:00:00.000Z"] },
       }),
       NOW,
     );
 
-    expect(stats.states.islands.map((item) => item.id)).toEqual(["island"]);
-    expect(stats.states.islandTotal).toBe(1);
+    expect(stats.assets.understanding).toEqual({ total: 2, period: 1 });
+    expect(stats.assets.canvas).toEqual({ total: 1, period: 1 });
+    expect(stats.assets.context).toEqual({ total: 1, period: 0 });
   });
 
-  test("结构状态 · 缺上下文：contextCount 为 0 的理解", () => {
+  test("period 影响窗口与期内新增：近一月覆盖 30 天", () => {
     const stats = computeRecapStats(
       input({
         understandings: [
-          understanding({ id: "no-ctx", title: "无根理解", contextCount: 0 }),
-          understanding({ id: "has-ctx", title: "有根理解", contextCount: 3 }),
+          understanding({ id: "in-month", createdAt: "2026-06-01T00:00:00.000Z" }),
+          understanding({ id: "out-of-month", createdAt: "2026-05-10T00:00:00.000Z" }),
         ],
+        period: "month",
       }),
       NOW,
     );
 
-    expect(stats.states.missingContext.map((item) => item.id)).toEqual(["no-ctx"]);
-    expect(stats.states.missingContextTotal).toBe(1);
+    expect(stats.period).toBe("month");
+    expect(stats.assets.understanding).toEqual({ total: 2, period: 1 });
+    // 30 天窗口起点 05-20（周三）→ 列起点所在周一 05-18（窗口外 → null），05-20 是首个有值列
+    expect(stats.heatmapWeeks[0]![0]?.date).toBeNull();
+    expect(stats.heatmapWeeks[0]![2]?.date).toBe("2026-05-20");
   });
 
-  test("结构状态 · 最近打磨：按更新时间倒序", () => {
+  test("领域排名：按 total 降序、取 Top 10、期内新增随窗口", () => {
+    const domains = [
+      { id: "d1", name: "行为设计" },
+      { id: "d2", name: "交易心理" },
+      { id: "d3", name: "产品" },
+    ];
     const stats = computeRecapStats(
       input({
+        domains,
         understandings: [
-          understanding({ id: "old", updatedAt: "2026-01-01T00:00:00.000Z" }),
-          understanding({ id: "recent", updatedAt: "2026-06-17T00:00:00.000Z" }),
-          understanding({ id: "newest", updatedAt: "2026-06-18T00:00:00.000Z" }),
+          understanding({ id: "a", domainIds: ["d1"], createdAt: "2026-06-15T00:00:00.000Z" }),
+          understanding({ id: "b", domainIds: ["d1"], createdAt: "2026-06-01T00:00:00.000Z" }),
+          understanding({ id: "c", domainIds: ["d2"], createdAt: "2026-05-01T00:00:00.000Z" }),
         ],
       }),
       NOW,
     );
 
-    expect(stats.states.recentlyWorked.map((item) => item.id)).toEqual(["newest", "recent", "old"]);
+    expect(stats.domainRank).toEqual([
+      { domainId: "d1", name: "行为设计", total: 2, period: 1 },
+      { domainId: "d2", name: "交易心理", total: 1, period: 0 },
+    ]);
+    // d3 无理解 → 不出现
+    expect(stats.domainRank.some((item) => item.domainId === "d3")).toBe(false);
   });
 
-  test("结构状态列表受长度上限约束", () => {
+  test("领域排名 Top 10 上限", () => {
+    const domains = Array.from({ length: 12 }, (_, index) => ({
+      id: `d${index}`,
+      name: `领域${index}`,
+    }));
     const stats = computeRecapStats(
       input({
-        understandings: Array.from({ length: STATE_LIST_LIMIT + 5 }, (_, index) =>
-          understanding({
-            id: `u-${index}`,
-            contextCount: 0,
-            createdAt: `2026-06-0${(index % 9) + 1}T00:00:00.000Z`,
-          }),
+        domains,
+        understandings: domains.flatMap((domain, index) =>
+          Array.from({ length: index + 1 }, (_, j) =>
+            understanding({ id: `${domain.id}-${j}`, domainIds: [domain.id] }),
+          ),
         ),
       }),
       NOW,
     );
 
-    expect(stats.states.islands).toHaveLength(STATE_LIST_LIMIT);
-    expect(stats.states.islandTotal).toBe(STATE_LIST_LIMIT + 5);
-    expect(stats.states.missingContext).toHaveLength(STATE_LIST_LIMIT);
+    expect(stats.domainRank).toHaveLength(10);
+    // 最大的是最后一个领域（12 条）
+    expect(stats.domainRank[0]?.domainId).toBe("d11");
+  });
+
+  test("全部 period：365 天窗口、列数约 53 周", () => {
+    const stats = computeRecapStats(input({ period: "all" }), NOW);
+
+    // 2026-06-18 往回 364 天 → 起点周约 52-53 列
+    expect(stats.heatmapWeeks.length).toBeGreaterThanOrEqual(52);
+    expect(stats.heatmapWeeks.length).toBeLessThanOrEqual(53);
+  });
+
+  test("RECAP_PERIODS 提供四档滚动窗口", () => {
+    expect(RECAP_PERIODS.map((item) => item.days)).toEqual([7, 14, 30, 365]);
   });
 });

@@ -12,19 +12,27 @@ export type RecapDataQuery = {
   understandings: UnderstandingSummaryDTO[];
   canvases: CanvasDTO[];
   recap: RecapData;
+  /** 领域 id → name 映射（用于按领域排名） */
+  domainList: { id: string; name: string }[];
 };
 
-/** 回顾页数据：理解/画布沿用现有服务，会话/上下文/画布元素的参与数据来自 insights 服务。 */
+/** 回顾页数据：理解/画布/领域沿用现有服务，会话/上下文/画布元素的参与数据来自 insights 服务。 */
 export function useRecapData() {
   return useQuery<RecapDataQuery>({
     queryKey: recapQueryKeys.data,
     queryFn: async () => {
-      const [understandings, canvases, recap] = await Promise.all([
+      const [understandings, canvases, recap, domains] = await Promise.all([
         ipcClient.understanding.listUnderstandings(),
         ipcClient.understandingCanvas.listCanvases(),
         ipcClient.insights.getRecapData(),
+        ipcClient.domain.listDomains(),
       ]);
-      return { understandings, canvases, recap };
+      return {
+        understandings,
+        canvases,
+        recap,
+        domainList: domains.map((domain) => ({ id: domain.id, name: domain.name })),
+      };
     },
   });
 }
