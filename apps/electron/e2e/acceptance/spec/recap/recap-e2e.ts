@@ -1,5 +1,8 @@
 import { expect, type Page } from "@playwright/test";
 
+/** 参与热力图始终覆盖的完整时间范围（天），与 renderer modules/recap/stats.ts 的 RECAP_WINDOW_DAYS 保持一致 */
+export const RECAP_HEATMAP_DAY_COUNT = 365;
+
 export async function openRecapPage(page: Page) {
   await expect(page.getByTestId("capture-page").or(page.getByTestId("agent-page"))).toBeVisible();
   await page.getByTestId("app-nav-module-recap").click();

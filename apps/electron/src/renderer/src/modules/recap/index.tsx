@@ -3,6 +3,7 @@ import { zhCN } from "date-fns/locale";
 import { cloneElement, useState, type ReactElement, type SVGAttributes } from "react";
 import { ActivityCalendar, type Activity } from "react-activity-calendar";
 import "react-activity-calendar/tooltips.css";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import {
   Card,
   CardAction,
@@ -12,10 +13,24 @@ import {
   CardTitle,
 } from "@reflecta/ui/components/card";
 import { Button } from "@reflecta/ui/components/button";
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@reflecta/ui/components/chart";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@reflecta/ui/components/empty";
-import { Tabs, TabsList, TabsTrigger } from "@reflecta/ui/components/tabs";
-import { RECAP_PERIODS, buildActivityData, computeRecapStats, type RecapPeriodId } from "./stats";
+import { computeRecapStats, buildActivityData } from "./stats";
 import { useRecapData, type RecapDataQuery } from "./queries";
+
+/** 资产累计趋势图配置：理解 / 画布 / 上下文 三条曲线 */
+const ASSET_TREND_CONFIG = {
+  understanding: { label: "理解", color: "var(--color-chart-1)" },
+  canvas: { label: "画布", color: "var(--color-chart-2)" },
+  context: { label: "上下文", color: "var(--color-chart-3)" },
+} satisfies ChartConfig;
 
 function dayTitle(date: string): string {
   return `${format(new Date(`${date}T00:00:00`), "yyyy年M月d日 EEEE", { locale: zhCN })}`;
@@ -64,17 +79,7 @@ function DayDetail({ date, data }: { date: string; data: RecapDataQuery }) {
   );
 }
 
-function AssetCounter({
-  stat,
-  label,
-  total,
-  period,
-}: {
-  stat: string;
-  label: string;
-  total: number;
-  period: number;
-}) {
+function AssetCounter({ stat, label, total }: { stat: string; label: string; total: number }) {
   return (
     <Card size="sm">
       <CardContent className="flex flex-col gap-0.5">
@@ -82,7 +87,6 @@ function AssetCounter({
           <span data-stat={stat} className="text-2xl font-semibold tabular-nums">
             {total}
           </span>
-          <span className="text-xs text-muted-foreground tabular-nums">期内 +{period}</span>
         </span>
         <span className="text-xs text-muted-foreground">{label}</span>
       </CardContent>
@@ -92,7 +96,6 @@ function AssetCounter({
 
 export function RecapPage() {
   const { data, isLoading } = useRecapData();
-  const [period, setPeriod] = useState<RecapPeriodId>("week");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   if (isLoading || !data) {
@@ -103,16 +106,12 @@ export function RecapPage() {
     );
   }
 
-  const stats = computeRecapStats({ ...data, domains: data.domainList, period });
-  const { days: activityDays, details: activityDetails } = buildActivityData({
-    ...data,
-    domains: data.domainList,
-    period,
-  });
+  const stats = computeRecapStats(data);
+  const { days: activityDays, details: activityDetails } = buildActivityData(data);
   const noAssets =
-    stats.assets.understanding.total === 0 &&
-    stats.assets.canvas.total === 0 &&
-    stats.assets.context.total === 0 &&
+    stats.assets.understanding === 0 &&
+    stats.assets.canvas === 0 &&
+    stats.assets.context === 0 &&
     data.recap.sessions.length === 0;
 
   return (
@@ -120,19 +119,8 @@ export function RecapPage() {
       data-testid="recap-page"
       className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto px-4 pt-2 pb-6"
     >
-      {/* Section 1：period 筛选（全局，作用于过程数据与资产期内新增） */}
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-muted-foreground">回顾</h2>
-        <Tabs value={period} onValueChange={(value) => setPeriod(value as RecapPeriodId)}>
-          <TabsList aria-label="回顾时间范围">
-            {RECAP_PERIODS.map((item) => (
-              <TabsTrigger key={item.id} value={item.id}>
-                {item.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-      </div>
+      {/* Section 1：页头（无时间范围筛选，热力图与资产趋势始终覆盖完整时间范围） */}
+      <h2 className="text-sm font-semibold text-muted-foreground">回顾</h2>
 
       {/* Section 2.1：过程数据 */}
       <section aria-label="过程数据" data-testid="recap-participation">
@@ -244,55 +232,63 @@ export function RecapPage() {
         ) : (
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-3 gap-3">
-              <AssetCounter
-                stat="理解"
-                label="理解"
-                total={stats.assets.understanding.total}
-                period={stats.assets.understanding.period}
-              />
-              <AssetCounter
-                stat="画布"
-                label="画布"
-                total={stats.assets.canvas.total}
-                period={stats.assets.canvas.period}
-              />
-              <AssetCounter
-                stat="上下文"
-                label="上下文"
-                total={stats.assets.context.total}
-                period={stats.assets.context.period}
-              />
+              <AssetCounter stat="理解" label="理解" total={stats.assets.understanding} />
+              <AssetCounter stat="画布" label="画布" total={stats.assets.canvas} />
+              <AssetCounter stat="上下文" label="上下文" total={stats.assets.context} />
             </div>
 
-            <Card>
+            <Card data-testid="recap-trend-card">
               <CardHeader>
-                <CardTitle>理解 · 按领域排名</CardTitle>
-                <CardDescription>沉淀最深的领域（按理解总数降序，前 10）</CardDescription>
+                <CardTitle>资产累计趋势</CardTitle>
+                <CardDescription>
+                  理解、画布、上下文随时间的累计变化（覆盖完整时间范围）
+                </CardDescription>
               </CardHeader>
-              <CardContent className="flex flex-col gap-1.5">
-                {stats.domainRank.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">还没有理解。</p>
-                ) : (
-                  stats.domainRank.map((item, index) => (
-                    <div
-                      key={item.domainId}
-                      className="flex min-w-0 items-baseline justify-between gap-3 text-sm"
-                    >
-                      <span className="flex min-w-0 items-baseline gap-2">
-                        <span className="w-5 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
-                          {index + 1}
-                        </span>
-                        <span className="truncate">{item.name}</span>
-                      </span>
-                      <span className="shrink-0 text-muted-foreground tabular-nums">
-                        {item.total}
-                        {item.period > 0 ? (
-                          <span className="text-xs"> · 期内 +{item.period}</span>
-                        ) : null}
-                      </span>
-                    </div>
-                  ))
-                )}
+              <CardContent>
+                <ChartContainer config={ASSET_TREND_CONFIG} className="h-64">
+                  <LineChart data={stats.trend} margin={{ left: 12, right: 12 }}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      minTickGap={48}
+                      tickFormatter={(value: string) =>
+                        format(new Date(`${value}T00:00:00`), "M月d日")
+                      }
+                    />
+                    <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
+                    <ChartTooltip
+                      cursor={false}
+                      content={
+                        <ChartTooltipContent labelFormatter={(value) => dayTitle(String(value))} />
+                      }
+                    />
+                    <ChartLegend content={<ChartLegendContent />} />
+                    <Line
+                      dataKey="understanding"
+                      type="monotone"
+                      stroke="var(--color-understanding)"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <Line
+                      dataKey="canvas"
+                      type="monotone"
+                      stroke="var(--color-canvas)"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <Line
+                      dataKey="context"
+                      type="monotone"
+                      stroke="var(--color-context)"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ChartContainer>
               </CardContent>
             </Card>
           </div>

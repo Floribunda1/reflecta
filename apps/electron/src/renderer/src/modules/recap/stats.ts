@@ -5,24 +5,16 @@ import type { UnderstandingSummaryDTO } from "@shared/understanding";
 
 /**
  * 回顾页（Recap）统计纯函数 —— 如实呈现用户在 Product 付出的 effort。
- * 不承载诊断逻辑（孤岛/缺上下文等由工作界面负责）：过程数据（热力图）+ 沉淀资产（存量 + 期内新增）。
+ * 不承载诊断逻辑（孤岛/缺上下文等由工作界面负责）：过程数据（热力图）+ 沉淀资产（累计存量 + 累计趋势）。
  * 参与口径：对话（会话级，hover 另含消息数）+ 创建资产（理解/画布/上下文/画布元素连线，不含编辑）。
+ * 热力图与趋势曲线始终覆盖完整时间范围（365 天上限），不做时间范围筛选。
  */
 
 /** 一周 7 天 */
 export const HEATMAP_DAYS_PER_WEEK = 7;
 
-/** period 筛选档位（滚动窗口：本周=近 7 天、近两周=14、近一月=30、全部=365 天上限） */
-export const RECAP_PERIODS = [
-  { id: "week", label: "本周", days: 7 },
-  { id: "twoWeeks", label: "近两周", days: 14 },
-  { id: "month", label: "近一月", days: 30 },
-  { id: "all", label: "全部", days: 365 },
-] as const;
-
-export type RecapPeriodId = (typeof RECAP_PERIODS)[number]["id"];
-
-export type RecapPeriod = (typeof RECAP_PERIODS)[number];
+/** 热力图与趋势曲线覆盖的完整时间范围（天）——固定窗口，不随筛选变化 */
+export const RECAP_WINDOW_DAYS = 365;
 
 export type HeatmapCell = {
   /** 该格子代表的日期（YYYY-MM-DD）；范围外（窗口起点之前 / 今天之后）为 null */
@@ -39,35 +31,35 @@ export type HeatmapCell = {
 
 export type HeatmapWeek = readonly HeatmapCell[];
 
-/** 资产存量 + 期内新增（period 窗口内创建） */
+/** 三类资产累计存量 */
 export type AssetCounts = {
-  understanding: { total: number; period: number };
-  canvas: { total: number; period: number };
-  context: { total: number; period: number };
+  understanding: number;
+  canvas: number;
+  context: number;
 };
 
-export type DomainRankItem = {
-  domainId: string;
-  name: string;
-  total: number;
-  period: number;
+/** 趋势曲线上的一个点：某一天三类资产的累计值 */
+export type TrendPoint = {
+  /** 该点日期（YYYY-MM-DD） */
+  date: string;
+  understanding: number;
+  canvas: number;
+  context: number;
 };
 
 export type RecapStats = {
-  period: RecapPeriodId;
-  /** 热力图：列 = 周（旧→新），行 = 周一→周日，覆盖滚动窗口 */
+  /** 热力图：列 = 周（旧→新），行 = 周一→周日，覆盖完整窗口 */
   heatmapWeeks: readonly HeatmapWeek[];
+  /** 三类资产累计存量（含窗口外历史） */
   assets: AssetCounts;
-  /** 按理解数降序的领域排名（Top 10） */
-  domainRank: DomainRankItem[];
+  /** 三类资产按日累计趋势（覆盖完整窗口，从窗口起点到今日，含窗口前存量基线） */
+  trend: TrendPoint[];
 };
 
 export type RecapInput = {
   understandings: readonly UnderstandingSummaryDTO[];
   canvases: readonly CanvasDTO[];
   recap: RecapData;
-  domains: readonly { id: string; name: string }[];
-  period: RecapPeriodId;
 };
 
 /** 热力图库（react-activity-calendar）的输入条目：窗口内每天一条，空天 count=0。 */
@@ -98,9 +90,9 @@ function levelForCount(count: number): number {
   return 4;
 }
 
-/** 滚动窗口起点（含）：今天向前 days-1 天 */
-function windowStart(period: RecapPeriod, now: Date): Date {
-  return startOfDay(subDays(now, period.days - 1));
+/** 固定窗口起点（含）：今天向前 RECAP_WINDOW_DAYS-1 天 */
+function windowStart(now: Date): Date {
+  return startOfDay(subDays(now, RECAP_WINDOW_DAYS - 1));
 }
 
 /** 按日细分参与：对话（会话数/消息数）+ 创建资产数 */
@@ -159,10 +151,9 @@ function buildDayParticipation(input: RecapInput): Map<string, HeatmapCell> {
 
 function buildHeatmap(
   participation: Map<string, HeatmapCell>,
-  period: RecapPeriod,
+  start: Date,
   now: Date,
 ): HeatmapWeek[] {
-  const start = windowStart(period, now);
   // 列 = 周：从窗口起点所在周的周一开始，列对齐到今天所在周
   const gridStart = startOfWeek(start, { weekStartsOn: 1 });
   const todayKey = dayKey(now);
@@ -195,72 +186,82 @@ function buildHeatmap(
   return weeks;
 }
 
-function countCreatedInWindow(iso: string, start: Date): boolean {
-  return new Date(iso).getTime() >= start.getTime();
-}
-
-function computeAssets(input: RecapInput, start: Date): AssetCounts {
-  let understandingPeriod = 0;
-  for (const understanding of input.understandings) {
-    if (countCreatedInWindow(understanding.createdAt, start)) understandingPeriod += 1;
-  }
-  let canvasPeriod = 0;
-  for (const canvas of input.canvases) {
-    if (countCreatedInWindow(canvas.createdAt, start)) canvasPeriod += 1;
-  }
-  const contextPeriod = input.recap.contextCreates.filter((iso) =>
-    countCreatedInWindow(iso, start),
-  ).length;
-
+function computeAssets(input: RecapInput): AssetCounts {
   return {
-    understanding: { total: input.understandings.length, period: understandingPeriod },
-    canvas: { total: input.canvases.length, period: canvasPeriod },
-    context: { total: input.recap.contextCreates.length, period: contextPeriod },
+    understanding: input.understandings.length,
+    canvas: input.canvases.length,
+    context: input.recap.contextCreates.length,
   };
 }
 
-function computeDomainRank(input: RecapInput, start: Date): DomainRankItem[] {
-  const nameById = new Map(input.domains.map((domain) => [domain.id, domain.name]));
-  const counts = new Map<string, { total: number; period: number }>();
+/** 升序时间戳列表，供趋势累计时双指针推进 */
+function sortedTimestamps(items: readonly { createdAt: string }[]): number[] {
+  return items.map((item) => new Date(item.createdAt).getTime()).sort((a, b) => a - b);
+}
 
-  const bump = (domainId: string, inWindow: boolean) => {
-    const entry = counts.get(domainId) ?? { total: 0, period: 0 };
-    entry.total += 1;
-    if (inWindow) entry.period += 1;
-    counts.set(domainId, entry);
+/** 三类资产按日累计：起点含窗口前存量基线，终点 = 今日（与累计存量一致） */
+function computeTrend(input: RecapInput, start: Date, now: Date): TrendPoint[] {
+  const windowStartMs = start.getTime();
+  const understandingTimes = sortedTimestamps(input.understandings);
+  const canvasTimes = sortedTimestamps(input.canvases);
+  const contextTimes = input.recap.contextCreates
+    .map((iso) => new Date(iso).getTime())
+    .sort((a, b) => a - b);
+
+  // 基线：窗口起点之前的历史存量（趋势从存量出发，而非从 0）
+  const countBefore = (times: number[]): number => {
+    let index = 0;
+    while (index < times.length && times[index] < windowStartMs) index += 1;
+    return index;
   };
 
-  for (const understanding of input.understandings) {
-    const inWindow = countCreatedInWindow(understanding.createdAt, start);
-    for (const domainId of understanding.domainIds) bump(domainId, inWindow);
-  }
+  const points: TrendPoint[] = [];
+  const todayKey = dayKey(now);
+  let understandingIndex = countBefore(understandingTimes);
+  let canvasIndex = countBefore(canvasTimes);
+  let contextIndex = countBefore(contextTimes);
+  let understanding = understandingIndex;
+  let canvas = canvasIndex;
+  let context = contextIndex;
 
-  return [...counts.entries()]
-    .map(([domainId, counts]) => ({
-      domainId,
-      name: nameById.get(domainId) ?? domainId,
-      total: counts.total,
-      period: counts.period,
-    }))
-    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name))
-    .slice(0, 10);
+  let cursor = start;
+  while (dayKey(cursor) <= todayKey) {
+    // 次日 0 点 = 当日（含）截止；窗口起点当天从基线继续累计
+    const dayEnd = addDays(cursor, 1).getTime();
+    while (
+      understandingIndex < understandingTimes.length &&
+      understandingTimes[understandingIndex] < dayEnd
+    ) {
+      understanding += 1;
+      understandingIndex += 1;
+    }
+    while (canvasIndex < canvasTimes.length && canvasTimes[canvasIndex] < dayEnd) {
+      canvas += 1;
+      canvasIndex += 1;
+    }
+    while (contextIndex < contextTimes.length && contextTimes[contextIndex] < dayEnd) {
+      context += 1;
+      contextIndex += 1;
+    }
+    points.push({ date: dayKey(cursor), understanding, canvas, context });
+    cursor = addDays(cursor, 1);
+  }
+  return points;
 }
 
 export function computeRecapStats(input: RecapInput, now: Date = new Date()): RecapStats {
-  const period = RECAP_PERIODS.find((item) => item.id === input.period) ?? RECAP_PERIODS[0];
-  const start = windowStart(period, now);
+  const start = windowStart(now);
   const participation = buildDayParticipation(input);
 
   return {
-    period: period.id,
-    heatmapWeeks: buildHeatmap(participation, period, now),
-    assets: computeAssets(input, start),
-    domainRank: computeDomainRank(input, start),
+    heatmapWeeks: buildHeatmap(participation, start, now),
+    assets: computeAssets(input),
+    trend: computeTrend(input, start, now),
   };
 }
 
 /**
- * 窗口内逐日活动数据（供 react-activity-calendar 渲染）：
+ * 完整窗口内逐日活动数据（供 react-activity-calendar 渲染）：
  * 每天一条（含空天 count=0），首尾条目决定库的时间跨度；
  * details 提供同一日的 hover 细分（对话/消息/创建资产）。
  */
@@ -268,8 +269,7 @@ export function buildActivityData(
   input: RecapInput,
   now: Date = new Date(),
 ): { days: ActivityDay[]; details: Map<string, DayDetailCounts> } {
-  const period = RECAP_PERIODS.find((item) => item.id === input.period) ?? RECAP_PERIODS[0];
-  const start = windowStart(period, now);
+  const start = windowStart(now);
   const participation = buildDayParticipation(input);
   const todayKey = dayKey(now);
 
