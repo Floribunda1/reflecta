@@ -103,7 +103,6 @@ function CapturePageInner() {
       data-testid="capture-page"
       className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-background"
     >
-      <CaptureToolbar />
       <ResizablePanelGroup
         orientation="horizontal"
         defaultLayout={defaultLayout}
@@ -115,7 +114,10 @@ function CapturePageInner() {
           defaultSize={agentDockOpen || detailOpen ? 58 : 100}
           className="min-h-0 min-w-0"
         >
-          <CaptureDashboard onChat={openAgentDock} />
+          <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+            <CaptureToolbar />
+            <CaptureDashboard onChat={openAgentDock} />
+          </div>
         </ResizablePanel>
         {detailOpen ? (
           <>

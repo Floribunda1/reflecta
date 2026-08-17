@@ -112,8 +112,8 @@ function MiniStat({ stat, label, total }: { stat: string; label: string; total: 
 
 /** 空格与实心都走语义色；light/dark 都写同一组 var，实际色随 `.dark` 解析，不跟系统 media 分叉。 */
 const PARTICIPATION_CALENDAR_THEME: ThemeInput = {
-  light: ["var(--muted)", "var(--primary)"],
-  dark: ["var(--muted)", "var(--primary)"],
+  light: ["var(--muted)", "var(--success)"],
+  dark: ["var(--muted)", "var(--success)"],
 };
 
 const EMPTY_DAY_DETAILS = new Map<string, DayDetailCounts>();

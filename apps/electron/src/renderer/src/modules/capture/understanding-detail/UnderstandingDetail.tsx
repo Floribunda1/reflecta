@@ -530,7 +530,7 @@ function UnderstandingDetailInner({
 
   return (
     <div className="h-full min-h-0 min-w-0 overflow-hidden">
-      <article ref={detailRef} className="mx-auto h-full overflow-y-auto px-6 py-3">
+      <article ref={detailRef} className="mx-auto h-full overflow-y-auto px-4 py-2">
         <header className="space-y-4">
           <div
             className={`flex min-h-8 min-w-0 items-center gap-2 text-xs text-muted-foreground ${focusMode ? FOCUS_MODE_OFFSET_CLASS : ""}`}

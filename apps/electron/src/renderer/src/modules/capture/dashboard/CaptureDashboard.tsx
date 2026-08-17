@@ -195,7 +195,7 @@ export const CaptureDashboard = memo(function CaptureDashboard({
   return (
     <section
       data-testid="capture-dashboard"
-      className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden pt-2 pb-4"
+      className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden pt-2 pb-4"
     >
       {/* 参与概览：热力图 + 资产指标同排（全局数据，不随领域/搜索筛选） */}
       <ParticipationOverview />
