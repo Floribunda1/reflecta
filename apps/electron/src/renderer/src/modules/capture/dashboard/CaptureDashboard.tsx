@@ -112,7 +112,7 @@ export function CaptureDashboard({ onChat }: { onChat?: (scope: CaptureAgentScop
       data-testid="capture-dashboard"
       className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden px-4 pt-2 pb-4"
     >
-      {/* 参与概览：热力图 + 资产指标同一行，置于捕获页顶部（全局数据，不随领域/搜索筛选） */}
+      {/* 参与概览：热力图 + 资产指标同排，置于捕获页顶部（全局数据，不随领域/搜索筛选） */}
       <ParticipationOverview />
 
       <div

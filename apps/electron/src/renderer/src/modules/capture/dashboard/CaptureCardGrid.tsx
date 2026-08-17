@@ -108,8 +108,8 @@ export function CaptureCardGrid({
       <ScrollArea className="h-full w-full [&_[data-slot=scroll-area-thumb]]:bg-muted-foreground/30 [&_[data-slot=scroll-area-thumb]]:hover:bg-muted-foreground/50">
         <Masonry
           breakpointCols={MASONRY_COLUMN_COUNT}
-          className="flex w-auto pb-4"
-          columnClassName="min-w-0 pl-3 [&>*]:mb-3"
+          className="flex w-auto -ml-3 items-start pb-4"
+          columnClassName="flex min-w-0 flex-1 flex-col gap-3 pl-3"
         >
           {understandings.map((understanding) => (
             <UnderstandingCard

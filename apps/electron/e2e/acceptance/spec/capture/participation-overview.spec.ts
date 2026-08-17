@@ -37,7 +37,7 @@ test("@CP-OVERVIEW-001 用户打开捕获页看到参与热力图与资产指标
   try {
     await openCapturePage(page);
 
-    // 顶部参与概览：热力图与资产指标在同一张卡片内同排展示
+    // 顶部参与概览：热力图与资产指标同排展示
     const overview = page.getByTestId("participation-overview");
     await expect(overview).toBeVisible();
 
