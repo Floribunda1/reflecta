@@ -19,7 +19,7 @@ export function understandingCard(page: Page, title: string) {
 }
 
 export function domainChip(page: Page, name: string) {
-  return page.locator(`[data-testid="capture-domain-chip"][data-domain-name="${name}"]`);
+  return page.locator(`[data-testid="capture-domain-node"][data-domain-name="${name}"]`);
 }
 
 export function understandingTitleInput(page: Page) {

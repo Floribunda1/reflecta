@@ -173,6 +173,7 @@ function DomainNode({
               onClick={() => onSelect(node.id)}
               {...attributes}
               {...listeners}
+              aria-pressed={selected}
             >
               <span
                 className="flex min-w-0 flex-1 items-center gap-1"
@@ -362,6 +363,7 @@ export function DomainTree({
           size="sm"
           variant="ghost"
           className={buttonClassName(selectedId === null)}
+          aria-pressed={selectedId === null}
           onClick={() => onSelect(null)}
         >
           <span className="flex size-6 shrink-0 items-center justify-center text-muted-foreground">

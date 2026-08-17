@@ -66,8 +66,8 @@ test("@CP-DOMAIN-009 用户修改 Domain 的名称和父级", async () => {
     await expect(domainNode(page, "RENAMED_DOMAIN")).toBeVisible();
     await expect(domainNode(page, "Design")).toHaveAttribute("aria-expanded", "true");
     await domainNode(page, "RENAMED_DOMAIN").click();
-    // 子领域 chip 以路径展示（Design/RENAMED_DOMAIN）
-    await expect(domainChip(page, "Design/RENAMED_DOMAIN")).toHaveAttribute("aria-pressed", "true");
+    // 选中后节点以 aria-pressed 呈现选中态
+    await expect(domainNode(page, "RENAMED_DOMAIN")).toHaveAttribute("aria-pressed", "true");
   } finally {
     await app.close();
   }
@@ -84,9 +84,8 @@ test("@CP-DOMAIN-010 用户删除 Domain 后仍能从全部领域找到原有理
     await page.getByRole("button", { name: "删除", exact: true }).click();
 
     await expect(domainNode(page, "Programming")).toHaveCount(0);
-    await expect(
-      page.getByTestId("capture-domain-filter").getByRole("button", { name: "全部" }),
-    ).toHaveAttribute("aria-pressed", "true");
+    // 删除当前选中领域后，回落到「全部领域」
+    await expect(page.getByTestId("capture-domain-root")).toHaveAttribute("aria-pressed", "true");
     await expect(domainNode(page, "Frontend").locator(":scope > span").first()).toHaveCSS(
       "padding-left",
       "0px",
