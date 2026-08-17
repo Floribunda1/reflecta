@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { ChevronDown, ChevronUp, X } from "lucide-react";
+import { Footprints, X } from "lucide-react";
 import {
   cloneElement,
   lazy,
@@ -15,11 +15,6 @@ import {
 } from "react";
 import type { Activity, ThemeInput } from "react-activity-calendar";
 import "react-activity-calendar/tooltips.css";
-
-const ActivityCalendar = lazy(async () => {
-  const module = await import("react-activity-calendar");
-  return { default: module.ActivityCalendar };
-});
 import { Button } from "@reflecta/ui/components/button";
 import {
   Popover,
@@ -30,11 +25,12 @@ import {
 } from "@reflecta/ui/components/popover";
 import { useCaptureStore } from "../store";
 import { useParticipationOverview, type ParticipationOverviewData } from "../queries";
-import {
-  buildParticipationActivity,
-  computeParticipationAssets,
-  type DayDetailCounts,
-} from "./participation-stats";
+import { buildParticipationActivity, type DayDetailCounts } from "./participation-stats";
+
+const ActivityCalendar = lazy(async () => {
+  const module = await import("react-activity-calendar");
+  return { default: module.ActivityCalendar };
+});
 
 function dayTitle(date: string): string {
   return `${format(new Date(`${date}T00:00:00`), "yyyy年M月d日 EEEE", { locale: zhCN })}`;
@@ -101,15 +97,6 @@ function DayDetail({ date, data }: { date: string; data: ParticipationOverviewDa
   );
 }
 
-function MiniStat({ stat, label, total }: { stat: string; label: string; total: number }) {
-  return (
-    <span data-stat={stat} className="flex items-baseline gap-1.5">
-      <span className="text-sm font-medium tabular-nums">{total}</span>
-      <span className="text-xs text-muted-foreground">{label}</span>
-    </span>
-  );
-}
-
 /** 空格与实心都走语义色；light/dark 都写同一组 var，实际色随 `.dark` 解析，不跟系统 media 分叉。 */
 const PARTICIPATION_CALENDAR_THEME: ThemeInput = {
   light: ["var(--muted)", "var(--success)"],
@@ -124,27 +111,27 @@ const PARTICIPATION_CALENDAR_LABELS = {
   totalCount: "共 {{count}} 次参与",
 };
 
-/** 工具栏里的展开/收起入口；收起后概览不再单独占一行。 */
+/** 工具栏里的足迹开关；收起后热力图不再占一行。 */
 export function ParticipationOverviewToggle() {
   const collapsed = useCaptureStore((state) => state.participationOverviewCollapsed);
   const toggleCollapsed = useCaptureStore((state) => state.toggleParticipationOverviewCollapsed);
   return (
     <Button
       type="button"
-      size="sm"
+      size="icon-sm"
       variant={collapsed ? "ghost" : "secondary"}
-      aria-label={collapsed ? "展开参与概览" : "收起参与概览"}
+      aria-label={collapsed ? "展开足迹" : "收起足迹"}
+      title={collapsed ? "展开足迹" : "收起足迹"}
       aria-pressed={!collapsed}
       data-testid="capture-participation-overview-toggle"
       onClick={toggleCollapsed}
     >
-      参与概览
-      {collapsed ? <ChevronDown /> : <ChevronUp />}
+      <Footprints size={14} />
     </Button>
   );
 }
 
-/** 捕获页顶部「参与概览」：热力图与资产指标同排；收起后保持挂载，避免 365 格反复卸载。 */
+/** 捕获页顶部足迹：只展示热力图；收起后保持挂载，避免 365 格反复卸载。 */
 export function ParticipationOverview() {
   const collapsed = useCaptureStore((state) => state.participationOverviewCollapsed);
   const [mounted, setMounted] = useState(() => !collapsed);
@@ -153,7 +140,6 @@ export function ParticipationOverview() {
   const [dayPopover, setDayPopover] = useState<{ date: string } | null>(null);
   const dayAnchorRef = useRef<{ x: number; y: number } | null>(null);
 
-  const assets = useMemo(() => (data ? computeParticipationAssets(data) : null), [data]);
   const calendar = useMemo(() => (data ? buildParticipationActivity(data) : null), [data]);
   const detailsRef = useRef(calendar?.details);
   detailsRef.current = calendar?.details;
@@ -178,16 +164,8 @@ export function ParticipationOverview() {
     <div
       data-testid="participation-overview"
       hidden={collapsed}
-      className={collapsed ? "hidden" : "flex shrink-0 items-start gap-3 px-4"}
+      className={collapsed ? "hidden" : "flex shrink-0 px-4"}
     >
-      {assets ? (
-        <div className="flex shrink-0 flex-col justify-center gap-1 pt-4">
-          <MiniStat stat="理解" label="理解" total={assets.understanding} />
-          <MiniStat stat="画布" label="画布" total={assets.canvas} />
-          <MiniStat stat="上下文" label="上下文" total={assets.context} />
-        </div>
-      ) : null}
-
       {calendar ? (
         <div
           data-testid="participation-heatmap"
