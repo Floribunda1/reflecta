@@ -23,7 +23,7 @@ export function PageTopBar({
     <header
       data-testid={testId}
       className={cn(
-        "app-drag-region flex h-12 shrink-0 items-center gap-2 border-b",
+        "app-drag-region flex h-12 shrink-0 items-center gap-2",
         open ? "px-4" : `${SIDEBAR_COLLAPSED_OFFSET_CLASS} pr-4`,
       )}
     >

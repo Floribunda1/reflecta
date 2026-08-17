@@ -91,7 +91,7 @@ export function AppNavRail() {
           Not covered by any token (it is a window-level effect, not a surface color). */}
       <div className="flex h-full min-h-0 flex-col">
         {open ? (
-          <div className="app-drag-region flex h-12 shrink-0 items-center justify-end border-b px-2">
+          <div className="app-drag-region flex h-12 shrink-0 items-center justify-end px-2">
             <div data-no-drag>
               <SidebarToggleButton
                 expanded
@@ -102,7 +102,7 @@ export function AppNavRail() {
             </div>
           </div>
         ) : null}
-        <div className="app-drag-region shrink-0 px-2 pt-2 pb-2">
+        <div className="app-drag-region shrink-0 px-2 pb-2">
           <nav
             data-testid="app-nav-label-area"
             className="flex flex-col gap-1"

@@ -158,7 +158,7 @@ export function CaptureCardGrid({
   return (
     <div className="min-h-0 min-w-0 flex-1">
       <ScrollArea className="h-full w-full [&_[data-slot=scroll-area-thumb]]:bg-muted-foreground/30 [&_[data-slot=scroll-area-thumb]]:hover:bg-muted-foreground/50">
-        <div className="grid grid-cols-1 gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 px-4">
           {cardViews.map((understanding) => (
             <CaptureUnderstandingCard
               key={understanding.id}

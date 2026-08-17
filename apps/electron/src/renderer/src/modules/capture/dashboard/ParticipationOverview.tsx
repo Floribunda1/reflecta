@@ -178,7 +178,7 @@ export function ParticipationOverview() {
     <div
       data-testid="participation-overview"
       hidden={collapsed}
-      className={collapsed ? "hidden" : "flex shrink-0 items-start gap-3"}
+      className={collapsed ? "hidden" : "flex shrink-0 items-start gap-3 px-4"}
     >
       {assets ? (
         <div className="flex shrink-0 flex-col justify-center gap-1 pt-4">
