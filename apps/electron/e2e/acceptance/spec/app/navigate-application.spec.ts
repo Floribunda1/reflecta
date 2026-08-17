@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { launchAgentPage, launchApp } from "../agent/agent-e2e";
-import { closeDetailDrawer, openCapturePage, openUnderstanding } from "../capture/capture-e2e";
+import { closeDetailPanel, openCapturePage, openUnderstanding } from "../capture/capture-e2e";
 
 test("@APP-NAV-001 用户从 Capture 进入 Agent 后返回 Capture", async () => {
   const { app, page } = await launchApp();
@@ -8,7 +8,7 @@ test("@APP-NAV-001 用户从 Capture 进入 Agent 后返回 Capture", async () =
   try {
     await openCapturePage(page);
     await openUnderstanding(page, "React Server Components");
-    await closeDetailDrawer(page);
+    await closeDetailPanel(page);
     await page.getByTestId("app-nav-module-agent").click();
     await expect(page.getByTestId("agent-page")).toBeVisible();
 

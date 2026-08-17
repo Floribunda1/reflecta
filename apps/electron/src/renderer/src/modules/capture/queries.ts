@@ -7,6 +7,8 @@ import type {
   UpdateDomainInput,
 } from "@shared/domain";
 import type { ContextDTO, CreateContextInput, UpdateContextInput } from "@shared/context";
+import type { RecapData } from "@shared/recap";
+import type { CanvasDTO } from "@reflecta/server";
 import type {
   CreateUnderstandingInput,
   ListUnderstandingsFilter,
@@ -40,6 +42,7 @@ export const captureQueryKeys = {
   understandingDetails: ["understanding.getUnderstandingById"] as const,
   understandingDetail: (understandingId: string) =>
     ["understanding.getUnderstandingById", understandingId] as const,
+  participationOverview: ["capture.participation.overview"] as const,
   entityDisplay: (ref: Pick<AgentContextRef, "type" | "id">) =>
     ["entity.display", ref.type, ref.id] as const,
 };
@@ -171,6 +174,28 @@ export function useCaptureUnderstandingDetail(understandingId: string) {
   });
 }
 
+export type ParticipationOverviewData = {
+  understandings: UnderstandingSummaryDTO[];
+  canvases: CanvasDTO[];
+  recap: RecapData;
+};
+
+/** 参与概览（捕获页顶部）：理解/画布沿用现有服务，会话/上下文/画布元素的参与数据来自 insights 服务。 */
+export function useParticipationOverview(enabled = true) {
+  return useQuery<ParticipationOverviewData>({
+    queryKey: captureQueryKeys.participationOverview,
+    queryFn: async () => {
+      const [understandings, canvases, recap] = await Promise.all([
+        ipcClient.understanding.listUnderstandings(),
+        ipcClient.understandingCanvas.listCanvases(),
+        ipcClient.insights.getRecapData(),
+      ]);
+      return { understandings, canvases, recap };
+    },
+    enabled,
+  });
+}
+
 function invalidateUnderstandingLists(queryClient: QueryClient) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: captureQueryKeys.understandingLists, exact: false }),
@@ -198,12 +223,20 @@ function invalidateDomains(queryClient: QueryClient) {
   return queryClient.invalidateQueries({ queryKey: captureQueryKeys.domains });
 }
 
+function invalidateParticipationOverview(queryClient: QueryClient) {
+  return queryClient.invalidateQueries({ queryKey: captureQueryKeys.participationOverview });
+}
+
 export function useCreateUnderstandingMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateUnderstandingInput) =>
       ipcClient.understanding.createUnderstanding(input),
-    onSuccess: () => invalidateUnderstandingLists(queryClient),
+    onSuccess: () =>
+      Promise.all([
+        invalidateUnderstandingLists(queryClient),
+        invalidateParticipationOverview(queryClient),
+      ]),
   });
 }
 
@@ -233,6 +266,7 @@ export function useDeleteUnderstandingMutation() {
         invalidateUnderstandingDetail(queryClient, id),
         invalidateEntityDisplay(queryClient, { type: "understanding", id }),
         invalidateUnderstandingLists(queryClient),
+        invalidateParticipationOverview(queryClient),
       ]),
   });
 }

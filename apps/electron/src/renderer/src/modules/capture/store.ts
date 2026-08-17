@@ -31,6 +31,8 @@ export type CaptureState = {
   includeDescendants: boolean;
   understandingListSortBy: UnderstandingListSortBy;
   expandedDomainIds: Record<string, boolean>;
+  /** 顶部参与概览（热力图 + 指标）是否折叠 */
+  participationOverviewCollapsed: boolean;
   activeContextId: string | null;
   draft: CaptureDraft | null;
   agentDockOpen: boolean;
@@ -48,6 +50,7 @@ export type CaptureActions = {
   setIncludeDescendants: (include: boolean) => void;
   setUnderstandingListSortBy: (sortBy: UnderstandingListSortBy) => void;
   toggleDomainExpanded: (domainId: string) => void;
+  toggleParticipationOverviewCollapsed: () => void;
   reconcileExpandedDomains: (validIds: Set<string>) => void;
   expandDomainAncestors: (domainIds: string[]) => void;
   setActiveContextId: (contextId: string | null) => void;
@@ -79,6 +82,7 @@ export const initialCaptureState: CaptureState = {
   includeDescendants: true,
   understandingListSortBy: "updatedAt",
   expandedDomainIds: {},
+  participationOverviewCollapsed: false,
   activeContextId: null,
   draft: null,
   agentDockOpen: false,
@@ -184,6 +188,9 @@ function createCaptureState(
         }
         return { expandedDomainIds: next };
       }),
+
+    toggleParticipationOverviewCollapsed: () =>
+      set((state) => ({ participationOverviewCollapsed: !state.participationOverviewCollapsed })),
 
     reconcileExpandedDomains: (validIds) =>
       set((state) => {
@@ -350,7 +357,11 @@ export function createCaptureStore(initialState: CaptureState = initialCaptureSt
 
 type PersistedCaptureState = Pick<
   CaptureStore,
-  "selectedDomainId" | "includeDescendants" | "understandingListSortBy" | "expandedDomainIds"
+  | "selectedDomainId"
+  | "includeDescendants"
+  | "understandingListSortBy"
+  | "expandedDomainIds"
+  | "participationOverviewCollapsed"
 >;
 
 export const useCaptureStore = create<CaptureStore>()(
@@ -362,6 +373,7 @@ export const useCaptureStore = create<CaptureStore>()(
       includeDescendants: state.includeDescendants,
       understandingListSortBy: state.understandingListSortBy,
       expandedDomainIds: state.expandedDomainIds,
+      participationOverviewCollapsed: state.participationOverviewCollapsed,
     }),
   }),
 );

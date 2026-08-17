@@ -3,7 +3,7 @@ import { launchApp } from "../agent/agent-e2e";
 import { deleteUnderstanding, seedUnderstandingIdByTitle } from "../agent/agent-fixtures";
 import {
   addContext,
-  closeDetailDrawer,
+  closeDetailPanel,
   contextCard,
   openCapturePage,
   openUnderstanding,
@@ -61,7 +61,7 @@ test("@TRASH-002 用户恢复已删除的 Context", async () => {
     await addContext(page, "待恢复上下文", "这条上下文应该可以恢复");
     await deleteContext(page, "待恢复上下文");
     // 详情抽屉是模态浮层，会挡住设置入口；先关闭再打开回收站
-    await closeDetailDrawer(page);
+    await closeDetailPanel(page);
 
     await openTrash(page);
     const item = trashItem(page, "待恢复上下文");

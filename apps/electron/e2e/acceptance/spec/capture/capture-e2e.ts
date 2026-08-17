@@ -8,6 +8,18 @@ export async function openCapturePage(page: Page) {
   await expect(page.getByTestId("capture-page")).toBeVisible();
 }
 
+/** 参与概览热力图始终覆盖的完整时间范围（天），与 renderer 的 PARTICIPATION_WINDOW_DAYS 保持一致 */
+export const PARTICIPATION_HEATMAP_DAY_COUNT = 365;
+
+export function todayDateKey(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** 参与概览热力图中代表某一天的格子（react-activity-calendar 渲染的 SVG rect） */
+export function participationHeatmapCell(page: Page, dateKey: string) {
+  return page.locator(`[data-testid="participation-heatmap"] rect[data-date="${dateKey}"]`);
+}
+
 export function domainNode(page: Page, name: string) {
   return page.locator(`[data-testid="capture-domain-node"][data-domain-name="${name}"]`);
 }
@@ -26,12 +38,12 @@ export function understandingTitleInput(page: Page) {
   return page.getByPlaceholder("写下一个刚形成的理解");
 }
 
-/** 详情抽屉是模态浮层；切卡片/切模块前先关闭（用抽屉内关闭按钮，Escape 在编辑器/控件内可能被吞）。 */
-export async function closeDetailDrawer(page: Page) {
-  const drawer = page.getByTestId("capture-understanding-detail-drawer");
-  if (await drawer.isVisible()) {
-    await drawer.getByLabel("关闭详情").click();
-    await expect(drawer).toBeHidden();
+/** 详情面板是右侧内联面板；切卡片/切模块前先关闭（用面板内关闭按钮，Escape 在编辑器/控件内可能被吞）。 */
+export async function closeDetailPanel(page: Page) {
+  const panel = page.getByTestId("capture-understanding-detail-panel");
+  if (await panel.isVisible()) {
+    await panel.getByLabel("关闭详情").click();
+    await expect(panel).toBeHidden();
   }
 }
 
@@ -40,7 +52,7 @@ export function understandingEditor(page: Page) {
 }
 
 export async function openUnderstanding(page: Page, title: string) {
-  await closeDetailDrawer(page);
+  await closeDetailPanel(page);
   await understandingCard(page, title).click();
   await expect(understandingTitleInput(page)).toHaveValue(title);
 }
@@ -51,10 +63,8 @@ export function contextCard(page: Page, title: string) {
 
 export async function addContext(page: Page, title: string, content: string) {
   await page.getByRole("button", { name: "添加上下文" }).click();
-  // 详情抽屉与上下文抽屉都是 Sheet；排除详情抽屉，只指向上下文抽屉
-  const drawer = page.locator(
-    '[data-slot="sheet-content"]:not([data-testid="capture-understanding-detail-drawer"])',
-  );
+  // 上下文以 Sheet 形式弹出（详情为右侧内联面板，非浮层，无需排除）
+  const drawer = page.locator('[data-slot="sheet-content"]');
   await expect(drawer).toContainText("添加上下文");
   await drawer.getByRole("tab", { name: "个人经历" }).click();
   await drawer.getByPlaceholder("上下文标题或场景").fill(title);

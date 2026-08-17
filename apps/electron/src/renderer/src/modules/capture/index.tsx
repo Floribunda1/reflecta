@@ -9,7 +9,6 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@reflecta/ui/components/resizable";
-import { Sheet, SheetContent } from "@reflecta/ui/components/sheet";
 import { ContextualAgentDock } from "@renderer/modules/chat/contextual-agent-dock";
 import { DomainTree } from "./domain";
 import { UnderstandingDetail } from "./understanding-detail";
@@ -35,8 +34,8 @@ function CaptureAgentDock() {
   );
 }
 
-/** 详情抽屉 —— 复用 UnderstandingDetail 的完整编辑/上下文/AI 能力，宽 960px。 */
-function UnderstandingDetailDrawer({ onClose }: { onClose: () => void }) {
+/** 详情面板 —— 右侧内联展示 UnderstandingDetail 的完整编辑/上下文/AI 能力（非抽屉浮层）。 */
+function UnderstandingDetailPanel() {
   const selectedUnderstandingId = useCaptureStore((state) => state.selectedUnderstandingId);
   const selectUnderstanding = useCaptureStore((state) => state.selectUnderstanding);
   const selectDomain = useCaptureStore((state) => state.selectDomain);
@@ -45,6 +44,8 @@ function UnderstandingDetailDrawer({ onClose }: { onClose: () => void }) {
     (state) => state.resetAfterUnderstandingDeleted,
   );
 
+  if (!selectedUnderstandingId) return null;
+
   const handleWikiLinkClick = (understandingId: string) => {
     // 切到全部领域，保证跳转目标在网格可见
     selectDomain("all");
@@ -52,51 +53,50 @@ function UnderstandingDetailDrawer({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Sheet
-      open={Boolean(selectedUnderstandingId)}
-      onOpenChange={(isOpen) => {
-        if (!isOpen) selectUnderstanding(null);
-      }}
-    >
-      <SheetContent
-        side="right"
-        data-testid="capture-understanding-detail-drawer"
-        showCloseButton={false}
-        className="w-[min(960px,calc(100vw-2rem))] max-w-none p-0"
+    <ResizablePanel id="capture-detail" minSize="26%" maxSize="60%" className="min-h-0 min-w-0">
+      <div
+        data-testid="capture-understanding-detail-panel"
+        className="h-full min-h-0 w-full overflow-hidden"
       >
-        {selectedUnderstandingId ? (
-          <div className="h-full min-h-0 w-full overflow-hidden">
-            <UnderstandingDetail
-              understandingId={selectedUnderstandingId}
-              onClose={onClose}
-              onWikiLinkClick={handleWikiLinkClick}
-              onChat={(scope) => {
-                onClose();
-                openAgentDock(scope);
-              }}
-              onDeleted={() => {
-                if (selectedUnderstandingId) {
-                  resetAfterUnderstandingDeleted(selectedUnderstandingId);
-                }
-              }}
-            />
-          </div>
-        ) : null}
-      </SheetContent>
-    </Sheet>
+        <UnderstandingDetail
+          understandingId={selectedUnderstandingId}
+          onClose={() => selectUnderstanding(null)}
+          onWikiLinkClick={handleWikiLinkClick}
+          onChat={openAgentDock}
+          onDeleted={() => {
+            if (selectedUnderstandingId) {
+              resetAfterUnderstandingDeleted(selectedUnderstandingId);
+            }
+          }}
+        />
+      </div>
+    </ResizablePanel>
   );
 }
 
 function CapturePageInner() {
   const agentDockOpen = useCaptureStore((state) => state.agentDockOpen);
-  const selectUnderstanding = useCaptureStore((state) => state.selectUnderstanding);
+  const selectedUnderstandingId = useCaptureStore((state) => state.selectedUnderstandingId);
   const openAgentDock = useCaptureStore((state) => state.openAgentDock);
 
-  const closeDetailDrawer = () => selectUnderstanding(null);
+  const detailOpen = Boolean(selectedUnderstandingId);
 
   // 领域树迁入全局导航 rail（slot 模式）；领域级 AI 对话入口保留
   const railMenu = useMemo(() => <DomainTree onChat={openAgentDock} />, [openAgentDock]);
   useRailMenu("capture", railMenu);
+
+  const defaultLayout = useMemo<Record<string, number>>(() => {
+    const layout: Record<string, number> = { "capture-main": 100 };
+    if (detailOpen) {
+      layout["capture-main"] = agentDockOpen ? 42 : 58;
+      layout["capture-detail"] = agentDockOpen ? 32 : 42;
+    }
+    if (agentDockOpen) {
+      layout["capture-main"] = detailOpen ? 42 : 64;
+      layout["capture-agent"] = detailOpen ? 26 : 36;
+    }
+    return layout;
+  }, [agentDockOpen, detailOpen]);
 
   return (
     <div
@@ -105,26 +105,27 @@ function CapturePageInner() {
     >
       <ResizablePanelGroup
         orientation="horizontal"
-        defaultLayout={
-          agentDockOpen
-            ? {
-                "capture-main": 64,
-                "capture-agent": 36,
-              }
-            : {
-                "capture-main": 100,
-              }
-        }
+        defaultLayout={defaultLayout}
         className="h-full min-h-0 min-w-0 bg-transparent"
       >
         <ResizablePanel
           id="capture-main"
-          minSize={agentDockOpen ? "44%" : "100%"}
-          defaultSize={agentDockOpen ? "64%" : "100%"}
+          minSize={agentDockOpen || detailOpen ? "30%" : "100%"}
+          defaultSize={agentDockOpen || detailOpen ? 58 : 100}
           className="min-h-0 min-w-0"
         >
           <CaptureDashboard onChat={openAgentDock} />
         </ResizablePanel>
+        {detailOpen ? (
+          <>
+            <ResizableHandle
+              withHandle
+              id="capture-detail-resize-handle"
+              className={RESIZE_HANDLE_CLASS + " " + RESIZE_HANDLE_GRIP_CHILD_CLASS}
+            />
+            <UnderstandingDetailPanel />
+          </>
+        ) : null}
         {agentDockOpen ? (
           <>
             <ResizableHandle
@@ -144,8 +145,6 @@ function CapturePageInner() {
           </>
         ) : null}
       </ResizablePanelGroup>
-
-      <UnderstandingDetailDrawer onClose={closeDetailDrawer} />
     </div>
   );
 }

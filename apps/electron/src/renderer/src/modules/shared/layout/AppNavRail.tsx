@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { BarChart3, Bot, Network, NotepadText, Settings } from "lucide-react";
+import { Bot, Network, NotepadText, Settings } from "lucide-react";
 import { Button } from "@reflecta/ui/components/button";
 import { cn } from "@reflecta/ui/lib/utils";
 import { useModal } from "@reflecta/ui/overlays";
@@ -15,7 +15,6 @@ import { useRail } from "./rail-provider";
  */
 export const NAV_MODULES = [
   { id: "capture", path: "/capture", label: "Capture", Icon: NotepadText },
-  { id: "recap", path: "/recap", label: "回顾", Icon: BarChart3 },
   { id: "agent", path: "/agent", label: "Agent", Icon: Bot },
   { id: "canvas", path: "/understanding-canvas", label: "Canvas", Icon: Network },
 ] as const;

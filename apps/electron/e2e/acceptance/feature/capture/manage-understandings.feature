@@ -40,7 +40,7 @@
     假如 seed 数据中存在 Understanding「React Server Components」和「Vue Reactivity」
     当用户删除 Understanding「React Server Components」并确认
     那么卡片网格应该继续显示 Understanding「Vue Reactivity」
-    而且详情抽屉应该回到未选择 Understanding 的状态
+    而且右侧详情面板应该回到未选择 Understanding 的状态
 
   @P1 @content @CP-UNDERSTANDING-005
   场景: 用户查看 Understanding 中的 Mermaid 图表

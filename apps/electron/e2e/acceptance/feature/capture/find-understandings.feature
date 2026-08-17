@@ -1,7 +1,7 @@
 # language: zh-CN
 @capture @understanding @v1.2.5
 功能: 用户找到要回看的 Understanding
-  用户需要按 Domain 和关键词缩小 Dashboard 卡片网格，并在网格与详情抽屉之间阅读自己的理解。
+  用户需要按 Domain 和关键词缩小 Dashboard 卡片网格，并在网格与右侧详情面板之间阅读自己的理解。
 
   @P0 @filter @CP-LIST-002
   场景: 用户选择 Domain 后只看到当前领域中的 Understanding

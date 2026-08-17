@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { launchApp } from "../agent/agent-e2e";
 import { seedUnderstanding, understandingExistsByTitle } from "../agent/agent-fixtures";
 import {
-  closeDetailDrawer,
+  closeDetailPanel,
   domainChip,
   domainNode,
   openCapturePage,
@@ -75,7 +75,7 @@ test("@CP-UNDERSTANDING-003 用户调整 Understanding 所属的 Domain", async 
       page.locator('[data-slot="combobox-chip"]').filter({ hasText: "Design" }),
     ).toBeVisible();
 
-    await closeDetailDrawer(page);
+    await closeDetailPanel(page);
     await domainChip(page, "Design").click();
     await expect(understandingCard(page, "React Server Components")).toBeVisible();
   } finally {
@@ -95,7 +95,7 @@ test("@CP-UNDERSTANDING-004 用户删除不再需要的 Understanding", async ()
 
     await expect(understandingCard(page, "React Server Components")).toHaveCount(0);
     await expect(understandingCard(page, "Vue Reactivity")).toBeVisible();
-    await expect(page.getByTestId("capture-understanding-detail-drawer")).toHaveCount(0);
+    await expect(page.getByTestId("capture-understanding-detail-panel")).toHaveCount(0);
   } finally {
     await app.close();
   }
