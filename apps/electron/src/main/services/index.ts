@@ -11,6 +11,7 @@ import { ChatService } from "./ChatService";
 import { ConfigService } from "./ConfigService";
 import { ContextService } from "./ContextService";
 import { DiagnosticsService } from "./DiagnosticsService";
+import { InsightsService } from "./InsightsService";
 import { SearchService } from "./SearchService";
 import { UnderstandingService } from "./UnderstandingService";
 import { UnderstandingCanvasService } from "./UnderstandingCanvasService";
@@ -92,6 +93,7 @@ export const services = createServices([
   ChatService,
   ConfigService,
   DiagnosticsService,
+  InsightsService,
   UnderstandingService,
   UnderstandingCanvasService,
   ContextService,

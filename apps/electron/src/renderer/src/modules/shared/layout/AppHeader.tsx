@@ -1,5 +1,4 @@
 import { useLocation } from "react-router-dom";
-import { Separator } from "@reflecta/ui/components/separator";
 import { cn } from "@reflecta/ui/lib/utils";
 import { NAV_MODULES } from "./AppNavRail";
 import { SidebarToggleButton } from "./SidebarToggleButton";
@@ -27,11 +26,11 @@ export function AppHeader() {
     <header
       data-testid="app-header"
       className={cn(
-        "app-drag-region flex h-11 shrink-0 items-center gap-2 border-b",
+        "app-drag-region flex h-12 shrink-0 items-center gap-2 border-b",
         // offcanvas 收起时 rail 宽度归 0，header 顶到窗口最左 → 预留红绿灯。
         // h-11（44px）让 items-center 落到 y≈22，与红绿灯中心（pos y=16 + 高 12 ≈ 22）同线；
         // 红绿灯横向约占至 x≈72，pl-[72px] 使 collapse 按钮紧贴其右。
-        open ? "px-4" : "pl-[72px] pr-4",
+        open ? "px-4" : "pl-21 pr-4",
       )}
     >
       <div data-no-drag>
@@ -42,8 +41,6 @@ export function AppHeader() {
           onClick={toggle}
         />
       </div>
-      <Separator orientation="vertical" className="mx-1 data-vertical:h-5" />
-
       {slot ? (
         <div data-no-drag className="flex min-w-0 flex-1 items-center gap-2">
           <div className="min-w-0 flex-1">{slot.title}</div>

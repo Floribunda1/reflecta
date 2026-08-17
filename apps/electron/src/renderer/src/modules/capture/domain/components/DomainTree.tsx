@@ -136,7 +136,7 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
       data-testid="capture-domain-sidebar"
       className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
     >
-      <div className="flex h-10 shrink-0 items-center justify-between gap-1 px-3 pr-2">
+      <div className="flex h-10 shrink-0 items-center justify-between gap-1 px-5 pr-2">
         <div className="min-w-0 truncate text-sm font-medium">领域</div>
         <Button
           data-no-drag

@@ -9,7 +9,7 @@
     而且两个 Domain 下分别存在不同的 Understanding
     当用户在 Dashboard 顶部选择领域「Programming」
     那么卡片网格应该显示属于「Programming」的 Understanding
-    而且统计中的总理解数应该反映当前 Domain 的结果
+    而且卡片数量应该少于全部领域下的数量
 
   @P0 @search @CP-LIST-004
   场景: 用户搜索关键词并清空恢复

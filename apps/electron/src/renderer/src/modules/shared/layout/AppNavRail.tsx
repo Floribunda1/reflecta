@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Bot, Network, NotepadText, Settings } from "lucide-react";
+import { BarChart3, Bot, Network, NotepadText, Settings } from "lucide-react";
 import { Button } from "@reflecta/ui/components/button";
 import { cn } from "@reflecta/ui/lib/utils";
 import { useModal } from "@reflecta/ui/overlays";
@@ -15,6 +15,7 @@ import { useRail } from "./rail-provider";
  */
 export const NAV_MODULES = [
   { id: "capture", path: "/capture", label: "Capture", Icon: NotepadText },
+  { id: "recap", path: "/recap", label: "回顾", Icon: BarChart3 },
   { id: "agent", path: "/agent", label: "Agent", Icon: Bot },
   { id: "canvas", path: "/understanding-canvas", label: "Canvas", Icon: Network },
 ] as const;
@@ -80,7 +81,7 @@ export function AppNavRail() {
       data-state={state}
       data-collapsible={state === "collapsed" ? "offcanvas" : undefined}
       className={cn(
-        "flex h-full min-h-0 shrink-0 flex-col overflow-hidden transition-[width] duration-200 ease-out motion-reduce:transition-none",
+        "flex h-full min-h-0 pb-2 shrink-0 flex-col overflow-hidden transition-[width] duration-200 ease-out motion-reduce:transition-none",
         open ? SIDEBAR_WIDTH_CLASS : "w-0",
       )}
     >
@@ -89,7 +90,7 @@ export function AppNavRail() {
           surface tint so the frosted material remains visible across the whole rail.
           Not covered by any token (it is a window-level effect, not a surface color). */}
       <div className="flex h-full min-h-0 flex-col">
-        <div className="app-drag-region shrink-0 px-2 pt-14 pb-2">
+        <div className="app-drag-region shrink-0 px-2 pt-10 pb-2">
           <nav
             data-testid="app-nav-label-area"
             className="mt-1 flex flex-col gap-1"
@@ -108,8 +109,6 @@ export function AppNavRail() {
                 />
               );
             })}
-
-            <div data-no-drag aria-hidden className="my-1 border-t border-border" />
 
             {/* 设置与模块按钮同列放置（不居中、尺寸一致） */}
             <RailNavButton

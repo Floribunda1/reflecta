@@ -144,7 +144,7 @@ export function ChatThreadSidebar({
       <div
         className={cn(
           "relative flex shrink-0 items-center justify-between gap-1",
-          inRail ? "h-10 px-3 pr-2" : "app-drag-region pt-14 pr-2 pb-3 pl-4",
+          inRail ? "h-10 px-5 pr-2" : "app-drag-region pt-14 pr-2 pb-3 pl-4",
         )}
       >
         {!inRail ? (

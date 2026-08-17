@@ -22,14 +22,6 @@ export function domainChip(page: Page, name: string) {
   return page.locator(`[data-testid="capture-domain-chip"][data-domain-name="${name}"]`);
 }
 
-export async function statsValue(page: Page, label: string): Promise<number> {
-  const text = await page
-    .getByTestId("capture-dashboard-stats")
-    .locator(`[data-stat="${label}"]`)
-    .textContent();
-  return Number.parseInt(text?.match(/\d+/)?.[0] ?? "0", 10);
-}
-
 export function understandingTitleInput(page: Page) {
   return page.getByPlaceholder("写下一个刚形成的理解");
 }

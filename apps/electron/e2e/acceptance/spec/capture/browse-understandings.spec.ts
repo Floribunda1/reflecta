@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { launchApp } from "../agent/agent-e2e";
 import { seedUnderstanding } from "../agent/agent-fixtures";
-import { domainChip, openCapturePage, statsValue, understandingCard } from "./capture-e2e";
+import { domainNode, openCapturePage, understandingCard } from "./capture-e2e";
 
 test("@CP-LIST-005 用户打开 Dashboard 看到最近更新的 Understanding 在前", async () => {
   seedUnderstanding({
@@ -36,12 +36,13 @@ test("@CP-LIST-002 用户选择 Domain 后只看到当前领域中的 Understand
 
   try {
     await openCapturePage(page);
-    const allTotal = await statsValue(page, "总理解");
-    await domainChip(page, "Programming").click();
+    const allCards = await page.getByTestId("capture-understanding-card").count();
+    await domainNode(page, "Programming").click();
 
-    await expect(domainChip(page, "Programming")).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByTestId("capture-understanding-card").first()).toBeVisible();
-    await expect.poll(() => statsValue(page, "总理解")).toBeLessThan(allTotal);
+    await expect
+      .poll(async () => page.getByTestId("capture-understanding-card").count())
+      .toBeLessThan(allCards);
   } finally {
     await app.close();
   }

@@ -5,79 +5,17 @@ import { Input } from "@reflecta/ui/components/input";
 import { useModal } from "@reflecta/ui/overlays";
 import { useCaptureStore, type CaptureAgentScope } from "../store";
 import {
-  useCaptureDomains,
   useCaptureUnderstandingList,
-  useCaptureUnderstandingListTotal,
   useCreateUnderstandingMutation,
   useDeleteUnderstandingMutation,
 } from "../queries";
 import { sortUnderstandingSummaries } from "./sort";
-import { CaptureStats } from "./CaptureStats";
 import { CaptureCardGrid } from "./CaptureCardGrid";
-
-function DomainFilterChips({
-  selectedDomainId,
-  onSelect,
-}: {
-  selectedDomainId: string;
-  onSelect: (domainId: string) => void;
-}) {
-  const { domains } = useCaptureDomains();
-  // chips 平铺全部领域（含子领域，路径化展示），选中任意层级都可达；
-  // 子领域通过 includeDescendants 归入父领域筛选（Domain = cluster 标签语义）
-  const flatChips = useMemo(() => {
-    const result: { id: string; label: string }[] = [];
-    const walk = (nodes: typeof domains, prefix: string) => {
-      for (const node of nodes) {
-        const label = prefix ? `${prefix}/${node.name}` : node.name;
-        result.push({ id: node.id, label });
-        walk(node.children, label);
-      }
-    };
-    walk(domains, "");
-    return result;
-  }, [domains]);
-
-  return (
-    <div
-      data-testid="capture-domain-filter"
-      className="flex min-w-0 flex-wrap items-center gap-1.5"
-      aria-label="按领域筛选"
-    >
-      <Button
-        type="button"
-        size="sm"
-        variant={selectedDomainId === "all" ? "secondary" : "ghost"}
-        className="px-2.5"
-        aria-pressed={selectedDomainId === "all"}
-        onClick={() => onSelect("all")}
-      >
-        全部
-      </Button>
-      {flatChips.map(({ id, label }) => (
-        <Button
-          key={id}
-          type="button"
-          size="sm"
-          variant={selectedDomainId === id ? "secondary" : "ghost"}
-          className="max-w-44 px-2.5"
-          data-testid="capture-domain-chip"
-          data-domain-name={label}
-          aria-pressed={selectedDomainId === id}
-          onClick={() => onSelect(id)}
-        >
-          <span className="truncate">{label}</span>
-        </Button>
-      ))}
-    </div>
-  );
-}
 
 export function CaptureDashboard({ onChat }: { onChat?: (scope: CaptureAgentScope) => void }) {
   const selectedDomainId = useCaptureStore((state) => state.selectedDomainId);
   const selectedUnderstandingId = useCaptureStore((state) => state.selectedUnderstandingId);
   const searchQuery = useCaptureStore((state) => state.searchQuery);
-  const selectDomain = useCaptureStore((state) => state.selectDomain);
   const selectUnderstanding = useCaptureStore((state) => state.selectUnderstanding);
   const setSearchQuery = useCaptureStore((state) => state.setSearchQuery);
   const resetAfterUnderstandingDeleted = useCaptureStore(
@@ -96,15 +34,10 @@ export function CaptureDashboard({ onChat }: { onChat?: (scope: CaptureAgentScop
     [selectedDomainId, searchQuery],
   );
   const { data: listData } = useCaptureUnderstandingList(listFilter);
-  const { data: totalData } = useCaptureUnderstandingListTotal({
-    selectedDomainId,
-    includeDescendants: true,
-  });
   const displayedUnderstandings = useMemo(
     () => sortUnderstandingSummaries(listData ?? [], "updatedAt"),
     [listData],
   );
-  const statsUnderstandings = useMemo(() => totalData ?? [], [totalData]);
 
   const createEmptyUnderstanding = useCallback(async () => {
     const dto = await createUnderstandingMutation.mutateAsync({
@@ -136,32 +69,29 @@ export function CaptureDashboard({ onChat }: { onChat?: (scope: CaptureAgentScop
       data-testid="capture-dashboard"
       className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden px-4 pt-2 pb-4"
     >
-      <header
-        data-testid="capture-dashboard-header"
-        className="app-drag-region flex shrink-0 flex-wrap items-center gap-2"
+      <div
+        data-testid="capture-dashboard-toolbar"
+        className="flex shrink-0 items-center gap-2"
+        data-no-drag
       >
-        <DomainFilterChips selectedDomainId={selectedDomainId} onSelect={selectDomain} />
-        <div className="ml-auto flex min-w-0 shrink-0 items-center gap-2" data-no-drag>
-          <Input
-            data-testid="capture-dashboard-search"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="查找已有理解"
-            className="h-8 w-52"
-          />
-          <Button
-            data-testid="capture-create-understanding-button"
-            type="button"
-            size="sm"
-            onClick={() => void createEmptyUnderstanding()}
-          >
-            <Plus size={14} />
-            新建理解
-          </Button>
-        </div>
-      </header>
-
-      <CaptureStats understandings={statsUnderstandings} />
+        <Input
+          data-testid="capture-dashboard-search"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="查找已有理解"
+          className="h-8 w-64"
+        />
+        <div className="ml-auto" />
+        <Button
+          data-testid="capture-create-understanding-button"
+          type="button"
+          size="sm"
+          onClick={() => void createEmptyUnderstanding()}
+        >
+          <Plus size={14} />
+          新建理解
+        </Button>
+      </div>
 
       <CaptureCardGrid
         understandings={displayedUnderstandings}
