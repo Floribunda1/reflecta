@@ -49,9 +49,12 @@ function RailNavButton({
       data-testid={testId}
       type="button"
       size="default"
-      variant={active ? "secondary" : "ghost"}
+      variant="ghost"
       aria-pressed={active}
-      className="w-full justify-start gap-2 px-2.5"
+      className={cn(
+        "w-full justify-start gap-2 px-2.5",
+        active && "bg-muted text-foreground hover:bg-muted",
+      )}
       onClick={onClick}
     >
       {icon}
@@ -80,7 +83,7 @@ export function AppNavRail() {
       data-state={state}
       data-collapsible={state === "collapsed" ? "offcanvas" : undefined}
       className={cn(
-        "flex h-full min-h-0 shrink-0 flex-col overflow-hidden bg-secondary pb-2 text-secondary-foreground transition-[width] duration-200 ease-out motion-reduce:transition-none",
+        "flex h-full min-h-0 shrink-0 flex-col overflow-hidden bg-sidebar/40 pb-2 text-sidebar-foreground transition-[width] duration-200 ease-out motion-reduce:transition-none",
         open ? "w-full" : "w-0",
       )}
     >
