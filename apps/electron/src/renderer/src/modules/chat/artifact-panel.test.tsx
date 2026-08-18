@@ -60,6 +60,51 @@ const view: ArtifactPanelView = {
   ],
 };
 
+const entityIconView: ArtifactPanelView = {
+  total: 3,
+  groups: [
+    {
+      type: "understanding",
+      label: "理解",
+      items: [
+        {
+          type: "understanding",
+          id: "understanding-1",
+          title: "理解",
+          landingAt: "2026-08-01T12:00:00.000Z",
+          messageId: "m-1",
+        },
+      ],
+    },
+    {
+      type: "context",
+      label: "上下文",
+      items: [
+        {
+          type: "context",
+          id: "context-1",
+          title: "上下文",
+          landingAt: "2026-08-01T11:00:00.000Z",
+          messageId: "m-2",
+        },
+      ],
+    },
+    {
+      type: "domain",
+      label: "领域",
+      items: [
+        {
+          type: "domain",
+          id: "domain-1",
+          title: "领域",
+          landingAt: "2026-08-01T10:00:00.000Z",
+          messageId: "m-3",
+        },
+      ],
+    },
+  ],
+};
+
 describe("ArtifactPanel", () => {
   test("renders nothing when the conversation has no landed artifacts", () => {
     renderPanel({ total: 0, groups: [] });
@@ -95,6 +140,22 @@ describe("ArtifactPanel", () => {
     expect(onOpen).toHaveBeenCalledWith(
       expect.objectContaining({ type: "understanding", id: "u-1" }),
     );
+  });
+
+  test("uses the same icons as inline entity references", () => {
+    const { container } = renderPanel(entityIconView);
+    const toggle = container?.querySelector('[data-testid="artifact-panel-toggle"]') as HTMLElement;
+    act(() => toggle.click());
+
+    expect(
+      document.body.querySelector('[data-testid="artifact-item-understanding-1"] svg')?.className,
+    ).toContain("lucide-file-text");
+    expect(
+      document.body.querySelector('[data-testid="artifact-item-context-1"] svg')?.className,
+    ).toContain("lucide-quote");
+    expect(
+      document.body.querySelector('[data-testid="artifact-item-domain-1"] svg')?.className,
+    ).toContain("lucide-tags");
   });
 
   test("flashes briefly when the total grows", () => {

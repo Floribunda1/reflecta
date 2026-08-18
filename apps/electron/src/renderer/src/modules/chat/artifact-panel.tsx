@@ -1,20 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { FileText, FolderTree, NotebookPen, PanelsTopLeft, Sparkles } from "lucide-react";
+import { PanelsTopLeft, Sparkles } from "lucide-react";
 import { cn } from "@reflecta/ui/lib/utils";
 import { Button } from "@reflecta/ui/components/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@reflecta/ui/components/popover";
-import {
-  type ArtifactPanelView,
-  type ArtifactType,
-  type LandedArtifact,
-} from "./session/artifact-panel";
-
-const ARTIFACT_ICONS: Record<ArtifactType, typeof NotebookPen> = {
-  understanding: NotebookPen,
-  context: FileText,
-  domain: FolderTree,
-  canvas: PanelsTopLeft,
-};
+import { entityIcon } from "@reflecta/ui/chat";
+import { type ArtifactPanelView, type LandedArtifact } from "./session/artifact-panel";
 
 const NEW_LANDING_FLASH_MS = 1_600;
 
@@ -77,8 +67,9 @@ export function ArtifactPanel({
         >
           <div className="grid gap-0.5" role="list">
             {artifacts.map((artifact) => {
-              const Icon = ARTIFACT_ICONS[artifact.type];
+              const Icon = artifact.type === "canvas" ? PanelsTopLeft : entityIcon(artifact.type);
               const typeLabel = view.groups.find((group) => group.type === artifact.type)?.label;
+              if (!Icon) return null;
               return (
                 <button
                   key={`${artifact.type}:${artifact.id}`}

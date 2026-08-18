@@ -97,6 +97,7 @@ export type {
   ChatEntityType,
   ResolveChatEntity,
 } from "./entity";
+export { entityIcon } from "./entity-visual";
 export {
   ChatThreadActionMenuItems,
   ChatThreadSidebar,
