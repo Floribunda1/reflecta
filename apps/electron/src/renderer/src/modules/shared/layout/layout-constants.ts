@@ -35,3 +35,7 @@ export const RESIZE_HANDLE_GRIP_CHILD_CLASS = "[&>div]:h-10 [&>div]:w-0.5 [&>div
 /** 细线把手：透明 hit area（w-3）+ after 细线，用于 dock 侧窄分隔 */
 export const RESIZE_HANDLE_SLIM_CLASS =
   "w-3 cursor-col-resize bg-transparent after:w-px after:bg-border hover:after:bg-border data-[resize-handle-active]:after:bg-ring [&>div]:h-10 [&>div]:w-0.5 [&>div]:bg-border";
+
+/** rail 与主区之间：只占 1px 线，热区用 after 叠在两侧，避免透明缝透出未染色的 vibrancy */
+export const RAIL_RESIZE_HANDLE_CLASS =
+  "w-px cursor-col-resize bg-border after:absolute after:inset-y-0 after:left-1/2 after:w-3 after:-translate-x-1/2 after:bg-transparent hover:bg-border data-[resize-handle-active]:bg-ring";

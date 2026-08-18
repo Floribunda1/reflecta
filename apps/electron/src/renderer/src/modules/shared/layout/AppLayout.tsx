@@ -5,7 +5,7 @@ import {
   ResizablePanelGroup,
 } from "@reflecta/ui/components/resizable";
 import { AppNavRail } from "./AppNavRail";
-import { RESIZE_HANDLE_SLIM_CLASS } from "./layout-constants";
+import { RAIL_RESIZE_HANDLE_CLASS } from "./layout-constants";
 import { RailMenuProvider } from "./rail-menu-context";
 import {
   MAX_RAIL_WIDTH_PX,
@@ -53,7 +53,7 @@ function AppShell() {
       >
         <AppNavRail />
       </ResizablePanel>
-      <ResizableHandle id="app-rail-resize-handle" className={RESIZE_HANDLE_SLIM_CLASS} />
+      <ResizableHandle id="app-rail-resize-handle" className={RAIL_RESIZE_HANDLE_CLASS} />
       <ResizablePanel id="app-main" minSize="40%" className="min-h-0 min-w-0">
         <AppMain />
       </ResizablePanel>
