@@ -443,6 +443,82 @@ test("@AG-RESULT-012 用户查看 Agent 回复中的 Mermaid 图表", async () =
   }
 });
 
+test("@AG-RESULT-016 用户从对话顶部查看已生成的知识条目", async () => {
+  seedAgentThread({
+    id: "result-artifact-panel",
+    title: "已生成内容",
+    messages: [
+      userMessage("result-artifact-panel-user", "查看已生成内容"),
+      assistantMessage("result-artifact-panel-assistant", [
+        proposalPart({
+          type: "understanding_create",
+          toolCallId: "artifact-understanding-tool",
+          title: "生成的理解",
+          state: "output-available",
+          output: {
+            resultRefType: "understanding",
+            resultRefId: "artifact-understanding",
+            resultRefTitle: "生成的理解",
+          },
+        }),
+        proposalPart({
+          type: "context_create",
+          toolCallId: "artifact-context-tool",
+          title: "生成的上下文",
+          state: "output-available",
+          output: {
+            resultRefType: "context",
+            resultRefId: "artifact-context",
+            resultRefTitle: "生成的上下文",
+          },
+        }),
+        proposalPart({
+          type: "domain_create",
+          toolCallId: "artifact-domain-tool",
+          title: "生成的领域",
+          state: "output-available",
+          output: {
+            resultRefType: "domain",
+            resultRefId: "artifact-domain",
+            resultRefTitle: "生成的领域",
+          },
+        }),
+      ]),
+    ],
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "已生成内容");
+    const toggle = page.getByTestId("artifact-panel-toggle");
+    await expect(toggle).toHaveAttribute("aria-label", "已生成 3 项");
+
+    await toggle.click();
+    const list = page.getByTestId("artifact-panel-list");
+    await expect(list).toBeVisible();
+    await expect(list.getByTestId("artifact-item-artifact-understanding")).toHaveAccessibleName(
+      "理解：生成的理解",
+    );
+    await expect(list.getByTestId("artifact-item-artifact-context")).toHaveAccessibleName(
+      "上下文：生成的上下文",
+    );
+    await expect(list.getByTestId("artifact-item-artifact-domain")).toHaveAccessibleName(
+      "领域：生成的领域",
+    );
+    await expect(
+      list.getByTestId("artifact-item-artifact-understanding").locator("svg"),
+    ).toHaveClass(/lucide-file-text/);
+    await expect(list.getByTestId("artifact-item-artifact-context").locator("svg")).toHaveClass(
+      /lucide-quote/,
+    );
+    await expect(list.getByTestId("artifact-item-artifact-domain").locator("svg")).toHaveClass(
+      /lucide-tags/,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
 test("@AG-RESULT-013 用户在思考进行中看到进行中状态和已用时间", async () => {
   test.skip(!hasAi, "requires REFLECTA_E2E_AI_API_KEY");
   test.setTimeout(180_000);
