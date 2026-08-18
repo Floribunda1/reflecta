@@ -37,8 +37,10 @@ export function PageTopBar({
           />
         </div>
       ) : null}
-      <div data-no-drag className="flex min-w-0 flex-1 items-center gap-2">
-        {children}
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <div data-no-drag className="flex min-w-0 items-center gap-2">
+          {children}
+        </div>
       </div>
       {actions ? (
         <div data-no-drag className="flex shrink-0 items-center gap-2">
