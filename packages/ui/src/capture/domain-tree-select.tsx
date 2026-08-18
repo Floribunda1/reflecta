@@ -112,7 +112,7 @@ export function DomainTreeSelect(props: DomainTreeSelectProps) {
       value={[...selectedIds]}
       onValueChange={changeValue}
       items={flatOptions.map((node) => node.id)}
-      itemToStringLabel={(id) => flatOptions.find((node) => node.id === id)?.label ?? id}
+      itemToStringLabel={(id) => labelById.get(id) ?? id}
     >
       <div
         ref={anchorRef}

@@ -28,14 +28,20 @@ export function isAgentActivityBlock(block: { kind: string }): block is AgentAct
   return block.kind === "reasoning" || block.kind === "tool-activity";
 }
 
+const IMAGE_MARKDOWN_PATTERN = /!\[[^\]]*]\([^)]*\)/g;
+const LINK_MARKDOWN_PATTERN = /\[([^\]]+)]\([^)]*\)/g;
+const HEADING_MARKDOWN_PATTERN = /^\s{0,3}(?:#{1,6}|[-*+])\s+/gm;
+const INLINE_MARKDOWN_PATTERN = /[*_~`]/g;
+const WHITESPACE_PATTERN = /\s+/g;
+
 export function reasoningSummary(markdown: string) {
   return (
     markdown
-      .replace(/!\[[^\]]*]\([^)]*\)/g, "")
-      .replace(/\[([^\]]+)]\([^)]*\)/g, "$1")
-      .replace(/^\s{0,3}(?:#{1,6}|[-*+])\s+/gm, "")
-      .replace(/[*_~`]/g, "")
-      .replace(/\s+/g, " ")
+      .replace(IMAGE_MARKDOWN_PATTERN, "")
+      .replace(LINK_MARKDOWN_PATTERN, "$1")
+      .replace(HEADING_MARKDOWN_PATTERN, "")
+      .replace(INLINE_MARKDOWN_PATTERN, "")
+      .replace(WHITESPACE_PATTERN, " ")
       .trim() || "思考过程"
   );
 }

@@ -30,19 +30,20 @@ export function DrawerProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const closingRef = useRef(false);
   const openFrameRef = useRef<number | null>(null);
+  // drawer 当前值镜像：closeDrawer 需要读取最新 drawer 触发 onClose，
+  // 但 onClose 必须在 state updater 之外调用（updater 在并发/StrictMode 下可能重复执行）。
+  const drawerRef = useRef<{ options: DrawerOptions; content: ReactNode } | null>(null);
 
   const closeDrawer = useCallback(() => {
     if (openFrameRef.current !== null) {
       cancelAnimationFrame(openFrameRef.current);
       openFrameRef.current = null;
     }
-    setDrawer((current) => {
-      if (current && !closingRef.current) {
-        current.options.onClose?.();
-        closingRef.current = true;
-      }
-      return current;
-    });
+    const current = drawerRef.current;
+    if (current && !closingRef.current) {
+      current.options.onClose?.();
+      closingRef.current = true;
+    }
     setOpen(false);
   }, []);
 
@@ -52,6 +53,7 @@ export function DrawerProvider({ children }: { children: ReactNode }) {
     if (openFrameRef.current !== null) cancelAnimationFrame(openFrameRef.current);
     closingRef.current = false;
     setOpen(false);
+    drawerRef.current = { options, content };
     setDrawer({ options, content });
     openFrameRef.current = requestAnimationFrame(() => {
       openFrameRef.current = null;
@@ -73,6 +75,7 @@ export function DrawerProvider({ children }: { children: ReactNode }) {
           onOpenChangeComplete={(isOpen) => {
             if (!isOpen && closingRef.current) {
               setDrawer(null);
+              drawerRef.current = null;
               closingRef.current = false;
             }
           }}

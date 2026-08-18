@@ -3,7 +3,14 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { ArrowUp, Brain, ChevronDown, FileText, Paperclip, Send, Square, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MutableRefObject,
+  type ReactNode,
+} from "react";
 import { cn } from "#lib/utils";
 import { attachmentMeta } from "#lib/file-meta";
 import { SPRING_SWAP } from "#lib/motion";
@@ -57,7 +64,7 @@ import { shouldApplyInitialEntities } from "./initial-entities";
 
 export type { ChatComposerSkill } from "./context-picker";
 
-export type ChatComposerAttachmentStatus = "queued" | "uploading" | "done" | "error";
+export type ChatComposerAttachmentStatus = "uploading" | "done" | "error";
 
 export type ChatComposerAttachment = {
   id: string;
@@ -201,14 +208,12 @@ function AttachmentPreview({
   const isImage = attachment.mediaType.startsWith("image/");
   const isPreviewableImage = status === "done" && isImage && Boolean(attachment.previewUrl);
   const [previewOpen, setPreviewOpen] = useState(false);
-  // status 的 queued 未实际使用；官方 state 用 idle 表达空态。
-  const state = status === "queued" ? ("idle" as const) : status;
   return (
     <>
       <Attachment
         data-testid="agent-attachment-preview"
         data-attachment-status={status}
-        state={state}
+        state={status}
         size="sm"
       >
         <AttachmentMedia variant={isImage && attachment.previewUrl ? "image" : "icon"}>
@@ -339,6 +344,19 @@ function useSkillSearch(skills: readonly ChatComposerSkill[]) {
   };
 }
 
+/** 发送按钮模式：stop（可停止）→ waiting（等用户决定）→ compacting/busy → send。 */
+function sendButtonMode(
+  status: ChatComposerStatus,
+  canStop: boolean,
+  submitting: boolean,
+): "stop" | "waiting" | "compacting" | "busy" | "send" {
+  if (status === "running" && canStop) return "stop";
+  if (status === "running") return "waiting";
+  if (status === "compacting") return "compacting";
+  if (status !== "idle" || submitting) return "busy";
+  return "send";
+}
+
 function ComposerSendButton({
   status,
   canStop,
@@ -355,34 +373,50 @@ function ComposerSendButton({
   onStop: () => void;
 }) {
   const busy = status !== "idle" || submitting;
-  const showStop = status === "running" && canStop;
-  const waiting = status === "running" && !canStop;
-  const compacting = status === "compacting";
 
-  const testId = showStop
-    ? "agent-stop-button"
-    : waiting || !busy
-      ? "agent-send-button"
-      : undefined;
-  const ariaLabel = showStop
-    ? "停止"
-    : waiting
-      ? "等待用户决定"
-      : compacting
-        ? "正在压缩上下文"
-        : busy
-          ? "Agent 正在响应"
-          : "发送";
-  const disabled = busy && !showStop ? true : !busy ? !canSubmit : false;
-  const handleClick = busy ? (showStop ? onStop : () => {}) : onSend;
-  const iconKey = showStop ? "stop" : waiting || !busy ? "send" : "loading";
-  const icon = showStop ? (
-    <Square className="size-3 fill-current" />
-  ) : waiting || !busy ? (
-    <ArrowUp className="size-4" />
-  ) : (
-    <Spinner />
-  );
+  // 按钮状态机：单一 mode 驱动派生，替代多组并列/嵌套三元。
+  const mode = sendButtonMode(status, canStop, submitting);
+  let testId: string | undefined;
+  let ariaLabel: string;
+  let handleClick: () => void;
+  let iconKey: string;
+  let icon: ReactNode;
+  switch (mode) {
+    case "stop":
+      testId = "agent-stop-button";
+      ariaLabel = "停止";
+      handleClick = onStop;
+      iconKey = "stop";
+      icon = <Square className="size-3 fill-current" />;
+      break;
+    case "waiting":
+      testId = "agent-send-button";
+      ariaLabel = "等待用户决定";
+      handleClick = () => {};
+      iconKey = "send";
+      icon = <ArrowUp className="size-4" />;
+      break;
+    case "compacting":
+      ariaLabel = "正在压缩上下文";
+      handleClick = () => {};
+      iconKey = "loading";
+      icon = <Spinner />;
+      break;
+    case "busy":
+      ariaLabel = "Agent 正在响应";
+      handleClick = () => {};
+      iconKey = "loading";
+      icon = <Spinner />;
+      break;
+    case "send":
+      testId = "agent-send-button";
+      ariaLabel = "发送";
+      handleClick = onSend;
+      iconKey = "send";
+      icon = <ArrowUp className="size-4" />;
+      break;
+  }
+  const disabled = mode === "stop" ? false : mode === "send" ? !canSubmit : true;
 
   return (
     <Button
@@ -414,6 +448,95 @@ function ComposerSendButton({
       </AnimatePresence>
     </Button>
   );
+}
+
+type TriggerSearch<T> = {
+  options: readonly T[];
+  start(query: string): void;
+  close(): void;
+};
+
+type TriggerRenderHandler = {
+  onStart(props: { query: string; command: (attrs: MentionAttrs) => void }): void;
+  onUpdate(props: { query: string; command: (attrs: MentionAttrs) => void }): void;
+  onExit(): void;
+  onKeyDown(props: { event: KeyboardEvent }): boolean;
+};
+
+/** @ 实体 / $ Skill 两种触发器共享的建议面板行为（onStart/onUpdate/onExit/onKeyDown）。
+ *  差异点（refs、tiptap 命令适配、选项→命令入参）由调用方以 config 注入。 */
+function createTriggerSuggestion<TOption, TCommand>(config: {
+  activeRef: MutableRefObject<boolean>;
+  commandRef: MutableRefObject<((value: TCommand) => void) | null>;
+  searchRef: MutableRefObject<TriggerSearch<TOption>>;
+  activeIndexRef: MutableRefObject<number>;
+  setActiveIndex: (updater: (index: number) => number) => void;
+  closeOther: () => void;
+  wrapCommand: (command: (attrs: MentionAttrs) => void) => (value: TCommand) => void;
+  toCommandValue: (option: TOption) => TCommand;
+  markKeyHandled: () => void;
+}) {
+  const runCommand = (option: TOption) => {
+    const command = config.commandRef.current;
+    if (!command) return;
+    command(config.toCommandValue(option));
+    config.activeRef.current = false;
+    config.searchRef.current.close();
+  };
+
+  const selectActive = () => {
+    const search = config.searchRef.current;
+    const option = search.options[config.activeIndexRef.current] ?? search.options[0];
+    const command = config.commandRef.current;
+    if (!option || !command) return false;
+    config.markKeyHandled();
+    runCommand(option);
+    return true;
+  };
+
+  return {
+    run: runCommand,
+    selectActive,
+    render: (): TriggerRenderHandler => ({
+      onStart: (props) => {
+        config.activeRef.current = true;
+        config.commandRef.current = config.wrapCommand(props.command);
+        config.closeOther();
+        config.setActiveIndex(() => 0);
+        config.searchRef.current.start(props.query);
+      },
+      onUpdate: (props) => {
+        config.activeRef.current = true;
+        config.commandRef.current = config.wrapCommand(props.command);
+        config.setActiveIndex(() => 0);
+        config.searchRef.current.start(props.query);
+      },
+      onExit: () => {
+        config.activeRef.current = false;
+        config.commandRef.current = null;
+        config.searchRef.current.close();
+      },
+      onKeyDown: ({ event }) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          config.activeRef.current = false;
+          config.searchRef.current.close();
+          return true;
+        }
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          event.preventDefault();
+          const step = event.key === "ArrowDown" ? 1 : -1;
+          config.setActiveIndex((index) =>
+            nextContextPickerIndex(index, config.searchRef.current.options.length, step),
+          );
+          return true;
+        }
+        if (event.key !== "Enter" && event.key !== "Tab") return false;
+        event.preventDefault();
+        return selectActive();
+      },
+    }),
+  };
 }
 
 export function ChatComposer({
@@ -488,34 +611,33 @@ export function ChatComposer({
     }, 0);
   };
 
-  const selectActiveEntity = () => {
-    const search = entitySearchRef.current;
-    const option = search.options[activeEntityIndexRef.current] ?? search.options[0];
-    const command = mentionCommandRef.current;
-    if (!option || !command) return false;
-    markMentionKeyHandled();
-    command({ id: entityKey(option), label: option.label });
-    mentionActiveRef.current = false;
-    search.close();
-    return true;
-  };
-
-  const selectActiveSkill = () => {
-    const search = skillSearchRef.current;
-    const option = search.options[activeSkillIndexRef.current] ?? search.options[0];
-    const command = skillCommandRef.current;
-    if (!option || !command) return false;
-    markMentionKeyHandled();
-    command(option);
-    skillActiveRef.current = false;
-    search.close();
-    return true;
-  };
+  const mentionTrigger = createTriggerSuggestion<ChatComposerEntityOption, MentionAttrs>({
+    activeRef: mentionActiveRef,
+    commandRef: mentionCommandRef,
+    searchRef: entitySearchRef,
+    activeIndexRef: activeEntityIndexRef,
+    setActiveIndex: setActiveEntityIndex,
+    closeOther: () => skillSearchRef.current.close(),
+    wrapCommand: (command) => command,
+    toCommandValue: (option) => ({ id: entityKey(option), label: option.label }),
+    markKeyHandled: markMentionKeyHandled,
+  });
+  const skillTrigger = createTriggerSuggestion<ChatComposerSkill, ChatComposerSkill>({
+    activeRef: skillActiveRef,
+    commandRef: skillCommandRef,
+    searchRef: skillSearchRef,
+    activeIndexRef: activeSkillIndexRef,
+    setActiveIndex: setActiveSkillIndex,
+    closeOther: () => entitySearchRef.current.close(),
+    wrapCommand: (command) => (skill) => command(skill as unknown as MentionAttrs),
+    toCommandValue: (skill) => skill,
+    markKeyHandled: markMentionKeyHandled,
+  });
 
   const selectActiveSuggestion = () =>
     skillActiveRef.current || skillSearchRef.current.open
-      ? selectActiveSkill()
-      : selectActiveEntity();
+      ? skillTrigger.selectActive()
+      : mentionTrigger.selectActive();
 
   const editor = useEditor(
     {
@@ -571,45 +693,7 @@ export function ChatComposer({
                   ])
                   .run();
               },
-              render: () => ({
-                onStart: (props) => {
-                  mentionActiveRef.current = true;
-                  mentionCommandRef.current = props.command;
-                  skillSearchRef.current.close();
-                  setActiveEntityIndex(0);
-                  entitySearchRef.current.start(props.query);
-                },
-                onUpdate: (props) => {
-                  mentionActiveRef.current = true;
-                  mentionCommandRef.current = props.command;
-                  setActiveEntityIndex(0);
-                  entitySearchRef.current.start(props.query);
-                },
-                onExit: () => {
-                  mentionActiveRef.current = false;
-                  mentionCommandRef.current = null;
-                  entitySearchRef.current.close();
-                },
-                onKeyDown: ({ event }) => {
-                  if (event.key === "Escape") {
-                    event.preventDefault();
-                    mentionActiveRef.current = false;
-                    entitySearchRef.current.close();
-                    return true;
-                  }
-                  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                    event.preventDefault();
-                    const step = event.key === "ArrowDown" ? 1 : -1;
-                    setActiveEntityIndex((index) =>
-                      nextContextPickerIndex(index, entitySearchRef.current.options.length, step),
-                    );
-                    return true;
-                  }
-                  if (event.key !== "Enter" && event.key !== "Tab") return false;
-                  event.preventDefault();
-                  return selectActiveEntity();
-                },
-              }),
+              render: mentionTrigger.render,
             },
             {
               char: "$",
@@ -625,47 +709,7 @@ export function ChatComposer({
                   .insertContentAt(range, { type: "text", text: `$${skill.name} ` })
                   .run();
               },
-              render: () => ({
-                onStart: (props) => {
-                  skillActiveRef.current = true;
-                  skillCommandRef.current = (skill) =>
-                    props.command(skill as unknown as MentionAttrs);
-                  entitySearchRef.current.close();
-                  setActiveSkillIndex(0);
-                  skillSearchRef.current.start(props.query);
-                },
-                onUpdate: (props) => {
-                  skillActiveRef.current = true;
-                  skillCommandRef.current = (skill) =>
-                    props.command(skill as unknown as MentionAttrs);
-                  setActiveSkillIndex(0);
-                  skillSearchRef.current.start(props.query);
-                },
-                onExit: () => {
-                  skillActiveRef.current = false;
-                  skillCommandRef.current = null;
-                  skillSearchRef.current.close();
-                },
-                onKeyDown: ({ event }) => {
-                  if (event.key === "Escape") {
-                    event.preventDefault();
-                    skillActiveRef.current = false;
-                    skillSearchRef.current.close();
-                    return true;
-                  }
-                  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                    event.preventDefault();
-                    const step = event.key === "ArrowDown" ? 1 : -1;
-                    setActiveSkillIndex((index) =>
-                      nextContextPickerIndex(index, skillSearchRef.current.options.length, step),
-                    );
-                    return true;
-                  }
-                  if (event.key !== "Enter" && event.key !== "Tab") return false;
-                  event.preventDefault();
-                  return selectActiveSkill();
-                },
-              }),
+              render: skillTrigger.render,
             },
           ],
         }),
@@ -868,18 +912,6 @@ export function ChatComposer({
   };
   sendRef.current = () => void submit();
 
-  const selectEntity = (option: ChatComposerEntityOption) => {
-    mentionCommandRef.current?.({ id: entityKey(option), label: option.label });
-    mentionActiveRef.current = false;
-    entitySearchRef.current.close();
-  };
-
-  const selectSkill = (skill: ChatComposerSkill) => {
-    skillCommandRef.current?.(skill);
-    skillActiveRef.current = false;
-    skillSearchRef.current.close();
-  };
-
   const busy = status !== "idle" || submitting;
   const canSubmit =
     Boolean(
@@ -907,7 +939,7 @@ export function ChatComposer({
           <ChatSkillPicker
             options={skillSearch.options}
             activeName={skillSearch.options[activeSkillIndex]?.name}
-            onSelect={selectSkill}
+            onSelect={skillTrigger.run}
             onCancel={() => {
               skillActiveRef.current = false;
               skillSearchRef.current.close();
@@ -918,7 +950,7 @@ export function ChatComposer({
             state={entitySearch.state}
             options={entitySearch.options}
             activeId={activeEntity ? entityKey(activeEntity) : undefined}
-            onSelect={selectEntity}
+            onSelect={mentionTrigger.run}
             onCancel={() => {
               mentionActiveRef.current = false;
               entitySearchRef.current.close();
