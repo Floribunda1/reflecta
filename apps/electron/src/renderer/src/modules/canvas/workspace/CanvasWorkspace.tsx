@@ -269,8 +269,15 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
       const graph = graphRef.current?.graph;
       if (!graph) return;
-      const selected = useCanvasStore.getState().selection;
-      selected.forEach((id) => graph.getCellById(id)?.remove());
+      const selected = new Set([
+        ...useCanvasStore.getState().selection,
+        ...graph.getSelectedCells().map((cell) => cell.id),
+      ]);
+      const cells = [...selected]
+        .map((id) => graph.getCellById(id))
+        .filter((cell): cell is import("@antv/x6").Cell => Boolean(cell));
+      cells.filter((cell) => cell.isEdge()).forEach((cell) => graph.findViewByCell(cell)?.remove());
+      graph.removeCells(cells);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);

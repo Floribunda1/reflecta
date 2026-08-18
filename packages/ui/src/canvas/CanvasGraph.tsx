@@ -1,14 +1,6 @@
-import { Graph, History, MiniMap, Edge, Snapline } from "@antv/x6";
-import { getProvider } from "@antv/x6-react-shape";
+import { Edge, Graph, History, MiniMap, Selection, Snapline, Transform } from "@antv/x6";
 import "./canvas-edges.css";
-import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, type CSSProperties } from "react";
 import type { CanvasDocument, CanvasViewport } from "./document";
 import {
   documentToGraphData,
@@ -37,8 +29,6 @@ import { shapeNameForKind } from "./shapes/shape-registry";
  * 注意：`document` prop 是「初始 / 外部」数据源；X6 手势后的内部状态经事件桥流出，
  * 不回流到 prop（防循环）。工作区以 `key={canvasId}` 重挂载切换画布。
  */
-
-const PORTAL_PROVIDER = getProvider() as React.FC<{ children?: ReactNode }>;
 
 export type CanvasGraphHandle = {
   get graph(): Graph | null;
@@ -145,7 +135,10 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
         },
         // 仅嵌入可视化
         highlighting: {
-          embedding: { name: "stroke", args: { padding: -1, attrs: { stroke: "#8f8f8f" } } },
+          embedding: {
+            name: "stroke",
+            args: { padding: -1, attrs: { stroke: "#8f8f8f" } },
+          },
         },
         connecting: {
           snap: { radius: 12 },
@@ -158,7 +151,10 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
           highlight: true,
           validateEdge: () => true,
           createEdge: () =>
-            new Edge({ data: newEdgeDto(canvasId), attrs: DEFAULT_EDGE_LINE_ATTRS }),
+            new Edge({
+              data: newEdgeDto(canvasId),
+              attrs: DEFAULT_EDGE_LINE_ATTRS,
+            }),
         },
       });
 
@@ -183,6 +179,21 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
       // 撤销重做（M7-2，会话内；Phase 1 起启用，覆盖全部变更类型）
       if (!readonly) {
         graph.use(new History({ enabled: true }));
+        graph.use(
+          new Selection({
+            enabled: true,
+            multiple: true,
+            rubberband: false,
+            movable: true,
+            showNodeSelectionBox: true,
+            showEdgeSelectionBox: true,
+          }),
+        );
+        graph.use(
+          new Transform({
+            resizing: { enabled: true, minWidth: 80, minHeight: 60 },
+          }),
+        );
       }
 
       // Phase 4 编辑插件：
@@ -203,6 +214,8 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
       // 左→右（往右下拖）strict 全包含；右→左（其它方向）相交即选；Shift 追加多选。
       let marqueeActive = false;
       let shiftHeld = false;
+      let suppressNextClick = false;
+      let transformNodeId: string | null = null;
       let marqueeBox: HTMLDivElement | null = null;
       let startClient = { x: 0, y: 0 };
       const onCreateMarqueeBox = () => {
@@ -229,10 +242,18 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
         globalThis.document.removeEventListener("mouseup", onMarqueeEnd, true);
         marqueeBox?.remove();
         marqueeBox = null;
+        suppressNextClick = true;
+        setTimeout(() => {
+          suppressNextClick = false;
+        }, 100);
         if (
           Math.abs(event.clientX - startClient.x) < 3 &&
           Math.abs(event.clientY - startClient.y) < 3
         ) {
+          graph.resetSelection([]);
+          transformNodeId = null;
+          graph.clearTransformWidgets();
+          onSelectionChangeRef.current?.([]);
           return; // 视为点击空白，取消选择
         }
         const p1 = graph.clientToLocal({ x: startClient.x, y: startClient.y });
@@ -242,10 +263,13 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
         const minY = Math.min(p1.y, p2.y);
         const maxX = Math.max(p1.x, p2.x);
         const maxY = Math.max(p1.y, p2.y);
-        const rect = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+        const rect = {
+          x: minX,
+          y: minY,
+          width: maxX - minX,
+          height: maxY - minY,
+        };
         const cells = graph.getNodesInArea(rect as never, { strict });
-        // eslint-disable-next-line no-console
-        console.log("[p4m]", "cells", cells.length, cells.map((c) => c.id.slice(0, 5)).join(","));
         let ids: string[];
         if (!shiftHeld) {
           ids = cells.map((c) => c.id);
@@ -257,13 +281,39 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
         graph.resetSelection(ids);
         onSelectionChangeRef.current?.(ids);
       };
+      const showTransformWidget = (cell: import("@antv/x6").Cell) => {
+        if (!cell.isNode()) return;
+        const locked = (cell.getData() as { props?: { locked?: boolean } } | undefined)?.props
+          ?.locked;
+        if (locked) {
+          clearTransformWidget();
+          return;
+        }
+        if (transformNodeId === cell.id) return;
+        transformNodeId = cell.id;
+        graph.createTransformWidget(cell as import("@antv/x6").Node);
+      };
+      const scheduleTransformWidget = (cell: import("@antv/x6").Cell) => {
+        globalThis.requestAnimationFrame(() => showTransformWidget(cell));
+      };
+      const clearTransformWidget = () => {
+        transformNodeId = null;
+        graph.clearTransformWidgets();
+      };
       // 用容器级 mousedown 代替 `blank:mousedown`（关闭左键平移后后者不触发）：
       // 命中空白（非 node / edge / 其它交互层）才启动框选。
       const onContainerMouseDown = (event: MouseEvent) => {
+        if (event.button === 2) {
+          clearTransformWidget();
+          return;
+        }
         if (!marqueeActive && event.button === 0) {
           const target = event.target as Element | null;
-          const hit = target?.closest(".x6-node, .x6-edge, .x6-cell, button, input");
+          const hit = target?.closest(
+            ".x6-node, .x6-edge, .x6-cell, .x6-widget-selection, .x6-widget-transform, button, input",
+          );
           if (!hit) {
+            event.stopPropagation();
             shiftHeld = event.shiftKey;
             marqueeActive = true;
             startClient = { x: event.clientX, y: event.clientY };
@@ -274,26 +324,63 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
         }
       };
       container.addEventListener("mousedown", onContainerMouseDown, true);
+      const onContainerClick = (event: MouseEvent) => {
+        if (suppressNextClick) {
+          event.stopPropagation();
+          return;
+        }
+        const target = event.target as Element | null;
+        if (target?.closest(".x6-widget-selection, button, input")) return;
+        const isEdgeTarget = Boolean(target?.closest(".x6-edge"));
+        const isNodeTarget = Boolean(target?.closest(".x6-node"));
+        const point = graph.clientToLocal({
+          x: event.clientX,
+          y: event.clientY,
+        });
+        const views = graph.findViewsFromPoint(point);
+        const edgeView = graph.renderer.findEdgeViewsFromPoint(point, 12)[0];
+        const view =
+          isEdgeTarget || (!isNodeTarget && edgeView)
+            ? edgeView
+            : views.find(({ cell }) => cell.isNode());
+        if (!view) {
+          graph.resetSelection([]);
+          clearTransformWidget();
+          onSelectionChangeRef.current?.([]);
+          return;
+        }
+        graph.resetSelection([view.cell.id]);
+        showTransformWidget(view.cell);
+        onSelectionChangeRef.current?.([view.cell.id]);
+      };
+      container.addEventListener("click", onContainerClick, true);
 
       // 事件桥：变更 → 全量文档回写（T3）
       const emitDocument = () => {
         if (bridgeRef.current.loading || readonly) return;
         onDocumentChangeRef.current?.(graphToDocument(graph));
       };
-      const emitSelection = (cellId: string) => {
+      const emitCurrentSelection = () => {
         if (readonly) return;
-        onSelectionChangeRef.current?.([cellId]);
+        onSelectionChangeRef.current?.(graph.getSelectedCells().map((cell) => cell.id));
       };
       const emitViewport = () => {
         if (bridgeRef.current.loading || readonly) return;
         const zoom = graph.zoom();
         const translation = graph.translate();
-        onViewportChangeRef.current?.({ x: translation.tx, y: translation.ty, zoom });
+        onViewportChangeRef.current?.({
+          x: translation.tx,
+          y: translation.ty,
+          zoom,
+        });
       };
 
       graph.on("node:change:*", emitDocument);
       graph.on("edge:change:*", emitDocument);
       graph.on("node:added", emitDocument);
+      graph.on("node:added", ({ node }: { node: import("@antv/x6").Node }) => {
+        if (!readonly) scheduleTransformWidget(node);
+      });
       graph.on("node:removed", emitDocument);
       graph.on("edge:added", emitDocument);
       graph.on("edge:removed", emitDocument);
@@ -303,12 +390,18 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
       graph.on("remove", emitDocument);
       graph.on("edge:connected", emitDocument);
       graph.on("edge:connective", emitDocument);
-      graph.on("node:click", ({ cell }: { cell: import("@antv/x6").Cell }) =>
-        emitSelection(cell.id),
-      );
-      graph.on("edge:click", ({ cell }: { cell: import("@antv/x6").Cell }) =>
-        emitSelection(cell.id),
-      );
+      graph.on("cell:selected", emitCurrentSelection);
+      graph.on("cell:unselected", emitCurrentSelection);
+      graph.on("node:click", ({ cell }: { cell: import("@antv/x6").Cell }) => {
+        graph.resetSelection([cell.id]);
+        showTransformWidget(cell);
+        onSelectionChangeRef.current?.([cell.id]);
+      });
+      graph.on("edge:click", ({ cell }: { cell: import("@antv/x6").Cell }) => {
+        graph.resetSelection([cell.id]);
+        clearTransformWidget();
+        onSelectionChangeRef.current?.([cell.id]);
+      });
       graph.on("edge:dblclick", ({ cell }: { cell: import("@antv/x6").Cell }) => {
         if (readonly) return;
         onEdgeDblClickRef.current?.(cell.id);
@@ -407,6 +500,8 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
       edgeObserver.observe(container, { childList: true, subtree: true });
 
       return () => {
+        container.removeEventListener("mousedown", onContainerMouseDown, true);
+        container.removeEventListener("click", onContainerClick, true);
         edgeObserver.disconnect();
         if (edgeObserveTimer) clearTimeout(edgeObserveTimer);
         minimapRef.current?.dispose();
@@ -509,8 +604,6 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
     return (
       <CanvasShapeDataProvider value={shapeData}>
         <div ref={containerRef} className={className} style={style} data-testid="canvas-graph" />
-        {/* react-shape 节点通过 portal 渲染进 SVG 的 foreignObject；PortalProvider 只承载 portal（不渲染 children） */}
-        <PORTAL_PROVIDER />
       </CanvasShapeDataProvider>
     );
   },
