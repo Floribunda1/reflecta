@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { PageTopBar } from "@renderer/modules/shared/layout/PageTopBar";
 import { ArrowDown, ChevronDown, ChevronUp, MoreHorizontal, X } from "lucide-react";
 import type {
@@ -25,6 +26,9 @@ import { Input } from "@reflecta/ui/components/input";
 import { useDebounce, useMemoizedFn } from "ahooks";
 import { toast } from "sonner";
 import { AgentChatComposer } from "./adapters/chat-composer-adapter";
+import { ArtifactPanel } from "./artifact-panel";
+import { buildArtifactPanelView, type LandedArtifact } from "./session/artifact-panel";
+import { useCaptureStore } from "../capture/store";
 import type { InspectableContextRef } from "./context/context-reference";
 import type { ApproveToolInput } from "./adapters/chat-message-adapter";
 import { activateChatFindMarker, type ChatFindMarkerMatch } from "./messages/chat-find-highlight";
@@ -74,6 +78,22 @@ export function AgentThreadPanel({
   onInspectContextRef,
 }: AgentThreadPanelProps) {
   const threadView = useAgentThreadView(threadId, scrollRequest);
+  const navigate = useNavigate();
+  const artifactView = useMemo(
+    () => buildArtifactPanelView(threadView.visibleMessages),
+    [threadView.visibleMessages],
+  );
+  const openArtifact = useMemoizedFn((artifact: LandedArtifact) => {
+    if (artifact.type === "understanding" || artifact.type === "context") {
+      onInspectContextRef?.({ type: artifact.type, id: artifact.id });
+      return;
+    }
+    if (artifact.type === "domain") {
+      useCaptureStore.getState().selectDomain(artifact.id);
+      navigate("/capture");
+    }
+    // canvas：画布工具未落地前不会出现该类型行；落地后接画布模块编辑模式（C13）。
+  });
   const modelOptionsQuery = useAgentModelOptionsQuery();
   const selectModelMutation = useSelectAgentModelMutation();
   const selectReasoningLevelMutation = useSelectAgentReasoningLevelMutation();
@@ -154,6 +174,7 @@ export function AgentThreadPanel({
           <AgentThreadTitle title={header.title} onRename={header.onRename} />
         </PageTopBar>
       ) : null}
+      <ArtifactPanel view={artifactView} onOpen={openArtifact} />
       <div className="relative min-h-0 flex-1">
         <ThreadFindBox
           messages={threadView.visibleMessages}
