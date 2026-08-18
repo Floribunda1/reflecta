@@ -35,12 +35,16 @@ import {
 const CARD_ROW_ESTIMATE_PX = 188;
 const CARD_ROW_GAP_PX = 12;
 const CARD_ROW_OVERSCAN = 3;
-/** 与行上 px-4 对齐；列宽按去掉左右 padding 后的内容区算。 */
-const CARD_GRID_PADDING_X_PX = 16;
+/** 行左 pl-4。右边滚动条占 10px（globals ::-webkit-scrollbar），pr 只留 6px，视觉上左右都是 16px。 */
+const CARD_GRID_PADDING_LEFT_PX = 16;
+const CARD_GRID_PADDING_RIGHT_PX = 6;
 
 function useCaptureGridColumnCount(containerRef: RefObject<HTMLElement | null>) {
   const size = useSize(containerRef);
-  const contentWidth = Math.max(0, (size?.width ?? 0) - CARD_GRID_PADDING_X_PX * 2);
+  const contentWidth = Math.max(
+    0,
+    (size?.width ?? 0) - CARD_GRID_PADDING_LEFT_PX - CARD_GRID_PADDING_RIGHT_PX,
+  );
   return captureGridColumnCount(contentWidth);
 }
 
@@ -213,7 +217,7 @@ export function CaptureCardGrid({
                 key={virtualRow.key}
                 data-index={virtualRow.index}
                 ref={rowVirtualizer.measureElement}
-                className="absolute top-0 left-0 grid w-full gap-3 px-4"
+                className="absolute top-0 left-0 grid w-full gap-3 pl-4 pr-1.5"
                 style={{
                   transform: `translateY(${virtualRow.start}px)`,
                   gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
