@@ -2,11 +2,12 @@ import { ipcClient } from "@renderer/utils/ipc";
 import type {
   CanvasDTO,
   CanvasDetailDTO,
-  CanvasDocument,
+  CanvasDocument as ServerCanvasDocument,
   CreateCanvasInput,
   UpdateCanvasInput,
   Viewport,
 } from "@reflecta/server";
+import type { CanvasDocument as CanvasDocumentContract } from "@reflecta/ui/canvas";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
 /**
@@ -79,13 +80,23 @@ export function useDeleteCanvasMutation() {
   });
 }
 
-/** 文档级全量写（T3）：X6 变更防抖后提交；invalidate list 保持「最近活跃排序」新鲜。 */
+/** 文档级全量写（T3）：X6 变更防抖后提交；invalidate list 保持「最近活跃排序」新鲜，
+ * 并 invalidate detail（M3-A6 引用同步：新拖入的理解引用随详情刷新补全正文）。
+ * 入参用 ui 契约类型（X6 层零映射），边界处结构一致直接透传（server 的
+ * understanding/canvas_ref props 类型带有 Record<string, never> 历史包袱）。 */
 export function useSaveCanvasMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ canvasId, document }: { canvasId: string; document: CanvasDocument }) =>
-      ipcClient.understandingCanvas.saveCanvas(canvasId, document),
-    onSuccess: () => invalidateCanvasList(queryClient),
+    mutationFn: ({ canvasId, document }: { canvasId: string; document: CanvasDocumentContract }) =>
+      ipcClient.understandingCanvas.saveCanvas(
+        canvasId,
+        document as unknown as ServerCanvasDocument,
+      ),
+    onSuccess: (_result, { canvasId }) =>
+      Promise.all([
+        invalidateCanvasList(queryClient),
+        invalidateCanvasDetail(queryClient, canvasId),
+      ]),
   });
 }
 

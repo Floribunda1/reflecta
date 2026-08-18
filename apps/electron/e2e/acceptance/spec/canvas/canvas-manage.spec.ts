@@ -16,9 +16,9 @@ test("@CV-CANVAS-001 无画布时用户看到引导并可创建第一张画布",
     await expect(page.getByText("还没有画布")).toBeVisible();
 
     await page.getByTestId("canvas-empty-create-button").click();
-    await expect(page.getByTestId("canvas-entry-page")).toBeVisible();
+    await expect(page.getByTestId("canvas-workspace")).toBeVisible();
 
-    await page.getByTestId("canvas-entry-back-button").click();
+    await page.getByTestId("canvas-workspace-back-button").click();
     await expect(canvasRow(page, "未命名画布")).toBeVisible();
   } finally {
     await app.close();
@@ -31,9 +31,9 @@ test("@CV-CANVAS-002 用户新建画布", async () => {
   try {
     await openCanvasPage(page);
     await page.getByTestId("canvas-create-button").click();
-    await expect(page.getByTestId("canvas-entry-page")).toBeVisible();
+    await expect(page.getByTestId("canvas-workspace")).toBeVisible();
 
-    await page.getByTestId("canvas-entry-back-button").click();
+    await page.getByTestId("canvas-workspace-back-button").click();
     await expect(canvasRow(page, "未命名画布")).toBeVisible();
   } finally {
     await app.close();

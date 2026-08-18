@@ -1,494 +1,1218 @@
 <!doctype html>
 <html lang="zh-CN">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>常驻实时仪表盘（首页概览）模块调研报告 · Reflecta</title>
-<style>
-  :root {
-    --ink: #1a1a1a; --muted: #6b6b6b; --line: #d9d9d9; --bg: #ffffff;
-    --panel: #f6f6f4; --accent: #0f6e4f; --warn: #9a6a00; --danger: #a33;
-  }
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body {
-    margin: 0; background: var(--bg); color: var(--ink);
-    font: 15px/1.7 -apple-system, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
-  }
-  header.site { border-bottom: 1px solid var(--line); padding: 28px 20px 20px; background: var(--panel); }
-  header.site h1 { margin: 0 0 6px; font-size: 22px; line-height: 1.3; }
-  .meta { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 18px; }
-  .disclaimer { margin-top: 12px; font-size: 12px; color: var(--muted); }
-  nav.toc {
-    position: sticky; top: 0; z-index: 10; background: var(--bg);
-    border-bottom: 1px solid var(--line); padding: 8px 20px; overflow-x: auto; white-space: nowrap;
-  }
-  nav.toc a { color: var(--accent); text-decoration: none; font-size: 13px; margin-right: 16px; }
-  nav.toc a:hover { text-decoration: underline; }
-  a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  main { max-width: 960px; margin: 0 auto; padding: 8px 20px 60px; }
-  section { margin-top: 40px; }
-  h2 { font-size: 19px; margin: 0 0 12px; padding-top: 8px; }
-  h3 { font-size: 16px; margin: 26px 0 10px; }
-  p { margin: 8px 0; }
-  .lede { border-left: 4px solid var(--accent); background: var(--panel); padding: 12px 16px; margin: 14px 0; }
-  .callout { border-left: 4px solid var(--warn); background: #fbf6ec; padding: 10px 14px; margin: 14px 0; font-size: 14px; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
-  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
-  th, td { border: 1px solid var(--line); padding: 7px 9px; text-align: left; vertical-align: top; }
-  th { background: var(--panel); font-weight: 600; }
-  td.prod { font-weight: 600; white-space: nowrap; }
-  .tag { display: inline-block; font-size: 11px; padding: 1px 6px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); margin: 0 4px 4px 0; }
-  details { border: 1px solid var(--line); border-radius: 6px; margin: 10px 0; background: var(--bg); }
-  details > summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: 14px; list-style: none; }
-  details > summary::before { content: "▸ "; color: var(--muted); }
-  details[open] > summary::before { content: "▾ "; }
-  details > .body { padding: 2px 16px 14px; }
-  .prodgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 12px; }
-  .prodcard { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; font-size: 13.5px; transition: opacity .15s; }
-  .prodcard.hidden { display: none; }
-  .prodcard h4 { margin: 0 0 8px; font-size: 15px; }
-  .prodcard .p { margin: 4px 0; }
-  .prodcard .k { color: var(--muted); font-size: 12px; display: block; margin-top: 8px; }
-  .filterbar { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 12px 0; background: var(--panel); font-size: 13px; }
-  .filterbar .lbl { font-weight: 600; margin-right: 8px; }
-  .filterbar label { display: inline-block; margin: 2px 10px 2px 0; white-space: nowrap; cursor: pointer; }
-  .filterbar input { margin-right: 4px; accent-color: var(--accent); }
-  .shapebox { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 10px 0; }
-  .shapebox h4 { margin: 0 0 4px; font-size: 15px; }
-  .shapebox p { margin: 4px 0; font-size: 14px; }
-  ol.action { padding-left: 20px; }
-  .narrow { font-size: 13px; color: var(--muted); }
-  @media (max-width: 640px) {
-    table.stack { display: block; }
-    table.stack thead { display: none; }
-    table.stack tbody { display: block; }
-    table.stack tr { display: block; border: 1px solid var(--line); border-radius: 6px; margin: 8px 0; padding: 6px 8px; }
-    table.stack td { display: block; border: none; padding: 3px 0; }
-    table.stack td.prod { white-space: normal; }
-    table.stack td::before { content: attr(data-label); display: block; font-size: 11px; color: var(--muted); font-weight: 600; }
-  }
-  @media print {
-    nav.toc, .filterbar { display: none; }
-    details { border: none; }
-    details > summary { list-style: none; }
-    details > summary::before { content: ""; }
-    details > .body { padding: 4px 0 8px; }
-    main { max-width: none; }
-    section, .shapebox, .prodcard { break-inside: avoid; }
-  }
-</style>
-</head>
-<body>
-<header class="site">
-  <h1>常驻实时仪表盘（首页概览）模块调研报告</h1>
-  <div class="meta">
-    <span>日期：2026-08-17</span>
-    <span>覆盖：16 个产品 / 4 种形态</span>
-    <span>来源：官方帮助中心与文档为主</span>
-  </div>
-  <div class="disclaimer">AI-generated. Verify critical decisions independently.<br>本报告只汇总行业事实与规律，不对 Reflecta 首页 Dashboard「应该做成什么样」给出建议。</div>
-</header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>常驻实时仪表盘（首页概览）模块调研报告 · Reflecta</title>
+    <style>
+      :root {
+        --ink: #1a1a1a;
+        --muted: #6b6b6b;
+        --line: #d9d9d9;
+        --bg: #ffffff;
+        --panel: #f6f6f4;
+        --accent: #0f6e4f;
+        --warn: #9a6a00;
+        --danger: #a33;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.7 -apple-system,
+          "PingFang SC",
+          "Noto Sans CJK SC",
+          "Microsoft YaHei",
+          sans-serif;
+      }
+      header.site {
+        border-bottom: 1px solid var(--line);
+        padding: 28px 20px 20px;
+        background: var(--panel);
+      }
+      header.site h1 {
+        margin: 0 0 6px;
+        font-size: 22px;
+        line-height: 1.3;
+      }
+      .meta {
+        color: var(--muted);
+        font-size: 13px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 18px;
+      }
+      .disclaimer {
+        margin-top: 12px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      nav.toc {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: var(--bg);
+        border-bottom: 1px solid var(--line);
+        padding: 8px 20px;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+      nav.toc a {
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 13px;
+        margin-right: 16px;
+      }
+      nav.toc a:hover {
+        text-decoration: underline;
+      }
+      a:focus-visible,
+      button:focus-visible,
+      summary:focus-visible,
+      input:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 8px 20px 60px;
+      }
+      section {
+        margin-top: 40px;
+      }
+      h2 {
+        font-size: 19px;
+        margin: 0 0 12px;
+        padding-top: 8px;
+      }
+      h3 {
+        font-size: 16px;
+        margin: 26px 0 10px;
+      }
+      p {
+        margin: 8px 0;
+      }
+      .lede {
+        border-left: 4px solid var(--accent);
+        background: var(--panel);
+        padding: 12px 16px;
+        margin: 14px 0;
+      }
+      .callout {
+        border-left: 4px solid var(--warn);
+        background: #fbf6ec;
+        padding: 10px 14px;
+        margin: 14px 0;
+        font-size: 14px;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      @media (max-width: 720px) {
+        .grid2 {
+          grid-template-columns: 1fr;
+        }
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0;
+        font-size: 14px;
+      }
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 7px 9px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: var(--panel);
+        font-weight: 600;
+      }
+      td.prod {
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .tag {
+        display: inline-block;
+        font-size: 11px;
+        padding: 1px 6px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        color: var(--muted);
+        margin: 0 4px 4px 0;
+      }
+      details {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        margin: 10px 0;
+        background: var(--bg);
+      }
+      details > summary {
+        cursor: pointer;
+        padding: 10px 14px;
+        font-weight: 600;
+        font-size: 14px;
+        list-style: none;
+      }
+      details > summary::before {
+        content: "▸ ";
+        color: var(--muted);
+      }
+      details[open] > summary::before {
+        content: "▾ ";
+      }
+      details > .body {
+        padding: 2px 16px 14px;
+      }
+      .prodgrid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .prodcard {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-size: 13.5px;
+        transition: opacity 0.15s;
+      }
+      .prodcard.hidden {
+        display: none;
+      }
+      .prodcard h4 {
+        margin: 0 0 8px;
+        font-size: 15px;
+      }
+      .prodcard .p {
+        margin: 4px 0;
+      }
+      .prodcard .k {
+        color: var(--muted);
+        font-size: 12px;
+        display: block;
+        margin-top: 8px;
+      }
+      .filterbar {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin: 12px 0;
+        background: var(--panel);
+        font-size: 13px;
+      }
+      .filterbar .lbl {
+        font-weight: 600;
+        margin-right: 8px;
+      }
+      .filterbar label {
+        display: inline-block;
+        margin: 2px 10px 2px 0;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .filterbar input {
+        margin-right: 4px;
+        accent-color: var(--accent);
+      }
+      .shapebox {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin: 10px 0;
+      }
+      .shapebox h4 {
+        margin: 0 0 4px;
+        font-size: 15px;
+      }
+      .shapebox p {
+        margin: 4px 0;
+        font-size: 14px;
+      }
+      ol.action {
+        padding-left: 20px;
+      }
+      .narrow {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      @media (max-width: 640px) {
+        table.stack {
+          display: block;
+        }
+        table.stack thead {
+          display: none;
+        }
+        table.stack tbody {
+          display: block;
+        }
+        table.stack tr {
+          display: block;
+          border: 1px solid var(--line);
+          border-radius: 6px;
+          margin: 8px 0;
+          padding: 6px 8px;
+        }
+        table.stack td {
+          display: block;
+          border: none;
+          padding: 3px 0;
+        }
+        table.stack td.prod {
+          white-space: normal;
+        }
+        table.stack td::before {
+          content: attr(data-label);
+          display: block;
+          font-size: 11px;
+          color: var(--muted);
+          font-weight: 600;
+        }
+      }
+      @media print {
+        nav.toc,
+        .filterbar {
+          display: none;
+        }
+        details {
+          border: none;
+        }
+        details > summary {
+          list-style: none;
+        }
+        details > summary::before {
+          content: "";
+        }
+        details > .body {
+          padding: 4px 0 8px;
+        }
+        main {
+          max-width: none;
+        }
+        section,
+        .shapebox,
+        .prodcard {
+          break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site">
+      <h1>常驻实时仪表盘（首页概览）模块调研报告</h1>
+      <div class="meta">
+        <span>日期：2026-08-17</span>
+        <span>覆盖：16 个产品 / 4 种形态</span>
+        <span>来源：官方帮助中心与文档为主</span>
+      </div>
+      <div class="disclaimer">
+        AI-generated. Verify critical decisions independently.<br />本报告只汇总行业事实与规律，不对
+        Reflecta 首页 Dashboard「应该做成什么样」给出建议。
+      </div>
+    </header>
 
-<nav class="toc">
-  <a href="#s1">① 背景</a>
-  <a href="#s2">② 形态空间</a>
-  <a href="#s3">③ 核心结论</a>
-  <a href="#s4">④ 核心能力</a>
-  <a href="#s5">⑤ 功能覆盖</a>
-  <a href="#s6">⑥ 产品画像</a>
-  <a href="#s7">⑦ 差异维度</a>
-  <a href="#s8">⑧ 信息缺口</a>
-  <a href="#s9">⑨ 结论</a>
-</nav>
+    <nav class="toc">
+      <a href="#s1">① 背景</a>
+      <a href="#s2">② 形态空间</a>
+      <a href="#s3">③ 核心结论</a>
+      <a href="#s4">④ 核心能力</a>
+      <a href="#s5">⑤ 功能覆盖</a>
+      <a href="#s6">⑥ 产品画像</a>
+      <a href="#s7">⑦ 差异维度</a>
+      <a href="#s8">⑧ 信息缺口</a>
+      <a href="#s9">⑨ 结论</a>
+    </nav>
 
-<main>
-<section id="s1">
-  <h2>① 背景介绍</h2>
-  <p>本报告调研的模块是 <strong>个人知识 + AI 对话类应用中的常驻实时仪表盘（首页概览页）</strong>——打开应用就能看到当前状态的看板页面，不是周期性汇总报告（如 Spotify Wrapped 式年度回顾）。</p>
-  <div class="callout">
-    <strong>用户口述背景：</strong>Reflecta 计划把现有页内统计升级为独立 Dashboard 模块作为首页，拆两块：<strong>沉淀资产</strong>（理解、画布、上下文等成果）与 <strong>过程资产/使用痕迹</strong>（对话、活跃行为）。用户明确强调：<strong>不是「一段时间给你呈现一次」的周期性 report，而是像电商产品里的仪表盘那样，可以一直在里面看到实时内容/状态。</strong>
-  </div>
-  <div class="callout">
-    <strong>理解假设：</strong>本报告按「常驻实时仪表盘（非周期性报告）」理解该模块；若实际指周期性 Wrapped 式报告，请指出，将重新选品调研。
-  </div>
-  <div class="callout">
-    <strong>项目自身约束（非调研结论）：</strong>value-proposition 明确「把知识边界做成抽象分数或仪表盘」属 Never；feature-set 在图谱形态下把「数量统计 dashboard」列为 Not Now；「用输入量/打卡量作为核心激励」也是 Never。以下行业事实供结合这些约束自行判断。
-  </div>
-</section>
+    <main>
+      <section id="s1">
+        <h2>① 背景介绍</h2>
+        <p>
+          本报告调研的模块是
+          <strong>个人知识 + AI 对话类应用中的常驻实时仪表盘（首页概览页）</strong
+          >——打开应用就能看到当前状态的看板页面，不是周期性汇总报告（如 Spotify Wrapped
+          式年度回顾）。
+        </p>
+        <div class="callout">
+          <strong>用户口述背景：</strong>Reflecta 计划把现有页内统计升级为独立 Dashboard
+          模块作为首页，拆两块：<strong>沉淀资产</strong>（理解、画布、上下文等成果）与
+          <strong>过程资产/使用痕迹</strong>（对话、活跃行为）。用户明确强调：<strong
+            >不是「一段时间给你呈现一次」的周期性
+            report，而是像电商产品里的仪表盘那样，可以一直在里面看到实时内容/状态。</strong
+          >
+        </div>
+        <div class="callout">
+          <strong>理解假设：</strong
+          >本报告按「常驻实时仪表盘（非周期性报告）」理解该模块；若实际指周期性 Wrapped
+          式报告，请指出，将重新选品调研。
+        </div>
+        <div class="callout">
+          <strong>项目自身约束（非调研结论）：</strong>value-proposition
+          明确「把知识边界做成抽象分数或仪表盘」属 Never；feature-set 在图谱形态下把「数量统计
+          dashboard」列为 Not Now；「用输入量/打卡量作为核心激励」也是
+          Never。以下行业事实供结合这些约束自行判断。
+        </div>
+      </section>
 
-<section id="s2">
-  <h2>② 调研范围与产品</h2>
-  <h3>形态空间（4 种主流解法）</h3>
-  <div class="shapebox"><h4>A. 商家/工作台实时看板</h4><p>电商、支付、SaaS 管理后台的第一屏：实时指标 + 历史趋势 + 待办/通知聚合。</p><p class="narrow">Shopify、Zonos、Stripe、WooCommerce、SellerMagnet、Amazon Seller Central</p></div>
-  <div class="shapebox"><h4>B. 中文内容创作后台</h4><p>面向个人创作者/运营者的常驻数据后台，「内容资产 + 效果数据」分离展示。</p><p class="narrow">知乎创作中心、微信公众平台数据分析</p></div>
-  <div class="shapebox"><h4>C. 个人工具内嵌统计面板</h4><p>个人知识/日记/复习/时间类应用的统计页或侧栏常驻面板。</p><p class="narrow">Flomo、Readwise、Daylio、RescueTime、Apple Screen Time、Obsidian/Logseq 插件、GitHub</p></div>
-  <div class="shapebox"><h4>D. 工作台动态/健康概览</h4><p>团队工具里以「更新流 + 健康指标」为主的概览，数字不是主角。</p><p class="narrow">Linear（Pulse / Monitor）、Notion（用户自建 Dashboard view）</p></div>
-  <div class="lede">直接竞品 = 个人知识 + AI 对话形态（Flomo / Readwise / Daylio / Obsidian 插件 / Apple Screen Time / 语雀 / Heptabase / ChatGPT / Claude / Notion）；<br>间接竞品 = 相邻形态（RescueTime / 知乎 / 公众号 / GitHub）；<br>跨域参照 = 用户点名的电商后台形态（Shopify / Zonos / Stripe / WooCommerce / SellerMagnet / Amazon / Linear）。</div>
-</section>
+      <section id="s2">
+        <h2>② 调研范围与产品</h2>
+        <h3>形态空间（4 种主流解法）</h3>
+        <div class="shapebox">
+          <h4>A. 商家/工作台实时看板</h4>
+          <p>电商、支付、SaaS 管理后台的第一屏：实时指标 + 历史趋势 + 待办/通知聚合。</p>
+          <p class="narrow">
+            Shopify、Zonos、Stripe、WooCommerce、SellerMagnet、Amazon Seller Central
+          </p>
+        </div>
+        <div class="shapebox">
+          <h4>B. 中文内容创作后台</h4>
+          <p>面向个人创作者/运营者的常驻数据后台，「内容资产 + 效果数据」分离展示。</p>
+          <p class="narrow">知乎创作中心、微信公众平台数据分析</p>
+        </div>
+        <div class="shapebox">
+          <h4>C. 个人工具内嵌统计面板</h4>
+          <p>个人知识/日记/复习/时间类应用的统计页或侧栏常驻面板。</p>
+          <p class="narrow">
+            Flomo、Readwise、Daylio、RescueTime、Apple Screen Time、Obsidian/Logseq 插件、GitHub
+          </p>
+        </div>
+        <div class="shapebox">
+          <h4>D. 工作台动态/健康概览</h4>
+          <p>团队工具里以「更新流 + 健康指标」为主的概览，数字不是主角。</p>
+          <p class="narrow">Linear（Pulse / Monitor）、Notion（用户自建 Dashboard view）</p>
+        </div>
+        <div class="lede">
+          直接竞品 = 个人知识 + AI 对话形态（Flomo / Readwise / Daylio / Obsidian 插件 / Apple
+          Screen Time / 语雀 / Heptabase / ChatGPT / Claude / Notion）；<br />间接竞品 =
+          相邻形态（RescueTime / 知乎 / 公众号 / GitHub）；<br />跨域参照 =
+          用户点名的电商后台形态（Shopify / Zonos / Stripe / WooCommerce / SellerMagnet / Amazon /
+          Linear）。
+        </div>
+      </section>
 
-<section id="s3">
-  <h2>③ 核心结论</h2>
+      <section id="s3">
+        <h2>③ 核心结论</h2>
 
-  <h3>结论一：常驻看板 = 「实时/当天层」+「历史/趋势层」两段结构，数字几乎都可点击下钻</h3>
-  <p>电商/运营型看板的行业共识：<strong>「今天怎么样」与「最近怎么样」并置，每个数字都能点进去看明细。</strong></p>
-  <details><summary>证据</summary><div class="body">
-    <p>Zonos：顶部 live today bar（当天收入/订单/均价/Top 国家，标注「Today as of 10:30 AM」捕获时间），下方历史 KPI 卡 + 趋势图（对比期、粒度、刷新时间戳）。</p>
-    <p>Shopify：Home = 实时指标（30 天默认）+ 待处理任务 + 建议 + 最近活动；Analytics 指标卡可加/删/重排，点卡片标题跳报表。</p>
-    <p>SellerMagnet：Today's Snapshot 实时卡 + 长期趋势区同页。</p>
-    <p>微信公众号：图文分析顶部「昨日关键指标」模块与 7/30 天前对比，下方 7/14/30 天趋势图。</p>
-    <p>Amazon Seller Central：Account Health = 当前账户健康状态（达标/风险/需关注事项）。</p>
-  </div></details>
+        <h3>结论一：常驻看板 = 「实时/当天层」+「历史/趋势层」两段结构，数字几乎都可点击下钻</h3>
+        <p>
+          电商/运营型看板的行业共识：<strong
+            >「今天怎么样」与「最近怎么样」并置，每个数字都能点进去看明细。</strong
+          >
+        </p>
+        <details>
+          <summary>证据</summary>
+          <div class="body">
+            <p>
+              Zonos：顶部 live today bar（当天收入/订单/均价/Top 国家，标注「Today as of 10:30
+              AM」捕获时间），下方历史 KPI 卡 + 趋势图（对比期、粒度、刷新时间戳）。
+            </p>
+            <p>
+              Shopify：Home = 实时指标（30 天默认）+ 待处理任务 + 建议 + 最近活动；Analytics
+              指标卡可加/删/重排，点卡片标题跳报表。
+            </p>
+            <p>SellerMagnet：Today's Snapshot 实时卡 + 长期趋势区同页。</p>
+            <p>
+              微信公众号：图文分析顶部「昨日关键指标」模块与 7/30 天前对比，下方 7/14/30 天趋势图。
+            </p>
+            <p>
+              Amazon Seller Central：Account Health = 当前账户健康状态（达标/风险/需关注事项）。
+            </p>
+          </div>
+        </details>
 
-  <h3>结论二：个人知识 + 对话产品没有「电商式首页看板」先例；Obsidian 插件最接近，且已分化出三种统计语义</h3>
-  <p>直接竞品的统计都以独立页或侧栏存在，不是首页第一屏；跨实体 + 首页级的看板依旧无人做（与昨日报告互相印证）。</p>
-  <details><summary>插件生态的三种语义分化</summary><div class="body">
-    <p><strong>数量统计</strong>：obsidian-data-analysis（热力图[创建+修改] + 总数/字数/streak/日均）、obsidian-dashboard（总字数/笔记数/今日/7 日均 + 365 天热力图 + 12 个月柱状图 + 星期分布环形图）。</p>
-    <p><strong>结构/质量统计</strong>：Vault Full Statistics（own vs source、dangling sources、tangles、inbox——直接呈现「哪些是悬空的、纠缠的、没整理的」）。</p>
-    <p><strong>参与度/使用统计</strong>：ord-dashboard（views/edits/active notes）、vault-activity（创建 + 修订，回答「是否在回看和维护」）。</p>
-  </div></details>
+        <h3>
+          结论二：个人知识 + 对话产品没有「电商式首页看板」先例；Obsidian
+          插件最接近，且已分化出三种统计语义
+        </h3>
+        <p>
+          直接竞品的统计都以独立页或侧栏存在，不是首页第一屏；跨实体 +
+          首页级的看板依旧无人做（与昨日报告互相印证）。
+        </p>
+        <details>
+          <summary>插件生态的三种语义分化</summary>
+          <div class="body">
+            <p>
+              <strong>数量统计</strong>：obsidian-data-analysis（热力图[创建+修改] +
+              总数/字数/streak/日均）、obsidian-dashboard（总字数/笔记数/今日/7 日均 + 365 天热力图
+              + 12 个月柱状图 + 星期分布环形图）。
+            </p>
+            <p>
+              <strong>结构/质量统计</strong>：Vault Full Statistics（own vs source、dangling
+              sources、tangles、inbox——直接呈现「哪些是悬空的、纠缠的、没整理的」）。
+            </p>
+            <p>
+              <strong>参与度/使用统计</strong>：ord-dashboard（views/edits/active
+              notes）、vault-activity（创建 + 修订，回答「是否在回看和维护」）。
+            </p>
+          </div>
+        </details>
 
-  <h3>结论三：健康/状态型仪表盘是明确先例——「状态 + 风险 + 行动项」而非纯数量</h3>
-  <p>Amazon Account Health、Linear health indicator、Obsidian Vault Full Statistics 的 dangling/tangles/inbox：<strong>给你「现在的状态是否需要行动」，而不是更多数字。</strong>与「看见边界与空白」的价值主张有天然呼应。</p>
+        <h3>结论三：健康/状态型仪表盘是明确先例——「状态 + 风险 + 行动项」而非纯数量</h3>
+        <p>
+          Amazon Account Health、Linear health indicator、Obsidian Vault Full Statistics 的
+          dangling/tangles/inbox：<strong>给你「现在的状态是否需要行动」，而不是更多数字。</strong>与「看见边界与空白」的价值主张有天然呼应。
+        </p>
 
-  <h3>结论四：中文创作后台（知乎/公众号）验证了「内容资产 + 效果数据」分离的心智</h3>
-  <p>知乎创作中心（数据概览 + 回答/文章/专栏分列 + 创作等级 + 单篇深度分析）；公众号（用户分析 + 图文分析两大模块）；第三方工具补「首页当日看板」「分钟级增长」——<strong>创作者对「打开即见当天状态」有真实诉求，官方第一屏常不满足。</strong></p>
+        <h3>结论四：中文创作后台（知乎/公众号）验证了「内容资产 + 效果数据」分离的心智</h3>
+        <p>
+          知乎创作中心（数据概览 + 回答/文章/专栏分列 + 创作等级 + 单篇深度分析）；公众号（用户分析
+          + 图文分析两大模块）；第三方工具补「首页当日看板」「分钟级增长」——<strong
+            >创作者对「打开即见当天状态」有真实诉求，官方第一屏常不满足。</strong
+          >
+        </p>
 
-  <div class="lede"><strong>研究见解</strong>：电商后台看板 = 实时层 + 趋势层 + 可钻取 + 待办聚合；个人知识工具 = 独立统计面板且语义分裂（数量/质量/参与度）；健康型仪表盘是第三条路；中文创作后台确认资产-效果分离心智。Reflecta 想做的「首页 Dashboard + 两块」无同品类先例，但每个构成元素都有成熟参照。</div>
-</section>
+        <div class="lede">
+          <strong>研究见解</strong>：电商后台看板 = 实时层 + 趋势层 + 可钻取 +
+          待办聚合；个人知识工具 =
+          独立统计面板且语义分裂（数量/质量/参与度）；健康型仪表盘是第三条路；中文创作后台确认资产-效果分离心智。Reflecta
+          想做的「首页 Dashboard + 两块」无同品类先例，但每个构成元素都有成熟参照。
+        </div>
+      </section>
 
-<section id="s4">
-  <h2>④ 核心能力</h2>
+      <section id="s4">
+        <h2>④ 核心能力</h2>
 
-  <h3>能力 1：实时/当天状态层</h3>
-  <p>回答「现在/今天怎么样」——这是常驻仪表盘与周期性报告的根本区别。分歧在：是否单独强调当天（Zonos 专门 bar），默认 30 天（Shopify），还是只给昨日（公众号）。</p>
-  <details><summary>各家做法</summary><div class="body">
-    <p>Zonos：live today bar，标注「Today as of 10:30 AM」，随新数据持续更新。</p>
-    <p>SellerMagnet：Today's Snapshot 实时卡（左上）。</p>
-    <p>Shopify：Home 默认 30 天指标；Live metrics（traffic/reach/orders/revenue 实时）独立提供。</p>
-    <p>微信公众号：顶部「昨日关键指标」模块（不强调当天实时，重对比）。</p>
-    <p>知乎：数据概览第一屏即核心互动指标；分钟级实时由第三方补。</p>
-    <p>Apple Screen Time：每日「屏幕使用报告」，进入后按日/周查看。</p>
-  </div></details>
+        <h3>能力 1：实时/当天状态层</h3>
+        <p>
+          回答「现在/今天怎么样」——这是常驻仪表盘与周期性报告的根本区别。分歧在：是否单独强调当天（Zonos
+          专门 bar），默认 30 天（Shopify），还是只给昨日（公众号）。
+        </p>
+        <details>
+          <summary>各家做法</summary>
+          <div class="body">
+            <p>Zonos：live today bar，标注「Today as of 10:30 AM」，随新数据持续更新。</p>
+            <p>SellerMagnet：Today's Snapshot 实时卡（左上）。</p>
+            <p>
+              Shopify：Home 默认 30 天指标；Live metrics（traffic/reach/orders/revenue
+              实时）独立提供。
+            </p>
+            <p>微信公众号：顶部「昨日关键指标」模块（不强调当天实时，重对比）。</p>
+            <p>知乎：数据概览第一屏即核心互动指标；分钟级实时由第三方补。</p>
+            <p>Apple Screen Time：每日「屏幕使用报告」，进入后按日/周查看。</p>
+          </div>
+        </details>
 
-  <h3>能力 2：历史趋势层与周期对比</h3>
-  <p>把「最近怎么样」可视化。分歧在：对比基准（上一期/7 天前/30 天前）、粒度、KPI 数字还是趋势图。</p>
-  <details><summary>各家做法</summary><div class="body">
-    <p>Zonos：KPI 卡（总值 + 对比期 % + 方向箭头）+ 当期 vs 对比期趋势图 + 粒度控制。</p>
-    <p>微信公众号：昨日模块（与 7/30 天前对比，日/周/月百分比）+ 7/14/30 天趋势图。</p>
-    <p>Shopify：指标卡 + Orders over time；日期范围自定义 + 跨期对比。</p>
-    <p>Daylio：interval 切换（本期 vs 前期重复次数对比），mood 色码。</p>
-    <p>Obsidian 插件：12 个月柱状图、30 天日历、星期分布环形图。</p>
-    <p>RescueTime：daily/weekly/monthly/yearly + all time/work hours 开关。</p>
-  </div></details>
+        <h3>能力 2：历史趋势层与周期对比</h3>
+        <p>
+          把「最近怎么样」可视化。分歧在：对比基准（上一期/7 天前/30 天前）、粒度、KPI
+          数字还是趋势图。
+        </p>
+        <details>
+          <summary>各家做法</summary>
+          <div class="body">
+            <p>Zonos：KPI 卡（总值 + 对比期 % + 方向箭头）+ 当期 vs 对比期趋势图 + 粒度控制。</p>
+            <p>微信公众号：昨日模块（与 7/30 天前对比，日/周/月百分比）+ 7/14/30 天趋势图。</p>
+            <p>Shopify：指标卡 + Orders over time；日期范围自定义 + 跨期对比。</p>
+            <p>Daylio：interval 切换（本期 vs 前期重复次数对比），mood 色码。</p>
+            <p>Obsidian 插件：12 个月柱状图、30 天日历、星期分布环形图。</p>
+            <p>RescueTime：daily/weekly/monthly/yearly + all time/work hours 开关。</p>
+          </div>
+        </details>
 
-  <h3>能力 3：可钻取明细（数字 → 具体内容）</h3>
-  <p>看板的数字能点进具体内容，才能服务判断与行动；纯数字墙会变成「泛化仪表盘」。</p>
-  <details><summary>各家做法</summary><div class="body">
-    <p>Shopify：点卡片标题进报表；Home 待办直链执行页。</p>
-    <p>Zonos：KPI 卡点击打开 breakdown 页；Top SKU 行可展开。</p>
-    <p>Stripe：活动分解 = summary totals → transaction details 逐层下钻。</p>
-    <p>知乎：每篇内容点「数据」看深度分析（流量来源/读者分布/平均阅读时长）。</p>
-    <p>Flomo：点热力图格子直接筛选当天记录（复用昨日报告）。</p>
-    <p>Obsidian 插件（vault-pulse/vault-activity）：点某天列出当天动过的文件。</p>
-  </div></details>
+        <h3>能力 3：可钻取明细（数字 → 具体内容）</h3>
+        <p>看板的数字能点进具体内容，才能服务判断与行动；纯数字墙会变成「泛化仪表盘」。</p>
+        <details>
+          <summary>各家做法</summary>
+          <div class="body">
+            <p>Shopify：点卡片标题进报表；Home 待办直链执行页。</p>
+            <p>Zonos：KPI 卡点击打开 breakdown 页；Top SKU 行可展开。</p>
+            <p>Stripe：活动分解 = summary totals → transaction details 逐层下钻。</p>
+            <p>知乎：每篇内容点「数据」看深度分析（流量来源/读者分布/平均阅读时长）。</p>
+            <p>Flomo：点热力图格子直接筛选当天记录（复用昨日报告）。</p>
+            <p>Obsidian 插件（vault-pulse/vault-activity）：点某天列出当天动过的文件。</p>
+          </div>
+        </details>
 
-  <h3>能力 4：健康/状态信号（非纯数量）</h3>
-  <p>回答「现在状态是否健康、哪里需要行动」，与纯数量统计是不同设计哲学。</p>
-  <details><summary>各家做法</summary><div class="body">
-    <p>Amazon Seller Central：Account Health = 达标/风险/需关注事项，高风险给行动项。</p>
-    <p>Linear：项目更新附带 health indicator + 文本（状态/挑战/下一步）。</p>
-    <p>Obsidian Vault Full Statistics：dangling sources / tangles / inbox（结构质量）。</p>
-    <p>知乎：创作等级 = 平台综合评分（注意是评分体系，不同于「看状态」）。</p>
-  </div></details>
+        <h3>能力 4：健康/状态信号（非纯数量）</h3>
+        <p>回答「现在状态是否健康、哪里需要行动」，与纯数量统计是不同设计哲学。</p>
+        <details>
+          <summary>各家做法</summary>
+          <div class="body">
+            <p>Amazon Seller Central：Account Health = 达标/风险/需关注事项，高风险给行动项。</p>
+            <p>Linear：项目更新附带 health indicator + 文本（状态/挑战/下一步）。</p>
+            <p>Obsidian Vault Full Statistics：dangling sources / tangles / inbox（结构质量）。</p>
+            <p>知乎：创作等级 = 平台综合评分（注意是评分体系，不同于「看状态」）。</p>
+          </div>
+        </details>
 
-  <h3>能力 5：按实体/类型分组的计数</h3>
-  <p>把不同内容类型放进同一看板分别计数——「沉淀资产」块最直接的参照。</p>
-  <details><summary>各家做法</summary><div class="body">
-    <p>知乎创作中心：数据概览 + 回答/文章/专栏分列计数。</p>
-    <p>微信公众号：用户分析（新增/净增/累计）与图文分析（阅读/分享/完读）两大模块分离。</p>
-    <p>语雀：小记/文档/表格/画板/数据表分列（配额语义、每月清零，复用昨日报告）。</p>
-    <p>Obsidian：notes/files/attachments/links/tags 分列。</p>
-  </div></details>
+        <h3>能力 5：按实体/类型分组的计数</h3>
+        <p>把不同内容类型放进同一看板分别计数——「沉淀资产」块最直接的参照。</p>
+        <details>
+          <summary>各家做法</summary>
+          <div class="body">
+            <p>知乎创作中心：数据概览 + 回答/文章/专栏分列计数。</p>
+            <p>微信公众号：用户分析（新增/净增/累计）与图文分析（阅读/分享/完读）两大模块分离。</p>
+            <p>语雀：小记/文档/表格/画板/数据表分列（配额语义、每月清零，复用昨日报告）。</p>
+            <p>Obsidian：notes/files/attachments/links/tags 分列。</p>
+          </div>
+        </details>
 
-  <h3>能力 6：待办/通知/更新流聚合（首页不只是数字）</h3>
-  <p>让看板从「被动查阅」变成「一天的开场」。分歧在：任务驱动 vs 动态流 vs 通知聚合。</p>
-  <details><summary>各家做法</summary><div class="body">
-    <p>Shopify Home：待处理订单、每日任务、增长建议、最近销售活动。</p>
-    <p>WooCommerce：提醒/提示 + 快速访问 + 新用户任务清单。</p>
-    <p>Stripe Home：重要通知聚合（争议、身份验证）。</p>
-    <p>Linear Pulse：个性化更新 feed（For me / Recent / Popular），AI 生成周期摘要。</p>
-    <p>RescueTime Assistant：常驻当天进度 + Focus Sessions 快捷入口。</p>
-  </div></details>
-</section>
+        <h3>能力 6：待办/通知/更新流聚合（首页不只是数字）</h3>
+        <p>让看板从「被动查阅」变成「一天的开场」。分歧在：任务驱动 vs 动态流 vs 通知聚合。</p>
+        <details>
+          <summary>各家做法</summary>
+          <div class="body">
+            <p>Shopify Home：待处理订单、每日任务、增长建议、最近销售活动。</p>
+            <p>WooCommerce：提醒/提示 + 快速访问 + 新用户任务清单。</p>
+            <p>Stripe Home：重要通知聚合（争议、身份验证）。</p>
+            <p>Linear Pulse：个性化更新 feed（For me / Recent / Popular），AI 生成周期摘要。</p>
+            <p>RescueTime Assistant：常驻当天进度 + Focus Sessions 快捷入口。</p>
+          </div>
+        </details>
+      </section>
 
-<section id="s5">
-  <h2>⑤ 基本用户体验功能覆盖</h2>
-  <p class="narrow">口径：以官方来源为准（帮助中心/文档/Changelog）；仅第三方来源的标注「未检索到官方确认」。</p>
+      <section id="s5">
+        <h2>⑤ 基本用户体验功能覆盖</h2>
+        <p class="narrow">
+          口径：以官方来源为准（帮助中心/文档/Changelog）；仅第三方来源的标注「未检索到官方确认」。
+        </p>
 
-  <h3>展示结构</h3>
-  <table class="stack">
-    <thead><tr><th>功能</th><th>覆盖</th><th>确认具备的产品</th></tr></thead>
-    <tbody>
-      <tr><td data-label="功能">首页第一屏即看板</td><td data-label="覆盖">6/16</td><td data-label="产品">Shopify（Home）、Zonos、WooCommerce、SellerMagnet、知乎创作中心、微信公众平台</td></tr>
-      <tr><td data-label="功能">独立统计页/面板（非首页）</td><td data-label="覆盖">5/16</td><td data-label="产品">Readwise stats、Daylio stats、RescueTime、Obsidian 插件、Flomo（侧栏）</td></tr>
-      <tr><td data-label="功能">实时/当天条（live today bar）</td><td data-label="覆盖">3/16</td><td data-label="产品">Zonos、SellerMagnet、壹伴首页看板（第三方，未检索到官方确认）</td></tr>
-      <tr><td data-label="功能">趋势图/历史对比</td><td data-label="覆盖">8/16</td><td data-label="产品">Shopify、Zonos、公众号、Daylio、RescueTime、Obsidian 插件、知乎（第三方补）</td></tr>
-      <tr><td data-label="功能">排行/明细表</td><td data-label="覆盖">3/16</td><td data-label="产品">Zonos（Top 国家/SKU）、RescueTime（分类）、Obsidian 统计插件</td></tr>
-    </tbody>
-  </table>
+        <h3>展示结构</h3>
+        <table class="stack">
+          <thead>
+            <tr>
+              <th>功能</th>
+              <th>覆盖</th>
+              <th>确认具备的产品</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="功能">首页第一屏即看板</td>
+              <td data-label="覆盖">6/16</td>
+              <td data-label="产品">
+                Shopify（Home）、Zonos、WooCommerce、SellerMagnet、知乎创作中心、微信公众平台
+              </td>
+            </tr>
+            <tr>
+              <td data-label="功能">独立统计页/面板（非首页）</td>
+              <td data-label="覆盖">5/16</td>
+              <td data-label="产品">
+                Readwise stats、Daylio stats、RescueTime、Obsidian 插件、Flomo（侧栏）
+              </td>
+            </tr>
+            <tr>
+              <td data-label="功能">实时/当天条（live today bar）</td>
+              <td data-label="覆盖">3/16</td>
+              <td data-label="产品">
+                Zonos、SellerMagnet、壹伴首页看板（第三方，未检索到官方确认）
+              </td>
+            </tr>
+            <tr>
+              <td data-label="功能">趋势图/历史对比</td>
+              <td data-label="覆盖">8/16</td>
+              <td data-label="产品">
+                Shopify、Zonos、公众号、Daylio、RescueTime、Obsidian 插件、知乎（第三方补）
+              </td>
+            </tr>
+            <tr>
+              <td data-label="功能">排行/明细表</td>
+              <td data-label="覆盖">3/16</td>
+              <td data-label="产品">
+                Zonos（Top 国家/SKU）、RescueTime（分类）、Obsidian 统计插件
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
-  <h3>控制与自定义</h3>
-  <table class="stack">
-    <thead><tr><th>功能</th><th>覆盖</th><th>确认具备的产品</th></tr></thead>
-    <tbody>
-      <tr><td data-label="功能">时间范围切换</td><td data-label="覆盖">7/16</td><td data-label="产品">Shopify、Zonos、公众号、Daylio、RescueTime、Obsidian 插件、GitHub</td></tr>
-      <tr><td data-label="功能">对比期选择</td><td data-label="覆盖">4/16</td><td data-label="产品">Shopify、Zonos、公众号、Daylio</td></tr>
-      <tr><td data-label="功能">指标卡自定义（加/删/排/分节）</td><td data-label="覆盖">2/16</td><td data-label="产品">Shopify Analytics overview、Stripe（定制化 overview）</td></tr>
-      <tr><td data-label="功能">刷新（手动/时间戳）</td><td data-label="覆盖">2/16</td><td data-label="产品">Zonos、Shopify（~1 分钟）</td></tr>
-      <tr><td data-label="功能">看板可隐藏/关闭</td><td data-label="覆盖">1/16</td><td data-label="产品">Flomo（侧栏热力图可隐藏）</td></tr>
-    </tbody>
-  </table>
+        <h3>控制与自定义</h3>
+        <table class="stack">
+          <thead>
+            <tr>
+              <th>功能</th>
+              <th>覆盖</th>
+              <th>确认具备的产品</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="功能">时间范围切换</td>
+              <td data-label="覆盖">7/16</td>
+              <td data-label="产品">
+                Shopify、Zonos、公众号、Daylio、RescueTime、Obsidian 插件、GitHub
+              </td>
+            </tr>
+            <tr>
+              <td data-label="功能">对比期选择</td>
+              <td data-label="覆盖">4/16</td>
+              <td data-label="产品">Shopify、Zonos、公众号、Daylio</td>
+            </tr>
+            <tr>
+              <td data-label="功能">指标卡自定义（加/删/排/分节）</td>
+              <td data-label="覆盖">2/16</td>
+              <td data-label="产品">Shopify Analytics overview、Stripe（定制化 overview）</td>
+            </tr>
+            <tr>
+              <td data-label="功能">刷新（手动/时间戳）</td>
+              <td data-label="覆盖">2/16</td>
+              <td data-label="产品">Zonos、Shopify（~1 分钟）</td>
+            </tr>
+            <tr>
+              <td data-label="功能">看板可隐藏/关闭</td>
+              <td data-label="覆盖">1/16</td>
+              <td data-label="产品">Flomo（侧栏热力图可隐藏）</td>
+            </tr>
+          </tbody>
+        </table>
 
-  <h3>交互与钻取</h3>
-  <table class="stack">
-    <thead><tr><th>功能</th><th>覆盖</th><th>确认具备的产品</th></tr></thead>
-    <tbody>
-      <tr><td data-label="功能">点数字/卡片钻取明细</td><td data-label="覆盖">8/16</td><td data-label="产品">Shopify、Zonos、Stripe、知乎、公众号、Flomo、Obsidian 插件、RescueTime</td></tr>
-      <tr><td data-label="功能">点热力图日期看当天内容</td><td data-label="覆盖">3/16</td><td data-label="产品">Flomo、Obsidian 插件（vault-pulse/vault-activity）</td></tr>
-    </tbody>
-  </table>
+        <h3>交互与钻取</h3>
+        <table class="stack">
+          <thead>
+            <tr>
+              <th>功能</th>
+              <th>覆盖</th>
+              <th>确认具备的产品</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="功能">点数字/卡片钻取明细</td>
+              <td data-label="覆盖">8/16</td>
+              <td data-label="产品">
+                Shopify、Zonos、Stripe、知乎、公众号、Flomo、Obsidian 插件、RescueTime
+              </td>
+            </tr>
+            <tr>
+              <td data-label="功能">点热力图日期看当天内容</td>
+              <td data-label="覆盖">3/16</td>
+              <td data-label="产品">Flomo、Obsidian 插件（vault-pulse/vault-activity）</td>
+            </tr>
+          </tbody>
+        </table>
 
-  <h3>激励与评价</h3>
-  <table class="stack">
-    <thead><tr><th>功能</th><th>覆盖</th><th>确认具备的产品</th></tr></thead>
-    <tbody>
-      <tr><td data-label="功能">streak 连续记录</td><td data-label="覆盖">4/16</td><td data-label="产品">Readwise（补卡 + 全球排名）、Daylio、Flomo、Obsidian 插件</td></tr>
-      <tr><td data-label="功能">打分/评级体系</td><td data-label="覆盖">2/16</td><td data-label="产品">知乎创作等级、RescueTime Productivity Pulse</td></tr>
-      <tr><td data-label="功能">中性无激励呈现</td><td data-label="覆盖">6/16</td><td data-label="产品">Stripe、Amazon、WooCommerce、Shopify、Linear、Apple Screen Time</td></tr>
-      <tr><td data-label="功能">周期邮件/摘要补充</td><td data-label="覆盖">4/16</td><td data-label="产品">RescueTime weekly email、Linear AI update、Readwise 通知、公众号</td></tr>
-    </tbody>
-  </table>
-</section>
+        <h3>激励与评价</h3>
+        <table class="stack">
+          <thead>
+            <tr>
+              <th>功能</th>
+              <th>覆盖</th>
+              <th>确认具备的产品</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="功能">streak 连续记录</td>
+              <td data-label="覆盖">4/16</td>
+              <td data-label="产品">Readwise（补卡 + 全球排名）、Daylio、Flomo、Obsidian 插件</td>
+            </tr>
+            <tr>
+              <td data-label="功能">打分/评级体系</td>
+              <td data-label="覆盖">2/16</td>
+              <td data-label="产品">知乎创作等级、RescueTime Productivity Pulse</td>
+            </tr>
+            <tr>
+              <td data-label="功能">中性无激励呈现</td>
+              <td data-label="覆盖">6/16</td>
+              <td data-label="产品">
+                Stripe、Amazon、WooCommerce、Shopify、Linear、Apple Screen Time
+              </td>
+            </tr>
+            <tr>
+              <td data-label="功能">周期邮件/摘要补充</td>
+              <td data-label="覆盖">4/16</td>
+              <td data-label="产品">
+                RescueTime weekly email、Linear AI update、Readwise 通知、公众号
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
 
-<section id="s6">
-  <h2>⑥ 产品定位画像（16 家）</h2>
-  <div class="filterbar">
-    <span class="lbl">按层筛选：</span><span class="count"></span>
-    <label><input type="checkbox" data-layer="direct" checked>直接竞品（个人知识+对话）</label>
-    <label><input type="checkbox" data-layer="indirect" checked>间接竞品（相邻形态）</label>
-    <label><input type="checkbox" data-layer="cross" checked>跨域参照（电商/团队后台）</label>
-  </div>
-  <div class="prodgrid" id="prodgrid">
+      <section id="s6">
+        <h2>⑥ 产品定位画像（16 家）</h2>
+        <div class="filterbar">
+          <span class="lbl">按层筛选：</span><span class="count"></span>
+          <label
+            ><input type="checkbox" data-layer="direct" checked />直接竞品（个人知识+对话）</label
+          >
+          <label><input type="checkbox" data-layer="indirect" checked />间接竞品（相邻形态）</label>
+          <label
+            ><input type="checkbox" data-layer="cross" checked />跨域参照（电商/团队后台）</label
+          >
+        </div>
+        <div class="prodgrid" id="prodgrid">
+          <div class="prodcard" data-layer="direct">
+            <h4>Flomo</h4>
+            <div class="p"><strong>定位：</strong>个人速记 + 回顾闭环。</div>
+            <div class="p">
+              <strong>做法：</strong>侧栏常驻 12 周热力图（周一开头、五档深浅）+
+              记录统计八维度；点格子直接筛当天记录；可隐藏。
+            </div>
+            <span class="k">来源：昨日报告（2026-08-16）+ 官方</span>
+          </div>
 
-    <div class="prodcard" data-layer="direct"><h4>Flomo</h4>
-      <div class="p"><strong>定位：</strong>个人速记 + 回顾闭环。</div>
-      <div class="p"><strong>做法：</strong>侧栏常驻 12 周热力图（周一开头、五档深浅）+ 记录统计八维度；点格子直接筛当天记录；可隐藏。</div>
-      <span class="k">来源：昨日报告（2026-08-16）+ 官方</span></div>
+          <div class="prodcard" data-layer="direct">
+            <h4>Readwise</h4>
+            <div class="p"><strong>定位：</strong>主动复习的读者（高亮重读）。</div>
+            <div class="p">
+              <strong>做法：</strong>stats 页 = GitHub 式活动图 + 最长/当前 streak +
+              <strong>全球 streak 排名</strong>；每日复习完成情况 + 补卡 recover。
+            </div>
+            <span class="k">来源：官方 changelog + 用户长评（Medium, 300 天回顾）</span>
+          </div>
 
-    <div class="prodcard" data-layer="direct"><h4>Readwise</h4>
-      <div class="p"><strong>定位：</strong>主动复习的读者（高亮重读）。</div>
-      <div class="p"><strong>做法：</strong>stats 页 = GitHub 式活动图 + 最长/当前 streak + <strong>全球 streak 排名</strong>；每日复习完成情况 + 补卡 recover。</div>
-      <span class="k">来源：官方 changelog + 用户长评（Medium, 300 天回顾）</span></div>
+          <div class="prodcard" data-layer="direct">
+            <h4>Daylio</h4>
+            <div class="p"><strong>定位：</strong>情绪/习惯记录（mood + activity 两键）。</div>
+            <div class="p">
+              <strong>做法：</strong>stats 页周期切换 + 本期 vs 前期对比 + mood 色码 +
+              <strong>Influence on Mood</strong>（活动与情绪相关性）；Advanced Stats 为付费点。
+            </div>
+            <span class="k">来源：官方帮助中心（daylio.net/faq）</span>
+          </div>
 
-    <div class="prodcard" data-layer="direct"><h4>Daylio</h4>
-      <div class="p"><strong>定位：</strong>情绪/习惯记录（mood + activity 两键）。</div>
-      <div class="p"><strong>做法：</strong>stats 页周期切换 + 本期 vs 前期对比 + mood 色码 + <strong>Influence on Mood</strong>（活动与情绪相关性）；Advanced Stats 为付费点。</div>
-      <span class="k">来源：官方帮助中心（daylio.net/faq）</span></div>
+          <div class="prodcard" data-layer="direct">
+            <h4>Obsidian / Logseq 插件</h4>
+            <div class="p"><strong>定位：</strong>本地优先 Markdown 知识库，统计全靠社区。</div>
+            <div class="p">
+              <strong>做法：</strong>分化三语义——数量（data-analysis、dashboard）、质量（Vault Full
+              Statistics：dangling/tangles/inbox）、参与度（ord-dashboard：views/edits、vault-activity：创建+修订）。
+            </div>
+            <span class="k">来源：插件 README（第三方/社区，官方无统计）</span>
+          </div>
 
-    <div class="prodcard" data-layer="direct"><h4>Obsidian / Logseq 插件</h4>
-      <div class="p"><strong>定位：</strong>本地优先 Markdown 知识库，统计全靠社区。</div>
-      <div class="p"><strong>做法：</strong>分化三语义——数量（data-analysis、dashboard）、质量（Vault Full Statistics：dangling/tangles/inbox）、参与度（ord-dashboard：views/edits、vault-activity：创建+修订）。</div>
-      <span class="k">来源：插件 README（第三方/社区，官方无统计）</span></div>
+          <div class="prodcard" data-layer="direct">
+            <h4>Apple Screen Time</h4>
+            <div class="p"><strong>定位：</strong>系统级使用时间管理。</div>
+            <div class="p">
+              <strong>做法：</strong>每日/每周使用报告（app
+              时间、通知数、拿起次数）；可切换统计时段、按分类/设备。
+            </div>
+            <span class="k">来源：Apple 官方帮助中心</span>
+          </div>
 
-    <div class="prodcard" data-layer="direct"><h4>Apple Screen Time</h4>
-      <div class="p"><strong>定位：</strong>系统级使用时间管理。</div>
-      <div class="p"><strong>做法：</strong>每日/每周使用报告（app 时间、通知数、拿起次数）；可切换统计时段、按分类/设备。</div>
-      <span class="k">来源：Apple 官方帮助中心</span></div>
+          <div class="prodcard" data-layer="direct">
+            <h4>语雀 / Heptabase / ChatGPT / Claude / Notion</h4>
+            <div class="p"><strong>定位：</strong>均为昨日报告已覆盖事实。</div>
+            <div class="p">
+              <strong>要点：</strong>语雀 = 多类型文稿数（配额语义）+ 年度报告；Heptabase =
+              无统计；ChatGPT/Claude = 回顾 + 用量页；Notion = 个人无统计，Dashboard view 需
+              Business 计划（用户自建）。
+            </div>
+            <span class="k">来源：昨日报告（2026-08-16）</span>
+          </div>
 
-    <div class="prodcard" data-layer="direct"><h4>语雀 / Heptabase / ChatGPT / Claude / Notion</h4>
-      <div class="p"><strong>定位：</strong>均为昨日报告已覆盖事实。</div>
-      <div class="p"><strong>要点：</strong>语雀 = 多类型文稿数（配额语义）+ 年度报告；Heptabase = 无统计；ChatGPT/Claude = 回顾 + 用量页；Notion = 个人无统计，Dashboard view 需 Business 计划（用户自建）。</div>
-      <span class="k">来源：昨日报告（2026-08-16）</span></div>
+          <div class="prodcard" data-layer="indirect">
+            <h4>RescueTime</h4>
+            <div class="p"><strong>定位：</strong>自动时间追踪（个人 + 团队）。</div>
+            <div class="p">
+              <strong>做法：</strong>常驻 Dashboard（总时间 + Productivity Pulse 分数 + 分类，可切
+              day/week/month/year）+ weekly email 双轨；Assistant 实时当天进度。
+            </div>
+            <span class="k">来源：官方帮助中心</span>
+          </div>
 
-    <div class="prodcard" data-layer="indirect"><h4>RescueTime</h4>
-      <div class="p"><strong>定位：</strong>自动时间追踪（个人 + 团队）。</div>
-      <div class="p"><strong>做法：</strong>常驻 Dashboard（总时间 + Productivity Pulse 分数 + 分类，可切 day/week/month/year）+ weekly email 双轨；Assistant 实时当天进度。</div>
-      <span class="k">来源：官方帮助中心</span></div>
+          <div class="prodcard" data-layer="indirect">
+            <h4>知乎创作中心</h4>
+            <div class="p"><strong>定位：</strong>中文创作者数据后台。</div>
+            <div class="p">
+              <strong>做法：</strong>数据概览（阅读/赞同/评论/收藏/关注增长）+ 创作等级 +
+              回答/文章/专栏分列 + 单篇深度分析（流量来源/读者分布/平均阅读时长）。
+            </div>
+            <span class="k">来源：第三方教程（jizhil.com），官方专门说明未检索到</span>
+          </div>
 
-    <div class="prodcard" data-layer="indirect"><h4>知乎创作中心</h4>
-      <div class="p"><strong>定位：</strong>中文创作者数据后台。</div>
-      <div class="p"><strong>做法：</strong>数据概览（阅读/赞同/评论/收藏/关注增长）+ 创作等级 + 回答/文章/专栏分列 + 单篇深度分析（流量来源/读者分布/平均阅读时长）。</div>
-      <span class="k">来源：第三方教程（jizhil.com），官方专门说明未检索到</span></div>
+          <div class="prodcard" data-layer="indirect">
+            <h4>微信公众平台</h4>
+            <div class="p"><strong>定位：</strong>公众号运营者内容后台。</div>
+            <div class="p">
+              <strong>做法：</strong>用户分析 + 图文分析分离；图文分析 = 昨日关键指标（对 7/30
+              天前，日/周/月百分比）+ 趋势图 + 图文详解；首页看板由壹伴等第三方补。
+            </div>
+            <span class="k">来源：腾讯客服官方 + 第三方（壹伴）</span>
+          </div>
 
-    <div class="prodcard" data-layer="indirect"><h4>微信公众平台</h4>
-      <div class="p"><strong>定位：</strong>公众号运营者内容后台。</div>
-      <div class="p"><strong>做法：</strong>用户分析 + 图文分析分离；图文分析 = 昨日关键指标（对 7/30 天前，日/周/月百分比）+ 趋势图 + 图文详解；首页看板由壹伴等第三方补。</div>
-      <span class="k">来源：腾讯客服官方 + 第三方（壹伴）</span></div>
+          <div class="prodcard" data-layer="indirect">
+            <h4>GitHub</h4>
+            <div class="p"><strong>定位：</strong>开发者身份墙。</div>
+            <div class="p">
+              <strong>做法：</strong>365
+              天贡献图常驻个人主页；官方明确定义「什么算贡献」（严格口径）。
+            </div>
+            <span class="k">来源：GitHub 官方文档</span>
+          </div>
 
-    <div class="prodcard" data-layer="indirect"><h4>GitHub</h4>
-      <div class="p"><strong>定位：</strong>开发者身份墙。</div>
-      <div class="p"><strong>做法：</strong>365 天贡献图常驻个人主页；官方明确定义「什么算贡献」（严格口径）。</div>
-      <span class="k">来源：GitHub 官方文档</span></div>
+          <div class="prodcard" data-layer="cross">
+            <h4>Shopify</h4>
+            <div class="p"><strong>定位：</strong>独立站商家后台。</div>
+            <div class="p">
+              <strong>做法：</strong>Home = 实时指标 + 待办任务 + 建议 + 最近活动；Analytics
+              overview = 可定制指标卡组（加/删/重排/分节），点卡片标题跳报表；~1 分钟更新。
+            </div>
+            <span class="k">来源：官方帮助中心</span>
+          </div>
 
-    <div class="prodcard" data-layer="cross"><h4>Shopify</h4>
-      <div class="p"><strong>定位：</strong>独立站商家后台。</div>
-      <div class="p"><strong>做法：</strong>Home = 实时指标 + 待办任务 + 建议 + 最近活动；Analytics overview = 可定制指标卡组（加/删/重排/分节），点卡片标题跳报表；~1 分钟更新。</div>
-      <span class="k">来源：官方帮助中心</span></div>
+          <div class="prodcard" data-layer="cross">
+            <h4>Zonos</h4>
+            <div class="p"><strong>定位：</strong>跨境电商技术服务商。</div>
+            <div class="p">
+              <strong>做法：</strong>Home = <strong>live today bar</strong>（含捕获时间戳）+ 历史
+              KPI 层（对比期 % + 方向箭头 + 点击钻取 + Top 排行/可展开 SKU）——双层结构最完整。
+            </div>
+            <span class="k">来源：官方文档（zonos.com/docs）</span>
+          </div>
 
-    <div class="prodcard" data-layer="cross"><h4>Zonos</h4>
-      <div class="p"><strong>定位：</strong>跨境电商技术服务商。</div>
-      <div class="p"><strong>做法：</strong>Home = <strong>live today bar</strong>（含捕获时间戳）+ 历史 KPI 层（对比期 % + 方向箭头 + 点击钻取 + Top 排行/可展开 SKU）——双层结构最完整。</div>
-      <span class="k">来源：官方文档（zonos.com/docs）</span></div>
+          <div class="prodcard" data-layer="cross">
+            <h4>Stripe</h4>
+            <div class="p"><strong>定位：</strong>支付基础设施操作台。</div>
+            <div class="p">
+              <strong>做法：</strong>Home = analytics + charts + 重要通知（争议/验证）；活动分解 =
+              summary totals → transaction details 逐层下钻；overview 可定制。
+            </div>
+            <span class="k">来源：官方文档（docs.stripe.com）</span>
+          </div>
 
-    <div class="prodcard" data-layer="cross"><h4>Stripe</h4>
-      <div class="p"><strong>定位：</strong>支付基础设施操作台。</div>
-      <div class="p"><strong>做法：</strong>Home = analytics + charts + 重要通知（争议/验证）；活动分解 = summary totals → transaction details 逐层下钻；overview 可定制。</div>
-      <span class="k">来源：官方文档（docs.stripe.com）</span></div>
+          <div class="prodcard" data-layer="cross">
+            <h4>WooCommerce</h4>
+            <div class="p"><strong>定位：</strong>WordPress 电商插件后台。</div>
+            <div class="p">
+              <strong>做法：</strong>Home = 性能指标 + 建议/提示 + 快速访问 + 新用户任务清单；同一
+              Home 按用户阶段切换内容。
+            </div>
+            <span class="k">来源：官方文档（woocommerce.com）</span>
+          </div>
 
-    <div class="prodcard" data-layer="cross"><h4>WooCommerce</h4>
-      <div class="p"><strong>定位：</strong>WordPress 电商插件后台。</div>
-      <div class="p"><strong>做法：</strong>Home = 性能指标 + 建议/提示 + 快速访问 + 新用户任务清单；同一 Home 按用户阶段切换内容。</div>
-      <span class="k">来源：官方文档（woocommerce.com）</span></div>
+          <div class="prodcard" data-layer="cross">
+            <h4>SellerMagnet</h4>
+            <div class="p"><strong>定位：</strong>多平台卖家生意聚合。</div>
+            <div class="p">
+              <strong>做法：</strong>Dashboard Home 分区：Today's Snapshot 实时卡（左上）+
+              长期盈利趋势。
+            </div>
+            <span class="k">来源：官方文档（docs.sellermagnet.com）</span>
+          </div>
 
-    <div class="prodcard" data-layer="cross"><h4>SellerMagnet</h4>
-      <div class="p"><strong>定位：</strong>多平台卖家生意聚合。</div>
-      <div class="p"><strong>做法：</strong>Dashboard Home 分区：Today's Snapshot 实时卡（左上）+ 长期盈利趋势。</div>
-      <span class="k">来源：官方文档（docs.sellermagnet.com）</span></div>
+          <div class="prodcard" data-layer="cross">
+            <h4>Amazon Seller Central</h4>
+            <div class="p"><strong>定位：</strong>Amazon 官方卖家后台。</div>
+            <div class="p">
+              <strong>做法：</strong>Account Health =
+              健康状态仪表盘：达标/风险/需关注事项，高风险给行动项——不是展示数量。
+            </div>
+            <span class="k">来源：Amazon 官方（sellercentral + 官方 PDF）</span>
+          </div>
 
-    <div class="prodcard" data-layer="cross"><h4>Amazon Seller Central</h4>
-      <div class="p"><strong>定位：</strong>Amazon 官方卖家后台。</div>
-      <div class="p"><strong>做法：</strong>Account Health = 健康状态仪表盘：达标/风险/需关注事项，高风险给行动项——不是展示数量。</div>
-      <span class="k">来源：Amazon 官方（sellercentral + 官方 PDF）</span></div>
+          <div class="prodcard" data-layer="cross">
+            <h4>Linear</h4>
+            <div class="p"><strong>定位：</strong>产品团队项目管理。</div>
+            <div class="p">
+              <strong>做法：</strong>Monitor/Pulse = 健康指标 + 个性化更新 feed（For me / Recent /
+              Popular）；更新 = health indicator + 富文本；AI 生成上周摘要。
+            </div>
+            <span class="k">来源：官方 changelog / docs</span>
+          </div>
+        </div>
+      </section>
 
-    <div class="prodcard" data-layer="cross"><h4>Linear</h4>
-      <div class="p"><strong>定位：</strong>产品团队项目管理。</div>
-      <div class="p"><strong>做法：</strong>Monitor/Pulse = 健康指标 + 个性化更新 feed（For me / Recent / Popular）；更新 = health indicator + 富文本；AI 生成上周摘要。</div>
-      <span class="k">来源：官方 changelog / docs</span></div>
-  </div>
-</section>
+      <section id="s7">
+        <h2>⑦ 差异化功能对比（按差异维度）</h2>
 
-<section id="s7">
-  <h2>⑦ 差异化功能对比（按差异维度）</h2>
+        <h3>维度 1：看板的时间分层——实时层与趋势层怎么分</h3>
+        <table class="stack">
+          <thead>
+            <tr>
+              <th>产品</th>
+              <th>分层方式</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="产品" class="prod">Zonos</td>
+              <td data-label="分层">
+                显式双层：live today bar（实时）+ historical analytics（可调范围/对比期）
+              </td>
+            </tr>
+            <tr>
+              <td data-label="产品" class="prod">SellerMagnet</td>
+              <td data-label="分层">Today's Snapshot 卡 + 长期趋势区（同页分区）</td>
+            </tr>
+            <tr>
+              <td data-label="产品" class="prod">Shopify</td>
+              <td data-label="分层">Home（30 天默认 + 实时）+ Analytics（自定义日期）双页</td>
+            </tr>
+            <tr>
+              <td data-label="产品" class="prod">微信公众号</td>
+              <td data-label="分层">昨日模块（对 7/30 天前）+ 趋势图（7/14/30 天）同一页上下</td>
+            </tr>
+            <tr>
+              <td data-label="产品" class="prod">知乎</td>
+              <td data-label="分层">数据概览（当日核心指标）为第一屏</td>
+            </tr>
+            <tr>
+              <td data-label="产品" class="prod">Readwise / Daylio / Flomo</td>
+              <td data-label="分层">无实时层，周期视图为主</td>
+            </tr>
+          </tbody>
+        </table>
+        <details>
+          <summary>展开：公众号「昨日对比模块」——不强调实时，强调对比</summary>
+          <div class="body">
+            <p>
+              图文分析页顶部展示<strong>昨天</strong>的阅读/转发/分享与<strong
+                >前天、7 天前、30 天前</strong
+              >的百分比变化（日/周/月三种口径），下方再给趋势图。逻辑：对内容运营者，「今天」绝对值意义不大（传播是滞后变量），<strong>相对对比才是判断信号</strong>——与
+              Shopify 强调实时形成对照，提示「实时层该放什么」取决于业务变量的时效性。
+            </p>
+          </div>
+        </details>
 
-  <h3>维度 1：看板的时间分层——实时层与趋势层怎么分</h3>
-  <table class="stack">
-    <thead><tr><th>产品</th><th>分层方式</th></tr></thead>
-    <tbody>
-      <tr><td data-label="产品" class="prod">Zonos</td><td data-label="分层">显式双层：live today bar（实时）+ historical analytics（可调范围/对比期）</td></tr>
-      <tr><td data-label="产品" class="prod">SellerMagnet</td><td data-label="分层">Today's Snapshot 卡 + 长期趋势区（同页分区）</td></tr>
-      <tr><td data-label="产品" class="prod">Shopify</td><td data-label="分层">Home（30 天默认 + 实时）+ Analytics（自定义日期）双页</td></tr>
-      <tr><td data-label="产品" class="prod">微信公众号</td><td data-label="分层">昨日模块（对 7/30 天前）+ 趋势图（7/14/30 天）同一页上下</td></tr>
-      <tr><td data-label="产品" class="prod">知乎</td><td data-label="分层">数据概览（当日核心指标）为第一屏</td></tr>
-      <tr><td data-label="产品" class="prod">Readwise / Daylio / Flomo</td><td data-label="分层">无实时层，周期视图为主</td></tr>
-    </tbody>
-  </table>
-  <details><summary>展开：公众号「昨日对比模块」——不强调实时，强调对比</summary><div class="body">
-    <p>图文分析页顶部展示<strong>昨天</strong>的阅读/转发/分享与<strong>前天、7 天前、30 天前</strong>的百分比变化（日/周/月三种口径），下方再给趋势图。逻辑：对内容运营者，「今天」绝对值意义不大（传播是滞后变量），<strong>相对对比才是判断信号</strong>——与 Shopify 强调实时形成对照，提示「实时层该放什么」取决于业务变量的时效性。</p>
-  </div></details>
+        <h3>维度 2：看板内容是数量、质量状态，还是参与度</h3>
+        <table class="stack">
+          <thead>
+            <tr>
+              <th>类别</th>
+              <th>产品</th>
+              <th>呈现</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="类别">纯数量</td>
+              <td data-label="产品">Shopify / Zonos / Stripe / RescueTime / Obsidian 数量插件</td>
+              <td data-label="呈现">指标卡、趋势图、KPI 对比</td>
+            </tr>
+            <tr>
+              <td data-label="类别">质量/结构状态</td>
+              <td data-label="产品">
+                Amazon Account Health、Linear health、Obsidian Vault Full Statistics
+              </td>
+              <td data-label="呈现">达标/风险/行动项、health indicator、dangling/tangles/inbox</td>
+            </tr>
+            <tr>
+              <td data-label="类别">参与度</td>
+              <td data-label="产品">ord-dashboard、vault-activity、RescueTime</td>
+              <td data-label="呈现">views/edits/active、创建+修订、时间去向</td>
+            </tr>
+            <tr>
+              <td data-label="类别">加权评分</td>
+              <td data-label="产品">知乎创作等级、RescueTime Pulse</td>
+              <td data-label="呈现">多个维度合成一个分数</td>
+            </tr>
+          </tbody>
+        </table>
+        <details>
+          <summary>展开：Obsidian Vault Full Statistics 的质量维度</summary>
+          <div class="body">
+            <p>
+              把统计从「多少」推进到「结构是否健康」——own vs source（自己写的 vs
+              引用外部）、dangling
+              sources（指向不存在笔记的链接）、tangles（纠缠的高互链簇）、inbox（未整理收件区）。这些对知识工作者是<strong>可行动信号</strong>（去补链接、拆簇、整理
+              inbox），而「总数 500 篇」不是。对照 Reflecta
+              的「看见边界与空白」，这是距离最近的一个既有做法——但从未有人把「缺口」做成首页看板。
+            </p>
+          </div>
+        </details>
 
-  <h3>维度 2：看板内容是数量、质量状态，还是参与度</h3>
-  <table class="stack">
-    <thead><tr><th>类别</th><th>产品</th><th>呈现</th></tr></thead>
-    <tbody>
-      <tr><td data-label="类别">纯数量</td><td data-label="产品">Shopify / Zonos / Stripe / RescueTime / Obsidian 数量插件</td><td data-label="呈现">指标卡、趋势图、KPI 对比</td></tr>
-      <tr><td data-label="类别">质量/结构状态</td><td data-label="产品">Amazon Account Health、Linear health、Obsidian Vault Full Statistics</td><td data-label="呈现">达标/风险/行动项、health indicator、dangling/tangles/inbox</td></tr>
-      <tr><td data-label="类别">参与度</td><td data-label="产品">ord-dashboard、vault-activity、RescueTime</td><td data-label="呈现">views/edits/active、创建+修订、时间去向</td></tr>
-      <tr><td data-label="类别">加权评分</td><td data-label="产品">知乎创作等级、RescueTime Pulse</td><td data-label="呈现">多个维度合成一个分数</td></tr>
-    </tbody>
-  </table>
-  <details><summary>展开：Obsidian Vault Full Statistics 的质量维度</summary><div class="body">
-    <p>把统计从「多少」推进到「结构是否健康」——own vs source（自己写的 vs 引用外部）、dangling sources（指向不存在笔记的链接）、tangles（纠缠的高互链簇）、inbox（未整理收件区）。这些对知识工作者是<strong>可行动信号</strong>（去补链接、拆簇、整理 inbox），而「总数 500 篇」不是。对照 Reflecta 的「看见边界与空白」，这是距离最近的一个既有做法——但从未有人把「缺口」做成首页看板。</p>
-  </div></details>
+        <h3>维度 3：激励设计——打卡、排名、评分还是中性</h3>
+        <table class="stack">
+          <thead>
+            <tr>
+              <th>产品</th>
+              <th>激励形态</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="产品" class="prod">Readwise</td>
+              <td data-label="激励">streak + recover 补卡 + 全球排名（社交化竞争）</td>
+            </tr>
+            <tr>
+              <td data-label="产品" class="prod">Daylio / Flomo / Obsidian 插件</td>
+              <td data-label="激励">streak / 连续记录（习惯养成）</td>
+            </tr>
+            <tr>
+              <td data-label="产品" class="prod">知乎</td>
+              <td data-label="激励">创作等级（平台加权评分，权益解锁驱动）</td>
+            </tr>
+            <tr>
+              <td data-label="产品" class="prod">RescueTime</td>
+              <td data-label="激励">Productivity Pulse 分数（自我衡量）</td>
+            </tr>
+            <tr>
+              <td data-label="产品" class="prod">Stripe / Shopify / Amazon / Linear / Apple</td>
+              <td data-label="激励">无激励，中性呈现或行动导向</td>
+            </tr>
+          </tbody>
+        </table>
+        <details>
+          <summary>展开：Readwise 全球 streak 排名——打卡激励的激进形态</summary>
+          <div class="body">
+            <p>
+              stats 页含 global streak
+              rank（所有用户里的连续复习天数排名）。用户长评（Medium）确认「全球排名不是重要因素，但确实是激励来源」。注意区分：streak
+              是<strong>自我比较</strong>，全球排名是<strong>社会比较</strong>；两者在「是否会推动无效行为」上的风险不同。
+            </p>
+          </div>
+        </details>
 
-  <h3>维度 3：激励设计——打卡、排名、评分还是中性</h3>
-  <table class="stack">
-    <thead><tr><th>产品</th><th>激励形态</th></tr></thead>
-    <tbody>
-      <tr><td data-label="产品" class="prod">Readwise</td><td data-label="激励">streak + recover 补卡 + 全球排名（社交化竞争）</td></tr>
-      <tr><td data-label="产品" class="prod">Daylio / Flomo / Obsidian 插件</td><td data-label="激励">streak / 连续记录（习惯养成）</td></tr>
-      <tr><td data-label="产品" class="prod">知乎</td><td data-label="激励">创作等级（平台加权评分，权益解锁驱动）</td></tr>
-      <tr><td data-label="产品" class="prod">RescueTime</td><td data-label="激励">Productivity Pulse 分数（自我衡量）</td></tr>
-      <tr><td data-label="产品" class="prod">Stripe / Shopify / Amazon / Linear / Apple</td><td data-label="激励">无激励，中性呈现或行动导向</td></tr>
-    </tbody>
-  </table>
-  <details><summary>展开：Readwise 全球 streak 排名——打卡激励的激进形态</summary><div class="body">
-    <p>stats 页含 global streak rank（所有用户里的连续复习天数排名）。用户长评（Medium）确认「全球排名不是重要因素，但确实是激励来源」。注意区分：streak 是<strong>自我比较</strong>，全球排名是<strong>社会比较</strong>；两者在「是否会推动无效行为」上的风险不同。</p>
-  </div></details>
+        <h3>维度 4：看板载体——首页第一屏 vs 独立页 vs 侧栏</h3>
+        <table class="stack">
+          <thead>
+            <tr>
+              <th>载体</th>
+              <th>产品</th>
+              <th>特点</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="载体">首页第一屏</td>
+              <td data-label="产品">
+                Shopify / Zonos / WooCommerce / SellerMagnet / 知乎 / 公众号
+              </td>
+              <td data-label="特点">打开即见，通常伴随待办/通知聚合</td>
+            </tr>
+            <tr>
+              <td data-label="载体">独立统计页</td>
+              <td data-label="产品">Readwise / Daylio / RescueTime / Obsidian 插件 / GitHub</td>
+              <td data-label="特点">主动进入，研究性回看</td>
+            </tr>
+            <tr>
+              <td data-label="载体">侧栏常驻</td>
+              <td data-label="产品">Flomo</td>
+              <td data-label="特点">与主内容同屏，低打扰</td>
+            </tr>
+          </tbody>
+        </table>
+        <details>
+          <summary>展开：电商 Home 的「待办聚合」——首页语义是「今天需要看什么、做什么」</summary>
+          <div class="body">
+            <p>
+              Shopify Home 把需要处理的事（未支付订单、任务）放第一屏；WooCommerce
+              新用户第一屏是任务清单；Stripe
+              聚合未解决争议。这说明电商看板首页的语义是<strong>数据与待办在同一个信息架构里</strong>。对「个人知识首页」是重要参照：首页可以是「沉淀状态
+              + 需要你继续整理的入口（如孤岛/缺上下文理解的行动入口）」，而不是纯数字墙。
+            </p>
+          </div>
+        </details>
 
-  <h3>维度 4：看板载体——首页第一屏 vs 独立页 vs 侧栏</h3>
-  <table class="stack">
-    <thead><tr><th>载体</th><th>产品</th><th>特点</th></tr></thead>
-    <tbody>
-      <tr><td data-label="载体">首页第一屏</td><td data-label="产品">Shopify / Zonos / WooCommerce / SellerMagnet / 知乎 / 公众号</td><td data-label="特点">打开即见，通常伴随待办/通知聚合</td></tr>
-      <tr><td data-label="载体">独立统计页</td><td data-label="产品">Readwise / Daylio / RescueTime / Obsidian 插件 / GitHub</td><td data-label="特点">主动进入，研究性回看</td></tr>
-      <tr><td data-label="载体">侧栏常驻</td><td data-label="产品">Flomo</td><td data-label="特点">与主内容同屏，低打扰</td></tr>
-    </tbody>
-  </table>
-  <details><summary>展开：电商 Home 的「待办聚合」——首页语义是「今天需要看什么、做什么」</summary><div class="body">
-    <p>Shopify Home 把需要处理的事（未支付订单、任务）放第一屏；WooCommerce 新用户第一屏是任务清单；Stripe 聚合未解决争议。这说明电商看板首页的语义是<strong>数据与待办在同一个信息架构里</strong>。对「个人知识首页」是重要参照：首页可以是「沉淀状态 + 需要你继续整理的入口（如孤岛/缺上下文理解的行动入口）」，而不是纯数字墙。</p>
-  </div></details>
+        <h3>维度 5：多实体计数——跨类型分列 vs 单实体聚合</h3>
+        <table class="stack">
+          <thead>
+            <tr>
+              <th>产品</th>
+              <th>对象</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="产品" class="prod">知乎</td>
+              <td data-label="对象">回答/文章/专栏分列</td>
+            </tr>
+            <tr>
+              <td data-label="产品" class="prod">公众号</td>
+              <td data-label="对象">用户/图文两大模块</td>
+            </tr>
+            <tr>
+              <td data-label="产品" class="prod">语雀</td>
+              <td data-label="对象">小记/文档/表格/画板/数据表分列（配额语义，复用昨日报告）</td>
+            </tr>
+            <tr>
+              <td data-label="产品" class="prod">Zonos live bar</td>
+              <td data-label="对象">收入/订单/均价/询价/国家 五项指标实时并置</td>
+            </tr>
+            <tr>
+              <td data-label="产品" class="prod">Flomo / Readwise / Daylio</td>
+              <td data-label="对象">单实体（memo/复习/记录）</td>
+            </tr>
+          </tbody>
+        </table>
+        <details>
+          <summary>展开：Zonos live today bar 的多实体并置</summary>
+          <div class="body">
+            <p>
+              实时层同时放收入、订单数、均价、询价数、Top
+              国家五个不同实体的当日状态——已是「多实体并置」的实时层，但所有实体共享同一业务语义（交易）。电商的多实体数量并置是被验证的
+              layout；Reflecta
+              的理解/画布/上下文是否共享「沉淀」这个统一语义，是需要用户自己想清楚的问题。
+            </p>
+          </div>
+        </details>
+      </section>
 
-  <h3>维度 5：多实体计数——跨类型分列 vs 单实体聚合</h3>
-  <table class="stack">
-    <thead><tr><th>产品</th><th>对象</th></tr></thead>
-    <tbody>
-      <tr><td data-label="产品" class="prod">知乎</td><td data-label="对象">回答/文章/专栏分列</td></tr>
-      <tr><td data-label="产品" class="prod">公众号</td><td data-label="对象">用户/图文两大模块</td></tr>
-      <tr><td data-label="产品" class="prod">语雀</td><td data-label="对象">小记/文档/表格/画板/数据表分列（配额语义，复用昨日报告）</td></tr>
-      <tr><td data-label="产品" class="prod">Zonos live bar</td><td data-label="对象">收入/订单/均价/询价/国家 五项指标实时并置</td></tr>
-      <tr><td data-label="产品" class="prod">Flomo / Readwise / Daylio</td><td data-label="对象">单实体（memo/复习/记录）</td></tr>
-    </tbody>
-  </table>
-  <details><summary>展开：Zonos live today bar 的多实体并置</summary><div class="body">
-    <p>实时层同时放收入、订单数、均价、询价数、Top 国家五个不同实体的当日状态——已是「多实体并置」的实时层，但所有实体共享同一业务语义（交易）。电商的多实体数量并置是被验证的 layout；Reflecta 的理解/画布/上下文是否共享「沉淀」这个统一语义，是需要用户自己想清楚的问题。</p>
-  </div></details>
-</section>
+      <section id="s8">
+        <h2>⑧ 信息缺口</h2>
+        <ol>
+          <li>
+            <strong>知乎创作中心官方说明</strong
+            >：数据概览的确切指标/布局仅检索到第三方教程（jizhil.com），未检索到知乎官方帮助中心专门说明。
+          </li>
+          <li>
+            <strong>公众号后台首页形态</strong
+            >：「数据分析」有官方说明（腾讯客服），但「后台首页是否有数据看板」官方未声明；壹伴首页看板为第三方补充。
+          </li>
+          <li>
+            <strong>Shopify 帮助页原文</strong>：help.shopify.com 直接抓取返回 403，Analytics
+            overview 完整字段依赖搜索摘要，未逐字段核对原文。
+          </li>
+          <li>
+            <strong>RescueTime Pulse 计算口径</strong
+            >：官方确认分数存在且分四档，但合成权重未公开（官方不提供）。
+          </li>
+          <li>
+            <strong>Heptabase 是否有统计</strong>：延续昨日缺口（2026-08-16
+            未检索到官方统计文档；本次未更新检索）。
+          </li>
+          <li>
+            <strong>Obsidian 插件质量</strong>：dangling/tangles 等指标均来自插件
+            README（社区），非官方；Obsidian/Logseq 官方依旧无统计。
+          </li>
+        </ol>
+      </section>
 
-<section id="s8">
-  <h2>⑧ 信息缺口</h2>
-  <ol>
-    <li><strong>知乎创作中心官方说明</strong>：数据概览的确切指标/布局仅检索到第三方教程（jizhil.com），未检索到知乎官方帮助中心专门说明。</li>
-    <li><strong>公众号后台首页形态</strong>：「数据分析」有官方说明（腾讯客服），但「后台首页是否有数据看板」官方未声明；壹伴首页看板为第三方补充。</li>
-    <li><strong>Shopify 帮助页原文</strong>：help.shopify.com 直接抓取返回 403，Analytics overview 完整字段依赖搜索摘要，未逐字段核对原文。</li>
-    <li><strong>RescueTime Pulse 计算口径</strong>：官方确认分数存在且分四档，但合成权重未公开（官方不提供）。</li>
-    <li><strong>Heptabase 是否有统计</strong>：延续昨日缺口（2026-08-16 未检索到官方统计文档；本次未更新检索）。</li>
-    <li><strong>Obsidian 插件质量</strong>：dangling/tangles 等指标均来自插件 README（社区），非官方；Obsidian/Logseq 官方依旧无统计。</li>
-  </ol>
-</section>
-
-<section id="s9">
-  <h2>⑨ 结论</h2>
-  <div class="lede">
-    <strong>一致：</strong>常驻看板 = 数字可钻取（8/16）、时间范围切换（7/16）与对比期（4/16）是标配；「实时/今天 + 历史趋势」两段结构在电商/运营后台高度收敛。<br>
-    <strong>缺失：</strong>个人知识 + 对话产品无电商式首页看板先例（Obsidian 插件最接近但没有页面 IA）；对话侧只有回顾 + 用量（复用昨日结论）。<br>
-    <strong>分歧：</strong>看板是纯数量还是健康/结构状态；激励（streak/排名/评分 vs 中性）；载体（首页 vs 独立页 vs 侧栏）；是否需要待办/动态聚合。<br>
-    <strong>空白：</strong>跨实体（沉淀资产 + 使用痕迹）统一首页看板，16 家无一实现——昨日报告结论二「跨实体统计是行业空白」进一步确认「做成首页」也是空白。
-  </div>
-  <p class="narrow">本报告只汇总行业事实与规律，不给出「Reflecta 应该怎么做」的建议；如何结合既有产品约束（value-proposition Never 清单、feature-set Not Now）做取舍，由用户自行决策。</p>
-</section>
-</main>
-<script>
-(function () {
-  var checks = document.querySelectorAll('.filterbar input[data-layer]');
-  if (!checks.length) return;
-  function apply() {
-    var count = 0;
-    document.querySelectorAll('.prodcard').forEach(function (card) {
-      var visible = true;
-      checks.forEach(function (c) {
-        if (!c.checked && card.dataset.layer === c.dataset.layer) visible = false;
-      });
-      card.classList.toggle('hidden', !visible);
-      if (visible) count++;
-    });
-    var bar = document.querySelector('.filterbar .count');
-    if (bar) bar.textContent = '（显示 ' + count + ' 家）';
-  }
-  checks.forEach(function (c) { c.addEventListener('change', apply); });
-  apply();
-})();
-</script>
-</body>
+      <section id="s9">
+        <h2>⑨ 结论</h2>
+        <div class="lede">
+          <strong>一致：</strong>常驻看板 =
+          数字可钻取（8/16）、时间范围切换（7/16）与对比期（4/16）是标配；「实时/今天 +
+          历史趋势」两段结构在电商/运营后台高度收敛。<br />
+          <strong>缺失：</strong>个人知识 + 对话产品无电商式首页看板先例（Obsidian
+          插件最接近但没有页面 IA）；对话侧只有回顾 + 用量（复用昨日结论）。<br />
+          <strong>分歧：</strong>看板是纯数量还是健康/结构状态；激励（streak/排名/评分 vs
+          中性）；载体（首页 vs 独立页 vs 侧栏）；是否需要待办/动态聚合。<br />
+          <strong>空白：</strong>跨实体（沉淀资产 + 使用痕迹）统一首页看板，16
+          家无一实现——昨日报告结论二「跨实体统计是行业空白」进一步确认「做成首页」也是空白。
+        </div>
+        <p class="narrow">
+          本报告只汇总行业事实与规律，不给出「Reflecta
+          应该怎么做」的建议；如何结合既有产品约束（value-proposition Never 清单、feature-set Not
+          Now）做取舍，由用户自行决策。
+        </p>
+      </section>
+    </main>
+    <script>
+      (function () {
+        var checks = document.querySelectorAll(".filterbar input[data-layer]");
+        if (!checks.length) return;
+        function apply() {
+          var count = 0;
+          document.querySelectorAll(".prodcard").forEach(function (card) {
+            var visible = true;
+            checks.forEach(function (c) {
+              if (!c.checked && card.dataset.layer === c.dataset.layer) visible = false;
+            });
+            card.classList.toggle("hidden", !visible);
+            if (visible) count++;
+          });
+          var bar = document.querySelector(".filterbar .count");
+          if (bar) bar.textContent = "（显示 " + count + " 家）";
+        }
+        checks.forEach(function (c) {
+          c.addEventListener("change", apply);
+        });
+        apply();
+      })();
+    </script>
+  </body>
 </html>

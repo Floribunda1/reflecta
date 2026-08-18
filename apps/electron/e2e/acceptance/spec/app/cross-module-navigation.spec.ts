@@ -10,11 +10,11 @@ test("@CV-NAV-001 用户从画布列表进入画布", async () => {
     await createCanvas(page);
 
     await canvasRow(page, "未命名画布").click();
-    await expect(page.getByTestId("canvas-entry-page")).toBeVisible();
-    await expect(page.getByTestId("canvas-entry-page")).toContainText("未命名画布");
+    await expect(page.getByTestId("canvas-workspace")).toBeVisible();
+    await expect(page.getByTestId("canvas-workspace-title-input")).toHaveValue("未命名画布");
 
     // 返回列表
-    await page.getByTestId("canvas-entry-back-button").click();
+    await page.getByTestId("canvas-workspace-back-button").click();
     await expect(page.getByTestId("canvas-page")).toBeVisible();
   } finally {
     await app.close();
@@ -40,8 +40,8 @@ test("@CV-NAV-002 外部带参跳转直接打开指定画布", async () => {
       window.location.hash = `/understanding-canvas?canvas=${id}`;
     }, canvasId as string);
 
-    await expect(page.getByTestId("canvas-entry-page")).toBeVisible();
-    await expect(page.getByTestId("canvas-entry-page")).toContainText("未命名画布");
+    await expect(page.getByTestId("canvas-workspace")).toBeVisible();
+    await expect(page.getByTestId("canvas-workspace-title-input")).toHaveValue("未命名画布");
   } finally {
     await app.close();
   }

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { createStore, type StoreApi } from "zustand/vanilla";
-import type { CanvasDocument, Viewport } from "@reflecta/server";
+import type { CanvasDocument, CanvasViewport } from "@reflecta/ui/canvas";
 
 /**
  * 画布文档 store（计划 §2）：X6 为交互 / 语义权威，本 store 是其镜像数据源。
@@ -15,7 +15,7 @@ import type { CanvasDocument, Viewport } from "@reflecta/server";
 export type CanvasStoreState = {
   selectedCanvasId: string | null;
   document: CanvasDocument;
-  viewport: Viewport | null;
+  viewport: CanvasViewport | null;
   selection: string[];
 };
 
@@ -25,7 +25,7 @@ export type CanvasStoreActions = {
   /** 事件桥回写：X6 变更后的完整文档状态（防抖 saveCanvas 由上层负责） */
   setDocument: (document: CanvasDocument) => void;
   /** 视口变更 settle 后回写（updateViewport） */
-  setViewport: (viewport: Viewport) => void;
+  setViewport: (viewport: CanvasViewport) => void;
   setSelection: (cellIds: string[]) => void;
   reset: () => void;
 };

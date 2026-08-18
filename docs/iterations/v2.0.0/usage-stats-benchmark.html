@@ -1,560 +1,1355 @@
 <!doctype html>
 <html lang="zh-CN">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>使用痕迹统计模块调研报告 · Reflecta</title>
-<style>
-  :root {
-    --ink: #1a1a1a; --muted: #6b6b6b; --line: #d9d9d9; --bg: #ffffff;
-    --panel: #f6f6f4; --accent: #0f6e4f; --warn: #9a6a00; --danger: #a33;
-    --hi: #0f6e4f; --mid: #b8860b; --low: #8a8a8a;
-  }
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body {
-    margin: 0; background: var(--bg); color: var(--ink);
-    font: 15px/1.7 -apple-system, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
-  }
-  header.site { border-bottom: 1px solid var(--line); padding: 28px 20px 20px; background: var(--panel); }
-  header.site h1 { margin: 0 0 6px; font-size: 22px; line-height: 1.3; }
-  .meta { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 18px; }
-  .disclaimer { margin-top: 12px; font-size: 12px; color: var(--muted); }
-  nav.toc {
-    position: sticky; top: 0; z-index: 10; background: var(--bg);
-    border-bottom: 1px solid var(--line); padding: 8px 20px; overflow-x: auto; white-space: nowrap;
-  }
-  nav.toc a { color: var(--accent); text-decoration: none; font-size: 13px; margin-right: 16px; }
-  nav.toc a:hover { text-decoration: underline; }
-  a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  main { max-width: 960px; margin: 0 auto; padding: 8px 20px 60px; }
-  section { margin-top: 40px; }
-  h2 { font-size: 19px; margin: 0 0 12px; padding-top: 8px; }
-  h3 { font-size: 16px; margin: 26px 0 10px; }
-  p { margin: 8px 0; }
-  .lede { border-left: 4px solid var(--accent); background: var(--panel); padding: 12px 16px; margin: 14px 0; }
-  .callout { border-left: 4px solid var(--warn); background: #fbf6ec; padding: 10px 14px; margin: 14px 0; font-size: 14px; }
-  .gap { border-left: 4px solid var(--danger); background: #faf0f0; padding: 10px 14px; margin: 10px 0; font-size: 14px; }
-  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
-  th, td { border: 1px solid var(--line); padding: 7px 9px; text-align: left; vertical-align: top; }
-  th { background: var(--panel); font-weight: 600; }
-  td.prod { font-weight: 600; white-space: nowrap; }
-  .conf { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; color: #fff; vertical-align: 1px; margin-right: 6px; }
-  .conf.hi { background: var(--hi); } .conf.mid { background: var(--mid); } .conf.low { background: var(--low); }
-  .tag { display: inline-block; font-size: 11px; padding: 1px 6px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); margin: 0 4px 4px 0; }
-  details { border: 1px solid var(--line); border-radius: 6px; margin: 10px 0; background: var(--bg); }
-  details > summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: 14px; list-style: none; }
-  details > summary::before { content: "▸ "; color: var(--muted); }
-  details[open] > summary::before { content: "▾ "; }
-  details > .body { padding: 2px 16px 14px; }
-  .prodgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 12px; }
-  .prodcard { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; font-size: 13.5px; transition: opacity .15s; }
-  .prodcard h4 { margin: 0 0 8px; font-size: 15px; }
-  .prodcard .p { margin: 4px 0; }
-  .prodcard .k { color: var(--muted); font-size: 12px; display: block; margin-top: 8px; }
-  .filterbar { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 12px 0; background: var(--panel); font-size: 13px; }
-  .filterbar .lbl { font-weight: 600; margin-right: 8px; }
-  .filterbar label { display: inline-block; margin: 2px 10px 2px 0; white-space: nowrap; cursor: pointer; }
-  .filterbar input { margin-right: 4px; accent-color: var(--accent); }
-  .filterbar button { border: 1px solid var(--line); background: #fff; border-radius: 5px; padding: 3px 10px; cursor: pointer; font-size: 12px; }
-  .filterbar button:hover { background: var(--panel); }
-  .dim table tr.dimmed { opacity: .25; }
-  .prodgrid .prodcard.dimmed { opacity: .25; }
-  ol.sources { font-size: 13px; color: var(--muted); padding-left: 20px; }
-  ol.sources li { margin: 3px 0; word-break: break-all; }
-  footer { border-top: 1px solid var(--line); margin-top: 48px; padding: 18px 20px 30px; color: var(--muted); font-size: 12px; text-align: center; }
-  @media (max-width: 640px) {
-    body { font-size: 14px; }
-    main { padding: 4px 12px 40px; }
-    table, thead, tbody, th, td, tr { display: block; }
-    thead { display: none; }
-    table tr { border: 1px solid var(--line); border-radius: 6px; margin: 8px 0; }
-    td { border: 0; padding: 5px 9px; position: relative; }
-    td::before { content: attr(data-label); display: block; font-size: 11px; color: var(--muted); }
-    td.prod::before { display: none; }
-    td.prod { font-size: 14px; background: var(--panel); }
-  }
-  @media print {
-    nav.toc, .filterbar, .filterbar ~ * .filterbar { display: none; }
-    details { break-inside: avoid; }
-    details > .body { display: block; }
-    body { font-size: 12px; }
-  }
-</style>
-</head>
-<body>
-<header class="site">
-  <h1>「使用痕迹统计」模块调研报告</h1>
-  <div class="meta">
-    <span>调研模块：个人知识 / AI 对话产品的使用痕迹统计</span>
-    <span>覆盖产品：15 家</span>
-    <span>调研时间：2026-08-16</span>
-    <span>来源：官方文档 / 帮助中心为主，个别为媒体或第三方</span>
-  </div>
-  <div class="disclaimer">AI-generated. Verify critical decisions independently.</div>
-</header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>使用痕迹统计模块调研报告 · Reflecta</title>
+    <style>
+      :root {
+        --ink: #1a1a1a;
+        --muted: #6b6b6b;
+        --line: #d9d9d9;
+        --bg: #ffffff;
+        --panel: #f6f6f4;
+        --accent: #0f6e4f;
+        --warn: #9a6a00;
+        --danger: #a33;
+        --hi: #0f6e4f;
+        --mid: #b8860b;
+        --low: #8a8a8a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.7 -apple-system,
+          "PingFang SC",
+          "Noto Sans CJK SC",
+          "Microsoft YaHei",
+          sans-serif;
+      }
+      header.site {
+        border-bottom: 1px solid var(--line);
+        padding: 28px 20px 20px;
+        background: var(--panel);
+      }
+      header.site h1 {
+        margin: 0 0 6px;
+        font-size: 22px;
+        line-height: 1.3;
+      }
+      .meta {
+        color: var(--muted);
+        font-size: 13px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 18px;
+      }
+      .disclaimer {
+        margin-top: 12px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      nav.toc {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: var(--bg);
+        border-bottom: 1px solid var(--line);
+        padding: 8px 20px;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+      nav.toc a {
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 13px;
+        margin-right: 16px;
+      }
+      nav.toc a:hover {
+        text-decoration: underline;
+      }
+      a:focus-visible,
+      button:focus-visible,
+      summary:focus-visible,
+      input:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 8px 20px 60px;
+      }
+      section {
+        margin-top: 40px;
+      }
+      h2 {
+        font-size: 19px;
+        margin: 0 0 12px;
+        padding-top: 8px;
+      }
+      h3 {
+        font-size: 16px;
+        margin: 26px 0 10px;
+      }
+      p {
+        margin: 8px 0;
+      }
+      .lede {
+        border-left: 4px solid var(--accent);
+        background: var(--panel);
+        padding: 12px 16px;
+        margin: 14px 0;
+      }
+      .callout {
+        border-left: 4px solid var(--warn);
+        background: #fbf6ec;
+        padding: 10px 14px;
+        margin: 14px 0;
+        font-size: 14px;
+      }
+      .gap {
+        border-left: 4px solid var(--danger);
+        background: #faf0f0;
+        padding: 10px 14px;
+        margin: 10px 0;
+        font-size: 14px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0;
+        font-size: 14px;
+      }
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 7px 9px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: var(--panel);
+        font-weight: 600;
+      }
+      td.prod {
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .conf {
+        display: inline-block;
+        font-size: 11px;
+        padding: 1px 7px;
+        border-radius: 10px;
+        color: #fff;
+        vertical-align: 1px;
+        margin-right: 6px;
+      }
+      .conf.hi {
+        background: var(--hi);
+      }
+      .conf.mid {
+        background: var(--mid);
+      }
+      .conf.low {
+        background: var(--low);
+      }
+      .tag {
+        display: inline-block;
+        font-size: 11px;
+        padding: 1px 6px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        color: var(--muted);
+        margin: 0 4px 4px 0;
+      }
+      details {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        margin: 10px 0;
+        background: var(--bg);
+      }
+      details > summary {
+        cursor: pointer;
+        padding: 10px 14px;
+        font-weight: 600;
+        font-size: 14px;
+        list-style: none;
+      }
+      details > summary::before {
+        content: "▸ ";
+        color: var(--muted);
+      }
+      details[open] > summary::before {
+        content: "▾ ";
+      }
+      details > .body {
+        padding: 2px 16px 14px;
+      }
+      .prodgrid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .prodcard {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-size: 13.5px;
+        transition: opacity 0.15s;
+      }
+      .prodcard h4 {
+        margin: 0 0 8px;
+        font-size: 15px;
+      }
+      .prodcard .p {
+        margin: 4px 0;
+      }
+      .prodcard .k {
+        color: var(--muted);
+        font-size: 12px;
+        display: block;
+        margin-top: 8px;
+      }
+      .filterbar {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin: 12px 0;
+        background: var(--panel);
+        font-size: 13px;
+      }
+      .filterbar .lbl {
+        font-weight: 600;
+        margin-right: 8px;
+      }
+      .filterbar label {
+        display: inline-block;
+        margin: 2px 10px 2px 0;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .filterbar input {
+        margin-right: 4px;
+        accent-color: var(--accent);
+      }
+      .filterbar button {
+        border: 1px solid var(--line);
+        background: #fff;
+        border-radius: 5px;
+        padding: 3px 10px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .filterbar button:hover {
+        background: var(--panel);
+      }
+      .dim table tr.dimmed {
+        opacity: 0.25;
+      }
+      .prodgrid .prodcard.dimmed {
+        opacity: 0.25;
+      }
+      ol.sources {
+        font-size: 13px;
+        color: var(--muted);
+        padding-left: 20px;
+      }
+      ol.sources li {
+        margin: 3px 0;
+        word-break: break-all;
+      }
+      footer {
+        border-top: 1px solid var(--line);
+        margin-top: 48px;
+        padding: 18px 20px 30px;
+        color: var(--muted);
+        font-size: 12px;
+        text-align: center;
+      }
+      @media (max-width: 640px) {
+        body {
+          font-size: 14px;
+        }
+        main {
+          padding: 4px 12px 40px;
+        }
+        table,
+        thead,
+        tbody,
+        th,
+        td,
+        tr {
+          display: block;
+        }
+        thead {
+          display: none;
+        }
+        table tr {
+          border: 1px solid var(--line);
+          border-radius: 6px;
+          margin: 8px 0;
+        }
+        td {
+          border: 0;
+          padding: 5px 9px;
+          position: relative;
+        }
+        td::before {
+          content: attr(data-label);
+          display: block;
+          font-size: 11px;
+          color: var(--muted);
+        }
+        td.prod::before {
+          display: none;
+        }
+        td.prod {
+          font-size: 14px;
+          background: var(--panel);
+        }
+      }
+      @media print {
+        nav.toc,
+        .filterbar,
+        .filterbar ~ * .filterbar {
+          display: none;
+        }
+        details {
+          break-inside: avoid;
+        }
+        details > .body {
+          display: block;
+        }
+        body {
+          font-size: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site">
+      <h1>「使用痕迹统计」模块调研报告</h1>
+      <div class="meta">
+        <span>调研模块：个人知识 / AI 对话产品的使用痕迹统计</span>
+        <span>覆盖产品：15 家</span>
+        <span>调研时间：2026-08-16</span>
+        <span>来源：官方文档 / 帮助中心为主，个别为媒体或第三方</span>
+      </div>
+      <div class="disclaimer">AI-generated. Verify critical decisions independently.</div>
+    </header>
 
-<nav class="toc" aria-label="目录">
-  <a href="#bg">背景</a>
-  <a href="#scope">调研范围</a>
-  <a href="#concl">总结论</a>
-  <a href="#cap">核心能力</a>
-  <a href="#ux">体验功能</a>
-  <a href="#profiles">产品画像</a>
-  <a href="#dims">差异维度</a>
-  <a href="#gaps">信息缺口</a>
-  <a href="#end">结论</a>
-  <a href="#sources">来源</a>
-</nav>
+    <nav class="toc" aria-label="目录">
+      <a href="#bg">背景</a>
+      <a href="#scope">调研范围</a>
+      <a href="#concl">总结论</a>
+      <a href="#cap">核心能力</a>
+      <a href="#ux">体验功能</a>
+      <a href="#profiles">产品画像</a>
+      <a href="#dims">差异维度</a>
+      <a href="#gaps">信息缺口</a>
+      <a href="#end">结论</a>
+      <a href="#sources">来源</a>
+    </nav>
 
-<main>
+    <main>
+      <section id="bg">
+        <h2>1. 背景介绍</h2>
+        <p>
+          本报告调研
+          <strong>个人知识管理（PKM）+ AI 对话类产品中，向个人用户展示"使用痕迹"的统计模块</strong
+          >：首页 / 仪表盘 / 侧栏上的活动统计、热力图、连续记录、年度回顾等。
+        </p>
+        <div class="lede">
+          <strong>调研触发点（用户口述）</strong>：Reflecta 当前 Capture
+          首页统计（CaptureStats）只基于一种实体——理解笔记（总理解 / 本周新增 / 连续记录 / 上下文数
+          + 12
+          周热力图）。用户认为这套逻辑不合理，直觉是"应该展示所有用这个产品的痕迹，包括对话、理解笔记以及画布等"。本报告呈现行业现状，供用户自行判断。
+        </div>
+        <div class="callout">
+          <strong>用户产品自身的约束背景</strong>（来自 Reflecta
+          项目文档，非调研结论）：value-proposition 明确「把知识边界做成抽象分数或仪表盘」属 Never
+          方向；feature-set-guide 在图谱形态下把「数量统计 dashboard」列为 Not
+          Now。此为既有决策，仅作判断背景。
+        </div>
+        <p>
+          <strong>理解假设</strong>：本报告按"个人知识 + AI
+          对话应用的跨实体使用痕迹统计"理解该模块；若实际指团队级统计等，请指出后将重新选品。
+        </p>
+      </section>
 
-<section id="bg">
-  <h2>1. 背景介绍</h2>
-  <p>本报告调研 <strong>个人知识管理（PKM）+ AI 对话类产品中，向个人用户展示"使用痕迹"的统计模块</strong>：首页 / 仪表盘 / 侧栏上的活动统计、热力图、连续记录、年度回顾等。</p>
-  <div class="lede">
-    <strong>调研触发点（用户口述）</strong>：Reflecta 当前 Capture 首页统计（CaptureStats）只基于一种实体——理解笔记（总理解 / 本周新增 / 连续记录 / 上下文数 + 12 周热力图）。用户认为这套逻辑不合理，直觉是"应该展示所有用这个产品的痕迹，包括对话、理解笔记以及画布等"。本报告呈现行业现状，供用户自行判断。
-  </div>
-  <div class="callout">
-    <strong>用户产品自身的约束背景</strong>（来自 Reflecta 项目文档，非调研结论）：value-proposition 明确「把知识边界做成抽象分数或仪表盘」属 Never 方向；feature-set-guide 在图谱形态下把「数量统计 dashboard」列为 Not Now。此为既有决策，仅作判断背景。
-  </div>
-  <p><strong>理解假设</strong>：本报告按"个人知识 + AI 对话应用的跨实体使用痕迹统计"理解该模块；若实际指团队级统计等，请指出后将重新选品。</p>
-</section>
+      <section id="scope">
+        <h2>2. 调研范围与产品（形态空间 + 分层）</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>形态</th>
+              <th>说明</th>
+              <th>代表产品</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="形态"><strong>A. 习惯/连续性统计</strong></td>
+              <td data-label="说明">常驻热力图 + streak + 汇总卡</td>
+              <td data-label="代表">Flomo、Day One、Apple Journal、Readwise、GitHub</td>
+            </tr>
+            <tr>
+              <td data-label="形态"><strong>B. 回顾式报告</strong></td>
+              <td data-label="说明">一次性年度/月度报告（Wrapped 式）</td>
+              <td data-label="代表">ChatGPT、Claude、语雀</td>
+            </tr>
+            <tr>
+              <td data-label="形态"><strong>C. 插件生态统计</strong></td>
+              <td data-label="说明">PKM 无内置，第三方插件补齐</td>
+              <td data-label="代表">Obsidian 插件、Logseq 插件、chatgpt-data-viewer</td>
+            </tr>
+            <tr>
+              <td data-label="形态"><strong>D. 配额/用量仪表盘</strong></td>
+              <td data-label="说明">计费导向的额度监控（AI 侧）</td>
+              <td data-label="代表">Claude Usage、ChatGPT 用量</td>
+            </tr>
+            <tr>
+              <td data-label="形态"><strong>E. 内容/协作分析</strong></td>
+              <td data-label="说明">单篇阅读量、团队级活动分析</td>
+              <td data-label="代表">Notion、语雀、Evernote Teams、ChatGPT Enterprise</td>
+            </tr>
+            <tr>
+              <td data-label="形态"><strong>F. 无统计</strong></td>
+              <td data-label="说明">官方不做统计，只有历史/活动管理</td>
+              <td data-label="代表">
+                Notion（个人）、Evernote（个人）、Heptabase、Gemini、Perplexity
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          分层：<strong>直接竞品</strong>（Flomo、语雀、Day One、Apple
+          Journal、ChatGPT、Claude）｜<strong>间接竞品</strong>（Obsidian、Logseq、Notion、Evernote、Readwise）｜<strong>跨域参照</strong>（GitHub
+          为热力图范式源头；Heptabase 与 Reflecta 定位最近但无统计，事实性空白本身是发现）。
+        </p>
+      </section>
 
-<section id="scope">
-  <h2>2. 调研范围与产品（形态空间 + 分层）</h2>
-  <table>
-    <thead><tr><th>形态</th><th>说明</th><th>代表产品</th></tr></thead>
-    <tbody>
-      <tr><td data-label="形态"><strong>A. 习惯/连续性统计</strong></td><td data-label="说明">常驻热力图 + streak + 汇总卡</td><td data-label="代表">Flomo、Day One、Apple Journal、Readwise、GitHub</td></tr>
-      <tr><td data-label="形态"><strong>B. 回顾式报告</strong></td><td data-label="说明">一次性年度/月度报告（Wrapped 式）</td><td data-label="代表">ChatGPT、Claude、语雀</td></tr>
-      <tr><td data-label="形态"><strong>C. 插件生态统计</strong></td><td data-label="说明">PKM 无内置，第三方插件补齐</td><td data-label="代表">Obsidian 插件、Logseq 插件、chatgpt-data-viewer</td></tr>
-      <tr><td data-label="形态"><strong>D. 配额/用量仪表盘</strong></td><td data-label="说明">计费导向的额度监控（AI 侧）</td><td data-label="代表">Claude Usage、ChatGPT 用量</td></tr>
-      <tr><td data-label="形态"><strong>E. 内容/协作分析</strong></td><td data-label="说明">单篇阅读量、团队级活动分析</td><td data-label="代表">Notion、语雀、Evernote Teams、ChatGPT Enterprise</td></tr>
-      <tr><td data-label="形态"><strong>F. 无统计</strong></td><td data-label="说明">官方不做统计，只有历史/活动管理</td><td data-label="代表">Notion（个人）、Evernote（个人）、Heptabase、Gemini、Perplexity</td></tr>
-    </tbody>
-  </table>
-  <p>分层：<strong>直接竞品</strong>（Flomo、语雀、Day One、Apple Journal、ChatGPT、Claude）｜<strong>间接竞品</strong>（Obsidian、Logseq、Notion、Evernote、Readwise）｜<strong>跨域参照</strong>（GitHub 为热力图范式源头；Heptabase 与 Reflecta 定位最近但无统计，事实性空白本身是发现）。</p>
-</section>
+      <section id="concl">
+        <h2>3.1 调研总结论</h2>
 
-<section id="concl">
-  <h2>3.1 调研总结论</h2>
+        <details open>
+          <summary>
+            结论一：个人"使用痕迹统计"普遍以单实体为对象，收敛到同一套范式
+            <span class="conf hi">高可信</span>
+          </summary>
+          <div class="body">
+            <p>
+              几乎所有做个人统计的产品都以<b>一种实体</b>（memo / 日记条目 / 笔记文件 /
+              对话）为计数对象，呈现为 <b>GitHub 式热力图 + 连续记录（streak）+ 少量汇总数字</b>。
+            </p>
+            <ul>
+              <li>
+                Flomo 官方：侧栏 12 周热力图（周一开头、五档深浅）+
+                记录统计（累计笔记数、标签数、记录天数等八维度）。<span class="tag">官方</span>
+              </li>
+              <li>Day One：Journal Streaks + 日历视图。<span class="tag">官方</span></li>
+              <li>Apple Journal：Insights（日/周 streak + 日历）。<span class="tag">官方</span></li>
+              <li>
+                Obsidian / Logseq：插件（Vault Activity Heatmap、obsidian-data-analysis、Keep the
+                Rhythm、vault-pulse、logseq-plugin-heatmap）几乎全是"热力图 + 汇总卡 +
+                趋势图"。<span class="tag">社区开源</span>
+              </li>
+              <li>GitHub：贡献图 = 365 天网格，是范式源头。<span class="tag">官方</span></li>
+            </ul>
+            <p>
+              Reflecta 现有 CaptureStats 正属这一范式（单实体理解笔记的活动统计），是行业标准做法。
+            </p>
+          </div>
+        </details>
 
-  <details open>
-    <summary>结论一：个人"使用痕迹统计"普遍以单实体为对象，收敛到同一套范式 <span class="conf hi">高可信</span></summary>
-    <div class="body">
-      <p>几乎所有做个人统计的产品都以<b>一种实体</b>（memo / 日记条目 / 笔记文件 / 对话）为计数对象，呈现为 <b>GitHub 式热力图 + 连续记录（streak）+ 少量汇总数字</b>。</p>
-      <ul>
-        <li>Flomo 官方：侧栏 12 周热力图（周一开头、五档深浅）+ 记录统计（累计笔记数、标签数、记录天数等八维度）。<span class="tag">官方</span></li>
-        <li>Day One：Journal Streaks + 日历视图。<span class="tag">官方</span></li>
-        <li>Apple Journal：Insights（日/周 streak + 日历）。<span class="tag">官方</span></li>
-        <li>Obsidian / Logseq：插件（Vault Activity Heatmap、obsidian-data-analysis、Keep the Rhythm、vault-pulse、logseq-plugin-heatmap）几乎全是"热力图 + 汇总卡 + 趋势图"。<span class="tag">社区开源</span></li>
-        <li>GitHub：贡献图 = 365 天网格，是范式源头。<span class="tag">官方</span></li>
-      </ul>
-      <p>Reflecta 现有 CaptureStats 正属这一范式（单实体理解笔记的活动统计），是行业标准做法。</p>
-    </div>
-  </details>
+        <details open>
+          <summary>
+            结论二：行业内没有"跨实体统一痕迹统计"的成熟先例 <span class="conf hi">高可信</span>
+          </summary>
+          <div class="body">
+            <p>
+              检索到的 15 家产品中，<b>没有一家</b>把"笔记 + 对话 + 画布 +
+              其他实体"聚合进统一统计视图。最接近的两个：
+            </p>
+            <ul>
+              <li>
+                <b>语雀「文稿数」</b>：按小记 / 文档 / 表格 / 画板 /
+                数据表分别计数并汇总——但是<b>配额计数器</b>（每月 1
+                号清零、删除不释放），不是仪表盘，不呈现趋势/节奏。
+              </li>
+              <li><b>Flomo「记录统计」</b>：宣称"八个维度"，但全部来自 memo 单一实体。</li>
+            </ul>
+            <p>
+              用户设想的"展示所有使用痕迹（对话、理解笔记、画布）"没有现成竞品范式可抄——这是真实的行业空白，也是本报告最重要的发现。
+            </p>
+          </div>
+        </details>
 
-  <details open>
-    <summary>结论二：行业内没有"跨实体统一痕迹统计"的成熟先例 <span class="conf hi">高可信</span></summary>
-    <div class="body">
-      <p>检索到的 15 家产品中，<b>没有一家</b>把"笔记 + 对话 + 画布 + 其他实体"聚合进统一统计视图。最接近的两个：</p>
-      <ul>
-        <li><b>语雀「文稿数」</b>：按小记 / 文档 / 表格 / 画板 / 数据表分别计数并汇总——但是<b>配额计数器</b>（每月 1 号清零、删除不释放），不是仪表盘，不呈现趋势/节奏。</li>
-        <li><b>Flomo「记录统计」</b>：宣称"八个维度"，但全部来自 memo 单一实体。</li>
-      </ul>
-      <p>用户设想的"展示所有使用痕迹（对话、理解笔记、画布）"没有现成竞品范式可抄——这是真实的行业空白，也是本报告最重要的发现。</p>
-    </div>
-  </details>
+        <details open>
+          <summary>
+            结论三：AI 对话侧对个人"使用痕迹"统计极其克制，只有两种形态
+            <span class="conf hi">高可信</span>
+          </summary>
+          <div class="body">
+            <ul>
+              <li>
+                <b>一次性回顾报告</b>：ChatGPT "Your
+                Year"（年度：消息数、聊天数、风格、最活跃日、图片数；需开启 chat history +
+                memory，部分国家/用户可见）<span class="tag">媒体来源</span>；Claude Monthly
+                Recap（月度，beta，主题 + 使用时间模式，需 memory）<span class="tag">官方</span>。
+              </li>
+              <li>
+                <b>计费导向用量仪表盘</b>：Claude Settings &gt;
+                Usage（实时用量、月度花费、限额进度条）<span class="tag">官方</span>；ChatGPT
+                用量页。
+              </li>
+              <li>
+                Gemini 只有 My Activity 活动管理（隐私视角）；Perplexity 只有 History/Threads
+                管理。<b>均无常驻热力图或统计</b>。
+              </li>
+              <li>
+                ChatGPT 的热力图需求由第三方补齐：chatgpt-data-viewer 用导出数据渲染 GitHub
+                式贡献图。<span class="tag">第三方</span>
+              </li>
+            </ul>
+          </div>
+        </details>
 
-  <details open>
-    <summary>结论三：AI 对话侧对个人"使用痕迹"统计极其克制，只有两种形态 <span class="conf hi">高可信</span></summary>
-    <div class="body">
-      <ul>
-        <li><b>一次性回顾报告</b>：ChatGPT "Your Year"（年度：消息数、聊天数、风格、最活跃日、图片数；需开启 chat history + memory，部分国家/用户可见）<span class="tag">媒体来源</span>；Claude Monthly Recap（月度，beta，主题 + 使用时间模式，需 memory）<span class="tag">官方</span>。</li>
-        <li><b>计费导向用量仪表盘</b>：Claude Settings &gt; Usage（实时用量、月度花费、限额进度条）<span class="tag">官方</span>；ChatGPT 用量页。</li>
-        <li>Gemini 只有 My Activity 活动管理（隐私视角）；Perplexity 只有 History/Threads 管理。<b>均无常驻热力图或统计</b>。</li>
-        <li>ChatGPT 的热力图需求由第三方补齐：chatgpt-data-viewer 用导出数据渲染 GitHub 式贡献图。<span class="tag">第三方</span></li>
-      </ul>
-    </div>
-  </details>
+        <details open>
+          <summary>
+            结论四：PKM 官方普遍不做统计；官方分析偏向协作或配额视角
+            <span class="conf mid">中可信</span>
+          </summary>
+          <div class="body">
+            <ul>
+              <li>Obsidian、Logseq 官方均无统计，由插件生态覆盖（官方未声明原因，见信息缺口）。</li>
+              <li>
+                Notion 个人无统计；官方只有 Page Analytics（单页阅读/编辑，协作视角）与 Workspace
+                Analytics（Enterprise）。<span class="tag">官方</span>
+              </li>
+              <li>
+                Evernote 个人无统计；官方只有 Teams Activity History（管理员审计）。<span
+                  class="tag"
+                  >官方</span
+                >
+              </li>
+              <li>
+                语雀：个人侧年度报告 + 文稿数配额；单篇文档统计偏内容运营。<span class="tag"
+                  >部分官方</span
+                >
+              </li>
+            </ul>
+            <div class="callout">
+              <b>研究见解</b>：行业现状可概括为"<b
+                >单实体统计是共识、跨实体统计是空白、AI 对话侧只有回顾与用量</b
+              >"。用户对现有统计"不合理"的感受，很可能来自"拿单实体统计范式去服务一个多实体产品"；如何取舍是产品决策，本报告不替用户作答。
+            </div>
+          </div>
+        </details>
+      </section>
 
-  <details open>
-    <summary>结论四：PKM 官方普遍不做统计；官方分析偏向协作或配额视角 <span class="conf mid">中可信</span></summary>
-    <div class="body">
-      <ul>
-        <li>Obsidian、Logseq 官方均无统计，由插件生态覆盖（官方未声明原因，见信息缺口）。</li>
-        <li>Notion 个人无统计；官方只有 Page Analytics（单页阅读/编辑，协作视角）与 Workspace Analytics（Enterprise）。<span class="tag">官方</span></li>
-        <li>Evernote 个人无统计；官方只有 Teams Activity History（管理员审计）。<span class="tag">官方</span></li>
-        <li>语雀：个人侧年度报告 + 文稿数配额；单篇文档统计偏内容运营。<span class="tag">部分官方</span></li>
-      </ul>
-      <div class="callout"><b>研究见解</b>：行业现状可概括为"<b>单实体统计是共识、跨实体统计是空白、AI 对话侧只有回顾与用量</b>"。用户对现有统计"不合理"的感受，很可能来自"拿单实体统计范式去服务一个多实体产品"；如何取舍是产品决策，本报告不替用户作答。</div>
-    </div>
-  </details>
-</section>
+      <section id="cap">
+        <h2>3.2 核心能力（能力解析 + 各家做法）</h2>
 
-<section id="cap">
-  <h2>3.2 核心能力（能力解析 + 各家做法）</h2>
+        <details>
+          <summary>能力 1：活动热力图（GitHub 式贡献图）</summary>
+          <div class="body">
+            <p>
+              <b>能力解析</b
+              >：把"每天有没有用、用了多少"压成一屏可扫的网格，让用户一眼看到长期节奏。分歧：时域（12
+              周 vs 365 天）、计数口径（创建数 vs 字数）、点击是否回看当天。
+            </p>
+            <ul>
+              <li>GitHub（源头）：365 天网格，按天贡献数着色，可切公开/私有。</li>
+              <li>
+                Flomo（官方内置）：12
+                周、周一开头、四色五档；<b>点击有记录的格子直接筛选到当天记录</b>；可隐藏/显示。
+              </li>
+              <li>
+                Obsidian 插件：Vault Activity Heatmap（365
+                天，点某天看文件）、writing-heatmap（笔记数+字数双维度）、vault-pulse（53×7 网格）。
+              </li>
+              <li>
+                Logseq 插件：heatmap 按当天 journal block 数，作者明示因无时间戳而"不够精确"。
+              </li>
+              <li>Day One：日历视图（非网格，同属按天着色）。</li>
+            </ul>
+          </div>
+        </details>
 
-  <details>
-    <summary>能力 1：活动热力图（GitHub 式贡献图）</summary>
-    <div class="body">
-      <p><b>能力解析</b>：把"每天有没有用、用了多少"压成一屏可扫的网格，让用户一眼看到长期节奏。分歧：时域（12 周 vs 365 天）、计数口径（创建数 vs 字数）、点击是否回看当天。</p>
-      <ul>
-        <li>GitHub（源头）：365 天网格，按天贡献数着色，可切公开/私有。</li>
-        <li>Flomo（官方内置）：12 周、周一开头、四色五档；<b>点击有记录的格子直接筛选到当天记录</b>；可隐藏/显示。</li>
-        <li>Obsidian 插件：Vault Activity Heatmap（365 天，点某天看文件）、writing-heatmap（笔记数+字数双维度）、vault-pulse（53×7 网格）。</li>
-        <li>Logseq 插件：heatmap 按当天 journal block 数，作者明示因无时间戳而"不够精确"。</li>
-        <li>Day One：日历视图（非网格，同属按天着色）。</li>
-      </ul>
-    </div>
-  </details>
+        <details>
+          <summary>能力 2：连续记录（streak）</summary>
+          <div class="body">
+            <p>
+              <b>能力解析</b>：连续天数/周数是"养成习惯"的最强单一激励，热力图看长周期、streak
+              看当下连续性。分歧：口径（日/周）、断档处理、是否允许补救。
+            </p>
+            <ul>
+              <li>Day One：Journal Streaks，每个日记本分别计数。</li>
+              <li>Apple Journal：Insights streak，iOS 27 起支持日/周/自动切换。</li>
+              <li>Readwise：<b>过去 7 天漏掉的 Daily Review 可 recover 补回并计入 streak</b>。</li>
+              <li>Flomo / Obsidian 插件（Keep the Rhythm 按字数目标计 streak）。</li>
+            </ul>
+          </div>
+        </details>
 
-  <details>
-    <summary>能力 2：连续记录（streak）</summary>
-    <div class="body">
-      <p><b>能力解析</b>：连续天数/周数是"养成习惯"的最强单一激励，热力图看长周期、streak 看当下连续性。分歧：口径（日/周）、断档处理、是否允许补救。</p>
-      <ul>
-        <li>Day One：Journal Streaks，每个日记本分别计数。</li>
-        <li>Apple Journal：Insights streak，iOS 27 起支持日/周/自动切换。</li>
-        <li>Readwise：<b>过去 7 天漏掉的 Daily Review 可 recover 补回并计入 streak</b>。</li>
-        <li>Flomo / Obsidian 插件（Keep the Rhythm 按字数目标计 streak）。</li>
-      </ul>
-    </div>
-  </details>
+        <details>
+          <summary>能力 3：汇总指标卡（总量 / 本周 / 字数等）</summary>
+          <div class="body">
+            <p>
+              <b>能力解析</b>：用几个数字回答"我总共积累了多少"。分歧：量 vs 质、累计 vs
+              周期、数字是否可点击进明细。
+            </p>
+            <ul>
+              <li>
+                obsidian-data-analysis：Summary Cards = 总笔记、总字数、写作 streak、平均每天字数 +
+                tag 分布 + 趋势折线图。
+              </li>
+              <li>Flomo：累计笔记数、标签数、记录天数，点击可开更多维度面板。</li>
+              <li>Readwise：stats 页按天展示复习完成情况与 streak。</li>
+              <li>Day One 总量统计靠第三方脚本（DayOne-stats）。</li>
+            </ul>
+          </div>
+        </details>
 
-  <details>
-    <summary>能力 3：汇总指标卡（总量 / 本周 / 字数等）</summary>
-    <div class="body">
-      <p><b>能力解析</b>：用几个数字回答"我总共积累了多少"。分歧：量 vs 质、累计 vs 周期、数字是否可点击进明细。</p>
-      <ul>
-        <li>obsidian-data-analysis：Summary Cards = 总笔记、总字数、写作 streak、平均每天字数 + tag 分布 + 趋势折线图。</li>
-        <li>Flomo：累计笔记数、标签数、记录天数，点击可开更多维度面板。</li>
-        <li>Readwise：stats 页按天展示复习完成情况与 streak。</li>
-        <li>Day One 总量统计靠第三方脚本（DayOne-stats）。</li>
-      </ul>
-    </div>
-  </details>
+        <details>
+          <summary>能力 4：回顾式报告（Wrapped 式年度/月度）</summary>
+          <div class="body">
+            <p>
+              <b>能力解析</b>：一次性、强叙事、可分享的年度/月度报告，用"模式总结"代替常驻仪表盘；是
+              AI 对话产品唯一的个人统计形态。
+            </p>
+            <ul>
+              <li>
+                ChatGPT "Your Year with ChatGPT"：年度，消息数/聊天数/风格/最活跃日/图片数；需
+                history + memory，部分用户可见。<span class="tag">媒体</span>
+              </li>
+              <li>
+                Claude Monthly Recap：月度，beta，主题 + 使用时间模式 + "可以尝试什么新方向"。<span
+                  class="tag"
+                  >官方</span
+                >
+              </li>
+              <li>
+                语雀年度报告（2022 起）：文档数 + 字数，三入口 + 晒图兑会员（营销属性）。<span
+                  class="tag"
+                  >官方公众号</span
+                >
+              </li>
+            </ul>
+          </div>
+        </details>
 
-  <details>
-    <summary>能力 4：回顾式报告（Wrapped 式年度/月度）</summary>
-    <div class="body">
-      <p><b>能力解析</b>：一次性、强叙事、可分享的年度/月度报告，用"模式总结"代替常驻仪表盘；是 AI 对话产品唯一的个人统计形态。</p>
-      <ul>
-        <li>ChatGPT "Your Year with ChatGPT"：年度，消息数/聊天数/风格/最活跃日/图片数；需 history + memory，部分用户可见。<span class="tag">媒体</span></li>
-        <li>Claude Monthly Recap：月度，beta，主题 + 使用时间模式 + "可以尝试什么新方向"。<span class="tag">官方</span></li>
-        <li>语雀年度报告（2022 起）：文档数 + 字数，三入口 + 晒图兑会员（营销属性）。<span class="tag">官方公众号</span></li>
-      </ul>
-    </div>
-  </details>
+        <details>
+          <summary>能力 5：跨实体 / 跨类型计数</summary>
+          <div class="body">
+            <p>
+              <b>能力解析</b
+              >：把不同内容类型放进同一套计数——与用户设想最接近的能力，但行业里只有配额计数、没有统计仪表盘形态。
+            </p>
+            <ul>
+              <li>
+                语雀「文稿数」：小记/文档/表格/画板/数据表各自新建数之和；新建
+                +1、删除/归档不释放、每月 1 号清零；会员页/空间费用中心可见（配额用途）。
+              </li>
+            </ul>
+          </div>
+        </details>
 
-  <details>
-    <summary>能力 5：跨实体 / 跨类型计数</summary>
-    <div class="body">
-      <p><b>能力解析</b>：把不同内容类型放进同一套计数——与用户设想最接近的能力，但行业里只有配额计数、没有统计仪表盘形态。</p>
-      <ul>
-        <li>语雀「文稿数」：小记/文档/表格/画板/数据表各自新建数之和；新建 +1、删除/归档不释放、每月 1 号清零；会员页/空间费用中心可见（配额用途）。</li>
-      </ul>
-    </div>
-  </details>
+        <details>
+          <summary>能力 6：用量 / 配额仪表盘（AI 对话侧）</summary>
+          <div class="body">
+            <p>
+              <b>能力解析</b>：让用户看到"还剩多少额度"，本质是计费透明而非使用痕迹，但它是 AI
+              侧个人可见的唯一常驻"数字面板"。
+            </p>
+            <ul>
+              <li>Claude：Settings &gt; Usage 实时用量、月度花费、5 小时会话与每周限额进度条。</li>
+              <li>
+                ChatGPT：用量页监控额度与成本；Enterprise 另有 Workspace
+                Analytics（活跃用户、项目/应用/技能趋势、基准对比）。
+              </li>
+            </ul>
+          </div>
+        </details>
 
-  <details>
-    <summary>能力 6：用量 / 配额仪表盘（AI 对话侧）</summary>
-    <div class="body">
-      <p><b>能力解析</b>：让用户看到"还剩多少额度"，本质是计费透明而非使用痕迹，但它是 AI 侧个人可见的唯一常驻"数字面板"。</p>
-      <ul>
-        <li>Claude：Settings &gt; Usage 实时用量、月度花费、5 小时会话与每周限额进度条。</li>
-        <li>ChatGPT：用量页监控额度与成本；Enterprise 另有 Workspace Analytics（活跃用户、项目/应用/技能趋势、基准对比）。</li>
-      </ul>
-    </div>
-  </details>
+        <details>
+          <summary>能力 7：单篇内容 / 工作区分析（协作视角）</summary>
+          <div class="body">
+            <p>
+              <b>能力解析</b
+              >：面向"内容是否被看、被编辑、被协作"，服务分享与团队场景；与"个人使用痕迹"是两套东西，但常被并称"统计"。
+            </p>
+            <ul>
+              <li>
+                Notion Page Analytics：单页总浏览/独立浏览/编辑者（owner/editor 权限；workspace 级为
+                Enterprise）。
+              </li>
+              <li>
+                语雀文档统计分析：单篇阅读次数、独立访客、平均阅读时长、编辑历史时间轴（来源为第三方教程，标注）。
+              </li>
+              <li>
+                Evernote Teams Activity History：管理员查看 18 个月内成员操作日志（含用户与 IP）。
+              </li>
+            </ul>
+          </div>
+        </details>
+      </section>
 
-  <details>
-    <summary>能力 7：单篇内容 / 工作区分析（协作视角）</summary>
-    <div class="body">
-      <p><b>能力解析</b>：面向"内容是否被看、被编辑、被协作"，服务分享与团队场景；与"个人使用痕迹"是两套东西，但常被并称"统计"。</p>
-      <ul>
-        <li>Notion Page Analytics：单页总浏览/独立浏览/编辑者（owner/editor 权限；workspace 级为 Enterprise）。</li>
-        <li>语雀文档统计分析：单篇阅读次数、独立访客、平均阅读时长、编辑历史时间轴（来源为第三方教程，标注）。</li>
-        <li>Evernote Teams Activity History：管理员查看 18 个月内成员操作日志（含用户与 IP）。</li>
-      </ul>
-    </div>
-  </details>
-</section>
+      <section id="ux">
+        <h2>3.2 基本用户体验功能</h2>
+        <p class="meta">
+          口径声明："已确认具备"以官方来源为准；仅第三方来源的标注"未检索到官方确认"。
+        </p>
 
-<section id="ux">
-  <h2>3.2 基本用户体验功能</h2>
-  <p class="meta">口径声明："已确认具备"以官方来源为准；仅第三方来源的标注"未检索到官方确认"。</p>
+        <h3>分组 1：时间粒度与可视化</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>功能</th>
+              <th>覆盖</th>
+              <th>确认具备的产品</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="功能">常驻热力图（按天网格）</td>
+              <td data-label="覆盖">3/15</td>
+              <td data-label="产品">
+                Flomo（官方）、Obsidian/Logseq 插件（生态）、chatgpt-data-viewer（第三方）
+              </td>
+            </tr>
+            <tr>
+              <td data-label="功能">日历式按天视图</td>
+              <td data-label="覆盖">2/15</td>
+              <td data-label="产品">Day One、Apple Journal</td>
+            </tr>
+            <tr>
+              <td data-label="功能">连续记录（日/周 streak）</td>
+              <td data-label="覆盖">6/15</td>
+              <td data-label="产品">
+                Day One、Apple Journal、Readwise、Flomo、Keep the Rhythm、GitHub（间接）
+              </td>
+            </tr>
+            <tr>
+              <td data-label="功能">月度回顾报告</td>
+              <td data-label="覆盖">1/15</td>
+              <td data-label="产品">Claude（beta，需 memory）</td>
+            </tr>
+            <tr>
+              <td data-label="功能">年度回顾报告</td>
+              <td data-label="覆盖">3/15</td>
+              <td data-label="产品">ChatGPT（部分用户）、语雀、Readwise（非官方口径，见缺口）</td>
+            </tr>
+          </tbody>
+        </table>
 
-  <h3>分组 1：时间粒度与可视化</h3>
-  <table>
-    <thead><tr><th>功能</th><th>覆盖</th><th>确认具备的产品</th></tr></thead>
-    <tbody>
-      <tr><td data-label="功能">常驻热力图（按天网格）</td><td data-label="覆盖">3/15</td><td data-label="产品">Flomo（官方）、Obsidian/Logseq 插件（生态）、chatgpt-data-viewer（第三方）</td></tr>
-      <tr><td data-label="功能">日历式按天视图</td><td data-label="覆盖">2/15</td><td data-label="产品">Day One、Apple Journal</td></tr>
-      <tr><td data-label="功能">连续记录（日/周 streak）</td><td data-label="覆盖">6/15</td><td data-label="产品">Day One、Apple Journal、Readwise、Flomo、Keep the Rhythm、GitHub（间接）</td></tr>
-      <tr><td data-label="功能">月度回顾报告</td><td data-label="覆盖">1/15</td><td data-label="产品">Claude（beta，需 memory）</td></tr>
-      <tr><td data-label="功能">年度回顾报告</td><td data-label="覆盖">3/15</td><td data-label="产品">ChatGPT（部分用户）、语雀、Readwise（非官方口径，见缺口）</td></tr>
-    </tbody>
-  </table>
+        <h3>分组 2：统计维度</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>功能</th>
+              <th>覆盖</th>
+              <th>确认具备的产品</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="功能">创建数量计数</td>
+              <td data-label="覆盖">6/15</td>
+              <td data-label="产品">
+                Flomo、Day One、Obsidian 插件、Logseq 插件、语雀（多类型）、Readwise
+              </td>
+            </tr>
+            <tr>
+              <td data-label="功能">字数/字符统计</td>
+              <td data-label="覆盖">3/15</td>
+              <td data-label="产品">
+                Obsidian 插件（writing-heatmap、Keep the Rhythm）、DayOne-stats（第三方）
+              </td>
+            </tr>
+            <tr>
+              <td data-label="功能">按内容类型分别计数</td>
+              <td data-label="覆盖">1/15</td>
+              <td data-label="产品">语雀（小记/文档/表格/画板/数据表）</td>
+            </tr>
+            <tr>
+              <td data-label="功能">跨实体统一统计视图</td>
+              <td data-label="覆盖">0/15</td>
+              <td data-label="产品">无（行业空白）</td>
+            </tr>
+            <tr>
+              <td data-label="功能">主题/模式分析（AI 侧）</td>
+              <td data-label="覆盖">2/15</td>
+              <td data-label="产品">ChatGPT（年度）、Claude（月度）</td>
+            </tr>
+          </tbody>
+        </table>
 
-  <h3>分组 2：统计维度</h3>
-  <table>
-    <thead><tr><th>功能</th><th>覆盖</th><th>确认具备的产品</th></tr></thead>
-    <tbody>
-      <tr><td data-label="功能">创建数量计数</td><td data-label="覆盖">6/15</td><td data-label="产品">Flomo、Day One、Obsidian 插件、Logseq 插件、语雀（多类型）、Readwise</td></tr>
-      <tr><td data-label="功能">字数/字符统计</td><td data-label="覆盖">3/15</td><td data-label="产品">Obsidian 插件（writing-heatmap、Keep the Rhythm）、DayOne-stats（第三方）</td></tr>
-      <tr><td data-label="功能">按内容类型分别计数</td><td data-label="覆盖">1/15</td><td data-label="产品">语雀（小记/文档/表格/画板/数据表）</td></tr>
-      <tr><td data-label="功能">跨实体统一统计视图</td><td data-label="覆盖">0/15</td><td data-label="产品">无（行业空白）</td></tr>
-      <tr><td data-label="功能">主题/模式分析（AI 侧）</td><td data-label="覆盖">2/15</td><td data-label="产品">ChatGPT（年度）、Claude（月度）</td></tr>
-    </tbody>
-  </table>
+        <h3>分组 3：交互与入口</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>功能</th>
+              <th>覆盖</th>
+              <th>确认具备的产品</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="功能">点击热力图日期筛选当天内容</td>
+              <td data-label="覆盖">2/15</td>
+              <td data-label="产品">Flomo（官方）、Obsidian 插件（vault-pulse）</td>
+            </tr>
+            <tr>
+              <td data-label="功能">统计区域可隐藏/显示</td>
+              <td data-label="覆盖">1/15</td>
+              <td data-label="产品">Flomo</td>
+            </tr>
+            <tr>
+              <td data-label="功能">漏记补卡（recover）</td>
+              <td data-label="覆盖">1/15</td>
+              <td data-label="产品">Readwise</td>
+            </tr>
+            <tr>
+              <td data-label="功能">统计入口常驻侧栏</td>
+              <td data-label="覆盖">3/15</td>
+              <td data-label="产品">Flomo、Day One、Apple Journal</td>
+            </tr>
+            <tr>
+              <td data-label="功能">统计独立页面/面板</td>
+              <td data-label="覆盖">4/15</td>
+              <td data-label="产品">Readwise、Claude Usage、Obsidian 插件、语雀文稿数</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
 
-  <h3>分组 3：交互与入口</h3>
-  <table>
-    <thead><tr><th>功能</th><th>覆盖</th><th>确认具备的产品</th></tr></thead>
-    <tbody>
-      <tr><td data-label="功能">点击热力图日期筛选当天内容</td><td data-label="覆盖">2/15</td><td data-label="产品">Flomo（官方）、Obsidian 插件（vault-pulse）</td></tr>
-      <tr><td data-label="功能">统计区域可隐藏/显示</td><td data-label="覆盖">1/15</td><td data-label="产品">Flomo</td></tr>
-      <tr><td data-label="功能">漏记补卡（recover）</td><td data-label="覆盖">1/15</td><td data-label="产品">Readwise</td></tr>
-      <tr><td data-label="功能">统计入口常驻侧栏</td><td data-label="覆盖">3/15</td><td data-label="产品">Flomo、Day One、Apple Journal</td></tr>
-      <tr><td data-label="功能">统计独立页面/面板</td><td data-label="覆盖">4/15</td><td data-label="产品">Readwise、Claude Usage、Obsidian 插件、语雀文稿数</td></tr>
-    </tbody>
-  </table>
-</section>
+      <section id="profiles">
+        <h2>3.3.1 产品定位画像</h2>
+        <div class="filterbar" id="filterbar">
+          <span class="lbl">产品焦点：</span>
+          <span id="chips"></span>
+          <button type="button" id="reset-filter">全部显示</button>
+        </div>
+        <div class="prodgrid" id="prodgrid">
+          <article class="prodcard" data-product="Flomo">
+            <h4>Flomo</h4>
+            <span class="k">定位</span>
+            <p class="p">
+              面向"随手记录想法"的个人笔记（"flomo = flow +
+              memo"），官网明确"多维度统计让习惯自然养成"。
+            </p>
+            <span class="k">差异化场景</span>
+            <p class="p">
+              碎片速记 + 每日回顾 + 习惯养成；热力图与统计被官方定位为"帮你持续记录"的陪伴功能。
+            </p>
+            <span class="k">核心差异</span>
+            <p class="p">
+              低门槛记录 + 官方内置回顾/统计闭环（每日回顾、随机漫步、热力图），统计服务留存目标。
+            </p>
+          </article>
+          <article class="prodcard" data-product="语雀">
+            <h4>语雀</h4>
+            <span class="k">定位</span>
+            <p class="p">阿里系文档/知识库，个人到团队全覆盖（学生、职场、团队协作）。</p>
+            <span class="k">差异化场景</span>
+            <p class="p">
+              文档承载知识沉淀 +
+              团队协作；统计分两轨——个人侧（年度报告、文稿数配额）与内容运营侧（单篇统计分析）。
+            </p>
+            <span class="k">核心差异</span>
+            <p class="p">
+              协作与知识库体系；文稿数是配额计费用途而非用户洞察，统计不是其产品主张。
+            </p>
+          </article>
+          <article class="prodcard" data-product="Day One">
+            <h4>Day One</h4>
+            <span class="k">定位</span>
+            <p class="p">私人日记应用（多日记本、加密、时间线），面向坚持写日记的个人。</p>
+            <span class="k">差异化场景</span>
+            <p class="p">情感/生活记录；streak 与日历是"保持写日记"的动机机制。</p>
+            <span class="k">核心差异</span>
+            <p class="p">私密性与长期存档（On This Day、日历回看），streak 是习惯粘性的核心。</p>
+          </article>
+          <article class="prodcard" data-product="Apple Journal">
+            <h4>Apple Journal</h4>
+            <span class="k">定位</span>
+            <p class="p">系统级日记应用（iOS/macOS 内置），面向 iPhone 用户的轻量记录。</p>
+            <span class="k">差异化场景</span>
+            <p class="p">系统集成（建议、照片/地点自动唤起）；Insights 负责习惯追踪。</p>
+            <span class="k">核心差异</span>
+            <p class="p">系统生态内免费、零摩擦；统计极简（streak + 日历），不是卖点。</p>
+          </article>
+          <article class="prodcard" data-product="ChatGPT">
+            <h4>ChatGPT</h4>
+            <span class="k">定位</span>
+            <p class="p">通用 AI 对话助手（个人 + 企业）。</p>
+            <span class="k">差异化场景</span>
+            <p class="p">对话即产品本体；个人统计只有年度回顾（叙事型）与用量页（计费型）。</p>
+            <span class="k">核心差异</span>
+            <p class="p">模型能力与生态；统计克制到"一年一次"，避免用数据打扰对话主场景。</p>
+          </article>
+          <article class="prodcard" data-product="Claude">
+            <h4>Claude</h4>
+            <span class="k">定位</span>
+            <p class="p">AI 对话助手（个人 Pro/Max + 团队/企业）。</p>
+            <span class="k">差异化场景</span>
+            <p class="p">
+              长对话与上下文（memory、chat search）；Monthly Recap 主打"无评判地照见使用模式"。
+            </p>
+            <span class="k">核心差异</span>
+            <p class="p">上下文连续性；统计同样克制（月度回顾 + 用量仪表盘）。</p>
+          </article>
+          <article class="prodcard" data-product="Gemini">
+            <h4>Gemini</h4>
+            <span class="k">定位</span>
+            <p class="p">Google 的 AI 对话助手（个人/工作账号）。</p>
+            <span class="k">差异化场景</span>
+            <p class="p">
+              与 Google 账号体系集成；统计缺位，只有 My Activity 活动记录管理（查看/删除
+              prompt，隐私视角）。
+            </p>
+            <span class="k">核心差异</span>
+            <p class="p">账号生态与隐私控制；无任何使用痕迹统计。</p>
+          </article>
+          <article class="prodcard" data-product="Perplexity">
+            <h4>Perplexity</h4>
+            <span class="k">定位</span>
+            <p class="p">AI 搜索对话助手。</p>
+            <span class="k">差异化场景</span>
+            <p class="p">会话即搜索；只有 History/Threads 管理（临时线程过期机制），无统计。</p>
+            <span class="k">核心差异</span>
+            <p class="p">检索能力与引用；统计完全缺位。</p>
+          </article>
+          <article class="prodcard" data-product="Obsidian">
+            <h4>Obsidian（插件生态）</h4>
+            <span class="k">定位</span>
+            <p class="p">本地优先的 Markdown 双链知识库，面向重度知识工作者。</p>
+            <span class="k">差异化场景</span>
+            <p class="p">文件即知识的自由与可迁移性；统计完全由社区插件承担。</p>
+            <span class="k">核心差异</span>
+            <p class="p">
+              本地文件 + 插件生态；官方不做统计本身是"核心克制"的定位选择（官方无声明，见缺口）。
+            </p>
+          </article>
+          <article class="prodcard" data-product="Logseq">
+            <h4>Logseq（插件生态）</h4>
+            <span class="k">定位</span>
+            <p class="p">大纲式本地知识库（journal 优先），面向流程化记录者。</p>
+            <span class="k">差异化场景</span>
+            <p class="p">journal/block 驱动；统计靠插件（heatmap、log-stats）。</p>
+            <span class="k">核心差异</span>
+            <p class="p">
+              大纲与块级引用；统计由插件补齐，且插件作者明示数据精度受限（无块时间戳）。
+            </p>
+          </article>
+          <article class="prodcard" data-product="Notion">
+            <h4>Notion</h4>
+            <span class="k">定位</span>
+            <p class="p">all-in-one 工作空间（笔记/数据库/项目），个人到企业。</p>
+            <span class="k">差异化场景</span>
+            <p class="p">
+              数据库驱动的自定义仪表盘；官方统计只有 Page/Workspace
+              Analytics（阅读与协作视角，workspace 级需 Enterprise）。
+            </p>
+            <span class="k">核心差异</span>
+            <p class="p">
+              数据库 + 模板生态；个人"使用痕迹"统计由用户用数据库自建（Life OS
+              模板文化），官方不提供。
+            </p>
+          </article>
+          <article class="prodcard" data-product="Evernote">
+            <h4>Evernote</h4>
+            <span class="k">定位</span>
+            <p class="p">经典笔记应用（个人 + 团队/企业）。</p>
+            <span class="k">差异化场景</span>
+            <p class="p">
+              长期笔记管理；个人版无统计，官方统计只有 Teams Activity History（管理员审计）。
+            </p>
+            <span class="k">核心差异</span>
+            <p class="p">
+              历史存量与多端同步；统计缺席是产品老化/定位转向的信号之一（据调研事实观察，不做价值判断）。
+            </p>
+          </article>
+          <article class="prodcard" data-product="Readwise">
+            <h4>Readwise</h4>
+            <span class="k">定位</span>
+            <p class="p">阅读摘录回顾（高亮重读、每日回顾），面向主动复习的读者。</p>
+            <span class="k">差异化场景</span>
+            <p class="p">间隔重复式复习；stats 页展示每日复习完成 + streak + recover 补卡。</p>
+            <span class="k">核心差异</span>
+            <p class="p">回顾习惯（每日邮件/APP 提醒）；统计是"复习习惯养成"的运营杠杆。</p>
+          </article>
+          <article class="prodcard" data-product="GitHub">
+            <h4>GitHub</h4>
+            <span class="k">定位</span>
+            <p class="p">代码托管与协作平台。</p>
+            <span class="k">差异化场景</span>
+            <p class="p">个人主页的贡献图是开发者身份的"打卡墙"，被广泛复刻为热力图范式源头。</p>
+            <span class="k">核心差异</span>
+            <p class="p">社区与贡献记录；贡献图同时承担身份展示与自我激励。</p>
+          </article>
+          <article class="prodcard" data-product="Heptabase">
+            <h4>Heptabase</h4>
+            <span class="k">定位</span>
+            <p class="p">
+              视觉化知识库（whiteboard + card + journal），面向学生/研究者/终身学习者——与 Reflecta
+              定位最近的产品。
+            </p>
+            <span class="k">差异化场景</span>
+            <p class="p">可视化理解整理；官方未提供任何使用统计（wiki 无统计文档，见缺口）。</p>
+            <span class="k">核心差异</span>
+            <p class="p">
+              白板化理解 + 期刊捕捉；统计缺席说明"理解型"产品当前普遍不把使用痕迹统计当作价值主张。
+            </p>
+          </article>
+        </div>
+      </section>
 
-<section id="profiles">
-  <h2>3.3.1 产品定位画像</h2>
-  <div class="filterbar" id="filterbar">
-    <span class="lbl">产品焦点：</span>
-    <span id="chips"></span>
-    <button type="button" id="reset-filter">全部显示</button>
-  </div>
-  <div class="prodgrid" id="prodgrid">
-    <article class="prodcard" data-product="Flomo"><h4>Flomo</h4>
-      <span class="k">定位</span><p class="p">面向"随手记录想法"的个人笔记（"flomo = flow + memo"），官网明确"多维度统计让习惯自然养成"。</p>
-      <span class="k">差异化场景</span><p class="p">碎片速记 + 每日回顾 + 习惯养成；热力图与统计被官方定位为"帮你持续记录"的陪伴功能。</p>
-      <span class="k">核心差异</span><p class="p">低门槛记录 + 官方内置回顾/统计闭环（每日回顾、随机漫步、热力图），统计服务留存目标。</p></article>
-    <article class="prodcard" data-product="语雀"><h4>语雀</h4>
-      <span class="k">定位</span><p class="p">阿里系文档/知识库，个人到团队全覆盖（学生、职场、团队协作）。</p>
-      <span class="k">差异化场景</span><p class="p">文档承载知识沉淀 + 团队协作；统计分两轨——个人侧（年度报告、文稿数配额）与内容运营侧（单篇统计分析）。</p>
-      <span class="k">核心差异</span><p class="p">协作与知识库体系；文稿数是配额计费用途而非用户洞察，统计不是其产品主张。</p></article>
-    <article class="prodcard" data-product="Day One"><h4>Day One</h4>
-      <span class="k">定位</span><p class="p">私人日记应用（多日记本、加密、时间线），面向坚持写日记的个人。</p>
-      <span class="k">差异化场景</span><p class="p">情感/生活记录；streak 与日历是"保持写日记"的动机机制。</p>
-      <span class="k">核心差异</span><p class="p">私密性与长期存档（On This Day、日历回看），streak 是习惯粘性的核心。</p></article>
-    <article class="prodcard" data-product="Apple Journal"><h4>Apple Journal</h4>
-      <span class="k">定位</span><p class="p">系统级日记应用（iOS/macOS 内置），面向 iPhone 用户的轻量记录。</p>
-      <span class="k">差异化场景</span><p class="p">系统集成（建议、照片/地点自动唤起）；Insights 负责习惯追踪。</p>
-      <span class="k">核心差异</span><p class="p">系统生态内免费、零摩擦；统计极简（streak + 日历），不是卖点。</p></article>
-    <article class="prodcard" data-product="ChatGPT"><h4>ChatGPT</h4>
-      <span class="k">定位</span><p class="p">通用 AI 对话助手（个人 + 企业）。</p>
-      <span class="k">差异化场景</span><p class="p">对话即产品本体；个人统计只有年度回顾（叙事型）与用量页（计费型）。</p>
-      <span class="k">核心差异</span><p class="p">模型能力与生态；统计克制到"一年一次"，避免用数据打扰对话主场景。</p></article>
-    <article class="prodcard" data-product="Claude"><h4>Claude</h4>
-      <span class="k">定位</span><p class="p">AI 对话助手（个人 Pro/Max + 团队/企业）。</p>
-      <span class="k">差异化场景</span><p class="p">长对话与上下文（memory、chat search）；Monthly Recap 主打"无评判地照见使用模式"。</p>
-      <span class="k">核心差异</span><p class="p">上下文连续性；统计同样克制（月度回顾 + 用量仪表盘）。</p></article>
-    <article class="prodcard" data-product="Gemini"><h4>Gemini</h4>
-      <span class="k">定位</span><p class="p">Google 的 AI 对话助手（个人/工作账号）。</p>
-      <span class="k">差异化场景</span><p class="p">与 Google 账号体系集成；统计缺位，只有 My Activity 活动记录管理（查看/删除 prompt，隐私视角）。</p>
-      <span class="k">核心差异</span><p class="p">账号生态与隐私控制；无任何使用痕迹统计。</p></article>
-    <article class="prodcard" data-product="Perplexity"><h4>Perplexity</h4>
-      <span class="k">定位</span><p class="p">AI 搜索对话助手。</p>
-      <span class="k">差异化场景</span><p class="p">会话即搜索；只有 History/Threads 管理（临时线程过期机制），无统计。</p>
-      <span class="k">核心差异</span><p class="p">检索能力与引用；统计完全缺位。</p></article>
-    <article class="prodcard" data-product="Obsidian"><h4>Obsidian（插件生态）</h4>
-      <span class="k">定位</span><p class="p">本地优先的 Markdown 双链知识库，面向重度知识工作者。</p>
-      <span class="k">差异化场景</span><p class="p">文件即知识的自由与可迁移性；统计完全由社区插件承担。</p>
-      <span class="k">核心差异</span><p class="p">本地文件 + 插件生态；官方不做统计本身是"核心克制"的定位选择（官方无声明，见缺口）。</p></article>
-    <article class="prodcard" data-product="Logseq"><h4>Logseq（插件生态）</h4>
-      <span class="k">定位</span><p class="p">大纲式本地知识库（journal 优先），面向流程化记录者。</p>
-      <span class="k">差异化场景</span><p class="p">journal/block 驱动；统计靠插件（heatmap、log-stats）。</p>
-      <span class="k">核心差异</span><p class="p">大纲与块级引用；统计由插件补齐，且插件作者明示数据精度受限（无块时间戳）。</p></article>
-    <article class="prodcard" data-product="Notion"><h4>Notion</h4>
-      <span class="k">定位</span><p class="p">all-in-one 工作空间（笔记/数据库/项目），个人到企业。</p>
-      <span class="k">差异化场景</span><p class="p">数据库驱动的自定义仪表盘；官方统计只有 Page/Workspace Analytics（阅读与协作视角，workspace 级需 Enterprise）。</p>
-      <span class="k">核心差异</span><p class="p">数据库 + 模板生态；个人"使用痕迹"统计由用户用数据库自建（Life OS 模板文化），官方不提供。</p></article>
-    <article class="prodcard" data-product="Evernote"><h4>Evernote</h4>
-      <span class="k">定位</span><p class="p">经典笔记应用（个人 + 团队/企业）。</p>
-      <span class="k">差异化场景</span><p class="p">长期笔记管理；个人版无统计，官方统计只有 Teams Activity History（管理员审计）。</p>
-      <span class="k">核心差异</span><p class="p">历史存量与多端同步；统计缺席是产品老化/定位转向的信号之一（据调研事实观察，不做价值判断）。</p></article>
-    <article class="prodcard" data-product="Readwise"><h4>Readwise</h4>
-      <span class="k">定位</span><p class="p">阅读摘录回顾（高亮重读、每日回顾），面向主动复习的读者。</p>
-      <span class="k">差异化场景</span><p class="p">间隔重复式复习；stats 页展示每日复习完成 + streak + recover 补卡。</p>
-      <span class="k">核心差异</span><p class="p">回顾习惯（每日邮件/APP 提醒）；统计是"复习习惯养成"的运营杠杆。</p></article>
-    <article class="prodcard" data-product="GitHub"><h4>GitHub</h4>
-      <span class="k">定位</span><p class="p">代码托管与协作平台。</p>
-      <span class="k">差异化场景</span><p class="p">个人主页的贡献图是开发者身份的"打卡墙"，被广泛复刻为热力图范式源头。</p>
-      <span class="k">核心差异</span><p class="p">社区与贡献记录；贡献图同时承担身份展示与自我激励。</p></article>
-    <article class="prodcard" data-product="Heptabase"><h4>Heptabase</h4>
-      <span class="k">定位</span><p class="p">视觉化知识库（whiteboard + card + journal），面向学生/研究者/终身学习者——与 Reflecta 定位最近的产品。</p>
-      <span class="k">差异化场景</span><p class="p">可视化理解整理；官方未提供任何使用统计（wiki 无统计文档，见缺口）。</p>
-      <span class="k">核心差异</span><p class="p">白板化理解 + 期刊捕捉；统计缺席说明"理解型"产品当前普遍不把使用痕迹统计当作价值主张。</p></article>
-  </div>
-</section>
+      <section id="dims">
+        <h2>3.3.2 差异化功能对比</h2>
 
-<section id="dims">
-  <h2>3.3.2 差异化功能对比</h2>
+        <h3>维度 1：统计的"对象实体"——单实体 vs 跨实体</h3>
+        <table class="dim">
+          <thead>
+            <tr>
+              <th>产品</th>
+              <th>统计对象</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-product="Flomo">
+              <td class="prod" data-label="产品">Flomo</td>
+              <td data-label="对象">memo（单一实体）</td>
+            </tr>
+            <tr data-product="Day One">
+              <td class="prod" data-label="产品">Day One / Apple Journal</td>
+              <td data-label="对象">日记条目（单一实体）</td>
+            </tr>
+            <tr data-product="Obsidian">
+              <td class="prod" data-label="产品">Obsidian / Logseq 插件</td>
+              <td data-label="对象">笔记文件 / journal block（单一实体）</td>
+            </tr>
+            <tr data-product="ChatGPT">
+              <td class="prod" data-label="产品">ChatGPT / Claude</td>
+              <td data-label="对象">对话（单一实体，且只有回顾/用量）</td>
+            </tr>
+            <tr data-product="语雀">
+              <td class="prod" data-label="产品">语雀</td>
+              <td data-label="对象">
+                <strong>多类型</strong>（小记/文档/表格/画板/数据表），但为配额计数
+              </td>
+            </tr>
+            <tr data-product="Notion">
+              <td class="prod" data-label="产品">其余（Notion/Evernote/Heptabase 等）</td>
+              <td data-label="对象">无统计</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          这是差异最显著的维度：<b>跨实体统计只有"配额计数"一种实现，没有统计仪表盘实现</b>。语雀的文稿数把五种内容类型放进同一个"本月新建数"，规则为"新建
+          +1、删除/归档不释放、每月 1
+          号清零"，服务会员配额而非用户洞察——即便有跨实体计数的产品，动机也是计费口径。
+        </p>
 
-  <h3>维度 1：统计的"对象实体"——单实体 vs 跨实体</h3>
-  <table class="dim">
-    <thead><tr><th>产品</th><th>统计对象</th></tr></thead>
-    <tbody>
-      <tr data-product="Flomo"><td class="prod" data-label="产品">Flomo</td><td data-label="对象">memo（单一实体）</td></tr>
-      <tr data-product="Day One"><td class="prod" data-label="产品">Day One / Apple Journal</td><td data-label="对象">日记条目（单一实体）</td></tr>
-      <tr data-product="Obsidian"><td class="prod" data-label="产品">Obsidian / Logseq 插件</td><td data-label="对象">笔记文件 / journal block（单一实体）</td></tr>
-      <tr data-product="ChatGPT"><td class="prod" data-label="产品">ChatGPT / Claude</td><td data-label="对象">对话（单一实体，且只有回顾/用量）</td></tr>
-      <tr data-product="语雀"><td class="prod" data-label="产品">语雀</td><td data-label="对象"><strong>多类型</strong>（小记/文档/表格/画板/数据表），但为配额计数</td></tr>
-      <tr data-product="Notion"><td class="prod" data-label="产品">其余（Notion/Evernote/Heptabase 等）</td><td data-label="对象">无统计</td></tr>
-    </tbody>
-  </table>
-  <p>这是差异最显著的维度：<b>跨实体统计只有"配额计数"一种实现，没有统计仪表盘实现</b>。语雀的文稿数把五种内容类型放进同一个"本月新建数"，规则为"新建 +1、删除/归档不释放、每月 1 号清零"，服务会员配额而非用户洞察——即便有跨实体计数的产品，动机也是计费口径。</p>
+        <h3>维度 2：常驻 vs 一次性</h3>
+        <table class="dim">
+          <thead>
+            <tr>
+              <th>产品</th>
+              <th>形态</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-product="Flomo">
+              <td class="prod" data-label="产品">
+                Flomo、Day One、Apple Journal、Readwise、Obsidian/Logseq 插件
+              </td>
+              <td data-label="形态">常驻型：统计是日常界面的一部分</td>
+            </tr>
+            <tr data-product="ChatGPT">
+              <td class="prod" data-label="产品">ChatGPT、Claude、语雀</td>
+              <td data-label="形态">一次性型：年度/月度报告，强叙事可分享</td>
+            </tr>
+            <tr data-product="Gemini">
+              <td class="prod" data-label="产品">Gemini、Perplexity</td>
+              <td data-label="形态">无常驻统计，仅历史/活动管理</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          AI 对话产品（ChatGPT/Claude/Gemini/Perplexity）<b>全部没有常驻统计</b>，只有一次性回顾 +
+          用量页——这是"对话产品不做常驻统计"的鲜明行业姿态。
+        </p>
 
-  <h3>维度 2：常驻 vs 一次性</h3>
-  <table class="dim">
-    <thead><tr><th>产品</th><th>形态</th></tr></thead>
-    <tbody>
-      <tr data-product="Flomo"><td class="prod" data-label="产品">Flomo、Day One、Apple Journal、Readwise、Obsidian/Logseq 插件</td><td data-label="形态">常驻型：统计是日常界面的一部分</td></tr>
-      <tr data-product="ChatGPT"><td class="prod" data-label="产品">ChatGPT、Claude、语雀</td><td data-label="形态">一次性型：年度/月度报告，强叙事可分享</td></tr>
-      <tr data-product="Gemini"><td class="prod" data-label="产品">Gemini、Perplexity</td><td data-label="形态">无常驻统计，仅历史/活动管理</td></tr>
-    </tbody>
-  </table>
-  <p>AI 对话产品（ChatGPT/Claude/Gemini/Perplexity）<b>全部没有常驻统计</b>，只有一次性回顾 + 用量页——这是"对话产品不做常驻统计"的鲜明行业姿态。</p>
+        <h3>维度 3：激励设计</h3>
+        <table class="dim">
+          <thead>
+            <tr>
+              <th>产品</th>
+              <th>激励策略</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-product="Readwise">
+              <td class="prod" data-label="产品">Readwise</td>
+              <td data-label="激励">强激励：streak + recover 补卡</td>
+            </tr>
+            <tr data-product="Day One">
+              <td class="prod" data-label="产品">Day One / Apple Journal</td>
+              <td data-label="激励">强激励：streak 提示</td>
+            </tr>
+            <tr data-product="Flomo">
+              <td class="prod" data-label="产品">Flomo</td>
+              <td data-label="激励">强激励：官方明说"热力图帮你持续写"</td>
+            </tr>
+            <tr data-product="GitHub">
+              <td class="prod" data-label="产品">GitHub</td>
+              <td data-label="激励">强激励：贡献图即身份</td>
+            </tr>
+            <tr data-product="Claude">
+              <td class="prod" data-label="产品">ChatGPT / Claude / 语雀</td>
+              <td data-label="激励">
+                无激励/中性：回顾报告（Claude 官方称"无评判地照见模式"）、配额
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          统计与"留存/习惯养成"强绑定的产品（日记、速记、复习）才做激励设计；对话与文档产品不做。
+        </p>
 
-  <h3>维度 3：激励设计</h3>
-  <table class="dim">
-    <thead><tr><th>产品</th><th>激励策略</th></tr></thead>
-    <tbody>
-      <tr data-product="Readwise"><td class="prod" data-label="产品">Readwise</td><td data-label="激励">强激励：streak + recover 补卡</td></tr>
-      <tr data-product="Day One"><td class="prod" data-label="产品">Day One / Apple Journal</td><td data-label="激励">强激励：streak 提示</td></tr>
-      <tr data-product="Flomo"><td class="prod" data-label="产品">Flomo</td><td data-label="激励">强激励：官方明说"热力图帮你持续写"</td></tr>
-      <tr data-product="GitHub"><td class="prod" data-label="产品">GitHub</td><td data-label="激励">强激励：贡献图即身份</td></tr>
-      <tr data-product="Claude"><td class="prod" data-label="产品">ChatGPT / Claude / 语雀</td><td data-label="激励">无激励/中性：回顾报告（Claude 官方称"无评判地照见模式"）、配额</td></tr>
-    </tbody>
-  </table>
-  <p>统计与"留存/习惯养成"强绑定的产品（日记、速记、复习）才做激励设计；对话与文档产品不做。</p>
+        <h3>维度 4：官方内置 vs 社区/插件</h3>
+        <table class="dim">
+          <thead>
+            <tr>
+              <th>产品</th>
+              <th>统计来源</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-product="Flomo">
+              <td class="prod" data-label="产品">
+                Flomo、Day One、Apple Journal、Readwise、Claude、语雀
+              </td>
+              <td data-label="来源">官方内置（回顾 + 用量 + 配额 + 文档统计）</td>
+            </tr>
+            <tr data-product="Obsidian">
+              <td class="prod" data-label="产品">
+                Obsidian、Logseq、ChatGPT（第三方 data-viewer）
+              </td>
+              <td data-label="来源">社区/插件补齐</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Obsidian 的统计生态证明"官方克制 +
+          社区补齐"可以共存，插件自由度极高（时域、字数/创建数、目标/streak
+          可组合）；代价是统计口径碎片化、无统一入口——与"官方内置但单一"（Flomo）形成对照。
+        </p>
 
-  <h3>维度 4：官方内置 vs 社区/插件</h3>
-  <table class="dim">
-    <thead><tr><th>产品</th><th>统计来源</th></tr></thead>
-    <tbody>
-      <tr data-product="Flomo"><td class="prod" data-label="产品">Flomo、Day One、Apple Journal、Readwise、Claude、语雀</td><td data-label="来源">官方内置（回顾 + 用量 + 配额 + 文档统计）</td></tr>
-      <tr data-product="Obsidian"><td class="prod" data-label="产品">Obsidian、Logseq、ChatGPT（第三方 data-viewer）</td><td data-label="来源">社区/插件补齐</td></tr>
-    </tbody>
-  </table>
-  <p>Obsidian 的统计生态证明"官方克制 + 社区补齐"可以共存，插件自由度极高（时域、字数/创建数、目标/streak 可组合）；代价是统计口径碎片化、无统一入口——与"官方内置但单一"（Flomo）形成对照。</p>
+        <h3>维度 5：个人 vs 团队/协作视角</h3>
+        <table class="dim">
+          <thead>
+            <tr>
+              <th>产品</th>
+              <th>视角</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-product="Flomo">
+              <td class="prod" data-label="产品">
+                Flomo、Day One、Apple Journal、Readwise、ChatGPT/Claude 个人报告
+              </td>
+              <td data-label="视角">个人视角</td>
+            </tr>
+            <tr data-product="Notion">
+              <td class="prod" data-label="产品">
+                Notion Page/Workspace Analytics、Evernote Teams、ChatGPT Enterprise、语雀文档统计
+              </td>
+              <td data-label="视角">团队/管理视角</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Notion Page Analytics
+          是"内容运营"而非"个人痕迹"的统计（单页总浏览/独立浏览/编辑者）；Evernote Teams
+          是管理员审计日志（含用户与 IP）；两者与"个人使用痕迹"是两套语义，但都被归在"统计"名下。
+        </p>
+      </section>
 
-  <h3>维度 5：个人 vs 团队/协作视角</h3>
-  <table class="dim">
-    <thead><tr><th>产品</th><th>视角</th></tr></thead>
-    <tbody>
-      <tr data-product="Flomo"><td class="prod" data-label="产品">Flomo、Day One、Apple Journal、Readwise、ChatGPT/Claude 个人报告</td><td data-label="视角">个人视角</td></tr>
-      <tr data-product="Notion"><td class="prod" data-label="产品">Notion Page/Workspace Analytics、Evernote Teams、ChatGPT Enterprise、语雀文档统计</td><td data-label="视角">团队/管理视角</td></tr>
-    </tbody>
-  </table>
-  <p>Notion Page Analytics 是"内容运营"而非"个人痕迹"的统计（单页总浏览/独立浏览/编辑者）；Evernote Teams 是管理员审计日志（含用户与 IP）；两者与"个人使用痕迹"是两套语义，但都被归在"统计"名下。</p>
-</section>
+      <section id="gaps">
+        <h2>3.4 信息缺口</h2>
+        <div class="gap">
+          <b>1. ChatGPT "Your Year" 具体统计项</b>——仅媒体报道，OpenAI
+          官方说明页未检索到；且明确仅部分国家、需开启 chat history + memory。
+        </div>
+        <div class="gap">
+          <b>2. Claude Monthly Recap 完整维度</b>——官方 help 有但
+          beta、细节有限，无官方公布的完整维度清单。
+        </div>
+        <div class="gap">
+          <b>3. Heptabase 是否有统计</b>——官方 wiki 未检索到统计文档，也无"无统计"的官方声明。
+        </div>
+        <div class="gap">
+          <b>4. 语雀文档统计分析</b>——官方帮助中心未直接检索到，来源为第三方教程。
+        </div>
+        <div class="gap">
+          <b>5. 语雀「文稿数」口径</b>——来源为第三方博客，官方无"如何计算"专门说明。
+        </div>
+        <div class="gap"><b>6. Obsidian / Logseq 官方为何不做统计</b>——无官方声明，不写动机。</div>
+        <div class="gap">
+          <b>7. Evernote 个人版统计</b>——官方仅确认 Teams Activity History；个人版无官方声明。
+        </div>
+        <div class="gap">
+          <b>8. Day One / Apple Journal 热力图形态</b>——Day One
+          是日历视图而非网格热力图，官方未定义统计口径。
+        </div>
+      </section>
 
-<section id="gaps">
-  <h2>3.4 信息缺口</h2>
-  <div class="gap"><b>1. ChatGPT "Your Year" 具体统计项</b>——仅媒体报道，OpenAI 官方说明页未检索到；且明确仅部分国家、需开启 chat history + memory。</div>
-  <div class="gap"><b>2. Claude Monthly Recap 完整维度</b>——官方 help 有但 beta、细节有限，无官方公布的完整维度清单。</div>
-  <div class="gap"><b>3. Heptabase 是否有统计</b>——官方 wiki 未检索到统计文档，也无"无统计"的官方声明。</div>
-  <div class="gap"><b>4. 语雀文档统计分析</b>——官方帮助中心未直接检索到，来源为第三方教程。</div>
-  <div class="gap"><b>5. 语雀「文稿数」口径</b>——来源为第三方博客，官方无"如何计算"专门说明。</div>
-  <div class="gap"><b>6. Obsidian / Logseq 官方为何不做统计</b>——无官方声明，不写动机。</div>
-  <div class="gap"><b>7. Evernote 个人版统计</b>——官方仅确认 Teams Activity History；个人版无官方声明。</div>
-  <div class="gap"><b>8. Day One / Apple Journal 热力图形态</b>——Day One 是日历视图而非网格热力图，官方未定义统计口径。</div>
-</section>
+      <section id="end">
+        <h2>4. 结论</h2>
+        <p>
+          <b>覆盖情况</b>：15 个产品、6 种形态。个人统计成熟形态集中在"日记/速记/复习"类（Flomo、Day
+          One、Apple Journal、Readwise）与 PKM 插件生态（Obsidian、Logseq）；AI
+          对话侧只有一次性回顾与用量页；文档/协作侧（Notion、Evernote、语雀）的统计偏向内容运营或配额。
+        </p>
+        <p><b>一致与分歧</b>：</p>
+        <ul>
+          <li>高度一致：个人"使用痕迹"统计 = 单实体 + GitHub 式热力图 + streak + 汇总数字。</li>
+          <li>一致缺席：AI 对话产品没有常驻个人统计；PKM 官方普遍不做统计（插件/模板补齐）。</li>
+          <li>
+            分歧点：统计入口常驻（侧栏）vs 一次性（年度/月度）；激励设计（streak/recover）vs
+            中性呈现；官方内置 vs 社区插件。
+          </li>
+          <li>
+            行业空白：跨实体（笔记+对话+画布）的统一痕迹统计，15
+            家无一实现；唯一的多类型计数（语雀文稿数）是配额语义。
+          </li>
+        </ul>
+        <p class="meta">
+          本报告只汇总行业事实与规律，不对 Reflecta
+          的统计模块"应该怎么做"给出建议；如何结合既有产品约束取舍，由用户自行决策。
+        </p>
+      </section>
 
-<section id="end">
-  <h2>4. 结论</h2>
-  <p><b>覆盖情况</b>：15 个产品、6 种形态。个人统计成熟形态集中在"日记/速记/复习"类（Flomo、Day One、Apple Journal、Readwise）与 PKM 插件生态（Obsidian、Logseq）；AI 对话侧只有一次性回顾与用量页；文档/协作侧（Notion、Evernote、语雀）的统计偏向内容运营或配额。</p>
-  <p><b>一致与分歧</b>：</p>
-  <ul>
-    <li>高度一致：个人"使用痕迹"统计 = 单实体 + GitHub 式热力图 + streak + 汇总数字。</li>
-    <li>一致缺席：AI 对话产品没有常驻个人统计；PKM 官方普遍不做统计（插件/模板补齐）。</li>
-    <li>分歧点：统计入口常驻（侧栏）vs 一次性（年度/月度）；激励设计（streak/recover）vs 中性呈现；官方内置 vs 社区插件。</li>
-    <li>行业空白：跨实体（笔记+对话+画布）的统一痕迹统计，15 家无一实现；唯一的多类型计数（语雀文稿数）是配额语义。</li>
-  </ul>
-  <p class="meta">本报告只汇总行业事实与规律，不对 Reflecta 的统计模块"应该怎么做"给出建议；如何结合既有产品约束取舍，由用户自行决策。</p>
-</section>
+      <section id="sources">
+        <h2>信息来源</h2>
+        <ol class="sources">
+          <li>Flomo 官方帮助中心 · 热力图与统计 — help.flomoapp.com/advance/notes-graph.html</li>
+          <li>Flomo 官网 — flomoapp.com</li>
+          <li>
+            Day One 官方 · Journal streaks — dayoneapp.com/guides/tips-and-tutorials/journal-streaks
+          </li>
+          <li>Apple 官方 · Build a journaling habit — support.apple.com/guide/iphone</li>
+          <li>GitHub Docs · Contributions on your profile — docs.github.com</li>
+          <li>
+            OpenAI 帮助中心 · Workspace analytics for ChatGPT Enterprise and Edu — help.openai.com
+          </li>
+          <li>
+            Claude 帮助中心 · See your monthly recap / Manage usage credits — support.claude.com
+          </li>
+          <li>Gemini 帮助 · Manage &amp; delete your activity — support.google.com/gemini</li>
+          <li>Perplexity 帮助中心 · Threads / History — perplexity.ai/help-center</li>
+          <li>Notion 帮助中心 · Page analytics / Workspace analytics — notion.com/help</li>
+          <li>Evernote 帮助中心 · Teams Activity History — help.evernote.com</li>
+          <li>Readwise Changelog · Track your stats — readwise.io/changelog/stats</li>
+          <li>
+            Obsidian 社区插件：Vault Activity Heatmap / obsidian-data-analysis / Keep the Rhythm /
+            vault-pulse / writing-heatmap — community.obsidian.md
+          </li>
+          <li>Logseq 插件：pengx17/logseq-plugin-heatmap、QWxleA/log-stats — github.com</li>
+          <li>chatgpt-data-viewer — github.com/alexeygrigorev</li>
+          <li>
+            媒体（标注为第三方）：PCWorld / Digital Trends · ChatGPT "Your Year"；语雀 2022
+            年度报告（官方公众号）；语雀文稿数（IDCTalk 博客）；语雀文档统计（小米之家教程）
+          </li>
+        </ol>
+      </section>
+    </main>
 
-<section id="sources">
-  <h2>信息来源</h2>
-  <ol class="sources">
-    <li>Flomo 官方帮助中心 · 热力图与统计 — help.flomoapp.com/advance/notes-graph.html</li>
-    <li>Flomo 官网 — flomoapp.com</li>
-    <li>Day One 官方 · Journal streaks — dayoneapp.com/guides/tips-and-tutorials/journal-streaks</li>
-    <li>Apple 官方 · Build a journaling habit — support.apple.com/guide/iphone</li>
-    <li>GitHub Docs · Contributions on your profile — docs.github.com</li>
-    <li>OpenAI 帮助中心 · Workspace analytics for ChatGPT Enterprise and Edu — help.openai.com</li>
-    <li>Claude 帮助中心 · See your monthly recap / Manage usage credits — support.claude.com</li>
-    <li>Gemini 帮助 · Manage &amp; delete your activity — support.google.com/gemini</li>
-    <li>Perplexity 帮助中心 · Threads / History — perplexity.ai/help-center</li>
-    <li>Notion 帮助中心 · Page analytics / Workspace analytics — notion.com/help</li>
-    <li>Evernote 帮助中心 · Teams Activity History — help.evernote.com</li>
-    <li>Readwise Changelog · Track your stats — readwise.io/changelog/stats</li>
-    <li>Obsidian 社区插件：Vault Activity Heatmap / obsidian-data-analysis / Keep the Rhythm / vault-pulse / writing-heatmap — community.obsidian.md</li>
-    <li>Logseq 插件：pengx17/logseq-plugin-heatmap、QWxleA/log-stats — github.com</li>
-    <li>chatgpt-data-viewer — github.com/alexeygrigorev</li>
-    <li>媒体（标注为第三方）：PCWorld / Digital Trends · ChatGPT "Your Year"；语雀 2022 年度报告（官方公众号）；语雀文稿数（IDCTalk 博客）；语雀文档统计（小米之家教程）</li>
-  </ol>
-</section>
+    <footer>
+      <p>
+        AI-generated. Verify critical decisions independently. · 调研时间 2026-08-16 ·
+        单文件静态阅读版，无外部依赖
+      </p>
+    </footer>
 
-</main>
-
-<footer>
-  <p>AI-generated. Verify critical decisions independently. · 调研时间 2026-08-16 · 单文件静态阅读版，无外部依赖</p>
-</footer>
-
-<script>
-(function () {
-  var products = ["Flomo","语雀","Day One","Apple Journal","ChatGPT","Claude","Gemini","Perplexity","Obsidian","Logseq","Notion","Evernote","Readwise","GitHub","Heptabase"];
-  var chips = document.getElementById("chips");
-  var selected = {};
-  products.forEach(function (name) {
-    selected[name] = true;
-    var label = document.createElement("label");
-    var box = document.createElement("input");
-    box.type = "checkbox";
-    box.checked = true;
-    box.setAttribute("data-name", name);
-    box.addEventListener("change", function () {
-      selected[name] = box.checked;
-      applyFilter();
-    });
-    label.appendChild(box);
-    label.appendChild(document.createTextNode(name));
-    chips.appendChild(label);
-  });
-  function applyFilter() {
-    // 产品画像卡
-    var cards = document.querySelectorAll("#prodgrid .prodcard");
-    cards.forEach(function (card) {
-      var name = card.getAttribute("data-product");
-      // 部分卡片覆盖多个产品的聚合行：仅当明确映射时才参与
-      if (selected[name] === undefined) return;
-      card.classList.toggle("dimmed", !selected[name]);
-    });
-    // 差异维度表行（data-product 与产品名匹配的行参与）
-    var rows = document.querySelectorAll("#dims table.dim tbody tr[data-product]");
-    rows.forEach(function (row) {
-      var name = row.getAttribute("data-product");
-      if (selected[name] === undefined) return;
-      row.classList.toggle("dimmed", !selected[name]);
-    });
-  }
-  document.getElementById("reset-filter").addEventListener("click", function () {
-    products.forEach(function (name) {
-      selected[name] = true;
-      var boxes = chips.querySelectorAll("input[data-name=\"" + name + "\"]");
-      boxes.forEach(function (b) { b.checked = true; });
-    });
-    applyFilter();
-  });
-})();
-</script>
-</body>
+    <script>
+      (function () {
+        var products = [
+          "Flomo",
+          "语雀",
+          "Day One",
+          "Apple Journal",
+          "ChatGPT",
+          "Claude",
+          "Gemini",
+          "Perplexity",
+          "Obsidian",
+          "Logseq",
+          "Notion",
+          "Evernote",
+          "Readwise",
+          "GitHub",
+          "Heptabase",
+        ];
+        var chips = document.getElementById("chips");
+        var selected = {};
+        products.forEach(function (name) {
+          selected[name] = true;
+          var label = document.createElement("label");
+          var box = document.createElement("input");
+          box.type = "checkbox";
+          box.checked = true;
+          box.setAttribute("data-name", name);
+          box.addEventListener("change", function () {
+            selected[name] = box.checked;
+            applyFilter();
+          });
+          label.appendChild(box);
+          label.appendChild(document.createTextNode(name));
+          chips.appendChild(label);
+        });
+        function applyFilter() {
+          // 产品画像卡
+          var cards = document.querySelectorAll("#prodgrid .prodcard");
+          cards.forEach(function (card) {
+            var name = card.getAttribute("data-product");
+            // 部分卡片覆盖多个产品的聚合行：仅当明确映射时才参与
+            if (selected[name] === undefined) return;
+            card.classList.toggle("dimmed", !selected[name]);
+          });
+          // 差异维度表行（data-product 与产品名匹配的行参与）
+          var rows = document.querySelectorAll("#dims table.dim tbody tr[data-product]");
+          rows.forEach(function (row) {
+            var name = row.getAttribute("data-product");
+            if (selected[name] === undefined) return;
+            row.classList.toggle("dimmed", !selected[name]);
+          });
+        }
+        document.getElementById("reset-filter").addEventListener("click", function () {
+          products.forEach(function (name) {
+            selected[name] = true;
+            var boxes = chips.querySelectorAll('input[data-name="' + name + '"]');
+            boxes.forEach(function (b) {
+              b.checked = true;
+            });
+          });
+          applyFilter();
+        });
+      })();
+    </script>
+  </body>
 </html>
