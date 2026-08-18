@@ -23,6 +23,13 @@ import {
 import { useModal } from "@reflecta/ui/overlays";
 import { useNavigateToCanvas } from "@renderer/modules/shared/navigation";
 import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@reflecta/ui/components/resizable";
+import { cn } from "@reflecta/ui/lib/utils";
+import { RESIZE_HANDLE_CLASS } from "@renderer/modules/shared/layout/layout-constants";
+import {
   canvasQueryKeys,
   refreshCanvasDetail,
   useCanvasDetail,
@@ -30,6 +37,7 @@ import {
   useUpdateViewportMutation,
 } from "../queries";
 import { useCanvasStore } from "../store";
+import { CanvasDetailPanel } from "./CanvasDetailPanel";
 import { CanvasLibraryPanel } from "./CanvasLibraryPanel";
 import { CanvasRefPickerModal } from "./CanvasRefPickerModal";
 import { CanvasToolbar } from "./CanvasToolbar";
@@ -83,8 +91,12 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
 
   const graphRef = useRef<CanvasGraphHandle>(null);
   const [dnd, setDnd] = useState<import("@antv/x6").Dnd | null>(null);
-  const [libraryOpen, setLibraryOpen] = useState(false);
   const [minimapContainer, setMinimapContainer] = useState<HTMLDivElement | null>(null);
+  // 右侧单面板两态（库 / 详情互斥，M6-4；关闭恢复全宽，M6-5）
+  const [rightPanel, setRightPanel] = useState<
+    { mode: "library" } | { mode: "detail"; understandingId: string } | null
+  >(null);
+  const libraryOpen = rightPanel?.mode === "library";
 
   // Dnd 绑定图实例
   useEffect(() => {
@@ -186,6 +198,31 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     );
   }, [canvasId, closeModal, openModal]);
 
+  // 选中变化 → 详情模式联动（M6：点击画布理解卡 → 右面板详情）
+  const handleSelectionChange = useCallback(
+    (cellIds: string[]) => {
+      setSelection(cellIds);
+      const graph = graphRef.current?.graph;
+      let understandingId: string | null = null;
+      if (graph && cellIds.length === 1) {
+        const data = graph.getCellById(cellIds[0])?.getData() as
+          | { kind?: string; understandingId?: string | null }
+          | undefined;
+        if (data?.kind === "understanding" && data.understandingId) {
+          understandingId = data.understandingId;
+        }
+      }
+      if (understandingId) {
+        setRightPanel({ mode: "detail", understandingId });
+      } else {
+        // 非理解卡选中 → 关闭详情（库保持由“理解库”按钮控制）
+        setRightPanel((prev) => (prev?.mode === "detail" ? null : prev));
+      }
+    },
+    [setSelection],
+  );
+
+  const [detailPanelKey, setDetailPanelKey] = useState<string>("");
   const elementCount = useCanvasStore((state) => state.document.elements.length);
 
   return (
@@ -197,41 +234,82 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
         canvas={canvas}
         dnd={dnd}
         libraryOpen={libraryOpen}
-        onToggleLibrary={() => setLibraryOpen((open) => !open)}
+        onToggleLibrary={() =>
+          setRightPanel(rightPanel?.mode === "library" ? null : { mode: "library" })
+        }
         onOpenCanvasRefPicker={handleOpenCanvasRefPicker}
       />
 
-      <div className="relative flex min-h-0 flex-1">
-        <CanvasGraph
-          key={canvasId}
-          ref={graphRef}
-          document={initialDocument}
-          viewport={canvas?.viewport ?? null}
-          shapeData={shapeData}
-          onDocumentChange={handleDocumentChange}
-          onViewportChange={handleViewportChange}
-          onSelectionChange={setSelection}
-          minimap={{ container: minimapContainer, width: 200, height: 140 }}
-          className="absolute inset-0"
-        />
+      <ResizablePanelGroup orientation="horizontal" className="min-h-0 min-w-0 flex-1">
+        <ResizablePanel
+          id="canvas-main"
+          minSize="30%"
+          defaultSize={rightPanel ? 62 : 100}
+          className="min-h-0 min-w-0"
+        >
+          <div className="relative flex h-full min-h-0 min-w-0">
+            <CanvasGraph
+              key={canvasId}
+              ref={graphRef}
+              document={initialDocument}
+              viewport={canvas?.viewport ?? null}
+              shapeData={shapeData}
+              onDocumentChange={handleDocumentChange}
+              onViewportChange={handleViewportChange}
+              onSelectionChange={handleSelectionChange}
+              minimap={{ container: minimapContainer, width: 200, height: 140 }}
+              className="absolute inset-0"
+            />
 
-        {!isLoading && detail && elementCount === 0 ? <CanvasEmptyState /> : null}
+            {!isLoading && detail && elementCount === 0 ? <CanvasEmptyState /> : null}
 
-        <CanvasZoomControls
-          className="absolute bottom-4 left-4"
-          onZoomIn={() => graphRef.current?.graph?.zoom(1.25)}
-          onZoomOut={() => graphRef.current?.graph?.zoom(0.8)}
-          onFit={() => graphRef.current?.graph?.zoomToFit({ padding: 32, maxScale: 1 })}
-        />
+            <CanvasZoomControls
+              className="absolute bottom-4 left-4"
+              onZoomIn={() => graphRef.current?.graph?.zoom(1.25)}
+              onZoomOut={() => graphRef.current?.graph?.zoom(0.8)}
+              onFit={() => graphRef.current?.graph?.zoomToFit({ padding: 32, maxScale: 1 })}
+            />
 
-        <div
-          ref={setMinimapContainer}
-          data-testid="canvas-minimap"
-          className="absolute right-4 bottom-4 overflow-hidden rounded-lg border bg-background/80 shadow-sm"
-        />
+            <div
+              ref={setMinimapContainer}
+              data-testid="canvas-minimap"
+              className="absolute right-4 bottom-4 overflow-hidden rounded-lg border bg-background/80 shadow-sm"
+            />
+          </div>
+        </ResizablePanel>
 
-        {libraryOpen ? <CanvasLibraryPanel dnd={dnd} /> : null}
-      </div>
+        {rightPanel ? (
+          <>
+            <ResizableHandle
+              withHandle
+              id="canvas-right-resize-handle"
+              className={cn(RESIZE_HANDLE_CLASS)}
+            />
+            <ResizablePanel
+              id="canvas-right"
+              minSize="26%"
+              maxSize="60%"
+              defaultSize={38}
+              className="min-h-0 min-w-0"
+            >
+              {rightPanel.mode === "library" ? (
+                <CanvasLibraryPanel dnd={dnd} onClose={() => setRightPanel(null)} />
+              ) : rightPanel.mode === "detail" ? (
+                <CanvasDetailPanel
+                  key={detailPanelKey}
+                  canvasId={canvasId}
+                  understandingId={rightPanel.understandingId}
+                  onClose={() => setRightPanel(null)}
+                  onSwitch={(nextId) => {
+                    setRightPanel({ mode: "detail", understandingId: nextId });
+                    setDetailPanelKey(nextId);
+                  }}
+                />
+              ) : null}
+            </ResizablePanel>
+          </>
+        ) : null}
+      </ResizablePanelGroup>
     </div>
   );
 }

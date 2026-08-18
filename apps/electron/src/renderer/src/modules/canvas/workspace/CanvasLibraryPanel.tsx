@@ -1,22 +1,59 @@
-import { FileText } from "lucide-react";
-import type { MouseEvent } from "react";
+import { useMemo, useState } from "react";
+import { FileText, Search, X } from "lucide-react";
 import type { Node } from "@antv/x6";
 import { createCanvasDndNode, type Dnd } from "@reflecta/ui/canvas";
+import { Button } from "@reflecta/ui/components/button";
+import { Input } from "@reflecta/ui/components/input";
+import { NativeSelect, NativeSelectOption } from "@reflecta/ui/components/native-select";
 import { ScrollArea } from "@reflecta/ui/components/scroll-area";
-import { useCaptureUnderstandingList, ALL_UNDERSTANDINGS_LIST_FILTER } from "../../capture/queries";
+import {
+  useCaptureDomains,
+  useCaptureUnderstandingList,
+  type UnderstandingListFilterKey,
+} from "../../capture/queries";
+import {
+  sortUnderstandingSummaries,
+  type UnderstandingListSortBy,
+} from "../../capture/dashboard/sort";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
+import type { DomainTreeNode } from "@shared/domain";
 import { newUnderstandingElement } from "./element-factory";
 
+/** 扁平化领域树为「全部领域 + 各领域」选项（缩进体现层级）。 */
+function flattenDomains(
+  nodes: readonly DomainTreeNode[],
+  depth = 0,
+): Array<{ id: string; name: string; depth: number }> {
+  return nodes.flatMap((node) => [
+    { id: node.id, name: node.name, depth },
+    ...flattenDomains(node.children, depth + 1),
+  ]);
+}
+
 /**
- * 库面板最小闭环（Phase 1）：理解列表 + 拖入画布创建理解卡。
- * Phase 2 补全领域过滤 / 搜索 / 排序 / 列表展示与详情联动。
+ * 库面板完整版（M5）：领域过滤（含全部领域） / 搜索 / 排序 / 列表展示 /
+ * 拖入画布创建理解卡；关闭（X）恢复全宽（M6-5）。与 Capture 列表体验一致。
  */
-export function CanvasLibraryPanel({ dnd }: { dnd: Dnd | null }) {
-  const { data: understandings, isLoading } = useCaptureUnderstandingList(
-    ALL_UNDERSTANDINGS_LIST_FILTER,
+export function CanvasLibraryPanel({ dnd, onClose }: { dnd: Dnd | null; onClose: () => void }) {
+  const { domains } = useCaptureDomains();
+  const [selectedDomainId, setSelectedDomainId] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<UnderstandingListSortBy>("updatedAt");
+
+  const filterKey: UnderstandingListFilterKey = {
+    selectedDomainId,
+    includeDescendants: true,
+    searchQuery,
+  };
+  const { data: understandings, isLoading } = useCaptureUnderstandingList(filterKey);
+  const sorted = useMemo(
+    () => sortUnderstandingSummaries(understandings ?? [], sortBy),
+    [understandings, sortBy],
   );
 
-  const handleDragStart = (event: MouseEvent, understanding: UnderstandingSummaryDTO) => {
+  const domainOptions = useMemo(() => flattenDomains(domains), [domains]);
+
+  const handleDragStart = (event: React.MouseEvent, understanding: UnderstandingSummaryDTO) => {
     if (dnd) {
       dnd.start(
         createCanvasDndNode(newUnderstandingElement(understanding.id)) as Node,
@@ -28,19 +65,74 @@ export function CanvasLibraryPanel({ dnd }: { dnd: Dnd | null }) {
   return (
     <aside
       data-testid="canvas-library-panel"
-      className="flex h-full w-64 shrink-0 flex-col border-l bg-background"
+      className="flex h-full w-72 shrink-0 flex-col border-l bg-background"
     >
       <header className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
         <span className="text-sm font-medium">理解库</span>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          aria-label="关闭理解库"
+          data-testid="canvas-library-close"
+          className="ml-auto"
+          onClick={onClose}
+        >
+          <X size={15} />
+        </Button>
       </header>
+
+      <div className="flex shrink-0 flex-col gap-2 p-2">
+        <div className="relative">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="查找理解"
+            aria-label="查找理解"
+            data-testid="canvas-library-search"
+            className="h-8 pl-8 text-sm"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <NativeSelect
+            value={selectedDomainId}
+            onChange={(event) => setSelectedDomainId(event.target.value)}
+            aria-label="领域过滤"
+            data-testid="canvas-library-domain-filter"
+            className="min-w-0 flex-1"
+            size="sm"
+          >
+            <NativeSelectOption value="all">全部领域</NativeSelectOption>
+            {domainOptions.map((domain) => (
+              <NativeSelectOption key={domain.id} value={domain.id}>
+                {"\u00A0".repeat(domain.depth)} {domain.name}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
+          <NativeSelect
+            value={sortBy}
+            onChange={(event) => setSortBy(event.target.value as UnderstandingListSortBy)}
+            aria-label="排序"
+            data-testid="canvas-library-sort"
+            size="sm"
+          >
+            <NativeSelectOption value="updatedAt">最近更新</NativeSelectOption>
+            <NativeSelectOption value="createdAt">创建时间</NativeSelectOption>
+          </NativeSelect>
+        </div>
+      </div>
+
       <ScrollArea className="min-h-0 flex-1">
         {isLoading ? (
           <div className="p-4 text-sm text-muted-foreground">加载中…</div>
-        ) : !understandings || understandings.length === 0 ? (
-          <div className="p-4 text-sm text-muted-foreground">还没有理解，先去 Capture 记录</div>
+        ) : sorted.length === 0 ? (
+          <div className="p-4 text-sm text-muted-foreground">
+            {searchQuery.trim() ? "没有匹配的理解" : "还没有理解，先去 Capture 记录"}
+          </div>
         ) : (
-          <div className="flex flex-col gap-1 p-2">
-            {understandings.map((understanding) => (
+          <div className="flex flex-col gap-1 p-2" data-testid="canvas-library-list">
+            {sorted.map((understanding) => (
               <button
                 key={understanding.id}
                 type="button"
@@ -60,6 +152,10 @@ export function CanvasLibraryPanel({ dnd }: { dnd: Dnd | null }) {
           </div>
         )}
       </ScrollArea>
+
+      <footer className="shrink-0 border-t p-2 text-xs text-muted-foreground">
+        拖拽理解到画布创建理解卡
+      </footer>
     </aside>
   );
 }

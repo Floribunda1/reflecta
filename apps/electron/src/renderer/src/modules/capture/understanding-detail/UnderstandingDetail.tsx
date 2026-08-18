@@ -34,6 +34,7 @@ import {
 import { useDrawer } from "@reflecta/ui/overlays";
 import { useModal } from "@reflecta/ui/overlays";
 import type { ContextDTO, ContextMedium } from "@shared/context";
+import { CanvasMembership } from "@renderer/modules/canvas/CanvasMembership";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import {
@@ -691,6 +692,8 @@ function UnderstandingDetailInner({
             </Empty>
           )}
         </section>
+
+        <CanvasMembership understandingId={understanding.id} />
       </article>
     </div>
   );

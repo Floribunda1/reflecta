@@ -37,6 +37,22 @@ export function useCanvasDetail(canvasId: string | null) {
   });
 }
 
+/** M6-6 / M8-8：某理解出现在哪些画布（画布归属）。 */
+export function useCanvasListByUnderstanding(understandingId: string | null) {
+  const queryKey = [
+    "understandingCanvas.listCanvasesByUnderstanding",
+    understandingId ?? "",
+  ] as const;
+  return useQuery<CanvasDTO[]>({
+    queryKey,
+    queryFn: () =>
+      understandingId
+        ? ipcClient.understandingCanvas.listCanvasesByUnderstanding(understandingId)
+        : Promise.resolve([]),
+    enabled: Boolean(understandingId),
+  });
+}
+
 function invalidateCanvasList(queryClient: QueryClient) {
   return queryClient.invalidateQueries({ queryKey: canvasQueryKeys.list, exact: false });
 }
@@ -48,6 +64,11 @@ function invalidateCanvasDetail(queryClient: QueryClient, canvasId: string) {
 /** 供 capture 侧（M6-6 画布归属）在理解保存后刷新引用画布数据（计划 §2 失效策略）。 */
 export function refreshCanvasDetail(queryClient: QueryClient, canvasId: string) {
   return invalidateCanvasDetail(queryClient, canvasId);
+}
+
+/** 理解出现在哪些画布 —— 供 Capture 详情「出现于 N 张画布」区块（M6-6）。 */
+export async function listCanvasesByUnderstanding(understandingId: string): Promise<CanvasDTO[]> {
+  return ipcClient.understandingCanvas.listCanvasesByUnderstanding(understandingId);
 }
 
 export function useCreateCanvasMutation() {
