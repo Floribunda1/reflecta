@@ -1,13 +1,75 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { type ChildProcess, spawn } from "node:child_process";
-import { app, BrowserWindow, dialog, Menu, MenuItem } from "electron";
+import { app, BrowserWindow, dialog } from "electron";
+import type { UpdateCheckFinishedPayload } from "@shared/update";
+import { UPDATE_CHECK_FINISHED_CHANNEL } from "@shared/update";
 import { appLog } from "./logger";
 
 const AUTOMATIC_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const INITIAL_CHECK_DELAY_MS = 15_000;
+
+const CHECK_STATE_FILE = "update-check-state.json";
+
+type CheckState = {
+  /** 最近一次更新检查完成时间（ISO 字符串）。 */
+  lastCheckAt?: string;
+};
+
 let activeUpdater: ChildProcess | null = null;
 let pendingAutomaticCheck = false;
+let checkStateCache: CheckState | null = null;
+
+/**
+ * 更新检查是否可用：只有打包安装的 macOS 版本带 Sparkle 更新组件，
+ * Windows / Linux 构建暂无更新机制，About 区域会将按钮置灰并给出说明。
+ */
+export function isUpdateCheckSupported(): boolean {
+  return process.platform === "darwin" && app.isPackaged;
+}
+
+/** 当前是否有一轮更新检查正在进行（手动或自动）。 */
+export function isUpdateCheckInProgress(): boolean {
+  return activeUpdater != null && activeUpdater.exitCode == null;
+}
+
+function checkStatePath(): string {
+  return path.join(app.getPath("userData"), CHECK_STATE_FILE);
+}
+
+function readCheckState(): CheckState {
+  if (checkStateCache) return checkStateCache;
+  try {
+    const parsed = JSON.parse(readFileSync(checkStatePath(), "utf8")) as CheckState;
+    checkStateCache =
+      parsed && typeof parsed.lastCheckAt === "string" ? { lastCheckAt: parsed.lastCheckAt } : {};
+  } catch {
+    checkStateCache = {};
+  }
+  return checkStateCache;
+}
+
+function persistCheckState(state: CheckState): void {
+  checkStateCache = state;
+  try {
+    writeFileSync(checkStatePath(), JSON.stringify(state), "utf8");
+  } catch (error) {
+    // 状态记录失败不应影响更新检查本身，仅记录日志。
+    appLog.warn("update.check-state.write-failed", { error: String(error) });
+  }
+}
+
+/** 最近一次更新检查完成时间（ISO 字符串）；从未检查过为 null。 */
+export function getLastCheckAt(): string | null {
+  return readCheckState().lastCheckAt ?? null;
+}
+
+function broadcastUpdateCheckFinished(checkedAt: string | null, failed: boolean): void {
+  const payload: UpdateCheckFinishedPayload = { checkedAt, failed };
+  for (const window of BrowserWindow.getAllWindows()) {
+    window.webContents.send(UPDATE_CHECK_FINISHED_CHANNEL, payload);
+  }
+}
 
 function appWindowIsFocused(): boolean {
   return BrowserWindow.getFocusedWindow() != null;
@@ -78,7 +140,18 @@ function launchUpdater(manual: boolean): void {
   });
   child.once("close", (code, signal) => {
     if (activeUpdater === child) activeUpdater = null;
-    if (code === 0 || signal) return;
+
+    // 仅显式退出码 0 才视为成功完成并记录上次检查时间；
+    // 非零且未被信号终止的退出才需要向用户报错（与原逻辑一致）。
+    let checkedAt: string | null = null;
+    if (code === 0) {
+      checkedAt = new Date().toISOString();
+      persistCheckState({ lastCheckAt: checkedAt });
+    }
+    const failed = code !== 0 && signal === null;
+    broadcastUpdateCheckFinished(checkedAt, failed);
+
+    if (!failed) return;
 
     const error = `Sparkle 更新器退出（代码 ${code ?? "unknown"}）`;
     appLog.error("update.check.failed", { error });
@@ -92,19 +165,24 @@ function launchUpdater(manual: boolean): void {
   });
 }
 
-export async function checkForUpdates(manual = false): Promise<void> {
-  if (process.platform !== "darwin" || !app.isPackaged) {
+/**
+ * 触发一次更新检查。manual 表示用户主动检查（前台模式，Sparkle 会弹出结果窗口），
+ * 否则为后台自动检查。返回是否真的启动了检查进程。
+ */
+export async function checkForUpdates(manual = false): Promise<boolean> {
+  if (!isUpdateCheckSupported()) {
     if (manual) {
       await showMessage({
         type: "info",
         message: "Check for Updates is only available on the installed macOS version",
       });
     }
-    return;
+    return false;
   }
 
   try {
     launchUpdater(manual);
+    return true;
   } catch (error) {
     appLog.error("update.check.failed", { error: String(error) });
     if (manual) {
@@ -114,31 +192,16 @@ export async function checkForUpdates(manual = false): Promise<void> {
         detail: error instanceof Error ? error.message : String(error),
       });
     }
+    return false;
   }
 }
 
-export function installUpdateMenu(): void {
-  if (process.platform !== "darwin") return;
-
-  const menu = Menu.getApplicationMenu();
-  const appMenu = menu?.items[0]?.submenu;
-  if (!menu || !appMenu) {
-    appLog.warn("update.menu.unavailable");
-    return;
-  }
-
-  appMenu.insert(
-    1,
-    new MenuItem({
-      label: "Check For Updates…",
-      click: () => void checkForUpdates(true),
-    }),
-  );
-  Menu.setApplicationMenu(menu);
-}
-
+/**
+ * 手动检查更新的入口改由「设置 → 关于」提供（macOS 应用菜单的
+ * Check For Updates… 已移除），后台自动检查仍然保留。
+ */
 export function startAutomaticUpdateChecks(): void {
-  if (process.platform !== "darwin" || !app.isPackaged) return;
+  if (!isUpdateCheckSupported()) return;
 
   const initialCheck = setTimeout(runAutomaticUpdateCheck, INITIAL_CHECK_DELAY_MS);
   const interval = setInterval(runAutomaticUpdateCheck, AUTOMATIC_CHECK_INTERVAL_MS);

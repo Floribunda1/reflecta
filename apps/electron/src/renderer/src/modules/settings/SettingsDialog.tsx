@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Button } from "@reflecta/ui/components/button";
 import { ScrollArea } from "@reflecta/ui/components/scroll-area";
 import { cn } from "@reflecta/ui/lib/utils";
-import { Database, Palette, Search, Sparkles, Trash2 } from "lucide-react";
+import { Database, Info, Palette, Search, Sparkles, Trash2 } from "lucide-react";
+import { AboutSection } from "./AboutSection";
 import { AiSection } from "./AiSection";
 import { RetrievalSection } from "./RetrievalSection";
 import { StorageSection } from "./StorageSection";
@@ -15,6 +16,7 @@ const MENU_ITEMS = [
   { key: "retrieval", label: "语义检索", icon: Search },
   { key: "appearance", label: "外观", icon: Palette },
   { key: "trash", label: "回收站", icon: Trash2 },
+  { key: "about", label: "关于", icon: Info },
 ] as const;
 type MenuKey = (typeof MENU_ITEMS)[number]["key"];
 
@@ -58,6 +60,7 @@ export function SettingsDialogContent() {
             {activeMenu === "retrieval" && <RetrievalSection />}
             {activeMenu === "appearance" && <ThemeSection />}
             {activeMenu === "trash" && <TrashSection />}
+            {activeMenu === "about" && <AboutSection />}
           </main>
         </ScrollArea>
       )}

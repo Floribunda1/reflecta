@@ -16,7 +16,7 @@ import { useRail } from "./rail-provider";
 export const NAV_MODULES = [
   { id: "capture", path: "/capture", label: "捕获", Icon: NotebookPen },
   { id: "canvas", path: "/understanding-canvas", label: "画布", Icon: PanelsTopLeft },
-  { id: "agent", path: "/agent", label: "智能体", Icon: Bot },
+  { id: "agent", path: "/agent", label: "对话", Icon: Bot },
 ] as const;
 
 type NavModule = (typeof NAV_MODULES)[number];
@@ -83,7 +83,7 @@ export function AppNavRail() {
       data-state={state}
       data-collapsible={state === "collapsed" ? "offcanvas" : undefined}
       className={cn(
-        "flex h-full min-h-0 shrink-0 flex-col overflow-hidden bg-sidebar/40 pb-2 text-sidebar-foreground transition-[width] duration-200 ease-out motion-reduce:transition-none",
+        "flex h-full min-h-0 shrink-0 flex-col overflow-hidden bg-sidebar/50 pb-2 text-sidebar-foreground transition-[width] duration-200 ease-out motion-reduce:transition-none",
         open ? "w-full" : "w-0",
       )}
     >

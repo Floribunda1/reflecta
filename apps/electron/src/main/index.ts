@@ -10,7 +10,7 @@ import { preloadScript, rendererHtml } from "./paths";
 import { retrievalEmbeddingRunner } from "./retrievalEmbeddingRunner";
 import { retrievalIndexCoordinator } from "./retrievalIndexCoordinator";
 import { getRuntimeArg } from "./runtime-args";
-import { installUpdateMenu, startAutomaticUpdateChecks } from "./updater";
+import { startAutomaticUpdateChecks } from "./updater";
 
 // Register asset:// as a privileged scheme before app is ready
 registerAssetScheme();
@@ -133,9 +133,8 @@ app.whenReady().then(async () => {
   // IPC test
   ipcMain.on("ping", () => appLog.debug("ipc.ping"));
 
-  installUpdateMenu();
-  createWindow();
   startAutomaticUpdateChecks();
+  createWindow();
 
   app.on("activate", () => {
     // On macOS it's common to re-create a window in the app when the
