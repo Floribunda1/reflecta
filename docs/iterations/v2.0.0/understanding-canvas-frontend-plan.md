@@ -49,14 +49,14 @@
 
 > T1/T3/T6 为已定项（C11 + spike + 服务端设计），直接采用；T2/T4/T5 为需拍板项（★ = 推荐项）。
 
-| #   | 决策             | 结论 / 选项                                                                                                                                                                  | 说明                                                                                                                                                                                                                                                                                                            |
-| --- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| T1  | 画布渲染技术     | **AntV X6 3.x（已定，C11）**：`@antv/x6` + `@antv/x6-react-shape`（React 卡片渲染）                                                                                          | 能力最强且 MIT；React 19 兼容（createRoot）、带标签有向连线、参考线、撤销重做、DnD、打组（embedding `addTo`）、图形、minimap、快照 round-trip 均已 spike 验证。wireframe 的自研 DOM 渲染仅为形态验证，**实现期整体替换为 X6**，不复用渲染层代码；X6 SVG 大规模性能问题（600+ 节点）不适用本场景（画布 5-50 卡） |
-| T2  | 带参跨模块跳转   | ① hash router query 参数 + `location.state` 携带来源 ★<br>② 全局跳转命令（zustand intent store）                                                                             | **①**：react-router `useSearchParams` 即可承载 `?canvas=<id>`；canvas 模块入口统一解析并打开指定画布。封装 `navigateToCanvas({ canvasId, from })` 单一入口，M6-6 / M3-E3 / U4 接收端共用；来源路径（back 语义）v1 用 `location.state` 记录、不扩机制                                                            |
-| T3  | 文档状态与持久化 | **X6 为交互 / 语义权威，zustand 文档 store 镜像 + 防抖 `saveCanvas(document)` + `updateViewport`（已定，服务端设计 §文档级写回）**；撤销重做 = **X6 History 插件（会话内）** | 元素 / 连线 id == X6 cell id（零映射）；X6 手势后的完整文档状态 → 前端发目标文档，服务端按 id 机械对账（画布几 KB，整文档便宜）；X6 history 在会话内处理撤销重做，每次状态变更 → 防抖 saveCanvas                                                                                                                |
-| T4  | 画布理解卡变体   | 新组件 `CanvasUnderstandingCard` ★（作为 X6 react-shape 节点）                                                                                                               | PRD M3-A2 要求**全文展示不截断**、无领域/上下文计数元数据、可自由缩放重排、占位态（M3-A5）、锁定态——与 Capture 卡片（5 行截断 + 元数据 + 右键菜单）语义不同；以 React 组件实现、`@antv/x6-react-shape` 挂载为 X6 节点，同族同风格（border / bg-card / 选中 ring）                                               |
-| T5  | 连线样式配置 UI  | ① 右侧单面板复用详情槽位（选中连线 → 渲染样式表单）★<br>② 连线就近 popover                                                                                                   | 保持「右侧单面板 = 库 / 详情」的简单 IA（PRD 只定义两态，连线样式作为详情态的第三内容形态）；popover 就近编辑适合快速微调，可作 v1.x 增强                                                                                                                                                                       |
-| T6  | PNG 导出（M2-8） | **X6 内置导出（已定）**：`graph.toPNG` / `toDataURL`（背景配置不绘网格）                                                                                                     | X6 导出能力（toPNG / toSVG / toDataURL）已覆盖「全内容导出」；按内容边界 + 固定倍率出图，走系统保存对话框；无需自绘或引入截图库                                                                                                                                                                                 |
+| #   | 决策             | 结论 / 选项                                                                                                                                                                  | 说明                                                                                                                                                                                                                                                                                  |
+| --- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T1  | 画布渲染技术     | **AntV X6 3.x（已定，C11）**：`@antv/x6` + `@antv/x6-react-shape`（React 卡片渲染）                                                                                          | 能力最强且 MIT；React 19 兼容（createRoot）、带标签有向连线、参考线、撤销重做、DnD、打组（embedding `addTo`）、图形、minimap、快照 round-trip 均已 spike 验证。此前用于形态讨论的演示代码已删除，渲染层直接以 X6 实现；X6 SVG 大规模性能问题（600+ 节点）不适用本场景（画布 5-50 卡） |
+| T2  | 带参跨模块跳转   | ① hash router query 参数 + `location.state` 携带来源 ★<br>② 全局跳转命令（zustand intent store）                                                                             | **①**：react-router `useSearchParams` 即可承载 `?canvas=<id>`；canvas 模块入口统一解析并打开指定画布。封装 `navigateToCanvas({ canvasId, from })` 单一入口，M6-6 / M3-E3 / U4 接收端共用；来源路径（back 语义）v1 用 `location.state` 记录、不扩机制                                  |
+| T3  | 文档状态与持久化 | **X6 为交互 / 语义权威，zustand 文档 store 镜像 + 防抖 `saveCanvas(document)` + `updateViewport`（已定，服务端设计 §文档级写回）**；撤销重做 = **X6 History 插件（会话内）** | 元素 / 连线 id == X6 cell id（零映射）；X6 手势后的完整文档状态 → 前端发目标文档，服务端按 id 机械对账（画布几 KB，整文档便宜）；X6 history 在会话内处理撤销重做，每次状态变更 → 防抖 saveCanvas                                                                                      |
+| T4  | 画布理解卡变体   | 新组件 `CanvasUnderstandingCard` ★（作为 X6 react-shape 节点）                                                                                                               | PRD M3-A2 要求**全文展示不截断**、无领域/上下文计数元数据、可自由缩放重排、占位态（M3-A5）、锁定态——与 Capture 卡片（5 行截断 + 元数据 + 右键菜单）语义不同；以 React 组件实现、`@antv/x6-react-shape` 挂载为 X6 节点，同族同风格（border / bg-card / 选中 ring）                     |
+| T5  | 连线样式配置 UI  | ① 右侧单面板复用详情槽位（选中连线 → 渲染样式表单）★<br>② 连线就近 popover                                                                                                   | 保持「右侧单面板 = 库 / 详情」的简单 IA（PRD 只定义两态，连线样式作为详情态的第三内容形态）；popover 就近编辑适合快速微调，可作 v1.x 增强                                                                                                                                             |
+| T6  | PNG 导出（M2-8） | **X6 内置导出（已定）**：`graph.toPNG` / `toDataURL`（背景配置不绘网格）                                                                                                     | X6 导出能力（toPNG / toSVG / toDataURL）已覆盖「全内容导出」；按内容边界 + 固定倍率出图，走系统保存对话框；无需自绘或引入截图库                                                                                                                                                       |
 
 **演进项（不阻塞 v1）**：AI 提案排布需要「自动布局」（PRD 模块八导语：位置由前端自动排开）——独立于 X6 的纯计算函数（简单网格 / 树状排布 → 生成节点坐标），Phase 5 再评估是否需要引入布局算法库。
 
@@ -85,13 +85,13 @@
 
 ### Phase 0 — 地基：数据层 + 导航跳转 + 画布列表真实化
 
-**目标**：替换 wireframe mock 的数据源；打通跨模块定位能力；画布模块具备真实列表管理。
+**目标**：画布模块从占位页进入真实数据实现；打通跨模块定位能力；画布模块具备真实列表管理。
 
 **范围**：M1-1（列表，按更新时间排序）· M1-2（新建，默认标题，标题可在工作区顶部改，落 Phase 1）· M1-3（删除确认「将删除画布及其全部内容」）· M1-4（空状态引导）· 带参跳转机制（T2）· X6 依赖引入与骨架落地（T1/T3/T4，承接 F2）。
 
 **要点**：
 
-- 画布列表用真实 IPC hooks，移除 wireframe mock 列表；行交互（重命名/删除/搜索）保留 wireframe 已验证形态。
+- 画布列表用真实 IPC hooks 替换占位页；行交互（重命名 / 删除 / 搜索）沿用既有 shell 语言（与 Capture 领域树同族）。
 - 路由入口统一解析 `?canvas=<id>`：canvas 模块挂载后若带参 → 自动选中并进入编辑模式；`navigateToCanvas` 封装放 `shared/navigation`。
 - Capture 理解详情侧预留 M6-6 跳转调用点（实际 UI 在 Phase 2）。
 - **X6 骨架（F2 承接）**：依赖引入（`@antv/x6@^3.x` + `@antv/x6-react-shape`，与 X6 代码同包——`packages/ui`，运行时依赖 `tslib`）；建 `CanvasGraph` 空壳（X6 生命周期封装 + 语义事件桥签名）；React 19 `createRoot` 渲染验证；确认插件（Dnd / Snapline / Selection / Keyboard / History / MiniMap 均在核心包）。
@@ -134,7 +134,6 @@
 
 - Feature：`canvas-workspace.feature`（平移缩放 / 网格不导出 / 控制与缩略图 / 标题编辑）、`canvas-elements.feature`（五类元素的创建 / 编辑 / 移动 / 缩放 / 删除 / 占位 / 跳转）、`canvas-persistence.feature`（重进还原位置与视口、文本完整还原）。
 - 单测：X6 文档 ↔ cell 回写（事件桥）、embedding 入组 / 出组 / 级联删除、react-shape 节点数据映射。
-- 本 phase 结束时**移除 wireframe mock**（`modules/canvas/wireframe/` 删除；chrome 组件形态与交互/视觉决策迁入正式目录），路由目标切到真实页面。
 
 ---
 
@@ -153,7 +152,7 @@
 
 - 库面板复用 capture 的领域查询与理解列表能力（排序 / 过滤逻辑抽共享或直接引 capture queries）。
 - 拖入画布 = HTML5 拖拽（库行 draggable → 画布 drop 落点），创建理解卡后立即持久化（saveCanvas）。
-- 详情槽位复用 wireframe 已搭的 `CanvasRightPanel` 两态切换；`UnderstandingDetail` 直接挂载（其上下文 / AI 能力完整保留，M6-2 免费获得）。
+- 详情槽位按右侧单面板两态切换骨架实现（库 / 详情互斥）；`UnderstandingDetail` 直接挂载（其上下文 / AI 能力完整保留，M6-2 免费获得）。
 - 画布卡同步：理解保存 → invalidate `useCanvasDetail`（§2 失效策略）。
 - M6-6 跳转后回到 capture 的来源路径用 `location.state` 支持「返回」体验（T2）。
 
@@ -281,19 +280,9 @@
 | R3  | PNG 导出保真                          | **X6 `toPNG` / `toDataURL` 内置导出**（T6），背景不绘网格；保真不足时评估倍率 / 前置渲染                                                                                                                        |
 | R4  | 组嵌套交互判定（0.2 后置项）          | **渲染不限深度**（PRD M3-D6「层级不限」，X6 embedding 原生支持）；受限的是**交互判定**：入组 hit-test 用「最深层包含元素」、框选按递归语义（选中组即含组内元素），v1 不做深度硬上限，超深交互走确认仅作后置演进 |
 | R5  | 性能（元素多时 saveCanvas 全量）      | 防抖 + 全量提交（server 契约），数百元素 OK；超量再上 diff / 局部提交（演进）                                                                                                                                   |
-| R6  | wireframe 双实现漂移                  | Phase 1 结束时整体删除 wireframe 目录，仅迁移交互 / 视觉决策（chrome 骨架 / 面板两态 / 卡信息密度），避免同一形态两处实现                                                                                       |
 | T7  | 理解删除 → 恢复后卡片复活（0.4 待定） | server 是 join 查询，恢复后自然显示回内容，无需额外前端处理；仅需 feature 用例覆盖「占位 → 恢复」                                                                                                               |
 | T8  | 画布列表分组 / 筛选（0.2 结构问题 1） | v1 不做，记演进项（列表多时再议）                                                                                                                                                                               |
 | T9  | 工具栏工具集（M2-1 极简）             | v1 仅：标题编辑 / 理解库 / 文本 / 矩形 / 圆形 / 组；选择 / 连线等工具不占工具栏（连线从元素把手直接拉出）                                                                                                       |
-
----
-
-## 6. 与现有 wireframe 的关系
-
-- wireframe（`modules/canvas/wireframe/`）是**形态验证**（信息架构 / 视觉 / 交互手感），**不是技术验证**——X6 技术能力已由 spike 验证（C11），wireframe 的自研 DOM 渲染层**整体不迁移**，实现期由 X6 替代。
-- 可迁移进正式实现的是**交互 / 视觉决策**：chrome 组件形态（ZoomControls / Minimap / SearchOverlay 的 DOM 骨架与文案）、右侧单面板两态切换骨架、画布卡在画布语境下的信息密度决策（T4）、连线样式四维模型的 UI 呈现方式。
-- 画布理解卡在 wireframe 里复用 Capture 卡，**实现期替换为 T4 的 `CanvasUnderstandingCard`**（X6 react-shape 节点：全文 / 无元数据 / 占位 / 锁定），这是 wireframe 与实现的已知差异。
-- 几何数学（视口 / fit / 锚点）由 X6 API 取代（`zoom` / `zoomToFit` / `getNodesInArea` / `manhattan` router），不迁移自研几何代码。
 
 ---
 
