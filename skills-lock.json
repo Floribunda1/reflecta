@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "code-simplifier": {
+      "source": "getsentry/skills",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/code-simplifier/SKILL.md",
+      "computedHash": "ad4ce00d2759e0773bee88f267f4ae0f52684979d7fbceb14dffd5efefbce141"
+    },
     "ask-matt": {
       "source": "mattpocock/skills",
       "sourceType": "github",

@@ -42,5 +42,5 @@ export function contextUsageLabel(usage: ContextUsage) {
   if (usage.tokens === undefined || usage.tokens === null || !usage.contextWindow) {
     return "等待上次请求 usage";
   }
-  return `上次上下文：${compactNumber(usage.tokens)} / ${compactNumber(usage.contextWindow)}`;
+  return `上下文：${compactNumber(usage.tokens)} / ${compactNumber(usage.contextWindow)}`;
 }

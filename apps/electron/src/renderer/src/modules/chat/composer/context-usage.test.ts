@@ -49,7 +49,7 @@ describe("context usage", () => {
       selectedContextCount: 1,
     });
     expect(contextUsageMeterLabel(usage)).toBe("17%");
-    expect(contextUsageLabel(usage)).toBe("上次上下文：21.7K / 128K");
+    expect(contextUsageLabel(usage)).toBe("上下文：21.7K / 128K");
   });
 
   test("preserves selected context count without treating refs as full context", () => {
