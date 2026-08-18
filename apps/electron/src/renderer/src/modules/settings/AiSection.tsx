@@ -10,6 +10,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@reflecta/ui/compo
 import { NativeSelect, NativeSelectOption } from "@reflecta/ui/components/native-select";
 import { ScrollArea } from "@reflecta/ui/components/scroll-area";
 import { ipcClient } from "@renderer/utils/ipc";
+import { errorMessage } from "@renderer/utils/errors";
 
 type AiConfig = Awaited<ReturnType<typeof ipcClient.config.getAiConfig>>;
 type AiProviderConfig = AiConfig["providers"][number];
@@ -24,12 +25,6 @@ function createProvider(provider: AiProviderDefinition): AiProviderConfig {
     apiKey: "",
     enabledModelIds: [],
   };
-}
-
-function errorMessage(error: unknown) {
-  if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
-    return error.message;
-  return error instanceof Error ? error.message : "请稍后重试";
 }
 
 function modelSelectionValue(selection: AiModelSelection | undefined): string {

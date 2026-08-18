@@ -13,12 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ipcClient } from "@renderer/utils/ipc";
 import type { TrashedUnderstandingDTO, TrashedContextDTO } from "@shared/trash";
 import { useModal } from "@reflecta/ui/overlays";
-
-function errorMessage(error: unknown) {
-  if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
-    return error.message;
-  return error instanceof Error ? error.message : "请稍后重试";
-}
+import { errorMessage } from "@renderer/utils/errors";
 
 export function TrashSection() {
   const { confirm } = useModal();

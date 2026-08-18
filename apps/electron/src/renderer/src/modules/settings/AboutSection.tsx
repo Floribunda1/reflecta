@@ -10,15 +10,10 @@ import { toast } from "sonner";
 import type { AboutVersionInfo, UpdateCheckFinishedPayload } from "@shared/update";
 import { UPDATE_CHECK_FINISHED_CHANNEL } from "@shared/update";
 import { ipcClient } from "@renderer/utils/ipc";
+import { errorMessage } from "@renderer/utils/errors";
 
 const PROJECT_URL = "https://github.com/Floribunda1/reflecta";
 const RELEASES_URL = `${PROJECT_URL}/releases`;
-
-function errorMessage(error: unknown) {
-  if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
-    return error.message;
-  return error instanceof Error ? error.message : "请稍后重试";
-}
 
 function OutboundLink({
   href,

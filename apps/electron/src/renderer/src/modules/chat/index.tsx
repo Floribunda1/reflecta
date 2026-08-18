@@ -29,6 +29,7 @@ import {
 import { ThreadSidebar } from "./session/thread-sidebar";
 import { PageTopBar } from "@renderer/modules/shared/layout/PageTopBar";
 import { cn } from "@reflecta/ui/lib/utils";
+import { errorMessage } from "@renderer/utils/errors";
 
 function activeThreadIdFor(threads: { id: string }[], activeThreadId: string | null) {
   if (threads.length === 0) return null;
@@ -36,12 +37,6 @@ function activeThreadIdFor(threads: { id: string }[], activeThreadId: string | n
     return activeThreadId;
   }
   return threads[0]!.id;
-}
-
-function errorMessage(error: unknown) {
-  if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
-    return error.message;
-  return error instanceof Error ? error.message : "请稍后重试";
 }
 
 function ThreadChat({

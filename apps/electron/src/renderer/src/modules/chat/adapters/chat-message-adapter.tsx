@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { useQueries } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ipcClient } from "@renderer/utils/ipc";
+import { errorMessage } from "@renderer/utils/errors";
 import {
   ChatMessageRow,
   getChatComposerEntities,
@@ -64,12 +65,6 @@ type ConnectedChatMessageRowProps = {
   onApproveTool: (input: ApproveToolInput) => void;
   onInspectContextRef?: (ref: InspectableContextRef) => void;
 };
-
-function errorMessage(error: unknown) {
-  if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
-    return error.message;
-  return error instanceof Error ? error.message : "请稍后重试";
-}
 
 function referenceKey(reference: Pick<ChatEntityReference, "type" | "id">) {
   return `${reference.type}:${reference.id}`;

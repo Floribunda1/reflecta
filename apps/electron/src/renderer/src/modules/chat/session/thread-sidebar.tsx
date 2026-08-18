@@ -5,16 +5,11 @@ import {
   type ChatThreadGroupView,
 } from "@reflecta/ui/chat";
 import { ipcClient } from "@renderer/utils/ipc";
+import { errorMessage } from "@renderer/utils/errors";
 import type { AgentSessionSummary } from "@shared/agent";
 import { toast } from "sonner";
 import { groupAgentThreads } from "./thread-groups";
 import { copyThreadId, exportThreadMarkdown } from "./thread-action-menu-items";
-
-function errorMessage(error: unknown) {
-  if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
-    return error.message;
-  return error instanceof Error ? error.message : "请稍后重试";
-}
 
 async function exportThread(thread: AgentSessionSummary) {
   try {

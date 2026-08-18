@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { cn } from "@reflecta/ui/lib/utils";
 import { useRailMenu } from "@renderer/modules/shared/layout/rail-menu-context";
 import {
   RESIZE_HANDLE_CLASS,
@@ -124,7 +125,7 @@ function CapturePageInner() {
             <ResizableHandle
               withHandle
               id="capture-detail-resize-handle"
-              className={RESIZE_HANDLE_CLASS + " " + RESIZE_HANDLE_GRIP_CHILD_CLASS}
+              className={cn(RESIZE_HANDLE_CLASS, RESIZE_HANDLE_GRIP_CHILD_CLASS)}
             />
             <UnderstandingDetailPanel />
           </>
@@ -134,7 +135,7 @@ function CapturePageInner() {
             <ResizableHandle
               withHandle
               id="capture-agent-dock-resize-handle"
-              className={RESIZE_HANDLE_CLASS + " " + RESIZE_HANDLE_GRIP_CHILD_CLASS}
+              className={cn(RESIZE_HANDLE_CLASS, RESIZE_HANDLE_GRIP_CHILD_CLASS)}
             />
             <ResizablePanel
               id="capture-agent"

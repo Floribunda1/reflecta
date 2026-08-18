@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@reflecta/ui/components/dropdown-menu";
 import { Input } from "@reflecta/ui/components/input";
+import { errorMessage } from "@renderer/utils/errors";
 import { useDebounce, useMemoizedFn } from "ahooks";
 import { toast } from "sonner";
 import { AgentChatComposer } from "./adapters/chat-composer-adapter";
@@ -41,12 +42,6 @@ import {
   useSelectAgentReasoningLevelMutation,
 } from "./session/server-state";
 import { exportThreadMarkdown, ThreadActionMenuItems } from "./session/thread-action-menu-items";
-
-function errorMessage(error: unknown) {
-  if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
-    return error.message;
-  return error instanceof Error ? error.message : "请稍后重试";
-}
 
 type AgentThreadPanelProps = {
   threadId: string;
@@ -346,7 +341,15 @@ function ThreadFindBox({
   });
   const jumpBy = useMemoizedFn((step: 1 | -1) => {
     if (renderedMatches.length === 0) return;
-    const currentIndex = activeIndex >= 0 ? activeIndex : step === -1 ? 0 : -1;
+    let currentIndex: number;
+    if (activeIndex >= 0) {
+      currentIndex = activeIndex;
+    } else if (step === 1) {
+      // 无当前匹配时向下从 -1 起跳（+1 后落到第一个）；向上从 0 起跳（-1 后落到最后一个）。
+      currentIndex = -1;
+    } else {
+      currentIndex = 0;
+    }
     const nextIndex = (currentIndex + step + renderedMatches.length) % renderedMatches.length;
     jumpToMatch(renderedMatches[nextIndex]);
   });

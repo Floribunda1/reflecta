@@ -8,6 +8,7 @@ import {
 } from "@reflecta/ui/chat";
 import { toast } from "sonner";
 import { ipcClient } from "@renderer/utils/ipc";
+import { errorMessage } from "@renderer/utils/errors";
 import { getEntityDisplay } from "../../capture/queries";
 
 function referenceKey(reference: Pick<ChatEntityReference, "type" | "id">) {
@@ -18,12 +19,6 @@ function referenceTypeLabel(reference: ChatEntityReference) {
   if (reference.type === "understanding") return "Understanding";
   if (reference.type === "context") return "Context";
   return "Domain";
-}
-
-function errorMessage(error: unknown) {
-  if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
-    return error.message;
-  return error instanceof Error ? error.message : "请稍后重试";
 }
 
 export async function exportThreadMarkdown(title: string, messages: AgentReducedMessage[]) {

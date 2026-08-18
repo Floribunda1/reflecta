@@ -11,6 +11,7 @@ import { useCaptureStore, type CaptureAgentScope } from "../../store";
 import { useDomainActions } from "../hooks";
 import { buildSiblingDomainReorderItems } from "../reorder";
 import { DomainModalContent } from "./CreateDomainModal";
+import { errorMessage } from "@renderer/utils/errors";
 
 function getAllIds(nodes: readonly DomainTreeNode[]): string[] {
   return nodes.flatMap((node) => [node.id, ...getAllIds(node.children)]);
@@ -32,10 +33,6 @@ function findDomain(nodes: readonly DomainTreeNode[], targetId: string): DomainT
     if (found) return found;
   }
   return null;
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "请稍后重试";
 }
 
 export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => void }) {

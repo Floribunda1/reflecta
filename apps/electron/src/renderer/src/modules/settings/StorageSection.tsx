@@ -15,6 +15,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { ipcClient } from "@renderer/utils/ipc";
+import { errorMessage } from "@renderer/utils/errors";
 import type { OrphanAssetInfo } from "@shared/asset";
 import { useModal } from "@reflecta/ui/overlays";
 
@@ -22,12 +23,6 @@ function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function errorMessage(error: unknown) {
-  if (typeof error === "object" && error && "message" in error && typeof error.message === "string")
-    return error.message;
-  return error instanceof Error ? error.message : "请稍后重试";
 }
 
 export function StorageSection() {
