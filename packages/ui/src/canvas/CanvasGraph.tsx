@@ -10,7 +10,13 @@ import {
   type ReactNode,
 } from "react";
 import type { CanvasDocument, CanvasViewport } from "./document";
-import { documentToGraphData, graphToDocument, newEdgeDto } from "./graph-document";
+import {
+  documentToGraphData,
+  edgeToEdge,
+  edgeToEdgeMeta,
+  graphToDocument,
+  newEdgeDto,
+} from "./graph-document";
 import { applyEdgeLabel, applyEdgeStyle, DEFAULT_EDGE_LINE_ATTRS } from "./edge-style";
 import {
   CanvasShapeDataProvider,
@@ -204,7 +210,99 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
       graph.on("scale", emitViewport);
       graph.on("translate", emitViewport);
 
+      // X6 3.x 的 connect 连线在部分环境不派发任何图/模型事件（验证见 Phase 3），
+      // 导致连线创建/删除无法经事件桥流出。用 MutationObserver 观察图容器内边元素的
+      // 增删（新增/移除的 `.x6-edge`），作为兜底同步触发器（emitDocument 幂等）。
+      // X6 3.x 的部分交互（连线新增/删除、边标签与样式写回）不派发图事件。
+      // 用 MutationObserver 观察图容器任何 DOM 变化兜底触发全量文档同步：
+      // emitDocument 幂等、saveCanvas 由调用方 800ms 防抖合并，5-50 卡重建便宜。
+      // connect 拖出的边终端带 port，X6 3.x 在部分情况下无法据此计算出连接路径（不渲染）。
+      // 归一为纯 cell 终端（与重进重建一致，几何正常）；幂等：port 消失后不再改写。
+      const normalizeEdgeTerminals = () => {
+        for (const edge of graph.getEdges()) {
+          const src = edge.getSource();
+          const tgt = edge.getTarget();
+          let changed = false;
+          if (src && typeof src === "object" && "port" in src) {
+            const cellId = edge.getSourceCellId();
+            if (cellId) {
+              edge.setSource({ cell: cellId });
+              changed = true;
+            }
+          }
+          if (tgt && typeof tgt === "object" && "port" in tgt) {
+            const cellId = edge.getTargetCellId();
+            if (cellId) {
+              edge.setTarget({ cell: cellId });
+              changed = true;
+            }
+          }
+
+          // X6 3.1.8 缺陷：connect 拖出的边（即便已归一为 cell 终端）不会自行计算连接几何，
+          // 可见 line 路径既无 attrs 也无 d。检测到几何缺失（wrap 无 d）但两端 cell 已解析时，
+          // 用与重进一致的元数据路径重建该边（addEdge + applyEdgeStyle/Label），保证连线可见。
+          const v = graph.findViewByCell(edge) as {
+            container?: SVGElement;
+            updateConnection?: () => void;
+          } | null;
+          const wrap = v?.container?.querySelector('path[stroke="transparent"]');
+          const hasSource = edge.getSourceCellId();
+          const hasTarget = edge.getTargetCellId();
+          if (wrap && !wrap.getAttribute("d") && hasSource && hasTarget) {
+            const dto = edgeToEdge(edge);
+            graph.removeCell(edge);
+            const rebuilt = graph.addEdge(edgeToEdgeMeta(dto));
+            applyEdgeStyle(rebuilt, dto.style ?? null);
+            applyEdgeLabel(rebuilt, dto.label ?? null);
+            continue;
+          }
+          if (changed) v?.updateConnection?.();
+
+          // X6 `line` 选择器不写几何：把 wrap 的路径/样式复制到 line，保证连线可见。
+          const container = v?.container;
+          if (container) {
+            const paths = Array.from(container.querySelectorAll("path"));
+            const w = paths.find((p) => p.getAttribute("stroke") === "transparent");
+            const line = paths.find((p) => p.getAttribute("pointer-events") === "none");
+            if (w && line) {
+              line.setAttribute("d", w.getAttribute("d") ?? "");
+              line.setAttribute("fill", "none");
+              line.setAttribute("stroke-width", "2.5");
+              line.setAttribute(
+                "stroke",
+                (edge.getData() as { style?: { color?: string } | null } | undefined)?.style
+                  ?.color ?? "#94a3b8",
+              );
+            }
+          }
+        }
+      };
+      let edgeObserveTimer: ReturnType<typeof setTimeout> | undefined;
+      const emitDocumentThrottled = () => {
+        if (readonly) return;
+        if (edgeObserveTimer) return;
+        edgeObserveTimer = setTimeout(() => {
+          edgeObserveTimer = undefined;
+          normalizeEdgeTerminals();
+          emitDocument();
+          // X6 的路径几何异步生成：追加几次延迟复制，确保连线可见
+          for (const delay of [350, 750]) {
+            setTimeout(() => {
+              if (readonly) return;
+              normalizeEdgeTerminals();
+            }, delay);
+          }
+        }, 60);
+      };
+      const edgeObserver = new MutationObserver(() => {
+        if (readonly || bridgeRef.current.loading) return;
+        emitDocumentThrottled();
+      });
+      edgeObserver.observe(container, { childList: true, subtree: true });
+
       return () => {
+        edgeObserver.disconnect();
+        if (edgeObserveTimer) clearTimeout(edgeObserveTimer);
         minimapRef.current?.dispose();
         minimapRef.current = null;
         graph.dispose();

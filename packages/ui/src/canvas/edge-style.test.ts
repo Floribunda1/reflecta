@@ -29,8 +29,8 @@ describe("edgeStyleToX6（M4-7 样式映射）", () => {
     expect(edgeStyleToX6({ color: "default" }).attrs?.line?.stroke).toBe("#94a3b8");
   });
 
-  test("arrowhead none → 无 targetMarker; block → 三角 marker", () => {
+  test("arrowhead none → 无 targetMarker; block → 内置 block marker", () => {
     expect(edgeStyleToX6({ arrowhead: "none" }).attrs?.line?.targetMarker).toBeUndefined();
-    expect(edgeStyleToX6({ arrowhead: "block" }).attrs?.line?.targetMarker).toContain("<path");
+    expect(edgeStyleToX6({ arrowhead: "block" }).attrs?.line?.targetMarker).toBe("block");
   });
 });

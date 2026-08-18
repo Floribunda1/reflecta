@@ -91,7 +91,10 @@ export function documentToGraphData(
   };
 }
 
-/** 节点 → 元素 DTO（几何以 X6 为准回刷）。 */
+/** 节点 → 元素 DTO（几何以 X6 为准回刷）。
+ *
+ * id 一律取 X6 cell id（真正的零映射不变式）。DnD 落点可能为克隆节点分配新 id，
+ * 与 DTO data.id 不一致；以 cell id 为准，连线 source/target（getSourceCellId）才能对上。 */
 export function nodeToElement(node: Node): CanvasElementDTO {
   const data = node.getData<CanvasElementDTO>();
   const position = node.getPosition();
@@ -99,6 +102,7 @@ export function nodeToElement(node: Node): CanvasElementDTO {
   const parent = node.getParent();
   return {
     ...data,
+    id: node.id,
     x: position.x,
     y: position.y,
     width: size.width,

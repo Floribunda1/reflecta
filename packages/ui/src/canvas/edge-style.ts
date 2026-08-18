@@ -22,10 +22,9 @@ export const EDGE_COLOR_PALETTE = {
 
 const WIDTH_TO_STROKE = { thin: 1.5, medium: 2.5, thick: 4 } as const;
 
-const MARKER = {
-  arrow: `<path d="M 10 0 L 0 5 L 10 10 z" fill="${EDGE_COLOR_PALETTE.default}" stroke="none"/>`,
-  block: `<path d="M 12 0 L 0 6 L 12 12 z" fill="${EDGE_COLOR_PALETTE.default}"/>`,
-} as const;
+// X6 3.x 的 targetMarker 接受内置 marker 名（classic/block/circle/diamond）或已注册 marker；
+// 传 SVG 字符串会被当作 marker 名称去查找而报错。v1 用内置名（颜色随 line.stroke 默认）。
+const MARKER = { arrow: "classic", block: "block" } as const;
 
 const LINE_STYLE_TO_DASHARRAY = {
   solid: "none",
@@ -71,11 +70,7 @@ export function edgeStyleToX6(style: CanvasEdgeStyle | null | undefined): EdgeX6
   const arrowhead = s.arrowhead ?? "arrow";
   let targetMarker: string | undefined;
   if (arrowhead === "none") targetMarker = undefined;
-  else
-    targetMarker = MARKER[arrowhead === "block" ? "block" : "arrow"].replaceAll(
-      EDGE_COLOR_PALETTE.default,
-      colorValue,
-    );
+  else targetMarker = MARKER[arrowhead === "block" ? "block" : "arrow"];
 
   config.attrs = {
     line: {
