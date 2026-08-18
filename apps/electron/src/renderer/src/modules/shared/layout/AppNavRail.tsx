@@ -83,8 +83,7 @@ export function AppNavRail() {
       data-state={state}
       data-collapsible={state === "collapsed" ? "offcanvas" : undefined}
       className={cn(
-        "flex h-full min-h-0 shrink-0 flex-col overflow-hidden bg-sidebar/50 pb-2 text-sidebar-foreground transition-[width] duration-200 ease-out motion-reduce:transition-none",
-        open ? "w-full" : "w-0",
+        "flex h-full min-h-0 shrink-0 flex-col overflow-hidden bg-sidebar/50 pb-2 text-sidebar-foreground w-full",
       )}
     >
       <div className="flex h-full min-h-0 flex-col">
