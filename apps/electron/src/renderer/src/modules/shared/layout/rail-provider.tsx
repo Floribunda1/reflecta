@@ -22,6 +22,34 @@ import { useKeyPress } from "ahooks";
  */
 
 const RAIL_STORAGE_KEY = "reflecta.rail.open";
+const RAIL_WIDTH_STORAGE_KEY = "reflecta.rail.widthPx";
+
+export const DEFAULT_RAIL_WIDTH_PX = 248;
+export const MIN_RAIL_WIDTH_PX = 200;
+export const MAX_RAIL_WIDTH_PX = 400;
+
+function clampRailWidth(width: number): number {
+  return Math.min(MAX_RAIL_WIDTH_PX, Math.max(MIN_RAIL_WIDTH_PX, Math.round(width)));
+}
+
+export function readRailWidth(): number {
+  try {
+    const raw = localStorage.getItem(RAIL_WIDTH_STORAGE_KEY);
+    if (raw === null) return DEFAULT_RAIL_WIDTH_PX;
+    const width = Number(raw);
+    return Number.isFinite(width) ? clampRailWidth(width) : DEFAULT_RAIL_WIDTH_PX;
+  } catch {
+    return DEFAULT_RAIL_WIDTH_PX;
+  }
+}
+
+export function persistRailWidth(width: number): void {
+  try {
+    localStorage.setItem(RAIL_WIDTH_STORAGE_KEY, String(clampRailWidth(width)));
+  } catch {
+    // 存储不可用时静默降级为非持久状态。
+  }
+}
 
 type RailState = "expanded" | "collapsed";
 

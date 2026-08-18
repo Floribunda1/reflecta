@@ -4,7 +4,6 @@ import { Button } from "@reflecta/ui/components/button";
 import { cn } from "@reflecta/ui/lib/utils";
 import { useModal } from "@reflecta/ui/overlays";
 import { SettingsDialogContent } from "@renderer/modules/settings/SettingsDialog";
-import { SIDEBAR_WIDTH_CLASS } from "./layout-constants";
 import { SidebarToggleButton } from "./SidebarToggleButton";
 import { useRailMenuSlot } from "./rail-menu-context";
 import { useRail } from "./rail-provider";
@@ -82,7 +81,7 @@ export function AppNavRail() {
       data-collapsible={state === "collapsed" ? "offcanvas" : undefined}
       className={cn(
         "flex h-full min-h-0 pb-2 shrink-0 flex-col overflow-hidden transition-[width] duration-200 ease-out motion-reduce:transition-none",
-        open ? SIDEBAR_WIDTH_CLASS : "w-0",
+        open ? "w-full" : "w-0",
       )}
     >
       {/* DESIGN: fully transparent sidebar — macOS-style vibrancy shows straight through.
