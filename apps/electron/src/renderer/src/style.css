@@ -1,9 +1,10 @@
 @source "./**/*.{ts,tsx}";
 @import "@reflecta/ui/globals.css";
 
+html,
 body {
   height: 100vh;
-  background: transparent;
+  background: var(--background);
   overflow: hidden;
 }
 
@@ -64,5 +65,5 @@ body {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: transparent;
+  background: var(--background);
 }

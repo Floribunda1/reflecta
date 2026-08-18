@@ -80,14 +80,10 @@ export function AppNavRail() {
       data-state={state}
       data-collapsible={state === "collapsed" ? "offcanvas" : undefined}
       className={cn(
-        "flex h-full min-h-0 pb-2 shrink-0 flex-col overflow-hidden transition-[width] duration-200 ease-out motion-reduce:transition-none",
+        "flex h-full min-h-0 shrink-0 flex-col overflow-hidden bg-sidebar pb-2 text-sidebar-foreground transition-[width] duration-200 ease-out motion-reduce:transition-none",
         open ? "w-full" : "w-0",
       )}
     >
-      {/* DESIGN: fully transparent sidebar — macOS-style vibrancy shows straight through.
-          The window is configured transparent + vibrancy: under-window; the rail carries no
-          surface tint so the frosted material remains visible across the whole rail.
-          Not covered by any token (it is a window-level effect, not a surface color). */}
       <div className="flex h-full min-h-0 flex-col">
         {open ? (
           <div className="app-drag-region flex h-12 shrink-0 items-center justify-end px-2">

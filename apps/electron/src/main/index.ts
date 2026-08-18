@@ -30,14 +30,10 @@ const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?:
       height: 670,
       show: false,
       autoHideMenuBar: true,
-      backgroundColor: "#00000000",
-      transparent: true,
       ...(process.platform === "darwin"
         ? ({
             titleBarStyle: "hiddenInset",
             trafficLightPosition: { x: 16, y: 16 },
-            vibrancy: "under-window",
-            visualEffectState: "active",
           } satisfies Electron.BrowserWindowConstructorOptions)
         : {}),
       webPreferences: {
