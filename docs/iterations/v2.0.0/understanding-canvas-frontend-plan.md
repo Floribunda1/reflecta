@@ -4,9 +4,9 @@
 >
 > 状态：计划（待评审）
 >
-> 职责：把 PRD（`understanding-canvas-prd.md`）模块一～七 + 模块八的非 Generative UI 部分，拆成前端可执行的 phase 序列；每个 phase 含功能范围（PRD 映射）、实现要点、依赖与验收。
+> 职责：把 PRD（`understanding-canvas-prd.md`）模块一～七 + 模块八的非 Generative UI 部分，拆成前端可执行的 phase 序列；每个 phase 含功能范围（PRD 映射）、实现要点、依赖与验收。承接 `understanding-canvas-frontend-design.md` 的 F1（只读渲染器）/ F2（X6 集成）/ F3（组件结构）待办并落地。
 >
-> 前置：PRD（产品要求）、服务端设计（接口契约，本计划只列前端配合点）、UI/UX 设计文档（信息架构 0.x 已定项）、共识记录（C1/C2/C5/C7/C13/C14/C15/C16）
+> 前置：PRD（产品要求）、服务端设计（接口契约，本计划只列前端配合点）、前端实现设计（`understanding-canvas-frontend-design.md`，F1/F2/F3）、UI/UX 设计文档（信息架构 0.x 已定项）、共识记录（C1/C2/C5/C7/C11/C13/C14/C15/C16）
 
 ---
 
@@ -36,37 +36,39 @@
 ### 0.3 已定约束（直接采用，不再讨论）
 
 - 路由三模块已就绪（`/understanding-canvas` 已注册、rail 三段含画布入口），页面顶栏沿用 `PageTopBar` 自管模式（0.6 shell 现状）。
+- **渲染引擎：AntV X6 3.x + `@antv/x6-react-shape`（C11 定案，spike 14/14 + 9/9 + minimap 全部通过）**；tldraw 因许可排除。X6 集成要点见 `understanding-canvas-frontend-design.md` F2，本计划各 phase 承接落地。
 - 画布删除硬删不进回收站（C1）；全局搜索不索引画布（已定）；设置无新增项。
 - 画布内 IA = 空间 + 组层级，不是树（C1 定死）；组嵌套深度为 UX 问题，后置。
 - 画布连线是「信念 / 结构网」，与 wiki-link「事实 / 溯源网」分层共存；画布连线不写回 `understanding_mentions`（C16）。
 - Capture 内联 agent dock 的 @ 搜索 v1 不加 canvas（0.4 待定，v1 建议不进）。
+- 只读画布渲染器 = **一个组件三用途**（F1：`[[cv:]]` Modal / draft 提案预览 / 对话内 draft 块）；本计划先建组件（服务 cv Modal 与 artifact），对话内 draft 块（Generative UI）后接。
 
 ---
 
-## 1. 技术选型与关键决策（实现前拍板）
+## 1. 技术选型与关键决策（已定 + 实现前拍板）
 
-> 下列决策直接决定 phase 结构与组件拆分，建议在 Phase 0 开工前逐项确认（★ = 推荐项）。
+> T1/T3/T6 为已定项（C11 + spike + 服务端设计），直接采用；T2/T4/T5 为需拍板项（★ = 推荐项）。
 
-| #   | 决策             | 选项                                                                                                   | 建议与理由                                                                                                                                                                                                                                                                                              |
-| --- | ---------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| T1  | 画布渲染技术     | ① 自研 DOM transform（延续 wireframe）★<br>② 引入 react-flow 等图库                                    | **①**：需求里「卡片 = 真实 React 组件（就地编辑、右键、占位态）、组嵌套空间语义、连线承载语义标签」与 flow 库的图编辑模型不完全匹配；样式定制会大量覆盖默认皮肤（违背「少定制」）；元素量级本地应用 <500，自研成本可控，wireframe 已验证可行。②仅在需要复杂正交自动重路由时局部引入路由算法，不引入整库 |
-| T2  | 带参跨模块跳转   | ① hash router query 参数 + `location.state` 携带来源 ★<br>② 全局跳转命令（zustand intent store）       | **①**：react-router `useSearchParams` 即可承载 `?canvas=<id>`；canvas 模块入口统一解析并打开指定画布。封装 `navigateToCanvas({ canvasId, from })` 单一入口，M6-6 / M3-E3 / U4 接收端共用；来源路径（back 语义）v1 用 `location.state` 记录、不扩机制                                                    |
-| T3  | 文档状态与持久化 | zustand 画布文档 store + 防抖 `saveCanvas(document)` + `updateViewport`；撤销重做 = **文档快照历史** ★ | 元素/连线层级浅（扁平数组 + parentId），快照序列化成本低且天然覆盖 M7-2 要求的全部变更类型（位置/尺寸/增删/文本/标签/分组/锁定）；上限 ~100 步，大画布按 diff 存储（演进项）                                                                                                                            |
-| T4  | 画布理解卡变体   | 新组件 `CanvasUnderstandingCard` ★（不复用 Capture `UnderstandingCard`）                               | PRD M3-A2 要求**全文展示不截断**、无领域/上下文计数元数据、可自由缩放重排、占位态（M3-A5）、锁定态——与 Capture 卡片（5 行截断 + 元数据 + 右键菜单）语义不同；新组件同族同风格（border / bg-card / 选中 ring）                                                                                           |
-| T5  | 连线样式配置 UI  | ① 右侧单面板复用详情槽位（选中连线 → 渲染样式表单）★<br>② 连线就近 popover                             | 保持「右侧单面板 = 库 / 详情」的简单 IA（PRD 只定义两态，连线样式作为详情态的第三内容形态）；popover 就近编辑适合快速微调，可作 v1.x 增强                                                                                                                                                               |
-| T6  | PNG 导出（M2-8） | ① 原生 Canvas 2D 离屏绘制 ★<br>② 引入 dom-to-image 类库                                                | 画布元素为矩形 + 文本 + 线，2D 绘制成本可控、像素精确、无新依赖；导出前按内容边界 + 固定 2x 缩放出图。①保真不足时（如 markdown 排版）再评估 ②                                                                                                                                                           |
+| #   | 决策             | 结论 / 选项                                                                                                                                                                  | 说明                                                                                                                                                                                                                                                                                                            |
+| --- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T1  | 画布渲染技术     | **AntV X6 3.x（已定，C11）**：`@antv/x6` + `@antv/x6-react-shape`（React 卡片渲染）                                                                                          | 能力最强且 MIT；React 19 兼容（createRoot）、带标签有向连线、参考线、撤销重做、DnD、打组（embedding `addTo`）、图形、minimap、快照 round-trip 均已 spike 验证。wireframe 的自研 DOM 渲染仅为形态验证，**实现期整体替换为 X6**，不复用渲染层代码；X6 SVG 大规模性能问题（600+ 节点）不适用本场景（画布 5-50 卡） |
+| T2  | 带参跨模块跳转   | ① hash router query 参数 + `location.state` 携带来源 ★<br>② 全局跳转命令（zustand intent store）                                                                             | **①**：react-router `useSearchParams` 即可承载 `?canvas=<id>`；canvas 模块入口统一解析并打开指定画布。封装 `navigateToCanvas({ canvasId, from })` 单一入口，M6-6 / M3-E3 / U4 接收端共用；来源路径（back 语义）v1 用 `location.state` 记录、不扩机制                                                            |
+| T3  | 文档状态与持久化 | **X6 为交互 / 语义权威，zustand 文档 store 镜像 + 防抖 `saveCanvas(document)` + `updateViewport`（已定，服务端设计 §文档级写回）**；撤销重做 = **X6 History 插件（会话内）** | 元素 / 连线 id == X6 cell id（零映射）；X6 手势后的完整文档状态 → 前端发目标文档，服务端按 id 机械对账（画布几 KB，整文档便宜）；X6 history 在会话内处理撤销重做，每次状态变更 → 防抖 saveCanvas                                                                                                                |
+| T4  | 画布理解卡变体   | 新组件 `CanvasUnderstandingCard` ★（作为 X6 react-shape 节点）                                                                                                               | PRD M3-A2 要求**全文展示不截断**、无领域/上下文计数元数据、可自由缩放重排、占位态（M3-A5）、锁定态——与 Capture 卡片（5 行截断 + 元数据 + 右键菜单）语义不同；以 React 组件实现、`@antv/x6-react-shape` 挂载为 X6 节点，同族同风格（border / bg-card / 选中 ring）                                               |
+| T5  | 连线样式配置 UI  | ① 右侧单面板复用详情槽位（选中连线 → 渲染样式表单）★<br>② 连线就近 popover                                                                                                   | 保持「右侧单面板 = 库 / 详情」的简单 IA（PRD 只定义两态，连线样式作为详情态的第三内容形态）；popover 就近编辑适合快速微调，可作 v1.x 增强                                                                                                                                                                       |
+| T6  | PNG 导出（M2-8） | **X6 内置导出（已定）**：`graph.toPNG` / `toDataURL`（背景配置不绘网格）                                                                                                     | X6 导出能力（toPNG / toSVG / toDataURL）已覆盖「全内容导出」；按内容边界 + 固定倍率出图，走系统保存对话框；无需自绘或引入截图库                                                                                                                                                                                 |
 
-**演进项（不阻塞 v1）**：AI 提案排布需要「自动布局」（PRD 模块八导语：位置由前端自动排开）——独立于画布编辑渲染的纯计算函数（如简单网格 / 树状排布），Phase 5 再评估是否需要引入布局算法库。
+**演进项（不阻塞 v1）**：AI 提案排布需要「自动布局」（PRD 模块八导语：位置由前端自动排开）——独立于 X6 的纯计算函数（简单网格 / 树状排布 → 生成节点坐标），Phase 5 再评估是否需要引入布局算法库。
 
 ---
 
 ## 2. 数据层与状态模型（Phase 0 落地，贯穿全程）
 
 - **IPC hooks**（react-query）：`useCanvasList` / `useCanvasDetail(id, { includeBodies: true })` / `useCreateCanvas` / `useRenameCanvas` / `useDeleteCanvas` / `useSaveCanvas` / `useUpdateViewport`，对齐现有 IPC 服务（`ipcClient.understandingCanvas.*`），queryKey 前缀 `["understandingCanvas.*"]`。
-- **文档 store**（zustand，wireframe store 升级为真实数据源）：
+- **文档 store**（zustand，X6 文档的镜像数据源）：
   - `selectedCanvasId` / `document { elements, edges }` / `viewport` / `selection`；
-  - 变更一律先进本地 store（交互零延迟），防抖（~800ms）调 `saveCanvas` 全量提交（server 契约即为全量 document，元素数百量级可接受）；
-  - 视口变更单独 `updateViewport`（settle 后提交，实现 M1-5 恢复）。
+  - **X6 是交互 / 语义权威**（T3）：元素 / 连线 id == X6 cell id，X6 变更事件（`node:change:*` / `edge:change:*` / 增删）回写 store，防抖（~800ms）调 `saveCanvas` 全量提交（server 契约即为全量 document，画布几 KB 便宜）；
+  - 视口变更单独 `updateViewport`（settle 后提交，实现 M1-5 恢复）；撤销重做由 X6 History 插件在会话内处理，不落库。
 - **失效策略**：
   - 理解详情保存（M6-3）→ invalidate 画布 detail（卡片内容同步刷新）；
   - 画布保存 → invalidate Capture 理解详情的 M6-6 归属块（反向 join 数据）；
@@ -84,13 +86,14 @@
 
 **目标**：替换 wireframe mock 的数据源；打通跨模块定位能力；画布模块具备真实列表管理。
 
-**范围**：M1-1（列表，按更新时间排序）· M1-2（新建，默认标题，标题可在工作区顶部改，落 Phase 1）· M1-3（删除确认「将删除画布及其全部内容」）· M1-4（空状态引导）· 带参跳转机制（T2）· T1/T3/T4 选型落地。
+**范围**：M1-1（列表，按更新时间排序）· M1-2（新建，默认标题，标题可在工作区顶部改，落 Phase 1）· M1-3（删除确认「将删除画布及其全部内容」）· M1-4（空状态引导）· 带参跳转机制（T2）· X6 依赖引入与骨架落地（T1/T3/T4，承接 F2）。
 
 **要点**：
 
 - 画布列表用真实 IPC hooks，移除 wireframe mock 列表；行交互（重命名/删除/搜索）保留 wireframe 已验证形态。
 - 路由入口统一解析 `?canvas=<id>`：canvas 模块挂载后若带参 → 自动选中并进入编辑模式；`navigateToCanvas` 封装放 `shared/navigation`。
 - Capture 理解详情侧预留 M6-6 跳转调用点（实际 UI 在 Phase 2）。
+- **X6 骨架（F2 承接）**：依赖引入（`@antv/x6@^3.x` + `@antv/x6-react-shape`，与 X6 代码同包——`packages/ui`，运行时依赖 `tslib`）；建 `CanvasGraph` 空壳（X6 生命周期封装 + 语义事件桥签名）；React 19 `createRoot` 渲染验证；确认插件（Dnd / Snapline / Selection / Keyboard / History / MiniMap 均在核心包）。
 
 **验收**：
 
@@ -112,19 +115,22 @@
 - 理解卡创建入口 = 库面板最小闭环（列表 + 拖入，见 Phase 2 补全）。
 - M7-6 持久化（位置 / 尺寸 / 文本 / 分组 / 视口，防抖 saveCanvas + updateViewport）；M1-5 视口恢复。
 
-**要点**：
+**要点**（X6 承载，承接 F2）：
 
-- 自研渲染层从 wireframe 继承：transform 视口、点阵网格、`RenderedElement` 按 kind 分发；增加**拖拽创建**（工具栏图标 → 画布 ghost 落点）、**8 向 resize 手柄**、**移动**（含组内坐标换算 child.x - group.x）、**组入组判定**（拖拽过程中 hit-test 组容器）。
-- 编辑器句柄（resize / 连线锚点）用 `data-` 属性 + `closest()` 判断，避免与画布平移手势冲突（沿用 wireframe 的手势隔离方案）。
-- 元素组件全部 memo + 稳定 identity，选中态只重渲受影响的节点（性能基线：≥300 元素流畅）。
-- `CanvasUnderstandingCard`（T4）：全文渲染、无元数据行、占位态「（已删除）」、锁定态样式预留。
-- 渲染层与「只读渲染」解耦：`CanvasElementsView`（只读，供 M8-6 Modal / 导出复用）与编辑器层分开——只读层本轮就抽出来，避免 Phase 5 返工。
+- **`CanvasGraph` 组件**（X6 生命周期封装 + 语义事件桥）：挂载建图、销毁释放、`node/edge:change:*` 与增删事件 → 回写 zustand 文档 store（T3），供右侧面板 / 搜索 / 持久化消费；外部变更（Phase 5 接收端）反向 `graph.fromJSON` 更新。
+- **shapes（`@antv/x6-react-shape`）**：理解卡（`CanvasUnderstandingCard`，T4：全文不截断 / 无元数据 / 占位「（已删除）」/ 锁定态）、文本卡（双击就地编辑 + 简单 markdown + 失焦保存）、图形（矩形 / 圆形）、组（显式边框 + 标题栏 + 组名双击编辑）、画布引用（目标画布标题 + 点击跳转 + 占位）——统一进 Storybook。
+- **DnD（工具栏图标 → 画布拖入创建）**：`dnd.start()` 传节点实例（F2 已验证）；理解卡入口 = 库面板最小闭环（库行 draggable → 画布落点）。
+- **组 = embedding**：`addTo` 双向（F2 已验证，非 `setParent` 单向）；组内子元素为相对坐标、拖组时子元素自动跟随；入组 / 出组 / 级联删除 / 解除组 / 嵌套渲染都在 X6 embedding 上实现。
+- **插件**：History（撤销重做，会话内）、MiniMap（右下缩略图）、（Snapline / Selection / Keyboard 在 Phase 4 启用）。
+- **只读渲染器（F1 三用组件）**：本轮抽出 `CanvasReadOnlyView`（X6 `interacting: false` 或轻量渲染，待 F1 调研定案）——本 phase 先服务 `[[cv:]]` Modal 与 artifact 缩略，对话内 draft 块后接；保证「所见即所存」。
+- 点阵网格（X6 `background` 配置，不参与导出）；左下控制（放大 / 缩小 / 适应视图 → `graph.zoom` / `graph.zoomToFit`）。
+- 性能基线：画布 5-50 卡（spike 结论），不做虚拟化；元素变更只影响对应 cell 重渲。
 
 **验收**：
 
 - Feature：`canvas-workspace.feature`（平移缩放 / 网格不导出 / 控制与缩略图 / 标题编辑）、`canvas-elements.feature`（五类元素的创建 / 编辑 / 移动 / 缩放 / 删除 / 占位 / 跳转）、`canvas-persistence.feature`（重进还原位置与视口、文本完整还原）。
-- 单测：canvas-geometry（视口 / fit / 吸附 / 入组判定）、store（保存防抖、占位逻辑）。
-- 本 phase 结束时**移除 wireframe mock**（`modules/canvas/wireframe/` 删除，可复用代码迁入正式目录：geometry、手势方案、chrome 组件雏形），路由目标切到真实页面。
+- 单测：X6 文档 ↔ cell 回写（事件桥）、embedding 入组 / 出组 / 级联删除、react-shape 节点数据映射。
+- 本 phase 结束时**移除 wireframe mock**（`modules/canvas/wireframe/` 删除；chrome 组件形态与交互/视觉决策迁入正式目录），路由目标切到真实页面。
 
 ---
 
@@ -160,18 +166,20 @@
 
 **范围**：M4-1 创建（卡片 / 组边缘拖出箭头 → 目标）· M4-2 方向 · M4-3 标签（双击就地编辑，随连线移动，持久化）· M4-4 吸附（端点吸附元素边界）与重路由（连线绕行避开遮挡元素）· M4-5 多连（同对卡片多条不同标签）· M4-6 删除（选中后 Delete/Backspace）· M4-7 连线样式（拐点直线/贝塞尔/正交、线型实线/虚线/点线、颜色色板、粗细、箭头开关、一键重置）。
 
-**要点**：
+**要点**（X6 连线能力，承接 spike 结论）：
 
-- 锚点交互：元素 hover 显示连线把手（从边框拉出）；线端可重连到其它元素。
-- 路由：v1 至少实现直线 + 贝塞尔 + 简单正交（曼哈顿绕行），「绕开遮挡」先做元素包围盒避让，复杂路由算法评估期放演进（T1 备注）。
-- 样式 UI 按 T5：选中连线 → 右侧面板详情槽位渲染样式表单（色板用预设色板，避免魔法色值）。
-- 连线数据进入 `saveCanvas` document（edges 已含 style / label / 方向）。
-- 边缘 label 命中与编辑：label 文本命中区放大，双击进入编辑。
+- **创建 / 重连**：元素 hover 显示连线把手（边缘锚点 `port`），拖出到目标落点生成有向边；`source/target` 端点可再次拖拽重连（`edge.getSourceCellId()` 重连语义）。
+- **吸附与重路由（M4-4）**：边界吸附（`boundary` connection + 端点吸附）与**曼哈顿正交路由（X6 `manhattan` router）已在 spike 验证**；「绕开遮挡」用 router 的障碍规避配置（`excludeNodeIds` / 包围盒）；复杂路由算法不进 v1。
+- **连线样式映射（F2 已定）**：拐点 → `connector`（straight / smooth / jumpover 或 router 选择）、线型 → `strokeDasharray`、箭头 → `targetMarker`、粗细 → `strokeWidth`、颜色 → 预设色板（避免魔法色值）；一键重置 = 回默认样式映射。
+- **标签（M4-3）**：X6 edge 标签（`label` 配置），双击就地编辑（edge tool），随连线移动，持久化。
+- **样式 UI 按 T5**：选中连线 → 右侧面板详情槽位渲染样式表单（读 X6 cell 数据写回）。
+- 连线数据进入 `saveCanvas` document（edges 含 style / label / 方向；id == X6 edge id）。
+- 多连（M4-5）：同对节点允许多条边，无额外逻辑；删除（M4-6）走 Keyboard 插件（Delete/Backspace）或选中后右键。
 
 **验收**：
 
 - Feature：`canvas-edges.feature`（创建 / 方向 / 标签 / 吸附 / 多连 / 删除 / 样式配置与重置 / 持久化）。
-- 单测：edgeAnchors / 正交路由 / 样式归一化（重置逻辑）。
+- 单测：连线样式映射（routing → connector/router、lineStyle → strokeDasharray、arrowhead → targetMarker）、端点重连、样式重置归一化。
 
 ---
 
@@ -182,7 +190,7 @@
 **范围**：
 
 - M7-1 参考线（拖拽中显示与其它元素边缘 / 中心对齐的参考线，松手落齐）。
-- M7-2 撤销 / 重做（⌘/⌘⇧+Z；覆盖位置 / 尺寸 / 增删 / 文本 / 标签 / 分组 / 锁定；快照历史 T3）。
+- M7-2 撤销 / 重做（⌘/⌘⇧+Z；覆盖位置 / 尺寸 / 增删 / 文本 / 标签 / 分组 / 锁定；X6 History 插件，T3）。
 - M7-3 CAD 框选（左→右仅全包含；右→左相交即选；Shift 追加；多选整体移动）。
 - M7-4 删除语义（删除卡 → 连带其连线；删除组 = 级联；解除组独立，右键）。
 - M7-5 锁定（选中锁定防误拖；不可拖动 / 不可被框选移动；可解锁）。
@@ -190,16 +198,21 @@
 - M2-7 演示模式（按组逐个走查：动画聚焦组内容，prev / next / 退出；无组退化为适应视图浏览）。
 - M2-8 PNG 导出（全内容，系统保存对话框；T6）。
 
-**要点**：
+**要点**（X6 插件 + 自定义，承接 F2）：
 
-- 撤销重做与持久化解耦：历史只存在内存 store，不随 saveCanvas 落库（落库仍全量防抖）。
-- 框选在「世界层」做拖拽选择框（viewBox 内矩形），选区判定用 world 坐标。
-- 导出（T6 ①）：离屏 2D 绘制（背景不含网格，M2-3），按内容边界 + 2x；走 Electron 系统保存对话框。
+- **参考线（M7-1）**：Snapline 插件（`graph.use(new Snapline(...))`，对齐边缘 / 中心，拖拽时显示、松手落齐）。
+- **撤销 / 重做（M7-2）**：History 插件（`graph.use(new History({ enabled: true }))`）——会话内覆盖位置 / 尺寸 / 增删 / 文本 / 标签 / 分组 / 锁定，每次状态变更 → 防抖 saveCanvas（T3）。
+- **CAD 框选（M7-3）**：自定义 marquee（F2 已定）：左→右 `getNodesInArea(rect, { strict: true })`（全包含），右→左 `strict: false`（相交即选）；Shift 追加；多选整体移动（X6 原生）。
+- **删除语义（M7-4）**：Keyboard 插件删除选中（Delete / Backspace）；删除卡片连带其边（X6 原生）；删除组 = 级联（组 + 组内元素 + 其连线）；解除组独立（右键 → 解 embedding 保留子元素回画布自由态）。
+- **锁定（M7-5）**：X6 node `lock()/unlock()`（不可拖动、不可被框选移动）；锁定态随 props 持久化（C5：呈现状态随 props 走）。
+- **搜索（M2-6）**：⌘/Ctrl+F 浮层；范围：卡标题 / 正文、组名、连线标签；命中后 `graph.centerCell` + 缩放定位 + 选中。
+- **演示模式（M2-7）**：按组顺序遍历，`graph.centerCell`/`zoomToRect` 动画聚焦每组内容；prev / next / 退出；无组退化为适应视图浏览。
+- **PNG 导出（M2-8）**：X6 `toPNG` / `toDataURL`（T6），背景不绘网格（M2-3），按内容边界 + 固定倍率，走系统保存对话框。
 
 **验收**：
 
 - Feature：`canvas-editing.feature`（参考线 / 撤销重做 / 框选多选与整体移动 / 删除语义 / 锁定）、`canvas-workspace.feature` 补充搜索 / 演示 / 导出场景。
-- 单测：撤销栈、框选判定（左→右 / 右→左）、锁定约束。
+- 单测：History 会话内撤销 / 重做覆盖、框选判定（左→右 / 右→左）、锁定约束（不可拖动 / 不可被框选移动）。
 
 ---
 
@@ -210,7 +223,7 @@
 **范围**（均不含消息内联 widget，见 §0.2）：
 
 - 0.3a 实体第 4 类：`AgentContextRef` 加 canvas；composer @-mention 搜索含画布；citation 渲染画布（复用 understanding 既有模板路径，不单独造）。
-- M8-6 `[[cv:]]` 引用：点击打开**只读 Modal**（复用 Phase 1 的只读渲染组件），不跳路由。
+- M8-6 `[[cv:]]` 引用：点击打开**只读 Modal**（F1 `CanvasReadOnlyView` 三用组件，`interacting: false` 或轻量渲染，待 F1 调研定案），不跳路由。
 - 0.3b 工具活动分组：`canvas_*` 工具在 agent-turn-view 归入 canvas 分组（最小改动：分组映射）。
 - U2 / M8-7 artifact panel：对话 header 下「产出条」（本对话已落地产出：理解 / 上下文 / 领域 / 画布），展开按类型分区列表；画布行 = approve 落地后的 canvas（点击行为：跳转画布模块编辑模式，依赖 Phase 0 跳转）。
 - U4 接收端：对话沉淀动作落地后 → 打开画布模块（新建画布或更新指定画布编辑模式）；**触发端（对话内按钮）归 Generative UI，此处只做接收**。
@@ -219,8 +232,8 @@
 **要点**：
 
 - canvas citation / composer 搜索走既有 entity catalog + `getEntityDisplay` 模式扩展（canvas → 标题取 canvas.title）。
-- `ReadOnlyCanvasView`（Phase 1 抽出）是本 phase 的公共渲染底座：Modal / artifact 缩略 / 未来 widget 共用，保证「所见即所存」。
-- 画布 detail 的外部失效：审批应用 → invalidate canvas detail（§2）。
+- `CanvasReadOnlyView`（Phase 1 抽出，F1）是本 phase 的公共渲染底座：`[[cv:]]` Modal / artifact 缩略 / 未来 widget 共用，保证「所见即所存」。
+- 画布 detail 的外部失效：审批应用 → invalidate canvas detail（§2）；审批通过后 `graph.fromJSON` 增量更新当前打开的画布。
 
 **验收**：
 
@@ -250,32 +263,33 @@
   - `canvas-editing.feature`（Phase 4）
   - `canvas-citation.feature` / `conversation-artifacts.feature`（Phase 5，与 agent 现有 feature 归属协调）
 - **acceptance 目录**：`e2e/acceptance/feature/canvas/` + `e2e/acceptance/spec/canvas/`，按稳定 ID 双向关联（test-case-principles 第 3 节）。
-- **分层**：几何 / 路由 / 撤销栈 / 框选判定 / 入组判定 → unit；拖拽创建、同步失效、外部刷新 → integration；跨窗口 / 系统保存对话框（导出）→ acceptance E2E 或 regression。
-- **Storybook**：展示型组件进 Storybook（CanvasUnderstandingCard 各态 / EdgesLayer / ZoomControls / Minimap / SearchOverlay / RightPanel 两态 / ReadOnlyCanvasView），按 storybook-principles MECE case。
+- **分层**：X6 样式映射 / 文档 ↔ cell 回写 / 框选判定 / embedding 入组 / 事件桥 → unit；拖拽创建、同步失效、外部刷新（fromJSON）→ integration；跨窗口 / 系统保存对话框（导出）→ acceptance E2E 或 regression。
+- **Storybook**：展示型组件进 Storybook（CanvasGraph / 五类 react-shape 节点各态 / ZoomControls / Minimap / SearchOverlay / RightPanel 两态 / CanvasReadOnlyView），按 storybook-principles MECE case。
 
 ---
 
 ## 5. 风险与待定项
 
-| #   | 风险 / 待定                           | 说明与对策                                                                                                             |
-| --- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| R1  | 连线重路由复杂度（正交绕行）          | v1 先直线 / 贝塞尔 / 简单曼哈顿避让；复杂路由按演进项，不阻塞连线创建与语义（M4-4 的「自动绕行」以元素包围盒避让兜底） |
-| R2  | 撤销重做覆盖全类型（M7-2）            | 快照历史天然全覆盖；大画布内存压力按 diff 存储（演进）；组内移动在快照中是扁平数组坐标，天然可撤销                     |
-| R3  | PNG 导出保真                          | 原生 2D 先覆盖矩形 / 文本 / 线；markdown 排版不保真时评估 ②（T6）                                                      |
-| R4  | 组嵌套拖拽目标判定（0.2 后置项）      | 入组 hit-test 用「最深层包含元素」+ 嵌套深度上限 v1 建议 3 层内，超深走确认；框选递归语义与入组语义解耦测试            |
-| R5  | 性能（元素多时 saveCanvas 全量）      | 防抖 + 全量提交（server 契约），数百元素 OK；超量再上 diff / 局部提交（演进）                                          |
-| R6  | wireframe 双实现漂移                  | Phase 1 结束时整体删除 wireframe 目录并迁移可复用代码，避免同一形态两处实现                                            |
-| T7  | 理解删除 → 恢复后卡片复活（0.4 待定） | server 是 join 查询，恢复后自然显示回内容，无需额外前端处理；仅需 feature 用例覆盖「占位 → 恢复」                      |
-| T8  | 画布列表分组 / 筛选（0.2 结构问题 1） | v1 不做，记演进项（列表多时再议）                                                                                      |
-| T9  | 工具栏工具集（M2-1 极简）             | v1 仅：标题编辑 / 理解库 / 文本 / 矩形 / 圆形 / 组；选择 / 连线等工具不占工具栏（连线从元素把手直接拉出）              |
+| #   | 风险 / 待定                           | 说明与对策                                                                                                                              |
+| --- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | 连线重路由复杂度（正交绕行）          | **X6 `manhattan` router + boundary connection 已 spike 验证**（M4-4 主路径无风险）；「绕开遮挡」用 router 障碍规避配置，复杂路由不进 v1 |
+| R2  | 撤销重做覆盖全类型（M7-2）            | **X6 History 插件会话内处理**，覆盖全部变更类型（服务端设计已定：每次变更 → 防抖 saveCanvas）；无自研撤销栈                             |
+| R3  | PNG 导出保真                          | **X6 `toPNG` / `toDataURL` 内置导出**（T6），背景不绘网格；保真不足时评估倍率 / 前置渲染                                                |
+| R4  | 组嵌套拖拽目标判定（0.2 后置项）      | 入组 hit-test 用「最深层包含元素」+ 嵌套深度上限 v1 建议 3 层内，超深走确认；框选递归语义与入组语义解耦测试                             |
+| R5  | 性能（元素多时 saveCanvas 全量）      | 防抖 + 全量提交（server 契约），数百元素 OK；超量再上 diff / 局部提交（演进）                                                           |
+| R6  | wireframe 双实现漂移                  | Phase 1 结束时整体删除 wireframe 目录，仅迁移交互 / 视觉决策（chrome 骨架 / 面板两态 / 卡信息密度），避免同一形态两处实现               |
+| T7  | 理解删除 → 恢复后卡片复活（0.4 待定） | server 是 join 查询，恢复后自然显示回内容，无需额外前端处理；仅需 feature 用例覆盖「占位 → 恢复」                                       |
+| T8  | 画布列表分组 / 筛选（0.2 结构问题 1） | v1 不做，记演进项（列表多时再议）                                                                                                       |
+| T9  | 工具栏工具集（M2-1 极简）             | v1 仅：标题编辑 / 理解库 / 文本 / 矩形 / 圆形 / 组；选择 / 连线等工具不占工具栏（连线从元素把手直接拉出）                               |
 
 ---
 
 ## 6. 与现有 wireframe 的关系
 
-- wireframe（`modules/canvas/wireframe/`）是**形态验证**，不是实现起点：数据层（Phase 0）与渲染层（Phase 1）落地后整体删除。
-- 可迁移进正式实现：`canvas-geometry.ts`（视口 / fit / 锚点数学）、手势隔离方案（`closest("button")` + pointer capture）、chrome 组件形态（ZoomControls / Minimap / SearchOverlay 的 DOM 骨架）、右侧单面板两态切换骨架。
-- 画布理解卡在 wireframe 里复用 Capture 卡，**实现期替换为 T4 的 `CanvasUnderstandingCard`**（全文 / 无元数据 / 占位 / 锁定），这是 wireframe 与实现的已知差异。
+- wireframe（`modules/canvas/wireframe/`）是**形态验证**（信息架构 / 视觉 / 交互手感），**不是技术验证**——X6 技术能力已由 spike 验证（C11），wireframe 的自研 DOM 渲染层**整体不迁移**，实现期由 X6 替代。
+- 可迁移进正式实现的是**交互 / 视觉决策**：chrome 组件形态（ZoomControls / Minimap / SearchOverlay 的 DOM 骨架与文案）、右侧单面板两态切换骨架、画布卡在画布语境下的信息密度决策（T4）、连线样式四维模型的 UI 呈现方式。
+- 画布理解卡在 wireframe 里复用 Capture 卡，**实现期替换为 T4 的 `CanvasUnderstandingCard`**（X6 react-shape 节点：全文 / 无元数据 / 占位 / 锁定），这是 wireframe 与实现的已知差异。
+- 几何数学（视口 / fit / 锚点）由 X6 API 取代（`zoom` / `zoomToFit` / `getNodesInArea` / `manhattan` router），不迁移自研几何代码。
 
 ---
 
