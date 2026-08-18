@@ -35,10 +35,13 @@ import {
 const CARD_ROW_ESTIMATE_PX = 188;
 const CARD_ROW_GAP_PX = 12;
 const CARD_ROW_OVERSCAN = 3;
+/** 与行上 px-4 对齐；列宽按去掉左右 padding 后的内容区算。 */
+const CARD_GRID_PADDING_X_PX = 16;
 
 function useCaptureGridColumnCount(containerRef: RefObject<HTMLElement | null>) {
   const size = useSize(containerRef);
-  return captureGridColumnCount(size?.width ?? 0);
+  const contentWidth = Math.max(0, (size?.width ?? 0) - CARD_GRID_PADDING_X_PX * 2);
+  return captureGridColumnCount(contentWidth);
 }
 
 function useCardEntityPresentations(understandings: readonly UnderstandingSummaryDTO[]) {
@@ -202,10 +205,7 @@ export function CaptureCardGrid({
         data-testid="capture-card-grid"
         className="h-full min-h-0 overflow-y-auto"
       >
-        <div
-          className="relative w-full px-4 pb-4"
-          style={{ height: rowVirtualizer.getTotalSize() }}
-        >
+        <div className="relative w-full pb-4" style={{ height: rowVirtualizer.getTotalSize() }}>
           {virtualRows.map((virtualRow) => {
             const rowItems = captureGridRowSlice(understandings, virtualRow.index, columns);
             return (
@@ -213,7 +213,7 @@ export function CaptureCardGrid({
                 key={virtualRow.key}
                 data-index={virtualRow.index}
                 ref={rowVirtualizer.measureElement}
-                className="absolute top-0 left-0 grid w-full gap-3"
+                className="absolute top-0 left-0 grid w-full gap-3 px-4"
                 style={{
                   transform: `translateY(${virtualRow.start}px)`,
                   gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
