@@ -66,28 +66,32 @@ describe("ArtifactPanel", () => {
     expect(container?.querySelector('[data-testid="artifact-panel"]')).toBeNull();
   });
 
-  test("shows a collapsed summary strip with total and per-type counts", () => {
+  test("shows an icon and total count without a visible summary label", () => {
     const { container } = renderPanel(view);
     const toggle = container?.querySelector('[data-testid="artifact-panel-toggle"]');
-    expect(toggle?.textContent).toContain("本对话产出 2 项");
-    expect(toggle?.textContent).toContain("理解 1");
-    expect(toggle?.textContent).toContain("画布 1");
-    expect(container?.querySelector('[data-testid="artifact-panel-list"]')).toBeNull();
+    expect(toggle?.textContent).toContain("2");
+    expect(toggle?.textContent).not.toContain("本对话产出");
+    expect(toggle?.getAttribute("aria-label")).toBe("已生成 2 项");
+    expect(document.body.querySelector('[data-testid="artifact-panel-list"]')).toBeNull();
   });
 
-  test("expands to the grouped list and opens an artifact on row click", () => {
+  test("opens a flat list with type icons and opens an artifact on row click", () => {
     const { container, onOpen } = renderPanel(view);
     const toggle = container?.querySelector('[data-testid="artifact-panel-toggle"]') as HTMLElement;
     act(() => toggle.click());
 
-    expect(container?.querySelector('[data-testid="artifact-panel-list"]')).not.toBeNull();
-    const rows = container?.querySelectorAll('[data-testid^="artifact-item-"]') ?? [];
+    expect(document.body.querySelector('[data-testid="artifact-panel-list"]')).not.toBeNull();
+    expect(document.body.textContent).not.toContain("理解 1");
+    expect(document.body.textContent).not.toContain("画布 1");
+    const rows = document.body.querySelectorAll('[data-testid^="artifact-item-"]');
     expect(rows.length).toBe(2);
 
     const understandingRow = container?.querySelector(
-      '[data-testid="artifact-item-understanding"]',
-    ) as HTMLElement;
-    act(() => understandingRow.click());
+      '[data-testid="artifact-item-u-1"]',
+    ) as HTMLElement | null;
+    const row =
+      understandingRow ?? document.body.querySelector('[data-testid="artifact-item-u-1"]');
+    act(() => row?.click());
     expect(onOpen).toHaveBeenCalledWith(
       expect.objectContaining({ type: "understanding", id: "u-1" }),
     );
@@ -101,12 +105,12 @@ describe("ArtifactPanel", () => {
     act(() => {
       root?.render(<ArtifactPanel view={view} onOpen={onOpen} />);
     });
-    const panel = container?.querySelector('[data-testid="artifact-panel"]');
-    expect(panel?.className).toContain("bg-primary/5");
+    const toggle = container?.querySelector('[data-testid="artifact-panel-toggle"]');
+    expect(toggle?.className).toContain("bg-primary/10");
 
     act(() => {
       vi.advanceTimersByTime(2_000);
     });
-    expect(panel?.className).not.toContain("bg-primary/5");
+    expect(toggle?.className).not.toContain("bg-primary/10");
   });
 });

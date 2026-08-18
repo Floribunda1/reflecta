@@ -198,6 +198,45 @@ describe("MessageList entity refs", () => {
     expect(card?.getAttribute("data-proposal-open")).toBe("true");
   });
 
+  test("does not repeat a landed knowledge proposal in the message stream", () => {
+    renderMessageList({
+      messages: [
+        {
+          id: "assistant_1",
+          role: "assistant",
+          text: "已生成 1 项",
+          runId: "run_1",
+          createdAt: "2026-06-26T00:00:00.000Z",
+          blocks: [
+            {
+              kind: "approval",
+              approvalId: "approval_tool_1",
+              toolCallId: "tool_1",
+              toolName: "understanding_create",
+              title: "新增 Understanding",
+              payload: { title: "新的理解", body: "内容", domainIds: [] },
+              output: {
+                resultRefType: "understanding",
+                resultRefId: "understanding_1",
+                resultRefTitle: "新的理解",
+              },
+              approved: true,
+              state: "completed",
+              approvalState: "approved",
+              executionState: "completed",
+              displayState: "completed",
+              createdAt: "2026-06-26T00:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      entityCatalog: [],
+    });
+
+    expect(container?.querySelector('[data-testid="agent-proposal-card"]')).toBeNull();
+    expect(container?.textContent).not.toContain("新的理解");
+  });
+
   test("shows approved tool execution failures after the confirmed state", () => {
     renderMessageList({
       messages: [

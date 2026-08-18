@@ -157,24 +157,26 @@ export function AgentThreadPanel({
       {header ? (
         <PageTopBar
           actions={
-            <AgentThreadActions
-              threadId={threadId}
-              title={header.title}
-              messages={threadView.visibleMessages}
-              isBusy={threadView.isBusy}
-              isCompacting={threadView.isCompacting}
-              titleGenerating={Boolean(titleGenerating)}
-              onCompact={compact}
-              onGenerateTitle={header.onGenerateTitle}
-              onArchive={header.onArchive}
-              onDelete={header.onDelete}
-            />
+            <>
+              <ArtifactPanel view={artifactView} onOpen={openArtifact} />
+              <AgentThreadActions
+                threadId={threadId}
+                title={header.title}
+                messages={threadView.visibleMessages}
+                isBusy={threadView.isBusy}
+                isCompacting={threadView.isCompacting}
+                titleGenerating={Boolean(titleGenerating)}
+                onCompact={compact}
+                onGenerateTitle={header.onGenerateTitle}
+                onArchive={header.onArchive}
+                onDelete={header.onDelete}
+              />
+            </>
           }
         >
           <AgentThreadTitle title={header.title} onRename={header.onRename} />
         </PageTopBar>
       ) : null}
-      <ArtifactPanel view={artifactView} onOpen={openArtifact} />
       <div className="relative min-h-0 flex-1">
         <ThreadFindBox
           messages={threadView.visibleMessages}

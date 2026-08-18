@@ -1,15 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { formatDistanceToNow } from "date-fns";
-import { zhCN } from "date-fns/locale";
-import {
-  ChevronDown,
-  FileText,
-  FolderTree,
-  NotebookPen,
-  PanelsTopLeft,
-  Sparkles,
-} from "lucide-react";
+import { FileText, FolderTree, NotebookPen, PanelsTopLeft, Sparkles } from "lucide-react";
 import { cn } from "@reflecta/ui/lib/utils";
+import { Button } from "@reflecta/ui/components/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@reflecta/ui/components/popover";
 import {
   type ArtifactPanelView,
   type ArtifactType,
@@ -26,9 +19,9 @@ const ARTIFACT_ICONS: Record<ArtifactType, typeof NotebookPen> = {
 const NEW_LANDING_FLASH_MS = 1_600;
 
 /**
- * 对话 artifact panel（C14 / M8-7 / U2）：header 下方单行产出条。
+ * 对话 artifact panel（C14 / M8-7 / U2）：header actions 中的产出入口。
  * 只展示本对话已落地的产出（approved + saved），pending 提案留在消息流。
- * 行点击 = 打开实体详情（understanding/context 复用 chat 右面板 inspector，
+ * 条目点击 = 打开实体详情（understanding/context 复用 chat 右面板 inspector，
  * domain 跳 capture 并选中；canvas 待画布工具落地后接 C13 跳转）。
  */
 export function ArtifactPanel({
@@ -38,7 +31,7 @@ export function ArtifactPanel({
   view: ArtifactPanelView;
   onOpen: (artifact: LandedArtifact) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [open, setOpen] = useState(false);
   const [flash, setFlash] = useState(false);
   const prevTotalRef = useRef(view.total);
 
@@ -53,74 +46,60 @@ export function ArtifactPanel({
 
   if (view.total === 0) return null;
 
-  const summary = view.groups.map((group) => `${group.label} ${group.items.length}`).join(" · ");
+  const artifacts = view.groups
+    .flatMap((group) => group.items)
+    .sort((left, right) => right.landingAt.localeCompare(left.landingAt));
 
   return (
-    <div
-      data-testid="artifact-panel"
-      className={cn(
-        "shrink-0 border-b border-border/60 transition-colors",
-        flash && "bg-primary/5",
-      )}
-    >
-      <button
-        type="button"
-        data-testid="artifact-panel-toggle"
-        aria-expanded={expanded}
-        onClick={() => setExpanded((current) => !current)}
-        className="flex h-8 w-full items-center gap-2 px-5 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-      >
-        <Sparkles size={14} className={cn("shrink-0", flash && "text-primary")} />
-        <span className="truncate">
-          本对话产出 {view.total} 项{summary ? ` · ${summary}` : ""}
-        </span>
-        <ChevronDown
-          size={14}
-          className={cn("ml-auto shrink-0 transition-transform", expanded && "rotate-180")}
+    <div data-testid="artifact-panel">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger
+          render={
+            <Button
+              data-testid="artifact-panel-toggle"
+              type="button"
+              size="sm"
+              variant="ghost"
+              aria-label={`已生成 ${view.total} 项`}
+              title={`已生成 ${view.total} 项`}
+              className={cn(flash && "bg-primary/10 text-primary hover:bg-primary/15")}
+            >
+              <Sparkles aria-hidden="true" />
+              <span className="tabular-nums">{view.total}</span>
+            </Button>
+          }
         />
-      </button>
-      {expanded ? (
-        <div
+        <PopoverContent
           data-testid="artifact-panel-list"
-          className="max-h-64 overflow-y-auto border-t border-border/40 px-4 py-2"
+          align="end"
+          sideOffset={6}
+          className="max-h-64 w-[min(24rem,calc(100vw-2rem))] overflow-y-auto p-1.5"
         >
-          {view.groups.map((group) => {
-            const Icon = ARTIFACT_ICONS[group.type];
-            return (
-              <div
-                key={group.type}
-                role="group"
-                aria-label={group.label}
-                className="px-1 pt-1 pb-1.5"
-              >
-                <div className="flex items-center gap-1.5 px-1 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground">
-                  <Icon size={12} />
-                  {group.label}
-                  <span className="tabular-nums">{group.items.length}</span>
-                </div>
-                {group.items.map((artifact) => (
-                  <button
-                    key={artifact.id}
-                    type="button"
-                    data-testid={`artifact-item-${artifact.type}`}
-                    title={artifact.title}
-                    onClick={() => onOpen(artifact)}
-                    className="flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-xs text-foreground/90 transition-colors hover:bg-muted"
-                  >
-                    <span className="min-w-0 flex-1 truncate">{artifact.title}</span>
-                    <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-                      {formatDistanceToNow(new Date(artifact.landingAt), {
-                        addSuffix: true,
-                        locale: zhCN,
-                      })}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
+          <div className="grid gap-0.5" role="list">
+            {artifacts.map((artifact) => {
+              const Icon = ARTIFACT_ICONS[artifact.type];
+              const typeLabel = view.groups.find((group) => group.type === artifact.type)?.label;
+              return (
+                <button
+                  key={`${artifact.type}:${artifact.id}`}
+                  type="button"
+                  data-testid={`artifact-item-${artifact.id}`}
+                  aria-label={`${typeLabel ?? artifact.type}：${artifact.title}`}
+                  title={artifact.title}
+                  onClick={() => {
+                    setOpen(false);
+                    onOpen(artifact);
+                  }}
+                  className="flex min-h-9 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate">{artifact.title}</span>
+                </button>
+              );
+            })}
+          </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

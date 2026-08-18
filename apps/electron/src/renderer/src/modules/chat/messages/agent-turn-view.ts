@@ -314,12 +314,25 @@ function toAgentMessageBlocks(
     }
     const raw = approvals.get(block.proposal.toolCallId);
     if (!raw) continue;
+    if (isLandedArtifactApproval(raw)) continue;
     result.push({
       kind: "proposal",
       proposal: toAgentProposalView(block.proposal, raw, presentation),
     });
   }
   return result;
+}
+
+function isLandedArtifactApproval(block: AgentReducedAssistantBlock): boolean {
+  if (block.kind !== "approval" || block.executionState !== "completed") return false;
+  const output = isRecord(block.output) ? block.output : {};
+  return (
+    (output.resultRefType === "understanding" ||
+      output.resultRefType === "context" ||
+      output.resultRefType === "domain" ||
+      output.resultRefType === "canvas") &&
+    typeof output.resultRefId === "string"
+  );
 }
 
 export function toAgentAssistantMessageView(
