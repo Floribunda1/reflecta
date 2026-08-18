@@ -80,10 +80,11 @@ export function AppNavRail() {
       data-state={state}
       data-collapsible={state === "collapsed" ? "offcanvas" : undefined}
       className={cn(
-        "flex h-full min-h-0 shrink-0 flex-col overflow-hidden bg-sidebar pb-2 text-sidebar-foreground transition-[width] duration-200 ease-out motion-reduce:transition-none",
+        "flex h-full min-h-0 shrink-0 flex-col overflow-hidden bg-sidebar/50 pb-2 text-sidebar-foreground transition-[width] duration-200 ease-out motion-reduce:transition-none",
         open ? "w-full" : "w-0",
       )}
     >
+      {/* 表面色在这里：bg-sidebar/50。窗口透明 + vibrancy，半透明 token 才能透出毛玻璃。 */}
       <div className="flex h-full min-h-0 flex-col">
         {open ? (
           <div className="app-drag-region flex h-12 shrink-0 items-center justify-end px-2">
