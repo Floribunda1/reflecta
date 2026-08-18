@@ -38,6 +38,8 @@ import {
 } from "../queries";
 import { useCanvasStore } from "../store";
 import { CanvasDetailPanel } from "./CanvasDetailPanel";
+import { CanvasEdgeStylePanel } from "./CanvasEdgeStylePanel";
+import { CanvasEdgeLabelEditor } from "./CanvasEdgeLabelEditor";
 import { CanvasLibraryPanel } from "./CanvasLibraryPanel";
 import { CanvasRefPickerModal } from "./CanvasRefPickerModal";
 import { CanvasToolbar } from "./CanvasToolbar";
@@ -92,9 +94,12 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   const graphRef = useRef<CanvasGraphHandle>(null);
   const [dnd, setDnd] = useState<import("@antv/x6").Dnd | null>(null);
   const [minimapContainer, setMinimapContainer] = useState<HTMLDivElement | null>(null);
-  // 右侧单面板两态（库 / 详情互斥，M6-4；关闭恢复全宽，M6-5）
+  // 右侧单面板（库 / 详情 / 连线样式互斥；关闭恢复全宽，M6-5）
   const [rightPanel, setRightPanel] = useState<
-    { mode: "library" } | { mode: "detail"; understandingId: string } | null
+    | { mode: "library" }
+    | { mode: "detail"; understandingId: string }
+    | { mode: "edge-style"; edgeId: string }
+    | null
   >(null);
   const libraryOpen = rightPanel?.mode === "library";
 
@@ -114,7 +119,14 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   // 事件桥 → 镜像 + 防抖保存
   const handleDocumentChange = useCallback(
     (document: CanvasDocument) => {
-      setDocument(document);
+      // 只保留端点均为真实元素的边：X6 交互期可能出现指向已移除节点的瞬态边，
+      // 带入 saveCanvas 会触发服务端校验失败（error invoking saveCanvas）。
+      const elementIds = new Set(document.elements.map((element) => element.id));
+      const edges = document.edges.filter(
+        (edge) => elementIds.has(edge.sourceElementId) && elementIds.has(edge.targetElementId),
+      );
+      const sanitized = edges.length === document.edges.length ? document : { ...document, edges };
+      setDocument(sanitized);
       // 引用同步（M3-A6）：拖入的理解不在已知 refs 中 → 失效 detail 刷新卡片内容（不重载画布）
       const missingRef = document.elements.some(
         (element) =>
@@ -125,10 +137,11 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
       if (missingRef) void refreshCanvasDetail(queryClient, canvasId);
       if (!saveRef.current) {
         saveRef.current = debounce((doc: CanvasDocument) => {
-          void saveCanvas.mutateAsync({ canvasId, document: doc });
+          // 自动保存失败静默（避免未处理拒绝弹错 toast；下次变更会再保存）
+          void saveCanvas.mutateAsync({ canvasId, document: doc }).catch(() => {});
         }, SAVE_DEBOUNCE_MS);
       }
-      saveRef.current(document);
+      saveRef.current(sanitized);
     },
     [canvasId, queryClient, saveCanvas, setDocument],
   );
@@ -198,32 +211,65 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     );
   }, [canvasId, closeModal, openModal]);
 
-  // 选中变化 → 详情模式联动（M6：点击画布理解卡 → 右面板详情）
+  // 选中变化 → 联动（M6 / M4-7）：理解卡 → 详情；连线 → 样式面板；其它 → 关闭
   const handleSelectionChange = useCallback(
     (cellIds: string[]) => {
       setSelection(cellIds);
       const graph = graphRef.current?.graph;
-      let understandingId: string | null = null;
       if (graph && cellIds.length === 1) {
-        const data = graph.getCellById(cellIds[0])?.getData() as
+        const cell = graph.getCellById(cellIds[0]);
+        const data = cell?.getData() as
           | { kind?: string; understandingId?: string | null }
           | undefined;
+        if (cell?.isEdge()) {
+          setRightPanel({ mode: "edge-style", edgeId: cell.id });
+          return;
+        }
         if (data?.kind === "understanding" && data.understandingId) {
-          understandingId = data.understandingId;
+          setRightPanel({ mode: "detail", understandingId: data.understandingId });
+          return;
         }
       }
-      if (understandingId) {
-        setRightPanel({ mode: "detail", understandingId });
-      } else {
-        // 非理解卡选中 → 关闭详情（库保持由“理解库”按钮控制）
-        setRightPanel((prev) => (prev?.mode === "detail" ? null : prev));
-      }
+      // 非理解卡 / 非连线选中 → 关闭详情与样式面板（库保持由“理解库”按钮控制）
+      setRightPanel((prev) => (prev && prev.mode !== "library" ? null : prev));
     },
     [setSelection],
   );
 
   const [detailPanelKey, setDetailPanelKey] = useState<string>("");
   const elementCount = useCanvasStore((state) => state.document.elements.length);
+  // 连线标签就地编辑（M4-3）：双击连线 → 在边中点渲染输入框
+  const [edgeLabelEditor, setEdgeLabelEditor] = useState<{
+    edgeId: string;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const handleEdgeDblClick = useCallback((edgeId: string) => {
+    const graph = graphRef.current?.graph;
+    const edge = graph?.getCellById(edgeId) as import("@antv/x6").Edge | null;
+    if (!edge || !graph) return;
+    const view = graph.findViewByCell(edge) as import("@antv/x6").EdgeView | null;
+    const point = view?.getPointAtRatio(0.5);
+    if (!point) return;
+    const client = graph.localToPage(point.x, point.y);
+    setEdgeLabelEditor({ edgeId, x: client.x, y: client.y });
+  }, []);
+
+  // 删除选中（M4-6）：Delete / Backspace（基于 store 单选选中集）
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Delete" && event.key !== "Backspace") return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
+      const graph = graphRef.current?.graph;
+      if (!graph) return;
+      const selected = useCanvasStore.getState().selection;
+      selected.forEach((id) => graph.getCellById(id)?.remove());
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   return (
     <div
@@ -253,10 +299,12 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
               ref={graphRef}
               document={initialDocument}
               viewport={canvas?.viewport ?? null}
+              canvasId={canvasId}
               shapeData={shapeData}
               onDocumentChange={handleDocumentChange}
               onViewportChange={handleViewportChange}
               onSelectionChange={handleSelectionChange}
+              onEdgeDblClick={handleEdgeDblClick}
               minimap={{ container: minimapContainer, width: 200, height: 140 }}
               className="absolute inset-0"
             />
@@ -275,6 +323,15 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
               data-testid="canvas-minimap"
               className="absolute right-4 bottom-4 overflow-hidden rounded-lg border bg-background/80 shadow-sm"
             />
+
+            {edgeLabelEditor ? (
+              <CanvasEdgeLabelEditor
+                graph={graphRef.current?.graph ?? null}
+                edgeId={edgeLabelEditor.edgeId}
+                position={{ x: edgeLabelEditor.x, y: edgeLabelEditor.y }}
+                onClose={() => setEdgeLabelEditor(null)}
+              />
+            ) : null}
           </div>
         </ResizablePanel>
 
@@ -305,7 +362,16 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
                     setDetailPanelKey(nextId);
                   }}
                 />
-              ) : null}
+              ) : (
+                <CanvasEdgeStylePanel
+                  edge={
+                    graphRef.current?.graph?.getCellById(rightPanel.edgeId) as
+                      | import("@antv/x6").Edge
+                      | null
+                  }
+                  onClose={() => setRightPanel(null)}
+                />
+              )}
             </ResizablePanel>
           </>
         ) : null}

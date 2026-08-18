@@ -1,5 +1,6 @@
-import { Graph, History, MiniMap } from "@antv/x6";
+import { Graph, History, MiniMap, Edge } from "@antv/x6";
 import { getProvider } from "@antv/x6-react-shape";
+import "./canvas-edges.css";
 import {
   forwardRef,
   useEffect,
@@ -9,7 +10,8 @@ import {
   type ReactNode,
 } from "react";
 import type { CanvasDocument, CanvasViewport } from "./document";
-import { documentToGraphData, graphToDocument } from "./graph-document";
+import { documentToGraphData, graphToDocument, newEdgeDto } from "./graph-document";
+import { applyEdgeLabel, applyEdgeStyle, DEFAULT_EDGE_LINE_ATTRS } from "./edge-style";
 import {
   CanvasShapeDataProvider,
   EMPTY_CANVAS_SHAPE_DATA,
@@ -57,8 +59,12 @@ export type CanvasGraphProps = {
   onDocumentChange?: (document: CanvasDocument) => void;
   /** 视口（平移 / 缩放）settle 后回写（updateViewport，M1-5 恢复） */
   onViewportChange?: (viewport: CanvasViewport) => void;
-  /** 选中变化（单选 / 框选 / Shift 追加）回写（右侧面板 / 搜索消费） */
+  /** 选中变化（单选 / 框选 / Shift 追加）回写（右侧面板 / 搜索消费）；含边选中 */
   onSelectionChange?: (cellIds: string[]) => void;
+  /** 双击连线 → 就地编辑标签（M4-3）：workspace 在边中点渲染输入框 */
+  onEdgeDblClick?: (edgeId: string) => void;
+  /** canvasId：新建边（createEdge）初始 DTO 归属 */
+  canvasId?: string;
   /** 右下缩略图（M2-5）：传入容器元素即启用 MiniMap 插件 */
   minimap?: CanvasGraphMinimapOptions;
   className?: string;
@@ -72,9 +78,11 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
       document,
       viewport,
       shapeData = EMPTY_CANVAS_SHAPE_DATA,
+      canvasId = "",
       onDocumentChange,
       onViewportChange,
       onSelectionChange,
+      onEdgeDblClick,
       minimap,
       className,
       style,
@@ -87,12 +95,14 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
     const onDocumentChangeRef = useRef(onDocumentChange);
     const onViewportChangeRef = useRef(onViewportChange);
     const onSelectionChangeRef = useRef(onSelectionChange);
+    const onEdgeDblClickRef = useRef(onEdgeDblClick);
     const minimapRef = useRef<MiniMap | null>(null);
     const viewportAppliedRef = useRef(false);
 
     onDocumentChangeRef.current = onDocumentChange;
     onViewportChangeRef.current = onViewportChange;
     onSelectionChangeRef.current = onSelectionChange;
+    onEdgeDblClickRef.current = onEdgeDblClick;
 
     // 生命周期：挂载建图、卸载释放
     useEffect(() => {
@@ -132,13 +142,17 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
           embedding: { name: "stroke", args: { padding: -1, attrs: { stroke: "#8f8f8f" } } },
         },
         connecting: {
-          snap: true,
+          snap: { radius: 12 },
           allowBlank: false,
           allowLoop: false,
-          allowMulti: true,
+          allowNode: true,
           allowEdge: false,
+          allowPort: true,
+          allowMulti: true,
           highlight: true,
-          connector: "smooth",
+          validateEdge: () => true,
+          createEdge: () =>
+            new Edge({ data: newEdgeDto(canvasId), attrs: DEFAULT_EDGE_LINE_ATTRS }),
         },
       });
 
@@ -171,9 +185,22 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
       graph.on("node:removed", emitDocument);
       graph.on("edge:added", emitDocument);
       graph.on("edge:removed", emitDocument);
+      // X6 3.x 边事件分发并不总是可靠：额外兜底监听变更 / 增删，保证文档同步（幂等）
+      graph.on("cell:change:*", emitDocument);
+      graph.on("add", emitDocument);
+      graph.on("remove", emitDocument);
+      graph.on("edge:connected", emitDocument);
+      graph.on("edge:connective", emitDocument);
       graph.on("node:click", ({ cell }: { cell: import("@antv/x6").Cell }) =>
         emitSelection(cell.id),
       );
+      graph.on("edge:click", ({ cell }: { cell: import("@antv/x6").Cell }) =>
+        emitSelection(cell.id),
+      );
+      graph.on("edge:dblclick", ({ cell }: { cell: import("@antv/x6").Cell }) => {
+        if (readonly) return;
+        onEdgeDblClickRef.current?.(cell.id);
+      });
       graph.on("scale", emitViewport);
       graph.on("translate", emitViewport);
 
@@ -195,6 +222,15 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
 
       bridgeRef.current.loading = true;
       graph.fromJSON(documentToGraphData(document, (element) => shapeNameForKind(element.kind)));
+      // 加载后应用每边样式（M4-7）
+      for (const edge of graph.getEdges()) {
+        const data = edge.getData<{
+          style?: import("./document").CanvasEdgeStyle | null;
+          label?: string | null;
+        }>();
+        applyEdgeStyle(edge, data.style ?? null);
+        applyEdgeLabel(edge, data.label ?? null);
+      }
       // fromJSON 的 added/change 事件在同步栈内触发，loading 标记需延后复位
       queueMicrotask(() => {
         bridgeRef.current.loading = false;
@@ -250,6 +286,14 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
           graph.fromJSON(
             documentToGraphData(nextDocument, (element) => shapeNameForKind(element.kind)),
           );
+          for (const edge of graph.getEdges()) {
+            const data = edge.getData<{
+              style?: import("./document").CanvasEdgeStyle | null;
+              label?: string | null;
+            }>();
+            applyEdgeStyle(edge, data.style ?? null);
+            applyEdgeLabel(edge, data.label ?? null);
+          }
           queueMicrotask(() => {
             bridgeRef.current.loading = false;
           });

@@ -11,10 +11,36 @@ import type { CanvasDocument, CanvasEdgeDTO, CanvasElementDTO } from "./document
  * - 变更事件桥用 `graphToDocument` 重建全量文档（画布 5-50 卡，重建便宜）。
  */
 
-export type CanvasGraphNodeData = CanvasElementDTO;
-export type CanvasGraphEdgeData = CanvasEdgeDTO;
+/** 所有元素节点共用 4 个边缘端口（M4-1 吸附锚点：上下左右），magnet 供连线拖出。 */
+export const CANVAS_EDGE_PORTS = {
+  groups: {
+    edges: {
+      position: {
+        name: "ellipseSpread" as const,
+        args: { start: 0, step: 90, compensateRotate: true },
+      },
+      attrs: {
+        portBody: {
+          magnet: true,
+          width: 8,
+          height: 8,
+          x: -4,
+          y: -4,
+          rx: 4,
+          ry: 4,
+          fill: "var(--primary)",
+          stroke: "none",
+          opacity: 0,
+        },
+        portLabel: { style: { visibility: "hidden" } },
+      },
+      markup: [{ tagName: "rect", selector: "portBody" }],
+    },
+  },
+  items: [{ group: "edges" }, { group: "edges" }, { group: "edges" }, { group: "edges" }],
+};
 
-/** 元素 DTO → X6 node 元数据（fromJSON 使用）。 */
+/** 元素 DTO → X6 node 元数据（fromJSON / 新建使用）。 */
 export function elementToNodeMeta(element: CanvasElementDTO, shape: string): NodeMetadata {
   return {
     id: element.id,
@@ -26,6 +52,7 @@ export function elementToNodeMeta(element: CanvasElementDTO, shape: string): Nod
     zIndex: element.zIndex,
     parent: element.parentId ?? undefined,
     data: element,
+    ports: CANVAS_EDGE_PORTS,
   };
 }
 
@@ -36,6 +63,20 @@ export function edgeToEdgeMeta(edge: CanvasEdgeDTO): EdgeMetadata {
     source: edge.sourceElementId,
     target: edge.targetElementId,
     data: edge,
+  };
+}
+
+/** 新建边的初始 DTO（连线时 source/target 由 X6 交互补齐）。 */
+export function newEdgeDto(canvasId: string): CanvasEdgeDTO {
+  const now = new Date().toISOString();
+  return {
+    id: crypto.randomUUID(),
+    canvasId,
+    sourceElementId: "",
+    targetElementId: "",
+    label: null,
+    style: null,
+    createdAt: now,
   };
 }
 
@@ -67,9 +108,14 @@ export function nodeToElement(node: Node): CanvasElementDTO {
   };
 }
 
-/** 边 → 连线 DTO。 */
+/** 边 → 连线 DTO（source/target 以 X6 交互连接回刷，label/style 存于 data）。 */
 export function edgeToEdge(edge: Edge): CanvasEdgeDTO {
-  return edge.getData<CanvasEdgeDTO>();
+  const data = edge.getData<CanvasEdgeDTO>();
+  return {
+    ...data,
+    sourceElementId: edge.getSourceCellId() ?? data.sourceElementId,
+    targetElementId: edge.getTargetCellId() ?? data.targetElementId,
+  };
 }
 
 /** 重建全量文档（事件桥：X6 手势后回写 store / 提交 saveCanvas）。 */

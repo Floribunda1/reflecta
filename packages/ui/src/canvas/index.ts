@@ -19,13 +19,22 @@ export {
   type CanvasViewport,
 } from "./document";
 export {
+  CANVAS_EDGE_PORTS,
   documentToGraphData,
   edgeToEdge,
   edgeToEdgeMeta,
   elementToNodeMeta,
   graphToDocument,
+  newEdgeDto,
   nodeToElement,
 } from "./graph-document";
+export {
+  applyEdgeLabel,
+  applyEdgeStyle,
+  DEFAULT_EDGE_LINE_ATTRS,
+  EDGE_COLOR_PALETTE,
+  edgeStyleToX6,
+} from "./edge-style";
 export {
   CanvasShapeDataProvider,
   EMPTY_CANVAS_SHAPE_DATA,

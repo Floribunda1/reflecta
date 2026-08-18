@@ -1,0 +1,4 @@
+/* 连线交互样式（M4-1 / M4-4）：卡片边缘吸附点 hover 时显现，其余状态隐藏。 */
+.x6-node:hover .x6-port-body {
+  opacity: 1 !important;
+}

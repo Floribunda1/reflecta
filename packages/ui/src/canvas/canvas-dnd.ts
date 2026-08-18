@@ -14,7 +14,11 @@ export function createCanvasDndNode(element: CanvasElementDTO): Node {
 }
 
 export function createCanvasDnd(target: Graph): Dnd {
-  return new Dnd({ target });
+  return new Dnd({
+    target,
+    // 落点克隆保留 id：维持「元素 id == X6 cell id」零映射（否则边引用元素时 id 错位）
+    getDropNode: (draggingNode) => draggingNode.clone({ keepId: true }),
+  });
 }
 
 export type { Dnd };
