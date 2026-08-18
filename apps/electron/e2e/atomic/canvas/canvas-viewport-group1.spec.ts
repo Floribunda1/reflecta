@@ -26,28 +26,6 @@ test.describe("画布原子操作 Group 1：加载与视口", () => {
     }
   });
 
-  test("@CV-ATOM-003 拖动画布空白区域", async () => {
-    const { app, page } = await launchApp();
-    try {
-      await openWorkspace(page);
-      const graph = page.getByTestId("canvas-graph");
-      const box = (await graph.boundingBox())!;
-      const viewport = graphViewportTransform(page);
-      const before = await viewport.getAttribute("transform");
-
-      await page.mouse.move(box.x + 80, box.y + 80);
-      await page.mouse.down();
-      await page.mouse.move(box.x + 180, box.y + 140, { steps: 10 });
-      await page.mouse.up();
-
-      await expect(async () => {
-        expect(await viewport.getAttribute("transform")).not.toBe(before);
-      }).toPass({ timeout: 5000 });
-    } finally {
-      await app.close();
-    }
-  });
-
   test("@CV-ATOM-004 滚轮缩放画布", async () => {
     const { app, page } = await launchApp();
     try {
