@@ -200,9 +200,12 @@ export function CaptureCardGrid({
       <div
         ref={scrollRef}
         data-testid="capture-card-grid"
-        className="h-full min-h-0 overflow-y-auto [scrollbar-gutter:stable]"
+        className="h-full min-h-0 overflow-y-auto"
       >
-        <div className="relative w-full pb-4" style={{ height: rowVirtualizer.getTotalSize() }}>
+        <div
+          className="relative w-full px-4 pb-4"
+          style={{ height: rowVirtualizer.getTotalSize() }}
+        >
           {virtualRows.map((virtualRow) => {
             const rowItems = captureGridRowSlice(understandings, virtualRow.index, columns);
             return (

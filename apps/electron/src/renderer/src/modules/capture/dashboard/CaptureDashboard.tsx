@@ -195,10 +195,12 @@ export const CaptureDashboard = memo(function CaptureDashboard({
   return (
     <section
       data-testid="capture-dashboard"
-      className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden px-4 pt-2 pb-4"
+      className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden pt-2"
     >
-      {/* 足迹热力图：全局投入，不随领域/搜索筛选 */}
-      <ParticipationOverview />
+      <div className="px-4">
+        {/* 足迹热力图：全局投入，不随领域/搜索筛选 */}
+        <ParticipationOverview />
+      </div>
 
       <CaptureCardGrid
         understandings={displayedUnderstandings}
