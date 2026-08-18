@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PanelsTopLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight, PanelsTopLeft } from "lucide-react";
+import { toast } from "sonner";
 import type { Node } from "@antv/x6";
 import { debounce } from "lodash-es";
 import { useQueryClient } from "@tanstack/react-query";
@@ -20,6 +21,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@reflecta/ui/components/empty";
+import { Button } from "@reflecta/ui/components/button";
 import { useModal } from "@reflecta/ui/overlays";
 import { useNavigateToCanvas } from "@renderer/modules/shared/navigation";
 import {
@@ -43,7 +45,10 @@ import { CanvasEdgeLabelEditor } from "./CanvasEdgeLabelEditor";
 import { CanvasLibraryPanel } from "./CanvasLibraryPanel";
 import { CanvasRefPickerModal } from "./CanvasRefPickerModal";
 import { CanvasToolbar } from "./CanvasToolbar";
+import { CanvasSearchOverlay, type CanvasSearchIndexItem } from "./CanvasSearchOverlay";
 import { newCanvasRefElement } from "./element-factory";
+import { errorMessage } from "@renderer/utils/errors";
+import { ipcClient } from "@renderer/utils/ipc";
 
 const SAVE_DEBOUNCE_MS = 800;
 const VIEWPORT_SETTLE_MS = 600;
@@ -271,6 +276,156 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  // 搜索（M2-6）：⌘/Ctrl+F 打开浮层；构建搜索索引（卡标题/正文、组名、连线标签）。
+  const [searchOpen, setSearchOpen] = useState(false);
+  const onSelectSearchResult = useCallback((id: string) => {
+    // eslint-disable-next-line no-console
+    console.log("[p4s] select", id.slice(0, 5));
+    setSearchOpen(false);
+    const graph = graphRef.current?.graph;
+    const cell = graph?.getCellById(id);
+    if (!graph || !cell) return;
+    graph.centerCell(cell);
+    if (cell.isEdge()) graph.resetSelection([id]);
+    else graph.resetSelection([id]);
+  }, []);
+
+  const searchIndex = useMemo<CanvasSearchIndexItem[]>(() => {
+    const doc = useCanvasStore.getState().document;
+    const items: CanvasSearchIndexItem[] = [];
+    for (const el of doc.elements) {
+      if (el.kind === "text") items.push({ id: el.id, kind: el.kind, text: el.props.text });
+      else if (el.kind === "group") items.push({ id: el.id, kind: el.kind, text: el.props.label });
+      else if (el.kind === "understanding" && el.understandingId) {
+        const ref = detail?.understandingRefs?.find((r) => r.id === el.understandingId);
+        items.push({ id: el.id, kind: el.kind, text: ref?.title ?? "" });
+      } else if (el.kind === "canvas_ref" && el.canvasRefId) {
+        const ref = detail?.referencedCanvases?.find((c) => c.id === el.canvasRefId);
+        items.push({ id: el.id, kind: el.kind, text: ref?.title ?? "" });
+      }
+    }
+    for (const edge of doc.edges) {
+      if (edge.label) items.push({ id: edge.id, kind: "edge", text: edge.label });
+    }
+    return items.filter((x) => x.text.trim().length > 0);
+  }, [detail]);
+
+  // 演示模式（M2-7）：按组顺序走查；无组退化为适应视图浏览。
+  const [demoIndex, setDemoIndex] = useState<number | null>(null);
+  const focusNode = useCallback((cellId: string | null) => {
+    const graph = graphRef.current?.graph;
+    if (!graph || !cellId) return;
+    const cell = graph.getCellById(cellId);
+    if (cell) graph.centerCell(cell);
+  }, []);
+  const toggleDemo = useCallback(() => {
+    const graph = graphRef.current?.graph;
+    if (!graph) return;
+    const groups = useCanvasStore
+      .getState()
+      .document.elements.filter((el) => el.kind === "group")
+      .map((el) => el.id);
+    if (demoIndex === null) {
+      if (groups.length === 0) {
+        graph.zoomToFit({ padding: 40, maxScale: 1 });
+        setDemoIndex(-1);
+      } else {
+        setDemoIndex(0);
+        focusNode(groups[0]);
+      }
+    } else {
+      setDemoIndex(null);
+      graph.zoomToFit({ padding: 40, maxScale: 1 });
+    }
+  }, [demoIndex, focusNode]);
+  const demoStep = useCallback(
+    (dir: 1 | -1) => {
+      const groups = useCanvasStore
+        .getState()
+        .document.elements.filter((el) => el.kind === "group")
+        .map((el) => el.id);
+      const graph = graphRef.current?.graph;
+      if (!graph || groups.length === 0) return;
+      // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
+      const next = Math.max(0, Math.min(groups.length - 1, (demoIndex ?? 0) + dir));
+      setDemoIndex(next);
+      focusNode(groups[next]);
+    },
+    [demoIndex, focusNode],
+  );
+
+  // PNG 导出（M2-8）：X6 toPNG → 主进程系统保存对话框写盘。
+  const handleExportPng = useCallback(async () => {
+    const graph = graphRef.current?.graph;
+    if (!graph) return;
+    try {
+      const dataUrl = await graph.toPNGAsync({ backgroundColor: "#ffffff", padding: 16 });
+      const saved = await ipcClient.canvas.exportPng(dataUrl, canvas?.title ?? "画布");
+      if (saved) toast.success(`已导出 ${saved}`);
+    } catch (error) {
+      toast.error("导出失败", { description: errorMessage(error) });
+    }
+  }, [canvas?.title]);
+
+  // 锁定（M7-5）：右键节点 → 锁定/解锁（防误拖；随 props.locked 持久化）。
+  // react-shape 节点上 X6 的 `node:contextmenu` 不派发，改用容器级 contextmenu：
+  // 识别命中的 `.x6-node`（除组外，组保留自身右键菜单），切换 lock()/unlock()。
+  useEffect(() => {
+    const graph = graphRef.current?.graph;
+    const container = graphRef.current?.graph?.container;
+    if (!graph || !container) return;
+    const onContextMenu = (event: MouseEvent) => {
+      const nodeEl = (event.target as Element | null)?.closest<SVGElement>(".x6-node");
+      if (!nodeEl) return;
+      const cellId = nodeEl.getAttribute("data-cell-id");
+      const cell = cellId ? graph.getCellById(cellId) : null;
+      if (!cell) return;
+      const raw = cell.getData() as { kind?: string; props?: { locked?: boolean } } | undefined;
+      if (raw?.kind === "group") return; // 组走自身右键菜单（解除/删除组）
+      event.preventDefault();
+      const next = {
+        ...raw,
+        props: { ...raw?.props, locked: !raw?.props?.locked },
+      };
+      // 锁定/解锁：持久化到 data.props.locked（C5），配合 graph.options.interacting 防误拖
+      cell.setData(next);
+    };
+    container.addEventListener("contextmenu", onContextMenu);
+    return () => {
+      container.removeEventListener("contextmenu", onContextMenu);
+    };
+  }, [detail]);
+
+  // 撤销 / 重做（M7-2）：⌘ / ⌘⇧ + Z。
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const meta = event.metaKey || event.ctrlKey;
+      if (!meta || event.key.toLowerCase() !== "z") return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
+      event.preventDefault();
+      const graph = graphRef.current?.graph;
+      if (!graph) return;
+      if (event.shiftKey) graph.redo();
+      else graph.undo();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [detail]);
+
+  // 搜索快捷键（M2-6）：⌘/Ctrl+F；Esc 关闭由浮层处理。
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const meta = event.metaKey || event.ctrlKey;
+      if (meta && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        setSearchOpen((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   return (
     <div
       data-testid="canvas-workspace"
@@ -280,10 +435,13 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
         canvas={canvas}
         dnd={dnd}
         libraryOpen={libraryOpen}
+        demoActive={demoIndex !== null}
         onToggleLibrary={() =>
           setRightPanel(rightPanel?.mode === "library" ? null : { mode: "library" })
         }
         onOpenCanvasRefPicker={handleOpenCanvasRefPicker}
+        onToggleDemo={toggleDemo}
+        onExportPng={() => void handleExportPng()}
       />
 
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 min-w-0 flex-1">
@@ -323,6 +481,52 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
               data-testid="canvas-minimap"
               className="absolute right-4 bottom-4 overflow-hidden rounded-lg border bg-background/80 shadow-sm"
             />
+
+            {searchOpen ? (
+              <CanvasSearchOverlay
+                index={searchIndex}
+                onSelect={onSelectSearchResult}
+                onClose={() => setSearchOpen(false)}
+              />
+            ) : null}
+
+            {demoIndex !== null ? (
+              <div
+                data-testid="canvas-demo-controls"
+                className="absolute bottom-4 right-4 z-20 flex items-center gap-1 rounded-lg border bg-background/90 px-2 py-1.5 shadow-sm"
+              >
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  data-testid="canvas-demo-prev"
+                  aria-label="上一个组"
+                  onClick={() => demoStep(-1)}
+                >
+                  <ChevronLeft size={14} />
+                </Button>
+                <span className="px-1 text-sm text-muted-foreground">演示</span>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  data-testid="canvas-demo-next"
+                  aria-label="下一个组"
+                  onClick={() => demoStep(1)}
+                >
+                  <ChevronRight size={14} />
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  data-testid="canvas-demo-exit"
+                  onClick={toggleDemo}
+                >
+                  退出
+                </Button>
+              </div>
+            ) : null}
 
             {edgeLabelEditor ? (
               <CanvasEdgeLabelEditor

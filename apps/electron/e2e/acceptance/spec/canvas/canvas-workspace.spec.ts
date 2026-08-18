@@ -81,3 +81,43 @@ test("@CV-WS-003 用户看到右下缩略图并可定位", async () => {
     await app.close();
   }
 });
+
+test("@CV-WS-004 用户在画布内搜索并定位", async () => {
+  const { app, page } = await launchApp();
+  try {
+    await openWorkspace(page);
+    await dragToGraph(page, "canvas-tool-dnd-text", { x: 200, y: 180 });
+    const card = inGraph(page, "canvas-text-card");
+    await expect(card).toBeVisible({ timeout: 8000 });
+    await card.dblclick();
+    await page.getByLabel("文本卡内容").fill("SUBJECT_KEYWORD");
+    await page.getByLabel("文本卡内容").blur();
+    await waitForCanvasSave(page);
+
+    const mod = process.platform === "darwin" ? "Meta" : "Control";
+    await page.keyboard.press(`${mod}+f`);
+    await expect(page.getByTestId("canvas-search-overlay")).toBeVisible();
+    await page.getByTestId("canvas-search-input").fill("SUBJECT_KEYWORD");
+    await expect(page.getByTestId("canvas-search-result")).toHaveCount(1);
+    await page.getByTestId("canvas-search-result").first().click();
+    await expect(page.getByTestId("canvas-search-overlay")).toHaveCount(0);
+  } finally {
+    await app.close();
+  }
+});
+
+test("@CV-WS-005 用户进入演示模式按组走查", async () => {
+  const { app, page } = await launchApp();
+  try {
+    await openWorkspace(page);
+    await dragToGraph(page, "canvas-tool-dnd-group", { x: 200, y: 180 });
+    await expect(inGraph(page, "canvas-group-node")).toBeVisible({ timeout: 8000 });
+    await page.getByTestId("canvas-toggle-demo-button").click();
+    await expect(page.getByTestId("canvas-demo-controls")).toBeVisible();
+    await page.getByTestId("canvas-demo-next").click();
+    await page.getByTestId("canvas-demo-exit").click();
+    await expect(page.getByTestId("canvas-demo-controls")).toHaveCount(0);
+  } finally {
+    await app.close();
+  }
+});

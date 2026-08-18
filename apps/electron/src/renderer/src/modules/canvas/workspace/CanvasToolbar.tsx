@@ -6,8 +6,10 @@ import {
   Circle,
   Library,
   PenLine,
+  Play,
   RectangleHorizontal,
   Shapes,
+  ImageDown,
 } from "lucide-react";
 import type { Node } from "@antv/x6";
 import { Button } from "@reflecta/ui/components/button";
@@ -66,14 +68,20 @@ export function CanvasToolbar({
   canvas,
   dnd,
   libraryOpen,
+  demoActive,
   onToggleLibrary,
+  onToggleDemo,
   onOpenCanvasRefPicker,
+  onExportPng,
 }: {
   canvas: CanvasDTO | null;
   dnd: Dnd | null;
   libraryOpen: boolean;
+  demoActive: boolean;
   onToggleLibrary: () => void;
+  onToggleDemo: () => void;
   onOpenCanvasRefPicker: () => void;
+  onExportPng: () => void;
 }) {
   const navigate = useNavigate();
   const renameCanvas = useRenameCanvasMutation();
@@ -177,6 +185,30 @@ export function CanvasToolbar({
       >
         <BookOpen size={14} />
         引用画布
+      </Button>
+
+      <span className="mx-1 h-4 w-px bg-border" aria-hidden />
+
+      <Button
+        type="button"
+        size="sm"
+        variant={demoActive ? "secondary" : "ghost"}
+        data-testid="canvas-toggle-demo-button"
+        onClick={onToggleDemo}
+      >
+        <Play size={14} />
+        演示
+      </Button>
+
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        data-testid="canvas-export-png-button"
+        onClick={onExportPng}
+      >
+        <ImageDown size={14} />
+        导出
       </Button>
     </PageTopBar>
   );

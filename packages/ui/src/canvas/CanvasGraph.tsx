@@ -1,4 +1,4 @@
-import { Graph, History, MiniMap, Edge } from "@antv/x6";
+import { Graph, History, MiniMap, Edge, Snapline } from "@antv/x6";
 import { getProvider } from "@antv/x6-react-shape";
 import "./canvas-edges.css";
 import {
@@ -127,7 +127,7 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
           type: "dot",
           args: { color: "rgb(0 0 0 / 0.08)", thickness: 1 },
         },
-        panning: { enabled: true, eventTypes: ["leftMouseDown", "mouseWheel"] },
+        panning: { enabled: true, eventTypes: ["mouseWheel"] },
         mousewheel: {
           enabled: true,
           modifiers: ["ctrl", "meta"],
@@ -164,10 +164,116 @@ export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
 
       graphRef.current = graph;
 
+      // 锁定（M7-5）：X6 3.1.8 无原生 lock API，用 graph.options.interacting 函数对
+      // `props.locked` 的元素禁用移动 / 磁吸（防误拖）；选择 / 右键解锁仍可用。
+      if (!readonly) {
+        // 返回 `{}`（非 undefined）：默认 interacting 是对象，返回 undefined 会让
+        // cellView.can() 落到 `return false` 从而禁用全部交互。
+        graph.options.interacting = ((
+          cellView: import("@antv/x6").CellView,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ): any => {
+          const locked =
+            (cellView.cell.getData() as { props?: { locked?: boolean } } | undefined)?.props
+              ?.locked === true;
+          return locked ? { nodeMovable: false, magnetConnectable: false } : {};
+        }) as never;
+      }
+
       // 撤销重做（M7-2，会话内；Phase 1 起启用，覆盖全部变更类型）
       if (!readonly) {
         graph.use(new History({ enabled: true }));
       }
+
+      // Phase 4 编辑插件：
+      // - 参考线（M7-1）：拖拽中显示与其它元素边缘 / 中心对齐的参考线，松手落齐
+      // - 框选（M7-3）：rubberBand 拖框多选 + Shift 追加 + 整体移动（X6 Selection 原生）
+      if (!readonly) {
+        graph.use(
+          new Snapline({
+            enabled: true,
+            sharp: true,
+            tolerance: 10,
+          }),
+        );
+      }
+
+      // 自定义框选 marquee（M7-3，F2 定案）：仅在「空白画布」左键拖框激活，不触碰节点，
+      // 故与 react-shape 双击编辑不冲突（X6 Selection 插件会劫持 mousedown 破坏双击）。
+      // 左→右（往右下拖）strict 全包含；右→左（其它方向）相交即选；Shift 追加多选。
+      let marqueeActive = false;
+      let shiftHeld = false;
+      let marqueeBox: HTMLDivElement | null = null;
+      let startClient = { x: 0, y: 0 };
+      const onCreateMarqueeBox = () => {
+        marqueeBox = globalThis.document.createElement("div");
+        marqueeBox.className = "canvas-marquee-box";
+        container.appendChild(marqueeBox);
+      };
+      const onMarqueeMove = (event: MouseEvent) => {
+        if (!marqueeActive || !marqueeBox) return;
+        const rect = container.getBoundingClientRect();
+        const x = Math.min(startClient.x, event.clientX) - rect.left;
+        const y = Math.min(startClient.y, event.clientY) - rect.top;
+        const w = Math.abs(event.clientX - startClient.x);
+        const h = Math.abs(event.clientY - startClient.y);
+        marqueeBox.style.left = `${x}px`;
+        marqueeBox.style.top = `${y}px`;
+        marqueeBox.style.width = `${w}px`;
+        marqueeBox.style.height = `${h}px`;
+      };
+      const onMarqueeEnd = (event: MouseEvent) => {
+        if (!marqueeActive) return;
+        marqueeActive = false;
+        globalThis.document.removeEventListener("mousemove", onMarqueeMove, true);
+        globalThis.document.removeEventListener("mouseup", onMarqueeEnd, true);
+        marqueeBox?.remove();
+        marqueeBox = null;
+        if (
+          Math.abs(event.clientX - startClient.x) < 3 &&
+          Math.abs(event.clientY - startClient.y) < 3
+        ) {
+          return; // 视为点击空白，取消选择
+        }
+        const p1 = graph.clientToLocal({ x: startClient.x, y: startClient.y });
+        const p2 = graph.clientToLocal({ x: event.clientX, y: event.clientY });
+        const strict = event.clientX >= startClient.x && event.clientY >= startClient.y;
+        const minX = Math.min(p1.x, p2.x);
+        const minY = Math.min(p1.y, p2.y);
+        const maxX = Math.max(p1.x, p2.x);
+        const maxY = Math.max(p1.y, p2.y);
+        const rect = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+        const cells = graph.getNodesInArea(rect as never, { strict });
+        // eslint-disable-next-line no-console
+        console.log("[p4m]", "cells", cells.length, cells.map((c) => c.id.slice(0, 5)).join(","));
+        let ids: string[];
+        if (!shiftHeld) {
+          ids = cells.map((c) => c.id);
+        } else {
+          ids = [
+            ...new Set([...graph.getSelectedCells().map((c) => c.id), ...cells.map((c) => c.id)]),
+          ];
+        }
+        graph.resetSelection(ids);
+        onSelectionChangeRef.current?.(ids);
+      };
+      // 用容器级 mousedown 代替 `blank:mousedown`（关闭左键平移后后者不触发）：
+      // 命中空白（非 node / edge / 其它交互层）才启动框选。
+      const onContainerMouseDown = (event: MouseEvent) => {
+        if (!marqueeActive && event.button === 0) {
+          const target = event.target as Element | null;
+          const hit = target?.closest(".x6-node, .x6-edge, .x6-cell, button, input");
+          if (!hit) {
+            shiftHeld = event.shiftKey;
+            marqueeActive = true;
+            startClient = { x: event.clientX, y: event.clientY };
+            onCreateMarqueeBox();
+            globalThis.document.addEventListener("mousemove", onMarqueeMove, true);
+            globalThis.document.addEventListener("mouseup", onMarqueeEnd, true);
+          }
+        }
+      };
+      container.addEventListener("mousedown", onContainerMouseDown, true);
 
       // 事件桥：变更 → 全量文档回写（T3）
       const emitDocument = () => {

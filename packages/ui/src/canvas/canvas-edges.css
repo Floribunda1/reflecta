@@ -2,3 +2,12 @@
 .x6-node:hover .x6-port-body {
   opacity: 1 !important;
 }
+
+/* 自定义框选 marquee 盒（M7-3）：空白画布左键拖框时的选择框 */
+.canvas-marquee-box {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  border: 1px solid var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
