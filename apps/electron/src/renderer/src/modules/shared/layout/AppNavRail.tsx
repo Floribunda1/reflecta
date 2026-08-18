@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Bot, Network, NotepadText, Settings } from "lucide-react";
+import { Bot, NotebookPen, PanelsTopLeft, Settings } from "lucide-react";
 import { Button } from "@reflecta/ui/components/button";
 import { cn } from "@reflecta/ui/lib/utils";
 import { useModal } from "@reflecta/ui/overlays";
@@ -14,9 +14,9 @@ import { useRail } from "./rail-provider";
  * （见 rail-menu-context），rail 本身不依赖任何业务模块。
  */
 export const NAV_MODULES = [
-  { id: "capture", path: "/capture", label: "Capture", Icon: NotepadText },
-  { id: "agent", path: "/agent", label: "Agent", Icon: Bot },
-  { id: "canvas", path: "/understanding-canvas", label: "Canvas", Icon: Network },
+  { id: "capture", path: "/capture", label: "捕获", Icon: NotebookPen },
+  { id: "canvas", path: "/understanding-canvas", label: "画布", Icon: PanelsTopLeft },
+  { id: "agent", path: "/agent", label: "智能体", Icon: Bot },
 ] as const;
 
 type NavModule = (typeof NAV_MODULES)[number];
@@ -80,11 +80,10 @@ export function AppNavRail() {
       data-state={state}
       data-collapsible={state === "collapsed" ? "offcanvas" : undefined}
       className={cn(
-        "flex h-full min-h-0 shrink-0 flex-col overflow-hidden bg-sidebar/50 pb-2 text-sidebar-foreground transition-[width] duration-200 ease-out motion-reduce:transition-none",
+        "flex h-full min-h-0 shrink-0 flex-col overflow-hidden bg-secondary pb-2 text-secondary-foreground transition-[width] duration-200 ease-out motion-reduce:transition-none",
         open ? "w-full" : "w-0",
       )}
     >
-      {/* 表面色在这里：bg-sidebar/50。窗口透明 + vibrancy，半透明 token 才能透出毛玻璃。 */}
       <div className="flex h-full min-h-0 flex-col">
         {open ? (
           <div className="app-drag-region flex h-12 shrink-0 items-center justify-end px-2">
