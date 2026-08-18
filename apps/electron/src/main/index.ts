@@ -12,6 +12,7 @@ import { retrievalEmbeddingRunner } from "./retrievalEmbeddingRunner";
 import { retrievalIndexCoordinator } from "./retrievalIndexCoordinator";
 import { getRuntimeArg } from "./runtime-args";
 import { installUpdateMenu, startAutomaticUpdateChecks } from "./updater";
+import { readConfig, writeConfig } from "./config";
 
 // Register asset:// as a privileged scheme before app is ready
 registerAssetScheme();
@@ -31,12 +32,20 @@ if (telemetryUrl) {
 }
 
 const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?: string) => {
+  const savedWindowState = readConfig().windowState;
+  const hasValidSavedSize =
+    savedWindowState &&
+    Number.isInteger(savedWindowState.width) &&
+    Number.isInteger(savedWindowState.height) &&
+    savedWindowState.width >= 400 &&
+    savedWindowState.height >= 300;
+
   // Create the browser window.
   option = merge(
     {},
     {
-      width: 900,
-      height: 670,
+      width: hasValidSavedSize ? savedWindowState.width : 900,
+      height: hasValidSavedSize ? savedWindowState.height : 670,
       show: false,
       autoHideMenuBar: true,
       backgroundColor: "#00000000",
@@ -59,8 +68,19 @@ const createWindow = (option?: Electron.BrowserWindowConstructorOptions, route?:
   const mainWindow = new BrowserWindow(option);
 
   mainWindow.on("ready-to-show", () => {
-    mainWindow.maximize();
+    if (savedWindowState?.isMaximized !== false) mainWindow.maximize();
     mainWindow.show();
+  });
+
+  mainWindow.on("close", () => {
+    const { width, height } = mainWindow.getNormalBounds();
+    writeConfig({
+      windowState: {
+        width,
+        height,
+        isMaximized: mainWindow.isMaximized(),
+      },
+    });
   });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {

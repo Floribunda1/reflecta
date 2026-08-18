@@ -83,6 +83,12 @@ export interface RetrievalConfig {
   embedding: RetrievalEmbeddingConfig;
 }
 
+export interface WindowState {
+  width: number;
+  height: number;
+  isMaximized: boolean;
+}
+
 export interface RetrievalEmbeddingModelManifest {
   id: string;
   name: string;
@@ -123,6 +129,7 @@ export interface AppConfig {
   contentStorageRoot?: string;
   ai?: AiConfig;
   retrieval?: RetrievalConfig;
+  windowState?: WindowState;
 }
 
 export type ReflectaProfile = "dev" | "prod";
