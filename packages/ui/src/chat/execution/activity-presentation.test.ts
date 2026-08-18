@@ -196,6 +196,7 @@ describe("agent activity presentation", () => {
 
   test.each<[readonly string[], AgentToolIconKind]>([
     [["read", "file_read", "fetch_content", "get_search_content"], "file"],
+    [["canvas_plan", "canvas_create", "canvas_save", "understanding_canvas"], "canvas"],
     [["edit"], "edit"],
     [["write"], "write"],
     [["bash"], "command"],

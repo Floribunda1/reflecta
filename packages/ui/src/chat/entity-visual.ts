@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { FileText, Quote, Tags, type LucideIcon } from "lucide-react";
+import { FileText, LayoutGrid, Quote, Tags, type LucideIcon } from "lucide-react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ChatEntityType } from "./entity";
 
@@ -13,7 +13,8 @@ export function parseEntityKey(value: unknown): { type: ChatEntityType; id: stri
   if (separatorIndex < 1) return null;
   const type = value.slice(0, separatorIndex);
   const id = value.slice(separatorIndex + 1);
-  if ((type !== "understanding" && type !== "context" && type !== "domain") || !id) return null;
+  if (type !== "understanding" && type !== "context" && type !== "domain" && type !== "canvas")
+    return null;
   return { type, id };
 }
 
@@ -21,6 +22,7 @@ const ENTITY_ICONS: Record<ChatEntityType, LucideIcon> = {
   understanding: FileText,
   context: Quote,
   domain: Tags,
+  canvas: LayoutGrid,
 };
 
 export function entityIcon(type: ChatEntityType | null): LucideIcon | null {

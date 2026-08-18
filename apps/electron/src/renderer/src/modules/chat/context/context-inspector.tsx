@@ -3,6 +3,7 @@ import {
   ContextPreviewDrawerContent,
   UnderstandingDetail,
 } from "@renderer/modules/capture/understanding-detail";
+import { CanvasInspector } from "./canvas-inspector";
 import { ipcClient } from "@renderer/utils/ipc";
 import type { InspectableContextRef } from "./context-reference";
 
@@ -50,6 +51,7 @@ export function ContextInspector({
             onClose={onClose}
           />
         ) : null}
+        {refToInspect.type === "canvas" ? <CanvasInspector canvasId={refToInspect.id} /> : null}
         {refToInspect.type === "context" && contextQuery.isFetching ? (
           <div className="p-4 text-sm text-muted-foreground">加载中...</div>
         ) : null}

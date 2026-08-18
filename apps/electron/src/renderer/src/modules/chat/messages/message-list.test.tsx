@@ -49,7 +49,7 @@ function renderMessageList({
   activeRunId?: string | null;
   isBusy?: boolean;
   onInspectContextRef?: (ref: {
-    type: "understanding" | "context";
+    type: "understanding" | "context" | "canvas";
     id: string;
     title?: string;
   }) => void;

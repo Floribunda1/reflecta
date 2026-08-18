@@ -20,7 +20,7 @@ export type AgentFixtureMessage = {
 export type AgentFixtureEntityCatalogEntry = {
   key?: string;
   entity: {
-    type: "understanding" | "context" | "domain";
+    type: "understanding" | "context" | "domain" | "canvas";
     id: string;
     title?: string;
   };
@@ -106,6 +106,10 @@ export function seedContext(input: {
 
 export function seedDomain(input: { id: string; name: string }) {
   runFixture({ type: "seedDomain", ...input });
+}
+
+export function seedCanvas(input: { id: string; title: string }) {
+  runFixture({ type: "seedCanvas", ...input });
 }
 
 export function deleteUnderstanding(id: string) {

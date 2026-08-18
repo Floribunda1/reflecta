@@ -27,7 +27,7 @@ type FixtureMessage = {
 type FixtureEntityCatalogEntry = {
   key?: string;
   entity: {
-    type: "understanding" | "context" | "domain";
+    type: "understanding" | "context" | "domain" | "canvas";
     id: string;
     title?: string;
   };
@@ -70,6 +70,7 @@ type Fixture =
     }
   | { type: "seedContext"; id: string; understandingId: string; title: string; content: string }
   | { type: "seedDomain"; id: string; name: string }
+  | { type: "seedCanvas"; id: string; title: string }
   | { type: "deleteUnderstanding"; id: string }
   | { type: "understandingIdByTitle"; title: string }
   | { type: "understandingBodyByTitle"; title: string }
@@ -632,6 +633,13 @@ try {
 
   if (fixture.type === "seedDomain") {
     seedDomain(fixture.id, fixture.name);
+  }
+
+  if (fixture.type === "seedCanvas") {
+    const now = new Date().toISOString();
+    db.query(
+      `INSERT INTO understanding_canvases (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)`,
+    ).run(fixture.id, fixture.title, now, now);
   }
 
   if (fixture.type === "deleteUnderstanding") {

@@ -2,6 +2,7 @@ import type { Domain } from "@shared/domain";
 import type { AgentContextRef } from "@shared/agent";
 import type { SearchContextResult } from "@shared/search";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
+import type { CanvasDTO } from "@reflecta/server";
 import { truncate } from "../shared/text";
 import { contextKey } from "./context-reference";
 
@@ -29,6 +30,14 @@ function contextCandidate(context: SearchContextResult): ContextCandidate {
   };
 }
 
+function canvasCandidate(canvas: CanvasDTO): ContextCandidate {
+  return {
+    type: "canvas",
+    id: canvas.id,
+    title: canvas.title?.trim() || "Untitled Canvas",
+  };
+}
+
 function domainCandidate(domain: Domain): ContextCandidate {
   return {
     type: "domain",
@@ -43,12 +52,14 @@ export function buildContextCandidates({
   understandings,
   contexts,
   domains,
+  canvases,
   selected,
 }: {
   query: string;
   understandings: UnderstandingSummaryDTO[];
   contexts: SearchContextResult[];
   domains: Domain[];
+  canvases: CanvasDTO[];
   selected: AgentContextRef[];
 }): ContextCandidate[] {
   const selectedKeys = new Set(selected.map(contextKey));
@@ -57,10 +68,15 @@ export function buildContextCandidates({
     .filter((domain) => !normalizedQuery || domain.name.toLowerCase().includes(normalizedQuery))
     .slice(0, CONTEXT_LOOKUP_LIMIT)
     .map(domainCandidate);
+  const canvasCandidates = canvases
+    .filter((canvas) => !normalizedQuery || canvas.title?.toLowerCase().includes(normalizedQuery))
+    .slice(0, CONTEXT_LOOKUP_LIMIT)
+    .map(canvasCandidate);
 
   return [
     ...understandings.slice(0, CONTEXT_LOOKUP_LIMIT).map(understandingCandidate),
     ...contexts.slice(0, CONTEXT_LOOKUP_LIMIT).map(contextCandidate),
+    ...canvasCandidates,
     ...domainCandidates,
   ].filter((candidate) => !selectedKeys.has(contextKey(candidate)));
 }

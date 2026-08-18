@@ -1,5 +1,5 @@
 export type AgentContextRef = {
-  type: "understanding" | "context" | "domain";
+  type: "understanding" | "context" | "domain" | "canvas";
   id: string;
   title?: string;
 };

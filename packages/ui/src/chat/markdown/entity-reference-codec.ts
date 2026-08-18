@@ -1,11 +1,12 @@
 import type { ChatEntityReference, ChatEntityType } from "../entity";
 import { entityKey } from "../entity-visual";
 
-const DIRECT_REFERENCE_PATTERN = /\[\[([ucd]):([A-Za-z0-9_-]+)\]\]/g;
+const DIRECT_REFERENCE_PATTERN = /\[\[((?:cv|u|c|d)):([A-Za-z0-9_-]+)\]\]/g;
 const PREFIX_BY_TYPE = {
   understanding: "u",
   context: "c",
   domain: "d",
+  canvas: "cv",
 } as const satisfies Record<ChatEntityType, string>;
 
 type Range = {
@@ -16,6 +17,7 @@ type Range = {
 function entityTypeFromPrefix(prefix: string): ChatEntityType {
   if (prefix === "u") return "understanding";
   if (prefix === "c") return "context";
+  if (prefix === "cv") return "canvas";
   return "domain";
 }
 
@@ -24,7 +26,7 @@ export function formatChatEntityReference(reference: ChatEntityReference) {
 }
 
 export function parseChatEntityReference(source: string): ChatEntityReference | null {
-  const match = /^\[\[([ucd]):([A-Za-z0-9_-]+)\]\]$/.exec(source.trim());
+  const match = /^\[\[((?:cv|u|c|d)):([A-Za-z0-9_-]+)\]\]$/.exec(source.trim());
   return match ? { type: entityTypeFromPrefix(match[1]), id: match[2] } : null;
 }
 

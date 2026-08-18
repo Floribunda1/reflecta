@@ -6,6 +6,7 @@ import {
   FileText,
   FolderTree,
   Globe2,
+  LayoutGrid,
   Info,
   Lightbulb,
   MessageCircleDashed,
@@ -58,6 +59,7 @@ const REASONING_SCROLL_END_THRESHOLD = 32;
 
 const TOOL_ICONS: Record<AgentToolIconKind, LucideIcon> = {
   attachment: Paperclip,
+  canvas: LayoutGrid,
   command: Terminal,
   context: NotebookText,
   domain: FolderTree,

@@ -16,6 +16,7 @@ function referenceKey(reference: Pick<ChatEntityReference, "type" | "id">) {
 function typeLabel(reference: ChatEntityReference) {
   if (reference.type === "understanding") return "Understanding";
   if (reference.type === "context") return "Context";
+  if (reference.type === "canvas") return "Canvas";
   return "Domain";
 }
 
@@ -53,7 +54,10 @@ export function useChatEntityBindings(
       presentations.set(referenceKey(reference), {
         state: "ready",
         label: display.title || `未命名 ${fallback}`,
-        canOpen: reference.type !== "domain",
+        canOpen:
+          reference.type === "understanding" ||
+          reference.type === "context" ||
+          reference.type === "canvas",
       });
     }
   });

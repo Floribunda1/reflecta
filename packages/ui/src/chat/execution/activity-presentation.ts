@@ -3,6 +3,7 @@ import type { AgentActivityBlockView, AgentToolActivityView } from "./types";
 
 export type AgentToolIconKind =
   | "attachment"
+  | "canvas"
   | "command"
   | "context"
   | "domain"
@@ -154,6 +155,7 @@ export function toolIconKind(activity: AgentToolActivityView): AgentToolIconKind
   if (name === "write") return "write";
   if (name === "attachment_read") return "attachment";
   if (name === "web_search") return "web";
+  if (name.startsWith("canvas_") || name.startsWith("understanding_canvas")) return "canvas";
   if (name.startsWith("domain_")) return "domain";
   if (name.startsWith("understanding_")) return "understanding";
   if (name.startsWith("context_")) return "context";

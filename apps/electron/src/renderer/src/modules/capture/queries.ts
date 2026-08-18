@@ -66,6 +66,10 @@ export async function getEntityDisplay(ref: Pick<AgentContextRef, "type" | "id">
     const entity = await ipcClient.context.getContextById(ref.id);
     return entity ? { title: entity.title?.trim() || null } : null;
   }
+  if (ref.type === "canvas") {
+    const entity = await ipcClient.understandingCanvas.getCanvas(ref.id);
+    return entity ? { title: entity.canvas.title?.trim() || null } : null;
+  }
   const entity = await ipcClient.domain.getDomainById(ref.id);
   return entity ? { title: entity.name?.trim() || null } : null;
 }

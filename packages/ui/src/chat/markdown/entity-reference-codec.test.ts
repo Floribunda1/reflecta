@@ -11,6 +11,8 @@ describe("chat entity reference codec", () => {
     expect(formatChatEntityReference({ type: "understanding", id: "u_1" })).toBe("[[u:u_1]]");
     expect(formatChatEntityReference({ type: "context", id: "c_1" })).toBe("[[c:c_1]]");
     expect(formatChatEntityReference({ type: "domain", id: "d_1" })).toBe("[[d:d_1]]");
+    expect(formatChatEntityReference({ type: "canvas", id: "cv_1" })).toBe("[[cv:cv_1]]");
+    expect(parseChatEntityReference("[[uv:not-a-canvas]]")).toBeNull();
     expect(parseChatEntityReference("[[u:u_1]]")).toEqual({
       type: "understanding",
       id: "u_1",

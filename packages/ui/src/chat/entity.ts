@@ -1,4 +1,4 @@
-export type ChatEntityType = "understanding" | "context" | "domain";
+export type ChatEntityType = "understanding" | "context" | "domain" | "canvas";
 
 export type ChatEntityReference = {
   type: ChatEntityType;

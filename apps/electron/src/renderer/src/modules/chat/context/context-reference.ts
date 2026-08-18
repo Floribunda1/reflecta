@@ -1,7 +1,7 @@
 import type { AgentContextRef } from "@shared/agent";
 
 export type InspectableContextRef = AgentContextRef & {
-  type: "understanding" | "context";
+  type: "understanding" | "context" | "canvas";
 };
 
 export function contextKey(ref: Pick<AgentContextRef, "type" | "id">) {

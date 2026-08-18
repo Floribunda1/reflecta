@@ -251,7 +251,7 @@ export function AgentChatComposer({
 
   const searchEntities = useCallback<ChatComposerEntitySearch>(async (query, signal) => {
     const normalizedQuery = query.trim();
-    const [understandings, contexts, domains] = await Promise.all([
+    const [understandings, contexts, domains, canvases] = await Promise.all([
       normalizedQuery
         ? ipcClient.search.searchUnderstandings(normalizedQuery, { limit: CONTEXT_LOOKUP_LIMIT })
         : ipcClient.understanding.listUnderstandings({ limit: CONTEXT_LOOKUP_LIMIT }),
@@ -259,6 +259,7 @@ export function AgentChatComposer({
         ? ipcClient.search.searchContexts(normalizedQuery, { limit: CONTEXT_LOOKUP_LIMIT })
         : Promise.resolve([]),
       ipcClient.domain.listDomains(),
+      normalizedQuery ? ipcClient.understandingCanvas.listCanvases() : Promise.resolve([]),
     ]);
     if (signal.aborted) return [];
     return buildContextCandidates({
@@ -266,6 +267,7 @@ export function AgentChatComposer({
       understandings,
       contexts,
       domains,
+      canvases,
       selected: [],
     }).map((candidate) => ({
       type: candidate.type,

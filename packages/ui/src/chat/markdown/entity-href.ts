@@ -11,7 +11,8 @@ function parseHref(href: string | undefined, prefix: string): ChatEntityReferenc
     const slashIndex = path.indexOf("/");
     if (slashIndex < 1) return null;
     const type = path.slice(0, slashIndex) as ChatEntityType;
-    if (type !== "understanding" && type !== "context" && type !== "domain") return null;
+    if (type !== "understanding" && type !== "context" && type !== "domain" && type !== "canvas")
+      return null;
     const id = decodeURIComponent(path.slice(slashIndex + 1));
     if (!id) return null;
     const params = new URLSearchParams(paramsIndex === -1 ? "" : href.slice(paramsIndex + 1));
