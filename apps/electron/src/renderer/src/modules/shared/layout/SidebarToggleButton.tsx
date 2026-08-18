@@ -11,7 +11,7 @@ export function SidebarToggleButton({
 }: {
   expanded: boolean;
   label: string;
-  testId: string;
+  testId?: string;
   className?: string;
   onClick: () => void;
 }) {

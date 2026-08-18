@@ -92,18 +92,20 @@ export function AppNavRail() {
         // 收起/展开动画期间文字不回绕、菜单不挤压，只被 aside 的 overflow 裁剪。
         style={{ width: "var(--rail-content-width, 100%)" }}
       >
-        {open ? (
-          <div className="app-drag-region flex h-12 shrink-0 items-center justify-end px-2">
-            <div data-no-drag>
-              <SidebarToggleButton
-                expanded
-                label="收起导航栏"
-                testId="app-nav-rail-collapse-button"
-                onClick={toggle}
-              />
-            </div>
+        {/* 顶栏常驻渲染（含红绿灯行的 h-12 避让）：收起动画期间它随内容一起滑出，
+            不会被提前 unmount 造成内容上跳；完全收起后由面板 visibility 统一隐藏。
+            testid 只在展开态挂载 —— 收起后这个按钮语义上不存在（恢复入口是 PageTopBar
+            的 hamburger），避免与它同 testid 造成 e2e strict-mode 冲突。 */}
+        <div className="app-drag-region flex h-12 shrink-0 items-center justify-end px-2">
+          <div data-no-drag>
+            <SidebarToggleButton
+              expanded={open}
+              label={open ? "收起导航栏" : "展开导航栏"}
+              testId={open ? "app-nav-rail-collapse-button" : undefined}
+              onClick={toggle}
+            />
           </div>
-        ) : null}
+        </div>
         <div className="app-drag-region shrink-0 px-2 pb-2">
           <nav
             data-testid="app-nav-label-area"
