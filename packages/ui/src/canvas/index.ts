@@ -6,8 +6,6 @@ export {
 } from "./CanvasGraph";
 export { CanvasReadOnlyView, type CanvasReadOnlyViewProps } from "./CanvasReadOnlyView";
 export { CanvasZoomControls, type CanvasZoomControlsProps } from "./CanvasZoomControls";
-export { createCanvasDnd, createCanvasDndNode } from "./canvas-dnd";
-export type { Dnd } from "./canvas-dnd";
 export {
   DEFAULT_CANVAS_VIEWPORT,
   EMPTY_CANVAS_DOCUMENT,
@@ -18,30 +16,16 @@ export {
   type CanvasElementKind,
   type CanvasViewport,
 } from "./document";
-export {
-  CANVAS_EDGE_PORTS,
-  documentToGraphData,
-  edgeToEdge,
-  edgeToEdgeMeta,
-  elementToNodeMeta,
-  graphToDocument,
-  newEdgeDto,
-  nodeToElement,
-} from "./graph-document";
-export {
-  applyEdgeLabel,
-  applyEdgeStyle,
-  DEFAULT_EDGE_LINE_ATTRS,
-  EDGE_COLOR_PALETTE,
-  edgeStyleToX6,
-} from "./edge-style";
+export { toCanvasDocument, toFlowData, toFlowEdge, toFlowNode, newEdgeDto } from "./graph-document";
+export { canvasNodeTypes } from "./nodes";
 export {
   CanvasShapeDataProvider,
+  CanvasElementUpdateProvider,
   EMPTY_CANVAS_SHAPE_DATA,
+  useCanvasElementUpdate,
   useCanvasShapeData,
   type CanvasCellAction,
   type CanvasReferencedCanvasView,
   type CanvasShapeData,
   type CanvasUnderstandingRefView,
 } from "./shape-context";
-export { shapeNameForKind } from "./shapes/shape-registry";

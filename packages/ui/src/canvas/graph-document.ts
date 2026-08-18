@@ -1,72 +1,41 @@
-import type { Edge, Graph, Node } from "@antv/x6";
-import type { EdgeMetadata, NodeMetadata } from "@antv/x6";
+import type { Edge, Node } from "@xyflow/react";
 import type { CanvasDocument, CanvasEdgeDTO, CanvasElementDTO } from "./document";
 
 /**
- * X6 cell ↔ CanvasDocument 映射（计划 T3：元素 / 连线 id == X6 cell id，零映射）。
+ * CanvasDocument ↔ React Flow 映射。
  *
- * - 每个 cell 的 `data` 即对应元素 / 连线的 DTO（不含派生字段），几何（x/y/宽高/zIndex）
- *   以 X6 为交互权威，读取时回刷；
- * - 建图 / 外部刷新用 `documentToGraphData` 生成 fromJSON 数据；
- * - 变更事件桥用 `graphToDocument` 重建全量文档（画布 5-50 卡，重建便宜）。
+ * - id == React Flow node/edge id（零映射不变式）；
+ * - 每个 node/edge 的 `data` 即对应元素的 DTO；几何（position / width / height）以
+ *   React Flow 为交互权威，回读时回刷（组内子元素 position 为相对父坐标，React Flow
+ *   与文档模型一致）；
+ * - 建图 / 刷新用 `toFlowNodes / toFlowEdges`；变更回写用 `toCanvasDocument`。
  */
 
-/** 所有元素节点共用 4 个边缘端口（M4-1 吸附锚点：上下左右），magnet 供连线拖出。 */
-export const CANVAS_EDGE_PORTS = {
-  groups: {
-    edges: {
-      position: {
-        name: "ellipseSpread" as const,
-        args: { start: 0, step: 90, compensateRotate: true },
-      },
-      attrs: {
-        portBody: {
-          magnet: true,
-          width: 8,
-          height: 8,
-          x: -4,
-          y: -4,
-          rx: 4,
-          ry: 4,
-          fill: "var(--primary)",
-          stroke: "none",
-          opacity: 0,
-        },
-        portLabel: { style: { visibility: "hidden" } },
-      },
-      markup: [{ tagName: "rect", selector: "portBody" }],
-    },
-  },
-  items: [{ group: "edges" }, { group: "edges" }, { group: "edges" }, { group: "edges" }],
-};
-
-/** 元素 DTO → X6 node 元数据（fromJSON / 新建使用）。 */
-export function elementToNodeMeta(element: CanvasElementDTO, shape: string): NodeMetadata {
+/** 元素 DTO → React Flow node。 */
+export function toFlowNode(element: CanvasElementDTO): Node {
   return {
     id: element.id,
-    shape,
-    x: element.x,
-    y: element.y,
+    type: element.kind,
+    position: { x: element.x, y: element.y },
     width: element.width,
     height: element.height,
-    zIndex: element.zIndex,
-    parent: element.parentId ?? undefined,
-    data: element,
-    ports: CANVAS_EDGE_PORTS,
+    parentId: element.parentId ?? undefined,
+    data: { element },
   };
 }
 
-/** 连线 DTO → X6 edge 元数据（fromJSON 使用）。 */
-export function edgeToEdgeMeta(edge: CanvasEdgeDTO): EdgeMetadata {
+/** 连线 DTO → React Flow edge。 */
+export function toFlowEdge(edge: CanvasEdgeDTO): Edge {
   return {
     id: edge.id,
     source: edge.sourceElementId,
     target: edge.targetElementId,
-    data: edge,
+    data: { edge },
+    label: edge.label ?? undefined,
   };
 }
 
-/** 新建边的初始 DTO（连线时 source/target 由 X6 交互补齐）。 */
+/** 新建连线的初始 DTO（onConnect 时 source/target 由交互补齐）。 */
 export function newEdgeDto(canvasId: string): CanvasEdgeDTO {
   const now = new Date().toISOString();
   return {
@@ -80,52 +49,45 @@ export function newEdgeDto(canvasId: string): CanvasEdgeDTO {
   };
 }
 
-/** 文档 → fromJSON 数据（初始加载 / 外部刷新）。 */
-export function documentToGraphData(
-  document: CanvasDocument,
-  shapeOf: (element: CanvasElementDTO) => string,
-) {
+/** 文档 → React Flow nodes/edges（初始加载 / 外部刷新）。 */
+export function toFlowData(document: CanvasDocument) {
   return {
-    nodes: document.elements.map((element) => elementToNodeMeta(element, shapeOf(element))),
-    edges: document.edges.map(edgeToEdgeMeta),
+    nodes: document.elements.map(toFlowNode),
+    edges: document.edges.map(toFlowEdge),
   };
 }
 
-/** 节点 → 元素 DTO（几何以 X6 为准回刷）。
- *
- * id 一律取 X6 cell id（真正的零映射不变式）。DnD 落点可能为克隆节点分配新 id，
- * 与 DTO data.id 不一致；以 cell id 为准，连线 source/target（getSourceCellId）才能对上。 */
-export function nodeToElement(node: Node): CanvasElementDTO {
-  const data = node.getData<CanvasElementDTO>();
-  const position = node.getPosition();
-  const size = node.getSize();
-  const parent = node.getParent();
+/** React Flow node → 元素 DTO（几何以 RF 为权威回刷；id 取 node id）。 */
+function nodeToElement(node: Node): CanvasElementDTO {
+  const data = (node.data as { element?: CanvasElementDTO }).element;
+  const base = data ?? ({} as CanvasElementDTO);
   return {
-    ...data,
+    ...base,
     id: node.id,
-    x: position.x,
-    y: position.y,
-    width: size.width,
-    height: size.height,
-    parentId: parent?.id ?? null,
-    zIndex: node.getZIndex() ?? data.zIndex,
+    x: node.position.x,
+    y: node.position.y,
+    width: node.measured?.width ?? node.width ?? base.width,
+    height: node.measured?.height ?? node.height ?? base.height,
+    parentId: node.parentId ?? null,
   };
 }
 
-/** 边 → 连线 DTO（source/target 以 X6 交互连接回刷，label/style 存于 data）。 */
-export function edgeToEdge(edge: Edge): CanvasEdgeDTO {
-  const data = edge.getData<CanvasEdgeDTO>();
+/** React Flow edge → 连线 DTO（source/target 以 RF 连接回刷）。 */
+function edgeToEdge(edge: Edge): CanvasEdgeDTO {
+  const data = (edge.data as { edge?: CanvasEdgeDTO }).edge;
+  const base = data ?? ({} as CanvasEdgeDTO);
   return {
-    ...data,
-    sourceElementId: edge.getSourceCellId() ?? data.sourceElementId,
-    targetElementId: edge.getTargetCellId() ?? data.targetElementId,
+    ...base,
+    id: edge.id,
+    sourceElementId: edge.source,
+    targetElementId: edge.target,
   };
 }
 
-/** 重建全量文档（事件桥：X6 手势后回写 store / 提交 saveCanvas）。 */
-export function graphToDocument(graph: Graph): CanvasDocument {
+/** 用 React Flow 当前 nodes/edges 重建全量文档（事件回写）。 */
+export function toCanvasDocument(nodes: Node[], edges: Edge[]): CanvasDocument {
   return {
-    elements: graph.getNodes().map(nodeToElement),
-    edges: graph.getEdges().map(edgeToEdge),
+    elements: nodes.map(nodeToElement),
+    edges: edges.map(edgeToEdge),
   };
 }

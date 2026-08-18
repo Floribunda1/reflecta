@@ -1,15 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, PanelsTopLeft } from "lucide-react";
-import { toast } from "sonner";
-import type { Node } from "@antv/x6";
+import { PanelsTopLeft } from "lucide-react";
 import { debounce } from "lodash-es";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   CanvasGraph,
   CanvasZoomControls,
-  createCanvasDnd,
-  createCanvasDndNode,
-  type CanvasCellAction,
   type CanvasGraphHandle,
   type CanvasShapeData,
 } from "@reflecta/ui/canvas";
@@ -21,7 +16,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@reflecta/ui/components/empty";
-import { Button } from "@reflecta/ui/components/button";
 import { useModal } from "@reflecta/ui/overlays";
 import { useNavigateToCanvas } from "@renderer/modules/shared/navigation";
 import {
@@ -40,15 +34,11 @@ import {
 } from "../queries";
 import { useCanvasStore } from "../store";
 import { CanvasDetailPanel } from "./CanvasDetailPanel";
-import { CanvasEdgeStylePanel } from "./CanvasEdgeStylePanel";
-import { CanvasEdgeLabelEditor } from "./CanvasEdgeLabelEditor";
 import { CanvasLibraryPanel } from "./CanvasLibraryPanel";
 import { CanvasRefPickerModal } from "./CanvasRefPickerModal";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { CanvasSearchOverlay, type CanvasSearchIndexItem } from "./CanvasSearchOverlay";
 import { newCanvasRefElement } from "./element-factory";
-import { errorMessage } from "@renderer/utils/errors";
-import { ipcClient } from "@renderer/utils/ipc";
 
 const SAVE_DEBOUNCE_MS = 800;
 const VIEWPORT_SETTLE_MS = 600;
@@ -70,9 +60,8 @@ function CanvasEmptyState() {
 }
 
 /**
- * 画布工作区（Phase 1 组装）：
- * 标题编辑工具栏 + 无限画布（X6）+ 左下控制 + 右下缩略图 + 画布内空态 +
- * 库面板最小闭环；事件桥 → zustand 镜像 + 防抖 saveCanvas / viewport settle 提交（M7-6 / M1-5）。
+ * 画布工作区：无限画布（React Flow）+ 左下控制 + 右下缩略图 + 空态 + 库 / 详情面板；
+ * 事件桥 → zustand 镜像 + 防抖 saveCanvas / viewport settle 提交。
  */
 export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   const navigateToCanvas = useNavigateToCanvas();
@@ -80,14 +69,13 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   const { data: detail, isLoading } = useCanvasDetail(canvasId);
   const canvas = detail?.canvas ?? null;
 
-  // 初始文档：仅取首次详情（引用同步 refetch 不重载画布，避免覆盖未保存手势）；切换画布由 key 重挂载
+  // 初始文档：仅取首次详情；切换画布由 key 重挂载
   const initialDocumentRef = useRef<CanvasDocument | null>(null);
   if (!initialDocumentRef.current && detail) {
     initialDocumentRef.current = { elements: detail.elements, edges: detail.edges };
   }
   const initialDocument = initialDocumentRef.current;
 
-  // store 镜像
   const setDocument = useCanvasStore((state) => state.setDocument);
   const setViewport = useCanvasStore((state) => state.setViewport);
   const setSelection = useCanvasStore((state) => state.setSelection);
@@ -97,25 +85,10 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   const saveRef = useRef<ReturnType<typeof debounce> | undefined>(undefined);
 
   const graphRef = useRef<CanvasGraphHandle>(null);
-  const [dnd, setDnd] = useState<import("@antv/x6").Dnd | null>(null);
-  const [minimapContainer, setMinimapContainer] = useState<HTMLDivElement | null>(null);
-  // 右侧单面板（库 / 详情 / 连线样式互斥；关闭恢复全宽，M6-5）
   const [rightPanel, setRightPanel] = useState<
-    | { mode: "library" }
-    | { mode: "detail"; understandingId: string }
-    | { mode: "edge-style"; edgeId: string }
-    | null
+    { mode: "library" } | { mode: "detail"; understandingId: string } | null
   >(null);
   const libraryOpen = rightPanel?.mode === "library";
-
-  // Dnd 绑定图实例
-  useEffect(() => {
-    const graph = graphRef.current?.graph;
-    if (!graph) return;
-    const instance = createCanvasDnd(graph);
-    setDnd(instance);
-    return () => instance.dispose();
-  }, [detail, canvasId]);
 
   const queryClient = useQueryClient();
   const refsRef = useRef<ReadonlyMap<string, { id: string }>>(new Map());
@@ -124,26 +97,28 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   // 事件桥 → 镜像 + 防抖保存
   const handleDocumentChange = useCallback(
     (document: CanvasDocument) => {
-      // 只保留端点均为真实元素的边：X6 交互期可能出现指向已移除节点的瞬态边，
-      // 带入 saveCanvas 会触发服务端校验失败（error invoking saveCanvas）。
+      // 只保留端点均为真实元素的边，避免服务端校验失败
       const elementIds = new Set(document.elements.map((element) => element.id));
       const edges = document.edges.filter(
         (edge) => elementIds.has(edge.sourceElementId) && elementIds.has(edge.targetElementId),
       );
       const sanitized = edges.length === document.edges.length ? document : { ...document, edges };
       setDocument(sanitized);
-      // 引用同步（M3-A6）：拖入的理解不在已知 refs 中 → 失效 detail 刷新卡片内容（不重载画布）
-      const missingRef = document.elements.some(
-        (element) =>
-          element.kind === "understanding" &&
-          element.understandingId &&
-          !refsRef.current.has(element.understandingId),
-      );
-      if (missingRef) void refreshCanvasDetail(queryClient, canvasId);
       if (!saveRef.current) {
-        saveRef.current = debounce((doc: CanvasDocument) => {
-          // 自动保存失败静默（避免未处理拒绝弹错 toast；下次变更会再保存）
-          void saveCanvas.mutateAsync({ canvasId, document: doc }).catch(() => {});
+        saveRef.current = debounce(async (doc: CanvasDocument) => {
+          try {
+            const res = await saveCanvas.mutateAsync({ canvasId, document: doc });
+            void res;
+            const missingRef = doc.elements.some(
+              (element) =>
+                element.kind === "understanding" &&
+                element.understandingId &&
+                !refsRef.current.has(element.understandingId),
+            );
+            if (missingRef) await refreshCanvasDetail(queryClient, canvasId);
+          } catch {
+            // 下次变更会再保存
+          }
         }, SAVE_DEBOUNCE_MS);
       }
       saveRef.current(sanitized);
@@ -165,7 +140,7 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     [canvasId, setViewport, updateViewport],
   );
 
-  // 卸载时冲刷未保存的文档 / 视口，并清除 detail 缓存（重进总是新鲜加载，避免 stale 空文档被首次捕获）
+  // 卸载时冲刷未保存的文档 / 视口
   useEffect(
     () => () => {
       saveRef.current?.flush();
@@ -175,31 +150,16 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     [canvasId, queryClient],
   );
 
-  // 组动作（M3-D）：级联删除组 / 解除组
-  const handleCellAction = useCallback((action: CanvasCellAction) => {
-    const graph = graphRef.current?.graph;
-    if (!graph) return;
-    if (action.type === "delete-group") {
-      const group = graph.getCellById(action.nodeId) as Node | null;
-      group?.remove({ deep: true });
-    } else if (action.type === "ungroup") {
-      const group = graph.getCellById(action.nodeId) as Node | null;
-      if (!group) return;
-      for (const child of group.getChildren() ?? []) group.unembed(child);
-    }
-  }, []);
-
   const shapeData = useMemo<CanvasShapeData>(
     () => ({
       understandingRefs: new Map((detail?.understandingRefs ?? []).map((ref) => [ref.id, ref])),
       referencedCanvases: new Map((detail?.referencedCanvases ?? []).map((ref) => [ref.id, ref])),
       onCanvasRefClick: (targetCanvasId) => navigateToCanvas(targetCanvasId),
-      onCellAction: handleCellAction,
     }),
-    [detail, handleCellAction, navigateToCanvas],
+    [detail, navigateToCanvas],
   );
 
-  // 画布引用卡创建（M3-E1）：选目标画布 → 在画布中心落卡
+  // 画布引用卡创建：选目标画布 → 经 handle 命令式落卡
   const handleOpenCanvasRefPicker = useCallback(() => {
     openModal(
       <CanvasRefPickerModal
@@ -207,35 +167,25 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
         onClose={closeModal}
         onPick={(target) => {
           closeModal();
-          const graph = graphRef.current?.graph;
-          if (!graph) return;
-          graph.addNode(createCanvasDndNode(newCanvasRefElement(target.id)));
+          graphRef.current?.addElement(newCanvasRefElement(target.id));
         }}
       />,
       { title: "引用画布", widthClassName: "max-w-md" },
     );
   }, [canvasId, closeModal, openModal]);
 
-  // 选中变化 → 联动（M6 / M4-7）：理解卡 → 详情；连线 → 样式面板；其它 → 关闭
+  // 选中变化 → 联动：理解卡 → 详情面板；其它 → 关闭（库保持由“理解库”按钮控制）
   const handleSelectionChange = useCallback(
     (cellIds: string[]) => {
       setSelection(cellIds);
-      const graph = graphRef.current?.graph;
-      if (graph && cellIds.length === 1) {
-        const cell = graph.getCellById(cellIds[0]);
-        const data = cell?.getData() as
-          | { kind?: string; understandingId?: string | null }
-          | undefined;
-        if (cell?.isEdge()) {
-          setRightPanel({ mode: "edge-style", edgeId: cell.id });
-          return;
-        }
-        if (data?.kind === "understanding" && data.understandingId) {
-          setRightPanel({ mode: "detail", understandingId: data.understandingId });
+      if (cellIds.length === 1) {
+        const id = cellIds[0];
+        const element = useCanvasStore.getState().document.elements.find((el) => el.id === id);
+        if (element?.kind === "understanding" && element.understandingId) {
+          setRightPanel({ mode: "detail", understandingId: element.understandingId });
           return;
         }
       }
-      // 非理解卡 / 非连线选中 → 关闭详情与样式面板（库保持由“理解库”按钮控制）
       setRightPanel((prev) => (prev && prev.mode !== "library" ? null : prev));
     },
     [setSelection],
@@ -243,58 +193,15 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
 
   const [detailPanelKey, setDetailPanelKey] = useState<string>("");
   const elementCount = useCanvasStore((state) => state.document.elements.length);
-  // 连线标签就地编辑（M4-3）：双击连线 → 在边中点渲染输入框
-  const [edgeLabelEditor, setEdgeLabelEditor] = useState<{
-    edgeId: string;
-    x: number;
-    y: number;
-  } | null>(null);
 
-  const handleEdgeDblClick = useCallback((edgeId: string) => {
-    const graph = graphRef.current?.graph;
-    const edge = graph?.getCellById(edgeId) as import("@antv/x6").Edge | null;
-    if (!edge || !graph) return;
-    const view = graph.findViewByCell(edge) as import("@antv/x6").EdgeView | null;
-    const point = view?.getPointAtRatio(0.5);
-    if (!point) return;
-    const client = graph.localToPage(point.x, point.y);
-    setEdgeLabelEditor({ edgeId, x: client.x, y: client.y });
-  }, []);
-
-  // 删除选中（M4-6）：Delete / Backspace（基于 store 单选选中集）
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Delete" && event.key !== "Backspace") return;
-      const target = event.target as HTMLElement | null;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
-      const graph = graphRef.current?.graph;
-      if (!graph) return;
-      const selected = new Set([
-        ...useCanvasStore.getState().selection,
-        ...graph.getSelectedCells().map((cell) => cell.id),
-      ]);
-      const cells = [...selected]
-        .map((id) => graph.getCellById(id))
-        .filter((cell): cell is import("@antv/x6").Cell => Boolean(cell));
-      cells.filter((cell) => cell.isEdge()).forEach((cell) => graph.findViewByCell(cell)?.remove());
-      graph.removeCells(cells);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
-
-  // 搜索（M2-6）：⌘/Ctrl+F 打开浮层；构建搜索索引（卡标题/正文、组名、连线标签）。
+  // 搜索（M2-6）：⌘/Ctrl+F 打开浮层；选中结果定位到节点。
   const [searchOpen, setSearchOpen] = useState(false);
   const onSelectSearchResult = useCallback((id: string) => {
-    // eslint-disable-next-line no-console
-    console.log("[p4s] select", id.slice(0, 5));
     setSearchOpen(false);
     const graph = graphRef.current?.graph;
-    const cell = graph?.getCellById(id);
-    if (!graph || !cell) return;
-    graph.centerCell(cell);
-    if (cell.isEdge()) graph.resetSelection([id]);
-    else graph.resetSelection([id]);
+    if (!graph) return;
+    const node = graph.getNode(id);
+    if (node) graph.fitView({ nodes: [{ id }], padding: 0.5, maxZoom: 1.5, duration: 300 });
   }, []);
 
   const searchIndex = useMemo<CanvasSearchIndexItem[]>(() => {
@@ -317,114 +224,11 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     return items.filter((x) => x.text.trim().length > 0);
   }, [detail]);
 
-  // 演示模式（M2-7）：按组顺序走查；无组退化为适应视图浏览。
-  const [demoIndex, setDemoIndex] = useState<number | null>(null);
-  const focusNode = useCallback((cellId: string | null) => {
-    const graph = graphRef.current?.graph;
-    if (!graph || !cellId) return;
-    const cell = graph.getCellById(cellId);
-    if (cell) graph.centerCell(cell);
-  }, []);
-  const toggleDemo = useCallback(() => {
-    const graph = graphRef.current?.graph;
-    if (!graph) return;
-    const groups = useCanvasStore
-      .getState()
-      .document.elements.filter((el) => el.kind === "group")
-      .map((el) => el.id);
-    if (demoIndex === null) {
-      if (groups.length === 0) {
-        graph.zoomToFit({ padding: 40, maxScale: 1 });
-        setDemoIndex(-1);
-      } else {
-        setDemoIndex(0);
-        focusNode(groups[0]);
-      }
-    } else {
-      setDemoIndex(null);
-      graph.zoomToFit({ padding: 40, maxScale: 1 });
-    }
-  }, [demoIndex, focusNode]);
-  const demoStep = useCallback(
-    (dir: 1 | -1) => {
-      const groups = useCanvasStore
-        .getState()
-        .document.elements.filter((el) => el.kind === "group")
-        .map((el) => el.id);
-      const graph = graphRef.current?.graph;
-      if (!graph || groups.length === 0) return;
-      // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
-      const next = Math.max(0, Math.min(groups.length - 1, (demoIndex ?? 0) + dir));
-      setDemoIndex(next);
-      focusNode(groups[next]);
-    },
-    [demoIndex, focusNode],
-  );
-
-  // PNG 导出（M2-8）：X6 toPNG → 主进程系统保存对话框写盘。
-  const handleExportPng = useCallback(async () => {
-    const graph = graphRef.current?.graph;
-    if (!graph) return;
-    try {
-      const dataUrl = await graph.toPNGAsync({ backgroundColor: "#ffffff", padding: 16 });
-      const saved = await ipcClient.canvas.exportPng(dataUrl, canvas?.title ?? "画布");
-      if (saved) toast.success(`已导出 ${saved}`);
-    } catch (error) {
-      toast.error("导出失败", { description: errorMessage(error) });
-    }
-  }, [canvas?.title]);
-
-  // 锁定（M7-5）：右键节点 → 锁定/解锁（防误拖；随 props.locked 持久化）。
-  // react-shape 节点上 X6 的 `node:contextmenu` 不派发，改用容器级 contextmenu：
-  // 识别命中的 `.x6-node`（除组外，组保留自身右键菜单），切换 lock()/unlock()。
-  useEffect(() => {
-    const graph = graphRef.current?.graph;
-    const container = graphRef.current?.graph?.container;
-    if (!graph || !container) return;
-    const onContextMenu = (event: MouseEvent) => {
-      const nodeEl = (event.target as Element | null)?.closest<SVGElement>(".x6-node");
-      if (!nodeEl) return;
-      const cellId = nodeEl.getAttribute("data-cell-id");
-      const cell = cellId ? graph.getCellById(cellId) : null;
-      if (!cell) return;
-      const raw = cell.getData() as { kind?: string; props?: { locked?: boolean } } | undefined;
-      if (raw?.kind === "group") return; // 组走自身右键菜单（解除/删除组）
-      event.preventDefault();
-      const next = {
-        ...raw,
-        props: { ...raw?.props, locked: !raw?.props?.locked },
-      };
-      // 锁定/解锁：持久化到 data.props.locked（C5），配合 graph.options.interacting 防误拖
-      cell.setData(next);
-    };
-    container.addEventListener("contextmenu", onContextMenu);
-    return () => {
-      container.removeEventListener("contextmenu", onContextMenu);
-    };
-  }, [detail]);
-
-  // 撤销 / 重做（M7-2）：⌘ / ⌘⇧ + Z。
+  // 搜索快捷键（M2-6）：⌘/Ctrl+F / ⌘/Ctrl+K。
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const meta = event.metaKey || event.ctrlKey;
-      if (!meta || event.key.toLowerCase() !== "z") return;
-      const target = event.target as HTMLElement | null;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
-      event.preventDefault();
-      const graph = graphRef.current?.graph;
-      if (!graph) return;
-      if (event.shiftKey) graph.redo();
-      else graph.undo();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [detail]);
-
-  // 搜索快捷键（M2-6）：⌘/Ctrl+F；Esc 关闭由浮层处理。
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const meta = event.metaKey || event.ctrlKey;
-      if (meta && event.key.toLowerCase() === "f") {
+      if (meta && (event.key.toLowerCase() === "f" || event.key.toLowerCase() === "k")) {
         event.preventDefault();
         setSearchOpen((open) => !open);
       }
@@ -440,15 +244,11 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     >
       <CanvasToolbar
         canvas={canvas}
-        dnd={dnd}
         libraryOpen={libraryOpen}
-        demoActive={demoIndex !== null}
         onToggleLibrary={() =>
           setRightPanel(rightPanel?.mode === "library" ? null : { mode: "library" })
         }
         onOpenCanvasRefPicker={handleOpenCanvasRefPicker}
-        onToggleDemo={toggleDemo}
-        onExportPng={() => void handleExportPng()}
       />
 
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 min-w-0 flex-1">
@@ -469,8 +269,6 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
               onDocumentChange={handleDocumentChange}
               onViewportChange={handleViewportChange}
               onSelectionChange={handleSelectionChange}
-              onEdgeDblClick={handleEdgeDblClick}
-              minimap={{ container: minimapContainer, width: 200, height: 140 }}
               className="absolute inset-0"
             />
 
@@ -478,15 +276,9 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
 
             <CanvasZoomControls
               className="absolute bottom-4 left-4"
-              onZoomIn={() => graphRef.current?.graph?.zoom(1.25)}
-              onZoomOut={() => graphRef.current?.graph?.zoom(0.8)}
-              onFit={() => graphRef.current?.graph?.zoomToFit({ padding: 32, maxScale: 1 })}
-            />
-
-            <div
-              ref={setMinimapContainer}
-              data-testid="canvas-minimap"
-              className="absolute right-4 bottom-4 overflow-hidden rounded-lg border bg-background/80 shadow-sm"
+              onZoomIn={() => graphRef.current?.graph?.zoomIn()}
+              onZoomOut={() => graphRef.current?.graph?.zoomOut()}
+              onFit={() => graphRef.current?.graph?.fitView({ padding: 0.2, maxZoom: 1 })}
             />
 
             {searchOpen ? (
@@ -494,53 +286,6 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
                 index={searchIndex}
                 onSelect={onSelectSearchResult}
                 onClose={() => setSearchOpen(false)}
-              />
-            ) : null}
-
-            {demoIndex !== null ? (
-              <div
-                data-testid="canvas-demo-controls"
-                className="absolute bottom-4 right-4 z-20 flex items-center gap-1 rounded-lg border bg-background/90 px-2 py-1.5 shadow-sm"
-              >
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  data-testid="canvas-demo-prev"
-                  aria-label="上一个组"
-                  onClick={() => demoStep(-1)}
-                >
-                  <ChevronLeft size={14} />
-                </Button>
-                <span className="px-1 text-sm text-muted-foreground">演示</span>
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  data-testid="canvas-demo-next"
-                  aria-label="下一个组"
-                  onClick={() => demoStep(1)}
-                >
-                  <ChevronRight size={14} />
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  data-testid="canvas-demo-exit"
-                  onClick={toggleDemo}
-                >
-                  退出
-                </Button>
-              </div>
-            ) : null}
-
-            {edgeLabelEditor ? (
-              <CanvasEdgeLabelEditor
-                graph={graphRef.current?.graph ?? null}
-                edgeId={edgeLabelEditor.edgeId}
-                position={{ x: edgeLabelEditor.x, y: edgeLabelEditor.y }}
-                onClose={() => setEdgeLabelEditor(null)}
               />
             ) : null}
           </div>
@@ -561,8 +306,8 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
               className="min-h-0 min-w-0"
             >
               {rightPanel.mode === "library" ? (
-                <CanvasLibraryPanel dnd={dnd} onClose={() => setRightPanel(null)} />
-              ) : rightPanel.mode === "detail" ? (
+                <CanvasLibraryPanel onClose={() => setRightPanel(null)} />
+              ) : (
                 <CanvasDetailPanel
                   key={detailPanelKey}
                   canvasId={canvasId}
@@ -572,15 +317,6 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
                     setRightPanel({ mode: "detail", understandingId: nextId });
                     setDetailPanelKey(nextId);
                   }}
-                />
-              ) : (
-                <CanvasEdgeStylePanel
-                  edge={
-                    graphRef.current?.graph?.getCellById(rightPanel.edgeId) as
-                      | import("@antv/x6").Edge
-                      | null
-                  }
-                  onClose={() => setRightPanel(null)}
                 />
               )}
             </ResizablePanel>

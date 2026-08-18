@@ -1,7 +1,5 @@
 import { useMemo, useState } from "react";
 import { FileText, Search, X } from "lucide-react";
-import type { Node } from "@antv/x6";
-import { createCanvasDndNode, type Dnd } from "@reflecta/ui/canvas";
 import { Button } from "@reflecta/ui/components/button";
 import { Input } from "@reflecta/ui/components/input";
 import { NativeSelect, NativeSelectOption } from "@reflecta/ui/components/native-select";
@@ -15,9 +13,10 @@ import {
   sortUnderstandingSummaries,
   type UnderstandingListSortBy,
 } from "../../capture/dashboard/sort";
-import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import type { DomainTreeNode } from "@shared/domain";
 import { newUnderstandingElement } from "./element-factory";
+
+const DND_MIME = "application/reflecta-canvas-element";
 
 /** 扁平化领域树为「全部领域 + 各领域」选项（缩进体现层级）。 */
 function flattenDomains(
@@ -31,10 +30,9 @@ function flattenDomains(
 }
 
 /**
- * 库面板完整版（M5）：领域过滤（含全部领域） / 搜索 / 排序 / 列表展示 /
- * 拖入画布创建理解卡；关闭（X）恢复全宽（M6-5）。与 Capture 列表体验一致。
+ * 库面板（M5）：领域过滤 / 搜索 / 排序 / 列表展示 / 拖入画布创建理解卡；关闭恢复全宽（M6-5）。
  */
-export function CanvasLibraryPanel({ dnd, onClose }: { dnd: Dnd | null; onClose: () => void }) {
+export function CanvasLibraryPanel({ onClose }: { onClose: () => void }) {
   const { domains } = useCaptureDomains();
   const [selectedDomainId, setSelectedDomainId] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,17 +48,7 @@ export function CanvasLibraryPanel({ dnd, onClose }: { dnd: Dnd | null; onClose:
     () => sortUnderstandingSummaries(understandings ?? [], sortBy),
     [understandings, sortBy],
   );
-
   const domainOptions = useMemo(() => flattenDomains(domains), [domains]);
-
-  const handleDragStart = (event: React.MouseEvent, understanding: UnderstandingSummaryDTO) => {
-    if (dnd) {
-      dnd.start(
-        createCanvasDndNode(newUnderstandingElement(understanding.id)) as Node,
-        event.nativeEvent,
-      );
-    }
-  };
 
   return (
     <aside
@@ -141,7 +129,14 @@ export function CanvasLibraryPanel({ dnd, onClose }: { dnd: Dnd | null; onClose:
                 data-understanding-title={understanding.title ?? "未命名理解"}
                 className="flex cursor-grab items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
                 title="拖入画布创建理解卡"
-                onMouseDown={(event) => handleDragStart(event, understanding)}
+                draggable
+                onDragStart={(event) => {
+                  event.dataTransfer.setData(
+                    DND_MIME,
+                    JSON.stringify(newUnderstandingElement(understanding.id)),
+                  );
+                  event.dataTransfer.effectAllowed = "move";
+                }}
               >
                 <FileText size={13} className="shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1 truncate">

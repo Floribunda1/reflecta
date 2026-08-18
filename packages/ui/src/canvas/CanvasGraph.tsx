@@ -1,39 +1,61 @@
-import { Edge, Graph, History, MiniMap, Selection, Snapline, Transform } from "@antv/x6";
-import "./canvas-edges.css";
-import { forwardRef, useEffect, useImperativeHandle, useRef, type CSSProperties } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  type CSSProperties,
+} from "react";
+import {
+  addEdge,
+  applyEdgeChanges,
+  applyNodeChanges,
+  Background,
+  MiniMap,
+  ReactFlow,
+  ReactFlowProvider,
+  useEdgesState,
+  useNodesState,
+  useReactFlow,
+  type Connection,
+  type Edge,
+  type EdgeChange,
+  type Node,
+  type NodeChange,
+  type OnConnect,
+  type ReactFlowInstance,
+  type Viewport,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import type { CanvasDocument, CanvasViewport } from "./document";
+import { newEdgeDto, toCanvasDocument, toFlowData } from "./graph-document";
+import { canvasNodeTypes } from "./nodes";
 import {
-  documentToGraphData,
-  edgeToEdge,
-  edgeToEdgeMeta,
-  graphToDocument,
-  newEdgeDto,
-} from "./graph-document";
-import { applyEdgeLabel, applyEdgeStyle, DEFAULT_EDGE_LINE_ATTRS } from "./edge-style";
-import {
+  CanvasElementUpdateProvider,
   CanvasShapeDataProvider,
   EMPTY_CANVAS_SHAPE_DATA,
   type CanvasShapeData,
 } from "./shape-context";
-import { shapeNameForKind } from "./shapes/shape-registry";
 
 /**
- * X6 画布封装（计划 F2 / Phase 1 落地）：
+ * React Flow 画布封装。
  *
- * - 生命周期：挂载建图（点阵网格 / 平移 / 滚轮缩放 / embedding / History）、卸载 dispose；
- * - 文档加载：`document` prop 首次 / 外部刷新时 fromJSON（元素 / 连线 id == cell id 零映射）；
- * - 语义事件桥：`node/edge:change:*` 与增删 → 全量文档回写（onDocumentChange），
- *   `scale` / `translate` → 视口回写（onViewportChange），节点点击 → 选中回写（onSelectionChange）；
- * - 只读渲染（`interacting: false`）服务 F1 三用组件（[[cv:]] Modal / draft 预览 / artifact 缩略）。
+ * - 生命周期：ReactFlowProvider 包裹，节点 / 边受控 state，模板与交互全走 React Flow 原生；
+ * - 文档加载：`document` prop 首次 / 外部刷新 → toFlowData（元素 id == node id 零映射）；
+ * - 变更桥：节点拖动 / 尺寸 / 删除、连线新增 / 删除、视图缩放平移 → document / viewport 回写；
+ * - 只读渲染（readonly）服务 F1 三用组件（引用 Modal / draft 预览 / artifact 缩略）。
  *
- * 注意：`document` prop 是「初始 / 外部」数据源；X6 手势后的内部状态经事件桥流出，
- * 不回流到 prop（防循环）。工作区以 `key={canvasId}` 重挂载切换画布。
+ * 设计约束：不针对产品逻辑做引擎级定制——交互用 React Flow 原生 prop / API，
+ * 数据层只做 document ↔ nodes/edges 的直映射。
  */
 
 export type CanvasGraphHandle = {
-  get graph(): Graph | null;
-  /** 外部变更（Phase 5 审批应用）后全量刷新：从 document 重建图 */
+  get graph(): ReactFlowInstance | null;
+  /** 外部变更（审批应用）后全量刷新：从 document 重建图 */
   reload: (document: CanvasDocument) => void;
+  /** 向画布添加一个元素（画布引用创建等命令式入口） */
+  addElement: (element: import("./document").CanvasElementDTO) => void;
 };
 
 export type CanvasGraphMinimapOptions = {
@@ -43,568 +65,277 @@ export type CanvasGraphMinimapOptions = {
 };
 
 export type CanvasGraphProps = {
-  /** 只读渲染：禁用全部交互（F1 只读渲染器共用） */
+  /** 只读渲染：禁用编辑交互（F1 只读渲染器共用，保留平移缩放） */
   readonly?: boolean;
-  /** 初始 / 外部文档（T3）；内部编辑经事件桥流出，不回灌 */
+  /** 初始 / 外部文档；内部编辑经事件桥流出，不回灌 */
   document?: CanvasDocument | null;
-  /** 视口（M1-5 恢复）：挂载时 zoom + translate */
+  /** 视口（恢复）：挂载时 apply */
   viewport?: CanvasViewport | null;
-  /** react-shape 展示数据注入（理解卡全文 / 画布引用标题 / 单元格动作） */
+  /** 节点展示数据注入（理解卡全文 / 画布引用标题 / 动作） */
   shapeData?: CanvasShapeData;
-  /** 语义事件桥：X6 手势后的完整文档状态回写（防抖 saveCanvas 由调用方负责） */
+  /** 语义事件桥：交互后的完整文档回写（防抖保存由调用方负责） */
   onDocumentChange?: (document: CanvasDocument) => void;
-  /** 视口（平移 / 缩放）settle 后回写（updateViewport，M1-5 恢复） */
+  /** 视口 settle 后回写 */
   onViewportChange?: (viewport: CanvasViewport) => void;
-  /** 选中变化（单选 / 框选 / Shift 追加）回写（右侧面板 / 搜索消费）；含边选中 */
+  /** 选中变化回写（右侧面板 / 搜索消费）；含边选中 */
   onSelectionChange?: (cellIds: string[]) => void;
-  /** 双击连线 → 就地编辑标签（M4-3）：workspace 在边中点渲染输入框 */
-  onEdgeDblClick?: (edgeId: string) => void;
-  /** canvasId：新建边（createEdge）初始 DTO 归属 */
+  /** canvasId：新建连线初始 DTO 归属 */
   canvasId?: string;
-  /** 右下缩略图（M2-5）：传入容器元素即启用 MiniMap 插件 */
+  /** 右下缩略图（默认开启；container 仅作兼容占位） */
   minimap?: CanvasGraphMinimapOptions;
   className?: string;
   style?: CSSProperties;
 };
 
+const nodeTypes = canvasNodeTypes;
+
+const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function CanvasFlow(props, ref) {
+  const {
+    readonly = false,
+    document,
+    viewport,
+    shapeData = EMPTY_CANVAS_SHAPE_DATA,
+    canvasId = "",
+    onDocumentChange,
+    onViewportChange,
+    onSelectionChange,
+    minimap: _minimap,
+    className,
+    style,
+  } = props;
+
+  const instance = useReactFlow();
+  const onDocumentChangeRef = useRef(onDocumentChange);
+  const onViewportChangeRef = useRef(onViewportChange);
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  onDocumentChangeRef.current = onDocumentChange;
+  onViewportChangeRef.current = onViewportChange;
+  onSelectionChangeRef.current = onSelectionChange;
+
+  const documentRef = useRef<CanvasDocument | null>(null);
+  const viewportAppliedRef = useRef(false);
+
+  const { nodes: initNodes, edges: initEdges } = useMemo(
+    () => toFlowData(document ?? { elements: [], edges: [] }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅挂载时取初始文档
+    [],
+  );
+
+  const [nodes, setNodes] = useNodesState<Node>(initNodes);
+  const [edges, setEdges] = useEdgesState<Edge>(initEdges);
+  const nodesRef = useRef(nodes);
+  const edgesRef = useRef(edges);
+  nodesRef.current = nodes;
+  edgesRef.current = edges;
+
+  const emitDocument = useCallback(() => {
+    if (readonly) return;
+    onDocumentChangeRef.current?.(toCanvasDocument(nodesRef.current, edgesRef.current));
+  }, [readonly]);
+
+  // 节点变化：位置 / 尺寸 / 删除 → 同步文档
+  const handleNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      const relevant = changes.some(
+        (c) => c.type === "position" || c.type === "dimensions" || c.type === "remove",
+      );
+      const next = applyNodeChanges(changes, nodesRef.current);
+      nodesRef.current = next;
+      setNodes(next);
+      if (relevant) emitDocument();
+    },
+    [emitDocument, setNodes],
+  );
+
+  // 边变化：删除 → 同步文档
+  const handleEdgesChange = useCallback(
+    (changes: EdgeChange[]) => {
+      const relevant = changes.some((c) => c.type === "remove");
+      const next = applyEdgeChanges(changes, edgesRef.current);
+      edgesRef.current = next;
+      setEdges(next);
+      if (relevant) emitDocument();
+    },
+    [emitDocument, setEdges],
+  );
+
+  // 连线完成：新增边 → 同步文档
+  const handleConnect: OnConnect = useCallback(
+    (conn: Connection) => {
+      if (!conn.source || !conn.target) return;
+      const dto = newEdgeDto(canvasId);
+      const edge: Edge = {
+        id: dto.id,
+        source: conn.source,
+        target: conn.target,
+        data: { edge: { ...dto, sourceElementId: conn.source, targetElementId: conn.target } },
+      };
+      const next = addEdge(edge, edgesRef.current);
+      edgesRef.current = next;
+      setEdges(next);
+      emitDocument();
+    },
+    [canvasId, emitDocument, setEdges],
+  );
+
+  // 视口变化回写
+  const handleOnViewportChange = useCallback(
+    (v: Viewport) => {
+      if (readonly) return;
+      onViewportChangeRef.current?.({ x: v.x, y: v.y, zoom: v.zoom });
+    },
+    [readonly],
+  );
+
+  // 选中变化回写
+  const handleSelectionChange = useCallback(
+    ({ nodes: selectedNodes, edges: selectedEdges }: { nodes: Node[]; edges: Edge[] }) => {
+      if (readonly) return;
+      onSelectionChangeRef.current?.([
+        ...selectedNodes.map((n) => n.id),
+        ...selectedEdges.map((e) => e.id),
+      ]);
+    },
+    [readonly],
+  );
+
+  // 内容编辑（文本 / 组名）回写：更新受控 data + 同步文档
+  const handleElementUpdate = useCallback(
+    (element: import("./document").CanvasElementDTO) => {
+      const next = nodesRef.current.map((n) =>
+        n.id === element.id ? { ...n, data: { element } } : n,
+      );
+      nodesRef.current = next;
+      setNodes(next);
+      emitDocument();
+    },
+    [emitDocument, setNodes],
+  );
+
+  // 初始文档加载 + 外部刷新（document prop 变化）
+  useEffect(() => {
+    if (!documentRef.current && document) {
+      documentRef.current = document;
+    }
+  }, [document]);
+
+  // 暴露实例与外部刷新能力
+  useImperativeHandle(
+    ref,
+    () => ({
+      get graph() {
+        return instance;
+      },
+      reload: (nextDocument: CanvasDocument) => {
+        const { nodes: nextNodes, edges: nextEdges } = toFlowData(nextDocument);
+        documentRef.current = nextDocument;
+        nodesRef.current = nextNodes;
+        edgesRef.current = nextEdges;
+        setNodes(nextNodes);
+        setEdges(nextEdges);
+      },
+      addElement: (element: import("./document").CanvasElementDTO) => {
+        const node: Node = {
+          id: element.id,
+          type: element.kind,
+          position: { x: 60, y: 60 },
+          width: element.width,
+          height: element.height,
+          data: { element },
+        };
+        const next = [...nodesRef.current, node];
+        nodesRef.current = next;
+        setNodes(next);
+        emitDocument();
+        instance.fitView({ nodes: [node], padding: 0.5, maxZoom: 1, duration: 200 });
+      },
+    }),
+    [instance, setNodes, setEdges],
+  );
+
+  // 视口恢复：挂载后应用一次
+  useEffect(() => {
+    if (!viewport || viewportAppliedRef.current) return;
+    viewportAppliedRef.current = true;
+    instance.setViewport({ x: viewport.x, y: viewport.y, zoom: viewport.zoom });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅挂载时应用一次
+  }, [viewport]);
+
+  // DnD：外部（工具栏 / 库面板）拖入 → addNode
+  const onDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }, []);
+  const onDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      const raw = e.dataTransfer.getData("application/reflecta-canvas-element");
+      if (!raw || readonly) return;
+      try {
+        const element = JSON.parse(raw) as import("./document").CanvasElementDTO;
+        const position = instance.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+        const node: Node = {
+          id: element.id,
+          type: element.kind,
+          position,
+          width: element.width,
+          height: element.height,
+          data: { element },
+        };
+        const next = [...nodesRef.current, node];
+        nodesRef.current = next;
+        setNodes(next);
+        emitDocument();
+      } catch {
+        // ignore malformed payload
+      }
+    },
+    [emitDocument, instance, readonly, setNodes],
+  );
+
+  return (
+    <CanvasShapeDataProvider value={readonly ? { ...shapeData, readonly: true } : shapeData}>
+      <CanvasElementUpdateProvider value={handleElementUpdate}>
+        <div className={className} style={style} data-testid="canvas-graph">
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            onNodesChange={handleNodesChange}
+            onEdgesChange={handleEdgesChange}
+            onConnect={handleConnect}
+            onSelectionChange={handleSelectionChange}
+            onViewportChange={handleOnViewportChange}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
+            onInit={() => {
+              // no-op: instance accessible via useReactFlow
+            }}
+            nodesDraggable={!readonly}
+            nodesConnectable={!readonly}
+            elementsSelectable={!readonly}
+            deleteKeyCode={readonly ? null : "Delete"}
+            connectionLineStyle={{ stroke: "#94a3b8", strokeWidth: 2 }}
+            minZoom={0.25}
+            maxZoom={4}
+            fitView
+            fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
+          >
+            <Background gap={20} size={1} color="rgb(0 0 0 / 0.08)" />
+            {!readonly ? <MiniMap position="bottom-right" pannable zoomable /> : null}
+          </ReactFlow>
+        </div>
+      </CanvasElementUpdateProvider>
+    </CanvasShapeDataProvider>
+  );
+});
+
 export const CanvasGraph = forwardRef<CanvasGraphHandle, CanvasGraphProps>(
   function CanvasGraph(props, ref) {
-    const {
-      readonly = false,
-      document,
-      viewport,
-      shapeData = EMPTY_CANVAS_SHAPE_DATA,
-      canvasId = "",
-      onDocumentChange,
-      onViewportChange,
-      onSelectionChange,
-      onEdgeDblClick,
-      minimap,
-      className,
-      style,
-    } = props;
-
-    const containerRef = useRef<HTMLDivElement>(null);
-    const graphRef = useRef<Graph | null>(null);
-    const bridgeRef = useRef({ loading: false });
-    const documentRef = useRef<CanvasDocument | null>(document ?? null);
-    const onDocumentChangeRef = useRef(onDocumentChange);
-    const onViewportChangeRef = useRef(onViewportChange);
-    const onSelectionChangeRef = useRef(onSelectionChange);
-    const onEdgeDblClickRef = useRef(onEdgeDblClick);
-    const minimapRef = useRef<MiniMap | null>(null);
-    const viewportAppliedRef = useRef(false);
-
-    onDocumentChangeRef.current = onDocumentChange;
-    onViewportChangeRef.current = onViewportChange;
-    onSelectionChangeRef.current = onSelectionChange;
-    onEdgeDblClickRef.current = onEdgeDblClick;
-
-    // 生命周期：挂载建图、卸载释放
-    useEffect(() => {
-      const container = containerRef.current;
-      if (!container) return;
-
-      const graph = new Graph({
-        container,
-        autoResize: true,
-        // 元素右键菜单（组动作等）由 React ContextMenu 承载，禁用 X6 的拦截
-        preventDefaultContextMenu: false,
-        interacting: readonly ? false : undefined,
-        grid: {
-          size: 20,
-          visible: true,
-          type: "dot",
-          args: { color: "rgb(0 0 0 / 0.08)", thickness: 1 },
-        },
-        panning: { enabled: true, eventTypes: ["mouseWheel"] },
-        mousewheel: {
-          enabled: true,
-          modifiers: ["ctrl", "meta"],
-          minScale: 0.25,
-          maxScale: 4,
-          zoomAtMousePosition: true,
-        },
-        // 组 = embedding（M3-D）：仅组可作父容器，以中心命中找最深组
-        embedding: {
-          enabled: !readonly,
-          findParent: "center",
-          frontOnly: true,
-          validate: ({ parent }: { parent: import("@antv/x6").Node }) =>
-            (parent.getData() as { kind?: string } | undefined)?.kind === "group",
-        },
-        // 仅嵌入可视化
-        highlighting: {
-          embedding: {
-            name: "stroke",
-            args: { padding: -1, attrs: { stroke: "#8f8f8f" } },
-          },
-        },
-        connecting: {
-          snap: { radius: 12 },
-          allowBlank: false,
-          allowLoop: false,
-          allowNode: true,
-          allowEdge: false,
-          allowPort: true,
-          allowMulti: true,
-          highlight: true,
-          validateEdge: () => true,
-          createEdge: () =>
-            new Edge({
-              data: newEdgeDto(canvasId),
-              attrs: DEFAULT_EDGE_LINE_ATTRS,
-            }),
-        },
-      });
-
-      graphRef.current = graph;
-
-      // 锁定（M7-5）：X6 3.1.8 无原生 lock API，用 graph.options.interacting 函数对
-      // `props.locked` 的元素禁用移动 / 磁吸（防误拖）；选择 / 右键解锁仍可用。
-      if (!readonly) {
-        // 返回 `{}`（非 undefined）：默认 interacting 是对象，返回 undefined 会让
-        // cellView.can() 落到 `return false` 从而禁用全部交互。
-        graph.options.interacting = ((
-          cellView: import("@antv/x6").CellView,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ): any => {
-          const locked =
-            (cellView.cell.getData() as { props?: { locked?: boolean } } | undefined)?.props
-              ?.locked === true;
-          return locked ? { nodeMovable: false, magnetConnectable: false } : {};
-        }) as never;
-      }
-
-      // 撤销重做（M7-2，会话内；Phase 1 起启用，覆盖全部变更类型）
-      if (!readonly) {
-        graph.use(new History({ enabled: true }));
-        graph.use(
-          new Selection({
-            enabled: true,
-            multiple: true,
-            rubberband: false,
-            movable: true,
-            showNodeSelectionBox: true,
-            showEdgeSelectionBox: true,
-          }),
-        );
-        graph.use(
-          new Transform({
-            resizing: { enabled: true, minWidth: 80, minHeight: 60 },
-          }),
-        );
-      }
-
-      // Phase 4 编辑插件：
-      // - 参考线（M7-1）：拖拽中显示与其它元素边缘 / 中心对齐的参考线，松手落齐
-      // - 框选（M7-3）：rubberBand 拖框多选 + Shift 追加 + 整体移动（X6 Selection 原生）
-      if (!readonly) {
-        graph.use(
-          new Snapline({
-            enabled: true,
-            sharp: true,
-            tolerance: 10,
-          }),
-        );
-      }
-
-      // 自定义框选 marquee（M7-3，F2 定案）：仅在「空白画布」左键拖框激活，不触碰节点，
-      // 故与 react-shape 双击编辑不冲突（X6 Selection 插件会劫持 mousedown 破坏双击）。
-      // 左→右（往右下拖）strict 全包含；右→左（其它方向）相交即选；Shift 追加多选。
-      let marqueeActive = false;
-      let shiftHeld = false;
-      let suppressNextClick = false;
-      let transformNodeId: string | null = null;
-      let marqueeBox: HTMLDivElement | null = null;
-      let startClient = { x: 0, y: 0 };
-      const onCreateMarqueeBox = () => {
-        marqueeBox = globalThis.document.createElement("div");
-        marqueeBox.className = "canvas-marquee-box";
-        container.appendChild(marqueeBox);
-      };
-      const onMarqueeMove = (event: MouseEvent) => {
-        if (!marqueeActive || !marqueeBox) return;
-        const rect = container.getBoundingClientRect();
-        const x = Math.min(startClient.x, event.clientX) - rect.left;
-        const y = Math.min(startClient.y, event.clientY) - rect.top;
-        const w = Math.abs(event.clientX - startClient.x);
-        const h = Math.abs(event.clientY - startClient.y);
-        marqueeBox.style.left = `${x}px`;
-        marqueeBox.style.top = `${y}px`;
-        marqueeBox.style.width = `${w}px`;
-        marqueeBox.style.height = `${h}px`;
-      };
-      const onMarqueeEnd = (event: MouseEvent) => {
-        if (!marqueeActive) return;
-        marqueeActive = false;
-        globalThis.document.removeEventListener("mousemove", onMarqueeMove, true);
-        globalThis.document.removeEventListener("mouseup", onMarqueeEnd, true);
-        marqueeBox?.remove();
-        marqueeBox = null;
-        suppressNextClick = true;
-        setTimeout(() => {
-          suppressNextClick = false;
-        }, 100);
-        if (
-          Math.abs(event.clientX - startClient.x) < 3 &&
-          Math.abs(event.clientY - startClient.y) < 3
-        ) {
-          graph.resetSelection([]);
-          transformNodeId = null;
-          graph.clearTransformWidgets();
-          onSelectionChangeRef.current?.([]);
-          return; // 视为点击空白，取消选择
-        }
-        const p1 = graph.clientToLocal({ x: startClient.x, y: startClient.y });
-        const p2 = graph.clientToLocal({ x: event.clientX, y: event.clientY });
-        const strict = event.clientX >= startClient.x && event.clientY >= startClient.y;
-        const minX = Math.min(p1.x, p2.x);
-        const minY = Math.min(p1.y, p2.y);
-        const maxX = Math.max(p1.x, p2.x);
-        const maxY = Math.max(p1.y, p2.y);
-        const rect = {
-          x: minX,
-          y: minY,
-          width: maxX - minX,
-          height: maxY - minY,
-        };
-        const cells = graph.getNodesInArea(rect as never, { strict });
-        let ids: string[];
-        if (!shiftHeld) {
-          ids = cells.map((c) => c.id);
-        } else {
-          ids = [
-            ...new Set([...graph.getSelectedCells().map((c) => c.id), ...cells.map((c) => c.id)]),
-          ];
-        }
-        graph.resetSelection(ids);
-        onSelectionChangeRef.current?.(ids);
-      };
-      const showTransformWidget = (cell: import("@antv/x6").Cell) => {
-        if (!cell.isNode()) return;
-        const locked = (cell.getData() as { props?: { locked?: boolean } } | undefined)?.props
-          ?.locked;
-        if (locked) {
-          clearTransformWidget();
-          return;
-        }
-        if (transformNodeId === cell.id) return;
-        transformNodeId = cell.id;
-        graph.createTransformWidget(cell as import("@antv/x6").Node);
-      };
-      const scheduleTransformWidget = (cell: import("@antv/x6").Cell) => {
-        globalThis.requestAnimationFrame(() => showTransformWidget(cell));
-      };
-      const clearTransformWidget = () => {
-        transformNodeId = null;
-        graph.clearTransformWidgets();
-      };
-      // 用容器级 mousedown 代替 `blank:mousedown`（关闭左键平移后后者不触发）：
-      // 命中空白（非 node / edge / 其它交互层）才启动框选。
-      const onContainerMouseDown = (event: MouseEvent) => {
-        if (event.button === 2) {
-          clearTransformWidget();
-          return;
-        }
-        if (!marqueeActive && event.button === 0) {
-          const target = event.target as Element | null;
-          const hit = target?.closest(
-            ".x6-node, .x6-edge, .x6-cell, .x6-widget-selection, .x6-widget-transform, button, input",
-          );
-          if (!hit) {
-            event.stopPropagation();
-            shiftHeld = event.shiftKey;
-            marqueeActive = true;
-            startClient = { x: event.clientX, y: event.clientY };
-            onCreateMarqueeBox();
-            globalThis.document.addEventListener("mousemove", onMarqueeMove, true);
-            globalThis.document.addEventListener("mouseup", onMarqueeEnd, true);
-          }
-        }
-      };
-      container.addEventListener("mousedown", onContainerMouseDown, true);
-      const onContainerClick = (event: MouseEvent) => {
-        if (suppressNextClick) {
-          event.stopPropagation();
-          return;
-        }
-        const target = event.target as Element | null;
-        if (target?.closest(".x6-widget-selection, button, input")) return;
-        const isEdgeTarget = Boolean(target?.closest(".x6-edge"));
-        const isNodeTarget = Boolean(target?.closest(".x6-node"));
-        const point = graph.clientToLocal({
-          x: event.clientX,
-          y: event.clientY,
-        });
-        const views = graph.findViewsFromPoint(point);
-        const edgeView = graph.renderer.findEdgeViewsFromPoint(point, 12)[0];
-        const view =
-          isEdgeTarget || (!isNodeTarget && edgeView)
-            ? edgeView
-            : views.find(({ cell }) => cell.isNode());
-        if (!view) {
-          graph.resetSelection([]);
-          clearTransformWidget();
-          onSelectionChangeRef.current?.([]);
-          return;
-        }
-        graph.resetSelection([view.cell.id]);
-        showTransformWidget(view.cell);
-        onSelectionChangeRef.current?.([view.cell.id]);
-      };
-      container.addEventListener("click", onContainerClick, true);
-
-      // 事件桥：变更 → 全量文档回写（T3）
-      const emitDocument = () => {
-        if (bridgeRef.current.loading || readonly) return;
-        onDocumentChangeRef.current?.(graphToDocument(graph));
-      };
-      const emitCurrentSelection = () => {
-        if (readonly) return;
-        onSelectionChangeRef.current?.(graph.getSelectedCells().map((cell) => cell.id));
-      };
-      const emitViewport = () => {
-        if (bridgeRef.current.loading || readonly) return;
-        const zoom = graph.zoom();
-        const translation = graph.translate();
-        onViewportChangeRef.current?.({
-          x: translation.tx,
-          y: translation.ty,
-          zoom,
-        });
-      };
-
-      graph.on("node:change:*", emitDocument);
-      graph.on("edge:change:*", emitDocument);
-      graph.on("node:added", emitDocument);
-      graph.on("node:added", ({ node }: { node: import("@antv/x6").Node }) => {
-        if (!readonly) scheduleTransformWidget(node);
-      });
-      graph.on("node:removed", emitDocument);
-      graph.on("edge:added", emitDocument);
-      graph.on("edge:removed", emitDocument);
-      // X6 3.x 边事件分发并不总是可靠：额外兜底监听变更 / 增删，保证文档同步（幂等）
-      graph.on("cell:change:*", emitDocument);
-      graph.on("add", emitDocument);
-      graph.on("remove", emitDocument);
-      graph.on("edge:connected", emitDocument);
-      graph.on("edge:connective", emitDocument);
-      graph.on("cell:selected", emitCurrentSelection);
-      graph.on("cell:unselected", emitCurrentSelection);
-      graph.on("node:click", ({ cell }: { cell: import("@antv/x6").Cell }) => {
-        graph.resetSelection([cell.id]);
-        showTransformWidget(cell);
-        onSelectionChangeRef.current?.([cell.id]);
-      });
-      graph.on("edge:click", ({ cell }: { cell: import("@antv/x6").Cell }) => {
-        graph.resetSelection([cell.id]);
-        clearTransformWidget();
-        onSelectionChangeRef.current?.([cell.id]);
-      });
-      graph.on("edge:dblclick", ({ cell }: { cell: import("@antv/x6").Cell }) => {
-        if (readonly) return;
-        onEdgeDblClickRef.current?.(cell.id);
-      });
-      graph.on("scale", emitViewport);
-      graph.on("translate", emitViewport);
-
-      // X6 3.x 的 connect 连线在部分环境不派发任何图/模型事件（验证见 Phase 3），
-      // 导致连线创建/删除无法经事件桥流出。用 MutationObserver 观察图容器内边元素的
-      // 增删（新增/移除的 `.x6-edge`），作为兜底同步触发器（emitDocument 幂等）。
-      // X6 3.x 的部分交互（连线新增/删除、边标签与样式写回）不派发图事件。
-      // 用 MutationObserver 观察图容器任何 DOM 变化兜底触发全量文档同步：
-      // emitDocument 幂等、saveCanvas 由调用方 800ms 防抖合并，5-50 卡重建便宜。
-      // connect 拖出的边终端带 port，X6 3.x 在部分情况下无法据此计算出连接路径（不渲染）。
-      // 归一为纯 cell 终端（与重进重建一致，几何正常）；幂等：port 消失后不再改写。
-      const normalizeEdgeTerminals = () => {
-        for (const edge of graph.getEdges()) {
-          const src = edge.getSource();
-          const tgt = edge.getTarget();
-          let changed = false;
-          if (src && typeof src === "object" && "port" in src) {
-            const cellId = edge.getSourceCellId();
-            if (cellId) {
-              edge.setSource({ cell: cellId });
-              changed = true;
-            }
-          }
-          if (tgt && typeof tgt === "object" && "port" in tgt) {
-            const cellId = edge.getTargetCellId();
-            if (cellId) {
-              edge.setTarget({ cell: cellId });
-              changed = true;
-            }
-          }
-
-          // X6 3.1.8 缺陷：connect 拖出的边（即便已归一为 cell 终端）不会自行计算连接几何，
-          // 可见 line 路径既无 attrs 也无 d。检测到几何缺失（wrap 无 d）但两端 cell 已解析时，
-          // 用与重进一致的元数据路径重建该边（addEdge + applyEdgeStyle/Label），保证连线可见。
-          const v = graph.findViewByCell(edge) as {
-            container?: SVGElement;
-            updateConnection?: () => void;
-          } | null;
-          const wrap = v?.container?.querySelector('path[stroke="transparent"]');
-          const hasSource = edge.getSourceCellId();
-          const hasTarget = edge.getTargetCellId();
-          if (wrap && !wrap.getAttribute("d") && hasSource && hasTarget) {
-            const dto = edgeToEdge(edge);
-            graph.removeCell(edge);
-            const rebuilt = graph.addEdge(edgeToEdgeMeta(dto));
-            applyEdgeStyle(rebuilt, dto.style ?? null);
-            applyEdgeLabel(rebuilt, dto.label ?? null);
-            continue;
-          }
-          if (changed) v?.updateConnection?.();
-
-          // X6 `line` 选择器不写几何：把 wrap 的路径/样式复制到 line，保证连线可见。
-          const container = v?.container;
-          if (container) {
-            const paths = Array.from(container.querySelectorAll("path"));
-            const w = paths.find((p) => p.getAttribute("stroke") === "transparent");
-            const line = paths.find((p) => p.getAttribute("pointer-events") === "none");
-            if (w && line) {
-              line.setAttribute("d", w.getAttribute("d") ?? "");
-              line.setAttribute("fill", "none");
-              line.setAttribute("stroke-width", "2.5");
-              line.setAttribute(
-                "stroke",
-                (edge.getData() as { style?: { color?: string } | null } | undefined)?.style
-                  ?.color ?? "#94a3b8",
-              );
-            }
-          }
-        }
-      };
-      let edgeObserveTimer: ReturnType<typeof setTimeout> | undefined;
-      const emitDocumentThrottled = () => {
-        if (readonly) return;
-        if (edgeObserveTimer) return;
-        edgeObserveTimer = setTimeout(() => {
-          edgeObserveTimer = undefined;
-          normalizeEdgeTerminals();
-          emitDocument();
-          // X6 的路径几何异步生成：追加几次延迟复制，确保连线可见
-          for (const delay of [350, 750]) {
-            setTimeout(() => {
-              if (readonly) return;
-              normalizeEdgeTerminals();
-            }, delay);
-          }
-        }, 60);
-      };
-      const edgeObserver = new MutationObserver(() => {
-        if (readonly || bridgeRef.current.loading) return;
-        emitDocumentThrottled();
-      });
-      edgeObserver.observe(container, { childList: true, subtree: true });
-
-      return () => {
-        container.removeEventListener("mousedown", onContainerMouseDown, true);
-        container.removeEventListener("click", onContainerClick, true);
-        edgeObserver.disconnect();
-        if (edgeObserveTimer) clearTimeout(edgeObserveTimer);
-        minimapRef.current?.dispose();
-        minimapRef.current = null;
-        graph.dispose();
-        graphRef.current = null;
-      };
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- 只读在挂载时决定；重建由上层 remount 触发
-    }, []);
-
-    // 初始文档加载 + 外部刷新（document prop 变化）
-    useEffect(() => {
-      const graph = graphRef.current;
-      if (!graph || !document) return;
-      if (documentRef.current === document) return;
-      documentRef.current = document;
-
-      bridgeRef.current.loading = true;
-      graph.fromJSON(documentToGraphData(document, (element) => shapeNameForKind(element.kind)));
-      // 加载后应用每边样式（M4-7）
-      for (const edge of graph.getEdges()) {
-        const data = edge.getData<{
-          style?: import("./document").CanvasEdgeStyle | null;
-          label?: string | null;
-        }>();
-        applyEdgeStyle(edge, data.style ?? null);
-        applyEdgeLabel(edge, data.label ?? null);
-      }
-      // fromJSON 的 added/change 事件在同步栈内触发，loading 标记需延后复位
-      queueMicrotask(() => {
-        bridgeRef.current.loading = false;
-      });
-    }, [document]);
-
-    // 视口恢复（M1-5）：挂载后应用一次
-    useEffect(() => {
-      const graph = graphRef.current;
-      if (!graph || viewportAppliedRef.current || !viewport) return;
-      viewportAppliedRef.current = true;
-      bridgeRef.current.loading = true;
-      graph.zoomTo(viewport.zoom);
-      graph.translate(viewport.x, viewport.y);
-      queueMicrotask(() => {
-        bridgeRef.current.loading = false;
-      });
-    }, [viewport]);
-
-    // 缩略图插件（M2-5）：容器就绪后挂载
-    useEffect(() => {
-      const graph = graphRef.current;
-      const container = minimap?.container;
-      if (!graph || readonly || !container) return;
-      if (minimapRef.current) {
-        minimapRef.current.dispose();
-        minimapRef.current = null;
-      }
-      minimapRef.current = new MiniMap({
-        container,
-        width: minimap.width ?? 200,
-        height: minimap.height ?? 140,
-        padding: 8,
-      });
-      graph.use(minimapRef.current);
-      return () => {
-        minimapRef.current?.dispose();
-        minimapRef.current = null;
-      };
-    }, [minimap?.container, minimap?.width, minimap?.height, readonly]);
-
-    useImperativeHandle(
-      ref,
-      () => ({
-        get graph() {
-          return graphRef.current;
-        },
-        reload: (nextDocument: CanvasDocument) => {
-          const graph = graphRef.current;
-          if (!graph) return;
-          bridgeRef.current.loading = true;
-          documentRef.current = nextDocument;
-          graph.fromJSON(
-            documentToGraphData(nextDocument, (element) => shapeNameForKind(element.kind)),
-          );
-          for (const edge of graph.getEdges()) {
-            const data = edge.getData<{
-              style?: import("./document").CanvasEdgeStyle | null;
-              label?: string | null;
-            }>();
-            applyEdgeStyle(edge, data.style ?? null);
-            applyEdgeLabel(edge, data.label ?? null);
-          }
-          queueMicrotask(() => {
-            bridgeRef.current.loading = false;
-          });
-        },
-      }),
-      [],
-    );
-
     return (
-      <CanvasShapeDataProvider value={shapeData}>
-        <div ref={containerRef} className={className} style={style} data-testid="canvas-graph" />
-      </CanvasShapeDataProvider>
+      <ReactFlowProvider>
+        <CanvasFlow {...props} ref={ref} />
+      </ReactFlowProvider>
     );
   },
 );
