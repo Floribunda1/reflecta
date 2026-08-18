@@ -1,5 +1,6 @@
 import { MotionConfig, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { Outlet } from "react-router-dom";
 import { cn } from "@reflecta/ui/lib/utils";
 import { AppNavRail } from "./AppNavRail";
@@ -15,14 +16,21 @@ import {
 
 /**
  * App shell：rail 与主区常驻同一 flex 结构（不再按 open 分支换结构，避免页面 remount），
- * 收起/展开通过 motion 动画 width（200ms easeOut）；⌘/Ctrl+B 与各页 PageTopBar 的
- * hamburger 走 rail store 的 open。
+ * 收起/展开通过 motion 动画 width。
  *
- * drag-resize 语义对齐旧 RRP：拖拽实时改宽并持久化；拖到 MIN 以下松开视为收起。
+ * 动画参考（joshuawootonn.com/sidebar-animation-performance，对比 Notion/Linear/Gitlab）：
+ * - 缓动用 easeOutQuint 曲线 cubic-bezier(0.165, 0.84, 0.44, 1)，300ms；initial={false} 不播首帧动画
+ * - 动画期间 sidebar 内容不能 reflow/挤压：内容层固定为展开宽度（--rail-content-width），
+ *   只被 overflow-hidden 裁剪，文字不回绕（Notion 模式）
+ * - 拖拽实时改宽（duration 0），松手超过 MIN 持久化，拖到 MIN 以下视为收起
  */
 
-/** 收起/展开动画时长（s）：200ms，easeOut 前快后缓 */
-const RAIL_TRANSITION = { type: "tween", duration: 0.2, ease: "easeOut" } as const;
+/** 动画默认过渡（MotionConfig 注入；拖拽时用 duration 0 覆盖） */
+const RAIL_TRANSITION = {
+  type: "tween",
+  ease: [0.165, 0.84, 0.44, 1],
+  duration: 0.3,
+} as const;
 
 function AppMain() {
   return (
@@ -36,6 +44,8 @@ function AppShell() {
   const { open, setOpen } = useRail();
   const [width, setWidthState] = useState<number>(() => readRailWidth());
   const [dragging, setDragging] = useState(false);
+  /** 收起动画播完后内容层才 hidden（避免滑出过程内容瞬间消失） */
+  const [railContentHidden, setRailContentHidden] = useState<boolean>(() => !open);
   const shellRef = useRef<HTMLDivElement>(null);
   const widthRef = useRef(width);
   /** 最近一次「展开态」宽度：拖拽到 MIN 以下不覆盖，重开时恢复它 */
@@ -85,12 +95,22 @@ function AppShell() {
 
   return (
     <div ref={shellRef} className="flex min-h-0 flex-1 overflow-hidden">
+      {/* 内容层固定为展开宽度（--rail-content-width），动画期间只裁剪不重排；
+          收起动画播放完后（onAnimationComplete）才 visibility:hidden ——
+          语义上菜单不可见/不可聚焦（e2e toBeHidden 契约），视觉上保留完整滑出。 */}
       <motion.div
         data-testid="app-rail-shell"
         className="h-full shrink-0 overflow-hidden"
-        initial={{ width: open ? width : 0 }}
+        style={
+          {
+            "--rail-content-width": `${dragging ? width : lastOpenWidthRef.current}px`,
+            visibility: open || !railContentHidden ? "visible" : "hidden",
+          } as CSSProperties
+        }
+        initial={false}
         animate={{ width: open ? width : 0 }}
-        transition={dragging ? { duration: 0 } : RAIL_TRANSITION}
+        transition={dragging ? { duration: 0 } : undefined}
+        onAnimationComplete={() => setRailContentHidden(!open)}
       >
         <AppNavRail />
       </motion.div>
@@ -131,7 +151,7 @@ export function AppLayout() {
           MotionConfig：跟随系统减弱动画偏好。 */}
       <RailProvider>
         <RailMenuProvider>
-          <MotionConfig reducedMotion="user">
+          <MotionConfig reducedMotion="user" transition={RAIL_TRANSITION}>
             <AppShell />
           </MotionConfig>
         </RailMenuProvider>

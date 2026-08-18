@@ -86,7 +86,12 @@ export function AppNavRail() {
         "flex h-full min-h-0 shrink-0 flex-col overflow-hidden bg-sidebar/50 pb-2 text-sidebar-foreground w-full",
       )}
     >
-      <div className="flex h-full min-h-0 flex-col">
+      <div
+        className="flex h-full min-h-0 flex-col"
+        // 内容层固定为展开宽度（AppShell 注入 --rail-content-width）：
+        // 收起/展开动画期间文字不回绕、菜单不挤压，只被 aside 的 overflow 裁剪。
+        style={{ width: "var(--rail-content-width, 100%)" }}
+      >
         {open ? (
           <div className="app-drag-region flex h-12 shrink-0 items-center justify-end px-2">
             <div data-no-drag>
