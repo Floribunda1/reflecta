@@ -110,12 +110,54 @@
 - **待设计**：注册表的形态与扩展方式（新增 widget 的成本）、widget 的布局 / 密度 / 与消息流其它元素的层级、加载 / 失败 / 流式状态、是否支持交互（如画布 widget 内的"应用 / 修改 / 拒绝"）。
 - **待调研**：现有聊天渲染器（agent-turn-view / AgentToolActivityView）改造点；Generative UI 模式（Vercel AI SDK genUI、Anthropic show_widget）的可借鉴形态。
 
-### U2 artifact panel 的 UX/UI 形态（C14，待调研）
+### U2 artifact panel 的 UX/UI 形态（C14，已定稿）
+
+> 调研完成（2026-08-16）：形态、点击行为、覆盖范围三项全部定稿，进入实现。
 
 - **来源**：C14 成果可见性。
 - **已定约束**：只聚合本对话**已落地**的产出（approve 并保存的 understanding / 新建 context / sketch 应用后的 canvas）；pending 提案留在消息流，panel 只显示已落地；随 v1 发布。
-- **待设计**：面板形态（侧栏 / 底部 / 折叠）、列表内容与排序、点击跳转行为、与消息流 proposal 卡的视觉区分。
-- **待调研**：同类产品（对话产出聚合）的 UX 先例。
+
+#### 定稿设计
+
+**形态：header 下方单行「产出条」（有产出才出现）**
+
+```
+✦ 本对话产出 4 项 · 理解 2 · 领域 1 · 画布 1      [▾]
+```
+
+- 常态一行：类型图标 + 总数 + 分型计数；点击展开为**按类型分区的列表**（理解 / 领域 / 上下文 / 画布，每区小标题 + 计数 + 行列表）。
+- **定位是「本对话的产出凭证」（provenance 视图），不是管理面**——实体已有各自家园（Capture / 画布模块），panel 不做管理操作；这是与 Claude artifacts sidebar 的关键差异。
+- 覆盖范围（已定）：**含 domain**（四型：understanding / context / domain / canvas）；更新类变更按 `(type, id)` 去重不重复计（取最新标题）；删除类变更不展示（负产出语义未定义，v1 不做）。
+- 行内标题：工具输出 `resultRefTitle`；缺失时（domain_create/update）从 approval 块 payload 的 `name` / `title` 兑底。
+- 排序：按落地时间倒序；本 turn 有新增落地时产出条短暂高亮 + 计数增长。
+
+**点击行为（已定）：行点击 = 打开实体详情**
+
+| 类型          | v1 路径                                                                                                                             |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| understanding | 复用对话模块右面板 `ContextInspector`（`openInspector({ type: "understanding", id })`）——已完整渲染 `UnderstandingDetail`，零新机制 |
+| context       | 同上（`ContextInspector` 的 `ContextPreviewDrawerContent`）                                                                         |
+| domain        | `navigate("/capture")` + capture store `selectDomain(id)`（轻量带参跳转，聚焦实现，不扩机制）                                       |
+| canvas        | 预留分区与类型图标；画布工具未落地前不会出现该类型行；落地后接画布模块编辑模式（C13 行为，依赖带参跳转机制）                        |
+
+**与消息流 proposal 卡的区分**：proposal 卡 = 大卡 + 审批动作 + 在流程中；产出条 = 紧凑行 + 无操作 + 常驻 header 下。不重复信息（Claude 教训：卡与列表重复展示同信息）。
+
+#### 调研结论（同类产品对话产出聚合前例）
+
+| 产品                  | 形态                                                                 | 结论 / 教训                                                                                                                                            |
+| --------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Claude artifacts      | 消息内卡（入口）→ 左右分栏（左对话右产物）→ 全局 sidebar 聚合        | ✅「thread 是推理轨迹，右栏是会话的产品」；❌ **sidebar 混类（reports/files/interactive 一股脑）+ 扁平列表 >10 项即崩 + 卡与正文重复**（用户实测投诉） |
+| NotebookLM Studio     | 独立右栏：顶部类型分区入口格 + 下方统一产出列表（含进行中）          | 知识型产出的正确姿势：**类型分区 + 统一列表**；产出有专属归属（notebook）                                                                              |
+| ChatGPT Library       | 文件曾绑死对话（翻长线程才能找回）→ 新增全局 Library + Recent files  | 反面案例：产出不能只能靠翻对话找回；但我们的实体已有家园，panel 不必做管理面                                                                           |
+| Heptabase             | 白板 chat，重要消息手动拖回白板成卡                                  | 对应「沉淀」动作；无产出聚合面板                                                                                                                       |
+| TeamWeb（Agent 工具） | 对话详情页「Associated Content」：conversation 关联已建 deliverables | 与对话绑定的产出视图 = C14 的确切形态                                                                                                                  |
+
+#### 实现要点（前端 F3 承载）
+
+- **数据源零后端**：`agent-thread-view.ts` 的 `completedEntityRefs()` 已从 completed tool / approval 块提取 `(type, id)`——扩展为提取 `resultRefTitle` + 落地所属 turn + 去重键；domain title 从 approval payload 兑底。
+- **组件拆分**：`ArtifactPanel`（产出条 + 展开分区列表，渲染层）挂 `AgentThreadPanel` header 下方；纯展示部分进 Storybook（按类型 / 空态 / 展开态 MECE case）。
+- **依赖**：understanding/context 点击复用 Chat 现有 inspector 右面板；domain 点击依赖 capture store（已是全局 zustand）；canvas 行依赖画布工具落地 + 带参跳转机制。
+- **版本**：随 v1。
 
 ### U3 画布侧就地 Chat 的 UX（C7 入口二，v1.x）
 
