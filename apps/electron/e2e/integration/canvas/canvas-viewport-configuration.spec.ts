@@ -75,6 +75,28 @@ test.describe("画布视口配置", () => {
       await app.close();
     }
   });
+  test("无已存视口时进入画布自动 fitView（元素缩放进视野）", async () => {
+    // 两卡相距很远，且未保存视口（viewport 为 null）
+    seedCanvas({
+      id: "canvas",
+      title: "CANVAS",
+      elements: [
+        { id: "a", kind: "text", props: { text: "A" }, x: 60, y: 60, width: 120, height: 80 },
+        { id: "b", kind: "text", props: { text: "B" }, x: 2400, y: 2400, width: 120, height: 80 },
+      ],
+    });
+    const { app, page } = await launchApp();
+    try {
+      await openSeededCanvas(page, "CANVAS");
+      // fitView 会把相距很远的元素缩放进视野：scale < 1、translate 不再是原点
+      const viewport = page.getByTestId("canvas-graph").locator(".react-flow__viewport");
+      const transform = (await viewport.getAttribute("style"))!;
+      expect(parseZoom(transform)).toBeLessThan(1);
+      expect(parseTranslate(transform)).not.toBe("0px, 0px");
+    } finally {
+      await app.close();
+    }
+  });
 });
 
 function parseZoom(transform: string | null): number {

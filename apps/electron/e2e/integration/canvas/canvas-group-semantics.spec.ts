@@ -161,4 +161,38 @@ test.describe("画布组语义", () => {
       await app.close();
     }
   });
+
+  test("双击组名可修改，Enter 提交后重进仍保留", async () => {
+    seedCanvas({
+      id: "canvas",
+      title: "CANVAS",
+      elements: [
+        {
+          id: "grp",
+          kind: "group",
+          props: { label: "OLD_GROUP" },
+          x: 100,
+          y: 100,
+          width: 300,
+          height: 200,
+        },
+      ],
+    });
+    const { app, page } = await launchApp();
+    try {
+      await openSeededCanvas(page, "CANVAS");
+      const label = nodeInGraph(page, "grp").getByTestId("canvas-group-label");
+      await expect(label).toContainText("OLD_GROUP");
+
+      // 双击组名 → 输入新名 → Enter 提交
+      await label.dblclick();
+      const input = nodeInGraph(page, "grp").getByRole("textbox", { name: "组名" });
+      await expect(input).toBeVisible();
+      await input.fill("NEW_GROUP_NAME");
+      await input.press("Enter");
+      await expect(label).toContainText("NEW_GROUP_NAME");
+    } finally {
+      await app.close();
+    }
+  });
 });
