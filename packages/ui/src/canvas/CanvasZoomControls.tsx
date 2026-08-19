@@ -3,7 +3,7 @@ import { Button } from "../components/button";
 
 /**
  * 左下控制（M2-4）：放大 / 缩小 / 适应视图。
- * 纯展示组件：动作由上层（workspace）接到 X6 graph 句柄。
+ * 纯展示组件：动作由上层（workspace）接到 React Flow 句柄。
  */
 export type CanvasZoomControlsProps = {
   onZoomIn: () => void;

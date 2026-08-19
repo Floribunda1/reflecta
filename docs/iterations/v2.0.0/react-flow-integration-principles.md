@@ -72,16 +72,16 @@
 
 任何非默认配置必须在实现同一变更中补充此表。没有理由与验证方式的偏差不应合入。
 
-| 接缝     | React Flow 12.11.3 默认 | Reflecta 决定                                | 理由                       | 验证     |
-| -------- | ----------------------- | -------------------------------------------- | -------------------------- | -------- |
-| 只读模式 | 可编辑                  | 禁止节点拖动、连接和选择；保留 viewport 导航 | 同一 renderer 服务只读预览 | 只读 E2E |
+| 接缝     | React Flow 12.11.3 默认 | Reflecta 决定                                | 理由                       | 验证                |
+| -------- | ----------------------- | -------------------------------------------- | -------------------------- | ------------------- |
+| 只读模式 | 可编辑                  | 禁止节点拖动、连接和选择；保留 viewport 导航 | 同一 renderer 服务只读预览 | 只读 acceptance     |
+| 缩放范围 | `0.5–2`                 | `0.25–4`                                     | 大画布编辑需要更宽范围     | viewport acceptance |
+| 初始适配 | 默认不自动 fitView      | 无已存 viewport 时 `padding=0.2,maxZoom=1`   | 空间内完整显示初始文档     | viewport acceptance |
+| 新增节点 | 无业务新增行为          | 新增后定位并短暂 fit 到节点                  | 拖入后保持可见             | canvas acceptance   |
+| 背景网格 | 无 Background           | `gap=20,size=1,color=...`                    | 画布空间定位               | canvas acceptance   |
+| 缩略图   | 不自动渲染              | 编辑模式显示、可平移缩放                     | 编辑导航                   | canvas acceptance   |
 
-当前实现中出现但尚未由本原则认可的覆盖，应作为审计项处理，而不是倒推为产品预期：
-
-- `selectionOnDrag`：会把框选从 Shift+拖拽改为直接拖拽，并与 `panOnDrag` 组合；
-- `deleteKeyCode="Delete"`：覆盖默认 `Backspace`，造成 macOS 物理键盘路径不一致；
-- `minZoom` / `maxZoom`、`fitView` 参数：属于体验偏差，需要明确理由；
-- readonly 相关 `nodesDraggable` / `nodesConnectable` / `elementsSelectable`：属于已认可的只读策略，但仍须组合验证。
+readonly 相关 `nodesDraggable` / `nodesConnectable` / `elementsSelectable` 属于已认可的只读策略，仍须组合验证；其余当前覆盖已登记在上表。
 
 ## 8. 验证策略
 

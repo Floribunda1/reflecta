@@ -21,7 +21,6 @@
     "test:e2e": "bun run --cwd apps/electron test:e2e",
     "test:e2e:acceptance": "bun run --cwd apps/electron test:e2e:acceptance",
     "test:e2e:regression": "bun run --cwd apps/electron test:e2e:regression",
-    "test:e2e:atomic": "bun run --cwd apps/electron test:e2e:atomic",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt",

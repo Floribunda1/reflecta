@@ -45,7 +45,7 @@ export function UnderstandingNode(props: NodeProps<CanvasNode>) {
       data-understanding-id={
         element.kind === "understanding" ? (element.understandingId ?? "") : ""
       }
-      className={CARD}
+      className={`${CARD} ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
     >
       <Harness />
       {deleted ? (
@@ -61,7 +61,7 @@ export function UnderstandingNode(props: NodeProps<CanvasNode>) {
               {ref.title ?? "未命名理解"}
             </span>
           </div>
-          <div className="canvas-card-scroll min-h-0 flex-1 overflow-y-auto px-2.5 py-2">
+          <div className="canvas-card-scroll nowheel min-h-0 flex-1 overflow-y-auto px-2.5 py-2">
             <SimpleMarkdownPreview value={ref.body} className="canvas-card-markdown" />
           </div>
         </>
@@ -97,7 +97,7 @@ export function TextNode(props: NodeProps<CanvasNode>) {
   return (
     <div
       data-testid="canvas-text-card"
-      className={`${CARD} ${editing ? "ring-2 ring-ring" : ""}`}
+      className={`${CARD} ${editing ? "ring-2 ring-ring" : ""} ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
       onDoubleClick={readonly ? undefined : startEditing}
     >
       <Harness />
@@ -113,11 +113,11 @@ export function TextNode(props: NodeProps<CanvasNode>) {
               setEditing(false);
             }
           }}
-          className="h-full w-full resize-none bg-transparent p-2 text-xs leading-5 outline-none"
+          className="nodrag nowheel h-full w-full resize-none bg-transparent p-2 text-xs leading-5 outline-none"
           aria-label="文本卡内容"
         />
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        <div className="nowheel min-h-0 flex-1 overflow-y-auto p-2">
           <SimpleMarkdownPreview value={text} className="canvas-card-markdown" />
         </div>
       )}
@@ -133,7 +133,7 @@ export function ShapeNode(props: NodeProps<CanvasNode>) {
     <div
       data-testid="canvas-shape-card"
       data-shape-type={shapeType}
-      className={`${CARD} ${shapeType === "circle" ? "rounded-full" : "rounded-md"} bg-muted/40`}
+      className={`${CARD} ${shapeType === "circle" ? "rounded-full" : "rounded-md"} ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""} bg-muted/40`}
     >
       <Harness />
     </div>
@@ -171,7 +171,7 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
     <div
       data-testid="canvas-group-node"
       data-group-label={label}
-      className="flex h-full w-full flex-col overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/50 bg-muted/10"
+      className={`flex h-full w-full flex-col overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/50 bg-muted/10 ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
     >
       <div
         data-testid="canvas-group-label"
@@ -192,7 +192,7 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
               }
               if (e.key === "Enter") commit();
             }}
-            className="min-w-0 flex-1 bg-transparent text-xs font-medium outline-none"
+            className="nodrag min-w-0 flex-1 bg-transparent text-xs font-medium outline-none"
             aria-label="组名"
           />
         ) : (
@@ -217,7 +217,7 @@ export function CanvasRefNode(props: NodeProps<CanvasNode>) {
       type="button"
       data-testid="canvas-canvas-ref-card"
       data-canvas-ref-id={canvasRefId ?? ""}
-      className={`${CARD} cursor-pointer items-center justify-center gap-1.5 p-2 text-center`}
+      className={`${CARD} nodrag nopan cursor-pointer items-center justify-center gap-1.5 p-2 text-center ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
       onClick={() => {
         if (!deleted && canvasRefId) onCanvasRefClick?.(canvasRefId);
       }}

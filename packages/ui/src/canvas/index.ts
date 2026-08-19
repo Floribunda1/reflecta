@@ -7,6 +7,7 @@ export {
 export { CanvasReadOnlyView, type CanvasReadOnlyViewProps } from "./CanvasReadOnlyView";
 export { CanvasZoomControls, type CanvasZoomControlsProps } from "./CanvasZoomControls";
 export {
+  DEFAULT_CANVAS_EDGE_STYLE,
   DEFAULT_CANVAS_VIEWPORT,
   EMPTY_CANVAS_DOCUMENT,
   type CanvasDocument,
@@ -18,6 +19,7 @@ export {
 } from "./document";
 export { toCanvasDocument, toFlowData, toFlowEdge, toFlowNode, newEdgeDto } from "./graph-document";
 export { canvasNodeTypes } from "./nodes";
+export { canvasEdgeTypes } from "./edges";
 export {
   CanvasShapeDataProvider,
   CanvasElementUpdateProvider,

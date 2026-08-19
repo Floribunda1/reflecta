@@ -4,7 +4,7 @@
  * 与 `@reflecta/server` 的 CanvasDocument / CanvasElementDTO / CanvasEdgeDTO
  * 结构同构（见 server `domains/understanding-canvas/types.ts`）；ui 包不依赖
  * server 包，契约漂移由 electron renderer 边界（IPC 层）做结构校验兜底。
- * 渲染层（X6）与文档层只认这里的形状：元素 / 连线 id == X6 cell id（零映射）。
+ * 渲染层（React Flow）与文档层只认这里的形状：元素 / 连线 id 零映射。
  */
 
 export type CanvasElementKind = "understanding" | "text" | "shape" | "group" | "canvas_ref";
@@ -47,6 +47,14 @@ export type CanvasEdgeStyle = {
   color?: string;
   width?: "thin" | "medium" | "thick";
   arrowhead?: "arrow" | "block" | "none";
+};
+
+export const DEFAULT_CANVAS_EDGE_STYLE: CanvasEdgeStyle = {
+  routing: "curve",
+  lineStyle: "solid",
+  color: "#94a3b8",
+  width: "thin",
+  arrowhead: "arrow",
 };
 
 export type CanvasEdgeDTO = {

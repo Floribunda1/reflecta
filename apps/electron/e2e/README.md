@@ -5,7 +5,6 @@ Electron E2E 分成三个相互独立的 suite：
 - `acceptance/feature/<module>/`：按产品模块集中维护 Feature 文件。
 - `acceptance/spec/<module>/`：按相同模块维护 acceptance spec 和模块内 helper。每个 `test()` 必须以对应的稳定 Feature ID 开头。
 - `regression/`：保护必须经过真实 Electron 边界验证的技术风险或历史缺陷，不创建 Feature，也不使用 Feature ID。
-- `atomic/<module>/`：按画布等模块维护原子操作 E2E，不创建 Feature，也不与 acceptance / regression 共享测试文件。
 
 共享的环境生命周期保留在本目录根部。只有当多个 suite 确实需要同一 helper 时，再把 helper 提升到公共目录。
 
@@ -13,7 +12,6 @@ Electron E2E 分成三个相互独立的 suite：
 bun run test:e2e
 bun run test:e2e:acceptance
 bun run test:e2e:regression
-bun run test:e2e:atomic
 bun run feature:check
 bun run feature:diff -- origin/master
 ```

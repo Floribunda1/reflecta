@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 import type { CanvasElementDTO } from "./document";
+import type { CanvasEdgeDTO } from "./document";
 
 /**
  * 节点展示数据与编辑回写通道。
@@ -58,4 +59,12 @@ export const CanvasElementUpdateProvider = CanvasElementUpdateContext.Provider;
 
 export function useCanvasElementUpdate(): (element: CanvasElementDTO) => void {
   return useContext(CanvasElementUpdateContext);
+}
+
+const CanvasEdgeUpdateContext = createContext<(edge: CanvasEdgeDTO) => void>(() => {});
+
+export const CanvasEdgeUpdateProvider = CanvasEdgeUpdateContext.Provider;
+
+export function useCanvasEdgeUpdate(): (edge: CanvasEdgeDTO) => void {
+  return useContext(CanvasEdgeUpdateContext);
 }

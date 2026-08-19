@@ -17,10 +17,6 @@ export default defineConfig({
       name: "regression",
       testDir: "./e2e/regression",
     },
-    {
-      name: "atomic",
-      testDir: "./e2e/atomic",
-    },
   ],
   use: {
     trace: "on-first-retry",
