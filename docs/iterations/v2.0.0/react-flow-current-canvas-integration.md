@@ -1,0 +1,185 @@
+# Reflecta Canvas 当前 React Flow 集成清单
+
+> 范围：Reflecta Canvas 前端实现。本文不描述服务端、数据库、DTO 或保存协议。
+>
+> 基准版本：`@xyflow/react@12.11.3`
+
+## 一、已经集成 React Flow，并使用默认行为的功能
+
+- 画布基础交互
+  - 点击节点选择
+  - Shift 框选
+  - Meta/Ctrl 多选
+  - 节点拖动
+  - 画布平移
+  - 滚轮缩放
+  - Backspace 删除
+  - 节点和边的基础选择
+- React Flow 受控状态
+  - `ReactFlowProvider`
+  - `useNodesState`
+  - `useEdgesState`
+  - `applyNodeChanges`
+  - `applyEdgeChanges`
+  - `onNodesChange`
+  - `onEdgesChange`
+  - `onConnect`
+  - `onSelectionChange`
+  - `onViewportChange`
+- 连接基础能力
+  - 使用 React Flow `Handle`
+  - 节点之间的基础连线
+  - 连接过程中的 `connecting` 状态
+  - React Flow stylesheet 提供的 `valid` / `invalid` 状态
+- 视口和内置组件
+  - `useReactFlow`
+  - `fitView`
+  - `setViewport`
+  - `zoomIn`
+  - `zoomOut`
+  - `screenToFlowPosition`
+  - `Background`
+  - `MiniMap`
+- React Flow 边基础能力
+  - `BaseEdge`
+  - `EdgeLabelRenderer`
+  - `getBezierPath`
+  - `getStraightPath`
+  - `getSmoothStepPath`
+- 父子节点基础结构
+  - 使用 `parentId` 表示父子关系
+  - 子节点使用相对父节点的位置
+  - 父节点先于子节点创建和渲染
+- 官方样式和交互标记
+  - React Flow 官方 stylesheet
+  - `nodrag`
+  - `nowheel`
+  - `nopan`
+
+## 二、对 React Flow 默认行为做过修改的功能
+
+- 只读画布
+  - 关闭节点拖动
+  - 关闭节点连接
+  - 关闭元素选择
+  - 禁用删除
+  - 保留画布平移和缩放
+- 初始视口
+  - 有已保存 viewport 时恢复 viewport
+  - 没有 viewport 时主动调用 `fitView`
+  - 新增节点后主动定位到新节点
+- 画布外观
+  - 增加固定间距和颜色的网格背景
+  - 只在编辑态显示 MiniMap
+  - 自定义 MiniMap 的位置和交互配置
+- 节点视觉反馈
+  - 使用业务卡片替换 React Flow 默认节点内容
+  - 自定义 selected ring
+  - 自定义 dragging 透明度
+  - 自定义 `focus-visible` 焦点样式
+  - 选中节点时显示 `NodeResizer`
+  - 限制节点最小宽高
+  - 只读态隐藏 `NodeResizer`
+  - 统一 Handle 位置：左侧 target、右侧 source
+- 边创建规则
+  - 不使用 React Flow `addEdge` 的同端点去重行为
+  - 改为手动追加边
+  - 因此允许同一 source / target 存在多条边
+  - 允许 source 与 target 相同的自环
+- 自定义边展示
+  - 使用自定义 edge type
+  - 在 React Flow 路径工具之上增加 curve / straight / orthogonal 选择
+  - 增加 solid / dashed / dotted 选择
+  - 增加颜色、宽度和箭头类型
+  - 修改 selected edge 的颜色和宽度
+  - 修改 selected edge label 的视觉样式
+- Canvas 数据适配
+  - 将 Canvas 元素映射为 React Flow node
+  - 将 Canvas 边映射为 React Flow edge
+  - 将 Canvas 坐标映射为 React Flow position
+  - 将 Canvas 尺寸映射为 React Flow width / height
+  - 将 React Flow 变化转换回 Canvas 当前文档
+  - 保持业务元素 ID 与 React Flow node ID 一致
+- 外部拖入
+  - 使用 HTML5 Drag and Drop 作为工具栏和理解库入口
+  - 使用 `screenToFlowPosition` 计算落点
+  - 拖入后创建 Reflecta 自定义节点
+- React Flow 之上的 Canvas 编辑能力
+  - 使用自定义节点展示 Understanding、Text、Group 和 Canvas 引用
+  - 文本节点双击编辑
+  - Group 节点双击编辑名称
+  - Canvas 引用节点点击跳转
+  - Group 节点提供右键菜单
+  - 使用 `Cmd/Ctrl+G` 创建 Group
+  - 使用 `Cmd/Ctrl+Shift+G` 解组
+  - 打组时计算 selection 的包围盒
+  - 打组时将绝对坐标转换为相对坐标
+  - 解组时将相对坐标转换回绝对坐标
+  - 删除 Group 时级联删除组内节点和相关边
+- Canvas 搜索
+  - 使用 `Cmd/Ctrl+F` 打开搜索
+  - 搜索 Text 内容
+  - 搜索 Understanding 标题
+  - 搜索 Group 名称
+  - 搜索 Canvas 引用标题
+  - 搜索边标签
+  - 搜索节点结果后定位节点
+  - 搜索边结果后聚焦 source / target 并选中边
+- Canvas 专属 UI
+  - 理解库面板
+  - Understanding 详情面板
+  - 边样式面板
+  - Canvas 引用选择面板
+  - Canvas 缩放控制
+  - 空画布引导状态
+- PNG 导出
+  - 使用 React Flow 的 `getNodesBounds`
+  - 使用 React Flow 的 `getViewportForBounds`
+  - 使用 `html-to-image` 生成图片
+  - 导出时排除 Background
+  - 提供 Canvas PNG 下载按钮
+
+## 三、还没有集成的 React Flow 功能
+
+- 边连接相关
+  - `onReconnect` 边重连
+  - `reconnectEdge` 边重连工具
+  - `isValidConnection` 自定义连接校验
+  - `onConnectStart` / `onConnectEnd` 连接生命周期回调
+  - 自定义 connection line
+- 父子节点增强能力
+  - `extent: "parent"` 子节点边界限制
+  - `expandParent` 拖动子节点时自动扩展父节点
+  - React Flow 自动 parent / child 变更
+  - React Flow 内置的动态嵌套交互
+- 选择增强能力
+  - `selectionOnDrag` 设计工具式框选
+  - `panOnDrag` / `panOnScroll` 的设计工具式组合
+  - `SelectionMode.Partial` 部分命中框选
+  - Lasso 选择
+  - Helper lines / 对齐辅助线
+  - Snap to grid
+- 布局能力
+  - React Flow 本身没有自动布局引擎，当前未接入 Dagre、ELK 或其他布局方案
+  - 自动布局
+  - 增量布局
+  - 力导向布局
+- 编辑器增强能力
+  - Undo / Redo
+  - Copy / Paste
+  - 节点复制
+  - 边工具栏
+  - 节点工具栏
+  - 节点旋转
+  - 节点动画
+- 白板和协作能力
+  - Freehand / 手绘
+  - Eraser / 橡皮擦
+  - Rectangle / 矩形绘制工具
+  - 实时协作
+  - CRDT 状态同步
+- 性能与高级渲染能力
+  - `onlyRenderVisibleElements`
+  - 大规模节点虚拟化策略
+  - 服务端图片导出
+  - 复杂图布局的增量渲染优化
