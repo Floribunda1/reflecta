@@ -190,6 +190,45 @@ describe("canvas edges", () => {
     expect(onUpdate).toHaveBeenCalledTimes(1);
   });
 
+  test("style controls pick values from a secondary menu", () => {
+    const onUpdate = render(edge, { selected: true });
+    act(() =>
+      container
+        .querySelector<HTMLElement>('[data-testid="edge-toolbar"] [aria-label="形状"]')!
+        .click(),
+    );
+    act(() =>
+      [...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')]
+        .find((item) => item.textContent === "直线")!
+        .click(),
+    );
+    expect(onUpdate).toHaveBeenCalledWith({ ...edge, style: { routing: "straight" } });
+
+    act(() =>
+      container
+        .querySelector<HTMLElement>('[data-testid="edge-toolbar"] [aria-label="线宽"]')!
+        .click(),
+    );
+    act(() =>
+      [...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')]
+        .find((item) => item.textContent === "粗")!
+        .click(),
+    );
+    expect(onUpdate).toHaveBeenCalledWith({ ...edge, style: { width: "thick" } });
+
+    act(() =>
+      container
+        .querySelector<HTMLElement>('[data-testid="edge-toolbar"] [aria-label="箭头"]')!
+        .click(),
+    );
+    act(() =>
+      [...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')]
+        .find((item) => item.textContent === "无")!
+        .click(),
+    );
+    expect(onUpdate).toHaveBeenCalledWith({ ...edge, style: { arrowhead: "none" } });
+  });
+
   test("Escape cancels label editing and readonly prevents it", () => {
     const onUpdate = render(edge);
     act(() =>

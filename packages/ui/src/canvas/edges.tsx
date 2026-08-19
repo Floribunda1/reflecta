@@ -9,11 +9,18 @@ import {
   type EdgeProps,
 } from "@xyflow/react";
 import { Button } from "../components/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "../components/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/popover";
-import { useEffect, useState } from "react";
-import { ArrowRight, ChevronDown, CircleDot, Minus, Palette, Trash2, Type } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { ArrowRight, CircleDot, Minus, Palette, Spline, Trash2, Type } from "lucide-react";
 import { CanvasColorSwatches } from "./color-swatches";
-import type { CanvasEdgeDTO, CanvasEdgeStyle } from "./document";
+import { DEFAULT_CANVAS_EDGE_STYLE, type CanvasEdgeDTO, type CanvasEdgeStyle } from "./document";
 import { useCanvasEdgeUpdate, useCanvasShapeData } from "./shape-context";
 
 export type CanvasFlowEdge = Edge<{ edge: CanvasEdgeDTO }, "canvas">;
@@ -30,6 +37,69 @@ function pathFor(style: CanvasEdgeStyle | null, props: EdgeProps<CanvasFlowEdge>
   if (style?.routing === "straight") return getStraightPath(options);
   if (style?.routing === "orthogonal") return getSmoothStepPath(options);
   return getBezierPath(options);
+}
+
+const ROUTING_OPTIONS = [
+  { value: "curve", label: "曲线" },
+  { value: "straight", label: "直线" },
+  { value: "orthogonal", label: "正交" },
+] as const;
+const LINE_STYLE_OPTIONS = [
+  { value: "solid", label: "实线" },
+  { value: "dashed", label: "虚线" },
+  { value: "dotted", label: "点线" },
+] as const;
+const WIDTH_OPTIONS = [
+  { value: "thin", label: "细" },
+  { value: "medium", label: "中" },
+  { value: "thick", label: "粗" },
+] as const;
+const ARROWHEAD_OPTIONS = [
+  { value: "arrow", label: "箭头" },
+  { value: "block", label: "方块" },
+  { value: "none", label: "无" },
+] as const;
+
+function EdgeStyleMenu<T extends string>({
+  label,
+  icon,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  icon: ReactNode;
+  value: T;
+  options: ReadonlyArray<{ value: T; label: string }>;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            className="nodrag nopan"
+            aria-label={label}
+            title={label}
+          />
+        }
+      >
+        {icon}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="center" className="nodrag nopan">
+        <DropdownMenuRadioGroup value={value} onValueChange={(next) => onChange(next as T)}>
+          {options.map((option) => (
+            <DropdownMenuRadioItem key={option.value} value={option.value}>
+              {option.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 function lineStyle(style: CanvasEdgeStyle | null, selected: boolean) {
@@ -62,12 +132,9 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
   };
 
   const style = edge.style ?? {};
-  const cycle = (key: "routing" | "lineStyle" | "width" | "arrowhead", values: string[]) => {
-    const current = style[key] ?? values[0];
-    const next = values[(values.indexOf(current) + 1) % values.length];
-    updateEdge({ ...edge, style: { ...style, [key]: next } as CanvasEdgeStyle });
-  };
-  const updateColor = (color?: string) => updateEdge({ ...edge, style: { ...style, color } });
+  const current = { ...DEFAULT_CANVAS_EDGE_STYLE, ...style };
+  const patchStyle = (patch: CanvasEdgeStyle) =>
+    updateEdge({ ...edge, style: { ...style, ...patch } });
 
   return (
     <>
@@ -105,61 +172,45 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
                 size="icon-sm"
                 variant="ghost"
                 className="nodrag nopan"
-                aria-label="选择颜色"
-                title="选择颜色"
+                aria-label="颜色"
+                title="颜色"
               />
             }
           >
             <Palette style={{ color: style.color }} />
           </PopoverTrigger>
           <PopoverContent className="w-auto flex-row items-center" align="center">
-            <CanvasColorSwatches value={style.color} onChange={updateColor} />
+            <CanvasColorSwatches value={style.color} onChange={(color) => patchStyle({ color })} />
           </PopoverContent>
         </Popover>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          className="nodrag nopan"
-          aria-label="切换路由"
-          title="切换路由"
-          onClick={() => cycle("routing", ["curve", "straight", "orthogonal"])}
-        >
-          <ArrowRight />
-        </Button>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          className="nodrag nopan"
-          aria-label="切换线型"
-          title="切换线型"
-          onClick={() => cycle("lineStyle", ["solid", "dashed", "dotted"])}
-        >
-          <CircleDot />
-        </Button>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          className="nodrag nopan"
-          aria-label="切换线宽"
-          title="切换线宽"
-          onClick={() => cycle("width", ["thin", "medium", "thick"])}
-        >
-          <Minus />
-        </Button>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          className="nodrag nopan"
-          aria-label="切换箭头"
-          title="切换箭头"
-          onClick={() => cycle("arrowhead", ["arrow", "block", "none"])}
-        >
-          <ChevronDown />
-        </Button>
+        <EdgeStyleMenu
+          label="形状"
+          icon={<Spline />}
+          value={current.routing ?? "curve"}
+          options={ROUTING_OPTIONS}
+          onChange={(routing) => patchStyle({ routing })}
+        />
+        <EdgeStyleMenu
+          label="线型"
+          icon={<CircleDot />}
+          value={current.lineStyle ?? "solid"}
+          options={LINE_STYLE_OPTIONS}
+          onChange={(nextLineStyle) => patchStyle({ lineStyle: nextLineStyle })}
+        />
+        <EdgeStyleMenu
+          label="线宽"
+          icon={<Minus />}
+          value={current.width ?? "thin"}
+          options={WIDTH_OPTIONS}
+          onChange={(width) => patchStyle({ width })}
+        />
+        <EdgeStyleMenu
+          label="箭头"
+          icon={<ArrowRight />}
+          value={current.arrowhead ?? "arrow"}
+          options={ARROWHEAD_OPTIONS}
+          onChange={(arrowhead) => patchStyle({ arrowhead })}
+        />
         <Button
           type="button"
           size="icon-sm"
