@@ -235,7 +235,7 @@ type CanvasDocument = {
 | `saveCanvas` 事务原子性 | 对账（upsert / 删除）在同一事务内完成，失败整体回滚，不产生半状态                   |
 | 元素 id 唯一性          | 文档内元素 / 连线 id 冲突抛错；与 DB 既有 id 冲突按 upsert 处理（同 id = 同一实体） |
 | kind 不变量             | `understanding` 必须带 `understanding_id`；`canvas_ref` 必须带 `canvas_ref_id`      |
-| 连线端点                | 两端元素必须存在于同一文档且属于该画布；禁止自环（source === target）               |
+| 连线端点                | 两端元素必须存在于同一文档且属于该画布；允许自环（source === target）               |
 | 入组（parent_id）       | 父元素必须是 `group` kind、同一文档、不能是自己或自己的后代（防环）                 |
 | 理解卡引用              | 校验理解存在（允许引用软删理解——**允许**，占位语义由前端呈现）                      |
 | 空文档                  | 允许保存空文档（清空画布）——合法操作，不视为错误                                    |
@@ -427,12 +427,12 @@ apps/cli/src/cli.ts                         # registerXxxAction 注册；getActi
 
 ## 5. 测试计划
 
-| 层               | 覆盖                                                                               |
-| ---------------- | ---------------------------------------------------------------------------------- |
-| domain core 单测 | CRUD 校验：kind 不变量、连线同画布 / 禁自环、入组防环、级联删除、被删理解 ref 标记 |
-| domain bff 单测  | getCanvas 装配（元素 + 连线 + understandingRefs + referencedCanvases）、列表计数   |
-| 迁移单测         | v2.0.0 在空库 / 已有数据上执行幂等，schema 与 SQL 一致                             |
-| CLI              | `canvas list/get/create/update/delete` 注册与帮助输出（对齐 global.test.ts 模式）  |
+| 层               | 覆盖                                                                                    |
+| ---------------- | --------------------------------------------------------------------------------------- |
+| domain core 单测 | CRUD 校验：kind 不变量、连线同画布（含允许自环）、入组防环、级联删除、被删理解 ref 标记 |
+| domain bff 单测  | getCanvas 装配（元素 + 连线 + understandingRefs + referencedCanvases）、列表计数        |
+| 迁移单测         | v2.0.0 在空库 / 已有数据上执行幂等，schema 与 SQL 一致                                  |
+| CLI              | `canvas list/get/create/update/delete` 注册与帮助输出（对齐 global.test.ts 模式）       |
 
 ## 6. 待办（承接共识 TBD，Server 归口）
 
