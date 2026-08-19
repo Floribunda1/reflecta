@@ -8,13 +8,10 @@
 
 - 画布基础交互
   - 点击节点选择
-  - Shift 框选
-  - Meta/Ctrl 多选
+  - 节点和边的基础选择
   - 节点拖动
-  - 画布平移
   - 滚轮缩放
   - Backspace 删除
-  - 节点和边的基础选择
 - React Flow 受控状态
   - `ReactFlowProvider`
   - `useNodesState`
@@ -50,8 +47,6 @@
   - 使用 `parentId` 表示父子关系
   - 子节点使用相对父节点的位置
   - 父节点先于子节点创建和渲染
-  - 子节点使用 `extent: "parent"` 限制在父节点边界内
-  - 子节点使用 `expandParent` 拖动到边界时自动扩展父节点
 - 官方样式和交互标记
   - React Flow 官方 stylesheet
   - `nodrag`
@@ -109,8 +104,12 @@
 - 设计工具式选择与定位
   - `selectionOnDrag` 框选
   - `SelectionMode.Partial` 部分命中框选
+  - `multiSelectionKeyCode="Control"` 多选
   - `panOnDrag={false}` 与 `panOnScroll` 组合平移
   - `snapToGrid` 与 `[20, 20]` 网格吸附
+- 父子节点增强
+  - 子节点使用 `extent: "parent"` 限制在父节点边界内
+  - 子节点使用 `expandParent` 拖动到边界时自动扩展父节点
 - 性能与渲染
   - 启用 React Flow `onlyRenderVisibleElements`，只渲染当前视口内节点和边
   - 大规模节点虚拟化仍未接入，需要基于实际数据量压测后决定
@@ -174,8 +173,6 @@
   - Undo / Redo
   - Copy / Paste
   - 节点复制
-  - 边工具栏
-  - 节点工具栏
   - 节点旋转
   - 节点动画
 - 白板和协作能力
