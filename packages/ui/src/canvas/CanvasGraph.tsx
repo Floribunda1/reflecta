@@ -5,6 +5,7 @@ import {
   useImperativeHandle,
   useMemo,
   useRef,
+  useState,
   type CSSProperties,
 } from "react";
 import {
@@ -30,6 +31,7 @@ import {
 import { toPng } from "html-to-image";
 import "@xyflow/react/dist/style.css";
 import {} from "../components/context-menu";
+import { Button } from "../components/button";
 import type { CanvasDocument, CanvasViewport } from "./document";
 import { newEdgeDto, toCanvasDocument, toFlowData, toFlowEdge } from "./graph-document";
 import { canvasNodeTypes } from "./nodes";
@@ -131,6 +133,8 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
 
   const [nodes, setNodes] = useNodesState<Node>(initNodes);
   const [edges, setEdges] = useEdgesState<Edge>(initEdges);
+  // 选中节点跟踪：selection 工具条（多选打组）消费；readonly 下不维护。
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const nodesRef = useRef(nodes);
   const edgesRef = useRef(edges);
   nodesRef.current = nodes;
@@ -195,6 +199,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
   const handleSelectionChange = useCallback(
     ({ nodes: selectedNodes, edges: selectedEdges }: { nodes: Node[]; edges: Edge[] }) => {
       if (readonly) return;
+      setSelectedNodeIds(selectedNodes.map((n) => n.id));
       onSelectionChangeRef.current?.([
         ...selectedNodes.map((n) => n.id),
         ...selectedEdges.map((e) => e.id),
@@ -219,7 +224,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
   const handleEdgeUpdate = useCallback(
     (edge: CanvasEdgeDTO) => {
       const next = edgesRef.current.map((current) =>
-        current.id === edge.id ? toFlowEdge(edge) : current,
+        current.id === edge.id ? { ...toFlowEdge(edge), selected: current.selected } : current,
       );
       edgesRef.current = next;
       setEdges(next);
@@ -431,10 +436,9 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
               onDragOver={onDragOver}
               onDrop={onDrop}
               selectionOnDrag
-              multiSelectionKeyCode="Control"
               selectionMode={SelectionMode.Partial}
               onlyRenderVisibleElements
-              panOnDrag={false}
+              panOnDrag={[1]}
               panOnScroll
               snapToGrid
               snapGrid={CANVAS_SNAP_GRID}
@@ -444,6 +448,23 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
               deleteKeyCode={readonly ? null : "Backspace"}
             >
               <Background gap={20} size={1} color="rgb(0 0 0 / 0.08)" />
+              {!readonly && selectedNodeIds.length >= 2 ? (
+                <div
+                  data-testid="canvas-selection-toolbar"
+                  className="absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-1 rounded-md border bg-background p-1 shadow-sm"
+                >
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="h-7 px-2 text-xs"
+                    data-testid="canvas-selection-group-button"
+                    onClick={() => groupSelection(selectedNodeIds)}
+                  >
+                    打组
+                  </Button>
+                </div>
+              ) : null}
               {!readonly ? <MiniMap position="bottom-right" pannable zoomable /> : null}
             </ReactFlow>
           </div>

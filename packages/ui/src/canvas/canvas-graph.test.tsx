@@ -244,15 +244,54 @@ describe("CanvasGraph React Flow seam", () => {
     const flow = render();
     expect(flow).toMatchObject({
       selectionOnDrag: true,
-      multiSelectionKeyCode: "Control",
       selectionMode: "partial",
-      panOnDrag: false,
+      panOnDrag: [1], // 仅中键平移：左键拖拽留给框选（selectionOnDrag），滚轮给 panOnScroll
       panOnScroll: true,
       snapToGrid: true,
       snapGrid: [20, 20],
       deleteKeyCode: "Backspace",
       onlyRenderVisibleElements: true,
     });
+  });
+
+  test("selection toolbar appears for two or more selected nodes and groups them", () => {
+    const onDocumentChange = vi.fn();
+    const flow = render({ document: canvasDocument(["a", "b"]), onDocumentChange });
+    const select = flow.onSelectionChange as (selection: {
+      nodes: Array<{ id: string }>;
+      edges: Array<{ id: string }>;
+    }) => void;
+
+    // 单节点选中：不显示工具条
+    act(() => select({ nodes: [{ id: "a" }], edges: [] }));
+    expect(container.querySelector('[data-testid="canvas-selection-toolbar"]')).toBeNull();
+
+    // 两个节点选中：工具条出现
+    act(() => select({ nodes: [{ id: "a" }, { id: "b" }], edges: [] }));
+    const toolbar = container.querySelector('[data-testid="canvas-selection-toolbar"]');
+    expect(toolbar).not.toBeNull();
+
+    // 点击打组：文档新增 group 元素，成员改挂 parentId
+    act(() => {
+      toolbar!
+        .querySelector('[data-testid="canvas-selection-group-button"]')!
+        .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(onDocumentChange).toHaveBeenCalledTimes(1);
+    const elements = onDocumentChange.mock.calls[0][0].elements as CanvasElementDTO[];
+    expect(elements.find((element) => element.kind === "group")).toBeTruthy();
+    expect(elements.find((element) => element.id === "a")!.parentId).toBeTruthy();
+    expect(elements.find((element) => element.id === "b")!.parentId).toBeTruthy();
+  });
+
+  test("readonly never shows the selection toolbar", () => {
+    const flow = render({ readonly: true, document: canvasDocument(["a", "b"]) });
+    const select = flow.onSelectionChange as (selection: {
+      nodes: Array<{ id: string }>;
+      edges: Array<{ id: string }>;
+    }) => void;
+    act(() => select({ nodes: [{ id: "a" }, { id: "b" }], edges: [] }));
+    expect(container.querySelector('[data-testid="canvas-selection-toolbar"]')).toBeNull();
   });
 
   test("external drop uses screen coordinates once and ignores malformed or readonly payloads", () => {
