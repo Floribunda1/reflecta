@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PanelsTopLeft } from "lucide-react";
-import { debounce } from "lodash-es";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   CanvasGraph,
@@ -41,6 +40,12 @@ import { CanvasEdgeStylePanel } from "./CanvasEdgeStylePanel";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { CanvasSearchOverlay, type CanvasSearchIndexItem } from "./CanvasSearchOverlay";
 import { newCanvasRefElement } from "./element-factory";
+import {
+  buildCanvasSearchIndex,
+  panelForSelection,
+  type CanvasRightPanel,
+} from "./canvas-workspace-model";
+import { createDebouncedLatestSaver, type SaveStatus } from "./debounced-latest-saver";
 
 const SAVE_DEBOUNCE_MS = 800;
 const VIEWPORT_SETTLE_MS = 600;
@@ -88,23 +93,49 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
 
   const saveCanvas = useSaveCanvasMutation();
   const updateViewport = useUpdateViewportMutation();
-  const saveRef = useRef<ReturnType<typeof debounce> | undefined>(undefined);
-  const lastDocumentRef = useRef<CanvasDocument | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [dirty, setDirty] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("clean");
 
   const graphRef = useRef<CanvasGraphHandle>(null);
-  const [rightPanel, setRightPanel] = useState<
-    | { mode: "library" }
-    | { mode: "detail"; understandingId: string }
-    | { mode: "edge"; edgeId: string }
-    | null
-  >(null);
+  const [rightPanel, setRightPanel] = useState<CanvasRightPanel>(null);
   const libraryOpen = rightPanel?.mode === "library";
 
   const queryClient = useQueryClient();
   const refsRef = useRef<ReadonlyMap<string, { id: string }>>(new Map());
   refsRef.current = new Map((detail?.understandingRefs ?? []).map((ref) => [ref.id, ref]));
+  const saveDocumentRef = useRef(saveCanvas.mutateAsync);
+  const saveViewportRef = useRef(updateViewport.mutateAsync);
+  saveDocumentRef.current = saveCanvas.mutateAsync;
+  saveViewportRef.current = updateViewport.mutateAsync;
+
+  const documentSaverRef = useRef<ReturnType<
+    typeof createDebouncedLatestSaver<CanvasDocument>
+  > | null>(null);
+  if (!documentSaverRef.current) {
+    documentSaverRef.current = createDebouncedLatestSaver({
+      delay: SAVE_DEBOUNCE_MS,
+      onStatus: setSaveStatus,
+      save: async (document) => {
+        await saveDocumentRef.current({ canvasId, document });
+        const missingRef = document.elements.some(
+          (element) =>
+            element.kind === "understanding" &&
+            element.understandingId &&
+            !refsRef.current.has(element.understandingId),
+        );
+        if (missingRef) await refreshCanvasDetail(queryClient, canvasId);
+      },
+    });
+  }
+
+  const viewportSaverRef = useRef<ReturnType<
+    typeof createDebouncedLatestSaver<CanvasViewport>
+  > | null>(null);
+  if (!viewportSaverRef.current) {
+    viewportSaverRef.current = createDebouncedLatestSaver({
+      delay: VIEWPORT_SETTLE_MS,
+      save: (viewport) => saveViewportRef.current({ canvasId, viewport }),
+    });
+  }
 
   // 事件桥 → 镜像 + 防抖保存
   const handleDocumentChange = useCallback(
@@ -115,67 +146,27 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
         (edge) => elementIds.has(edge.sourceElementId) && elementIds.has(edge.targetElementId),
       );
       const sanitized = edges.length === document.edges.length ? document : { ...document, edges };
-      lastDocumentRef.current = sanitized;
-      setDirty(true);
       setDocument(sanitized);
-      if (!saveRef.current) {
-        saveRef.current = debounce(async (doc: CanvasDocument) => {
-          try {
-            const res = await saveCanvas.mutateAsync({
-              canvasId,
-              document: doc,
-            });
-            void res;
-            setDirty(false);
-            setSaveError(null);
-            const missingRef = doc.elements.some(
-              (element) =>
-                element.kind === "understanding" &&
-                element.understandingId &&
-                !refsRef.current.has(element.understandingId),
-            );
-            if (missingRef) await refreshCanvasDetail(queryClient, canvasId);
-          } catch {
-            setSaveError("画布保存失败，修改仍未保存");
-          }
-        }, SAVE_DEBOUNCE_MS);
-      }
-      saveRef.current(sanitized);
+      documentSaverRef.current?.schedule(sanitized);
     },
-    [canvasId, queryClient, saveCanvas, setDocument],
+    [setDocument],
   );
 
-  const retrySave = useCallback(async () => {
-    const document = lastDocumentRef.current;
-    if (!document) return;
-    try {
-      await saveCanvas.mutateAsync({ canvasId, document });
-      setDirty(false);
-      setSaveError(null);
-    } catch {
-      setSaveError("画布保存失败，修改仍未保存");
-    }
-  }, [canvasId, saveCanvas]);
+  const retrySave = useCallback(() => documentSaverRef.current?.retry(), []);
 
-  const viewportSaveRef = useRef<ReturnType<typeof debounce> | undefined>(undefined);
   const handleViewportChange = useCallback(
     (viewport: CanvasViewport) => {
       setViewport(viewport);
-      if (!viewportSaveRef.current) {
-        viewportSaveRef.current = debounce((vp: CanvasViewport) => {
-          void updateViewport.mutateAsync({ canvasId, viewport: vp });
-        }, VIEWPORT_SETTLE_MS);
-      }
-      viewportSaveRef.current?.(viewport);
+      viewportSaverRef.current?.schedule(viewport);
     },
-    [canvasId, setViewport, updateViewport],
+    [setViewport],
   );
 
   // 卸载时冲刷未保存的文档 / 视口
   useEffect(
     () => () => {
-      saveRef.current?.flush();
-      viewportSaveRef.current?.flush();
+      void documentSaverRef.current?.flush();
+      void viewportSaverRef.current?.flush();
       queryClient.removeQueries({ queryKey: canvasQueryKeys.detail(canvasId) });
     },
     [canvasId, queryClient],
@@ -213,23 +204,9 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   const handleSelectionChange = useCallback(
     (cellIds: string[]) => {
       setSelection(cellIds);
-      if (cellIds.length === 1) {
-        const id = cellIds[0];
-        const edge = useCanvasStore.getState().document.edges.find((item) => item.id === id);
-        if (edge) {
-          setRightPanel({ mode: "edge", edgeId: edge.id });
-          return;
-        }
-        const element = useCanvasStore.getState().document.elements.find((el) => el.id === id);
-        if (element?.kind === "understanding" && element.understandingId) {
-          setRightPanel({
-            mode: "detail",
-            understandingId: element.understandingId,
-          });
-          return;
-        }
-      }
-      setRightPanel((prev) => (prev && prev.mode !== "library" ? null : prev));
+      setRightPanel((current) =>
+        panelForSelection(cellIds, useCanvasStore.getState().document, current),
+      );
     },
     [setSelection],
   );
@@ -266,25 +243,15 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     }
   }, []);
 
-  const searchIndex = useMemo<CanvasSearchIndexItem[]>(() => {
-    const doc = useCanvasStore.getState().document;
-    const items: CanvasSearchIndexItem[] = [];
-    for (const el of doc.elements) {
-      if (el.kind === "text") items.push({ id: el.id, kind: el.kind, text: el.props.text });
-      else if (el.kind === "group") items.push({ id: el.id, kind: el.kind, text: el.props.label });
-      else if (el.kind === "understanding" && el.understandingId) {
-        const ref = detail?.understandingRefs?.find((r) => r.id === el.understandingId);
-        items.push({ id: el.id, kind: el.kind, text: ref?.title ?? "" });
-      } else if (el.kind === "canvas_ref" && el.canvasRefId) {
-        const ref = detail?.referencedCanvases?.find((c) => c.id === el.canvasRefId);
-        items.push({ id: el.id, kind: el.kind, text: ref?.title ?? "" });
-      }
-    }
-    for (const edge of doc.edges) {
-      if (edge.label) items.push({ id: edge.id, kind: "edge", text: edge.label });
-    }
-    return items.filter((x) => x.text.trim().length > 0);
-  }, [detail]);
+  const searchIndex = useMemo<CanvasSearchIndexItem[]>(
+    () =>
+      buildCanvasSearchIndex(
+        currentDocument,
+        new Map((detail?.understandingRefs ?? []).map((ref) => [ref.id, ref])),
+        new Map((detail?.referencedCanvases ?? []).map((ref) => [ref.id, ref])),
+      ),
+    [currentDocument, detail],
+  );
 
   // 搜索与组快捷键：只拦截产品明确承诺的组合键。
   useEffect(() => {
@@ -352,14 +319,14 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
               className="absolute inset-0"
             />
 
-            {saveError ? (
+            {saveStatus === "error" ? (
               <div className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded-md border border-destructive/30 bg-background px-3 py-2 text-xs text-destructive shadow-sm">
-                <span>{saveError}</span>
+                <span>画布保存失败，修改仍未保存</span>
                 <Button type="button" size="sm" variant="outline" onClick={() => void retrySave()}>
                   重试
                 </Button>
               </div>
-            ) : dirty ? (
+            ) : saveStatus === "dirty" || saveStatus === "saving" ? (
               <div className="absolute right-3 top-3 z-20 rounded-md bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow-sm">
                 未保存
               </div>
@@ -377,7 +344,7 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
               type="button"
               size="sm"
               variant="secondary"
-              className="absolute bottom-3 left-3 z-10"
+              className="absolute bottom-4 left-32 z-10"
               onClick={() => void graphRef.current?.exportPng()}
             >
               导出 PNG

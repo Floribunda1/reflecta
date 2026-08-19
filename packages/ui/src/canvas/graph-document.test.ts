@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
+import { MarkerType } from "@xyflow/react";
 import type { CanvasDocument, CanvasElementDTO } from "./document";
-import { toCanvasDocument, toFlowData } from "./graph-document";
+import { toCanvasDocument, toFlowData, toFlowEdge } from "./graph-document";
 
 const timestamp = "2026-08-19T00:00:00.000Z";
 
@@ -157,5 +158,72 @@ describe("CanvasDocument React Flow adapter", () => {
 
     const flow = toFlowData(document);
     expect(toCanvasDocument(flow.nodes, flow.edges)).toEqual(document);
+  });
+
+  test.each([
+    ["solid", undefined],
+    ["dashed", "5 5"],
+    ["dotted", "2 2"],
+  ] as const)("maps %s edge strokes", (lineStyle, strokeDasharray) => {
+    const flow = toFlowEdge({
+      id: "edge",
+      canvasId: "canvas",
+      sourceElementId: "source",
+      targetElementId: "target",
+      label: null,
+      style: { lineStyle },
+      createdAt: timestamp,
+    });
+    expect(flow.style).toMatchObject({ strokeDasharray });
+  });
+
+  test.each([
+    ["thin", 2],
+    ["medium", 3],
+    ["thick", 4],
+  ] as const)("maps %s edge widths", (width, strokeWidth) => {
+    expect(
+      toFlowEdge({
+        id: "edge",
+        canvasId: "canvas",
+        sourceElementId: "source",
+        targetElementId: "target",
+        label: null,
+        style: { width },
+        createdAt: timestamp,
+      }).style,
+    ).toMatchObject({ strokeWidth });
+  });
+
+  test.each([
+    ["arrow", MarkerType.Arrow],
+    ["block", MarkerType.ArrowClosed],
+    ["none", undefined],
+  ] as const)("maps %s arrowheads", (arrowhead, markerEnd) => {
+    expect(
+      toFlowEdge({
+        id: "edge",
+        canvasId: "canvas",
+        sourceElementId: "source",
+        targetElementId: "target",
+        label: null,
+        style: { arrowhead },
+        createdAt: timestamp,
+      }).markerEnd,
+    ).toBe(markerEnd);
+  });
+
+  test("maps custom edge color independently", () => {
+    expect(
+      toFlowEdge({
+        id: "edge",
+        canvasId: "canvas",
+        sourceElementId: "source",
+        targetElementId: "target",
+        label: null,
+        style: { color: "#123456" },
+        createdAt: timestamp,
+      }).style,
+    ).toMatchObject({ stroke: "#123456" });
   });
 });

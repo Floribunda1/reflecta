@@ -11,7 +11,7 @@ import {
 import { Button } from "../components/button";
 import { useEffect, useState } from "react";
 import type { CanvasEdgeDTO, CanvasEdgeStyle } from "./document";
-import { useCanvasEdgeUpdate } from "./shape-context";
+import { useCanvasEdgeUpdate, useCanvasShapeData } from "./shape-context";
 
 export type CanvasFlowEdge = Edge<{ edge: CanvasEdgeDTO }, "canvas">;
 
@@ -42,6 +42,7 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
   const edge = props.data?.edge;
   if (!edge) return null;
   const updateEdge = useCanvasEdgeUpdate();
+  const { readonly } = useCanvasShapeData();
   const [path, labelX, labelY] = pathFor(edge.style, props);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(edge.label ?? "");
@@ -62,13 +63,13 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
         style={lineStyle(edge.style, Boolean(props.selected))}
         markerEnd={props.markerEnd}
         interactionWidth={props.interactionWidth}
-        onDoubleClick={() => setEditing(true)}
+        onDoubleClick={readonly ? undefined : () => setEditing(true)}
       />
       <EdgeToolbar
         edgeId={props.id}
         x={labelX}
         y={labelY}
-        isVisible={Boolean(props.selected)}
+        isVisible={Boolean(props.selected) && !readonly}
         className="flex gap-1 rounded-md border bg-background p-1 shadow-sm"
       >
         <Button
@@ -87,7 +88,7 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
           style={{
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
           }}
-          onDoubleClick={() => setEditing(true)}
+          onDoubleClick={readonly ? undefined : () => setEditing(true)}
         >
           {editing ? (
             <input

@@ -225,15 +225,73 @@ DOC → COMMAND → BRIDGE → ROUTE → RENDER → WORKSPACE
 
 先覆盖可确定穷举的纯逻辑，再用少量真实 Electron 测试证明 DOM、布局和指针 seam。一个域完成必须同时满足：目录中的全部 capability 有 disposition、`covered` 行有可运行 evidence、没有通过重复 E2E 统计同一能力两次。
 
-## 11. 第一阶段 evidence（2026-08-19）
+## 11. 完成 evidence（2026-08-19）
 
-| 域          | 已落 evidence                                                                                | 尚未覆盖                                                                 |
-| ----------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `DOC`       | `graph-document.test.ts`：CG-DOC-01～10，共 6 个参数化 / 不变量测试                          | 无                                                                       |
-| `COMMAND`   | `graph-operations.test.ts`：CG-CMD-01～11，共 7 个图变换测试                                 | 无                                                                       |
-| `BRIDGE`    | `canvas-graph-bridge.test.ts`：NodeChange / EdgeChange union、CG-BRIDGE-01～04，共 12 个测试 | selection / viewport callback、readonly、reload、imperative add / update |
-| `ROUTE`     | `react-flow-input-routing.spec.ts`：pane drag 与 node drag 两条真实 DOM 路由                 | Handle、Resizer、editor、scroll、edge、MiniMap、external DnD             |
-| `RENDER`    | 尚未开始                                                                                     | 全部                                                                     |
-| `WORKSPACE` | 尚未开始                                                                                     | 全部                                                                     |
+| 域          | Primary evidence                                                                                              | 结果              |
+| ----------- | ------------------------------------------------------------------------------------------------------------- | ----------------- |
+| `DOC`       | `graph-document.test.ts`：CG-DOC-01～10，16 次参数化 / 不变量执行                                             | `covered`，无剩余 |
+| `COMMAND`   | `graph-operations.test.ts`：CG-CMD-01～11，7 个图变换测试                                                     | `covered`，无剩余 |
+| `BRIDGE`    | `canvas-graph-bridge.test.ts` 12 次执行 + `canvas-graph.test.tsx` 的 CG-BRIDGE-05～09                         | `covered`，无剩余 |
+| `ROUTE`     | `react-flow-input-routing.spec.ts` 5 个真实 Electron 场景 + `canvas-graph.test.tsx` 的显式配置 seam           | `covered`，无剩余 |
+| `RENDER`    | `canvas-nodes.test.tsx` 13 次执行 + `canvas-edges.test.tsx` 12 次执行                                         | `covered`，无剩余 |
+| `WORKSPACE` | workspace model / saver 13 次执行 + `canvas-workspace-boundaries.spec.ts` 3 个 Electron 场景 + Graph DOM seam | `covered`，无剩余 |
 
 该表只统计 primary evidence。辅助断言不会把同一 capability 重复计为已覆盖。
+
+### 11.1 `BRIDGE` evidence 映射
+
+| 能力                               | Primary evidence                                                       |
+| ---------------------------------- | ---------------------------------------------------------------------- |
+| NodeChange / EdgeChange 全 union   | `canvas-graph-bridge.test.ts` 参数化测试                               |
+| CG-BRIDGE-01～04 connection        | `canvas-graph-bridge.test.ts` connection 测试                          |
+| CG-BRIDGE-05 selection             | `canvas-graph.test.tsx` node / edge / mixed / empty selection          |
+| CG-BRIDGE-06 viewport              | `canvas-graph.test.tsx` viewport-only callback                         |
+| CG-BRIDGE-07 readonly              | `canvas-graph.test.tsx` readonly write boundary                        |
+| CG-BRIDGE-08 document / reload     | `canvas-graph.test.tsx` external document + imperative reload          |
+| CG-BRIDGE-09 imperative add/update | `canvas-graph.test.tsx` addElement / updateEdge 单次完整 document 回写 |
+
+### 11.2 `ROUTE` evidence 映射
+
+| 交互起点 / 配置                         | Primary evidence                                                                           |
+| --------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Pane 拖动 + Partial                     | input-routing：只与节点一角相交的框选选中节点，viewport 不移动                             |
+| Pane 滚轮                               | input-routing：viewport transform 改变                                                     |
+| Node shell 点击 / 拖动                  | input-routing：选择显示 resizer；拖动只移动目标节点并落在 snap grid                        |
+| Handle                                  | input-routing：新增 edge，source node 不移动                                               |
+| Resizer                                 | input-routing：尺寸增加，左上位置不移动                                                    |
+| Text editor                             | input-routing：输入、Backspace、内部拖动不删除或移动节点；Escape 退出后 Backspace 删除     |
+| Card scroll area                        | input-routing：正文 scrollTop 改变，viewport transform 不变                                |
+| Edge path / label                       | input-routing：edge 被选中；label Escape 取消、Enter 提交                                  |
+| MiniMap                                 | input-routing：拖动 MiniMap 改变 viewport                                                  |
+| External source                         | input-routing：工具栏拖入新增 node，并使用 flow 落点                                       |
+| extent / expandParent                   | input-routing：子节点越界拖动扩张 parent，子节点仍在 parent 范围内                         |
+| Group shortcut / context menu           | input-routing：Cmd+G / Cmd+Shift+G 打组解组；右键菜单解组保留 child                        |
+| multiSelectionKeyCode / pan / snap 配置 | `canvas-graph.test.tsx` 固定 Reflecta 传给受控 React Flow 的显式 props；上游细节 delegated |
+
+### 11.3 `RENDER` evidence 映射
+
+- 四种 node kind 参数化覆盖内容 shell、左右 Handle、selected、dragging、focus-visible、NodeResizer 和 readonly。
+- Understanding 覆盖正常引用与已删除占位。
+- Text 覆盖提交、无变化不回写、Escape 取消和 readonly。
+- Group 覆盖改名、解组、删除动作和 readonly；真实右键 wiring 归 `ROUTE`。
+- Canvas reference 覆盖正常跳转与已删除不跳转。
+- Edge 分别参数化覆盖 routing、lineStyle、color、width、marker、selected、label 提交 / 取消 / readonly。
+
+### 11.4 `WORKSPACE` evidence 映射
+
+| 能力                     | Primary evidence                                                                                 |
+| ------------------------ | ------------------------------------------------------------------------------------------------ |
+| 保存状态机               | `debounced-latest-saver.test.ts`：latest debounce、状态、失败、重试、旧请求、flush               |
+| document / viewport 独立 | 两个 saver 的独立定时测试 + Electron 离开工作区 flush / 重进恢复                                 |
+| 初始 viewport            | `canvas-graph.test.tsx` 的 ready × saved viewport 三分支                                         |
+| Selection 路由           | `canvas-workspace-model.test.ts` 的六种状态                                                      |
+| 搜索索引                 | model 测试覆盖 text、Understanding 标题与正文、group、canvas ref、edge                           |
+| 搜索结果动作             | Electron 场景分别证明 node fitView 与 edge 选中 / 面板联动                                       |
+| PNG                      | Graph DOM 测试覆盖空 / 非空 / 视口外 / 排除背景 / 不改 viewport；Electron smoke 证明生成下载链接 |
+| 空态与缩放控件           | Electron 场景                                                                                    |
+
+### 11.5 非 `covered` disposition
+
+- `onlyRenderVisibleElements` 性能基准为 `deferred`：出现可复现的真实规模门槛后再加 benchmark；当前 DOM seam 已固定该开关为启用。
+- PNG 生成失败反馈为 `deferred`：产品定义错误反馈前不虚构期望。
+- 集成清单第三部分的未集成功能全部为 `excluded`。

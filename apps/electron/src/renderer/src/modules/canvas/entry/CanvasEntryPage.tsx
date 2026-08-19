@@ -14,5 +14,5 @@ export function CanvasEntryPage({ canvasId }: { canvasId: string }) {
     return () => selectCanvas(null);
   }, [canvasId, selectCanvas]);
 
-  return <CanvasWorkspace canvasId={canvasId} />;
+  return <CanvasWorkspace key={canvasId} canvasId={canvasId} />;
 }
