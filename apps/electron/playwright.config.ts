@@ -17,6 +17,12 @@ export default defineConfig({
       name: "regression",
       testDir: "./e2e/regression",
     },
+    {
+      // 画布模块集成测试：只围绕 React Flow 定制逻辑（自定义节点/边/组/配置差异），
+      // 不挂 Feature ID（不被 feature:check 拦），也不归入 regression 技术风险。
+      name: "integration",
+      testDir: "./e2e/integration",
+    },
   ],
   use: {
     trace: "on-first-retry",
