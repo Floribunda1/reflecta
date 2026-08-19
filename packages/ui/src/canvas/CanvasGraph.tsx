@@ -8,8 +8,6 @@ import {
   type CSSProperties,
 } from "react";
 import {
-  applyEdgeChanges,
-  applyNodeChanges,
   Background,
   MiniMap,
   ReactFlow,
@@ -36,6 +34,12 @@ import type { CanvasDocument, CanvasViewport } from "./document";
 import { newEdgeDto, toCanvasDocument, toFlowData, toFlowEdge } from "./graph-document";
 import { canvasNodeTypes } from "./nodes";
 import { canvasEdgeTypes } from "./edges";
+import { deleteGroupBranch, groupSelectedNodes, ungroupNodes } from "./graph-operations";
+import {
+  appendCanvasConnection,
+  reduceCanvasEdgeChanges,
+  reduceCanvasNodeChanges,
+} from "./canvas-graph-bridge";
 import type { CanvasEdgeDTO, CanvasElementDTO } from "./document";
 import {
   CanvasElementUpdateProvider,
@@ -140,13 +144,10 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
   // 节点变化：位置 / 尺寸 / 删除 → 同步文档
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      const relevant = changes.some(
-        (c) => c.type === "position" || c.type === "dimensions" || c.type === "remove",
-      );
-      const next = applyNodeChanges(changes, nodesRef.current);
+      const { nodes: next, documentChanged } = reduceCanvasNodeChanges(nodesRef.current, changes);
       nodesRef.current = next;
       setNodes(next);
-      if (relevant) emitDocument();
+      if (documentChanged) emitDocument();
     },
     [emitDocument, setNodes],
   );
@@ -154,11 +155,10 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
   // 边变化：删除 → 同步文档
   const handleEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
-      const relevant = changes.some((c) => c.type === "remove");
-      const next = applyEdgeChanges(changes, edgesRef.current);
+      const { edges: next, documentChanged } = reduceCanvasEdgeChanges(edgesRef.current, changes);
       edgesRef.current = next;
       setEdges(next);
-      if (relevant) emitDocument();
+      if (documentChanged) emitDocument();
     },
     [emitDocument, setEdges],
   );
@@ -166,14 +166,15 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
   // 连线完成：新增边 → 同步文档
   const handleConnect: OnConnect = useCallback(
     (conn: Connection) => {
-      if (!conn.source || !conn.target) return;
-      const dto = newEdgeDto(canvasId);
-      const edge = toFlowEdge({
-        ...dto,
-        sourceElementId: conn.source,
-        targetElementId: conn.target,
+      const next = appendCanvasConnection(edgesRef.current, conn, (connection) => {
+        const dto = newEdgeDto(canvasId);
+        return toFlowEdge({
+          ...dto,
+          sourceElementId: connection.source!,
+          targetElementId: connection.target!,
+        });
       });
-      const next = [...edgesRef.current, edge];
+      if (next === edgesRef.current) return;
       edgesRef.current = next;
       setEdges(next);
       emitDocument();
@@ -238,81 +239,13 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
 
   const groupSelection = useCallback(
     (nodeIds: string[]) => {
-      const selected = new Set(nodeIds);
-      const candidates = nodesRef.current.filter((node) => selected.has(node.id));
-      if (!candidates.length) return;
-      const byId = new Map(nodesRef.current.map((node) => [node.id, node]));
-      const absolutePosition = (node: Node): { x: number; y: number } => {
-        if (!node.parentId) return node.position;
-        const parent = byId.get(node.parentId);
-        if (!parent) return node.position;
-        const position = absolutePosition(parent);
-        return {
-          x: position.x + node.position.x,
-          y: position.y + node.position.y,
-        };
-      };
-      const boxes = candidates.map((node) => ({
-        node,
-        position: absolutePosition(node),
-        width: node.measured?.width ?? node.width ?? 160,
-        height: node.measured?.height ?? node.height ?? 100,
-      }));
-      const minX = Math.min(...boxes.map((box) => box.position.x));
-      const minY = Math.min(...boxes.map((box) => box.position.y));
-      const maxX = Math.max(...boxes.map((box) => box.position.x + box.width));
-      const maxY = Math.max(...boxes.map((box) => box.position.y + box.height));
-      const groupId = crypto.randomUUID();
       const now = new Date().toISOString();
-      const group: Node = {
-        id: groupId,
-        type: "group",
-        position: { x: minX - 24, y: minY - 44 },
-        width: maxX - minX + 48,
-        height: maxY - minY + 68,
-        data: {
-          element: {
-            id: groupId,
-            canvasId,
-            parentId: null,
-            x: minX - 24,
-            y: minY - 44,
-            width: maxX - minX + 48,
-            height: maxY - minY + 68,
-            zIndex: 0,
-            createdAt: now,
-            updatedAt: now,
-            kind: "group",
-            understandingId: null,
-            canvasRefId: null,
-            props: { label: "" },
-          },
-        },
-      };
-      const next = [
-        { ...group, selected: true },
-        ...nodesRef.current.map((node) => {
-          const box = boxes.find((candidate) => candidate.node.id === node.id);
-          if (!box) return node;
-          return {
-            ...node,
-            selected: false,
-            parentId: groupId,
-            extent: "parent" as const,
-            expandParent: true,
-            position: {
-              x: box.position.x - group.position.x,
-              y: box.position.y - group.position.y,
-            },
-            data: {
-              element: {
-                ...(node.data as { element: CanvasElementDTO }).element,
-                parentId: groupId,
-              },
-            },
-          };
-        }),
-      ];
+      const next = groupSelectedNodes(nodesRef.current, nodeIds, {
+        id: crypto.randomUUID(),
+        canvasId,
+        createdAt: now,
+      });
+      if (next === nodesRef.current) return;
       updateNodes(next);
     },
     [canvasId, updateNodes],
@@ -320,37 +253,8 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
 
   const ungroupSelection = useCallback(
     (groupIds: string[]) => {
-      const groups = new Set(groupIds);
-      const byId = new Map(nodesRef.current.map((node) => [node.id, node]));
-      const absolutePosition = (node: Node): { x: number; y: number } => {
-        if (!node.parentId) return node.position;
-        const parent = byId.get(node.parentId);
-        if (!parent) return node.position;
-        const position = absolutePosition(parent);
-        return {
-          x: position.x + node.position.x,
-          y: position.y + node.position.y,
-        };
-      };
-      const next = nodesRef.current
-        .filter((node) => !groups.has(node.id))
-        .map((node) => {
-          if (!node.parentId || !groups.has(node.parentId)) return node;
-          const position = absolutePosition(node);
-          return {
-            ...node,
-            parentId: undefined,
-            extent: undefined,
-            expandParent: undefined,
-            position,
-            data: {
-              element: {
-                ...(node.data as { element: CanvasElementDTO }).element,
-                parentId: null,
-              },
-            },
-          };
-        });
+      const next = ungroupNodes(nodesRef.current, groupIds);
+      if (next === nodesRef.current) return;
       updateNodes(next);
     },
     [updateNodes],
@@ -358,27 +262,12 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
 
   const deleteGroup = useCallback(
     (groupId: string) => {
-      const group = nodesRef.current.find((node) => node.id === groupId);
-      if (!group) return;
-      const removed = new Set([groupId]);
-      let changed = true;
-      while (changed) {
-        changed = false;
-        for (const node of nodesRef.current) {
-          if (node.parentId && removed.has(node.parentId) && !removed.has(node.id)) {
-            removed.add(node.id);
-            changed = true;
-          }
-        }
-      }
-      const next = nodesRef.current.filter((node) => !removed.has(node.id));
-      const nextEdges = edgesRef.current.filter(
-        (edge) => !removed.has(edge.source) && !removed.has(edge.target),
-      );
-      nodesRef.current = next;
-      edgesRef.current = nextEdges;
-      setNodes(next);
-      setEdges(nextEdges);
+      const next = deleteGroupBranch(nodesRef.current, edgesRef.current, groupId);
+      if (next.nodes === nodesRef.current) return;
+      nodesRef.current = next.nodes;
+      edgesRef.current = next.edges;
+      setNodes(next.nodes);
+      setEdges(next.edges);
       emitDocument();
     },
     [emitDocument, setEdges, setNodes],

@@ -26,6 +26,7 @@ export function toFlowNode(element: CanvasElementDTO): Node {
     position: { x: element.x, y: element.y },
     width: element.width,
     height: element.height,
+    zIndex: element.zIndex,
     parentId: element.parentId ?? undefined,
     extent: element.parentId ? "parent" : undefined,
     expandParent: element.parentId ? true : undefined,
@@ -110,6 +111,7 @@ function nodeToElement(node: Node): CanvasElementDTO {
     y: node.position.y,
     width: node.measured?.width ?? node.width ?? base.width,
     height: node.measured?.height ?? node.height ?? base.height,
+    zIndex: node.zIndex ?? base.zIndex,
     parentId: node.parentId ?? null,
   };
 }
