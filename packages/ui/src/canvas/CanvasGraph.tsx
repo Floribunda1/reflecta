@@ -291,6 +291,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
           return {
             ...node,
             parentId: groupId,
+            extent: "parent" as const,
             position: {
               x: box.position.x - group.position.x,
               y: box.position.y - group.position.y,
@@ -328,6 +329,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
           return {
             ...node,
             parentId: undefined,
+            extent: undefined,
             position,
             data: {
               element: { ...(node.data as { element: CanvasElementDTO }).element, parentId: null },

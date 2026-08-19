@@ -42,6 +42,10 @@ describe("CanvasDocument ↔ React Flow mapping", () => {
     const flow = toFlowData(document);
 
     expect(flow.nodes.map((node) => node.id)).toEqual(["group", "child"]);
+    expect(flow.nodes.find((node) => node.id === "child")).toMatchObject({
+      parentId: "group",
+      extent: "parent",
+    });
     expect(flow.edges[0]).toMatchObject({
       type: "canvas",
       markerEnd: MarkerType.ArrowClosed,
