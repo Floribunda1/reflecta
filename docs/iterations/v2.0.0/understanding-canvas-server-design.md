@@ -25,13 +25,13 @@
 
 索引：`idx_canvases_updated_at(updated_at)`（画布列表按更新时间排序）。
 
-#### `understanding_canvas_elements`（画布元素 = 卡片 / 图形 / 组）
+#### `understanding_canvas_elements`（画布元素 = 文本卡 / Reflecta 内部元素）
 
 | 字段                        | 类型    | 约束                              | 说明                                                           |
 | --------------------------- | ------- | --------------------------------- | -------------------------------------------------------------- |
 | `id`                        | TEXT    | PK                                | 与 React Flow node id 一致（前端直用）                         |
 | `canvas_id`                 | TEXT    | NOT NULL, FK→canvases **CASCADE** | 删除画布级联清元素                                             |
-| `kind`                      | TEXT    | NOT NULL                          | `understanding` / `text` / `shape` / `group` / `canvas_ref`    |
+| `kind`                      | TEXT    | NOT NULL                          | `understanding` / `text` / `group` / `canvas_ref`              |
 | `understanding_id`          | TEXT    | FK→understandings **SET NULL**    | 理解卡引用（跨实体引用 → 列）；理解被删置空 → 前端占位         |
 | `canvas_ref_id`             | TEXT    | FK→canvases **SET NULL**          | 嵌套画布引用（跨实体引用 → 列）；目标被删置空 → 占位           |
 | `props`                     | TEXT    | NOT NULL DEFAULT '{}'             | 呈现 / kind 专属载荷 JSON（见 ElementProps，共享列之外的一切） |
@@ -50,7 +50,6 @@
 type ElementPropsMap = {
   understanding: Record<string, never>; // 引用在 FK 列，无载荷（DB 存 {}）
   text: { text: string }; // 文本卡内容（Markdown）
-  shape: { shapeType: "rect" | "circle" }; // 图形
   group: { label: string }; // 组名
   canvas_ref: Record<string, never>; // 引用在 FK 列，无载荷（DB 存 {}）
 };
@@ -115,7 +114,7 @@ EdgeStyle = {
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **文档级写回（前端权威）**                       | 编辑器（React Flow adapter）是交互 / 语义权威，`saveCanvas(document)` 整文档同步，服务端按 id 机械对账落行；画布小（几 KB）整文档便宜；级联 / 解组等联动不复制到服务端（社区标准：tldraw / Excalidraw 均为整文档持久化） |
 | **FK 一律 SET NULL / CASCADE，不硬删除业务字段** | 理解被删 → 置空占位（不静默丢卡）；删组 → 子元素解组保留；删画布/卡片 → 级联清理                                                                                                                                         |
-| **`z_index` 持久化**                             | 白板 shape 模型标配，跨会话保持叠放次序                                                                                                                                                                                  |
+| **`z_index` 持久化**                             | 白板元素模型标配，跨会话保持叠放次序                                                                                                                                                                                     |
 | **kind 专属载荷进 `props` JSON**                 | 元素 kind 专属字段、连线样式不被 SQL 查询；进 JSON 后新增字段无需迁移，语义字段（引用 FK、连线 label）留在列                                                                                                             |
 | **组内子元素为相对坐标**                         | 对齐 React Flow sub-flow 语义（子坐标相对父，随父移动），避免每次移动重算绝对坐标                                                                                                                                        |
 | **元素 id == React Flow node id**                | 事件回写零映射成本                                                                                                                                                                                                       |
@@ -230,16 +229,16 @@ type CanvasDocument = {
 
 文档级写路径下，**服务端只做机械校验，不做手势语义校验**（级联删组 / 解组 / 多选删等联动由前端文档模型保证，服务端按目标文档对账）：
 
-| 场景                    | 行为                                                                                                                |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| 画布不存在              | 抛错（`Canvas not found: <id>`），IPC 包装为错误返回                                                                |
-| `saveCanvas` 事务原子性 | 对账（upsert / 删除）在同一事务内完成，失败整体回滚，不产生半状态                                                   |
-| 元素 id 唯一性          | 文档内元素 / 连线 id 冲突抛错；与 DB 既有 id 冲突按 upsert 处理（同 id = 同一实体）                                 |
-| kind 不变量             | `understanding` 必须带 `understanding_id`；`shape` 的 props 必须带 `shapeType`；`canvas_ref` 必须带 `canvas_ref_id` |
-| 连线端点                | 两端元素必须存在于同一文档且属于该画布；禁止自环（source === target）                                               |
-| 入组（parent_id）       | 父元素必须是 `group` kind、同一文档、不能是自己或自己的后代（防环）                                                 |
-| 理解卡引用              | 校验理解存在（允许引用软删理解——**允许**，占位语义由前端呈现）                                                      |
-| 空文档                  | 允许保存空文档（清空画布）——合法操作，不视为错误                                                                    |
+| 场景                    | 行为                                                                                |
+| ----------------------- | ----------------------------------------------------------------------------------- |
+| 画布不存在              | 抛错（`Canvas not found: <id>`），IPC 包装为错误返回                                |
+| `saveCanvas` 事务原子性 | 对账（upsert / 删除）在同一事务内完成，失败整体回滚，不产生半状态                   |
+| 元素 id 唯一性          | 文档内元素 / 连线 id 冲突抛错；与 DB 既有 id 冲突按 upsert 处理（同 id = 同一实体） |
+| kind 不变量             | `understanding` 必须带 `understanding_id`；`canvas_ref` 必须带 `canvas_ref_id`      |
+| 连线端点                | 两端元素必须存在于同一文档且属于该画布；禁止自环（source === target）               |
+| 入组（parent_id）       | 父元素必须是 `group` kind、同一文档、不能是自己或自己的后代（防环）                 |
+| 理解卡引用              | 校验理解存在（允许引用软删理解——**允许**，占位语义由前端呈现）                      |
+| 空文档                  | 允许保存空文档（清空画布）——合法操作，不视为错误                                    |
 
 ### 2.5 决策记录：写路径为何采用「文档级」（saveCanvas）
 
@@ -350,7 +349,7 @@ Agent 对理解画布：**读 + 写（内容级、审批制）+ 展示**：
 在现有 `## 知识模型` 节新增两条（保持既有条目风格，不展开哲学）：
 
 ```markdown
-- Canvas：用户显式搭建的心智结构。卡片引用 Understanding 或承载文本 / 图形 / 组；连线为有向、带标签的结构关系。
+- Canvas：用户显式搭建的心智结构。元素引用 Understanding、承载文本或表达 Reflecta 内部结构；连线为有向、带标签的结构关系。
 - Understanding 正文中的 `[[u:]]` 是弱引用（提到过），不是结构关系；心智结构以 Canvas 连线为准。
 ```
 
