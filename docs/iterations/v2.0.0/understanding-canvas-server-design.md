@@ -47,14 +47,12 @@
 
 ```ts
 // 1. kind → 专属载荷映射（lookup）：每个 kind 只有自己的合法载荷，无意义组合在类型层面不可能
-type WithLocked<T> = T & { locked?: boolean }; // 呈现状态（防误拖锁定）随 props 走，非业务状态
-
 type ElementPropsMap = {
-  understanding: WithLocked<Record<string, never>>; // 引用在 FK 列，无载荷（DB 存 {}）
-  text: WithLocked<{ text: string }>; // 文本卡内容（Markdown）
-  shape: WithLocked<{ shapeType: "rect" | "circle" }>; // 图形
-  group: WithLocked<{ label: string }>; // 组名
-  canvas_ref: WithLocked<Record<string, never>>; // 引用在 FK 列，无载荷（DB 存 {}）
+  understanding: Record<string, never>; // 引用在 FK 列，无载荷（DB 存 {}）
+  text: { text: string }; // 文本卡内容（Markdown）
+  shape: { shapeType: "rect" | "circle" }; // 图形
+  group: { label: string }; // 组名
+  canvas_ref: Record<string, never>; // 引用在 FK 列，无载荷（DB 存 {}）
 };
 
 // 2. 元素共享字段（列）
@@ -82,7 +80,7 @@ type CanvasElementDTO = {
 }[CanvasElementKind];
 ```
 
-**划分逻辑（C5）**：共同字段（位置/尺寸/z/锁定/父级/时间戳）→ 列（需排序 / 索引 / 约束）；跨实体引用（`understanding_id` / `canvas_ref_id`）→ 引用 FK 列（FK 完整性 + 可查询）；kind 专属载荷 → `props` JSON（不被 SQL 查询，新增 kind / 字段无需迁移）。**props 内不重复 kind**——判别字段在 DTO 层（DB 的 kind 列即判别）。
+**划分逻辑（C5）**：共同字段（位置/尺寸/z/父级/时间戳）→ 列（需排序 / 索引 / 约束）；跨实体引用（`understanding_id` / `canvas_ref_id`）→ 引用 FK 列（FK 完整性 + 可查询）；kind 专属载荷 → `props` JSON（不被 SQL 查询，新增 kind / 字段无需迁移）。**props 内不重复 kind**——判别字段在 DTO 层（DB 的 kind 列即判别）。
 
 #### `understanding_canvas_edges`（连线，画布局部）
 
@@ -118,15 +116,9 @@ EdgeStyle = {
 | **文档级写回（前端权威）**                       | 编辑器（React Flow adapter）是交互 / 语义权威，`saveCanvas(document)` 整文档同步，服务端按 id 机械对账落行；画布小（几 KB）整文档便宜；级联 / 解组等联动不复制到服务端（社区标准：tldraw / Excalidraw 均为整文档持久化） |
 | **FK 一律 SET NULL / CASCADE，不硬删除业务字段** | 理解被删 → 置空占位（不静默丢卡）；删组 → 子元素解组保留；删画布/卡片 → 级联清理                                                                                                                                         |
 | **`z_index` 持久化**                             | 白板 shape 模型标配，跨会话保持叠放次序                                                                                                                                                                                  |
-| **呈现 / 锁定状态一律进 `props` JSON**           | 元素 kind 专属字段、连线样式、`locked`（防误拖锁定）都是呈现状态，不是业务状态——不被 SQL 查询、不被 Agent / CLI 感知；进 JSON 后新增字段无需迁移；语义字段（引用 FK、连线 label）留在列                                  |
+| **kind 专属载荷进 `props` JSON**                 | 元素 kind 专属字段、连线样式不被 SQL 查询；进 JSON 后新增字段无需迁移，语义字段（引用 FK、连线 label）留在列                                                                                                             |
 | **组内子元素为相对坐标**                         | 对齐 React Flow sub-flow 语义（子坐标相对父，随父移动），避免每次移动重算绝对坐标                                                                                                                                        |
 | **元素 id == React Flow node id**                | 事件回写零映射成本                                                                                                                                                                                                       |
-
-**决策记录：`locked` 为何移入 props（不是业务状态）**
-
-- **触发**：初版把 `locked` 设计为独立列（理由是「可查询、可被 Agent / CLI 感知」），用户质疑「locked 作为业务状态无意义」。
-- **推理**：防误拖锁定是**编辑 / 呈现状态**，不是语义内容——Agent 不感知（Agent 不做布局）、CLI 不需要、不被任何 SQL 查询；把它做成列 + DTO 字段 + 校验项，是「把呈现状态建模成业务状态」的过度建模。
-- **结论**：`locked` 随 `props` 走（`WithLocked<T>` 包装，各 kind 载荷可带 `locked?: boolean`），从共享列 / DTO 顶层字段 / UpdateCanvasElementInput 移除。
 
 ### 1.3 迁移逻辑（v2.0.0）
 
