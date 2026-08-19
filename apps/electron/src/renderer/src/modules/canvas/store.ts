@@ -3,13 +3,13 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 import type { CanvasDocument, CanvasViewport } from "@reflecta/ui/canvas";
 
 /**
- * 画布文档 store（计划 §2）：X6 为交互 / 语义权威，本 store 是其镜像数据源。
+ * 画布文档 store：React Flow 为交互 / 语义权威，本 store 是其镜像数据源。
  *
- * - `document`：当前画布全量文档（元素 / 连线 id == X6 cell id，零映射）；
- *   事件桥（X6 变更 → 回写）+ 外部失效（Phase 5 审批应用 → fromJSON）双向维护；
+ * - `document`：当前画布全量文档（元素 / 连线 id 零映射）；
+ *   事件桥（React Flow 变更 → 回写）+ 外部失效双向维护；
  * - `viewport`：M1-5 恢复 / updateViewport 提交；
  * - `selection`：选中 cell id 集合，右侧面板 / 搜索消费；
- * - 撤销重做由 X6 History 插件会话内处理，不落本 store。
+ * - 撤销重做不属于当前 React Flow Core 集成。
  */
 
 export type CanvasStoreState = {
@@ -22,7 +22,7 @@ export type CanvasStoreState = {
 export type CanvasStoreActions = {
   /** 打开 / 关闭画布；切换时清空文档镜像与会话态 */
   selectCanvas: (canvasId: string | null) => void;
-  /** 事件桥回写：X6 变更后的完整文档状态（防抖 saveCanvas 由上层负责） */
+  /** 事件桥回写：React Flow 变更后的完整文档状态（防抖 saveCanvas 由上层负责） */
   setDocument: (document: CanvasDocument) => void;
   /** 视口变更 settle 后回写（updateViewport） */
   setViewport: (viewport: CanvasViewport) => void;

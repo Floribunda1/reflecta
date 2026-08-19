@@ -70,7 +70,32 @@ type Fixture =
     }
   | { type: "seedContext"; id: string; understandingId: string; title: string; content: string }
   | { type: "seedDomain"; id: string; name: string }
-  | { type: "seedCanvas"; id: string; title: string }
+  | {
+      type: "seedCanvas";
+      id: string;
+      title: string;
+      elements?: Array<{
+        id: string;
+        kind: "text" | "shape" | "group";
+        props: Record<string, unknown>;
+        parentId?: string | null;
+        understandingId?: string | null;
+        canvasRefId?: string | null;
+        x?: number;
+        y?: number;
+        width?: number;
+        height?: number;
+        zIndex?: number;
+      }>;
+      edges?: Array<{
+        id: string;
+        sourceElementId: string;
+        targetElementId: string;
+        label?: string | null;
+        style?: Record<string, unknown> | null;
+      }>;
+      viewport?: { x: number; y: number; zoom: number } | null;
+    }
   | { type: "deleteUnderstanding"; id: string }
   | { type: "understandingIdByTitle"; title: string }
   | { type: "understandingBodyByTitle"; title: string }
@@ -638,8 +663,51 @@ try {
   if (fixture.type === "seedCanvas") {
     const now = new Date().toISOString();
     db.query(
-      `INSERT INTO understanding_canvases (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)`,
-    ).run(fixture.id, fixture.title, now, now);
+      `INSERT INTO understanding_canvases (id, title, viewport, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+    ).run(
+      fixture.id,
+      fixture.title,
+      fixture.viewport ? JSON.stringify(fixture.viewport) : null,
+      now,
+      now,
+    );
+    for (const element of fixture.elements ?? []) {
+      db.query(
+        `INSERT INTO understanding_canvas_elements
+          (id, canvas_id, kind, understanding_id, canvas_ref_id, props, parent_id, x, y, width, height, z_index, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        element.id,
+        fixture.id,
+        element.kind,
+        element.understandingId ?? null,
+        element.canvasRefId ?? null,
+        JSON.stringify(element.props ?? {}),
+        element.parentId ?? null,
+        element.x ?? 100,
+        element.y ?? 100,
+        element.width ?? 220,
+        element.height ?? 120,
+        element.zIndex ?? 0,
+        now,
+        now,
+      );
+    }
+    for (const edge of fixture.edges ?? []) {
+      db.query(
+        `INSERT INTO understanding_canvas_edges
+          (id, canvas_id, source_element_id, target_element_id, label, props, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        edge.id,
+        fixture.id,
+        edge.sourceElementId,
+        edge.targetElementId,
+        edge.label ?? null,
+        JSON.stringify(edge.style ?? null),
+        now,
+      );
+    }
   }
 
   if (fixture.type === "deleteUnderstanding") {

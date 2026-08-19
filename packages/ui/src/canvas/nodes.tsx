@@ -7,9 +7,19 @@ import {
   type Node,
   type NodeProps,
 } from "@xyflow/react";
-import { FileText, GitBranch, Link2, LockKeyhole, PackageOpen } from "lucide-react";
+import {
+  FileText,
+  GitBranch,
+  Link2,
+  LockKeyhole,
+  PackageOpen,
+  Palette,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { SimpleMarkdownPreview } from "../editor/simple-markdown-preview";
 import { Button } from "../components/button";
+import { Popover, PopoverContent, PopoverTrigger } from "../components/popover";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -18,6 +28,8 @@ import {
 } from "../components/context-menu";
 import type { CanvasElementDTO } from "./document";
 import { useCanvasElementUpdate, useCanvasShapeData } from "./shape-context";
+
+const NODE_COLORS = ["#94a3b8", "#3b82f6", "#22c55e", "#ef4444", "#eab308"];
 
 /**
  * React Flow 自定义节点（nodeTypes）。
@@ -67,10 +79,99 @@ function CanvasNodeToolbar({ visible, children }: { visible: boolean; children: 
   );
 }
 
+function NodeActions({
+  element,
+  onEdit,
+  onRemove,
+  showRemove = true,
+}: {
+  element: CanvasElementDTO;
+  onEdit?: () => void;
+  onRemove?: () => void;
+  showRemove?: boolean;
+}) {
+  const updateElement = useCanvasElementUpdate();
+  const { onCellAction } = useCanvasShapeData();
+  const updateColor = (color?: string) =>
+    updateElement({ ...element, props: { ...element.props, color } } as CanvasElementDTO);
+  return (
+    <div className="flex gap-1">
+      <Popover>
+        <PopoverTrigger
+          render={
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              className="nodrag nopan"
+              aria-label="选择颜色"
+              title="选择颜色"
+            />
+          }
+        >
+          <Palette style={{ color: element.props.color }} />
+        </PopoverTrigger>
+        <PopoverContent className="w-auto flex-row" align="center">
+          {NODE_COLORS.map((color) => (
+            <Button
+              key={color}
+              type="button"
+              size="icon-xs"
+              variant="ghost"
+              aria-label={color}
+              title={color}
+              className="rounded-full p-0"
+              style={{ backgroundColor: color }}
+              onClick={() => updateColor(color)}
+            />
+          ))}
+          <Button
+            type="button"
+            size="icon-xs"
+            variant="ghost"
+            aria-label="清除颜色"
+            title="清除颜色"
+            onClick={() => updateColor(undefined)}
+          >
+            ×
+          </Button>
+        </PopoverContent>
+      </Popover>
+      {showRemove ? (
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className="nodrag nopan text-destructive"
+          aria-label="删除"
+          title="删除"
+          onClick={
+            onRemove ?? (() => onCellAction?.({ type: "delete-element", nodeId: element.id }))
+          }
+        >
+          <Trash2 />
+        </Button>
+      ) : null}
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className="nodrag nopan"
+        aria-label="编辑"
+        title="编辑"
+        onClick={onEdit}
+        disabled={!onEdit}
+      >
+        <Pencil />
+      </Button>
+    </div>
+  );
+}
+
 /** 理解卡（强制需求）：展示引用理解全文；引用删除后显示占位。 */
 export function UnderstandingNode(props: NodeProps<CanvasNode>) {
   const element = props.data.element as CanvasElementDTO;
-  const { understandingRefs } = useCanvasShapeData();
+  const { understandingRefs, readonly, onElementEdit } = useCanvasShapeData();
   const ref =
     element.kind === "understanding" && element.understandingId
       ? understandingRefs.get(element.understandingId)
@@ -84,8 +185,12 @@ export function UnderstandingNode(props: NodeProps<CanvasNode>) {
         element.kind === "understanding" ? (element.understandingId ?? "") : ""
       }
       className={`${CARD} ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
+      style={element.props.color ? { borderColor: element.props.color } : undefined}
       tabIndex={0}
     >
+      <CanvasNodeToolbar visible={props.selected && !readonly}>
+        <NodeActions element={element} onEdit={() => onElementEdit?.(element)} />
+      </CanvasNodeToolbar>
       <Resizer visible={props.selected} />
       <Harness />
       {deleted ? (
@@ -114,7 +219,7 @@ export function UnderstandingNode(props: NodeProps<CanvasNode>) {
 export function TextNode(props: NodeProps<CanvasNode>) {
   const element = props.data.element as CanvasElementDTO;
   const text = element.kind === "text" ? element.props.text : "";
-  const { readonly } = useCanvasShapeData();
+  const { readonly, onElementEdit } = useCanvasShapeData();
   const updateElement = useCanvasElementUpdate();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(text);
@@ -141,19 +246,12 @@ export function TextNode(props: NodeProps<CanvasNode>) {
     <div
       data-testid="canvas-text-card"
       className={`${CARD} ${editing ? "ring-2 ring-ring" : ""} ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
+      style={element.props.color ? { borderColor: element.props.color } : undefined}
       tabIndex={0}
       onDoubleClick={readonly ? undefined : startEditing}
     >
       <CanvasNodeToolbar visible={props.selected && !readonly}>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          className="nodrag nopan h-7 px-2 text-xs"
-          onClick={() => startEditing()}
-        >
-          编辑
-        </Button>
+        <NodeActions element={element} onEdit={() => onElementEdit?.(element) ?? startEditing()} />
       </CanvasNodeToolbar>
       <Resizer visible={props.selected} />
       <Harness />
@@ -219,6 +317,7 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
             data-testid="canvas-group-node"
             data-group-label={label}
             className={`flex h-full w-full flex-col overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/50 bg-muted/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
+            style={element.props.color ? { borderColor: element.props.color } : undefined}
             tabIndex={0}
           />
         }
@@ -227,22 +326,27 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
           <CanvasNodeToolbar visible={props.selected && !readonly}>
             <Button
               type="button"
-              size="sm"
-              variant="secondary"
-              className="nodrag nopan h-7 px-2 text-xs"
+              size="icon-sm"
+              variant="ghost"
+              className="nodrag nopan"
+              aria-label="解组"
+              title="解组"
               onClick={() => onCellAction?.({ type: "ungroup", nodeId: element.id })}
             >
-              解组
+              ↗
             </Button>
             <Button
               type="button"
-              size="sm"
-              variant="destructive"
-              className="nodrag nopan h-7 px-2 text-xs"
+              size="icon-sm"
+              variant="ghost"
+              className="nodrag nopan text-destructive"
+              aria-label="删除组"
+              title="删除组"
               onClick={() => onCellAction?.({ type: "delete-group", nodeId: element.id })}
             >
-              删除
+              <Trash2 />
             </Button>
+            <NodeActions element={element} onEdit={startEditing} showRemove={false} />
           </CanvasNodeToolbar>
           <Resizer visible={props.selected} />
           <Harness />
@@ -301,7 +405,7 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
 /** 画布引用卡（强制需求）：展示目标画布标题；点击跳转；目标删除 → 占位。 */
 export function CanvasRefNode(props: NodeProps<CanvasNode>) {
   const element = props.data.element as CanvasElementDTO;
-  const { referencedCanvases, onCanvasRefClick } = useCanvasShapeData();
+  const { referencedCanvases, onCanvasRefClick, onElementEdit, readonly } = useCanvasShapeData();
   const canvasRefId = element.kind === "canvas_ref" ? element.canvasRefId : null;
   const target = canvasRefId ? referencedCanvases.get(canvasRefId) : undefined;
   const deleted = !target || target.deleted;
@@ -312,12 +416,16 @@ export function CanvasRefNode(props: NodeProps<CanvasNode>) {
       data-testid="canvas-canvas-ref-card"
       data-canvas-ref-id={canvasRefId ?? ""}
       className={`${CARD} nodrag nopan cursor-pointer items-center justify-center gap-1.5 p-2 text-center ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
+      style={element.props.color ? { borderColor: element.props.color } : undefined}
       tabIndex={0}
       onClick={() => {
         if (!deleted && canvasRefId) onCanvasRefClick?.(canvasRefId);
       }}
       title={deleted ? "目标画布已删除" : "打开引用画布"}
     >
+      <CanvasNodeToolbar visible={props.selected && !readonly}>
+        <NodeActions element={element} onEdit={() => onElementEdit?.(element)} />
+      </CanvasNodeToolbar>
       <Resizer visible={props.selected} />
       <Harness />
       {deleted ? (

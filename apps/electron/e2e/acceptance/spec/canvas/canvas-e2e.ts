@@ -54,7 +54,7 @@ export async function openWorkspace(page: Page) {
 }
 
 /**
- * 基于鼠标序列的拖拽（X6 Dnd 监听 mousedown + document mousemove，不兼容 HTML5 dragTo）。
+ * 基于 HTML5 drag 的拖入（工具栏 / 库面板 draggable → 画布 onDrop 落点）。
  * 支持任意源定位器（index 用于多实例源）。
  */
 export async function dragLocatorToGraph(
@@ -62,12 +62,9 @@ export async function dragLocatorToGraph(
   source: ReturnType<Page["getByTestId"]>,
   targetPosition: { x: number; y: number },
 ) {
-  const sourceBox = (await source.boundingBox())!;
-  const graphBox = (await page.getByTestId("canvas-graph").boundingBox())!;
-  await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(graphBox.x + targetPosition.x, graphBox.y + targetPosition.y, { steps: 8 });
-  await page.mouse.up();
+  const graph = page.getByTestId("canvas-graph");
+  await source.dragTo(graph, { targetPosition });
+  await page.waitForTimeout(200);
 }
 
 export async function dragToGraph(
@@ -102,12 +99,17 @@ export async function reopenWorkspace(page: Page) {
   await page.waitForTimeout(500);
 }
 
-/** 主图视口（x6-graph-svg-viewport）的 transform，用于缩放 / 平移断言。 */
+/** 主图视口（React Flow viewport）的 transform，用于缩放 / 平移断言。 */
 export function graphViewportTransform(page: Page) {
-  return page.getByTestId("canvas-graph").locator(".x6-graph-svg-viewport");
+  return page.getByTestId("canvas-graph").locator(".react-flow__viewport");
 }
 
-/** 主图内第一个节点的 transform（节点位置）。 */
+/** 主图内第一个节点的位置（React Flow 用 CSS transform，改用边界框坐标）。 */
 export async function firstNodeTransform(page: Page) {
-  return page.getByTestId("canvas-graph").locator(".x6-node").first().getAttribute("transform");
+  const box = await page
+    .getByTestId("canvas-graph")
+    .locator(".react-flow__node")
+    .first()
+    .boundingBox();
+  return box ? `${Math.round(box.x)},${Math.round(box.y)}` : null;
 }

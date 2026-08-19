@@ -101,9 +101,9 @@ export function useDeleteCanvasMutation() {
   });
 }
 
-/** 文档级全量写（T3）：X6 变更防抖后提交；invalidate list 保持「最近活跃排序」新鲜，
+/** 文档级全量写（T3）：React Flow 变更防抖后提交；invalidate list 保持「最近活跃排序」新鲜，
  * 并 invalidate detail（M3-A6 引用同步：新拖入的理解引用随详情刷新补全正文）。
- * 入参用 ui 契约类型（X6 层零映射），边界处结构一致直接透传（server 的
+ * 入参用 ui 契约类型（渲染层零映射），边界处结构一致直接透传（server 的
  * understanding/canvas_ref props 类型带有 Record<string, never> 历史包袱）。 */
 export function useSaveCanvasMutation() {
   const queryClient = useQueryClient();

@@ -9,7 +9,9 @@ import {
   type EdgeProps,
 } from "@xyflow/react";
 import { Button } from "../components/button";
+import { Popover, PopoverContent, PopoverTrigger } from "../components/popover";
 import { useEffect, useState } from "react";
+import { ArrowRight, ChevronDown, CircleDot, Minus, Palette, Trash2, Type } from "lucide-react";
 import type { CanvasEdgeDTO, CanvasEdgeStyle } from "./document";
 import { useCanvasEdgeUpdate, useCanvasShapeData } from "./shape-context";
 
@@ -42,7 +44,7 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
   const edge = props.data?.edge;
   if (!edge) return null;
   const updateEdge = useCanvasEdgeUpdate();
-  const { readonly } = useCanvasShapeData();
+  const { readonly, onCellAction } = useCanvasShapeData();
   const [path, labelX, labelY] = pathFor(edge.style, props);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(edge.label ?? "");
@@ -54,6 +56,14 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
     const label = draft.trim() || null;
     if (label !== edge.label) updateEdge({ ...edge, label });
   };
+
+  const style = edge.style ?? {};
+  const cycle = (key: "routing" | "lineStyle" | "width" | "arrowhead", values: string[]) => {
+    const current = style[key] ?? values[0];
+    const next = values[(values.indexOf(current) + 1) % values.length];
+    updateEdge({ ...edge, style: { ...style, [key]: next } as CanvasEdgeStyle });
+  };
+  const updateColor = (color?: string) => updateEdge({ ...edge, style: { ...style, color } });
 
   return (
     <>
@@ -74,12 +84,100 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
       >
         <Button
           type="button"
-          size="sm"
-          variant="secondary"
-          className="nodrag nopan h-7 px-2 text-xs"
+          size="icon-sm"
+          variant="ghost"
+          className="nodrag nopan"
+          aria-label="编辑标签"
+          title="编辑标签"
           onClick={() => setEditing(true)}
         >
-          编辑标签
+          <Type />
+        </Button>
+        <Popover>
+          <PopoverTrigger
+            render={
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                className="nodrag nopan"
+                aria-label="选择颜色"
+                title="选择颜色"
+              />
+            }
+          >
+            <Palette style={{ color: style.color }} />
+          </PopoverTrigger>
+          <PopoverContent className="w-auto flex-row" align="center">
+            {["#94a3b8", "#3b82f6", "#22c55e", "#ef4444", "#eab308"].map((color) => (
+              <Button
+                key={color}
+                type="button"
+                size="icon-xs"
+                variant="ghost"
+                aria-label={color}
+                title={color}
+                className="rounded-full p-0"
+                style={{ backgroundColor: color }}
+                onClick={() => updateColor(color)}
+              />
+            ))}
+          </PopoverContent>
+        </Popover>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className="nodrag nopan"
+          aria-label="切换路由"
+          title="切换路由"
+          onClick={() => cycle("routing", ["curve", "straight", "orthogonal"])}
+        >
+          <ArrowRight />
+        </Button>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className="nodrag nopan"
+          aria-label="切换线型"
+          title="切换线型"
+          onClick={() => cycle("lineStyle", ["solid", "dashed", "dotted"])}
+        >
+          <CircleDot />
+        </Button>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className="nodrag nopan"
+          aria-label="切换线宽"
+          title="切换线宽"
+          onClick={() => cycle("width", ["thin", "medium", "thick"])}
+        >
+          <Minus />
+        </Button>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className="nodrag nopan"
+          aria-label="切换箭头"
+          title="切换箭头"
+          onClick={() => cycle("arrowhead", ["arrow", "block", "none"])}
+        >
+          <ChevronDown />
+        </Button>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className="nodrag nopan text-destructive"
+          aria-label="删除连线"
+          title="删除连线"
+          onClick={() => onCellAction?.({ type: "delete-edge", edgeId: edge.id })}
+        >
+          <Trash2 />
         </Button>
       </EdgeToolbar>
       <EdgeLabelRenderer>
@@ -104,7 +202,7 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
               className="w-24 bg-transparent outline-none"
             />
           ) : (
-            (edge.label ?? <span className="text-muted-foreground/60">双击添加标签</span>)
+            edge.label
           )}
         </div>
       </EdgeLabelRenderer>

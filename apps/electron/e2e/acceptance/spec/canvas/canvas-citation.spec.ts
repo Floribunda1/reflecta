@@ -47,9 +47,9 @@ test("@CV-CIT-001 用户在对话中点击画布引用以只读查看", async ()
 
     await link.click();
     await expect(page.getByTestId("agent-context-inspector")).toBeVisible();
-    // 只读画布（CanvasReadOnlyView 的 X6 图）渲染，且无编辑交互
+    // 只读画布（CanvasReadOnlyView 的 React Flow 图）渲染，且无编辑交互
     await expect(
-      page.getByTestId("agent-context-inspector").locator(".x6-graph").first(),
+      page.getByTestId("agent-context-inspector").locator(".react-flow__graph").first(),
     ).toBeVisible();
   } finally {
     await app.close();

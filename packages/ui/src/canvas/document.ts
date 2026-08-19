@@ -11,10 +11,10 @@ export type CanvasElementKind = "understanding" | "text" | "group" | "canvas_ref
 
 /** 呈现状态（防误拖锁定）随 props 走，非业务状态（C5） */
 export type CanvasElementPropsMap = {
-  understanding: Record<string, never>;
-  text: { text: string };
-  group: { label: string };
-  canvas_ref: Record<string, never>;
+  understanding: { color?: string };
+  text: { text: string; color?: string };
+  group: { label: string; color?: string };
+  canvas_ref: { color?: string };
 };
 
 export type CanvasElementBase = {

@@ -14,10 +14,10 @@ export type UnderstandingCanvasEdge = InferSelectModel<typeof understandingCanva
 export type CanvasElementKind = "understanding" | "text" | "group" | "canvas_ref";
 
 export type ElementPropsMap = {
-  understanding: Record<string, never>;
-  text: { text: string };
-  group: { label: string };
-  canvas_ref: Record<string, never>;
+  understanding: { color?: string };
+  text: { text: string; color?: string };
+  group: { label: string; color?: string };
+  canvas_ref: { color?: string };
 };
 
 export type CanvasElementBase = {

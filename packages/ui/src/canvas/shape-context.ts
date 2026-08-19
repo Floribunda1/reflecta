@@ -32,11 +32,14 @@ export type CanvasShapeData = {
   /** 画布引用卡点击跳转（由 workspace 注入 navigateToCanvas） */
   onCanvasRefClick?: (canvasId: string) => void;
   onCellAction?: (action: CanvasCellAction) => void;
+  onElementEdit?: (element: CanvasElementDTO) => void;
 };
 
 export type CanvasCellAction =
+  | { type: "delete-element"; nodeId: string }
   | { type: "delete-group"; nodeId: string }
-  | { type: "ungroup"; nodeId: string };
+  | { type: "ungroup"; nodeId: string }
+  | { type: "delete-edge"; edgeId: string };
 
 export const EMPTY_CANVAS_SHAPE_DATA: CanvasShapeData = {
   understandingRefs: new Map(),

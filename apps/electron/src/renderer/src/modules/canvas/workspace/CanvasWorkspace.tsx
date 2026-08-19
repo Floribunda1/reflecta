@@ -36,7 +36,6 @@ import { useCanvasStore } from "../store";
 import { CanvasDetailPanel } from "./CanvasDetailPanel";
 import { CanvasLibraryPanel } from "./CanvasLibraryPanel";
 import { CanvasRefPickerModal } from "./CanvasRefPickerModal";
-import { CanvasEdgeStylePanel } from "./CanvasEdgeStylePanel";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { CanvasSearchOverlay, type CanvasSearchIndexItem } from "./CanvasSearchOverlay";
 import { newCanvasRefElement } from "./element-factory";
@@ -179,7 +178,13 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
       onCanvasRefClick: (targetCanvasId) => navigateToCanvas(targetCanvasId),
       onCellAction: (action) => {
         if (action.type === "delete-group") graphRef.current?.deleteGroup(action.nodeId);
-        else graphRef.current?.ungroupSelection([action.nodeId]);
+        else if (action.type === "ungroup") graphRef.current?.ungroupSelection([action.nodeId]);
+        else if (action.type === "delete-element") graphRef.current?.deleteElement(action.nodeId);
+        else graphRef.current?.deleteEdge(action.edgeId);
+      },
+      onElementEdit: (element) => {
+        if (element.kind === "understanding" && element.understandingId)
+          setRightPanel({ mode: "detail", understandingId: element.understandingId });
       },
     }),
     [detail, navigateToCanvas],
@@ -213,10 +218,6 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
 
   const [detailPanelKey, setDetailPanelKey] = useState<string>("");
   const elementCount = useCanvasStore((state) => state.document.elements.length);
-  const selectedEdge =
-    rightPanel?.mode === "edge"
-      ? currentDocument.edges.find((edge) => edge.id === rightPanel.edgeId)
-      : undefined;
 
   // 搜索（M2-6）：⌘/Ctrl+F 打开浮层；选中结果定位到节点。
   const [searchOpen, setSearchOpen] = useState(false);
@@ -376,17 +377,6 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
             >
               {rightPanel.mode === "library" ? (
                 <CanvasLibraryPanel onClose={() => setRightPanel(null)} />
-              ) : rightPanel.mode === "edge" && selectedEdge ? (
-                <CanvasEdgeStylePanel
-                  edge={selectedEdge}
-                  onChange={(edge) => graphRef.current?.updateEdge(edge)}
-                  onReset={() =>
-                    graphRef.current?.updateEdge({
-                      ...selectedEdge,
-                      style: null,
-                    })
-                  }
-                />
               ) : rightPanel.mode === "detail" ? (
                 <CanvasDetailPanel
                   key={detailPanelKey}

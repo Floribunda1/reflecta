@@ -108,7 +108,31 @@ export function seedDomain(input: { id: string; name: string }) {
   runFixture({ type: "seedDomain", ...input });
 }
 
-export function seedCanvas(input: { id: string; title: string }) {
+export function seedCanvas(input: {
+  id: string;
+  title: string;
+  elements?: Array<{
+    id: string;
+    kind: "text" | "shape" | "group" | "understanding" | "canvas_ref";
+    props?: Record<string, unknown>;
+    parentId?: string | null;
+    understandingId?: string | null;
+    canvasRefId?: string | null;
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    zIndex?: number;
+  }>;
+  edges?: Array<{
+    id: string;
+    sourceElementId: string;
+    targetElementId: string;
+    label?: string | null;
+    style?: Record<string, unknown> | null;
+  }>;
+  viewport?: { x: number; y: number; zoom: number } | null;
+}) {
   runFixture({ type: "seedCanvas", ...input });
 }
 

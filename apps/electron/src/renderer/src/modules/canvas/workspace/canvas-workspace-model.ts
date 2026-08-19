@@ -4,7 +4,6 @@ import type { CanvasSearchIndexItem } from "./CanvasSearchOverlay";
 export type CanvasRightPanel =
   | { mode: "library" }
   | { mode: "detail"; understandingId: string }
-  | { mode: "edge"; edgeId: string }
   | null;
 
 export function panelForSelection(
@@ -14,10 +13,8 @@ export function panelForSelection(
 ): CanvasRightPanel {
   if (cellIds.length === 1) {
     const id = cellIds[0];
-    if (document.edges.some((edge) => edge.id === id)) return { mode: "edge", edgeId: id };
-    const element = document.elements.find((item) => item.id === id);
-    if (element?.kind === "understanding" && element.understandingId)
-      return { mode: "detail", understandingId: element.understandingId };
+    if (document.edges.some((edge) => edge.id === id))
+      return current?.mode === "library" ? current : null;
   }
   return current?.mode === "library" ? current : null;
 }

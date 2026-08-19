@@ -70,6 +70,8 @@ export type CanvasGraphHandle = {
   /** 向画布添加一个元素（画布引用创建等命令式入口） */
   addElement: (element: import("./document").CanvasElementDTO) => void;
   updateEdge: (edge: CanvasEdgeDTO) => void;
+  deleteElement: (elementId: string) => void;
+  deleteEdge: (edgeId: string) => void;
   groupSelection: (nodeIds: string[]) => void;
   ungroupSelection: (groupIds: string[]) => void;
   deleteGroup: (groupId: string) => void;
@@ -242,6 +244,33 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
     [emitDocument, setNodes],
   );
 
+  const deleteElement = useCallback(
+    (elementId: string) => {
+      const nextNodes = nodesRef.current.filter((node) => node.id !== elementId);
+      if (nextNodes.length === nodesRef.current.length) return;
+      const nextEdges = edgesRef.current.filter(
+        (edge) => edge.source !== elementId && edge.target !== elementId,
+      );
+      nodesRef.current = nextNodes;
+      edgesRef.current = nextEdges;
+      setNodes(nextNodes);
+      setEdges(nextEdges);
+      emitDocument();
+    },
+    [emitDocument, setEdges, setNodes],
+  );
+
+  const deleteEdge = useCallback(
+    (edgeId: string) => {
+      const next = edgesRef.current.filter((edge) => edge.id !== edgeId);
+      if (next.length === edgesRef.current.length) return;
+      edgesRef.current = next;
+      setEdges(next);
+      emitDocument();
+    },
+    [emitDocument, setEdges],
+  );
+
   const groupSelection = useCallback(
     (nodeIds: string[]) => {
       const now = new Date().toISOString();
@@ -331,6 +360,8 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
         setEdges(nextEdges);
       },
       updateEdge: handleEdgeUpdate,
+      deleteElement,
+      deleteEdge,
       groupSelection,
       ungroupSelection,
       deleteGroup,
@@ -361,6 +392,8 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
       exportPng,
       groupSelection,
       handleEdgeUpdate,
+      deleteElement,
+      deleteEdge,
       instance,
       setNodes,
       setEdges,

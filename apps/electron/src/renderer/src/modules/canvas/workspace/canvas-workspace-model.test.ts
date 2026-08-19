@@ -86,8 +86,8 @@ describe("canvas workspace model", () => {
 
   test.each([
     ["empty", [], null],
-    ["understanding", ["understanding"], { mode: "detail", understandingId: "u" }],
-    ["edge", ["edge"], { mode: "edge", edgeId: "edge" }],
+    ["understanding", ["understanding"], null],
+    ["edge", ["edge"], null],
     ["ordinary node", ["text"], null],
     ["multiple", ["text", "understanding"], null],
   ])("routes %s selection", (_name, selection, expected) => {
