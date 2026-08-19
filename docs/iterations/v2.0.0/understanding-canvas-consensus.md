@@ -2,7 +2,7 @@
 
 > 日期：2026-08-15
 >
-> 状态：Current（本文件为设计讨论中双方确认的全部共识，作为后续实现与决策的唯一事实来源之一）
+> 状态：Historical（保留产品讨论背景；React Flow 交互与前端集成以 `react-flow-integration-principles.md` 为准）
 >
 > 范围：理解画布模块（v2.0.0）从产品形态到 Agent 协作的全部共识；每个共识记录"结论、理由、来源（对话/文档）、落点"
 
@@ -13,7 +13,7 @@
 | C1  | 模块形态       | 顶层「理解画布」模块，画布列表 + 极简工作区                                                        |
 | C2  | 元素体系       | 理解卡 / 文本卡 / 图形 / 组 / 画布引用                                                             |
 | C3  | 连线           | 有向 + 自由标签 + 四维样式（拐点/线型/颜色/粗细/箭头）                                             |
-| C4  | 编辑体验       | 基础体验做全不嫌多：参考线、撤销重做、CAD 框选、锁定、搜索、演示、导出                             |
+| C4  | 编辑体验       | 历史需求候选；React Flow 覆盖的通用交互改为继承当前版本默认行为                                    |
 | C5  | 数据设计       | 关系表（范式二）+ 共享列/引用 FK 列/props JSON 的优雅 schema                                       |
 | C6  | 双链关系       | 引用网与结构网分层共存，素材互通、数据不互通；哲学基础见 C16（事实 vs 信念）                       |
 | C7  | Agent 协作主张 | AI 是提案者，用户是裁判者；提案-诊断-落画布闭环                                                    |
@@ -24,7 +24,7 @@
 | C15 | 画布展示 tool  | Agent 需要画布展示 tool（draft-preview，mermaid 式只读渲染，不写入）；无先例需调研                 |
 | C16 | 引用 vs 结构   | 本体论区分：文本的关系（事实）vs 心智的关系（信念）；社区验证引用网是 show-off，结构网承载 why/how |
 | C10 | 设计原则       | 基础体验 vs 价值主张区分；minimalism 只约束价值主张                                                |
-| C11 | 技术选型       | X6 3.x（spike 全部通过）；tldraw 因许可排除                                                        |
+| C11 | 技术选型       | 历史选型已被 React Flow 12.11.3 替代；当前集成原则见专门文档                                       |
 | C12 | 否决项         | draft/published 状态机、Agent 直接 CRUD、布局操作等                                                |
 
 ---
@@ -100,7 +100,9 @@
 
 ---
 
-## C4 编辑体验（基础体验做全）
+## C4 编辑体验（历史需求，已被集成原则替代）
+
+> 本节保留当时的产品讨论，不再定义当前手势。React Flow 已覆盖的通用交互以其固定版本默认行为为基准；参考线、撤销、CAD 框选等非 Core 能力只有单独立项后才成为 Reflecta 预期。
 
 **结论**：
 
@@ -129,7 +131,7 @@
   - 共同字段（x/y/width/height/z_index/locked/parent_id/时间戳）→ 列（需排序 / 索引 / 约束）。
   - 跨实体引用（`understanding_id` / `canvas_ref_id`）→ 引用 FK 列（需要 FK 完整性 SET NULL 占位 + 可查询"哪些画布用了理解 X"）。
   - kind 专属载荷（文本内容、组名、图形类型）与连线样式 → `props` JSON（从不被 SQL 查询，新增 kind / 样式字段无需迁移）。
-- 文档级写回（`saveCanvas(document)` 整文档同步，服务端按 id 机械对账；画布小整文档便宜——修订自增量写回）；元素 / 连线 id 与 X6 cell id 一致。
+- 文档级写回（`saveCanvas(document)` 整文档同步，服务端按 id 机械对账；画布小整文档便宜——修订自增量写回）；元素 / 连线 id 与 React Flow node / edge id 一致。
 - `canvases.updated_at` 随任何子变更联动（列表按最近活跃排序）。
 - 迁移：v2.0.0 代码迁移（`CREATE TABLE IF NOT EXISTS` 幂等）。
 
@@ -312,9 +314,11 @@
 
 ---
 
-## C11 技术选型
+## C11 技术选型（历史决策，已废止）
 
-**结论**：
+**当前结论**：前端已采用 `@xyflow/react@12.11.3`。功能边界见 `react-flow-feature-research.md`，行为与集成权威见 `react-flow-integration-principles.md`。
+
+**以下为历史结论**：
 
 - **画布引擎：AntV X6（@antv/x6 3.x，MIT）** + `@antv/x6-react-shape` 渲染 React 卡片。
 - Spike 全部验证通过：React 19 兼容（createRoot）、卡片渲染、带标签有向连线、参考线、撤销重做、DnD 拖入、打组（embedding，`addTo` 双向）、图形元素、minimap、快照 round-trip。
@@ -440,9 +444,10 @@
 
 ## 附：共识的文档映射
 
-| 文档                                    | 覆盖共识                                                      |
-| --------------------------------------- | ------------------------------------------------------------- |
-| `understanding-canvas-prd.md`           | C1-C4、C6-C8 的产品要求                                       |
-| `understanding-canvas-server-design.md` | C5、C8、C11 的服务端设计（§3 Agent tool 为未确认提案，见 C9） |
-| `canvas-experience-research.md`         | C3、C5、C6 的社区参照                                         |
-| 本文档                                  | 全部共识的权威记录                                            |
+| 文档                                    | 覆盖共识                                                 |
+| --------------------------------------- | -------------------------------------------------------- |
+| `understanding-canvas-prd.md`           | C1-C4、C6-C8 的产品要求                                  |
+| `understanding-canvas-server-design.md` | C5、C8 的服务端设计（§3 Agent tool 为未确认提案，见 C9） |
+| `react-flow-feature-research.md`        | React Flow 官方功能边界与能力归属                        |
+| `react-flow-integration-principles.md`  | 当前前端交互基准、集成接缝与偏差规则                     |
+| 本文档                                  | 产品讨论历史；不再是前端实现权威                         |
