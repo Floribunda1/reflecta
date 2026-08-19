@@ -48,6 +48,7 @@ function AppMain() {
 function AppShell() {
   const { open, setOpen } = useRail();
   const railPanelRef = useRef<PanelImperativeHandle | null>(null);
+  const railElRef = useRef<HTMLDivElement | null>(null);
   const openRef = useRef(open);
   openRef.current = open;
   const lastOpenWidthRef = useRef(readRailWidth());
@@ -85,6 +86,9 @@ function AppShell() {
 
   // group → store：用户拖拽同步宽度；拖到 MIN 以下视为收起。
   // 动画驱动（resize）触发的 onResize 由 animatingRef 跳过，避免把中间宽度持久化。
+  // 拖拽期间同步把 --rail-content-width 实时写进面板 DOM：ref 更新不触发 re-render，
+  // 若不写，内容层会钉在最近一次渲染时的旧宽度（初始 248px），拖窄裁剪不重排、拖宽留白。
+  // 动画期间被 animatingRef 跳过，内容层保持展开宽度被裁剪（Notion 模式）不受影响。
   const handleRailResize = useCallback(
     (size: { inPixels: number }, _id: unknown, previous: { inPixels: number } | undefined) => {
       if (!previous || animatingRef.current) return;
@@ -93,6 +97,7 @@ function AppShell() {
         return;
       }
       lastOpenWidthRef.current = size.inPixels;
+      railElRef.current?.style.setProperty("--rail-content-width", `${size.inPixels}px`);
       persistRailWidth(size.inPixels);
     },
     [setOpen],
@@ -102,6 +107,7 @@ function AppShell() {
     <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="app-shell">
       <ResizablePanel
         id="app-rail"
+        elementRef={railElRef}
         panelRef={railPanelRef}
         defaultSize={open ? readRailWidth() : 0}
         minSize={0}
