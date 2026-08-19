@@ -14,6 +14,7 @@ import {
   MiniMap,
   ReactFlow,
   ReactFlowProvider,
+  SelectionMode,
   useEdgesState,
   useNodesState,
   useReactFlow,
@@ -30,6 +31,7 @@ import {
 } from "@xyflow/react";
 import { toPng } from "html-to-image";
 import "@xyflow/react/dist/style.css";
+import {} from "../components/context-menu";
 import type { CanvasDocument, CanvasViewport } from "./document";
 import { newEdgeDto, toCanvasDocument, toFlowData, toFlowEdge } from "./graph-document";
 import { canvasNodeTypes } from "./nodes";
@@ -92,6 +94,7 @@ export type CanvasGraphProps = {
 };
 
 const nodeTypes = canvasNodeTypes;
+const CANVAS_SNAP_GRID: [number, number] = [20, 20];
 
 const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function CanvasFlow(props, ref) {
   const {
@@ -244,7 +247,10 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
         const parent = byId.get(node.parentId);
         if (!parent) return node.position;
         const position = absolutePosition(parent);
-        return { x: position.x + node.position.x, y: position.y + node.position.y };
+        return {
+          x: position.x + node.position.x,
+          y: position.y + node.position.y,
+        };
       };
       const boxes = candidates.map((node) => ({
         node,
@@ -284,14 +290,16 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
         },
       };
       const next = [
-        group,
+        { ...group, selected: true },
         ...nodesRef.current.map((node) => {
           const box = boxes.find((candidate) => candidate.node.id === node.id);
           if (!box) return node;
           return {
             ...node,
+            selected: false,
             parentId: groupId,
             extent: "parent" as const,
+            expandParent: true,
             position: {
               x: box.position.x - group.position.x,
               y: box.position.y - group.position.y,
@@ -319,7 +327,10 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
         const parent = byId.get(node.parentId);
         if (!parent) return node.position;
         const position = absolutePosition(parent);
-        return { x: position.x + node.position.x, y: position.y + node.position.y };
+        return {
+          x: position.x + node.position.x,
+          y: position.y + node.position.y,
+        };
       };
       const next = nodesRef.current
         .filter((node) => !groups.has(node.id))
@@ -330,9 +341,13 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
             ...node,
             parentId: undefined,
             extent: undefined,
+            expandParent: undefined,
             position,
             data: {
-              element: { ...(node.data as { element: CanvasElementDTO }).element, parentId: null },
+              element: {
+                ...(node.data as { element: CanvasElementDTO }).element,
+                parentId: null,
+              },
             },
           };
         });
@@ -439,7 +454,12 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
         nodesRef.current = next;
         setNodes(next);
         emitDocument();
-        instance.fitView({ nodes: [node], padding: 0.5, maxZoom: 1, duration: 200 });
+        instance.fitView({
+          nodes: [node],
+          padding: 0.5,
+          maxZoom: 1,
+          duration: 200,
+        });
       },
     }),
     [
@@ -459,7 +479,11 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
   useEffect(() => {
     if (!viewportReady) return;
     if (viewport) {
-      instance.setViewport({ x: viewport.x, y: viewport.y, zoom: viewport.zoom });
+      instance.setViewport({
+        x: viewport.x,
+        y: viewport.y,
+        zoom: viewport.zoom,
+      });
     } else {
       instance.fitView({ padding: 0.2, maxZoom: 1 });
     }
@@ -477,7 +501,10 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
       if (!raw || readonly) return;
       try {
         const element = JSON.parse(raw) as import("./document").CanvasElementDTO;
-        const position = instance.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+        const position = instance.screenToFlowPosition({
+          x: e.clientX,
+          y: e.clientY,
+        });
         const node: Node = {
           id: element.id,
           type: element.kind,
@@ -514,6 +541,13 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
               onViewportChange={handleOnViewportChange}
               onDragOver={onDragOver}
               onDrop={onDrop}
+              selectionOnDrag
+              multiSelectionKeyCode="Control"
+              selectionMode={SelectionMode.Partial}
+              panOnDrag={false}
+              panOnScroll
+              snapToGrid
+              snapGrid={CANVAS_SNAP_GRID}
               nodesDraggable={!readonly}
               nodesConnectable={!readonly}
               elementsSelectable={!readonly}

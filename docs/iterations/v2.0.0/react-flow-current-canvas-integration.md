@@ -50,6 +50,8 @@
   - 使用 `parentId` 表示父子关系
   - 子节点使用相对父节点的位置
   - 父节点先于子节点创建和渲染
+  - 子节点使用 `extent: "parent"` 限制在父节点边界内
+  - 子节点使用 `expandParent` 拖动到边界时自动扩展父节点
 - 官方样式和交互标记
   - React Flow 官方 stylesheet
   - `nodrag`
@@ -104,6 +106,11 @@
   - 使用 HTML5 Drag and Drop 作为工具栏和理解库入口
   - 使用 `screenToFlowPosition` 计算落点
   - 拖入后创建 Reflecta 自定义节点
+- 设计工具式选择与定位
+  - `selectionOnDrag` 框选
+  - `SelectionMode.Partial` 部分命中框选
+  - `panOnDrag={false}` 与 `panOnScroll` 组合平移
+  - `snapToGrid` 与 `[20, 20]` 网格吸附
 - React Flow 之上的 Canvas 编辑能力
   - 使用自定义节点展示 Understanding、Text、Group 和 Canvas 引用
   - 文本节点双击编辑
@@ -148,17 +155,11 @@
   - `onConnectStart` / `onConnectEnd` 连接生命周期回调
   - 自定义 connection line
 - 父子节点增强能力
-  - `extent: "parent"` 子节点边界限制
-  - `expandParent` 拖动子节点时自动扩展父节点
   - React Flow 自动 parent / child 变更
   - React Flow 内置的动态嵌套交互
 - 选择增强能力
-  - `selectionOnDrag` 设计工具式框选
-  - `panOnDrag` / `panOnScroll` 的设计工具式组合
-  - `SelectionMode.Partial` 部分命中框选
   - Lasso 选择
   - Helper lines / 对齐辅助线
-  - Snap to grid
 - 布局能力
   - React Flow 本身没有自动布局引擎，当前未接入 Dagre、ELK 或其他布局方案
   - 自动布局

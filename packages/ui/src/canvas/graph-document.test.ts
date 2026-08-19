@@ -33,7 +33,11 @@ describe("CanvasDocument ↔ React Flow mapping", () => {
           sourceElementId: "group",
           targetElementId: "child",
           label: "derives",
-          style: { ...DEFAULT_CANVAS_EDGE_STYLE, lineStyle: "dashed", arrowhead: "block" },
+          style: {
+            ...DEFAULT_CANVAS_EDGE_STYLE,
+            lineStyle: "dashed",
+            arrowhead: "block",
+          },
           createdAt: "2026-01-01T00:00:00.000Z",
         },
       ],
@@ -45,6 +49,7 @@ describe("CanvasDocument ↔ React Flow mapping", () => {
     expect(flow.nodes.find((node) => node.id === "child")).toMatchObject({
       parentId: "group",
       extent: "parent",
+      expandParent: true,
     });
     expect(flow.edges[0]).toMatchObject({
       type: "canvas",
@@ -56,7 +61,13 @@ describe("CanvasDocument ↔ React Flow mapping", () => {
   it("round-trips dimensions and relative parent coordinates", () => {
     const document: CanvasDocument = {
       elements: [
-        { ...element("group"), kind: "group", props: { label: "g" }, width: 420, height: 300 },
+        {
+          ...element("group"),
+          kind: "group",
+          props: { label: "g" },
+          width: 420,
+          height: 300,
+        },
         { ...element("child", "group"), x: 24, y: 48, width: 180, height: 96 },
       ],
       edges: [],

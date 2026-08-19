@@ -74,7 +74,10 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   // 初始文档：仅取首次详情；切换画布由 key 重挂载
   const initialDocumentRef = useRef<CanvasDocument | null>(null);
   if (!initialDocumentRef.current && detail) {
-    initialDocumentRef.current = { elements: detail.elements, edges: detail.edges };
+    initialDocumentRef.current = {
+      elements: detail.elements,
+      edges: detail.edges,
+    };
   }
   const initialDocument = initialDocumentRef.current;
 
@@ -118,7 +121,10 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
       if (!saveRef.current) {
         saveRef.current = debounce(async (doc: CanvasDocument) => {
           try {
-            const res = await saveCanvas.mutateAsync({ canvasId, document: doc });
+            const res = await saveCanvas.mutateAsync({
+              canvasId,
+              document: doc,
+            });
             void res;
             setDirty(false);
             setSaveError(null);
@@ -175,22 +181,17 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     [canvasId, queryClient],
   );
 
-  const handleCellAction = useCallback(
-    (action: { type: "delete-group" | "ungroup"; nodeId: string }) => {
-      if (action.type === "delete-group") graphRef.current?.deleteGroup(action.nodeId);
-      else graphRef.current?.ungroupSelection([action.nodeId]);
-    },
-    [],
-  );
-
   const shapeData = useMemo<CanvasShapeData>(
     () => ({
       understandingRefs: new Map((detail?.understandingRefs ?? []).map((ref) => [ref.id, ref])),
       referencedCanvases: new Map((detail?.referencedCanvases ?? []).map((ref) => [ref.id, ref])),
       onCanvasRefClick: (targetCanvasId) => navigateToCanvas(targetCanvasId),
-      onCellAction: handleCellAction,
+      onCellAction: (action) => {
+        if (action.type === "delete-group") graphRef.current?.deleteGroup(action.nodeId);
+        else graphRef.current?.ungroupSelection([action.nodeId]);
+      },
     }),
-    [detail, handleCellAction, navigateToCanvas],
+    [detail, navigateToCanvas],
   );
 
   // 画布引用卡创建：选目标画布 → 经 handle 命令式落卡
@@ -221,7 +222,10 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
         }
         const element = useCanvasStore.getState().document.elements.find((el) => el.id === id);
         if (element?.kind === "understanding" && element.understandingId) {
-          setRightPanel({ mode: "detail", understandingId: element.understandingId });
+          setRightPanel({
+            mode: "detail",
+            understandingId: element.understandingId,
+          });
           return;
         }
       }
@@ -244,7 +248,13 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     const graph = graphRef.current?.graph;
     if (!graph) return;
     const node = graph.getNode(id);
-    if (node) graph.fitView({ nodes: [{ id }], padding: 0.5, maxZoom: 1.5, duration: 300 });
+    if (node)
+      graph.fitView({
+        nodes: [{ id }],
+        padding: 0.5,
+        maxZoom: 1.5,
+        duration: 300,
+      });
     const edge = graph.getEdge(id);
     if (edge) {
       graph.setEdges((edges) => edges.map((item) => ({ ...item, selected: item.id === id })));
@@ -403,7 +413,12 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
                 <CanvasEdgeStylePanel
                   edge={selectedEdge}
                   onChange={(edge) => graphRef.current?.updateEdge(edge)}
-                  onReset={() => graphRef.current?.updateEdge({ ...selectedEdge, style: null })}
+                  onReset={() =>
+                    graphRef.current?.updateEdge({
+                      ...selectedEdge,
+                      style: null,
+                    })
+                  }
                 />
               ) : rightPanel.mode === "detail" ? (
                 <CanvasDetailPanel

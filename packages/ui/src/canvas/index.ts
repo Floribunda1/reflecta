@@ -21,8 +21,8 @@ export {
   EMPTY_CANVAS_SHAPE_DATA,
   useCanvasElementUpdate,
   useCanvasShapeData,
-  type CanvasCellAction,
   type CanvasReferencedCanvasView,
   type CanvasShapeData,
+  type CanvasCellAction,
   type CanvasUnderstandingRefView,
 } from "./shape-context";

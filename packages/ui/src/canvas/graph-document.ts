@@ -28,6 +28,7 @@ export function toFlowNode(element: CanvasElementDTO): Node {
     height: element.height,
     parentId: element.parentId ?? undefined,
     extent: element.parentId ? "parent" : undefined,
+    expandParent: element.parentId ? true : undefined,
     data: { element },
   };
 }

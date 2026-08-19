@@ -33,15 +33,17 @@ test("@CV-EL-001 用户从工具栏拖入文本卡并编辑内容", async () => 
 
 test("@CV-EL-003 用户创建组并编辑组名", async () => {
   const { app, page } = await launchApp();
+  const multiSelectModifier = "Control";
 
   try {
     await openWorkspace(page);
     await dragToGraph(page, "canvas-tool-dnd-text", { x: 200, y: 120 });
     await dragToGraph(page, "canvas-tool-dnd-text", { x: 500, y: 300 });
     const cards = page.locator('[data-testid="canvas-text-card"]');
-    await cards.nth(0).click();
-    await cards.nth(1).click({ modifiers: ["Control"] });
-    await page.keyboard.press("Control+g");
+    await cards.nth(0).click({ force: true });
+    await cards.nth(1).click({ modifiers: [multiSelectModifier], force: true });
+    await page.keyboard.press(`${multiSelectModifier}+g`);
+    await page.keyboard.press("Escape");
     const group = inGraph(page, "canvas-group-node");
     await expect(group).toBeVisible({ timeout: 8000 });
 
@@ -103,20 +105,29 @@ test("@CV-EL-005 用户引用另一张画布并跳转", async () => {
 
 test("@CV-EL-006 用户通过右键删除组", async () => {
   const { app, page } = await launchApp();
+  const multiSelectModifier = "Control";
 
   try {
     await openWorkspace(page);
     await dragToGraph(page, "canvas-tool-dnd-text", { x: 310, y: 240 });
     await dragToGraph(page, "canvas-tool-dnd-text", { x: 500, y: 360 });
     const cards = page.locator('[data-testid="canvas-text-card"]');
-    await cards.nth(0).click();
-    await cards.nth(1).click({ modifiers: ["Control"] });
-    await page.keyboard.press("Control+g");
+    await cards.nth(0).click({ force: true });
+    await cards.nth(1).click({ modifiers: [multiSelectModifier], force: true });
+    await page.keyboard.press(`${multiSelectModifier}+g`);
+    await page.keyboard.press("Escape");
     const group = inGraph(page, "canvas-group-node");
     await expect(group).toBeVisible({ timeout: 8000 });
 
     // 右键组 → 删除组（级联语义由单测覆盖）
-    await group.click({ button: "right" });
+    const groupLabel = inGraph(page, "canvas-group-label");
+    const groupLabelBox = await groupLabel.boundingBox();
+    if (!groupLabelBox) throw new Error("Group label is not measurable");
+    await page.mouse.click(
+      groupLabelBox.x + groupLabelBox.width / 2,
+      groupLabelBox.y + groupLabelBox.height / 2,
+      { button: "right" },
+    );
     await page.getByTestId("canvas-group-delete").click();
 
     await expect(inGraph(page, "canvas-group-node")).toHaveCount(0);

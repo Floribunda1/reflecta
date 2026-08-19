@@ -112,7 +112,10 @@ export function TextNode(props: NodeProps<CanvasNode>) {
   const commit = () => {
     setEditing(false);
     if (draft === text) return;
-    updateElement({ ...element, props: { ...element.props, text: draft } } as CanvasElementDTO);
+    updateElement({
+      ...element,
+      props: { ...element.props, text: draft },
+    } as CanvasElementDTO);
   };
 
   return (
@@ -172,18 +175,25 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
   const commit = () => {
     setEditing(false);
     if (draft === label) return;
-    updateElement({ ...element, props: { ...element.props, label: draft } } as CanvasElementDTO);
+    updateElement({
+      ...element,
+      props: { ...element.props, label: draft },
+    } as CanvasElementDTO);
   };
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger className="h-full w-full">
-        <div
-          data-testid="canvas-group-node"
-          data-group-label={label}
-          className={`flex h-full w-full flex-col overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/50 bg-muted/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
-          tabIndex={0}
-        >
+      <ContextMenuTrigger
+        render={
+          <div
+            data-testid="canvas-group-node"
+            data-group-label={label}
+            className={`flex h-full w-full flex-col overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/50 bg-muted/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
+            tabIndex={0}
+          />
+        }
+      >
+        <>
           <Resizer visible={props.selected} />
           <Harness />
           <div
@@ -215,7 +225,7 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
             )}
           </div>
           <div className="min-h-0 flex-1" />
-        </div>
+        </>
       </ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem

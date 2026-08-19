@@ -31,7 +31,6 @@ export type CanvasShapeData = {
   referencedCanvases: ReadonlyMap<string, CanvasReferencedCanvasView>;
   /** 画布引用卡点击跳转（由 workspace 注入 navigateToCanvas） */
   onCanvasRefClick?: (canvasId: string) => void;
-  /** 卡片右键动作（删除组级联、解除组等，由 workspace 操作图） */
   onCellAction?: (action: CanvasCellAction) => void;
 };
 
