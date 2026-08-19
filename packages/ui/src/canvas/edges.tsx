@@ -19,7 +19,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "../components/popover";
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowRight, CircleDot, Minus, Palette, Spline, Trash2, Type } from "lucide-react";
-import { CanvasColorSwatches } from "./color-swatches";
+import { canvasPaintColor, CanvasColorSwatches } from "./color-swatches";
 import { DEFAULT_CANVAS_EDGE_STYLE, type CanvasEdgeDTO, type CanvasEdgeStyle } from "./document";
 import { useCanvasEdgeUpdate, useCanvasShapeData } from "./shape-context";
 
@@ -103,7 +103,7 @@ function EdgeStyleMenu<T extends string>({
 }
 
 function lineStyle(style: CanvasEdgeStyle | null, selected: boolean) {
-  const color = style?.color ?? "#94a3b8";
+  const color = canvasPaintColor(style?.color) ?? "var(--muted-foreground)";
   return {
     // --primary 已是 hex，不能包 hsl()，否则 selected stroke 会 IACVT 成 none。
     // hover 色由父级 `.react-flow__edge:hover` 写入 --canvas-edge-stroke。
@@ -177,7 +177,7 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
               />
             }
           >
-            <Palette style={{ color: style.color }} />
+            <Palette style={{ color: canvasPaintColor(style.color) }} />
           </PopoverTrigger>
           <PopoverContent className="w-auto flex-row items-center" align="center">
             <CanvasColorSwatches value={style.color} onChange={(color) => patchStyle({ color })} />

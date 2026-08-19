@@ -1,13 +1,33 @@
 import { Button } from "../components/button";
 import { ToggleGroup, ToggleGroupItem } from "../components/toggle-group";
+import { cn } from "../lib/utils";
 
-export const CANVAS_SWATCH_COLORS = [
-  "#94a3b8",
-  "#3b82f6",
-  "#22c55e",
-  "#ef4444",
-  "#eab308",
+export const CANVAS_SWATCH_TOKENS = [
+  "chart-1",
+  "chart-2",
+  "chart-3",
+  "chart-4",
+  "chart-5",
 ] as const;
+
+export type CanvasSwatchToken = (typeof CANVAS_SWATCH_TOKENS)[number];
+
+const SWATCH_CLASS = {
+  "chart-1": "bg-chart-1",
+  "chart-2": "bg-chart-2",
+  "chart-3": "bg-chart-3",
+  "chart-4": "bg-chart-4",
+  "chart-5": "bg-chart-5",
+} as const satisfies Record<CanvasSwatchToken, string>;
+
+const SWATCH_TOKEN_SET = new Set<string>(CANVAS_SWATCH_TOKENS);
+
+/** 色板 token → 可绘 CSS；遗留 hex 原样返回。 */
+export function canvasPaintColor(color?: string): string | undefined {
+  if (!color) return undefined;
+  if (SWATCH_TOKEN_SET.has(color)) return `var(--${color})`;
+  return color;
+}
 
 /** 色板：颜色画在内部 chip 上，Toggle 自己的 hover/selected 底不会把色值盖掉。 */
 export function CanvasColorSwatches({
@@ -29,18 +49,15 @@ export function CanvasColorSwatches({
         }}
         className="nodrag nopan gap-1"
       >
-        {CANVAS_SWATCH_COLORS.map((color) => (
+        {CANVAS_SWATCH_TOKENS.map((token) => (
           <ToggleGroupItem
-            key={color}
-            value={color}
-            aria-label={color}
-            title={color}
-            className="h-6 min-w-6 w-6 rounded-full p-0 data-[state=on]:ring-2 data-[state=on]:ring-ring"
+            key={token}
+            value={token}
+            aria-label={token}
+            title={token}
+            className="h-6 min-w-6 w-6 rounded-full p-0"
           >
-            <span
-              className="size-3.5 rounded-full ring-1 ring-border group-hover/toggle:ring-foreground"
-              style={{ backgroundColor: color }}
-            />
+            <span className={cn("size-3.5 rounded-full", SWATCH_CLASS[token])} />
           </ToggleGroupItem>
         ))}
       </ToggleGroup>

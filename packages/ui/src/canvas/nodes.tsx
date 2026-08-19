@@ -27,7 +27,7 @@ import {
   ContextMenuTrigger,
 } from "../components/context-menu";
 import { cn } from "../lib/utils";
-import { CanvasColorSwatches } from "./color-swatches";
+import { canvasPaintColor, CanvasColorSwatches } from "./color-swatches";
 import type { CanvasElementDTO } from "./document";
 import { useCanvasElementUpdate, useCanvasShapeData } from "./shape-context";
 
@@ -50,6 +50,11 @@ function nodeStateClass(selected: boolean, dragging: boolean) {
     selected ? "ring-2 ring-ring" : "hover:ring-2 hover:ring-ring/50",
     dragging && "opacity-80",
   );
+}
+
+function nodeColorStyle(color?: string) {
+  const paint = canvasPaintColor(color);
+  return paint ? { borderColor: paint } : undefined;
 }
 
 /** 统一连线磁吸点：左 = 入（target），右 = 出（source）。 */
@@ -128,7 +133,7 @@ function NodeActions({
             />
           }
         >
-          <Palette style={{ color: element.props.color }} />
+          <Palette style={{ color: canvasPaintColor(element.props.color) }} />
         </PopoverTrigger>
         <PopoverContent className="w-auto flex-row items-center" align="center">
           <CanvasColorSwatches value={element.props.color} onChange={updateColor} allowClear />
@@ -182,7 +187,7 @@ export function UnderstandingNode(props: NodeProps<CanvasNode>) {
         element.kind === "understanding" ? (element.understandingId ?? "") : ""
       }
       className={cn(CARD, nodeStateClass(props.selected, props.dragging))}
-      style={element.props.color ? { borderColor: element.props.color } : undefined}
+      style={nodeColorStyle(element.props.color)}
       tabIndex={0}
     >
       <CanvasNodeToolbar visible={props.selected && !readonly}>
@@ -243,7 +248,7 @@ export function TextNode(props: NodeProps<CanvasNode>) {
     <div
       data-testid="canvas-text-card"
       className={cn(CARD, nodeStateClass(props.selected || editing, props.dragging))}
-      style={element.props.color ? { borderColor: element.props.color } : undefined}
+      style={nodeColorStyle(element.props.color)}
       tabIndex={0}
       onDoubleClick={readonly ? undefined : startEditing}
     >
@@ -317,7 +322,7 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
               "group/canvas-node flex h-full w-full flex-col overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/50 bg-muted/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               nodeStateClass(props.selected, props.dragging),
             )}
-            style={element.props.color ? { borderColor: element.props.color } : undefined}
+            style={nodeColorStyle(element.props.color)}
             tabIndex={0}
           />
         }
@@ -420,7 +425,7 @@ export function CanvasRefNode(props: NodeProps<CanvasNode>) {
         "nodrag nopan cursor-pointer items-center justify-center gap-1.5 p-2 text-center",
         nodeStateClass(props.selected, props.dragging),
       )}
-      style={element.props.color ? { borderColor: element.props.color } : undefined}
+      style={nodeColorStyle(element.props.color)}
       tabIndex={0}
       onClick={() => {
         if (!deleted && canvasRefId) onCanvasRefClick?.(canvasRefId);

@@ -225,5 +225,16 @@ describe("CanvasDocument React Flow adapter", () => {
         createdAt: timestamp,
       }).style,
     ).toMatchObject({ stroke: "#123456" });
+    expect(
+      toFlowEdge({
+        id: "edge",
+        canvasId: "canvas",
+        sourceElementId: "source",
+        targetElementId: "target",
+        label: null,
+        style: { color: "chart-1" },
+        createdAt: timestamp,
+      }).style,
+    ).toMatchObject({ stroke: "var(--chart-1)" });
   });
 });

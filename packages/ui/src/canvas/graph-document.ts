@@ -1,6 +1,7 @@
 import { MarkerType } from "@xyflow/react";
 import type { Edge, Node } from "@xyflow/react";
 import type { CSSProperties } from "react";
+import { canvasPaintColor } from "./color-swatches";
 import {
   DEFAULT_CANVAS_EDGE_STYLE,
   type CanvasDocument,
@@ -44,7 +45,7 @@ export function toFlowEdge(edge: CanvasEdgeDTO): Edge {
     target: edge.targetElementId,
     data: { edge },
     style: {
-      stroke: style.color ?? "#94a3b8",
+      stroke: canvasPaintColor(style.color) ?? "var(--muted-foreground)",
       strokeWidth: style.width === "thick" ? 4 : style.width === "medium" ? 3 : 2,
       strokeDasharray:
         style.lineStyle === "dashed" ? "5 5" : style.lineStyle === "dotted" ? "2 2" : undefined,

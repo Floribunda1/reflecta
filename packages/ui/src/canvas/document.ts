@@ -51,7 +51,6 @@ export type CanvasEdgeStyle = {
 export const DEFAULT_CANVAS_EDGE_STYLE: CanvasEdgeStyle = {
   routing: "curve",
   lineStyle: "solid",
-  color: "#94a3b8",
   width: "thin",
   arrowhead: "arrow",
 };
