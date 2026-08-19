@@ -111,11 +111,16 @@
   - `SelectionMode.Partial` 部分命中框选
   - `panOnDrag={false}` 与 `panOnScroll` 组合平移
   - `snapToGrid` 与 `[20, 20]` 网格吸附
+- 性能与渲染
+  - 启用 React Flow `onlyRenderVisibleElements`，只渲染当前视口内节点和边
+  - 大规模节点虚拟化仍未接入，需要基于实际数据量压测后决定
 - React Flow 之上的 Canvas 编辑能力
   - 使用自定义节点展示 Understanding、Text、Group 和 Canvas 引用
   - 文本节点双击编辑
   - Group 节点双击编辑名称
   - Canvas 引用节点点击跳转
+  - 使用 React Flow `NodeToolbar`：文本节点编辑、Group 解组/删除
+  - 使用 React Flow `EdgeToolbar`：选中边后编辑标签
   - Group 节点提供右键菜单
   - 使用 `Cmd/Ctrl+G` 创建 Group
   - 使用 `Cmd/Ctrl+Shift+G` 解组
@@ -180,7 +185,6 @@
   - 实时协作
   - CRDT 状态同步
 - 性能与高级渲染能力
-  - `onlyRenderVisibleElements`
   - 大规模节点虚拟化策略
   - 服务端图片导出
   - 复杂图布局的增量渲染优化

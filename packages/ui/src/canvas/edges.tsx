@@ -1,5 +1,6 @@
 import {
   BaseEdge,
+  EdgeToolbar,
   EdgeLabelRenderer,
   getBezierPath,
   getSmoothStepPath,
@@ -7,6 +8,7 @@ import {
   type Edge,
   type EdgeProps,
 } from "@xyflow/react";
+import { Button } from "../components/button";
 import { useEffect, useState } from "react";
 import type { CanvasEdgeDTO, CanvasEdgeStyle } from "./document";
 import { useCanvasEdgeUpdate } from "./shape-context";
@@ -62,10 +64,29 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
         interactionWidth={props.interactionWidth}
         onDoubleClick={() => setEditing(true)}
       />
+      <EdgeToolbar
+        edgeId={props.id}
+        x={labelX}
+        y={labelY}
+        isVisible={Boolean(props.selected)}
+        className="flex gap-1 rounded-md border bg-background p-1 shadow-sm"
+      >
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          className="nodrag nopan h-7 px-2 text-xs"
+          onClick={() => setEditing(true)}
+        >
+          编辑标签
+        </Button>
+      </EdgeToolbar>
       <EdgeLabelRenderer>
         <div
           className={`nodrag nopan pointer-events-auto absolute rounded bg-background px-1 text-xs text-foreground shadow-sm ${props.selected ? "ring-1 ring-primary" : ""}`}
-          style={{ transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)` }}
+          style={{
+            transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+          }}
           onDoubleClick={() => setEditing(true)}
         >
           {editing ? (

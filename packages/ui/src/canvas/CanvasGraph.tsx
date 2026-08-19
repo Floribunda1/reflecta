@@ -544,6 +544,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
               selectionOnDrag
               multiSelectionKeyCode="Control"
               selectionMode={SelectionMode.Partial}
+              onlyRenderVisibleElements
               panOnDrag={false}
               panOnScroll
               snapToGrid

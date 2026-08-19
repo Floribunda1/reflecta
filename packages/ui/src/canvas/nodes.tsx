@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { Handle, NodeResizer, Position, type Node, type NodeProps } from "@xyflow/react";
+import {
+  Handle,
+  NodeResizer,
+  NodeToolbar,
+  Position,
+  type Node,
+  type NodeProps,
+} from "@xyflow/react";
 import { FileText, GitBranch, Link2, LockKeyhole, PackageOpen } from "lucide-react";
 import { SimpleMarkdownPreview } from "../editor/simple-markdown-preview";
+import { Button } from "../components/button";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -45,6 +53,17 @@ function Resizer({ visible }: { visible: boolean }) {
       lineClassName="!border-primary"
       handleClassName="!h-2 !w-2 !border-primary !bg-background"
     />
+  );
+}
+
+function CanvasNodeToolbar({ visible, children }: { visible: boolean; children: React.ReactNode }) {
+  return (
+    <NodeToolbar
+      isVisible={visible}
+      className="flex gap-1 rounded-md border bg-background p-1 shadow-sm"
+    >
+      {children}
+    </NodeToolbar>
   );
 }
 
@@ -125,6 +144,17 @@ export function TextNode(props: NodeProps<CanvasNode>) {
       tabIndex={0}
       onDoubleClick={readonly ? undefined : startEditing}
     >
+      <CanvasNodeToolbar visible={props.selected && !readonly}>
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          className="nodrag nopan h-7 px-2 text-xs"
+          onClick={() => startEditing()}
+        >
+          编辑
+        </Button>
+      </CanvasNodeToolbar>
       <Resizer visible={props.selected} />
       <Harness />
       {editing ? (
@@ -194,6 +224,26 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
         }
       >
         <>
+          <CanvasNodeToolbar visible={props.selected && !readonly}>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="nodrag nopan h-7 px-2 text-xs"
+              onClick={() => onCellAction?.({ type: "ungroup", nodeId: element.id })}
+            >
+              解组
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              className="nodrag nopan h-7 px-2 text-xs"
+              onClick={() => onCellAction?.({ type: "delete-group", nodeId: element.id })}
+            >
+              删除
+            </Button>
+          </CanvasNodeToolbar>
           <Resizer visible={props.selected} />
           <Harness />
           <div
