@@ -73,14 +73,6 @@ export function elementRowToDTO(row: UnderstandingCanvasElement): CanvasElementD
         canvasRefId: null,
         props: parseJson(row.props, { text: "" }),
       };
-    case "shape":
-      return {
-        ...base,
-        kind: "shape",
-        understandingId: null,
-        canvasRefId: null,
-        props: parseJson(row.props, { shapeType: "rect" }),
-      };
     case "group":
       return {
         ...base,

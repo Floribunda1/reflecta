@@ -1,9 +1,4 @@
-export {
-  CanvasGraph,
-  type CanvasGraphHandle,
-  type CanvasGraphMinimapOptions,
-  type CanvasGraphProps,
-} from "./CanvasGraph";
+export { CanvasGraph, type CanvasGraphHandle, type CanvasGraphProps } from "./CanvasGraph";
 export { CanvasReadOnlyView, type CanvasReadOnlyViewProps } from "./CanvasReadOnlyView";
 export { CanvasZoomControls, type CanvasZoomControlsProps } from "./CanvasZoomControls";
 export {

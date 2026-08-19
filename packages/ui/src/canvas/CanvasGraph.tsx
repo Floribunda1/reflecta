@@ -8,7 +8,6 @@ import {
   type CSSProperties,
 } from "react";
 import {
-  addEdge,
   applyEdgeChanges,
   applyNodeChanges,
   Background,
@@ -26,13 +25,19 @@ import {
   type OnConnect,
   type ReactFlowInstance,
   type Viewport,
+  getNodesBounds,
+  getViewportForBounds,
 } from "@xyflow/react";
+import { toPng } from "html-to-image";
 import "@xyflow/react/dist/style.css";
 import type { CanvasDocument, CanvasViewport } from "./document";
-import { newEdgeDto, toCanvasDocument, toFlowData } from "./graph-document";
+import { newEdgeDto, toCanvasDocument, toFlowData, toFlowEdge } from "./graph-document";
 import { canvasNodeTypes } from "./nodes";
+import { canvasEdgeTypes } from "./edges";
+import type { CanvasEdgeDTO, CanvasElementDTO } from "./document";
 import {
   CanvasElementUpdateProvider,
+  CanvasEdgeUpdateProvider,
   CanvasShapeDataProvider,
   EMPTY_CANVAS_SHAPE_DATA,
   type CanvasShapeData,
@@ -56,12 +61,11 @@ export type CanvasGraphHandle = {
   reload: (document: CanvasDocument) => void;
   /** 向画布添加一个元素（画布引用创建等命令式入口） */
   addElement: (element: import("./document").CanvasElementDTO) => void;
-};
-
-export type CanvasGraphMinimapOptions = {
-  container: HTMLElement | null;
-  width?: number;
-  height?: number;
+  updateEdge: (edge: CanvasEdgeDTO) => void;
+  groupSelection: (nodeIds: string[]) => void;
+  ungroupSelection: (groupIds: string[]) => void;
+  deleteGroup: (groupId: string) => void;
+  exportPng: () => Promise<void>;
 };
 
 export type CanvasGraphProps = {
@@ -69,8 +73,10 @@ export type CanvasGraphProps = {
   readonly?: boolean;
   /** 初始 / 外部文档；内部编辑经事件桥流出，不回灌 */
   document?: CanvasDocument | null;
-  /** 视口（恢复）：挂载时 apply */
+  /** 视口（恢复）：初始 / 外部刷新提供；配合 viewportReady 在 detail 就绪后应用 */
   viewport?: CanvasViewport | null;
+  /** detail 已就绪（否则不应用视口 / 不 fitView，避免抢跑覆盖已存视口） */
+  viewportReady?: boolean;
   /** 节点展示数据注入（理解卡全文 / 画布引用标题 / 动作） */
   shapeData?: CanvasShapeData;
   /** 语义事件桥：交互后的完整文档回写（防抖保存由调用方负责） */
@@ -81,8 +87,6 @@ export type CanvasGraphProps = {
   onSelectionChange?: (cellIds: string[]) => void;
   /** canvasId：新建连线初始 DTO 归属 */
   canvasId?: string;
-  /** 右下缩略图（默认开启；container 仅作兼容占位） */
-  minimap?: CanvasGraphMinimapOptions;
   className?: string;
   style?: CSSProperties;
 };
@@ -94,12 +98,12 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
     readonly = false,
     document,
     viewport,
+    viewportReady = true,
     shapeData = EMPTY_CANVAS_SHAPE_DATA,
     canvasId = "",
     onDocumentChange,
     onViewportChange,
     onSelectionChange,
-    minimap: _minimap,
     className,
     style,
   } = props;
@@ -111,9 +115,6 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
   onDocumentChangeRef.current = onDocumentChange;
   onViewportChangeRef.current = onViewportChange;
   onSelectionChangeRef.current = onSelectionChange;
-
-  const documentRef = useRef<CanvasDocument | null>(null);
-  const viewportAppliedRef = useRef(false);
 
   const { nodes: initNodes, edges: initEdges } = useMemo(
     () => toFlowData(document ?? { elements: [], edges: [] }),
@@ -164,13 +165,12 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
     (conn: Connection) => {
       if (!conn.source || !conn.target) return;
       const dto = newEdgeDto(canvasId);
-      const edge: Edge = {
-        id: dto.id,
-        source: conn.source,
-        target: conn.target,
-        data: { edge: { ...dto, sourceElementId: conn.source, targetElementId: conn.target } },
-      };
-      const next = addEdge(edge, edgesRef.current);
+      const edge = toFlowEdge({
+        ...dto,
+        sourceElementId: conn.source,
+        targetElementId: conn.target,
+      });
+      const next = [...edgesRef.current, edge];
       edgesRef.current = next;
       setEdges(next);
       emitDocument();
@@ -201,7 +201,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
 
   // 内容编辑（文本 / 组名）回写：更新受控 data + 同步文档
   const handleElementUpdate = useCallback(
-    (element: import("./document").CanvasElementDTO) => {
+    (element: CanvasElementDTO) => {
       const next = nodesRef.current.map((n) =>
         n.id === element.id ? { ...n, data: { element } } : n,
       );
@@ -212,12 +212,198 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
     [emitDocument, setNodes],
   );
 
-  // 初始文档加载 + 外部刷新（document prop 变化）
+  const handleEdgeUpdate = useCallback(
+    (edge: CanvasEdgeDTO) => {
+      const next = edgesRef.current.map((current) =>
+        current.id === edge.id ? toFlowEdge(edge) : current,
+      );
+      edgesRef.current = next;
+      setEdges(next);
+      emitDocument();
+    },
+    [emitDocument, setEdges],
+  );
+
+  const updateNodes = useCallback(
+    (next: Node[]) => {
+      nodesRef.current = next;
+      setNodes(next);
+      emitDocument();
+    },
+    [emitDocument, setNodes],
+  );
+
+  const groupSelection = useCallback(
+    (nodeIds: string[]) => {
+      const selected = new Set(nodeIds);
+      const candidates = nodesRef.current.filter((node) => selected.has(node.id));
+      if (!candidates.length) return;
+      const byId = new Map(nodesRef.current.map((node) => [node.id, node]));
+      const absolutePosition = (node: Node): { x: number; y: number } => {
+        if (!node.parentId) return node.position;
+        const parent = byId.get(node.parentId);
+        if (!parent) return node.position;
+        const position = absolutePosition(parent);
+        return { x: position.x + node.position.x, y: position.y + node.position.y };
+      };
+      const boxes = candidates.map((node) => ({
+        node,
+        position: absolutePosition(node),
+        width: node.measured?.width ?? node.width ?? 160,
+        height: node.measured?.height ?? node.height ?? 100,
+      }));
+      const minX = Math.min(...boxes.map((box) => box.position.x));
+      const minY = Math.min(...boxes.map((box) => box.position.y));
+      const maxX = Math.max(...boxes.map((box) => box.position.x + box.width));
+      const maxY = Math.max(...boxes.map((box) => box.position.y + box.height));
+      const groupId = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const group: Node = {
+        id: groupId,
+        type: "group",
+        position: { x: minX - 24, y: minY - 44 },
+        width: maxX - minX + 48,
+        height: maxY - minY + 68,
+        data: {
+          element: {
+            id: groupId,
+            canvasId,
+            parentId: null,
+            x: minX - 24,
+            y: minY - 44,
+            width: maxX - minX + 48,
+            height: maxY - minY + 68,
+            zIndex: 0,
+            createdAt: now,
+            updatedAt: now,
+            kind: "group",
+            understandingId: null,
+            canvasRefId: null,
+            props: { label: "" },
+          },
+        },
+      };
+      const next = [
+        group,
+        ...nodesRef.current.map((node) => {
+          const box = boxes.find((candidate) => candidate.node.id === node.id);
+          if (!box) return node;
+          return {
+            ...node,
+            parentId: groupId,
+            position: {
+              x: box.position.x - group.position.x,
+              y: box.position.y - group.position.y,
+            },
+            data: {
+              element: {
+                ...(node.data as { element: CanvasElementDTO }).element,
+                parentId: groupId,
+              },
+            },
+          };
+        }),
+      ];
+      updateNodes(next);
+    },
+    [canvasId, updateNodes],
+  );
+
+  const ungroupSelection = useCallback(
+    (groupIds: string[]) => {
+      const groups = new Set(groupIds);
+      const byId = new Map(nodesRef.current.map((node) => [node.id, node]));
+      const absolutePosition = (node: Node): { x: number; y: number } => {
+        if (!node.parentId) return node.position;
+        const parent = byId.get(node.parentId);
+        if (!parent) return node.position;
+        const position = absolutePosition(parent);
+        return { x: position.x + node.position.x, y: position.y + node.position.y };
+      };
+      const next = nodesRef.current
+        .filter((node) => !groups.has(node.id))
+        .map((node) => {
+          if (!node.parentId || !groups.has(node.parentId)) return node;
+          const position = absolutePosition(node);
+          return {
+            ...node,
+            parentId: undefined,
+            position,
+            data: {
+              element: { ...(node.data as { element: CanvasElementDTO }).element, parentId: null },
+            },
+          };
+        });
+      updateNodes(next);
+    },
+    [updateNodes],
+  );
+
+  const deleteGroup = useCallback(
+    (groupId: string) => {
+      const group = nodesRef.current.find((node) => node.id === groupId);
+      if (!group) return;
+      const removed = new Set([groupId]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const node of nodesRef.current) {
+          if (node.parentId && removed.has(node.parentId) && !removed.has(node.id)) {
+            removed.add(node.id);
+            changed = true;
+          }
+        }
+      }
+      const next = nodesRef.current.filter((node) => !removed.has(node.id));
+      const nextEdges = edgesRef.current.filter(
+        (edge) => !removed.has(edge.source) && !removed.has(edge.target),
+      );
+      nodesRef.current = next;
+      edgesRef.current = nextEdges;
+      setNodes(next);
+      setEdges(nextEdges);
+      emitDocument();
+    },
+    [emitDocument, setEdges, setNodes],
+  );
+
+  const exportPng = useCallback(async () => {
+    const viewportElement = globalThis.document.querySelector<HTMLElement>(".react-flow__viewport");
+    const graphElement = globalThis.document.querySelector<HTMLElement>(
+      "[data-testid='canvas-graph']",
+    );
+    if (!viewportElement || !graphElement || nodesRef.current.length === 0) return;
+    const width = Math.max(640, graphElement.clientWidth);
+    const height = Math.max(480, graphElement.clientHeight);
+    const bounds = getNodesBounds(nodesRef.current);
+    const viewport = getViewportForBounds(bounds, width, height, 0.2, 2, 0.1);
+    const dataUrl = await toPng(viewportElement, {
+      backgroundColor: "white",
+      width,
+      height,
+      style: {
+        width: `${width}px`,
+        height: `${height}px`,
+        transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+      },
+      filter: (node) => !node.classList?.contains("react-flow__background"),
+    });
+    const link = globalThis.document.createElement("a");
+    link.download = "reflecta-canvas.png";
+    link.href = dataUrl;
+    link.click();
+  }, []);
+
+  // 文档加载：document prop 为「初始 / 外部刷新」数据源，变化时重建 nodes/edges。
+  // 内部编辑经 onDocumentChange 流出，不回灌 document prop（防循环）。
   useEffect(() => {
-    if (!documentRef.current && document) {
-      documentRef.current = document;
-    }
-  }, [document]);
+    if (!document) return;
+    const { nodes: nextNodes, edges: nextEdges } = toFlowData(document);
+    nodesRef.current = nextNodes;
+    edgesRef.current = nextEdges;
+    setNodes(nextNodes);
+    setEdges(nextEdges);
+  }, [document, setNodes, setEdges]);
 
   // 暴露实例与外部刷新能力
   useImperativeHandle(
@@ -228,12 +414,16 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
       },
       reload: (nextDocument: CanvasDocument) => {
         const { nodes: nextNodes, edges: nextEdges } = toFlowData(nextDocument);
-        documentRef.current = nextDocument;
         nodesRef.current = nextNodes;
         edgesRef.current = nextEdges;
         setNodes(nextNodes);
         setEdges(nextEdges);
       },
+      updateEdge: handleEdgeUpdate,
+      groupSelection,
+      ungroupSelection,
+      deleteGroup,
+      exportPng,
       addElement: (element: import("./document").CanvasElementDTO) => {
         const node: Node = {
           id: element.id,
@@ -250,16 +440,28 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
         instance.fitView({ nodes: [node], padding: 0.5, maxZoom: 1, duration: 200 });
       },
     }),
-    [instance, setNodes, setEdges],
+    [
+      deleteGroup,
+      exportPng,
+      groupSelection,
+      handleEdgeUpdate,
+      instance,
+      setNodes,
+      setEdges,
+      ungroupSelection,
+    ],
   );
 
-  // 视口恢复：挂载后应用一次
+  // 视口：detail 就绪后再决定——有已存 viewport 则恢复，否则 fitView。
+  // 避免 detail 未到时 fitView 抢跑并触发回写覆盖已存视口。
   useEffect(() => {
-    if (!viewport || viewportAppliedRef.current) return;
-    viewportAppliedRef.current = true;
-    instance.setViewport({ x: viewport.x, y: viewport.y, zoom: viewport.zoom });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅挂载时应用一次
-  }, [viewport]);
+    if (!viewportReady) return;
+    if (viewport) {
+      instance.setViewport({ x: viewport.x, y: viewport.y, zoom: viewport.zoom });
+    } else {
+      instance.fitView({ padding: 0.2, maxZoom: 1 });
+    }
+  }, [viewport, viewportReady, instance]);
 
   // DnD：外部（工具栏 / 库面板）拖入 → addNode
   const onDragOver = useCallback((e: React.DragEvent) => {
@@ -296,35 +498,30 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
   return (
     <CanvasShapeDataProvider value={readonly ? { ...shapeData, readonly: true } : shapeData}>
       <CanvasElementUpdateProvider value={handleElementUpdate}>
-        <div className={className} style={style} data-testid="canvas-graph">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            onNodesChange={handleNodesChange}
-            onEdgesChange={handleEdgesChange}
-            onConnect={handleConnect}
-            onSelectionChange={handleSelectionChange}
-            onViewportChange={handleOnViewportChange}
-            onDragOver={onDragOver}
-            onDrop={onDrop}
-            onInit={() => {
-              // no-op: instance accessible via useReactFlow
-            }}
-            nodesDraggable={!readonly}
-            nodesConnectable={!readonly}
-            elementsSelectable={!readonly}
-            deleteKeyCode={readonly ? null : "Delete"}
-            connectionLineStyle={{ stroke: "#94a3b8", strokeWidth: 2 }}
-            minZoom={0.25}
-            maxZoom={4}
-            fitView
-            fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
-          >
-            <Background gap={20} size={1} color="rgb(0 0 0 / 0.08)" />
-            {!readonly ? <MiniMap position="bottom-right" pannable zoomable /> : null}
-          </ReactFlow>
-        </div>
+        <CanvasEdgeUpdateProvider value={handleEdgeUpdate}>
+          <div className={className} style={style} data-testid="canvas-graph">
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              edgeTypes={canvasEdgeTypes}
+              onNodesChange={handleNodesChange}
+              onEdgesChange={handleEdgesChange}
+              onConnect={handleConnect}
+              onSelectionChange={handleSelectionChange}
+              onViewportChange={handleOnViewportChange}
+              onDragOver={onDragOver}
+              onDrop={onDrop}
+              nodesDraggable={!readonly}
+              nodesConnectable={!readonly}
+              elementsSelectable={!readonly}
+              deleteKeyCode={readonly ? null : "Backspace"}
+            >
+              <Background gap={20} size={1} color="rgb(0 0 0 / 0.08)" />
+              {!readonly ? <MiniMap position="bottom-right" pannable zoomable /> : null}
+            </ReactFlow>
+          </div>
+        </CanvasEdgeUpdateProvider>
       </CanvasElementUpdateProvider>
     </CanvasShapeDataProvider>
   );

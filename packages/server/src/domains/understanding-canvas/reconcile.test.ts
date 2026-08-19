@@ -43,15 +43,6 @@ function element(id: string, partial: Partial<CanvasElementDTO> = {}): CanvasEle
         props: { text: "" },
         ...partial,
       } as CanvasElementDTO;
-    case "shape":
-      return {
-        ...base,
-        kind,
-        understandingId: null,
-        canvasRefId: null,
-        props: { shapeType: "rect" },
-        ...partial,
-      } as CanvasElementDTO;
     case "group":
       return {
         ...base,
@@ -216,7 +207,7 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
     const core = new CanvasCore(db);
     const good = { elements: [element("e1")], edges: [] };
     await core.saveCanvas(canvasId, good);
-    // 非法文档：自环
+    // 非法文档：边引用不存在的元素
     const bad: CanvasDocument = {
       elements: [element("e1"), element("e2")],
       edges: [
@@ -224,14 +215,14 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
           id: "x",
           canvasId,
           sourceElementId: "e1",
-          targetElementId: "e1",
+          targetElementId: "missing",
           label: null,
           style: null,
           createdAt: "2026-08-01T00:00:00.000Z",
         },
       ],
     };
-    await expect(core.saveCanvas(canvasId, bad)).rejects.toThrow(/self-loop/);
+    await expect(core.saveCanvas(canvasId, bad)).rejects.toThrow(/target element not in document/);
     const { elements } = await readRows();
     expect(elements).toHaveLength(1);
     expect(elements[0].id).toBe("e1");

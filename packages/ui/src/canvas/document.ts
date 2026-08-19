@@ -7,15 +7,14 @@
  * 渲染层（React Flow）与文档层只认这里的形状：元素 / 连线 id 零映射。
  */
 
-export type CanvasElementKind = "understanding" | "text" | "shape" | "group" | "canvas_ref";
+export type CanvasElementKind = "understanding" | "text" | "group" | "canvas_ref";
 
 /** 呈现状态（防误拖锁定）随 props 走，非业务状态（C5） */
 export type CanvasElementPropsMap = {
-  understanding: { locked?: boolean };
-  text: { text: string; locked?: boolean };
-  shape: { shapeType: "rect" | "circle"; locked?: boolean };
-  group: { label: string; locked?: boolean };
-  canvas_ref: { locked?: boolean };
+  understanding: Record<string, never>;
+  text: { text: string };
+  group: { label: string };
+  canvas_ref: Record<string, never>;
 };
 
 export type CanvasElementBase = {

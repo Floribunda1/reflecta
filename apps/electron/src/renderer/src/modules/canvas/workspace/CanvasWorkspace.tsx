@@ -24,6 +24,7 @@ import {
   ResizablePanelGroup,
 } from "@reflecta/ui/components/resizable";
 import { cn } from "@reflecta/ui/lib/utils";
+import { Button } from "@reflecta/ui/components/button";
 import { RESIZE_HANDLE_CLASS } from "@renderer/modules/shared/layout/layout-constants";
 import {
   canvasQueryKeys,
@@ -36,6 +37,7 @@ import { useCanvasStore } from "../store";
 import { CanvasDetailPanel } from "./CanvasDetailPanel";
 import { CanvasLibraryPanel } from "./CanvasLibraryPanel";
 import { CanvasRefPickerModal } from "./CanvasRefPickerModal";
+import { CanvasEdgeStylePanel } from "./CanvasEdgeStylePanel";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { CanvasSearchOverlay, type CanvasSearchIndexItem } from "./CanvasSearchOverlay";
 import { newCanvasRefElement } from "./element-factory";
@@ -52,7 +54,7 @@ function CanvasEmptyState() {
             <PanelsTopLeft />
           </EmptyMedia>
           <EmptyTitle>这张画布还是空的</EmptyTitle>
-          <EmptyDescription>从理解库拖入理解，或从工具栏拖入文本 / 图形 / 组</EmptyDescription>
+          <EmptyDescription>从理解库拖入理解，或从工具栏拖入文本</EmptyDescription>
         </EmptyContent>
       </Empty>
     </div>
@@ -79,14 +81,21 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   const setDocument = useCanvasStore((state) => state.setDocument);
   const setViewport = useCanvasStore((state) => state.setViewport);
   const setSelection = useCanvasStore((state) => state.setSelection);
+  const currentDocument = useCanvasStore((state) => state.document);
 
   const saveCanvas = useSaveCanvasMutation();
   const updateViewport = useUpdateViewportMutation();
   const saveRef = useRef<ReturnType<typeof debounce> | undefined>(undefined);
+  const lastDocumentRef = useRef<CanvasDocument | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
 
   const graphRef = useRef<CanvasGraphHandle>(null);
   const [rightPanel, setRightPanel] = useState<
-    { mode: "library" } | { mode: "detail"; understandingId: string } | null
+    | { mode: "library" }
+    | { mode: "detail"; understandingId: string }
+    | { mode: "edge"; edgeId: string }
+    | null
   >(null);
   const libraryOpen = rightPanel?.mode === "library";
 
@@ -103,12 +112,16 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
         (edge) => elementIds.has(edge.sourceElementId) && elementIds.has(edge.targetElementId),
       );
       const sanitized = edges.length === document.edges.length ? document : { ...document, edges };
+      lastDocumentRef.current = sanitized;
+      setDirty(true);
       setDocument(sanitized);
       if (!saveRef.current) {
         saveRef.current = debounce(async (doc: CanvasDocument) => {
           try {
             const res = await saveCanvas.mutateAsync({ canvasId, document: doc });
             void res;
+            setDirty(false);
+            setSaveError(null);
             const missingRef = doc.elements.some(
               (element) =>
                 element.kind === "understanding" &&
@@ -117,7 +130,7 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
             );
             if (missingRef) await refreshCanvasDetail(queryClient, canvasId);
           } catch {
-            // 下次变更会再保存
+            setSaveError("画布保存失败，修改仍未保存");
           }
         }, SAVE_DEBOUNCE_MS);
       }
@@ -125,6 +138,18 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     },
     [canvasId, queryClient, saveCanvas, setDocument],
   );
+
+  const retrySave = useCallback(async () => {
+    const document = lastDocumentRef.current;
+    if (!document) return;
+    try {
+      await saveCanvas.mutateAsync({ canvasId, document });
+      setDirty(false);
+      setSaveError(null);
+    } catch {
+      setSaveError("画布保存失败，修改仍未保存");
+    }
+  }, [canvasId, saveCanvas]);
 
   const viewportSaveRef = useRef<ReturnType<typeof debounce> | undefined>(undefined);
   const handleViewportChange = useCallback(
@@ -150,13 +175,22 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     [canvasId, queryClient],
   );
 
+  const handleCellAction = useCallback(
+    (action: { type: "delete-group" | "ungroup"; nodeId: string }) => {
+      if (action.type === "delete-group") graphRef.current?.deleteGroup(action.nodeId);
+      else graphRef.current?.ungroupSelection([action.nodeId]);
+    },
+    [],
+  );
+
   const shapeData = useMemo<CanvasShapeData>(
     () => ({
       understandingRefs: new Map((detail?.understandingRefs ?? []).map((ref) => [ref.id, ref])),
       referencedCanvases: new Map((detail?.referencedCanvases ?? []).map((ref) => [ref.id, ref])),
       onCanvasRefClick: (targetCanvasId) => navigateToCanvas(targetCanvasId),
+      onCellAction: handleCellAction,
     }),
-    [detail, navigateToCanvas],
+    [detail, handleCellAction, navigateToCanvas],
   );
 
   // 画布引用卡创建：选目标画布 → 经 handle 命令式落卡
@@ -180,6 +214,11 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
       setSelection(cellIds);
       if (cellIds.length === 1) {
         const id = cellIds[0];
+        const edge = useCanvasStore.getState().document.edges.find((item) => item.id === id);
+        if (edge) {
+          setRightPanel({ mode: "edge", edgeId: edge.id });
+          return;
+        }
         const element = useCanvasStore.getState().document.elements.find((el) => el.id === id);
         if (element?.kind === "understanding" && element.understandingId) {
           setRightPanel({ mode: "detail", understandingId: element.understandingId });
@@ -193,6 +232,10 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
 
   const [detailPanelKey, setDetailPanelKey] = useState<string>("");
   const elementCount = useCanvasStore((state) => state.document.elements.length);
+  const selectedEdge =
+    rightPanel?.mode === "edge"
+      ? currentDocument.edges.find((edge) => edge.id === rightPanel.edgeId)
+      : undefined;
 
   // 搜索（M2-6）：⌘/Ctrl+F 打开浮层；选中结果定位到节点。
   const [searchOpen, setSearchOpen] = useState(false);
@@ -202,6 +245,15 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     if (!graph) return;
     const node = graph.getNode(id);
     if (node) graph.fitView({ nodes: [{ id }], padding: 0.5, maxZoom: 1.5, duration: 300 });
+    const edge = graph.getEdge(id);
+    if (edge) {
+      graph.setEdges((edges) => edges.map((item) => ({ ...item, selected: item.id === id })));
+      graph.fitView({
+        nodes: [{ id: edge.source }, { id: edge.target }],
+        padding: 0.5,
+        duration: 300,
+      });
+    }
   }, []);
 
   const searchIndex = useMemo<CanvasSearchIndexItem[]>(() => {
@@ -224,13 +276,30 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     return items.filter((x) => x.text.trim().length > 0);
   }, [detail]);
 
-  // 搜索快捷键（M2-6）：⌘/Ctrl+F / ⌘/Ctrl+K。
+  // 搜索与组快捷键：只拦截产品明确承诺的组合键。
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const meta = event.metaKey || event.ctrlKey;
-      if (meta && (event.key.toLowerCase() === "f" || event.key.toLowerCase() === "k")) {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, [contenteditable='true']")) return;
+      if (meta && event.key.toLowerCase() === "f") {
         event.preventDefault();
         setSearchOpen((open) => !open);
+        return;
+      }
+      if (meta && event.key.toLowerCase() === "g") {
+        event.preventDefault();
+        const doc = useCanvasStore.getState().document;
+        const selected = useCanvasStore.getState().selection;
+        const selectedGroups = selected.filter((id) =>
+          doc.elements.some((element) => element.id === id && element.kind === "group"),
+        );
+        if (event.shiftKey) graphRef.current?.ungroupSelection(selectedGroups);
+        else {
+          graphRef.current?.groupSelection(
+            selected.filter((id) => doc.elements.some((element) => element.id === id)),
+          );
+        }
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -264,6 +333,7 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
               ref={graphRef}
               document={initialDocument}
               viewport={canvas?.viewport ?? null}
+              viewportReady={!isLoading && Boolean(detail?.canvas)}
               canvasId={canvasId}
               shapeData={shapeData}
               onDocumentChange={handleDocumentChange}
@@ -271,6 +341,19 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
               onSelectionChange={handleSelectionChange}
               className="absolute inset-0"
             />
+
+            {saveError ? (
+              <div className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded-md border border-destructive/30 bg-background px-3 py-2 text-xs text-destructive shadow-sm">
+                <span>{saveError}</span>
+                <Button type="button" size="sm" variant="outline" onClick={() => void retrySave()}>
+                  重试
+                </Button>
+              </div>
+            ) : dirty ? (
+              <div className="absolute right-3 top-3 z-20 rounded-md bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow-sm">
+                未保存
+              </div>
+            ) : null}
 
             {!isLoading && detail && elementCount === 0 ? <CanvasEmptyState /> : null}
 
@@ -280,6 +363,15 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
               onZoomOut={() => graphRef.current?.graph?.zoomOut()}
               onFit={() => graphRef.current?.graph?.fitView({ padding: 0.2, maxZoom: 1 })}
             />
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="absolute bottom-3 left-3 z-10"
+              onClick={() => void graphRef.current?.exportPng()}
+            >
+              导出 PNG
+            </Button>
 
             {searchOpen ? (
               <CanvasSearchOverlay
@@ -307,7 +399,13 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
             >
               {rightPanel.mode === "library" ? (
                 <CanvasLibraryPanel onClose={() => setRightPanel(null)} />
-              ) : (
+              ) : rightPanel.mode === "edge" && selectedEdge ? (
+                <CanvasEdgeStylePanel
+                  edge={selectedEdge}
+                  onChange={(edge) => graphRef.current?.updateEdge(edge)}
+                  onReset={() => graphRef.current?.updateEdge({ ...selectedEdge, style: null })}
+                />
+              ) : rightPanel.mode === "detail" ? (
                 <CanvasDetailPanel
                   key={detailPanelKey}
                   canvasId={canvasId}
@@ -318,7 +416,7 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
                     setDetailPanelKey(nextId);
                   }}
                 />
-              )}
+              ) : null}
             </ResizablePanel>
           </>
         ) : null}

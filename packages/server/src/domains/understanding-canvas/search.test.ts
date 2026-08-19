@@ -45,15 +45,6 @@ function element(id: string, partial: Partial<CanvasElementDTO> = {}): CanvasEle
         props: { text: "" },
         ...partial,
       } as CanvasElementDTO;
-    case "shape":
-      return {
-        ...base,
-        kind,
-        understandingId: null,
-        canvasRefId: null,
-        props: { shapeType: "rect" },
-        ...partial,
-      } as CanvasElementDTO;
     case "group":
       return {
         ...base,

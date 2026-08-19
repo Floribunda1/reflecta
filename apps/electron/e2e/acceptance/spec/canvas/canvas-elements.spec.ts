@@ -31,24 +31,17 @@ test("@CV-EL-001 用户从工具栏拖入文本卡并编辑内容", async () => 
   }
 });
 
-test("@CV-EL-002 用户从工具栏拖入图形", async () => {
-  const { app, page } = await launchApp();
-
-  try {
-    await openWorkspace(page);
-    await dragToGraph(page, "canvas-tool-dnd-rect", { x: 200, y: 120 });
-    await expect(inGraph(page, "canvas-shape-card")).toBeVisible({ timeout: 8000 });
-  } finally {
-    await app.close();
-  }
-});
-
 test("@CV-EL-003 用户创建组并编辑组名", async () => {
   const { app, page } = await launchApp();
 
   try {
     await openWorkspace(page);
-    await dragToGraph(page, "canvas-tool-dnd-group", { x: 200, y: 120 });
+    await dragToGraph(page, "canvas-tool-dnd-text", { x: 200, y: 120 });
+    await dragToGraph(page, "canvas-tool-dnd-text", { x: 500, y: 300 });
+    const cards = page.locator('[data-testid="canvas-text-card"]');
+    await cards.nth(0).click();
+    await cards.nth(1).click({ modifiers: ["Control"] });
+    await page.keyboard.press("Control+g");
     const group = inGraph(page, "canvas-group-node");
     await expect(group).toBeVisible({ timeout: 8000 });
 
@@ -113,8 +106,12 @@ test("@CV-EL-006 用户通过右键删除组", async () => {
 
   try {
     await openWorkspace(page);
-    // X6 Dnd 落点 = 光标点 - 节点尺寸/2：光标 (310,240) → 组左上角 ≈ (150,120)
-    await dragToGraph(page, "canvas-tool-dnd-group", { x: 310, y: 240 });
+    await dragToGraph(page, "canvas-tool-dnd-text", { x: 310, y: 240 });
+    await dragToGraph(page, "canvas-tool-dnd-text", { x: 500, y: 360 });
+    const cards = page.locator('[data-testid="canvas-text-card"]');
+    await cards.nth(0).click();
+    await cards.nth(1).click({ modifiers: ["Control"] });
+    await page.keyboard.press("Control+g");
     const group = inGraph(page, "canvas-group-node");
     await expect(group).toBeVisible({ timeout: 8000 });
 

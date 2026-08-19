@@ -48,15 +48,6 @@ function element(
         props: { text: "" },
         ...extra,
       } as CanvasElementDTO;
-    case "shape":
-      return {
-        ...base,
-        kind,
-        understandingId: null,
-        canvasRefId: null,
-        props: { shapeType: "rect" },
-        ...extra,
-      } as CanvasElementDTO;
     case "group":
       return {
         ...base,
@@ -102,7 +93,7 @@ describe("UnderstandingCanvasElectronBff.getCanvasDetail", () => {
       elements: [
         element("u-card", "understanding", { understandingId: understanding.id }),
         element("note", "text", { props: { text: "备注" } }),
-        element("shape", "shape", { props: { shapeType: "circle" } }),
+        element("text", "text", { props: { text: "note" } }),
         element("group", "group", { props: { label: "核心" }, parentId: null }),
         element("ref", "canvas_ref", { canvasRefId: targetId }),
         element("child", "text", { parentId: "group", props: { text: "组内" } }),

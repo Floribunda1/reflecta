@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MarkerType } from "@xyflow/react";
 import { DEFAULT_CANVAS_EDGE_STYLE, type CanvasDocument, type CanvasElementDTO } from "./document";
-import { toFlowData } from "./graph-document";
+import { toCanvasDocument, toFlowData } from "./graph-document";
 
 function element(id: string, parentId: string | null = null): CanvasElementDTO {
   return {
@@ -47,5 +47,30 @@ describe("CanvasDocument ↔ React Flow mapping", () => {
       markerEnd: MarkerType.ArrowClosed,
       style: { strokeDasharray: "5 5" },
     });
+  });
+
+  it("round-trips dimensions and relative parent coordinates", () => {
+    const document: CanvasDocument = {
+      elements: [
+        { ...element("group"), kind: "group", props: { label: "g" }, width: 420, height: 300 },
+        { ...element("child", "group"), x: 24, y: 48, width: 180, height: 96 },
+      ],
+      edges: [],
+    } as CanvasDocument;
+    const flow = toFlowData(document);
+    const restored = toCanvasDocument(flow.nodes, flow.edges);
+    expect(restored.elements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "group", width: 420, height: 300 }),
+        expect.objectContaining({
+          id: "child",
+          parentId: "group",
+          x: 24,
+          y: 48,
+          width: 180,
+          height: 96,
+        }),
+      ]),
+    );
   });
 });

@@ -27,10 +27,10 @@ function pathFor(style: CanvasEdgeStyle | null, props: EdgeProps<CanvasFlowEdge>
   return getBezierPath(options);
 }
 
-function lineStyle(style: CanvasEdgeStyle | null) {
+function lineStyle(style: CanvasEdgeStyle | null, selected: boolean) {
   return {
-    stroke: style?.color ?? "#94a3b8",
-    strokeWidth: style?.width === "thick" ? 4 : style?.width === "medium" ? 3 : 2,
+    stroke: selected ? "hsl(var(--primary))" : (style?.color ?? "#94a3b8"),
+    strokeWidth: selected ? 4 : style?.width === "thick" ? 4 : style?.width === "medium" ? 3 : 2,
     strokeDasharray:
       style?.lineStyle === "dashed" ? "5 5" : style?.lineStyle === "dotted" ? "2 2" : undefined,
   };
@@ -57,14 +57,14 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
       <BaseEdge
         id={props.id}
         path={path}
-        style={lineStyle(edge.style)}
+        style={lineStyle(edge.style, Boolean(props.selected))}
         markerEnd={props.markerEnd}
         interactionWidth={props.interactionWidth}
         onDoubleClick={() => setEditing(true)}
       />
       <EdgeLabelRenderer>
         <div
-          className="nodrag nopan pointer-events-auto absolute rounded bg-background px-1 text-xs text-foreground shadow-sm"
+          className={`nodrag nopan pointer-events-auto absolute rounded bg-background px-1 text-xs text-foreground shadow-sm ${props.selected ? "ring-1 ring-primary" : ""}`}
           style={{ transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)` }}
           onDoubleClick={() => setEditing(true)}
         >

@@ -34,15 +34,6 @@ function element(partial: Partial<CanvasElementDTO> & { id: string }): CanvasEle
         props: { text: "" },
         ...partial,
       } as CanvasElementDTO;
-    case "shape":
-      return {
-        ...base,
-        kind,
-        understandingId: null,
-        canvasRefId: null,
-        props: { shapeType: "rect" },
-        ...partial,
-      } as CanvasElementDTO;
     case "group":
       return {
         ...base,
@@ -89,7 +80,7 @@ describe("Canvas document validation", () => {
     const elements = [
       element({ id: "e1", kind: "understanding" }),
       element({ id: "e2", kind: "text", props: { text: "note" } }),
-      element({ id: "e3", kind: "shape", props: { shapeType: "circle" } }),
+      element({ id: "e3", kind: "text", props: { text: "note" } }),
       element({ id: "e4", kind: "group", props: { label: "core" } }),
       element({ id: "e5", kind: "canvas_ref" }),
     ];
@@ -125,11 +116,6 @@ describe("Canvas document validation", () => {
     expect(() => assertValidDocument(doc([bad]))).toThrow(/must have understandingId/);
   });
 
-  test("shape element without valid shapeType is rejected", () => {
-    const bad = element({ id: "e1", kind: "shape", props: { shapeType: "triangle" as never } });
-    expect(() => assertValidDocument(doc([bad]))).toThrow(/shapeType/);
-  });
-
   test("canvas_ref element without canvasRefId is rejected", () => {
     const bad = element({ id: "e1", kind: "canvas_ref", canvasRefId: null });
     expect(() => assertValidDocument(doc([bad]))).toThrow(/must have canvasRefId/);
@@ -148,10 +134,19 @@ describe("Canvas document validation", () => {
     );
   });
 
-  test("self-loop edge is rejected", () => {
+  test("self-loop edge is accepted", () => {
     const elements = [element({ id: "e1" })];
     const edges = [edge({ id: "x", sourceElementId: "e1", targetElementId: "e1" })];
-    expect(() => assertValidDocument(doc(elements, edges))).toThrow(/self-loop/);
+    expect(() => assertValidDocument(doc(elements, edges))).not.toThrow();
+  });
+
+  test("parallel edges are accepted", () => {
+    const elements = [element({ id: "e1" }), element({ id: "e2" })];
+    const edges = [
+      edge({ id: "x", sourceElementId: "e1", targetElementId: "e2" }),
+      edge({ id: "y", sourceElementId: "e1", targetElementId: "e2" }),
+    ];
+    expect(() => assertValidDocument(doc(elements, edges))).not.toThrow();
   });
 
   test("parent must be a group", () => {

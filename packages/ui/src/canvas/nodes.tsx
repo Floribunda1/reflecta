@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { Handle, NodeResizer, Position, type Node, type NodeProps } from "@xyflow/react";
 import { FileText, GitBranch, Link2, LockKeyhole, PackageOpen } from "lucide-react";
 import { SimpleMarkdownPreview } from "../editor/simple-markdown-preview";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "../components/context-menu";
 import type { CanvasElementDTO } from "./document";
 import { useCanvasElementUpdate, useCanvasShapeData } from "./shape-context";
 
@@ -13,11 +19,11 @@ import { useCanvasElementUpdate, useCanvasShapeData } from "./shape-context";
  */
 type CanvasNode = Node<
   { element: CanvasElementDTO },
-  "understanding" | "text" | "shape" | "group" | "canvas_ref"
+  "understanding" | "text" | "group" | "canvas_ref"
 >;
 
 const CARD =
-  "flex h-full w-full flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm";
+  "flex h-full w-full flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 /** 统一连线磁吸点：左 = 入（target），右 = 出（source）。 */
 function Harness({ source = true, target = true }: { source?: boolean; target?: boolean }) {
@@ -26,6 +32,19 @@ function Harness({ source = true, target = true }: { source?: boolean; target?: 
       {source ? <Handle type="source" position={Position.Right} className="!h-2 !w-2" /> : null}
       {target ? <Handle type="target" position={Position.Left} className="!h-2 !w-2" /> : null}
     </>
+  );
+}
+
+function Resizer({ visible }: { visible: boolean }) {
+  const { readonly } = useCanvasShapeData();
+  return (
+    <NodeResizer
+      isVisible={visible && !readonly}
+      minWidth={80}
+      minHeight={48}
+      lineClassName="!border-primary"
+      handleClassName="!h-2 !w-2 !border-primary !bg-background"
+    />
   );
 }
 
@@ -46,7 +65,9 @@ export function UnderstandingNode(props: NodeProps<CanvasNode>) {
         element.kind === "understanding" ? (element.understandingId ?? "") : ""
       }
       className={`${CARD} ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
+      tabIndex={0}
     >
+      <Resizer visible={props.selected} />
       <Harness />
       {deleted ? (
         <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-3 text-muted-foreground">
@@ -98,8 +119,10 @@ export function TextNode(props: NodeProps<CanvasNode>) {
     <div
       data-testid="canvas-text-card"
       className={`${CARD} ${editing ? "ring-2 ring-ring" : ""} ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
+      tabIndex={0}
       onDoubleClick={readonly ? undefined : startEditing}
     >
+      <Resizer visible={props.selected} />
       <Harness />
       {editing ? (
         <textarea
@@ -125,29 +148,14 @@ export function TextNode(props: NodeProps<CanvasNode>) {
   );
 }
 
-/** 图形卡：矩形 / 圆形，纯展示。 */
-export function ShapeNode(props: NodeProps<CanvasNode>) {
-  const element = props.data.element as CanvasElementDTO;
-  const shapeType = element.kind === "shape" ? element.props.shapeType : "rect";
-  return (
-    <div
-      data-testid="canvas-shape-card"
-      data-shape-type={shapeType}
-      className={`${CARD} ${shapeType === "circle" ? "rounded-full" : "rounded-md"} ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""} bg-muted/40`}
-    >
-      <Harness />
-    </div>
-  );
-}
-
 /**
  * 组（parent node）：RF 原生子流程。子元素通过 parentId 嵌套、position 相对本节点。
- * 组名双击就地编辑；自身不含连线磁吸点。
+ * 组名双击就地编辑。
  */
 export function GroupNode(props: NodeProps<CanvasNode>) {
   const element = props.data.element as CanvasElementDTO;
   const label = element.kind === "group" ? element.props.label : "";
-  const { readonly } = useCanvasShapeData();
+  const { readonly, onCellAction } = useCanvasShapeData();
   const updateElement = useCanvasElementUpdate();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(label);
@@ -168,39 +176,65 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
   };
 
   return (
-    <div
-      data-testid="canvas-group-node"
-      data-group-label={label}
-      className={`flex h-full w-full flex-col overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/50 bg-muted/10 ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
-    >
-      <div
-        data-testid="canvas-group-label"
-        className="flex shrink-0 cursor-grab items-center gap-1.5 border-b border-muted-foreground/30 bg-muted/40 px-2 py-1"
-        onDoubleClick={readonly ? undefined : startEditing}
-      >
-        <PackageOpen size={12} className="shrink-0 text-muted-foreground" />
-        {editing ? (
-          <input
-            ref={inputRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                setDraft(label);
-                setEditing(false);
-              }
-              if (e.key === "Enter") commit();
-            }}
-            className="nodrag min-w-0 flex-1 bg-transparent text-xs font-medium outline-none"
-            aria-label="组名"
-          />
-        ) : (
-          <span className="min-w-0 flex-1 truncate text-xs font-medium">{label || "未命名组"}</span>
-        )}
-      </div>
-      <div className="min-h-0 flex-1" />
-    </div>
+    <ContextMenu>
+      <ContextMenuTrigger className="h-full w-full">
+        <div
+          data-testid="canvas-group-node"
+          data-group-label={label}
+          className={`flex h-full w-full flex-col overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/50 bg-muted/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
+          tabIndex={0}
+        >
+          <Resizer visible={props.selected} />
+          <Harness />
+          <div
+            data-testid="canvas-group-label"
+            className="flex shrink-0 cursor-grab items-center gap-1.5 border-b border-muted-foreground/30 bg-muted/40 px-2 py-1"
+            onDoubleClick={readonly ? undefined : startEditing}
+          >
+            <PackageOpen size={12} className="shrink-0 text-muted-foreground" />
+            {editing ? (
+              <input
+                ref={inputRef}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={commit}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setDraft(label);
+                    setEditing(false);
+                  }
+                  if (e.key === "Enter") commit();
+                }}
+                className="nodrag min-w-0 flex-1 bg-transparent text-xs font-medium outline-none"
+                aria-label="组名"
+              />
+            ) : (
+              <span className="min-w-0 flex-1 truncate text-xs font-medium">
+                {label || "未命名组"}
+              </span>
+            )}
+          </div>
+          <div className="min-h-0 flex-1" />
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem
+          data-testid="canvas-group-ungroup"
+          disabled={readonly}
+          onClick={() => onCellAction?.({ type: "ungroup", nodeId: element.id })}
+        >
+          解组
+        </ContextMenuItem>
+        <ContextMenuItem
+          data-testid="canvas-group-delete"
+          variant="destructive"
+          disabled={readonly}
+          onClick={() => onCellAction?.({ type: "delete-group", nodeId: element.id })}
+        >
+          删除组（含组内内容）
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 
@@ -218,11 +252,13 @@ export function CanvasRefNode(props: NodeProps<CanvasNode>) {
       data-testid="canvas-canvas-ref-card"
       data-canvas-ref-id={canvasRefId ?? ""}
       className={`${CARD} nodrag nopan cursor-pointer items-center justify-center gap-1.5 p-2 text-center ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
+      tabIndex={0}
       onClick={() => {
         if (!deleted && canvasRefId) onCanvasRefClick?.(canvasRefId);
       }}
       title={deleted ? "目标画布已删除" : "打开引用画布"}
     >
+      <Resizer visible={props.selected} />
       <Harness />
       {deleted ? (
         <>
@@ -247,7 +283,6 @@ export function CanvasRefNode(props: NodeProps<CanvasNode>) {
 export const canvasNodeTypes = {
   understanding: UnderstandingNode,
   text: TextNode,
-  shape: ShapeNode,
   group: GroupNode,
   canvas_ref: CanvasRefNode,
 };

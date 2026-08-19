@@ -49,7 +49,6 @@ export function CanvasSearchOverlay({
   const kindLabel: Record<string, string> = {
     understanding: "理解",
     text: "文本",
-    shape: "图形",
     group: "组",
     canvas_ref: "画布引用",
     edge: "连线",

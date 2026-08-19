@@ -1,7 +1,7 @@
 import type { CanvasElementDTO } from "@reflecta/ui/canvas";
 
 /**
- * 新元素 DTO 工厂：拖入 / 创建时生成（元素 id 与 X6 cell id 零映射，每次新建随机生成；
+ * 新元素 DTO 工厂：拖入 / 创建时生成（元素 id 与 React Flow node id 零映射，每次新建随机生成；
  * 时间戳字段由 saveCanvas 对账时服务端补全，本地先占位）。
  */
 export function createCanvasElementId(): string {
@@ -28,44 +28,6 @@ export function newTextElement(
     understandingId: null,
     canvasRefId: null,
     props: { text: "" },
-  };
-}
-
-export function newShapeElement(shapeType: "rect" | "circle"): CanvasElementDTO {
-  return {
-    id: createCanvasElementId(),
-    canvasId: "",
-    parentId: null,
-    x: 0,
-    y: 0,
-    width: 120,
-    height: 80,
-    zIndex: 1,
-    createdAt: now(),
-    updatedAt: now(),
-    kind: "shape",
-    understandingId: null,
-    canvasRefId: null,
-    props: { shapeType },
-  };
-}
-
-export function newGroupElement(): CanvasElementDTO {
-  return {
-    id: createCanvasElementId(),
-    canvasId: "",
-    parentId: null,
-    x: 0,
-    y: 0,
-    width: 320,
-    height: 240,
-    zIndex: 1,
-    createdAt: now(),
-    updatedAt: now(),
-    kind: "group",
-    understandingId: null,
-    canvasRefId: null,
-    props: { label: "" },
   };
 }
 

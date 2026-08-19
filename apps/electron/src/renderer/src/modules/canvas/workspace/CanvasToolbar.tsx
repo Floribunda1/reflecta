@@ -1,14 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import {
-  ArrowLeft,
-  BookOpen,
-  Circle,
-  Library,
-  PenLine,
-  RectangleHorizontal,
-  Shapes,
-} from "lucide-react";
+import { ArrowLeft, BookOpen, Library, PenLine } from "lucide-react";
 import { Button } from "@reflecta/ui/components/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@reflecta/ui/components/tooltip";
 import { PageTopBar } from "@renderer/modules/shared/layout/PageTopBar";
@@ -17,7 +9,7 @@ import type { CanvasDTO } from "@reflecta/server";
 import { useNavigate } from "react-router-dom";
 import { errorMessage } from "@renderer/utils/errors";
 import { useRenameCanvasMutation } from "../queries";
-import { newGroupElement, newShapeElement, newTextElement } from "./element-factory";
+import { newTextElement } from "./element-factory";
 
 const DND_MIME = "application/reflecta-canvas-element";
 
@@ -60,7 +52,7 @@ function DndSource({
 
 /**
  * 工作区顶部工具栏：返回列表 + 画布标题就地编辑 + 「理解库」/「引用画布」入口 +
- * 文本 / 矩形 / 圆形 / 组 拖入源。
+ * 文本拖入源。
  */
 export function CanvasToolbar({
   canvas,
@@ -129,25 +121,6 @@ export function CanvasToolbar({
         icon={<PenLine size={15} />}
         createElement={newTextElement}
       />
-      <DndSource
-        label="矩形"
-        testId="canvas-tool-dnd-rect"
-        icon={<RectangleHorizontal size={15} />}
-        createElement={() => newShapeElement("rect")}
-      />
-      <DndSource
-        label="圆形"
-        testId="canvas-tool-dnd-circle"
-        icon={<Circle size={15} />}
-        createElement={() => newShapeElement("circle")}
-      />
-      <DndSource
-        label="组"
-        testId="canvas-tool-dnd-group"
-        icon={<Shapes size={15} />}
-        createElement={newGroupElement}
-      />
-
       <span className="mx-1 h-4 w-px bg-border" aria-hidden />
 
       <Button

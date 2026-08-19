@@ -11,17 +11,13 @@ export type UnderstandingCanvasEdge = InferSelectModel<typeof understandingCanva
 
 // --- 元素判别联合（kind 收窄 props 与引用字段） ---------------------------------
 
-export type CanvasElementKind = "understanding" | "text" | "shape" | "group" | "canvas_ref";
-
-/** 呈现状态（防误拖锁定）随 props 走，非业务状态（决策记录：C5 / §2.3） */
-type WithLocked<T> = T & { locked?: boolean };
+export type CanvasElementKind = "understanding" | "text" | "group" | "canvas_ref";
 
 export type ElementPropsMap = {
-  understanding: WithLocked<Record<string, never>>;
-  text: WithLocked<{ text: string }>;
-  shape: WithLocked<{ shapeType: "rect" | "circle" }>;
-  group: WithLocked<{ label: string }>;
-  canvas_ref: WithLocked<Record<string, never>>;
+  understanding: Record<string, never>;
+  text: { text: string };
+  group: { label: string };
+  canvas_ref: Record<string, never>;
 };
 
 export type CanvasElementBase = {

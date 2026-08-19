@@ -35,11 +35,6 @@ export function assertValidDocument(document: CanvasDocument): void {
     }
     edgeIds.add(edge.id);
 
-    if (edge.sourceElementId === edge.targetElementId) {
-      throw new CanvasValidationError(
-        `Edge ${edge.id} is a self-loop (source === target): ${edge.sourceElementId}`,
-      );
-    }
     if (!elementIds.has(edge.sourceElementId)) {
       throw new CanvasValidationError(
         `Edge ${edge.id} source element not in document: ${edge.sourceElementId}`,
@@ -104,13 +99,6 @@ export function assertValidElement(element: CanvasElementDTO): void {
     case "text":
       if (typeof element.props.text !== "string") {
         throw new CanvasValidationError(`Text element ${element.id} must have props.text`);
-      }
-      break;
-    case "shape":
-      if (element.props.shapeType !== "rect" && element.props.shapeType !== "circle") {
-        throw new CanvasValidationError(
-          `Shape element ${element.id} must have props.shapeType "rect" | "circle"`,
-        );
       }
       break;
     case "group":

@@ -23,7 +23,7 @@ export type CanvasReferencedCanvasView = {
 };
 
 export type CanvasShapeData = {
-  /** 只读画布禁用 shape 自身的编辑与操作菜单 */
+  /** 只读画布禁用节点自身的编辑与操作菜单 */
   readonly?: boolean;
   /** 引用理解（画布上理解卡展示全文） */
   understandingRefs: ReadonlyMap<string, CanvasUnderstandingRefView>;
