@@ -63,7 +63,7 @@ function RailNavButton({
   );
 }
 
-export function AppNavRail() {
+export function AppNavRail({ pinnedWidth }: { pinnedWidth?: number }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { openModal } = useModal();
@@ -83,14 +83,14 @@ export function AppNavRail() {
       data-state={state}
       data-collapsible={state === "collapsed" ? "offcanvas" : undefined}
       className={cn(
-        "flex h-full min-h-0 shrink-0 flex-col overflow-hidden bg-sidebar/50 pb-2 text-sidebar-foreground w-full",
+        "flex h-full min-h-0 shrink-0 flex-col overflow-hidden bg-sidebar/80 pb-2 text-sidebar-foreground w-full",
       )}
     >
       <div
         className="flex h-full min-h-0 flex-col"
-        // 内容层固定为展开宽度（AppShell 注入 --rail-content-width）：
-        // 收起/展开动画期间文字不回绕、菜单不挤压，只被 aside 的 overflow 裁剪。
-        style={{ width: "var(--rail-content-width, 100%)" }}
+        // 动画（收起/展开）期间钉在展开宽度，只被 aside 裁剪不重排（Notion 模式）；
+        // 非动画（含拖拽）时为 100%，内容实时跟随面板宽度 reflow。
+        style={{ width: pinnedWidth != null ? `${pinnedWidth}px` : "100%" }}
       >
         {/* 顶栏常驻渲染（含红绿灯行的 h-12 避让）：收起动画期间它随内容一起滑出，
             不会被提前 unmount 造成内容上跳；完全收起后由面板 visibility 统一隐藏。
