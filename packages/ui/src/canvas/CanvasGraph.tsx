@@ -32,6 +32,7 @@ import { toPng } from "html-to-image";
 import "@xyflow/react/dist/style.css";
 import {} from "../components/context-menu";
 import { Button } from "../components/button";
+import { cn } from "../lib/utils";
 import type { CanvasDocument, CanvasViewport } from "./document";
 import { newEdgeDto, toCanvasDocument, toFlowData, toFlowEdge } from "./graph-document";
 import { canvasNodeTypes } from "./nodes";
@@ -103,6 +104,8 @@ export type CanvasGraphProps = {
 
 const nodeTypes = canvasNodeTypes;
 const CANVAS_SNAP_GRID: [number, number] = [20, 20];
+const CANVAS_EDGE_STATE_CLASS =
+  "[&_.react-flow__edge:hover]:[--canvas-edge-stroke:var(--primary)] [&_.react-flow__edge:hover]:[--xy-edge-stroke:var(--primary)] [&_.react-flow__edge.selected]:[--xy-edge-stroke:var(--primary)] [&_.react-flow__edge.selected]:[--xy-edge-stroke-selected:var(--primary)]";
 
 const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function CanvasFlow(props, ref) {
   const {
@@ -455,7 +458,11 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
     <CanvasShapeDataProvider value={readonly ? { ...shapeData, readonly: true } : shapeData}>
       <CanvasElementUpdateProvider value={handleElementUpdate}>
         <CanvasEdgeUpdateProvider value={handleEdgeUpdate}>
-          <div className={className} style={style} data-testid="canvas-graph">
+          <div
+            className={cn(CANVAS_EDGE_STATE_CLASS, className)}
+            style={style}
+            data-testid="canvas-graph"
+          >
             <ReactFlow
               nodes={nodes}
               edges={edges}

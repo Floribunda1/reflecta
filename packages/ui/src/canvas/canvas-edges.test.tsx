@@ -144,11 +144,16 @@ describe("canvas edges", () => {
     expect(renderedStyle().strokeWidth).toBe(pixels);
   });
 
+  test("idle stroke stays hover-overridable via CSS variable", () => {
+    render(edge);
+    expect(renderedStyle().stroke).toBe("var(--canvas-edge-stroke, #94a3b8)");
+  });
+
   test("renders color, marker, selection feedback, label, and toolbar", () => {
     render({ ...edge, style: { color: "#123456" } }, { markerEnd: "arrow-marker" });
-    expect(renderedStyle().stroke).toBe("#123456");
+    expect(renderedStyle().stroke).toBe("var(--canvas-edge-stroke, #123456)");
     render({ ...edge, style: { color: "#123456" } }, { selected: true, markerEnd: "arrow-marker" });
-    expect(renderedStyle()).toMatchObject({ stroke: "hsl(var(--primary))", strokeWidth: 4 });
+    expect(renderedStyle()).toMatchObject({ stroke: "var(--primary)", strokeWidth: 4 });
     expect(container.querySelector('[data-testid="base-edge"]')?.getAttribute("data-marker")).toBe(
       "arrow-marker",
     );

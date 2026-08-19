@@ -141,8 +141,21 @@ describe("canvas nodes", () => {
       expect(shell?.className).toContain("ring-2");
       expect(shell?.className).toContain("opacity-80");
       expect(shell?.className).toContain("focus-visible:ring-2");
+      expect(shell?.className).not.toContain("hover:ring-2");
     },
   );
+
+  test.each([
+    ["understanding", UnderstandingNode, elements.understanding],
+    ["text", TextNode, elements.text],
+    ["group", GroupNode, elements.group],
+    ["canvas reference", CanvasRefNode, elements.canvas_ref],
+  ])("%s shows hover ring when idle", (_name, Component, element) => {
+    render(<Component {...props(Component, element)} />);
+    expect(container.querySelector<HTMLElement>("[tabindex='0']")?.className).toContain(
+      "hover:ring-2",
+    );
+  });
 
   test.each([
     ["understanding", UnderstandingNode, elements.understanding],

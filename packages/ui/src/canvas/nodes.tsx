@@ -26,10 +26,10 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "../components/context-menu";
+import { cn } from "../lib/utils";
+import { CanvasColorSwatches } from "./color-swatches";
 import type { CanvasElementDTO } from "./document";
 import { useCanvasElementUpdate, useCanvasShapeData } from "./shape-context";
-
-const NODE_COLORS = ["#94a3b8", "#3b82f6", "#22c55e", "#ef4444", "#eab308"];
 
 /**
  * React Flow 自定义节点（nodeTypes）。
@@ -43,14 +43,33 @@ type CanvasNode = Node<
 >;
 
 const CARD =
-  "flex h-full w-full flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "group/canvas-node flex h-full w-full flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+function nodeStateClass(selected: boolean, dragging: boolean) {
+  return cn(
+    selected ? "ring-2 ring-ring" : "hover:ring-2 hover:ring-ring/50",
+    dragging && "opacity-80",
+  );
+}
 
 /** 统一连线磁吸点：左 = 入（target），右 = 出（source）。 */
 function Harness({ source = true, target = true }: { source?: boolean; target?: boolean }) {
   return (
     <>
-      {source ? <Handle type="source" position={Position.Right} className="!h-2 !w-2" /> : null}
-      {target ? <Handle type="target" position={Position.Left} className="!h-2 !w-2" /> : null}
+      {source ? (
+        <Handle
+          type="source"
+          position={Position.Right}
+          className="!h-2 !w-2 transition-transform group-hover/canvas-node:scale-125"
+        />
+      ) : null}
+      {target ? (
+        <Handle
+          type="target"
+          position={Position.Left}
+          className="!h-2 !w-2 transition-transform group-hover/canvas-node:scale-125"
+        />
+      ) : null}
     </>
   );
 }
@@ -111,30 +130,8 @@ function NodeActions({
         >
           <Palette style={{ color: element.props.color }} />
         </PopoverTrigger>
-        <PopoverContent className="w-auto flex-row" align="center">
-          {NODE_COLORS.map((color) => (
-            <Button
-              key={color}
-              type="button"
-              size="icon-xs"
-              variant="ghost"
-              aria-label={color}
-              title={color}
-              className="rounded-full p-0"
-              style={{ backgroundColor: color }}
-              onClick={() => updateColor(color)}
-            />
-          ))}
-          <Button
-            type="button"
-            size="icon-xs"
-            variant="ghost"
-            aria-label="清除颜色"
-            title="清除颜色"
-            onClick={() => updateColor(undefined)}
-          >
-            ×
-          </Button>
+        <PopoverContent className="w-auto flex-row items-center" align="center">
+          <CanvasColorSwatches value={element.props.color} onChange={updateColor} allowClear />
         </PopoverContent>
       </Popover>
       {showRemove ? (
@@ -184,7 +181,7 @@ export function UnderstandingNode(props: NodeProps<CanvasNode>) {
       data-understanding-id={
         element.kind === "understanding" ? (element.understandingId ?? "") : ""
       }
-      className={`${CARD} ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
+      className={cn(CARD, nodeStateClass(props.selected, props.dragging))}
       style={element.props.color ? { borderColor: element.props.color } : undefined}
       tabIndex={0}
     >
@@ -245,7 +242,7 @@ export function TextNode(props: NodeProps<CanvasNode>) {
   return (
     <div
       data-testid="canvas-text-card"
-      className={`${CARD} ${editing ? "ring-2 ring-ring" : ""} ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
+      className={cn(CARD, nodeStateClass(props.selected || editing, props.dragging))}
       style={element.props.color ? { borderColor: element.props.color } : undefined}
       tabIndex={0}
       onDoubleClick={readonly ? undefined : startEditing}
@@ -316,7 +313,10 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
           <div
             data-testid="canvas-group-node"
             data-group-label={label}
-            className={`flex h-full w-full flex-col overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/50 bg-muted/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
+            className={cn(
+              "group/canvas-node flex h-full w-full flex-col overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/50 bg-muted/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              nodeStateClass(props.selected, props.dragging),
+            )}
             style={element.props.color ? { borderColor: element.props.color } : undefined}
             tabIndex={0}
           />
@@ -415,7 +415,11 @@ export function CanvasRefNode(props: NodeProps<CanvasNode>) {
       type="button"
       data-testid="canvas-canvas-ref-card"
       data-canvas-ref-id={canvasRefId ?? ""}
-      className={`${CARD} nodrag nopan cursor-pointer items-center justify-center gap-1.5 p-2 text-center ${props.selected ? "ring-2 ring-ring" : ""} ${props.dragging ? "opacity-80" : ""}`}
+      className={cn(
+        CARD,
+        "nodrag nopan cursor-pointer items-center justify-center gap-1.5 p-2 text-center",
+        nodeStateClass(props.selected, props.dragging),
+      )}
       style={element.props.color ? { borderColor: element.props.color } : undefined}
       tabIndex={0}
       onClick={() => {

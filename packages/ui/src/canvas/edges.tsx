@@ -12,6 +12,7 @@ import { Button } from "../components/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/popover";
 import { useEffect, useState } from "react";
 import { ArrowRight, ChevronDown, CircleDot, Minus, Palette, Trash2, Type } from "lucide-react";
+import { CanvasColorSwatches } from "./color-swatches";
 import type { CanvasEdgeDTO, CanvasEdgeStyle } from "./document";
 import { useCanvasEdgeUpdate, useCanvasShapeData } from "./shape-context";
 
@@ -32,8 +33,11 @@ function pathFor(style: CanvasEdgeStyle | null, props: EdgeProps<CanvasFlowEdge>
 }
 
 function lineStyle(style: CanvasEdgeStyle | null, selected: boolean) {
+  const color = style?.color ?? "#94a3b8";
   return {
-    stroke: selected ? "hsl(var(--primary))" : (style?.color ?? "#94a3b8"),
+    // --primary 已是 hex，不能包 hsl()，否则 selected stroke 会 IACVT 成 none。
+    // hover 色由父级 `.react-flow__edge:hover` 写入 --canvas-edge-stroke。
+    stroke: selected ? "var(--primary)" : `var(--canvas-edge-stroke, ${color})`,
     strokeWidth: selected ? 4 : style?.width === "thick" ? 4 : style?.width === "medium" ? 3 : 2,
     strokeDasharray:
       style?.lineStyle === "dashed" ? "5 5" : style?.lineStyle === "dotted" ? "2 2" : undefined,
@@ -108,20 +112,8 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
           >
             <Palette style={{ color: style.color }} />
           </PopoverTrigger>
-          <PopoverContent className="w-auto flex-row" align="center">
-            {["#94a3b8", "#3b82f6", "#22c55e", "#ef4444", "#eab308"].map((color) => (
-              <Button
-                key={color}
-                type="button"
-                size="icon-xs"
-                variant="ghost"
-                aria-label={color}
-                title={color}
-                className="rounded-full p-0"
-                style={{ backgroundColor: color }}
-                onClick={() => updateColor(color)}
-              />
-            ))}
+          <PopoverContent className="w-auto flex-row items-center" align="center">
+            <CanvasColorSwatches value={style.color} onChange={updateColor} />
           </PopoverContent>
         </Popover>
         <Button
@@ -182,7 +174,7 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
       </EdgeToolbar>
       <EdgeLabelRenderer>
         <div
-          className={`nodrag nopan pointer-events-auto absolute rounded bg-background px-1 text-xs text-foreground shadow-sm ${props.selected ? "ring-1 ring-primary" : ""}`}
+          className={`nodrag nopan pointer-events-auto absolute rounded bg-background px-1 text-xs text-foreground shadow-sm ${props.selected ? "ring-1 ring-primary" : "hover:ring-1 hover:ring-ring/50"}`}
           style={{
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
           }}
