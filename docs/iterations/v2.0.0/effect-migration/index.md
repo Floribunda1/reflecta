@@ -49,17 +49,17 @@
 
 ## 3. 关键决策
 
-| # | 决策 | 结论 |
-|---|------|------|
-| D1 | Effect 版本 | **v4（4.0.0-rc 系）** |
-| D2 | renderer 数据层 | **保留 TanStack Query，queryFn 内跑 Effect**（互补分工，非并行栈） |
-| D3 | 接缝胶水 | **`effect-query`**（选项 1，发起方拍板） |
-| D4 | 候选淘汰 | foldkit / @effectify/react-query / @effect-react-query / electron-effect-rpc（依赖形式） |
-| D5 | IPC 通道 | 官方 RPC 模块 + 自写薄传输层（参考 electron-effect-starter 架构，不引包） |
-| D6 | 校验体系 | 统一到 `Schema`，迁移 CLI zod |
-| D7 | UI 本地状态 | zustand → 官方 `@effect/atom`（落地排期待确认） |
-| D8 | 主进程后台编排 | retrieval coordinator / agent 调用 / 后台 worker 全部用 Effect 核心（fiber + Schedule + 中断） |
-| D9 | 不做什么 | 不写自定义 query 层、不写 50 行手搓缓存、不引入 Foldkit |
+| #   | 决策            | 结论                                                                                                                          |
+| --- | --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Effect 版本     | **v4（4.0.0-rc 系）**                                                                                                         |
+| D2  | renderer 数据层 | **保留 TanStack Query，queryFn 内跑 Effect**（互补分工，非并行栈）                                                            |
+| D3  | 接缝胶水        | **`effect-query`**（选项 1，发起方拍板）                                                                                      |
+| D4  | 候选淘汰        | foldkit / @effectify/react-query / @effect-react-query / electron-effect-rpc（依赖形式）                                      |
+| D5  | IPC 通道        | 官方 RPC 模块 + 自写薄传输层，**模块隔离、暴露面最小（2 个函数 + 共享契约）、可整体替换**（详见 `ipc-transport-boundary.md`） |
+| D6  | 校验体系        | 统一到 `Schema`，迁移 CLI zod                                                                                                 |
+| D7  | UI 本地状态     | zustand → 官方 `@effect/atom`（落地排期待确认）                                                                               |
+| D8  | 主进程后台编排  | retrieval coordinator / agent 调用 / 后台 worker 全部用 Effect 核心（fiber + Schedule + 中断）                                |
+| D9  | 不做什么        | 不写自定义 query 层、不写 50 行手搓缓存、不引入 Foldkit                                                                       |
 
 ## 4. 理由链
 
@@ -74,10 +74,10 @@
 
 - "无并行栈"约束针对的是**同职能重复**（两套校验、两套错误处理、两套 DI）；React Query 与 Effect 是**互补分工、不重叠**：
 
-  | 职能 | React Query | Effect |
-  |------|:---:|:---:|
-  | 缓存 / 加载态 / 重取 / 去重 | ✅ | ⚪（官方有意不覆盖） |
-  | typed errors / Schema 校验 / 重试策略 / 追踪 / DI | ⚪ | ✅ |
+  | 职能                                              | React Query |        Effect        |
+  | ------------------------------------------------- | :---------: | :------------------: |
+  | 缓存 / 加载态 / 重取 / 去重                       |     ✅      | ⚪（官方有意不覆盖） |
+  | typed errors / Schema 校验 / 重试策略 / 追踪 / DI |     ⚪      |          ✅          |
 
 - 社区主流证据充分（详见 research-notes）：此组合是 Effect 生态事实上的前端数据层标准答案；
 - 接缝成本一行：`queryFn: () => Effect.runPromise(runtime)(program)`；
@@ -102,8 +102,9 @@
 ### D5：IPC 官方 rpc + 自写薄传输
 
 - 官方 `@effect/rpc`（含 v3 版本累计月下载 292 万）提供 Schema 序列化、typed request/response、requestId、错误传播；
-- Electron 传输层（ipcRenderer.invoke 桥接，约 150~200 行）参考 `electron-effect-starter` / `electron-effect-rpc` 的公开设计思路自写，**不引第三方依赖**——风评约束不允许我们依赖一个 1 star 包；
-- 直接修复现状"code 永远 UNKNOWN"的结构性缺陷。
+- Electron 传输层（ipcMain/ipcRenderer 适配，约 150~200 行）参考 `electron-effect-starter` / `electron-effect-rpc` 的公开设计思路自写，**不引第三方依赖**——风评约束不允许依赖 1 star 包，且 electron-effect-rpc 基于 v3 Schema API、无 v4 支持声明，与我们已拍板的 v4 冲突；
+- 自写传输层以**隔离模块**形态落地：对外仅暴露 `setupIpcTransport` / `createIpcClient` 两个函数 + 共享 `RpcGroup` 契约，内部实现（信封/接线/错误映射）可整体替换（如日后改走本地 server + 官方 WS 传输），业务层零改动；
+- 直接修复现状“code 永远 UNKNOWN”的结构性缺陷，错误改为 Schema `TaggedError` 结构化跨进程往返。
 
 ### D6：校验统一 Schema
 
@@ -121,13 +122,13 @@
 
 ## 5. 已接受风险
 
-| 风险 | 应对 |
-|------|------|
-| v4 RC / unstable API 漂移（rpc、atom 在 `unstable/` 命名空间） | 锁定 RC 版本；跟踪官方周报；预留 4.0 稳定收口清理工 |
-| `effect-query` 单维护者 | 0 依赖小库；可回退 30 行自写 wrapper |
-| better-sqlite3 同步驱动在 fiber 内为阻塞调用 | 维持串行语义（与现状一致），不追求 fiber 并行 DB 收益；如未来需要再评估 `@effect/sql` |
-| tsgo typecheck 性能 | Effect 类型负担不轻，引入 pilot 时实测 tsgo 耗时 |
-| 团队学习曲线 / 双风格过渡期 | 按 Inato 迁移报告（fp-ts→Effect，50 万行，~2 个月，~10% 人力）的模式：新代码 Effect、存量按模块迁移、明确不迁边界（UI 样式 / shadcn） |
+| 风险                                                           | 应对                                                                                                                                  |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| v4 RC / unstable API 漂移（rpc、atom 在 `unstable/` 命名空间） | 锁定 RC 版本；跟踪官方周报；预留 4.0 稳定收口清理工                                                                                   |
+| `effect-query` 单维护者                                        | 0 依赖小库；可回退 30 行自写 wrapper                                                                                                  |
+| better-sqlite3 同步驱动在 fiber 内为阻塞调用                   | 维持串行语义（与现状一致），不追求 fiber 并行 DB 收益；如未来需要再评估 `@effect/sql`                                                 |
+| tsgo typecheck 性能                                            | Effect 类型负担不轻，引入 pilot 时实测 tsgo 耗时                                                                                      |
+| 团队学习曲线 / 双风格过渡期                                    | 按 Inato 迁移报告（fp-ts→Effect，50 万行，~2 个月，~10% 人力）的模式：新代码 Effect、存量按模块迁移、明确不迁边界（UI 样式 / shadcn） |
 
 ## 6. 落地前待确认项（不阻塞现状，后续排期时拍板）
 
@@ -135,6 +136,10 @@
 2. zod → Schema 的迁移边界（CLI 全量 or 仅新增代码）；
 3. zustand → atom 的排期；
 4. 首个 pilot 模块范围（候选：IPC 错误通道 + `retrieval/coordinator.ts` + agent 调用链）。
+
+## 6.1 传输层设计说明
+
+传输层的隔离边界、公开面与验收标准见同目录 `ipc-transport-boundary.md`。
 
 ## 7. 参考
 
