@@ -102,4 +102,19 @@ export const rpc = {
     client["config.setActiveAgentModel"]({ selection }),
   configSetReasoningLevel: (level: import("../../../ipc").AiReasoningLevel) =>
     client["config.setActiveAgentReasoningLevel"]({ level }),
+  chatListThreads: () => client["chat.listThreads"](),
+  chatListSkills: () => client["chat.listSkills"](),
+  chatCreateThread: (title?: string) => client["chat.createThread"]({ title }),
+  chatRenameThread: (threadId: string, title: string) =>
+    client["chat.renameThread"]({ threadId, title }),
+  chatGenerateTitle: (threadId: string) => client["chat.generateThreadTitle"]({ threadId }),
+  chatArchiveThread: (threadId: string) => client["chat.archiveThread"]({ threadId }),
+  chatDeleteThread: (threadId: string) => client["chat.deleteThread"]({ threadId }),
+  chatForkFromMessage: (threadId: string, messageId: string) =>
+    client["chat.forkThreadFromMessage"]({ threadId, messageId }),
+  chatExportMarkdown: (filename: string, markdown: string) =>
+    client["chat.exportMarkdown"]({ filename, markdown }),
+  chatReadProjection: (sessionId: string) => client["chat.readSessionProjection"]({ sessionId }),
+  chatSendCommand: (command: import("../../../ipc").AgentCommand) =>
+    client["chat.sendAgentCommand"]({ command }),
 };

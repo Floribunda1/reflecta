@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ipcClient } from "@renderer/utils/ipc";
+import { Effect } from "effect";
+import { rpc } from "@renderer/lib/effect-rpc";
 import type { AgentCommand, AgentReducedMessage } from "@shared/agent";
 import { initialAgentSessionState } from "@shared/agent";
 import type { ComposerSendInput, EditingMessage } from "../adapters/chat-composer-adapter";
@@ -54,7 +55,7 @@ async function sendRetainedAgentCommand(
 ) {
   const release = agentSessionReplica.retainUntilSettled(command.sessionId);
   try {
-    await ipcClient.chat.sendAgentCommand(command);
+    await Effect.runPromise(rpc.chatSendCommand(command));
   } catch (error) {
     release();
     throw error;
@@ -368,28 +369,30 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
         setEditingMessage(editingMessageFromAgentMessage(message));
       },
       approveTool: async (input: ApproveToolInput) => {
-        await ipcClient.chat.sendAgentCommand(
-          input.approved
-            ? {
-                type: "tool.approve",
-                sessionId,
-                approvalId: input.approvalId,
-                modelSelection: input.modelSelection,
-                reasoningLevel: input.reasoningLevel,
-              }
-            : {
-                type: "tool.reject",
-                sessionId,
-                approvalId: input.approvalId,
-                ...(input.rejectionReason ? { reason: input.rejectionReason } : {}),
-                modelSelection: input.modelSelection,
-                reasoningLevel: input.reasoningLevel,
-              },
+        await Effect.runPromise(
+          rpc.chatSendCommand(
+            input.approved
+              ? {
+                  type: "tool.approve",
+                  sessionId,
+                  approvalId: input.approvalId,
+                  modelSelection: input.modelSelection,
+                  reasoningLevel: input.reasoningLevel,
+                }
+              : {
+                  type: "tool.reject",
+                  sessionId,
+                  approvalId: input.approvalId,
+                  ...(input.rejectionReason ? { reason: input.rejectionReason } : {}),
+                  modelSelection: input.modelSelection,
+                  reasoningLevel: input.reasoningLevel,
+                },
+          ),
         );
       },
       cancelEdit: () => setEditingMessage(undefined),
       stop: () => {
-        void ipcClient.chat.sendAgentCommand({ type: "run.cancel", sessionId });
+        void Effect.runPromise(rpc.chatSendCommand({ type: "run.cancel", sessionId }));
       },
       reloadMessages: async () => {
         agentSessionReplica.reconnect(sessionId);

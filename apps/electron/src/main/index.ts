@@ -33,6 +33,7 @@ import {
   UnderstandingError,
   CanvasError,
   ConfigError,
+  ChatError,
 } from "../ipc";
 import {
   trashService,
@@ -44,6 +45,7 @@ import {
 } from "./services/core";
 import { getRecapData as getRecapDataOp } from "./services/insights-ops";
 import * as configOps from "./services/config-ops";
+import * as chatOps from "./services/chat-ops";
 import {
   saveAsset as saveAssetOp,
   scanOrphanAssets,
@@ -187,6 +189,7 @@ app.whenReady().then(async () => {
   const uErr = (message: string) => new UnderstandingError({ reason: message, code: 500 });
   const cErr = (message: string) => new CanvasError({ reason: message, code: 500 });
   const cfgErr = (message: string) => new ConfigError({ reason: message, code: 500 });
+  const chatErr = (message: string) => new ChatError({ reason: message, code: 500 });
   const appMain = appIpc.main({
     ipcMain,
     handlers: {
@@ -563,6 +566,64 @@ app.whenReady().then(async () => {
           try: () => configOps.setActiveAgentReasoningLevel(level),
           catch: (e) => cfgErr(e instanceof Error ? e.message : String(e)),
         }),
+      "chat.listThreads": () =>
+        Effect.tryPromise({
+          try: () => chatOps.listThreads(),
+          catch: (e) => chatErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "chat.listSkills": () =>
+        Effect.try({
+          try: () => chatOps.listSkills(),
+          catch: (e) => chatErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "chat.createThread": ({ title }) =>
+        Effect.try({
+          try: () => chatOps.createThread(title),
+          catch: (e) => chatErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "chat.renameThread": ({ threadId, title }) =>
+        Effect.tryPromise({
+          try: () => chatOps.renameThread(threadId, title),
+          catch: (e) => chatErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
+      "chat.generateThreadTitle": ({ threadId }) =>
+        Effect.tryPromise({
+          try: () => chatOps.generateThreadTitle(threadId),
+          catch: (e) => chatErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "chat.archiveThread": ({ threadId }) =>
+        Effect.tryPromise({
+          try: () => chatOps.archiveThread(threadId),
+          catch: (e) => chatErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
+      "chat.deleteThread": ({ threadId }) =>
+        Effect.tryPromise({
+          try: () => chatOps.deleteThread(threadId),
+          catch: (e) => chatErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
+      "chat.forkThreadFromMessage": ({ threadId, messageId }) =>
+        Effect.tryPromise({
+          try: () => chatOps.forkThreadFromMessage(threadId, messageId),
+          catch: (e) => chatErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "chat.exportMarkdown": ({ filename, markdown }) =>
+        Effect.tryPromise({
+          try: () => chatOps.exportMarkdown(filename, markdown),
+          catch: (e) => chatErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "chat.readSessionProjection": ({ sessionId }) =>
+        Effect.tryPromise({
+          try: () =>
+            chatOps.readSessionProjection(sessionId) as Promise<
+              import("../ipc").AgentSessionProjection
+            >,
+          catch: (e) => chatErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "chat.sendAgentCommand": ({ command }) =>
+        Effect.tryPromise({
+          try: () => chatOps.sendAgentCommand(command as import("@shared/agent").AgentCommand),
+          catch: (e) => chatErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
     },
     context: Context.empty(),
     getWindows: () => BrowserWindow.getAllWindows(),

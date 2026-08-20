@@ -5,7 +5,6 @@ import {
   type ChatThreadGroupView,
 } from "@reflecta/ui/chat";
 import { Effect } from "effect";
-import { ipcClient } from "@renderer/utils/ipc";
 import { rpc } from "@renderer/lib/effect-rpc";
 import { errorMessage } from "@renderer/utils/errors";
 import type { AgentSessionSummary } from "@shared/agent";
@@ -15,8 +14,11 @@ import { copyThreadId, exportThreadMarkdown } from "./thread-action-menu-items";
 
 async function exportThread(thread: AgentSessionSummary) {
   try {
-    const projection = await ipcClient.chat.readSessionProjection(thread.id);
-    await exportThreadMarkdown(thread.title, projection.messages);
+    const projection = await Effect.runPromise(rpc.chatReadProjection(thread.id));
+    await exportThreadMarkdown(
+      thread.title,
+      (projection?.messages ?? []) as import("@shared/agent").AgentMessageProjection[],
+    );
   } catch (error) {
     toast.error("导出 Markdown 失败", { description: errorMessage(error) });
   }
@@ -28,12 +30,14 @@ async function compactThread(threadId: string) {
       Effect.runPromise(rpc.configGetActiveModel()),
       Effect.runPromise(rpc.configGetReasoningLevel()),
     ]);
-    await ipcClient.chat.sendAgentCommand({
-      type: "context.compact",
-      sessionId: threadId,
-      modelSelection: modelSelection ?? undefined,
-      reasoningLevel,
-    });
+    await Effect.runPromise(
+      rpc.chatSendCommand({
+        type: "context.compact",
+        sessionId: threadId,
+        modelSelection: modelSelection ?? undefined,
+        reasoningLevel,
+      }),
+    );
     toast.success("上下文已压缩");
   } catch (error) {
     toast.error("压缩上下文失败", { description: errorMessage(error) });

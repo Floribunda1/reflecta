@@ -24,7 +24,6 @@ import {
 } from "@reflecta/ui/chat";
 import { inferMediaType } from "@reflecta/ui/lib/file-meta";
 import { Effect } from "effect";
-import { ipcClient } from "@renderer/utils/ipc";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import type { SearchContextResult, CanvasDTO } from "@reflecta/server";
@@ -210,7 +209,7 @@ export function AgentChatComposer({
   onInspectContextRef,
 }: AgentChatComposerProps) {
   const attachments = useAttachmentAdapter();
-  const { data: skills } = useRequest(() => ipcClient.chat.listSkills());
+  const { data: skills } = useRequest(() => Effect.runPromise(rpc.chatListSkills()));
   const uiModels = useMemo<ChatComposerModelOption[]>(
     () =>
       modelOptions.map((option) => ({

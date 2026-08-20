@@ -7,7 +7,8 @@ import {
   type ChatEntityReference,
 } from "@reflecta/ui/chat";
 import { toast } from "sonner";
-import { ipcClient } from "@renderer/utils/ipc";
+import { Effect } from "effect";
+import { rpc } from "@renderer/lib/effect-rpc";
 import { errorMessage } from "@renderer/utils/errors";
 import { getEntityDisplay } from "../../capture/queries";
 
@@ -56,7 +57,9 @@ export async function exportThreadMarkdown(title: string, messages: AgentReduced
 
   const filename = `${(title.trim() || "agent-chat").replace(/[\\/:*?"<>|]+/g, "-")}.md`;
   try {
-    const filePath = await ipcClient.chat.exportMarkdown(filename, `${parts.join("\n\n")}\n`);
+    const filePath = await Effect.runPromise(
+      rpc.chatExportMarkdown(filename, `${parts.join("\n\n")}\n`),
+    );
     if (!filePath) return;
     toast.success("已导出 Markdown", { description: filePath });
   } catch (error) {

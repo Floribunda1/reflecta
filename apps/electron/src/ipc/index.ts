@@ -81,6 +81,19 @@ import {
   ConfigSetActiveModel,
   ConfigSetReasoningLevel,
 } from "./contract/config";
+import {
+  ChatListThreads,
+  ChatListSkills,
+  ChatCreateThread,
+  ChatRenameThread,
+  ChatGenerateTitle,
+  ChatArchiveThread,
+  ChatDeleteThread,
+  ChatForkFromMessage,
+  ChatExportMarkdown,
+  ChatReadProjection,
+  ChatSendCommand,
+} from "./contract/chat";
 
 export { TrashListError, TrashedUnderstanding } from "./contract/trash";
 export { PilotBoom, PilotPing, PilotProbe } from "./pilot/contract";
@@ -93,6 +106,13 @@ export { InsightsError } from "./contract/insights";
 export { UnderstandingError } from "./contract/understanding";
 export { CanvasError } from "./contract/understanding-canvas";
 export { ConfigError } from "./contract/config";
+export { ChatError } from "./contract/chat";
+export type {
+  AgentCommand,
+  AgentSessionProjection,
+  AgentSessionSummary,
+  AgentSkillSummary,
+} from "./contract/chat";
 export type {
   AiConfig,
   AiModelOption,
@@ -194,6 +214,17 @@ export const contract = defineContract({
     ConfigGetReasoningLevel,
     ConfigSetActiveModel,
     ConfigSetReasoningLevel,
+    ChatListThreads,
+    ChatListSkills,
+    ChatCreateThread,
+    ChatRenameThread,
+    ChatGenerateTitle,
+    ChatArchiveThread,
+    ChatDeleteThread,
+    ChatForkFromMessage,
+    ChatExportMarkdown,
+    ChatReadProjection,
+    ChatSendCommand,
   ] as const,
   events: [] as const,
   streamMethods: [] as const,

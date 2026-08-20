@@ -1,9 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Effect } from "effect";
-import { ipcClient } from "@renderer/utils/ipc";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { AiModelOption } from "@main/config";
-import type { AgentModelSelection, AgentReasoningLevel } from "@shared/agent";
+import type { AgentModelSelection, AgentReasoningLevel, AgentSessionSummary } from "@shared/agent";
 import { removeThreadFromCache, renameThreadInCache, upsertThreadInCache } from "./query-cache";
 import { chatQueryKeys } from "./query-keys";
 
@@ -18,7 +17,7 @@ export type AiModelsQueryData = {
 export function useThreadsQuery() {
   return useQuery({
     queryKey: chatQueryKeys.threads,
-    queryFn: () => ipcClient.chat.listThreads(),
+    queryFn: () => Effect.runPromise(rpc.chatListThreads()) as Promise<AgentSessionSummary[]>,
   });
 }
 
@@ -39,7 +38,7 @@ export function useAgentModelOptionsQuery() {
 export function useCreateThreadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (title?: string) => ipcClient.chat.createThread(title),
+    mutationFn: (title?: string) => Effect.runPromise(rpc.chatCreateThread(title)),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: chatQueryKeys.threads });
     },
@@ -50,7 +49,7 @@ export function useForkThreadFromMessageMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ threadId, messageId }: { threadId: string; messageId: string }) =>
-      ipcClient.chat.forkThreadFromMessage(threadId, messageId),
+      Effect.runPromise(rpc.chatForkFromMessage(threadId, messageId)),
     onSuccess: async (thread) => {
       upsertThreadInCache(queryClient, thread);
       await queryClient.invalidateQueries({ queryKey: chatQueryKeys.threads });
@@ -61,7 +60,7 @@ export function useForkThreadFromMessageMutation() {
 export function useDeleteThreadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (threadId: string) => ipcClient.chat.deleteThread(threadId),
+    mutationFn: (threadId: string) => Effect.runPromise(rpc.chatDeleteThread(threadId)),
     onSuccess: async (_result, threadId) => {
       removeThreadFromCache(queryClient, threadId);
       await queryClient.invalidateQueries({ queryKey: chatQueryKeys.threads });
@@ -72,7 +71,7 @@ export function useDeleteThreadMutation() {
 export function useArchiveThreadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (threadId: string) => ipcClient.chat.archiveThread(threadId),
+    mutationFn: (threadId: string) => Effect.runPromise(rpc.chatArchiveThread(threadId)),
     onSuccess: async (_result, threadId) => {
       removeThreadFromCache(queryClient, threadId);
       await queryClient.invalidateQueries({ queryKey: chatQueryKeys.threads });
@@ -84,7 +83,7 @@ export function useRenameThreadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ threadId, title }: { threadId: string; title: string }) =>
-      ipcClient.chat.renameThread(threadId, title),
+      Effect.runPromise(rpc.chatRenameThread(threadId, title)),
     onSuccess: async (_result, { threadId, title }) => {
       renameThreadInCache(queryClient, threadId, title);
       await queryClient.invalidateQueries({ queryKey: chatQueryKeys.threads });
@@ -95,7 +94,7 @@ export function useRenameThreadMutation() {
 export function useGenerateThreadTitleMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (threadId: string) => ipcClient.chat.generateThreadTitle(threadId),
+    mutationFn: (threadId: string) => Effect.runPromise(rpc.chatGenerateTitle(threadId)),
     onSuccess: async (title, threadId) => {
       renameThreadInCache(queryClient, threadId, title);
       await queryClient.invalidateQueries({ queryKey: chatQueryKeys.threads });
