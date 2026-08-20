@@ -49,4 +49,11 @@ export const rpc = {
   assetOpen: (filename: string) => client["asset.openAsset"]({ filename }),
   assetOpenExternalPath: (filePath: string) => client["asset.openExternalPath"]({ filePath }),
   assetReveal: (filename: string) => client["asset.revealAsset"]({ filename }),
+  insightsGetRecapData: () => client["insights.getRecapData"](),
+  searchUnderstandings: (query: string, options?: { limit?: number; offset?: number }) =>
+    client["search.searchUnderstandings"]({ query, options }),
+  searchContexts: (query: string, options?: { limit?: number; offset?: number }) =>
+    client["search.searchContexts"]({ query, options }),
+  searchSearch: (query: string, options?: { limit?: number; offset?: number }) =>
+    client["search.search"]({ query, options }),
 };

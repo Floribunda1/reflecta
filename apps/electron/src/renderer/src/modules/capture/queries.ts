@@ -211,7 +211,7 @@ export function useParticipationOverview(enabled = true) {
   });
   const recapQuery = useQuery({
     queryKey: captureQueryKeys.recap,
-    queryFn: () => ipcClient.insights.getRecapData(),
+    queryFn: () => Effect.runPromise(rpc.insightsGetRecapData()) as Promise<RecapData>,
     enabled,
   });
 

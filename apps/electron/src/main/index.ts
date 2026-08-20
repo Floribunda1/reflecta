@@ -28,8 +28,17 @@ import {
   ContextListError,
   AssetError,
   CanvasExportError,
+  SearchError,
+  InsightsError,
 } from "../ipc";
-import { trashService, understandingService, domainService, contextService } from "./services/core";
+import {
+  trashService,
+  understandingService,
+  domainService,
+  contextService,
+  searchService,
+} from "./services/core";
+import { getRecapData as getRecapDataOp } from "./services/insights-ops";
 import {
   saveAsset as saveAssetOp,
   scanOrphanAssets,
@@ -168,6 +177,8 @@ app.whenReady().then(async () => {
   const domainErr = (message: string) => new DomainListError({ reason: message, code: 500 });
   const ctxErr = (message: string) => new ContextListError({ reason: message, code: 500 });
   const assetErr = (message: string) => new AssetError({ reason: message, code: 500 });
+  const searchErr = (message: string) => new SearchError({ reason: message, code: 500 });
+  const insightsErr = (message: string) => new InsightsError({ reason: message, code: 500 });
   const appMain = appIpc.main({
     ipcMain,
     handlers: {
@@ -341,6 +352,38 @@ app.whenReady().then(async () => {
           const logFilePath = getLogFilePath();
           shell.showItemInFolder(logFilePath);
           return logFilePath;
+        }),
+      "search.searchUnderstandings": ({ query, options }) =>
+        Effect.tryPromise({
+          try: () =>
+            searchService.searchUnderstandings(
+              query,
+              options as import("@reflecta/server").SearchOptions | undefined,
+            ),
+          catch: (e) => searchErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "search.searchContexts": ({ query, options }) =>
+        Effect.tryPromise({
+          try: () =>
+            searchService.searchContexts(
+              query,
+              options as import("@reflecta/server").SearchOptions | undefined,
+            ),
+          catch: (e) => searchErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "search.search": ({ query, options }) =>
+        Effect.tryPromise({
+          try: () =>
+            searchService.search(
+              query,
+              options as import("@reflecta/server").SearchOptions | undefined,
+            ),
+          catch: (e) => searchErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "insights.getRecapData": () =>
+        Effect.tryPromise({
+          try: () => getRecapDataOp(),
+          catch: (e) => insightsErr(e instanceof Error ? e.message : String(e)),
         }),
     },
     context: Context.empty(),

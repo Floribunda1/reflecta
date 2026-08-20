@@ -7,8 +7,6 @@ import { diagnosticErrorAttrs } from "../diagnostic-log";
 import { writeDiagnosticEvent } from "../logger";
 import { ChatService } from "./ChatService";
 import { ConfigService } from "./ConfigService";
-import { InsightsService } from "./InsightsService";
-import { SearchService } from "./SearchService";
 import { UnderstandingService } from "./UnderstandingService";
 import { UnderstandingCanvasService } from "./UnderstandingCanvasService";
 import { piAgentHost } from "./core";
@@ -85,8 +83,6 @@ void getSharedModelRuntime().catch(() => undefined);
 export const services = createServices([
   ChatService,
   ConfigService,
-  InsightsService,
   UnderstandingService,
   UnderstandingCanvasService,
-  SearchService,
 ]);

@@ -26,6 +26,8 @@ import { inferMediaType } from "@reflecta/ui/lib/file-meta";
 import { Effect } from "effect";
 import { ipcClient } from "@renderer/utils/ipc";
 import { rpc } from "@renderer/lib/effect-rpc";
+import type { UnderstandingSummaryDTO } from "@shared/understanding";
+import type { SearchContextResult } from "@reflecta/server";
 import { buildContextCandidates, CONTEXT_LOOKUP_LIMIT } from "../context/context-candidates";
 import {
   contextUsageFromMessages,
@@ -255,10 +257,14 @@ export function AgentChatComposer({
     const normalizedQuery = query.trim();
     const [understandings, contexts, domains, canvases] = await Promise.all([
       normalizedQuery
-        ? ipcClient.search.searchUnderstandings(normalizedQuery, { limit: CONTEXT_LOOKUP_LIMIT })
+        ? (Effect.runPromise(
+            rpc.searchUnderstandings(normalizedQuery, { limit: CONTEXT_LOOKUP_LIMIT }),
+          ) as Promise<UnderstandingSummaryDTO[]>)
         : ipcClient.understanding.listUnderstandings({ limit: CONTEXT_LOOKUP_LIMIT }),
       normalizedQuery
-        ? ipcClient.search.searchContexts(normalizedQuery, { limit: CONTEXT_LOOKUP_LIMIT })
+        ? (Effect.runPromise(
+            rpc.searchContexts(normalizedQuery, { limit: CONTEXT_LOOKUP_LIMIT }),
+          ) as Promise<SearchContextResult[]>)
         : Promise.resolve([]),
       Effect.runPromise(rpc.domainListDomains()) as Promise<import("@reflecta/server").Domain[]>,
       normalizedQuery ? ipcClient.understandingCanvas.listCanvases() : Promise.resolve([]),
