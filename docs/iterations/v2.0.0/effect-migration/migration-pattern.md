@@ -92,6 +92,27 @@ const { client: trashClient } = trashIpc.renderer(window.api);
 5. **删除旧 `*Service.ts extends IpcService` 及其在 `services/index.ts` 注册**；若本域是最后一个 `@IpcMethod`，移除 `electron-ipc-decorator` 依赖；
 6. typecheck + 单测 + `feature:check` + 相关 E2E 全绿；PR 附"顺手清理项 / 发现但不动项"两栏。
 
+## 6.1 renderer 侧模式（P4，LLMS 风格）
+
+renderer 并发/逻辑层**不是**在 React 壳内散落 `Effect.runSync`，而是：
+
+1. **先建 renderer 根 `ManagedRuntime`**（P4-0）：`ManagedRuntime.make(应用Layer)`，导出 `runPromise` 等非 Effect 侧接入点（LLMS：build one runtime from your application Layer）。
+2. **逻辑以 `Context.Service` + `Layer` 表达**（P4-2）：save queue / debounced saver / AgentSessionReplica 都是服务方法（内部 `Queue`/纤维/`Schedule`/scope），其 `Layer` 依次 `Layer.provide` 进根 runtime。
+3. **React 对接用 atoms**（D7，P4-1）：本地状态在 `@effect/atom`；hooks 收敛为**纯绑定**（`useAtom`/`useSyncExternalStore`），不持有命令式并发对象。
+4. `queryFn` 内经 `Effect.runPromise` 跑域 Effect（React Query 保留）；typed 错误用 `catchTag`/`match` 分发。
+
+### v4 注意点（rc.110 实测）
+
+- `Effect.catchAll` 已移除 → 通用捕利用 `Effect.exit` 捕获成败，或 `catchTag`/`catchReason` 分发。
+- 无 `Ref.unsafeMake`（用 `Ref.make`+`runSync`）、无 `Effect.interruptFiber`（用 `Fiber.interrupt`）、无 `Schedule.debounce`（手动中断 timer fiber 实现 debounce）。
+- `Effect.gen` 生成器无 `_` 参数。
+- `vi` fake timers **可控 `Effect.sleep`**（底层走全局 `setTimeout`）→ 现有 React 测试剧本可复用，无需重写计时。
+- 并发原语 R=never 时可走 `runFork`/`runPromise`；一旦引入服务/依赖则需经根 runtime + layer 提供。
+
+### （勘误）migration-pattern 窗类型
+
+`preload/index.d.ts` 的 `Window.api` 类型实为 `IpcBridge`（此前误写为 `IpcBridgeGlobal<typeof XxxIpc>`）。
+
 ## 7. 已落地样例（可直接照抄）
 
 - 契约 + typed error：`apps/electron/src/ipc/pilot/contract.ts`

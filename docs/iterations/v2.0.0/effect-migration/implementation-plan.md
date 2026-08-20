@@ -111,19 +111,44 @@ Phase 6  v4 稳定收口 + 全量回归
 
 **目标**：renderer 完全跑在 Effect 上（React 作 view、Effect 作 program），清理数据层与逻辑层技术债。
 
-| 任务                   | 说明                                                                                                                                |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| queryFn 跑 Effect      | React Query 保留；`queryFn` 内经 `effect-query`（或传输层 client）调用本域 Effect                                                   |
-| 契约类型化错误         | renderer 用 `error.match` 分发域错误，替代 `errors.ts` 的 message 兜底                                                              |
-| 清 invalidate 织网     | 迁移时重做 `queries.ts` 等的手动 invalidate 链，改用事件驱动（可配合 atom）                                                         |
-| zustand → @effect/atom | 本地 UI 状态迁移到官方 atoms（D7）                                                                                                  |
-| 清 IPC 遗留            | 移除 `utils/ipc.ts` 的 `createIpcProxy` + `wrapWithErrorHandling`；preload `contextBridge` 的 ipcRenderer 管道保留                  |
-| 顺手清理               | 各 renderer 模块 dead export、旧类型别名、过期注释                                                                                  |
-| ③逻辑层（D11）         | 并发原语 → Effect `save queue` / `debounced-latest-saver` / `AgentSessionReplica` → Queue / 纤维 / Schedule / 中断 + Scope 生命周期 |
-| ③                      | 状态机/多步流程 → Effect draft 保存态、理解详情流程、chat 流式 → 显式状态 Effect 程序                                               |
-| ③                      | 纯派生不动 `participation-stats` / `card-grid-layout` / `sort` 保持纯函数，不强行包 Effect                                          |
+> **依赖序（重要，走歪教训 2026-08-20）**：P4③（逻辑层）**依赖 ② atoms 先落位 + renderer `ManagedRuntime` 脚手架**（D11 明确）。此前曾跳过前置、直接对单个并发原语做"仅替换内部实现 + 保留命令式 React 壳 + 散落 `Effect.runSync`/全局 runtime"——这是**反模式**（Effect 官方 LLMS 要求 build one runtime from application Layer，逻辑以 `Context.Service`+`Layer` 表达，非散装命令式工厂）。结论：**P4 必须按 P4-0→P4-4 顺序推进**，每单元自洽可回退；不建 runtime/atoms 就动逻辑层＝顺序错误。
 
-**退出标准**：renderer 无 `createIpcProxy`、无手写 invalidate 网（或已事件化）、无手写并发原语残留；本地状态单一（atoms）；hooks 收敛为纯绑定。
+### P4-0｜renderer `ManagedRuntime` 脚手架（P2 欠账，所有单元的前置）
+
+- 建 renderer 根 runtime：`ManagedRuntime`（由应用 `Layer` 组装，LLMS 明确要求）。
+- 导出 `runPromise` / `runFork` 等接入点；后续服务的 `Layer` 依次 `Layer.provide` 进去。
+
+### P4-1｜引入 `@effect/atom`（D7）＋ zustand → atoms
+
+- 新增官方 `@effect/atom` 依赖；本地状态迁到 atoms。
+- 现 4 个 zustand store：`theme` / `capture` / `chat-ui` / `canvas`。
+- ③ 逻辑层的 React 对接（`useAtom` / `useSyncExternalStore`）由此落位。
+
+### P4-2｜③ 逻辑层 → Effect services（在 P4-0/1 之上）
+
+| 原语（旧命令式模块）                      | Effect 形态                                                                      | 备注                                        |
+| ----------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------- |
+| `useUnderstandingDraftSave` 的 save queue | `Context.Service`（内部 `Queue` + 单 worker fiber + `Deferred` + revision 门控） | 删除式：旧命令式队列随调用方一次移除        |
+| `debounced-latest-saver`                  | `Context.Service`（timer fiber + `Fiber.interrupt` + revision）                  | 调用方 `CanvasWorkspace` 改纯绑定           |
+| `AgentSessionReplica`                     | `Context.Service`（per-session 生命周期 → fiber/Scope 中断、refcount）           | 🔴 最险：chat 流式依赖，独立评估可单独立 PR |
+
+- React 侧：hooks 收敛为**纯绑定**（读 atom / `useSyncExternalStore`），不再持有命令式并发对象。
+- 删除式（R1）：旧命令式模块连同全部调用方一次移除，不留兼容层。
+
+### P4-3｜③ 状态机/多步流程 → Effect 程序
+
+- `CaptureDraft` 保存态、理解详情流程、chat 流式 → 显式状态 Effect 程序（atoms 承接状态）。
+
+### P4-4｜① typed-error 分发 ＋ ⑤ invalidate 织网
+
+- renderer 用 `catchTag`/`match` 分发域错误，替代 message 兜底。
+- 重做 `queries.ts` 等手动 invalidate 链 → 事件驱动（可配合 atom/事件总线）。
+
+### 顺手清理（各单元顺带）
+
+- dead export、旧类型别名、过期注释；`queryFn` 内跑 Effect（P3 已顺带完成，保留 React Query）。
+
+**退出标准**：renderer 无 `createIpcProxy`、无手写 invalidate 网（或已事件化）、无手写并发原语残留；本地状态单一（atoms）；hooks 收敛为纯绑定；逻辑层全部为 Effect services（非散装 `runSync`）。
 
 ---
 
