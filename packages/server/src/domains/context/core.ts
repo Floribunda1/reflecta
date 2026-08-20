@@ -170,14 +170,17 @@ export class ContextCore {
 
   private assertUnderstandingExists(understandingId: string): Effect.Effect<void, ContextError> {
     const db = this.db;
-    return Effect.promise(async () => {
-      const rows = await db
-        .select({ id: understandings.id })
-        .from(understandings)
-        .where(and(eq(understandings.id, understandingId), isNull(understandings.deletedAt)))
-        .limit(1);
+    return Effect.gen(function* () {
+      const rows = yield* Effect.promise(() =>
+        db
+          .select({ id: understandings.id })
+          .from(understandings)
+          .where(and(eq(understandings.id, understandingId), isNull(understandings.deletedAt)))
+          .limit(1),
+      );
+      // 失败走 typed error 通道（Effect.promise 内 throw 会变成 defect，无法 catchTag/retry）。
       if (rows.length === 0) {
-        throw new ContextUnderstandingNotFoundError({ understandingId });
+        return yield* Effect.fail(new ContextUnderstandingNotFoundError({ understandingId }));
       }
     });
   }

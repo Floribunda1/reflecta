@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+import * as S from "effect/Schema";
 import { and, inArray, isNull, or } from "drizzle-orm";
 import { understandingMentions, understandingDomains, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
@@ -19,6 +20,14 @@ import type {
 } from "../retrieval";
 
 export const RETRIEVAL_SNIPPET_MAX_CHARS = 240;
+
+/**
+ * search 域 typed error：底层 lancedb/embedding IO 的 rejection 经 `Effect.tryPromise`
+ * 映射到这里（Effect.promise 会把它变成 defect，无法 catch/retry）。
+ */
+export class SearchDomainError extends S.TaggedError<SearchDomainError>()("SearchDomainError", {
+  message: S.String,
+}) {}
 
 export function buildSnippet(text: string, maxChars = RETRIEVAL_SNIPPET_MAX_CHARS): string {
   const trimmed = text.trim();
@@ -57,19 +66,25 @@ export class SearchCore {
     query: string,
     options?: SearchOptions,
     mode: RetrievalSearchMode = "hybrid",
-  ): Effect.Effect<SearchRetrievalHit[]> {
-    return Effect.promise(async () => {
-      const { limit, offset } = getLimitOffset(options);
-      const index = createRetrievalIndex();
-      const resultLimit = limit + offset;
-      const hits =
-        mode === "lexical"
-          ? await index.searchLexical(query, resultLimit)
-          : await index.search(query, resultLimit);
+  ): Effect.Effect<SearchRetrievalHit[], SearchDomainError> {
+    const { limit, offset } = getLimitOffset(options);
+    const index = createRetrievalIndex();
+    const resultLimit = limit + offset;
+    return Effect.gen(function* () {
+      const hits = yield* Effect.tryPromise({
+        try: () =>
+          mode === "lexical"
+            ? index.searchLexical(query, resultLimit)
+            : index.search(query, resultLimit),
+        catch: (error) =>
+          new SearchDomainError({
+            message: error instanceof Error ? error.message : String(error),
+          }),
+      });
 
-      return hits.slice(offset).map((hit, index) => ({
+      return hits.slice(offset).map((hit, i) => ({
         ...hit,
-        rank: index + offset,
+        rank: i + offset,
         snippet: buildSnippet(hit.textForLexicalSearch),
       }));
     });
@@ -78,7 +93,10 @@ export class SearchCore {
   searchUnderstandingIds(
     query: string,
     options?: SearchOptions,
-  ): Effect.Effect<Array<{ understandingId: string; snippet: string; rank: number }>> {
+  ): Effect.Effect<
+    Array<{ understandingId: string; snippet: string; rank: number }>,
+    SearchDomainError
+  > {
     const searchRetrievalDocuments = this.searchRetrievalDocuments.bind(this);
     return Effect.gen(function* () {
       const hits = yield* searchRetrievalDocuments(query, options, "lexical");
@@ -103,7 +121,8 @@ export class SearchCore {
       title: string | null;
       snippet: string;
       rank: number;
-    }>
+    }>,
+    SearchDomainError
   > {
     const searchRetrievalDocuments = this.searchRetrievalDocuments.bind(this);
     return Effect.gen(function* () {
@@ -121,7 +140,9 @@ export class SearchCore {
     });
   }
 
-  retrieveKnowledge(input: RetrieveKnowledgeInput): Effect.Effect<RetrieveKnowledgeResult> {
+  retrieveKnowledge(
+    input: RetrieveKnowledgeInput,
+  ): Effect.Effect<RetrieveKnowledgeResult, SearchDomainError> {
     const searchRetrievalDocuments = this.searchRetrievalDocuments.bind(this);
     const db = this.db;
     const expandRelationCandidates = this.expandRelationCandidates.bind(this);

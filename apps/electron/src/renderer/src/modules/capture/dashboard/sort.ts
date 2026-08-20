@@ -3,7 +3,7 @@ import type { UnderstandingSummaryDTO } from "@shared/understanding";
 export type UnderstandingListSortBy = "updatedAt" | "createdAt";
 
 export function sortUnderstandingSummaries(
-  understandings: UnderstandingSummaryDTO[],
+  understandings: readonly UnderstandingSummaryDTO[],
   sortBy: UnderstandingListSortBy,
 ): UnderstandingSummaryDTO[] {
   return [...understandings].sort(

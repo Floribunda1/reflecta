@@ -1,11 +1,22 @@
 import { Effect } from "effect";
 import * as S from "effect/Schema";
-import { eq, inArray, sql } from "drizzle-orm";
-import { domains, understandingDomains, understandings } from "../../db/schema";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import {
+  contexts,
+  domains,
+  understandingDomains,
+  understandingMentions,
+  understandings,
+} from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type { CreateDomainInput, ReorderDomainItem, UpdateDomainInput } from "./types";
+import type { DomainInspectResult, InspectDomainOptions } from "./types";
 import { createEntityId } from "../shared/id";
+import { makePageInfo } from "../shared/types";
 import type { RetrievalIndexUpdateSink } from "../shared/types";
+import { toUnderstandingSummaries } from "../understanding/core";
+import type { UnderstandingNode } from "../understanding/types";
+import type { ContextDetail, ContextMedium } from "../context/types";
 
 export class DomainNotFoundError extends S.TaggedError<DomainNotFoundError>()(
   "DomainNotFoundError",
@@ -226,6 +237,141 @@ export class DomainCore {
     });
   }
 }
+
+/**
+ * 查看领域及其下辖理解/上下文/关系（CLI inspect 的 Effect 程序；门面只跑 runPromise）。
+ * 页面大小取 limit+1 判定 hasMore，同原 bff-cli 行为。
+ */
+export const inspectDomainProgram = (
+  db: ReflectaDb,
+  id: string,
+  options?: InspectDomainOptions,
+): Effect.Effect<DomainInspectResult, DomainError> =>
+  Effect.gen(function* () {
+    const domainRows = yield* Effect.promise(() =>
+      db.select().from(domains).where(eq(domains.id, id)).limit(1),
+    );
+    const domain = domainRows[0] ?? null;
+    if (!domain) return yield* Effect.fail(new DomainNotFoundError({ id }));
+
+    const descendantIds = yield* getDomainDescendants(db, id);
+    const descendantIdSet = new Set(descendantIds);
+    const allDomainRows = yield* Effect.promise(() =>
+      db.select().from(domains).orderBy(domains.sortOrder),
+    );
+    const descendantDomains = allDomainRows.filter((row) => descendantIdSet.has(row.id));
+    const targetCatIds = [id, ...descendantIds];
+
+    const limit = options?.limit ?? 200;
+    const offset = options?.offset ?? 0;
+
+    const understandingRows = yield* Effect.promise(() =>
+      db
+        .select()
+        .from(understandings)
+        .where(
+          and(
+            isNull(understandings.deletedAt),
+            inArray(
+              understandings.id,
+              db
+                .select({ id: understandingDomains.understandingId })
+                .from(understandingDomains)
+                .where(inArray(understandingDomains.domainId, targetCatIds)),
+            ),
+          ),
+        )
+        .orderBy(desc(understandings.updatedAt))
+        .limit(limit + 1)
+        .offset(offset),
+    );
+
+    const hasMore = understandingRows.length > limit;
+    const paginatedRows = understandingRows.slice(0, limit);
+    const understandingIds = paginatedRows.map((row) => row.id);
+
+    const summaries = yield* toUnderstandingSummaries(db, paginatedRows);
+    const nodeUnderstandings: UnderstandingNode[] = summaries.map((summary) => ({
+      ...summary,
+    }));
+
+    let resultContexts: ContextDetail[] | undefined;
+    let resultEdges: { from: string; to: string }[] | undefined;
+
+    if (options?.includeContexts) {
+      const ctxRows = yield* Effect.promise(() =>
+        db
+          .select()
+          .from(contexts)
+          .where(
+            and(inArray(contexts.understandingId, understandingIds), isNull(contexts.deletedAt)),
+          ),
+      );
+      const ctxMap = new Map<string, string[]>();
+      for (const ctx of ctxRows) {
+        const arr = ctxMap.get(ctx.understandingId) ?? [];
+        arr.push(ctx.id);
+        ctxMap.set(ctx.understandingId, arr);
+      }
+      for (const node of nodeUnderstandings) {
+        node.contextIds = ctxMap.get(node.id) ?? [];
+      }
+      resultContexts = ctxRows.map((row) => ({
+        id: row.id,
+        understandingId: row.understandingId,
+        medium: row.medium as ContextMedium,
+        title: row.title ?? null,
+        content: row.content,
+      }));
+    }
+
+    if (options?.includeEdges) {
+      const [outRows, inRows] = yield* Effect.all([
+        Effect.promise(() =>
+          db
+            .select()
+            .from(understandingMentions)
+            .where(inArray(understandingMentions.sourceId, understandingIds)),
+        ),
+        Effect.promise(() =>
+          db
+            .select()
+            .from(understandingMentions)
+            .where(inArray(understandingMentions.targetId, understandingIds)),
+        ),
+      ]);
+
+      const edgeSet = new Set<string>();
+      resultEdges = [];
+      for (const row of outRows) {
+        const key = `${row.sourceId}->${row.targetId}`;
+        if (!edgeSet.has(key)) {
+          edgeSet.add(key);
+          resultEdges.push({ from: row.sourceId, to: row.targetId });
+        }
+      }
+      for (const row of inRows) {
+        const key = `${row.sourceId}->${row.targetId}`;
+        if (!edgeSet.has(key)) {
+          edgeSet.add(key);
+          resultEdges.push({ from: row.sourceId, to: row.targetId });
+        }
+      }
+    }
+
+    return {
+      domain: { id: domain.id, name: domain.name, parentId: domain.parentId },
+      domains: descendantDomains.map((row) => ({
+        id: row.id,
+        name: row.name,
+        parentId: row.parentId,
+      })),
+      understandings: nodeUnderstandings,
+      contexts: resultContexts,
+      edges: resultEdges,
+      page: makePageInfo(limit, offset, hasMore),
+    };
+  });
 
 export const resolveDomainRefs = (
   db: ReflectaDb,

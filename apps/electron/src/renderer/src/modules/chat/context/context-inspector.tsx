@@ -1,5 +1,6 @@
-import { runPromise } from "@renderer/lib/effect-runtime";
+import { Effect } from "effect";
 import { useQuery } from "@tanstack/react-query";
+import { effectQuery } from "@renderer/lib/effect-query";
 import { rpc } from "@renderer/lib/effect-rpc";
 import {
   ContextPreviewDrawerContent,
@@ -22,11 +23,14 @@ export function ContextInspector({
   focusMode?: boolean;
   onFocusModeChange?: (focused: boolean) => void;
 }) {
-  const contextQuery = useQuery({
-    queryKey: ["agent.inspector.context", refToInspect.id],
-    queryFn: () => runPromise(rpc.contextGetById(refToInspect.id)) as Promise<ContextDTO | null>,
-    enabled: refToInspect.type === "context",
-  });
+  const contextQuery = useQuery(
+    effectQuery.queryOptions({
+      queryKey: ["agent.inspector.context", refToInspect.id] as const,
+      queryFn: () =>
+        rpc.contextGetById(refToInspect.id).pipe(Effect.map((dto) => dto as ContextDTO | null)),
+      enabled: refToInspect.type === "context",
+    }),
+  );
 
   return (
     <aside

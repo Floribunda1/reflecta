@@ -1,5 +1,6 @@
-import { runPromise } from "@renderer/lib/effect-runtime";
+import { Effect } from "effect";
 import { useQuery } from "@tanstack/react-query";
+import { effectQuery } from "@renderer/lib/effect-query";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { CanvasDetailDTO } from "@reflecta/server";
 import { CanvasReadOnlyView, type CanvasShapeData } from "@reflecta/ui/canvas";
@@ -18,11 +19,14 @@ export function CanvasInspector({
   canvasId: string;
   onOpenEditor?: (canvasId: string) => void;
 }) {
-  const detailQuery = useQuery({
-    queryKey: ["agent.inspector.canvas", canvasId],
-    queryFn: () => runPromise(rpc.canvasGet(canvasId)) as Promise<CanvasDetailDTO | null>,
-    enabled: !!canvasId,
-  });
+  const detailQuery = useQuery(
+    effectQuery.queryOptions({
+      queryKey: ["agent.inspector.canvas", canvasId] as const,
+      queryFn: () =>
+        rpc.canvasGet(canvasId).pipe(Effect.map((dto) => dto as CanvasDetailDTO | null)),
+      enabled: !!canvasId,
+    }),
+  );
 
   const shapeData = useMemo<CanvasShapeData | undefined>(() => {
     const detail = detailQuery.data;

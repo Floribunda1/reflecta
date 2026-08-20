@@ -1,18 +1,6 @@
 import { Effect } from "effect";
-import { and, desc, inArray, isNull } from "drizzle-orm";
-import {
-  contexts,
-  understandingDomains,
-  understandingMentions,
-  understandings,
-} from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
-import { DomainCore } from "./core";
-import { getDomainDescendants } from "./core";
-import { makePageInfo } from "../shared/types";
-import { toUnderstandingSummaries } from "../understanding/core";
-import type { ContextDetail, ContextMedium } from "../context/types";
-import type { UnderstandingNode } from "../understanding/types";
+import { DomainCore, DomainNotFoundError, inspectDomainProgram } from "./core";
 import type {
   DomainInspectResult,
   DomainSummary,
@@ -35,126 +23,14 @@ export class DomainCliBff extends DomainCore {
   async getDomain(id: string): Promise<DomainSummary> {
     const row = await Effect.runPromise(this.getDomainRow(id));
     if (!row) {
-      throw new Error(`Domain not found: ${id}`);
+      // typed 域错误：runner 按 `_tag.endsWith("NotFoundError")` 映射到 NOT_FOUND。
+      throw new DomainNotFoundError({ id });
     }
     return { id: row.id, name: row.name, parentId: row.parentId };
   }
 
   async inspectDomain(id: string, options?: InspectDomainOptions): Promise<DomainInspectResult> {
-    const domain = await Effect.runPromise(this.getDomainRow(id));
-    if (!domain) {
-      throw new Error(`Domain not found: ${id}`);
-    }
-
-    const descendantIds = await Effect.runPromise(getDomainDescendants(this.db, id));
-    const descendantIdSet = new Set(descendantIds);
-    const descendantDomains = (await Effect.runPromise(this.listDomainRows())).filter((c) =>
-      descendantIdSet.has(c.id),
-    );
-    const targetCatIds = [id, ...descendantIds];
-
-    const limit = options?.limit ?? 200;
-    const offset = options?.offset ?? 0;
-
-    const understandingRows = await this.db
-      .select()
-      .from(understandings)
-      .where(
-        and(
-          isNull(understandings.deletedAt),
-          inArray(
-            understandings.id,
-            this.db
-              .select({ id: understandingDomains.understandingId })
-              .from(understandingDomains)
-              .where(inArray(understandingDomains.domainId, targetCatIds)),
-          ),
-        ),
-      )
-      .orderBy(desc(understandings.updatedAt))
-      .limit(limit + 1)
-      .offset(offset);
-
-    const hasMore = understandingRows.length > limit;
-    const paginatedUnderstandingRows = understandingRows.slice(0, limit);
-    const understandingIds = paginatedUnderstandingRows.map((t) => t.id);
-
-    const summaries = await Effect.runPromise(
-      toUnderstandingSummaries(this.db, paginatedUnderstandingRows),
-    );
-    const nodeUnderstandings: UnderstandingNode[] = summaries.map((s) => ({ ...s }));
-
-    let resultContexts: ContextDetail[] | undefined;
-    let resultEdges: { from: string; to: string }[] | undefined;
-
-    if (options?.includeContexts) {
-      const ctxRows = await this.db
-        .select()
-        .from(contexts)
-        .where(
-          and(inArray(contexts.understandingId, understandingIds), isNull(contexts.deletedAt)),
-        );
-
-      const ctxMap = new Map<string, string[]>();
-      for (const ctx of ctxRows) {
-        const arr = ctxMap.get(ctx.understandingId) ?? [];
-        arr.push(ctx.id);
-        ctxMap.set(ctx.understandingId, arr);
-      }
-
-      for (const node of nodeUnderstandings) {
-        node.contextIds = ctxMap.get(node.id) ?? [];
-      }
-
-      resultContexts = ctxRows.map((r) => ({
-        id: r.id,
-        understandingId: r.understandingId,
-        medium: r.medium as ContextMedium,
-        title: r.title ?? null,
-        content: r.content,
-      }));
-    }
-
-    if (options?.includeEdges) {
-      const [outRows, inRows] = await Promise.all([
-        this.db
-          .select()
-          .from(understandingMentions)
-          .where(inArray(understandingMentions.sourceId, understandingIds)),
-        this.db
-          .select()
-          .from(understandingMentions)
-          .where(inArray(understandingMentions.targetId, understandingIds)),
-      ]);
-
-      const edgeSet = new Set<string>();
-      resultEdges = [];
-
-      for (const e of outRows) {
-        const key = `${e.sourceId}->${e.targetId}`;
-        if (!edgeSet.has(key)) {
-          edgeSet.add(key);
-          resultEdges.push({ from: e.sourceId, to: e.targetId });
-        }
-      }
-
-      for (const e of inRows) {
-        const key = `${e.sourceId}->${e.targetId}`;
-        if (!edgeSet.has(key)) {
-          edgeSet.add(key);
-          resultEdges.push({ from: e.sourceId, to: e.targetId });
-        }
-      }
-    }
-
-    return {
-      domain: { id: domain.id, name: domain.name, parentId: domain.parentId },
-      domains: descendantDomains.map((c) => ({ id: c.id, name: c.name, parentId: c.parentId })),
-      understandings: nodeUnderstandings,
-      contexts: resultContexts,
-      edges: resultEdges,
-      page: makePageInfo(limit, offset, hasMore),
-    };
+    return Effect.runPromise(inspectDomainProgram(this.db, id, options));
   }
 
   async createDomainSummary(input: CreateDomainInput): Promise<DomainSummary> {

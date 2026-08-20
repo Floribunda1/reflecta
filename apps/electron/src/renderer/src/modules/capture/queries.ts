@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { runPromise } from "@renderer/lib/effect-runtime";
 import { effectQuery } from "@renderer/lib/effect-query";
 import { rpc } from "@renderer/lib/effect-rpc";
@@ -112,7 +113,7 @@ function applyInvalidations(queryClient: QueryClient, plan: InvalidationPlan): P
 // 读 hooks
 // ---------------------------------------------------------------------------
 
-function buildDomainTree(flat: Domain[]): DomainTreeNode[] {
+function buildDomainTree(flat: readonly Domain[]): DomainTreeNode[] {
   const map = new Map<string, DomainTreeNode>();
   for (const domain of flat) {
     map.set(domain.id, {
@@ -170,18 +171,21 @@ function buildUnderstandingListTotalFilter({
   };
 }
 
-const EMPTY_DOMAIN_LIST: Domain[] = [];
+const EMPTY_DOMAIN_LIST: readonly Domain[] = [];
 
 export function useCaptureDomains(enabled = true) {
   const {
     data: domainList,
     isFetching,
     refetch,
-  } = useQuery({
-    queryKey: captureQueryKeys.domains,
-    queryFn: () => runPromise(rpc.domainListDomains()) as Promise<Domain[]>,
-    enabled,
-  });
+  } = useQuery(
+    effectQuery.queryOptions({
+      queryKey: captureQueryKeys.domains,
+      // schema 解码结果为深度只读，应用 DTO 类型为可变：边界处收窄（运行时即普通数组）。
+      queryFn: () => rpc.domainListDomains().pipe(Effect.map((rows) => rows as Domain[])),
+      enabled,
+    }),
+  );
 
   const normalizedDomainList = domainList ?? EMPTY_DOMAIN_LIST;
   const domains = useMemo(() => buildDomainTree(normalizedDomainList), [normalizedDomainList]);
@@ -195,59 +199,73 @@ export function useCaptureDomains(enabled = true) {
 }
 
 export function useCaptureUnderstandingList(filterKey: UnderstandingListFilterKey) {
-  return useQuery<UnderstandingSummaryDTO[]>({
-    queryKey: captureQueryKeys.understandingList(filterKey),
-    queryFn: () =>
-      runPromise(rpc.understandingList(buildUnderstandingListFilter(filterKey))) as Promise<
-        UnderstandingSummaryDTO[]
-      >,
-  });
+  return useQuery(
+    effectQuery.queryOptions({
+      queryKey: captureQueryKeys.understandingList(filterKey),
+      queryFn: () =>
+        rpc
+          .understandingList(buildUnderstandingListFilter(filterKey))
+          .pipe(Effect.map((rows) => rows as UnderstandingSummaryDTO[])),
+    }),
+  );
 }
 
 export function useCaptureUnderstandingListTotal(filterKey: UnderstandingListTotalKey) {
-  return useQuery<UnderstandingSummaryDTO[]>({
-    queryKey: captureQueryKeys.understandingListTotal(filterKey),
-    queryFn: () =>
-      runPromise(rpc.understandingList(buildUnderstandingListTotalFilter(filterKey))) as Promise<
-        UnderstandingSummaryDTO[]
-      >,
-  });
+  return useQuery(
+    effectQuery.queryOptions({
+      queryKey: captureQueryKeys.understandingListTotal(filterKey),
+      queryFn: () =>
+        rpc
+          .understandingList(buildUnderstandingListTotalFilter(filterKey))
+          .pipe(Effect.map((rows) => rows as UnderstandingSummaryDTO[])),
+    }),
+  );
 }
 
 export function useCaptureUnderstandingDetail(understandingId: string) {
-  return useQuery<UnderstandingDTO | null>({
-    queryKey: captureQueryKeys.understandingDetail(understandingId),
-    queryFn: () =>
-      runPromise(rpc.understandingGetById(understandingId)) as Promise<UnderstandingDTO | null>,
-  });
+  return useQuery(
+    effectQuery.queryOptions({
+      queryKey: captureQueryKeys.understandingDetail(understandingId),
+      queryFn: () =>
+        rpc
+          .understandingGetById(understandingId)
+          .pipe(Effect.map((dto) => dto as UnderstandingDTO | null)),
+    }),
+  );
 }
 
 export type ParticipationOverviewData = {
-  understandings: UnderstandingSummaryDTO[];
-  canvases: CanvasDTO[];
+  understandings: readonly UnderstandingSummaryDTO[];
+  canvases: readonly CanvasDTO[];
   recap: RecapData;
 };
 
 /** 参与概览（捕获页顶部）：理解列表与网格默认筛选共用 query，避免进页拉两次全文。 */
 export function useParticipationOverview(enabled = true) {
-  const understandingsQuery = useQuery<UnderstandingSummaryDTO[]>({
-    queryKey: captureQueryKeys.understandingList(ALL_UNDERSTANDINGS_LIST_FILTER),
-    queryFn: () =>
-      runPromise(
-        rpc.understandingList(buildUnderstandingListFilter(ALL_UNDERSTANDINGS_LIST_FILTER)),
-      ) as Promise<UnderstandingSummaryDTO[]>,
-    enabled,
-  });
-  const canvasesQuery = useQuery({
-    queryKey: captureQueryKeys.canvases,
-    queryFn: () => runPromise(rpc.canvasList()) as Promise<CanvasDTO[]>,
-    enabled,
-  });
-  const recapQuery = useQuery({
-    queryKey: captureQueryKeys.recap,
-    queryFn: () => runPromise(rpc.insightsGetRecapData()) as Promise<RecapData>,
-    enabled,
-  });
+  const understandingsQuery = useQuery(
+    effectQuery.queryOptions({
+      queryKey: captureQueryKeys.understandingList(ALL_UNDERSTANDINGS_LIST_FILTER),
+      queryFn: () =>
+        rpc
+          .understandingList(buildUnderstandingListFilter(ALL_UNDERSTANDINGS_LIST_FILTER))
+          .pipe(Effect.map((rows) => rows as UnderstandingSummaryDTO[])),
+      enabled,
+    }),
+  );
+  const canvasesQuery = useQuery(
+    effectQuery.queryOptions({
+      queryKey: captureQueryKeys.canvases,
+      queryFn: () => rpc.canvasList().pipe(Effect.map((rows) => rows as CanvasDTO[])),
+      enabled,
+    }),
+  );
+  const recapQuery = useQuery(
+    effectQuery.queryOptions({
+      queryKey: captureQueryKeys.recap,
+      queryFn: () => rpc.insightsGetRecapData().pipe(Effect.map((data) => data as RecapData)),
+      enabled,
+    }),
+  );
 
   const data = useMemo<ParticipationOverviewData | undefined>(() => {
     if (!understandingsQuery.data || !canvasesQuery.data || !recapQuery.data) return undefined;

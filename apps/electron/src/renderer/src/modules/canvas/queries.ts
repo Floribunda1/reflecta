@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { runPromise } from "@renderer/lib/effect-runtime";
 import { effectQuery } from "@renderer/lib/effect-query";
 import { rpc } from "@renderer/lib/effect-rpc";
@@ -22,35 +23,43 @@ export const canvasQueryKeys = {
 };
 
 export function useCanvasList() {
-  return useQuery<CanvasDTO[]>({
-    queryKey: canvasQueryKeys.list,
-    queryFn: () => runPromise(rpc.canvasList()) as Promise<CanvasDTO[]>,
-  });
+  return useQuery(
+    effectQuery.queryOptions({
+      queryKey: canvasQueryKeys.list,
+      queryFn: () => rpc.canvasList().pipe(Effect.map((rows) => rows as CanvasDTO[])),
+    }),
+  );
 }
 
 /** 画布详情（renderer 交互需要正文：includeBodies 已在 IPC 服务端固定为 true）。 */
 export function useCanvasDetail(canvasId: string | null) {
-  return useQuery<CanvasDetailDTO | null>({
-    queryKey: canvasQueryKeys.detail(canvasId ?? ""),
-    queryFn: () =>
-      canvasId
-        ? (runPromise(rpc.canvasGet(canvasId)) as Promise<CanvasDetailDTO | null>)
-        : Promise.resolve(null),
-    enabled: Boolean(canvasId),
-  });
+  return useQuery(
+    effectQuery.queryOptions({
+      queryKey: canvasQueryKeys.detail(canvasId ?? ""),
+      queryFn: () =>
+        canvasId
+          ? rpc.canvasGet(canvasId).pipe(Effect.map((dto) => dto as CanvasDetailDTO | null))
+          : Effect.succeed(null as CanvasDetailDTO | null),
+      enabled: Boolean(canvasId),
+    }),
+  );
 }
 
 /** 引用画布卡的小型预览：一次性拉取所有被引用画布的详情（按 id 排序签名做 queryKey）。 */
 export function useReferencedCanvasPreviews(refIds: string[]) {
   const key = [...refIds].sort().join(",");
-  return useQuery<(CanvasDetailDTO | null)[]>({
-    queryKey: ["understandingCanvas.refPreviews", key] as const,
-    queryFn: () =>
-      Promise.all(refIds.map((id) => runPromise(rpc.canvasGet(id)))) as Promise<
-        (CanvasDetailDTO | null)[]
-      >,
-    enabled: refIds.length > 0,
-  });
+  return useQuery(
+    effectQuery.queryOptions({
+      queryKey: ["understandingCanvas.refPreviews", key] as const,
+      queryFn: () =>
+        Effect.forEach(
+          refIds,
+          (id) => rpc.canvasGet(id).pipe(Effect.map((dto) => dto as CanvasDetailDTO | null)),
+          { concurrency: "unbounded" },
+        ),
+      enabled: refIds.length > 0,
+    }),
+  );
 }
 
 /** M6-6 / M8-8：某理解出现在哪些画布（画布归属）。 */
@@ -59,14 +68,18 @@ export function useCanvasListByUnderstanding(understandingId: string | null) {
     "understandingCanvas.listCanvasesByUnderstanding",
     understandingId ?? "",
   ] as const;
-  return useQuery<CanvasDTO[]>({
-    queryKey,
-    queryFn: () =>
-      understandingId
-        ? (runPromise(rpc.canvasListByUnderstanding(understandingId)) as Promise<CanvasDTO[]>)
-        : Promise.resolve([]),
-    enabled: Boolean(understandingId),
-  });
+  return useQuery(
+    effectQuery.queryOptions({
+      queryKey,
+      queryFn: () =>
+        understandingId
+          ? rpc
+              .canvasListByUnderstanding(understandingId)
+              .pipe(Effect.map((rows) => rows as CanvasDTO[]))
+          : Effect.succeed([] as CanvasDTO[]),
+      enabled: Boolean(understandingId),
+    }),
+  );
 }
 
 function invalidateCanvasList(queryClient: QueryClient) {

@@ -3,7 +3,7 @@ import { and, desc, inArray, isNull, sql } from "drizzle-orm";
 import { understandings } from "../../db/schema";
 import type { SearchContextResult, SearchOptions, SearchResult } from "./types";
 import type { UnderstandingSummaryDTO } from "../understanding/types";
-import { SearchCore } from "./core";
+import { SearchCore, SearchDomainError } from "./core";
 import { getLimitOffset } from "./core";
 import type { ReflectaServerContext } from "../shared/types-electron";
 import type { UnderstandingElectronBff } from "../understanding/bff-electron";
@@ -23,7 +23,7 @@ export class SearchElectronBff extends SearchCore {
   searchUnderstandings(
     query: string,
     options?: SearchOptions,
-  ): Effect.Effect<UnderstandingSummaryDTO[]> {
+  ): Effect.Effect<UnderstandingSummaryDTO[], SearchDomainError> {
     const db = this.db;
     const understandingService = this.understandingService;
     const searchUnderstandingIds = this.searchUnderstandingIds.bind(this);
@@ -71,7 +71,10 @@ export class SearchElectronBff extends SearchCore {
     });
   }
 
-  searchContexts(query: string, options?: SearchOptions): Effect.Effect<SearchContextResult[]> {
+  searchContexts(
+    query: string,
+    options?: SearchOptions,
+  ): Effect.Effect<SearchContextResult[], SearchDomainError> {
     const searchContextRows = this.searchContextRows.bind(this);
     return Effect.gen(function* () {
       const { limit, offset } = getLimitOffset(options);
@@ -86,7 +89,7 @@ export class SearchElectronBff extends SearchCore {
     });
   }
 
-  search(query: string, options?: SearchOptions): Effect.Effect<SearchResult> {
+  search(query: string, options?: SearchOptions): Effect.Effect<SearchResult, SearchDomainError> {
     const db = this.db;
     const understandingService = this.understandingService;
     const searchRetrievalDocuments = this.searchRetrievalDocuments.bind(this);

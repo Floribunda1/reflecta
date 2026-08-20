@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
-import { UnderstandingCore } from "./core";
+import { UnderstandingCore, UnderstandingNotFoundError } from "./core";
 import {
   contexts,
   understandingCanvases,
@@ -60,7 +60,8 @@ export class UnderstandingCliBff extends UnderstandingCore {
   ): Promise<UnderstandingDetail> {
     const row = await Effect.runPromise(this.getUnderstandingRow(id));
     if (!row) {
-      throw new Error(`Understanding not found: ${id}`);
+      // typed 域错误：runner 按 `_tag.endsWith("NotFoundError")` 映射到 NOT_FOUND。
+      throw new UnderstandingNotFoundError({ id });
     }
 
     const summary = (await Effect.runPromise(toUnderstandingSummaries(this.db, [row])))[0];

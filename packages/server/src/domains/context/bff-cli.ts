@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import type { ReflectaDb } from "../../db/types";
-import { ContextCore } from "./core";
+import { ContextCore, ContextNotFoundError } from "./core";
 import type { ContextDetail, CreateContextInput, ContextMedium, UpdateContextInput } from "./types";
 import type { RetrievalIndexUpdateSink } from "../shared/types";
 
@@ -23,7 +23,8 @@ export class ContextCliBff extends ContextCore {
   async getContext(id: string): Promise<ContextDetail> {
     const row = await Effect.runPromise(this.getContextRow(id));
     if (!row) {
-      throw new Error(`Context not found: ${id}`);
+      // typed 域错误：runner 按 `_tag.endsWith("NotFoundError")` 映射到 NOT_FOUND。
+      throw new ContextNotFoundError({ id });
     }
 
     return {

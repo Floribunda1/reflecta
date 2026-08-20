@@ -33,6 +33,7 @@ import {
   CanvasError,
   ConfigError,
   ChatError,
+  SearchError,
 } from "../ipc";
 import {
   trashService,
@@ -257,6 +258,13 @@ app.whenReady().then(async () => {
   const cErr = (message: string) => new CanvasError({ reason: message, code: 500 });
   const cfgErr = (message: string) => new ConfigError({ reason: message, code: 500 });
   const chatErr = (message: string) => new ChatError({ reason: message, code: 500 });
+  const searchErr = (message: string) => new SearchError({ reason: message, code: 500 });
+  // search 域核心的 SearchDomainError（embedding/index IO typed 错误）→ IPC 契约错误。
+  const runSearch = <A>(program: Effect.Effect<A, import("@reflecta/server").SearchDomainError>) =>
+    program.pipe(
+      Effect.mapError((e) => searchErr(e.message)),
+      Effect.catchDefect((defect) => Effect.fail(searchErr(`搜索失败：${String(defect)}`))),
+    );
   const appMain = appIpc.main({
     ipcMain,
     handlers: {
@@ -373,19 +381,25 @@ app.whenReady().then(async () => {
           return logFilePath;
         }),
       "search.searchUnderstandings": ({ query, options }) =>
-        searchService.searchUnderstandings(
-          query,
-          options as import("@reflecta/server").SearchOptions | undefined,
+        runSearch(
+          searchService.searchUnderstandings(
+            query,
+            options as import("@reflecta/server").SearchOptions | undefined,
+          ),
         ),
       "search.searchContexts": ({ query, options }) =>
-        searchService.searchContexts(
-          query,
-          options as import("@reflecta/server").SearchOptions | undefined,
+        runSearch(
+          searchService.searchContexts(
+            query,
+            options as import("@reflecta/server").SearchOptions | undefined,
+          ),
         ),
       "search.search": ({ query, options }) =>
-        searchService.search(
-          query,
-          options as import("@reflecta/server").SearchOptions | undefined,
+        runSearch(
+          searchService.search(
+            query,
+            options as import("@reflecta/server").SearchOptions | undefined,
+          ),
         ),
       "insights.getRecapData": () =>
         Effect.tryPromise({
