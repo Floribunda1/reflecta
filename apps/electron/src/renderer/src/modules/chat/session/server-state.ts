@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Effect } from "effect";
 import { ipcClient } from "@renderer/utils/ipc";
+import { rpc } from "@renderer/lib/effect-rpc";
 import type { AiModelOption } from "@main/config";
 import type { AgentModelSelection, AgentReasoningLevel } from "@shared/agent";
 import { removeThreadFromCache, renameThreadInCache, upsertThreadInCache } from "./query-cache";
@@ -25,9 +27,9 @@ export function useAgentModelOptionsQuery() {
     queryKey: chatQueryKeys.modelOptions,
     queryFn: async (): Promise<AiModelsQueryData> => {
       const [options, active, activeReasoningLevel] = await Promise.all([
-        ipcClient.config.listAiModelOptions(),
-        ipcClient.config.getActiveAgentModel(),
-        ipcClient.config.getActiveAgentReasoningLevel(),
+        Effect.runPromise(rpc.configListModelOptions()) as Promise<AiModelOption[]>,
+        Effect.runPromise(rpc.configGetActiveModel()),
+        Effect.runPromise(rpc.configGetReasoningLevel()),
       ]);
       return { options, active, activeReasoningLevel };
     },
@@ -104,7 +106,10 @@ export function useGenerateThreadTitleMutation() {
 export function useSelectAgentModelMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (selection: AgentModelSelection) => ipcClient.config.setActiveAgentModel(selection),
+    mutationFn: (selection: AgentModelSelection) =>
+      Effect.runPromise(
+        rpc.configSetActiveModel(selection as import("../../../../../ipc").AiModelSelection),
+      ),
     onSuccess: (activeReasoningLevel, selection) => {
       queryClient.setQueryData<AiModelsQueryData>(chatQueryKeys.modelOptions, (current) =>
         current ? { ...current, active: selection, activeReasoningLevel } : current,
@@ -120,7 +125,9 @@ export function useSelectAgentReasoningLevelMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (level: AgentReasoningLevel) =>
-      ipcClient.config.setActiveAgentReasoningLevel(level),
+      Effect.runPromise(
+        rpc.configSetReasoningLevel(level as import("../../../../../ipc").AiReasoningLevel),
+      ),
     onMutate: (level) => {
       queryClient.setQueryData<AiModelsQueryData>(chatQueryKeys.modelOptions, (current) =>
         current ? { ...current, activeReasoningLevel: level } : current,

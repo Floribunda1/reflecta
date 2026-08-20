@@ -77,4 +77,29 @@ export const rpc = {
     client["understandingCanvas.saveCanvas"]({ canvasId, document }),
   canvasUpdateViewport: (canvasId: string, viewport: import("../../../ipc").Viewport) =>
     client["understandingCanvas.updateViewport"]({ canvasId, viewport }),
+  configOpenDirPicker: () => client["config.openDirectoryPicker"](),
+  configSetStorageRoot: (newPath: string) => client["config.setContentStorageRoot"]({ newPath }),
+  configRestart: () => client["config.restartApp"](),
+  configGet: () => client["config.getConfig"](),
+  configGetAi: () => client["config.getAiConfig"](),
+  configSetAi: (config: import("../../../ipc").AiConfig) =>
+    client["config.setAiConfig"]({ config }),
+  configGetCodexAuth: () => client["config.getCodexAuthStatus"](),
+  configConnectCodex: () => client["config.connectCodex"](),
+  configDisconnectCodex: () => client["config.disconnectCodex"](),
+  configGetRetrieval: () => client["config.getRetrievalConfig"](),
+  configSetRetrieval: (config: import("../../../ipc").RetrievalConfig) =>
+    client["config.setRetrievalConfig"]({ config }),
+  configGetEmbeddingStatus: () => client["config.getRetrievalEmbeddingModelStatus"](),
+  configDownloadModel: () => client["config.downloadDefaultRetrievalEmbeddingModel"](),
+  configGetIndexStatus: () => client["config.getRetrievalIndexStatus"](),
+  configRebuildIndex: () => client["config.rebuildRetrievalIndex"](),
+  configListModelOptions: () => client["config.listAiModelOptions"](),
+  configListProviderDefs: () => client["config.listAiProviderDefinitions"](),
+  configGetActiveModel: () => client["config.getActiveAgentModel"](),
+  configGetReasoningLevel: () => client["config.getActiveAgentReasoningLevel"](),
+  configSetActiveModel: (selection: import("../../../ipc").AiModelSelection) =>
+    client["config.setActiveAgentModel"]({ selection }),
+  configSetReasoningLevel: (level: import("../../../ipc").AiReasoningLevel) =>
+    client["config.setActiveAgentReasoningLevel"]({ level }),
 };

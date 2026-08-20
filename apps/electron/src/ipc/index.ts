@@ -58,6 +58,29 @@ import {
   CanvasUpdateViewport,
   CanvasSave,
 } from "./contract/understanding-canvas";
+import {
+  ConfigOpenDirPicker,
+  ConfigSetStorageRoot,
+  ConfigRestart,
+  ConfigGet,
+  ConfigGetAi,
+  ConfigSetAi,
+  ConfigGetCodexAuth,
+  ConfigConnectCodex,
+  ConfigDisconnectCodex,
+  ConfigGetRetrieval,
+  ConfigSetRetrieval,
+  ConfigGetEmbeddingStatus,
+  ConfigDownloadModel,
+  ConfigGetIndexStatus,
+  ConfigRebuildIndex,
+  ConfigListModelOptions,
+  ConfigListProviderDefs,
+  ConfigGetActiveModel,
+  ConfigGetReasoningLevel,
+  ConfigSetActiveModel,
+  ConfigSetReasoningLevel,
+} from "./contract/config";
 
 export { TrashListError, TrashedUnderstanding } from "./contract/trash";
 export { PilotBoom, PilotPing, PilotProbe } from "./pilot/contract";
@@ -69,6 +92,17 @@ export { SearchError } from "./contract/search";
 export { InsightsError } from "./contract/insights";
 export { UnderstandingError } from "./contract/understanding";
 export { CanvasError } from "./contract/understanding-canvas";
+export { ConfigError } from "./contract/config";
+export type {
+  AiConfig,
+  AiModelOption,
+  AiModelSelection,
+  AiProviderDefinition,
+  AiReasoningLevel,
+  RetrievalConfig,
+  RetrievalEmbeddingModelStatus,
+  RetrievalIndexStatus,
+} from "./contract/config";
 export type {
   CreateCanvasInput,
   UpdateCanvasInput,
@@ -139,6 +173,27 @@ export const contract = defineContract({
     CanvasDelete,
     CanvasUpdateViewport,
     CanvasSave,
+    ConfigOpenDirPicker,
+    ConfigSetStorageRoot,
+    ConfigRestart,
+    ConfigGet,
+    ConfigGetAi,
+    ConfigSetAi,
+    ConfigGetCodexAuth,
+    ConfigConnectCodex,
+    ConfigDisconnectCodex,
+    ConfigGetRetrieval,
+    ConfigSetRetrieval,
+    ConfigGetEmbeddingStatus,
+    ConfigDownloadModel,
+    ConfigGetIndexStatus,
+    ConfigRebuildIndex,
+    ConfigListModelOptions,
+    ConfigListProviderDefs,
+    ConfigGetActiveModel,
+    ConfigGetReasoningLevel,
+    ConfigSetActiveModel,
+    ConfigSetReasoningLevel,
   ] as const,
   events: [] as const,
   streamMethods: [] as const,

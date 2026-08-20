@@ -4,7 +4,9 @@ import {
   type ChatThreadAction,
   type ChatThreadGroupView,
 } from "@reflecta/ui/chat";
+import { Effect } from "effect";
 import { ipcClient } from "@renderer/utils/ipc";
+import { rpc } from "@renderer/lib/effect-rpc";
 import { errorMessage } from "@renderer/utils/errors";
 import type { AgentSessionSummary } from "@shared/agent";
 import { toast } from "sonner";
@@ -23,8 +25,8 @@ async function exportThread(thread: AgentSessionSummary) {
 async function compactThread(threadId: string) {
   try {
     const [modelSelection, reasoningLevel] = await Promise.all([
-      ipcClient.config.getActiveAgentModel(),
-      ipcClient.config.getActiveAgentReasoningLevel(),
+      Effect.runPromise(rpc.configGetActiveModel()),
+      Effect.runPromise(rpc.configGetReasoningLevel()),
     ]);
     await ipcClient.chat.sendAgentCommand({
       type: "context.compact",

@@ -15,7 +15,6 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { Effect } from "effect";
-import { ipcClient } from "@renderer/utils/ipc";
 import { rpc } from "@renderer/lib/effect-rpc";
 import { errorMessage } from "@renderer/utils/errors";
 import type { OrphanAssetInfo } from "@shared/asset";
@@ -38,18 +37,18 @@ export function StorageSection() {
   const [orphans, setOrphans] = useState<OrphanAssetInfo[] | null>(null);
 
   useEffect(() => {
-    void ipcClient.config.getConfig().then((config) => {
+    void Effect.runPromise(rpc.configGet()).then((config) => {
       setContentStorageRoot(config.contentStorageRoot);
       setIsCustomContentStorageRoot(config.isCustomContentStorageRoot);
     });
   }, []);
 
   const handlePickDirectory = async () => {
-    const picked = await ipcClient.config.openDirectoryPicker();
+    const picked = await Effect.runPromise(rpc.configOpenDirPicker());
     if (!picked) return;
     setLoading(true);
     try {
-      await ipcClient.config.setContentStorageRoot(picked);
+      await Effect.runPromise(rpc.configSetStorageRoot(picked));
       setContentStorageRoot(picked);
       setIsCustomContentStorageRoot(true);
       setPendingRestart(true);
@@ -63,8 +62,8 @@ export function StorageSection() {
   const handleResetToDefault = async () => {
     setLoading(true);
     try {
-      await ipcClient.config.setContentStorageRoot("");
-      const config = await ipcClient.config.getConfig();
+      await Effect.runPromise(rpc.configSetStorageRoot(""));
+      const config = await Effect.runPromise(rpc.configGet());
       setContentStorageRoot(config.contentStorageRoot);
       setIsCustomContentStorageRoot(config.isCustomContentStorageRoot);
       setPendingRestart(true);
@@ -188,7 +187,11 @@ export function StorageSection() {
           <AlertTitle>需要重启</AlertTitle>
           <AlertDescription>数据目录已更新，重启应用后生效。</AlertDescription>
           <AlertAction>
-            <Button type="button" size="sm" onClick={() => void ipcClient.config.restartApp()}>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => void Effect.runPromise(rpc.configRestart())}
+            >
               立即重启
             </Button>
           </AlertAction>

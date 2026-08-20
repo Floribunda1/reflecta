@@ -32,6 +32,7 @@ import {
   InsightsError,
   UnderstandingError,
   CanvasError,
+  ConfigError,
 } from "../ipc";
 import {
   trashService,
@@ -42,6 +43,7 @@ import {
   understandingCanvasService,
 } from "./services/core";
 import { getRecapData as getRecapDataOp } from "./services/insights-ops";
+import * as configOps from "./services/config-ops";
 import {
   saveAsset as saveAssetOp,
   scanOrphanAssets,
@@ -184,6 +186,7 @@ app.whenReady().then(async () => {
   const insightsErr = (message: string) => new InsightsError({ reason: message, code: 500 });
   const uErr = (message: string) => new UnderstandingError({ reason: message, code: 500 });
   const cErr = (message: string) => new CanvasError({ reason: message, code: 500 });
+  const cfgErr = (message: string) => new ConfigError({ reason: message, code: 500 });
   const appMain = appIpc.main({
     ipcMain,
     handlers: {
@@ -490,6 +493,76 @@ app.whenReady().then(async () => {
             ),
           catch: (e) => cErr(e instanceof Error ? e.message : String(e)),
         }).pipe(Effect.map(() => undefined)),
+      "config.openDirectoryPicker": () =>
+        Effect.tryPromise({
+          try: () => configOps.openDirectoryPicker(),
+          catch: (e) => cfgErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "config.setContentStorageRoot": ({ newPath }) =>
+        Effect.try({
+          try: () => configOps.setContentStorageRoot(newPath),
+          catch: (e) => cfgErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "config.restartApp": () => Effect.sync(() => configOps.restartApp()),
+      "config.getConfig": () => Effect.sync(() => configOps.getConfig()),
+      "config.getAiConfig": () => Effect.sync(() => configOps.getAiConfig()),
+      "config.setAiConfig": ({ config }) =>
+        Effect.try({
+          try: () => configOps.setAiConfig(config as unknown as import("./config").AiConfig),
+          catch: (e) => cfgErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "config.getCodexAuthStatus": () => Effect.sync(() => configOps.getCodexAuthStatus()),
+      "config.connectCodex": () =>
+        Effect.tryPromise({
+          try: () => configOps.connectCodex(),
+          catch: (e) => cfgErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "config.disconnectCodex": () =>
+        Effect.tryPromise({
+          try: () => configOps.disconnectCodex(),
+          catch: (e) => cfgErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
+      "config.getRetrievalConfig": () => Effect.sync(() => configOps.getRetrievalConfig()),
+      "config.setRetrievalConfig": ({ config }) =>
+        Effect.try({
+          try: () =>
+            configOps.setRetrievalConfig(config as unknown as import("./config").RetrievalConfig),
+          catch: (e) => cfgErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "config.getRetrievalEmbeddingModelStatus": () =>
+        Effect.sync(() => configOps.getRetrievalEmbeddingModelStatus()),
+      "config.downloadDefaultRetrievalEmbeddingModel": () =>
+        Effect.tryPromise({
+          try: () => configOps.downloadDefaultRetrievalEmbeddingModel(),
+          catch: (e) => cfgErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "config.getRetrievalIndexStatus": () =>
+        Effect.tryPromise({
+          try: () => configOps.getRetrievalIndexStatus(),
+          catch: (e) => cfgErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "config.rebuildRetrievalIndex": () =>
+        Effect.tryPromise({
+          try: () => configOps.rebuildRetrievalIndex(),
+          catch: (e) => cfgErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "config.listAiModelOptions": () => Effect.sync(() => configOps.listAiModelOptions()),
+      "config.listAiProviderDefinitions": () =>
+        Effect.sync(() => configOps.listAiProviderDefinitions()),
+      "config.getActiveAgentModel": () => Effect.sync(() => configOps.getActiveAgentModel()),
+      "config.getActiveAgentReasoningLevel": () =>
+        Effect.sync(() => configOps.getActiveAgentReasoningLevel()),
+      "config.setActiveAgentModel": ({ selection }) =>
+        Effect.try({
+          try: () =>
+            configOps.setActiveAgentModel(selection as import("./config").AiModelSelection),
+          catch: (e) => cfgErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "config.setActiveAgentReasoningLevel": ({ level }) =>
+        Effect.try({
+          try: () => configOps.setActiveAgentReasoningLevel(level),
+          catch: (e) => cfgErr(e instanceof Error ? e.message : String(e)),
+        }),
     },
     context: Context.empty(),
     getWindows: () => BrowserWindow.getAllWindows(),

@@ -9,15 +9,14 @@ import { Item, ItemActions, ItemContent } from "@reflecta/ui/components/item";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@reflecta/ui/components/input-group";
 import { NativeSelect, NativeSelectOption } from "@reflecta/ui/components/native-select";
 import { ScrollArea } from "@reflecta/ui/components/scroll-area";
-import { ipcClient } from "@renderer/utils/ipc";
+import { Effect } from "effect";
+import { rpc } from "@renderer/lib/effect-rpc";
 import { errorMessage } from "@renderer/utils/errors";
 
-type AiConfig = Awaited<ReturnType<typeof ipcClient.config.getAiConfig>>;
+type AiConfig = import("../../../../ipc").AiConfig;
 type AiProviderConfig = AiConfig["providers"][number];
 type AiModelSelection = NonNullable<AiConfig["activeAgentModel"]>;
-type AiProviderDefinition = Awaited<
-  ReturnType<typeof ipcClient.config.listAiProviderDefinitions>
->[number];
+type AiProviderDefinition = Awaited<import("../../../../ipc").AiProviderDefinition[]>[number];
 
 function createProvider(provider: AiProviderDefinition): AiProviderConfig {
   return {
@@ -54,12 +53,12 @@ export function AiSection() {
 
   useEffect(() => {
     void Promise.all([
-      ipcClient.config.getAiConfig(),
-      ipcClient.config.listAiProviderDefinitions(),
-      ipcClient.config.getCodexAuthStatus(),
+      Effect.runPromise(rpc.configGetAi()),
+      Effect.runPromise(rpc.configListProviderDefs()),
+      Effect.runPromise(rpc.configGetCodexAuth()),
     ]).then(([nextConfig, nextProviders, nextCodexConnected]) => {
       setConfig(nextConfig);
-      setProviders(nextProviders);
+      setProviders(nextProviders as unknown as typeof providers);
       setCodexConnected(nextCodexConnected);
       setSelectedProviderId((current) => current || nextProviders[0]?.id || "");
     });
@@ -152,7 +151,7 @@ export function AiSection() {
     if (!selectedProvider) return;
     setCodexBusy(true);
     try {
-      const connected = await ipcClient.config.connectCodex();
+      const connected = await Effect.runPromise(rpc.configConnectCodex());
       if (!connected) throw new Error("OpenAI 授权未完成");
       setCodexConnected(true);
       upsertProvider(selectedProvider.id, {});
@@ -167,7 +166,7 @@ export function AiSection() {
   const handleDisconnectCodex = async () => {
     setCodexBusy(true);
     try {
-      await ipcClient.config.disconnectCodex();
+      await Effect.runPromise(rpc.configDisconnectCodex());
       setCodexConnected(false);
       clearProvider();
       await queryClient.invalidateQueries({ queryKey: ["ai.model-options"] });
@@ -191,8 +190,8 @@ export function AiSection() {
     setLoading(true);
     setSaved(false);
     try {
-      await ipcClient.config.setAiConfig(config);
-      setConfig(await ipcClient.config.getAiConfig());
+      await Effect.runPromise(rpc.configSetAi(config as import("../../../../ipc").AiConfig));
+      setConfig(await Effect.runPromise(rpc.configGetAi()));
       await queryClient.invalidateQueries({ queryKey: ["ai.model-options"] });
       setSaved(true);
     } catch (error) {

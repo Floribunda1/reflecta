@@ -6,7 +6,6 @@ import { createServices } from "electron-ipc-decorator";
 import { diagnosticErrorAttrs } from "../diagnostic-log";
 import { writeDiagnosticEvent } from "../logger";
 import { ChatService } from "./ChatService";
-import { ConfigService } from "./ConfigService";
 import { piAgentHost } from "./core";
 import { registerAgentSessionFeed } from "./agent/agent-session-feed-ipc";
 import { getSharedModelRuntime } from "./agent/pi-model-runtime";
@@ -78,4 +77,4 @@ registerAgentSessionFeed(piAgentHost);
 // per-message hot path.
 void getSharedModelRuntime().catch(() => undefined);
 
-export const services = createServices([ChatService, ConfigService]);
+export const services = createServices([ChatService]);

@@ -4,13 +4,14 @@ import { Badge } from "@reflecta/ui/components/badge";
 import { Button } from "@reflecta/ui/components/button";
 import { Progress } from "@reflecta/ui/components/progress";
 import { Switch } from "@reflecta/ui/components/switch";
-import { ipcClient } from "@renderer/utils/ipc";
+import { Effect } from "effect";
+import { rpc } from "@renderer/lib/effect-rpc";
 
-type RetrievalConfig = Awaited<ReturnType<typeof ipcClient.config.getRetrievalConfig>>;
+type RetrievalConfig = import("../../../../ipc").RetrievalConfig;
 type RetrievalEmbeddingModelStatus = Awaited<
-  ReturnType<typeof ipcClient.config.getRetrievalEmbeddingModelStatus>
+  import("../../../../ipc").RetrievalEmbeddingModelStatus
 >;
-type RetrievalIndexStatus = Awaited<ReturnType<typeof ipcClient.config.getRetrievalIndexStatus>>;
+type RetrievalIndexStatus = import("../../../../ipc").RetrievalIndexStatus;
 
 function indexStatusLabel(state: RetrievalIndexStatus["state"]) {
   if (state === "ready") return "已就绪";
@@ -56,9 +57,9 @@ export function RetrievalSection() {
 
   useEffect(() => {
     void Promise.all([
-      ipcClient.config.getRetrievalEmbeddingModelStatus(),
-      ipcClient.config.getRetrievalConfig(),
-      ipcClient.config.getRetrievalIndexStatus(),
+      Effect.runPromise(rpc.configGetEmbeddingStatus()),
+      Effect.runPromise(rpc.configGetRetrieval()),
+      Effect.runPromise(rpc.configGetIndexStatus()),
     ]).then(([nextStatus, nextConfig, nextIndexStatus]) => {
       setStatus(nextStatus);
       setConfig(nextConfig);
@@ -75,11 +76,13 @@ export function RetrievalSection() {
     setSaving(true);
     setConfig(nextConfig);
     try {
-      await ipcClient.config.setRetrievalConfig(nextConfig);
+      await Effect.runPromise(
+        rpc.configSetRetrieval(nextConfig as import("../../../../ipc").RetrievalConfig),
+      );
       const [nextStatus, savedConfig, nextIndexStatus] = await Promise.all([
-        ipcClient.config.getRetrievalEmbeddingModelStatus(),
-        ipcClient.config.getRetrievalConfig(),
-        ipcClient.config.getRetrievalIndexStatus(),
+        Effect.runPromise(rpc.configGetEmbeddingStatus()),
+        Effect.runPromise(rpc.configGetRetrieval()),
+        Effect.runPromise(rpc.configGetIndexStatus()),
       ]);
       setStatus(nextStatus);
       setConfig(savedConfig);
@@ -92,12 +95,12 @@ export function RetrievalSection() {
   const handleDownload = async () => {
     setDownloading(true);
     const interval = window.setInterval(() => {
-      void ipcClient.config.getRetrievalEmbeddingModelStatus().then(setStatus);
+      void Effect.runPromise(rpc.configGetEmbeddingStatus()).then(setStatus);
     }, 250);
     try {
-      setStatus(await ipcClient.config.downloadDefaultRetrievalEmbeddingModel());
+      setStatus(await Effect.runPromise(rpc.configDownloadModel()));
     } catch {
-      setStatus(await ipcClient.config.getRetrievalEmbeddingModelStatus());
+      setStatus(await Effect.runPromise(rpc.configGetEmbeddingStatus()));
     } finally {
       window.clearInterval(interval);
       setDownloading(false);
@@ -107,12 +110,12 @@ export function RetrievalSection() {
   const handleRebuildIndex = async () => {
     setIndexing(true);
     const interval = window.setInterval(() => {
-      void ipcClient.config.getRetrievalIndexStatus().then(setIndexStatus);
+      void Effect.runPromise(rpc.configGetIndexStatus()).then(setIndexStatus);
     }, 250);
     try {
-      setIndexStatus(await ipcClient.config.rebuildRetrievalIndex());
+      setIndexStatus(await Effect.runPromise(rpc.configRebuildIndex()));
     } catch {
-      setIndexStatus(await ipcClient.config.getRetrievalIndexStatus());
+      setIndexStatus(await Effect.runPromise(rpc.configGetIndexStatus()));
     } finally {
       window.clearInterval(interval);
       setIndexing(false);
