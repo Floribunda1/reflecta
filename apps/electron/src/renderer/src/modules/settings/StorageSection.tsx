@@ -14,7 +14,9 @@ import {
   Trash2,
   TriangleAlert,
 } from "lucide-react";
+import { Effect } from "effect";
 import { ipcClient } from "@renderer/utils/ipc";
+import { rpc } from "@renderer/lib/effect-rpc";
 import { errorMessage } from "@renderer/utils/errors";
 import type { OrphanAssetInfo } from "@shared/asset";
 import { useModal } from "@reflecta/ui/overlays";
@@ -76,7 +78,7 @@ export function StorageSection() {
   const handleScanOrphans = async () => {
     setOrphanLoading(true);
     try {
-      setOrphans(await ipcClient.asset.scanOrphanAssets());
+      setOrphans((await Effect.runPromise(rpc.assetScanOrphans())) as OrphanAssetInfo[]);
     } catch (error) {
       toast.error("扫描失败", { description: errorMessage(error) });
     } finally {
@@ -96,7 +98,7 @@ export function StorageSection() {
       onAccept: async () => {
         setOrphanCleaning(true);
         try {
-          await ipcClient.asset.cleanOrphanAssets(orphans.map((orphan) => orphan.filename));
+          await Effect.runPromise(rpc.assetCleanOrphans(orphans.map((orphan) => orphan.filename)));
           setOrphans([]);
           toast.success("已清除无效媒体文件", { description: `${count} 个文件，${totalSize}` });
         } catch (error) {
@@ -110,7 +112,7 @@ export function StorageSection() {
 
   const openOrphanAsset = async (filename: string) => {
     try {
-      await ipcClient.asset.openAsset(filename);
+      await Effect.runPromise(rpc.assetOpen(filename));
     } catch (error) {
       toast.error("打开文件失败", { description: errorMessage(error) });
     }
@@ -118,7 +120,7 @@ export function StorageSection() {
 
   const revealOrphanAsset = async (filename: string) => {
     try {
-      await ipcClient.asset.revealAsset(filename);
+      await Effect.runPromise(rpc.assetReveal(filename));
       toast.success("已在 Finder 中显示");
     } catch (error) {
       toast.error("显示文件失败", { description: errorMessage(error) });

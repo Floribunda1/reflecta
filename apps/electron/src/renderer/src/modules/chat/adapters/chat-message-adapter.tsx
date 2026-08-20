@@ -2,7 +2,8 @@ import { memo, useMemo } from "react";
 import { format } from "date-fns";
 import { useQueries } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ipcClient } from "@renderer/utils/ipc";
+import { Effect } from "effect";
+import { rpc } from "@renderer/lib/effect-rpc";
 import { errorMessage } from "@renderer/utils/errors";
 import {
   ChatMessageRow,
@@ -325,7 +326,8 @@ export const ConnectedChatMessageRow = memo(function ConnectedChatMessageRow({
         });
       }}
       onAttachmentOpen={(attachment) => {
-        if (attachment.filePath) void ipcClient.asset.openExternalPath(attachment.filePath);
+        if (attachment.filePath)
+          void Effect.runPromise(rpc.assetOpenExternalPath(attachment.filePath));
       }}
       onProposalDecision={(decision) => {
         const block = approvalById.get(decision.proposalId);

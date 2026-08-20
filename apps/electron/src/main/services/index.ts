@@ -5,12 +5,9 @@ import type { IpcMainInvokeEvent } from "electron";
 import { createServices } from "electron-ipc-decorator";
 import { diagnosticErrorAttrs } from "../diagnostic-log";
 import { writeDiagnosticEvent } from "../logger";
-import { AssetService } from "./AssetService";
 import { ChatService } from "./ChatService";
 import { ConfigService } from "./ConfigService";
-import { DiagnosticsService } from "./DiagnosticsService";
 import { InsightsService } from "./InsightsService";
-import { CanvasExportService } from "./CanvasExportService";
 import { SearchService } from "./SearchService";
 import { UnderstandingService } from "./UnderstandingService";
 import { UnderstandingCanvasService } from "./UnderstandingCanvasService";
@@ -86,13 +83,10 @@ registerAgentSessionFeed(piAgentHost);
 void getSharedModelRuntime().catch(() => undefined);
 
 export const services = createServices([
-  AssetService,
   ChatService,
   ConfigService,
-  DiagnosticsService,
   InsightsService,
   UnderstandingService,
   UnderstandingCanvasService,
-  CanvasExportService,
   SearchService,
 ]);

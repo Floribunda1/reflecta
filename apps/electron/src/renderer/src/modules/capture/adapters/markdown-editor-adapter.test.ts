@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
+import { Effect } from "effect";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import { ipcClient } from "@renderer/utils/ipc";
 import { getMarkdownEditorSuggestions, uploadMarkdownAsset } from "./markdown-editor-adapter";
+import { rpc } from "@renderer/lib/effect-rpc";
+
+vi.mock("@renderer/lib/effect-rpc", () => ({
+  rpc: { assetSave: vi.fn() },
+}));
 
 vi.mock("@renderer/utils/ipc", () => ({
   ipcClient: {
-    asset: {
-      saveAsset: vi.fn(),
-    },
     understanding: {
       listUnderstandings: vi.fn(),
     },
@@ -36,7 +39,7 @@ describe("Markdown editor adapter", () => {
   });
 
   test("returns the final asset URL expected by Markdown", async () => {
-    vi.mocked(ipcClient.asset.saveAsset).mockResolvedValue("saved-image.png");
+    vi.mocked(rpc.assetSave).mockReturnValue(Effect.succeed("saved-image.png"));
     const file = new File(["image"], "image.png", { type: "image/png" });
 
     await expect(uploadMarkdownAsset(file, new AbortController().signal)).resolves.toEqual({

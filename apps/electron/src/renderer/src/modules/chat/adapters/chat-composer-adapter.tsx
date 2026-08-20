@@ -320,7 +320,8 @@ export function AgentChatComposer({
       attachmentAdapter={attachments.adapter}
       onSubmit={submit}
       onAttachmentOpen={(attachment) => {
-        if (attachment.filePath) void ipcClient.asset.openExternalPath(attachment.filePath);
+        if (attachment.filePath)
+          void Effect.runPromise(rpc.assetOpenExternalPath(attachment.filePath));
       }}
       onModelChange={(id) => {
         const option = modelById.get(id);

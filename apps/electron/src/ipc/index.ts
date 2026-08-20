@@ -27,11 +27,23 @@ import {
   ContextPermanentlyDelete,
   ContextListTrashed,
 } from "./contract/context";
+import {
+  AssetSave,
+  AssetScanOrphans,
+  AssetCleanOrphans,
+  AssetOpen,
+  AssetOpenExternalPath,
+  AssetReveal,
+} from "./contract/asset";
+import { CanvasExportPng } from "./contract/canvas";
+import { DiagnosticsGetLogFilePath, DiagnosticsShowLogFile } from "./contract/diagnostics";
 
 export { TrashListError, TrashedUnderstanding } from "./contract/trash";
 export { PilotBoom, PilotPing, PilotProbe } from "./pilot/contract";
 export { AboutVersionInfo } from "./contract/about";
 export { ContextListError } from "./contract/context";
+export { AssetError } from "./contract/asset";
+export { CanvasExportError } from "./contract/canvas";
 export { DomainListError } from "./contract/domain";
 export type { CreateDomainInput, UpdateDomainInput, ReorderDomainItem } from "./contract/domain";
 export type { CreateContextInput, UpdateContextInput, TrashedContextDTO } from "./contract/context";
@@ -59,6 +71,15 @@ export const contract = defineContract({
     ContextRestore,
     ContextPermanentlyDelete,
     ContextListTrashed,
+    AssetSave,
+    AssetScanOrphans,
+    AssetCleanOrphans,
+    AssetOpen,
+    AssetOpenExternalPath,
+    AssetReveal,
+    CanvasExportPng,
+    DiagnosticsGetLogFilePath,
+    DiagnosticsShowLogFile,
   ] as const,
   events: [] as const,
   streamMethods: [] as const,

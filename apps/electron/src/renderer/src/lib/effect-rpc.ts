@@ -7,7 +7,13 @@
  */
 import { appIpc } from "../../../ipc";
 
-const { client } = appIpc.renderer(window.api);
+// renderer 在真实 app 中 window.api 由 preload 注入；测试环境无 window.api 时不构造 client。
+const bridge = (window as { api?: unknown }).api as
+  | import("electron-effect-rpc").IpcBridge
+  | undefined;
+const client = bridge
+  ? appIpc.renderer(bridge).client
+  : (null as unknown as ReturnType<typeof appIpc.renderer>["client"]);
 
 export const rpc = {
   trashListTrashed: () => client["trash.listTrashedUnderstandings"](),
@@ -36,4 +42,11 @@ export const rpc = {
   contextRestore: (id: string) => client["context.restoreContext"]({ id }),
   contextPermanentlyDelete: (id: string) => client["context.permanentlyDeleteContext"]({ id }),
   contextListTrashed: () => client["context.listTrashedContexts"](),
+  assetSave: (buffer: ArrayBuffer, filename: string) =>
+    client["asset.saveAsset"]({ buffer: new Uint8Array(buffer), filename }),
+  assetScanOrphans: () => client["asset.scanOrphanAssets"](),
+  assetCleanOrphans: (filenames: string[]) => client["asset.cleanOrphanAssets"]({ filenames }),
+  assetOpen: (filename: string) => client["asset.openAsset"]({ filename }),
+  assetOpenExternalPath: (filePath: string) => client["asset.openExternalPath"]({ filePath }),
+  assetReveal: (filename: string) => client["asset.revealAsset"]({ filename }),
 };

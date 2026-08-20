@@ -1,12 +1,14 @@
 import { electronApp, is, optimizer } from "@electron-toolkit/utils";
-import { app, BrowserWindow, ipcMain, nativeTheme, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from "electron";
+import { writeFile, mkdir } from "node:fs/promises";
+import path from "node:path";
 import { Context, Effect } from "effect";
 import { merge } from "lodash-es";
 import "./services";
 import { initializeDB } from "./db";
 import { parseMigrationVersion, compareVersions } from "@reflecta/server";
 import { registerAssetScheme, handleAssetProtocol } from "./assetProtocol";
-import { APP_NAME, appLog, initializeLogging } from "./logger";
+import { APP_NAME, appLog, getLogFilePath, initializeLogging } from "./logger";
 import { preloadScript, rendererHtml } from "./paths";
 import { retrievalEmbeddingRunner } from "./retrievalEmbeddingRunner";
 import { retrievalIndexCoordinator } from "./retrievalIndexCoordinator";
@@ -18,8 +20,24 @@ import {
   isUpdateCheckInProgress,
   isUpdateCheckSupported,
 } from "./updater";
-import { appIpc, PilotBoom, TrashListError, DomainListError, ContextListError } from "../ipc";
+import {
+  appIpc,
+  PilotBoom,
+  TrashListError,
+  DomainListError,
+  ContextListError,
+  AssetError,
+  CanvasExportError,
+} from "../ipc";
 import { trashService, understandingService, domainService, contextService } from "./services/core";
+import {
+  saveAsset as saveAssetOp,
+  scanOrphanAssets,
+  cleanOrphanAssets,
+  openAsset,
+  openExternalPath,
+  revealAsset,
+} from "./services/asset-ops";
 
 // Register asset:// as a privileged scheme before app is ready
 registerAssetScheme();
@@ -149,6 +167,7 @@ app.whenReady().then(async () => {
   const ipcError = (message: string) => new TrashListError({ reason: message, code: 500 });
   const domainErr = (message: string) => new DomainListError({ reason: message, code: 500 });
   const ctxErr = (message: string) => new ContextListError({ reason: message, code: 500 });
+  const assetErr = (message: string) => new AssetError({ reason: message, code: 500 });
   const appMain = appIpc.main({
     ipcMain,
     handlers: {
@@ -264,6 +283,64 @@ app.whenReady().then(async () => {
         Effect.tryPromise({
           try: () => contextService.listTrashedContexts(),
           catch: (e) => ctxErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "asset.saveAsset": ({ buffer, filename }) =>
+        Effect.tryPromise({
+          try: () => saveAssetOp(new Uint8Array(buffer).buffer, filename),
+          catch: (e) => assetErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "asset.scanOrphanAssets": () =>
+        Effect.tryPromise({
+          try: () => scanOrphanAssets(),
+          catch: (e) => assetErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "asset.cleanOrphanAssets": ({ filenames }) =>
+        Effect.tryPromise({
+          try: () => cleanOrphanAssets([...filenames]),
+          catch: (e) => assetErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "asset.openAsset": ({ filename }) =>
+        Effect.tryPromise({
+          try: () => openAsset(filename),
+          catch: (e) => assetErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
+      "asset.openExternalPath": ({ filePath }) =>
+        Effect.tryPromise({
+          try: () => openExternalPath(filePath),
+          catch: (e) => assetErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
+      "asset.revealAsset": ({ filename }) =>
+        Effect.tryPromise({
+          try: () => revealAsset(filename),
+          catch: (e) => assetErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
+      "canvas.exportPng": ({ dataUrl, suggestedName }) =>
+        Effect.tryPromise({
+          try: async () => {
+            const result = await dialog.showSaveDialog({
+              title: "导出画布为 PNG",
+              defaultPath: `${suggestedName}.png`,
+              filters: [{ name: "PNG 图片", extensions: ["png"] }],
+            });
+            if (result.canceled || !result.filePath) return null;
+            const base64 = dataUrl.replace(/^data:image\/png;base64,/, "");
+            const buffer = Buffer.from(base64, "base64");
+            await mkdir(path.dirname(result.filePath), { recursive: true });
+            await writeFile(result.filePath, buffer);
+            return result.filePath;
+          },
+          catch: (e) =>
+            new CanvasExportError({
+              reason: e instanceof Error ? e.message : String(e),
+              code: 500,
+            }),
+        }),
+      "diagnostics.getLogFilePath": () => Effect.sync(() => getLogFilePath()),
+      "diagnostics.showLogFile": () =>
+        Effect.sync(() => {
+          const logFilePath = getLogFilePath();
+          shell.showItemInFolder(logFilePath);
+          return logFilePath;
         }),
     },
     context: Context.empty(),

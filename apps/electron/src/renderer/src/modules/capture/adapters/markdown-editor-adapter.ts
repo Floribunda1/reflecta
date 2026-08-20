@@ -5,7 +5,9 @@ import {
   type MarkdownEditorSuggestionSource,
 } from "@reflecta/ui/editor";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
+import { Effect } from "effect";
 import { ipcClient } from "@renderer/utils/ipc";
+import { rpc } from "@renderer/lib/effect-rpc";
 
 const suggestionLimit = 8;
 const fallbackTitle = "未命名理解";
@@ -47,7 +49,7 @@ function toSuggestion(understanding: UnderstandingSummaryDTO): MarkdownEditorSug
 
 export const uploadMarkdownAsset: MarkdownAssetUploader = async (file, signal) => {
   signal.throwIfAborted();
-  const filename = await ipcClient.asset.saveAsset(await file.arrayBuffer(), file.name);
+  const filename = await Effect.runPromise(rpc.assetSave(await file.arrayBuffer(), file.name));
   signal.throwIfAborted();
   return { url: `asset:///${filename}`, alt: file.name };
 };
