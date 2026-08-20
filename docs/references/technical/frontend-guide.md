@@ -23,12 +23,15 @@
   - **重逻辑/并发/错误处理**写 Effect（`Context.Service` + `Layer`、`Effect.gen`、`catchTag`/`match`），React 只当 view
   - 功能函数优先使用 lodash-es、date-fns
 
-## Effect 用法约定（详见 `effect-guide.md`）
+## Effect TS
 
-- **单一 runtime**：renderer 根 `ManagedRuntime`（`lib/effect-runtime.ts` 的 `AppRuntime`）由应用 Layer 组装；不要在组件里散装 `Effect.runSync`/自建全局 runtime。
-- **typed errors**：IPC 边界错误是 `Schema.TaggedError`，`renderError`（`lib/errors.ts`）统一渲染；effect-query 会把 Effect 失败包成 `EffectQueryFailure`（`.failure` 存真实错误），`renderError` 已解包。
-- **缓存失效**：query key 工厂（如 `captureQueryKeys`）是查询与失效的唯一来源；mutation `onSuccess` 定向失效（层级 key，stale-while-revalidate 保留）；权威响应用 `setQueryData` 直写缓存（实体保存零闪烁）。**不要**用"版本号塞进 queryKey"做失效——key 变化会丢旧数据造成 loading 闪烁。
-- **状态单一来源**：多组件共享的 UI 状态在 atoms；实体数据以 query 缓存为准，避免冗余派生缓存。
+This repository uses the Effect Typescript library.
+
+Before writing any Effect code, first read `node_modules/effect/AGENTS.md`
+**completely**, and follow the links in the file when required.
+
+If you need to learn more about particular Effect apis and concepts that the
+guide doesn't cover, search through the source code in `node_modules/effect/src`.
 
 ## React 性能相关
 
