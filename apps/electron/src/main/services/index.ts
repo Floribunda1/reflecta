@@ -14,12 +14,6 @@ type IpcHandleListener = (
   ...args: unknown[]
 ) => unknown | Promise<unknown>;
 
-function getErrorField(error: unknown, field: "code" | "message"): unknown {
-  return typeof error === "object" && error !== null
-    ? error[field as keyof typeof error]
-    : undefined;
-}
-
 function argTypes(args: unknown[]): string[] {
   return args.map((arg) => (Array.isArray(arg) ? "array" : typeof arg));
 }
@@ -43,8 +37,6 @@ ipcMain.handle = (channel: string, listener: IpcHandleListener) => {
       });
       return result;
     } catch (error: unknown) {
-      const code = getErrorField(error, "code");
-      const message = getErrorField(error, "message");
       writeDiagnosticEvent({
         level: "error",
         event: "ipc.request.failed",
@@ -57,11 +49,9 @@ ipcMain.handle = (channel: string, listener: IpcHandleListener) => {
           ...diagnosticErrorAttrs(error),
         },
       });
-      throw {
-        __isIpcError: true,
-        code: typeof code === "string" ? code : "UNKNOWN",
-        message: typeof message === "string" ? message : "未知错误",
-      };
+      // 重抛原错误：electron-effect-rpc 自带 typed error 传输/信封，
+      // 不需要旧 decorator 协议的 __isIpcError 折叠。
+      throw error;
     }
   };
   return originalHandle(channel, wrapped);
