@@ -7,7 +7,8 @@ import { ScrollArea } from "@reflecta/ui/components/scroll-area";
 import { useModal } from "@reflecta/ui/overlays";
 import type { DomainTreeNode } from "@shared/domain";
 import { useCaptureDomains } from "../../queries";
-import { useCaptureStore, type CaptureAgentScope } from "../../store";
+import { useAtomValue } from "@effect/atom-react";
+import { captureActions, prefsAtom, type CaptureAgentScope } from "../../store";
 import { useDomainActions } from "../hooks";
 import { buildSiblingDomainReorderItems } from "../reorder";
 import { DomainModalContent } from "./CreateDomainModal";
@@ -38,13 +39,13 @@ function findDomain(nodes: readonly DomainTreeNode[], targetId: string): DomainT
 export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => void }) {
   const { domains } = useCaptureDomains();
   const { createDomain, updateDomain, deleteDomain, reorderDomains } = useDomainActions();
-  const selectedDomainId = useCaptureStore((state) => state.selectedDomainId);
-  const expandedDomainIds = useCaptureStore((state) => state.expandedDomainIds);
-  const selectDomain = useCaptureStore((state) => state.selectDomain);
-  const toggleDomainExpanded = useCaptureStore((state) => state.toggleDomainExpanded);
-  const reconcileExpandedDomains = useCaptureStore((state) => state.reconcileExpandedDomains);
-  const expandDomainAncestors = useCaptureStore((state) => state.expandDomainAncestors);
-  const resetAfterDomainDeleted = useCaptureStore((state) => state.resetAfterDomainDeleted);
+  const selectedDomainId = useAtomValue(prefsAtom).selectedDomainId;
+  const expandedDomainIds = useAtomValue(prefsAtom).expandedDomainIds;
+  const selectDomain = captureActions.selectDomain;
+  const toggleDomainExpanded = captureActions.toggleDomainExpanded;
+  const reconcileExpandedDomains = captureActions.reconcileExpandedDomains;
+  const expandDomainAncestors = captureActions.expandDomainAncestors;
+  const resetAfterDomainDeleted = captureActions.resetAfterDomainDeleted;
   const { openModal, closeModal, confirm } = useModal();
 
   useEffect(() => {

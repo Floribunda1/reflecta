@@ -11,7 +11,8 @@ import {
 import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@reflecta/ui/components/empty";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import type { CaptureAgentScope } from "../store";
-import { useCaptureStore } from "../store";
+import { useAtomValue } from "@effect/atom-react";
+import { selectedUnderstandingIdAtom } from "../store";
 import { captureQueryKeys, getEntityDisplay, useCaptureDomains } from "../queries";
 import {
   collectChatEntityReferences,
@@ -97,7 +98,7 @@ const CaptureUnderstandingCard = memo(function CaptureUnderstandingCard({
   onChat?: (scope: CaptureAgentScope) => void;
   onDelete?: (understandingId: string) => void;
 }) {
-  const selected = useCaptureStore((state) => state.selectedUnderstandingId === understanding.id);
+  const selected = useAtomValue(selectedUnderstandingIdAtom) === understanding.id;
 
   const handleAction = useCallback(
     (action: UnderstandingCardAction) => {

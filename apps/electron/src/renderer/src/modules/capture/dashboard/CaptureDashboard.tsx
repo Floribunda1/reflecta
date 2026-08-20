@@ -13,7 +13,14 @@ import {
   DropdownMenuTrigger,
 } from "@reflecta/ui/components/dropdown-menu";
 import { useModal } from "@reflecta/ui/overlays";
-import { useCaptureStore, type CaptureAgentScope } from "../store";
+import { useAtomValue } from "@effect/atom-react";
+import {
+  captureActions,
+  prefsAtom,
+  readCaptureState,
+  searchAtom,
+  type CaptureAgentScope,
+} from "../store";
 import {
   useCaptureUnderstandingList,
   useCreateUnderstandingMutation,
@@ -29,8 +36,8 @@ import { ParticipationOverview, ParticipationOverviewToggle } from "./Participat
  * 组合结束立即推送最终结果，避免中文输入过程中频繁触发查询。
  */
 function useSearchQueryControl() {
-  const setSearchQuery = useCaptureStore((state) => state.setSearchQuery);
-  const [text, setText] = useState(() => useCaptureStore.getState().searchQuery);
+  const setSearchQuery = captureActions.setSearchQuery;
+  const [text, setText] = useState(() => readCaptureState(searchAtom).query);
   const composingRef = useRef(false);
   const debouncedText = useDebounce(text, { wait: 300 });
 
@@ -53,12 +60,12 @@ function useSearchQueryControl() {
 
 /** 铺满 Capture 内容宽的顶栏；侧栏收起时汉堡出现在搜索左边。 */
 export function CaptureToolbar() {
-  const selectedDomainId = useCaptureStore((state) => state.selectedDomainId);
-  const includeDescendants = useCaptureStore((state) => state.includeDescendants);
-  const setIncludeDescendants = useCaptureStore((state) => state.setIncludeDescendants);
-  const understandingListSortBy = useCaptureStore((state) => state.understandingListSortBy);
-  const setUnderstandingListSortBy = useCaptureStore((state) => state.setUnderstandingListSortBy);
-  const selectUnderstanding = useCaptureStore((state) => state.selectUnderstanding);
+  const selectedDomainId = useAtomValue(prefsAtom).selectedDomainId;
+  const includeDescendants = useAtomValue(prefsAtom).includeDescendants;
+  const setIncludeDescendants = captureActions.setIncludeDescendants;
+  const understandingListSortBy = useAtomValue(prefsAtom).understandingListSortBy;
+  const setUnderstandingListSortBy = captureActions.setUnderstandingListSortBy;
+  const selectUnderstanding = captureActions.selectUnderstanding;
   const createUnderstandingMutation = useCreateUnderstandingMutation();
   const { searchText, onChangeText, onCompositionStart, onCompositionEnd } =
     useSearchQueryControl();
@@ -151,14 +158,12 @@ export const CaptureDashboard = memo(function CaptureDashboard({
 }: {
   onChat?: (scope: CaptureAgentScope) => void;
 }) {
-  const selectedDomainId = useCaptureStore((state) => state.selectedDomainId);
-  const storeSearchQuery = useCaptureStore((state) => state.searchQuery);
-  const includeDescendants = useCaptureStore((state) => state.includeDescendants);
-  const understandingListSortBy = useCaptureStore((state) => state.understandingListSortBy);
-  const selectUnderstanding = useCaptureStore((state) => state.selectUnderstanding);
-  const resetAfterUnderstandingDeleted = useCaptureStore(
-    (state) => state.resetAfterUnderstandingDeleted,
-  );
+  const selectedDomainId = useAtomValue(prefsAtom).selectedDomainId;
+  const storeSearchQuery = useAtomValue(searchAtom).query;
+  const includeDescendants = useAtomValue(prefsAtom).includeDescendants;
+  const understandingListSortBy = useAtomValue(prefsAtom).understandingListSortBy;
+  const selectUnderstanding = captureActions.selectUnderstanding;
+  const resetAfterUnderstandingDeleted = captureActions.resetAfterUnderstandingDeleted;
   const { confirm } = useModal();
   const deleteUnderstandingMutation = useDeleteUnderstandingMutation();
 

@@ -2,7 +2,8 @@ import { markdownEquals } from "@reflecta/ui/editor/markdown-normalize";
 import { useKeyPress, useMemoizedFn } from "ahooks";
 import { useEffect, useRef, type RefObject } from "react";
 import { useUpdateUnderstandingMutation } from "./queries";
-import { useCaptureStore } from "./store";
+import { appAtomRegistry } from "@renderer/lib/atoms";
+import { captureActions, draftAtom, readCaptureState } from "./store";
 
 export type DraftSaveSnapshot = {
   understandingId: string;
@@ -88,10 +89,10 @@ export function useUnderstandingDraftSave({
         return { updatedAt: result.updatedAt };
       },
       onStarted: (snapshot) => {
-        useCaptureStore.getState().markDraftSaveStarted(snapshot.understandingId);
+        captureActions.markDraftSaveStarted(snapshot.understandingId);
       },
       onSucceeded: (snapshot, result) => {
-        useCaptureStore.getState().markDraftSaveSucceeded({
+        captureActions.markDraftSaveSucceeded({
           understandingId: snapshot.understandingId,
           title: snapshot.title,
           body: snapshot.body,
@@ -99,7 +100,7 @@ export function useUnderstandingDraftSave({
         });
       },
       onFailed: (snapshot, error) => {
-        useCaptureStore.getState().markDraftSaveFailed({
+        captureActions.markDraftSaveFailed({
           understandingId: snapshot.understandingId,
           error,
         });
@@ -108,7 +109,7 @@ export function useUnderstandingDraftSave({
   }
 
   const saveDraft = useMemoizedFn((body?: string) => {
-    const draft = useCaptureStore.getState().draft;
+    const draft = readCaptureState(draftAtom);
     let snapshot =
       draft?.dirty && draft.understandingId === understandingId
         ? {
@@ -146,7 +147,7 @@ export function useUnderstandingDraftSave({
 
   useEffect(() => {
     const updatePendingSnapshot = () => {
-      const draft = useCaptureStore.getState().draft;
+      const draft = readCaptureState(draftAtom);
       if (draft?.understandingId !== understandingId) return;
       latestSnapshotRef.current = {
         understandingId: draft.understandingId,
@@ -156,7 +157,7 @@ export function useUnderstandingDraftSave({
       pendingSnapshotRef.current = draft.dirty ? latestSnapshotRef.current : null;
     };
     updatePendingSnapshot();
-    const unsubscribe = useCaptureStore.subscribe(updatePendingSnapshot);
+    const unsubscribe = appAtomRegistry.subscribe(draftAtom, updatePendingSnapshot);
 
     return () => {
       unsubscribe();

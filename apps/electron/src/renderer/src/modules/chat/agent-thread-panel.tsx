@@ -29,7 +29,7 @@ import { toast } from "sonner";
 import { AgentChatComposer } from "./adapters/chat-composer-adapter";
 import { ArtifactPanel } from "./artifact-panel";
 import { buildArtifactPanelView, type LandedArtifact } from "./session/artifact-panel";
-import { useCaptureStore } from "../capture/store";
+import { captureActions } from "../capture/store";
 import type { InspectableContextRef } from "./context/context-reference";
 import type { ApproveToolInput } from "./adapters/chat-message-adapter";
 import { activateChatFindMarker, type ChatFindMarkerMatch } from "./messages/chat-find-highlight";
@@ -84,7 +84,7 @@ export function AgentThreadPanel({
       return;
     }
     if (artifact.type === "domain") {
-      useCaptureStore.getState().selectDomain(artifact.id);
+      captureActions.selectDomain(artifact.id);
       navigate("/capture");
     }
     // canvas：画布工具未落地前不会出现该类型行；落地后接画布模块编辑模式（C13）。

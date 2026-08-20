@@ -52,7 +52,8 @@ import { useQueries } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUnderstandingDetail, useUnderstandingDetailActions } from "./hooks";
 import { CONTEXT_META, CONTEXT_PLACEHOLDER, CONTEXT_TYPES } from "./context/types";
-import { useCaptureStore, type CaptureAgentScope } from "../store";
+import { useAtomValue } from "@effect/atom-react";
+import { activeContextIdAtom, captureActions, draftAtom, type CaptureAgentScope } from "../store";
 import { useUnderstandingDraftSave } from "../useUnderstandingDraftSave";
 import {
   getMarkdownEditorSuggestions,
@@ -385,14 +386,13 @@ function UnderstandingDetailInner({
     useUnderstandingDetailActions(understandingId);
   const { confirm } = useModal();
   const { openDrawer, closeDrawer } = useDrawer();
-  const draft = useCaptureStore((state) =>
-    state.draft?.understandingId === understandingId ? state.draft : null,
-  );
-  const activeContextId = useCaptureStore((state) => state.activeContextId);
-  const initializeDraft = useCaptureStore((state) => state.initializeDraft);
-  const updateDraftTitle = useCaptureStore((state) => state.updateDraftTitle);
-  const updateDraftBody = useCaptureStore((state) => state.updateDraftBody);
-  const setActiveContextId = useCaptureStore((state) => state.setActiveContextId);
+  const draftAll = useAtomValue(draftAtom);
+  const draft = draftAll?.understandingId === understandingId ? draftAll : null;
+  const activeContextId = useAtomValue(activeContextIdAtom);
+  const initializeDraft = captureActions.initializeDraft;
+  const updateDraftTitle = captureActions.updateDraftTitle;
+  const updateDraftBody = captureActions.updateDraftBody;
+  const setActiveContextId = captureActions.setActiveContextId;
   const { saveDraft } = useUnderstandingDraftSave({ understandingId, scopeRef: detailRef });
   const referenceSource = draft?.body ?? understanding?.body ?? "";
   const entityReferences = useMemo(

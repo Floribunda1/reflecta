@@ -1,8 +1,21 @@
-import { create, type StateCreator } from "zustand";
-import { createStore, type StoreApi } from "zustand/vanilla";
-import { createJSONStorage, persist } from "zustand/middleware";
+import * as S from "effect/Schema";
+import { Effect } from "effect";
+import { Atom, AtomRegistry } from "effect/unstable/reactivity";
 import { markdownEquals } from "@reflecta/ui/editor/markdown-normalize";
+import { kvsRuntime, runAtom } from "@renderer/lib/atoms";
 import type { UnderstandingListSortBy } from "./dashboard/sort";
+
+/**
+ * 捕获/理解区 UI 状态（迁移到 Effect atoms）。
+ *
+ * - `prefsAtom`：持久化（localStorage `capture:state`）——选中域 / 排序 / 展开态等；
+ * - 其余为 UI 瞬态原子：`selectedUnderstandingIdAtom` / `searchAtom` /
+ *   `activeContextIdAtom` / `draftAtom`（草稿状态机）/ `agentDockAtom`。
+ *
+ * draft 状态机暂以单个 atom 承载其语义（保留给 P4-3 迁为显式状态 Effect 程序）。
+ */
+
+// --- 类型 ---
 
 export type CaptureDraft = {
   understandingId: string;
@@ -23,16 +36,18 @@ export type CaptureAgentScope = {
   title?: string;
 };
 
-export type CaptureState = {
+export type CapturePrefs = {
   selectedDomainId: string;
-  selectedUnderstandingId: string | null;
-  searchOpen: boolean;
-  searchQuery: string;
   includeDescendants: boolean;
   understandingListSortBy: UnderstandingListSortBy;
   expandedDomainIds: Record<string, boolean>;
-  /** 顶部参与概览（热力图 + 指标）是否折叠 */
   participationOverviewCollapsed: boolean;
+};
+
+export type CaptureTransient = {
+  selectedUnderstandingId: string | null;
+  searchOpen: boolean;
+  searchQuery: string;
   activeContextId: string | null;
   draft: CaptureDraft | null;
   agentDockOpen: boolean;
@@ -72,38 +87,61 @@ export type CaptureActions = {
   closeAgentDock: () => void;
 };
 
-export type CaptureStore = CaptureState & CaptureActions;
+export type CaptureStore = CapturePrefs & CaptureTransient & CaptureActions;
 
-export const initialCaptureState: CaptureState = {
+// --- 初始值 ---
+
+export const initialPrefs: CapturePrefs = {
   selectedDomainId: "all",
-  selectedUnderstandingId: null,
-  searchOpen: false,
-  searchQuery: "",
   includeDescendants: true,
   understandingListSortBy: "updatedAt",
   expandedDomainIds: {},
   participationOverviewCollapsed: false,
-  activeContextId: null,
-  draft: null,
-  agentDockOpen: false,
-  agentDockScope: null,
-  agentDockThreadId: null,
-  agentDockContextNonce: 0,
 };
 
-function expandedDomainKeysEqual(
-  left: Record<string, boolean>,
-  right: Record<string, boolean>,
-): boolean {
-  const leftKeys = Object.keys(left)
-    .filter((key) => left[key])
-    .sort();
-  const rightKeys = Object.keys(right)
-    .filter((key) => right[key])
-    .sort();
-  if (leftKeys.length !== rightKeys.length) return false;
-  return leftKeys.every((key, index) => key === rightKeys[index]);
-}
+const initialSearch = { open: false, query: "" };
+const initialAgentDock = {
+  open: false,
+  scope: null as CaptureAgentScope | null,
+  threadId: null as string | null,
+  contextNonce: 0,
+};
+
+// --- schema（持久化：只持久化 prefs 的 5 字段，对齐旧 `partialize`） ---
+
+const PrefsSchema = S.Struct({
+  selectedDomainId: S.String,
+  includeDescendants: S.Boolean,
+  understandingListSortBy: S.Union([S.Literal("updatedAt"), S.Literal("createdAt")]),
+  expandedDomainIds: S.Record(S.String, S.Boolean),
+  participationOverviewCollapsed: S.Boolean,
+});
+
+// --- atoms ---
+
+export const prefsAtom: Atom.Writable<CapturePrefs, CapturePrefs> = Atom.keepAlive(
+  Atom.kvs({
+    runtime: kvsRuntime,
+    key: "capture:state",
+    schema: PrefsSchema,
+    defaultValue: () => initialPrefs,
+  }),
+);
+export const selectedUnderstandingIdAtom: Atom.Writable<string | null, string | null> =
+  Atom.keepAlive(Atom.make<string | null>(null));
+export const searchAtom: Atom.Writable<typeof initialSearch, typeof initialSearch> = Atom.keepAlive(
+  Atom.make(initialSearch),
+);
+export const activeContextIdAtom: Atom.Writable<string | null, string | null> = Atom.keepAlive(
+  Atom.make<string | null>(null),
+);
+export const draftAtom: Atom.Writable<CaptureDraft | null, CaptureDraft | null> = Atom.keepAlive(
+  Atom.make<CaptureDraft | null>(null),
+);
+export const agentDockAtom: Atom.Writable<typeof initialAgentDock, typeof initialAgentDock> =
+  Atom.keepAlive(Atom.make(initialAgentDock));
+
+// --- 纯辅助 ---
 
 function makeDraft(input: { understandingId: string; title: string; body: string }): CaptureDraft {
   return {
@@ -124,258 +162,332 @@ function isDraftDirty(draft: Pick<CaptureDraft, "title" | "body" | "baseTitle" |
   return draft.title !== draft.baseTitle || !markdownEquals(draft.body, draft.baseBody);
 }
 
-function clearUnderstandingState(state: CaptureStore): Partial<CaptureStore> {
-  if (!state.selectedUnderstandingId && !state.activeContextId && !state.draft) return {};
-  return {
-    selectedUnderstandingId: null,
-    activeContextId: null,
-    draft: null,
-  };
+function expandedDomainKeysEqual(
+  left: Record<string, boolean>,
+  right: Record<string, boolean>,
+): boolean {
+  const leftKeys = Object.keys(left)
+    .filter((key) => left[key])
+    .sort();
+  const rightKeys = Object.keys(right)
+    .filter((key) => right[key])
+    .sort();
+  if (leftKeys.length !== rightKeys.length) return false;
+  return leftKeys.every((key, index) => key === rightKeys[index]);
 }
 
 function sameAgentScope(left: CaptureAgentScope | null, right: CaptureAgentScope) {
   return Boolean(left && left.type === right.type && left.id === right.id);
 }
 
-function createCaptureState(
-  initialState: CaptureState = initialCaptureState,
-): StateCreator<CaptureStore> {
-  return (set) => ({
-    ...initialState,
+const clearUnderstanding = Effect.gen(function* () {
+  yield* Atom.set(selectedUnderstandingIdAtom, null);
+  yield* Atom.set(activeContextIdAtom, null);
+  yield* Atom.set(draftAtom, null);
+});
 
+const closeAgentDock = Effect.gen(function* () {
+  yield* Atom.update(agentDockAtom, (dock) => ({ ...dock, open: false }));
+});
+
+// --- actions（按 registry 参数化；captureActions 用全局 appAtomRegistry，
+// createCaptureStore 用每实例 registry，实现多实例隔离） ---
+
+type RunWith = <A, E>(
+  effect: Effect.Effect<A, E, import("effect/unstable/reactivity").AtomRegistry.AtomRegistry>,
+) => A;
+
+function makeCaptureActions(run: RunWith): CaptureActions {
+  return {
     selectDomain: (domainId) =>
-      set((state) => ({
-        selectedDomainId: domainId,
-        ...clearUnderstandingState(state),
-      })),
+      run(
+        Effect.gen(function* () {
+          yield* Atom.update(prefsAtom, (s) => ({ ...s, selectedDomainId: domainId }));
+          yield* clearUnderstanding;
+        }),
+      ),
 
     selectUnderstanding: (understandingId) =>
-      set((state) => ({
-        selectedUnderstandingId: understandingId,
-        activeContextId: null,
-        draft: state.selectedUnderstandingId === understandingId ? state.draft : null,
-      })),
+      run(
+        Effect.gen(function* () {
+          const current = yield* Atom.get(selectedUnderstandingIdAtom);
+          yield* Atom.set(selectedUnderstandingIdAtom, understandingId);
+          yield* Atom.set(activeContextIdAtom, null);
+          if (current !== understandingId) yield* Atom.set(draftAtom, null);
+        }),
+      ),
 
     reconcileSelectedUnderstanding: (visibleUnderstandingIds) =>
-      set((state) => {
-        if (
-          !state.selectedUnderstandingId ||
-          visibleUnderstandingIds.has(state.selectedUnderstandingId)
-        )
-          return {};
-        return clearUnderstandingState(state);
-      }),
+      run(
+        Effect.gen(function* () {
+          const selected = yield* Atom.get(selectedUnderstandingIdAtom);
+          if (selected && !visibleUnderstandingIds.has(selected)) yield* clearUnderstanding;
+        }),
+      ),
 
     setSearchOpen: (open) =>
-      set((state) => ({
-        searchOpen: open,
-        searchQuery: open ? state.searchQuery : "",
-      })),
+      run(Atom.update(searchAtom, (s) => ({ ...s, open, query: open ? s.query : "" }))),
 
-    setSearchQuery: (query) => set({ searchQuery: query }),
+    setSearchQuery: (query) => run(Atom.update(searchAtom, (s) => ({ ...s, query }))),
 
-    setIncludeDescendants: (include) => set({ includeDescendants: include }),
+    setIncludeDescendants: (include) =>
+      run(Atom.update(prefsAtom, (s) => ({ ...s, includeDescendants: include }))),
 
-    setUnderstandingListSortBy: (sortBy) => set({ understandingListSortBy: sortBy }),
+    setUnderstandingListSortBy: (sortBy) =>
+      run(Atom.update(prefsAtom, (s) => ({ ...s, understandingListSortBy: sortBy }))),
 
     toggleDomainExpanded: (domainId) =>
-      set((state) => {
-        const next = { ...state.expandedDomainIds };
-        if (next[domainId]) {
-          delete next[domainId];
-        } else {
-          next[domainId] = true;
-        }
-        return { expandedDomainIds: next };
-      }),
+      run(
+        Atom.update(prefsAtom, (s) => {
+          const next = { ...s.expandedDomainIds };
+          if (next[domainId]) delete next[domainId];
+          else next[domainId] = true;
+          return { ...s, expandedDomainIds: next };
+        }),
+      ),
 
     toggleParticipationOverviewCollapsed: () =>
-      set((state) => ({ participationOverviewCollapsed: !state.participationOverviewCollapsed })),
+      run(
+        Atom.update(prefsAtom, (s) => ({
+          ...s,
+          participationOverviewCollapsed: !s.participationOverviewCollapsed,
+        })),
+      ),
 
     reconcileExpandedDomains: (validIds) =>
-      set((state) => {
-        const expandedDomainIds = Object.fromEntries(
-          Object.entries(state.expandedDomainIds).filter(
-            ([domainId, expanded]) => expanded && validIds.has(domainId),
-          ),
-        );
-        if (expandedDomainKeysEqual(state.expandedDomainIds, expandedDomainIds)) return {};
-        return { expandedDomainIds };
-      }),
+      run(
+        Atom.update(prefsAtom, (state) => {
+          const expandedDomainIds = Object.fromEntries(
+            Object.entries(state.expandedDomainIds).filter(
+              ([domainId, expanded]) => expanded && validIds.has(domainId),
+            ),
+          );
+          if (expandedDomainKeysEqual(state.expandedDomainIds, expandedDomainIds)) return state;
+          return { ...state, expandedDomainIds };
+        }),
+      ),
 
     expandDomainAncestors: (domainIds) =>
-      set((state) => {
-        if (domainIds.every((domainId) => state.expandedDomainIds[domainId])) return {};
-        return {
+      run(
+        Atom.update(prefsAtom, (s) => ({
+          ...s,
           expandedDomainIds: {
-            ...state.expandedDomainIds,
+            ...s.expandedDomainIds,
             ...Object.fromEntries(domainIds.map((domainId) => [domainId, true])),
           },
-        };
-      }),
+        })),
+      ),
 
-    setActiveContextId: (contextId) => set({ activeContextId: contextId }),
+    setActiveContextId: (contextId) => run(Atom.set(activeContextIdAtom, contextId)),
 
     initializeDraft: (input) =>
-      set((state) => {
-        if (state.draft?.understandingId === input.understandingId && state.draft.dirty) return {};
-        return { draft: makeDraft(input) };
-      }),
+      run(
+        Effect.gen(function* () {
+          const draft = yield* Atom.get(draftAtom);
+          if (draft?.understandingId === input.understandingId && draft.dirty) return;
+          yield* Atom.set(draftAtom, makeDraft(input));
+        }),
+      ),
 
     updateDraftTitle: (title) =>
-      set((state) => {
-        if (!state.draft) return {};
-        const draft = { ...state.draft, title, error: null };
-        return { draft: { ...draft, dirty: isDraftDirty(draft) } };
-      }),
+      run(
+        Atom.update(draftAtom, (draft) => {
+          if (!draft) return draft;
+          const next = { ...draft, title, error: null };
+          return { ...next, dirty: isDraftDirty(next) };
+        }),
+      ),
 
     updateDraftBody: (body) =>
-      set((state) => {
-        if (!state.draft) return {};
-        const draft = { ...state.draft, body, error: null };
-        return { draft: { ...draft, dirty: isDraftDirty(draft) } };
-      }),
+      run(
+        Atom.update(draftAtom, (draft) => {
+          if (!draft) return draft;
+          const next = { ...draft, body, error: null };
+          return { ...next, dirty: isDraftDirty(next) };
+        }),
+      ),
 
     markDraftSaveStarted: (understandingId) =>
-      set((state) => {
-        if (state.draft?.understandingId !== understandingId) return {};
-        return {
-          draft: {
-            ...state.draft,
+      run(
+        Atom.update(draftAtom, (draft) => {
+          if (!draft || draft.understandingId !== understandingId) return draft;
+          return {
+            ...draft,
             saving: true,
             error: null,
             saveRequestedAt: new Date().toISOString(),
-          },
-        };
-      }),
+          };
+        }),
+      ),
 
     markDraftSaveSucceeded: ({ understandingId, title, body, savedAt }) =>
-      set((state) => {
-        if (state.draft?.understandingId !== understandingId) return {};
-        const draft = {
-          ...state.draft,
-          baseTitle: title,
-          baseBody: body,
-          saving: false,
-          error: null,
-          lastSavedAt: savedAt,
-          saveRequestedAt: null,
-        };
-        return { draft: { ...draft, dirty: isDraftDirty(draft) } };
-      }),
+      run(
+        Atom.update(draftAtom, (draft) => {
+          if (!draft || draft.understandingId !== understandingId) return draft;
+          const next = {
+            ...draft,
+            baseTitle: title,
+            baseBody: body,
+            saving: false,
+            error: null,
+            lastSavedAt: savedAt,
+            saveRequestedAt: null,
+          };
+          return { ...next, dirty: isDraftDirty(next) };
+        }),
+      ),
 
     markDraftSaveFailed: ({ understandingId, error }) =>
-      set((state) => {
-        if (state.draft?.understandingId !== understandingId) return {};
-        return {
-          draft: {
-            ...state.draft,
-            saving: false,
-            error,
-            saveRequestedAt: null,
-          },
-        };
-      }),
+      run(
+        Atom.update(draftAtom, (draft) => {
+          if (!draft || draft.understandingId !== understandingId) return draft;
+          return { ...draft, saving: false, error, saveRequestedAt: null };
+        }),
+      ),
 
     resetAfterUnderstandingDeleted: (understandingId) =>
-      set((state) => {
-        const agentScopeMatches =
-          state.agentDockScope?.type === "understanding" &&
-          state.agentDockScope.id === understandingId;
-        if (
-          state.selectedUnderstandingId !== understandingId &&
-          state.draft?.understandingId !== understandingId &&
-          !agentScopeMatches
-        )
-          return {};
-        return {
-          ...clearUnderstandingState(state),
-          ...(agentScopeMatches
-            ? {
-                agentDockOpen: false,
-                agentDockScope: null,
-                agentDockThreadId: null,
-              }
-            : {}),
-        };
-      }),
+      run(
+        Effect.gen(function* () {
+          const [selected, draft, dock] = yield* Effect.all([
+            Atom.get(selectedUnderstandingIdAtom),
+            Atom.get(draftAtom),
+            Atom.get(agentDockAtom),
+          ]);
+          const agentScopeMatches =
+            dock.scope?.type === "understanding" && dock.scope.id === understandingId;
+          if (
+            selected !== understandingId &&
+            draft?.understandingId !== understandingId &&
+            !agentScopeMatches
+          )
+            return;
+          if (selected === understandingId || draft?.understandingId === understandingId) {
+            yield* clearUnderstanding;
+          }
+          if (agentScopeMatches) {
+            yield* Atom.set(agentDockAtom, initialAgentDock);
+          }
+        }),
+      ),
 
     resetAfterDomainDeleted: (deletedDomainIds) =>
-      set((state) => {
-        const expandedDomainIds = Object.fromEntries(
-          Object.entries(state.expandedDomainIds).filter(
-            ([domainId]) => !deletedDomainIds.has(domainId),
-          ),
-        );
-        if (!deletedDomainIds.has(state.selectedDomainId)) {
-          return {
-            expandedDomainIds,
-            ...(state.agentDockScope?.type === "domain" &&
-            deletedDomainIds.has(state.agentDockScope.id)
-              ? {
-                  agentDockOpen: false,
-                  agentDockScope: null,
-                  agentDockThreadId: null,
-                }
-              : {}),
-          };
-        }
-        return {
-          selectedDomainId: "all",
-          expandedDomainIds,
-          ...clearUnderstandingState(state),
-          ...(state.agentDockScope?.type === "domain" &&
-          deletedDomainIds.has(state.agentDockScope.id)
-            ? {
-                agentDockOpen: false,
-                agentDockScope: null,
-                agentDockThreadId: null,
-              }
-            : {}),
-        };
-      }),
+      run(
+        Effect.gen(function* () {
+          const [prefs, dock] = yield* Effect.all([Atom.get(prefsAtom), Atom.get(agentDockAtom)]);
+          const expandedDomainIds = Object.fromEntries(
+            Object.entries(prefs.expandedDomainIds).filter(
+              ([domainId]) => !deletedDomainIds.has(domainId),
+            ),
+          );
+          const domainAgentScopeDeleted =
+            dock.scope?.type === "domain" && deletedDomainIds.has(dock.scope.id);
+          if (deletedDomainIds.has(prefs.selectedDomainId)) {
+            yield* Atom.update(prefsAtom, (s) => ({
+              ...s,
+              selectedDomainId: "all",
+              expandedDomainIds,
+            }));
+            yield* clearUnderstanding;
+          } else {
+            yield* Atom.update(prefsAtom, (s) => ({ ...s, expandedDomainIds }));
+          }
+          if (domainAgentScopeDeleted) {
+            yield* Atom.set(agentDockAtom, initialAgentDock);
+          }
+        }),
+      ),
 
     openAgentDock: (scope) =>
-      set((state) => ({
-        agentDockOpen: true,
-        agentDockScope: scope,
-        agentDockThreadId: sameAgentScope(state.agentDockScope, scope)
-          ? state.agentDockThreadId
-          : null,
-        agentDockContextNonce: state.agentDockContextNonce + 1,
-      })),
+      run(
+        Effect.gen(function* () {
+          const dock = yield* Atom.get(agentDockAtom);
+          yield* Atom.set(agentDockAtom, {
+            open: true,
+            scope,
+            threadId: sameAgentScope(dock.scope, scope) ? dock.threadId : null,
+            contextNonce: dock.contextNonce + 1,
+          });
+        }),
+      ),
 
-    bindAgentDockThread: (threadId) => set({ agentDockThreadId: threadId }),
+    bindAgentDockThread: (threadId) =>
+      run(Atom.update(agentDockAtom, (dock) => ({ ...dock, threadId }))),
 
-    closeAgentDock: () => set({ agentDockOpen: false }),
-  });
+    closeAgentDock: () => run(closeAgentDock),
+  };
 }
 
-export function createCaptureStore(initialState: CaptureState = initialCaptureState) {
-  return createStore<CaptureStore>()(createCaptureState(initialState));
-}
+export const captureActions: CaptureActions = makeCaptureActions(runAtom);
 
-type PersistedCaptureState = Pick<
-  CaptureStore,
-  | "selectedDomainId"
-  | "includeDescendants"
-  | "understandingListSortBy"
-  | "expandedDomainIds"
-  | "participationOverviewCollapsed"
->;
+/** 命令式读全局 store 的某个 atom（getState 等价，与 React 共享 registry）。 */
+export const readCaptureState = <A>(atom: Atom.Atom<A>): A => runAtom(Atom.get(atom));
 
-export const useCaptureStore = create<CaptureStore>()(
-  persist(createCaptureState(), {
-    name: "capture:state",
-    storage: createJSONStorage(() => localStorage),
-    partialize: (state): PersistedCaptureState => ({
-      selectedDomainId: state.selectedDomainId,
-      includeDescendants: state.includeDescendants,
-      understandingListSortBy: state.understandingListSortBy,
-      expandedDomainIds: state.expandedDomainIds,
-      participationOverviewCollapsed: state.participationOverviewCollapsed,
+export const initialCaptureState: CapturePrefs & CaptureTransient = {
+  ...initialPrefs,
+  selectedUnderstandingId: null,
+  searchOpen: false,
+  searchQuery: "",
+  activeContextId: null,
+  draft: null,
+  agentDockOpen: false,
+  agentDockScope: null,
+  agentDockThreadId: null,
+  agentDockContextNonce: 0,
+};
+
+export type CaptureStoreApi = { getState: () => CaptureStore };
+
+/** 多实例 / 单测：每实例独立 registry + 独立 atom 状态（如只读预览不同交互态）。 */
+export function createCaptureStore(
+  initialState: CapturePrefs & CaptureTransient = initialCaptureState,
+): CaptureStoreApi {
+  const registry = AtomRegistry.make({});
+  const run: RunWith = <A, E>(effect: Effect.Effect<A, E, AtomRegistry.AtomRegistry>): A =>
+    Effect.runSync(effect.pipe(Effect.provideService(AtomRegistry.AtomRegistry, registry)));
+
+  run(
+    Effect.gen(function* () {
+      yield* Atom.set(prefsAtom, {
+        selectedDomainId: initialState.selectedDomainId,
+        includeDescendants: initialState.includeDescendants,
+        understandingListSortBy: initialState.understandingListSortBy,
+        expandedDomainIds: initialState.expandedDomainIds,
+        participationOverviewCollapsed: initialState.participationOverviewCollapsed,
+      });
+      yield* Atom.set(selectedUnderstandingIdAtom, initialState.selectedUnderstandingId);
+      yield* Atom.set(searchAtom, {
+        open: initialState.searchOpen,
+        query: initialState.searchQuery,
+      });
+      yield* Atom.set(activeContextIdAtom, initialState.activeContextId);
+      yield* Atom.set(draftAtom, initialState.draft ?? null);
+      yield* Atom.set(agentDockAtom, {
+        open: initialState.agentDockOpen,
+        scope: initialState.agentDockScope,
+        threadId: initialState.agentDockThreadId,
+        contextNonce: initialState.agentDockContextNonce,
+      });
     }),
-  }),
-);
+  );
 
-export type CaptureStoreApi = StoreApi<CaptureStore>;
+  const actions = makeCaptureActions(run);
+  const getState = (): CaptureStore => {
+    const prefs = run(Atom.get(prefsAtom));
+    const search = run(Atom.get(searchAtom));
+    const dock = run(Atom.get(agentDockAtom));
+    return {
+      ...prefs,
+      selectedUnderstandingId: run(Atom.get(selectedUnderstandingIdAtom)),
+      searchOpen: search.open,
+      searchQuery: search.query,
+      activeContextId: run(Atom.get(activeContextIdAtom)),
+      draft: run(Atom.get(draftAtom)),
+      agentDockOpen: dock.open,
+      agentDockScope: dock.scope,
+      agentDockThreadId: dock.threadId,
+      agentDockContextNonce: dock.contextNonce,
+      ...actions,
+    };
+  };
+  return { getState };
+}

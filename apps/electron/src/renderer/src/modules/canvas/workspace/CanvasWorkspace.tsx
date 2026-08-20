@@ -124,7 +124,7 @@ function CanvasEmptyState() {
 
 /**
  * 画布工作区：无限画布（React Flow）+ 左下控制 + 右下缩略图 + 空态 + 库 / 详情面板；
- * 事件桥 → zustand 镜像 + 防抖 saveCanvas / viewport settle 提交。
+ * 事件桥 → atoms 镜像 + 防抖 saveCanvas / viewport settle 提交。
  */
 export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   const navigateToCanvas = useNavigateToCanvas();

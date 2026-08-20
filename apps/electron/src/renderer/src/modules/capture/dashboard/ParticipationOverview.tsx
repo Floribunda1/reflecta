@@ -23,7 +23,8 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@reflecta/ui/components/popover";
-import { useCaptureStore } from "../store";
+import { useAtomValue } from "@effect/atom-react";
+import { captureActions, prefsAtom } from "../store";
 import { useParticipationOverview, type ParticipationOverviewData } from "../queries";
 import {
   buildParticipationActivity,
@@ -128,8 +129,8 @@ const PARTICIPATION_CALENDAR_LABELS = {
 
 /** 工具栏里的足迹开关；收起后热力图不再占一行。 */
 export function ParticipationOverviewToggle() {
-  const collapsed = useCaptureStore((state) => state.participationOverviewCollapsed);
-  const toggleCollapsed = useCaptureStore((state) => state.toggleParticipationOverviewCollapsed);
+  const collapsed = useAtomValue(prefsAtom).participationOverviewCollapsed;
+  const toggleCollapsed = captureActions.toggleParticipationOverviewCollapsed;
   return (
     <Button
       type="button"
@@ -148,7 +149,7 @@ export function ParticipationOverviewToggle() {
 
 /** 捕获页顶部足迹：指标卡与热力图同排；收起后保持挂载，避免 365 格反复卸载。 */
 export function ParticipationOverview() {
-  const collapsed = useCaptureStore((state) => state.participationOverviewCollapsed);
+  const collapsed = useAtomValue(prefsAtom).participationOverviewCollapsed;
   const [mounted, setMounted] = useState(() => !collapsed);
   if (!collapsed && !mounted) setMounted(true);
   const { data } = useParticipationOverview(mounted);

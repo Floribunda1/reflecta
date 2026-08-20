@@ -14,21 +14,20 @@ import { ContextualAgentDock } from "@renderer/modules/chat/contextual-agent-doc
 import { DomainTree } from "./domain";
 import { UnderstandingDetail } from "./understanding-detail";
 import { CaptureDashboard, CaptureToolbar } from "./dashboard/CaptureDashboard";
-import { useCaptureStore } from "./store";
+import { useAtomValue } from "@effect/atom-react";
+import { agentDockAtom, captureActions, selectedUnderstandingIdAtom } from "./store";
 
 function CaptureAgentDock() {
-  const agentDockScope = useCaptureStore((state) => state.agentDockScope);
-  const agentDockThreadId = useCaptureStore((state) => state.agentDockThreadId);
-  const agentDockContextNonce = useCaptureStore((state) => state.agentDockContextNonce);
-  const bindAgentDockThread = useCaptureStore((state) => state.bindAgentDockThread);
-  const closeAgentDock = useCaptureStore((state) => state.closeAgentDock);
+  const agentDock = useAtomValue(agentDockAtom);
+  const bindAgentDockThread = captureActions.bindAgentDockThread;
+  const closeAgentDock = captureActions.closeAgentDock;
 
   return (
     <ContextualAgentDock
       testId="capture-agent-dock"
-      scope={agentDockScope}
-      threadId={agentDockThreadId}
-      contextNonce={agentDockContextNonce}
+      scope={agentDock.scope}
+      threadId={agentDock.threadId}
+      contextNonce={agentDock.contextNonce}
       onBindThread={bindAgentDockThread}
       onClose={closeAgentDock}
     />
@@ -37,13 +36,11 @@ function CaptureAgentDock() {
 
 /** 详情面板 —— 右侧内联展示 UnderstandingDetail 的完整编辑/上下文/AI 能力（非抽屉浮层）。 */
 function UnderstandingDetailPanel() {
-  const selectedUnderstandingId = useCaptureStore((state) => state.selectedUnderstandingId);
-  const selectUnderstanding = useCaptureStore((state) => state.selectUnderstanding);
-  const selectDomain = useCaptureStore((state) => state.selectDomain);
-  const openAgentDock = useCaptureStore((state) => state.openAgentDock);
-  const resetAfterUnderstandingDeleted = useCaptureStore(
-    (state) => state.resetAfterUnderstandingDeleted,
-  );
+  const selectedUnderstandingId = useAtomValue(selectedUnderstandingIdAtom);
+  const selectUnderstanding = captureActions.selectUnderstanding;
+  const selectDomain = captureActions.selectDomain;
+  const openAgentDock = captureActions.openAgentDock;
+  const resetAfterUnderstandingDeleted = captureActions.resetAfterUnderstandingDeleted;
 
   if (!selectedUnderstandingId) return null;
 
@@ -76,9 +73,9 @@ function UnderstandingDetailPanel() {
 }
 
 function CapturePageInner() {
-  const agentDockOpen = useCaptureStore((state) => state.agentDockOpen);
-  const selectedUnderstandingId = useCaptureStore((state) => state.selectedUnderstandingId);
-  const openAgentDock = useCaptureStore((state) => state.openAgentDock);
+  const agentDockOpen = useAtomValue(agentDockAtom).open;
+  const selectedUnderstandingId = useAtomValue(selectedUnderstandingIdAtom);
+  const openAgentDock = captureActions.openAgentDock;
 
   const detailOpen = Boolean(selectedUnderstandingId);
 
