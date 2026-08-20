@@ -79,7 +79,6 @@
         "drizzle-orm": "^0.45.2",
         "electron": "43.2.0",
         "electron-builder": "^26.15.3",
-        "electron-ipc-decorator": "1.0.1",
         "electron-log": "^5.4.4",
         "happy-dom": "^20.11.1",
         "isbinaryfile": "^6.0.0",
@@ -2116,8 +2115,6 @@
     "electron-builder-squirrel-windows": ["electron-builder-squirrel-windows@26.15.3", "", { "dependencies": { "app-builder-lib": "26.15.3", "builder-util": "26.15.3", "electron-winstaller": "5.4.0" } }, "sha512-Jc19XPV9y9+2bAdZPkXuVNGNIEFBq9poHC61l8Kv6FdK7DRG3+Ic0rerC0DXOaeHNz8yW0fg/JnF8GQROOF5MA=="],
 
     "electron-effect-rpc": ["electron-effect-rpc@0.10.0", "", { "peerDependencies": { "effect": "^4.0.0-rc.109", "electron": ">=28.0.0" } }, "sha512-dojIr+R5kNqiKP9h8wblEb5cttwRim09iLgiXiCXhJwGQA0EhGf24tYlFqheAy/B1v0wkrleMHg+qk9u/BdSHw=="],
-
-    "electron-ipc-decorator": ["electron-ipc-decorator@1.0.1", "", { "peerDependencies": { "electron": ">=32.0.0" } }, "sha512-U8UM3BfiZEEs67NZHDxXM8vIxbM22sYJKtJLmar6zQPsIas++DQM1IjSV8X3MPFViBtotjCbqFoyTf8PTXO2UA=="],
 
     "electron-log": ["electron-log@5.4.4", "", {}, "sha512-istWgaXjBfURBSS8LWVW9C3jsc6+ac+tY1lXrQEOTp0lVj+a4OlO1Tmqb36GgnEUDv92DGC9VI1HNXwJinWpgA=="],
 

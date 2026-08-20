@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { ipcMain } from "electron";
 import type { IpcMainInvokeEvent } from "electron";
-import { createServices } from "electron-ipc-decorator";
 import { diagnosticErrorAttrs } from "../diagnostic-log";
 import { writeDiagnosticEvent } from "../logger";
 import { piAgentHost } from "./core";
@@ -75,5 +74,3 @@ registerAgentSessionFeed(piAgentHost);
 // availability checks. ModelRuntime.create is intentionally not called on the
 // per-message hot path.
 void getSharedModelRuntime().catch(() => undefined);
-
-export const services = createServices([]);

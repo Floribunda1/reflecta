@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { Effect } from "effect";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, test, vi } from "vitest";
@@ -11,13 +12,16 @@ const ipcMocks = vi.hoisted(() => ({
   getUnderstandingById: vi.fn(),
   getContextById: vi.fn(),
   getDomainById: vi.fn(),
+  getCanvasById: vi.fn(),
 }));
 
-vi.mock("@renderer/utils/ipc", () => ({
-  ipcClient: {
-    understanding: { getUnderstandingById: ipcMocks.getUnderstandingById },
-    context: { getContextById: ipcMocks.getContextById },
-    domain: { getDomainById: ipcMocks.getDomainById },
+vi.mock("@renderer/lib/effect-rpc", () => ({
+  rpc: {
+    understandingGetById: (id: string) =>
+      Effect.tryPromise(() => ipcMocks.getUnderstandingById(id)),
+    contextGetById: (id: string) => Effect.tryPromise(() => ipcMocks.getContextById(id)),
+    domainGetDomainById: (id: string) => Effect.tryPromise(() => ipcMocks.getDomainById(id)),
+    canvasGet: (id: string) => Effect.tryPromise(() => ipcMocks.getCanvasById(id)),
   },
 }));
 
