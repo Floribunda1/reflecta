@@ -1,5 +1,6 @@
 import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 import { app, BrowserWindow, ipcMain, nativeTheme, shell } from "electron";
+import { Context, Effect } from "effect";
 import { merge } from "lodash-es";
 import "./services";
 import { initializeDB } from "./db";
@@ -11,6 +12,7 @@ import { retrievalEmbeddingRunner } from "./retrievalEmbeddingRunner";
 import { retrievalIndexCoordinator } from "./retrievalIndexCoordinator";
 import { getRuntimeArg } from "./runtime-args";
 import { startAutomaticUpdateChecks } from "./updater";
+import { pilotIpc, PilotBoom } from "../ipc/pilot/contract";
 
 // Register asset:// as a privileged scheme before app is ready
 registerAssetScheme();
@@ -135,6 +137,24 @@ app.whenReady().then(async () => {
 
   startAutomaticUpdateChecks();
   createWindow();
+
+  // P1 pilot：Effect IPC（electron-effect-rpc）—— typed domain error 跨进程往返验证
+  const pilotMain = pilotIpc.main({
+    ipcMain,
+    handlers: {
+      PilotPing: () => Effect.succeed({ message: "pong" }),
+      PilotProbe: ({ id }) =>
+        id === "boom"
+          ? Effect.fail(new PilotBoom({ reason: `boom: ${id}`, code: 404 }))
+          : Effect.succeed({ id, ok: true }),
+    },
+    context: Context.empty(),
+    getWindows: () => BrowserWindow.getAllWindows(),
+  });
+  pilotMain.start();
+  app.once("before-quit", () => {
+    pilotMain.dispose();
+  });
 
   app.on("activate", () => {
     // On macOS it's common to re-create a window in the app when the
