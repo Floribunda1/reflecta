@@ -13,6 +13,7 @@
     "jsx": "react-jsx",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "plugins": [{ "name": "@effect/language-service" }],
     "paths": {
       "@renderer/*": ["./src/renderer/src/*"],
       "@main/*": ["./src/main/*"],
