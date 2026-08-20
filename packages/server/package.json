@@ -33,6 +33,7 @@
     "@lancedb/lancedb": "0.33.0",
     "better-sqlite3": "^13.0.2",
     "drizzle-orm": "^0.45.2",
+    "effect": "4.0.0-rc.110",
     "libsql": "^0.5.29",
     "nanoid": "^6.0.1",
     "node-llama-cpp": "^3.19.1"
