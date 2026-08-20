@@ -1,3 +1,4 @@
+import { Cause, Deferred, Effect, Exit, Option, Queue, Ref } from "effect";
 import { markdownEquals } from "@reflecta/ui/editor/markdown-normalize";
 import { renderError } from "@renderer/lib/errors";
 import { useKeyPress, useMemoizedFn } from "ahooks";
@@ -29,30 +30,53 @@ export function createDraftSaveQueue<Result extends DraftSaveResult>({
   onSucceeded,
   onFailed,
 }: DraftSaveQueueOptions<Result>) {
-  let queue = Promise.resolve();
-  let latestRevision = 0;
+  type Task = {
+    snapshot: DraftSaveSnapshot;
+    rev: number;
+    deferred: Deferred.Deferred<Result, unknown>;
+  };
+
+  const tasks: Queue.Queue<Task> = Effect.runSync(Queue.unbounded<Task>());
+  const latestRevision: Ref.Ref<number> = Effect.runSync(Ref.make(0));
+
+  // 单 worker fiber：串行保存；每个任务经 Deferred 把结果/错误回给调用方，
+  // 回调（onSucceeded/onFailed）按最新 revision 门控，避免过期保存污染 UI。
+  // 用 `Effect.exit` 捕获成败（v4 gen 中 JS try/catch 捕不到 `yield*` 的失败）。
+  Effect.runFork(
+    Effect.gen(function* () {
+      while (true) {
+        const task: Task = yield* Queue.take(tasks);
+        const out = yield* Effect.exit(
+          Effect.tryPromise<Result, Error>({
+            try: () => save(task.snapshot),
+            catch: (error) => error as Error,
+          }),
+        );
+        if (Exit.isSuccess(out)) {
+          if ((yield* Ref.get(latestRevision)) === task.rev) onSucceeded(task.snapshot, out.value);
+          yield* Deferred.succeed(task.deferred, out.value);
+        } else {
+          const error = Cause.findErrorOption(out.cause).pipe(
+            Option.getOrElse(() => new Error("保存失败")),
+          );
+          if ((yield* Ref.get(latestRevision)) === task.rev) {
+            onFailed(task.snapshot, renderError(error));
+          }
+          yield* Deferred.fail(task.deferred, error);
+        }
+      }
+    }),
+  );
 
   return {
-    save(snapshot: DraftSaveSnapshot): Promise<Result | undefined> {
-      const revision = ++latestRevision;
+    save(snapshot: DraftSaveSnapshot): Promise<Result> {
+      const rev = Effect.runSync(Ref.updateAndGet(latestRevision, (n) => n + 1));
       onStarted(snapshot);
-
-      const result = queue.catch(() => undefined).then(() => save(snapshot));
-      queue = result.then(
-        () => undefined,
-        () => undefined,
+      const deferred: Deferred.Deferred<Result, unknown> = Effect.runSync(
+        Deferred.make<Result, unknown>(),
       );
-
-      return result.then(
-        (value) => {
-          if (revision === latestRevision) onSucceeded(snapshot, value);
-          return value;
-        },
-        (error: unknown) => {
-          if (revision === latestRevision) onFailed(snapshot, renderError(error));
-          throw error;
-        },
-      );
+      Effect.runSync(Queue.offer(tasks, { snapshot, rev, deferred }));
+      return Effect.runPromise(Deferred.await(deferred));
     },
   };
 }
