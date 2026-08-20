@@ -1,10 +1,13 @@
-/** understandingCanvas 域契约（Round C）。
- *  CanvasElementDTO 用扁平 Struct（非判别联合）承载元素：kind 为字面量联合、
- *  props 统一可选 text/label/color。这样 Schema 的 DecodingServices 天然为 never，
- *  无需 noCtx 收敛，handler 入参类型保持具体，规避判别联合触发 DecodingServices/unknown 问题。
- *  持存/往返功能等价；UI 侧仍用 @reflecta/server 的真判别类型做呈现。 */
+/** understandingCanvas 域契约（Round C，真判别联合版）。
+ *  CanvasElementDTO 保留 kind 判别联合（kind 收窄 understandingId/canvasRefId/props），
+ *  不因 electron-effect-rpc 的 SchemaNoContext 约束而放宽类型。
+ *  解法：noCtx<A> 只把服务类型(R)钉成 never（使 DecodingServices=never、满足 SchemaNoContext），
+ *  但保留 A（解码值类型=真联合），输入侧 unknown。这样运行时仍校验 kind/props 合法性。 */
 import * as S from "effect/Schema";
 import { rpc } from "electron-effect-rpc";
+
+type NoCtx<A> = S.Codec<A, unknown, never, never>;
+const noCtx = <A>(schema: S.Schema<A>): NoCtx<A> => schema as unknown as NoCtx<A>;
 
 export class CanvasError extends S.TaggedError<CanvasError>()("CanvasError", {
   reason: S.String,
@@ -13,14 +16,7 @@ export class CanvasError extends S.TaggedError<CanvasError>()("CanvasError", {
 
 const lit = <T extends string>(...xs: T[]) => S.Union(xs.map((x) => S.Literal(x)));
 
-export const CanvasElementKind = lit("understanding", "text", "group", "canvas_ref");
-export const ElementProps = S.Struct({
-  text: S.optional(S.String),
-  label: S.optional(S.String),
-  color: S.optional(S.String),
-});
-
-export const CanvasElementDTO = S.Struct({
+const ElementBase = {
   id: S.String,
   canvasId: S.String,
   parentId: S.NullOr(S.String),
@@ -31,11 +27,39 @@ export const CanvasElementDTO = S.Struct({
   zIndex: S.Number,
   createdAt: S.String,
   updatedAt: S.String,
-  kind: CanvasElementKind,
-  understandingId: S.NullOr(S.String),
-  canvasRefId: S.NullOr(S.String),
-  props: ElementProps,
-});
+};
+
+/** kind 判别联合：kind 收窄引用字段与 props（真类型安全，AI/开发可见）。 */
+export const CanvasElementDTO = S.Union([
+  S.Struct({
+    ...ElementBase,
+    kind: S.Literal("understanding"),
+    understandingId: S.NullOr(S.String),
+    canvasRefId: S.Null,
+    props: S.Struct({ color: S.optional(S.String) }),
+  }),
+  S.Struct({
+    ...ElementBase,
+    kind: S.Literal("text"),
+    understandingId: S.Null,
+    canvasRefId: S.Null,
+    props: S.Struct({ text: S.String, color: S.optional(S.String) }),
+  }),
+  S.Struct({
+    ...ElementBase,
+    kind: S.Literal("group"),
+    understandingId: S.Null,
+    canvasRefId: S.Null,
+    props: S.Struct({ label: S.String, color: S.optional(S.String) }),
+  }),
+  S.Struct({
+    ...ElementBase,
+    kind: S.Literal("canvas_ref"),
+    understandingId: S.Null,
+    canvasRefId: S.NullOr(S.String),
+    props: S.Struct({ color: S.optional(S.String) }),
+  }),
+]);
 export type CanvasElementDTO = S.Schema.Type<typeof CanvasElementDTO>;
 
 export const EdgeStyle = S.Struct({
@@ -80,19 +104,21 @@ export const CanvasReferencedCanvas = S.Struct({
   deleted: S.Boolean,
 });
 
-export const CanvasDocument = S.Struct({
-  elements: S.Array(CanvasElementDTO),
-  edges: S.Array(CanvasEdgeDTO),
-});
+/** 含判别联合的复合（decode 服务类型 unknown）→ noCtx<A>：保留 A、R=never。 */
+export const CanvasDocument = noCtx(
+  S.Struct({ elements: S.Array(CanvasElementDTO), edges: S.Array(CanvasEdgeDTO) }),
+);
 export type CanvasDocument = S.Schema.Type<typeof CanvasDocument>;
 
-export const CanvasDetailDTO = S.Struct({
-  canvas: CanvasDTO,
-  elements: S.Array(CanvasElementDTO),
-  edges: S.Array(CanvasEdgeDTO),
-  understandingRefs: S.Array(CanvasUnderstandingRef),
-  referencedCanvases: S.Array(CanvasReferencedCanvas),
-});
+export const CanvasDetailDTO = noCtx(
+  S.Struct({
+    canvas: CanvasDTO,
+    elements: S.Array(CanvasElementDTO),
+    edges: S.Array(CanvasEdgeDTO),
+    understandingRefs: S.Array(CanvasUnderstandingRef),
+    referencedCanvases: S.Array(CanvasReferencedCanvas),
+  }),
+);
 export type CanvasDetailDTO = S.Schema.Type<typeof CanvasDetailDTO>;
 
 export const Viewport = S.Struct({ x: S.Number, y: S.Number, zoom: S.Number });
@@ -123,7 +149,7 @@ export const CanvasListByUnderstanding = rpc(
 export const CanvasGet = rpc(
   "understandingCanvas.getCanvas",
   S.Struct({ id: S.String }),
-  S.NullOr(CanvasDetailDTO),
+  noCtx(S.NullOr(CanvasDetailDTO)),
   CanvasError,
 );
 export const CanvasCreate = rpc(
@@ -152,7 +178,7 @@ export const CanvasUpdateViewport = rpc(
 );
 export const CanvasSave = rpc(
   "understandingCanvas.saveCanvas",
-  S.Struct({ canvasId: S.String, document: CanvasDocument }),
+  noCtx(S.Struct({ canvasId: S.String, document: CanvasDocument })),
   S.Void,
   CanvasError,
 );
