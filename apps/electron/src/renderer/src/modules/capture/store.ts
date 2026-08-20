@@ -127,6 +127,11 @@ export const prefsAtom: Atom.Writable<CapturePrefs, CapturePrefs> = Atom.keepAli
     defaultValue: () => initialPrefs,
   }),
 );
+/** 足迹收起的局部订阅 atom：prefs 其他字段（selectedDomainId 等）变化时不通知订阅者。 */
+export const participationCollapsedAtom = Atom.map(
+  prefsAtom,
+  (prefs) => prefs.participationOverviewCollapsed,
+);
 export const selectedUnderstandingIdAtom: Atom.Writable<string | null, string | null> =
   Atom.keepAlive(Atom.make<string | null>(null));
 export const searchAtom: Atom.Writable<typeof initialSearch, typeof initialSearch> = Atom.keepAlive(

@@ -21,6 +21,7 @@ import type {
 } from "@shared/understanding";
 import type { AgentContextRef } from "@shared/agent";
 import {
+  keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
@@ -206,6 +207,8 @@ export function useCaptureUnderstandingList(filterKey: UnderstandingListFilterKe
         rpc
           .understandingList(buildUnderstandingListFilter(filterKey))
           .pipe(Effect.map((rows) => rows as UnderstandingSummaryDTO[])),
+      // domain/搜索切换时保留旧数据渲染，避免 refetch 期间网格卸载重建（空白闪烁 + 全量重建）
+      placeholderData: keepPreviousData,
     }),
   );
 }

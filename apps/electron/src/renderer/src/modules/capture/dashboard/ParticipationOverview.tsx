@@ -4,6 +4,7 @@ import { Calendar, X } from "lucide-react";
 import {
   cloneElement,
   lazy,
+  memo,
   Suspense,
   useCallback,
   useMemo,
@@ -24,7 +25,7 @@ import {
   PopoverTrigger,
 } from "@reflecta/ui/components/popover";
 import { useAtomValue } from "@effect/atom-react";
-import { captureActions, prefsAtom } from "../store";
+import { captureActions, participationCollapsedAtom } from "../store";
 import { useParticipationOverview, type ParticipationOverviewData } from "../queries";
 import {
   buildParticipationActivity,
@@ -129,7 +130,7 @@ const PARTICIPATION_CALENDAR_LABELS = {
 
 /** 工具栏里的足迹开关；收起后热力图不再占一行。 */
 export function ParticipationOverviewToggle() {
-  const collapsed = useAtomValue(prefsAtom).participationOverviewCollapsed;
+  const collapsed = useAtomValue(participationCollapsedAtom);
   const toggleCollapsed = captureActions.toggleParticipationOverviewCollapsed;
   return (
     <Button
@@ -148,8 +149,8 @@ export function ParticipationOverviewToggle() {
 }
 
 /** 捕获页顶部足迹：指标卡与热力图同排；收起后保持挂载，避免 365 格反复卸载。 */
-export function ParticipationOverview() {
-  const collapsed = useAtomValue(prefsAtom).participationOverviewCollapsed;
+export const ParticipationOverview = memo(function ParticipationOverview() {
+  const collapsed = useAtomValue(participationCollapsedAtom);
   const [mounted, setMounted] = useState(() => !collapsed);
   if (!collapsed && !mounted) setMounted(true);
   const { data } = useParticipationOverview(mounted);
@@ -267,4 +268,4 @@ export function ParticipationOverview() {
       ) : null}
     </div>
   );
-}
+});

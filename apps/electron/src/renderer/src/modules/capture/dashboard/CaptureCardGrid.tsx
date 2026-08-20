@@ -1,5 +1,5 @@
 import { FileText } from "lucide-react";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useSize } from "ahooks";
 import { memo, useCallback, useMemo, useRef, type RefObject } from "react";
@@ -72,15 +72,19 @@ function useCardEntityPresentations(understandings: readonly UnderstandingSummar
     })),
   });
   const remotePending = entityQueries.some((query) => query.isPending);
+  // 稳定串作为 presentations 的重算依据：useQueries 返回数组每次渲染都是新引用，
+  // 直接依赖它会让 memo 链（resolveWikiLink → 卡片）每渲染全量失效，重渲染+重解析 md。
   const remoteTitleKey = entityQueries.map((query) => query.data?.title ?? "").join("\0");
+  const queryClient = useQueryClient();
   return useMemo(() => {
     if (remotePending || remoteReferences.length === 0) return localPresentations;
-    return mergeEntityPresentations(
-      localPresentations,
-      remoteReferences,
-      entityQueries.map((query) => query.data),
+    const remoteResults = remoteReferences.map((reference) =>
+      queryClient.getQueryData<{ title: string | null } | null>(
+        captureQueryKeys.entityDisplay(reference),
+      ),
     );
-  }, [entityQueries, localPresentations, remotePending, remoteReferences, remoteTitleKey]);
+    return mergeEntityPresentations(localPresentations, remoteReferences, remoteResults);
+  }, [localPresentations, queryClient, remotePending, remoteReferences, remoteTitleKey]);
 }
 
 const CaptureUnderstandingCard = memo(function CaptureUnderstandingCard({
