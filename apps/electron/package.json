@@ -12,8 +12,8 @@
   "type": "module",
   "main": "./out/main/index.js",
   "scripts": {
-    "typecheck:node": "tsgo --noEmit -p tsconfig.node.json --composite false",
-    "typecheck:web": "tsgo --noEmit -p tsconfig.web.json --composite false",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "bun run typecheck:node && bun run typecheck:web",
     "test": "bun run test:main && bun run test:renderer",
     "test:main": "vitest run --root . src/main",

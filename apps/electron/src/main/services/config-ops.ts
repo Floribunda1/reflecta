@@ -185,7 +185,7 @@ export function setActiveAgentReasoningLevel(level: AiReasoningLevel): void {
   const ai = getAiConfig();
   const active = getActiveAiModelSelection(ai);
   const option = getAiModelOptions(ai).find(
-    (item) => item.providerId === active?.providerId && item.modelId === active.modelId,
+    (item) => item.providerId === active?.providerId && item.modelId === active?.modelId,
   );
   if (!option?.supportedReasoningLevels.includes(level)) {
     throw new Error("当前模型不支持该推理等级");

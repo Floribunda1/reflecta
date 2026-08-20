@@ -1,8 +1,7 @@
 import type { ElectronAPI } from "@electron-toolkit/preload";
-import type { services } from "@main/services";
 import type { ipcRenderer } from "electron";
 import type { IpcBridge } from "electron-effect-rpc";
-import type { AgentSessionFeedApi } from "./agent-session-feed";
+import type { AgentSessionFeedApi } from "./typings/agent-session-feed";
 
 declare global {
   interface Window {

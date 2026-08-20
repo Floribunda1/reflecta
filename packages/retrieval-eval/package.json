@@ -6,14 +6,13 @@
   "scripts": {
     "retrieval:quality": "bun private/quality-benchmark.ts",
     "test:private": "vitest run private",
-    "typecheck:private": "tsgo --noEmit"
+    "typecheck:private": "tsc --noEmit"
   },
   "dependencies": {
     "@reflecta/server": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
-    "@typescript/native-preview": "^7.0.0-dev.20260707.2",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }

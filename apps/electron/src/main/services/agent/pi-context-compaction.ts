@@ -33,7 +33,9 @@ function modelContextWindow(model: Pick<Model<Api>, "contextWindow">): number {
     : DEFAULT_CONTEXT_WINDOW;
 }
 
-export const contextCompactionSettings = DEFAULT_COMPACTION_SETTINGS;
+// 用 typeof 标注：声明文件通过 import 符号命名，避免泄露内部模块路径（TS2883）。
+export const contextCompactionSettings: typeof DEFAULT_COMPACTION_SETTINGS =
+  DEFAULT_COMPACTION_SETTINGS;
 
 export function compactionSummaryMaxTokens(model: ContextWindowModel): number {
   const contextWindow = modelContextWindow(model);

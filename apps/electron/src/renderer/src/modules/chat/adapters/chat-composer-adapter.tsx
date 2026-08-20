@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef } from "react";
 import { runPromise } from "@renderer/lib/effect-runtime";
 import { useRequest } from "ahooks";
-import type { AiModelOption } from "@main/config";
+import type { AiModelOption } from "@shared/config";
 import type {
   AgentComposerContentNode,
   AgentContextRef,

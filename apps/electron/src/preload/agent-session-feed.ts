@@ -1,12 +1,11 @@
+import type { AgentSessionFeedApi } from "./typings/agent-session-feed";
+
 import { ipcRenderer } from "electron";
-import type { AgentSessionFeedFrame } from "./typings/agent";
 import { isAgentSessionFeedFrame } from "./typings/agent";
 
 export const AGENT_SESSION_FEED_CHANNEL = "agent:session-feed";
 
-export type AgentSessionFeedApi = {
-  watch(sessionId: string, receive: (frame: AgentSessionFeedFrame) => void): () => void;
-};
+export type { AgentSessionFeedApi } from "./typings/agent-session-feed";
 
 export const agentSessionFeedApi: AgentSessionFeedApi = {
   watch(sessionId, receive) {

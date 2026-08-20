@@ -13,6 +13,7 @@ import {
   SettingsManager,
   type AgentSession,
   type AgentSessionEvent as PiAgentSessionEvent,
+  type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { nanoid } from "nanoid";
 import { reduceAgentSession } from "@shared/agent";
@@ -153,7 +154,7 @@ function installPiBuiltinSkills(agentDir: string): string[] {
   });
 }
 
-export function createPiBashTool(cwd: string) {
+export function createPiBashTool(cwd: string): ToolDefinition {
   return defineTool(
     createBashToolDefinition(cwd, {
       spawnHook: (context) => {

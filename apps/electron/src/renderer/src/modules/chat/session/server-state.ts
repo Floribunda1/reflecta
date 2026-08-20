@@ -2,12 +2,12 @@ import { Effect } from "effect";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { effectQuery } from "@renderer/lib/effect-query";
 import { rpc } from "@renderer/lib/effect-rpc";
-import type { AiModelOption } from "@main/config";
+import type { AiModelOption } from "@shared/config";
 import type { AgentModelSelection, AgentReasoningLevel, AgentSessionSummary } from "@shared/agent";
 import { removeThreadFromCache, renameThreadInCache, upsertThreadInCache } from "./query-cache";
 import { chatQueryKeys } from "./query-keys";
 
-export type { AiModelOption } from "@main/config";
+export type { AiModelOption } from "@shared/config";
 
 export type AiModelsQueryData = {
   options: AiModelOption[];

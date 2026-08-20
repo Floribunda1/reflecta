@@ -15,7 +15,7 @@
     "build": "tsdown",
     "dev": "REFLECTA_CLI_BUILD_KIND=source tsdown --watch",
     "start": "node ./dist/index.mjs",
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "tsc --noEmit",
     "test": "vitest",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",

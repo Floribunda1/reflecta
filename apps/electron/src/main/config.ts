@@ -60,14 +60,9 @@ export interface AiProviderModel {
   supportedReasoningLevels: AiReasoningLevel[];
 }
 
-export interface AiModelOption {
-  providerId: string;
-  providerName: string;
-  modelId: string;
-  modelName: string;
-  label: string;
-  supportedReasoningLevels: AiReasoningLevel[];
-}
+import type { AiModelOption } from "../ipc/contract/config";
+// 单一来源：ipc 契约中的 Effect Schema 类型（renderer 经 @shared/config 引用同一个类型）。
+export type { AiModelOption } from "../ipc/contract/config";
 
 export type RetrievalEmbeddingProvider = "disabled" | "local-llama-cpp" | "openai-compatible";
 
