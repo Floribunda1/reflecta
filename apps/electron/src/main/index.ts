@@ -221,6 +221,39 @@ app.whenReady().then(async () => {
   const assetErr = (message: string) => new AssetError({ reason: message, code: 500 });
   const insightsErr = (message: string) => new InsightsError({ reason: message, code: 500 });
   const uErr = (message: string) => new UnderstandingError({ reason: message, code: 500 });
+  // trash 的 understanding 操作按 trash 契约错误（TrashListError）映射。
+  const runTrashUnderstanding = <A>(
+    program: Effect.Effect<A, import("@reflecta/server").UnderstandingError>,
+  ) =>
+    program.pipe(
+      Effect.mapError((e) => {
+        switch (e._tag) {
+          case "UnderstandingNotFoundError":
+            return ipcError(`理解不存在：${e.id}`);
+          default:
+            return ipcError("操作失败");
+        }
+      }),
+      Effect.catchDefect((defect) => Effect.fail(ipcError(`操作失败：${String(defect)}`))),
+      Effect.map(() => undefined),
+    );
+  // understanding 域核心已 Effect 化：服务端 UnderstandingError → IPC 契约错误。
+  const runUnderstanding = <A>(
+    program: Effect.Effect<A, import("@reflecta/server").UnderstandingError>,
+  ) =>
+    program.pipe(
+      Effect.mapError((e) => {
+        switch (e._tag) {
+          case "UnderstandingNotFoundError":
+            return uErr(`理解不存在：${e.id}`);
+          case "UnderstandingDomainNotFoundError":
+            return uErr(`领域不存在：${e.domainId}`);
+          default:
+            return uErr("操作失败");
+        }
+      }),
+      Effect.catchDefect((defect) => Effect.fail(uErr(`操作失败：${String(defect)}`))),
+    );
   const cErr = (message: string) => new CanvasError({ reason: message, code: 500 });
   const cfgErr = (message: string) => new ConfigError({ reason: message, code: 500 });
   const chatErr = (message: string) => new ChatError({ reason: message, code: 500 });
@@ -234,15 +267,9 @@ app.whenReady().then(async () => {
           : Effect.succeed({ id, ok: true }),
       "trash.listTrashedUnderstandings": () => trashService.listTrashedUnderstandings(),
       "trash.restoreUnderstanding": ({ id }) =>
-        Effect.tryPromise({
-          try: () => understandingService.restoreUnderstanding(id),
-          catch: (e) => ipcError(e instanceof Error ? e.message : String(e)),
-        }).pipe(Effect.map(() => undefined)),
+        runTrashUnderstanding(understandingService.restoreUnderstanding(id)),
       "trash.permanentlyDeleteUnderstanding": ({ id }) =>
-        Effect.tryPromise({
-          try: () => understandingService.permanentlyDeleteUnderstanding(id),
-          catch: (e) => ipcError(e instanceof Error ? e.message : String(e)),
-        }).pipe(Effect.map(() => undefined)),
+        runTrashUnderstanding(understandingService.permanentlyDeleteUnderstanding(id)),
       "about.getVersionInfo": () =>
         Effect.sync(() => ({
           name: APP_NAME,
@@ -366,50 +393,38 @@ app.whenReady().then(async () => {
           catch: (e) => insightsErr(e instanceof Error ? e.message : String(e)),
         }),
       "understanding.listUnderstandings": ({ filter }) =>
-        Effect.tryPromise({
-          try: () =>
-            understandingService.listUnderstandings(
-              filter as import("@reflecta/server").ListUnderstandingsFilter | undefined,
-            ),
-          catch: (e) => uErr(e instanceof Error ? e.message : String(e)),
-        }),
+        runUnderstanding(
+          understandingService.listUnderstandings(
+            filter as import("@reflecta/server").ListUnderstandingsFilter | undefined,
+          ),
+        ),
       "understanding.getUnderstandingById": ({ id }) =>
-        Effect.tryPromise({
-          try: () => understandingService.getUnderstandingById(id),
-          catch: (e) => uErr(e instanceof Error ? e.message : String(e)),
-        }),
+        runUnderstanding(understandingService.getUnderstandingById(id)),
       "understanding.createUnderstanding": ({ input }) =>
-        Effect.tryPromise({
-          try: () =>
-            understandingService.createUnderstanding(
-              input as unknown as import("@reflecta/server").CreateUnderstandingInput,
-            ),
-          catch: (e) => uErr(e instanceof Error ? e.message : String(e)),
-        }),
+        runUnderstanding(
+          understandingService.createUnderstanding(
+            input as unknown as import("@reflecta/server").CreateUnderstandingInput,
+          ),
+        ),
       "understanding.updateUnderstanding": ({ id, input }) =>
-        Effect.tryPromise({
-          try: () =>
-            understandingService.updateUnderstanding(
-              id,
-              input as unknown as import("@reflecta/server").UpdateUnderstandingInput,
-            ),
-          catch: (e) => uErr(e instanceof Error ? e.message : String(e)),
-        }),
+        runUnderstanding(
+          understandingService.updateUnderstanding(
+            id,
+            input as unknown as import("@reflecta/server").UpdateUnderstandingInput,
+          ),
+        ),
       "understanding.deleteUnderstanding": ({ id }) =>
-        Effect.tryPromise({
-          try: () => understandingService.deleteUnderstanding(id),
-          catch: (e) => uErr(e instanceof Error ? e.message : String(e)),
-        }).pipe(Effect.map(() => undefined)),
+        runUnderstanding(understandingService.deleteUnderstanding(id)).pipe(
+          Effect.map(() => undefined),
+        ),
       "understanding.restoreUnderstanding": ({ id }) =>
-        Effect.tryPromise({
-          try: () => understandingService.restoreUnderstanding(id),
-          catch: (e) => uErr(e instanceof Error ? e.message : String(e)),
-        }).pipe(Effect.map(() => undefined)),
+        runUnderstanding(understandingService.restoreUnderstanding(id)).pipe(
+          Effect.map(() => undefined),
+        ),
       "understanding.permanentlyDeleteUnderstanding": ({ id }) =>
-        Effect.tryPromise({
-          try: () => understandingService.permanentlyDeleteUnderstanding(id),
-          catch: (e) => uErr(e instanceof Error ? e.message : String(e)),
-        }).pipe(Effect.map(() => undefined)),
+        runUnderstanding(understandingService.permanentlyDeleteUnderstanding(id)).pipe(
+          Effect.map(() => undefined),
+        ),
       "understandingCanvas.listCanvases": () => understandingCanvasService.listCanvases(),
       "understandingCanvas.listCanvasesByUnderstanding": ({ understandingId }) =>
         understandingCanvasService.listCanvasesByUnderstanding(understandingId),

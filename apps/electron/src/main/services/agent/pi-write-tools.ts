@@ -630,8 +630,8 @@ export async function hydratePiApprovalPayload(
 ): Promise<Record<string, unknown>> {
   const record = asPayload(payload);
   if (toolName === "understanding_update") {
-    const understanding = await understandingService.getUnderstandingById(
-      requiredStableEntityId(record, "understandingId"),
+    const understanding = await Effect.runPromise(
+      understandingService.getUnderstandingById(requiredStableEntityId(record, "understandingId")),
     );
     if (!understanding) return record;
     return {
@@ -679,21 +679,23 @@ export async function executePiApprovedTool(
   payload: unknown,
 ): Promise<PiApprovedToolOutput> {
   if (toolName === "understanding_create") {
-    const understanding = await understandingService.createUnderstanding(
-      understandingCreateInput(payload),
+    const understanding = await Effect.runPromise(
+      understandingService.createUnderstanding(understandingCreateInput(payload)),
     );
     return mutationOutput("understanding", understanding);
   }
 
   if (toolName === "understanding_update") {
     const { understandingId, input } = understandingUpdateInput(payload);
-    const understanding = await understandingService.updateUnderstanding(understandingId, input);
+    const understanding = await Effect.runPromise(
+      understandingService.updateUnderstanding(understandingId, input),
+    );
     return mutationOutput("understanding", understanding);
   }
 
   if (toolName === "understanding_delete") {
     const understandingId = understandingDeleteInput(payload);
-    await understandingService.deleteUnderstanding(understandingId);
+    await Effect.runPromise(understandingService.deleteUnderstanding(understandingId));
     return { resultRefType: "understanding", resultRefId: understandingId };
   }
 

@@ -147,7 +147,7 @@ describe("UnderstandingCanvasElectronBff.getCanvasDetail", () => {
       }),
     );
 
-    await u.deleteUnderstanding(understanding.id);
+    await Effect.runPromise(u.deleteUnderstanding(understanding.id));
 
     const detail = await Effect.runPromise(service.getCanvasDetail(canvasId));
     expect(detail!.understandingRefs[0].deleted).toBe(true);

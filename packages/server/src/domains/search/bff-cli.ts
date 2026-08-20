@@ -29,7 +29,7 @@ export class SearchCliBff extends SearchCore {
             .select()
             .from(understandings)
             .where(inArray(understandings.id, understandingIds));
-    const summaries = await toUnderstandingSummaries(db, understandingRows);
+    const summaries = await Effect.runPromise(toUnderstandingSummaries(db, understandingRows));
     const summaryMap = new Map(summaries.map((summary) => [summary.id, summary]));
 
     const hits: SearchHit[] = [];

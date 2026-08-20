@@ -1,4 +1,5 @@
-import { and, eq, inArray, isNull, count } from "drizzle-orm";
+import { Effect } from "effect";
+import { and, count, eq, inArray, isNull } from "drizzle-orm";
 import {
   contexts,
   understandingDomains,
@@ -13,7 +14,7 @@ import type {
   UnderstandingSummaryDTO,
   UpdateUnderstandingInput,
 } from "./types";
-import { UnderstandingCore } from "./core";
+import { UnderstandingCore, UnderstandingNotFoundError, type UnderstandingError } from "./core";
 import type { ReflectaServerContext } from "../shared/types-electron";
 
 export class UnderstandingElectronBff extends UnderstandingCore {
@@ -21,148 +22,189 @@ export class UnderstandingElectronBff extends UnderstandingCore {
     super(options.getDb(), options.retrievalIndex);
   }
 
-  async assembleUnderstandingSummaryDTOs(
+  assembleUnderstandingSummaryDTOs(
     understandingRows: Array<typeof understandings.$inferSelect>,
-  ): Promise<UnderstandingSummaryDTO[]> {
-    if (understandingRows.length === 0) return [];
-
+  ): Effect.Effect<UnderstandingSummaryDTO[]> {
     const db = this.db;
-    const ids = understandingRows.map((t) => t.id);
+    return Effect.gen(function* () {
+      if (understandingRows.length === 0) return [];
+      const ids = understandingRows.map((t) => t.id);
 
-    const [tcRows, ctxCountRows, mentionRows] = await Promise.all([
-      db
-        .select()
-        .from(understandingDomains)
-        .where(inArray(understandingDomains.understandingId, ids)),
-      db
-        .select({ understandingId: contexts.understandingId, count: count() })
-        .from(contexts)
-        .where(and(inArray(contexts.understandingId, ids), isNull(contexts.deletedAt)))
-        .groupBy(contexts.understandingId),
-      db.select().from(understandingMentions).where(inArray(understandingMentions.sourceId, ids)),
-    ]);
+      const [tcRows, ctxCountRows, mentionRows] = yield* Effect.all([
+        Effect.promise(() =>
+          db
+            .select()
+            .from(understandingDomains)
+            .where(inArray(understandingDomains.understandingId, ids)),
+        ),
+        Effect.promise(() =>
+          db
+            .select({ understandingId: contexts.understandingId, count: count() })
+            .from(contexts)
+            .where(and(inArray(contexts.understandingId, ids), isNull(contexts.deletedAt)))
+            .groupBy(contexts.understandingId),
+        ),
+        Effect.promise(() =>
+          db
+            .select()
+            .from(understandingMentions)
+            .where(inArray(understandingMentions.sourceId, ids)),
+        ),
+      ]);
 
-    const tcMap = new Map<string, string[]>();
-    for (const r of tcRows) {
-      const arr = tcMap.get(r.understandingId) ?? [];
-      arr.push(r.domainId);
-      tcMap.set(r.understandingId, arr);
-    }
+      const tcMap = new Map<string, string[]>();
+      for (const r of tcRows) {
+        const arr = tcMap.get(r.understandingId) ?? [];
+        arr.push(r.domainId);
+        tcMap.set(r.understandingId, arr);
+      }
 
-    const ctxCountMap = new Map<string, number>();
-    for (const r of ctxCountRows) {
-      ctxCountMap.set(r.understandingId, r.count);
-    }
+      const ctxCountMap = new Map<string, number>();
+      for (const r of ctxCountRows) {
+        ctxCountMap.set(r.understandingId, r.count);
+      }
 
-    const mentionMap = new Map<string, string[]>();
-    for (const r of mentionRows) {
-      const arr = mentionMap.get(r.sourceId) ?? [];
-      arr.push(r.targetId);
-      mentionMap.set(r.sourceId, arr);
-    }
+      const mentionMap = new Map<string, string[]>();
+      for (const r of mentionRows) {
+        const arr = mentionMap.get(r.sourceId) ?? [];
+        arr.push(r.targetId);
+        mentionMap.set(r.sourceId, arr);
+      }
 
-    return understandingRows.map((t) => ({
-      id: t.id,
-      title: t.title ?? null,
-      body: t.body,
-      domainIds: tcMap.get(t.id) ?? [],
-      contextCount: ctxCountMap.get(t.id) ?? 0,
-      mentionCount: (mentionMap.get(t.id) ?? []).length,
-      mentionIds: mentionMap.get(t.id) ?? [],
-      createdAt: t.createdAt,
-      updatedAt: t.updatedAt,
-    }));
-  }
-
-  async listUnderstandings(filter?: ListUnderstandingsFilter): Promise<UnderstandingSummaryDTO[]> {
-    let understandingRows = await this.listUnderstandingRows({
-      domainIds: filter?.domainIds,
-      includeDescendants: filter?.includeDescendants,
-      limit: filter?.limit,
-      offset: filter?.offset,
+      return understandingRows.map((t) => ({
+        id: t.id,
+        title: t.title ?? null,
+        body: t.body,
+        domainIds: tcMap.get(t.id) ?? [],
+        contextCount: ctxCountMap.get(t.id) ?? 0,
+        mentionCount: (mentionMap.get(t.id) ?? []).length,
+        mentionIds: mentionMap.get(t.id) ?? [],
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+      }));
     });
-
-    if (filter?.searchQuery) {
-      const query = filter.searchQuery.toLocaleLowerCase();
-      understandingRows = understandingRows.filter((t) =>
-        `${t.title ?? ""}\n${t.body}`.toLocaleLowerCase().includes(query),
-      );
-    }
-
-    return this.assembleUnderstandingSummaryDTOs(understandingRows);
   }
 
-  async getUnderstandingById(id: string): Promise<UnderstandingDTO | null> {
-    const row = await this.getUnderstandingRow(id);
-    if (!row) return null;
+  listUnderstandings(
+    filter?: ListUnderstandingsFilter,
+  ): Effect.Effect<UnderstandingSummaryDTO[], UnderstandingError> {
+    const listUnderstandingRows = this.listUnderstandingRows.bind(this);
+    const assemble = this.assembleUnderstandingSummaryDTOs.bind(this);
+    return Effect.gen(function* () {
+      let understandingRows = yield* listUnderstandingRows({
+        domainIds: filter?.domainIds,
+        includeDescendants: filter?.includeDescendants,
+        limit: filter?.limit,
+        offset: filter?.offset,
+      });
 
-    const [tcRows, ctxRows, mentionRows, refRows] = await Promise.all([
-      this.db
-        .select()
-        .from(understandingDomains)
-        .where(eq(understandingDomains.understandingId, id)),
-      this.db
-        .select()
-        .from(contexts)
-        .where(and(eq(contexts.understandingId, id), isNull(contexts.deletedAt))),
-      this.db.select().from(understandingMentions).where(eq(understandingMentions.sourceId, id)),
-      this.db.select().from(understandingMentions).where(eq(understandingMentions.targetId, id)),
-    ]);
+      if (filter?.searchQuery) {
+        const query = filter.searchQuery.toLocaleLowerCase();
+        understandingRows = understandingRows.filter((t) =>
+          `${t.title ?? ""}\n${t.body}`.toLocaleLowerCase().includes(query),
+        );
+      }
 
-    const mentionIds = mentionRows.map((r) => r.targetId);
-    const mentions =
-      mentionIds.length > 0
-        ? await this.assembleUnderstandingSummaryDTOs(
-            await this.db
-              .select()
-              .from(understandings)
-              .where(inArray(understandings.id, mentionIds)),
-          )
-        : [];
-
-    const referencedByIds = refRows.map((r) => r.sourceId);
-    const referencedBy =
-      referencedByIds.length > 0
-        ? await this.assembleUnderstandingSummaryDTOs(
-            await this.db
-              .select()
-              .from(understandings)
-              .where(inArray(understandings.id, referencedByIds)),
-          )
-        : [];
-
-    return {
-      id: row.id,
-      title: row.title ?? null,
-      body: row.body,
-      domainIds: tcRows.map((r) => r.domainId),
-      contexts: ctxRows.map((r) => ({ ...r, medium: r.medium as ContextMedium })),
-      mentions,
-      referencedBy,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    };
+      return yield* assemble(understandingRows);
+    });
   }
 
-  async createUnderstanding(input: CreateUnderstandingInput): Promise<UnderstandingDTO> {
-    const row = await super._createUnderstanding(input);
-    const dto = await this.getUnderstandingById(row.id);
-    if (!dto) throw new Error(`Understanding not found after creation: ${row.id}`);
-    return dto;
+  getUnderstandingById(id: string): Effect.Effect<UnderstandingDTO | null, UnderstandingError> {
+    const db = this.db;
+    const getUnderstandingRow = this.getUnderstandingRow.bind(this);
+    const assemble = this.assembleUnderstandingSummaryDTOs.bind(this);
+    return Effect.gen(function* () {
+      const row = yield* getUnderstandingRow(id);
+      if (!row) return null;
+
+      const [tcRows, ctxRows, mentionRows, refRows] = yield* Effect.all([
+        Effect.promise(() =>
+          db
+            .select()
+            .from(understandingDomains)
+            .where(eq(understandingDomains.understandingId, id)),
+        ),
+        Effect.promise(() =>
+          db
+            .select()
+            .from(contexts)
+            .where(and(eq(contexts.understandingId, id), isNull(contexts.deletedAt))),
+        ),
+        Effect.promise(() =>
+          db.select().from(understandingMentions).where(eq(understandingMentions.sourceId, id)),
+        ),
+        Effect.promise(() =>
+          db.select().from(understandingMentions).where(eq(understandingMentions.targetId, id)),
+        ),
+      ]);
+
+      const mentionIds = mentionRows.map((r) => r.targetId);
+      const mentions =
+        mentionIds.length > 0
+          ? yield* assemble(
+              yield* Effect.promise(() =>
+                db.select().from(understandings).where(inArray(understandings.id, mentionIds)),
+              ),
+            )
+          : [];
+
+      const referencedByIds = refRows.map((r) => r.sourceId);
+      const referencedBy =
+        referencedByIds.length > 0
+          ? yield* assemble(
+              yield* Effect.promise(() =>
+                db.select().from(understandings).where(inArray(understandings.id, referencedByIds)),
+              ),
+            )
+          : [];
+
+      return {
+        id: row.id,
+        title: row.title ?? null,
+        body: row.body,
+        domainIds: tcRows.map((r) => r.domainId),
+        contexts: ctxRows.map((r) => ({ ...r, medium: r.medium as ContextMedium })),
+        mentions,
+        referencedBy,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      };
+    });
   }
 
-  async updateUnderstanding(
+  createUnderstanding(
+    input: CreateUnderstandingInput,
+  ): Effect.Effect<UnderstandingDTO, UnderstandingError> {
+    const _createUnderstanding = this._createUnderstanding.bind(this);
+    const getUnderstandingById = this.getUnderstandingById.bind(this);
+    return Effect.gen(function* () {
+      const row = yield* _createUnderstanding(input);
+      const dto = yield* getUnderstandingById(row.id);
+      if (!dto) return yield* Effect.fail(new UnderstandingNotFoundError({ id: row.id }));
+      return dto;
+    });
+  }
+
+  updateUnderstanding(
     id: string,
     input: UpdateUnderstandingInput,
-  ): Promise<UnderstandingDTO> {
-    const row = await super._updateUnderstanding(id, input);
-    const dto = await this.getUnderstandingById(row.id);
-    if (!dto) throw new Error(`Understanding not found after update: ${row.id}`);
-    return dto;
+  ): Effect.Effect<UnderstandingDTO, UnderstandingError> {
+    const _updateUnderstanding = this._updateUnderstanding.bind(this);
+    const getUnderstandingById = this.getUnderstandingById.bind(this);
+    return Effect.gen(function* () {
+      const row = yield* _updateUnderstanding(id, input);
+      const dto = yield* getUnderstandingById(row.id);
+      if (!dto) return yield* Effect.fail(new UnderstandingNotFoundError({ id: row.id }));
+      return dto;
+    });
   }
 
-  async listRecentUnderstandings(limit = 20): Promise<UnderstandingSummaryDTO[]> {
-    const rows = await this.listRecentUnderstandingRows(limit);
-    return this.assembleUnderstandingSummaryDTOs(rows);
+  listRecentUnderstandings(limit = 20): Effect.Effect<UnderstandingSummaryDTO[]> {
+    const listRecentUnderstandingRows = this.listRecentUnderstandingRows.bind(this);
+    const assemble = this.assembleUnderstandingSummaryDTOs.bind(this);
+    return Effect.gen(function* () {
+      const rows = yield* listRecentUnderstandingRows(limit);
+      return yield* assemble(rows);
+    });
   }
 }

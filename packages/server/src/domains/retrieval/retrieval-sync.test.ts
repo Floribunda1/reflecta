@@ -118,7 +118,7 @@ describe("retrieval index rebuild", () => {
     });
     await new RetrievalIndexCoordinator({ getDb: () => db }).rebuild();
 
-    await understandings.deleteUnderstanding(removed.id);
+    await Effect.runPromise(understandings.deleteUnderstanding(removed.id));
     await syncRetrievalIndexByUnderstandingIds(db, [removed.id]);
 
     expect(await createRetrievalIndex().searchLexical("removedaggregatemarker", 5)).toEqual([]);
@@ -189,7 +189,7 @@ describe("retrieval index rebuild", () => {
     await coordinator.rebuild();
 
     await createRetrievalIndex().replaceUnderstandingDocuments([missing.id], []);
-    await understandings.deleteUnderstanding(excess.id);
+    await Effect.runPromise(understandings.deleteUnderstanding(excess.id));
 
     coordinator.start();
     await coordinator.flush();
@@ -252,19 +252,19 @@ describe("retrieval index rebuild", () => {
       (await createRetrievalIndex().searchLexical("restorablecontextmarker", 5))[0]?.entityId,
     ).toBe(context.id);
 
-    await understandings.deleteUnderstanding(understanding.id);
+    await Effect.runPromise(understandings.deleteUnderstanding(understanding.id));
     await coordinator.flush();
     expect(await createRetrievalIndex().searchLexical("restorableunderstandingmarker", 5)).toEqual(
       [],
     );
 
-    await understandings.restoreUnderstanding(understanding.id);
+    await Effect.runPromise(understandings.restoreUnderstanding(understanding.id));
     await coordinator.flush();
     expect(
       (await createRetrievalIndex().searchLexical("restorableunderstandingmarker", 5))[0]?.entityId,
     ).toBe(understanding.id);
 
-    await understandings.permanentlyDeleteUnderstanding(understanding.id);
+    await Effect.runPromise(understandings.permanentlyDeleteUnderstanding(understanding.id));
     await coordinator.flush();
     expect(await createRetrievalIndex().searchLexical("restorableunderstandingmarker", 5)).toEqual(
       [],

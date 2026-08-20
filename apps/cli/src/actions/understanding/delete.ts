@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import { Effect } from "effect";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand } from "../../runner";
 
@@ -23,7 +24,7 @@ export async function deleteUnderstandingAction(id: string, cli: Command): Promi
   await runCommand(
     async () => {
       const services = await getServices();
-      await services.understandings.deleteUnderstanding(id);
+      await Effect.runPromise(services.understandings.deleteUnderstanding(id));
     },
     { ...options, mutates: true },
   );

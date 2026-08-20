@@ -79,7 +79,9 @@ export class DomainCliBff extends DomainCore {
     const paginatedUnderstandingRows = understandingRows.slice(0, limit);
     const understandingIds = paginatedUnderstandingRows.map((t) => t.id);
 
-    const summaries = await toUnderstandingSummaries(this.db, paginatedUnderstandingRows);
+    const summaries = await Effect.runPromise(
+      toUnderstandingSummaries(this.db, paginatedUnderstandingRows),
+    );
     const nodeUnderstandings: UnderstandingNode[] = summaries.map((s) => ({ ...s }));
 
     let resultContexts: ContextDetail[] | undefined;

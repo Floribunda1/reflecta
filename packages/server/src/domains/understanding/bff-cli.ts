@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { UnderstandingCore } from "./core";
 import {
@@ -30,13 +31,15 @@ export class UnderstandingCliBff extends UnderstandingCore {
   }
 
   async listUnderstandings(filter?: ListUnderstandingsFilter): Promise<UnderstandingSummary[]> {
-    const rows = await this.listUnderstandingRows({
-      domainIds: filter?.domainIds,
-      includeDescendants: filter?.includeDescendants,
-      limit: filter?.limit,
-      offset: filter?.offset,
-    });
-    return toUnderstandingSummaries(this.db, rows);
+    const rows = await Effect.runPromise(
+      this.listUnderstandingRows({
+        domainIds: filter?.domainIds,
+        includeDescendants: filter?.includeDescendants,
+        limit: filter?.limit,
+        offset: filter?.offset,
+      }),
+    );
+    return Effect.runPromise(toUnderstandingSummaries(this.db, rows));
   }
 
   async listUnderstandingsWithContexts(
@@ -55,13 +58,13 @@ export class UnderstandingCliBff extends UnderstandingCore {
     id: string,
     options?: GetUnderstandingOptions,
   ): Promise<UnderstandingDetail> {
-    const row = await this.getUnderstandingRow(id);
+    const row = await Effect.runPromise(this.getUnderstandingRow(id));
     if (!row) {
       throw new Error(`Understanding not found: ${id}`);
     }
 
-    const summary = (await toUnderstandingSummaries(this.db, [row]))[0];
-    const counts = await getUnderstandingMentionCounts(this.db, id);
+    const summary = (await Effect.runPromise(toUnderstandingSummaries(this.db, [row])))[0];
+    const counts = await Effect.runPromise(getUnderstandingMentionCounts(this.db, id));
 
     const detail: UnderstandingDetail = {
       ...summary,
@@ -100,7 +103,7 @@ export class UnderstandingCliBff extends UnderstandingCore {
   }
 
   async createUnderstanding(input: CreateUnderstandingInput): Promise<UnderstandingDetail> {
-    const row = await super._createUnderstanding(input);
+    const row = await Effect.runPromise(this._createUnderstanding(input));
     return this.getUnderstanding(row.id);
   }
 
@@ -108,13 +111,13 @@ export class UnderstandingCliBff extends UnderstandingCore {
     id: string,
     input: UpdateUnderstandingInput,
   ): Promise<UnderstandingDetail> {
-    const row = await super._updateUnderstanding(id, input);
+    const row = await Effect.runPromise(this._updateUnderstanding(id, input));
     return this.getUnderstanding(row.id);
   }
 
   async listRecentUnderstandings(limit = 20): Promise<UnderstandingSummary[]> {
-    const rows = await this.listRecentUnderstandingRows(limit);
-    return toUnderstandingSummaries(this.db, rows);
+    const rows = await Effect.runPromise(this.listRecentUnderstandingRows(limit));
+    return Effect.runPromise(toUnderstandingSummaries(this.db, rows));
   }
 
   async listRecentUnderstandingsWithContexts(limit = 20): Promise<UnderstandingListWithContexts> {

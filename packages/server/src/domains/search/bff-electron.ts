@@ -63,9 +63,7 @@ export class SearchElectronBff extends SearchCore {
       const understandingRows = yield* Effect.promise(() =>
         db.select().from(understandings).where(inArray(understandings.id, understandingIds)),
       );
-      const dtos = yield* Effect.promise(() =>
-        understandingService.assembleUnderstandingSummaryDTOs(understandingRows),
-      );
+      const dtos = yield* understandingService.assembleUnderstandingSummaryDTOs(understandingRows);
       const dtoMap = new Map(dtos.map((d) => [d.id, d]));
       return understandingIds
         .map((id) => dtoMap.get(id))
@@ -106,9 +104,8 @@ export class SearchElectronBff extends SearchCore {
           ? Promise.resolve([])
           : db.select().from(understandings).where(inArray(understandings.id, understandingIds)),
       );
-      const understandingDTOs = yield* Effect.promise(() =>
-        understandingService.assembleUnderstandingSummaryDTOs(understandingRows),
-      );
+      const understandingDTOs =
+        yield* understandingService.assembleUnderstandingSummaryDTOs(understandingRows);
       const ctxResults = retrievalHits
         .filter((hit) => hit.entityType === "context")
         .map((hit) => ({

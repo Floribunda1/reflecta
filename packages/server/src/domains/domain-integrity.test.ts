@@ -28,8 +28,13 @@ describe("domain write integrity", () => {
     const understandings = new UnderstandingCore(db);
 
     await expect(
-      understandings._createUnderstanding({ body: "body", domainIds: ["missing-domain"] }),
-    ).rejects.toThrow("Domain not found: missing-domain");
+      Effect.runPromise(
+        understandings._createUnderstanding({ body: "body", domainIds: ["missing-domain"] }),
+      ),
+    ).rejects.toMatchObject({
+      _tag: "UnderstandingDomainNotFoundError",
+      domainId: "missing-domain",
+    });
   });
 
   test("validates Domain parents inside Domain writes", async () => {
@@ -83,7 +88,9 @@ describe("domain write integrity", () => {
       Effect.runPromise(contexts._updateContext("missing-context", {})),
     ).rejects.toMatchObject({ _tag: "NoContextFieldsError" });
 
-    const understanding = await understandings._createUnderstanding({ body: "body" });
+    const understanding = await Effect.runPromise(
+      understandings._createUnderstanding({ body: "body" }),
+    );
     const context = await Effect.runPromise(
       contexts._createContext({
         understandingId: understanding.id,

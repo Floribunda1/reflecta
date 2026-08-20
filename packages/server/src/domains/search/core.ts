@@ -148,7 +148,7 @@ export class SearchCore {
       );
       const candidates = buildUnderstandingCandidates({
         hits,
-        understandings: yield* Effect.promise(() => toUnderstandingSummaries(db, rows)),
+        understandings: yield* toUnderstandingSummaries(db, rows),
       });
       const relationCandidates = yield* expandRelationCandidates(
         candidates,
@@ -249,7 +249,7 @@ export class SearchCore {
           .from(understandings)
           .where(and(inArray(understandings.id, relatedIds), isNull(understandings.deletedAt))),
       );
-      const summaries = yield* Effect.promise(() => toUnderstandingSummaries(db, rows));
+      const summaries = yield* toUnderstandingSummaries(db, rows);
       const domainAnchorUnderstandingIds = new Set(domainRows.map((row) => row.understandingId));
       return summaries.map((summary, index) => ({
         id: summary.id,
