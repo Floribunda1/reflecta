@@ -65,7 +65,7 @@ export async function getEntityDisplay(ref: Pick<AgentContextRef, "type" | "id">
     return entity ? { title: entity.title?.trim() || null } : null;
   }
   if (ref.type === "context") {
-    const entity = await ipcClient.context.getContextById(ref.id);
+    const entity = await Effect.runPromise(rpc.contextGetById(ref.id));
     return entity ? { title: entity.title?.trim() || null } : null;
   }
   if (ref.type === "canvas") {
@@ -309,7 +309,7 @@ export function useCreateContextMutation(understandingId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: Omit<CreateContextInput, "understandingId">): Promise<ContextDTO> =>
-      ipcClient.context.createContext({ ...input, understandingId }),
+      Effect.runPromise(rpc.contextCreate({ ...input, understandingId })) as Promise<ContextDTO>,
     onSuccess: () =>
       Promise.all([
         invalidateUnderstandingDetail(queryClient, understandingId),
@@ -322,7 +322,7 @@ export function useUpdateContextMutation(understandingId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateContextInput }) =>
-      ipcClient.context.updateContext(id, input),
+      Effect.runPromise(rpc.contextUpdate(id, input)),
     onSuccess: (_result, variables) =>
       Promise.all([
         invalidateUnderstandingDetail(queryClient, understandingId),
@@ -334,7 +334,7 @@ export function useUpdateContextMutation(understandingId: string) {
 export function useDeleteContextMutation(understandingId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => ipcClient.context.deleteContext(id),
+    mutationFn: (id: string) => Effect.runPromise(rpc.contextDelete(id)),
     onSuccess: (_result, id) =>
       Promise.all([
         invalidateUnderstandingDetail(queryClient, understandingId),

@@ -8,7 +8,6 @@ import { writeDiagnosticEvent } from "../logger";
 import { AssetService } from "./AssetService";
 import { ChatService } from "./ChatService";
 import { ConfigService } from "./ConfigService";
-import { ContextService } from "./ContextService";
 import { DiagnosticsService } from "./DiagnosticsService";
 import { InsightsService } from "./InsightsService";
 import { CanvasExportService } from "./CanvasExportService";
@@ -95,6 +94,5 @@ export const services = createServices([
   UnderstandingService,
   UnderstandingCanvasService,
   CanvasExportService,
-  ContextService,
   SearchService,
 ]);

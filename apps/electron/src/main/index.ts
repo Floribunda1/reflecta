@@ -18,8 +18,8 @@ import {
   isUpdateCheckInProgress,
   isUpdateCheckSupported,
 } from "./updater";
-import { appIpc, PilotBoom, TrashListError, DomainListError } from "../ipc";
-import { trashService, understandingService, domainService } from "./services/core";
+import { appIpc, PilotBoom, TrashListError, DomainListError, ContextListError } from "../ipc";
+import { trashService, understandingService, domainService, contextService } from "./services/core";
 
 // Register asset:// as a privileged scheme before app is ready
 registerAssetScheme();
@@ -148,6 +148,7 @@ app.whenReady().then(async () => {
   // Effect IPC（electron-effect-rpc）—— 单一 app kit，typed domain error 跨进程往返
   const ipcError = (message: string) => new TrashListError({ reason: message, code: 500 });
   const domainErr = (message: string) => new DomainListError({ reason: message, code: 500 });
+  const ctxErr = (message: string) => new ContextListError({ reason: message, code: 500 });
   const appMain = appIpc.main({
     ipcMain,
     handlers: {
@@ -217,6 +218,53 @@ app.whenReady().then(async () => {
           try: () => domainService.deleteDomain(id, deleteUnderstandings),
           catch: (e) => domainErr(e instanceof Error ? e.message : String(e)),
         }).pipe(Effect.map(() => undefined)),
+      "context.listContextsByUnderstanding": ({ understandingId }) =>
+        Effect.tryPromise({
+          try: () => contextService.listContextsByUnderstanding(understandingId),
+          catch: (e) => ctxErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "context.getContextById": ({ id }) =>
+        Effect.tryPromise({
+          try: () => contextService.getContextById(id),
+          catch: (e) => ctxErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "context.createContext": ({ input }) =>
+        Effect.tryPromise({
+          try: () =>
+            contextService.createContext(
+              input as unknown as import("@reflecta/server").CreateContextInput,
+            ),
+          catch: (e) => ctxErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "context.updateContext": ({ id, input }) =>
+        Effect.tryPromise({
+          try: () =>
+            contextService.updateContext(
+              id,
+              input as unknown as import("@reflecta/server").UpdateContextInput,
+            ),
+          catch: (e) => ctxErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "context.deleteContext": ({ id }) =>
+        Effect.tryPromise({
+          try: () => contextService.deleteContext(id),
+          catch: (e) => ctxErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
+      "context.restoreContext": ({ id }) =>
+        Effect.tryPromise({
+          try: () => contextService.restoreContext(id),
+          catch: (e) => ctxErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
+      "context.permanentlyDeleteContext": ({ id }) =>
+        Effect.tryPromise({
+          try: () => contextService.permanentlyDeleteContext(id),
+          catch: (e) => ctxErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
+      "context.listTrashedContexts": () =>
+        Effect.tryPromise({
+          try: () => contextService.listTrashedContexts(),
+          catch: (e) => ctxErr(e instanceof Error ? e.message : String(e)),
+        }),
     },
     context: Context.empty(),
     getWindows: () => BrowserWindow.getAllWindows(),

@@ -1,10 +1,12 @@
+import { Effect } from "effect";
 import { useQuery } from "@tanstack/react-query";
+import { rpc } from "@renderer/lib/effect-rpc";
 import {
   ContextPreviewDrawerContent,
   UnderstandingDetail,
 } from "@renderer/modules/capture/understanding-detail";
 import { CanvasInspector } from "./canvas-inspector";
-import { ipcClient } from "@renderer/utils/ipc";
+import type { ContextDTO } from "@shared/context";
 import type { InspectableContextRef } from "./context-reference";
 
 export function ContextInspector({
@@ -22,7 +24,8 @@ export function ContextInspector({
 }) {
   const contextQuery = useQuery({
     queryKey: ["agent.inspector.context", refToInspect.id],
-    queryFn: () => ipcClient.context.getContextById(refToInspect.id),
+    queryFn: () =>
+      Effect.runPromise(rpc.contextGetById(refToInspect.id)) as Promise<ContextDTO | null>,
     enabled: refToInspect.type === "context",
   });
 

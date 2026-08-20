@@ -25,4 +25,15 @@ export const rpc = {
     client["domain.deleteDomain"]({ id, deleteUnderstandings: deleteUnderstandings ?? false }),
   domainReorderDomains: (items: import("../../../ipc").ReorderDomainItem[]) =>
     client["domain.reorderDomains"]({ items }),
+  contextListByUnderstanding: (understandingId: string) =>
+    client["context.listContextsByUnderstanding"]({ understandingId }),
+  contextGetById: (id: string) => client["context.getContextById"]({ id }),
+  contextCreate: (input: import("../../../ipc").CreateContextInput) =>
+    client["context.createContext"]({ input }),
+  contextUpdate: (id: string, input: import("../../../ipc").UpdateContextInput) =>
+    client["context.updateContext"]({ id, input }),
+  contextDelete: (id: string) => client["context.deleteContext"]({ id }),
+  contextRestore: (id: string) => client["context.restoreContext"]({ id }),
+  contextPermanentlyDelete: (id: string) => client["context.permanentlyDeleteContext"]({ id }),
+  contextListTrashed: () => client["context.listTrashedContexts"](),
 };

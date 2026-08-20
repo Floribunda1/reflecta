@@ -11,7 +11,6 @@ import {
 } from "@reflecta/ui/components/item";
 import { Lightbulb, Loader2, RotateCcw, Trash2, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ipcClient } from "@renderer/utils/ipc";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { TrashedUnderstandingDTO, TrashedContextDTO } from "@shared/trash";
 import { useModal } from "@reflecta/ui/overlays";
@@ -29,7 +28,7 @@ export function TrashSection() {
     try {
       const [trashedUnderstandings, trashedContexts] = await Promise.all([
         Effect.runPromise(rpc.trashListTrashed()),
-        ipcClient.context.listTrashedContexts(),
+        Effect.runPromise(rpc.contextListTrashed()) as Promise<TrashedContextDTO[]>,
       ]);
       setUnderstandings(trashedUnderstandings as TrashedUnderstandingDTO[]);
       setContexts(trashedContexts);
@@ -80,7 +79,7 @@ export function TrashSection() {
 
   const handleRestoreContext = async (id: string) => {
     try {
-      await ipcClient.context.restoreContext(id);
+      await Effect.runPromise(rpc.contextRestore(id));
       queryClient.invalidateQueries({
         queryKey: ["understanding.getUnderstandingById"],
         exact: false,
@@ -100,7 +99,7 @@ export function TrashSection() {
       danger: true,
       onAccept: async () => {
         try {
-          await ipcClient.context.permanentlyDeleteContext(id);
+          await Effect.runPromise(rpc.contextPermanentlyDelete(id));
           await refresh();
           toast.success("已永久删除 Context");
         } catch (error) {
@@ -124,7 +123,9 @@ export function TrashSection() {
             ...understandings.map((understanding) =>
               Effect.runPromise(rpc.trashPermanentlyDelete(understanding.id)),
             ),
-            ...contexts.map((context) => ipcClient.context.permanentlyDeleteContext(context.id)),
+            ...contexts.map((context) =>
+              Effect.runPromise(rpc.contextPermanentlyDelete(context.id)),
+            ),
           ]);
           queryClient.invalidateQueries({
             queryKey: ["understanding.listUnderstandings"],

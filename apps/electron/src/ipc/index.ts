@@ -17,12 +17,24 @@ import {
   DomainUpdate,
   DomainDelete,
 } from "./contract/domain";
+import {
+  ContextListByUnderstanding,
+  ContextGetById,
+  ContextCreate,
+  ContextUpdate,
+  ContextDelete,
+  ContextRestore,
+  ContextPermanentlyDelete,
+  ContextListTrashed,
+} from "./contract/context";
 
 export { TrashListError, TrashedUnderstanding } from "./contract/trash";
 export { PilotBoom, PilotPing, PilotProbe } from "./pilot/contract";
 export { AboutVersionInfo } from "./contract/about";
+export { ContextListError } from "./contract/context";
 export { DomainListError } from "./contract/domain";
 export type { CreateDomainInput, UpdateDomainInput, ReorderDomainItem } from "./contract/domain";
+export type { CreateContextInput, UpdateContextInput, TrashedContextDTO } from "./contract/context";
 
 export const contract = defineContract({
   methods: [
@@ -39,6 +51,14 @@ export const contract = defineContract({
     DomainCreate,
     DomainUpdate,
     DomainDelete,
+    ContextListByUnderstanding,
+    ContextGetById,
+    ContextCreate,
+    ContextUpdate,
+    ContextDelete,
+    ContextRestore,
+    ContextPermanentlyDelete,
+    ContextListTrashed,
   ] as const,
   events: [] as const,
   streamMethods: [] as const,
