@@ -34,6 +34,8 @@
 2. **社区风评 / 维护活性优先**（不押小众或低活跃项目）；
 3. **技术债最小：不允许并行存在的同类技术栈**（如 zod+Schema、双错误处理、双 DI 同时存在）。
 
+> **迁移总纲（更高优先级，约束全部落地）：拒绝背负技术债**——不写过渡兼容层、顺手清 dead code / legacy compatible / 过渡 shim。详见 `migration-philosophy.md`。
+
 ### 1.3 目标
 
 以 Effect 为项目的原生技术栈，系统性改善：typed errors 建模、跨进程错误类型化、后台并发编排、可测试的依赖注入；同时保持"单一范式"的长期可维护性。
@@ -60,6 +62,8 @@
 | D7  | UI 本地状态     | zustand → 官方 `@effect/atom`（落地排期待确认）                                                                               |
 | D8  | 主进程后台编排  | retrieval coordinator / agent 调用 / 后台 worker 全部用 Effect 核心（fiber + Schedule + 中断）                                |
 | D9  | 不做什么        | 不写自定义 query 层、不写 50 行手搓缓存、不引入 Foldkit                                                                       |
+
+| D10 | 迁移哲学 | **拒绝背负技术债**：不写过渡兼容层；迁移各模块时顺手清 dead code / legacy compat / 过渡 shim（详见 `migration-philosophy.md`） |
 
 ## 4. 理由链
 
@@ -119,6 +123,13 @@
 - retrieval coordinator 状态机 → 可监督 fiber + `Schedule.recurs(1)` 重试 + 中断语义；
 - agent / LLM 调用 → `retry` + `timeout` + provider fallback；
 - 全部使用 Effect 官方核心模块，零第三方风险。
+
+### D10：迁移哲学（拒绝背负技术债）
+
+- 明确不采用 Inato 式"compat helpers + 双轨共存"策略：每迁移一个模块，旧实现连同全部调用方一次性移除；
+- 迁移是"删除式"的（如 zod 迁移完成后依赖即移除、electron-ipc-decorator 及 `{__isIpcError}` 包裹层全部删除，不留任何残留）；
+- 每模块迁移附"顺手清理项 / 发现但不动项"两栏，落实 R1~R3 规则；
+- 验收以旧符号零残留、无兼容 shim、dead export 清零为准（详见 `migration-philosophy.md`）。
 
 ## 5. 已接受风险
 
