@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import { Effect } from "effect";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand } from "../../runner";
 
@@ -23,7 +24,7 @@ export async function createCanvasAction(title: string, cli: Command): Promise<v
   await runCommand(
     async () => {
       const services = await getServices();
-      return services.canvases.createCanvas({ title });
+      return Effect.runPromise(services.canvases.createCanvas({ title }));
     },
     { ...options, mutates: true },
   );

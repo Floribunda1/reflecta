@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import { Effect } from "effect";
 import { getServices } from "../../services";
 import {
   getCommandOptions,
@@ -39,9 +40,11 @@ export async function listCanvasesAction(cli: Command): Promise<void> {
   };
   await runCommand(async () => {
     const services = await getServices();
-    return services.canvases.listCanvases({
-      titleSearchKeyword: options.titleKeyword,
-      limit: options.limit ?? 20,
-    });
+    return Effect.runPromise(
+      services.canvases.listCanvases({
+        titleSearchKeyword: options.titleKeyword,
+        limit: options.limit ?? 20,
+      }),
+    );
   }, options);
 }

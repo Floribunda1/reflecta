@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import { Effect } from "effect";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand } from "../../runner";
 
@@ -23,7 +24,7 @@ export async function deleteContextAction(id: string, cli: Command): Promise<voi
   await runCommand(
     async () => {
       const services = await getServices();
-      await services.contexts.deleteContext(id);
+      await Effect.runPromise(services.contexts.deleteContext(id));
     },
     { ...options, mutates: true },
   );

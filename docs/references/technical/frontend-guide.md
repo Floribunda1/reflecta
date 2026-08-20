@@ -2,13 +2,15 @@
 
 ## 技术栈
 
-- react
+- react（view）
+- effect（program：单一 `AppRuntime`、typed errors、atoms 状态、并发编排）
 - shadcn
 - tailwindv4
 - vite
-- @tanstack/react-query
-- zustand
-- ahooks
+- @tanstack/react-query（数据层缓存/加载/重取）
+- effect-query（React Query 与 Effect 的接缝：queryFn/mutationFn 是 Effect 程序）
+- @effect/atom + @effect/atom-react（UI 本地状态）
+- electron-effect-rpc（IPC：typed domain error 跨进程往返，经 `lib/effect-rpc` 调用）
 - lodash-es
 - date-fns
 
@@ -16,9 +18,17 @@
 
 - 在开发新模块/功能时，优先利用项目现有的三方依赖完成功能（见上面的技术栈），除非没有替代**不要自己造轮子**
   - 页面搭建优先使用 shadcn + tailwind
-  - 通用的 hook 优先使用 ahooks
-  - 多层级 UI state 优先使用 zustand、请求优先使用 @tanstack/react-query
+  - **UI 本地状态**优先使用 `@effect/atom`（`useAtomValue`/`runAtom`），不再引入 zustand 等并行状态库
+  - **数据请求**优先使用 `@tanstack/react-query`，queryFn/mutationFn 写 Effect 程序、经 `effect-query` 接缝跑在单一 `AppRuntime` 上
+  - **重逻辑/并发/错误处理**写 Effect（`Context.Service` + `Layer`、`Effect.gen`、`catchTag`/`match`），React 只当 view
   - 功能函数优先使用 lodash-es、date-fns
+
+## Effect 用法约定（详见 `effect-guide.md`）
+
+- **单一 runtime**：renderer 根 `ManagedRuntime`（`lib/effect-runtime.ts` 的 `AppRuntime`）由应用 Layer 组装；不要在组件里散装 `Effect.runSync`/自建全局 runtime。
+- **typed errors**：IPC 边界错误是 `Schema.TaggedError`，`renderError`（`lib/errors.ts`）统一渲染；effect-query 会把 Effect 失败包成 `EffectQueryFailure`（`.failure` 存真实错误），`renderError` 已解包。
+- **缓存失效**：query key 工厂（如 `captureQueryKeys`）是查询与失效的唯一来源；mutation `onSuccess` 定向失效（层级 key，stale-while-revalidate 保留）；权威响应用 `setQueryData` 直写缓存（实体保存零闪烁）。**不要**用"版本号塞进 queryKey"做失效——key 变化会丢旧数据造成 loading 闪烁。
+- **状态单一来源**：多组件共享的 UI 状态在 atoms；实体数据以 query 缓存为准，避免冗余派生缓存。
 
 ## React 性能相关
 
@@ -43,7 +53,8 @@
 在 review 前端模块时，按下面顺序逐项扫描，避免只看 UI 层而漏掉状态和 hook：
 
 1. 技术栈复用：检查是否优先使用了项目已有依赖和组件能力，避免重复实现。
-2. 通用 hook：检查是否手写了可由 ahooks 覆盖的 hook 或 hook 逻辑。
-3. UI 组件：检查 select、menu、dialog、drawer 等通用组件是否优先使用 shadcn 或项目已有 `use-drawer`、`use-modal`。
-4. React 性能：检查 `useMemo` 等优化是否有明确性能瓶颈依据。
-5. 功能函数：检查日期、集合、对象处理是否优先使用 lodash-es、date-fns。
+2. 状态与请求：检查 UI 本地状态是否用 atoms；请求是否走 React Query + effect-query 接缝；是否残留散装 `Effect.runSync` 或手写 query 层。
+3. 错误处理：检查 rpc/域错误是否用 `renderError` 或 typed `catchTag`/`match` 分发，是否还有 message 兜底。
+4. UI 组件：检查 select、menu、dialog、drawer 等通用组件是否优先使用 shadcn 或项目已有 `use-drawer`、`use-modal`。
+5. React 性能：检查 `useMemo` 等优化是否有明确性能瓶颈依据。
+6. 功能函数：检查日期、集合、对象处理是否优先使用 lodash-es、date-fns。

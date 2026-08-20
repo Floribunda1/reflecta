@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import { Effect } from "effect";
 import { CliError, ErrorCodes } from "../../error";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
@@ -31,9 +32,11 @@ export async function getCanvasAction(canvasId: string, cli: Command): Promise<v
   const options = getCommandOptions(cli) as GlobalOptions & { withBodies?: boolean };
   await runCommand(async () => {
     const services = await getServices();
-    const detail = await services.canvases.getCanvasDetail(canvasId, {
-      includeBodies: Boolean(options.withBodies),
-    });
+    const detail = await Effect.runPromise(
+      services.canvases.getCanvasDetail(canvasId, {
+        includeBodies: Boolean(options.withBodies),
+      }),
+    );
     if (!detail) {
       throw new CliError(ErrorCodes.NOT_FOUND, `Canvas "${canvasId}" not found.`);
     }

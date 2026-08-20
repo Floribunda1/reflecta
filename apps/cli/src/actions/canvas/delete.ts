@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import { Effect } from "effect";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand } from "../../runner";
 
@@ -23,7 +24,7 @@ export async function deleteCanvasAction(canvasId: string, cli: Command): Promis
   await runCommand(
     async () => {
       const services = await getServices();
-      await services.canvases.deleteCanvas(canvasId);
+      await Effect.runPromise(services.canvases.deleteCanvas(canvasId));
     },
     { ...options, mutates: true },
   );

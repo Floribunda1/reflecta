@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import { Effect } from "effect";
 import { CliError, ErrorCodes } from "../../error";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
@@ -44,18 +45,20 @@ export async function updateCanvasAction(canvasId: string, cli: Command): Promis
         } catch {
           throw new CliError(ErrorCodes.VALIDATION_ERROR, "--document must be valid JSON.");
         }
-        await services.canvases.saveCanvas(canvasId, document);
+        await Effect.runPromise(services.canvases.saveCanvas(canvasId, document));
       }
 
       if (options.title !== undefined) {
-        const updated = await services.canvases.updateCanvas(canvasId, { title: options.title });
+        const updated = await Effect.runPromise(
+          services.canvases.updateCanvas(canvasId, { title: options.title }),
+        );
         if (!updated) {
           throw new CliError(ErrorCodes.NOT_FOUND, `Canvas "${canvasId}" not found.`);
         }
         return updated;
       }
 
-      const current = await services.canvases.getCanvas(canvasId);
+      const current = await Effect.runPromise(services.canvases.getCanvas(canvasId));
       if (!current) {
         throw new CliError(ErrorCodes.NOT_FOUND, `Canvas "${canvasId}" not found.`);
       }

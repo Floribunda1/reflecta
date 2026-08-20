@@ -3,6 +3,26 @@ import { ErrorCodes, CliError } from "./error";
 import { writeData, writeError, type OutputFormat } from "./output";
 import { initializeDb } from "./db";
 
+/**
+ * 域 TaggedError（Schema.TaggedError）跨层抛出时的结构映射：
+ * message 多为空，按 `_tag` 分类到 CliError 码，替代字符串匹配。
+ */
+function mapTaggedError(error: { _tag: string }): CliError {
+  if (error._tag.endsWith("NotFoundError")) {
+    return new CliError(ErrorCodes.NOT_FOUND, error._tag.replace(/Error$/, ""));
+  }
+  return new CliError(ErrorCodes.INTERNAL_ERROR, error._tag);
+}
+
+function isTaggedError(err: unknown): err is { _tag: string } {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "_tag" in err &&
+    typeof (err as { _tag: unknown })._tag === "string"
+  );
+}
+
 export type GlobalOptions = {
   format: OutputFormat;
   yes: boolean;
@@ -37,6 +57,10 @@ export async function runCommand<T>(
     if (err instanceof CliError) {
       writeError(err.code, err.message, err.details);
       process.exitCode = err.code === ErrorCodes.CONFIRMATION_REQUIRED ? 3 : 1;
+    } else if (isTaggedError(err)) {
+      const mapped = mapTaggedError(err);
+      writeError(mapped.code, mapped.message);
+      process.exitCode = 1;
     } else if (err instanceof Error) {
       if (err.message.toLowerCase().includes("not found")) {
         writeError(ErrorCodes.NOT_FOUND, err.message);

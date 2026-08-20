@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import { Effect } from "effect";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
 
@@ -31,7 +32,7 @@ export async function deleteDomainAction(id: string, cli: Command): Promise<void
   await runCommand(
     async () => {
       const services = await getServices();
-      await services.domains.deleteDomain(id, options.cascade ?? false);
+      await Effect.runPromise(services.domains.deleteDomain(id, options.cascade ?? false));
     },
     { ...options, mutates: true },
   );

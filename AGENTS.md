@@ -10,6 +10,8 @@
 
 - 编写或 Review 前端代码前，阅读
   [frontend-guide.md](docs/references/technical/frontend-guide.md)；
+  涉及 Effect 程序（域 core / 主进程逻辑 / renderer 重逻辑 / 数据失效）时，同时阅读
+  [effect-guide.md](docs/references/technical/effect-guide.md)。
 
 - 判断组件是否进入 Storybook，或新增、修改 Showcase / Story 前，阅读
   [storybook-principles.md](docs/references/technical/storybook-principles.md)。
