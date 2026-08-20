@@ -51,17 +51,17 @@
 
 ## 3. 关键决策
 
-| #   | 决策            | 结论                                                                                                                          |
-| --- | --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| D1  | Effect 版本     | **v4（4.0.0-rc 系）**                                                                                                         |
-| D2  | renderer 数据层 | **保留 TanStack Query，queryFn 内跑 Effect**（互补分工，非并行栈）                                                            |
-| D3  | 接缝胶水        | **`effect-query`**（选项 1，发起方拍板）                                                                                      |
-| D4  | 候选淘汰        | foldkit / @effectify/react-query / @effect-react-query / electron-effect-rpc（依赖形式）                                      |
-| D5  | IPC 通道        | 官方 RPC 模块 + 自写薄传输层，**模块隔离、暴露面最小（2 个函数 + 共享契约）、可整体替换**（详见 `ipc-transport-boundary.md`） |
-| D6  | 校验体系        | 统一到 `Schema`，迁移 CLI zod                                                                                                 |
-| D7  | UI 本地状态     | zustand → 官方 `@effect/atom`（落地排期待确认）                                                                               |
-| D8  | 主进程后台编排  | retrieval coordinator / agent 调用 / 后台 worker 全部用 Effect 核心（fiber + Schedule + 中断）                                |
-| D9  | 不做什么        | 不写自定义 query 层、不写 50 行手搓缓存、不引入 Foldkit                                                                       |
+| #   | 决策            | 结论                                                                                                                                           |
+| --- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Effect 版本     | **v4（4.0.0-rc 系）**                                                                                                                          |
+| D2  | renderer 数据层 | **保留 TanStack Query，queryFn 内跑 Effect**（互补分工，非并行栈）                                                                             |
+| D3  | 接缝胶水        | **`effect-query`**（选项 1，发起方拍板）                                                                                                       |
+| D4  | 候选淘汰        | foldkit / @effectify/react-query / @effect-react-query / electron-effect-rpc（依赖形式）                                                       |
+| D5  | IPC 通道        | **依赖 `electron-effect-rpc`（v4 就绪的薄库）+ 薄门面隔离**，暴露面最小（2 个函数 + 共享契约）、可整体替换（详见 `ipc-transport-boundary.md`） |
+| D6  | 校验体系        | 统一到 `Schema`，迁移 CLI zod                                                                                                                  |
+| D7  | UI 本地状态     | zustand → 官方 `@effect/atom`（落地排期待确认）                                                                                                |
+| D8  | 主进程后台编排  | retrieval coordinator / agent 调用 / 后台 worker 全部用 Effect 核心（fiber + Schedule + 中断）                                                 |
+| D9  | 不做什么        | 不写自定义 query 层、不写 50 行手搓缓存、不引入 Foldkit                                                                                        |
 
 | D10 | 迁移哲学 | **拒绝背负技术债**：不写过渡兼容层；迁移各模块时顺手清 dead code / legacy compat / 过渡 shim（详见 `migration-philosophy.md`） |
 | D11 | renderer 逻辑层边界 | 按 Effect Philosophy 划界：并发/状态机/异步失败类逻辑进 Effect（save queue、debounced saver、session replica、draft 状态机）；纯派生保持纯函数不强行包 Effect；渲染与组件瞬态留 React，经 atoms 对接 |
@@ -104,12 +104,15 @@
 - `@effect-react-query`（spiko-tech）：0 star、5 月起停更——个人实验品；
 - `electron-effect-rpc`：月下载 ~269、1 star——用户群体过小，不足以作为依赖引入。
 
-### D5：IPC 官方 rpc + 自写薄传输
+### D5：IPC 传输（electron-effect-rpc + 薄门面）
 
-- 官方 `@effect/rpc`（含 v3 版本累计月下载 292 万）提供 Schema 序列化、typed request/response、requestId、错误传播；
-- Electron 传输层（ipcMain/ipcRenderer 适配，约 150~200 行）参考 `electron-effect-starter` / `electron-effect-rpc` 的公开设计思路自写，**不引第三方依赖**——风评约束不允许依赖 1 star 包，且 electron-effect-rpc 基于 v3 Schema API、无 v4 支持声明，与我们已拍板的 v4 冲突；
-- 自写传输层以**隔离模块**形态落地：对外仅暴露 `setupIpcTransport` / `createIpcClient` 两个函数 + 共享 `RpcGroup` 契约，内部实现（信封/接线/错误映射）可整体替换（如日后改走本地 server + 官方 WS 传输），业务层零改动；
-- 直接修复现状“code 永远 UNKNOWN”的结构性缺陷，错误改为 Schema `TaggedError` 结构化跨进程往返。
+> 2026-08-20 修订：因新信息推翻早前“自写”倾向，详见下。
+
+- 早前倾向自写，基于过时信息（electron-effect-rpc “v3-only、无 v4 支持”）+ 误判复杂度（官方 `RpcServer/Client` `Protocol` 为网络/流设计，~200 行）；
+- **修订**：`electron-effect-rpc@0.10.0` 的 peerDeps 已跟进 **`effect ^4.0.0-rc.109`**（与我们锁定的 `rc.110` 兼容，已安装 + typecheck 通过）；它是薄、高层、**0 依赖** 的现成 Electron IPC 方案（`createIpcKit` 一份契约三进程复用、Schema 双向校验、typed domain error 入 Effect 错误通道、支持流、handler 为 Effect 可注入服务、自带生命周期）——社区已有成熟实践，无需自写重协议；
+- **残余风险如实记录**：维护者单一、1★/低下载——以“0 依赖小库 + 薄门面隔离 + 可最小回退（vendor 或换官方 unstable/rpc）”对冲；
+- 仍保留**隔离模块**形态：对外仅 `setupIpcTransport` / `createIpcClient` 两函数 + 共享契约，底层换库时业务层零改动；
+- 直接修复现状“code 永远 UNKNOWN”的结构性缺陷（typed domain error 跨进程结构化往返）。
 
 ### D6：校验统一 Schema
 

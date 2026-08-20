@@ -7,59 +7,57 @@
 
 ## 1. 职责边界
 
-本模块只做一件事：**把官方 RPC 语义（`effect/unstable/rpc`）绑定到 Electron 的 `ipcMain.handle` / `ipcRenderer.invoke` 管道上。**
+本模块只做一件事：**把 Electron 的 `ipcMain.handle` / `ipcRenderer.invoke` 管道，暴露为 Effect 的 typed RPC（typed request + typed domain error），并保持可整体替换。**
 
-| 属于谁                     | 内容                                                                             |
-| -------------------------- | -------------------------------------------------------------------------------- |
-| 官方 RPC 层（依赖，不写）  | 契约（`RpcGroup` / `Rpc` / `Schema`）、校验、typed errors、Stream 响应、序列化层 |
-| 本模块（自写，唯一自写件） | Electron 传输适配：信封编解码、channel 接线、请求 id、错误 Cause 往返映射        |
-| 业务域（不在此模块）       | 领域 Effect 程序、服务、renderer 组件——一律不感知传输细节                        |
+**实现路线（2026-08-20 修订）**：不自行实现重协议（官方 `RpcServer/RpcClient` 的 `Protocol` 为网络/HIT.st 流设计）；**直接用现成薄库 `electron-effect-rpc`**（peerDeps 已跟进 `effect ^4.0.0-rc.109`，与锁定 rc 兼容，已装并 typecheck 通过），并外包一层薄门面达成隔离/可替换。
 
-**它不包含任何业务逻辑**；被替换时唯一影响面是传输本身。
+| 属于谁                              | 内容                                                                                                                 |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `electron-effect-rpc`（依赖，不写） | 契约（`createIpcKit`）、Schema 双向校验、typed domain error 入 Effect 错误通道、流、生命周期                         |
+| 本模块（薄门面，自写仅一层）        | 隔离 electron-effect-rpc：对外固定 `setupIpcTransport` / `createIpcClient` 两个函数 + 契约类型；封住信道命名与替换点 |
+| 业务域（不在此模块）                | 领域 Effect 程序、服务、renderer 组件——一律不感知传输细节                                                            |
+
+**它不包含任何业务逻辑**；被替换时唯一影响面是薄门面本身。
 
 ## 2. 结构：一个目录，两个公开导出
 
 ```
 apps/electron/src/ipc/
-├── contract/          # 共享 RpcGroup 契约（双端类型唯一来源）
-│   └── <domain>.ts    # 每个域一组：输入/输出/错误 Schema
+├── contract/          # 共享契约：electron-effect-rpc 的 createIpcKit 配置（双端类型唯一来源）
+│   └── <domain>.ts    # 每个域一组：方法/事件/流 + 输入/输出/错误 Schema
 └── transport/
-    ├── index.ts       # ★ 唯一公开面：2 个导出 + 契约类型
-    ├── main.ts        # 内部：ipcMain.handle 接线、信封编解码、错误映射
-    └── renderer.ts    # 内部：ipcRenderer.invoke 协议层、请求 id
+    ├── index.ts       # ★ 唯一公开面：2 个导出（薄门面）+ 契约类型
+    ├── main.ts        # 门面→ electron-effect-rpc 主进程侧（注册 handler、生命周期）
+    └── renderer.ts    # 门面→ electron-effect-rpc 客户端侧
 ```
 
 公开 API 全部（没有第三项）：
 
 ```ts
-// main 进程：注册处理器，返回可启动的 Effect（纳入 app 的 Layer/Scope 生命周期）
-setupIpcTransport<R extends RpcGroup.RpcGroup>(
-  handlers: RpcGroup.Handlers<R>
-): Effect<Scope, never, void>
+// main 进程：注册处理器（handlers 为 Effect，可注入服务），纳入 app 生命周期
+setupIpcTransport(handlers: Handlers): Promise<LifecycleHandle>
 
-// renderer 进程：拿到类型化客户端（RpcClient，错误类型随契约走）
-createIpcClient<R extends RpcGroup.RpcGroup>(
-  group: R,
-): Effect<never, never, RpcGroup.Client<R>>
+// renderer 进程：拿到类型化客户端（typed domain error 随契约走）
+createIpcClient(): IpcClient
 ```
 
-renderer 业务代码只依赖 `createIpcClient` 的返回类型，main 只依赖 `setupIpcTransport` 的参数类型；两者都来自 `contract/` 的共享契约。
+renderer 业务代码只依赖 `createIpcClient` 的返回类型，main 只依赖 `setupIpcTransport` 的参数类型；两者都来自 `contract/` 的共享 `createIpcKit` 契约。
 
 ## 3. 隔离规则（"换什么动什么"）
 
-**可替换的（封装在模块内部，替换时不动外部）：**
+**可替换的（封装在薄门面之后，替换时不动外部）：**
 
+- 底层库本体：`electron-effect-rpc` ↔ 官方 `Protocol` 包/自写/未来官方件
 - 传输协议：`ipcMain` ↔ WebSocket / HTTP / MessagePort
-- 信封格式、channel 命名、请求 id 生成
-- 错误序列化细节（Cause → JSON 的映射策略）
+- 契约载体：`createIpcKit` ↔ 官方 `RpcGroup` / 其它（若底层库停更，薄门面可改成底层它，最小回退）
 
 **不可泄漏的（替换时也不该动）：**
 
 - 领域 Effect 程序与服务层
 - renderer 组件与查询层（React Query + effect-query）
-- 共享契约本身的语义
+- 薄门面公开的两个函数签名
 
-**替换场景示例**：日后若改走 electron-effect-starter 式"本地 server + 官方 WS 传输"，仅需新增一个 `transport/ws.ts` 实现同一 socket，`main`/`renderer` 调用处签名不变——业务文件零改动。
+**替换场景示例**：若 `electron-effect-rpc` 停更或与 v4 正式版不适配，仅重写 `transport/` 薄门面内部（可换回官方 `unstable/rpc` 自写，或换其它），`main`/`renderer` 调用处签名不变——业务文件零改动。
 
 ## 4. 为什么"暴露面小"是硬约束
 
