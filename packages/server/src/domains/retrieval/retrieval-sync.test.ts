@@ -95,7 +95,7 @@ describe("retrieval index rebuild", () => {
     await new RetrievalIndexCoordinator({ getDb: () => db }).rebuild();
 
     await understandings.updateUnderstanding(first.id, { body: "firstaftermarker" });
-    await syncRetrievalIndexByUnderstandingIds(db, [first.id]);
+    await Effect.runPromise(syncRetrievalIndexByUnderstandingIds(db, [first.id]));
 
     expect(await createRetrievalIndex().searchLexical("firstbeforemarker", 5)).toEqual([]);
     expect((await createRetrievalIndex().searchLexical("firstaftermarker", 5))[0]?.entityId).toBe(
@@ -119,7 +119,7 @@ describe("retrieval index rebuild", () => {
     await new RetrievalIndexCoordinator({ getDb: () => db }).rebuild();
 
     await Effect.runPromise(understandings.deleteUnderstanding(removed.id));
-    await syncRetrievalIndexByUnderstandingIds(db, [removed.id]);
+    await Effect.runPromise(syncRetrievalIndexByUnderstandingIds(db, [removed.id]));
 
     expect(await createRetrievalIndex().searchLexical("removedaggregatemarker", 5)).toEqual([]);
     expect(
@@ -135,13 +135,15 @@ describe("retrieval index rebuild", () => {
     });
     await new RetrievalIndexCoordinator({ getDb: () => db }).rebuild();
 
-    await expect(reconcileRetrievalIndex(db)).resolves.toEqual({
+    await expect(Effect.runPromise(reconcileRetrievalIndex(db))).resolves.toEqual({
       modified: false,
       operationCount: 0,
     });
 
     await understandings.updateUnderstanding(created.id, { body: "reconcileaftermarker" });
-    await expect(reconcileRetrievalIndex(db)).resolves.toMatchObject({ modified: true });
+    await expect(Effect.runPromise(reconcileRetrievalIndex(db))).resolves.toMatchObject({
+      modified: true,
+    });
     expect(
       (await createRetrievalIndex().searchLexical("reconcileaftermarker", 5))[0]?.entityId,
     ).toBe(created.id);

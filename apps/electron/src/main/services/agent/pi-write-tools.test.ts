@@ -297,12 +297,14 @@ describe("createPiWriteTools", () => {
   });
 
   test("hydrates understanding update before state from Reflecta", async () => {
-    services.getUnderstandingById.mockResolvedValue({
-      id: "understanding-1",
-      title: "Old title",
-      body: "Old body",
-      domainIds: ["cat-old"],
-    });
+    services.getUnderstandingById.mockReturnValue(
+      Effect.succeed({
+        id: "understanding-1",
+        title: "Old title",
+        body: "Old body",
+        domainIds: ["cat-old"],
+      }),
+    );
 
     await expect(
       hydratePiApprovalPayload("understanding_update", {
@@ -359,14 +361,19 @@ describe("createPiWriteTools", () => {
   });
 
   test("executes approved mutation tools through domain services", async () => {
-    services.createUnderstanding.mockResolvedValue({
-      id: "understanding-created",
-      title: "Stored Understanding",
-    });
-    services.updateUnderstanding.mockResolvedValue({
-      id: "understanding-updated",
-      title: "Stored Updated Understanding",
-    });
+    services.createUnderstanding.mockReturnValue(
+      Effect.succeed({
+        id: "understanding-created",
+        title: "Stored Understanding",
+      }),
+    );
+    services.updateUnderstanding.mockReturnValue(
+      Effect.succeed({
+        id: "understanding-updated",
+        title: "Stored Updated Understanding",
+      }),
+    );
+    services.deleteUnderstanding.mockReturnValue(Effect.void);
     services.createDomain.mockReturnValue(Effect.succeed({ id: "domain-created" }));
     services.updateDomain.mockReturnValue(Effect.succeed({ id: "domain-updated" }));
     services.deleteDomain.mockReturnValue(Effect.succeed(undefined));
