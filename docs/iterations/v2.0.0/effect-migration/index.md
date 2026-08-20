@@ -64,6 +64,7 @@
 | D9  | 不做什么        | 不写自定义 query 层、不写 50 行手搓缓存、不引入 Foldkit                                                                       |
 
 | D10 | 迁移哲学 | **拒绝背负技术债**：不写过渡兼容层；迁移各模块时顺手清 dead code / legacy compat / 过渡 shim（详见 `migration-philosophy.md`） |
+| D11 | renderer 逻辑层边界 | 按 Effect Philosophy 划界：并发/状态机/异步失败类逻辑进 Effect（save queue、debounced saver、session replica、draft 状态机）；纯派生保持纯函数不强行包 Effect；渲染与组件瞬态留 React，经 atoms 对接 |
 
 ## 4. 理由链
 
@@ -130,6 +131,14 @@
 - 迁移是"删除式"的（如 zod 迁移完成后依赖即移除、electron-ipc-decorator 及 `{__isIpcError}` 包裹层全部删除，不留任何残留）；
 - 每模块迁移附"顺手清理项 / 发现但不动项"两栏，落实 R1~R3 规则；
 - 验收以旧符号零残留、无兼容 shim、dead export 清零为准（详见 `migration-philosophy.md`）。
+
+### D11：renderer 逻辑层边界（Effect Philosophy）
+
+- **原则**：Effect Native 不止做数据层——renderer 真正重的部分是逻辑层（手写并发原语 / 状态机 / 事件流），正是 Effect 的目标对象；
+- **进 Effect（高价值）**：① 并发/编排/中断（`useUnderstandingDraftSave` 的 save queue、`debounced-latest-saver`、`AgentSessionReplica` 的 retention+listeners）→ Queue/纤维/Schedule/Scope；② 状态机与多步流程（`CaptureDraft` 等）→ 显式状态 Effect 程序；③ 异步+失败/重试/回滚（保存/导出/agent）→ typed errors + retry；
+- **保持纯函数（不迁）**：`participation-stats` / `card-grid-layout` / `sort` 等已纯已类型化的派生逻辑，包一层 Effect 是仪式感；
+- **留在 React**：渲染、组件瞬态 UI 状态、事件/生命周期绑定——React 是 view，Effect 是 program，经 `@effect/atom` 对接；
+- **落地归属**：Phase 4 ③（逻辑层），依赖 ② atoms 先落位，hooks 收敛为纯绑定。
 
 ## 5. 已接受风险
 

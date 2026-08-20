@@ -13,7 +13,7 @@ Phase 0  收尾决策与基线          （并行，随时可做）
 Phase 1  垂直切片 Pilot          （验证 v4 RC 可行性 + 打通全链路，含回退门）
 Phase 2  基础设施固化            （共享契约 + IPC 传输层 + 运行时脚手架）
 Phase 3  主进程域逻辑迁移        （按模块多 PR，删除式迁移 + 顺手清债）
-Phase 4  renderer 数据层迁移     （queryFn 跑 Effect、zustand→atom、清 IPC 遗留）
+Phase 4  renderer 数据层 + 状态层 + 逻辑层   （queryFn 跑 Effect、zustand→atom、手写并发原语→Effect）
 Phase 5  CLI 与校验统一          （zod 移除，合并到 Schema）
 Phase 6  v4 稳定收口 + 全量回归
 ```
@@ -107,9 +107,9 @@ Phase 6  v4 稳定收口 + 全量回归
 
 ---
 
-## Phase 4 — renderer 数据层迁移
+## Phase 4 — renderer 数据层 / 状态层 / 逻辑层迁移
 
-**目标**：renderer 完全跑在 Effect 上，清理数据层技术债。
+**目标**：renderer 完全跑在 Effect 上（React 作 view、Effect 作 program），清理数据层与逻辑层技术债。
 
 | 任务                   | 说明                                                                                                               |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
@@ -120,7 +120,11 @@ Phase 6  v4 稳定收口 + 全量回归
 | 清 IPC 遗留            | 移除 `utils/ipc.ts` 的 `createIpcProxy` + `wrapWithErrorHandling`；preload `contextBridge` 的 ipcRenderer 管道保留 |
 | 顺手清理               | 各 renderer 模块 dead export、旧类型别名、过期注释                                                                 |
 
-**退出标准**：renderer 无 `createIpcProxy`、无手写 invalidate 网（或已事件化）；本地状态单一（atoms）。
+| ③逻辑层（D11） | 并发原语 → Effect | `save queue` / `debounced-latest-saver` / `AgentSessionReplica` → Queue / 纤维 / Schedule / 中断 + Scope 生命周期 |
+| ③ | 状态机/多步流程 → Effect | draft 保存态、理解详情流程、chat 流式 → 显式状态 Effect 程序 |
+| ③ | 纯派生不动 | `participation-stats` / `card-grid-layout` / `sort` 保持纯函数，不强行包 Effect |
+
+**退出标准**：renderer 无 `createIpcProxy`、无手写 invalidate 网（或已事件化）、无手写并发原语残留；本地状态单一（atoms）；hooks 收敛为纯绑定。
 
 ---
 
