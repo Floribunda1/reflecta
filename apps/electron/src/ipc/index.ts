@@ -48,6 +48,16 @@ import {
   UnderstandingRestore,
   UnderstandingPermanentlyDelete,
 } from "./contract/understanding";
+import {
+  CanvasList,
+  CanvasListByUnderstanding,
+  CanvasGet,
+  CanvasCreate,
+  CanvasUpdate,
+  CanvasDelete,
+  CanvasUpdateViewport,
+  CanvasSave,
+} from "./contract/understanding-canvas";
 
 export { TrashListError, TrashedUnderstanding } from "./contract/trash";
 export { PilotBoom, PilotPing, PilotProbe } from "./pilot/contract";
@@ -58,6 +68,17 @@ export { CanvasExportError } from "./contract/canvas";
 export { SearchError } from "./contract/search";
 export { InsightsError } from "./contract/insights";
 export { UnderstandingError } from "./contract/understanding";
+export { CanvasError } from "./contract/understanding-canvas";
+export type {
+  CreateCanvasInput,
+  UpdateCanvasInput,
+  CanvasDocument,
+  Viewport,
+  CanvasDTO,
+  CanvasDetailDTO,
+  CanvasEdgeDTO,
+  CanvasElementDTO,
+} from "./contract/understanding-canvas";
 export type {
   CreateUnderstandingInput,
   UpdateUnderstandingInput,
@@ -110,6 +131,14 @@ export const contract = defineContract({
     UnderstandingDelete,
     UnderstandingRestore,
     UnderstandingPermanentlyDelete,
+    CanvasList,
+    CanvasListByUnderstanding,
+    CanvasGet,
+    CanvasCreate,
+    CanvasUpdate,
+    CanvasDelete,
+    CanvasUpdateViewport,
+    CanvasSave,
   ] as const,
   events: [] as const,
   streamMethods: [] as const,

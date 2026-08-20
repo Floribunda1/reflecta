@@ -31,6 +31,7 @@ import {
   SearchError,
   InsightsError,
   UnderstandingError,
+  CanvasError,
 } from "../ipc";
 import {
   trashService,
@@ -38,6 +39,7 @@ import {
   domainService,
   contextService,
   searchService,
+  understandingCanvasService,
 } from "./services/core";
 import { getRecapData as getRecapDataOp } from "./services/insights-ops";
 import {
@@ -181,6 +183,7 @@ app.whenReady().then(async () => {
   const searchErr = (message: string) => new SearchError({ reason: message, code: 500 });
   const insightsErr = (message: string) => new InsightsError({ reason: message, code: 500 });
   const uErr = (message: string) => new UnderstandingError({ reason: message, code: 500 });
+  const cErr = (message: string) => new CanvasError({ reason: message, code: 500 });
   const appMain = appIpc.main({
     ipcMain,
     handlers: {
@@ -431,6 +434,61 @@ app.whenReady().then(async () => {
         Effect.tryPromise({
           try: () => understandingService.permanentlyDeleteUnderstanding(id),
           catch: (e) => uErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
+      "understandingCanvas.listCanvases": () =>
+        Effect.tryPromise({
+          try: () => understandingCanvasService.listCanvases(),
+          catch: (e) => cErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "understandingCanvas.listCanvasesByUnderstanding": ({ understandingId }) =>
+        Effect.tryPromise({
+          try: () => understandingCanvasService.listCanvasesByUnderstanding(understandingId),
+          catch: (e) => cErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "understandingCanvas.getCanvas": ({ id }) =>
+        Effect.tryPromise({
+          try: () => understandingCanvasService.getCanvasDetail(id, { includeBodies: true }),
+          catch: (e) => cErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "understandingCanvas.createCanvas": ({ input }) =>
+        Effect.tryPromise({
+          try: () =>
+            understandingCanvasService.createCanvas(
+              input as import("@reflecta/server").CreateCanvasInput | undefined,
+            ),
+          catch: (e) => cErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "understandingCanvas.updateCanvas": ({ id, input }) =>
+        Effect.tryPromise({
+          try: () =>
+            understandingCanvasService.updateCanvas(
+              id,
+              input as import("@reflecta/server").UpdateCanvasInput,
+            ),
+          catch: (e) => cErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "understandingCanvas.deleteCanvas": ({ id }) =>
+        Effect.tryPromise({
+          try: () => understandingCanvasService.deleteCanvas(id),
+          catch: (e) => cErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
+      "understandingCanvas.updateViewport": ({ canvasId, viewport }) =>
+        Effect.tryPromise({
+          try: () =>
+            understandingCanvasService.updateViewport(
+              canvasId,
+              viewport as import("@reflecta/server").Viewport,
+            ),
+          catch: (e) => cErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
+      "understandingCanvas.saveCanvas": ({ canvasId, document }) =>
+        Effect.tryPromise({
+          try: () =>
+            understandingCanvasService.saveCanvas(
+              canvasId,
+              document as import("@reflecta/server").CanvasDocument,
+            ),
+          catch: (e) => cErr(e instanceof Error ? e.message : String(e)),
         }).pipe(Effect.map(() => undefined)),
     },
     context: Context.empty(),

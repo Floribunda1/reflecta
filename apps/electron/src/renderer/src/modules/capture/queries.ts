@@ -1,5 +1,4 @@
 import { Effect } from "effect";
-import { ipcClient } from "@renderer/utils/ipc";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type {
   Domain,
@@ -69,7 +68,7 @@ export async function getEntityDisplay(ref: Pick<AgentContextRef, "type" | "id">
     return entity ? { title: entity.title?.trim() || null } : null;
   }
   if (ref.type === "canvas") {
-    const entity = await ipcClient.understandingCanvas.getCanvas(ref.id);
+    const entity = await Effect.runPromise(rpc.canvasGet(ref.id));
     return entity ? { title: entity.canvas.title?.trim() || null } : null;
   }
   const entity = await Effect.runPromise(rpc.domainGetDomainById(ref.id));
@@ -213,7 +212,7 @@ export function useParticipationOverview(enabled = true) {
   });
   const canvasesQuery = useQuery({
     queryKey: captureQueryKeys.canvases,
-    queryFn: () => ipcClient.understandingCanvas.listCanvases(),
+    queryFn: () => Effect.runPromise(rpc.canvasList()) as Promise<CanvasDTO[]>,
     enabled,
   });
   const recapQuery = useQuery({

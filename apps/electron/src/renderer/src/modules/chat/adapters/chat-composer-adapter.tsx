@@ -27,7 +27,7 @@ import { Effect } from "effect";
 import { ipcClient } from "@renderer/utils/ipc";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
-import type { SearchContextResult } from "@reflecta/server";
+import type { SearchContextResult, CanvasDTO } from "@reflecta/server";
 import { buildContextCandidates, CONTEXT_LOOKUP_LIMIT } from "../context/context-candidates";
 import {
   contextUsageFromMessages,
@@ -269,7 +269,9 @@ export function AgentChatComposer({
           ) as Promise<SearchContextResult[]>)
         : Promise.resolve([]),
       Effect.runPromise(rpc.domainListDomains()) as Promise<import("@reflecta/server").Domain[]>,
-      normalizedQuery ? ipcClient.understandingCanvas.listCanvases() : Promise.resolve([]),
+      normalizedQuery
+        ? (Effect.runPromise(rpc.canvasList()) as Promise<CanvasDTO[]>)
+        : Promise.resolve([]),
     ]);
     if (signal.aborted) return [];
     return buildContextCandidates({

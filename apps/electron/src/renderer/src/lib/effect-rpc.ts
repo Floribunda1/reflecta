@@ -64,4 +64,17 @@ export const rpc = {
   understandingUpdate: (id: string, input: import("../../../ipc").UpdateUnderstandingInput) =>
     client["understanding.updateUnderstanding"]({ id, input }),
   understandingDelete: (id: string) => client["understanding.deleteUnderstanding"]({ id }),
+  canvasList: () => client["understandingCanvas.listCanvases"](),
+  canvasListByUnderstanding: (understandingId: string) =>
+    client["understandingCanvas.listCanvasesByUnderstanding"]({ understandingId }),
+  canvasGet: (id: string) => client["understandingCanvas.getCanvas"]({ id }),
+  canvasCreate: (input?: import("../../../ipc").CreateCanvasInput) =>
+    client["understandingCanvas.createCanvas"]({ input }),
+  canvasUpdate: (id: string, input: import("../../../ipc").UpdateCanvasInput) =>
+    client["understandingCanvas.updateCanvas"]({ id, input }),
+  canvasDelete: (id: string) => client["understandingCanvas.deleteCanvas"]({ id }),
+  canvasSave: (canvasId: string, document: import("../../../ipc").CanvasDocument) =>
+    client["understandingCanvas.saveCanvas"]({ canvasId, document }),
+  canvasUpdateViewport: (canvasId: string, viewport: import("../../../ipc").Viewport) =>
+    client["understandingCanvas.updateViewport"]({ canvasId, viewport }),
 };

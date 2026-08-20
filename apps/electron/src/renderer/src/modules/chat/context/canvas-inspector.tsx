@@ -1,7 +1,9 @@
+import { Effect } from "effect";
 import { useQuery } from "@tanstack/react-query";
+import { rpc } from "@renderer/lib/effect-rpc";
+import type { CanvasDetailDTO } from "@reflecta/server";
 import { CanvasReadOnlyView, type CanvasShapeData } from "@reflecta/ui/canvas";
 import { useMemo } from "react";
-import { ipcClient } from "@renderer/utils/ipc";
 import { Button } from "@reflecta/ui/components/button";
 import { PanelTop } from "lucide-react";
 
@@ -18,7 +20,7 @@ export function CanvasInspector({
 }) {
   const detailQuery = useQuery({
     queryKey: ["agent.inspector.canvas", canvasId],
-    queryFn: () => ipcClient.understandingCanvas.getCanvas(canvasId),
+    queryFn: () => Effect.runPromise(rpc.canvasGet(canvasId)) as Promise<CanvasDetailDTO | null>,
     enabled: !!canvasId,
   });
 
