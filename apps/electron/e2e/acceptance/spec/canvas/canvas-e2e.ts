@@ -86,6 +86,19 @@ export async function waitForCanvasSave(page: Page, ms = 1400) {
   await page.waitForTimeout(ms);
 }
 
+/** 双击文本卡进入 Markdown 编辑器，填入内容并失焦提交（Escape 取消用编辑器自身 key）。 */
+export async function editTextCard(
+  page: Page,
+  card: ReturnType<Page["getByTestId"]>,
+  text: string,
+) {
+  await card.dblclick();
+  const prose = card.locator(".ProseMirror");
+  await prose.click();
+  await prose.fill(text);
+  await prose.blur();
+}
+
 /** 离开工作区返回列表（触发卸载冲刷保存）。 */
 export async function leaveWorkspace(page: Page) {
   await page.getByTestId("canvas-workspace-back-button").click();

@@ -18,15 +18,16 @@ export function CanvasZoomControls({
   onFit,
   className,
 }: CanvasZoomControlsProps) {
+  // 统一工具栏形态：圆角描边容器 + ghost 图标按钮（与节点/边工具栏一致）。
   return (
     <div
       data-testid="canvas-zoom-controls"
-      className={`flex items-center gap-1 ${className ?? ""}`}
+      className={`flex items-center gap-1 rounded-md border bg-background p-1 shadow-sm ${className ?? ""}`}
     >
       <Button
         type="button"
         size="icon-sm"
-        variant="secondary"
+        variant="ghost"
         aria-label="缩小"
         title="缩小"
         data-testid="canvas-zoom-out"
@@ -37,7 +38,7 @@ export function CanvasZoomControls({
       <Button
         type="button"
         size="icon-sm"
-        variant="secondary"
+        variant="ghost"
         aria-label="放大"
         title="放大"
         data-testid="canvas-zoom-in"
@@ -48,7 +49,7 @@ export function CanvasZoomControls({
       <Button
         type="button"
         size="icon-sm"
-        variant="secondary"
+        variant="ghost"
         aria-label="适应视图"
         title="适应视图"
         data-testid="canvas-zoom-fit"

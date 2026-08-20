@@ -3,7 +3,8 @@ import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { CanvasDocument, CanvasElementDTO } from "./document";
-import type { CanvasGraphHandle, CanvasGraphProps } from "./CanvasGraph";
+import { CanvasGraph, type CanvasGraphHandle, type CanvasGraphProps } from "./CanvasGraph";
+import { setDndElement } from "./dnd";
 
 const mocks = vi.hoisted(() => ({
   reactFlowProps: null as Record<string, unknown> | null,
@@ -54,16 +55,17 @@ vi.mock("@xyflow/react", async (importOriginal) => {
       setViewport: mocks.setViewport,
       fitView: mocks.fitView,
       screenToFlowPosition: mocks.screenToFlowPosition,
+      getZoom: vi.fn(() => 1),
+      flowToScreenPosition: vi.fn(({ x, y }: { x: number; y: number }) => ({ x, y })),
       getNode: mocks.getNode,
       getEdge: mocks.getEdge,
       setEdges: mocks.setEdges,
     }),
+    useViewport: () => ({ x: 0, y: 0, zoom: 1 }),
     getNodesBounds: mocks.getNodesBounds,
     getViewportForBounds: mocks.getViewportForBounds,
   };
 });
-
-import { CanvasGraph } from "./CanvasGraph";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -248,10 +250,31 @@ describe("CanvasGraph React Flow seam", () => {
       panOnDrag: [1], // 仅中键平移：左键拖拽留给框选（selectionOnDrag），滚轮给 panOnScroll
       panOnScroll: true,
       snapToGrid: true,
-      snapGrid: [20, 20],
+      snapGrid: [10, 10],
       deleteKeyCode: "Backspace",
       onlyRenderVisibleElements: true,
     });
+  });
+
+  test("retokenizes the official group shell and paints color onto the wrapper", () => {
+    const group: CanvasElementDTO = {
+      ...textElement("group"),
+      kind: "group",
+      understandingId: null,
+      canvasRefId: null,
+      props: { label: "GROUP", color: "chart-1" },
+    };
+    const graph = render({
+      document: {
+        elements: [group],
+        edges: [],
+      },
+    });
+    const className = container.querySelector('[data-testid="canvas-graph"]')?.className ?? "";
+    expect(className).toContain("[--xy-node-border:1px_solid_var(--border)]");
+    expect(className).toContain("[--xy-node-group-background-color:");
+    const node = (graph.nodes as Array<{ id: string; style?: { borderColor?: string } }>)[0];
+    expect(node.style?.borderColor).toBe("var(--chart-1)");
   });
 
   test("selection toolbar appears for two or more selected nodes and groups them", () => {
@@ -292,6 +315,76 @@ describe("CanvasGraph React Flow seam", () => {
     }) => void;
     act(() => select({ nodes: [{ id: "a" }, { id: "b" }], edges: [] }));
     expect(container.querySelector('[data-testid="canvas-selection-toolbar"]')).toBeNull();
+  });
+
+  test("drop preview follows the cursor while dragging and clears on leave/drop", () => {
+    const flow = render({});
+    const valid = JSON.stringify(textElement("dragged"));
+    const MIME = "application/reflecta-canvas-element";
+    const dragOver = flow.onDragOver as (event: unknown) => void;
+    const dragLeave = flow.onDragLeave as (event: unknown) => void;
+    const dragData = { types: [MIME], getData: () => valid };
+    // 占位框常驻，显隐用 opacity 控制（避免首次 dragover 在左上角闪一下）。
+    const preview = () =>
+      container.querySelector<HTMLElement>('[data-testid="canvas-drop-preview"]');
+    // happy-dom 下容器无真实布局，注入坐标系以验证预览跟随 / 离开判断。
+    const graph = container.querySelector<HTMLElement>('[data-testid="canvas-graph"]')!;
+    graph.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: 0,
+        right: 400,
+        bottom: 300,
+        width: 400,
+        height: 300,
+        x: 0,
+        y: 0,
+      }) as DOMRect;
+    // 初始隐藏（占位框常驻，靠 opacity-0 类 + inline opacity 控制）
+    expect(preview()).not.toBeNull();
+    expect(preview()!.className).toContain("opacity-0");
+
+    // getData 在 dragover 阶段读不到，预览要素来自源 dragstart 写入的暂存。
+    setDndElement(textElement("dragged"));
+    try {
+      // 首次 dragover：直接显隐 + 定位（本次即拿到位置，不再有 (0,0) 闪帧）。
+      act(() =>
+        dragOver({ preventDefault: vi.fn(), clientX: 110, clientY: 220, dataTransfer: dragData }),
+      );
+      expect(preview()!.style.opacity).toBe("1");
+      expect(preview()!.style.width).toBe("200px");
+      expect(preview()!.style.height).toBe("100px");
+      expect(preview()!.style.transform).toBe("translate(110px, 220px)");
+
+      // 后续 dragover：继续跟随。
+      act(() =>
+        dragOver({ preventDefault: vi.fn(), clientX: 130, clientY: 240, dataTransfer: dragData }),
+      );
+      expect(preview()!.style.transform).toBe("translate(130px, 240px)");
+
+      // 真正离开容器（坐标越界）隐藏；仍在容器内（移到后代）保持显示。
+      act(() => dragLeave({ clientX: 5, clientY: 5, dataTransfer: dragData }));
+      expect(preview()!.style.opacity).toBe("1");
+      act(() => dragLeave({ clientX: -50, clientY: -50, dataTransfer: dragData }));
+      expect(preview()!.style.opacity).toBe("0");
+
+      // 再次进入重新显示；drop 后隐藏（drop 阶段 getData 可读 → 节点落位）。
+      act(() =>
+        dragOver({ preventDefault: vi.fn(), clientX: 110, clientY: 220, dataTransfer: dragData }),
+      );
+      expect(preview()!.style.opacity).toBe("1");
+      act(() =>
+        (flow.onDrop as (event: unknown) => void)({
+          preventDefault: vi.fn(),
+          clientX: 110,
+          clientY: 220,
+          dataTransfer: dragData,
+        }),
+      );
+      expect(preview()!.style.opacity).toBe("0");
+    } finally {
+      setDndElement(null);
+    }
   });
 
   test("external drop uses screen coordinates once and ignores malformed or readonly payloads", () => {

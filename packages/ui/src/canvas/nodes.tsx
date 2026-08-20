@@ -16,8 +16,10 @@ import {
   Palette,
   Pencil,
   Trash2,
+  Ungroup,
 } from "lucide-react";
-import { SimpleMarkdownPreview } from "../editor/simple-markdown-preview";
+import { MarkdownPreview } from "../editor/markdown-preview";
+import { MarkdownEditor } from "../editor/markdown-editor";
 import { Button } from "../components/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/popover";
 import {
@@ -27,6 +29,7 @@ import {
   ContextMenuTrigger,
 } from "../components/context-menu";
 import { cn } from "../lib/utils";
+import { CanvasReadOnlyView } from "./CanvasReadOnlyView";
 import { canvasPaintColor, CanvasColorSwatches } from "./color-swatches";
 import type { CanvasElementDTO } from "./document";
 import { useCanvasElementUpdate, useCanvasShapeData } from "./shape-context";
@@ -45,45 +48,47 @@ type CanvasNode = Node<
 const CARD =
   "group/canvas-node flex h-full w-full flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-function nodeStateClass(selected: boolean, dragging: boolean) {
+function nodeStateClass(selected: boolean, dragging: boolean, paint?: string) {
   return cn(
-    selected ? "ring-2 ring-ring" : "hover:ring-2 hover:ring-ring/50",
+    selected
+      ? paint
+        ? "ring-2"
+        : "ring-2 ring-ring"
+      : paint
+        ? "hover:ring-2"
+        : "hover:ring-2 hover:ring-ring/50",
     dragging && "opacity-80",
   );
 }
 
+/** 有 paint 时：border、hover/selected ring 与卡片背景都取该色（背景用透明淡色）。 */
 function nodeColorStyle(color?: string) {
   const paint = canvasPaintColor(color);
-  return paint ? { borderColor: paint } : undefined;
+  if (!paint) return undefined;
+  return {
+    borderColor: paint,
+    ["--tw-ring-color" as string]: paint,
+    backgroundColor: `color-mix(in srgb, ${paint} 10%, transparent)`,
+  } as React.CSSProperties;
 }
 
-/** 统一连线磁吸点：左 = 入（target），右 = 出（source）。 */
+/** 统一连线磁吸点：左 = 入（target），右 = 出（source）。默认隐藏，hover 卡片时显示。 */
 function Harness({ source = true, target = true }: { source?: boolean; target?: boolean }) {
+  const handleClass = "!h-2 !w-2 opacity-0 transition-opacity group-hover/canvas-node:opacity-100";
   return (
     <>
-      {source ? (
-        <Handle
-          type="source"
-          position={Position.Right}
-          className="!h-2 !w-2 transition-transform group-hover/canvas-node:scale-125"
-        />
-      ) : null}
-      {target ? (
-        <Handle
-          type="target"
-          position={Position.Left}
-          className="!h-2 !w-2 transition-transform group-hover/canvas-node:scale-125"
-        />
-      ) : null}
+      {source ? <Handle type="source" position={Position.Right} className={handleClass} /> : null}
+      {target ? <Handle type="target" position={Position.Left} className={handleClass} /> : null}
     </>
   );
 }
 
 function Resizer({ visible }: { visible: boolean }) {
-  const { readonly } = useCanvasShapeData();
+  const { readonly, multiSelected } = useCanvasShapeData();
   return (
     <NodeResizer
-      isVisible={visible && !readonly}
+      // 多选时不显示每个节点的独立 resize 手柄，避免视觉噪点。
+      isVisible={visible && !readonly && !multiSelected}
       minWidth={80}
       minHeight={48}
       lineClassName="!border-primary"
@@ -93,9 +98,11 @@ function Resizer({ visible }: { visible: boolean }) {
 }
 
 function CanvasNodeToolbar({ visible, children }: { visible: boolean; children: React.ReactNode }) {
+  const { multiSelected } = useCanvasShapeData();
   return (
     <NodeToolbar
-      isVisible={visible}
+      // 多选时隐藏各节点的独立操作工具栏，统一交给选区工具栏（group/delete）。
+      isVisible={visible && !multiSelected}
       className="flex gap-1 rounded-md border bg-background p-1 shadow-sm"
     >
       {children}
@@ -108,11 +115,13 @@ function NodeActions({
   onEdit,
   onRemove,
   showRemove = true,
+  showEdit = true,
 }: {
   element: CanvasElementDTO;
   onEdit?: () => void;
   onRemove?: () => void;
   showRemove?: boolean;
+  showEdit?: boolean;
 }) {
   const updateElement = useCanvasElementUpdate();
   const { onCellAction } = useCanvasShapeData();
@@ -154,18 +163,20 @@ function NodeActions({
           <Trash2 />
         </Button>
       ) : null}
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className="nodrag nopan"
-        aria-label="编辑"
-        title="编辑"
-        onClick={onEdit}
-        disabled={!onEdit}
-      >
-        <Pencil />
-      </Button>
+      {showEdit ? (
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className="nodrag nopan"
+          aria-label="编辑"
+          title="编辑"
+          onClick={onEdit}
+          disabled={!onEdit}
+        >
+          <Pencil />
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -186,7 +197,7 @@ export function UnderstandingNode(props: NodeProps<CanvasNode>) {
       data-understanding-id={
         element.kind === "understanding" ? (element.understandingId ?? "") : ""
       }
-      className={cn(CARD, nodeStateClass(props.selected, props.dragging))}
+      className={cn(CARD, nodeStateClass(props.selected, props.dragging, element.props.color))}
       style={nodeColorStyle(element.props.color)}
       tabIndex={0}
     >
@@ -209,7 +220,7 @@ export function UnderstandingNode(props: NodeProps<CanvasNode>) {
             </span>
           </div>
           <div className="canvas-card-scroll nowheel min-h-0 flex-1 overflow-y-auto px-2.5 py-2">
-            <SimpleMarkdownPreview value={ref.body} className="canvas-card-markdown" />
+            <MarkdownPreview value={ref.body} zoomImages={false} />
           </div>
         </>
       )}
@@ -217,7 +228,7 @@ export function UnderstandingNode(props: NodeProps<CanvasNode>) {
   );
 }
 
-/** 文本卡：双击就地编辑（textarea + 预览），失焦保存。纯 React 事件，无引擎冲突。 */
+/** 文本卡：双击进入 Markdown 编辑器，失焦保存。纯 React 事件，无引擎冲突。 */
 export function TextNode(props: NodeProps<CanvasNode>) {
   const element = props.data.element as CanvasElementDTO;
   const text = element.kind === "text" ? element.props.text : "";
@@ -225,29 +236,47 @@ export function TextNode(props: NodeProps<CanvasNode>) {
   const updateElement = useCanvasElementUpdate();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(text);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+  // Escape 取消后编辑器卸载会触发 Milkdown onBlur，需要跳过那次提交。
+  const skipCommitRef = useRef(false);
 
   const startEditing = () => {
     setDraft(text);
     setEditing(true);
   };
   useEffect(() => {
-    if (editing) textareaRef.current?.focus();
+    if (!editing) return;
+    // Milkdown 基于 ProseMirror 渲染，挂载后聚焦正文区。
+    editorRef.current?.querySelector<HTMLElement>(".ProseMirror")?.focus();
   }, [editing]);
 
-  const commit = () => {
+  const commit = (markdown: string) => {
+    if (skipCommitRef.current) {
+      skipCommitRef.current = false;
+      return;
+    }
     setEditing(false);
-    if (draft === text) return;
+    if (markdown === text) return;
     updateElement({
       ...element,
-      props: { ...element.props, text: draft },
+      props: { ...element.props, text: markdown },
     } as CanvasElementDTO);
+  };
+
+  const cancel = () => {
+    skipCommitRef.current = true;
+    setDraft(text);
+    setEditing(false);
   };
 
   return (
     <div
       data-testid="canvas-text-card"
-      className={cn(CARD, nodeStateClass(props.selected || editing, props.dragging))}
+      data-editing={String(editing)}
+      className={cn(
+        CARD,
+        nodeStateClass(props.selected || editing, props.dragging, element.props.color),
+      )}
       style={nodeColorStyle(element.props.color)}
       tabIndex={0}
       onDoubleClick={readonly ? undefined : startEditing}
@@ -258,23 +287,24 @@ export function TextNode(props: NodeProps<CanvasNode>) {
       <Resizer visible={props.selected} />
       <Harness />
       {editing ? (
-        <textarea
-          ref={textareaRef}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
+        <div
+          ref={editorRef}
+          className="nodrag nopan nowheel min-h-0 flex-1 overflow-y-auto"
           onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              setDraft(text);
-              setEditing(false);
-            }
+            if (e.key === "Escape") cancel();
           }}
-          className="nodrag nowheel h-full w-full resize-none bg-transparent p-2 text-xs leading-5 outline-none"
-          aria-label="文本卡内容"
-        />
+        >
+          <MarkdownEditor
+            value={draft}
+            height="auto"
+            onChange={setDraft}
+            onBlur={commit}
+            className="px-2 py-1"
+          />
+        </div>
       ) : (
         <div className="nowheel min-h-0 flex-1 overflow-y-auto p-2">
-          <SimpleMarkdownPreview value={text} className="canvas-card-markdown" />
+          <MarkdownPreview value={text} zoomImages={false} />
         </div>
       )}
     </div>
@@ -283,7 +313,7 @@ export function TextNode(props: NodeProps<CanvasNode>) {
 
 /**
  * 组（parent node）：RF 原生子流程。子元素通过 parentId 嵌套、position 相对本节点。
- * 组名双击就地编辑。
+ * 外壳用 RF 内置 `.react-flow__node-group`；本组件只叠组名 / 工具栏 / handle / resizer。
  */
 export function GroupNode(props: NodeProps<CanvasNode>) {
   const element = props.data.element as CanvasElementDTO;
@@ -318,11 +348,7 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
           <div
             data-testid="canvas-group-node"
             data-group-label={label}
-            className={cn(
-              "group/canvas-node flex h-full w-full flex-col overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/50 bg-muted/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              nodeStateClass(props.selected, props.dragging),
-            )}
-            style={nodeColorStyle(element.props.color)}
+            className="group/canvas-node relative flex h-full w-full flex-col focus-visible:outline-none"
             tabIndex={0}
           />
         }
@@ -338,8 +364,9 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
               title="解组"
               onClick={() => onCellAction?.({ type: "ungroup", nodeId: element.id })}
             >
-              ↗
+              <Ungroup size={14} />
             </Button>
+            <NodeActions element={element} showRemove={false} showEdit={false} />
             <Button
               type="button"
               size="icon-sm"
@@ -351,13 +378,13 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
             >
               <Trash2 />
             </Button>
-            <NodeActions element={element} onEdit={startEditing} showRemove={false} />
           </CanvasNodeToolbar>
           <Resizer visible={props.selected} />
           <Harness />
+          {/* 悬浮在矩形左上角上边外的组名徽章 */}
           <div
             data-testid="canvas-group-label"
-            className="flex shrink-0 cursor-grab items-center gap-1.5 border-b border-muted-foreground/30 bg-muted/40 px-2 py-1"
+            className="absolute left-2 -top-3 z-10 flex max-w-[calc(100%-1rem)] cursor-grab items-center gap-1 rounded-md bg-background px-1.5 py-0.5 text-xs shadow-sm"
             onDoubleClick={readonly ? undefined : startEditing}
           >
             <PackageOpen size={12} className="shrink-0 text-muted-foreground" />
@@ -378,9 +405,7 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
                 aria-label="组名"
               />
             ) : (
-              <span className="min-w-0 flex-1 truncate text-xs font-medium">
-                {label || "未命名组"}
-              </span>
+              <span className="min-w-0 truncate text-xs font-medium">{label || "未命名组"}</span>
             )}
           </div>
           <div className="min-h-0 flex-1" />
@@ -407,7 +432,10 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
   );
 }
 
-/** 画布引用卡（强制需求）：展示目标画布标题；点击跳转；目标删除 → 占位。 */
+/**
+ * 画布引用卡（强制需求）：内嵌目标画布的实时小型预览；双击打开；目标删除 → 占位。
+ * 单击不跳转（避免误触，打开动作收敛到双击）。
+ */
 export function CanvasRefNode(props: NodeProps<CanvasNode>) {
   const element = props.data.element as CanvasElementDTO;
   const { referencedCanvases, onCanvasRefClick, onElementEdit, readonly } = useCanvasShapeData();
@@ -415,22 +443,23 @@ export function CanvasRefNode(props: NodeProps<CanvasNode>) {
   const target = canvasRefId ? referencedCanvases.get(canvasRefId) : undefined;
   const deleted = !target || target.deleted;
 
+  const open = () => {
+    if (!deleted && canvasRefId) onCanvasRefClick?.(canvasRefId);
+  };
+
   return (
-    <button
-      type="button"
+    <div
       data-testid="canvas-canvas-ref-card"
       data-canvas-ref-id={canvasRefId ?? ""}
       className={cn(
         CARD,
-        "nodrag nopan cursor-pointer items-center justify-center gap-1.5 p-2 text-center",
-        nodeStateClass(props.selected, props.dragging),
+        "relative cursor-pointer overflow-hidden",
+        nodeStateClass(props.selected, props.dragging, element.props.color),
       )}
       style={nodeColorStyle(element.props.color)}
       tabIndex={0}
-      onClick={() => {
-        if (!deleted && canvasRefId) onCanvasRefClick?.(canvasRefId);
-      }}
-      title={deleted ? "目标画布已删除" : "打开引用画布"}
+      onDoubleClick={readonly ? undefined : open}
+      title={deleted ? "目标画布已删除" : "双击打开引用画布"}
     >
       <CanvasNodeToolbar visible={props.selected && !readonly}>
         <NodeActions element={element} onEdit={() => onElementEdit?.(element)} />
@@ -438,21 +467,32 @@ export function CanvasRefNode(props: NodeProps<CanvasNode>) {
       <Resizer visible={props.selected} />
       <Harness />
       {deleted ? (
-        <>
-          <LockKeyhole size={14} className="text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">（已删除）</span>
-        </>
+        <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-3 text-muted-foreground">
+          <LockKeyhole size={14} />
+          <span className="text-xs">（已删除）</span>
+        </div>
       ) : (
         <>
-          <Link2 size={14} className="text-muted-foreground" />
-          <span className="min-w-0 truncate text-xs font-medium">{target.title}</span>
-          <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+          {target.document ? (
+            <div className="pointer-events-none absolute inset-0">
+              <CanvasReadOnlyView document={target.document} shapeData={target.shapeData} />
+            </div>
+          ) : (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 p-2 text-center">
+              <Link2 size={14} className="text-muted-foreground" />
+              <span className="min-w-0 truncate text-xs font-medium">{target.title}</span>
+            </div>
+          )}
+          <span className="absolute left-1.5 top-1.5 max-w-[70%] truncate rounded bg-background/80 px-1 text-[10px] font-medium text-foreground">
+            {target.title}
+          </span>
+          <span className="absolute right-1.5 bottom-1.5 flex items-center gap-0.5 rounded bg-background/80 px-1 text-[10px] text-muted-foreground">
             <GitBranch size={10} />
-            打开画布
+            双击打开
           </span>
         </>
       )}
-    </button>
+    </div>
   );
 }
 

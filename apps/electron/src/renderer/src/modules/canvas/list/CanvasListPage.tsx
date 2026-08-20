@@ -2,17 +2,9 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { Button } from "@reflecta/ui/components/button";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyMedia,
-  EmptyTitle,
-} from "@reflecta/ui/components/empty";
 import { ScrollArea } from "@reflecta/ui/components/scroll-area";
 import { Skeleton } from "@reflecta/ui/components/skeleton";
 import { useModal } from "@reflecta/ui/overlays";
-import { PageTopBar } from "@renderer/modules/shared/layout/PageTopBar";
 import { useNavigateToCanvas } from "@renderer/modules/shared/navigation";
 import type { CanvasDTO } from "@reflecta/server";
 import { errorMessage } from "@renderer/utils/errors";
@@ -22,19 +14,16 @@ import { CanvasRenameModal, useDeleteCanvas } from "./CanvasRenameModal";
 
 function CanvasListSkeleton() {
   return (
-    <div className="flex flex-col gap-2 p-4" aria-label="加载中">
+    <div className="space-y-1 px-2 py-3" aria-label="加载中">
       {[0, 1, 2].map((index) => (
-        <Skeleton key={index} className="h-14 w-full" />
+        <Skeleton key={index} className="h-8 w-full" />
       ))}
     </div>
   );
 }
 
-/**
- * 画布列表页（模块一：M1-1 列表 / M1-2 新建 / M1-3 删除确认 / M1-4 空状态）。
- * 按更新时间倒序；行交互（重命名 / 删除）沿用 shell 语言。
- */
-export function CanvasListPage() {
+/** 画布列表侧栏：与 Agent 的 thread sidebar 同级，detail 在右侧展开。 */
+export function CanvasListPanel({ selectedCanvasId }: { selectedCanvasId: string | null }) {
   const { data: canvases, isLoading } = useCanvasList();
   const createCanvas = useCreateCanvasMutation();
   const navigateToCanvas = useNavigateToCanvas();
@@ -59,59 +48,40 @@ export function CanvasListPage() {
   );
 
   return (
-    <div
-      data-testid="canvas-page"
-      className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background"
+    <aside
+      data-testid="canvas-list-panel"
+      className="flex h-full min-h-0 w-full flex-col overflow-hidden"
     >
-      <PageTopBar
-        testId="canvas-list-toolbar"
-        actions={
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => void handleCreate()}
-            data-testid="canvas-create-button"
-          >
-            <Plus size={14} />
-            新建画布
-          </Button>
-        }
-      >
-        <span className="text-sm font-medium">画布</span>
-      </PageTopBar>
+      <div className="relative flex h-10 shrink-0 items-center justify-between gap-1 px-5 pr-2">
+        <div data-testid="canvas-list-toolbar" className="min-w-0 truncate text-sm font-medium">
+          画布
+        </div>
+        <Button
+          data-testid="canvas-create-button"
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          aria-label="新建画布"
+          onClick={() => void handleCreate()}
+        >
+          <Plus size={16} />
+        </Button>
+      </div>
 
       <ScrollArea className="min-h-0 flex-1">
         {isLoading ? (
           <CanvasListSkeleton />
         ) : !canvases || canvases.length === 0 ? (
-          <div className="flex h-full min-h-0 items-center justify-center p-6">
-            <Empty>
-              <EmptyContent>
-                <EmptyMedia variant="icon">
-                  <Plus />
-                </EmptyMedia>
-                <EmptyTitle>还没有画布</EmptyTitle>
-                <EmptyDescription>
-                  画布把你的理解摆成结构：从素材库拖入理解卡，用连线表达「谁推导出谁」。
-                </EmptyDescription>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => void handleCreate()}
-                  data-testid="canvas-empty-create-button"
-                >
-                  <Plus size={14} />
-                  创建第一张画布
-                </Button>
-              </EmptyContent>
-            </Empty>
+          <div className="px-2 py-3 text-xs leading-5 text-muted-foreground">
+            <span>还没有画布</span>
           </div>
         ) : (
-          <div className="flex flex-col gap-2 p-4" data-testid="canvas-list">
+          <div className="space-y-1 px-2" data-testid="canvas-list">
             {canvases.map((canvas) => (
               <CanvasListRow
                 key={canvas.id}
                 canvas={canvas}
+                active={canvas.id === selectedCanvasId}
                 actions={{
                   onOpen: handleOpen,
                   onRename: (target) => openRenameModal(target),
@@ -122,7 +92,7 @@ export function CanvasListPage() {
           </div>
         )}
       </ScrollArea>
-    </div>
+    </aside>
   );
 }
 

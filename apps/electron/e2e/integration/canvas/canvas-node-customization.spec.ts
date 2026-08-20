@@ -36,15 +36,17 @@ test.describe("画布节点定制", () => {
 
       // Escape 取消：文本回退原文
       await card.dblclick();
-      const editor = nodeInGraph(page, "node").getByRole("textbox", { name: "文本卡内容" });
-      await editor.fill("SHOULD_NOT_SAVE");
-      await editor.press("Escape");
+      // Markdown 编辑器：正文区是 ProseMirror contenteditable
+      const prose = nodeInGraph(page, "node").locator(".ProseMirror");
+      await prose.click();
+      await prose.fill("SHOULD_NOT_SAVE");
+      await prose.press("Escape");
       await expect(card).toContainText("ORIGINAL");
 
       // 失焦提交：新文本生效
       await card.dblclick();
-      await editor.fill("COMMITTED_TEXT");
-      await editor.blur();
+      await prose.fill("COMMITTED_TEXT");
+      await prose.blur();
       await expect(card).toContainText("COMMITTED_TEXT");
     } finally {
       await app.close();
@@ -103,7 +105,8 @@ test.describe("画布节点定制", () => {
       const card = nodeInGraph(page, "ref").getByTestId("canvas-canvas-ref-card");
       await expect(card).toContainText("TARGET_CANVAS");
 
-      await card.click();
+      // 单击不跳转，双击打开
+      await card.dblclick();
       await expect(page.getByTestId("canvas-workspace-title-input")).toHaveValue("TARGET_CANVAS");
     } finally {
       await app.close();

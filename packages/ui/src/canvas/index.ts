@@ -15,6 +15,7 @@ export {
 export { toCanvasDocument, toFlowData, toFlowEdge, toFlowNode, newEdgeDto } from "./graph-document";
 export { canvasNodeTypes } from "./nodes";
 export { canvasEdgeTypes } from "./edges";
+export { setDndElement, getDndElement } from "./dnd";
 export {
   CanvasShapeDataProvider,
   CanvasElementUpdateProvider,

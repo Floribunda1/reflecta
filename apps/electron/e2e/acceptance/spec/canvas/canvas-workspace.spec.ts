@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { launchApp } from "../agent/agent-e2e";
 import {
   dragToGraph,
+  editTextCard,
   graphViewportTransform,
   inGraph,
   leaveWorkspace,
@@ -89,9 +90,7 @@ test("@CV-WS-004 用户在画布内搜索并定位", async () => {
     await dragToGraph(page, "canvas-tool-dnd-text", { x: 200, y: 180 });
     const card = inGraph(page, "canvas-text-card");
     await expect(card).toBeVisible({ timeout: 8000 });
-    await card.dblclick();
-    await page.getByLabel("文本卡内容").fill("SUBJECT_KEYWORD");
-    await page.getByLabel("文本卡内容").blur();
+    await editTextCard(page, card, "SUBJECT_KEYWORD");
     await waitForCanvasSave(page);
 
     const mod = process.platform === "darwin" ? "Meta" : "Control";

@@ -155,7 +155,8 @@ describe("canvas edges", () => {
     render({ ...edge, style: { color: "#123456" } }, { markerEnd: "arrow-marker" });
     expect(renderedStyle().stroke).toBe("var(--canvas-edge-stroke, #123456)");
     render({ ...edge, style: { color: "#123456" } }, { selected: true, markerEnd: "arrow-marker" });
-    expect(renderedStyle()).toMatchObject({ stroke: "var(--primary)", strokeWidth: 4 });
+    // 选中态使用边自身颜色（与卡片 selected 跟随 border 一致）。
+    expect(renderedStyle()).toMatchObject({ stroke: "#123456", strokeWidth: 4 });
     expect(container.querySelector('[data-testid="base-edge"]')?.getAttribute("data-marker")).toBe(
       "arrow-marker",
     );

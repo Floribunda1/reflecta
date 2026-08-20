@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { FileText, Search, X } from "lucide-react";
+import { BookOpen, FileText, Search, X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@reflecta/ui/components/tooltip";
 import { Button } from "@reflecta/ui/components/button";
 import { Input } from "@reflecta/ui/components/input";
 import { NativeSelect, NativeSelectOption } from "@reflecta/ui/components/native-select";
@@ -15,6 +16,7 @@ import {
 } from "../../capture/dashboard/sort";
 import type { DomainTreeNode } from "@shared/domain";
 import { newUnderstandingElement } from "./element-factory";
+import { setDndElement } from "@reflecta/ui/canvas";
 
 const DND_MIME = "application/reflecta-canvas-element";
 
@@ -32,7 +34,13 @@ function flattenDomains(
 /**
  * 库面板（M5）：领域过滤 / 搜索 / 排序 / 列表展示 / 拖入画布创建理解卡；关闭恢复全宽（M6-5）。
  */
-export function CanvasLibraryPanel({ onClose }: { onClose: () => void }) {
+export function CanvasLibraryPanel({
+  onClose,
+  onOpenCanvasRefPicker,
+}: {
+  onClose: () => void;
+  onOpenCanvasRefPicker: () => void;
+}) {
   const { domains } = useCaptureDomains();
   const [selectedDomainId, setSelectedDomainId] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -57,6 +65,23 @@ export function CanvasLibraryPanel({ onClose }: { onClose: () => void }) {
     >
       <header className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
         <span className="text-sm font-medium">理解库</span>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label="引用画布"
+                data-testid="canvas-open-canvasref-picker"
+                onClick={onOpenCanvasRefPicker}
+              />
+            }
+          >
+            <BookOpen size={14} />
+          </TooltipTrigger>
+          <TooltipContent>引用画布</TooltipContent>
+        </Tooltip>
         <Button
           type="button"
           size="icon-sm"
@@ -131,12 +156,12 @@ export function CanvasLibraryPanel({ onClose }: { onClose: () => void }) {
                 title="拖入画布创建理解卡"
                 draggable
                 onDragStart={(event) => {
-                  event.dataTransfer.setData(
-                    DND_MIME,
-                    JSON.stringify(newUnderstandingElement(understanding.id)),
-                  );
+                  const element = newUnderstandingElement(understanding.id);
+                  event.dataTransfer.setData(DND_MIME, JSON.stringify(element));
                   event.dataTransfer.effectAllowed = "move";
+                  setDndElement(element);
                 }}
+                onDragEnd={() => setDndElement(null)}
               >
                 <FileText size={13} className="shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1 truncate">

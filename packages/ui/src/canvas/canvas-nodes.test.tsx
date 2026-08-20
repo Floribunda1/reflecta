@@ -122,13 +122,14 @@ function render(view: ReactNode, shapeData: Partial<CanvasShapeData> = {}, onUpd
   return onUpdate;
 }
 
+const cardCases = [
+  ["understanding", UnderstandingNode, elements.understanding],
+  ["text", TextNode, elements.text],
+  ["canvas reference", CanvasRefNode, elements.canvas_ref],
+] as const;
+
 describe("canvas nodes", () => {
-  test.each([
-    ["understanding", UnderstandingNode, elements.understanding],
-    ["text", TextNode, elements.text],
-    ["group", GroupNode, elements.group],
-    ["canvas reference", CanvasRefNode, elements.canvas_ref],
-  ])(
+  test.each(cardCases)(
     "%s exposes content shell, both handles, selection, dragging, focus, and resizer",
     (_name, Component, element) => {
       render(<Component {...props(Component, element, { selected: true, dragging: true })} />);
@@ -145,16 +146,25 @@ describe("canvas nodes", () => {
     },
   );
 
-  test.each([
-    ["understanding", UnderstandingNode, elements.understanding],
-    ["text", TextNode, elements.text],
-    ["group", GroupNode, elements.group],
-    ["canvas reference", CanvasRefNode, elements.canvas_ref],
-  ])("%s shows hover ring when idle", (_name, Component, element) => {
+  test.each(cardCases)("%s shows hover ring when idle", (_name, Component, element) => {
     render(<Component {...props(Component, element)} />);
     expect(container.querySelector<HTMLElement>("[tabindex='0']")?.className).toContain(
       "hover:ring-2",
     );
+  });
+
+  test("group overlay keeps handles and resizer but does not draw a second frame", () => {
+    render(<GroupNode {...props(GroupNode, elements.group, { selected: true, dragging: true })} />);
+    expect(container.querySelector('[data-testid="handle-source"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="handle-target"]')).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="node-resizer"]')?.getAttribute("data-visible"),
+    ).toBe("true");
+    const overlay = container.querySelector<HTMLElement>('[data-testid="canvas-group-node"]');
+    expect(overlay?.className).not.toMatch(/\bborder\b/);
+    expect(overlay?.className).not.toContain("rounded-lg");
+    expect(overlay?.className).not.toContain("ring-2");
+    expect(overlay?.className).not.toContain("hover:ring-2");
   });
 
   test.each([
@@ -192,12 +202,19 @@ describe("canvas nodes", () => {
     expect(container.querySelector('input[aria-label="组名"]')).toBeNull();
   });
 
-  test("understanding renders referenced content and a deleted placeholder", () => {
+  test("understanding renders referenced content and a deleted placeholder", async () => {
     const refs = new Map([["u", { id: "u", title: "TITLE", body: "BODY", deleted: false }]]);
     render(<UnderstandingNode {...props(UnderstandingNode, elements.understanding)} />, {
       understandingRefs: refs,
     });
     expect(container.textContent).toContain("TITLE");
+    // 正文走 MarkdownPreview（Milkdown 异步渲染），轮询等待文本出现。
+    const deadline = Date.now() + 2000;
+    while (!container.textContent?.includes("BODY") && Date.now() < deadline) {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+    }
     expect(container.textContent).toContain("BODY");
     render(<UnderstandingNode {...props(UnderstandingNode, elements.understanding)} />, {
       understandingRefs: new Map(),
@@ -209,34 +226,22 @@ describe("canvas nodes", () => {
     const onUpdate = render(<TextNode {...props(TextNode, elements.text)} />);
     const card = container.querySelector<HTMLElement>('[data-testid="canvas-text-card"]')!;
     act(() => card.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })));
-    const textarea = container.querySelector<HTMLTextAreaElement>("textarea")!;
-    act(() => textarea.blur());
-    expect(onUpdate).not.toHaveBeenCalled();
-
-    act(() => card.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })));
-    const changed = container.querySelector<HTMLTextAreaElement>("textarea")!;
-    act(() => {
-      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(
-        changed,
-        "CHANGED",
-      );
-      changed.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-    act(() => changed.blur());
-    expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ props: { text: "CHANGED" } }));
-
-    render(<TextNode {...props(TextNode, elements.text)} />, {}, onUpdate);
-    act(() =>
-      container
-        .querySelector<HTMLElement>('[data-testid="canvas-text-card"]')!
-        .dispatchEvent(new MouseEvent("dblclick", { bubbles: true })),
-    );
-    const cancelled = container.querySelector<HTMLTextAreaElement>("textarea")!;
-    act(() =>
-      cancelled.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
-    );
+    // 双击进入 Markdown 编辑器（不再是 textarea）
     expect(container.querySelector("textarea")).toBeNull();
-    expect(onUpdate).toHaveBeenCalledTimes(1);
+    const editor = container.querySelector<HTMLElement>(".reflecta-md-editor");
+    expect(editor).not.toBeNull();
+
+    // Escape 取消编辑：不提交、回到预览（预览经 MarkdownPreview 也含 .reflecta-md-editor，
+    // 所以用 data-editing 状态判断编辑已关闭）
+    const editorWrap = container.querySelector<HTMLElement>(
+      '[data-testid="canvas-text-card"] .nodrag',
+    )!;
+    act(() =>
+      editorWrap.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+    );
+    expect(card.getAttribute("data-editing")).toBe("false");
+    expect(container.querySelector(".markdown-preview")).not.toBeNull();
+    expect(onUpdate).not.toHaveBeenCalled();
   });
 
   test("group rename and toolbar actions use the document callbacks", () => {
@@ -262,11 +267,13 @@ describe("canvas nodes", () => {
     });
     act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ props: { label: "RENAMED" } }));
+    // 工具栏顺序：解组、颜色（NodeActions）、删除组；删除应在最后。
     const buttons = [
       ...container.querySelectorAll<HTMLButtonElement>('[data-testid="node-toolbar"] button'),
     ];
+    expect(buttons).toHaveLength(3);
     act(() => buttons[0].click());
-    act(() => buttons[1].click());
+    act(() => buttons[2].click());
     expect(onCellAction.mock.calls.map(([action]) => action.type)).toEqual([
       "ungroup",
       "delete-group",
@@ -281,8 +288,11 @@ describe("canvas nodes", () => {
       onCanvasRefClick,
     });
     expect(container.textContent).toContain("TARGET_CANVAS");
+    // 单击不跳转，双击打开
     act(() =>
-      container.querySelector<HTMLButtonElement>('[data-testid="canvas-canvas-ref-card"]')!.click(),
+      container
+        .querySelector<HTMLElement>('[data-testid="canvas-canvas-ref-card"]')!
+        .dispatchEvent(new MouseEvent("dblclick", { bubbles: true })),
     );
     expect(onCanvasRefClick).toHaveBeenCalledWith("target");
 
@@ -291,7 +301,9 @@ describe("canvas nodes", () => {
       onCanvasRefClick,
     });
     act(() =>
-      container.querySelector<HTMLButtonElement>('[data-testid="canvas-canvas-ref-card"]')!.click(),
+      container
+        .querySelector<HTMLElement>('[data-testid="canvas-canvas-ref-card"]')!
+        .dispatchEvent(new MouseEvent("dblclick", { bubbles: true })),
     );
     expect(container.textContent).toContain("（已删除）");
     expect(onCanvasRefClick).toHaveBeenCalledTimes(1);

@@ -19,6 +19,22 @@ import {
  * - 建图 / 刷新用 `toFlowNodes / toFlowEdges`；变更回写用 `toCanvasDocument`。
  */
 
+/**
+ * 组外壳画在 RF 的 `.react-flow__node-group` 上。有 paint 时把官方边框/底/选中
+ * 阴影涂成该色；无 paint 时不写 inline style，走画布上覆盖的 token 变量。
+ */
+export function toGroupNodeStyle(element: CanvasElementDTO): CSSProperties | undefined {
+  if (element.kind !== "group") return undefined;
+  const paint = canvasPaintColor(element.props.color);
+  if (!paint) return undefined;
+  return {
+    borderColor: paint,
+    backgroundColor: `color-mix(in srgb, ${paint} 10%, transparent)`,
+    ["--xy-node-boxshadow-selected" as string]: `0 0 0 2px ${paint}`,
+    ["--xy-node-boxshadow-hover" as string]: `0 0 0 2px ${paint}`,
+  };
+}
+
 /** 元素 DTO → React Flow node。 */
 export function toFlowNode(element: CanvasElementDTO): Node {
   return {
@@ -31,6 +47,7 @@ export function toFlowNode(element: CanvasElementDTO): Node {
     parentId: element.parentId ?? undefined,
     extent: element.parentId ? "parent" : undefined,
     expandParent: element.parentId ? true : undefined,
+    style: toGroupNodeStyle(element),
     data: { element },
   };
 }
@@ -38,6 +55,13 @@ export function toFlowNode(element: CanvasElementDTO): Node {
 /** 连线 DTO → React Flow edge。 */
 export function toFlowEdge(edge: CanvasEdgeDTO): Edge {
   const style = edge.style ?? DEFAULT_CANVAS_EDGE_STYLE;
+  const color = canvasPaintColor(style.color) ?? "var(--muted-foreground)";
+  const arrowhead =
+    style.arrowhead === "block"
+      ? MarkerType.ArrowClosed
+      : style.arrowhead === "arrow"
+        ? MarkerType.Arrow
+        : undefined;
   return {
     id: edge.id,
     type: "canvas",
@@ -45,17 +69,14 @@ export function toFlowEdge(edge: CanvasEdgeDTO): Edge {
     target: edge.targetElementId,
     data: { edge },
     style: {
-      stroke: canvasPaintColor(style.color) ?? "var(--muted-foreground)",
+      stroke: color,
       strokeWidth: style.width === "thick" ? 4 : style.width === "medium" ? 3 : 2,
       strokeDasharray:
         style.lineStyle === "dashed" ? "5 5" : style.lineStyle === "dotted" ? "2 2" : undefined,
     } satisfies CSSProperties,
-    markerEnd:
-      style.arrowhead === "block"
-        ? MarkerType.ArrowClosed
-        : style.arrowhead === "arrow"
-          ? MarkerType.Arrow
-          : undefined,
+    // 箭头必须用对象形式（含 color），RF 才会为它创建 marker def；
+    // 裸的 MarkerType 字符串只当引用不存在的 id，箭头不渲染。
+    markerEnd: arrowhead ? { type: arrowhead, color } : undefined,
   };
 }
 

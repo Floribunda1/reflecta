@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PanelsTopLeft } from "lucide-react";
+import { Library, PanelsTopLeft, Type } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   CanvasGraph,
   CanvasZoomControls,
   type CanvasGraphHandle,
+  type CanvasReferencedCanvasView,
   type CanvasShapeData,
 } from "@reflecta/ui/canvas";
 import type { CanvasDocument, CanvasViewport } from "@reflecta/ui/canvas";
@@ -24,11 +25,13 @@ import {
 } from "@reflecta/ui/components/resizable";
 import { cn } from "@reflecta/ui/lib/utils";
 import { Button } from "@reflecta/ui/components/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@reflecta/ui/components/tooltip";
 import { RESIZE_HANDLE_CLASS } from "@renderer/modules/shared/layout/layout-constants";
 import {
   canvasQueryKeys,
   refreshCanvasDetail,
   useCanvasDetail,
+  useReferencedCanvasPreviews,
   useSaveCanvasMutation,
   useUpdateViewportMutation,
 } from "../queries";
@@ -38,7 +41,8 @@ import { CanvasLibraryPanel } from "./CanvasLibraryPanel";
 import { CanvasRefPickerModal } from "./CanvasRefPickerModal";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { CanvasSearchOverlay, type CanvasSearchIndexItem } from "./CanvasSearchOverlay";
-import { newCanvasRefElement } from "./element-factory";
+import { newCanvasRefElement, newTextElement } from "./element-factory";
+import { setDndElement } from "@reflecta/ui/canvas";
 import {
   buildCanvasSearchIndex,
   panelForSelection,
@@ -48,6 +52,58 @@ import { createDebouncedLatestSaver, type SaveStatus } from "./debounced-latest-
 
 const SAVE_DEBOUNCE_MS = 800;
 const VIEWPORT_SETTLE_MS = 600;
+const DND_MIME = "application/reflecta-canvas-element";
+
+function CanvasTextTool() {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            aria-label="文本"
+            data-testid="canvas-tool-dnd-text"
+            draggable
+            onDragStart={(event) => {
+              const element = newTextElement();
+              event.dataTransfer.setData(DND_MIME, JSON.stringify(element));
+              event.dataTransfer.effectAllowed = "move";
+              setDndElement(element);
+            }}
+            onDragEnd={() => setDndElement(null)}
+          />
+        }
+      >
+        <Type size={15} />
+      </TooltipTrigger>
+      <TooltipContent>文本</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function CanvasUnderstandingTool({ open, onClick }: { open: boolean; onClick: () => void }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            type="button"
+            size="icon-sm"
+            variant={open ? "secondary" : "ghost"}
+            aria-label="理解库"
+            data-testid="canvas-toggle-library-button"
+            onClick={onClick}
+          />
+        }
+      >
+        <Library size={15} />
+      </TooltipTrigger>
+      <TooltipContent>理解库</TooltipContent>
+    </Tooltip>
+  );
+}
 
 function CanvasEmptyState() {
   return (
@@ -171,10 +227,31 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     [canvasId, queryClient],
   );
 
-  const shapeData = useMemo<CanvasShapeData>(
-    () => ({
+  const refIds = useMemo(() => (detail?.referencedCanvases ?? []).map((ref) => ref.id), [detail]);
+  const { data: refPreviews } = useReferencedCanvasPreviews(refIds);
+
+  const shapeData = useMemo<CanvasShapeData>(() => {
+    const refMap = new Map<string, CanvasReferencedCanvasView>();
+    for (const ref of detail?.referencedCanvases ?? []) {
+      const preview = refPreviews?.find((item) => item?.canvas.id === ref.id) ?? null;
+      refMap.set(ref.id, {
+        ...ref,
+        document: preview ? { elements: preview.elements, edges: preview.edges } : undefined,
+        shapeData: preview
+          ? {
+              understandingRefs: new Map(
+                (preview.understandingRefs ?? []).map((item) => [item.id, item]),
+              ),
+              referencedCanvases: new Map(
+                (preview.referencedCanvases ?? []).map((item) => [item.id, item]),
+              ),
+            }
+          : undefined,
+      });
+    }
+    return {
       understandingRefs: new Map((detail?.understandingRefs ?? []).map((ref) => [ref.id, ref])),
-      referencedCanvases: new Map((detail?.referencedCanvases ?? []).map((ref) => [ref.id, ref])),
+      referencedCanvases: refMap,
       onCanvasRefClick: (targetCanvasId) => navigateToCanvas(targetCanvasId),
       onCellAction: (action) => {
         if (action.type === "delete-group") graphRef.current?.deleteGroup(action.nodeId);
@@ -186,9 +263,8 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
         if (element.kind === "understanding" && element.understandingId)
           setRightPanel({ mode: "detail", understandingId: element.understandingId });
       },
-    }),
-    [detail, navigateToCanvas],
-  );
+    };
+  }, [detail, refPreviews, navigateToCanvas]);
 
   // 画布引用卡创建：选目标画布 → 经 handle 命令式落卡
   const handleOpenCanvasRefPicker = useCallback(() => {
@@ -289,14 +365,7 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
       data-testid="canvas-workspace"
       className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background"
     >
-      <CanvasToolbar
-        canvas={canvas}
-        libraryOpen={libraryOpen}
-        onToggleLibrary={() =>
-          setRightPanel(rightPanel?.mode === "library" ? null : { mode: "library" })
-        }
-        onOpenCanvasRefPicker={handleOpenCanvasRefPicker}
-      />
+      <CanvasToolbar canvas={canvas} onExportPng={() => void graphRef.current?.exportPng()} />
 
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 min-w-0 flex-1">
         <ResizablePanel
@@ -320,6 +389,16 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
               className="absolute inset-0"
             />
 
+            <div className="absolute top-3 left-3 z-20 flex items-center gap-1 rounded-md border bg-background/90 p-1 shadow-sm">
+              <CanvasTextTool />
+              <CanvasUnderstandingTool
+                open={libraryOpen}
+                onClick={() =>
+                  setRightPanel(rightPanel?.mode === "library" ? null : { mode: "library" })
+                }
+              />
+            </div>
+
             {saveStatus === "error" ? (
               <div className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded-md border border-destructive/30 bg-background px-3 py-2 text-xs text-destructive shadow-sm">
                 <span>画布保存失败，修改仍未保存</span>
@@ -341,15 +420,6 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
               onZoomOut={() => graphRef.current?.graph?.zoomOut()}
               onFit={() => graphRef.current?.graph?.fitView({ padding: 0.2, maxZoom: 1 })}
             />
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              className="absolute bottom-4 left-32 z-10"
-              onClick={() => void graphRef.current?.exportPng()}
-            >
-              导出 PNG
-            </Button>
 
             {searchOpen ? (
               <CanvasSearchOverlay
@@ -376,7 +446,10 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
               className="min-h-0 min-w-0"
             >
               {rightPanel.mode === "library" ? (
-                <CanvasLibraryPanel onClose={() => setRightPanel(null)} />
+                <CanvasLibraryPanel
+                  onClose={() => setRightPanel(null)}
+                  onOpenCanvasRefPicker={handleOpenCanvasRefPicker}
+                />
               ) : rightPanel.mode === "detail" ? (
                 <CanvasDetailPanel
                   key={detailPanelKey}

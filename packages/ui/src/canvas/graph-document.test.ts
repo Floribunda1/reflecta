@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { MarkerType } from "@xyflow/react";
 import type { CanvasDocument, CanvasElementDTO } from "./document";
-import { toCanvasDocument, toFlowData, toFlowEdge } from "./graph-document";
+import { toCanvasDocument, toFlowData, toFlowEdge, toFlowNode } from "./graph-document";
 
 const timestamp = "2026-08-19T00:00:00.000Z";
 
@@ -141,6 +141,23 @@ describe("CanvasDocument React Flow adapter", () => {
     expect(toFlowData({ elements: [element("text")], edges: [] }).nodes[0].zIndex).toBe(3);
   });
 
+  test("paints group chrome onto the React Flow wrapper, not a second inner frame", () => {
+    const plain = element("group", "group");
+    expect(toFlowNode(plain).style).toBeUndefined();
+    const painted = {
+      ...element("group", "group"),
+      kind: "group" as const,
+      understandingId: null,
+      canvasRefId: null,
+      props: { label: "Group", color: "chart-1" },
+    } satisfies CanvasElementDTO;
+    expect(toFlowNode(painted).style).toMatchObject({
+      borderColor: "var(--chart-1)",
+      backgroundColor: "color-mix(in srgb, var(--chart-1) 10%, transparent)",
+    });
+    expect(toCanvasDocument([toFlowNode(painted)], []).elements[0]).toEqual(painted);
+  });
+
   test("preserves parallel edges and self loops", () => {
     const edge = {
       id: "edge-1",
@@ -199,7 +216,7 @@ describe("CanvasDocument React Flow adapter", () => {
     ["arrow", MarkerType.Arrow],
     ["block", MarkerType.ArrowClosed],
     ["none", undefined],
-  ] as const)("maps %s arrowheads", (arrowhead, markerEnd) => {
+  ] as const)("maps %s arrowheads", (arrowhead, markerType) => {
     expect(
       toFlowEdge({
         id: "edge",
@@ -210,7 +227,7 @@ describe("CanvasDocument React Flow adapter", () => {
         style: { arrowhead },
         createdAt: timestamp,
       }).markerEnd,
-    ).toBe(markerEnd);
+    ).toEqual(markerType ? { type: markerType, color: "var(--muted-foreground)" } : undefined);
   });
 
   test("maps custom edge color independently", () => {

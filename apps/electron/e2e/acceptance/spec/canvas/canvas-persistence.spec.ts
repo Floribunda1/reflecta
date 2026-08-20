@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { launchApp } from "../agent/agent-e2e";
 import {
   dragToGraph,
+  editTextCard,
   firstNodeTransform,
   graphViewportTransform,
   inGraph,
@@ -20,9 +21,7 @@ test("@CV-PERSIST-001 用户重新进入画布后文本内容完整还原", asyn
     const textCard = inGraph(page, "canvas-text-card");
     await expect(textCard).toBeVisible({ timeout: 8000 });
 
-    await textCard.dblclick();
-    await page.getByLabel("文本卡内容").fill("TEXT_BODY");
-    await page.getByLabel("文本卡内容").blur();
+    await editTextCard(page, textCard, "TEXT_BODY");
     await expect(textCard).toContainText("TEXT_BODY");
     await waitForCanvasSave(page);
 

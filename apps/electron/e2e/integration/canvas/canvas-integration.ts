@@ -35,6 +35,25 @@ export async function viewportTransform(page: Page): Promise<string | null> {
   return page.getByTestId("canvas-graph").locator(".react-flow__viewport").getAttribute("style");
 }
 
+/** 给定屏幕坐标处最顶层元素的 className 链（断言元素是否置顶、不被节点遮挡）。 */
+export async function topmostChainAt(page: Page, x: number, y: number): Promise<string> {
+  return page.evaluate(
+    ([px, py]) => {
+      const el = document.elementFromPoint(px, py);
+      if (!el) return "";
+      const chain: string[] = [];
+      let cur: Element | null = el;
+      while (cur && cur !== document.body) {
+        const testId = cur.getAttribute?.("data-testid");
+        chain.push(testId ?? cur.className?.toString?.() ?? cur.tagName);
+        cur = cur.parentElement;
+      }
+      return chain.join("|");
+    },
+    [x, y] as [number, number],
+  );
+}
+
 /** 从卡片 source handle（右缘）拖到另一卡片 target handle（左缘），建立有向边。 */
 export async function dragHandleToHandle(page: Page, sourceNode: Locator, targetNode: Locator) {
   await sourceNode

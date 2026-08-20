@@ -1,71 +1,29 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, BookOpen, Library, PenLine } from "lucide-react";
+import { Download, MoreHorizontal } from "lucide-react";
 import { Button } from "@reflecta/ui/components/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@reflecta/ui/components/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@reflecta/ui/components/dropdown-menu";
 import { PageTopBar } from "@renderer/modules/shared/layout/PageTopBar";
-import { CANVAS_ROUTE } from "@renderer/modules/shared/navigation";
 import type { CanvasDTO } from "@reflecta/server";
-import { useNavigate } from "react-router-dom";
 import { errorMessage } from "@renderer/utils/errors";
 import { useRenameCanvasMutation } from "../queries";
-import { newTextElement } from "./element-factory";
-
-const DND_MIME = "application/reflecta-canvas-element";
-
-/** 工具栏拖入源：HTML5 drag，把元素 DTO 写入 dataTransfer，由画布 onDrop 落点。 */
-function DndSource({
-  label,
-  testId,
-  icon,
-  createElement,
-}: {
-  label: string;
-  testId: string;
-  icon: React.ReactNode;
-  createElement: () => ReturnType<typeof newTextElement>;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            aria-label={label}
-            data-testid={testId}
-            draggable
-            onDragStart={(event) => {
-              event.dataTransfer.setData(DND_MIME, JSON.stringify(createElement()));
-              event.dataTransfer.effectAllowed = "move";
-            }}
-          >
-            {icon}
-          </Button>
-        }
-      />
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
-  );
-}
 
 /**
- * 工作区顶部工具栏：返回列表 + 画布标题就地编辑 + 「理解库」/「引用画布」入口 +
- * 文本拖入源。
+ * 工作区顶部工具栏：返回列表 + 画布标题就地编辑；右上角 more（⋯）菜单
+ * 收纳导出 PNG 等二级操作。
  */
 export function CanvasToolbar({
   canvas,
-  libraryOpen,
-  onToggleLibrary,
-  onOpenCanvasRefPicker,
+  onExportPng,
 }: {
   canvas: CanvasDTO | null;
-  libraryOpen: boolean;
-  onToggleLibrary: () => void;
-  onOpenCanvasRefPicker: () => void;
+  onExportPng: () => void;
 }) {
-  const navigate = useNavigate();
   const renameCanvas = useRenameCanvasMutation();
   const [draftTitle, setDraftTitle] = useState("");
 
@@ -89,18 +47,32 @@ export function CanvasToolbar({
   };
 
   return (
-    <PageTopBar testId="canvas-workspace-toolbar">
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        aria-label="返回画布列表"
-        data-testid="canvas-workspace-back-button"
-        onClick={() => navigate(CANVAS_ROUTE)}
-      >
-        <ArrowLeft size={16} />
-      </Button>
-
+    <PageTopBar
+      testId="canvas-workspace-toolbar"
+      actions={
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label="更多"
+                data-testid="canvas-toolbar-more"
+              />
+            }
+          >
+            <MoreHorizontal size={16} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem data-testid="canvas-export-png" onClick={onExportPng}>
+              <Download size={14} />
+              导出 PNG
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      }
+    >
       <input
         data-testid="canvas-workspace-title-input"
         value={draftTitle}
@@ -110,40 +82,8 @@ export function CanvasToolbar({
           if (event.key === "Enter") (event.target as HTMLInputElement).blur();
         }}
         aria-label="画布标题"
-        className="h-8 w-56 rounded-md border border-transparent bg-transparent px-2 text-sm font-medium outline-none transition-colors hover:border-border focus:border-border"
+        className="h-8 w-auto min-w-0 max-w-[min(520px,100%)] border-0 bg-transparent px-0 text-sm font-medium shadow-none outline-none focus-visible:ring-0"
       />
-
-      <span className="mx-1 h-4 w-px bg-border" aria-hidden />
-
-      <DndSource
-        label="文本"
-        testId="canvas-tool-dnd-text"
-        icon={<PenLine size={15} />}
-        createElement={newTextElement}
-      />
-      <span className="mx-1 h-4 w-px bg-border" aria-hidden />
-
-      <Button
-        type="button"
-        size="sm"
-        variant={libraryOpen ? "secondary" : "ghost"}
-        data-testid="canvas-toggle-library-button"
-        onClick={onToggleLibrary}
-      >
-        <Library size={14} />
-        理解库
-      </Button>
-
-      <Button
-        type="button"
-        size="sm"
-        variant="ghost"
-        data-testid="canvas-open-canvasref-picker"
-        onClick={onOpenCanvasRefPicker}
-      >
-        <BookOpen size={14} />
-        引用画布
-      </Button>
     </PageTopBar>
   );
 }

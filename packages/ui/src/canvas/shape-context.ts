@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { CanvasElementDTO } from "./document";
+import type { CanvasDocument, CanvasElementDTO } from "./document";
 import type { CanvasEdgeDTO } from "./document";
 
 /**
@@ -20,11 +20,17 @@ export type CanvasReferencedCanvasView = {
   id: string;
   title: string;
   deleted: boolean;
+  /** 目标画布文档：引用卡内嵌实时小型预览用 */
+  document?: CanvasDocument;
+  /** 目标画布的展示数据：预览内嵌理解卡 / 嵌套引用卡渲染用 */
+  shapeData?: CanvasShapeData;
 };
 
 export type CanvasShapeData = {
   /** 只读画布禁用节点自身的编辑与操作菜单 */
   readonly?: boolean;
+  /** 多选状态：≥2 个元素被选中 → 用选区工具栏（group/delete），隐藏各节点的独立操作工具栏 */
+  multiSelected?: boolean;
   /** 引用理解（画布上理解卡展示全文） */
   understandingRefs: ReadonlyMap<string, CanvasUnderstandingRefView>;
   /** 引用画布（画布引用卡展示目标标题；目标被删 → 占位） */

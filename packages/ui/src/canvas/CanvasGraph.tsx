@@ -17,6 +17,7 @@ import {
   useEdgesState,
   useNodesState,
   useReactFlow,
+  useViewport,
   type Connection,
   type Edge,
   type EdgeChange,
@@ -28,14 +29,23 @@ import {
   getNodesBounds,
   getViewportForBounds,
 } from "@xyflow/react";
+import { Group, Trash2 } from "lucide-react";
 import { toPng } from "html-to-image";
 import "@xyflow/react/dist/style.css";
 import {} from "../components/context-menu";
 import { Button } from "../components/button";
 import { cn } from "../lib/utils";
 import type { CanvasDocument, CanvasViewport } from "./document";
-import { newEdgeDto, toCanvasDocument, toFlowData, toFlowEdge } from "./graph-document";
+import {
+  newEdgeDto,
+  toCanvasDocument,
+  toFlowData,
+  toFlowEdge,
+  toGroupNodeStyle,
+} from "./graph-document";
 import { canvasNodeTypes } from "./nodes";
+import { canvasPaintColor } from "./color-swatches";
+import { getDndElement } from "./dnd";
 import { canvasEdgeTypes } from "./edges";
 import { deleteGroupBranch, groupSelectedNodes, ungroupNodes } from "./graph-operations";
 import {
@@ -98,14 +108,87 @@ export type CanvasGraphProps = {
   onSelectionChange?: (cellIds: string[]) => void;
   /** canvasId：新建连线初始 DTO 归属 */
   canvasId?: string;
+  /** 主容器 testid（嵌套预览传不同值，避免严格模式选择器撞名） */
+  testId?: string;
   className?: string;
   style?: CSSProperties;
 };
 
 const nodeTypes = canvasNodeTypes;
-const CANVAS_SNAP_GRID: [number, number] = [20, 20];
+// 10px snap：节点尺寸是 20 的倍数时，中心落在 10px 网格上；
+// 若 snap 也是 20，两张不同高度的卡片中心永远无法在 x 轴上对齐（连线必然有拐角）。
+// 改成 10 后，默认尺寸（120 / 220 等）的中心都落在同一 10px 网格上，可对齐成直线。
+const CANVAS_SNAP_GRID: [number, number] = [10, 10];
+const DND_MIME = "application/reflecta-canvas-element";
 const CANVAS_EDGE_STATE_CLASS =
   "[&_.react-flow__edge:hover]:[--canvas-edge-stroke:var(--primary)] [&_.react-flow__edge:hover]:[--xy-edge-stroke:var(--primary)] [&_.react-flow__edge.selected]:[--xy-edge-stroke:var(--primary)] [&_.react-flow__edge.selected]:[--xy-edge-stroke-selected:var(--primary)]";
+// 组外壳用 RF 内置 `.react-flow__node-group`（padding / 边框 / 底 / 选中阴影），
+// 只把官方色值换成设计 token；type 叫 group 才会吃到这套皮。
+const CANVAS_GROUP_CLASS = [
+  "[--xy-node-border:1px_solid_var(--border)]",
+  "[--xy-node-border-radius:var(--radius-lg)]",
+  "[--xy-node-group-background-color:color-mix(in_oklch,var(--muted)_40%,transparent)]",
+  "[--xy-node-boxshadow-selected:0_0_0_2px_var(--ring)]",
+  "[--xy-node-boxshadow-hover:0_1px_4px_1px_color-mix(in_oklch,var(--foreground)_8%,transparent)]",
+  "[&_.react-flow__node-group]:text-left",
+  "[&_.react-flow__node-group.dragging]:opacity-80",
+].join(" ");
+
+/**
+ * 选区工具栏：跟随选中节点集合，锚定到选区上方的屏幕坐标。
+ * 用 useViewport 订阅视口 → 平移 / 缩放时仅此小组件重算位置，选区工具条跟着图形走。
+ */
+function SelectionToolbar({
+  nodes,
+  selectedNodeIds,
+  onGroup,
+  onDelete,
+}: {
+  nodes: Node[];
+  selectedNodeIds: string[];
+  onGroup: () => void;
+  onDelete: () => void;
+}) {
+  const viewport = useViewport();
+  if (selectedNodeIds.length < 2) return null;
+  const selected = nodes.filter((n) => selectedNodeIds.includes(n.id));
+  if (selected.length === 0) return null;
+  const bounds = getNodesBounds(selected);
+  const left = (bounds.x + bounds.width / 2) * viewport.zoom + viewport.x;
+  const top = bounds.y * viewport.zoom + viewport.y;
+  return (
+    <div
+      data-testid="canvas-selection-toolbar"
+      className="absolute z-10 flex items-center gap-1 rounded-md border bg-background p-1 shadow-sm"
+      style={{ left, top, transform: "translate(-50%, -100%)" }}
+    >
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className="nodrag nopan"
+        aria-label="打组"
+        title="打组"
+        data-testid="canvas-selection-group-button"
+        onClick={onGroup}
+      >
+        <Group size={14} />
+      </Button>
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className="nodrag nopan text-destructive"
+        aria-label="删除"
+        title="删除"
+        data-testid="canvas-selection-delete-button"
+        onClick={onDelete}
+      >
+        <Trash2 size={14} />
+      </Button>
+    </div>
+  );
+}
 
 const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function CanvasFlow(props, ref) {
   const {
@@ -115,6 +198,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
     viewportReady = true,
     shapeData = EMPTY_CANVAS_SHAPE_DATA,
     canvasId = "",
+    testId = "canvas-graph",
     onDocumentChange,
     onViewportChange,
     onSelectionChange,
@@ -126,6 +210,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
   const onDocumentChangeRef = useRef(onDocumentChange);
   const onViewportChangeRef = useRef(onViewportChange);
   const onSelectionChangeRef = useRef(onSelectionChange);
+  const applyingInitialViewportRef = useRef(false);
   onDocumentChangeRef.current = onDocumentChange;
   onViewportChangeRef.current = onViewportChange;
   onSelectionChangeRef.current = onSelectionChange;
@@ -142,6 +227,13 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const nodesRef = useRef(nodes);
   const edgesRef = useRef(edges);
+
+  // DnD 落点预览：拖入时跟随光标的虚线占位框（不生成节点、不写文档）。
+  // 用一个常驻、默认透明度 0 的占位框，位置/尺寸/显隐全走 DOM style，
+  // 避免首次 dragover 时 setState 渲染出左上角 (0,0) 的闪一下。
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dropPreviewRef = useRef<HTMLDivElement>(null);
+  const dragElementRef = useRef<CanvasElementDTO | null>(null);
   nodesRef.current = nodes;
   edgesRef.current = edges;
 
@@ -195,6 +287,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
   const handleOnViewportChange = useCallback(
     (v: Viewport) => {
       if (readonly) return;
+      if (applyingInitialViewportRef.current) return;
       onViewportChangeRef.current?.({ x: v.x, y: v.y, zoom: v.zoom });
     },
     [readonly],
@@ -217,7 +310,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
   const handleElementUpdate = useCallback(
     (element: CanvasElementDTO) => {
       const next = nodesRef.current.map((n) =>
-        n.id === element.id ? { ...n, data: { element } } : n,
+        n.id === element.id ? { ...n, data: { element }, style: toGroupNodeStyle(element) } : n,
       );
       nodesRef.current = next;
       setNodes(next);
@@ -376,6 +469,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
           position: { x: 60, y: 60 },
           width: element.width,
           height: element.height,
+          zIndex: element.zIndex,
           data: { element },
         };
         const next = [...nodesRef.current, node];
@@ -408,6 +502,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
   // 避免 detail 未到时 fitView 抢跑并触发回写覆盖已存视口。
   useEffect(() => {
     if (!viewportReady) return;
+    applyingInitialViewportRef.current = true;
     if (viewport) {
       instance.setViewport({
         x: viewport.x,
@@ -417,17 +512,73 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
     } else {
       instance.fitView({ padding: 0.2, maxZoom: 1 });
     }
+    const frame = requestAnimationFrame(() => {
+      applyingInitialViewportRef.current = false;
+    });
+    return () => cancelAnimationFrame(frame);
   }, [viewport, viewportReady, instance]);
 
-  // DnD：外部（工具栏 / 库面板）拖入 → addNode
-  const onDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
+  // DnD 落点预览：占位框跟随光标（首次 dragover 从暂存读元素尺寸 / 颜色）。
+  const moveDropPreview = useCallback(
+    (e: React.DragEvent) => {
+      const container = containerRef.current;
+      const preview = dropPreviewRef.current;
+      if (!container || !preview) return;
+      // dataTransfer.getData 在 dragover 阶段读不到（仅 drop 可读），
+      // 因此用源在 dragstart 写入的暂存元素 + types 判定的组合来初始化预览。
+      if (!dragElementRef.current && e.dataTransfer.types.includes(DND_MIME)) {
+        const element = getDndElement();
+        if (element) dragElementRef.current = element;
+      }
+      const element = dragElementRef.current;
+      if (!element) return;
+      const zoom = instance.getZoom();
+      const rect = container.getBoundingClientRect();
+      // 按 zoom 缩放，占位框落地的屏幕尺寸与真实节点一致；左上角对齐光标（= drop 落点）。
+      preview.style.width = `${element.width * zoom}px`;
+      preview.style.height = `${element.height * zoom}px`;
+      preview.style.transform = `translate(${e.clientX - rect.left}px, ${e.clientY - rect.top}px)`;
+      preview.style.borderColor = canvasPaintColor(element.props.color) ?? "var(--primary)";
+      preview.style.opacity = "1";
+    },
+    [instance],
+  );
+  const clearDropPreview = useCallback(() => {
+    dragElementRef.current = null;
+    const preview = dropPreviewRef.current;
+    if (preview) preview.style.opacity = "0";
   }, []);
+
+  // DnD：外部（工具栏 / 库面板）拖入 → addNode；dragover 时显示落点预览。
+  const onDragOver = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (!readonly) moveDropPreview(e);
+    },
+    [moveDropPreview, readonly],
+  );
+  const onDragLeave = useCallback(
+    (e: React.DragEvent) => {
+      // 移入容器后代（节点 / 后台等）也会触发 dragleave；用坐标判断指针是否真离开容器，
+      // 避免 relatedTarget 为 null 时误清除预览。
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const inside =
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom;
+      if (!inside) clearDropPreview();
+    },
+    [clearDropPreview],
+  );
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
-      const raw = e.dataTransfer.getData("application/reflecta-canvas-element");
+      clearDropPreview();
+      const raw = e.dataTransfer.getData(DND_MIME);
       if (!raw || readonly) return;
       try {
         const element = JSON.parse(raw) as import("./document").CanvasElementDTO;
@@ -441,6 +592,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
           position,
           width: element.width,
           height: element.height,
+          zIndex: element.zIndex,
           data: { element },
         };
         const next = [...nodesRef.current, node];
@@ -451,17 +603,53 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
         // ignore malformed payload
       }
     },
-    [emitDocument, instance, readonly, setNodes],
+    [clearDropPreview, emitDocument, instance, readonly, setNodes],
   );
 
+  // 多选：选区工具栏显示于选区上方，各节点隐藏独立操作工具栏。
+  const multiSelected = !readonly && selectedNodeIds.length >= 2;
+  const shapeContextValue = useMemo(
+    () => ({ ...shapeData, readonly, multiSelected }),
+    [shapeData, readonly, multiSelected],
+  );
+
+  // 删除整个选区（含被选组的所有后代）。
+  const deleteSelection = useCallback(() => {
+    const toDelete = new Set(selectedNodeIds);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const n of nodesRef.current) {
+        if (n.parentId && toDelete.has(n.parentId) && !toDelete.has(n.id)) {
+          toDelete.add(n.id);
+          grew = true;
+        }
+      }
+    }
+    const nextNodes = nodesRef.current.filter((n) => !toDelete.has(n.id));
+    if (nextNodes.length === nodesRef.current.length) return;
+    const nextEdges = edgesRef.current.filter(
+      (e) => !toDelete.has(e.source) && !toDelete.has(e.target),
+    );
+    nodesRef.current = nextNodes;
+    edgesRef.current = nextEdges;
+    setNodes(nextNodes);
+    setEdges(nextEdges);
+    setSelectedNodeIds([]);
+    emitDocument();
+  }, [emitDocument, selectedNodeIds, setEdges, setNodes]);
+
+  // 选区工具栏：位置由 SelectionToolbar 组件内的 useViewport 实时派生，平移 / 缩放跟随。
+
   return (
-    <CanvasShapeDataProvider value={readonly ? { ...shapeData, readonly: true } : shapeData}>
+    <CanvasShapeDataProvider value={shapeContextValue}>
       <CanvasElementUpdateProvider value={handleElementUpdate}>
         <CanvasEdgeUpdateProvider value={handleEdgeUpdate}>
           <div
-            className={cn(CANVAS_EDGE_STATE_CLASS, className)}
+            ref={containerRef}
+            className={cn("relative", CANVAS_EDGE_STATE_CLASS, CANVAS_GROUP_CLASS, className)}
             style={style}
-            data-testid="canvas-graph"
+            data-testid={testId}
           >
             <ReactFlow
               nodes={nodes}
@@ -474,6 +662,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
               onSelectionChange={handleSelectionChange}
               onViewportChange={handleOnViewportChange}
               onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
               onDrop={onDrop}
               selectionOnDrag
               selectionMode={SelectionMode.Partial}
@@ -488,25 +677,35 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
               deleteKeyCode={readonly ? null : "Backspace"}
             >
               <Background gap={20} size={1} color="rgb(0 0 0 / 0.08)" />
-              {!readonly && selectedNodeIds.length >= 2 ? (
-                <div
-                  data-testid="canvas-selection-toolbar"
-                  className="absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-1 rounded-md border bg-background p-1 shadow-sm"
-                >
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    className="h-7 px-2 text-xs"
-                    data-testid="canvas-selection-group-button"
-                    onClick={() => groupSelection(selectedNodeIds)}
-                  >
-                    打组
-                  </Button>
-                </div>
+              <SelectionToolbar
+                nodes={nodes}
+                selectedNodeIds={selectedNodeIds}
+                onGroup={() => groupSelection(selectedNodeIds)}
+                onDelete={deleteSelection}
+              />
+              {!readonly ? (
+                <MiniMap
+                  position="bottom-right"
+                  pannable
+                  zoomable
+                  bgColor="var(--muted)"
+                  nodeColor="var(--card)"
+                  nodeStrokeColor="var(--border)"
+                  nodeStrokeWidth={1}
+                  maskColor="color-mix(in oklch, var(--background) 85%, transparent)"
+                  maskStrokeColor="var(--ring)"
+                  maskStrokeWidth={1}
+                />
               ) : null}
-              {!readonly ? <MiniMap position="bottom-right" pannable zoomable /> : null}
             </ReactFlow>
+            {!readonly ? (
+              <div
+                ref={dropPreviewRef}
+                data-testid="canvas-drop-preview"
+                className="pointer-events-none absolute left-0 top-0 z-[5] rounded-lg border-2 border-dashed bg-background/60 opacity-0"
+                style={{ width: 220, height: 120, borderColor: "var(--primary)" }}
+              />
+            ) : null}
           </div>
         </CanvasEdgeUpdateProvider>
       </CanvasElementUpdateProvider>

@@ -29,6 +29,7 @@ export function CanvasReadOnlyView({
       shapeData={shapeData}
       className={className}
       style={style}
+      testId="canvas-readonly-graph"
     />
   );
 }

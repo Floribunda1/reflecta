@@ -37,6 +37,16 @@ export function useCanvasDetail(canvasId: string | null) {
   });
 }
 
+/** 引用画布卡的小型预览：一次性拉取所有被引用画布的详情（按 id 排序签名做 queryKey）。 */
+export function useReferencedCanvasPreviews(refIds: string[]) {
+  const key = [...refIds].sort().join(",");
+  return useQuery<(CanvasDetailDTO | null)[]>({
+    queryKey: ["understandingCanvas.refPreviews", key] as const,
+    queryFn: () => Promise.all(refIds.map((id) => ipcClient.understandingCanvas.getCanvas(id))),
+    enabled: refIds.length > 0,
+  });
+}
+
 /** M6-6 / M8-8：某理解出现在哪些画布（画布归属）。 */
 export function useCanvasListByUnderstanding(understandingId: string | null) {
   const queryKey = [

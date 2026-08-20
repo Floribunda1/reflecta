@@ -18,7 +18,7 @@ import {
 } from "../components/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/popover";
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowRight, CircleDot, Minus, Palette, Spline, Trash2, Type } from "lucide-react";
+import { ArrowRight, CircleDot, Minus, Palette, Spline, Trash2 } from "lucide-react";
 import { canvasPaintColor, CanvasColorSwatches } from "./color-swatches";
 import { DEFAULT_CANVAS_EDGE_STYLE, type CanvasEdgeDTO, type CanvasEdgeStyle } from "./document";
 import { useCanvasEdgeUpdate, useCanvasShapeData } from "./shape-context";
@@ -105,9 +105,9 @@ function EdgeStyleMenu<T extends string>({
 function lineStyle(style: CanvasEdgeStyle | null, selected: boolean) {
   const color = canvasPaintColor(style?.color) ?? "var(--muted-foreground)";
   return {
-    // --primary 已是 hex，不能包 hsl()，否则 selected stroke 会 IACVT 成 none。
+    // 选中态使用边自身颜色（与卡片 selected 跟随 border 一致）；
     // hover 色由父级 `.react-flow__edge:hover` 写入 --canvas-edge-stroke。
-    stroke: selected ? "var(--primary)" : `var(--canvas-edge-stroke, ${color})`,
+    stroke: selected ? color : `var(--canvas-edge-stroke, ${color})`,
     strokeWidth: selected ? 4 : style?.width === "thick" ? 4 : style?.width === "medium" ? 3 : 2,
     strokeDasharray:
       style?.lineStyle === "dashed" ? "5 5" : style?.lineStyle === "dotted" ? "2 2" : undefined,
@@ -118,7 +118,7 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
   const edge = props.data?.edge;
   if (!edge) return null;
   const updateEdge = useCanvasEdgeUpdate();
-  const { readonly, onCellAction } = useCanvasShapeData();
+  const { readonly, multiSelected, onCellAction } = useCanvasShapeData();
   const [path, labelX, labelY] = pathFor(edge.style, props);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(edge.label ?? "");
@@ -149,21 +149,14 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
       <EdgeToolbar
         edgeId={props.id}
         x={labelX}
-        y={labelY}
-        isVisible={Boolean(props.selected) && !readonly}
+        // 去掉 28px，让工具栏整体抬到边线上方，避免盖住边；
+        // z-index 1001：高于被选中的节点（RF 提升选中节点到 1000），工具栏永远置顶。
+        y={labelY - 28}
+        isVisible={Boolean(props.selected) && !readonly && !multiSelected}
         className="flex gap-1 rounded-md border bg-background p-1 shadow-sm"
+        style={{ zIndex: 1001 }}
       >
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          className="nodrag nopan"
-          aria-label="编辑标签"
-          title="编辑标签"
-          onClick={() => setEditing(true)}
-        >
-          <Type />
-        </Button>
+        {/* 标签编辑走双击边（BaseEdge onDoubleClick），工具栏不放重复入口 */}
         <Popover>
           <PopoverTrigger
             render={
