@@ -28,7 +28,6 @@ import {
   ContextListError,
   AssetError,
   CanvasExportError,
-  SearchError,
   InsightsError,
   UnderstandingError,
   CanvasError,
@@ -220,7 +219,6 @@ app.whenReady().then(async () => {
       Effect.catchDefect((defect) => Effect.fail(ctxErr(`操作失败：${String(defect)}`))),
     );
   const assetErr = (message: string) => new AssetError({ reason: message, code: 500 });
-  const searchErr = (message: string) => new SearchError({ reason: message, code: 500 });
   const insightsErr = (message: string) => new InsightsError({ reason: message, code: 500 });
   const uErr = (message: string) => new UnderstandingError({ reason: message, code: 500 });
   const cErr = (message: string) => new CanvasError({ reason: message, code: 500 });
@@ -348,32 +346,20 @@ app.whenReady().then(async () => {
           return logFilePath;
         }),
       "search.searchUnderstandings": ({ query, options }) =>
-        Effect.tryPromise({
-          try: () =>
-            searchService.searchUnderstandings(
-              query,
-              options as import("@reflecta/server").SearchOptions | undefined,
-            ),
-          catch: (e) => searchErr(e instanceof Error ? e.message : String(e)),
-        }),
+        searchService.searchUnderstandings(
+          query,
+          options as import("@reflecta/server").SearchOptions | undefined,
+        ),
       "search.searchContexts": ({ query, options }) =>
-        Effect.tryPromise({
-          try: () =>
-            searchService.searchContexts(
-              query,
-              options as import("@reflecta/server").SearchOptions | undefined,
-            ),
-          catch: (e) => searchErr(e instanceof Error ? e.message : String(e)),
-        }),
+        searchService.searchContexts(
+          query,
+          options as import("@reflecta/server").SearchOptions | undefined,
+        ),
       "search.search": ({ query, options }) =>
-        Effect.tryPromise({
-          try: () =>
-            searchService.search(
-              query,
-              options as import("@reflecta/server").SearchOptions | undefined,
-            ),
-          catch: (e) => searchErr(e instanceof Error ? e.message : String(e)),
-        }),
+        searchService.search(
+          query,
+          options as import("@reflecta/server").SearchOptions | undefined,
+        ),
       "insights.getRecapData": () =>
         Effect.tryPromise({
           try: () => getRecapDataOp(),

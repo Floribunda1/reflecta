@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { inArray } from "drizzle-orm";
 import { understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
@@ -12,7 +13,8 @@ export class SearchCliBff extends SearchCore {
   }
 
   async search(query: string, options?: SearchOptions): Promise<SearchOutput> {
-    const retrievalHits = await this.searchRetrievalDocuments(query, options);
+    const db = this.db;
+    const retrievalHits = await Effect.runPromise(this.searchRetrievalDocuments(query, options));
     const understandingIds = [
       ...new Set(
         retrievalHits
@@ -23,11 +25,11 @@ export class SearchCliBff extends SearchCore {
     const understandingRows =
       understandingIds.length === 0
         ? []
-        : await this.db
+        : await db
             .select()
             .from(understandings)
             .where(inArray(understandings.id, understandingIds));
-    const summaries = await toUnderstandingSummaries(this.db, understandingRows);
+    const summaries = await toUnderstandingSummaries(db, understandingRows);
     const summaryMap = new Map(summaries.map((summary) => [summary.id, summary]));
 
     const hits: SearchHit[] = [];
