@@ -124,31 +124,37 @@ Phase 6  v4 稳定收口 + 全量回归
 - 现 4 个 zustand store：`theme` / `capture` / `chat-ui` / `canvas`。
 - ③ 逻辑层的 React 对接（`useAtom` / `useSyncExternalStore`）由此落位。
 
-### P4-2｜③ 逻辑层 → Effect services（在 P4-0/1 之上）
+### P4-2丨A 错误处理层（横向）：typed-error 分发替代 message 兜底
 
-| 原语（旧命令式模块）                      | Effect 形态                                                                      | 备注                                        |
-| ----------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------- |
-| `useUnderstandingDraftSave` 的 save queue | `Context.Service`（内部 `Queue` + 单 worker fiber + `Deferred` + revision 门控） | 删除式：旧命令式队列随调用方一次移除        |
-| `debounced-latest-saver`                  | `Context.Service`（timer fiber + `Fiber.interrupt` + revision）                  | 调用方 `CanvasWorkspace` 改纯绑定           |
-| `AgentSessionReplica`                     | `Context.Service`（per-session 生命周期 → fiber/Scope 中断、refcount）           | 🔴 最险：chat 流式依赖，独立评估可单独立 PR |
+> 发起方纠正（2026-08-20）：此前 P4-2/3/4 是粗略扫描的零散清单。**真意 = renderer 里所有“重逻辑 / 错误处理”写成 Effect 惯用写法**（`Effect.gen/fn` + services/Layer + `catchTag`/`catchReason`/`retry`/`Schedule`），跑在 `lib/atoms` runtime 上；React 只当 view。
 
-- React 侧：hooks 收敛为**纯绑定**（读 atom / `useSyncExternalStore`），不再持有命令式并发对象。
-- 删除式（R1）：旧命令式模块连同全部调用方一次移除，不留兼容层。
+- **弃用 `utils/errors.ts` 的 `errorMessage(error)`**（message 兜底）：所有 `rpc.*` 调用点（queryFn / mutation / handlers）已带 **typed domain error**，改用 `Effect.catchTag`/`catchReason`/`match` 分发。
+- 建统一 `renderRpcError` service（或 handler）：把 typed error `match` 成用户可读文案 + toast 副作用；未匹配分支走 `Effect.catch` 兜底；类型上保证 exhaustiveness。
+- 迁移涉及：settings(About/Ai/Trash/Storage)、capture(DomainTree/hooks)、chat(index/message-adapter/agent-thread-panel/...) 等 10+ 处。
 
-### P4-3｜③ 状态机/多步流程 → Effect 程序
+### P4-2丨B 重逻辑 → Effect services（不只 3 个原语）
 
-- `CaptureDraft` 保存态、理解详情流程、chat 流式 → 显式状态 Effect 程序（atoms 承接状态）。
+| 单元                                                           | Effect 形态                                                              |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `useUnderstandingDraftSave` save queue                         | `Context.Service`（`Queue` + worker fiber + `Deferred` + revision 门控） |
+| `debounced-latest-saver`                                       | `Context.Service`（timer fiber + `Fiber.interrupt` + revision）          |
+| `AgentSessionReplica`                                          | `Context.Service`（per-session 生命周期 → fiber/Scope、refcount）🔴最险  |
+| `understanding-detail/hooks.ts`、`domain/hooks.ts`             | 异步 mutation/流程 → Effect 程序（`retry`/`timeout`/sequence）           |
+| CanvasWorkspace 保存 / 视口提交、thread-action-menu 等 handler | Effect 程序                                                              |
+| CaptureDraft 状态机（已 atom 化）                              | 显式状态 Effect 程序                                                     |
 
-### P4-4｜① typed-error 分发 ＋ ⑤ invalidate 织网
+- React 侧：hooks 收敛为**纯绑定**（读 atom / `useSyncExternalStore` / runtime），不持有命令式并发对象。
+- 删除式（R1）：旧命令式实现连同调用方一次移除。
 
-- renderer 用 `catchTag`/`match` 分发域错误，替代 message 兜底。
-- 重做 `queries.ts` 等手动 invalidate 链 → 事件驱动（可配合 atom/事件总线）。
+### P4-3丨C 数据层（保留 TanStack Query 互补分工，不改缓存层）
+
+- queryFn / mutation body 内已跑 Effect（`Effect.runPromise(rpc.*)`），保留；只把错误分发升级为 P4-2A。
 
 ### 顺手清理（各单元顺带）
 
 - dead export、旧类型别名、过期注释；`queryFn` 内跑 Effect（P3 已顺带完成，保留 React Query）。
 
-**退出标准**：renderer 无 `createIpcProxy`、无手写 invalidate 网（或已事件化）、无手写并发原语残留；本地状态单一（atoms）；hooks 收敛为纯绑定；逻辑层全部为 Effect services（非散装 `runSync`）。
+**退出标准**（发起方真意）：renderer 无手写 invalidate 网（或已事件化）、无手写并发原语残留；本地状态单一（atoms）；hooks 收敛为纯绑定；**所有“重逻辑 / 错误处理”点均以 Effect 惯用写法实现**（非散装 `runSync`、非 message 兜底）。
 
 ---
 
