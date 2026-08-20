@@ -112,137 +112,134 @@ export function createRetrievalIndex() {
   });
 }
 
-export const buildRetrievalDocumentsFromDb = (
+export const buildRetrievalDocumentsFromDb = Effect.fn("buildRetrievalDocumentsFromDb")(function* (
   db: ReflectaDb,
   understandingIds?: string[],
-): Effect.Effect<RetrievalDocument[] | never[]> => {
+): Effect.fn.Return<RetrievalDocument[]> {
   const db_ = db;
-  return Effect.gen(function* () {
-    const conditions = [isNull(understandings.deletedAt)];
-    if (understandingIds !== undefined) {
-      if (understandingIds.length === 0) return [];
-      conditions.push(inArray(understandings.id, understandingIds));
-    }
+  const conditions = [isNull(understandings.deletedAt)];
+  if (understandingIds !== undefined) {
+    if (understandingIds.length === 0) return [];
+    conditions.push(inArray(understandings.id, understandingIds));
+  }
 
-    const understandingRows = yield* Effect.promise(() =>
+  const understandingRows = yield* Effect.promise(() =>
+    db_
+      .select()
+      .from(understandings)
+      .where(and(...conditions))
+      .orderBy(desc(understandings.updatedAt)),
+  );
+  if (understandingRows.length === 0) return [];
+
+  const activeUnderstandingIds = understandingRows.map((understanding) => understanding.id);
+  const [domainRefs, contextRows] = yield* Effect.all([
+    resolveDomainRefs(db_, activeUnderstandingIds),
+    Effect.promise(() =>
       db_
         .select()
-        .from(understandings)
-        .where(and(...conditions))
-        .orderBy(desc(understandings.updatedAt)),
-    );
-    if (understandingRows.length === 0) return [];
-
-    const activeUnderstandingIds = understandingRows.map((understanding) => understanding.id);
-    const [domainRefs, contextRows] = yield* Effect.all([
-      resolveDomainRefs(db_, activeUnderstandingIds),
-      Effect.promise(() =>
-        db_
-          .select()
-          .from(contexts)
-          .where(
-            and(
-              inArray(contexts.understandingId, activeUnderstandingIds),
-              isNull(contexts.deletedAt),
-            ),
+        .from(contexts)
+        .where(
+          and(
+            inArray(contexts.understandingId, activeUnderstandingIds),
+            isNull(contexts.deletedAt),
           ),
-      ),
-    ]);
-    const contextsByUnderstandingId = new Map<string, typeof contextRows>();
-    for (const context of contextRows) {
-      const items = contextsByUnderstandingId.get(context.understandingId) ?? [];
-      items.push(context);
-      contextsByUnderstandingId.set(context.understandingId, items);
-    }
+        ),
+    ),
+  ]);
+  const contextsByUnderstandingId = new Map<string, typeof contextRows>();
+  for (const context of contextRows) {
+    const items = contextsByUnderstandingId.get(context.understandingId) ?? [];
+    items.push(context);
+    contextsByUnderstandingId.set(context.understandingId, items);
+  }
 
-    return understandingRows.flatMap((understanding) =>
-      buildRetrievalDocuments({
-        understanding,
-        domains: domainRefs.get(understanding.id) ?? [],
-        contexts: (contextsByUnderstandingId.get(understanding.id) ?? []).map((context) => ({
-          id: context.id,
-          medium: context.medium,
-          title: context.title,
-          content: context.content,
-          createdAt: context.createdAt,
-        })),
-      }),
-    );
-  });
-};
+  return understandingRows.flatMap((understanding) =>
+    buildRetrievalDocuments({
+      understanding,
+      domains: domainRefs.get(understanding.id) ?? [],
+      contexts: (contextsByUnderstandingId.get(understanding.id) ?? []).map((context) => ({
+        id: context.id,
+        medium: context.medium,
+        title: context.title,
+        content: context.content,
+        createdAt: context.createdAt,
+      })),
+    }),
+  );
+});
 
-export const rebuildRetrievalIndex = (
+export const rebuildRetrievalIndex = Effect.fn("rebuildRetrievalIndex")(function* (
   db: ReflectaDb,
   options?: RetrievalIndexWorkOptions,
-): Effect.Effect<RetrievalIndexWorkResult, Error> =>
-  Effect.gen(function* () {
-    reportProgress(options, "preparing", 0, 0);
-    const docs = yield* buildRetrievalDocumentsFromDb(db);
-    reportProgress(options, "embedding", 0, docs.length);
-    yield* Effect.tryPromise({
-      try: () =>
-        createRetrievalIndex().replaceAll(docs, {
-          onEmbeddingProgress: ({ completed, total }) =>
-            reportProgress(options, "embedding", completed, total),
-          onWritingStart: () => reportProgress(options, "writing", docs.length, docs.length),
-        }),
-      catch: toError,
-    });
-    return { modified: true, operationCount: 0 };
+): Effect.fn.Return<RetrievalIndexWorkResult, Error> {
+  reportProgress(options, "preparing", 0, 0);
+  const docs = yield* buildRetrievalDocumentsFromDb(db);
+  reportProgress(options, "embedding", 0, docs.length);
+  yield* Effect.tryPromise({
+    try: () =>
+      createRetrievalIndex().replaceAll(docs, {
+        onEmbeddingProgress: ({ completed, total }) =>
+          reportProgress(options, "embedding", completed, total),
+        onWritingStart: () => reportProgress(options, "writing", docs.length, docs.length),
+      }),
+    catch: toError,
   });
+  return { modified: true, operationCount: 0 };
+});
 
-export const syncRetrievalIndexByUnderstandingIds = (
+export const syncRetrievalIndexByUnderstandingIds = Effect.fn(
+  "syncRetrievalIndexByUnderstandingIds",
+)(function* (
   db: ReflectaDb,
   understandingIds: string[],
   options?: RetrievalIndexWorkOptions,
-): Effect.Effect<RetrievalIndexWorkResult, Error> =>
-  Effect.gen(function* () {
-    const ids = [...new Set(understandingIds)];
-    if (ids.length === 0) return { modified: false, operationCount: 0 };
-    const index = createRetrievalIndex();
-    if (!(yield* Effect.tryPromise({ try: () => index.isReady(), catch: toError }))) {
-      return yield* rebuildRetrievalIndex(db, options);
-    }
+): Effect.fn.Return<RetrievalIndexWorkResult, Error> {
+  const ids = [...new Set(understandingIds)];
+  if (ids.length === 0) return { modified: false, operationCount: 0 };
+  const index = createRetrievalIndex();
+  if (!(yield* Effect.tryPromise({ try: () => index.isReady(), catch: toError }))) {
+    return yield* rebuildRetrievalIndex(db, options);
+  }
 
-    reportProgress(options, "preparing", 0, ids.length);
-    const docs = yield* buildRetrievalDocumentsFromDb(db, ids);
-    reportProgress(options, "embedding", 0, docs.length);
-    yield* Effect.tryPromise({
-      try: () =>
-        index.replaceUnderstandingDocuments(ids, docs, {
-          onEmbeddingProgress: ({ completed, total }) =>
-            reportProgress(options, "embedding", completed, total),
-          onWritingStart: () => reportProgress(options, "writing", ids.length, ids.length),
-        }),
-      catch: toError,
-    });
-    return { modified: true, operationCount: 1 };
+  reportProgress(options, "preparing", 0, ids.length);
+  const docs = yield* buildRetrievalDocumentsFromDb(db, ids);
+  reportProgress(options, "embedding", 0, docs.length);
+  yield* Effect.tryPromise({
+    try: () =>
+      index.replaceUnderstandingDocuments(ids, docs, {
+        onEmbeddingProgress: ({ completed, total }) =>
+          reportProgress(options, "embedding", completed, total),
+        onWritingStart: () => reportProgress(options, "writing", ids.length, ids.length),
+      }),
+    catch: toError,
   });
+  return { modified: true, operationCount: 1 };
+});
 
-export const reconcileRetrievalIndex = (
+export const reconcileRetrievalIndex = Effect.fn("reconcileRetrievalIndex")(function* (
   db: ReflectaDb,
   options?: RetrievalIndexWorkOptions,
-): Effect.Effect<RetrievalIndexWorkResult, Error> =>
-  Effect.gen(function* () {
-    reportProgress(options, "preparing", 0, 0);
-    const index = createRetrievalIndex();
-    const manifest = yield* Effect.tryPromise({ try: () => index.readManifest(), catch: toError });
-    if (manifest === null) return yield* rebuildRetrievalIndex(db, options);
+): Effect.fn.Return<RetrievalIndexWorkResult, Error> {
+  reportProgress(options, "preparing", 0, 0);
+  const index = createRetrievalIndex();
+  const manifest = yield* Effect.tryPromise({ try: () => index.readManifest(), catch: toError });
+  if (manifest === null) return yield* rebuildRetrievalIndex(db, options);
 
-    const docs = yield* buildRetrievalDocumentsFromDb(db);
-    const currentById = new Map(docs.map((doc) => [doc.id, doc]));
-    const indexedById = new Map(manifest.map((entry) => [entry.id, entry]));
-    const affectedIds = new Set<string>();
+  const docs = yield* buildRetrievalDocumentsFromDb(db);
+  const currentById = new Map(docs.map((doc) => [doc.id, doc]));
+  const indexedById = new Map(manifest.map((entry) => [entry.id, entry]));
+  const affectedIds = new Set<string>();
 
-    for (const doc of docs) {
-      if (indexedById.get(doc.id)?.contentHash !== doc.contentHash) {
-        affectedIds.add(doc.parentUnderstandingId);
-      }
+  for (const doc of docs) {
+    if (indexedById.get(doc.id)?.contentHash !== doc.contentHash) {
+      affectedIds.add(doc.parentUnderstandingId);
     }
-    for (const entry of manifest) {
-      if (!currentById.has(entry.id)) affectedIds.add(entry.parentUnderstandingId);
-    }
+  }
+  for (const entry of manifest) {
+    if (!currentById.has(entry.id)) affectedIds.add(entry.parentUnderstandingId);
+  }
 
-    if (affectedIds.size === 0) return { modified: false, operationCount: 0 };
-    return yield* syncRetrievalIndexByUnderstandingIds(db, [...affectedIds], options);
-  });
+  if (affectedIds.size === 0) return { modified: false, operationCount: 0 };
+  return yield* syncRetrievalIndexByUnderstandingIds(db, [...affectedIds], options);
+});

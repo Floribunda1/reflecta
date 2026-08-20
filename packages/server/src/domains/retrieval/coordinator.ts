@@ -250,14 +250,12 @@ export class RetrievalIndexCoordinator implements RetrievalIndexUpdateSink {
     if (this.modificationOperations < this.optimizeAfterOperations) return Effect.succeed(true);
 
     return this.operations.optimize().pipe(
-      // optimize 失败不影响已提交数据：记 warn，计数保留，留给下次更新重试
+      // optimize 失败不影响已提交数据：记 warn（走 Effect 日志管道），计数保留，留给下次更新重试
       Effect.matchEffect({
         onFailure: (error) =>
-          Effect.sync(() =>
-            console.warn(
-              "Retrieval index optimization failed; data remains searchable and maintenance will retry after the next update.",
-              error,
-            ),
+          Effect.logWarning(
+            "Retrieval index optimization failed; data remains searchable and maintenance will retry after the next update.",
+            error,
           ),
         onSuccess: () =>
           Effect.sync(() => {

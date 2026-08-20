@@ -7,6 +7,7 @@ import { createDBInstance, type ReflectaDb } from "../db";
 import { DomainCore } from "./domain/core";
 import { ContextCore } from "./context/core";
 import { UnderstandingCore } from "./understanding/core";
+import { expectEffectFailure } from "../test-utils/assert-effect";
 
 let tempDir: string;
 let db: ReflectaDb;
@@ -27,14 +28,14 @@ describe("domain write integrity", () => {
   test("validates domain ids inside Understanding writes", async () => {
     const understandings = new UnderstandingCore(db);
 
-    await expect(
-      Effect.runPromise(
-        understandings._createUnderstanding({ body: "body", domainIds: ["missing-domain"] }),
-      ),
-    ).rejects.toMatchObject({
-      _tag: "UnderstandingDomainNotFoundError",
-      domainId: "missing-domain",
-    });
+    await expectEffectFailure(
+      understandings._createUnderstanding({ body: "body", domainIds: ["missing-domain"] }),
+      (error) =>
+        expect(error).toMatchObject({
+          _tag: "UnderstandingDomainNotFoundError",
+          domainId: "missing-domain",
+        }),
+    );
   });
 
   test("validates Domain parents inside Domain writes", async () => {
@@ -44,12 +45,12 @@ describe("domain write integrity", () => {
       domains.createDomain({ name: "Child", parentId: parent.id }),
     );
 
-    await expect(
-      Effect.runPromise(domains.createDomain({ name: "Bad", parentId: "missing" })),
-    ).rejects.toMatchObject({ _tag: "DomainNotFoundError" });
-    await expect(
-      Effect.runPromise(domains.updateDomain(parent.id, { parentId: child.id })),
-    ).rejects.toMatchObject({ _tag: "InvalidParentError" });
+    await expectEffectFailure(domains.createDomain({ name: "Bad", parentId: "missing" }), (error) =>
+      expect(error).toMatchObject({ _tag: "DomainNotFoundError" }),
+    );
+    await expectEffectFailure(domains.updateDomain(parent.id, { parentId: child.id }), (error) =>
+      expect(error).toMatchObject({ _tag: "InvalidParentError" }),
+    );
   });
 
   test("validates Domain parents inside reorder writes", async () => {
@@ -59,34 +60,31 @@ describe("domain write integrity", () => {
       domains.createDomain({ name: "Child", parentId: parent.id }),
     );
 
-    await expect(
-      Effect.runPromise(
-        domains.reorderDomains([{ id: parent.id, parentId: child.id, sortOrder: 0 }]),
-      ),
-    ).rejects.toMatchObject({ _tag: "InvalidParentError" });
-    await expect(
-      Effect.runPromise(
-        domains.reorderDomains([{ id: child.id, parentId: "missing", sortOrder: 0 }]),
-      ),
-    ).rejects.toMatchObject({ _tag: "DomainNotFoundError" });
+    await expectEffectFailure(
+      domains.reorderDomains([{ id: parent.id, parentId: child.id, sortOrder: 0 }]),
+      (error) => expect(error).toMatchObject({ _tag: "InvalidParentError" }),
+    );
+    await expectEffectFailure(
+      domains.reorderDomains([{ id: child.id, parentId: "missing", sortOrder: 0 }]),
+      (error) => expect(error).toMatchObject({ _tag: "DomainNotFoundError" }),
+    );
   });
 
   test("validates Context targets inside Context writes", async () => {
     const contexts = new ContextCore(db);
     const understandings = new UnderstandingCore(db);
 
-    await expect(
-      Effect.runPromise(
-        contexts._createContext({
-          understandingId: "missing-understanding",
-          medium: "ai",
-          content: "content",
-        }),
-      ),
-    ).rejects.toMatchObject({ _tag: "ContextUnderstandingNotFoundError" });
-    await expect(
-      Effect.runPromise(contexts._updateContext("missing-context", {})),
-    ).rejects.toMatchObject({ _tag: "NoContextFieldsError" });
+    await expectEffectFailure(
+      contexts._createContext({
+        understandingId: "missing-understanding",
+        medium: "ai",
+        content: "content",
+      }),
+      (error) => expect(error).toMatchObject({ _tag: "ContextUnderstandingNotFoundError" }),
+    );
+    await expectEffectFailure(contexts._updateContext("missing-context", {}), (error) =>
+      expect(error).toMatchObject({ _tag: "NoContextFieldsError" }),
+    );
 
     const understanding = await Effect.runPromise(
       understandings._createUnderstanding({ body: "body" }),
@@ -98,10 +96,9 @@ describe("domain write integrity", () => {
         content: "content",
       }),
     );
-    await expect(
-      Effect.runPromise(
-        contexts._updateContext(context.id, { understandingId: "missing-understanding" }),
-      ),
-    ).rejects.toMatchObject({ _tag: "ContextUnderstandingNotFoundError" });
+    await expectEffectFailure(
+      contexts._updateContext(context.id, { understandingId: "missing-understanding" }),
+      (error) => expect(error).toMatchObject({ _tag: "ContextUnderstandingNotFoundError" }),
+    );
   });
 });

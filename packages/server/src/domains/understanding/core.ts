@@ -35,38 +35,37 @@ export class UnderstandingDomainNotFoundError extends S.TaggedError<Understandin
 
 export type UnderstandingError = UnderstandingNotFoundError | UnderstandingDomainNotFoundError;
 
-export const getUnderstandingMentionCounts = (
+export const getUnderstandingMentionCounts = Effect.fn("getUnderstandingMentionCounts")(function* (
   db: ReflectaDb,
   understandingId: string,
-): Effect.Effect<{ contextCount: number; referenceCount: number; referencedByCount: number }> =>
-  Effect.gen(function* () {
-    const [ctxCountRes, refCountRes, refByCountRes] = yield* Effect.all([
-      Effect.promise(() =>
-        db
-          .select({ count: count() })
-          .from(contexts)
-          .where(and(eq(contexts.understandingId, understandingId), isNull(contexts.deletedAt))),
-      ),
-      Effect.promise(() =>
-        db
-          .select({ count: count() })
-          .from(understandingMentions)
-          .where(eq(understandingMentions.sourceId, understandingId)),
-      ),
-      Effect.promise(() =>
-        db
-          .select({ count: count() })
-          .from(understandingMentions)
-          .where(eq(understandingMentions.targetId, understandingId)),
-      ),
-    ]);
+): Effect.fn.Return<{ contextCount: number; referenceCount: number; referencedByCount: number }> {
+  const [ctxCountRes, refCountRes, refByCountRes] = yield* Effect.all([
+    Effect.promise(() =>
+      db
+        .select({ count: count() })
+        .from(contexts)
+        .where(and(eq(contexts.understandingId, understandingId), isNull(contexts.deletedAt))),
+    ),
+    Effect.promise(() =>
+      db
+        .select({ count: count() })
+        .from(understandingMentions)
+        .where(eq(understandingMentions.sourceId, understandingId)),
+    ),
+    Effect.promise(() =>
+      db
+        .select({ count: count() })
+        .from(understandingMentions)
+        .where(eq(understandingMentions.targetId, understandingId)),
+    ),
+  ]);
 
-    return {
-      contextCount: ctxCountRes[0]?.count ?? 0,
-      referenceCount: refCountRes[0]?.count ?? 0,
-      referencedByCount: refByCountRes[0]?.count ?? 0,
-    };
-  });
+  return {
+    contextCount: ctxCountRes[0]?.count ?? 0,
+    referenceCount: refCountRes[0]?.count ?? 0,
+    referencedByCount: refByCountRes[0]?.count ?? 0,
+  };
+});
 
 export class UnderstandingCore {
   constructor(
@@ -356,17 +355,16 @@ export class UnderstandingCore {
   }
 }
 
-export const toUnderstandingSummaries = (
+export const toUnderstandingSummaries = Effect.fn("toUnderstandingSummaries")(function* (
   db: ReflectaDb,
   rows: Array<typeof understandings.$inferSelect>,
-): Effect.Effect<UnderstandingSummary[]> =>
-  Effect.gen(function* () {
-    const ids = rows.map((r) => r.id);
-    const catRefs = yield* resolveDomainRefs(db, ids);
-    return rows.map((row) => ({
-      id: row.id,
-      title: row.title ?? null,
-      body: row.body,
-      domains: catRefs.get(row.id) ?? [],
-    }));
-  });
+): Effect.fn.Return<UnderstandingSummary[]> {
+  const ids = rows.map((r) => r.id);
+  const catRefs = yield* resolveDomainRefs(db, ids);
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title ?? null,
+    body: row.body,
+    domains: catRefs.get(row.id) ?? [],
+  }));
+});
