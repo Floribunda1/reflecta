@@ -23,6 +23,15 @@ export default defineConfig({
       name: "integration",
       testDir: "./e2e/integration",
     },
+    {
+      // 性能 benchmark：独立 suite，不进常规回归门禁（不参与 test:e2e）。
+      // 单 worker、宽松 timeout，测量才稳定。用法见 e2e/benchmark/README.md。
+      name: "benchmark",
+      testDir: "./e2e/benchmark",
+      timeout: 300_000,
+      fullyParallel: false,
+      workers: 1,
+    },
   ],
   use: {
     trace: "on-first-retry",
