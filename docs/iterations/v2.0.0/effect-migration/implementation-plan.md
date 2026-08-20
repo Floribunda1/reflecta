@@ -22,6 +22,21 @@ Phase 6  v4 稳定收口 + 全量回归
 
 各阶段都可独立交付并保持应用可运行（Electron 可启动、e2e 可跑）。
 
+## 当前进度（2026-08-20，经多轮推进）
+
+| 阶段                           | 状态       | 说明                                                                                                          |
+| ------------------------------ | ---------- | ------------------------------------------------------------------------------------------------------------- |
+| P0/P1/P2                       | ✅         | 版本锁、pilot、IPC 传输与 runtime 脚手架                                                                      |
+| P3 主进程                      | ✅         | 13 域 IPC 契约 + typed error + main handlers；electron-ipc-decorator 已移除                                   |
+| P4 renderer                    | ✅         | runtime、4 store→atoms（zustand 移除）、并发原语→Effect、单一 runtime、统一 renderError（A层）、B3 FP reducer |
+| **P3 延伸 server 核心→Effect** | 🟡 **5/7** | domain / context / trash / understanding-canvas / search 已迁移并绿；**剩 understanding、retrieval**          |
+| P5 CLI/zod                     | ⬜         | 未启动（apps/cli 仍 zod）                                                                                     |
+| P6 v4 收口                     | ⏸          | 等 4.0 stable                                                                                                 |
+
+**已落地提交（feat/effect-migration）**：P3 主进程 13 域、P4 runtime/atoms/并发/error、A 的 domain/context/trash/understanding-canvas/search，均全绿（全仓 `bun run --filter '*' typecheck` + 相关域单测）。
+
+**剩余最重项**：A 的 `understanding`（最大，深度互联于 retrieval）与 `retrieval`（coordinator 状态机，最险）——二者互相联通，且各自连带 bff/CLI/main handler/测试，建议在不被打断的新会话中逐域收完；其后 B（CLI zod）、C（invalidate 织网）、F（docs 固化）。
+
 ---
 
 ## Phase 0 — 收尾决策与基线（并行）
