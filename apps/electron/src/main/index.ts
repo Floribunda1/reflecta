@@ -424,61 +424,31 @@ app.whenReady().then(async () => {
           try: () => understandingService.permanentlyDeleteUnderstanding(id),
           catch: (e) => uErr(e instanceof Error ? e.message : String(e)),
         }).pipe(Effect.map(() => undefined)),
-      "understandingCanvas.listCanvases": () =>
-        Effect.tryPromise({
-          try: () => understandingCanvasService.listCanvases(),
-          catch: (e) => cErr(e instanceof Error ? e.message : String(e)),
-        }),
+      "understandingCanvas.listCanvases": () => understandingCanvasService.listCanvases(),
       "understandingCanvas.listCanvasesByUnderstanding": ({ understandingId }) =>
-        Effect.tryPromise({
-          try: () => understandingCanvasService.listCanvasesByUnderstanding(understandingId),
-          catch: (e) => cErr(e instanceof Error ? e.message : String(e)),
-        }),
+        understandingCanvasService.listCanvasesByUnderstanding(understandingId),
       "understandingCanvas.getCanvas": ({ id }) =>
-        Effect.tryPromise({
-          try: () => understandingCanvasService.getCanvasDetail(id, { includeBodies: true }),
-          catch: (e) => cErr(e instanceof Error ? e.message : String(e)),
-        }),
+        understandingCanvasService.getCanvasDetail(id, { includeBodies: true }),
       "understandingCanvas.createCanvas": ({ input }) =>
-        Effect.tryPromise({
-          try: () =>
-            understandingCanvasService.createCanvas(
-              input as import("@reflecta/server").CreateCanvasInput | undefined,
-            ),
-          catch: (e) => cErr(e instanceof Error ? e.message : String(e)),
-        }),
+        understandingCanvasService.createCanvas(
+          input as import("@reflecta/server").CreateCanvasInput | undefined,
+        ),
       "understandingCanvas.updateCanvas": ({ id, input }) =>
-        Effect.tryPromise({
-          try: () =>
-            understandingCanvasService.updateCanvas(
-              id,
-              input as import("@reflecta/server").UpdateCanvasInput,
-            ),
-          catch: (e) => cErr(e instanceof Error ? e.message : String(e)),
-        }),
+        understandingCanvasService.updateCanvas(
+          id,
+          input as import("@reflecta/server").UpdateCanvasInput,
+        ),
       "understandingCanvas.deleteCanvas": ({ id }) =>
-        Effect.tryPromise({
-          try: () => understandingCanvasService.deleteCanvas(id),
-          catch: (e) => cErr(e instanceof Error ? e.message : String(e)),
-        }).pipe(Effect.map(() => undefined)),
+        understandingCanvasService.deleteCanvas(id).pipe(Effect.map(() => undefined)),
       "understandingCanvas.updateViewport": ({ canvasId, viewport }) =>
-        Effect.tryPromise({
-          try: () =>
-            understandingCanvasService.updateViewport(
-              canvasId,
-              viewport as import("@reflecta/server").Viewport,
-            ),
-          catch: (e) => cErr(e instanceof Error ? e.message : String(e)),
-        }).pipe(Effect.map(() => undefined)),
+        understandingCanvasService
+          .updateViewport(canvasId, viewport as import("@reflecta/server").Viewport)
+          .pipe(Effect.map(() => undefined)),
       "understandingCanvas.saveCanvas": ({ canvasId, document }) =>
-        Effect.tryPromise({
-          try: () =>
-            understandingCanvasService.saveCanvas(
-              canvasId,
-              document as import("@reflecta/server").CanvasDocument,
-            ),
-          catch: (e) => cErr(e instanceof Error ? e.message : String(e)),
-        }).pipe(Effect.map(() => undefined)),
+        understandingCanvasService
+          .saveCanvas(canvasId, document as import("@reflecta/server").CanvasDocument)
+          .pipe(Effect.mapError((e) => cErr(e.message))),
+
       "config.openDirectoryPicker": () =>
         Effect.tryPromise({
           try: () => configOps.openDirectoryPicker(),

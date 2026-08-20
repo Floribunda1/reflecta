@@ -377,7 +377,11 @@ describe("createPiWriteTools", () => {
       Effect.succeed({ id: "context-updated", title: "Stored Updated Context" }),
     );
     services.deleteContext.mockReturnValue(Effect.succeed(undefined));
-    services.createCanvas.mockResolvedValue({ id: "canvas-created", title: "新建结构" });
+    services.createCanvas.mockReturnValue(
+      Effect.succeed({ id: "canvas-created", title: "新建结构" }),
+    );
+    services.saveCanvas.mockReturnValue(Effect.void);
+    services.deleteCanvas.mockReturnValue(Effect.void);
 
     const cases: Array<{
       toolName: (typeof knowledgeMutationNames)[number];

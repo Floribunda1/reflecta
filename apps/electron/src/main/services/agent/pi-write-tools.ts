@@ -737,22 +737,26 @@ export async function executePiApprovedTool(
 
   if (toolName === "canvas_create") {
     const { title, initial } = canvasCreateInput(payload);
-    const canvas = await understandingCanvasService.createCanvas({ title });
+    const canvas = await Effect.runPromise(understandingCanvasService.createCanvas({ title }));
     if (initial) {
-      await understandingCanvasService.saveCanvas(canvas.id, initial as unknown as CanvasDocument);
+      await Effect.runPromise(
+        understandingCanvasService.saveCanvas(canvas.id, initial as unknown as CanvasDocument),
+      );
     }
     return { resultRefType: "canvas", resultRefId: canvas.id, resultRefTitle: canvas.title };
   }
 
   if (toolName === "canvas_update") {
     const { canvasId, document } = canvasUpdateInput(payload);
-    await understandingCanvasService.saveCanvas(canvasId, document as unknown as CanvasDocument);
+    await Effect.runPromise(
+      understandingCanvasService.saveCanvas(canvasId, document as unknown as CanvasDocument),
+    );
     return { resultRefType: "canvas", resultRefId: canvasId };
   }
 
   if (toolName === "canvas_delete") {
     const canvasId = canvasDeleteInput(payload);
-    await understandingCanvasService.deleteCanvas(canvasId);
+    await Effect.runPromise(understandingCanvasService.deleteCanvas(canvasId));
     return { resultRefType: "canvas", resultRefId: canvasId };
   }
 

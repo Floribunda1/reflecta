@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -76,7 +77,7 @@ beforeEach(async () => {
     runMigrations: true,
   });
   service = new UnderstandingCanvasElectronBff(db);
-  canvasId = (await service.createCanvas({ title: "主画布" })).id;
+  canvasId = (await Effect.runPromise(service.createCanvas({ title: "主画布" }))).id;
 });
 
 afterEach(async () => {
@@ -85,7 +86,7 @@ afterEach(async () => {
 
 describe("UnderstandingCanvasElectronBff.getCanvasDetail", () => {
   test("assembles elements, edges, refs and referenced canvases", async () => {
-    const targetId = (await service.createCanvas({ title: "被引用画布" })).id;
+    const targetId = (await Effect.runPromise(service.createCanvas({ title: "被引用画布" }))).id;
     const u = new UnderstandingCliBff(db);
     const understanding = await u.createUnderstanding({ title: "分区灌溉", body: "水压先稳" });
 
@@ -110,9 +111,9 @@ describe("UnderstandingCanvasElectronBff.getCanvasDetail", () => {
         },
       ],
     };
-    await service.saveCanvas(canvasId, doc);
+    await Effect.runPromise(service.saveCanvas(canvasId, doc));
 
-    const detail = await service.getCanvasDetail(canvasId);
+    const detail = await Effect.runPromise(service.getCanvasDetail(canvasId));
     expect(detail).not.toBeNull();
     expect(detail!.canvas.title).toBe("主画布");
     expect(detail!.elements).toHaveLength(6);
@@ -139,59 +140,67 @@ describe("UnderstandingCanvasElectronBff.getCanvasDetail", () => {
   test("marks soft-deleted understandings as deleted in refs", async () => {
     const u = new UnderstandingCliBff(db);
     const understanding = await u.createUnderstanding({ title: "将被删", body: "x" });
-    await service.saveCanvas(canvasId, {
-      elements: [element("u-card", "understanding", { understandingId: understanding.id })],
-      edges: [],
-    });
+    await Effect.runPromise(
+      service.saveCanvas(canvasId, {
+        elements: [element("u-card", "understanding", { understandingId: understanding.id })],
+        edges: [],
+      }),
+    );
 
     await u.deleteUnderstanding(understanding.id);
 
-    const detail = await service.getCanvasDetail(canvasId);
+    const detail = await Effect.runPromise(service.getCanvasDetail(canvasId));
     expect(detail!.understandingRefs[0].deleted).toBe(true);
   });
 
   test("listCanvasesByUnderstanding returns canvases referencing the understanding", async () => {
     const u = new UnderstandingCliBff(db);
     const understanding = await u.createUnderstanding({ title: "常用理解", body: "x" });
-    const otherCanvas = (await service.createCanvas({ title: "另一画布" })).id;
+    const otherCanvas = (await Effect.runPromise(service.createCanvas({ title: "另一画布" }))).id;
 
-    await service.saveCanvas(canvasId, {
-      elements: [element("u-card", "understanding", { understandingId: understanding.id })],
-      edges: [],
-    });
+    await Effect.runPromise(
+      service.saveCanvas(canvasId, {
+        elements: [element("u-card", "understanding", { understandingId: understanding.id })],
+        edges: [],
+      }),
+    );
     // 另一画布不引用该理解
-    await service.saveCanvas(otherCanvas, {
-      elements: [element("t", "text", { props: { text: "x" } })],
-      edges: [],
-    });
+    await Effect.runPromise(
+      service.saveCanvas(otherCanvas, {
+        elements: [element("t", "text", { props: { text: "x" } })],
+        edges: [],
+      }),
+    );
 
-    const canvases = await service.listCanvasesByUnderstanding(understanding.id);
+    const canvases = await Effect.runPromise(service.listCanvasesByUnderstanding(understanding.id));
     expect(canvases.map((c) => c.id)).toEqual([canvasId]);
   });
 
   test("listCanvases orders by updated_at desc", async () => {
-    const a = (await service.createCanvas({ title: "A" })).id;
-    const b = (await service.createCanvas({ title: "B" })).id;
-    await service.saveCanvas(a, { elements: [element("e1")], edges: [] });
+    const a = (await Effect.runPromise(service.createCanvas({ title: "A" }))).id;
+    const b = (await Effect.runPromise(service.createCanvas({ title: "B" }))).id;
+    await Effect.runPromise(service.saveCanvas(a, { elements: [element("e1")], edges: [] }));
     await new Promise((resolve) => setTimeout(resolve, 5));
-    await service.saveCanvas(b, { elements: [element("e2")], edges: [] });
-    const canvases = await service.listCanvases();
+    await Effect.runPromise(service.saveCanvas(b, { elements: [element("e2")], edges: [] }));
+    const canvases = await Effect.runPromise(service.listCanvases());
     expect(canvases.map((c) => c.id)).toEqual([b, a, canvasId]);
   });
 
   test("updateCanvas renames and getCanvasDetail reflects it", async () => {
-    await service.updateCanvas(canvasId, { title: "新名字" });
-    const detail = await service.getCanvasDetail(canvasId);
+    await Effect.runPromise(service.updateCanvas(canvasId, { title: "新名字" }));
+    const detail = await Effect.runPromise(service.getCanvasDetail(canvasId));
     expect(detail!.canvas.title).toBe("新名字");
   });
 
   test("TBD-2: understanding detail reports referencedByCanvases", async () => {
     const u = new UnderstandingCliBff(db);
     const understanding = await u.createUnderstanding({ title: "被引用的理解", body: "x" });
-    await service.saveCanvas(canvasId, {
-      elements: [element("u-card", "understanding", { understandingId: understanding.id })],
-      edges: [],
-    });
+    await Effect.runPromise(
+      service.saveCanvas(canvasId, {
+        elements: [element("u-card", "understanding", { understandingId: understanding.id })],
+        edges: [],
+      }),
+    );
 
     const detail = await u.getUnderstanding(understanding.id);
     expect(detail.referencedByCanvases).toEqual([

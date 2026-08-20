@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+import * as S from "effect/Schema";
 import { and, desc, eq, inArray, isNotNull, like } from "drizzle-orm";
 import {
   understandings,
@@ -31,6 +33,10 @@ import {
   assertValidDocument,
   CanvasValidationError,
 } from "./validate";
+
+export class CanvasServiceError extends S.TaggedError<CanvasServiceError>()("CanvasServiceError", {
+  message: S.String,
+}) {}
 
 const now = () => new Date().toISOString();
 
@@ -120,381 +126,430 @@ export function canvasRowToDTO(row: typeof understandingCanvases.$inferSelect): 
 export class CanvasCore {
   constructor(protected db: ReflectaDb) {}
 
-  async createCanvas(input?: CreateCanvasInput): Promise<CanvasDTO> {
-    const timestamp = now();
-    const id = createEntityId();
-    const row = {
-      id,
-      title: input?.title?.trim() || "未命名画布",
-      description: null,
-      viewport: null,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    };
-    await this.db.insert(understandingCanvases).values(row).run();
-    return canvasRowToDTO(row);
+  createCanvas(input?: CreateCanvasInput): Effect.Effect<CanvasDTO> {
+    return Effect.promise(async () => {
+      const timestamp = now();
+      const id = createEntityId();
+      const row = {
+        id,
+        title: input?.title?.trim() || "未命名画布",
+        description: null,
+        viewport: null,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      this.db.insert(understandingCanvases).values(row).run();
+      return canvasRowToDTO(row);
+    });
   }
 
-  protected async getCanvasRow(canvasId: string) {
-    const rows = await this.db
-      .select()
-      .from(understandingCanvases)
-      .where(eq(understandingCanvases.id, canvasId))
-      .limit(1);
-    return rows[0] ?? null;
+  protected getCanvasRow(
+    canvasId: string,
+  ): Effect.Effect<typeof understandingCanvases.$inferSelect | null> {
+    return Effect.promise(async () => {
+      const rows = await this.db
+        .select()
+        .from(understandingCanvases)
+        .where(eq(understandingCanvases.id, canvasId))
+        .limit(1);
+      return rows[0] ?? null;
+    });
   }
 
-  async getCanvas(id: string): Promise<CanvasDTO | null> {
-    const row = await this.getCanvasRow(id);
-    return row ? canvasRowToDTO(row) : null;
+  getCanvas(id: string): Effect.Effect<CanvasDTO | null> {
+    const getCanvasRow = this.getCanvasRow.bind(this);
+    return Effect.gen(function* () {
+      const row = yield* getCanvasRow(id);
+      return row ? canvasRowToDTO(row) : null;
+    });
   }
 
-  async updateCanvas(id: string, input: UpdateCanvasInput): Promise<CanvasDTO | null> {
-    const row = await this.getCanvasRow(id);
-    if (!row) return null;
-    const updates: Record<string, unknown> = { updatedAt: now() };
-    if (input.title !== undefined) updates.title = input.title.trim() || "未命名画布";
-    await this.db
-      .update(understandingCanvases)
-      .set(updates)
-      .where(eq(understandingCanvases.id, id))
-      .run();
-    const updated = await this.getCanvasRow(id);
-    return updated ? canvasRowToDTO(updated) : null;
+  updateCanvas(id: string, input: UpdateCanvasInput): Effect.Effect<CanvasDTO | null> {
+    const getCanvasRow = this.getCanvasRow.bind(this);
+    const db = this.db;
+    return Effect.gen(function* () {
+      const row = yield* getCanvasRow(id);
+      if (!row) return null;
+      const updates: Record<string, unknown> = { updatedAt: now() };
+      if (input.title !== undefined) updates.title = input.title.trim() || "未命名画布";
+      yield* Effect.sync(() => {
+        db.update(understandingCanvases).set(updates).where(eq(understandingCanvases.id, id)).run();
+      });
+      const updated = yield* getCanvasRow(id);
+      return updated ? canvasRowToDTO(updated) : null;
+    });
   }
 
-  async updateViewport(id: string, viewport: Viewport): Promise<void> {
-    await this.db
-      .update(understandingCanvases)
-      .set({ viewport: JSON.stringify(viewport), updatedAt: now() })
-      .where(eq(understandingCanvases.id, id))
-      .run();
+  updateViewport(id: string, viewport: Viewport): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.db
+        .update(understandingCanvases)
+        .set({ viewport: JSON.stringify(viewport), updatedAt: now() })
+        .where(eq(understandingCanvases.id, id))
+        .run();
+    });
   }
 
-  async deleteCanvas(id: string): Promise<void> {
-    await this.db.delete(understandingCanvases).where(eq(understandingCanvases.id, id)).run();
+  deleteCanvas(id: string): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.db.delete(understandingCanvases).where(eq(understandingCanvases.id, id)).run();
+    });
   }
 
-  async listCanvases(filter?: ListCanvasesFilter): Promise<CanvasDTO[]> {
-    const conditions = [];
-    if (filter?.titleSearchKeyword) {
-      conditions.push(like(understandingCanvases.title, `%${filter.titleSearchKeyword}%`));
-    }
-    const baseQuery = this.db
-      .select()
-      .from(understandingCanvases)
-      .orderBy(desc(understandingCanvases.updatedAt));
-    const query = conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
-    const rows = await (filter?.limit ? query.limit(filter.limit) : query);
-    return rows.map(canvasRowToDTO);
+  listCanvases(filter?: ListCanvasesFilter): Effect.Effect<CanvasDTO[]> {
+    return Effect.promise(async () => {
+      const conditions = [];
+      if (filter?.titleSearchKeyword) {
+        conditions.push(like(understandingCanvases.title, `%${filter.titleSearchKeyword}%`));
+      }
+      const baseQuery = this.db
+        .select()
+        .from(understandingCanvases)
+        .orderBy(desc(understandingCanvases.updatedAt));
+      const query = conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
+      const rows = await (filter?.limit ? query.limit(filter.limit) : query);
+      return rows.map(canvasRowToDTO);
+    });
   }
 
-  /** 详情装配：canvas + elements + edges + understandingRefs + referencedCanvases（CLI 与 Electron 共用） */
-  async getCanvasDetail(
+  getCanvasDetail(
     id: string,
     options?: GetCanvasDetailOptions,
-  ): Promise<CanvasDetailDTO | null> {
-    const canvasRow = await this.getCanvasRow(id);
-    if (!canvasRow) return null;
+  ): Effect.Effect<CanvasDetailDTO | null> {
+    const getCanvasRow = this.getCanvasRow.bind(this);
+    const db = this.db;
+    const loadUnderstandingRefs = this.loadUnderstandingRefs.bind(this);
+    const loadReferencedCanvases = this.loadReferencedCanvases.bind(this);
+    return Effect.gen(function* () {
+      const canvasRow = yield* getCanvasRow(id);
+      if (!canvasRow) return null;
 
-    const [elementRows, edgeRows, understandingRefs, referencedCanvases] = await Promise.all([
-      this.db
-        .select()
-        .from(understandingCanvasElements)
-        .where(eq(understandingCanvasElements.canvasId, id)),
-      this.db
-        .select()
-        .from(understandingCanvasEdges)
-        .where(eq(understandingCanvasEdges.canvasId, id)),
-      this.loadUnderstandingRefs(id, options?.includeBodies),
-      this.loadReferencedCanvases(id),
-    ]);
+      const elementRows = yield* Effect.promise(() =>
+        db
+          .select()
+          .from(understandingCanvasElements)
+          .where(eq(understandingCanvasElements.canvasId, id)),
+      );
+      const edgeRows = yield* Effect.promise(() =>
+        db.select().from(understandingCanvasEdges).where(eq(understandingCanvasEdges.canvasId, id)),
+      );
+      const understandingRefs = yield* loadUnderstandingRefs(id, options?.includeBodies);
+      const referencedCanvases = yield* loadReferencedCanvases(id);
 
-    return {
-      canvas: canvasRowToDTO(canvasRow),
-      elements: elementRows.map(elementRowToDTO),
-      edges: edgeRows.map(edgeRowToDTO),
-      understandingRefs,
-      referencedCanvases,
-    };
+      return {
+        canvas: canvasRowToDTO(canvasRow),
+        elements: elementRows.map(elementRowToDTO),
+        edges: edgeRows.map(edgeRowToDTO),
+        understandingRefs,
+        referencedCanvases,
+      };
+    });
   }
 
-  private async loadUnderstandingRefs(
+  private loadUnderstandingRefs(
     canvasId: string,
     includeBodies = false,
-  ): Promise<CanvasUnderstandingRef[]> {
-    const refRows = await this.db
-      .select()
-      .from(understandingCanvasElements)
-      .where(
-        and(
-          eq(understandingCanvasElements.canvasId, canvasId),
-          isNotNull(understandingCanvasElements.understandingId),
-        ),
-      );
-    const ids = [...new Set(refRows.map((row) => row.understandingId as string))];
-    if (ids.length === 0) return [];
-
-    const rows = await this.db.select().from(understandings).where(inArray(understandings.id, ids));
-    const byId = new Map(rows.map((row) => [row.id, row]));
-    return ids
-      .map((id) => {
-        const row = byId.get(id);
-        if (!row) return null;
-        return {
-          id: row.id,
-          title: row.title,
-          body: includeBodies ? row.body : "",
-          deleted: Boolean(row.deletedAt),
-        };
-      })
-      .filter((ref): ref is CanvasUnderstandingRef => ref !== null);
-  }
-
-  /**
-   * canvas_search 语义（§3.2）：query 自由文本 1-5 词，匹配画布标题 + 元素标题 + 文本卡内容 +
-   * 连线标签 + 组名 + 引用理解标题；大小写不敏感、空白拆词、任一命中即命中（OR，发现导向）；
-   * understandingId 反向查询。返回 CanvasHit[]（画布 + 命中片段 snippet + reason）。
-   */
-  async searchCanvases(input: SearchCanvasesInput): Promise<CanvasHit[]> {
-    const limit = input.limit ?? 20;
-
-    // understandingId 反向路径（与 listCanvasesByUnderstanding 同语义，附加 reason）
-    if (input.understandingId) {
-      const understandingRows = await this.db
-        .select({ id: understandings.id, title: understandings.title })
-        .from(understandings)
-        .where(eq(understandings.id, input.understandingId))
-        .limit(1);
-      const title = understandingRows[0]?.title ?? input.understandingId;
-      const canvases = await this.listCanvasesByUnderstanding(input.understandingId);
-      return canvases.slice(0, limit).map((canvas) => ({
-        canvas,
-        snippet: `引用理解「${title}」`,
-        reason: `understandingId=${input.understandingId}`,
-      }));
-    }
-
-    const terms = (input.query ?? "").toLocaleLowerCase().split(/\s+/).filter(Boolean).slice(0, 5);
-    if (terms.length === 0) return [];
-
-    const canvasRows = await this.db
-      .select()
-      .from(understandingCanvases)
-      .orderBy(desc(understandingCanvases.updatedAt));
-    const hits: CanvasHit[] = [];
-
-    for (const canvasRow of canvasRows) {
-      const detail = await this.getCanvasDetail(canvasRow.id);
-      if (!detail) continue;
-      const hit = matchCanvasDocument(detail, terms);
-      if (hit) {
-        hits.push({ canvas: canvasRowToDTO(canvasRow), ...hit });
-        if (hits.length >= limit) break;
-      }
-    }
-    return hits;
-  }
-
-  private async loadReferencedCanvases(canvasId: string): Promise<CanvasReferencedCanvas[]> {
-    const refRows = await this.db
-      .select()
-      .from(understandingCanvasElements)
-      .where(
-        and(
-          eq(understandingCanvasElements.canvasId, canvasId),
-          isNotNull(understandingCanvasElements.canvasRefId),
-        ),
-      );
-    const ids = [...new Set(refRows.map((row) => row.canvasRefId as string))];
-    if (ids.length === 0) return [];
-
-    const rows = await this.db
-      .select()
-      .from(understandingCanvases)
-      .where(inArray(understandingCanvases.id, ids));
-    const byId = new Map(rows.map((row) => [row.id, row]));
-    return ids
-      .map((id) => {
-        const row = byId.get(id);
-        if (!row) return null;
-        return { id: row.id, title: row.title, deleted: false };
-      })
-      .filter((ref): ref is CanvasReferencedCanvas => ref !== null);
-  }
-
-  /** C13 反向查询：该理解出现在哪些画布（M6-6 画布归属） */
-  async listCanvasesByUnderstanding(understandingId: string): Promise<CanvasDTO[]> {
-    const rows = await this.db
-      .select({ canvas: understandingCanvases })
-      .from(understandingCanvasElements)
-      .innerJoin(
-        understandingCanvases,
-        eq(understandingCanvases.id, understandingCanvasElements.canvasId),
-      )
-      .where(eq(understandingCanvasElements.understandingId, understandingId))
-      .orderBy(desc(understandingCanvases.updatedAt));
-    return rows.map((row) => canvasRowToDTO(row.canvas));
-  }
-
-  /**
-   * 文档级写（唯一的内容写接口，§2.2）：
-   * 事务原子；按 id 对账——文档中存在的行 upsert，DB 中缺失于文档的行删除；
-   * 不感知手势语义（级联删组 / 解组 / 多选删等联动在前端文档模型中已体现）。
-   */
-  async saveCanvas(canvasId: string, document: CanvasDocument): Promise<void> {
-    assertValidDocument(document);
-
-    const canvas = await this.getCanvasRow(canvasId);
-    if (!canvas) throw new CanvasValidationError(`Canvas not found: ${canvasId}`);
-
-    const understandingIds = document.elements
-      .filter((element) => element.kind === "understanding" && element.understandingId)
-      .map((element) => element.understandingId as string);
-    await assertUnderstandingRefsExist(this.db, understandingIds);
-
-    const timestamp = now();
-    await this.db.transaction(async (tx) => {
-      const existingElements = await tx
+  ): Effect.Effect<CanvasUnderstandingRef[]> {
+    return Effect.promise(async () => {
+      const refRows = await this.db
         .select()
         .from(understandingCanvasElements)
-        .where(eq(understandingCanvasElements.canvasId, canvasId))
-        .all();
-      const existingEdges = await tx
+        .where(
+          and(
+            eq(understandingCanvasElements.canvasId, canvasId),
+            isNotNull(understandingCanvasElements.understandingId),
+          ),
+        );
+      const ids = [...new Set(refRows.map((row) => row.understandingId as string))];
+      if (ids.length === 0) return [];
+
+      const rows = await this.db
         .select()
-        .from(understandingCanvasEdges)
-        .where(eq(understandingCanvasEdges.canvasId, canvasId))
-        .all();
+        .from(understandings)
+        .where(inArray(understandings.id, ids));
+      const byId = new Map(rows.map((row) => [row.id, row]));
+      return ids
+        .map((id) => {
+          const row = byId.get(id);
+          if (!row) return null;
+          return {
+            id: row.id,
+            title: row.title,
+            body: includeBodies ? row.body : "",
+            deleted: Boolean(row.deletedAt),
+          };
+        })
+        .filter((ref): ref is CanvasUnderstandingRef => ref !== null);
+    });
+  }
 
-      const existingElementById = new Map(existingElements.map((row) => [row.id, row]));
-      const existingEdgeById = new Map(existingEdges.map((row) => [row.id, row]));
+  searchCanvases(input: SearchCanvasesInput): Effect.Effect<CanvasHit[]> {
+    const db = this.db;
+    const listCanvasesByUnderstanding = this.listCanvasesByUnderstanding.bind(this);
+    const getCanvasDetail = this.getCanvasDetail.bind(this);
+    return Effect.gen(function* () {
+      const limit = input.limit ?? 20;
 
-      // 0. 零变化检测：文档与 DB 完全一致则整体跳过（幂等，不 bump updated_at）
-      let changed = false;
-      if (
-        existingElements.length !== document.elements.length ||
-        existingEdges.length !== document.edges.length
-      ) {
-        changed = true;
-      } else {
-        for (const element of document.elements) {
-          const existing = existingElementById.get(element.id);
+      if (input.understandingId) {
+        const understandingRows = yield* Effect.promise(() =>
+          db
+            .select({ id: understandings.id, title: understandings.title })
+            .from(understandings)
+            .where(eq(understandings.id, input.understandingId as string))
+            .limit(1),
+        );
+        const title = understandingRows[0]?.title ?? (input.understandingId as string);
+        const canvases = yield* listCanvasesByUnderstanding(input.understandingId as string);
+        return canvases.slice(0, limit).map((canvas) => ({
+          canvas,
+          snippet: `引用理解「${title}」`,
+          reason: `understandingId=${input.understandingId}`,
+        }));
+      }
+
+      const terms = (input.query ?? "")
+        .toLocaleLowerCase()
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 5);
+      if (terms.length === 0) return [];
+
+      const canvasRows = yield* Effect.promise(() =>
+        db.select().from(understandingCanvases).orderBy(desc(understandingCanvases.updatedAt)),
+      );
+      const hits: CanvasHit[] = [];
+
+      for (const canvasRow of canvasRows) {
+        const detail = yield* getCanvasDetail(canvasRow.id);
+        if (!detail) continue;
+        const hit = matchCanvasDocument(detail, terms);
+        if (hit) {
+          hits.push({ canvas: canvasRowToDTO(canvasRow), ...hit });
+          if (hits.length >= limit) break;
+        }
+      }
+      return hits;
+    });
+  }
+
+  private loadReferencedCanvases(canvasId: string): Effect.Effect<CanvasReferencedCanvas[]> {
+    return Effect.promise(async () => {
+      const refRows = await this.db
+        .select()
+        .from(understandingCanvasElements)
+        .where(
+          and(
+            eq(understandingCanvasElements.canvasId, canvasId),
+            isNotNull(understandingCanvasElements.canvasRefId),
+          ),
+        );
+      const ids = [...new Set(refRows.map((row) => row.canvasRefId as string))];
+      if (ids.length === 0) return [];
+
+      const rows = await this.db
+        .select()
+        .from(understandingCanvases)
+        .where(inArray(understandingCanvases.id, ids));
+      const byId = new Map(rows.map((row) => [row.id, row]));
+      return ids
+        .map((id) => {
+          const row = byId.get(id);
+          if (!row) return null;
+          return { id: row.id, title: row.title, deleted: false };
+        })
+        .filter((ref): ref is CanvasReferencedCanvas => ref !== null);
+    });
+  }
+
+  listCanvasesByUnderstanding(understandingId: string): Effect.Effect<CanvasDTO[]> {
+    return Effect.promise(async () => {
+      const rows = await this.db
+        .select({ canvas: understandingCanvases })
+        .from(understandingCanvasElements)
+        .innerJoin(
+          understandingCanvases,
+          eq(understandingCanvases.id, understandingCanvasElements.canvasId),
+        )
+        .where(eq(understandingCanvasElements.understandingId, understandingId))
+        .orderBy(desc(understandingCanvases.updatedAt));
+      return rows.map((row) => canvasRowToDTO(row.canvas));
+    });
+  }
+
+  saveCanvas(canvasId: string, document: CanvasDocument): Effect.Effect<void, CanvasServiceError> {
+    const getCanvasRow = this.getCanvasRow.bind(this);
+    const db = this.db;
+    return Effect.gen(function* () {
+      // 校验 throw 的 CanvasValidationError → 可恢复的 CanvasError
+      try {
+        assertValidDocument(document);
+      } catch (error) {
+        const message = error instanceof CanvasValidationError ? error.message : "画布校验失败";
+        return yield* Effect.fail(new CanvasServiceError({ message }));
+      }
+
+      const canvas = yield* getCanvasRow(canvasId);
+      if (!canvas)
+        return yield* Effect.fail(
+          new CanvasServiceError({ message: `Canvas not found: ${canvasId}` }),
+        );
+
+      const understandingIds = document.elements
+        .filter((element) => element.kind === "understanding" && element.understandingId)
+        .map((element) => element.understandingId as string);
+      const refsResult = yield* Effect.promise(async () => {
+        try {
+          await assertUnderstandingRefsExist(db, understandingIds);
+          return { ok: true as const };
+        } catch (error) {
+          return {
+            ok: false as const,
+            message: error instanceof Error ? error.message : "引用的理解不存在",
+          };
+        }
+      });
+      if (!refsResult.ok) {
+        return yield* Effect.fail(new CanvasServiceError({ message: refsResult.message }));
+      }
+
+      const timestamp = now();
+      yield* Effect.promise(async () => {
+        await db.transaction(async (tx) => {
+          const existingElements = await tx
+            .select()
+            .from(understandingCanvasElements)
+            .where(eq(understandingCanvasElements.canvasId, canvasId))
+            .all();
+          const existingEdges = await tx
+            .select()
+            .from(understandingCanvasEdges)
+            .where(eq(understandingCanvasEdges.canvasId, canvasId))
+            .all();
+
+          const existingElementById = new Map(existingElements.map((row) => [row.id, row]));
+          const existingEdgeById = new Map(existingEdges.map((row) => [row.id, row]));
+
+          let changed = false;
           if (
-            !existing ||
-            existing.kind !== element.kind ||
-            existing.understandingId !==
-              (element.kind === "understanding" ? element.understandingId : null) ||
-            existing.canvasRefId !== (element.kind === "canvas_ref" ? element.canvasRefId : null) ||
-            existing.props !== JSON.stringify(element.props) ||
-            existing.parentId !== element.parentId ||
-            existing.x !== element.x ||
-            existing.y !== element.y ||
-            existing.width !== element.width ||
-            existing.height !== element.height ||
-            existing.zIndex !== element.zIndex
+            existingElements.length !== document.elements.length ||
+            existingEdges.length !== document.edges.length
           ) {
             changed = true;
-            break;
-          }
-        }
-        if (!changed) {
-          for (const edge of document.edges) {
-            const existing = existingEdgeById.get(edge.id);
-            if (
-              !existing ||
-              existing.sourceElementId !== edge.sourceElementId ||
-              existing.targetElementId !== edge.targetElementId ||
-              existing.label !== edge.label ||
-              existing.props !== JSON.stringify(edge.style ?? {})
-            ) {
-              changed = true;
-              break;
+          } else {
+            for (const element of document.elements) {
+              const existing = existingElementById.get(element.id);
+              if (
+                !existing ||
+                existing.kind !== element.kind ||
+                existing.understandingId !==
+                  (element.kind === "understanding" ? element.understandingId : null) ||
+                existing.canvasRefId !==
+                  (element.kind === "canvas_ref" ? element.canvasRefId : null) ||
+                existing.props !== JSON.stringify(element.props) ||
+                existing.parentId !== element.parentId ||
+                existing.x !== element.x ||
+                existing.y !== element.y ||
+                existing.width !== element.width ||
+                existing.height !== element.height ||
+                existing.zIndex !== element.zIndex
+              ) {
+                changed = true;
+                break;
+              }
+            }
+            if (!changed) {
+              for (const edge of document.edges) {
+                const existing = existingEdgeById.get(edge.id);
+                if (
+                  !existing ||
+                  existing.sourceElementId !== edge.sourceElementId ||
+                  existing.targetElementId !== edge.targetElementId ||
+                  existing.label !== edge.label ||
+                  existing.props !== JSON.stringify(edge.style ?? {})
+                ) {
+                  changed = true;
+                  break;
+                }
+              }
             }
           }
-        }
-      }
-      if (!changed) return;
-
-      // 1. upsert elements（更新保留原 createdAt）
-      for (const element of document.elements) {
-        const existing = existingElementById.get(element.id);
-        const row = {
-          canvasId,
-          kind: element.kind,
-          understandingId: element.kind === "understanding" ? element.understandingId : null,
-          canvasRefId: element.kind === "canvas_ref" ? element.canvasRefId : null,
-          props: JSON.stringify(element.props),
-          parentId: element.parentId,
-          x: element.x,
-          y: element.y,
-          width: element.width,
-          height: element.height,
-          zIndex: element.zIndex,
-        };
-        if (existing) {
-          await tx
-            .update(understandingCanvasElements)
-            .set(row)
-            .where(eq(understandingCanvasElements.id, element.id))
-            .run();
-        } else {
-          await tx
-            .insert(understandingCanvasElements)
-            .values({ id: element.id, ...row, createdAt: timestamp, updatedAt: timestamp })
-            .run();
-        }
-      }
-      // 2. delete elements missing from document（其连线由 DB 级联）
-      const docElementIds = new Set(document.elements.map((element) => element.id));
-      for (const row of existingElements) {
-        if (!docElementIds.has(row.id)) {
-          await tx
-            .delete(understandingCanvasElements)
-            .where(eq(understandingCanvasElements.id, row.id))
-            .run();
-        }
-      }
-
-      // 3. upsert edges（更新保留原 createdAt）
-      for (const edge of document.edges) {
-        const existing = existingEdgeById.get(edge.id);
-        const row = {
-          canvasId,
-          sourceElementId: edge.sourceElementId,
-          targetElementId: edge.targetElementId,
-          label: edge.label,
-          props: JSON.stringify(edge.style ?? {}),
-        };
-        if (existing) {
-          await tx
-            .update(understandingCanvasEdges)
-            .set(row)
-            .where(eq(understandingCanvasEdges.id, edge.id))
-            .run();
-        } else {
-          await tx
-            .insert(understandingCanvasEdges)
-            .values({ id: edge.id, ...row, createdAt: timestamp })
-            .run();
-        }
-      }
-      // 4. delete edges missing from document
-      const docEdgeIds = new Set(document.edges.map((edge) => edge.id));
-      for (const row of existingEdges) {
-        if (!docEdgeIds.has(row.id)) {
-          await tx
-            .delete(understandingCanvasEdges)
-            .where(eq(understandingCanvasEdges.id, row.id))
-            .run();
-        }
-      }
-
-      // 5. updated_at 联动（列表按最近活跃排序）
-      await tx
-        .update(understandingCanvases)
-        .set({ updatedAt: timestamp })
-        .where(eq(understandingCanvases.id, canvasId))
-        .run();
+          if (changed) {
+            for (const element of document.elements) {
+              const existing = existingElementById.get(element.id);
+              const row = {
+                canvasId,
+                kind: element.kind,
+                understandingId: element.kind === "understanding" ? element.understandingId : null,
+                canvasRefId: element.kind === "canvas_ref" ? element.canvasRefId : null,
+                props: JSON.stringify(element.props),
+                parentId: element.parentId,
+                x: element.x,
+                y: element.y,
+                width: element.width,
+                height: element.height,
+                zIndex: element.zIndex,
+              };
+              if (existing) {
+                await tx
+                  .update(understandingCanvasElements)
+                  .set(row)
+                  .where(eq(understandingCanvasElements.id, element.id))
+                  .run();
+              } else {
+                await tx
+                  .insert(understandingCanvasElements)
+                  .values({ id: element.id, ...row, createdAt: timestamp, updatedAt: timestamp })
+                  .run();
+              }
+            }
+            const docElementIds = new Set(document.elements.map((element) => element.id));
+            for (const row of existingElements) {
+              if (!docElementIds.has(row.id)) {
+                await tx
+                  .delete(understandingCanvasElements)
+                  .where(eq(understandingCanvasElements.id, row.id))
+                  .run();
+              }
+            }
+            for (const edge of document.edges) {
+              const existing = existingEdgeById.get(edge.id);
+              const row = {
+                canvasId,
+                sourceElementId: edge.sourceElementId,
+                targetElementId: edge.targetElementId,
+                label: edge.label,
+                props: JSON.stringify(edge.style ?? {}),
+              };
+              if (existing) {
+                await tx
+                  .update(understandingCanvasEdges)
+                  .set(row)
+                  .where(eq(understandingCanvasEdges.id, edge.id))
+                  .run();
+              } else {
+                await tx
+                  .insert(understandingCanvasEdges)
+                  .values({ id: edge.id, ...row, createdAt: timestamp })
+                  .run();
+              }
+            }
+            const docEdgeIds = new Set(document.edges.map((edge) => edge.id));
+            for (const row of existingEdges) {
+              if (!docEdgeIds.has(row.id)) {
+                await tx
+                  .delete(understandingCanvasEdges)
+                  .where(eq(understandingCanvasEdges.id, row.id))
+                  .run();
+              }
+            }
+            await tx
+              .update(understandingCanvases)
+              .set({ updatedAt: timestamp })
+              .where(eq(understandingCanvases.id, canvasId))
+              .run();
+          }
+        });
+      });
     });
   }
 }
@@ -503,7 +558,6 @@ function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
-/** 文档级搜索匹配：任一命中即命中（OR，发现导向）；返回第一条命中的片段与理由 */
 function matchCanvasDocument(
   detail: CanvasDetailDTO,
   terms: string[],

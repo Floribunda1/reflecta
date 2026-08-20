@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -71,7 +72,7 @@ beforeEach(async () => {
     runMigrations: true,
   });
   const core = new CanvasCore(db);
-  const canvas = await core.createCanvas({ title: "测试画布" });
+  const canvas = await Effect.runPromise(core.createCanvas({ title: "测试画布" }));
   canvasId = canvas.id;
 });
 
@@ -106,7 +107,7 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
         },
       ],
     };
-    await core.saveCanvas(canvasId, doc);
+    await Effect.runPromise(core.saveCanvas(canvasId, doc));
     const { elements, edges } = await readRows();
     expect(elements).toHaveLength(2);
     expect(edges).toHaveLength(1);
@@ -128,50 +129,58 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
         },
       ],
     };
-    await core.saveCanvas(canvasId, doc);
-    const before = (await core.getCanvas(canvasId))!.updatedAt;
+    await Effect.runPromise(core.saveCanvas(canvasId, doc));
+    const before = (await Effect.runPromise(core.getCanvas(canvasId)))!.updatedAt;
     await new Promise((resolve) => setTimeout(resolve, 5));
-    await core.saveCanvas(canvasId, doc);
-    const after = (await core.getCanvas(canvasId))!.updatedAt;
+    await Effect.runPromise(core.saveCanvas(canvasId, doc));
+    const after = (await Effect.runPromise(core.getCanvas(canvasId)))!.updatedAt;
     expect(after).toBe(before);
   });
 
   test("updates changed element fields and keeps createdAt", async () => {
     const core = new CanvasCore(db);
-    await core.saveCanvas(canvasId, { elements: [element("e1", { x: 1 })], edges: [] });
+    await Effect.runPromise(
+      core.saveCanvas(canvasId, { elements: [element("e1", { x: 1 })], edges: [] }),
+    );
     const originalCreatedAt = (await readRows()).elements[0].created_at;
-    await core.saveCanvas(canvasId, {
-      elements: [element("e1", { x: 99, props: { text: "改" } })],
-      edges: [],
-    });
+    await Effect.runPromise(
+      core.saveCanvas(canvasId, {
+        elements: [element("e1", { x: 99, props: { text: "改" } })],
+        edges: [],
+      }),
+    );
     const rows = await readRows();
     expect(rows.elements).toHaveLength(1);
     expect(rows.elements[0].x).toBe(99);
     expect(rows.elements[0].created_at).toBe(originalCreatedAt);
-    const updated = (await core.getCanvas(canvasId))!;
+    const updated = (await Effect.runPromise(core.getCanvas(canvasId)))!;
     expect(updated.updatedAt).not.toBeNull();
   });
 
   test("deletes elements and edges missing from the document", async () => {
     const core = new CanvasCore(db);
-    await core.saveCanvas(canvasId, {
-      elements: [element("e1"), element("e2"), element("e3")],
-      edges: [
-        {
-          id: "x1",
-          canvasId,
-          sourceElementId: "e1",
-          targetElementId: "e2",
-          label: null,
-          style: null,
-          createdAt: "2026-08-01T00:00:00.000Z",
-        },
-      ],
-    });
-    await core.saveCanvas(canvasId, {
-      elements: [element("e1", { x: 5 })],
-      edges: [],
-    });
+    await Effect.runPromise(
+      core.saveCanvas(canvasId, {
+        elements: [element("e1"), element("e2"), element("e3")],
+        edges: [
+          {
+            id: "x1",
+            canvasId,
+            sourceElementId: "e1",
+            targetElementId: "e2",
+            label: null,
+            style: null,
+            createdAt: "2026-08-01T00:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    await Effect.runPromise(
+      core.saveCanvas(canvasId, {
+        elements: [element("e1", { x: 5 })],
+        edges: [],
+      }),
+    );
     const { elements, edges } = await readRows();
     expect(elements.map((row) => row.id)).toEqual(["e1"]);
     expect(elements[0].x).toBe(5);
@@ -180,8 +189,8 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
 
   test("empty document clears the canvas (legal)", async () => {
     const core = new CanvasCore(db);
-    await core.saveCanvas(canvasId, { elements: [element("e1")], edges: [] });
-    await core.saveCanvas(canvasId, { elements: [], edges: [] });
+    await Effect.runPromise(core.saveCanvas(canvasId, { elements: [element("e1")], edges: [] }));
+    await Effect.runPromise(core.saveCanvas(canvasId, { elements: [], edges: [] }));
     const { elements, edges } = await readRows();
     expect(elements).toHaveLength(0);
     expect(edges).toHaveLength(0);
@@ -189,24 +198,24 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
 
   test("updates touch canvas.updated_at (list ordering signal)", async () => {
     const core = new CanvasCore(db);
-    const before = (await core.getCanvas(canvasId))!.updatedAt;
+    const before = (await Effect.runPromise(core.getCanvas(canvasId)))!.updatedAt;
     await new Promise((resolve) => setTimeout(resolve, 5));
-    await core.saveCanvas(canvasId, { elements: [element("e1")], edges: [] });
-    const after = (await core.getCanvas(canvasId))!.updatedAt;
+    await Effect.runPromise(core.saveCanvas(canvasId, { elements: [element("e1")], edges: [] }));
+    const after = (await Effect.runPromise(core.getCanvas(canvasId)))!.updatedAt;
     expect(after > before).toBe(true);
   });
 
   test("throws when canvas does not exist", async () => {
     const core = new CanvasCore(db);
-    await expect(core.saveCanvas("missing", { elements: [], edges: [] })).rejects.toThrow(
-      /Canvas not found/,
-    );
+    await expect(
+      Effect.runPromise(core.saveCanvas("missing", { elements: [], edges: [] })),
+    ).rejects.toThrow(/Canvas not found/);
   });
 
   test("rejects invalid document and rolls back atomically", async () => {
     const core = new CanvasCore(db);
     const good = { elements: [element("e1")], edges: [] };
-    await core.saveCanvas(canvasId, good);
+    await Effect.runPromise(core.saveCanvas(canvasId, good));
     // 非法文档：边引用不存在的元素
     const bad: CanvasDocument = {
       elements: [element("e1"), element("e2")],
@@ -222,7 +231,9 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
         },
       ],
     };
-    await expect(core.saveCanvas(canvasId, bad)).rejects.toThrow(/target element not in document/);
+    await expect(Effect.runPromise(core.saveCanvas(canvasId, bad))).rejects.toThrow(
+      /target element not in document/,
+    );
     const { elements } = await readRows();
     expect(elements).toHaveLength(1);
     expect(elements[0].id).toBe("e1");
@@ -234,27 +245,31 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
       elements: [element("e1", { kind: "understanding", understandingId: "does-not-exist" })],
       edges: [],
     };
-    await expect(core.saveCanvas(canvasId, doc)).rejects.toThrow(/Understanding not found/);
+    await expect(Effect.runPromise(core.saveCanvas(canvasId, doc))).rejects.toThrow(
+      /Understanding not found/,
+    );
   });
 
   test("deleteCanvas hard-deletes canvas and cascades children", async () => {
     const core = new CanvasCore(db);
-    await core.saveCanvas(canvasId, {
-      elements: [element("e1"), element("e2")],
-      edges: [
-        {
-          id: "x",
-          canvasId,
-          sourceElementId: "e1",
-          targetElementId: "e2",
-          label: null,
-          style: null,
-          createdAt: "2026-08-01T00:00:00.000Z",
-        },
-      ],
-    });
-    await core.deleteCanvas(canvasId);
-    expect(await core.getCanvas(canvasId)).toBeNull();
+    await Effect.runPromise(
+      core.saveCanvas(canvasId, {
+        elements: [element("e1"), element("e2")],
+        edges: [
+          {
+            id: "x",
+            canvasId,
+            sourceElementId: "e1",
+            targetElementId: "e2",
+            label: null,
+            style: null,
+            createdAt: "2026-08-01T00:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    await Effect.runPromise(core.deleteCanvas(canvasId));
+    expect(await Effect.runPromise(core.getCanvas(canvasId))).toBeNull();
     const { elements, edges } = await readRows();
     expect(elements).toHaveLength(0);
     expect(edges).toHaveLength(0);
@@ -262,8 +277,8 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
 
   test("canvasRowToDTO round-trips viewport JSON", async () => {
     const core = new CanvasCore(db);
-    await core.updateViewport(canvasId, { x: 1, y: 2, zoom: 0.8 });
-    const canvas = await core.getCanvas(canvasId);
+    await Effect.runPromise(core.updateViewport(canvasId, { x: 1, y: 2, zoom: 0.8 }));
+    const canvas = await Effect.runPromise(core.getCanvas(canvasId));
     expect(canvas?.viewport).toEqual({ x: 1, y: 2, zoom: 0.8 });
     expect(typeof canvasRowToDTO).toBe("function");
   });
