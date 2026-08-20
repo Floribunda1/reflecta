@@ -1,4 +1,5 @@
 import { runPromise } from "@renderer/lib/effect-runtime";
+import { effectQuery } from "@renderer/lib/effect-query";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type {
   CanvasDTO,
@@ -88,33 +89,38 @@ export async function listCanvasesByUnderstanding(understandingId: string): Prom
 
 export function useCreateCanvasMutation() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input?: CreateCanvasInput) =>
-      runPromise(rpc.canvasCreate(input)) as Promise<CanvasDTO>,
-    onSuccess: () => invalidateCanvasList(queryClient),
-  });
+  return useMutation(
+    effectQuery.mutationOptions({
+      mutationFn: (input?: CreateCanvasInput) => rpc.canvasCreate(input),
+      onSuccess: () => invalidateCanvasList(queryClient),
+    }),
+  );
 }
 
 export function useRenameCanvasMutation() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: UpdateCanvasInput }) =>
-      runPromise(rpc.canvasUpdate(id, input)) as Promise<CanvasDTO | null>,
-    onSuccess: (_result, variables) =>
-      Promise.all([
-        invalidateCanvasList(queryClient),
-        invalidateCanvasDetail(queryClient, variables.id),
-      ]),
-  });
+  return useMutation(
+    effectQuery.mutationOptions({
+      mutationFn: ({ id, input }: { id: string; input: UpdateCanvasInput }) =>
+        rpc.canvasUpdate(id, input),
+      onSuccess: (_result, variables) =>
+        Promise.all([
+          invalidateCanvasList(queryClient),
+          invalidateCanvasDetail(queryClient, variables.id),
+        ]),
+    }),
+  );
 }
 
 export function useDeleteCanvasMutation() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => runPromise(rpc.canvasDelete(id)),
-    onSuccess: (_result, id) =>
-      Promise.all([invalidateCanvasList(queryClient), invalidateCanvasDetail(queryClient, id)]),
-  });
+  return useMutation(
+    effectQuery.mutationOptions({
+      mutationFn: (id: string) => rpc.canvasDelete(id),
+      onSuccess: (_result, id) =>
+        Promise.all([invalidateCanvasList(queryClient), invalidateCanvasDetail(queryClient, id)]),
+    }),
+  );
 }
 
 /** 文档级全量写（T3）：React Flow 变更防抖后提交；invalidate list 保持「最近活跃排序」新鲜，
@@ -123,25 +129,31 @@ export function useDeleteCanvasMutation() {
  * understanding/canvas_ref props 类型带有 Record<string, never> 历史包袱）。 */
 export function useSaveCanvasMutation() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ canvasId, document }: { canvasId: string; document: CanvasDocumentContract }) =>
-      runPromise(
+  return useMutation(
+    effectQuery.mutationOptions({
+      mutationFn: ({
+        canvasId,
+        document,
+      }: {
+        canvasId: string;
+        document: CanvasDocumentContract;
+      }) =>
         rpc.canvasSave(canvasId, document as unknown as import("../../../../ipc").CanvasDocument),
-      ),
-    onSuccess: (_result, { canvasId }) =>
-      Promise.all([
-        invalidateCanvasList(queryClient),
-        invalidateCanvasDetail(queryClient, canvasId),
-      ]),
-  });
+      onSuccess: (_result, { canvasId }) =>
+        Promise.all([
+          invalidateCanvasList(queryClient),
+          invalidateCanvasDetail(queryClient, canvasId),
+        ]),
+    }),
+  );
 }
 
 /** 视口单独写（M1-5 恢复）：settle 后提交；不 invalidate（避免平移时列表反复刷新）。 */
 export function useUpdateViewportMutation() {
-  return useMutation({
-    mutationFn: ({ canvasId, viewport }: { canvasId: string; viewport: Viewport }) =>
-      runPromise(
+  return useMutation(
+    effectQuery.mutationOptions({
+      mutationFn: ({ canvasId, viewport }: { canvasId: string; viewport: Viewport }) =>
         rpc.canvasUpdateViewport(canvasId, viewport as import("../../../../ipc").Viewport),
-      ),
-  });
+    }),
+  );
 }

@@ -24,18 +24,19 @@ Phase 6  v4 稳定收口 + 全量回归
 
 ## 当前进度（2026-08-20，经多轮推进）
 
-| 阶段                           | 状态       | 说明                                                                                                          |
-| ------------------------------ | ---------- | ------------------------------------------------------------------------------------------------------------- |
-| P0/P1/P2                       | ✅         | 版本锁、pilot、IPC 传输与 runtime 脚手架                                                                      |
-| P3 主进程                      | ✅         | 13 域 IPC 契约 + typed error + main handlers；electron-ipc-decorator 已移除                                   |
-| P4 renderer                    | ✅         | runtime、4 store→atoms（zustand 移除）、并发原语→Effect、单一 runtime、统一 renderError（A层）、B3 FP reducer |
-| **P3 延伸 server 核心→Effect** | 🟡 **5/7** | domain / context / trash / understanding-canvas / search 已迁移并绿；**剩 understanding、retrieval**          |
-| P5 CLI/zod                     | ⬜         | 未启动（apps/cli 仍 zod）                                                                                     |
-| P6 v4 收口                     | ⏸          | 等 4.0 stable                                                                                                 |
+| 阶段                           | 状态       | 说明                                                                                                                                                                                   |
+| ------------------------------ | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P0/P1/P2                       | ✅         | 版本锁、pilot、IPC 传输与 runtime 脚手架                                                                                                                                               |
+| P3 主进程                      | ✅         | 13 域 IPC 契约 + typed error + main handlers；electron-ipc-decorator 已移除                                                                                                            |
+| P4 renderer                    | ✅         | runtime、4 store→atoms（zustand 移除）、并发原语→Effect、单一 runtime、统一 renderError（A层）、B3 FP reducer                                                                          |
+| **P3 延伸 server 核心→Effect** | ✅ **7/7** | domain / context / trash / understanding-canvas / search / **understanding / retrieval** 已迁移并绿（retrieval coordinator 状态机 → 受监督 drain fiber + `Schedule.recurs(1)` + 中断） |
+| **P4-C renderer 失效织网**     | ✅         | query key 工厂单一来源 + effect-query（D3 落地）接缝 + 定向失效（stale-while-revalidate 保留）+ 权威响应 setQueryData（实体保存零闪烁）；手写 invalidate 织网已收敛                    |
+| P5 CLI/zod                     | ⬜         | 未启动（apps/cli 仍 zod；CLI 的 TaggedError→CliError 映射属本阶段，现存 14 个 pre-existing 测试失败待此阶段修）                                                                        |
+| P6 v4 收口                     | ⏸          | 等 4.0 stable                                                                                                                                                                          |
 
-**已落地提交（feat/effect-migration）**：P3 主进程 13 域、P4 runtime/atoms/并发/error、A 的 domain/context/trash/understanding-canvas/search，均全绿（全仓 `bun run --filter '*' typecheck` + 相关域单测）。
+**已落地提交（feat/effect-migration）**：P3 主进程 13 域、P4 runtime/atoms/并发/error、A 的 7 域（含 understanding/retrieval）、P4-C renderer 失效织网收敛，均全绿（全仓 `bun run --filter '*' typecheck` + lint + 相关域单测 + electron renderer 单测）。
 
-**剩余最重项**：A 的 `understanding`（最大，深度互联于 retrieval）与 `retrieval`（coordinator 状态机，最险）——二者互相联通，且各自连带 bff/CLI/main handler/测试，建议在不被打断的新会话中逐域收完；其后 B（CLI zod）、C（invalidate 织网）、F（docs 固化）。
+**剩余项**：B（CLI zod 统一 + CLI 错误映射修复）、F（docs 固化：frontend-guide 等同步 Effect 现行规范）。
 
 ---
 

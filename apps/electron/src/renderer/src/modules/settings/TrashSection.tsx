@@ -15,6 +15,7 @@ import { rpc } from "@renderer/lib/effect-rpc";
 import type { TrashedUnderstandingDTO, TrashedContextDTO } from "@shared/trash";
 import { useModal } from "@reflecta/ui/overlays";
 import { renderError } from "@renderer/lib/errors";
+import { captureQueryKeys } from "../capture/queries";
 
 export function TrashSection() {
   const { confirm } = useModal();
@@ -45,7 +46,7 @@ export function TrashSection() {
     try {
       await runPromise(rpc.trashRestore(id));
       queryClient.invalidateQueries({
-        queryKey: ["understanding.listUnderstandings"],
+        queryKey: captureQueryKeys.understandingLists,
         exact: false,
       });
       await refresh();
@@ -65,7 +66,7 @@ export function TrashSection() {
         try {
           await runPromise(rpc.trashPermanentlyDelete(id));
           queryClient.invalidateQueries({
-            queryKey: ["understanding.listUnderstandings"],
+            queryKey: captureQueryKeys.understandingLists,
             exact: false,
           });
           await refresh();
@@ -81,7 +82,7 @@ export function TrashSection() {
     try {
       await runPromise(rpc.contextRestore(id));
       queryClient.invalidateQueries({
-        queryKey: ["understanding.getUnderstandingById"],
+        queryKey: captureQueryKeys.understandingDetails,
         exact: false,
       });
       await refresh();
@@ -126,11 +127,11 @@ export function TrashSection() {
             ...contexts.map((context) => runPromise(rpc.contextPermanentlyDelete(context.id))),
           ]);
           queryClient.invalidateQueries({
-            queryKey: ["understanding.listUnderstandings"],
+            queryKey: captureQueryKeys.understandingLists,
             exact: false,
           });
           queryClient.invalidateQueries({
-            queryKey: ["understanding.getUnderstandingById"],
+            queryKey: captureQueryKeys.understandingDetails,
             exact: false,
           });
           await refresh();

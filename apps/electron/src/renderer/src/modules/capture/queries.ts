@@ -1,4 +1,5 @@
 import { runPromise } from "@renderer/lib/effect-runtime";
+import { effectQuery } from "@renderer/lib/effect-query";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type {
   Domain,
@@ -7,7 +8,7 @@ import type {
   ReorderDomainItem,
   UpdateDomainInput,
 } from "@shared/domain";
-import type { ContextDTO, CreateContextInput, UpdateContextInput } from "@shared/context";
+import type { CreateContextInput, UpdateContextInput } from "@shared/context";
 import type { RecapData } from "@shared/recap";
 import type { CanvasDTO } from "@reflecta/server";
 import type {
@@ -18,7 +19,13 @@ import type {
   UpdateUnderstandingInput,
 } from "@shared/understanding";
 import type { AgentContextRef } from "@shared/agent";
-import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+  type QueryKey,
+} from "@tanstack/react-query";
 import { useMemo } from "react";
 
 export type UnderstandingListFilterKey = {
@@ -38,6 +45,10 @@ export type UnderstandingListTotalKey = {
   includeDescendants: boolean;
 };
 
+/**
+ * Query key 工厂（社区标准做法）：查询与失效共用同一 key 定义，杜绝两边漂移。
+ * 列表用固定前缀（如 `understanding.list`），失效按前缀定向；实体用 `[entity, id]` 精确命中。
+ */
 export const captureQueryKeys = {
   domains: ["domain.listDomains"] as const,
   understandingLists: ["understanding.listUnderstandings"] as const,
@@ -75,12 +86,31 @@ export async function getEntityDisplay(ref: Pick<AgentContextRef, "type" | "id">
   return entity ? { title: entity.name?.trim() || null } : null;
 }
 
-export function invalidateEntityDisplay(
-  queryClient: QueryClient,
-  ref: Pick<AgentContextRef, "type" | "id">,
-) {
-  return queryClient.invalidateQueries({ queryKey: captureQueryKeys.entityDisplay(ref) });
+// ---------------------------------------------------------------------------
+// 失效计划（FP：纯函数表达"一次写入影响哪些缓存"，由 applyInvalidations 统一执行）
+// ---------------------------------------------------------------------------
+
+type InvalidationPlan = {
+  /** 定向失效的 query key 列表（按前缀匹配，stale-while-revalidate 保留）。 */
+  readonly invalidate: readonly QueryKey[];
+  /** 权威响应直接写缓存（setQueryData，零请求零闪烁）。 */
+  readonly setData?: readonly {
+    readonly key: QueryKey;
+    readonly data: unknown;
+  }[];
+};
+
+function applyInvalidations(queryClient: QueryClient, plan: InvalidationPlan): Promise<void> {
+  const jobs = [
+    ...plan.invalidate.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+    ...(plan.setData ?? []).map(({ key, data }) => queryClient.setQueryData(key, data as never)),
+  ];
+  return Promise.all(jobs).then(() => undefined);
 }
+
+// ---------------------------------------------------------------------------
+// 读 hooks
+// ---------------------------------------------------------------------------
 
 function buildDomainTree(flat: Domain[]): DomainTreeNode[] {
   const map = new Map<string, DomainTreeNode>();
@@ -231,157 +261,168 @@ export function useParticipationOverview(enabled = true) {
   return { data };
 }
 
-function invalidateUnderstandingLists(queryClient: QueryClient) {
-  return Promise.all([
-    queryClient.invalidateQueries({ queryKey: captureQueryKeys.understandingLists, exact: false }),
-    queryClient.invalidateQueries({
-      queryKey: captureQueryKeys.understandingListTotals,
-      exact: false,
-    }),
-  ]);
-}
-
-function invalidateUnderstandingDetail(queryClient: QueryClient, understandingId: string) {
-  return queryClient.invalidateQueries({
-    queryKey: captureQueryKeys.understandingDetail(understandingId),
-  });
-}
-
-function invalidateAllUnderstandingDetails(queryClient: QueryClient) {
-  return queryClient.invalidateQueries({
-    queryKey: captureQueryKeys.understandingDetails,
-    exact: false,
-  });
-}
-
-function invalidateDomains(queryClient: QueryClient) {
-  return queryClient.invalidateQueries({ queryKey: captureQueryKeys.domains });
-}
-
-function invalidateParticipationOverview(queryClient: QueryClient) {
-  return Promise.all([
-    queryClient.invalidateQueries({ queryKey: captureQueryKeys.canvases }),
-    queryClient.invalidateQueries({ queryKey: captureQueryKeys.recap }),
-  ]);
-}
+// ---------------------------------------------------------------------------
+// 写 hooks（effect-query：mutationFn 是 Effect 程序；onSuccess 执行失效计划）
+// ---------------------------------------------------------------------------
 
 export function useCreateUnderstandingMutation() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input: CreateUnderstandingInput) =>
-      runPromise(rpc.understandingCreate(input)) as Promise<UnderstandingDTO>,
-    onSuccess: () =>
-      Promise.all([
-        invalidateUnderstandingLists(queryClient),
-        invalidateParticipationOverview(queryClient),
-      ]),
-  });
+  return useMutation(
+    effectQuery.mutationOptions({
+      mutationFn: (input: CreateUnderstandingInput) => rpc.understandingCreate(input),
+      onSuccess: (dto) =>
+        applyInvalidations(queryClient, {
+          invalidate: [
+            captureQueryKeys.understandingLists,
+            captureQueryKeys.canvases,
+            captureQueryKeys.recap,
+          ],
+          // 新建即返回完整 detail：直接写缓存，列表用失效即可。
+          setData: [{ key: captureQueryKeys.understandingDetail(dto.id), data: dto }],
+        }),
+    }),
+  );
 }
 
 export function useUpdateUnderstandingMutation() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: UpdateUnderstandingInput }) =>
-      runPromise(rpc.understandingUpdate(id, input)) as Promise<UnderstandingDTO>,
-    onSuccess: (_result, variables) =>
-      Promise.all([
-        invalidateUnderstandingDetail(queryClient, variables.id),
-        invalidateEntityDisplay(queryClient, { type: "understanding", id: variables.id }),
-        invalidateUnderstandingLists(queryClient),
-        variables.input.body !== undefined
-          ? invalidateAllUnderstandingDetails(queryClient)
-          : Promise.resolve(),
-      ]),
-  });
+  return useMutation(
+    effectQuery.mutationOptions({
+      mutationFn: ({ id, input }: { id: string; input: UpdateUnderstandingInput }) =>
+        rpc.understandingUpdate(id, input),
+      onSuccess: (dto, variables) =>
+        applyInvalidations(queryClient, {
+          invalidate: [
+            captureQueryKeys.understandingLists,
+            captureQueryKeys.entityDisplay({ type: "understanding", id: dto.id }),
+            ...(variables.input.body !== undefined ? [captureQueryKeys.understandingDetails] : []),
+          ],
+          // 更新返回完整 detail：直接写缓存，实体编辑零闪烁零请求。
+          setData: [{ key: captureQueryKeys.understandingDetail(dto.id), data: dto }],
+        }),
+    }),
+  );
 }
 
 export function useDeleteUnderstandingMutation() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => runPromise(rpc.understandingDelete(id)),
-    onSuccess: (_result, id) =>
-      Promise.all([
-        invalidateUnderstandingDetail(queryClient, id),
-        invalidateEntityDisplay(queryClient, { type: "understanding", id }),
-        invalidateUnderstandingLists(queryClient),
-        invalidateParticipationOverview(queryClient),
-      ]),
-  });
+  return useMutation(
+    effectQuery.mutationOptions({
+      mutationFn: (id: string) => rpc.understandingDelete(id),
+      onSuccess: (_result, id) =>
+        applyInvalidations(queryClient, {
+          invalidate: [
+            captureQueryKeys.understandingDetail(id),
+            captureQueryKeys.entityDisplay({ type: "understanding", id }),
+            captureQueryKeys.understandingLists,
+            captureQueryKeys.canvases,
+            captureQueryKeys.recap,
+          ],
+        }),
+    }),
+  );
 }
 
 export function useCreateContextMutation(understandingId: string) {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input: Omit<CreateContextInput, "understandingId">): Promise<ContextDTO> =>
-      runPromise(rpc.contextCreate({ ...input, understandingId })) as Promise<ContextDTO>,
-    onSuccess: () =>
-      Promise.all([
-        invalidateUnderstandingDetail(queryClient, understandingId),
-        invalidateUnderstandingLists(queryClient),
-      ]),
-  });
+  return useMutation(
+    effectQuery.mutationOptions({
+      mutationFn: (input: Omit<CreateContextInput, "understandingId">) =>
+        rpc.contextCreate({ ...input, understandingId }),
+      onSuccess: () =>
+        applyInvalidations(queryClient, {
+          invalidate: [
+            captureQueryKeys.understandingDetail(understandingId),
+            captureQueryKeys.understandingLists,
+          ],
+        }),
+    }),
+  );
 }
 
 export function useUpdateContextMutation(understandingId: string) {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: UpdateContextInput }) =>
-      runPromise(rpc.contextUpdate(id, input)),
-    onSuccess: (_result, variables) =>
-      Promise.all([
-        invalidateUnderstandingDetail(queryClient, understandingId),
-        invalidateEntityDisplay(queryClient, { type: "context", id: variables.id }),
-      ]),
-  });
+  return useMutation(
+    effectQuery.mutationOptions({
+      mutationFn: ({ id, input }: { id: string; input: UpdateContextInput }) =>
+        rpc.contextUpdate(id, input),
+      onSuccess: (_result, variables) =>
+        applyInvalidations(queryClient, {
+          invalidate: [
+            captureQueryKeys.understandingDetail(understandingId),
+            captureQueryKeys.entityDisplay({ type: "context", id: variables.id }),
+          ],
+        }),
+    }),
+  );
 }
 
 export function useDeleteContextMutation(understandingId: string) {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => runPromise(rpc.contextDelete(id)),
-    onSuccess: (_result, id) =>
-      Promise.all([
-        invalidateUnderstandingDetail(queryClient, understandingId),
-        invalidateUnderstandingLists(queryClient),
-        invalidateEntityDisplay(queryClient, { type: "context", id }),
-      ]),
-  });
+  return useMutation(
+    effectQuery.mutationOptions({
+      mutationFn: (id: string) => rpc.contextDelete(id),
+      onSuccess: (_result, id) =>
+        applyInvalidations(queryClient, {
+          invalidate: [
+            captureQueryKeys.understandingDetail(understandingId),
+            captureQueryKeys.understandingLists,
+            captureQueryKeys.entityDisplay({ type: "context", id }),
+          ],
+        }),
+    }),
+  );
 }
 
 export function useDomainMutations() {
   const queryClient = useQueryClient();
   const invalidateDomainScope = () =>
-    Promise.all([invalidateDomains(queryClient), invalidateUnderstandingLists(queryClient)]);
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: captureQueryKeys.domains }),
+      queryClient.invalidateQueries({ queryKey: captureQueryKeys.understandingLists }),
+    ]);
 
-  const createDomain = useMutation({
-    mutationFn: (input: CreateDomainInput) => runPromise(rpc.domainCreateDomain(input)),
-    onSuccess: invalidateDomainScope,
-  });
+  const createDomain = useMutation(
+    effectQuery.mutationOptions({
+      mutationFn: (input: CreateDomainInput) => rpc.domainCreateDomain(input),
+      onSuccess: invalidateDomainScope,
+    }),
+  );
 
-  const updateDomain = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: UpdateDomainInput }) =>
-      runPromise(rpc.domainUpdateDomain(id, input)),
-    onSuccess: (_result, variables) =>
-      Promise.all([
-        invalidateDomainScope(),
-        invalidateEntityDisplay(queryClient, { type: "domain", id: variables.id }),
-      ]),
-  });
+  const updateDomain = useMutation(
+    effectQuery.mutationOptions({
+      mutationFn: ({ id, input }: { id: string; input: UpdateDomainInput }) =>
+        rpc.domainUpdateDomain(id, input),
+      onSuccess: (_result, variables) =>
+        Promise.all([
+          invalidateDomainScope(),
+          queryClient.invalidateQueries({
+            queryKey: captureQueryKeys.entityDisplay({ type: "domain", id: variables.id }),
+          }),
+        ]),
+    }),
+  );
 
-  const deleteDomain = useMutation({
-    mutationFn: ({ id, deleteUnderstandings }: { id: string; deleteUnderstandings?: boolean }) =>
-      runPromise(rpc.domainDeleteDomain(id, deleteUnderstandings)),
-    onSuccess: (_result, variables) =>
-      Promise.all([
-        invalidateDomainScope(),
-        invalidateEntityDisplay(queryClient, { type: "domain", id: variables.id }),
-      ]),
-  });
+  const deleteDomain = useMutation(
+    effectQuery.mutationOptions({
+      mutationFn: ({ id, deleteUnderstandings }: { id: string; deleteUnderstandings?: boolean }) =>
+        rpc.domainDeleteDomain(id, deleteUnderstandings),
+      onSuccess: (_result, variables) =>
+        Promise.all([
+          invalidateDomainScope(),
+          queryClient.invalidateQueries({
+            queryKey: captureQueryKeys.entityDisplay({ type: "domain", id: variables.id }),
+          }),
+        ]),
+    }),
+  );
 
-  const reorderDomains = useMutation({
-    mutationFn: (items: ReorderDomainItem[]) => runPromise(rpc.domainReorderDomains(items)),
-    onSuccess: invalidateDomainScope,
-  });
+  const reorderDomains = useMutation(
+    effectQuery.mutationOptions({
+      mutationFn: (items: ReorderDomainItem[]) => rpc.domainReorderDomains(items),
+      onSuccess: invalidateDomainScope,
+    }),
+  );
 
   return {
     createDomain,
@@ -389,4 +430,12 @@ export function useDomainMutations() {
     deleteDomain,
     reorderDomains,
   };
+}
+
+/** 外部（chat 等）定向失效 entity display 用。 */
+export function invalidateEntityDisplay(
+  queryClient: QueryClient,
+  ref: Pick<AgentContextRef, "type" | "id">,
+) {
+  return queryClient.invalidateQueries({ queryKey: captureQueryKeys.entityDisplay(ref) });
 }

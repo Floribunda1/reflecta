@@ -16,6 +16,17 @@
 
 function readDetail(value: unknown): string {
   if (value && typeof value === "object") {
+    // effect-query 把 Effect 失败包成 EffectQueryFailure（.failure 存真实 typed error）。
+    // 先解包，再读结构化字段。
+    const wrapped = value as { _tag?: unknown; failure?: unknown };
+    if (
+      typeof wrapped._tag === "string" &&
+      wrapped._tag.startsWith("EffectQuery") &&
+      wrapped.failure !== undefined &&
+      wrapped.failure !== null
+    ) {
+      return readDetail(wrapped.failure);
+    }
     const e = value as { reason?: unknown; message?: unknown; _tag?: unknown };
     if (typeof e.reason === "string" && e.reason) return e.reason;
     if (typeof e.message === "string" && e.message) return e.message;
