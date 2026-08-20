@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { runPromise } from "@renderer/lib/effect-runtime";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type {
   CanvasDTO,
@@ -23,7 +23,7 @@ export const canvasQueryKeys = {
 export function useCanvasList() {
   return useQuery<CanvasDTO[]>({
     queryKey: canvasQueryKeys.list,
-    queryFn: () => Effect.runPromise(rpc.canvasList()) as Promise<CanvasDTO[]>,
+    queryFn: () => runPromise(rpc.canvasList()) as Promise<CanvasDTO[]>,
   });
 }
 
@@ -33,7 +33,7 @@ export function useCanvasDetail(canvasId: string | null) {
     queryKey: canvasQueryKeys.detail(canvasId ?? ""),
     queryFn: () =>
       canvasId
-        ? (Effect.runPromise(rpc.canvasGet(canvasId)) as Promise<CanvasDetailDTO | null>)
+        ? (runPromise(rpc.canvasGet(canvasId)) as Promise<CanvasDetailDTO | null>)
         : Promise.resolve(null),
     enabled: Boolean(canvasId),
   });
@@ -45,7 +45,7 @@ export function useReferencedCanvasPreviews(refIds: string[]) {
   return useQuery<(CanvasDetailDTO | null)[]>({
     queryKey: ["understandingCanvas.refPreviews", key] as const,
     queryFn: () =>
-      Promise.all(refIds.map((id) => Effect.runPromise(rpc.canvasGet(id)))) as Promise<
+      Promise.all(refIds.map((id) => runPromise(rpc.canvasGet(id)))) as Promise<
         (CanvasDetailDTO | null)[]
       >,
     enabled: refIds.length > 0,
@@ -62,9 +62,7 @@ export function useCanvasListByUnderstanding(understandingId: string | null) {
     queryKey,
     queryFn: () =>
       understandingId
-        ? (Effect.runPromise(rpc.canvasListByUnderstanding(understandingId)) as Promise<
-            CanvasDTO[]
-          >)
+        ? (runPromise(rpc.canvasListByUnderstanding(understandingId)) as Promise<CanvasDTO[]>)
         : Promise.resolve([]),
     enabled: Boolean(understandingId),
   });
@@ -85,14 +83,14 @@ export function refreshCanvasDetail(queryClient: QueryClient, canvasId: string) 
 
 /** 理解出现在哪些画布 —— 供 Capture 详情「出现于 N 张画布」区块（M6-6）。 */
 export async function listCanvasesByUnderstanding(understandingId: string): Promise<CanvasDTO[]> {
-  return Effect.runPromise(rpc.canvasListByUnderstanding(understandingId)) as Promise<CanvasDTO[]>;
+  return runPromise(rpc.canvasListByUnderstanding(understandingId)) as Promise<CanvasDTO[]>;
 }
 
 export function useCreateCanvasMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input?: CreateCanvasInput) =>
-      Effect.runPromise(rpc.canvasCreate(input)) as Promise<CanvasDTO>,
+      runPromise(rpc.canvasCreate(input)) as Promise<CanvasDTO>,
     onSuccess: () => invalidateCanvasList(queryClient),
   });
 }
@@ -101,7 +99,7 @@ export function useRenameCanvasMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateCanvasInput }) =>
-      Effect.runPromise(rpc.canvasUpdate(id, input)) as Promise<CanvasDTO | null>,
+      runPromise(rpc.canvasUpdate(id, input)) as Promise<CanvasDTO | null>,
     onSuccess: (_result, variables) =>
       Promise.all([
         invalidateCanvasList(queryClient),
@@ -113,7 +111,7 @@ export function useRenameCanvasMutation() {
 export function useDeleteCanvasMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => Effect.runPromise(rpc.canvasDelete(id)),
+    mutationFn: (id: string) => runPromise(rpc.canvasDelete(id)),
     onSuccess: (_result, id) =>
       Promise.all([invalidateCanvasList(queryClient), invalidateCanvasDetail(queryClient, id)]),
   });
@@ -127,7 +125,7 @@ export function useSaveCanvasMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ canvasId, document }: { canvasId: string; document: CanvasDocumentContract }) =>
-      Effect.runPromise(
+      runPromise(
         rpc.canvasSave(canvasId, document as unknown as import("../../../../ipc").CanvasDocument),
       ),
     onSuccess: (_result, { canvasId }) =>
@@ -142,7 +140,7 @@ export function useSaveCanvasMutation() {
 export function useUpdateViewportMutation() {
   return useMutation({
     mutationFn: ({ canvasId, viewport }: { canvasId: string; viewport: Viewport }) =>
-      Effect.runPromise(
+      runPromise(
         rpc.canvasUpdateViewport(canvasId, viewport as import("../../../../ipc").Viewport),
       ),
   });

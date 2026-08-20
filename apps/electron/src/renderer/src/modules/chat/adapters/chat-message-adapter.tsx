@@ -1,8 +1,8 @@
 import { memo, useMemo } from "react";
+import { runPromise } from "@renderer/lib/effect-runtime";
 import { format } from "date-fns";
 import { useQueries } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Effect } from "effect";
 import { rpc } from "@renderer/lib/effect-rpc";
 import { renderError } from "@renderer/lib/errors";
 import {
@@ -326,8 +326,7 @@ export const ConnectedChatMessageRow = memo(function ConnectedChatMessageRow({
         });
       }}
       onAttachmentOpen={(attachment) => {
-        if (attachment.filePath)
-          void Effect.runPromise(rpc.assetOpenExternalPath(attachment.filePath));
+        if (attachment.filePath) void runPromise(rpc.assetOpenExternalPath(attachment.filePath));
       }}
       onProposalDecision={(decision) => {
         const block = approvalById.get(decision.proposalId);

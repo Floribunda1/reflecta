@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { runPromise } from "@renderer/lib/effect-runtime";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, CheckCircle, ExternalLink, LoaderCircle, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -9,7 +10,6 @@ import { Item, ItemActions, ItemContent } from "@reflecta/ui/components/item";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@reflecta/ui/components/input-group";
 import { NativeSelect, NativeSelectOption } from "@reflecta/ui/components/native-select";
 import { ScrollArea } from "@reflecta/ui/components/scroll-area";
-import { Effect } from "effect";
 import { rpc } from "@renderer/lib/effect-rpc";
 import { renderError } from "@renderer/lib/errors";
 
@@ -53,9 +53,9 @@ export function AiSection() {
 
   useEffect(() => {
     void Promise.all([
-      Effect.runPromise(rpc.configGetAi()),
-      Effect.runPromise(rpc.configListProviderDefs()),
-      Effect.runPromise(rpc.configGetCodexAuth()),
+      runPromise(rpc.configGetAi()),
+      runPromise(rpc.configListProviderDefs()),
+      runPromise(rpc.configGetCodexAuth()),
     ]).then(([nextConfig, nextProviders, nextCodexConnected]) => {
       setConfig(nextConfig);
       setProviders(nextProviders as unknown as typeof providers);
@@ -151,7 +151,7 @@ export function AiSection() {
     if (!selectedProvider) return;
     setCodexBusy(true);
     try {
-      const connected = await Effect.runPromise(rpc.configConnectCodex());
+      const connected = await runPromise(rpc.configConnectCodex());
       if (!connected) throw new Error("OpenAI 授权未完成");
       setCodexConnected(true);
       upsertProvider(selectedProvider.id, {});
@@ -166,7 +166,7 @@ export function AiSection() {
   const handleDisconnectCodex = async () => {
     setCodexBusy(true);
     try {
-      await Effect.runPromise(rpc.configDisconnectCodex());
+      await runPromise(rpc.configDisconnectCodex());
       setCodexConnected(false);
       clearProvider();
       await queryClient.invalidateQueries({ queryKey: ["ai.model-options"] });
@@ -190,8 +190,8 @@ export function AiSection() {
     setLoading(true);
     setSaved(false);
     try {
-      await Effect.runPromise(rpc.configSetAi(config as import("../../../../ipc").AiConfig));
-      setConfig(await Effect.runPromise(rpc.configGetAi()));
+      await runPromise(rpc.configSetAi(config as import("../../../../ipc").AiConfig));
+      setConfig(await runPromise(rpc.configGetAi()));
       await queryClient.invalidateQueries({ queryKey: ["ai.model-options"] });
       setSaved(true);
     } catch (error) {

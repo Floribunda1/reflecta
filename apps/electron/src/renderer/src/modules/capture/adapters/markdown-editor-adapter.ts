@@ -1,3 +1,4 @@
+import { runPromise } from "@renderer/lib/effect-runtime";
 import {
   formatUnderstandingWikiLink,
   type MarkdownAssetUploader,
@@ -5,7 +6,6 @@ import {
   type MarkdownEditorSuggestionSource,
 } from "@reflecta/ui/editor";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
-import { Effect } from "effect";
 import { rpc } from "@renderer/lib/effect-rpc";
 
 const suggestionLimit = 8;
@@ -48,7 +48,7 @@ function toSuggestion(understanding: UnderstandingSummaryDTO): MarkdownEditorSug
 
 export const uploadMarkdownAsset: MarkdownAssetUploader = async (file, signal) => {
   signal.throwIfAborted();
-  const filename = await Effect.runPromise(rpc.assetSave(await file.arrayBuffer(), file.name));
+  const filename = await runPromise(rpc.assetSave(await file.arrayBuffer(), file.name));
   signal.throwIfAborted();
   return { url: `asset:///${filename}`, alt: file.name };
 };
@@ -58,7 +58,7 @@ export const getMarkdownEditorSuggestions: MarkdownEditorSuggestionSource = asyn
   signal,
 ) => {
   const normalizedQuery = query.trim();
-  const understandings = (await Effect.runPromise(
+  const understandings = (await runPromise(
     rpc.understandingList(normalizedQuery ? { searchQuery: normalizedQuery } : undefined),
   )) as unknown as UnderstandingSummaryDTO[];
   if (signal.aborted) return [];

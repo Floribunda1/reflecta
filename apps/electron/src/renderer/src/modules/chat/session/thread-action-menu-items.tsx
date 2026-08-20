@@ -1,4 +1,5 @@
 import type { AgentReducedMessage } from "@shared/agent";
+import { runPromise } from "@renderer/lib/effect-runtime";
 import {
   ChatThreadActionMenuItems,
   collectChatEntityReferences,
@@ -7,7 +8,6 @@ import {
   type ChatEntityReference,
 } from "@reflecta/ui/chat";
 import { toast } from "sonner";
-import { Effect } from "effect";
 import { rpc } from "@renderer/lib/effect-rpc";
 import { renderError } from "@renderer/lib/errors";
 import { getEntityDisplay } from "../../capture/queries";
@@ -57,9 +57,7 @@ export async function exportThreadMarkdown(title: string, messages: AgentReduced
 
   const filename = `${(title.trim() || "agent-chat").replace(/[\\/:*?"<>|]+/g, "-")}.md`;
   try {
-    const filePath = await Effect.runPromise(
-      rpc.chatExportMarkdown(filename, `${parts.join("\n\n")}\n`),
-    );
+    const filePath = await runPromise(rpc.chatExportMarkdown(filename, `${parts.join("\n\n")}\n`));
     if (!filePath) return;
     toast.success("已导出 Markdown", { description: filePath });
   } catch (error) {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { runPromise } from "@renderer/lib/effect-runtime";
 import { useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Effect } from "effect";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { AgentCommand, AgentReducedMessage } from "@shared/agent";
 import { initialAgentSessionState } from "@shared/agent";
@@ -55,7 +55,7 @@ async function sendRetainedAgentCommand(
 ) {
   const release = agentSessionReplica.retainUntilSettled(command.sessionId);
   try {
-    await Effect.runPromise(rpc.chatSendCommand(command));
+    await runPromise(rpc.chatSendCommand(command));
   } catch (error) {
     release();
     throw error;
@@ -369,7 +369,7 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
         setEditingMessage(editingMessageFromAgentMessage(message));
       },
       approveTool: async (input: ApproveToolInput) => {
-        await Effect.runPromise(
+        await runPromise(
           rpc.chatSendCommand(
             input.approved
               ? {
@@ -392,7 +392,7 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
       },
       cancelEdit: () => setEditingMessage(undefined),
       stop: () => {
-        void Effect.runPromise(rpc.chatSendCommand({ type: "run.cancel", sessionId }));
+        void runPromise(rpc.chatSendCommand({ type: "run.cancel", sessionId }));
       },
       reloadMessages: async () => {
         agentSessionReplica.reconnect(sessionId);

@@ -1,10 +1,10 @@
 import { memo, useMemo } from "react";
+import { runPromise } from "@renderer/lib/effect-runtime";
 import {
   ChatThreadSidebar,
   type ChatThreadAction,
   type ChatThreadGroupView,
 } from "@reflecta/ui/chat";
-import { Effect } from "effect";
 import { rpc } from "@renderer/lib/effect-rpc";
 import { renderError } from "@renderer/lib/errors";
 import type { AgentSessionSummary } from "@shared/agent";
@@ -14,7 +14,7 @@ import { copyThreadId, exportThreadMarkdown } from "./thread-action-menu-items";
 
 async function exportThread(thread: AgentSessionSummary) {
   try {
-    const projection = await Effect.runPromise(rpc.chatReadProjection(thread.id));
+    const projection = await runPromise(rpc.chatReadProjection(thread.id));
     await exportThreadMarkdown(
       thread.title,
       (projection?.messages ?? []) as import("@shared/agent").AgentMessageProjection[],
@@ -27,10 +27,10 @@ async function exportThread(thread: AgentSessionSummary) {
 async function compactThread(threadId: string) {
   try {
     const [modelSelection, reasoningLevel] = await Promise.all([
-      Effect.runPromise(rpc.configGetActiveModel()),
-      Effect.runPromise(rpc.configGetReasoningLevel()),
+      runPromise(rpc.configGetActiveModel()),
+      runPromise(rpc.configGetReasoningLevel()),
     ]);
-    await Effect.runPromise(
+    await runPromise(
       rpc.chatSendCommand({
         type: "context.compact",
         sessionId: threadId,

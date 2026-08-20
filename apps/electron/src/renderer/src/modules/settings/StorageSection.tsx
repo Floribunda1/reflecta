@@ -1,4 +1,5 @@
 import { Badge } from "@reflecta/ui/components/badge";
+import { runPromise } from "@renderer/lib/effect-runtime";
 import { Item, ItemContent, ItemMedia } from "@reflecta/ui/components/item";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -14,7 +15,6 @@ import {
   Trash2,
   TriangleAlert,
 } from "lucide-react";
-import { Effect } from "effect";
 import { rpc } from "@renderer/lib/effect-rpc";
 import { renderError } from "@renderer/lib/errors";
 import type { OrphanAssetInfo } from "@shared/asset";
@@ -37,18 +37,18 @@ export function StorageSection() {
   const [orphans, setOrphans] = useState<OrphanAssetInfo[] | null>(null);
 
   useEffect(() => {
-    void Effect.runPromise(rpc.configGet()).then((config) => {
+    void runPromise(rpc.configGet()).then((config) => {
       setContentStorageRoot(config.contentStorageRoot);
       setIsCustomContentStorageRoot(config.isCustomContentStorageRoot);
     });
   }, []);
 
   const handlePickDirectory = async () => {
-    const picked = await Effect.runPromise(rpc.configOpenDirPicker());
+    const picked = await runPromise(rpc.configOpenDirPicker());
     if (!picked) return;
     setLoading(true);
     try {
-      await Effect.runPromise(rpc.configSetStorageRoot(picked));
+      await runPromise(rpc.configSetStorageRoot(picked));
       setContentStorageRoot(picked);
       setIsCustomContentStorageRoot(true);
       setPendingRestart(true);
@@ -62,8 +62,8 @@ export function StorageSection() {
   const handleResetToDefault = async () => {
     setLoading(true);
     try {
-      await Effect.runPromise(rpc.configSetStorageRoot(""));
-      const config = await Effect.runPromise(rpc.configGet());
+      await runPromise(rpc.configSetStorageRoot(""));
+      const config = await runPromise(rpc.configGet());
       setContentStorageRoot(config.contentStorageRoot);
       setIsCustomContentStorageRoot(config.isCustomContentStorageRoot);
       setPendingRestart(true);
@@ -77,7 +77,7 @@ export function StorageSection() {
   const handleScanOrphans = async () => {
     setOrphanLoading(true);
     try {
-      setOrphans((await Effect.runPromise(rpc.assetScanOrphans())) as OrphanAssetInfo[]);
+      setOrphans((await runPromise(rpc.assetScanOrphans())) as OrphanAssetInfo[]);
     } catch (error) {
       toast.error("扫描失败", { description: renderError(error) });
     } finally {
@@ -97,7 +97,7 @@ export function StorageSection() {
       onAccept: async () => {
         setOrphanCleaning(true);
         try {
-          await Effect.runPromise(rpc.assetCleanOrphans(orphans.map((orphan) => orphan.filename)));
+          await runPromise(rpc.assetCleanOrphans(orphans.map((orphan) => orphan.filename)));
           setOrphans([]);
           toast.success("已清除无效媒体文件", { description: `${count} 个文件，${totalSize}` });
         } catch (error) {
@@ -111,7 +111,7 @@ export function StorageSection() {
 
   const openOrphanAsset = async (filename: string) => {
     try {
-      await Effect.runPromise(rpc.assetOpen(filename));
+      await runPromise(rpc.assetOpen(filename));
     } catch (error) {
       toast.error("打开文件失败", { description: renderError(error) });
     }
@@ -119,7 +119,7 @@ export function StorageSection() {
 
   const revealOrphanAsset = async (filename: string) => {
     try {
-      await Effect.runPromise(rpc.assetReveal(filename));
+      await runPromise(rpc.assetReveal(filename));
       toast.success("已在 Finder 中显示");
     } catch (error) {
       toast.error("显示文件失败", { description: renderError(error) });
@@ -187,11 +187,7 @@ export function StorageSection() {
           <AlertTitle>需要重启</AlertTitle>
           <AlertDescription>数据目录已更新，重启应用后生效。</AlertDescription>
           <AlertAction>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => void Effect.runPromise(rpc.configRestart())}
-            >
+            <Button type="button" size="sm" onClick={() => void runPromise(rpc.configRestart())}>
               立即重启
             </Button>
           </AlertAction>

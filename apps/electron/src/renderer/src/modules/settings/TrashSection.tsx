@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Effect } from "effect";
+import { runPromise } from "@renderer/lib/effect-runtime";
 import { toast } from "sonner";
 import { Button } from "@reflecta/ui/components/button";
 import {
@@ -27,8 +27,8 @@ export function TrashSection() {
     setLoading(true);
     try {
       const [trashedUnderstandings, trashedContexts] = await Promise.all([
-        Effect.runPromise(rpc.trashListTrashed()),
-        Effect.runPromise(rpc.contextListTrashed()) as Promise<TrashedContextDTO[]>,
+        runPromise(rpc.trashListTrashed()),
+        runPromise(rpc.contextListTrashed()) as Promise<TrashedContextDTO[]>,
       ]);
       setUnderstandings(trashedUnderstandings as TrashedUnderstandingDTO[]);
       setContexts(trashedContexts);
@@ -43,7 +43,7 @@ export function TrashSection() {
 
   const handleRestoreUnderstanding = async (id: string) => {
     try {
-      await Effect.runPromise(rpc.trashRestore(id));
+      await runPromise(rpc.trashRestore(id));
       queryClient.invalidateQueries({
         queryKey: ["understanding.listUnderstandings"],
         exact: false,
@@ -63,7 +63,7 @@ export function TrashSection() {
       danger: true,
       onAccept: async () => {
         try {
-          await Effect.runPromise(rpc.trashPermanentlyDelete(id));
+          await runPromise(rpc.trashPermanentlyDelete(id));
           queryClient.invalidateQueries({
             queryKey: ["understanding.listUnderstandings"],
             exact: false,
@@ -79,7 +79,7 @@ export function TrashSection() {
 
   const handleRestoreContext = async (id: string) => {
     try {
-      await Effect.runPromise(rpc.contextRestore(id));
+      await runPromise(rpc.contextRestore(id));
       queryClient.invalidateQueries({
         queryKey: ["understanding.getUnderstandingById"],
         exact: false,
@@ -99,7 +99,7 @@ export function TrashSection() {
       danger: true,
       onAccept: async () => {
         try {
-          await Effect.runPromise(rpc.contextPermanentlyDelete(id));
+          await runPromise(rpc.contextPermanentlyDelete(id));
           await refresh();
           toast.success("已永久删除 Context");
         } catch (error) {
@@ -121,11 +121,9 @@ export function TrashSection() {
         try {
           await Promise.all([
             ...understandings.map((understanding) =>
-              Effect.runPromise(rpc.trashPermanentlyDelete(understanding.id)),
+              runPromise(rpc.trashPermanentlyDelete(understanding.id)),
             ),
-            ...contexts.map((context) =>
-              Effect.runPromise(rpc.contextPermanentlyDelete(context.id)),
-            ),
+            ...contexts.map((context) => runPromise(rpc.contextPermanentlyDelete(context.id))),
           ]);
           queryClient.invalidateQueries({
             queryKey: ["understanding.listUnderstandings"],

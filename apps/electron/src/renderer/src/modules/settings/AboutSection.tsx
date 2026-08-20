@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Effect } from "effect";
+import { runPromise } from "@renderer/lib/effect-runtime";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { ExternalLink, Package, RefreshCw } from "lucide-react";
@@ -46,7 +46,7 @@ export function AboutSection() {
 
   const refresh = useCallback(async () => {
     try {
-      const next = await Effect.runPromise(rpc.aboutGetVersionInfo());
+      const next = await runPromise(rpc.aboutGetVersionInfo());
       setInfo(next);
       setLoadFailed(false);
     } catch (error) {
@@ -76,7 +76,7 @@ export function AboutSection() {
     if (!info?.updateCheckSupported || checking) return;
     setChecking(true);
     try {
-      const { started } = await Effect.runPromise(rpc.aboutCheckForUpdates());
+      const { started } = await runPromise(rpc.aboutCheckForUpdates());
       if (!started) setChecking(false);
       // 启动成功后保持「正在检查」，Sparkle 前台检查会自行弹出结果窗口；
       // 若完成事件未到达，重新打开面板会经 getVersionInfo 兜底刷新。

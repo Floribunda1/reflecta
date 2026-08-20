@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef } from "react";
+import { runPromise } from "@renderer/lib/effect-runtime";
 import { useRequest } from "ahooks";
 import type { AiModelOption } from "@main/config";
 import type {
@@ -23,7 +24,6 @@ import {
   type ChatComposerProps,
 } from "@reflecta/ui/chat";
 import { inferMediaType } from "@reflecta/ui/lib/file-meta";
-import { Effect } from "effect";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import type { SearchContextResult, CanvasDTO } from "@reflecta/server";
@@ -209,7 +209,7 @@ export function AgentChatComposer({
   onInspectContextRef,
 }: AgentChatComposerProps) {
   const attachments = useAttachmentAdapter();
-  const { data: skills } = useRequest(() => Effect.runPromise(rpc.chatListSkills()));
+  const { data: skills } = useRequest(() => runPromise(rpc.chatListSkills()));
   const uiModels = useMemo<ChatComposerModelOption[]>(
     () =>
       modelOptions.map((option) => ({
@@ -256,20 +256,20 @@ export function AgentChatComposer({
     const normalizedQuery = query.trim();
     const [understandings, contexts, domains, canvases] = await Promise.all([
       normalizedQuery
-        ? (Effect.runPromise(
+        ? (runPromise(
             rpc.searchUnderstandings(normalizedQuery, { limit: CONTEXT_LOOKUP_LIMIT }),
           ) as Promise<UnderstandingSummaryDTO[]>)
-        : (Effect.runPromise(rpc.understandingList({ limit: CONTEXT_LOOKUP_LIMIT })) as Promise<
+        : (runPromise(rpc.understandingList({ limit: CONTEXT_LOOKUP_LIMIT })) as Promise<
             UnderstandingSummaryDTO[]
           >),
       normalizedQuery
-        ? (Effect.runPromise(
+        ? (runPromise(
             rpc.searchContexts(normalizedQuery, { limit: CONTEXT_LOOKUP_LIMIT }),
           ) as Promise<SearchContextResult[]>)
         : Promise.resolve([]),
-      Effect.runPromise(rpc.domainListDomains()) as Promise<import("@reflecta/server").Domain[]>,
+      runPromise(rpc.domainListDomains()) as Promise<import("@reflecta/server").Domain[]>,
       normalizedQuery
-        ? (Effect.runPromise(rpc.canvasList()) as Promise<CanvasDTO[]>)
+        ? (runPromise(rpc.canvasList()) as Promise<CanvasDTO[]>)
         : Promise.resolve([]),
     ]);
     if (signal.aborted) return [];
@@ -329,8 +329,7 @@ export function AgentChatComposer({
       attachmentAdapter={attachments.adapter}
       onSubmit={submit}
       onAttachmentOpen={(attachment) => {
-        if (attachment.filePath)
-          void Effect.runPromise(rpc.assetOpenExternalPath(attachment.filePath));
+        if (attachment.filePath) void runPromise(rpc.assetOpenExternalPath(attachment.filePath));
       }}
       onModelChange={(id) => {
         const option = modelById.get(id);

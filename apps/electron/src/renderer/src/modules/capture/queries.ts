@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { runPromise } from "@renderer/lib/effect-runtime";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type {
   Domain,
@@ -60,18 +60,18 @@ export type EntityDisplay = { title: string | null };
 
 export async function getEntityDisplay(ref: Pick<AgentContextRef, "type" | "id">) {
   if (ref.type === "understanding") {
-    const entity = await Effect.runPromise(rpc.understandingGetById(ref.id));
+    const entity = await runPromise(rpc.understandingGetById(ref.id));
     return entity ? { title: entity.title?.trim() || null } : null;
   }
   if (ref.type === "context") {
-    const entity = await Effect.runPromise(rpc.contextGetById(ref.id));
+    const entity = await runPromise(rpc.contextGetById(ref.id));
     return entity ? { title: entity.title?.trim() || null } : null;
   }
   if (ref.type === "canvas") {
-    const entity = await Effect.runPromise(rpc.canvasGet(ref.id));
+    const entity = await runPromise(rpc.canvasGet(ref.id));
     return entity ? { title: entity.canvas.title?.trim() || null } : null;
   }
-  const entity = await Effect.runPromise(rpc.domainGetDomainById(ref.id));
+  const entity = await runPromise(rpc.domainGetDomainById(ref.id));
   return entity ? { title: entity.name?.trim() || null } : null;
 }
 
@@ -149,7 +149,7 @@ export function useCaptureDomains(enabled = true) {
     refetch,
   } = useQuery({
     queryKey: captureQueryKeys.domains,
-    queryFn: () => Effect.runPromise(rpc.domainListDomains()) as Promise<Domain[]>,
+    queryFn: () => runPromise(rpc.domainListDomains()) as Promise<Domain[]>,
     enabled,
   });
 
@@ -168,7 +168,7 @@ export function useCaptureUnderstandingList(filterKey: UnderstandingListFilterKe
   return useQuery<UnderstandingSummaryDTO[]>({
     queryKey: captureQueryKeys.understandingList(filterKey),
     queryFn: () =>
-      Effect.runPromise(rpc.understandingList(buildUnderstandingListFilter(filterKey))) as Promise<
+      runPromise(rpc.understandingList(buildUnderstandingListFilter(filterKey))) as Promise<
         UnderstandingSummaryDTO[]
       >,
   });
@@ -178,9 +178,9 @@ export function useCaptureUnderstandingListTotal(filterKey: UnderstandingListTot
   return useQuery<UnderstandingSummaryDTO[]>({
     queryKey: captureQueryKeys.understandingListTotal(filterKey),
     queryFn: () =>
-      Effect.runPromise(
-        rpc.understandingList(buildUnderstandingListTotalFilter(filterKey)),
-      ) as Promise<UnderstandingSummaryDTO[]>,
+      runPromise(rpc.understandingList(buildUnderstandingListTotalFilter(filterKey))) as Promise<
+        UnderstandingSummaryDTO[]
+      >,
   });
 }
 
@@ -188,9 +188,7 @@ export function useCaptureUnderstandingDetail(understandingId: string) {
   return useQuery<UnderstandingDTO | null>({
     queryKey: captureQueryKeys.understandingDetail(understandingId),
     queryFn: () =>
-      Effect.runPromise(
-        rpc.understandingGetById(understandingId),
-      ) as Promise<UnderstandingDTO | null>,
+      runPromise(rpc.understandingGetById(understandingId)) as Promise<UnderstandingDTO | null>,
   });
 }
 
@@ -205,19 +203,19 @@ export function useParticipationOverview(enabled = true) {
   const understandingsQuery = useQuery<UnderstandingSummaryDTO[]>({
     queryKey: captureQueryKeys.understandingList(ALL_UNDERSTANDINGS_LIST_FILTER),
     queryFn: () =>
-      Effect.runPromise(
+      runPromise(
         rpc.understandingList(buildUnderstandingListFilter(ALL_UNDERSTANDINGS_LIST_FILTER)),
       ) as Promise<UnderstandingSummaryDTO[]>,
     enabled,
   });
   const canvasesQuery = useQuery({
     queryKey: captureQueryKeys.canvases,
-    queryFn: () => Effect.runPromise(rpc.canvasList()) as Promise<CanvasDTO[]>,
+    queryFn: () => runPromise(rpc.canvasList()) as Promise<CanvasDTO[]>,
     enabled,
   });
   const recapQuery = useQuery({
     queryKey: captureQueryKeys.recap,
-    queryFn: () => Effect.runPromise(rpc.insightsGetRecapData()) as Promise<RecapData>,
+    queryFn: () => runPromise(rpc.insightsGetRecapData()) as Promise<RecapData>,
     enabled,
   });
 
@@ -271,7 +269,7 @@ export function useCreateUnderstandingMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateUnderstandingInput) =>
-      Effect.runPromise(rpc.understandingCreate(input)) as Promise<UnderstandingDTO>,
+      runPromise(rpc.understandingCreate(input)) as Promise<UnderstandingDTO>,
     onSuccess: () =>
       Promise.all([
         invalidateUnderstandingLists(queryClient),
@@ -284,7 +282,7 @@ export function useUpdateUnderstandingMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateUnderstandingInput }) =>
-      Effect.runPromise(rpc.understandingUpdate(id, input)) as Promise<UnderstandingDTO>,
+      runPromise(rpc.understandingUpdate(id, input)) as Promise<UnderstandingDTO>,
     onSuccess: (_result, variables) =>
       Promise.all([
         invalidateUnderstandingDetail(queryClient, variables.id),
@@ -300,7 +298,7 @@ export function useUpdateUnderstandingMutation() {
 export function useDeleteUnderstandingMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => Effect.runPromise(rpc.understandingDelete(id)),
+    mutationFn: (id: string) => runPromise(rpc.understandingDelete(id)),
     onSuccess: (_result, id) =>
       Promise.all([
         invalidateUnderstandingDetail(queryClient, id),
@@ -315,7 +313,7 @@ export function useCreateContextMutation(understandingId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: Omit<CreateContextInput, "understandingId">): Promise<ContextDTO> =>
-      Effect.runPromise(rpc.contextCreate({ ...input, understandingId })) as Promise<ContextDTO>,
+      runPromise(rpc.contextCreate({ ...input, understandingId })) as Promise<ContextDTO>,
     onSuccess: () =>
       Promise.all([
         invalidateUnderstandingDetail(queryClient, understandingId),
@@ -328,7 +326,7 @@ export function useUpdateContextMutation(understandingId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateContextInput }) =>
-      Effect.runPromise(rpc.contextUpdate(id, input)),
+      runPromise(rpc.contextUpdate(id, input)),
     onSuccess: (_result, variables) =>
       Promise.all([
         invalidateUnderstandingDetail(queryClient, understandingId),
@@ -340,7 +338,7 @@ export function useUpdateContextMutation(understandingId: string) {
 export function useDeleteContextMutation(understandingId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => Effect.runPromise(rpc.contextDelete(id)),
+    mutationFn: (id: string) => runPromise(rpc.contextDelete(id)),
     onSuccess: (_result, id) =>
       Promise.all([
         invalidateUnderstandingDetail(queryClient, understandingId),
@@ -356,13 +354,13 @@ export function useDomainMutations() {
     Promise.all([invalidateDomains(queryClient), invalidateUnderstandingLists(queryClient)]);
 
   const createDomain = useMutation({
-    mutationFn: (input: CreateDomainInput) => Effect.runPromise(rpc.domainCreateDomain(input)),
+    mutationFn: (input: CreateDomainInput) => runPromise(rpc.domainCreateDomain(input)),
     onSuccess: invalidateDomainScope,
   });
 
   const updateDomain = useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateDomainInput }) =>
-      Effect.runPromise(rpc.domainUpdateDomain(id, input)),
+      runPromise(rpc.domainUpdateDomain(id, input)),
     onSuccess: (_result, variables) =>
       Promise.all([
         invalidateDomainScope(),
@@ -372,7 +370,7 @@ export function useDomainMutations() {
 
   const deleteDomain = useMutation({
     mutationFn: ({ id, deleteUnderstandings }: { id: string; deleteUnderstandings?: boolean }) =>
-      Effect.runPromise(rpc.domainDeleteDomain(id, deleteUnderstandings)),
+      runPromise(rpc.domainDeleteDomain(id, deleteUnderstandings)),
     onSuccess: (_result, variables) =>
       Promise.all([
         invalidateDomainScope(),
@@ -381,7 +379,7 @@ export function useDomainMutations() {
   });
 
   const reorderDomains = useMutation({
-    mutationFn: (items: ReorderDomainItem[]) => Effect.runPromise(rpc.domainReorderDomains(items)),
+    mutationFn: (items: ReorderDomainItem[]) => runPromise(rpc.domainReorderDomains(items)),
     onSuccess: invalidateDomainScope,
   });
 

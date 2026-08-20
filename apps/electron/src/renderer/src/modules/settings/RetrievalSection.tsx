@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
+import { runPromise } from "@renderer/lib/effect-runtime";
 import { Download, RefreshCw } from "lucide-react";
 import { Badge } from "@reflecta/ui/components/badge";
 import { Button } from "@reflecta/ui/components/button";
 import { Progress } from "@reflecta/ui/components/progress";
 import { Switch } from "@reflecta/ui/components/switch";
-import { Effect } from "effect";
 import { rpc } from "@renderer/lib/effect-rpc";
 
 type RetrievalConfig = import("../../../../ipc").RetrievalConfig;
@@ -57,9 +57,9 @@ export function RetrievalSection() {
 
   useEffect(() => {
     void Promise.all([
-      Effect.runPromise(rpc.configGetEmbeddingStatus()),
-      Effect.runPromise(rpc.configGetRetrieval()),
-      Effect.runPromise(rpc.configGetIndexStatus()),
+      runPromise(rpc.configGetEmbeddingStatus()),
+      runPromise(rpc.configGetRetrieval()),
+      runPromise(rpc.configGetIndexStatus()),
     ]).then(([nextStatus, nextConfig, nextIndexStatus]) => {
       setStatus(nextStatus);
       setConfig(nextConfig);
@@ -76,13 +76,13 @@ export function RetrievalSection() {
     setSaving(true);
     setConfig(nextConfig);
     try {
-      await Effect.runPromise(
+      await runPromise(
         rpc.configSetRetrieval(nextConfig as import("../../../../ipc").RetrievalConfig),
       );
       const [nextStatus, savedConfig, nextIndexStatus] = await Promise.all([
-        Effect.runPromise(rpc.configGetEmbeddingStatus()),
-        Effect.runPromise(rpc.configGetRetrieval()),
-        Effect.runPromise(rpc.configGetIndexStatus()),
+        runPromise(rpc.configGetEmbeddingStatus()),
+        runPromise(rpc.configGetRetrieval()),
+        runPromise(rpc.configGetIndexStatus()),
       ]);
       setStatus(nextStatus);
       setConfig(savedConfig);
@@ -95,12 +95,12 @@ export function RetrievalSection() {
   const handleDownload = async () => {
     setDownloading(true);
     const interval = window.setInterval(() => {
-      void Effect.runPromise(rpc.configGetEmbeddingStatus()).then(setStatus);
+      void runPromise(rpc.configGetEmbeddingStatus()).then(setStatus);
     }, 250);
     try {
-      setStatus(await Effect.runPromise(rpc.configDownloadModel()));
+      setStatus(await runPromise(rpc.configDownloadModel()));
     } catch {
-      setStatus(await Effect.runPromise(rpc.configGetEmbeddingStatus()));
+      setStatus(await runPromise(rpc.configGetEmbeddingStatus()));
     } finally {
       window.clearInterval(interval);
       setDownloading(false);
@@ -110,12 +110,12 @@ export function RetrievalSection() {
   const handleRebuildIndex = async () => {
     setIndexing(true);
     const interval = window.setInterval(() => {
-      void Effect.runPromise(rpc.configGetIndexStatus()).then(setIndexStatus);
+      void runPromise(rpc.configGetIndexStatus()).then(setIndexStatus);
     }, 250);
     try {
-      setIndexStatus(await Effect.runPromise(rpc.configRebuildIndex()));
+      setIndexStatus(await runPromise(rpc.configRebuildIndex()));
     } catch {
-      setIndexStatus(await Effect.runPromise(rpc.configGetIndexStatus()));
+      setIndexStatus(await runPromise(rpc.configGetIndexStatus()));
     } finally {
       window.clearInterval(interval);
       setIndexing(false);

@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { runPromise } from "@renderer/lib/effect-runtime";
 import { useQuery } from "@tanstack/react-query";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { CanvasDetailDTO } from "@reflecta/server";
@@ -20,7 +20,7 @@ export function CanvasInspector({
 }) {
   const detailQuery = useQuery({
     queryKey: ["agent.inspector.canvas", canvasId],
-    queryFn: () => Effect.runPromise(rpc.canvasGet(canvasId)) as Promise<CanvasDetailDTO | null>,
+    queryFn: () => runPromise(rpc.canvasGet(canvasId)) as Promise<CanvasDetailDTO | null>,
     enabled: !!canvasId,
   });
 
