@@ -1,4 +1,5 @@
 import { performance } from "node:perf_hooks";
+import { Effect } from "effect";
 import { Type } from "@earendil-works/pi-ai";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { AgentFileAttachment } from "@shared/agent";
@@ -301,11 +302,13 @@ export function createPiReadOnlyTools(
         createToolResult(
           "retrieve_knowledge",
           toolCallId,
-          await searchCliService.retrieveKnowledge({
-            query,
-            limit,
-            anchors: domainIds?.map((id) => ({ type: "domain" as const, id })),
-          }),
+          await Effect.runPromise(
+            searchCliService.retrieveKnowledge({
+              query,
+              limit,
+              anchors: domainIds?.map((id) => ({ type: "domain" as const, id })),
+            }),
+          ),
           entityOptions,
         ),
     }),
@@ -327,9 +330,11 @@ export function createPiReadOnlyTools(
         createToolResult(
           "canvas_read",
           toolCallId,
-          await understandingCanvasCliService.getCanvasDetail(canvasId, {
-            includeBodies,
-          }),
+          await Effect.runPromise(
+            understandingCanvasCliService.getCanvasDetail(canvasId, {
+              includeBodies,
+            }),
+          ),
           entityOptions,
         ),
     }),
@@ -352,7 +357,9 @@ export function createPiReadOnlyTools(
         createToolResult(
           "canvas_list",
           toolCallId,
-          await understandingCanvasCliService.listCanvases({ titleSearchKeyword, limit }),
+          await Effect.runPromise(
+            understandingCanvasCliService.listCanvases({ titleSearchKeyword, limit }),
+          ),
           entityOptions,
         ),
     }),
@@ -390,7 +397,9 @@ export function createPiReadOnlyTools(
         createToolResult(
           "canvas_search",
           toolCallId,
-          await understandingCanvasCliService.searchCanvases({ query, understandingId, limit }),
+          await Effect.runPromise(
+            understandingCanvasCliService.searchCanvases({ query, understandingId, limit }),
+          ),
           entityOptions,
         ),
     }),

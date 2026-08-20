@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
+import { Effect } from "effect";
 import { AgentEntityCatalog } from "./agent-entity-catalog";
 import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-tools";
 
@@ -74,7 +75,7 @@ describe("createPiReadOnlyTools", () => {
 
   test("executes retrieve_knowledge through the retrieval seam", async () => {
     const result = { candidates: [], trace: { query: "agent 标准" } };
-    services.retrieveKnowledge.mockResolvedValue(result);
+    services.retrieveKnowledge.mockReturnValue(Effect.succeed(result));
     const tool = createPiReadOnlyTools().find((item) => item.name === "retrieve_knowledge");
     expect(tool).toBeDefined();
 
@@ -103,7 +104,7 @@ describe("createPiReadOnlyTools", () => {
 
   test("retrieve_knowledge forwards domainIds as domain anchors (A4)", async () => {
     const result = { candidates: [], trace: { query: "q" } };
-    services.retrieveKnowledge.mockResolvedValue(result);
+    services.retrieveKnowledge.mockReturnValue(Effect.succeed(result));
     const tool = createPiReadOnlyTools().find((item) => item.name === "retrieve_knowledge");
     expect(tool).toBeDefined();
 
@@ -143,7 +144,7 @@ describe("createPiReadOnlyTools", () => {
         },
       ],
     };
-    services.retrieveKnowledge.mockResolvedValue(result);
+    services.retrieveKnowledge.mockReturnValue(Effect.succeed(result));
     const catalog = new AgentEntityCatalog();
     const tool = createPiReadOnlyTools([], {
       collectToolOutput: (toolName, toolCallId, output) => {
@@ -313,7 +314,7 @@ describe("createPiReadOnlyTools", () => {
       understandingRefs: [{ id: "u_1", title: "反馈回路", body: "", deleted: false }],
       referencedCanvases: [],
     };
-    services.getCanvasDetail.mockResolvedValue(detail);
+    services.getCanvasDetail.mockReturnValue(Effect.succeed(detail));
     const tool = createPiReadOnlyTools().find((item) => item.name === "canvas_read");
     expect(tool).toBeDefined();
 
@@ -331,7 +332,7 @@ describe("createPiReadOnlyTools", () => {
 
   test("canvas_search passes query / understandingId / limit through", async () => {
     const hits = [{ canvas: { id: "canvas-1", title: "调度" }, snippet: "x", reason: "标题" }];
-    services.searchCanvases.mockResolvedValue(hits);
+    services.searchCanvases.mockReturnValue(Effect.succeed(hits));
     const tool = createPiReadOnlyTools().find((item) => item.name === "canvas_search");
     expect(tool).toBeDefined();
 
@@ -353,7 +354,7 @@ describe("createPiReadOnlyTools", () => {
   });
 
   test("canvas_list passes titleSearchKeyword and limit through", async () => {
-    services.listCanvases.mockResolvedValue([]);
+    services.listCanvases.mockReturnValue(Effect.succeed([]));
     const tool = createPiReadOnlyTools().find((item) => item.name === "canvas_list");
     expect(tool).toBeDefined();
 

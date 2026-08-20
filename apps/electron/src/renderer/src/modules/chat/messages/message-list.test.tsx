@@ -202,7 +202,7 @@ describe("MessageList entity refs", () => {
     expect(card?.getAttribute("data-proposal-open")).toBe("true");
   });
 
-  test("does not repeat a landed knowledge proposal in the message stream", () => {
+  test("keeps a landed knowledge proposal in the message stream with completed state", () => {
     renderMessageList({
       messages: [
         {
@@ -237,8 +237,10 @@ describe("MessageList entity refs", () => {
       entityCatalog: [],
     });
 
-    expect(container?.querySelector('[data-testid="agent-proposal-card"]')).toBeNull();
-    expect(container?.textContent).not.toContain("新的理解");
+    const card = container?.querySelector('[data-testid="agent-proposal-card"]');
+    expect(card).not.toBeNull();
+    expect(card?.getAttribute("data-proposal-state")).toBe("completed");
+    expect(container?.textContent).toContain("新的理解");
   });
 
   test("shows approved tool execution failures after the confirmed state", () => {
