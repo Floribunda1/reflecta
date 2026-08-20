@@ -7,7 +7,7 @@ import { RegistryContext } from "@effect/atom-react";
 import { App } from "./App";
 import { RendererErrorBoundary } from "./renderer-error-boundary";
 import { useAppliedTheme } from "./modules/settings/use-applied-theme";
-import { canvasRegistry } from "./modules/canvas/store";
+import { appAtomRegistry } from "./lib/atoms";
 
 function ThemeBridge() {
   useAppliedTheme();
@@ -24,7 +24,7 @@ if (!root) {
 createRoot(root).render(
   <StrictMode>
     <RendererErrorBoundary>
-      <RegistryContext.Provider value={canvasRegistry}>
+      <RegistryContext.Provider value={appAtomRegistry}>
         <ThemeProvider>
           <ThemeBridge />
           <QueryClientProvider client={queryClient}>

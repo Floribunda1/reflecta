@@ -9,7 +9,8 @@ import {
   PAIRED_THEMES,
   type PairedGhosttyTheme,
 } from "@reflecta/ui/styles/ghostty-themes";
-import { useThemeStore } from "./theme-store";
+import { useAtomValue } from "@effect/atom-react";
+import { themeActions, themeAtom } from "./theme-store";
 
 function PreviewSwatch({ base, accent }: { base: readonly string[]; accent: string }) {
   return (
@@ -131,10 +132,9 @@ function ThemeCard({
 }
 
 export function ThemeSection() {
-  const scheme = useThemeStore((state) => state.scheme);
-  const setScheme = useThemeStore((state) => state.setScheme);
-  const primarySlots = useThemeStore((state) => state.primarySlots);
-  const setPrimarySlot = useThemeStore((state) => state.setPrimarySlot);
+  const { scheme, primarySlots } = useAtomValue(themeAtom);
+  const setScheme = themeActions.setScheme;
+  const setPrimarySlot = themeActions.setPrimarySlot;
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {

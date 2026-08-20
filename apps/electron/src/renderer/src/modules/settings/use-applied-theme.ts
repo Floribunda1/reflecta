@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import { useTheme } from "next-themes";
+import { useAtomValue } from "@effect/atom-react";
 import { applyGhosttyScheme } from "@reflecta/ui/styles/apply-ghostty-scheme";
 import { DEFAULT_GHOSTTY_SCHEME, PAIRED_THEMES } from "@reflecta/ui/styles/ghostty-themes";
-import { useThemeStore } from "./theme-store";
+import { themeAtom } from "./theme-store";
 
 function resolvePairedTheme(scheme: string) {
   return (
@@ -16,8 +17,7 @@ function resolvePairedTheme(scheme: string) {
  * 主色用该主题记下的 base08–0F；没有记录则用主题自带 cursor-color。
  */
 export function useAppliedTheme() {
-  const scheme = useThemeStore((state) => state.scheme);
-  const primarySlots = useThemeStore((state) => state.primarySlots);
+  const { scheme, primarySlots } = useAtomValue(themeAtom);
   const { resolvedTheme } = useTheme();
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import { Atom, AtomRegistry } from "effect/unstable/reactivity";
+import { runAtom } from "@renderer/lib/atoms";
 import type { CanvasDocument, CanvasViewport } from "@reflecta/ui/canvas";
 
 /**
@@ -59,11 +60,8 @@ export const selectionAtom: Atom.Writable<string[], string[]> = Atom.keepAlive(
   Atom.make(initialCanvasState.selection),
 );
 
-/** 全局 atom registry：React（`RegistryProvider`）与命令式共享同一实例。 */
-export const canvasRegistry = AtomRegistry.make({});
-
 const runWith = <A, E>(effect: Effect.Effect<A, E, AtomRegistry.AtomRegistry>): A =>
-  Effect.runSync(effect.pipe(Effect.provideService(AtomRegistry.AtomRegistry, canvasRegistry)));
+  runAtom(effect);
 
 const resetAll = Effect.gen(function* () {
   yield* Atom.set(selectedCanvasIdAtom, initialCanvasState.selectedCanvasId);
