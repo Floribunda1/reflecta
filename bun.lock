@@ -48,6 +48,7 @@
       "dependencies": {
         "@earendil-works/pi-ai": "0.84.0",
         "@earendil-works/pi-coding-agent": "0.84.0",
+        "@effect/atom-react": "4.0.0-beta.107",
         "@lancedb/lancedb": "0.33.0",
         "apache-arrow": "18.1.0",
         "better-sqlite3": "^13.0.2",
@@ -431,6 +432,8 @@
     "@earendil-works/pi-telemetry": ["@earendil-works/pi-telemetry@0.84.0", "", {}, "sha512-g6hLxEfAUk3zJlDmFWhWHJNcYXYiNGeWuJC9YkcHpkdkj0gxD4uaMNNNU3QsAEJXW9Qcxnl21+U8GfhVsc8C5g=="],
 
     "@earendil-works/pi-tui": ["@earendil-works/pi-tui@0.84.0", "", { "dependencies": { "get-east-asian-width": "1.6.0", "marked": "18.0.5" } }, "sha512-nbs0FeZJ5rWDD6VpKfXXmYbEHnHqb40V9glE2l9f8ftoWpsP8nw0WcXK8jOjfRsDPnT9dJHy3dItOHdn/AFGjA=="],
+
+    "@effect/atom-react": ["@effect/atom-react@4.0.0-beta.107", "", { "peerDependencies": { "effect": "^4.0.0-beta.107", "react": ">=19.2.7 <20.0.0", "scheduler": ">=0.27.0 <0.28.0" } }, "sha512-dSx8Mmgge8oy3On8k95V3dyaRo9od8Eg0our56PIrTlRZBBRLXM2vc/X7GsxAYtHs2PMracVFUJqizXCcPsCyQ=="],
 
     "@electron-internal/extract-zip": ["@electron-internal/extract-zip@1.0.5", "", {}, "sha512-+bqFCP98pLI0Tt0XQo1TmlXtwjWchISndDOxCkEcIuUgXWpBnLyRI+2DU+mesvnMMX6L1XDqYNA0lXNDHd/yiA=="],
 

@@ -35,7 +35,8 @@ import {
   useSaveCanvasMutation,
   useUpdateViewportMutation,
 } from "../queries";
-import { useCanvasStore } from "../store";
+import { useAtomSet, useAtomValue } from "@effect/atom-react";
+import { documentAtom, readCanvasState, selectionAtom, viewportAtom } from "../store";
 import { CanvasDetailPanel } from "./CanvasDetailPanel";
 import { CanvasLibraryPanel } from "./CanvasLibraryPanel";
 import { CanvasRefPickerModal } from "./CanvasRefPickerModal";
@@ -141,10 +142,10 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   }
   const initialDocument = initialDocumentRef.current;
 
-  const setDocument = useCanvasStore((state) => state.setDocument);
-  const setViewport = useCanvasStore((state) => state.setViewport);
-  const setSelection = useCanvasStore((state) => state.setSelection);
-  const currentDocument = useCanvasStore((state) => state.document);
+  const setDocument = useAtomSet(documentAtom);
+  const setViewport = useAtomSet(viewportAtom);
+  const setSelection = useAtomSet(selectionAtom);
+  const currentDocument = useAtomValue(documentAtom);
 
   const saveCanvas = useSaveCanvasMutation();
   const updateViewport = useUpdateViewportMutation();
@@ -286,14 +287,14 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     (cellIds: string[]) => {
       setSelection(cellIds);
       setRightPanel((current) =>
-        panelForSelection(cellIds, useCanvasStore.getState().document, current),
+        panelForSelection(cellIds, readCanvasState(documentAtom), current),
       );
     },
     [setSelection],
   );
 
   const [detailPanelKey, setDetailPanelKey] = useState<string>("");
-  const elementCount = useCanvasStore((state) => state.document.elements.length);
+  const elementCount = useAtomValue(documentAtom).elements.length;
 
   // 搜索（M2-6）：⌘/Ctrl+F 打开浮层；选中结果定位到节点。
   const [searchOpen, setSearchOpen] = useState(false);
@@ -343,8 +344,8 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
       }
       if (meta && event.key.toLowerCase() === "g") {
         event.preventDefault();
-        const doc = useCanvasStore.getState().document;
-        const selected = useCanvasStore.getState().selection;
+        const doc = readCanvasState(documentAtom);
+        const selected = readCanvasState(selectionAtom);
         const selectedGroups = selected.filter((id) =>
           doc.elements.some((element) => element.id === id && element.kind === "group"),
         );

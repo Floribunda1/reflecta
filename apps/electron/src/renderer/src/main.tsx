@@ -3,9 +3,11 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@reflecta/ui/theme";
+import { RegistryContext } from "@effect/atom-react";
 import { App } from "./App";
 import { RendererErrorBoundary } from "./renderer-error-boundary";
 import { useAppliedTheme } from "./modules/settings/use-applied-theme";
+import { canvasRegistry } from "./modules/canvas/store";
 
 function ThemeBridge() {
   useAppliedTheme();
@@ -22,12 +24,14 @@ if (!root) {
 createRoot(root).render(
   <StrictMode>
     <RendererErrorBoundary>
-      <ThemeProvider>
-        <ThemeBridge />
-        <QueryClientProvider client={queryClient}>
-          <App />
-        </QueryClientProvider>
-      </ThemeProvider>
+      <RegistryContext.Provider value={canvasRegistry}>
+        <ThemeProvider>
+          <ThemeBridge />
+          <QueryClientProvider client={queryClient}>
+            <App />
+          </QueryClientProvider>
+        </ThemeProvider>
+      </RegistryContext.Provider>
     </RendererErrorBoundary>
   </StrictMode>,
 );

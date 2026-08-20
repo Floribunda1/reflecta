@@ -43,6 +43,7 @@
   "dependencies": {
     "@earendil-works/pi-ai": "0.84.0",
     "@earendil-works/pi-coding-agent": "0.84.0",
+    "@effect/atom-react": "4.0.0-beta.107",
     "@lancedb/lancedb": "0.33.0",
     "apache-arrow": "18.1.0",
     "better-sqlite3": "^13.0.2",
