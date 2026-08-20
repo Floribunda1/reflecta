@@ -242,11 +242,11 @@ describe("retrieval index rebuild", () => {
     });
     await coordinator.flush();
 
-    await contexts.deleteContext(context.id);
+    await Effect.runPromise(contexts.deleteContext(context.id));
     await coordinator.flush();
     expect(await createRetrievalIndex().searchLexical("restorablecontextmarker", 5)).toEqual([]);
 
-    await contexts.restoreContext(context.id);
+    await Effect.runPromise(contexts.restoreContext(context.id));
     await coordinator.flush();
     expect(
       (await createRetrievalIndex().searchLexical("restorablecontextmarker", 5))[0]?.entityId,

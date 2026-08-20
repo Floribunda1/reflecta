@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+import * as S from "effect/Schema";
 import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { contexts, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
@@ -6,161 +8,216 @@ import type { TrashedContextDTO } from "../trash/types";
 import { createEntityId } from "../shared/id";
 import type { RetrievalIndexUpdateSink } from "../shared/types";
 
+export class ContextNotFoundError extends S.TaggedError<ContextNotFoundError>()(
+  "ContextNotFoundError",
+  { id: S.String },
+) {}
+export class NoContextFieldsError extends S.TaggedError<NoContextFieldsError>()(
+  "NoContextFieldsError",
+  { message: S.String },
+) {}
+export class ContextUnderstandingNotFoundError extends S.TaggedError<ContextUnderstandingNotFoundError>()(
+  "ContextUnderstandingNotFoundError",
+  { understandingId: S.String },
+) {}
+
+export type ContextError =
+  | ContextNotFoundError
+  | NoContextFieldsError
+  | ContextUnderstandingNotFoundError;
+
 export class ContextCore {
   constructor(
     protected db: ReflectaDb,
     private readonly retrievalIndex?: RetrievalIndexUpdateSink,
   ) {}
 
-  async listContextsByUnderstanding(understandingId: string): Promise<ContextDTO[]> {
-    const rows = await this.db
-      .select()
-      .from(contexts)
-      .where(and(eq(contexts.understandingId, understandingId), isNull(contexts.deletedAt)))
-      .orderBy(desc(contexts.createdAt));
-    return rows as ContextDTO[];
+  listContextsByUnderstanding(understandingId: string): Effect.Effect<ContextDTO[]> {
+    return Effect.promise(async () => {
+      const rows = await this.db
+        .select()
+        .from(contexts)
+        .where(and(eq(contexts.understandingId, understandingId), isNull(contexts.deletedAt)))
+        .orderBy(desc(contexts.createdAt));
+      return rows as ContextDTO[];
+    });
   }
 
-  async getContextRow(id: string): Promise<typeof contexts.$inferSelect | null> {
-    const rows = await this.db
-      .select()
-      .from(contexts)
-      .where(and(eq(contexts.id, id), isNull(contexts.deletedAt)))
-      .limit(1);
-    return rows[0] ?? null;
+  getContextRow(id: string): Effect.Effect<typeof contexts.$inferSelect | null> {
+    return Effect.promise(async () => {
+      const rows = await this.db
+        .select()
+        .from(contexts)
+        .where(and(eq(contexts.id, id), isNull(contexts.deletedAt)))
+        .limit(1);
+      return rows[0] ?? null;
+    });
   }
 
-  async _createContext(input: CreateContextInput): Promise<ContextDTO> {
-    const createdAt = new Date().toISOString();
-    const id = createEntityId();
-    await this.assertUnderstandingExists(input.understandingId);
+  _createContext(input: CreateContextInput): Effect.Effect<ContextDTO, ContextError> {
+    const db = this.db;
+    const retrievalIndex = this.retrievalIndex;
+    const assertUnderstandingExists = this.assertUnderstandingExists.bind(this);
+    return Effect.gen(function* () {
+      const createdAt = new Date().toISOString();
+      const id = createEntityId();
+      yield* assertUnderstandingExists(input.understandingId);
 
-    const row: typeof contexts.$inferInsert = {
-      id,
-      understandingId: input.understandingId,
-      medium: input.medium,
-      title: input.title ?? null,
-      content: input.content,
-      createdAt,
-      deletedAt: null,
-    };
+      const row: typeof contexts.$inferInsert = {
+        id,
+        understandingId: input.understandingId,
+        medium: input.medium,
+        title: input.title ?? null,
+        content: input.content,
+        createdAt,
+        deletedAt: null,
+      };
 
-    await this.db.insert(contexts).values(row).run();
-    this.retrievalIndex?.enqueue([input.understandingId]);
-    return { ...row, createdAt, deletedAt: null } as ContextDTO;
+      yield* Effect.sync(() => db.insert(contexts).values(row).run());
+      retrievalIndex?.enqueue([input.understandingId]);
+      return { ...row, createdAt, deletedAt: null } as ContextDTO;
+    });
   }
 
-  async _updateContext(id: string, input: UpdateContextInput): Promise<ContextDTO> {
-    const updates: Partial<typeof contexts.$inferInsert> = {};
-    let previousUnderstandingId: string | undefined;
-    if (input.understandingId !== undefined) {
-      const current = await this.getContextRow(id);
-      if (!current) throw new Error(`Context not found: ${id}`);
-      await this.assertUnderstandingExists(input.understandingId);
-      previousUnderstandingId = current.understandingId;
-      updates.understandingId = input.understandingId;
-    }
-    if (input.medium !== undefined) updates.medium = input.medium;
-    if (input.title !== undefined) updates.title = input.title;
-    if (input.content !== undefined) updates.content = input.content;
-    if (Object.keys(updates).length === 0) throw new Error("No context fields to update");
-
-    let updated: ContextDTO | undefined;
-    await this.db.transaction((tx) => {
-      const rows = tx.update(contexts).set(updates).where(eq(contexts.id, id)).returning().all();
-      if (rows.length === 0) {
-        throw new Error(`Context not found: ${id}`);
+  _updateContext(id: string, input: UpdateContextInput): Effect.Effect<ContextDTO, ContextError> {
+    const db = this.db;
+    const retrievalIndex = this.retrievalIndex;
+    const getContextRow = this.getContextRow.bind(this);
+    const assertUnderstandingExists = this.assertUnderstandingExists.bind(this);
+    return Effect.gen(function* () {
+      const updates: Partial<typeof contexts.$inferInsert> = {};
+      let previousUnderstandingId: string | undefined;
+      if (input.understandingId !== undefined) {
+        const current = yield* getContextRow(id);
+        if (!current) return yield* Effect.fail(new ContextNotFoundError({ id }));
+        yield* assertUnderstandingExists(input.understandingId);
+        previousUnderstandingId = current.understandingId;
+        updates.understandingId = input.understandingId;
       }
-      updated = rows[0] as ContextDTO;
-    });
-
-    this.retrievalIndex?.enqueue(
-      previousUnderstandingId
-        ? [previousUnderstandingId, updated!.understandingId]
-        : [updated!.understandingId],
-    );
-    return updated!;
-  }
-
-  async deleteContext(id: string): Promise<void> {
-    let understandingId: string | undefined;
-    await this.db.transaction((tx) => {
-      const rows = tx
-        .update(contexts)
-        .set({ deletedAt: new Date().toISOString() })
-        .where(eq(contexts.id, id))
-        .returning()
-        .all();
-      if (rows.length === 0) {
-        throw new Error(`Context not found: ${id}`);
+      if (input.medium !== undefined) updates.medium = input.medium;
+      if (input.title !== undefined) updates.title = input.title;
+      if (input.content !== undefined) updates.content = input.content;
+      if (Object.keys(updates).length === 0) {
+        return yield* Effect.fail(
+          new NoContextFieldsError({ message: "No context fields to update" }),
+        );
       }
-      understandingId = rows[0].understandingId;
+
+      const rows: Array<typeof contexts.$inferSelect> = yield* Effect.promise(async () =>
+        db.transaction((tx) =>
+          tx.update(contexts).set(updates).where(eq(contexts.id, id)).returning().all(),
+        ),
+      );
+      if (rows.length === 0) return yield* Effect.fail(new ContextNotFoundError({ id }));
+      const updated = rows[0] as ContextDTO;
+
+      retrievalIndex?.enqueue(
+        previousUnderstandingId
+          ? [previousUnderstandingId, updated.understandingId]
+          : [updated.understandingId],
+      );
+      return updated;
     });
-    this.retrievalIndex?.enqueue([understandingId!]);
   }
 
-  async restoreContext(id: string): Promise<void> {
-    let understandingId: string | undefined;
-    await this.db.transaction((tx) => {
-      const rows = tx
-        .update(contexts)
-        .set({ deletedAt: null })
-        .where(and(eq(contexts.id, id), isNotNull(contexts.deletedAt)))
-        .returning()
-        .all();
-      if (rows.length === 0) return;
-      understandingId = rows[0].understandingId;
+  deleteContext(id: string): Effect.Effect<void, ContextError> {
+    const db = this.db;
+    const retrievalIndex = this.retrievalIndex;
+    return Effect.gen(function* () {
+      const rows: Array<typeof contexts.$inferSelect> = yield* Effect.promise(async () =>
+        db.transaction((tx) =>
+          tx
+            .update(contexts)
+            .set({ deletedAt: new Date().toISOString() })
+            .where(eq(contexts.id, id))
+            .returning()
+            .all(),
+        ),
+      );
+      if (rows.length === 0) return yield* Effect.fail(new ContextNotFoundError({ id }));
+      retrievalIndex?.enqueue([rows[0].understandingId]);
     });
-    if (understandingId) this.retrievalIndex?.enqueue([understandingId]);
   }
 
-  async permanentlyDeleteContext(id: string): Promise<void> {
-    const rows = await this.db.delete(contexts).where(eq(contexts.id, id)).returning().all();
-    if (rows[0]) this.retrievalIndex?.enqueue([rows[0].understandingId]);
+  restoreContext(id: string): Effect.Effect<void> {
+    const db = this.db;
+    const retrievalIndex = this.retrievalIndex;
+    return Effect.gen(function* () {
+      const rows: Array<typeof contexts.$inferSelect> = yield* Effect.promise(async () =>
+        db.transaction((tx) =>
+          tx
+            .update(contexts)
+            .set({ deletedAt: null })
+            .where(and(eq(contexts.id, id), isNotNull(contexts.deletedAt)))
+            .returning()
+            .all(),
+        ),
+      );
+      if (rows[0]) retrievalIndex?.enqueue([rows[0].understandingId]);
+    });
   }
 
-  private async assertUnderstandingExists(understandingId: string): Promise<void> {
-    const rows = await this.db
-      .select({ id: understandings.id })
-      .from(understandings)
-      .where(and(eq(understandings.id, understandingId), isNull(understandings.deletedAt)))
-      .limit(1);
-    if (rows.length === 0) throw new Error(`Understanding not found: ${understandingId}`);
+  permanentlyDeleteContext(id: string): Effect.Effect<void> {
+    const db = this.db;
+    const retrievalIndex = this.retrievalIndex;
+    return Effect.gen(function* () {
+      const rows = yield* Effect.sync(() =>
+        db.delete(contexts).where(eq(contexts.id, id)).returning().all(),
+      );
+      if (rows[0]) retrievalIndex?.enqueue([rows[0].understandingId]);
+    });
   }
 
-  async listTrashedContexts(): Promise<TrashedContextDTO[]> {
-    const rows = await this.db.all<{
-      id: string;
-      understanding_id: string;
-      understanding_title: string | null;
-      medium: string;
-      title: string | null;
-      content: string;
-      deleted_at: string;
-    }>(sql`
-      SELECT
-        c.id,
-        c.understanding_id,
-        t.title AS understanding_title,
-        c.medium,
-        c.title,
-        c.content,
-        c.deleted_at
-      FROM contexts c
-      JOIN understandings t ON t.id = c.understanding_id
-      WHERE c.deleted_at IS NOT NULL
-        AND t.deleted_at IS NULL
-      ORDER BY c.deleted_at DESC
-    `);
+  private assertUnderstandingExists(understandingId: string): Effect.Effect<void, ContextError> {
+    const db = this.db;
+    return Effect.promise(async () => {
+      const rows = await db
+        .select({ id: understandings.id })
+        .from(understandings)
+        .where(and(eq(understandings.id, understandingId), isNull(understandings.deletedAt)))
+        .limit(1);
+      if (rows.length === 0) {
+        throw new ContextUnderstandingNotFoundError({ understandingId });
+      }
+    });
+  }
 
-    return rows.map((r) => ({
-      id: r.id,
-      understandingId: r.understanding_id,
-      understandingTitle: r.understanding_title ?? null,
-      medium: r.medium as ContextMedium,
-      title: r.title ?? null,
-      content: r.content,
-      deletedAt: r.deleted_at,
-    }));
+  listTrashedContexts(): Effect.Effect<TrashedContextDTO[]> {
+    const db = this.db;
+    return Effect.promise(async () => {
+      const rows = await db.all<{
+        id: string;
+        understanding_id: string;
+        understanding_title: string | null;
+        medium: string;
+        title: string | null;
+        content: string;
+        deleted_at: string;
+      }>(sql`
+        SELECT
+          c.id,
+          c.understanding_id,
+          t.title AS understanding_title,
+          c.medium,
+          c.title,
+          c.content,
+          c.deleted_at
+        FROM contexts c
+        JOIN understandings t ON t.id = c.understanding_id
+        WHERE c.deleted_at IS NOT NULL
+          AND t.deleted_at IS NULL
+        ORDER BY c.deleted_at DESC
+      `);
+
+      return rows.map((r) => ({
+        id: r.id,
+        understandingId: r.understanding_id,
+        understandingTitle: r.understanding_title ?? null,
+        medium: r.medium as ContextMedium,
+        title: r.title ?? null,
+        content: r.content,
+        deletedAt: r.deleted_at,
+      }));
+    });
   }
 }

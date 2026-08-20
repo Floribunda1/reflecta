@@ -657,8 +657,8 @@ export async function hydratePiApprovalPayload(
     };
   }
   if (toolName === "context_update") {
-    const context = await contextService.getContextById(
-      requiredStableEntityId(record, "contextId"),
+    const context = await Effect.runPromise(
+      contextService.getContextById(requiredStableEntityId(record, "contextId")),
     );
     if (!context) return record;
     return {
@@ -715,19 +715,21 @@ export async function executePiApprovedTool(
   }
 
   if (toolName === "context_create") {
-    const context = await contextService.createContext(contextCreateInput(payload));
+    const context = await Effect.runPromise(
+      contextService.createContext(contextCreateInput(payload)),
+    );
     return mutationOutput("context", context);
   }
 
   if (toolName === "context_update") {
     const { contextId, input } = contextUpdateInput(payload);
-    const context = await contextService.updateContext(contextId, input);
+    const context = await Effect.runPromise(contextService.updateContext(contextId, input));
     return mutationOutput("context", context);
   }
 
   if (toolName === "context_delete") {
     const contextId = contextDeleteInput(payload);
-    await contextService.deleteContext(contextId);
+    await Effect.runPromise(contextService.deleteContext(contextId));
     return { resultRefType: "context", resultRefId: contextId };
   }
 

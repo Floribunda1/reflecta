@@ -202,6 +202,23 @@ app.whenReady().then(async () => {
       Effect.catchDefect((defect) => Effect.fail(domainErr(`操作失败：${String(defect)}`))),
     );
   const ctxErr = (message: string) => new ContextListError({ reason: message, code: 500 });
+  // context 域核心已 Effect 化：服务端 ContextError → IPC 契约错误。
+  const runContext = <A>(program: Effect.Effect<A, import("@reflecta/server").ContextError>) =>
+    program.pipe(
+      Effect.mapError((e) => {
+        switch (e._tag) {
+          case "ContextNotFoundError":
+            return ctxErr(`上下文不存在：${e.id}`);
+          case "NoContextFieldsError":
+            return ctxErr(e.message);
+          case "ContextUnderstandingNotFoundError":
+            return ctxErr(`理解不存在：${e.understandingId}`);
+          default:
+            return ctxErr("操作失败");
+        }
+      }),
+      Effect.catchDefect((defect) => Effect.fail(ctxErr(`操作失败：${String(defect)}`))),
+    );
   const assetErr = (message: string) => new AssetError({ reason: message, code: 500 });
   const searchErr = (message: string) => new SearchError({ reason: message, code: 500 });
   const insightsErr = (message: string) => new InsightsError({ reason: message, code: 500 });
@@ -259,52 +276,23 @@ app.whenReady().then(async () => {
           Effect.map(() => undefined),
         ),
       "context.listContextsByUnderstanding": ({ understandingId }) =>
-        Effect.tryPromise({
-          try: () => contextService.listContextsByUnderstanding(understandingId),
-          catch: (e) => ctxErr(e instanceof Error ? e.message : String(e)),
-        }),
-      "context.getContextById": ({ id }) =>
-        Effect.tryPromise({
-          try: () => contextService.getContextById(id),
-          catch: (e) => ctxErr(e instanceof Error ? e.message : String(e)),
-        }),
+        runContext(contextService.listContextsByUnderstanding(understandingId)),
+      "context.getContextById": ({ id }) => runContext(contextService.getContextById(id)),
       "context.createContext": ({ input }) =>
-        Effect.tryPromise({
-          try: () =>
-            contextService.createContext(
-              input as unknown as import("@reflecta/server").CreateContextInput,
-            ),
-          catch: (e) => ctxErr(e instanceof Error ? e.message : String(e)),
-        }),
+        runContext(
+          contextService.createContext(input as import("@reflecta/server").CreateContextInput),
+        ),
       "context.updateContext": ({ id, input }) =>
-        Effect.tryPromise({
-          try: () =>
-            contextService.updateContext(
-              id,
-              input as unknown as import("@reflecta/server").UpdateContextInput,
-            ),
-          catch: (e) => ctxErr(e instanceof Error ? e.message : String(e)),
-        }),
+        runContext(
+          contextService.updateContext(id, input as import("@reflecta/server").UpdateContextInput),
+        ),
       "context.deleteContext": ({ id }) =>
-        Effect.tryPromise({
-          try: () => contextService.deleteContext(id),
-          catch: (e) => ctxErr(e instanceof Error ? e.message : String(e)),
-        }).pipe(Effect.map(() => undefined)),
+        runContext(contextService.deleteContext(id)).pipe(Effect.map(() => undefined)),
       "context.restoreContext": ({ id }) =>
-        Effect.tryPromise({
-          try: () => contextService.restoreContext(id),
-          catch: (e) => ctxErr(e instanceof Error ? e.message : String(e)),
-        }).pipe(Effect.map(() => undefined)),
+        runContext(contextService.restoreContext(id)).pipe(Effect.map(() => undefined)),
       "context.permanentlyDeleteContext": ({ id }) =>
-        Effect.tryPromise({
-          try: () => contextService.permanentlyDeleteContext(id),
-          catch: (e) => ctxErr(e instanceof Error ? e.message : String(e)),
-        }).pipe(Effect.map(() => undefined)),
-      "context.listTrashedContexts": () =>
-        Effect.tryPromise({
-          try: () => contextService.listTrashedContexts(),
-          catch: (e) => ctxErr(e instanceof Error ? e.message : String(e)),
-        }),
+        runContext(contextService.permanentlyDeleteContext(id)).pipe(Effect.map(() => undefined)),
+      "context.listTrashedContexts": () => runContext(contextService.listTrashedContexts()),
       "asset.saveAsset": ({ buffer, filename }) =>
         Effect.tryPromise({
           try: () => saveAssetOp(new Uint8Array(buffer).buffer, filename),

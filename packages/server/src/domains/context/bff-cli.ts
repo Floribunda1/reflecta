@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import type { ReflectaDb } from "../../db/types";
 import { ContextCore } from "./core";
 import type { ContextDetail, CreateContextInput, ContextMedium, UpdateContextInput } from "./types";
@@ -9,7 +10,7 @@ export class ContextCliBff extends ContextCore {
   }
 
   async listContexts(understandingId: string): Promise<ContextDetail[]> {
-    const rows = await this.listContextsByUnderstanding(understandingId);
+    const rows = await Effect.runPromise(this.listContextsByUnderstanding(understandingId));
     return rows.map((r) => ({
       id: r.id,
       understandingId: r.understandingId,
@@ -20,7 +21,7 @@ export class ContextCliBff extends ContextCore {
   }
 
   async getContext(id: string): Promise<ContextDetail> {
-    const row = await this.getContextRow(id);
+    const row = await Effect.runPromise(this.getContextRow(id));
     if (!row) {
       throw new Error(`Context not found: ${id}`);
     }
@@ -35,7 +36,7 @@ export class ContextCliBff extends ContextCore {
   }
 
   async createContext(input: CreateContextInput): Promise<ContextDetail> {
-    const row = await super._createContext(input);
+    const row = await Effect.runPromise(super._createContext(input));
     return {
       id: row.id,
       understandingId: row.understandingId,
@@ -46,7 +47,7 @@ export class ContextCliBff extends ContextCore {
   }
 
   async updateContext(id: string, input: UpdateContextInput): Promise<ContextDetail> {
-    const row = await super._updateContext(id, input);
+    const row = await Effect.runPromise(super._updateContext(id, input));
     return {
       id: row.id,
       understandingId: row.understandingId,

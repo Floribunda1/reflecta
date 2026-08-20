@@ -325,13 +325,15 @@ describe("createPiWriteTools", () => {
         parentId: "cat-parent",
       }),
     );
-    services.getContextById.mockResolvedValue({
-      id: "context-1",
-      understandingId: "understanding-1",
-      medium: "experience",
-      title: "夜班联调记录",
-      content: "原始记录",
-    });
+    services.getContextById.mockReturnValue(
+      Effect.succeed({
+        id: "context-1",
+        understandingId: "understanding-1",
+        medium: "experience",
+        title: "夜班联调记录",
+        content: "原始记录",
+      }),
+    );
 
     await expect(
       hydratePiApprovalPayload("domain_update", {
@@ -368,14 +370,13 @@ describe("createPiWriteTools", () => {
     services.createDomain.mockReturnValue(Effect.succeed({ id: "domain-created" }));
     services.updateDomain.mockReturnValue(Effect.succeed({ id: "domain-updated" }));
     services.deleteDomain.mockReturnValue(Effect.succeed(undefined));
-    services.createContext.mockResolvedValue({
-      id: "context-created",
-      title: "Stored Context",
-    });
-    services.updateContext.mockResolvedValue({
-      id: "context-updated",
-      title: "Stored Updated Context",
-    });
+    services.createContext.mockReturnValue(
+      Effect.succeed({ id: "context-created", title: "Stored Context" }),
+    );
+    services.updateContext.mockReturnValue(
+      Effect.succeed({ id: "context-updated", title: "Stored Updated Context" }),
+    );
+    services.deleteContext.mockReturnValue(Effect.succeed(undefined));
     services.createCanvas.mockResolvedValue({ id: "canvas-created", title: "新建结构" });
 
     const cases: Array<{

@@ -71,24 +71,30 @@ describe("domain write integrity", () => {
     const understandings = new UnderstandingCore(db);
 
     await expect(
+      Effect.runPromise(
+        contexts._createContext({
+          understandingId: "missing-understanding",
+          medium: "ai",
+          content: "content",
+        }),
+      ),
+    ).rejects.toMatchObject({ _tag: "ContextUnderstandingNotFoundError" });
+    await expect(
+      Effect.runPromise(contexts._updateContext("missing-context", {})),
+    ).rejects.toMatchObject({ _tag: "NoContextFieldsError" });
+
+    const understanding = await understandings._createUnderstanding({ body: "body" });
+    const context = await Effect.runPromise(
       contexts._createContext({
-        understandingId: "missing-understanding",
+        understandingId: understanding.id,
         medium: "ai",
         content: "content",
       }),
-    ).rejects.toThrow("Understanding not found: missing-understanding");
-    await expect(contexts._updateContext("missing-context", {})).rejects.toThrow(
-      "No context fields to update",
     );
-
-    const understanding = await understandings._createUnderstanding({ body: "body" });
-    const context = await contexts._createContext({
-      understandingId: understanding.id,
-      medium: "ai",
-      content: "content",
-    });
     await expect(
-      contexts._updateContext(context.id, { understandingId: "missing-understanding" }),
-    ).rejects.toThrow("Understanding not found: missing-understanding");
+      Effect.runPromise(
+        contexts._updateContext(context.id, { understandingId: "missing-understanding" }),
+      ),
+    ).rejects.toMatchObject({ _tag: "ContextUnderstandingNotFoundError" });
   });
 });
