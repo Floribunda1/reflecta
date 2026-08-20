@@ -1,4 +1,6 @@
+import { Effect } from "effect";
 import { ipcClient } from "@renderer/utils/ipc";
+import { rpc } from "@renderer/lib/effect-rpc";
 import type {
   Domain,
   DomainTreeNode,
@@ -70,7 +72,7 @@ export async function getEntityDisplay(ref: Pick<AgentContextRef, "type" | "id">
     const entity = await ipcClient.understandingCanvas.getCanvas(ref.id);
     return entity ? { title: entity.canvas.title?.trim() || null } : null;
   }
-  const entity = await ipcClient.domain.getDomainById(ref.id);
+  const entity = await Effect.runPromise(rpc.domainGetDomainById(ref.id));
   return entity ? { title: entity.name?.trim() || null } : null;
 }
 
@@ -148,7 +150,7 @@ export function useCaptureDomains(enabled = true) {
     refetch,
   } = useQuery({
     queryKey: captureQueryKeys.domains,
-    queryFn: () => ipcClient.domain.listDomains(),
+    queryFn: () => Effect.runPromise(rpc.domainListDomains()) as Promise<Domain[]>,
     enabled,
   });
 
@@ -348,13 +350,13 @@ export function useDomainMutations() {
     Promise.all([invalidateDomains(queryClient), invalidateUnderstandingLists(queryClient)]);
 
   const createDomain = useMutation({
-    mutationFn: (input: CreateDomainInput) => ipcClient.domain.createDomain(input),
+    mutationFn: (input: CreateDomainInput) => Effect.runPromise(rpc.domainCreateDomain(input)),
     onSuccess: invalidateDomainScope,
   });
 
   const updateDomain = useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateDomainInput }) =>
-      ipcClient.domain.updateDomain(id, input),
+      Effect.runPromise(rpc.domainUpdateDomain(id, input)),
     onSuccess: (_result, variables) =>
       Promise.all([
         invalidateDomainScope(),
@@ -364,7 +366,7 @@ export function useDomainMutations() {
 
   const deleteDomain = useMutation({
     mutationFn: ({ id, deleteUnderstandings }: { id: string; deleteUnderstandings?: boolean }) =>
-      ipcClient.domain.deleteDomain(id, deleteUnderstandings),
+      Effect.runPromise(rpc.domainDeleteDomain(id, deleteUnderstandings)),
     onSuccess: (_result, variables) =>
       Promise.all([
         invalidateDomainScope(),
@@ -373,7 +375,7 @@ export function useDomainMutations() {
   });
 
   const reorderDomains = useMutation({
-    mutationFn: (items: ReorderDomainItem[]) => ipcClient.domain.reorderDomains(items),
+    mutationFn: (items: ReorderDomainItem[]) => Effect.runPromise(rpc.domainReorderDomains(items)),
     onSuccess: invalidateDomainScope,
   });
 

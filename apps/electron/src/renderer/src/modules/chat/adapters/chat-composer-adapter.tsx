@@ -23,7 +23,9 @@ import {
   type ChatComposerProps,
 } from "@reflecta/ui/chat";
 import { inferMediaType } from "@reflecta/ui/lib/file-meta";
+import { Effect } from "effect";
 import { ipcClient } from "@renderer/utils/ipc";
+import { rpc } from "@renderer/lib/effect-rpc";
 import { buildContextCandidates, CONTEXT_LOOKUP_LIMIT } from "../context/context-candidates";
 import {
   contextUsageFromMessages,
@@ -258,7 +260,7 @@ export function AgentChatComposer({
       normalizedQuery
         ? ipcClient.search.searchContexts(normalizedQuery, { limit: CONTEXT_LOOKUP_LIMIT })
         : Promise.resolve([]),
-      ipcClient.domain.listDomains(),
+      Effect.runPromise(rpc.domainListDomains()) as Promise<import("@reflecta/server").Domain[]>,
       normalizedQuery ? ipcClient.understandingCanvas.listCanvases() : Promise.resolve([]),
     ]);
     if (signal.aborted) return [];

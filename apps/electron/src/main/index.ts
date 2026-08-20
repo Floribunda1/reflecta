@@ -18,8 +18,8 @@ import {
   isUpdateCheckInProgress,
   isUpdateCheckSupported,
 } from "./updater";
-import { appIpc, PilotBoom, TrashListError } from "../ipc";
-import { trashService, understandingService } from "./services/core";
+import { appIpc, PilotBoom, TrashListError, DomainListError } from "../ipc";
+import { trashService, understandingService, domainService } from "./services/core";
 
 // Register asset:// as a privileged scheme before app is ready
 registerAssetScheme();
@@ -147,6 +147,7 @@ app.whenReady().then(async () => {
 
   // Effect IPC（electron-effect-rpc）—— 单一 app kit，typed domain error 跨进程往返
   const ipcError = (message: string) => new TrashListError({ reason: message, code: 500 });
+  const domainErr = (message: string) => new DomainListError({ reason: message, code: 500 });
   const appMain = appIpc.main({
     ipcMain,
     handlers: {
@@ -186,6 +187,36 @@ app.whenReady().then(async () => {
           const started = await checkForUpdates(true);
           return { started };
         }),
+      "domain.listDomains": () =>
+        Effect.tryPromise({
+          try: () => domainService.listDomains(),
+          catch: (e) => domainErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "domain.getDomainById": ({ id }) =>
+        Effect.tryPromise({
+          try: () => domainService.getDomainById(id),
+          catch: (e) => domainErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "domain.reorderDomains": ({ items }) =>
+        Effect.tryPromise({
+          try: () => domainService.reorderDomains([...items]),
+          catch: (e) => domainErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
+      "domain.createDomain": ({ input }) =>
+        Effect.tryPromise({
+          try: () => domainService.createDomain(input),
+          catch: (e) => domainErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "domain.updateDomain": ({ id, input }) =>
+        Effect.tryPromise({
+          try: () => domainService.updateDomain(id, input),
+          catch: (e) => domainErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "domain.deleteDomain": ({ id, deleteUnderstandings }) =>
+        Effect.tryPromise({
+          try: () => domainService.deleteDomain(id, deleteUnderstandings),
+          catch: (e) => domainErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
     },
     context: Context.empty(),
     getWindows: () => BrowserWindow.getAllWindows(),

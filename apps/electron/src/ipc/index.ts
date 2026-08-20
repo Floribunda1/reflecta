@@ -9,10 +9,20 @@ import { createIpcKit, defineContract } from "electron-effect-rpc";
 import { PilotPing, PilotProbe } from "./pilot/contract";
 import { TrashListTrashed, TrashRestore, TrashPermanentlyDelete } from "./contract/trash";
 import { AboutGetVersionInfo, AboutCheckForUpdates } from "./contract/about";
+import {
+  DomainList,
+  DomainGetById,
+  DomainReorder,
+  DomainCreate,
+  DomainUpdate,
+  DomainDelete,
+} from "./contract/domain";
 
 export { TrashListError, TrashedUnderstanding } from "./contract/trash";
 export { PilotBoom, PilotPing, PilotProbe } from "./pilot/contract";
 export { AboutVersionInfo } from "./contract/about";
+export { DomainListError } from "./contract/domain";
+export type { CreateDomainInput, UpdateDomainInput, ReorderDomainItem } from "./contract/domain";
 
 export const contract = defineContract({
   methods: [
@@ -23,6 +33,12 @@ export const contract = defineContract({
     TrashPermanentlyDelete,
     AboutGetVersionInfo,
     AboutCheckForUpdates,
+    DomainList,
+    DomainGetById,
+    DomainReorder,
+    DomainCreate,
+    DomainUpdate,
+    DomainDelete,
   ] as const,
   events: [] as const,
   streamMethods: [] as const,

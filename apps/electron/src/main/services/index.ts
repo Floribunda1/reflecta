@@ -6,7 +6,6 @@ import { createServices } from "electron-ipc-decorator";
 import { diagnosticErrorAttrs } from "../diagnostic-log";
 import { writeDiagnosticEvent } from "../logger";
 import { AssetService } from "./AssetService";
-import { DomainService } from "./DomainService";
 import { ChatService } from "./ChatService";
 import { ConfigService } from "./ConfigService";
 import { ContextService } from "./ContextService";
@@ -89,7 +88,6 @@ void getSharedModelRuntime().catch(() => undefined);
 
 export const services = createServices([
   AssetService,
-  DomainService,
   ChatService,
   ConfigService,
   DiagnosticsService,

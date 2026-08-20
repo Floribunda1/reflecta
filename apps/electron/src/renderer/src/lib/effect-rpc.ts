@@ -15,4 +15,14 @@ export const rpc = {
   trashPermanentlyDelete: (id: string) => client["trash.permanentlyDeleteUnderstanding"]({ id }),
   aboutGetVersionInfo: () => client["about.getVersionInfo"](),
   aboutCheckForUpdates: () => client["about.checkForUpdates"](),
+  domainListDomains: () => client["domain.listDomains"](),
+  domainGetDomainById: (id: string) => client["domain.getDomainById"]({ id }),
+  domainCreateDomain: (input: import("../../../ipc").CreateDomainInput) =>
+    client["domain.createDomain"]({ input }),
+  domainUpdateDomain: (id: string, input: import("../../../ipc").UpdateDomainInput) =>
+    client["domain.updateDomain"]({ id, input }),
+  domainDeleteDomain: (id: string, deleteUnderstandings?: boolean) =>
+    client["domain.deleteDomain"]({ id, deleteUnderstandings: deleteUnderstandings ?? false }),
+  domainReorderDomains: (items: import("../../../ipc").ReorderDomainItem[]) =>
+    client["domain.reorderDomains"]({ items }),
 };
