@@ -91,6 +91,7 @@ export function seedUnderstanding(input: {
   body: string;
   createdAt?: string;
   updatedAt?: string;
+  domainIds?: string[];
 }) {
   runFixture({ type: "seedUnderstanding", ...input });
 }
@@ -106,6 +107,20 @@ export function seedContext(input: {
 
 export function seedDomain(input: { id: string; name: string }) {
   runFixture({ type: "seedDomain", ...input });
+}
+
+export function seedPortfolio(input: {
+  domains: Array<{ id: string; name: string }>;
+  understandings: Array<{
+    id: string;
+    title: string;
+    body: string;
+    createdAt?: string;
+    updatedAt?: string;
+    domainIds?: string[];
+  }>;
+}) {
+  runFixture({ type: "seedPortfolio", ...input });
 }
 
 export function seedCanvas(input: {

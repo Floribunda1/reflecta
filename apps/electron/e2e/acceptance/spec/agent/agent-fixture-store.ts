@@ -67,9 +67,23 @@ type Fixture =
       body: string;
       createdAt?: string;
       updatedAt?: string;
+      /** 可选：把 understanding 关联到这些 domain（写 understanding_domains） */
+      domainIds?: string[];
     }
   | { type: "seedContext"; id: string; understandingId: string; title: string; content: string }
   | { type: "seedDomain"; id: string; name: string }
+  | {
+      type: "seedPortfolio";
+      domains: Array<{ id: string; name: string }>;
+      understandings: Array<{
+        id: string;
+        title: string;
+        body: string;
+        createdAt?: string;
+        updatedAt?: string;
+        domainIds?: string[];
+      }>;
+    }
   | {
       type: "seedCanvas";
       id: string;
@@ -605,6 +619,7 @@ function seedUnderstanding(
   body: string,
   createdAt?: string,
   updatedAt?: string,
+  domainIds?: string[],
 ) {
   const created = createdAt ?? new Date().toISOString();
   const updated = updatedAt ?? created;
@@ -613,6 +628,14 @@ function seedUnderstanding(
      VALUES (?, ?, ?, ?, ?, NULL)
      ON CONFLICT(id) DO UPDATE SET title = excluded.title, body = excluded.body, created_at = excluded.created_at, updated_at = excluded.updated_at, deleted_at = NULL`,
   ).run(id, title, body, created, updated);
+  // 关联 domain（先清后插，保证幂等）
+  db.query("DELETE FROM understanding_domains WHERE understanding_id = ?").run(id);
+  for (const domainId of domainIds ?? []) {
+    db.query("INSERT INTO understanding_domains (understanding_id, domain_id) VALUES (?, ?)").run(
+      id,
+      domainId,
+    );
+  }
 }
 
 function seedContext(id: string, understandingId: string, title: string, content: string) {
@@ -649,6 +672,7 @@ try {
       fixture.body,
       fixture.createdAt,
       fixture.updatedAt,
+      fixture.domainIds,
     );
   }
 
@@ -658,6 +682,22 @@ try {
 
   if (fixture.type === "seedDomain") {
     seedDomain(fixture.id, fixture.name);
+  }
+
+  if (fixture.type === "seedPortfolio") {
+    for (const domain of fixture.domains) {
+      seedDomain(domain.id, domain.name);
+    }
+    for (const understanding of fixture.understandings) {
+      seedUnderstanding(
+        understanding.id,
+        understanding.title,
+        understanding.body,
+        understanding.createdAt,
+        understanding.updatedAt,
+        understanding.domainIds,
+      );
+    }
   }
 
   if (fixture.type === "seedCanvas") {
