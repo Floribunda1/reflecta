@@ -7,7 +7,6 @@
     "types": ["vite-plugin-electron/electron-env"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "plugins": [{ "name": "@effect/language-service" }],
     "paths": {
       "@main/*": ["./src/main/*"],
       "@shared/*": ["./src/preload/typings/*"]
