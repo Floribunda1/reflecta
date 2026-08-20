@@ -511,7 +511,7 @@ app.whenReady().then(async () => {
       "config.getAiConfig": () => Effect.sync(() => configOps.getAiConfig()),
       "config.setAiConfig": ({ config }) =>
         Effect.try({
-          try: () => configOps.setAiConfig(config as unknown as import("./config").AiConfig),
+          try: () => configOps.setAiConfig(config as import("./config").AiConfig),
           catch: (e) => cfgErr(e instanceof Error ? e.message : String(e)),
         }),
       "config.getCodexAuthStatus": () => Effect.sync(() => configOps.getCodexAuthStatus()),
@@ -528,8 +528,7 @@ app.whenReady().then(async () => {
       "config.getRetrievalConfig": () => Effect.sync(() => configOps.getRetrievalConfig()),
       "config.setRetrievalConfig": ({ config }) =>
         Effect.try({
-          try: () =>
-            configOps.setRetrievalConfig(config as unknown as import("./config").RetrievalConfig),
+          try: () => configOps.setRetrievalConfig(config as import("./config").RetrievalConfig),
           catch: (e) => cfgErr(e instanceof Error ? e.message : String(e)),
         }),
       "config.getRetrievalEmbeddingModelStatus": () =>

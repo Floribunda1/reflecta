@@ -2,6 +2,8 @@
 import * as S from "effect/Schema";
 import { rpc } from "electron-effect-rpc";
 
+const lit = <T extends string>(...xs: T[]) => S.Union(xs.map((x) => S.Literal(x)));
+
 export class ContextListError extends S.TaggedError<ContextListError>()("ContextListError", {
   reason: S.String,
   code: S.Number,
@@ -10,7 +12,7 @@ export class ContextListError extends S.TaggedError<ContextListError>()("Context
 export const ContextDTO = S.Struct({
   id: S.String,
   understandingId: S.String,
-  medium: S.String,
+  medium: lit("experience", "video", "book", "article", "opinion", "ai", "other"),
   title: S.NullOr(S.String),
   content: S.String,
   createdAt: S.String,
@@ -20,7 +22,7 @@ export type ContextDTO = S.Schema.Type<typeof ContextDTO>;
 
 export const CreateContextInput = S.Struct({
   understandingId: S.String,
-  medium: S.String,
+  medium: lit("experience", "video", "book", "article", "opinion", "ai", "other"),
   title: S.optional(S.String),
   content: S.String,
 });
@@ -28,7 +30,7 @@ export type CreateContextInput = S.Schema.Type<typeof CreateContextInput>;
 
 export const UpdateContextInput = S.Struct({
   understandingId: S.optional(S.String),
-  medium: S.optional(S.String),
+  medium: S.optional(lit("experience", "video", "book", "article", "opinion", "ai", "other")),
   title: S.optional(S.String),
   content: S.optional(S.String),
 });
@@ -38,7 +40,7 @@ export const TrashedContextDTO = S.Struct({
   id: S.String,
   understandingId: S.String,
   understandingTitle: S.NullOr(S.String),
-  medium: S.String,
+  medium: lit("experience", "video", "book", "article", "opinion", "ai", "other"),
   title: S.NullOr(S.String),
   content: S.String,
   deletedAt: S.String,

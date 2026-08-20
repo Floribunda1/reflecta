@@ -152,7 +152,7 @@ export const AgentReducedAssistantBlock = noCtx(
       error: S.optional(S.String),
       createdAt: S.String,
     }),
-    S.Struct({ kind: S.Literal("context-compaction"), compaction: S.Unknown }),
+    S.Struct({ kind: S.Literal("context-compaction"), compaction: AgentContextCompacted }),
   ]),
 );
 
@@ -182,8 +182,8 @@ export const AgentSessionProjection = noCtx(
     status: lit("idle", "running", "waiting", "failed", "cancelled"),
     error: S.NullOr(S.String),
     entityCatalog: S.Array(AgentEntityCatalogEntry),
-    contextCompactions: S.Array(S.Unknown),
-    activeCompaction: S.NullOr(S.Unknown),
+    contextCompactions: S.Array(AgentContextCompacted),
+    activeCompaction: S.NullOr(AgentContextCompactionStarted),
     compactionError: S.NullOr(S.String),
     cancelledAssistantMessageId: S.NullOr(S.String),
   }),
