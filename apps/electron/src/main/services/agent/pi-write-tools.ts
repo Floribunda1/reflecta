@@ -1,4 +1,5 @@
 import { Type } from "@earendil-works/pi-ai";
+import { Effect } from "effect";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import type {
   CanvasDocument,
@@ -643,7 +644,9 @@ export async function hydratePiApprovalPayload(
     };
   }
   if (toolName === "domain_update") {
-    const domain = await domainService.getDomainById(requiredStableEntityId(record, "domainId"));
+    const domain = await Effect.runPromise(
+      domainService.getDomainById(requiredStableEntityId(record, "domainId")),
+    );
     if (!domain) return record;
     return {
       ...record,
@@ -695,19 +698,19 @@ export async function executePiApprovedTool(
   }
 
   if (toolName === "domain_create") {
-    const domain = await domainService.createDomain(domainCreateInput(payload));
+    const domain = await Effect.runPromise(domainService.createDomain(domainCreateInput(payload)));
     return { resultRefType: "domain", resultRefId: domain.id };
   }
 
   if (toolName === "domain_update") {
     const { domainId, input } = domainUpdateInput(payload);
-    const domain = await domainService.updateDomain(domainId, input);
+    const domain = await Effect.runPromise(domainService.updateDomain(domainId, input));
     return { resultRefType: "domain", resultRefId: domain.id };
   }
 
   if (toolName === "domain_delete") {
     const { domainId, deleteUnderstandings } = domainDeleteInput(payload);
-    await domainService.deleteDomain(domainId, deleteUnderstandings);
+    await Effect.runPromise(domainService.deleteDomain(domainId, deleteUnderstandings));
     return { resultRefType: "domain", resultRefId: domainId };
   }
 

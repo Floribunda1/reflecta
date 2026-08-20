@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { and, count, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import {
   domains,
@@ -65,7 +66,7 @@ export class UnderstandingCore {
       if (filter?.includeDescendants) {
         const allDescendants: string[] = [];
         for (const catId of domainIds) {
-          const descendants = await getDomainDescendants(this.db, catId);
+          const descendants = await Effect.runPromise(getDomainDescendants(this.db, catId));
           allDescendants.push(...descendants);
         }
         catIds = [...new Set([...catIds, ...allDescendants])];
@@ -290,7 +291,7 @@ export async function toUnderstandingSummaries(
   rows: Array<typeof understandings.$inferSelect>,
 ): Promise<UnderstandingSummary[]> {
   const ids = rows.map((r) => r.id);
-  const catRefs = await resolveDomainRefs(db, ids);
+  const catRefs = await Effect.runPromise(resolveDomainRefs(db, ids));
   return rows.map((row) => ({
     id: row.id,
     title: row.title ?? null,

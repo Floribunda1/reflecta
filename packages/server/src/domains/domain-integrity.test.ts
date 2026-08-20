@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -33,28 +34,36 @@ describe("domain write integrity", () => {
 
   test("validates Domain parents inside Domain writes", async () => {
     const domains = new DomainCore(db);
-    const parent = await domains.createDomain({ name: "Parent" });
-    const child = await domains.createDomain({ name: "Child", parentId: parent.id });
+    const parent = await Effect.runPromise(domains.createDomain({ name: "Parent" }));
+    const child = await Effect.runPromise(
+      domains.createDomain({ name: "Child", parentId: parent.id }),
+    );
 
-    await expect(domains.createDomain({ name: "Bad", parentId: "missing" })).rejects.toThrow(
-      "Domain not found: missing",
-    );
-    await expect(domains.updateDomain(parent.id, { parentId: child.id })).rejects.toThrow(
-      "Domain cannot be moved under its descendant",
-    );
+    await expect(
+      Effect.runPromise(domains.createDomain({ name: "Bad", parentId: "missing" })),
+    ).rejects.toMatchObject({ _tag: "DomainNotFoundError" });
+    await expect(
+      Effect.runPromise(domains.updateDomain(parent.id, { parentId: child.id })),
+    ).rejects.toMatchObject({ _tag: "InvalidParentError" });
   });
 
   test("validates Domain parents inside reorder writes", async () => {
     const domains = new DomainCore(db);
-    const parent = await domains.createDomain({ name: "Parent" });
-    const child = await domains.createDomain({ name: "Child", parentId: parent.id });
+    const parent = await Effect.runPromise(domains.createDomain({ name: "Parent" }));
+    const child = await Effect.runPromise(
+      domains.createDomain({ name: "Child", parentId: parent.id }),
+    );
 
     await expect(
-      domains.reorderDomains([{ id: parent.id, parentId: child.id, sortOrder: 0 }]),
-    ).rejects.toThrow("Domain cannot be moved under its descendant");
+      Effect.runPromise(
+        domains.reorderDomains([{ id: parent.id, parentId: child.id, sortOrder: 0 }]),
+      ),
+    ).rejects.toMatchObject({ _tag: "InvalidParentError" });
     await expect(
-      domains.reorderDomains([{ id: child.id, parentId: "missing", sortOrder: 0 }]),
-    ).rejects.toThrow("Domain not found: missing");
+      Effect.runPromise(
+        domains.reorderDomains([{ id: child.id, parentId: "missing", sortOrder: 0 }]),
+      ),
+    ).rejects.toMatchObject({ _tag: "DomainNotFoundError" });
   });
 
   test("validates Context targets inside Context writes", async () => {

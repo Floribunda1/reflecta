@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import type { Domain } from "./types";
 import { DomainCore } from "./core";
 import type { ReflectaServerContext } from "../shared/types-electron";
@@ -7,11 +8,11 @@ export class DomainElectronBff extends DomainCore {
     super(options.getDb(), options.retrievalIndex);
   }
 
-  async listDomains(): Promise<Domain[]> {
+  listDomains(): Effect.Effect<Domain[]> {
     return this.listDomainRows();
   }
 
-  async getDomainById(id: string): Promise<Domain | null> {
+  getDomainById(id: string): Effect.Effect<Domain | null> {
     return this.getDomainRow(id);
   }
 }

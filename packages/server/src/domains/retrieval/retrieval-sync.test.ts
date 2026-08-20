@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -287,7 +288,7 @@ describe("retrieval index rebuild", () => {
     );
     expect(await createRetrievalIndex().searchLexical("DomainBeforeMarker", 5)).toEqual([]);
 
-    await domains.deleteDomain(domain.id);
+    await Effect.runPromise(domains.deleteDomain(domain.id));
     await coordinator.flush();
     expect(await createRetrievalIndex().searchLexical("DomainAfterMarker", 5)).toEqual([]);
     expect(await createRetrievalIndex().readManifest()).toEqual(

@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { and, desc, inArray, isNull } from "drizzle-orm";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -123,7 +124,7 @@ export async function buildRetrievalDocumentsFromDb(db: ReflectaDb, understandin
 
   const activeUnderstandingIds = understandingRows.map((understanding) => understanding.id);
   const [domainRefs, contextRows] = await Promise.all([
-    resolveDomainRefs(db, activeUnderstandingIds),
+    Effect.runPromise(resolveDomainRefs(db, activeUnderstandingIds)),
     db
       .select()
       .from(contexts)

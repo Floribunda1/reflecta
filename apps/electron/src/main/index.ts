@@ -182,6 +182,25 @@ app.whenReady().then(async () => {
   // Effect IPC（electron-effect-rpc）—— 单一 app kit，typed domain error 跨进程往返
   const ipcError = (message: string) => new TrashListError({ reason: message, code: 500 });
   const domainErr = (message: string) => new DomainListError({ reason: message, code: 500 });
+  // domain 域核心已 Effect 化：把服务端 DomainError 映射到 IPC 契约错误。
+  const runDomain = <A>(program: Effect.Effect<A, import("@reflecta/server").DomainError>) =>
+    program.pipe(
+      Effect.mapError((e) => {
+        switch (e._tag) {
+          case "DomainNotFoundError":
+            return domainErr(`领域不存在：${e.id}`);
+          case "InvalidParentError":
+            return domainErr(e.message);
+          case "DuplicateReorderItemError":
+            return domainErr(`重复的排序项：${e.id}`);
+          case "InvalidSortOrderError":
+            return domainErr(`非法排序值：${e.sortOrder}`);
+          default:
+            return domainErr("操作失败");
+        }
+      }),
+      Effect.catchDefect((defect) => Effect.fail(domainErr(`操作失败：${String(defect)}`))),
+    );
   const ctxErr = (message: string) => new ContextListError({ reason: message, code: 500 });
   const assetErr = (message: string) => new AssetError({ reason: message, code: 500 });
   const searchErr = (message: string) => new SearchError({ reason: message, code: 500 });
@@ -229,36 +248,16 @@ app.whenReady().then(async () => {
           const started = await checkForUpdates(true);
           return { started };
         }),
-      "domain.listDomains": () =>
-        Effect.tryPromise({
-          try: () => domainService.listDomains(),
-          catch: (e) => domainErr(e instanceof Error ? e.message : String(e)),
-        }),
-      "domain.getDomainById": ({ id }) =>
-        Effect.tryPromise({
-          try: () => domainService.getDomainById(id),
-          catch: (e) => domainErr(e instanceof Error ? e.message : String(e)),
-        }),
+      "domain.listDomains": () => runDomain(domainService.listDomains()),
+      "domain.getDomainById": ({ id }) => runDomain(domainService.getDomainById(id)),
       "domain.reorderDomains": ({ items }) =>
-        Effect.tryPromise({
-          try: () => domainService.reorderDomains([...items]),
-          catch: (e) => domainErr(e instanceof Error ? e.message : String(e)),
-        }).pipe(Effect.map(() => undefined)),
-      "domain.createDomain": ({ input }) =>
-        Effect.tryPromise({
-          try: () => domainService.createDomain(input),
-          catch: (e) => domainErr(e instanceof Error ? e.message : String(e)),
-        }),
-      "domain.updateDomain": ({ id, input }) =>
-        Effect.tryPromise({
-          try: () => domainService.updateDomain(id, input),
-          catch: (e) => domainErr(e instanceof Error ? e.message : String(e)),
-        }),
+        runDomain(domainService.reorderDomains([...items])).pipe(Effect.map(() => undefined)),
+      "domain.createDomain": ({ input }) => runDomain(domainService.createDomain(input)),
+      "domain.updateDomain": ({ id, input }) => runDomain(domainService.updateDomain(id, input)),
       "domain.deleteDomain": ({ id, deleteUnderstandings }) =>
-        Effect.tryPromise({
-          try: () => domainService.deleteDomain(id, deleteUnderstandings),
-          catch: (e) => domainErr(e instanceof Error ? e.message : String(e)),
-        }).pipe(Effect.map(() => undefined)),
+        runDomain(domainService.deleteDomain(id, deleteUnderstandings)).pipe(
+          Effect.map(() => undefined),
+        ),
       "context.listContextsByUnderstanding": ({ understandingId }) =>
         Effect.tryPromise({
           try: () => contextService.listContextsByUnderstanding(understandingId),

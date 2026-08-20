@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
   createPiWriteTools,
@@ -317,11 +318,13 @@ describe("createPiWriteTools", () => {
   });
 
   test("hydrates domain and context updates with their current state", async () => {
-    services.getDomainById.mockResolvedValue({
-      id: "cat-1",
-      name: "灌溉控制",
-      parentId: "cat-parent",
-    });
+    services.getDomainById.mockReturnValue(
+      Effect.succeed({
+        id: "cat-1",
+        name: "灌溉控制",
+        parentId: "cat-parent",
+      }),
+    );
     services.getContextById.mockResolvedValue({
       id: "context-1",
       understandingId: "understanding-1",
@@ -362,8 +365,9 @@ describe("createPiWriteTools", () => {
       id: "understanding-updated",
       title: "Stored Updated Understanding",
     });
-    services.createDomain.mockResolvedValue({ id: "domain-created" });
-    services.updateDomain.mockResolvedValue({ id: "domain-updated" });
+    services.createDomain.mockReturnValue(Effect.succeed({ id: "domain-created" }));
+    services.updateDomain.mockReturnValue(Effect.succeed({ id: "domain-updated" }));
+    services.deleteDomain.mockReturnValue(Effect.succeed(undefined));
     services.createContext.mockResolvedValue({
       id: "context-created",
       title: "Stored Context",

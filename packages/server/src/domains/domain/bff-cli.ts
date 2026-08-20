@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { and, desc, inArray, isNull } from "drizzle-orm";
 import {
   contexts,
@@ -27,12 +28,12 @@ export class DomainCliBff extends DomainCore {
   }
 
   async listDomains(): Promise<DomainSummary[]> {
-    const rows = await this.listDomainRows();
+    const rows = await Effect.runPromise(this.listDomainRows());
     return rows.map((r) => ({ id: r.id, name: r.name, parentId: r.parentId }));
   }
 
   async getDomain(id: string): Promise<DomainSummary> {
-    const row = await this.getDomainRow(id);
+    const row = await Effect.runPromise(this.getDomainRow(id));
     if (!row) {
       throw new Error(`Domain not found: ${id}`);
     }
@@ -40,14 +41,14 @@ export class DomainCliBff extends DomainCore {
   }
 
   async inspectDomain(id: string, options?: InspectDomainOptions): Promise<DomainInspectResult> {
-    const domain = await this.getDomainRow(id);
+    const domain = await Effect.runPromise(this.getDomainRow(id));
     if (!domain) {
       throw new Error(`Domain not found: ${id}`);
     }
 
-    const descendantIds = await getDomainDescendants(this.db, id);
+    const descendantIds = await Effect.runPromise(getDomainDescendants(this.db, id));
     const descendantIdSet = new Set(descendantIds);
-    const descendantDomains = (await this.listDomainRows()).filter((c) =>
+    const descendantDomains = (await Effect.runPromise(this.listDomainRows())).filter((c) =>
       descendantIdSet.has(c.id),
     );
     const targetCatIds = [id, ...descendantIds];
@@ -155,12 +156,12 @@ export class DomainCliBff extends DomainCore {
   }
 
   async createDomainSummary(input: CreateDomainInput): Promise<DomainSummary> {
-    const row = await super.createDomain(input);
+    const row = await Effect.runPromise(super.createDomain(input));
     return { id: row.id, name: row.name, parentId: row.parentId };
   }
 
   async updateDomainSummary(id: string, input: UpdateDomainInput): Promise<DomainSummary> {
-    const row = await super.updateDomain(id, input);
+    const row = await Effect.runPromise(super.updateDomain(id, input));
     return { id: row.id, name: row.name, parentId: row.parentId };
   }
 }
