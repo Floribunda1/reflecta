@@ -51,6 +51,7 @@
         "@lancedb/lancedb": "0.33.0",
         "apache-arrow": "18.1.0",
         "better-sqlite3": "^13.0.2",
+        "effect": "4.0.0-rc.110",
         "libsql": "^0.5.29",
         "motion": "^12.43.0",
         "node-llama-cpp": "^3.19.1",
