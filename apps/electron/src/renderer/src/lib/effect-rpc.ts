@@ -13,4 +13,6 @@ export const rpc = {
   trashListTrashed: () => client["trash.listTrashedUnderstandings"](),
   trashRestore: (id: string) => client["trash.restoreUnderstanding"]({ id }),
   trashPermanentlyDelete: (id: string) => client["trash.permanentlyDeleteUnderstanding"]({ id }),
+  aboutGetVersionInfo: () => client["about.getVersionInfo"](),
+  aboutCheckForUpdates: () => client["about.checkForUpdates"](),
 };

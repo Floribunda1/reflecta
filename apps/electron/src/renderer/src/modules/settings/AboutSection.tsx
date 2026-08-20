@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Effect } from "effect";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { ExternalLink, Package, RefreshCw } from "lucide-react";
@@ -7,9 +8,9 @@ import { Button } from "@reflecta/ui/components/button";
 import { Item, ItemActions, ItemContent, ItemMedia, ItemTitle } from "@reflecta/ui/components/item";
 import { cn } from "@reflecta/ui/lib/utils";
 import { toast } from "sonner";
+import { rpc } from "@renderer/lib/effect-rpc";
 import type { AboutVersionInfo, UpdateCheckFinishedPayload } from "@shared/update";
 import { UPDATE_CHECK_FINISHED_CHANNEL } from "@shared/update";
-import { ipcClient } from "@renderer/utils/ipc";
 import { errorMessage } from "@renderer/utils/errors";
 
 const PROJECT_URL = "https://github.com/Floribunda1/reflecta";
@@ -45,7 +46,7 @@ export function AboutSection() {
 
   const refresh = useCallback(async () => {
     try {
-      const next = await ipcClient.about.getVersionInfo();
+      const next = await Effect.runPromise(rpc.aboutGetVersionInfo());
       setInfo(next);
       setLoadFailed(false);
     } catch (error) {
@@ -75,7 +76,7 @@ export function AboutSection() {
     if (!info?.updateCheckSupported || checking) return;
     setChecking(true);
     try {
-      const { started } = await ipcClient.about.checkForUpdates();
+      const { started } = await Effect.runPromise(rpc.aboutCheckForUpdates());
       if (!started) setChecking(false);
       // 启动成功后保持「正在检查」，Sparkle 前台检查会自行弹出结果窗口；
       // 若完成事件未到达，重新打开面板会经 getVersionInfo 兜底刷新。

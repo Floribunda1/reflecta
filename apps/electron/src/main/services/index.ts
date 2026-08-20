@@ -6,7 +6,6 @@ import { createServices } from "electron-ipc-decorator";
 import { diagnosticErrorAttrs } from "../diagnostic-log";
 import { writeDiagnosticEvent } from "../logger";
 import { AssetService } from "./AssetService";
-import { AboutService } from "./AboutService";
 import { DomainService } from "./DomainService";
 import { ChatService } from "./ChatService";
 import { ConfigService } from "./ConfigService";
@@ -89,7 +88,6 @@ registerAgentSessionFeed(piAgentHost);
 void getSharedModelRuntime().catch(() => undefined);
 
 export const services = createServices([
-  AboutService,
   AssetService,
   DomainService,
   ChatService,

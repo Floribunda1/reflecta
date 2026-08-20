@@ -8,12 +8,22 @@
 import { createIpcKit, defineContract } from "electron-effect-rpc";
 import { PilotPing, PilotProbe } from "./pilot/contract";
 import { TrashListTrashed, TrashRestore, TrashPermanentlyDelete } from "./contract/trash";
+import { AboutGetVersionInfo, AboutCheckForUpdates } from "./contract/about";
 
 export { TrashListError, TrashedUnderstanding } from "./contract/trash";
 export { PilotBoom, PilotPing, PilotProbe } from "./pilot/contract";
+export { AboutVersionInfo } from "./contract/about";
 
 export const contract = defineContract({
-  methods: [PilotPing, PilotProbe, TrashListTrashed, TrashRestore, TrashPermanentlyDelete] as const,
+  methods: [
+    PilotPing,
+    PilotProbe,
+    TrashListTrashed,
+    TrashRestore,
+    TrashPermanentlyDelete,
+    AboutGetVersionInfo,
+    AboutCheckForUpdates,
+  ] as const,
   events: [] as const,
   streamMethods: [] as const,
 });

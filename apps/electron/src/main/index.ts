@@ -12,6 +12,12 @@ import { retrievalEmbeddingRunner } from "./retrievalEmbeddingRunner";
 import { retrievalIndexCoordinator } from "./retrievalIndexCoordinator";
 import { getRuntimeArg } from "./runtime-args";
 import { startAutomaticUpdateChecks } from "./updater";
+import {
+  checkForUpdates,
+  getLastCheckAt,
+  isUpdateCheckInProgress,
+  isUpdateCheckSupported,
+} from "./updater";
 import { appIpc, PilotBoom, TrashListError } from "../ipc";
 import { trashService, understandingService } from "./services/core";
 
@@ -164,6 +170,22 @@ app.whenReady().then(async () => {
           try: () => understandingService.permanentlyDeleteUnderstanding(id),
           catch: (e) => ipcError(e instanceof Error ? e.message : String(e)),
         }).pipe(Effect.map(() => undefined)),
+      "about.getVersionInfo": () =>
+        Effect.sync(() => ({
+          name: APP_NAME,
+          version: app.getVersion(),
+          arch: process.arch,
+          platform: process.platform,
+          packaged: app.isPackaged,
+          updateCheckSupported: isUpdateCheckSupported(),
+          checking: isUpdateCheckSupported() && isUpdateCheckInProgress(),
+          lastCheckAt: getLastCheckAt(),
+        })),
+      "about.checkForUpdates": () =>
+        Effect.promise(async () => {
+          const started = await checkForUpdates(true);
+          return { started };
+        }),
     },
     context: Context.empty(),
     getWindows: () => BrowserWindow.getAllWindows(),
