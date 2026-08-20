@@ -168,6 +168,8 @@
 
 分阶段落地（P0 收尾 → P1 垂直切片 Pilot → P2 基础设施 → P3 主进程域迁移 → P4 renderer → P5 CLI/zod → P6 v4 收口）见同目录 `implementation-plan.md`；第 1/2/5 项待确认项在计划内已给出归属阶段与门。
 
+> **P1 已完成并端到端验证**（2026-08-20）：feasibility 门、electron-effect-rpc（D5 修订版）跨 main→preload→renderer 打通，typed domain error 结构化往返经真实 Electron E2E 通过。迁移统一范式见同目录 `migration-pattern.md`。
+
 ## 7. 参考
 
 - 调研数据与全部来源：`research-notes.md`（同目录）
