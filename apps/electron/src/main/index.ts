@@ -234,11 +234,7 @@ app.whenReady().then(async () => {
         id === "boom"
           ? Effect.fail(new PilotBoom({ reason: `boom: ${id}`, code: 404 }))
           : Effect.succeed({ id, ok: true }),
-      "trash.listTrashedUnderstandings": () =>
-        Effect.tryPromise({
-          try: () => trashService.listTrashedUnderstandings(),
-          catch: (e) => ipcError(e instanceof Error ? e.message : String(e)),
-        }),
+      "trash.listTrashedUnderstandings": () => trashService.listTrashedUnderstandings(),
       "trash.restoreUnderstanding": ({ id }) =>
         Effect.tryPromise({
           try: () => understandingService.restoreUnderstanding(id),
