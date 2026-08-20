@@ -6,7 +6,7 @@ import { Input } from "@reflecta/ui/components/input";
 import { Label } from "@reflecta/ui/components/label";
 import { useModal } from "@reflecta/ui/overlays";
 import type { CanvasDTO } from "@reflecta/server";
-import { errorMessage } from "@renderer/utils/errors";
+import { renderError } from "@renderer/lib/errors";
 import { useDeleteCanvasMutation, useRenameCanvasMutation } from "../queries";
 
 /**
@@ -33,7 +33,7 @@ export function CanvasRenameModal({
       toast.success("已重命名画布");
       onClose();
     } catch (error) {
-      toast.error("重命名失败", { description: errorMessage(error) });
+      toast.error("重命名失败", { description: renderError(error) });
     }
   };
 
@@ -93,7 +93,7 @@ export function useDeleteCanvas() {
             await deleteCanvas.mutateAsync(canvas.id);
             toast.success("已删除画布");
           } catch (error) {
-            toast.error("删除失败", { description: errorMessage(error) });
+            toast.error("删除失败", { description: renderError(error) });
           }
         },
       });

@@ -6,7 +6,7 @@ import {
 } from "@reflecta/ui/chat";
 import { Effect } from "effect";
 import { rpc } from "@renderer/lib/effect-rpc";
-import { errorMessage } from "@renderer/utils/errors";
+import { renderError } from "@renderer/lib/errors";
 import type { AgentSessionSummary } from "@shared/agent";
 import { toast } from "sonner";
 import { groupAgentThreads } from "./thread-groups";
@@ -20,7 +20,7 @@ async function exportThread(thread: AgentSessionSummary) {
       (projection?.messages ?? []) as import("@shared/agent").AgentMessageProjection[],
     );
   } catch (error) {
-    toast.error("导出 Markdown 失败", { description: errorMessage(error) });
+    toast.error("导出 Markdown 失败", { description: renderError(error) });
   }
 }
 
@@ -40,7 +40,7 @@ async function compactThread(threadId: string) {
     );
     toast.success("上下文已压缩");
   } catch (error) {
-    toast.error("压缩上下文失败", { description: errorMessage(error) });
+    toast.error("压缩上下文失败", { description: renderError(error) });
   }
 }
 

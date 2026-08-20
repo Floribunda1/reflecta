@@ -12,7 +12,7 @@ import { captureActions, prefsAtom, type CaptureAgentScope } from "../../store";
 import { useDomainActions } from "../hooks";
 import { buildSiblingDomainReorderItems } from "../reorder";
 import { DomainModalContent } from "./CreateDomainModal";
-import { errorMessage } from "@renderer/utils/errors";
+import { renderError } from "@renderer/lib/errors";
 
 function getAllIds(nodes: readonly DomainTreeNode[]): string[] {
   return nodes.flatMap((node) => [node.id, ...getAllIds(node.children)]);
@@ -125,7 +125,7 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
     const items = buildSiblingDomainReorderItems(domains, activeId, overId);
     if (!items.length) return;
     void reorderDomains(items).catch((error) =>
-      toast.error("调整领域顺序失败", { description: errorMessage(error) }),
+      toast.error("调整领域顺序失败", { description: renderError(error) }),
     );
   };
 

@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { AboutVersionInfo, UpdateCheckFinishedPayload } from "@shared/update";
 import { UPDATE_CHECK_FINISHED_CHANNEL } from "@shared/update";
-import { errorMessage } from "@renderer/utils/errors";
+import { renderError } from "@renderer/lib/errors";
 
 const PROJECT_URL = "https://github.com/Floribunda1/reflecta";
 const RELEASES_URL = `${PROJECT_URL}/releases`;
@@ -82,7 +82,7 @@ export function AboutSection() {
       // 若完成事件未到达，重新打开面板会经 getVersionInfo 兜底刷新。
     } catch (error) {
       setChecking(false);
-      toast.error("检查更新失败", { description: errorMessage(error) });
+      toast.error("检查更新失败", { description: renderError(error) });
     }
   };
 

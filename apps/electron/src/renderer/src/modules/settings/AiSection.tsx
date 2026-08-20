@@ -11,7 +11,7 @@ import { NativeSelect, NativeSelectOption } from "@reflecta/ui/components/native
 import { ScrollArea } from "@reflecta/ui/components/scroll-area";
 import { Effect } from "effect";
 import { rpc } from "@renderer/lib/effect-rpc";
-import { errorMessage } from "@renderer/utils/errors";
+import { renderError } from "@renderer/lib/errors";
 
 type AiConfig = import("../../../../ipc").AiConfig;
 type AiProviderConfig = AiConfig["providers"][number];
@@ -157,7 +157,7 @@ export function AiSection() {
       upsertProvider(selectedProvider.id, {});
       toast.success("已连接 ChatGPT 订阅");
     } catch (error) {
-      toast.error("连接 Codex 失败", { description: errorMessage(error) });
+      toast.error("连接 Codex 失败", { description: renderError(error) });
     } finally {
       setCodexBusy(false);
     }
@@ -172,7 +172,7 @@ export function AiSection() {
       await queryClient.invalidateQueries({ queryKey: ["ai.model-options"] });
       toast.success("已断开 ChatGPT 订阅");
     } catch (error) {
-      toast.error("断开 Codex 失败", { description: errorMessage(error) });
+      toast.error("断开 Codex 失败", { description: renderError(error) });
     } finally {
       setCodexBusy(false);
     }
@@ -195,7 +195,7 @@ export function AiSection() {
       await queryClient.invalidateQueries({ queryKey: ["ai.model-options"] });
       setSaved(true);
     } catch (error) {
-      toast.error("保存 AI 配置失败", { description: errorMessage(error) });
+      toast.error("保存 AI 配置失败", { description: renderError(error) });
     } finally {
       setLoading(false);
     }

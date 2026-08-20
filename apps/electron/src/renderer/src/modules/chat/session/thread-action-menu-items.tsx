@@ -9,7 +9,7 @@ import {
 import { toast } from "sonner";
 import { Effect } from "effect";
 import { rpc } from "@renderer/lib/effect-rpc";
-import { errorMessage } from "@renderer/utils/errors";
+import { renderError } from "@renderer/lib/errors";
 import { getEntityDisplay } from "../../capture/queries";
 
 function referenceKey(reference: Pick<ChatEntityReference, "type" | "id">) {
@@ -63,7 +63,7 @@ export async function exportThreadMarkdown(title: string, messages: AgentReduced
     if (!filePath) return;
     toast.success("已导出 Markdown", { description: filePath });
   } catch (error) {
-    toast.error("导出 Markdown 失败", { description: errorMessage(error) });
+    toast.error("导出 Markdown 失败", { description: renderError(error) });
   }
 }
 
@@ -73,7 +73,7 @@ export async function copyThreadId(threadId: string) {
     await navigator.clipboard.writeText(threadId);
     toast.success("已复制对话 ID");
   } catch (error) {
-    toast.error("复制失败", { description: errorMessage(error) });
+    toast.error("复制失败", { description: renderError(error) });
   }
 }
 

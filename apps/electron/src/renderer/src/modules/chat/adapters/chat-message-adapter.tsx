@@ -4,7 +4,7 @@ import { useQueries } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Effect } from "effect";
 import { rpc } from "@renderer/lib/effect-rpc";
-import { errorMessage } from "@renderer/utils/errors";
+import { renderError } from "@renderer/lib/errors";
 import {
   ChatMessageRow,
   getChatComposerEntities,
@@ -302,7 +302,7 @@ export const ConnectedChatMessageRow = memo(function ConnectedChatMessageRow({
       await navigator.clipboard.writeText(message.text);
       toast.success("已复制消息");
     } catch (error) {
-      toast.error("复制失败", { description: errorMessage(error) });
+      toast.error("复制失败", { description: renderError(error) });
     }
   };
   const approvalById = new Map(

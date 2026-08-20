@@ -10,7 +10,7 @@ import {
 } from "@reflecta/ui/components/dropdown-menu";
 import { PageTopBar } from "@renderer/modules/shared/layout/PageTopBar";
 import type { CanvasDTO } from "@reflecta/server";
-import { errorMessage } from "@renderer/utils/errors";
+import { renderError } from "@renderer/lib/errors";
 import { useRenameCanvasMutation } from "../queries";
 
 /**
@@ -41,7 +41,7 @@ export function CanvasToolbar({
     try {
       await renameCanvas.mutateAsync({ id: canvas.id, input: { title: trimmed } });
     } catch (error) {
-      toast.error("重命名失败", { description: errorMessage(error) });
+      toast.error("重命名失败", { description: renderError(error) });
       setDraftTitle(canvas.title);
     }
   };

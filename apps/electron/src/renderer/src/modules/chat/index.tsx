@@ -29,7 +29,7 @@ import {
 import { ThreadSidebar } from "./session/thread-sidebar";
 import { PageTopBar } from "@renderer/modules/shared/layout/PageTopBar";
 import { cn } from "@reflecta/ui/lib/utils";
-import { errorMessage } from "@renderer/utils/errors";
+import { renderError } from "@renderer/lib/errors";
 
 function activeThreadIdFor(threads: { id: string }[], activeThreadId: string | null) {
   if (threads.length === 0) return null;
@@ -141,7 +141,7 @@ function ChatPageContent() {
   const generateThreadTitle = useMemoizedFn((threadId: string) =>
     generateThreadTitleMutation.mutate(threadId, {
       onSuccess: () => toast.success("已生成标题"),
-      onError: (error) => toast.error("生成标题失败", { description: errorMessage(error) }),
+      onError: (error) => toast.error("生成标题失败", { description: renderError(error) }),
     }),
   );
   const forkThreadFromMessage = useMemoizedFn((threadId: string, messageId: string) =>

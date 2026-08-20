@@ -1,4 +1,5 @@
 import { markdownEquals } from "@reflecta/ui/editor/markdown-normalize";
+import { renderError } from "@renderer/lib/errors";
 import { useKeyPress, useMemoizedFn } from "ahooks";
 import { useEffect, useRef, type RefObject } from "react";
 import { useUpdateUnderstandingMutation } from "./queries";
@@ -21,10 +22,6 @@ type DraftSaveQueueOptions<Result extends DraftSaveResult> = {
   onSucceeded: (snapshot: DraftSaveSnapshot, result: Result) => void;
   onFailed: (snapshot: DraftSaveSnapshot, error: string) => void;
 };
-
-function messageForError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 export function createDraftSaveQueue<Result extends DraftSaveResult>({
   save,
@@ -52,7 +49,7 @@ export function createDraftSaveQueue<Result extends DraftSaveResult>({
           return value;
         },
         (error: unknown) => {
-          if (revision === latestRevision) onFailed(snapshot, messageForError(error));
+          if (revision === latestRevision) onFailed(snapshot, renderError(error));
           throw error;
         },
       );

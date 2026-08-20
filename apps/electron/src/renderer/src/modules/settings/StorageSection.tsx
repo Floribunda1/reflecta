@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Effect } from "effect";
 import { rpc } from "@renderer/lib/effect-rpc";
-import { errorMessage } from "@renderer/utils/errors";
+import { renderError } from "@renderer/lib/errors";
 import type { OrphanAssetInfo } from "@shared/asset";
 import { useModal } from "@reflecta/ui/overlays";
 
@@ -53,7 +53,7 @@ export function StorageSection() {
       setIsCustomContentStorageRoot(true);
       setPendingRestart(true);
     } catch (error) {
-      toast.error("更新数据目录失败", { description: errorMessage(error) });
+      toast.error("更新数据目录失败", { description: renderError(error) });
     } finally {
       setLoading(false);
     }
@@ -68,7 +68,7 @@ export function StorageSection() {
       setIsCustomContentStorageRoot(config.isCustomContentStorageRoot);
       setPendingRestart(true);
     } catch (error) {
-      toast.error("重置数据目录失败", { description: errorMessage(error) });
+      toast.error("重置数据目录失败", { description: renderError(error) });
     } finally {
       setLoading(false);
     }
@@ -79,7 +79,7 @@ export function StorageSection() {
     try {
       setOrphans((await Effect.runPromise(rpc.assetScanOrphans())) as OrphanAssetInfo[]);
     } catch (error) {
-      toast.error("扫描失败", { description: errorMessage(error) });
+      toast.error("扫描失败", { description: renderError(error) });
     } finally {
       setOrphanLoading(false);
     }
@@ -101,7 +101,7 @@ export function StorageSection() {
           setOrphans([]);
           toast.success("已清除无效媒体文件", { description: `${count} 个文件，${totalSize}` });
         } catch (error) {
-          toast.error("清除失败", { description: errorMessage(error) });
+          toast.error("清除失败", { description: renderError(error) });
         } finally {
           setOrphanCleaning(false);
         }
@@ -113,7 +113,7 @@ export function StorageSection() {
     try {
       await Effect.runPromise(rpc.assetOpen(filename));
     } catch (error) {
-      toast.error("打开文件失败", { description: errorMessage(error) });
+      toast.error("打开文件失败", { description: renderError(error) });
     }
   };
 
@@ -122,7 +122,7 @@ export function StorageSection() {
       await Effect.runPromise(rpc.assetReveal(filename));
       toast.success("已在 Finder 中显示");
     } catch (error) {
-      toast.error("显示文件失败", { description: errorMessage(error) });
+      toast.error("显示文件失败", { description: renderError(error) });
     }
   };
 

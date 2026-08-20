@@ -14,7 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { TrashedUnderstandingDTO, TrashedContextDTO } from "@shared/trash";
 import { useModal } from "@reflecta/ui/overlays";
-import { errorMessage } from "@renderer/utils/errors";
+import { renderError } from "@renderer/lib/errors";
 
 export function TrashSection() {
   const { confirm } = useModal();
@@ -51,7 +51,7 @@ export function TrashSection() {
       await refresh();
       toast.success("已恢复 Understanding");
     } catch (error) {
-      toast.error("恢复失败", { description: errorMessage(error) });
+      toast.error("恢复失败", { description: renderError(error) });
     }
   };
 
@@ -71,7 +71,7 @@ export function TrashSection() {
           await refresh();
           toast.success("已永久删除 Understanding");
         } catch (error) {
-          toast.error("永久删除失败", { description: errorMessage(error) });
+          toast.error("永久删除失败", { description: renderError(error) });
         }
       },
     });
@@ -87,7 +87,7 @@ export function TrashSection() {
       await refresh();
       toast.success("已恢复 Context");
     } catch (error) {
-      toast.error("恢复失败", { description: errorMessage(error) });
+      toast.error("恢复失败", { description: renderError(error) });
     }
   };
 
@@ -103,7 +103,7 @@ export function TrashSection() {
           await refresh();
           toast.success("已永久删除 Context");
         } catch (error) {
-          toast.error("永久删除失败", { description: errorMessage(error) });
+          toast.error("永久删除失败", { description: renderError(error) });
         }
       },
     });
@@ -138,7 +138,7 @@ export function TrashSection() {
           await refresh();
           toast.success("已清空回收站", { description: `${total} 项内容` });
         } catch (error) {
-          toast.error("清空回收站失败", { description: errorMessage(error) });
+          toast.error("清空回收站失败", { description: renderError(error) });
         }
       },
     });

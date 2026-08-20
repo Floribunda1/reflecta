@@ -23,7 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@reflecta/ui/components/dropdown-menu";
 import { Input } from "@reflecta/ui/components/input";
-import { errorMessage } from "@renderer/utils/errors";
+import { renderError } from "@renderer/lib/errors";
 import { useDebounce, useMemoizedFn } from "ahooks";
 import { toast } from "sonner";
 import { AgentChatComposer } from "./adapters/chat-composer-adapter";
@@ -121,7 +121,7 @@ export function AgentThreadPanel({
       await threadView.actions.compact(activeModel ?? undefined, activeReasoningLevel);
       toast.success("上下文已压缩");
     } catch (error) {
-      toast.error("压缩上下文失败", { description: errorMessage(error) });
+      toast.error("压缩上下文失败", { description: renderError(error) });
     }
   });
   const approveTool = useMemoizedFn((input: ApproveToolInput) =>
@@ -194,7 +194,7 @@ export function AgentThreadPanel({
             <Empty data-testid="agent-history-error" className="h-full">
               <EmptyHeader>
                 <EmptyTitle>无法加载对话</EmptyTitle>
-                <EmptyDescription>{errorMessage(threadView.messagesError)}</EmptyDescription>
+                <EmptyDescription>{renderError(threadView.messagesError)}</EmptyDescription>
               </EmptyHeader>
               <EmptyContent>
                 <Button type="button" variant="outline" onClick={() => void reloadMessages()}>

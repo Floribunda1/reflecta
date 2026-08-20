@@ -7,7 +7,7 @@ import { Skeleton } from "@reflecta/ui/components/skeleton";
 import { useModal } from "@reflecta/ui/overlays";
 import { useNavigateToCanvas } from "@renderer/modules/shared/navigation";
 import type { CanvasDTO } from "@reflecta/server";
-import { errorMessage } from "@renderer/utils/errors";
+import { renderError } from "@renderer/lib/errors";
 import { useCanvasList, useCreateCanvasMutation } from "../queries";
 import { CanvasListRow } from "./CanvasListRow";
 import { CanvasRenameModal, useDeleteCanvas } from "./CanvasRenameModal";
@@ -36,7 +36,7 @@ export function CanvasListPanel({ selectedCanvasId }: { selectedCanvasId: string
       // M1-2：新建后直接进入画布（默认标题可在工作区顶部改 → Phase 1）
       navigateToCanvas(canvas.id);
     } catch (error) {
-      toast.error("新建画布失败", { description: errorMessage(error) });
+      toast.error("新建画布失败", { description: renderError(error) });
     }
   }, [createCanvas, navigateToCanvas]);
 
