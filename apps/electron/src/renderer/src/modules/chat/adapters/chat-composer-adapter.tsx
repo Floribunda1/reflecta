@@ -260,7 +260,9 @@ export function AgentChatComposer({
         ? (Effect.runPromise(
             rpc.searchUnderstandings(normalizedQuery, { limit: CONTEXT_LOOKUP_LIMIT }),
           ) as Promise<UnderstandingSummaryDTO[]>)
-        : ipcClient.understanding.listUnderstandings({ limit: CONTEXT_LOOKUP_LIMIT }),
+        : (Effect.runPromise(rpc.understandingList({ limit: CONTEXT_LOOKUP_LIMIT })) as Promise<
+            UnderstandingSummaryDTO[]
+          >),
       normalizedQuery
         ? (Effect.runPromise(
             rpc.searchContexts(normalizedQuery, { limit: CONTEXT_LOOKUP_LIMIT }),

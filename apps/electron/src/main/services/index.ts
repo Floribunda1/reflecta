@@ -7,7 +7,6 @@ import { diagnosticErrorAttrs } from "../diagnostic-log";
 import { writeDiagnosticEvent } from "../logger";
 import { ChatService } from "./ChatService";
 import { ConfigService } from "./ConfigService";
-import { UnderstandingService } from "./UnderstandingService";
 import { UnderstandingCanvasService } from "./UnderstandingCanvasService";
 import { piAgentHost } from "./core";
 import { registerAgentSessionFeed } from "./agent/agent-session-feed-ipc";
@@ -80,9 +79,4 @@ registerAgentSessionFeed(piAgentHost);
 // per-message hot path.
 void getSharedModelRuntime().catch(() => undefined);
 
-export const services = createServices([
-  ChatService,
-  ConfigService,
-  UnderstandingService,
-  UnderstandingCanvasService,
-]);
+export const services = createServices([ChatService, ConfigService, UnderstandingCanvasService]);

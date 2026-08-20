@@ -1,20 +1,11 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { Effect } from "effect";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
-import { ipcClient } from "@renderer/utils/ipc";
 import { getMarkdownEditorSuggestions, uploadMarkdownAsset } from "./markdown-editor-adapter";
 import { rpc } from "@renderer/lib/effect-rpc";
 
 vi.mock("@renderer/lib/effect-rpc", () => ({
-  rpc: { assetSave: vi.fn() },
-}));
-
-vi.mock("@renderer/utils/ipc", () => ({
-  ipcClient: {
-    understanding: {
-      listUnderstandings: vi.fn(),
-    },
-  },
+  rpc: { assetSave: vi.fn(), understandingList: vi.fn() },
 }));
 
 function understanding(
@@ -49,9 +40,9 @@ describe("Markdown editor adapter", () => {
   });
 
   test("lists suggestions for an empty query", async () => {
-    vi.mocked(ipcClient.understanding.listUnderstandings).mockResolvedValue([
-      understanding({ id: "understanding-1", title: "Alpha" }),
-    ]);
+    vi.mocked(rpc.understandingList).mockReturnValue(
+      Effect.succeed([understanding({ id: "understanding-1", title: "Alpha" })]),
+    );
 
     await expect(getMarkdownEditorSuggestions("", new AbortController().signal)).resolves.toEqual([
       {
@@ -61,25 +52,25 @@ describe("Markdown editor adapter", () => {
         markdown: "[[u:understanding-1]]",
       },
     ]);
-    expect(ipcClient.understanding.listUnderstandings).toHaveBeenCalledWith(undefined);
+    expect(rpc.understandingList).toHaveBeenCalledWith(undefined);
   });
 
   test("maps searchable records and limits the result", async () => {
-    vi.mocked(ipcClient.understanding.listUnderstandings).mockResolvedValue(
-      Array.from({ length: 10 }, (_, index) =>
-        understanding({
-          id: `understanding-${index}`,
-          title: index === 0 ? null : `Title ${index}`,
-          body: index === 0 ? "\nBeta body\nSecond line" : "",
-        }),
+    vi.mocked(rpc.understandingList).mockReturnValue(
+      Effect.succeed(
+        Array.from({ length: 10 }, (_, index) =>
+          understanding({
+            id: `understanding-${index}`,
+            title: index === 0 ? null : `Title ${index}`,
+            body: index === 0 ? "\nBeta body\nSecond line" : "",
+          }),
+        ),
       ),
     );
 
     const suggestions = await getMarkdownEditorSuggestions(" beta ", new AbortController().signal);
 
-    expect(ipcClient.understanding.listUnderstandings).toHaveBeenCalledWith({
-      searchQuery: "beta",
-    });
+    expect(rpc.understandingList).toHaveBeenCalledWith({ searchQuery: "beta" });
     expect(suggestions).toHaveLength(8);
     expect(suggestions[0]).toEqual({
       id: "understanding-0",

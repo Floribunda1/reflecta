@@ -39,6 +39,15 @@ import { CanvasExportPng } from "./contract/canvas";
 import { DiagnosticsGetLogFilePath, DiagnosticsShowLogFile } from "./contract/diagnostics";
 import { SearchUnderstandings, SearchContexts, SearchSearch } from "./contract/search";
 import { InsightsGetRecapData } from "./contract/insights";
+import {
+  UnderstandingList,
+  UnderstandingGetById,
+  UnderstandingCreate,
+  UnderstandingUpdate,
+  UnderstandingDelete,
+  UnderstandingRestore,
+  UnderstandingPermanentlyDelete,
+} from "./contract/understanding";
 
 export { TrashListError, TrashedUnderstanding } from "./contract/trash";
 export { PilotBoom, PilotPing, PilotProbe } from "./pilot/contract";
@@ -48,6 +57,12 @@ export { AssetError } from "./contract/asset";
 export { CanvasExportError } from "./contract/canvas";
 export { SearchError } from "./contract/search";
 export { InsightsError } from "./contract/insights";
+export { UnderstandingError } from "./contract/understanding";
+export type {
+  CreateUnderstandingInput,
+  UpdateUnderstandingInput,
+  ListUnderstandingsFilter,
+} from "./contract/understanding";
 export { DomainListError } from "./contract/domain";
 export type { CreateDomainInput, UpdateDomainInput, ReorderDomainItem } from "./contract/domain";
 export type { CreateContextInput, UpdateContextInput, TrashedContextDTO } from "./contract/context";
@@ -88,6 +103,13 @@ export const contract = defineContract({
     SearchContexts,
     SearchSearch,
     InsightsGetRecapData,
+    UnderstandingList,
+    UnderstandingGetById,
+    UnderstandingCreate,
+    UnderstandingUpdate,
+    UnderstandingDelete,
+    UnderstandingRestore,
+    UnderstandingPermanentlyDelete,
   ] as const,
   events: [] as const,
   streamMethods: [] as const,

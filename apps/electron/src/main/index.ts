@@ -30,6 +30,7 @@ import {
   CanvasExportError,
   SearchError,
   InsightsError,
+  UnderstandingError,
 } from "../ipc";
 import {
   trashService,
@@ -179,6 +180,7 @@ app.whenReady().then(async () => {
   const assetErr = (message: string) => new AssetError({ reason: message, code: 500 });
   const searchErr = (message: string) => new SearchError({ reason: message, code: 500 });
   const insightsErr = (message: string) => new InsightsError({ reason: message, code: 500 });
+  const uErr = (message: string) => new UnderstandingError({ reason: message, code: 500 });
   const appMain = appIpc.main({
     ipcMain,
     handlers: {
@@ -385,6 +387,51 @@ app.whenReady().then(async () => {
           try: () => getRecapDataOp(),
           catch: (e) => insightsErr(e instanceof Error ? e.message : String(e)),
         }),
+      "understanding.listUnderstandings": ({ filter }) =>
+        Effect.tryPromise({
+          try: () =>
+            understandingService.listUnderstandings(
+              filter as import("@reflecta/server").ListUnderstandingsFilter | undefined,
+            ),
+          catch: (e) => uErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "understanding.getUnderstandingById": ({ id }) =>
+        Effect.tryPromise({
+          try: () => understandingService.getUnderstandingById(id),
+          catch: (e) => uErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "understanding.createUnderstanding": ({ input }) =>
+        Effect.tryPromise({
+          try: () =>
+            understandingService.createUnderstanding(
+              input as unknown as import("@reflecta/server").CreateUnderstandingInput,
+            ),
+          catch: (e) => uErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "understanding.updateUnderstanding": ({ id, input }) =>
+        Effect.tryPromise({
+          try: () =>
+            understandingService.updateUnderstanding(
+              id,
+              input as unknown as import("@reflecta/server").UpdateUnderstandingInput,
+            ),
+          catch: (e) => uErr(e instanceof Error ? e.message : String(e)),
+        }),
+      "understanding.deleteUnderstanding": ({ id }) =>
+        Effect.tryPromise({
+          try: () => understandingService.deleteUnderstanding(id),
+          catch: (e) => uErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
+      "understanding.restoreUnderstanding": ({ id }) =>
+        Effect.tryPromise({
+          try: () => understandingService.restoreUnderstanding(id),
+          catch: (e) => uErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
+      "understanding.permanentlyDeleteUnderstanding": ({ id }) =>
+        Effect.tryPromise({
+          try: () => understandingService.permanentlyDeleteUnderstanding(id),
+          catch: (e) => uErr(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
     },
     context: Context.empty(),
     getWindows: () => BrowserWindow.getAllWindows(),

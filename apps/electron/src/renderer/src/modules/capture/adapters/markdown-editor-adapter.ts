@@ -6,7 +6,6 @@ import {
 } from "@reflecta/ui/editor";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import { Effect } from "effect";
-import { ipcClient } from "@renderer/utils/ipc";
 import { rpc } from "@renderer/lib/effect-rpc";
 
 const suggestionLimit = 8;
@@ -59,9 +58,9 @@ export const getMarkdownEditorSuggestions: MarkdownEditorSuggestionSource = asyn
   signal,
 ) => {
   const normalizedQuery = query.trim();
-  const understandings = await ipcClient.understanding.listUnderstandings(
-    normalizedQuery ? { searchQuery: normalizedQuery } : undefined,
-  );
+  const understandings = (await Effect.runPromise(
+    rpc.understandingList(normalizedQuery ? { searchQuery: normalizedQuery } : undefined),
+  )) as unknown as UnderstandingSummaryDTO[];
   if (signal.aborted) return [];
   return understandings.slice(0, suggestionLimit).map(toSuggestion);
 };

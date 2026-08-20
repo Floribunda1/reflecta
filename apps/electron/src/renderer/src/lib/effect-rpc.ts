@@ -56,4 +56,12 @@ export const rpc = {
     client["search.searchContexts"]({ query, options }),
   searchSearch: (query: string, options?: { limit?: number; offset?: number }) =>
     client["search.search"]({ query, options }),
+  understandingList: (filter?: import("../../../ipc").ListUnderstandingsFilter) =>
+    client["understanding.listUnderstandings"]({ filter }),
+  understandingGetById: (id: string) => client["understanding.getUnderstandingById"]({ id }),
+  understandingCreate: (input: import("../../../ipc").CreateUnderstandingInput) =>
+    client["understanding.createUnderstanding"]({ input }),
+  understandingUpdate: (id: string, input: import("../../../ipc").UpdateUnderstandingInput) =>
+    client["understanding.updateUnderstanding"]({ id, input }),
+  understandingDelete: (id: string) => client["understanding.deleteUnderstanding"]({ id }),
 };

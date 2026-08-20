@@ -61,7 +61,7 @@ export type EntityDisplay = { title: string | null };
 
 export async function getEntityDisplay(ref: Pick<AgentContextRef, "type" | "id">) {
   if (ref.type === "understanding") {
-    const entity = await ipcClient.understanding.getUnderstandingById(ref.id);
+    const entity = await Effect.runPromise(rpc.understandingGetById(ref.id));
     return entity ? { title: entity.title?.trim() || null } : null;
   }
   if (ref.type === "context") {
@@ -169,7 +169,9 @@ export function useCaptureUnderstandingList(filterKey: UnderstandingListFilterKe
   return useQuery<UnderstandingSummaryDTO[]>({
     queryKey: captureQueryKeys.understandingList(filterKey),
     queryFn: () =>
-      ipcClient.understanding.listUnderstandings(buildUnderstandingListFilter(filterKey)),
+      Effect.runPromise(rpc.understandingList(buildUnderstandingListFilter(filterKey))) as Promise<
+        UnderstandingSummaryDTO[]
+      >,
   });
 }
 
@@ -177,14 +179,19 @@ export function useCaptureUnderstandingListTotal(filterKey: UnderstandingListTot
   return useQuery<UnderstandingSummaryDTO[]>({
     queryKey: captureQueryKeys.understandingListTotal(filterKey),
     queryFn: () =>
-      ipcClient.understanding.listUnderstandings(buildUnderstandingListTotalFilter(filterKey)),
+      Effect.runPromise(
+        rpc.understandingList(buildUnderstandingListTotalFilter(filterKey)),
+      ) as Promise<UnderstandingSummaryDTO[]>,
   });
 }
 
 export function useCaptureUnderstandingDetail(understandingId: string) {
   return useQuery<UnderstandingDTO | null>({
     queryKey: captureQueryKeys.understandingDetail(understandingId),
-    queryFn: () => ipcClient.understanding.getUnderstandingById(understandingId),
+    queryFn: () =>
+      Effect.runPromise(
+        rpc.understandingGetById(understandingId),
+      ) as Promise<UnderstandingDTO | null>,
   });
 }
 
@@ -199,9 +206,9 @@ export function useParticipationOverview(enabled = true) {
   const understandingsQuery = useQuery<UnderstandingSummaryDTO[]>({
     queryKey: captureQueryKeys.understandingList(ALL_UNDERSTANDINGS_LIST_FILTER),
     queryFn: () =>
-      ipcClient.understanding.listUnderstandings(
-        buildUnderstandingListFilter(ALL_UNDERSTANDINGS_LIST_FILTER),
-      ),
+      Effect.runPromise(
+        rpc.understandingList(buildUnderstandingListFilter(ALL_UNDERSTANDINGS_LIST_FILTER)),
+      ) as Promise<UnderstandingSummaryDTO[]>,
     enabled,
   });
   const canvasesQuery = useQuery({
@@ -265,7 +272,7 @@ export function useCreateUnderstandingMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateUnderstandingInput) =>
-      ipcClient.understanding.createUnderstanding(input),
+      Effect.runPromise(rpc.understandingCreate(input)) as Promise<UnderstandingDTO>,
     onSuccess: () =>
       Promise.all([
         invalidateUnderstandingLists(queryClient),
@@ -278,7 +285,7 @@ export function useUpdateUnderstandingMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateUnderstandingInput }) =>
-      ipcClient.understanding.updateUnderstanding(id, input),
+      Effect.runPromise(rpc.understandingUpdate(id, input)) as Promise<UnderstandingDTO>,
     onSuccess: (_result, variables) =>
       Promise.all([
         invalidateUnderstandingDetail(queryClient, variables.id),
@@ -294,7 +301,7 @@ export function useUpdateUnderstandingMutation() {
 export function useDeleteUnderstandingMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => ipcClient.understanding.deleteUnderstanding(id),
+    mutationFn: (id: string) => Effect.runPromise(rpc.understandingDelete(id)),
     onSuccess: (_result, id) =>
       Promise.all([
         invalidateUnderstandingDetail(queryClient, id),
