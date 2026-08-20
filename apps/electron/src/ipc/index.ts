@@ -6,7 +6,6 @@
  * 故用单一 app kit 承载所有域，避免多全局冲突）。
  */
 import { createIpcKit, defineContract } from "electron-effect-rpc";
-import { PilotPing, PilotProbe } from "./pilot/contract";
 import { TrashListTrashed, TrashRestore, TrashPermanentlyDelete } from "./contract/trash";
 import { AboutGetVersionInfo, AboutCheckForUpdates } from "./contract/about";
 import {
@@ -96,7 +95,6 @@ import {
 } from "./contract/chat";
 
 export { TrashListError, TrashedUnderstanding } from "./contract/trash";
-export { PilotBoom, PilotPing, PilotProbe } from "./pilot/contract";
 export { AboutVersionInfo } from "./contract/about";
 export { ContextListError } from "./contract/context";
 export { AssetError } from "./contract/asset";
@@ -144,8 +142,6 @@ export type { CreateContextInput, UpdateContextInput, TrashedContextDTO } from "
 
 export const contract = defineContract({
   methods: [
-    PilotPing,
-    PilotProbe,
     TrashListTrashed,
     TrashRestore,
     TrashPermanentlyDelete,

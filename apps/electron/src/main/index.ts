@@ -22,7 +22,6 @@ import {
 } from "./updater";
 import {
   appIpc,
-  PilotBoom,
   TrashListError,
   DomainListError,
   ContextListError,
@@ -268,11 +267,6 @@ app.whenReady().then(async () => {
   const appMain = appIpc.main({
     ipcMain,
     handlers: {
-      PilotPing: () => Effect.succeed({ message: "pong" }),
-      PilotProbe: ({ id }) =>
-        id === "boom"
-          ? Effect.fail(new PilotBoom({ reason: `boom: ${id}`, code: 404 }))
-          : Effect.succeed({ id, ok: true }),
       "trash.listTrashedUnderstandings": () => trashService.listTrashedUnderstandings(),
       "trash.restoreUnderstanding": ({ id }) =>
         runTrashUnderstanding(understandingService.restoreUnderstanding(id)),

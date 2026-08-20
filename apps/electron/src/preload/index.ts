@@ -90,7 +90,6 @@ if (process.contextIsolated) {
     };
     contextBridge.exposeInMainWorld("ipcRenderer", ipcRendererProxy);
 
-    // P1 pilot：Effect IPC bridge（electron-effect-rpc）——暴露 window.api
     // Effect IPC bridge（electron-effect-rpc）—— 暴露 window.api（app 级，含各域）
     appIpc.preload({ electronModule: { contextBridge, ipcRenderer } }).expose();
   } catch (error) {
