@@ -152,6 +152,10 @@
 
 传输层的隔离边界、公开面与验收标准见同目录 `ipc-transport-boundary.md`。
 
+## 6.2 实施计划
+
+分阶段落地（P0 收尾 → P1 垂直切片 Pilot → P2 基础设施 → P3 主进程域迁移 → P4 renderer → P5 CLI/zod → P6 v4 收口）见同目录 `implementation-plan.md`；第 1/2/5 项待确认项在计划内已给出归属阶段与门。
+
 ## 7. 参考
 
 - 调研数据与全部来源：`research-notes.md`（同目录）
