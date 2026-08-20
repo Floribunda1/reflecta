@@ -15,38 +15,116 @@ export type AgentSessionRead =
     }
   | { status: "unavailable"; sessionId: string; error: AgentSessionFeedError };
 
-type Entry = {
+type Watch = (sessionId: string, receive: (frame: AgentSessionFeedFrame) => void) => () => void;
+
+/* ------------------------------------------------------------------ *
+ * 纯核心（FP）：状态是不可变值，转移是纯函数，副作用只在类边界执行。
+ * ------------------------------------------------------------------ */
+
+/** 一个会话的可串行化视图（不含监听器 / 停止函数等桥接引用）。 */
+type SessionView = {
   read: AgentSessionRead;
-  listeners: Set<() => void>;
-  stop: (() => void) | null;
+  /** 提交后保留：waiting（等它进入/离开 busy）→ active（busy 中）→ none（settled 释放）。 */
   retention: "none" | "waiting" | "active";
 };
 
-type Watch = (sessionId: string, receive: (frame: AgentSessionFeedFrame) => void) => () => void;
+const initialView = (sessionId: string): SessionView => ({
+  read: { status: "loading", sessionId },
+  retention: "none",
+});
+
+const isBusy = (session: AgentSessionProjection): boolean =>
+  session.status === "running" || Boolean(session.activeCompaction);
+
+/** 纯判定：给定视图与活跃监听数，是否应继续 watch。 */
+const shouldKeepWatching = (view: SessionView, activeListeners: number): boolean => {
+  if (activeListeners > 0) return true;
+  if (view.retention !== "none") return true;
+  if (view.read.status === "ready" && isBusy(view.read.session)) return true;
+  return false;
+};
+
+/**
+ * 纯 reducer：把一帧应用到视图，返回下一视图 + 是否该停止 watch。
+ * - revision 门控（丢弃 ≤ 当前的过时帧）在纯函数里完成，不入副作用回调。
+ * - error 帧 → unavailable；保留态按 busy 在 waiting/active/none 间转移。
+ */
+const step = (
+  frame: AgentSessionFeedFrame,
+  view: SessionView,
+  activeListeners: number,
+): { view: SessionView; stop: boolean } => {
+  if (frame.kind === "error") {
+    const next: SessionView = {
+      read: { status: "unavailable", sessionId: frame.sessionId, error: frame.error },
+      retention: "none",
+    };
+    return { view: next, stop: !shouldKeepWatching(next, activeListeners) };
+  }
+  if (view.read.status === "ready" && frame.revision <= view.read.revision) {
+    return { view, stop: false }; // 过时帧：不变、不通知、不停
+  }
+  const busy = isBusy(frame.session);
+  let retention = view.retention;
+  if (busy && retention === "waiting") retention = "active";
+  else if (!busy && retention === "active") retention = "none";
+  const next: SessionView = {
+    read: {
+      status: "ready",
+      sessionId: frame.sessionId,
+      revision: frame.revision,
+      session: frame.session,
+    },
+    retention,
+  };
+  return { view: next, stop: !shouldKeepWatching(next, activeListeners) };
+};
+
+/* ------------------------------------------------------------------ *
+ * 类只是边界壳：持有不可变视图 + 桥接引用（监听器 / 停止函数），
+ * 逻辑委托给上面的纯函数。
+ * ------------------------------------------------------------------ */
 
 export class AgentSessionReplica {
-  private readonly entries = new Map<string, Entry>();
+  private readonly views = new Map<string, SessionView>();
+  private readonly listeners = new Map<string, Set<() => void>>();
+  private readonly stops = new Map<string, () => void>();
   private readonly runningListeners = new Set<() => void>();
 
   constructor(private readonly watch: Watch) {}
 
+  /** 稳定获取/注册一个会话的视图（useSyncExternalStore 需要快照引用稳定）。 */
+  private viewFor(sessionId: string): SessionView {
+    let view = this.views.get(sessionId);
+    if (!view) {
+      view = initialView(sessionId);
+      this.views.set(sessionId, view);
+    }
+    return view;
+  }
+
   getSnapshot(sessionId: string): AgentSessionRead {
-    return this.entry(sessionId).read;
+    return this.viewFor(sessionId).read;
   }
 
   subscribe(sessionId: string, listener: () => void): () => void {
-    const entry = this.entry(sessionId);
-    entry.listeners.add(listener);
-    this.start(sessionId, entry);
+    let set = this.listeners.get(sessionId);
+    if (!set) {
+      set = new Set();
+      this.listeners.set(sessionId, set);
+    }
+    set.add(listener);
+    this.ensureWatching(sessionId);
     return () => {
-      entry.listeners.delete(listener);
-      this.stopIfUnused(entry);
+      const current = this.listeners.get(sessionId);
+      current?.delete(listener);
+      this.stopIfUnused(sessionId);
     };
   }
 
   runningSessionId(): string | null {
-    for (const [sessionId, entry] of this.entries) {
-      if (entry.read.status === "ready" && this.isBusy(entry.read.session)) return sessionId;
+    for (const [sessionId, view] of this.views) {
+      if (view.read.status === "ready" && isBusy(view.read.session)) return sessionId;
     }
     return null;
   }
@@ -57,80 +135,60 @@ export class AgentSessionReplica {
   }
 
   retainUntilSettled(sessionId: string): () => void {
-    const entry = this.entry(sessionId);
-    entry.retention = "waiting";
-    this.start(sessionId, entry);
+    this.views.set(sessionId, { ...this.viewFor(sessionId), retention: "waiting" });
+    this.ensureWatching(sessionId);
     return () => {
-      if (entry.retention !== "waiting") return;
-      entry.retention = "none";
-      this.stopIfUnused(entry);
+      const view = this.views.get(sessionId);
+      if (!view || view.retention !== "waiting") return;
+      this.views.set(sessionId, { ...view, retention: "none" });
+      this.stopIfUnused(sessionId);
     };
   }
 
   reconnect(sessionId: string): void {
-    const entry = this.entry(sessionId);
-    entry.stop?.();
-    entry.stop = null;
-    entry.read = { status: "loading", sessionId };
-    this.notify(entry);
-    if (entry.listeners.size > 0 || entry.retention !== "none") this.start(sessionId, entry);
+    this.stopWatching(sessionId);
+    this.views.set(sessionId, initialView(sessionId));
+    this.notify(sessionId);
+    this.ensureWatching(sessionId);
   }
 
-  private entry(sessionId: string): Entry {
-    const existing = this.entries.get(sessionId);
-    if (existing) return existing;
-    const entry: Entry = {
-      read: { status: "loading", sessionId },
-      listeners: new Set(),
-      stop: null,
-      retention: "none",
-    };
-    this.entries.set(sessionId, entry);
-    return entry;
+  /* ---- 边界副作用 ---- */
+
+  private ensureWatching(sessionId: string): void {
+    if (this.stops.has(sessionId)) return;
+    const active = this.listeners.get(sessionId)?.size ?? 0;
+    const view = this.viewFor(sessionId);
+    if (active === 0 && view.retention === "none") return;
+    const stop = this.watch(sessionId, (frame) => this.onFrame(sessionId, frame));
+    this.stops.set(sessionId, stop);
   }
 
-  private start(sessionId: string, entry: Entry): void {
-    if (entry.stop) return;
-    entry.stop = this.watch(sessionId, (frame) => {
-      if (frame.sessionId !== sessionId) return;
-      if (frame.kind === "error") {
-        entry.retention = "none";
-        entry.read = { status: "unavailable", sessionId, error: frame.error };
-        this.notify(entry);
-        this.stopIfUnused(entry);
-        return;
-      }
-      if (entry.read.status === "ready" && frame.revision <= entry.read.revision) {
-        return;
-      }
-      entry.read = {
-        status: "ready",
-        sessionId,
-        revision: frame.revision,
-        session: frame.session,
-      };
-      const busy = this.isBusy(frame.session);
-      if (busy && entry.retention === "waiting") entry.retention = "active";
-      else if (!busy && entry.retention === "active") entry.retention = "none";
-      this.notify(entry);
-      this.stopIfUnused(entry);
-    });
+  private stopWatching(sessionId: string): void {
+    const stop = this.stops.get(sessionId);
+    if (stop) stop();
+    this.stops.delete(sessionId);
   }
 
-  private notify(entry: Entry): void {
-    for (const listener of entry.listeners) listener();
+  private stopIfUnused(sessionId: string): void {
+    const view = this.viewFor(sessionId);
+    const active = this.listeners.get(sessionId)?.size ?? 0;
+    if (shouldKeepWatching(view, active)) return;
+    this.stopWatching(sessionId);
+  }
+
+  private onFrame(sessionId: string, frame: AgentSessionFeedFrame): void {
+    const view = this.viewFor(sessionId);
+    const active = this.listeners.get(sessionId)?.size ?? 0;
+    const { view: next, stop } = step(frame, view, active);
+    if (next === view) return; // 过时帧：不变不通知
+    this.views.set(sessionId, next);
+    this.notify(sessionId);
+    if (stop) this.stopWatching(sessionId);
+  }
+
+  private notify(sessionId: string): void {
+    for (const listener of this.listeners.get(sessionId) ?? []) listener();
     for (const listener of this.runningListeners) listener();
-  }
-
-  private isBusy(session: AgentSessionProjection): boolean {
-    return session.status === "running" || Boolean(session.activeCompaction);
-  }
-
-  private stopIfUnused(entry: Entry): void {
-    if (entry.listeners.size > 0 || entry.retention !== "none") return;
-    if (entry.read.status === "ready" && this.isBusy(entry.read.session)) return;
-    entry.stop?.();
-    entry.stop = null;
   }
 }
 
