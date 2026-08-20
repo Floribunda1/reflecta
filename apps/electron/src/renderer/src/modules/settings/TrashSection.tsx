@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Effect } from "effect";
 import { toast } from "sonner";
 import { Button } from "@reflecta/ui/components/button";
 import {
@@ -11,6 +12,7 @@ import {
 import { Lightbulb, Loader2, RotateCcw, Trash2, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ipcClient } from "@renderer/utils/ipc";
+import { rpc } from "@renderer/lib/effect-rpc";
 import type { TrashedUnderstandingDTO, TrashedContextDTO } from "@shared/trash";
 import { useModal } from "@reflecta/ui/overlays";
 import { errorMessage } from "@renderer/utils/errors";
@@ -26,10 +28,10 @@ export function TrashSection() {
     setLoading(true);
     try {
       const [trashedUnderstandings, trashedContexts] = await Promise.all([
-        ipcClient.trash.listTrashedUnderstandings(),
+        Effect.runPromise(rpc.trashListTrashed()),
         ipcClient.context.listTrashedContexts(),
       ]);
-      setUnderstandings(trashedUnderstandings);
+      setUnderstandings(trashedUnderstandings as TrashedUnderstandingDTO[]);
       setContexts(trashedContexts);
     } finally {
       setLoading(false);
@@ -42,7 +44,7 @@ export function TrashSection() {
 
   const handleRestoreUnderstanding = async (id: string) => {
     try {
-      await ipcClient.trash.restoreUnderstanding(id);
+      await Effect.runPromise(rpc.trashRestore(id));
       queryClient.invalidateQueries({
         queryKey: ["understanding.listUnderstandings"],
         exact: false,
@@ -62,7 +64,7 @@ export function TrashSection() {
       danger: true,
       onAccept: async () => {
         try {
-          await ipcClient.trash.permanentlyDeleteUnderstanding(id);
+          await Effect.runPromise(rpc.trashPermanentlyDelete(id));
           queryClient.invalidateQueries({
             queryKey: ["understanding.listUnderstandings"],
             exact: false,
@@ -120,7 +122,7 @@ export function TrashSection() {
         try {
           await Promise.all([
             ...understandings.map((understanding) =>
-              ipcClient.trash.permanentlyDeleteUnderstanding(understanding.id),
+              Effect.runPromise(rpc.trashPermanentlyDelete(understanding.id)),
             ),
             ...contexts.map((context) => ipcClient.context.permanentlyDeleteContext(context.id)),
           ]);

@@ -66,6 +66,14 @@ test("effect pilot: typed Effect IPC roundtrip (success + typed domain error)", 
     expect(boomErr.error?.tag).toBe("PilotBoom");
     expect(boomErr.error?.data?.reason).toBe("boom: boom");
     expect(boomErr.error?.data?.code).toBe(404);
+
+    // 真实域：trash.listTrashedUnderstandings（删除式迁移后经 appIpc 走通）
+    const trashed = await page.evaluate(() =>
+      (window as unknown as { api: Bridge }).api.invoke("trash.listTrashedUnderstandings", {}),
+    );
+    expect((trashed as { type?: string }).type).toBe("success");
+    expect(Array.isArray((trashed as { data?: unknown }).data)).toBe(true);
+    expect(Array.isArray((trashed as { data?: unknown }).data)).toBe(true);
   } finally {
     await app.close();
   }

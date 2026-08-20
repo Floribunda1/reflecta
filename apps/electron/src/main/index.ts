@@ -12,7 +12,8 @@ import { retrievalEmbeddingRunner } from "./retrievalEmbeddingRunner";
 import { retrievalIndexCoordinator } from "./retrievalIndexCoordinator";
 import { getRuntimeArg } from "./runtime-args";
 import { startAutomaticUpdateChecks } from "./updater";
-import { pilotIpc, PilotBoom } from "../ipc/pilot/contract";
+import { appIpc, PilotBoom, TrashListError } from "../ipc";
+import { trashService, understandingService } from "./services/core";
 
 // Register asset:// as a privileged scheme before app is ready
 registerAssetScheme();
@@ -138,8 +139,9 @@ app.whenReady().then(async () => {
   startAutomaticUpdateChecks();
   createWindow();
 
-  // P1 pilot：Effect IPC（electron-effect-rpc）—— typed domain error 跨进程往返验证
-  const pilotMain = pilotIpc.main({
+  // Effect IPC（electron-effect-rpc）—— 单一 app kit，typed domain error 跨进程往返
+  const ipcError = (message: string) => new TrashListError({ reason: message, code: 500 });
+  const appMain = appIpc.main({
     ipcMain,
     handlers: {
       PilotPing: () => Effect.succeed({ message: "pong" }),
@@ -147,13 +149,28 @@ app.whenReady().then(async () => {
         id === "boom"
           ? Effect.fail(new PilotBoom({ reason: `boom: ${id}`, code: 404 }))
           : Effect.succeed({ id, ok: true }),
+      "trash.listTrashedUnderstandings": () =>
+        Effect.tryPromise({
+          try: () => trashService.listTrashedUnderstandings(),
+          catch: (e) => ipcError(e instanceof Error ? e.message : String(e)),
+        }),
+      "trash.restoreUnderstanding": ({ id }) =>
+        Effect.tryPromise({
+          try: () => understandingService.restoreUnderstanding(id),
+          catch: (e) => ipcError(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
+      "trash.permanentlyDeleteUnderstanding": ({ id }) =>
+        Effect.tryPromise({
+          try: () => understandingService.permanentlyDeleteUnderstanding(id),
+          catch: (e) => ipcError(e instanceof Error ? e.message : String(e)),
+        }).pipe(Effect.map(() => undefined)),
     },
     context: Context.empty(),
     getWindows: () => BrowserWindow.getAllWindows(),
   });
-  pilotMain.start();
+  appMain.start();
   app.once("before-quit", () => {
-    pilotMain.dispose();
+    appMain.dispose();
   });
 
   app.on("activate", () => {

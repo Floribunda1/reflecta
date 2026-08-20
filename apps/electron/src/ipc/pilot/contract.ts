@@ -8,7 +8,7 @@
  * 本契约只服务于验证，不承载业务；真实域迁移时按总纲删除式扩充到 `contract/` 下。
  */
 import * as S from "effect/Schema";
-import { createIpcKit, defineContract, rpc } from "electron-effect-rpc";
+import { rpc } from "electron-effect-rpc";
 
 /** 类型化域错误：跨进程往返后结构（reason/code）完整还原。 */
 export class PilotBoom extends S.TaggedError<PilotBoom>()("PilotBoom", {
@@ -26,12 +26,3 @@ export const PilotProbe = rpc(
   S.Struct({ id: S.String, ok: S.Boolean }),
   PilotBoom,
 );
-
-const contract = defineContract({
-  methods: [PilotPing, PilotProbe] as const,
-  events: [] as const,
-  streamMethods: [] as const,
-});
-
-/** 一处契约，main / preload / renderer 三进程复用。 */
-export const pilotIpc = createIpcKit({ contract });

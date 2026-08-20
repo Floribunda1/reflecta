@@ -2,7 +2,7 @@ import { electronAPI } from "@electron-toolkit/preload";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import "electron-log/preload";
 import { agentSessionFeedApi } from "./agent-session-feed";
-import { pilotIpc } from "../ipc/pilot/contract";
+import { appIpc } from "../ipc";
 
 const DIAGNOSTIC_RENDERER_ERROR_CHANNEL = "diagnostic:renderer-error";
 
@@ -91,7 +91,8 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("ipcRenderer", ipcRendererProxy);
 
     // P1 pilot：Effect IPC bridge（electron-effect-rpc）——暴露 window.api
-    pilotIpc.preload({ electronModule: { contextBridge, ipcRenderer } }).expose();
+    // Effect IPC bridge（electron-effect-rpc）—— 暴露 window.api（app 级，含各域）
+    appIpc.preload({ electronModule: { contextBridge, ipcRenderer } }).expose();
   } catch (error) {
     console.error(error);
   }

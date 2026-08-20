@@ -17,7 +17,6 @@ import { CanvasExportService } from "./CanvasExportService";
 import { SearchService } from "./SearchService";
 import { UnderstandingService } from "./UnderstandingService";
 import { UnderstandingCanvasService } from "./UnderstandingCanvasService";
-import { TrashService } from "./TrashService";
 import { piAgentHost } from "./core";
 import { registerAgentSessionFeed } from "./agent/agent-session-feed-ipc";
 import { getSharedModelRuntime } from "./agent/pi-model-runtime";
@@ -102,5 +101,4 @@ export const services = createServices([
   CanvasExportService,
   ContextService,
   SearchService,
-  TrashService,
 ]);
