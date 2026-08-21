@@ -13,8 +13,12 @@ import {
 
 vi.mock("@xyflow/react", () => ({
   Handle: ({ type }: { type: string }) => <span data-testid={`handle-${type}`} />,
-  NodeResizer: ({ isVisible }: { isVisible: boolean }) => (
-    <span data-testid="node-resizer" data-visible={String(isVisible)} />
+  NodeResizer: ({ isVisible, lineClassName }: { isVisible: boolean; lineClassName?: string }) => (
+    <span
+      data-testid="node-resizer"
+      data-visible={String(isVisible)}
+      data-line-class={lineClassName}
+    />
   ),
   NodeToolbar: ({ isVisible, children }: { isVisible: boolean; children: ReactNode }) =>
     isVisible ? <div data-testid="node-toolbar">{children}</div> : null,
@@ -165,6 +169,19 @@ describe("canvas nodes", () => {
     expect(overlay?.className).not.toContain("rounded-lg");
     expect(overlay?.className).not.toContain("ring-2");
     expect(overlay?.className).not.toContain("hover:ring-2");
+    expect(
+      container.querySelector('[data-testid="node-resizer"]')?.getAttribute("data-line-class"),
+    ).toBe("!border-transparent");
+  });
+
+  test("places the group label outside the top-left shell", () => {
+    render(<GroupNode {...props(GroupNode, elements.group)} />);
+    expect(container.querySelector('[data-testid="canvas-group-label"]')?.className).toContain(
+      "left-1.5",
+    );
+    expect(container.querySelector('[data-testid="canvas-group-label"]')?.className).toContain(
+      "-top-9",
+    );
   });
 
   test.each([

@@ -85,7 +85,7 @@ function Harness({ source = true, target = true }: { source?: boolean; target?: 
   );
 }
 
-function Resizer({ visible }: { visible: boolean }) {
+function Resizer({ visible, hideLine = false }: { visible: boolean; hideLine?: boolean }) {
   const { readonly, multiSelected } = useCanvasShapeData();
   return (
     <NodeResizer
@@ -93,7 +93,7 @@ function Resizer({ visible }: { visible: boolean }) {
       isVisible={visible && !readonly && !multiSelected}
       minWidth={80}
       minHeight={48}
-      lineClassName="!border-primary"
+      lineClassName={hideLine ? "!border-transparent" : "!border-primary"}
       handleClassName="!h-2 !w-2 !border-primary !bg-background"
     />
   );
@@ -379,12 +379,12 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
               <Trash2 />
             </Button>
           </CanvasNodeToolbar>
-          <Resizer visible={props.selected} />
+          <Resizer visible={props.selected} hideLine />
           <Harness />
           {/* 悬浮在矩形左上角上边外的组名徽章 */}
           <div
             data-testid="canvas-group-label"
-            className="absolute left-2 -top-3 z-10 flex max-w-[calc(100%-1rem)] cursor-grab items-center gap-1 rounded-md bg-background px-1.5 py-0.5 text-xs shadow-sm"
+            className="absolute left-1.5 -top-9 z-10 flex max-w-[calc(100%-1rem)] cursor-grab items-center gap-1 rounded-md bg-background px-1.5 py-0.5 text-xs shadow-sm"
             onDoubleClick={readonly ? undefined : startEditing}
           >
             <PackageOpen size={12} className="shrink-0 text-muted-foreground" />
