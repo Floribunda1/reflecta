@@ -98,6 +98,13 @@ let ref: ReturnType<typeof createRef<CanvasGraphHandle | null>>;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // happy-dom 不会自动推进 rAF；同步触发，让初始视口恢复那个“吞掉 onViewportChange”的
+  // 帧守卫立即清除，否则后续真实平移会被误吞（viewport changes emit…… 测试）。
+  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+    cb(1);
+    return 1;
+  });
+  vi.stubGlobal("cancelAnimationFrame", () => {});
   mocks.reactFlowProps = null;
   container = document.createElement("div");
   document.body.append(container);
@@ -106,6 +113,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   act(() => root.unmount());
   container.remove();
 });
