@@ -44,7 +44,7 @@
 4. **命令式 API**：`addNode` / `addEdge` / `removeCell` / `toJSON` / `fromJSON` / `undo` / `redo` / `getCellById` / `screenToLocal` 等；
 5. **注册表**：`Graph.registerNode` / `registerEdge` / `registerPortLayout` / `registerNodeTool` / `registerEdgeTool` / anchor / connectionPoint；
 6. **react-shape 组件**：`register({ shape, component, effect })`，`effect` 声明哪些属性变更触发重渲染；
-7. **外部手势与业务**：delegateGraph 的 DnD 拖入、键盘快捷键到业务命令（分组/搜索/解组）、边样式面板、导出、saveCanvas 文档同步。
+7. **外部手势与业务**：delegateGraph 的 DnD 拖入、页面按钮 / 右键菜单到业务命令（分组/解组/搜索）、边样式面板、导出、saveCanvas 文档同步。分组命令等业务入口优先用页面按钮，不依赖键盘快捷键。
 
 “完整”的定义：仓库中所有 `@antv/x6` / `@antv/x6-react-shape` import、所有 `graph.use`、所有 `graph.on`、所有覆盖的 Graph options 都位于已知 Canvas 模块内并可在一张接缝清单中找到。
 
@@ -69,18 +69,18 @@
 
 任何非默认配置必须在实现同一变更中补充此表。没有理由与验证方式的偏差不应合入。当前为**预期偏差**（移植时逐行登记确认），行与 X6 默认对照：
 
-| 接缝           | X6 3.1.8 默认                 | Reflecta 决定                                         | 理由                                   | 验证                |
-| -------------- | ----------------------------- | ----------------------------------------------------- | -------------------------------------- | ------------------- |
-| 网格           | 不绘制（size 10）             | 绘制 20px 网格 + snapToGrid                           | 沿用现有画布空间定位                   | 网格 acceptance     |
-| 平移/缩放      | 平移开、滚轮关                | 开启滚轮缩放；缩放范围收敛                            | 画布编辑导航                           | viewport acceptance |
-| 只读模式       | 可编辑                        | 禁 node 拖动/连接/嵌入/Transform，保留视口            | 同一 renderer 服务只读预览             | 只读 acceptance     |
-| 虚拟渲染       | `virtual:false`，`async:true` | 开启 `virtual:true`                                   | 大画布性能（React Flow 时代 deferred） | 规模压测后验收      |
-| 初始视口       | 不自动 fitView                | 无已存 viewport 时 fitView                            | 空间内完整显示                         | viewport acceptance |
-| 新增节点       | 无业务新增行为                | 新增后定位并短暂 fit 到节点                           | 拖入后保持可见                         | 拖入 acceptance     |
-| 连接           | allowMulti:true 已满足        | 沿用 allowMulti（多线）+ allowLoop（自环）            | 支持同源多边/自环                      | 连线 acceptance     |
-| 分组           | embedding 只给原语            | 追加 Cmd+G 打组 / Cmd+Shift+G 解组 / 删组级联命令     | embedding 不含显式命令 UX              | 分组 acceptance     |
-| 画布搜索       | 无内置                        | 遍历 cells 按文本匹配 + 结果定位 UI                   | 业务需要（X6 无内置）                  | 搜索 acceptance     |
-| React 节点导出 | Export 内置                   | 调 `copyStyles`/`serializeImages` 保证 React 节点样式 | 导出保真                               | 导出 acceptance     |
+| 接缝           | X6 3.1.8 默认                 | Reflecta 决定                                         | 理由                                            | 验证                |
+| -------------- | ----------------------------- | ----------------------------------------------------- | ----------------------------------------------- | ------------------- |
+| 网格           | 不绘制（size 10）             | 绘制 20px 网格 + snapToGrid                           | 沿用现有画布空间定位                            | 网格 acceptance     |
+| 平移/缩放      | 平移开、滚轮关                | 开启滚轮缩放；缩放范围收敛                            | 画布编辑导航                                    | viewport acceptance |
+| 只读模式       | 可编辑                        | 禁 node 拖动/连接/嵌入/Transform，保留视口            | 同一 renderer 服务只读预览                      | 只读 acceptance     |
+| 虚拟渲染       | `virtual:false`，`async:true` | 开启 `virtual:true`                                   | 大画布性能（React Flow 时代 deferred）          | 规模压测后验收      |
+| 初始视口       | 不自动 fitView                | 无已存 viewport 时 fitView                            | 空间内完整显示                                  | viewport acceptance |
+| 新增节点       | 无业务新增行为                | 新增后定位并短暂 fit 到节点                           | 拖入后保持可见                                  | 拖入 acceptance     |
+| 连接           | allowMulti:true 已满足        | 沿用 allowMulti（多线）+ allowLoop（自环）            | 支持同源多边/自环                               | 连线 acceptance     |
+| 分组           | embedding 只给原语            | 追加页面按钮打组/解组 + 删组级联命令（不走快捷键）    | embedding 不含显式命令 UX；页面有按钮就用页面的 | 分组 acceptance     |
+| 画布搜索       | 无内置                        | 遍历 cells 按文本匹配 + 结果定位 UI                   | 业务需要（X6 无内置）                           | 搜索 acceptance     |
+| React 节点导出 | Export 内置                   | 调 `copyStyles`/`serializeImages` 保证 React 节点样式 | 导出保真                                        | 导出 acceptance     |
 
 readonly 相关的拖/连/嵌/缩略组合仍须组合验证；其余覆盖已登记在上表，新增一律在此补行。
 
@@ -124,7 +124,7 @@ X6 升级必须作为行为基准变更处理：
 
 ## 10. 非 X6 内置能力
 
-下列除非单独立项，否则不属于 X6 行为基准，由 Reflecta 全权拥有其预期与测试：**画布内容搜索**、**分组命令 UX（Cmd+G/Cmd+Shift+G/级联删）**、边样式面板、理解库面板 / 详情面板、saveCanvas 文档同步、React 节点导出保真调优、业务工具栏。它们在 X6 上有原语或部分能力，但采用后 Reflecta 负责完整预期与测试。
+下列除非单独立项，否则不属于 X6 行为基准，由 Reflecta 全权拥有其预期与测试：**画布内容搜索**、**分组命令 UX（页面按钮打组/解组 + 级联删，不走快捷键）**、边样式面板、理解库面板 / 详情面板、saveCanvas 文档同步、React 节点导出保真调优、业务工具栏。它们在 X6 上有原语或部分能力，但采用后 Reflecta 负责完整预期与测试。
 
 ## 11. Definition of Done
 

@@ -78,7 +78,7 @@
 这些是纯业务，任何引擎都躲不掉；不把红利算过头。
 
 1. **画布内容搜索**：按文本遍历 cells 匹配 + 结果定位 UI（X6 无内置）。
-2. **打组命令 UX**：Cmd+G 建父节点、Cmd+Shift+G 解组、删组级联删成员、坐标转换接线。embedding 只给原语。
+2. **打组命令 UX**：页面按钮建父节点/解组（不走快捷键）+ 删组级联删成员、坐标转换接线。embedding 只给原语。
 3. **卡片组件本体**：理解卡/文本卡/组/引用卡的 React 组件（react-shape 的 `component`）。
 4. **业务面板 / 保存协议**：边样式面板、理解详情面板、saveCanvas 文档同步。
 5. **React 节点导出调优**：Export 插件内置，但 React 节点 PNG 样式需 `copyStyles`/`serializeImages` 调优（community 高频反馈点）。
