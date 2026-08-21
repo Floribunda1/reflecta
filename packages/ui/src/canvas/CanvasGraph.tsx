@@ -8,7 +8,6 @@ import {
   History,
   Keyboard,
   MiniMap,
-  Node as X6Node,
   Selection,
   Snapline,
   Transform,
@@ -249,7 +248,9 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
           getDropNode: (draggingNode) => {
             const source = draggingNode.getData() as { element?: CanvasElementDTO } | undefined;
             if (!source?.element || !createElementForDrop) return draggingNode;
-            return new X6Node(nodeMetadataFor(createElementForDrop(source.element)));
+            // 用 graph.createNode 建落点节点：new Node() 会绕过注册表的 react-shape 继承，
+            // 渲染回退成 base rect 标记（无 fo，卡片不渲染）
+            return graph.createNode(nodeMetadataFor(createElementForDrop(source.element)));
           },
         });
         dndRef.current = dnd ?? null;
@@ -420,10 +421,10 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         fitView: () => graphRef.current?.zoomToFit({ padding: 40, maxScale: 1 }),
         startDrag: (element, event) => {
           const dnd = dndRef.current;
-          if (!dnd || readonlyRef.current) return;
-          event.preventDefault?.();
-          const source = new X6Node(nodeMetadataFor(element));
-          dnd.start(source, event.nativeEvent);
+          const graph = graphRef.current;
+          if (!dnd || !graph || readonlyRef.current) return;
+          // graph.createNode：避免 new Node() 绕过 react-shape 继承导致落点卡片不渲染
+          dnd.start(graph.createNode(nodeMetadataFor(element)), event.nativeEvent);
         },
       }),
       [canvasId, rebuild, renderGraph],

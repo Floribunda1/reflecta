@@ -5,20 +5,24 @@ import {
   seedCanvas,
   seedUnderstanding,
 } from "../../acceptance/spec/agent/agent-fixtures";
-import { nodeInGraph, openSeededCanvas, openLibrary } from "./canvas-integration";
+import { dragSourceTo, nodeInGraph, openSeededCanvas, openLibrary } from "./canvas-integration";
 
 test.beforeEach(() => resetAgentFixtures());
 
 const EMPTY = { id: "canvas", title: "CANVAS", elements: [], edges: [] } as const;
 
 test.describe("文本卡", () => {
-  test("从工具栏创建文本卡", async () => {
+  test("从工具栏拖拽文本到画布创建文本卡", async () => {
     seedCanvas(EMPTY);
     const { app, page } = await launchApp();
     try {
       await openSeededCanvas(page, "CANVAS");
-      await page.getByTestId("canvas-tool-dnd-text").click();
-      await expect(page.getByTestId("canvas-graph").getByTestId("canvas-text-card")).toBeVisible();
+      const graph = page.getByTestId("canvas-graph");
+      const box = (await graph.boundingBox())!;
+      await dragSourceTo(page, page.getByTestId("canvas-tool-dnd-text"), box.x + 260, box.y + 260);
+      await expect(
+        page.getByTestId("canvas-graph").getByTestId("canvas-text-card").first(),
+      ).toBeVisible();
     } finally {
       await app.close();
     }
@@ -84,15 +88,17 @@ test.describe("文本卡", () => {
 });
 
 test.describe("理解卡", () => {
-  test("从理解库创建理解卡并展示全文", async () => {
+  test("从理解库拖拽创建理解卡并展示全文", async () => {
     seedUnderstanding({ id: "u1", title: "UNI", body: "BODY_TEXT" });
     seedCanvas(EMPTY);
     const { app, page } = await launchApp();
     try {
       await openSeededCanvas(page, "CANVAS");
       await openLibrary(page);
+      const graph = page.getByTestId("canvas-graph");
+      const box = (await graph.boundingBox())!;
       const row = page.getByTestId("canvas-library-item").filter({ hasText: "UNI" });
-      await row.click();
+      await dragSourceTo(page, row, box.x + 260, box.y + 260);
       const understood = page
         .getByTestId("canvas-graph")
         .getByTestId("canvas-understanding-card")

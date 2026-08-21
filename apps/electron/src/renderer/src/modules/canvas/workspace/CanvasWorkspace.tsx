@@ -68,7 +68,7 @@ function CanvasTextTool({
   onStartDrag,
   onClick,
 }: {
-  onStartDrag: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  onStartDrag: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onClick: () => void;
 }) {
   return (
@@ -81,7 +81,7 @@ function CanvasTextTool({
             variant="ghost"
             aria-label="文本"
             data-testid="canvas-tool-dnd-text"
-            onPointerDown={onStartDrag}
+            onMouseDown={onStartDrag}
             onClick={onClick}
           />
         }
@@ -496,7 +496,6 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
             <div className="absolute top-3 left-3 z-20 flex items-center gap-1 rounded-md border bg-background/90 p-1 shadow-sm">
               <CanvasTextTool
                 onStartDrag={(e) => {
-                  e.preventDefault();
                   graphRef.current?.startDrag(newTextElement({ width: 220, height: 120 }), e);
                 }}
                 onClick={() => {

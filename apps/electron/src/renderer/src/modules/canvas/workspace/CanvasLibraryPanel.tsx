@@ -154,8 +154,7 @@ export function CanvasLibraryPanel({
                 data-understanding-title={understanding.title ?? "未命名理解"}
                 className="flex cursor-grab items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
                 title="点击或拖入画布创建理解卡"
-                onPointerDown={(event) => {
-                  event.preventDefault();
+                onMouseDown={(event) => {
                   onStartDragUnderstanding(understanding.id, event);
                 }}
                 onClick={() => onPickUnderstanding(understanding.id)}
