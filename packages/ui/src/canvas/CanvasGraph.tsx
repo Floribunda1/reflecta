@@ -123,7 +123,7 @@ const nodeTypes = canvasNodeTypes;
 const CANVAS_SNAP_GRID: [number, number] = [10, 10];
 const DND_MIME = "application/reflecta-canvas-element";
 const CANVAS_EDGE_STATE_CLASS =
-  "[&_.react-flow__edge:hover]:[--canvas-edge-stroke:var(--primary)] [&_.react-flow__edge:hover]:[--xy-edge-stroke:var(--primary)] [&_.react-flow__edge.selected]:[--xy-edge-stroke:var(--primary)] [&_.react-flow__edge.selected]:[--xy-edge-stroke-selected:var(--primary)]";
+  "[&_.react-flow__edge:hover]:[--canvas-edge-stroke:var(--primary)] [&_.react-flow__edge:hover]:[--xy-edge-stroke:var(--primary)] [&_.react-flow__edge.selected]:[--xy-edge-stroke:var(--primary)] [&_.react-flow__edge.selected]:[--xy-edge-stroke-selected:var(--primary)] [&_.react-flow__edgelabel-renderer]:z-[1001]";
 // 组外壳用 RF 内置 `.react-flow__node-group`（padding / 边框 / 底 / 选中阴影），
 // 只把官方色值换成设计 token；type 叫 group 才会吃到这套皮。
 const CANVAS_GROUP_CLASS = [

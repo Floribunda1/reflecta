@@ -277,6 +277,13 @@ describe("CanvasGraph React Flow seam", () => {
     expect(node.style?.borderColor).toBe("var(--chart-1)");
   });
 
+  test("raises the edge label renderer above canvas nodes", () => {
+    render({ document: { elements: [], edges: [] } });
+    expect(container.querySelector('[data-testid="canvas-graph"]')?.className).toContain(
+      "[&_.react-flow__edgelabel-renderer]:z-[1001]",
+    );
+  });
+
   test("selection toolbar appears for two or more selected nodes and groups them", () => {
     const onDocumentChange = vi.fn();
     const flow = render({ document: canvasDocument(["a", "b"]), onDocumentChange });
