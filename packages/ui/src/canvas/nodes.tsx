@@ -85,15 +85,7 @@ function Harness({ source = true, target = true }: { source?: boolean; target?: 
   );
 }
 
-function Resizer({
-  visible,
-  hideLine = false,
-  lineColor,
-}: {
-  visible: boolean;
-  hideLine?: boolean;
-  lineColor?: string;
-}) {
+function Resizer({ visible, hideLine = false }: { visible: boolean; hideLine?: boolean }) {
   const { readonly, multiSelected } = useCanvasShapeData();
   return (
     <NodeResizer
@@ -102,7 +94,6 @@ function Resizer({
       minWidth={80}
       minHeight={48}
       lineClassName={hideLine ? "!border-transparent" : "!border-primary"}
-      lineStyle={lineColor ? { borderColor: lineColor } : undefined}
       handleClassName="!h-2 !w-2 !border-primary !bg-background"
     />
   );
@@ -358,7 +349,7 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
           <div
             data-testid="canvas-group-node"
             data-group-label={label}
-            className="group/canvas-node relative flex h-full w-full flex-col focus-visible:outline-none"
+            className="group/canvas-node flex h-full w-full flex-col focus-visible:outline-none"
           />
         }
       >
@@ -388,19 +379,19 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
               <Trash2 />
             </Button>
           </CanvasNodeToolbar>
-          <Resizer
-            visible={props.selected}
-            lineColor={canvasPaintColor(element.props.color) ?? "var(--primary)"}
-          />
+          <Resizer visible={props.selected} hideLine />
           <Harness />
           {/* 悬浮在矩形左上角上边外的组名徽章 */}
           <div
             data-testid="canvas-group-label"
-            className="absolute -left-4 -top-9 z-10 flex max-w-[calc(100%-1rem)] cursor-grab items-center gap-1 rounded-md bg-background px-1.5 py-0.5 text-xs shadow-sm"
-            style={{ color: canvasPaintColor(element.props.color) }}
+            className="absolute left-0 -top-6 z-10 flex max-w-[calc(100%-1rem)] cursor-grab items-center gap-1 rounded-md px-1.5 py-0.5 text-xs shadow-sm"
+            style={{
+              color: canvasPaintColor(element.props.color),
+              backgroundColor: "var(--xy-node-group-background-color)",
+            }}
             onDoubleClick={readonly ? undefined : startEditing}
           >
-            <PackageOpen size={12} className="shrink-0 text-muted-foreground" />
+            <PackageOpen size={12} className="shrink-0" />
             {editing ? (
               <input
                 ref={inputRef}

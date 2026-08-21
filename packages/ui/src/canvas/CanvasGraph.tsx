@@ -128,7 +128,6 @@ const CANVAS_EDGE_STATE_CLASS =
 // 只把官方色值换成设计 token；type 叫 group 才会吃到这套皮。
 const CANVAS_GROUP_CLASS = [
   "[--xy-node-border:1px_solid_var(--border)]",
-  "[--xy-node-border-selected:1px_solid_transparent]",
   "[--xy-node-border-radius:var(--radius-lg)]",
   "[--xy-node-group-background-color:color-mix(in_oklch,var(--muted)_40%,transparent)]",
   "[--xy-node-boxshadow-selected:0_0_0_2px_var(--ring)]",
