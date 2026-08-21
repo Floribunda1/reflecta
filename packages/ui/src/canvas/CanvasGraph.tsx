@@ -1,3 +1,4 @@
+import { useLatest } from "ahooks";
 import {
   forwardRef,
   useCallback,
@@ -207,13 +208,10 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
   } = props;
 
   const instance = useReactFlow();
-  const onDocumentChangeRef = useRef(onDocumentChange);
-  const onViewportChangeRef = useRef(onViewportChange);
-  const onSelectionChangeRef = useRef(onSelectionChange);
+  const onDocumentChangeRef = useLatest(onDocumentChange);
+  const onViewportChangeRef = useLatest(onViewportChange);
+  const onSelectionChangeRef = useLatest(onSelectionChange);
   const applyingInitialViewportRef = useRef(false);
-  onDocumentChangeRef.current = onDocumentChange;
-  onViewportChangeRef.current = onViewportChange;
-  onSelectionChangeRef.current = onSelectionChange;
 
   const { nodes: initNodes, edges: initEdges } = useMemo(
     () => toFlowData(document ?? { elements: [], edges: [] }),
@@ -225,8 +223,8 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
   const [edges, setEdges] = useEdgesState<Edge>(initEdges);
   // 选中节点跟踪：selection 工具条（多选打组）消费；readonly 下不维护。
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
-  const nodesRef = useRef(nodes);
-  const edgesRef = useRef(edges);
+  const nodesRef = useLatest(nodes);
+  const edgesRef = useLatest(edges);
 
   // DnD 落点预览：拖入时跟随光标的虚线占位框（不生成节点、不写文档）。
   // 用一个常驻、默认透明度 0 的占位框，位置/尺寸/显隐全走 DOM style，
@@ -234,13 +232,11 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
   const containerRef = useRef<HTMLDivElement>(null);
   const dropPreviewRef = useRef<HTMLDivElement>(null);
   const dragElementRef = useRef<CanvasElementDTO | null>(null);
-  nodesRef.current = nodes;
-  edgesRef.current = edges;
 
   const emitDocument = useCallback(() => {
     if (readonly) return;
     onDocumentChangeRef.current?.(toCanvasDocument(nodesRef.current, edgesRef.current));
-  }, [readonly]);
+  }, [edgesRef, nodesRef, onDocumentChangeRef, readonly]);
 
   // 节点变化：位置 / 尺寸 / 删除 → 同步文档
   const handleNodesChange = useCallback(
@@ -250,7 +246,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
       setNodes(next);
       if (documentChanged) emitDocument();
     },
-    [emitDocument, setNodes],
+    [emitDocument, nodesRef, setNodes],
   );
 
   // 边变化：删除 → 同步文档
@@ -261,7 +257,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
       setEdges(next);
       if (documentChanged) emitDocument();
     },
-    [emitDocument, setEdges],
+    [edgesRef, emitDocument, setEdges],
   );
 
   // 连线完成：新增边 → 同步文档
@@ -280,7 +276,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
       setEdges(next);
       emitDocument();
     },
-    [canvasId, emitDocument, setEdges],
+    [canvasId, edgesRef, emitDocument, setEdges],
   );
 
   // 视口变化回写
@@ -290,7 +286,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
       if (applyingInitialViewportRef.current) return;
       onViewportChangeRef.current?.({ x: v.x, y: v.y, zoom: v.zoom });
     },
-    [readonly],
+    [onViewportChangeRef, readonly],
   );
 
   // 选中变化回写
@@ -303,7 +299,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
         ...selectedEdges.map((e) => e.id),
       ]);
     },
-    [readonly],
+    [onSelectionChangeRef, readonly],
   );
 
   // 内容编辑（文本 / 组名）回写：更新受控 data + 同步文档
@@ -316,7 +312,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
       setNodes(next);
       emitDocument();
     },
-    [emitDocument, setNodes],
+    [emitDocument, nodesRef, setNodes],
   );
 
   const handleEdgeUpdate = useCallback(
@@ -328,7 +324,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
       setEdges(next);
       emitDocument();
     },
-    [emitDocument, setEdges],
+    [edgesRef, emitDocument, setEdges],
   );
 
   const updateNodes = useCallback(
@@ -337,7 +333,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
       setNodes(next);
       emitDocument();
     },
-    [emitDocument, setNodes],
+    [emitDocument, nodesRef, setNodes],
   );
 
   const deleteElement = useCallback(
@@ -353,7 +349,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
       setEdges(nextEdges);
       emitDocument();
     },
-    [emitDocument, setEdges, setNodes],
+    [edgesRef, emitDocument, nodesRef, setEdges, setNodes],
   );
 
   const deleteEdge = useCallback(
@@ -364,7 +360,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
       setEdges(next);
       emitDocument();
     },
-    [emitDocument, setEdges],
+    [edgesRef, emitDocument, setEdges],
   );
 
   const groupSelection = useCallback(
@@ -378,7 +374,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
       if (next === nodesRef.current) return;
       updateNodes(next);
     },
-    [canvasId, updateNodes],
+    [canvasId, nodesRef, updateNodes],
   );
 
   const ungroupSelection = useCallback(
@@ -387,7 +383,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
       if (next === nodesRef.current) return;
       updateNodes(next);
     },
-    [updateNodes],
+    [nodesRef, updateNodes],
   );
 
   const deleteGroup = useCallback(
@@ -400,7 +396,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
       setEdges(next.edges);
       emitDocument();
     },
-    [emitDocument, setEdges, setNodes],
+    [edgesRef, emitDocument, nodesRef, setEdges, setNodes],
   );
 
   const exportPng = useCallback(async () => {
@@ -428,7 +424,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
     link.download = "reflecta-canvas.png";
     link.href = dataUrl;
     link.click();
-  }, []);
+  }, [nodesRef]);
 
   // 文档加载：document prop 为「初始 / 外部刷新」数据源，变化时重建 nodes/edges。
   // 内部编辑经 onDocumentChange 流出，不回灌 document prop（防循环）。
@@ -439,7 +435,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
     edgesRef.current = nextEdges;
     setNodes(nextNodes);
     setEdges(nextEdges);
-  }, [document, setNodes, setEdges]);
+  }, [document, edgesRef, nodesRef, setNodes, setEdges]);
 
   // 暴露实例与外部刷新能力
   useImperativeHandle(
@@ -486,6 +482,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
     }),
     [
       deleteGroup,
+      emitDocument,
       exportPng,
       groupSelection,
       handleEdgeUpdate,
@@ -495,6 +492,8 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
       setNodes,
       setEdges,
       ungroupSelection,
+      edgesRef,
+      nodesRef,
     ],
   );
 
@@ -603,7 +602,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
         // ignore malformed payload
       }
     },
-    [clearDropPreview, emitDocument, instance, readonly, setNodes],
+    [clearDropPreview, emitDocument, instance, nodesRef, readonly, setNodes],
   );
 
   // 多选：选区工具栏显示于选区上方，各节点隐藏独立操作工具栏。
@@ -637,7 +636,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
     setEdges(nextEdges);
     setSelectedNodeIds([]);
     emitDocument();
-  }, [emitDocument, selectedNodeIds, setEdges, setNodes]);
+  }, [edgesRef, emitDocument, nodesRef, selectedNodeIds, setEdges, setNodes]);
 
   // 选区工具栏：位置由 SelectionToolbar 组件内的 useViewport 实时派生，平移 / 缩放跟随。
 

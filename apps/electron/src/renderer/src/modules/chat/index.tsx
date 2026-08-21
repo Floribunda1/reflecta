@@ -10,6 +10,7 @@ import {
   ResizablePanelGroup,
 } from "@reflecta/ui/components/resizable";
 import { useModal } from "@reflecta/ui/overlays";
+import type { AgentSessionSummary } from "@shared/agent";
 import { useKeyPress, useMemoizedFn } from "ahooks";
 import { toast } from "sonner";
 import { AgentThreadPanel } from "./agent-thread-panel";
@@ -30,6 +31,8 @@ import { ThreadSidebar } from "./session/thread-sidebar";
 import { PageTopBar } from "@renderer/modules/shared/layout/PageTopBar";
 import { cn } from "@reflecta/ui/lib/utils";
 import { renderError } from "@renderer/lib/errors";
+
+const EMPTY_THREADS: AgentSessionSummary[] = [];
 
 function activeThreadIdFor(threads: { id: string }[], activeThreadId: string | null) {
   if (threads.length === 0) return null;
@@ -94,7 +97,7 @@ function ChatPageContent() {
   const archiveThreadMutation = useArchiveThreadMutation();
   const renameThreadMutation = useRenameThreadMutation();
   const generateThreadTitleMutation = useGenerateThreadTitleMutation();
-  const threads = threadsQuery.data ?? [];
+  const threads = threadsQuery.data ?? EMPTY_THREADS;
   const activeThread = threads.find((thread) => thread.id === activeThreadId);
   const [threadScrollRequest, setThreadScrollRequest] = useState(0);
   const [draftThreadId, setDraftThreadId] = useState<string | null>(null);
@@ -197,12 +200,6 @@ function ChatPageContent() {
     },
     { exactMatch: true },
   );
-
-  useEffect(() => {
-    if (draftThreadId && threads.some((thread) => thread.id === draftThreadId)) {
-      setDraftThreadId(null);
-    }
-  }, [draftThreadId, threads]);
 
   useEffect(() => {
     if (threadsQuery.isFetching || createThreadMutation.isPending) return;

@@ -59,7 +59,7 @@ export function AboutSection() {
     void refresh();
 
     // 更新检查结束后主进程广播事件，面板借此退出「正在检查」并刷新最近检查时间。
-    const unsubscribe = window.ipcRenderer.on(UPDATE_CHECK_FINISHED_CHANNEL, (_event, payload) => {
+    const listener = (_event: unknown, payload: unknown) => {
       const result = payload as UpdateCheckFinishedPayload | undefined;
       setChecking(false);
       void refresh();
@@ -68,8 +68,11 @@ export function AboutSection() {
           description: "请稍后重试，或前往发布页手动查看最新版本",
         });
       }
-    }) as unknown as () => void;
-    return unsubscribe;
+    };
+    window.ipcRenderer.on(UPDATE_CHECK_FINISHED_CHANNEL, listener);
+    return () => {
+      window.ipcRenderer.removeListener(UPDATE_CHECK_FINISHED_CHANNEL, listener);
+    };
   }, [refresh]);
 
   const handleCheckForUpdates = async () => {

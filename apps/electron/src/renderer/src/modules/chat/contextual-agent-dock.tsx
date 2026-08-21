@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { Clock, ExternalLink, Plus, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { AgentContextRef, AgentSessionSummary } from "@shared/agent";
@@ -37,6 +37,10 @@ function scopeContextRefs(scope: AgentContextRef | null): AgentContextRef[] {
 
 function contextThreadTitle(title: string) {
   return `聊聊：${title}`;
+}
+
+export function contextualAgentThreadTitle(scope: AgentContextRef | null) {
+  return contextThreadTitle(scopeTitle(scope));
 }
 
 export function buildContextualAgentHistoryItems(
@@ -81,11 +85,6 @@ export function ContextualAgentDock({
     agentUiActions.requestComposerFocus(threadId);
     void navigate("/agent");
   }, [agentUiActions, navigate, threadId]);
-
-  useEffect(() => {
-    if (!scope || threadId || createThreadPending) return;
-    createContextThread();
-  }, [createContextThread, createThreadPending, scope, threadId]);
 
   return (
     <aside

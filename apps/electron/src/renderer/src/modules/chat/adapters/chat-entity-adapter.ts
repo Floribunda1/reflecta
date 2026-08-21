@@ -1,3 +1,4 @@
+import { useLatest } from "ahooks";
 import { useCallback, useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import {
@@ -61,16 +62,17 @@ export function useChatEntityBindings(
       });
     }
   });
+  const presentationsRef = useLatest(presentations);
   const onEntityOpen = useCallback(
     (reference: ChatEntityReference) => {
       if (reference.type === "domain") return;
       onInspect?.({
         type: reference.type,
         id: reference.id,
-        title: presentations.get(referenceKey(reference))?.label,
+        title: presentationsRef.current.get(referenceKey(reference))?.label,
       });
     },
-    [onInspect, presentations],
+    [onInspect, presentationsRef],
   );
 
   return {

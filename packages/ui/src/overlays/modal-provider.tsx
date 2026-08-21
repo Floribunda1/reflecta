@@ -18,9 +18,12 @@ export type ConfirmOptions = {
 };
 
 type ModalState = {
+  id: number;
   content: ReactNode;
   options: ModalOptions;
 };
+
+let nextModalId = 0;
 
 type ModalContextValue = {
   openModal: (content: ReactNode, options?: ModalOptions) => void;
@@ -37,7 +40,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
     // DESIGN: openModal 是「主内容浮层」——排他替换当前 modal（Settings 对话框、
     // 编辑弹窗场景）；confirm 则是叠加确认（push 到现有 modal 之上）。两个 API
     // 行为不同是有意的：主内容不叠加，确认浮在主内容之上。
-    setModals([{ content, options }]);
+    setModals([{ id: ++nextModalId, content, options }]);
   }, []);
   const confirm = useCallback(
     ({
@@ -48,9 +51,11 @@ export function ModalProvider({ children }: { children: ReactNode }) {
       danger,
       onAccept,
     }: ConfirmOptions) => {
+      const id = ++nextModalId;
       setModals((current) => [
         ...current,
         {
+          id,
           options: { title, widthClassName: "max-w-md" },
           content: (
             <div className="space-y-5">
@@ -83,8 +88,8 @@ export function ModalProvider({ children }: { children: ReactNode }) {
   return (
     <ModalContext.Provider value={value}>
       {children}
-      {modals.map((modal, index) => (
-        <Dialog key={index} open onOpenChange={(isOpen) => !isOpen && closeModal()}>
+      {modals.map((modal) => (
+        <Dialog key={modal.id} open onOpenChange={(isOpen) => !isOpen && closeModal()}>
           <DialogContent
             className={[
               modal.options.widthClassName ?? "max-w-3xl",

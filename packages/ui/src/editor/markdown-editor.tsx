@@ -1,6 +1,7 @@
 import { editorViewCtx } from "@milkdown/core";
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/react";
-import { type CSSProperties, type MouseEvent, useCallback, useEffect, useRef } from "react";
+import { useLatest } from "ahooks";
+import { type CSSProperties, type MouseEvent, useCallback, useEffect } from "react";
 import { cn } from "#lib/utils";
 import type { ChatEntityReference, ChatEntityType, ResolveChatEntity } from "../chat/entity";
 import {
@@ -46,39 +47,39 @@ function MarkdownEditorSurface({
 }: Omit<MarkdownEditorProps, "className" | "height" | "maxHeight"> & {
   placeholder: string;
 }) {
-  const onChangeRef = useRef(onChange);
-  const onBlurRef = useRef(onBlur);
-  const uploadAssetRef = useRef(uploadAsset);
-  const getSuggestionsRef = useRef(getSuggestions);
-  const onWikiLinkOpenRef = useRef(onWikiLinkOpen);
+  const onChangeRef = useLatest(onChange);
+  const onBlurRef = useLatest(onBlur);
+  const uploadAssetRef = useLatest(uploadAsset);
+  const getSuggestionsRef = useLatest(getSuggestions);
+  const onWikiLinkOpenRef = useLatest(onWikiLinkOpen);
 
-  onChangeRef.current = onChange;
-  onBlurRef.current = onBlur;
-  uploadAssetRef.current = uploadAsset;
-  getSuggestionsRef.current = getSuggestions;
-  onWikiLinkOpenRef.current = onWikiLinkOpen;
+  const handleClick = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      const link = (event.target as HTMLElement | null)?.closest<HTMLAnchorElement>(
+        "a[data-wiki-link]",
+      );
+      const id = link?.dataset.wikiLink;
+      const type = link?.dataset.entityType as ChatEntityType | undefined;
+      if (!id || !type) return;
 
-  const handleClick = useCallback((event: MouseEvent<HTMLDivElement>) => {
-    const link = (event.target as HTMLElement | null)?.closest<HTMLAnchorElement>(
-      "a[data-wiki-link]",
-    );
-    const id = link?.dataset.wikiLink;
-    const type = link?.dataset.entityType as ChatEntityType | undefined;
-    if (!id || !type) return;
+      event.preventDefault();
+      onWikiLinkOpenRef.current?.({ type, id });
+    },
+    [onWikiLinkOpenRef],
+  );
 
-    event.preventDefault();
-    onWikiLinkOpenRef.current?.({ type, id });
-  }, []);
-
-  const stableUploader = useCallback<MarkdownAssetUploader>((file, signal) => {
-    const uploader = uploadAssetRef.current;
-    if (!uploader) return Promise.reject(new Error("Markdown asset upload is not configured."));
-    return uploader(file, signal);
-  }, []);
+  const stableUploader = useCallback<MarkdownAssetUploader>(
+    (file, signal) => {
+      const uploader = uploadAssetRef.current;
+      if (!uploader) return Promise.reject(new Error("Markdown asset upload is not configured."));
+      return uploader(file, signal);
+    },
+    [uploadAssetRef],
+  );
 
   const stableSuggestionSource = useCallback<MarkdownEditorSuggestionSource>(
     (query, signal) => getSuggestionsRef.current?.(query, signal) ?? Promise.resolve([]),
-    [],
+    [getSuggestionsRef],
   );
 
   const editor = useEditor(

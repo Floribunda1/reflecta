@@ -24,7 +24,7 @@ import {
 } from "@reflecta/ui/components/dropdown-menu";
 import { Input } from "@reflecta/ui/components/input";
 import { renderError } from "@renderer/lib/errors";
-import { useDebounce, useMemoizedFn } from "ahooks";
+import { useDebounce, useLatest, useMemoizedFn } from "ahooks";
 import { toast } from "sonner";
 import { AgentChatComposer } from "./adapters/chat-composer-adapter";
 import { ArtifactPanel } from "./artifact-panel";
@@ -108,7 +108,6 @@ export function AgentThreadPanel({
     findQuery.trim() && !findComposing && debouncedFindQuery === findQuery
       ? debouncedFindQuery
       : "";
-  const [activeFindMatch, setActiveFindMatch] = useState<ChatFindMarkerMatch | null>(null);
   const retry = useMemoizedFn(threadView.actions.retry);
   const editMessage = useMemoizedFn(threadView.actions.editMessage);
   const regenerate = useMemoizedFn(threadView.actions.regenerate);
@@ -131,12 +130,6 @@ export function AgentThreadPanel({
       reasoningLevel: activeReasoningLevel,
     }),
   );
-
-  useEffect(() => {
-    setFindQuery("");
-    setFindComposing(false);
-    setActiveFindMatch(null);
-  }, [threadId]);
 
   const header =
     title !== undefined && onRename && onGenerateTitle && onArchive && onDelete
@@ -178,11 +171,9 @@ export function AgentThreadPanel({
           query={findQuery}
           renderedQuery={renderedFindQuery}
           isComposing={findComposing}
-          activeMatch={activeFindMatch}
           onJumpToMessage={threadView.jumpToMessage}
           onQueryChange={setFindQuery}
           onQueryComposingChange={setFindComposing}
-          onActiveMatchChange={setActiveFindMatch}
         />
         <div
           data-testid="agent-message-scroll"
@@ -299,24 +290,22 @@ function ThreadFindBox({
   query,
   renderedQuery,
   isComposing,
-  activeMatch,
   onJumpToMessage,
   onQueryChange,
   onQueryComposingChange,
-  onActiveMatchChange,
 }: {
   messages: AgentReducedMessage[];
   query: string;
   renderedQuery: string;
   isComposing: boolean;
-  activeMatch: ChatFindMarkerMatch | null;
   onJumpToMessage: (messageId: string) => void;
   onQueryChange: (query: string) => void;
   onQueryComposingChange: (isComposing: boolean) => void;
-  onActiveMatchChange: (match: ChatFindMarkerMatch | null) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [pinnedMatch, setPinnedMatch] = useState<ChatFindMarkerMatch | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const jumpToMessageRef = useLatest(onJumpToMessage);
   const renderedMatches = useMemo<ChatFindMarkerMatch[]>(
     () =>
       open && renderedQuery.trim()
@@ -327,17 +316,24 @@ function ThreadFindBox({
         : [],
     [messages, open, renderedQuery],
   );
+  const activeMatch = useMemo(() => {
+    if (!open || !renderedQuery.trim()) return null;
+    if (pinnedMatch && renderedMatches.some((match) => sameFindMatch(match, pinnedMatch))) {
+      return pinnedMatch;
+    }
+    return renderedMatches[0] ?? null;
+  }, [open, pinnedMatch, renderedMatches, renderedQuery]);
   const close = useMemoizedFn(() => {
     setOpen(false);
+    setPinnedMatch(null);
     onQueryChange("");
     onQueryComposingChange(false);
-    onActiveMatchChange(null);
   });
   const activeIndex = activeMatch
     ? renderedMatches.findIndex((match) => sameFindMatch(match, activeMatch))
     : -1;
   const jumpToMatch = useMemoizedFn((match: ChatFindMarkerMatch | undefined) => {
-    onActiveMatchChange(match ?? null);
+    setPinnedMatch(match ?? null);
   });
   const jumpBy = useMemoizedFn((step: 1 | -1) => {
     if (renderedMatches.length === 0) return;
@@ -385,16 +381,8 @@ function ThreadFindBox({
   }, [close, open]);
 
   useEffect(() => {
-    if (!open || !renderedQuery.trim()) {
-      onActiveMatchChange(null);
-      return;
-    }
-    onActiveMatchChange(renderedMatches[0] ?? null);
-  }, [onActiveMatchChange, open, renderedMatches, renderedQuery]);
-
-  useEffect(() => {
     if (!open || !activeMatch) return;
-    onJumpToMessage(activeMatch.messageId);
+    jumpToMessageRef.current(activeMatch.messageId);
     let retryFrame = 0;
     const frame = requestAnimationFrame(() => {
       const root = inputRef.current?.closest<HTMLElement>('[data-testid="agent-thread-chat"]');
@@ -412,7 +400,7 @@ function ThreadFindBox({
       cancelAnimationFrame(frame);
       cancelAnimationFrame(retryFrame);
     };
-  }, [activeMatch, onJumpToMessage, open, renderedQuery]);
+  }, [activeMatch, jumpToMessageRef, open, renderedQuery]);
 
   if (!open) return null;
 
@@ -433,18 +421,18 @@ function ThreadFindBox({
         value={query}
         onCompositionStart={() => {
           onQueryComposingChange(true);
-          onActiveMatchChange(null);
+          setPinnedMatch(null);
         }}
         onCompositionEnd={(event) => {
           onQueryChange(event.currentTarget.value);
           onQueryComposingChange(false);
-          onActiveMatchChange(null);
+          setPinnedMatch(null);
         }}
         onChange={(event) => {
           const nextQuery = event.target.value;
           onQueryChange(nextQuery);
+          setPinnedMatch(null);
           if ((event.nativeEvent as InputEvent).isComposing) onQueryComposingChange(true);
-          onActiveMatchChange(null);
         }}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
@@ -511,32 +499,28 @@ function AgentThreadTitle({
   title: string;
   onRename: (title: string) => void;
 }) {
-  const [draft, setDraft] = useState(title);
-  const displayTitle = draft.trim() || title.trim() || "新对话";
-
-  useEffect(() => {
-    setDraft(title);
-  }, [title]);
+  const [draft, setDraft] = useState<string | null>(null);
+  const value = draft ?? title;
+  const displayTitle = value.trim() || title.trim() || "新对话";
 
   const finishRename = () => {
-    const nextTitle = draft.trim();
-    if (!nextTitle) {
-      setDraft(title);
-      return;
-    }
+    const nextTitle = value.trim();
+    setDraft(null);
+    if (!nextTitle) return;
     if (nextTitle !== title) onRename(nextTitle);
   };
 
   return (
     <Input
       data-testid="agent-thread-title"
-      value={draft}
+      value={value}
       title={displayTitle}
+      onFocus={() => setDraft(title)}
       onBlur={finishRename}
       onChange={(event) => setDraft(event.target.value)}
       onKeyDown={(event) => {
         if (event.key === "Enter") event.currentTarget.blur();
-        if (event.key === "Escape") setDraft(title);
+        if (event.key === "Escape") setDraft(null);
       }}
       // DESIGN: EditableText 语义——线程标题重命名，内联编辑聚焦不显示输入框外壳（focus-visible:ring-0 有意关闭）。
       className="h-8 w-auto min-w-0 max-w-[min(520px,100%)] field-sizing-content border-0 dark:bg-transparent bg-transparent px-0 text-sm font-medium shadow-none focus-visible:ring-0"

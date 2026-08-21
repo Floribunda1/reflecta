@@ -115,15 +115,15 @@ function lineStyle(style: CanvasEdgeStyle | null, selected: boolean) {
 }
 
 export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
-  const edge = props.data?.edge;
-  if (!edge) return null;
   const updateEdge = useCanvasEdgeUpdate();
   const { readonly, multiSelected, onCellAction } = useCanvasShapeData();
-  const [path, labelX, labelY] = pathFor(edge.style, props);
+  const edge = props.data?.edge;
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(edge.label ?? "");
+  const [draft, setDraft] = useState(edge?.label ?? "");
 
-  useEffect(() => setDraft(edge.label ?? ""), [edge.label]);
+  useEffect(() => setDraft(edge?.label ?? ""), [edge?.label]);
+  if (!edge) return null;
+  const [path, labelX, labelY] = pathFor(edge.style, props);
 
   const commit = () => {
     setEditing(false);

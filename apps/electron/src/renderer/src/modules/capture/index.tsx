@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { cn } from "@reflecta/ui/lib/utils";
 import { useRailMenu } from "@renderer/modules/shared/layout/rail-menu-context";
 import {
@@ -10,7 +10,11 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@reflecta/ui/components/resizable";
-import { ContextualAgentDock } from "@renderer/modules/chat/contextual-agent-dock";
+import {
+  ContextualAgentDock,
+  contextualAgentThreadTitle,
+} from "@renderer/modules/chat/contextual-agent-dock";
+import { useCreateThreadMutation } from "@renderer/modules/chat/session/server-state";
 import { DomainTree } from "./domain";
 import { UnderstandingDetail } from "./understanding-detail";
 import { CaptureDashboard, CaptureToolbar } from "./dashboard/CaptureDashboard";
@@ -21,6 +25,14 @@ function CaptureAgentDock() {
   const agentDock = useAtomValue(agentDockAtom);
   const bindAgentDockThread = captureActions.bindAgentDockThread;
   const closeAgentDock = captureActions.closeAgentDock;
+  const { mutate: createThread, isPending: createThreadPending } = useCreateThreadMutation();
+
+  useEffect(() => {
+    if (!agentDock.scope || agentDock.threadId || createThreadPending) return;
+    createThread(contextualAgentThreadTitle(agentDock.scope), {
+      onSuccess: (thread) => bindAgentDockThread(thread.id),
+    });
+  }, [agentDock.scope, agentDock.threadId, bindAgentDockThread, createThread, createThreadPending]);
 
   return (
     <ContextualAgentDock

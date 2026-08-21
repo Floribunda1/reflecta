@@ -94,30 +94,36 @@ export function RetrievalSection() {
 
   const handleDownload = async () => {
     setDownloading(true);
-    const interval = window.setInterval(() => {
-      void runPromise(rpc.configGetEmbeddingStatus()).then(setStatus);
-    }, 250);
     try {
-      setStatus(await runPromise(rpc.configDownloadModel()));
-    } catch {
-      setStatus(await runPromise(rpc.configGetEmbeddingStatus()));
+      const interval = window.setInterval(() => {
+        void runPromise(rpc.configGetEmbeddingStatus()).then(setStatus);
+      }, 250);
+      try {
+        setStatus(await runPromise(rpc.configDownloadModel()));
+      } catch {
+        setStatus(await runPromise(rpc.configGetEmbeddingStatus()));
+      } finally {
+        window.clearInterval(interval);
+      }
     } finally {
-      window.clearInterval(interval);
       setDownloading(false);
     }
   };
 
   const handleRebuildIndex = async () => {
     setIndexing(true);
-    const interval = window.setInterval(() => {
-      void runPromise(rpc.configGetIndexStatus()).then(setIndexStatus);
-    }, 250);
     try {
-      setIndexStatus(await runPromise(rpc.configRebuildIndex()));
-    } catch {
-      setIndexStatus(await runPromise(rpc.configGetIndexStatus()));
+      const interval = window.setInterval(() => {
+        void runPromise(rpc.configGetIndexStatus()).then(setIndexStatus);
+      }, 250);
+      try {
+        setIndexStatus(await runPromise(rpc.configRebuildIndex()));
+      } catch {
+        setIndexStatus(await runPromise(rpc.configGetIndexStatus()));
+      } finally {
+        window.clearInterval(interval);
+      }
     } finally {
-      window.clearInterval(interval);
       setIndexing(false);
     }
   };

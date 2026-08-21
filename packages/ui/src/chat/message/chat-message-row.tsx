@@ -196,19 +196,19 @@ function UserMessageContent({
     >
       {message.content?.length || message.text || message.entities?.length ? (
         <div data-slot="user-message-text" className="text-body">
-          {message.content?.map((part, index) =>
+          {message.content?.map((part) =>
             part.kind === "entity" ? (
               <MessageEntityMention
-                key={`${part.entity.type}:${part.entity.id}:${index}`}
+                key={`entity:${part.entity.type}:${part.entity.id}`}
                 entity={part.entity}
                 onOpen={onEntityOpen}
               />
             ) : (
-              <span key={`text:${index}`}>
+              <span key={`text:${part.text}`}>
                 {renderTextWithChatSearchHighlights(
                   part.text,
                   searchState,
-                  `message-${message.id}-${index}`,
+                  `message-${message.id}-${part.text}`,
                 )}
               </span>
             ),

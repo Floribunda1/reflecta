@@ -67,12 +67,12 @@ export function renderTextWithChatSearchHighlights(
   const parts: ReactNode[] = [];
   let cursor = 0;
   let nextMatchIndex = matchIndexStart ?? state.nextMatchIndex;
-  ranges.forEach((range, index) => {
+  ranges.forEach((range) => {
     if (range.start > cursor) parts.push(text.slice(cursor, range.start));
     const matchIndex = nextMatchIndex;
     nextMatchIndex += 1;
     parts.push(
-      <mark key={`${keyPrefix}-${index}`} {...markProps(state, matchIndex)}>
+      <mark key={`${keyPrefix}-${range.start}-${range.end}`} {...markProps(state, matchIndex)}>
         {text.slice(range.start, range.end)}
       </mark>,
     );

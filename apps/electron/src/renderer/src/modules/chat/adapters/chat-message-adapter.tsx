@@ -237,19 +237,19 @@ function useMessagePresentation(
       enabled: !catalogLabels.has(referenceKey(reference)),
     })),
   });
-  const entityLabels = new Map(catalogLabels);
-  references.forEach((reference, index) => {
-    const title = queries[index]?.data?.title?.trim();
-    if (title) entityLabels.set(referenceKey(reference), title);
-  });
-
-  return useMemo<AgentViewPresentation>(
-    () => ({
+  const queryTitles = queries.map((query) => query.data?.title?.trim() ?? "").join("\0");
+  return useMemo<AgentViewPresentation>(() => {
+    const entityLabels = new Map(catalogLabels);
+    const titles = queryTitles.split("\0");
+    references.forEach((reference, index) => {
+      const title = titles[index];
+      if (title) entityLabels.set(referenceKey(reference), title);
+    });
+    return {
       entityLabels,
       domainPath: (id) => getDomainPath(id, domains, " / "),
-    }),
-    [domains, entityLabels],
-  );
+    };
+  }, [catalogLabels, domains, queryTitles, references]);
 }
 
 export const ConnectedChatMessageRow = memo(function ConnectedChatMessageRow({

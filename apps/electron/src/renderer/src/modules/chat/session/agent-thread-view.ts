@@ -1,3 +1,4 @@
+import { useLatest } from "ahooks";
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { runPromise } from "@renderer/lib/effect-runtime";
 import { useQueryClient } from "@tanstack/react-query";
@@ -77,15 +78,17 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
   const invalidatedEntityRefs = useRef<Set<string>>(new Set());
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingJumpTurnIdRef = useRef<string | null>(null);
-  const lastTurnIdRef = useRef<string | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [trackedTurnId, setTrackedTurnId] = useState<string | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
-  useEffect(() => {
+  const [viewedSessionId, setViewedSessionId] = useState(sessionId);
+  if (sessionId !== viewedSessionId) {
+    setViewedSessionId(sessionId);
     setEditingMessage(undefined);
-    pendingJumpTurnIdRef.current = null;
-    invalidatedEntityRefs.current.clear();
-  }, [sessionId]);
+    setTrackedTurnId(null);
+    setHighlightedMessageId(null);
+    setShowScrollToBottom(false);
+  }
 
   useEffect(() => {
     for (const ref of completedEntityRefs(state.messages)) {
@@ -104,11 +107,10 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
   }, [queryClient, threadSummaryKey]);
 
   const visibleMessages = state.messages;
-  const visibleMessagesRef = useRef(visibleMessages);
-  visibleMessagesRef.current = visibleMessages;
+  const visibleMessagesRef = useLatest(visibleMessages);
   const getVirtualMessageKey = useCallback(
     (index: number) => visibleMessagesRef.current[index]?.id ?? index,
-    [],
+    [visibleMessagesRef],
   );
   const messageVirtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>({
     count: visibleMessages.length,
@@ -148,7 +150,7 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
     [visibleMessages],
   );
   const lastTurnId = turnNavigationItems.at(-1)?.turnId ?? null;
-  lastTurnIdRef.current = lastTurnId;
+  const lastTurnIdRef = useLatest(lastTurnId);
   const activeTurnId =
     trackedTurnId && turnNavigationItems.some((item) => item.turnId === trackedTurnId)
       ? trackedTurnId
@@ -259,7 +261,7 @@ export function useAgentThreadView(sessionId: string, scrollRequest = 0): AgentT
       setTrackedTurnId(lastTurnIdRef.current);
     });
     return () => cancelAnimationFrame(frame);
-  }, [scrollRequest, scrollToBottom, setScrollButtonVisible, sessionId]);
+  }, [lastTurnIdRef, scrollRequest, scrollToBottom, setScrollButtonVisible, sessionId]);
 
   const handleScroll = useCallback(() => {
     const element = scrollRef.current;

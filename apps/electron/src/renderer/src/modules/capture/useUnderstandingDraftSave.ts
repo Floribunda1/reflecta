@@ -1,8 +1,8 @@
 import { Cause, Deferred, Effect, Exit, Option, Queue, Ref } from "effect";
 import { markdownEquals } from "@reflecta/ui/editor/markdown-normalize";
 import { renderError } from "@renderer/lib/errors";
-import { useKeyPress, useMemoizedFn } from "ahooks";
-import { useEffect, useRef, type RefObject } from "react";
+import { useKeyPress, useLatest, useMemoizedFn } from "ahooks";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { useUpdateUnderstandingMutation } from "./queries";
 import { appAtomRegistry } from "@renderer/lib/atoms";
 import { captureActions, draftAtom, readCaptureState } from "./store";
@@ -91,14 +91,12 @@ export function useUnderstandingDraftSave({
   scopeRef,
 }: UseUnderstandingDraftSaveOptions) {
   const updateUnderstandingMutation = useUpdateUnderstandingMutation();
-  const mutateAsyncRef = useRef(updateUnderstandingMutation.mutateAsync);
+  const mutateAsyncRef = useLatest(updateUnderstandingMutation.mutateAsync);
   const latestSnapshotRef = useRef<DraftSaveSnapshot | null>(null);
   const pendingSnapshotRef = useRef<DraftSaveSnapshot | null>(null);
-  mutateAsyncRef.current = updateUnderstandingMutation.mutateAsync;
 
-  const queueRef = useRef<ReturnType<typeof createDraftSaveQueue> | null>(null);
-  if (!queueRef.current) {
-    queueRef.current = createDraftSaveQueue({
+  const [queue] = useState(() =>
+    createDraftSaveQueue({
       save: async (snapshot) => {
         const result = await mutateAsyncRef.current({
           id: snapshot.understandingId,
@@ -126,8 +124,8 @@ export function useUnderstandingDraftSave({
           error,
         });
       },
-    });
-  }
+    }),
+  );
 
   const saveDraft = useMemoizedFn((body?: string) => {
     const draft = readCaptureState(draftAtom);
@@ -154,7 +152,7 @@ export function useUnderstandingDraftSave({
     }
     if (!snapshot) return Promise.resolve(undefined);
 
-    return queueRef.current?.save(snapshot).catch(() => undefined);
+    return queue.save(snapshot).catch(() => undefined);
   });
 
   useKeyPress(

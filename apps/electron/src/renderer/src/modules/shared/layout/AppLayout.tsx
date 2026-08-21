@@ -1,3 +1,4 @@
+import { useLatest } from "ahooks";
 import { animate } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
@@ -48,8 +49,7 @@ function AppMain() {
 function AppShell() {
   const { open, setOpen } = useRail();
   const railPanelRef = useRef<PanelImperativeHandle | null>(null);
-  const openRef = useRef(open);
-  openRef.current = open;
+  const openRef = useLatest(open);
   const lastOpenWidthRef = useRef(readRailWidth());
   const animatingRef = useRef(false);
   const firstRunRef = useRef(true);
@@ -90,7 +90,7 @@ function AppShell() {
       setContentHidden(!openRef.current);
     });
     return () => controls.stop();
-  }, [open]);
+  }, [open, openRef]);
 
   // group → store：用户拖拽同步宽度；拖到 MIN 以下视为收起。
   // 动画驱动（resize）触发的 onResize 由 animatingRef 跳过，避免把中间宽度持久化。

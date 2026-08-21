@@ -1,6 +1,7 @@
 import { Mention } from "@tiptap/extension-mention";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import { useLatest, useMemoizedFn } from "ahooks";
 import { ArrowUp, Brain, ChevronDown, FileText, Paperclip, Send, Square, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -285,7 +286,7 @@ function useEntitySearch(
     if (!open) return;
     const controller = new AbortController();
     const requestId = ++requestIdRef.current;
-    const selected = new Set(selectedEntities.map(entityKey));
+    const selected = new Set(selectedKey.split("|").filter(Boolean));
     setState("loading");
 
     const timer = window.setTimeout(() => {
@@ -570,7 +571,7 @@ export function ChatComposer({
   const [activeEntityIndex, setActiveEntityIndex] = useState(0);
   const [activeSkillIndex, setActiveSkillIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  const busyRef = useRef(status !== "idle");
+  const busyRef = useLatest(status !== "idle" || submitting);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const mentionCommandRef = useRef<((attrs: MentionAttrs) => void) | null>(null);
   const skillCommandRef = useRef<((skill: ChatComposerSkill) => void) | null>(null);
@@ -583,19 +584,26 @@ export function ChatComposer({
   const attachmentControllerRef = useRef<AbortController | null>(null);
   const entitySearch = useEntitySearch(searchEntities, entities);
   const skillSearch = useSkillSearch(skills);
-  const entitySearchRef = useRef(entitySearch);
-  const skillSearchRef = useRef(skillSearch);
-  const skillsRef = useRef(skills);
-  const activeEntityIndexRef = useRef(activeEntityIndex);
-  const activeSkillIndexRef = useRef(activeSkillIndex);
-  const onEntityOpenRef = useRef(onEntityOpen);
-  entitySearchRef.current = entitySearch;
-  skillSearchRef.current = skillSearch;
-  skillsRef.current = skills;
-  activeEntityIndexRef.current = activeEntityIndex;
-  activeSkillIndexRef.current = activeSkillIndex;
-  onEntityOpenRef.current = onEntityOpen;
-  busyRef.current = status !== "idle" || submitting;
+  const entitySearchRef = useLatest(entitySearch);
+  const skillSearchRef = useLatest(skillSearch);
+  const skillsRef = useLatest(skills);
+  const activeEntityIndexRef = useLatest(activeEntityIndex);
+  const activeSkillIndexRef = useLatest(activeSkillIndex);
+  const onEntityOpenRef = useLatest(onEntityOpen);
+  const initialValueRef = useLatest(initialValue);
+
+  if (!entitySearch.open && activeEntityIndex !== 0) {
+    setActiveEntityIndex(0);
+  } else if (entitySearch.open) {
+    const maxEntityIndex = Math.max(entitySearch.options.length - 1, 0);
+    if (activeEntityIndex > maxEntityIndex) setActiveEntityIndex(maxEntityIndex);
+  }
+  if (!skillSearch.open && activeSkillIndex !== 0) {
+    setActiveSkillIndex(0);
+  } else if (skillSearch.open) {
+    const maxSkillIndex = Math.max(skillSearch.options.length - 1, 0);
+    if (activeSkillIndex > maxSkillIndex) setActiveSkillIndex(maxSkillIndex);
+  }
 
   const selectedModel = modelOptions.find((model) => model.id === selectedModelId);
   const selectedReasoning = selectedModel?.reasoningOptions.find(
@@ -762,20 +770,22 @@ export function ChatComposer({
     [],
   );
 
-  const setComposerValue = (
-    value: Pick<ChatComposerValue, "document" | "attachments"> = {
-      document: createChatComposerDocument(""),
-      attachments: [],
+  const setComposerValue = useMemoizedFn(
+    (
+      value: Pick<ChatComposerValue, "document" | "attachments"> = {
+        document: createChatComposerDocument(""),
+        attachments: [],
+      },
+    ) => {
+      editor?.commands.setContent(value.document);
+      setText(getChatComposerText(value.document));
+      setEntities(getChatComposerEntities(value.document));
+      setAttachments([...value.attachments]);
+      setAttachmentError("");
+      entitySearchRef.current.close();
+      skillSearchRef.current.close();
     },
-  ) => {
-    editor?.commands.setContent(value.document);
-    setText(getChatComposerText(value.document));
-    setEntities(getChatComposerEntities(value.document));
-    setAttachments([...value.attachments]);
-    setAttachmentError("");
-    entitySearchRef.current.close();
-    skillSearchRef.current.close();
-  };
+  );
 
   useLayoutEffect(() => {
     if (!editor) return;
@@ -783,9 +793,9 @@ export function ChatComposer({
     if (initialized.ready && initialized.id === draftId) return;
     initializedDraftRef.current = { ready: true, id: draftId };
     appliedInitialEntitiesRef.current = null;
-    setComposerValue(initialValue);
+    setComposerValue(initialValueRef.current);
     if (variant === "message-edit") editor.commands.focus("end");
-  }, [draftId, editor, variant]);
+  }, [draftId, editor, initialValueRef, setComposerValue, variant]);
 
   useEffect(() => {
     const requestChanged = appliedInitialEntitiesRef.current !== initialEntities;
@@ -807,29 +817,13 @@ export function ChatComposer({
       attachments: [],
     });
     editor.commands.focus();
-  }, [attachments.length, editingMessageId, editor, initialEntities, text]);
+  }, [attachments.length, editingMessageId, editor, initialEntities, setComposerValue, text]);
 
   useEffect(() => {
     if (focusRequest > 0) editor?.commands.focus();
   }, [editor, focusRequest]);
 
   useEffect(() => () => attachmentControllerRef.current?.abort(), []);
-
-  useEffect(() => {
-    if (!entitySearch.open) {
-      setActiveEntityIndex(0);
-      return;
-    }
-    setActiveEntityIndex((index) => Math.min(index, Math.max(entitySearch.options.length - 1, 0)));
-  }, [entitySearch.open, entitySearch.options.length]);
-
-  useEffect(() => {
-    if (!skillSearch.open) {
-      setActiveSkillIndex(0);
-      return;
-    }
-    setActiveSkillIndex((index) => Math.min(index, Math.max(skillSearch.options.length - 1, 0)));
-  }, [skillSearch.open, skillSearch.options.length]);
 
   const addFiles = async (files: readonly File[]) => {
     if (!files.length || !attachmentAdapter) return;
@@ -883,7 +877,7 @@ export function ChatComposer({
     }
   };
 
-  const submit = async () => {
+  const submit = useMemoizedFn(async () => {
     const document =
       (editor?.getJSON() as ChatComposerDocument | undefined) ?? createChatComposerDocument(text);
     const value: ChatComposerValue = {
@@ -909,8 +903,10 @@ export function ChatComposer({
     } finally {
       setSubmitting(false);
     }
-  };
-  sendRef.current = () => void submit();
+  });
+  useLayoutEffect(() => {
+    sendRef.current = () => void submit();
+  });
 
   const busy = status !== "idle" || submitting;
   const canSubmit =

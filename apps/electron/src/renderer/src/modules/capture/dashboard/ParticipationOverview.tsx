@@ -1,3 +1,4 @@
+import { useLatest } from "ahooks";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { Calendar, X } from "lucide-react";
@@ -159,8 +160,7 @@ export const ParticipationOverview = memo(function ParticipationOverview() {
 
   const assets = useMemo(() => (data ? computeParticipationAssets(data) : null), [data]);
   const calendar = useMemo(() => (data ? buildParticipationActivity(data) : null), [data]);
-  const detailsRef = useRef(calendar?.details);
-  detailsRef.current = calendar?.details;
+  const detailsRef = useLatest(calendar?.details);
 
   const openDay = useCallback((event: MouseEvent, date: string) => {
     const target = (event.target as Element | null)?.closest("rect[data-date]");
@@ -169,12 +169,15 @@ export const ParticipationOverview = memo(function ParticipationOverview() {
     setDayPopover({ date });
   }, []);
 
-  const renderBlock = useCallback((block: ReactElement, activity: Activity) => {
-    return cloneElement(block, {
-      "data-date": activity.date,
-      title: activityTip(activity.date, detailsRef.current ?? EMPTY_DAY_DETAILS),
-    } as unknown as SVGAttributes<SVGRectElement>);
-  }, []);
+  const renderBlock = useCallback(
+    (block: ReactElement, activity: Activity) => {
+      return cloneElement(block, {
+        "data-date": activity.date,
+        title: activityTip(activity.date, detailsRef.current ?? EMPTY_DAY_DETAILS),
+      } as unknown as SVGAttributes<SVGRectElement>);
+    },
+    [detailsRef],
+  );
 
   if (!mounted) return null;
 

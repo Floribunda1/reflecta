@@ -1721,8 +1721,10 @@ export class PiAgentHost {
   private async resolveToolApproval(
     command: Extract<AgentCommand, { type: "tool.approve" | "tool.reject" }>,
   ) {
-    const manager = await this.sessionLog.openSession(command.sessionId);
-    const events = await this.sessionLog.readEvents(command.sessionId);
+    const [manager, events] = await Promise.all([
+      this.sessionLog.openSession(command.sessionId),
+      this.sessionLog.readEvents(command.sessionId),
+    ]);
     await this.sessionRuntime.projection(command.sessionId);
     const requested = events.findLast(
       (event): event is AgentApprovalRequested =>

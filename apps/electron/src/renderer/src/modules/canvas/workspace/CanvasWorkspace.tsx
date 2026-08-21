@@ -1,3 +1,4 @@
+import { useLatest } from "ahooks";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Library, PanelsTopLeft, Type } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -133,14 +134,13 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   const canvas = detail?.canvas ?? null;
 
   // 初始文档：仅取首次详情；切换画布由 key 重挂载
-  const initialDocumentRef = useRef<CanvasDocument | null>(null);
-  if (!initialDocumentRef.current && detail) {
-    initialDocumentRef.current = {
+  const [initialDocument, setInitialDocument] = useState<CanvasDocument | null>(null);
+  if (initialDocument === null && detail) {
+    setInitialDocument({
       elements: detail.elements,
       edges: detail.edges,
-    };
+    });
   }
-  const initialDocument = initialDocumentRef.current;
 
   const setDocument = useAtomSet(documentAtom);
   const setViewport = useAtomSet(viewportAtom);
@@ -156,21 +156,15 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   const libraryOpen = rightPanel?.mode === "library";
 
   const queryClient = useQueryClient();
-  const refsRef = useRef<ReadonlyMap<string, { id: string }>>(new Map());
-  refsRef.current = new Map((detail?.understandingRefs ?? []).map((ref) => [ref.id, ref]));
-  const saveDocumentRef = useRef(saveCanvas.mutateAsync);
-  const saveViewportRef = useRef(updateViewport.mutateAsync);
-  saveDocumentRef.current = saveCanvas.mutateAsync;
-  saveViewportRef.current = updateViewport.mutateAsync;
+  const refsRef = useLatest(new Map((detail?.understandingRefs ?? []).map((ref) => [ref.id, ref])));
+  const saveDocumentRef = useLatest(saveCanvas.mutateAsync);
+  const saveViewportRef = useLatest(updateViewport.mutateAsync);
 
-  const documentSaverRef = useRef<ReturnType<
-    typeof createDebouncedLatestSaver<CanvasDocument>
-  > | null>(null);
-  if (!documentSaverRef.current) {
-    documentSaverRef.current = createDebouncedLatestSaver({
+  const [documentSaver] = useState(() =>
+    createDebouncedLatestSaver({
       delay: SAVE_DEBOUNCE_MS,
       onStatus: setSaveStatus,
-      save: async (document) => {
+      save: async (document: CanvasDocument) => {
         await saveDocumentRef.current({ canvasId, document });
         const missingRef = document.elements.some(
           (element) =>
@@ -180,18 +174,15 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
         );
         if (missingRef) await refreshCanvasDetail(queryClient, canvasId);
       },
-    });
-  }
+    }),
+  );
 
-  const viewportSaverRef = useRef<ReturnType<
-    typeof createDebouncedLatestSaver<CanvasViewport>
-  > | null>(null);
-  if (!viewportSaverRef.current) {
-    viewportSaverRef.current = createDebouncedLatestSaver({
+  const [viewportSaver] = useState(() =>
+    createDebouncedLatestSaver({
       delay: VIEWPORT_SETTLE_MS,
-      save: (viewport) => saveViewportRef.current({ canvasId, viewport }),
-    });
-  }
+      save: (viewport: CanvasViewport) => saveViewportRef.current({ canvasId, viewport }),
+    }),
+  );
 
   // 事件桥 → 镜像 + 防抖保存
   const handleDocumentChange = useCallback(
@@ -203,29 +194,29 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
       );
       const sanitized = edges.length === document.edges.length ? document : { ...document, edges };
       setDocument(sanitized);
-      documentSaverRef.current?.schedule(sanitized);
+      documentSaver.schedule(sanitized);
     },
-    [setDocument],
+    [documentSaver, setDocument],
   );
 
-  const retrySave = useCallback(() => documentSaverRef.current?.retry(), []);
+  const retrySave = useCallback(() => documentSaver.retry(), [documentSaver]);
 
   const handleViewportChange = useCallback(
     (viewport: CanvasViewport) => {
       setViewport(viewport);
-      viewportSaverRef.current?.schedule(viewport);
+      viewportSaver.schedule(viewport);
     },
-    [setViewport],
+    [setViewport, viewportSaver],
   );
 
   // 卸载时冲刷未保存的文档 / 视口
   useEffect(
     () => () => {
-      void documentSaverRef.current?.flush();
-      void viewportSaverRef.current?.flush();
+      void documentSaver.flush();
+      void viewportSaver.flush();
       queryClient.removeQueries({ queryKey: canvasQueryKeys.detail(canvasId) });
     },
-    [canvasId, queryClient],
+    [canvasId, documentSaver, queryClient, viewportSaver],
   );
 
   const refIds = useMemo(() => (detail?.referencedCanvases ?? []).map((ref) => ref.id), [detail]);

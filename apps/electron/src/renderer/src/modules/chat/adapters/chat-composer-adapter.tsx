@@ -244,7 +244,7 @@ export function AgentChatComposer({
       entities,
       attachments: editingMessage.files.map(attachments.toView),
     };
-  }, [attachments.toView, editingMessage?.id]);
+  }, [attachments.toView, editingMessage]);
   const usage = contextUsageFromMessages(messages, 0);
   const contextUsage = {
     percent: contextUsagePercent(usage),
@@ -310,10 +310,13 @@ export function AgentChatComposer({
     [attachments, modelById, onSend],
   );
 
+  const composerKey = editingMessage ? `edit:${editingMessage.id}` : `thread:${threadId}`;
+
   return (
     <ChatComposer
+      key={composerKey}
       variant={variant}
-      draftId={editingMessage ? `edit:${editingMessage.id}` : `thread:${threadId}`}
+      draftId={composerKey}
       initialValue={initialValue}
       editingMessageId={editingMessage?.id}
       status={isCompacting ? "compacting" : isBusy ? "running" : "idle"}
