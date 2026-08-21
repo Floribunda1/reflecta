@@ -19,7 +19,7 @@ import { cn } from "../lib/utils";
 import "./nodes";
 import type { CanvasCellAction } from "./shape-context";
 import type { CanvasDocument, CanvasEdgeDTO, CanvasElementDTO, CanvasViewport } from "./document";
-import { toX6Cells, graphToDocument } from "./graph-document";
+import { toX6Cells, graphToDocument, newEdgeDto, toX6Edge } from "./graph-document";
 import {
   deleteElements,
   deleteGroupBranch,
@@ -191,6 +191,7 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
           allowEdge: false,
           allowPort: true,
           allowMulti: true,
+          createEdge: () => toX6Edge(newEdgeDto(canvasId)),
         },
       });
       graphRef.current = graph;

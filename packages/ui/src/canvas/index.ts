@@ -12,7 +12,14 @@ export {
   type CanvasElementKind,
   type CanvasViewport,
 } from "./document";
-export { toX6Cells, nodeToElement, edgeToEdge, graphToDocument } from "./graph-document";
+export {
+  toX6Cells,
+  toX6Edge,
+  newEdgeDto,
+  nodeToElement,
+  edgeToEdge,
+  graphToDocument,
+} from "./graph-document";
 export {
   groupElements,
   ungroupGroups,

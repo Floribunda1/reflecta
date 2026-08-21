@@ -1,5 +1,5 @@
 import type { Edge as X6Edge, EdgeMetadata } from "@antv/x6";
-import type { Graph, Node as X6Node, NodeMetadata } from "@antv/x6";
+import { Edge as X6EdgeCtor, type Graph, type Node as X6Node, type NodeMetadata } from "@antv/x6";
 import type { CanvasDocument, CanvasEdgeDTO, CanvasEdgeStyle, CanvasElementDTO } from "./document";
 import { DEFAULT_CANVAS_EDGE_STYLE } from "./document";
 import { canvasPaintColor } from "./color-swatches";
@@ -42,7 +42,7 @@ function routerFor(style: CanvasEdgeStyle | null): EdgeMetadata["router"] {
   return style?.routing === "orthogonal" ? { name: "orth" } : undefined;
 }
 
-function lineAttrs(style: CanvasEdgeStyle | null) {
+export function lineAttrs(style: CanvasEdgeStyle | null) {
   const color = canvasPaintColor(style?.color) ?? "var(--muted-foreground)";
   const strokeWidth = style?.width === "thick" ? 4 : style?.width === "medium" ? 3 : 2;
   const strokeDasharray =
@@ -115,6 +115,39 @@ export function graphToDocument(graph: Graph): CanvasDocument {
     elements: graph.getNodes().map((node) => nodeToElement(node)),
     edges: graph.getEdges().map((edge) => edgeToEdge(edge)),
   };
+}
+
+/** 新连线的初始 DTO（连线创建时 source/target 由 X6 connect 补齐）。 */
+export function newEdgeDto(canvasId: string): CanvasEdgeDTO {
+  return {
+    id: crypto.randomUUID(),
+    canvasId,
+    sourceElementId: "",
+    targetElementId: "",
+    label: null,
+    style: { ...DEFAULT_CANVAS_EDGE_STYLE },
+    createdAt: new Date().toISOString(),
+  };
+}
+
+/** 连线 DTO → X6 Edge 实例（含默认样式 attrs/connector/marker），供 `connecting.createEdge` 用。 */
+export function toX6Edge(edge: CanvasEdgeDTO): X6EdgeCtor {
+  const style = edge.style ?? DEFAULT_CANVAS_EDGE_STYLE;
+  return new X6EdgeCtor({
+    id: edge.id,
+    shape: "edge",
+    data: { edge },
+    connector: connectorFor(style),
+    ...(routerFor(style) ? { router: routerFor(style) } : {}),
+    attrs: lineAttrs(style),
+    ...(edge.label
+      ? {
+          labels: [
+            { attrs: { label: { text: edge.label, fill: "var(--foreground)", fontSize: 12 } } },
+          ],
+        }
+      : {}),
+  });
 }
 
 /** X6 节点 → 元素 DTO（id/几何回读；组内子元素坐标为相对坐标）。 */
