@@ -152,7 +152,8 @@ function SelectionToolbar({
 }) {
   const viewport = useViewport();
   if (selectedNodeIds.length < 2) return null;
-  const selected = nodes.filter((n) => selectedNodeIds.includes(n.id));
+  const selectedIdSet = new Set(selectedNodeIds);
+  const selected = nodes.filter((n) => selectedIdSet.has(n.id));
   if (selected.length === 0) return null;
   const bounds = getNodesBounds(selected);
   const left = (bounds.x + bounds.width / 2) * viewport.zoom + viewport.x;

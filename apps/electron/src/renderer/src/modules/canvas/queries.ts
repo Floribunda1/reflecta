@@ -47,7 +47,7 @@ export function useCanvasDetail(canvasId: string | null) {
 
 /** 引用画布卡的小型预览：一次性拉取所有被引用画布的详情（按 id 排序签名做 queryKey）。 */
 export function useReferencedCanvasPreviews(refIds: string[]) {
-  const key = [...refIds].sort().join(",");
+  const key = refIds.toSorted().join(",");
   return useQuery(
     effectQuery.queryOptions({
       queryKey: ["understandingCanvas.refPreviews", key] as const,

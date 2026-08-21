@@ -26,6 +26,23 @@ function formatSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+async function openOrphanAsset(filename: string) {
+  try {
+    await runPromise(rpc.assetOpen(filename));
+  } catch (error) {
+    toast.error("打开文件失败", { description: renderError(error) });
+  }
+}
+
+async function revealOrphanAsset(filename: string) {
+  try {
+    await runPromise(rpc.assetReveal(filename));
+    toast.success("已在 Finder 中显示");
+  } catch (error) {
+    toast.error("显示文件失败", { description: renderError(error) });
+  }
+}
+
 export function StorageSection() {
   const { confirm } = useModal();
   const [contentStorageRoot, setContentStorageRoot] = useState("");
@@ -107,23 +124,6 @@ export function StorageSection() {
         }
       },
     });
-  };
-
-  const openOrphanAsset = async (filename: string) => {
-    try {
-      await runPromise(rpc.assetOpen(filename));
-    } catch (error) {
-      toast.error("打开文件失败", { description: renderError(error) });
-    }
-  };
-
-  const revealOrphanAsset = async (filename: string) => {
-    try {
-      await runPromise(rpc.assetReveal(filename));
-      toast.success("已在 Finder 中显示");
-    } catch (error) {
-      toast.error("显示文件失败", { description: renderError(error) });
-    }
   };
 
   return (

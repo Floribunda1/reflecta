@@ -20,7 +20,7 @@ import {
   XCircle,
   type LucideIcon,
 } from "lucide-react";
-import { AnimatePresence, motion, MotionConfig } from "motion/react";
+import { AnimatePresence, m, MotionConfig } from "motion/react";
 import { memo, useDeferredValue, useEffect, useRef, useState } from "react";
 import { cn } from "#lib/utils";
 import { EASE_OUT_EXPO, ENTER_DURATION, FADE_UP_Y } from "#lib/motion";
@@ -47,12 +47,14 @@ export type AgentExecutionBlockProps = {
   endedAt?: string;
 };
 
+const COMPACT_NUMBER = new Intl.NumberFormat("zh-CN", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
 function compactTokenCount(tokens: number | undefined) {
   if (tokens === undefined) return null;
-  return new Intl.NumberFormat("zh-CN", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(tokens);
+  return COMPACT_NUMBER.format(tokens);
 }
 
 const REASONING_SCROLL_END_THRESHOLD = 32;
@@ -85,7 +87,7 @@ function ToolStatusIcon({
       <span className="relative size-4 shrink-0" aria-hidden="true">
         <AnimatePresence initial={false} mode="popLayout">
           {status === "running" ? (
-            <motion.span
+            <m.span
               key="running"
               data-slot="agent-tool-loading"
               className="absolute inset-0"
@@ -95,9 +97,9 @@ function ToolStatusIcon({
               transition={{ duration: 0.2 }}
             >
               <AgentWorkingIndicator className="size-full text-muted-foreground" />
-            </motion.span>
+            </m.span>
           ) : (
-            <motion.span
+            <m.span
               key={status}
               className="absolute inset-0"
               initial={{ opacity: 0, rotate: -35, scale: 0.55 }}
@@ -114,7 +116,7 @@ function ToolStatusIcon({
                   className="mx-auto my-0.5 size-3 text-muted-foreground"
                 />
               )}
-            </motion.span>
+            </m.span>
           )}
         </AnimatePresence>
       </span>
@@ -342,7 +344,7 @@ function ReasoningBlock({
       <CollapsibleContent data-testid="agent-reasoning-detail" className="text-muted-foreground">
         {/* 展开动画：高度 0→auto + 淡入（motion）。收起即卸载（无 keepMounted），
             释放流式推理的渲染 DOM —— 性能契约，见 reasoning-stream-benchmark。 */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
           transition={{ duration: ENTER_DURATION, ease: EASE_OUT_EXPO }}
@@ -365,7 +367,7 @@ function ReasoningBlock({
               />
             </div>
           </div>
-        </motion.div>
+        </m.div>
       </CollapsibleContent>
     </Collapsible>
   );
@@ -445,7 +447,7 @@ function ToolActivityBlock({ activity }: { activity: AgentToolActivityView }) {
         >
           <div className="grid gap-2">
             {activity.items.map((item, index) => (
-              <motion.div
+              <m.div
                 key={item.id}
                 initial={false}
                 animate={open ? { opacity: 1, y: 0 } : { opacity: 0, y: FADE_UP_Y }}
@@ -463,7 +465,7 @@ function ToolActivityBlock({ activity }: { activity: AgentToolActivityView }) {
                 {item.error ? (
                   <div className="break-words px-1 text-destructive">{item.error}</div>
                 ) : null}
-              </motion.div>
+              </m.div>
             ))}
           </div>
         </CollapsibleContent>
@@ -476,7 +478,7 @@ export function AgentPendingBlock({ label = "等待中..." }: { label?: string }
   const elapsed = useElapsed(true);
   return (
     <MotionConfig reducedMotion="user">
-      <motion.div
+      <m.div
         data-testid="agent-running-placeholder"
         initial={{ opacity: 0, y: FADE_UP_Y }}
         animate={{ opacity: 1, y: 0 }}
@@ -497,7 +499,7 @@ export function AgentPendingBlock({ label = "等待中..." }: { label?: string }
             {elapsed}
           </span>
         ) : null}
-      </motion.div>
+      </m.div>
     </MotionConfig>
   );
 }

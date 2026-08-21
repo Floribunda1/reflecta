@@ -45,6 +45,8 @@ export type DomainTreeSelectProps = DomainTreeSelectCommonProps &
       }
   );
 
+const EMPTY_EXCLUDED_IDS: readonly string[] = [];
+
 /** id → 层级深度映射（候选面板按树形缩进展示，过滤后扁平渲染仍保留缩进） */
 function collectLevels(
   nodes: readonly DomainTreeSelectNode[],
@@ -60,7 +62,7 @@ function collectLevels(
 export function DomainTreeSelect(props: DomainTreeSelectProps) {
   const {
     nodes,
-    excludedIds = [],
+    excludedIds = EMPTY_EXCLUDED_IDS,
     status = "ready",
     errorText = "Domain 加载失败",
     placeholder = "选择 Domain",

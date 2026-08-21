@@ -79,21 +79,23 @@ function ZoomableChatImage({ src, alt, className, ...props }: ComponentProps<"im
   }, [src]);
 
   return (
-    <img
-      {...props}
-      ref={imageRef}
-      src={src}
-      alt={alt}
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       aria-label={`${alt || "图片"}，点击放大`}
-      className={cn(className, "cursor-zoom-in")}
-      onKeyDown={(event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        void zoomRef.current?.toggle({ target: event.currentTarget });
+      className={cn("cursor-zoom-in border-0 bg-transparent p-0", className)}
+      onClick={() => {
+        const image = imageRef.current;
+        if (image) void zoomRef.current?.toggle({ target: image });
       }}
-    />
+    >
+      <img
+        {...props}
+        ref={imageRef}
+        src={src}
+        alt={alt}
+        className="pointer-events-none block max-w-full"
+      />
+    </button>
   );
 }
 

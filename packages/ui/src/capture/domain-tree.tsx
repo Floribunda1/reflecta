@@ -180,9 +180,11 @@ function DomainNode({
                 style={{ paddingLeft: `calc(${level} * 0.875rem)` }}
               >
                 {hasChildren ? (
-                  <span
+                  <button
+                    type="button"
                     data-testid="capture-domain-toggle"
                     data-domain-name={node.name}
+                    aria-label={expanded ? "折叠子领域" : "展开子领域"}
                     className="flex size-6 shrink-0 items-center justify-center text-muted-foreground"
                     onClick={(event) => {
                       event.stopPropagation();
@@ -190,7 +192,7 @@ function DomainNode({
                     }}
                   >
                     {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  </span>
+                  </button>
                 ) : (
                   <span className="size-6 shrink-0" />
                 )}

@@ -1,5 +1,6 @@
 import type { Decorator, Preview } from "@storybook/react-vite";
 import { useEffect } from "react";
+import { LazyMotion, MotionConfig, domAnimation } from "motion/react";
 import "../src/styles/globals.css";
 import { DrawerProvider, ModalProvider } from "../src/overlays";
 import { ThemeProvider } from "../src/theme-provider";
@@ -37,13 +38,17 @@ const withTheme: Decorator = (Story, context) => {
   return (
     <ThemeProvider forcedTheme={theme} enableSystem={false}>
       <SchemeBridge scheme={scheme} theme={theme} />
-      <ModalProvider>
-        <DrawerProvider>
-          <div className="min-h-screen bg-background p-6 text-foreground">
-            <Story />
-          </div>
-        </DrawerProvider>
-      </ModalProvider>
+      <LazyMotion features={domAnimation} strict>
+        <MotionConfig reducedMotion="user">
+          <ModalProvider>
+            <DrawerProvider>
+              <div className="min-h-screen bg-background p-6 text-foreground">
+                <Story />
+              </div>
+            </DrawerProvider>
+          </ModalProvider>
+        </MotionConfig>
+      </LazyMotion>
     </ThemeProvider>
   );
 };

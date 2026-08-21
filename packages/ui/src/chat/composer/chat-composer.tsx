@@ -3,7 +3,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useLatest, useMemoizedFn } from "ahooks";
 import { ArrowUp, Brain, ChevronDown, FileText, Paperclip, Send, Square, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m } from "motion/react";
 import {
   useEffect,
   useLayoutEffect,
@@ -158,6 +158,7 @@ type MentionAttrs = {
 const MAX_ATTACHMENTS = 8;
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const EMPTY_SKILLS: readonly ChatComposerSkill[] = [];
+const EMPTY_INITIAL_ENTITIES: readonly ChatComposerEntityReference[] = [];
 
 function ContextUsageMeter({ usage }: { usage: ChatComposerContextUsage }) {
   const progress = Math.max(0, Math.min(usage.percent ?? 0, 100));
@@ -436,7 +437,7 @@ function ComposerSendButton({
       onClick={handleClick}
     >
       <AnimatePresence mode="popLayout" initial={false}>
-        <motion.span
+        <m.span
           key={iconKey}
           initial={{ opacity: 0, y: 3, scale: 0.8 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -445,7 +446,7 @@ function ComposerSendButton({
           className="grid place-items-center"
         >
           {icon}
-        </motion.span>
+        </m.span>
       </AnimatePresence>
     </Button>
   );
@@ -548,7 +549,7 @@ export function ChatComposer({
   status,
   canStop,
   focusRequest = 0,
-  initialEntities = [],
+  initialEntities = EMPTY_INITIAL_ENTITIES,
   modelOptions,
   selectedModelId,
   selectedReasoningId,

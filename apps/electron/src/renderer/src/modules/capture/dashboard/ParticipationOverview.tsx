@@ -61,8 +61,11 @@ function activityTip(date: string, details: ReadonlyMap<string, DayDetailCounts>
     : `${dayTitle(date)}：无参与`;
 }
 
+function dayKey(iso: string) {
+  return format(new Date(iso), "yyyy-MM-dd");
+}
+
 function DayDetail({ date, data }: { date: string; data: ParticipationOverviewData }) {
-  const dayKey = (iso: string) => format(new Date(iso), "yyyy-MM-dd");
   const matchedSessions = data.recap.sessions.filter((session) =>
     session.userMessageDates.some((iso) => dayKey(iso) === date),
   );
@@ -198,11 +201,19 @@ export const ParticipationOverview = memo(function ParticipationOverview() {
       {calendar ? (
         <div
           data-testid="participation-heatmap"
+          role="group"
+          aria-label="参与足迹"
           className="min-w-0 flex-1 overflow-x-auto text-muted-foreground"
           onClick={(event) => {
             const target = (event.target as Element | null)?.closest("rect[data-date]");
             const date = target?.getAttribute("data-date");
             if (date) openDay(event, date);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            const target = (event.target as Element | null)?.closest("rect[data-date]");
+            const date = target?.getAttribute("data-date");
+            if (date) openDay(event as unknown as MouseEvent, date);
           }}
         >
           <Suspense fallback={<div className="h-[118px] min-w-0" />}>

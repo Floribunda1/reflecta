@@ -894,10 +894,10 @@ export class PiAgentHost {
         ...PI_IMAGE_TOOL_NAMES,
       ],
     });
+    const builtinSkillNames = new Set<string>(PI_BUILTIN_SKILL_NAMES);
     const globalSkillNames = resourceLoader
       .getSkills()
-      .skills.map((skill) => skill.name)
-      .filter((name) => !(PI_BUILTIN_SKILL_NAMES as readonly string[]).includes(name));
+      .skills.flatMap((skill) => (builtinSkillNames.has(skill.name) ? [] : [skill.name]));
     return { ...created, modelConfig, globalSkillNames };
   }
 

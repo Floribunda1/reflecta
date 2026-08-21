@@ -60,14 +60,15 @@ export async function scanOrphanAssets(): Promise<OrphanAssetInfo[]> {
     for (const ref of extractAssetRefs(content)) referenced.add(ref);
   }
 
-  const orphans: OrphanAssetInfo[] = [];
-  for (const file of diskFiles) {
-    if (!referenced.has(file)) {
-      const filePath = join(assetsDir, file);
-      const info = await stat(filePath);
-      orphans.push({ filename: file, size: info.size });
-    }
-  }
+  const orphans = (
+    await Promise.all(
+      diskFiles.map(async (file) => {
+        if (referenced.has(file)) return null;
+        const info = await stat(join(assetsDir, file));
+        return { filename: file, size: info.size };
+      }),
+    )
+  ).filter((orphan): orphan is OrphanAssetInfo => orphan !== null);
   return orphans;
 }
 

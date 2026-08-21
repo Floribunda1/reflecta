@@ -50,9 +50,7 @@ export type DangerousBashApprovalHandler = (
 ) => Promise<DangerousBashApprovalDecision>;
 
 export function dangerousBashRuleLabels(command: string): string[] {
-  return DANGEROUS_BASH_RULES.filter((rule) => rule.pattern.test(command)).map(
-    (rule) => rule.label,
-  );
+  return DANGEROUS_BASH_RULES.flatMap((rule) => (rule.pattern.test(command) ? [rule.label] : []));
 }
 
 export function createPiBashPermissionGate(

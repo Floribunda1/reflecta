@@ -11,6 +11,7 @@
     "composite": true,
     "noImplicitAny": true,
     "noUnusedLocals": false,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,

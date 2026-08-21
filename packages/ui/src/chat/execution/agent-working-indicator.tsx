@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { motion, MotionConfig } from "motion/react";
+import { LazyMotion, MotionConfig, m, domAnimation } from "motion/react";
 import { cn } from "#lib/utils";
 
 export type AgentWorkingVariant = "grid" | "drive" | "dots" | "orbit";
@@ -22,33 +22,35 @@ export function AgentWorkingIndicator({
   variant = "grid",
   className,
   ...props
-}: ComponentProps<typeof motion.span> & { variant?: AgentWorkingVariant }) {
+}: ComponentProps<typeof m.span> & { variant?: AgentWorkingVariant }) {
   return (
-    <MotionConfig reducedMotion="user">
-      <motion.span
-        data-slot="agent-working-indicator"
-        data-variant={variant}
-        className={cn(
-          "grid size-4 shrink-0 grid-cols-3 gap-px text-muted-foreground/70",
-          className,
-        )}
-        {...props}
-      >
-        {CUBES.map((cube) => (
-          <motion.span
-            key={cube.id}
-            className="bg-current"
-            animate={{ scale: [0.5, 0, 0.5, 0.5] }}
-            transition={{
-              delay: cube.delay,
-              duration: 1.3,
-              repeat: Infinity,
-              ease: "easeInOut",
-              times: [0, 0.35, 0.7, 1],
-            }}
-          />
-        ))}
-      </motion.span>
-    </MotionConfig>
+    <LazyMotion features={domAnimation}>
+      <MotionConfig reducedMotion="user">
+        <m.span
+          data-slot="agent-working-indicator"
+          data-variant={variant}
+          className={cn(
+            "grid size-4 shrink-0 grid-cols-3 gap-px text-muted-foreground/70",
+            className,
+          )}
+          {...props}
+        >
+          {CUBES.map((cube) => (
+            <m.span
+              key={cube.id}
+              className="bg-current"
+              animate={{ scale: [0.5, 0, 0.5, 0.5] }}
+              transition={{
+                delay: cube.delay,
+                duration: 1.3,
+                repeat: Infinity,
+                ease: "easeInOut",
+                times: [0, 0.35, 0.7, 1],
+              }}
+            />
+          ))}
+        </m.span>
+      </MotionConfig>
+    </LazyMotion>
   );
 }

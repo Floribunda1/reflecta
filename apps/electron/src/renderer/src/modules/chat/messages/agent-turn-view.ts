@@ -560,16 +560,17 @@ function bashProposalData(output: Record<string, unknown>): BashProposalView["da
 function genericProposalData(output: Record<string, unknown>): GenericProposalView["data"] {
   return {
     kind: "generic",
-    entries: Object.entries(output)
-      .filter(([key, value]) => key !== "proposalType" && value !== undefined)
-      .map(([key, value]) => {
-        const format = genericProposalEntryFormat(key);
-        return {
+    entries: Object.entries(output).flatMap(([key, value]) => {
+      if (key === "proposalType" || value === undefined) return [];
+      const format = genericProposalEntryFormat(key);
+      return [
+        {
           key,
           value: proposalValue(value),
           ...(format ? { format } : {}),
-        };
-      }),
+        },
+      ];
+    }),
   };
 }
 
@@ -854,16 +855,21 @@ export function toAgentProposalView(
     ...base,
     kind: "unknown",
     content: {
-      fields: Object.entries(input)
-        .filter(([key, value]) => key !== "proposalType" && value !== undefined)
-        .map(([key, value]) => ({
-          id: `${raw.approvalId}:${key}`,
-          label: key,
-          value: {
-            format: key === "body" || key === "content" ? ("markdown" as const) : ("text" as const),
-            value: proposalValue(value),
-          },
-        })),
+      fields: Object.entries(input).flatMap(([key, value]) =>
+        key === "proposalType" || value === undefined
+          ? []
+          : [
+              {
+                id: `${raw.approvalId}:${key}`,
+                label: key,
+                value: {
+                  format:
+                    key === "body" || key === "content" ? ("markdown" as const) : ("text" as const),
+                  value: proposalValue(value),
+                },
+              },
+            ],
+      ),
     },
   };
 }
@@ -968,7 +974,9 @@ function doneSummary(groupType: ToolGroupType, blocks: AgentToolBlock[]) {
 }
 
 function failedSummary(title: string, blocks: AgentToolBlock[]) {
-  const failedItems = blocks.filter((block) => block.state === "failed").map(toolItemView);
+  const failedItems = blocks.flatMap((block) =>
+    block.state === "failed" ? [toolItemView(block)] : [],
+  );
   if (failedItems.length === 1) return failedItems[0]?.label ?? `${title}时遇到问题`;
   return `${title}时遇到 ${failedItems.length} 个问题`;
 }
@@ -1010,10 +1018,10 @@ function toolTitle(name: string) {
 function queryLabel(input: Record<string, unknown>) {
   const query = stringValue(input.query).trim();
   if (query) return `「${query}」`;
-  const queries = arrayValue(input.queries)
-    .map(stringValue)
-    .map((item) => item.trim())
-    .filter(Boolean);
+  const queries = arrayValue(input.queries).flatMap((item) => {
+    const query = stringValue(item).trim();
+    return query ? [query] : [];
+  });
   if (queries.length === 1) return `「${queries[0]}」`;
   return queries.length > 1 ? `「${queries[0]}」等 ${queries.length} 个查询` : "";
 }
@@ -1236,21 +1244,21 @@ function retrievalCandidateDetails(output: unknown) {
         2,
       ),
       // A1：matches 里的 Context 命中作为证据展示
-      ...arrayValue(candidate.matches)
-        .filter((match) => isRecord(match) && match.entityType === "context")
-        .map((context) =>
-          isRecord(context)
-            ? detailRow(
+      ...arrayValue(candidate.matches).flatMap((match) =>
+        isRecord(match) && match.entityType === "context"
+          ? [
+              detailRow(
                 "Context 证据",
-                contextTitle(context),
-                stringValue(context.snippet),
+                contextTitle(match),
+                stringValue(match.snippet),
                 "markdown",
                 undefined,
                 "nested-list-item",
                 1,
-              )
-            : undefined,
-        ),
+              ),
+            ]
+          : [],
+      ),
     ];
   });
   return detailView({
@@ -1346,19 +1354,21 @@ function inspectDomainDetails(output: unknown) {
           ),
         ];
       }),
-      ...contexts
-        .filter((context) => !attachedContexts.has(context))
-        .map((context) =>
-          detailRow(
-            "Context",
-            contextTitle(context),
-            recordText(context),
-            "markdown",
-            undefined,
-            "list-item",
-            2,
-          ),
-        ),
+      ...contexts.flatMap((context) =>
+        attachedContexts.has(context)
+          ? []
+          : [
+              detailRow(
+                "Context",
+                contextTitle(context),
+                recordText(context),
+                "markdown",
+                undefined,
+                "list-item",
+                2,
+              ),
+            ],
+      ),
     ],
   });
 }
@@ -1558,6 +1568,7 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
   if (name === "understanding_list") {
     const domainIds = stringArray(input.domainIds);
     const domainCount = domainIds.length;
+    const domainIdSet = new Set(domainIds);
     const understandings = Array.isArray(output)
       ? output
       : isRecord(output)
@@ -1569,7 +1580,7 @@ function toolDoneSummary(name: string, input: Record<string, unknown>, output: u
           isRecord(understanding)
             ? arrayValue(understanding.domains).flatMap((domain) => {
                 const title =
-                  isRecord(domain) && domainIds.includes(stringValue(domain.id))
+                  isRecord(domain) && domainIdSet.has(stringValue(domain.id))
                     ? entityTitle(domain)
                     : undefined;
                 return title ? [title] : [];

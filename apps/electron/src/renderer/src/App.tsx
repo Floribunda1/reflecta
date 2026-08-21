@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { LazyMotion, MotionConfig, domAnimation } from "motion/react";
 import { RouterProvider } from "react-router-dom";
 import { toast } from "sonner";
 import { Toaster } from "@reflecta/ui/components/sonner";
@@ -41,12 +42,16 @@ function FallbackToastBoundary() {
 
 export function App() {
   return (
-    <ModalProvider>
-      <DrawerProvider>
-        <RouterProvider router={router} />
-        <Toaster closeButton richColors position="bottom-right" />
-        <FallbackToastBoundary />
-      </DrawerProvider>
-    </ModalProvider>
+    <LazyMotion features={domAnimation} strict>
+      <MotionConfig reducedMotion="user">
+        <ModalProvider>
+          <DrawerProvider>
+            <RouterProvider router={router} />
+            <Toaster closeButton richColors position="bottom-right" />
+            <FallbackToastBoundary />
+          </DrawerProvider>
+        </ModalProvider>
+      </MotionConfig>
+    </LazyMotion>
   );
 }

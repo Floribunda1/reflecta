@@ -17,6 +17,18 @@ import { useModal } from "@reflecta/ui/overlays";
 import { renderError } from "@renderer/lib/errors";
 import { captureQueryKeys } from "../capture/queries";
 
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+function truncate(text: string, max = 60) {
+  return text.length > max ? `${text.slice(0, max)}...` : text;
+}
+
 export function TrashSection() {
   const { confirm } = useModal();
   const queryClient = useQueryClient();
@@ -143,15 +155,6 @@ export function TrashSection() {
     });
   };
 
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-
-  const truncate = (text: string, max = 60) =>
-    text.length > max ? `${text.slice(0, max)}...` : text;
   const totalCount = understandings.length + contexts.length;
 
   return (

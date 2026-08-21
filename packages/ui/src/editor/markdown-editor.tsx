@@ -134,7 +134,15 @@ function MarkdownEditorSurface({
   }, [editor, resolveWikiLink, value]);
 
   return (
-    <div className="reflecta-md-editor__surface" onClick={handleClick}>
+    <div
+      className="reflecta-md-editor__surface"
+      role="group"
+      onClick={handleClick}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        handleClick(event as unknown as MouseEvent<HTMLDivElement>);
+      }}
+    >
       <Milkdown />
     </div>
   );

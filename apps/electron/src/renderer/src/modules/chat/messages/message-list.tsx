@@ -17,6 +17,8 @@ import { ConnectedChatMessageRow, type ApproveToolInput } from "../adapters/chat
 import type { InspectableContextRef } from "../context/context-reference";
 import { activeAssistantMessageId } from "../session/thread-view";
 
+const EMPTY_COMPACTIONS: AgentContextCompacted[] = [];
+
 function compactionBlock(compaction: AgentContextCompacted) {
   return {
     kind: "context-compaction" as const,
@@ -32,7 +34,7 @@ function compactionBlock(compaction: AgentContextCompacted) {
 export function MessageList({
   messages,
   entityCatalog,
-  contextCompactions = [],
+  contextCompactions = EMPTY_COMPACTIONS,
   activeRunId,
   isBusy,
   isCompacting = false,

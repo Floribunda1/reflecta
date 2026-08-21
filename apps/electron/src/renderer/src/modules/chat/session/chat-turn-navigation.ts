@@ -15,8 +15,10 @@ function normalizedSnippet(value: string | undefined) {
 
 function fallbackTurnLabel(message: AgentReducedMessage) {
   const fileNames = message.files
-    ?.map((file) => file.filename || file.mediaType)
-    .filter(Boolean)
+    ?.flatMap((file) => {
+      const name = file.filename || file.mediaType;
+      return name ? [name] : [];
+    })
     .join("、");
   if (fileNames) return `附件：${fileNames}`;
 
@@ -31,10 +33,14 @@ function fallbackTurnLabel(message: AgentReducedMessage) {
 export function buildChatTurnNavigationItems(
   messages: readonly AgentReducedMessage[],
 ): ChatTurnNavigationItem[] {
-  return messages
-    .filter((message) => message.role === "user")
-    .map((message) => ({
-      turnId: message.id,
-      label: normalizedSnippet(message.text) || fallbackTurnLabel(message),
-    }));
+  return messages.flatMap((message) =>
+    message.role === "user"
+      ? [
+          {
+            turnId: message.id,
+            label: normalizedSnippet(message.text) || fallbackTurnLabel(message),
+          },
+        ]
+      : [],
+  );
 }

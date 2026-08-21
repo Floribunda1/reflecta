@@ -15,7 +15,7 @@ import {
   contextualAgentThreadTitle,
 } from "@renderer/modules/chat/contextual-agent-dock";
 import { useCreateThreadMutation } from "@renderer/modules/chat/session/server-state";
-import { DomainTree } from "./domain";
+import { DomainTree } from "./domain/components/DomainTree";
 import { UnderstandingDetail } from "./understanding-detail";
 import { CaptureDashboard, CaptureToolbar } from "./dashboard/CaptureDashboard";
 import { useAtomValue } from "@effect/atom-react";

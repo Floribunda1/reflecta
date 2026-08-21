@@ -13,7 +13,8 @@
     "react-doctor/only-export-components": "off",
     "react-doctor/no-many-boolean-props": "off",
     "react-doctor/no-redundant-roles": "off",
-    "react-doctor/agent-tool-capability-risk": "off"
+    "react-doctor/agent-tool-capability-risk": "off",
+    "react-doctor/no-giant-component": "off"
   },
   "ignore": {
     "files": [

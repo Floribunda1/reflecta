@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, Zap } from "lucide-react";
-import { motion, MotionConfig } from "motion/react";
+import { m, MotionConfig } from "motion/react";
 import { Fragment, useState } from "react";
 import { EASE_OUT_EXPO, ENTER_DURATION, FADE_UP_Y } from "#lib/motion";
 import { useElapsed } from "#hooks/use-elapsed";
@@ -145,7 +145,7 @@ export function AgentActivityGroup({
                   : next.activity.createdAt
                 : endedAt;
               return (
-                <motion.div
+                <m.div
                   key={block.kind === "reasoning" ? block.reasoning.id : block.activity.id}
                   initial={{ opacity: 0, y: FADE_UP_Y }}
                   animate={{ opacity: 1, y: 0 }}
@@ -161,7 +161,7 @@ export function AgentActivityGroup({
                     entityBindings={entityBindings}
                     endedAt={blockEndedAt}
                   />
-                </motion.div>
+                </m.div>
               );
             })}
           </div>

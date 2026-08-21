@@ -187,6 +187,8 @@ function useAttachmentAdapter() {
   };
 }
 
+const EMPTY_CONTEXT_REFS: AgentContextRef[] = [];
+
 export function AgentChatComposer({
   variant,
   threadId,
@@ -196,7 +198,7 @@ export function AgentChatComposer({
   editingMessage,
   focusRequest,
   initialContextKey,
-  initialContextRefs = [],
+  initialContextRefs = EMPTY_CONTEXT_REFS,
   modelOptions,
   activeModel,
   activeReasoningLevel,

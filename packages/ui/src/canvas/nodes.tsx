@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   Handle,
   NodeResizer,
@@ -29,7 +29,9 @@ import {
   ContextMenuTrigger,
 } from "../components/context-menu";
 import { cn } from "../lib/utils";
-import { CanvasReadOnlyView } from "./CanvasReadOnlyView";
+const CanvasReadOnlyView = lazy(() =>
+  import("./CanvasReadOnlyView").then((module) => ({ default: module.CanvasReadOnlyView })),
+);
 import { canvasPaintColor, CanvasColorSwatches } from "./color-swatches";
 import type { CanvasElementDTO } from "./document";
 import { useCanvasElementUpdate, useCanvasShapeData } from "./shape-context";
@@ -199,7 +201,6 @@ export function UnderstandingNode(props: NodeProps<CanvasNode>) {
       }
       className={cn(CARD, nodeStateClass(props.selected, props.dragging, element.props.color))}
       style={nodeColorStyle(element.props.color)}
-      tabIndex={0}
     >
       <CanvasNodeToolbar visible={props.selected && !readonly}>
         <NodeActions element={element} onEdit={() => onElementEdit?.(element)} />
@@ -278,7 +279,7 @@ export function TextNode(props: NodeProps<CanvasNode>) {
         nodeStateClass(props.selected || editing, props.dragging, element.props.color),
       )}
       style={nodeColorStyle(element.props.color)}
-      tabIndex={0}
+
       onDoubleClick={readonly ? undefined : startEditing}
     >
       <CanvasNodeToolbar visible={props.selected && !readonly}>
@@ -349,7 +350,6 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
             data-testid="canvas-group-node"
             data-group-label={label}
             className="group/canvas-node relative flex h-full w-full flex-col focus-visible:outline-none"
-            tabIndex={0}
           />
         }
       >
@@ -457,7 +457,7 @@ export function CanvasRefNode(props: NodeProps<CanvasNode>) {
         nodeStateClass(props.selected, props.dragging, element.props.color),
       )}
       style={nodeColorStyle(element.props.color)}
-      tabIndex={0}
+
       onDoubleClick={readonly ? undefined : open}
       title={deleted ? "目标画布已删除" : "双击打开引用画布"}
     >
@@ -475,7 +475,9 @@ export function CanvasRefNode(props: NodeProps<CanvasNode>) {
         <>
           {target.document ? (
             <div className="pointer-events-none absolute inset-0">
-              <CanvasReadOnlyView document={target.document} shapeData={target.shapeData} />
+              <Suspense fallback={null}>
+                <CanvasReadOnlyView document={target.document} shapeData={target.shapeData} />
+              </Suspense>
             </div>
           ) : (
             <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 p-2 text-center">

@@ -142,7 +142,7 @@ export function ThemeSection() {
     const matched = keyword
       ? PAIRED_THEMES.filter((theme) => theme.name.toLowerCase().includes(keyword))
       : PAIRED_THEMES;
-    return [...matched].sort((left, right) => {
+    return matched.toSorted((left, right) => {
       if (left.name === DEFAULT_GHOSTTY_SCHEME) return -1;
       if (right.name === DEFAULT_GHOSTTY_SCHEME) return 1;
       return 0;

@@ -108,41 +108,45 @@ export function groupSelectedNodes(nodes: Node[], nodeIds: string[], seed: Group
 }
 
 export function ungroupNodes(nodes: Node[], groupIds: string[]): Node[] {
-  const groups = new Set(
-    nodes
-      .filter((node) => groupIds.includes(node.id) && node.type === "group")
-      .map((node) => node.id),
-  );
+  const groupIdSet = new Set(groupIds);
+  const groups = new Set<string>();
+  for (const node of nodes) {
+    if (groupIdSet.has(node.id) && node.type === "group") groups.add(node.id);
+  }
   if (!groups.size) return nodes;
 
   const byId = new Map(nodes.map((node) => [node.id, node]));
-  return nodes
-    .filter((node) => !groups.has(node.id))
-    .map((node) => {
-      if (!node.parentId || !groups.has(node.parentId)) return node;
+  const next: Node[] = [];
+  for (const node of nodes) {
+    if (groups.has(node.id)) continue;
+    if (!node.parentId || !groups.has(node.parentId)) {
+      next.push(node);
+      continue;
+    }
 
-      let parentId: string | undefined = node.parentId;
-      while (parentId && groups.has(parentId)) parentId = byId.get(parentId)?.parentId;
-      const position = absolutePosition(node, byId);
-      const parent = parentId ? byId.get(parentId) : undefined;
-      const parentPosition = parent ? absolutePosition(parent, byId) : { x: 0, y: 0 };
-      return {
-        ...node,
-        parentId,
-        extent: parentId ? ("parent" as const) : undefined,
-        expandParent: parentId ? true : undefined,
-        position: {
-          x: position.x - parentPosition.x,
-          y: position.y - parentPosition.y,
+    let parentId: string | undefined = node.parentId;
+    while (parentId && groups.has(parentId)) parentId = byId.get(parentId)?.parentId;
+    const position = absolutePosition(node, byId);
+    const parent = parentId ? byId.get(parentId) : undefined;
+    const parentPosition = parent ? absolutePosition(parent, byId) : { x: 0, y: 0 };
+    next.push({
+      ...node,
+      parentId,
+      extent: parentId ? ("parent" as const) : undefined,
+      expandParent: parentId ? true : undefined,
+      position: {
+        x: position.x - parentPosition.x,
+        y: position.y - parentPosition.y,
+      },
+      data: {
+        element: {
+          ...(node.data as { element: CanvasElementDTO }).element,
+          parentId: parentId ?? null,
         },
-        data: {
-          element: {
-            ...(node.data as { element: CanvasElementDTO }).element,
-            parentId: parentId ?? null,
-          },
-        },
-      };
+      },
     });
+  }
+  return next;
 }
 
 export function deleteGroupBranch(

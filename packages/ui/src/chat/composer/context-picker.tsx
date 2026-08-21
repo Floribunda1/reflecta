@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { motion, MotionConfig } from "motion/react";
+import { m, MotionConfig } from "motion/react";
 import { EASE_OUT_EXPO, POP_IN_SCALE } from "#lib/motion";
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "#components/command";
 import type { ChatComposerEntityOption } from "../entity";
@@ -65,7 +65,7 @@ export function ChatContextPicker({
 
   return (
     <MotionConfig reducedMotion="user">
-      <motion.div
+      <m.div
         initial={{ opacity: 0, scale: POP_IN_SCALE, transformOrigin: "bottom center" }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.18, ease: EASE_OUT_EXPO }}
@@ -121,7 +121,7 @@ export function ChatContextPicker({
             </CommandGroup>
           </CommandList>
         </Command>
-      </motion.div>
+      </m.div>
     </MotionConfig>
   );
 }
@@ -145,7 +145,7 @@ export function ChatSkillPicker({
 
   return (
     <MotionConfig reducedMotion="user">
-      <motion.div
+      <m.div
         initial={{ opacity: 0, scale: POP_IN_SCALE, transformOrigin: "bottom center" }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.18, ease: EASE_OUT_EXPO }}
@@ -184,7 +184,7 @@ export function ChatSkillPicker({
             </CommandGroup>
           </CommandList>
         </Command>
-      </motion.div>
+      </m.div>
     </MotionConfig>
   );
 }

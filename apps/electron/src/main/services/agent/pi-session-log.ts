@@ -353,8 +353,7 @@ export class AgentSessionLog {
   eventsFromManager(manager: SessionManager): AgentSessionEvent[] {
     return manager
       .getBranch()
-      .filter(isReflectaEventEntry)
-      .flatMap((entry) => (entry.data ? [entry.data] : []));
+      .flatMap((entry) => (isReflectaEventEntry(entry) && entry.data ? [entry.data] : []));
   }
 
   private flushCustomOnlySession(manager: SessionManager): void {
@@ -454,8 +453,7 @@ export class AgentSessionLog {
     const sessionFiles = new Set(
       fs
         .readdirSync(this.sessionsRoot)
-        .filter((name) => name.endsWith(".jsonl"))
-        .map((name) => path.basename(name)),
+        .flatMap((name) => (name.endsWith(".jsonl") ? [path.basename(name)] : [])),
     );
     const knownFiles = new Set(index.files);
     return (

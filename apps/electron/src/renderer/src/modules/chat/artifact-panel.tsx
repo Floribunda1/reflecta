@@ -65,30 +65,31 @@ export function ArtifactPanel({
           sideOffset={6}
           className="max-h-64 w-[min(24rem,calc(100vw-2rem))] overflow-y-auto p-1.5"
         >
-          <div className="grid gap-0.5" role="list">
+          <ul className="m-0 grid list-none gap-0.5 p-0">
             {artifacts.map((artifact) => {
               const Icon = artifact.type === "canvas" ? PanelsTopLeft : entityIcon(artifact.type);
               const typeLabel = view.groups.find((group) => group.type === artifact.type)?.label;
               if (!Icon) return null;
               return (
-                <button
-                  key={`${artifact.type}:${artifact.id}`}
-                  type="button"
-                  data-testid={`artifact-item-${artifact.id}`}
-                  aria-label={`${typeLabel ?? artifact.type}：${artifact.title}`}
-                  title={artifact.title}
-                  onClick={() => {
-                    setOpen(false);
-                    onOpen(artifact);
-                  }}
-                  className="flex min-h-9 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate">{artifact.title}</span>
-                </button>
+                <li key={`${artifact.type}:${artifact.id}`}>
+                  <button
+                    type="button"
+                    data-testid={`artifact-item-${artifact.id}`}
+                    aria-label={`${typeLabel ?? artifact.type}：${artifact.title}`}
+                    title={artifact.title}
+                    onClick={() => {
+                      setOpen(false);
+                      onOpen(artifact);
+                    }}
+                    className="flex min-h-9 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate">{artifact.title}</span>
+                  </button>
+                </li>
               );
             })}
-          </div>
+          </ul>
         </PopoverContent>
       </Popover>
     </div>

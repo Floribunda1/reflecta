@@ -11,7 +11,7 @@ export function groupAgentThreads(
   threads: AgentSessionSummary[],
   now = Date.now(),
 ): AgentThreadGroup[] {
-  const sorted = [...threads].sort((a, b) =>
+  const sorted = threads.toSorted((a, b) =>
     compareDesc(new Date(a.updatedAt), new Date(b.updatedAt)),
   );
   const todayStart = startOfDay(now).getTime();

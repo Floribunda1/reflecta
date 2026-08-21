@@ -8,6 +8,14 @@ import { Input } from "@reflecta/ui/components/input";
  * 理解卡标题 / 正文、文本卡内容、组名、连线标签、画布引用标题。
  * 过滤在浮层内做；命中后由 workspace 定位/选中（centerCell + 缩放）。Esc 关闭。
  */
+const KIND_LABEL: Record<string, string> = {
+  understanding: "理解",
+  text: "文本",
+  group: "组",
+  canvas_ref: "画布引用",
+  edge: "连线",
+};
+
 export type CanvasSearchIndexItem = {
   id: string;
   kind: string;
@@ -45,14 +53,6 @@ export function CanvasSearchOverlay({
     if (!q) return [];
     return index.filter((item) => item.text.toLowerCase().includes(q));
   }, [index, query]);
-
-  const kindLabel: Record<string, string> = {
-    understanding: "理解",
-    text: "文本",
-    group: "组",
-    canvas_ref: "画布引用",
-    edge: "连线",
-  };
 
   const commit = (id: string) => onSelect(id);
 
@@ -102,7 +102,7 @@ export function CanvasSearchOverlay({
               }`}
             >
               <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                {kindLabel[item.kind] ?? item.kind}
+                {KIND_LABEL[item.kind] ?? item.kind}
               </span>
               <span className="truncate">{item.text}</span>
             </button>

@@ -44,9 +44,10 @@ export function buildCanvasSearchIndex(
   });
   for (const edge of document.edges)
     items.push({ id: edge.id, kind: "edge", text: edge.label ?? "" });
-  return items
-    .map((item) => ({ ...item, text: searchableMarkdownText(item.text) }))
-    .filter((item) => item.text.trim());
+  return items.flatMap((item) => {
+    const text = searchableMarkdownText(item.text);
+    return text.trim() ? [{ ...item, text }] : [];
+  });
 }
 
 /** 去掉 Markdown 反斜杠转义（`\_` → `_` 等），让搜索命中用户所见文本。 */
