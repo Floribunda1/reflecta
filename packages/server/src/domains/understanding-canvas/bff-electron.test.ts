@@ -216,10 +216,11 @@ describe("UnderstandingCanvasElectronBff.getCanvasDetail", () => {
 
 describe("saveCanvas with app-shaped group doc", () => {
   test("saves a group with zIndex -1 and parented members", async () => {
+    // 与画布 app 实际产出一致：成员在前、组在末尾（组节点后建）
     const doc: CanvasDocument = {
       elements: [
-        { ...element("a", "text", { props: { text: "A" } }) },
-        { ...element("b", "text", { props: { text: "B" } }) },
+        { ...element("a", "text", { props: { text: "A" }, parentId: "grp" }) },
+        { ...element("b", "text", { props: { text: "B" }, parentId: "grp" }) },
         {
           ...element("grp", "group", {
             props: { label: "" },
@@ -230,17 +231,48 @@ describe("saveCanvas with app-shaped group doc", () => {
             height: 244,
           }),
         },
-        { ...element("a2", "text", { props: { text: "A" }, parentId: "grp" }) },
-        { ...element("b2", "text", { props: { text: "B" }, parentId: "grp" }) },
       ],
       edges: [],
     };
     await expect(Effect.runPromise(service.saveCanvas(canvasId, doc))).resolves.toBeUndefined();
     const detail = await Effect.runPromise(service.getCanvasDetail(canvasId));
-    expect(detail?.elements).toHaveLength(5);
+    expect(detail?.elements).toHaveLength(3);
     const group = detail?.elements.find((el) => el.id === "grp");
     expect(group?.zIndex).toBe(-1);
-    const child = detail?.elements.find((el) => el.id === "a2");
-    expect(child?.parentId).toBe("grp");
+    for (const id of ["a", "b"]) {
+      const child = detail?.elements.find((el) => el.id === id);
+      expect(child?.parentId).toBe("grp");
+    }
+  });
+});
+
+describe("saveCanvas sequence with pre-existing rows (group update path)", () => {
+  test("seeding then grouping does not hang", async () => {
+    const base = { canvasId, createdAt: "t", updatedAt: "t" };
+    const a = { ...element("a", "text", { props: { text: "A" } }), ...base };
+    const b = { ...element("b", "text", { props: { text: "B" } }), ...base };
+    await Effect.runPromise(service.saveCanvas(canvasId, { elements: [a, b], edges: [] }));
+    const grp = {
+      ...element("grp", "group", {
+        props: { label: "" },
+        x: 76,
+        y: 56,
+        width: 388,
+        height: 208,
+        zIndex: -1,
+      }),
+      ...base,
+    };
+    const a2 = { ...a, parentId: "grp" };
+    const b2 = { ...b, parentId: "grp" };
+    const race = await Effect.runPromise(
+      Effect.race(
+        service
+          .saveCanvas(canvasId, { elements: [a2, b2, grp], edges: [] })
+          .pipe(Effect.as("done")),
+        Effect.sleep("2 seconds").pipe(Effect.as("timeout")),
+      ),
+    );
+    expect(race).toBe("done");
   });
 });

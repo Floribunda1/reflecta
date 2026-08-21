@@ -107,13 +107,14 @@ export async function dragNodeBy(page: Page, id: string, dx: number, dy: number)
 export async function selectEdge(page: Page) {
   const edge = edgesInGraph(page).first();
   const point = await edge.evaluate((el) => {
-    const path = [...el.querySelectorAll("path")].filter((p) => {
-      const s = p.getAttribute("stroke");
-      return s && s !== "transparent";
-    })[0];
-    if (!path) return null;
+    const paths = [...el.querySelectorAll("path")].filter((p) => p.getTotalLength?.() > 10);
+    // X6 边点击命中层是加粗透明 interaction path：按 stroke-width 降序取最粗的一条
+    const line = paths
+      .map((p) => ({ p, w: parseFloat(p.getAttribute("stroke-width") ?? "0") }))
+      .sort((l, r) => r.w - l.w)[0]?.p;
+    if (!line) return null;
     try {
-      const p = path.getPointAtLength(path.getTotalLength() / 2) as DOMPoint;
+      const p = line.getPointAtLength(line.getTotalLength() / 2) as DOMPoint;
       const ctm = (path.getScreenCTM?.() ?? null) as DOMMatrix | null;
       if (!ctm) return null;
       const screen = p.matrixTransform(ctm);

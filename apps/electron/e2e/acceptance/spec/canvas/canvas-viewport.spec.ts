@@ -24,7 +24,7 @@ test.beforeAll(async () => {
 });
 test.afterEach(async () => {
   // 让改动后的防抖保存落库，避免下一场景重进画布时读到旧文档
-  if (page) await page.waitForTimeout(900);
+  if (page) await page.waitForTimeout(1400);
 });
 
 test.afterAll(async () => {

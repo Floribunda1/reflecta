@@ -474,33 +474,54 @@ export class CanvasCore {
             }
           }
           if (changed) {
-            for (const element of document.elements) {
-              const existing = existingElementById.get(element.id);
-              const row = {
-                canvasId,
-                kind: element.kind,
-                understandingId: element.kind === "understanding" ? element.understandingId : null,
-                canvasRefId: element.kind === "canvas_ref" ? element.canvasRefId : null,
-                props: JSON.stringify(element.props),
-                parentId: element.parentId,
-                x: element.x,
-                y: element.y,
-                width: element.width,
-                height: element.height,
-                zIndex: element.zIndex,
-              };
-              if (existing) {
-                await tx
-                  .update(understandingCanvasElements)
-                  .set(row)
-                  .where(eq(understandingCanvasElements.id, element.id))
-                  .run();
-              } else {
-                await tx
-                  .insert(understandingCanvasElements)
-                  .values({ id: element.id, ...row, createdAt: timestamp, updatedAt: timestamp })
-                  .run();
+            // 父行必须先于引用它的子行写入（parentId 外键）。
+            // 新元素按祖先深度升序插入：组（父）先落库，成员后再以 UPDATE 指向它；
+            // 否则成员先写 parentId 会触发 FOREIGN KEY constraint（libsql 下表现为保存挂起）。
+            const toInsert = document.elements.filter(
+              (element) => !existingElementById.has(element.id),
+            );
+            const toUpdate = document.elements.filter((element) =>
+              existingElementById.has(element.id),
+            );
+            const byId = new Map(document.elements.map((element) => [element.id, element]));
+            const depthOf = (element: CanvasElementDTO): number => {
+              let depth = 0;
+              let current: CanvasElementDTO | undefined = element;
+              const seen = new Set<string>();
+              while (current?.parentId && !seen.has(current.parentId)) {
+                seen.add(current.parentId);
+                depth += 1;
+                current = byId.get(current.parentId);
               }
+              return depth;
+            };
+            const rowFor = (element: CanvasElementDTO) => ({
+              canvasId,
+              kind: element.kind,
+              understandingId: element.kind === "understanding" ? element.understandingId : null,
+              canvasRefId: element.kind === "canvas_ref" ? element.canvasRefId : null,
+              props: JSON.stringify(element.props),
+              parentId: element.parentId,
+              x: element.x,
+              y: element.y,
+              width: element.width,
+              height: element.height,
+              zIndex: element.zIndex,
+            });
+            for (const element of [...toInsert].sort((l, r) => depthOf(l) - depthOf(r))) {
+              const row = rowFor(element);
+              await tx
+                .insert(understandingCanvasElements)
+                .values({ id: element.id, ...row, createdAt: timestamp, updatedAt: timestamp })
+                .run();
+            }
+            for (const element of toUpdate) {
+              const row = rowFor(element);
+              await tx
+                .update(understandingCanvasElements)
+                .set(row)
+                .where(eq(understandingCanvasElements.id, element.id))
+                .run();
             }
             const docElementIds = new Set(document.elements.map((element) => element.id));
             for (const row of existingElements) {

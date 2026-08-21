@@ -94,6 +94,26 @@ const CANVAS_SNAP_GRID = 10;
 const EMPTY_DOC: CanvasDocument = { elements: [], edges: [] };
 
 /** 级联删除集合：起点 + 全部后代（供命令式 removeCells）。 */
+/**
+ * X6 fromJSON 只恢复 child 的 parent 反指，不会重建父节点的 children 列表
+ * （会话内 addChild 双向维护，重进后只有单向 → 解组 / 级联删除 / 组树全失效）。
+ * 加载后按 parentId 统一补一次 addChild。
+ */
+function restoreChildLinks(graph: import("@antv/x6").Graph, doc: CanvasDocument) {
+  const cells = new Map(graph.getCells().map((cell) => [cell.id, cell]));
+  let n = 0;
+  for (const element of doc.elements) {
+    if (!element.parentId) continue;
+    const parent = cells.get(element.parentId);
+    const child = cells.get(element.id);
+    if (parent?.isNode() && child?.isNode()) {
+      parent.addChild(child);
+      n += 1;
+    }
+  }
+  void n;
+}
+
 function collectCascadeIds(document: CanvasDocument, startId: string): string[] {
   const removed = new Set([startId]);
   let previous = 0;
@@ -178,6 +198,7 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         const vp = readViewport(graph);
         graph.removeCells(graph.getCells());
         graph.fromJSON(toX6Cells(doc));
+        restoreChildLinks(graph, doc);
         applyViewport(graph, vp);
         suppressEmitRef.current = false;
         graph.getPlugin<History>("history")?.enable();
@@ -373,13 +394,10 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
       suppressEmitRef.current = true;
       graph.fromJSON(toX6Cells(doc));
       suppressEmitRef.current = false;
-      if (viewportReady && !viewportAppliedRef.current) {
-        viewportAppliedRef.current = true;
-        if (viewport) applyViewport(graph, viewport);
-        else graph.zoomToFit({ padding: 20, maxScale: 1 });
-      }
 
       return () => {
+        // dispose 会级联移除子单元（node:removed）→ 先压住 emit，避免把残文档存库
+        suppressEmitRef.current = true;
         graph.dispose();
         graphRef.current = null;
         dndRef.current?.dispose();
@@ -387,6 +405,24 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // 视口恢复：详情（viewport）就绪后应用一次。挂载时 detail 可能仍在加载
+    // （viewportReady=false），挂载 effect 不会重跑；这里在 props 就绪后补应用。
+    // async:true 下渲染是异步的，立即 fitView 算不到内容 bbox（得到空 bbox 的
+    // 无操作布局）；推迟一帧再 fit/恢复。初始布局（fit 或 restore）不算用户操作，
+    // 不 emit，避免把默认布局当成用户视口存库。
+    useEffect(() => {
+      const graph = graphRef.current;
+      if (!graph || !viewportReady || viewportAppliedRef.current) return;
+      viewportAppliedRef.current = true;
+      const applyLayout = () => {
+        suppressEmitRef.current = true;
+        if (viewport) applyViewport(graph, viewport);
+        else graph.zoomToFit({ padding: 20, maxScale: 1 });
+        suppressEmitRef.current = false;
+      };
+      requestAnimationFrame(applyLayout);
+    }, [viewport, viewportReady, applyViewport]);
 
     // 外部 document 变化（审批应用 / 只读预览更新）→ 重建图；首次挂载除外（已加载）。
     useEffect(() => {
@@ -462,7 +498,7 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         const parent = group.getParent();
         for (const child of group.getChildren() ?? []) {
           if (parent?.isNode()) parent.addChild(child);
-          else child.removeFromParent();
+          else group.unembed(child); // X6 removeFromParent 会从图中删除；解组只要拆绑定
         }
         graph.removeCells([group]);
       }
