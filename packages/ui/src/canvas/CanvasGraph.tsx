@@ -466,11 +466,15 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
           const cell = graph.addNode(nodeMetadataFor(element));
           if (cell) graph.centerCell(cell);
         },
-        updateEdge: (edge: CanvasEdgeDTO) =>
+        updateEdge: (edge: CanvasEdgeDTO) => {
           rebuild((doc) => ({
             ...doc,
             edges: doc.edges.map((e) => (e.id === edge.id ? edge : e)),
-          })),
+          }));
+          // 样式 / 标签更新后恢复该边选中（renderGraph 会清空选区），便于连续调整
+          const graph = graphRef.current;
+          if (graph) graph.getPlugin<Selection>("selection")?.reset([graph.getCellById(edge.id)]);
+        },
         deleteElement: (elementId: string) => {
           const graph = graphRef.current;
           if (!graph) return;
@@ -520,11 +524,15 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
       [rebuild],
     );
     const handleEdgeUpdate = useCallback(
-      (edge: CanvasEdgeDTO) =>
+      (edge: CanvasEdgeDTO) => {
         rebuild((doc) => ({
           ...doc,
           edges: doc.edges.map((e) => (e.id === edge.id ? edge : e)),
-        })),
+        }));
+        // 样式 / 标签更新后恢复该边选中（renderGraph 会清空选区），便于连续调整
+        const graph = graphRef.current;
+        if (graph) graph.getPlugin<Selection>("selection")?.reset([graph.getCellById(edge.id)]);
+      },
       [rebuild],
     );
 

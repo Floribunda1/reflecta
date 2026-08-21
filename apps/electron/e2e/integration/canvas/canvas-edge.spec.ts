@@ -126,3 +126,123 @@ test.describe("连线", () => {
     }
   });
 });
+
+test.describe("连线样式", () => {
+  const edgeStyle = (page: import("@playwright/test").Page) =>
+    page.evaluate(() => {
+      const g = (window as unknown as { __x6graph?: import("@antv/x6").Graph }).__x6graph;
+      if (!g) return null;
+      const edge = g.getEdges()[0];
+      if (!edge) return null;
+      const attrs = edge.getAttrs() as {
+        line?: {
+          stroke?: string;
+          strokeWidth?: number;
+          strokeDasharray?: string;
+          targetMarker?: unknown;
+        };
+      };
+      return {
+        strokeToken: attrs.line?.stroke ?? null,
+        strokeWidth: attrs.line?.strokeWidth ?? null,
+        dasharray: attrs.line?.strokeDasharray ?? null,
+        hasArrow: attrs.line?.targetMarker != null,
+        connector: edge.getConnector()?.name ?? null,
+      };
+    });
+
+  test("选中边后改颜色 / 形状 / 线型 / 线宽 / 箭头（样式即改即生效）", async () => {
+    test.setTimeout(60000);
+    const doc = {
+      id: "canvas",
+      title: "CANVAS",
+      elements: [
+        { id: "a", kind: "text", props: { text: "A" }, x: 100, y: 150, width: 120, height: 80 },
+        { id: "b", kind: "text", props: { text: "B" }, x: 420, y: 150, width: 120, height: 80 },
+      ],
+      edges: [{ id: "e1", sourceElementId: "a", targetElementId: "b", style: {} }],
+    };
+    seedCanvas(doc as never);
+    const { app, page } = await launchApp();
+    try {
+      await openSeededCanvas(page, "CANVAS");
+      await selectEdge(page);
+      await expect(page.getByTestId("canvas-edge-toolbar")).toBeVisible();
+
+      // 颜色 → chart-1
+      await page.getByTitle("颜色").first().click();
+      await page.locator("button[title='chart-1']").first().click();
+      await page.waitForTimeout(300);
+      // 形状：直线
+      await page.getByTitle("形状").first().click();
+      await page.getByText("直线", { exact: true }).first().click();
+      // 线型：虚线
+      await page.getByTitle("线型").first().click();
+      await page.getByText("虚线", { exact: true }).first().click();
+      // 线宽：粗
+      await page.getByTitle("线宽").first().click();
+      await page.getByText("粗", { exact: true }).first().click();
+      // 箭头：无
+      await page.getByTitle("箭头").first().click();
+      await page.getByText("无", { exact: true }).first().click();
+      await page.waitForTimeout(300);
+
+      const s1 = await edgeStyle(page);
+      expect(s1?.strokeToken).toBe("var(--chart-1)");
+      expect(s1?.connector).toBe("normal");
+      expect(s1?.dasharray).toBe("5 5");
+      expect(s1?.strokeWidth).toBe(4);
+      expect(s1?.hasArrow).toBe(false);
+      // 重进保留（与“标签重进保留”走同一条 updateEdge 持久化管线）
+      await leaveCanvasWorkspace(page);
+      await openSeededCanvas(page, "CANVAS");
+      const s2 = await edgeStyle(page);
+      expect(s2?.strokeToken).toBe("var(--chart-1)");
+      expect(s2?.connector).toBe("straight");
+      expect(s2?.dasharray).toBe("5 5");
+      expect(s2?.strokeWidth).toBe(4);
+      expect(s2?.hasArrow).toBe(false);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test("清空标签回到无标签", async () => {
+    const doc = {
+      id: "canvas",
+      title: "CANVAS",
+      elements: [
+        { id: "a", kind: "text", props: { text: "A" }, x: 100, y: 150, width: 120, height: 80 },
+        { id: "b", kind: "text", props: { text: "B" }, x: 420, y: 150, width: 120, height: 80 },
+      ],
+      edges: [
+        { id: "e1", sourceElementId: "a", targetElementId: "b", label: "LABEL_X", style: {} },
+      ],
+    };
+    seedCanvas(doc as never);
+    const { app, page } = await launchApp();
+    try {
+      await openSeededCanvas(page, "CANVAS");
+      await selectEdge(page);
+      const label = page.getByTestId("canvas-edge-label");
+      await expect(label).toContainText("LABEL_X");
+      await label.click();
+      // 内容可编辑区：End 移到尾部再逐字 Backspace 清空（与真实用户一致）
+      await page.keyboard.press("End");
+      for (let i = 0; i < 7; i++) await page.keyboard.press("Backspace");
+      await page.keyboard.press("Enter");
+      await page.waitForTimeout(300);
+      const after = await page.evaluate(() => {
+        const g = (
+          window as unknown as {
+            __x6graph?: { getEdges(): Array<{ getData(): { edge?: { label?: string | null } } }> };
+          }
+        ).__x6graph;
+        return g?.getEdges()[0]?.getData()?.edge?.label ?? null;
+      });
+      expect(after).toBeNull();
+    } finally {
+      await app.close();
+    }
+  });
+});

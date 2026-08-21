@@ -29,7 +29,8 @@ const toAbsolute = (
 function connectorFor(style: CanvasEdgeStyle | null): EdgeMetadata["connector"] {
   switch (style?.routing) {
     case "straight":
-      return { name: "straight" };
+      // X6 3.x 内建 connector 无 straight：normal + 无 router 中间点 = 直线段
+      return { name: "normal" };
     case "orthogonal":
       return { name: "rounded", args: { radius: 8 } };
     case "curve":
@@ -58,7 +59,8 @@ export function lineAttrs(style: CanvasEdgeStyle | null) {
       stroke: color,
       strokeWidth,
       strokeDasharray: strokeDasharray ?? undefined,
-      ...(targetMarker ? { targetMarker } : {}),
+      // 显式写 null：X6 边 shape 自带默认 targetMarker，省略会回落成默认箭头（“无”失效）
+      targetMarker,
     },
   };
 }

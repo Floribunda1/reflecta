@@ -2,11 +2,13 @@ import { expect, test } from "@playwright/test";
 import { launchApp } from "../../acceptance/spec/agent/agent-e2e";
 import { resetAgentFixtures, seedCanvas } from "../../acceptance/spec/agent/agent-fixtures";
 import {
+  boxSelect,
+  dragNodeBy,
   edgesInGraph,
+  nodeBoxes,
+  nodeGeometry,
   nodeInGraph,
   openSeededCanvas,
-  boxSelect,
-  nodeBoxes,
 } from "./canvas-integration";
 
 test.beforeEach(() => resetAgentFixtures());
@@ -123,6 +125,122 @@ test.describe("组语义", () => {
       await input.fill("NEW");
       await input.press("Enter");
       await expect(label).toContainText("NEW");
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+test.describe("组语义 · 嵌套 / 解组 / 颜色 / 边界", () => {
+  const groupViaToolbar = async (page: import("@playwright/test").Page, ids: string[]) => {
+    await boxSelect(page, await nodeBoxes(page, ids));
+    await page.getByTestId("canvas-selection-group-button").click();
+    await page.waitForTimeout(300);
+  };
+
+  test("组内再打组形成嵌套组", async () => {
+    seedCanvas(THREE);
+    const { app, page } = await launchApp();
+    try {
+      await openSeededCanvas(page, "CANVAS");
+      // 第一次：a+b 建组 G1
+      const boxesAB = await nodeBoxes(page, ["a", "b"]);
+      await boxSelect(page, boxesAB);
+      await page.getByTestId("canvas-selection-group-button").click();
+      await page.waitForTimeout(300);
+      // 第二次：G1(含 a/b) + c 建组 G2 —— 组作为成员参与（嵌套）
+      await boxSelect(page, await nodeBoxes(page, ["a", "b", "c"]));
+      await page.getByTestId("canvas-selection-group-button").click();
+      await page.waitForTimeout(300);
+      await expect(page.getByTestId("canvas-graph").getByTestId("canvas-group-node")).toHaveCount(
+        2,
+      );
+      // G1 是 G2 的子节点（成员互相位置关系保持）
+      const parentOf = (id: string) =>
+        page.evaluate((id) => {
+          const g = (window as unknown as { __x6graph?: import("@antv/x6").Graph }).__x6graph;
+          return g ? (g.getCellById(id)?.getParent()?.id ?? null) : null;
+        }, id);
+      const gA = await parentOf("a");
+      const gC = await parentOf("c");
+      expect(gA).not.toBeNull();
+      expect(gC).not.toBeNull();
+      // 嵌套：外层组是内层组的父
+      const aParent = await parentOf(gA!);
+      expect(aParent).toBe(gC === null ? aParent : gC);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test("组右键解组，成员回到上级位置", async () => {
+    seedCanvas(THREE);
+    const { app, page } = await launchApp();
+    try {
+      await openSeededCanvas(page, "CANVAS");
+      const beforeA = await nodeGeometry(page, "a");
+      await groupViaToolbar(page, ["a", "b"]);
+      const groupNode = page.getByTestId("canvas-graph").getByTestId("canvas-group-node").first();
+      await expect(groupNode).toBeVisible();
+      await groupNode.click({ button: "right" });
+      await page.getByTestId("canvas-group-ungroup").click();
+      await page.waitForTimeout(300);
+      await expect(groupNode).toHaveCount(0);
+      const afterA = await nodeGeometry(page, "a");
+      expect(afterA?.x).toBe(beforeA?.x);
+      expect(afterA?.y).toBe(beforeA?.y);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test("选中组后可设置颜色并保存", async () => {
+    seedCanvas(THREE);
+    const { app, page } = await launchApp();
+    try {
+      await openSeededCanvas(page, "CANVAS");
+      await groupViaToolbar(page, ["a", "b"]);
+      const groupNode = page.getByTestId("canvas-graph").getByTestId("canvas-group-node").first();
+      await groupNode.click();
+      await expect(page.getByTitle("选择颜色").first()).toBeVisible();
+      await page.getByTitle("选择颜色").first().click();
+      await page.locator("button[title='chart-1']").first().click();
+      await page.waitForTimeout(400);
+      await expect
+        .poll(async () =>
+          groupNode.evaluate((el) => getComputedStyle(el).borderTopColor === "rgb(71, 158, 194)"),
+        )
+        .toBe(true);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test("子成员移动受组边界约束（extent）", async () => {
+    seedCanvas(THREE);
+    const { app, page } = await launchApp();
+    try {
+      await openSeededCanvas(page, "CANVAS");
+      await groupViaToolbar(page, ["a", "b"]);
+      const groupBox = (await page
+        .getByTestId("canvas-graph")
+        .getByTestId("canvas-group-node")
+        .first()
+        .boundingBox())!;
+      // 向外猛拖成员 a 很远
+      await dragNodeBy(page, "a", 900, 500);
+      const a = await nodeGeometry(page, "a");
+      expect(a).not.toBeNull();
+      const b = await nodeGeometry(page, "b");
+      // a 仍落在组 box 内（贴边），没有被拖出界
+      const graphBox = (await page.getByTestId("canvas-graph").boundingBox())!;
+      const ax = graphBox.x + a!.x;
+      const ay = graphBox.y + a!.y;
+      expect(ax).toBeGreaterThanOrEqual(groupBox.x - 1);
+      expect(ay).toBeGreaterThanOrEqual(groupBox.y - 1);
+      expect(ax + a!.width).toBeLessThanOrEqual(groupBox.x + groupBox.width + 1);
+      expect(ay + a!.height).toBeLessThanOrEqual(groupBox.y + groupBox.height + 1);
+      void b;
     } finally {
       await app.close();
     }
