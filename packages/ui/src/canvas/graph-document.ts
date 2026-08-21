@@ -1,159 +1,151 @@
-import { MarkerType } from "@xyflow/react";
-import type { Edge, Node } from "@xyflow/react";
-import type { CSSProperties } from "react";
+import type { Edge as X6Edge, EdgeMetadata } from "@antv/x6";
+import type { Graph, Node as X6Node, NodeMetadata } from "@antv/x6";
+import type { CanvasDocument, CanvasEdgeDTO, CanvasEdgeStyle, CanvasElementDTO } from "./document";
+import { DEFAULT_CANVAS_EDGE_STYLE } from "./document";
 import { canvasPaintColor } from "./color-swatches";
-import {
-  DEFAULT_CANVAS_EDGE_STYLE,
-  type CanvasDocument,
-  type CanvasEdgeDTO,
-  type CanvasElementDTO,
-} from "./document";
+import { absolutePositionOf } from "./graph-operations";
+import { CANVAS_PORTS } from "./ports";
 
 /**
- * CanvasDocument ↔ React Flow 映射。
+ * CanvasDocument ↔ X6 序列化（纯函数、强 FP）。
  *
- * - id == React Flow node/edge id（零映射不变式）；
- * - 每个 node/edge 的 `data` 即对应元素的 DTO；几何（position / width / height）以
- *   React Flow 为交互权威，回读时回刷（组内子元素 position 为相对父坐标，React Flow
- *   与文档模型一致）；
- * - 建图 / 刷新用 `toFlowNodes / toFlowEdges`；变更回写用 `toCanvasDocument`。
+ * 不变量：`element.id == cell.id`、`edge.id == edge cell id`（零映射）。
+ * X6 model 以「绝对坐标」存储（子节点绝对于画布原点，随父移动由引擎计算）；
+ * 我们的文档契约用「组内子元素相对坐标」——所以这里做相对↔绝对换算：
+ *   - 写入 X6：把文档里的相对坐标转成绝对坐标；
+ *   - 读回文档：用 X6 `getPosition({relative:true})` 拿相对坐标。
  */
 
-/**
- * 组外壳画在 RF 的 `.react-flow__node-group` 上。有 paint 时把官方边框/底/选中
- * 阴影涂成该色；无 paint 时不写 inline style，走画布上覆盖的 token 变量。
- */
-export function toGroupNodeStyle(element: CanvasElementDTO): CSSProperties | undefined {
-  if (element.kind !== "group") return undefined;
-  const paint = canvasPaintColor(element.props.color);
-  if (!paint) return undefined;
-  return {
-    borderColor: paint,
-    backgroundColor: `color-mix(in srgb, ${paint} 10%, transparent)`,
-    ["--xy-node-boxshadow-selected" as string]: `0 0 0 2px ${paint}`,
-    ["--xy-node-boxshadow-hover" as string]: `0 0 0 2px ${paint}`,
-  };
+type CellMetadata = NodeMetadata | EdgeMetadata;
+
+/** 元素相对坐标 → 绝对坐标（沿 parentId 链累加）。用于 X6 写入。 */
+const toAbsolute = (
+  element: CanvasElementDTO,
+  index: ReadonlyMap<string, CanvasElementDTO>,
+): { x: number; y: number } => {
+  return absolutePositionOf(element, index);
+};
+
+function connectorFor(style: CanvasEdgeStyle | null): EdgeMetadata["connector"] {
+  switch (style?.routing) {
+    case "straight":
+      return { name: "straight" };
+    case "orthogonal":
+      return { name: "rounded", args: { radius: 8 } };
+    case "curve":
+    default:
+      return { name: "smooth" };
+  }
 }
 
-/** 元素 DTO → React Flow node。 */
-export function toFlowNode(element: CanvasElementDTO): Node {
-  return {
-    id: element.id,
-    type: element.kind,
-    position: { x: element.x, y: element.y },
-    width: element.width,
-    height: element.height,
-    zIndex: element.zIndex,
-    parentId: element.parentId ?? undefined,
-    extent: element.parentId ? "parent" : undefined,
-    expandParent: element.parentId ? true : undefined,
-    style: toGroupNodeStyle(element),
-    data: { element },
-  };
+function routerFor(style: CanvasEdgeStyle | null): EdgeMetadata["router"] {
+  return style?.routing === "orthogonal" ? { name: "orth" } : undefined;
 }
 
-/** 连线 DTO → React Flow edge。 */
-export function toFlowEdge(edge: CanvasEdgeDTO): Edge {
-  const style = edge.style ?? DEFAULT_CANVAS_EDGE_STYLE;
-  const color = canvasPaintColor(style.color) ?? "var(--muted-foreground)";
-  const arrowhead =
-    style.arrowhead === "block"
-      ? MarkerType.ArrowClosed
-      : style.arrowhead === "arrow"
-        ? MarkerType.Arrow
-        : undefined;
+function lineAttrs(style: CanvasEdgeStyle | null) {
+  const color = canvasPaintColor(style?.color) ?? "var(--muted-foreground)";
+  const strokeWidth = style?.width === "thick" ? 4 : style?.width === "medium" ? 3 : 2;
+  const strokeDasharray =
+    style?.lineStyle === "dashed" ? "5 5" : style?.lineStyle === "dotted" ? "2 2" : undefined;
+  const marker =
+    style?.arrowhead === "block" ? { name: "block" as const } : { name: "classic" as const };
+  const targetMarker =
+    style?.arrowhead === "none" || style?.arrowhead === undefined
+      ? null
+      : { name: marker.name, width: 10, height: 8 };
   return {
-    id: edge.id,
-    type: "canvas",
-    source: edge.sourceElementId,
-    target: edge.targetElementId,
-    data: { edge },
-    style: {
+    line: {
       stroke: color,
-      strokeWidth: style.width === "thick" ? 4 : style.width === "medium" ? 3 : 2,
-      strokeDasharray:
-        style.lineStyle === "dashed" ? "5 5" : style.lineStyle === "dotted" ? "2 2" : undefined,
-    } satisfies CSSProperties,
-    // 箭头必须用对象形式（含 color），RF 才会为它创建 marker def；
-    // 裸的 MarkerType 字符串只当引用不存在的 id，箭头不渲染。
-    markerEnd: arrowhead ? { type: arrowhead, color } : undefined,
+      strokeWidth,
+      strokeDasharray: strokeDasharray ?? undefined,
+      ...(targetMarker ? { targetMarker } : {}),
+    },
   };
 }
 
-/** 新建连线的初始 DTO（onConnect 时 source/target 由交互补齐）。 */
-export function newEdgeDto(canvasId: string): CanvasEdgeDTO {
-  const now = new Date().toISOString();
+/** 元素 / 连线 DTO → X6 节点 / 边 metadata（供 `graph.fromJSON` 一次性建图）。 */
+export function toX6Cells(document: CanvasDocument): CellMetadata[] {
+  const index = new Map(document.elements.map((element) => [element.id, element]));
+  const nodes: CellMetadata[] = document.elements.map((element) => {
+    const absolute = toAbsolute(element, index);
+    return {
+      id: element.id,
+      shape: element.kind,
+      x: absolute.x,
+      y: absolute.y,
+      width: element.width,
+      height: element.height,
+      zIndex: element.zIndex,
+      parent: element.parentId ?? undefined,
+      data: { element },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ports: CANVAS_PORTS as unknown as NonNullable<NodeMetadata["ports"]>,
+    } satisfies NodeMetadata;
+  });
+  const edges: CellMetadata[] = document.edges.map((edge) => {
+    const style = edge.style ?? DEFAULT_CANVAS_EDGE_STYLE;
+    return {
+      id: edge.id,
+      shape: "edge",
+      data: { edge },
+      source: { cell: edge.sourceElementId, port: "out" },
+      target: { cell: edge.targetElementId, port: "in" },
+      connector: connectorFor(style),
+      ...(routerFor(style) ? { router: routerFor(style) } : {}),
+      attrs: lineAttrs(style),
+      ...(edge.label
+        ? {
+            labels: [
+              {
+                attrs: {
+                  label: { text: edge.label, fill: "var(--foreground)", fontSize: 12 },
+                },
+              },
+            ],
+          }
+        : {}),
+    } satisfies EdgeMetadata;
+  });
+  return [...nodes, ...edges];
+}
+
+/** 从现行 X6 图读回完整文档（id 零映射不变式）。 */
+export function graphToDocument(graph: Graph): CanvasDocument {
   return {
-    id: crypto.randomUUID(),
-    canvasId,
-    sourceElementId: "",
-    targetElementId: "",
-    label: null,
-    style: { ...DEFAULT_CANVAS_EDGE_STYLE },
-    createdAt: now,
+    elements: graph.getNodes().map((node) => nodeToElement(node)),
+    edges: graph.getEdges().map((edge) => edgeToEdge(edge)),
   };
 }
 
-/** 文档 → React Flow nodes/edges（初始加载 / 外部刷新）。 */
-export function toFlowData(document: CanvasDocument) {
-  const elements = document.elements;
-  const byId = new Map(elements.map((element) => [element.id, element]));
-  const ordered: CanvasElementDTO[] = [];
-  const visiting = new Set<string>();
-  const visited = new Set<string>();
-
-  const visit = (element: CanvasElementDTO) => {
-    if (visited.has(element.id)) return;
-    if (visiting.has(element.id)) return;
-    visiting.add(element.id);
-    if (element.parentId) {
-      const parent = byId.get(element.parentId);
-      if (parent) visit(parent);
-    }
-    visiting.delete(element.id);
-    visited.add(element.id);
-    ordered.push(element);
-  };
-
-  elements.forEach(visit);
-  return {
-    nodes: ordered.map(toFlowNode),
-    edges: document.edges.map(toFlowEdge),
-  };
-}
-
-/** React Flow node → 元素 DTO（几何以 RF 为权威回刷；id 取 node id）。 */
-function nodeToElement(node: Node): CanvasElementDTO {
-  const data = (node.data as { element?: CanvasElementDTO }).element;
+/** X6 节点 → 元素 DTO（id/几何回读；组内子元素坐标为相对坐标）。 */
+export function nodeToElement(node: X6Node): CanvasElementDTO {
+  const data = (node.getData() as { element?: CanvasElementDTO } | null)?.element;
   const base = data ?? ({} as CanvasElementDTO);
+  const position = node.getPosition({ relative: true });
+  const size = node.size();
+  const parent = node.getParent();
   return {
     ...base,
     id: node.id,
-    x: node.position.x,
-    y: node.position.y,
-    width: node.measured?.width ?? node.width ?? base.width,
-    height: node.measured?.height ?? node.height ?? base.height,
-    zIndex: node.zIndex ?? base.zIndex,
-    parentId: node.parentId ?? null,
+    x: position.x,
+    y: position.y,
+    width: size.width ?? base.width,
+    height: size.height ?? base.height,
+    zIndex: node.getZIndex() ?? base.zIndex,
+    parentId: parent && parent.isNode() ? parent.id : null,
   };
 }
 
-/** React Flow edge → 连线 DTO（source/target 以 RF 连接回刷）。 */
-function edgeToEdge(edge: Edge): CanvasEdgeDTO {
-  const data = (edge.data as { edge?: CanvasEdgeDTO }).edge;
+/** X6 边 → 连线 DTO（source/target 补齐端口对应元素）。 */
+export function edgeToEdge(edge: X6Edge): CanvasEdgeDTO {
+  const data = (edge.getData() as { edge?: CanvasEdgeDTO } | null)?.edge;
   const base = data ?? ({} as CanvasEdgeDTO);
+  const source = edge.getSourceCell();
+  const target = edge.getTargetCell();
   return {
     ...base,
     id: edge.id,
-    sourceElementId: edge.source,
-    targetElementId: edge.target,
-  };
-}
-
-/** 用 React Flow 当前 nodes/edges 重建全量文档（事件回写）。 */
-export function toCanvasDocument(nodes: Node[], edges: Edge[]): CanvasDocument {
-  return {
-    elements: nodes.map(nodeToElement),
-    edges: edges.map(edgeToEdge),
+    sourceElementId: source && source.isNode() ? source.id : "",
+    targetElementId: target && target.isNode() ? target.id : "",
   };
 }

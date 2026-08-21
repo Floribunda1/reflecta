@@ -1,257 +1,136 @@
 import { describe, expect, test } from "vitest";
-import { MarkerType } from "@xyflow/react";
 import type { CanvasDocument, CanvasElementDTO } from "./document";
-import { toCanvasDocument, toFlowData, toFlowEdge, toFlowNode } from "./graph-document";
+import { toX6Cells } from "./graph-document";
 
 const timestamp = "2026-08-19T00:00:00.000Z";
 
 function element(
   id: string,
-  kind: CanvasElementDTO["kind"] = "text",
-  parentId: string | null = null,
+  kind: "text" | "group",
+  position: { x: number; y: number },
+  size: { width: number; height: number },
+  parentId?: string,
 ): CanvasElementDTO {
-  const base = {
+  return {
     id,
     canvasId: "canvas",
-    parentId,
-    x: 20,
-    y: 40,
-    width: 180,
-    height: 96,
-    zIndex: 3,
+    parentId: parentId ?? null,
+    x: position.x,
+    y: position.y,
+    width: size.width,
+    height: size.height,
+    zIndex: 0,
     createdAt: timestamp,
     updatedAt: timestamp,
-  };
-
-  if (kind === "understanding")
-    return {
-      ...base,
-      kind,
-      understandingId: "understanding",
-      canvasRefId: null,
-      props: {},
-    };
-  if (kind === "group")
-    return {
-      ...base,
-      kind,
-      understandingId: null,
-      canvasRefId: null,
-      props: { label: "Group" },
-    };
-  if (kind === "canvas_ref")
-    return {
-      ...base,
-      kind,
-      understandingId: null,
-      canvasRefId: "referenced-canvas",
-      props: {},
-    };
-  return {
-    ...base,
     kind,
     understandingId: null,
     canvasRefId: null,
-    props: { text: "Markdown" },
-  };
+    props: kind === "group" ? { label: id } : { text: id },
+  } as CanvasElementDTO;
 }
 
-describe("CanvasDocument React Flow adapter", () => {
-  test("round-trips every element kind and edge without losing document fields", () => {
+describe("graph-document toX6Cells", () => {
+  test("maps a root element to a node with absolute position, shape and data", () => {
+    const document: CanvasDocument = {
+      elements: [element("a", "text", { x: 100, y: 120 }, { width: 220, height: 120 })],
+      edges: [],
+    };
+    const cells = toX6Cells(document);
+    expect(cells[0]).toMatchObject({
+      id: "a",
+      shape: "text",
+      x: 100,
+      y: 120,
+      width: 220,
+      height: 120,
+      zIndex: 0,
+    });
+    expect(cells[0]).toHaveProperty("data");
+    expect(cells[0]).toHaveProperty("ports");
+  });
+
+  test("converts child relative coordinates to absolute and drops them from parent chain of the parent ref", () => {
     const document: CanvasDocument = {
       elements: [
-        element("understanding", "understanding"),
-        element("text"),
-        element("group", "group"),
-        element("canvas-ref", "canvas_ref"),
+        element("outer", "group", { x: 50, y: 50 }, { width: 500, height: 400 }),
+        element("child", "text", { x: 30, y: 40 }, { width: 100, height: 80 }, "outer"),
+      ],
+      edges: [],
+    };
+    const cells = toX6Cells(document);
+    const outer = cells.find((c) => c.id === "outer");
+    const child = cells.find((c) => c.id === "child");
+    expect(outer).toMatchObject({ x: 50, y: 50, parent: undefined });
+    expect(child).toMatchObject({ x: 80, y: 90, parent: "outer" });
+  });
+
+  test("maps an edge with routing / style / marker / label metadata", () => {
+    const document: CanvasDocument = {
+      elements: [
+        element("a", "text", { x: 0, y: 0 }, { width: 100, height: 80 }),
+        element("b", "text", { x: 300, y: 0 }, { width: 100, height: 80 }),
       ],
       edges: [
         {
-          id: "edge",
+          id: "e1",
           canvasId: "canvas",
-          sourceElementId: "understanding",
-          targetElementId: "text",
-          label: "supports",
+          sourceElementId: "a",
+          targetElementId: "b",
+          label: "causal",
           style: {
-            routing: "orthogonal",
+            routing: "curve",
             lineStyle: "dashed",
-            color: "#2563eb",
-            width: "thick",
+            width: "medium",
+            color: "chart-1",
             arrowhead: "block",
           },
           createdAt: timestamp,
         },
       ],
     };
-
-    const flow = toFlowData(document);
-    const restored = toCanvasDocument(flow.nodes, flow.edges);
-
-    expect(restored).toEqual(document);
-  });
-
-  test("orders every parent before its descendants", () => {
-    const document: CanvasDocument = {
-      elements: [
-        { ...element("leaf"), parentId: "inner" },
-        { ...element("inner", "group"), parentId: "outer" },
-        element("outer", "group"),
-      ],
-      edges: [],
-    };
-
-    expect(toFlowData(document).nodes.map((node) => node.id)).toEqual(["outer", "inner", "leaf"]);
-  });
-
-  test("round-trips nested relative coordinates", () => {
-    const document: CanvasDocument = {
-      elements: [
-        { ...element("outer", "group"), x: 80, y: 60 },
-        { ...element("inner", "group", "outer"), x: 30, y: 40 },
-        { ...element("leaf", "text", "inner"), x: 12, y: 24 },
-      ],
-      edges: [],
-    };
-
-    const flow = toFlowData(document);
-    expect(toCanvasDocument(flow.nodes, flow.edges)).toEqual(document);
-  });
-
-  test("writes measured geometry without leaking React Flow interaction state", () => {
-    const node = toFlowData({ elements: [element("text")], edges: [] }).nodes[0];
-    const restored = toCanvasDocument(
-      [
-        {
-          ...node,
-          selected: true,
-          dragging: true,
-          measured: { width: 320, height: 160 },
-        },
-      ],
-      [],
-    ).elements[0];
-
-    expect(restored).toEqual({ ...element("text"), width: 320, height: 160 });
-    expect(restored).not.toHaveProperty("selected");
-    expect(restored).not.toHaveProperty("dragging");
-    expect(restored).not.toHaveProperty("measured");
-  });
-
-  test("maps the persisted stacking order into React Flow", () => {
-    expect(toFlowData({ elements: [element("text")], edges: [] }).nodes[0].zIndex).toBe(3);
-  });
-
-  test("paints group chrome onto the React Flow wrapper, not a second inner frame", () => {
-    const plain = element("group", "group");
-    expect(toFlowNode(plain).style).toBeUndefined();
-    const painted = {
-      ...element("group", "group"),
-      kind: "group" as const,
-      understandingId: null,
-      canvasRefId: null,
-      props: { label: "Group", color: "chart-1" },
-    } satisfies CanvasElementDTO;
-    expect(toFlowNode(painted).style).toMatchObject({
-      borderColor: "var(--chart-1)",
-      backgroundColor: "color-mix(in srgb, var(--chart-1) 10%, transparent)",
+    const cells = toX6Cells(document);
+    const edge = cells.find((c) => c.id === "e1");
+    expect(edge).toMatchObject({
+      shape: "edge",
+      source: { cell: "a", port: "out" },
+      target: { cell: "b", port: "in" },
+      connector: { name: "smooth" },
     });
-    expect(toCanvasDocument([toFlowNode(painted)], []).elements[0]).toEqual(painted);
+    expect(
+      (edge as { attrs: Record<string, { stroke?: string; strokeDasharray?: string }> }).attrs.line
+        ?.stroke,
+    ).toContain("chart-1");
+    expect(
+      (edge as { attrs: Record<string, { strokeDasharray?: string }> }).attrs.line?.strokeDasharray,
+    ).toBe("5 5");
+    expect(edge).toHaveProperty("labels");
   });
 
-  test("preserves parallel edges and self loops", () => {
-    const edge = {
-      id: "edge-1",
-      canvasId: "canvas",
-      sourceElementId: "text",
-      targetElementId: "text",
-      label: null,
-      style: null,
-      createdAt: timestamp,
+  test("straight / orthogonal routing map to their connectors", () => {
+    const mk = (routing: "straight" | "orthogonal") => {
+      const document: CanvasDocument = {
+        elements: [
+          element("a", "text", { x: 0, y: 0 }, { width: 100, height: 80 }),
+          element("b", "text", { x: 300, y: 0 }, { width: 100, height: 80 }),
+        ],
+        edges: [
+          {
+            id: "e",
+            canvasId: "canvas",
+            sourceElementId: "a",
+            targetElementId: "b",
+            label: null,
+            style: { routing },
+            createdAt: timestamp,
+          },
+        ],
+      };
+      return toX6Cells(document).find((c) => c.id === "e");
     };
-    const document: CanvasDocument = {
-      elements: [element("text")],
-      edges: [edge, { ...edge, id: "edge-2", label: "another relation" }],
-    };
-
-    const flow = toFlowData(document);
-    expect(toCanvasDocument(flow.nodes, flow.edges)).toEqual(document);
-  });
-
-  test.each([
-    ["solid", undefined],
-    ["dashed", "5 5"],
-    ["dotted", "2 2"],
-  ] as const)("maps %s edge strokes", (lineStyle, strokeDasharray) => {
-    const flow = toFlowEdge({
-      id: "edge",
-      canvasId: "canvas",
-      sourceElementId: "source",
-      targetElementId: "target",
-      label: null,
-      style: { lineStyle },
-      createdAt: timestamp,
+    expect(mk("straight")).toMatchObject({ connector: { name: "straight" } });
+    expect(mk("orthogonal")).toMatchObject({
+      connector: { name: "rounded" },
+      router: { name: "orth" },
     });
-    expect(flow.style).toMatchObject({ strokeDasharray });
-  });
-
-  test.each([
-    ["thin", 2],
-    ["medium", 3],
-    ["thick", 4],
-  ] as const)("maps %s edge widths", (width, strokeWidth) => {
-    expect(
-      toFlowEdge({
-        id: "edge",
-        canvasId: "canvas",
-        sourceElementId: "source",
-        targetElementId: "target",
-        label: null,
-        style: { width },
-        createdAt: timestamp,
-      }).style,
-    ).toMatchObject({ strokeWidth });
-  });
-
-  test.each([
-    ["arrow", MarkerType.Arrow],
-    ["block", MarkerType.ArrowClosed],
-    ["none", undefined],
-  ] as const)("maps %s arrowheads", (arrowhead, markerType) => {
-    expect(
-      toFlowEdge({
-        id: "edge",
-        canvasId: "canvas",
-        sourceElementId: "source",
-        targetElementId: "target",
-        label: null,
-        style: { arrowhead },
-        createdAt: timestamp,
-      }).markerEnd,
-    ).toEqual(markerType ? { type: markerType, color: "var(--muted-foreground)" } : undefined);
-  });
-
-  test("maps custom edge color independently", () => {
-    expect(
-      toFlowEdge({
-        id: "edge",
-        canvasId: "canvas",
-        sourceElementId: "source",
-        targetElementId: "target",
-        label: null,
-        style: { color: "#123456" },
-        createdAt: timestamp,
-      }).style,
-    ).toMatchObject({ stroke: "#123456" });
-    expect(
-      toFlowEdge({
-        id: "edge",
-        canvasId: "canvas",
-        sourceElementId: "source",
-        targetElementId: "target",
-        label: null,
-        style: { color: "chart-1" },
-        createdAt: timestamp,
-      }).style,
-    ).toMatchObject({ stroke: "var(--chart-1)" });
   });
 });

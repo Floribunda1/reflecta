@@ -1,17 +1,17 @@
-import type { Edge, Node } from "@xyflow/react";
 import { describe, expect, test } from "vitest";
-import type { CanvasElementDTO } from "./document";
-import { deleteGroupBranch, groupSelectedNodes, ungroupNodes } from "./graph-operations";
+import type { CanvasDocument, CanvasElementDTO } from "./document";
+import { deleteGroupBranch, groupElements, ungroupGroups } from "./graph-operations";
 
 const timestamp = "2026-08-19T00:00:00.000Z";
 
-function textNode(
+function element(
   id: string,
+  kind: "text" | "group",
   position: { x: number; y: number },
   size: { width: number; height: number },
   parentId?: string,
-): Node {
-  const element: CanvasElementDTO = {
+): CanvasElementDTO {
+  return {
     id,
     canvasId: "canvas",
     parentId: parentId ?? null,
@@ -22,193 +22,166 @@ function textNode(
     zIndex: 0,
     createdAt: timestamp,
     updatedAt: timestamp,
-    kind: "text",
+    kind,
     understandingId: null,
     canvasRefId: null,
-    props: { text: id },
-  };
-  return {
-    id,
-    type: "text",
-    position,
-    width: size.width,
-    height: size.height,
-    parentId,
-    data: { element },
-  };
+    props: kind === "group" ? { label: id } : { text: id },
+  } as CanvasElementDTO;
 }
 
-function groupNode(
-  id: string,
-  position: { x: number; y: number },
-  size: { width: number; height: number },
-  parentId?: string,
-): Node {
-  const node = textNode(id, position, size, parentId);
-  return {
-    ...node,
-    type: "group",
-    data: {
-      element: {
-        ...(node.data as { element: CanvasElementDTO }).element,
-        kind: "group",
-        props: { label: id },
-      } as CanvasElementDTO,
-    },
-  };
-}
+const doc = (elements: CanvasElementDTO[]): CanvasDocument => ({ elements, edges: [] });
 
-describe("Canvas group operations", () => {
+describe("Canvas group operations (pure document transforms)", () => {
   test("groups a selection without changing member absolute positions", () => {
-    const nodes = [
-      textNode("a", { x: 100, y: 100 }, { width: 100, height: 80 }),
-      textNode("b", { x: 300, y: 200 }, { width: 120, height: 90 }),
-    ];
-
-    const result = groupSelectedNodes(nodes, ["a", "b"], {
+    const result = groupElements(
+      doc([
+        element("a", "text", { x: 100, y: 100 }, { width: 100, height: 80 }),
+        element("b", "text", { x: 300, y: 200 }, { width: 120, height: 90 }),
+      ]),
+      ["a", "b"],
+      { id: "group", canvasId: "canvas", createdAt: timestamp },
+    );
+    expect(result.elements[0]).toMatchObject({
       id: "group",
-      canvasId: "canvas",
-      createdAt: timestamp,
-    });
-
-    expect(result[0]).toMatchObject({
-      id: "group",
-      type: "group",
-      position: { x: 76, y: 56 },
+      kind: "group",
+      x: 76,
+      y: 56,
       width: 368,
       height: 258,
     });
-    expect(result.find((node) => node.id === "a")).toMatchObject({
+    expect(result.elements.find((e) => e.id === "a")).toMatchObject({
       parentId: "group",
-      position: { x: 24, y: 44 },
+      x: 24,
+      y: 44,
     });
-    expect(result.find((node) => node.id === "b")).toMatchObject({
+    expect(result.elements.find((e) => e.id === "b")).toMatchObject({
       parentId: "group",
-      position: { x: 224, y: 144 },
+      x: 224,
+      y: 144,
     });
   });
 
   test("creates a nested group inside the members' shared parent", () => {
-    const nodes = [
-      groupNode("outer", { x: 50, y: 50 }, { width: 500, height: 400 }),
-      textNode("a", { x: 50, y: 60 }, { width: 100, height: 80 }, "outer"),
-      textNode("b", { x: 200, y: 180 }, { width: 120, height: 90 }, "outer"),
-    ];
-
-    const result = groupSelectedNodes(nodes, ["a", "b"], {
-      id: "inner",
-      canvasId: "canvas",
-      createdAt: timestamp,
-    });
-
-    expect(result.map((node) => node.id)).toEqual(["outer", "inner", "a", "b"]);
-    expect(result.find((node) => node.id === "inner")).toMatchObject({
+    const result = groupElements(
+      doc([
+        element("outer", "group", { x: 50, y: 50 }, { width: 500, height: 400 }),
+        element("a", "text", { x: 50, y: 60 }, { width: 100, height: 80 }, "outer"),
+        element("b", "text", { x: 200, y: 180 }, { width: 120, height: 90 }, "outer"),
+      ]),
+      ["a", "b"],
+      { id: "inner", canvasId: "canvas", createdAt: timestamp },
+    );
+    expect(result.elements.map((e) => e.id)).toEqual(["outer", "inner", "a", "b"]);
+    expect(result.elements.find((e) => e.id === "inner")).toMatchObject({
       parentId: "outer",
-      position: { x: 26, y: 16 },
+      x: 26,
+      y: 16,
     });
-    expect(result.find((node) => node.id === "a")).toMatchObject({
+    expect(result.elements.find((e) => e.id === "a")).toMatchObject({
       parentId: "inner",
-      position: { x: 24, y: 44 },
+      x: 24,
+      y: 44,
     });
-    expect(result.find((node) => node.id === "b")).toMatchObject({
+    expect(result.elements.find((e) => e.id === "b")).toMatchObject({
       parentId: "inner",
-      position: { x: 174, y: 164 },
+      x: 174,
+      y: 164,
     });
   });
 
   test("ungroups nested members into the nearest surviving parent", () => {
-    const nodes = [
-      groupNode("outer", { x: 50, y: 50 }, { width: 500, height: 400 }),
-      groupNode("inner", { x: 26, y: 16 }, { width: 318, height: 278 }, "outer"),
-      textNode("a", { x: 24, y: 44 }, { width: 100, height: 80 }, "inner"),
-      textNode("b", { x: 174, y: 164 }, { width: 120, height: 90 }, "inner"),
-    ];
-
-    const result = ungroupNodes(nodes, ["inner"]);
-
-    expect(result.map((node) => node.id)).toEqual(["outer", "a", "b"]);
-    expect(result.find((node) => node.id === "a")).toMatchObject({
+    const result = ungroupGroups(
+      doc([
+        element("outer", "group", { x: 50, y: 50 }, { width: 500, height: 400 }),
+        element("inner", "group", { x: 26, y: 16 }, { width: 318, height: 278 }, "outer"),
+        element("a", "text", { x: 24, y: 44 }, { width: 100, height: 80 }, "inner"),
+        element("b", "text", { x: 174, y: 164 }, { width: 120, height: 90 }, "inner"),
+      ]),
+      ["inner"],
+    );
+    expect(result.elements.map((e) => e.id)).toEqual(["outer", "a", "b"]);
+    expect(result.elements.find((e) => e.id === "a")).toMatchObject({
       parentId: "outer",
-      position: { x: 50, y: 60 },
+      x: 50,
+      y: 60,
     });
-    expect(result.find((node) => node.id === "b")).toMatchObject({
+    expect(result.elements.find((e) => e.id === "b")).toMatchObject({
       parentId: "outer",
-      position: { x: 200, y: 180 },
+      x: 200,
+      y: 180,
     });
   });
 
   test("deletes a group branch and only its incident edges", () => {
-    const nodes = [
-      groupNode("outer", { x: 50, y: 50 }, { width: 500, height: 400 }),
-      groupNode("inner", { x: 26, y: 16 }, { width: 318, height: 278 }, "outer"),
-      textNode("inside", { x: 24, y: 44 }, { width: 100, height: 80 }, "inner"),
-      textNode("outside", { x: 700, y: 100 }, { width: 100, height: 80 }),
-    ];
-    const edges: Edge[] = [
-      { id: "incident", source: "inside", target: "outside" },
-      { id: "unrelated", source: "outside", target: "outside" },
-    ];
-
-    const result = deleteGroupBranch(nodes, edges, "outer");
-
-    expect(result.nodes.map((node) => node.id)).toEqual(["outside"]);
-    expect(result.edges.map((edge) => edge.id)).toEqual(["unrelated"]);
+    const source: CanvasDocument = {
+      elements: [
+        element("outer", "group", { x: 50, y: 50 }, { width: 500, height: 400 }),
+        element("inner", "group", { x: 26, y: 16 }, { width: 318, height: 278 }, "outer"),
+        element("inside", "text", { x: 24, y: 44 }, { width: 100, height: 80 }, "inner"),
+        element("outside", "text", { x: 700, y: 100 }, { width: 100, height: 80 }),
+      ],
+      edges: [
+        {
+          id: "incident",
+          canvasId: "canvas",
+          sourceElementId: "inside",
+          targetElementId: "outside",
+          label: null,
+          style: null,
+          createdAt: timestamp,
+        },
+        {
+          id: "unrelated",
+          canvasId: "canvas",
+          sourceElementId: "outside",
+          targetElementId: "outside",
+          label: null,
+          style: null,
+          createdAt: timestamp,
+        },
+      ],
+    };
+    const result = deleteGroupBranch(source, "outer");
+    expect(result.elements.map((e) => e.id)).toEqual(["outside"]);
+    expect(result.edges.map((e) => e.id)).toEqual(["unrelated"]);
   });
 
-  test("does not create a group without two distinct existing selections", () => {
-    const nodes = [textNode("a", { x: 0, y: 0 }, { width: 100, height: 80 })];
-
+  test("does not create a group with fewer than two distinct selections", () => {
+    const input = doc([element("a", "text", { x: 0, y: 0 }, { width: 100, height: 80 })]);
     expect(
-      groupSelectedNodes(nodes, ["a", "a", "missing"], {
+      groupElements(input, ["a", "a", "missing"], {
         id: "group",
         canvasId: "canvas",
         createdAt: timestamp,
       }),
-    ).toBe(nodes);
+    ).toBe(input);
   });
 
-  test("does not reparent a descendant when its selected ancestor is grouped", () => {
-    const nodes = [
-      {
-        ...groupNode("existing-group", { x: 50, y: 50 }, { width: 300, height: 240 }),
-        selected: true,
-      },
-      {
-        ...textNode("child", { x: 30, y: 50 }, { width: 100, height: 80 }, "existing-group"),
-        selected: true,
-      },
-      {
-        ...textNode("outside", { x: 500, y: 100 }, { width: 100, height: 80 }),
-        selected: true,
-      },
-    ];
-
-    const result = groupSelectedNodes(nodes, ["existing-group", "child", "outside"], {
-      id: "new-group",
-      canvasId: "canvas",
-      createdAt: timestamp,
-    });
-
-    expect(result.find((node) => node.id === "existing-group")?.parentId).toBe("new-group");
-    expect(result.find((node) => node.id === "outside")?.parentId).toBe("new-group");
-    expect(result.find((node) => node.id === "child")?.parentId).toBe("existing-group");
-    expect(result.find((node) => node.id === "child")?.selected).toBe(false);
+  test("does not reparent a descendant whose selected ancestor is grouped", () => {
+    const result = groupElements(
+      doc([
+        element("existing-group", "group", { x: 50, y: 50 }, { width: 300, height: 240 }),
+        element("child", "text", { x: 30, y: 50 }, { width: 100, height: 80 }, "existing-group"),
+        element("outside", "text", { x: 500, y: 100 }, { width: 100, height: 80 }),
+      ]),
+      ["existing-group", "child", "outside"],
+      { id: "new-group", canvasId: "canvas", createdAt: timestamp },
+    );
+    expect(result.elements.find((e) => e.id === "existing-group")?.parentId).toBe("new-group");
+    expect(result.elements.find((e) => e.id === "outside")?.parentId).toBe("new-group");
+    expect(result.elements.find((e) => e.id === "child")?.parentId).toBe("existing-group");
   });
 
   test("ungroups multiple nested groups in one operation", () => {
-    const nodes = [
-      groupNode("outer", { x: 50, y: 50 }, { width: 500, height: 400 }),
-      groupNode("inner", { x: 26, y: 16 }, { width: 318, height: 278 }, "outer"),
-      textNode("child", { x: 24, y: 44 }, { width: 100, height: 80 }, "inner"),
-    ];
-
-    const result = ungroupNodes(nodes, ["outer", "inner"]);
-
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({
-      id: "child",
-      parentId: undefined,
-      position: { x: 100, y: 110 },
-    });
+    const result = ungroupGroups(
+      doc([
+        element("outer", "group", { x: 50, y: 50 }, { width: 500, height: 400 }),
+        element("inner", "group", { x: 26, y: 16 }, { width: 318, height: 278 }, "outer"),
+        element("child", "text", { x: 24, y: 44 }, { width: 100, height: 80 }, "inner"),
+      ]),
+      ["outer", "inner"],
+    );
+    expect(result.elements).toHaveLength(1);
+    expect(result.elements[0]).toMatchObject({ id: "child", parentId: null, x: 100, y: 110 });
   });
 });

@@ -8,7 +8,6 @@ import {
   useRef,
   useState,
   type Dispatch,
-  type RefObject,
   type SetStateAction,
 } from "react";
 import { Library, PanelsTopLeft, Type } from "lucide-react";
@@ -20,7 +19,6 @@ import {
   type CanvasReferencedCanvasView,
   type CanvasShapeData,
 } from "@reflecta/ui/canvas";
-import type { CanvasDocument, CanvasViewport } from "@reflecta/ui/canvas";
 import {
   Empty,
   EmptyContent,
@@ -54,8 +52,8 @@ import { CanvasLibraryPanel } from "./CanvasLibraryPanel";
 import { CanvasRefPickerModal } from "./CanvasRefPickerModal";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { CanvasSearchOverlay, type CanvasSearchIndexItem } from "./CanvasSearchOverlay";
-import { newCanvasRefElement, newTextElement } from "./element-factory";
-import { setDndElement } from "@reflecta/ui/canvas";
+import { newCanvasRefElement, newTextElement, newUnderstandingElement } from "./element-factory";
+import type { CanvasDocument, CanvasViewport } from "@reflecta/ui/canvas";
 import {
   buildCanvasSearchIndex,
   panelForSelection,
@@ -65,9 +63,8 @@ import { createDebouncedLatestSaver, type SaveStatus } from "./debounced-latest-
 
 const SAVE_DEBOUNCE_MS = 800;
 const VIEWPORT_SETTLE_MS = 600;
-const DND_MIME = "application/reflecta-canvas-element";
 
-function CanvasTextTool() {
+function CanvasTextTool({ onAdd }: { onAdd: () => void }) {
   return (
     <Tooltip>
       <TooltipTrigger
@@ -78,14 +75,7 @@ function CanvasTextTool() {
             variant="ghost"
             aria-label="文本"
             data-testid="canvas-tool-dnd-text"
-            draggable
-            onDragStart={(event) => {
-              const element = newTextElement();
-              event.dataTransfer.setData(DND_MIME, JSON.stringify(element));
-              event.dataTransfer.effectAllowed = "move";
-              setDndElement(element);
-            }}
-            onDragEnd={() => setDndElement(null)}
+            onClick={onAdd}
           />
         }
       >
@@ -167,6 +157,7 @@ function CanvasWorkspaceSidePanel({
   detailPanelKey,
   onClose,
   onOpenCanvasRefPicker,
+  onPickUnderstanding,
   onSwitchDetail,
 }: {
   canvasId: string;
@@ -174,6 +165,7 @@ function CanvasWorkspaceSidePanel({
   detailPanelKey: string;
   onClose: () => void;
   onOpenCanvasRefPicker: () => void;
+  onPickUnderstanding: (id: string) => void;
   onSwitchDetail: (understandingId: string) => void;
 }) {
   if (!rightPanel) return null;
@@ -192,7 +184,11 @@ function CanvasWorkspaceSidePanel({
         className="min-h-0 min-w-0"
       >
         {rightPanel.mode === "library" ? (
-          <CanvasLibraryPanel onClose={onClose} onOpenCanvasRefPicker={onOpenCanvasRefPicker} />
+          <CanvasLibraryPanel
+            onClose={onClose}
+            onOpenCanvasRefPicker={onOpenCanvasRefPicker}
+            onPickUnderstanding={onPickUnderstanding}
+          />
         ) : rightPanel.mode === "detail" ? (
           <CanvasDetailPanel
             key={detailPanelKey}
@@ -207,10 +203,7 @@ function CanvasWorkspaceSidePanel({
   );
 }
 
-function useCanvasWorkspaceHotkeys(
-  graphRef: RefObject<CanvasGraphHandle | null>,
-  setSearchOpen: Dispatch<SetStateAction<boolean>>,
-) {
+function useCanvasWorkspaceHotkeys(setSearchOpen: Dispatch<SetStateAction<boolean>>) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const meta = event.metaKey || event.ctrlKey;
@@ -219,26 +212,11 @@ function useCanvasWorkspaceHotkeys(
       if (meta && event.key.toLowerCase() === "f") {
         event.preventDefault();
         setSearchOpen((open) => !open);
-        return;
-      }
-      if (meta && event.key.toLowerCase() === "g") {
-        event.preventDefault();
-        const doc = readCanvasState(documentAtom);
-        const selected = readCanvasState(selectionAtom);
-        const selectedGroups = selected.filter((id) =>
-          doc.elements.some((element) => element.id === id && element.kind === "group"),
-        );
-        if (event.shiftKey) graphRef.current?.ungroupSelection(selectedGroups);
-        else {
-          graphRef.current?.groupSelection(
-            selected.filter((id) => doc.elements.some((element) => element.id === id)),
-          );
-        }
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [graphRef, setSearchOpen]);
+  }, [setSearchOpen]);
 }
 
 /**
@@ -435,23 +413,12 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     setSearchOpen(false);
     const graph = graphRef.current?.graph;
     if (!graph) return;
-    const node = graph.getNode(id);
-    if (node)
-      graph.fitView({
-        nodes: [{ id }],
-        padding: 0.5,
-        maxZoom: 1.5,
-        duration: 300,
-      });
-    const edge = graph.getEdge(id);
-    if (edge) {
-      graph.setEdges((edges) => edges.map((item) => ({ ...item, selected: item.id === id })));
-      graph.fitView({
-        nodes: [{ id: edge.source }, { id: edge.target }],
-        padding: 0.5,
-        duration: 300,
-      });
-    }
+    const cell = graph.getCellById(id);
+    if (!cell) return;
+    graph.centerCell(cell);
+    // 选中结果（节点或边），让右侧面板 / 视觉选中态联动
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (graph as any).select?.(cell);
   }, []);
 
   const searchIndex = useMemo<CanvasSearchIndexItem[]>(
@@ -466,7 +433,7 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     [searchOpen, currentDocument, detail],
   );
 
-  useCanvasWorkspaceHotkeys(graphRef, setSearchOpen);
+  useCanvasWorkspaceHotkeys(setSearchOpen);
 
   return (
     <div
@@ -498,7 +465,14 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
             />
 
             <div className="absolute top-3 left-3 z-20 flex items-center gap-1 rounded-md border bg-background/90 p-1 shadow-sm">
-              <CanvasTextTool />
+              <CanvasTextTool
+                onAdd={() => {
+                  const text = newTextElement();
+                  text.x = 120;
+                  text.y = 120;
+                  graphRef.current?.addElement(text);
+                }}
+              />
               <CanvasUnderstandingTool
                 open={libraryOpen}
                 onClick={() => setRightPanel(libraryOpen ? null : { mode: "library" })}
@@ -511,9 +485,9 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
 
             <CanvasZoomControls
               className="absolute bottom-4 left-4"
-              onZoomIn={() => graphRef.current?.graph?.zoomIn()}
-              onZoomOut={() => graphRef.current?.graph?.zoomOut()}
-              onFit={() => graphRef.current?.graph?.fitView({ padding: 0.2, maxZoom: 1 })}
+              onZoomIn={() => graphRef.current?.zoomIn()}
+              onZoomOut={() => graphRef.current?.zoomOut()}
+              onFit={() => graphRef.current?.fitView()}
             />
 
             {searchOpen ? (
@@ -532,6 +506,7 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
           detailPanelKey={detailPanelKey}
           onClose={() => setRightPanel(null)}
           onOpenCanvasRefPicker={handleOpenCanvasRefPicker}
+          onPickUnderstanding={(id) => graphRef.current?.addElement(newUnderstandingElement(id))}
           onSwitchDetail={(nextId) => {
             setRightPanel({ mode: "detail", understandingId: nextId });
             setDetailPanelKey(nextId);

@@ -12,10 +12,14 @@ export {
   type CanvasElementKind,
   type CanvasViewport,
 } from "./document";
-export { toCanvasDocument, toFlowData, toFlowEdge, toFlowNode, newEdgeDto } from "./graph-document";
-export { canvasNodeTypes } from "./nodes";
-export { canvasEdgeTypes } from "./edges";
-export { setDndElement, getDndElement } from "./dnd";
+export { toX6Cells, nodeToElement, edgeToEdge, graphToDocument } from "./graph-document";
+export {
+  groupElements,
+  ungroupGroups,
+  deleteGroupBranch,
+  deleteElements,
+  absolutePositionOf,
+} from "./graph-operations";
 export {
   CanvasShapeDataProvider,
   CanvasElementUpdateProvider,

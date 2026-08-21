@@ -15,10 +15,6 @@ import {
   type UnderstandingListSortBy,
 } from "../../capture/dashboard/sort";
 import type { DomainTreeNode } from "@shared/domain";
-import { newUnderstandingElement } from "./element-factory";
-import { setDndElement } from "@reflecta/ui/canvas";
-
-const DND_MIME = "application/reflecta-canvas-element";
 
 /** 扁平化领域树为「全部领域 + 各领域」选项（缩进体现层级）。 */
 function flattenDomains(
@@ -37,9 +33,11 @@ function flattenDomains(
 export function CanvasLibraryPanel({
   onClose,
   onOpenCanvasRefPicker,
+  onPickUnderstanding,
 }: {
   onClose: () => void;
   onOpenCanvasRefPicker: () => void;
+  onPickUnderstanding: (id: string) => void;
 }) {
   const { domains } = useCaptureDomains();
   const [selectedDomainId, setSelectedDomainId] = useState("all");
@@ -152,16 +150,9 @@ export function CanvasLibraryPanel({
                 data-testid="canvas-library-item"
                 data-understanding-id={understanding.id}
                 data-understanding-title={understanding.title ?? "未命名理解"}
-                className="flex cursor-grab items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
-                title="拖入画布创建理解卡"
-                draggable
-                onDragStart={(event) => {
-                  const element = newUnderstandingElement(understanding.id);
-                  event.dataTransfer.setData(DND_MIME, JSON.stringify(element));
-                  event.dataTransfer.effectAllowed = "move";
-                  setDndElement(element);
-                }}
-                onDragEnd={() => setDndElement(null)}
+                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
+                title="点击创建理解卡"
+                onClick={() => onPickUnderstanding(understanding.id)}
               >
                 <FileText size={13} className="shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1 truncate">
@@ -174,7 +165,7 @@ export function CanvasLibraryPanel({
       </ScrollArea>
 
       <footer className="shrink-0 border-t p-2 text-xs text-muted-foreground">
-        拖拽理解到画布创建理解卡
+        点击理解创建理解卡
       </footer>
     </aside>
   );

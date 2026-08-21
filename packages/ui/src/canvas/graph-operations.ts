@@ -1,5 +1,12 @@
-import type { Edge, Node } from "@xyflow/react";
-import type { CanvasElementDTO } from "./document";
+import type { CanvasDocument, CanvasElementDTO } from "./document";
+
+/**
+ * 画布图操作（纯函数、引擎无关）。
+ *
+ * 输入输出都是 `CanvasDocument`（元素 / 连线 DTO），不依赖任何渲染引擎；
+ * 组内子元素坐标为「相对父节点」语义（与 document.ts 契约一致）。
+ * X6 adapter 在打组 / 解组 / 删组后调用这些纯函数产出新文档，再落回 X6 model。
+ */
 
 type GroupSeed = {
   id: string;
@@ -7,53 +14,79 @@ type GroupSeed = {
   createdAt: string;
 };
 
-function absolutePosition(node: Node, byId: ReadonlyMap<string, Node>): { x: number; y: number } {
-  if (!node.parentId) return node.position;
-  const parent = byId.get(node.parentId);
-  if (!parent) return node.position;
-  const parentPosition = absolutePosition(parent, byId);
-  return {
-    x: parentPosition.x + node.position.x,
-    y: parentPosition.y + node.position.y,
-  };
+type ElementIndex = ReadonlyMap<string, CanvasElementDTO>;
+
+const byId = (elements: readonly CanvasElementDTO[]): ElementIndex =>
+  new Map(elements.map((element) => [element.id, element]));
+
+/** 元素的绝对坐标（相对画布左上角）：沿 parentId 链累加相对坐标。 */
+export function absolutePositionOf(
+  element: CanvasElementDTO,
+  index: ElementIndex,
+): { x: number; y: number } {
+  if (!element.parentId) return { x: element.x, y: element.y };
+  const parent = index.get(element.parentId);
+  if (!parent) return { x: element.x, y: element.y };
+  const parentPosition = absolutePositionOf(parent, index);
+  return { x: parentPosition.x + element.x, y: parentPosition.y + element.y };
 }
 
-export function groupSelectedNodes(nodes: Node[], nodeIds: string[], seed: GroupSeed): Node[] {
-  const selected = new Set(nodeIds);
-  const byId = new Map(nodes.map((node) => [node.id, node]));
-  const candidates = nodes.filter((node) => {
-    if (!selected.has(node.id)) return false;
-    let parentId = node.parentId;
-    while (parentId) {
-      if (selected.has(parentId)) return false;
-      parentId = byId.get(parentId)?.parentId;
-    }
-    return true;
-  });
-  if (candidates.length < 2) return nodes;
+const comparableToRelative = (
+  absolute: { x: number; y: number },
+  parentPosition: { x: number; y: number },
+): { x: number; y: number } => ({
+  x: absolute.x - parentPosition.x,
+  y: absolute.y - parentPosition.y,
+});
 
-  const candidateIds = new Set(candidates.map((node) => node.id));
-  const boxes = candidates.map((node) => ({
-    node,
-    position: absolutePosition(node, byId),
-    width: node.measured?.width ?? node.width ?? 160,
-    height: node.measured?.height ?? node.height ?? 100,
+/** 同一父节点的引用（用于相对坐标换算），缺省为 {0,0}。 */
+const sharedParentPosition = (
+  parentId: string | null,
+  index: ElementIndex,
+): { x: number; y: number } =>
+  parentId ? absolutePositionOf(index.get(parentId)!, index) : { x: 0, y: 0 };
+
+const isSelectedWithAncestor = (id: string, selected: ReadonlySet<string>, index: ElementIndex) => {
+  let current = index.get(id);
+  while (current?.parentId) {
+    if (selected.has(current.parentId)) return true;
+    current = index.get(current.parentId);
+  }
+  return false;
+};
+
+/** 把被选中元素打成一个组（外壳复用现有几何约定：左/上留 24/44 内边距）。 */
+export function groupElements(
+  document: CanvasDocument,
+  nodeIds: ReadonlyArray<string>,
+  seed: GroupSeed,
+): CanvasDocument {
+  const index = byId(document.elements);
+  const selected = new Set(nodeIds);
+  const candidates = document.elements.filter((element) => {
+    if (!selected.has(element.id)) return false;
+    return !isSelectedWithAncestor(element.id, selected, index);
+  });
+  if (candidates.length < 2) return document;
+
+  const candidateIds = new Set(candidates.map((element) => element.id));
+  const boxes = candidates.map((element) => ({
+    element,
+    position: absolutePositionOf(element, index),
   }));
   const minX = Math.min(...boxes.map((box) => box.position.x));
   const minY = Math.min(...boxes.map((box) => box.position.y));
-  const maxX = Math.max(...boxes.map((box) => box.position.x + box.width));
-  const maxY = Math.max(...boxes.map((box) => box.position.y + box.height));
-  const groupAbsolutePosition = { x: minX - 24, y: minY - 44 };
-  const sharedParentId = candidates.every((node) => node.parentId === candidates[0].parentId)
-    ? (candidates[0].parentId ?? null)
+  const maxX = Math.max(...boxes.map((box) => box.position.x + box.element.width));
+  const maxY = Math.max(...boxes.map((box) => box.position.y + box.element.height));
+  const groupAbsolute = { x: minX - 24, y: minY - 44 };
+
+  const sharedParentId = candidates.every((element) => element.parentId === candidates[0].parentId)
+    ? candidates[0].parentId
     : null;
-  const sharedParent = sharedParentId ? byId.get(sharedParentId) : undefined;
-  const sharedParentPosition = sharedParent ? absolutePosition(sharedParent, byId) : { x: 0, y: 0 };
-  const groupPosition = {
-    x: groupAbsolutePosition.x - sharedParentPosition.x,
-    y: groupAbsolutePosition.y - sharedParentPosition.y,
-  };
-  const groupElement: CanvasElementDTO = {
+  const parentPosition = sharedParentPosition(sharedParentId, index);
+  const groupPosition = comparableToRelative(groupAbsolute, parentPosition);
+
+  const group: CanvasElementDTO = {
     id: seed.id,
     canvasId: seed.canvasId,
     parentId: sharedParentId,
@@ -69,103 +102,99 @@ export function groupSelectedNodes(nodes: Node[], nodeIds: string[], seed: Group
     canvasRefId: null,
     props: { label: "" },
   };
-  const group: Node = {
-    id: seed.id,
-    type: "group",
-    position: groupPosition,
-    width: groupElement.width,
-    height: groupElement.height,
-    selected: true,
-    parentId: sharedParentId ?? undefined,
-    extent: sharedParentId ? "parent" : undefined,
-    expandParent: sharedParentId ? true : undefined,
-    data: { element: groupElement },
-  };
 
-  const updated = nodes.map((node) => {
-    const box = boxes.find((candidate) => candidate.node.id === node.id);
-    if (!box) return selected.has(node.id) ? { ...node, selected: false } : node;
+  const groupIndex = document.elements.findIndex((element) => candidateIds.has(element.id));
+  const elements = document.elements.map((element) => {
+    if (!candidateIds.has(element.id)) return element;
+    const position = absolutePositionOf(element, index);
     return {
-      ...node,
-      selected: false,
+      ...element,
       parentId: seed.id,
-      extent: "parent" as const,
-      expandParent: true,
-      position: {
-        x: box.position.x - groupAbsolutePosition.x,
-        y: box.position.y - groupAbsolutePosition.y,
-      },
-      data: {
-        element: {
-          ...(node.data as { element: CanvasElementDTO }).element,
-          parentId: seed.id,
-        },
-      },
+      x: position.x - groupAbsolute.x,
+      y: position.y - groupAbsolute.y,
     };
   });
-  const firstCandidateIndex = nodes.findIndex((node) => candidateIds.has(node.id));
-  return [...updated.slice(0, firstCandidateIndex), group, ...updated.slice(firstCandidateIndex)];
+  return {
+    ...document,
+    elements: [...elements.slice(0, groupIndex), group, ...elements.slice(groupIndex)],
+  };
 }
 
-export function ungroupNodes(nodes: Node[], groupIds: string[]): Node[] {
-  const groupIdSet = new Set(groupIds);
-  const groups = new Set<string>();
-  for (const node of nodes) {
-    if (groupIdSet.has(node.id) && node.type === "group") groups.add(node.id);
-  }
-  if (!groups.size) return nodes;
+/** 解组：被选组内的成员回到组的父级，坐标换算为相对新的父节点。 */
+export function ungroupGroups(
+  document: CanvasDocument,
+  groupIds: ReadonlyArray<string>,
+): CanvasDocument {
+  const index = byId(document.elements);
+  const groups = new Set(
+    groupIds.filter((id) => {
+      const element = index.get(id);
+      return element?.kind === "group";
+    }),
+  );
+  if (groups.size === 0) return document;
 
-  const byId = new Map(nodes.map((node) => [node.id, node]));
-  const next: Node[] = [];
-  for (const node of nodes) {
-    if (groups.has(node.id)) continue;
-    if (!node.parentId || !groups.has(node.parentId)) {
-      next.push(node);
-      continue;
+  const elements = document.elements.flatMap((element) => {
+    if (groups.has(element.id)) return [];
+    if (!element.parentId || !groups.has(element.parentId)) return [element];
+
+    // 逐层向上跳过被解组的祖先，得到新的父
+    let parentId: string | null = element.parentId;
+    while (parentId != null && groups.has(parentId)) {
+      parentId = index.get(parentId)?.parentId ?? null;
     }
-
-    let parentId: string | undefined = node.parentId;
-    while (parentId && groups.has(parentId)) parentId = byId.get(parentId)?.parentId;
-    const position = absolutePosition(node, byId);
-    const parent = parentId ? byId.get(parentId) : undefined;
-    const parentPosition = parent ? absolutePosition(parent, byId) : { x: 0, y: 0 };
-    next.push({
-      ...node,
-      parentId,
-      extent: parentId ? ("parent" as const) : undefined,
-      expandParent: parentId ? true : undefined,
-      position: {
+    const position = absolutePositionOf(element, index);
+    const parentPosition = sharedParentPosition(parentId, index);
+    return [
+      {
+        ...element,
+        parentId,
         x: position.x - parentPosition.x,
         y: position.y - parentPosition.y,
       },
-      data: {
-        element: {
-          ...(node.data as { element: CanvasElementDTO }).element,
-          parentId: parentId ?? null,
-        },
-      },
-    });
-  }
-  return next;
+    ];
+  });
+  return { ...document, elements };
 }
 
-export function deleteGroupBranch(
-  nodes: Node[],
-  edges: Edge[],
-  groupId: string,
-): { nodes: Node[]; edges: Edge[] } {
-  if (!nodes.some((node) => node.id === groupId && node.type === "group")) return { nodes, edges };
+/** 删除一个组（含其全部后代与相连的边）。 */
+export function deleteGroupBranch(document: CanvasDocument, groupId: string): CanvasDocument {
+  const index = byId(document.elements);
+  if (index.get(groupId)?.kind !== "group") return document;
 
   const removed = new Set([groupId]);
   let previousSize = 0;
   while (removed.size !== previousSize) {
     previousSize = removed.size;
-    for (const node of nodes) {
-      if (node.parentId && removed.has(node.parentId)) removed.add(node.id);
+    for (const element of document.elements) {
+      if (element.parentId && removed.has(element.parentId)) removed.add(element.id);
     }
   }
   return {
-    nodes: nodes.filter((node) => !removed.has(node.id)),
-    edges: edges.filter((edge) => !removed.has(edge.source) && !removed.has(edge.target)),
+    elements: document.elements.filter((element) => !removed.has(element.id)),
+    edges: document.edges.filter(
+      (edge) => !removed.has(edge.sourceElementId) && !removed.has(edge.targetElementId),
+    ),
+  };
+}
+
+/** 删除选中集合（含被选组的全部后代 + 关联边）：供选区删除与元素删除共用。 */
+export function deleteElements(
+  document: CanvasDocument,
+  elementIds: ReadonlyArray<string>,
+): CanvasDocument {
+  const removed = new Set(elementIds);
+  let previousSize = 0;
+  while (removed.size !== previousSize) {
+    previousSize = removed.size;
+    for (const element of document.elements) {
+      if (element.parentId && removed.has(element.parentId)) removed.add(element.id);
+    }
+  }
+  return {
+    elements: document.elements.filter((element) => !removed.has(element.id)),
+    edges: document.edges.filter(
+      (edge) => !removed.has(edge.sourceElementId) && !removed.has(edge.targetElementId),
+    ),
   };
 }
