@@ -63,25 +63,31 @@ export function lineAttrs(style: CanvasEdgeStyle | null) {
   };
 }
 
+/** 单个元素 → X6 节点 metadata（相对→绝对坐标；供 fromJSON 与 Dnd 拖拽 phantom 复用）。 */
+export function nodeMetadataFor(
+  element: CanvasElementDTO,
+  index: ReadonlyMap<string, CanvasElementDTO> = new Map(),
+): NodeMetadata {
+  const absolute = toAbsolute(element, index);
+  return {
+    id: element.id,
+    shape: element.kind,
+    x: absolute.x,
+    y: absolute.y,
+    width: element.width,
+    height: element.height,
+    zIndex: element.zIndex,
+    parent: element.parentId ?? undefined,
+    data: { element },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ports: CANVAS_PORTS as unknown as NonNullable<NodeMetadata["ports"]>,
+  } satisfies NodeMetadata;
+}
+
 /** 元素 / 连线 DTO → X6 节点 / 边 metadata（供 `graph.fromJSON` 一次性建图）。 */
 export function toX6Cells(document: CanvasDocument): CellMetadata[] {
   const index = new Map(document.elements.map((element) => [element.id, element]));
-  const nodes: CellMetadata[] = document.elements.map((element) => {
-    const absolute = toAbsolute(element, index);
-    return {
-      id: element.id,
-      shape: element.kind,
-      x: absolute.x,
-      y: absolute.y,
-      width: element.width,
-      height: element.height,
-      zIndex: element.zIndex,
-      parent: element.parentId ?? undefined,
-      data: { element },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ports: CANVAS_PORTS as unknown as NonNullable<NodeMetadata["ports"]>,
-    } satisfies NodeMetadata;
-  });
+  const nodes: CellMetadata[] = document.elements.map((element) => nodeMetadataFor(element, index));
   const edges: CellMetadata[] = document.edges.map((edge) => {
     const style = edge.style ?? DEFAULT_CANVAS_EDGE_STYLE;
     return {

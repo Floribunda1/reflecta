@@ -2,11 +2,13 @@ import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } 
 import type { Ref } from "react";
 import {
   Clipboard,
+  Dnd,
   Export,
   Graph,
   History,
   Keyboard,
   MiniMap,
+  Node as X6Node,
   Selection,
   Snapline,
   Transform,
@@ -19,7 +21,13 @@ import { cn } from "../lib/utils";
 import "./nodes";
 import type { CanvasCellAction } from "./shape-context";
 import type { CanvasDocument, CanvasEdgeDTO, CanvasElementDTO, CanvasViewport } from "./document";
-import { toX6Cells, graphToDocument, newEdgeDto, toX6Edge } from "./graph-document";
+import {
+  toX6Cells,
+  graphToDocument,
+  newEdgeDto,
+  toX6Edge,
+  nodeMetadataFor,
+} from "./graph-document";
 import {
   deleteElements,
   deleteGroupBranch,
@@ -60,10 +68,14 @@ export type CanvasGraphHandle = {
   zoomIn: () => void;
   zoomOut: () => void;
   fitView: () => void;
+  /** 从工具栏 / 理解库等拖拽源发起一次 X6 Dnd 拖拽（source 元素由 element 描述） */
+  startDrag: (element: CanvasElementDTO, event: React.PointerEvent | React.MouseEvent) => void;
 };
 
 export type CanvasGraphProps = {
   readonly?: boolean;
+  /** 拖拽入画布时，根据拖拽源元素生成一份“新”元素（重新分配 id / canvasId），避免落点与源共用同一 id */
+  createElementForDrop?: (source: CanvasElementDTO) => CanvasElementDTO;
   document?: CanvasDocument | null;
   viewport?: CanvasViewport | null;
   viewportReady?: boolean;
@@ -86,6 +98,7 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
   function CanvasGraph(props, ref: Ref<CanvasGraphHandle>) {
     const {
       readonly = false,
+      createElementForDrop,
       document,
       viewport,
       viewportReady = true,
@@ -104,6 +117,7 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
     const onSelectionChangeRef = useLatest(onSelectionChange);
     const containerRef = useRef<HTMLDivElement>(null);
     const graphRef = useRef<Graph | null>(null);
+    const dndRef = useRef<Dnd | null>(null);
     const suppressEmitRef = useRef(false);
     const emitPendingRef = useRef(false);
     const viewportAppliedRef = useRef(false);
@@ -173,7 +187,8 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
       const graph = new Graph({
         container,
         autoResize: true,
-        panning: true,
+        // 左键= rubberband 框选；Space+拖拽=平移（X6 内置，兼末双功能）
+        panning: { enabled: true, eventTypes: ["leftMouseDown"] },
         mousewheel: { enabled: true, factor: 1.2, zoomAtMousePosition: true },
         grid: {
           size: CANVAS_SNAP_GRID,
@@ -196,6 +211,7 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
       });
       graphRef.current = graph;
 
+      let dnd: Dnd | undefined;
       if (!readonlyRef.current) {
         graph.use(new Transform({ resizing: true }));
         graph.use(new Selection({ rubberband: true, multiple: true, showNodeSelectionBox: false }));
@@ -205,7 +221,32 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         graph.use(new Keyboard());
         graph.use(new Export());
         graph.use(new MiniMap({ width: 200, height: 150 }));
+
+        // 内置 Dnd：工具栏 / 理解库调 startDrag → 拖入画布；getDropNode 生成“新”元素避免 id 冲突
+        dnd = new Dnd({
+          target: graph,
+          getDropNode: (draggingNode) => {
+            const source = draggingNode.getData() as { element?: CanvasElementDTO } | undefined;
+            if (!source?.element || !createElementForDrop) return draggingNode;
+            return new X6Node(nodeMetadataFor(createElementForDrop(source.element)));
+          },
+        });
+        dndRef.current = dnd ?? null;
+
+        // Backspace / Delete 删除选中（原 RF deleteKeyCode），输入态不触发
+        const onDelete = (e: KeyboardEvent) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest("input, textarea, [contenteditable='true']")) return;
+          const cells = graph.getSelectedCells();
+          if (cells.length) graph.removeCells(cells);
+        };
+        const kb = graph.getPlugin("keyboard") as
+          | { on: (keys: string, fn: (e: KeyboardEvent) => void) => void }
+          | undefined;
+        kb?.on("backspace", onDelete);
+        kb?.on("delete", onDelete);
       }
+      dndRef.current = dnd ?? null;
 
       const modelEvents = [
         "node:change:position",
@@ -256,6 +297,8 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
       return () => {
         graph.dispose();
         graphRef.current = null;
+        dndRef.current?.dispose();
+        dndRef.current = null;
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -304,6 +347,13 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         zoomIn: () => graphRef.current?.zoom(1.2),
         zoomOut: () => graphRef.current?.zoom(0.8),
         fitView: () => graphRef.current?.zoomToFit({ padding: 40, maxScale: 1 }),
+        startDrag: (element, event) => {
+          const dnd = dndRef.current;
+          if (!dnd || readonlyRef.current) return;
+          event.preventDefault?.();
+          const source = new X6Node(nodeMetadataFor(element));
+          dnd.start(source, event.nativeEvent);
+        },
       }),
       [canvasId, rebuild, renderGraph],
     );

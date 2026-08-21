@@ -64,7 +64,11 @@ import { createDebouncedLatestSaver, type SaveStatus } from "./debounced-latest-
 const SAVE_DEBOUNCE_MS = 800;
 const VIEWPORT_SETTLE_MS = 600;
 
-function CanvasTextTool({ onAdd }: { onAdd: () => void }) {
+function CanvasTextTool({
+  onStartDrag,
+}: {
+  onStartDrag: (e: React.PointerEvent<HTMLButtonElement>) => void;
+}) {
   return (
     <Tooltip>
       <TooltipTrigger
@@ -75,7 +79,7 @@ function CanvasTextTool({ onAdd }: { onAdd: () => void }) {
             variant="ghost"
             aria-label="文本"
             data-testid="canvas-tool-dnd-text"
-            onClick={onAdd}
+            onPointerDown={onStartDrag}
           />
         }
       >
@@ -157,7 +161,7 @@ function CanvasWorkspaceSidePanel({
   detailPanelKey,
   onClose,
   onOpenCanvasRefPicker,
-  onPickUnderstanding,
+  onStartDragUnderstanding,
   onSwitchDetail,
 }: {
   canvasId: string;
@@ -165,7 +169,7 @@ function CanvasWorkspaceSidePanel({
   detailPanelKey: string;
   onClose: () => void;
   onOpenCanvasRefPicker: () => void;
-  onPickUnderstanding: (id: string) => void;
+  onStartDragUnderstanding: (id: string, e: React.MouseEvent | React.PointerEvent) => void;
   onSwitchDetail: (understandingId: string) => void;
 }) {
   if (!rightPanel) return null;
@@ -187,7 +191,7 @@ function CanvasWorkspaceSidePanel({
           <CanvasLibraryPanel
             onClose={onClose}
             onOpenCanvasRefPicker={onOpenCanvasRefPicker}
-            onPickUnderstanding={onPickUnderstanding}
+            onStartDragUnderstanding={onStartDragUnderstanding}
           />
         ) : rightPanel.mode === "detail" ? (
           <CanvasDetailPanel
@@ -458,6 +462,14 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
               viewportReady={!isLoading && Boolean(detail?.canvas)}
               canvasId={canvasId}
               shapeData={shapeData}
+              createElementForDrop={(source) => {
+                if (source.kind === "text") return newTextElement(source);
+                if (source.kind === "understanding" && source.understandingId)
+                  return newUnderstandingElement(source.understandingId);
+                if (source.kind === "canvas_ref" && source.canvasRefId)
+                  return newCanvasRefElement(source.canvasRefId);
+                return source;
+              }}
               onDocumentChange={handleDocumentChange}
               onViewportChange={handleViewportChange}
               onSelectionChange={handleSelectionChange}
@@ -466,11 +478,9 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
 
             <div className="absolute top-3 left-3 z-20 flex items-center gap-1 rounded-md border bg-background/90 p-1 shadow-sm">
               <CanvasTextTool
-                onAdd={() => {
-                  const text = newTextElement();
-                  text.x = 120;
-                  text.y = 120;
-                  graphRef.current?.addElement(text);
+                onStartDrag={(e) => {
+                  e.preventDefault();
+                  graphRef.current?.startDrag(newTextElement({ width: 220, height: 120 }), e);
                 }}
               />
               <CanvasUnderstandingTool
@@ -506,7 +516,9 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
           detailPanelKey={detailPanelKey}
           onClose={() => setRightPanel(null)}
           onOpenCanvasRefPicker={handleOpenCanvasRefPicker}
-          onPickUnderstanding={(id) => graphRef.current?.addElement(newUnderstandingElement(id))}
+          onStartDragUnderstanding={(id, e) =>
+            graphRef.current?.startDrag(newUnderstandingElement(id), e)
+          }
           onSwitchDetail={(nextId) => {
             setRightPanel({ mode: "detail", understandingId: nextId });
             setDetailPanelKey(nextId);

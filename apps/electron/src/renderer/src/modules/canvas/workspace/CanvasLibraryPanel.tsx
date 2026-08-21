@@ -33,11 +33,11 @@ function flattenDomains(
 export function CanvasLibraryPanel({
   onClose,
   onOpenCanvasRefPicker,
-  onPickUnderstanding,
+  onStartDragUnderstanding,
 }: {
   onClose: () => void;
   onOpenCanvasRefPicker: () => void;
-  onPickUnderstanding: (id: string) => void;
+  onStartDragUnderstanding: (id: string, e: React.MouseEvent | React.PointerEvent) => void;
 }) {
   const { domains } = useCaptureDomains();
   const [selectedDomainId, setSelectedDomainId] = useState("all");
@@ -150,9 +150,12 @@ export function CanvasLibraryPanel({
                 data-testid="canvas-library-item"
                 data-understanding-id={understanding.id}
                 data-understanding-title={understanding.title ?? "未命名理解"}
-                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
-                title="点击创建理解卡"
-                onClick={() => onPickUnderstanding(understanding.id)}
+                className="flex cursor-grab items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
+                title="拖入画布创建理解卡"
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  onStartDragUnderstanding(understanding.id, event);
+                }}
               >
                 <FileText size={13} className="shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1 truncate">
@@ -165,7 +168,7 @@ export function CanvasLibraryPanel({
       </ScrollArea>
 
       <footer className="shrink-0 border-t p-2 text-xs text-muted-foreground">
-        点击理解创建理解卡
+        拖拽理解到画布创建理解卡
       </footer>
     </aside>
   );

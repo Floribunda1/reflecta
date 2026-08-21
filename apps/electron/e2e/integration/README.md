@@ -95,12 +95,10 @@ deleteGroupBranch` 是纯文档变换，其单元行为由 `graph-operations.tes
 
 ## 6. 配置前提（写测试前先在 adapter 对齐，否则用例红/假绿）
 
-1. **平移 vs 框选**：X6 默认 `panning` 用左键拖动平移，会吞掉左键框选。
-   为恢复「左键=框选、中键/滚轮=平移」（对应旧 `selectionOnDrag` + `panOnDrag=[1]`），
-   Graph 需配 `panning: { enabled: true, eventTypes: ["middleMouseDown"] }` + Selection `rubberband:true`。
-   ——否则 `boxSelect` 类用例（打组）会失败。这是迁移引入的配置缺口，需在 adapter 修正。
-2. **节点可定位**：见 §3，需补 `data-node-id`。
-3. **解组热键已删**：任何 `Meta+g`/`Meta+Shift+g` 用例改为「选区工具条打组按钮」/「组右键解组」。旧 `canvas-group-semantics` 中热键用例作废重写。
+1. **平移 vs 框选（X6 内置，无需配中键）**：`panning` + `Selection rubberband` 组合下，左键拖拽 = 框选，**Space+拖拽 / 滚轮 = 平移**（见 `panning.js` `allowRubberband` 逻辑）。保持 `panning: { eventTypes: ["leftMouseDown"] }` + `rubberband:true`，勿配不存在的中键事件类型。
+2. **拖拽入画布**：用 X6 `Dnd`（`handle.startDrag`）从工具栏文本按钮 / 理解库条目拖入；`getDropNode` + `createElementForDrop` 生成新元素，避免与源共用 id。
+3. **节点可定位**：见 §3，需补 `data-node-id`。
+4. **解组热键已删**：任何 `Meta+g`/`Meta+Shift+g` 用例改为「选区工具条打组按钮」/「组右键解组」。旧 `canvas-group-semantics` 中热键用例作废重写。
 
 ## 7. 断言原则
 
@@ -115,7 +113,7 @@ deleteGroupBranch` 是纯文档变换，其单元行为由 `graph-operations.tes
 ### 8.1 节点（四类卡片）
 
 - **文本卡**
-  - 从工具栏「文本」按钮创建文本卡（点击 addElement；拖拽入口已移除）
+  - 从工具栏「文本」按钮**拖拽入画布**创建文本卡（X6 `Dnd`）
   - 双击进入内联 Markdown 编辑
   - 失焦提交后卡片保留新内容，切走重进仍保留
   - Escape 取消不改动
@@ -123,7 +121,7 @@ deleteGroupBranch` 是纯文档变换，其单元行为由 `graph-operations.tes
   - 从卡片操作菜单删除文本卡
   - 文本卡缩放（Transform 句柄）后尺寸持久化
 - **理解卡**
-  - 从理解库点击创建理解卡（onPickUnderstanding → addElement）
+  - 从理解库条目**拖拽入画布**创建理解卡（X6 `Dnd`）
   - 卡片展示引用理解全文
   - 引用理解被删除后显示占位
   - 点击卡片联动右侧理解详情面板
@@ -167,7 +165,7 @@ deleteGroupBranch` 是纯文档变换，其单元行为由 `graph-operations.tes
 - 单击选中单个节点（出现选中态）
 - 单击选中单条边（出现底部边工具栏）
 - 多选（Shift/Ctrl + 点击，或 rubberband 框选）
-- 空白处左键拖拽框选（rubberband；依赖 middleMouseDown panning 配置）
+- 空白处左键拖拽框选（rubberband）；Space+拖拽=平移
 - 多选后顶部出现选区工具条（打组 / 删除）
 - 单选不出现选区工具条
 - 选中变化联动右侧面板（理解 → 详情）

@@ -19,6 +19,7 @@ export {
   nodeToElement,
   edgeToEdge,
   graphToDocument,
+  nodeMetadataFor,
 } from "./graph-document";
 export {
   groupElements,
