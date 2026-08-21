@@ -231,15 +231,24 @@ describe("CanvasGraph React Flow seam", () => {
     expect(onDocumentChange.mock.calls[1][0].edges[0].label).toBe("UPDATED");
   });
 
-  test("waits for viewport readiness, then restores saved viewport or fits unsaved content", () => {
+  test("waits for viewport readiness, then restores saved viewport once and never re-applies", () => {
     render({ viewportReady: false, viewport: { x: 1, y: 2, zoom: 1.25 } });
     expect(mocks.setViewport).not.toHaveBeenCalled();
     expect(mocks.fitView).not.toHaveBeenCalled();
+    // 就绪后恢复已存视口
     render({ viewportReady: true, viewport: { x: 1, y: 2, zoom: 1.25 } });
     expect(mocks.setViewport).toHaveBeenCalledWith({ x: 1, y: 2, zoom: 1.25 });
-    mocks.fitView.mockClear();
+    expect(mocks.fitView).not.toHaveBeenCalled();
+    // 同一挂载上后续 prop 变化（保存后 detail 刷新）不再回灌实时视图
+    render({ viewportReady: true, viewport: null });
+    expect(mocks.fitView).not.toHaveBeenCalled();
+    expect(mocks.setViewport).toHaveBeenCalledTimes(1);
+  });
+
+  test("fits unsaved content on first readiness when no viewport is stored", () => {
     render({ viewportReady: true, viewport: null });
     expect(mocks.fitView).toHaveBeenCalledWith({ padding: 0.2, maxZoom: 1 });
+    expect(mocks.setViewport).not.toHaveBeenCalled();
   });
 
   test("pins every intentional React Flow input configuration", () => {

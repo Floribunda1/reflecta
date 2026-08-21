@@ -136,8 +136,9 @@ export function useDeleteCanvasMutation() {
   );
 }
 
-/** 文档级全量写（T3）：React Flow 变更防抖后提交；invalidate list 保持「最近活跃排序」新鲜，
- * 并 invalidate detail（M3-A6 引用同步：新拖入的理解引用随详情刷新补全正文）。
+/** 文档级全量写（T3）：React Flow 变更防抖后提交；invalidate list 保持「最近活跃排序」新鲜。
+ * detail 的引用同步（新拖入的理解/画布引用补全正文预览）由 Workspace 保存回调按需刷新，
+ * 不走每次保存的无条件重拉，避免保存后回灌 detail 扰动实时视图。
  * 入参用 ui 契约类型（渲染层零映射），边界处结构一致直接透传（server 的
  * understanding/canvas_ref props 类型带有 Record<string, never> 历史包袱）。 */
 export function useSaveCanvasMutation() {
@@ -152,11 +153,7 @@ export function useSaveCanvasMutation() {
         document: CanvasDocumentContract;
       }) =>
         rpc.canvasSave(canvasId, document as unknown as import("../../../../ipc").CanvasDocument),
-      onSuccess: (_result, { canvasId }) =>
-        Promise.all([
-          invalidateCanvasList(queryClient),
-          invalidateCanvasDetail(queryClient, canvasId),
-        ]),
+      onSuccess: () => invalidateCanvasList(queryClient),
     }),
   );
 }

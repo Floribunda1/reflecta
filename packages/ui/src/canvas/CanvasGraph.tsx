@@ -211,6 +211,9 @@ function useCanvasFlow(props: CanvasGraphProps, ref: Ref<CanvasGraphHandle>) {
   const onViewportChangeRef = useLatest(onViewportChange);
   const onSelectionChangeRef = useLatest(onSelectionChange);
   const applyingInitialViewportRef = useRef(false);
+  // 视口只在挂载后首次 ready 时恢复一次；后续 detail 刷新带来的 viewport/ready 抖动一律不再回灌，
+  // 避免保存后重拉详情把实时视图拽回旧位置、并吞掉这次平移的保存。
+  const viewportAppliedRef = useRef(false);
 
   const { nodes: initNodes, edges: initEdges } = useMemo(
     () => toFlowData(document ?? { elements: [], edges: [] }),
@@ -498,10 +501,12 @@ function useCanvasFlow(props: CanvasGraphProps, ref: Ref<CanvasGraphHandle>) {
     ],
   );
 
-  // 视口：detail 就绪后再决定——有已存 viewport 则恢复，否则 fitView。
-  // 避免 detail 未到时 fitView 抢跑并触发回写覆盖已存视口。
+  // 视口：detail 就绪后仅恢复一次——有已存 viewport 则恢复，否则 fitView。
+  // 避免 detail 未到时 fitView 抢跑并触发回写覆盖已存视口；后续实时视口由本地态掌管，
+  // 任何 prop 刷新（如保存后 invalidateCanvasDetail）都不再改写它。
   useEffect(() => {
-    if (!viewportReady) return;
+    if (!viewportReady || viewportAppliedRef.current) return;
+    viewportAppliedRef.current = true;
     applyingInitialViewportRef.current = true;
     if (viewport) {
       instance.setViewport({

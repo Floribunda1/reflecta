@@ -1,4 +1,6 @@
 import { useLatest } from "ahooks";
+import { Effect } from "effect";
+import { runPromise } from "@renderer/lib/effect-runtime";
 import {
   useCallback,
   useEffect,
@@ -251,11 +253,15 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
 
   // 初始文档：仅取首次详情；切换画布由 key 重挂载
   const [initialDocument, setInitialDocument] = useState<CanvasDocument | null>(null);
+  // 初始视口：同样仅取首次详情并冻结。保存后 invalidateCanvasDetail 重拉带来的 viewport
+  // 变化不回灌实时画布（CanvasGraph 只在挂载时恢复一次），避免视图被拽回旧位置。
+  const [initialViewport, setInitialViewport] = useState<CanvasViewport | null>(null);
   if (initialDocument === null && detail) {
     setInitialDocument({
       elements: detail.elements,
       edges: detail.edges,
     });
+    setInitialViewport(detail.canvas?.viewport ?? null);
   }
 
   const setDocument = useAtomSet(documentAtom);
@@ -273,6 +279,9 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
 
   const queryClient = useQueryClient();
   const refsRef = useLatest(new Map((detail?.understandingRefs ?? []).map((ref) => [ref.id, ref])));
+  const canvasRefsRef = useLatest(
+    new Map((detail?.referencedCanvases ?? []).map((ref) => [ref.id, ref])),
+  );
   const saveDocumentRef = useLatest(saveCanvas.mutateAsync);
   const saveViewportRef = useLatest(updateViewport.mutateAsync);
 
@@ -280,16 +289,33 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     createDebouncedLatestSaver({
       delay: SAVE_DEBOUNCE_MS,
       onStatus: setSaveStatus,
-      save: async (document: CanvasDocument) => {
-        await saveDocumentRef.current({ canvasId, document });
-        const missingRef = document.elements.some(
-          (element) =>
-            element.kind === "understanding" &&
-            element.understandingId &&
-            !refsRef.current.has(element.understandingId),
-        );
-        if (missingRef) await refreshCanvasDetail(queryClient, canvasId);
-      },
+      // save 是 Effect 程序（跑在 AppRuntime）：先落库，引用集合变化时按需刷新 detail。
+      save: (document: CanvasDocument) =>
+        runPromise(
+          Effect.gen(function* () {
+            yield* Effect.promise(() => saveDocumentRef.current({ canvasId, document }));
+            // 只在引用集合真变了（新增/移除理解或画布引用）才刷新 detail 补全正文预览；
+            // 普通内容/位置编辑不重拉，避免保存后回灌详情扰动实时视图。
+            const savedUnderstandingIds = new Set(
+              document.elements
+                .filter((e) => e.kind === "understanding" && e.understandingId)
+                .map((e) => e.understandingId as string),
+            );
+            const savedCanvasRefIds = new Set(
+              document.elements
+                .filter((e) => e.kind === "canvas_ref" && e.canvasRefId)
+                .map((e) => e.canvasRefId as string),
+            );
+            const setsDiffer = (a: Set<string>, b: Set<string>) =>
+              a.size !== b.size || [...a].some((id) => !b.has(id));
+            if (
+              setsDiffer(savedUnderstandingIds, new Set(refsRef.current.keys())) ||
+              setsDiffer(savedCanvasRefIds, new Set(canvasRefsRef.current.keys()))
+            ) {
+              yield* Effect.promise(() => refreshCanvasDetail(queryClient, canvasId));
+            }
+          }),
+        ),
     }),
   );
 
@@ -430,12 +456,14 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
 
   const searchIndex = useMemo<CanvasSearchIndexItem[]>(
     () =>
-      buildCanvasSearchIndex(
-        currentDocument,
-        new Map((detail?.understandingRefs ?? []).map((ref) => [ref.id, ref])),
-        new Map((detail?.referencedCanvases ?? []).map((ref) => [ref.id, ref])),
-      ),
-    [currentDocument, detail],
+      searchOpen
+        ? buildCanvasSearchIndex(
+            currentDocument,
+            new Map((detail?.understandingRefs ?? []).map((ref) => [ref.id, ref])),
+            new Map((detail?.referencedCanvases ?? []).map((ref) => [ref.id, ref])),
+          )
+        : [],
+    [searchOpen, currentDocument, detail],
   );
 
   useCanvasWorkspaceHotkeys(graphRef, setSearchOpen);
@@ -459,7 +487,7 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
               key={canvasId}
               ref={graphRef}
               document={initialDocument}
-              viewport={canvas?.viewport ?? null}
+              viewport={initialViewport}
               viewportReady={!isLoading && Boolean(detail?.canvas)}
               canvasId={canvasId}
               shapeData={shapeData}
