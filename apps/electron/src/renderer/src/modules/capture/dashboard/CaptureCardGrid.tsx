@@ -1,8 +1,15 @@
 import { FileText } from "lucide-react";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useSize } from "ahooks";
-import { memo, useCallback, useMemo, useRef, type RefObject } from "react";
+import {
+  memo,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import {
   UnderstandingCard,
   type UnderstandingCardAction,
@@ -40,13 +47,26 @@ const CARD_ROW_OVERSCAN = 3;
 const CARD_GRID_PADDING_LEFT_PX = 16;
 const CARD_GRID_PADDING_RIGHT_PX = 6;
 
-function useCaptureGridColumnCount(containerRef: RefObject<HTMLElement | null>) {
-  const size = useSize(containerRef);
-  const contentWidth = Math.max(
-    0,
-    (size?.width ?? 0) - CARD_GRID_PADDING_LEFT_PX - CARD_GRID_PADDING_RIGHT_PX,
-  );
-  return captureGridColumnCount(contentWidth);
+function useCaptureGridColumnCount(containerRef: RefObject<HTMLElement | null>, enabled: boolean) {
+  const [columns, setColumns] = useState(1);
+
+  useLayoutEffect(() => {
+    if (!enabled) return;
+    const element = containerRef.current;
+    if (!element) return;
+    const update = (width: number) =>
+      setColumns(
+        captureGridColumnCount(
+          Math.max(0, width - CARD_GRID_PADDING_LEFT_PX - CARD_GRID_PADDING_RIGHT_PX),
+        ),
+      );
+    update(element.clientWidth);
+    const observer = new ResizeObserver(([entry]) => update(entry.contentRect.width));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [containerRef, enabled]);
+
+  return columns;
 }
 
 function useCardEntityPresentations(understandings: readonly UnderstandingSummaryDTO[]) {
@@ -146,7 +166,7 @@ export function CaptureCardGrid({
   searchActive?: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const columns = useCaptureGridColumnCount(scrollRef);
+  const columns = useCaptureGridColumnCount(scrollRef, understandings.length > 0);
   const { domainList } = useCaptureDomains();
   const domainNameById = useMemo(() => {
     const map = new Map<string, string>();
