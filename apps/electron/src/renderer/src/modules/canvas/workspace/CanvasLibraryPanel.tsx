@@ -34,10 +34,12 @@ export function CanvasLibraryPanel({
   onClose,
   onOpenCanvasRefPicker,
   onStartDragUnderstanding,
+  onPickUnderstanding,
 }: {
   onClose: () => void;
   onOpenCanvasRefPicker: () => void;
   onStartDragUnderstanding: (id: string, e: React.MouseEvent | React.PointerEvent) => void;
+  onPickUnderstanding: (id: string) => void;
 }) {
   const { domains } = useCaptureDomains();
   const [selectedDomainId, setSelectedDomainId] = useState("all");
@@ -151,11 +153,12 @@ export function CanvasLibraryPanel({
                 data-understanding-id={understanding.id}
                 data-understanding-title={understanding.title ?? "未命名理解"}
                 className="flex cursor-grab items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
-                title="拖入画布创建理解卡"
+                title="点击或拖入画布创建理解卡"
                 onPointerDown={(event) => {
                   event.preventDefault();
                   onStartDragUnderstanding(understanding.id, event);
                 }}
+                onClick={() => onPickUnderstanding(understanding.id)}
               >
                 <FileText size={13} className="shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1 truncate">

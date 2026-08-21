@@ -194,6 +194,7 @@ export function UnderstandingCard({ node }: CardProps) {
   return (
     <div
       data-testid="canvas-understanding-card"
+      data-node-id={element.id}
       data-understanding-id={
         element.kind === "understanding" ? (element.understandingId ?? "") : ""
       }
@@ -263,6 +264,7 @@ export function TextCard({ node }: CardProps) {
   return (
     <div
       data-testid="canvas-text-card"
+      data-node-id={element.id}
       data-editing={String(editing)}
       className={cn(CARD, nodeStateClass(selected || editing, element.props.color))}
       style={nodeColorStyle(element.props.color)}
@@ -325,6 +327,7 @@ export function GroupCard({ node }: CardProps) {
         render={
           <div
             data-testid="canvas-group-node"
+            data-node-id={element.id}
             data-group-label={label}
             className={cn(
               "group/canvas-node h-full w-full flex-col overflow-hidden rounded-lg border bg-muted/40",
@@ -428,6 +431,7 @@ export function CanvasRefCard({ node }: CardProps) {
   return (
     <div
       data-testid="canvas-canvas-ref-card"
+      data-node-id={element.id}
       data-canvas-ref-id={canvasRefId ?? ""}
       className={cn(
         CARD,
@@ -473,8 +477,13 @@ export function CanvasRefCard({ node }: CardProps) {
   );
 }
 
-/** 注册四种 react-shape：键与元素 kind 一一对应（模块加载时幂等注册）。 */
-register({ shape: "understanding", component: UnderstandingCard });
-register({ shape: "text", component: TextCard });
-register({ shape: "group", component: GroupCard });
-register({ shape: "canvas_ref", component: CanvasRefCard });
+/** 注册四种 react-shape：键与元素 kind 一一对应（幂等；由 CanvasGraph 挂载前调用，防 tree-shaking 丢弃）。 */
+let shapesRegistered = false;
+export function ensureCanvasShapes(): void {
+  if (shapesRegistered) return;
+  shapesRegistered = true;
+  register({ shape: "understanding", component: UnderstandingCard });
+  register({ shape: "text", component: TextCard });
+  register({ shape: "group", component: GroupCard });
+  register({ shape: "canvas_ref", component: CanvasRefCard });
+}

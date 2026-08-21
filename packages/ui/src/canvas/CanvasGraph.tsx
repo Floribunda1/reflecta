@@ -18,7 +18,7 @@ import { useLatest } from "ahooks";
 import { Group, Trash2 } from "lucide-react";
 import { Button } from "../components/button";
 import { cn } from "../lib/utils";
-import "./nodes";
+import { ensureCanvasShapes } from "./nodes";
 import type { CanvasCellAction } from "./shape-context";
 import type { CanvasDocument, CanvasEdgeDTO, CanvasElementDTO, CanvasViewport } from "./document";
 import {
@@ -28,12 +28,7 @@ import {
   toX6Edge,
   nodeMetadataFor,
 } from "./graph-document";
-import {
-  deleteElements,
-  deleteGroupBranch,
-  groupElements,
-  ungroupGroups,
-} from "./graph-operations";
+import { deleteElements, groupElements, ungroupGroups } from "./graph-operations";
 import { EdgeOverlay } from "./EdgeOverlay";
 import {
   CanvasEdgeUpdateProvider,
@@ -91,6 +86,19 @@ export type CanvasGraphProps = {
 
 const CANVAS_SNAP_GRID = 10;
 const EMPTY_DOC: CanvasDocument = { elements: [], edges: [] };
+
+/** 级联删除集合：起点 + 全部后代（供命令式 removeCells）。 */
+function collectCascadeIds(document: CanvasDocument, startId: string): string[] {
+  const removed = new Set([startId]);
+  let previous = 0;
+  while (removed.size !== previous) {
+    previous = removed.size;
+    for (const element of document.elements) {
+      if (element.parentId && removed.has(element.parentId)) removed.add(element.id);
+    }
+  }
+  return [...removed];
+}
 // react-shape portal provider：渲染一次，让所有 react-shape 卡片落入本 React 树（context 穿透）
 const ReactShapePortalProvider = ReactShapePortal() as React.FC<{ children?: React.ReactNode }>;
 
@@ -158,12 +166,15 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
       (doc: CanvasDocument, emit: boolean) => {
         const graph = graphRef.current;
         if (!graph) return;
+        // 程序化重建不进 History（否则把整幅图的删/增记为一条可撤销命令）
+        graph.getPlugin<History>("history")?.disable();
         suppressEmitRef.current = true;
         const vp = readViewport(graph);
         graph.removeCells(graph.getCells());
         graph.fromJSON(toX6Cells(doc));
         applyViewport(graph, vp);
         suppressEmitRef.current = false;
+        graph.getPlugin<History>("history")?.enable();
         if (emit) emitDocument();
         setSelectedEdgeId(null);
         setSelectedNodeIds([]);
@@ -184,6 +195,7 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
     useEffect(() => {
       const container = containerRef.current;
       if (!container) return;
+      ensureCanvasShapes();
       const graph = new Graph({
         container,
         autoResize: true,
@@ -198,7 +210,8 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         },
         virtual: true,
         async: true,
-        interacting: readonlyRef.current ? false : { edgeLabelMovable: true },
+        interacting: readonlyRef.current ? false : { edgeLabelMovable: true, nodeMovable: true },
+        preventDefaultDblClick: false,
         connecting: {
           snap: { radius: 50 },
           allowLoop: true,
@@ -210,6 +223,8 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         },
       });
       graphRef.current = graph;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (globalThis as any).__x6graph = graph;
 
       let dnd: Dnd | undefined;
       if (!readonlyRef.current) {
@@ -218,9 +233,15 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         graph.use(new Snapline({ enabled: true }));
         graph.use(new Clipboard());
         graph.use(new History());
-        graph.use(new Keyboard());
+        graph.use(new Keyboard({ global: true }));
         graph.use(new Export());
-        graph.use(new MiniMap({ width: 200, height: 150 }));
+        const minimapHost = globalThis.document.createElement("div");
+        minimapHost.style.position = "absolute";
+        minimapHost.style.right = "12px";
+        minimapHost.style.bottom = "12px";
+        minimapHost.style.zIndex = "8";
+        container.parentElement?.appendChild(minimapHost);
+        graph.use(new MiniMap({ container: minimapHost, width: 200, height: 150 }));
 
         // 内置 Dnd：工具栏 / 理解库调 startDrag → 拖入画布；getDropNode 生成“新”元素避免 id 冲突
         dnd = new Dnd({
@@ -240,11 +261,30 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
           const cells = graph.getSelectedCells();
           if (cells.length) graph.removeCells(cells);
         };
-        const kb = graph.getPlugin("keyboard") as
-          | { on: (keys: string, fn: (e: KeyboardEvent) => void) => void }
-          | undefined;
-        kb?.on("backspace", onDelete);
-        kb?.on("delete", onDelete);
+        const onCmd = (fn: () => void) => (e: KeyboardEvent) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest("input, textarea, [contenteditable='true']")) return;
+          e.preventDefault();
+          fn();
+        };
+        graph.bindKey("backspace", onDelete);
+        graph.bindKey("delete", onDelete);
+        graph.bindKey(
+          "mod+z",
+          onCmd(() => graph.undo()),
+        );
+        graph.bindKey(
+          "mod+shift+z",
+          onCmd(() => graph.redo()),
+        );
+        graph.bindKey(
+          "mod+c",
+          onCmd(() => graph.copy(graph.getSelectedCells())),
+        );
+        graph.bindKey(
+          "mod+v",
+          onCmd(() => graph.paste()),
+        );
       }
       dndRef.current = dnd ?? null;
 
@@ -283,6 +323,15 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         });
       }
 
+      // X6 Selection 插件不处理边点击选中：单独监听，选中边并清空节点选区
+      graph.on("edge:click", ({ edge }) => {
+        if (readonlyRef.current) return;
+        graph.getPlugin<Selection>("selection")?.reset([]);
+        setSelectedNodeIds([]);
+        setSelectedEdgeId(edge.id);
+        onSelectionChangeRef.current?.([edge.id]);
+      });
+
       const doc = document ?? EMPTY_DOC;
       appliedDocRef.current = doc;
       suppressEmitRef.current = true;
@@ -319,18 +368,35 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         },
         reload: (nextDocument: CanvasDocument) => renderGraph(nextDocument, false),
         addElement: (element: CanvasElementDTO) => {
-          rebuild((doc) => ({ ...doc, elements: [...doc.elements, element] }));
-          const cell = graphRef.current?.getCellById(element.id);
-          if (graphRef.current && cell) graphRef.current.centerCell(cell);
+          // 命令式加节点：进 History，可供 undo；node:added 事件回写文档
+          const graph = graphRef.current;
+          if (!graph) return;
+          // 弃置的 pointerdown 拖拽会遗留未闭合的 'dnd' batch（自动化点击无 real drop），
+          // 先闭合它，History 才能把本次 add 记为独立可撤销命令。
+          const model = graph.model as unknown as {
+            batches?: Record<string, number>;
+            stopBatch: (name: string) => void;
+          };
+          if (model.batches?.["dnd"]) model.stopBatch("dnd");
+          const cell = graph.addNode(nodeMetadataFor(element));
+          if (cell) graph.centerCell(cell);
         },
         updateEdge: (edge: CanvasEdgeDTO) =>
           rebuild((doc) => ({
             ...doc,
             edges: doc.edges.map((e) => (e.id === edge.id ? edge : e)),
           })),
-        deleteElement: (elementId: string) => rebuild((doc) => deleteElements(doc, [elementId])),
-        deleteEdge: (edgeId: string) =>
-          rebuild((doc) => ({ ...doc, edges: doc.edges.filter((e) => e.id !== edgeId) })),
+        deleteElement: (elementId: string) => {
+          const graph = graphRef.current;
+          if (!graph) return;
+          const doomed = collectCascadeIds(graphToDocument(graph), elementId);
+          graph.removeCells(doomed.map((id) => graph.getCellById(id)).filter(Boolean));
+        },
+        deleteEdge: (edgeId: string) => {
+          const graph = graphRef.current;
+          const cell = graph?.getCellById(edgeId);
+          if (graph && cell) graph.removeCells([cell]);
+        },
         groupSelection: (nodeIds: string[]) =>
           rebuild((doc) =>
             groupElements(doc, nodeIds, {
@@ -340,7 +406,12 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
             }),
           ),
         ungroupSelection: (groupIds: string[]) => rebuild((doc) => ungroupGroups(doc, groupIds)),
-        deleteGroup: (groupId: string) => rebuild((doc) => deleteGroupBranch(doc, groupId)),
+        deleteGroup: (groupId: string) => {
+          const graph = graphRef.current;
+          if (!graph) return;
+          const doomed = collectCascadeIds(graphToDocument(graph), groupId);
+          graph.removeCells(doomed.map((id) => graph.getCellById(id)).filter(Boolean));
+        },
         exportPng: async () => {
           graphRef.current?.exportPNG("reflecta-canvas.png");
         },
@@ -377,16 +448,21 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
 
     const onCellAction = useCallback(
       (action: CanvasCellAction) => {
-        if (action.type === "delete-element")
-          rebuild((doc) => deleteElements(doc, [action.nodeId]));
-        else if (action.type === "delete-group")
-          rebuild((doc) => deleteGroupBranch(doc, action.nodeId));
-        else if (action.type === "ungroup") rebuild((doc) => ungroupGroups(doc, [action.nodeId]));
-        else if (action.type === "delete-edge")
-          rebuild((doc) => ({
-            ...doc,
-            edges: doc.edges.filter((e) => e.id !== action.edgeId),
-          }));
+        if (action.type === "delete-element") {
+          const graph = graphRef.current;
+          if (graph) graph.removeCells([graph.getCellById(action.nodeId)].filter(Boolean));
+        } else if (action.type === "delete-group") {
+          const graph = graphRef.current;
+          if (graph) {
+            const doomed = collectCascadeIds(graphToDocument(graph), action.nodeId);
+            graph.removeCells(doomed.map((id) => graph.getCellById(id)).filter(Boolean));
+          }
+        } else if (action.type === "ungroup") rebuild((doc) => ungroupGroups(doc, [action.nodeId]));
+        else if (action.type === "delete-edge") {
+          const graph = graphRef.current;
+          const cell = graph?.getCellById(action.edgeId);
+          if (graph && cell) graph.removeCells([cell]);
+        }
       },
       [rebuild],
     );
@@ -395,49 +471,49 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
     const graph = graphRef.current;
 
     return (
-      <ReactShapePortalProvider>
-        <CanvasShapeDataProvider value={{ ...shapeData, readonly, multiSelected, onCellAction }}>
-          <CanvasElementUpdateProvider value={handleElementUpdate}>
-            <CanvasEdgeUpdateProvider value={handleEdgeUpdate}>
-              <div
-                ref={containerRef}
-                className={cn("absolute inset-0 overflow-hidden", className)}
-                style={style}
-                data-testid={testId}
+      <CanvasShapeDataProvider value={{ ...shapeData, readonly, multiSelected, onCellAction }}>
+        <CanvasElementUpdateProvider value={handleElementUpdate}>
+          <CanvasEdgeUpdateProvider value={handleEdgeUpdate}>
+            {/** react-shape 卡片经此 host 落入本 React 树（不包 children，只承载 portal） */}
+            <ReactShapePortalProvider />
+            <div
+              ref={containerRef}
+              className={cn("absolute inset-0 overflow-hidden", className)}
+              style={style}
+              data-testid={testId}
+            />
+            {graph && !readonly ? (
+              <EdgeOverlay
+                graph={graph}
+                edgeId={selectedEdgeId}
+                readonly={readonly}
+                onUpdate={handleEdgeUpdate}
+                onDelete={(edgeId) =>
+                  rebuild((doc) => ({
+                    ...doc,
+                    edges: doc.edges.filter((e) => e.id !== edgeId),
+                  }))
+                }
               />
-              {graph && !readonly ? (
-                <EdgeOverlay
-                  graph={graph}
-                  edgeId={selectedEdgeId}
-                  readonly={readonly}
-                  onUpdate={handleEdgeUpdate}
-                  onDelete={(edgeId) =>
-                    rebuild((doc) => ({
-                      ...doc,
-                      edges: doc.edges.filter((e) => e.id !== edgeId),
-                    }))
-                  }
-                />
-              ) : null}
-              {multiSelected ? (
-                <SelectionToolbar
-                  selectedCount={selectedNodeIds.length}
-                  onGroup={() =>
-                    rebuild((doc) =>
-                      groupElements(doc, selectedNodeIds, {
-                        id: crypto.randomUUID(),
-                        canvasId,
-                        createdAt: new Date().toISOString(),
-                      }),
-                    )
-                  }
-                  onDelete={() => rebuild((doc) => deleteElements(doc, selectedNodeIds))}
-                />
-              ) : null}
-            </CanvasEdgeUpdateProvider>
-          </CanvasElementUpdateProvider>
-        </CanvasShapeDataProvider>
-      </ReactShapePortalProvider>
+            ) : null}
+            {multiSelected ? (
+              <SelectionToolbar
+                selectedCount={selectedNodeIds.length}
+                onGroup={() =>
+                  rebuild((doc) =>
+                    groupElements(doc, selectedNodeIds, {
+                      id: crypto.randomUUID(),
+                      canvasId,
+                      createdAt: new Date().toISOString(),
+                    }),
+                  )
+                }
+                onDelete={() => rebuild((doc) => deleteElements(doc, selectedNodeIds))}
+              />
+            ) : null}
+          </CanvasEdgeUpdateProvider>
+        </CanvasElementUpdateProvider>
+      </CanvasShapeDataProvider>
     );
   },
 );

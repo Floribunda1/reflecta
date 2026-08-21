@@ -66,8 +66,10 @@ const VIEWPORT_SETTLE_MS = 600;
 
 function CanvasTextTool({
   onStartDrag,
+  onClick,
 }: {
   onStartDrag: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  onClick: () => void;
 }) {
   return (
     <Tooltip>
@@ -80,6 +82,7 @@ function CanvasTextTool({
             aria-label="文本"
             data-testid="canvas-tool-dnd-text"
             onPointerDown={onStartDrag}
+            onClick={onClick}
           />
         }
       >
@@ -162,6 +165,7 @@ function CanvasWorkspaceSidePanel({
   onClose,
   onOpenCanvasRefPicker,
   onStartDragUnderstanding,
+  onPickUnderstanding,
   onSwitchDetail,
 }: {
   canvasId: string;
@@ -170,6 +174,7 @@ function CanvasWorkspaceSidePanel({
   onClose: () => void;
   onOpenCanvasRefPicker: () => void;
   onStartDragUnderstanding: (id: string, e: React.MouseEvent | React.PointerEvent) => void;
+  onPickUnderstanding: (id: string) => void;
   onSwitchDetail: (understandingId: string) => void;
 }) {
   if (!rightPanel) return null;
@@ -192,6 +197,7 @@ function CanvasWorkspaceSidePanel({
             onClose={onClose}
             onOpenCanvasRefPicker={onOpenCanvasRefPicker}
             onStartDragUnderstanding={onStartDragUnderstanding}
+            onPickUnderstanding={onPickUnderstanding}
           />
         ) : rightPanel.mode === "detail" ? (
           <CanvasDetailPanel
@@ -248,6 +254,17 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
 
   const setDocument = useAtomSet(documentAtom);
   const setViewport = useAtomSet(viewportAtom);
+  const documentSeededRef = useRef(false);
+  // 首次加载：把详情同步进 documentAtom，搜索 / 面板路由才能基于当前文档工作
+  if (
+    initialDocument === null &&
+    detail &&
+    !documentSeededRef.current &&
+    readCanvasState(documentAtom).elements.length === 0
+  ) {
+    setDocument({ elements: detail.elements, edges: detail.edges });
+    documentSeededRef.current = true;
+  }
   const setSelection = useAtomSet(selectionAtom);
   const currentDocument = useAtomValue(documentAtom);
 
@@ -482,6 +499,12 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
                   e.preventDefault();
                   graphRef.current?.startDrag(newTextElement({ width: 220, height: 120 }), e);
                 }}
+                onClick={() => {
+                  const text = newTextElement();
+                  text.x = 120;
+                  text.y = 120;
+                  graphRef.current?.addElement(text);
+                }}
               />
               <CanvasUnderstandingTool
                 open={libraryOpen}
@@ -519,6 +542,7 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
           onStartDragUnderstanding={(id, e) =>
             graphRef.current?.startDrag(newUnderstandingElement(id), e)
           }
+          onPickUnderstanding={(id) => graphRef.current?.addElement(newUnderstandingElement(id))}
           onSwitchDetail={(nextId) => {
             setRightPanel({ mode: "detail", understandingId: nextId });
             setDetailPanelKey(nextId);

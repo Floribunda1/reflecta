@@ -2,12 +2,18 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import { canvasRow, openCanvasPage } from "../../acceptance/spec/canvas/canvas-e2e";
 
 /**
- * 画布模块集成测试 helper（仅服务于画布本身的 RF 定制逻辑断言）。
- * 复用 acceptance/regression 的共享基建（launchApp / seedCanvas / canvas-e2e helpers），
- * 这里只补充按标题进入 seed 画布、按元素 id 定位节点等模块内定位能力。
+ * Canvas 集成测试 helper（X6 架构）。
+ * 复用 acceptance 的 launchApp / seedCanvas / canvas-e2e 共享基建。
+ * 节点按 `data-node-id`（卡片根元素）定位；边用 `.x6-edge`（单边夹具下按序定位）。
  */
 
-/** 进入列表页并打开指定标题的画布工作区（seedCanvas 预置画布）。 */
+/** 从工作区返回画布列表（rail 模块入口；旧 canvas-workspace-back-button 已不存在）。 */
+export async function leaveCanvasWorkspace(page: Page) {
+  await page.getByTestId("app-nav-module-canvas").click();
+  await expect(page.getByTestId("canvas-page")).toBeVisible();
+}
+
+/** 进入列表页并打开指定标题的 seed 画布工作区。 */
 export async function openSeededCanvas(page: Page, title: string) {
   await openCanvasPage(page);
   await canvasRow(page, title).click();
@@ -15,76 +21,66 @@ export async function openSeededCanvas(page: Page, title: string) {
   await expect(page.getByTestId("canvas-graph")).toBeVisible();
 }
 
-/** 主图内按元素 id 定位节点（React Flow 给节点 wrapper 挂了 data-id）。 */
+/** 主图内按 `data-node-id` 定位节点卡片根。 */
 export function nodeInGraph(page: Page, elementId: string): Locator {
-  return page.getByTestId("canvas-graph").locator(`.react-flow__node[data-id="${elementId}"]`);
+  return page.getByTestId("canvas-graph").locator(`[data-node-id="${elementId}"]`);
 }
 
-/** 主图内全部边 wrapper。 */
+/** 主图内全部边视图（X6 `.x6-edge`）。 */
 export function edgesInGraph(page: Page): Locator {
-  return page.getByTestId("canvas-graph").locator(".react-flow__edge");
+  return page.getByTestId("canvas-graph").locator(".x6-edge");
 }
 
-/** 主图内边可见路径（RF 的 .react-flow__edge-path，非 pointer-events 属性）。 */
-export function edgeLineInGraph(page: Page): Locator {
-  return edgesInGraph(page).locator(".react-flow__edge-path");
+/** 主图内边可见路径（点击选中 / 样式断言用）。 */
+export function edgePathInGraph(page: Page): Locator {
+  return page.getByTestId("canvas-graph").locator(".x6-edge .connection");
 }
 
-/** 主图视口 transform 字符串（平移/缩放断言用）。 */
-export async function viewportTransform(page: Page): Promise<string | null> {
-  return page.getByTestId("canvas-graph").locator(".react-flow__viewport").getAttribute("style");
-}
-
-/** 给定屏幕坐标处最顶层元素的 className 链（断言元素是否置顶、不被节点遮挡）。 */
-export async function topmostChainAt(page: Page, x: number, y: number): Promise<string> {
-  return page.evaluate(
-    ([px, py]) => {
-      const el = document.elementFromPoint(px, py);
-      if (!el) return "";
-      const chain: string[] = [];
-      let cur: Element | null = el;
-      while (cur && cur !== document.body) {
-        const testId = cur.getAttribute?.("data-testid");
-        chain.push(testId ?? cur.className?.toString?.() ?? cur.tagName);
-        cur = cur.parentElement;
-      }
-      return chain.join("|");
-    },
-    [x, y] as [number, number],
-  );
-}
-
-/** 从卡片 source handle（右缘）拖到另一卡片 target handle（左缘），建立有向边。 */
-export async function dragHandleToHandle(page: Page, sourceNode: Locator, targetNode: Locator) {
-  await sourceNode
-    .locator(".react-flow__handle.source")
-    .dragTo(targetNode.locator(".react-flow__handle.target"), { force: true });
-}
-
-/** 选中一条边（点击边的 interaction 路径，命中 wrap）。 */
-export async function selectEdgeByNodeIds(page: Page, edgeId: string) {
-  const interaction = page
-    .getByTestId("canvas-graph")
-    .locator(`.react-flow__edge[data-id="${edgeId}"] .react-flow__edge-interaction`);
-  await interaction.dispatchEvent("click");
-  await page.waitForTimeout(150);
-  await expect(
-    page.getByTestId("canvas-graph").locator(`.react-flow__edge[data-id="${edgeId}"]`),
-  ).toHaveClass(/selected/);
-}
-
-/** 框选：从左上到右下拖出一个覆盖所有给定节点的矩形。 */
-export async function boxSelectNodes(
+/** 方框选（左键拖拽 rubberband）：覆盖给定框集合外扩一定边距。 */
+export async function boxSelect(
   page: Page,
   boxes: Array<{ x: number; y: number; width: number; height: number }>,
 ) {
-  const x0 = Math.min(...boxes.map((box) => box.x)) - 40;
-  const y0 = Math.min(...boxes.map((box) => box.y)) - 40;
-  const x1 = Math.max(...boxes.map((box) => box.x + box.width)) + 40;
-  const y1 = Math.max(...boxes.map((box) => box.y + box.height)) + 40;
+  const x0 = Math.min(...boxes.map((b) => b.x)) - 40;
+  const y0 = Math.min(...boxes.map((b) => b.y)) - 40;
+  const x1 = Math.max(...boxes.map((b) => b.x + b.width)) + 40;
+  const y1 = Math.max(...boxes.map((b) => b.y + b.height)) + 40;
   await page.mouse.move(x0, y0);
   await page.mouse.down();
-  await page.mouse.move(x1, y1, { steps: 12 });
+  await page.mouse.move(x1, y1, { steps: 10 });
   await page.mouse.up();
   await page.waitForTimeout(200);
+}
+
+/** 计算一组节点当前屏幕框（供框选 / 位置断言）。 */
+export async function nodeBoxes(page: Page, ids: string[]) {
+  const boxes: Array<{ x: number; y: number; width: number; height: number }> = [];
+  for (const id of ids) {
+    boxes.push((await nodeInGraph(page, id).boundingBox())!);
+  }
+  return boxes;
+}
+
+/** 选中一条边：点击主图第一条 `.x6-edge` 的包围盒中心（3.x 边路径无 class，点透明交互路径）。 */
+export async function selectEdge(page: Page) {
+  const edge = page.getByTestId("canvas-graph").locator(".x6-edge").first();
+  const box = (await edge.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await page.waitForTimeout(200);
+}
+
+/** 打开理解库侧栏。 */
+export async function openLibrary(page: Page) {
+  await page.getByTestId("canvas-toggle-library-button").click();
+  await expect(page.getByTestId("canvas-library-panel")).toBeVisible();
+}
+
+/** 用 X6 Dnd 从源（onPointerDown 会调 startDrag 的按钮/条目）拖到目标画布坐标。 */
+export async function dragSourceTo(page: Page, source: Locator, x: number, y: number) {
+  const box = (await source.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(x, y, { steps: 12 });
+  await page.mouse.up();
+  await page.waitForTimeout(250);
 }
