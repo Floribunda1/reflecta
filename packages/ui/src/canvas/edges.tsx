@@ -130,6 +130,7 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
   }, [editingEdgeId, edge?.id, readonly]);
   useEffect(() => {
     if (!editing || !labelRef.current) return;
+    labelRef.current.textContent = draft;
     labelRef.current.focus();
     const selection = window.getSelection();
     const range = document.createRange();
@@ -250,6 +251,7 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
             ref={labelRef}
             contentEditable={editing}
             suppressContentEditableWarning
+            className="outline-none focus:outline-none"
             aria-label={editing ? "连线标签" : undefined}
             onInput={(event) => setDraft(event.currentTarget.textContent ?? "")}
             onBlur={editing ? commit : undefined}
@@ -265,7 +267,7 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
               }
             }}
           >
-            {editing ? draft : edge.label}
+            {editing ? undefined : edge.label}
           </span>
         </div>
       </EdgeLabelRenderer>
