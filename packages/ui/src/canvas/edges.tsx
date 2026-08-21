@@ -116,19 +116,29 @@ function lineStyle(style: CanvasEdgeStyle | null, selected: boolean) {
 
 export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
   const updateEdge = useCanvasEdgeUpdate();
-  const { readonly, multiSelected, onCellAction } = useCanvasShapeData();
+  const { readonly, multiSelected, onCellAction, editingEdgeId, onEdgeEditEnd } =
+    useCanvasShapeData();
   const edge = props.data?.edge;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(edge?.label ?? "");
 
   useEffect(() => setDraft(edge?.label ?? ""), [edge?.label]);
+  // 双击连线（React Flow onEdgeDoubleClick → editingEdgeId）或双击标签（下方 label div）都进入编辑。
+  useEffect(() => {
+    if (!readonly && editingEdgeId && editingEdgeId === edge?.id) setEditing(true);
+  }, [editingEdgeId, edge?.id, readonly]);
   if (!edge) return null;
   const [path, labelX, labelY] = pathFor(edge.style, props);
 
-  const commit = () => {
+  const endEditing = () => {
     setEditing(false);
+    onEdgeEditEnd?.();
+  };
+
+  const commit = () => {
     const label = draft.trim() || null;
     if (label !== edge.label) updateEdge({ ...edge, label });
+    endEditing();
   };
 
   const style = edge.style ?? {};
@@ -144,7 +154,6 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
         style={lineStyle(edge.style, Boolean(props.selected))}
         markerEnd={props.markerEnd}
         interactionWidth={props.interactionWidth}
-        onDoubleClick={readonly ? undefined : () => setEditing(true)}
       />
       <EdgeToolbar
         edgeId={props.id}
@@ -156,7 +165,7 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
         className="flex gap-1 rounded-md border bg-background p-1 shadow-sm"
         style={{ zIndex: 1001 }}
       >
-        {/* 标签编辑走双击边（BaseEdge onDoubleClick），工具栏不放重复入口 */}
+        {/* 标签编辑走双击连线（React Flow onEdgeDoubleClick → editingEdgeId），工具栏不放重复入口 */}
         <Popover>
           <PopoverTrigger
             render={
@@ -233,7 +242,7 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
               onBlur={commit}
               onKeyDown={(event) => {
                 if (event.key === "Enter") commit();
-                if (event.key === "Escape") setEditing(false);
+                if (event.key === "Escape") endEditing();
               }}
               className="w-24 bg-transparent outline-none"
             />

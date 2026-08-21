@@ -128,6 +128,7 @@ const CANVAS_EDGE_STATE_CLASS =
 // 只把官方色值换成设计 token；type 叫 group 才会吃到这套皮。
 const CANVAS_GROUP_CLASS = [
   "[--xy-node-border:1px_solid_var(--border)]",
+  "[--xy-node-border-selected:1px_solid_transparent]",
   "[--xy-node-border-radius:var(--radius-lg)]",
   "[--xy-node-group-background-color:color-mix(in_oklch,var(--muted)_40%,transparent)]",
   "[--xy-node-boxshadow-selected:0_0_0_2px_var(--ring)]",
@@ -222,6 +223,8 @@ function useCanvasFlow(props: CanvasGraphProps, ref: Ref<CanvasGraphHandle>) {
   const [edges, setEdges] = useEdgesState<Edge>(initEdges);
   // 选中节点跟踪：selection 工具条（多选打组）消费；readonly 下不维护。
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
+  // 双击连线发起的标签编辑：边组件据 id 开启内联编辑，结束后清空以便再次进入。
+  const [editingEdgeId, setEditingEdgeId] = useState<string | null>(null);
   const nodesRef = useLatest(nodes);
   const edgesRef = useLatest(edges);
 
@@ -607,8 +610,14 @@ function useCanvasFlow(props: CanvasGraphProps, ref: Ref<CanvasGraphHandle>) {
   // 多选：选区工具栏显示于选区上方，各节点隐藏独立操作工具栏。
   const multiSelected = !readonly && selectedNodeIds.length >= 2;
   const shapeContextValue = useMemo(
-    () => ({ ...shapeData, readonly, multiSelected }),
-    [shapeData, readonly, multiSelected],
+    () => ({
+      ...shapeData,
+      readonly,
+      multiSelected,
+      editingEdgeId,
+      onEdgeEditEnd: () => setEditingEdgeId(null),
+    }),
+    [shapeData, readonly, multiSelected, editingEdgeId],
   );
 
   // 删除整个选区（含被选组的所有后代）。
@@ -655,6 +664,7 @@ function useCanvasFlow(props: CanvasGraphProps, ref: Ref<CanvasGraphHandle>) {
     handleConnect,
     handleSelectionChange,
     handleOnViewportChange,
+    setEditingEdgeId,
     onDragOver,
     onDragLeave,
     onDrop,
@@ -683,6 +693,7 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
     handleConnect,
     handleSelectionChange,
     handleOnViewportChange,
+    setEditingEdgeId,
     onDragOver,
     onDragLeave,
     onDrop,
@@ -711,6 +722,10 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
               onEdgesChange={handleEdgesChange}
               onConnect={handleConnect}
               onSelectionChange={handleSelectionChange}
+              onEdgeDoubleClick={(_, edge) => {
+                if (readonly) return;
+                setEditingEdgeId(edge.id);
+              }}
               onViewportChange={handleOnViewportChange}
               onDragOver={onDragOver}
               onDragLeave={onDragLeave}

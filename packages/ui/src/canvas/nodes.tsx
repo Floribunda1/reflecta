@@ -85,7 +85,15 @@ function Harness({ source = true, target = true }: { source?: boolean; target?: 
   );
 }
 
-function Resizer({ visible, hideLine = false }: { visible: boolean; hideLine?: boolean }) {
+function Resizer({
+  visible,
+  hideLine = false,
+  lineColor,
+}: {
+  visible: boolean;
+  hideLine?: boolean;
+  lineColor?: string;
+}) {
   const { readonly, multiSelected } = useCanvasShapeData();
   return (
     <NodeResizer
@@ -94,6 +102,7 @@ function Resizer({ visible, hideLine = false }: { visible: boolean; hideLine?: b
       minWidth={80}
       minHeight={48}
       lineClassName={hideLine ? "!border-transparent" : "!border-primary"}
+      lineStyle={lineColor ? { borderColor: lineColor } : undefined}
       handleClassName="!h-2 !w-2 !border-primary !bg-background"
     />
   );
@@ -379,12 +388,16 @@ export function GroupNode(props: NodeProps<CanvasNode>) {
               <Trash2 />
             </Button>
           </CanvasNodeToolbar>
-          <Resizer visible={props.selected} hideLine />
+          <Resizer
+            visible={props.selected}
+            lineColor={canvasPaintColor(element.props.color) ?? "var(--primary)"}
+          />
           <Harness />
           {/* 悬浮在矩形左上角上边外的组名徽章 */}
           <div
             data-testid="canvas-group-label"
-            className="absolute left-1.5 -top-9 z-10 flex max-w-[calc(100%-1rem)] cursor-grab items-center gap-1 rounded-md bg-background px-1.5 py-0.5 text-xs shadow-sm"
+            className="absolute -left-4 -top-9 z-10 flex max-w-[calc(100%-1rem)] cursor-grab items-center gap-1 rounded-md bg-background px-1.5 py-0.5 text-xs shadow-sm"
+            style={{ color: canvasPaintColor(element.props.color) }}
             onDoubleClick={readonly ? undefined : startEditing}
           >
             <PackageOpen size={12} className="shrink-0 text-muted-foreground" />

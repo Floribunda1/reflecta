@@ -39,6 +39,10 @@ export type CanvasShapeData = {
   onCanvasRefClick?: (canvasId: string) => void;
   onCellAction?: (action: CanvasCellAction) => void;
   onElementEdit?: (element: CanvasElementDTO) => void;
+  /** 双击连线发起的标签编辑：React Flow onEdgeDoubleClick 落到对应边，开启内联编辑 */
+  editingEdgeId?: string | null;
+  /** 标签编辑结束（提交 / 取消）时清空，保证同一连线可再次双击进入 */
+  onEdgeEditEnd?: () => void;
 };
 
 export type CanvasCellAction =

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps, CSSProperties, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { CanvasElementDTO } from "./document";
 import {
@@ -13,11 +13,20 @@ import {
 
 vi.mock("@xyflow/react", () => ({
   Handle: ({ type }: { type: string }) => <span data-testid={`handle-${type}`} />,
-  NodeResizer: ({ isVisible, lineClassName }: { isVisible: boolean; lineClassName?: string }) => (
+  NodeResizer: ({
+    isVisible,
+    lineClassName,
+    lineStyle,
+  }: {
+    isVisible: boolean;
+    lineClassName?: string;
+    lineStyle?: CSSProperties;
+  }) => (
     <span
       data-testid="node-resizer"
       data-visible={String(isVisible)}
       data-line-class={lineClassName}
+      data-line-color={lineStyle?.borderColor}
     />
   ),
   NodeToolbar: ({ isVisible, children }: { isVisible: boolean; children: ReactNode }) =>
@@ -171,13 +180,16 @@ describe("canvas nodes", () => {
     expect(overlay?.className).not.toContain("hover:ring-2");
     expect(
       container.querySelector('[data-testid="node-resizer"]')?.getAttribute("data-line-class"),
-    ).toBe("!border-transparent");
+    ).toBe("!border-primary");
+    expect(
+      container.querySelector('[data-testid="node-resizer"]')?.getAttribute("data-line-color"),
+    ).toBe("var(--primary)");
   });
 
   test("places the group label outside the top-left shell", () => {
     render(<GroupNode {...props(GroupNode, elements.group)} />);
     expect(container.querySelector('[data-testid="canvas-group-label"]')?.className).toContain(
-      "left-1.5",
+      "-left-4",
     );
     expect(container.querySelector('[data-testid="canvas-group-label"]')?.className).toContain(
       "-top-9",

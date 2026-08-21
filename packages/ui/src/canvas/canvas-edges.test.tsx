@@ -55,6 +55,7 @@ const edge: CanvasEdgeDTO = {
 
 let container: HTMLDivElement;
 let root: Root;
+let renderCount = 0;
 
 beforeEach(() => {
   container = document.createElement("div");
@@ -88,11 +89,16 @@ function render(
   dto: CanvasEdgeDTO,
   extra: Partial<ComponentProps<typeof CanvasEdge>> = {},
   readonly = false,
+  editing = false,
 ) {
   const onUpdate = vi.fn();
+  const shape = { ...EMPTY_CANVAS_SHAPE_DATA, readonly };
+  // key 强制每次 render 全新挂载：editing 从 false 开始，模拟双击触发（editingEdgeId 注入）后
+  // effect 再开启编辑，与生产中 onEdgeDoubleClick → editingEdgeId 同一条路径。
+  const contextValue = editing ? { ...shape, editingEdgeId: dto.id } : shape;
   act(() =>
     root.render(
-      <CanvasShapeDataProvider value={{ ...EMPTY_CANVAS_SHAPE_DATA, readonly }}>
+      <CanvasShapeDataProvider key={++renderCount} value={contextValue}>
         <CanvasEdgeUpdateProvider value={onUpdate}>
           <CanvasEdge {...edgeProps(dto, extra)} />
         </CanvasEdgeUpdateProvider>
@@ -165,13 +171,18 @@ describe("canvas edges", () => {
     expect(container.querySelector<HTMLElement>(".ring-primary")).not.toBeNull();
   });
 
-  test("label editing trims and commits changes but ignores unchanged values", () => {
-    const onUpdate = render(edge);
+  function openEditor() {
+    // 双击连线经 React Flow onEdgeDoubleClick → editingEdgeId 触发编辑。
     act(() =>
       container
-        .querySelector<HTMLElement>('[data-testid="base-edge"]')!
+        .querySelector<HTMLElement>("[data-testid='base-edge']")!
         .dispatchEvent(new MouseEvent("dblclick", { bubbles: true })),
     );
+  }
+
+  test("label editing trims and commits changes but ignores unchanged values", () => {
+    const onUpdate = render(edge, {}, false, true);
+    openEditor();
     const input = container.querySelector<HTMLInputElement>('input[aria-label="连线标签"]')!;
     act(() => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
@@ -183,12 +194,8 @@ describe("canvas edges", () => {
     act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     expect(onUpdate).toHaveBeenCalledWith({ ...edge, label: "CHANGED" });
 
-    render(edge);
-    act(() =>
-      container
-        .querySelector<HTMLElement>('[data-testid="base-edge"]')!
-        .dispatchEvent(new MouseEvent("dblclick", { bubbles: true })),
-    );
+    render(edge, {}, false, true);
+    openEditor();
     act(() => container.querySelector<HTMLInputElement>('input[aria-label="连线标签"]')!.blur());
     expect(onUpdate).toHaveBeenCalledTimes(1);
   });
@@ -233,12 +240,8 @@ describe("canvas edges", () => {
   });
 
   test("Escape cancels label editing and readonly prevents it", () => {
-    const onUpdate = render(edge);
-    act(() =>
-      container
-        .querySelector<HTMLElement>('[data-testid="base-edge"]')!
-        .dispatchEvent(new MouseEvent("dblclick", { bubbles: true })),
-    );
+    const onUpdate = render(edge, {}, false, true);
+    openEditor();
     act(() =>
       container
         .querySelector<HTMLInputElement>('input[aria-label="连线标签"]')!
@@ -247,13 +250,22 @@ describe("canvas edges", () => {
     expect(container.querySelector("input")).toBeNull();
     expect(onUpdate).not.toHaveBeenCalled();
 
-    render(edge, { selected: true }, true);
-    act(() =>
-      container
-        .querySelector<HTMLElement>('[data-testid="base-edge"]')!
-        .dispatchEvent(new MouseEvent("dblclick", { bubbles: true })),
-    );
+    // readonly：不注入 editingEdgeId，双击连线不进入编辑。
+    render(edge, { selected: true }, true, true);
+    openEditor();
     expect(container.querySelector("input")).toBeNull();
     expect(container.querySelector('[data-testid="edge-toolbar"]')).toBeNull();
+  });
+
+  test("double-click trigger (editingEdgeId) re-opens editing for the same edge", () => {
+    // editingEdgeId === 本边 id → 挂载 effect 开启编辑。
+    render(edge, {}, false, true);
+    expect(container.querySelector('input[aria-label="连线标签"]')).not.toBeNull();
+    // 提交后触发清空（onEdgeEditEnd → editingEdgeId 置 null）→ 编辑关闭。
+    render(edge, {}, false, false);
+    expect(container.querySelector("input")).toBeNull();
+    // 再次双击同一连线 → trigger 重新注入 → 再次进入。
+    render(edge, {}, false, true);
+    expect(container.querySelector('input[aria-label="连线标签"]')).not.toBeNull();
   });
 });
