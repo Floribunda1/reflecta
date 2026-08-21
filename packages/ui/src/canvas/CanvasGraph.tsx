@@ -207,7 +207,8 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         autoResize: true,
         // 左键= rubberband 框选；Space+左拖=平移；中键拖拽=平移（X6 内置）
         panning: { enabled: true, eventTypes: ["leftMouseDown", "mouseWheelDown"] },
-        mousewheel: { enabled: true, factor: 1.2, zoomAtMousePosition: true },
+        // 滚轮不交给 X6（方案 B）：自建 handler，普通滚轮/双指=平移，⌘/Ctrl+滚轮=缩放
+        mousewheel: { enabled: false },
         // 组内成员拖动限制在组 bbox 内（extent）；组自身可自由移动
         translating: {
           restrict: (view) => {
@@ -362,7 +363,26 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         else graph.zoomToFit({ padding: 20, maxScale: 1 });
       }
 
+      // 滚轮（方案 B）：普通滚轮 / 触控板双指 = 平移，⌘(mac)/Ctrl(win) + 滚轮 = 缩放（鼠标位置为中心）。
+      // deltaMode：0=像素（触控板），1=行（鼠标滚轮）→ 统一换算成像素速度。
+      const onWheel = (e: WheelEvent) => {
+        // 带 nowheel 的元素（卡片内 Markdown 编辑器等）不劫持滚轮
+        if ((e.target as HTMLElement | null)?.closest?.(".nowheel")) return;
+        e.preventDefault();
+        if (e.metaKey || e.ctrlKey) {
+          graph.zoom(e.deltaY < 0 ? 1.1 : 1 / 1.1, {
+            absolute: false,
+            center: { x: e.clientX, y: e.clientY },
+          });
+          return;
+        }
+        const toPx = e.deltaMode === 1 ? 16 : 1;
+        graph.translateBy(-e.deltaX * toPx, -e.deltaY * toPx);
+      };
+      container.addEventListener("wheel", onWheel, { passive: false });
+
       return () => {
+        container.removeEventListener("wheel", onWheel);
         graph.dispose();
         graphRef.current = null;
         dndRef.current?.dispose();

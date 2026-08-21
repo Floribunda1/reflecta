@@ -92,7 +92,7 @@
 ## 8.4 视口 / 网格
 
 - [修改] 中键拖拽 = 平移（panning.eventTypes 含 mouseWheelDown）
-- [待定] 滚轮行为 —— 两种候选见文末讨论，确认后落本文与实现
+- [修改] 滚轮行为（方案 B，已定）：普通滚轮 / 触控板双指 = 平移（按 deltaMode 归一化速度行→像素）；⌘(mac) / Ctrl(win) + 滚轮 = 缩放（以鼠标位置为中心，不改 zoomAtMousePosition 语义）；中键 / Space 平移保留；`nowheel`（Markdown 编辑器等）内不劫持滚轮
 - [保留] 缩放控件：放大 / 缩小 / 适应视图（左下）
 - [修改] 节点拖动吸附到 10px 网格 —— X6 free-move 内建 `snapToGrid`（grid.size=10，无需手写吸附逻辑）
 - [保留] 无已存视口时初始 fitView
