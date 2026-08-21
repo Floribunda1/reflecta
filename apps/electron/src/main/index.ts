@@ -20,6 +20,7 @@ import {
   isUpdateCheckInProgress,
   isUpdateCheckSupported,
 } from "./updater";
+import { rpcGuard } from "./rpc-guard";
 import {
   appIpc,
   TrashListError,
@@ -255,6 +256,9 @@ app.whenReady().then(async () => {
       Effect.catchDefect((defect) => Effect.fail(uErr(`操作失败：${String(defect)}`))),
     );
   const cErr = (message: string) => new CanvasError({ reason: message, code: 500 });
+  // 全局错误兜底：已知失败→契约化（保留 reason）；未知/defect→操作失败+原文；超时→typed。
+  // canvas 域 handler 统一走此处，业务（服务调用）保持原样。新增 canvas handler 同样包一层即可。
+  const gc = rpcGuard((message: string) => cErr(message));
   const cfgErr = (message: string) => new ConfigError({ reason: message, code: 500 });
   const chatErr = (message: string) => new ChatError({ reason: message, code: 500 });
   const searchErr = (message: string) => new SearchError({ reason: message, code: 500 });
@@ -433,30 +437,39 @@ app.whenReady().then(async () => {
         runUnderstanding(understandingService.permanentlyDeleteUnderstanding(id)).pipe(
           Effect.map(() => undefined),
         ),
-      "understandingCanvas.listCanvases": () => understandingCanvasService.listCanvases(),
+      "understandingCanvas.listCanvases": () => gc(understandingCanvasService.listCanvases()),
       "understandingCanvas.listCanvasesByUnderstanding": ({ understandingId }) =>
-        understandingCanvasService.listCanvasesByUnderstanding(understandingId),
+        gc(understandingCanvasService.listCanvasesByUnderstanding(understandingId)),
       "understandingCanvas.getCanvas": ({ id }) =>
-        understandingCanvasService.getCanvasDetail(id, { includeBodies: true }),
+        gc(understandingCanvasService.getCanvasDetail(id, { includeBodies: true })),
       "understandingCanvas.createCanvas": ({ input }) =>
-        understandingCanvasService.createCanvas(
-          input as import("@reflecta/server").CreateCanvasInput | undefined,
+        gc(
+          understandingCanvasService.createCanvas(
+            input as import("@reflecta/server").CreateCanvasInput | undefined,
+          ),
         ),
       "understandingCanvas.updateCanvas": ({ id, input }) =>
-        understandingCanvasService.updateCanvas(
-          id,
-          input as import("@reflecta/server").UpdateCanvasInput,
+        gc(
+          understandingCanvasService.updateCanvas(
+            id,
+            input as import("@reflecta/server").UpdateCanvasInput,
+          ),
         ),
       "understandingCanvas.deleteCanvas": ({ id }) =>
-        understandingCanvasService.deleteCanvas(id).pipe(Effect.map(() => undefined)),
+        gc(understandingCanvasService.deleteCanvas(id).pipe(Effect.map(() => undefined))),
       "understandingCanvas.updateViewport": ({ canvasId, viewport }) =>
-        understandingCanvasService
-          .updateViewport(canvasId, viewport as import("@reflecta/server").Viewport)
-          .pipe(Effect.map(() => undefined)),
+        gc(
+          understandingCanvasService
+            .updateViewport(canvasId, viewport as import("@reflecta/server").Viewport)
+            .pipe(Effect.map(() => undefined)),
+        ),
       "understandingCanvas.saveCanvas": ({ canvasId, document }) =>
-        understandingCanvasService
-          .saveCanvas(canvasId, document as import("@reflecta/server").CanvasDocument)
-          .pipe(Effect.mapError((e) => cErr(e.message))),
+        gc(
+          understandingCanvasService.saveCanvas(
+            canvasId,
+            document as import("@reflecta/server").CanvasDocument,
+          ),
+        ),
 
       "config.openDirectoryPicker": () =>
         Effect.tryPromise({
