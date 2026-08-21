@@ -40,6 +40,148 @@ function parseModelSelectionValue(value: string): AiModelSelection | undefined {
   };
 }
 
+function AiProviderDetail({
+  selectedProvider,
+  providerConfig,
+  usesCodexAuth,
+  codexConnected,
+  codexBusy,
+  providerAvailable,
+  enabledModelIds,
+  enabledModelIdSet,
+  modelQuery,
+  models,
+  onDisconnect,
+  onConnectCodex,
+  onApiKeyChange,
+  onModelQueryChange,
+  onToggleModel,
+}: {
+  selectedProvider: AiProviderDefinition;
+  providerConfig: AiProviderConfig | undefined;
+  usesCodexAuth: boolean;
+  codexConnected: boolean;
+  codexBusy: boolean;
+  providerAvailable: boolean;
+  enabledModelIds: readonly string[];
+  enabledModelIdSet: Set<string>;
+  modelQuery: string;
+  models: AiProviderDefinition["models"];
+  onDisconnect: () => void;
+  onConnectCodex: () => void;
+  onApiKeyChange: (apiKey: string) => void;
+  onModelQueryChange: (query: string) => void;
+  onToggleModel: (modelId: string, enabled: boolean) => void;
+}) {
+  return (
+    <>
+      <div className="flex shrink-0 items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h4 className="truncate text-sm font-medium text-foreground">{selectedProvider.name}</h4>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {usesCodexAuth
+              ? codexConnected
+                ? "已连接 ChatGPT 订阅"
+                : "未连接 ChatGPT 订阅"
+              : providerConfig?.apiKey
+                ? "已配置 API Key"
+                : "未配置 API Key"}
+          </p>
+        </div>
+        <Button
+          size="xs"
+          variant="ghost"
+          disabled={usesCodexAuth ? !codexConnected || codexBusy : !providerConfig}
+          onClick={onDisconnect}
+        >
+          <Trash2 size={13} />
+          {usesCodexAuth ? "断开" : "清除"}
+        </Button>
+      </div>
+
+      {usesCodexAuth ? (
+        <Item variant="outline" size="xs" className="shrink-0 justify-between">
+          <ItemContent>
+            <span className="text-sm text-muted-foreground">
+              {codexConnected
+                ? "已通过 OpenAI 授权，凭据会自动刷新"
+                : "通过浏览器登录 ChatGPT Plus/Pro，完成后自动返回 Reflecta"}
+            </span>
+          </ItemContent>
+          <ItemActions>
+            <Button size="xs" variant="outline" disabled={codexBusy} onClick={onConnectCodex}>
+              {codexBusy ? (
+                <LoaderCircle size={13} className="animate-spin" />
+              ) : (
+                <ExternalLink size={13} />
+              )}
+              {codexBusy ? "等待授权" : codexConnected ? "重新连接" : "连接"}
+            </Button>
+          </ItemActions>
+        </Item>
+      ) : (
+        <label className="flex shrink-0 flex-col gap-2">
+          <span className="text-sm font-medium text-foreground">API Key</span>
+          <Input
+            data-testid="settings-ai-api-key-input"
+            value={providerConfig?.apiKey ?? ""}
+            onChange={(event) => onApiKeyChange(event.target.value)}
+            type="password"
+            placeholder="sk-..."
+            className="font-mono"
+          />
+        </label>
+      )}
+
+      <div className="flex min-h-0 flex-1 flex-col gap-2">
+        <div className="flex shrink-0 items-center justify-between gap-3">
+          <span className="text-sm font-medium text-foreground">用于 Chat 的模型</span>
+          <span className="text-xs text-muted-foreground">已选择 {enabledModelIds.length} 个</span>
+        </div>
+        <InputGroup className="shrink-0">
+          <InputGroupAddon align="inline-start">
+            <Search className="size-4 text-muted-foreground" />
+          </InputGroupAddon>
+          <InputGroupInput
+            data-testid="settings-ai-model-search"
+            value={modelQuery}
+            onChange={(event) => onModelQueryChange(event.target.value)}
+            placeholder="搜索模型名称或 ID"
+            disabled={!providerAvailable}
+          />
+        </InputGroup>
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="space-y-1 pr-3">
+            {models.map((model) => (
+              <label
+                key={model.id}
+                data-testid="settings-ai-model-option"
+                data-model-id={model.id}
+                className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-muted"
+              >
+                <Checkbox
+                  checked={enabledModelIdSet.has(model.id)}
+                  disabled={!providerAvailable}
+                  onCheckedChange={(checked) => onToggleModel(model.id, checked)}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm text-foreground">{model.name}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{model.id}</span>
+                </span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {model.supportedReasoningLevels.length === 1
+                    ? "无推理"
+                    : model.supportedReasoningLevels.join(" / ")}
+                </span>
+              </label>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
+    </>
+  );
+}
+
 export function AiSection() {
   const queryClient = useQueryClient();
   const [config, setConfig] = useState<AiConfig>({ providers: [] });
@@ -263,126 +405,23 @@ export function AiSection() {
 
         <div className="flex min-h-0 min-w-0 flex-col gap-5 pl-5">
           {selectedProvider ? (
-            <>
-              <div className="flex shrink-0 items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <h4 className="truncate text-sm font-medium text-foreground">
-                    {selectedProvider.name}
-                  </h4>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {usesCodexAuth
-                      ? codexConnected
-                        ? "已连接 ChatGPT 订阅"
-                        : "未连接 ChatGPT 订阅"
-                      : providerConfig?.apiKey
-                        ? "已配置 API Key"
-                        : "未配置 API Key"}
-                  </p>
-                </div>
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  disabled={usesCodexAuth ? !codexConnected || codexBusy : !providerConfig}
-                  onClick={() => (usesCodexAuth ? void handleDisconnectCodex() : clearProvider())}
-                >
-                  <Trash2 size={13} />
-                  {usesCodexAuth ? "断开" : "清除"}
-                </Button>
-              </div>
-
-              {usesCodexAuth ? (
-                <Item variant="outline" size="xs" className="shrink-0 justify-between">
-                  <ItemContent>
-                    <span className="text-sm text-muted-foreground">
-                      {codexConnected
-                        ? "已通过 OpenAI 授权，凭据会自动刷新"
-                        : "通过浏览器登录 ChatGPT Plus/Pro，完成后自动返回 Reflecta"}
-                    </span>
-                  </ItemContent>
-                  <ItemActions>
-                    <Button
-                      size="xs"
-                      variant="outline"
-                      disabled={codexBusy}
-                      onClick={() => void handleConnectCodex()}
-                    >
-                      {codexBusy ? (
-                        <LoaderCircle size={13} className="animate-spin" />
-                      ) : (
-                        <ExternalLink size={13} />
-                      )}
-                      {codexBusy ? "等待授权" : codexConnected ? "重新连接" : "连接"}
-                    </Button>
-                  </ItemActions>
-                </Item>
-              ) : (
-                <label className="flex shrink-0 flex-col gap-2">
-                  <span className="text-sm font-medium text-foreground">API Key</span>
-                  <Input
-                    data-testid="settings-ai-api-key-input"
-                    value={providerConfig?.apiKey ?? ""}
-                    onChange={(event) =>
-                      upsertProvider(selectedProvider.id, { apiKey: event.target.value })
-                    }
-                    type="password"
-                    placeholder="sk-..."
-                    className="font-mono"
-                  />
-                </label>
-              )}
-
-              <div className="flex min-h-0 flex-1 flex-col gap-2">
-                <div className="flex shrink-0 items-center justify-between gap-3">
-                  <span className="text-sm font-medium text-foreground">用于 Chat 的模型</span>
-                  <span className="text-xs text-muted-foreground">
-                    已选择 {enabledModelIds.length} 个
-                  </span>
-                </div>
-                <InputGroup className="shrink-0">
-                  <InputGroupAddon align="inline-start">
-                    <Search className="size-4 text-muted-foreground" />
-                  </InputGroupAddon>
-                  <InputGroupInput
-                    data-testid="settings-ai-model-search"
-                    value={modelQuery}
-                    onChange={(event) => setModelQuery(event.target.value)}
-                    placeholder="搜索模型名称或 ID"
-                    disabled={!providerAvailable}
-                  />
-                </InputGroup>
-                <ScrollArea className="min-h-0 flex-1">
-                  <div className="space-y-1 pr-3">
-                    {models.map((model) => (
-                      <label
-                        key={model.id}
-                        data-testid="settings-ai-model-option"
-                        data-model-id={model.id}
-                        className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-muted"
-                      >
-                        <Checkbox
-                          checked={enabledModelIdSet.has(model.id)}
-                          disabled={!providerAvailable}
-                          onCheckedChange={(checked) => toggleModel(model.id, checked)}
-                        />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm text-foreground">
-                            {model.name}
-                          </span>
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {model.id}
-                          </span>
-                        </span>
-                        <span className="shrink-0 text-xs text-muted-foreground">
-                          {model.supportedReasoningLevels.length === 1
-                            ? "无推理"
-                            : model.supportedReasoningLevels.join(" / ")}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </div>
-            </>
+            <AiProviderDetail
+              selectedProvider={selectedProvider}
+              providerConfig={providerConfig}
+              usesCodexAuth={usesCodexAuth}
+              codexConnected={codexConnected}
+              codexBusy={codexBusy}
+              providerAvailable={providerAvailable}
+              enabledModelIds={enabledModelIds}
+              enabledModelIdSet={enabledModelIdSet}
+              modelQuery={modelQuery}
+              models={models}
+              onDisconnect={() => (usesCodexAuth ? void handleDisconnectCodex() : clearProvider())}
+              onConnectCodex={() => void handleConnectCodex()}
+              onApiKeyChange={(apiKey) => upsertProvider(selectedProvider.id, { apiKey })}
+              onModelQueryChange={setModelQuery}
+              onToggleModel={toggleModel}
+            />
           ) : null}
         </div>
       </section>

@@ -1,5 +1,14 @@
 import { useLatest } from "ahooks";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from "react";
 import { Library, PanelsTopLeft, Type } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -121,6 +130,113 @@ function CanvasEmptyState() {
       </Empty>
     </div>
   );
+}
+
+function CanvasSaveStatus({
+  saveStatus,
+  onRetry,
+}: {
+  saveStatus: SaveStatus;
+  onRetry: () => void;
+}) {
+  if (saveStatus === "error") {
+    return (
+      <div className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded-md border border-destructive/30 bg-background px-3 py-2 text-xs text-destructive shadow-sm">
+        <span>画布保存失败，修改仍未保存</span>
+        <Button type="button" size="sm" variant="outline" onClick={onRetry}>
+          重试
+        </Button>
+      </div>
+    );
+  }
+  if (saveStatus === "dirty" || saveStatus === "saving") {
+    return (
+      <div className="absolute right-3 top-3 z-20 rounded-md bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow-sm">
+        未保存
+      </div>
+    );
+  }
+  return null;
+}
+
+function CanvasWorkspaceSidePanel({
+  canvasId,
+  rightPanel,
+  detailPanelKey,
+  onClose,
+  onOpenCanvasRefPicker,
+  onSwitchDetail,
+}: {
+  canvasId: string;
+  rightPanel: CanvasRightPanel;
+  detailPanelKey: string;
+  onClose: () => void;
+  onOpenCanvasRefPicker: () => void;
+  onSwitchDetail: (understandingId: string) => void;
+}) {
+  if (!rightPanel) return null;
+  return (
+    <>
+      <ResizableHandle
+        withHandle
+        id="canvas-right-resize-handle"
+        className={cn(RESIZE_HANDLE_CLASS)}
+      />
+      <ResizablePanel
+        id="canvas-right"
+        minSize="26%"
+        maxSize="60%"
+        defaultSize={38}
+        className="min-h-0 min-w-0"
+      >
+        {rightPanel.mode === "library" ? (
+          <CanvasLibraryPanel onClose={onClose} onOpenCanvasRefPicker={onOpenCanvasRefPicker} />
+        ) : rightPanel.mode === "detail" ? (
+          <CanvasDetailPanel
+            key={detailPanelKey}
+            canvasId={canvasId}
+            understandingId={rightPanel.understandingId}
+            onClose={onClose}
+            onSwitch={(nextId) => onSwitchDetail(nextId)}
+          />
+        ) : null}
+      </ResizablePanel>
+    </>
+  );
+}
+
+function useCanvasWorkspaceHotkeys(
+  graphRef: RefObject<CanvasGraphHandle | null>,
+  setSearchOpen: Dispatch<SetStateAction<boolean>>,
+) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const meta = event.metaKey || event.ctrlKey;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, [contenteditable='true']")) return;
+      if (meta && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        setSearchOpen((open) => !open);
+        return;
+      }
+      if (meta && event.key.toLowerCase() === "g") {
+        event.preventDefault();
+        const doc = readCanvasState(documentAtom);
+        const selected = readCanvasState(selectionAtom);
+        const selectedGroups = selected.filter((id) =>
+          doc.elements.some((element) => element.id === id && element.kind === "group"),
+        );
+        if (event.shiftKey) graphRef.current?.ungroupSelection(selectedGroups);
+        else {
+          graphRef.current?.groupSelection(
+            selected.filter((id) => doc.elements.some((element) => element.id === id)),
+          );
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [graphRef, setSearchOpen]);
 }
 
 /**
@@ -322,35 +438,7 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     [currentDocument, detail],
   );
 
-  // 搜索与组快捷键：只拦截产品明确承诺的组合键。
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const meta = event.metaKey || event.ctrlKey;
-      const target = event.target as HTMLElement | null;
-      if (target?.closest("input, textarea, [contenteditable='true']")) return;
-      if (meta && event.key.toLowerCase() === "f") {
-        event.preventDefault();
-        setSearchOpen((open) => !open);
-        return;
-      }
-      if (meta && event.key.toLowerCase() === "g") {
-        event.preventDefault();
-        const doc = readCanvasState(documentAtom);
-        const selected = readCanvasState(selectionAtom);
-        const selectedGroups = selected.filter((id) =>
-          doc.elements.some((element) => element.id === id && element.kind === "group"),
-        );
-        if (event.shiftKey) graphRef.current?.ungroupSelection(selectedGroups);
-        else {
-          graphRef.current?.groupSelection(
-            selected.filter((id) => doc.elements.some((element) => element.id === id)),
-          );
-        }
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  useCanvasWorkspaceHotkeys(graphRef, setSearchOpen);
 
   return (
     <div
@@ -385,24 +473,11 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
               <CanvasTextTool />
               <CanvasUnderstandingTool
                 open={libraryOpen}
-                onClick={() =>
-                  setRightPanel(rightPanel?.mode === "library" ? null : { mode: "library" })
-                }
+                onClick={() => setRightPanel(libraryOpen ? null : { mode: "library" })}
               />
             </div>
 
-            {saveStatus === "error" ? (
-              <div className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded-md border border-destructive/30 bg-background px-3 py-2 text-xs text-destructive shadow-sm">
-                <span>画布保存失败，修改仍未保存</span>
-                <Button type="button" size="sm" variant="outline" onClick={() => void retrySave()}>
-                  重试
-                </Button>
-              </div>
-            ) : saveStatus === "dirty" || saveStatus === "saving" ? (
-              <div className="absolute right-3 top-3 z-20 rounded-md bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow-sm">
-                未保存
-              </div>
-            ) : null}
+            <CanvasSaveStatus saveStatus={saveStatus} onRetry={() => void retrySave()} />
 
             {!isLoading && detail && elementCount === 0 ? <CanvasEmptyState /> : null}
 
@@ -423,40 +498,17 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
           </div>
         </ResizablePanel>
 
-        {rightPanel ? (
-          <>
-            <ResizableHandle
-              withHandle
-              id="canvas-right-resize-handle"
-              className={cn(RESIZE_HANDLE_CLASS)}
-            />
-            <ResizablePanel
-              id="canvas-right"
-              minSize="26%"
-              maxSize="60%"
-              defaultSize={38}
-              className="min-h-0 min-w-0"
-            >
-              {rightPanel.mode === "library" ? (
-                <CanvasLibraryPanel
-                  onClose={() => setRightPanel(null)}
-                  onOpenCanvasRefPicker={handleOpenCanvasRefPicker}
-                />
-              ) : rightPanel.mode === "detail" ? (
-                <CanvasDetailPanel
-                  key={detailPanelKey}
-                  canvasId={canvasId}
-                  understandingId={rightPanel.understandingId}
-                  onClose={() => setRightPanel(null)}
-                  onSwitch={(nextId) => {
-                    setRightPanel({ mode: "detail", understandingId: nextId });
-                    setDetailPanelKey(nextId);
-                  }}
-                />
-              ) : null}
-            </ResizablePanel>
-          </>
-        ) : null}
+        <CanvasWorkspaceSidePanel
+          canvasId={canvasId}
+          rightPanel={rightPanel}
+          detailPanelKey={detailPanelKey}
+          onClose={() => setRightPanel(null)}
+          onOpenCanvasRefPicker={handleOpenCanvasRefPicker}
+          onSwitchDetail={(nextId) => {
+            setRightPanel({ mode: "detail", understandingId: nextId });
+            setDetailPanelKey(nextId);
+          }}
+        />
       </ResizablePanelGroup>
     </div>
   );

@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type Ref,
 } from "react";
 import {
   Background,
@@ -192,7 +193,7 @@ function SelectionToolbar({
   );
 }
 
-const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function CanvasFlow(props, ref) {
+function useCanvasFlow(props: CanvasGraphProps, ref: Ref<CanvasGraphHandle>) {
   const {
     readonly = false,
     document,
@@ -200,12 +201,9 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
     viewportReady = true,
     shapeData = EMPTY_CANVAS_SHAPE_DATA,
     canvasId = "",
-    testId = "canvas-graph",
     onDocumentChange,
     onViewportChange,
     onSelectionChange,
-    className,
-    style,
   } = props;
 
   const instance = useReactFlow();
@@ -638,6 +636,59 @@ const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function Canv
     setSelectedNodeIds([]);
     emitDocument();
   }, [edgesRef, emitDocument, nodesRef, selectedNodeIds, setEdges, setNodes]);
+
+  return {
+    readonly: props.readonly ?? false,
+    className: props.className,
+    style: props.style,
+    testId: props.testId ?? "canvas-graph",
+    containerRef,
+    dropPreviewRef,
+    nodes,
+    edges,
+    selectedNodeIds,
+    shapeContextValue,
+    handleElementUpdate,
+    handleEdgeUpdate,
+    handleNodesChange,
+    handleEdgesChange,
+    handleConnect,
+    handleSelectionChange,
+    handleOnViewportChange,
+    onDragOver,
+    onDragLeave,
+    onDrop,
+    groupSelection,
+    deleteSelection,
+  };
+}
+
+const CanvasFlow = forwardRef<CanvasGraphHandle, CanvasGraphProps>(function CanvasFlow(props, ref) {
+  const flow = useCanvasFlow(props, ref);
+  const {
+    readonly,
+    className,
+    style,
+    testId,
+    containerRef,
+    dropPreviewRef,
+    nodes,
+    edges,
+    selectedNodeIds,
+    shapeContextValue,
+    handleElementUpdate,
+    handleEdgeUpdate,
+    handleNodesChange,
+    handleEdgesChange,
+    handleConnect,
+    handleSelectionChange,
+    handleOnViewportChange,
+    onDragOver,
+    onDragLeave,
+    onDrop,
+    groupSelection,
+    deleteSelection,
+  } = flow;
 
   // 选区工具栏：位置由 SelectionToolbar 组件内的 useViewport 实时派生，平移 / 缩放跟随。
 

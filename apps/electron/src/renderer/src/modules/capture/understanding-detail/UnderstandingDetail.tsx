@@ -370,6 +370,140 @@ function ContextDetailDrawerContent({
   );
 }
 
+function UnderstandingDetailHeader({
+  understanding,
+  title,
+  updatedLabel,
+  domains,
+  domainsLoading,
+  focusMode,
+  onFocusModeChange,
+  onChat,
+  onClose,
+  onDelete,
+  onTitleChange,
+  onTitleBlur,
+  onDomainIdsChange,
+}: {
+  understanding: { id: string; domainIds: string[]; title: string | null };
+  title: string;
+  updatedLabel: string;
+  domains: Parameters<typeof DomainTreeSelect>[0]["nodes"];
+  domainsLoading: boolean;
+  focusMode: boolean;
+  onFocusModeChange?: (focused: boolean) => void;
+  onChat?: (scope: CaptureAgentScope) => void;
+  onClose?: () => void;
+  onDelete: () => void;
+  onTitleChange: (title: string) => void;
+  onTitleBlur: () => void;
+  onDomainIdsChange: (domainIds: string[]) => void;
+}) {
+  return (
+    <header className="space-y-4">
+      <div
+        className={`flex min-h-8 min-w-0 items-center gap-2 text-xs text-muted-foreground ${focusMode ? FOCUS_MODE_OFFSET_CLASS : ""}`}
+      >
+        {focusMode ? null : (
+          <>
+            <span>{updatedLabel}</span>
+            <span aria-hidden>·</span>
+            <DomainTreeSelect
+              value={understanding.domainIds}
+              onValueChange={onDomainIdsChange}
+              nodes={domains}
+              status={domainsLoading ? "loading" : "ready"}
+              placeholder="未归入 Domain"
+              fluid={false}
+              showPath={false}
+              variant="inline"
+            />
+          </>
+        )}
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          {onFocusModeChange ? (
+            <Button
+              data-testid="capture-understanding-focus-button"
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
+              title={focusMode ? "退出专注模式（Esc）" : "进入专注模式"}
+              onClick={() => onFocusModeChange(!focusMode)}
+            >
+              {focusMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+            </Button>
+          ) : null}
+          {onChat && !focusMode ? (
+            <Button
+              data-testid="capture-understanding-chat-button"
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label="聊聊"
+              title="聊聊"
+              onClick={() =>
+                onChat({
+                  type: "understanding",
+                  id: understanding.id,
+                  title: title.trim() || understanding.title || undefined,
+                })
+              }
+            >
+              <MessageCircle size={15} />
+            </Button>
+          ) : null}
+          {!focusMode ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label="更多操作"
+                    title="更多操作"
+                  />
+                }
+              >
+                <MoreHorizontal size={15} />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" sideOffset={6}>
+                <DropdownMenuItem variant="destructive" onClick={onDelete}>
+                  <Trash2 size={15} />
+                  删除
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+          {onClose && !focusMode ? (
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label="关闭详情"
+              title="关闭详情"
+              onClick={onClose}
+            >
+              <X size={15} />
+            </Button>
+          ) : null}
+        </div>
+      </div>
+      <Input
+        value={title}
+        onChange={(event) => onTitleChange(event.target.value)}
+        onBlur={onTitleBlur}
+        // DESIGN: EditableText 语义——标题内联编辑，聚焦不显示输入框外壳，视觉与页面标题一致（focus-visible:ring-0 有意关闭）。
+        // Input 组件内置 text-base + md:text-sm，tailwind-merge 无法移除
+        // 响应式 md:text-sm，需要 md:text-2xl 在 md+ 重新声明标题字号。
+        className="h-auto border-0 dark:bg-transparent bg-transparent px-0 py-0 text-2xl font-semibold shadow-none focus-visible:ring-0 md:text-2xl"
+        placeholder="写下一个刚形成的理解"
+      />
+    </header>
+  );
+}
+
 function UnderstandingDetailInner({
   understandingId,
   onClose,
@@ -532,110 +666,21 @@ function UnderstandingDetailInner({
   return (
     <div className="h-full min-h-0 min-w-0 overflow-hidden">
       <article ref={detailRef} className="mx-auto h-full overflow-y-auto px-4 py-2">
-        <header className="space-y-4">
-          <div
-            className={`flex min-h-8 min-w-0 items-center gap-2 text-xs text-muted-foreground ${focusMode ? FOCUS_MODE_OFFSET_CLASS : ""}`}
-          >
-            {focusMode ? null : (
-              <>
-                <span>{updatedLabel}</span>
-                <span aria-hidden>·</span>
-                <DomainTreeSelect
-                  value={understanding.domainIds}
-                  onValueChange={(domainIds) => void updateUnderstanding({ domainIds })}
-                  nodes={domains}
-                  status={domainsLoading ? "loading" : "ready"}
-                  placeholder="未归入 Domain"
-                  fluid={false}
-                  showPath={false}
-                  variant="inline"
-                />
-              </>
-            )}
-            <div className="ml-auto flex shrink-0 items-center gap-1">
-              {onFocusModeChange ? (
-                <Button
-                  data-testid="capture-understanding-focus-button"
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
-                  title={focusMode ? "退出专注模式（Esc）" : "进入专注模式"}
-                  onClick={() => onFocusModeChange(!focusMode)}
-                >
-                  {focusMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-                </Button>
-              ) : null}
-              {onChat && !focusMode ? (
-                <Button
-                  data-testid="capture-understanding-chat-button"
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  aria-label="聊聊"
-                  title="聊聊"
-                  onClick={() =>
-                    onChat({
-                      type: "understanding",
-                      id: understanding.id,
-                      title: title.trim() || understanding.title || undefined,
-                    })
-                  }
-                >
-                  <MessageCircle size={15} />
-                </Button>
-              ) : null}
-              {!focusMode ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        aria-label="更多操作"
-                        title="更多操作"
-                      />
-                    }
-                  >
-                    <MoreHorizontal size={15} />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" sideOffset={6}>
-                    <DropdownMenuItem variant="destructive" onClick={handleDeleteUnderstanding}>
-                      <Trash2 size={15} />
-                      删除
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : null}
-              {onClose && !focusMode ? (
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  aria-label="关闭详情"
-                  title="关闭详情"
-                  onClick={onClose}
-                >
-                  <X size={15} />
-                </Button>
-              ) : null}
-            </div>
-          </div>
-          <Input
-            value={title}
-            onChange={(event) => {
-              const next = event.target.value;
-              updateDraftTitle(next);
-            }}
-            onBlur={() => void saveDraft()}
-            // DESIGN: EditableText 语义——标题内联编辑，聚焦不显示输入框外壳，视觉与页面标题一致（focus-visible:ring-0 有意关闭）。
-            // Input 组件内置 text-base + md:text-sm，tailwind-merge 无法移除
-            // 响应式 md:text-sm，需要 md:text-2xl 在 md+ 重新声明标题字号。
-            className="h-auto border-0 dark:bg-transparent bg-transparent px-0 py-0 text-2xl font-semibold shadow-none focus-visible:ring-0 md:text-2xl"
-            placeholder="写下一个刚形成的理解"
-          />
-        </header>
+        <UnderstandingDetailHeader
+          understanding={understanding}
+          title={title}
+          updatedLabel={updatedLabel}
+          domains={domains}
+          domainsLoading={domainsLoading}
+          focusMode={focusMode}
+          onFocusModeChange={onFocusModeChange}
+          onChat={onChat}
+          onClose={onClose}
+          onDelete={handleDeleteUnderstanding}
+          onTitleChange={updateDraftTitle}
+          onTitleBlur={() => void saveDraft()}
+          onDomainIdsChange={(domainIds) => void updateUnderstanding({ domainIds })}
+        />
 
         <section className="mt-5">
           <MarkdownEditor
