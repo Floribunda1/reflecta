@@ -172,6 +172,16 @@ function MessageAttachment({
   );
 }
 
+function withOccurrenceKeys<T>(items: readonly T[], identity: (item: T) => string) {
+  const seen = new Map<string, number>();
+  return items.map((item) => {
+    const base = identity(item);
+    const occurrence = seen.get(base) ?? 0;
+    seen.set(base, occurrence + 1);
+    return { item, key: occurrence === 0 ? base : `${base}#${occurrence}` };
+  });
+}
+
 function UserMessageContent({
   message,
   onEntityOpen,
@@ -196,40 +206,39 @@ function UserMessageContent({
     >
       {message.content?.length || message.text || message.entities?.length ? (
         <div data-slot="user-message-text" className="text-body">
-          {message.content?.map((part) =>
-            part.kind === "entity" ? (
-              <MessageEntityMention
-                key={`entity:${part.entity.type}:${part.entity.id}`}
-                entity={part.entity}
-                onOpen={onEntityOpen}
-              />
-            ) : (
-              <span key={`text:${part.text}`}>
-                {renderTextWithChatSearchHighlights(
-                  part.text,
-                  searchState,
-                  `message-${message.id}-${part.text}`,
-                )}
-              </span>
-            ),
-          ) ??
-            (message.text
+          {message.content
+            ? withOccurrenceKeys(message.content, (part) =>
+                part.kind === "entity"
+                  ? `entity:${part.entity.type}:${part.entity.id}`
+                  : `text:${part.text}`,
+              ).map(({ item: part, key }) =>
+                part.kind === "entity" ? (
+                  <MessageEntityMention key={key} entity={part.entity} onOpen={onEntityOpen} />
+                ) : (
+                  <span key={key}>
+                    {renderTextWithChatSearchHighlights(
+                      part.text,
+                      searchState,
+                      `message-${message.id}-${key}`,
+                    )}
+                  </span>
+                ),
+              )
+            : message.text
               ? renderTextWithChatSearchHighlights(
                   message.text,
                   searchState,
                   `message-${message.id}`,
                 )
-              : null)}
+              : null}
           {!message.content?.length && message.entities?.length ? (
             <>
               {message.text ? " " : null}
-              {message.entities.map((entity) => (
-                <MessageEntityMention
-                  key={`${entity.type}:${entity.id}`}
-                  entity={entity}
-                  onOpen={onEntityOpen}
-                />
-              ))}
+              {withOccurrenceKeys(message.entities, (entity) => `${entity.type}:${entity.id}`).map(
+                ({ item: entity, key }) => (
+                  <MessageEntityMention key={key} entity={entity} onOpen={onEntityOpen} />
+                ),
+              )}
             </>
           ) : null}
         </div>
