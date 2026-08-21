@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "../components/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/popover";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, CircleDot, Minus, Palette, Spline, Trash2 } from "lucide-react";
 import { canvasPaintColor, CanvasColorSwatches } from "./color-swatches";
 import { DEFAULT_CANVAS_EDGE_STYLE, type CanvasEdgeDTO, type CanvasEdgeStyle } from "./document";
@@ -121,12 +121,23 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
   const edge = props.data?.edge;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(edge?.label ?? "");
+  const labelRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => setDraft(edge?.label ?? ""), [edge?.label]);
   // 双击连线（React Flow onEdgeDoubleClick → editingEdgeId）或双击标签（下方 label div）都进入编辑。
   useEffect(() => {
     if (!readonly && editingEdgeId && editingEdgeId === edge?.id) setEditing(true);
   }, [editingEdgeId, edge?.id, readonly]);
+  useEffect(() => {
+    if (!editing || !labelRef.current) return;
+    labelRef.current.focus();
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(labelRef.current);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }, [editing]);
   if (!edge) return null;
   const [path, labelX, labelY] = pathFor(edge.style, props);
 
@@ -235,22 +246,27 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
           }}
           onDoubleClick={readonly ? undefined : () => setEditing(true)}
         >
-          {editing ? (
-            <input
-              autoFocus
-              aria-label="连线标签"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              onBlur={commit}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") commit();
-                if (event.key === "Escape") endEditing();
-              }}
-              className="bg-transparent p-0 text-inherit outline-none"
-            />
-          ) : (
-            edge.label
-          )}
+          <span
+            ref={labelRef}
+            contentEditable={editing}
+            suppressContentEditableWarning
+            aria-label={editing ? "连线标签" : undefined}
+            onInput={(event) => setDraft(event.currentTarget.textContent ?? "")}
+            onBlur={editing ? commit : undefined}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commit();
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setDraft(edge.label ?? "");
+                endEditing();
+              }
+            }}
+          >
+            {editing ? draft : edge.label}
+          </span>
         </div>
       </EdgeLabelRenderer>
     </>

@@ -190,12 +190,9 @@ describe("canvas edges", () => {
   test("label editing trims and commits changes but ignores unchanged values", () => {
     const onUpdate = render(edge, {}, false, true);
     openEditor();
-    const input = container.querySelector<HTMLInputElement>('input[aria-label="连线标签"]')!;
+    const input = container.querySelector<HTMLElement>('[contenteditable="true"]')!;
     act(() => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
-        input,
-        "  CHANGED  ",
-      );
+      input.textContent = "  CHANGED  ";
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
     act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
@@ -203,7 +200,7 @@ describe("canvas edges", () => {
 
     render(edge, {}, false, true);
     openEditor();
-    act(() => container.querySelector<HTMLInputElement>('input[aria-label="连线标签"]')!.blur());
+    act(() => container.querySelector<HTMLElement>('[contenteditable="true"]')!.blur());
     expect(onUpdate).toHaveBeenCalledTimes(1);
   });
 
@@ -251,28 +248,28 @@ describe("canvas edges", () => {
     openEditor();
     act(() =>
       container
-        .querySelector<HTMLInputElement>('input[aria-label="连线标签"]')!
+        .querySelector<HTMLElement>('[contenteditable="true"]')!
         .dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
     );
-    expect(container.querySelector("input")).toBeNull();
+    expect(container.querySelector('[contenteditable="true"]')).toBeNull();
     expect(onUpdate).not.toHaveBeenCalled();
 
     // readonly：不注入 editingEdgeId，双击连线不进入编辑。
     render(edge, { selected: true }, true, true);
     openEditor();
-    expect(container.querySelector("input")).toBeNull();
+    expect(container.querySelector('[contenteditable="true"]')).toBeNull();
     expect(container.querySelector('[data-testid="edge-toolbar"]')).toBeNull();
   });
 
   test("double-click trigger (editingEdgeId) re-opens editing for the same edge", () => {
     // editingEdgeId === 本边 id → 挂载 effect 开启编辑。
     render(edge, {}, false, true);
-    expect(container.querySelector('input[aria-label="连线标签"]')).not.toBeNull();
+    expect(container.querySelector('[contenteditable="true"]')).not.toBeNull();
     // 提交后触发清空（onEdgeEditEnd → editingEdgeId 置 null）→ 编辑关闭。
     render(edge, {}, false, false);
-    expect(container.querySelector("input")).toBeNull();
+    expect(container.querySelector('[contenteditable="true"]')).toBeNull();
     // 再次双击同一连线 → trigger 重新注入 → 再次进入。
     render(edge, {}, false, true);
-    expect(container.querySelector('input[aria-label="连线标签"]')).not.toBeNull();
+    expect(container.querySelector('[contenteditable="true"]')).not.toBeNull();
   });
 });
