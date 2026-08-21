@@ -552,7 +552,11 @@ app.whenReady().then(async () => {
   const guardedHandlers = guardIpcHandlers(
     ipcHandlers,
     (name) => DOMAIN_IPC_ERROR[name.split(".")[0]],
-    (text) => appLog.error(text),
+    (text) => {
+      appLog.error(text);
+      // e2e 里 Playwright 只转发 main 的 stderr（stdout/console 不可靠），额外写一份保证可见
+      process.stderr.write(`[rpc-guard] ${text}\n`);
+    },
   );
   // 整个 options 过一次 as unknown as（R=never 仅存在于调用上下文，静态取不到）；
   // 运行时不变，仅让 handlers 经 guardIpcHandlers 包裹后通过契约类型。
