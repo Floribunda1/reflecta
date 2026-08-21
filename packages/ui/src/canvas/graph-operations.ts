@@ -16,7 +16,7 @@ type GroupSeed = {
 
 type ElementIndex = ReadonlyMap<string, CanvasElementDTO>;
 
-const byId = (elements: readonly CanvasElementDTO[]): ElementIndex =>
+export const byId = (elements: readonly CanvasElementDTO[]): ElementIndex =>
   new Map(elements.map((element) => [element.id, element]));
 
 /** 元素的绝对坐标（相对画布左上角）：沿 parentId 链累加相对坐标。 */
@@ -46,7 +46,11 @@ const sharedParentPosition = (
 ): { x: number; y: number } =>
   parentId ? absolutePositionOf(index.get(parentId)!, index) : { x: 0, y: 0 };
 
-const isSelectedWithAncestor = (id: string, selected: ReadonlySet<string>, index: ElementIndex) => {
+export const isSelectedWithAncestor = (
+  id: string,
+  selected: ReadonlySet<string>,
+  index: ElementIndex,
+) => {
   let current = index.get(id);
   while (current?.parentId) {
     if (selected.has(current.parentId)) return true;

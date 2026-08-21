@@ -39,6 +39,7 @@ import { useCanvasElementUpdate, useCanvasShapeData } from "./shape-context";
  */
 
 type CardProps = { node: X6Node };
+type RegisterArgs = CardProps & { graph?: unknown };
 
 const CARD =
   "group/canvas-node flex h-full w-full flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -74,7 +75,7 @@ function useCard(node: X6Node): {
 } {
   const { selectedIds } = useCanvasShapeData();
   const update = useCanvasElementUpdate();
-  const element = (node.getData() as { element?: CanvasElementDTO } | null)?.element;
+  const element = (node.getData() as { element?: CanvasElementDTO } | null | undefined)?.element;
   const selected = selectedIds?.has(element?.id ?? "") ?? false;
   return { element: element ?? ({} as CanvasElementDTO), selected, update };
 }
@@ -317,6 +318,31 @@ export function GroupCard({ node }: CardProps) {
       >
         <>
           <ActionBar visible={selected && !readonly}>
+            <Popover>
+              <PopoverTrigger
+                render={
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    className="nodrag nopan"
+                    aria-label="选择颜色"
+                    title="选择颜色"
+                  />
+                }
+              >
+                <Palette style={{ color: canvasPaintColor(element.props.color) }} />
+              </PopoverTrigger>
+              <PopoverContent className="w-auto flex-row items-center" align="center">
+                <CanvasColorSwatches
+                  value={element.props.color}
+                  onChange={(color) =>
+                    update({ ...element, props: { ...element.props, color } } as CanvasElementDTO)
+                  }
+                  allowClear
+                />
+              </PopoverContent>
+            </Popover>
             <Button
               type="button"
               size="icon-sm"
@@ -459,8 +485,16 @@ let shapesRegistered = false;
 export function ensureCanvasShapes(): void {
   if (shapesRegistered) return;
   shapesRegistered = true;
-  register({ shape: "understanding", component: UnderstandingCard });
-  register({ shape: "text", component: TextCard });
-  register({ shape: "group", component: GroupCard });
-  register({ shape: "canvas_ref", component: CanvasRefCard });
+  // 组件需拿到 element 数据才渲染；连删等场景 react-shape 会为已移除 cell 补渲一帧
+  // （此时 getData() 已清空），直接渲染会崩溃在 element.props 访问上。
+  const guard =
+    (Card: (args: RegisterArgs) => React.ReactNode) =>
+    (args: RegisterArgs): React.ReactNode => {
+      const data = args.node.getData() as { element?: CanvasElementDTO } | null | undefined;
+      return data?.element ? Card(args) : null;
+    };
+  register({ shape: "understanding", component: guard(UnderstandingCard) });
+  register({ shape: "text", component: guard(TextCard) });
+  register({ shape: "group", component: guard(GroupCard) });
+  register({ shape: "canvas_ref", component: guard(CanvasRefCard) });
 }

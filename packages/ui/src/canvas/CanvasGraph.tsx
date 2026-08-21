@@ -34,7 +34,7 @@ import {
   toX6Edge,
   nodeMetadataFor,
 } from "./graph-document";
-import { deleteElements, groupElements, ungroupGroups } from "./graph-operations";
+import { absolutePositionOf, byId, isSelectedWithAncestor } from "./graph-operations";
 import { EdgeOverlay } from "./EdgeOverlay";
 import {
   CanvasEdgeUpdateProvider,
@@ -205,9 +205,17 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
       const graph = new Graph({
         container,
         autoResize: true,
-        // 左键= rubberband 框选；Space+拖拽=平移（X6 内置，兼末双功能）
-        panning: { enabled: true, eventTypes: ["leftMouseDown"] },
+        // 左键= rubberband 框选；Space+左拖=平移；中键拖拽=平移（X6 内置）
+        panning: { enabled: true, eventTypes: ["leftMouseDown", "mouseWheelDown"] },
         mousewheel: { enabled: true, factor: 1.2, zoomAtMousePosition: true },
+        // 组内成员拖动限制在组 bbox 内（extent）；组自身可自由移动
+        translating: {
+          restrict: (view) => {
+            const parent = view?.cell?.getParent?.();
+            if (parent?.isNode()) return parent.getBBox().clone();
+            return null;
+          },
+        },
         grid: {
           size: CANVAS_SNAP_GRID,
           visible: true,
@@ -371,6 +379,72 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
       renderGraph(document, false);
     }, [document, renderGraph]);
 
+    // 组操作统一走 graph 命令（History 记录 → 可撤销），与工具栏 / 右键 / 选区工具条共用。
+    const runGroupSelection = (nodeIds: string[]) => {
+      const graph = graphRef.current;
+      if (!graph) return;
+      const doc = graphToDocument(graph);
+      const index = byId(doc.elements);
+      const selected = new Set(nodeIds);
+      const candidates = doc.elements.filter(
+        (element) =>
+          selected.has(element.id) && !isSelectedWithAncestor(element.id, selected, index),
+      );
+      if (candidates.length < 2) return;
+      // 与 groupElements 相同的几何：成员绝对 bbox 外扩 (-24,-44) ~ (+48,+68)
+      const boxes = candidates.map((element) => ({
+        element,
+        position: absolutePositionOf(element, index),
+      }));
+      const minX = Math.min(...boxes.map((box) => box.position.x));
+      const minY = Math.min(...boxes.map((box) => box.position.y));
+      const maxX = Math.max(...boxes.map((box) => box.position.x + box.element.width));
+      const maxY = Math.max(...boxes.map((box) => box.position.y + box.element.height));
+      const sharedParentId = candidates.every(
+        (element) => element.parentId === candidates[0].parentId,
+      )
+        ? candidates[0].parentId
+        : null;
+      const groupDto: CanvasElementDTO = {
+        id: crypto.randomUUID(),
+        canvasId,
+        parentId: sharedParentId,
+        x: minX - 24,
+        y: minY - 44,
+        width: maxX - minX + 48,
+        height: maxY - minY + 68,
+        // zIndex=-1 让组背景渲染在成员之下，且随 DTO 持久化
+        zIndex: -1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        kind: "group",
+        understandingId: null,
+        canvasRefId: null,
+        props: { label: "" },
+      };
+      // 坐标约定：X6 内一律存绝对坐标，graphToDocument 序列化时再换算相对。
+      graph.startBatch("group");
+      const groupNode = graph.addNode(nodeMetadataFor(groupDto));
+      candidates.forEach((element) => graph.getCellById(element.id)?.setParent(groupNode));
+      graph.stopBatch("group");
+    };
+
+    const runUngroup = (groupIds: string[]) => {
+      const graph = graphRef.current;
+      if (!graph) return;
+      const groups = groupIds
+        .map((id) => graph.getCellById(id))
+        .filter((cell): cell is import("@antv/x6").Node => Boolean(cell?.isNode()));
+      if (groups.length === 0) return;
+      graph.startBatch("ungroup");
+      for (const group of groups) {
+        const parent = group.getParent();
+        for (const child of group.getChildren() ?? []) child.setParent(parent);
+        graph.removeCells([group]);
+      }
+      graph.stopBatch("ungroup");
+    };
+
     useImperativeHandle(
       ref,
       () => ({
@@ -408,15 +482,8 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
           const cell = graph?.getCellById(edgeId);
           if (graph && cell) graph.removeCells([cell]);
         },
-        groupSelection: (nodeIds: string[]) =>
-          rebuild((doc) =>
-            groupElements(doc, nodeIds, {
-              id: crypto.randomUUID(),
-              canvasId,
-              createdAt: new Date().toISOString(),
-            }),
-          ),
-        ungroupSelection: (groupIds: string[]) => rebuild((doc) => ungroupGroups(doc, groupIds)),
+        groupSelection: (nodeIds: string[]) => runGroupSelection(nodeIds),
+        ungroupSelection: (groupIds: string[]) => runUngroup(groupIds),
         deleteGroup: (groupId: string) => {
           const graph = graphRef.current;
           if (!graph) return;
@@ -437,7 +504,7 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
           dnd.start(graph.createNode(nodeMetadataFor(element)), event.nativeEvent);
         },
       }),
-      [canvasId, rebuild, renderGraph],
+      [canvasId, rebuild, renderGraph, runGroupSelection, runUngroup],
     );
 
     const handleElementUpdate = useCallback(
@@ -472,7 +539,7 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
             const doomed = collectCascadeIds(graphToDocument(graph), action.nodeId);
             graph.removeCells(doomed.map((id) => graph.getCellById(id)).filter(Boolean));
           }
-        } else if (action.type === "ungroup") rebuild((doc) => ungroupGroups(doc, [action.nodeId]));
+        } else if (action.type === "ungroup") runUngroup([action.nodeId]);
         else if (action.type === "delete-edge") {
           const graph = graphRef.current;
           const cell = graph?.getCellById(action.edgeId);
@@ -520,16 +587,16 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
             {multiSelected ? (
               <SelectionToolbar
                 selectedCount={selectedNodeIds.length}
-                onGroup={() =>
-                  rebuild((doc) =>
-                    groupElements(doc, selectedNodeIds, {
-                      id: crypto.randomUUID(),
-                      canvasId,
-                      createdAt: new Date().toISOString(),
-                    }),
-                  )
-                }
-                onDelete={() => rebuild((doc) => deleteElements(doc, selectedNodeIds))}
+                onGroup={() => runGroupSelection(selectedNodeIds)}
+                onDelete={() => {
+                  const graph = graphRef.current;
+                  if (graph)
+                    graph.removeCells(
+                      selectedNodeIds
+                        .map((id) => graph.getCellById(id))
+                        .filter((cell): cell is import("@antv/x6").Cell => Boolean(cell)),
+                    );
+                }}
               />
             ) : null}
           </CanvasEdgeUpdateProvider>
