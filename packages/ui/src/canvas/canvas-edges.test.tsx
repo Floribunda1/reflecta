@@ -33,7 +33,9 @@ vi.mock("@xyflow/react", () => ({
   ),
   EdgeToolbar: ({ isVisible, children }: { isVisible: boolean; children: ReactNode }) =>
     isVisible ? <div data-testid="edge-toolbar">{children}</div> : null,
-  EdgeLabelRenderer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  EdgeLabelRenderer: ({ children }: { children: ReactNode }) => (
+    <div className="react-flow__edgelabel-renderer">{children}</div>
+  ),
   getStraightPath: () => ["straight", 10, 20],
   getSmoothStepPath: () => ["orthogonal", 10, 20],
   getBezierPath: () => ["curve", 10, 20],
@@ -168,7 +170,11 @@ describe("canvas edges", () => {
     );
     expect(container.textContent).toContain("LABEL");
     expect(container.querySelector('[data-testid="edge-toolbar"]')).not.toBeNull();
-    expect(container.querySelector<HTMLElement>(".ring-primary")).not.toBeNull();
+    const label = container.querySelector<HTMLElement>(".react-flow__edgelabel-renderer > div");
+    expect(label?.className).not.toContain("rounded");
+    expect(label?.className).not.toContain("ring");
+    expect(label?.style.color).toBe("#123456");
+    expect(label?.style.zIndex).toBe("1002");
   });
 
   function openEditor() {

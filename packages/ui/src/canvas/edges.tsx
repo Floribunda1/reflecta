@@ -227,9 +227,11 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
       </EdgeToolbar>
       <EdgeLabelRenderer>
         <div
-          className={`nodrag nopan pointer-events-auto absolute rounded bg-background px-1 text-xs text-foreground shadow-sm ${props.selected ? "ring-1 ring-primary" : "hover:ring-1 hover:ring-ring/50"}`}
+          className="nodrag nopan pointer-events-auto absolute z-[1002] text-xs"
           style={{
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+            color: canvasPaintColor(style.color) ?? "var(--muted-foreground)",
+            zIndex: 1002,
           }}
           onDoubleClick={readonly ? undefined : () => setEditing(true)}
         >
@@ -244,7 +246,7 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
                 if (event.key === "Enter") commit();
                 if (event.key === "Escape") endEditing();
               }}
-              className="w-24 bg-transparent outline-none"
+              className="bg-transparent p-0 text-inherit outline-none"
             />
           ) : (
             edge.label
