@@ -41,11 +41,15 @@ export type CanvasElementDTO = {
 }[CanvasElementKind];
 
 export type CanvasEdgeStyle = {
+  /** 形状：曲线=connector smooth；直线=connector normal；正交=router orth + connector rounded */
   routing?: "straight" | "curve" | "orthogonal";
+  /** 线型：映射 X6 line.strokeDasharray（虚线 5 5 / 点线 2 2） */
   lineStyle?: "solid" | "dashed" | "dotted";
   color?: string;
+  /** 线宽：映射 X6 line.strokeWidth（细 2 / 中 3 / 粗 4） */
   width?: "thin" | "medium" | "thick";
-  arrowhead?: "arrow" | "block" | "none";
+  /** 箭头：与 X6 内建 marker 一一对应（arrow→classic，其余同名校）；none→targetMarker null */
+  arrowhead?: "arrow" | "block" | "circle" | "diamond" | "cross" | "ellipse" | "none";
 };
 
 export const DEFAULT_CANVAS_EDGE_STYLE: CanvasEdgeStyle = {

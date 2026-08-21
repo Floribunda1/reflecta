@@ -154,6 +154,10 @@ const WIDTH_OPTIONS = [
 const ARROWHEAD_OPTIONS = [
   { value: "arrow", label: "箭头" },
   { value: "block", label: "方块" },
+  { value: "circle", label: "圆点" },
+  { value: "diamond", label: "菱形" },
+  { value: "cross", label: "十字" },
+  { value: "ellipse", label: "椭圆" },
   { value: "none", label: "无" },
 ] as const;
 

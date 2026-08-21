@@ -48,12 +48,20 @@ export function lineAttrs(style: CanvasEdgeStyle | null) {
   const strokeWidth = style?.width === "thick" ? 4 : style?.width === "medium" ? 3 : 2;
   const strokeDasharray =
     style?.lineStyle === "dashed" ? "5 5" : style?.lineStyle === "dotted" ? "2 2" : undefined;
-  const marker =
-    style?.arrowhead === "block" ? { name: "block" as const } : { name: "classic" as const };
-  const targetMarker =
-    style?.arrowhead === "none" || style?.arrowhead === undefined
-      ? null
-      : { name: marker.name, width: 10, height: 8 };
+  const markerNames: Record<
+    NonNullable<CanvasEdgeStyle["arrowhead"]>,
+    "classic" | "block" | "circle" | "diamond" | "cross" | "ellipse" | null
+  > = {
+    arrow: "classic",
+    block: "block",
+    circle: "circle",
+    diamond: "diamond",
+    cross: "cross",
+    ellipse: "ellipse",
+    none: null,
+  };
+  const markerName = markerNames[style?.arrowhead ?? "arrow"];
+  const targetMarker = markerName === null ? null : { name: markerName, width: 10, height: 8 };
   return {
     line: {
       stroke: color,

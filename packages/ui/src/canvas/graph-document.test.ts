@@ -128,10 +128,11 @@ describe("graph-document toX6Cells", () => {
       return toX6Cells(document).find((c) => c.id === "e");
     };
     // X6 3.x 内建 connector 无 straight：直线用 normal connector（无 router 中间点）+ 无 orth router
-    expect(mk("straight")).toMatchObject({ connector: { name: "normal" }, router: undefined });
-    expect(mk("orthogonal")).toMatchObject({
-      connector: { name: "rounded" },
-      router: { name: "orth" },
-    });
+    const straight = mk("straight") as { connector?: { name?: string }; router?: unknown };
+    expect(straight.connector?.name).toBe("normal");
+    expect(straight.router).toBeUndefined();
+    const orth = mk("orthogonal") as { connector?: { name?: string }; router?: { name?: string } };
+    expect(orth.connector?.name).toBe("rounded");
+    expect(orth.router?.name).toBe("orth");
   });
 });
