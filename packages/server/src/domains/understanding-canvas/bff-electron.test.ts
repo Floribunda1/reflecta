@@ -213,3 +213,34 @@ describe("UnderstandingCanvasElectronBff.getCanvasDetail", () => {
     expect(orphanDetail.referencedByCanvases).toEqual([]);
   });
 });
+
+describe("saveCanvas with app-shaped group doc", () => {
+  test("saves a group with zIndex -1 and parented members", async () => {
+    const doc: CanvasDocument = {
+      elements: [
+        { ...element("a", "text", { props: { text: "A" } }) },
+        { ...element("b", "text", { props: { text: "B" } }) },
+        {
+          ...element("grp", "group", {
+            props: { label: "" },
+            zIndex: -1,
+            x: 76,
+            y: 56,
+            width: 488,
+            height: 244,
+          }),
+        },
+        { ...element("a2", "text", { props: { text: "A" }, parentId: "grp" }) },
+        { ...element("b2", "text", { props: { text: "B" }, parentId: "grp" }) },
+      ],
+      edges: [],
+    };
+    await expect(Effect.runPromise(service.saveCanvas(canvasId, doc))).resolves.toBeUndefined();
+    const detail = await Effect.runPromise(service.getCanvasDetail(canvasId));
+    expect(detail?.elements).toHaveLength(5);
+    const group = detail?.elements.find((el) => el.id === "grp");
+    expect(group?.zIndex).toBe(-1);
+    const child = detail?.elements.find((el) => el.id === "a2");
+    expect(child?.parentId).toBe("grp");
+  });
+});
