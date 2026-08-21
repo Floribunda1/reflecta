@@ -66,39 +66,16 @@ function nodeColorStyle(color?: string) {
   } as React.CSSProperties;
 }
 
-/** 订阅单元格变更 / 选中，驱动卡片重渲染（react-shape 只按 effect 重渲，这里主动刷新）。 */
-function useCellState(node: X6Node | null): { selected: boolean } {
-  const [selected, setSelected] = useState<boolean>(
-    () =>
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (node as any)?.isSelected?.() ?? false,
-  );
-  const [, force] = useState(0);
-  useEffect(() => {
-    if (!node) return;
-    const onSelected = () => setSelected(true);
-    const onUnselected = () => setSelected(false);
-    const bump = () => force((n) => n + 1);
-    node.on("selected", onSelected);
-    node.on("unselected", onUnselected);
-    node.on("change:*", bump);
-    return () => {
-      node.off("selected", onSelected);
-      node.off("unselected", onUnselected);
-      node.off("change:*", bump);
-    };
-  }, [node]);
-  return { selected };
-}
-
+/** 卡片重渲由 shapeData context（含 selectedIds）驱动；这里只保留元素内容读取。 */
 function useCard(node: X6Node): {
   element: CanvasElementDTO;
   selected: boolean;
   update: (element: CanvasElementDTO) => void;
 } {
+  const { selectedIds } = useCanvasShapeData();
   const update = useCanvasElementUpdate();
   const element = (node.getData() as { element?: CanvasElementDTO } | null)?.element;
-  const { selected } = useCellState(node);
+  const selected = selectedIds?.has(element?.id ?? "") ?? false;
   return { element: element ?? ({} as CanvasElementDTO), selected, update };
 }
 

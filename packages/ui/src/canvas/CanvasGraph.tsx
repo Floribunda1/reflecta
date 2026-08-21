@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { Ref } from "react";
 import {
   Clipboard,
@@ -324,13 +331,16 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         });
       }
 
-      // X6 Selection 插件不处理边点击选中：单独监听，选中边并清空节点选区
-      graph.on("edge:click", ({ edge }) => {
+      // X6 Selection 插件不做点击选中：node:click / edge:click 单选，blank:click 清空。
+      const selectOnly = (cell: import("@antv/x6").Cell) => {
+        if (readonlyRef.current) return;
+        graph.getPlugin<Selection>("selection")?.reset([cell]);
+      };
+      graph.on("node:click", ({ node }) => selectOnly(node));
+      graph.on("edge:click", ({ edge }) => selectOnly(edge));
+      graph.on("blank:click", () => {
         if (readonlyRef.current) return;
         graph.getPlugin<Selection>("selection")?.reset([]);
-        setSelectedNodeIds([]);
-        setSelectedEdgeId(edge.id);
-        onSelectionChangeRef.current?.([edge.id]);
       });
 
       const doc = document ?? EMPTY_DOC;
@@ -431,11 +441,15 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
     );
 
     const handleElementUpdate = useCallback(
-      (element: CanvasElementDTO) =>
+      (element: CanvasElementDTO) => {
         rebuild((doc) => ({
           ...doc,
           elements: doc.elements.map((e) => (e.id === element.id ? element : e)),
-        })),
+        }));
+        // 内容 / 颜色更新后恢复该元素选中（renderGraph 会清空选区），便于连续调整
+        const graph = graphRef.current;
+        if (graph) graph.getPlugin<Selection>("selection")?.reset([graph.getCellById(element.id)]);
+      },
       [rebuild],
     );
     const handleEdgeUpdate = useCallback(
@@ -469,10 +483,16 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
     );
 
     const multiSelected = !readonly && selectedNodeIds.length >= 2;
+    const selectedIds = useMemo(
+      () => new Set<string>([...selectedNodeIds, ...(selectedEdgeId ? [selectedEdgeId] : [])]),
+      [selectedEdgeId, selectedNodeIds],
+    );
     const graph = graphRef.current;
 
     return (
-      <CanvasShapeDataProvider value={{ ...shapeData, readonly, multiSelected, onCellAction }}>
+      <CanvasShapeDataProvider
+        value={{ ...shapeData, readonly, multiSelected, selectedIds, onCellAction }}
+      >
         <CanvasElementUpdateProvider value={handleElementUpdate}>
           <CanvasEdgeUpdateProvider value={handleEdgeUpdate}>
             {/** react-shape 卡片经此 host 落入本 React 树（不包 children，只承载 portal） */}

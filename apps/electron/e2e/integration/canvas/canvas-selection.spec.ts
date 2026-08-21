@@ -27,11 +27,17 @@ test.describe("选择与选区", () => {
     const { app, page } = await launchApp();
     try {
       await openSeededCanvas(page, "CANVAS");
-      await nodeInGraph(page, "a").click();
-      await page.waitForTimeout(200);
+      await nodeInGraph(page, "a").first().click();
+      await page.waitForTimeout(250);
       await expect(page.getByTestId("canvas-selection-toolbar")).toHaveCount(0);
-      // 单选有选中态（ring 类）
-      await expect(nodeInGraph(page, "a")).toHaveClass(/ring-/);
+      // 单选有选中态（精确 ring-ring token，非 focus 样式）
+      await expect
+        .poll(async () =>
+          nodeInGraph(page, "a")
+            .first()
+            .evaluate((el) => el.classList.contains("ring-ring")),
+        )
+        .toBe(true);
     } finally {
       await app.close();
     }

@@ -28,6 +28,39 @@ test.describe("文本卡", () => {
     }
   });
 
+  test("选中卡片后可设置颜色并保存", async () => {
+    seedCanvas({
+      id: "canvas",
+      title: "CANVAS",
+      elements: [
+        { id: "a", kind: "text", props: { text: "A" }, x: 120, y: 120, width: 220, height: 120 },
+      ],
+    });
+    const { app, page } = await launchApp();
+    try {
+      await openSeededCanvas(page, "CANVAS");
+      const card = nodeInGraph(page, "a").first();
+      await expect(card).toBeVisible();
+      await card.click();
+      await expect
+        .poll(async () => card.evaluate((el) => el.classList.contains("ring-ring")))
+        .toBe(true);
+      await expect(page.getByTitle("选择颜色").first()).toBeVisible();
+      await page.getByTitle("选择颜色").first().click();
+      await page.locator("button[title='chart-1']").first().click();
+      await page.waitForTimeout(500);
+      await expect
+        .poll(async () =>
+          card.evaluate((el) => getComputedStyle(el).borderTopColor === "rgb(71, 158, 194)"),
+        )
+        .toBe(true);
+      // 选色后仍保持选中（可继续调整）
+      await expect(page.getByTitle("选择颜色").first()).toBeVisible();
+    } finally {
+      await app.close();
+    }
+  });
+
   test("双击进入编辑器，输入后失焦提交，重进保留", async () => {
     seedCanvas({
       id: "canvas",

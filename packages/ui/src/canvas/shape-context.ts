@@ -31,6 +31,8 @@ export type CanvasShapeData = {
   readonly?: boolean;
   /** 多选状态：≥2 个元素被选中 → 用选区工具栏（group/delete），隐藏各节点的独立操作工具栏 */
   multiSelected?: boolean;
+  /** 当前被选中的元素 id 集合（X6 Selection 不改 cell 的 selected 属性，需经 context 驱动卡片重渲） */
+  selectedIds?: ReadonlySet<string>;
   /** 引用理解（画布上理解卡展示全文） */
   understandingRefs: ReadonlyMap<string, CanvasUnderstandingRefView>;
   /** 引用画布（画布引用卡展示目标标题；目标被删 → 占位） */
