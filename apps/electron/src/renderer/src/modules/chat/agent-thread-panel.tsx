@@ -425,7 +425,7 @@ function ThreadFindBox({
     <div
       data-no-drag
       data-testid="agent-thread-find-box"
-      className="absolute top-2 right-4 z-50 flex h-14 w-[min(420px,calc(100%-2rem))] items-center rounded-xl border border-border bg-popover shadow-xl"
+      className="absolute top-2 right-4 z-50 flex h-12 w-[min(420px,calc(100%-2rem))] items-center rounded-xl border border-border bg-popover shadow-xl"
     >
       <Input
         ref={inputRef}
@@ -457,10 +457,10 @@ function ThreadFindBox({
           }
         }}
         // DESIGN: chrome 式搜索框——无边框、聚焦无大 ring，与浏览器搜索栏主流做法一致（focus-visible:ring-0 有意关闭）。
-        className="h-full min-w-0 flex-1 border-0 dark:bg-transparent bg-transparent px-5 text-base shadow-none focus-visible:ring-0 md:text-base"
+        className="h-full min-w-0 flex-1 border-0 dark:bg-transparent bg-transparent px-5 shadow-none focus-visible:ring-0"
         placeholder="搜索对话"
       />
-      <div className="px-3 text-base tabular-nums text-muted-foreground">{countLabel}</div>
+      <div className="px-3 tabular-nums text-muted-foreground">{countLabel}</div>
       <div className="h-8 w-px bg-border" />
       <Button
         type="button"

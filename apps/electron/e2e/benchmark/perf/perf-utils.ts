@@ -107,8 +107,8 @@ export async function measureStep(
   await drainLongTasks(page);
   const t0 = await page.evaluate(() => performance.now());
   await action();
-  await settle(page, opts.settleMs);
   const t1 = await page.evaluate(() => performance.now());
+  await settle(page, opts.settleMs);
   const longTasks = await collectLongTasks(page);
   return { name, elapsedMs: t1 - t0, ...longTasks };
 }
@@ -119,6 +119,8 @@ export type FrameStat = {
   /** 相邻两帧间隔的 95 分位，接近「滚动掉帧」线（>50ms 即卡） */
   p95Ms: number;
   maxMs: number;
+  /** 超过 50ms 的帧间隔数量，避免 p95 漏掉少数严重卡顿。 */
+  longFrameCount: number;
 };
 
 /**
@@ -145,6 +147,7 @@ export function sampleFrames(page: Page, windowMs: number): Promise<FrameStat> {
               avgMs: deltas.reduce((a, b) => a + b, 0) / deltas.length,
               p95Ms: p95,
               maxMs: deltas[deltas.length - 1] ?? 0,
+              longFrameCount: deltas.filter((delta) => delta > 50).length,
             });
           }
         };
@@ -157,9 +160,17 @@ export function sampleFrames(page: Page, windowMs: number): Promise<FrameStat> {
 /** 经 CDP 派发真实滚轮事件（触发合成滚动），用于评估虚拟列表滚动性能。 */
 export async function wheelScroll(
   cdp: CDPSession,
-  params: { x: number; y: number; deltaY: number; deltaX?: number; steps?: number },
+  params: {
+    x: number;
+    y: number;
+    deltaY: number;
+    deltaX?: number;
+    steps?: number;
+    durationMs?: number;
+  },
 ): Promise<void> {
   const steps = params.steps ?? 40;
+  const intervalMs = (params.durationMs ?? 0) / steps;
   const stepY = params.deltaY / steps;
   const stepX = (params.deltaX ?? 0) / steps;
   for (let i = 0; i < steps; i++) {
@@ -170,6 +181,9 @@ export async function wheelScroll(
       deltaX: stepX,
       deltaY: stepY,
     });
+    if (intervalMs > 0 && i < steps - 1) {
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
   }
 }
 

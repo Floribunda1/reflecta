@@ -1,10 +1,9 @@
-import type { StepResult } from "./perf-utils";
+import type { FrameStat, StepResult } from "./perf-utils";
 
 /**
  * 预算报告器。
  *
- * Benchmark suite 默认「只报告不阻塞」（独立 suite，不进 CI 门禁，符合本地/按需跑）。
- * 当 `REFLECTA_BENCH_ENFORCE=1` 时，把超预算当作断言失败，用于想人工设门禁的场景。
+ * Benchmark 默认把超预算当失败；显式设置 `REFLECTA_BENCH_REPORT_ONLY=1` 时只报告。
  *
  * 预算策略：CI/本机性能测量噪声大，阈值一律宽松——
  * - longtask 次数/总时长 给 soft 值，判 2x 才超。
@@ -17,6 +16,8 @@ export type Budget = {
   longTaskCountSoft?: number;
   /** 单次交互累计 long task 总时长 soft 上限（ms，判 2x） */
   longTaskTotalMsSoft?: number;
+  /** 单个 long task soft 上限（ms，判 2x） */
+  longTaskMaxMsSoft?: number;
   /** 交互延迟多次采样中位数上限（ms） */
   elapsedMsSoft?: number;
 };
@@ -28,10 +29,16 @@ export type BudgetRun = {
   elapsedMedianMs: number;
   longTaskCount: number;
   longTaskTotalMs: number;
+  longTaskMaxMs: number;
   raw: StepResult[];
 };
 
-const enforce = () => process.env.REFLECTA_BENCH_ENFORCE === "1";
+const reportOnly = () => process.env.REFLECTA_BENCH_REPORT_ONLY === "1";
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted.length ? sorted[Math.floor(sorted.length / 2)]! : 0;
+}
 
 /**
  * 对同一交互做 n 次复测，返回去 warmup 后的统计。
@@ -46,14 +53,13 @@ export async function sampleInteractions(
     results.push(await run(i));
   }
   const warmed = results.slice(1);
-  const elapsed = warmed.map((r) => r.elapsedMs).sort((a, b) => a - b);
-  const median = elapsed.length ? elapsed[Math.floor(elapsed.length / 2)]! : 0;
   return {
     name: results[0]!.name,
     samples: warmed.map((r) => r.elapsedMs),
-    elapsedMedianMs: median,
-    longTaskCount: warmed.reduce((a, r) => a + r.count, 0),
-    longTaskTotalMs: warmed.reduce((a, r) => a + r.totalMs, 0),
+    elapsedMedianMs: median(warmed.map((r) => r.elapsedMs)),
+    longTaskCount: median(warmed.map((r) => r.count)),
+    longTaskTotalMs: median(warmed.map((r) => r.totalMs)),
+    longTaskMaxMs: Math.max(0, ...warmed.map((r) => r.maxMs)),
     raw: results,
   };
 }
@@ -65,7 +71,7 @@ export function checkBudget(run: BudgetRun, budget: Budget): void {
     `  elapsed median=${run.elapsedMedianMs.toFixed(0)}ms  samples=[${run.samples
       .map((s) => `${s.toFixed(0)}ms`)
       .join(", ")}]`,
-    `  longtask count=${run.longTaskCount}  total=${run.longTaskTotalMs.toFixed(0)}ms`,
+    `  longtask count median=${run.longTaskCount}  total median=${run.longTaskTotalMs.toFixed(0)}ms  max=${run.longTaskMaxMs.toFixed(0)}ms`,
   ];
   const violations: string[] = [];
   const countSoft = budget.longTaskCountSoft;
@@ -76,6 +82,10 @@ export function checkBudget(run: BudgetRun, budget: Budget): void {
   if (totalSoft != null && run.longTaskTotalMs > totalSoft * 2) {
     violations.push(`longtask total ${run.longTaskTotalMs.toFixed(0)}ms > soft ${totalSoft}*2`);
   }
+  const maxSoft = budget.longTaskMaxMsSoft;
+  if (maxSoft != null && run.longTaskMaxMs > maxSoft * 2) {
+    violations.push(`longtask max ${run.longTaskMaxMs.toFixed(0)}ms > soft ${maxSoft}*2`);
+  }
   const elapsedSoft = budget.elapsedMsSoft;
   if (elapsedSoft != null && run.elapsedMedianMs > elapsedSoft) {
     violations.push(`elapsed median ${run.elapsedMedianMs.toFixed(0)}ms > budget ${elapsedSoft}ms`);
@@ -85,10 +95,33 @@ export function checkBudget(run: BudgetRun, budget: Budget): void {
     console.log(line);
   }
   if (violations.length) {
-    if (enforce()) {
-      throw new Error(`[bench] budget exceeded: ${violations.join("; ")}`);
-    }
+    const message = `[bench] budget exceeded: ${violations.join("; ")}`;
+    if (!reportOnly()) throw new Error(message);
     // eslint-disable-next-line no-console
-    console.warn(`[bench] (report-only) soft budget exceeded: ${violations.join("; ")}`);
+    console.warn(`[bench] (report-only) ${message}`);
+  }
+}
+
+export function checkFrameBudget(
+  name: string,
+  frames: FrameStat,
+  budget: { p95Ms: number; maxMs: number; longFrameCount: number },
+): void {
+  const violations = [
+    frames.p95Ms > budget.p95Ms ? `p95 ${frames.p95Ms.toFixed(1)}ms > ${budget.p95Ms}ms` : null,
+    frames.maxMs > budget.maxMs ? `max ${frames.maxMs.toFixed(1)}ms > ${budget.maxMs}ms` : null,
+    frames.longFrameCount > budget.longFrameCount
+      ? `long frames ${frames.longFrameCount} > ${budget.longFrameCount}`
+      : null,
+  ].filter(Boolean);
+  // eslint-disable-next-line no-console
+  console.log(
+    `[bench] ${name}: frames=${frames.frames} avg=${frames.avgMs.toFixed(1)}ms p95=${frames.p95Ms.toFixed(1)}ms max=${frames.maxMs.toFixed(1)}ms long=${frames.longFrameCount}`,
+  );
+  if (violations.length) {
+    const message = `[bench] frame budget exceeded: ${violations.join("; ")}`;
+    if (!reportOnly()) throw new Error(message);
+    // eslint-disable-next-line no-console
+    console.warn(`[bench] (report-only) ${message}`);
   }
 }

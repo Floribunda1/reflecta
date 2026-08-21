@@ -14,7 +14,7 @@ import { launchBench, type BenchHarness } from "../harness";
 import { resetAgentFixtures, seedLongThread, seedInteractiveThread } from "../fixtures/seed";
 import { openAgentPage, openThread } from "../../acceptance/spec/agent/agent-e2e";
 import { measureStep, settle, sampleFrames, wheelScroll } from "../perf/perf-utils";
-import { checkBudget, sampleInteractions } from "../perf/budget";
+import { checkBudget, checkFrameBudget, sampleInteractions } from "../perf/budget";
 
 test.describe.configure({ mode: "serial" });
 
@@ -89,24 +89,60 @@ test("长会话加载：打开线程到列表稳定", async () => {
     });
   }, 4);
 
-  checkBudget(run, { elapsedMsSoft: 1500, longTaskCountSoft: 5, longTaskTotalMsSoft: 700 });
+  checkBudget(run, {
+    elapsedMsSoft: 1000,
+    longTaskCountSoft: 5,
+    longTaskTotalMsSoft: 700,
+    longTaskMaxMsSoft: 200,
+  });
 });
 
 test("长会话滚动：虚拟列表滚轮滚动帧率与掉帧", async () => {
   const scroll = page.getByTestId("agent-message-scroll");
+  await scroll.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  const before = await scroll.evaluate((element) => element.scrollTop);
   const box = (await scroll.boundingBox())!;
   const cx = box.x + box.width / 2;
   const cy = box.y + box.height / 2;
 
   // 并行：采样帧 + 驱动滚动（CDP 真实合成滚动触发 virtualizer 的 measureElement 路径）
-  const framePromise = sampleFrames(page, 1500);
-  await wheelScroll(bench.cdp, { x: cx, y: cy, deltaY: 12000, steps: 40 });
+  const framePromise = sampleFrames(page, 1300);
+  await wheelScroll(bench.cdp, {
+    x: cx,
+    y: cy,
+    deltaY: -12000,
+    steps: 60,
+    durationMs: 1100,
+  });
   const frames = await framePromise;
+  const after = await scroll.evaluate((element) => element.scrollTop);
 
-  console.log(
-    `[bench] long-convo scroll: frames=${frames.frames} avg=${frames.avgMs.toFixed(1)}ms p95=${frames.p95Ms.toFixed(1)}ms max=${frames.maxMs.toFixed(0)}ms`,
-  );
-  expect(frames.p95Ms).toBeLessThan(100);
+  expect(before - after).toBeGreaterThan(1000);
+  checkFrameBudget("long-convo-scroll", frames, { p95Ms: 34, maxMs: 100, longFrameCount: 1 });
+});
+
+test("长会话搜索：批量 markdown 高亮与虚拟列表跳转", async () => {
+  await page.keyboard.press("Meta+f");
+  const input = page.getByTestId("agent-thread-find-input");
+  const findBox = page.getByTestId("agent-thread-find-box");
+  const queries = ["answer", "标题", "细节", "正文"];
+  const run = await sampleInteractions(async (index) => {
+    return measureStep(page, "find-long-thread", async () => {
+      await input.fill(queries[index]!);
+      await page.waitForTimeout(350);
+      await expect(findBox).not.toContainText("0/0", { timeout: 5_000 });
+    });
+  });
+  await page.getByRole("button", { name: "关闭搜索" }).click();
+
+  checkBudget(run, {
+    elapsedMsSoft: 800,
+    longTaskCountSoft: 3,
+    longTaskTotalMsSoft: 400,
+    longTaskMaxMsSoft: 150,
+  });
 });
 
 test("轮次跳转面板展开/收起（jumpnav）", async () => {
@@ -142,8 +178,18 @@ test("轮次跳转面板展开/收起（jumpnav）", async () => {
     });
   }, 4);
 
-  checkBudget(open, { elapsedMsSoft: 800, longTaskCountSoft: 3, longTaskTotalMsSoft: 400 });
-  checkBudget(close, { elapsedMsSoft: 600, longTaskCountSoft: 2, longTaskTotalMsSoft: 300 });
+  checkBudget(open, {
+    elapsedMsSoft: 300,
+    longTaskCountSoft: 3,
+    longTaskTotalMsSoft: 400,
+    longTaskMaxMsSoft: 150,
+  });
+  checkBudget(close, {
+    elapsedMsSoft: 300,
+    longTaskCountSoft: 2,
+    longTaskTotalMsSoft: 300,
+    longTaskMaxMsSoft: 150,
+  });
 });
 
 test("activity group 展开/收起：工具活动分组 toggle", async () => {
@@ -187,8 +233,18 @@ test("activity group 展开/收起：工具活动分组 toggle", async () => {
     });
   }, 4);
 
-  checkBudget(open, { elapsedMsSoft: 800, longTaskCountSoft: 3, longTaskTotalMsSoft: 400 });
-  checkBudget(close, { elapsedMsSoft: 600, longTaskCountSoft: 2, longTaskTotalMsSoft: 300 });
+  checkBudget(open, {
+    elapsedMsSoft: 400,
+    longTaskCountSoft: 3,
+    longTaskTotalMsSoft: 400,
+    longTaskMaxMsSoft: 150,
+  });
+  checkBudget(close, {
+    elapsedMsSoft: 300,
+    longTaskCountSoft: 2,
+    longTaskTotalMsSoft: 300,
+    longTaskMaxMsSoft: 150,
+  });
 });
 
 test("reasoning 展开/收起：思考全文渲染 toggle", async () => {
@@ -214,7 +270,7 @@ test("reasoning 展开/收起：思考全文渲染 toggle", async () => {
     }
   };
 
-  // 注：Base UI Collapsible 下收起态 trigger 为 0 尺寸（真实指针点不到，见 README 已知问题），
+  // 注：Base UI Collapsible 下收起态 trigger 为 0 尺寸，
   // 这里用 DOM 级 click 触发展开，测量的是「展开全文渲染」的真实成本。
   const open = await sampleInteractions(async () => {
     await ensureCollapsed();
@@ -235,6 +291,16 @@ test("reasoning 展开/收起：思考全文渲染 toggle", async () => {
     });
   }, 4);
 
-  checkBudget(open, { elapsedMsSoft: 1000, longTaskCountSoft: 4, longTaskTotalMsSoft: 500 });
-  checkBudget(close, { elapsedMsSoft: 600, longTaskCountSoft: 2, longTaskTotalMsSoft: 300 });
+  checkBudget(open, {
+    elapsedMsSoft: 500,
+    longTaskCountSoft: 4,
+    longTaskTotalMsSoft: 500,
+    longTaskMaxMsSoft: 200,
+  });
+  checkBudget(close, {
+    elapsedMsSoft: 300,
+    longTaskCountSoft: 2,
+    longTaskTotalMsSoft: 300,
+    longTaskMaxMsSoft: 150,
+  });
 });

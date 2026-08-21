@@ -25,7 +25,7 @@ export default defineConfig({
     },
     {
       // 性能 benchmark：独立 suite，不进常规回归门禁（不参与 test:e2e）。
-      // 单 worker、宽松 timeout，测量才稳定。用法见 e2e/benchmark/README.md。
+      // 单 worker、宽松 timeout，降低性能测量噪声。
       name: "benchmark",
       testDir: "./e2e/benchmark",
       timeout: 300_000,
