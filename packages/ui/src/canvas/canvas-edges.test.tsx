@@ -171,11 +171,11 @@ describe("canvas edges", () => {
     expect(container.textContent).toContain("LABEL");
     expect(container.querySelector('[data-testid="edge-toolbar"]')).not.toBeNull();
     const label = container.querySelector<HTMLElement>(".react-flow__edgelabel-renderer > div");
-    expect(label?.className).not.toContain("rounded");
+    expect(label?.className).toContain("rounded-md");
+    expect(label?.className).toContain("bg-background");
     expect(label?.className).not.toContain("ring");
     expect(label?.style.color).toBe("#123456");
     expect(label?.style.zIndex).toBe("1003");
-    expect(label?.style.textShadow).toContain("var(--background)");
   });
 
   function openEditor() {
