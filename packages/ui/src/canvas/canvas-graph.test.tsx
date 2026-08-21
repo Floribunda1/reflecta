@@ -280,7 +280,7 @@ describe("CanvasGraph React Flow seam", () => {
   test("raises the edge label renderer above canvas nodes", () => {
     render({ document: { elements: [], edges: [] } });
     expect(container.querySelector('[data-testid="canvas-graph"]')?.className).toContain(
-      "[&_.react-flow__edgelabel-renderer]:z-[1001]",
+      "[&_.react-flow__edgelabel-renderer]:!z-[1002]",
     );
   });
 

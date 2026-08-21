@@ -174,7 +174,8 @@ describe("canvas edges", () => {
     expect(label?.className).not.toContain("rounded");
     expect(label?.className).not.toContain("ring");
     expect(label?.style.color).toBe("#123456");
-    expect(label?.style.zIndex).toBe("1002");
+    expect(label?.style.zIndex).toBe("1003");
+    expect(label?.style.textShadow).toContain("var(--background)");
   });
 
   function openEditor() {

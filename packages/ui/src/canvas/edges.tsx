@@ -227,11 +227,12 @@ export function CanvasEdge(props: EdgeProps<CanvasFlowEdge>) {
       </EdgeToolbar>
       <EdgeLabelRenderer>
         <div
-          className="nodrag nopan pointer-events-auto absolute z-[1002] text-xs"
+          className="nodrag nopan pointer-events-auto absolute z-[1003] text-xs"
           style={{
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
             color: canvasPaintColor(style.color) ?? "var(--muted-foreground)",
-            zIndex: 1002,
+            zIndex: 1003,
+            textShadow: "0 0 2px var(--background), 0 0 2px var(--background)",
           }}
           onDoubleClick={readonly ? undefined : () => setEditing(true)}
         >
