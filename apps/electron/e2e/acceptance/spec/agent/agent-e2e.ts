@@ -16,6 +16,20 @@ import {
 
 export const hasAi = hasE2eAiConfig();
 
+/**
+ * 把 Electron main 进程的输出转发到 Playwright 测试 stdout：
+ * - app.on("console")：main 进程的 console（含 electron-log 的 console transport）
+ * - app.process().stdout / .stderr：子进程流（未捕获异常、fatal 日志）
+ * 这样 e2e 能直接看到 main 侧的错误日志（例如 rpc-guard 的 rpc-unhandled）。
+ */
+export function captureMainOutput(app: ElectronApplication, prefix = "[main]") {
+  app.on("console", (message) => process.stdout.write(`${prefix} ${message.text()}\n`));
+  const proc = app.process();
+  proc.stdout?.on("data", (d: Buffer) => process.stdout.write(`${prefix} :: ${d.toString()}`));
+  proc.stderr?.on("data", (d: Buffer) => process.stderr.write(`${prefix} ! ${d.toString()}`));
+  return proc;
+}
+
 export async function launchApp(
   envOverrides: Record<string, string | undefined> = {},
 ): Promise<{ app: ElectronApplication; page: Page }> {
@@ -23,6 +37,7 @@ export async function launchApp(
     args: [path.resolve(import.meta.dirname, "../../../.."), ...getE2eElectronArgs()],
     env: { ...getE2eElectronEnv(), ...envOverrides },
   });
+  captureMainOutput(app);
   const page = await app.firstWindow();
   return { app, page };
 }
