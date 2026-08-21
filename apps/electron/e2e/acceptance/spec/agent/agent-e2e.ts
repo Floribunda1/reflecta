@@ -30,6 +30,14 @@ export function captureMainOutput(app: ElectronApplication, prefix = "[main]") {
   return proc;
 }
 
+/** renderer 侧日志基建：page console / 未捕获异常统一转发到测试 stdout（对称于 main）。 */
+export function captureRendererOutput(page: Page, prefix = "[page]") {
+  page.on("console", (message) =>
+    process.stdout.write(`${prefix} ${message.type()}: ${message.text()}\n`),
+  );
+  page.on("pageerror", (error) => process.stderr.write(`${prefix} ! ${error.message}\n`));
+}
+
 export async function launchApp(
   envOverrides: Record<string, string | undefined> = {},
 ): Promise<{ app: ElectronApplication; page: Page }> {
@@ -39,6 +47,7 @@ export async function launchApp(
   });
   captureMainOutput(app);
   const page = await app.firstWindow();
+  captureRendererOutput(page);
   return { app, page };
 }
 

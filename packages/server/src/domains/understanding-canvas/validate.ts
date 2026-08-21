@@ -118,7 +118,7 @@ const EDGE_STYLE_ENUMS = {
   routing: ["straight", "curve", "orthogonal"],
   lineStyle: ["solid", "dashed", "dotted"],
   width: ["thin", "medium", "thick"],
-  arrowhead: ["arrow", "block", "none"],
+  arrowhead: ["classic", "block", "circle", "diamond", "cross", "ellipse", "none"],
 } as const;
 
 export function assertValidEdgeStyle(style: unknown): void {

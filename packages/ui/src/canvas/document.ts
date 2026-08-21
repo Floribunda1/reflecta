@@ -49,14 +49,15 @@ export type CanvasEdgeStyle = {
   /** 线宽：映射 X6 line.strokeWidth（细 2 / 中 3 / 粗 4） */
   width?: "thin" | "medium" | "thick";
   /** 箭头：与 X6 内建 marker 一一对应（arrow→classic，其余同名校）；none→targetMarker null */
-  arrowhead?: "arrow" | "block" | "circle" | "diamond" | "cross" | "ellipse" | "none";
+  /** 箭头：直接取 X6 内建 marker 名（classic/block/circle/diamond/cross/ellipse/none）。 */
+  arrowhead?: "classic" | "block" | "circle" | "diamond" | "cross" | "ellipse" | "none";
 };
 
 export const DEFAULT_CANVAS_EDGE_STYLE: CanvasEdgeStyle = {
   routing: "curve",
   lineStyle: "solid",
   width: "thin",
-  arrowhead: "arrow",
+  arrowhead: "classic",
 };
 
 export type CanvasEdgeDTO = {

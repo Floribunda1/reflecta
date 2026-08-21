@@ -34,7 +34,13 @@ import {
   toX6Edge,
   nodeMetadataFor,
 } from "./graph-document";
-import { absolutePositionOf, byId, isSelectedWithAncestor } from "./graph-operations";
+import {
+  absolutePositionOf,
+  byId,
+  cascadeIdsOf,
+  groupElements,
+  isSelectedWithAncestor,
+} from "./graph-operations";
 import { EdgeOverlay } from "./EdgeOverlay";
 import {
   CanvasEdgeUpdateProvider,
@@ -101,30 +107,14 @@ const EMPTY_DOC: CanvasDocument = { elements: [], edges: [] };
  */
 function restoreChildLinks(graph: import("@antv/x6").Graph, doc: CanvasDocument) {
   const cells = new Map(graph.getCells().map((cell) => [cell.id, cell]));
-  let n = 0;
   for (const element of doc.elements) {
     if (!element.parentId) continue;
     const parent = cells.get(element.parentId);
     const child = cells.get(element.id);
-    if (parent?.isNode() && child?.isNode()) {
-      parent.addChild(child);
-      n += 1;
-    }
+    if (parent?.isNode() && child?.isNode()) parent.addChild(child);
   }
-  void n;
 }
 
-function collectCascadeIds(document: CanvasDocument, startId: string): string[] {
-  const removed = new Set([startId]);
-  let previous = 0;
-  while (removed.size !== previous) {
-    previous = removed.size;
-    for (const element of document.elements) {
-      if (element.parentId && removed.has(element.parentId)) removed.add(element.id);
-    }
-  }
-  return [...removed];
-}
 // react-shape portal provider：渲染一次，让所有 react-shape 卡片落入本 React 树（context 穿透）
 const ReactShapePortalProvider = ReactShapePortal() as React.FC<{ children?: React.ReactNode }>;
 
@@ -209,11 +199,29 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
       [applyViewport, emitDocument, readViewport],
     );
 
+    // rebuild 是同步全量重建（removeCells + fromJSON）；若在重建进行中被再次调用
+    // （rename 输入 blur 会撞上 fromJSON 的 DOM teardown，重入 removeCells/fromJSON
+    // 会抛 "node to be removed is no longer a child" 并把半残文档存库），
+    // 压到当前重建结束后的下一个 macrotask 再跑（DOM 已落定，图状态干净）。
+    const rebuildBusyRef = useRef(false);
+    const pendingRebuildRef = useRef<((doc: CanvasDocument) => CanvasDocument) | null>(null);
     const rebuild = useCallback(
       (mutate: (doc: CanvasDocument) => CanvasDocument) => {
         const graph = graphRef.current;
         if (!graph) return;
-        renderGraph(mutate(graphToDocument(graph)), true);
+        if (rebuildBusyRef.current) {
+          pendingRebuildRef.current = mutate;
+          return;
+        }
+        rebuildBusyRef.current = true;
+        try {
+          renderGraph(mutate(graphToDocument(graph)), true);
+        } finally {
+          rebuildBusyRef.current = false;
+          const pending = pendingRebuildRef.current;
+          pendingRebuildRef.current = null;
+          if (pending) setTimeout(() => rebuild(pending), 0);
+        }
       },
       [renderGraph],
     );
@@ -345,6 +353,8 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         "edge:change:labels",
         "edge:change:connector",
         "edge:change:router",
+        "edge:change:source",
+        "edge:change:target",
         "history:undo",
         "history:redo",
       ] as const;
@@ -433,56 +443,44 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
     }, [document, renderGraph]);
 
     // 组操作统一走 graph 命令（History 记录 → 可撤销），与工具栏 / 右键 / 选区工具条共用。
+    // 几何唯一来源是纯函数 groupElements（含 zIndex/parentId/相对坐标换算）；
+    // 命令层只做 X6 绑定（addNode + addChild 进 History）。
     const runGroupSelection = (nodeIds: string[]) => {
       const graph = graphRef.current;
       if (!graph) return;
       const doc = graphToDocument(graph);
       const index = byId(doc.elements);
       const selected = new Set(nodeIds);
-      const candidates = doc.elements.filter(
-        (element) =>
-          selected.has(element.id) && !isSelectedWithAncestor(element.id, selected, index),
-      );
-      if (candidates.length < 2) return;
-      // 与 groupElements 相同的几何：成员绝对 bbox 外扩 (-24,-44) ~ (+48,+68)
-      const boxes = candidates.map((element) => ({
-        element,
-        position: absolutePositionOf(element, index),
-      }));
-      const minX = Math.min(...boxes.map((box) => box.position.x));
-      const minY = Math.min(...boxes.map((box) => box.position.y));
-      const maxX = Math.max(...boxes.map((box) => box.position.x + box.element.width));
-      const maxY = Math.max(...boxes.map((box) => box.position.y + box.element.height));
-      const sharedParentId = candidates.every(
-        (element) => element.parentId === candidates[0].parentId,
+      if (
+        doc.elements.filter(
+          (element) =>
+            selected.has(element.id) && !isSelectedWithAncestor(element.id, selected, index),
+        ).length < 2
       )
-        ? candidates[0].parentId
-        : null;
-      const groupDto: CanvasElementDTO = {
-        id: crypto.randomUUID(),
+        return;
+      const groupId = crypto.randomUUID();
+      const next = groupElements(doc, nodeIds, {
+        id: groupId,
         canvasId,
-        parentId: sharedParentId,
-        x: minX - 24,
-        y: minY - 44,
-        width: maxX - minX + 48,
-        height: maxY - minY + 68,
-        // zIndex=-1 让组背景渲染在成员之下，且随 DTO 持久化
-        zIndex: -1,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        kind: "group",
-        understandingId: null,
-        canvasRefId: null,
-        props: { label: "" },
-      };
-      // 坐标约定：X6 内一律存绝对坐标，graphToDocument 序列化时再换算相对。
+      });
+      const groupDto = next.elements.find((element) => element.id === groupId);
+      if (!groupDto) return;
+      // 坐标约定：X6 内一律存绝对坐标（文档契约是相对坐标）。
+      // 纯函数 groupElements 返回相对组坐标，落图前换算成绝对坐标。
+      const nextIndex = byId(next.elements);
+      const groupAbsolute = absolutePositionOf(groupDto, nextIndex);
+      // History 以 batch 为一个可撤销步骤
       graph.startBatch("group");
-      const groupNode = graph.addNode(nodeMetadataFor(groupDto));
+      const groupNode = graph.addNode(
+        nodeMetadataFor({ ...groupDto, x: groupAbsolute.x, y: groupAbsolute.y }),
+      );
       // addChild 同时维护 child.parent 与 parent.children（setParent 只写 parent 一侧）
-      candidates.forEach((element) => {
+      for (const element of next.elements) {
+        if (element.parentId !== groupId) continue;
         const child = graph.getCellById(element.id);
         if (child?.isNode()) groupNode.addChild(child);
-      });
+      }
       graph.stopBatch("group");
     };
 
@@ -538,7 +536,7 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         deleteElement: (elementId: string) => {
           const graph = graphRef.current;
           if (!graph) return;
-          const doomed = collectCascadeIds(graphToDocument(graph), elementId);
+          const doomed = cascadeIdsOf(graphToDocument(graph), [elementId]);
           graph.removeCells(doomed.map((id) => graph.getCellById(id)).filter(Boolean));
         },
         deleteEdge: (edgeId: string) => {
@@ -551,7 +549,7 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         deleteGroup: (groupId: string) => {
           const graph = graphRef.current;
           if (!graph) return;
-          const doomed = collectCascadeIds(graphToDocument(graph), groupId);
+          const doomed = cascadeIdsOf(graphToDocument(graph), [groupId]);
           graph.removeCells(doomed.map((id) => graph.getCellById(id)).filter(Boolean));
         },
         exportPng: async () => {
@@ -592,9 +590,13 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
     );
     const handleEdgeUpdate = useCallback(
       (edge: CanvasEdgeDTO) => {
+        // 端点是图（store）的专有事实，重建输入经 graphToDocument 从 store 生成，
+        // 这里只合并样式 / 标签字段，绝不用传入 DTO 的端点覆盖（否则重构出空端点边）。
         rebuild((doc) => ({
           ...doc,
-          edges: doc.edges.map((e) => (e.id === edge.id ? edge : e)),
+          edges: doc.edges.map((e) =>
+            e.id === edge.id ? { ...e, style: edge.style, label: edge.label } : e,
+          ),
         }));
         // 样式 / 标签更新后恢复该边选中（renderGraph 会清空选区），便于连续调整
         const graph = graphRef.current;
@@ -611,7 +613,7 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         } else if (action.type === "delete-group") {
           const graph = graphRef.current;
           if (graph) {
-            const doomed = collectCascadeIds(graphToDocument(graph), action.nodeId);
+            const doomed = cascadeIdsOf(graphToDocument(graph), [action.nodeId]);
             graph.removeCells(doomed.map((id) => graph.getCellById(id)).filter(Boolean));
           }
         } else if (action.type === "ungroup") runUngroup([action.nodeId]);
@@ -667,7 +669,7 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
                   const graph = graphRef.current;
                   if (graph)
                     graph.removeCells(
-                      selectedNodeIds
+                      cascadeIdsOf(graphToDocument(graph), selectedNodeIds)
                         .map((id) => graph.getCellById(id))
                         .filter((cell): cell is import("@antv/x6").Cell => Boolean(cell)),
                     );

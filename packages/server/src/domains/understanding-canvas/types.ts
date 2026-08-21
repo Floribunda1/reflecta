@@ -50,7 +50,8 @@ export type EdgeStyle = {
   lineStyle?: "solid" | "dashed" | "dotted";
   color?: string;
   width?: "thin" | "medium" | "thick";
-  arrowhead?: "arrow" | "block" | "none";
+  /** 箭头：X6 内建 marker 名（与 ui 包 CanvasEdgeStyle 一一对应）。 */
+  arrowhead?: "classic" | "block" | "circle" | "diamond" | "cross" | "ellipse" | "none";
 };
 
 export type CanvasEdgeDTO = {

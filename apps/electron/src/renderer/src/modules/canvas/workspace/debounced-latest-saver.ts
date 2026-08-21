@@ -26,11 +26,16 @@ export function createDebouncedLatestSaver<T>({
   const pendingTimer = Effect.runSync(
     Ref.make<Option.Option<Fiber.Fiber<unknown, unknown>>>(Option.none()),
   );
+  // 在途 persist 的 promise：flush/quit 时等待它落库，避免最后保存被截断
+  const runningPromise = Effect.runSync(Ref.make<Option.Option<Promise<unknown>>>(Option.none()));
 
   const persist = (value: T, rev: number) =>
     Effect.gen(function* () {
       if ((yield* Ref.get(revision)) === rev) onStatus("saving");
-      const out = yield* Effect.exit(Effect.tryPromise(() => save(value)));
+      const promise = save(value);
+      yield* Ref.set(runningPromise, Option.some(promise));
+      const out = yield* Effect.exit(Effect.promise(() => promise));
+      yield* Ref.set(runningPromise, Option.none());
       if (Exit.isSuccess(out)) {
         if ((yield* Ref.get(revision)) === rev) onStatus("clean");
       } else if ((yield* Ref.get(revision)) === rev) {
@@ -68,12 +73,14 @@ export function createDebouncedLatestSaver<T>({
     const pending = Effect.runSync(
       Ref.getAndSet(pendingTimer, Option.none<Fiber.Fiber<unknown, unknown>>()),
     );
-    if (Option.isNone(pending)) return Promise.resolve();
-    Effect.runSync(Fiber.interrupt(pending.value));
+    if (Option.isSome(pending)) Effect.runSync(Fiber.interrupt(pending.value));
     const value = Effect.runSync(Ref.get(latest));
     const rev = Effect.runSync(Ref.get(revision));
-    if (Option.isNone(value)) return Promise.resolve();
-    return Effect.runPromise(persist(value.value, rev));
+    const inFlight = Effect.runSync(Ref.get(runningPromise));
+    const waits: Promise<unknown>[] = [];
+    if (Option.isSome(inFlight)) waits.push(inFlight.value);
+    if (Option.isSome(value)) waits.push(Effect.runPromise(persist(value.value, rev)));
+    return Promise.all(waits).then(() => undefined);
   };
 
   const retry = (): Promise<void> => {

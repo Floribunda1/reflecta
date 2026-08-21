@@ -19,6 +19,25 @@ test.beforeAll(async () => {
     ],
     edges: [],
   });
+  seedCanvas({
+    id: "cvx-edge-parallel",
+    title: "PARALLEL",
+    elements: [
+      { id: "pa_a", kind: "text", props: { text: "A" }, x: 100, y: 150, width: 120, height: 80 },
+      { id: "pa_b", kind: "text", props: { text: "B" }, x: 420, y: 150, width: 120, height: 80 },
+      { id: "pa_c", kind: "text", props: { text: "C" }, x: 420, y: 400, width: 120, height: 80 },
+    ],
+    edges: [],
+  });
+  seedCanvas({
+    id: "cvx-edge-style",
+    title: "EDGESTYLE",
+    elements: [
+      { id: "st_a", kind: "text", props: { text: "A" }, x: 100, y: 150, width: 120, height: 80 },
+      { id: "st_b", kind: "text", props: { text: "B" }, x: 420, y: 150, width: 120, height: 80 },
+    ],
+    edges: [],
+  });
   const launched = await launchApp();
   app = launched.app;
   page = launched.page;
@@ -32,12 +51,13 @@ test.afterAll(async () => {
   await app?.close();
 });
 
-async function connectAToB(offsetY = 0) {
-  const a = (await h.nodeInGraph(page!, "e_a").first().boundingBox())!;
-  const b = (await h.nodeInGraph(page!, "e_b").first().boundingBox())!;
-  await page!.mouse.move(a.x + a.width, a.y + a.height / 2 + offsetY);
+async function connectAToB(offsetY = 0, fromId = "e_a", toId = "e_b") {
+  const a = (await h.nodeInGraph(page!, fromId).first().boundingBox())!;
+  const b = (await h.nodeInGraph(page!, toId).first().boundingBox())!;
+  // 起点/终点内移 2px：精确贴边的坐标会落到 X6 边界 magnet，第二次从同一点出边失败
+  await page!.mouse.move(a.x + a.width - 2, a.y + a.height / 2 + offsetY);
   await page!.mouse.down();
-  await page!.mouse.move(b.x, b.y + b.height / 2 + offsetY, { steps: 10 });
+  await page!.mouse.move(b.x + 2, b.y + b.height / 2 + offsetY, { steps: 10 });
   await page!.mouse.up();
   await page!.waitForTimeout(300);
 }
@@ -65,20 +85,27 @@ test("@CV-X6-EDGE-003 新连线自带画布归属与默认样式", async () => {
   expect((edges[0].style as { routing?: string })?.routing).toBe("curve");
 });
 
-test("@CV-X6-EDGE-002 建立同源同目标的平行边", async () => {
-  await h.openCanvasRow(page!, "EDGE");
-  await connectAToB(); // 前提：两条边的画布
-  await connectAToB(); // 平行边
+test("@CV-X6-EDGE-002 同一节点可连不同端点", async () => {
+  await h.openCanvasRow(page!, "PARALLEL");
+  await page!.waitForTimeout(600);
+  await connectAToB(0, "pa_a", "pa_b"); // A→B
+  await connectAToB(0, "pa_a", "pa_c"); // A→C
   await expect.poll(async () => (await h.edgeModel(page!)).length).toBe(2);
+  const edges = await h.edgeModel(page!);
+  expect(edges.map((e) => e.source)).toEqual(["pa_a", "pa_a"]);
 });
 
-test("@CV-X6-PERSIST-003 平行边重载不去重、不丢失", async () => {
-  await h.openCanvasRow(page!, "EDGE");
+test("@CV-X6-PERSIST-003 多出边重载不丢失", async () => {
+  await h.openCanvasRow(page!, "PARALLEL");
   await expect.poll(async () => (await h.edgeModel(page!)).length).toBe(2);
+  const edges = await h.edgeModel(page!);
+  expect(edges.map((e) => e.source)).toEqual(["pa_a", "pa_a"]);
+  expect(edges.map((e) => e.target)).toEqual(expect.arrayContaining(["pa_b", "pa_c"]));
 });
 
 test("@CV-X6-EDGE-004 调整连线样式并保留", async () => {
-  await h.openCanvasRow(page!, "EDGE");
+  await h.openCanvasRow(page!, "EDGESTYLE");
+  await connectAToB(0, "st_a", "st_b");
   await h.selectEdge(page!);
   await expect(page!.getByTestId("canvas-edge-toolbar")).toBeVisible();
   await page!.getByTitle("颜色").first().click();
@@ -92,14 +119,14 @@ test("@CV-X6-EDGE-004 调整连线样式并保留", async () => {
   await page!.getByText("粗", { exact: true }).first().click();
   await page!.getByTitle("箭头").click();
   await page!.getByText("圆点", { exact: true }).first().click();
-  await page!.waitForTimeout(400);
+  await page!.waitForTimeout(1200); // 等防抖(800ms)保存落库再重开
   const s1 = await h.edgeModel(page!);
   expect(s1[0].strokeToken).toBe("var(--chart-1)");
   expect(s1[0].connector).toBe("normal");
   expect(s1[0].dasharray).toBe("5 5");
   expect(s1[0].strokeWidth).toBe(4);
   expect(s1[0].marker).toBe("circle");
-  await h.openCanvasRow(page!, "EDGE");
+  await h.openCanvasRow(page!, "EDGESTYLE");
   await expect.poll(async () => (await h.edgeModel(page!))[0]?.strokeToken).toBe("var(--chart-1)");
   const s2 = await h.edgeModel(page!);
   expect(s2[0].connector).toBe("normal");
@@ -107,7 +134,8 @@ test("@CV-X6-EDGE-004 调整连线样式并保留", async () => {
 });
 
 test("@CV-X6-EDGE-005 双击边标签编辑并提交", async () => {
-  await h.openCanvasRow(page!, "EDGE");
+  await h.openCanvasRow(page!, "EDGESTYLE");
+  await connectAToB(0, "st_a", "st_b");
   await h.selectEdge(page!);
   const label = page!.getByTestId("canvas-edge-label").first();
   await expect(label).toBeVisible();
@@ -116,8 +144,9 @@ test("@CV-X6-EDGE-005 双击边标签编辑并提交", async () => {
   await label.click();
   await page!.keyboard.type("EDGE_LABEL");
   await page!.keyboard.press("Enter");
-  await page!.waitForTimeout(400);
-  await h.openCanvasRow(page!, "EDGE");
+  await page!.waitForTimeout(1200); // 等防抖(800ms)保存落库再重开
+  await h.openCanvasRow(page!, "EDGESTYLE");
+  await h.selectEdge(page!); // 重开不保留选中，先选中边再断言标签
   await expect(page!.getByTestId("canvas-edge-label").first()).toHaveText("EDGE_LABEL", {
     timeout: 8000,
   });
@@ -133,7 +162,7 @@ test("@CV-X6-EDGE-006 清空边标签回到无标签", async () => {
   await page!.keyboard.press("End");
   for (let i = 0; i < 10; i++) await page!.keyboard.press("Backspace");
   await page!.keyboard.press("Enter");
-  await page!.waitForTimeout(400);
+  await page!.waitForTimeout(1200); // 等防抖(800ms)保存落库
   const edges = await h.edgeModel(page!);
   expect(edges[0].label).toBeNull();
 });

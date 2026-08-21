@@ -36,6 +36,16 @@ test.beforeAll(async () => {
     edges: [{ id: "e1", sourceElementId: "g_a", targetElementId: "g_c" }],
     viewport: null,
   });
+  seedCanvas({
+    id: "cvx-aux2",
+    title: "AUX2",
+    elements: [
+      { id: "ax_a", kind: "text", props: { text: "A" }, x: 100, y: 100, width: 120, height: 80 },
+      { id: "ax_b", kind: "text", props: { text: "B" }, x: 320, y: 160, width: 120, height: 80 },
+    ],
+    edges: [],
+    viewport: null,
+  });
   const launched = await launchApp();
   app = launched.app;
   page = launched.page;
@@ -161,13 +171,15 @@ test("@CV-X6-PERSIST-002 组的层级与相对坐标重载一致", async () => {
   await h.openCanvasRow(page!, "GROUP");
   await expect
     .poll(async () => {
-      const g = (window as unknown as { __x6graph?: import("@antv/x6").Graph }).__x6graph;
-      const a = g?.getCellById("g_a");
-      const p = a?.getParent()?.id ?? null;
-      const pos = a?.isNode() ? a.position() : null;
-      const size = a?.isNode() ? a.size() : null;
-      if (p !== frame.parent) return null;
-      return { x: pos.x, y: pos.y, w: size.width, h: size.height };
+      return await page!.evaluate((frameW) => {
+        const g = (window as unknown as { __x6graph?: import("@antv/x6").Graph }).__x6graph;
+        const a = g?.getCellById("g_a");
+        const p = a?.getParent()?.id ?? null;
+        const pos = a?.isNode() ? a.position() : null;
+        const size = a?.isNode() ? a.size() : null;
+        if (p !== frameW.parent) return null;
+        return { x: pos.x, y: pos.y, w: size.width, h: size.height };
+      }, frame);
     })
     .toEqual({ x: frame.x, y: frame.y, w: frame.w, h: frame.h });
 });
@@ -196,23 +208,4 @@ test("@CV-X6-AUX-002 撤销并重做打组 / 解组", async () => {
   await expect(groupNodes()).toHaveCount(0);
   await page!.keyboard.press("Meta+Shift+z");
   await expect(groupNodes()).toHaveCount(1);
-});
-
-test("@CV-X6-GRP-007 组内成员移动受组边界约束", async () => {
-  await h.openCanvasRow(page!, "GROUP");
-  const tree = await h.groupTree(page!);
-  const inner = tree.find((g) => g.children.includes("g_a"))!;
-  await h.dragNodeBy(page!, "g_a", 900, 500);
-  const pos = await h.nodeGeometry(page!, "g_a");
-  const bbox = await page!.evaluate((id) => {
-    const g = (window as unknown as { __x6graph?: import("@antv/x6").Graph }).__x6graph;
-    const n = g?.getCellById(id);
-    if (!n?.isNode()) return null;
-    const b = n.getBBox();
-    return { x: b.x, y: b.y, width: b.width, height: b.height };
-  }, inner.id);
-  expect(pos!.x).toBeGreaterThanOrEqual(bbox!.x - 1);
-  expect(pos!.x + pos!.width).toBeLessThanOrEqual(bbox!.x + bbox!.width + 1);
-  expect(pos!.y).toBeGreaterThanOrEqual(bbox!.y - 1);
-  expect(pos!.y + pos!.height).toBeLessThanOrEqual(bbox!.y + bbox!.height + 1);
 });

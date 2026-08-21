@@ -255,6 +255,14 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   const setDocument = useAtomSet(documentAtom);
   const setViewport = useAtomSet(viewportAtom);
   const documentSeededRef = useRef(false);
+  // 切换画布：重置初始文档/视口/原子 seed 门控。CanvasWorkspace 实例可能被复用
+  // （非 key 重挂载），state 不会随 canvasId 自动清空；不重置会把上一张画布的
+  // 文档泄漏到新画布（渲染旧内容、保存写回错误画布）。
+  useEffect(() => {
+    setInitialDocument(null);
+    setInitialViewport(null);
+    documentSeededRef.current = false;
+  }, [canvasId, setInitialDocument, setInitialViewport]);
   // 首次加载：把详情同步进 documentAtom，搜索 / 面板路由才能基于当前文档工作
   if (
     initialDocument === null &&

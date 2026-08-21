@@ -115,7 +115,7 @@ export async function selectEdge(page: Page) {
     if (!line) return null;
     try {
       const p = line.getPointAtLength(line.getTotalLength() / 2) as DOMPoint;
-      const ctm = (path.getScreenCTM?.() ?? null) as DOMMatrix | null;
+      const ctm = (line.getScreenCTM?.() ?? null) as DOMMatrix | null;
       if (!ctm) return null;
       const screen = p.matrixTransform(ctm);
       return { x: screen.x, y: screen.y };
@@ -184,4 +184,36 @@ export async function openLibrary(page: Page) {
 /** 当前画布卡片边框渲染色（选中卡片后调色板断言用）。 */
 export async function borderColorOf(page: Page, locator: Locator) {
   return locator.first().evaluate((el) => getComputedStyle(el).borderTopColor);
+}
+
+/** X6 模型事件转发（[x6] 前缀）：诊断时一行挂上，事件流直接可见，不用贴探针。 */
+export async function attachX6Log(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const g = (window as unknown as { __x6graph?: import("@antv/x6").Graph }).__x6graph;
+    if (!g || (globalThis as Record<string, unknown>).__x6logAttached) return;
+    (globalThis as Record<string, unknown>).__x6logAttached = true;
+    const log = (name: string, detail: unknown) =>
+      // eslint-disable-next-line no-console
+      console.log(`[x6] ${name} ${JSON.stringify(detail)}`);
+    g.on("node:change:parent", ({ node, current }) =>
+      log("node:change:parent", {
+        id: node.id,
+        current: (current as { id?: string } | null)?.id ?? null,
+      }),
+    );
+    g.on("node:added", ({ node }) => log("node:added", { id: node.id }));
+    g.on("node:removed", ({ node }) => log("node:removed", { id: node.id }));
+    g.on("edge:click", ({ edge }) => log("edge:click", { id: edge.id }));
+    g.on("cell:click", ({ cell }) =>
+      log("cell:click", { id: cell.id, type: cell.isNode() ? "node" : "edge" }),
+    );
+    g.on("blank:click", () => log("blank:click", {}));
+    g.on("node:change:position", ({ node }) => log("node:change:position", { id: node.id }));
+    log("parents", () =>
+      g
+        .getNodes()
+        .map((n) => ({ id: n.id, parent: n.getParent()?.id ?? null }))
+        .sort((l, r) => l.id.localeCompare(r.id)),
+    );
+  });
 }

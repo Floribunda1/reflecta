@@ -158,12 +158,14 @@ export function useSaveCanvasMutation() {
   );
 }
 
-/** 视口单独写（M1-5 恢复）：settle 后提交；不 invalidate（避免平移时列表反复刷新）。 */
+/** 视口单独写（M1-5 恢复）：settle 后提交；只失效 detail 缓存（平移不刷列表）。 */
 export function useUpdateViewportMutation() {
+  const queryClient = useQueryClient();
   return useMutation(
     effectQuery.mutationOptions({
       mutationFn: ({ canvasId, viewport }: { canvasId: string; viewport: Viewport }) =>
         rpc.canvasUpdateViewport(canvasId, viewport as import("../../../../ipc").Viewport),
+      onSuccess: (_result, { canvasId }) => invalidateCanvasDetail(queryClient, canvasId),
     }),
   );
 }

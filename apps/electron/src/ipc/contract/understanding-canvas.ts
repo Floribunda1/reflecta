@@ -67,7 +67,7 @@ export const EdgeStyle = S.Struct({
   lineStyle: S.optional(lit("solid", "dashed", "dotted")),
   color: S.optional(S.String),
   width: S.optional(lit("thin", "medium", "thick")),
-  arrowhead: S.optional(lit("arrow", "block", "none")),
+  arrowhead: S.optional(lit("classic", "block", "circle", "diamond", "cross", "ellipse", "none")),
 });
 export type EdgeStyle = S.Schema.Type<typeof EdgeStyle>;
 

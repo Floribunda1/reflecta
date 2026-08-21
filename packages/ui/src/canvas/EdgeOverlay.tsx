@@ -117,7 +117,7 @@ export function EdgeOverlay({
       <EdgeStyleMenu
         label="箭头"
         icon={<ArrowRight />}
-        value={current.arrowhead ?? "arrow"}
+        value={current.arrowhead ?? "classic"}
         options={ARROWHEAD_OPTIONS}
         onChange={(arrowhead) => patch({ arrowhead })}
       />
@@ -152,7 +152,7 @@ const WIDTH_OPTIONS = [
   { value: "thick", label: "粗" },
 ] as const;
 const ARROWHEAD_OPTIONS = [
-  { value: "arrow", label: "箭头" },
+  { value: "classic", label: "箭头" },
   { value: "block", label: "方块" },
   { value: "circle", label: "圆点" },
   { value: "diamond", label: "菱形" },

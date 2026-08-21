@@ -98,7 +98,7 @@ export function groupElements(
     y: groupPosition.y,
     width: maxX - minX + 48,
     height: maxY - minY + 68,
-    zIndex: 0,
+    zIndex: -1,
     createdAt: seed.createdAt,
     updatedAt: seed.createdAt,
     kind: "group",
@@ -161,12 +161,12 @@ export function ungroupGroups(
   return { ...document, elements };
 }
 
-/** 删除一个组（含其全部后代与相连的边）。 */
-export function deleteGroupBranch(document: CanvasDocument, groupId: string): CanvasDocument {
-  const index = byId(document.elements);
-  if (index.get(groupId)?.kind !== "group") return document;
-
-  const removed = new Set([groupId]);
+/**
+ * 级联删除集合（起点 + 全部后代）的唯一实现：删组 / 删元素 / 多选删除共用。
+ * 纯函数、定点展开；命令层拿它直接 removeCells（X6 移除时自动断开关联边）。
+ */
+export function cascadeIdsOf(document: CanvasDocument, startIds: ReadonlyArray<string>): string[] {
+  const removed = new Set(startIds);
   let previousSize = 0;
   while (removed.size !== previousSize) {
     previousSize = removed.size;
@@ -174,6 +174,15 @@ export function deleteGroupBranch(document: CanvasDocument, groupId: string): Ca
       if (element.parentId && removed.has(element.parentId)) removed.add(element.id);
     }
   }
+  return [...removed];
+}
+
+/** 删除一个组（含其全部后代与相连的边）。 */
+export function deleteGroupBranch(document: CanvasDocument, groupId: string): CanvasDocument {
+  const index = byId(document.elements);
+  if (index.get(groupId)?.kind !== "group") return document;
+
+  const removed = new Set(cascadeIdsOf(document, [groupId]));
   return {
     elements: document.elements.filter((element) => !removed.has(element.id)),
     edges: document.edges.filter(
@@ -187,14 +196,7 @@ export function deleteElements(
   document: CanvasDocument,
   elementIds: ReadonlyArray<string>,
 ): CanvasDocument {
-  const removed = new Set(elementIds);
-  let previousSize = 0;
-  while (removed.size !== previousSize) {
-    previousSize = removed.size;
-    for (const element of document.elements) {
-      if (element.parentId && removed.has(element.parentId)) removed.add(element.id);
-    }
-  }
+  const removed = new Set(cascadeIdsOf(document, elementIds));
   return {
     elements: document.elements.filter((element) => !removed.has(element.id)),
     edges: document.edges.filter(

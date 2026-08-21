@@ -30,6 +30,23 @@ test.beforeAll(async () => {
     ],
     viewport: null,
   });
+  // TEXT-001 的拖入卡与编辑场景共用画布会把卡落到编辑点击点上：独立画布
+  seedCanvas({
+    id: "cvx-textdnd",
+    title: "TEXTDND",
+    elements: [
+      {
+        id: "td_a",
+        kind: "text",
+        props: { text: "hello" },
+        x: 100,
+        y: 100,
+        width: 180,
+        height: 90,
+      },
+    ],
+    viewport: null,
+  });
   // 占位卡引用一张“真实存在但已删除”的理解（校验只查存在性；假 id 会拒存整个画布）
   seedUnderstanding({ id: "th_seed_deleted", title: "DELETED_UND", body: "deleted body" });
   deleteUnderstanding("th_seed_deleted");
@@ -101,7 +118,7 @@ test("@CV-X6-VIEW-005 无已存视口时初始适应视图", async () => {
 });
 
 test("@CV-X6-TEXT-001 拖拽工具栏文本按钮创建文本卡", async () => {
-  await h.openCanvasRow(page!, "TEXT");
+  await h.openCanvasRow(page!, "TEXTDND");
   const graph = page!.getByTestId("canvas-graph").first();
   const box = (await graph.boundingBox())!;
   await h.dragSourceTo(page!, page!.getByTestId("canvas-tool-dnd-text"), box.x + 560, box.y + 320);

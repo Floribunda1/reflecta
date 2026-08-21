@@ -43,25 +43,27 @@ function routerFor(style: CanvasEdgeStyle | null): EdgeMetadata["router"] {
   return style?.routing === "orthogonal" ? { name: "orth" } : undefined;
 }
 
+/**
+ * 边 attrs：业务样式（lineAttrs）合并回 X6 默认 edge 所需的结构。
+ * 必须保留 lines.connection:true —— X6 靠它把路径 d 写到两条路径（wrap 命中层 + line）；
+ * 直接传 lineAttrs 会把默认 attrs 整个替换掉，边不渲染也不可点。
+ */
+export function edgeAttrs(style: CanvasEdgeStyle | null) {
+  return {
+    ...lineAttrs(style),
+    lines: { connection: true, strokeLinejoin: "round" },
+    wrap: { strokeWidth: 10 },
+  };
+}
+
 export function lineAttrs(style: CanvasEdgeStyle | null) {
   const color = canvasPaintColor(style?.color) ?? "var(--muted-foreground)";
   const strokeWidth = style?.width === "thick" ? 4 : style?.width === "medium" ? 3 : 2;
   const strokeDasharray =
     style?.lineStyle === "dashed" ? "5 5" : style?.lineStyle === "dotted" ? "2 2" : undefined;
-  const markerNames: Record<
-    NonNullable<CanvasEdgeStyle["arrowhead"]>,
-    "classic" | "block" | "circle" | "diamond" | "cross" | "ellipse" | null
-  > = {
-    arrow: "classic",
-    block: "block",
-    circle: "circle",
-    diamond: "diamond",
-    cross: "cross",
-    ellipse: "ellipse",
-    none: null,
-  };
-  const markerName = markerNames[style?.arrowhead ?? "arrow"];
-  const targetMarker = markerName === null ? null : { name: markerName, width: 10, height: 8 };
+  // arrowhead 即 X6 marker 名（契约与 X6 一一对应，不再映射）
+  const markerName = style?.arrowhead ?? "classic";
+  const targetMarker = markerName === "none" ? null : { name: markerName, width: 10, height: 8 };
   return {
     line: {
       stroke: color,
@@ -108,7 +110,7 @@ export function toX6Cells(document: CanvasDocument): CellMetadata[] {
       target: { cell: edge.targetElementId, port: "in" },
       connector: connectorFor(style),
       ...(routerFor(style) ? { router: routerFor(style) } : {}),
-      attrs: lineAttrs(style),
+      attrs: edgeAttrs(style),
       ...(edge.label
         ? {
             labels: [
@@ -155,7 +157,7 @@ export function toX6Edge(edge: CanvasEdgeDTO): X6EdgeCtor {
     data: { edge },
     connector: connectorFor(style),
     ...(routerFor(style) ? { router: routerFor(style) } : {}),
-    attrs: lineAttrs(style),
+    attrs: edgeAttrs(style),
     ...(edge.label
       ? {
           labels: [
@@ -189,12 +191,14 @@ export function nodeToElement(node: X6Node): CanvasElementDTO {
 export function edgeToEdge(edge: X6Edge): CanvasEdgeDTO {
   const data = (edge.getData() as { edge?: CanvasEdgeDTO } | null)?.edge;
   const base = data ?? ({} as CanvasEdgeDTO);
-  const source = edge.getSourceCell();
-  const target = edge.getTargetCell();
+  // 读 store 的 terminal id（getSourceCell/getTargetCell 是构造时缓存的引用，
+  // fromJSON/rebuild 重建后恒为 null，会造成“空端点”残边被保存链剔除）。
+  const sourceId = edge.getSourceCellId() ?? "";
+  const targetId = edge.getTargetCellId() ?? "";
   return {
     ...base,
     id: edge.id,
-    sourceElementId: source && source.isNode() ? source.id : "",
-    targetElementId: target && target.isNode() ? target.id : "",
+    sourceElementId: sourceId,
+    targetElementId: targetId,
   };
 }
