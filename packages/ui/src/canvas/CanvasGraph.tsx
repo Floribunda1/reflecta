@@ -205,8 +205,9 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
       const graph = new Graph({
         container,
         autoResize: true,
-        // 左键= rubberband 框选；Space+左拖=平移；中键拖拽=平移（X6 内置）
-        panning: { enabled: true, eventTypes: ["leftMouseDown", "mouseWheelDown"] },
+        // X6 冲突规则：selection(rubberband) 与 panning 的 eventTypes+修饰键重叠时会
+        // disablePanning。产品取互斥手势：左键=框选、中键拖拽=平移（Space 平移与左键框选不兼容）。
+        panning: { enabled: true, eventTypes: ["mouseWheelDown"] },
         mousewheel: { enabled: true, factor: 1.2, zoomAtMousePosition: true },
         // 组内成员拖动限制在组 bbox 内（extent）；组自身可自由移动
         translating: {
@@ -243,7 +244,14 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
       let dnd: Dnd | undefined;
       if (!readonlyRef.current) {
         graph.use(new Transform({ resizing: true }));
-        graph.use(new Selection({ rubberband: true, multiple: true, showNodeSelectionBox: false }));
+        graph.use(
+          new Selection({
+            rubberband: true,
+            multiple: true,
+            showNodeSelectionBox: false,
+            eventTypes: ["leftMouseDown"],
+          }),
+        );
         graph.use(new Snapline({ enabled: true }));
         graph.use(new Clipboard());
         graph.use(new History());
@@ -339,13 +347,22 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         });
       }
 
-      // X6 Selection 插件不做点击选中：node:click / edge:click 单选，blank:click 清空。
-      const selectOnly = (cell: import("@antv/x6").Cell) => {
+      // X6 Selection 插件不做点击选中：node:click 单选 / ⌘+点击多选切换，edge:click 单选，blank:click 清空。
+      graph.on("node:click", ({ node, e }) => {
         if (readonlyRef.current) return;
-        graph.getPlugin<Selection>("selection")?.reset([cell]);
-      };
-      graph.on("node:click", ({ node }) => selectOnly(node));
-      graph.on("edge:click", ({ edge }) => selectOnly(edge));
+        const selection = graph.getPlugin<Selection>("selection");
+        if (!selection) return;
+        if (e.metaKey || e.ctrlKey) {
+          // 加选（X6 自带容器 handler 也会处理修饰键点击，这里只做加法避免双重切换）
+          if (!selection.isSelected(node)) selection.select([node]);
+        } else {
+          selection.reset([node]);
+        }
+      });
+      graph.on("edge:click", ({ edge }) => {
+        if (readonlyRef.current) return;
+        graph.getPlugin<Selection>("selection")?.reset([edge]);
+      });
       graph.on("blank:click", () => {
         if (readonlyRef.current) return;
         graph.getPlugin<Selection>("selection")?.reset([]);
@@ -425,7 +442,11 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
       // 坐标约定：X6 内一律存绝对坐标，graphToDocument 序列化时再换算相对。
       graph.startBatch("group");
       const groupNode = graph.addNode(nodeMetadataFor(groupDto));
-      candidates.forEach((element) => graph.getCellById(element.id)?.setParent(groupNode));
+      // addChild 同时维护 child.parent 与 parent.children（setParent 只写 parent 一侧）
+      candidates.forEach((element) => {
+        const child = graph.getCellById(element.id);
+        if (child?.isNode()) groupNode.addChild(child);
+      });
       graph.stopBatch("group");
     };
 
@@ -439,7 +460,10 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
       graph.startBatch("ungroup");
       for (const group of groups) {
         const parent = group.getParent();
-        for (const child of group.getChildren() ?? []) child.setParent(parent);
+        for (const child of group.getChildren() ?? []) {
+          if (parent?.isNode()) parent.addChild(child);
+          else child.removeFromParent();
+        }
         graph.removeCells([group]);
       }
       graph.stopBatch("ungroup");
@@ -497,8 +521,15 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         exportPng: async () => {
           graphRef.current?.exportPNG("reflecta-canvas.png");
         },
-        zoomIn: () => graphRef.current?.zoom(1.2),
-        zoomOut: () => graphRef.current?.zoom(0.8),
+        // X6 zoom(factor) 默认加法语义：显式 absolute 乘法，缩放控件才符合直觉
+        zoomIn: () => {
+          const g = graphRef.current;
+          if (g) g.zoom(g.zoom() * 1.2, { absolute: true });
+        },
+        zoomOut: () => {
+          const g = graphRef.current;
+          if (g) g.zoom(g.zoom() * 0.8, { absolute: true });
+        },
         fitView: () => graphRef.current?.zoomToFit({ padding: 40, maxScale: 1 }),
         startDrag: (element, event) => {
           const dnd = dndRef.current;

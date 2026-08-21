@@ -162,12 +162,17 @@ function ActionBar({ children, visible }: { children: React.ReactNode; visible: 
 /** 理解卡：展示引用理解全文；引用删除后显示占位。 */
 export function UnderstandingCard({ node }: CardProps) {
   const { element, selected } = useCard(node);
-  const { understandingRefs, readonly, onElementEdit } = useCanvasShapeData();
+  const { understandingRefs, readonly, onElementEdit, multiSelected } = useCanvasShapeData();
   const ref =
     element.kind === "understanding" && element.understandingId
       ? understandingRefs.get(element.understandingId)
       : undefined;
   const deleted = !ref || ref.deleted;
+
+  const openDetail = () => {
+    if (!readonly && element.kind === "understanding" && element.understandingId)
+      onElementEdit?.(element);
+  };
 
   return (
     <div
@@ -178,8 +183,9 @@ export function UnderstandingCard({ node }: CardProps) {
       }
       className={cn(CARD, nodeStateClass(selected, element.props.color))}
       style={nodeColorStyle(element.props.color)}
+      onDoubleClick={openDetail}
     >
-      <ActionBar visible={selected && !readonly}>
+      <ActionBar visible={selected && !readonly && !multiSelected}>
         <NodeActions element={element} onEdit={() => onElementEdit?.(element)} />
       </ActionBar>
       {deleted ? (
@@ -208,11 +214,10 @@ export function UnderstandingCard({ node }: CardProps) {
 export function TextCard({ node }: CardProps) {
   const { element, selected, update } = useCard(node);
   const text = element.kind === "text" ? element.props.text : "";
-  const { readonly, onElementEdit } = useCanvasShapeData();
+  const { readonly, onElementEdit, multiSelected } = useCanvasShapeData();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(text);
   const editorRef = useRef<HTMLDivElement>(null);
-  const skipCommitRef = useRef(false);
 
   const startEditing = () => {
     setDraft(text);
@@ -224,19 +229,14 @@ export function TextCard({ node }: CardProps) {
   }, [editing]);
 
   const commit = (markdown: string) => {
-    if (skipCommitRef.current) {
-      skipCommitRef.current = false;
-      return;
-    }
     setEditing(false);
     if (markdown === text) return;
     update({ ...element, props: { ...element.props, text: markdown } } as CanvasElementDTO);
   };
 
   const cancel = () => {
-    skipCommitRef.current = true;
-    setDraft(text);
-    setEditing(false);
+    // Escape 与失焦一致：正常保存改动（不再取消）
+    commit(draft);
   };
 
   return (
@@ -248,7 +248,7 @@ export function TextCard({ node }: CardProps) {
       style={nodeColorStyle(element.props.color)}
       onDoubleClick={readonly ? undefined : startEditing}
     >
-      <ActionBar visible={selected && !readonly}>
+      <ActionBar visible={selected && !readonly && !multiSelected}>
         <NodeActions element={element} onEdit={() => onElementEdit?.(element) ?? startEditing()} />
       </ActionBar>
       {editing ? (
@@ -280,7 +280,7 @@ export function TextCard({ node }: CardProps) {
 export function GroupCard({ node }: CardProps) {
   const { element, selected, update } = useCard(node);
   const label = element.kind === "group" ? element.props.label : "";
-  const { readonly, onCellAction } = useCanvasShapeData();
+  const { readonly, onCellAction, multiSelected } = useCanvasShapeData();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(label);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -317,7 +317,7 @@ export function GroupCard({ node }: CardProps) {
         }
       >
         <>
-          <ActionBar visible={selected && !readonly}>
+          <ActionBar visible={selected && !readonly && !multiSelected}>
             <Popover>
               <PopoverTrigger
                 render={
@@ -422,7 +422,8 @@ export function GroupCard({ node }: CardProps) {
 /** 画布引用卡：内嵌目标画布小型预览；双击打开；目标删除 → 占位。 */
 export function CanvasRefCard({ node }: CardProps) {
   const { element, selected } = useCard(node);
-  const { referencedCanvases, onCanvasRefClick, onElementEdit, readonly } = useCanvasShapeData();
+  const { referencedCanvases, onCanvasRefClick, onElementEdit, readonly, multiSelected } =
+    useCanvasShapeData();
   const canvasRefId = element.kind === "canvas_ref" ? element.canvasRefId : null;
   const target = canvasRefId ? referencedCanvases.get(canvasRefId) : undefined;
   const deleted = !target || target.deleted;
@@ -445,7 +446,7 @@ export function CanvasRefCard({ node }: CardProps) {
       onDoubleClick={readonly ? undefined : open}
       title={deleted ? "目标画布已删除" : "双击打开引用画布"}
     >
-      <ActionBar visible={selected && !readonly}>
+      <ActionBar visible={selected && !readonly && !multiSelected}>
         <NodeActions element={element} onEdit={() => onElementEdit?.(element)} />
       </ActionBar>
       {deleted ? (

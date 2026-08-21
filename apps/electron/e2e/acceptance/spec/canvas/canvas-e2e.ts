@@ -1,8 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
-/** 打开画布模块（rail 入口；已在画布模块时直接等待可见）。 */
+/** 回到画布列表页（rail 入口；已在画布列表时直接返回，已在工作区/其他模块时先切回列表）。 */
 export async function openCanvasPage(page: Page) {
-  await expect(page.getByTestId("capture-page").or(page.getByTestId("canvas-page"))).toBeVisible();
   const canvasPage = page.getByTestId("canvas-page");
   await expect(async () => {
     if (await canvasPage.isVisible()) return;
