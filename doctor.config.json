@@ -1,0 +1,30 @@
+{
+  "$schema": "https://react.doctor/schema/config.json",
+  "projects": ["@reflecta/ui", "@reflecta/electron"],
+  "blocking": "error",
+  "categories": {
+    "Bugs": "error",
+    "Security": "error",
+    "Performance": "warn",
+    "Accessibility": "warn",
+    "Maintainability": "warn"
+  },
+  "rules": {
+    "react-doctor/only-export-components": "off",
+    "react-doctor/no-many-boolean-props": "off",
+    "react-doctor/no-redundant-roles": "off",
+    "react-doctor/agent-tool-capability-risk": "off"
+  },
+  "ignore": {
+    "files": [
+      "src/components/**",
+      "**/*.stories.ts",
+      "**/*.stories.tsx",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/storybook-static/**",
+      "**/out/**",
+      "**/dist/**"
+    ]
+  }
+}

@@ -27,7 +27,7 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "typecheck": "bun run --filter '*' typecheck",
-    "doctor": "bunx react-doctor apps/electron && bunx react-doctor packages/ui",
+    "doctor": "bunx react-doctor",
     "storybook": "bun run --cwd packages/ui storybook",
     "storybook:build": "bun run --cwd packages/ui build-storybook"
   },
