@@ -18,13 +18,13 @@
 
 | 文件                     | 实现内容                                                             | X6 对应                                   | 处置                 |
 | ------------------------ | -------------------------------------------------------------------- | ----------------------------------------- | -------------------- |
-| `CanvasGraph.tsx`        | RF 包裹 + 受控桥 + 事件桥 + DnD + SelectionToolbar + export          | X6 `Graph` 实例 + 插件                    | 内建接管 / 改型重建  |
+| `CanvasGraph.tsx`        | RF 包裹 + 受控桥 + 事件桥 + SelectionToolbar + export                | X6 `Graph` 实例 + 插件                    | 内建接管 / 改型重建  |
 | `nodes.tsx`              | 4 类自定义节点(理解卡/文本卡/组/引用卡) + Handle + Resizer + Toolbar | react-shape 注册 + Ports + Transform      | 业务保留 / 内建接管  |
 | `edges.tsx`              | 自定义边 + 路径工具 + 样式菜单 + 标签编辑                            | X6 边 attrs + router/connector + 边 tools | 业务保留 / 内建接管  |
 | `graph-document.ts`      | document ⇄ nodes/edges 映射 + 序列化                                 | X6 `toJSON/fromJSON` + `getData`          | 改型重建             |
 | `graph-operations.ts`    | 打组/解组/删组级联（纯函数）                                         | X6 父子模型 + `removeCells`               | 改型重建（改纯 DTO） |
 | `canvas-graph-bridge.ts` | `applyNodeChanges/applyEdgeChanges` + connection                     | （X6 模型即状态，无此层）                 | 删除                 |
-| `dnd.ts`                 | HTML5 DnD payload 暂存                                               | X6 `Dnd`/`Stencil` 或保留业务暂存         | 业务保留 / 内建接管  |
+| `dnd.ts`                 | HTML5 DnD payload 暂存                                               | X6 `Stencil` 插件（拖入统一走 Stencil）   | 删除                 |
 | `shape-context.tsx`      | 展示数据 + 元素/边回写通道                                           | react-shape 同一 React 树，context 仍穿透 | 业务保留             |
 | `document.ts`            | CanvasDocument/DTO 类型契约                                          | 引擎无关，不变                            | 业务保留（不动）     |
 | `color-swatches.tsx`     | 色板 token → CSS                                                     | 引擎无关                                  | 业务保留             |
@@ -41,7 +41,7 @@ RF 侧功能 → X6 落点：
 3. `handleConnect` + `appendCanvasConnection` → X6 连线交互（`connecting` 配置）后监听 `edge:connected`（或模型 `cell:added` 判 edge）→ 回写 document。
 4. viewport 回写 → X6 视口事件（`graph.on('scale'...)`/`translate`）→ 存 viewport。
 5. selection 回写 → `Selection` 插件 + `selection:changed` 事件 → cell id 数组给 `onSelectionChange`。
-6. DnD（`onDragOver/onDrop` + drop 预览 + `screenToFlowPosition`）→ X6 `Dnd`/`Stencil` 插件；坐标换算 `screenToFlowPosition` → `graph.clientToLocal`。若保留自有工具栏 HTML5 DnD，则保留 dnd.ts 暂存 + `graph.clientToLocal`。
+6. DnD（`onDragOver/onDrop` + drop 预览 + `screenToFlowPosition`）→ **删除**。拖入统一走 X6 `Stencil` 插件（自带侧边栏、拖拽、落点），不手写 HTML5 DnD，也不保留 dnd.ts 暂存 hack。
 7. `SelectionToolbar`（多选打组/删除） → 业务 UI 保留；位置由 X6 `node.getBBox()` 屏幕坐标 + 视口计算（替代 `useViewport`+`getNodesBounds`）。
 8. 初始视口恢复 / fitView → X6 `graph.zoomToFit()`、`graph.zoom()+pan()`（恢复已存视口）、`graph.centerCell()`（新增节点定位）。
 9. `exportPng`（`toPng` 抓 `.react-flow__viewport` + `getNodesBounds`/`getViewportForBounds`）→ `Export` 插件 `graph.exportPNG()`。**删 html-to-image + 两个 bounds 工具**。
@@ -102,14 +102,14 @@ RF 专属部分逐个替换，卡片内容本身是业务 React：
 
 ## B. `apps/electron/.../canvas/workspace/` 逐文件
 
-| 文件                        | RF 耦合点                                                                        | X6 对应                                                     | 处置             |
-| --------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------- | ---------------- |
-| `CanvasWorkspace.tsx`       | graphRef 句柄、`graph.getNode/getEdge/fitView/setEdges/zoomIn/Out`、Cmd+G 快捷键 | X6 `getCellById/zoomToFit/centerCell/zoom` + Selection 事件 | 改型重建         |
-| `CanvasToolbar.tsx`         | `handle.exportPng`                                                               | X6 `Export` 插件（经新句柄）                                | 业务保留         |
-| `CanvasLibraryPanel.tsx`    | HTML5 DnD `setDndElement`                                                        | 保留业务 DnD，或改 X6 `Stencil`                             | 业务保留         |
-| `CanvasSearchOverlay.tsx`   | 结果定位用 `graph.getNode/getEdge/fitView`                                       | X6 `getCellById` + `center/zoomToFit`                       | 改型重建         |
-| `canvas-workspace-model.ts` | 无（document 上的搜索索引 / 面板路由）                                           | —                                                           | 业务保留（不动） |
-| `element-factory.ts`        | id==node id 注释                                                                 | cell id                                                     | 业务保留（不动） |
+| 文件                        | RF 耦合点                                                                        | X6 对应                                                     | 处置                |
+| --------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------- |
+| `CanvasWorkspace.tsx`       | graphRef 句柄、`graph.getNode/getEdge/fitView/setEdges/zoomIn/Out`、Cmd+G 快捷键 | X6 `getCellById/zoomToFit/centerCell/zoom` + Selection 事件 | 改型重建            |
+| `CanvasToolbar.tsx`         | `handle.exportPng`                                                               | X6 `Export` 插件（经新句柄）                                | 业务保留            |
+| `CanvasLibraryPanel.tsx`    | HTML5 DnD `setDndElement`                                                        | 拖入走 X6 `Stencil`，删 `setDndElement`                     | 删除 DnD / 业务保留 |
+| `CanvasSearchOverlay.tsx`   | 结果定位用 `graph.getNode/getEdge/fitView`                                       | X6 `getCellById` + `center/zoomToFit`                       | 改型重建            |
+| `canvas-workspace-model.ts` | 无（document 上的搜索索引 / 面板路由）                                           | —                                                           | 业务保留（不动）    |
+| `element-factory.ts`        | id==node id 注释                                                                 | cell id                                                     | 业务保留（不动）    |
 
 ### B1. `CanvasWorkspace.tsx` 关键改型
 
@@ -118,6 +118,7 @@ RF 专属部分逐个替换，卡片内容本身是业务 React：
 - `graph.fitView({nodes})` → X6 `graph.zoomToFit({cells})` 或 `centerCell`。
 - `zoomIn/zoomOut/fitView`（CanvasZoomControls）→ X6 `graph.zoomIn/zoomOut/zoomToFit`。
 - **`useCanvasWorkspaceHotkeys` 的 Cmd+G/Cmd+Shift+G 分组 → 删除**（采纳：分组只用页面按钮/右键，不走快捷键）。Cmd+F 搜索保留与否按需；若保留走页面按钮。
+- **删除工具栏文本卡拖入**：`CanvasTextTool` 的 `draggable` + `setDndElement` + `DND_MIME` 一并删，文本/理解/画布引用拖入统一由 X6 `Stencil` 提供（工具栏、库面板不再各自手写 DnD）。
 - 事件桥（文档/视口/选中 → atoms + 防抖保存）→ 全部改由 X6 模型/插件事件触发，atoms 与 debounced-latest-saver 逻辑不动。
 
 ## C. 测试套件映射
@@ -160,7 +161,7 @@ RF 专属部分逐个替换，卡片内容本身是业务 React：
 
 1. **删干净 RF**：改 `graph-document` 为纯 DTO 序列化（去 `@xyflow/react`）、删 `canvas-graph-bridge.ts`、`graph-operations` 改纯 DTO、删所有 `@xyflow/react` import 与测试 — 仓库无 `@xyflow/react` 残留；
 2. 建 X6 adapter：`CanvasGraph` 用 X6 `Graph` 重建，先接「渲染 + 模型事件 → document 同步 + 视口 + DnD + export」；
-3. 接插件：History/Snapline/Clipboard/Selection/MiniMap/Stencil(按需)/Keyboard(按需)/Transform；
+3. 接插件：History/Snapline/Clipboard/Selection/MiniMap/Stencil/Keyboard(按需)/Transform；且拖入统一走 `Stencil`（删 dnd.ts / dropPreview / toolbar 与 library 的 `setDndElement`）。
 4. react-shape 四类卡片 + ports + Transform 替换 nodes/edges；
 5. workspace 改接 X6 句柄、删 Cmd+G 快捷键；
 6. 测试按 §C 改型；
