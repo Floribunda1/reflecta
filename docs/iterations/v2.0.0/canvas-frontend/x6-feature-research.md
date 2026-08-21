@@ -87,4 +87,4 @@
 
 X6 能把 React Flow 时代自研或缺失的一大半「通用图编辑器样板」收归原生：undo/redo（含组操作）、参考线、copy/paste、Transform、Stencil/DnD、虚拟渲染、Anchor/连接桩、节点/边 Tools、Export。剩余自研项均为纯业务逻辑，与引擎无关。
 
-首次通过 `graph.use(new Xxx())` 一行启用；要遵守「减少偏离、每项定制说明理由」的采纳纪律，集成基准与偏差账本见后续 x6-integration-principles 文档（待立）。
+首次通过 `graph.use(new Xxx())` 一行启用；要遵守「减少偏离、每项定制说明理由」的采纳纪律，集成基准与偏差账本见 [x6-integration-principles](./x6-integration-principles.md)。
