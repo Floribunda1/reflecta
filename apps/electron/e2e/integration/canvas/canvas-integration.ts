@@ -84,3 +84,46 @@ export async function dragSourceTo(page: Page, source: Locator, x: number, y: nu
   await page.mouse.up();
   await page.waitForTimeout(250);
 }
+
+/* ---------- X6 图状态探针（真实用户行为后读图，验证“反馈”） ---------- */
+
+/** 图中节点个数（取消/删除/粘贴等断言）。 */
+export const graphNodeCount = (page: Page) =>
+  page.evaluate(
+    () =>
+      (window as unknown as { __x6graph?: { getNodes(): unknown[] } }).__x6graph?.getNodes()
+        .length ?? -1,
+  );
+
+/** 节点位置 / 尺寸（吸附 / extent / 缩放断言）。 */
+export async function nodeGeometry(page: Page, id: string) {
+  return page.evaluate((id) => {
+    const node = (
+      window as unknown as { __x6graph?: import("@antv/x6").Graph }
+    ).__x6graph?.getCellById(id);
+    if (!node?.isNode()) return null;
+    const p = node.position();
+    const s = node.size();
+    return { x: p.x, y: p.y, width: s.width, height: s.height };
+  }, id);
+}
+
+/** 视口（平移量 + 缩放），平移 / fitView / 滚轮缩放断言。 */
+export async function graphViewport(page: Page) {
+  return page.evaluate(() => {
+    const g = (window as unknown as { __x6graph?: import("@antv/x6").Graph }).__x6graph;
+    if (!g) return null;
+    const t = g.translate();
+    return { x: t.x, y: t.y, zoom: g.zoom() };
+  });
+}
+
+/** 拖拽（真实 mouse）平移节点：从卡片中心拖 dx/dy。 */
+export async function dragNodeBy(page: Page, id: string, dx: number, dy: number) {
+  const box = (await nodeInGraph(page, id).first().boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + dx, box.y + box.height / 2 + dy, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+}

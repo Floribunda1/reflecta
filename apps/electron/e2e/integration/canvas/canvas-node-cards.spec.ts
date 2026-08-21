@@ -5,7 +5,14 @@ import {
   seedCanvas,
   seedUnderstanding,
 } from "../../acceptance/spec/agent/agent-fixtures";
-import { dragSourceTo, nodeInGraph, openSeededCanvas, openLibrary } from "./canvas-integration";
+import {
+  dragSourceTo,
+  leaveCanvasWorkspace,
+  nodeGeometry,
+  nodeInGraph,
+  openSeededCanvas,
+  openLibrary,
+} from "./canvas-integration";
 
 test.beforeEach(() => resetAgentFixtures());
 
@@ -162,6 +169,194 @@ test.describe("画布引用卡", () => {
       await expect(page.getByRole("dialog")).toBeVisible();
       await page.getByRole("dialog").getByText("TARGET").first().click();
       await page.waitForTimeout(300);
+      await expect(
+        page.getByTestId("canvas-graph").getByTestId("canvas-canvas-ref-card"),
+      ).toBeVisible();
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+test.describe("文本卡 · 编辑交互", () => {
+  test("双击进入编辑器，Escape 取消不改动", async () => {
+    seedCanvas({
+      id: "canvas",
+      title: "CANVAS",
+      elements: [
+        {
+          id: "a",
+          kind: "text",
+          props: { text: "ORIGINAL_TEXT" },
+          x: 100,
+          y: 100,
+          width: 220,
+          height: 120,
+        },
+      ],
+    });
+    const { app, page } = await launchApp();
+    try {
+      await openSeededCanvas(page, "CANVAS");
+      const card = nodeInGraph(page, "a").first();
+      await card.dblclick();
+      await expect(card).toHaveAttribute("data-editing", "true");
+      await card.locator(".ProseMirror").click();
+      await page.keyboard.press("Meta+a");
+      await page.keyboard.type("CHANGED_TEXT");
+      await page.keyboard.press("Escape");
+      await expect(card).toHaveAttribute("data-editing", "false");
+      await expect(card).toContainText("ORIGINAL_TEXT");
+      await expect(card).not.toContainText("CHANGED_TEXT");
+    } finally {
+      await app.close();
+    }
+  });
+
+  test("选中后拖 Transform 角柄缩放节点，重进保留尺寸", async () => {
+    seedCanvas({
+      id: "canvas",
+      title: "CANVAS",
+      elements: [
+        {
+          id: "a",
+          kind: "text",
+          props: { text: "A" },
+          x: 100,
+          y: 100,
+          width: 120,
+          height: 80,
+        },
+      ],
+    });
+    const { app, page } = await launchApp();
+    try {
+      await openSeededCanvas(page, "CANVAS");
+      const card = nodeInGraph(page, "a").first();
+      await card.click();
+      await page.waitForTimeout(250);
+      const handle = page.locator('[data-position="bottom-right"]');
+      await expect(handle.first()).toBeVisible();
+      const hb = (await handle.first().boundingBox())!;
+      await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(hb.x + 60, hb.y + 45, { steps: 8 });
+      await page.mouse.up();
+      await page.waitForTimeout(250);
+      const size = await nodeGeometry(page, "a");
+      expect(size && size.width).toBeGreaterThan(150);
+      expect(size && size.height).toBeGreaterThan(100);
+      // 重进保留
+      await leaveCanvasWorkspace(page);
+      await openSeededCanvas(page, "CANVAS");
+      const after = await nodeGeometry(page, "a");
+      expect(after && after.width).toBe(size?.width);
+      expect(after && after.height).toBe(size?.height);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+test.describe("理解卡 · 引用缺失占位", () => {
+  test("引用理解被删除后显示占位，仍可设置颜色", async () => {
+    seedCanvas({
+      id: "canvas",
+      title: "CANVAS",
+      elements: [
+        {
+          id: "u",
+          kind: "understanding",
+          understandingId: "th_ghost_missing",
+          props: {},
+          x: 100,
+          y: 100,
+          width: 220,
+          height: 140,
+        },
+      ],
+    });
+    const { app, page } = await launchApp();
+    try {
+      await openSeededCanvas(page, "CANVAS");
+      const card = page.getByTestId("canvas-graph").getByTestId("canvas-understanding-card");
+      await expect(card).toBeVisible();
+      await expect(card).toContainText("（已删除）");
+      await card.click();
+      await expect(page.getByTitle("选择颜色").first()).toBeVisible();
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+test.describe("画布引用卡 · 打开与占位", () => {
+  test("双击引用卡打开目标画布并跳转", async () => {
+    seedCanvas({
+      id: "target",
+      title: "TARGET",
+      elements: [
+        {
+          id: "a",
+          kind: "text",
+          props: { text: "TARGET_NODE" },
+          x: 10,
+          y: 10,
+          width: 100,
+          height: 80,
+        },
+      ],
+    });
+    seedCanvas(EMPTY);
+    const { app, page } = await launchApp();
+    try {
+      await openSeededCanvas(page, "CANVAS");
+      await openLibrary(page);
+      await page.getByTestId("canvas-open-canvasref-picker").click();
+      await page.getByRole("dialog").getByText("TARGET").first().click();
+      await page.waitForTimeout(300);
+      const refCard = page.getByTestId("canvas-graph").getByTestId("canvas-canvas-ref-card");
+      await expect(refCard).toBeVisible();
+      await refCard.dblclick();
+      await expect(page.getByTestId("canvas-workspace")).toBeVisible();
+      await expect(
+        page
+          .getByTestId("canvas-graph")
+          .getByTestId("canvas-text-card")
+          .filter({ hasText: "TARGET_NODE" }),
+      ).toBeVisible();
+    } finally {
+      await app.close();
+    }
+  });
+
+  test("目标画布删除后显示占位、不可跳转", async () => {
+    seedCanvas({
+      id: "canvas",
+      title: "CANVAS",
+      elements: [
+        {
+          id: "r",
+          kind: "canvas_ref",
+          canvasRefId: "ghost_canvas_missing",
+          props: { color: undefined },
+          x: 100,
+          y: 100,
+          width: 220,
+          height: 140,
+        },
+      ],
+    });
+    const { app, page } = await launchApp();
+    try {
+      await openSeededCanvas(page, "CANVAS");
+      const card = page.getByTestId("canvas-graph").getByTestId("canvas-canvas-ref-card");
+      await expect(card).toBeVisible();
+      await expect(card).toContainText("（已删除）");
+      await card.dblclick();
+      await page.waitForTimeout(300);
+      // 仍在当前画布，未跳转
+      await expect(page.getByTestId("canvas-workspace")).toBeVisible();
       await expect(
         page.getByTestId("canvas-graph").getByTestId("canvas-canvas-ref-card"),
       ).toBeVisible();
