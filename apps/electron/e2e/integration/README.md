@@ -108,16 +108,121 @@ deleteGroupBranch` 是纯文档变换，其单元行为由 `graph-operations.tes
 - 业务语义（打组不跳位、级联删边）走产品结果断言；X6 内置行为（吸附、对齐线）不逐条抄成产品用例。
 - 一个 capability 一个主断言，不重复统计；N 元交互序列不在此保证。
 
-## 8. 需要重写的 spec 清单
+## 8. 全部 test case（嵌套清单）
 
-旧 RF 场景 → 新 X6 断言/入口：
+> 以下为 X6 架构下集成套件应覆盖的全部用例，按能力域嵌套组织。每叶为一条 `test()`。
 
-| spec                                    | 变更点                                                         |
-| --------------------------------------- | -------------------------------------------------------------- |
-| `canvas-group-semantics`                | 删 `Meta+g/Shift+g` 用例；打组走选区工具条/组右键              |
-| `canvas-node-customization`             | 定位改 `data-node-id`；resize 断言改 Transform 句柄尺寸        |
-| `canvas-edge-*` / `canvas-edge-toolbar` | 连线桩改 `[magnet="true"]`；工具栏改底部 `canvas-edge-toolbar` |
-| `canvas-selection-toolbar`              | 多选入口不变（已保留 `canvas-selection-toolbar`）              |
-| `canvas-viewport-configuration`         | 视口断言改 `.x6-graph-svg[transform]`                          |
-| `canvas-export`                         | 导出引擎换 X6 `Export` 插件                                    |
-| `canvas-readonly`                       | 禁交互断言改 X6 `interacting`/无插件                           |
+### 8.1 节点（四类卡片）
+
+- **文本卡**
+  - 从工具栏「文本」按钮创建文本卡（点击 addElement；拖拽入口已移除）
+  - 双击进入内联 Markdown 编辑
+  - 失焦提交后卡片保留新内容，切走重进仍保留
+  - Escape 取消不改动
+  - 设置 / 清除卡片颜色
+  - 从卡片操作菜单删除文本卡
+  - 文本卡缩放（Transform 句柄）后尺寸持久化
+- **理解卡**
+  - 从理解库点击创建理解卡（onPickUnderstanding → addElement）
+  - 卡片展示引用理解全文
+  - 引用理解被删除后显示占位
+  - 点击卡片联动右侧理解详情面板
+- **画布引用卡**
+  - 通过「引用画布」选择器创建
+  - 内嵌目标画布小型预览（只读复用）
+  - 双击打开目标画布并跳转
+  - 目标画布删除后显示占位、不可跳转
+- **组**
+  - 选区工具条「打组」按钮创建组
+  - 打组后成员画布位置不跳变
+  - 组包围全部选中成员
+  - 组内再打组（嵌套组）
+  - 组右键「解组」，成员回到上级位置
+  - 组右键「删除组」，级联删除成员与关联边、组外保留
+  - 双击组名改名，Enter 提交，重进保留
+  - 子成员移动受组边界约束（extent）
+
+### 8.2 连线（边）
+
+- **创建**
+  - 从出桩（`[magnet="true"]`×out）拖到入桩（in）建立有向边
+  - 同源同目标可建立多条平行边（allowMulti）
+  - 自环（source === target）
+  - 新连线默认带 canvasId 与默认样式（createEdge 契约）
+- **样式**
+  - 选中边后：改颜色
+  - 改 routing（曲线 / 直线 / 正交）
+  - 改线型（实线 / 虚线 / 点线）
+  - 改线宽（细 / 中 / 粗）
+  - 改箭头（箭头 / 方块 / 无）
+  - 样式保存后重进保留
+- **标签**
+  - 选中边后编辑标签，提交后重进保留
+  - 清空标签回到无标签
+- **删除**
+  - 从边工具栏删除选中边
+
+### 8.3 选择与选区
+
+- 单击选中单个节点（出现选中态）
+- 单击选中单条边（出现底部边工具栏）
+- 多选（Shift/Ctrl + 点击，或 rubberband 框选）
+- 空白处左键拖拽框选（rubberband；依赖 middleMouseDown panning 配置）
+- 多选后顶部出现选区工具条（打组 / 删除）
+- 单选不出现选区工具条
+- 选中变化联动右侧面板（理解 → 详情）
+
+### 8.4 视口 / 网格
+
+- 中键 / 滚轮平移画布
+- 滚轮缩放（以鼠标位置为中心）
+- 左下缩放控件：放大 / 缩小 / 适应视图
+- 节点拖动吸附到 10px 网格
+- 无已存视口时初始 fitView
+- 有已存视口时恢复（保存后重进不挪动）
+
+### 8.5 只读（F1 三用）
+
+- 只读禁用节点拖动 / 连线 / 打组 / 节点缩放
+- 只读保留平移与缩放查看
+- 引用 Modal / 提案预览 / artifact 缩略共用同一只读渲染
+
+### 8.6 编辑辅助（内建插件接管）
+
+- **History**
+  - 撤销一次移动 / 删除
+  - 重做
+  - 打组 / 解组可撤销
+- **Clipboard**
+  - 复制粘贴节点
+- **Snapline**
+  - 拖动时对齐参考线出现（只验出现，不逐像素）
+- **MiniMap**
+  - `canvas-graph` 出现缩略图，可平移 / 缩放
+
+### 8.7 导出
+
+- 工具栏「导出 PNG」触发下载（X6 `Export` 插件）
+- 导出包含全部节点、排除背景网格
+
+### 8.8 搜索（⌘/Ctrl+F）
+
+- 打开搜索浮层（输入框 / 编辑态内不触发）
+- 命中文本卡内容 / 理解标题与正文 / 组名 / 画布引用标题 / 边标签
+- 点选结果：定位并居中节点 / 边
+
+### 8.9 持久化往返
+
+- 节点位置 / 尺寸保存后重载一致
+- 组 parentId 与子元素相对坐标保存后重载一致
+- 平行边 / 自环保存后重载不去重、不丢
+- 打组后保存，重进仍是组结构
+
+## 9. 需要重写的 spec
+
+旧 RF spec → X6 位置：`canvas-group-semantics`（删热键用例，改选区工具条 / 右键）、
+`canvas-node-customization`（`data-node-id` + Transform resize）、`canvas-edge-*` /
+`canvas-edge-toolbar`（`[magnet="true"]` 桩 + 底部 `canvas-edge-toolbar`）、
+`canvas-selection-toolbar`（保留现有入口）、`canvas-viewport-configuration`
+（`.x6-graph-svg[transform]`）、`canvas-export`（X6 `Export` 插件）、`canvas-readonly`
+（X6 `interacting` / 无插件）。按 §8 逐叶重建。
