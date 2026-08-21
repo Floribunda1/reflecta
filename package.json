@@ -27,6 +27,7 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "typecheck": "bun run --filter '*' typecheck",
+    "doctor": "bunx react-doctor apps/electron",
     "storybook": "bun run --cwd packages/ui storybook",
     "storybook:build": "bun run --cwd packages/ui build-storybook"
   },
@@ -38,6 +39,7 @@
     "lefthook": "^2.1.10",
     "oxfmt": "^0.62.0",
     "oxlint": "^1.77.0",
+    "react-doctor": "^0.9.12",
     "sass": "^1.102.0",
     "tsdown": "^0.22.14",
     "typescript": "^7.0.2"
