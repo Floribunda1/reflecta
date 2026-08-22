@@ -1,6 +1,6 @@
-import { describe, expect, test } from "vitest";
-import type { CanvasDocument, CanvasElementDTO } from "./document";
-import { toX6Cells } from "./graph-document";
+import { describe, expect, test, vi } from "vitest";
+import type { CanvasDocument, CanvasEdgeDTO, CanvasElementDTO } from "./document";
+import { applyEdgePresentation, applyElementUpdate, toX6Cells } from "./graph-document";
 
 const timestamp = "2026-08-19T00:00:00.000Z";
 
@@ -134,5 +134,58 @@ describe("graph-document toX6Cells", () => {
     const orth = mk("orthogonal") as { connector?: { name?: string }; router?: { name?: string } };
     expect(orth.connector?.name).toBe("rounded");
     expect(orth.router?.name).toBe("orth");
+  });
+});
+
+describe("in-place cell updates", () => {
+  test("applyElementUpdate writes the element onto the existing node data", () => {
+    const replaceData = vi.fn();
+    const next = element("a", "text", { x: 0, y: 0 }, { width: 100, height: 80 });
+    if (next.kind !== "text") throw new Error("expected text element");
+    const painted: CanvasElementDTO = { ...next, props: { ...next.props, color: "chart-2" } };
+    applyElementUpdate({ replaceData } as never, painted);
+    expect(replaceData).toHaveBeenCalledWith({ element: painted });
+  });
+
+  test("applyEdgePresentation merges style/label and keeps source/target from current data", () => {
+    const current: CanvasEdgeDTO = {
+      id: "e",
+      canvasId: "canvas",
+      sourceElementId: "a",
+      targetElementId: "b",
+      label: "old",
+      style: { routing: "curve" },
+      createdAt: timestamp,
+    };
+    const cell = {
+      id: "e",
+      getData: () => ({ edge: current }),
+      replaceData: vi.fn(),
+      setAttrs: vi.fn(),
+      setConnector: vi.fn(),
+      setRouter: vi.fn(),
+      removeRouter: vi.fn(),
+      setLabels: vi.fn(),
+    };
+    applyEdgePresentation(cell as never, {
+      style: { routing: "straight", color: "chart-1" },
+      label: "new",
+    });
+    expect(cell.replaceData).toHaveBeenCalledWith({
+      edge: {
+        ...current,
+        style: { routing: "straight", color: "chart-1" },
+        label: "new",
+      },
+    });
+    expect(cell.setConnector).toHaveBeenCalledWith({ name: "normal" });
+    expect(cell.removeRouter).toHaveBeenCalled();
+    expect(cell.setLabels).toHaveBeenCalledWith([
+      {
+        attrs: {
+          label: { text: "new", fill: "var(--foreground)", fontSize: 12 },
+        },
+      },
+    ]);
   });
 });

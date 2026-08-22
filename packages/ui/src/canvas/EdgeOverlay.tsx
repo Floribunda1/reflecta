@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Edge as X6Edge, Graph } from "@antv/x6";
 import { ArrowRight, CircleDot, Minus, Palette, Spline, Trash2 } from "lucide-react";
 import { Button } from "../components/button";
@@ -15,8 +15,26 @@ import { DEFAULT_CANVAS_EDGE_STYLE, type CanvasEdgeDTO, type CanvasEdgeStyle } f
 
 /**
  * 边样式 / 标签 / 删除工具栏：单条边被选中时显示在图形底部中央。
- * 边本身由 X6 navie 渲染（attrs/connector/router/marker），这里只承载业务操作。
+ * 边本身由 X6 native 渲染（attrs/connector/router/marker），这里只承载业务操作。
+ * 样式原地写 cell 时父组件不会重渲染，订阅边的 change 才能跟上色板 / 线型选中态。
  */
+function subscribeEdge(edge: X6Edge | undefined, onChange: () => void): () => void {
+  if (!edge) return () => {};
+  const handler = () => onChange();
+  edge.on("change:data", handler);
+  edge.on("change:attrs", handler);
+  edge.on("change:labels", handler);
+  edge.on("change:connector", handler);
+  edge.on("change:router", handler);
+  return () => {
+    edge.off("change:data", handler);
+    edge.off("change:attrs", handler);
+    edge.off("change:labels", handler);
+    edge.off("change:connector", handler);
+    edge.off("change:router", handler);
+  };
+}
+
 export function EdgeOverlay({
   graph,
   edgeId,
@@ -32,7 +50,10 @@ export function EdgeOverlay({
 }) {
   const [labelDraft, setLabelDraft] = useState<string | null>(null);
   const edge = edgeId ? (graph.getCellById(edgeId) as X6Edge | undefined) : undefined;
-  const dto: CanvasEdgeDTO | undefined = edge?.getData()?.edge;
+  const dto = useSyncExternalStore(
+    (onChange) => subscribeEdge(edge, onChange),
+    () => (edge?.getData() as { edge?: CanvasEdgeDTO } | null | undefined)?.edge,
+  );
 
   useEffect(() => setLabelDraft(null), [edgeId]);
 

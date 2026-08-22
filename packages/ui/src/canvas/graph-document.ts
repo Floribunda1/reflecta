@@ -43,6 +43,28 @@ function routerFor(style: CanvasEdgeStyle | null): EdgeMetadata["router"] {
   return style?.routing === "orthogonal" ? { name: "orth" } : undefined;
 }
 
+function edgeLabelItems(label: string | null) {
+  return label
+    ? [
+        {
+          attrs: {
+            label: { text: label, fill: "var(--foreground)", fontSize: 12 },
+          },
+        },
+      ]
+    : [];
+}
+
+function edgeVisuals(edge: CanvasEdgeDTO) {
+  const style = edge.style ?? DEFAULT_CANVAS_EDGE_STYLE;
+  return {
+    connector: connectorFor(style),
+    router: routerFor(style),
+    attrs: edgeAttrs(style),
+    labels: edgeLabelItems(edge.label),
+  };
+}
+
 /**
  * 边 attrs：业务样式（lineAttrs）合并回 X6 默认 edge 所需的结构。
  * 必须保留 lines.connection:true —— X6 靠它把路径 d 写到两条路径（wrap 命中层 + line）；
@@ -101,27 +123,17 @@ export function toX6Cells(document: CanvasDocument): CellMetadata[] {
   const index = new Map(document.elements.map((element) => [element.id, element]));
   const nodes: CellMetadata[] = document.elements.map((element) => nodeMetadataFor(element, index));
   const edges: CellMetadata[] = document.edges.map((edge) => {
-    const style = edge.style ?? DEFAULT_CANVAS_EDGE_STYLE;
+    const visuals = edgeVisuals(edge);
     return {
       id: edge.id,
       shape: "edge",
       data: { edge },
       source: { cell: edge.sourceElementId, port: "out" },
       target: { cell: edge.targetElementId, port: "in" },
-      connector: connectorFor(style),
-      ...(routerFor(style) ? { router: routerFor(style) } : {}),
-      attrs: edgeAttrs(style),
-      ...(edge.label
-        ? {
-            labels: [
-              {
-                attrs: {
-                  label: { text: edge.label, fill: "var(--foreground)", fontSize: 12 },
-                },
-              },
-            ],
-          }
-        : {}),
+      connector: visuals.connector,
+      ...(visuals.router ? { router: visuals.router } : {}),
+      attrs: visuals.attrs,
+      ...(visuals.labels.length ? { labels: visuals.labels } : {}),
     } satisfies EdgeMetadata;
   });
   return [...nodes, ...edges];
@@ -150,22 +162,41 @@ export function newEdgeDto(canvasId: string): CanvasEdgeDTO {
 
 /** 连线 DTO → X6 Edge 实例（含默认样式 attrs/connector/marker），供 `connecting.createEdge` 用。 */
 export function toX6Edge(edge: CanvasEdgeDTO): X6EdgeCtor {
-  const style = edge.style ?? DEFAULT_CANVAS_EDGE_STYLE;
+  const visuals = edgeVisuals(edge);
   return new X6EdgeCtor({
     id: edge.id,
     shape: "edge",
     data: { edge },
-    connector: connectorFor(style),
-    ...(routerFor(style) ? { router: routerFor(style) } : {}),
-    attrs: edgeAttrs(style),
-    ...(edge.label
-      ? {
-          labels: [
-            { attrs: { label: { text: edge.label, fill: "var(--foreground)", fontSize: 12 } } },
-          ],
-        }
-      : {}),
+    connector: visuals.connector,
+    ...(visuals.router ? { router: visuals.router } : {}),
+    attrs: visuals.attrs,
+    ...(visuals.labels.length ? { labels: visuals.labels } : {}),
   });
+}
+
+/** 卡片内容 / 颜色：原地写 node data。react-shape Wrap 听 `change:data` 只重绘这一张。 */
+export function applyElementUpdate(node: X6Node, element: CanvasElementDTO): void {
+  node.replaceData({ element });
+}
+
+/**
+ * 边样式 / 标签：原地改 attrs，不拆 cell。端点仍以 X6 store 为准，只合并 style / label。
+ * `overwrite` 清掉上一档线型的 dasharray / marker，避免 merge 残留。
+ */
+export function applyEdgePresentation(
+  cell: X6Edge,
+  patch: Pick<CanvasEdgeDTO, "style" | "label">,
+): void {
+  const current = (cell.getData() as { edge?: CanvasEdgeDTO } | null)?.edge;
+  if (!current) return;
+  const next: CanvasEdgeDTO = { ...current, style: patch.style, label: patch.label };
+  const visuals = edgeVisuals(next);
+  cell.replaceData({ edge: next });
+  cell.setAttrs(visuals.attrs, { overwrite: true });
+  if (visuals.connector) cell.setConnector(visuals.connector);
+  if (visuals.router) cell.setRouter(visuals.router);
+  else cell.removeRouter();
+  cell.setLabels(visuals.labels);
 }
 
 /** X6 节点 → 元素 DTO（id/几何回读；组内子元素坐标为相对坐标）。 */

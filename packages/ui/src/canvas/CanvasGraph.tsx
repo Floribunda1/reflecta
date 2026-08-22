@@ -27,6 +27,8 @@ import { ensureCanvasShapes } from "./nodes";
 import type { CanvasCellAction } from "./shape-context";
 import type { CanvasDocument, CanvasEdgeDTO, CanvasElementDTO, CanvasViewport } from "./document";
 import {
+  applyEdgePresentation,
+  applyElementUpdate,
   toX6Cells,
   graphToDocument,
   newEdgeDto,
@@ -54,8 +56,8 @@ import {
  *
  * - 生命周期：容器内 `new Graph`，节点 / 边即 X6 model（不再用 React state 镜像）；
  * - 加载：`fromJSON(toX6Cells(doc))` 一次性建图（id == cell id 零映射）；
- * - 变更：订阅 X6 model 事件 → `graphToDocument` 回写；命令（打组/解组/删除/边更新）走
- *   纯函数产出新文档 → 重建图；
+ * - 变更：订阅 X6 model 事件 → `graphToDocument` 回写；卡片内容 / 边样式原地改 cell，
+ *   打组 / 解组走命令；整图重建只留给外部 document 替换（hydrate / reload）；
  * - 只读渲染（readonly）服务 F1 三用：不建编辑插件、`interacting:false`；
  * - 卡片经 `@antv/x6-react-shape` portal provider 落在本 React 树内，context 穿透。
  */
@@ -201,33 +203,6 @@ export const CanvasGraph = React.memo(
       [applyViewport, emitDocument, readViewport],
     );
 
-    // rebuild 是同步全量重建（removeCells + fromJSON）；若在重建进行中被再次调用
-    // （rename 输入 blur 会撞上 fromJSON 的 DOM teardown，重入 removeCells/fromJSON
-    // 会抛 "node to be removed is no longer a child" 并把半残文档存库），
-    // 压到当前重建结束后的下一个 macrotask 再跑（DOM 已落定，图状态干净）。
-    const rebuildBusyRef = useRef(false);
-    const pendingRebuildRef = useRef<((doc: CanvasDocument) => CanvasDocument) | null>(null);
-    const rebuild = useCallback(
-      (mutate: (doc: CanvasDocument) => CanvasDocument) => {
-        const graph = graphRef.current;
-        if (!graph) return;
-        if (rebuildBusyRef.current) {
-          pendingRebuildRef.current = mutate;
-          return;
-        }
-        rebuildBusyRef.current = true;
-        try {
-          renderGraph(mutate(graphToDocument(graph)), true);
-        } finally {
-          rebuildBusyRef.current = false;
-          const pending = pendingRebuildRef.current;
-          pendingRebuildRef.current = null;
-          if (pending) setTimeout(() => rebuild(pending), 0);
-        }
-      },
-      [renderGraph],
-    );
-
     // 挂载：创建 Graph + 插件 + 事件订阅 + 首次加载
     useEffect(() => {
       const container = containerRef.current;
@@ -350,6 +325,8 @@ export const CanvasGraph = React.memo(
         "edge:change:router",
         "edge:change:source",
         "edge:change:target",
+        "node:change:data",
+        "edge:change:data",
         "history:undo",
         "history:redo",
       ] as const;
@@ -518,6 +495,23 @@ export const CanvasGraph = React.memo(
       graph.stopBatch("ungroup");
     };
 
+    const handleElementUpdate = useCallback((element: CanvasElementDTO) => {
+      const graph = graphRef.current;
+      if (!graph) return;
+      const cell = graph.getCellById(element.id);
+      if (!cell?.isNode()) return;
+      applyElementUpdate(cell, element);
+    }, []);
+    const handleEdgeUpdate = useCallback((edge: CanvasEdgeDTO) => {
+      const graph = graphRef.current;
+      if (!graph) return;
+      const cell = graph.getCellById(edge.id);
+      if (!cell?.isEdge()) return;
+      graph.startBatch("edge-update");
+      applyEdgePresentation(cell, edge);
+      graph.stopBatch("edge-update");
+    }, []);
+
     useImperativeHandle(
       ref,
       () => ({
@@ -539,15 +533,7 @@ export const CanvasGraph = React.memo(
           const cell = graph.addNode(nodeMetadataFor(element));
           if (cell) graph.centerCell(cell);
         },
-        updateEdge: (edge: CanvasEdgeDTO) => {
-          rebuild((doc) => ({
-            ...doc,
-            edges: doc.edges.map((e) => (e.id === edge.id ? edge : e)),
-          }));
-          // 样式 / 标签更新后恢复该边选中（renderGraph 会清空选区），便于连续调整
-          const graph = graphRef.current;
-          if (graph) graph.getPlugin<Selection>("selection")?.reset([graph.getCellById(edge.id)]);
-        },
+        updateEdge: (edge: CanvasEdgeDTO) => handleEdgeUpdate(edge),
         deleteElement: (elementId: string) => {
           const graph = graphRef.current;
           if (!graph) return;
@@ -588,58 +574,26 @@ export const CanvasGraph = React.memo(
           dnd.start(graph.createNode(nodeMetadataFor(element)), event.nativeEvent);
         },
       }),
-      [canvasId, rebuild, renderGraph, runGroupSelection, runUngroup],
+      [handleEdgeUpdate, renderGraph, runGroupSelection, runUngroup],
     );
 
-    const handleElementUpdate = useCallback(
-      (element: CanvasElementDTO) => {
-        rebuild((doc) => ({
-          ...doc,
-          elements: doc.elements.map((e) => (e.id === element.id ? element : e)),
-        }));
-        // 内容 / 颜色更新后恢复该元素选中（renderGraph 会清空选区），便于连续调整
+    const onCellAction = useCallback((action: CanvasCellAction) => {
+      if (action.type === "delete-element") {
         const graph = graphRef.current;
-        if (graph) graph.getPlugin<Selection>("selection")?.reset([graph.getCellById(element.id)]);
-      },
-      [rebuild],
-    );
-    const handleEdgeUpdate = useCallback(
-      (edge: CanvasEdgeDTO) => {
-        // 端点是图（store）的专有事实，重建输入经 graphToDocument 从 store 生成，
-        // 这里只合并样式 / 标签字段，绝不用传入 DTO 的端点覆盖（否则重构出空端点边）。
-        rebuild((doc) => ({
-          ...doc,
-          edges: doc.edges.map((e) =>
-            e.id === edge.id ? { ...e, style: edge.style, label: edge.label } : e,
-          ),
-        }));
-        // 样式 / 标签更新后恢复该边选中（renderGraph 会清空选区），便于连续调整
+        if (graph) graph.removeCells([graph.getCellById(action.nodeId)].filter(Boolean));
+      } else if (action.type === "delete-group") {
         const graph = graphRef.current;
-        if (graph) graph.getPlugin<Selection>("selection")?.reset([graph.getCellById(edge.id)]);
-      },
-      [rebuild],
-    );
-
-    const onCellAction = useCallback(
-      (action: CanvasCellAction) => {
-        if (action.type === "delete-element") {
-          const graph = graphRef.current;
-          if (graph) graph.removeCells([graph.getCellById(action.nodeId)].filter(Boolean));
-        } else if (action.type === "delete-group") {
-          const graph = graphRef.current;
-          if (graph) {
-            const doomed = cascadeIdsOf(graphToDocument(graph), [action.nodeId]);
-            graph.removeCells(doomed.map((id) => graph.getCellById(id)).filter(Boolean));
-          }
-        } else if (action.type === "ungroup") runUngroup([action.nodeId]);
-        else if (action.type === "delete-edge") {
-          const graph = graphRef.current;
-          const cell = graph?.getCellById(action.edgeId);
-          if (graph && cell) graph.removeCells([cell]);
+        if (graph) {
+          const doomed = cascadeIdsOf(graphToDocument(graph), [action.nodeId]);
+          graph.removeCells(doomed.map((id) => graph.getCellById(id)).filter(Boolean));
         }
-      },
-      [rebuild],
-    );
+      } else if (action.type === "ungroup") runUngroup([action.nodeId]);
+      else if (action.type === "delete-edge") {
+        const graph = graphRef.current;
+        const cell = graph?.getCellById(action.edgeId);
+        if (graph && cell) graph.removeCells([cell]);
+      }
+    }, []);
 
     const multiSelected = !readonly && selectedNodeIds.length >= 2;
     const selectedIds = useMemo(
@@ -668,12 +622,11 @@ export const CanvasGraph = React.memo(
                 edgeId={selectedEdgeId}
                 readonly={readonly}
                 onUpdate={handleEdgeUpdate}
-                onDelete={(edgeId) =>
-                  rebuild((doc) => ({
-                    ...doc,
-                    edges: doc.edges.filter((e) => e.id !== edgeId),
-                  }))
-                }
+                onDelete={(edgeId) => {
+                  const live = graphRef.current;
+                  const cell = live?.getCellById(edgeId);
+                  if (live && cell) live.removeCells([cell]);
+                }}
               />
             ) : null}
             {multiSelected ? (
