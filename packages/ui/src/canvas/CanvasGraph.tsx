@@ -78,6 +78,7 @@ export type CanvasGraphHandle = {
   fitView: () => void;
   /** 从工具栏 / 理解库等拖拽源发起一次 X6 Dnd 拖拽（source 元素由 element 描述） */
   startDrag: (element: CanvasElementDTO, event: React.PointerEvent | React.MouseEvent) => void;
+  focusCell: (cellId: string) => void;
 };
 
 export type CanvasGraphProps = {
@@ -100,7 +101,6 @@ export type CanvasGraphProps = {
 const CANVAS_SNAP_GRID = 10;
 const EMPTY_DOC: CanvasDocument = { elements: [], edges: [] };
 
-/** 级联删除集合：起点 + 全部后代（供命令式 removeCells）。 */
 /**
  * X6 fromJSON 只恢复 child 的 parent 反指，不会重建父节点的 children 列表
  * （会话内 addChild 双向维护，重进后只有单向 → 解组 / 级联删除 / 组树全失效）。
@@ -572,6 +572,14 @@ export const CanvasGraph = React.memo(
           if (!dnd || !graph || readonlyRef.current) return;
           // graph.createNode：避免 new Node() 绕过 react-shape 继承导致落点卡片不渲染
           dnd.start(graph.createNode(nodeMetadataFor(element)), event.nativeEvent);
+        },
+        focusCell: (cellId) => {
+          const graph = graphRef.current;
+          if (!graph) return;
+          const cell = graph.getCellById(cellId);
+          if (!cell) return;
+          graph.centerCell(cell);
+          graph.getPlugin<Selection>("selection")?.reset([cell]);
         },
       }),
       [handleEdgeUpdate, renderGraph, runGroupSelection, runUngroup],

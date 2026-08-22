@@ -7,10 +7,9 @@ import type { SaveStatus } from "./workspace/debounced-latest-saver";
  * event → action → reduce(state) → { state, effects }
  * 原子投影与副作用解释器在 `store.ts`：本文件是纯函数，也是测试面。
  *
- * 文档有两层、分工不同，避免拖拽时把 X6 当受控 React 树回灌：
- * - snapshot：本次打开的水合快照，只在 hydrate 写一次，供 CanvasGraph 挂载；
- * - document：会话文档 SSOT，供搜索 / 保存 / 空态 / 面板路由命令式读取。
- * X6 是交互引擎的实时几何；每次变更发 `document/changed` 同步进 document。
+ * 图是交互权威；会话只存图外面要用的东西，避免把 X6 当受控 React 树回灌：
+ * - hydrate：打开时喂给 CanvasGraph 的文档 + 视口，只在 document/hydrated 写一次；
+ * - document：从图事件誊出的物化投影，供搜索 / 保存 / 空态读取。
  */
 
 export type CanvasRightPanel =
@@ -18,7 +17,7 @@ export type CanvasRightPanel =
   | { mode: "detail"; understandingId: string }
   | null;
 
-export type CanvasSnapshot = {
+export type CanvasHydrate = {
   document: CanvasDocument;
   viewport: CanvasViewport | null;
 };
@@ -26,7 +25,7 @@ export type CanvasSnapshot = {
 export type CanvasSessionState = {
   canvasId: string | null;
   hydrated: boolean;
-  snapshot: CanvasSnapshot | null;
+  hydrate: CanvasHydrate | null;
   document: CanvasDocument;
   viewport: CanvasViewport | null;
   selection: string[];
@@ -68,7 +67,7 @@ export const EMPTY_CANVAS_DOCUMENT: CanvasDocument = { elements: [], edges: [] }
 export const initialCanvasSession: CanvasSessionState = {
   canvasId: null,
   hydrated: false,
-  snapshot: null,
+  hydrate: null,
   document: EMPTY_CANVAS_DOCUMENT,
   viewport: null,
   selection: [],
@@ -152,7 +151,7 @@ export function reduceCanvasSession(
       return result({
         ...state,
         hydrated: true,
-        snapshot: { document: action.document, viewport: action.viewport },
+        hydrate: { document: action.document, viewport: action.viewport },
         document: action.document,
         viewport: action.viewport,
       });

@@ -66,13 +66,13 @@ describe("reduceCanvasSession", () => {
     expect(effects).toEqual([{ type: "flushSaves" }]);
   });
 
-  test("document/hydrated writes snapshot once and ignores later refetches", () => {
+  test("document/hydrated writes hydrate once and ignores later refetches", () => {
     const opened = { ...initialCanvasSession, canvasId: "canvas-1" };
     const document: CanvasDocument = { elements: [textElement("a")], edges: [] };
     const viewport = { x: 1, y: 2, zoom: 0.8 };
     const first = apply(opened, { type: "document/hydrated", document, viewport });
     expect(first.state.hydrated).toBe(true);
-    expect(first.state.snapshot).toEqual({ document, viewport });
+    expect(first.state.hydrate).toEqual({ document, viewport });
     expect(first.state.document).toBe(document);
 
     const live = { ...first.state, document: { elements: [textElement("b")], edges: [] } };

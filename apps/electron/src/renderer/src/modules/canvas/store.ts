@@ -8,7 +8,7 @@ import {
   type CanvasEffect,
   type CanvasRightPanel,
   type CanvasSessionState,
-  type CanvasSnapshot,
+  type CanvasHydrate,
 } from "./session";
 import type { SaveStatus } from "./workspace/debounced-latest-saver";
 
@@ -17,7 +17,7 @@ import type { SaveStatus } from "./workspace/debounced-latest-saver";
  *
  * SSOT 是 keepAlive 的 `sessionAtom`，只经 `dispatchCanvasAction` 写入。
  * 对外 atoms 是切片投影（Object.is 相等则不通知）：拖拽更新文档时，空态 / 库按钮 / 面板
- * 不会重渲染；工作区宿主不订阅文档。
+ * 不会重渲染；工作区宿主只订 hydrate，不订 live document。
  */
 
 const sessionAtom: Atom.Writable<CanvasSessionState, CanvasSessionState> = Atom.keepAlive(
@@ -32,9 +32,9 @@ export const canvasHydratedAtom: Atom.Atom<boolean> = Atom.map(
   sessionAtom,
   (session) => session.hydrated,
 );
-export const canvasSnapshotAtom: Atom.Atom<CanvasSnapshot | null> = Atom.map(
+export const canvasHydrateAtom: Atom.Atom<CanvasHydrate | null> = Atom.map(
   sessionAtom,
-  (session) => session.snapshot,
+  (session) => session.hydrate,
 );
 export const documentAtom: Atom.Atom<CanvasDocument> = Atom.map(
   sessionAtom,
@@ -129,7 +129,4 @@ export const canvasStoreActions = {
   },
 };
 
-export const readCanvasState = getCanvasSessionState;
-
-export { initialCanvasSession as initialCanvasState };
-export type { CanvasAction, CanvasRightPanel, CanvasSessionState, CanvasSnapshot };
+export type { CanvasAction, CanvasHydrate, CanvasRightPanel, CanvasSessionState };

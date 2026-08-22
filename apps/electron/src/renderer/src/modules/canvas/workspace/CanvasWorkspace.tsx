@@ -24,7 +24,7 @@ import {
   useSaveCanvasMutation,
   useUpdateViewportMutation,
 } from "../queries";
-import { canvasSnapshotAtom, dispatchCanvasAction, provideCanvasEffects } from "../store";
+import { canvasHydrateAtom, dispatchCanvasAction, provideCanvasEffects } from "../store";
 import { CanvasRefPickerModal } from "./CanvasRefPickerModal";
 import { CanvasToolbar } from "./CanvasToolbar";
 import {
@@ -128,13 +128,7 @@ function CanvasPersistenceRuntime({
         void viewportSaver.flush();
       },
       focusCell: (id) => {
-        const graph = graphRef.current?.graph;
-        if (!graph) return;
-        const cell = graph.getCellById(id);
-        if (!cell) return;
-        graph.centerCell(cell);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (graph as any).select?.(cell);
+        graphRef.current?.focusCell(id);
       },
     });
     return () => {
@@ -157,14 +151,14 @@ const CanvasGraphMount = memo(function CanvasGraphMount({
   graphRef: RefObject<CanvasGraphHandle | null>;
   shapeData: CanvasShapeData;
 }) {
-  const snapshot = useAtomValue(canvasSnapshotAtom);
+  const hydrate = useAtomValue(canvasHydrateAtom);
   return (
     <CanvasGraph
       key={canvasId}
       ref={graphRef}
-      document={snapshot?.document ?? null}
-      viewport={snapshot?.viewport ?? null}
-      viewportReady={Boolean(snapshot)}
+      document={hydrate?.document ?? null}
+      viewport={hydrate?.viewport ?? null}
+      viewportReady={Boolean(hydrate)}
       canvasId={canvasId}
       shapeData={shapeData}
       createElementForDrop={createElementForDrop}

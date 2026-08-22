@@ -7,7 +7,7 @@ import {
   canvasPanelAtom,
   canvasSaveStatusAtom,
   canvasSearchOpenAtom,
-  canvasSnapshotAtom,
+  canvasHydrateAtom,
   dispatchCanvasAction,
   getCanvasSessionState,
   selectedCanvasIdAtom,
@@ -70,7 +70,7 @@ describe("dispatchCanvasAction", () => {
     expect(runAtom(Atom.get(canvasLibraryOpenAtom))).toBe(false);
   });
 
-  test("document/changed does not notify chrome or snapshot subscribers", () => {
+  test("document/changed does not notify chrome or hydrate subscribers", () => {
     const document = {
       elements: [
         {
@@ -111,7 +111,7 @@ describe("dispatchCanvasAction", () => {
       panel: 0,
       search: 0,
       empty: 0,
-      snapshot: 0,
+      hydrate: 0,
       save: 0,
     };
     const unsubs = [
@@ -119,7 +119,7 @@ describe("dispatchCanvasAction", () => {
       countNotifications(canvasPanelAtom, () => counts.panel++),
       countNotifications(canvasSearchOpenAtom, () => counts.search++),
       countNotifications(canvasIsEmptyAtom, () => counts.empty++),
-      countNotifications(canvasSnapshotAtom, () => counts.snapshot++),
+      countNotifications(canvasHydrateAtom, () => counts.hydrate++),
       countNotifications(canvasSaveStatusAtom, () => counts.save++),
     ];
 
@@ -136,7 +136,7 @@ describe("dispatchCanvasAction", () => {
       panel: 0,
       search: 0,
       empty: 0,
-      snapshot: 0,
+      hydrate: 0,
       save: 0,
     });
     unsubs.forEach((unsub) => unsub());
