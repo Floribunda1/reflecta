@@ -34,6 +34,7 @@ import {
 } from "./document";
 import {
   applyEdgePresentation,
+  edgeConnectorFor,
   applyElementUpdate,
   toX6Cells,
   graphToDocument,
@@ -252,6 +253,10 @@ export const CanvasGraph = React.memo(
         },
       });
       graphRef.current = graph;
+      graph.on("edge:connected", ({ edge }) => {
+        const data = (edge.getData() as { edge?: CanvasEdgeDTO } | null)?.edge;
+        if (data) edge.setConnector(edgeConnectorFor(data.style, edge.getSourcePortId()));
+      });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (globalThis as any).__x6graph = graph;
 

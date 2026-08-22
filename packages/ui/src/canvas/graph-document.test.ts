@@ -1,6 +1,11 @@
 import { describe, expect, test, vi } from "vitest";
 import type { CanvasDocument, CanvasEdgeDTO, CanvasElementDTO } from "./document";
-import { applyEdgePresentation, applyElementUpdate, toX6Cells } from "./graph-document";
+import {
+  applyEdgePresentation,
+  applyElementUpdate,
+  edgeConnectorFor,
+  toX6Cells,
+} from "./graph-document";
 
 const timestamp = "2026-08-19T00:00:00.000Z";
 
@@ -30,6 +35,17 @@ function element(
 }
 
 describe("graph-document toX6Cells", () => {
+  test("keeps curve direction aligned with the source port", () => {
+    expect(edgeConnectorFor({ routing: "curve" }, "out")).toMatchObject({
+      name: "smooth",
+      args: { direction: "H" },
+    });
+    expect(edgeConnectorFor({ routing: "curve" }, "out-bottom")).toMatchObject({
+      name: "smooth",
+      args: { direction: "V" },
+    });
+  });
+
   test("maps a root element to a node with absolute position, shape and data", () => {
     const document: CanvasDocument = {
       elements: [element("a", "text", { x: 100, y: 120 }, { width: 220, height: 120 })],

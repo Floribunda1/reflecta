@@ -26,7 +26,10 @@ const toAbsolute = (
   return absolutePositionOf(element, index);
 };
 
-function connectorFor(style: CanvasEdgeStyle | null): EdgeMetadata["connector"] {
+export function edgeConnectorFor(
+  style: CanvasEdgeStyle | null,
+  sourcePortId = "out",
+): EdgeMetadata["connector"] {
   switch (style?.routing) {
     case "straight":
       // X6 3.x 内建 connector 无 straight：normal + 无 router 中间点 = 直线段
@@ -35,7 +38,10 @@ function connectorFor(style: CanvasEdgeStyle | null): EdgeMetadata["connector"] 
       return { name: "rounded", args: { radius: 8 } };
     case "curve":
     default:
-      return { name: "smooth" };
+      return {
+        name: "smooth",
+        args: { direction: /top|bottom/.test(sourcePortId) ? "V" : "H" },
+      };
   }
 }
 
@@ -56,11 +62,11 @@ function edgeLabelItems(label: string | null, color: string) {
     : [];
 }
 
-function edgeVisuals(edge: CanvasEdgeDTO) {
+function edgeVisuals(edge: CanvasEdgeDTO, sourcePortId?: string) {
   const style = edge.style ?? DEFAULT_CANVAS_EDGE_STYLE;
   const color = canvasPaintColor(style.color) ?? "var(--muted-foreground)";
   return {
-    connector: connectorFor(style),
+    connector: edgeConnectorFor(style, sourcePortId),
     router: routerFor(style),
     attrs: edgeAttrs(style),
     labels: edgeLabelItems(edge.label, color),
@@ -192,7 +198,7 @@ export function applyEdgePresentation(
   const current = (cell.getData() as { edge?: CanvasEdgeDTO } | null)?.edge;
   if (!current) return;
   const next: CanvasEdgeDTO = { ...current, style: patch.style, label: patch.label };
-  const visuals = edgeVisuals(next);
+  const visuals = edgeVisuals(next, cell.getSourcePortId());
   cell.replaceData({ edge: next });
   cell.setAttrs(visuals.attrs, { overwrite: true });
   if (visuals.connector) cell.setConnector(visuals.connector);
