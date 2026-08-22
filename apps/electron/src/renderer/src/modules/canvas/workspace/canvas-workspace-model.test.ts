@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { CanvasDocument, CanvasElementDTO } from "@reflecta/ui/canvas";
-import { buildCanvasSearchIndex, panelForSelection } from "./canvas-workspace-model";
+import { buildCanvasSearchIndex } from "./canvas-workspace-model";
 
 const time = "2026-08-19T00:00:00.000Z";
 const base = {
@@ -82,20 +82,5 @@ describe("canvas workspace model", () => {
       { id: "reference", kind: "canvas_ref", text: "CANVAS_TITLE" },
       { id: "edge", kind: "edge", text: "EDGE_LABEL" },
     ]);
-  });
-
-  test.each([
-    ["empty", [], null],
-    ["understanding", ["understanding"], null],
-    ["edge", ["edge"], null],
-    ["ordinary node", ["text"], null],
-    ["multiple", ["text", "understanding"], null],
-  ])("routes %s selection", (_name, selection, expected) => {
-    expect(panelForSelection(selection as string[], document, null)).toEqual(expected);
-  });
-
-  test("keeps an explicitly opened library for non-special selections", () => {
-    const library = { mode: "library" } as const;
-    expect(panelForSelection(["text"], document, library)).toBe(library);
   });
 });

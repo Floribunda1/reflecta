@@ -118,8 +118,11 @@ function restoreChildLinks(graph: import("@antv/x6").Graph, doc: CanvasDocument)
 // react-shape portal provider：渲染一次，让所有 react-shape 卡片落入本 React 树（context 穿透）
 const ReactShapePortalProvider = ReactShapePortal() as React.FC<{ children?: React.ReactNode }>;
 
-export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>(
-  function CanvasGraph(props, ref: Ref<CanvasGraphHandle>) {
+export const CanvasGraph = React.memo(
+  React.forwardRef<CanvasGraphHandle, CanvasGraphProps>(function CanvasGraph(
+    props,
+    ref: Ref<CanvasGraphHandle>,
+  ) {
     const {
       readonly = false,
       createElementForDrop,
@@ -680,7 +683,7 @@ export const CanvasGraph = React.forwardRef<CanvasGraphHandle, CanvasGraphProps>
         </CanvasElementUpdateProvider>
       </CanvasShapeDataProvider>
     );
-  },
+  }),
 );
 
 function SelectionToolbar({

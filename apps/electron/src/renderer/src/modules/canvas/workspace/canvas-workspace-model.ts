@@ -1,22 +1,6 @@
 import type { CanvasDocument, CanvasSearchIndexItem } from "@reflecta/ui/canvas";
 
-export type CanvasRightPanel =
-  | { mode: "library" }
-  | { mode: "detail"; understandingId: string }
-  | null;
-
-export function panelForSelection(
-  cellIds: string[],
-  document: CanvasDocument,
-  current: CanvasRightPanel,
-): CanvasRightPanel {
-  if (cellIds.length === 1) {
-    const id = cellIds[0];
-    if (document.edges.some((edge) => edge.id === id))
-      return current?.mode === "library" ? current : null;
-  }
-  return current?.mode === "library" ? current : null;
-}
+export { panelForSelection, type CanvasRightPanel } from "../session";
 
 export function buildCanvasSearchIndex(
   document: CanvasDocument,
