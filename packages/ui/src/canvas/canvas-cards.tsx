@@ -30,7 +30,7 @@ const CanvasReadOnlyView = lazy(() =>
 );
 
 const CARD =
-  "group/canvas-node relative flex h-full w-full flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "group/canvas-node relative flex h-full w-full flex-col rounded-lg border border-border bg-card text-card-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 function nodeStateClass(selected: boolean, paint?: string) {
   return cn(
@@ -63,7 +63,7 @@ export function CanvasNodeActionBar({
   visible: boolean;
 }) {
   return visible ? (
-    <div className="absolute right-1 top-1 z-10 flex gap-1 rounded-md border bg-background p-1 shadow-sm">
+    <div className="absolute bottom-full left-1/2 z-10 mb-2 flex -translate-x-1/2 gap-1 rounded-md border bg-background p-1 shadow-sm">
       {children}
     </div>
   ) : null;
@@ -349,7 +349,7 @@ export function CanvasGroupCard({
             data-node-id={id}
             data-group-label={label}
             className={cn(
-              "group/canvas-node relative h-full w-full flex-col overflow-hidden rounded-lg border bg-muted/40",
+              "group/canvas-node relative h-full w-full flex-col rounded-lg border bg-muted/40",
               "focus-visible:outline-none",
               nodeStateClass(selected, color),
             )}
@@ -493,11 +493,7 @@ export function CanvasRefCard({
       data-testid="canvas-canvas-ref-card"
       data-node-id={id}
       data-canvas-ref-id={canvasRefId}
-      className={cn(
-        CARD,
-        "relative cursor-pointer overflow-hidden",
-        nodeStateClass(selected, color),
-      )}
+      className={cn(CARD, "relative cursor-pointer", nodeStateClass(selected, color))}
       style={nodeColorStyle(color)}
       onDoubleClick={readonly ? undefined : onOpen}
       title={deleted ? "目标画布已删除" : "双击打开引用画布"}
