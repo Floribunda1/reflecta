@@ -11,7 +11,10 @@ import {
   CanvasUnderstandingTool,
 } from "./canvas-workspace-chrome";
 import { CanvasZoomControls } from "./CanvasZoomControls";
+import { CanvasReadOnlyView } from "./CanvasReadOnlyView";
+import { GraphFrame } from "./canvas-story-graph";
 import {
+  denseCanvasDocument,
   typicalCanvasDocument,
   typicalLibraryDomains,
   typicalLibraryItems,
@@ -146,7 +149,7 @@ function CanvasCompositionShowcase() {
   return (
     <StoryShowcase
       title="画布工作区核心组合"
-      description="验收图、工具条、缩放、空态、理解库和搜索浮层叠在一起时的密度与层级。不复制保存、路由或详情面板。"
+      description="验收图与工具条、空态、理解库、搜索、只读嵌入叠在一起时的密度与层级。不复制保存、路由或详情面板。"
     >
       <StoryCase title="空工作区" description="空态、文本工具、理解库入口和缩放控件同时出现。">
         <WorkspaceShell document={EMPTY_CANVAS_DOCUMENT} empty />
@@ -168,6 +171,51 @@ function CanvasCompositionShowcase() {
 
       <StoryCase title="搜索浮层" description="搜索叠在图上方中央，不挡住左上工具条和左下缩放。">
         <WorkspaceShell document={typicalCanvasDocument} searchOpen />
+      </StoryCase>
+
+      <StoryCase
+        title="只读与嵌入尺寸"
+        description="同一份工作区文档在工作区、弹层和缩略尺寸下的只读呈现。"
+      >
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_280px_240px]">
+          <div>
+            <span className="mb-2 block text-xs font-medium text-muted-foreground">工作区</span>
+            <GraphFrame height="h-[360px]">
+              <CanvasReadOnlyView
+                document={typicalCanvasDocument}
+                shapeData={typicalShapeData}
+                className="absolute inset-0"
+              />
+            </GraphFrame>
+          </div>
+          <div>
+            <span className="mb-2 block text-xs font-medium text-muted-foreground">弹层</span>
+            <GraphFrame height="h-[240px]">
+              <CanvasReadOnlyView
+                document={typicalCanvasDocument}
+                shapeData={typicalShapeData}
+                className="absolute inset-0"
+              />
+            </GraphFrame>
+          </div>
+          <div>
+            <span className="mb-2 block text-xs font-medium text-muted-foreground">缩略</span>
+            <GraphFrame height="h-[160px]">
+              <CanvasReadOnlyView
+                document={typicalCanvasDocument}
+                shapeData={typicalShapeData}
+                className="absolute inset-0"
+              />
+            </GraphFrame>
+          </div>
+        </div>
+      </StoryCase>
+
+      <StoryCase
+        title="规模边界"
+        description="多卡片与连线时，工具条、缩放和画布密度是否还能同屏阅读。"
+      >
+        <WorkspaceShell document={denseCanvasDocument} />
       </StoryCase>
     </StoryShowcase>
   );
