@@ -183,6 +183,7 @@ describe("in-place cell updates", () => {
     expect(cell.setLabels).toHaveBeenCalledWith([
       {
         attrs: {
+          body: { fill: "transparent", stroke: "none" },
           label: { text: "new", fill: "var(--foreground)", fontSize: 12 },
         },
       },
