@@ -15,9 +15,10 @@
  *   base03=注释     → （不映射：对比度不足，弱化文字统一用 muted-foreground）
  *   base04=暗前景   → muted-foreground
  *   base05=默认前景 → foreground
- *   base08=红       → destructive/danger     base0B=绿 → success
- *   base0A=黄       → warning                base0D=蓝 → info
- *   base0C=青       → 默认主题 primary/ring（Ghostty 方案改用 cursor-color）
+ *   base08=红       → destructive/chart-4     base0B=绿 → success
+ *   base0A=黄       → warning/chart-5         base0D=蓝 → info/chart-2
+ *   base0C=青       → primary/ring/chart-1（Ghostty 方案改用 cursor-color）
+ *   base0E=紫       → chart-3                 base09=橙 →（暂未占用）
  *
  * 派生色（状态色 muted/foreground）统一用 OKLCH 空间 color-mix：
  * sRGB 空间混色会出泥泞的中间调，OKLCH 等感知明度，混色平滑。
@@ -39,12 +40,12 @@
   --base05: #383838; /* 默认前景 */
   --base06: #282828; /* 亮前景 */
   --base07: #181818; /* 反色前景（深端） */
-  --base08: #ab4642; /* 红（destructive/danger） */
-  --base09: #dc9656; /* 橙（chart-4） */
+  --base08: #ab4642; /* 红（destructive/chart-4） */
+  --base09: #dc9656; /* 橙（暂未占用） */
   --base0a: #b58900; /* 黄（warning/chart-5） */
-  --base0b: #86a361; /* 绿（success/chart-2） */
+  --base0b: #86a361; /* 绿（success） */
   --base0c: #0d9488; /* 青（primary/ring —— 定制 teal-600） */
-  --base0d: #3c6fb4; /* 蓝（info） */
+  --base0d: #3c6fb4; /* 蓝（info/chart-2） */
   --base0e: #7c5c9e; /* 紫（chart-3） */
   --base0f: #8a5a3b; /* 棕 */
 
@@ -78,11 +79,11 @@
      注意：必须与 transparent 混（半透明）——CodeMirror 的选区层画在内容之下，
      当前行背景若是不透明色会盖住选区。 */
   --active-line: color-mix(in oklch, var(--muted) 20%, transparent);
-  --chart-1: var(--base0c);
-  --chart-2: var(--base0b);
-  --chart-3: var(--base0e);
-  --chart-4: var(--base09);
-  --chart-5: var(--base0a);
+  --chart-1: var(--base0c); /* 青 */
+  --chart-2: var(--base0d); /* 蓝 */
+  --chart-3: var(--base0e); /* 紫 */
+  --chart-4: var(--base08); /* 红 */
+  --chart-5: var(--base0a); /* 黄 */
   --sidebar: var(--base01);
   --sidebar-foreground: var(--base05);
   --sidebar-primary: var(--base0c);
@@ -121,13 +122,13 @@
   --base07: #f8f8f8; /* 反色（白端） */
   --base08: #ab4642; /* 红 */
   --base09: #dc9656; /* 橙 */
-  --base0a: #e8c15a; /* 黄（dark 亮一档） */
+  --base0a: #e8c15a; /* 黄（chart-5，dark 亮一档） */
   --base0b: #9fc06f; /* 绿 */
   --base0c: #2dd4bf; /* 青（teal-400，dark 亮一档） */
   --destructive-foreground: color-mix(in oklch, var(--base08) 10%, var(--base07)); /* 浅端 */
   --primary-foreground: var(--base00); /* Dark theme: bright teal uses dark text */
   --sidebar-primary-foreground: var(--base00);
-  --base0d: #7cafc2; /* 蓝 */
+  --base0d: #7cafc2; /* 蓝（chart-2） */
   --base0e: #ba8baf; /* 紫 */
   --base0f: #a16946; /* 棕 */
 }
