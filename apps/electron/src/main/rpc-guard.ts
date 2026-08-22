@@ -48,6 +48,35 @@ export const rpcGuard =
 export type HandlerLike = (input: any, context: any) => Effect.Effect<unknown, any, never>;
 
 /**
+ * 请求摘要回调（Spring MVC filter 语义）：每个被守卫的 IPC 调用记一条
+ * `(method, elapsedMs, ok, reason?)`——成功与否都由框架层统一记录，
+ * 业务层零日志；失败带原因（含 defect/超时的原文）。由组合根接入 appLog。
+ */
+/** 失败摘要文本（与 rpcGuard 归一同源）：契约错误的 reason → 错误对象 message → squash 原文。 */
+export function causeToText(cause: Cause.Cause<unknown>): string {
+  const value = Option.match(Cause.findErrorOption(cause), {
+    onNone: () => null,
+    onSome: (v) => v,
+  });
+  if (value && typeof value === "object" && "reason" in value) {
+    const reason = (value as { reason: unknown }).reason;
+    if (reason) return String(reason);
+  }
+  if (value && typeof value === "object" && "message" in value) {
+    const message = (value as { message: unknown }).message;
+    if (message) return String(message);
+  }
+  return `操作失败：${Cause.squash(cause)}`;
+}
+
+export type IpcCallReporter = (
+  name: string,
+  elapsedMs: number,
+  ok: boolean,
+  reason?: string,
+) => void;
+
+/**
  * 对整个 handlers 对象包一次守卫（等价 HttpRouter.catchAll）：
  * 业务对象原样（纯 Effect、零仪式），每个方法按名字解析域错误构造器后经 rpcGuard 包裹。
  * 未映射的域原样透传。此后新增 API 只要加进对象即自动受保护。
@@ -55,17 +84,26 @@ export type HandlerLike = (input: any, context: any) => Effect.Effect<unknown, a
 export const guardIpcHandlers = <T extends Record<string, HandlerLike>>(
   handlers: T,
   resolveCtor: (name: string) => ((reason: string) => unknown) | undefined,
-  onLog?: (text: string) => void,
+  onCall?: IpcCallReporter,
 ): T => {
   const out: Record<string, unknown> = {};
   for (const [name, fn] of Object.entries(handlers)) {
     const toContract = resolveCtor(name);
     out[name] = toContract
       ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (((input: any, context: any) =>
-          rpcGuard(toContract as (reason: string) => never, { onLog })(
-            fn(input, context),
-          )) as HandlerLike)
+        (((input: any, context: any) => {
+          const started = performance.now();
+          const report = (ok: boolean, reason?: string) =>
+            onCall?.(name, performance.now() - started, ok, reason);
+          const guarded = rpcGuard(toContract as (reason: string) => never)(fn(input, context));
+          return Effect.catchCause(
+            Effect.tap(guarded, () => Effect.sync(() => report(true))),
+            (cause) =>
+              Effect.sync(() => report(false, causeToText(cause))).pipe(
+                Effect.flatMap(() => Effect.failCause(cause)),
+              ),
+          );
+        }) as HandlerLike)
       : fn;
   }
   return out as T;

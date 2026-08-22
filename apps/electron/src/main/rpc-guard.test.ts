@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { describe, expect, test } from "vitest";
-import { rpcGuard } from "./rpc-guard";
+import { guardIpcHandlers, rpcGuard } from "./rpc-guard";
 
 /** 与 main/index.ts 的 cErr 同构的契约错误。 */
 const toContract = (reason: string) => ({ reason, code: 500 });
@@ -55,5 +55,60 @@ describe("rpcGuard（全局错误兜底，对齐 @ControllerAdvice）", () => {
   test("成功路径原样通过", async () => {
     const result = await runGuarded(rpcGuard(toContract)(Effect.succeed({ ok: 1 })));
     expect(result).toBe("ok");
+  });
+});
+
+type Handler = (input: unknown, context: unknown) => Effect.Effect<unknown, unknown, never>;
+
+describe("guardIpcHandlers（请求摘要，Spring filter 语义）", () => {
+  test("成功调用上报 ok + elapsed", async () => {
+    const calls: Array<{ name: string; ok: boolean }> = [];
+    const handlers: Record<string, Handler> = {
+      "understandingCanvas.getCanvas": () => Effect.succeed({ ok: 1 }),
+    };
+    const guarded = guardIpcHandlers(
+      handlers,
+      () => toContract,
+      (name, _ms, ok) => calls.push({ name, ok }),
+    );
+    await Effect.runPromise(guarded["understandingCanvas.getCanvas"]({}, {}));
+    expect(calls).toEqual([{ name: "understandingCanvas.getCanvas", ok: true }]);
+  });
+
+  test("失败调用上报 fail + 原因，错误原样抛给契约", async () => {
+    const calls: Array<{ name: string; ok: boolean; reason?: string }> = [];
+    const handlers: Record<string, Handler> = {
+      "understandingCanvas.saveCanvas": () => Effect.fail(new Error("boom")),
+    };
+    const guarded = guardIpcHandlers(
+      handlers,
+      () => toContract,
+      (name, _ms, ok, reason) => calls.push({ name, ok, reason }),
+    );
+    let caught: unknown;
+    try {
+      await Effect.runPromise(guarded["understandingCanvas.saveCanvas"]({}, {}));
+    } catch (error) {
+      caught = error;
+    }
+    expect(calls).toHaveLength(1);
+    expect(calls[0].name).toBe("understandingCanvas.saveCanvas");
+    expect(calls[0].ok).toBe(false);
+    expect(String(calls[0].reason)).toContain("boom");
+    expect((caught as { reason?: string }).reason).toContain("boom");
+  });
+
+  test("未映射域原样透传且不上报", async () => {
+    const calls: Array<{ name: string }> = [];
+    const handlers: Record<string, Handler> = {
+      "about.getVersionInfo": () => Effect.succeed("1.0"),
+    };
+    const guarded = guardIpcHandlers(
+      handlers,
+      () => undefined,
+      (name) => calls.push({ name }),
+    );
+    await Effect.runPromise(guarded["about.getVersionInfo"]({}, {}));
+    expect(calls).toHaveLength(0);
   });
 });
