@@ -24,6 +24,7 @@ test("forwards console.error arguments and a renderer stack without hiding the b
     expect.objectContaining({
       source: "console.error",
       args: ["Duplicate key `%s`", "item-1"],
+      detail: ["Duplicate key `%s`", "item-1"],
       stack: expect.stringContaining("renderer-console-error.test.ts"),
     }),
   );

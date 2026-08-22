@@ -183,6 +183,7 @@ function rendererErrorAttrs(payload: unknown): Record<string, unknown> {
         : typeof payload.message === "string"
           ? payload.message
           : undefined,
+    detail: Array.isArray(payload.detail) ? payload.detail : undefined,
     stack: typeof payload.stack === "string" ? payload.stack : undefined,
     componentStack: typeof payload.componentStack === "string" ? payload.componentStack : undefined,
     filename: typeof payload.filename === "string" ? payload.filename : undefined,
