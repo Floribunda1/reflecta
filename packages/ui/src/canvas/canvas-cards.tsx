@@ -44,14 +44,14 @@ function nodeStateClass(selected: boolean, paint?: string) {
   );
 }
 
-/** 有 paint 时：border、hover/selected ring 与卡片背景都取该色（背景用透明淡色）。 */
+/** 有 paint 时：border、hover/selected ring 与卡片背景都取该色（背景混入少量色彩）。 */
 function nodeColorStyle(color?: string): CSSProperties | undefined {
   const paint = canvasPaintColor(color);
   if (!paint) return undefined;
   return {
     borderColor: paint,
     ["--tw-ring-color" as string]: paint,
-    backgroundColor: `color-mix(in oklch, ${paint} 10%, transparent)`,
+    backgroundColor: `color-mix(in oklch, ${paint} 10%, var(--card))`,
   };
 }
 
