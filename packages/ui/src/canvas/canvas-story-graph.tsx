@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { CanvasGraph, type CanvasGraphHandle } from "./CanvasGraph";
 import { CanvasZoomControls } from "./CanvasZoomControls";
 import { typicalShapeData } from "./canvas-story-fixtures";
@@ -34,6 +34,9 @@ export function InteractiveGraph({
 }) {
   const graphRef = useRef<CanvasGraphHandle>(null);
   const [selection, setSelection] = useState("尚未选中");
+  const onSelectionChange = useCallback((ids: string[]) => {
+    setSelection(ids.length ? `选中 ${ids.length} 项：${ids.join(", ")}` : "未选中");
+  }, []);
   const liveShapeData = useMemo<CanvasShapeData>(
     () => ({
       ...shapeData,
@@ -52,9 +55,7 @@ export function InteractiveGraph({
           readonly={readonly}
           viewportReady
           shapeData={liveShapeData}
-          onSelectionChange={(ids) =>
-            setSelection(ids.length ? `选中 ${ids.length} 项：${ids.join(", ")}` : "未选中")
-          }
+          onSelectionChange={onSelectionChange}
           className="absolute inset-0"
         />
         {readonly ? null : (

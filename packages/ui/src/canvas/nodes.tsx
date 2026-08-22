@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import type { Node as X6Node } from "@antv/x6";
+import { useSyncExternalStore, type ReactNode } from "react";
+import { Selection, type Graph, type Node as X6Node } from "@antv/x6";
 import { register } from "@antv/x6-react-shape";
 import {
   CanvasGroupCard,
@@ -20,24 +20,38 @@ import { useCanvasElementUpdate, useCanvasShapeData } from "./shape-context";
  * 视觉由 `canvas-cards` 的 presentational 组件承担；这里只做 X6 node → props 的适配。
  */
 
-type CardProps = { node: X6Node };
-type RegisterArgs = CardProps & { graph?: unknown };
+type CardProps = { node: X6Node; graph?: Graph };
+type RegisterArgs = CardProps;
 
-/** 卡片重渲由 shapeData context（含 selectedIds）驱动；这里只保留元素内容读取。 */
-function useCard(node: X6Node): {
+function subscribeSelection(graph: Graph | undefined, onChange: () => void): () => void {
+  if (!graph) return () => {};
+  const selection = graph.getPlugin<Selection>("selection");
+  if (!selection) return () => {};
+  const handler = () => onChange();
+  selection.on("selection:changed", handler);
+  return () => selection.off("selection:changed", handler);
+}
+
+/** 选中态订阅 X6 Selection。react-shape Wrap 是 PureComponent，context 更新不会穿透。 */
+function useCard(
+  node: X6Node,
+  graph: Graph | undefined,
+): {
   element: CanvasElementDTO;
   selected: boolean;
   update: (element: CanvasElementDTO) => void;
 } {
-  const { selectedIds } = useCanvasShapeData();
+  const selected = useSyncExternalStore(
+    (onChange) => subscribeSelection(graph, onChange),
+    () => graph?.getPlugin<Selection>("selection")?.isSelected(node) ?? false,
+  );
   const update = useCanvasElementUpdate();
   const element = (node.getData() as { element?: CanvasElementDTO } | null | undefined)?.element;
-  const selected = selectedIds?.has(element?.id ?? "") ?? false;
   return { element: element ?? ({} as CanvasElementDTO), selected, update };
 }
 
-function UnderstandingShape({ node }: CardProps) {
-  const { element, selected, update } = useCard(node);
+function UnderstandingShape({ node, graph }: CardProps) {
+  const { element, selected, update } = useCard(node, graph);
   const { understandingRefs, readonly, onElementEdit, multiSelected, onCellAction } =
     useCanvasShapeData();
   if (element.kind !== "understanding") return null;
@@ -63,8 +77,8 @@ function UnderstandingShape({ node }: CardProps) {
   );
 }
 
-function TextShape({ node }: CardProps) {
-  const { element, selected, update } = useCard(node);
+function TextShape({ node, graph }: CardProps) {
+  const { element, selected, update } = useCard(node, graph);
   const { readonly, multiSelected, onCellAction } = useCanvasShapeData();
   if (element.kind !== "text") return null;
   return (
@@ -82,8 +96,8 @@ function TextShape({ node }: CardProps) {
   );
 }
 
-function GroupShape({ node }: CardProps) {
-  const { element, selected, update } = useCard(node);
+function GroupShape({ node, graph }: CardProps) {
+  const { element, selected, update } = useCard(node, graph);
   const { readonly, onCellAction, multiSelected } = useCanvasShapeData();
   if (element.kind !== "group") return null;
   return (
@@ -102,8 +116,8 @@ function GroupShape({ node }: CardProps) {
   );
 }
 
-function CanvasRefShape({ node }: CardProps) {
-  const { element, selected, update } = useCard(node);
+function CanvasRefShape({ node, graph }: CardProps) {
+  const { element, selected, update } = useCard(node, graph);
   const {
     referencedCanvases,
     onCanvasRefClick,

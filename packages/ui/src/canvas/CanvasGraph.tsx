@@ -364,29 +364,49 @@ export const CanvasGraph = React.memo(
       graph.on("translate", emitViewport);
 
       const selection = graph.getPlugin<Selection>("selection");
+      // Transform 听 node:click 画缩放框；左键框选的 mouseup 会把 Selection 清成空，
+      // React 操作条跟着没，缩放框却还在。点击节点后短时间忽略这次空选区。
+      let retainCellId: string | null = null;
+      const retainClickedCell = (cellId: string) => {
+        retainCellId = cellId;
+        queueMicrotask(() => {
+          retainCellId = null;
+        });
+      };
       if (selection) {
         selection.on("selection:changed", ({ selected }) => {
           const cellIds = selected.map((cell) => cell.id);
+          if (cellIds.length === 0 && retainCellId) {
+            const cell = graph.getCellById(retainCellId);
+            if (cell) selection.reset([cell]);
+            return;
+          }
           setSelectedNodeIds(cellIds.filter((id) => graph.getCellById(id)?.isNode()));
           setSelectedEdgeId(cellIds.find((id) => graph.getCellById(id)?.isEdge()) ?? null);
           onSelectionChangeRef.current?.(cellIds);
         });
       }
 
-      // X6 Selection 插件不做点击选中：node:click 单选 / ⌘+点击多选切换，edge:click 单选，blank:click 清空。
+      graph.on("node:mousedown", ({ e }) => {
+        e.stopPropagation?.();
+      });
+      graph.on("edge:mousedown", ({ e }) => {
+        e.stopPropagation?.();
+      });
       graph.on("node:click", ({ node, e }) => {
         if (readonlyRef.current) return;
-        const selection = graph.getPlugin<Selection>("selection");
-        if (!selection) return;
+        const plugin = graph.getPlugin<Selection>("selection");
+        if (!plugin) return;
+        retainClickedCell(node.id);
         if (e.metaKey || e.ctrlKey) {
-          // 加选（X6 自带容器 handler 也会处理修饰键点击，这里只做加法避免双重切换）
-          if (!selection.isSelected(node)) selection.select([node]);
+          if (!plugin.isSelected(node)) plugin.select([node]);
         } else {
-          selection.reset([node]);
+          plugin.reset([node]);
         }
       });
       graph.on("edge:click", ({ edge }) => {
         if (readonlyRef.current) return;
+        retainClickedCell(edge.id);
         graph.getPlugin<Selection>("selection")?.reset([edge]);
       });
       graph.on("blank:click", () => {
