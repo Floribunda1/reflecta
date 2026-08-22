@@ -242,6 +242,7 @@ export const CanvasGraph = React.memo(
         preventDefaultDblClick: false,
         connecting: {
           snap: { radius: 50 },
+          connector: { name: "smooth" },
           allowLoop: true,
           allowNode: true,
           allowEdge: false,
