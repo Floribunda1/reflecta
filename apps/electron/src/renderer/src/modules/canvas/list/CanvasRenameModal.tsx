@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@reflecta/ui/components/button";
 import { DialogFooter } from "@reflecta/ui/components/dialog";
@@ -7,6 +8,7 @@ import { Label } from "@reflecta/ui/components/label";
 import { useModal } from "@reflecta/ui/overlays";
 import type { CanvasDTO } from "@reflecta/server";
 import { renderError } from "@renderer/lib/errors";
+import { CANVAS_ID_QUERY_KEY, CANVAS_ROUTE } from "@renderer/modules/shared/navigation";
 import { useDeleteCanvasMutation, useRenameCanvasMutation } from "../queries";
 
 /**
@@ -75,6 +77,8 @@ export function CanvasRenameModal({
 export function useDeleteCanvas() {
   const { confirm } = useModal();
   const deleteCanvas = useDeleteCanvasMutation();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   return useCallback(
     (canvas: CanvasDTO) => {
@@ -91,6 +95,14 @@ export function useDeleteCanvas() {
         onAccept: async () => {
           try {
             await deleteCanvas.mutateAsync(canvas.id);
+            // 删除的是当前打开的画布时离开该路由，避免右侧仍显示已删除画布
+            const params = new URLSearchParams(location.search);
+            if (
+              location.pathname === CANVAS_ROUTE &&
+              params.get(CANVAS_ID_QUERY_KEY) === canvas.id
+            ) {
+              navigate(CANVAS_ROUTE);
+            }
             toast.success("已删除画布");
           } catch (error) {
             toast.error("删除失败", { description: renderError(error) });
@@ -98,6 +110,6 @@ export function useDeleteCanvas() {
         },
       });
     },
-    [confirm, deleteCanvas],
+    [confirm, deleteCanvas, location, navigate],
   );
 }
