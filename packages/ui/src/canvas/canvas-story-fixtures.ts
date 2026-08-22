@@ -254,28 +254,149 @@ export const typicalCanvasDocument: CanvasDocument = {
   ],
 };
 
-export const edgeStyleDocument: CanvasDocument = {
+function edgeGallery(
+  rows: ReadonlyArray<{
+    id: string;
+    label: string;
+    style: CanvasEdgeDTO["style"];
+    edgeLabel?: string | null;
+  }>,
+): CanvasDocument {
+  const elements = rows.flatMap((row, index) => [
+    storyTextElement(`${row.id}-from`, row.label, {
+      x: 40,
+      y: 28 + index * 96,
+      width: 168,
+      height: 64,
+    }),
+    storyTextElement(`${row.id}-to`, "终点", {
+      x: 400,
+      y: 28 + index * 96,
+      width: 88,
+      height: 64,
+    }),
+  ]);
+  const edges = rows.map((row) =>
+    storyEdge(row.id, `${row.id}-from`, `${row.id}-to`, row.edgeLabel ?? row.label, row.style),
+  );
+  return { elements, edges };
+}
+
+export const understandingCardsDocument: CanvasDocument = {
   elements: [
-    storyTextElement("edge-a", "A", { x: 40, y: 80, width: 120, height: 72 }),
-    storyTextElement("edge-b", "B", { x: 280, y: 40, width: 120, height: 72 }),
-    storyTextElement("edge-c", "C", { x: 280, y: 160, width: 120, height: 72 }),
-  ],
-  edges: [
-    storyEdge("edge-curve", "edge-a", "edge-b", "曲线", {
-      routing: "curve",
-      lineStyle: "solid",
-      width: "thin",
-      arrowhead: "classic",
+    storyUnderstandingElement("card-u-typical", irrigationUnderstanding.id, { x: 32, y: 32 }),
+    storyUnderstandingElement("card-u-unnamed", unnamedUnderstanding.id, { x: 320, y: 32 }),
+    storyUnderstandingElement("card-u-deleted", deletedUnderstanding.id, { x: 608, y: 32 }),
+    storyUnderstandingElement("card-u-long", longUnderstanding.id, {
+      x: 32,
+      y: 280,
+      width: 280,
+      height: 260,
     }),
-    storyEdge("edge-orth", "edge-a", "edge-c", "正交虚线", {
-      routing: "orthogonal",
-      lineStyle: "dashed",
-      width: "medium",
-      color: "chart-2",
-      arrowhead: "block",
-    }),
+    storyUnderstandingElement(
+      "card-u-paint",
+      irrigationUnderstanding.id,
+      { x: 340, y: 280 },
+      "chart-2",
+    ),
   ],
+  edges: [],
 };
+
+export const textCardsDocument: CanvasDocument = {
+  elements: [
+    storyTextElement("card-t-preview", "主管压力在换班后回落到正常区间。", { x: 32, y: 32 }),
+    storyTextElement("card-t-empty", "", { x: 280, y: 32 }),
+    storyTextElement(
+      "card-t-long",
+      "回水温度、基质含水率和主管压力需要放在同一观察窗里比较，避免只看瞬时尖峰。".repeat(3),
+      { x: 528, y: 32, width: 240, height: 160 },
+    ),
+    storyTextElement("card-t-paint", "着色文本卡", { x: 32, y: 220 }, "chart-3"),
+  ],
+  edges: [],
+};
+
+export const groupCardsDocument: CanvasDocument = {
+  elements: [
+    storyGroupElement("card-g-named", "夜班观察", { x: 40, y: 48, width: 280, height: 180 }),
+    {
+      ...storyTextElement("card-g-child", "回水温度连续 3 个窗口低于阈值。", {
+        x: 16,
+        y: 24,
+        width: 200,
+        height: 100,
+      }),
+      parentId: "card-g-named",
+    },
+    storyGroupElement("card-g-unnamed", "", { x: 360, y: 48, width: 220, height: 160 }),
+    storyGroupElement(
+      "card-g-long",
+      "夜班联调、异常复验与下一观察窗的临时分组",
+      { x: 620, y: 48, width: 260, height: 160 },
+      "chart-1",
+    ),
+  ],
+  edges: [],
+};
+
+export const canvasRefCardsDocument: CanvasDocument = {
+  elements: [
+    storyCanvasRefElement("card-r-preview", nightShiftCanvas.id, { x: 32, y: 32 }),
+    storyCanvasRefElement("card-r-title", titleOnlyCanvas.id, { x: 300, y: 32 }),
+    storyCanvasRefElement("card-r-deleted", deletedCanvas.id, { x: 568, y: 32 }),
+    storyCanvasRefElement("card-r-paint", nightShiftCanvas.id, { x: 32, y: 220 }, "chart-4"),
+  ],
+  edges: [],
+};
+
+export const edgeRoutingDocument = edgeGallery([
+  { id: "edge-curve", label: "曲线", style: { routing: "curve" } },
+  { id: "edge-straight", label: "直线", style: { routing: "straight" } },
+  { id: "edge-orthogonal", label: "正交", style: { routing: "orthogonal" } },
+]);
+
+export const edgeLineStyleDocument = edgeGallery([
+  { id: "edge-solid", label: "实线", style: { lineStyle: "solid" } },
+  { id: "edge-dashed", label: "虚线", style: { lineStyle: "dashed" } },
+  { id: "edge-dotted", label: "点线", style: { lineStyle: "dotted" } },
+]);
+
+export const edgeWidthDocument = edgeGallery([
+  { id: "edge-thin", label: "细", style: { width: "thin" } },
+  { id: "edge-medium", label: "中", style: { width: "medium" } },
+  { id: "edge-thick", label: "粗", style: { width: "thick" } },
+]);
+
+export const edgeColorDocument = edgeGallery([
+  { id: "edge-color-none", label: "默认色", style: {} },
+  { id: "edge-color-1", label: "chart-1", style: { color: "chart-1" } },
+  { id: "edge-color-2", label: "chart-2", style: { color: "chart-2" } },
+  { id: "edge-color-3", label: "chart-3", style: { color: "chart-3" } },
+  { id: "edge-color-4", label: "chart-4", style: { color: "chart-4" } },
+  { id: "edge-color-5", label: "chart-5", style: { color: "chart-5" } },
+]);
+
+export const edgeArrowheadDocument = edgeGallery([
+  { id: "edge-arrow-classic", label: "箭头", style: { arrowhead: "classic" } },
+  { id: "edge-arrow-block", label: "方块", style: { arrowhead: "block" } },
+  { id: "edge-arrow-circle", label: "圆点", style: { arrowhead: "circle" } },
+  { id: "edge-arrow-diamond", label: "菱形", style: { arrowhead: "diamond" } },
+  { id: "edge-arrow-cross", label: "十字", style: { arrowhead: "cross" } },
+  { id: "edge-arrow-ellipse", label: "椭圆", style: { arrowhead: "ellipse" } },
+  { id: "edge-arrow-none", label: "无箭头", style: { arrowhead: "none" } },
+]);
+
+export const edgeLabelDocument = edgeGallery([
+  { id: "edge-label-none", label: "无标签", style: {}, edgeLabel: null },
+  { id: "edge-label-short", label: "短标签", style: {}, edgeLabel: "依赖" },
+  {
+    id: "edge-label-long",
+    label: "长标签",
+    style: {},
+    edgeLabel: "夜班联调窗口与下一观察窗的依赖关系",
+  },
+]);
 
 export const denseCanvasDocument: CanvasDocument = {
   elements: Array.from({ length: 18 }, (_, index) =>
