@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
-import { Input } from "@reflecta/ui/components/input";
+import { Input } from "../components/input";
 
 /**
- * 画布内搜索浮层（M2-6）：⌘/Ctrl+F 打开。
- * 范围（由 workspace 从 store 文档 + 展示数据构建）：
- * 理解卡标题 / 正文、文本卡内容、组名、连线标签、画布引用标题。
- * 过滤在浮层内做；命中后由 workspace 定位/选中（centerCell + 缩放）。Esc 关闭。
+ * 画布内搜索浮层：⌘/Ctrl+F 打开。
+ * 范围由上层从文档 + 展示数据构建：理解卡标题 / 正文、文本卡内容、组名、连线标签、画布引用标题。
+ * 过滤在浮层内做；命中后由上层定位/选中。Esc 关闭。
  */
 const KIND_LABEL: Record<string, string> = {
   understanding: "理解",
@@ -23,15 +22,13 @@ export type CanvasSearchIndexItem = {
   text: string;
 };
 
-export function CanvasSearchOverlay({
-  index,
-  onSelect,
-  onClose,
-}: {
+export type CanvasSearchOverlayProps = {
   index: CanvasSearchIndexItem[];
   onSelect: (id: string) => void;
   onClose: () => void;
-}) {
+};
+
+export function CanvasSearchOverlay({ index, onSelect, onClose }: CanvasSearchOverlayProps) {
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const [active, setActive] = useState(0);

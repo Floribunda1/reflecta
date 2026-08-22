@@ -2,6 +2,35 @@ export { CanvasGraph, type CanvasGraphHandle, type CanvasGraphProps } from "./Ca
 export { CanvasReadOnlyView, type CanvasReadOnlyViewProps } from "./CanvasReadOnlyView";
 export { CanvasZoomControls, type CanvasZoomControlsProps } from "./CanvasZoomControls";
 export {
+  CanvasUnderstandingCard,
+  CanvasTextCard,
+  CanvasGroupCard,
+  CanvasRefCard,
+  type CanvasUnderstandingCardProps,
+  type CanvasTextCardProps,
+  type CanvasGroupCardProps,
+  type CanvasRefCardProps,
+} from "./canvas-cards";
+export {
+  CanvasSearchOverlay,
+  type CanvasSearchIndexItem,
+  type CanvasSearchOverlayProps,
+} from "./canvas-search-overlay";
+export {
+  CanvasLibraryPanel,
+  type CanvasLibraryDomainOption,
+  type CanvasLibraryItemView,
+  type CanvasLibraryPanelProps,
+  type CanvasLibrarySortBy,
+} from "./canvas-library-panel";
+export {
+  CanvasEmptyState,
+  CanvasSaveStatus,
+  CanvasTextTool,
+  CanvasUnderstandingTool,
+  type CanvasSaveStatusKind,
+} from "./canvas-workspace-chrome";
+export {
   DEFAULT_CANVAS_EDGE_STYLE,
   DEFAULT_CANVAS_VIEWPORT,
   EMPTY_CANVAS_DOCUMENT,

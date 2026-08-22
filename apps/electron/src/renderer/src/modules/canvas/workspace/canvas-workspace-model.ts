@@ -1,5 +1,4 @@
-import type { CanvasDocument } from "@reflecta/ui/canvas";
-import type { CanvasSearchIndexItem } from "./CanvasSearchOverlay";
+import type { CanvasDocument, CanvasSearchIndexItem } from "@reflecta/ui/canvas";
 
 export type CanvasRightPanel =
   | { mode: "library" }

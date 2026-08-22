@@ -97,6 +97,12 @@ const preview: Preview = {
         order: [
           "Capture",
           ["基本组件", ["Domain Tree", "Domain Tree Select", "Understanding Row"], "组合场景样式"],
+          "Canvas",
+          [
+            "基本组件",
+            ["Canvas Cards", "Canvas Graph", "Canvas Search", "Canvas Library"],
+            "组合场景样式",
+          ],
           "Editor",
           ["基本组件", ["Markdown Editor", "Markdown Preview", "Markdown 摘要预览"]],
           "Agent",

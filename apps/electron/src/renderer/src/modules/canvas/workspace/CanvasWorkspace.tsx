@@ -10,22 +10,23 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { Library, PanelsTopLeft, Type } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  CanvasEmptyState,
   CanvasGraph,
+  CanvasSaveStatus,
+  CanvasSearchOverlay,
+  CanvasTextTool,
+  CanvasUnderstandingTool,
   CanvasZoomControls,
+  type CanvasDocument,
+  type CanvasElementDTO,
   type CanvasGraphHandle,
   type CanvasReferencedCanvasView,
+  type CanvasSearchIndexItem,
   type CanvasShapeData,
+  type CanvasViewport,
 } from "@reflecta/ui/canvas";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyMedia,
-  EmptyTitle,
-} from "@reflecta/ui/components/empty";
 import { useModal } from "@reflecta/ui/overlays";
 import { useNavigateToCanvas } from "@renderer/modules/shared/navigation";
 import {
@@ -34,8 +35,6 @@ import {
   ResizablePanelGroup,
 } from "@reflecta/ui/components/resizable";
 import { cn } from "@reflecta/ui/lib/utils";
-import { Button } from "@reflecta/ui/components/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@reflecta/ui/components/tooltip";
 import { RESIZE_HANDLE_CLASS } from "@renderer/modules/shared/layout/layout-constants";
 import {
   canvasQueryKeys,
@@ -57,9 +56,7 @@ import { CanvasDetailPanel } from "./CanvasDetailPanel";
 import { CanvasLibraryPanel } from "./CanvasLibraryPanel";
 import { CanvasRefPickerModal } from "./CanvasRefPickerModal";
 import { CanvasToolbar } from "./CanvasToolbar";
-import { CanvasSearchOverlay, type CanvasSearchIndexItem } from "./CanvasSearchOverlay";
 import { newCanvasRefElement, newTextElement, newUnderstandingElement } from "./element-factory";
-import type { CanvasDocument, CanvasElementDTO, CanvasViewport } from "@reflecta/ui/canvas";
 import {
   buildCanvasSearchIndex,
   panelForSelection,
@@ -69,100 +66,6 @@ import { createDebouncedLatestSaver, type SaveStatus } from "./debounced-latest-
 
 const SAVE_DEBOUNCE_MS = 800;
 const VIEWPORT_SETTLE_MS = 600;
-
-function CanvasTextTool({
-  onStartDrag,
-  onClick,
-}: {
-  onStartDrag: (e: React.MouseEvent<HTMLButtonElement>) => void;
-  onClick: () => void;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            aria-label="文本"
-            data-testid="canvas-tool-dnd-text"
-            onMouseDown={onStartDrag}
-            onClick={onClick}
-          />
-        }
-      >
-        <Type size={15} />
-      </TooltipTrigger>
-      <TooltipContent>文本</TooltipContent>
-    </Tooltip>
-  );
-}
-
-function CanvasUnderstandingTool({ open, onClick }: { open: boolean; onClick: () => void }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            type="button"
-            size="icon-sm"
-            variant={open ? "secondary" : "ghost"}
-            aria-label="理解库"
-            data-testid="canvas-toggle-library-button"
-            onClick={onClick}
-          />
-        }
-      >
-        <Library size={15} />
-      </TooltipTrigger>
-      <TooltipContent>理解库</TooltipContent>
-    </Tooltip>
-  );
-}
-
-function CanvasEmptyState() {
-  return (
-    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-      <Empty>
-        <EmptyContent>
-          <EmptyMedia variant="icon">
-            <PanelsTopLeft />
-          </EmptyMedia>
-          <EmptyTitle>这张画布还是空的</EmptyTitle>
-          <EmptyDescription>从理解库拖入理解，或从工具栏拖入文本</EmptyDescription>
-        </EmptyContent>
-      </Empty>
-    </div>
-  );
-}
-
-function CanvasSaveStatus({
-  saveStatus,
-  onRetry,
-}: {
-  saveStatus: SaveStatus;
-  onRetry: () => void;
-}) {
-  if (saveStatus === "error") {
-    return (
-      <div className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded-md border border-destructive/30 bg-background px-3 py-2 text-xs text-destructive shadow-sm">
-        <span>画布保存失败，修改仍未保存</span>
-        <Button type="button" size="sm" variant="outline" onClick={onRetry}>
-          重试
-        </Button>
-      </div>
-    );
-  }
-  if (saveStatus === "dirty" || saveStatus === "saving") {
-    return (
-      <div className="absolute right-3 top-3 z-20 rounded-md bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow-sm">
-        未保存
-      </div>
-    );
-  }
-  return null;
-}
 
 function CanvasWorkspaceSidePanel({
   canvasId,
