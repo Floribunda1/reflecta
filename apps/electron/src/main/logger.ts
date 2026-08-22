@@ -188,12 +188,7 @@ function rendererErrorAttrs(payload: unknown): Record<string, unknown> {
 
 function installRendererErrorLogging() {
   ipcMain.on(DIAGNOSTIC_RENDERER_ERROR_CHANNEL, (_event, payload) => {
-    writeDiagnosticEvent({
-      level: "error",
-      event: "renderer.error",
-      scope: "renderer",
-      attrs: rendererErrorAttrs(payload),
-    });
+    rendererLog.error("renderer.error", rendererErrorAttrs(payload));
   });
 }
 
@@ -312,3 +307,4 @@ export function initializeLogging() {
 export const appLog = log.scope("app");
 export const agentLog = log.scope("agent");
 export const ipcLog = log.scope("ipc");
+const rendererLog = log.scope("renderer");

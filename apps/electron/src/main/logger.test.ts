@@ -283,6 +283,26 @@ describe("Electron logging profile", () => {
       },
     );
 
+    expect(mockLogger.scopedLogger.error).toHaveBeenCalledWith("renderer.error", {
+      source: "window.error",
+      message: "renderer boom",
+      stack: undefined,
+      componentStack: undefined,
+      filename: "app.js",
+      lineno: 12,
+      colno: 34,
+      href: undefined,
+      userAgent: undefined,
+    });
+    const [eventName, attrs] = mockLogger.scopedLogger.error.mock.calls.at(-1) ?? [];
+    const transport = mockLogger.transports.diagnostic as unknown as (message: {
+      data: unknown[];
+      date: Date;
+      level: string;
+      scope?: string;
+    }) => void;
+    transport({ data: [eventName, attrs], date: new Date(), level: "error", scope: "renderer" });
+
     const events = readJsonl(getLogFilePath());
     expect(events.find((event) => event.event === "renderer.error")).toMatchObject({
       level: "error",
