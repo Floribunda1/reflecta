@@ -179,20 +179,19 @@ function DomainNode({
                 className="flex min-w-0 flex-1 items-center gap-1"
                 style={{ paddingLeft: `calc(${level} * 0.875rem)` }}
               >
+                {/* HTML 禁 button 套 button，折叠钮降为 span（鼠标语义保留，展开态由行按钮 aria-expanded 承担；键盘切换与嵌套前一致，均不可达） */}
                 {hasChildren ? (
-                  <button
-                    type="button"
+                  <span
                     data-testid="capture-domain-toggle"
                     data-domain-name={node.name}
-                    aria-label={expanded ? "折叠子领域" : "展开子领域"}
-                    className="flex size-6 shrink-0 items-center justify-center text-muted-foreground"
+                    className="flex size-6 shrink-0 cursor-pointer items-center justify-center text-muted-foreground"
                     onClick={(event) => {
                       event.stopPropagation();
                       onToggle(node.id);
                     }}
                   >
                     {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  </button>
+                  </span>
                 ) : (
                   <span className="size-6 shrink-0" />
                 )}
