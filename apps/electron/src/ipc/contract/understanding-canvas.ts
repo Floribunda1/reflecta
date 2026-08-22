@@ -152,6 +152,12 @@ export const CanvasGet = rpc(
   noCtx(S.NullOr(CanvasDetailDTO)),
   CanvasError,
 );
+export const CanvasListByIds = rpc(
+  "understandingCanvas.listCanvasesByIds",
+  S.Struct({ ids: S.Array(S.String) }),
+  S.Array(CanvasDetailDTO),
+  CanvasError,
+);
 export const CanvasCreate = rpc(
   "understandingCanvas.createCanvas",
   S.Struct({ input: S.optional(CreateCanvasInput) }),

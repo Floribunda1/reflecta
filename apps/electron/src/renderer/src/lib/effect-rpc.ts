@@ -68,6 +68,7 @@ export const rpc = {
   canvasListByUnderstanding: (understandingId: string) =>
     client["understandingCanvas.listCanvasesByUnderstanding"]({ understandingId }),
   canvasGet: (id: string) => client["understandingCanvas.getCanvas"]({ id }),
+  canvasListByIds: (ids: string[]) => client["understandingCanvas.listCanvasesByIds"]({ ids }),
   canvasCreate: (input?: import("../../../ipc").CreateCanvasInput) =>
     client["understandingCanvas.createCanvas"]({ input }),
   canvasUpdate: (id: string, input: import("../../../ipc").UpdateCanvasInput) =>

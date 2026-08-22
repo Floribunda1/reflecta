@@ -60,6 +60,11 @@ export const selectionAtom: Atom.Writable<string[], string[]> = Atom.keepAlive(
   Atom.make(initialCanvasState.selection),
 );
 
+/** 派生：文档是否为空（空态判断）。只暴露布尔，避免订阅方随每次拖拽/编辑重渲染。 */
+export const canvasIsEmptyAtom: Atom.Atom<boolean> = Atom.make(
+  (get) => get(documentAtom).elements.length === 0,
+);
+
 const runWith = <A, E>(effect: Effect.Effect<A, E, AtomRegistry.AtomRegistry>): A =>
   runAtom(effect);
 

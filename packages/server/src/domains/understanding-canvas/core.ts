@@ -212,6 +212,13 @@ export class CanvasCore {
     });
   }
 
+  /** 批量取画布详情（引用卡预览）：单次 IPC，服务端并发装配；不存在的 id 返回 null。 */
+  listCanvasesByIds(ids: string[]): Effect.Effect<Array<CanvasDetailDTO | null>> {
+    return Effect.forEach(ids, (id) => this.getCanvasDetail(id, { includeBodies: true }), {
+      concurrency: "unbounded",
+    });
+  }
+
   getCanvasDetail(
     id: string,
     options?: GetCanvasDetailOptions,

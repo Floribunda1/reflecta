@@ -45,18 +45,15 @@ export function useCanvasDetail(canvasId: string | null) {
   );
 }
 
-/** 引用画布卡的小型预览：一次性拉取所有被引用画布的详情（按 id 排序签名做 queryKey）。 */
+/** 引用画布卡的小型预览：单次批量 IPC 拉取所有被引用画布的详情（按 id 排序签名做 queryKey，
+ * 返回顺序与入参 refIds 一致，缺失画布为 null）。 */
 export function useReferencedCanvasPreviews(refIds: string[]) {
   const key = refIds.toSorted().join(",");
   return useQuery(
     effectQuery.queryOptions({
       queryKey: ["understandingCanvas.refPreviews", key] as const,
       queryFn: () =>
-        Effect.forEach(
-          refIds,
-          (id) => rpc.canvasGet(id).pipe(Effect.map((dto) => dto as CanvasDetailDTO | null)),
-          { concurrency: "unbounded" },
-        ),
+        rpc.canvasListByIds(refIds).pipe(Effect.map((rows) => rows as (CanvasDetailDTO | null)[])),
       enabled: refIds.length > 0,
     }),
   );

@@ -46,14 +46,20 @@ import {
   useUpdateViewportMutation,
 } from "../queries";
 import { useAtomSet, useAtomValue } from "@effect/atom-react";
-import { documentAtom, readCanvasState, selectionAtom, viewportAtom } from "../store";
+import {
+  documentAtom,
+  readCanvasState,
+  selectionAtom,
+  viewportAtom,
+  canvasIsEmptyAtom,
+} from "../store";
 import { CanvasDetailPanel } from "./CanvasDetailPanel";
 import { CanvasLibraryPanel } from "./CanvasLibraryPanel";
 import { CanvasRefPickerModal } from "./CanvasRefPickerModal";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { CanvasSearchOverlay, type CanvasSearchIndexItem } from "./CanvasSearchOverlay";
 import { newCanvasRefElement, newTextElement, newUnderstandingElement } from "./element-factory";
-import type { CanvasDocument, CanvasViewport } from "@reflecta/ui/canvas";
+import type { CanvasDocument, CanvasElementDTO, CanvasViewport } from "@reflecta/ui/canvas";
 import {
   buildCanvasSearchIndex,
   panelForSelection,
@@ -277,7 +283,6 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     }
   }, [initialDocument, setDocument]);
   const setSelection = useAtomSet(selectionAtom);
-  const currentDocument = useAtomValue(documentAtom);
 
   const saveCanvas = useSaveCanvasMutation();
   const updateViewport = useUpdateViewportMutation();
@@ -288,10 +293,17 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   const libraryOpen = rightPanel?.mode === "library";
 
   const queryClient = useQueryClient();
-  const refsRef = useLatest(new Map((detail?.understandingRefs ?? []).map((ref) => [ref.id, ref])));
-  const canvasRefsRef = useLatest(
-    new Map((detail?.referencedCanvases ?? []).map((ref) => [ref.id, ref])),
+  // 仅在保存回调查引用集合：useMemo 避免每渲染重建 Map，useLatest 保持回调内读到最新值
+  const refsMap = useMemo(
+    () => new Map((detail?.understandingRefs ?? []).map((ref) => [ref.id, ref])),
+    [detail],
   );
+  const canvasRefsMap = useMemo(
+    () => new Map((detail?.referencedCanvases ?? []).map((ref) => [ref.id, ref])),
+    [detail],
+  );
+  const refsRef = useLatest(refsMap);
+  const canvasRefsRef = useLatest(canvasRefsMap);
   const saveDocumentRef = useLatest(saveCanvas.mutateAsync);
   const saveViewportRef = useLatest(updateViewport.mutateAsync);
 
@@ -446,9 +458,11 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   );
 
   const [detailPanelKey, setDetailPanelKey] = useState<string>("");
-  const elementCount = useAtomValue(documentAtom).elements.length;
+  const isEmpty = useAtomValue(canvasIsEmptyAtom);
 
   // 搜索（M2-6）：⌘/Ctrl+F 打开浮层；选中结果定位到节点。
+  // 索引在打开瞬间从 store 快照构建（命令式读，不订阅 documentAtom——否则每次
+  // 图变更都会重渲染整个 Workspace）。
   const [searchOpen, setSearchOpen] = useState(false);
   const onSelectSearchResult = useCallback((id: string) => {
     setSearchOpen(false);
@@ -466,13 +480,23 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     () =>
       searchOpen
         ? buildCanvasSearchIndex(
-            currentDocument,
+            readCanvasState(documentAtom),
             new Map((detail?.understandingRefs ?? []).map((ref) => [ref.id, ref])),
             new Map((detail?.referencedCanvases ?? []).map((ref) => [ref.id, ref])),
           )
         : [],
-    [searchOpen, currentDocument, detail],
+    [searchOpen, detail],
   );
+
+  // 稳定引用：CanvasGraph 已 memo，内联箭头会让 memo 失效
+  const createElementForDrop = useCallback((source: CanvasElementDTO) => {
+    if (source.kind === "text") return newTextElement(source);
+    if (source.kind === "understanding" && source.understandingId)
+      return newUnderstandingElement(source.understandingId);
+    if (source.kind === "canvas_ref" && source.canvasRefId)
+      return newCanvasRefElement(source.canvasRefId);
+    return source;
+  }, []);
 
   useCanvasWorkspaceHotkeys(setSearchOpen);
 
@@ -499,14 +523,7 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
               viewportReady={!isLoading && Boolean(detail?.canvas)}
               canvasId={canvasId}
               shapeData={shapeData}
-              createElementForDrop={(source) => {
-                if (source.kind === "text") return newTextElement(source);
-                if (source.kind === "understanding" && source.understandingId)
-                  return newUnderstandingElement(source.understandingId);
-                if (source.kind === "canvas_ref" && source.canvasRefId)
-                  return newCanvasRefElement(source.canvasRefId);
-                return source;
-              }}
+              createElementForDrop={createElementForDrop}
               onDocumentChange={handleDocumentChange}
               onViewportChange={handleViewportChange}
               onSelectionChange={handleSelectionChange}
@@ -533,7 +550,7 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
 
             <CanvasSaveStatus saveStatus={saveStatus} onRetry={() => void retrySave()} />
 
-            {!isLoading && detail && elementCount === 0 ? <CanvasEmptyState /> : null}
+            {!isLoading && detail && isEmpty ? <CanvasEmptyState /> : null}
 
             <CanvasZoomControls
               className="absolute bottom-4 left-4"

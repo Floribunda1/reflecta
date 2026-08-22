@@ -14,6 +14,8 @@ export const understandingCanvas: HandlerModule = {
       understandingCanvasService.listCanvasesByUnderstanding(understandingId),
     "understandingCanvas.getCanvas": ({ id }) =>
       understandingCanvasService.getCanvasDetail(id, { includeBodies: true }),
+    "understandingCanvas.listCanvasesByIds": ({ ids }) =>
+      understandingCanvasService.listCanvasesByIds(ids),
     "understandingCanvas.createCanvas": ({ input }) =>
       understandingCanvasService.createCanvas(
         input as import("@reflecta/server").CreateCanvasInput | undefined,

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { BookOpen, FileText, Search, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@reflecta/ui/components/tooltip";
 import { Button } from "@reflecta/ui/components/button";
@@ -46,10 +46,12 @@ export function CanvasLibraryPanel({
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<UnderstandingListSortBy>("updatedAt");
 
+  // 防每键一次 IPC 查询：输入即时回显，查询用 deferred 值
+  const deferredSearch = useDeferredValue(searchQuery);
   const filterKey: UnderstandingListFilterKey = {
     selectedDomainId,
     includeDescendants: true,
-    searchQuery,
+    searchQuery: deferredSearch,
   };
   const { data: understandings, isLoading } = useCaptureUnderstandingList(filterKey);
   const sorted = useMemo(
