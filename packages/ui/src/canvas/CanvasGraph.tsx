@@ -25,7 +25,13 @@ import { Button } from "../components/button";
 import { cn } from "../lib/utils";
 import { ensureCanvasShapes } from "./nodes";
 import type { CanvasCellAction } from "./shape-context";
-import type { CanvasDocument, CanvasEdgeDTO, CanvasElementDTO, CanvasViewport } from "./document";
+import {
+  DEFAULT_CANVAS_VIEWPORT,
+  type CanvasDocument,
+  type CanvasEdgeDTO,
+  type CanvasElementDTO,
+  type CanvasViewport,
+} from "./document";
 import {
   applyEdgePresentation,
   applyElementUpdate,
@@ -410,9 +416,9 @@ export const CanvasGraph = React.memo(
 
     // 视口恢复：详情（viewport）就绪后应用一次。挂载时 detail 可能仍在加载
     // （viewportReady=false），挂载 effect 不会重跑；这里在 props 就绪后补应用。
-    // async:true 下渲染是异步的，立即 fitView 算不到内容 bbox（得到空 bbox 的
-    // 无操作布局）；推迟一帧再 fit/恢复。初始布局（fit 或 restore）不算用户操作，
-    // 不 emit，避免把默认布局当成用户视口存库。
+    // async:true 下渲染是异步的，立即 fitView 算不到内容 bbox；推迟一帧再 fit/恢复。
+    // 空图 zoomToFit 会拧偏 translate，Dnd 的 client→graph 落点就漂。无内容用默认视口。
+    // 初始布局不算用户操作，不 emit，避免把默认布局当成用户视口存库。
     useEffect(() => {
       const graph = graphRef.current;
       if (!graph || !viewportReady || viewportAppliedRef.current) return;
@@ -420,7 +426,8 @@ export const CanvasGraph = React.memo(
       const applyLayout = () => {
         suppressEmitRef.current = true;
         if (viewport) applyViewport(graph, viewport);
-        else graph.zoomToFit({ padding: 20, maxScale: 1 });
+        else if (graph.getCells().length > 0) graph.zoomToFit({ padding: 20, maxScale: 1 });
+        else applyViewport(graph, DEFAULT_CANVAS_VIEWPORT);
         suppressEmitRef.current = false;
       };
       requestAnimationFrame(applyLayout);

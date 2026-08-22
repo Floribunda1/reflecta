@@ -28,8 +28,8 @@ function newTextElement(): CanvasElementDTO {
     id: crypto.randomUUID(),
     canvasId: "story",
     parentId: null,
-    x: 120,
-    y: 120,
+    x: 0,
+    y: 0,
     width: 220,
     height: 120,
     zIndex: 1,
@@ -44,13 +44,11 @@ function newTextElement(): CanvasElementDTO {
 
 function WorkspaceShell({
   document,
-  empty = false,
   libraryOpen = false,
   searchOpen = false,
   saveStatus = "clean",
 }: {
   document: CanvasDocument;
-  empty?: boolean;
   libraryOpen?: boolean;
   searchOpen?: boolean;
   saveStatus?: "clean" | "dirty" | "saving" | "error";
@@ -60,6 +58,7 @@ function WorkspaceShell({
   const [search, setSearch] = useState(searchOpen);
   const [query, setQuery] = useState("");
   const [domainId, setDomainId] = useState("all");
+  const [isEmpty, setIsEmpty] = useState(document.elements.length === 0);
   const [sortBy, setSortBy] = useState<CanvasLibrarySortBy>("updatedAt");
   const [status, setStatus] = useState(saveStatus);
   const items = useMemo(() => {
@@ -76,18 +75,29 @@ function WorkspaceShell({
           document={document}
           viewportReady
           shapeData={typicalShapeData}
-          createElementForDrop={(source) => ({ ...source, id: crypto.randomUUID() })}
+          createElementForDrop={(source) => ({
+            ...source,
+            id: crypto.randomUUID(),
+            x: 0,
+            y: 0,
+          })}
+          onDocumentChange={(next) => setIsEmpty(next.elements.length === 0)}
           className="absolute inset-0"
         />
         <div className="absolute top-3 left-3 z-20 flex items-center gap-1 rounded-md border bg-background/90 p-1 shadow-sm">
           <CanvasTextTool
             onStartDrag={(event) => graphRef.current?.startDrag(newTextElement(), event)}
-            onClick={() => graphRef.current?.addElement(newTextElement())}
+            onClick={() => {
+              const text = newTextElement();
+              text.x = 120;
+              text.y = 120;
+              graphRef.current?.addElement(text);
+            }}
           />
           <CanvasUnderstandingTool open={library} onClick={() => setLibrary((open) => !open)} />
         </div>
         <CanvasSaveStatus saveStatus={status} onRetry={() => setStatus("clean")} />
-        {empty ? <CanvasEmptyState /> : null}
+        {isEmpty ? <CanvasEmptyState /> : null}
         <CanvasZoomControls
           className="absolute bottom-4 left-4 z-20"
           onZoomIn={() => graphRef.current?.zoomIn()}
@@ -201,7 +211,7 @@ function CanvasCompositionShowcase() {
           {
             title: "空工作区",
             description: "空态、文本工具、理解库入口和缩放控件同时出现。",
-            content: <WorkspaceShell document={EMPTY_CANVAS_DOCUMENT} empty />,
+            content: <WorkspaceShell document={EMPTY_CANVAS_DOCUMENT} />,
           },
           {
             title: "有内容的工作区",
