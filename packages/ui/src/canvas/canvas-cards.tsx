@@ -44,14 +44,17 @@ function nodeStateClass(selected: boolean, paint?: string) {
   );
 }
 
-/** 有 paint 时：border、hover/selected ring 与卡片背景都取该色（背景混入少量色彩）。 */
-function nodeColorStyle(color?: string): CSSProperties | undefined {
+/**
+ * 有 paint 时：border / ring 用该色；背景在不透明底色上混入 10%，避免整张卡变透。
+ * 卡片底是 `--card`，组外壳底是 `--muted`。
+ */
+function nodeColorStyle(color?: string, fill = "var(--card)"): CSSProperties | undefined {
   const paint = canvasPaintColor(color);
   if (!paint) return undefined;
   return {
     borderColor: paint,
     ["--tw-ring-color" as string]: paint,
-    backgroundColor: `color-mix(in oklch, ${paint} 10%, var(--card))`,
+    backgroundColor: `color-mix(in oklch, ${paint} 10%, ${fill})`,
   };
 }
 
@@ -349,11 +352,11 @@ export function CanvasGroupCard({
             data-node-id={id}
             data-group-label={label}
             className={cn(
-              "group/canvas-node relative h-full w-full flex-col rounded-lg border bg-muted/40",
+              "group/canvas-node relative h-full w-full overflow-visible rounded-lg border bg-muted",
               "focus-visible:outline-none",
               nodeStateClass(selected, color),
             )}
-            style={nodeColorStyle(color)}
+            style={nodeColorStyle(color, "var(--muted)")}
           />
         }
       >
@@ -407,11 +410,8 @@ export function CanvasGroupCard({
           </CanvasNodeActionBar>
           <div
             data-testid="canvas-group-label"
-            className="absolute top-1.5 left-1.5 z-10 flex max-w-[calc(100%-1rem)] cursor-text items-center gap-1 rounded-md px-1.5 py-0.5 text-xs shadow-sm"
-            style={{
-              color: canvasPaintColor(color),
-              backgroundColor: "var(--muted)",
-            }}
+            className="absolute bottom-full left-0 mb-1 z-10 flex max-w-[calc(100%-1rem)] cursor-text items-center gap-1 rounded-md border bg-background px-1.5 py-0.5 text-xs shadow-sm"
+            style={color ? { color: canvasPaintColor(color) } : undefined}
             onDoubleClick={readonly ? undefined : startEditing}
           >
             <PackageOpen size={12} className="shrink-0" />

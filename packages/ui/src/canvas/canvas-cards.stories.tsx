@@ -31,7 +31,7 @@ function CanvasCardsShowcase() {
           },
           {
             title: "组",
-            description: "含成员的命名组、未命名组、长名称着色组。双击组名可编辑。",
+            description: "含成员的命名组、未命名组、长名称着色组。组名在框外，双击可编辑。",
             content: <InteractiveGraph document={groupCardsDocument} height="h-[320px]" />,
           },
           {

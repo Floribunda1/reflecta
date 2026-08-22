@@ -166,6 +166,15 @@ export function ensureCanvasShapes(): void {
     };
   register({ shape: "understanding", component: guard(UnderstandingShape) });
   register({ shape: "text", component: guard(TextShape) });
-  register({ shape: "group", component: guard(GroupShape) });
+  // 组名徽章在节点框外，foreignObject 必须溢出可见，否则会被裁掉。
+  register({
+    shape: "group",
+    component: guard(GroupShape),
+    attrs: {
+      fo: { refWidth: "100%", refHeight: "100%", style: { overflow: "visible" } },
+      foBody: { style: { overflow: "visible", height: "100%", width: "100%" } },
+      foContent: { style: { overflow: "visible", height: "100%", width: "100%" } },
+    },
+  });
   register({ shape: "canvas_ref", component: guard(CanvasRefShape) });
 }
