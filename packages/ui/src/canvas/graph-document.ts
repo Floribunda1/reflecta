@@ -48,7 +48,7 @@ function edgeLabelItems(label: string | null) {
     ? [
         {
           attrs: {
-            body: { fill: "transparent", stroke: "none" },
+            body: { fill: "var(--background)", stroke: "none" },
             label: { text: label, fill: "var(--foreground)", fontSize: 12 },
           },
         },
