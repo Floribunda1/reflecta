@@ -63,57 +63,18 @@ function onSelectionChange(cellIds: string[]) {
   dispatchCanvasAction({ type: "selection/changed", cellIds });
 }
 
-const CanvasGraphMount = memo(function CanvasGraphMount({
+function CanvasPersistenceRuntime({
   canvasId,
   graphRef,
-  shapeData,
+  refsRef,
+  canvasRefsRef,
 }: {
   canvasId: string;
   graphRef: RefObject<CanvasGraphHandle | null>;
-  shapeData: CanvasShapeData;
+  refsRef: { readonly current: ReadonlyMap<string, unknown> };
+  canvasRefsRef: { readonly current: ReadonlyMap<string, unknown> };
 }) {
-  const snapshot = useAtomValue(canvasSnapshotAtom);
-  return (
-    <CanvasGraph
-      key={canvasId}
-      ref={graphRef}
-      document={snapshot?.document ?? null}
-      viewport={snapshot?.viewport ?? null}
-      viewportReady={Boolean(snapshot)}
-      canvasId={canvasId}
-      shapeData={shapeData}
-      createElementForDrop={createElementForDrop}
-      onDocumentChange={onDocumentChange}
-      onViewportChange={onViewportChange}
-      onSelectionChange={onSelectionChange}
-      className="absolute inset-0"
-    />
-  );
-});
-
-/**
- * 画布工作区宿主：拉详情、注册副作用运行时、水合快照。
- * 会话态只经 dispatch；chrome 叶子各自订阅切片 atom，避免拖拽重渲染整页。
- */
-export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
-  const navigateToCanvas = useNavigateToCanvas();
-  const { openModal, closeModal } = useModal();
-  const { data: detail } = useCanvasDetail(canvasId);
-  const canvas = detail?.canvas ?? null;
-  const graphRef = useRef<CanvasGraphHandle>(null);
   const queryClient = useQueryClient();
-
-  const refsMap = useMemo(
-    () => new Map((detail?.understandingRefs ?? []).map((ref) => [ref.id, ref])),
-    [detail],
-  );
-  const canvasRefsMap = useMemo(
-    () => new Map((detail?.referencedCanvases ?? []).map((ref) => [ref.id, ref])),
-    [detail],
-  );
-  const refsRef = useLatest(refsMap);
-  const canvasRefsRef = useLatest(canvasRefsMap);
-
   const saveCanvas = useSaveCanvasMutation();
   const updateViewport = useUpdateViewportMutation();
   const saveDocumentRef = useLatest(saveCanvas.mutateAsync);
@@ -182,7 +143,60 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
       provideCanvasEffects(null);
       queryClient.removeQueries({ queryKey: canvasQueryKeys.detail(canvasId) });
     };
-  }, [canvasId, documentSaver, queryClient, viewportSaver]);
+  }, [canvasId, canvasRefsRef, documentSaver, graphRef, queryClient, refsRef, viewportSaver]);
+
+  return null;
+}
+
+const CanvasGraphMount = memo(function CanvasGraphMount({
+  canvasId,
+  graphRef,
+  shapeData,
+}: {
+  canvasId: string;
+  graphRef: RefObject<CanvasGraphHandle | null>;
+  shapeData: CanvasShapeData;
+}) {
+  const snapshot = useAtomValue(canvasSnapshotAtom);
+  return (
+    <CanvasGraph
+      key={canvasId}
+      ref={graphRef}
+      document={snapshot?.document ?? null}
+      viewport={snapshot?.viewport ?? null}
+      viewportReady={Boolean(snapshot)}
+      canvasId={canvasId}
+      shapeData={shapeData}
+      createElementForDrop={createElementForDrop}
+      onDocumentChange={onDocumentChange}
+      onViewportChange={onViewportChange}
+      onSelectionChange={onSelectionChange}
+      className="absolute inset-0"
+    />
+  );
+});
+
+/**
+ * 画布工作区宿主：拉详情、注册副作用运行时、水合快照。
+ * 会话态只经 dispatch；chrome 叶子各自订阅切片 atom，避免拖拽重渲染整页。
+ */
+export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
+  const navigateToCanvas = useNavigateToCanvas();
+  const { openModal, closeModal } = useModal();
+  const { data: detail } = useCanvasDetail(canvasId);
+  const canvas = detail?.canvas ?? null;
+  const graphRef = useRef<CanvasGraphHandle>(null);
+
+  const refsMap = useMemo(
+    () => new Map((detail?.understandingRefs ?? []).map((ref) => [ref.id, ref])),
+    [detail],
+  );
+  const canvasRefsMap = useMemo(
+    () => new Map((detail?.referencedCanvases ?? []).map((ref) => [ref.id, ref])),
+    [detail],
+  );
+  const refsRef = useLatest(refsMap);
+  const canvasRefsRef = useLatest(canvasRefsMap);
 
   useEffect(() => {
     if (!detail?.canvas) return;
@@ -255,6 +269,12 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
       data-testid="canvas-workspace"
       className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background"
     >
+      <CanvasPersistenceRuntime
+        canvasId={canvasId}
+        graphRef={graphRef}
+        refsRef={refsRef}
+        canvasRefsRef={canvasRefsRef}
+      />
       <CanvasSearchHotkeys />
       <CanvasToolbar canvas={canvas} onExportPng={() => void graphRef.current?.exportPng()} />
 
