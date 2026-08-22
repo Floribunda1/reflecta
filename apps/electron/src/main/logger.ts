@@ -1,6 +1,12 @@
 import log from "electron-log/main";
 import { app, ipcMain } from "electron";
-import type { DiagnosticLevel, DiagnosticScope, DiagnosticEventInput } from "./diagnostic-log";
+import { Context, Logger, References } from "effect";
+import type {
+  DiagnosticContext,
+  DiagnosticLevel,
+  DiagnosticScope,
+  DiagnosticEventInput,
+} from "./diagnostic-log";
 import { DiagnosticLog, diagnosticErrorAttrs } from "./diagnostic-log";
 import { getAppConfigDir, getReflectaProfile } from "./config";
 
@@ -57,6 +63,26 @@ function diagnosticLevel(level: string): DiagnosticLevel {
   return "info";
 }
 
+function configuredLogLevel(): DiagnosticLevel {
+  const configured = process.env.REFLECTA_LOG_LEVEL?.toLowerCase();
+  if (
+    configured === "debug" ||
+    configured === "info" ||
+    configured === "warn" ||
+    configured === "error"
+  ) {
+    return configured;
+  }
+  return isDevRuntime() ? "debug" : "info";
+}
+
+const LOG_LEVEL_ORDER: Record<DiagnosticLevel, number> = {
+  debug: 10,
+  info: 20,
+  warn: 30,
+  error: 40,
+};
+
 function diagnosticScope(scope: string | undefined): DiagnosticScope {
   if (
     scope === "app" ||
@@ -77,7 +103,22 @@ function attrsFromData(data: unknown[]): Record<string, unknown> | undefined {
   return { data };
 }
 
+const EFFECT_LOG_PAYLOAD = Symbol("reflecta.effect-log-payload");
+
+type EffectLogPayload = {
+  [EFFECT_LOG_PAYLOAD]: true;
+  context?: DiagnosticContext;
+  attrs?: Record<string, unknown>;
+};
+
+function effectLogPayload(data: unknown[]): EffectLogPayload | undefined {
+  if (data.length !== 1 || !isRecord(data[0])) return undefined;
+  const value = data[0] as Record<PropertyKey, unknown>;
+  return value[EFFECT_LOG_PAYLOAD] === true ? (value as EffectLogPayload) : undefined;
+}
+
 export function writeDiagnosticEvent(event: DiagnosticEventInput): void {
+  if (LOG_LEVEL_ORDER[event.level] < LOG_LEVEL_ORDER[configuredLogLevel()]) return;
   try {
     getDiagnosticLog().write(event);
   } catch {
@@ -156,55 +197,97 @@ function installRendererErrorLogging() {
   });
 }
 
-function createScopedLog(scope: DiagnosticScope) {
-  const write = (level: DiagnosticLevel, eventName: string, ...data: unknown[]) => {
-    writeDiagnosticEvent({
-      level,
-      event: eventName,
-      scope,
-      message: eventName,
-      attrs: attrsFromData(data),
-    });
-  };
-  return {
-    debug: (eventName: string, ...data: unknown[]) => write("debug", eventName, ...data),
-    error: (eventName: string, ...data: unknown[]) => write("error", eventName, ...data),
-    info: (eventName: string, ...data: unknown[]) => write("info", eventName, ...data),
-    warn: (eventName: string, ...data: unknown[]) => write("warn", eventName, ...data),
-  };
-}
-
-function createElectronDiagnosticTransport() {
+function createElectronDiagnosticTransport(level: DiagnosticLevel) {
   const transport = Object.assign(
     (message: { data: unknown[]; date: Date; level: string; scope?: string }) => {
       const [first, ...rest] = message.data;
       const eventName = typeof first === "string" ? first : "electron.log";
       const scope = diagnosticScope(message.scope);
+      const payload = effectLogPayload(typeof first === "string" ? rest : message.data);
       writeDiagnosticEvent({
         ts: message.date.toISOString(),
         level: diagnosticLevel(message.level),
         event: eventName.startsWith(`${scope}.`) ? eventName : `${scope}.${eventName}`,
         scope,
         message: eventName,
-        attrs: attrsFromData(typeof first === "string" ? rest : message.data),
+        context: payload?.context,
+        attrs: payload?.attrs ?? attrsFromData(typeof first === "string" ? rest : message.data),
       });
     },
-    { level: "debug" as const, transforms: [] },
+    { level, transforms: [] },
   );
   return transport;
+}
+
+const EFFECT_CONTEXT_KEYS = [
+  "requestId",
+  "traceId",
+  "sessionId",
+  "runId",
+  "messageId",
+  "toolCallId",
+] as const;
+
+const effectLogger = Logger.make<unknown, void>((options) => {
+  const entry = Logger.formatStructured.log(options);
+  const annotations = { ...entry.annotations };
+  const scope = diagnosticScope(
+    typeof annotations.scope === "string" ? annotations.scope : undefined,
+  );
+  delete annotations.scope;
+  const context: DiagnosticContext = {};
+  for (const key of EFFECT_CONTEXT_KEYS) {
+    if (typeof annotations[key] === "string") context[key] = annotations[key];
+    delete annotations[key];
+  }
+  const eventName = typeof entry.message === "string" ? entry.message : "effect.log";
+  const attrs: Record<string, unknown> = {
+    ...annotations,
+    ...entry.spans,
+    ...(typeof entry.message === "string" ? {} : { data: entry.message }),
+    ...(entry.cause ? { "error.cause": entry.cause } : {}),
+  };
+  const payload: EffectLogPayload = {
+    [EFFECT_LOG_PAYLOAD]: true,
+    context: Object.keys(context).length > 0 ? context : undefined,
+    attrs: Object.keys(attrs).length > 0 ? attrs : undefined,
+  };
+  const scoped = log.scope(scope);
+  if (entry.level === "DEBUG" || entry.level === "TRACE") scoped.debug(eventName, payload);
+  else if (entry.level === "WARN") scoped.warn(eventName, payload);
+  else if (entry.level === "ERROR" || entry.level === "FATAL") scoped.error(eventName, payload);
+  else scoped.info(eventName, payload);
+});
+
+export function getEffectLoggingContext() {
+  const level = configuredLogLevel();
+  return Context.empty().pipe(
+    Context.add(Logger.CurrentLoggers, new Set([effectLogger])),
+    Context.add(
+      References.MinimumLogLevel,
+      level === "debug"
+        ? "Debug"
+        : level === "warn"
+          ? "Warn"
+          : level === "error"
+            ? "Error"
+            : "Info",
+    ),
+  );
 }
 
 export function initializeLogging() {
   if (initialized) return;
   initialized = true;
 
+  const level = configuredLogLevel();
   log.initialize({ preload: false, spyRendererConsole: false });
   log.scope.labelPadding = false;
   log.transports.file.level = false;
   log.transports.file.setAppName(getLogAppName());
-  log.transports.console.level = isDevRuntime() ? "debug" : "info";
+  log.transports.console.level = level;
   log.transports.console.format = "[{y}-{m}-{d} {h}:{i}:{s}.{ms}] {level}{scope} {text}";
-  log.transports.diagnostic = createElectronDiagnosticTransport();
+  log.transports.diagnostic = createElectronDiagnosticTransport(level);
   log.errorHandler.startCatching({ showDialog: false });
   log.eventLogger.startLogging({ level: "warn", scope: "electron" });
   installFallbackErrorLogging();
@@ -226,6 +309,6 @@ export function initializeLogging() {
   });
 }
 
-export const appLog = createScopedLog("app");
-export const agentLog = createScopedLog("agent");
-export const ipcLog = createScopedLog("ipc");
+export const appLog = log.scope("app");
+export const agentLog = log.scope("agent");
+export const ipcLog = log.scope("ipc");

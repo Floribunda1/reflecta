@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Logger, References } from "effect";
 import { describe, expect, test } from "vitest";
 import { guardIpcHandlers, rpcGuard } from "./rpc-guard";
 
@@ -60,55 +60,93 @@ describe("rpcGuard（全局错误兜底，对齐 @ControllerAdvice）", () => {
 
 type Handler = (input: unknown, context: unknown) => Effect.Effect<unknown, unknown, never>;
 
+function captureLogs<A, E>(program: Effect.Effect<A, E, never>) {
+  const entries: Array<ReturnType<typeof Logger.formatStructured.log>> = [];
+  const logger = Logger.make((options) => entries.push(Logger.formatStructured.log(options)));
+  return {
+    entries,
+    program: program.pipe(
+      Effect.provideService(References.MinimumLogLevel, "Debug"),
+      Effect.provide(Logger.layer([logger])),
+    ),
+  };
+}
+
 describe("guardIpcHandlers（请求摘要，Spring filter 语义）", () => {
-  test("成功调用上报 ok + elapsed", async () => {
-    const calls: Array<{ name: string; ok: boolean }> = [];
+  test("成功调用只记录一条带 requestId 的摘要", async () => {
     const handlers: Record<string, Handler> = {
       "understandingCanvas.getCanvas": () => Effect.succeed({ ok: 1 }),
     };
-    const guarded = guardIpcHandlers(
-      handlers,
-      () => toContract,
-      (name, _ms, ok) => calls.push({ name, ok }),
-    );
-    await Effect.runPromise(guarded["understandingCanvas.getCanvas"]({}, {}));
-    expect(calls).toEqual([{ name: "understandingCanvas.getCanvas", ok: true }]);
+    const guarded = guardIpcHandlers(handlers, () => toContract);
+    const { entries, program } = captureLogs(guarded["understandingCanvas.getCanvas"]({}, {}));
+
+    await Effect.runPromise(program);
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      level: "DEBUG",
+      message: "ipc.request.completed",
+      annotations: {
+        "ipc.method": "understandingCanvas.getCanvas",
+        ok: true,
+      },
+    });
+    expect(entries[0].annotations.requestId).toEqual(expect.any(String));
+    expect(entries[0].annotations.durationMs).toEqual(expect.any(Number));
   });
 
-  test("失败调用上报 fail + 原因，错误原样抛给契约", async () => {
-    const calls: Array<{ name: string; ok: boolean; reason?: string }> = [];
+  test("失败调用只记录一条摘要，错误原样抛给契约", async () => {
     const handlers: Record<string, Handler> = {
       "understandingCanvas.saveCanvas": () => Effect.fail(new Error("boom")),
     };
-    const guarded = guardIpcHandlers(
-      handlers,
-      () => toContract,
-      (name, _ms, ok, reason) => calls.push({ name, ok, reason }),
-    );
+    const guarded = guardIpcHandlers(handlers, () => toContract);
+    const { entries, program } = captureLogs(guarded["understandingCanvas.saveCanvas"]({}, {}));
     let caught: unknown;
     try {
-      await Effect.runPromise(guarded["understandingCanvas.saveCanvas"]({}, {}));
+      await Effect.runPromise(program);
     } catch (error) {
       caught = error;
     }
-    expect(calls).toHaveLength(1);
-    expect(calls[0].name).toBe("understandingCanvas.saveCanvas");
-    expect(calls[0].ok).toBe(false);
-    expect(String(calls[0].reason)).toContain("boom");
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      level: "ERROR",
+      message: "ipc.request.failed",
+      annotations: {
+        "ipc.method": "understandingCanvas.saveCanvas",
+        ok: false,
+      },
+    });
+    expect(String(entries[0].annotations.reason)).toContain("boom");
     expect((caught as { reason?: string }).reason).toContain("boom");
   });
 
-  test("未映射域原样透传且不上报", async () => {
-    const calls: Array<{ name: string }> = [];
+  test("未映射域也记录请求摘要", async () => {
     const handlers: Record<string, Handler> = {
       "about.getVersionInfo": () => Effect.succeed("1.0"),
     };
-    const guarded = guardIpcHandlers(
-      handlers,
-      () => undefined,
-      (name) => calls.push({ name }),
-    );
-    await Effect.runPromise(guarded["about.getVersionInfo"]({}, {}));
-    expect(calls).toHaveLength(0);
+    const guarded = guardIpcHandlers(handlers, () => undefined);
+    const { entries, program } = captureLogs(guarded["about.getVersionInfo"]({}, {}));
+
+    await Effect.runPromise(program);
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0].annotations["ipc.method"]).toBe("about.getVersionInfo");
+  });
+
+  test("requestId 自动传播到 handler 内部日志", async () => {
+    const handlers: Record<string, Handler> = {
+      "about.getVersionInfo": () => Effect.logInfo("service.event").pipe(Effect.as("1.0")),
+    };
+    const guarded = guardIpcHandlers(handlers, () => undefined);
+    const { entries, program } = captureLogs(guarded["about.getVersionInfo"]({}, {}));
+
+    await Effect.runPromise(program);
+
+    const serviceEntry = entries.find((entry) => entry.message === "service.event");
+    expect(serviceEntry?.annotations).toMatchObject({
+      "ipc.method": "about.getVersionInfo",
+      requestId: expect.any(String),
+    });
   });
 });

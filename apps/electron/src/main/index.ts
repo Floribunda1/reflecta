@@ -1,12 +1,11 @@
 import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 import { app, BrowserWindow, ipcMain, nativeTheme, shell } from "electron";
-import { Context } from "effect";
 import { merge } from "lodash-es";
 import "./services";
 import { initializeDB } from "./db";
 import { parseMigrationVersion, compareVersions } from "@reflecta/server";
 import { registerAssetScheme, handleAssetProtocol } from "./assetProtocol";
-import { APP_NAME, appLog, initializeLogging } from "./logger";
+import { APP_NAME, appLog, getEffectLoggingContext, initializeLogging, ipcLog } from "./logger";
 import { preloadScript, rendererHtml } from "./paths";
 import { retrievalEmbeddingRunner } from "./retrievalEmbeddingRunner";
 import { retrievalIndexCoordinator } from "./retrievalIndexCoordinator";
@@ -184,26 +183,25 @@ app.whenReady().then(async () => {
     {},
     ...handlerModules.map((module) => module.handlers),
   ) as Record<string, HandlerLike>;
-  // 请求日志（Spring MVC filter 语义）：成功=debug 摘要（method+耗时），失败=error（method+耗时+原因）。
-  // 业务层保持零日志；关键业务事件（创建/保存/删除）由 handler 编排层打 info。
   const guardedHandlers = guardIpcHandlers(
     ipcHandlers,
     (name) => DOMAIN_IPC_ERROR[name.split(".")[0]],
-    (name, elapsedMs, ok, reason) => {
-      if (ok) {
-        appLog.debug(`ipc.${name}`, { ms: Math.round(elapsedMs), ok: true });
-      } else {
-        appLog.error(`ipc.${name}.failed`, { ms: Math.round(elapsedMs), reason });
-      }
-    },
   );
   // 整个 options 过一次 as unknown as（R=never 仅存在于调用上下文，静态取不到）；
   // 运行时不变，仅让 handlers 经 guardIpcHandlers 包裹后通过契约类型。
   const appMain = appIpc.main({
     ipcMain,
     handlers: guardedHandlers,
-    context: Context.empty(),
+    context: getEffectLoggingContext(),
     getWindows: () => BrowserWindow.getAllWindows(),
+    diagnostics: {
+      rpc: {
+        onDecodeFailure: (details: Record<string, unknown>) =>
+          ipcLog.error("ipc.request.decode-failed", details),
+        onProtocolError: (details: Record<string, unknown>) =>
+          ipcLog.error("ipc.response.encode-failed", details),
+      },
+    },
   } as unknown as Parameters<typeof appIpc.main>[0]);
   appMain.start();
   app.once("before-quit", () => {

@@ -13,6 +13,7 @@ import type { AboutVersionInfo, UpdateCheckFinishedPayload } from "@shared/updat
 import { UPDATE_CHECK_FINISHED_CHANNEL } from "@shared/update";
 import { renderError } from "@renderer/lib/errors";
 
+const DIAGNOSTIC_RENDERER_ERROR_CHANNEL = "diagnostic:renderer-error";
 const PROJECT_URL = "https://github.com/Floribunda1/reflecta";
 const RELEASES_URL = `${PROJECT_URL}/releases`;
 
@@ -51,7 +52,12 @@ export function AboutSection() {
       setLoadFailed(false);
     } catch (error) {
       setLoadFailed(true);
-      console.error("[About] load version info failed", error);
+      window.ipcRenderer?.send(DIAGNOSTIC_RENDERER_ERROR_CHANNEL, {
+        source: "about.version-info",
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        href: window.location.href,
+      });
     }
   }, []);
 

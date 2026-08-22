@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { Effect } from "effect";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 const mockElectron = vi.hoisted(() => ({
@@ -20,6 +21,7 @@ const mockLogger = vi.hoisted(() => {
     warn: vi.fn(),
   };
   return {
+    scopedLogger,
     initialize: vi.fn(),
     scope: Object.assign(
       vi.fn(() => scopedLogger),
@@ -67,6 +69,8 @@ vi.mock("electron", () => ({
 vi.mock("electron-log/main", () => ({ default: mockLogger }));
 
 const originalArgv = process.argv;
+const originalNodeEnv = process.env.NODE_ENV;
+const originalLogLevel = process.env.REFLECTA_LOG_LEVEL;
 const roots: string[] = [];
 
 function tempRoot() {
@@ -105,10 +109,16 @@ beforeEach(() => {
   mockLogger.transports.diagnostic = undefined;
   mockElectron.isPackaged = false;
   process.argv = ["electron", "app"];
+  process.env.NODE_ENV = originalNodeEnv;
+  if (originalLogLevel === undefined) delete process.env.REFLECTA_LOG_LEVEL;
+  else process.env.REFLECTA_LOG_LEVEL = originalLogLevel;
 });
 
 afterEach(() => {
   process.argv = originalArgv;
+  process.env.NODE_ENV = originalNodeEnv;
+  if (originalLogLevel === undefined) delete process.env.REFLECTA_LOG_LEVEL;
+  else process.env.REFLECTA_LOG_LEVEL = originalLogLevel;
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -158,6 +168,77 @@ describe("Electron logging profile", () => {
     initializeLogging();
 
     expect(mockLogger.transports.file.setAppName).toHaveBeenCalledWith("Reflecta");
+  });
+
+  test("routes scoped logs through console and diagnostic transports at the configured level", async () => {
+    useRuntimeRoots(tempRoot());
+    process.env.NODE_ENV = "development";
+    process.env.REFLECTA_LOG_LEVEL = "warn";
+    const { appLog, initializeLogging } = await import("./logger");
+
+    initializeLogging();
+    appLog.warn("app.test", { ok: true });
+
+    expect(mockLogger.transports.console.level).toBe("warn");
+    expect((mockLogger.transports.diagnostic as { level: string }).level).toBe("warn");
+    expect(mockLogger.scope).toHaveBeenCalledWith("app");
+    expect(mockLogger.scopedLogger.warn).toHaveBeenCalledWith("app.test", { ok: true });
+  });
+
+  test("filters direct diagnostic events below the configured level", async () => {
+    useRuntimeRoots(tempRoot());
+    process.env.REFLECTA_LOG_LEVEL = "info";
+    const { getLogFilePath, writeDiagnosticEvent } = await import("./logger");
+
+    writeDiagnosticEvent({ level: "debug", event: "app.hidden", scope: "app" });
+    writeDiagnosticEvent({ level: "info", event: "app.visible", scope: "app" });
+
+    expect(readJsonl(getLogFilePath()).map((event) => event.event)).toEqual(["app.visible"]);
+  });
+
+  test("forwards Effect log annotations as diagnostic context", async () => {
+    const appConfigRoot = tempRoot();
+    useRuntimeRoots(appConfigRoot);
+    process.env.NODE_ENV = "development";
+    const { getEffectLoggingContext, getLogFilePath, initializeLogging } = await import("./logger");
+    initializeLogging();
+
+    await Effect.runPromiseWith(getEffectLoggingContext())(
+      Effect.logInfo("service.event").pipe(
+        Effect.annotateLogs({
+          scope: "ipc",
+          requestId: "req-1",
+          "ipc.method": "about.getVersionInfo",
+        }),
+      ),
+    );
+
+    expect(mockLogger.scope).toHaveBeenCalledWith("ipc");
+    const call = mockLogger.scopedLogger.info.mock.calls.at(-1);
+    expect(call?.[0]).toBe("service.event");
+    expect(call?.[1]).toMatchObject({
+      context: { requestId: "req-1" },
+      attrs: { "ipc.method": "about.getVersionInfo" },
+    });
+    const payload = call?.[1];
+    const transport = mockLogger.transports.diagnostic as unknown as (message: {
+      data: unknown[];
+      date: Date;
+      level: string;
+      scope?: string;
+    }) => void;
+    transport({
+      data: ["service.event", payload],
+      date: new Date("2026-08-22T12:00:00.000Z"),
+      level: "info",
+      scope: "ipc",
+    });
+    expect(readJsonl(getLogFilePath()).at(-1)).toMatchObject({
+      event: "ipc.service.event",
+      scope: "ipc",
+      context: { requestId: "req-1" },
+      attrs: { "ipc.method": "about.getVersionInfo" },
+    });
   });
 
   test("writes fallback errors as diagnostic log events", async () => {

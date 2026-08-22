@@ -421,9 +421,8 @@ async function generateAgentThreadTitle(
     providerId: modelConfig.provider.id,
     modelId: modelConfig.model.id,
     stopReason: response.stopReason,
-    rawTitle: text,
     rawTitleLength: text.length,
-    normalizedTitle: title,
+    normalizedTitleLength: title.length,
   });
   return title;
 }
@@ -723,9 +722,7 @@ export class PiAgentHost {
     const title = generatedTitle === "新对话" ? fallbackTitle : generatedTitle;
     agentLog.info("title.persist.result", {
       sessionId,
-      fallbackTitle,
-      generatedTitle,
-      finalTitle: title,
+      finalTitleLength: title.length,
       ignoredGenericTitle: generatedTitle === "新对话",
       usedFallback: title === fallbackTitle && generatedTitle !== fallbackTitle,
     });

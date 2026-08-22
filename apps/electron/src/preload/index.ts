@@ -93,7 +93,7 @@ if (process.contextIsolated) {
     // Effect IPC bridge（electron-effect-rpc）—— 暴露 window.api（app 级，含各域）
     appIpc.preload({ electronModule: { contextBridge, ipcRenderer } }).expose();
   } catch (error) {
-    console.error(error);
+    sendRendererError(rendererErrorPayload("preload.expose", error));
   }
 } else {
   // @ts-expect-error (define in dts)

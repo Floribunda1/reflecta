@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Effect } from "effect";
 import { Cause, Option } from "effect";
 
@@ -9,15 +10,13 @@ import { Cause, Option } from "effect";
  * - 已知失败（message 或 reason 字段的错误对象）→ `toContract(原文)`。
  * - 未知 / defect → `toContract("操作失败：<cause>")`。
  * - 超过 timeoutMs 未完成 → `toContract("操作超时")`。
- * - 每次失败回调 onLog（供 main 接入 appLog：dev 走 console、prod 落文件、e2e 经 stdout 捕获）。
  */
 export const rpcGuard =
   <ContractError>(
     toContract: (reason: string) => ContractError,
-    options: { timeoutMs?: number; onLog?: (text: string) => void } = {},
+    options: { timeoutMs?: number } = {},
   ) =>
   <A, E, R>(program: Effect.Effect<A, E, R>): Effect.Effect<A, ContractError, R> => {
-    const log = options.onLog ?? (() => {});
     const resolveReason = (cause: Cause.Cause<unknown>): ContractError => {
       const value = Option.match(Cause.findErrorOption(cause), {
         onNone: () => null,
@@ -36,22 +35,13 @@ export const rpcGuard =
         duration: options.timeoutMs ?? 30_000,
         orElse: () => Effect.fail(toContract("操作超时")),
       }),
-      Effect.catchCause((cause) =>
-        Effect.sync(() => log(`rpc-unhandled ${Cause.squash(cause)}`)).pipe(
-          Effect.flatMap(() => Effect.fail(resolveReason(cause))),
-        ),
-      ),
+      Effect.catchCause((cause) => Effect.fail(resolveReason(cause))),
     );
   };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type HandlerLike = (input: any, context: any) => Effect.Effect<unknown, any, never>;
 
-/**
- * 请求摘要回调（Spring MVC filter 语义）：每个被守卫的 IPC 调用记一条
- * `(method, elapsedMs, ok, reason?)`——成功与否都由框架层统一记录，
- * 业务层零日志；失败带原因（含 defect/超时的原文）。由组合根接入 appLog。
- */
 /** 失败摘要文本（与 rpcGuard 归一同源）：契约错误的 reason → 错误对象 message → squash 原文。 */
 export function causeToText(cause: Cause.Cause<unknown>): string {
   const value = Option.match(Cause.findErrorOption(cause), {
@@ -69,42 +59,42 @@ export function causeToText(cause: Cause.Cause<unknown>): string {
   return `操作失败：${Cause.squash(cause)}`;
 }
 
-export type IpcCallReporter = (
-  name: string,
-  elapsedMs: number,
-  ok: boolean,
-  reason?: string,
-) => void;
-
 /**
  * 对整个 handlers 对象包一次守卫（等价 HttpRouter.catchAll）：
- * 业务对象原样（纯 Effect、零仪式），每个方法按名字解析域错误构造器后经 rpcGuard 包裹。
- * 未映射的域原样透传。此后新增 API 只要加进对象即自动受保护。
+ * 所有请求自动获得 requestId 和一条完成摘要；有域错误构造器的方法额外经 rpcGuard 归一错误。
  */
 export const guardIpcHandlers = <T extends Record<string, HandlerLike>>(
   handlers: T,
   resolveCtor: (name: string) => ((reason: string) => unknown) | undefined,
-  onCall?: IpcCallReporter,
 ): T => {
   const out: Record<string, unknown> = {};
   for (const [name, fn] of Object.entries(handlers)) {
     const toContract = resolveCtor(name);
-    out[name] = toContract
-      ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (((input: any, context: any) => {
-          const started = performance.now();
-          const report = (ok: boolean, reason?: string) =>
-            onCall?.(name, performance.now() - started, ok, reason);
-          const guarded = rpcGuard(toContract as (reason: string) => never)(fn(input, context));
-          return Effect.catchCause(
-            Effect.tap(guarded, () => Effect.sync(() => report(true))),
-            (cause) =>
-              Effect.sync(() => report(false, causeToText(cause))).pipe(
-                Effect.flatMap(() => Effect.failCause(cause)),
-              ),
-          );
-        }) as HandlerLike)
-      : fn;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    out[name] = ((input: any, context: any) => {
+      const requestId = randomUUID();
+      const started = performance.now();
+      const program = Effect.suspend(() => fn(input, context));
+      const guarded = toContract
+        ? rpcGuard(toContract as (reason: string) => never)(program)
+        : program;
+      return Effect.catchCause(
+        Effect.tap(guarded, () =>
+          Effect.logDebug("ipc.request.completed").pipe(
+            Effect.annotateLogs({ durationMs: Math.round(performance.now() - started), ok: true }),
+          ),
+        ),
+        (cause) =>
+          Effect.logError("ipc.request.failed").pipe(
+            Effect.annotateLogs({
+              durationMs: Math.round(performance.now() - started),
+              ok: false,
+              reason: causeToText(cause),
+            }),
+            Effect.flatMap(() => Effect.failCause(cause)),
+          ),
+      ).pipe(Effect.annotateLogs({ requestId, scope: "ipc", "ipc.method": name }));
+    }) as HandlerLike;
   }
   return out as T;
 };
