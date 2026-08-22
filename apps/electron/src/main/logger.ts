@@ -1,5 +1,6 @@
 import log from "electron-log/main";
 import { app, ipcMain } from "electron";
+import { format } from "node:util";
 import { Context, Logger, References } from "effect";
 import type {
   DiagnosticContext,
@@ -173,9 +174,15 @@ function rendererErrorAttrs(payload: unknown): Record<string, unknown> {
   if (!isRecord(payload)) {
     return { source: "renderer", payloadType: typeof payload };
   }
+  const source = typeof payload.source === "string" ? payload.source : "renderer";
   return {
-    source: typeof payload.source === "string" ? payload.source : "renderer",
-    message: typeof payload.message === "string" ? payload.message : undefined,
+    source,
+    message:
+      source === "console.error" && Array.isArray(payload.args)
+        ? format(...payload.args)
+        : typeof payload.message === "string"
+          ? payload.message
+          : undefined,
     stack: typeof payload.stack === "string" ? payload.stack : undefined,
     componentStack: typeof payload.componentStack === "string" ? payload.componentStack : undefined,
     filename: typeof payload.filename === "string" ? payload.filename : undefined,
@@ -188,20 +195,11 @@ function rendererErrorAttrs(payload: unknown): Record<string, unknown> {
 
 function installRendererErrorLogging() {
   ipcMain.on(DIAGNOSTIC_RENDERER_ERROR_CHANNEL, (_event, payload) => {
-    rendererLog.error("renderer.error", rendererErrorAttrs(payload));
-  });
-}
-
-function installRendererConsoleLogging() {
-  app.on("web-contents-created", (_event, webContents) => {
-    webContents.on("console-message", (details) => {
-      if (details.level !== "error") return;
-      rendererLog.error("renderer.console.error", {
-        message: details.message,
-        sourceId: details.sourceId,
-        lineNumber: details.lineNumber,
-      });
-    });
+    const attrs = rendererErrorAttrs(payload);
+    rendererLog.error(
+      attrs.source === "console.error" ? "renderer.console.error" : "renderer.error",
+      attrs,
+    );
   });
 }
 
@@ -300,7 +298,6 @@ export function initializeLogging() {
   log.eventLogger.startLogging({ level: "warn", scope: "electron" });
   installFallbackErrorLogging();
   installRendererErrorLogging();
-  installRendererConsoleLogging();
 
   writeDiagnosticEvent({
     level: "info",

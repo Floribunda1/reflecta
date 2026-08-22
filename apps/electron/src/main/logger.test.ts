@@ -318,32 +318,33 @@ describe("Electron logging profile", () => {
     });
   });
 
-  test("captures every renderer console error without forwarding other console levels", async () => {
+  test("formats renderer console arguments and preserves the renderer stack", async () => {
     useRuntimeRoots(tempRoot());
-    const { initializeLogging } = await import("./logger");
+    const { DIAGNOSTIC_RENDERER_ERROR_CHANNEL, initializeLogging } = await import("./logger");
     initializeLogging();
-    const webContents = { on: vi.fn() };
-    const onWebContentsCreated = mockElectron.on.mock.calls.find(
-      ([event]) => event === "web-contents-created",
+    const handler = mockElectron.ipcMainOn.mock.calls.find(
+      ([channel]) => channel === DIAGNOSTIC_RENDERER_ERROR_CHANNEL,
     )?.[1];
-
-    onWebContentsCreated({}, webContents);
-    const onConsoleMessage = webContents.on.mock.calls.find(
-      ([event]) => event === "console-message",
-    )?.[1];
-    onConsoleMessage({ level: "warning", message: "skip me", sourceId: "app.js", lineNumber: 1 });
-    onConsoleMessage({
-      level: "error",
-      message: "nested button",
-      sourceId: "react-dom-client.js",
-      lineNumber: 1526,
-    });
+    handler(
+      {},
+      {
+        source: "console.error",
+        args: ["Duplicate key `%s`", "item-1"],
+        stack: "Error: console.error\n    at DomainNode (DomainNode.tsx:42:7)",
+      },
+    );
 
     expect(mockLogger.scopedLogger.error).toHaveBeenCalledTimes(1);
     expect(mockLogger.scopedLogger.error).toHaveBeenCalledWith("renderer.console.error", {
-      message: "nested button",
-      sourceId: "react-dom-client.js",
-      lineNumber: 1526,
+      source: "console.error",
+      message: "Duplicate key `item-1`",
+      stack: "Error: console.error\n    at DomainNode (DomainNode.tsx:42:7)",
+      componentStack: undefined,
+      filename: undefined,
+      lineno: undefined,
+      colno: undefined,
+      href: undefined,
+      userAgent: undefined,
     });
   });
 });
