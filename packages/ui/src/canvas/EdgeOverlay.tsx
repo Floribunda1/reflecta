@@ -14,7 +14,7 @@ import { canvasPaintColor, CanvasColorSwatches } from "./color-swatches";
 import { DEFAULT_CANVAS_EDGE_STYLE, type CanvasEdgeDTO, type CanvasEdgeStyle } from "./document";
 
 /**
- * 边样式 / 标签 / 删除工具栏：单条边被选中时显示在图形底部中央。
+ * 边样式 / 标签 / 删除工具栏：单条边被选中时显示在边的路径中点附近。
  * 边本身由 X6 native 渲染（attrs/connector/router/marker），这里只承载业务操作。
  * 样式原地写 cell 时父组件不会重渲染，订阅边的 change 才能跟上色板 / 线型选中态。
  */
@@ -49,6 +49,7 @@ export function EdgeOverlay({
   onDelete: (edgeId: string) => void;
 }) {
   const [labelDraft, setLabelDraft] = useState<string | null>(null);
+  const [, refreshPosition] = useState(0);
   const edge = edgeId ? (graph.getCellById(edgeId) as X6Edge | undefined) : undefined;
   const dto = useSyncExternalStore(
     (onChange) => subscribeEdge(edge, onChange),
@@ -56,6 +57,27 @@ export function EdgeOverlay({
   );
 
   useEffect(() => setLabelDraft(null), [edgeId]);
+
+  useEffect(() => {
+    if (!edge) return;
+    const rerender = () => refreshPosition((version) => version + 1);
+    graph.on("scale", rerender);
+    graph.on("translate", rerender);
+    edge.on("change:source", rerender);
+    edge.on("change:target", rerender);
+    edge.on("change:router", rerender);
+    edge.on("change:connector", rerender);
+    edge.on("change:vertices", rerender);
+    return () => {
+      graph.off("scale", rerender);
+      graph.off("translate", rerender);
+      edge.off("change:source", rerender);
+      edge.off("change:target", rerender);
+      edge.off("change:router", rerender);
+      edge.off("change:connector", rerender);
+      edge.off("change:vertices", rerender);
+    };
+  }, [edge, graph]);
 
   if (readonly || !edge || !dto) return null;
 
@@ -68,11 +90,14 @@ export function EdgeOverlay({
     if (label !== dto.label) onUpdate({ ...dto, label });
     setLabelDraft(null);
   };
+  const point = graph.localToClient(edge.getConnectionPoint());
+  const container = graph.container.getBoundingClientRect();
 
   return (
     <div
       data-testid="canvas-edge-toolbar"
-      className="absolute bottom-16 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-md border bg-background p-1 shadow-sm"
+      className="absolute z-20 flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-md border bg-background p-1 shadow-sm"
+      style={{ left: point.x - container.left, top: point.y - container.top - 8 }}
     >
       <span
         data-testid="canvas-edge-label"
