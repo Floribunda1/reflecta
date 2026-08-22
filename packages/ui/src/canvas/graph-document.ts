@@ -43,13 +43,13 @@ function routerFor(style: CanvasEdgeStyle | null): EdgeMetadata["router"] {
   return style?.routing === "orthogonal" ? { name: "orth" } : undefined;
 }
 
-function edgeLabelItems(label: string | null) {
+function edgeLabelItems(label: string | null, color: string) {
   return label
     ? [
         {
           attrs: {
             body: { fill: "var(--background)", stroke: "none" },
-            label: { text: label, fill: "var(--foreground)", fontSize: 12 },
+            label: { text: label, fill: color, fontSize: 12 },
           },
         },
       ]
@@ -58,11 +58,12 @@ function edgeLabelItems(label: string | null) {
 
 function edgeVisuals(edge: CanvasEdgeDTO) {
   const style = edge.style ?? DEFAULT_CANVAS_EDGE_STYLE;
+  const color = canvasPaintColor(style.color) ?? "var(--muted-foreground)";
   return {
     connector: connectorFor(style),
     router: routerFor(style),
     attrs: edgeAttrs(style),
-    labels: edgeLabelItems(edge.label),
+    labels: edgeLabelItems(edge.label, color),
   };
 }
 

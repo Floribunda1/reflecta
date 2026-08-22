@@ -184,7 +184,7 @@ describe("in-place cell updates", () => {
       {
         attrs: {
           body: { fill: "var(--background)", stroke: "none" },
-          label: { text: "new", fill: "var(--foreground)", fontSize: 12 },
+          label: { text: "new", fill: "var(--chart-1)", fontSize: 12 },
         },
       },
     ]);

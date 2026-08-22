@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Edge as X6Edge, Graph } from "@antv/x6";
-import { ArrowRight, CircleDot, Minus, Palette, Spline, Trash2 } from "lucide-react";
+import { ArrowRight, LineStyle, Palette, Route, Trash2, Weight } from "lucide-react";
 import { Button } from "../components/button";
 import {
   DropdownMenu,
@@ -146,21 +146,21 @@ export function EdgeOverlay({
 
       <EdgeStyleMenu
         label="形状"
-        icon={<Spline />}
+        icon={<Route />}
         value={current.routing ?? "curve"}
         options={ROUTING_OPTIONS}
         onChange={(routing) => patch({ routing })}
       />
       <EdgeStyleMenu
         label="线型"
-        icon={<CircleDot />}
+        icon={<LineStyle />}
         value={current.lineStyle ?? "solid"}
         options={LINE_STYLE_OPTIONS}
         onChange={(lineStyle) => patch({ lineStyle })}
       />
       <EdgeStyleMenu
         label="线宽"
-        icon={<Minus />}
+        icon={<Weight />}
         value={current.width ?? "thin"}
         options={WIDTH_OPTIONS}
         onChange={(width) => patch({ width })}
