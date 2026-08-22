@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Edge as X6Edge, Graph } from "@antv/x6";
 import { ArrowRight, CircleDot, Minus, Palette, Spline, Trash2 } from "lucide-react";
 import { Button } from "../components/button";
@@ -49,6 +49,8 @@ export function EdgeOverlay({
   onDelete: (edgeId: string) => void;
 }) {
   const [labelDraft, setLabelDraft] = useState<string | null>(null);
+  const [editingLabel, setEditingLabel] = useState(false);
+  const labelInputRef = useRef<HTMLInputElement>(null);
   const [, refreshPosition] = useState(0);
   const edge = edgeId ? (graph.getCellById(edgeId) as X6Edge | undefined) : undefined;
   const dto = useSyncExternalStore(
@@ -56,7 +58,16 @@ export function EdgeOverlay({
     () => (edge?.getData() as { edge?: CanvasEdgeDTO } | null | undefined)?.edge,
   );
 
-  useEffect(() => setLabelDraft(null), [edgeId]);
+  useEffect(() => {
+    setLabelDraft(null);
+    setEditingLabel(false);
+  }, [edgeId]);
+
+  useEffect(() => {
+    if (!editingLabel) return;
+    labelInputRef.current?.focus();
+    labelInputRef.current?.select();
+  }, [editingLabel]);
 
   useEffect(() => {
     if (!edge) return;
@@ -68,6 +79,14 @@ export function EdgeOverlay({
     edge.on("change:router", rerender);
     edge.on("change:connector", rerender);
     edge.on("change:vertices", rerender);
+    const onLabelDoubleClick = (event: { edge: X6Edge; e: MouseEvent }) => {
+      if (event.edge.id !== edge.id) return;
+      const target = event.e.target;
+      if (!(target instanceof Element) || !target.closest("[data-index]")) return;
+      setLabelDraft(dto?.label ?? "");
+      setEditingLabel(true);
+    };
+    graph.on("edge:dblclick", onLabelDoubleClick);
     return () => {
       graph.off("scale", rerender);
       graph.off("translate", rerender);
@@ -76,8 +95,9 @@ export function EdgeOverlay({
       edge.off("change:router", rerender);
       edge.off("change:connector", rerender);
       edge.off("change:vertices", rerender);
+      graph.off("edge:dblclick", onLabelDoubleClick);
     };
-  }, [edge, graph]);
+  }, [dto?.label, edge, graph]);
 
   if (readonly || !edge || !dto) return null;
 
@@ -89,6 +109,11 @@ export function EdgeOverlay({
     const label = labelDraft.trim() || null;
     if (label !== dto.label) onUpdate({ ...dto, label });
     setLabelDraft(null);
+    setEditingLabel(false);
+  };
+  const cancelLabel = () => {
+    setLabelDraft(null);
+    setEditingLabel(false);
   };
   const point = graph.localToClient(edge.getConnectionPoint());
   const container = graph.container.getBoundingClientRect();
@@ -99,26 +124,6 @@ export function EdgeOverlay({
       className="absolute z-20 flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-md border bg-background p-1 shadow-sm"
       style={{ left: point.x - container.left, top: point.y - container.top - 8 }}
     >
-      <span
-        data-testid="canvas-edge-label"
-        className="mx-1 min-w-24 max-w-48 rounded border border-transparent px-1.5 py-0.5 text-xs outline-none focus:border-border"
-        contentEditable
-        suppressContentEditableWarning
-        aria-label="连线标签"
-        onInput={(e) => setLabelDraft(e.currentTarget.textContent ?? "")}
-        onBlur={commitLabel}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
-          if (e.key === "Escape") {
-            e.preventDefault();
-            setLabelDraft(null);
-            e.currentTarget.textContent = dto.label ?? "";
-            e.currentTarget.blur();
-          }
-        }}
-      >
-        {dto.label}
-      </span>
       <Popover>
         <PopoverTrigger
           render={
@@ -178,6 +183,24 @@ export function EdgeOverlay({
       >
         <Trash2 />
       </Button>
+      {editingLabel ? (
+        <input
+          ref={labelInputRef}
+          data-testid="canvas-edge-label"
+          value={labelDraft ?? ""}
+          className="nodrag nopan absolute left-1/2 top-[calc(100%+0.5rem)] w-40 -translate-x-1/2 rounded border bg-background px-1.5 py-0.5 text-xs outline-none focus:border-ring"
+          aria-label="连线标签"
+          onChange={(event) => setLabelDraft(event.currentTarget.value)}
+          onBlur={commitLabel}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+            if (event.key === "Escape") {
+              event.preventDefault();
+              cancelLabel();
+            }
+          }}
+        />
+      ) : null}
     </div>
   );
 }
