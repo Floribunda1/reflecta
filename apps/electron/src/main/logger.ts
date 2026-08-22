@@ -192,6 +192,19 @@ function installRendererErrorLogging() {
   });
 }
 
+function installRendererConsoleLogging() {
+  app.on("web-contents-created", (_event, webContents) => {
+    webContents.on("console-message", (details) => {
+      if (details.level !== "error") return;
+      rendererLog.error("renderer.console.error", {
+        message: details.message,
+        sourceId: details.sourceId,
+        lineNumber: details.lineNumber,
+      });
+    });
+  });
+}
+
 function createElectronDiagnosticTransport(level: DiagnosticLevel) {
   const transport = Object.assign(
     (message: { data: unknown[]; date: Date; level: string; scope?: string }) => {
@@ -287,6 +300,7 @@ export function initializeLogging() {
   log.eventLogger.startLogging({ level: "warn", scope: "electron" });
   installFallbackErrorLogging();
   installRendererErrorLogging();
+  installRendererConsoleLogging();
 
   writeDiagnosticEvent({
     level: "info",

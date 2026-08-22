@@ -317,4 +317,33 @@ describe("Electron logging profile", () => {
       },
     });
   });
+
+  test("captures every renderer console error without forwarding other console levels", async () => {
+    useRuntimeRoots(tempRoot());
+    const { initializeLogging } = await import("./logger");
+    initializeLogging();
+    const webContents = { on: vi.fn() };
+    const onWebContentsCreated = mockElectron.on.mock.calls.find(
+      ([event]) => event === "web-contents-created",
+    )?.[1];
+
+    onWebContentsCreated({}, webContents);
+    const onConsoleMessage = webContents.on.mock.calls.find(
+      ([event]) => event === "console-message",
+    )?.[1];
+    onConsoleMessage({ level: "warning", message: "skip me", sourceId: "app.js", lineNumber: 1 });
+    onConsoleMessage({
+      level: "error",
+      message: "nested button",
+      sourceId: "react-dom-client.js",
+      lineNumber: 1526,
+    });
+
+    expect(mockLogger.scopedLogger.error).toHaveBeenCalledTimes(1);
+    expect(mockLogger.scopedLogger.error).toHaveBeenCalledWith("renderer.console.error", {
+      message: "nested button",
+      sourceId: "react-dom-client.js",
+      lineNumber: 1526,
+    });
+  });
 });
