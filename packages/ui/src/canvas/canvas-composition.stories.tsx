@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { StoryShowcase } from "../../.storybook/story-showcase";
 import { CanvasGraph, type CanvasGraphHandle } from "./CanvasGraph";
 import { CanvasLibraryPanel, type CanvasLibrarySortBy } from "./canvas-library-panel";
@@ -60,6 +60,9 @@ function WorkspaceShell({
   const [domainId, setDomainId] = useState("all");
   const [isEmpty, setIsEmpty] = useState(document.elements.length === 0);
   const [sortBy, setSortBy] = useState<CanvasLibrarySortBy>("updatedAt");
+  useEffect(() => {
+    setIsEmpty(document.elements.length === 0);
+  }, [document]);
   const [status, setStatus] = useState(saveStatus);
   const items = useMemo(() => {
     const q = query.trim().toLowerCase();

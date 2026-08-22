@@ -35,7 +35,7 @@ export function StoryCaseSwitch({
           </Button>
         ))}
       </div>
-      <StoryCase title={current.title} description={current.description}>
+      <StoryCase key={current.title} title={current.title} description={current.description}>
         {current.content}
       </StoryCase>
     </div>

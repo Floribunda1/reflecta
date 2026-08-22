@@ -174,6 +174,7 @@ export const CanvasGraph = React.memo(
       emitPendingRef.current = true;
       requestAnimationFrame(() => {
         emitPendingRef.current = false;
+        if (suppressEmitRef.current) return;
         emitDocument();
       });
     }, [emitDocument]);
