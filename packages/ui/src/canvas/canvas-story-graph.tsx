@@ -1,9 +1,46 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import { StoryCase } from "../../.storybook/story-showcase";
+import { Button } from "../components/button";
 import { CanvasGraph, type CanvasGraphHandle } from "./CanvasGraph";
 import { CanvasZoomControls } from "./CanvasZoomControls";
 import { typicalShapeData } from "./canvas-story-fixtures";
 import type { CanvasDocument } from "./document";
 import type { CanvasShapeData } from "./shape-context";
+
+/**
+ * x6-react-shape 的 portal dispatch 是模块单例。同一页挂多个 CanvasGraph 时，
+ * 后挂载的图会抢走前面图的卡片 React 树（dev 只有一张图所以正常）。
+ * Story 里同一时间只挂载一个 case 的图。
+ */
+export function StoryCaseSwitch({
+  cases,
+}: {
+  cases: ReadonlyArray<{ title: string; description?: string; content: ReactNode }>;
+}) {
+  const [active, setActive] = useState(0);
+  const current = cases[active] ?? cases[0];
+  if (!current) return null;
+  return (
+    <div className="grid gap-4">
+      <div className="flex flex-wrap gap-1">
+        {cases.map((item, index) => (
+          <Button
+            key={item.title}
+            type="button"
+            size="sm"
+            variant={index === active ? "secondary" : "ghost"}
+            onClick={() => setActive(index)}
+          >
+            {item.title}
+          </Button>
+        ))}
+      </div>
+      <StoryCase title={current.title} description={current.description}>
+        {current.content}
+      </StoryCase>
+    </div>
+  );
+}
 
 export function GraphFrame({
   height = "h-[420px]",

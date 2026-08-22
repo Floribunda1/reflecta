@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useMemo, useRef, useState } from "react";
-import { StoryCase, StoryShowcase } from "../../.storybook/story-showcase";
+import { StoryShowcase } from "../../.storybook/story-showcase";
 import { CanvasGraph, type CanvasGraphHandle } from "./CanvasGraph";
 import { CanvasLibraryPanel, type CanvasLibrarySortBy } from "./canvas-library-panel";
 import { CanvasSearchOverlay } from "./canvas-search-overlay";
@@ -12,7 +12,7 @@ import {
 } from "./canvas-workspace-chrome";
 import { CanvasZoomControls } from "./CanvasZoomControls";
 import { CanvasReadOnlyView } from "./CanvasReadOnlyView";
-import { GraphFrame } from "./canvas-story-graph";
+import { GraphFrame, StoryCaseSwitch } from "./canvas-story-graph";
 import {
   denseCanvasDocument,
   typicalCanvasDocument,
@@ -145,41 +145,13 @@ function WorkspaceShell({
   );
 }
 
-function CanvasCompositionShowcase() {
+function ReadonlySizeCase() {
   return (
-    <StoryShowcase
-      title="画布工作区核心组合"
-      description="验收图与工具条、空态、理解库、搜索、只读嵌入叠在一起时的密度与层级。不复制保存、路由或详情面板。"
-    >
-      <StoryCase title="空工作区" description="空态、文本工具、理解库入口和缩放控件同时出现。">
-        <WorkspaceShell document={EMPTY_CANVAS_DOCUMENT} empty />
-      </StoryCase>
-
-      <StoryCase
-        title="有内容的工作区"
-        description="典型文档 + 工具条 + 缩放。保存失败提示可点重试。"
-      >
-        <WorkspaceShell document={typicalCanvasDocument} saveStatus="error" />
-      </StoryCase>
-
-      <StoryCase
-        title="理解库打开"
-        description="右侧库面板与主画布相邻；工具条上的理解库按钮为按下态。"
-      >
-        <WorkspaceShell document={typicalCanvasDocument} libraryOpen />
-      </StoryCase>
-
-      <StoryCase title="搜索浮层" description="搜索叠在图上方中央，不挡住左上工具条和左下缩放。">
-        <WorkspaceShell document={typicalCanvasDocument} searchOpen />
-      </StoryCase>
-
-      <StoryCase
-        title="只读与嵌入尺寸"
-        description="同一份工作区文档在工作区、弹层和缩略尺寸下的只读呈现。"
-      >
-        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_280px_240px]">
-          <div>
-            <span className="mb-2 block text-xs font-medium text-muted-foreground">工作区</span>
+    <StoryCaseSwitch
+      cases={[
+        {
+          title: "工作区",
+          content: (
             <GraphFrame height="h-[360px]">
               <CanvasReadOnlyView
                 document={typicalCanvasDocument}
@@ -187,9 +159,11 @@ function CanvasCompositionShowcase() {
                 className="absolute inset-0"
               />
             </GraphFrame>
-          </div>
-          <div>
-            <span className="mb-2 block text-xs font-medium text-muted-foreground">弹层</span>
+          ),
+        },
+        {
+          title: "弹层",
+          content: (
             <GraphFrame height="h-[240px]">
               <CanvasReadOnlyView
                 document={typicalCanvasDocument}
@@ -197,9 +171,11 @@ function CanvasCompositionShowcase() {
                 className="absolute inset-0"
               />
             </GraphFrame>
-          </div>
-          <div>
-            <span className="mb-2 block text-xs font-medium text-muted-foreground">缩略</span>
+          ),
+        },
+        {
+          title: "缩略",
+          content: (
             <GraphFrame height="h-[160px]">
               <CanvasReadOnlyView
                 document={typicalCanvasDocument}
@@ -207,16 +183,53 @@ function CanvasCompositionShowcase() {
                 className="absolute inset-0"
               />
             </GraphFrame>
-          </div>
-        </div>
-      </StoryCase>
+          ),
+        },
+      ]}
+    />
+  );
+}
 
-      <StoryCase
-        title="规模边界"
-        description="多卡片与连线时，工具条、缩放和画布密度是否还能同屏阅读。"
-      >
-        <WorkspaceShell document={denseCanvasDocument} />
-      </StoryCase>
+function CanvasCompositionShowcase() {
+  return (
+    <StoryShowcase
+      title="画布工作区核心组合"
+      description="验收图与工具条、空态、理解库、搜索、只读嵌入叠在一起时的密度与层级。同一时间只挂一张图。"
+    >
+      <StoryCaseSwitch
+        cases={[
+          {
+            title: "空工作区",
+            description: "空态、文本工具、理解库入口和缩放控件同时出现。",
+            content: <WorkspaceShell document={EMPTY_CANVAS_DOCUMENT} empty />,
+          },
+          {
+            title: "有内容的工作区",
+            description: "典型文档 + 工具条 + 缩放。保存失败提示可点重试。",
+            content: <WorkspaceShell document={typicalCanvasDocument} saveStatus="error" />,
+          },
+          {
+            title: "理解库打开",
+            description: "右侧库面板与主画布相邻；工具条上的理解库按钮为按下态。",
+            content: <WorkspaceShell document={typicalCanvasDocument} libraryOpen />,
+          },
+          {
+            title: "搜索浮层",
+            description: "搜索叠在图上方中央，不挡住左上工具条和左下缩放。",
+            content: <WorkspaceShell document={typicalCanvasDocument} searchOpen />,
+          },
+          {
+            title: "只读与嵌入尺寸",
+            description: "同一份工作区文档在工作区、弹层和缩略尺寸下的只读呈现。",
+            content: <ReadonlySizeCase />,
+          },
+          {
+            title: "规模边界",
+            description: "多卡片与连线时，工具条、缩放和画布密度是否还能同屏阅读。",
+            content: <WorkspaceShell document={denseCanvasDocument} />,
+          },
+        ]}
+      />
     </StoryShowcase>
   );
 }
