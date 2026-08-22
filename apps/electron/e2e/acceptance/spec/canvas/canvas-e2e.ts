@@ -75,7 +75,7 @@ export async function dragToGraph(
   await dragLocatorToGraph(page, page.getByTestId(sourceTestId).nth(index), targetPosition);
 }
 
-/** 主图内的元素定位（Minimap 源图克隆会重复渲染一份，断言需限定主图）。 */
+/** 主图内的元素定位（断言限定主图，避开画布引用预览等其它副本）。 */
 export function inGraph(page: Page, testId: string) {
   return page.getByTestId("canvas-graph").getByTestId(testId);
 }

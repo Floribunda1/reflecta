@@ -1,7 +1,7 @@
 # language: zh-CN
 @canvas @v2.0.0
 功能: 用户借助编辑辅助完成操作
-  History / Clipboard / Snapline / MiniMap 全由 X6 内建插件接管。
+  History / Clipboard / Snapline 全由 X6 内建插件接管。
 
   @P0 @happy_path @CV-X6-AUX-001
   场景: 用户撤销并重做移动 / 删除 / 创建
@@ -28,9 +28,3 @@
     假如画布上有两个节点
     当用户把其中一个拖向另一个的对齐位置
     那么拖动过程中应出现参考线
-
-  @P0 @happy_path @CV-X6-AUX-005
-  场景: 画布缩略图出现且可操作
-    假如用户已进入画布
-    那么画布右下角应出现缩略图
-    且用户拖动缩略图内的视口框可平移主画布

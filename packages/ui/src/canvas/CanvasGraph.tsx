@@ -14,7 +14,6 @@ import {
   Graph,
   History,
   Keyboard,
-  MiniMap,
   Selection,
   Snapline,
   Transform,
@@ -289,13 +288,6 @@ export const CanvasGraph = React.memo(
         graph.use(new History());
         graph.use(new Keyboard({ global: true }));
         graph.use(new Export());
-        const minimapHost = globalThis.document.createElement("div");
-        minimapHost.style.position = "absolute";
-        minimapHost.style.right = "12px";
-        minimapHost.style.bottom = "12px";
-        minimapHost.style.zIndex = "8";
-        container.parentElement?.appendChild(minimapHost);
-        graph.use(new MiniMap({ container: minimapHost, width: 200, height: 150 }));
 
         // 内置 Dnd：工具栏 / 理解库调 startDrag → 拖入画布；getDropNode 生成“新”元素避免 id 冲突
         dnd = new Dnd({

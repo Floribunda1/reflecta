@@ -3,7 +3,7 @@ import { resetAgentFixtures, seedCanvas } from "../agent/agent-fixtures";
 import { launchApp } from "../agent/agent-e2e";
 import * as h from "./x6-helpers";
 
-/** 编辑辅助：History 撤销创建/移动、Clipboard 复制粘贴、Snapline、MiniMap。 */
+/** 编辑辅助：History 撤销创建/移动、Clipboard 复制粘贴、Snapline。 */
 test.describe.configure({ mode: "serial" });
 let app: Awaited<ReturnType<typeof launchApp>>["app"];
 let page: Awaited<ReturnType<typeof launchApp>>["page"];
@@ -95,19 +95,4 @@ test("@CV-X6-AUX-004 拖动时出现对齐参考线", async () => {
     .toBe(true);
   await page!.mouse.up();
   await page!.waitForTimeout(150);
-});
-
-test("@CV-X6-AUX-005 缩略图出现且可平移主画布", async () => {
-  await h.openCanvasRow(page!, "AUX");
-  const mm = page!.locator(".x6-widget-minimap").first();
-  await expect(mm).toBeVisible();
-  const v0 = await h.waitViewport(page!);
-  const mb = (await mm.boundingBox())!;
-  await page!.mouse.move(mb.x + mb.width / 2, mb.y + mb.height / 2);
-  await page!.mouse.down();
-  await page!.mouse.move(mb.x + mb.width / 2 + 40, mb.y + mb.height / 2 + 30, { steps: 6 });
-  await page!.mouse.up();
-  await page!.waitForTimeout(200);
-  const v1 = await h.graphViewport(page!);
-  expect(Math.abs(v1!.x - v0!.x) + Math.abs(v1!.y - v0!.y)).toBeGreaterThan(10);
 });
