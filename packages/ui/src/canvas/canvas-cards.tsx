@@ -51,7 +51,7 @@ function nodeColorStyle(color?: string): CSSProperties | undefined {
   return {
     borderColor: paint,
     ["--tw-ring-color" as string]: paint,
-    backgroundColor: `color-mix(in srgb, ${paint} 10%, transparent)`,
+    backgroundColor: `color-mix(in oklch, ${paint} 10%, transparent)`,
   };
 }
 
@@ -407,7 +407,7 @@ export function CanvasGroupCard({
           </CanvasNodeActionBar>
           <div
             data-testid="canvas-group-label"
-            className="absolute left-0 -top-6 z-10 flex max-w-[calc(100%-1rem)] cursor-grab items-center gap-1 rounded-md px-1.5 py-0.5 text-xs shadow-sm"
+            className="absolute top-1.5 left-1.5 z-10 flex max-w-[calc(100%-1rem)] cursor-text items-center gap-1 rounded-md px-1.5 py-0.5 text-xs shadow-sm"
             style={{
               color: canvasPaintColor(color),
               backgroundColor: "var(--muted)",
