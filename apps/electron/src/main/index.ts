@@ -187,32 +187,7 @@ app.whenReady().then(async () => {
   const guardedHandlers = guardIpcHandlers(
     ipcHandlers,
     (name) => DOMAIN_IPC_ERROR[name.split(".")[0]],
-    (text) => {
-      appLog.error(text);
-      // e2e 里 Playwright 只转发 main 的 stderr（stdout/console 不可靠），额外写一份保证可见
-      process.stderr.write(`[rpc-guard] ${text}\n`);
-    },
-    // 统一 IPC 调用日志（组合根一处）：dev/e2e 里 [main] 通道可全程看见每个请求
-    (name, input) => {
-      appLog.debug(`ipc.${name}`);
-      process.stderr.write(`[rpc-guard] ipc.${name}\n`);
-      // 写路径摘要：saveCanvas 记录收到的文档（组合根统一位置，非业务 core）
-      if (name === "understandingCanvas.saveCanvas") {
-        const doc = (
-          input as { document?: { elements: unknown[]; edges: Array<Record<string, unknown>> } }
-        )?.document;
-        const summary = doc
-          ? `elements=${doc.elements.length} edges=${doc.edges
-              .map(
-                (e) =>
-                  `${e.id}:${e.sourceElementId}->${e.targetElementId}:${(e.style as { color?: string } | null)?.color ?? "-"}`,
-              )
-              .join(" | ")}`
-          : "no-doc";
-        appLog.debug(`canvas.save ${summary}`);
-        process.stderr.write(`[rpc-guard] canvas.save ${summary}\n`);
-      }
-    },
+    (text) => appLog.error(text),
   );
   // 整个 options 过一次 as unknown as（R=never 仅存在于调用上下文，静态取不到）；
   // 运行时不变，仅让 handlers 经 guardIpcHandlers 包裹后通过契约类型。

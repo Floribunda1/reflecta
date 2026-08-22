@@ -56,17 +56,16 @@ export const guardIpcHandlers = <T extends Record<string, HandlerLike>>(
   handlers: T,
   resolveCtor: (name: string) => ((reason: string) => unknown) | undefined,
   onLog?: (text: string) => void,
-  onCall?: (name: string, input?: unknown) => void,
 ): T => {
   const out: Record<string, unknown> = {};
   for (const [name, fn] of Object.entries(handlers)) {
     const toContract = resolveCtor(name);
     out[name] = toContract
       ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (((input: any, context: any) => {
-          onCall?.(name, input);
-          return rpcGuard(toContract as (reason: string) => never, { onLog })(fn(input, context));
-        }) as HandlerLike)
+        (((input: any, context: any) =>
+          rpcGuard(toContract as (reason: string) => never, { onLog })(
+            fn(input, context),
+          )) as HandlerLike)
       : fn;
   }
   return out as T;
