@@ -263,16 +263,19 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     setInitialViewport(null);
     documentSeededRef.current = false;
   }, [canvasId, setInitialDocument, setInitialViewport]);
-  // 首次加载：把详情同步进 documentAtom，搜索 / 面板路由才能基于当前文档工作
-  if (
-    initialDocument === null &&
-    detail &&
-    !documentSeededRef.current &&
-    readCanvasState(documentAtom).elements.length === 0
-  ) {
-    setDocument({ elements: detail.elements, edges: detail.edges });
-    documentSeededRef.current = true;
-  }
+  // 首次加载：把详情同步进 documentAtom（在 effect 中做，避免渲染期写 atom 触发
+  // “Cannot update a component while rendering a different component” 警告），
+  // 搜索 / 面板路由才能基于当前文档工作
+  useEffect(() => {
+    if (
+      initialDocument !== null &&
+      !documentSeededRef.current &&
+      readCanvasState(documentAtom).elements.length === 0
+    ) {
+      setDocument(initialDocument);
+      documentSeededRef.current = true;
+    }
+  }, [initialDocument, setDocument]);
   const setSelection = useAtomSet(selectionAtom);
   const currentDocument = useAtomValue(documentAtom);
 
@@ -336,12 +339,21 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   // 事件桥 → 镜像 + 防抖保存
   const handleDocumentChange = useCallback(
     (document: CanvasDocument) => {
-      // 只保留端点均为真实元素的边，避免服务端校验失败
-      const elementIds = new Set(document.elements.map((element) => element.id));
+      // 元素按 id 去重 + 只保留端点均为真实元素的边，避免重复 key 渲染 / 服务端校验失败。
+      // ponytail: 去重只是兜底，上游疑似 X6 dnd 双加同 id 节点；若日志仍现重复 key 应修 addElement。
+      const elementIds = new Set<string>();
+      const elements = document.elements.filter((element) => {
+        if (elementIds.has(element.id)) return false;
+        elementIds.add(element.id);
+        return true;
+      });
       const edges = document.edges.filter(
         (edge) => elementIds.has(edge.sourceElementId) && elementIds.has(edge.targetElementId),
       );
-      const sanitized = edges.length === document.edges.length ? document : { ...document, edges };
+      const sanitized =
+        elements.length === document.elements.length && edges.length === document.edges.length
+          ? document
+          : { elements, edges };
       setDocument(sanitized);
       documentSaver.schedule(sanitized);
     },
