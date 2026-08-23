@@ -54,8 +54,10 @@ const document: CanvasDocument = {
     {
       id: "edge",
       canvasId: "canvas",
-      source: { cell: "text", port: "out" },
-      target: { cell: "understanding", port: "in" },
+      source: { cell: "text", port: "right" },
+      target: { cell: "understanding", port: "left" },
+      router: null,
+      connector: { name: "smooth" },
       label: "EDGE_LABEL",
       style: null,
       createdAt: time,

@@ -1,31 +1,31 @@
 /**
- * 四类卡片的统一连线端口：左/上 = 入，右/下 = 出。
- * 与旧 React Flow「左 target / 右 source」语义一致；`magnet:true` 才能被连线吸附。
+ * 四类卡片的统一连线端口。port id 直接使用 X6 路由方向名，
+ * 避免 terminal 与 startDirections/endDirections 之间再做映射。
  */
 export const CANVAS_PORTS = {
   groups: {
-    in: {
+    left: {
       position: "left",
       zIndex: 2,
       attrs: {
         circle: { r: 4, magnet: true, fill: "transparent", stroke: "var(--border)" },
       },
     },
-    inTop: {
+    top: {
       position: "top",
       zIndex: 2,
       attrs: {
         circle: { r: 4, magnet: true, fill: "transparent", stroke: "var(--border)" },
       },
     },
-    out: {
+    right: {
       position: "right",
       zIndex: 2,
       attrs: {
         circle: { r: 4, magnet: true, fill: "transparent", stroke: "var(--border)" },
       },
     },
-    outBottom: {
+    bottom: {
       position: "bottom",
       zIndex: 2,
       attrs: {
@@ -34,9 +34,9 @@ export const CANVAS_PORTS = {
     },
   },
   items: [
-    { group: "in", id: "in" },
-    { group: "inTop", id: "in-top" },
-    { group: "out", id: "out" },
-    { group: "outBottom", id: "out-bottom" },
+    { group: "left", id: "left" },
+    { group: "top", id: "top" },
+    { group: "right", id: "right" },
+    { group: "bottom", id: "bottom" },
   ],
 } as const;

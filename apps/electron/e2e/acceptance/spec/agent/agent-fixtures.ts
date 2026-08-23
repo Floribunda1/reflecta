@@ -141,8 +141,10 @@ export function seedCanvas(input: {
   }>;
   edges?: Array<{
     id: string;
-    source: { cell: string; port: "in" | "in-top" | "out" | "out-bottom" };
-    target: { cell: string; port: "in" | "in-top" | "out" | "out-bottom" };
+    source: { cell: string; port: "top" | "right" | "bottom" | "left" };
+    target: { cell: string; port: "top" | "right" | "bottom" | "left" };
+    router: { name: string; args?: Record<string, unknown> } | null;
+    connector: { name: string; args?: Record<string, unknown> };
     label?: string | null;
     style?: Record<string, unknown> | null;
   }>;

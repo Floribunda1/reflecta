@@ -36,8 +36,10 @@ test.beforeAll(async () => {
     edges: [
       {
         id: "e1",
-        source: { cell: "g_a", port: "out" },
-        target: { cell: "g_c", port: "in" },
+        source: { cell: "g_a", port: "right" },
+        target: { cell: "g_c", port: "left" },
+        router: null,
+        connector: { name: "smooth" },
       },
     ],
     viewport: null,

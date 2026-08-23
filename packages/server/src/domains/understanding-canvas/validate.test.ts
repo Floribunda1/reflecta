@@ -65,8 +65,10 @@ function edge(
   const { sourceElementId, targetElementId, ...rest } = partial;
   return {
     canvasId: "canvas-1",
-    source: { cell: sourceElementId, port: "out" },
-    target: { cell: targetElementId, port: "in" },
+    source: { cell: sourceElementId, port: "right" },
+    target: { cell: targetElementId, port: "left" },
+    router: null,
+    connector: { name: "smooth" },
     label: null,
     style: null,
     createdAt: "2026-08-01T00:00:00.000Z",
@@ -159,6 +161,19 @@ describe("Canvas document validation", () => {
     expect(() => assertValidDocument(doc(elements, [bad]))).toThrow(/invalid port/);
   });
 
+  test("unknown X6 router and connector names are rejected", () => {
+    const elements = [element({ id: "a" }), element({ id: "b" })];
+    const invalidRouter = edge({ id: "r", sourceElementId: "a", targetElementId: "b" });
+    invalidRouter.router = { name: "unknown" } as never;
+    expect(() => assertValidDocument(doc(elements, [invalidRouter]))).toThrow(/invalid router/);
+
+    const invalidConnector = edge({ id: "c", sourceElementId: "a", targetElementId: "b" });
+    invalidConnector.connector = { name: "unknown" } as never;
+    expect(() => assertValidDocument(doc(elements, [invalidConnector]))).toThrow(
+      /invalid connector/,
+    );
+  });
+
   test("parent must be a group", () => {
     const elements = [
       element({ id: "group", kind: "group" }),
@@ -189,14 +204,12 @@ describe("Canvas document validation", () => {
   test("valid edge style passes; invalid enum is rejected", () => {
     expect(() =>
       assertValidEdgeStyle({
-        routing: "orthogonal",
         lineStyle: "dashed",
         width: "thick",
         arrowhead: "block",
         color: "#ff0000",
       }),
     ).not.toThrow();
-    expect(() => assertValidEdgeStyle({ routing: "diagonal" })).toThrow(/routing invalid/);
     expect(() => assertValidEdgeStyle({ lineStyle: "wavy" })).toThrow(/lineStyle invalid/);
     expect(() => assertValidEdgeStyle("solid")).toThrow(/must be an object/);
     expect(() => assertValidEdgeStyle(null)).not.toThrow();

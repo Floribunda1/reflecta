@@ -54,7 +54,7 @@
 
 ### 创建
 
-- [保留] 从出桩（out）拖到入桩（in）建立有向边
+- [保留] 从 `right/bottom` 端口拖到 `left/top` 端口建立有向边
 - [保留] 同源同目标可建立多条平行边（connecting.allowMulti）
 - [删除] 自环验收条目 —— allowLoop 为 X6 默认能力（default behavior），保留能力但不做验收（现有 e2e 自环用例改作 regression 或删除）
 - [新增] 新连线默认带 canvasId 与默认样式（**createEdge 契约**，原先仅实现未显式验收）
@@ -62,7 +62,7 @@
 ### 样式（选中边后，底部边工具栏）
 
 - [保留] 改颜色
-- [修改] 改 routing —— 菜单仍为 曲线/直线/正交，语义映射到 X6 原语：**曲线 = connector `smooth`；直线 = connector `normal` + 无 router 中间点（X6 3.x 无 straight connector）；正交 = router `orth` + connector `rounded`**
+- [修改] 改路径配置 —— 菜单直接写 X6 `router` / `connector` 字段：**曲线 = connector `smooth`；直线 = connector `normal`；正交 = router `manhattan` + connector `rounded`**；服务端原样持久化，不经过 `style.routing`
 - [保留] 改线型（实线 / 虚线 / 点线 → X6 `line.strokeDasharray`：虚线 5 5、点线 2 2）
 - [保留] 改线宽（细 / 中 / 粗 → X6 `line.strokeWidth`：2 / 3 / 4）
 - [修改] 改箭头 —— 选项对齐 X6 内建 marker 注册表：**箭头(classic)/方块(block)/圆点(circle)/菱形(diamond)/十字(cross)/椭圆(ellipse)/无(targetMarker null)**，用户只能选 X6 能渲染的

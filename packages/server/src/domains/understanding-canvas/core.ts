@@ -15,7 +15,9 @@ import type {
   CanvasDTO,
   CanvasElementDTO,
   CanvasEdgeDTO,
+  CanvasEdgeConnector,
   CanvasEdgePortId,
+  CanvasEdgeRouter,
   CanvasHit,
   CanvasReferencedCanvas,
   CanvasUnderstandingRef,
@@ -107,8 +109,10 @@ export function edgeRowToDTO(row: UnderstandingCanvasEdge): CanvasEdgeDTO {
     canvasId: row.canvasId,
     source: { cell: row.sourceElementId, port: row.sourcePortId as CanvasEdgePortId },
     target: { cell: row.targetElementId, port: row.targetPortId as CanvasEdgePortId },
+    router: row.router === null ? null : (JSON.parse(row.router) as CanvasEdgeRouter),
+    connector: JSON.parse(row.connector) as CanvasEdgeConnector,
     label: row.label,
-    style: parseJson<EdgeStyle | null>(row.props, null),
+    style: JSON.parse(row.props) as EdgeStyle | null,
     createdAt: row.createdAt,
   };
 }
@@ -474,8 +478,10 @@ export class CanvasCore {
                   existing.sourcePortId !== edge.source.port ||
                   existing.targetElementId !== edge.target.cell ||
                   existing.targetPortId !== edge.target.port ||
+                  existing.router !== (edge.router ? JSON.stringify(edge.router) : null) ||
+                  existing.connector !== JSON.stringify(edge.connector) ||
                   existing.label !== edge.label ||
-                  existing.props !== JSON.stringify(edge.style ?? {})
+                  existing.props !== JSON.stringify(edge.style)
                 ) {
                   changed = true;
                   break;
@@ -550,8 +556,10 @@ export class CanvasCore {
                 sourcePortId: edge.source.port,
                 targetElementId: edge.target.cell,
                 targetPortId: edge.target.port,
+                router: edge.router ? JSON.stringify(edge.router) : null,
+                connector: JSON.stringify(edge.connector),
                 label: edge.label,
-                props: JSON.stringify(edge.style ?? {}),
+                props: JSON.stringify(edge.style),
               };
               if (existing) {
                 await tx

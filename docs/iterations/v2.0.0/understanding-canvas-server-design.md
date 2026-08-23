@@ -91,23 +91,24 @@ type CanvasElementDTO = {
 | `source_port_id`    | TEXT | NOT NULL                          | X6 source terminal 的 port        |
 | `target_element_id` | TEXT | NOT NULL, FK→elements **CASCADE** | X6 target terminal 的 cell        |
 | `target_port_id`    | TEXT | NOT NULL                          | X6 target terminal 的 port        |
+| `router`            | TEXT | 可空                              | X6 RouterData JSON                |
+| `connector`         | TEXT | NOT NULL                          | X6 ConnectorData JSON             |
 | `label`             | TEXT | 可空                              | 自由文本关系描述（语义字段 → 列） |
 | `props`             | TEXT | NOT NULL DEFAULT '{}'             | 样式载荷 JSON（见 EdgeStyle）     |
 | `created_at`        | TEXT | NOT NULL                          |                                   |
 
 索引：`canvas_id`、`source_element_id`、`target_element_id`。
 
-**EdgeStyle（props JSON，社区连线样式四维模型）**：
+**EdgeStyle（props JSON，只保留非路由视觉样式）**：
 
 ```ts
 EdgeStyle = {
-  routing?:    "straight" | "curve" | "orthogonal"; // 拐点类型：直线 / 贝塞尔弧线 / 正交直角
   lineStyle?:  "solid" | "dashed" | "dotted";       // 线型：实线 / 虚线 / 点线
   color?:      string;                                  // 颜色：预设色板 key 或 hex
   width?:      "thin" | "medium" | "thick";           // 粗细
   arrowhead?:  "arrow" | "block" | "none";           // 箭头：默认 arrow（有向），可去
 }
-// 默认：straight + solid + 灰 + medium + arrow
+// 默认：solid + 灰 + thin + classic
 ```
 
 ### 1.2 关键设计决策
@@ -204,7 +205,7 @@ CanvasElementDTO     // 判别联合（见 §1.1 ElementProps）：kind 收窄 p
 CanvasEdgeTerminal   { cell, port } // 与 X6 terminal 同构
 CanvasEdgeDTO        { id, canvasId, source: CanvasEdgeTerminal, target: CanvasEdgeTerminal,
                        label, style: EdgeStyle | null, createdAt }
-EdgeStyle           { routing?, lineStyle?, color?, width?, arrowhead? }
+EdgeStyle           { lineStyle?, color?, width?, arrowhead? }
 CanvasUnderstandingRef  { id, title, body, deleted }
 CanvasReferencedCanvas  { id, title, deleted }
 CanvasDetailDTO      { canvas: CanvasDTO, elements: CanvasElementDTO[],
@@ -223,15 +224,15 @@ CanvasDetailDTO      { canvas: CanvasDTO, elements: CanvasElementDTO[],
 ```ts
 type CanvasDocument = {
   elements: CanvasElementDTO[]; // 判别联合；含 id / kind / props / parentId / x / y / w / h / zIndex
-  edges: CanvasEdgeDTO[]; // 含 id / source / target / label / style
+  edges: CanvasEdgeDTO[]; // 含 id / source / target / router / connector / label / style
 };
 // 对账语义：按 id——文档中存在的行 upsert；DB 中缺失于文档的行删除；级联删组、解组、多选删等
 // 联动已在前端文档模型中体现（目标文档即结果态），服务端只做机械对齐。
 ```
 
-端点采用 X6 原生 `{ cell, port }` 形状，保证用户选择的连接桩可往返持久化。`router`、
-`connector` 和 SVG path 是 `style.routing + terminals + 当前节点几何` 的派生结果，不进入服务端契约，
-避免数据库绑定某个 X6 版本的渲染实现。
+端点、router 和 connector 采用 X6 原生字段形状并往返持久化；port id 直接使用
+`top | right | bottom | left`，可直接作为 Manhattan router 的 directions，不再维护业务映射。
+SVG path 仍由 X6 根据这些配置和当前节点几何计算，不进入服务端契约。
 
 ### 2.4 校验与错误边界（domain core 层）
 

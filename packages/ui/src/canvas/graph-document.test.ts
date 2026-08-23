@@ -3,8 +3,8 @@ import type { CanvasDocument, CanvasEdgeDTO, CanvasElementDTO } from "./document
 import {
   applyEdgePresentation,
   applyElementUpdate,
-  edgeRoutingFor,
   edgeToEdge,
+  graphToDocument,
   toX6Cells,
 } from "./graph-document";
 
@@ -36,23 +36,6 @@ function element(
 }
 
 describe("graph-document toX6Cells", () => {
-  test("uses native adaptive curves and port-aware manhattan routing", () => {
-    expect(edgeRoutingFor({ routing: "curve" }, "out", "in")).toEqual({
-      connector: { name: "smooth" },
-    });
-    expect(edgeRoutingFor({ routing: "orthogonal" }, "out-bottom", "in-top")).toEqual({
-      router: {
-        name: "manhattan",
-        args: {
-          padding: 20,
-          startDirections: ["bottom"],
-          endDirections: ["top"],
-        },
-      },
-      connector: { name: "rounded", args: { radius: 8 } },
-    });
-  });
-
   test("maps a root element to a node with absolute position, shape and data", () => {
     const document: CanvasDocument = {
       elements: [element("a", "text", { x: 100, y: 120 }, { width: 220, height: 120 })],
@@ -97,11 +80,12 @@ describe("graph-document toX6Cells", () => {
         {
           id: "e1",
           canvasId: "canvas",
-          source: { cell: "a", port: "out-bottom" },
-          target: { cell: "b", port: "in-top" },
+          source: { cell: "a", port: "bottom" },
+          target: { cell: "b", port: "top" },
+          router: null,
+          connector: { name: "smooth" },
           label: "causal",
           style: {
-            routing: "curve",
             lineStyle: "dashed",
             width: "medium",
             color: "chart-1",
@@ -115,8 +99,8 @@ describe("graph-document toX6Cells", () => {
     const edge = cells.find((c) => c.id === "e1");
     expect(edge).toMatchObject({
       shape: "edge",
-      source: { cell: "a", port: "out-bottom" },
-      target: { cell: "b", port: "in-top" },
+      source: { cell: "a", port: "bottom" },
+      target: { cell: "b", port: "top" },
       connector: { name: "smooth" },
     });
     expect(
@@ -129,8 +113,8 @@ describe("graph-document toX6Cells", () => {
     expect(edge).toHaveProperty("labels");
   });
 
-  test("straight / orthogonal routing map to their connectors", () => {
-    const mk = (routing: "straight" | "orthogonal") => {
+  test("passes persisted X6 router and connector through without mapping", () => {
+    const mk = (routing: Pick<CanvasEdgeDTO, "router" | "connector">) => {
       const document: CanvasDocument = {
         elements: [
           element("a", "text", { x: 0, y: 0 }, { width: 100, height: 80 }),
@@ -140,10 +124,11 @@ describe("graph-document toX6Cells", () => {
           {
             id: "e",
             canvasId: "canvas",
-            source: { cell: "a", port: "out" },
-            target: { cell: "b", port: "in" },
+            source: { cell: "a", port: "right" },
+            target: { cell: "b", port: "left" },
+            ...routing,
             label: null,
-            style: { routing },
+            style: null,
             createdAt: timestamp,
           },
         ],
@@ -151,22 +136,45 @@ describe("graph-document toX6Cells", () => {
       return toX6Cells(document).find((c) => c.id === "e");
     };
     // X6 3.x 内建 connector 无 straight：直线用 normal connector（无 router 中间点）
-    const straight = mk("straight") as { connector?: { name?: string }; router?: unknown };
+    const straight = mk({ router: null, connector: { name: "normal" } }) as {
+      connector?: { name?: string };
+      router?: unknown;
+    };
     expect(straight.connector?.name).toBe("normal");
     expect(straight.router).toBeUndefined();
-    const orth = mk("orthogonal") as { connector?: { name?: string }; router?: { name?: string } };
+    const orth = mk({
+      router: {
+        name: "manhattan",
+        args: { padding: 20, startDirections: ["right"], endDirections: ["left"] },
+      },
+      connector: { name: "rounded", args: { radius: 8 } },
+    }) as { connector?: { name?: string }; router?: { name?: string } };
     expect(orth.connector?.name).toBe("rounded");
     expect(orth.router?.name).toBe("manhattan");
   });
 });
 
 describe("in-place cell updates", () => {
+  test("excludes X6's transient incomplete edge from document snapshots", () => {
+    const incomplete = {
+      getSourceCellId: () => "a",
+      getSourcePortId: () => "right",
+      getTargetCellId: () => null,
+      getTargetPortId: () => null,
+    };
+    expect(
+      graphToDocument({ getNodes: () => [], getEdges: () => [incomplete] } as never).edges,
+    ).toEqual([]);
+  });
+
   test("reads X6 terminal ports into the persisted edge", () => {
     const current: CanvasEdgeDTO = {
       id: "e",
       canvasId: "canvas",
-      source: { cell: "a", port: "out" },
-      target: { cell: "b", port: "in" },
+      source: { cell: "a", port: "right" },
+      target: { cell: "b", port: "left" },
+      router: null,
+      connector: { name: "smooth" },
       label: null,
       style: null,
       createdAt: timestamp,
@@ -176,13 +184,17 @@ describe("in-place cell updates", () => {
         id: "e",
         getData: () => ({ edge: current }),
         getSourceCellId: () => "a",
-        getSourcePortId: () => "out-bottom",
+        getSourcePortId: () => "bottom",
         getTargetCellId: () => "b",
-        getTargetPortId: () => "in-top",
+        getTargetPortId: () => "top",
+        getRouter: () => ({ name: "manhattan" }),
+        getConnector: () => ({ name: "rounded" }),
       } as never),
     ).toMatchObject({
-      source: { cell: "a", port: "out-bottom" },
-      target: { cell: "b", port: "in-top" },
+      source: { cell: "a", port: "bottom" },
+      target: { cell: "b", port: "top" },
+      router: { name: "manhattan" },
+      connector: { name: "rounded" },
     });
   });
 
@@ -199,17 +211,17 @@ describe("in-place cell updates", () => {
     const current: CanvasEdgeDTO = {
       id: "e",
       canvasId: "canvas",
-      source: { cell: "a", port: "out" },
-      target: { cell: "b", port: "in" },
+      source: { cell: "a", port: "right" },
+      target: { cell: "b", port: "left" },
+      router: null,
+      connector: { name: "smooth" },
       label: "old",
-      style: { routing: "curve" },
+      style: null,
       createdAt: timestamp,
     };
     const cell = {
       id: "e",
       getData: () => ({ edge: current }),
-      getSourcePortId: () => "out",
-      getTargetPortId: () => "in",
       replaceData: vi.fn(),
       setAttrs: vi.fn(),
       setConnector: vi.fn(),
@@ -218,13 +230,17 @@ describe("in-place cell updates", () => {
       setLabels: vi.fn(),
     };
     applyEdgePresentation(cell as never, {
-      style: { routing: "straight", color: "chart-1" },
+      style: { color: "chart-1" },
+      router: null,
+      connector: { name: "normal" },
       label: "new",
     });
     expect(cell.replaceData).toHaveBeenCalledWith({
       edge: {
         ...current,
-        style: { routing: "straight", color: "chart-1" },
+        style: { color: "chart-1" },
+        router: null,
+        connector: { name: "normal" },
         label: "new",
       },
     });

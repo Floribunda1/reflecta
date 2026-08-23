@@ -61,22 +61,21 @@ test.afterAll(async () => {
 });
 
 async function connectAToB(offsetY = 0, fromId = "e_a", toId = "e_b") {
-  const a = (await h.nodeInGraph(page!, fromId).first().boundingBox())!;
-  const b = (await h.nodeInGraph(page!, toId).first().boundingBox())!;
-  // 起点/终点内移 2px：精确贴边的坐标会落到 X6 边界 magnet，第二次从同一点出边失败
-  await page!.mouse.move(a.x + a.width - 2, a.y + a.height / 2 + offsetY);
+  const from = (await h.portCenter(page!, fromId, "right"))!;
+  const to = (await h.portCenter(page!, toId, "left"))!;
+  await page!.mouse.move(from.x - 2, from.y + offsetY);
   await page!.mouse.down();
-  await page!.mouse.move(b.x + 2, b.y + b.height / 2 + offsetY, { steps: 10 });
+  await page!.mouse.move(to.x + 2, to.y + offsetY, { steps: 10 });
   await page!.mouse.up();
   await page!.waitForTimeout(300);
 }
 
 async function connectBottomToTop(fromId: string, toId: string) {
-  const from = (await h.nodeInGraph(page!, fromId).first().boundingBox())!;
-  const to = (await h.nodeInGraph(page!, toId).first().boundingBox())!;
-  await page!.mouse.move(from.x + from.width / 2, from.y + from.height - 2);
+  const from = (await h.portCenter(page!, fromId, "bottom"))!;
+  const to = (await h.portCenter(page!, toId, "top"))!;
+  await page!.mouse.move(from.x, from.y - 2);
   await page!.mouse.down();
-  await page!.mouse.move(to.x + to.width / 2, to.y + 2, { steps: 10 });
+  await page!.mouse.move(to.x, to.y + 2, { steps: 10 });
   await page!.mouse.up();
   await page!.waitForTimeout(300);
 }
@@ -97,18 +96,19 @@ test("@CV-X6-SEL-002 单击选中边出现底部边工具栏", async () => {
   await expect(page!.getByTestId("canvas-edge-toolbar")).toBeVisible();
 });
 
-test("@CV-X6-EDGE-003 新连线自带画布归属与默认样式", async () => {
+test("@CV-X6-EDGE-003 新连线自带画布归属与默认 X6 配置", async () => {
   await h.openCanvasRow(page!, "EDGE");
   const edges = await h.edgeModel(page!);
   expect(edges[0].canvasId).toBe("cvx-edge");
-  expect((edges[0].style as { routing?: string })?.routing).toBe("curve");
+  expect(edges[0].router).toBeNull();
+  expect(edges[0].connector).toBe("smooth");
 });
 
 test("@CV-X6-EDGE-002 同一节点可连不同端点", async () => {
   await h.openCanvasRow(page!, "PARALLEL");
   await page!.waitForTimeout(600);
-  await connectAToB(0, "pa_a", "pa_b"); // A→B
-  await connectAToB(0, "pa_a", "pa_c"); // A→C
+  await connectAToB(-1, "pa_a", "pa_b"); // A→B
+  await connectAToB(1, "pa_a", "pa_c"); // A→C
   await expect.poll(async () => (await h.edgeModel(page!)).length).toBe(2);
   const edges = await h.edgeModel(page!);
   expect(edges.map((e) => e.source)).toEqual(["pa_a", "pa_a"]);
@@ -125,12 +125,12 @@ test("@CV-X6-PERSIST-003 多出边重载不丢失", async () => {
 test("@CV-X6-EDGE-008 用户选择的连接端口在重新进入后保持", async () => {
   await h.openCanvasRow(page!, "EDGEPORTS");
   await connectBottomToTop("port_a", "port_b");
-  await expect.poll(async () => (await h.edgeModel(page!))[0]?.sourcePort).toBe("out-bottom");
-  expect((await h.edgeModel(page!))[0]?.targetPort).toBe("in-top");
+  await expect.poll(async () => (await h.edgeModel(page!))[0]?.sourcePort).toBe("bottom");
+  expect((await h.edgeModel(page!))[0]?.targetPort).toBe("top");
   await page!.waitForTimeout(1200);
   await h.openCanvasRow(page!, "EDGEPORTS");
-  await expect.poll(async () => (await h.edgeModel(page!))[0]?.sourcePort).toBe("out-bottom");
-  expect((await h.edgeModel(page!))[0]?.targetPort).toBe("in-top");
+  await expect.poll(async () => (await h.edgeModel(page!))[0]?.sourcePort).toBe("bottom");
+  expect((await h.edgeModel(page!))[0]?.targetPort).toBe("top");
 });
 
 test("@CV-X6-EDGE-004 调整连线样式并保留", async () => {

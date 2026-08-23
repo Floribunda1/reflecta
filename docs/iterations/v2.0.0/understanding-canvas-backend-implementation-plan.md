@@ -83,7 +83,7 @@ Phase 0 (TBD-3 降级) ──┬──> Phase 1 (Canvas 域) ──> Phase 2 (Ag
 1. **schema**（`db/schema.ts` + 迁移 v2.0.0 追加）：
    - `understanding_canvases`（id / title / created_at / updated_at）
    - `understanding_canvas_elements`（id / canvas_id FK / kind / x,y,width,height,z_index / locked / parent_id（组内引用，set null）/ understanding_id FK（set null）/ canvas_ref_id FK（set null）/ props JSON / created_at,updated_at）
-   - `understanding_canvas_edges`（id / canvas_id FK / source_element_id + source_port_id / target_element_id + target_port_id / label / style JSON / created_at）
+   - `understanding_canvas_edges`（id / canvas_id FK / X6 source + target terminal / router + connector JSON / label / style JSON / created_at）
    - 索引：`elements(canvas_id)`、`elements(understanding_id)`（C13 反向查询）、`canvases(updated_at)`（列表排序）
 2. **类型**（`domains/canvas/types.ts`）：`CanvasDocument`（elements 判别联合 + edges）、`CanvasElement`（kind 收窄 props：understanding/text/shape/group/canvasRef）、`CanvasEdge`、`EdgeStyle`（五维 + 默认值）、`CanvasDTO`。
 3. **CanvasCore**（`domains/canvas/core.ts`）：

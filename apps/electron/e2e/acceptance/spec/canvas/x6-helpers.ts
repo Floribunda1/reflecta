@@ -41,6 +41,25 @@ export async function nodeGeometry(page: Page, id: string) {
   }, id);
 }
 
+/** X6 原生 port magnet 的屏幕中心。 */
+export async function portCenter(page: Page, nodeId: string, portId: string) {
+  return page.evaluate(
+    ({ nodeId, portId }) => {
+      const graph = (window as unknown as { __x6graph?: import("@antv/x6").Graph }).__x6graph;
+      const node = graph?.getCellById(nodeId);
+      if (!graph || !node) return null;
+      const view = graph.findViewByCell(node) as unknown as {
+        findPortElem(id: string): Element | null;
+      };
+      const port = view.findPortElem(portId);
+      if (!port) return null;
+      const box = port.getBoundingClientRect();
+      return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    },
+    { nodeId, portId },
+  );
+}
+
 /** 等待主图挂载并可读视口（防止 reopen 后图未就绪读到 null）。 */
 export async function waitViewport(page: Page) {
   await expect
@@ -144,6 +163,7 @@ export async function edgeModel(page: Page) {
         targetPort: edge.getTargetPortId() ?? null,
         label: dto.label ?? null,
         style: dto.style ?? null,
+        router: edge.getRouter()?.name ?? null,
         connector: edge.getConnector()?.name ?? null,
         strokeToken: line.stroke ?? null,
         dasharray: line.strokeDasharray ?? null,

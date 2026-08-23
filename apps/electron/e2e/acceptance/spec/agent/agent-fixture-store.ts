@@ -103,8 +103,10 @@ type Fixture =
       }>;
       edges?: Array<{
         id: string;
-        source: { cell: string; port: "in" | "in-top" | "out" | "out-bottom" };
-        target: { cell: string; port: "in" | "in-top" | "out" | "out-bottom" };
+        source: { cell: string; port: "top" | "right" | "bottom" | "left" };
+        target: { cell: string; port: "top" | "right" | "bottom" | "left" };
+        router: { name: string; args?: Record<string, unknown> } | null;
+        connector: { name: string; args?: Record<string, unknown> };
         label?: string | null;
         style?: Record<string, unknown> | null;
       }>;
@@ -736,8 +738,8 @@ try {
     for (const edge of fixture.edges ?? []) {
       db.query(
         `INSERT INTO understanding_canvas_edges
-          (id, canvas_id, source_element_id, source_port_id, target_element_id, target_port_id, label, props, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (id, canvas_id, source_element_id, source_port_id, target_element_id, target_port_id, router, connector, label, props, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         edge.id,
         fixture.id,
@@ -745,6 +747,8 @@ try {
         edge.source.port,
         edge.target.cell,
         edge.target.port,
+        edge.router ? JSON.stringify(edge.router) : null,
+        JSON.stringify(edge.connector),
         edge.label ?? null,
         JSON.stringify(edge.style ?? null),
         now,

@@ -52,8 +52,10 @@ test.beforeAll(async () => {
     edges: [
       {
         id: "s_e1",
-        source: { cell: "s_a", port: "out" },
-        target: { cell: "s_b", port: "in" },
+        source: { cell: "s_a", port: "right" },
+        target: { cell: "s_b", port: "left" },
+        router: null,
+        connector: { name: "smooth" },
         label: "SNK_EDGE",
         style: {},
       },

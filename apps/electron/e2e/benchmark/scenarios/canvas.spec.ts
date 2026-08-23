@@ -28,8 +28,10 @@ test.beforeAll(async () => {
   }));
   const edges = Array.from({ length: NODE_COUNT - 1 }, (_, index) => ({
     id: `edge-${index}`,
-    source: { cell: `node-${index}`, port: "out" as const },
-    target: { cell: `node-${index + 1}`, port: "in" as const },
+    source: { cell: `node-${index}`, port: "right" as const },
+    target: { cell: `node-${index + 1}`, port: "left" as const },
+    router: null,
+    connector: { name: "smooth" as const },
     label: `关系 ${index}`,
   }));
   seedCanvas({

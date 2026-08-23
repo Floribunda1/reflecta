@@ -120,12 +120,17 @@ export function storyEdge(
   targetElementId: string,
   label: string | null = null,
   style: CanvasEdgeDTO["style"] = null,
+  pathConfig: Pick<CanvasEdgeDTO, "router" | "connector"> = {
+    router: null,
+    connector: { name: "smooth" },
+  },
 ): CanvasEdgeDTO {
   return {
     id,
     canvasId: "canvas-irrigation",
-    source: { cell: sourceElementId, port: "out" },
-    target: { cell: targetElementId, port: "in" },
+    source: { cell: sourceElementId, port: "right" },
+    target: { cell: targetElementId, port: "left" },
+    ...pathConfig,
     label,
     style,
     createdAt: TIME,
@@ -246,7 +251,6 @@ export const typicalCanvasDocument: CanvasDocument = {
   ],
   edges: [
     storyEdge("edge-depends", "el-irrigation", "el-note", "依赖", {
-      routing: "curve",
       lineStyle: "solid",
       width: "thin",
       arrowhead: "classic",
@@ -259,6 +263,7 @@ function edgeGallery(
     id: string;
     label: string;
     style: CanvasEdgeDTO["style"];
+    pathConfig?: Pick<CanvasEdgeDTO, "router" | "connector">;
     edgeLabel?: string | null;
   }>,
 ): CanvasDocument {
@@ -277,7 +282,14 @@ function edgeGallery(
     }),
   ]);
   const edges = rows.map((row) =>
-    storyEdge(row.id, `${row.id}-from`, `${row.id}-to`, row.edgeLabel ?? row.label, row.style),
+    storyEdge(
+      row.id,
+      `${row.id}-from`,
+      `${row.id}-to`,
+      row.edgeLabel ?? row.label,
+      row.style,
+      row.pathConfig,
+    ),
   );
   return { elements, edges };
 }
@@ -351,9 +363,25 @@ export const canvasRefCardsDocument: CanvasDocument = {
 };
 
 export const edgeRoutingDocument = edgeGallery([
-  { id: "edge-curve", label: "曲线", style: { routing: "curve" } },
-  { id: "edge-straight", label: "直线", style: { routing: "straight" } },
-  { id: "edge-orthogonal", label: "正交", style: { routing: "orthogonal" } },
+  { id: "edge-curve", label: "曲线", style: null },
+  {
+    id: "edge-straight",
+    label: "直线",
+    style: null,
+    pathConfig: { router: null, connector: { name: "normal" } },
+  },
+  {
+    id: "edge-orthogonal",
+    label: "正交",
+    style: null,
+    pathConfig: {
+      router: {
+        name: "manhattan",
+        args: { padding: 20, startDirections: ["right"], endDirections: ["left"] },
+      },
+      connector: { name: "rounded", args: { radius: 8 } },
+    },
+  },
 ]);
 
 export const edgeLineStyleDocument = edgeGallery([

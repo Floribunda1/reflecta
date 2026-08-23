@@ -92,8 +92,10 @@ describe("reduceCanvasSession", () => {
         {
           id: "edge",
           canvasId: "canvas-1",
-          source: { cell: "a", port: "out" },
-          target: { cell: "missing", port: "in" },
+          source: { cell: "a", port: "right" },
+          target: { cell: "missing", port: "left" },
+          router: null,
+          connector: { name: "smooth" },
           label: null,
           style: null,
           createdAt: time,

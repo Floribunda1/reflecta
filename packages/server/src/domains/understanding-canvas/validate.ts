@@ -16,7 +16,9 @@ export class CanvasValidationError extends Error {
   }
 }
 
-const EDGE_PORT_IDS = ["in", "in-top", "out", "out-bottom"] as const;
+const EDGE_PORT_IDS = ["top", "right", "bottom", "left"] as const;
+const EDGE_ROUTER_NAMES = ["normal", "orth", "oneSide", "manhattan", "metro", "er"] as const;
+const EDGE_CONNECTOR_NAMES = ["normal", "smooth", "rounded", "jumpover"] as const;
 
 export function assertValidDocument(document: CanvasDocument): void {
   const { elements, edges } = document;
@@ -49,6 +51,12 @@ export function assertValidDocument(document: CanvasDocument): void {
     }
     if (!EDGE_PORT_IDS.includes(edge.source.port) || !EDGE_PORT_IDS.includes(edge.target.port)) {
       throw new CanvasValidationError(`Edge ${edge.id} has an invalid port`);
+    }
+    if (edge.router && !EDGE_ROUTER_NAMES.includes(edge.router.name)) {
+      throw new CanvasValidationError(`Edge ${edge.id} has an invalid router`);
+    }
+    if (!edge.connector || !EDGE_CONNECTOR_NAMES.includes(edge.connector.name)) {
+      throw new CanvasValidationError(`Edge ${edge.id} has an invalid connector`);
     }
     assertValidEdgeStyle(edge.style);
   }
@@ -120,7 +128,6 @@ export function assertValidElement(element: CanvasElementDTO): void {
 }
 
 const EDGE_STYLE_ENUMS = {
-  routing: ["straight", "curve", "orthogonal"],
   lineStyle: ["solid", "dashed", "dotted"],
   width: ["thin", "medium", "thick"],
   arrowhead: ["classic", "block", "circle", "diamond", "cross", "ellipse", "none"],

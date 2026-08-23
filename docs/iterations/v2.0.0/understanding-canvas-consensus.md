@@ -82,13 +82,12 @@
 - **连线样式（EdgeStyle，社区四维模型）**：
   ```ts
   EdgeStyle = {
-    routing?: "straight" | "curve" | "orthogonal";  // 拐点类型（用户点名补充）
     lineStyle?: "solid" | "dashed" | "dotted";
     color?: string;      // 预设色板 key / hex
     width?: "thin" | "medium" | "thick";
     arrowhead?: "arrow" | "block" | "none";
   }
-  // 默认：straight + solid + 灰 + medium + arrow
+  // 路由不放进 style；CanvasEdgeDTO 直接保存 X6 router / connector。
   ```
 - 样式持久化、可重置默认。
 

@@ -26,7 +26,6 @@ import { cn } from "../lib/utils";
 import { ensureCanvasShapes } from "./nodes";
 import type { CanvasCellAction } from "./shape-context";
 import {
-  DEFAULT_CANVAS_EDGE_STYLE,
   DEFAULT_CANVAS_VIEWPORT,
   type CanvasDocument,
   type CanvasEdgeDTO,
@@ -35,7 +34,7 @@ import {
 } from "./document";
 import {
   applyEdgePresentation,
-  edgeRoutingFor,
+  DEFAULT_CANVAS_EDGE_CONNECTOR,
   applyElementUpdate,
   toX6Cells,
   graphToDocument,
@@ -108,8 +107,6 @@ export type CanvasGraphProps = {
 
 const CANVAS_SNAP_GRID = 10;
 const EMPTY_DOC: CanvasDocument = { elements: [], edges: [] };
-const DEFAULT_EDGE_ROUTING = edgeRoutingFor(DEFAULT_CANVAS_EDGE_STYLE);
-
 /**
  * X6 fromJSON 只恢复 child 的 parent 反指，不会重建父节点的 children 列表
  * （会话内 addChild 双向维护，重进后只有单向 → 解组 / 级联删除 / 组树全失效）。
@@ -245,7 +242,7 @@ export const CanvasGraph = React.memo(
         preventDefaultDblClick: false,
         connecting: {
           snap: { radius: 50 },
-          ...DEFAULT_EDGE_ROUTING,
+          connector: DEFAULT_CANVAS_EDGE_CONNECTOR,
           allowLoop: true,
           allowNode: true,
           allowEdge: false,

@@ -46,7 +46,6 @@ export type CanvasElementDTO = {
 // --- 连线样式（社区四维模型） ---------------------------------------------------
 
 export type EdgeStyle = {
-  routing?: "straight" | "curve" | "orthogonal";
   lineStyle?: "solid" | "dashed" | "dotted";
   color?: string;
   width?: "thin" | "medium" | "thick";
@@ -54,7 +53,17 @@ export type EdgeStyle = {
   arrowhead?: "classic" | "block" | "circle" | "diamond" | "cross" | "ellipse" | "none";
 };
 
-export type CanvasEdgePortId = "in" | "in-top" | "out" | "out-bottom";
+export type CanvasEdgePortId = "top" | "right" | "bottom" | "left";
+
+export type CanvasEdgeRouter = {
+  name: "normal" | "orth" | "oneSide" | "manhattan" | "metro" | "er";
+  args?: Record<string, unknown>;
+};
+
+export type CanvasEdgeConnector = {
+  name: "normal" | "smooth" | "rounded" | "jumpover";
+  args?: Record<string, unknown>;
+};
 
 /** 与 X6 Edge terminal 同构；服务端持久化端点，不持久化引擎派生的路径。 */
 export type CanvasEdgeTerminal = {
@@ -67,6 +76,8 @@ export type CanvasEdgeDTO = {
   canvasId: string;
   source: CanvasEdgeTerminal;
   target: CanvasEdgeTerminal;
+  router: CanvasEdgeRouter | null;
+  connector: CanvasEdgeConnector;
   label: string | null;
   style: EdgeStyle | null;
   createdAt: string;

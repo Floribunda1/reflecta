@@ -99,8 +99,10 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
         {
           id: "x",
           canvasId,
-          source: { cell: "e1", port: "out-bottom" },
-          target: { cell: "e2", port: "in-top" },
+          source: { cell: "e1", port: "bottom" },
+          target: { cell: "e2", port: "top" },
+          router: { name: "manhattan", args: { startDirections: ["bottom"] } },
+          connector: { name: "rounded", args: { radius: 8 } },
           label: "依赖",
           style: null,
           createdAt: "2026-08-01T00:00:00.000Z",
@@ -111,10 +113,17 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
     const { elements, edges } = await readRows();
     expect(elements).toHaveLength(2);
     expect(edges).toHaveLength(1);
-    expect(edges[0]).toMatchObject({ source_port_id: "out-bottom", target_port_id: "in-top" });
+    expect(edges[0]).toMatchObject({
+      source_port_id: "bottom",
+      target_port_id: "top",
+      router: '{"name":"manhattan","args":{"startDirections":["bottom"]}}',
+      connector: '{"name":"rounded","args":{"radius":8}}',
+    });
     expect((await Effect.runPromise(core.getCanvasDetail(canvasId)))?.edges[0]).toMatchObject({
-      source: { cell: "e1", port: "out-bottom" },
-      target: { cell: "e2", port: "in-top" },
+      source: { cell: "e1", port: "bottom" },
+      target: { cell: "e2", port: "top" },
+      router: { name: "manhattan", args: { startDirections: ["bottom"] } },
+      connector: { name: "rounded", args: { radius: 8 } },
     });
   });
 
@@ -126,8 +135,10 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
         {
           id: "x",
           canvasId,
-          source: { cell: "e1", port: "out" },
-          target: { cell: "e2", port: "in" },
+          source: { cell: "e1", port: "right" },
+          target: { cell: "e2", port: "left" },
+          router: null,
+          connector: { name: "smooth" },
           label: null,
           style: { color: "#ff0000" },
           createdAt: "2026-08-01T00:00:00.000Z",
@@ -171,8 +182,10 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
           {
             id: "x1",
             canvasId,
-            source: { cell: "e1", port: "out" },
-            target: { cell: "e2", port: "in" },
+            source: { cell: "e1", port: "right" },
+            target: { cell: "e2", port: "left" },
+            router: null,
+            connector: { name: "smooth" },
             label: null,
             style: null,
             createdAt: "2026-08-01T00:00:00.000Z",
@@ -228,8 +241,10 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
         {
           id: "x",
           canvasId,
-          source: { cell: "e1", port: "out" },
-          target: { cell: "missing", port: "in" },
+          source: { cell: "e1", port: "right" },
+          target: { cell: "missing", port: "left" },
+          router: null,
+          connector: { name: "smooth" },
           label: null,
           style: null,
           createdAt: "2026-08-01T00:00:00.000Z",
@@ -264,8 +279,10 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
           {
             id: "x",
             canvasId,
-            source: { cell: "e1", port: "out" },
-            target: { cell: "e2", port: "in" },
+            source: { cell: "e1", port: "right" },
+            target: { cell: "e2", port: "left" },
+            router: null,
+            connector: { name: "smooth" },
             label: null,
             style: null,
             createdAt: "2026-08-01T00:00:00.000Z",

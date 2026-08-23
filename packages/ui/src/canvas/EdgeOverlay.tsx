@@ -11,7 +11,12 @@ import {
 } from "../components/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/popover";
 import { canvasPaintColor, CanvasColorSwatches } from "./color-swatches";
-import { DEFAULT_CANVAS_EDGE_STYLE, type CanvasEdgeDTO, type CanvasEdgeStyle } from "./document";
+import {
+  DEFAULT_CANVAS_EDGE_STYLE,
+  type CanvasEdgeDTO,
+  type CanvasEdgePortId,
+  type CanvasEdgeStyle,
+} from "./document";
 
 /**
  * 边样式 / 标签 / 删除工具栏：单条边被选中时显示在边的路径中点附近。
@@ -104,6 +109,25 @@ export function EdgeOverlay({
   const style = dto.style ?? {};
   const current = { ...DEFAULT_CANVAS_EDGE_STYLE, ...style };
   const patch = (patch: CanvasEdgeStyle) => onUpdate({ ...dto, style: { ...style, ...patch } });
+  const routing = dto.router?.name ?? dto.connector.name;
+  const patchRouting = (name: string) => {
+    if (name === "manhattan") {
+      const sourcePort = edge.getSourcePortId() as CanvasEdgePortId;
+      const targetPort = edge.getTargetPortId() as CanvasEdgePortId;
+      onUpdate({
+        ...dto,
+        router: {
+          name,
+          args: { padding: 20, startDirections: [sourcePort], endDirections: [targetPort] },
+        },
+        connector: { name: "rounded", args: { radius: 8 } },
+      });
+      return;
+    }
+    if (name === "smooth" || name === "normal") {
+      onUpdate({ ...dto, router: null, connector: { name } });
+    }
+  };
   const commitLabel = () => {
     if (labelDraft === null) return;
     const label = labelDraft.trim() || null;
@@ -144,12 +168,12 @@ export function EdgeOverlay({
         </PopoverContent>
       </Popover>
 
-      <EdgeStyleMenu
+      <EdgeStyleMenu<string>
         label="形状"
         icon={<Route />}
-        value={current.routing ?? "curve"}
+        value={routing}
         options={ROUTING_OPTIONS}
-        onChange={(routing) => patch({ routing })}
+        onChange={patchRouting}
       />
       <EdgeStyleMenu
         label="线型"
@@ -206,9 +230,9 @@ export function EdgeOverlay({
 }
 
 const ROUTING_OPTIONS = [
-  { value: "curve", label: "曲线" },
-  { value: "straight", label: "直线" },
-  { value: "orthogonal", label: "正交" },
+  { value: "smooth", label: "曲线" },
+  { value: "normal", label: "直线" },
+  { value: "manhattan", label: "正交" },
 ] as const;
 const LINE_STYLE_OPTIONS = [
   { value: "solid", label: "实线" },

@@ -226,6 +226,17 @@ describe("versioned migrations", () => {
         .filter((column) => column.name.endsWith("_port_id"))
         .map((column) => column.name),
     ).toEqual(["source_port_id", "target_port_id"]);
+    expect(tableColumns(db, "understanding_canvas_edges")).toEqual(
+      expect.arrayContaining(["router", "connector"]),
+    );
+    const edgeColumns = db.$client
+      .prepare(`PRAGMA table_info(understanding_canvas_edges)`)
+      .all() as Array<{ name: string; dflt_value: string | null }>;
+    expect(
+      edgeColumns
+        .filter((column) => ["source_port_id", "target_port_id", "connector"].includes(column.name))
+        .map((column) => column.dflt_value),
+    ).toEqual([null, null, null]);
     expect(
       db.$client.prepare(`SELECT source_id, target_id FROM understanding_mentions`).all(),
     ).toEqual([{ source_id: "understanding-source", target_id: "understanding-target" }]);

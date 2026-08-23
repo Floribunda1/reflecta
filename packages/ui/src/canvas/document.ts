@@ -41,28 +41,34 @@ export type CanvasElementDTO = {
 }[CanvasElementKind];
 
 export type CanvasEdgeStyle = {
-  /** 形状：曲线=smooth；直线=normal；正交=manhattan + rounded */
-  routing?: "straight" | "curve" | "orthogonal";
   /** 线型：映射 X6 line.strokeDasharray（虚线 5 5 / 点线 2 2） */
   lineStyle?: "solid" | "dashed" | "dotted";
   color?: string;
   /** 线宽：映射 X6 line.strokeWidth（细 2 / 中 3 / 粗 4） */
   width?: "thin" | "medium" | "thick";
-  /** 箭头：与 X6 内建 marker 一一对应（arrow→classic，其余同名校）；none→targetMarker null */
   /** 箭头：直接取 X6 内建 marker 名（classic/block/circle/diamond/cross/ellipse/none）。 */
   arrowhead?: "classic" | "block" | "circle" | "diamond" | "cross" | "ellipse" | "none";
 };
 
 export const DEFAULT_CANVAS_EDGE_STYLE: CanvasEdgeStyle = {
-  routing: "curve",
   lineStyle: "solid",
   width: "thin",
   arrowhead: "classic",
 };
 
-export type CanvasEdgePortId = "in" | "in-top" | "out" | "out-bottom";
+export type CanvasEdgePortId = "top" | "right" | "bottom" | "left";
 
-/** 与 X6 Edge terminal 同构；文档保存端点，router / connector 由 style 派生。 */
+export type CanvasEdgeRouter = {
+  name: "normal" | "orth" | "oneSide" | "manhattan" | "metro" | "er";
+  args?: Record<string, unknown>;
+};
+
+export type CanvasEdgeConnector = {
+  name: "normal" | "smooth" | "rounded" | "jumpover";
+  args?: Record<string, unknown>;
+};
+
+/** 与 X6 Edge terminal 同构。 */
 export type CanvasEdgeTerminal = {
   cell: string;
   port: CanvasEdgePortId;
@@ -73,6 +79,8 @@ export type CanvasEdgeDTO = {
   canvasId: string;
   source: CanvasEdgeTerminal;
   target: CanvasEdgeTerminal;
+  router: CanvasEdgeRouter | null;
+  connector: CanvasEdgeConnector;
   label: string | null;
   style: CanvasEdgeStyle | null;
   createdAt: string;

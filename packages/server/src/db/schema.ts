@@ -144,11 +144,13 @@ export const understandingCanvasEdges = sqliteTable(
     sourceElementId: text("source_element_id")
       .notNull()
       .references(() => understandingCanvasElements.id, { onDelete: "cascade" }),
-    sourcePortId: text("source_port_id").notNull().default("out"),
+    sourcePortId: text("source_port_id").notNull(),
     targetElementId: text("target_element_id")
       .notNull()
       .references(() => understandingCanvasElements.id, { onDelete: "cascade" }),
-    targetPortId: text("target_port_id").notNull().default("in"),
+    targetPortId: text("target_port_id").notNull(),
+    router: text("router"),
+    connector: text("connector").notNull(),
     label: text("label"),
     props: text("props").notNull().default("{}"),
     createdAt: text("created_at").notNull(),
