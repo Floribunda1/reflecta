@@ -1,6 +1,12 @@
 import type { Edge as X6Edge, EdgeMetadata } from "@antv/x6";
 import { Edge as X6EdgeCtor, type Graph, type Node as X6Node, type NodeMetadata } from "@antv/x6";
-import type { CanvasDocument, CanvasEdgeDTO, CanvasEdgeStyle, CanvasElementDTO } from "./document";
+import type {
+  CanvasDocument,
+  CanvasEdgeDTO,
+  CanvasEdgePortId,
+  CanvasEdgeStyle,
+  CanvasElementDTO,
+} from "./document";
 import { DEFAULT_CANVAS_EDGE_STYLE } from "./document";
 import { canvasPaintColor } from "./color-swatches";
 import { absolutePositionOf } from "./graph-operations";
@@ -26,27 +32,39 @@ const toAbsolute = (
   return absolutePositionOf(element, index);
 };
 
-export function edgeConnectorFor(
+const PORT_DIRECTION = {
+  in: "left",
+  "in-top": "top",
+  out: "right",
+  "out-bottom": "bottom",
+} as const;
+
+export function edgeRoutingFor(
   style: CanvasEdgeStyle | null,
-  sourcePortId = "out",
-): EdgeMetadata["connector"] {
+  sourcePortId: CanvasEdgePortId = "out",
+  targetPortId: CanvasEdgePortId = "in",
+): { connector: EdgeMetadata["connector"]; router?: EdgeMetadata["router"] } {
   switch (style?.routing) {
     case "straight":
       // X6 3.x 内建 connector 无 straight：normal + 无 router 中间点 = 直线段
-      return { name: "normal" };
+      return { connector: { name: "normal" } };
     case "orthogonal":
-      return { name: "rounded", args: { radius: 8 } };
+      return {
+        router: {
+          name: "manhattan",
+          args: {
+            padding: 20,
+            startDirections: [PORT_DIRECTION[sourcePortId]],
+            endDirections: [PORT_DIRECTION[targetPortId]],
+          },
+        },
+        connector: { name: "rounded", args: { radius: 8 } },
+      };
     case "curve":
     default:
-      return {
-        name: "smooth",
-        args: { direction: /top|bottom/.test(sourcePortId) ? "V" : "H" },
-      };
+      // 不钉死 H/V：X6 smooth 会根据两端实时几何自动选择，避免纵向布局被拉成长 S 曲线。
+      return { connector: { name: "smooth" } };
   }
-}
-
-function routerFor(style: CanvasEdgeStyle | null): EdgeMetadata["router"] {
-  return style?.routing === "orthogonal" ? { name: "orth" } : undefined;
 }
 
 function edgeLabelItems(label: string | null, color: string) {
@@ -62,12 +80,15 @@ function edgeLabelItems(label: string | null, color: string) {
     : [];
 }
 
-function edgeVisuals(edge: CanvasEdgeDTO, sourcePortId?: string) {
+function edgeVisuals(
+  edge: CanvasEdgeDTO,
+  sourcePortId: CanvasEdgePortId = edge.source.port,
+  targetPortId: CanvasEdgePortId = edge.target.port,
+) {
   const style = edge.style ?? DEFAULT_CANVAS_EDGE_STYLE;
   const color = canvasPaintColor(style.color) ?? "var(--muted-foreground)";
   return {
-    connector: edgeConnectorFor(style, sourcePortId),
-    router: routerFor(style),
+    ...edgeRoutingFor(style, sourcePortId, targetPortId),
     attrs: edgeAttrs(style),
     labels: edgeLabelItems(edge.label, color),
   };
@@ -131,13 +152,13 @@ export function toX6Cells(document: CanvasDocument): CellMetadata[] {
   const index = new Map(document.elements.map((element) => [element.id, element]));
   const nodes: CellMetadata[] = document.elements.map((element) => nodeMetadataFor(element, index));
   const edges: CellMetadata[] = document.edges.map((edge) => {
-    const visuals = edgeVisuals(edge);
+    const visuals = edgeVisuals(edge, edge.source.port);
     return {
       id: edge.id,
       shape: "edge",
       data: { edge },
-      source: { cell: edge.sourceElementId, port: "out" },
-      target: { cell: edge.targetElementId, port: "in" },
+      source: edge.source,
+      target: edge.target,
       connector: visuals.connector,
       ...(visuals.router ? { router: visuals.router } : {}),
       attrs: visuals.attrs,
@@ -160,8 +181,8 @@ export function newEdgeDto(canvasId: string): CanvasEdgeDTO {
   return {
     id: crypto.randomUUID(),
     canvasId,
-    sourceElementId: "",
-    targetElementId: "",
+    source: { cell: "", port: "out" },
+    target: { cell: "", port: "in" },
     label: null,
     style: { ...DEFAULT_CANVAS_EDGE_STYLE },
     createdAt: new Date().toISOString(),
@@ -170,7 +191,7 @@ export function newEdgeDto(canvasId: string): CanvasEdgeDTO {
 
 /** 连线 DTO → X6 Edge 实例（含默认样式 attrs/connector/marker），供 `connecting.createEdge` 用。 */
 export function toX6Edge(edge: CanvasEdgeDTO): X6EdgeCtor {
-  const visuals = edgeVisuals(edge);
+  const visuals = edgeVisuals(edge, edge.source.port);
   return new X6EdgeCtor({
     id: edge.id,
     shape: "edge",
@@ -198,7 +219,11 @@ export function applyEdgePresentation(
   const current = (cell.getData() as { edge?: CanvasEdgeDTO } | null)?.edge;
   if (!current) return;
   const next: CanvasEdgeDTO = { ...current, style: patch.style, label: patch.label };
-  const visuals = edgeVisuals(next, cell.getSourcePortId());
+  const visuals = edgeVisuals(
+    next,
+    (cell.getSourcePortId() as CanvasEdgePortId | undefined) ?? next.source.port,
+    (cell.getTargetPortId() as CanvasEdgePortId | undefined) ?? next.target.port,
+  );
   cell.replaceData({ edge: next });
   cell.setAttrs(visuals.attrs, { overwrite: true });
   if (visuals.connector) cell.setConnector(visuals.connector);
@@ -232,12 +257,16 @@ export function edgeToEdge(edge: X6Edge): CanvasEdgeDTO {
   const base = data ?? ({} as CanvasEdgeDTO);
   // 读 store 的 terminal id（getSourceCell/getTargetCell 是构造时缓存的引用，
   // fromJSON/rebuild 重建后恒为 null，会造成“空端点”残边被保存链剔除）。
-  const sourceId = edge.getSourceCellId() ?? "";
-  const targetId = edge.getTargetCellId() ?? "";
   return {
     ...base,
     id: edge.id,
-    sourceElementId: sourceId,
-    targetElementId: targetId,
+    source: {
+      cell: edge.getSourceCellId() ?? "",
+      port: (edge.getSourcePortId() as CanvasEdgeDTO["source"]["port"] | undefined) ?? "out",
+    },
+    target: {
+      cell: edge.getTargetCellId() ?? "",
+      port: (edge.getTargetPortId() as CanvasEdgeDTO["target"]["port"] | undefined) ?? "in",
+    },
   };
 }

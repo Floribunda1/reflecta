@@ -56,18 +56,21 @@ function element(partial: Partial<CanvasElementDTO> & { id: string }): CanvasEle
 }
 
 function edge(
-  partial: Partial<CanvasEdgeDTO> & {
+  partial: Omit<Partial<CanvasEdgeDTO>, "source" | "target"> & {
     id: string;
     sourceElementId: string;
     targetElementId: string;
   },
 ): CanvasEdgeDTO {
+  const { sourceElementId, targetElementId, ...rest } = partial;
   return {
     canvasId: "canvas-1",
+    source: { cell: sourceElementId, port: "out" },
+    target: { cell: targetElementId, port: "in" },
     label: null,
     style: null,
     createdAt: "2026-08-01T00:00:00.000Z",
-    ...partial,
+    ...rest,
   };
 }
 
@@ -147,6 +150,13 @@ describe("Canvas document validation", () => {
       edge({ id: "y", sourceElementId: "e1", targetElementId: "e2" }),
     ];
     expect(() => assertValidDocument(doc(elements, edges))).not.toThrow();
+  });
+
+  test("unknown edge ports are rejected", () => {
+    const elements = [element({ id: "e1" }), element({ id: "e2" })];
+    const bad = edge({ id: "x", sourceElementId: "e1", targetElementId: "e2" });
+    bad.source.port = "unknown" as never;
+    expect(() => assertValidDocument(doc(elements, [bad]))).toThrow(/invalid port/);
   });
 
   test("parent must be a group", () => {

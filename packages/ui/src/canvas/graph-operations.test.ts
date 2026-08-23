@@ -124,8 +124,8 @@ describe("Canvas group operations (pure document transforms)", () => {
         {
           id: "incident",
           canvasId: "canvas",
-          sourceElementId: "inside",
-          targetElementId: "outside",
+          source: { cell: "inside", port: "out" },
+          target: { cell: "outside", port: "in" },
           label: null,
           style: null,
           createdAt: timestamp,
@@ -133,8 +133,8 @@ describe("Canvas group operations (pure document transforms)", () => {
         {
           id: "unrelated",
           canvasId: "canvas",
-          sourceElementId: "outside",
-          targetElementId: "outside",
+          source: { cell: "outside", port: "out" },
+          target: { cell: "outside", port: "in" },
           label: null,
           style: null,
           createdAt: timestamp,

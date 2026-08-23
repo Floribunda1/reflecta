@@ -54,8 +54,8 @@ const document: CanvasDocument = {
     {
       id: "edge",
       canvasId: "canvas",
-      sourceElementId: "text",
-      targetElementId: "understanding",
+      source: { cell: "text", port: "out" },
+      target: { cell: "understanding", port: "in" },
       label: "EDGE_LABEL",
       style: null,
       createdAt: time,

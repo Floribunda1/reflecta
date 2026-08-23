@@ -186,7 +186,7 @@ export function deleteGroupBranch(document: CanvasDocument, groupId: string): Ca
   return {
     elements: document.elements.filter((element) => !removed.has(element.id)),
     edges: document.edges.filter(
-      (edge) => !removed.has(edge.sourceElementId) && !removed.has(edge.targetElementId),
+      (edge) => !removed.has(edge.source.cell) && !removed.has(edge.target.cell),
     ),
   };
 }
@@ -200,7 +200,7 @@ export function deleteElements(
   return {
     elements: document.elements.filter((element) => !removed.has(element.id)),
     edges: document.edges.filter(
-      (edge) => !removed.has(edge.sourceElementId) && !removed.has(edge.targetElementId),
+      (edge) => !removed.has(edge.source.cell) && !removed.has(edge.target.cell),
     ),
   };
 }

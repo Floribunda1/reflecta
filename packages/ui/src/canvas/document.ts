@@ -41,7 +41,7 @@ export type CanvasElementDTO = {
 }[CanvasElementKind];
 
 export type CanvasEdgeStyle = {
-  /** 形状：曲线=connector smooth；直线=connector normal；正交=router orth + connector rounded */
+  /** 形状：曲线=smooth；直线=normal；正交=manhattan + rounded */
   routing?: "straight" | "curve" | "orthogonal";
   /** 线型：映射 X6 line.strokeDasharray（虚线 5 5 / 点线 2 2） */
   lineStyle?: "solid" | "dashed" | "dotted";
@@ -60,11 +60,19 @@ export const DEFAULT_CANVAS_EDGE_STYLE: CanvasEdgeStyle = {
   arrowhead: "classic",
 };
 
+export type CanvasEdgePortId = "in" | "in-top" | "out" | "out-bottom";
+
+/** 与 X6 Edge terminal 同构；文档保存端点，router / connector 由 style 派生。 */
+export type CanvasEdgeTerminal = {
+  cell: string;
+  port: CanvasEdgePortId;
+};
+
 export type CanvasEdgeDTO = {
   id: string;
   canvasId: string;
-  sourceElementId: string;
-  targetElementId: string;
+  source: CanvasEdgeTerminal;
+  target: CanvasEdgeTerminal;
   label: string | null;
   style: CanvasEdgeStyle | null;
   createdAt: string;

@@ -90,7 +90,7 @@ export function sanitizeDocument(document: CanvasDocument): CanvasDocument {
     return true;
   });
   const edges = document.edges.filter(
-    (edge) => elementIds.has(edge.sourceElementId) && elementIds.has(edge.targetElementId),
+    (edge) => elementIds.has(edge.source.cell) && elementIds.has(edge.target.cell),
   );
   if (elements.length === document.elements.length && edges.length === document.edges.length) {
     return document;

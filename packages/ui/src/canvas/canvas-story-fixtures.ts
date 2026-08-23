@@ -124,8 +124,8 @@ export function storyEdge(
   return {
     id,
     canvasId: "canvas-irrigation",
-    sourceElementId,
-    targetElementId,
+    source: { cell: sourceElementId, port: "out" },
+    target: { cell: targetElementId, port: "in" },
     label,
     style,
     createdAt: TIME,

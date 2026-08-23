@@ -33,7 +33,13 @@ test.beforeAll(async () => {
         height: 80,
       },
     ],
-    edges: [{ id: "e1", sourceElementId: "g_a", targetElementId: "g_c" }],
+    edges: [
+      {
+        id: "e1",
+        source: { cell: "g_a", port: "out" },
+        target: { cell: "g_c", port: "in" },
+      },
+    ],
     viewport: null,
   });
   seedCanvas({

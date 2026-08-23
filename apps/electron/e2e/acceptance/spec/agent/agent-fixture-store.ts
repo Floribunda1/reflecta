@@ -103,8 +103,8 @@ type Fixture =
       }>;
       edges?: Array<{
         id: string;
-        sourceElementId: string;
-        targetElementId: string;
+        source: { cell: string; port: "in" | "in-top" | "out" | "out-bottom" };
+        target: { cell: string; port: "in" | "in-top" | "out" | "out-bottom" };
         label?: string | null;
         style?: Record<string, unknown> | null;
       }>;
@@ -736,13 +736,15 @@ try {
     for (const edge of fixture.edges ?? []) {
       db.query(
         `INSERT INTO understanding_canvas_edges
-          (id, canvas_id, source_element_id, target_element_id, label, props, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          (id, canvas_id, source_element_id, source_port_id, target_element_id, target_port_id, label, props, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         edge.id,
         fixture.id,
-        edge.sourceElementId,
-        edge.targetElementId,
+        edge.source.cell,
+        edge.source.port,
+        edge.target.cell,
+        edge.target.port,
         edge.label ?? null,
         JSON.stringify(edge.style ?? null),
         now,

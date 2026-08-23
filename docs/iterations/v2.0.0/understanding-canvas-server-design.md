@@ -85,10 +85,12 @@ type CanvasElementDTO = {
 
 | 字段                | 类型 | 约束                              | 说明                              |
 | ------------------- | ---- | --------------------------------- | --------------------------------- |
-| `id`                | TEXT | PK                                | 与 React Flow edge id 一致        |
+| `id`                | TEXT | PK                                | 与 X6 edge id 一致                |
 | `canvas_id`         | TEXT | NOT NULL, FK→canvases **CASCADE** |                                   |
-| `source_element_id` | TEXT | NOT NULL, FK→elements **CASCADE** | 删卡片级联删其连线                |
-| `target_element_id` | TEXT | NOT NULL, FK→elements **CASCADE** |                                   |
+| `source_element_id` | TEXT | NOT NULL, FK→elements **CASCADE** | X6 source terminal 的 cell        |
+| `source_port_id`    | TEXT | NOT NULL                          | X6 source terminal 的 port        |
+| `target_element_id` | TEXT | NOT NULL, FK→elements **CASCADE** | X6 target terminal 的 cell        |
+| `target_port_id`    | TEXT | NOT NULL                          | X6 target terminal 的 port        |
 | `label`             | TEXT | 可空                              | 自由文本关系描述（语义字段 → 列） |
 | `props`             | TEXT | NOT NULL DEFAULT '{}'             | 样式载荷 JSON（见 EdgeStyle）     |
 | `created_at`        | TEXT | NOT NULL                          |                                   |
@@ -199,7 +201,9 @@ renderer: ipcClient.understandingCanvas.*        # MergeIpcService 自动派生�
 ```ts
 CanvasDTO            { id, title, description, viewport, createdAt, updatedAt }
 CanvasElementDTO     // 判别联合（见 §1.1 ElementProps）：kind 收窄 props / understandingId / canvasRefId
-CanvasEdgeDTO        { id, canvasId, sourceElementId, targetElementId, label, style: EdgeStyle | null, createdAt }
+CanvasEdgeTerminal   { cell, port } // 与 X6 terminal 同构
+CanvasEdgeDTO        { id, canvasId, source: CanvasEdgeTerminal, target: CanvasEdgeTerminal,
+                       label, style: EdgeStyle | null, createdAt }
 EdgeStyle           { routing?, lineStyle?, color?, width?, arrowhead? }
 CanvasUnderstandingRef  { id, title, body, deleted }
 CanvasReferencedCanvas  { id, title, deleted }
@@ -219,11 +223,15 @@ CanvasDetailDTO      { canvas: CanvasDTO, elements: CanvasElementDTO[],
 ```ts
 type CanvasDocument = {
   elements: CanvasElementDTO[]; // 判别联合；含 id / kind / props / parentId / x / y / w / h / zIndex
-  edges: CanvasEdgeDTO[]; // 含 id / sourceElementId / targetElementId / label / style
+  edges: CanvasEdgeDTO[]; // 含 id / source / target / label / style
 };
 // 对账语义：按 id——文档中存在的行 upsert；DB 中缺失于文档的行删除；级联删组、解组、多选删等
 // 联动已在前端文档模型中体现（目标文档即结果态），服务端只做机械对齐。
 ```
+
+端点采用 X6 原生 `{ cell, port }` 形状，保证用户选择的连接桩可往返持久化。`router`、
+`connector` 和 SVG path 是 `style.routing + terminals + 当前节点几何` 的派生结果，不进入服务端契约，
+避免数据库绑定某个 X6 版本的渲染实现。
 
 ### 2.4 校验与错误边界（domain core 层）
 

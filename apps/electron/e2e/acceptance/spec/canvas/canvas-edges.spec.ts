@@ -38,6 +38,15 @@ test.beforeAll(async () => {
     ],
     edges: [],
   });
+  seedCanvas({
+    id: "cvx-edge-ports",
+    title: "EDGEPORTS",
+    elements: [
+      { id: "port_a", kind: "text", props: { text: "A" }, x: 100, y: 100, width: 120, height: 80 },
+      { id: "port_b", kind: "text", props: { text: "B" }, x: 420, y: 400, width: 120, height: 80 },
+    ],
+    edges: [],
+  });
   const launched = await launchApp();
   app = launched.app;
   page = launched.page;
@@ -58,6 +67,16 @@ async function connectAToB(offsetY = 0, fromId = "e_a", toId = "e_b") {
   await page!.mouse.move(a.x + a.width - 2, a.y + a.height / 2 + offsetY);
   await page!.mouse.down();
   await page!.mouse.move(b.x + 2, b.y + b.height / 2 + offsetY, { steps: 10 });
+  await page!.mouse.up();
+  await page!.waitForTimeout(300);
+}
+
+async function connectBottomToTop(fromId: string, toId: string) {
+  const from = (await h.nodeInGraph(page!, fromId).first().boundingBox())!;
+  const to = (await h.nodeInGraph(page!, toId).first().boundingBox())!;
+  await page!.mouse.move(from.x + from.width / 2, from.y + from.height - 2);
+  await page!.mouse.down();
+  await page!.mouse.move(to.x + to.width / 2, to.y + 2, { steps: 10 });
   await page!.mouse.up();
   await page!.waitForTimeout(300);
 }
@@ -101,6 +120,17 @@ test("@CV-X6-PERSIST-003 多出边重载不丢失", async () => {
   const edges = await h.edgeModel(page!);
   expect(edges.map((e) => e.source)).toEqual(["pa_a", "pa_a"]);
   expect(edges.map((e) => e.target)).toEqual(expect.arrayContaining(["pa_b", "pa_c"]));
+});
+
+test("@CV-X6-EDGE-008 用户选择的连接端口在重新进入后保持", async () => {
+  await h.openCanvasRow(page!, "EDGEPORTS");
+  await connectBottomToTop("port_a", "port_b");
+  await expect.poll(async () => (await h.edgeModel(page!))[0]?.sourcePort).toBe("out-bottom");
+  expect((await h.edgeModel(page!))[0]?.targetPort).toBe("in-top");
+  await page!.waitForTimeout(1200);
+  await h.openCanvasRow(page!, "EDGEPORTS");
+  await expect.poll(async () => (await h.edgeModel(page!))[0]?.sourcePort).toBe("out-bottom");
+  expect((await h.edgeModel(page!))[0]?.targetPort).toBe("in-top");
 });
 
 test("@CV-X6-EDGE-004 调整连线样式并保留", async () => {

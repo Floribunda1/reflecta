@@ -54,11 +54,19 @@ export type EdgeStyle = {
   arrowhead?: "classic" | "block" | "circle" | "diamond" | "cross" | "ellipse" | "none";
 };
 
+export type CanvasEdgePortId = "in" | "in-top" | "out" | "out-bottom";
+
+/** 与 X6 Edge terminal 同构；服务端持久化端点，不持久化引擎派生的路径。 */
+export type CanvasEdgeTerminal = {
+  cell: string;
+  port: CanvasEdgePortId;
+};
+
 export type CanvasEdgeDTO = {
   id: string;
   canvasId: string;
-  sourceElementId: string;
-  targetElementId: string;
+  source: CanvasEdgeTerminal;
+  target: CanvasEdgeTerminal;
   label: string | null;
   style: EdgeStyle | null;
   createdAt: string;

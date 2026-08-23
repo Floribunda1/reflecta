@@ -71,11 +71,14 @@ export const EdgeStyle = S.Struct({
 });
 export type EdgeStyle = S.Schema.Type<typeof EdgeStyle>;
 
+const CanvasEdgePortId = lit("in", "in-top", "out", "out-bottom");
+const CanvasEdgeTerminal = S.Struct({ cell: S.String, port: CanvasEdgePortId });
+
 export const CanvasEdgeDTO = S.Struct({
   id: S.String,
   canvasId: S.String,
-  sourceElementId: S.String,
-  targetElementId: S.String,
+  source: CanvasEdgeTerminal,
+  target: CanvasEdgeTerminal,
   label: S.NullOr(S.String),
   style: S.NullOr(EdgeStyle),
   createdAt: S.String,

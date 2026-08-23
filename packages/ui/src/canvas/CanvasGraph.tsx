@@ -26,6 +26,7 @@ import { cn } from "../lib/utils";
 import { ensureCanvasShapes } from "./nodes";
 import type { CanvasCellAction } from "./shape-context";
 import {
+  DEFAULT_CANVAS_EDGE_STYLE,
   DEFAULT_CANVAS_VIEWPORT,
   type CanvasDocument,
   type CanvasEdgeDTO,
@@ -34,7 +35,7 @@ import {
 } from "./document";
 import {
   applyEdgePresentation,
-  edgeConnectorFor,
+  edgeRoutingFor,
   applyElementUpdate,
   toX6Cells,
   graphToDocument,
@@ -107,6 +108,7 @@ export type CanvasGraphProps = {
 
 const CANVAS_SNAP_GRID = 10;
 const EMPTY_DOC: CanvasDocument = { elements: [], edges: [] };
+const DEFAULT_EDGE_ROUTING = edgeRoutingFor(DEFAULT_CANVAS_EDGE_STYLE);
 
 /**
  * X6 fromJSON 只恢复 child 的 parent 反指，不会重建父节点的 children 列表
@@ -243,7 +245,7 @@ export const CanvasGraph = React.memo(
         preventDefaultDblClick: false,
         connecting: {
           snap: { radius: 50 },
-          connector: { name: "smooth" },
+          ...DEFAULT_EDGE_ROUTING,
           allowLoop: true,
           allowNode: true,
           allowEdge: false,
@@ -253,10 +255,6 @@ export const CanvasGraph = React.memo(
         },
       });
       graphRef.current = graph;
-      graph.on("edge:connected", ({ edge }) => {
-        const data = (edge.getData() as { edge?: CanvasEdgeDTO } | null)?.edge;
-        if (data) edge.setConnector(edgeConnectorFor(data.style, edge.getSourcePortId()));
-      });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (globalThis as any).__x6graph = graph;
 
@@ -267,6 +265,7 @@ export const CanvasGraph = React.memo(
           new Selection({
             rubberband: true,
             multiple: true,
+            movingRouterFallback: "orth",
             showNodeSelectionBox: false,
             eventTypes: ["leftMouseDown"],
           }),

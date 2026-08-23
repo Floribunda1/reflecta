@@ -48,7 +48,9 @@ const migration: CodeMigration = {
         "  id TEXT PRIMARY KEY NOT NULL,\n" +
         "  canvas_id TEXT NOT NULL REFERENCES understanding_canvases(id) ON DELETE CASCADE,\n" +
         "  source_element_id TEXT NOT NULL REFERENCES understanding_canvas_elements(id) ON DELETE CASCADE,\n" +
+        "  source_port_id TEXT NOT NULL DEFAULT 'out',\n" +
         "  target_element_id TEXT NOT NULL REFERENCES understanding_canvas_elements(id) ON DELETE CASCADE,\n" +
+        "  target_port_id TEXT NOT NULL DEFAULT 'in',\n" +
         "  label TEXT,\n" +
         "  props TEXT NOT NULL DEFAULT '{}',\n" +
         "  created_at TEXT NOT NULL\n" +

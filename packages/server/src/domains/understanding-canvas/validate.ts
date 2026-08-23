@@ -16,6 +16,8 @@ export class CanvasValidationError extends Error {
   }
 }
 
+const EDGE_PORT_IDS = ["in", "in-top", "out", "out-bottom"] as const;
+
 export function assertValidDocument(document: CanvasDocument): void {
   const { elements, edges } = document;
 
@@ -35,15 +37,18 @@ export function assertValidDocument(document: CanvasDocument): void {
     }
     edgeIds.add(edge.id);
 
-    if (!elementIds.has(edge.sourceElementId)) {
+    if (!elementIds.has(edge.source.cell)) {
       throw new CanvasValidationError(
-        `Edge ${edge.id} source element not in document: ${edge.sourceElementId}`,
+        `Edge ${edge.id} source element not in document: ${edge.source.cell}`,
       );
     }
-    if (!elementIds.has(edge.targetElementId)) {
+    if (!elementIds.has(edge.target.cell)) {
       throw new CanvasValidationError(
-        `Edge ${edge.id} target element not in document: ${edge.targetElementId}`,
+        `Edge ${edge.id} target element not in document: ${edge.target.cell}`,
       );
+    }
+    if (!EDGE_PORT_IDS.includes(edge.source.port) || !EDGE_PORT_IDS.includes(edge.target.port)) {
+      throw new CanvasValidationError(`Edge ${edge.id} has an invalid port`);
     }
     assertValidEdgeStyle(edge.style);
   }

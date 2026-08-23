@@ -103,8 +103,8 @@ describe("UnderstandingCanvasElectronBff.getCanvasDetail", () => {
         {
           id: "edge-1",
           canvasId,
-          sourceElementId: "u-card",
-          targetElementId: "note",
+          source: { cell: "u-card", port: "out-bottom" },
+          target: { cell: "note", port: "in-top" },
           label: "依赖",
           style: { color: "#ff0000" },
           createdAt: "2026-08-01T00:00:00.000Z",
@@ -119,6 +119,10 @@ describe("UnderstandingCanvasElectronBff.getCanvasDetail", () => {
     expect(detail!.elements).toHaveLength(6);
     expect(detail!.edges).toHaveLength(1);
     expect(detail!.edges[0].style).toEqual({ color: "#ff0000" });
+    expect(detail!.edges[0]).toMatchObject({
+      source: { cell: "u-card", port: "out-bottom" },
+      target: { cell: "note", port: "in-top" },
+    });
     expect(detail!.understandingRefs).toEqual([
       expect.objectContaining({ id: understanding.id, title: "分区灌溉", deleted: false }),
     ]);

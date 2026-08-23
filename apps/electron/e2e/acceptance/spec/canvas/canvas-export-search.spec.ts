@@ -50,7 +50,13 @@ test.beforeAll(async () => {
       },
     ],
     edges: [
-      { id: "s_e1", sourceElementId: "s_a", targetElementId: "s_b", label: "SNK_EDGE", style: {} },
+      {
+        id: "s_e1",
+        source: { cell: "s_a", port: "out" },
+        target: { cell: "s_b", port: "in" },
+        label: "SNK_EDGE",
+        style: {},
+      },
     ],
   });
   seedCanvas({

@@ -108,8 +108,8 @@ describe("CanvasCore.searchCanvases (canvas_search 语义)", () => {
           {
             id: "x",
             canvasId,
-            sourceElementId: "a",
-            targetElementId: "b",
+            source: { cell: "a", port: "out" },
+            target: { cell: "b", port: "in" },
             label: "依赖关系",
             style: null,
             createdAt: "2026-08-01T00:00:00.000Z",

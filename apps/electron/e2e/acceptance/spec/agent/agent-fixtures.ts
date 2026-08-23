@@ -141,8 +141,8 @@ export function seedCanvas(input: {
   }>;
   edges?: Array<{
     id: string;
-    sourceElementId: string;
-    targetElementId: string;
+    source: { cell: string; port: "in" | "in-top" | "out" | "out-bottom" };
+    target: { cell: string; port: "in" | "in-top" | "out" | "out-bottom" };
     label?: string | null;
     style?: Record<string, unknown> | null;
   }>;

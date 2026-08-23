@@ -15,6 +15,7 @@ import type {
   CanvasDTO,
   CanvasElementDTO,
   CanvasEdgeDTO,
+  CanvasEdgePortId,
   CanvasHit,
   CanvasReferencedCanvas,
   CanvasUnderstandingRef,
@@ -104,8 +105,8 @@ export function edgeRowToDTO(row: UnderstandingCanvasEdge): CanvasEdgeDTO {
   return {
     id: row.id,
     canvasId: row.canvasId,
-    sourceElementId: row.sourceElementId,
-    targetElementId: row.targetElementId,
+    source: { cell: row.sourceElementId, port: row.sourcePortId as CanvasEdgePortId },
+    target: { cell: row.targetElementId, port: row.targetPortId as CanvasEdgePortId },
     label: row.label,
     style: parseJson<EdgeStyle | null>(row.props, null),
     createdAt: row.createdAt,
@@ -469,8 +470,10 @@ export class CanvasCore {
                 const existing = existingEdgeById.get(edge.id);
                 if (
                   !existing ||
-                  existing.sourceElementId !== edge.sourceElementId ||
-                  existing.targetElementId !== edge.targetElementId ||
+                  existing.sourceElementId !== edge.source.cell ||
+                  existing.sourcePortId !== edge.source.port ||
+                  existing.targetElementId !== edge.target.cell ||
+                  existing.targetPortId !== edge.target.port ||
                   existing.label !== edge.label ||
                   existing.props !== JSON.stringify(edge.style ?? {})
                 ) {
@@ -543,8 +546,10 @@ export class CanvasCore {
               const existing = existingEdgeById.get(edge.id);
               const row = {
                 canvasId,
-                sourceElementId: edge.sourceElementId,
-                targetElementId: edge.targetElementId,
+                sourceElementId: edge.source.cell,
+                sourcePortId: edge.source.port,
+                targetElementId: edge.target.cell,
+                targetPortId: edge.target.port,
                 label: edge.label,
                 props: JSON.stringify(edge.style ?? {}),
               };

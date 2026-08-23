@@ -99,8 +99,8 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
         {
           id: "x",
           canvasId,
-          sourceElementId: "e1",
-          targetElementId: "e2",
+          source: { cell: "e1", port: "out-bottom" },
+          target: { cell: "e2", port: "in-top" },
           label: "依赖",
           style: null,
           createdAt: "2026-08-01T00:00:00.000Z",
@@ -111,6 +111,11 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
     const { elements, edges } = await readRows();
     expect(elements).toHaveLength(2);
     expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({ source_port_id: "out-bottom", target_port_id: "in-top" });
+    expect((await Effect.runPromise(core.getCanvasDetail(canvasId)))?.edges[0]).toMatchObject({
+      source: { cell: "e1", port: "out-bottom" },
+      target: { cell: "e2", port: "in-top" },
+    });
   });
 
   test("second save with identical document is a zero-write (idempotent, updated_at unchanged)", async () => {
@@ -121,8 +126,8 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
         {
           id: "x",
           canvasId,
-          sourceElementId: "e1",
-          targetElementId: "e2",
+          source: { cell: "e1", port: "out" },
+          target: { cell: "e2", port: "in" },
           label: null,
           style: { color: "#ff0000" },
           createdAt: "2026-08-01T00:00:00.000Z",
@@ -166,8 +171,8 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
           {
             id: "x1",
             canvasId,
-            sourceElementId: "e1",
-            targetElementId: "e2",
+            source: { cell: "e1", port: "out" },
+            target: { cell: "e2", port: "in" },
             label: null,
             style: null,
             createdAt: "2026-08-01T00:00:00.000Z",
@@ -223,8 +228,8 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
         {
           id: "x",
           canvasId,
-          sourceElementId: "e1",
-          targetElementId: "missing",
+          source: { cell: "e1", port: "out" },
+          target: { cell: "missing", port: "in" },
           label: null,
           style: null,
           createdAt: "2026-08-01T00:00:00.000Z",
@@ -259,8 +264,8 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
           {
             id: "x",
             canvasId,
-            sourceElementId: "e1",
-            targetElementId: "e2",
+            source: { cell: "e1", port: "out" },
+            target: { cell: "e2", port: "in" },
             label: null,
             style: null,
             createdAt: "2026-08-01T00:00:00.000Z",
