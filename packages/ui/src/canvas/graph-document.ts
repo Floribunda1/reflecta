@@ -255,7 +255,7 @@ export function applyElementUpdate(node: X6Node, element: CanvasElementDTO): voi
   if (paint) {
     node.setAttrs({ root: { style: { "--canvas-node-paint": paint } } });
   } else {
-    node.removeAttr("root/style/--canvas-node-paint");
+    node.removeAttrByPath("root/style/--canvas-node-paint");
   }
 }
 

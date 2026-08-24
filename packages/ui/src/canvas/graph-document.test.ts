@@ -314,11 +314,11 @@ describe("in-place cell updates", () => {
   test("applyElementUpdate writes the element onto the existing node data", () => {
     const replaceData = vi.fn();
     const setAttrs = vi.fn();
-    const removeAttr = vi.fn();
+    const removeAttrByPath = vi.fn();
     const next = element("a", "text", { x: 0, y: 0 }, { width: 100, height: 80 });
     if (next.kind !== "text") throw new Error("expected text element");
     const painted: CanvasElementDTO = { ...next, props: { ...next.props, color: "chart-2" } };
-    applyElementUpdate({ replaceData, setAttrs, removeAttr } as never, painted);
+    applyElementUpdate({ replaceData, setAttrs, removeAttrByPath } as never, painted);
     expect(replaceData).toHaveBeenCalledWith({ element: painted });
     // paint 色同步到节点根 CSS 变量 → 连接桩颜色跟随卡片
     expect(setAttrs).toHaveBeenCalledWith({
@@ -329,10 +329,10 @@ describe("in-place cell updates", () => {
   test("applyElementUpdate clears the paint variable when the card is unpainted", () => {
     const replaceData = vi.fn();
     const setAttrs = vi.fn();
-    const removeAttr = vi.fn();
+    const removeAttrByPath = vi.fn();
     const next = element("a", "text", { x: 0, y: 0 }, { width: 100, height: 80 });
-    applyElementUpdate({ replaceData, setAttrs, removeAttr } as never, next);
-    expect(removeAttr).toHaveBeenCalledWith("root/style/--canvas-node-paint");
+    applyElementUpdate({ replaceData, setAttrs, removeAttrByPath } as never, next);
+    expect(removeAttrByPath).toHaveBeenCalledWith("root/style/--canvas-node-paint");
   });
 
   test("applyEdgePresentation writes native attrs/routing/label and keeps terminals", () => {
