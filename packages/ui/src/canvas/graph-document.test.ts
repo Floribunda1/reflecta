@@ -277,15 +277,13 @@ describe("in-place cell updates", () => {
     const replaceData = vi.fn();
     const attr = vi.fn();
     const next = element("a", "text", { x: 0, y: 0 }, { width: 100, height: 80 });
+    if (next.kind !== "text") throw new Error("expected text element");
     const painted: CanvasElementDTO = {
       ...next,
       props: { ...next.props, color: "chart-1" },
     };
     // 从 painted 清掉颜色：写成 var(--ring) 而非删键——删除会走 dirty 强制重渲染
-    applyElementUpdate(
-      { replaceData, attr, getData: () => ({ element: painted }) } as never,
-      next,
-    );
+    applyElementUpdate({ replaceData, attr, getData: () => ({ element: painted }) } as never, next);
     expect(attr).toHaveBeenCalledWith("root/style/--canvas-node-paint", "var(--ring)");
   });
 
