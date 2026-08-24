@@ -1,15 +1,16 @@
-import { FileText, LayoutGrid, Search, X } from "lucide-react";
+import { ArrowUpDown, FileText, GitBranch, LayoutGrid, Search, X } from "lucide-react";
 import { Button } from "../components/button";
-import { Input } from "../components/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "../components/input-group";
 import { ScrollArea } from "../components/scroll-area";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../components/select";
-import { Switch } from "../components/switch";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "../components/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/tabs";
 import { DomainTreeSelect } from "../capture/domain-tree-select";
 import type { DomainTreeNodeView } from "../capture/domain-tree";
@@ -75,7 +76,7 @@ function LibraryRow({
       {...itemAttrs}
       title={title}
       aria-label={`添加「${title}」到画布`}
-      className="flex min-h-9 cursor-grab items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-accent active:cursor-grabbing"
+      className="flex min-h-9 cursor-grab items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent active:cursor-grabbing"
       onMouseDown={(event) => onStartDrag(id, event)}
       onClick={() => onPick(id)}
     >
@@ -118,17 +119,21 @@ export function CanvasLibraryPanel({
   return (
     <aside
       data-testid="canvas-library-panel"
-      className="flex h-full w-full min-w-0 shrink-0 flex-col border-l bg-background"
+      className="flex h-full w-full min-w-0 shrink-0 flex-col bg-background"
     >
       <Tabs
         value={tab}
         onValueChange={(value) => onTabChange(value as CanvasLibraryTab)}
         className="flex h-full min-h-0 flex-col"
       >
-        <header className="flex h-12 shrink-0 items-center gap-1.5 border-b px-3">
+        <header className="flex h-12 shrink-0 items-center gap-1.5 border-b border-border px-3">
           <TabsList className="h-8">
-            <TabsTrigger value="understandings">理解</TabsTrigger>
-            <TabsTrigger value="canvases">画布</TabsTrigger>
+            <TabsTrigger value="understandings" aria-label="理解" title="理解">
+              <FileText />
+            </TabsTrigger>
+            <TabsTrigger value="canvases" aria-label="画布" title="画布">
+              <LayoutGrid />
+            </TabsTrigger>
           </TabsList>
           <Button
             type="button"
@@ -143,20 +148,21 @@ export function CanvasLibraryPanel({
           </Button>
         </header>
 
-        <TabsContent value="understandings" className="flex min-h-0 flex-1 flex-col">
-          <div className="flex shrink-0 flex-col gap-2 p-2">
-            <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
+        {tab === "understandings" ? (
+          <div className="flex shrink-0 flex-col gap-2 border-b border-border p-3">
+            <InputGroup>
+              <InputGroupAddon align="inline-start">
+                <Search className="size-4 text-muted-foreground" />
+              </InputGroupAddon>
+              <InputGroupInput
                 value={searchQuery}
                 onChange={(event) => onSearchQueryChange(event.target.value)}
                 placeholder="查找理解"
                 aria-label="查找理解"
                 data-testid="canvas-library-search"
-                className="h-8 pl-8 text-sm"
               />
-            </div>
-            <div className="flex items-start gap-2">
+            </InputGroup>
+            <div className="flex items-center gap-2">
               <div className="min-w-0 flex-1">
                 <DomainTreeSelect
                   mode="single"
@@ -167,36 +173,65 @@ export function CanvasLibraryPanel({
                   placeholder="全部领域"
                 />
               </div>
-              <Select
-                value={sortBy}
-                onValueChange={(value) => onSortByChange(value as CanvasLibrarySortBy)}
-              >
-                <SelectTrigger
-                  size="sm"
-                  aria-label="排序"
-                  data-testid="canvas-library-sort"
-                  className="h-8 w-28 shrink-0 justify-between px-2 text-sm"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="start">
-                  <SelectItem value="updatedAt">最近更新</SelectItem>
-                  <SelectItem value="createdAt">创建时间</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <label className="flex h-6 shrink-0 items-center justify-between gap-2 text-sm">
-              <span>包含子领域</span>
-              <Switch
-                size="sm"
-                checked={includeDescendants}
-                onCheckedChange={onIncludeDescendantsChange}
-                aria-label="包含子领域"
+              <Button
+                type="button"
+                size="icon-sm"
+                variant={includeDescendants ? "secondary" : "ghost"}
+                aria-label={includeDescendants ? "已包含子领域" : "未包含子领域"}
+                title={includeDescendants ? "已包含子领域" : "未包含子领域"}
                 data-testid="canvas-library-include-descendants"
-              />
-            </label>
+                onClick={() => onIncludeDescendantsChange(!includeDescendants)}
+              >
+                <GitBranch />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label="排序理解"
+                      title="排序理解"
+                      data-testid="canvas-library-sort"
+                    />
+                  }
+                >
+                  <ArrowUpDown />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="bottom" align="end">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>排序</DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      value={sortBy}
+                      onValueChange={(value) => onSortByChange(value as CanvasLibrarySortBy)}
+                    >
+                      <DropdownMenuRadioItem value="updatedAt">按更新时间</DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="createdAt">按创建时间</DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
+        ) : (
+          <div className="shrink-0 border-b border-border p-3">
+            <InputGroup>
+              <InputGroupAddon align="inline-start">
+                <Search className="size-4 text-muted-foreground" />
+              </InputGroupAddon>
+              <InputGroupInput
+                value={searchQuery}
+                onChange={(event) => onSearchQueryChange(event.target.value)}
+                placeholder="查找画布"
+                aria-label="查找画布"
+                data-testid="canvas-library-search"
+              />
+            </InputGroup>
+          </div>
+        )}
 
+        <TabsContent value="understandings" className="flex min-h-0 flex-1 flex-col">
           <ScrollArea className="min-h-0 flex-1">
             {loading ? (
               <div className="p-4 text-sm text-muted-foreground">加载中…</div>
@@ -226,7 +261,7 @@ export function CanvasLibraryPanel({
             )}
           </ScrollArea>
 
-          <footer className="flex shrink-0 items-center gap-1.5 border-t px-3 py-2 text-xs text-muted-foreground">
+          <footer className="flex shrink-0 items-center gap-1.5 border-t border-border px-3 py-2 text-xs text-muted-foreground">
             <span aria-hidden="true">↕</span>
             <span>拖拽理解到画布创建理解卡</span>
           </footer>
@@ -237,7 +272,9 @@ export function CanvasLibraryPanel({
             {canvasesLoading ? (
               <div className="p-4 text-sm text-muted-foreground">加载中…</div>
             ) : canvases.length === 0 ? (
-              <div className="p-4 text-sm text-muted-foreground">还没有画布，先去画布列表新建</div>
+              <div className="p-4 text-sm text-muted-foreground">
+                {searchQuery.trim() ? "没有匹配的画布" : "还没有其他画布，先去画布列表新建"}
+              </div>
             ) : (
               <div className="flex flex-col gap-1 p-2" data-testid="canvas-library-canvas-list">
                 {canvases.map((canvas) => (
@@ -259,7 +296,8 @@ export function CanvasLibraryPanel({
             )}
           </ScrollArea>
 
-          <footer className="shrink-0 border-t p-2 text-xs text-muted-foreground">
+          <footer className="flex shrink-0 items-center gap-1.5 border-t border-border px-3 py-2 text-xs text-muted-foreground">
+            <span aria-hidden="true">↕</span>
             拖拽画布到画布创建引用卡
           </footer>
         </TabsContent>

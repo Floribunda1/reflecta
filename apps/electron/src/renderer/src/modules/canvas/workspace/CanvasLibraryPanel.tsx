@@ -18,12 +18,14 @@ import { sortUnderstandingSummaries } from "../../capture/dashboard/sort";
  * 库面板 Adapter（M5）：领域过滤 / 搜索 / 排序走 Capture query；展示由 UI 面板承担。
  */
 export function CanvasLibraryPanel({
+  canvasId,
   onClose,
   onStartDragUnderstanding,
   onStartDragCanvas,
   onPickUnderstanding,
   onPickCanvas,
 }: {
+  canvasId: string;
   onClose: () => void;
   onStartDragUnderstanding: (id: string, e: React.MouseEvent | React.PointerEvent) => void;
   onStartDragCanvas: (id: string, e: React.MouseEvent | React.PointerEvent) => void;
@@ -61,10 +63,13 @@ export function CanvasLibraryPanel({
       })),
     [sorted],
   );
-  const canvasItems = useMemo(
-    () => (canvases ?? []).map((canvas) => ({ id: canvas.id, title: canvas.title })),
-    [canvases],
-  );
+  const canvasItems = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase();
+    return (canvases ?? [])
+      .filter((canvas) => canvas.id !== canvasId)
+      .filter((canvas) => !query || canvas.title.toLocaleLowerCase().includes(query))
+      .map((canvas) => ({ id: canvas.id, title: canvas.title }));
+  }, [canvases, canvasId, searchQuery]);
 
   return (
     <CanvasLibraryPanelView

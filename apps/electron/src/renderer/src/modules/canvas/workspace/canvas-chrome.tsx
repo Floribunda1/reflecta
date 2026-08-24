@@ -149,6 +149,7 @@ export const CanvasSidePanelHost = memo(function CanvasSidePanelHost({
       >
         {rightPanel.mode === "library" ? (
           <CanvasLibraryPanel
+            canvasId={canvasId}
             onClose={() => dispatchCanvasAction({ type: "panel/close" })}
             onStartDragUnderstanding={(id, event) =>
               graphRef.current?.startDrag(newUnderstandingElement(id), event)
