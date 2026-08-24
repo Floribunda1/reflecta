@@ -61,6 +61,7 @@ export {
   deleteElements,
   absolutePositionOf,
 } from "./graph-operations";
+export { trackpadPanZoomPlugin } from "./trackpad-pan-zoom";
 export {
   CanvasShapeDataProvider,
   CanvasElementUpdateProvider,
