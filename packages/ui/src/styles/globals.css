@@ -183,7 +183,7 @@ samp,
    且 var() 在 CSS 里有效 → 与选中态 ring（卡片 ring-2 ring-ring）同色，实心圆。 */
 [data-canvas-graph] .x6-port-body {
   opacity: 0;
-  fill: var(--ring);
+  fill: var(--canvas-node-paint, var(--ring));
   stroke: none;
   transition: opacity 120ms ease;
 }
