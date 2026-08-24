@@ -163,8 +163,8 @@ export const CanvasSidePanelHost = memo(function CanvasSidePanelHost({
               dispatchCanvasAction({ type: "understanding/primed", id, title });
               graphRef.current?.addElement(newUnderstandingElement(id));
             }}
-            onStartDragCanvas={(id, _title, event) =>
-              graphRef.current?.startDrag(newCanvasRefElement(id), undefined, event)
+            onStartDragCanvas={(id, title, event) =>
+              graphRef.current?.startDrag(newCanvasRefElement(id), { title }, event)
             }
             onPickCanvas={(id, _title) => graphRef.current?.addElement(newCanvasRefElement(id))}
           />

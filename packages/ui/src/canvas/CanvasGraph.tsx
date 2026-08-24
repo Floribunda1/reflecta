@@ -347,7 +347,7 @@ export const CanvasGraph = React.memo(
               label = "文本";
             } else if (element?.kind === "canvas_ref") {
               kind = "canvas_ref";
-              label = "画布";
+              label = data?.dragPreview?.title ? truncatePill(data.dragPreview.title) : "画布";
             }
             const size = pillNodeSize(label);
             return draggingGraph.createNode({
