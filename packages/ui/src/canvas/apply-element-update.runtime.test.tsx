@@ -40,14 +40,14 @@ const paintStyle = (node: import("@antv/x6").Node) =>
   ];
 
 describe("applyElementUpdate runtime behavior", () => {
-  test("painting sets the variable, clearing removes it, graph stays intact", () => {
+  test("painting sets the variable, clearing falls back to ring, graph stays intact", () => {
     const { graph, node, element, container } = makeNode();
     try {
       applyElementUpdate(node, { ...element, props: { ...element.props, color: "chart-2" } });
       expect(paintStyle(node)).toBe("var(--chart-2)");
-      // 清除颜色 → attr(path, undefined) 走 removeAttrByPath
+      // 清除颜色 → 写 var(--ring)（不删键：删除会走 dirty 强制重渲染）
       applyElementUpdate(node, { ...element, props: { text: "x" } });
-      expect(paintStyle(node)).toBeUndefined();
+      expect(paintStyle(node)).toBe("var(--ring)");
       // 视口 / 连接 / 渲染不被打乱
       expect(graph.getCells().length).toBe(1);
       expect(graph.getCellById("n1")).toBe(node);

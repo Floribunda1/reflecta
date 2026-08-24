@@ -123,10 +123,10 @@ describe("graph-document toX6Cells", () => {
       labels: [
         {
           attrs: {
-            // 不挡线：label 透明底，文字直接压在线上，无底色块、无需跟随 group。
-            rect: { fill: "none", stroke: "none" },
-            body: { fill: "none", stroke: "none" },
-            label: { text: "causal", fill: "var(--chart-1)", fontSize: 12 },
+            // 实色线色 pill：背景=线色+圆角，文字=按线色明暗自适应（chart-1 青偏深→白字）。
+            rect: { fill: "var(--chart-1)", stroke: "none", rx: 8 },
+            body: { fill: "var(--chart-1)", stroke: "none", rx: 8 },
+            label: { text: "causal", fill: "#fff", fontSize: 12 },
           },
         },
       ],
@@ -273,7 +273,7 @@ describe("in-place cell updates", () => {
     expect(attr).toHaveBeenCalledWith("root/style/--canvas-node-paint", "var(--chart-2)");
   });
 
-  test("applyElementUpdate clears the paint variable when the card is unpainted", () => {
+  test("applyElementUpdate falls back to ring when the card is unpainted", () => {
     const replaceData = vi.fn();
     const attr = vi.fn();
     const next = element("a", "text", { x: 0, y: 0 }, { width: 100, height: 80 });
@@ -281,12 +281,12 @@ describe("in-place cell updates", () => {
       ...next,
       props: { ...next.props, color: "chart-1" },
     };
-    // 从 painted 清掉颜色：attr(path, undefined) 触发 X6 的 removeAttrByPath
+    // 从 painted 清掉颜色：写成 var(--ring) 而非删键——删除会走 dirty 强制重渲染
     applyElementUpdate(
       { replaceData, attr, getData: () => ({ element: painted }) } as never,
       next,
     );
-    expect(attr).toHaveBeenCalledWith("root/style/--canvas-node-paint", undefined);
+    expect(attr).toHaveBeenCalledWith("root/style/--canvas-node-paint", "var(--ring)");
   });
 
   test("applyElementUpdate skips attrs when the color is unchanged", () => {
@@ -343,9 +343,9 @@ describe("in-place cell updates", () => {
     expect(cell.setLabels).toHaveBeenCalledWith([
       {
         attrs: {
-          rect: { fill: "none", stroke: "none" },
-          body: { fill: "none", stroke: "none" },
-          label: { text: "new", fill: "var(--chart-1)", fontSize: 12 },
+          rect: { fill: "var(--chart-1)", stroke: "none", rx: 8 },
+          body: { fill: "var(--chart-1)", stroke: "none", rx: 8 },
+          label: { text: "new", fill: "#fff", fontSize: 12 },
         },
       },
     ]);

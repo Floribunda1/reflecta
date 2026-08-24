@@ -53,19 +53,22 @@ export const DEFAULT_CANVAS_EDGE_ATTRS: CanvasEdgeAttrs = {
 };
 
 /**
- * 边 label 不设底色（不挡线），文字直接压在线上——这样没有色块、也无需跟随 group
- * 底色，任何背景 / 结构变化（换色 / detach / 挪动 / 嵌套）都自然正确。
- * rect / body 保留透明（X6 defaultLabel markup 需要这些 selector，缺了会渲染异常），
- * 只给 label 文字上色（沿用边线色）。
+ * 边 label 用实色线色 pill（圆角矩形）挡线 + 按线色明暗自适应文字色。
+ * 背景色跟随的是“线色”而不是“背后 group 底色”——所以换色 / detach / 挪动 / 嵌套
+ * 全都无需同步：颜色来源唯一且确定（line.stroke），改线色由 applyEdgePresentation
+ * 重算 label attrs 天然跟随，零组件 / 零同步。
+ * rect / body 保留（X6 defaultLabel markup 需要这些 selector），设 fill + rx 成 pill；
+ * label 文字用 contrastTextColor 选高对比色。
  */
 function edgeLabelItems(label: string | null, color: string) {
+  const pill = { fill: color, stroke: "none", rx: 8 } as const;
   return label
     ? [
         {
           attrs: {
-            rect: { fill: "none", stroke: "none" },
-            body: { fill: "none", stroke: "none" },
-            label: { text: label, fill: color, fontSize: 12 },
+            rect: pill,
+            body: pill,
+            label: { text: label, fill: contrastTextColor(color), fontSize: 12 },
           },
         },
       ]
@@ -76,6 +79,34 @@ function edgeLabels(edge: CanvasEdgeDTO) {
   const stroke = edge.attrs.line?.stroke;
   const color = typeof stroke === "string" ? stroke : "var(--muted-foreground)";
   return edgeLabelItems(edge.label, color);
+}
+
+/** chart token（存 `var(--chart-N)`）→ 真实 hex，用于明暗判断。 */
+const CHART_TOKEN_HEX: Record<string, string> = {
+  "var(--chart-1)": "#0d9488",
+  "var(--chart-2)": "#3c6fb4",
+  "var(--chart-3)": "#7c5c9e",
+  "var(--chart-4)": "#ab4642",
+  "var(--chart-5)": "#b58900",
+};
+
+function parseHex(color: string): string | null {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color.trim());
+  if (!m) return null;
+  const hex = m[1];
+  if (hex.length === 3) return `#${hex.split("").map((c) => c + c).join("")}`;
+  return `#${hex}`;
+}
+
+/** 实色 pill 上用高对比文字色：浅底色 → 深字（--foreground），深底色 → 白字。 */
+function contrastTextColor(color: string): string {
+  const hex = CHART_TOKEN_HEX[color] ?? parseHex(color);
+  if (!hex) return "var(--foreground)"; // 未知色（如 var(--muted-foreground)）兜底深字
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const luma = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luma > 0.5 ? "var(--foreground)" : "#fff";
 }
 
 function edgeVisuals(edge: CanvasEdgeDTO) {
@@ -194,16 +225,13 @@ export function toX6Edge(edge: CanvasEdgeDTO): X6EdgeCtor {
 export function applyElementUpdate(node: X6Node, element: CanvasElementDTO): void {
   const prev = (node.getData() as { element?: CanvasElementDTO } | null | undefined)?.element;
   node.replaceData({ element });
-  // 颜色原地变换时同步根元素 CSS 变量 → 端口圆色；颜色没变不碰 attrs，
-  // 避免每次 data 更新都触发 change:attrs / 视图重渲染。
+  // 颜色原地变换时同步根元素 CSS 变量 → 端口圆色；颜色没变不碰 attrs。
+  // 未设色时写 var(--ring)（与 CSS 的 var(--canvas-node-paint, var(--ring))
+  // fallback 同色）而不是删除变量键——removeAttrByPath 会置 dirty 强制
+  // 整棵子树的 async 重建，group+children 在虚拟渲染下会挂。永远走 set。
   if (prev?.props.color === element.props.color) return;
-  const paint = element.props.color ? tokenPaintColor(element.props.color) : undefined;
-  try {
-    // attr(path, undefined) 自动走 removeAttrByPath（X6 cell 无 removeAttr）
-    node.attr("root/style/--canvas-node-paint", paint as string | undefined);
-  } catch {
-    // attrs 同步失败不能拖垮编辑链路（颜色仅影响端口视觉）
-  }
+  const paint = element.props.color ? tokenPaintColor(element.props.color) : "var(--ring)";
+  node.attr("root/style/--canvas-node-paint", paint);
 }
 
 /**
