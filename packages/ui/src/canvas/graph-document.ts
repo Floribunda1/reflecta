@@ -87,8 +87,8 @@ function edgeLabelItems(label: string | null, color: string) {
     : [];
 }
 
-function edgeLabels(edge: CanvasEdgeDTO) {
-  const stroke = edge.attrs.line?.stroke;
+function edgeLabels(edge: CanvasEdgeDTO, attrs: CanvasEdgeAttrs) {
+  const stroke = attrs.line?.stroke;
   const color = typeof stroke === "string" ? stroke : "var(--muted-foreground)";
   return edgeLabelItems(edge.label, color);
 }
@@ -127,11 +127,16 @@ function contrastTextColor(color: string): string {
 }
 
 function edgeVisuals(edge: CanvasEdgeDTO) {
+  // 草稿 / 外源 document 的边可能缺 attrs（Type.Unknown() 透传），缺省合并默认样式，
+  // 避免 edgeLabels 在 edge.attrs.line 上崩溃拖垮整幅渲染。
+  const attrs = edge.attrs
+    ? { ...DEFAULT_CANVAS_EDGE_ATTRS, ...edge.attrs }
+    : DEFAULT_CANVAS_EDGE_ATTRS;
   return {
     router: edge.router,
-    connector: edge.connector,
-    attrs: edge.attrs,
-    labels: edgeLabels(edge),
+    connector: edge.connector ?? DEFAULT_CANVAS_EDGE_CONNECTOR,
+    attrs,
+    labels: edgeLabels(edge, attrs),
   };
 }
 

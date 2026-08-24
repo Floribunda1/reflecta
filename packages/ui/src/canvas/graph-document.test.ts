@@ -182,6 +182,40 @@ describe("graph-document toX6Cells", () => {
     });
   });
 
+  test("tolerates draft edges missing attrs (regression: edgeLabels crash)", () => {
+    const edge = toX6Edge({
+      id: "e1",
+      canvasId: "canvas",
+      source: { cell: "a", port: "right" },
+      target: { cell: "b", port: "left" },
+      router: null,
+      connector: { name: "smooth" },
+      label: "推导出",
+      createdAt: timestamp,
+    } as unknown as CanvasEdgeDTO);
+    // 缺 attrs 时回退默认线色（muted）：标签仍按对比色渲染，不抛错
+    expect(edge).toMatchObject({
+      labels: [{ attrs: { label: { fill: "var(--background)" } } }],
+    });
+  });
+
+  test("renders a full document whose edges lack attrs without throwing", () => {
+    const document: CanvasDocument = {
+      elements: [element("a", "text", { x: 0, y: 0 }, { width: 100, height: 80 })],
+      edges: [
+        {
+          id: "e",
+          canvasId: "canvas",
+          source: { cell: "a", port: "right" },
+          target: { cell: "a", port: "left" },
+          label: "推导出",
+          createdAt: timestamp,
+        } as unknown as CanvasEdgeDTO,
+      ],
+    };
+    expect(() => toX6Cells(document)).not.toThrow();
+  });
+
   test("passes persisted X6 router and connector through without mapping", () => {
     const mk = (routing: Pick<CanvasEdgeDTO, "router" | "connector">) => {
       const document: CanvasDocument = {
