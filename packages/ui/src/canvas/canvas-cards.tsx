@@ -14,12 +14,6 @@ import { MarkdownPreview } from "../editor/markdown-preview";
 import { MarkdownEditor } from "../editor/markdown-editor";
 import { Button } from "../components/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/popover";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "../components/context-menu";
 import { cn } from "../lib/utils";
 import type { ChatEntityReference, ResolveChatEntity } from "../chat/entity";
 import { canvasPaintColor, CanvasColorSwatches } from "./color-swatches";
@@ -258,7 +252,11 @@ export function CanvasTextCard({
   };
   useEffect(() => {
     if (!editing) return;
-    editorRef.current?.querySelector<HTMLElement>(".ProseMirror")?.focus();
+    // Milkdown 的 ProseMirror 是异步挂载，立即查询可能拿不到，延迟到下一帧后再聚焦。
+    const raf = requestAnimationFrame(() => {
+      editorRef.current?.querySelector<HTMLElement>(".ProseMirror")?.focus();
+    });
+    return () => cancelAnimationFrame(raf);
   }, [editing]);
 
   const commit = (markdown: string) => {
@@ -295,6 +293,7 @@ export function CanvasTextCard({
           <MarkdownEditor
             value={draft}
             height="auto"
+            floatingToolbar={false}
             onChange={setDraft}
             onBlur={commit}
             className="px-2 py-1"
@@ -354,113 +353,92 @@ export function CanvasGroupCard({
   };
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger
-        render={
-          <div
-            data-testid="canvas-group-node"
-            data-node-id={id}
-            data-group-label={label}
-            className={cn(
-              "group/canvas-node relative h-full w-full overflow-visible rounded-lg border bg-muted",
-              "focus-visible:outline-none",
-              nodeStateClass(selected, color),
-            )}
-            style={nodeColorStyle(color, "var(--muted)")}
-          />
-        }
-      >
-        <>
-          <CanvasNodeActionBar visible={selected && !readonly && !multiSelected}>
-            <Popover>
-              <PopoverTrigger
-                render={
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="ghost"
-                    className="nodrag nopan"
-                    aria-label="选择颜色"
-                    title="选择颜色"
-                  />
-                }
-              >
-                <Palette style={{ color: canvasPaintColor(color) }} />
-              </PopoverTrigger>
-              <PopoverContent className="w-auto flex-row items-center" align="center">
-                <CanvasColorSwatches
-                  value={color}
-                  onChange={onColorChange ?? (() => undefined)}
-                  allowClear
-                />
-              </PopoverContent>
-            </Popover>
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              className="nodrag nopan"
-              aria-label="解组"
-              title="解组"
-              onClick={onUngroup}
-            >
-              <Ungroup size={14} />
-            </Button>
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              className="nodrag nopan text-destructive"
-              aria-label="删除组"
-              title="删除组"
-              onClick={onDelete}
-            >
-              <Trash2 />
-            </Button>
-          </CanvasNodeActionBar>
-          <div
-            data-testid="canvas-group-label"
-            className="absolute bottom-full left-0 mb-1 z-10 flex max-w-[calc(100%-1rem)] cursor-text items-center gap-1 rounded-md border bg-background px-1.5 py-0.5 text-xs shadow-sm"
-            style={color ? { color: canvasPaintColor(color) } : undefined}
-            onDoubleClick={readonly ? undefined : startEditing}
-          >
-            <PackageOpen size={12} className="shrink-0" />
-            {editing ? (
-              <input
-                ref={inputRef}
-                value={draft}
-                onChange={(e) => setDraft(e.currentTarget.value)}
-                onBlur={commit}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") {
-                    setDraft(label);
-                    setEditing(false);
-                  }
-                  if (e.key === "Enter") commit();
-                }}
-                className="nodrag min-w-0 flex-1 bg-transparent text-xs font-medium outline-none"
-                aria-label="组名"
+    <div
+      data-testid="canvas-group-node"
+      data-node-id={id}
+      data-group-label={label}
+      className={cn(
+        "group/canvas-node relative h-full w-full overflow-visible rounded-lg border bg-muted",
+        "focus-visible:outline-none",
+        nodeStateClass(selected, color),
+      )}
+      style={nodeColorStyle(color, "var(--muted)")}
+    >
+      <CanvasNodeActionBar visible={selected && !readonly && !multiSelected}>
+        <Popover>
+          <PopoverTrigger
+            render={
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                className="nodrag nopan"
+                aria-label="选择颜色"
+                title="选择颜色"
               />
-            ) : (
-              <span className="min-w-0 truncate text-xs font-medium">{label || "未命名组"}</span>
-            )}
-          </div>
-        </>
-      </ContextMenuTrigger>
-      <ContextMenuContent>
-        <ContextMenuItem data-testid="canvas-group-ungroup" disabled={readonly} onClick={onUngroup}>
-          解组
-        </ContextMenuItem>
-        <ContextMenuItem
-          data-testid="canvas-group-delete"
-          variant="destructive"
-          disabled={readonly}
+            }
+          >
+            <Palette style={{ color: canvasPaintColor(color) }} />
+          </PopoverTrigger>
+          <PopoverContent className="w-auto flex-row items-center" align="center">
+            <CanvasColorSwatches
+              value={color}
+              onChange={onColorChange ?? (() => undefined)}
+              allowClear
+            />
+          </PopoverContent>
+        </Popover>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className="nodrag nopan"
+          aria-label="解组"
+          title="解组"
+          onClick={onUngroup}
+        >
+          <Ungroup size={14} />
+        </Button>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className="nodrag nopan text-destructive"
+          aria-label="删除组"
+          title="删除组"
           onClick={onDelete}
         >
-          删除组（含组内内容）
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+          <Trash2 />
+        </Button>
+      </CanvasNodeActionBar>
+      <div
+        data-testid="canvas-group-label"
+        className="absolute bottom-full left-0 mb-1 z-10 flex max-w-[calc(100%-1rem)] cursor-text items-center gap-1 rounded-md border bg-background px-1.5 py-0.5 text-xs shadow-sm"
+        style={color ? { color: canvasPaintColor(color) } : undefined}
+        onDoubleClick={readonly ? undefined : startEditing}
+      >
+        <PackageOpen size={12} className="shrink-0" />
+        {editing ? (
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => setDraft(e.currentTarget.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setDraft(label);
+                setEditing(false);
+              }
+              if (e.key === "Enter") commit();
+            }}
+            className="nodrag min-w-0 flex-1 bg-transparent text-xs font-medium outline-none"
+            aria-label="组名"
+          />
+        ) : (
+          <span className="min-w-0 truncate text-xs font-medium">{label || "未命名组"}</span>
+        )}
+      </div>
+    </div>
   );
 }
 

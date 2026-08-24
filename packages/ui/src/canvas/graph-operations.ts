@@ -59,6 +59,23 @@ export const isSelectedWithAncestor = (
   return false;
 };
 
+/**
+ * 选中集合中「顶层」（无被选中祖先）的元素 id：置顶/置底/重复/删除的原子分支单位。
+ * 带组的选中 → 只返回组本身（组内后代靠组继承）；跨多个分支 → 各分支根都返回。
+ */
+export function selectionRootIds(
+  document: CanvasDocument,
+  nodeIds: ReadonlyArray<string>,
+): string[] {
+  const index = byId(document.elements);
+  const selected = new Set(nodeIds);
+  return document.elements
+    .filter(
+      (element) => selected.has(element.id) && !isSelectedWithAncestor(element.id, selected, index),
+    )
+    .map((element) => element.id);
+}
+
 /** 把被选中元素打成一个组（外壳复用现有几何约定：左/上留 24/44 内边距）。 */
 export function groupElements(
   document: CanvasDocument,

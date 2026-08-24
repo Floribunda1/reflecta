@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest";
 import type { CanvasDocument, CanvasElementDTO } from "./document";
-import { deleteGroupBranch, groupElements, ungroupGroups } from "./graph-operations";
+import {
+  deleteGroupBranch,
+  groupElements,
+  selectionRootIds,
+  ungroupGroups,
+} from "./graph-operations";
 
 const timestamp = "2026-08-19T00:00:00.000Z";
 
@@ -187,5 +192,26 @@ describe("Canvas group operations (pure document transforms)", () => {
     );
     expect(result.elements).toHaveLength(1);
     expect(result.elements[0]).toMatchObject({ id: "child", parentId: null, x: 100, y: 110 });
+  });
+});
+
+describe("Canvas selection roots", () => {
+  const groupedDoc = doc([
+    element("g", "group", { x: 0, y: 0 }, { width: 300, height: 240 }),
+    element("a", "text", { x: 10, y: 10 }, { width: 100, height: 80 }, "g"),
+    element("b", "text", { x: 120, y: 120 }, { width: 100, height: 80 }, "g"),
+    element("c", "text", { x: 400, y: 100 }, { width: 100, height: 80 }),
+  ]);
+
+  test("returns only top-level (no selected ancestor) selected ids", () => {
+    // 选中整组 + 组内成员 → 只以组为原子单位
+    expect(selectionRootIds(groupedDoc, ["g", "a", "b"])).toEqual(["g"]);
+    // 整组 + 组外的独立元素 → 两个独立分支（文档序）
+    expect(selectionRootIds(groupedDoc, ["g", "a", "c"])).toEqual(["g", "c"]);
+  });
+
+  test("a child selected without its group stays a child-level root", () => {
+    // 只选组内成员（组不在选中集）→ 该成员是顶层，父组仍挡住它越出组
+    expect(selectionRootIds(groupedDoc, ["a", "b"])).toEqual(["a", "b"]);
   });
 });

@@ -20,7 +20,16 @@ import {
 } from "@antv/x6";
 import { getProvider as ReactShapePortal } from "@antv/x6-react-shape";
 import { useLatest } from "ahooks";
-import { Group, Trash2 } from "lucide-react";
+import {
+  BringToFront,
+  ClipboardPaste,
+  Copy,
+  CopyPlus,
+  Group,
+  SendToBack,
+  Trash2,
+  Ungroup,
+} from "lucide-react";
 import { Button } from "../components/button";
 import { cn } from "../lib/utils";
 import { ensureCanvasShapes } from "./nodes";
@@ -49,7 +58,9 @@ import {
   cascadeIdsOf,
   groupElements,
   isSelectedWithAncestor,
+  selectionRootIds,
 } from "./graph-operations";
+import { CanvasContextMenu, type CanvasContextMenuItem } from "./canvas-context-menu";
 import { EdgeOverlay } from "./EdgeOverlay";
 import {
   CanvasEdgeUpdateProvider,
@@ -88,6 +99,11 @@ export type CanvasGraphHandle = {
   startDrag: (element: CanvasElementDTO, event: React.PointerEvent | React.MouseEvent) => void;
   focusCell: (cellId: string) => void;
 };
+
+type CanvasContextMenuTarget =
+  | { kind: "nodes"; nodeIds: string[] }
+  | { kind: "edge"; edgeId: string }
+  | { kind: "blank" };
 
 export type CanvasGraphProps = {
   readonly?: boolean;
@@ -163,6 +179,11 @@ export const CanvasGraph = React.memo(
     readonlyRef.current = readonly;
     const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
     const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
+    const [contextMenu, setContextMenu] = useState<{
+      x: number;
+      y: number;
+      target: CanvasContextMenuTarget;
+    } | null>(null);
 
     const emitDocument = useCallback(() => {
       if (readonlyRef.current || suppressEmitRef.current) return;
@@ -181,6 +202,16 @@ export const CanvasGraph = React.memo(
         emitDocument();
       });
     }, [emitDocument]);
+
+    const openContextMenu = useCallback(
+      (clientX: number, clientY: number, target: CanvasContextMenuTarget) => {
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        setContextMenu({ x: clientX - rect.left, y: clientY - rect.top, target });
+      },
+      [],
+    );
+    const openContextMenuRef = useLatest(openContextMenu);
 
     const applyViewport = useCallback((graph: Graph, vp: CanvasViewport) => {
       graph.zoom(vp.zoom, { absolute: true });
@@ -404,6 +435,36 @@ export const CanvasGraph = React.memo(
         graph.getPlugin<Selection>("selection")?.reset([]);
       });
 
+      // 右键：节点→作用于整个多选（或单选该节点）；边→删边；空白→粘贴
+      graph.on("node:contextmenu", ({ node, e }) => {
+        if (readonlyRef.current) return;
+        e.preventDefault?.();
+        const selection = graph.getPlugin<Selection>("selection");
+        let nodeIds: string[];
+        if (selection?.isSelected(node)) {
+          nodeIds = graph
+            .getSelectedCells()
+            .filter((cell) => cell.isNode())
+            .map((cell) => cell.id);
+        } else {
+          selection?.reset([node]);
+          nodeIds = [node.id];
+        }
+        openContextMenuRef.current(e.clientX, e.clientY, { kind: "nodes", nodeIds });
+      });
+      graph.on("edge:contextmenu", ({ edge, e }) => {
+        if (readonlyRef.current) return;
+        e.preventDefault?.();
+        graph.getPlugin<Selection>("selection")?.reset([edge]);
+        openContextMenuRef.current(e.clientX, e.clientY, { kind: "edge", edgeId: edge.id });
+      });
+      graph.on("blank:contextmenu", ({ e }) => {
+        if (readonlyRef.current) return;
+        e.preventDefault?.();
+        graph.getPlugin<Selection>("selection")?.reset([]);
+        openContextMenuRef.current(e.clientX, e.clientY, { kind: "blank" });
+      });
+
       const doc = document ?? EMPTY_DOC;
       appliedDocRef.current = doc;
       suppressEmitRef.current = true;
@@ -530,6 +591,170 @@ export const CanvasGraph = React.memo(
         graph.removeCells([group]);
       }
       graph.stopBatch("ungroup");
+    };
+
+    /** 置顶/置底：原子单位=选中分支根，deep 连带后代；相邻边跟随端点。 */
+    const runZMove = (nodeIds: string[], dir: "front" | "back") => {
+      const graph = graphRef.current;
+      if (!graph) return;
+      const doc = graphToDocument(graph);
+      const roots = selectionRootIds(doc, nodeIds);
+      const nodes = roots
+        .map((id) => graph.getCellById(id))
+        .filter((cell): cell is import("@antv/x6").Node => Boolean(cell?.isNode()));
+      if (nodes.length === 0) return;
+      const affected = new Set(cascadeIdsOf(doc, roots));
+      const edges = graph
+        .getEdges()
+        .filter(
+          (edge) =>
+            affected.has(edge.getSourceCellId() ?? "") ||
+            affected.has(edge.getTargetCellId() ?? ""),
+        );
+      graph.startBatch("z-move");
+      // 多层分支：置顶按层序升序、置底降序逐一移动，保留多分支相对序
+      const ordered = [...nodes].sort((a, b) =>
+        dir === "front" ? a.getZIndex() - b.getZIndex() : b.getZIndex() - a.getZIndex(),
+      );
+      for (const node of ordered) {
+        if (dir === "front") node.toFront({ deep: true });
+        else node.toBack({ deep: true });
+      }
+      for (const edge of edges) {
+        if (dir === "front") edge.toFront();
+        else edge.toBack();
+      }
+      graph.stopBatch("z-move");
+      scheduleEmit(); // change:zIndex 不在 modelEvents 里，主动回写文档
+    };
+
+    const runCopy = (nodeIds: string[]) => {
+      const graph = graphRef.current;
+      const clipboard = graph?.getPlugin<Clipboard>("clipboard");
+      if (!graph || !clipboard) return;
+      const cells = nodeIds.map((id) => graph.getCellById(id)).filter(Boolean);
+      clipboard.copy(cells, { deep: true });
+    };
+
+    const runDuplicate = (nodeIds: string[]) => {
+      const graph = graphRef.current;
+      const clipboard = graph?.getPlugin<Clipboard>("clipboard");
+      if (!graph || !clipboard) return;
+      const cells = nodeIds.map((id) => graph.getCellById(id)).filter(Boolean);
+      clipboard.copy(cells, { deep: true });
+      const pasted = clipboard.paste({ offset: { dx: 24, dy: 24 } });
+      graph.getPlugin<Selection>("selection")?.reset(pasted);
+    };
+
+    const runDeleteNodes = (nodeIds: string[]) => {
+      const graph = graphRef.current;
+      if (!graph) return;
+      const doomed = cascadeIdsOf(graphToDocument(graph), nodeIds);
+      graph.removeCells(doomed.map((id) => graph.getCellById(id)).filter(Boolean));
+    };
+
+    const runDeleteEdge = (edgeId: string) => {
+      const graph = graphRef.current;
+      const cell = graph?.getCellById(edgeId);
+      if (graph && cell) graph.removeCells([cell]);
+    };
+
+    const runPasteAt = () => {
+      const graph = graphRef.current;
+      const clipboard = graph?.getPlugin<Clipboard>("clipboard");
+      if (!graph || !clipboard) return;
+      const pasted = clipboard.paste();
+      graph.getPlugin<Selection>("selection")?.reset(pasted);
+    };
+
+    const buildMenuSections = (): { items: CanvasContextMenuItem[] }[] => {
+      if (!contextMenu) return [];
+      const graph = graphRef.current;
+      const { target } = contextMenu;
+      if (target.kind === "blank") {
+        return [
+          {
+            items: [
+              {
+                id: "paste",
+                label: "粘贴",
+                icon: ClipboardPaste,
+                disabled: graph?.isClipboardEmpty() ?? true,
+                onSelect: runPasteAt,
+              },
+            ],
+          },
+        ];
+      }
+      if (target.kind === "edge") {
+        return [
+          {
+            items: [
+              {
+                id: "delete-edge",
+                label: "删除连线",
+                icon: Trash2,
+                destructive: true,
+                onSelect: () => runDeleteEdge(target.edgeId),
+              },
+            ],
+          },
+        ];
+      }
+      const nodeIds = target.nodeIds;
+      const isGroup = (id: string) =>
+        graph?.getCellById(id)?.isNode() &&
+        (graph.getCellById(id)!.getData() as { element?: CanvasElementDTO } | null)?.element
+          ?.kind === "group";
+      const groupIds = nodeIds.filter(isGroup);
+      const sections: { items: CanvasContextMenuItem[] }[] = [
+        {
+          items: [
+            {
+              id: "to-front",
+              label: "置顶",
+              icon: BringToFront,
+              onSelect: () => runZMove(nodeIds, "front"),
+            },
+            {
+              id: "to-back",
+              label: "置底",
+              icon: SendToBack,
+              onSelect: () => runZMove(nodeIds, "back"),
+            },
+          ],
+        },
+        {
+          items: [
+            { id: "copy", label: "复制", icon: Copy, onSelect: () => runCopy(nodeIds) },
+            {
+              id: "duplicate",
+              label: "重复",
+              icon: CopyPlus,
+              onSelect: () => runDuplicate(nodeIds),
+            },
+          ],
+        },
+      ];
+      if (groupIds.length > 0) {
+        sections.push({
+          items: [
+            { id: "ungroup", label: "解组", icon: Ungroup, onSelect: () => runUngroup(groupIds) },
+          ],
+        });
+      }
+      sections.push({
+        items: [
+          {
+            id: "delete",
+            label: groupIds.length > 0 ? "删除（含组内内容）" : "删除",
+            icon: Trash2,
+            destructive: true,
+            onSelect: () => runDeleteNodes(nodeIds),
+          },
+        ],
+      });
+      return sections;
     };
 
     const handleElementUpdate = useCallback((element: CanvasElementDTO) => {
@@ -692,6 +917,15 @@ export const CanvasGraph = React.memo(
                         .filter((cell): cell is import("@antv/x6").Cell => Boolean(cell)),
                     );
                 }}
+              />
+            ) : null}
+            {contextMenu && graph && !readonly ? (
+              <CanvasContextMenu
+                x={contextMenu.x}
+                y={contextMenu.y}
+                containerWidth={containerRef.current?.clientWidth ?? 0}
+                onClose={() => setContextMenu(null)}
+                sections={buildMenuSections()}
               />
             ) : null}
           </CanvasEdgeUpdateProvider>
