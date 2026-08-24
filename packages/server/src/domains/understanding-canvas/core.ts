@@ -431,7 +431,10 @@ export class CanvasCore {
           ),
         )
         .orderBy(desc(understandingCanvases.updatedAt));
-      return rows.map((row) => canvasRowToDTO(row.canvas));
+      const seen = new Set<string>();
+      return rows
+        .filter(({ canvas }) => !seen.has(canvas.id) && seen.add(canvas.id))
+        .map((row) => canvasRowToDTO(row.canvas));
     });
   }
 

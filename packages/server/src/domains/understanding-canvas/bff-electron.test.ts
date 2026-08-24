@@ -150,7 +150,10 @@ describe("UnderstandingCanvasElectronBff.getCanvasDetail", () => {
     const understanding = await u.createUnderstanding({ title: "将被删", body: "x" });
     await Effect.runPromise(
       service.saveCanvas(canvasId, {
-        elements: [element("u-card", "understanding", { understandingId: understanding.id })],
+        elements: [
+          element("u-card", "understanding", { understandingId: understanding.id }),
+          element("u-card-duplicate", "understanding", { understandingId: understanding.id }),
+        ],
         edges: [],
       }),
     );
