@@ -1,13 +1,14 @@
 import { useSyncExternalStore, type ReactNode } from "react";
 import { Selection, type Graph, type Node as X6Node } from "@antv/x6";
 import { register } from "@antv/x6-react-shape";
+import { FileText, LayoutGrid, Type, type LucideIcon } from "lucide-react";
 import {
   CanvasGroupCard,
   CanvasRefCard,
   CanvasTextCard,
   CanvasUnderstandingCard,
 } from "./canvas-cards";
-import type { CanvasElementDTO } from "./document";
+import type { CanvasElementDTO, CanvasElementKind } from "./document";
 import { useCanvasElementUpdate, useCanvasShapeData } from "./shape-context";
 
 /**
@@ -164,6 +165,28 @@ function CanvasRefShape({ node, graph }: CardProps) {
   );
 }
 
+/** 拖拽泡影的实体语义图标：按元素 kind 匹配 chat 实体图标语义。 */
+const PILL_ICONS: Partial<Record<CanvasElementKind, LucideIcon>> = {
+  understanding: FileText,
+  text: Type,
+  canvas_ref: LayoutGrid,
+};
+
+/** 拖拽泡影：迷你主色胶囊 + 实体图标 + 标题（渲染在 X6 的 draggingGraph，不读画布 context）。 */
+function PillShape({ node }: { node: X6Node; graph?: Graph }) {
+  const data = (node.getData() ?? {}) as { label?: string; kind?: CanvasElementKind } | undefined;
+  const Icon = data?.kind ? PILL_ICONS[data.kind] : undefined;
+  return (
+    <div
+      data-testid="canvas-drag-pill"
+      className="flex h-full w-full items-center justify-center gap-1.5 rounded-full bg-primary px-3 text-primary-foreground shadow-md"
+    >
+      {Icon ? <Icon size={14} strokeWidth={2.5} aria-hidden /> : null}
+      <span className="whitespace-nowrap text-[13px] font-medium leading-none">{data?.label}</span>
+    </div>
+  );
+}
+
 /** 注册四种 react-shape：键与元素 kind 一一对应（幂等；由 CanvasGraph 挂载前调用，防 tree-shaking 丢弃）。 */
 let shapesRegistered = false;
 export function ensureCanvasShapes(): void {
@@ -179,6 +202,8 @@ export function ensureCanvasShapes(): void {
     };
   register({ shape: "understanding", component: guard(UnderstandingShape) });
   register({ shape: "text", component: guard(TextShape) });
+  // 拖拽泡影不依赖 element 数据（draggingGraph 容器不在画布 React 树内），不走 guard
+  register({ shape: "pill", component: PillShape });
   // 组名徽章在节点框外，foreignObject 必须溢出可见，否则会被裁掉。
   register({
     shape: "group",

@@ -39,6 +39,7 @@ import {
   type CanvasDocument,
   type CanvasEdgeDTO,
   type CanvasElementDTO,
+  type CanvasElementKind,
   type CanvasViewport,
 } from "./document";
 import {
@@ -86,6 +87,11 @@ export type CanvasDragPreview = { title?: string | null };
 /** 拖拽泡影标题截断：迷你 pill 宽度有限，长标题不溢出圆角。 */
 function truncatePill(text: string): string {
   return text.length > 12 ? `${text.slice(0, 12)}…` : text;
+}
+
+/** 泡影几何：icon(14) + gap(6) + px-3(24) + 文字（13px 中西文均按 ~7px/字估）。 */
+function pillNodeSize(label: string): { width: number; height: number } {
+  return { width: Math.max(24 + 14 + 6 + label.length * 7, 56), height: 30 };
 }
 
 export type CanvasGraphHandle = {
@@ -325,25 +331,30 @@ export const CanvasGraph = React.memo(
         // 内置 Dnd：工具栏 / 理解库调 startDrag → 拖入画布；getDropNode 生成“新”元素避免 id 冲突
         dnd = new Dnd({
           target: graph,
-          // 拖拽泡影用迷你 pill（不再克隆一张空白卡），标题从节点 data.dragPreview 读
+          // 拖拽泡影用迷你主色胶囊（不再克隆空白卡），实体图标 + 标题按元素 kind 区分
           getDragNode: (sourceNode, { draggingGraph }) => {
             const data = sourceNode.getData() as
               | { element?: CanvasElementDTO; dragPreview?: { title?: string | null } }
               | undefined;
             const element = data?.element;
-            let label = "＋ 添加";
-            if (element?.kind === "understanding")
-              label = `＋ ${truncatePill(data?.dragPreview?.title ?? "理解")}`;
-            else if (element?.kind === "text") label = "＋ 文本";
-            else if (element?.kind === "canvas_ref") label = "＋ 画布";
+            let kind: CanvasElementKind | undefined;
+            let label = "添加";
+            if (element?.kind === "understanding") {
+              kind = "understanding";
+              label = data?.dragPreview?.title ? truncatePill(data.dragPreview.title) : "理解";
+            } else if (element?.kind === "text") {
+              kind = "text";
+              label = "文本";
+            } else if (element?.kind === "canvas_ref") {
+              kind = "canvas_ref";
+              label = "画布";
+            }
+            const size = pillNodeSize(label);
             return draggingGraph.createNode({
-              shape: "rect",
-              width: 140,
-              height: 32,
-              attrs: {
-                body: { fill: "#27272a", stroke: "none", rx: 16, ry: 16 },
-                label: { text: label, fill: "#fff", fontSize: 13, fontFamily: "inherit" },
-              },
+              shape: "pill",
+              width: size.width,
+              height: size.height,
+              data: { kind, label },
             });
           },
           getDropNode: (draggingNode, { sourceNode }) => {
