@@ -254,7 +254,7 @@ export function AgentChatComposer({
     description: contextUsageLabel(usage),
   };
 
-  const searchEntities = useCallback<ChatComposerEntitySearch>(async (query, signal) => {
+  const searchEntities = useCallback<ChatComposerEntitySearch>(async (query, type, signal) => {
     const normalizedQuery = query.trim();
     const [understandings, contexts, domains, canvases] = await Promise.all([
       normalizedQuery
@@ -282,6 +282,7 @@ export function AgentChatComposer({
       domains,
       canvases,
       selected: [],
+      type,
     }).map((candidate) => ({
       type: candidate.type,
       id: candidate.id,

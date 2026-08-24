@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { StoryCase, StoryShowcase } from "../../../.storybook/story-showcase";
-import type { ChatComposerEntityOption } from "../entity";
+import type { ChatComposerEntityOption, ChatEntityTypeFilter } from "../entity";
 import { entityKey } from "../entity-visual";
 import { ChatContextPicker, ChatSkillPicker } from "./context-picker";
 
@@ -58,11 +58,14 @@ function PickerDemo({
   options?: readonly ChatComposerEntityOption[];
 }) {
   const [activeId, setActiveId] = useState<string | undefined>("context-1");
+  const [activeType, setActiveType] = useState<ChatEntityTypeFilter>("all");
   return (
     <ChatContextPicker
       state={state}
       options={options}
       activeId={activeId}
+      activeType={activeType}
+      onTypeChange={setActiveType}
       onSelect={(option) => setActiveId(entityKey(option))}
       onCancel={() => setActiveId(undefined)}
     />
@@ -125,6 +128,8 @@ const meta = {
   args: {
     state: "ready",
     options: entityOptions,
+    activeType: "all",
+    onTypeChange: () => undefined,
     onSelect: () => undefined,
     onCancel: () => undefined,
   },

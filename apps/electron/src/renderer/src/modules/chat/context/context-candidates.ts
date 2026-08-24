@@ -3,6 +3,7 @@ import type { AgentContextRef } from "@shared/agent";
 import type { SearchContextResult } from "@shared/search";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import type { CanvasDTO } from "@reflecta/server";
+import type { ChatEntityType, ChatEntityTypeFilter } from "@reflecta/ui/chat";
 import { truncate } from "../shared/text";
 import { contextKey } from "./context-reference";
 
@@ -54,6 +55,7 @@ export function buildContextCandidates({
   domains,
   canvases,
   selected,
+  type = "all",
 }: {
   query: string;
   understandings: UnderstandingSummaryDTO[];
@@ -61,22 +63,53 @@ export function buildContextCandidates({
   domains: Domain[];
   canvases: CanvasDTO[];
   selected: AgentContextRef[];
+  /** @ 面板类型筛选；"all" = 混合列表（按命中质量排序）。 */
+  type?: ChatEntityTypeFilter;
 }): ContextCandidate[] {
   const selectedKeys = new Set(selected.map(contextKey));
+  const withoutSelected = (candidates: ContextCandidate[]) =>
+    candidates.filter((candidate) => !selectedKeys.has(contextKey(candidate)));
   const normalizedQuery = query.toLowerCase();
-  const domainCandidates = domains
-    .filter((domain) => !normalizedQuery || domain.name.toLowerCase().includes(normalizedQuery))
-    .slice(0, CONTEXT_LOOKUP_LIMIT)
-    .map(domainCandidate);
-  const canvasCandidates = canvases
-    .filter((canvas) => !normalizedQuery || canvas.title?.toLowerCase().includes(normalizedQuery))
-    .slice(0, CONTEXT_LOOKUP_LIMIT)
-    .map(canvasCandidate);
 
-  return [
-    ...understandings.slice(0, CONTEXT_LOOKUP_LIMIT).map(understandingCandidate),
-    ...contexts.slice(0, CONTEXT_LOOKUP_LIMIT).map(contextCandidate),
-    ...canvasCandidates,
-    ...domainCandidates,
-  ].filter((candidate) => !selectedKeys.has(contextKey(candidate)));
+  const byType: Record<ChatEntityType, ContextCandidate[]> = {
+    understanding: withoutSelected(
+      understandings.slice(0, CONTEXT_LOOKUP_LIMIT).map(understandingCandidate),
+    ),
+    context: withoutSelected(contexts.slice(0, CONTEXT_LOOKUP_LIMIT).map(contextCandidate)),
+    canvas: withoutSelected(
+      canvases
+        .filter(
+          (canvas) => !normalizedQuery || canvas.title?.toLowerCase().includes(normalizedQuery),
+        )
+        .slice(0, CONTEXT_LOOKUP_LIMIT)
+        .map(canvasCandidate),
+    ),
+    domain: withoutSelected(
+      domains
+        .filter((domain) => !normalizedQuery || domain.name.toLowerCase().includes(normalizedQuery))
+        .slice(0, CONTEXT_LOOKUP_LIMIT)
+        .map(domainCandidate),
+    ),
+  };
+
+  if (type !== "all") return byType[type];
+
+  // 混合列表：按命中质量排序，让精确命中的 domain/canvas 浮到最前，
+  // 避免被 understanding/context 的正文命中淹没（stable sort 保序）。
+  return [...byType.understanding, ...byType.context, ...byType.canvas, ...byType.domain].sort(
+    (a, b) =>
+      matchScore(a.title ?? "", a.subtitle, normalizedQuery) -
+      matchScore(b.title ?? "", b.subtitle, normalizedQuery),
+  );
+}
+
+/** 命中质量分：越低越靠前。无查询时全 0（保持输入顺序）。 */
+function matchScore(label: string, subtitle: string | undefined, query: string): number {
+  if (!query) return 0;
+  const l = label.toLowerCase();
+  if (l === query) return 0;
+  if (l.startsWith(query)) return 10;
+  if (l.includes(query)) return 20;
+  if (subtitle && subtitle.toLowerCase().includes(query)) return 100;
+  return 200;
 }

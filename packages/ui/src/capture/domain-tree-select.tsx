@@ -132,7 +132,7 @@ export function DomainTreeSelect(props: DomainTreeSelectProps) {
           className={cn(
             `${size === "sm" ? "min-h-8" : "min-h-9"} w-full gap-2 bg-background dark:bg-background hover:bg-muted`,
             variant === "inline" &&
-              "min-h-0 max-w-full gap-1 border-none bg-transparent dark:bg-transparent px-0 py-0 shadow-none hover:bg-transparent focus-within:border-transparent focus-within:ring-0",
+              "min-h-0 max-w-full gap-1 border-none bg-transparent dark:bg-transparent !px-0 py-0 shadow-none hover:bg-transparent focus-within:border-transparent focus-within:ring-0",
           )}
         >
           {selectedNodes.length === 0 && status !== "ready" ? (

@@ -38,7 +38,11 @@ import {
 } from "#components/dropdown-menu";
 import { Spinner } from "#components/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "#components/tooltip";
-import type { ChatComposerEntityOption, ChatComposerEntityReference } from "../entity";
+import type {
+  ChatComposerEntityOption,
+  ChatComposerEntityReference,
+  ChatEntityTypeFilter,
+} from "../entity";
 import {
   entityClassName,
   CHAT_ENTITY_ICON_FONT_SIZE,
@@ -112,6 +116,7 @@ export type ChatComposerValue = {
 
 export type ChatComposerEntitySearch = (
   query: string,
+  type: ChatEntityTypeFilter,
   signal: AbortSignal,
 ) => Promise<readonly ChatComposerEntityOption[]>;
 
@@ -159,6 +164,21 @@ const MAX_ATTACHMENTS = 8;
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const EMPTY_SKILLS: readonly ChatComposerSkill[] = [];
 const EMPTY_INITIAL_ENTITIES: readonly ChatComposerEntityReference[] = [];
+
+/** @ 面板类型 tab 的显示顺序（左右方向键按此循环切换）。 */
+const ENTITY_TAB_ORDER: readonly ChatEntityTypeFilter[] = [
+  "all",
+  "understanding",
+  "context",
+  "domain",
+  "canvas",
+];
+
+function nextEntityTypeFilter(current: ChatEntityTypeFilter, step: -1 | 1): ChatEntityTypeFilter {
+  const index = ENTITY_TAB_ORDER.indexOf(current);
+  const length = ENTITY_TAB_ORDER.length;
+  return ENTITY_TAB_ORDER[(index + step + length) % length];
+}
 
 function ContextUsageMeter({ usage }: { usage: ChatComposerContextUsage }) {
   const progress = Math.max(0, Math.min(usage.percent ?? 0, 100));
@@ -278,6 +298,7 @@ function useEntitySearch(
 ) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [type, setType] = useState<ChatEntityTypeFilter>("all");
   const [state, setState] = useState<ChatContextPickerState>("idle");
   const [options, setOptions] = useState<readonly ChatComposerEntityOption[]>([]);
   const selectedKey = selectedEntities.map(entityKey).sort().join("|");
@@ -291,7 +312,7 @@ function useEntitySearch(
     setState("loading");
 
     const timer = window.setTimeout(() => {
-      searchEntities(query, controller.signal)
+      searchEntities(query, type, controller.signal)
         .then((results) => {
           if (controller.signal.aborted || requestId !== requestIdRef.current) return;
           const next = results.filter((option) => !selected.has(entityKey(option)));
@@ -309,11 +330,13 @@ function useEntitySearch(
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [open, query, searchEntities, selectedKey]);
+  }, [open, query, type, searchEntities, selectedKey]);
 
   return {
     open,
     query,
+    type,
+    setType,
     state,
     options,
     start(nextQuery: string) {
@@ -474,6 +497,8 @@ function createTriggerSuggestion<TOption, TCommand>(config: {
   activeIndexRef: MutableRefObject<number>;
   setActiveIndex: (updater: (index: number) => number) => void;
   closeOther: () => void;
+  /** 左右方向键：在 @ 面板里切换类型 tab（skill 触发不传即忽略）。 */
+  onArrowLeftRight?: (step: -1 | 1) => void;
   wrapCommand: (command: (attrs: MentionAttrs) => void) => (value: TCommand) => void;
   toCommandValue: (option: TOption) => TCommand;
   markKeyHandled: () => void;
@@ -524,6 +549,15 @@ function createTriggerSuggestion<TOption, TCommand>(config: {
           config.activeRef.current = false;
           config.searchRef.current.close();
           return true;
+        }
+        if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+          if (config.activeRef.current) {
+            event.preventDefault();
+            config.setActiveIndex(() => 0);
+            config.onArrowLeftRight?.(event.key === "ArrowRight" ? 1 : -1);
+            return true;
+          }
+          return false;
         }
         if (event.key === "ArrowDown" || event.key === "ArrowUp") {
           event.preventDefault();
@@ -627,6 +661,7 @@ function useChatComposer({
     activeIndexRef: activeEntityIndexRef,
     setActiveIndex: setActiveEntityIndex,
     closeOther: () => skillSearchRef.current.close(),
+    onArrowLeftRight: (step) => entitySearch.setType((prev) => nextEntityTypeFilter(prev, step)),
     wrapCommand: (command) => command,
     toCommandValue: (option) => ({ id: entityKey(option), label: option.label }),
     markKeyHandled: markMentionKeyHandled,
@@ -1213,6 +1248,8 @@ function ComposerSurface(props: ReturnType<typeof useChatComposer>) {
             state={entitySearch.state}
             options={entitySearch.options}
             activeId={activeEntity ? entityKey(activeEntity) : undefined}
+            activeType={entitySearch.type}
+            onTypeChange={entitySearch.setType}
             onSelect={mentionTrigger.run}
             onCancel={() => {
               mentionActiveRef.current = false;

@@ -95,6 +95,7 @@ export type {
   ChatEntityPresentation,
   ChatEntityReference,
   ChatEntityType,
+  ChatEntityTypeFilter,
   ResolveChatEntity,
 } from "./entity";
 export { entityIcon } from "./entity-visual";

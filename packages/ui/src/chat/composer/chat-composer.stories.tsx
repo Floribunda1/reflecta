@@ -35,7 +35,7 @@ const skills = [
   { name: "release-check", description: "检查版本发布前的必要步骤。" },
 ];
 
-const searchEntities: ChatComposerEntitySearch = async (query, signal) => {
+const searchEntities: ChatComposerEntitySearch = async (query, _type, signal) => {
   await new Promise((resolve) => window.setTimeout(resolve, 350));
   if (signal.aborted) return [];
   if (query.includes("错误")) throw new Error("模拟搜索失败");
