@@ -1,30 +1,17 @@
 import { Badge } from "@reflecta/ui/components/badge";
 import { Button } from "@reflecta/ui/components/button";
-import { DomainTreeSelect } from "@reflecta/ui/capture";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@reflecta/ui/components/dropdown-menu";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "@reflecta/ui/components/context-menu";
-import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@reflecta/ui/components/empty";
+  CONTEXT_META,
+  CONTEXT_PLACEHOLDER,
+  CONTEXT_TYPES,
+  UnderstandingDetailHeader,
+  UnderstandingDetailLayout,
+} from "@reflecta/ui/capture";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@reflecta/ui/components/field";
 import { FOCUS_MODE_OFFSET_CLASS } from "@renderer/modules/shared/layout/layout-constants";
 import { Input } from "@reflecta/ui/components/input";
 import { Tabs, TabsList, TabsTrigger } from "@reflecta/ui/components/tabs";
-import {
-  markdownEquals,
-  MarkdownEditor,
-  MarkdownPreview,
-  SimpleMarkdownPreview,
-} from "@reflecta/ui/editor";
+import { markdownEquals, MarkdownEditor, MarkdownPreview } from "@reflecta/ui/editor";
 import {
   collectChatEntityReferences,
   type ChatEntityPresentation,
@@ -37,21 +24,10 @@ import type { ContextDTO, ContextMedium } from "@shared/context";
 import { CanvasMembership } from "@renderer/modules/canvas/CanvasMembership";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import {
-  FileText,
-  Maximize2,
-  MessageCircle,
-  Minimize2,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Maximize2, Minimize2, X } from "lucide-react";
 import { useQueries } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUnderstandingDetail, useUnderstandingDetailActions } from "./hooks";
-import { CONTEXT_META, CONTEXT_PLACEHOLDER, CONTEXT_TYPES } from "./context/types";
 import { useAtomValue } from "@effect/atom-react";
 import { activeContextIdAtom, captureActions, draftAtom, type CaptureAgentScope } from "../store";
 import { useUnderstandingDraftSave } from "../useUnderstandingDraftSave";
@@ -79,14 +55,8 @@ type ContextDraftInput = {
 
 const CONTEXT_DRAWER_WIDTH_CLASS =
   "data-[side=right]:w-[min(760px,calc(100vw-2rem))] data-[side=right]:sm:max-w-none";
-const FALLBACK_CONTEXT_META = { label: "上下文", Icon: FileText };
-
 function contextLabel(type: ContextMedium): string {
   return CONTEXT_META[type].label;
-}
-
-function contextMeta(type: ContextMedium | string) {
-  return CONTEXT_META[type as ContextMedium] ?? FALLBACK_CONTEXT_META;
 }
 
 function createEmptyContextDraft(): ContextDraftInput {
@@ -106,73 +76,6 @@ function createContextDraft(context: ContextDTO | null): ContextDraftInput {
   };
 }
 
-function ContextPreview({
-  context,
-  onPreview,
-  onEdit,
-  onDelete,
-  resolveWikiLink,
-}: {
-  context: ContextDTO;
-  onPreview: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  resolveWikiLink: ResolveChatEntity;
-}) {
-  const meta = contextMeta(context.medium);
-  const Icon = meta.Icon;
-
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger
-        render={
-          <button
-            type="button"
-            className="group flex w-full min-w-0 flex-col gap-2 rounded-lg border bg-card px-4 py-3 text-left text-sm text-card-foreground transition-colors outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-            onClick={onPreview}
-          >
-            <div className="flex min-w-0 items-center gap-2">
-              <Badge variant="outline">
-                <Icon size={11} />
-                {meta.label}
-              </Badge>
-              <span className="min-w-0 flex-1 truncate font-medium text-foreground">
-                {context.title?.trim() || meta.label}
-              </span>
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {context.content.length} 字
-              </span>
-            </div>
-
-            <div className="text-muted-foreground">
-              {context.content ? (
-                <SimpleMarkdownPreview
-                  value={context.content}
-                  lineClamp={2}
-                  resolveWikiLink={resolveWikiLink}
-                />
-              ) : (
-                <span>空上下文，可以直接补充内容。</span>
-              )}
-            </div>
-          </button>
-        }
-      />
-      <ContextMenuContent>
-        <ContextMenuItem onClick={onEdit}>
-          <Pencil size={14} />
-          编辑
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem variant="destructive" onClick={onDelete}>
-          <Trash2 size={14} />
-          删除
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
-  );
-}
-
 export function ContextPreviewDrawerContent({
   context,
   focusMode = false,
@@ -186,7 +89,7 @@ export function ContextPreviewDrawerContent({
   onClose?: () => void;
   resolveWikiLink?: ResolveChatEntity;
 }) {
-  const meta = contextMeta(context.medium);
+  const meta = CONTEXT_META[context.medium];
   const Icon = meta.Icon;
   const inspectorMode = Boolean(onFocusModeChange || onClose);
 
@@ -370,140 +273,6 @@ function ContextDetailDrawerContent({
   );
 }
 
-function UnderstandingDetailHeader({
-  understanding,
-  title,
-  updatedLabel,
-  domains,
-  domainsLoading,
-  focusMode,
-  onFocusModeChange,
-  onChat,
-  onClose,
-  onDelete,
-  onTitleChange,
-  onTitleBlur,
-  onDomainIdsChange,
-}: {
-  understanding: { id: string; domainIds: string[]; title: string | null };
-  title: string;
-  updatedLabel: string;
-  domains: Parameters<typeof DomainTreeSelect>[0]["nodes"];
-  domainsLoading: boolean;
-  focusMode: boolean;
-  onFocusModeChange?: (focused: boolean) => void;
-  onChat?: (scope: CaptureAgentScope) => void;
-  onClose?: () => void;
-  onDelete: () => void;
-  onTitleChange: (title: string) => void;
-  onTitleBlur: () => void;
-  onDomainIdsChange: (domainIds: string[]) => void;
-}) {
-  return (
-    <header className="space-y-4">
-      <div
-        className={`flex min-h-8 min-w-0 items-center gap-2 text-xs text-muted-foreground ${focusMode ? FOCUS_MODE_OFFSET_CLASS : ""}`}
-      >
-        {focusMode ? null : (
-          <>
-            <span>{updatedLabel}</span>
-            <span aria-hidden>·</span>
-            <DomainTreeSelect
-              value={understanding.domainIds}
-              onValueChange={onDomainIdsChange}
-              nodes={domains}
-              status={domainsLoading ? "loading" : "ready"}
-              placeholder="未归入 Domain"
-              fluid={false}
-              showPath={false}
-              variant="inline"
-            />
-          </>
-        )}
-        <div className="ml-auto flex shrink-0 items-center gap-1">
-          {onFocusModeChange ? (
-            <Button
-              data-testid="capture-understanding-focus-button"
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
-              title={focusMode ? "退出专注模式（Esc）" : "进入专注模式"}
-              onClick={() => onFocusModeChange(!focusMode)}
-            >
-              {focusMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-            </Button>
-          ) : null}
-          {onChat && !focusMode ? (
-            <Button
-              data-testid="capture-understanding-chat-button"
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              aria-label="聊聊"
-              title="聊聊"
-              onClick={() =>
-                onChat({
-                  type: "understanding",
-                  id: understanding.id,
-                  title: title.trim() || understanding.title || undefined,
-                })
-              }
-            >
-              <MessageCircle size={15} />
-            </Button>
-          ) : null}
-          {!focusMode ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="ghost"
-                    aria-label="更多操作"
-                    title="更多操作"
-                  />
-                }
-              >
-                <MoreHorizontal size={15} />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" sideOffset={6}>
-                <DropdownMenuItem variant="destructive" onClick={onDelete}>
-                  <Trash2 size={15} />
-                  删除
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null}
-          {onClose && !focusMode ? (
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              aria-label="关闭详情"
-              title="关闭详情"
-              onClick={onClose}
-            >
-              <X size={15} />
-            </Button>
-          ) : null}
-        </div>
-      </div>
-      <Input
-        value={title}
-        onChange={(event) => onTitleChange(event.target.value)}
-        onBlur={onTitleBlur}
-        // DESIGN: EditableText 语义——标题内联编辑，聚焦不显示输入框外壳，视觉与页面标题一致（focus-visible:ring-0 有意关闭）。
-        // Input 组件内置 text-base + md:text-sm，tailwind-merge 无法移除
-        // 响应式 md:text-sm，需要 md:text-2xl 在 md+ 重新声明标题字号。
-        className="h-auto border-0 dark:bg-transparent bg-transparent px-0 py-0 text-2xl font-semibold shadow-none focus-visible:ring-0 md:text-2xl"
-        placeholder="写下一个刚形成的理解"
-      />
-    </header>
-  );
-}
-
 function UnderstandingDetailInner({
   understandingId,
   onClose,
@@ -664,83 +433,64 @@ function UnderstandingDetailInner({
   };
 
   return (
-    <div className="h-full min-h-0 min-w-0 overflow-hidden">
-      <article ref={detailRef} className="mx-auto h-full overflow-y-auto px-4 py-2">
+    <UnderstandingDetailLayout
+      articleRef={detailRef}
+      header={
         <UnderstandingDetailHeader
-          understanding={understanding}
           title={title}
           updatedLabel={updatedLabel}
+          domainIds={understanding.domainIds}
           domains={domains}
           domainsLoading={domainsLoading}
           focusMode={focusMode}
+          className={focusMode ? FOCUS_MODE_OFFSET_CLASS : undefined}
           onFocusModeChange={onFocusModeChange}
-          onChat={onChat}
+          onChat={
+            onChat
+              ? () =>
+                  onChat({
+                    type: "understanding",
+                    id: understanding.id,
+                    title: title.trim() || understanding.title || undefined,
+                  })
+              : undefined
+          }
           onClose={onClose}
           onDelete={handleDeleteUnderstanding}
           onTitleChange={updateDraftTitle}
           onTitleBlur={() => void saveDraft()}
           onDomainIdsChange={(domainIds) => void updateUnderstanding({ domainIds })}
         />
-
-        <section className="mt-5">
-          <MarkdownEditor
-            documentId={understanding.id}
-            value={body}
-            height="auto"
-            maxHeight={focusMode ? "calc(100vh - 140px)" : "clamp(320px, 50vh, 560px)"}
-            placeholder="用自己的语言写下这条理解。输入 [[ 连接相关理解。"
-            uploadAsset={uploadMarkdownAsset}
-            getSuggestions={getMarkdownEditorSuggestions}
-            resolveWikiLink={resolveWikiLink}
-            onChange={(next) => {
-              if (markdownEquals(next, body)) return;
-              updateDraftBody(next);
-            }}
-            onBlur={(markdown) => void saveDraft(markdown)}
-            onWikiLinkOpen={(reference) => {
-              if (reference.type === "understanding") onWikiLinkClick?.(reference.id);
-            }}
-          />
-        </section>
-
-        <section
-          className={`mt-10 flex flex-col gap-3 border-t border-border pt-8 pb-6 ${focusMode ? "hidden" : ""}`}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-sm leading-8 font-medium">上下文</div>
-            <Button type="button" size="sm" variant="ghost" onClick={handleAddContext}>
-              <Plus size={14} />
-              添加上下文
-            </Button>
-          </div>
-          {understanding.contexts.length > 0 ? (
-            <div className="flex flex-col gap-3">
-              {understanding.contexts.map((context) => (
-                <ContextPreview
-                  key={context.id}
-                  context={context}
-                  onPreview={() => openContextPreview(context)}
-                  onEdit={() => openContextDrawer(context)}
-                  onDelete={() => handleDeleteContext(context)}
-                  resolveWikiLink={resolveWikiLink}
-                />
-              ))}
-            </div>
-          ) : (
-            <Empty className="flex-none py-10">
-              <EmptyContent>
-                <EmptyMedia variant="icon">
-                  <Plus />
-                </EmptyMedia>
-                <EmptyDescription>暂时没有上下文</EmptyDescription>
-              </EmptyContent>
-            </Empty>
-          )}
-        </section>
-
-        <CanvasMembership understandingId={understanding.id} />
-      </article>
-    </div>
+      }
+      body={
+        <MarkdownEditor
+          documentId={understanding.id}
+          value={body}
+          height="auto"
+          maxHeight={focusMode ? "calc(100vh - 140px)" : "clamp(320px, 50vh, 560px)"}
+          placeholder="用自己的语言写下这条理解。输入 [[ 连接相关理解。"
+          uploadAsset={uploadMarkdownAsset}
+          getSuggestions={getMarkdownEditorSuggestions}
+          resolveWikiLink={resolveWikiLink}
+          onChange={(next) => {
+            if (markdownEquals(next, body)) return;
+            updateDraftBody(next);
+          }}
+          onBlur={(markdown) => void saveDraft(markdown)}
+          onWikiLinkOpen={(reference) => {
+            if (reference.type === "understanding") onWikiLinkClick?.(reference.id);
+          }}
+        />
+      }
+      contexts={understanding.contexts}
+      canvasMembership={<CanvasMembership understandingId={understanding.id} />}
+      focusMode={focusMode}
+      onAddContext={handleAddContext}
+      onPreviewContext={openContextPreview}
+      onEditContext={openContextDrawer}
+      onDeleteContext={handleDeleteContext}
+      resolveWikiLink={resolveWikiLink}
+    />
   );
 }
 
