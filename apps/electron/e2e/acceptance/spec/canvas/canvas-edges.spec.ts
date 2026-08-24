@@ -130,6 +130,9 @@ test("@CV-X6-EDGE-008 用户选择的连接端口在重新进入后保持", asyn
   await connectBottomToTop("port_a", "port_b");
   await expect.poll(async () => (await h.edgeModel(page!))[0]?.sourcePort).toBe("bottom");
   expect((await h.edgeModel(page!))[0]?.targetPort).toBe("top");
+  await h.dragNodeBy(page!, "port_a", -80, 40);
+  expect((await h.edgeModel(page!))[0]?.sourcePort).toBe("bottom");
+  expect((await h.edgeModel(page!))[0]?.targetPort).toBe("top");
   await page!.waitForTimeout(1200);
   await h.openCanvasRow(page!, "EDGEPORTS");
   await expect.poll(async () => (await h.edgeModel(page!))[0]?.sourcePort).toBe("bottom");

@@ -4,15 +4,12 @@ import {
   applyEdgePresentation,
   applyElementUpdate,
   edgeToEdge,
-  facingEdgePorts,
   graphToDocument,
   curveEdgePath,
   curvePathData,
   curveTerminalRoutePoints,
   orthogonalEdgePath,
   symmetricOrthogonalRoutePoints,
-  syncEdgePortsToNodePositions,
-  syncManhattanRouterDirections,
   toX6Cells,
 } from "./graph-document";
 
@@ -162,14 +159,6 @@ describe("graph-document toX6Cells", () => {
 });
 
 describe("in-place cell updates", () => {
-  test("selects facing ports from relative node positions", () => {
-    const center = { x: 0, y: 0 };
-    expect(facingEdgePorts(center, { x: 100, y: 20 })).toEqual(["right", "left"]);
-    expect(facingEdgePorts(center, { x: -100, y: 20 })).toEqual(["left", "right"]);
-    expect(facingEdgePorts(center, { x: 20, y: 100 })).toEqual(["bottom", "top"]);
-    expect(facingEdgePorts(center, { x: 20, y: -100 })).toEqual(["top", "bottom"]);
-  });
-
   test("gives curves straight terminal runs before their rounded bends", () => {
     expect(curveEdgePath()).toEqual({
       router: { name: "reflecta-curve" },
@@ -202,65 +191,6 @@ describe("in-place cell updates", () => {
       { x: 700, y: 350 },
     ]);
     expect(500 - vertical[0]!.y).toBe(vertical[1]!.y - 200);
-  });
-
-  test("updates X6 terminals and their persisted DTO together", () => {
-    const data = {
-      edge: {
-        id: "e",
-        source: { cell: "", port: "bottom" },
-        target: { cell: "", port: "top" },
-      },
-    };
-    const setSource = vi.fn();
-    const setTarget = vi.fn();
-    const replaceData = vi.fn();
-    syncEdgePortsToNodePositions({
-      getSourceNode: () => ({
-        id: "a",
-        getBBox: () => ({ getCenter: () => ({ x: 0, y: 0 }) }),
-      }),
-      getTargetNode: () => ({
-        id: "b",
-        getBBox: () => ({ getCenter: () => ({ x: 100, y: 20 }) }),
-      }),
-      getSourcePortId: () => "bottom",
-      getTargetPortId: () => "top",
-      setSource,
-      setTarget,
-      getRouter: () => null,
-      getData: () => data,
-      replaceData,
-    } as never);
-
-    expect(setSource).toHaveBeenCalledWith({ cell: "a", port: "right" });
-    expect(setTarget).toHaveBeenCalledWith({ cell: "b", port: "left" });
-    expect(replaceData).toHaveBeenCalledWith({
-      edge: {
-        ...data.edge,
-        source: { cell: "a", port: "right" },
-        target: { cell: "b", port: "left" },
-      },
-    });
-  });
-
-  test("syncs Manhattan directions after an edge terminal is reconnected", () => {
-    const cell = {
-      getRouter: () => ({
-        name: "manhattan",
-        args: { padding: 20, startDirections: ["right"], endDirections: ["left"] },
-      }),
-      getSourcePortId: () => "bottom",
-      getTargetPortId: () => "top",
-      setRouter: vi.fn(),
-    };
-
-    syncManhattanRouterDirections(cell as never);
-
-    expect(cell.setRouter).toHaveBeenCalledWith({
-      name: "manhattan",
-      args: { padding: 20, startDirections: ["bottom"], endDirections: ["top"] },
-    });
   });
 
   test("excludes X6's transient incomplete edge from document snapshots", () => {

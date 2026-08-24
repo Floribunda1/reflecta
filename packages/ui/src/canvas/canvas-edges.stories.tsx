@@ -14,7 +14,7 @@ import {
   typicalCanvasDocument,
   typicalShapeData,
 } from "./canvas-story-fixtures";
-import type { CanvasDocument, CanvasEdgeDTO } from "./document";
+import type { CanvasDocument, CanvasEdgeDTO, CanvasEdgePortId } from "./document";
 import { curveEdgePath, edgeToEdge, orthogonalEdgePath } from "./graph-document";
 
 const PATH_OPTIONS = [
@@ -23,6 +23,13 @@ const PATH_OPTIONS = [
   { value: "orthogonal", label: "正交" },
 ] as const;
 type Path = (typeof PATH_OPTIONS)[number]["value"];
+
+const PORT_OPTIONS = [
+  { value: "top", label: "上" },
+  { value: "right", label: "右" },
+  { value: "bottom", label: "下" },
+  { value: "left", label: "左" },
+] as const satisfies ReadonlyArray<{ value: CanvasEdgePortId; label: string }>;
 
 const POSITIONS = [
   { label: "上", source: [322, 250], target: [322, 40] },
@@ -105,10 +112,21 @@ function EdgeRoutingLab() {
     setPosition(index);
     fit();
   };
+  const selectPort = (terminal: "source" | "target", port: CanvasEdgePortId) => {
+    const cell = edgeCell();
+    if (!cell) return;
+    const edge = edgeToEdge(cell);
+    const nextTerminal = { cell: edge[terminal].cell, port };
+    if (terminal === "source") cell.setSource(nextTerminal);
+    else cell.setTarget(nextTerminal);
+    const nextEdge = edgeToEdge(cell);
+    cell.replaceData({ edge: nextEdge });
+    setCurrentEdge(nextEdge);
+  };
   return (
     <StoryShowcase
       title="Edge Routing Lab"
-      description="只暴露路径和相对位置；连接桩由两张卡片的位置自动选择。"
+      description="连接桩由用户明确指定；切换卡片相对位置不会改变 source / target port。"
     >
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="grid gap-3">
@@ -140,6 +158,25 @@ function EdgeRoutingLab() {
               </Button>
             ))}
           </div>
+          {(["source", "target"] as const).map((terminal) => (
+            <div
+              key={terminal}
+              className="flex flex-wrap items-center gap-1 rounded-lg border bg-background p-1"
+            >
+              <span className="w-16 px-2 text-sm text-muted-foreground">{terminal}</span>
+              {PORT_OPTIONS.map((option) => (
+                <Button
+                  key={option.value}
+                  type="button"
+                  size="sm"
+                  variant={currentEdge[terminal].port === option.value ? "secondary" : "ghost"}
+                  onClick={() => selectPort(terminal, option.value)}
+                >
+                  {option.label}
+                </Button>
+              ))}
+            </div>
+          ))}
           <GraphFrame height="h-[620px]">
             <CanvasGraph
               ref={graphRef}
@@ -165,7 +202,7 @@ function EdgeRoutingLab() {
               2,
             )}
           </pre>
-          <p className="text-xs text-muted-foreground">连接桩是自动计算结果，不作为用户配置项。</p>
+          <p className="text-xs text-muted-foreground">移动卡片只重算路径，不改写连接桩。</p>
         </div>
       </div>
     </StoryShowcase>
