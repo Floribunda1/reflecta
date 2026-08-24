@@ -71,6 +71,9 @@ test("@CV-X6-RO-001 只读画布禁止编辑交互", async () => {
   await expect(page!.getByTestId("agent-context-inspector")).toHaveCount(0);
   const node = dialog.locator('[data-node-id="r_a"]').first();
   await expect(node).toBeVisible();
+  const nodeBox = (await node.boundingBox())!;
+  const dialogBox = (await dialog.boundingBox())!;
+  expect(nodeBox.width).toBeGreaterThan(dialogBox.width * 0.5);
   const modelBefore = await h.nodeGeometry(page!, "r_a");
   const b = (await node.boundingBox())!;
   await page!.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
