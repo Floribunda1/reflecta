@@ -138,13 +138,13 @@ function CanvasEdgesShowcase() {
   return (
     <StoryShowcase
       title="Canvas Edges"
-      description="验收连线的 X6 Router、Connector、attrs 与标签。同一时间只挂一张图。单击连线打开底部配置工具条。"
+      description="验收连线的路径、线型、线宽、颜色、箭头和标签。同一时间只挂一张图。单击连线打开底部配置工具条。"
     >
       <StoryCaseSwitch
         cases={[
           {
-            title: "Router 与 Connector",
-            description: "代表性的 smooth、normal 与 manhattan + rounded 组合。",
+            title: "路径",
+            description: "曲线 / 直线 / 正交。",
             content: <InteractiveGraph document={edgeRoutingDocument} height="h-[360px]" />,
           },
           {

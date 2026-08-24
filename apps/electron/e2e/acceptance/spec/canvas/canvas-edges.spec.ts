@@ -141,10 +141,8 @@ test("@CV-X6-EDGE-004 调整连线样式并保留", async () => {
   await page!.getByTitle("颜色").first().click();
   await page!.locator("button[title='chart-1']").first().click();
   await page!.waitForTimeout(300);
-  await page!.getByTitle("Router").click();
-  await page!.getByText("Manhattan", { exact: true }).first().click();
-  await page!.getByTitle("Connector").click();
-  await page!.getByText("Rounded", { exact: true }).first().click();
+  await page!.getByTitle("路径").click();
+  await page!.getByText("正交", { exact: true }).first().click();
   await page!.getByTitle("线型").click();
   await page!.getByText("虚线", { exact: true }).first().click();
   await page!.getByTitle("线宽").click();

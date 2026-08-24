@@ -113,6 +113,34 @@ export function EdgeOverlay({
         : "classic";
   const patchLine = (patch: Record<string, unknown>) =>
     onUpdate({ ...dto, attrs: { ...dto.attrs, line: { ...line, ...patch } } });
+  const path =
+    dto.router?.name === "manhattan"
+      ? "orthogonal"
+      : dto.connector.name === "normal"
+        ? "straight"
+        : "curve";
+  const patchPath = (path: (typeof PATH_OPTIONS)[number]["value"]) => {
+    if (path === "curve") {
+      onUpdate({ ...dto, router: null, connector: { name: "smooth" } });
+      return;
+    }
+    if (path === "straight") {
+      onUpdate({ ...dto, router: null, connector: { name: "normal" } });
+      return;
+    }
+    onUpdate({
+      ...dto,
+      router: {
+        name: "manhattan",
+        args: {
+          padding: 20,
+          startDirections: [dto.source.port],
+          endDirections: [dto.target.port],
+        },
+      },
+      connector: { name: "rounded", args: { radius: 8 } },
+    });
+  };
   const commitLabel = () => {
     if (labelDraft === null) return;
     const label = labelDraft.trim() || null;
@@ -157,18 +185,11 @@ export function EdgeOverlay({
       </Popover>
 
       <EdgeStyleMenu
-        label="Router"
+        label="路径"
         icon={<Route />}
-        value={dto.router?.name ?? "none"}
-        options={ROUTER_OPTIONS}
-        onChange={(name) => onUpdate({ ...dto, router: name === "none" ? null : { name } })}
-      />
-      <EdgeStyleMenu
-        label="Connector"
-        icon={<Route />}
-        value={dto.connector.name}
-        options={CONNECTOR_OPTIONS}
-        onChange={(name) => onUpdate({ ...dto, connector: { name } })}
+        value={path}
+        options={PATH_OPTIONS}
+        onChange={patchPath}
       />
       <EdgeStyleMenu
         label="线型"
@@ -226,20 +247,10 @@ export function EdgeOverlay({
   );
 }
 
-const ROUTER_OPTIONS = [
-  { value: "none", label: "无" },
-  { value: "normal", label: "Normal" },
-  { value: "orth", label: "Orth" },
-  { value: "oneSide", label: "One Side" },
-  { value: "manhattan", label: "Manhattan" },
-  { value: "metro", label: "Metro" },
-  { value: "er", label: "ER" },
-] as const;
-const CONNECTOR_OPTIONS = [
-  { value: "normal", label: "Normal" },
-  { value: "smooth", label: "Smooth" },
-  { value: "rounded", label: "Rounded" },
-  { value: "jumpover", label: "Jumpover" },
+const PATH_OPTIONS = [
+  { value: "curve", label: "曲线" },
+  { value: "straight", label: "直线" },
+  { value: "orthogonal", label: "正交" },
 ] as const;
 const LINE_STYLE_OPTIONS = [
   { value: "", label: "实线" },
