@@ -100,8 +100,8 @@ test("@CV-X6-EDGE-003 新连线自带画布归属与默认 X6 配置", async () 
   await h.openCanvasRow(page!, "EDGE");
   const edges = await h.edgeModel(page!);
   expect(edges[0].canvasId).toBe("cvx-edge");
-  expect(edges[0].router).toBeNull();
-  expect(edges[0].connector).toBe("smooth");
+  expect(edges[0].router).toBe("reflecta-curve");
+  expect(edges[0].connector).toBe("reflecta-curve");
 });
 
 test("@CV-X6-EDGE-002 同一节点可连不同端点", async () => {
@@ -112,6 +112,9 @@ test("@CV-X6-EDGE-002 同一节点可连不同端点", async () => {
   await expect.poll(async () => (await h.edgeModel(page!)).length).toBe(2);
   const edges = await h.edgeModel(page!);
   expect(edges.map((e) => e.source)).toEqual(["pa_a", "pa_a"]);
+  const endpoint = (await h.edgeEndpoint(page!, "pa_c"))!;
+  const targetPort = (await h.portCenter(page!, "pa_c", "left"))!;
+  expect(Math.abs(endpoint.y - targetPort.y)).toBeLessThan(2);
 });
 
 test("@CV-X6-PERSIST-003 多出边重载不丢失", async () => {
@@ -152,7 +155,7 @@ test("@CV-X6-EDGE-004 调整连线样式并保留", async () => {
   await page!.waitForTimeout(1200); // 等防抖(800ms)保存落库再重开
   const s1 = await h.edgeModel(page!);
   expect(s1[0].strokeToken).toBe("var(--chart-1)");
-  expect(s1[0].router).toBe("manhattan");
+  expect(s1[0].router).toBe("reflecta-orthogonal");
   expect(s1[0].connector).toBe("rounded");
   expect(s1[0].dasharray).toBe("5 5");
   expect(s1[0].strokeWidth).toBe(4);
@@ -160,7 +163,7 @@ test("@CV-X6-EDGE-004 调整连线样式并保留", async () => {
   await h.openCanvasRow(page!, "EDGESTYLE");
   await expect.poll(async () => (await h.edgeModel(page!))[0]?.strokeToken).toBe("var(--chart-1)");
   const s2 = await h.edgeModel(page!);
-  expect(s2[0].router).toBe("manhattan");
+  expect(s2[0].router).toBe("reflecta-orthogonal");
   expect(s2[0].connector).toBe("rounded");
   expect(s2[0].marker).toBe("circle");
 });

@@ -1,5 +1,5 @@
 import type { CanvasDocument, CanvasEdgeDTO, CanvasElementDTO } from "./document";
-import { DEFAULT_CANVAS_EDGE_ATTRS } from "./graph-document";
+import { curveEdgePath, DEFAULT_CANVAS_EDGE_ATTRS, orthogonalEdgePath } from "./graph-document";
 import type { CanvasLibraryItemView } from "./canvas-library-panel";
 import type { DomainTreeNodeView } from "../capture/domain-tree";
 import type { CanvasSearchIndexItem } from "./canvas-search-overlay";
@@ -122,10 +122,7 @@ export function storyEdge(
   targetElementId: string,
   label: string | null = null,
   attrs: CanvasEdgeDTO["attrs"] = structuredClone(DEFAULT_CANVAS_EDGE_ATTRS),
-  pathConfig: Pick<CanvasEdgeDTO, "router" | "connector"> = {
-    router: null,
-    connector: { name: "reflecta-curve" },
-  },
+  pathConfig: Pick<CanvasEdgeDTO, "router" | "connector"> = curveEdgePath(),
 ): CanvasEdgeDTO {
   return {
     id,
@@ -371,13 +368,7 @@ export const edgeRoutingDocument = edgeGallery([
   {
     id: "edge-orthogonal",
     label: "正交",
-    pathConfig: {
-      router: {
-        name: "manhattan",
-        args: { padding: 20, startDirections: ["right"], endDirections: ["left"] },
-      },
-      connector: { name: "rounded", args: { radius: 8 } },
-    },
+    pathConfig: orthogonalEdgePath(),
   },
 ]);
 

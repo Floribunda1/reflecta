@@ -8,6 +8,9 @@ import {
   graphToDocument,
   curveEdgePath,
   curvePathData,
+  curveTerminalRoutePoints,
+  orthogonalEdgePath,
+  symmetricOrthogonalRoutePoints,
   syncEdgePortsToNodePositions,
   syncManhattanRouterDirections,
   toX6Cells,
@@ -149,15 +152,12 @@ describe("graph-document toX6Cells", () => {
     };
     expect(straight.connector?.name).toBe("normal");
     expect(straight.router).toBeUndefined();
-    const orth = mk({
-      router: {
-        name: "manhattan",
-        args: { padding: 20, startDirections: ["right"], endDirections: ["left"] },
-      },
-      connector: { name: "rounded", args: { radius: 8 } },
-    }) as { connector?: { name?: string }; router?: { name?: string } };
+    const orth = mk(orthogonalEdgePath()) as {
+      connector?: { name?: string };
+      router?: { name?: string };
+    };
     expect(orth.connector?.name).toBe("rounded");
-    expect(orth.router?.name).toBe("manhattan");
+    expect(orth.router?.name).toBe("reflecta-orthogonal");
   });
 });
 
@@ -171,10 +171,37 @@ describe("in-place cell updates", () => {
   });
 
   test("gives curves straight terminal runs before their rounded bends", () => {
-    expect(curveEdgePath()).toEqual({ router: null, connector: { name: "reflecta-curve" } });
+    expect(curveEdgePath()).toEqual({
+      router: { name: "reflecta-curve" },
+      connector: { name: "reflecta-curve" },
+    });
+    expect(curveTerminalRoutePoints({ x: 0, y: 0 }, { x: 100, y: 100 }, "right", "left")).toEqual([
+      { x: 16, y: 0 },
+      { x: 84, y: 100 },
+    ]);
     expect(curvePathData({ x: 0, y: 0 }, { x: 100, y: 100 }, "right", "left")).toMatch(
       /^M 0 0 L 16 0 C .+ 84 100 L 100 100$/,
     );
+  });
+
+  test("keeps both terminal runs of orthogonal edges equally long", () => {
+    const horizontal = symmetricOrthogonalRoutePoints(
+      { x: 600, y: 180 },
+      { x: 460, y: 620 },
+      "left",
+    );
+    expect(horizontal).toEqual([
+      { x: 530, y: 180 },
+      { x: 530, y: 620 },
+    ]);
+    expect(600 - horizontal[0]!.x).toBe(horizontal[1]!.x - 460);
+
+    const vertical = symmetricOrthogonalRoutePoints({ x: 320, y: 500 }, { x: 700, y: 200 }, "top");
+    expect(vertical).toEqual([
+      { x: 320, y: 350 },
+      { x: 700, y: 350 },
+    ]);
+    expect(500 - vertical[0]!.y).toBe(vertical[1]!.y - 200);
   });
 
   test("updates X6 terminals and their persisted DTO together", () => {

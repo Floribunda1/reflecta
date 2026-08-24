@@ -219,7 +219,17 @@ export function facingEdgePorts(
 }
 
 export function curveEdgePath(): Pick<CanvasEdgeDTO, "router" | "connector"> {
-  return { router: null, connector: { ...DEFAULT_CANVAS_EDGE_CONNECTOR } };
+  return {
+    router: { name: "reflecta-curve" },
+    connector: { ...DEFAULT_CANVAS_EDGE_CONNECTOR },
+  };
+}
+
+export function orthogonalEdgePath(): Pick<CanvasEdgeDTO, "router" | "connector"> {
+  return {
+    router: { name: "reflecta-orthogonal" },
+    connector: { name: "rounded", args: { radius: 8 } },
+  };
 }
 
 const PORT_VECTORS: Record<CanvasEdgePortId, { x: number; y: number }> = {
@@ -240,18 +250,11 @@ export function curvePathData(
   target: { x: number; y: number },
   sourcePort: CanvasEdgePortId,
   targetPort: CanvasEdgePortId,
+  routePoints = curveTerminalRoutePoints(source, target, sourcePort, targetPort),
 ): string {
-  const stub = 16;
   const sourceVector = PORT_VECTORS[sourcePort];
   const targetVector = PORT_VECTORS[targetPort];
-  const sourceStub = {
-    x: source.x + sourceVector.x * stub,
-    y: source.y + sourceVector.y * stub,
-  };
-  const targetStub = {
-    x: target.x + targetVector.x * stub,
-    y: target.y + targetVector.y * stub,
-  };
+  const [sourceStub, targetStub] = routePoints;
   const control = Math.min(
     160,
     Math.max(48, Math.hypot(targetStub.x - sourceStub.x, targetStub.y - sourceStub.y) / 2),
@@ -274,13 +277,48 @@ export function curvePathData(
   return path.serialize();
 }
 
-let connectorsRegistered = false;
+export function curveTerminalRoutePoints(
+  source: { x: number; y: number },
+  target: { x: number; y: number },
+  sourcePort: CanvasEdgePortId,
+  targetPort: CanvasEdgePortId,
+): [{ x: number; y: number }, { x: number; y: number }] {
+  const stub = 16;
+  const sourceVector = PORT_VECTORS[sourcePort];
+  const targetVector = PORT_VECTORS[targetPort];
+  return [
+    { x: source.x + sourceVector.x * stub, y: source.y + sourceVector.y * stub },
+    { x: target.x + targetVector.x * stub, y: target.y + targetVector.y * stub },
+  ];
+}
+
+export function symmetricOrthogonalRoutePoints(
+  source: { x: number; y: number },
+  target: { x: number; y: number },
+  sourcePort: CanvasEdgePortId,
+): Array<{ x: number; y: number }> {
+  if (source.x === target.x || source.y === target.y) return [];
+  if (sourcePort === "left" || sourcePort === "right") {
+    const x = (source.x + target.x) / 2;
+    return [
+      { x, y: source.y },
+      { x, y: target.y },
+    ];
+  }
+  const y = (source.y + target.y) / 2;
+  return [
+    { x: source.x, y },
+    { x: target.x, y },
+  ];
+}
+
+let edgeRegistriesReady = false;
 export function ensureCanvasConnectors(): void {
-  if (connectorsRegistered) return;
-  connectorsRegistered = true;
+  if (edgeRegistriesReady) return;
+  edgeRegistriesReady = true;
   X6Graph.registerConnector(
     "reflecta-curve",
-    function (source, target, _routePoints, options: { raw?: boolean }) {
+    function (source, target, routePoints, options: { raw?: boolean }) {
       const sourcePort = this.cell.getSourcePortId() as CanvasEdgePortId | null;
       const targetPort = this.cell.getTargetPortId() as CanvasEdgePortId | null;
       const resolvedSourcePort = sourcePort ?? (targetPort ? OPPOSITE_PORT[targetPort] : "right");
@@ -289,8 +327,35 @@ export function ensureCanvasConnectors(): void {
         target,
         resolvedSourcePort,
         targetPort ?? OPPOSITE_PORT[resolvedSourcePort],
+        routePoints as [{ x: number; y: number }, { x: number; y: number }],
       );
       return options.raw ? Path.parse(path) : path;
+    },
+    true,
+  );
+  X6Graph.registerRouter(
+    "reflecta-curve",
+    function () {
+      const sourcePort = this.cell.getSourcePortId() as CanvasEdgePortId | null;
+      const targetPort = this.cell.getTargetPortId() as CanvasEdgePortId | null;
+      const resolvedSourcePort = sourcePort ?? (targetPort ? OPPOSITE_PORT[targetPort] : "right");
+      return curveTerminalRoutePoints(
+        this.sourceAnchor,
+        this.targetAnchor,
+        resolvedSourcePort,
+        targetPort ?? OPPOSITE_PORT[resolvedSourcePort],
+      );
+    },
+    true,
+  );
+  X6Graph.registerRouter(
+    "reflecta-orthogonal",
+    function () {
+      return symmetricOrthogonalRoutePoints(
+        this.sourceAnchor,
+        this.targetAnchor,
+        (this.cell.getSourcePortId() as CanvasEdgePortId | null) ?? "right",
+      );
     },
     true,
   );

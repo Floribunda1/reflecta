@@ -12,7 +12,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "../components/popover";
 import { CANVAS_SWATCH_TOKENS, canvasPaintColor, CanvasColorSwatches } from "./color-swatches";
 import type { CanvasEdgeDTO } from "./document";
-import { curveEdgePath } from "./graph-document";
+import { curveEdgePath, orthogonalEdgePath } from "./graph-document";
 
 /**
  * 边样式 / 标签 / 删除工具栏：单条边被选中时显示在边的路径中点附近。
@@ -115,7 +115,7 @@ export function EdgeOverlay({
   const patchLine = (patch: Record<string, unknown>) =>
     onUpdate({ ...dto, attrs: { ...dto.attrs, line: { ...line, ...patch } } });
   const path =
-    dto.router?.name === "manhattan"
+    dto.router?.name === "reflecta-orthogonal"
       ? "orthogonal"
       : dto.connector.name === "normal"
         ? "straight"
@@ -129,18 +129,7 @@ export function EdgeOverlay({
       onUpdate({ ...dto, router: null, connector: { name: "normal" } });
       return;
     }
-    onUpdate({
-      ...dto,
-      router: {
-        name: "manhattan",
-        args: {
-          padding: 20,
-          startDirections: [dto.source.port],
-          endDirections: [dto.target.port],
-        },
-      },
-      connector: { name: "rounded", args: { radius: 8 } },
-    });
+    onUpdate({ ...dto, ...orthogonalEdgePath() });
   };
   const commitLabel = () => {
     if (labelDraft === null) return;

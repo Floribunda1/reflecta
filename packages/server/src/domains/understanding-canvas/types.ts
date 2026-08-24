@@ -50,7 +50,15 @@ export type CanvasEdgeAttrs = Record<string, Record<string, unknown>>;
 export type CanvasEdgePortId = "top" | "right" | "bottom" | "left";
 
 export type CanvasEdgeRouter = {
-  name: "normal" | "orth" | "oneSide" | "manhattan" | "metro" | "er";
+  name:
+    | "normal"
+    | "orth"
+    | "oneSide"
+    | "manhattan"
+    | "metro"
+    | "er"
+    | "reflecta-curve"
+    | "reflecta-orthogonal";
   args?: Record<string, unknown>;
 };
 

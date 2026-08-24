@@ -144,6 +144,25 @@ async function edgeMidpoint(page: Page): Promise<{ x: number; y: number } | null
   });
 }
 
+/** 指定目标边的 SVG 路径终点（屏幕坐标），用于校验箭头与连接桩的轴向对齐。 */
+export async function edgeEndpoint(page: Page, targetId: string) {
+  return page.evaluate((id) => {
+    const graph = (window as unknown as { __x6graph?: import("@antv/x6").Graph }).__x6graph;
+    const edge = graph?.getEdges().find((item) => item.getTargetCellId() === id);
+    const view = edge ? graph?.findViewByCell(edge) : null;
+    const paths = Array.from(view?.container.querySelectorAll("path") ?? []);
+    const line = paths
+      .map((path) => ({ path, width: parseFloat(path.getAttribute("stroke-width") ?? "0") }))
+      .sort((left, right) => right.width - left.width)[0]?.path;
+    if (!line) return null;
+    const point = line.getPointAtLength(line.getTotalLength());
+    const matrix = line.getScreenCTM();
+    if (!matrix) return null;
+    const screen = point.matrixTransform(matrix);
+    return { x: screen.x, y: screen.y };
+  }, targetId);
+}
+
 /** 单击选中第一条边（点路径中点，避开节点/端桩）。 */
 export async function selectEdge(page: Page) {
   const point = await edgeMidpoint(page);

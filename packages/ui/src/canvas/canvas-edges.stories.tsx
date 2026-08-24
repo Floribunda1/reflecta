@@ -14,8 +14,8 @@ import {
   typicalCanvasDocument,
   typicalShapeData,
 } from "./canvas-story-fixtures";
-import type { CanvasDocument, CanvasEdgeDTO, CanvasEdgePortId } from "./document";
-import { curveEdgePath, edgeToEdge } from "./graph-document";
+import type { CanvasDocument, CanvasEdgeDTO } from "./document";
+import { curveEdgePath, edgeToEdge, orthogonalEdgePath } from "./graph-document";
 
 const PATH_OPTIONS = [
   { value: "curve", label: "曲线" },
@@ -35,24 +35,10 @@ const POSITIONS = [
   { label: "左上", source: [322, 250], target: [24, 40] },
 ] as const;
 
-function pathConfig(
-  path: Path,
-  sourcePort: CanvasEdgePortId,
-  targetPort: CanvasEdgePortId,
-): Pick<CanvasEdgeDTO, "router" | "connector"> {
+function pathConfig(path: Path): Pick<CanvasEdgeDTO, "router" | "connector"> {
   if (path === "curve") return curveEdgePath();
   if (path === "straight") return { router: null, connector: { name: "normal" } };
-  return {
-    router: {
-      name: "manhattan",
-      args: {
-        padding: 20,
-        startDirections: [sourcePort],
-        endDirections: [targetPort],
-      },
-    },
-    connector: { name: "rounded", args: { radius: 8 } },
-  };
+  return orthogonalEdgePath();
 }
 
 const pathDemoSource = edgeRoutingDocument.elements[0];
@@ -100,7 +86,7 @@ function EdgeRoutingLab() {
     const edge = edgeToEdge(cell);
     graphRef.current?.updateEdge({
       ...edge,
-      ...pathConfig(nextPath, edge.source.port, edge.target.port),
+      ...pathConfig(nextPath),
     });
     setPath(nextPath);
     setCurrentEdge(edgeToEdge(cell));
@@ -119,14 +105,6 @@ function EdgeRoutingLab() {
     setPosition(index);
     fit();
   };
-  const directions = currentEdge.router?.args;
-  const aligned =
-    currentEdge.router?.name !== "manhattan" ||
-    (Array.isArray(directions?.startDirections) &&
-      directions.startDirections[0] === currentEdge.source.port &&
-      Array.isArray(directions.endDirections) &&
-      directions.endDirections[0] === currentEdge.target.port);
-
   return (
     <StoryShowcase
       title="Edge Routing Lab"
@@ -174,7 +152,7 @@ function EdgeRoutingLab() {
           </GraphFrame>
         </div>
         <div className="grid content-start gap-2 rounded-lg border bg-muted/30 p-4">
-          <p className="text-sm font-medium">{aligned ? "方向一致" : "方向不一致"}</p>
+          <p className="text-sm font-medium">X6 实际配置</p>
           <pre className="overflow-auto rounded-md border bg-background p-3 text-xs">
             {JSON.stringify(
               {

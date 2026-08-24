@@ -17,7 +17,16 @@ export class CanvasValidationError extends Error {
 }
 
 const EDGE_PORT_IDS = ["top", "right", "bottom", "left"] as const;
-const EDGE_ROUTER_NAMES = ["normal", "orth", "oneSide", "manhattan", "metro", "er"] as const;
+const EDGE_ROUTER_NAMES = [
+  "normal",
+  "orth",
+  "oneSide",
+  "manhattan",
+  "metro",
+  "er",
+  "reflecta-curve",
+  "reflecta-orthogonal",
+] as const;
 const EDGE_CONNECTOR_NAMES = ["normal", "smooth", "rounded", "jumpover", "reflecta-curve"] as const;
 
 export function assertValidDocument(document: CanvasDocument): void {
