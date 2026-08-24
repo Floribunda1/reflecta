@@ -170,6 +170,11 @@ export async function selectEdge(page: Page) {
   await page.waitForTimeout(200);
 }
 
+/** 第一条边路径中点（屏幕坐标），右键菜单等场景复用。 */
+export async function edgeMidpointScreen(page: Page): Promise<{ x: number; y: number } | null> {
+  return edgeMidpoint(page);
+}
+
 /** 双击第一条边的路径中点（就地编辑标签）。 */
 export async function dblclickEdge(page: Page) {
   const point = await edgeMidpoint(page);

@@ -4,7 +4,7 @@ import { launchApp } from "../agent/agent-e2e";
 import * as h from "./x6-helpers";
 
 /**
- * @CV-X6-GRP-007 组内成员移动受组边界约束。
+ * @CV-CARD-020 组内成员移动受组边界约束 + @CV-PERSIST-005 组背景层级持久化。
  * 独立文件：组链（server 级联删除）会让共享画布状态不可复现，这里用独立画布 + 独立 app。
  */
 test.describe.configure({ mode: "serial" });
@@ -23,6 +23,45 @@ test.beforeAll(async () => {
     edges: [],
     viewport: null,
   });
+  // PERSIST-005：预置组结构（group 含成员），校验重载后组背景层级（zIndex=-1）保持一致
+  seedCanvas({
+    id: "cvx-grpz",
+    title: "GRPZ",
+    elements: [
+      {
+        id: "gza",
+        kind: "text",
+        props: { text: "A" },
+        x: 100,
+        y: 100,
+        width: 120,
+        height: 80,
+        parentId: "grpz",
+      },
+      {
+        id: "gzb",
+        kind: "text",
+        props: { text: "B" },
+        x: 320,
+        y: 160,
+        width: 120,
+        height: 80,
+        parentId: "grpz",
+      },
+      {
+        id: "grpz",
+        kind: "group",
+        props: { label: "ZGRP" },
+        x: 80,
+        y: 80,
+        width: 400,
+        height: 220,
+        zIndex: -1,
+      },
+    ],
+    edges: [],
+    viewport: null,
+  });
   const launched = await launchApp();
   app = launched.app;
   page = launched.page;
@@ -31,7 +70,7 @@ test.afterAll(async () => {
   await app?.close();
 });
 
-test("@CV-X6-GRP-007 组内成员移动受组边界约束", async () => {
+test("@CV-CARD-020 组内成员移动受组边界约束", async () => {
   await h.openCanvasRow(page!, "GRP7");
   // 自建前置：打组 g7a/g7b（框选可能落空，重试直到选区工具条出现）
   await expect
@@ -72,4 +111,17 @@ test("@CV-X6-GRP-007 组内成员移动受组边界约束", async () => {
   expect(pos!.x + pos!.width).toBeLessThanOrEqual(bbox!.x + bbox!.width + 1);
   expect(pos!.y).toBeGreaterThanOrEqual(bbox!.y - 1);
   expect(pos!.y + pos!.height).toBeLessThanOrEqual(bbox!.y + bbox!.height + 1);
+});
+
+test("@CV-PERSIST-005 组背景渲染层级重载一致", async () => {
+  await h.openCanvasRow(page!, "GRPZ");
+  const zIndex = () =>
+    page!.evaluate((id) => {
+      const g = (window as unknown as { __x6graph?: import("@antv/x6").Graph }).__x6graph;
+      const node = g?.getCellById(id);
+      return node?.isNode() ? node.getZIndex() : null;
+    }, "grpz");
+  await expect.poll(zIndex, { timeout: 8000 }).toBe(-1);
+  await h.openCanvasRow(page!, "GRPZ");
+  await expect.poll(zIndex, { timeout: 8000 }).toBe(-1);
 });

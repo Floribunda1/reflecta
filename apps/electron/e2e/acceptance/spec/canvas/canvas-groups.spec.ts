@@ -5,8 +5,8 @@ import * as h from "./x6-helpers";
 
 /**
  * 组语义 + 组级持久化 + 打组撤销。串行单 app，每个场景先从 DB 重新进入画布。
- * 注意：extent（GRP-007）的拖拽会留下一次残文档保存（产品问题，另有跟进），
- * 所以放在文件末尾，避免污染后续依赖干净父子状态的场景。
+ * 注意：extent（CARD-020）的拖拽会留下一次残文档保存（产品问题，另有跟进），
+ * 所以放在独立文件，避免污染后续依赖干净父子状态的场景。
  */
 test.describe.configure({ mode: "serial" });
 let app: Awaited<ReturnType<typeof launchApp>>["app"];
@@ -66,7 +66,7 @@ test.afterAll(async () => {
   await app?.close();
 });
 
-test("@CV-X6-GRP-001 打组：位置不跳变且组包围成员", async () => {
+test("@CV-CARD-014 打组：位置不跳变且组包围成员", async () => {
   await h.openCanvasRow(page!, "GROUP");
   const before = await h.nodeGeometry(page!, "g_a");
   const gb = await h.nodeBoxes(page!, ["g_a", "g_b"]);
@@ -81,7 +81,7 @@ test("@CV-X6-GRP-001 打组：位置不跳变且组包围成员", async () => {
   expect(tree[0]?.children).toEqual(expect.arrayContaining(["g_a", "g_b"]));
 });
 
-test("@CV-X6-GRP-002 组内再打组形成嵌套组", async () => {
+test("@CV-CARD-015 组内再打组形成嵌套组", async () => {
   await h.openCanvasRow(page!, "GROUP");
   // 真实用户多选：点击内层组卡，再 ⌘/Ctrl+点击 c → [组, c] → 打组
   const tree = await h.groupTree(page!); // 等内层组渲染完成
@@ -100,13 +100,13 @@ test("@CV-X6-GRP-002 组内再打组形成嵌套组", async () => {
   await expect(groupNodes()).toHaveCount(2);
 });
 
-test("@CV-X6-GRP-003 右键解组：成员回到上级位置", async () => {
+test("@CV-CARD-016 右键解组：成员回到上级位置", async () => {
   await h.openCanvasRow(page!, "GROUP");
   const tree = await h.groupTree(page!);
   const inner = tree.find((g) => g.children.includes("g_a"))!;
   const outer = tree.find((g) => g.children.includes(inner.id))!;
   await h.nodeInGraph(page!, outer.id).first().click({ button: "right" });
-  await page!.getByTestId("canvas-group-ungroup").click();
+  await page!.getByTestId("canvas-context-ungroup").click();
   await page!.waitForTimeout(300);
   const after = await h.groupTree(page!);
   expect(after.find((g) => g.id === outer.id)).toBeUndefined();
@@ -122,7 +122,7 @@ test("@CV-X6-GRP-003 右键解组：成员回到上级位置", async () => {
   expect(aParent).toBe(inner.id);
 });
 
-test("@CV-X6-GRP-005 双击组名改名 Enter 提交并重进保留", async () => {
+test("@CV-CARD-018 双击组名改名 Enter 提交并重进保留", async () => {
   await h.openCanvasRow(page!, "GROUP");
   const tree = await h.groupTree(page!);
   const inner = tree.find((g) => g.children.includes("g_a"))!;
@@ -141,7 +141,7 @@ test("@CV-X6-GRP-005 双击组名改名 Enter 提交并重进保留", async () =
   );
 });
 
-test("@CV-X6-GRP-006 为组设置颜色", async () => {
+test("@CV-CARD-019 为组设置颜色", async () => {
   await h.openCanvasRow(page!, "GROUP");
   const tree = await h.groupTree(page!);
   const inner = tree.find((g) => g.children.includes("g_a"))!;
@@ -159,7 +159,7 @@ test("@CV-X6-GRP-006 为组设置颜色", async () => {
   expect(color).toBe("chart-2");
 });
 
-test("@CV-X6-PERSIST-004 打组后保存重进仍是组结构", async () => {
+test("@CV-PERSIST-004 打组后保存重进仍是组结构", async () => {
   await h.openCanvasRow(page!, "GROUP");
   const tree = await h.groupTree(page!);
   const inner = tree.find((g) => g.children.includes("g_a"))!;
@@ -170,7 +170,7 @@ test("@CV-X6-PERSIST-004 打组后保存重进仍是组结构", async () => {
   expect(afterInner!.children).toEqual(expect.arrayContaining(["g_a", "g_b"]));
 });
 
-test("@CV-X6-PERSIST-002 组的层级与相对坐标重载一致", async () => {
+test("@CV-PERSIST-002 组的层级与相对坐标重载一致", async () => {
   await h.openCanvasRow(page!, "GROUP");
   const tree = await h.groupTree(page!);
   const inner = tree.find((g) => g.children.includes("g_a"))!;
@@ -192,12 +192,12 @@ test("@CV-X6-PERSIST-002 组的层级与相对坐标重载一致", async () => {
     .toEqual({ x: frame.x, y: frame.y, w: frame.w, h: frame.h });
 });
 
-test("@CV-X6-GRP-004 右键删除组并级联清理成员与连线", async () => {
+test("@CV-CARD-017 右键删除组并级联清理成员与连线", async () => {
   await h.openCanvasRow(page!, "GROUP");
   const tree = await h.groupTree(page!);
   const inner = tree.find((g) => g.children.includes("g_a"))!;
   await h.nodeInGraph(page!, inner.id).first().click({ button: "right" });
-  await page!.getByTestId("canvas-group-delete").click();
+  await page!.getByTestId("canvas-context-delete").click();
   await page!.waitForTimeout(300);
   await expect(h.nodeInGraph(page!, "g_a")).toHaveCount(0);
   await expect(h.nodeInGraph(page!, "g_b")).toHaveCount(0);
@@ -205,7 +205,7 @@ test("@CV-X6-GRP-004 右键删除组并级联清理成员与连线", async () =>
   await expect(h.nodeInGraph(page!, "g_d").first()).toBeVisible();
 });
 
-test("@CV-X6-AUX-002 撤销并重做打组 / 解组", async () => {
+test("@CV-AUX-002 撤销并重做打组 / 解组", async () => {
   await h.openCanvasRow(page!, "GROUP");
   const gb = await h.nodeBoxes(page!, ["g_c", "g_d"]);
   await h.boxSelect(page!, gb);

@@ -89,7 +89,7 @@ test.afterAll(async () => {
   await app?.close();
 });
 
-test("@CV-X6-SEARCH-001 打开搜索浮层，编辑态内不触发", async () => {
+test("@CV-SEARCH-001 打开搜索浮层，编辑态内不触发", async () => {
   await h.openCanvasRow(page!, "SEARCH");
   await page!.getByTestId("canvas-graph").first().click();
   await page!.keyboard.press("Meta+f");
@@ -109,7 +109,7 @@ test("@CV-X6-SEARCH-001 打开搜索浮层，编辑态内不触发", async () =>
   await expect(card).toHaveAttribute("data-editing", "false");
 });
 
-test("@CV-X6-SEARCH-002 搜索命中各类内容", async () => {
+test("@CV-SEARCH-002 搜索命中各类内容", async () => {
   await h.openCanvasRow(page!, "SEARCH");
   // 先拖入一张真实理解卡（链接理解引用后搜索标题/正文）
   await h.openLibrary(page!);
@@ -131,7 +131,7 @@ test("@CV-X6-SEARCH-002 搜索命中各类内容", async () => {
   }
 });
 
-test("@CV-X6-SEARCH-003 点选搜索结果定位", async () => {
+test("@CV-SEARCH-003 点选搜索结果定位", async () => {
   await h.openCanvasRow(page!, "SEARCH");
   await page!.getByTestId("canvas-graph").first().click();
   await page!.keyboard.press("Meta+f");
@@ -144,7 +144,7 @@ test("@CV-X6-SEARCH-003 点选搜索结果定位", async () => {
   await expect(h.nodeInGraph(page!, "s_t")).toBeVisible();
 });
 
-test("@CV-X6-EXPORT-001 从工具栏导出 PNG", async () => {
+test("@CV-EXPORT-001 从工具栏导出 PNG", async () => {
   await h.openCanvasRow(page!, "SEARCH");
   await page!.getByTestId("canvas-toolbar-more").click();
   await expect(page!.getByTestId("canvas-export-png")).toBeVisible();
@@ -154,7 +154,7 @@ test("@CV-X6-EXPORT-001 从工具栏导出 PNG", async () => {
   expect(d === null || d.suggestedFilename().length > 0).toBe(true);
 });
 
-test("@CV-X6-EXPORT-002 导出覆盖全部节点", async () => {
+test("@CV-EXPORT-002 导出覆盖全部节点", async () => {
   await h.openCanvasRow(page!, "SEARCH");
   await page!.getByTestId("canvas-toolbar-more").click();
   await expect(page!.getByTestId("canvas-export-png")).toBeVisible();

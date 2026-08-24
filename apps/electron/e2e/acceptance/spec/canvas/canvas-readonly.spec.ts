@@ -79,7 +79,7 @@ test.afterAll(async () => {
   await app?.close();
 });
 
-test("@CV-X6-RO-001 只读画布禁止编辑交互", async () => {
+test("@CV-RO-001 只读画布禁止编辑交互", async () => {
   await openThread(page!, "画布引用");
   const link = page!.locator('[data-slot="wiki-link"]').filter({ hasText: "RO" }).first();
   await expect(link).toBeVisible();
@@ -111,7 +111,7 @@ test("@CV-X6-RO-001 只读画布禁止编辑交互", async () => {
   expect(modelAfter).toEqual(modelBefore);
 });
 
-test("@CV-X6-RO-002 只读画布保留缩放查看", async () => {
+test("@CV-RO-002 只读画布保留缩放查看", async () => {
   const dialog = page!.getByTestId("agent-canvas-dialog");
   await expect(dialog).toBeVisible();
   await expect(dialog.getByTestId("canvas-zoom-controls")).toBeVisible();
@@ -124,7 +124,7 @@ test("@CV-X6-RO-002 只读画布保留缩放查看", async () => {
   expect(after && after.zoom).toBeGreaterThan(before!.zoom);
 });
 
-test("@CV-X6-RO-003 各只读入口共用同一渲染", async () => {
+test("@CV-RO-003 各只读入口共用同一渲染", async () => {
   const dialogNode = page!
     .getByTestId("agent-canvas-dialog")
     .getByTestId("canvas-text-card")

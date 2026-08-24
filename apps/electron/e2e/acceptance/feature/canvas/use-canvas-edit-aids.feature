@@ -3,27 +3,27 @@
 功能: 用户借助编辑辅助完成操作
   History / Clipboard / Snapline 全由 X6 内建插件接管。
 
-  @P0 @happy_path @CV-X6-AUX-001
+  @P0 @happy_path @CV-AUX-001
   场景: 用户撤销并重做移动 / 删除 / 创建
     假如用户已对画布做过删除或创建操作
     当用户按撤销快捷键
     那么操作应被撤销
     且按重做快捷键后恢复
 
-  @P0 @happy_path @CV-X6-AUX-002
+  @P0 @happy_path @CV-AUX-002
   场景: 用户撤销并重做打组 / 解组
     假如用户刚完成一次打组
     当用户按撤销快捷键
     那么组应被撤销（成员恢复自由）
     且重做后组恢复
 
-  @P0 @happy_path @CV-X6-AUX-003
+  @P0 @happy_path @CV-AUX-003
   场景: 用户复制并粘贴节点
     假如画布上有一个选中的节点
     当用户复制（⌘/Ctrl+C）并粘贴（⌘/Ctrl+V）
     那么画布上应出现被复制节点的副本
 
-  @P0 @happy_path @CV-X6-AUX-004
+  @P0 @happy_path @CV-AUX-004
   场景: 用户拖动时出现对齐参考线
     假如画布上有两个节点
     当用户把其中一个拖向另一个的对齐位置

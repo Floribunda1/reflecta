@@ -35,13 +35,13 @@ async function graphBox() {
   return (await page!.getByTestId("canvas-graph").first().boundingBox())!;
 }
 
-test("@CV-X6-VIEW-005 无已存视口时初始适应视图", async () => {
+test("@CV-VIEW-005 无已存视口时初始适应视图", async () => {
   await h.openCanvasRow(page!, "VIEW");
   const v = await h.graphViewport(page!);
   expect(v && v.zoom).toBeLessThan(1.01);
 });
 
-test("@CV-X6-VIEW-004 拖动节点吸附到 10px 网格", async () => {
+test("@CV-VIEW-004 拖动节点吸附到 10px 网格", async () => {
   await h.openCanvasRow(page!, "VIEW");
   await h.dragNodeBy(page!, "v_a", 37, 23);
   const pos = await h.nodeGeometry(page!, "v_a");
@@ -49,7 +49,7 @@ test("@CV-X6-VIEW-004 拖动节点吸附到 10px 网格", async () => {
   expect(pos && pos.y % 10).toBe(0);
 });
 
-test("@CV-X6-VIEW-001 中键拖拽平移画布", async () => {
+test("@CV-VIEW-001 中键拖拽平移画布", async () => {
   await h.openCanvasRow(page!, "VIEW");
   const before = await h.waitViewport(page!);
   const box = await graphBox();
@@ -62,7 +62,7 @@ test("@CV-X6-VIEW-001 中键拖拽平移画布", async () => {
   expect(Math.abs(after.x - before.x) + Math.abs(after.y - before.y)).toBeGreaterThan(10);
 });
 
-test("@CV-X6-VIEW-002 滚动滚轮缩放画布", async () => {
+test("@CV-VIEW-002 滚动滚轮缩放画布", async () => {
   await h.openCanvasRow(page!, "VIEW");
   const before = await h.waitViewport(page!);
   const box = await graphBox();
@@ -73,7 +73,7 @@ test("@CV-X6-VIEW-002 滚动滚轮缩放画布", async () => {
   expect(after && after.zoom).toBeGreaterThan(before!.zoom);
 });
 
-test("@CV-X6-VIEW-003 左下缩放控件调整视口", async () => {
+test("@CV-VIEW-003 左下缩放控件调整视口", async () => {
   await h.openCanvasRow(page!, "VIEW");
   await expect(page!.getByTestId("canvas-zoom-fit")).toBeVisible();
   await page!.getByTestId("canvas-zoom-fit").click(); // 归一化起点
@@ -93,7 +93,7 @@ test("@CV-X6-VIEW-003 左下缩放控件调整视口", async () => {
   await expect(page!.getByTestId("canvas-graph").first()).toBeVisible();
 });
 
-test("@CV-X6-VIEW-006 已存视口重进后保持", async () => {
+test("@CV-VIEW-006 已存视口重进后保持", async () => {
   await h.openCanvasRow(page!, "VIEW");
   const box = await graphBox();
   await page!.mouse.move(box.x + box.width / 2, box.y + box.height / 2);

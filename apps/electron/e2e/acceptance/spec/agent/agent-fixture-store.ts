@@ -649,13 +649,13 @@ function seedContext(id: string, understandingId: string, title: string, content
   ).run(id, understandingId, title, content, now);
 }
 
-function seedDomain(id: string, name: string) {
+function seedDomain(id: string, name: string, parentId: string | null = null) {
   const now = new Date().toISOString();
   db.query(
     `INSERT INTO domains (id, name, parent_id, sort_order, created_at, updated_at)
-     VALUES (?, ?, NULL, 0, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET name = excluded.name, updated_at = excluded.updated_at`,
-  ).run(id, name, now, now);
+     VALUES (?, ?, ?, 0, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET name = excluded.name, parent_id = excluded.parent_id, updated_at = excluded.updated_at`,
+  ).run(id, name, parentId, now, now);
 }
 
 try {
@@ -703,6 +703,7 @@ try {
   }
 
   if (fixture.type === "seedCanvas") {
+    const created = fixture.createdAt ?? new Date().toISOString();
     const now = new Date().toISOString();
     db.query(
       `INSERT INTO understanding_canvases (id, title, viewport, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
@@ -710,7 +711,7 @@ try {
       fixture.id,
       fixture.title,
       fixture.viewport ? JSON.stringify(fixture.viewport) : null,
-      now,
+      created,
       now,
     );
     for (const element of fixture.elements ?? []) {

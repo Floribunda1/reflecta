@@ -4,12 +4,14 @@ import {
   resetAgentFixtures,
   seedCanvas,
   seedUnderstanding,
+  seedUnderstandingIdByTitle,
 } from "../agent/agent-fixtures";
 import { launchApp } from "../agent/agent-e2e";
 import * as h from "./x6-helpers";
 
 /**
- * 节点卡片（文本 / 理解 / 画布引用）+ 初始适应视图。
+ * 卡片（文本 / 理解 / 画布引用）展示与编辑 + 空画布引导。
+ * 从理解库 / 画布库「拖入创建」的入口验收在 canvas-library.spec.ts。
  * 每个场景先重新进入对应画布（从 DB 取状态），串行单 app 实例。
  */
 test.describe.configure({ mode: "serial" });
@@ -17,8 +19,6 @@ let app: Awaited<ReturnType<typeof launchApp>>["app"];
 let page: Awaited<ReturnType<typeof launchApp>>["page"];
 
 const textCards = () => page!.getByTestId("canvas-graph").first().getByTestId("canvas-text-card");
-const RSC_ITEM =
-  '[data-testid="canvas-library-item"][data-understanding-title="React Server Components"]';
 
 test.beforeAll(async () => {
   resetAgentFixtures();
@@ -30,7 +30,7 @@ test.beforeAll(async () => {
     ],
     viewport: null,
   });
-  // TEXT-001 的拖入卡与编辑场景共用画布会把卡落到编辑点击点上：独立画布
+  // CARD-001 的拖入卡与编辑场景共用画布会把卡落到编辑点击点上：独立画布
   seedCanvas({
     id: "cvx-textdnd",
     title: "TEXTDND",
@@ -66,6 +66,23 @@ test.beforeAll(async () => {
       },
     ],
   });
+  // 正常理解卡：引用 baseline 的 React Server Components
+  seedCanvas({
+    id: "cvx-undfull",
+    title: "UNDFULL",
+    elements: [
+      {
+        id: "u_f",
+        kind: "understanding",
+        understandingId: seedUnderstandingIdByTitle("React Server Components"),
+        props: {},
+        x: 100,
+        y: 100,
+        width: 260,
+        height: 160,
+      },
+    ],
+  });
   seedCanvas({ id: "cvx-ref", title: "REF", elements: [] });
   seedCanvas({
     id: "cvx-target",
@@ -79,6 +96,23 @@ test.beforeAll(async () => {
         y: 10,
         width: 140,
         height: 90,
+      },
+    ],
+  });
+  // 引用卡（内嵌预览 / 双击跳转）：REFV 预置一张引用 cvx-target 的引用卡
+  seedCanvas({
+    id: "cvx-refv",
+    title: "REFV",
+    elements: [
+      {
+        id: "rv_r",
+        kind: "canvas_ref",
+        canvasRefId: "cvx-target",
+        props: {},
+        x: 100,
+        y: 100,
+        width: 220,
+        height: 140,
       },
     ],
   });
@@ -98,6 +132,7 @@ test.beforeAll(async () => {
       },
     ],
   });
+  seedCanvas({ id: "cvx-empty", title: "EMPTYCV", elements: [], viewport: null });
   const launched = await launchApp();
   app = launched.app;
   page = launched.page;
@@ -111,13 +146,7 @@ test.afterAll(async () => {
   await app?.close();
 });
 
-test("@CV-X6-VIEW-005 无已存视口时初始适应视图", async () => {
-  await h.openCanvasRow(page!, "TEXT");
-  const v = await h.graphViewport(page!);
-  expect(v && v.zoom).toBeLessThan(1.01);
-});
-
-test("@CV-X6-TEXT-001 拖拽工具栏文本按钮创建文本卡", async () => {
+test("@CV-CARD-001 拖拽工具栏文本按钮创建文本卡", async () => {
   await h.openCanvasRow(page!, "TEXTDND");
   const graph = page!.getByTestId("canvas-graph").first();
   const box = (await graph.boundingBox())!;
@@ -125,7 +154,7 @@ test("@CV-X6-TEXT-001 拖拽工具栏文本按钮创建文本卡", async () => {
   await expect(textCards()).toHaveCount(2);
 });
 
-test("@CV-X6-TEXT-002 双击进入 Markdown 编辑，失焦提交并保留", async () => {
+test("@CV-CARD-002 双击进入 Markdown 编辑，失焦提交并保留", async () => {
   await h.openCanvasRow(page!, "TEXT");
   const card = h.nodeInGraph(page!, "t_a").first();
   await card.click({ clickCount: 2 });
@@ -139,7 +168,7 @@ test("@CV-X6-TEXT-002 双击进入 Markdown 编辑，失焦提交并保留", asy
   await expect(card).toContainText("hello world");
 });
 
-test("@CV-X6-TEXT-003 文本编辑中按 Escape 提交改动", async () => {
+test("@CV-CARD-003 文本编辑中按 Escape 提交改动", async () => {
   await h.openCanvasRow(page!, "TEXT");
   const card = h.nodeInGraph(page!, "t_a").first();
   await card.click({ clickCount: 2 });
@@ -151,7 +180,7 @@ test("@CV-X6-TEXT-003 文本编辑中按 Escape 提交改动", async () => {
   await expect(card).toContainText("ESCAPED_TEXT");
 });
 
-test("@CV-X6-TEXT-004 设置并清除卡片颜色", async () => {
+test("@CV-CARD-004 设置并清除卡片颜色", async () => {
   await h.openCanvasRow(page!, "TEXT");
   await h.clickNode(page!, "t_a");
   const card = h.nodeInGraph(page!, "t_a").first();
@@ -166,7 +195,7 @@ test("@CV-X6-TEXT-004 设置并清除卡片颜色", async () => {
   expect(await h.borderColorOf(page!, card)).not.toBe("rgb(71, 158, 194)");
 });
 
-test("@CV-X6-TEXT-006 拖动缩放手柄调整尺寸并持久化", async () => {
+test("@CV-CARD-006 拖动缩放手柄调整尺寸并持久化", async () => {
   await h.openCanvasRow(page!, "TEXT");
   const card = h.nodeInGraph(page!, "t_a").first();
   await card.click();
@@ -183,7 +212,7 @@ test("@CV-X6-TEXT-006 拖动缩放手柄调整尺寸并持久化", async () => {
   expect(size && size.width).toBeGreaterThan(200);
 });
 
-test("@CV-X6-TEXT-005 从卡片操作菜单删除文本卡", async () => {
+test("@CV-CARD-005 从卡片操作菜单删除文本卡", async () => {
   await h.openCanvasRow(page!, "TEXT");
   const before = await h.graphNodeCount(page!);
   const card = h.nodeInGraph(page!, "t_a").first();
@@ -192,39 +221,38 @@ test("@CV-X6-TEXT-005 从卡片操作菜单删除文本卡", async () => {
   await expect.poll(() => h.graphNodeCount(page!)).toBe(before - 1);
 });
 
-test("@CV-X6-PERSIST-001 节点位置与尺寸重载一致", async () => {
+test("@CV-PERSIST-001 节点位置与尺寸重载一致", async () => {
   await h.openCanvasRow(page!, "TEXT");
   const before = await h.nodeGeometry(page!, "t_a");
   await h.openCanvasRow(page!, "TEXT");
   await expect.poll(async () => h.nodeGeometry(page!, "t_a")).toEqual(before);
 });
 
-test("@CV-X6-UND-002 引用理解已删除的理解卡显示占位", async () => {
+test("@CV-CARD-021 空画布显示创建引导", async () => {
+  await h.openCanvasRow(page!, "EMPTYCV");
+  await expect(page!.getByText("这张画布还是空的")).toBeVisible();
+});
+
+test("@CV-CARD-008 引用已删除理解的理解卡显示占位", async () => {
   await h.openCanvasRow(page!, "UND");
   await expect(h.nodeInGraph(page!, "u_u").first()).toBeVisible();
   await expect(h.nodeInGraph(page!, "u_u").first()).toContainText("（已删除）");
 });
 
-test("@CV-X6-UND-001 从理解库拖拽创建理解卡并看到全文", async () => {
-  await h.openCanvasRow(page!, "UND");
-  await h.openLibrary(page!);
-  const graphBox = (await page!.getByTestId("canvas-graph").first().boundingBox())!;
-  const row = page!.locator(RSC_ITEM);
-  await expect(row).toBeVisible();
-  await h.dragSourceTo(page!, row, graphBox.x + 140, graphBox.y + 420);
+test("@CV-CARD-007 理解卡展示引用理解的标题与正文", async () => {
+  await h.openCanvasRow(page!, "UNDFULL");
   const card = page!
     .getByTestId("canvas-graph")
     .first()
     .getByTestId("canvas-understanding-card")
-    .filter({ hasText: "React Server Components" });
-  await expect(card.first()).toBeVisible();
-  // 点击选中不打开详情
-  await h.clickNode(page!, (await card.first().getAttribute("data-node-id"))!);
-  await expect(page!.getByTestId("canvas-detail-panel")).toHaveCount(0);
+    .filter({ hasText: "React Server Components" })
+    .first();
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("React Server Components");
 });
 
-test("@CV-X6-UND-003 点击已知理解卡的编辑按钮打开详情", async () => {
-  await h.openCanvasRow(page!, "UND");
+test("@CV-CARD-009 点击已知理解卡的编辑按钮打开详情", async () => {
+  await h.openCanvasRow(page!, "UNDFULL");
   const card = page!
     .getByTestId("canvas-graph")
     .first()
@@ -239,8 +267,8 @@ test("@CV-X6-UND-003 点击已知理解卡的编辑按钮打开详情", async ()
   await expect(page!.getByTestId("canvas-detail-panel")).toHaveCount(0);
 });
 
-test("@CV-X6-UND-004 双击理解卡打开详情", async () => {
-  await h.openCanvasRow(page!, "UND");
+test("@CV-CARD-010 双击理解卡打开详情", async () => {
+  await h.openCanvasRow(page!, "UNDFULL");
   const card = page!
     .getByTestId("canvas-graph")
     .first()
@@ -252,15 +280,8 @@ test("@CV-X6-UND-004 双击理解卡打开详情", async () => {
   await page!.getByTestId("canvas-detail-panel").getByLabel("关闭详情").click();
 });
 
-test("@CV-X6-REF-001 创建引用卡并看到内嵌只读预览", async () => {
-  await h.openCanvasRow(page!, "REF");
-  await h.openLibrary(page!);
-  await page!.getByRole("tab", { name: "画布" }).click();
-  await expect(
-    page!.getByTestId("canvas-library-canvas-item").filter({ hasText: "REF" }),
-  ).toHaveCount(0);
-  await page!.getByTestId("canvas-library-canvas-item").filter({ hasText: "TARGET" }).click();
-  await page!.waitForTimeout(500);
+test("@CV-CARD-011 引用卡内嵌目标画布的只读预览", async () => {
+  await h.openCanvasRow(page!, "REFV");
   const card = page!.getByTestId("canvas-graph").first().getByTestId("canvas-canvas-ref-card");
   await expect(card).toBeVisible();
   await expect(
@@ -268,8 +289,8 @@ test("@CV-X6-REF-001 创建引用卡并看到内嵌只读预览", async () => {
   ).toBeVisible();
 });
 
-test("@CV-X6-REF-002 双击引用卡打开目标画布", async () => {
-  await h.openCanvasRow(page!, "REF");
+test("@CV-CARD-012 双击引用卡打开目标画布", async () => {
+  await h.openCanvasRow(page!, "REFV");
   const card = page!
     .getByTestId("canvas-graph")
     .first()
@@ -287,7 +308,7 @@ test("@CV-X6-REF-002 双击引用卡打开目标画布", async () => {
   ).toBeVisible();
 });
 
-test("@CV-X6-REF-003 目标画布已删除的引用卡占位且不可跳转", async () => {
+test("@CV-CARD-013 目标画布已删除的引用卡占位且不可跳转", async () => {
   await h.openCanvasRow(page!, "REFGHOST");
   const card = page!.getByTestId("canvas-graph").first().getByTestId("canvas-canvas-ref-card");
   await expect(card).toBeVisible();

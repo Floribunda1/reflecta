@@ -80,7 +80,7 @@ async function connectBottomToTop(fromId: string, toId: string) {
   await page!.waitForTimeout(300);
 }
 
-test("@CV-X6-EDGE-001 从出桩拖到入桩建立有向边", async () => {
+test("@CV-EDGE-001 从出桩拖到入桩建立有向边", async () => {
   await h.openCanvasRow(page!, "EDGE");
   await connectAToB();
   const edges = await h.edgeModel(page!);
@@ -89,14 +89,14 @@ test("@CV-X6-EDGE-001 从出桩拖到入桩建立有向边", async () => {
   expect(edges[0].target).toBe("e_b");
 });
 
-test("@CV-X6-SEL-002 单击选中边出现底部边工具栏", async () => {
+test("@CV-SEL-002 单击选中边出现底部边工具栏", async () => {
   await h.openCanvasRow(page!, "EDGE");
   await connectAToB(); // 场景前置：画布上存在一条边
   await h.selectEdge(page!);
   await expect(page!.getByTestId("canvas-edge-toolbar")).toBeVisible();
 });
 
-test("@CV-X6-EDGE-003 新连线自带画布归属与默认 X6 配置", async () => {
+test("@CV-EDGE-003 新连线自带画布归属与默认 X6 配置", async () => {
   await h.openCanvasRow(page!, "EDGE");
   const edges = await h.edgeModel(page!);
   expect(edges[0].canvasId).toBe("cvx-edge");
@@ -104,7 +104,7 @@ test("@CV-X6-EDGE-003 新连线自带画布归属与默认 X6 配置", async () 
   expect(edges[0].connector).toBe("reflecta-curve");
 });
 
-test("@CV-X6-EDGE-002 同一节点可连不同端点", async () => {
+test("@CV-EDGE-002 同一节点可连不同端点", async () => {
   await h.openCanvasRow(page!, "PARALLEL");
   await page!.waitForTimeout(600);
   await connectAToB(-1, "pa_a", "pa_b"); // A→B
@@ -117,7 +117,7 @@ test("@CV-X6-EDGE-002 同一节点可连不同端点", async () => {
   expect(Math.abs(endpoint.y - targetPort.y)).toBeLessThan(2);
 });
 
-test("@CV-X6-PERSIST-003 多出边重载不丢失", async () => {
+test("@CV-PERSIST-003 多出边重载不丢失", async () => {
   await h.openCanvasRow(page!, "PARALLEL");
   await expect.poll(async () => (await h.edgeModel(page!)).length).toBe(2);
   const edges = await h.edgeModel(page!);
@@ -125,7 +125,7 @@ test("@CV-X6-PERSIST-003 多出边重载不丢失", async () => {
   expect(edges.map((e) => e.target)).toEqual(expect.arrayContaining(["pa_b", "pa_c"]));
 });
 
-test("@CV-X6-EDGE-008 用户选择的连接端口在重新进入后保持", async () => {
+test("@CV-EDGE-008 用户选择的连接端口在重新进入后保持", async () => {
   await h.openCanvasRow(page!, "EDGEPORTS");
   await connectBottomToTop("port_a", "port_b");
   await expect.poll(async () => (await h.edgeModel(page!))[0]?.sourcePort).toBe("bottom");
@@ -139,7 +139,7 @@ test("@CV-X6-EDGE-008 用户选择的连接端口在重新进入后保持", asyn
   expect((await h.edgeModel(page!))[0]?.targetPort).toBe("top");
 });
 
-test("@CV-X6-EDGE-004 调整连线样式并保留", async () => {
+test("@CV-EDGE-004 调整连线样式并保留", async () => {
   await h.openCanvasRow(page!, "EDGESTYLE");
   await connectAToB(0, "st_a", "st_b");
   await h.selectEdge(page!);
@@ -177,7 +177,7 @@ test("@CV-X6-EDGE-004 调整连线样式并保留", async () => {
   expect(s2[0].marker).toBe("circle");
 });
 
-test("@CV-X6-EDGE-005 双击边就地编辑标签并提交", async () => {
+test("@CV-EDGE-005 双击边就地编辑标签并提交", async () => {
   await h.openCanvasRow(page!, "EDGESTYLE");
   await connectAToB(0, "st_a", "st_b");
   await h.selectEdge(page!);
@@ -196,7 +196,7 @@ test("@CV-X6-EDGE-005 双击边就地编辑标签并提交", async () => {
   });
 });
 
-test("@CV-X6-EDGE-006 清空边标签回到无标签", async () => {
+test("@CV-EDGE-006 清空边标签回到无标签", async () => {
   await h.openCanvasRow(page!, "EDGE");
   await h.selectEdge(page!);
   await h.dblclickEdge(page!);
@@ -217,7 +217,7 @@ test("@CV-X6-EDGE-006 清空边标签回到无标签", async () => {
   expect(edges[0].label).toBeNull();
 });
 
-test("@CV-X6-EDGE-007 从边工具栏删除选中边", async () => {
+test("@CV-EDGE-007 从边工具栏删除选中边", async () => {
   await h.openCanvasRow(page!, "EDGE");
   const before = (await h.edgeModel(page!)).length;
   await h.selectEdge(page!);

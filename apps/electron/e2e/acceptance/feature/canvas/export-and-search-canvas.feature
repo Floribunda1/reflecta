@@ -3,32 +3,32 @@
 功能: 用户导出画布与在画布内搜索
   导出走 X6 Export 插件；搜索覆盖画布内全部可检索内容。
 
-  @P0 @happy_path @CV-X6-EXPORT-001
-  场景: 用户从工具栏导出 PNG
+  @P0 @happy_path @CV-EXPORT-001
+  场景: 用户从更多菜单导出 PNG
     假如用户已进入画布
     当用户点击更多菜单中的「导出 PNG」
-    那么应触发一次 PNG 导出
+    那么应触发一次 PNG 导出下载
 
-  @P0 @happy_path @CV-X6-EXPORT-002
+  @P0 @happy_path @CV-EXPORT-002
   场景: 导出覆盖全部节点
     假如画布上散布着多个节点
     当用户导出 PNG
     那么导出应包含全部节点内容（不因节点位置遗漏）
 
-  @P0 @happy_path @CV-X6-SEARCH-001
-  场景: 用户打开搜索浮层
+  @P0 @happy_path @CV-SEARCH-001
+  场景: 用户打开搜索浮层且编辑态内不触发
     假如用户已进入画布
     当用户按 ⌘/Ctrl+F
     那么画布上应出现搜索浮层
     且用户在文本编辑态内按 ⌘/Ctrl+F 时浮层不应出现
 
-  @P0 @happy_path @CV-X6-SEARCH-002
+  @P0 @happy_path @CV-SEARCH-002
   场景: 搜索命中各类内容
     假如画布包含文本卡、理解卡、组、引用卡与带标签的边
     当用户输入搜索词
     那么应命中文本内容 / 理解标题与正文 / 组名 / 引用画布标题 / 边标签
 
-  @P0 @happy_path @CV-X6-SEARCH-003
+  @P0 @happy_path @CV-SEARCH-003
   场景: 用户点选搜索结果定位
     假如搜索结果已列出
     当用户点击某条结果

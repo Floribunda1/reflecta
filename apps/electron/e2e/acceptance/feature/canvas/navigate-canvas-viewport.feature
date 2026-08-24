@@ -3,36 +3,36 @@
 功能: 用户控制画布视口与网格
   平移 / 缩放 / 吸附走 X6 原生能力（panning / mousewheel / snapToGrid / zoomToFit）。
 
-  @P0 @happy_path @CV-X6-VIEW-001
+  @P0 @happy_path @CV-VIEW-001
   场景: 用户按住中键拖拽平移画布
     假如用户已进入画布
     当用户按住中键拖拽空白处
     那么画布视口应平移
 
-  @P0 @happy_path @CV-X6-VIEW-002
+  @P0 @happy_path @CV-VIEW-002
   场景: 用户滚动滚轮缩放画布
     假如用户已进入画布
     当用户滚动滚轮
     那么画布应按滚轮方向放大或缩小
 
-  @P0 @happy_path @CV-X6-VIEW-003
+  @P0 @happy_path @CV-VIEW-003
   场景: 用户用左下缩放控件调整视口
     假如用户已进入画布
     当用户点击放大 / 缩小 / 适应视图按钮
     那么视口应分别放大、缩小、适应全部内容
 
-  @P0 @happy_path @CV-X6-VIEW-004
+  @P0 @happy_path @CV-VIEW-004
   场景: 用户拖动节点吸附到网格
     假如画布上有一个节点
     当用户拖动该节点到任意位置
     那么节点的落点坐标应是 10px 网格的整数倍
 
-  @P0 @happy_path @CV-X6-VIEW-005
+  @P0 @happy_path @CV-VIEW-005
   场景: 无已存视口的画布初始适应视图
     假如用户打开一张没有保存过视口的画布
     那么画布应自动适应视图显示全部内容
 
-  @P0 @happy_path @CV-X6-VIEW-006
+  @P0 @happy_path @CV-VIEW-006
   场景: 有已存视口的画布重进后保持视口
     假如用户调整视口后离开画布
     当用户重新进入同一张画布

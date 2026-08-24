@@ -32,7 +32,7 @@ test.afterAll(async () => {
   await app?.close();
 });
 
-test("@CV-X6-AUX-001 撤销 / 重做创建与移动", async () => {
+test("@CV-AUX-001 撤销 / 重做创建与移动", async () => {
   await h.openCanvasRow(page!, "AUX");
   // 撤销创建
   const graphBox = (await page!.getByTestId("canvas-graph").first().boundingBox())!;
@@ -61,7 +61,7 @@ test("@CV-X6-AUX-001 撤销 / 重做创建与移动", async () => {
   await expect.poll(async () => h.nodeGeometry(page!, "x_a")).toEqual(pos1);
 });
 
-test("@CV-X6-AUX-003 复制并粘贴节点", async () => {
+test("@CV-AUX-003 复制并粘贴节点", async () => {
   await h.openCanvasRow(page!, "AUX");
   const before = await h.graphNodeCount(page!);
   await h.clickNode(page!, "x_a");
@@ -70,7 +70,7 @@ test("@CV-X6-AUX-003 复制并粘贴节点", async () => {
   await expect.poll(() => h.graphNodeCount(page!)).toBe(before + 1);
 });
 
-test("@CV-X6-AUX-004 拖动时出现对齐参考线", async () => {
+test("@CV-AUX-004 拖动时出现对齐参考线", async () => {
   await h.openCanvasRow(page!, "AUX");
   const source = (await h.nodeInGraph(page!, "x_a").first().boundingBox())!;
   const target = (await h.nodeInGraph(page!, "x_b").first().boundingBox())!;

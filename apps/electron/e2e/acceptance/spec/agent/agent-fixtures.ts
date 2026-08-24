@@ -105,7 +105,7 @@ export function seedContext(input: {
   runFixture({ type: "seedContext", ...input });
 }
 
-export function seedDomain(input: { id: string; name: string }) {
+export function seedDomain(input: { id: string; name: string; parentId?: string | null }) {
   runFixture({ type: "seedDomain", ...input });
 }
 
@@ -126,6 +126,7 @@ export function seedPortfolio(input: {
 export function seedCanvas(input: {
   id: string;
   title: string;
+  createdAt?: string;
   elements?: Array<{
     id: string;
     kind: "text" | "shape" | "group" | "understanding" | "canvas_ref";

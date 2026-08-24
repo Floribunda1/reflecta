@@ -32,7 +32,7 @@ test.afterAll(async () => {
   await app?.close();
 });
 
-test("@CV-X6-SEL-001 单击选中节点出现操作条且无选区工具条", async () => {
+test("@CV-SEL-001 单击选中节点出现操作条且无选区工具条", async () => {
   await h.openCanvasRow(page!, "SEL");
   await h.clickNode(page!, "s1");
   await expect
@@ -47,7 +47,7 @@ test("@CV-X6-SEL-001 单击选中节点出现操作条且无选区工具条", as
   await expect(page!.getByTestId("canvas-selection-toolbar")).toHaveCount(0);
 });
 
-test("@CV-X6-SEL-003 ⌘/Ctrl 加点击多选节点", async () => {
+test("@CV-SEL-003 ⌘/Ctrl 加点击多选节点", async () => {
   await h.openCanvasRow(page!, "SEL");
   await h.clickNode(page!, "s1");
   const second = h.nodeInGraph(page!, "s2").first();
@@ -60,14 +60,14 @@ test("@CV-X6-SEL-003 ⌘/Ctrl 加点击多选节点", async () => {
   await expect(page!.getByTestId("canvas-graph").first().getByTitle("选择颜色")).toHaveCount(0);
 });
 
-test("@CV-X6-SEL-004 空白处拖拽框选多个节点", async () => {
+test("@CV-SEL-004 空白处拖拽框选多个节点", async () => {
   await h.openCanvasRow(page!, "SEL");
   const boxes = await h.nodeBoxes(page!, ["s1", "s2"]);
   await h.boxSelect(page!, boxes);
   await expect(page!.getByTestId("canvas-selection-toolbar")).toBeVisible();
 });
 
-test("@CV-X6-SEL-005 点击空白清空选区", async () => {
+test("@CV-SEL-005 点击空白清空选区", async () => {
   await h.openCanvasRow(page!, "SEL");
   const graphBox = (await page!.getByTestId("canvas-graph").first().boundingBox())!;
   await page!.mouse.click(graphBox.x + graphBox.width / 2, graphBox.y + 30);
