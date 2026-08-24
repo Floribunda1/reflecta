@@ -1,5 +1,12 @@
+import { addDays, format, startOfDay, subDays } from "date-fns";
 import type { ResolveChatEntity } from "../chat/entity";
 import type { DomainTreeNodeView } from "./domain-tree";
+import type {
+  ParticipationActivityDay,
+  ParticipationAssetsView,
+  ParticipationDayCounts,
+  ParticipationDayDetail,
+} from "./participation-overview";
 import type { UnderstandingCardView } from "./understanding-card";
 
 export const typicalDomains: DomainTreeNodeView[] = [
@@ -266,3 +273,131 @@ export function cardsForDomain(
   const allowed = new Set(descendantIdsIncludingSelf(domains, selectedId) ?? [selectedId]);
   return cards.filter((card) => card.domainIds.some((id) => allowed.has(id)));
 }
+
+const STORY_TODAY = new Date("2026-08-24T12:00:00.000Z");
+const PARTICIPATION_WINDOW_DAYS = 365;
+
+function dayKey(date: Date): string {
+  return format(date, "yyyy-MM-dd");
+}
+
+function levelForCount(count: number): number {
+  if (count <= 0) return 0;
+  if (count <= 2) return 1;
+  if (count <= 4) return 2;
+  if (count <= 7) return 3;
+  return 4;
+}
+
+function activityDays(
+  countsByDate: Readonly<Record<string, number>>,
+  now = STORY_TODAY,
+): ParticipationActivityDay[] {
+  const start = startOfDay(subDays(now, PARTICIPATION_WINDOW_DAYS - 1));
+  const today = dayKey(now);
+  const days: ParticipationActivityDay[] = [];
+  let cursor = start;
+  while (dayKey(cursor) <= today) {
+    const key = dayKey(cursor);
+    const count = countsByDate[key] ?? 0;
+    days.push({ date: key, count, level: levelForCount(count) });
+    cursor = addDays(cursor, 1);
+  }
+  return days;
+}
+
+export const emptyParticipationAssets: ParticipationAssetsView = {
+  understanding: 0,
+  canvas: 0,
+  context: 0,
+};
+
+export const typicalParticipationAssets: ParticipationAssetsView = {
+  understanding: 8,
+  canvas: 2,
+  context: 3,
+};
+
+export const denseParticipationAssets: ParticipationAssetsView = {
+  understanding: 128,
+  canvas: 24,
+  context: 56,
+};
+
+export const emptyParticipationDays = activityDays({});
+
+const typicalCountsByDate: Record<string, number> = {
+  "2026-08-24": 3,
+  "2026-08-21": 1,
+  "2026-08-18": 2,
+  "2026-08-03": 5,
+  "2026-07-22": 1,
+  "2026-07-08": 4,
+  "2026-06-18": 8,
+  "2026-05-04": 2,
+};
+
+export const typicalParticipationDays = activityDays(typicalCountsByDate);
+
+const typicalDayCounts: Record<string, ParticipationDayCounts> = {
+  "2026-08-24": {
+    conversations: 1,
+    messages: 2,
+    understandingCreated: 1,
+    canvasCreated: 0,
+    contextCreated: 1,
+  },
+  "2026-08-03": {
+    conversations: 2,
+    messages: 4,
+    understandingCreated: 1,
+    canvasCreated: 1,
+    contextCreated: 0,
+  },
+  "2026-06-18": {
+    conversations: 3,
+    messages: 8,
+    understandingCreated: 2,
+    canvasCreated: 1,
+    contextCreated: 2,
+  },
+};
+
+export function typicalParticipationCounts(date: string): ParticipationDayCounts | undefined {
+  return typicalDayCounts[date];
+}
+
+const typicalDayDetails: Record<string, ParticipationDayDetail> = {
+  "2026-08-24": {
+    sessions: [{ id: "s-today", title: "复核分区灌溉策略", messageCount: 2 }],
+    understandings: [{ id: "acceptance", title: "Storybook 只验收高价值组件" }],
+  },
+  "2026-08-03": {
+    sessions: [{ id: "s-aug", title: "画布连线与端口", messageCount: 4 }],
+    understandings: [{ id: "seam", title: "UI-owned interface 不依赖 Renderer runtime" }],
+  },
+  "2026-06-18": {
+    sessions: [
+      { id: "s-june-1", title: "夜班联调记录", messageCount: 5 },
+      { id: "s-june-2", title: "极地温室复验", messageCount: 3 },
+    ],
+    understandings: [
+      { id: "irrigation", title: "低温环境下的分区灌溉策略" },
+      { id: "untitled", title: "（无标题）" },
+    ],
+  },
+};
+
+export function typicalParticipationDetail(date: string): ParticipationDayDetail {
+  return typicalDayDetails[date] ?? { sessions: [], understandings: [] };
+}
+
+const denseCountsByDate: Record<string, number> = Object.fromEntries(
+  Array.from({ length: 48 }, (_, index) => {
+    const date = format(subDays(STORY_TODAY, index * 3), "yyyy-MM-dd");
+    const count = (index % 5) + 1 + (index % 3 === 0 ? 6 : 0);
+    return [date, count];
+  }),
+);
+
+export const denseParticipationDays = activityDays(denseCountsByDate);

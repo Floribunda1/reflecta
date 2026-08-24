@@ -96,7 +96,11 @@ const preview: Preview = {
         includeNames: true,
         order: [
           "Capture",
-          ["基本组件", ["Domain Tree", "Domain Tree Select", "Understanding Card"], "组合场景样式"],
+          [
+            "基本组件",
+            ["Domain Tree", "Domain Tree Select", "Understanding Card", "Participation Overview"],
+            "组合场景样式",
+          ],
           "Canvas",
           [
             "基本组件",

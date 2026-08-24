@@ -55,8 +55,7 @@
     "libsql": "^0.5.29",
     "motion": "^12.43.0",
     "node-llama-cpp": "^3.19.1",
-    "pi-web-access": "0.18.0",
-    "react-activity-calendar": "^3.2.1"
+    "pi-web-access": "0.18.0"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.2",
