@@ -263,26 +263,42 @@ describe("in-place cell updates", () => {
 
   test("applyElementUpdate writes the element onto the existing node data", () => {
     const replaceData = vi.fn();
-    const setAttrs = vi.fn();
-    const removeAttrByPath = vi.fn();
+    const attr = vi.fn();
     const next = element("a", "text", { x: 0, y: 0 }, { width: 100, height: 80 });
     if (next.kind !== "text") throw new Error("expected text element");
     const painted: CanvasElementDTO = { ...next, props: { ...next.props, color: "chart-2" } };
-    applyElementUpdate({ replaceData, setAttrs, removeAttrByPath } as never, painted);
+    applyElementUpdate({ replaceData, attr, getData: () => ({ element: next }) } as never, painted);
     expect(replaceData).toHaveBeenCalledWith({ element: painted });
     // paint 色同步到节点根 CSS 变量 → 连接桩颜色跟随卡片
-    expect(setAttrs).toHaveBeenCalledWith({
-      root: { style: { "--canvas-node-paint": "var(--chart-2)" } },
-    });
+    expect(attr).toHaveBeenCalledWith("root/style/--canvas-node-paint", "var(--chart-2)");
   });
 
   test("applyElementUpdate clears the paint variable when the card is unpainted", () => {
     const replaceData = vi.fn();
-    const setAttrs = vi.fn();
-    const removeAttrByPath = vi.fn();
+    const attr = vi.fn();
     const next = element("a", "text", { x: 0, y: 0 }, { width: 100, height: 80 });
-    applyElementUpdate({ replaceData, setAttrs, removeAttrByPath } as never, next);
-    expect(removeAttrByPath).toHaveBeenCalledWith("root/style/--canvas-node-paint");
+    const painted: CanvasElementDTO = {
+      ...next,
+      props: { ...next.props, color: "chart-1" },
+    };
+    // 从 painted 清掉颜色：attr(path, undefined) 触发 X6 的 removeAttrByPath
+    applyElementUpdate(
+      { replaceData, attr, getData: () => ({ element: painted }) } as never,
+      next,
+    );
+    expect(attr).toHaveBeenCalledWith("root/style/--canvas-node-paint", undefined);
+  });
+
+  test("applyElementUpdate skips attrs when the color is unchanged", () => {
+    const replaceData = vi.fn();
+    const attr = vi.fn();
+    const next = element("a", "text", { x: 0, y: 0 }, { width: 100, height: 80 });
+    if (next.kind !== "text") throw new Error("expected text element");
+    applyElementUpdate({ replaceData, attr, getData: () => ({ element: next }) } as never, {
+      ...next,
+      props: { ...next.props, text: "改" },
+    });
+    expect(attr).not.toHaveBeenCalled();
   });
 
   test("applyEdgePresentation writes native attrs/routing/label and keeps terminals", () => {

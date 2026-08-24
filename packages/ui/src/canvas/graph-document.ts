@@ -192,14 +192,17 @@ export function toX6Edge(edge: CanvasEdgeDTO): X6EdgeCtor {
 
 /** 卡片内容 / 颜色：原地写 node data。react-shape Wrap 听 `change:data` 只重绘这一张。 */
 export function applyElementUpdate(node: X6Node, element: CanvasElementDTO): void {
+  const prev = (node.getData() as { element?: CanvasElementDTO } | null | undefined)?.element;
   node.replaceData({ element });
-  // 颜色原地变换时同步根元素 CSS 变量 → 端口圆色。
-  // 初始值由 nodeMetadataFor 的 attrs.root.style 写入，这里覆盖/清除（setAttrs 默认 merge）。
+  // 颜色原地变换时同步根元素 CSS 变量 → 端口圆色；颜色没变不碰 attrs，
+  // 避免每次 data 更新都触发 change:attrs / 视图重渲染。
+  if (prev?.props.color === element.props.color) return;
   const paint = element.props.color ? tokenPaintColor(element.props.color) : undefined;
-  if (paint) {
-    node.setAttrs({ root: { style: { "--canvas-node-paint": paint } } });
-  } else {
-    node.removeAttrByPath("root/style/--canvas-node-paint");
+  try {
+    // attr(path, undefined) 自动走 removeAttrByPath（X6 cell 无 removeAttr）
+    node.attr("root/style/--canvas-node-paint", paint as string | undefined);
+  } catch {
+    // attrs 同步失败不能拖垮编辑链路（颜色仅影响端口视觉）
   }
 }
 
