@@ -118,12 +118,17 @@ function WorkspaceShell({
       {library ? (
         <CanvasLibraryPanel
           items={items}
-          domains={typicalLibraryDomains}
+          domainTree={typicalLibraryDomains}
+          canvases={[]}
+          tab="understandings"
           searchQuery={query}
           selectedDomainId={domainId}
+          includeDescendants
           sortBy={sortBy}
+          onTabChange={() => undefined}
           onSearchQueryChange={setQuery}
           onSelectedDomainIdChange={setDomainId}
+          onIncludeDescendantsChange={() => undefined}
           onSortByChange={setSortBy}
           onClose={() => setLibrary(false)}
           onOpenCanvasRefPicker={() => undefined}
@@ -150,6 +155,31 @@ function WorkspaceShell({
               props: {},
               width: 260,
               height: 220,
+            })
+          }
+          onStartDragCanvas={(id, event) =>
+            graphRef.current?.startDrag(
+              {
+                ...newTextElement(),
+                kind: "canvas_ref",
+                canvasRefId: id,
+                understandingId: null,
+                props: {},
+                width: 240,
+                height: 140,
+              },
+              event,
+            )
+          }
+          onPickCanvas={(id) =>
+            graphRef.current?.addElement({
+              ...newTextElement(),
+              kind: "canvas_ref",
+              canvasRefId: id,
+              understandingId: null,
+              props: {},
+              width: 240,
+              height: 140,
             })
           }
         />

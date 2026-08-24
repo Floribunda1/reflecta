@@ -1,13 +1,20 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useMemo, useState } from "react";
 import { StoryCase, StoryShowcase } from "../../.storybook/story-showcase";
+import type { DomainTreeNodeView } from "../capture/domain-tree";
 import {
   CanvasLibraryPanel,
-  type CanvasLibraryDomainOption,
   type CanvasLibraryItemView,
   type CanvasLibrarySortBy,
+  type CanvasLibraryTab,
 } from "./canvas-library-panel";
 import { typicalLibraryDomains, typicalLibraryItems } from "./canvas-story-fixtures";
+
+const typicalLibraryCanvases: CanvasLibraryItemView[] = [
+  { id: "cvx-irrigation", title: "分区灌溉主图" },
+  { id: "cvx-night-shift", title: "夜班联调接线图" },
+  { id: "cvx-sensors", title: "传感器拓扑" },
+];
 
 function LibraryFrame({ children }: { children: React.ReactNode }) {
   return (
@@ -18,16 +25,20 @@ function LibraryFrame({ children }: { children: React.ReactNode }) {
 function LibraryDemo({
   items = typicalLibraryItems,
   domains = typicalLibraryDomains,
+  canvases = typicalLibraryCanvases,
   loading = false,
   initialQuery = "",
 }: {
   items?: readonly CanvasLibraryItemView[];
-  domains?: readonly CanvasLibraryDomainOption[];
+  domains?: readonly DomainTreeNodeView[];
+  canvases?: readonly CanvasLibraryItemView[];
   loading?: boolean;
   initialQuery?: string;
 }) {
+  const [tab, setTab] = useState<CanvasLibraryTab>("understandings");
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [selectedDomainId, setSelectedDomainId] = useState("all");
+  const [includeDescendants, setIncludeDescendants] = useState(true);
   const [sortBy, setSortBy] = useState<CanvasLibrarySortBy>("updatedAt");
   const [lastAction, setLastAction] = useState("点击或拖拽条目；过滤器由本页本地状态驱动");
   const visibleItems = useMemo(() => {
@@ -40,19 +51,26 @@ function LibraryDemo({
     <div className="grid gap-2">
       <LibraryFrame>
         <CanvasLibraryPanel
+          tab={tab}
           items={visibleItems}
-          domains={domains}
+          domainTree={domains}
+          canvases={canvases}
           loading={loading}
           searchQuery={searchQuery}
           selectedDomainId={selectedDomainId}
+          includeDescendants={includeDescendants}
           sortBy={sortBy}
+          onTabChange={setTab}
           onSearchQueryChange={setSearchQuery}
           onSelectedDomainIdChange={setSelectedDomainId}
+          onIncludeDescendantsChange={setIncludeDescendants}
           onSortByChange={setSortBy}
           onClose={() => setLastAction("关闭")}
           onOpenCanvasRefPicker={() => setLastAction("打开画布引用选择")}
-          onStartDragUnderstanding={(id) => setLastAction(`开始拖拽：${id}`)}
-          onPickUnderstanding={(id) => setLastAction(`点选：${id}`)}
+          onStartDragUnderstanding={(id) => setLastAction(`开始拖拽理解：${id}`)}
+          onPickUnderstanding={(id) => setLastAction(`点选理解：${id}`)}
+          onStartDragCanvas={(id) => setLastAction(`开始拖拽画布：${id}`)}
+          onPickCanvas={(id) => setLastAction(`点选画布：${id}`)}
         />
       </LibraryFrame>
       <p className="text-xs text-muted-foreground">{lastAction}</p>
@@ -68,7 +86,7 @@ function CanvasLibraryShowcase() {
     >
       <StoryCase
         title="典型列表"
-        description="搜索即时过滤标题；领域选择展示层级缩进；条目可点选。"
+        description="顶部 Tab 切换理解 / 画布；搜索即时过滤标题；领域选择展示层级缩进；条目可点选。"
       >
         <LibraryDemo />
       </StoryCase>
@@ -90,14 +108,23 @@ function CanvasLibraryShowcase() {
         </div>
       </StoryCase>
 
-      <StoryCase title="领域层级" description="深层领域名称带缩进；名称本身也可以很长。">
+      <StoryCase
+        title="领域层级"
+        description="DomainTreeSelect 展示领域树，深层名称也可很长；支持直接输入搜索。"
+      >
         <LibraryDemo
           domains={[
             ...typicalLibraryDomains,
             {
               id: "night-shift",
-              name: "夜班联调、异常复验与下一观察窗",
-              depth: 3,
+              name: "夜班联调",
+              children: [
+                {
+                  id: "night-shift-deep",
+                  name: "异常复验与下一观察窗（超长领域名）",
+                  children: [],
+                },
+              ],
             },
           ]}
         />
@@ -126,17 +153,24 @@ const meta = {
   },
   args: {
     items: typicalLibraryItems,
-    domains: typicalLibraryDomains,
+    domainTree: typicalLibraryDomains,
+    canvases: typicalLibraryCanvases,
+    tab: "understandings",
     searchQuery: "",
     selectedDomainId: "all",
+    includeDescendants: true,
     sortBy: "updatedAt",
+    onTabChange: () => undefined,
     onSearchQueryChange: () => undefined,
     onSelectedDomainIdChange: () => undefined,
+    onIncludeDescendantsChange: () => undefined,
     onSortByChange: () => undefined,
     onClose: () => undefined,
     onOpenCanvasRefPicker: () => undefined,
     onStartDragUnderstanding: () => undefined,
     onPickUnderstanding: () => undefined,
+    onStartDragCanvas: () => undefined,
+    onPickCanvas: () => undefined,
   },
 } satisfies Meta<typeof CanvasLibraryPanel>;
 

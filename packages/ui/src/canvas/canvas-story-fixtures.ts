@@ -1,6 +1,7 @@
 import type { CanvasDocument, CanvasEdgeDTO, CanvasElementDTO } from "./document";
 import { DEFAULT_CANVAS_EDGE_ATTRS } from "./graph-document";
-import type { CanvasLibraryDomainOption, CanvasLibraryItemView } from "./canvas-library-panel";
+import type { CanvasLibraryItemView } from "./canvas-library-panel";
+import type { DomainTreeNodeView } from "../capture/domain-tree";
 import type { CanvasSearchIndexItem } from "./canvas-search-overlay";
 import type {
   CanvasReferencedCanvasView,
@@ -454,11 +455,19 @@ export const typicalSearchIndex: CanvasSearchIndexItem[] = [
   },
 ];
 
-export const typicalLibraryDomains: CanvasLibraryDomainOption[] = [
-  { id: "engineering", name: "设施工程", depth: 0 },
-  { id: "greenhouse", name: "极地温室", depth: 1 },
-  { id: "irrigation", name: "分区灌溉", depth: 2 },
-  { id: "product", name: "产品与用户价值", depth: 0 },
+export const typicalLibraryDomains: DomainTreeNodeView[] = [
+  {
+    id: "engineering",
+    name: "设施工程",
+    children: [
+      {
+        id: "greenhouse",
+        name: "极地温室",
+        children: [{ id: "irrigation", name: "分区灌溉", children: [] }],
+      },
+    ],
+  },
+  { id: "product", name: "产品与用户价值", children: [] },
 ];
 
 export const typicalLibraryItems: CanvasLibraryItemView[] = [

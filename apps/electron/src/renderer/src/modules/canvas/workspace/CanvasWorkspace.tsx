@@ -270,7 +270,6 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
         canvasRefsRef={canvasRefsRef}
       />
       <CanvasSearchHotkeys />
-      <CanvasToolbar canvas={canvas} onExportPng={() => void graphRef.current?.exportPng()} />
 
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 min-w-0 flex-1">
         <ResizablePanel
@@ -279,13 +278,16 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
           defaultSize={100}
           className="min-h-0 min-w-0"
         >
-          <div className="relative flex h-full min-h-0 min-w-0">
-            <CanvasGraphMount canvasId={canvasId} graphRef={graphRef} shapeData={shapeData} />
-            <CanvasToolStrip graphRef={graphRef} />
-            <CanvasSaveBadge />
-            <CanvasEmptyOverlay />
-            <CanvasZoomDock graphRef={graphRef} />
-            <CanvasSearchHost understandingRefs={refsMap} referencedCanvases={canvasRefsMap} />
+          <div className="flex h-full min-h-0 flex-col">
+            <CanvasToolbar canvas={canvas} onExportPng={() => void graphRef.current?.exportPng()} />
+            <div className="relative flex min-h-0 flex-1">
+              <CanvasGraphMount canvasId={canvasId} graphRef={graphRef} shapeData={shapeData} />
+              <CanvasToolStrip graphRef={graphRef} />
+              <CanvasSaveBadge />
+              <CanvasEmptyOverlay />
+              <CanvasZoomDock graphRef={graphRef} />
+              <CanvasSearchHost understandingRefs={refsMap} referencedCanvases={canvasRefsMap} />
+            </div>
           </div>
         </ResizablePanel>
 

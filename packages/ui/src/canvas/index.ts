@@ -18,10 +18,10 @@ export {
 } from "./canvas-search-overlay";
 export {
   CanvasLibraryPanel,
-  type CanvasLibraryDomainOption,
   type CanvasLibraryItemView,
   type CanvasLibraryPanelProps,
   type CanvasLibrarySortBy,
+  type CanvasLibraryTab,
 } from "./canvas-library-panel";
 export {
   CanvasEmptyState,

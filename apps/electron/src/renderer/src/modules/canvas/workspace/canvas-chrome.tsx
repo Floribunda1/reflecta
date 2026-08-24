@@ -25,7 +25,7 @@ import {
 import { CanvasDetailPanel } from "./CanvasDetailPanel";
 import { CanvasLibraryPanel } from "./CanvasLibraryPanel";
 import { buildCanvasSearchIndex } from "./canvas-workspace-model";
-import { newTextElement, newUnderstandingElement } from "./element-factory";
+import { newCanvasRefElement, newTextElement, newUnderstandingElement } from "./element-factory";
 
 export const CanvasSearchHotkeys = memo(function CanvasSearchHotkeys() {
   useEffect(() => {
@@ -157,6 +157,10 @@ export const CanvasSidePanelHost = memo(function CanvasSidePanelHost({
               graphRef.current?.startDrag(newUnderstandingElement(id), event)
             }
             onPickUnderstanding={(id) => graphRef.current?.addElement(newUnderstandingElement(id))}
+            onStartDragCanvas={(id, event) =>
+              graphRef.current?.startDrag(newCanvasRefElement(id), event)
+            }
+            onPickCanvas={(id) => graphRef.current?.addElement(newCanvasRefElement(id))}
           />
         ) : (
           <CanvasDetailPanel
