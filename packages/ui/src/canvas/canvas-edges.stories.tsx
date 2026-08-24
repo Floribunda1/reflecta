@@ -15,7 +15,7 @@ import {
   typicalShapeData,
 } from "./canvas-story-fixtures";
 import type { CanvasDocument, CanvasEdgeDTO, CanvasEdgePortId } from "./document";
-import { edgeToEdge } from "./graph-document";
+import { edgeToEdge, smoothConnectorForPort } from "./graph-document";
 
 const PATH_OPTIONS = [
   { value: "curve", label: "曲线" },
@@ -40,7 +40,7 @@ function pathConfig(
   sourcePort: CanvasEdgePortId,
   targetPort: CanvasEdgePortId,
 ): Pick<CanvasEdgeDTO, "router" | "connector"> {
-  if (path === "curve") return { router: null, connector: { name: "smooth" } };
+  if (path === "curve") return { router: null, connector: smoothConnectorForPort(sourcePort) };
   if (path === "straight") return { router: null, connector: { name: "normal" } };
   return {
     router: {

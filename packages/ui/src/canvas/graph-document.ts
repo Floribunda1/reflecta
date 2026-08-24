@@ -210,6 +210,13 @@ export function facingEdgePorts(
   return dy >= 0 ? ["bottom", "top"] : ["top", "bottom"];
 }
 
+export function smoothConnectorForPort(port: CanvasEdgePortId): CanvasEdgeConnector {
+  return {
+    name: "smooth",
+    args: { direction: port === "left" || port === "right" ? "H" : "V" },
+  };
+}
+
 /** 按两端节点的相对位置选择面对彼此的端口，避免直线/曲线穿过节点。 */
 export function syncEdgePortsToNodePositions(edge: X6Edge): void {
   const source = edge.getSourceNode();
@@ -222,19 +229,31 @@ export function syncEdgePortsToNodePositions(edge: X6Edge): void {
   if (edge.getSourcePortId() !== sourcePort) edge.setSource({ cell: source.id, port: sourcePort });
   if (edge.getTargetPortId() !== targetPort) edge.setTarget({ cell: target.id, port: targetPort });
   syncManhattanRouterDirections(edge);
+  const connector = edge.getConnector() as CanvasEdgeConnector | null;
+  const nextConnector =
+    connector?.name === "smooth" ? smoothConnectorForPort(sourcePort) : connector;
+  if (
+    nextConnector?.name === "smooth" &&
+    connector?.args?.direction !== nextConnector.args?.direction
+  ) {
+    edge.setConnector(nextConnector as EdgeMetadata["connector"]);
+  }
   const data = (edge.getData() as { edge?: CanvasEdgeDTO } | null)?.edge;
   if (
     data &&
     (data.source.cell !== source.id ||
       data.source.port !== sourcePort ||
       data.target.cell !== target.id ||
-      data.target.port !== targetPort)
+      data.target.port !== targetPort ||
+      (nextConnector?.name === "smooth" &&
+        data.connector.args?.direction !== nextConnector.args?.direction))
   ) {
     edge.replaceData({
       edge: {
         ...data,
         source: { cell: source.id, port: sourcePort },
         target: { cell: target.id, port: targetPort },
+        ...(nextConnector?.name === "smooth" ? { connector: nextConnector } : {}),
       },
     });
   }
