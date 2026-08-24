@@ -10,13 +10,8 @@ import {
   DropdownMenuTrigger,
 } from "../components/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/popover";
-import { canvasPaintColor, CanvasColorSwatches } from "./color-swatches";
-import {
-  DEFAULT_CANVAS_EDGE_STYLE,
-  type CanvasEdgeDTO,
-  type CanvasEdgePortId,
-  type CanvasEdgeStyle,
-} from "./document";
+import { CANVAS_SWATCH_TOKENS, canvasPaintColor, CanvasColorSwatches } from "./color-swatches";
+import type { CanvasEdgeDTO } from "./document";
 
 /**
  * 边样式 / 标签 / 删除工具栏：单条边被选中时显示在边的路径中点附近。
@@ -104,28 +99,20 @@ export function EdgeOverlay({
 
   if (readonly || !edge || !dto) return null;
 
-  const style = dto.style ?? {};
-  const current = { ...DEFAULT_CANVAS_EDGE_STYLE, ...style };
-  const patch = (patch: CanvasEdgeStyle) => onUpdate({ ...dto, style: { ...style, ...patch } });
-  const routing = dto.router?.name ?? dto.connector.name;
-  const patchRouting = (name: string) => {
-    if (name === "manhattan") {
-      const sourcePort = edge.getSourcePortId() as CanvasEdgePortId;
-      const targetPort = edge.getTargetPortId() as CanvasEdgePortId;
-      onUpdate({
-        ...dto,
-        router: {
-          name,
-          args: { padding: 20, startDirections: [sourcePort], endDirections: [targetPort] },
-        },
-        connector: { name: "rounded", args: { radius: 8 } },
-      });
-      return;
-    }
-    if (name === "smooth" || name === "normal") {
-      onUpdate({ ...dto, router: null, connector: { name } });
-    }
-  };
+  const line = dto.attrs.line ?? {};
+  const stroke = typeof line.stroke === "string" ? line.stroke : undefined;
+  const swatch = CANVAS_SWATCH_TOKENS.find((token) => canvasPaintColor(token) === stroke);
+  const strokeWidth = typeof line.strokeWidth === "number" ? String(line.strokeWidth) : "2";
+  const strokeDasharray = typeof line.strokeDasharray === "string" ? line.strokeDasharray : "";
+  const marker = line.targetMarker;
+  const arrowhead =
+    marker === null
+      ? "none"
+      : typeof marker === "object" && marker && "name" in marker && typeof marker.name === "string"
+        ? marker.name
+        : "classic";
+  const patchLine = (patch: Record<string, unknown>) =>
+    onUpdate({ ...dto, attrs: { ...dto.attrs, line: { ...line, ...patch } } });
   const commitLabel = () => {
     if (labelDraft === null) return;
     const label = labelDraft.trim() || null;
@@ -159,40 +146,52 @@ export function EdgeOverlay({
             />
           }
         >
-          <Palette style={{ color: canvasPaintColor(style.color) }} />
+          <Palette style={{ color: stroke }} />
         </PopoverTrigger>
         <PopoverContent className="w-auto flex-row items-center" align="center">
-          <CanvasColorSwatches value={style.color} onChange={(color) => patch({ color })} />
+          <CanvasColorSwatches
+            value={swatch}
+            onChange={(color) => patchLine({ stroke: canvasPaintColor(color) })}
+          />
         </PopoverContent>
       </Popover>
 
-      <EdgeStyleMenu<string>
-        label="形状"
+      <EdgeStyleMenu
+        label="Router"
         icon={<Route />}
-        value={routing}
-        options={ROUTING_OPTIONS}
-        onChange={patchRouting}
+        value={dto.router?.name ?? "none"}
+        options={ROUTER_OPTIONS}
+        onChange={(name) => onUpdate({ ...dto, router: name === "none" ? null : { name } })}
+      />
+      <EdgeStyleMenu
+        label="Connector"
+        icon={<Route />}
+        value={dto.connector.name}
+        options={CONNECTOR_OPTIONS}
+        onChange={(name) => onUpdate({ ...dto, connector: { name } })}
       />
       <EdgeStyleMenu
         label="线型"
         icon={<LineStyle />}
-        value={current.lineStyle ?? "solid"}
+        value={strokeDasharray}
         options={LINE_STYLE_OPTIONS}
-        onChange={(lineStyle) => patch({ lineStyle })}
+        onChange={(strokeDasharray) => patchLine({ strokeDasharray })}
       />
       <EdgeStyleMenu
         label="线宽"
         icon={<Weight />}
-        value={current.width ?? "thin"}
+        value={strokeWidth}
         options={WIDTH_OPTIONS}
-        onChange={(width) => patch({ width })}
+        onChange={(strokeWidth) => patchLine({ strokeWidth: Number(strokeWidth) })}
       />
       <EdgeStyleMenu
         label="箭头"
         icon={<ArrowRight />}
-        value={current.arrowhead ?? "classic"}
+        value={arrowhead}
         options={ARROWHEAD_OPTIONS}
-        onChange={(arrowhead) => patch({ arrowhead })}
+        onChange={(name) =>
+          patchLine({ targetMarker: name === "none" ? null : { name, width: 10, height: 8 } })
+        }
       />
       <Button
         type="button"
@@ -227,20 +226,30 @@ export function EdgeOverlay({
   );
 }
 
-const ROUTING_OPTIONS = [
-  { value: "smooth", label: "曲线" },
-  { value: "normal", label: "直线" },
-  { value: "manhattan", label: "正交" },
+const ROUTER_OPTIONS = [
+  { value: "none", label: "无" },
+  { value: "normal", label: "Normal" },
+  { value: "orth", label: "Orth" },
+  { value: "oneSide", label: "One Side" },
+  { value: "manhattan", label: "Manhattan" },
+  { value: "metro", label: "Metro" },
+  { value: "er", label: "ER" },
+] as const;
+const CONNECTOR_OPTIONS = [
+  { value: "normal", label: "Normal" },
+  { value: "smooth", label: "Smooth" },
+  { value: "rounded", label: "Rounded" },
+  { value: "jumpover", label: "Jumpover" },
 ] as const;
 const LINE_STYLE_OPTIONS = [
-  { value: "solid", label: "实线" },
-  { value: "dashed", label: "虚线" },
-  { value: "dotted", label: "点线" },
+  { value: "", label: "实线" },
+  { value: "5 5", label: "虚线" },
+  { value: "2 2", label: "点线" },
 ] as const;
 const WIDTH_OPTIONS = [
-  { value: "thin", label: "细" },
-  { value: "medium", label: "中" },
-  { value: "thick", label: "粗" },
+  { value: "2", label: "细" },
+  { value: "3", label: "中" },
+  { value: "4", label: "粗" },
 ] as const;
 const ARROWHEAD_OPTIONS = [
   { value: "classic", label: "箭头" },

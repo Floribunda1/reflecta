@@ -40,21 +40,8 @@ export type CanvasElementDTO = {
   };
 }[CanvasElementKind];
 
-export type CanvasEdgeStyle = {
-  /** 线型：映射 X6 line.strokeDasharray（虚线 5 5 / 点线 2 2） */
-  lineStyle?: "solid" | "dashed" | "dotted";
-  color?: string;
-  /** 线宽：映射 X6 line.strokeWidth（细 2 / 中 3 / 粗 4） */
-  width?: "thin" | "medium" | "thick";
-  /** 箭头：直接取 X6 内建 marker 名（classic/block/circle/diamond/cross/ellipse/none）。 */
-  arrowhead?: "classic" | "block" | "circle" | "diamond" | "cross" | "ellipse" | "none";
-};
-
-export const DEFAULT_CANVAS_EDGE_STYLE: CanvasEdgeStyle = {
-  lineStyle: "solid",
-  width: "thin",
-  arrowhead: "classic",
-};
+/** 与 X6 attrs 同构；selector 名和属性均原样持久化。 */
+export type CanvasEdgeAttrs = Record<string, Record<string, unknown>>;
 
 export type CanvasEdgePortId = "top" | "right" | "bottom" | "left";
 
@@ -81,8 +68,8 @@ export type CanvasEdgeDTO = {
   target: CanvasEdgeTerminal;
   router: CanvasEdgeRouter | null;
   connector: CanvasEdgeConnector;
+  attrs: CanvasEdgeAttrs;
   label: string | null;
-  style: CanvasEdgeStyle | null;
   createdAt: string;
 };
 

@@ -58,7 +58,6 @@ export function assertValidDocument(document: CanvasDocument): void {
     if (!edge.connector || !EDGE_CONNECTOR_NAMES.includes(edge.connector.name)) {
       throw new CanvasValidationError(`Edge ${edge.id} has an invalid connector`);
     }
-    assertValidEdgeStyle(edge.style);
   }
 
   // 入组防环：父必须是 group、同一文档、不能是自己或自己的后代
@@ -124,25 +123,6 @@ export function assertValidElement(element: CanvasElementDTO): void {
         throw new CanvasValidationError(`Canvas ref element ${element.id} must have canvasRefId`);
       }
       break;
-  }
-}
-
-const EDGE_STYLE_ENUMS = {
-  lineStyle: ["solid", "dashed", "dotted"],
-  width: ["thin", "medium", "thick"],
-  arrowhead: ["classic", "block", "circle", "diamond", "cross", "ellipse", "none"],
-} as const;
-
-export function assertValidEdgeStyle(style: unknown): void {
-  if (style === null || style === undefined) return;
-  if (typeof style !== "object" || Array.isArray(style)) {
-    throw new CanvasValidationError("Edge style must be an object");
-  }
-  for (const [key, allowed] of Object.entries(EDGE_STYLE_ENUMS)) {
-    const value = (style as Record<string, unknown>)[key];
-    if (value !== undefined && !(allowed as readonly string[]).includes(value as string)) {
-      throw new CanvasValidationError(`Edge style ${key} invalid: ${String(value)}`);
-    }
   }
 }
 

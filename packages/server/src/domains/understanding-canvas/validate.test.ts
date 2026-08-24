@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { assertValidDocument, assertValidEdgeStyle, CanvasValidationError } from "./validate";
+import { assertValidDocument, CanvasValidationError } from "./validate";
 import type { CanvasDocument, CanvasElementDTO, CanvasEdgeDTO } from "./types";
 
 function element(partial: Partial<CanvasElementDTO> & { id: string }): CanvasElementDTO {
@@ -69,8 +69,8 @@ function edge(
     target: { cell: targetElementId, port: "left" },
     router: null,
     connector: { name: "smooth" },
+    attrs: {},
     label: null,
-    style: null,
     createdAt: "2026-08-01T00:00:00.000Z",
     ...rest,
   };
@@ -199,20 +199,5 @@ describe("Canvas document validation", () => {
       element({ id: "c", kind: "group", parentId: "a" }),
     ];
     expect(() => assertValidDocument(doc(elements))).toThrow(CanvasValidationError);
-  });
-
-  test("valid edge style passes; invalid enum is rejected", () => {
-    expect(() =>
-      assertValidEdgeStyle({
-        lineStyle: "dashed",
-        width: "thick",
-        arrowhead: "block",
-        color: "#ff0000",
-      }),
-    ).not.toThrow();
-    expect(() => assertValidEdgeStyle({ lineStyle: "wavy" })).toThrow(/lineStyle invalid/);
-    expect(() => assertValidEdgeStyle("solid")).toThrow(/must be an object/);
-    expect(() => assertValidEdgeStyle(null)).not.toThrow();
-    expect(() => assertValidEdgeStyle(undefined)).not.toThrow();
   });
 });

@@ -70,7 +70,7 @@ describe("graph-document toX6Cells", () => {
     expect(child).toMatchObject({ x: 80, y: 90, parent: "outer" });
   });
 
-  test("maps an edge with routing / style / marker / label metadata", () => {
+  test("passes X6 edge attrs / routing / marker / label metadata through", () => {
     const document: CanvasDocument = {
       elements: [
         element("a", "text", { x: 0, y: 0 }, { width: 100, height: 80 }),
@@ -84,13 +84,15 @@ describe("graph-document toX6Cells", () => {
           target: { cell: "b", port: "top" },
           router: null,
           connector: { name: "smooth" },
-          label: "causal",
-          style: {
-            lineStyle: "dashed",
-            width: "medium",
-            color: "chart-1",
-            arrowhead: "block",
+          attrs: {
+            line: {
+              stroke: "var(--chart-1)",
+              strokeWidth: 3,
+              strokeDasharray: "5 5",
+              targetMarker: { name: "block" },
+            },
           },
+          label: "causal",
           createdAt: timestamp,
         },
       ],
@@ -127,8 +129,8 @@ describe("graph-document toX6Cells", () => {
             source: { cell: "a", port: "right" },
             target: { cell: "b", port: "left" },
             ...routing,
+            attrs: {},
             label: null,
-            style: null,
             createdAt: timestamp,
           },
         ],
@@ -175,8 +177,8 @@ describe("in-place cell updates", () => {
       target: { cell: "b", port: "left" },
       router: null,
       connector: { name: "smooth" },
+      attrs: {},
       label: null,
-      style: null,
       createdAt: timestamp,
     };
     expect(
@@ -189,6 +191,7 @@ describe("in-place cell updates", () => {
         getTargetPortId: () => "top",
         getRouter: () => ({ name: "manhattan" }),
         getConnector: () => ({ name: "rounded" }),
+        getAttrs: () => ({ line: { strokeWidth: 3 } }),
       } as never),
     ).toMatchObject({
       source: { cell: "a", port: "bottom" },
@@ -207,7 +210,7 @@ describe("in-place cell updates", () => {
     expect(replaceData).toHaveBeenCalledWith({ element: painted });
   });
 
-  test("applyEdgePresentation merges style/label and keeps source/target from current data", () => {
+  test("applyEdgePresentation writes native attrs/routing/label and keeps terminals", () => {
     const current: CanvasEdgeDTO = {
       id: "e",
       canvasId: "canvas",
@@ -215,8 +218,8 @@ describe("in-place cell updates", () => {
       target: { cell: "b", port: "left" },
       router: null,
       connector: { name: "smooth" },
+      attrs: {},
       label: "old",
-      style: null,
       createdAt: timestamp,
     };
     const cell = {
@@ -230,7 +233,7 @@ describe("in-place cell updates", () => {
       setLabels: vi.fn(),
     };
     applyEdgePresentation(cell as never, {
-      style: { color: "chart-1" },
+      attrs: { line: { stroke: "var(--chart-1)" } },
       router: null,
       connector: { name: "normal" },
       label: "new",
@@ -238,7 +241,7 @@ describe("in-place cell updates", () => {
     expect(cell.replaceData).toHaveBeenCalledWith({
       edge: {
         ...current,
-        style: { color: "chart-1" },
+        attrs: { line: { stroke: "var(--chart-1)" } },
         router: null,
         connector: { name: "normal" },
         label: "new",

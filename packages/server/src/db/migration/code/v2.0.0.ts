@@ -54,7 +54,7 @@ const migration: CodeMigration = {
         "  router TEXT,\n" +
         "  connector TEXT NOT NULL,\n" +
         "  label TEXT,\n" +
-        "  props TEXT NOT NULL DEFAULT '{}',\n" +
+        "  attrs TEXT NOT NULL DEFAULT '{}',\n" +
         "  created_at TEXT NOT NULL\n" +
         ");\n" +
         "CREATE INDEX IF NOT EXISTS idx_canvas_edges_canvas ON understanding_canvas_edges(canvas_id);\n" +

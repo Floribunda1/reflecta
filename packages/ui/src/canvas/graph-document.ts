@@ -2,14 +2,12 @@ import type { Edge as X6Edge, EdgeMetadata } from "@antv/x6";
 import { Edge as X6EdgeCtor, type Graph, type Node as X6Node, type NodeMetadata } from "@antv/x6";
 import type {
   CanvasDocument,
+  CanvasEdgeAttrs,
   CanvasEdgeConnector,
   CanvasEdgeDTO,
   CanvasEdgeRouter,
-  CanvasEdgeStyle,
   CanvasElementDTO,
 } from "./document";
-import { DEFAULT_CANVAS_EDGE_STYLE } from "./document";
-import { canvasPaintColor } from "./color-swatches";
 import { absolutePositionOf } from "./graph-operations";
 import { CANVAS_PORTS } from "./ports";
 
@@ -34,6 +32,15 @@ const toAbsolute = (
 };
 
 export const DEFAULT_CANVAS_EDGE_CONNECTOR: CanvasEdgeConnector = { name: "smooth" };
+export const DEFAULT_CANVAS_EDGE_ATTRS: CanvasEdgeAttrs = {
+  line: {
+    stroke: "var(--muted-foreground)",
+    strokeWidth: 2,
+    targetMarker: { name: "classic", width: 10, height: 8 },
+  },
+  lines: { connection: true, strokeLinejoin: "round" },
+  wrap: { strokeWidth: 10 },
+};
 
 function edgeLabelItems(label: string | null, color: string) {
   return label
@@ -48,46 +55,18 @@ function edgeLabelItems(label: string | null, color: string) {
     : [];
 }
 
+function edgeLabels(edge: CanvasEdgeDTO) {
+  const stroke = edge.attrs.line?.stroke;
+  const color = typeof stroke === "string" ? stroke : "var(--muted-foreground)";
+  return edgeLabelItems(edge.label, color);
+}
+
 function edgeVisuals(edge: CanvasEdgeDTO) {
-  const style = edge.style ?? DEFAULT_CANVAS_EDGE_STYLE;
-  const color = canvasPaintColor(style.color) ?? "var(--muted-foreground)";
   return {
     router: edge.router,
     connector: edge.connector,
-    attrs: edgeAttrs(style),
-    labels: edgeLabelItems(edge.label, color),
-  };
-}
-
-/**
- * 边 attrs：业务样式（lineAttrs）合并回 X6 默认 edge 所需的结构。
- * 必须保留 lines.connection:true —— X6 靠它把路径 d 写到两条路径（wrap 命中层 + line）；
- * 直接传 lineAttrs 会把默认 attrs 整个替换掉，边不渲染也不可点。
- */
-export function edgeAttrs(style: CanvasEdgeStyle | null) {
-  return {
-    ...lineAttrs(style),
-    lines: { connection: true, strokeLinejoin: "round" },
-    wrap: { strokeWidth: 10 },
-  };
-}
-
-export function lineAttrs(style: CanvasEdgeStyle | null) {
-  const color = canvasPaintColor(style?.color) ?? "var(--muted-foreground)";
-  const strokeWidth = style?.width === "thick" ? 4 : style?.width === "medium" ? 3 : 2;
-  const strokeDasharray =
-    style?.lineStyle === "dashed" ? "5 5" : style?.lineStyle === "dotted" ? "2 2" : undefined;
-  // arrowhead 即 X6 marker 名（契约与 X6 一一对应，不再映射）
-  const markerName = style?.arrowhead ?? "classic";
-  const targetMarker = markerName === "none" ? null : { name: markerName, width: 10, height: 8 };
-  return {
-    line: {
-      stroke: color,
-      strokeWidth,
-      strokeDasharray: strokeDasharray ?? undefined,
-      // 显式写 null：X6 边 shape 自带默认 targetMarker，省略会回落成默认箭头（“无”失效）
-      targetMarker,
-    },
+    attrs: edge.attrs,
+    labels: edgeLabels(edge),
   };
 }
 
@@ -160,8 +139,8 @@ export function newEdgeDto(canvasId: string): CanvasEdgeDTO {
     target: { cell: "", port: "left" },
     router: null,
     connector: { ...DEFAULT_CANVAS_EDGE_CONNECTOR },
+    attrs: structuredClone(DEFAULT_CANVAS_EDGE_ATTRS),
     label: null,
-    style: { ...DEFAULT_CANVAS_EDGE_STYLE },
     createdAt: new Date().toISOString(),
   };
 }
@@ -186,19 +165,18 @@ export function applyElementUpdate(node: X6Node, element: CanvasElementDTO): voi
 }
 
 /**
- * 边样式 / 标签：原地改 attrs，不拆 cell。端点仍以 X6 store 为准，只合并 style / label。
- * `overwrite` 清掉上一档线型的 dasharray / marker，避免 merge 残留。
+ * 边配置 / 标签：原地写入 X6，不拆 cell。端点仍以 X6 store 为准。
  */
 export function applyEdgePresentation(
   cell: X6Edge,
-  patch: Pick<CanvasEdgeDTO, "style" | "label" | "router" | "connector">,
+  patch: Pick<CanvasEdgeDTO, "attrs" | "label" | "router" | "connector">,
 ): void {
   const current = (cell.getData() as { edge?: CanvasEdgeDTO } | null)?.edge;
   if (!current) return;
   const next: CanvasEdgeDTO = { ...current, ...patch };
   const visuals = edgeVisuals(next);
   cell.replaceData({ edge: next });
-  cell.setAttrs(visuals.attrs, { overwrite: true });
+  cell.setAttrs(visuals.attrs as EdgeMetadata["attrs"], { overwrite: true });
   cell.setConnector(visuals.connector as EdgeMetadata["connector"]);
   if (visuals.router) cell.setRouter(visuals.router as EdgeMetadata["router"]);
   else cell.removeRouter();
@@ -251,5 +229,6 @@ export function edgeToEdge(edge: X6Edge): CanvasEdgeDTO {
     },
     router: (edge.getRouter() as CanvasEdgeRouter | null | undefined) ?? null,
     connector: connector as CanvasEdgeConnector,
+    attrs: edge.getAttrs() as CanvasEdgeAttrs,
   };
 }

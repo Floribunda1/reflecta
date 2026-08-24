@@ -108,7 +108,7 @@ describe("UnderstandingCanvasElectronBff.getCanvasDetail", () => {
           router: { name: "manhattan" },
           connector: { name: "rounded", args: { radius: 8 } },
           label: "依赖",
-          style: { color: "#ff0000" },
+          attrs: { line: { stroke: "#ff0000" } },
           createdAt: "2026-08-01T00:00:00.000Z",
         },
       ],
@@ -120,7 +120,7 @@ describe("UnderstandingCanvasElectronBff.getCanvasDetail", () => {
     expect(detail!.canvas.title).toBe("主画布");
     expect(detail!.elements).toHaveLength(6);
     expect(detail!.edges).toHaveLength(1);
-    expect(detail!.edges[0].style).toEqual({ color: "#ff0000" });
+    expect(detail!.edges[0].attrs).toEqual({ line: { stroke: "#ff0000" } });
     expect(detail!.edges[0]).toMatchObject({
       source: { cell: "u-card", port: "bottom" },
       target: { cell: "note", port: "top" },

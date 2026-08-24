@@ -62,14 +62,6 @@ export const CanvasElementDTO = S.Union([
 ]);
 export type CanvasElementDTO = S.Schema.Type<typeof CanvasElementDTO>;
 
-export const EdgeStyle = S.Struct({
-  lineStyle: S.optional(lit("solid", "dashed", "dotted")),
-  color: S.optional(S.String),
-  width: S.optional(lit("thin", "medium", "thick")),
-  arrowhead: S.optional(lit("classic", "block", "circle", "diamond", "cross", "ellipse", "none")),
-});
-export type EdgeStyle = S.Schema.Type<typeof EdgeStyle>;
-
 const CanvasEdgePortId = lit("top", "right", "bottom", "left");
 const CanvasEdgeTerminal = S.Struct({ cell: S.String, port: CanvasEdgePortId });
 const CanvasEdgeRouter = S.Struct({
@@ -88,8 +80,8 @@ export const CanvasEdgeDTO = S.Struct({
   target: CanvasEdgeTerminal,
   router: S.NullOr(CanvasEdgeRouter),
   connector: CanvasEdgeConnector,
+  attrs: S.Record(S.String, S.Record(S.String, S.Unknown)),
   label: S.NullOr(S.String),
-  style: S.NullOr(EdgeStyle),
   createdAt: S.String,
 });
 export type CanvasEdgeDTO = S.Schema.Type<typeof CanvasEdgeDTO>;

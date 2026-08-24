@@ -43,15 +43,9 @@ export type CanvasElementDTO = {
   };
 }[CanvasElementKind];
 
-// --- 连线样式（社区四维模型） ---------------------------------------------------
+// --- X6 连线配置 ---------------------------------------------------------------
 
-export type EdgeStyle = {
-  lineStyle?: "solid" | "dashed" | "dotted";
-  color?: string;
-  width?: "thin" | "medium" | "thick";
-  /** 箭头：X6 内建 marker 名（与 ui 包 CanvasEdgeStyle 一一对应）。 */
-  arrowhead?: "classic" | "block" | "circle" | "diamond" | "cross" | "ellipse" | "none";
-};
+export type CanvasEdgeAttrs = Record<string, Record<string, unknown>>;
 
 export type CanvasEdgePortId = "top" | "right" | "bottom" | "left";
 
@@ -78,8 +72,8 @@ export type CanvasEdgeDTO = {
   target: CanvasEdgeTerminal;
   router: CanvasEdgeRouter | null;
   connector: CanvasEdgeConnector;
+  attrs: CanvasEdgeAttrs;
   label: string | null;
-  style: EdgeStyle | null;
   createdAt: string;
 };
 

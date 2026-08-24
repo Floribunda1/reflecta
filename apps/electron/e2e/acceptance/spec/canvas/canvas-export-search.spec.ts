@@ -56,8 +56,8 @@ test.beforeAll(async () => {
         target: { cell: "s_b", port: "left" },
         router: null,
         connector: { name: "smooth" },
+        attrs: {},
         label: "SNK_EDGE",
-        style: {},
       },
     ],
   });

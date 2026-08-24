@@ -14,6 +14,7 @@ import type {
   CanvasDocument,
   CanvasDTO,
   CanvasElementDTO,
+  CanvasEdgeAttrs,
   CanvasEdgeDTO,
   CanvasEdgeConnector,
   CanvasEdgePortId,
@@ -22,7 +23,6 @@ import type {
   CanvasReferencedCanvas,
   CanvasUnderstandingRef,
   CreateCanvasInput,
-  EdgeStyle,
   GetCanvasDetailOptions,
   ListCanvasesFilter,
   SearchCanvasesInput,
@@ -112,7 +112,7 @@ export function edgeRowToDTO(row: UnderstandingCanvasEdge): CanvasEdgeDTO {
     router: row.router === null ? null : (JSON.parse(row.router) as CanvasEdgeRouter),
     connector: JSON.parse(row.connector) as CanvasEdgeConnector,
     label: row.label,
-    style: JSON.parse(row.props) as EdgeStyle | null,
+    attrs: JSON.parse(row.attrs) as CanvasEdgeAttrs,
     createdAt: row.createdAt,
   };
 }
@@ -481,7 +481,7 @@ export class CanvasCore {
                   existing.router !== (edge.router ? JSON.stringify(edge.router) : null) ||
                   existing.connector !== JSON.stringify(edge.connector) ||
                   existing.label !== edge.label ||
-                  existing.props !== JSON.stringify(edge.style)
+                  existing.attrs !== JSON.stringify(edge.attrs)
                 ) {
                   changed = true;
                   break;
@@ -559,7 +559,7 @@ export class CanvasCore {
                 router: edge.router ? JSON.stringify(edge.router) : null,
                 connector: JSON.stringify(edge.connector),
                 label: edge.label,
-                props: JSON.stringify(edge.style),
+                attrs: JSON.stringify(edge.attrs),
               };
               if (existing) {
                 await tx

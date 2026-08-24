@@ -152,7 +152,7 @@ export const understandingCanvasEdges = sqliteTable(
     router: text("router"),
     connector: text("connector").notNull(),
     label: text("label"),
-    props: text("props").notNull().default("{}"),
+    attrs: text("attrs").notNull().default("{}"),
     createdAt: text("created_at").notNull(),
   },
   (t) => [

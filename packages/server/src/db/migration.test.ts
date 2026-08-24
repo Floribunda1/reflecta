@@ -227,8 +227,9 @@ describe("versioned migrations", () => {
         .map((column) => column.name),
     ).toEqual(["source_port_id", "target_port_id"]);
     expect(tableColumns(db, "understanding_canvas_edges")).toEqual(
-      expect.arrayContaining(["router", "connector"]),
+      expect.arrayContaining(["router", "connector", "attrs"]),
     );
+    expect(tableColumns(db, "understanding_canvas_edges")).not.toContain("props");
     const edgeColumns = db.$client
       .prepare(`PRAGMA table_info(understanding_canvas_edges)`)
       .all() as Array<{ name: string; dflt_value: string | null }>;

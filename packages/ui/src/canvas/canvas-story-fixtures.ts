@@ -1,4 +1,5 @@
 import type { CanvasDocument, CanvasEdgeDTO, CanvasElementDTO } from "./document";
+import { DEFAULT_CANVAS_EDGE_ATTRS } from "./graph-document";
 import type { CanvasLibraryDomainOption, CanvasLibraryItemView } from "./canvas-library-panel";
 import type { CanvasSearchIndexItem } from "./canvas-search-overlay";
 import type {
@@ -119,7 +120,7 @@ export function storyEdge(
   sourceElementId: string,
   targetElementId: string,
   label: string | null = null,
-  style: CanvasEdgeDTO["style"] = null,
+  attrs: CanvasEdgeDTO["attrs"] = structuredClone(DEFAULT_CANVAS_EDGE_ATTRS),
   pathConfig: Pick<CanvasEdgeDTO, "router" | "connector"> = {
     router: null,
     connector: { name: "smooth" },
@@ -131,8 +132,8 @@ export function storyEdge(
     source: { cell: sourceElementId, port: "right" },
     target: { cell: targetElementId, port: "left" },
     ...pathConfig,
+    attrs,
     label,
-    style,
     createdAt: TIME,
   };
 }
@@ -249,20 +250,14 @@ export const typicalCanvasDocument: CanvasDocument = {
     },
     storyCanvasRefElement("el-ref", nightShiftCanvas.id, { x: 400, y: 300 }),
   ],
-  edges: [
-    storyEdge("edge-depends", "el-irrigation", "el-note", "依赖", {
-      lineStyle: "solid",
-      width: "thin",
-      arrowhead: "classic",
-    }),
-  ],
+  edges: [storyEdge("edge-depends", "el-irrigation", "el-note", "依赖")],
 };
 
 function edgeGallery(
   rows: ReadonlyArray<{
     id: string;
     label: string;
-    style: CanvasEdgeDTO["style"];
+    line?: Record<string, unknown>;
     pathConfig?: Pick<CanvasEdgeDTO, "router" | "connector">;
     edgeLabel?: string | null;
   }>,
@@ -287,7 +282,10 @@ function edgeGallery(
       `${row.id}-from`,
       `${row.id}-to`,
       row.edgeLabel ?? row.label,
-      row.style,
+      {
+        ...structuredClone(DEFAULT_CANVAS_EDGE_ATTRS),
+        line: { ...DEFAULT_CANVAS_EDGE_ATTRS.line, ...row.line },
+      },
       row.pathConfig,
     ),
   );
@@ -363,17 +361,15 @@ export const canvasRefCardsDocument: CanvasDocument = {
 };
 
 export const edgeRoutingDocument = edgeGallery([
-  { id: "edge-curve", label: "曲线", style: null },
+  { id: "edge-curve", label: "曲线" },
   {
     id: "edge-straight",
     label: "直线",
-    style: null,
     pathConfig: { router: null, connector: { name: "normal" } },
   },
   {
     id: "edge-orthogonal",
     label: "正交",
-    style: null,
     pathConfig: {
       router: {
         name: "manhattan",
@@ -385,43 +381,42 @@ export const edgeRoutingDocument = edgeGallery([
 ]);
 
 export const edgeLineStyleDocument = edgeGallery([
-  { id: "edge-solid", label: "实线", style: { lineStyle: "solid" } },
-  { id: "edge-dashed", label: "虚线", style: { lineStyle: "dashed" } },
-  { id: "edge-dotted", label: "点线", style: { lineStyle: "dotted" } },
+  { id: "edge-solid", label: "实线" },
+  { id: "edge-dashed", label: "虚线", line: { strokeDasharray: "5 5" } },
+  { id: "edge-dotted", label: "点线", line: { strokeDasharray: "2 2" } },
 ]);
 
 export const edgeWidthDocument = edgeGallery([
-  { id: "edge-thin", label: "细", style: { width: "thin" } },
-  { id: "edge-medium", label: "中", style: { width: "medium" } },
-  { id: "edge-thick", label: "粗", style: { width: "thick" } },
+  { id: "edge-thin", label: "细", line: { strokeWidth: 2 } },
+  { id: "edge-medium", label: "中", line: { strokeWidth: 3 } },
+  { id: "edge-thick", label: "粗", line: { strokeWidth: 4 } },
 ]);
 
 export const edgeColorDocument = edgeGallery([
-  { id: "edge-color-none", label: "默认色", style: {} },
-  { id: "edge-color-1", label: "chart-1", style: { color: "chart-1" } },
-  { id: "edge-color-2", label: "chart-2", style: { color: "chart-2" } },
-  { id: "edge-color-3", label: "chart-3", style: { color: "chart-3" } },
-  { id: "edge-color-4", label: "chart-4", style: { color: "chart-4" } },
-  { id: "edge-color-5", label: "chart-5", style: { color: "chart-5" } },
+  { id: "edge-color-none", label: "默认色" },
+  { id: "edge-color-1", label: "chart-1", line: { stroke: "var(--chart-1)" } },
+  { id: "edge-color-2", label: "chart-2", line: { stroke: "var(--chart-2)" } },
+  { id: "edge-color-3", label: "chart-3", line: { stroke: "var(--chart-3)" } },
+  { id: "edge-color-4", label: "chart-4", line: { stroke: "var(--chart-4)" } },
+  { id: "edge-color-5", label: "chart-5", line: { stroke: "var(--chart-5)" } },
 ]);
 
 export const edgeArrowheadDocument = edgeGallery([
-  { id: "edge-arrow-classic", label: "箭头", style: { arrowhead: "classic" } },
-  { id: "edge-arrow-block", label: "方块", style: { arrowhead: "block" } },
-  { id: "edge-arrow-circle", label: "圆点", style: { arrowhead: "circle" } },
-  { id: "edge-arrow-diamond", label: "菱形", style: { arrowhead: "diamond" } },
-  { id: "edge-arrow-cross", label: "十字", style: { arrowhead: "cross" } },
-  { id: "edge-arrow-ellipse", label: "椭圆", style: { arrowhead: "ellipse" } },
-  { id: "edge-arrow-none", label: "无箭头", style: { arrowhead: "none" } },
+  { id: "edge-arrow-classic", label: "箭头" },
+  { id: "edge-arrow-block", label: "方块", line: { targetMarker: { name: "block" } } },
+  { id: "edge-arrow-circle", label: "圆点", line: { targetMarker: { name: "circle" } } },
+  { id: "edge-arrow-diamond", label: "菱形", line: { targetMarker: { name: "diamond" } } },
+  { id: "edge-arrow-cross", label: "十字", line: { targetMarker: { name: "cross" } } },
+  { id: "edge-arrow-ellipse", label: "椭圆", line: { targetMarker: { name: "ellipse" } } },
+  { id: "edge-arrow-none", label: "无箭头", line: { targetMarker: null } },
 ]);
 
 export const edgeLabelDocument = edgeGallery([
-  { id: "edge-label-none", label: "无标签", style: {}, edgeLabel: null },
-  { id: "edge-label-short", label: "短标签", style: {}, edgeLabel: "依赖" },
+  { id: "edge-label-none", label: "无标签", edgeLabel: null },
+  { id: "edge-label-short", label: "短标签", edgeLabel: "依赖" },
   {
     id: "edge-label-long",
     label: "长标签",
-    style: {},
     edgeLabel: "夜班联调窗口与下一观察窗的依赖关系",
   },
 ]);

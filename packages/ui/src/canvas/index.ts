@@ -31,12 +31,11 @@ export {
   type CanvasSaveStatusKind,
 } from "./canvas-workspace-chrome";
 export {
-  DEFAULT_CANVAS_EDGE_STYLE,
   DEFAULT_CANVAS_VIEWPORT,
   EMPTY_CANVAS_DOCUMENT,
   type CanvasDocument,
   type CanvasEdgeDTO,
-  type CanvasEdgeStyle,
+  type CanvasEdgeAttrs,
   type CanvasElementDTO,
   type CanvasElementKind,
   type CanvasViewport,

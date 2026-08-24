@@ -174,7 +174,7 @@ export async function edgeModel(page: Page) {
         target: edge.getTargetCellId() ?? null,
         targetPort: edge.getTargetPortId() ?? null,
         label: dto.label ?? null,
-        style: dto.style ?? null,
+        attrs: dto.attrs,
         router: edge.getRouter()?.name ?? null,
         connector: edge.getConnector()?.name ?? null,
         strokeToken: line.stroke ?? null,
