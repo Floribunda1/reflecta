@@ -28,6 +28,7 @@ type DomainTreeSelectCommonProps = {
   disabled?: boolean;
   fluid?: boolean;
   showPath?: boolean;
+  size?: "default" | "sm";
   variant?: "default" | "inline";
 };
 
@@ -69,6 +70,7 @@ export function DomainTreeSelect(props: DomainTreeSelectProps) {
     disabled = false,
     fluid = true,
     showPath = true,
+    size = "default",
     variant = "default",
   } = props;
   const [open, setOpen] = useState(false);
@@ -122,7 +124,7 @@ export function DomainTreeSelect(props: DomainTreeSelectProps) {
       >
         <ComboboxChips
           className={cn(
-            "min-h-9 w-full gap-2 bg-background dark:bg-background hover:bg-muted",
+            `${size === "sm" ? "min-h-8" : "min-h-9"} w-full gap-2 bg-background dark:bg-background hover:bg-muted`,
             variant === "inline" &&
               "border-none bg-transparent dark:bg-transparent px-0 py-0 shadow-none hover:bg-transparent focus-within:border-transparent focus-within:ring-0",
           )}

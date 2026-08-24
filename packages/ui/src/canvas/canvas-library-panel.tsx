@@ -211,6 +211,7 @@ export function CanvasLibraryPanel({
                 nodes={domainTree}
                 status={domainsLoading ? "loading" : "ready"}
                 placeholder="全部领域"
+                size="sm"
                 variant="inline"
               />
             </div>
