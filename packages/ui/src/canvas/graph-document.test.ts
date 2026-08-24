@@ -124,9 +124,16 @@ describe("graph-document toX6Cells", () => {
         {
           attrs: {
             // 实色线色 pill：背景=线色+圆角，文字=按线色明暗自适应（chart-1 青偏深→白字）。
-            rect: { fill: "var(--chart-1)", stroke: "none", rx: 8 },
-            body: { fill: "var(--chart-1)", stroke: "none", rx: 8 },
-            label: { text: "causal", fill: "#fff", fontSize: 12 },
+            body: {
+              fill: "var(--chart-1)",
+              stroke: "none",
+              rx: 4,
+              refX: -6,
+              refY: -3,
+              refWidth: 12,
+              refHeight: 6,
+            },
+            label: { text: "causal", fill: "#fff", fontSize: 11, fontWeight: 500 },
           },
         },
       ],

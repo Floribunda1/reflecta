@@ -57,18 +57,30 @@ export const DEFAULT_CANVAS_EDGE_ATTRS: CanvasEdgeAttrs = {
  * 背景色跟随的是“线色”而不是“背后 group 底色”——所以换色 / detach / 挪动 / 嵌套
  * 全都无需同步：颜色来源唯一且确定（line.stroke），改线色由 applyEdgePresentation
  * 重算 label attrs 天然跟随，零组件 / 零同步。
- * rect / body 保留（X6 defaultLabel markup 需要这些 selector），设 fill + rx 成 pill；
+ * X6 defaultLabel markup 的 body 设 fill + rx 成紧凑 tag，并用 ref* 属性补内边距；
  * label 文字用 contrastTextColor 选高对比色。
  */
 function edgeLabelItems(label: string | null, color: string) {
-  const pill = { fill: color, stroke: "none", rx: 8 } as const;
+  const tag = {
+    fill: color,
+    stroke: "none",
+    rx: 4,
+    refX: -6,
+    refY: -3,
+    refWidth: 12,
+    refHeight: 6,
+  } as const;
   return label
     ? [
         {
           attrs: {
-            rect: pill,
-            body: pill,
-            label: { text: label, fill: contrastTextColor(color), fontSize: 12 },
+            body: tag,
+            label: {
+              text: label,
+              fill: contrastTextColor(color),
+              fontSize: 11,
+              fontWeight: 500,
+            },
           },
         },
       ]
@@ -94,7 +106,11 @@ function parseHex(color: string): string | null {
   const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color.trim());
   if (!m) return null;
   const hex = m[1];
-  if (hex.length === 3) return `#${hex.split("").map((c) => c + c).join("")}`;
+  if (hex.length === 3)
+    return `#${hex
+      .split("")
+      .map((c) => c + c)
+      .join("")}`;
   return `#${hex}`;
 }
 
