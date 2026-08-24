@@ -150,17 +150,6 @@ export function CanvasLibraryPanel({
 
         {tab === "understandings" ? (
           <div className="flex shrink-0 flex-col gap-1.5 p-2">
-            <div className="min-w-0">
-              <DomainTreeSelect
-                mode="single"
-                value={selectedDomainId === "all" ? null : selectedDomainId}
-                onValueChange={(domainId) => onSelectedDomainIdChange(domainId ?? "all")}
-                nodes={domainTree}
-                status={domainsLoading ? "loading" : "ready"}
-                placeholder="全部领域"
-                variant="inline"
-              />
-            </div>
             <div className="flex items-center gap-1.5">
               <InputGroup className="min-w-0 flex-1">
                 <InputGroupAddon align="inline-start">
@@ -213,6 +202,17 @@ export function CanvasLibraryPanel({
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
+            </div>
+            <div className="min-w-0">
+              <DomainTreeSelect
+                mode="single"
+                value={selectedDomainId === "all" ? null : selectedDomainId}
+                onValueChange={(domainId) => onSelectedDomainIdChange(domainId ?? "all")}
+                nodes={domainTree}
+                status={domainsLoading ? "loading" : "ready"}
+                placeholder="全部领域"
+                variant="inline"
+              />
             </div>
           </div>
         ) : (
