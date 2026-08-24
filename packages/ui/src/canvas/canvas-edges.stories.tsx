@@ -24,8 +24,6 @@ const PATH_OPTIONS = [
 ] as const;
 type Path = (typeof PATH_OPTIONS)[number]["value"];
 
-const PORTS = ["top", "right", "bottom", "left"] as const satisfies ReadonlyArray<CanvasEdgePortId>;
-
 const POSITIONS = [
   { label: "上", source: [322, 250], target: [322, 40] },
   { label: "右上", source: [322, 250], target: [620, 40] },
@@ -108,14 +106,6 @@ function EdgeRoutingLab() {
     setCurrentEdge(edgeToEdge(cell));
     fit();
   };
-  const reconnect = (terminal: "source" | "target", port: CanvasEdgePortId) => {
-    const cell = edgeCell();
-    if (!cell) return;
-    if (terminal === "source") cell.setSource({ cell: currentEdge.source.cell, port });
-    else cell.setTarget({ cell: currentEdge.target.cell, port });
-    setCurrentEdge(edgeToEdge(cell));
-    fit();
-  };
   const moveNodes = (index: number) => {
     const graph = graphRef.current?.graph;
     const next = POSITIONS[index];
@@ -124,6 +114,8 @@ function EdgeRoutingLab() {
     const target = graph.getCellById(pathDemoTarget.id);
     if (source?.isNode()) source.position(next.source[0], next.source[1]);
     if (target?.isNode()) target.position(next.target[0], next.target[1]);
+    const cell = edgeCell();
+    if (cell) setCurrentEdge(edgeToEdge(cell));
     setPosition(index);
     fit();
   };
@@ -138,7 +130,7 @@ function EdgeRoutingLab() {
   return (
     <StoryShowcase
       title="Edge Routing Lab"
-      description="切换位置时自动选择面对彼此的连接桩；也可手动覆盖端口，用于诊断极端组合。"
+      description="只暴露路径和相对位置；连接桩由两张卡片的位置自动选择。"
     >
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="grid gap-3">
@@ -153,36 +145,6 @@ function EdgeRoutingLab() {
                 onClick={() => selectPath(option.value)}
               >
                 {option.label}
-              </Button>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-background p-1">
-            <span className="px-2 text-sm text-muted-foreground">起点桩</span>
-            {PORTS.map((port) => (
-              <Button
-                key={port}
-                type="button"
-                size="sm"
-                variant={currentEdge.source.port === port ? "secondary" : "ghost"}
-                aria-label={`起点:${port}`}
-                onClick={() => reconnect("source", port)}
-              >
-                {port}
-              </Button>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-background p-1">
-            <span className="px-2 text-sm text-muted-foreground">终点桩</span>
-            {PORTS.map((port) => (
-              <Button
-                key={port}
-                type="button"
-                size="sm"
-                variant={currentEdge.target.port === port ? "secondary" : "ghost"}
-                aria-label={`终点:${port}`}
-                onClick={() => reconnect("target", port)}
-              >
-                {port}
               </Button>
             ))}
           </div>
@@ -225,9 +187,7 @@ function EdgeRoutingLab() {
               2,
             )}
           </pre>
-          <p className="text-xs text-muted-foreground">
-            连接桩按钮直接调用 X6 setSource / setTarget，用于验收重连后的原生配置。
-          </p>
+          <p className="text-xs text-muted-foreground">连接桩是自动计算结果，不作为用户配置项。</p>
         </div>
       </div>
     </StoryShowcase>
