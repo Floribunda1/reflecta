@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@reflecta/ui/components/button";
 import { ScrollArea } from "@reflecta/ui/components/scroll-area";
 import { Skeleton } from "@reflecta/ui/components/skeleton";
+import { Empty, EmptyDescription } from "@reflecta/ui/components/empty";
 import { useModal } from "@reflecta/ui/overlays";
 import { useNavigateToCanvas } from "@renderer/modules/shared/navigation";
 import type { CanvasDTO } from "@reflecta/server";
@@ -72,9 +73,9 @@ export function CanvasListPanel({ selectedCanvasId }: { selectedCanvasId: string
         {isLoading ? (
           <CanvasListSkeleton />
         ) : !canvases || canvases.length === 0 ? (
-          <div className="px-2 py-3 text-xs leading-5 text-muted-foreground">
-            <span>还没有画布</span>
-          </div>
+          <Empty className="px-2 py-3" data-testid="canvas-list-empty">
+            <EmptyDescription>还没有画布，点击右上角新建</EmptyDescription>
+          </Empty>
         ) : (
           <div className="space-y-1 px-2" data-testid="canvas-list">
             {canvases.map((canvas) => (

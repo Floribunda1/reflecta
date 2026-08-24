@@ -18,6 +18,7 @@ import {
 } from "#components/context-menu";
 import { DropdownMenuItem, DropdownMenuSeparator } from "#components/dropdown-menu";
 import { ScrollArea } from "#components/scroll-area";
+import { Empty, EmptyDescription } from "#components/empty";
 import { Spinner } from "#components/spinner";
 import { cn } from "#lib/utils";
 
@@ -182,7 +183,9 @@ export function ChatThreadSidebar({
             <div className="px-2 py-3 text-xs leading-5 text-muted-foreground">加载对话...</div>
           ) : null}
           {!pending && threadCount === 0 ? (
-            <div className="px-2 py-3 text-xs leading-5 text-muted-foreground">还没有对话</div>
+            <Empty className="px-2 py-3">
+              <EmptyDescription>还没有对话</EmptyDescription>
+            </Empty>
           ) : null}
           {groups.map((group) => (
             <div

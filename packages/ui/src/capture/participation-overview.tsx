@@ -2,6 +2,7 @@ import { useLatest } from "ahooks";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { X } from "lucide-react";
+import { Empty, EmptyDescription } from "../components/empty";
 import {
   cloneElement,
   lazy,
@@ -91,7 +92,11 @@ function activityTip(
 
 function DayDetail({ detail }: { detail: ParticipationDayDetail }) {
   if (detail.sessions.length === 0 && detail.understandings.length === 0) {
-    return <p className="text-sm text-muted-foreground">这一天没有参与记录。</p>;
+    return (
+      <Empty className="py-6">
+        <EmptyDescription>这一天没有参与记录。</EmptyDescription>
+      </Empty>
+    );
   }
 
   return (

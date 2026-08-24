@@ -1,5 +1,6 @@
 import { ArrowUpDown, FileText, GitBranch, LayoutGrid, Search, X } from "lucide-react";
 import { Button } from "../components/button";
+import { Empty, EmptyDescription } from "../components/empty";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../components/input-group";
 import { ScrollArea } from "../components/scroll-area";
 import {
@@ -238,9 +239,11 @@ export function CanvasLibraryPanel({
             {loading ? (
               <div className="p-4 text-sm text-muted-foreground">加载中…</div>
             ) : items.length === 0 ? (
-              <div className="p-4 text-sm text-muted-foreground">
-                {searchQuery.trim() ? "没有匹配的理解" : "还没有理解，先去 Capture 记录"}
-              </div>
+              <Empty className="p-4">
+                <EmptyDescription>
+                  {searchQuery.trim() ? "没有匹配的理解" : "还没有理解，先去 Capture 记录"}
+                </EmptyDescription>
+              </Empty>
             ) : (
               <div className="flex flex-col gap-1 p-2" data-testid="canvas-library-list">
                 {items.map((understanding) => (
@@ -269,9 +272,11 @@ export function CanvasLibraryPanel({
             {canvasesLoading ? (
               <div className="p-4 text-sm text-muted-foreground">加载中…</div>
             ) : canvases.length === 0 ? (
-              <div className="p-4 text-sm text-muted-foreground">
-                {searchQuery.trim() ? "没有匹配的画布" : "还没有其他画布，先去画布列表新建"}
-              </div>
+              <Empty className="p-4">
+                <EmptyDescription>
+                  {searchQuery.trim() ? "没有匹配的画布" : "还没有其他画布，先去画布列表新建"}
+                </EmptyDescription>
+              </Empty>
             ) : (
               <div className="flex flex-col gap-1 p-2" data-testid="canvas-library-canvas-list">
                 {canvases.map((canvas) => (

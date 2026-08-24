@@ -4,6 +4,7 @@ import { effectQuery } from "@renderer/lib/effect-query";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { CanvasDetailDTO } from "@reflecta/server";
 import { CanvasReadOnlyView, type CanvasShapeData } from "@reflecta/ui/canvas";
+import { Empty, EmptyContent, EmptyDescription } from "@reflecta/ui/components/empty";
 import { useMemo } from "react";
 import { Button } from "@reflecta/ui/components/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@reflecta/ui/components/dialog";
@@ -43,21 +44,23 @@ export function CanvasInspector({
   }
   if (!detailQuery.data) {
     return (
-      <div className="flex flex-col gap-3 p-4 text-sm text-muted-foreground">
-        没有找到这张画布。
-        {onOpenEditor ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            data-testid="canvas-inspector-open-editor"
-            onClick={() => onOpenEditor(canvasId)}
-          >
-            <PanelTop size={14} />
-            在画布编辑器中打开
-          </Button>
-        ) : null}
-      </div>
+      <Empty className="p-4">
+        <EmptyContent>
+          <EmptyDescription>没有找到这张画布。</EmptyDescription>
+          {onOpenEditor ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              data-testid="canvas-inspector-open-editor"
+              onClick={() => onOpenEditor(canvasId)}
+            >
+              <PanelTop size={14} />
+              在画布编辑器中打开
+            </Button>
+          ) : null}
+        </EmptyContent>
+      </Empty>
     );
   }
 

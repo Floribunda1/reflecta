@@ -20,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { ChevronDown, ChevronRight, Layers } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "../components/button";
+import { Empty, EmptyDescription } from "../components/empty";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -386,7 +387,9 @@ export function DomainTree({
         />
 
         {nodes.length === 0 ? (
-          <div className="px-2 py-3 text-xs leading-5 text-muted-foreground">{emptyText}</div>
+          <Empty className="px-2 py-3">
+            <EmptyDescription>{emptyText}</EmptyDescription>
+          </Empty>
         ) : null}
       </div>
       <DragOverlay dropAnimation={null}>

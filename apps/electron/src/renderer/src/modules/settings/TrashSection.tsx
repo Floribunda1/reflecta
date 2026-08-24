@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { TrashedCanvasDTO, TrashedContextDTO, TrashedUnderstandingDTO } from "@shared/trash";
 import { useModal } from "@reflecta/ui/overlays";
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from "@reflecta/ui/components/empty";
 import { renderError } from "@renderer/lib/errors";
 import { captureQueryKeys } from "../capture/queries";
 import { canvasQueryKeys } from "../canvas/queries";
@@ -217,10 +218,14 @@ export function TrashSection() {
             <Loader2 className="animate-spin text-muted-foreground" size={22} />
           </div>
         ) : totalCount === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border py-10">
-            <Trash2 size={24} className="text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">回收站为空</span>
-          </div>
+          <Empty className="py-10">
+            <EmptyContent>
+              <EmptyMedia variant="icon">
+                <Trash2 />
+              </EmptyMedia>
+              <EmptyDescription>回收站为空</EmptyDescription>
+            </EmptyContent>
+          </Empty>
         ) : (
           <div className="flex flex-col gap-5">
             {understandings.length > 0 && (
