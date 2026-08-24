@@ -13,6 +13,7 @@ import {
 import { cn } from "#lib/utils";
 import { attachmentMeta } from "#lib/file-meta";
 import type { ChatEntityBindings } from "../entity";
+import type { CanvasUnderstandingRefView } from "../../canvas";
 import {
   entityClassName,
   CHAT_ENTITY_ICON_FONT_SIZE,
@@ -50,6 +51,7 @@ export type AgentMessageViewProps = {
   search?: { query: string };
   entityBindings?: ChatEntityBindings;
   onProposalDecision?: (decision: AgentProposalDecision) => void;
+  understandingRefs?: ReadonlyMap<string, CanvasUnderstandingRefView>;
 };
 
 export type ChatMessageRowProps = {
@@ -61,6 +63,7 @@ export type ChatMessageRowProps = {
   /** 附件打开（有本地路径时用系统应用打开）。 */
   onAttachmentOpen?: (attachment: ChatMessageAttachmentView) => void;
   onProposalDecision?: (decision: AgentProposalDecision) => void;
+  understandingRefs?: ReadonlyMap<string, CanvasUnderstandingRefView>;
 };
 
 function ZoomableChatImage({ src, alt, className, ...props }: ComponentProps<"img">) {
@@ -310,6 +313,7 @@ function AgentMessageContent({
   message,
   entityBindings,
   onProposalDecision,
+  understandingRefs,
 }: Omit<AgentMessageViewProps, "search">) {
   const renderedBlocks: ReactNode[] = [];
 
@@ -384,6 +388,7 @@ function AgentMessageContent({
           key={block.proposal.id}
           proposal={block.proposal}
           entityBindings={entityBindings}
+          understandingRefs={understandingRefs}
           onDecision={onProposalDecision}
         />,
       );
@@ -418,6 +423,7 @@ export function AgentMessageView({
   search,
   entityBindings,
   onProposalDecision,
+  understandingRefs,
 }: AgentMessageViewProps) {
   return (
     <ChatSearchProvider messageId={message.id} query={search?.query}>
@@ -425,6 +431,7 @@ export function AgentMessageView({
         message={message}
         entityBindings={entityBindings}
         onProposalDecision={onProposalDecision}
+        understandingRefs={understandingRefs}
       />
     </ChatSearchProvider>
   );
@@ -445,6 +452,7 @@ export function ChatMessageRow({
   onEntityOpen,
   onAttachmentOpen,
   onProposalDecision,
+  understandingRefs,
 }: ChatMessageRowProps) {
   const { message } = row;
   return (
@@ -471,6 +479,7 @@ export function ChatMessageRow({
             message={message}
             entityBindings={entityBindings}
             onProposalDecision={onProposalDecision}
+            understandingRefs={understandingRefs}
           />
         )}
         {row.timestampLabel || row.enabledActions?.length ? (

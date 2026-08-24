@@ -40,6 +40,7 @@ export type AgentProposalCardProps = {
   proposal: AgentProposalView;
   onDecision?: (decision: AgentProposalDecision) => void;
   entityBindings?: ChatEntityBindings;
+  understandingRefs?: ReadonlyMap<string, CanvasUnderstandingRefView>;
 };
 
 function ProposalStatus({
@@ -725,7 +726,15 @@ const CanvasReadOnlyView = lazy(() =>
   import("../../canvas").then((m) => ({ default: m.CanvasReadOnlyView })),
 );
 
-function CanvasProposalDraft({ proposal, open }: { proposal: CanvasProposalView; open: boolean }) {
+function CanvasProposalDraft({
+  proposal,
+  open,
+  loadedUnderstandingRefs,
+}: {
+  proposal: CanvasProposalView;
+  open: boolean;
+  loadedUnderstandingRefs?: ReadonlyMap<string, CanvasUnderstandingRefView>;
+}) {
   const content = proposal.content;
   if (content.variant === "delete" || !content.document) {
     return (
@@ -734,14 +743,15 @@ function CanvasProposalDraft({ proposal, open }: { proposal: CanvasProposalView;
       </div>
     );
   }
-  const understandingRefs = new Map<string, CanvasUnderstandingRefView>();
+  const understandingRefs = new Map(loadedUnderstandingRefs);
   for (const title of content.understandingTitles ?? []) {
-    understandingRefs.set(title.id, {
-      id: title.id,
-      title: title.title ?? null,
-      body: "",
-      deleted: false,
-    });
+    if (!understandingRefs.has(title.id))
+      understandingRefs.set(title.id, {
+        id: title.id,
+        title: title.title ?? null,
+        body: "",
+        deleted: false,
+      });
   }
   // 卡片折叠（collapsible keepMounted + collapse-grid 动画）时 X6 图会在 0/裁剪尺寸里
   // 挂一程，展开回来不重新 fit 就坏。折叠即卸载、展开按当前尺寸重建 + fit：
@@ -753,6 +763,8 @@ function CanvasProposalDraft({ proposal, open }: { proposal: CanvasProposalView;
           <CanvasReadOnlyView
             document={content.document}
             shapeData={{ understandingRefs, referencedCanvases: new Map() }}
+            showZoomControls
+            className="h-full min-h-0"
           />
         </Suspense>
       ) : (
@@ -792,10 +804,12 @@ function ProposalContent({
   proposal,
   entityBindings,
   open,
+  understandingRefs,
 }: {
   proposal: AgentProposalView;
   entityBindings?: ChatEntityBindings;
   open: boolean;
+  understandingRefs?: ReadonlyMap<string, CanvasUnderstandingRefView>;
 }) {
   if (proposal.kind === "understanding-create")
     return <UnderstandingCreate proposal={proposal} entityBindings={entityBindings} />;
@@ -820,7 +834,14 @@ function ProposalContent({
   if (proposal.kind === "context-delete")
     return <DeleteProposal>确认后，这条 Context 将移入回收站。</DeleteProposal>;
   if (proposal.kind === "bash") return <BashProposal proposal={proposal} />;
-  if (proposal.kind === "canvas") return <CanvasProposalDraft proposal={proposal} open={open} />;
+  if (proposal.kind === "canvas")
+    return (
+      <CanvasProposalDraft
+        proposal={proposal}
+        open={open}
+        loadedUnderstandingRefs={understandingRefs}
+      />
+    );
   return <UnknownProposal proposal={proposal} entityBindings={entityBindings} />;
 }
 
@@ -832,6 +853,7 @@ export function AgentProposalCard({
   proposal,
   onDecision,
   entityBindings,
+  understandingRefs,
 }: AgentProposalCardProps) {
   const [manualOpen, setManualOpen] = useState<{
     id: string;
@@ -899,7 +921,12 @@ export function AgentProposalCard({
             <ProposalMeta proposal={proposal} />
           </div>
           <div className="max-h-136 overflow-y-auto px-3 pb-3">
-            <ProposalContent proposal={proposal} entityBindings={entityBindings} open={open} />
+            <ProposalContent
+              proposal={proposal}
+              entityBindings={entityBindings}
+              open={open}
+              understandingRefs={understandingRefs}
+            />
             <Reason value={proposalReason(proposal)} />
             {hasToolDetails(proposal.result) ? (
               <div className="mt-5 text-sm text-muted-foreground">
