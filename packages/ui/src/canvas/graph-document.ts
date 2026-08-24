@@ -249,6 +249,14 @@ export function toX6Edge(edge: CanvasEdgeDTO): X6EdgeCtor {
 /** 卡片内容 / 颜色：原地写 node data。react-shape Wrap 听 `change:data` 只重绘这一张。 */
 export function applyElementUpdate(node: X6Node, element: CanvasElementDTO): void {
   node.replaceData({ element });
+  // 颜色原地变换时同步根元素 CSS 变量 → 端口圆色。
+  // 初始值由 nodeMetadataFor 的 attrs.root.style 写入，这里覆盖/清除（setAttrs 默认 merge）。
+  const paint = element.props.color ? tokenPaintColor(element.props.color) : undefined;
+  if (paint) {
+    node.setAttrs({ root: { style: { "--canvas-node-paint": paint } } });
+  } else {
+    node.removeAttr("root/style/--canvas-node-paint");
+  }
 }
 
 /**
