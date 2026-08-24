@@ -6,6 +6,7 @@ import type { CanvasDetailDTO } from "@reflecta/server";
 import { CanvasReadOnlyView, type CanvasShapeData } from "@reflecta/ui/canvas";
 import { useMemo } from "react";
 import { Button } from "@reflecta/ui/components/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@reflecta/ui/components/dialog";
 import { PanelTop } from "lucide-react";
 
 /**
@@ -68,5 +69,34 @@ export function CanvasInspector({
         className="min-h-0 flex-1"
       />
     </div>
+  );
+}
+
+/** Agent 页打开画布详情：只读 dialog，不占用右侧 inspector。 */
+export function CanvasInspectDialog({
+  canvasId,
+  title,
+  onClose,
+}: {
+  canvasId: string;
+  title?: string;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <DialogContent
+        data-testid="agent-canvas-dialog"
+        className="h-[90vh] max-h-[90vh] w-[min(80vw,calc(100vw-3rem))] max-w-none overflow-hidden p-0 sm:max-w-none"
+      >
+        <div className="flex h-full min-h-0 flex-col">
+          <DialogHeader className="px-4 pt-4 pr-12">
+            <DialogTitle>{title?.trim() || "画布"}</DialogTitle>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-hidden px-4 pb-4">
+            <CanvasInspector canvasId={canvasId} />
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

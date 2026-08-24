@@ -66,8 +66,10 @@ test("@CV-X6-RO-001 只读画布禁止编辑交互", async () => {
   const link = page!.locator('[data-slot="wiki-link"]').filter({ hasText: "RO" }).first();
   await expect(link).toBeVisible();
   await link.click();
-  await expect(page!.getByTestId("agent-context-inspector")).toBeVisible();
-  const node = page!.getByTestId("agent-context-inspector").locator('[data-node-id="r_a"]').first();
+  const dialog = page!.getByTestId("agent-canvas-dialog");
+  await expect(dialog).toBeVisible();
+  await expect(page!.getByTestId("agent-context-inspector")).toHaveCount(0);
+  const node = dialog.locator('[data-node-id="r_a"]').first();
   await expect(node).toBeVisible();
   const modelBefore = await h.nodeGeometry(page!, "r_a");
   const b = (await node.boundingBox())!;
@@ -82,10 +84,10 @@ test("@CV-X6-RO-001 只读画布禁止编辑交互", async () => {
 });
 
 test("@CV-X6-RO-002 只读画布保留缩放查看", async () => {
-  const inspector = page!.getByTestId("agent-context-inspector");
-  await expect(inspector).toBeVisible();
+  const dialog = page!.getByTestId("agent-canvas-dialog");
+  await expect(dialog).toBeVisible();
   const before = await h.graphViewport(page!);
-  const box = (await inspector.boundingBox())!;
+  const box = (await dialog.boundingBox())!;
   await page!.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page!.mouse.wheel(0, -240);
   await page!.waitForTimeout(250);
@@ -94,10 +96,10 @@ test("@CV-X6-RO-002 只读画布保留缩放查看", async () => {
 });
 
 test("@CV-X6-RO-003 各只读入口共用同一渲染", async () => {
-  const inspectorNode = page!
-    .getByTestId("agent-context-inspector")
+  const dialogNode = page!
+    .getByTestId("agent-canvas-dialog")
     .getByTestId("canvas-text-card")
     .first();
-  await expect(inspectorNode).toBeVisible();
-  await expect(inspectorNode).toHaveAttribute("data-node-id", "r_a");
+  await expect(dialogNode).toBeVisible();
+  await expect(dialogNode).toHaveAttribute("data-node-id", "r_a");
 });

@@ -12,7 +12,7 @@ const NEW_LANDING_FLASH_MS = 1_600;
  * 对话 artifact panel（C14 / M8-7 / U2）：header actions 中的产出入口。
  * 只展示本对话已落地的产出（approved + saved），pending 提案留在消息流。
  * 条目点击 = 打开实体详情（understanding/context 复用 chat 右面板 inspector，
- * domain 跳 capture 并选中；canvas 待画布工具落地后接 C13 跳转）。
+ * canvas 打开只读 dialog；domain 跳 capture 并选中）。
  */
 export function ArtifactPanel({
   view,

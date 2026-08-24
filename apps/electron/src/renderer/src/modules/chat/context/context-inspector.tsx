@@ -6,9 +6,8 @@ import {
   ContextPreviewDrawerContent,
   UnderstandingDetail,
 } from "@renderer/modules/capture/understanding-detail";
-import { CanvasInspector } from "./canvas-inspector";
 import type { ContextDTO } from "@shared/context";
-import type { InspectableContextRef } from "./context-reference";
+import type { InspectableContextRef, InspectorPanelRef } from "./context-reference";
 
 export function ContextInspector({
   refToInspect,
@@ -17,7 +16,7 @@ export function ContextInspector({
   focusMode = false,
   onFocusModeChange,
 }: {
-  refToInspect: InspectableContextRef;
+  refToInspect: InspectorPanelRef;
   onClose: () => void;
   onInspect: (ref: InspectableContextRef) => void;
   focusMode?: boolean;
@@ -57,7 +56,6 @@ export function ContextInspector({
             onClose={onClose}
           />
         ) : null}
-        {refToInspect.type === "canvas" ? <CanvasInspector canvasId={refToInspect.id} /> : null}
         {refToInspect.type === "context" && contextQuery.isFetching ? (
           <div className="p-4 text-sm text-muted-foreground">加载中...</div>
         ) : null}

@@ -14,8 +14,9 @@ import type { AgentSessionSummary } from "@shared/agent";
 import { useKeyPress, useMemoizedFn } from "ahooks";
 import { toast } from "sonner";
 import { AgentThreadPanel } from "./agent-thread-panel";
+import { CanvasInspectDialog } from "./context/canvas-inspector";
 import { ContextInspector } from "./context/context-inspector";
-import type { InspectableContextRef } from "./context/context-reference";
+import { inspectorPanelRef, type InspectableContextRef } from "./context/context-reference";
 import { useActiveThreadId, useInspectorRef, useAgentUiActions } from "./session/chat-ui-store";
 import { useRunningAgentSessionId } from "./session/agent-session-replica";
 import {
@@ -89,6 +90,7 @@ function ChatPageContent() {
   const threadsQuery = useThreadsQuery();
   const activeThreadId = useActiveThreadId();
   const inspectedRef = useInspectorRef();
+  const panelRef = inspectorPanelRef(inspectedRef);
   const runningThreadId = useRunningAgentSessionId();
   const uiActions = useAgentUiActions();
   const createThreadMutation = useCreateThreadMutation();
@@ -121,7 +123,10 @@ function ChatPageContent() {
     exitInspectorFocusMode();
     uiActions.closeInspector();
   });
-  const openInspector = useMemoizedFn((ref: InspectableContextRef) => uiActions.openInspector(ref));
+  const openInspector = useMemoizedFn((ref: InspectableContextRef) => {
+    if (ref.type === "canvas") exitInspectorFocusMode();
+    uiActions.openInspector(ref);
+  });
   const createThread = useMemoizedFn(() =>
     createThreadMutation.mutate(undefined, {
       onSuccess: (thread) => {
@@ -234,96 +239,105 @@ function ChatPageContent() {
   ]);
 
   return (
-    <ResizablePanelGroup
-      id="agent-page"
-      orientation="horizontal"
-      className="h-full min-h-0 w-full overflow-hidden bg-transparent"
-    >
-      <ResizablePanel id="agent-workspace-panel" minSize="420px" className="min-h-0 min-w-0">
-        <ResizablePanelGroup
-          orientation="horizontal"
-          defaultLayout={
-            inspectedRef
-              ? {
-                  "agent-chat-main": 58,
-                  "agent-chat-inspector": 42,
-                }
-              : {
-                  "agent-chat-main": 100,
-                }
-          }
-          className="min-h-0 min-w-0 bg-background"
-        >
-          <ResizablePanel
-            id="agent-chat-main"
-            minSize="28%"
-            defaultSize={inspectedRef ? "58%" : "100%"}
-            className="min-h-0 min-w-0"
+    <>
+      <ResizablePanelGroup
+        id="agent-page"
+        orientation="horizontal"
+        className="h-full min-h-0 w-full overflow-hidden bg-transparent"
+      >
+        <ResizablePanel id="agent-workspace-panel" minSize="420px" className="min-h-0 min-w-0">
+          <ResizablePanelGroup
+            orientation="horizontal"
+            defaultLayout={
+              panelRef
+                ? {
+                    "agent-chat-main": 58,
+                    "agent-chat-inspector": 42,
+                  }
+                : {
+                    "agent-chat-main": 100,
+                  }
+            }
+            className="min-h-0 min-w-0 bg-background"
           >
-            <div
-              aria-hidden={inspectorFocusMode}
-              inert={inspectorFocusMode}
-              className="h-full min-h-0 min-w-0"
+            <ResizablePanel
+              id="agent-chat-main"
+              minSize="28%"
+              defaultSize={panelRef ? "58%" : "100%"}
+              className="min-h-0 min-w-0"
             >
-              {activeThreadId ? (
-                <ThreadChat
-                  key={activeThreadId}
-                  threadId={activeThreadId}
-                  title={activeThread?.title ?? "新对话"}
-                  scrollRequest={threadScrollRequest}
-                  titleGenerating={titleGeneratingThreadId === activeThreadId}
-                  onRename={renameThread}
-                  onGenerateTitle={generateThreadTitle}
-                  onForkAssistantMessage={forkThreadFromMessage}
-                  onArchive={archiveThread}
-                  onDelete={deleteThread}
-                  onInspectContextRef={openInspector}
-                />
-              ) : (
-                <div className="flex h-full min-h-0 min-w-0 flex-col">
-                  <PageTopBar />
-                  <main className="flex min-h-0 flex-1 items-center justify-center bg-transparent text-sm text-muted-foreground">
-                    加载 Agent...
-                  </main>
-                </div>
-              )}
-            </div>
-          </ResizablePanel>
-          {inspectedRef ? (
-            <>
-              <ResizableHandle
-                withHandle
-                disabled={inspectorFocusMode}
-                className={cn(
-                  RESIZE_HANDLE_CLASS,
-                  RESIZE_HANDLE_GRIP_CHILD_CLASS,
-                  inspectorFocusMode ? "w-0 opacity-0 after:hidden" : "w-px",
-                )}
-              />
-              <ResizablePanel
-                id="agent-chat-inspector"
-                minSize="30%"
-                defaultSize="42%"
-                maxSize="68%"
-                className="min-h-0 min-w-0"
+              <div
+                aria-hidden={inspectorFocusMode}
+                inert={inspectorFocusMode}
+                className="h-full min-h-0 min-w-0"
               >
-                <div className="h-full min-h-0 min-w-0">
-                  <ContextInspector
-                    refToInspect={inspectedRef}
-                    onClose={closeInspector}
-                    onInspect={openInspector}
-                    focusMode={inspectorFocusMode}
-                    onFocusModeChange={(focused) =>
-                      focused ? enterInspectorFocusMode() : exitInspectorFocusMode()
-                    }
+                {activeThreadId ? (
+                  <ThreadChat
+                    key={activeThreadId}
+                    threadId={activeThreadId}
+                    title={activeThread?.title ?? "新对话"}
+                    scrollRequest={threadScrollRequest}
+                    titleGenerating={titleGeneratingThreadId === activeThreadId}
+                    onRename={renameThread}
+                    onGenerateTitle={generateThreadTitle}
+                    onForkAssistantMessage={forkThreadFromMessage}
+                    onArchive={archiveThread}
+                    onDelete={deleteThread}
+                    onInspectContextRef={openInspector}
                   />
-                </div>
-              </ResizablePanel>
-            </>
-          ) : null}
-        </ResizablePanelGroup>
-      </ResizablePanel>
-    </ResizablePanelGroup>
+                ) : (
+                  <div className="flex h-full min-h-0 min-w-0 flex-col">
+                    <PageTopBar />
+                    <main className="flex min-h-0 flex-1 items-center justify-center bg-transparent text-sm text-muted-foreground">
+                      加载 Agent...
+                    </main>
+                  </div>
+                )}
+              </div>
+            </ResizablePanel>
+            {panelRef ? (
+              <>
+                <ResizableHandle
+                  withHandle
+                  disabled={inspectorFocusMode}
+                  className={cn(
+                    RESIZE_HANDLE_CLASS,
+                    RESIZE_HANDLE_GRIP_CHILD_CLASS,
+                    inspectorFocusMode ? "w-0 opacity-0 after:hidden" : "w-px",
+                  )}
+                />
+                <ResizablePanel
+                  id="agent-chat-inspector"
+                  minSize="30%"
+                  defaultSize="42%"
+                  maxSize="68%"
+                  className="min-h-0 min-w-0"
+                >
+                  <div className="h-full min-h-0 min-w-0">
+                    <ContextInspector
+                      refToInspect={panelRef}
+                      onClose={closeInspector}
+                      onInspect={openInspector}
+                      focusMode={inspectorFocusMode}
+                      onFocusModeChange={(focused) =>
+                        focused ? enterInspectorFocusMode() : exitInspectorFocusMode()
+                      }
+                    />
+                  </div>
+                </ResizablePanel>
+              </>
+            ) : null}
+          </ResizablePanelGroup>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+      {inspectedRef?.type === "canvas" ? (
+        <CanvasInspectDialog
+          canvasId={inspectedRef.id}
+          title={inspectedRef.title}
+          onClose={closeInspector}
+        />
+      ) : null}
+    </>
   );
 }
 

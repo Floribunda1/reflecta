@@ -79,15 +79,18 @@ export function AgentThreadPanel({
     [threadView.visibleMessages],
   );
   const openArtifact = useMemoizedFn((artifact: LandedArtifact) => {
-    if (artifact.type === "understanding" || artifact.type === "context") {
-      onInspectContextRef?.({ type: artifact.type, id: artifact.id });
+    if (
+      artifact.type === "understanding" ||
+      artifact.type === "context" ||
+      artifact.type === "canvas"
+    ) {
+      onInspectContextRef?.({ type: artifact.type, id: artifact.id, title: artifact.title });
       return;
     }
     if (artifact.type === "domain") {
       captureActions.selectDomain(artifact.id);
       navigate("/capture");
     }
-    // canvas：画布工具未落地前不会出现该类型行；落地后接画布模块编辑模式（C13）。
   });
   const modelOptionsQuery = useAgentModelOptionsQuery();
   const selectModelMutation = useSelectAgentModelMutation();
