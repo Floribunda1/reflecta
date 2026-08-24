@@ -12,7 +12,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "../components/popover";
 import { CANVAS_SWATCH_TOKENS, canvasPaintColor, CanvasColorSwatches } from "./color-swatches";
 import type { CanvasEdgeDTO } from "./document";
-import { smoothConnectorForPort } from "./graph-document";
+import { curveEdgePath } from "./graph-document";
 
 /**
  * 边样式 / 标签 / 删除工具栏：单条边被选中时显示在边的路径中点附近。
@@ -122,7 +122,7 @@ export function EdgeOverlay({
         : "curve";
   const patchPath = (path: (typeof PATH_OPTIONS)[number]["value"]) => {
     if (path === "curve") {
-      onUpdate({ ...dto, router: null, connector: smoothConnectorForPort(dto.source.port) });
+      onUpdate({ ...dto, ...curveEdgePath() });
       return;
     }
     if (path === "straight") {

@@ -32,7 +32,10 @@ const toAbsolute = (
   return absolutePositionOf(element, index);
 };
 
-export const DEFAULT_CANVAS_EDGE_CONNECTOR: CanvasEdgeConnector = { name: "smooth" };
+export const DEFAULT_CANVAS_EDGE_CONNECTOR: CanvasEdgeConnector = {
+  name: "rounded",
+  args: { radius: 32 },
+};
 export const DEFAULT_CANVAS_EDGE_ATTRS: CanvasEdgeAttrs = {
   line: {
     stroke: "var(--muted-foreground)",
@@ -138,8 +141,7 @@ export function newEdgeDto(canvasId: string): CanvasEdgeDTO {
     canvasId,
     source: { cell: "", port: "right" },
     target: { cell: "", port: "left" },
-    router: null,
-    connector: { ...DEFAULT_CANVAS_EDGE_CONNECTOR },
+    ...curveEdgePath(),
     attrs: structuredClone(DEFAULT_CANVAS_EDGE_ATTRS),
     label: null,
     createdAt: new Date().toISOString(),
@@ -210,10 +212,10 @@ export function facingEdgePorts(
   return dy >= 0 ? ["bottom", "top"] : ["top", "bottom"];
 }
 
-export function smoothConnectorForPort(port: CanvasEdgePortId): CanvasEdgeConnector {
+export function curveEdgePath(): Pick<CanvasEdgeDTO, "router" | "connector"> {
   return {
-    name: "smooth",
-    args: { direction: port === "left" || port === "right" ? "H" : "V" },
+    router: { name: "orth", args: { padding: 32 } },
+    connector: { ...DEFAULT_CANVAS_EDGE_CONNECTOR, args: { radius: 32 } },
   };
 }
 
@@ -229,31 +231,19 @@ export function syncEdgePortsToNodePositions(edge: X6Edge): void {
   if (edge.getSourcePortId() !== sourcePort) edge.setSource({ cell: source.id, port: sourcePort });
   if (edge.getTargetPortId() !== targetPort) edge.setTarget({ cell: target.id, port: targetPort });
   syncManhattanRouterDirections(edge);
-  const connector = edge.getConnector() as CanvasEdgeConnector | null;
-  const nextConnector =
-    connector?.name === "smooth" ? smoothConnectorForPort(sourcePort) : connector;
-  if (
-    nextConnector?.name === "smooth" &&
-    connector?.args?.direction !== nextConnector.args?.direction
-  ) {
-    edge.setConnector(nextConnector as EdgeMetadata["connector"]);
-  }
   const data = (edge.getData() as { edge?: CanvasEdgeDTO } | null)?.edge;
   if (
     data &&
     (data.source.cell !== source.id ||
       data.source.port !== sourcePort ||
       data.target.cell !== target.id ||
-      data.target.port !== targetPort ||
-      (nextConnector?.name === "smooth" &&
-        data.connector.args?.direction !== nextConnector.args?.direction))
+      data.target.port !== targetPort)
   ) {
     edge.replaceData({
       edge: {
         ...data,
         source: { cell: source.id, port: sourcePort },
         target: { cell: target.id, port: targetPort },
-        ...(nextConnector?.name === "smooth" ? { connector: nextConnector } : {}),
       },
     });
   }

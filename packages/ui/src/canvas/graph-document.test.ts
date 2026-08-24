@@ -6,7 +6,7 @@ import {
   edgeToEdge,
   facingEdgePorts,
   graphToDocument,
-  smoothConnectorForPort,
+  curveEdgePath,
   syncEdgePortsToNodePositions,
   syncManhattanRouterDirections,
   toX6Cells,
@@ -169,9 +169,11 @@ describe("in-place cell updates", () => {
     expect(facingEdgePorts(center, { x: 20, y: -100 })).toEqual(["top", "bottom"]);
   });
 
-  test("keeps smooth curve tangents aligned with their ports", () => {
-    expect(smoothConnectorForPort("left")).toEqual({ name: "smooth", args: { direction: "H" } });
-    expect(smoothConnectorForPort("bottom")).toEqual({ name: "smooth", args: { direction: "V" } });
+  test("gives curves straight terminal runs before their rounded bends", () => {
+    expect(curveEdgePath()).toEqual({
+      router: { name: "orth", args: { padding: 32 } },
+      connector: { name: "rounded", args: { radius: 32 } },
+    });
   });
 
   test("updates X6 terminals and their persisted DTO together", () => {
@@ -180,7 +182,6 @@ describe("in-place cell updates", () => {
         id: "e",
         source: { cell: "", port: "bottom" },
         target: { cell: "", port: "top" },
-        connector: { name: "smooth" },
       },
     };
     const setSource = vi.fn();
@@ -200,8 +201,6 @@ describe("in-place cell updates", () => {
       setSource,
       setTarget,
       getRouter: () => null,
-      getConnector: () => ({ name: "smooth" }),
-      setConnector: vi.fn(),
       getData: () => data,
       replaceData,
     } as never);
@@ -213,7 +212,6 @@ describe("in-place cell updates", () => {
         ...data.edge,
         source: { cell: "a", port: "right" },
         target: { cell: "b", port: "left" },
-        connector: { name: "smooth", args: { direction: "H" } },
       },
     });
   });
