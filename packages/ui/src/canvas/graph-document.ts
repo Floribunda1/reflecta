@@ -141,7 +141,7 @@ export function newEdgeDto(canvasId: string): CanvasEdgeDTO {
     canvasId,
     source: { cell: "", port: "right" },
     target: { cell: "", port: "left" },
-    ...curveEdgePath(),
+    ...curveEdgePath("right", "left"),
     attrs: structuredClone(DEFAULT_CANVAS_EDGE_ATTRS),
     label: null,
     createdAt: new Date().toISOString(),
@@ -212,9 +212,19 @@ export function facingEdgePorts(
   return dy >= 0 ? ["bottom", "top"] : ["top", "bottom"];
 }
 
-export function curveEdgePath(): Pick<CanvasEdgeDTO, "router" | "connector"> {
+export function curveEdgePath(
+  sourcePort: CanvasEdgePortId,
+  targetPort: CanvasEdgePortId,
+): Pick<CanvasEdgeDTO, "router" | "connector"> {
   return {
-    router: { name: "orth", args: { padding: 32 } },
+    router: {
+      name: "manhattan",
+      args: {
+        padding: 32,
+        startDirections: [sourcePort],
+        endDirections: [targetPort],
+      },
+    },
     connector: { ...DEFAULT_CANVAS_EDGE_CONNECTOR, args: { radius: 32 } },
   };
 }

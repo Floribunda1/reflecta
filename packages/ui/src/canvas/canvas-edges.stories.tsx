@@ -40,7 +40,7 @@ function pathConfig(
   sourcePort: CanvasEdgePortId,
   targetPort: CanvasEdgePortId,
 ): Pick<CanvasEdgeDTO, "router" | "connector"> {
-  if (path === "curve") return curveEdgePath();
+  if (path === "curve") return curveEdgePath(sourcePort, targetPort);
   if (path === "straight") return { router: null, connector: { name: "normal" } };
   return {
     router: {
@@ -80,7 +80,7 @@ const PATH_DEMO_DOCUMENT: CanvasDocument = {
       props: { ...pathDemoTarget.props, text: "终点" },
     },
   ],
-  edges: [{ ...edgeRoutingDocument.edges[0], ...curveEdgePath(), label: null }],
+  edges: [{ ...edgeRoutingDocument.edges[0], ...curveEdgePath("right", "left"), label: null }],
 };
 
 function EdgeRoutingLab() {

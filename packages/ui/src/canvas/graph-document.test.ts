@@ -170,8 +170,11 @@ describe("in-place cell updates", () => {
   });
 
   test("gives curves straight terminal runs before their rounded bends", () => {
-    expect(curveEdgePath()).toEqual({
-      router: { name: "orth", args: { padding: 32 } },
+    expect(curveEdgePath("right", "left")).toEqual({
+      router: {
+        name: "manhattan",
+        args: { padding: 32, startDirections: ["right"], endDirections: ["left"] },
+      },
       connector: { name: "rounded", args: { radius: 32 } },
     });
   });
