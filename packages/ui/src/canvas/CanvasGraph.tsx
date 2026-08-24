@@ -434,18 +434,35 @@ export const CanvasGraph = React.memo(
     // async:true 下渲染是异步的，立即 fitView 算不到内容 bbox；推迟一帧再 fit/恢复。
     // 空图 zoomToFit 会拧偏 translate，Dnd 的 client→graph 落点就漂。无内容用默认视口。
     // 初始布局不算用户操作，不 emit，避免把默认布局当成用户视口存库。
+    // Dialog / 折叠容器首帧可能是 0 尺寸：等量到宽高再 fit，否则会锁死一次错误视口。
+    // 只读查看允许放大铺满容器；编辑器仍 maxScale:1，避免一张卡撑满工作区。
     useEffect(() => {
       const graph = graphRef.current;
-      if (!graph || !viewportReady || viewportAppliedRef.current) return;
-      viewportAppliedRef.current = true;
+      const container = containerRef.current;
+      if (!graph || !container || !viewportReady || viewportAppliedRef.current) return;
+
       const applyLayout = () => {
-        suppressEmitRef.current = true;
-        if (viewport) applyViewport(graph, viewport);
-        else if (graph.getCells().length > 0) graph.zoomToFit({ padding: 20, maxScale: 1 });
-        else applyViewport(graph, DEFAULT_CANVAS_VIEWPORT);
-        suppressEmitRef.current = false;
+        if (viewportAppliedRef.current) return false;
+        if (container.clientWidth <= 0 || container.clientHeight <= 0) return false;
+        viewportAppliedRef.current = true;
+        const run = () => {
+          suppressEmitRef.current = true;
+          if (viewport) applyViewport(graph, viewport);
+          else if (graph.getCells().length > 0) {
+            graph.zoomToFit(readonlyRef.current ? { padding: 40 } : { padding: 20, maxScale: 1 });
+          } else applyViewport(graph, DEFAULT_CANVAS_VIEWPORT);
+          suppressEmitRef.current = false;
+        };
+        requestAnimationFrame(run);
+        return true;
       };
-      requestAnimationFrame(applyLayout);
+
+      if (applyLayout()) return undefined;
+      const observer = new ResizeObserver(() => {
+        if (applyLayout()) observer.disconnect();
+      });
+      observer.observe(container);
+      return () => observer.disconnect();
     }, [viewport, viewportReady, applyViewport]);
 
     // 外部 document 变化（审批应用 / 只读预览更新）→ 重建图；首次挂载除外（已加载）。
@@ -587,7 +604,10 @@ export const CanvasGraph = React.memo(
           const g = graphRef.current;
           if (g) g.zoom(g.zoom() * 0.8, { absolute: true });
         },
-        fitView: () => graphRef.current?.zoomToFit({ padding: 40, maxScale: 1 }),
+        fitView: () =>
+          graphRef.current?.zoomToFit(
+            readonlyRef.current ? { padding: 40 } : { padding: 40, maxScale: 1 },
+          ),
         startDrag: (element, event) => {
           const dnd = dndRef.current;
           const graph = graphRef.current;
