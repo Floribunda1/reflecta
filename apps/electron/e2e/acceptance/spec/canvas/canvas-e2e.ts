@@ -1,12 +1,13 @@
 import { expect, type Page } from "@playwright/test";
 
-/** 回到画布列表页（rail 入口；已在画布列表时直接返回，已在工作区/其他模块时先切回列表）。 */
+/** 回到画布模块（rail 入口；已在画布列表时直接返回，已在工作区/其他模块时先切回模块）。
+ * 模块框架总是渲染左 rail（canvas-list-panel）；选中的画布可能已在右侧展开，不再依赖空的 canvas-page。 */
 export async function openCanvasPage(page: Page) {
-  const canvasPage = page.getByTestId("canvas-page");
+  const listPanel = page.getByTestId("canvas-list-panel");
   await expect(async () => {
-    if (await canvasPage.isVisible()) return;
+    if (await listPanel.isVisible()) return;
     await page.getByTestId("app-nav-module-canvas").click();
-    await expect(canvasPage).toBeVisible({ timeout: 3_000 });
+    await expect(listPanel).toBeVisible({ timeout: 3_000 });
   }).toPass({ timeout: 15_000 });
 }
 

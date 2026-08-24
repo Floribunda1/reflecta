@@ -1,5 +1,6 @@
 import { Atom } from "effect/unstable/reactivity";
-import { runAtom } from "@renderer/lib/atoms";
+import * as S from "effect/Schema";
+import { kvsRuntime, runAtom } from "@renderer/lib/atoms";
 import type { CanvasDocument, CanvasViewport } from "@reflecta/ui/canvas";
 import {
   initialCanvasSession,
@@ -22,6 +23,16 @@ import type { SaveStatus } from "./workspace/debounced-latest-saver";
 
 const sessionAtom: Atom.Writable<CanvasSessionState, CanvasSessionState> = Atom.keepAlive(
   Atom.make(initialCanvasSession),
+);
+
+/** 记住上次打开的画布（localStorage 持久化）：进入画布模块且 URL 无参时恢复到它。 */
+export const lastSelectedCanvasIdAtom: Atom.Writable<string | null, string | null> = Atom.keepAlive(
+  Atom.kvs({
+    runtime: kvsRuntime,
+    key: "canvas:lastSelected",
+    schema: S.NullOr(S.String),
+    defaultValue: () => null,
+  }),
 );
 
 export const selectedCanvasIdAtom: Atom.Atom<string | null> = Atom.map(
