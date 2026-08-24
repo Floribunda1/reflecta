@@ -725,7 +725,7 @@ const CanvasReadOnlyView = lazy(() =>
   import("../../canvas").then((m) => ({ default: m.CanvasReadOnlyView })),
 );
 
-function CanvasProposalDraft({ proposal }: { proposal: CanvasProposalView }) {
+function CanvasProposalDraft({ proposal, open }: { proposal: CanvasProposalView; open: boolean }) {
   const content = proposal.content;
   if (content.variant === "delete" || !content.document) {
     return (
@@ -743,14 +743,21 @@ function CanvasProposalDraft({ proposal }: { proposal: CanvasProposalView }) {
       deleted: false,
     });
   }
+  // 卡片折叠（collapsible keepMounted + collapse-grid 动画）时 X6 图会在 0/裁剪尺寸里
+  // 挂一程，展开回来不重新 fit 就坏。折叠即卸载、展开按当前尺寸重建 + fit：
+  // 每次展开都是确定性的新鲜图，代价是重挂载一张小只读图（可接受）。
   return (
     <div className="relative h-64 overflow-hidden rounded-md border border-border bg-muted/30">
-      <Suspense fallback={<div className="h-64" />}>
-        <CanvasReadOnlyView
-          document={content.document}
-          shapeData={{ understandingRefs, referencedCanvases: new Map() }}
-        />
-      </Suspense>
+      {open ? (
+        <Suspense fallback={<div className="h-64" />}>
+          <CanvasReadOnlyView
+            document={content.document}
+            shapeData={{ understandingRefs, referencedCanvases: new Map() }}
+          />
+        </Suspense>
+      ) : (
+        <div className="h-64" />
+      )}
     </div>
   );
 }
@@ -784,9 +791,11 @@ function UnknownProposal({
 function ProposalContent({
   proposal,
   entityBindings,
+  open,
 }: {
   proposal: AgentProposalView;
   entityBindings?: ChatEntityBindings;
+  open: boolean;
 }) {
   if (proposal.kind === "understanding-create")
     return <UnderstandingCreate proposal={proposal} entityBindings={entityBindings} />;
@@ -811,7 +820,7 @@ function ProposalContent({
   if (proposal.kind === "context-delete")
     return <DeleteProposal>确认后，这条 Context 将移入回收站。</DeleteProposal>;
   if (proposal.kind === "bash") return <BashProposal proposal={proposal} />;
-  if (proposal.kind === "canvas") return <CanvasProposalDraft proposal={proposal} />;
+  if (proposal.kind === "canvas") return <CanvasProposalDraft proposal={proposal} open={open} />;
   return <UnknownProposal proposal={proposal} entityBindings={entityBindings} />;
 }
 
@@ -890,7 +899,7 @@ export function AgentProposalCard({
             <ProposalMeta proposal={proposal} />
           </div>
           <div className="max-h-136 overflow-y-auto px-3 pb-3">
-            <ProposalContent proposal={proposal} entityBindings={entityBindings} />
+            <ProposalContent proposal={proposal} entityBindings={entityBindings} open={open} />
             <Reason value={proposalReason(proposal)} />
             {hasToolDetails(proposal.result) ? (
               <div className="mt-5 text-sm text-muted-foreground">
