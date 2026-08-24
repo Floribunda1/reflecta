@@ -66,6 +66,7 @@ export function CanvasInspector({
       <CanvasReadOnlyView
         document={{ elements: detailQuery.data.elements, edges: detailQuery.data.edges }}
         shapeData={shapeData}
+        showZoomControls
         className="min-h-0 flex-1"
       />
     </div>

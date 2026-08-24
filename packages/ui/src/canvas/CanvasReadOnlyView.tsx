@@ -1,4 +1,7 @@
-import { CanvasGraph } from "./CanvasGraph";
+import { useRef } from "react";
+import { cn } from "../lib/utils";
+import { CanvasGraph, type CanvasGraphHandle } from "./CanvasGraph";
+import { CanvasZoomControls } from "./CanvasZoomControls";
 import type { CanvasDocument } from "./document";
 import { EMPTY_CANVAS_SHAPE_DATA, type CanvasShapeData } from "./shape-context";
 
@@ -12,6 +15,8 @@ export type CanvasReadOnlyViewProps = {
   document: CanvasDocument;
   /** 卡片展示数据（理解卡全文字段 / 画布引用标题 / 删除占位） */
   shapeData?: CanvasShapeData;
+  /** Agent 只读 Modal 需要放大 / 缩小 / 适应视图；缩略预览不要。 */
+  showZoomControls?: boolean;
   className?: string;
   style?: React.CSSProperties;
 };
@@ -19,17 +24,39 @@ export type CanvasReadOnlyViewProps = {
 export function CanvasReadOnlyView({
   document,
   shapeData = EMPTY_CANVAS_SHAPE_DATA,
+  showZoomControls = false,
   className,
   style,
 }: CanvasReadOnlyViewProps) {
+  const graphRef = useRef<CanvasGraphHandle>(null);
+  if (!showZoomControls) {
+    return (
+      <CanvasGraph
+        readonly
+        document={document}
+        shapeData={shapeData}
+        className={className}
+        style={style}
+        testId="canvas-readonly-graph"
+      />
+    );
+  }
   return (
-    <CanvasGraph
-      readonly
-      document={document}
-      shapeData={shapeData}
-      className={className}
-      style={style}
-      testId="canvas-readonly-graph"
-    />
+    <div className={cn("relative min-h-0", className)} style={style}>
+      <CanvasGraph
+        ref={graphRef}
+        readonly
+        document={document}
+        shapeData={shapeData}
+        className="h-full min-h-0 w-full"
+        testId="canvas-readonly-graph"
+      />
+      <CanvasZoomControls
+        className="absolute bottom-4 left-4"
+        onZoomIn={() => graphRef.current?.zoomIn()}
+        onZoomOut={() => graphRef.current?.zoomOut()}
+        onFit={() => graphRef.current?.fitView()}
+      />
+    </div>
   );
 }

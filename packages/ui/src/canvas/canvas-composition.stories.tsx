@@ -210,6 +210,7 @@ function ReadonlySizeCase() {
               <CanvasReadOnlyView
                 document={typicalCanvasDocument}
                 shapeData={typicalShapeData}
+                showZoomControls
                 className="absolute inset-0"
               />
             </GraphFrame>

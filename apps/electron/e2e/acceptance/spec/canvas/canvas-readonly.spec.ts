@@ -86,6 +86,7 @@ test("@CV-X6-RO-001 只读画布禁止编辑交互", async () => {
 test("@CV-X6-RO-002 只读画布保留缩放查看", async () => {
   const dialog = page!.getByTestId("agent-canvas-dialog");
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByTestId("canvas-zoom-controls")).toBeVisible();
   const before = await h.graphViewport(page!);
   const box = (await dialog.boundingBox())!;
   await page!.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
