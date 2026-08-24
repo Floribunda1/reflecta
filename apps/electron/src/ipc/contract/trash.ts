@@ -45,3 +45,35 @@ export const TrashPermanentlyDelete = rpc(
   S.Void,
   TrashListError,
 );
+
+/** 回收站画布条目 */
+export const TrashedCanvas = S.Struct({
+  id: S.String,
+  title: S.String,
+  deletedAt: S.String,
+});
+export type TrashedCanvas = S.Schema.Type<typeof TrashedCanvas>;
+
+/** 列出回收站画布 */
+export const TrashListTrashedCanvases = rpc(
+  "trash.listTrashedCanvases",
+  S.Struct({}),
+  S.Array(TrashedCanvas),
+  TrashListError,
+);
+
+/** 还原画布 */
+export const TrashRestoreCanvas = rpc(
+  "trash.restoreCanvas",
+  S.Struct({ id: S.String }),
+  S.Void,
+  TrashListError,
+);
+
+/** 永久删除画布 */
+export const TrashPermanentlyDeleteCanvas = rpc(
+  "trash.permanentlyDeleteCanvas",
+  S.Struct({ id: S.String }),
+  S.Void,
+  TrashListError,
+);

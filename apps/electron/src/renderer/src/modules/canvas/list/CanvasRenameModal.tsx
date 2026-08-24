@@ -73,7 +73,7 @@ export function CanvasRenameModal({
   );
 }
 
-/** 删除画布确认（M1-3：硬删不进回收站，提示将删除画布及其全部内容）。 */
+/** 删除画布确认（M1-3：软删进回收站，可在设置 → 回收站中恢复或永久删除）。 */
 export function useDeleteCanvas() {
   const { confirm } = useModal();
   const deleteCanvas = useDeleteCanvasMutation();
@@ -86,7 +86,7 @@ export function useDeleteCanvas() {
         title: "删除画布",
         message: (
           <>
-            将删除画布「{canvas.title}」及其全部内容，且无法恢复（删除为硬删，不进回收站）。
+            将删除画布「{canvas.title}」及其全部内容，并移入回收站（可在设置 → 回收站中恢复）。
             确定继续吗？
           </>
         ),
@@ -103,7 +103,7 @@ export function useDeleteCanvas() {
             ) {
               navigate(CANVAS_ROUTE);
             }
-            toast.success("已删除画布");
+            toast.success("已移到回收站");
           } catch (error) {
             toast.error("删除失败", { description: renderError(error) });
           }

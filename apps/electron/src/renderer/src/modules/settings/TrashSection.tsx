@@ -9,13 +9,14 @@ import {
   ItemDescription,
   ItemTitle,
 } from "@reflecta/ui/components/item";
-import { Lightbulb, Loader2, RotateCcw, Trash2, X } from "lucide-react";
+import { Files, Lightbulb, Loader2, RotateCcw, Trash2, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { rpc } from "@renderer/lib/effect-rpc";
-import type { TrashedUnderstandingDTO, TrashedContextDTO } from "@shared/trash";
+import type { TrashedCanvasDTO, TrashedContextDTO, TrashedUnderstandingDTO } from "@shared/trash";
 import { useModal } from "@reflecta/ui/overlays";
 import { renderError } from "@renderer/lib/errors";
 import { captureQueryKeys } from "../capture/queries";
+import { canvasQueryKeys } from "../canvas/queries";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("zh-CN", {
@@ -34,17 +35,20 @@ export function TrashSection() {
   const queryClient = useQueryClient();
   const [understandings, setUnderstandings] = useState<TrashedUnderstandingDTO[]>([]);
   const [contexts, setContexts] = useState<TrashedContextDTO[]>([]);
+  const [canvases, setCanvases] = useState<TrashedCanvasDTO[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refresh = async () => {
     setLoading(true);
     try {
-      const [trashedUnderstandings, trashedContexts] = await Promise.all([
+      const [trashedUnderstandings, trashedContexts, trashedCanvases] = await Promise.all([
         runPromise(rpc.trashListTrashed()),
         runPromise(rpc.contextListTrashed()) as Promise<TrashedContextDTO[]>,
+        runPromise(rpc.trashListTrashedCanvases()) as Promise<TrashedCanvasDTO[]>,
       ]);
       setUnderstandings(trashedUnderstandings as TrashedUnderstandingDTO[]);
       setContexts(trashedContexts);
+      setCanvases(trashedCanvases);
     } finally {
       setLoading(false);
     }
@@ -122,8 +126,38 @@ export function TrashSection() {
     });
   };
 
+  const handleRestoreCanvas = async (id: string) => {
+    try {
+      await runPromise(rpc.trashRestoreCanvas(id));
+      queryClient.invalidateQueries({ queryKey: canvasQueryKeys.list, exact: false });
+      await refresh();
+      toast.success("已恢复画布");
+    } catch (error) {
+      toast.error("恢复失败", { description: renderError(error) });
+    }
+  };
+
+  const handleDeleteCanvasForever = (id: string) => {
+    confirm({
+      title: "永久删除",
+      message: "该画布将被永久删除，无法恢复。确定继续吗？",
+      acceptLabel: "永久删除",
+      danger: true,
+      onAccept: async () => {
+        try {
+          await runPromise(rpc.trashPermanentlyDeleteCanvas(id));
+          queryClient.invalidateQueries({ queryKey: canvasQueryKeys.list, exact: false });
+          await refresh();
+          toast.success("已永久删除画布");
+        } catch (error) {
+          toast.error("永久删除失败", { description: renderError(error) });
+        }
+      },
+    });
+  };
+
   const handleEmptyTrash = () => {
-    const total = understandings.length + contexts.length;
+    const total = understandings.length + contexts.length + canvases.length;
     if (total === 0) return;
     confirm({
       title: "清空回收站",
@@ -137,6 +171,7 @@ export function TrashSection() {
               runPromise(rpc.trashPermanentlyDelete(understanding.id)),
             ),
             ...contexts.map((context) => runPromise(rpc.contextPermanentlyDelete(context.id))),
+            ...canvases.map((canvas) => runPromise(rpc.trashPermanentlyDeleteCanvas(canvas.id))),
           ]);
           queryClient.invalidateQueries({
             queryKey: captureQueryKeys.understandingLists,
@@ -146,6 +181,7 @@ export function TrashSection() {
             queryKey: captureQueryKeys.understandingDetails,
             exact: false,
           });
+          queryClient.invalidateQueries({ queryKey: canvasQueryKeys.list, exact: false });
           await refresh();
           toast.success("已清空回收站", { description: `${total} 项内容` });
         } catch (error) {
@@ -155,7 +191,7 @@ export function TrashSection() {
     });
   };
 
-  const totalCount = understandings.length + contexts.length;
+  const totalCount = understandings.length + contexts.length + canvases.length;
 
   return (
     <div className="flex flex-col gap-5">
@@ -164,7 +200,7 @@ export function TrashSection() {
           <div>
             <h3 className="text-base font-medium text-foreground">回收站</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              被删除的 Understanding 与 Context 会暂存在这里。
+              被删除的 Understanding、Context 与画布会暂存在这里。
             </p>
           </div>
           {totalCount > 0 && (
@@ -264,6 +300,43 @@ export function TrashSection() {
                         variant="destructive"
                         aria-label="永久删除"
                         onClick={() => handleDeleteContextForever(context.id)}
+                      >
+                        <X size={15} />
+                      </Button>
+                    </ItemActions>
+                  </Item>
+                ))}
+              </div>
+            )}
+
+            {canvases.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                  <Files size={13} />
+                  <span>画布 ({canvases.length})</span>
+                </div>
+                {canvases.map((canvas) => (
+                  <Item key={canvas.id} variant="outline" size="xs" className="gap-3">
+                    <ItemContent>
+                      <ItemTitle>{canvas.title}</ItemTitle>
+                      <ItemDescription>删除于 {formatDate(canvas.deletedAt)}</ItemDescription>
+                    </ItemContent>
+                    <ItemActions className="gap-1 opacity-0 transition-opacity group-hover/item:opacity-100">
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label="恢复"
+                        onClick={() => void handleRestoreCanvas(canvas.id)}
+                      >
+                        <RotateCcw size={15} />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="destructive"
+                        aria-label="永久删除"
+                        onClick={() => handleDeleteCanvasForever(canvas.id)}
                       >
                         <X size={15} />
                       </Button>

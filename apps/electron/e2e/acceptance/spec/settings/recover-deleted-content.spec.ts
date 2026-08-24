@@ -9,6 +9,13 @@ import {
   openUnderstanding,
   understandingCard,
 } from "../capture/capture-e2e";
+import {
+  canvasRow,
+  createCanvas,
+  openCanvasPage,
+  renameCanvas,
+  requestDeleteCanvas,
+} from "../canvas/canvas-e2e";
 
 async function openTrash(page: Page) {
   await page.getByTestId("app-settings-menu-item").click();
@@ -17,7 +24,7 @@ async function openTrash(page: Page) {
 }
 
 function trashDialog(page: Page) {
-  return page.getByRole("dialog").filter({ hasText: "被删除的 Understanding 与 Context" });
+  return page.getByRole("dialog").filter({ hasText: "被删除的 Understanding" });
 }
 
 function trashItem(page: Page, title: string) {
@@ -118,6 +125,86 @@ test("@TRASH-004 用户清空回收站", async () => {
       )?.match(/\d+/)?.[0],
     );
     const total = understandingCount + contextCount;
+
+    await page.getByRole("button", { name: "清空回收站" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText(`将永久删除 ${total} 项内容`);
+    await dialog.getByRole("button", { name: "全部清空" }).click();
+    await expect(page.getByText("回收站为空")).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
+
+/** 新建一张命名画布并删除（进回收站），供回收站场景复用。 */
+async function createAndDeleteCanvas(page: Page, title: string) {
+  await openCanvasPage(page);
+  await createCanvas(page);
+  await openCanvasPage(page); // 回到列表
+  await renameCanvas(page, "未命名画布", title);
+  await requestDeleteCanvas(page, title, true);
+  await expect(canvasRow(page, title)).toHaveCount(0);
+}
+
+test("@TRASH-005 用户恢复已删除的画布", async () => {
+  const { app, page } = await launchApp();
+
+  try {
+    await createAndDeleteCanvas(page, "待恢复画布");
+    await openTrash(page);
+    const item = trashItem(page, "待恢复画布");
+    await item.hover();
+    await item.getByRole("button", { name: "恢复" }).click();
+    await expect(page.getByText("已恢复画布")).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await openCanvasPage(page);
+    await expect(canvasRow(page, "待恢复画布")).toBeVisible();
+    await canvasRow(page, "待恢复画布").click();
+    await expect(page.getByTestId("canvas-workspace")).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
+
+test("@TRASH-006 用户永久删除回收站中的画布", async () => {
+  const { app, page } = await launchApp();
+
+  try {
+    await createAndDeleteCanvas(page, "待永久删除画布甲");
+    await createAndDeleteCanvas(page, "待永久删除画布乙");
+    await openTrash(page);
+    const count = trashDialog(page).getByText(/^画布 \(\d+\)$/);
+    const before = Number((await count.textContent())?.match(/\d+/)?.[0]);
+    const item = trashItem(page, "待永久删除画布乙");
+    await item.hover();
+    await item.getByRole("button", { name: "永久删除" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText("无法恢复");
+    await dialog.getByRole("button", { name: "永久删除" }).click();
+
+    await expect(item).toHaveCount(0);
+    await expect(count).toHaveText(`画布 (${before - 1})`);
+  } finally {
+    await app.close();
+  }
+});
+
+test("@TRASH-007 清空回收站时画布计入待永久删除数量", async () => {
+  const { app, page } = await launchApp();
+
+  try {
+    await createAndDeleteCanvas(page, "待清空画布");
+    await openTrash(page);
+    const understandingText = await trashDialog(page)
+      .getByText(/^理解 \(\d+\)$/)
+      .textContent();
+    const contextText = await trashDialog(page)
+      .getByText(/^上下文 \(\d+\)$/)
+      .textContent();
+    const understandingCount = Number(understandingText?.match(/\d+/)?.[0]) || 0;
+    const contextCount = Number(contextText?.match(/\d+/)?.[0]) || 0;
+    const total = understandingCount + contextCount + 1; // +1 = 回收站中的画布
 
     await page.getByRole("button", { name: "清空回收站" }).click();
     const dialog = page.getByRole("dialog");

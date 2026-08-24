@@ -1,6 +1,6 @@
 # language: zh-CN
 @settings @trash @v1.2.5
-功能: 用户管理已删除的 Understanding 和 Context
+功能: 用户管理已删除的 Understanding、Context 和画布
   用户需要先从日常视图移除不再使用的内容，同时保留恢复误删内容和明确永久清理的机会。
 
   @P0 @recovery @TRASH-001
@@ -34,5 +34,30 @@
     假如回收站中存在多项已删除内容
     当用户选择清空回收站
     那么页面应该显示将被永久删除的项目数量
+    当用户确认清空
+    那么回收站应该显示为空
+
+  @P0 @recovery @TRASH-005
+  场景: 用户恢复已删除的画布
+    假如用户已经从画布列表删除画布 DELETED_CANVAS_TITLE
+    当用户打开设置中的回收站
+    而且用户恢复 DELETED_CANVAS_TITLE
+    而且用户回到画布列表
+    那么画布列表应该重新显示 DELETED_CANVAS_TITLE
+    而且用户应该可以打开它的工作区
+
+  @P0 @safety @TRASH-006
+  场景: 用户永久删除回收站中的画布
+    假如回收站中存在画布 DELETED_CANVAS_TITLE
+    而且用户已经记录永久删除前的画布数量
+    当用户选择永久删除 DELETED_CANVAS_TITLE
+    而且用户确认永久删除
+    那么回收站中的画布数量应该比永久删除前少 1
+
+  @P1 @safety @TRASH-007
+  场景: 清空回收站时画布计入待永久删除数量
+    假如回收站中存在画布 DELETED_CANVAS_TITLE 与多项已删除内容
+    当用户选择清空回收站
+    那么提示中应该包含画布在内的待永久删除数量
     当用户确认清空
     那么回收站应该显示为空

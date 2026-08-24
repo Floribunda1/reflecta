@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import * as S from "effect/Schema";
-import { and, desc, eq, inArray, isNotNull, like } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, like } from "drizzle-orm";
 import {
   understandings,
   understandingCanvases,
@@ -31,6 +31,7 @@ import type {
   UnderstandingCanvasElement,
   Viewport,
 } from "./types";
+import type { TrashedCanvasDTO } from "../trash/types";
 import {
   assertUnderstandingRefsExist,
   assertValidDocument,
@@ -142,6 +143,7 @@ export class CanvasCore {
         viewport: null,
         createdAt: timestamp,
         updatedAt: timestamp,
+        deletedAt: null,
       };
       this.db.insert(understandingCanvases).values(row).run();
       return canvasRowToDTO(row);
@@ -155,7 +157,7 @@ export class CanvasCore {
       const rows = await this.db
         .select()
         .from(understandingCanvases)
-        .where(eq(understandingCanvases.id, canvasId))
+        .where(and(eq(understandingCanvases.id, canvasId), isNull(understandingCanvases.deletedAt)))
         .limit(1);
       return rows[0] ?? null;
     });
@@ -195,15 +197,54 @@ export class CanvasCore {
     });
   }
 
+  /** 删除画布 → 软删除（置 deletedAt 进回收站，可在设置回收站恢复/永久删除）。 */
   deleteCanvas(id: string): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.db
+        .update(understandingCanvases)
+        .set({ deletedAt: now(), updatedAt: now() })
+        .where(and(eq(understandingCanvases.id, id), isNull(understandingCanvases.deletedAt)))
+        .run();
+    });
+  }
+
+  /** 恢复回收站中的画布（清 deletedAt）。 */
+  restoreCanvas(id: string): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.db
+        .update(understandingCanvases)
+        .set({ deletedAt: null, updatedAt: now() })
+        .where(and(eq(understandingCanvases.id, id), isNotNull(understandingCanvases.deletedAt)))
+        .run();
+    });
+  }
+
+  /** 永久删除画布（连元素 / 连线级联；回收站清空或单项永久删除时调用）。 */
+  permanentlyDeleteCanvas(id: string): Effect.Effect<void> {
     return Effect.sync(() => {
       this.db.delete(understandingCanvases).where(eq(understandingCanvases.id, id)).run();
     });
   }
 
+  /** 回收站画布列表（按删除时间倒序）。 */
+  listTrashedCanvases(): Effect.Effect<TrashedCanvasDTO[]> {
+    return Effect.promise(async () => {
+      const rows = await this.db
+        .select()
+        .from(understandingCanvases)
+        .where(isNotNull(understandingCanvases.deletedAt))
+        .orderBy(desc(understandingCanvases.deletedAt));
+      return rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        deletedAt: row.deletedAt!,
+      }));
+    });
+  }
+
   listCanvases(filter?: ListCanvasesFilter): Effect.Effect<CanvasDTO[]> {
     return Effect.promise(async () => {
-      const conditions = [];
+      const conditions = [isNull(understandingCanvases.deletedAt)];
       if (filter?.titleSearchKeyword) {
         conditions.push(like(understandingCanvases.title, `%${filter.titleSearchKeyword}%`));
       }
@@ -367,7 +408,7 @@ export class CanvasCore {
         .map((id) => {
           const row = byId.get(id);
           if (!row) return null;
-          return { id: row.id, title: row.title, deleted: false };
+          return { id: row.id, title: row.title, deleted: Boolean(row.deletedAt) };
         })
         .filter((ref): ref is CanvasReferencedCanvas => ref !== null);
     });
@@ -382,7 +423,12 @@ export class CanvasCore {
           understandingCanvases,
           eq(understandingCanvases.id, understandingCanvasElements.canvasId),
         )
-        .where(eq(understandingCanvasElements.understandingId, understandingId))
+        .where(
+          and(
+            eq(understandingCanvasElements.understandingId, understandingId),
+            isNull(understandingCanvases.deletedAt),
+          ),
+        )
         .orderBy(desc(understandingCanvases.updatedAt));
       return rows.map((row) => canvasRowToDTO(row.canvas));
     });

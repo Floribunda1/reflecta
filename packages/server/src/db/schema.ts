@@ -97,6 +97,7 @@ export const understandingCanvases = sqliteTable(
     viewport: text("viewport"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
+    deletedAt: text("deleted_at"),
   },
   (t) => [index("idx_canvases_updated_at").on(t.updatedAt)],
 );

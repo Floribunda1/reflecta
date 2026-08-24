@@ -270,7 +270,7 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
     );
   });
 
-  test("deleteCanvas hard-deletes canvas and cascades children", async () => {
+  test("deleteCanvas soft-deletes to trash (elements kept), permanentlyDeleteCanvas cascades children", async () => {
     const core = new CanvasCore(db);
     await Effect.runPromise(
       core.saveCanvas(canvasId, {
@@ -290,9 +290,29 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
         ],
       }),
     );
+
+    // 软删除：画布从列表 / 详情消失，但元素与连线保留（回收站可恢复）
     await Effect.runPromise(core.deleteCanvas(canvasId));
     expect(await Effect.runPromise(core.getCanvas(canvasId))).toBeNull();
-    const { elements, edges } = await readRows();
+    expect(await Effect.runPromise(core.listCanvases())).toHaveLength(0);
+    const trashed = await Effect.runPromise(core.listTrashedCanvases());
+    expect(trashed.map((c) => c.id)).toEqual([canvasId]);
+    let { elements, edges } = await readRows();
+    expect(elements).toHaveLength(2);
+    expect(edges).toHaveLength(1);
+
+    // 恢复：画布重新可见，元素与连线原样保留
+    await Effect.runPromise(core.restoreCanvas(canvasId));
+    expect(await Effect.runPromise(core.getCanvas(canvasId))).not.toBeNull();
+    expect(await Effect.runPromise(core.listTrashedCanvases())).toHaveLength(0);
+    ({ elements, edges } = await readRows());
+    expect(elements).toHaveLength(2);
+    expect(edges).toHaveLength(1);
+
+    // 永久删除：FK 级联清掉元素与连线
+    await Effect.runPromise(core.permanentlyDeleteCanvas(canvasId));
+    expect(await Effect.runPromise(core.getCanvas(canvasId))).toBeNull();
+    ({ elements, edges } = await readRows());
     expect(elements).toHaveLength(0);
     expect(edges).toHaveLength(0);
   });

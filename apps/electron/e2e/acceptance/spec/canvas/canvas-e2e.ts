@@ -14,30 +14,25 @@ export function canvasRow(page: Page, title: string) {
   return page.locator(`[data-testid="canvas-list-row"][data-canvas-title="${title}"]`);
 }
 
-export function canvasRowMenu(page: Page, title: string) {
-  return canvasRow(page, title).locator('[data-testid="canvas-row-menu"]');
-}
-
-/** 新建画布（默认标题「未命名画布」）并返回列表。 */
+/** 新建画布（默认标题「未命名画布」），停留在工作区。 */
 export async function createCanvas(page: Page) {
   await page.getByTestId("canvas-create-button").click();
   await expect(page.getByTestId("canvas-workspace")).toBeVisible();
-  await page.getByTestId("canvas-workspace-back-button").click();
-  await expect(page.getByTestId("canvas-page")).toBeVisible();
 }
 
-/** 通过行 kebab 菜单重命名画布。 */
+/** 通过行右键菜单重命名画布（右键会同时打开画布，菜单为浮层仍可点击）。 */
 export async function renameCanvas(page: Page, fromTitle: string, toTitle: string) {
-  await canvasRowMenu(page, fromTitle).click();
+  await canvasRow(page, fromTitle).click({ button: "right" });
   await page.getByTestId("canvas-row-rename").click();
   await page.getByTestId("canvas-rename-input").fill(toTitle);
   await page.getByTestId("canvas-rename-confirm-button").click();
+  await openCanvasPage(page);
   await expect(canvasRow(page, toTitle)).toBeVisible();
 }
 
-/** 对画布发起删除，返回确认框按钮定位器（confirm 为真时点击「删除」，否则点击「取消」）。 */
+/** 对画布发起删除（右键菜单 → 确认框；confirm 为真时点击「删除」，否则点击「取消」）。 */
 export async function requestDeleteCanvas(page: Page, title: string, confirm: boolean) {
-  await canvasRowMenu(page, title).click();
+  await canvasRow(page, title).click({ button: "right" });
   await page.getByTestId("canvas-row-delete").click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: confirm ? "删除" : "取消" }).click();
@@ -100,8 +95,7 @@ export async function editTextCard(
 
 /** 离开工作区返回列表（触发卸载冲刷保存）。 */
 export async function leaveWorkspace(page: Page) {
-  await page.getByTestId("canvas-workspace-back-button").click();
-  await expect(page.getByTestId("canvas-page")).toBeVisible();
+  await openCanvasPage(page);
 }
 
 /** 重新进入第一张「未命名画布」的工作区。 */

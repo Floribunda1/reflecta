@@ -1,1 +1,5 @@
-export type { TrashedContextDTO, TrashedUnderstandingDTO } from "@reflecta/server";
+export type {
+  TrashedCanvasDTO,
+  TrashedContextDTO,
+  TrashedUnderstandingDTO,
+} from "@reflecta/server";

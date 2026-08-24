@@ -217,6 +217,8 @@ describe("versioned migrations", () => {
     expect(hasTable(db, "understanding_canvases")).toBe(true);
     expect(hasTable(db, "understanding_canvas_elements")).toBe(true);
     expect(hasTable(db, "understanding_canvas_edges")).toBe(true);
+    // 画布软删除（回收站）随 2.0.0 一起发布：表自带 deleted_at
+    expect(tableColumns(db, "understanding_canvases")).toContain("deleted_at");
     expect(
       (
         db.$client.prepare(`PRAGMA table_info(understanding_canvas_edges)`).all() as Array<{

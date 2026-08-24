@@ -6,7 +6,14 @@
  * 故用单一 app kit 承载所有域，避免多全局冲突）。
  */
 import { createIpcKit, defineContract } from "electron-effect-rpc";
-import { TrashListTrashed, TrashRestore, TrashPermanentlyDelete } from "./contract/trash";
+import {
+  TrashListTrashed,
+  TrashRestore,
+  TrashPermanentlyDelete,
+  TrashListTrashedCanvases,
+  TrashRestoreCanvas,
+  TrashPermanentlyDeleteCanvas,
+} from "./contract/trash";
 import { AboutGetVersionInfo, AboutCheckForUpdates } from "./contract/about";
 import {
   DomainList,
@@ -146,6 +153,9 @@ export const contract = defineContract({
     TrashListTrashed,
     TrashRestore,
     TrashPermanentlyDelete,
+    TrashListTrashedCanvases,
+    TrashRestoreCanvas,
+    TrashPermanentlyDeleteCanvas,
     AboutGetVersionInfo,
     AboutCheckForUpdates,
     DomainList,

@@ -750,7 +750,7 @@ try {
         edge.router ? JSON.stringify(edge.router) : null,
         JSON.stringify(edge.connector),
         edge.label ?? null,
-        JSON.stringify(edge.attrs),
+        JSON.stringify(edge.attrs ?? {}),
         now,
       );
     }

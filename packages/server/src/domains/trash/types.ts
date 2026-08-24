@@ -16,3 +16,9 @@ export type TrashedContextDTO = {
   content: string;
   deletedAt: string;
 };
+
+export type TrashedCanvasDTO = {
+  id: string;
+  title: string;
+  deletedAt: string;
+};

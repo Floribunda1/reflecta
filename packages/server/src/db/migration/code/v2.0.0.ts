@@ -4,6 +4,7 @@
  * TBD-3 wiki-link 降级：弱引用与结构关系彻底分离。
  * 表 `understanding_connections` → `understanding_mentions`（wiki-link 是引用/提及，不是结构关系）。
  * SQLite 的 ALTER TABLE RENAME 保留旧索引名，显式重建索引以对齐 schema.ts。
+ * 画布域随 2.0.0 一起发布：画布表自带 deleted_at（软删除进回收站，未发布可内聚在同期迁移）。
  * name 保留 ".sql" 后缀以兼容历史 _migrations 记录。
  */
 import type { CodeMigration, MigrationContext } from "../../migration";
@@ -22,9 +23,11 @@ const migration: CodeMigration = {
         "  description TEXT,\n" +
         "  viewport TEXT,\n" +
         "  created_at TEXT NOT NULL,\n" +
-        "  updated_at TEXT NOT NULL\n" +
+        "  updated_at TEXT NOT NULL,\n" +
+        "  deleted_at TEXT\n" +
         ");\n" +
         "CREATE INDEX IF NOT EXISTS idx_canvases_updated_at ON understanding_canvases(updated_at);\n" +
+        "CREATE INDEX IF NOT EXISTS idx_canvases_deleted_at ON understanding_canvases(deleted_at);\n" +
         "CREATE TABLE IF NOT EXISTS understanding_canvas_elements (\n" +
         "  id TEXT PRIMARY KEY NOT NULL,\n" +
         "  canvas_id TEXT NOT NULL REFERENCES understanding_canvases(id) ON DELETE CASCADE,\n" +
