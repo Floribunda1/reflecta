@@ -52,12 +52,26 @@ export const DEFAULT_CANVAS_EDGE_ATTRS: CanvasEdgeAttrs = {
   wrap: { strokeWidth: 10 },
 };
 
+/**
+ * 标签底必须用不透明画布色挡住连线。
+ * X6 defaultLabel 把 `rect.fill` 写死成 `#fff`，和画布底一对比就是一颗白胶囊；
+ * 只写 named selector `body` 盖不掉 tag selector `rect`。透明底会让线穿过字形。
+ */
+const EDGE_LABEL_SURFACE = "var(--background)";
+const EDGE_LABEL_BODY = { fill: EDGE_LABEL_SURFACE, stroke: "none" } as const;
+export const CANVAS_EDGE_DEFAULT_LABEL = {
+  attrs: {
+    rect: EDGE_LABEL_BODY,
+    body: EDGE_LABEL_BODY,
+  },
+};
+
 function edgeLabelItems(label: string | null, color: string) {
   return label
     ? [
         {
           attrs: {
-            body: { fill: "var(--background)", stroke: "none" },
+            ...CANVAS_EDGE_DEFAULT_LABEL.attrs,
             label: { text: label, fill: color, fontSize: 12 },
           },
         },
@@ -116,6 +130,7 @@ export function toX6Cells(document: CanvasDocument): CellMetadata[] {
       connector: visuals.connector as EdgeMetadata["connector"],
       ...(visuals.router ? { router: visuals.router as EdgeMetadata["router"] } : {}),
       attrs: visuals.attrs,
+      defaultLabel: CANVAS_EDGE_DEFAULT_LABEL,
       ...(visuals.labels.length ? { labels: visuals.labels } : {}),
     } satisfies EdgeMetadata;
   });
@@ -164,6 +179,7 @@ export function toX6Edge(edge: CanvasEdgeDTO): X6EdgeCtor {
     connector: visuals.connector as EdgeMetadata["connector"],
     ...(visuals.router ? { router: visuals.router as EdgeMetadata["router"] } : {}),
     attrs: visuals.attrs,
+    defaultLabel: CANVAS_EDGE_DEFAULT_LABEL,
     ...(visuals.labels.length ? { labels: visuals.labels } : {}),
   });
 }

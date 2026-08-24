@@ -3,6 +3,7 @@ import type { CanvasDocument, CanvasEdgeDTO, CanvasElementDTO } from "./document
 import {
   applyEdgePresentation,
   applyElementUpdate,
+  CANVAS_EDGE_DEFAULT_LABEL,
   edgeToEdge,
   graphToDocument,
   curveEdgePath,
@@ -117,6 +118,24 @@ describe("graph-document toX6Cells", () => {
       (edge as { attrs: Record<string, { strokeDasharray?: string }> }).attrs.line?.strokeDasharray,
     ).toBe("5 5");
     expect(edge).toHaveProperty("labels");
+    expect(edge).toMatchObject({
+      defaultLabel: CANVAS_EDGE_DEFAULT_LABEL,
+      labels: [
+        {
+          attrs: {
+            rect: { fill: "var(--background)", stroke: "none" },
+            body: { fill: "var(--background)", stroke: "none" },
+            label: { text: "causal", fill: "var(--chart-1)", fontSize: 12 },
+          },
+        },
+      ],
+    });
+  });
+
+  test("edge label knockout uses the opaque canvas surface instead of white or transparent", () => {
+    expect(CANVAS_EDGE_DEFAULT_LABEL.attrs.rect.fill).toBe("var(--background)");
+    expect(CANVAS_EDGE_DEFAULT_LABEL.attrs.body.fill).toBe("var(--background)");
+    expect(CANVAS_EDGE_DEFAULT_LABEL.attrs.rect.fill).not.toMatch(/transparent|#fff|#ffffff/i);
   });
 
   test("passes persisted X6 router and connector through without mapping", () => {
@@ -274,6 +293,7 @@ describe("in-place cell updates", () => {
     expect(cell.setLabels).toHaveBeenCalledWith([
       {
         attrs: {
+          rect: { fill: "var(--background)", stroke: "none" },
           body: { fill: "var(--background)", stroke: "none" },
           label: { text: "new", fill: "var(--chart-1)", fontSize: 12 },
         },
