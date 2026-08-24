@@ -164,6 +164,24 @@ describe("graph-document toX6Cells", () => {
     );
   });
 
+  test("uses the theme background as contrast text for the default muted edge", () => {
+    const edge = toX6Edge({
+      id: "e1",
+      canvasId: "canvas",
+      source: { cell: "a", port: "right" },
+      target: { cell: "b", port: "left" },
+      router: null,
+      connector: { name: "smooth" },
+      attrs: {},
+      label: "causal",
+      createdAt: timestamp,
+    });
+
+    expect(edge).toMatchObject({
+      labels: [{ attrs: { label: { fill: "var(--background)" } } }],
+    });
+  });
+
   test("passes persisted X6 router and connector through without mapping", () => {
     const mk = (routing: Pick<CanvasEdgeDTO, "router" | "connector">) => {
       const document: CanvasDocument = {

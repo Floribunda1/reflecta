@@ -114,10 +114,11 @@ function parseHex(color: string): string | null {
   return `#${hex}`;
 }
 
-/** 实色 pill 上用高对比文字色：浅底色 → 深字（--foreground），深底色 → 白字。 */
+/** 实色 tag 上用高对比文字色：CSS 灰色 token 用主题背景色自适应明暗。 */
 function contrastTextColor(color: string): string {
+  if (color === "var(--muted-foreground)") return "var(--background)";
   const hex = CHART_TOKEN_HEX[color] ?? parseHex(color);
-  if (!hex) return "var(--foreground)"; // 未知色（如 var(--muted-foreground)）兜底深字
+  if (!hex) return "var(--background)";
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
