@@ -443,28 +443,34 @@ export const CanvasGraph = React.memo(
       const container = containerRef.current;
       if (!graph || !container || !viewportReady || viewportAppliedRef.current) return;
 
+      let raf = 0;
+      let cancelled = false;
       const applyLayout = () => {
-        if (viewportAppliedRef.current) return false;
+        if (cancelled || viewportAppliedRef.current) return false;
         if (container.clientWidth <= 0 || container.clientHeight <= 0) return false;
         viewportAppliedRef.current = true;
-        const run = () => {
+        raf = requestAnimationFrame(() => {
+          if (cancelled || graphRef.current !== graph) return;
           suppressEmitRef.current = true;
           if (viewport) applyViewport(graph, viewport);
           else if (graph.getCells().length > 0) {
             graph.zoomToFit(readonlyRef.current ? { padding: 40 } : { padding: 20, maxScale: 1 });
           } else applyViewport(graph, DEFAULT_CANVAS_VIEWPORT);
           suppressEmitRef.current = false;
-        };
-        requestAnimationFrame(run);
+        });
         return true;
       };
 
-      if (applyLayout()) return undefined;
+      applyLayout();
       const observer = new ResizeObserver(() => {
         if (applyLayout()) observer.disconnect();
       });
       observer.observe(container);
-      return () => observer.disconnect();
+      return () => {
+        cancelled = true;
+        cancelAnimationFrame(raf);
+        observer.disconnect();
+      };
     }, [viewport, viewportReady, applyViewport]);
 
     // 外部 document 变化（审批应用 / 只读预览更新）→ 重建图；首次挂载除外（已加载）。

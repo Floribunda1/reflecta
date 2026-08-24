@@ -23,11 +23,29 @@ test.beforeAll(async () => {
       {
         id: "r_a",
         kind: "text",
-        props: { text: "RO_NODE" },
-        x: 100,
-        y: 100,
-        width: 140,
-        height: 90,
+        props: { text: "RO_TOP" },
+        x: 80,
+        y: 40,
+        width: 220,
+        height: 80,
+      },
+      {
+        id: "r_b",
+        kind: "text",
+        props: { text: "RO_MID" },
+        x: 420,
+        y: 220,
+        width: 260,
+        height: 220,
+      },
+      {
+        id: "r_c",
+        kind: "text",
+        props: { text: "RO_RIGHT" },
+        x: 900,
+        y: 380,
+        width: 220,
+        height: 120,
       },
     ],
   });
@@ -71,9 +89,16 @@ test("@CV-X6-RO-001 只读画布禁止编辑交互", async () => {
   await expect(page!.getByTestId("agent-context-inspector")).toHaveCount(0);
   const node = dialog.locator('[data-node-id="r_a"]').first();
   await expect(node).toBeVisible();
-  const nodeBox = (await node.boundingBox())!;
   const dialogBox = (await dialog.boundingBox())!;
-  expect(nodeBox.width).toBeGreaterThan(dialogBox.width * 0.5);
+  for (const id of ["r_a", "r_b", "r_c"] as const) {
+    const box = (await dialog.locator(`[data-node-id="${id}"]`).first().boundingBox())!;
+    expect(box.x, `${id} left`).toBeGreaterThanOrEqual(dialogBox.x);
+    expect(box.y, `${id} top`).toBeGreaterThanOrEqual(dialogBox.y);
+    expect(box.x + box.width, `${id} right`).toBeLessThanOrEqual(dialogBox.x + dialogBox.width + 1);
+    expect(box.y + box.height, `${id} bottom`).toBeLessThanOrEqual(
+      dialogBox.y + dialogBox.height + 1,
+    );
+  }
   const modelBefore = await h.nodeGeometry(page!, "r_a");
   const b = (await node.boundingBox())!;
   await page!.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
