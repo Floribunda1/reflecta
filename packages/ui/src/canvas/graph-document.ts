@@ -270,20 +270,31 @@ export function symmetricOrthogonalRoutePoints(
   source: { x: number; y: number },
   target: { x: number; y: number },
   sourcePort: CanvasEdgePortId,
+  targetPort: CanvasEdgePortId,
 ): Array<{ x: number; y: number }> {
-  if (source.x === target.x || source.y === target.y) return [];
-  if (sourcePort === "left" || sourcePort === "right") {
-    const x = (source.x + target.x) / 2;
-    return [
-      { x, y: source.y },
-      { x, y: target.y },
-    ];
+  const sourceVector = PORT_VECTORS[sourcePort];
+  const targetVector = PORT_VECTORS[targetPort];
+  const [sourceStub, targetStub] = curveTerminalRoutePoints(source, target, sourcePort, targetPort);
+  const sourceHorizontal = sourceVector.x !== 0;
+  const targetHorizontal = targetVector.x !== 0;
+  const middle = [];
+  if (sourceHorizontal === targetHorizontal) {
+    if (sourceHorizontal) {
+      const x = (sourceStub.x + targetStub.x) / 2;
+      middle.push({ x, y: sourceStub.y }, { x, y: targetStub.y });
+    } else {
+      const y = (sourceStub.y + targetStub.y) / 2;
+      middle.push({ x: sourceStub.x, y }, { x: targetStub.x, y });
+    }
+  } else if (sourceHorizontal) {
+    middle.push({ x: targetStub.x, y: sourceStub.y });
+  } else {
+    middle.push({ x: sourceStub.x, y: targetStub.y });
   }
-  const y = (source.y + target.y) / 2;
-  return [
-    { x: source.x, y },
-    { x: target.x, y },
-  ];
+  return [sourceStub, ...middle, targetStub].filter(
+    (point, index, points) =>
+      index === 0 || point.x !== points[index - 1]!.x || point.y !== points[index - 1]!.y,
+  );
 }
 
 let edgeRegistriesReady = false;
@@ -325,10 +336,14 @@ export function ensureCanvasConnectors(): void {
   X6Graph.registerRouter(
     "reflecta-orthogonal",
     function () {
+      const sourcePort = this.cell.getSourcePortId() as CanvasEdgePortId | null;
+      const targetPort = this.cell.getTargetPortId() as CanvasEdgePortId | null;
+      const resolvedSourcePort = sourcePort ?? (targetPort ? OPPOSITE_PORT[targetPort] : "right");
       return symmetricOrthogonalRoutePoints(
         this.sourceAnchor,
         this.targetAnchor,
-        (this.cell.getSourcePortId() as CanvasEdgePortId | null) ?? "right",
+        resolvedSourcePort,
+        targetPort ?? OPPOSITE_PORT[resolvedSourcePort],
       );
     },
     true,

@@ -178,19 +178,40 @@ describe("in-place cell updates", () => {
       { x: 600, y: 180 },
       { x: 460, y: 620 },
       "left",
+      "right",
     );
     expect(horizontal).toEqual([
+      { x: 584, y: 180 },
       { x: 530, y: 180 },
       { x: 530, y: 620 },
+      { x: 476, y: 620 },
     ]);
-    expect(600 - horizontal[0]!.x).toBe(horizontal[1]!.x - 460);
+    expect(600 - horizontal[0]!.x).toBe(horizontal.at(-1)!.x - 460);
 
-    const vertical = symmetricOrthogonalRoutePoints({ x: 320, y: 500 }, { x: 700, y: 200 }, "top");
+    const vertical = symmetricOrthogonalRoutePoints(
+      { x: 320, y: 500 },
+      { x: 700, y: 200 },
+      "top",
+      "bottom",
+    );
     expect(vertical).toEqual([
+      { x: 320, y: 484 },
       { x: 320, y: 350 },
       { x: 700, y: 350 },
+      { x: 700, y: 216 },
     ]);
-    expect(500 - vertical[0]!.y).toBe(vertical[1]!.y - 200);
+    expect(500 - vertical[0]!.y).toBe(vertical.at(-1)!.y - 200);
+  });
+
+  test("keeps orthogonal terminal segments aligned with both fixed ports", () => {
+    const points = symmetricOrthogonalRoutePoints(
+      { x: 400, y: 720 },
+      { x: 960, y: 272 },
+      "top",
+      "left",
+    );
+    expect(points[0]).toEqual({ x: 400, y: 704 });
+    expect(points.at(-1)).toEqual({ x: 944, y: 272 });
   });
 
   test("excludes X6's transient incomplete edge from document snapshots", () => {
