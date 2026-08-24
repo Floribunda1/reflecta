@@ -25,7 +25,6 @@ const EDGE_ROUTER_NAMES = [
   "metro",
   "er",
   "reflecta-curve",
-  "reflecta-orthogonal",
 ] as const;
 const EDGE_CONNECTOR_NAMES = ["normal", "smooth", "rounded", "jumpover", "reflecta-curve"] as const;
 

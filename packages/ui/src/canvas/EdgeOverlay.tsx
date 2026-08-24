@@ -115,7 +115,7 @@ export function EdgeOverlay({
   const patchLine = (patch: Record<string, unknown>) =>
     onUpdate({ ...dto, attrs: { ...dto.attrs, line: { ...line, ...patch } } });
   const path =
-    dto.router?.name === "reflecta-orthogonal"
+    dto.router?.name === "manhattan"
       ? "orthogonal"
       : dto.connector.name === "normal"
         ? "straight"
@@ -129,7 +129,7 @@ export function EdgeOverlay({
       onUpdate({ ...dto, router: null, connector: { name: "normal" } });
       return;
     }
-    onUpdate({ ...dto, ...orthogonalEdgePath() });
+    onUpdate({ ...dto, ...orthogonalEdgePath(dto.source.port, dto.target.port) });
   };
   const commitLabel = () => {
     if (labelDraft === null) return;

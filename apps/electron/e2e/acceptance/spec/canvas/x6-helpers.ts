@@ -195,6 +195,7 @@ export async function edgeModel(page: Page) {
         label: dto.label ?? null,
         attrs: dto.attrs,
         router: edge.getRouter()?.name ?? null,
+        routerArgs: edge.getRouter()?.args ?? null,
         connector: edge.getConnector()?.name ?? null,
         strokeToken: line.stroke ?? null,
         dasharray: line.strokeDasharray ?? null,

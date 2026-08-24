@@ -182,10 +182,13 @@ describe("Canvas document validation", () => {
     expect(() => assertValidDocument(doc(elements, [curve]))).not.toThrow();
   });
 
-  test("registered canvas router is accepted", () => {
+  test("native manhattan canvas router is accepted", () => {
     const elements = [element({ id: "a" }), element({ id: "b" })];
     const orthogonal = edge({ id: "o", sourceElementId: "a", targetElementId: "b" });
-    orthogonal.router = { name: "reflecta-orthogonal" };
+    orthogonal.router = {
+      name: "manhattan",
+      args: { startDirections: ["right"], endDirections: ["left"], padding: 16 },
+    };
     expect(() => assertValidDocument(doc(elements, [orthogonal]))).not.toThrow();
   });
 

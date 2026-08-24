@@ -65,16 +65,7 @@ export type CanvasElementDTO = S.Schema.Type<typeof CanvasElementDTO>;
 const CanvasEdgePortId = lit("top", "right", "bottom", "left");
 const CanvasEdgeTerminal = S.Struct({ cell: S.String, port: CanvasEdgePortId });
 const CanvasEdgeRouter = S.Struct({
-  name: lit(
-    "normal",
-    "orth",
-    "oneSide",
-    "manhattan",
-    "metro",
-    "er",
-    "reflecta-curve",
-    "reflecta-orthogonal",
-  ),
+  name: lit("normal", "orth", "oneSide", "manhattan", "metro", "er", "reflecta-curve"),
   args: S.optional(S.Record(S.String, S.Unknown)),
 });
 const CanvasEdgeConnector = S.Struct({

@@ -199,9 +199,19 @@ export function curveEdgePath(): Pick<CanvasEdgeDTO, "router" | "connector"> {
   };
 }
 
-export function orthogonalEdgePath(): Pick<CanvasEdgeDTO, "router" | "connector"> {
+export function orthogonalEdgePath(
+  sourcePort: CanvasEdgePortId,
+  targetPort: CanvasEdgePortId,
+): Pick<CanvasEdgeDTO, "router" | "connector"> {
   return {
-    router: { name: "reflecta-orthogonal" },
+    router: {
+      name: "manhattan",
+      args: {
+        startDirections: [sourcePort],
+        endDirections: [targetPort],
+        padding: 16,
+      },
+    },
     connector: { name: "rounded", args: { radius: 8 } },
   };
 }
@@ -266,37 +276,6 @@ export function curveTerminalRoutePoints(
   ];
 }
 
-export function symmetricOrthogonalRoutePoints(
-  source: { x: number; y: number },
-  target: { x: number; y: number },
-  sourcePort: CanvasEdgePortId,
-  targetPort: CanvasEdgePortId,
-): Array<{ x: number; y: number }> {
-  const sourceVector = PORT_VECTORS[sourcePort];
-  const targetVector = PORT_VECTORS[targetPort];
-  const [sourceStub, targetStub] = curveTerminalRoutePoints(source, target, sourcePort, targetPort);
-  const sourceHorizontal = sourceVector.x !== 0;
-  const targetHorizontal = targetVector.x !== 0;
-  const middle = [];
-  if (sourceHorizontal === targetHorizontal) {
-    if (sourceHorizontal) {
-      const x = (sourceStub.x + targetStub.x) / 2;
-      middle.push({ x, y: sourceStub.y }, { x, y: targetStub.y });
-    } else {
-      const y = (sourceStub.y + targetStub.y) / 2;
-      middle.push({ x: sourceStub.x, y }, { x: targetStub.x, y });
-    }
-  } else if (sourceHorizontal) {
-    middle.push({ x: targetStub.x, y: sourceStub.y });
-  } else {
-    middle.push({ x: sourceStub.x, y: targetStub.y });
-  }
-  return [sourceStub, ...middle, targetStub].filter(
-    (point, index, points) =>
-      index === 0 || point.x !== points[index - 1]!.x || point.y !== points[index - 1]!.y,
-  );
-}
-
 let edgeRegistriesReady = false;
 export function ensureCanvasConnectors(): void {
   if (edgeRegistriesReady) return;
@@ -325,21 +304,6 @@ export function ensureCanvasConnectors(): void {
       const targetPort = this.cell.getTargetPortId() as CanvasEdgePortId | null;
       const resolvedSourcePort = sourcePort ?? (targetPort ? OPPOSITE_PORT[targetPort] : "right");
       return curveTerminalRoutePoints(
-        this.sourceAnchor,
-        this.targetAnchor,
-        resolvedSourcePort,
-        targetPort ?? OPPOSITE_PORT[resolvedSourcePort],
-      );
-    },
-    true,
-  );
-  X6Graph.registerRouter(
-    "reflecta-orthogonal",
-    function () {
-      const sourcePort = this.cell.getSourcePortId() as CanvasEdgePortId | null;
-      const targetPort = this.cell.getTargetPortId() as CanvasEdgePortId | null;
-      const resolvedSourcePort = sourcePort ?? (targetPort ? OPPOSITE_PORT[targetPort] : "right");
-      return symmetricOrthogonalRoutePoints(
         this.sourceAnchor,
         this.targetAnchor,
         resolvedSourcePort,

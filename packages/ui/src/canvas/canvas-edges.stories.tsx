@@ -42,10 +42,14 @@ const POSITIONS = [
   { label: "左上", source: [322, 250], target: [24, 40] },
 ] as const;
 
-function pathConfig(path: Path): Pick<CanvasEdgeDTO, "router" | "connector"> {
+function pathConfig(
+  path: Path,
+  sourcePort: CanvasEdgePortId,
+  targetPort: CanvasEdgePortId,
+): Pick<CanvasEdgeDTO, "router" | "connector"> {
   if (path === "curve") return curveEdgePath();
   if (path === "straight") return { router: null, connector: { name: "normal" } };
-  return orthogonalEdgePath();
+  return orthogonalEdgePath(sourcePort, targetPort);
 }
 
 const pathDemoSource = edgeRoutingDocument.elements[0];
@@ -93,7 +97,7 @@ function EdgeRoutingLab() {
     const edge = edgeToEdge(cell);
     graphRef.current?.updateEdge({
       ...edge,
-      ...pathConfig(nextPath),
+      ...pathConfig(nextPath, edge.source.port, edge.target.port),
     });
     setPath(nextPath);
     setCurrentEdge(edgeToEdge(cell));
@@ -120,8 +124,13 @@ function EdgeRoutingLab() {
     if (terminal === "source") cell.setSource(nextTerminal);
     else cell.setTarget(nextTerminal);
     const nextEdge = edgeToEdge(cell);
-    cell.replaceData({ edge: nextEdge });
-    setCurrentEdge(nextEdge);
+    graphRef.current?.updateEdge({
+      ...nextEdge,
+      ...(path === "orthogonal"
+        ? orthogonalEdgePath(nextEdge.source.port, nextEdge.target.port)
+        : {}),
+    });
+    setCurrentEdge(edgeToEdge(cell));
   };
   return (
     <StoryShowcase
