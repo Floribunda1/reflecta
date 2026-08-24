@@ -11,6 +11,7 @@ import {
   curveTerminalRoutePoints,
   orthogonalEdgePath,
   toX6Cells,
+  toX6Edge,
 } from "./graph-document";
 
 const timestamp = "2026-08-19T00:00:00.000Z";
@@ -118,8 +119,8 @@ describe("graph-document toX6Cells", () => {
       (edge as { attrs: Record<string, { strokeDasharray?: string }> }).attrs.line?.strokeDasharray,
     ).toBe("5 5");
     expect(edge).toHaveProperty("labels");
+    expect(edge).not.toHaveProperty("defaultLabel");
     expect(edge).toMatchObject({
-      defaultLabel: CANVAS_EDGE_DEFAULT_LABEL,
       labels: [
         {
           attrs: {
@@ -136,6 +137,30 @@ describe("graph-document toX6Cells", () => {
     expect(CANVAS_EDGE_DEFAULT_LABEL.attrs.rect.fill).toBe("var(--background)");
     expect(CANVAS_EDGE_DEFAULT_LABEL.attrs.body.fill).toBe("var(--background)");
     expect(CANVAS_EDGE_DEFAULT_LABEL.attrs.rect.fill).not.toMatch(/transparent|#fff|#ffffff/i);
+  });
+
+  test("keeps X6 default label markup so labeled edges can render", () => {
+    const edge = toX6Edge({
+      id: "e1",
+      canvasId: "canvas",
+      source: { cell: "a", port: "right" },
+      target: { cell: "b", port: "left" },
+      router: null,
+      connector: { name: "smooth" },
+      attrs: {},
+      label: "causal",
+      createdAt: timestamp,
+    });
+    const markup = edge.getDefaultLabel().markup as ReadonlyArray<{
+      tagName?: string;
+      selector?: string;
+    }>;
+    expect(markup).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ tagName: "rect", selector: "body" }),
+        expect.objectContaining({ tagName: "text", selector: "label" }),
+      ]),
+    );
   });
 
   test("passes persisted X6 router and connector through without mapping", () => {
