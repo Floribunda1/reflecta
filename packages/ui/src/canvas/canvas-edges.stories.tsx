@@ -282,7 +282,7 @@ export const CanvasEdgesStory: Story = {
   render: () => <CanvasEdgesShowcase />,
 };
 
-export const EdgeRoutingLabStory: Story = {
+export const EdgePathEditorProposalStory: Story = {
   name: "Edge Routing Lab",
   render: () => <EdgeRoutingLab />,
 };
