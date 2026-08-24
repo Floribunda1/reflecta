@@ -89,9 +89,15 @@ function truncatePill(text: string): string {
   return text.length > 12 ? `${text.slice(0, 12)}…` : text;
 }
 
-/** 泡影几何：icon(14) + gap(6) + px-3(24) + 文字（13px 中西文均按 ~7px/字估）。 */
+/** 泡影几何：icon(14) + gap(6) + px-3(24) + 文字。中西文混排按 glyph 估算宽度：
+ * CJK ≈ 1em(13px)，ASCII/数字 ≈ 0.55em；估窄会把 flex 内容挤出定宽节点，
+ * 左端 icon / 右端文字被 fo 裁掉（画布拖拽时 icon 消失就是这问题）。 */
 function pillNodeSize(label: string): { width: number; height: number } {
-  return { width: Math.max(24 + 14 + 6 + label.length * 7, 56), height: 30 };
+  let textWidth = 0;
+  for (const ch of label) {
+    textWidth += /[\u2e80-\u9fff\uf900-\ufaff\uff00-\uffef\u3000-\u303f]/.test(ch) ? 13 : 7.5;
+  }
+  return { width: Math.max(12 + Math.ceil(textWidth) + 6 + 14 + 12, 56), height: 30 };
 }
 
 export type CanvasGraphHandle = {
