@@ -545,7 +545,7 @@ export const CanvasGraph = React.memo(
       const cell = graph.getCellById(edge.id);
       if (!cell?.isEdge()) return;
       graph.startBatch("edge-update");
-      applyEdgePresentation(cell, edge);
+      applyEdgePresentation(graph, cell, edge);
       graph.stopBatch("edge-update");
     }, []);
 

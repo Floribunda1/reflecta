@@ -18,6 +18,7 @@ import type {
 } from "./document";
 import { absolutePositionOf } from "./graph-operations";
 import { CANVAS_PORTS } from "./ports";
+import { canvasPaintColor } from "./color-swatches";
 
 /**
  * CanvasDocument ↔ X6 序列化（纯函数、强 FP）。
@@ -53,27 +54,66 @@ export const DEFAULT_CANVAS_EDGE_ATTRS: CanvasEdgeAttrs = {
 };
 
 /**
- * 标签底必须用不透明画布色挡住连线。
+ * 标签底必须用不透明色挡住连线（不能透明，否则线会穿过字形）。
  * X6 内置 defaultLabel 把 `rect.fill` 写死成 `#fff`，和画布底一对比就是一颗白胶囊；
- * 只写 named selector `body` 盖不掉 tag selector `rect`。透明底会让线穿过字形。
+ * 只写 named selector `body` 盖不掉 tag selector `rect`。
  * 不能用 attrs-only 的对象去替换 `defaultLabel`：X6 渲染会读 `defaultLabel.markup`，
  * 缺 markup 时 `normalized.node` 直接抛错，标签整组消失。
  */
 const EDGE_LABEL_SURFACE = "var(--background)";
-const EDGE_LABEL_BODY = { fill: EDGE_LABEL_SURFACE, stroke: "none" } as const;
+
+function edgeLabelBody(surface: string) {
+  return { fill: surface, stroke: "none" } as const;
+}
 export const CANVAS_EDGE_DEFAULT_LABEL = {
   attrs: {
-    rect: EDGE_LABEL_BODY,
-    body: EDGE_LABEL_BODY,
+    rect: edgeLabelBody(EDGE_LABEL_SURFACE),
+    body: edgeLabelBody(EDGE_LABEL_SURFACE),
   },
 };
 
-function edgeLabelItems(label: string | null, color: string) {
+/**
+ * 组内 edge label 底色要贴合所在 group 卡底面，否则画布底色在组上会显成一块对不上的色块。
+ * 组卡底：无颜色=`var(--muted)`，有颜色=`color-mix(paint 10%, muted)`（与 CanvasGroupCard 一致）。
+ */
+function groupSurface(group: CanvasElementDTO | undefined): string | null {
+  if (!group || group.kind !== "group") return null;
+  const paint = canvasPaintColor(group.props.color);
+  return paint ? `color-mix(in oklch, ${paint} 10%, var(--muted))` : "var(--muted)";
+}
+
+/** 沿 parentId 链收集某 cell 的祖先 group（近→远）。 */
+function groupAncestors(
+  id: string,
+  index: ReadonlyMap<string, CanvasElementDTO>,
+): CanvasElementDTO[] {
+  const chain: CanvasElementDTO[] = [];
+  let current = index.get(id);
+  while (current?.parentId) {
+    const parent = index.get(current.parentId);
+    if (parent?.kind === "group") chain.push(parent);
+    current = parent;
+  }
+  return chain;
+}
+
+/** 最近公共 group 祖先的底色；边跨组/画布（无公共 group）时回退画布底色。 */
+function edgeLabelSurfaceFor(
+  sourceChain: CanvasElementDTO[],
+  targetChain: CanvasElementDTO[],
+): string {
+  const targetIds = new Set(targetChain.map((group) => group.id));
+  const shared = sourceChain.find((group) => targetIds.has(group.id));
+  return shared ? (groupSurface(shared) ?? EDGE_LABEL_SURFACE) : EDGE_LABEL_SURFACE;
+}
+
+function edgeLabelItems(label: string | null, color: string, surface: string) {
   return label
     ? [
         {
           attrs: {
-            ...CANVAS_EDGE_DEFAULT_LABEL.attrs,
+            rect: edgeLabelBody(surface),
+            body: edgeLabelBody(surface),
             label: { text: label, fill: color, fontSize: 12 },
           },
         },
@@ -81,18 +121,18 @@ function edgeLabelItems(label: string | null, color: string) {
     : [];
 }
 
-function edgeLabels(edge: CanvasEdgeDTO) {
+function edgeLabels(edge: CanvasEdgeDTO, surface = EDGE_LABEL_SURFACE) {
   const stroke = edge.attrs.line?.stroke;
   const color = typeof stroke === "string" ? stroke : "var(--muted-foreground)";
-  return edgeLabelItems(edge.label, color);
+  return edgeLabelItems(edge.label, color, surface);
 }
 
-function edgeVisuals(edge: CanvasEdgeDTO) {
+function edgeVisuals(edge: CanvasEdgeDTO, surface = EDGE_LABEL_SURFACE) {
   return {
     router: edge.router,
     connector: edge.connector,
     attrs: edge.attrs,
-    labels: edgeLabels(edge),
+    labels: edgeLabels(edge, surface),
   };
 }
 
@@ -102,6 +142,9 @@ export function nodeMetadataFor(
   index: ReadonlyMap<string, CanvasElementDTO> = new Map(),
 ): NodeMetadata {
   const absolute = toAbsolute(element, index);
+  // paint 色挂到节点根元素的 CSS 变量：端口圆是 SVG attribute，fill="var(...)" 不解析
+  // （palette token / hex 都写不进 attribute），由 globals.css 的 .x6-port-body 读变量着色。
+  const paint = element.props.color ? tokenPaintColor(element.props.color) : undefined;
   return {
     id: element.id,
     shape: element.kind,
@@ -212,19 +255,42 @@ export function applyElementUpdate(node: X6Node, element: CanvasElementDTO): voi
  * 边配置 / 标签：原地写入 X6，不拆 cell。端点仍以 X6 store 为准。
  */
 export function applyEdgePresentation(
+  graph: Graph,
   cell: X6Edge,
   patch: Pick<CanvasEdgeDTO, "attrs" | "label" | "router" | "connector">,
 ): void {
   const current = (cell.getData() as { edge?: CanvasEdgeDTO } | null)?.edge;
   if (!current) return;
   const next: CanvasEdgeDTO = { ...current, ...patch };
-  const visuals = edgeVisuals(next);
+  // 只有带 label 的边才需要算贴合 group 的底色（无 label 时 setLabels 是空，节省遍历）。
+  const surface = next.label
+    ? edgeLabelSurfaceFor(
+        runtimeAncestorGroups(graph, cell.getSourceCellId()),
+        runtimeAncestorGroups(graph, cell.getTargetCellId()),
+      )
+    : undefined;
+  const visuals = edgeVisuals(next, surface);
   cell.replaceData({ edge: next });
   cell.setAttrs(visuals.attrs as EdgeMetadata["attrs"], { overwrite: true });
   cell.setConnector(visuals.connector as EdgeMetadata["connector"]);
   if (visuals.router) cell.setRouter(visuals.router as EdgeMetadata["router"]);
   else cell.removeRouter();
   cell.setLabels(visuals.labels);
+}
+
+/** 运行时沿 X6 parent 链收集祖先 group（近→远）；颜色读 node data 里的 element。 */
+function runtimeAncestorGroups(graph: Graph, startId: string | undefined): CanvasElementDTO[] {
+  const chain: CanvasElementDTO[] = [];
+  let current = startId ? (graph.getCellById(startId) as X6Node | undefined) : undefined;
+  while (current) {
+    const parent = current.getParent();
+    if (!parent?.isNode()) break;
+    const data = parent.getData() as { element?: CanvasElementDTO } | null;
+    const element = data?.element;
+    if (element?.kind === "group") chain.push(element);
+    current = parent as X6Node;
+  }
+  return chain;
 }
 
 export function curveEdgePath(): Pick<CanvasEdgeDTO, "router" | "connector"> {

@@ -139,6 +139,50 @@ describe("graph-document toX6Cells", () => {
     expect(CANVAS_EDGE_DEFAULT_LABEL.attrs.rect.fill).not.toMatch(/transparent|#fff|#ffffff/i);
   });
 
+  test("matches an intra-group edge label to the containing group background", () => {
+    const document: CanvasDocument = {
+      elements: [
+        {
+          id: "g",
+          canvasId: "canvas",
+          parentId: null,
+          x: 0,
+          y: 0,
+          width: 400,
+          height: 300,
+          zIndex: 0,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          kind: "group",
+          understandingId: null,
+          canvasRefId: null,
+          props: { label: "g", color: "chart-1" },
+        },
+        element("a", "text", { x: 10, y: 10 }, { width: 100, height: 80 }, "g"),
+        element("b", "text", { x: 200, y: 10 }, { width: 100, height: 80 }, "g"),
+      ],
+      edges: [
+        {
+          id: "e1",
+          canvasId: "canvas",
+          source: { cell: "a", port: "right" },
+          target: { cell: "b", port: "left" },
+          router: null,
+          connector: { name: "smooth" },
+          attrs: {},
+          label: "causal",
+          createdAt: timestamp,
+        },
+      ],
+    };
+    const edge = toX6Cells(document).find((c) => c.id === "e1") as {
+      labels: { attrs: { rect: { fill: string }; body: { fill: string } } }[];
+    };
+    const expected = "color-mix(in oklch, var(--chart-1) 10%, var(--muted))";
+    expect(edge.labels[0].attrs.rect.fill).toBe(expected);
+    expect(edge.labels[0].attrs.body.fill).toBe(expected);
+  });
+
   test("keeps X6 default label markup so labeled edges can render", () => {
     const edge = toX6Edge({
       id: "e1",
@@ -291,6 +335,8 @@ describe("in-place cell updates", () => {
     const cell = {
       id: "e",
       getData: () => ({ edge: current }),
+      getSourceCellId: () => "a",
+      getTargetCellId: () => "b",
       replaceData: vi.fn(),
       setAttrs: vi.fn(),
       setConnector: vi.fn(),
@@ -298,7 +344,7 @@ describe("in-place cell updates", () => {
       removeRouter: vi.fn(),
       setLabels: vi.fn(),
     };
-    applyEdgePresentation(cell as never, {
+    applyEdgePresentation({ getCellById: () => undefined } as never, cell as never, {
       attrs: { line: { stroke: "var(--chart-1)" } },
       router: null,
       connector: { name: "normal" },
