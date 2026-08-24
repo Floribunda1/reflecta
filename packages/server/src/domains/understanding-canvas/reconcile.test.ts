@@ -173,6 +173,17 @@ describe("CanvasCore.saveCanvas reconciliation", () => {
     expect(updated.updatedAt).not.toBeNull();
   });
 
+  test("viewport-only save does not bump updatedAt", async () => {
+    const core = new CanvasCore(db);
+    await Effect.runPromise(core.saveCanvas(canvasId, { elements: [element("e1")], edges: [] }));
+    const before = (await Effect.runPromise(core.getCanvas(canvasId)))!.updatedAt;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await Effect.runPromise(core.updateViewport(canvasId, { x: 10, y: 20, zoom: 1.5 }));
+    const after = (await Effect.runPromise(core.getCanvas(canvasId)))!;
+    expect(after.updatedAt).toBe(before);
+    expect(after.viewport).toEqual({ x: 10, y: 20, zoom: 1.5 });
+  });
+
   test("deletes elements and edges missing from the document", async () => {
     const core = new CanvasCore(db);
     await Effect.runPromise(

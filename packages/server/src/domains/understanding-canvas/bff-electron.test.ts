@@ -185,7 +185,11 @@ describe("UnderstandingCanvasElectronBff.getCanvasDetail", () => {
   });
 
   test("listCanvases orders by created_at desc", async () => {
+    // createdAt 是毫秒精度：紧挨创建可能同毫秒相等（含 beforeEach 的 canvasId）→
+    // 排序退化为插入序；每次创建前隔 5ms，保证严格递减。
+    await new Promise((resolve) => setTimeout(resolve, 5));
     const a = (await Effect.runPromise(service.createCanvas({ title: "A" }))).id;
+    await new Promise((resolve) => setTimeout(resolve, 5));
     const b = (await Effect.runPromise(service.createCanvas({ title: "B" }))).id;
     const canvases = await Effect.runPromise(service.listCanvases());
     expect(canvases.map((c) => c.id)).toEqual([b, a, canvasId]);

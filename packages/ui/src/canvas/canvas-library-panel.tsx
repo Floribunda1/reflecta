@@ -124,7 +124,7 @@ export function CanvasLibraryPanel({
       <Tabs
         value={tab}
         onValueChange={(value) => onTabChange(value as CanvasLibraryTab)}
-        className="flex h-full min-h-0 flex-col"
+        className="flex h-full min-h-0 flex-col gap-0"
       >
         <header className="flex h-12 shrink-0 items-center gap-1.5 border-b border-border px-3">
           <TabsList className="h-8">

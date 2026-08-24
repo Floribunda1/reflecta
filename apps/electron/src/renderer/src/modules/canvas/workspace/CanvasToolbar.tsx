@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Download, MoreHorizontal } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
+import { zhCN } from "date-fns/locale";
+import { CalendarPlus, Clock3, Download, MoreHorizontal } from "lucide-react";
 import { Button } from "@reflecta/ui/components/button";
 import {
   DropdownMenu,
@@ -50,27 +52,40 @@ export function CanvasToolbar({
     <PageTopBar
       testId="canvas-workspace-toolbar"
       actions={
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                aria-label="更多"
-                data-testid="canvas-toolbar-more"
-              />
-            }
-          >
-            <MoreHorizontal size={16} />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem data-testid="canvas-export-png" onClick={onExportPng}>
-              <Download size={14} />
-              导出 PNG
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-3">
+          {canvas ? (
+            <span
+              data-testid="canvas-toolbar-times"
+              title={canvasTimesLabel(canvas)}
+              aria-label={canvasTimesLabel(canvas)}
+              className="hidden items-center gap-1.5 whitespace-nowrap text-muted-foreground sm:inline-flex"
+            >
+              <CalendarPlus size={14} aria-hidden="true" />
+              <Clock3 size={14} aria-hidden="true" />
+            </span>
+          ) : null}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label="更多"
+                  data-testid="canvas-toolbar-more"
+                />
+              }
+            >
+              <MoreHorizontal size={16} />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem data-testid="canvas-export-png" onClick={onExportPng}>
+                <Download size={14} />
+                导出 PNG
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       }
     >
       <input
@@ -86,4 +101,18 @@ export function CanvasToolbar({
       />
     </PageTopBar>
   );
+}
+
+/** 创建用短日期（跨年加年份），更新用相对时间：与理解详情 / 库面板的「更新于 …」语言一致。 */
+function canvasTimesLabel(canvas: CanvasDTO): string {
+  const created = new Date(canvas.createdAt);
+  const createdText =
+    created.getFullYear() === new Date().getFullYear()
+      ? format(created, "M月d日", { locale: zhCN })
+      : format(created, "yyyy年M月d日", { locale: zhCN });
+  const updatedText = formatDistanceToNow(new Date(canvas.updatedAt), {
+    addSuffix: true,
+    locale: zhCN,
+  });
+  return `创建于 ${createdText} · 更新于 ${updatedText}`;
 }

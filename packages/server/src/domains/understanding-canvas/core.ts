@@ -189,9 +189,10 @@ export class CanvasCore {
 
   updateViewport(id: string, viewport: Viewport): Effect.Effect<void> {
     return Effect.sync(() => {
+      // 视口（平移/缩放）不算内容变更：不 bump updatedAt，否则「更新于」随拖动乱跳。
       this.db
         .update(understandingCanvases)
-        .set({ viewport: JSON.stringify(viewport), updatedAt: now() })
+        .set({ viewport: JSON.stringify(viewport) })
         .where(eq(understandingCanvases.id, id))
         .run();
     });
