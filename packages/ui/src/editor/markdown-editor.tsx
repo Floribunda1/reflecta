@@ -27,6 +27,8 @@ export type MarkdownEditorProps = {
   getSuggestions?: MarkdownEditorSuggestionSource;
   resolveWikiLink?: ResolveChatEntity;
   onWikiLinkOpen?: (reference: ChatEntityReference) => void;
+  /** 选中文字时显示的悬浮格式工具栏，默认开启。 */
+  floatingToolbar?: boolean;
 };
 
 function toCssSize(value: number | string): string {
@@ -44,6 +46,7 @@ function MarkdownEditorSurface({
   getSuggestions,
   resolveWikiLink,
   onWikiLinkOpen,
+  floatingToolbar,
 }: Omit<MarkdownEditorProps, "className" | "height" | "maxHeight"> & {
   placeholder: string;
 }) {
@@ -93,6 +96,7 @@ function MarkdownEditorSurface({
         getSuggestions: !readOnly && getSuggestions ? stableSuggestionSource : undefined,
         onChange: (next) => onChangeRef.current?.(next),
         onBlur: (markdown) => onBlurRef.current?.(markdown),
+        floatingToolbar,
       }),
     [
       placeholder,
@@ -101,6 +105,7 @@ function MarkdownEditorSurface({
       !!getSuggestions,
       stableUploader,
       stableSuggestionSource,
+      floatingToolbar,
     ],
   );
 
@@ -162,6 +167,7 @@ export function MarkdownEditor({
   getSuggestions,
   resolveWikiLink,
   onWikiLinkOpen,
+  floatingToolbar,
 }: MarkdownEditorProps) {
   const autoGrow = height === "auto";
   const style: CSSProperties & { "--reflecta-md-editor-max-height"?: string } = {
@@ -189,6 +195,7 @@ export function MarkdownEditor({
           getSuggestions={getSuggestions}
           resolveWikiLink={resolveWikiLink}
           onWikiLinkOpen={onWikiLinkOpen}
+          floatingToolbar={floatingToolbar}
         />
       </MilkdownProvider>
     </div>

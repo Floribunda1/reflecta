@@ -27,6 +27,8 @@ export type CreateReflectaMilkdownEditorOptions = {
   onBlur?: (markdown: string) => void;
   uploadAsset?: MarkdownAssetUploader;
   getSuggestions?: WikiLinkSuggestionSource;
+  /** 选中文字时显示的悬浮格式工具栏，默认开启。 */
+  floatingToolbar?: boolean;
 };
 
 let mermaidPreviewId = 0;
@@ -109,6 +111,7 @@ export function createReflectaMilkdownEditorBuilder({
   onBlur,
   uploadAsset,
   getSuggestions,
+  floatingToolbar = true,
 }: CreateReflectaMilkdownEditorOptions): Editor {
   const editorRoot = document.createElement("div");
   editorRoot.className = "reflecta-milkdown";
@@ -122,6 +125,7 @@ export function createReflectaMilkdownEditorBuilder({
       [Crepe.Feature.AI]: false,
       [Crepe.Feature.BlockEdit]: false,
       [Crepe.Feature.TopBar]: false,
+      [Crepe.Feature.Toolbar]: floatingToolbar,
     },
     featureConfigs: {
       [Crepe.Feature.CodeMirror]: {
