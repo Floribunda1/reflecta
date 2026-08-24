@@ -24,18 +24,17 @@ const PATH_OPTIONS = [
 ] as const;
 type Path = (typeof PATH_OPTIONS)[number]["value"];
 
-const PORT_PAIRS = [
-  ["right", "left"],
-  ["bottom", "top"],
-  ["right", "top"],
-  ["bottom", "left"],
-] as const satisfies ReadonlyArray<readonly [CanvasEdgePortId, CanvasEdgePortId]>;
+const PORTS = ["top", "right", "bottom", "left"] as const satisfies ReadonlyArray<CanvasEdgePortId>;
 
 const POSITIONS = [
-  { label: "右下", source: [48, 48], target: [560, 280] },
-  { label: "右上", source: [48, 280], target: [560, 48] },
-  { label: "左下", source: [560, 48], target: [48, 280] },
-  { label: "水平", source: [48, 160], target: [560, 160] },
+  { label: "上", source: [322, 250], target: [322, 40] },
+  { label: "右上", source: [322, 250], target: [620, 40] },
+  { label: "右", source: [322, 250], target: [620, 250] },
+  { label: "右下", source: [322, 250], target: [620, 460] },
+  { label: "下", source: [322, 250], target: [322, 460] },
+  { label: "左下", source: [322, 250], target: [24, 460] },
+  { label: "左", source: [322, 250], target: [24, 250] },
+  { label: "左上", source: [322, 250], target: [24, 40] },
 ] as const;
 
 function pathConfig(
@@ -68,16 +67,16 @@ const PATH_DEMO_DOCUMENT: CanvasDocument = {
   elements: [
     {
       ...pathDemoSource,
-      x: 48,
-      y: 48,
+      x: POSITIONS[3].source[0],
+      y: POSITIONS[3].source[1],
       width: 220,
       height: 120,
       props: { ...pathDemoSource.props, text: "起点" },
     },
     {
       ...pathDemoTarget,
-      x: 560,
-      y: 280,
+      x: POSITIONS[3].target[0],
+      y: POSITIONS[3].target[1],
       width: 220,
       height: 120,
       props: { ...pathDemoTarget.props, text: "终点" },
@@ -89,14 +88,14 @@ const PATH_DEMO_DOCUMENT: CanvasDocument = {
 function EdgeRoutingLab() {
   const graphRef = useRef<CanvasGraphHandle>(null);
   const [path, setPath] = useState<Path>("curve");
-  const [ports, setPorts] = useState(0);
-  const [position, setPosition] = useState(0);
+  const [position, setPosition] = useState(3);
   const [currentEdge, setCurrentEdge] = useState(PATH_DEMO_DOCUMENT.edges[0]!);
 
   const edgeCell = () => {
     const cell = graphRef.current?.graph?.getCellById(currentEdge.id);
     return cell?.isEdge() ? cell : null;
   };
+  const fit = () => requestAnimationFrame(() => graphRef.current?.fitView());
   const selectPath = (nextPath: Path) => {
     const cell = edgeCell();
     if (!cell) return;
@@ -107,15 +106,15 @@ function EdgeRoutingLab() {
     });
     setPath(nextPath);
     setCurrentEdge(edgeToEdge(cell));
+    fit();
   };
-  const reconnect = (index: number) => {
+  const reconnect = (terminal: "source" | "target", port: CanvasEdgePortId) => {
     const cell = edgeCell();
-    const pair = PORT_PAIRS[index];
-    if (!cell || !pair) return;
-    cell.setSource({ cell: currentEdge.source.cell, port: pair[0] });
-    cell.setTarget({ cell: currentEdge.target.cell, port: pair[1] });
-    setPorts(index);
+    if (!cell) return;
+    if (terminal === "source") cell.setSource({ cell: currentEdge.source.cell, port });
+    else cell.setTarget({ cell: currentEdge.target.cell, port });
     setCurrentEdge(edgeToEdge(cell));
+    fit();
   };
   const moveNodes = (index: number) => {
     const graph = graphRef.current?.graph;
@@ -126,6 +125,7 @@ function EdgeRoutingLab() {
     if (source?.isNode()) source.position(next.source[0], next.source[1]);
     if (target?.isNode()) target.position(next.target[0], next.target[1]);
     setPosition(index);
+    fit();
   };
   const directions = currentEdge.router?.args;
   const aligned =
@@ -157,16 +157,32 @@ function EdgeRoutingLab() {
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-background p-1">
-            <span className="px-2 text-sm text-muted-foreground">连接桩</span>
-            {PORT_PAIRS.map((pair, index) => (
+            <span className="px-2 text-sm text-muted-foreground">起点桩</span>
+            {PORTS.map((port) => (
               <Button
-                key={pair.join("-")}
+                key={port}
                 type="button"
                 size="sm"
-                variant={ports === index ? "secondary" : "ghost"}
-                onClick={() => reconnect(index)}
+                variant={currentEdge.source.port === port ? "secondary" : "ghost"}
+                aria-label={`起点:${port}`}
+                onClick={() => reconnect("source", port)}
               >
-                {pair.join(" → ")}
+                {port}
+              </Button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-background p-1">
+            <span className="px-2 text-sm text-muted-foreground">终点桩</span>
+            {PORTS.map((port) => (
+              <Button
+                key={port}
+                type="button"
+                size="sm"
+                variant={currentEdge.target.port === port ? "secondary" : "ghost"}
+                aria-label={`终点:${port}`}
+                onClick={() => reconnect("target", port)}
+              >
+                {port}
               </Button>
             ))}
           </div>
@@ -184,7 +200,7 @@ function EdgeRoutingLab() {
               </Button>
             ))}
           </div>
-          <GraphFrame height="h-[460px]">
+          <GraphFrame height="h-[620px]">
             <CanvasGraph
               ref={graphRef}
               document={PATH_DEMO_DOCUMENT}
