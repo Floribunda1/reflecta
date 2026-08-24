@@ -127,11 +127,9 @@ export const CanvasSearchHost = memo(function CanvasSearchHost({
 export const CanvasSidePanelHost = memo(function CanvasSidePanelHost({
   canvasId,
   graphRef,
-  onOpenCanvasRefPicker,
 }: {
   canvasId: string;
   graphRef: RefObject<CanvasGraphHandle | null>;
-  onOpenCanvasRefPicker: () => void;
 }) {
   const rightPanel = useAtomValue(canvasPanelAtom);
   if (!rightPanel) return null;
@@ -152,7 +150,6 @@ export const CanvasSidePanelHost = memo(function CanvasSidePanelHost({
         {rightPanel.mode === "library" ? (
           <CanvasLibraryPanel
             onClose={() => dispatchCanvasAction({ type: "panel/close" })}
-            onOpenCanvasRefPicker={onOpenCanvasRefPicker}
             onStartDragUnderstanding={(id, event) =>
               graphRef.current?.startDrag(newUnderstandingElement(id), event)
             }

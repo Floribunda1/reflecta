@@ -1,7 +1,7 @@
 import { useLatest } from "ahooks";
 import { Effect } from "effect";
 import { runPromise } from "@renderer/lib/effect-runtime";
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "@effect/atom-react";
 import {
@@ -13,7 +13,6 @@ import {
   type CanvasShapeData,
   type CanvasViewport,
 } from "@reflecta/ui/canvas";
-import { useModal } from "@reflecta/ui/overlays";
 import { useNavigateToCanvas } from "@renderer/modules/shared/navigation";
 import { ResizablePanel, ResizablePanelGroup } from "@reflecta/ui/components/resizable";
 import {
@@ -25,7 +24,6 @@ import {
   useUpdateViewportMutation,
 } from "../queries";
 import { canvasHydrateAtom, dispatchCanvasAction, provideCanvasEffects } from "../store";
-import { CanvasRefPickerModal } from "./CanvasRefPickerModal";
 import { CanvasToolbar } from "./CanvasToolbar";
 import {
   CanvasEmptyOverlay,
@@ -176,7 +174,6 @@ const CanvasGraphMount = memo(function CanvasGraphMount({
  */
 export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   const navigateToCanvas = useNavigateToCanvas();
-  const { openModal, closeModal } = useModal();
   const { data: detail } = useCanvasDetail(canvasId);
   const canvas = detail?.canvas ?? null;
   const graphRef = useRef<CanvasGraphHandle>(null);
@@ -244,20 +241,6 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
     };
   }, [detail, navigateToCanvas, refPreviews]);
 
-  const handleOpenCanvasRefPicker = useCallback(() => {
-    openModal(
-      <CanvasRefPickerModal
-        excludeCanvasId={canvasId}
-        onClose={closeModal}
-        onPick={(target) => {
-          closeModal();
-          graphRef.current?.addElement(newCanvasRefElement(target.id));
-        }}
-      />,
-      { title: "引用画布", widthClassName: "max-w-md" },
-    );
-  }, [canvasId, closeModal, openModal]);
-
   return (
     <div
       data-testid="canvas-workspace"
@@ -291,11 +274,7 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
           </div>
         </ResizablePanel>
 
-        <CanvasSidePanelHost
-          canvasId={canvasId}
-          graphRef={graphRef}
-          onOpenCanvasRefPicker={handleOpenCanvasRefPicker}
-        />
+        <CanvasSidePanelHost canvasId={canvasId} graphRef={graphRef} />
       </ResizablePanelGroup>
     </div>
   );

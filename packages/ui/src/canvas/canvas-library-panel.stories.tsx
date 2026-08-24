@@ -66,7 +66,6 @@ function LibraryDemo({
           onIncludeDescendantsChange={setIncludeDescendants}
           onSortByChange={setSortBy}
           onClose={() => setLastAction("关闭")}
-          onOpenCanvasRefPicker={() => setLastAction("打开画布引用选择")}
           onStartDragUnderstanding={(id) => setLastAction(`开始拖拽理解：${id}`)}
           onPickUnderstanding={(id) => setLastAction(`点选理解：${id}`)}
           onStartDragCanvas={(id) => setLastAction(`开始拖拽画布：${id}`)}
@@ -166,7 +165,6 @@ const meta = {
     onIncludeDescendantsChange: () => undefined,
     onSortByChange: () => undefined,
     onClose: () => undefined,
-    onOpenCanvasRefPicker: () => undefined,
     onStartDragUnderstanding: () => undefined,
     onPickUnderstanding: () => undefined,
     onStartDragCanvas: () => undefined,

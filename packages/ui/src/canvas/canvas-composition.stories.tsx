@@ -131,7 +131,6 @@ function WorkspaceShell({
           onIncludeDescendantsChange={() => undefined}
           onSortByChange={setSortBy}
           onClose={() => setLibrary(false)}
-          onOpenCanvasRefPicker={() => undefined}
           onStartDragUnderstanding={(id, event) =>
             graphRef.current?.startDrag(
               {

@@ -1,5 +1,4 @@
-import { BookOpen, FileText, LayoutGrid, Search, X } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../components/tooltip";
+import { FileText, LayoutGrid, Search, X } from "lucide-react";
 import { Button } from "../components/button";
 import { Input } from "../components/input";
 import { ScrollArea } from "../components/scroll-area";
@@ -18,6 +17,7 @@ import type { DomainTreeNodeView } from "../capture/domain-tree";
 export type CanvasLibraryItemView = {
   id: string;
   title: string;
+  meta?: string;
 };
 
 export type CanvasLibrarySortBy = "updatedAt" | "createdAt";
@@ -42,7 +42,6 @@ export type CanvasLibraryPanelProps = {
   onIncludeDescendantsChange: (include: boolean) => void;
   onSortByChange: (sortBy: CanvasLibrarySortBy) => void;
   onClose: () => void;
-  onOpenCanvasRefPicker: () => void;
   onStartDragUnderstanding: (id: string, event: React.MouseEvent | React.PointerEvent) => void;
   onPickUnderstanding: (id: string) => void;
   onStartDragCanvas: (id: string, event: React.MouseEvent | React.PointerEvent) => void;
@@ -52,6 +51,7 @@ export type CanvasLibraryPanelProps = {
 function LibraryRow({
   id,
   title,
+  meta,
   icon,
   testId,
   itemAttrs,
@@ -60,6 +60,7 @@ function LibraryRow({
 }: {
   id: string;
   title: string;
+  meta?: string;
   icon: React.ReactNode;
   testId: string;
   itemAttrs: Record<string, string>;
@@ -79,7 +80,10 @@ function LibraryRow({
       onClick={() => onPick(id)}
     >
       <span className="shrink-0 text-muted-foreground">{icon}</span>
-      <span className="min-w-0 flex-1 truncate">{title}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate">{title}</span>
+        {meta ? <span className="block truncate text-xs text-muted-foreground">{meta}</span> : null}
+      </span>
     </button>
   );
 }
@@ -106,7 +110,6 @@ export function CanvasLibraryPanel({
   onIncludeDescendantsChange,
   onSortByChange,
   onClose,
-  onOpenCanvasRefPicker,
   onStartDragUnderstanding,
   onPickUnderstanding,
   onStartDragCanvas,
@@ -127,23 +130,6 @@ export function CanvasLibraryPanel({
             <TabsTrigger value="understandings">理解</TabsTrigger>
             <TabsTrigger value="canvases">画布</TabsTrigger>
           </TabsList>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  aria-label="引用画布"
-                  data-testid="canvas-open-canvasref-picker"
-                  onClick={onOpenCanvasRefPicker}
-                />
-              }
-            >
-              <BookOpen size={14} />
-            </TooltipTrigger>
-            <TooltipContent>引用画布</TooltipContent>
-          </Tooltip>
           <Button
             type="button"
             size="icon-sm"
@@ -225,6 +211,7 @@ export function CanvasLibraryPanel({
                     key={understanding.id}
                     id={understanding.id}
                     title={understanding.title}
+                    meta={understanding.meta}
                     icon={<FileText size={13} />}
                     testId="canvas-library-item"
                     itemAttrs={{

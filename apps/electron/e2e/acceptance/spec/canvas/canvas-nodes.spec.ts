@@ -255,9 +255,8 @@ test("@CV-X6-UND-004 双击理解卡打开详情", async () => {
 test("@CV-X6-REF-001 创建引用卡并看到内嵌只读预览", async () => {
   await h.openCanvasRow(page!, "REF");
   await h.openLibrary(page!);
-  await page!.getByTestId("canvas-open-canvasref-picker").click();
-  await expect(page!.getByRole("dialog")).toBeVisible();
-  await page!.getByRole("dialog").getByText("TARGET").first().click();
+  await page!.getByRole("tab", { name: "画布" }).click();
+  await page!.getByTestId("canvas-library-canvas-item").filter({ hasText: "TARGET" }).click();
   await page!.waitForTimeout(500);
   const card = page!.getByTestId("canvas-graph").first().getByTestId("canvas-canvas-ref-card");
   await expect(card).toBeVisible();

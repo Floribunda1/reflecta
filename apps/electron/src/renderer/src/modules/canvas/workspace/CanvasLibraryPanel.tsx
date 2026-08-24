@@ -1,4 +1,6 @@
 import { useDeferredValue, useMemo, useState } from "react";
+import { formatDistanceToNow } from "date-fns";
+import { zhCN } from "date-fns/locale";
 import {
   CanvasLibraryPanel as CanvasLibraryPanelView,
   type CanvasLibrarySortBy,
@@ -17,14 +19,12 @@ import { sortUnderstandingSummaries } from "../../capture/dashboard/sort";
  */
 export function CanvasLibraryPanel({
   onClose,
-  onOpenCanvasRefPicker,
   onStartDragUnderstanding,
   onStartDragCanvas,
   onPickUnderstanding,
   onPickCanvas,
 }: {
   onClose: () => void;
-  onOpenCanvasRefPicker: () => void;
   onStartDragUnderstanding: (id: string, e: React.MouseEvent | React.PointerEvent) => void;
   onStartDragCanvas: (id: string, e: React.MouseEvent | React.PointerEvent) => void;
   onPickUnderstanding: (id: string) => void;
@@ -54,6 +54,10 @@ export function CanvasLibraryPanel({
       sorted.map((understanding) => ({
         id: understanding.id,
         title: understanding.title ?? "未命名理解",
+        meta: `更新于 ${formatDistanceToNow(new Date(understanding.updatedAt), {
+          addSuffix: true,
+          locale: zhCN,
+        })}`,
       })),
     [sorted],
   );
@@ -81,7 +85,6 @@ export function CanvasLibraryPanel({
       onIncludeDescendantsChange={setIncludeDescendants}
       onSortByChange={setSortBy}
       onClose={onClose}
-      onOpenCanvasRefPicker={onOpenCanvasRefPicker}
       onStartDragUnderstanding={onStartDragUnderstanding}
       onPickUnderstanding={onPickUnderstanding}
       onStartDragCanvas={onStartDragCanvas}
