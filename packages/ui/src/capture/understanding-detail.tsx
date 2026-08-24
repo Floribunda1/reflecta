@@ -16,7 +16,7 @@ import {
   Video,
   X,
 } from "lucide-react";
-import type { ReactNode, Ref } from "react";
+import { useState, type ReactNode, type Ref } from "react";
 import type { ResolveChatEntity } from "../chat/entity";
 import { SimpleMarkdownPreview } from "../editor/simple-markdown-preview";
 import { Badge } from "../components/badge";
@@ -314,30 +314,45 @@ export function UnderstandingCanvasMembership({
   canvases: readonly UnderstandingDetailCanvasView[];
   onOpen: (canvasId: string) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+
   if (canvases.length === 0) return null;
 
+  const visibleCanvases = expanded ? canvases : canvases.slice(0, 2);
+
   return (
-    <section className="mt-6 border-t border-border pt-5 pb-6">
-      <div className="mb-2 text-sm font-medium">
-        关联画布 <span className="text-muted-foreground">{canvases.length}</span>
+    <section className="border-t border-border py-4">
+      <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+        <span>关联</span>
+        <span className="text-muted-foreground">{canvases.length} 个画布</span>
       </div>
-      <div className="flex flex-col gap-1">
-        {canvases.map((canvas) => (
+      <div className="flex flex-wrap gap-2">
+        {visibleCanvases.map((canvas) => (
           <button
             key={canvas.id}
             type="button"
             data-testid="capture-understanding-canvas"
             data-canvas-id={canvas.id}
             data-canvas-title={canvas.title}
-            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex max-w-full items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-left text-sm outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => onOpen(canvas.id)}
             title="在画布中打开"
           >
-            <LayoutGrid className="shrink-0 text-muted-foreground" />
+            <LayoutGrid className="size-4 shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1 truncate">{canvas.title}</span>
-            <ChevronRight className="shrink-0 text-muted-foreground" />
+            <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
           </button>
         ))}
+        {canvases.length > 2 ? (
+          <button
+            type="button"
+            className="rounded-md px-2.5 py-1.5 text-sm text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            aria-expanded={expanded}
+            onClick={() => setExpanded((current) => !current)}
+          >
+            {expanded ? "收起" : `查看全部 ${canvases.length}`}
+          </button>
+        ) : null}
       </div>
     </section>
   );
