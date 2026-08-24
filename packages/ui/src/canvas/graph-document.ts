@@ -112,9 +112,21 @@ export function nodeMetadataFor(
     zIndex: element.zIndex,
     parent: element.parentId ?? undefined,
     data: { element },
+    attrs: paint
+      ? ({
+          root: {
+            style: { "--canvas-node-paint": paint },
+          },
+        } as unknown as NonNullable<NodeMetadata["attrs"]>)
+      : undefined,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ports: CANVAS_PORTS as unknown as NonNullable<NodeMetadata["ports"]>,
   } satisfies NodeMetadata;
+}
+
+/** 色板 token（chart-1..5）→ CSS 变量引用；遗留 hex 原样返回。 */
+function tokenPaintColor(color: string): string {
+  return /^chart-[1-5]$/.test(color) ? `var(--${color})` : color;
 }
 
 /** 元素 / 连线 DTO → X6 节点 / 边 metadata（供 `graph.fromJSON` 一次性建图）。 */
@@ -122,7 +134,14 @@ export function toX6Cells(document: CanvasDocument): CellMetadata[] {
   const index = new Map(document.elements.map((element) => [element.id, element]));
   const nodes: CellMetadata[] = document.elements.map((element) => nodeMetadataFor(element, index));
   const edges: CellMetadata[] = document.edges.map((edge) => {
-    const visuals = edgeVisuals(edge);
+    // 只有带 label 的边才需要算贴合 group 的底色，无 label 直接走默认画布底。
+    const surface = edge.label
+      ? edgeLabelSurfaceFor(
+          groupAncestors(edge.source.cell, index),
+          groupAncestors(edge.target.cell, index),
+        )
+      : undefined;
+    const visuals = edgeVisuals(edge, surface);
     return {
       id: edge.id,
       shape: "edge",
