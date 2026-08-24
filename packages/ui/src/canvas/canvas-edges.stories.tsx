@@ -138,7 +138,7 @@ function EdgeRoutingLab() {
   return (
     <StoryShowcase
       title="Edge Routing Lab"
-      description="切换节点位置、连接桩和路径；正交线重连后应始终沿当前连接桩方向出入。"
+      description="切换位置时自动选择面对彼此的连接桩；也可手动覆盖端口，用于诊断极端组合。"
     >
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="grid gap-3">

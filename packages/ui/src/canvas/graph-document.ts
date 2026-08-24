@@ -5,6 +5,7 @@ import type {
   CanvasEdgeAttrs,
   CanvasEdgeConnector,
   CanvasEdgeDTO,
+  CanvasEdgePortId,
   CanvasEdgeRouter,
   CanvasElementDTO,
 } from "./document";
@@ -197,6 +198,46 @@ export function syncManhattanRouterDirections(edge: X6Edge): void {
       endDirections: [targetPort],
     },
   } as EdgeMetadata["router"]);
+}
+
+export function facingEdgePorts(
+  source: { x: number; y: number },
+  target: { x: number; y: number },
+): readonly [CanvasEdgePortId, CanvasEdgePortId] {
+  const dx = target.x - source.x;
+  const dy = target.y - source.y;
+  if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? ["right", "left"] : ["left", "right"];
+  return dy >= 0 ? ["bottom", "top"] : ["top", "bottom"];
+}
+
+/** 按两端节点的相对位置选择面对彼此的端口，避免直线/曲线穿过节点。 */
+export function syncEdgePortsToNodePositions(edge: X6Edge): void {
+  const source = edge.getSourceNode();
+  const target = edge.getTargetNode();
+  if (!source || !target || source.id === target.id) return;
+  const [sourcePort, targetPort] = facingEdgePorts(
+    source.getBBox().getCenter(),
+    target.getBBox().getCenter(),
+  );
+  if (edge.getSourcePortId() !== sourcePort) edge.setSource({ cell: source.id, port: sourcePort });
+  if (edge.getTargetPortId() !== targetPort) edge.setTarget({ cell: target.id, port: targetPort });
+  syncManhattanRouterDirections(edge);
+  const data = (edge.getData() as { edge?: CanvasEdgeDTO } | null)?.edge;
+  if (
+    data &&
+    (data.source.cell !== source.id ||
+      data.source.port !== sourcePort ||
+      data.target.cell !== target.id ||
+      data.target.port !== targetPort)
+  ) {
+    edge.replaceData({
+      edge: {
+        ...data,
+        source: { cell: source.id, port: sourcePort },
+        target: { cell: target.id, port: targetPort },
+      },
+    });
+  }
 }
 
 /** X6 节点 → 元素 DTO（id/几何回读；组内子元素坐标为相对坐标）。 */
