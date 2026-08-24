@@ -52,8 +52,15 @@ function useCard(
 
 function UnderstandingShape({ node, graph }: CardProps) {
   const { element, selected, update } = useCard(node, graph);
-  const { understandingRefs, readonly, onElementEdit, multiSelected, onCellAction } =
-    useCanvasShapeData();
+  const {
+    understandingRefs,
+    readonly,
+    onElementEdit,
+    multiSelected,
+    onCellAction,
+    resolveWikiLink,
+    onWikiLinkOpen,
+  } = useCanvasShapeData();
   if (element.kind !== "understanding") return null;
   const ref = element.understandingId ? understandingRefs.get(element.understandingId) : undefined;
   return (
@@ -62,7 +69,11 @@ function UnderstandingShape({ node, graph }: CardProps) {
       understandingId={element.understandingId ?? ""}
       title={ref?.title ?? null}
       body={ref?.body ?? ""}
-      deleted={!ref || ref.deleted}
+      // ponytail: 占位只在服务端明确标记 soft-delete 时显示；拖入新卡后 ref 尚未随刷新就位，
+      // 用 !ref 兜底会把“未加载”误判成“已删除”。hard-delete 不存在（仅软删），不影响。
+      deleted={ref?.deleted ?? false}
+      resolveWikiLink={resolveWikiLink}
+      onWikiLinkOpen={onWikiLinkOpen}
       color={element.props.color}
       selected={selected}
       readonly={readonly}
@@ -128,7 +139,8 @@ function CanvasRefShape({ node, graph }: CardProps) {
   } = useCanvasShapeData();
   if (element.kind !== "canvas_ref") return null;
   const target = element.canvasRefId ? referencedCanvases.get(element.canvasRefId) : undefined;
-  const deleted = !target || target.deleted;
+  // ponytail: 同上，未加载的引用不算“已删除”。
+  const deleted = target?.deleted ?? false;
   return (
     <CanvasRefCard
       id={element.id}

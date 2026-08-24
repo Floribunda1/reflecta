@@ -1,4 +1,5 @@
 import { createContext, useContext } from "react";
+import type { ChatEntityReference, ResolveChatEntity } from "../chat/entity";
 import type { CanvasDocument, CanvasElementDTO } from "./document";
 import type { CanvasEdgeDTO } from "./document";
 
@@ -43,6 +44,10 @@ export type CanvasShapeData = {
   onElementEdit?: (element: CanvasElementDTO) => void;
   /** 双击连线发起的标签编辑：React Flow onEdgeDoubleClick 落到对应边，开启内联编辑 */
   editingEdgeId?: string | null;
+  /** 理解卡正文里的 [[u:id]] 双链：id → 标题（供 MarkdownPreview 渲染） */
+  resolveWikiLink?: ResolveChatEntity;
+  /** 点击理解卡正文里的 wiki link：跳到对应理解详情 */
+  onWikiLinkOpen?: (reference: ChatEntityReference) => void;
   /** 标签编辑结束（提交 / 取消）时清空，保证同一连线可再次双击进入 */
   onEdgeEditEnd?: () => void;
 };

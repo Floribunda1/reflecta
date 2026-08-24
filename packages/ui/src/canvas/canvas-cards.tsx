@@ -21,6 +21,7 @@ import {
   ContextMenuTrigger,
 } from "../components/context-menu";
 import { cn } from "../lib/utils";
+import type { ChatEntityReference, ResolveChatEntity } from "../chat/entity";
 import { canvasPaintColor, CanvasColorSwatches } from "./color-swatches";
 import type { CanvasDocument } from "./document";
 import type { CanvasShapeData } from "./shape-context";
@@ -153,6 +154,8 @@ export type CanvasUnderstandingCardProps = {
   readonly?: boolean;
   multiSelected?: boolean;
   understandingId?: string;
+  resolveWikiLink?: ResolveChatEntity;
+  onWikiLinkOpen?: (reference: ChatEntityReference) => void;
   onEdit?: () => void;
   onRemove?: () => void;
   onColorChange?: (color?: string) => void;
@@ -170,6 +173,8 @@ export function CanvasUnderstandingCard({
   readonly = false,
   multiSelected = false,
   understandingId = "",
+  resolveWikiLink,
+  onWikiLinkOpen,
   onEdit,
   onRemove,
   onColorChange,
@@ -206,7 +211,12 @@ export function CanvasUnderstandingCard({
             </span>
           </div>
           <div className="canvas-card-scroll nowheel min-h-0 flex-1 overflow-y-auto px-2.5 py-2">
-            <MarkdownPreview value={body} zoomImages={false} />
+            <MarkdownPreview
+              value={body}
+              zoomImages={false}
+              resolveWikiLink={resolveWikiLink}
+              onWikiLinkOpen={onWikiLinkOpen}
+            />
           </div>
         </>
       )}

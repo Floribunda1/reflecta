@@ -1,8 +1,8 @@
 import { useLatest } from "ahooks";
 import { Effect } from "effect";
 import { runPromise } from "@renderer/lib/effect-runtime";
-import { memo, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useQueryClient, useQueries } from "@tanstack/react-query";
 import { useAtomValue } from "@effect/atom-react";
 import {
   CanvasGraph,
@@ -13,6 +13,11 @@ import {
   type CanvasShapeData,
   type CanvasViewport,
 } from "@reflecta/ui/canvas";
+import {
+  collectChatEntityReferences,
+  type ChatEntityPresentation,
+  type ChatEntityReference,
+} from "@reflecta/ui/chat";
 import { useNavigateToCanvas } from "@renderer/modules/shared/navigation";
 import { ResizablePanel, ResizablePanelGroup } from "@reflecta/ui/components/resizable";
 import {
@@ -23,6 +28,7 @@ import {
   useSaveCanvasMutation,
   useUpdateViewportMutation,
 } from "../queries";
+import { captureQueryKeys, getEntityDisplay } from "../../capture/queries";
 import { canvasHydrateAtom, dispatchCanvasAction, provideCanvasEffects } from "../store";
 import { CanvasToolbar } from "./CanvasToolbar";
 import {
@@ -201,6 +207,41 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   const refIds = useMemo(() => (detail?.referencedCanvases ?? []).map((ref) => ref.id), [detail]);
   const { data: refPreviews } = useReferencedCanvasPreviews(refIds);
 
+  // 理解卡正文里的 wiki link（[[u:id]] 等）→ 标题：对画布引用理解的正文收集引用，批量拉取展示。
+  const referenceSource = useMemo(
+    () => (detail?.understandingRefs ?? []).map((ref) => ref.body).join("\n"),
+    [detail],
+  );
+  const entityReferences = useMemo(
+    () => collectChatEntityReferences(referenceSource),
+    [referenceSource],
+  );
+  const entityQueries = useQueries({
+    queries: entityReferences.map((reference) => ({
+      queryKey: captureQueryKeys.entityDisplay(reference),
+      queryFn: () => getEntityDisplay(reference),
+    })),
+  });
+  const entityPresentations = useMemo(() => {
+    const result = new Map<string, ChatEntityPresentation>();
+    entityReferences.forEach((reference, index) => {
+      const title = entityQueries[index]?.data?.title;
+      if (title) {
+        result.set(`${reference.type}:${reference.id}`, {
+          state: "ready",
+          label: title,
+          canOpen: reference.type !== "domain",
+        });
+      }
+    });
+    return result;
+  }, [entityQueries, entityReferences]);
+  const resolveWikiLink = useCallback(
+    (reference: ChatEntityReference) =>
+      entityPresentations.get(`${reference.type}:${reference.id}`),
+    [entityPresentations],
+  );
+
   const shapeData = useMemo<CanvasShapeData>(() => {
     const refMap = new Map<string, CanvasReferencedCanvasView>();
     for (const ref of detail?.referencedCanvases ?? []) {
@@ -238,8 +279,14 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
           });
         }
       },
+      resolveWikiLink,
+      onWikiLinkOpen: (reference) => {
+        if (reference.type === "understanding") {
+          dispatchCanvasAction({ type: "panel/openDetail", understandingId: reference.id });
+        }
+      },
     };
-  }, [detail, navigateToCanvas, refPreviews]);
+  }, [detail, navigateToCanvas, refPreviews, resolveWikiLink]);
 
   return (
     <div
