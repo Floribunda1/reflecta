@@ -1106,6 +1106,54 @@ describe("buildAgentTurnView", () => {
     });
   });
 
+  test("maps canvas proposals to draft render data", () => {
+    const document = {
+      elements: [{ id: "n1", kind: "understanding", understandingId: "understanding-1" }],
+      edges: [],
+    };
+    const turn = buildAgentTurnView([
+      proposal("canvas_update", "tool-1", {
+        canvasId: "canvas-1",
+        document,
+        reason: "把复验结论连起来",
+      }),
+    ]);
+
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "proposal",
+      proposal: {
+        type: "canvas_update",
+        title: "canvas_update",
+        status: "pending",
+        data: {
+          kind: "canvas",
+          variant: "update",
+          document,
+          targetLabel: "canvas-1",
+          reason: "把复验结论连起来",
+        },
+      },
+    });
+  });
+
+  test("canvas delete renders no draft document", () => {
+    const turn = buildAgentTurnView([
+      proposal("canvas_delete", "tool-1", {
+        canvasId: "canvas-1",
+        reason: "已废弃",
+      }),
+    ]);
+    expect(turn.blocks[0]).toMatchObject({
+      kind: "proposal",
+      proposal: {
+        type: "canvas_delete",
+        data: { kind: "canvas", variant: "delete", targetLabel: "canvas-1" },
+      },
+    });
+    const data = (turn.blocks[0] as { proposal: { data: { document?: unknown } } }).proposal.data;
+    expect(data.document).toBeUndefined();
+  });
+
   test("keeps understanding update domain changes in render data", () => {
     const turn = buildAgentTurnView([
       proposal("understanding_update", "tool-1", {
@@ -1286,5 +1334,47 @@ describe("buildAgentTurnView", () => {
     });
     expect(proposalView.note).toBeUndefined();
     expect(proposalView.result).toBeUndefined();
+  });
+
+  test("maps canvas proposals to a read-only draft view with understanding titles", () => {
+    const approval = {
+      kind: "approval" as const,
+      approvalId: "approval-tool-1",
+      toolCallId: "tool-1",
+      toolName: "canvas_update",
+      title: "候选修改画布",
+      payload: {
+        canvasId: "canvas-1",
+        document: {
+          elements: [
+            { id: "n1", kind: "understanding", understandingId: "u-1" },
+            { id: "n2", kind: "text", props: { text: "线头记录" } },
+          ],
+          edges: [{ id: "e1", source: "n1", target: "n2" }],
+        },
+        reason: "把复验结论连起来",
+      },
+      output: undefined,
+      approved: false,
+      state: "pending" as const,
+      approvalState: "pending" as const,
+      executionState: "not_started" as const,
+      displayState: "pending_approval" as const,
+      createdAt: "2026-06-23T00:00:00.000Z",
+    };
+    const turn = buildAgentTurnView([approval]);
+    if (turn.blocks[0]?.kind !== "proposal") throw new Error("Expected proposal block");
+    const view = toAgentProposalView(turn.blocks[0].proposal, approval, {
+      entityLabels: new Map([["understanding:u-1", "复验结论"]]),
+      domainPath: (id) => id,
+    });
+    expect(view.kind).toBe("canvas");
+    if (view.kind !== "canvas") throw new Error("Expected canvas proposal");
+    expect(view.lifecycle).toBe("pending");
+    expect(view.content.variant).toBe("update");
+    expect(view.content.targetLabel).toBe("canvas-1");
+    expect(view.content.reason).toBe("把复验结论连起来");
+    expect(view.content.document?.elements).toHaveLength(2);
+    expect(view.content.understandingTitles).toEqual([{ id: "u-1", title: "复验结论" }]);
   });
 });

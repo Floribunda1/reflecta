@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { lazy, Suspense, type ReactNode, useState } from "react";
 import { ChevronDown, Trash2 } from "lucide-react";
 import { Button } from "../../components/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/collapsible";
@@ -10,6 +10,7 @@ import {
 } from "../../components/input-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/tooltip";
 import { MarkdownPreview } from "../../editor/markdown-preview";
+import type { CanvasUnderstandingRefView } from "../../canvas";
 import type { ChatEntityBindings, ChatEntityType } from "../entity";
 import {
   entityClassName,
@@ -25,6 +26,7 @@ import type {
   AgentProposalLifecycle,
   AgentProposalView,
   BashProposalView,
+  CanvasProposalView,
   ContextCreateProposalView,
   ContextUpdateProposalView,
   DomainCreateProposalView,
@@ -143,6 +145,12 @@ function proposalTitle(proposal: AgentProposalView) {
   if (proposal.kind === "context-update") return "修改 Context";
   if (proposal.kind === "context-delete") return "删除 Context";
   if (proposal.kind === "bash") return "执行 Bash";
+  if (proposal.kind === "canvas")
+    return proposal.content.variant === "create"
+      ? "候选画布"
+      : proposal.content.variant === "update"
+        ? "候选修改画布"
+        : "候选删除画布";
   return proposal.title;
 }
 
@@ -154,7 +162,8 @@ function proposalReason(proposal: AgentProposalView) {
     proposal.kind === "domain-update" ||
     proposal.kind === "domain-delete" ||
     proposal.kind === "context-update" ||
-    proposal.kind === "context-delete"
+    proposal.kind === "context-delete" ||
+    proposal.kind === "canvas"
   ) {
     return proposal.content.reason;
   }
@@ -361,6 +370,11 @@ function ProposalMeta({ proposal }: { proposal: AgentProposalView }) {
         {timeout ? <MetaItem label="最长等待">{timeout}</MetaItem> : null}
       </>
     );
+  } else if (proposal.kind === "canvas") {
+    content =
+      proposal.content.variant !== "create" && proposal.content.targetLabel ? (
+        <MetaItem label="画布">{proposal.content.targetLabel}</MetaItem>
+      ) : null;
   }
   return content ? (
     <dl className="mb-5 flex flex-wrap gap-x-6 gap-y-2 text-xs">{content}</dl>
@@ -705,6 +719,42 @@ function BashProposal({ proposal }: { proposal: BashProposalView }) {
   );
 }
 
+// 只读画布渲染经 lazy 引入：把 @antv/x6 排除出本模块的 eager 依赖图（proposal-card 的
+// 单测跑在 ESM 环境，X6 CJS lib 载入会炸；且只在 canvas 提案实际渲染时才需要 X6）。
+const CanvasReadOnlyView = lazy(() =>
+  import("../../canvas").then((m) => ({ default: m.CanvasReadOnlyView })),
+);
+
+function CanvasProposalDraft({ proposal }: { proposal: CanvasProposalView }) {
+  const content = proposal.content;
+  if (content.variant === "delete" || !content.document) {
+    return (
+      <div className="text-sm text-muted-foreground">
+        {content.variant === "delete" ? "确认后，这张画布及其全部内容将被删除。" : "画布草稿为空。"}
+      </div>
+    );
+  }
+  const understandingRefs = new Map<string, CanvasUnderstandingRefView>();
+  for (const title of content.understandingTitles ?? []) {
+    understandingRefs.set(title.id, {
+      id: title.id,
+      title: title.title ?? null,
+      body: "",
+      deleted: false,
+    });
+  }
+  return (
+    <div className="relative h-64 overflow-hidden rounded-md border border-border bg-muted/30">
+      <Suspense fallback={<div className="h-64" />}>
+        <CanvasReadOnlyView
+          document={content.document}
+          shapeData={{ understandingRefs, referencedCanvases: new Map() }}
+        />
+      </Suspense>
+    </div>
+  );
+}
+
 function UnknownProposal({
   proposal,
   entityBindings,
@@ -761,6 +811,7 @@ function ProposalContent({
   if (proposal.kind === "context-delete")
     return <DeleteProposal>确认后，这条 Context 将移入回收站。</DeleteProposal>;
   if (proposal.kind === "bash") return <BashProposal proposal={proposal} />;
+  if (proposal.kind === "canvas") return <CanvasProposalDraft proposal={proposal} />;
   return <UnknownProposal proposal={proposal} entityBindings={entityBindings} />;
 }
 

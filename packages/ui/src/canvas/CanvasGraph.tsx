@@ -167,6 +167,13 @@ function restoreChildLinks(graph: import("@antv/x6").Graph, doc: CanvasDocument)
 }
 
 // react-shape portal provider：渲染一次，让所有 react-shape 卡片落入本 React 树（context 穿透）
+// ponytail: `@antv/x6-react-shape` 的 portal `connect/dispatch` 是模块级单例（portal.js 的
+// active/dispatch），只认最后一个挂载的 provider。多 Graph 并存时：静态只读草稿各自在其
+// 挂载窗口内连接（该窗口它仍是 active provider）→ 全部正确；但若同时混有交互图，且交互图
+// 在后续被只读 provider 抢占 dispatch 后才新增卡片，新卡片会落进只读 provider 的 context
+// （丢失编辑/选中通道）。现仅只读并存（chat 草稿 / artifact 缩略 / cv: modal）→ 无害；
+// 当需要“多个交互图同页并存”或“动态新增卡片发生在后挂载 provider 之后”时，再改为
+// 单 provider 于应用根 + 图内数据走 node data（弃 per-graph context）。
 const ReactShapePortalProvider = ReactShapePortal() as React.FC<{ children?: React.ReactNode }>;
 
 export const CanvasGraph = React.memo(

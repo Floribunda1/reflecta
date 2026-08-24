@@ -11,6 +11,7 @@ import type {
   AgentReducedAssistantBlock,
   AgentReducedMessage,
 } from "../../../../../preload/typings/agent";
+import type { CanvasDocument } from "@reflecta/ui/canvas";
 
 export type ProposalType =
   | "understanding_create"
@@ -22,7 +23,10 @@ export type ProposalType =
   | "context_create"
   | "context_update"
   | "context_delete"
-  | "bash";
+  | "bash"
+  | "canvas_create"
+  | "canvas_update"
+  | "canvas_delete";
 export type ToolApprovalStatus = "pending" | "approved" | "rejected";
 export type ToolGroupType = "lookup" | "other";
 export type ProposalState =
@@ -140,10 +144,28 @@ export type BashProposalView = ProposalBase<
   }
 >;
 
+export type CanvasProposalView = ProposalBase<
+  "canvas_create" | "canvas_update" | "canvas_delete",
+  {
+    kind: "canvas";
+    variant: "create" | "update" | "delete";
+    /** 候选画布草稿文档（create 的 initial / update 的 document） */
+    document?: { elements: unknown[]; edges: unknown[] };
+    targetLabel?: string;
+    reason?: string;
+  }
+>;
+
 export type GenericProposalView = ProposalBase<
   Exclude<
     ProposalType,
-    "understanding_create" | "understanding_update" | "context_create" | "bash"
+    | "understanding_create"
+    | "understanding_update"
+    | "context_create"
+    | "bash"
+    | "canvas_create"
+    | "canvas_update"
+    | "canvas_delete"
   >,
   {
     kind: "generic";
@@ -157,6 +179,7 @@ export type ProposalView =
   | UnderstandingUpdateProposalView
   | ContextProposalView
   | BashProposalView
+  | CanvasProposalView
   | GenericProposalView;
 
 export type AgentTurnBlock =
@@ -454,6 +477,22 @@ function proposalViewFor(block: AgentApprovalBlock): ProposalView {
   if (type === "bash") {
     return { ...base, type, data: bashProposalData(input) };
   }
+  if (type === "canvas_create" || type === "canvas_update" || type === "canvas_delete") {
+    const document = canvasDocument(input);
+    const canvasId = optionalString(input.canvasId);
+    return {
+      ...base,
+      type,
+      data: {
+        kind: "canvas",
+        variant:
+          type === "canvas_create" ? "create" : type === "canvas_update" ? "update" : "delete",
+        ...(document ? { document } : {}),
+        ...(canvasId ? { targetLabel: canvasId } : {}),
+        reason: optionalString(input.reason),
+      },
+    };
+  }
   return { ...base, type, data: genericProposalData(input) };
 }
 
@@ -468,6 +507,9 @@ function proposalTypeFor(toolName: string): ProposalType {
   if (toolName === "context_update") return "context_update";
   if (toolName === "context_delete") return "context_delete";
   if (toolName === "bash") return "bash";
+  if (toolName === "canvas_create") return "canvas_create";
+  if (toolName === "canvas_update") return "canvas_update";
+  if (toolName === "canvas_delete") return "canvas_delete";
   return "understanding_create";
 }
 
@@ -498,6 +540,9 @@ function proposalTitle(type: ProposalType) {
   if (type === "context_update") return "候选修改 Context";
   if (type === "context_delete") return "候选删除 Context";
   if (type === "bash") return "执行 Bash";
+  if (type === "canvas_create") return "候选画布";
+  if (type === "canvas_update") return "候选修改画布";
+  if (type === "canvas_delete") return "候选删除画布";
   return "候选操作";
 }
 
@@ -555,6 +600,17 @@ function bashProposalData(output: Record<string, unknown>): BashProposalView["da
     ...(cwd ? { cwd } : {}),
     ...(timeoutMs !== undefined ? { timeoutMs } : {}),
   };
+}
+
+/** 从 create 的 initial / update 的 document 提取候选画布草稿文档（payload 已在服务端校验为 CanvasDocument 形态）。 */
+function canvasDocument(input: Record<string, unknown>): CanvasDocument | undefined {
+  const source = isRecord(input.document)
+    ? input.document
+    : isRecord(input.initial)
+      ? input.initial
+      : undefined;
+  if (!source || !Array.isArray(source.elements) || !Array.isArray(source.edges)) return undefined;
+  return source as unknown as CanvasDocument;
 }
 
 function genericProposalData(output: Record<string, unknown>): GenericProposalView["data"] {
@@ -848,6 +904,46 @@ export function toAgentProposalView(
         command: optionalString(input.command),
         cwd: optionalString(input.cwd),
         timeoutMs: typeof input.timeoutMs === "number" ? input.timeoutMs : undefined,
+      },
+    };
+  }
+  if (
+    raw.toolName === "canvas_create" ||
+    raw.toolName === "canvas_update" ||
+    raw.toolName === "canvas_delete"
+  ) {
+    const doc = canvasDocument(input);
+    const understandingIds: string[] = [];
+    for (const element of doc?.elements ?? []) {
+      if (
+        isRecord(element) &&
+        element.kind === "understanding" &&
+        typeof element.understandingId === "string" &&
+        !understandingIds.includes(element.understandingId)
+      ) {
+        understandingIds.push(element.understandingId);
+      }
+    }
+    const understandingTitles = understandingIds.length
+      ? understandingIds.map((id) => ({
+          id,
+          title: presentation.entityLabels.get(`understanding:${id}`) ?? id,
+        }))
+      : undefined;
+    return {
+      ...base,
+      kind: "canvas",
+      content: {
+        variant:
+          raw.toolName === "canvas_create"
+            ? "create"
+            : raw.toolName === "canvas_update"
+              ? "update"
+              : "delete",
+        ...(optionalString(input.canvasId) ? { targetLabel: optionalString(input.canvasId) } : {}),
+        reason: optionalString(input.reason),
+        ...(doc ? { document: doc } : {}),
+        ...(understandingTitles?.length ? { understandingTitles } : {}),
       },
     };
   }

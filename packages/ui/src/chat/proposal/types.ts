@@ -1,4 +1,5 @@
 import type { AgentToolDetailsView } from "../execution/types";
+import type { CanvasDocument } from "../../canvas";
 
 export type AgentProposalLifecycle =
   | "preview"
@@ -123,6 +124,20 @@ export type BashProposalView = AgentProposalBaseView & {
   };
 };
 
+export type CanvasProposalView = AgentProposalBaseView & {
+  kind: "canvas";
+  content: {
+    variant: "create" | "update" | "delete";
+    /** 候选画布目标（update / delete 的 canvasId） */
+    targetLabel?: string;
+    reason?: string;
+    /** 候选画布草稿文档（create 的 initial / update 的 document）；delete 无 */
+    document?: CanvasDocument;
+    /** 草稿内引用理解的标题（正文省略，token 预算）；供只读渲染卡片标题 */
+    understandingTitles?: ReadonlyArray<{ id: string; title: string }>;
+  };
+};
+
 export type UnknownProposalFieldView = {
   id: string;
   label: string;
@@ -150,6 +165,7 @@ export type AgentProposalView =
   | ContextUpdateProposalView
   | ContextDeleteProposalView
   | BashProposalView
+  | CanvasProposalView
   | UnknownProposalView;
 
 export type AgentProposalDecision =

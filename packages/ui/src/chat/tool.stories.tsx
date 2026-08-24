@@ -640,6 +640,65 @@ const approvalTools: readonly ApprovalFixture[] = [
       truncated: false,
     },
   },
+  {
+    block: approval("canvas_update", "候选修改画布", {
+      canvasId: "canvas-irrigation",
+      reason: "把昨夜复验的推导链显式画出来，用户据此验收结构与缺失。",
+      document: {
+        elements: [
+          {
+            id: "cvn-1",
+            canvasId: "canvas-irrigation",
+            parentId: null,
+            x: 0,
+            y: 0,
+            width: 260,
+            height: 180,
+            zIndex: 1,
+            createdAt,
+            updatedAt: createdAt,
+            kind: "understanding",
+            understandingId: "u-irrigation",
+            canvasRefId: null,
+            props: {},
+          },
+          {
+            id: "cvn-2",
+            canvasId: "canvas-irrigation",
+            parentId: null,
+            x: 340,
+            y: 0,
+            width: 220,
+            height: 120,
+            zIndex: 1,
+            createdAt,
+            updatedAt: createdAt,
+            kind: "text",
+            understandingId: null,
+            canvasRefId: null,
+            props: { text: "线头记录\n稳定回灌依赖观察窗，而非瞬时峰值。" },
+          },
+        ],
+        edges: [
+          {
+            id: "cve-1",
+            canvasId: "canvas-irrigation",
+            source: { cell: "cvn-1", port: "right" },
+            target: { cell: "cvn-2", port: "left" },
+            labels: [{ attrs: { label: { text: "推导出" } } }],
+            style: {},
+          },
+        ],
+      },
+    }),
+    output: {
+      approvalStatus: "approved",
+      proposalType: "canvas_update",
+      resultRefType: "canvas",
+      resultRefId: "canvas-irrigation",
+      resultRefTitle: "分区灌溉策略画布",
+    },
+  },
 ];
 
 const approvedExecutionFailure = approval(
