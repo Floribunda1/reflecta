@@ -115,14 +115,14 @@ export function EdgeOverlay({
   const patchLine = (patch: Record<string, unknown>) =>
     onUpdate({ ...dto, attrs: { ...dto.attrs, line: { ...line, ...patch } } });
   const path =
-    dto.connector.name === "normal"
-      ? "straight"
-      : dto.router?.name === "manhattan" && dto.connector.args?.radius === 8
-        ? "orthogonal"
+    dto.router?.name === "manhattan"
+      ? "orthogonal"
+      : dto.connector.name === "normal"
+        ? "straight"
         : "curve";
   const patchPath = (path: (typeof PATH_OPTIONS)[number]["value"]) => {
     if (path === "curve") {
-      onUpdate({ ...dto, ...curveEdgePath(dto.source.port, dto.target.port) });
+      onUpdate({ ...dto, ...curveEdgePath() });
       return;
     }
     if (path === "straight") {

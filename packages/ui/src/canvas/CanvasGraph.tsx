@@ -36,6 +36,7 @@ import {
   applyEdgePresentation,
   DEFAULT_CANVAS_EDGE_CONNECTOR,
   applyElementUpdate,
+  ensureCanvasConnectors,
   toX6Cells,
   graphToDocument,
   newEdgeDto,
@@ -217,6 +218,7 @@ export const CanvasGraph = React.memo(
       const container = containerRef.current;
       if (!container) return;
       ensureCanvasShapes();
+      ensureCanvasConnectors();
       const graph = new Graph({
         container,
         autoResize: true,

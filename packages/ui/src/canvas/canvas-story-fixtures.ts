@@ -123,11 +123,8 @@ export function storyEdge(
   label: string | null = null,
   attrs: CanvasEdgeDTO["attrs"] = structuredClone(DEFAULT_CANVAS_EDGE_ATTRS),
   pathConfig: Pick<CanvasEdgeDTO, "router" | "connector"> = {
-    router: {
-      name: "manhattan",
-      args: { padding: 32, startDirections: ["right"], endDirections: ["left"] },
-    },
-    connector: { name: "rounded", args: { radius: 32 } },
+    router: null,
+    connector: { name: "reflecta-curve" },
   },
 ): CanvasEdgeDTO {
   return {

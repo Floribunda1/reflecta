@@ -174,6 +174,13 @@ describe("Canvas document validation", () => {
     );
   });
 
+  test("registered canvas connector is accepted", () => {
+    const elements = [element({ id: "a" }), element({ id: "b" })];
+    const curve = edge({ id: "c", sourceElementId: "a", targetElementId: "b" });
+    curve.connector = { name: "reflecta-curve" };
+    expect(() => assertValidDocument(doc(elements, [curve]))).not.toThrow();
+  });
+
   test("parent must be a group", () => {
     const elements = [
       element({ id: "group", kind: "group" }),

@@ -51,7 +51,7 @@ export type CanvasEdgeRouter = {
 };
 
 export type CanvasEdgeConnector = {
-  name: "normal" | "smooth" | "rounded" | "jumpover";
+  name: "normal" | "smooth" | "rounded" | "jumpover" | "reflecta-curve";
   args?: Record<string, unknown>;
 };
 

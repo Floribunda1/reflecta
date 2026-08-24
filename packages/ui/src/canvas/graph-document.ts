@@ -1,5 +1,12 @@
 import type { Edge as X6Edge, EdgeMetadata } from "@antv/x6";
-import { Edge as X6EdgeCtor, type Graph, type Node as X6Node, type NodeMetadata } from "@antv/x6";
+import {
+  Edge as X6EdgeCtor,
+  Graph as X6Graph,
+  Path,
+  type Graph,
+  type Node as X6Node,
+  type NodeMetadata,
+} from "@antv/x6";
 import type {
   CanvasDocument,
   CanvasEdgeAttrs,
@@ -33,8 +40,7 @@ const toAbsolute = (
 };
 
 export const DEFAULT_CANVAS_EDGE_CONNECTOR: CanvasEdgeConnector = {
-  name: "rounded",
-  args: { radius: 32 },
+  name: "reflecta-curve",
 };
 export const DEFAULT_CANVAS_EDGE_ATTRS: CanvasEdgeAttrs = {
   line: {
@@ -141,7 +147,7 @@ export function newEdgeDto(canvasId: string): CanvasEdgeDTO {
     canvasId,
     source: { cell: "", port: "right" },
     target: { cell: "", port: "left" },
-    ...curveEdgePath("right", "left"),
+    ...curveEdgePath(),
     attrs: structuredClone(DEFAULT_CANVAS_EDGE_ATTRS),
     label: null,
     createdAt: new Date().toISOString(),
@@ -212,21 +218,82 @@ export function facingEdgePorts(
   return dy >= 0 ? ["bottom", "top"] : ["top", "bottom"];
 }
 
-export function curveEdgePath(
+export function curveEdgePath(): Pick<CanvasEdgeDTO, "router" | "connector"> {
+  return { router: null, connector: { ...DEFAULT_CANVAS_EDGE_CONNECTOR } };
+}
+
+const PORT_VECTORS: Record<CanvasEdgePortId, { x: number; y: number }> = {
+  top: { x: 0, y: -1 },
+  right: { x: 1, y: 0 },
+  bottom: { x: 0, y: 1 },
+  left: { x: -1, y: 0 },
+};
+const OPPOSITE_PORT: Record<CanvasEdgePortId, CanvasEdgePortId> = {
+  top: "bottom",
+  right: "left",
+  bottom: "top",
+  left: "right",
+};
+
+export function curvePathData(
+  source: { x: number; y: number },
+  target: { x: number; y: number },
   sourcePort: CanvasEdgePortId,
   targetPort: CanvasEdgePortId,
-): Pick<CanvasEdgeDTO, "router" | "connector"> {
-  return {
-    router: {
-      name: "manhattan",
-      args: {
-        padding: 32,
-        startDirections: [sourcePort],
-        endDirections: [targetPort],
-      },
-    },
-    connector: { ...DEFAULT_CANVAS_EDGE_CONNECTOR, args: { radius: 32 } },
+): string {
+  const stub = 16;
+  const sourceVector = PORT_VECTORS[sourcePort];
+  const targetVector = PORT_VECTORS[targetPort];
+  const sourceStub = {
+    x: source.x + sourceVector.x * stub,
+    y: source.y + sourceVector.y * stub,
   };
+  const targetStub = {
+    x: target.x + targetVector.x * stub,
+    y: target.y + targetVector.y * stub,
+  };
+  const control = Math.min(
+    160,
+    Math.max(48, Math.hypot(targetStub.x - sourceStub.x, targetStub.y - sourceStub.y) / 2),
+  );
+  const path = new Path();
+  path.appendSegment(Path.createSegment("M", source));
+  path.appendSegment(Path.createSegment("L", sourceStub));
+  path.appendSegment(
+    Path.createSegment(
+      "C",
+      sourceStub.x + sourceVector.x * control,
+      sourceStub.y + sourceVector.y * control,
+      targetStub.x + targetVector.x * control,
+      targetStub.y + targetVector.y * control,
+      targetStub.x,
+      targetStub.y,
+    ),
+  );
+  path.appendSegment(Path.createSegment("L", target));
+  return path.serialize();
+}
+
+let connectorsRegistered = false;
+export function ensureCanvasConnectors(): void {
+  if (connectorsRegistered) return;
+  connectorsRegistered = true;
+  X6Graph.registerConnector(
+    "reflecta-curve",
+    function (source, target, _routePoints, options: { raw?: boolean }) {
+      const sourcePort = this.cell.getSourcePortId() as CanvasEdgePortId | null;
+      const targetPort = this.cell.getTargetPortId() as CanvasEdgePortId | null;
+      const resolvedSourcePort = sourcePort ?? (targetPort ? OPPOSITE_PORT[targetPort] : "right");
+      const path = curvePathData(
+        source,
+        target,
+        resolvedSourcePort,
+        targetPort ?? OPPOSITE_PORT[resolvedSourcePort],
+      );
+      return options.raw ? Path.parse(path) : path;
+    },
+    true,
+  );
 }
 
 /** 按两端节点的相对位置选择面对彼此的端口，避免直线/曲线穿过节点。 */

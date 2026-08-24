@@ -7,6 +7,7 @@ import {
   facingEdgePorts,
   graphToDocument,
   curveEdgePath,
+  curvePathData,
   syncEdgePortsToNodePositions,
   syncManhattanRouterDirections,
   toX6Cells,
@@ -170,13 +171,10 @@ describe("in-place cell updates", () => {
   });
 
   test("gives curves straight terminal runs before their rounded bends", () => {
-    expect(curveEdgePath("right", "left")).toEqual({
-      router: {
-        name: "manhattan",
-        args: { padding: 32, startDirections: ["right"], endDirections: ["left"] },
-      },
-      connector: { name: "rounded", args: { radius: 32 } },
-    });
+    expect(curveEdgePath()).toEqual({ router: null, connector: { name: "reflecta-curve" } });
+    expect(curvePathData({ x: 0, y: 0 }, { x: 100, y: 100 }, "right", "left")).toMatch(
+      /^M 0 0 L 16 0 C .+ 84 100 L 100 100$/,
+    );
   });
 
   test("updates X6 terminals and their persisted DTO together", () => {
