@@ -251,7 +251,7 @@ export class CanvasCore {
       const baseQuery = this.db
         .select()
         .from(understandingCanvases)
-        .orderBy(desc(understandingCanvases.updatedAt));
+        .orderBy(desc(understandingCanvases.createdAt));
       const query = conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
       const rows = await (filter?.limit ? query.limit(filter.limit) : query);
       return rows.map(canvasRowToDTO);

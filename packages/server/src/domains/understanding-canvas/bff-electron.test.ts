@@ -184,12 +184,9 @@ describe("UnderstandingCanvasElectronBff.getCanvasDetail", () => {
     expect(canvases.map((c) => c.id)).toEqual([canvasId]);
   });
 
-  test("listCanvases orders by updated_at desc", async () => {
+  test("listCanvases orders by created_at desc", async () => {
     const a = (await Effect.runPromise(service.createCanvas({ title: "A" }))).id;
     const b = (await Effect.runPromise(service.createCanvas({ title: "B" }))).id;
-    await Effect.runPromise(service.saveCanvas(a, { elements: [element("e1")], edges: [] }));
-    await new Promise((resolve) => setTimeout(resolve, 5));
-    await Effect.runPromise(service.saveCanvas(b, { elements: [element("e2")], edges: [] }));
     const canvases = await Effect.runPromise(service.listCanvases());
     expect(canvases.map((c) => c.id)).toEqual([b, a, canvasId]);
   });
