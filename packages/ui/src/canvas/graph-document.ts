@@ -59,7 +59,7 @@ export const DEFAULT_CANVAS_EDGE_ATTRS: CanvasEdgeAttrs = {
  * 不能用 attrs-only 的对象去替换 `defaultLabel`：X6 渲染会读 `defaultLabel.markup`，
  * 缺 markup 时 `normalized.node` 直接抛错，标签整组消失。
  */
-const EDGE_LABEL_SURFACE = "var(--background)";
+const EDGE_LABEL_SURFACE = "var(--muted)";
 const EDGE_LABEL_BODY = { fill: EDGE_LABEL_SURFACE, stroke: "none" } as const;
 export const CANVAS_EDGE_DEFAULT_LABEL = {
   attrs: {
@@ -73,7 +73,8 @@ function edgeLabelItems(label: string | null, color: string) {
     ? [
         {
           attrs: {
-            ...CANVAS_EDGE_DEFAULT_LABEL.attrs,
+            rect: { fill: EDGE_LABEL_SURFACE, stroke: "none" },
+            body: { fill: EDGE_LABEL_SURFACE, stroke: "none" },
             label: { text: label, fill: color, fontSize: 12 },
           },
         },

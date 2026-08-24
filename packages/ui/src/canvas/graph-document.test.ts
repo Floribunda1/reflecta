@@ -124,8 +124,8 @@ describe("graph-document toX6Cells", () => {
       labels: [
         {
           attrs: {
-            rect: { fill: "var(--background)", stroke: "none" },
-            body: { fill: "var(--background)", stroke: "none" },
+            rect: { fill: "var(--muted)", stroke: "none" },
+            body: { fill: "var(--muted)", stroke: "none" },
             label: { text: "causal", fill: "var(--chart-1)", fontSize: 12 },
           },
         },
@@ -134,8 +134,8 @@ describe("graph-document toX6Cells", () => {
   });
 
   test("edge label knockout uses the opaque canvas surface instead of white or transparent", () => {
-    expect(CANVAS_EDGE_DEFAULT_LABEL.attrs.rect.fill).toBe("var(--background)");
-    expect(CANVAS_EDGE_DEFAULT_LABEL.attrs.body.fill).toBe("var(--background)");
+    expect(CANVAS_EDGE_DEFAULT_LABEL.attrs.rect.fill).toBe("var(--muted)");
+    expect(CANVAS_EDGE_DEFAULT_LABEL.attrs.body.fill).toBe("var(--muted)");
     expect(CANVAS_EDGE_DEFAULT_LABEL.attrs.rect.fill).not.toMatch(/transparent|#fff|#ffffff/i);
   });
 
@@ -318,8 +318,8 @@ describe("in-place cell updates", () => {
     expect(cell.setLabels).toHaveBeenCalledWith([
       {
         attrs: {
-          rect: { fill: "var(--background)", stroke: "none" },
-          body: { fill: "var(--background)", stroke: "none" },
+          rect: { fill: "var(--muted)", stroke: "none" },
+          body: { fill: "var(--muted)", stroke: "none" },
           label: { text: "new", fill: "var(--chart-1)", fontSize: 12 },
         },
       },
