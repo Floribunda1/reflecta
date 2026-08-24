@@ -2373,4 +2373,255 @@ describe("PiAgentHost", () => {
       { type: "run.cancelled" },
     ]);
   });
+
+  test("retries a failed continuation without dropping rejected proposals", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("拒绝后续跑失败");
+    const manager = await log.openSession(thread.id);
+    const createdAt = "2026-08-16T00:00:00.000Z";
+    const events: AgentSessionEvent[] = [
+      {
+        id: "evt_1",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "run.started",
+        createdAt,
+      },
+      {
+        id: "evt_2",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "user.message",
+        messageId: "user_1",
+        text: "请创建一条理解",
+        createdAt,
+      },
+      {
+        id: "evt_3",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "assistant.turn",
+        messageId: "assistant_1",
+        text: "我先提一个候选。",
+        blocks: [
+          { kind: "text", text: "我先提一个候选。", state: "done", createdAt },
+          {
+            kind: "approval",
+            approvalId: "approval_tool_1",
+            toolCallId: "tool_1",
+            toolName: "understanding_create",
+            title: "候选 Understanding",
+            payload: { title: "FIRST_REJECTED_TITLE" },
+            state: "rejected",
+            approvalState: "rejected",
+            executionState: "not_started",
+            displayState: "rejected",
+            approved: false,
+            rejectionReason: "范围太窄",
+            createdAt,
+          },
+        ],
+        createdAt,
+      },
+      {
+        id: "evt_4",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "approval.requested",
+        messageId: "assistant_1",
+        approvalId: "approval_tool_1",
+        toolCallId: "tool_1",
+        toolName: "understanding_create",
+        title: "候选 Understanding",
+        payload: { title: "FIRST_REJECTED_TITLE" },
+        createdAt,
+      },
+      {
+        id: "evt_5",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "approval.resolved",
+        messageId: "assistant_1",
+        approvalId: "approval_tool_1",
+        toolCallId: "tool_1",
+        toolName: "understanding_create",
+        approved: false,
+        rejectionReason: "范围太窄",
+        createdAt,
+      },
+      {
+        id: "evt_6",
+        sessionId: thread.id,
+        runId: "run_2",
+        type: "run.started",
+        createdAt,
+      },
+      {
+        id: "evt_7",
+        sessionId: thread.id,
+        runId: "run_2",
+        type: "assistant.turn",
+        messageId: "assistant_2",
+        text: "那我换一个方向",
+        blocks: [{ kind: "text", text: "那我换一个方向", createdAt }],
+        createdAt,
+      },
+      {
+        id: "evt_8",
+        sessionId: thread.id,
+        runId: "run_2",
+        type: "run.failed",
+        error: "network error",
+        createdAt,
+      },
+    ];
+    for (const event of events) log.appendEvent(manager, event);
+
+    const promptCalls: string[] = [];
+    let listener: ((event: unknown) => void) | undefined;
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        subscribe: (next: (event: unknown) => void) => {
+          listener = next;
+          return () => {};
+        },
+        prompt: vi.fn(async (prompt: string) => {
+          promptCalls.push(prompt);
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: { type: "text_delta", delta: "按你的拒绝理由继续。" },
+          });
+          listener?.({
+            type: "message_end",
+            message: {
+              role: "assistant",
+              content: [{ type: "text", text: "按你的拒绝理由继续。" }],
+              provider: "openai",
+              model: "gpt-4o",
+              stopReason: "stop",
+            },
+          });
+        }),
+        getContextUsage: vi.fn(() => undefined),
+        dispose: vi.fn(),
+        abort: vi.fn(),
+      },
+    });
+
+    const host = new PiAgentHost(root);
+    host.sendAgentCommand({ type: "run.retry", sessionId: thread.id });
+    await vi.waitFor(async () => {
+      await expect(host.readSessionProjection(thread.id)).resolves.toMatchObject({
+        status: "idle",
+      });
+    });
+
+    const projection = await host.readSessionProjection(thread.id);
+    expect(projection.messages.map((message) => ({ id: message.id, role: message.role }))).toEqual([
+      { id: "user_1", role: "user" },
+      { id: "assistant_1", role: "assistant" },
+      { id: "assistant_2", role: "assistant" },
+      { id: expect.any(String), role: "assistant" },
+    ]);
+    expect(projection.messages[1]).toMatchObject({
+      text: "我先提一个候选。",
+    });
+    expect(projection.messages[1]?.blocks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "approval",
+          approvalState: "rejected",
+          rejectionReason: "范围太窄",
+          payload: { title: "FIRST_REJECTED_TITLE" },
+        }),
+      ]),
+    );
+    expect(projection.messages[2]).toMatchObject({ text: "那我换一个方向" });
+    expect(projection.messages[3]).toMatchObject({ text: "按你的拒绝理由继续。" });
+    expect(promptCalls[0]).toContain("The previous attempt failed before it finished.");
+    expect(promptCalls[0]).not.toContain("请创建一条理解");
+  });
+
+  test("retries a failed first reply by resending the original user message", async () => {
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("第一次就失败");
+    const manager = await log.openSession(thread.id);
+    const createdAt = "2026-08-16T00:00:00.000Z";
+    for (const event of [
+      {
+        id: "evt_1",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "run.started",
+        createdAt,
+      },
+      {
+        id: "evt_2",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "user.message",
+        messageId: "user_1",
+        text: "请只回复 RETRY_OK",
+        createdAt,
+      },
+      {
+        id: "evt_3",
+        sessionId: thread.id,
+        runId: "run_1",
+        type: "run.failed",
+        error: "Agent response was empty",
+        createdAt,
+      },
+    ] satisfies AgentSessionEvent[]) {
+      log.appendEvent(manager, event);
+    }
+
+    const promptCalls: string[] = [];
+    let listener: ((event: unknown) => void) | undefined;
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        subscribe: (next: (event: unknown) => void) => {
+          listener = next;
+          return () => {};
+        },
+        prompt: vi.fn(async (prompt: string) => {
+          promptCalls.push(prompt);
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: { type: "text_delta", delta: "RETRY_OK" },
+          });
+          listener?.({
+            type: "message_end",
+            message: {
+              role: "assistant",
+              content: [{ type: "text", text: "RETRY_OK" }],
+              provider: "openai",
+              model: "gpt-4o",
+              stopReason: "stop",
+            },
+          });
+        }),
+        getContextUsage: vi.fn(() => undefined),
+        dispose: vi.fn(),
+        abort: vi.fn(),
+      },
+    });
+
+    const host = new PiAgentHost(root);
+    host.sendAgentCommand({ type: "run.retry", sessionId: thread.id });
+    await vi.waitFor(async () => {
+      await expect(host.readSessionProjection(thread.id)).resolves.toMatchObject({
+        status: "idle",
+      });
+    });
+
+    const projection = await host.readSessionProjection(thread.id);
+    expect(projection.messages[0]).toMatchObject({ id: "user_1", text: "请只回复 RETRY_OK" });
+    expect(projection.messages.at(-1)).toMatchObject({ role: "assistant", text: "RETRY_OK" });
+    expect(promptCalls[0]).toContain("请只回复 RETRY_OK");
+  });
 });

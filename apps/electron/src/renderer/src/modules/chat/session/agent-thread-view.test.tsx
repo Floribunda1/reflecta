@@ -9,6 +9,7 @@ import type {
   AgentSessionFeedFrame,
   AgentSessionProjection,
 } from "@shared/agent";
+import { ipcClient } from "@renderer/utils/ipc";
 import type { AgentThreadView } from "./thread-view";
 
 vi.mock("@renderer/utils/ipc", () => ({
@@ -320,4 +321,66 @@ test("falls back to a standalone stopped marker when the cancelled run has no me
 
   // The previous assistant reply must never receive the stopped marker.
   expect(latestView()?.stoppedMessageId).toBe("session-1:cancelled");
+});
+
+test("retries a failed run without resending the last user message id", async () => {
+  installBrowserStubs();
+  const sendFrame = installFeed();
+  const latestView = await renderProbe(() => null);
+
+  act(() =>
+    sendFrame({
+      kind: "state",
+      sessionId: "session-1",
+      revision: 1,
+      session: {
+        ...projection([
+          {
+            id: "user-1",
+            role: "user",
+            text: "请创建一条理解",
+            createdAt: "2026-08-16T00:00:00.000Z",
+          },
+          {
+            id: "assistant-1",
+            role: "assistant",
+            text: "我先提一个候选。",
+            runId: "run-1",
+            createdAt: "2026-08-16T00:00:01.000Z",
+            blocks: [
+              {
+                kind: "text",
+                text: "我先提一个候选。",
+                createdAt: "2026-08-16T00:00:01.000Z",
+              },
+              {
+                kind: "approval",
+                approvalId: "approval-1",
+                toolCallId: "tool-1",
+                toolName: "understanding_create",
+                title: "候选 Understanding",
+                state: "rejected",
+                approvalState: "rejected",
+                executionState: "not_started",
+                displayState: "rejected",
+                createdAt: "2026-08-16T00:00:01.000Z",
+              },
+            ],
+          },
+        ]),
+        status: "failed",
+        activeRunId: null,
+        error: "network error",
+      },
+    }),
+  );
+
+  await act(async () => {
+    await latestView()?.actions.retry();
+  });
+
+  expect(vi.mocked(ipcClient.chat.sendAgentCommand)).toHaveBeenCalledWith({
+    type: "run.retry",
+    sessionId: "session-1",
+  });
 });
