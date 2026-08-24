@@ -5,6 +5,7 @@ import {
   applyElementUpdate,
   edgeToEdge,
   graphToDocument,
+  syncManhattanRouterDirections,
   toX6Cells,
 } from "./graph-document";
 
@@ -157,6 +158,25 @@ describe("graph-document toX6Cells", () => {
 });
 
 describe("in-place cell updates", () => {
+  test("syncs Manhattan directions after an edge terminal is reconnected", () => {
+    const cell = {
+      getRouter: () => ({
+        name: "manhattan",
+        args: { padding: 20, startDirections: ["right"], endDirections: ["left"] },
+      }),
+      getSourcePortId: () => "bottom",
+      getTargetPortId: () => "top",
+      setRouter: vi.fn(),
+    };
+
+    syncManhattanRouterDirections(cell as never);
+
+    expect(cell.setRouter).toHaveBeenCalledWith({
+      name: "manhattan",
+      args: { padding: 20, startDirections: ["bottom"], endDirections: ["top"] },
+    });
+  });
+
   test("excludes X6's transient incomplete edge from document snapshots", () => {
     const incomplete = {
       getSourceCellId: () => "a",

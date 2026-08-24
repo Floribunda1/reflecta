@@ -39,6 +39,7 @@ import {
   toX6Cells,
   graphToDocument,
   newEdgeDto,
+  syncManhattanRouterDirections,
   toX6Edge,
   nodeMetadataFor,
 } from "./graph-document";
@@ -319,6 +320,11 @@ export const CanvasGraph = React.memo(
         );
       }
       dndRef.current = dnd ?? null;
+
+      const syncEdgeDirections = ({ edge }: { edge: import("@antv/x6").Edge }) =>
+        syncManhattanRouterDirections(edge);
+      graph.on("edge:change:source", syncEdgeDirections);
+      graph.on("edge:change:target", syncEdgeDirections);
 
       const modelEvents = [
         "node:change:position",

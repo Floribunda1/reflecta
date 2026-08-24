@@ -183,6 +183,22 @@ export function applyEdgePresentation(
   cell.setLabels(visuals.labels);
 }
 
+/** Manhattan 的端口方向必须随 terminal 重连同步，否则 X6 会从连接桩侧向出线。 */
+export function syncManhattanRouterDirections(edge: X6Edge): void {
+  const router = edge.getRouter() as CanvasEdgeRouter | null;
+  const sourcePort = edge.getSourcePortId();
+  const targetPort = edge.getTargetPortId();
+  if (router?.name !== "manhattan" || !sourcePort || !targetPort) return;
+  edge.setRouter({
+    ...router,
+    args: {
+      ...router.args,
+      startDirections: [sourcePort],
+      endDirections: [targetPort],
+    },
+  } as EdgeMetadata["router"]);
+}
+
 /** X6 节点 → 元素 DTO（id/几何回读；组内子元素坐标为相对坐标）。 */
 export function nodeToElement(node: X6Node): CanvasElementDTO {
   const data = (node.getData() as { element?: CanvasElementDTO } | null)?.element;
