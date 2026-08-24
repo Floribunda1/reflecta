@@ -73,8 +73,7 @@ function edgeLabelItems(label: string | null, color: string) {
     ? [
         {
           attrs: {
-            rect: { fill: EDGE_LABEL_SURFACE, stroke: "none" },
-            body: { fill: EDGE_LABEL_SURFACE, stroke: "none" },
+            ...CANVAS_EDGE_DEFAULT_LABEL.attrs,
             label: { text: label, fill: color, fontSize: 12 },
           },
         },

@@ -176,3 +176,14 @@ samp,
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 }
+
+/* 连接桩（x6-port-body）：默认隐藏；编辑器内 hover 节点才显示，只读画布保持隐藏。
+   颜色即选中态 ring（卡片选中 ring-2 ring-ring），实心圆。 */
+[data-canvas-graph] .x6-port-body {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+[data-canvas-graph]:not([data-readonly]) .x6-node:hover .x6-port-body,
+[data-canvas-graph]:not([data-readonly]) .x6-node:focus-within .x6-port-body {
+  opacity: 1;
+}

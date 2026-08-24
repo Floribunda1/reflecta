@@ -663,6 +663,8 @@ export const CanvasGraph = React.memo(
               className={cn("absolute inset-0 overflow-hidden", className)}
               style={style}
               data-testid={testId}
+              data-canvas-graph=""
+              data-readonly={readonly || undefined}
             />
             {graph && !readonly ? (
               <EdgeOverlay
