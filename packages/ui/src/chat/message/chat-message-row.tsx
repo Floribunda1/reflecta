@@ -294,13 +294,8 @@ function tailWorkingLabel(message: ChatAssistantMessageView) {
   if (message.status !== "streaming") return null;
   const last = message.blocks.at(-1);
   if (!last) return "等待中...";
-  if (isAgentActivityBlock(last)) {
-    const previous = message.blocks.at(-2);
-    if (previous && isAgentActivityBlock(previous)) return null;
-    if (last.kind === "reasoning" && last.reasoning.status === "streaming") return null;
-    if (last.kind === "tool-activity" && last.activity.status === "running") return null;
-    return "等待中...";
-  }
+  // 活动组已经在读秒（处理中 / 执行工具中 / 思考中），不要再叠一行等待中。
+  if (isAgentActivityBlock(last)) return null;
   if (last.kind === "proposal") {
     if (last.proposal.lifecycle === "pending") return null;
     if (last.proposal.lifecycle === "preview" || last.proposal.lifecycle === "running") return null;

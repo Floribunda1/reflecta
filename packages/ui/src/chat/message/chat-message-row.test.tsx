@@ -228,7 +228,45 @@ describe("ChatMessageRow", () => {
     );
     expect(next.textContent).toContain("只在展开后显示的文件内容");
     expect(next.querySelector('[data-slot="agent-working-indicator"]')).not.toBeNull();
-    expect(next.querySelector('[data-testid="agent-running-placeholder"]')).not.toBeNull();
+    expect(next.querySelector('[data-testid="agent-running-placeholder"]')).toBeNull();
+  });
+
+  test("shows a waiting row only before the first activity block exists", () => {
+    const waiting = render({
+      message: {
+        kind: "assistant",
+        id: "assistant-1",
+        status: "streaming",
+        blocks: [],
+      },
+    });
+    expect(
+      waiting.querySelector('[data-testid="agent-running-placeholder"]')?.textContent,
+    ).toContain("等待中");
+
+    const working = render({
+      message: {
+        kind: "assistant",
+        id: "assistant-1",
+        status: "streaming",
+        blocks: [
+          {
+            kind: "tool-activity",
+            activity: {
+              id: "tool-1",
+              toolName: "canvas_read",
+              status: "done",
+              summary: "使用工具「canvas_read」",
+              items: [],
+            },
+          },
+        ],
+      },
+    });
+    expect(
+      working.querySelector('[data-testid="agent-activity-group-trigger"]')?.textContent,
+    ).toContain("处理中");
+    expect(working.querySelector('[data-testid="agent-running-placeholder"]')).toBeNull();
   });
 
   test("toggles short single-line reasoning details", () => {
