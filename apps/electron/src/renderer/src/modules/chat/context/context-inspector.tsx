@@ -35,13 +35,12 @@ export function ContextInspector({
   return (
     <aside
       data-testid="agent-context-inspector"
-      className={`flex min-h-0 min-w-0 flex-col ${focusMode ? "fixed inset-0 z-50 h-auto bg-background" : "h-full bg-transparent"}`}
+      className="flex min-h-0 min-w-0 flex-col h-full bg-transparent"
     >
       <div className="min-h-0 flex-1 overflow-hidden">
         {refToInspect.type === "understanding" ? (
           <UnderstandingDetail
             understandingId={refToInspect.id}
-            focusMode={focusMode}
             onFocusModeChange={onFocusModeChange}
             onClose={onClose}
             onWikiLinkClick={(understandingId: string) =>

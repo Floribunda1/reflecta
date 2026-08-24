@@ -43,7 +43,6 @@ type UnderstandingDetailProps = {
   onDeleted?: () => void;
   onWikiLinkClick?: (understandingId: string) => void;
   onChat?: (scope: CaptureAgentScope) => void;
-  focusMode?: boolean;
   onFocusModeChange?: (focused: boolean) => void;
 };
 
@@ -279,9 +278,9 @@ function UnderstandingDetailInner({
   onDeleted,
   onWikiLinkClick,
   onChat,
-  focusMode = false,
+  focusMode,
   onFocusModeChange,
-}: UnderstandingDetailProps) {
+}: UnderstandingDetailProps & { focusMode: boolean }) {
   const detailRef = useRef<HTMLElement>(null);
   const { understanding } = useUnderstandingDetail(understandingId);
   const { domains, loading: domainsLoading } = useCaptureDomains();
@@ -297,6 +296,12 @@ function UnderstandingDetailInner({
   const updateDraftBody = captureActions.updateDraftBody;
   const setActiveContextId = captureActions.setActiveContextId;
   const { saveDraft } = useUnderstandingDraftSave({ understandingId, scopeRef: detailRef });
+  const handleFocusModeChange = useCallback(
+    (focused: boolean) => {
+      onFocusModeChange?.(focused);
+    },
+    [onFocusModeChange],
+  );
   const referenceSource = draft?.body ?? understanding?.body ?? "";
   const entityReferences = useMemo(
     () => collectChatEntityReferences(referenceSource),
@@ -336,6 +341,15 @@ function UnderstandingDetailInner({
       body: understanding.body,
     });
   }, [understanding?.id, understanding?.title, understanding?.body, initializeDraft]);
+
+  useEffect(() => {
+    if (!focusMode) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") handleFocusModeChange(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [focusMode, handleFocusModeChange]);
 
   if (!understanding) {
     return <div className="h-full" />;
@@ -444,7 +458,7 @@ function UnderstandingDetailInner({
           domainsLoading={domainsLoading}
           focusMode={focusMode}
           className={focusMode ? FOCUS_MODE_OFFSET_CLASS : undefined}
-          onFocusModeChange={onFocusModeChange}
+          onFocusModeChange={handleFocusModeChange}
           onChat={
             onChat
               ? () =>
@@ -495,5 +509,29 @@ function UnderstandingDetailInner({
 }
 
 export function UnderstandingDetail(props: UnderstandingDetailProps) {
-  return <UnderstandingDetailInner key={props.understandingId} {...props} />;
+  const [focusMode, setFocusMode] = useState(false);
+
+  useEffect(() => {
+    setFocusMode(false);
+  }, [props.understandingId]);
+
+  return (
+    <div
+      className={
+        focusMode
+          ? "fixed inset-0 z-50 h-auto bg-background"
+          : "h-full min-h-0 w-full overflow-hidden"
+      }
+    >
+      <UnderstandingDetailInner
+        key={props.understandingId}
+        {...props}
+        focusMode={focusMode}
+        onFocusModeChange={(focused) => {
+          setFocusMode(focused);
+          props.onFocusModeChange?.(focused);
+        }}
+      />
+    </div>
+  );
 }
