@@ -144,9 +144,9 @@ export const CanvasSidePanelHost = memo(function CanvasSidePanelHost({
       />
       <ResizablePanel
         id="canvas-right"
-        minSize="26%"
-        maxSize="60%"
-        defaultSize={38}
+        minSize="24%"
+        maxSize="45%"
+        defaultSize={30}
         className="min-h-0 min-w-0"
       >
         {rightPanel.mode === "library" ? (

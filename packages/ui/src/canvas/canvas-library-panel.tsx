@@ -72,7 +72,9 @@ function LibraryRow({
       type="button"
       data-testid={testId}
       {...itemAttrs}
-      className="flex cursor-grab items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
+      title={title}
+      aria-label={`添加「${title}」到画布`}
+      className="flex min-h-9 cursor-grab items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-accent active:cursor-grabbing"
       onMouseDown={(event) => onStartDrag(id, event)}
       onClick={() => onPick(id)}
     >
@@ -113,15 +115,15 @@ export function CanvasLibraryPanel({
   return (
     <aside
       data-testid="canvas-library-panel"
-      className="flex h-full w-72 shrink-0 flex-col border-l bg-background"
+      className="flex h-full w-full min-w-0 shrink-0 flex-col border-l bg-background"
     >
       <Tabs
         value={tab}
         onValueChange={(value) => onTabChange(value as CanvasLibraryTab)}
         className="flex h-full min-h-0 flex-col"
       >
-        <header className="flex h-10 shrink-0 items-center gap-1.5 border-b pr-2 pl-2">
-          <TabsList className="h-7">
+        <header className="flex h-12 shrink-0 items-center gap-1.5 border-b px-3">
+          <TabsList className="h-8">
             <TabsTrigger value="understandings">理解</TabsTrigger>
             <TabsTrigger value="canvases">画布</TabsTrigger>
           </TabsList>
@@ -187,7 +189,7 @@ export function CanvasLibraryPanel({
                   size="sm"
                   aria-label="排序"
                   data-testid="canvas-library-sort"
-                  className="h-8 w-24 shrink-0 justify-between px-2 text-sm"
+                  className="h-8 w-28 shrink-0 justify-between px-2 text-sm"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -237,8 +239,9 @@ export function CanvasLibraryPanel({
             )}
           </ScrollArea>
 
-          <footer className="shrink-0 border-t p-2 text-xs text-muted-foreground">
-            拖拽理解到画布创建理解卡
+          <footer className="flex shrink-0 items-center gap-1.5 border-t px-3 py-2 text-xs text-muted-foreground">
+            <span aria-hidden="true">↕</span>
+            <span>拖拽理解到画布创建理解卡</span>
           </footer>
         </TabsContent>
 
