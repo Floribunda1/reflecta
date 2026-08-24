@@ -192,20 +192,22 @@ samp,
   opacity: 1;
 }
 
-/* X6 Transform 默认注入黑白样式；在画布边界统一收敛到 design system。 */
+/* 卡片自身负责选中边界；X6 Transform 只保留中性 handle，避免与节点色竞争。 */
 [data-canvas-graph] .x6-widget-transform {
-  border: 1px solid var(--ring);
-  border-radius: var(--radius-xl);
+  border-color: transparent;
 }
 
 [data-canvas-graph] .x6-widget-transform-resize {
   background-color: var(--background);
-  border-color: var(--ring);
+  border-color: var(--border);
   border-radius: var(--radius-sm);
-  transition: background-color var(--duration-transition) var(--ease-out-expo);
+  transition:
+    background-color var(--duration-transition) var(--ease-out-expo),
+    border-color var(--duration-transition) var(--ease-out-expo);
 }
 
 [data-canvas-graph] .x6-widget-transform-resize:hover,
 [data-canvas-graph] .x6-widget-transform-active > .x6-widget-transform-active-handle {
   background-color: var(--ring);
+  border-color: var(--ring);
 }
