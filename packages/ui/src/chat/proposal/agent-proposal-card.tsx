@@ -10,7 +10,6 @@ import {
 } from "../../components/input-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/tooltip";
 import { MarkdownPreview } from "../../editor/markdown-preview";
-import type { CanvasUnderstandingRefView } from "../../canvas";
 import type { ChatEntityBindings, ChatEntityType } from "../entity";
 import {
   entityClassName,
@@ -40,7 +39,6 @@ export type AgentProposalCardProps = {
   proposal: AgentProposalView;
   onDecision?: (decision: AgentProposalDecision) => void;
   entityBindings?: ChatEntityBindings;
-  understandingRefs?: ReadonlyMap<string, CanvasUnderstandingRefView>;
 };
 
 function ProposalStatus({
@@ -726,15 +724,7 @@ const CanvasReadOnlyView = lazy(() =>
   import("../../canvas").then((m) => ({ default: m.CanvasReadOnlyView })),
 );
 
-function CanvasProposalDraft({
-  proposal,
-  open,
-  loadedUnderstandingRefs,
-}: {
-  proposal: CanvasProposalView;
-  open: boolean;
-  loadedUnderstandingRefs?: ReadonlyMap<string, CanvasUnderstandingRefView>;
-}) {
+function CanvasProposalDraft({ proposal, open }: { proposal: CanvasProposalView; open: boolean }) {
   const content = proposal.content;
   if (content.variant === "delete" || !content.document) {
     return (
@@ -743,7 +733,7 @@ function CanvasProposalDraft({
       </div>
     );
   }
-  const understandingRefs = new Map(loadedUnderstandingRefs);
+  const understandingRefs = new Map(content.understandingRefs);
   for (const title of content.understandingTitles ?? []) {
     if (!understandingRefs.has(title.id))
       understandingRefs.set(title.id, {
@@ -804,12 +794,10 @@ function ProposalContent({
   proposal,
   entityBindings,
   open,
-  understandingRefs,
 }: {
   proposal: AgentProposalView;
   entityBindings?: ChatEntityBindings;
   open: boolean;
-  understandingRefs?: ReadonlyMap<string, CanvasUnderstandingRefView>;
 }) {
   if (proposal.kind === "understanding-create")
     return <UnderstandingCreate proposal={proposal} entityBindings={entityBindings} />;
@@ -834,14 +822,7 @@ function ProposalContent({
   if (proposal.kind === "context-delete")
     return <DeleteProposal>确认后，这条 Context 将移入回收站。</DeleteProposal>;
   if (proposal.kind === "bash") return <BashProposal proposal={proposal} />;
-  if (proposal.kind === "canvas")
-    return (
-      <CanvasProposalDraft
-        proposal={proposal}
-        open={open}
-        loadedUnderstandingRefs={understandingRefs}
-      />
-    );
+  if (proposal.kind === "canvas") return <CanvasProposalDraft proposal={proposal} open={open} />;
   return <UnknownProposal proposal={proposal} entityBindings={entityBindings} />;
 }
 
@@ -853,7 +834,6 @@ export function AgentProposalCard({
   proposal,
   onDecision,
   entityBindings,
-  understandingRefs,
 }: AgentProposalCardProps) {
   const [manualOpen, setManualOpen] = useState<{
     id: string;
@@ -921,12 +901,7 @@ export function AgentProposalCard({
             <ProposalMeta proposal={proposal} />
           </div>
           <div className="max-h-136 overflow-y-auto px-3 pb-3">
-            <ProposalContent
-              proposal={proposal}
-              entityBindings={entityBindings}
-              open={open}
-              understandingRefs={understandingRefs}
-            />
+            <ProposalContent proposal={proposal} entityBindings={entityBindings} open={open} />
             <Reason value={proposalReason(proposal)} />
             {hasToolDetails(proposal.result) ? (
               <div className="mt-5 text-sm text-muted-foreground">

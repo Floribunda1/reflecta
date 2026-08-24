@@ -1367,6 +1367,9 @@ describe("buildAgentTurnView", () => {
     const view = toAgentProposalView(turn.blocks[0].proposal, approval, {
       entityLabels: new Map([["understanding:u-1", "复验结论"]]),
       domainPath: (id) => id,
+      understandingRefs: new Map([
+        ["u-1", { id: "u-1", title: "复验结论", body: "正文", deleted: false }],
+      ]),
     });
     expect(view.kind).toBe("canvas");
     if (view.kind !== "canvas") throw new Error("Expected canvas proposal");
@@ -1376,5 +1379,6 @@ describe("buildAgentTurnView", () => {
     expect(view.content.reason).toBe("把复验结论连起来");
     expect(view.content.document?.elements).toHaveLength(2);
     expect(view.content.understandingTitles).toEqual([{ id: "u-1", title: "复验结论" }]);
+    expect(view.content.understandingRefs?.get("u-1")?.body).toBe("正文");
   });
 });

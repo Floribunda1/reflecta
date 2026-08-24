@@ -19,7 +19,6 @@ import {
   type ChatMessageView,
   type ChatUserMessageView,
 } from "@reflecta/ui/chat";
-import type { CanvasUnderstandingRefView } from "@reflecta/ui/canvas";
 import type {
   AgentContextRef,
   AgentEntityCatalogEntry,
@@ -34,6 +33,7 @@ import { getDomainPath } from "../../capture/domain/util";
 import type { InspectableContextRef } from "../context/context-reference";
 import {
   toAgentAssistantMessageView,
+  canvasUnderstandingIds,
   type AgentMessageViewOptions,
   type AgentViewPresentation,
 } from "../messages/agent-turn-view";
@@ -185,20 +185,6 @@ function markdownValues(message: ChatMessageView) {
   return values;
 }
 
-function canvasUnderstandingIds(message: ChatMessageView) {
-  if (message.kind === "user") return [];
-  const ids = new Set<string>();
-  for (const block of message.blocks) {
-    if (block.kind !== "proposal" || block.proposal.kind !== "canvas") continue;
-    for (const element of block.proposal.content.document?.elements ?? []) {
-      if (element.kind === "understanding" && element.understandingId) {
-        ids.add(element.understandingId);
-      }
-    }
-  }
-  return [...ids];
-}
-
 function proposalEntityReferences(blocks: readonly AgentReducedAssistantBlock[]) {
   const references = new Map<string, ChatEntityReference>();
   for (const block of blocks) {
@@ -252,6 +238,13 @@ function useMessagePresentation(
       enabled: !catalogLabels.has(referenceKey(reference)),
     })),
   });
+  const canvasIds = useMemo(() => canvasUnderstandingIds(blocks), [blocks]);
+  const canvasQueries = useQueries({
+    queries: canvasIds.map((id) => ({
+      queryKey: captureQueryKeys.understandingDetail(id),
+      queryFn: () => runPromise(rpc.understandingGetById(id)),
+    })),
+  });
   const queryTitles = queries.map((query) => query.data?.title?.trim() ?? "").join("\0");
   return useMemo<AgentViewPresentation>(() => {
     const entityLabels = new Map(catalogLabels);
@@ -260,11 +253,29 @@ function useMessagePresentation(
       const title = titles[index];
       if (title) entityLabels.set(referenceKey(reference), title);
     });
+    const understandingRefs = new Map(
+      canvasIds.map((id, index) => {
+        const detail = canvasQueries[index]?.data as
+          | { id: string; title: string | null; body: string }
+          | null
+          | undefined;
+        return [
+          id,
+          {
+            id,
+            title: detail?.title ?? entityLabels.get(`understanding:${id}`) ?? id,
+            body: detail?.body ?? "",
+            deleted: false,
+          },
+        ] as const;
+      }),
+    );
     return {
       entityLabels,
       domainPath: (id) => getDomainPath(id, domains, " / "),
+      understandingRefs,
     };
-  }, [catalogLabels, domains, queryTitles, references]);
+  }, [canvasIds, canvasQueries, catalogLabels, domains, queryTitles, references]);
 }
 
 export const ConnectedChatMessageRow = memo(function ConnectedChatMessageRow({
@@ -295,44 +306,6 @@ export const ConnectedChatMessageRow = memo(function ConnectedChatMessageRow({
   );
   const values = useMemo(() => markdownValues(view), [view]);
   const entityBindings = useChatEntityBindings(values, onInspectContextRef);
-  const understandingIds = useMemo(() => canvasUnderstandingIds(view), [view]);
-  const understandingQueries = useQueries({
-    queries: understandingIds.map((id) => ({
-      queryKey: captureQueryKeys.understandingDetail(id),
-      queryFn: () => runPromise(rpc.understandingGetById(id)),
-    })),
-  });
-  const understandingRefs = useMemo(() => {
-    const refs = new Map<string, CanvasUnderstandingRefView>();
-    if (view.kind === "assistant") {
-      view.blocks.forEach((block) => {
-        if (block.kind !== "proposal" || block.proposal.kind !== "canvas") return;
-        for (const title of block.proposal.content.understandingTitles ?? []) {
-          refs.set(title.id, {
-            id: title.id,
-            title: title.title,
-            body: "",
-            deleted: false,
-          });
-        }
-      });
-    }
-    understandingIds.forEach((id, index) => {
-      const detail = understandingQueries[index]?.data as
-        | { id: string; title: string | null; body: string }
-        | null
-        | undefined;
-      if (detail) {
-        refs.set(id, {
-          id: detail.id,
-          title: detail.title,
-          body: detail.body,
-          deleted: false,
-        });
-      }
-    });
-    return refs;
-  }, [understandingIds, understandingQueries, view]);
   const enabledActions = [
     "copy" as const,
     ...(message.role === "user" ? (["edit"] as const) : []),
@@ -369,7 +342,6 @@ export const ConnectedChatMessageRow = memo(function ConnectedChatMessageRow({
       row={row}
       search={findQuery?.trim() ? { query: findQuery } : undefined}
       entityBindings={entityBindings}
-      understandingRefs={understandingRefs}
       onAction={(action) => void handleAction(action)}
       onEntityOpen={(entity) => {
         if (entity.type === "domain") return;

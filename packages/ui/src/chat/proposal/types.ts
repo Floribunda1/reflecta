@@ -1,5 +1,5 @@
 import type { AgentToolDetailsView } from "../execution/types";
-import type { CanvasDocument } from "../../canvas";
+import type { CanvasDocument, CanvasUnderstandingRefView } from "../../canvas";
 
 export type AgentProposalLifecycle =
   | "preview"
@@ -135,6 +135,8 @@ export type CanvasProposalView = AgentProposalBaseView & {
     document?: CanvasDocument;
     /** 草稿内引用理解的标题（正文省略，token 预算）；供只读渲染卡片标题 */
     understandingTitles?: ReadonlyArray<{ id: string; title: string }>;
+    /** 草稿内引用理解的展示数据，由消息 projection 层批量加载。 */
+    understandingRefs?: ReadonlyMap<string, CanvasUnderstandingRefView>;
   };
 };
 

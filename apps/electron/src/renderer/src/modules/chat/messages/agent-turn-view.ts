@@ -12,6 +12,7 @@ import type {
   AgentReducedMessage,
 } from "../../../../../preload/typings/agent";
 import type { CanvasDocument } from "@reflecta/ui/canvas";
+import type { CanvasUnderstandingRefView } from "@reflecta/ui/canvas";
 
 export type ProposalType =
   | "understanding_create"
@@ -79,6 +80,7 @@ export type ToolActivityItemView = {
 export type AgentViewPresentation = {
   entityLabels: ReadonlyMap<string, string>;
   domainPath: (id: string) => string;
+  understandingRefs?: ReadonlyMap<string, CanvasUnderstandingRefView>;
 };
 
 export type AgentMessageViewOptions = {
@@ -613,6 +615,24 @@ function canvasDocument(input: Record<string, unknown>): CanvasDocument | undefi
   return source as unknown as CanvasDocument;
 }
 
+export function canvasUnderstandingIds(blocks: readonly AgentReducedAssistantBlock[]) {
+  const ids = new Set<string>();
+  for (const block of blocks) {
+    if (
+      block.kind !== "approval" ||
+      !["canvas_create", "canvas_update"].includes(block.toolName) ||
+      !isRecord(block.payload)
+    )
+      continue;
+    for (const element of canvasDocument(block.payload)?.elements ?? []) {
+      if (element.kind === "understanding" && element.understandingId) {
+        ids.add(element.understandingId);
+      }
+    }
+  }
+  return [...ids];
+}
+
 function genericProposalData(output: Record<string, unknown>): GenericProposalView["data"] {
   return {
     kind: "generic",
@@ -930,6 +950,12 @@ export function toAgentProposalView(
           title: presentation.entityLabels.get(`understanding:${id}`) ?? id,
         }))
       : undefined;
+    const understandingRefs = new Map(
+      understandingIds.flatMap((id) => {
+        const ref = presentation.understandingRefs?.get(id);
+        return ref ? [[id, ref] as const] : [];
+      }),
+    );
     return {
       ...base,
       kind: "canvas",
@@ -944,6 +970,7 @@ export function toAgentProposalView(
         reason: optionalString(input.reason),
         ...(doc ? { document: doc } : {}),
         ...(understandingTitles?.length ? { understandingTitles } : {}),
+        ...(understandingRefs.size ? { understandingRefs } : {}),
       },
     };
   }
