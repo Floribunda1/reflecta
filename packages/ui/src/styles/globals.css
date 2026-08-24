@@ -191,3 +191,21 @@ samp,
 [data-canvas-graph]:not([data-readonly]) .x6-node:focus-within .x6-port-body {
   opacity: 1;
 }
+
+/* X6 Transform 默认注入黑白样式；在画布边界统一收敛到 design system。 */
+[data-canvas-graph] .x6-widget-transform {
+  border: 1px solid var(--ring);
+  border-radius: var(--radius-xl);
+}
+
+[data-canvas-graph] .x6-widget-transform-resize {
+  background-color: var(--background);
+  border-color: var(--ring);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--duration-transition) var(--ease-out-expo);
+}
+
+[data-canvas-graph] .x6-widget-transform-resize:hover,
+[data-canvas-graph] .x6-widget-transform-active > .x6-widget-transform-active-handle {
+  background-color: var(--ring);
+}
