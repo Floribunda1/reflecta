@@ -89,7 +89,7 @@ function WorkspaceShell({
         />
         <div className="absolute top-3 left-3 z-20 flex items-center gap-1 rounded-md border bg-background/90 p-1 shadow-sm">
           <CanvasTextTool
-            onStartDrag={(event) => graphRef.current?.startDrag(newTextElement(), event)}
+            onStartDrag={(event) => graphRef.current?.startDrag(newTextElement(), undefined, event)}
             onClick={() => {
               const text = newTextElement();
               text.x = 120;
@@ -131,7 +131,7 @@ function WorkspaceShell({
           onIncludeDescendantsChange={() => undefined}
           onSortByChange={setSortBy}
           onClose={() => setLibrary(false)}
-          onStartDragUnderstanding={(id, event) =>
+          onStartDragUnderstanding={(id, _title, event) =>
             graphRef.current?.startDrag(
               {
                 ...newTextElement(),
@@ -142,10 +142,11 @@ function WorkspaceShell({
                 width: 260,
                 height: 220,
               },
+              undefined,
               event,
             )
           }
-          onPickUnderstanding={(id) =>
+          onPickUnderstanding={(id, _title) =>
             graphRef.current?.addElement({
               ...newTextElement(),
               kind: "understanding",
@@ -156,7 +157,7 @@ function WorkspaceShell({
               height: 220,
             })
           }
-          onStartDragCanvas={(id, event) =>
+          onStartDragCanvas={(id, _title, event) =>
             graphRef.current?.startDrag(
               {
                 ...newTextElement(),
@@ -167,6 +168,7 @@ function WorkspaceShell({
                 width: 240,
                 height: 140,
               },
+              undefined,
               event,
             )
           }

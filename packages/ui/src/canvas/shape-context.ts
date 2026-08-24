@@ -15,6 +15,8 @@ export type CanvasUnderstandingRefView = {
   title: string | null;
   body: string;
   deleted: boolean;
+  /** 拖入新理解但正文尚未随 detail 拉回时，卡片正文区显示骨架占位 */
+  loading?: boolean;
 };
 
 export type CanvasReferencedCanvasView = {

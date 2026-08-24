@@ -54,7 +54,11 @@ export const CanvasToolStrip = memo(function CanvasToolStrip({
     <div className="absolute top-3 left-3 z-20 flex items-center gap-1 rounded-md border bg-background/90 p-1 shadow-sm">
       <CanvasTextTool
         onStartDrag={(event) => {
-          graphRef.current?.startDrag(newTextElement({ width: 220, height: 120 }), event);
+          graphRef.current?.startDrag(
+            newTextElement({ width: 220, height: 120 }),
+            undefined,
+            event,
+          );
         }}
         onClick={() => {
           const text = newTextElement();
@@ -151,14 +155,18 @@ export const CanvasSidePanelHost = memo(function CanvasSidePanelHost({
           <CanvasLibraryPanel
             canvasId={canvasId}
             onClose={() => dispatchCanvasAction({ type: "panel/close" })}
-            onStartDragUnderstanding={(id, event) =>
-              graphRef.current?.startDrag(newUnderstandingElement(id), event)
+            onStartDragUnderstanding={(id, title, event) => {
+              dispatchCanvasAction({ type: "understanding/primed", id, title });
+              graphRef.current?.startDrag(newUnderstandingElement(id), { title }, event);
+            }}
+            onPickUnderstanding={(id, title) => {
+              dispatchCanvasAction({ type: "understanding/primed", id, title });
+              graphRef.current?.addElement(newUnderstandingElement(id));
+            }}
+            onStartDragCanvas={(id, _title, event) =>
+              graphRef.current?.startDrag(newCanvasRefElement(id), undefined, event)
             }
-            onPickUnderstanding={(id) => graphRef.current?.addElement(newUnderstandingElement(id))}
-            onStartDragCanvas={(id, event) =>
-              graphRef.current?.startDrag(newCanvasRefElement(id), event)
-            }
-            onPickCanvas={(id) => graphRef.current?.addElement(newCanvasRefElement(id))}
+            onPickCanvas={(id, _title) => graphRef.current?.addElement(newCanvasRefElement(id))}
           />
         ) : (
           <CanvasDetailPanel

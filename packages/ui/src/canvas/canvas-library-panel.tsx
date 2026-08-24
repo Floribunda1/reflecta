@@ -44,10 +44,18 @@ export type CanvasLibraryPanelProps = {
   onIncludeDescendantsChange: (include: boolean) => void;
   onSortByChange: (sortBy: CanvasLibrarySortBy) => void;
   onClose: () => void;
-  onStartDragUnderstanding: (id: string, event: React.MouseEvent | React.PointerEvent) => void;
-  onPickUnderstanding: (id: string) => void;
-  onStartDragCanvas: (id: string, event: React.MouseEvent | React.PointerEvent) => void;
-  onPickCanvas: (id: string) => void;
+  onStartDragUnderstanding: (
+    id: string,
+    title: string,
+    event: React.MouseEvent | React.PointerEvent,
+  ) => void;
+  onPickUnderstanding: (id: string, title: string) => void;
+  onStartDragCanvas: (
+    id: string,
+    title: string,
+    event: React.MouseEvent | React.PointerEvent,
+  ) => void;
+  onPickCanvas: (id: string, title: string) => void;
 };
 
 function LibraryRow({
@@ -66,8 +74,8 @@ function LibraryRow({
   icon: React.ReactNode;
   testId: string;
   itemAttrs: Record<string, string>;
-  onStartDrag: (id: string, event: React.MouseEvent | React.PointerEvent) => void;
-  onPick: (id: string) => void;
+  onStartDrag: (id: string, title: string, event: React.MouseEvent | React.PointerEvent) => void;
+  onPick: (id: string, title: string) => void;
 }) {
   return (
     <button
@@ -78,8 +86,8 @@ function LibraryRow({
       title={title}
       aria-label={`添加「${title}」到画布`}
       className="flex min-h-9 cursor-grab items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent active:cursor-grabbing"
-      onMouseDown={(event) => onStartDrag(id, event)}
-      onClick={() => onPick(id)}
+      onMouseDown={(event) => onStartDrag(id, title, event)}
+      onClick={() => onPick(id, title)}
     >
       <span className="shrink-0 text-muted-foreground">{icon}</span>
       <span className="min-w-0 flex-1">

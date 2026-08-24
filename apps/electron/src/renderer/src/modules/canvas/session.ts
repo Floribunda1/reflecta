@@ -32,6 +32,8 @@ export type CanvasSessionState = {
   panel: CanvasRightPanel;
   searchOpen: boolean;
   saveStatus: SaveStatus;
+  /** 拖入 / 点击加入时预置的理解标题：detail 刷新前先让卡显示真实标题 */
+  understandingPreviews: readonly { id: string; title: string | null }[];
 };
 
 export type CanvasAction =
@@ -48,7 +50,8 @@ export type CanvasAction =
   | { type: "search/closed" }
   | { type: "search/selected"; id: string }
   | { type: "save/status"; status: SaveStatus }
-  | { type: "save/retry" };
+  | { type: "save/retry" }
+  | { type: "understanding/primed"; id: string; title: string | null };
 
 export type CanvasEffect =
   | { type: "saveDocument"; document: CanvasDocument }
@@ -74,6 +77,7 @@ export const initialCanvasSession: CanvasSessionState = {
   panel: null,
   searchOpen: false,
   saveStatus: "clean",
+  understandingPreviews: [],
 };
 
 const none: CanvasEffect[] = [];
@@ -198,6 +202,16 @@ export function reduceCanvasSession(
       return result({ ...state, searchOpen: false });
     case "search/selected":
       return result({ ...state, searchOpen: false }, [{ type: "focusCell", id: action.id }]);
+    case "understanding/primed": {
+      const existing = state.understandingPreviews.find((p) => p.id === action.id);
+      if (existing?.title === action.title) return result(state);
+      const next = existing
+        ? state.understandingPreviews.map((p) =>
+            p.id === action.id ? { ...p, title: action.title } : p,
+          )
+        : [...state.understandingPreviews, { id: action.id, title: action.title }];
+      return result({ ...state, understandingPreviews: next });
+    }
     case "save/status":
       if (state.saveStatus === action.status) return result(state);
       return result({ ...state, saveStatus: action.status });

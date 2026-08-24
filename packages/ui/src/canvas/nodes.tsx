@@ -72,6 +72,7 @@ function UnderstandingShape({ node, graph }: CardProps) {
       // ponytail: 占位只在服务端明确标记 soft-delete 时显示；拖入新卡后 ref 尚未随刷新就位，
       // 用 !ref 兜底会把“未加载”误判成“已删除”。hard-delete 不存在（仅软删），不影响。
       deleted={ref?.deleted ?? false}
+      loading={ref?.loading}
       resolveWikiLink={resolveWikiLink}
       onWikiLinkOpen={onWikiLinkOpen}
       color={element.props.color}

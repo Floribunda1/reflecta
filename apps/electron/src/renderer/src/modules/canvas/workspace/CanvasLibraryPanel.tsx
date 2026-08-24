@@ -27,10 +27,14 @@ export function CanvasLibraryPanel({
 }: {
   canvasId: string;
   onClose: () => void;
-  onStartDragUnderstanding: (id: string, e: React.MouseEvent | React.PointerEvent) => void;
-  onStartDragCanvas: (id: string, e: React.MouseEvent | React.PointerEvent) => void;
-  onPickUnderstanding: (id: string) => void;
-  onPickCanvas: (id: string) => void;
+  onStartDragUnderstanding: (
+    id: string,
+    title: string,
+    e: React.MouseEvent | React.PointerEvent,
+  ) => void;
+  onStartDragCanvas: (id: string, title: string, e: React.MouseEvent | React.PointerEvent) => void;
+  onPickUnderstanding: (id: string, title: string) => void;
+  onPickCanvas: (id: string, title: string) => void;
 }) {
   const { domains, loading: domainsLoading } = useCaptureDomains();
   const { data: canvases, isLoading: canvasesLoading } = useCanvasList();

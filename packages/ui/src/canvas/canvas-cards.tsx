@@ -16,6 +16,7 @@ import { Button } from "../components/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/popover";
 import { cn } from "../lib/utils";
 import type { ChatEntityReference, ResolveChatEntity } from "../chat/entity";
+import { Skeleton } from "../components/skeleton";
 import { canvasPaintColor, CanvasColorSwatches } from "./color-swatches";
 import type { CanvasDocument } from "./document";
 import type { CanvasShapeData } from "./shape-context";
@@ -143,6 +144,8 @@ export type CanvasUnderstandingCardProps = {
   title: string | null;
   body: string;
   deleted?: boolean;
+  /** 正文尚未随 detail 拉回（拖入瞬间）：正文区显示骨架占位，不再出现「未命名理解」空卡 */
+  loading?: boolean;
   color?: string;
   selected?: boolean;
   readonly?: boolean;
@@ -162,6 +165,7 @@ export function CanvasUnderstandingCard({
   title,
   body,
   deleted = false,
+  loading = false,
   color,
   selected = false,
   readonly = false,
@@ -205,12 +209,20 @@ export function CanvasUnderstandingCard({
             </span>
           </div>
           <div className="canvas-card-scroll nowheel min-h-0 flex-1 overflow-y-auto px-2.5 py-2">
-            <MarkdownPreview
-              value={body}
-              zoomImages={false}
-              resolveWikiLink={resolveWikiLink}
-              onWikiLinkOpen={onWikiLinkOpen}
-            />
+            {loading ? (
+              <div className="flex flex-col gap-1.5">
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-4/5" />
+                <Skeleton className="h-3 w-3/5" />
+              </div>
+            ) : (
+              <MarkdownPreview
+                value={body}
+                zoomImages={false}
+                resolveWikiLink={resolveWikiLink}
+                onWikiLinkOpen={onWikiLinkOpen}
+              />
+            )}
           </div>
         </>
       )}

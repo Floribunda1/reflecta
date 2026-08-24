@@ -11,6 +11,7 @@ import {
   type CanvasGraphHandle,
   type CanvasReferencedCanvasView,
   type CanvasShapeData,
+  type CanvasUnderstandingRefView,
   type CanvasViewport,
 } from "@reflecta/ui/canvas";
 import {
@@ -29,7 +30,12 @@ import {
   useUpdateViewportMutation,
 } from "../queries";
 import { captureQueryKeys, getEntityDisplay } from "../../capture/queries";
-import { canvasHydrateAtom, dispatchCanvasAction, provideCanvasEffects } from "../store";
+import {
+  canvasHydrateAtom,
+  canvasUnderstandingPreviewsAtom,
+  dispatchCanvasAction,
+  provideCanvasEffects,
+} from "../store";
 import { CanvasToolbar } from "./CanvasToolbar";
 import {
   CanvasEmptyOverlay,
@@ -183,6 +189,7 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
   const { data: detail } = useCanvasDetail(canvasId);
   const canvas = detail?.canvas ?? null;
   const graphRef = useRef<CanvasGraphHandle>(null);
+  const previews = useAtomValue(canvasUnderstandingPreviewsAtom);
 
   const refsMap = useMemo(
     () => new Map((detail?.understandingRefs ?? []).map((ref) => [ref.id, ref])),
@@ -261,8 +268,23 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
           : undefined,
       });
     }
+    const understandingRefs = new Map<string, CanvasUnderstandingRefView>(
+      (detail?.understandingRefs ?? []).map((ref) => [ref.id, ref]),
+    );
+    // 拖入新理解后 detail 尚未刷新：用预置标题顶格渲染（正文待刷新后由 loading 骨架过渡到真实内容）
+    for (const p of previews) {
+      if (!understandingRefs.has(p.id)) {
+        understandingRefs.set(p.id, {
+          id: p.id,
+          title: p.title,
+          body: "",
+          deleted: false,
+          loading: true,
+        });
+      }
+    }
     return {
-      understandingRefs: new Map((detail?.understandingRefs ?? []).map((ref) => [ref.id, ref])),
+      understandingRefs,
       referencedCanvases: refMap,
       onCanvasRefClick: (targetCanvasId) => navigateToCanvas(targetCanvasId),
       onCellAction: (action) => {
@@ -286,7 +308,7 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
         }
       },
     };
-  }, [detail, navigateToCanvas, refPreviews, resolveWikiLink]);
+  }, [detail, navigateToCanvas, previews, refPreviews, resolveWikiLink]);
 
   return (
     <div

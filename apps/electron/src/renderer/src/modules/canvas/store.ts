@@ -72,6 +72,10 @@ export const canvasSaveStatusAtom: Atom.Atom<SaveStatus> = Atom.map(
   (session) => session.saveStatus,
 );
 
+export const canvasUnderstandingPreviewsAtom: Atom.Atom<
+  readonly { id: string; title: string | null }[]
+> = Atom.map(sessionAtom, (session) => session.understandingPreviews);
+
 /** 空态只暴露布尔：document 每次拖拽都会变，订阅方不应跟着重渲染。 */
 export const canvasIsEmptyAtom: Atom.Atom<boolean> = Atom.map(
   sessionAtom,

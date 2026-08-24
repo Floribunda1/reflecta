@@ -81,6 +81,13 @@ import {
  * - 卡片经 `@antv/x6-react-shape` portal provider 落在本 React 树内，context 穿透。
  */
 
+export type CanvasDragPreview = { title?: string | null };
+
+/** 拖拽泡影标题截断：迷你 pill 宽度有限，长标题不溢出圆角。 */
+function truncatePill(text: string): string {
+  return text.length > 12 ? `${text.slice(0, 12)}…` : text;
+}
+
 export type CanvasGraphHandle = {
   get graph(): Graph | null;
   reload: (document: CanvasDocument) => void;
@@ -95,8 +102,15 @@ export type CanvasGraphHandle = {
   zoomIn: () => void;
   zoomOut: () => void;
   fitView: () => void;
-  /** 从工具栏 / 理解库等拖拽源发起一次 X6 Dnd 拖拽（source 元素由 element 描述） */
-  startDrag: (element: CanvasElementDTO, event: React.PointerEvent | React.MouseEvent) => void;
+  /**
+   * 从工具栏 / 理解库等拖拽源发起一次 X6 Dnd 拖拽（source 元素由 element 描述）；
+   * preview 只提供给拖拽泡影（pill）展示，不入库。
+   */
+  startDrag: (
+    element: CanvasElementDTO,
+    preview: CanvasDragPreview | undefined,
+    event: React.PointerEvent | React.MouseEvent,
+  ) => void;
   focusCell: (cellId: string) => void;
 };
 
@@ -311,8 +325,29 @@ export const CanvasGraph = React.memo(
         // 内置 Dnd：工具栏 / 理解库调 startDrag → 拖入画布；getDropNode 生成“新”元素避免 id 冲突
         dnd = new Dnd({
           target: graph,
-          getDropNode: (draggingNode) => {
-            const source = draggingNode.getData() as { element?: CanvasElementDTO } | undefined;
+          // 拖拽泡影用迷你 pill（不再克隆一张空白卡），标题从节点 data.dragPreview 读
+          getDragNode: (sourceNode, { draggingGraph }) => {
+            const data = sourceNode.getData() as
+              | { element?: CanvasElementDTO; dragPreview?: { title?: string | null } }
+              | undefined;
+            const element = data?.element;
+            let label = "＋ 添加";
+            if (element?.kind === "understanding")
+              label = `＋ ${truncatePill(data?.dragPreview?.title ?? "理解")}`;
+            else if (element?.kind === "text") label = "＋ 文本";
+            else if (element?.kind === "canvas_ref") label = "＋ 画布";
+            return draggingGraph.createNode({
+              shape: "rect",
+              width: 140,
+              height: 32,
+              attrs: {
+                body: { fill: "#27272a", stroke: "none", rx: 16, ry: 16 },
+                label: { text: label, fill: "#fff", fontSize: 13, fontFamily: "inherit" },
+              },
+            });
+          },
+          getDropNode: (draggingNode, { sourceNode }) => {
+            const source = sourceNode.getData() as { element?: CanvasElementDTO } | undefined;
             if (!source?.element || !createElementForDrop) return draggingNode;
             // 用 graph.createNode 建落点节点：new Node() 会绕过注册表的 react-shape 继承，
             // 渲染回退成 base rect 标记（无 fo，卡片不渲染）
@@ -831,12 +866,15 @@ export const CanvasGraph = React.memo(
           graphRef.current?.zoomToFit(
             readonlyRef.current ? { padding: 40 } : { padding: 40, maxScale: 1 },
           ),
-        startDrag: (element, event) => {
+        startDrag: (element, preview, event) => {
           const dnd = dndRef.current;
           const graph = graphRef.current;
           if (!dnd || !graph || readonlyRef.current) return;
           // graph.createNode：避免 new Node() 绕过 react-shape 继承导致落点卡片不渲染
-          dnd.start(graph.createNode(nodeMetadataFor(element)), event.nativeEvent);
+          const node = graph.createNode(nodeMetadataFor(element));
+          // 泡影标题走节点 data（不入库），供 getDragNode 读
+          if (preview) node.setData({ ...(node.getData() as object), dragPreview: preview });
+          dnd.start(node, event.nativeEvent);
         },
         focusCell: (cellId) => {
           const graph = graphRef.current;

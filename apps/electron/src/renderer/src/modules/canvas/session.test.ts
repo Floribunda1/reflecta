@@ -167,6 +167,27 @@ describe("reduceCanvasSession", () => {
       effects: [{ type: "retrySave" }],
     });
   });
+
+  test("understanding/primed upserts the preview title idempotently", () => {
+    const a = apply(initialCanvasSession, {
+      type: "understanding/primed",
+      id: "u1",
+      title: "信息",
+    }).state;
+    expect(a.understandingPreviews).toEqual([{ id: "u1", title: "信息" }]);
+    // 同 id 同标题：不新增、不改引用
+    const same = apply(a, { type: "understanding/primed", id: "u1", title: "信息" }).state;
+    expect(same).toBe(a);
+    // 同 id 改标题：原地更新
+    const updated = apply(a, { type: "understanding/primed", id: "u1", title: "信息卡" }).state;
+    expect(updated.understandingPreviews).toEqual([{ id: "u1", title: "信息卡" }]);
+    // 新 id：追加
+    const added = apply(a, { type: "understanding/primed", id: "u2", title: null }).state;
+    expect(added.understandingPreviews).toEqual([
+      { id: "u1", title: "信息" },
+      { id: "u2", title: null },
+    ]);
+  });
 });
 
 describe("sanitizeDocument", () => {
