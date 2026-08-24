@@ -155,7 +155,9 @@ export const CanvasGraph = React.memo(
     const dndRef = useRef<Dnd | null>(null);
     const suppressEmitRef = useRef(false);
     const emitPendingRef = useRef(false);
-    const viewportAppliedRef = useRef(false);
+    // 初始视口/布局只对“同一个 graph 实例”生效一次：StrictMode（dev）会重挂载组件，
+    // 但 ref 跨两次挂载存活——按组件记 boolean 会把新 Graph 的首次 fitView 吞掉。
+    const viewportAppliedRef = useRef<Graph | null>(null);
     const appliedDocRef = useRef<CanvasDocument | null>(null);
     const readonlyRef = useRef(readonly);
     readonlyRef.current = readonly;
@@ -429,14 +431,14 @@ export const CanvasGraph = React.memo(
     useEffect(() => {
       const graph = graphRef.current;
       const container = containerRef.current;
-      if (!graph || !container || !viewportReady || viewportAppliedRef.current) return;
+      if (!graph || !container || !viewportReady || viewportAppliedRef.current === graph) return;
 
       let raf = 0;
       let cancelled = false;
       const applyLayout = () => {
-        if (cancelled || viewportAppliedRef.current) return false;
+        if (cancelled || viewportAppliedRef.current === graph) return false;
         if (container.clientWidth <= 0 || container.clientHeight <= 0) return false;
-        viewportAppliedRef.current = true;
+        viewportAppliedRef.current = graph;
         raf = requestAnimationFrame(() => {
           if (cancelled || graphRef.current !== graph) return;
           suppressEmitRef.current = true;
