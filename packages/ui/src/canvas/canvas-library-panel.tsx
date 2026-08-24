@@ -149,30 +149,31 @@ export function CanvasLibraryPanel({
         </header>
 
         {tab === "understandings" ? (
-          <div className="flex shrink-0 flex-col gap-1.5 border-b border-border p-2">
-            <InputGroup>
-              <InputGroupAddon align="inline-start">
-                <Search className="size-4 text-muted-foreground" />
-              </InputGroupAddon>
-              <InputGroupInput
-                value={searchQuery}
-                onChange={(event) => onSearchQueryChange(event.target.value)}
-                placeholder="查找理解"
-                aria-label="查找理解"
-                data-testid="canvas-library-search"
+          <div className="flex shrink-0 flex-col gap-1.5 p-2">
+            <div className="min-w-0">
+              <DomainTreeSelect
+                mode="single"
+                value={selectedDomainId === "all" ? null : selectedDomainId}
+                onValueChange={(domainId) => onSelectedDomainIdChange(domainId ?? "all")}
+                nodes={domainTree}
+                status={domainsLoading ? "loading" : "ready"}
+                placeholder="全部领域"
+                variant="inline"
               />
-            </InputGroup>
+            </div>
             <div className="flex items-center gap-1.5">
-              <div className="min-w-0 flex-1">
-                <DomainTreeSelect
-                  mode="single"
-                  value={selectedDomainId === "all" ? null : selectedDomainId}
-                  onValueChange={(domainId) => onSelectedDomainIdChange(domainId ?? "all")}
-                  nodes={domainTree}
-                  status={domainsLoading ? "loading" : "ready"}
-                  placeholder="全部领域"
+              <InputGroup className="min-w-0 flex-1">
+                <InputGroupAddon align="inline-start">
+                  <Search className="size-4 text-muted-foreground" />
+                </InputGroupAddon>
+                <InputGroupInput
+                  value={searchQuery}
+                  onChange={(event) => onSearchQueryChange(event.target.value)}
+                  placeholder="查找理解"
+                  aria-label="查找理解"
+                  data-testid="canvas-library-search"
                 />
-              </div>
+              </InputGroup>
               <Button
                 type="button"
                 size="icon-sm"
@@ -215,7 +216,7 @@ export function CanvasLibraryPanel({
             </div>
           </div>
         ) : (
-          <div className="shrink-0 border-b border-border p-2">
+          <div className="shrink-0 p-2">
             <InputGroup>
               <InputGroupAddon align="inline-start">
                 <Search className="size-4 text-muted-foreground" />
