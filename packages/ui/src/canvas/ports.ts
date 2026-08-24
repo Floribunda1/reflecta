@@ -8,28 +8,28 @@ export const CANVAS_PORTS = {
       position: "left",
       zIndex: 2,
       attrs: {
-        circle: { r: 4, magnet: true, fill: "var(--ring)", stroke: "var(--ring)" },
+        circle: { r: 4, magnet: true, fill: "transparent", stroke: "none" },
       },
     },
     top: {
       position: "top",
       zIndex: 2,
       attrs: {
-        circle: { r: 4, magnet: true, fill: "var(--ring)", stroke: "var(--ring)" },
+        circle: { r: 4, magnet: true, fill: "transparent", stroke: "none" },
       },
     },
     right: {
       position: "right",
       zIndex: 2,
       attrs: {
-        circle: { r: 4, magnet: true, fill: "var(--ring)", stroke: "var(--ring)" },
+        circle: { r: 4, magnet: true, fill: "transparent", stroke: "none" },
       },
     },
     bottom: {
       position: "bottom",
       zIndex: 2,
       attrs: {
-        circle: { r: 4, magnet: true, fill: "var(--ring)", stroke: "var(--ring)" },
+        circle: { r: 4, magnet: true, fill: "transparent", stroke: "none" },
       },
     },
   },

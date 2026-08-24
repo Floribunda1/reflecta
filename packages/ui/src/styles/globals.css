@@ -178,9 +178,13 @@ samp,
 }
 
 /* 连接桩（x6-port-body）：默认隐藏；编辑器内 hover 节点才显示，只读画布保持隐藏。
-   颜色即选中态 ring（卡片选中 ring-2 ring-ring），实心圆。 */
+   颜色必须走 CSS：X6 attrs 是 setAttribute 写 SVG presentation attribute，
+   var(--ring) 在 attribute 里不解析（会回落成黑色）。CSS fill 覆盖 attribute，
+   且 var() 在 CSS 里有效 → 与选中态 ring（卡片 ring-2 ring-ring）同色，实心圆。 */
 [data-canvas-graph] .x6-port-body {
   opacity: 0;
+  fill: var(--ring);
+  stroke: none;
   transition: opacity 120ms ease;
 }
 [data-canvas-graph]:not([data-readonly]) .x6-node:hover .x6-port-body,
