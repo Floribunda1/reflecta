@@ -122,10 +122,10 @@ export async function dragNodeBy(page: Page, id: string, dx: number, dy: number)
   await page.waitForTimeout(200);
 }
 
-/** 单击选中第一条边（点路径中点，避开节点/端桩）。 */
-export async function selectEdge(page: Page) {
+/** 边路径中点（屏幕坐标），供选中 / 双击复用。 */
+async function edgeMidpoint(page: Page): Promise<{ x: number; y: number } | null> {
   const edge = edgesInGraph(page).first();
-  const point = await edge.evaluate((el) => {
+  return edge.evaluate((el) => {
     const paths = [...el.querySelectorAll("path")].filter((p) => p.getTotalLength?.() > 10);
     // X6 边点击命中层是加粗透明 interaction path：按 stroke-width 降序取最粗的一条
     const line = paths
@@ -142,7 +142,19 @@ export async function selectEdge(page: Page) {
       return null;
     }
   });
+}
+
+/** 单击选中第一条边（点路径中点，避开节点/端桩）。 */
+export async function selectEdge(page: Page) {
+  const point = await edgeMidpoint(page);
   if (point) await page.mouse.click(point.x, point.y);
+  await page.waitForTimeout(200);
+}
+
+/** 双击第一条边的路径中点（就地编辑标签）。 */
+export async function dblclickEdge(page: Page) {
+  const point = await edgeMidpoint(page);
+  if (point) await page.mouse.dblclick(point.x, point.y);
   await page.waitForTimeout(200);
 }
 

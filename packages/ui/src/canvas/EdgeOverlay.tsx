@@ -84,14 +84,12 @@ export function EdgeOverlay({
     edge.on("change:router", rerender);
     edge.on("change:connector", rerender);
     edge.on("change:vertices", rerender);
-    const onLabelDoubleClick = (event: { edge: X6Edge; e: MouseEvent }) => {
+    const onEdgeDoubleClick = (event: { edge: X6Edge }) => {
       if (event.edge.id !== edge.id) return;
-      const target = event.e.target;
-      if (!(target instanceof Element) || !target.closest("[data-index]")) return;
       setLabelDraft(dto?.label ?? "");
       setEditingLabel(true);
     };
-    graph.on("edge:dblclick", onLabelDoubleClick);
+    graph.on("edge:dblclick", onEdgeDoubleClick);
     return () => {
       graph.off("scale", rerender);
       graph.off("translate", rerender);
@@ -100,7 +98,7 @@ export function EdgeOverlay({
       edge.off("change:router", rerender);
       edge.off("change:connector", rerender);
       edge.off("change:vertices", rerender);
-      graph.off("edge:dblclick", onLabelDoubleClick);
+      graph.off("edge:dblclick", onEdgeDoubleClick);
     };
   }, [dto?.label, edge, graph]);
 

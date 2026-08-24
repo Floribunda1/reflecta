@@ -47,7 +47,7 @@ function CanvasEdgesShowcase() {
           },
           {
             title: "标签",
-            description: "无标签、短标签、长标签。选中后可在工具条里改标签。",
+            description: "无标签、短标签、长标签。双击连线就地编辑标签。",
             content: <InteractiveGraph document={edgeLabelDocument} height="h-[360px]" />,
           },
         ]}

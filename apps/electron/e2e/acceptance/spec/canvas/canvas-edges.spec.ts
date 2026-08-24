@@ -163,21 +163,21 @@ test("@CV-X6-EDGE-004 调整连线样式并保留", async () => {
   expect(s2[0].marker).toBe("circle");
 });
 
-test("@CV-X6-EDGE-005 双击边标签编辑并提交", async () => {
+test("@CV-X6-EDGE-005 双击边就地编辑标签并提交", async () => {
   await h.openCanvasRow(page!, "EDGESTYLE");
   await connectAToB(0, "st_a", "st_b");
   await h.selectEdge(page!);
-  const label = page!.getByTestId("canvas-edge-label").first();
-  await expect(label).toBeVisible();
-  await label.click({ clickCount: 2 });
-  await page!.waitForTimeout(200);
-  await label.click();
+  const input = page!.getByTestId("canvas-edge-label");
+  await expect(input).toHaveCount(0); // 未双击前不出现输入框
+  await h.dblclickEdge(page!);
+  await expect(input).toBeVisible();
   await page!.keyboard.type("EDGE_LABEL");
   await page!.keyboard.press("Enter");
   await page!.waitForTimeout(1200); // 等防抖(800ms)保存落库再重开
   await h.openCanvasRow(page!, "EDGESTYLE");
   await h.selectEdge(page!); // 重开不保留选中，先选中边再断言标签
-  await expect(page!.getByTestId("canvas-edge-label").first()).toHaveText("EDGE_LABEL", {
+  await h.dblclickEdge(page!);
+  await expect(page!.getByTestId("canvas-edge-label").first()).toHaveValue("EDGE_LABEL", {
     timeout: 8000,
   });
 });
@@ -185,10 +185,16 @@ test("@CV-X6-EDGE-005 双击边标签编辑并提交", async () => {
 test("@CV-X6-EDGE-006 清空边标签回到无标签", async () => {
   await h.openCanvasRow(page!, "EDGE");
   await h.selectEdge(page!);
-  const label = page!.getByTestId("canvas-edge-label").first();
-  await label.click({ clickCount: 2 });
-  await page!.waitForTimeout(200);
-  await label.click();
+  await h.dblclickEdge(page!);
+  const input = page!.getByTestId("canvas-edge-label");
+  await expect(input).toBeVisible();
+  await page!.keyboard.type("TO_CLEAR");
+  await page!.keyboard.press("Enter");
+  await page!.waitForTimeout(1200); // 先落一个标签，再验证清空路径
+  await h.openCanvasRow(page!, "EDGE");
+  await h.selectEdge(page!);
+  await h.dblclickEdge(page!);
+  await expect(input).toBeVisible();
   await page!.keyboard.press("End");
   for (let i = 0; i < 10; i++) await page!.keyboard.press("Backspace");
   await page!.keyboard.press("Enter");
