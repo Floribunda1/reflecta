@@ -11,6 +11,7 @@ import {
   type UnderstandingDetailCanvasView,
   type UnderstandingDetailContextView,
 } from "./understanding-detail";
+import { DomainTreeSelect } from "./domain-tree-select";
 
 const typicalContexts: UnderstandingDetailContextView[] = [
   {
@@ -121,8 +122,6 @@ function UnderstandingDetailDemo({ fixtureName }: { fixtureName: keyof typeof fi
             <UnderstandingDetailHeader
               title={title}
               updatedLabel="不到 1 分钟前"
-              domainIds={domainIds}
-              domains={fixture.domains}
               focusMode={focusMode}
               onFocusModeChange={setFocusMode}
               onChat={() => setLastAction("打开理解对话")}
@@ -130,7 +129,6 @@ function UnderstandingDetailDemo({ fixtureName }: { fixtureName: keyof typeof fi
               onDelete={() => setLastAction("请求删除理解")}
               onTitleChange={setTitle}
               onTitleBlur={() => setLastAction("保存标题")}
-              onDomainIdsChange={setDomainIds}
             />
           }
           body={
@@ -142,6 +140,17 @@ function UnderstandingDetailDemo({ fixtureName }: { fixtureName: keyof typeof fi
               placeholder="用自己的语言写下这条理解。输入 [[ 连接相关理解。"
               resolveWikiLink={resolveStoryWikiLink}
               onChange={setBody}
+            />
+          }
+          metadata={
+            <DomainTreeSelect
+              value={domainIds}
+              onValueChange={setDomainIds}
+              nodes={fixture.domains}
+              placeholder="未归入 Domain"
+              fluid={false}
+              showPath={false}
+              variant="inline"
             />
           }
           contexts={contexts}

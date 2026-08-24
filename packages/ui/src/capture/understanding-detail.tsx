@@ -4,6 +4,7 @@ import {
   BookOpen,
   ChevronRight,
   FileText,
+  Link2,
   LayoutGrid,
   Maximize2,
   MessageCircle,
@@ -36,9 +37,8 @@ import {
   DropdownMenuTrigger,
 } from "../components/dropdown-menu";
 import { Input } from "../components/input";
+import { Popover, PopoverContent, PopoverTrigger } from "../components/popover";
 import { cn } from "../lib/utils";
-import { DomainTreeSelect } from "./domain-tree-select";
-import type { DomainTreeNodeView } from "./domain-tree";
 
 export const CONTEXT_META = {
   experience: { label: "个人经历", Icon: User },
@@ -88,9 +88,8 @@ export type UnderstandingDetailCanvasView = {
 export function UnderstandingDetailHeader({
   title,
   updatedLabel,
-  domainIds,
-  domains,
-  domainsLoading = false,
+  canvases = [],
+  onCanvasOpen,
   focusMode = false,
   className,
   onFocusModeChange,
@@ -99,13 +98,11 @@ export function UnderstandingDetailHeader({
   onDelete,
   onTitleChange,
   onTitleBlur,
-  onDomainIdsChange,
 }: {
   title: string;
   updatedLabel: string;
-  domainIds: readonly string[];
-  domains: readonly DomainTreeNodeView[];
-  domainsLoading?: boolean;
+  canvases?: readonly UnderstandingDetailCanvasView[];
+  onCanvasOpen?: (canvasId: string) => void;
   focusMode?: boolean;
   className?: string;
   onFocusModeChange?: (focused: boolean) => void;
@@ -114,7 +111,6 @@ export function UnderstandingDetailHeader({
   onDelete: () => void;
   onTitleChange: (title: string) => void;
   onTitleBlur: () => void;
-  onDomainIdsChange: (domainIds: string[]) => void;
 }) {
   return (
     <header className="space-y-4">
@@ -128,16 +124,43 @@ export function UnderstandingDetailHeader({
           <>
             <span>{updatedLabel}</span>
             <span aria-hidden>·</span>
-            <DomainTreeSelect
-              value={domainIds}
-              onValueChange={onDomainIdsChange}
-              nodes={domains}
-              status={domainsLoading ? "loading" : "ready"}
-              placeholder="未归入 Domain"
-              fluid={false}
-              showPath={false}
-              variant="inline"
-            />
+            {onCanvasOpen && canvases.length > 0 ? (
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 gap-1 px-1.5 text-xs text-muted-foreground"
+                      aria-label={`查看关联画布，共 ${canvases.length} 个`}
+                    />
+                  }
+                >
+                  <Link2 className="size-3.5" />
+                  {canvases.length}
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-72">
+                  <div className="px-1 py-0.5 text-xs font-medium text-muted-foreground">
+                    关联画布
+                  </div>
+                  <div className="flex max-h-60 flex-col overflow-y-auto">
+                    {canvases.map((canvas) => (
+                      <button
+                        key={canvas.id}
+                        type="button"
+                        className="flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => onCanvasOpen(canvas.id)}
+                      >
+                        <LayoutGrid className="size-4 shrink-0 text-muted-foreground" />
+                        <span className="min-w-0 flex-1 truncate">{canvas.title}</span>
+                        <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            ) : null}
           </>
         )}
         <div className="ml-auto flex shrink-0 items-center gap-1">
@@ -362,6 +385,7 @@ export function UnderstandingDetailLayout<T extends UnderstandingDetailContextVi
   articleRef,
   header,
   body,
+  metadata,
   contexts,
   canvasMembership,
   focusMode = false,
@@ -374,6 +398,7 @@ export function UnderstandingDetailLayout<T extends UnderstandingDetailContextVi
   articleRef?: Ref<HTMLElement>;
   header: ReactNode;
   body: ReactNode;
+  metadata?: ReactNode;
   contexts: readonly T[];
   canvasMembership?: ReactNode;
   focusMode?: boolean;
@@ -391,6 +416,7 @@ export function UnderstandingDetailLayout<T extends UnderstandingDetailContextVi
         className="mx-auto min-h-0 w-full max-w-4xl flex-1 overflow-y-auto px-4 pb-3 sm:px-6"
       >
         <section className="mt-5">{body}</section>
+        {metadata ? <div className="mt-5">{metadata}</div> : null}
         {focusMode ? null : (
           <>
             <section className="mt-8 border-t border-border pt-5 pb-2">

@@ -6,6 +6,7 @@ import {
   CONTEXT_TYPES,
   UnderstandingDetailHeader,
   UnderstandingDetailLayout,
+  DomainTreeSelect,
 } from "@reflecta/ui/capture";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@reflecta/ui/components/field";
 import { FOCUS_MODE_OFFSET_CLASS } from "@renderer/modules/shared/layout/layout-constants";
@@ -21,7 +22,8 @@ import {
 import { useDrawer } from "@reflecta/ui/overlays";
 import { useModal } from "@reflecta/ui/overlays";
 import type { ContextDTO, ContextMedium } from "@shared/context";
-import { CanvasMembership } from "@renderer/modules/canvas/CanvasMembership";
+import { useCanvasListByUnderstanding } from "@renderer/modules/canvas/queries";
+import { useNavigateToCanvas } from "@renderer/modules/shared/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { Maximize2, Minimize2, X } from "lucide-react";
@@ -284,6 +286,8 @@ function UnderstandingDetailInner({
   const detailRef = useRef<HTMLElement>(null);
   const { understanding } = useUnderstandingDetail(understandingId);
   const { domains, loading: domainsLoading } = useCaptureDomains();
+  const { data: canvases = [] } = useCanvasListByUnderstanding(understandingId);
+  const navigateToCanvas = useNavigateToCanvas();
   const { updateUnderstanding, deleteUnderstanding, createContext, updateContext, deleteContext } =
     useUnderstandingDetailActions(understandingId);
   const { confirm } = useModal();
@@ -453,9 +457,8 @@ function UnderstandingDetailInner({
         <UnderstandingDetailHeader
           title={title}
           updatedLabel={updatedLabel}
-          domainIds={understanding.domainIds}
-          domains={domains}
-          domainsLoading={domainsLoading}
+          canvases={canvases}
+          onCanvasOpen={navigateToCanvas}
           focusMode={focusMode}
           className={focusMode ? FOCUS_MODE_OFFSET_CLASS : undefined}
           onFocusModeChange={handleFocusModeChange}
@@ -473,7 +476,6 @@ function UnderstandingDetailInner({
           onDelete={handleDeleteUnderstanding}
           onTitleChange={updateDraftTitle}
           onTitleBlur={() => void saveDraft()}
-          onDomainIdsChange={(domainIds) => void updateUnderstanding({ domainIds })}
         />
       }
       body={
@@ -496,8 +498,19 @@ function UnderstandingDetailInner({
           }}
         />
       }
+      metadata={
+        <DomainTreeSelect
+          value={understanding.domainIds}
+          onValueChange={(domainIds) => void updateUnderstanding({ domainIds })}
+          nodes={domains}
+          status={domainsLoading ? "loading" : "ready"}
+          placeholder="未归入 Domain"
+          fluid={false}
+          showPath={false}
+          variant="inline"
+        />
+      }
       contexts={understanding.contexts}
-      canvasMembership={<CanvasMembership understandingId={understanding.id} />}
       focusMode={focusMode}
       onAddContext={handleAddContext}
       onPreviewContext={openContextPreview}
