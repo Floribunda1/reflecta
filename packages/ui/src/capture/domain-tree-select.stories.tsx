@@ -1,37 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { StoryCase, StoryShowcase } from "../../.storybook/story-showcase";
+import { typicalDomains } from "./capture-story-fixtures";
 import type { DomainTreeNodeView } from "./domain-tree";
 import { DomainTreeSelect } from "./domain-tree-select";
 
-const domains: DomainTreeNodeView[] = [
-  {
-    id: "product",
-    name: "产品",
-    children: [
-      { id: "positioning", name: "定位与价值主张", children: [] },
-      { id: "research", name: "用户研究", children: [] },
-    ],
-  },
-  {
-    id: "technology",
-    name: "技术",
-    children: [
-      {
-        id: "ui",
-        name: "UI 架构",
-        children: [
-          { id: "storybook", name: "Storybook 组件验收", children: [] },
-          { id: "streaming", name: "Agent Streaming Identity", children: [] },
-        ],
-      },
-      { id: "server", name: "Server 与数据持久化", children: [] },
-    ],
-  },
-];
-
 function MultipleDemo({
-  nodes = domains,
+  nodes = typicalDomains,
   initialValue = ["storybook", "research"],
   excludedIds = ["server"],
   showPath,
@@ -68,7 +43,7 @@ function SingleDemo() {
   return (
     <DomainTreeSelect
       mode="single"
-      nodes={domains}
+      nodes={typicalDomains}
       value={value}
       onValueChange={setValue}
       placeholder="选择父 Domain"
@@ -97,7 +72,7 @@ const manyDeepDomains: DomainTreeNodeView[] = [
   },
 ];
 
-function SelectSurface({ children }: { children: React.ReactNode }) {
+function SelectSurface({ children }: { children: ReactNode }) {
   return <div className="w-[420px] max-w-full">{children}</div>;
 }
 
@@ -187,7 +162,7 @@ const meta = {
   title: "Capture/基本组件",
   component: DomainTreeSelect,
   args: {
-    nodes: domains,
+    nodes: typicalDomains,
     value: [],
     onValueChange: () => undefined,
   },

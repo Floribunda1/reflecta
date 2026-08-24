@@ -2,34 +2,8 @@ import { arrayMove } from "@dnd-kit/sortable";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { StoryCase, StoryShowcase } from "../../.storybook/story-showcase";
+import { deepDomains, typicalDomains, typicalExpandedIds } from "./capture-story-fixtures";
 import { DomainTree, type DomainTreeAction, type DomainTreeNodeView } from "./domain-tree";
-
-const initialDomains: DomainTreeNodeView[] = [
-  {
-    id: "product",
-    name: "产品",
-    children: [
-      { id: "positioning", name: "定位与价值主张", children: [] },
-      { id: "research", name: "用户研究", children: [] },
-    ],
-  },
-  {
-    id: "technology",
-    name: "技术",
-    children: [
-      {
-        id: "ui",
-        name: "UI 架构",
-        children: [
-          { id: "storybook", name: "Storybook 组件验收", children: [] },
-          { id: "streaming", name: "Agent Streaming Identity", children: [] },
-        ],
-      },
-      { id: "server", name: "Server 与数据持久化", children: [] },
-    ],
-  },
-  { id: "practice", name: "实践与复盘", children: [] },
-];
 
 function reorderSiblings(
   nodes: readonly DomainTreeNodeView[],
@@ -46,9 +20,9 @@ function reorderSiblings(
 }
 
 function InteractiveTree({
-  initialNodes = initialDomains,
-  initialSelectedId = "storybook",
-  initialExpandedIds = ["technology", "ui"],
+  initialNodes = typicalDomains,
+  initialSelectedId = null,
+  initialExpandedIds = [...typicalExpandedIds],
   canChat = true,
 }: {
   initialNodes?: DomainTreeNodeView[];
@@ -96,63 +70,31 @@ function InteractiveTree({
   );
 }
 
-const deepDomains: DomainTreeNodeView[] = [
-  {
-    id: "root-long",
-    name: "这是一个非常长的顶级 Domain 名称，用于观察截断",
-    children: [
-      {
-        id: "level-2",
-        name: "第二层级的名称同样非常长",
-        children: [
-          {
-            id: "level-3",
-            name: "第三层级",
-            children: [
-              {
-                id: "level-4",
-                name: "第四层级直到内容空间非常有限",
-                children: [],
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-];
-
 function DomainTreeShowcase() {
   return (
     <StoryShowcase
       title="Domain Tree"
-      description="在一个页面内验收选择、展开、菜单、拖拽、空状态，以及深层级和长名称边界。"
+      description="在一个页面内验收全部领域、节点选择、展开、菜单、拖拽、空状态，以及深层级和长名称边界。"
     >
       <StoryCase
-        title="层级、选择与拖拽"
-        description="选择节点、展开层级、右键菜单和同级拖拽都可以直接操作。"
+        title="选择、展开与拖拽"
+        description="默认选中「全部领域」。选择节点、展开层级、右键菜单和同级拖拽都可以直接操作。"
       >
         <InteractiveTree />
       </StoryCase>
-      <StoryCase
-        title="选择与 Hover 关系"
-        description="子节点保持选中时，依次 Hover 父节点、兄弟节点和自身，背景层级都应存在。"
-      >
-        <InteractiveTree initialSelectedId="storybook" />
-      </StoryCase>
-      <StoryCase title="节点操作" description="并排比较允许与不允许“和 AI 聊聊”的真实菜单结构。">
+      <StoryCase title="节点菜单" description="并排比较允许与不允许“和 AI 聊聊”的真实菜单结构。">
         <div className="grid items-start gap-8 md:grid-cols-2">
           <div className="grid gap-2">
             <span className="text-xs font-medium text-muted-foreground">允许聊天</span>
-            <InteractiveTree />
+            <InteractiveTree initialSelectedId="storybook" />
           </div>
           <div className="grid gap-2">
             <span className="text-xs font-medium text-muted-foreground">不允许聊天</span>
-            <InteractiveTree canChat={false} />
+            <InteractiveTree initialSelectedId="storybook" canChat={false} />
           </div>
         </div>
       </StoryCase>
-      <StoryCase title="空状态" description="没有 Domain 时仍保留稳定的树容器。">
+      <StoryCase title="空树" description="没有 Domain 时仍保留「全部领域」和稳定的树容器。">
         <div className="w-72 max-w-full">
           <DomainTree
             nodes={[]}
@@ -182,9 +124,9 @@ const meta = {
   title: "Capture/基本组件",
   component: DomainTree,
   args: {
-    nodes: initialDomains,
+    nodes: typicalDomains,
     selectedId: "storybook",
-    expandedIds: ["technology", "ui"],
+    expandedIds: [...typicalExpandedIds],
     onSelect: () => undefined,
     onToggle: () => undefined,
     onAction: () => undefined,

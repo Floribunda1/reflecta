@@ -43,7 +43,7 @@ const PREVIEW_LINES = 5;
 
 /**
  * dashboard 网格中的理解卡片 —— 标题 + 预览 + 领域/时间/上下文元数据。
- * 与列表行（UnderstandingRow）同族的选中约定：bg-muted 高亮当前项。
+ * 选中约定与 Domain Tree 一致：bg-muted 高亮当前项。
  */
 export const UnderstandingCard = memo(function UnderstandingCard({
   understanding,

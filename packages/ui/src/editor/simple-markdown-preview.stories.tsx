@@ -61,11 +61,11 @@ function SimpleMarkdownPreviewShowcase() {
         </div>
       </StoryCase>
 
-      <StoryCase title="生产宽度" description="列表行、详情摘要和弹性区域使用相同内容。">
+      <StoryCase title="生产宽度" description="卡片预览、详情摘要和弹性区域使用相同内容。">
         <div className="grid items-start gap-6 lg:grid-cols-[288px_420px_minmax(0,1fr)]">
           <PreviewSample
-            label="Understanding Row · 288px"
-            lineClamp={3}
+            label="Understanding Card · 288px"
+            lineClamp={5}
             className="rounded-lg border p-3"
           />
           <PreviewSample
@@ -106,18 +106,18 @@ function SimpleMarkdownPreviewShowcase() {
         </div>
       </StoryCase>
 
-      <StoryCase title="截断组合" description="长文本在选中行尺寸和窄容器中都不能越界。">
+      <StoryCase title="截断组合" description="长文本在卡片选中尺寸和窄容器中都不能越界。">
         <div className="grid gap-6 md:grid-cols-2">
           <PreviewSample
-            label="标准列表宽度"
+            label="标准卡片宽度"
             value={longSummary}
-            lineClamp={3}
-            className="w-[420px] max-w-full rounded-lg border bg-muted/70 p-3"
+            lineClamp={5}
+            className="w-[288px] max-w-full rounded-lg border bg-muted p-3"
           />
           <PreviewSample
             label="窄容器"
             value={longSummary}
-            lineClamp={3}
+            lineClamp={5}
             className="w-64 max-w-full rounded-lg border p-3"
           />
         </div>
