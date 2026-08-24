@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { CalendarPlus, Clock3, Download, MoreHorizontal } from "lucide-react";
+import { Download, MoreHorizontal } from "lucide-react";
 import { Button } from "@reflecta/ui/components/button";
 import {
   DropdownMenu,
@@ -56,12 +56,10 @@ export function CanvasToolbar({
           {canvas ? (
             <span
               data-testid="canvas-toolbar-times"
-              title={canvasTimesLabel(canvas)}
-              aria-label={canvasTimesLabel(canvas)}
-              className="hidden items-center gap-1.5 whitespace-nowrap text-muted-foreground sm:inline-flex"
+              title={`创建于 ${canvas.createdAt} · 更新于 ${canvas.updatedAt}`}
+              className="hidden text-xs whitespace-nowrap text-muted-foreground sm:inline"
             >
-              <CalendarPlus size={14} aria-hidden="true" />
-              <Clock3 size={14} aria-hidden="true" />
+              {canvasTimesLabel(canvas)}
             </span>
           ) : null}
           <DropdownMenu>
