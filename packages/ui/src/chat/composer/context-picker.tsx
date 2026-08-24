@@ -66,7 +66,6 @@ export function ChatContextPicker({
   return (
     <MotionConfig reducedMotion="user">
       <m.div
-        className="w-full min-w-0"
         initial={{ opacity: 0, scale: POP_IN_SCALE, transformOrigin: "bottom center" }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.18, ease: EASE_OUT_EXPO }}
@@ -147,7 +146,6 @@ export function ChatSkillPicker({
   return (
     <MotionConfig reducedMotion="user">
       <m.div
-        className="w-full min-w-0"
         initial={{ opacity: 0, scale: POP_IN_SCALE, transformOrigin: "bottom center" }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.18, ease: EASE_OUT_EXPO }}
