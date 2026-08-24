@@ -63,6 +63,7 @@ import {
 } from "./graph-operations";
 import { CanvasContextMenu, type CanvasContextMenuItem } from "./canvas-context-menu";
 import { EdgeOverlay } from "./EdgeOverlay";
+import { trackpadPanZoomPlugin } from "./trackpad-pan-zoom";
 import {
   CanvasEdgeUpdateProvider,
   CanvasElementUpdateProvider,
@@ -283,7 +284,7 @@ export const CanvasGraph = React.memo(
         // X6 冲突规则：selection(rubberband) 与 panning 的 eventTypes+修饰键重叠时会
         // disablePanning。产品取互斥手势：左键=框选、中键拖拽=平移（Space 平移与左键框选不兼容）。
         panning: { enabled: true, eventTypes: ["mouseWheelDown"] },
-        mousewheel: { enabled: true, factor: 1.2, zoomAtMousePosition: true },
+        // 触控板/滚轮交给 trackpadPanZoom 插件（Figma 惯例），见 trackpad-pan-zoom.ts
         // 组内成员拖动限制在组 bbox 内（extent）；组自身可自由移动
         translating: {
           restrict: (view) => {
@@ -319,6 +320,7 @@ export const CanvasGraph = React.memo(
         },
       });
       graphRef.current = graph;
+      graph.use(trackpadPanZoomPlugin());
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (globalThis as any).__x6graph = graph;
 
@@ -732,11 +734,29 @@ export const CanvasGraph = React.memo(
       if (graph && cell) graph.removeCells([cell]);
     };
 
-    const runPasteAt = () => {
+    const runPasteAt = (clientX: number, clientY: number) => {
       const graph = graphRef.current;
       const clipboard = graph?.getPlugin<Clipboard>("clipboard");
       if (!graph || !clipboard) return;
-      const pasted = clipboard.paste();
+      // 粘贴在右键点：先原位贴出，再量 bbox 把整组平移到目标图坐标
+      const target = graph.clientToLocal(clientX, clientY);
+      graph.startBatch("paste-at");
+      const pasted = clipboard.paste({ offset: 0 });
+      let minX = Infinity;
+      let minY = Infinity;
+      for (const cell of pasted) {
+        if (!cell.isNode()) continue;
+        const pos = cell.getPosition();
+        if (pos.x < minX) minX = pos.x;
+        if (pos.y < minY) minY = pos.y;
+      }
+      if (Number.isFinite(minX) && Number.isFinite(minY)) {
+        // 只平移顶层节点（组随其移动，子节点不会二次位移）
+        for (const cell of pasted) {
+          if (cell.isNode() && !cell.getParent()) cell.translate(target.x - minX, target.y - minY);
+        }
+      }
+      graph.stopBatch("paste-at");
       graph.getPlugin<Selection>("selection")?.reset(pasted);
     };
 
@@ -753,7 +773,7 @@ export const CanvasGraph = React.memo(
                 label: "粘贴",
                 icon: ClipboardPaste,
                 disabled: graph?.isClipboardEmpty() ?? true,
-                onSelect: runPasteAt,
+                onSelect: () => runPasteAt(contextMenu.x, contextMenu.y),
               },
             ],
           },
