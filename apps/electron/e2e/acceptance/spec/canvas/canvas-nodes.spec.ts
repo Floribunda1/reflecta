@@ -256,6 +256,9 @@ test("@CV-X6-REF-001 创建引用卡并看到内嵌只读预览", async () => {
   await h.openCanvasRow(page!, "REF");
   await h.openLibrary(page!);
   await page!.getByRole("tab", { name: "画布" }).click();
+  await expect(
+    page!.getByTestId("canvas-library-canvas-item").filter({ hasText: "REF" }),
+  ).toHaveCount(0);
   await page!.getByTestId("canvas-library-canvas-item").filter({ hasText: "TARGET" }).click();
   await page!.waitForTimeout(500);
   const card = page!.getByTestId("canvas-graph").first().getByTestId("canvas-canvas-ref-card");

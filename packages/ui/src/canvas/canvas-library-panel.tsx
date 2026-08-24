@@ -149,7 +149,7 @@ export function CanvasLibraryPanel({
         </header>
 
         {tab === "understandings" ? (
-          <div className="flex shrink-0 flex-col gap-2 border-b border-border p-3">
+          <div className="flex shrink-0 flex-col gap-1.5 border-b border-border p-2">
             <InputGroup>
               <InputGroupAddon align="inline-start">
                 <Search className="size-4 text-muted-foreground" />
@@ -162,7 +162,7 @@ export function CanvasLibraryPanel({
                 data-testid="canvas-library-search"
               />
             </InputGroup>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <div className="min-w-0 flex-1">
                 <DomainTreeSelect
                   mode="single"
@@ -215,7 +215,7 @@ export function CanvasLibraryPanel({
             </div>
           </div>
         ) : (
-          <div className="shrink-0 border-b border-border p-3">
+          <div className="shrink-0 border-b border-border p-2">
             <InputGroup>
               <InputGroupAddon align="inline-start">
                 <Search className="size-4 text-muted-foreground" />
@@ -260,11 +260,6 @@ export function CanvasLibraryPanel({
               </div>
             )}
           </ScrollArea>
-
-          <footer className="flex shrink-0 items-center gap-1.5 border-t border-border px-3 py-2 text-xs text-muted-foreground">
-            <span aria-hidden="true">↕</span>
-            <span>拖拽理解到画布创建理解卡</span>
-          </footer>
         </TabsContent>
 
         <TabsContent value="canvases" className="flex min-h-0 flex-1 flex-col">
@@ -295,11 +290,6 @@ export function CanvasLibraryPanel({
               </div>
             )}
           </ScrollArea>
-
-          <footer className="flex shrink-0 items-center gap-1.5 border-t border-border px-3 py-2 text-xs text-muted-foreground">
-            <span aria-hidden="true">↕</span>
-            拖拽画布到画布创建引用卡
-          </footer>
         </TabsContent>
       </Tabs>
     </aside>
