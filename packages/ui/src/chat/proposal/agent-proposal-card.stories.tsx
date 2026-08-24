@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { StoryCase, StoryShowcase } from "../../../.storybook/story-showcase";
 import { Button } from "../../components/button";
+import type { CanvasDocument } from "../../canvas";
 import { AgentProposalCard } from "./agent-proposal-card";
 import type { AgentProposalView } from "./types";
 
@@ -118,6 +119,103 @@ const unknownProposal: AgentProposalView = {
   },
 };
 
+const canvasTimestamp = new Date().toISOString();
+const canvasDraft: CanvasDocument = {
+  elements: [
+    {
+      id: "cvn-1",
+      canvasId: "canvas-1",
+      parentId: null,
+      x: 0,
+      y: 0,
+      width: 260,
+      height: 180,
+      zIndex: 1,
+      createdAt: canvasTimestamp,
+      updatedAt: canvasTimestamp,
+      kind: "understanding",
+      understandingId: "u-irrigation",
+      canvasRefId: null,
+      props: {},
+    },
+    {
+      id: "cvn-2",
+      canvasId: "canvas-1",
+      parentId: null,
+      x: 340,
+      y: 0,
+      width: 220,
+      height: 120,
+      zIndex: 1,
+      createdAt: canvasTimestamp,
+      updatedAt: canvasTimestamp,
+      kind: "text",
+      understandingId: null,
+      canvasRefId: null,
+      props: { text: "线头记录\n稳定回灌依赖观察窗，而非瞬时峰值。" },
+    },
+  ],
+  edges: [
+    {
+      id: "cve-1",
+      canvasId: "canvas-1",
+      source: { cell: "cvn-1", port: "right" },
+      target: { cell: "cvn-2", port: "left" },
+      router: null,
+      connector: { name: "reflecta-curve" },
+      attrs: {
+        line: {
+          stroke: "#3c6fb4",
+          strokeWidth: 2,
+          targetMarker: { name: "classic", width: 10, height: 8 },
+        },
+        lines: { connection: true, strokeLinejoin: "round" },
+        wrap: { strokeWidth: 10 },
+      },
+      label: "推导出",
+      createdAt: canvasTimestamp,
+    },
+  ],
+};
+const canvasUnderstandingTitles = [{ id: "u-irrigation", title: "极地温室的分区灌溉策略" }];
+
+const canvasCreateProposal: AgentProposalView = {
+  id: "proposal-6",
+  title: "候选画布",
+  lifecycle: "pending",
+  decisionEnabled: true,
+  kind: "canvas",
+  content: {
+    variant: "create",
+    document: canvasDraft,
+    understandingTitles: canvasUnderstandingTitles,
+  },
+};
+
+const canvasUpdateProposal: AgentProposalView = {
+  id: "proposal-7",
+  title: "候选修改画布",
+  lifecycle: "pending",
+  decisionEnabled: true,
+  kind: "canvas",
+  content: {
+    variant: "update",
+    targetLabel: "canvas-irrigation",
+    reason: "把昨夜复验的推导链显式画出来，据此验收结构与缺失。",
+    document: canvasDraft,
+    understandingTitles: canvasUnderstandingTitles,
+  },
+};
+
+const canvasDeleteProposal: AgentProposalView = {
+  id: "proposal-8",
+  title: "候选删除画布",
+  lifecycle: "pending",
+  decisionEnabled: true,
+  kind: "canvas",
+  content: { variant: "delete", targetLabel: "canvas-retired" },
+};
+
 function LifecycleInteractive() {
   const [lifecycle, setLifecycle] = useState<AgentProposalView["lifecycle"]>("pending");
   const [rejectionReason, setRejectionReason] = useState<string | undefined>();
@@ -182,12 +280,15 @@ function ProposalShowcase() {
 
       <StoryCase
         title="类型与内容变体"
-        description="新增、修改（前后对比）、删除、Bash 命令与未知操作的字段结构各自成立。"
+        description="新增、修改（前后对比）、删除、Bash 命令、画布草稿（只读）与未知操作的字段结构各自成立。"
       >
         <div className="grid gap-4">
           {withDecision(updateProposal)}
           {withDecision(deleteProposal)}
           {withDecision(bashProposal)}
+          {withDecision(canvasCreateProposal)}
+          {withDecision(canvasUpdateProposal)}
+          {withDecision(canvasDeleteProposal)}
           {withDecision(unknownProposal)}
         </div>
       </StoryCase>

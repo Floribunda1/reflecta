@@ -446,6 +446,65 @@ type ApprovalFixture = {
   output: unknown;
 };
 
+/** canvas 提案草稿：与 canvas_read 返回的 detail 同构，验证只读草稿渲染。 */
+const canvasDraftDocument = {
+  elements: [
+    {
+      id: "cvn-1",
+      canvasId: "canvas-irrigation",
+      parentId: null,
+      x: 0,
+      y: 0,
+      width: 260,
+      height: 180,
+      zIndex: 1,
+      createdAt,
+      updatedAt: createdAt,
+      kind: "understanding",
+      understandingId: "u-irrigation",
+      canvasRefId: null,
+      props: {},
+    },
+    {
+      id: "cvn-2",
+      canvasId: "canvas-irrigation",
+      parentId: null,
+      x: 340,
+      y: 0,
+      width: 220,
+      height: 120,
+      zIndex: 1,
+      createdAt,
+      updatedAt: createdAt,
+      kind: "text",
+      understandingId: null,
+      canvasRefId: null,
+      props: { text: "线头记录\n稳定回灌依赖观察窗，而非瞬时峰值。" },
+    },
+  ],
+  edges: [
+    {
+      id: "cve-1",
+      canvasId: "canvas-irrigation",
+      source: { cell: "cvn-1", port: "right" },
+      target: { cell: "cvn-2", port: "left" },
+      router: null,
+      connector: { name: "reflecta-curve" },
+      attrs: {
+        line: {
+          stroke: "#3c6fb4",
+          strokeWidth: 2,
+          targetMarker: { name: "classic", width: 10, height: 8 },
+        },
+        lines: { connection: true, strokeLinejoin: "round" },
+        wrap: { strokeWidth: 10 },
+      },
+      label: "推导出",
+      createdAt,
+    },
+  ],
+};
+
 const approvalTools: readonly ApprovalFixture[] = [
   {
     block: approval(
@@ -641,66 +700,23 @@ const approvalTools: readonly ApprovalFixture[] = [
     },
   },
   {
+    block: approval("canvas_create", "候选画布", {
+      title: "极地温室的分区灌溉策略",
+      initial: canvasDraftDocument,
+    }),
+    output: {
+      approvalStatus: "approved",
+      proposalType: "canvas_create",
+      resultRefType: "canvas",
+      resultRefId: "canvas-irrigation",
+      resultRefTitle: "极地温室的分区灌溉策略",
+    },
+  },
+  {
     block: approval("canvas_update", "候选修改画布", {
       canvasId: "canvas-irrigation",
       reason: "把昨夜复验的推导链显式画出来，用户据此验收结构与缺失。",
-      document: {
-        elements: [
-          {
-            id: "cvn-1",
-            canvasId: "canvas-irrigation",
-            parentId: null,
-            x: 0,
-            y: 0,
-            width: 260,
-            height: 180,
-            zIndex: 1,
-            createdAt,
-            updatedAt: createdAt,
-            kind: "understanding",
-            understandingId: "u-irrigation",
-            canvasRefId: null,
-            props: {},
-          },
-          {
-            id: "cvn-2",
-            canvasId: "canvas-irrigation",
-            parentId: null,
-            x: 340,
-            y: 0,
-            width: 220,
-            height: 120,
-            zIndex: 1,
-            createdAt,
-            updatedAt: createdAt,
-            kind: "text",
-            understandingId: null,
-            canvasRefId: null,
-            props: { text: "线头记录\n稳定回灌依赖观察窗，而非瞬时峰值。" },
-          },
-        ],
-        edges: [
-          {
-            id: "cve-1",
-            canvasId: "canvas-irrigation",
-            source: { cell: "cvn-1", port: "right" },
-            target: { cell: "cvn-2", port: "left" },
-            router: null,
-            connector: { name: "reflecta-curve" },
-            attrs: {
-              line: {
-                stroke: "#3c6fb4",
-                strokeWidth: 2,
-                targetMarker: { name: "classic", width: 10, height: 8 },
-              },
-              lines: { connection: true, strokeLinejoin: "round" },
-              wrap: { strokeWidth: 10 },
-            },
-            label: "推导出",
-            createdAt,
-          },
-        ],
-      },
+      document: canvasDraftDocument,
     }),
     output: {
       approvalStatus: "approved",
@@ -708,6 +724,18 @@ const approvalTools: readonly ApprovalFixture[] = [
       resultRefType: "canvas",
       resultRefId: "canvas-irrigation",
       resultRefTitle: "分区灌溉策略画布",
+    },
+  },
+  {
+    block: approval("canvas_delete", "候选删除画布", {
+      canvasId: "canvas-irrigation",
+      reason: "复验结论已并入主策略画布，删除旧版避免双源。",
+    }),
+    output: {
+      approvalStatus: "approved",
+      proposalType: "canvas_delete",
+      resultRefType: "canvas",
+      resultRefId: "canvas-irrigation",
     },
   },
 ];
