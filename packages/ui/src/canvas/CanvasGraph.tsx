@@ -203,6 +203,9 @@ export const CanvasGraph = React.memo(
     const appliedDocRef = useRef<CanvasDocument | null>(null);
     const readonlyRef = useRef(readonly);
     readonlyRef.current = readonly;
+    // 中键(button===1)按下瞬间置位：让 interacting 拒绝 node/edge 移动，
+    // X6 便会发 unhandled:mousedown → panning 平移（行为同空白处中键）。
+    const middlePanRef = useRef(false);
     const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
     const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
     const [contextMenu, setContextMenu] = useState<{
@@ -297,7 +300,12 @@ export const CanvasGraph = React.memo(
         },
         virtual: true,
         async: true,
-        interacting: readonlyRef.current ? false : { edgeLabelMovable: true, nodeMovable: true },
+        interacting: () =>
+          readonlyRef.current
+            ? false
+            : middlePanRef.current
+              ? { nodeMovable: false, edgeMovable: false }
+              : { edgeLabelMovable: true, nodeMovable: true },
         preventDefaultDblClick: false,
         connecting: {
           snap: { radius: 50 },
@@ -459,9 +467,24 @@ export const CanvasGraph = React.memo(
       }
 
       graph.on("node:mousedown", ({ e }) => {
+        if (e.button === 1) {
+          // 中键在节点上：不让节点拖动，交给 panning 平移
+          middlePanRef.current = true;
+          queueMicrotask(() => {
+            middlePanRef.current = false;
+          });
+          return;
+        }
         e.stopPropagation?.();
       });
       graph.on("edge:mousedown", ({ e }) => {
+        if (e.button === 1) {
+          middlePanRef.current = true;
+          queueMicrotask(() => {
+            middlePanRef.current = false;
+          });
+          return;
+        }
         e.stopPropagation?.();
       });
       graph.on("node:click", ({ node, e }) => {
