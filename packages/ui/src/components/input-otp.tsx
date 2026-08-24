@@ -15,7 +15,7 @@ function InputOTP({
     <OTPInput
       data-slot="input-otp"
       containerClassName={cn(
-        "flex items-center gap-2 has-disabled:opacity-50" /* DESIGN: cn-input-otp 为官方 base-nova registry 转换遗漏（shadcn PR #9384 未合），按 styleMap 定义展开为 gap-2 */,
+        "cn-input-otp flex items-center has-disabled:opacity-50",
         containerClassName,
       )}
       spellCheck={false}

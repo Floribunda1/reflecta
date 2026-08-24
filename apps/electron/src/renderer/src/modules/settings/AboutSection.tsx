@@ -7,7 +7,7 @@ import { Badge } from "@reflecta/ui/components/badge";
 import { Button } from "@reflecta/ui/components/button";
 import { Item, ItemActions, ItemContent, ItemMedia, ItemTitle } from "@reflecta/ui/components/item";
 import { cn } from "@reflecta/ui/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@reflecta/ui/components/toast";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { AboutVersionInfo, UpdateCheckFinishedPayload } from "@shared/update";
 import { UPDATE_CHECK_FINISHED_CHANNEL } from "@shared/update";
@@ -70,8 +70,10 @@ export function AboutSection() {
       setChecking(false);
       void refresh();
       if (result?.failed) {
-        toast.error("检查更新失败", {
+        toast.add({
+          title: "检查更新失败",
           description: "请稍后重试，或前往发布页手动查看最新版本",
+          type: "error",
         });
       }
     };
@@ -91,7 +93,7 @@ export function AboutSection() {
       // 若完成事件未到达，重新打开面板会经 getVersionInfo 兜底刷新。
     } catch (error) {
       setChecking(false);
-      toast.error("检查更新失败", { description: renderError(error) });
+      toast.add({ title: "检查更新失败", description: renderError(error), type: "error" });
     }
   };
 

@@ -4,10 +4,8 @@ import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 import { cn } from "#lib/utils";
 import { ChevronRightIcon, CheckIcon } from "lucide-react";
 
-// modal={false}：见 context-menu.tsx（Base UI 菜单默认 modal，画布内打断关闭会
-// 残留全屏 shield 拦截点击）。统一默认非模态。
-function DropdownMenu({ modal = false, ...props }: MenuPrimitive.Root.Props) {
-  return <MenuPrimitive.Root data-slot="dropdown-menu" modal={modal} {...props} />;
+function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
+  return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
 }
 
 function DropdownMenuPortal({ ...props }: MenuPrimitive.Portal.Props) {

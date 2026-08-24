@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { LazyMotion, MotionConfig, domAnimation } from "motion/react";
 import { RouterProvider } from "react-router-dom";
-import { toast } from "sonner";
-import { Toaster } from "@reflecta/ui/components/sonner";
+import { toast } from "@reflecta/ui/components/toast";
+import { Toaster } from "@reflecta/ui/components/toast";
 import { DrawerProvider, ModalProvider } from "@reflecta/ui/overlays";
 import { router } from "./router";
 
@@ -17,15 +17,19 @@ function fallbackToastMessage(error: unknown) {
 function FallbackToastBoundary() {
   useEffect(() => {
     const onUnhandledRejection = (event: PromiseRejectionEvent) => {
-      toast.error("操作失败", {
+      toast.add({
         id: "fallback-unhandled-rejection",
+        title: "操作失败",
         description: fallbackToastMessage(event.reason),
+        type: "error",
       });
     };
     const onError = (event: ErrorEvent) => {
-      toast.error("应用发生错误", {
+      toast.add({
         id: "fallback-window-error",
+        title: "应用发生错误",
         description: fallbackToastMessage(event.error ?? event.message),
+        type: "error",
       });
     };
 
@@ -47,7 +51,7 @@ export function App() {
         <ModalProvider>
           <DrawerProvider>
             <RouterProvider router={router} />
-            <Toaster closeButton richColors position="bottom-right" />
+            <Toaster />
             <FallbackToastBoundary />
           </DrawerProvider>
         </ModalProvider>

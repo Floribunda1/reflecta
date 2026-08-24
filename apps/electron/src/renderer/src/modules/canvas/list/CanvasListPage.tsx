@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { toast } from "sonner";
+import { toast } from "@reflecta/ui/components/toast";
 import { Plus } from "lucide-react";
 import { Button } from "@reflecta/ui/components/button";
 import { ScrollArea } from "@reflecta/ui/components/scroll-area";
@@ -36,7 +36,7 @@ export function CanvasListPanel({ selectedCanvasId }: { selectedCanvasId: string
       // M1-2：新建后直接进入画布（默认标题可在工作区顶部改 → Phase 1）
       navigateToCanvas(canvas.id);
     } catch (error) {
-      toast.error("新建画布失败", { description: renderError(error) });
+      toast.add({ title: "新建画布失败", description: renderError(error), type: "error" });
     }
   }, [createCanvas, navigateToCanvas]);
 

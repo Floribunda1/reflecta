@@ -2,7 +2,7 @@ import { Badge } from "@reflecta/ui/components/badge";
 import { runPromise } from "@renderer/lib/effect-runtime";
 import { Item, ItemContent, ItemMedia } from "@reflecta/ui/components/item";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@reflecta/ui/components/toast";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@reflecta/ui/components/alert";
 import { Button } from "@reflecta/ui/components/button";
 import {
@@ -30,16 +30,16 @@ async function openOrphanAsset(filename: string) {
   try {
     await runPromise(rpc.assetOpen(filename));
   } catch (error) {
-    toast.error("打开文件失败", { description: renderError(error) });
+    toast.add({ title: "打开文件失败", description: renderError(error), type: "error" });
   }
 }
 
 async function revealOrphanAsset(filename: string) {
   try {
     await runPromise(rpc.assetReveal(filename));
-    toast.success("已在 Finder 中显示");
+    toast.add({ title: "已在 Finder 中显示", type: "success" });
   } catch (error) {
-    toast.error("显示文件失败", { description: renderError(error) });
+    toast.add({ title: "显示文件失败", description: renderError(error), type: "error" });
   }
 }
 
@@ -70,7 +70,7 @@ export function StorageSection() {
       setIsCustomContentStorageRoot(true);
       setPendingRestart(true);
     } catch (error) {
-      toast.error("更新数据目录失败", { description: renderError(error) });
+      toast.add({ title: "更新数据目录失败", description: renderError(error), type: "error" });
     } finally {
       setLoading(false);
     }
@@ -85,7 +85,7 @@ export function StorageSection() {
       setIsCustomContentStorageRoot(config.isCustomContentStorageRoot);
       setPendingRestart(true);
     } catch (error) {
-      toast.error("重置数据目录失败", { description: renderError(error) });
+      toast.add({ title: "重置数据目录失败", description: renderError(error), type: "error" });
     } finally {
       setLoading(false);
     }
@@ -96,7 +96,7 @@ export function StorageSection() {
     try {
       setOrphans((await runPromise(rpc.assetScanOrphans())) as OrphanAssetInfo[]);
     } catch (error) {
-      toast.error("扫描失败", { description: renderError(error) });
+      toast.add({ title: "扫描失败", description: renderError(error), type: "error" });
     } finally {
       setOrphanLoading(false);
     }
@@ -116,9 +116,13 @@ export function StorageSection() {
         try {
           await runPromise(rpc.assetCleanOrphans(orphans.map((orphan) => orphan.filename)));
           setOrphans([]);
-          toast.success("已清除无效媒体文件", { description: `${count} 个文件，${totalSize}` });
+          toast.add({
+            title: "已清除无效媒体文件",
+            description: `${count} 个文件，${totalSize}`,
+            type: "success",
+          });
         } catch (error) {
-          toast.error("清除失败", { description: renderError(error) });
+          toast.add({ title: "清除失败", description: renderError(error), type: "error" });
         } finally {
           setOrphanCleaning(false);
         }

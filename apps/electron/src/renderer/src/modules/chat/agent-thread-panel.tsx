@@ -25,7 +25,7 @@ import {
 import { Input } from "@reflecta/ui/components/input";
 import { renderError } from "@renderer/lib/errors";
 import { useDebounce, useLatest, useMemoizedFn } from "ahooks";
-import { toast } from "sonner";
+import { toast } from "@reflecta/ui/components/toast";
 import { AgentChatComposer } from "./adapters/chat-composer-adapter";
 import { ArtifactPanel } from "./artifact-panel";
 import { buildArtifactPanelView, type LandedArtifact } from "./session/artifact-panel";
@@ -121,9 +121,9 @@ export function AgentThreadPanel({
   const compact = useMemoizedFn(async () => {
     try {
       await threadView.actions.compact(activeModel ?? undefined, activeReasoningLevel);
-      toast.success("上下文已压缩");
+      toast.add({ title: "上下文已压缩", type: "success" });
     } catch (error) {
-      toast.error("压缩上下文失败", { description: renderError(error) });
+      toast.add({ title: "压缩上下文失败", description: renderError(error), type: "error" });
     }
   });
   const approveTool = useMemoizedFn((input: ApproveToolInput) =>

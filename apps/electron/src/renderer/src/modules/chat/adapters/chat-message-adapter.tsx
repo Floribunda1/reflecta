@@ -2,7 +2,7 @@ import { memo, useMemo } from "react";
 import { runPromise } from "@renderer/lib/effect-runtime";
 import { format } from "date-fns";
 import { useQueries } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@reflecta/ui/components/toast";
 import { rpc } from "@renderer/lib/effect-rpc";
 import { renderError } from "@renderer/lib/errors";
 import {
@@ -300,9 +300,9 @@ export const ConnectedChatMessageRow = memo(function ConnectedChatMessageRow({
     try {
       if (!navigator.clipboard) throw new Error("当前环境不支持剪贴板");
       await navigator.clipboard.writeText(message.text);
-      toast.success("已复制消息");
+      toast.add({ title: "已复制消息", type: "success" });
     } catch (error) {
-      toast.error("复制失败", { description: renderError(error) });
+      toast.add({ title: "复制失败", description: renderError(error), type: "error" });
     }
   };
   const approvalById = new Map(

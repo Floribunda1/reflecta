@@ -7,7 +7,7 @@ import {
   type ChatThreadAction,
   type ChatEntityReference,
 } from "@reflecta/ui/chat";
-import { toast } from "sonner";
+import { toast } from "@reflecta/ui/components/toast";
 import { rpc } from "@renderer/lib/effect-rpc";
 import { renderError } from "@renderer/lib/errors";
 import { getEntityDisplay } from "../../capture/queries";
@@ -59,9 +59,9 @@ export async function exportThreadMarkdown(title: string, messages: AgentReduced
   try {
     const filePath = await runPromise(rpc.chatExportMarkdown(filename, `${parts.join("\n\n")}\n`));
     if (!filePath) return;
-    toast.success("已导出 Markdown", { description: filePath });
+    toast.add({ title: "已导出 Markdown", description: filePath, type: "success" });
   } catch (error) {
-    toast.error("导出 Markdown 失败", { description: renderError(error) });
+    toast.add({ title: "导出 Markdown 失败", description: renderError(error), type: "error" });
   }
 }
 
@@ -69,9 +69,9 @@ export async function copyThreadId(threadId: string) {
   try {
     if (!navigator.clipboard) throw new Error("当前环境不支持剪贴板");
     await navigator.clipboard.writeText(threadId);
-    toast.success("已复制对话 ID");
+    toast.add({ title: "已复制对话 ID", type: "success" });
   } catch (error) {
-    toast.error("复制失败", { description: renderError(error) });
+    toast.add({ title: "复制失败", description: renderError(error), type: "error" });
   }
 }
 

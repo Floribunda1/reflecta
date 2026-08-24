@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@reflecta/ui/components/toast";
 import { format, formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { Download, MoreHorizontal } from "lucide-react";
@@ -43,7 +43,7 @@ export function CanvasToolbar({
     try {
       await renameCanvas.mutateAsync({ id: canvas.id, input: { title: trimmed } });
     } catch (error) {
-      toast.error("重命名失败", { description: renderError(error) });
+      toast.add({ title: "重命名失败", description: renderError(error), type: "error" });
       setDraftTitle(canvas.title);
     }
   };

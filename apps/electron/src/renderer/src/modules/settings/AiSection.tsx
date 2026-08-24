@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { runPromise } from "@renderer/lib/effect-runtime";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, CheckCircle, ExternalLink, LoaderCircle, Search, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@reflecta/ui/components/toast";
 import { Button } from "@reflecta/ui/components/button";
 import { Checkbox } from "@reflecta/ui/components/checkbox";
 import { Input } from "@reflecta/ui/components/input";
@@ -297,9 +297,9 @@ export function AiSection() {
       if (!connected) throw new Error("OpenAI 授权未完成");
       setCodexConnected(true);
       upsertProvider(selectedProvider.id, {});
-      toast.success("已连接 ChatGPT 订阅");
+      toast.add({ title: "已连接 ChatGPT 订阅", type: "success" });
     } catch (error) {
-      toast.error("连接 Codex 失败", { description: renderError(error) });
+      toast.add({ title: "连接 Codex 失败", description: renderError(error), type: "error" });
     } finally {
       setCodexBusy(false);
     }
@@ -312,9 +312,9 @@ export function AiSection() {
       setCodexConnected(false);
       clearProvider();
       await queryClient.invalidateQueries({ queryKey: ["ai.model-options"] });
-      toast.success("已断开 ChatGPT 订阅");
+      toast.add({ title: "已断开 ChatGPT 订阅", type: "success" });
     } catch (error) {
-      toast.error("断开 Codex 失败", { description: renderError(error) });
+      toast.add({ title: "断开 Codex 失败", description: renderError(error), type: "error" });
     } finally {
       setCodexBusy(false);
     }
@@ -337,7 +337,7 @@ export function AiSection() {
       await queryClient.invalidateQueries({ queryKey: ["ai.model-options"] });
       setSaved(true);
     } catch (error) {
-      toast.error("保存 AI 配置失败", { description: renderError(error) });
+      toast.add({ title: "保存 AI 配置失败", description: renderError(error), type: "error" });
     } finally {
       setLoading(false);
     }

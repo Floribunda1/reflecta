@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { useEffect } from "react";
-import { toast } from "sonner";
+import { toast } from "@reflecta/ui/components/toast";
 import { DomainTree as DomainTreeView, type DomainTreeAction } from "@reflecta/ui/capture";
 import { Button } from "@reflecta/ui/components/button";
 import { ScrollArea } from "@reflecta/ui/components/scroll-area";
@@ -125,7 +125,7 @@ export function DomainTree({ onChat }: { onChat?: (scope: CaptureAgentScope) => 
     const items = buildSiblingDomainReorderItems(domains, activeId, overId);
     if (!items.length) return;
     void reorderDomains(items).catch((error) =>
-      toast.error("调整领域顺序失败", { description: renderError(error) }),
+      toast.add({ title: "调整领域顺序失败", description: renderError(error), type: "error" }),
     );
   };
 

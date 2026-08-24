@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { runPromise } from "@renderer/lib/effect-runtime";
-import { toast } from "sonner";
+import { toast } from "@reflecta/ui/components/toast";
 import { Button } from "@reflecta/ui/components/button";
 import {
   Item,
@@ -66,9 +66,9 @@ export function TrashSection() {
         exact: false,
       });
       await refresh();
-      toast.success("已恢复 Understanding");
+      toast.add({ title: "已恢复 Understanding", type: "success" });
     } catch (error) {
-      toast.error("恢复失败", { description: renderError(error) });
+      toast.add({ title: "恢复失败", description: renderError(error), type: "error" });
     }
   };
 
@@ -86,9 +86,9 @@ export function TrashSection() {
             exact: false,
           });
           await refresh();
-          toast.success("已永久删除 Understanding");
+          toast.add({ title: "已永久删除 Understanding", type: "success" });
         } catch (error) {
-          toast.error("永久删除失败", { description: renderError(error) });
+          toast.add({ title: "永久删除失败", description: renderError(error), type: "error" });
         }
       },
     });
@@ -102,9 +102,9 @@ export function TrashSection() {
         exact: false,
       });
       await refresh();
-      toast.success("已恢复 Context");
+      toast.add({ title: "已恢复 Context", type: "success" });
     } catch (error) {
-      toast.error("恢复失败", { description: renderError(error) });
+      toast.add({ title: "恢复失败", description: renderError(error), type: "error" });
     }
   };
 
@@ -118,9 +118,9 @@ export function TrashSection() {
         try {
           await runPromise(rpc.contextPermanentlyDelete(id));
           await refresh();
-          toast.success("已永久删除 Context");
+          toast.add({ title: "已永久删除 Context", type: "success" });
         } catch (error) {
-          toast.error("永久删除失败", { description: renderError(error) });
+          toast.add({ title: "永久删除失败", description: renderError(error), type: "error" });
         }
       },
     });
@@ -131,9 +131,9 @@ export function TrashSection() {
       await runPromise(rpc.trashRestoreCanvas(id));
       queryClient.invalidateQueries({ queryKey: canvasQueryKeys.list, exact: false });
       await refresh();
-      toast.success("已恢复画布");
+      toast.add({ title: "已恢复画布", type: "success" });
     } catch (error) {
-      toast.error("恢复失败", { description: renderError(error) });
+      toast.add({ title: "恢复失败", description: renderError(error), type: "error" });
     }
   };
 
@@ -148,9 +148,9 @@ export function TrashSection() {
           await runPromise(rpc.trashPermanentlyDeleteCanvas(id));
           queryClient.invalidateQueries({ queryKey: canvasQueryKeys.list, exact: false });
           await refresh();
-          toast.success("已永久删除画布");
+          toast.add({ title: "已永久删除画布", type: "success" });
         } catch (error) {
-          toast.error("永久删除失败", { description: renderError(error) });
+          toast.add({ title: "永久删除失败", description: renderError(error), type: "error" });
         }
       },
     });
@@ -183,9 +183,9 @@ export function TrashSection() {
           });
           queryClient.invalidateQueries({ queryKey: canvasQueryKeys.list, exact: false });
           await refresh();
-          toast.success("已清空回收站", { description: `${total} 项内容` });
+          toast.add({ title: "已清空回收站", description: `${total} 项内容`, type: "success" });
         } catch (error) {
-          toast.error("清空回收站失败", { description: renderError(error) });
+          toast.add({ title: "清空回收站失败", description: renderError(error), type: "error" });
         }
       },
     });

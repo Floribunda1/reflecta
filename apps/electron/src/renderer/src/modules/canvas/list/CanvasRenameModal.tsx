@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { toast } from "@reflecta/ui/components/toast";
 import { Button } from "@reflecta/ui/components/button";
 import { DialogFooter } from "@reflecta/ui/components/dialog";
 import { Input } from "@reflecta/ui/components/input";
@@ -32,10 +32,10 @@ export function CanvasRenameModal({
     if (!trimmed) return;
     try {
       await renameCanvas.mutateAsync({ id: canvasId, input: { title: trimmed } });
-      toast.success("已重命名画布");
+      toast.add({ title: "已重命名画布", type: "success" });
       onClose();
     } catch (error) {
-      toast.error("重命名失败", { description: renderError(error) });
+      toast.add({ title: "重命名失败", description: renderError(error), type: "error" });
     }
   };
 
@@ -103,9 +103,9 @@ export function useDeleteCanvas() {
             ) {
               navigate(CANVAS_ROUTE);
             }
-            toast.success("已移到回收站");
+            toast.add({ title: "已移到回收站", type: "success" });
           } catch (error) {
-            toast.error("删除失败", { description: renderError(error) });
+            toast.add({ title: "删除失败", description: renderError(error), type: "error" });
           }
         },
       });

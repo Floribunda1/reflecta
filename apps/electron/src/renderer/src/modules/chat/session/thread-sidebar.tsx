@@ -8,7 +8,7 @@ import {
 import { rpc } from "@renderer/lib/effect-rpc";
 import { renderError } from "@renderer/lib/errors";
 import type { AgentSessionSummary } from "@shared/agent";
-import { toast } from "sonner";
+import { toast } from "@reflecta/ui/components/toast";
 import { groupAgentThreads } from "./thread-groups";
 import { copyThreadId, exportThreadMarkdown } from "./thread-action-menu-items";
 
@@ -20,7 +20,7 @@ async function exportThread(thread: AgentSessionSummary) {
       (projection?.messages ?? []) as import("@shared/agent").AgentMessageProjection[],
     );
   } catch (error) {
-    toast.error("导出 Markdown 失败", { description: renderError(error) });
+    toast.add({ title: "导出 Markdown 失败", description: renderError(error), type: "error" });
   }
 }
 
@@ -38,9 +38,9 @@ async function compactThread(threadId: string) {
         reasoningLevel,
       }),
     );
-    toast.success("上下文已压缩");
+    toast.add({ title: "上下文已压缩", type: "success" });
   } catch (error) {
-    toast.error("压缩上下文失败", { description: renderError(error) });
+    toast.add({ title: "压缩上下文失败", description: renderError(error), type: "error" });
   }
 }
 

@@ -12,7 +12,7 @@ import {
 import { useModal } from "@reflecta/ui/overlays";
 import type { AgentSessionSummary } from "@shared/agent";
 import { useKeyPress, useMemoizedFn } from "ahooks";
-import { toast } from "sonner";
+import { toast } from "@reflecta/ui/components/toast";
 import { AgentThreadPanel } from "./agent-thread-panel";
 import { CanvasInspectDialog } from "./context/canvas-inspector";
 import { ContextInspector } from "./context/context-inspector";
@@ -148,8 +148,9 @@ function ChatPageContent() {
     : null;
   const generateThreadTitle = useMemoizedFn((threadId: string) =>
     generateThreadTitleMutation.mutate(threadId, {
-      onSuccess: () => toast.success("已生成标题"),
-      onError: (error) => toast.error("生成标题失败", { description: renderError(error) }),
+      onSuccess: () => toast.add({ title: "已生成标题", type: "success" }),
+      onError: (error) =>
+        toast.add({ title: "生成标题失败", description: renderError(error), type: "error" }),
     }),
   );
   const forkThreadFromMessage = useMemoizedFn((threadId: string, messageId: string) =>
