@@ -225,9 +225,7 @@ export const CanvasGraph = React.memo(
 
     const openContextMenu = useCallback(
       (clientX: number, clientY: number, target: CanvasContextMenuTarget) => {
-        const rect = containerRef.current?.getBoundingClientRect();
-        if (!rect) return;
-        setContextMenu({ x: clientX - rect.left, y: clientY - rect.top, target });
+        setContextMenu({ x: clientX, y: clientY, target });
       },
       [],
     );
@@ -972,7 +970,6 @@ export const CanvasGraph = React.memo(
               <CanvasContextMenu
                 x={contextMenu.x}
                 y={contextMenu.y}
-                containerWidth={containerRef.current?.clientWidth ?? 0}
                 onClose={() => setContextMenu(null)}
                 sections={buildMenuSections()}
               />
