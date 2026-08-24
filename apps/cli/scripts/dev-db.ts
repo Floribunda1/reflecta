@@ -40,9 +40,15 @@ function dropExplicitIndexes(): void {
   });
 }
 
+// 开发库迁移的目标数据版本（与 seed-test-data.ts 保持一致；prod 侧由 app.getVersion() 决定）。
+const MIGRATE_TARGET_VERSION = "2.0.0";
+
 async function migrate(): Promise<void> {
   ensureDir();
-  const db = await createDBInstance(dbPath, { runMigrations: true });
+  const db = await createDBInstance(dbPath, {
+    appVersion: MIGRATE_TARGET_VERSION,
+    runMigrations: true,
+  });
   db.$client.close();
 }
 
