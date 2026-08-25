@@ -229,18 +229,14 @@ const PARTICIPATION_CALENDAR_LABELS = {
   totalCount: "共 {{count}} 次参与",
 };
 
-// 骨架格子与真实日历一致：blockSize 10、blockMargin 3，避免加载前后布局跳动。
-const HEATMAP_COLUMNS = 53; // 一年约 53 周
+// 骨架高度与真实日历一致：7 行 10px 方块 + 6 个 3px 间距，避免加载前后布局跳动。
+const HEATMAP_HEIGHT = 7 * 10 + 6 * 3;
 
-/** 热力图骨架：7 行 × 53 周的小方块，模拟 react-activity-calendar 的格子。 */
+/** 热力图骨架：整块标准 Skeleton，尺寸对位真实日历。 */
 function ParticipationHeatmapSkeleton() {
   return (
-    <div className="min-w-0 flex-1 overflow-x-auto" aria-hidden>
-      <div className="grid w-fit grid-flow-col grid-rows-7 gap-[3px]">
-        {Array.from({ length: HEATMAP_COLUMNS * 7 }, (_, i) => (
-          <Skeleton key={i} className="size-2.5 rounded-[2px]" />
-        ))}
-      </div>
+    <div className="min-w-0 flex-1" aria-hidden>
+      <Skeleton className="w-full" style={{ height: HEATMAP_HEIGHT }} />
     </div>
   );
 }
