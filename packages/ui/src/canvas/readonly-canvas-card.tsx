@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
+import { m, MotionConfig } from "motion/react";
 import { cn } from "../lib/utils";
 import type { CanvasDocument } from "@reflecta/shared";
 import type {
@@ -13,24 +14,34 @@ const CanvasReadOnlyView = lazy(() =>
   import("./CanvasReadOnlyView").then((m) => ({ default: m.CanvasReadOnlyView })),
 );
 
-/** AI artifact 生成期骨架：移植 AFFiNE ArtifactSkeleton 的纯 CSS 呼吸线条（无 motion 依赖），
- * 线宽循环伸缩表达「生成中」，居中显示以适配不同尺寸的画布容器。 */
+/** AI artifact 生成期加载态（Claude "Generating" 范式，framer motion 驱动）：
+ * pulsing 光点 + 高光文字 + 不定态进度条，居中适配不同尺寸画布容器。 */
 export function ReadOnlyCanvasSkeleton() {
   return (
-    <div
-      className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-md border border-border bg-muted/30"
-      data-testid="canvas-view-skeleton"
-      aria-hidden="true"
-    >
-      <div className="artifact-skeleton relative h-[200px] w-[250px]">
-        <div className="artifact-line artifact-line-1" />
-        <div className="artifact-line artifact-line-2" />
-        <div className="artifact-line artifact-line-3" />
-        <div className="artifact-line artifact-line-4" />
-        <div className="artifact-line artifact-line-5" />
-        <div className="artifact-line artifact-line-6" />
+    <MotionConfig reducedMotion="user">
+      <div
+        className="relative flex h-full w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-md border border-border bg-muted/30"
+        data-testid="canvas-view-skeleton"
+        aria-hidden="true"
+      >
+        {/* pulsing 光点：暗示「生成中」 */}
+        <m.span
+          className="block h-2.5 w-2.5 rounded-full bg-accent"
+          animate={{ scale: [1, 1.6, 1], opacity: [0.55, 1, 0.55] }}
+          transition={{ duration: 1.3, repeat: Infinity, ease: "easeInOut" }}
+        />
+        {/* 高光文字（复用项目 shimmer-text 令牌） */}
+        <p className="shimmer-text text-sm font-medium">正在生成分析画布…</p>
+        {/* 不定态进度条：光带往复扫过 */}
+        <div className="relative mt-1 h-1 w-44 overflow-hidden rounded-full bg-muted">
+          <m.span
+            className="absolute inset-y-0 w-1/3 rounded-full bg-accent"
+            animate={{ x: ["-120%", "320%"] }}
+            transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+          />
+        </div>
       </div>
-    </div>
+    </MotionConfig>
   );
 }
 
