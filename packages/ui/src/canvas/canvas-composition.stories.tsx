@@ -250,6 +250,7 @@ function AgentDocumentShowcase() {
             <GraphFrame height="h-[420px]">
               <CanvasReadOnlyView
                 document={scenario.document}
+                shapeData={scenario.shapeData}
                 showZoomControls
                 className="absolute inset-0"
               />

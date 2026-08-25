@@ -309,6 +309,8 @@ export type AgentLayoutScenario = {
   title: string;
   description: string;
   document: CanvasDocument;
+  /** 渲染卡片所需的展示数据（理解卡全文等），缺省为空 shapeData。 */
+  shapeData?: CanvasShapeData;
 };
 
 export const agentLayoutScenarios: readonly AgentLayoutScenario[] = [
@@ -398,6 +400,31 @@ export const agentLayoutScenarios: readonly AgentLayoutScenario[] = [
         storyTextElement("lt-a", "规则", { x: 332, y: 12 }),
       ],
       edges: [storyEdge("lt-e1", "lt-q", "lt-a", "约束")],
+    },
+  },
+  {
+    title: "理解卡",
+    description: "引入 understanding 卡（260×220，含标题与正文）参与自动布局的分支汇聚。",
+    shapeData: {
+      understandingRefs: new Map([
+        ["u-irrigation", irrigationUnderstanding],
+        ["u-long", longUnderstanding],
+      ]),
+      referencedCanvases: new Map(),
+    },
+    document: {
+      elements: [
+        storyTextElement("uc-q", "夜班灌溉风险如何拆解？", { x: 12, y: 82 }),
+        storyUnderstandingElement("uc-u1", "u-irrigation", { x: 332, y: 292 }),
+        storyUnderstandingElement("uc-u2", "u-long", { x: 332, y: 12 }),
+        storyTextElement("uc-d", "结论：组合策略并设置回水阈值", { x: 692, y: 82 }),
+      ],
+      edges: [
+        storyEdge("uc-e1", "uc-q", "uc-u1", "归因"),
+        storyEdge("uc-e2", "uc-q", "uc-u2", "归因"),
+        storyEdge("uc-e3", "uc-u1", "uc-d", "支持"),
+        storyEdge("uc-e4", "uc-u2", "uc-d", "支持"),
+      ],
     },
   },
 ];
