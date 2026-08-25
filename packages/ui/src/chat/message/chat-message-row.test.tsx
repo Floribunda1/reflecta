@@ -184,7 +184,6 @@ describe("ChatMessageRow", () => {
 
     const view = next.querySelector('[data-testid="agent-canvas-view"]');
     expect(view?.textContent).toContain("前端知识结构");
-    expect(view?.textContent).toContain("AI 分析 · 未保存");
     expect(next.querySelector('[data-testid="agent-proposal-confirm-button"]')).toBeNull();
   });
 

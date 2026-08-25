@@ -38,7 +38,7 @@ function CanvasViewShowcase() {
     >
       <StoryCase
         title="完成态"
-        description="标题 + 说明 + 「AI 分析 · 未保存」标志；引用理解卡由消息层 hydration 提供全文。"
+        description="标题 + 说明 + 右上角全屏按钮；引用理解卡由消息层 hydration 提供全文。"
       >
         <AgentCanvasView block={completedBlock} />
       </StoryCase>
@@ -57,7 +57,9 @@ function CanvasViewShowcase() {
         title="加载骨架"
         description="X6 懒加载 / 生成期间的占位：pulsing 卡片 + 连接线，示意结构正在成形。"
       >
-        <ReadOnlyCanvasSkeleton />
+        <div className="relative h-72">
+          <ReadOnlyCanvasSkeleton />
+        </div>
       </StoryCase>
     </StoryShowcase>
   );

@@ -900,7 +900,7 @@ function AgentCompositionShowcase() {
       </StoryCase>
       <StoryCase
         title="知识结构分析"
-        description="用户询问领域知识结构，Agent 先用读取与推理，再用 canvas_present 展示只读分析画布（AI 分析 · 未保存），完成后继续输出结论——布局由真实 normalizeCanvasChanges 生成。"
+        description="用户询问领域知识结构，Agent 先用读取与推理，再用 canvas_present 展示只读分析画布（说明可携带未保存语义），完成后继续输出结论——布局由真实 normalizeCanvasChanges 生成。"
         contentClassName="p-0"
       >
         <CanvasPresentDemo />

@@ -1,5 +1,7 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { Maximize2, Minimize2 } from "lucide-react";
 import { cn } from "../lib/utils";
+import { Button } from "../components/button";
 import { Skeleton } from "../components/skeleton";
 import type { CanvasDocument } from "@reflecta/shared";
 import type { CanvasShapeData, CanvasUnderstandingRefView } from "./shape-context";
@@ -59,7 +61,9 @@ export type ReadOnlyCanvasCardProps = {
   className?: string;
 };
 
-/** 只读画布文档卡：封装 shape hydration + lazy X6 挂载 + 加载骨架 + 折叠策略。 */
+/** 只读画布文档卡：封装 shape hydration + lazy X6 挂载 + 加载骨架 + 折叠策略。
+ * 全屏与 Understanding 的 focus 模式同理——同一实例用 CSS 拉满视口（fixed inset-0），
+ * 不重建图；X6 autoResize 跟随容器尺寸。 */
 export function ReadOnlyCanvasCard({
   document,
   understandingRefs,
@@ -67,23 +71,49 @@ export function ReadOnlyCanvasCard({
   mounted = true,
   className,
 }: ReadOnlyCanvasCardProps) {
+  const [fullscreen, setFullscreen] = useState(false);
+
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFullscreen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [fullscreen]);
+
   const shapeData = canvasShapeData(understandingRefs, understandingTitles);
   return (
     <div
       className={cn(
         "relative overflow-hidden rounded-md border border-border bg-muted/30",
-        className,
+        fullscreen
+          ? "fixed inset-0 z-50 h-auto overflow-hidden rounded-none border-0 bg-background"
+          : className,
       )}
     >
       {mounted ? (
-        <Suspense fallback={<ReadOnlyCanvasSkeleton />}>
-          <CanvasReadOnlyView
-            document={document}
-            shapeData={shapeData}
-            showZoomControls
-            className="h-full min-h-0"
-          />
-        </Suspense>
+        <>
+          <Suspense fallback={<ReadOnlyCanvasSkeleton />}>
+            <CanvasReadOnlyView
+              document={document}
+              shapeData={shapeData}
+              showZoomControls
+              className="h-full min-h-0"
+            />
+          </Suspense>
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon-sm"
+            aria-label={fullscreen ? "退出全屏查看" : "全屏查看画布"}
+            title={fullscreen ? "退出全屏查看（Esc）" : "全屏查看画布"}
+            className="absolute top-2 right-2 z-10 shadow-sm"
+            onClick={() => setFullscreen((value) => !value)}
+          >
+            {fullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+          </Button>
+        </>
       ) : null}
     </div>
   );
