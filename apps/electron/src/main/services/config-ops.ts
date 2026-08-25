@@ -1,6 +1,7 @@
 /** config 域业务逻辑（删除式迁移：从 ConfigService 抽出为纯函数，供 Effect handler 调用）。 */
 import { app, dialog, shell } from "electron";
-import { configureRetrievalEmbedding, type RetrievalIndexStatus } from "@reflecta/server";
+import { configureRetrievalEmbedding } from "@reflecta/server";
+import type { RetrievalIndexStatus } from "@reflecta/shared";
 import type {
   AiConfig,
   AiModelOption,

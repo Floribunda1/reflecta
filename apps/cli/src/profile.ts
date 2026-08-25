@@ -1,7 +1,6 @@
 import { readRuntimeAppConfig, resolveRuntimePaths } from "@reflecta/server/runtime";
 import os from "node:os";
-
-export type ReflectaProfile = "dev" | "prod";
+import type { ReflectaProfile } from "@reflecta/shared";
 
 function buildKindForProfile(profile: ReflectaProfile) {
   return profile === "prod" ? "release" : "source";

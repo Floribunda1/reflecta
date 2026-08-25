@@ -1,3 +1,9 @@
+/**
+ * 理解双链（wiki-link）的规范形态与解析（单一真源）。
+ * server（正文解析/归一化）与 UI（渲染/编辑）共用同一语法 `[[u:id]]` 与同一套
+ * 解析/抽取/归一化逻辑，不再各自实现。
+ */
+
 export type UnderstandingWikiLink = {
   title?: string;
   id: string;
@@ -9,7 +15,7 @@ export type ExtractedUnderstandingWikiLink = {
   target: string;
 };
 
-const understandingWikiLinkPattern = /\[\[u:([A-Za-z0-9_-]+)\]\]/g;
+export const understandingWikiLinkPattern = /\[\[u:([A-Za-z0-9_-]+)\]\]/g;
 const escapedUnderstandingWikiLinkPattern = /\\\[\\\[u:([A-Za-z0-9_-]+)]]/g;
 
 export function formatUnderstandingWikiLink(link: UnderstandingWikiLink): string {

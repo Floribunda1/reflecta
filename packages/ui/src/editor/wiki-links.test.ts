@@ -18,7 +18,7 @@ describe("Understanding wiki links", () => {
   test("normalizes escaped links and resolves a link at the cursor", () => {
     const markdown = normalizeUnderstandingWikiLinkBody(
       String.raw`Before \[\[u:understanding-1]] after`,
-    );
+    )!;
 
     expect(markdown).toBe("Before [[u:understanding-1]] after");
     expect(findUnderstandingWikiLinkAtOffset(markdown, 12)).toEqual({

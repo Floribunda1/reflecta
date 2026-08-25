@@ -25,7 +25,7 @@ import type {
 } from "@reflecta/shared";
 import { getUnderstandingMentionCounts } from "./core";
 import { toUnderstandingSummaries } from "./core";
-import { extractUnderstandingWikiLinks, formatUnderstandingWikiLink } from "./wiki-links";
+import { extractUnderstandingWikiLinks, formatUnderstandingWikiLink } from "@reflecta/shared";
 import type { RetrievalIndexUpdateSink } from "../shared/types";
 
 export class UnderstandingCliBff extends UnderstandingCore {

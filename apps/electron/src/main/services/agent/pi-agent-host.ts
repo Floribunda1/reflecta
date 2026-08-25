@@ -42,7 +42,7 @@ import {
   getContentStorageRoot,
   getTitleGenerationAiModelConfig,
 } from "../../config";
-import type { AiModelSelection } from "@reflecta/shared";
+import type { AiModelSelection, AgentSkillSummary } from "@reflecta/shared";
 import { agentLog } from "../../logger";
 import { AgentSessionRuntime } from "./agent-session-runtime";
 import { AgentEntityCatalog } from "./agent-entity-catalog";
@@ -112,8 +112,6 @@ type PendingApproval = MutationPendingApproval | BashGatePendingApproval;
 
 export const PI_BUILTIN_TOOL_NAMES = ["read", "bash", "edit", "write"] as const;
 export const PI_BUILTIN_SKILL_NAMES = ["reflecta-understanding", "reflecta-context"] as const;
-
-export type AgentSkillSummary = { name: string; description: string };
 
 export function getGlobalAgentSkillsDir(homeDirectory = os.homedir()): string {
   return path.join(homeDirectory, ".agents", "skills");

@@ -11,7 +11,7 @@ import {
 import {
   extractUnderstandingWikiLinkTargets,
   normalizeUnderstandingWikiLinkBody,
-} from "./wiki-links";
+} from "@reflecta/shared";
 import { getDomainDescendants } from "../domain/core";
 import type { ReflectaDb } from "../../db/types";
 import type { UnderstandingSummary } from "./types";

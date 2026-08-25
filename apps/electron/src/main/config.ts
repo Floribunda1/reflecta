@@ -19,6 +19,7 @@ import type {
   AiProviderDefinition,
   AiProviderModel,
   AiReasoningLevel,
+  ReflectaProfile,
   RetrievalConfig,
   RetrievalEmbeddingDownloadStatus,
   RetrievalEmbeddingModelManifest,
@@ -52,8 +53,6 @@ export interface AppConfig {
   ai?: AiConfig;
   retrieval?: RetrievalConfig;
 }
-
-export type ReflectaProfile = "dev" | "prod";
 
 export function getReflectaProfile(): ReflectaProfile {
   return app.isPackaged ? "prod" : "dev";

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { extractUnderstandingWikiLinkTargets, formatUnderstandingWikiLink } from "./wiki-links";
+import { extractUnderstandingWikiLinkTargets, formatUnderstandingWikiLink } from "@reflecta/shared";
 
 describe("Understanding entity references", () => {
   test("uses typed refs and only derives relationships from Understanding refs", () => {

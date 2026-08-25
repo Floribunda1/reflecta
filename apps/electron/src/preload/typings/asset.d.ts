@@ -1,4 +1,1 @@
-export interface OrphanAssetInfo {
-  filename: string;
-  size: number;
-}
+export type { OrphanAssetInfo } from "@reflecta/shared";

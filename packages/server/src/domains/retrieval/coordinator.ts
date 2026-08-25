@@ -1,3 +1,4 @@
+import type { RetrievalIndexStatus } from "@reflecta/shared";
 import { Deferred, Effect, Fiber, Schedule } from "effect";
 import type { ReflectaDb } from "../../db/types";
 import type { RetrievalIndexUpdateSink } from "../shared/types";
@@ -12,15 +13,6 @@ import {
   type RetrievalIndexProgress,
   type RetrievalIndexWorkResult,
 } from "./sync";
-
-export type RetrievalIndexStatus = {
-  state: "not_ready" | "indexing" | "ready" | "error";
-  embeddingModel: string;
-  projectionVersion: number;
-  tableName: string;
-  progress?: RetrievalIndexProgress;
-  error?: string;
-};
 
 /**
  * 后台索引编排的原语边界（Effect 程序）。

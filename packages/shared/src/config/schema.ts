@@ -100,3 +100,21 @@ export const RetrievalEmbeddingModelStatus = S.Struct({
   download: RetrievalEmbeddingDownloadStatus,
 });
 export type RetrievalEmbeddingModelStatus = S.Schema.Type<typeof RetrievalEmbeddingModelStatus>;
+
+export const RetrievalIndexProgress = S.Struct({
+  phase: S.optional(S.String),
+  completed: S.Number,
+  total: S.Number,
+  percent: S.Number,
+});
+export type RetrievalIndexProgress = S.Schema.Type<typeof RetrievalIndexProgress>;
+
+export const RetrievalIndexStatus = S.Struct({
+  state: lit("not_ready", "indexing", "ready", "error"),
+  embeddingModel: S.String,
+  projectionVersion: S.Number,
+  tableName: S.String,
+  progress: S.optional(RetrievalIndexProgress),
+  error: S.optional(S.String),
+});
+export type RetrievalIndexStatus = S.Schema.Type<typeof RetrievalIndexStatus>;

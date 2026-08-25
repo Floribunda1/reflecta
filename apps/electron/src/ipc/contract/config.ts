@@ -15,27 +15,11 @@ import {
   AiModelOption,
   RetrievalConfig,
   RetrievalEmbeddingModelStatus,
+  RetrievalIndexStatus,
 } from "@reflecta/shared";
 
-const lit = <T extends string>(...xs: T[]) => S.Union(xs.map((x) => S.Literal(x)));
 type NoCtx<A> = S.Codec<A, unknown, never, never>;
 const noCtx = <A>(schema: S.Schema<A>): NoCtx<A> => schema as unknown as NoCtx<A>;
-
-export const RetrievalIndexProgress = S.Struct({
-  phase: S.optional(S.String),
-  completed: S.Number,
-  total: S.Number,
-  percent: S.Number,
-});
-export const RetrievalIndexStatus = S.Struct({
-  state: lit("not_ready", "indexing", "ready", "error"),
-  embeddingModel: S.String,
-  projectionVersion: S.Number,
-  tableName: S.String,
-  progress: S.optional(RetrievalIndexProgress),
-  error: S.optional(S.String),
-});
-export type RetrievalIndexStatus = S.Schema.Type<typeof RetrievalIndexStatus>;
 
 export const ContentStorageConfig = S.Struct({
   contentStorageRoot: S.String,

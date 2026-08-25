@@ -1,14 +1,12 @@
 /** asset 域契约（迁移批 Round A）。 */
 import * as S from "effect/Schema";
 import { rpc } from "electron-effect-rpc";
+import { OrphanAssetInfo } from "@reflecta/shared";
 
 export class AssetError extends S.TaggedError<AssetError>()("AssetError", {
   reason: S.String,
   code: S.Number,
 }) {}
-
-export const OrphanAssetInfo = S.Struct({ filename: S.String, size: S.Number });
-export type OrphanAssetInfo = S.Schema.Type<typeof OrphanAssetInfo>;
 
 export const AssetSave = rpc(
   "asset.saveAsset",

@@ -103,7 +103,7 @@ import {
 } from "./contract/chat";
 
 export { TrashListError, TrashedUnderstanding } from "./contract/trash";
-export { AboutVersionInfo } from "./contract/about";
+export type { AboutVersionInfo } from "@reflecta/shared";
 export { ContextListError } from "./contract/context";
 export { AssetError } from "./contract/asset";
 export { CanvasExportError } from "./contract/canvas";
@@ -128,7 +128,7 @@ export type {
   RetrievalConfig,
   RetrievalEmbeddingModelStatus,
 } from "@reflecta/shared";
-export type { RetrievalIndexStatus } from "./contract/config";
+export type { RetrievalIndexStatus } from "@reflecta/shared";
 export type {
   CreateCanvasInput,
   UpdateCanvasInput,

@@ -9,7 +9,7 @@ import type {
   ContextMedium,
   UpdateContextInput,
 } from "@reflecta/shared";
-import type { TrashedContextDTO } from "../trash/types";
+import type { TrashedContextDTO } from "@reflecta/shared";
 import { createEntityId } from "@reflecta/shared";
 import type { RetrievalIndexUpdateSink } from "../shared/types";
 

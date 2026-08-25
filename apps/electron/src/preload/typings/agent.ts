@@ -1,4 +1,7 @@
 import type {
+  AgentComposerContentNode,
+  AgentEventBase,
+  AgentContextCompactionReason,
   AgentContextCompacted,
   AgentContextCompactionStarted,
   AgentContextRef,
@@ -12,20 +15,6 @@ import type {
   AgentToolExecutionError,
   AgentUsage,
 } from "@reflecta/shared";
-
-export type AgentComposerContentNode = {
-  type?: string;
-  text?: string;
-  attrs?: Record<string, unknown>;
-  content?: AgentComposerContentNode[];
-};
-
-export type AgentEventBase = {
-  id: string;
-  sessionId: string;
-  runId?: string;
-  createdAt: string;
-};
 
 export type AgentRunStarted = AgentEventBase & {
   type: "run.started";
@@ -63,8 +52,6 @@ export type AgentEntityCatalogUpdated = AgentEventBase & {
   type: "entity.catalog.updated";
   entries: AgentEntityCatalogEntry[];
 };
-
-export type AgentContextCompactionReason = "manual" | "threshold" | "overflow";
 
 export type AgentContextCompactionFinished = AgentEventBase & {
   type: "context.compaction.finished";
@@ -1084,4 +1071,7 @@ export type {
   AgentSkillSummary,
   AgentToolExecutionError,
   AgentUsage,
+  AgentComposerContentNode,
+  AgentEventBase,
+  AgentContextCompactionReason,
 } from "@reflecta/shared";
