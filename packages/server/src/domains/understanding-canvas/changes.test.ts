@@ -315,4 +315,32 @@ describe("normalizeCanvasChanges", () => {
       expect(edge.target.port).toBe("left");
     }
   });
+
+  test("text cards get a content-derived height (fixed width, taller for longer text)", async () => {
+    const short = await Effect.runPromise(
+      normalizeCanvasChanges({
+        changes: [{ op: "add_element", ref: "t", element: { kind: "text", text: "结论" } }],
+      }),
+    );
+    const long = await Effect.runPromise(
+      normalizeCanvasChanges({
+        changes: [
+          {
+            op: "add_element",
+            ref: "t",
+            element: {
+              kind: "text",
+              text: "长期回灌依赖观察窗，而非瞬时峰值；新管段试运营期需单独建档，并记录每次联调的回水温度与主管压力，以便在统一观察窗内比较。",
+            },
+          },
+        ],
+      }),
+    );
+    const [shortEl] = short.document.elements;
+    const [longEl] = long.document.elements;
+    expect(shortEl.width).toBe(220);
+    expect(shortEl.height).toBe(72); // 短文本落到最小高
+    expect(longEl.height).toBeGreaterThan(shortEl.height);
+    expect(longEl.height).toBeLessThanOrEqual(300); // 上限钳制，超出走卡内滚动
+  });
 });

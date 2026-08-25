@@ -46,6 +46,39 @@ export class CanvasChangeError extends Schema.TaggedError<CanvasChangeError>()(
   { message: Schema.String },
 ) {}
 
+// —— text 卡动态高度（档1 粗估）——
+// 与卡片 CSS 对齐的常量（text 卡正文 p-2、默认 14px 字号）。服务端不渲染 DOM，
+// 只能确定性估算；估算偏高则内容更完整可见，偏低则触发卡内滚动（已有 overflow 兜底）。
+const TEXT_CARD_WIDTH = 220;
+const TEXT_FONT_SIZE = 14;
+const TEXT_LINE_HEIGHT = 22;
+const TEXT_H_PADDING = 16; // p-2 × 2
+const TEXT_V_PADDING = 16; // p-2 × 2
+const TEXT_CARD_BORDER = 2;
+const TEXT_MIN_HEIGHT = 72;
+const TEXT_MAX_HEIGHT = 300;
+
+/** 全角字符（中文/全宽标点等）按 1 个字宽，其余按 0.5。 */
+const FULL_WIDTH_RE =
+  /[\u1100-\u115f\u2e80-\ua4cf\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe4f\uff00-\uff60\uffe0-\uffe6\u3000-\u303f]/;
+
+/** 按固定宽折行，估算 markdown 正文所需高度。 */
+function estimateTextHeight(markdown: string): number {
+  const charsPerLine = Math.max(1, Math.floor((TEXT_CARD_WIDTH - TEXT_H_PADDING) / TEXT_FONT_SIZE));
+  let lines = 0;
+  for (const segment of markdown.split("\n")) {
+    if (segment.trim().length === 0) {
+      lines += 1;
+      continue;
+    }
+    let units = 0;
+    for (const ch of segment) units += FULL_WIDTH_RE.test(ch) ? 1 : 0.5;
+    lines += Math.max(1, Math.ceil(units / charsPerLine));
+  }
+  const raw = Math.round(lines * TEXT_LINE_HEIGHT + TEXT_V_PADDING + TEXT_CARD_BORDER);
+  return Math.min(TEXT_MAX_HEIGHT, Math.max(TEXT_MIN_HEIGHT, raw));
+}
+
 const elementContent = (
   element: CanvasElementSpec,
 ): Pick<CanvasElementDTO, "kind" | "understandingId" | "canvasRefId" | "props"> => {
@@ -94,7 +127,14 @@ const elementFrom = (
     x: 0,
     y: 0,
     width: element.kind === "understanding" ? 260 : element.kind === "canvas_ref" ? 240 : 220,
-    height: element.kind === "understanding" ? 220 : element.kind === "canvas_ref" ? 160 : 120,
+    height:
+      element.kind === "understanding"
+        ? 220
+        : element.kind === "canvas_ref"
+          ? 160
+          : element.kind === "text"
+            ? estimateTextHeight(element.text)
+            : 120,
     zIndex: 0,
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -256,6 +296,7 @@ export const normalizeCanvasChanges = Effect.fn("normalizeCanvasChanges")(functi
         ...elementContent(change.after),
         parentId,
         updatedAt: timestamp,
+        ...(change.after.kind === "text" ? { height: estimateTextHeight(change.after.text) } : {}),
       } as CanvasElementDTO;
       continue;
     }
