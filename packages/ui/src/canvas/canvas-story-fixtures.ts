@@ -138,6 +138,34 @@ export function storyEdge(
   };
 }
 
+/** agent 生成边的呈现默认，与 server `normalizeCanvasChanges` 的 add_edge 一致：
+ * manhattan 路由 + reflecta-curve 连接器（正交样式）。 */
+const AGENT_EDGE_PATH: Pick<CanvasEdgeDTO, "router" | "connector"> = {
+  router: { name: "manhattan", args: { padding: 16 } },
+  connector: { name: "reflecta-curve" },
+};
+
+/** agent 场景的边：反映 server 默认（正交），而非通用 storyEdge 的曲线默认。 */
+export function agentStoryEdge(
+  id: string,
+  sourceElementId: string,
+  targetElementId: string,
+  label: string | null = null,
+  sourcePort: CanvasEdgeDTO["source"]["port"] = "right",
+  targetPort: CanvasEdgeDTO["source"]["port"] = "left",
+): CanvasEdgeDTO {
+  return storyEdge(
+    id,
+    sourceElementId,
+    targetElementId,
+    label,
+    undefined,
+    AGENT_EDGE_PATH,
+    sourcePort,
+    targetPort,
+  );
+}
+
 export const irrigationUnderstanding: CanvasUnderstandingRefView = {
   id: "u-irrigation",
   title: "低温环境下的分区灌溉策略",
@@ -293,10 +321,10 @@ export const agentCanvasDocument: CanvasDocument = {
     }),
   ],
   edges: [
-    storyEdge("agent-edge-q-risk", "agent-question", "agent-risk", "评估"),
-    storyEdge("agent-edge-q-cost", "agent-question", "agent-cost", "评估"),
-    storyEdge("agent-edge-risk-dec", "agent-risk", "agent-decision", "支持"),
-    storyEdge("agent-edge-cost-dec", "agent-cost", "agent-decision", "支持"),
+    agentStoryEdge("agent-edge-q-risk", "agent-question", "agent-risk", "评估"),
+    agentStoryEdge("agent-edge-q-cost", "agent-question", "agent-cost", "评估"),
+    agentStoryEdge("agent-edge-risk-dec", "agent-risk", "agent-decision", "支持"),
+    agentStoryEdge("agent-edge-cost-dec", "agent-cost", "agent-decision", "支持"),
   ],
 };
 
@@ -324,8 +352,8 @@ export const agentLayoutScenarios: readonly AgentLayoutScenario[] = [
         storyTextElement("chain-r", "结论：补裆分区保温", { x: 652, y: 12 }),
       ],
       edges: [
-        storyEdge("chain-e1", "chain-q", "chain-a", "归因"),
-        storyEdge("chain-e2", "chain-a", "chain-r", "对策"),
+        agentStoryEdge("chain-e1", "chain-q", "chain-a", "归因"),
+        agentStoryEdge("chain-e2", "chain-a", "chain-r", "对策"),
       ],
     },
   },
@@ -340,10 +368,10 @@ export const agentLayoutScenarios: readonly AgentLayoutScenario[] = [
         storyTextElement("bm-d", "结论：组合两种策略", { x: 652, y: 32 }),
       ],
       edges: [
-        storyEdge("bm-e1", "bm-q", "bm-a", "评估"),
-        storyEdge("bm-e2", "bm-q", "bm-b", "评估"),
-        storyEdge("bm-e3", "bm-a", "bm-d", "支持"),
-        storyEdge("bm-e4", "bm-b", "bm-d", "支持"),
+        agentStoryEdge("bm-e1", "bm-q", "bm-a", "评估"),
+        agentStoryEdge("bm-e2", "bm-q", "bm-b", "评估"),
+        agentStoryEdge("bm-e3", "bm-a", "bm-d", "支持"),
+        agentStoryEdge("bm-e4", "bm-b", "bm-d", "支持"),
       ],
     },
   },
@@ -364,12 +392,12 @@ export const agentLayoutScenarios: readonly AgentLayoutScenario[] = [
         storyTextElement("dm-d", "结论：统一观察窗比对", { x: 652, y: 192 }),
       ],
       edges: [
-        storyEdge("dm-e1", "dm-q", "dm-a", "排查"),
-        storyEdge("dm-e2", "dm-q", "dm-b", "排查"),
-        storyEdge("dm-e3", "dm-q", "dm-c", "排查"),
-        storyEdge("dm-e4", "dm-a", "dm-d", "汇"),
-        storyEdge("dm-e5", "dm-b", "dm-d", "汇"),
-        storyEdge("dm-e6", "dm-c", "dm-d", "汇"),
+        agentStoryEdge("dm-e1", "dm-q", "dm-a", "排查"),
+        agentStoryEdge("dm-e2", "dm-q", "dm-b", "排查"),
+        agentStoryEdge("dm-e3", "dm-q", "dm-c", "排查"),
+        agentStoryEdge("dm-e4", "dm-a", "dm-d", "汇"),
+        agentStoryEdge("dm-e5", "dm-b", "dm-d", "汇"),
+        agentStoryEdge("dm-e6", "dm-c", "dm-d", "汇"),
       ],
     },
   },
@@ -383,8 +411,8 @@ export const agentLayoutScenarios: readonly AgentLayoutScenario[] = [
         storyTextElement("vt-d", "底策结论", { x: 12, y: 452 }),
       ],
       edges: [
-        storyEdge("vt-e1", "vt-q", "vt-a", "归因", undefined, undefined, "bottom", "top"),
-        storyEdge("vt-e2", "vt-a", "vt-d", "对策", undefined, undefined, "bottom", "top"),
+        agentStoryEdge("vt-e1", "vt-q", "vt-a", "归因", "bottom", "top"),
+        agentStoryEdge("vt-e2", "vt-a", "vt-d", "对策", "bottom", "top"),
       ],
     },
   },
@@ -399,7 +427,7 @@ export const agentLayoutScenarios: readonly AgentLayoutScenario[] = [
         }),
         storyTextElement("lt-a", "规则", { x: 332, y: 12 }),
       ],
-      edges: [storyEdge("lt-e1", "lt-q", "lt-a", "约束")],
+      edges: [agentStoryEdge("lt-e1", "lt-q", "lt-a", "约束")],
     },
   },
   {
@@ -420,10 +448,10 @@ export const agentLayoutScenarios: readonly AgentLayoutScenario[] = [
         storyTextElement("uc-d", "结论：组合策略并设置回水阈值", { x: 692, y: 82 }),
       ],
       edges: [
-        storyEdge("uc-e1", "uc-q", "uc-u1", "归因"),
-        storyEdge("uc-e2", "uc-q", "uc-u2", "归因"),
-        storyEdge("uc-e3", "uc-u1", "uc-d", "支持"),
-        storyEdge("uc-e4", "uc-u2", "uc-d", "支持"),
+        agentStoryEdge("uc-e1", "uc-q", "uc-u1", "归因"),
+        agentStoryEdge("uc-e2", "uc-q", "uc-u2", "归因"),
+        agentStoryEdge("uc-e3", "uc-u1", "uc-d", "支持"),
+        agentStoryEdge("uc-e4", "uc-u2", "uc-d", "支持"),
       ],
     },
   },
