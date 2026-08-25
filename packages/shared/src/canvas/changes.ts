@@ -165,7 +165,13 @@ const absolutePositionOf = (
   return { x: position.x + element.x, y: position.y + element.y };
 };
 
-const elk = new ELK();
+// 懒创建 ELK 实例：仅在首次布局时构造。避免模块顶层直接 new ELK()——
+// 在 Bun/Node 运行时加载 elkjs 会尝试拉起 web worker，导致纯数据工具（如 seed 脚本）导入即崩。
+let elk: InstanceType<typeof ELK> | null = null;
+function elkInstance(): InstanceType<typeof ELK> {
+  if (!elk) elk = new ELK();
+  return elk;
+}
 
 const layoutDocument = Effect.fn("layoutDocument")(function* (
   document: CanvasDocument,
@@ -186,7 +192,7 @@ const layoutDocument = Effect.fn("layoutDocument")(function* (
   }
   const graph = yield* Effect.tryPromise({
     try: () =>
-      elk.layout({
+      elkInstance().layout({
         id: "root",
         children: roots,
         edges: document.edges.map((edge) => ({
