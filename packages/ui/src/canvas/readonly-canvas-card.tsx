@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { m, MotionConfig } from "motion/react";
 import { cn } from "../lib/utils";
 import { EASE_OUT_EXPO, ENTER_DURATION, FADE_UP_Y, POP_IN_SCALE } from "../lib/motion";
@@ -179,8 +180,10 @@ export type ReadOnlyCanvasCardProps = {
 };
 
 /** 只读画布文档卡：封装 shape hydration + lazy X6 挂载 + 加载骨架 + 折叠策略。
- * 全屏与 Understanding 的 focus 模式同理——同一实例用 CSS 拉满视口（fixed inset-0），
- * 不重建图；X6 autoResize 跟随容器尺寸，进入全屏后自动适应视图。 */
+ * 全屏走 portal 打到 body：消息列表虚拟化会给每条消息 wrapper 写 transform
+ * （react-virtual directDomUpdates），transform 祖先会把 fixed inset-0 钉在消息条上
+ * 而不是视口；portal 到 body 才能绕过。图随切换重建，CanvasReadOnlyView 已有
+ * 布局落定后的 fitView，进入全屏自动适应视图。 */
 export function ReadOnlyCanvasCard({
   document,
   understandingRefs,
@@ -207,27 +210,32 @@ export function ReadOnlyCanvasCard({
     referencedCanvases,
     onCanvasRefClick,
   );
+  const content = mounted ? (
+    <Suspense fallback={<ReadOnlyCanvasSkeleton />}>
+      <CanvasReadOnlyView
+        document={document}
+        shapeData={shapeData}
+        showZoomControls
+        fullscreen={fullscreen}
+        onFullscreenChange={setFullscreen}
+        className="h-full min-h-0"
+      />
+    </Suspense>
+  ) : null;
+  if (fullscreen) {
+    return createPortal(
+      <div className="fixed inset-0 z-50 overflow-hidden bg-background">{content}</div>,
+      globalThis.document.body,
+    );
+  }
   return (
     <div
       className={cn(
         "relative overflow-hidden rounded-md border border-border bg-muted/30",
-        fullscreen
-          ? "fixed inset-0 z-50 h-auto overflow-hidden rounded-none border-0 bg-background"
-          : className,
+        className,
       )}
     >
-      {mounted ? (
-        <Suspense fallback={<ReadOnlyCanvasSkeleton />}>
-          <CanvasReadOnlyView
-            document={document}
-            shapeData={shapeData}
-            showZoomControls
-            fullscreen={fullscreen}
-            onFullscreenChange={setFullscreen}
-            className="h-full min-h-0"
-          />
-        </Suspense>
-      ) : null}
+      {content}
     </div>
   );
 }
