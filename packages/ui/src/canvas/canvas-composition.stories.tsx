@@ -22,6 +22,7 @@ import {
   typicalLibraryItems,
   typicalSearchIndex,
   typicalShapeData,
+  withUniqueCanvasIds,
 } from "./canvas-story-fixtures";
 import {
   EMPTY_CANVAS_DOCUMENT,
@@ -62,6 +63,8 @@ function WorkspaceShell({
   saveStatus?: "clean" | "dirty" | "saving" | "error";
 }) {
   const graphRef = useRef<CanvasGraphHandle>(null);
+  // 每张图独立唯一 id（portal 用 node.id 当 key，多图/双挂载复用固定 id 会撞 key）。
+  const uniqueDocument = useMemo(() => withUniqueCanvasIds(document), [document]);
   const [library, setLibrary] = useState(libraryOpen);
   const [search, setSearch] = useState(searchOpen);
   const [query, setQuery] = useState("");
@@ -83,7 +86,7 @@ function WorkspaceShell({
       <div className="relative min-h-0 min-w-0 flex-1">
         <CanvasGraph
           ref={graphRef}
-          document={document}
+          document={uniqueDocument}
           viewportReady
           shapeData={typicalShapeData}
           createElementForDrop={(source) => ({
@@ -198,6 +201,8 @@ function WorkspaceShell({
 }
 
 function ReadonlySizeCase() {
+  // 每张图独立唯一 id（portal 用 node.id 当 key，多图/双挂载复用固定 id 会撞 key）。
+  const readonlyDocument = useMemo(() => withUniqueCanvasIds(typicalCanvasDocument), []);
   return (
     <StoryCaseSwitch
       cases={[
@@ -206,7 +211,7 @@ function ReadonlySizeCase() {
           content: (
             <GraphFrame height="h-[360px]">
               <CanvasReadOnlyView
-                document={typicalCanvasDocument}
+                document={readonlyDocument}
                 shapeData={typicalShapeData}
                 className="absolute inset-0"
               />
@@ -218,7 +223,7 @@ function ReadonlySizeCase() {
           content: (
             <GraphFrame height="h-[240px]">
               <CanvasReadOnlyView
-                document={typicalCanvasDocument}
+                document={readonlyDocument}
                 shapeData={typicalShapeData}
                 showZoomControls
                 className="absolute inset-0"
@@ -231,7 +236,7 @@ function ReadonlySizeCase() {
           content: (
             <GraphFrame height="h-[160px]">
               <CanvasReadOnlyView
-                document={typicalCanvasDocument}
+                document={readonlyDocument}
                 shapeData={typicalShapeData}
                 className="absolute inset-0"
               />

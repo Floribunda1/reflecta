@@ -9,7 +9,7 @@ import {
   CanvasUnderstandingCard,
 } from "./canvas-cards";
 import type { CanvasElementDTO, CanvasElementKind } from "@reflecta/shared";
-import { useCanvasElementUpdate, useCanvasShapeData } from "./shape-context";
+import { useCanvasBridge } from "./canvas-bridge";
 
 /**
  * X6 react-shape 卡片组件。
@@ -33,26 +33,32 @@ function subscribeSelection(graph: Graph | undefined, onChange: () => void): () 
   return () => selection.off("selection:changed", handler);
 }
 
-/** 选中态订阅 X6 Selection。react-shape Wrap 是 PureComponent，context 更新不会穿透。 */
+/** 选中态订阅 X6 Selection；展示数据 / 写回从自家 graph 的桥取（弃 per-graph context）。 */
 function useCard(
   node: X6Node,
   graph: Graph | undefined,
 ): {
   element: CanvasElementDTO;
   selected: boolean;
+  shapeData: import("./shape-context").CanvasShapeData;
   update: (element: CanvasElementDTO) => void;
 } {
   const selected = useSyncExternalStore(
     (onChange) => subscribeSelection(graph, onChange),
     () => graph?.getPlugin<Selection>("selection")?.isSelected(node) ?? false,
   );
-  const update = useCanvasElementUpdate();
+  const { shapeData, updateElement } = useCanvasBridge(graph);
   const element = (node.getData() as { element?: CanvasElementDTO } | null | undefined)?.element;
-  return { element: element ?? ({} as CanvasElementDTO), selected, update };
+  return {
+    element: element ?? ({} as CanvasElementDTO),
+    selected,
+    shapeData,
+    update: updateElement,
+  };
 }
 
 function UnderstandingShape({ node, graph }: CardProps) {
-  const { element, selected, update } = useCard(node, graph);
+  const { element, selected, shapeData, update } = useCard(node, graph);
   const {
     understandingRefs,
     readonly,
@@ -61,7 +67,7 @@ function UnderstandingShape({ node, graph }: CardProps) {
     onCellAction,
     resolveWikiLink,
     onWikiLinkOpen,
-  } = useCanvasShapeData();
+  } = shapeData;
   if (element.kind !== "understanding") return null;
   const ref = element.understandingId ? understandingRefs.get(element.understandingId) : undefined;
   return (
@@ -91,8 +97,8 @@ function UnderstandingShape({ node, graph }: CardProps) {
 }
 
 function TextShape({ node, graph }: CardProps) {
-  const { element, selected, update } = useCard(node, graph);
-  const { readonly, multiSelected, onCellAction } = useCanvasShapeData();
+  const { element, selected, shapeData, update } = useCard(node, graph);
+  const { readonly, multiSelected, onCellAction } = shapeData;
   if (element.kind !== "text") return null;
   return (
     <CanvasTextCard
@@ -110,8 +116,8 @@ function TextShape({ node, graph }: CardProps) {
 }
 
 function GroupShape({ node, graph }: CardProps) {
-  const { element, selected, update } = useCard(node, graph);
-  const { readonly, onCellAction, multiSelected } = useCanvasShapeData();
+  const { element, selected, shapeData, update } = useCard(node, graph);
+  const { readonly, onCellAction, multiSelected } = shapeData;
   if (element.kind !== "group") return null;
   return (
     <CanvasGroupCard
@@ -130,7 +136,7 @@ function GroupShape({ node, graph }: CardProps) {
 }
 
 function CanvasRefShape({ node, graph }: CardProps) {
-  const { element, selected, update } = useCard(node, graph);
+  const { element, selected, shapeData, update } = useCard(node, graph);
   const {
     referencedCanvases,
     onCanvasRefClick,
@@ -138,7 +144,7 @@ function CanvasRefShape({ node, graph }: CardProps) {
     readonly,
     multiSelected,
     onCellAction,
-  } = useCanvasShapeData();
+  } = shapeData;
   if (element.kind !== "canvas_ref") return null;
   const target = element.canvasRefId ? referencedCanvases.get(element.canvasRefId) : undefined;
   // ponytail: 同上，未加载的引用不算“已删除”。

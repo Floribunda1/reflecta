@@ -4,6 +4,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@reflecta/ui/theme";
+import { CanvasPortalHost } from "@reflecta/ui/canvas";
 import { RegistryContext } from "@effect/atom-react";
 import { App } from "./App";
 import { RendererErrorBoundary } from "./renderer-error-boundary";
@@ -24,6 +25,7 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
+    <CanvasPortalHost />
     <RendererErrorBoundary>
       <RegistryContext.Provider value={appAtomRegistry}>
         <ThemeProvider>

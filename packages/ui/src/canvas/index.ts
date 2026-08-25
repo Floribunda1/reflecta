@@ -5,6 +5,7 @@ export {
   type CanvasGraphProps,
 } from "./CanvasGraph";
 export { CanvasReadOnlyView, type CanvasReadOnlyViewProps } from "./CanvasReadOnlyView";
+export { CanvasPortalHost } from "./canvas-portal-host";
 export { ReadOnlyCanvasCard, type ReadOnlyCanvasCardProps } from "./readonly-canvas-card";
 export { CanvasZoomControls, type CanvasZoomControlsProps } from "./CanvasZoomControls";
 export {
@@ -64,11 +65,6 @@ export {
 } from "./graph-operations";
 export { trackpadPanZoomPlugin } from "./trackpad-pan-zoom";
 export {
-  CanvasShapeDataProvider,
-  CanvasElementUpdateProvider,
-  EMPTY_CANVAS_SHAPE_DATA,
-  useCanvasElementUpdate,
-  useCanvasShapeData,
   type CanvasReferencedCanvasView,
   type CanvasShapeData,
   type CanvasCellAction,

@@ -3,7 +3,7 @@ import { StoryCase } from "../../.storybook/story-showcase";
 import { Button } from "../components/button";
 import { CanvasGraph, type CanvasGraphHandle } from "./CanvasGraph";
 import { CanvasZoomControls } from "./CanvasZoomControls";
-import { typicalShapeData } from "./canvas-story-fixtures";
+import { typicalShapeData, withUniqueCanvasIds } from "./canvas-story-fixtures";
 import type { CanvasDocument } from "@reflecta/shared";
 import type { CanvasShapeData } from "./shape-context";
 
@@ -82,13 +82,15 @@ export function InteractiveGraph({
     }),
     [shapeData],
   );
+  // 每张图独立唯一 id：portal 用 node.id 当 key，多图/双挂载复用 fixture 固定 id 会撞 key。
+  const uniqueDocument = useMemo(() => withUniqueCanvasIds(document), [document]);
 
   return (
     <div className="grid gap-2">
       <GraphFrame height={height}>
         <CanvasGraph
           ref={graphRef}
-          document={document}
+          document={uniqueDocument}
           readonly={readonly}
           viewportReady
           shapeData={liveShapeData}

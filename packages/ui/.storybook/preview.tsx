@@ -4,6 +4,7 @@ import { LazyMotion, MotionConfig, domAnimation } from "motion/react";
 import "../src/styles/globals.css";
 import { DrawerProvider, ModalProvider } from "../src/overlays";
 import { ThemeProvider } from "../src/theme-provider";
+import { CanvasPortalHost } from "../src/canvas";
 import { applyGhosttyScheme, DEFAULT_PRIMARY_SLOT } from "../src/styles/apply-ghostty-scheme";
 import { DEFAULT_GHOSTTY_SCHEME, PAIRED_THEMES } from "../src/styles/ghostty-themes";
 
@@ -37,6 +38,7 @@ const withTheme: Decorator = (Story, context) => {
 
   return (
     <ThemeProvider forcedTheme={theme} enableSystem={false}>
+      <CanvasPortalHost />
       <SchemeBridge scheme={scheme} theme={theme} />
       <LazyMotion features={domAnimation} strict>
         <MotionConfig reducedMotion="user">

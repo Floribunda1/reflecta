@@ -1,7 +1,5 @@
-import { createContext, useContext } from "react";
 import type { ChatEntityReference, ResolveChatEntity } from "../chat/entity";
 import type { CanvasDocument, CanvasElementDTO } from "@reflecta/shared";
-import type { CanvasEdgeDTO } from "@reflecta/shared";
 
 /**
  * 节点展示数据与编辑回写通道。
@@ -64,28 +62,3 @@ export const EMPTY_CANVAS_SHAPE_DATA: CanvasShapeData = {
   understandingRefs: new Map(),
   referencedCanvases: new Map(),
 };
-
-const CanvasShapeContext = createContext<CanvasShapeData>(EMPTY_CANVAS_SHAPE_DATA);
-
-export const CanvasShapeDataProvider = CanvasShapeContext.Provider;
-
-export function useCanvasShapeData(): CanvasShapeData {
-  return useContext(CanvasShapeContext);
-}
-
-/** 节点内容编辑（文本 / 组名）提交回写：把新 DTO 交给 CanvasGraph 更新受控数据并同步文档。 */
-const CanvasElementUpdateContext = createContext<(element: CanvasElementDTO) => void>(() => {});
-
-export const CanvasElementUpdateProvider = CanvasElementUpdateContext.Provider;
-
-export function useCanvasElementUpdate(): (element: CanvasElementDTO) => void {
-  return useContext(CanvasElementUpdateContext);
-}
-
-const CanvasEdgeUpdateContext = createContext<(edge: CanvasEdgeDTO) => void>(() => {});
-
-export const CanvasEdgeUpdateProvider = CanvasEdgeUpdateContext.Provider;
-
-export function useCanvasEdgeUpdate(): (edge: CanvasEdgeDTO) => void {
-  return useContext(CanvasEdgeUpdateContext);
-}

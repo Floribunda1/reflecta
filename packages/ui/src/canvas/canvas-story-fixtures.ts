@@ -16,6 +16,29 @@ import type {
 
 const TIME = "2026-08-19T10:00:00.000Z";
 
+/**
+ * Storybook 专用：给文档元素 / 连线的 id 重分配为全局唯一，并同步修复内部引用
+ * （parentId / 边 source / target cell）。x6-react-shape 的 portal 用 node.id 当 React key
+ * 且 portal 为单例——多张图若复用同一 fixture 的相同 id，卡片会撞 key 报 duplicate-key 警告。
+ * 每张图挂载前过一遍，node id 全局唯一即免疫（生产 id 本就 randomUUID，无需此步）。
+ */
+export function withUniqueCanvasIds(doc: CanvasDocument): CanvasDocument {
+  const idMap = new Map<string, string>();
+  for (const element of doc.elements) idMap.set(element.id, crypto.randomUUID());
+  const elements = doc.elements.map((element) => ({
+    ...element,
+    id: idMap.get(element.id) ?? element.id,
+    parentId: element.parentId ? (idMap.get(element.parentId) ?? element.parentId) : null,
+  }));
+  const edges = doc.edges.map((edge) => ({
+    ...edge,
+    id: crypto.randomUUID(),
+    source: { ...edge.source, cell: idMap.get(edge.source.cell) ?? edge.source.cell },
+    target: { ...edge.target, cell: idMap.get(edge.target.cell) ?? edge.target.cell },
+  }));
+  return { elements, edges };
+}
+
 function baseElement(
   id: string,
   position: { x: number; y: number; width: number; height: number },

@@ -18,7 +18,6 @@ import {
   Snapline,
   Transform,
 } from "@antv/x6";
-import { getProvider as ReactShapePortal } from "@antv/x6-react-shape";
 import { useLatest } from "ahooks";
 import {
   BringToFront,
@@ -64,13 +63,8 @@ import {
 import { CanvasContextMenu, type CanvasContextMenuItem } from "./canvas-context-menu";
 import { EdgeOverlay } from "./EdgeOverlay";
 import { trackpadPanZoomPlugin } from "./trackpad-pan-zoom";
-import {
-  CanvasEdgeUpdateProvider,
-  CanvasElementUpdateProvider,
-  CanvasShapeDataProvider,
-  EMPTY_CANVAS_SHAPE_DATA,
-  type CanvasShapeData,
-} from "./shape-context";
+import { attachCanvasBridge, createCanvasBridge, detachCanvasBridge } from "./canvas-bridge";
+import { EMPTY_CANVAS_SHAPE_DATA, type CanvasShapeData } from "./shape-context";
 
 /**
  * X6 画布封装（React Flow → X6 迁移）。
@@ -166,15 +160,10 @@ function restoreChildLinks(graph: import("@antv/x6").Graph, doc: CanvasDocument)
   }
 }
 
-// react-shape portal provider：渲染一次，让所有 react-shape 卡片落入本 React 树（context 穿透）
-// ponytail: `@antv/x6-react-shape` 的 portal `connect/dispatch` 是模块级单例（portal.js 的
-// active/dispatch），只认最后一个挂载的 provider。多 Graph 并存时：静态只读草稿各自在其
-// 挂载窗口内连接（该窗口它仍是 active provider）→ 全部正确；但若同时混有交互图，且交互图
-// 在后续被只读 provider 抢占 dispatch 后才新增卡片，新卡片会落进只读 provider 的 context
-// （丢失编辑/选中通道）。现仅只读并存（chat 草稿 / artifact 缩略 / cv: modal）→ 无害；
-// 当需要“多个交互图同页并存”或“动态新增卡片发生在后挂载 provider 之后”时，再改为
-// 单 provider 于应用根 + 图内数据走 node data（弃 per-graph context）。
-const ReactShapePortalProvider = ReactShapePortal() as React.FC<{ children?: React.ReactNode }>;
+// react-shape 卡片经 `@antv/x6-react-shape` 的单例 portal 落在应用根的单个 host 里；
+// 卡片展示数据 / 写回通道不再走 per-graph context，改从自家 graph 的桥取（见 canvas-bridge /
+// nodes）。多图并存时每张卡自报家门，不存在「context 被最后挂载的图抢占」。
+// 根 host 由各应用入口（electron main / storybook preview）挂一次，CanvasGraph 不再负责。
 
 export const CanvasGraph = React.memo(
   React.forwardRef<CanvasGraphHandle, CanvasGraphProps>(function CanvasGraph(
@@ -214,6 +203,7 @@ export const CanvasGraph = React.memo(
     // 中键(button===1)按下瞬间置位：让 interacting 拒绝 node/edge 移动，
     // X6 便会发 unhandled:mousedown → panning 平移（行为同空白处中键）。
     const middlePanRef = useRef(false);
+    const canvasBridge = useMemo(() => createCanvasBridge(), []);
     const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
     const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
     const [contextMenu, setContextMenu] = useState<{
@@ -327,6 +317,7 @@ export const CanvasGraph = React.memo(
         },
       });
       graphRef.current = graph;
+      attachCanvasBridge(graph, canvasBridge);
       graph.use(trackpadPanZoomPlugin());
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (globalThis as any).__x6graph = graph;
@@ -558,6 +549,7 @@ export const CanvasGraph = React.memo(
         // dispose 会级联移除子单元（node:removed）→ 先压住 emit，避免把残文档存库
         suppressEmitRef.current = true;
         graph.dispose();
+        detachCanvasBridge(graph);
         graphRef.current = null;
         dndRef.current?.dispose();
         dndRef.current = null;
@@ -977,63 +969,65 @@ export const CanvasGraph = React.memo(
       () => new Set<string>([...selectedNodeIds, ...(selectedEdgeId ? [selectedEdgeId] : [])]),
       [selectedEdgeId, selectedNodeIds],
     );
+
+    // 每渲染把本图最新 shapeData / 写回通道发布进自家桥（卡片经 graph 取数，不靠 context）。
+    const shapeDataValue = useMemo(
+      () => ({ ...shapeData, readonly, multiSelected, selectedIds, onCellAction }),
+      [shapeData, readonly, multiSelected, selectedIds, onCellAction],
+    );
+    useEffect(() => {
+      canvasBridge.publish({ shapeData: shapeDataValue, updateElement: handleElementUpdate });
+    });
+
     const graph = graphRef.current;
 
     return (
-      <CanvasShapeDataProvider
-        value={{ ...shapeData, readonly, multiSelected, selectedIds, onCellAction }}
-      >
-        <CanvasElementUpdateProvider value={handleElementUpdate}>
-          <CanvasEdgeUpdateProvider value={handleEdgeUpdate}>
-            {/** react-shape 卡片经此 host 落入本 React 树（不包 children，只承载 portal） */}
-            <ReactShapePortalProvider />
-            <div
-              ref={containerRef}
-              className={cn("absolute inset-0 overflow-hidden", className)}
-              style={style}
-              data-testid={testId}
-              data-canvas-graph=""
-              data-readonly={readonly || undefined}
-            />
-            {graph && !readonly ? (
-              <EdgeOverlay
-                graph={graph}
-                edgeId={selectedEdgeId}
-                readonly={readonly}
-                onUpdate={handleEdgeUpdate}
-                onDelete={(edgeId) => {
-                  const live = graphRef.current;
-                  const cell = live?.getCellById(edgeId);
-                  if (live && cell) live.removeCells([cell]);
-                }}
-              />
-            ) : null}
-            {multiSelected ? (
-              <SelectionToolbar
-                selectedCount={selectedNodeIds.length}
-                onGroup={() => runGroupSelection(selectedNodeIds)}
-                onDelete={() => {
-                  const graph = graphRef.current;
-                  if (graph)
-                    graph.removeCells(
-                      cascadeIdsOf(graphToDocument(graph), selectedNodeIds)
-                        .map((id) => graph.getCellById(id))
-                        .filter((cell): cell is import("@antv/x6").Cell => Boolean(cell)),
-                    );
-                }}
-              />
-            ) : null}
-            {contextMenu && graph && !readonly ? (
-              <CanvasContextMenu
-                x={contextMenu.x}
-                y={contextMenu.y}
-                onClose={() => setContextMenu(null)}
-                sections={buildMenuSections()}
-              />
-            ) : null}
-          </CanvasEdgeUpdateProvider>
-        </CanvasElementUpdateProvider>
-      </CanvasShapeDataProvider>
+      <>
+        <div
+          ref={containerRef}
+          className={cn("absolute inset-0 overflow-hidden", className)}
+          style={style}
+          data-testid={testId}
+          data-canvas-graph=""
+          data-readonly={readonly || undefined}
+        />
+        {graph && !readonly ? (
+          <EdgeOverlay
+            graph={graph}
+            edgeId={selectedEdgeId}
+            readonly={readonly}
+            onUpdate={handleEdgeUpdate}
+            onDelete={(edgeId) => {
+              const live = graphRef.current;
+              const cell = live?.getCellById(edgeId);
+              if (live && cell) live.removeCells([cell]);
+            }}
+          />
+        ) : null}
+        {multiSelected ? (
+          <SelectionToolbar
+            selectedCount={selectedNodeIds.length}
+            onGroup={() => runGroupSelection(selectedNodeIds)}
+            onDelete={() => {
+              const graph = graphRef.current;
+              if (graph)
+                graph.removeCells(
+                  cascadeIdsOf(graphToDocument(graph), selectedNodeIds)
+                    .map((id) => graph.getCellById(id))
+                    .filter((cell): cell is import("@antv/x6").Cell => Boolean(cell)),
+                );
+            }}
+          />
+        ) : null}
+        {contextMenu && graph && !readonly ? (
+          <CanvasContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            onClose={() => setContextMenu(null)}
+            sections={buildMenuSections()}
+          />
+        ) : null}
+      </>
     );
   }),
 );
