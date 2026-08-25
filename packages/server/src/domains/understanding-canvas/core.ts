@@ -150,6 +150,95 @@ export class CanvasCore {
     });
   }
 
+  createCanvasWithDocument(
+    input: CreateCanvasInput,
+    document: CanvasDocument,
+  ): Effect.Effect<CanvasDTO, CanvasServiceError> {
+    const db = this.db;
+    return Effect.gen(function* () {
+      try {
+        assertValidDocument(document);
+      } catch (error) {
+        const message = error instanceof CanvasValidationError ? error.message : "画布校验失败";
+        return yield* new CanvasServiceError({ message });
+      }
+      const understandingIds = document.elements
+        .filter((element) => element.kind === "understanding" && element.understandingId)
+        .map((element) => element.understandingId as string);
+      yield* Effect.tryPromise({
+        try: () => assertUnderstandingRefsExist(db, understandingIds),
+        catch: (error) =>
+          new CanvasServiceError({
+            message: error instanceof Error ? error.message : "引用的理解不存在",
+          }),
+      });
+      const timestamp = now();
+      const id = createEntityId();
+      const row = {
+        id,
+        title: input.title?.trim() || "未命名画布",
+        description: null,
+        viewport: null,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        deletedAt: null,
+      };
+      yield* Effect.sync(() =>
+        db.transaction((tx) => {
+          tx.insert(understandingCanvases).values(row).run();
+          const byId = new Map(document.elements.map((element) => [element.id, element]));
+          const depthOf = (element: CanvasElementDTO) => {
+            let depth = 0;
+            let current: CanvasElementDTO | undefined = element;
+            while (current?.parentId) {
+              depth += 1;
+              current = byId.get(current.parentId);
+            }
+            return depth;
+          };
+          for (const element of [...document.elements].sort((l, r) => depthOf(l) - depthOf(r))) {
+            tx.insert(understandingCanvasElements)
+              .values({
+                id: element.id,
+                canvasId: id,
+                kind: element.kind,
+                understandingId: element.kind === "understanding" ? element.understandingId : null,
+                canvasRefId: element.kind === "canvas_ref" ? element.canvasRefId : null,
+                props: JSON.stringify(element.props),
+                parentId: element.parentId,
+                x: element.x,
+                y: element.y,
+                width: element.width,
+                height: element.height,
+                zIndex: element.zIndex,
+                createdAt: timestamp,
+                updatedAt: timestamp,
+              })
+              .run();
+          }
+          for (const edge of document.edges) {
+            tx.insert(understandingCanvasEdges)
+              .values({
+                id: edge.id,
+                canvasId: id,
+                sourceElementId: edge.source.cell,
+                sourcePortId: edge.source.port,
+                targetElementId: edge.target.cell,
+                targetPortId: edge.target.port,
+                router: edge.router ? JSON.stringify(edge.router) : null,
+                connector: JSON.stringify(edge.connector),
+                label: edge.label,
+                attrs: JSON.stringify(edge.attrs),
+                createdAt: timestamp,
+              })
+              .run();
+          }
+        }),
+      );
+      return canvasRowToDTO(row);
+    });
+  }
+
   protected getCanvasRow(
     canvasId: string,
   ): Effect.Effect<typeof understandingCanvases.$inferSelect | null> {
@@ -438,7 +527,11 @@ export class CanvasCore {
     });
   }
 
-  saveCanvas(canvasId: string, document: CanvasDocument): Effect.Effect<void, CanvasServiceError> {
+  saveCanvas(
+    canvasId: string,
+    document: CanvasDocument,
+    title?: string,
+  ): Effect.Effect<void, CanvasServiceError> {
     const getCanvasRow = this.getCanvasRow.bind(this);
     const db = this.db;
     return Effect.gen(function* () {
@@ -475,14 +568,14 @@ export class CanvasCore {
       }
 
       const timestamp = now();
-      yield* Effect.promise(async () => {
-        await db.transaction(async (tx) => {
-          const existingElements = await tx
+      yield* Effect.sync(() => {
+        db.transaction((tx) => {
+          const existingElements = tx
             .select()
             .from(understandingCanvasElements)
             .where(eq(understandingCanvasElements.canvasId, canvasId))
             .all();
-          const existingEdges = await tx
+          const existingEdges = tx
             .select()
             .from(understandingCanvasEdges)
             .where(eq(understandingCanvasEdges.canvasId, canvasId))
@@ -491,7 +584,7 @@ export class CanvasCore {
           const existingElementById = new Map(existingElements.map((row) => [row.id, row]));
           const existingEdgeById = new Map(existingEdges.map((row) => [row.id, row]));
 
-          let changed = false;
+          let changed = title !== undefined && title.trim() !== canvas.title;
           if (
             existingElements.length !== document.elements.length ||
             existingEdges.length !== document.edges.length
@@ -576,15 +669,13 @@ export class CanvasCore {
             });
             for (const element of [...toInsert].sort((l, r) => depthOf(l) - depthOf(r))) {
               const row = rowFor(element);
-              await tx
-                .insert(understandingCanvasElements)
+              tx.insert(understandingCanvasElements)
                 .values({ id: element.id, ...row, createdAt: timestamp, updatedAt: timestamp })
                 .run();
             }
             for (const element of toUpdate) {
               const row = rowFor(element);
-              await tx
-                .update(understandingCanvasElements)
+              tx.update(understandingCanvasElements)
                 .set(row)
                 .where(eq(understandingCanvasElements.id, element.id))
                 .run();
@@ -592,8 +683,7 @@ export class CanvasCore {
             const docElementIds = new Set(document.elements.map((element) => element.id));
             for (const row of existingElements) {
               if (!docElementIds.has(row.id)) {
-                await tx
-                  .delete(understandingCanvasElements)
+                tx.delete(understandingCanvasElements)
                   .where(eq(understandingCanvasElements.id, row.id))
                   .run();
               }
@@ -612,14 +702,12 @@ export class CanvasCore {
                 attrs: JSON.stringify(edge.attrs),
               };
               if (existing) {
-                await tx
-                  .update(understandingCanvasEdges)
+                tx.update(understandingCanvasEdges)
                   .set(row)
                   .where(eq(understandingCanvasEdges.id, edge.id))
                   .run();
               } else {
-                await tx
-                  .insert(understandingCanvasEdges)
+                tx.insert(understandingCanvasEdges)
                   .values({ id: edge.id, ...row, createdAt: timestamp })
                   .run();
               }
@@ -627,15 +715,16 @@ export class CanvasCore {
             const docEdgeIds = new Set(document.edges.map((edge) => edge.id));
             for (const row of existingEdges) {
               if (!docEdgeIds.has(row.id)) {
-                await tx
-                  .delete(understandingCanvasEdges)
+                tx.delete(understandingCanvasEdges)
                   .where(eq(understandingCanvasEdges.id, row.id))
                   .run();
               }
             }
-            await tx
-              .update(understandingCanvases)
-              .set({ updatedAt: timestamp })
+            tx.update(understandingCanvases)
+              .set({
+                updatedAt: timestamp,
+                ...(title === undefined ? {} : { title: title.trim() }),
+              })
               .where(eq(understandingCanvases.id, canvasId))
               .run();
           }

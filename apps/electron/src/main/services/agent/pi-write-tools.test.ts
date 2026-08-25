@@ -22,7 +22,10 @@ const services = vi.hoisted(() => ({
   createContext: vi.fn(),
   updateContext: vi.fn(),
   deleteContext: vi.fn(),
+  getCanvasDetail: vi.fn(),
   createCanvas: vi.fn(),
+  createCanvasWithDocument: vi.fn(),
+  updateCanvas: vi.fn(),
   saveCanvas: vi.fn(),
   deleteCanvas: vi.fn(),
 }));
@@ -47,7 +50,10 @@ vi.mock("../core", () => ({
     deleteUnderstanding: services.deleteUnderstanding,
   },
   understandingCanvasService: {
+    getCanvasDetail: services.getCanvasDetail,
     createCanvas: services.createCanvas,
+    createCanvasWithDocument: services.createCanvasWithDocument,
+    updateCanvas: services.updateCanvas,
     saveCanvas: services.saveCanvas,
     deleteCanvas: services.deleteCanvas,
   },
@@ -108,10 +114,10 @@ const samplePayloads: Record<(typeof knowledgeMutationNames)[number], Record<str
     content: "Updated context",
   },
   context_delete: { contextId: "context-1", reason: "No longer relevant" },
-  canvas_create: { title: "新画布" },
+  canvas_create: { title: "新画布", changes: [] },
   canvas_update: {
     canvasId: "canvas-1",
-    document: { elements: [], edges: [] },
+    changes: [],
   },
   canvas_delete: { canvasId: "canvas-1", reason: "过时结构" },
 };
@@ -188,6 +194,23 @@ describe("createPiWriteTools", () => {
       expect(schema).not.toContain("[[c:context-id]]");
       expect(schema).not.toContain("[[d:domain-id]]");
     }
+  });
+
+  test("exposes canvas mutations as ordered changes instead of whole documents", () => {
+    const tools = createPiWriteTools();
+    const createSchema = JSON.stringify(
+      tools.find((tool) => tool.name === "canvas_create")?.parameters,
+    );
+    const updateSchema = JSON.stringify(
+      tools.find((tool) => tool.name === "canvas_update")?.parameters,
+    );
+
+    expect(createSchema).toContain('"changes"');
+    expect(createSchema).toContain('"add_element"');
+    expect(createSchema).not.toContain('"initial"');
+    expect(updateSchema).toContain('"changes"');
+    expect(updateSchema).toContain('"relayout"');
+    expect(updateSchema).not.toContain('"document"');
   });
 
   test("returns the user's reason to the agent when a proposal is rejected", () => {
@@ -360,6 +383,40 @@ describe("createPiWriteTools", () => {
     });
   });
 
+  test("freezes canvas changes into the document shown and later approved", async () => {
+    services.getCanvasDetail.mockReturnValue(
+      Effect.succeed({
+        canvas: { id: "canvas-1", title: "Old title" },
+        elements: [],
+        edges: [],
+        understandingRefs: [],
+        referencedCanvases: [],
+      }),
+    );
+
+    const created = await hydratePiApprovalPayload("canvas_create", {
+      title: "New canvas",
+      changes: [{ op: "add_element", ref: "note", element: { kind: "text", text: "Hello" } }],
+    });
+    expect(created.document).toMatchObject({
+      elements: [{ kind: "text", props: { text: "Hello" } }],
+      edges: [],
+    });
+
+    const updated = await hydratePiApprovalPayload("canvas_update", {
+      canvasId: "canvas-1",
+      changes: [
+        { op: "add_element", ref: "note", element: { kind: "text", text: "Updated" } },
+        { op: "set_title", title: "New title" },
+      ],
+    });
+    expect(updated).toMatchObject({
+      normalizedTitle: "New title",
+      before: { title: "Old title", document: { elements: [], edges: [] } },
+      document: { elements: [{ kind: "text", props: { text: "Updated" } }], edges: [] },
+    });
+  });
+
   test("executes approved mutation tools through domain services", async () => {
     services.createUnderstanding.mockReturnValue(
       Effect.succeed({
@@ -384,8 +441,17 @@ describe("createPiWriteTools", () => {
       Effect.succeed({ id: "context-updated", title: "Stored Updated Context" }),
     );
     services.deleteContext.mockReturnValue(Effect.succeed(undefined));
-    services.createCanvas.mockReturnValue(
+    services.createCanvasWithDocument.mockReturnValue(
       Effect.succeed({ id: "canvas-created", title: "新建结构" }),
+    );
+    services.getCanvasDetail.mockReturnValue(
+      Effect.succeed({
+        canvas: { id: "canvas-1", title: "旧标题" },
+        elements: [],
+        edges: [],
+        understandingRefs: [],
+        referencedCanvases: [],
+      }),
     );
     services.saveCanvas.mockReturnValue(Effect.void);
     services.deleteCanvas.mockReturnValue(Effect.void);
@@ -506,11 +572,15 @@ describe("createPiWriteTools", () => {
       content: "Updated context",
     });
     expect(services.deleteContext).toHaveBeenCalledWith("context-1");
-    expect(services.createCanvas).toHaveBeenCalledWith({ title: "新画布" });
-    expect(services.saveCanvas).toHaveBeenCalledWith("canvas-1", {
-      elements: [],
-      edges: [],
-    });
+    expect(services.createCanvasWithDocument).toHaveBeenCalledWith(
+      { title: "新画布" },
+      { elements: [], edges: [] },
+    );
+    expect(services.saveCanvas).toHaveBeenCalledWith(
+      "canvas-1",
+      { elements: [], edges: [] },
+      undefined,
+    );
     expect(services.deleteCanvas).toHaveBeenCalledWith("canvas-1");
   });
 });

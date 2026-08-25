@@ -2,7 +2,9 @@ import { Type } from "@earendil-works/pi-ai";
 import { Effect } from "effect";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import type {
+  CanvasGraphChange,
   CanvasDocument,
+  CanvasUpdateChange,
   CreateDomainInput,
   CreateContextInput,
   CreateUnderstandingInput,
@@ -11,6 +13,7 @@ import type {
   UpdateContextInput,
   UpdateUnderstandingInput,
 } from "@reflecta/server";
+import { normalizeCanvasChanges } from "@reflecta/server";
 import {
   domainService,
   contextService,
@@ -67,6 +70,68 @@ const parentIdParameter = Type.Optional(
   }),
 );
 const mediumParameter = Type.Union(mediums.map((medium) => Type.Literal(medium)));
+const layoutDirectionParameter = Type.Union([
+  Type.Literal("auto"),
+  Type.Literal("horizontal"),
+  Type.Literal("vertical"),
+]);
+const canvasRefParameter = Type.String({
+  minLength: 1,
+  description: "A stable id from canvas_read or a ref declared by an earlier change.",
+});
+const canvasAddableElementParameter = Type.Union([
+  Type.Object({ kind: Type.Literal("text"), text: Type.String() }),
+  Type.Object({ kind: Type.Literal("understanding"), understandingId: understandingIdParameter }),
+  Type.Object({ kind: Type.Literal("canvas_ref"), canvasRefId: Type.String({ minLength: 1 }) }),
+]);
+const canvasElementParameter = Type.Union([
+  canvasAddableElementParameter,
+  Type.Object({ kind: Type.Literal("group"), label: Type.String() }),
+]);
+const nullableCanvasRefParameter = Type.Optional(Type.Union([canvasRefParameter, Type.Null()]));
+const canvasGraphChangeParameter = Type.Union([
+  Type.Object({
+    op: Type.Literal("add_element"),
+    ref: Type.String({ minLength: 1, description: "A unique local ref for later changes." }),
+    element: canvasAddableElementParameter,
+    parentRef: nullableCanvasRefParameter,
+  }),
+  Type.Object({
+    op: Type.Literal("update_element"),
+    ref: canvasRefParameter,
+    after: canvasElementParameter,
+    parentRef: nullableCanvasRefParameter,
+  }),
+  Type.Object({ op: Type.Literal("remove_element"), ref: canvasRefParameter }),
+  Type.Object({
+    op: Type.Literal("add_edge"),
+    ref: Type.String({ minLength: 1, description: "A unique local ref for later changes." }),
+    sourceRef: canvasRefParameter,
+    targetRef: canvasRefParameter,
+    label: Type.Optional(Type.String()),
+  }),
+  Type.Object({
+    op: Type.Literal("update_edge"),
+    ref: canvasRefParameter,
+    sourceRef: Type.Optional(canvasRefParameter),
+    targetRef: Type.Optional(canvasRefParameter),
+    label: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  }),
+  Type.Object({ op: Type.Literal("remove_edge"), ref: canvasRefParameter }),
+  Type.Object({
+    op: Type.Literal("group"),
+    ref: Type.String({ minLength: 1, description: "A unique local ref for the new group." }),
+    label: Type.String(),
+    elementRefs: Type.Array(canvasRefParameter, { minItems: 2 }),
+    parentRef: nullableCanvasRefParameter,
+  }),
+  Type.Object({ op: Type.Literal("ungroup"), ref: canvasRefParameter }),
+]);
+const canvasUpdateChangeParameter = Type.Union([
+  canvasGraphChangeParameter,
+  Type.Object({ op: Type.Literal("set_title"), title: Type.String({ minLength: 1 }) }),
+  Type.Object({ op: Type.Literal("relayout"), direction: layoutDirectionParameter }),
+]);
 
 type PiMutationOutput = {
   resultRefType: "understanding" | "domain" | "context" | "canvas";
@@ -244,41 +309,36 @@ const toolSpecs: PiWriteToolSpec[] = [
     name: "canvas_create",
     label: "候选画布",
     description:
-      "Create a new Reflecta canvas (a user-built mental structure) only after user approval. Call this when the user asks to lay out a structure as a canvas. Optionally pass initial to seed the canvas with a document (same shape as the target document for updates).",
+      "Create a new Reflecta canvas from ordered graph changes only after user approval.",
     promptSnippet: "canvas_create: propose a new Reflecta canvas and request user approval.",
     promptGuidelines: [
       "Propose the canvas structure as a draft for the user to review, apply, modify, or reject.",
-      "Do not write coordinates; layout is decided by the user or auto-layout.",
+      "Declare refs before using them; forward references are rejected.",
+      "Do not write coordinates, ids, timestamps, ports, or edge rendering details.",
     ],
     parameters: Type.Object({
       title: Type.String({ minLength: 1, description: "Canvas title." }),
-      initial: Type.Optional(
-        Type.Object({
-          elements: Type.Array(Type.Unknown()),
-          edges: Type.Array(Type.Unknown()),
-        }),
-      ),
+      changes: Type.Array(canvasGraphChangeParameter),
+      layout: Type.Optional(layoutDirectionParameter),
+      reason: Type.Optional(Type.String()),
     }),
   },
   {
     name: "canvas_update",
     label: "候选修改画布",
     description:
-      "Update an existing Reflecta canvas only after user approval. Pass the whole target document (elements + edges, same shape as the read canvas) — the server reconciles by id. The document is rendered as a draft for the user to diagnose before applying.",
-    promptSnippet: "canvas_update: propose a whole-document change to an existing canvas.",
+      "Update an existing Reflecta canvas with ordered graph changes only after user approval.",
+    promptSnippet: "canvas_update: propose ordered changes to an existing canvas.",
     promptGuidelines: [
-      "Read the canvas first (canvas_read), then pass the full target document.",
-      "Do not write coordinates; layout is decided by the user or auto-layout.",
+      "Read the canvas first (canvas_read), then use its stable ids or refs declared by earlier changes.",
+      "Ordinary changes preserve existing positions; use relayout only when the whole graph should move.",
     ],
     parameters: Type.Object({
       canvasId: Type.String({
         minLength: 1,
         description: "Stable canvas id returned by Reflecta tools. Do not pass chat refs.",
       }),
-      document: Type.Object({
-        elements: Type.Array(Type.Unknown()),
-        edges: Type.Array(Type.Unknown()),
-      }),
+      changes: Type.Array(canvasUpdateChangeParameter),
       reason: Type.Optional(Type.String()),
     }),
   },
@@ -574,41 +634,39 @@ function contextDeleteInput(payload: unknown): string {
 
 function canvasCreateInput(payload: unknown): {
   title: string;
-  initial?: { elements: unknown[]; edges: unknown[] };
+  changes: CanvasGraphChange[];
+  layout?: "auto" | "horizontal" | "vertical";
 } {
   const record = asPayload(payload);
-  const title = requiredString(record, "title");
-  const initial = record.initial;
-  if (
-    initial !== undefined &&
-    (typeof initial !== "object" ||
-      initial === null ||
-      !Array.isArray((initial as { elements?: unknown }).elements) ||
-      !Array.isArray((initial as { edges?: unknown }).edges))
-  ) {
-    throw new Error("initial 必须是 { elements: [...], edges: [...] }。");
+  if (!Array.isArray(record.changes)) throw new Error("changes 必须是数组。");
+  const layout = record.layout;
+  if (layout !== undefined && !["auto", "horizontal", "vertical"].includes(String(layout))) {
+    throw new Error("layout 必须是 auto、horizontal 或 vertical。");
   }
-  return { title, initial: initial as { elements: unknown[]; edges: unknown[] } | undefined };
+  return {
+    title: requiredString(record, "title"),
+    changes: record.changes as CanvasGraphChange[],
+    layout: layout as "auto" | "horizontal" | "vertical" | undefined,
+  };
 }
 
 function canvasUpdateInput(payload: unknown): {
   canvasId: string;
-  document: { elements: unknown[]; edges: unknown[] };
+  changes: CanvasUpdateChange[];
 } {
   const record = asPayload(payload);
-  const document = record.document;
-  if (
-    typeof document !== "object" ||
-    document === null ||
-    !Array.isArray((document as { elements?: unknown }).elements) ||
-    !Array.isArray((document as { edges?: unknown }).edges)
-  ) {
-    throw new Error("document 必须是 { elements: [...], edges: [...] }。");
-  }
+  if (!Array.isArray(record.changes)) throw new Error("changes 必须是数组。");
   return {
     canvasId: requiredStableEntityId(record, "canvasId"),
-    document: document as { elements: unknown[]; edges: unknown[] },
+    changes: record.changes as CanvasUpdateChange[],
   };
+}
+
+function frozenCanvasDocument(payload: unknown): CanvasDocument | undefined {
+  const document = asPayload(payload).document;
+  return isRecord(document) && Array.isArray(document.elements) && Array.isArray(document.edges)
+    ? (document as CanvasDocument)
+    : undefined;
 }
 
 function canvasDeleteInput(payload: unknown): string {
@@ -669,6 +727,30 @@ export async function hydratePiApprovalPayload(
         title: context.title,
         content: context.content,
       },
+    };
+  }
+  if (toolName === "canvas_create") {
+    const input = canvasCreateInput(record);
+    const normalized = await Effect.runPromise(
+      normalizeCanvasChanges({ changes: input.changes, layout: input.layout ?? "auto" }),
+    );
+    return { ...record, document: normalized.document };
+  }
+  if (toolName === "canvas_update") {
+    const input = canvasUpdateInput(record);
+    const detail = await Effect.runPromise(
+      understandingCanvasService.getCanvasDetail(input.canvasId),
+    );
+    if (!detail) throw new Error(`Canvas not found: ${input.canvasId}`);
+    const before = { elements: detail.elements, edges: detail.edges };
+    const normalized = await Effect.runPromise(
+      normalizeCanvasChanges({ base: before, changes: input.changes }),
+    );
+    return {
+      ...record,
+      before: { title: detail.canvas.title, document: before },
+      document: normalized.document,
+      normalizedTitle: normalized.title ?? null,
     };
   }
   return record;
@@ -738,20 +820,28 @@ export async function executePiApprovedTool(
   // --- canvas（审批后经 CanvasCore 落库；C15 draft 提案由前端渲染） ---
 
   if (toolName === "canvas_create") {
-    const { title, initial } = canvasCreateInput(payload);
-    const canvas = await Effect.runPromise(understandingCanvasService.createCanvas({ title }));
-    if (initial) {
-      await Effect.runPromise(
-        understandingCanvasService.saveCanvas(canvas.id, initial as unknown as CanvasDocument),
-      );
-    }
+    const input = canvasCreateInput(payload);
+    const document =
+      frozenCanvasDocument(payload) ??
+      ((await hydratePiApprovalPayload(toolName, payload)).document as CanvasDocument);
+    const canvas = await Effect.runPromise(
+      understandingCanvasService.createCanvasWithDocument({ title: input.title }, document),
+    );
     return { resultRefType: "canvas", resultRefId: canvas.id, resultRefTitle: canvas.title };
   }
 
   if (toolName === "canvas_update") {
-    const { canvasId, document } = canvasUpdateInput(payload);
+    const { canvasId } = canvasUpdateInput(payload);
+    const prepared = frozenCanvasDocument(payload)
+      ? asPayload(payload)
+      : await hydratePiApprovalPayload(toolName, payload);
+    const document = frozenCanvasDocument(prepared)!;
     await Effect.runPromise(
-      understandingCanvasService.saveCanvas(canvasId, document as unknown as CanvasDocument),
+      understandingCanvasService.saveCanvas(
+        canvasId,
+        document,
+        typeof prepared.normalizedTitle === "string" ? prepared.normalizedTitle : undefined,
+      ),
     );
     return { resultRefType: "canvas", resultRefId: canvasId };
   }

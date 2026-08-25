@@ -538,7 +538,9 @@ function approvalEntityId(
         ? "domainId"
         : toolName === "context_update"
           ? "contextId"
-          : undefined;
+          : toolName === "canvas_update"
+            ? "canvasId"
+            : undefined;
   const value = key ? payload[key] : undefined;
   return key && typeof value === "string" && value.trim() ? { key, value } : undefined;
 }
@@ -1123,6 +1125,10 @@ export class PiAgentHost {
       string,
       { entityId: string; task: Promise<Record<string, unknown>> }
     >();
+    const canvasPreviewHydrationTasks = new Map<
+      string,
+      { input: string; task: Promise<Record<string, unknown>> }
+    >();
     const emit = (event: AgentSessionEvent) => this.appendAndPublish(manager, event);
     const emitLive = (event: AgentLiveEvent) => this.emitLive(event);
     const createApprovalRequested = (
@@ -1195,6 +1201,27 @@ export class PiAgentHost {
       if (emittedApprovalRequestIds.has(approvalId)) return;
       latestApprovalPreviewPayloads.set(approvalId, payload);
 
+      if (toolName === "canvas_create" || toolName === "canvas_update") {
+        const input = JSON.stringify(payload);
+        const hydration = hydratePiApprovalPayload(toolName, payload).catch((error) => {
+          agentLog.warn("pi.approval.previewHydrateFailed", {
+            sessionId: command.sessionId,
+            runId,
+            toolName,
+            toolCallId,
+            error: formatAgentError(error),
+          });
+          return payload;
+        });
+        canvasPreviewHydrationTasks.set(approvalId, { input, task: hydration });
+        const task = hydration.then((hydratedPayload) => {
+          if (latestApprovalPreviewPayloads.get(approvalId) !== payload) return;
+          sendApprovalPreview(toolCallId, toolName, hydratedPayload);
+        });
+        approvalRequestTasks.push(task);
+        return;
+      }
+
       const entityId = previewEntityId(toolName, payload, complete);
       if (!entityId) {
         sendApprovalPreview(toolCallId, toolName, payload);
@@ -1252,19 +1279,23 @@ export class PiAgentHost {
       requestedApprovalIds.add(approvalId);
       const entityId = approvalEntityId(toolName, payload)?.value;
       const previewHydration = approvalPreviewHydrationTasks.get(approvalId);
+      const canvasPreviewHydration = canvasPreviewHydrationTasks.get(approvalId);
       const hydration =
-        entityId && previewHydration?.entityId === entityId
-          ? previewHydration.task
-          : hydratePiApprovalPayload(toolName, payload).catch((error) => {
-              agentLog.warn("pi.approval.hydrateFailed", {
-                sessionId: command.sessionId,
-                runId,
-                toolName,
-                toolCallId,
-                error: formatAgentError(error),
+        (toolName === "canvas_create" || toolName === "canvas_update") &&
+        canvasPreviewHydration?.input === JSON.stringify(payload)
+          ? canvasPreviewHydration.task
+          : entityId && previewHydration?.entityId === entityId
+            ? previewHydration.task
+            : hydratePiApprovalPayload(toolName, payload).catch((error) => {
+                agentLog.warn("pi.approval.hydrateFailed", {
+                  sessionId: command.sessionId,
+                  runId,
+                  toolName,
+                  toolCallId,
+                  error: formatAgentError(error),
+                });
+                return payload;
               });
-              return payload;
-            });
       const task = hydration.then((hydratedPayload) => {
         const requested = createApprovalRequested(
           toolCallId,

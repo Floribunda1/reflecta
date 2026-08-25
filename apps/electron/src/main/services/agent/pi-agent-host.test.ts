@@ -1581,6 +1581,125 @@ describe("PiAgentHost", () => {
     expect(persistedApprovals[0]).not.toHaveProperty("preview");
   });
 
+  test("reuses the normalized canvas preview as the durable approval payload", async () => {
+    isPiApprovalToolNameMock.mockImplementation((name) => name === "canvas_create");
+    hydratePiApprovalPayloadMock.mockImplementation(async (_toolName, payload) => {
+      const changes = payload.changes as unknown[];
+      return {
+        ...payload,
+        document: {
+          elements: [{ id: `generated-${changes.length}`, kind: "text" }],
+          edges: [],
+        },
+      };
+    });
+    const root = tempRoot();
+    const log = new AgentSessionLog(root);
+    const thread = log.createSession("新对话");
+    const manager = await log.openSession(thread.id);
+    log.appendEvent(manager, {
+      id: "evt_existing_cancel",
+      sessionId: thread.id,
+      runId: "run_existing",
+      type: "run.cancelled",
+      createdAt: "2026-06-23T00:00:00.000Z",
+    });
+    let listener: ((event: unknown) => void) | undefined;
+    const firstArgs = {
+      title: "Canvas",
+      changes: [{ op: "add_element", ref: "note", element: { kind: "text", text: "Hello" } }],
+    };
+    const args = {
+      ...firstArgs,
+      changes: [
+        ...firstArgs.changes,
+        { op: "add_element", ref: "answer", element: { kind: "text", text: "World" } },
+      ],
+    };
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: manager,
+        subscribe: (next: (event: unknown) => void) => {
+          listener = next;
+          return () => {};
+        },
+        prompt: vi.fn(async () => {
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: {
+              type: "toolcall_delta",
+              contentIndex: 0,
+              partial: {
+                content: [
+                  {
+                    type: "toolCall",
+                    id: "tool_1",
+                    name: "canvas_create",
+                    arguments: firstArgs,
+                  },
+                ],
+              },
+            },
+          });
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          listener?.({
+            type: "message_update",
+            assistantMessageEvent: {
+              type: "toolcall_end",
+              toolCall: { type: "toolCall", id: "tool_1", name: "canvas_create", arguments: args },
+            },
+          });
+          listener?.({
+            type: "tool_execution_start",
+            toolCallId: "tool_1",
+            toolName: "canvas_create",
+            args: structuredClone(args),
+          });
+          listener?.({
+            type: "message_end",
+            message: {
+              role: "assistant",
+              content: [
+                {
+                  type: "toolCall",
+                  id: "tool_1",
+                  name: "canvas_create",
+                  arguments: args,
+                },
+              ],
+              provider: "openai",
+              model: "gpt-4o",
+              stopReason: "toolUse",
+            },
+          });
+        }),
+        getContextUsage: vi.fn(() => undefined),
+        dispose: vi.fn(),
+        abort: vi.fn(),
+      },
+    });
+    const host = new PiAgentHost(root);
+    const { frames } = await recordSessionFrames(host, thread.id);
+
+    await (host as unknown as { sendMessage: (command: unknown) => Promise<void> }).sendMessage({
+      type: "message.send",
+      sessionId: thread.id,
+      text: "创建画布",
+      modelSelection: { providerId: "openai", modelId: "gpt-4o" },
+    });
+
+    expect(hydratePiApprovalPayloadMock).toHaveBeenCalledTimes(2);
+    const approvals = approvalTransitions(frames);
+    expect(approvals.map((approval) => approval.preview)).toEqual([true, true, undefined]);
+    expect(
+      approvals.map(
+        (approval) =>
+          (approval.payload as { document: { elements: Array<{ id: string }> } }).document
+            .elements[0].id,
+      ),
+    ).toEqual(["generated-1", "generated-2", "generated-2"]);
+  });
+
   test("hydrates update previews before tool arguments finish streaming", async () => {
     isPiApprovalToolNameMock.mockImplementation((name) => name === "understanding_update");
     const hydrationResolvers: Array<() => void> = [];

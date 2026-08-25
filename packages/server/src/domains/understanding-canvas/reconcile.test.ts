@@ -91,6 +91,61 @@ const readRows = async () => {
 };
 
 describe("CanvasCore.saveCanvas reconciliation", () => {
+  test("creates a canvas and its initial document together", async () => {
+    const core = new CanvasCore(db);
+    const created = await Effect.runPromise(
+      core.createCanvasWithDocument(
+        { title: "Agent canvas" },
+        { elements: [element("agent-node")], edges: [] },
+      ),
+    );
+
+    const detail = await Effect.runPromise(core.getCanvasDetail(created.id));
+    expect(detail?.canvas.title).toBe("Agent canvas");
+    expect(detail?.elements.map(({ id }) => id)).toEqual(["agent-node"]);
+  });
+
+  test("rolls back canvas creation when its initial document cannot be inserted", async () => {
+    const core = new CanvasCore(db);
+    const before = db.$client
+      .prepare("SELECT COUNT(*) AS count FROM understanding_canvases")
+      .get() as {
+      count: number;
+    };
+
+    await expect(
+      Effect.runPromise(
+        core.createCanvasWithDocument(
+          { title: "Broken canvas" },
+          {
+            elements: [
+              element("missing-canvas-ref", {
+                kind: "canvas_ref",
+                canvasRefId: "does-not-exist",
+              }),
+            ],
+            edges: [],
+          },
+        ),
+      ),
+    ).rejects.toThrow();
+
+    const after = db.$client
+      .prepare("SELECT COUNT(*) AS count FROM understanding_canvases")
+      .get() as {
+      count: number;
+    };
+    expect(after.count).toBe(before.count);
+  });
+
+  test("updates title with the document in one save", async () => {
+    const core = new CanvasCore(db);
+    await Effect.runPromise(core.saveCanvas(canvasId, { elements: [], edges: [] }, "Renamed"));
+    await expect(Effect.runPromise(core.getCanvas(canvasId))).resolves.toMatchObject({
+      title: "Renamed",
+    });
+  });
+
   test("inserts new elements and edges", async () => {
     const core = new CanvasCore(db);
     const doc: CanvasDocument = {
