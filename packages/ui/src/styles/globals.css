@@ -77,6 +77,35 @@
   }
 }
 
+/* 骨架行光带：AI artifact 生成期的流动感（与 shimmer-text 同理，用于节点占位行） */
+@keyframes skeleton-line {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-line {
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in oklch, var(--muted-foreground) 12%, transparent) 35%,
+    color-mix(in oklch, var(--muted-foreground) 26%, transparent) 50%,
+    color-mix(in oklch, var(--muted-foreground) 12%, transparent) 65%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-line 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line {
+    animation: none;
+    background-image: none;
+    background-color: color-mix(in oklch, var(--muted-foreground) 16%, transparent);
+  }
+}
+
 /* 进入：淡入 + 上浮（面板/行内容）—— 参数与 lib/motion.ts 的 FADE_UP_Y 对齐 */
 @keyframes fade-up {
   from {

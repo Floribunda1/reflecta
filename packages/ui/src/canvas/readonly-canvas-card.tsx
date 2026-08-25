@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
+import { m, MotionConfig } from "motion/react";
 import { cn } from "../lib/utils";
-import { Skeleton } from "../components/skeleton";
+import { EASE_OUT_EXPO } from "../lib/motion";
 import type { CanvasDocument } from "@reflecta/shared";
 import type {
   CanvasReferencedCanvasView,
@@ -14,8 +15,31 @@ const CanvasReadOnlyView = lazy(() =>
   import("./CanvasReadOnlyView").then((m) => ({ default: m.CanvasReadOnlyView })),
 );
 
-/** 模拟画布最终图布局的骨架：若干 pulsing 卡片节点，表达「结构正在成形」。
- * 导出供 Storybook 独立验收加载态；生产仅作为 Suspense fallback。 */
+/** 骨架节点：卡片逐个浮现（artifact 生成感），内部行占位带光带流动。 */
+function SkeletonNode({ className }: { className: string }) {
+  return (
+    <m.div
+      className={cn(
+        "absolute rounded-md border border-border bg-muted/40 p-2 shadow-sm",
+        className,
+      )}
+      variants={{
+        hidden: { opacity: 0, y: 8, scale: 0.96 },
+        show: {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          transition: { duration: 0.32, ease: EASE_OUT_EXPO },
+        },
+      }}
+    >
+      <div className="skeleton-line mb-1.5 h-1.5 w-3/4 rounded-full" />
+      <div className="skeleton-line h-1.5 w-1/2 rounded-full" />
+    </m.div>
+  );
+}
+
+/** 模拟画布最终图布局的骨架：节点逐个浮现 + 行光带流动，表达「AI 正在生成结构」。 */
 export function ReadOnlyCanvasSkeleton() {
   return (
     <div
@@ -23,16 +47,28 @@ export function ReadOnlyCanvasSkeleton() {
       data-testid="canvas-view-skeleton"
       aria-hidden="true"
     >
-      <Skeleton className="absolute left-[6%] top-[12%] h-14 w-36 rounded-md" />
-      <Skeleton className="absolute left-[42%] top-[4%] h-14 w-40 rounded-md" />
-      <Skeleton className="absolute left-[63%] top-[36%] h-14 w-32 rounded-md" />
-      <Skeleton className="absolute left-[18%] top-[60%] h-14 w-36 rounded-md" />
-      <Skeleton className="absolute left-[52%] top-[72%] h-14 w-40 rounded-md" />
-      <Skeleton className="absolute left-[74%] top-[66%] h-12 w-28 rounded-md" />
-      {/* 极简连接线，暗示节点之间的关系 */}
-      <div className="absolute left-[38%] top-[22%] h-px w-28 -rotate-12 bg-border" />
-      <div className="absolute left-[52%] top-[46%] h-px w-24 rotate-45 bg-border" />
-      <div className="absolute left-[72%] top-[82%] h-px w-28 -rotate-6 bg-border" />
+      {/* 连接线（静态）：暗示节点之间的关系 */}
+      <div className="absolute left-[38%] top-[22%] h-px w-28 -rotate-12 bg-foreground/10" />
+      <div className="absolute left-[52%] top-[46%] h-px w-24 rotate-45 bg-foreground/10" />
+      <div className="absolute left-[72%] top-[82%] h-px w-28 -rotate-6 bg-foreground/10" />
+      <MotionConfig reducedMotion="user">
+        <m.div
+          className="absolute inset-0"
+          initial="hidden"
+          animate="show"
+          variants={{
+            hidden: {},
+            show: { transition: { staggerChildren: 0.09, delayChildren: 0.1 } },
+          }}
+        >
+          <SkeletonNode className="left-[6%] top-[12%] h-14 w-36" />
+          <SkeletonNode className="left-[42%] top-[4%] h-14 w-40" />
+          <SkeletonNode className="left-[63%] top-[36%] h-14 w-32" />
+          <SkeletonNode className="left-[18%] top-[60%] h-14 w-36" />
+          <SkeletonNode className="left-[52%] top-[72%] h-14 w-40" />
+          <SkeletonNode className="left-[74%] top-[66%] h-12 w-28" />
+        </m.div>
+      </MotionConfig>
     </div>
   );
 }
