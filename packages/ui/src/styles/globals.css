@@ -77,31 +77,134 @@
   }
 }
 
-/* 骨架行光带：AI artifact 生成期的流动感（与 shimmer-text 同理，用于节点占位行） */
-@keyframes skeleton-line {
-  from {
-    background-position: 200% 0;
+/* AI artifact 生成期骨架：移植 AFFiNE ArtifactSkeleton 的纯 CSS 呼吸线条（线宽循环伸缩）。 */
+@keyframes artifact-skel-1 {
+  0%,
+  100% {
+    width: 98px;
   }
-  to {
-    background-position: -200% 0;
+  25% {
+    width: 120px;
+  }
+  50% {
+    width: 85px;
+  }
+  75% {
+    width: 110px;
+  }
+}
+@keyframes artifact-skel-2 {
+  0%,
+  100% {
+    width: 195px;
+  }
+  30% {
+    width: 180px;
+  }
+  60% {
+    width: 210px;
+  }
+  80% {
+    width: 165px;
+  }
+}
+@keyframes artifact-skel-3 {
+  0%,
+  100% {
+    width: 163px;
+  }
+  40% {
+    width: 140px;
+  }
+  70% {
+    width: 180px;
+  }
+  90% {
+    width: 155px;
+  }
+}
+@keyframes artifact-skel-4 {
+  0%,
+  100% {
+    width: 107px;
+  }
+  20% {
+    width: 130px;
+  }
+  60% {
+    width: 90px;
+  }
+  85% {
+    width: 115px;
+  }
+}
+@keyframes artifact-skel-5 {
+  0%,
+  100% {
+    width: 134px;
+  }
+  35% {
+    width: 160px;
+  }
+  65% {
+    width: 120px;
+  }
+  80% {
+    width: 145px;
+  }
+}
+@keyframes artifact-skel-6 {
+  0%,
+  100% {
+    width: 154px;
+  }
+  30% {
+    width: 135px;
+  }
+  55% {
+    width: 175px;
+  }
+  75% {
+    width: 160px;
   }
 }
 
-.skeleton-line {
-  background-image: linear-gradient(
-    90deg,
-    color-mix(in oklch, var(--muted-foreground) 12%, transparent) 35%,
-    color-mix(in oklch, var(--muted-foreground) 26%, transparent) 50%,
-    color-mix(in oklch, var(--muted-foreground) 12%, transparent) 65%
-  );
-  background-size: 200% 100%;
-  animation: skeleton-line 1.6s linear infinite;
+.artifact-line {
+  position: absolute;
+  left: 11px;
+  width: 110px;
+  height: 10px;
+  border-radius: 6px;
+  background-color: color-mix(in oklch, var(--muted-foreground) 24%, transparent);
+}
+.artifact-line-1 {
+  top: 48.5px;
+  animation: artifact-skel-1 3.2s ease-in-out infinite;
+}
+.artifact-line-2 {
+  top: 73.5px;
+  animation: artifact-skel-2 4.1s ease-in-out infinite;
+}
+.artifact-line-3 {
+  top: 98.5px;
+  animation: artifact-skel-3 2.8s ease-in-out infinite;
+}
+.artifact-line-4 {
+  top: 123.5px;
+  animation: artifact-skel-4 3.7s ease-in-out infinite;
+}
+.artifact-line-5 {
+  top: 148.5px;
+  animation: artifact-skel-5 3.5s ease-in-out infinite;
+}
+.artifact-line-6 {
+  top: 170.5px;
+  animation: artifact-skel-6 4.3s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skeleton-line {
+  .artifact-line {
     animation: none;
-    background-image: none;
     background-color: color-mix(in oklch, var(--muted-foreground) 16%, transparent);
   }
 }
