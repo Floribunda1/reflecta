@@ -446,7 +446,7 @@ type ApprovalFixture = {
   output: unknown;
 };
 
-/** canvas 提案草稿：与 canvas_read 返回的 detail 同构，验证只读草稿渲染。 */
+/** canvas 提案草稿：host 将 Agent changes 归一化后的内部文档。 */
 const canvasDraftDocument = {
   elements: [
     {
@@ -504,6 +504,65 @@ const canvasDraftDocument = {
     },
   ],
 };
+
+const canvasCreateChanges = [
+  {
+    op: "add_element",
+    ref: "strategy",
+    element: { kind: "understanding", understandingId: "u-irrigation" },
+  },
+  {
+    op: "add_element",
+    ref: "observation",
+    element: { kind: "text", text: "线头记录\n稳定回灌依赖观察窗，而非瞬时峰值。" },
+  },
+  {
+    op: "add_edge",
+    ref: "derivation",
+    sourceRef: "strategy",
+    targetRef: "observation",
+    label: "推导出",
+  },
+] as const;
+
+const canvasUpdateChanges = [
+  {
+    op: "update_element",
+    ref: "cvn-2",
+    after: { kind: "text", text: "线头记录\n稳定回灌依赖观察窗，而非瞬时峰值。" },
+  },
+  { op: "relayout", direction: "horizontal" },
+] as const;
+
+const canvasBeforeUpdateDocument = {
+  ...canvasDraftDocument,
+  elements: [
+    canvasDraftDocument.elements[0],
+    {
+      ...canvasDraftDocument.elements[1],
+      x: 0,
+      y: 260,
+      props: { text: "线头记录\n暂以瞬时峰值作为恢复依据。" },
+    },
+  ],
+  edges: canvasDraftDocument.edges.map((edge) => ({
+    ...edge,
+    source: { ...edge.source, port: "bottom" },
+    target: { ...edge.target, port: "top" },
+  })),
+};
+
+const canvasStreamingFrames = [
+  {
+    changes: canvasCreateChanges.slice(0, 1),
+    document: { elements: canvasDraftDocument.elements.slice(0, 1), edges: [] },
+  },
+  {
+    changes: canvasCreateChanges.slice(0, 2),
+    document: { elements: canvasDraftDocument.elements, edges: [] },
+  },
+  { changes: canvasCreateChanges, document: canvasDraftDocument },
+] as const;
 
 const approvalTools: readonly ApprovalFixture[] = [
   {
@@ -702,7 +761,9 @@ const approvalTools: readonly ApprovalFixture[] = [
   {
     block: approval("canvas_create", "候选画布", {
       title: "极地温室的分区灌溉策略",
-      initial: canvasDraftDocument,
+      changes: canvasCreateChanges,
+      layout: "auto",
+      document: canvasDraftDocument,
     }),
     output: {
       approvalStatus: "approved",
@@ -715,7 +776,12 @@ const approvalTools: readonly ApprovalFixture[] = [
   {
     block: approval("canvas_update", "候选修改画布", {
       canvasId: "canvas-irrigation",
+      changes: canvasUpdateChanges,
       reason: "把昨夜复验的推导链显式画出来，用户据此验收结构与缺失。",
+      before: {
+        title: "分区灌溉策略画布",
+        document: canvasBeforeUpdateDocument,
+      },
       document: canvasDraftDocument,
     }),
     output: {
@@ -896,6 +962,30 @@ function AutoStreamingTool() {
   return <ToolCard block={block} />;
 }
 
+function CanvasStreamingProposalCard() {
+  const frame = canvasStreamingFrames[useAutoFrame(canvasStreamingFrames.length)];
+  const block = approval(
+    "canvas_create",
+    "候选画布",
+    {
+      title: "极地温室的分区灌溉策略",
+      changes: frame.changes,
+      layout: "auto",
+      document: frame.document,
+    },
+    { approvalId: "approval-canvas-streaming", preview: true },
+  );
+
+  return (
+    <div className="grid min-w-0 gap-1">
+      <code className="px-3 text-xs text-muted-foreground">
+        canvas_create · {frame.changes.length}/3 changes
+      </code>
+      <AgentProposalCard proposal={proposalView(block)} />
+    </div>
+  );
+}
+
 function InteractiveProposalCard({ fixture }: { fixture: ApprovalFixture }) {
   const [block, setBlock] = useState(fixture.block);
 
@@ -1020,6 +1110,12 @@ function ToolGallery() {
         description="使用稳定的 toolCallId 自动补全命令，再从运行中推进到完成。"
       >
         <AutoStreamingTool />
+      </StoryCase>
+      <StoryCase
+        title="Canvas 累计流式预览"
+        description="Agent 依次提交节点与连线；host 每次归一化累计 changes，并用同一审批块替换草稿。"
+      >
+        <CanvasStreamingProposalCard />
       </StoryCase>
       <StoryCase
         title="生命周期"
