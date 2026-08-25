@@ -1,7 +1,7 @@
 import { useLatest } from "ahooks";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { X } from "lucide-react";
+import { FileText, MessageCircleDashed, X } from "lucide-react";
 import { Empty, EmptyDescription } from "../components/empty";
 import {
   cloneElement,
@@ -18,6 +18,15 @@ import {
 import type { Activity, ThemeInput } from "react-activity-calendar";
 import "react-activity-calendar/tooltips.css";
 import { Button } from "../components/button";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "../components/item";
+import { ScrollArea } from "../components/scroll-area";
 import {
   Popover,
   PopoverContent,
@@ -100,30 +109,51 @@ function DayDetail({ detail }: { detail: ParticipationDayDetail }) {
   }
 
   return (
-    <div className="flex flex-col gap-2 text-sm">
+    <div className="space-y-5">
       {detail.sessions.length > 0 ? (
-        <div>
-          <span className="text-xs font-medium text-muted-foreground">对话</span>
-          <ul className="mt-1 flex flex-col gap-1">
+        <section className="space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <MessageCircleDashed className="size-3.5" />
+            <span>对话</span>
+          </div>
+          <ItemGroup className="gap-1.5">
             {detail.sessions.map((session) => (
-              <li key={session.id} className="truncate text-muted-foreground">
-                {session.title} · {session.messageCount} 条消息
-              </li>
+              <Item key={session.id} variant="muted" size="sm">
+                <ItemMedia variant="icon">
+                  <MessageCircleDashed className="text-muted-foreground" />
+                </ItemMedia>
+                <ItemContent className="min-w-0">
+                  <ItemTitle>{session.title}</ItemTitle>
+                </ItemContent>
+                <ItemActions>
+                  <span className="text-xs text-muted-foreground">
+                    {session.messageCount} 条消息
+                  </span>
+                </ItemActions>
+              </Item>
             ))}
-          </ul>
-        </div>
+          </ItemGroup>
+        </section>
       ) : null}
       {detail.understandings.length > 0 ? (
-        <div>
-          <span className="text-xs font-medium text-muted-foreground">理解</span>
-          <ul className="mt-1 flex flex-col gap-1">
+        <section className="space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <FileText className="size-3.5" />
+            <span>理解</span>
+          </div>
+          <ItemGroup className="gap-1.5">
             {detail.understandings.map((understanding) => (
-              <li key={understanding.id} className="truncate">
-                {understanding.title}
-              </li>
+              <Item key={understanding.id} variant="outline" size="sm">
+                <ItemMedia variant="icon">
+                  <FileText className="text-muted-foreground" />
+                </ItemMedia>
+                <ItemContent className="min-w-0">
+                  <ItemTitle>{understanding.title}</ItemTitle>
+                </ItemContent>
+              </Item>
             ))}
-          </ul>
-        </div>
+          </ItemGroup>
+        </section>
       ) : null}
     </div>
   );
@@ -261,9 +291,9 @@ export const ParticipationOverview = memo(function ParticipationOverview({
             align="start"
             side="bottom"
             sideOffset={6}
-            className="w-80"
+            className="w-80 gap-0 overflow-hidden p-0"
           >
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 border-b px-3 py-2.5">
               <PopoverHeader>
                 <PopoverTitle>{dayTitle(dayPopover.date)}</PopoverTitle>
               </PopoverHeader>
@@ -277,7 +307,11 @@ export const ParticipationOverview = memo(function ParticipationOverview({
                 <X size={14} />
               </Button>
             </div>
-            <DayDetail detail={resolveDayDetail?.(dayPopover.date) ?? EMPTY_DAY_DETAIL} />
+            <ScrollArea className="max-h-[min(70vh,28rem)]">
+              <div className="p-3">
+                <DayDetail detail={resolveDayDetail?.(dayPopover.date) ?? EMPTY_DAY_DETAIL} />
+              </div>
+            </ScrollArea>
           </PopoverContent>
         </Popover>
       ) : null}
