@@ -4,6 +4,7 @@ import { m, MotionConfig } from "motion/react";
 import { cn } from "../lib/utils";
 import { EASE_OUT_EXPO, ENTER_DURATION, FADE_UP_Y, POP_IN_SCALE } from "../lib/motion";
 import type { CanvasDocument } from "@reflecta/shared";
+import type { ResolveChatEntity } from "../chat/entity";
 import type {
   CanvasReferencedCanvasView,
   CanvasShapeData,
@@ -157,9 +158,28 @@ function canvasShapeData(
       refs.set(title.id, { id: title.id, title: title.title ?? null, body: "", deleted: false });
     }
   }
+  // [[u:id]] 双链解析：只读图里只有理解 / 画布引用两类已知实体，其余（context/domain）
+  // 无可解析数据就返回 undefined，Milkdown 会回落为裸 id 显示，与 workspace 行为一致。
+  const resolveWikiLink: ResolveChatEntity = (reference) => {
+    if (reference.type === "understanding") {
+      const ref = refs.get(reference.id);
+      if (ref?.title) return { state: "ready", label: ref.title, canOpen: !ref.deleted };
+    }
+    if (reference.type === "canvas") {
+      const ref = referencedCanvases?.get(reference.id);
+      if (ref?.title) return { state: "ready", label: ref.title, canOpen: !ref.deleted };
+    }
+    return undefined;
+  };
   return {
     understandingRefs: refs,
     referencedCanvases: referencedCanvases ?? new Map(),
+    resolveWikiLink,
+    // 鼠标点理解卡正文里的 wiki link：画布引用交给已有的跳转回调；
+    // 理解 / context / domain 在只读卡没有导航入口，保持 inert（与现状一致）。
+    onWikiLinkOpen: (reference) => {
+      if (reference.type === "canvas") onCanvasRefClick?.(reference.id);
+    },
     ...(onCanvasRefClick ? { onCanvasRefClick } : {}),
   };
 }

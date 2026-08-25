@@ -296,7 +296,6 @@ export const CanvasGraph = React.memo(
           type: "dot",
           args: { color: "rgb(0 0 0 / 0.08)" },
         },
-        virtual: true,
         async: true,
         interacting: () =>
           readonlyRef.current
