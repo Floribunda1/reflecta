@@ -312,6 +312,34 @@ const OPPOSITE_PORT: Record<CanvasEdgePortId, CanvasEdgePortId> = {
   left: "right",
 };
 
+const BEZIER_CURVATURE = 0.25;
+
+// Same directional control offset as React Flow's getBezierPath: the handle
+// follows the port axis, so a large cross-axis gap cannot make the curve loop.
+function calculateControlOffset(distance: number, curvature: number): number {
+  if (distance >= 0) return distance / 2;
+  return curvature * 25 * Math.sqrt(-distance);
+}
+
+function controlPoint(
+  port: CanvasEdgePortId,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): { x: number; y: number } {
+  switch (port) {
+    case "left":
+      return { x: x1 - calculateControlOffset(x1 - x2, BEZIER_CURVATURE), y: y1 };
+    case "right":
+      return { x: x1 + calculateControlOffset(x2 - x1, BEZIER_CURVATURE), y: y1 };
+    case "top":
+      return { x: x1, y: y1 - calculateControlOffset(y1 - y2, BEZIER_CURVATURE) };
+    case "bottom":
+      return { x: x1, y: y1 + calculateControlOffset(y2 - y1, BEZIER_CURVATURE) };
+  }
+}
+
 export function curvePathData(
   source: { x: number; y: number },
   target: { x: number; y: number },
@@ -319,12 +347,20 @@ export function curvePathData(
   targetPort: CanvasEdgePortId,
   routePoints = curveTerminalRoutePoints(source, target, sourcePort, targetPort),
 ): string {
-  const sourceVector = PORT_VECTORS[sourcePort];
-  const targetVector = PORT_VECTORS[targetPort];
   const [sourceStub, targetStub] = routePoints;
-  const control = Math.min(
-    160,
-    Math.max(48, Math.hypot(targetStub.x - sourceStub.x, targetStub.y - sourceStub.y) / 2),
+  const sourceControl = controlPoint(
+    sourcePort,
+    sourceStub.x,
+    sourceStub.y,
+    targetStub.x,
+    targetStub.y,
+  );
+  const targetControl = controlPoint(
+    targetPort,
+    targetStub.x,
+    targetStub.y,
+    sourceStub.x,
+    sourceStub.y,
   );
   const path = new Path();
   path.appendSegment(Path.createSegment("M", source));
@@ -332,10 +368,10 @@ export function curvePathData(
   path.appendSegment(
     Path.createSegment(
       "C",
-      sourceStub.x + sourceVector.x * control,
-      sourceStub.y + sourceVector.y * control,
-      targetStub.x + targetVector.x * control,
-      targetStub.y + targetVector.y * control,
+      sourceControl.x,
+      sourceControl.y,
+      targetControl.x,
+      targetControl.y,
       targetStub.x,
       targetStub.y,
     ),

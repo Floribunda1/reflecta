@@ -276,6 +276,12 @@ describe("in-place cell updates", () => {
     );
   });
 
+  test("uses port-direction distance instead of vertical distance for horizontal curves", () => {
+    expect(curvePathData({ x: 0, y: 0 }, { x: 100, y: 450 }, "right", "left")).toBe(
+      "M 0 0 L 16 0 C 50 0 50 450 84 450 L 100 450",
+    );
+  });
+
   test("excludes X6's transient incomplete edge from document snapshots", () => {
     const incomplete = {
       getSourceCellId: () => "a",
