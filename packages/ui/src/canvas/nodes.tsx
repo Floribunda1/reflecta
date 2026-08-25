@@ -98,13 +98,14 @@ function UnderstandingShape({ node, graph }: CardProps) {
 
 function TextShape({ node, graph }: CardProps) {
   const { element, selected, shapeData, update } = useCard(node, graph);
-  const { readonly, multiSelected, onCellAction } = shapeData;
+  const { readonly, multiSelected, onCellAction, renderMarkdown } = shapeData;
   if (element.kind !== "text") return null;
   return (
     <CanvasTextCard
       id={element.id}
       text={element.props.text}
       color={element.props.color}
+      renderMarkdown={renderMarkdown}
       selected={selected}
       readonly={readonly}
       multiSelected={multiSelected}

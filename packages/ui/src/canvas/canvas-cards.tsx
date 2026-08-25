@@ -234,6 +234,8 @@ export type CanvasTextCardProps = {
   selected?: boolean;
   readonly?: boolean;
   multiSelected?: boolean;
+  /** 全文渲染：调用方传入解析版 Markdown 组件（默认不解析 [[u:id]]）。 */
+  renderMarkdown?: MarkdownRenderer;
   onTextChange?: (text: string) => void;
   onColorChange?: (color?: string) => void;
   onRemove?: () => void;
@@ -247,10 +249,12 @@ export function CanvasTextCard({
   selected = false,
   readonly = false,
   multiSelected = false,
+  renderMarkdown,
   onTextChange,
   onColorChange,
   onRemove,
 }: CanvasTextCardProps) {
+  const RenderMarkdown = renderMarkdown ?? MarkdownPreview;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(text);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -310,7 +314,7 @@ export function CanvasTextCard({
         </div>
       ) : (
         <div className="nowheel min-h-0 flex-1 overflow-y-auto p-2">
-          <MarkdownPreview value={text} zoomImages={false} />
+          <RenderMarkdown value={text} zoomImages={false} />
         </div>
       )}
     </div>

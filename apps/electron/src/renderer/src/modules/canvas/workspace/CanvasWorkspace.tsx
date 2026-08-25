@@ -224,6 +224,7 @@ export function CanvasWorkspace({ canvasId }: { canvasId: string }) {
               referencedCanvases: new Map(
                 (preview.referencedCanvases ?? []).map((item) => [item.id, item]),
               ),
+              renderMarkdown: MarkdownPreview,
             }
           : undefined,
       });
