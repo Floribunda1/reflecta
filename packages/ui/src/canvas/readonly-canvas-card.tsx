@@ -1,10 +1,12 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Maximize2, Minimize2 } from "lucide-react";
 import { cn } from "../lib/utils";
-import { Button } from "../components/button";
 import { Skeleton } from "../components/skeleton";
 import type { CanvasDocument } from "@reflecta/shared";
-import type { CanvasShapeData, CanvasUnderstandingRefView } from "./shape-context";
+import type {
+  CanvasReferencedCanvasView,
+  CanvasShapeData,
+  CanvasUnderstandingRefView,
+} from "./shape-context";
 
 // 重型 X6 只读图 lazy 引入：单测跑在 ESM 环境，X6 CJS lib 载入会炸；
 // 且只在实际渲染时才需要 X6。Suspense fallback 作为「好看的加载」占位。
@@ -38,6 +40,8 @@ export function ReadOnlyCanvasSkeleton() {
 function canvasShapeData(
   understandingRefs: ReadonlyMap<string, CanvasUnderstandingRefView> | undefined,
   understandingTitles: ReadonlyArray<{ id: string; title: string }> | undefined,
+  referencedCanvases: ReadonlyMap<string, CanvasReferencedCanvasView> | undefined,
+  onCanvasRefClick: ((canvasId: string) => void) | undefined,
 ): CanvasShapeData {
   // 引用展示数据（消息层实时 hydration）优先；不足时用 output 冻结的标题兜底，
   // 保证实体已被删除 / 重命名时引用卡仍有可读标签。
@@ -47,7 +51,11 @@ function canvasShapeData(
       refs.set(title.id, { id: title.id, title: title.title ?? null, body: "", deleted: false });
     }
   }
-  return { understandingRefs: refs, referencedCanvases: new Map() };
+  return {
+    understandingRefs: refs,
+    referencedCanvases: referencedCanvases ?? new Map(),
+    ...(onCanvasRefClick ? { onCanvasRefClick } : {}),
+  };
 }
 
 export type ReadOnlyCanvasCardProps = {
@@ -56,6 +64,10 @@ export type ReadOnlyCanvasCardProps = {
   understandingRefs?: ReadonlyMap<string, CanvasUnderstandingRefView>;
   /** output / payload 冻结的引用标题（兜底，实体删除 / 重命名时仍有可读标签）。 */
   understandingTitles?: ReadonlyArray<{ id: string; title: string }>;
+  /** 引用画布的展示数据（画布引用卡内嵌预览 / 删除占位）。 */
+  referencedCanvases?: ReadonlyMap<string, CanvasReferencedCanvasView>;
+  /** 画布引用卡点击跳转（如 inspector 需要在对话内打开目标画布）。 */
+  onCanvasRefClick?: (canvasId: string) => void;
   /** false → 折叠占位，不挂载 X6（避免在 0 / 裁剪尺寸里初始化图的闪烁与损坏）。 */
   mounted?: boolean;
   className?: string;
@@ -63,11 +75,13 @@ export type ReadOnlyCanvasCardProps = {
 
 /** 只读画布文档卡：封装 shape hydration + lazy X6 挂载 + 加载骨架 + 折叠策略。
  * 全屏与 Understanding 的 focus 模式同理——同一实例用 CSS 拉满视口（fixed inset-0），
- * 不重建图；X6 autoResize 跟随容器尺寸。 */
+ * 不重建图；X6 autoResize 跟随容器尺寸，进入全屏后自动适应视图。 */
 export function ReadOnlyCanvasCard({
   document,
   understandingRefs,
   understandingTitles,
+  referencedCanvases,
+  onCanvasRefClick,
   mounted = true,
   className,
 }: ReadOnlyCanvasCardProps) {
@@ -82,7 +96,12 @@ export function ReadOnlyCanvasCard({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [fullscreen]);
 
-  const shapeData = canvasShapeData(understandingRefs, understandingTitles);
+  const shapeData = canvasShapeData(
+    understandingRefs,
+    understandingTitles,
+    referencedCanvases,
+    onCanvasRefClick,
+  );
   return (
     <div
       className={cn(
@@ -93,27 +112,16 @@ export function ReadOnlyCanvasCard({
       )}
     >
       {mounted ? (
-        <>
-          <Suspense fallback={<ReadOnlyCanvasSkeleton />}>
-            <CanvasReadOnlyView
-              document={document}
-              shapeData={shapeData}
-              showZoomControls
-              className="h-full min-h-0"
-            />
-          </Suspense>
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon-sm"
-            aria-label={fullscreen ? "退出全屏查看" : "全屏查看画布"}
-            title={fullscreen ? "退出全屏查看（Esc）" : "全屏查看画布"}
-            className="absolute top-2 right-2 z-10 shadow-sm"
-            onClick={() => setFullscreen((value) => !value)}
-          >
-            {fullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-          </Button>
-        </>
+        <Suspense fallback={<ReadOnlyCanvasSkeleton />}>
+          <CanvasReadOnlyView
+            document={document}
+            shapeData={shapeData}
+            showZoomControls
+            fullscreen={fullscreen}
+            onFullscreenChange={setFullscreen}
+            className="h-full min-h-0"
+          />
+        </Suspense>
       ) : null}
     </div>
   );

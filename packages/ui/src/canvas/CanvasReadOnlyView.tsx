@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { cn } from "../lib/utils";
 import { CanvasGraph, type CanvasGraphHandle } from "./CanvasGraph";
 import { CanvasZoomControls } from "./CanvasZoomControls";
@@ -17,6 +17,9 @@ export type CanvasReadOnlyViewProps = {
   shapeData?: CanvasShapeData;
   /** Agent 只读 Modal 需要放大 / 缩小 / 适应视图；缩略预览不要。 */
   showZoomControls?: boolean;
+  /** 全屏查看（focus 模式）：提供后工具栏出现全屏切换钮，进入时自动适应视图。 */
+  fullscreen?: boolean;
+  onFullscreenChange?: (fullscreen: boolean) => void;
   className?: string;
   style?: React.CSSProperties;
 };
@@ -25,10 +28,28 @@ export function CanvasReadOnlyView({
   document,
   shapeData = EMPTY_CANVAS_SHAPE_DATA,
   showZoomControls = false,
+  fullscreen = false,
+  onFullscreenChange,
   className,
   style,
 }: CanvasReadOnlyViewProps) {
   const graphRef = useRef<CanvasGraphHandle>(null);
+
+  // 全屏切换后容器尺寸变化（CSS focus 模式），等布局落定再适应视图，
+  // 保证内容在放大后的视口里完整可见。
+  useEffect(() => {
+    if (!fullscreen) return;
+    let cancelled = false;
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        if (!cancelled) graphRef.current?.fitView();
+      }),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [fullscreen]);
+
   if (!showZoomControls) {
     return (
       <CanvasGraph
@@ -56,6 +77,8 @@ export function CanvasReadOnlyView({
         onZoomIn={() => graphRef.current?.zoomIn()}
         onZoomOut={() => graphRef.current?.zoomOut()}
         onFit={() => graphRef.current?.fitView()}
+        fullscreen={fullscreen}
+        onFullscreenChange={onFullscreenChange}
       />
     </div>
   );

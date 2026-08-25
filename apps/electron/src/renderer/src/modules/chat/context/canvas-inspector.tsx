@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { effectQuery } from "@renderer/lib/effect-query";
 import { rpc } from "@renderer/lib/effect-rpc";
 import type { CanvasDetailDTO } from "@reflecta/shared";
-import { CanvasReadOnlyView, type CanvasShapeData } from "@reflecta/ui/canvas";
+import { ReadOnlyCanvasCard } from "@reflecta/ui/canvas";
 import { Empty, EmptyContent, EmptyDescription } from "@reflecta/ui/components/empty";
 import { useMemo } from "react";
 import { Button } from "@reflecta/ui/components/button";
@@ -30,7 +30,7 @@ export function CanvasInspector({
     }),
   );
 
-  const shapeData = useMemo<CanvasShapeData | undefined>(() => {
+  const shapeData = useMemo(() => {
     const detail = detailQuery.data;
     if (!detail) return undefined;
     return {
@@ -66,10 +66,10 @@ export function CanvasInspector({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <CanvasReadOnlyView
+      <ReadOnlyCanvasCard
         document={{ elements: detailQuery.data.elements, edges: detailQuery.data.edges }}
-        shapeData={shapeData}
-        showZoomControls
+        understandingRefs={shapeData?.understandingRefs}
+        referencedCanvases={shapeData?.referencedCanvases}
         className="min-h-0 flex-1"
       />
     </div>
