@@ -251,51 +251,50 @@ export const typicalCanvasDocument: CanvasDocument = {
   edges: [storyEdge("edge-depends", "el-irrigation", "el-note", "依赖")],
 };
 
-/** Agent changes 归一化后的典型文档：分支、分组和汇总同时存在。 */
+/**
+ * Agent changes 归一化后的典型文档：分支、分组和汇总同时存在。
+ *
+ * 几何 = `packages/server/.../understanding-canvas/changes.ts` 中
+ * `normalizeCanvasChanges`（ELK layered）对同一 changes 序列的真实输出，
+ * 非手写——保证 storybook 预览的就是 agent 真正会生成的布局。
+ * 若布局规则变更，先用该函数重新生成再更新此处，避免与真实输出漂移。
+ */
 export const agentCanvasDocument: CanvasDocument = {
   elements: [
-    storyTextElement("agent-question", "问题：如何降低夜班灌溉风险？", {
-      x: 40,
-      y: 160,
-      width: 240,
-      height: 120,
+    storyTextElement("agent-question", "如何降低夜班灌溉风险？", {
+      x: 12,
+      y: 44,
     }),
     storyGroupElement("agent-options", "候选方案", {
-      x: 360,
-      y: 40,
-      width: 320,
-      height: 360,
+      x: 337,
+      y: 12,
+      width: 244,
+      height: 284,
     }),
     {
       ...storyTextElement("agent-risk", "方案 A：按温度动态缩短窗口", {
-        x: 24,
-        y: 64,
-        width: 240,
-        height: 112,
+        x: 12,
+        y: 152,
       }),
       parentId: "agent-options",
     },
     {
       ...storyTextElement("agent-cost", "方案 B：保持低压循环", {
-        x: 24,
-        y: 208,
-        width: 240,
-        height: 112,
+        x: 12,
+        y: 12,
       }),
       parentId: "agent-options",
     },
     storyTextElement("agent-decision", "结论：组合两种策略并设置回水阈值", {
-      x: 780,
-      y: 160,
-      width: 260,
-      height: 120,
+      x: 686,
+      y: 44,
     }),
   ],
   edges: [
-    storyEdge("agent-edge-risk", "agent-question", "agent-risk", "评估"),
-    storyEdge("agent-edge-cost", "agent-question", "agent-cost", "评估"),
-    storyEdge("agent-edge-risk-result", "agent-risk", "agent-decision", "支持"),
-    storyEdge("agent-edge-cost-result", "agent-cost", "agent-decision", "支持"),
+    storyEdge("agent-edge-q-risk", "agent-question", "agent-risk", "评估"),
+    storyEdge("agent-edge-q-cost", "agent-question", "agent-cost", "评估"),
+    storyEdge("agent-edge-risk-dec", "agent-risk", "agent-decision", "支持"),
+    storyEdge("agent-edge-cost-dec", "agent-cost", "agent-decision", "支持"),
   ],
 };
 

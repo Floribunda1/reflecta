@@ -247,4 +247,72 @@ describe("normalizeCanvasChanges", () => {
     expect(result.document.elements[0]).toMatchObject({ x: 100, y: 100 });
     expect(result.document.elements[1].x).toBeGreaterThan(100 + existing.width);
   });
+
+  /**
+   * 布局不变量：ELK 归一化后，组必须紧裹其子节点、顶层节点互不重叠、
+   * 连线端口在水平布局下为 right→left。这是「agent 生成 canvas 布局干净」
+   * 的验收锚点，改动布局规则时要同时更新这里与 UI fixture。
+   */
+  test("keeps agent layout clean: group bounds children, nodes don't overlap, ports are right/left", async () => {
+    const result = await Effect.runPromise(
+      normalizeCanvasChanges({
+        layout: "horizontal",
+        changes: [
+          { op: "add_element", ref: "question", element: { kind: "text", text: "Question" } },
+          { op: "add_element", ref: "opt-a", element: { kind: "text", text: "A" } },
+          { op: "add_element", ref: "opt-b", element: { kind: "text", text: "B" } },
+          { op: "add_element", ref: "decision", element: { kind: "text", text: "Decision" } },
+          { op: "group", ref: "options", label: "Options", elementRefs: ["opt-a", "opt-b"] },
+          { op: "add_edge", ref: "e1", sourceRef: "question", targetRef: "opt-a" },
+          { op: "add_edge", ref: "e2", sourceRef: "question", targetRef: "opt-b" },
+          { op: "add_edge", ref: "e3", sourceRef: "opt-a", targetRef: "decision" },
+          { op: "add_edge", ref: "e4", sourceRef: "opt-b", targetRef: "decision" },
+        ],
+      }),
+    );
+
+    const byId = new Map(result.document.elements.map((e) => [e.id, e]));
+    const abs = (id: string): { x: number; y: number } => {
+      let el = byId.get(id)!;
+      let x = el.x;
+      let y = el.y;
+      while (el.parentId) {
+        el = byId.get(el.parentId)!;
+        x += el.x;
+        y += el.y;
+      }
+      return { x, y };
+    };
+
+    const group = result.document.elements.find(
+      (e) => e.kind === "group" && e.props.label === "Options",
+    )!;
+    const children = result.document.elements.filter((e) => e.parentId === group.id);
+    expect(children).toHaveLength(2);
+    for (const child of children) {
+      const p = abs(child.id);
+      expect(p.x).toBeGreaterThanOrEqual(group.x);
+      expect(p.x + child.width).toBeLessThanOrEqual(group.x + group.width);
+      expect(p.y).toBeGreaterThanOrEqual(group.y);
+      expect(p.y + child.height).toBeLessThanOrEqual(group.y + group.height);
+    }
+
+    // 顶层节点（含组）互不重叠
+    const top = result.document.elements.filter((e) => !e.parentId);
+    for (const [i, a] of top.entries()) {
+      for (const b of top.slice(i + 1)) {
+        const overlaps =
+          a.x < b.x + b.width &&
+          a.x + a.width > b.x &&
+          a.y < b.y + b.height &&
+          a.y + a.height > b.y;
+        expect(overlaps, `${a.id} overlaps ${b.id}`).toBe(false);
+      }
+    }
+
+    for (const edge of result.document.edges) {
+      expect(edge.source.port).toBe("right");
+      expect(edge.target.port).toBe("left");
+    }
+  });
 });
