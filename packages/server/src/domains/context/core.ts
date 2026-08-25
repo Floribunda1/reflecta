@@ -5,7 +5,7 @@ import { contexts, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import type { ContextDTO, CreateContextInput, ContextMedium, UpdateContextInput } from "./types";
 import type { TrashedContextDTO } from "../trash/types";
-import { createEntityId } from "../shared/id";
+import { createEntityId } from "@reflecta/shared";
 import type { RetrievalIndexUpdateSink } from "../shared/types";
 
 export class ContextNotFoundError extends S.TaggedError<ContextNotFoundError>()(

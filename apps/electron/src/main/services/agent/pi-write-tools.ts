@@ -2,8 +2,6 @@ import { Type } from "@earendil-works/pi-ai";
 import { Effect } from "effect";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import type {
-  CanvasGraphChange,
-  CanvasUpdateChange,
   CreateDomainInput,
   CreateContextInput,
   CreateUnderstandingInput,
@@ -12,8 +10,12 @@ import type {
   UpdateContextInput,
   UpdateUnderstandingInput,
 } from "@reflecta/server";
-import type { CanvasDocument } from "@reflecta/shared";
-import { normalizeCanvasChanges } from "@reflecta/server";
+import {
+  normalizeCanvasChanges,
+  type CanvasDocument,
+  type CanvasGraphChange,
+  type CanvasUpdateChange,
+} from "@reflecta/shared";
 import {
   domainService,
   contextService,

@@ -22,7 +22,7 @@ import type {
 } from "./types";
 import { resolveDomainRefs } from "../domain/core";
 import type { RetrievalIndexUpdateSink } from "../shared/types";
-import { createEntityId } from "../shared/id";
+import { createEntityId } from "@reflecta/shared";
 
 export class UnderstandingNotFoundError extends S.TaggedError<UnderstandingNotFoundError>()(
   "UnderstandingNotFoundError",

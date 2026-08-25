@@ -11,7 +11,7 @@ import {
 import type { ReflectaDb } from "../../db/types";
 import type { CreateDomainInput, ReorderDomainItem, UpdateDomainInput } from "./types";
 import type { DomainInspectResult, InspectDomainOptions } from "./types";
-import { createEntityId } from "../shared/id";
+import { createEntityId } from "@reflecta/shared";
 import { makePageInfo } from "../shared/types";
 import type { RetrievalIndexUpdateSink } from "../shared/types";
 import { toUnderstandingSummaries } from "../understanding/core";

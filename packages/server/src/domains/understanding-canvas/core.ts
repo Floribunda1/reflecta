@@ -8,7 +8,7 @@ import {
   understandingCanvasElements,
 } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
-import { createEntityId } from "../shared/id";
+import { createEntityId } from "@reflecta/shared";
 import type {
   CanvasDetailDTO,
   CanvasDTO,
@@ -34,11 +34,8 @@ import type {
   CanvasViewport,
 } from "@reflecta/shared/canvas/document";
 import type { TrashedCanvasDTO } from "../trash/types";
-import {
-  assertUnderstandingRefsExist,
-  assertValidDocument,
-  CanvasValidationError,
-} from "./validate";
+import { assertUnderstandingRefsExist } from "./validate";
+import { assertValidDocument, CanvasValidationError } from "@reflecta/shared";
 
 export class CanvasServiceError extends S.TaggedError<CanvasServiceError>()("CanvasServiceError", {
   message: S.String,
