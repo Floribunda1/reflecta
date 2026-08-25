@@ -10,19 +10,21 @@ import {
 import type { ReflectaDb } from "../../db/types";
 import { createEntityId } from "@reflecta/shared";
 import type {
+  CanvasHit,
+  ListCanvasesFilter,
+  SearchCanvasesInput,
+  UnderstandingCanvasEdge,
+  UnderstandingCanvasElement,
+} from "./types";
+import type {
   CanvasDetailDTO,
   CanvasDTO,
-  CanvasHit,
   CanvasReferencedCanvas,
   CanvasUnderstandingRef,
   CreateCanvasInput,
   GetCanvasDetailOptions,
-  ListCanvasesFilter,
-  SearchCanvasesInput,
   UpdateCanvasInput,
-  UnderstandingCanvasEdge,
-  UnderstandingCanvasElement,
-} from "./types";
+} from "@reflecta/shared";
 import type {
   CanvasDocument,
   CanvasElementDTO,

@@ -3,7 +3,12 @@ import * as S from "effect/Schema";
 import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { contexts, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
-import type { ContextDTO, CreateContextInput, ContextMedium, UpdateContextInput } from "./types";
+import type {
+  ContextDTO,
+  CreateContextInput,
+  ContextMedium,
+  UpdateContextInput,
+} from "@reflecta/shared";
 import type { TrashedContextDTO } from "../trash/types";
 import { createEntityId } from "@reflecta/shared";
 import type { RetrievalIndexUpdateSink } from "../shared/types";

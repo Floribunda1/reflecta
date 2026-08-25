@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import type { Domain } from "@shared/domain";
 import type { SearchContextResult } from "@shared/search";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
-import type { CanvasDTO } from "@reflecta/server";
+import type { CanvasDTO } from "@reflecta/shared";
 import { buildContextCandidates } from "./context-candidates";
 
 const understanding = (id: string, title: string | null, body: string): UnderstandingSummaryDTO =>

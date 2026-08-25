@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import type { UpdateUnderstandingInput } from "@reflecta/server";
+import type { UpdateUnderstandingInput } from "@reflecta/shared";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
 

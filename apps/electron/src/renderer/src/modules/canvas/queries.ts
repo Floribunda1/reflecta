@@ -7,7 +7,7 @@ import type {
   CanvasDetailDTO,
   CreateCanvasInput,
   UpdateCanvasInput,
-} from "@reflecta/server";
+} from "@reflecta/shared";
 import type { CanvasDocument as CanvasDocumentContract, CanvasViewport } from "@reflecta/ui/canvas";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 

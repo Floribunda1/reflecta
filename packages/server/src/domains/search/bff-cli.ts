@@ -4,8 +4,9 @@ import { understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
 import { SearchCore } from "./core";
 import { toUnderstandingSummaries } from "../understanding/core";
-import type { ContextMedium } from "../context/types";
-import type { SearchHit, SearchOptions, SearchOutput } from "./types";
+import type { ContextMedium } from "@reflecta/shared";
+import type { SearchHit, SearchOutput } from "./types";
+import type { SearchOptions } from "@reflecta/shared";
 
 export class SearchCliBff extends SearchCore {
   constructor(db: ReflectaDb) {

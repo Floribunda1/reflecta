@@ -6,7 +6,7 @@ import { DialogFooter } from "@reflecta/ui/components/dialog";
 import { Input } from "@reflecta/ui/components/input";
 import { Label } from "@reflecta/ui/components/label";
 import { useModal } from "@reflecta/ui/overlays";
-import type { CanvasDTO } from "@reflecta/server";
+import type { CanvasDTO } from "@reflecta/shared";
 import { renderError } from "@renderer/lib/errors";
 import { CANVAS_ID_QUERY_KEY, CANVAS_ROUTE } from "@renderer/modules/shared/navigation";
 import { useDeleteCanvasMutation, useRenameCanvasMutation } from "../queries";

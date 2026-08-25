@@ -11,17 +11,17 @@ export const understanding: HandlerModule = {
   handlers: {
     "understanding.listUnderstandings": ({ filter }) =>
       understandingService.listUnderstandings(
-        filter as import("@reflecta/server").ListUnderstandingsFilter | undefined,
+        filter as import("@reflecta/shared").ListUnderstandingsFilter | undefined,
       ),
     "understanding.getUnderstandingById": ({ id }) => understandingService.getUnderstandingById(id),
     "understanding.createUnderstanding": ({ input }) =>
       understandingService.createUnderstanding(
-        input as unknown as import("@reflecta/server").CreateUnderstandingInput,
+        input as unknown as import("@reflecta/shared").CreateUnderstandingInput,
       ),
     "understanding.updateUnderstanding": ({ id, input }) =>
       understandingService.updateUnderstanding(
         id,
-        input as unknown as import("@reflecta/server").UpdateUnderstandingInput,
+        input as unknown as import("@reflecta/shared").UpdateUnderstandingInput,
       ),
     "understanding.deleteUnderstanding": ({ id }) =>
       understandingService.deleteUnderstanding(id).pipe(toVoid),

@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@reflecta/ui/components/dropdown-menu";
 import { PageTopBar } from "@renderer/modules/shared/layout/PageTopBar";
-import type { CanvasDTO } from "@reflecta/server";
+import type { CanvasDTO } from "@reflecta/shared";
 import { renderError } from "@renderer/lib/errors";
 import { useRenameCanvasMutation } from "../queries";
 

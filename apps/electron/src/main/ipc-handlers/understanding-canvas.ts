@@ -18,12 +18,12 @@ export const understandingCanvas: HandlerModule = {
       understandingCanvasService.listCanvasesByIds(ids),
     "understandingCanvas.createCanvas": ({ input }) =>
       understandingCanvasService.createCanvas(
-        input as import("@reflecta/server").CreateCanvasInput | undefined,
+        input as import("@reflecta/shared").CreateCanvasInput | undefined,
       ),
     "understandingCanvas.updateCanvas": ({ id, input }) =>
       understandingCanvasService.updateCanvas(
         id,
-        input as import("@reflecta/server").UpdateCanvasInput,
+        input as import("@reflecta/shared").UpdateCanvasInput,
       ),
     "understandingCanvas.deleteCanvas": ({ id }) =>
       understandingCanvasService.deleteCanvas(id).pipe(toVoid),

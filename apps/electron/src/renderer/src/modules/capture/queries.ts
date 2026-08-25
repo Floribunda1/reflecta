@@ -11,7 +11,7 @@ import type {
 } from "@shared/domain";
 import type { CreateContextInput, UpdateContextInput } from "@shared/context";
 import type { RecapData } from "@shared/recap";
-import type { CanvasDTO } from "@reflecta/server";
+import type { CanvasDTO } from "@reflecta/shared";
 import type {
   CreateUnderstandingInput,
   ListUnderstandingsFilter,

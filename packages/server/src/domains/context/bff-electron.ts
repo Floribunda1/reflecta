@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import type { ContextDTO, CreateContextInput, UpdateContextInput } from "./types";
+import type { ContextDTO, CreateContextInput, UpdateContextInput } from "@reflecta/shared";
 import { ContextCore, type ContextError } from "./core";
 import type { ReflectaServerContext } from "../shared/types-electron";
 

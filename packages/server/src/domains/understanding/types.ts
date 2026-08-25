@@ -3,14 +3,6 @@ import type { understandingDomains, understandingMentions, understandings } from
 import type { DomainRef } from "../domain/types";
 import type { ContextDetail } from "../context/types";
 
-export type {
-  UnderstandingSummaryDTO,
-  UnderstandingDTO,
-  CreateUnderstandingInput,
-  UpdateUnderstandingInput,
-  ListUnderstandingsFilter,
-} from "@reflecta/shared";
-
 export type Understanding = InferSelectModel<typeof understandings>;
 export type NewUnderstanding = InferInsertModel<typeof understandings>;
 export type UnderstandingDomain = InferSelectModel<typeof understandingDomains>;

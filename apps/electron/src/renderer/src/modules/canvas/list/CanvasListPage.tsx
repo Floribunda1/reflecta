@@ -7,7 +7,7 @@ import { Skeleton } from "@reflecta/ui/components/skeleton";
 import { Empty, EmptyDescription } from "@reflecta/ui/components/empty";
 import { useModal } from "@reflecta/ui/overlays";
 import { useNavigateToCanvas } from "@renderer/modules/shared/navigation";
-import type { CanvasDTO } from "@reflecta/server";
+import type { CanvasDTO } from "@reflecta/shared";
 import { renderError } from "@renderer/lib/errors";
 import { useCanvasList, useCreateCanvasMutation } from "../queries";
 import { CanvasListRow } from "./CanvasListRow";

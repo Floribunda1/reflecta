@@ -13,9 +13,9 @@ export const context: HandlerModule = {
       contextService.listContextsByUnderstanding(understandingId),
     "context.getContextById": ({ id }) => contextService.getContextById(id),
     "context.createContext": ({ input }) =>
-      contextService.createContext(input as import("@reflecta/server").CreateContextInput),
+      contextService.createContext(input as import("@reflecta/shared").CreateContextInput),
     "context.updateContext": ({ id, input }) =>
-      contextService.updateContext(id, input as import("@reflecta/server").UpdateContextInput),
+      contextService.updateContext(id, input as import("@reflecta/shared").UpdateContextInput),
     "context.deleteContext": ({ id }) => contextService.deleteContext(id).pipe(toVoid),
     "context.restoreContext": ({ id }) => contextService.restoreContext(id).pipe(toVoid),
     "context.permanentlyDeleteContext": ({ id }) =>

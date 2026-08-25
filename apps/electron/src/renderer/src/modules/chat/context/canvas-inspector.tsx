@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { useQuery } from "@tanstack/react-query";
 import { effectQuery } from "@renderer/lib/effect-query";
 import { rpc } from "@renderer/lib/effect-rpc";
-import type { CanvasDetailDTO } from "@reflecta/server";
+import type { CanvasDetailDTO } from "@reflecta/shared";
 import { CanvasReadOnlyView, type CanvasShapeData } from "@reflecta/ui/canvas";
 import { Empty, EmptyContent, EmptyDescription } from "@reflecta/ui/components/empty";
 import { useMemo } from "react";

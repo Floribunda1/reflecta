@@ -3,4 +3,4 @@ export type {
   CreateContextInput,
   ContextMedium,
   UpdateContextInput,
-} from "@reflecta/server";
+} from "@reflecta/shared";

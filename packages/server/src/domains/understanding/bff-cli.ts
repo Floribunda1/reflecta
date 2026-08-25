@@ -9,17 +9,20 @@ import {
   understandings,
 } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
-import type { ContextDetail, ContextMedium } from "../context/types";
+import type { ContextDetail } from "../context/types";
+import type { ContextMedium } from "@reflecta/shared";
 import type {
-  CreateUnderstandingInput,
   GetUnderstandingOptions,
   UnderstandingListWithContexts,
   UnderstandingDetail,
   UnderstandingMentionRef,
   UnderstandingSummary,
-  UpdateUnderstandingInput,
 } from "./types";
-import type { ListUnderstandingsFilter } from "./types";
+import type {
+  CreateUnderstandingInput,
+  UpdateUnderstandingInput,
+  ListUnderstandingsFilter,
+} from "@reflecta/shared";
 import { getUnderstandingMentionCounts } from "./core";
 import { toUnderstandingSummaries } from "./core";
 import { extractUnderstandingWikiLinks, formatUnderstandingWikiLink } from "./wiki-links";

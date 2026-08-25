@@ -1,8 +1,12 @@
 import { Effect } from "effect";
 import { and, desc, inArray, isNull, sql } from "drizzle-orm";
 import { understandings } from "../../db/schema";
-import type { SearchContextResult, SearchOptions, SearchResult } from "./types";
-import type { UnderstandingSummaryDTO } from "../understanding/types";
+import type {
+  SearchContextResult,
+  SearchOptions,
+  SearchResult,
+  UnderstandingSummaryDTO,
+} from "@reflecta/shared";
 import { SearchCore, SearchDomainError } from "./core";
 import { getLimitOffset } from "./core";
 import type { ReflectaServerContext } from "../shared/types-electron";

@@ -6,13 +6,10 @@ export type {
   CanvasEdgeDTO,
   CanvasElementDTO,
   CanvasElementKind,
-  CanvasHit,
   CanvasReferencedCanvas,
   CanvasUnderstandingRef,
   CreateCanvasInput,
   GetCanvasDetailOptions,
-  ListCanvasesFilter,
-  SearchCanvasesInput,
   UpdateCanvasInput,
-  Viewport,
-} from "@reflecta/server";
+} from "@reflecta/shared";
+export type { CanvasHit, ListCanvasesFilter, SearchCanvasesInput } from "@reflecta/server";

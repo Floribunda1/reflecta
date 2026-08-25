@@ -6,14 +6,14 @@ import {
   understandingMentions,
   understandings,
 } from "../../db/schema";
-import type { ContextMedium } from "../context/types";
+import type { ContextMedium } from "@reflecta/shared";
 import type {
   CreateUnderstandingInput,
   ListUnderstandingsFilter,
   UnderstandingDTO,
   UnderstandingSummaryDTO,
   UpdateUnderstandingInput,
-} from "./types";
+} from "@reflecta/shared";
 import { UnderstandingCore, UnderstandingNotFoundError, type UnderstandingError } from "./core";
 import type { ReflectaServerContext } from "../shared/types-electron";
 

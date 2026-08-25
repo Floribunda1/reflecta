@@ -2,7 +2,7 @@ import type { Domain } from "@shared/domain";
 import type { AgentContextRef } from "@shared/agent";
 import type { SearchContextResult } from "@shared/search";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
-import type { CanvasDTO } from "@reflecta/server";
+import type { CanvasDTO } from "@reflecta/shared";
 import type { ChatEntityType, ChatEntityTypeFilter } from "@reflecta/ui/chat";
 import { truncate } from "../shared/text";
 import { contextKey } from "./context-reference";

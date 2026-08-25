@@ -12,14 +12,14 @@ export const search: HandlerModule = {
     "search.searchUnderstandings": ({ query, options }) =>
       searchService.searchUnderstandings(
         query,
-        options as import("@reflecta/server").SearchOptions | undefined,
+        options as import("@reflecta/shared").SearchOptions | undefined,
       ),
     "search.searchContexts": ({ query, options }) =>
       searchService.searchContexts(
         query,
-        options as import("@reflecta/server").SearchOptions | undefined,
+        options as import("@reflecta/shared").SearchOptions | undefined,
       ),
     "search.search": ({ query, options }) =>
-      searchService.search(query, options as import("@reflecta/server").SearchOptions | undefined),
+      searchService.search(query, options as import("@reflecta/shared").SearchOptions | undefined),
   },
 };

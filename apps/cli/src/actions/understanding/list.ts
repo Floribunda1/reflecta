@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import type { ListUnderstandingsFilter } from "@reflecta/server";
+import type { ListUnderstandingsFilter } from "@reflecta/shared";
 import { CliError, ErrorCodes } from "../../error";
 import { getServices } from "../../services";
 import {

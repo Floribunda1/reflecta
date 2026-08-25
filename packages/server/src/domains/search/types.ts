@@ -1,8 +1,6 @@
 import type { ContextSummary } from "../context/types";
 import type { UnderstandingSummary } from "../understanding/types";
 
-export type { SearchOptions, SearchContextResult, SearchResult } from "@reflecta/shared";
-
 export type SearchHit =
   | {
       type: "understanding";

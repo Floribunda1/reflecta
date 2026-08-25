@@ -1,4 +1,4 @@
-import type { ContextMedium } from "../context/types";
+import type { ContextMedium } from "@reflecta/shared";
 
 export type TrashedUnderstandingDTO = {
   id: string;

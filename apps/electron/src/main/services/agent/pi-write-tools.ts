@@ -9,7 +9,7 @@ import type {
   UpdateDomainInput,
   UpdateContextInput,
   UpdateUnderstandingInput,
-} from "@reflecta/server";
+} from "@reflecta/shared";
 import {
   normalizeCanvasChanges,
   type CanvasDocument,

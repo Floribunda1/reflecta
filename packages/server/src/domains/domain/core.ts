@@ -9,14 +9,15 @@ import {
   understandings,
 } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
-import type { CreateDomainInput, ReorderDomainItem, UpdateDomainInput } from "./types";
+import type { CreateDomainInput, ReorderDomainItem, UpdateDomainInput } from "@reflecta/shared";
 import type { DomainInspectResult, InspectDomainOptions } from "./types";
 import { createEntityId } from "@reflecta/shared";
 import { makePageInfo } from "../shared/types";
 import type { RetrievalIndexUpdateSink } from "../shared/types";
 import { toUnderstandingSummaries } from "../understanding/core";
 import type { UnderstandingNode } from "../understanding/types";
-import type { ContextDetail, ContextMedium } from "../context/types";
+import type { ContextDetail } from "../context/types";
+import type { ContextMedium } from "@reflecta/shared";
 
 export class DomainNotFoundError extends S.TaggedError<DomainNotFoundError>()(
   "DomainNotFoundError",

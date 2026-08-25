@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import type { ContextMedium, CreateContextInput } from "@reflecta/server";
+import type { ContextMedium, CreateContextInput } from "@reflecta/shared";
 import { CliError, ErrorCodes } from "../../error";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";

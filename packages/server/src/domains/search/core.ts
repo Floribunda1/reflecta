@@ -3,7 +3,7 @@ import * as S from "effect/Schema";
 import { and, inArray, isNull, or } from "drizzle-orm";
 import { understandingMentions, understandingDomains, understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
-import type { SearchOptions } from "./types";
+import type { SearchOptions } from "@reflecta/shared";
 import { toUnderstandingSummaries } from "../understanding/core";
 import {
   RETRIEVAL_PROJECTION_VERSION,

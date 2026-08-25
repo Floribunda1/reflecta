@@ -1,7 +1,8 @@
 import { Effect } from "effect";
 import type { ReflectaDb } from "../../db/types";
 import { ContextCore, ContextNotFoundError } from "./core";
-import type { ContextDetail, CreateContextInput, ContextMedium, UpdateContextInput } from "./types";
+import type { ContextDetail } from "./types";
+import type { CreateContextInput, ContextMedium, UpdateContextInput } from "@reflecta/shared";
 import type { RetrievalIndexUpdateSink } from "../shared/types";
 
 export class ContextCliBff extends ContextCore {

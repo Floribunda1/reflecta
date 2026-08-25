@@ -14,12 +14,12 @@ import {
 } from "./wiki-links";
 import { getDomainDescendants } from "../domain/core";
 import type { ReflectaDb } from "../../db/types";
+import type { UnderstandingSummary } from "./types";
 import type {
   CreateUnderstandingInput,
   ListUnderstandingsFilter,
-  UnderstandingSummary,
   UpdateUnderstandingInput,
-} from "./types";
+} from "@reflecta/shared";
 import { resolveDomainRefs } from "../domain/core";
 import type { RetrievalIndexUpdateSink } from "../shared/types";
 import { createEntityId } from "@reflecta/shared";

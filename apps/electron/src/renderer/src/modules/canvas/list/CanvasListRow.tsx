@@ -8,7 +8,7 @@ import {
   ContextMenuTrigger,
 } from "@reflecta/ui/components/context-menu";
 import { cn } from "@reflecta/ui/lib/utils";
-import type { CanvasDTO } from "@reflecta/server";
+import type { CanvasDTO } from "@reflecta/shared";
 
 export type CanvasListRowActions = {
   onOpen: (canvasId: string) => void;

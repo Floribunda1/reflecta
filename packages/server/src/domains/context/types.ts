@@ -1,12 +1,5 @@
 import type { ContextMedium } from "@reflecta/shared";
 
-export type {
-  ContextDTO,
-  CreateContextInput,
-  UpdateContextInput,
-  ContextMedium,
-} from "@reflecta/shared";
-
 export type ContextSummary = {
   id: string;
   understandingId: string;

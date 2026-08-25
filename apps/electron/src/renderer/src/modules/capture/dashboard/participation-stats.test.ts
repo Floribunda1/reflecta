@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { RecapData } from "@shared/recap";
-import type { CanvasDTO } from "@reflecta/server";
+import type { CanvasDTO } from "@reflecta/shared";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 import {
   buildParticipationActivity,

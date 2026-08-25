@@ -1,6 +1,6 @@
 import { addDays, format, startOfDay, subDays } from "date-fns";
 import type { RecapData } from "@shared/recap";
-import type { CanvasDTO } from "@reflecta/server";
+import type { CanvasDTO } from "@reflecta/shared";
 import type { UnderstandingSummaryDTO } from "@shared/understanding";
 
 /**

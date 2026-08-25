@@ -1,7 +1,7 @@
 export type {
   Domain,
-  DomainTreeNode,
   CreateDomainInput,
   ReorderDomainItem,
   UpdateDomainInput,
-} from "@reflecta/server";
+} from "@reflecta/shared";
+export type { DomainTreeNode } from "@reflecta/server";
