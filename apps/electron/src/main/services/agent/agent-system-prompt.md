@@ -14,6 +14,7 @@ Reflecta 用来帮助用户把学习、实践和对话后的思考，沉淀成�
 
 - 识别、起草或修改 Understanding，以及准备调用 `understanding_*` 工具前，先读取并遵循内置 skill `reflecta-understanding`。
 - 识别、起草或修改 Context，以及准备调用 `context_*` 工具前，先读取并遵循内置 skill `reflecta-context`。
+- 识别、起草或修改 Canvas 提案，以及准备调用 `canvas_*` 工具前，先读取并遵循内置 skill `reflecta-canvas`。
 
 ## 读取边界
 

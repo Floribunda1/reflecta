@@ -53,6 +53,7 @@ import { getSharedModelRuntime } from "./pi-model-runtime";
 import agentSystemPrompt from "./agent-system-prompt.md?raw";
 import contextSkill from "./builtin-skills/reflecta-context/SKILL.md?raw";
 import understandingSkill from "./builtin-skills/reflecta-understanding/SKILL.md?raw";
+import canvasSkill from "./builtin-skills/reflecta-canvas/SKILL.md?raw";
 import { createPiReadOnlyTools, PI_READ_ONLY_TOOL_NAMES } from "./pi-readonly-tools";
 import { createPiEntityCatalogContext } from "./pi-entity-catalog-context";
 import { contextCompactionSettings, createPiContextCompaction } from "./pi-context-compaction";
@@ -112,7 +113,11 @@ type BashGatePendingApproval = {
 type PendingApproval = MutationPendingApproval | BashGatePendingApproval;
 
 export const PI_BUILTIN_TOOL_NAMES = ["read", "bash", "edit", "write"] as const;
-export const PI_BUILTIN_SKILL_NAMES = ["reflecta-understanding", "reflecta-context"] as const;
+export const PI_BUILTIN_SKILL_NAMES = [
+  "reflecta-understanding",
+  "reflecta-context",
+  "reflecta-canvas",
+] as const;
 
 export function getGlobalAgentSkillsDir(homeDirectory = os.homedir()): string {
   return path.join(homeDirectory, ".agents", "skills");
@@ -139,6 +144,7 @@ const PI_BASH_UTF8_LOCALE = process.platform === "darwin" ? "en_US.UTF-8" : "C.U
 const PI_BUILTIN_SKILLS = [
   { name: PI_BUILTIN_SKILL_NAMES[0], content: `${understandingSkill.trim()}\n` },
   { name: PI_BUILTIN_SKILL_NAMES[1], content: `${contextSkill.trim()}\n` },
+  { name: PI_BUILTIN_SKILL_NAMES[2], content: `${canvasSkill.trim()}\n` },
 ] as const;
 
 function installPiBuiltinSkills(agentDir: string): string[] {

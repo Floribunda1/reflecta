@@ -321,8 +321,12 @@ const toolSpecs: PiWriteToolSpec[] = [
     promptSnippet: "canvas_create: propose a new Reflecta canvas and request user approval.",
     promptGuidelines: [
       "Propose the canvas structure as a draft for the user to review, apply, modify, or reject.",
+      "A canvas is a mental structure: edges carry cognitive relations (derivation / dependency / scenario / principle / contradiction). Each edge label names the relation and the proposal explains why it exists.",
+      "Grouping is a spatial container, not structure; do not substitute thematic grouping for relations.",
+      "Mention / see-also links are provenance clues, not structure edges.",
       "Declare refs before using them; forward references are rejected.",
       "Do not write coordinates, ids, timestamps, ports, or edge rendering details.",
+      "Read the canvas you are working on before proposing changes (canvas_read); prefer updating the existing canvas and create a new one only when the user asks for a new structure.",
     ],
     parameters: Type.Object({
       title: Type.String({ minLength: 1, description: "Canvas title." }),
@@ -339,6 +343,9 @@ const toolSpecs: PiWriteToolSpec[] = [
     promptSnippet: "canvas_update: propose ordered changes to an existing canvas.",
     promptGuidelines: [
       "Read the canvas first (canvas_read), then use its stable ids or refs declared by earlier changes.",
+      "Edges are the structure: add or re-label edges with the cognitive relation (derivation / dependency / scenario / principle...), and explain why each change exists.",
+      "Grouping is a spatial container, not structure; do not use thematic grouping to replace relations.",
+      "Mention / see-also links are provenance clues, not structure edges.",
       "Ordinary changes preserve existing positions; use relayout only when the whole graph should move.",
     ],
     parameters: Type.Object({

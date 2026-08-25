@@ -31,6 +31,7 @@ export function createPiPresentTools() {
         "canvas_present: show a read-only analysis canvas in the answer (no persistence).",
       promptGuidelines: [
         "First read the entities you want to analyze with read tools, then describe the analysis structure with add_element / add_edge / group.",
+        "Present cognitive relations (derivation / dependency / scenario / principle...), not thematic grouping; each edge must carry a label that names the relation.",
         "Do not write coordinates, ids, timestamps, ports, or edge rendering details (layout is generated deterministically by the app).",
         "This view is the AI's analysis of existing knowledge and is not saved; do not imply its relationships are the user's persisted structure.",
         "Use it only when spatial / relational structure explains better than plain text.",

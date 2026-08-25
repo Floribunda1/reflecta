@@ -323,11 +323,22 @@ describe("createPiResourceLoader", () => {
     expect(contextSkill).not.toContain("尚未解决的问题、反例和不确定性");
     expect(contextSkill).not.toContain("完整会议纪要或材料摘要");
 
+    const canvasResource = skills.find((skill) => skill.name === "reflecta-canvas");
+    expect(canvasResource?.description).toContain("canvas_*");
+    expect(canvasResource?.description).not.toContain("understanding_*");
+    const canvasSkillPath = canvasResource?.filePath;
+    expect(canvasSkillPath).toBeDefined();
+    const canvasSkill = fs.readFileSync(canvasSkillPath!, "utf8");
+    expect(canvasSkill).toContain("结构本体是边，不是分组");
+    expect(canvasSkill).toContain("Bad 1：把「组织」做成主题分桶");
+    expect(canvasSkill).not.toContain("Reflecta Understanding");
+
     expect(loader.getPrompts().prompts).toEqual([]);
     expect(loader.getThemes().themes).toEqual([]);
     expect(loader.getAgentsFiles().agentsFiles).toEqual([]);
     expect(loader.getSystemPrompt()).toContain("内置 skill `reflecta-understanding`");
     expect(loader.getSystemPrompt()).toContain("内置 skill `reflecta-context`");
+    expect(loader.getSystemPrompt()).toContain("内置 skill `reflecta-canvas`");
     expect(loader.getSystemPrompt()).not.toContain("reflecta-understanding-context");
   });
 });
