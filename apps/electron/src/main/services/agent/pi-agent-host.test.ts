@@ -1693,16 +1693,19 @@ describe("PiAgentHost", () => {
       modelSelection: { providerId: "openai", modelId: "gpt-4o" },
     });
 
-    expect(hydratePiApprovalPayloadMock).toHaveBeenCalledTimes(2);
+    expect(hydratePiApprovalPayloadMock).toHaveBeenCalledTimes(1);
     const approvals = approvalTransitions(frames);
     expect(approvals.map((approval) => approval.preview)).toEqual([true, true, undefined]);
     expect(
       approvals.map(
         (approval) =>
-          (approval.payload as { document: { elements: Array<{ id: string }> } }).document
-            .elements[0].id,
+          (
+            approval.payload as {
+              document?: { elements: Array<{ id: string }> };
+            }
+          ).document?.elements?.[0]?.id,
       ),
-    ).toEqual(["generated-1", "generated-2", "generated-2"]);
+    ).toEqual([undefined, "generated-2", "generated-2"]);
   });
 
   test("hydrates update previews before tool arguments finish streaming", async () => {

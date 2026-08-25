@@ -20,7 +20,7 @@ import {
 import { AgentWorkingIndicator } from "../execution/agent-working-indicator";
 import { hasToolDetails, ToolDetails } from "../execution/tool-details";
 import { ChatMarkdown } from "../markdown/chat-markdown";
-import { ReadOnlyCanvasCard } from "../../canvas/readonly-canvas-card";
+import { ReadOnlyCanvasCard, ReadOnlyCanvasSkeleton } from "../../canvas/readonly-canvas-card";
 import type {
   AgentProposalDecision,
   AgentProposalLifecycle,
@@ -724,12 +724,21 @@ function BashProposal({ proposal }: { proposal: BashProposalView }) {
 // 且只在 canvas 提案实际渲染时才需要 X6）。
 function CanvasProposalDraft({ proposal, open }: { proposal: CanvasProposalView; open: boolean }) {
   const content = proposal.content;
-  if (content.variant === "delete" || !content.document) {
+  if (content.variant === "delete") {
     return (
-      <div className="text-sm text-muted-foreground">
-        {content.variant === "delete" ? "确认后，这张画布及其全部内容将被删除。" : "画布草稿为空。"}
-      </div>
+      <div className="text-sm text-muted-foreground">确认后，这张画布及其全部内容将被删除。</div>
     );
+  }
+  if (!content.document) {
+    // 参数流式生成中 / 水合未完成：复用只读画布加载骨架，document 到达后再渲染。
+    if (proposal.lifecycle === "preview") {
+      return (
+        <div className="h-64 overflow-hidden rounded-md border border-border">
+          <ReadOnlyCanvasSkeleton />
+        </div>
+      );
+    }
+    return <div className="text-sm text-muted-foreground">画布草稿为空。</div>;
   }
   // 卡片折叠（collapsible keepMounted + collapse-grid 动画）时 X6 图会在 0/裁剪尺寸里
   // 挂一程，展开回来不重新 fit 就坏。折叠即卸载、展开按当前尺寸重建 + fit：

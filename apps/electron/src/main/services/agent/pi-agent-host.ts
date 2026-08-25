@@ -1130,6 +1130,8 @@ export class PiAgentHost {
       string,
       { input: string; task: Promise<Record<string, unknown>> }
     >();
+    // 流式半截参数只发一次原始 preview（前端展示骨架 loading），不逐 chunk 水合。
+    const canvasStreamPreviewSent = new Set<string>();
     const emit = (event: AgentSessionEvent) => this.appendAndPublish(manager, event);
     const emitLive = (event: AgentLiveEvent) => this.emitLive(event);
     const createApprovalRequested = (
@@ -1203,6 +1205,15 @@ export class PiAgentHost {
       latestApprovalPreviewPayloads.set(approvalId, payload);
 
       if (toolName === "canvas_create" || toolName === "canvas_update") {
+        if (!complete) {
+          // 参数仍在流式传输：不做水合/布局（避免每个 chunk 一次 ELK web worker 拉起），
+          // 仅发一次原始 preview 让前端进入骨架 loading，参数完整后统一水合一次。
+          if (!canvasStreamPreviewSent.has(approvalId)) {
+            canvasStreamPreviewSent.add(approvalId);
+            sendApprovalPreview(toolCallId, toolName, payload);
+          }
+          return;
+        }
         const input = JSON.stringify(payload);
         const hydration = hydratePiApprovalPayload(toolName, payload).catch((error) => {
           agentLog.warn("pi.approval.previewHydrateFailed", {

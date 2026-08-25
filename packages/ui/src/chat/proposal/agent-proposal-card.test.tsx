@@ -221,4 +221,31 @@ describe("AgentProposalCard", () => {
     expect(rendered.container.textContent).toContain("标题与正文不变");
     expect(rendered.container.textContent).not.toContain("正在生成修改");
   });
+
+  test("canvas preview without a document shows the read-only canvas skeleton", () => {
+    const view: AgentProposalView = {
+      id: "approval-canvas-1",
+      kind: "canvas",
+      title: "候选画布",
+      lifecycle: "preview",
+      decisionEnabled: false,
+      content: { variant: "create" },
+    };
+    const rendered = render(view);
+    expect(rendered.container.querySelector('[data-testid="canvas-view-skeleton"]')).not.toBeNull();
+    expect(rendered.container.textContent).not.toContain("画布草稿为空");
+  });
+
+  test("canvas pending without a document falls back to the empty draft message", () => {
+    const view: AgentProposalView = {
+      id: "approval-canvas-2",
+      kind: "canvas",
+      title: "候选画布",
+      lifecycle: "pending",
+      decisionEnabled: true,
+      content: { variant: "create" },
+    };
+    const rendered = render(view);
+    expect(rendered.container.textContent).toContain("画布草稿为空");
+  });
 });
