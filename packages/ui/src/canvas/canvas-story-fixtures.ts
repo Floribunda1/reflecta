@@ -123,12 +123,14 @@ export function storyEdge(
   label: string | null = null,
   attrs: CanvasEdgeDTO["attrs"] = structuredClone(DEFAULT_CANVAS_EDGE_ATTRS),
   pathConfig: Pick<CanvasEdgeDTO, "router" | "connector"> = curveEdgePath(),
+  sourcePort: CanvasEdgeDTO["source"]["port"] = "right",
+  targetPort: CanvasEdgeDTO["source"]["port"] = "left",
 ): CanvasEdgeDTO {
   return {
     id,
     canvasId: "canvas-irrigation",
-    source: { cell: sourceElementId, port: "right" },
-    target: { cell: targetElementId, port: "left" },
+    source: { cell: sourceElementId, port: sourcePort },
+    target: { cell: targetElementId, port: targetPort },
     ...pathConfig,
     attrs,
     label,
@@ -297,6 +299,108 @@ export const agentCanvasDocument: CanvasDocument = {
     storyEdge("agent-edge-cost-dec", "agent-cost", "agent-decision", "支持"),
   ],
 };
+
+/**
+ * Agent 生成 canvas 的多类布局场景。几何一律来自真实 `normalizeCanvasChanges`
+ * （ELK layered）输出，非手写——供 storybook 逐场景验收布局效果。
+ * 若布局规则变更，先用该函数重新生成，再更新这里，避免与真实输出漂移。
+ */
+export type AgentLayoutScenario = {
+  title: string;
+  description: string;
+  document: CanvasDocument;
+};
+
+export const agentLayoutScenarios: readonly AgentLayoutScenario[] = [
+  {
+    title: "链式",
+    description: "单条因果链路，水平对齐。",
+    document: {
+      elements: [
+        storyTextElement("chain-q", "为什么极地温室耗能高？", { x: 12, y: 12 }),
+        storyTextElement("chain-a", "回温管网保温不足", { x: 332, y: 12 }),
+        storyTextElement("chain-r", "结论：补裆分区保温", { x: 652, y: 12 }),
+      ],
+      edges: [
+        storyEdge("chain-e1", "chain-q", "chain-a", "归因"),
+        storyEdge("chain-e2", "chain-a", "chain-r", "对策"),
+      ],
+    },
+  },
+  {
+    title: "分支汇聚",
+    description: "一个源分两支，再汇聚到同一结论。",
+    document: {
+      elements: [
+        storyTextElement("bm-q", "如何降低夜班灌溉风险？", { x: 12, y: 32 }),
+        storyTextElement("bm-a", "方案 A：按温度动态缩短", { x: 332, y: 192 }),
+        storyTextElement("bm-b", "方案 B：保持低压循环", { x: 332, y: 12 }),
+        storyTextElement("bm-d", "结论：组合两种策略", { x: 652, y: 32 }),
+      ],
+      edges: [
+        storyEdge("bm-e1", "bm-q", "bm-a", "评估"),
+        storyEdge("bm-e2", "bm-q", "bm-b", "评估"),
+        storyEdge("bm-e3", "bm-a", "bm-d", "支持"),
+        storyEdge("bm-e4", "bm-b", "bm-d", "支持"),
+      ],
+    },
+  },
+  {
+    title: "候选分组",
+    description: "同源方案归入组，组内纵向排布，组后接结论。",
+    document: agentCanvasDocument,
+  },
+  {
+    title: "多源汇聚",
+    description: "三路排查汇聚到一个结论，密度较高。",
+    document: {
+      elements: [
+        storyTextElement("dm-q", "回灌偏差来源排查", { x: 12, y: 42 }),
+        storyTextElement("dm-a", "主管压力波动", { x: 332, y: 372 }),
+        storyTextElement("dm-b", "回水温度滞后", { x: 332, y: 192 }),
+        storyTextElement("dm-c", "基质含水率漂移", { x: 332, y: 12 }),
+        storyTextElement("dm-d", "结论：统一观察窗比对", { x: 652, y: 192 }),
+      ],
+      edges: [
+        storyEdge("dm-e1", "dm-q", "dm-a", "排查"),
+        storyEdge("dm-e2", "dm-q", "dm-b", "排查"),
+        storyEdge("dm-e3", "dm-q", "dm-c", "排查"),
+        storyEdge("dm-e4", "dm-a", "dm-d", "汇"),
+        storyEdge("dm-e5", "dm-b", "dm-d", "汇"),
+        storyEdge("dm-e6", "dm-c", "dm-d", "汇"),
+      ],
+    },
+  },
+  {
+    title: "竖向流程",
+    description: "自上而下链路，端口为 bottom→top。",
+    document: {
+      elements: [
+        storyTextElement("vt-q", "顶层问题", { x: 12, y: 12 }),
+        storyTextElement("vt-a", "中层归因", { x: 12, y: 232 }),
+        storyTextElement("vt-d", "底策结论", { x: 12, y: 452 }),
+      ],
+      edges: [
+        storyEdge("vt-e1", "vt-q", "vt-a", "归因", undefined, undefined, "bottom", "top"),
+        storyEdge("vt-e2", "vt-a", "vt-d", "对策", undefined, undefined, "bottom", "top"),
+      ],
+    },
+  },
+  {
+    title: "长文本",
+    description: "节点携带长文本时，宽度与换行仍保持整洁。",
+    document: {
+      elements: [
+        storyTextElement("lt-q", "长期回灌依赖观察窗，而非瞬时峰值；新管段试运营期需单独建档。", {
+          x: 12,
+          y: 12,
+        }),
+        storyTextElement("lt-a", "规则", { x: 332, y: 12 }),
+      ],
+      edges: [storyEdge("lt-e1", "lt-q", "lt-a", "约束")],
+    },
+  },
+];
 
 function edgeGallery(
   rows: ReadonlyArray<{

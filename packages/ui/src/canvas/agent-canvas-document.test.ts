@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { agentCanvasDocument } from "./canvas-story-fixtures";
+import { agentLayoutScenarios, agentCanvasDocument } from "./canvas-story-fixtures";
 import { toX6Cells } from "./graph-document";
 
 type CellBox = {
@@ -50,15 +50,33 @@ test("converts an agent-created document into positioned X6 cells", () => {
   });
 });
 
-test("agent-created layout keeps top-level nodes non-overlapping", () => {
-  const cells = toX6Cells(agentCanvasDocument);
-  const topLevel = cells.filter((c) => c.shape !== "edge" && !c.parent).map((c) => box(c));
-  expect(topLevel.map((c) => c.id)).toEqual(["agent-question", "agent-options", "agent-decision"]);
-  for (const [i, a] of topLevel.entries()) {
-    for (const b of topLevel.slice(i + 1)) {
-      const overlaps =
-        a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
-      expect(overlaps, `${a.id} overlaps ${b.id}`).toBe(false);
+test("every agent layout scenario stays clean: groups bound children, top-level nodes don't overlap", () => {
+  for (const scenario of agentLayoutScenarios) {
+    const byId = new Map(
+      toX6Cells(scenario.document)
+        .filter((c) => c.shape !== "edge")
+        .map((c) => [c.id, box(c)]),
+    );
+    // 组必须包含其子节点（toX6Cells 已是绝对坐标）
+    for (const child of byId.values()) {
+      if (!child.parent) continue;
+      const parent = byId.get(child.parent)!;
+      expect(child.x, `${scenario.title}: ${child.id} 超出组左`).toBeGreaterThanOrEqual(parent.x);
+      expect(child.x + child.width).toBeLessThanOrEqual(parent.x + parent.width);
+      expect(child.y).toBeGreaterThanOrEqual(parent.y);
+      expect(child.y + child.height).toBeLessThanOrEqual(parent.y + parent.height);
+    }
+    // 顶层节点（含组）互不重叠
+    const top = [...byId.values()].filter((c) => !c.parent);
+    for (const [i, a] of top.entries()) {
+      for (const b of top.slice(i + 1)) {
+        const overlaps =
+          a.x < b.x + b.width &&
+          a.x + a.width > b.x &&
+          a.y < b.y + b.height &&
+          a.y + a.height > b.y;
+        expect(overlaps, `${scenario.title}: ${a.id} 与 ${b.id} 重叠`).toBe(false);
+      }
     }
   }
 });

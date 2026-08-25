@@ -14,7 +14,7 @@ import { CanvasZoomControls } from "./CanvasZoomControls";
 import { CanvasReadOnlyView } from "./CanvasReadOnlyView";
 import { GraphFrame, StoryCaseSwitch } from "./canvas-story-graph";
 import {
-  agentCanvasDocument,
+  agentLayoutScenarios,
   denseCanvasDocument,
   typicalCanvasDocument,
   typicalLibraryDomains,
@@ -239,16 +239,24 @@ function ReadonlySizeCase() {
 function AgentDocumentShowcase() {
   return (
     <StoryShowcase
-      title="Agent 生成文档"
-      description="独立验收 Agent changes 归一化后的分支、分组、连线与首次 fitView。"
+      title="Agent 生成文档：布局场景"
+      description="逐场景验收 Agent changes 归一化后的分支、分组、连线与首次 fitView。每个场景的几何均为真实 normalizeCanvasChanges（ELK）输出。x6-react-shape portal 为单例，同一页一次只挂一张图，用切换逐场景查看。"
     >
-      <GraphFrame height="h-[520px]">
-        <CanvasReadOnlyView
-          document={agentCanvasDocument}
-          showZoomControls
-          className="absolute inset-0"
-        />
-      </GraphFrame>
+      <StoryCaseSwitch
+        cases={agentLayoutScenarios.map((scenario) => ({
+          title: scenario.title,
+          description: scenario.description,
+          content: (
+            <GraphFrame height="h-[420px]">
+              <CanvasReadOnlyView
+                document={scenario.document}
+                showZoomControls
+                className="absolute inset-0"
+              />
+            </GraphFrame>
+          ),
+        }))}
+      />
     </StoryShowcase>
   );
 }
