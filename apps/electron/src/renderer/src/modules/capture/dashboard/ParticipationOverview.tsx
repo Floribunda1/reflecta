@@ -47,7 +47,7 @@ export const ParticipationOverview = memo(function ParticipationOverview() {
 
   const resolveDayDetail = useCallback(
     (date: string): ParticipationDayDetail => {
-      if (!data) return { sessions: [], understandings: [], contextCount: 0, canvases: [] };
+      if (!data) return { sessions: [], understandings: [], contexts: [], canvases: [] };
       return {
         sessions: data.recap.sessions
           .filter((session) => session.userMessageDates.some((iso) => dayKey(iso) === date))
@@ -64,7 +64,13 @@ export const ParticipationOverview = memo(function ParticipationOverview() {
             id: understanding.id,
             title: understanding.title?.trim() || "（无标题）",
           })),
-        contextCount: data.recap.contextCreates.filter((iso) => dayKey(iso) === date).length,
+        contexts: data.recap.contexts
+          .filter((context) => dayKey(context.createdAt) === date)
+          .map((context) => ({
+            id: context.id,
+            medium: context.medium,
+            title: context.title?.trim() || "（无标题）",
+          })),
         canvases: data.canvases
           .filter((canvas) => dayKey(canvas.createdAt) === date)
           .map((canvas) => ({ id: canvas.id, title: canvas.title || "（无标题）" })),

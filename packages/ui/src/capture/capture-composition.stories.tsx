@@ -60,7 +60,7 @@ function CaptureDashboard({
         resolveDayDetail={() => ({
           sessions: [],
           understandings: [],
-          contextCount: 0,
+          contexts: [],
           canvases: [],
         })}
       />

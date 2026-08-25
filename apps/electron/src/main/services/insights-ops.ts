@@ -2,7 +2,7 @@
 import { isNull, isNotNull } from "drizzle-orm";
 import { getDBInstance } from "@main/db";
 import { contexts, understandingCanvasEdges, understandingCanvasElements } from "@reflecta/server";
-import type { RecapData, SessionParticipation } from "@shared/recap";
+import type { ContextParticipation, RecapData, SessionParticipation } from "@shared/recap";
 import { getContentStorageRoot } from "../config";
 import { AgentSessionLog } from "./agent/pi-session-log";
 
@@ -30,7 +30,15 @@ export async function getRecapData(): Promise<RecapData> {
   const db = getDBInstance();
   const [sessions, contextRows, elementRows, edgeRows, refRows] = await Promise.all([
     listSessionParticipation(),
-    db.select({ createdAt: contexts.createdAt }).from(contexts).where(isNull(contexts.deletedAt)),
+    db
+      .select({
+        id: contexts.id,
+        medium: contexts.medium,
+        title: contexts.title,
+        createdAt: contexts.createdAt,
+      })
+      .from(contexts)
+      .where(isNull(contexts.deletedAt)),
     db
       .select({ createdAt: understandingCanvasElements.createdAt })
       .from(understandingCanvasElements),
@@ -40,8 +48,15 @@ export async function getRecapData(): Promise<RecapData> {
       .from(understandingCanvasElements)
       .where(isNotNull(understandingCanvasElements.understandingId)),
   ]);
+  const contextParticipations: ContextParticipation[] = contextRows.map((row) => ({
+    id: row.id,
+    medium: row.medium as ContextParticipation["medium"],
+    title: row.title,
+    createdAt: row.createdAt,
+  }));
   return {
     sessions,
+    contexts: contextParticipations,
     contextCreates: contextRows.map((row) => row.createdAt),
     canvasElementCreates: elementRows.map((row) => row.createdAt),
     canvasEdgeCreates: edgeRows.map((row) => row.createdAt),

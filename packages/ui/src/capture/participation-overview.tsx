@@ -64,7 +64,7 @@ export type ParticipationDayCounts = {
 export type ParticipationDayDetail = {
   sessions: readonly { id: string; title: string; messageCount: number }[];
   understandings: readonly { id: string; title: string }[];
-  contextCount: number;
+  contexts: readonly { id: string; medium: string; title: string }[];
   canvases: readonly { id: string; title: string }[];
 };
 
@@ -105,7 +105,7 @@ function DayDetail({ detail }: { detail: ParticipationDayDetail }) {
   if (
     detail.sessions.length === 0 &&
     detail.understandings.length === 0 &&
-    detail.contextCount === 0 &&
+    detail.contexts.length === 0 &&
     detail.canvases.length === 0
   ) {
     return (
@@ -182,20 +182,24 @@ function DayDetail({ detail }: { detail: ParticipationDayDetail }) {
           </ItemGroup>
         </section>
       ) : null}
-      {detail.contextCount > 0 ? (
+      {detail.contexts.length > 0 ? (
         <section className="space-y-2">
           <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
             <NotebookText className="size-3.5" />
             <span>上下文</span>
           </div>
-          <Item variant="muted" size="sm">
-            <ItemMedia variant="icon">
-              <NotebookText className="text-muted-foreground" />
-            </ItemMedia>
-            <ItemContent>
-              <ItemTitle>创建了 {detail.contextCount} 条上下文</ItemTitle>
-            </ItemContent>
-          </Item>
+          <ItemGroup className="gap-1.5">
+            {detail.contexts.map((context) => (
+              <Item key={context.id} variant="muted" size="sm">
+                <ItemMedia variant="icon">
+                  <NotebookText className="text-muted-foreground" />
+                </ItemMedia>
+                <ItemContent className="min-w-0">
+                  <ItemTitle>{context.title}</ItemTitle>
+                </ItemContent>
+              </Item>
+            ))}
+          </ItemGroup>
         </section>
       ) : null}
     </div>
@@ -227,7 +231,7 @@ const PARTICIPATION_CALENDAR_LABELS = {
 const EMPTY_DAY_DETAIL: ParticipationDayDetail = {
   sessions: [],
   understandings: [],
-  contextCount: 0,
+  contexts: [],
   canvases: [],
 };
 

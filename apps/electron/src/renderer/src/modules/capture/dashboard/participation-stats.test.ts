@@ -45,6 +45,7 @@ function input(
 ): ParticipationInput {
   const recap: RecapData = {
     sessions: [],
+    contexts: [],
     contextCreates: [],
     canvasElementCreates: [],
     canvasEdgeCreates: [],

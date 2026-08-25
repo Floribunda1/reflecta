@@ -34,7 +34,7 @@ function ParticipationOverviewShowcase() {
             resolveDayDetail={() => ({
               sessions: [],
               understandings: [],
-              contextCount: 0,
+              contexts: [],
               canvases: [],
             })}
           />
@@ -73,7 +73,11 @@ function ParticipationOverviewShowcase() {
             resolveDayDetail={() => ({
               sessions: [{ id: "s-dense", title: "连续复验窗口", messageCount: 12 }],
               understandings: [{ id: "u-dense", title: "模拟理解 1：极地温室第 1 轮复验记录" }],
-              contextCount: 3,
+              contexts: [
+                { id: "context-dense-1", medium: "experience", title: "高密度复验记录" },
+                { id: "context-dense-2", medium: "ai", title: "与 Agent 的复盘" },
+                { id: "context-dense-3", medium: "article", title: "相关技术文章" },
+              ],
               canvases: [{ id: "canvas-dense", title: "极地温室复验画布" }],
             })}
           />
