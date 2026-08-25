@@ -17,14 +17,12 @@ import {
   clampAiReasoningLevel,
   downloadDefaultRetrievalEmbeddingModel as downloadModel,
   getActiveAiModelSelection,
-  getAiConfig as getStoredAiConfig,
+  getAiConfig,
   getAiModelOptions,
   getAiProviderDefinition,
   getAiProviderDefinitions,
   getContentStorageRoot,
   isCodexAuthenticated,
-  getRetrievalConfig as getStoredRetrievalConfig,
-  getRetrievalEmbeddingModelStatus as getStoredEmbeddingStatus,
   normalizeAiConfig,
   normalizeRetrievalConfig,
   readConfig,
@@ -69,10 +67,6 @@ export function getConfig(): {
   };
 }
 
-export function getAiConfig(): AiConfig {
-  return getStoredAiConfig();
-}
-
 export function setAiConfig(config: AiConfig): void {
   const next = normalizeAiConfig(config);
   const incompleteProvider = next.providers.find((provider) => {
@@ -113,19 +107,11 @@ export async function disconnectCodex(): Promise<void> {
   });
 }
 
-export function getRetrievalConfig(): RetrievalConfig {
-  return getStoredRetrievalConfig();
-}
-
 export function setRetrievalConfig(config: RetrievalConfig): void {
   const next = normalizeRetrievalConfig(config);
   writeConfig({ retrieval: next });
   applyRetrievalConfigToServer(next);
   void retrievalIndexCoordinator.rebuild().catch(() => undefined);
-}
-
-export function getRetrievalEmbeddingModelStatus(): RetrievalEmbeddingModelStatus {
-  return getStoredEmbeddingStatus();
 }
 
 export function downloadDefaultRetrievalEmbeddingModel(): Promise<RetrievalEmbeddingModelStatus> {
