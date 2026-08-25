@@ -46,36 +46,49 @@ export class CanvasChangeError extends Schema.TaggedError<CanvasChangeError>()(
   { message: Schema.String },
 ) {}
 
-// —— text 卡动态高度（档1 粗估）——
-// 与卡片 CSS 对齐的常量（text 卡正文 p-2、默认 14px 字号）。服务端不渲染 DOM，
-// 只能确定性估算；估算偏高则内容更完整可见，偏低则触发卡内滚动（已有 overflow 兜底）。
+// —— text 卡高度：确定性单逻辑（估算校准版）——
+// 服务端不渲染 DOM，尺寸必须由同一确定性函数算出（布局/存储/渲染共用，所见即所存）。
+// 常量为离线实测校准：单行卡真实高 ≈57px、真实行高 ≈28px（text 卡正文 p-2 + 14px 字号）。
+// 策略：估算**略微偏大**（BREATHING + MIN 地板 + markdown 块余量）——内容永远放得下，
+// 不会出现"估矮了 → 正文溢出滚动条"的非预期行为；代价只是卡片略宽松。
 const TEXT_CARD_WIDTH = 220;
 const TEXT_FONT_SIZE = 14;
-const TEXT_LINE_HEIGHT = 22;
+const TEXT_LINE_HEIGHT = 28; // 实测校准
 const TEXT_H_PADDING = 16; // p-2 × 2
 const TEXT_V_PADDING = 16; // p-2 × 2
 const TEXT_CARD_BORDER = 2;
-const TEXT_MIN_HEIGHT = 72;
+const TEXT_MIN_HEIGHT = 64; // 实测单行 57 + 呼吸
 const TEXT_MAX_HEIGHT = 300;
+/** 全文额外余量，保证算出的高度 ≥ 真实渲染高。 */
+const TEXT_BREATHING = 8;
+/** markdown 块级行（标题/列表/引用/代码/表格）额外加高（确定性块模型，CSS 变则同步）。 */
+const TEXT_BLOCK_EXTRA = 10;
 
 /** 全角字符（中文/全宽标点等）按 1 个字宽，其余按 0.5。 */
 const FULL_WIDTH_RE =
   /[\u1100-\u115f\u2e80-\ua4cf\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe4f\uff00-\uff60\uffe0-\uffe6\u3000-\u303f]/;
 
-/** 按固定宽折行，估算 markdown 正文所需高度。 */
+const MARKDOWN_BLOCK_LINE_RE = /^\s*(#{1,6}[ \t]|[-*+][ \t]|\d+\.[ \t]|>[ \t]|```|~~~|\|)/;
+
+/** 按固定宽折行，估算 markdown 正文所需高度（确定性、可 server 端计算）。 */
 function estimateTextHeight(markdown: string): number {
   const charsPerLine = Math.max(1, Math.floor((TEXT_CARD_WIDTH - TEXT_H_PADDING) / TEXT_FONT_SIZE));
   let lines = 0;
+  let blockLines = 0;
   for (const segment of markdown.split("\n")) {
     if (segment.trim().length === 0) {
       lines += 1;
       continue;
     }
+    if (MARKDOWN_BLOCK_LINE_RE.test(segment)) blockLines += 1;
     let units = 0;
     for (const ch of segment) units += FULL_WIDTH_RE.test(ch) ? 1 : 0.5;
     lines += Math.max(1, Math.ceil(units / charsPerLine));
   }
-  const raw = Math.round(lines * TEXT_LINE_HEIGHT + TEXT_V_PADDING + TEXT_CARD_BORDER);
+  const raw =
+    Math.round(lines * TEXT_LINE_HEIGHT + TEXT_V_PADDING + TEXT_CARD_BORDER) +
+    blockLines * TEXT_BLOCK_EXTRA +
+    TEXT_BREATHING;
   return Math.min(TEXT_MAX_HEIGHT, Math.max(TEXT_MIN_HEIGHT, raw));
 }
 

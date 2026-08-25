@@ -13,7 +13,6 @@ import {
 import { CanvasZoomControls } from "./CanvasZoomControls";
 import { CanvasReadOnlyView } from "./CanvasReadOnlyView";
 import { GraphFrame, StoryCaseSwitch } from "./canvas-story-graph";
-import { measureTextCardContentHeight } from "./measure-text-card-height";
 import {
   agentScenarioInputs,
   type AgentLayoutScenarioInput,
@@ -245,61 +244,37 @@ function ReadonlySizeCase() {
 }
 
 function AgentScenarioGraph({ input }: { input: AgentLayoutScenarioInput }) {
-  const [state, setState] = useState<{ doc: CanvasDocument; notes: string[] } | null>(null);
+  const [doc, setDoc] = useState<CanvasDocument | null>(null);
   useEffect(() => {
     // 现场跑真实 normalizeCanvasChanges（shared，ELK）——几何与 server 一致，无静态快照。
-    // 演示「估算占位 → offscreen 实测 → 用实测高重排」：文字卡高度以浏览器真实布局为准。
+    // 尺寸即 shared 的确定性估算（校准版），布局/存储/渲染同一逻辑，所见即所存。
     let mounted = true;
-    (async () => {
-      const estimated = await Effect.runPromise(
-        normalizeCanvasChanges({ layout: input.layout, changes: input.changes }),
-      );
-      const doc = structuredClone(estimated.document);
-      const notes: string[] = [];
-      for (const element of doc.elements) {
-        if (element.kind !== "text") continue;
-        const before = element.height;
-        const measured = await measureTextCardContentHeight(element.props.text);
-        element.height = measured;
-        notes.push(
-          `Text「${element.props.text.slice(0, 10)}…」估算 ${before}px → 实测 ${measured}px`,
-        );
-      }
-      // 用实测尺寸重新布局（agent 定稿场景：先测后摆）。
-      const settled = await Effect.runPromise(
-        normalizeCanvasChanges({ base: doc, layout: input.layout ?? "auto", changes: [] }),
-      );
-      if (mounted) setState({ doc: settled.document, notes });
-    })();
+    const promise = Effect.runPromise(
+      normalizeCanvasChanges({ layout: input.layout, changes: input.changes }),
+    ).then((result) => {
+      if (mounted) setDoc(result.document);
+    });
     return () => {
       mounted = false;
+      promise.catch(() => undefined);
     };
   }, [input]);
-  if (!state)
+  if (!doc)
     return (
       <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
         生成中…
       </div>
     );
   return (
-    <>
-      <CanvasReadOnlyView
-        document={state.doc}
-        shapeData={{
-          understandingRefs: input.understandingRefs ?? new Map(),
-          referencedCanvases: new Map(),
-        }}
-        showZoomControls
-        className="absolute inset-0"
-      />
-      {state.notes.length ? (
-        <div className="absolute bottom-2 right-2 z-10 grid gap-1 rounded-md border bg-background/90 p-2 text-xs text-muted-foreground backdrop-blur">
-          {state.notes.map((note) => (
-            <div key={note}>{note}</div>
-          ))}
-        </div>
-      ) : null}
-    </>
+    <CanvasReadOnlyView
+      document={doc}
+      shapeData={{
+        understandingRefs: input.understandingRefs ?? new Map(),
+        referencedCanvases: new Map(),
+      }}
+      showZoomControls
+      className="absolute inset-0"
+    />
   );
 }
 

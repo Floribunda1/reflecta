@@ -339,8 +339,9 @@ describe("normalizeCanvasChanges", () => {
     const [shortEl] = short.document.elements;
     const [longEl] = long.document.elements;
     expect(shortEl.width).toBe(220);
-    expect(shortEl.height).toBe(72); // 短文本落到最小高
+    expect(shortEl.height).toBe(64); // 短文本落到最小高（校准版）
     expect(longEl.height).toBeGreaterThan(shortEl.height);
+    expect(longEl.height).toBeGreaterThanOrEqual(80); // 校准版行高 28，长文本更高
     expect(longEl.height).toBeLessThanOrEqual(300); // 上限钳制，超出走卡内滚动
   });
 });
