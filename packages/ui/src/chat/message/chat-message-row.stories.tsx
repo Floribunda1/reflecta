@@ -1,7 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useEffect, useState } from "react";
+import { Effect } from "effect";
+import { normalizeCanvasChanges } from "@reflecta/shared";
 import { StoryCase, StoryShowcase } from "../../../.storybook/story-showcase";
 import { useAutoFrame } from "../../../.storybook/use-auto-frame";
 import { AgentContextCompactionStatus } from "../execution/agent-execution-block";
+import { agentScenarioInputs } from "../../canvas/canvas-story-fixtures";
 import { ChatMessageRow } from "./chat-message-row";
 import type { ChatMessageRowView } from "./types";
 
@@ -199,6 +203,87 @@ ${"bun run --cwd packages/ui build-storybook --verbose ".repeat(8)}
   enabledActions: ["copy", "fork", "regenerate"],
 };
 
+// canvas_present 只读分析视图场景：用真实 normalizeCanvasChanges（ELK）现场生成文档，
+// 几何与 server 一致；理解卡标题由冻结/实时的展示数据提供（非几何）。
+const canvasKnowledgeScenario = agentScenarioInputs.find((scenario) => scenario.understandingRefs);
+
+const canvasQuestionRow: ChatMessageRowView = {
+  message: {
+    kind: "user",
+    id: "user-canvas",
+    text: "我现在在夜班灌溉这条线路上，知识的因果结构如何？",
+  },
+  timestampLabel: "7月28日 20:12:00",
+  enabledActions: ["copy", "edit"],
+};
+
+function CanvasPresentSequence() {
+  const [row, setRow] = useState<ChatMessageRowView | null>(null);
+  useEffect(() => {
+    if (!canvasKnowledgeScenario) return;
+    let mounted = true;
+    const promise = Effect.runPromise(
+      normalizeCanvasChanges({ layout: "auto", changes: canvasKnowledgeScenario.changes }),
+    ).then((result) => {
+      if (!mounted) return;
+      const understandingTitles = [...(canvasKnowledgeScenario.understandingRefs ?? new Map())].map(
+        ([id, ref]) => ({ id, title: ref.title ?? id }),
+      );
+      setRow({
+        message: {
+          kind: "assistant",
+          id: "assistant-canvas",
+          status: "done",
+          blocks: [
+            {
+              kind: "reasoning",
+              reasoning: {
+                id: "reasoning-canvas",
+                status: "done",
+                markdown: "把当前夜班灌溉相关的理解按因果汇总成一张分析图。",
+              },
+            },
+            {
+              kind: "tool-activity",
+              activity: {
+                id: "tool-canvas",
+                status: "done",
+                summary: "展示了结构画布",
+                items: [{ id: "tool-canvas", label: "展示了结构画布" }],
+              },
+            },
+            {
+              kind: "canvas-view",
+              id: "tool-canvas:canvas-view",
+              title: "夜班灌溉知识结构",
+              caption: "基于现有 Understanding 的分析视图，未保存。",
+              document: result.document,
+              understandingTitles,
+            },
+            {
+              kind: "text",
+              id: "assistant-canvas:text:0",
+              status: "done",
+              markdown: "这是分析视图；若要保存为画布，告诉我即可。",
+            },
+          ],
+        },
+      });
+    });
+    return () => {
+      mounted = false;
+      promise.catch(() => undefined);
+    };
+  }, []);
+  if (!row) return <ChatMessageRow row={pendingRow} />;
+  return (
+    <div className="grid gap-6">
+      <ChatMessageRow row={canvasQuestionRow} />
+      <ChatMessageRow row={row} />
+    </div>
+  );
+}
+
 function MessageShowcase() {
   return (
     <StoryShowcase
@@ -220,6 +305,12 @@ function MessageShowcase() {
       </StoryCase>
       <StoryCase title="Assistant 生成图片" description="生成结果与后续文字保持在同一条消息内。">
         <ChatMessageRow row={generatedImageRow} />
+      </StoryCase>
+      <StoryCase
+        title="canvas_present 分析视图"
+        description="用户问知识结构 → Agent 展示只读分析画布（AI 分析 · 未保存），结构与最终文本同消息。"
+      >
+        <CanvasPresentSequence />
       </StoryCase>
       <StoryCase
         title="搜索高亮与操作"

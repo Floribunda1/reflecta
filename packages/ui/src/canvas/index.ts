@@ -5,6 +5,7 @@ export {
   type CanvasGraphProps,
 } from "./CanvasGraph";
 export { CanvasReadOnlyView, type CanvasReadOnlyViewProps } from "./CanvasReadOnlyView";
+export { ReadOnlyCanvasCard, type ReadOnlyCanvasCardProps } from "./readonly-canvas-card";
 export { CanvasZoomControls, type CanvasZoomControlsProps } from "./CanvasZoomControls";
 export {
   CanvasUnderstandingCard,

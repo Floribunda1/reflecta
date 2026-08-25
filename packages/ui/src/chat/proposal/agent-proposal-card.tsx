@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { ChevronDown, Trash2 } from "lucide-react";
 import { Button } from "../../components/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/collapsible";
@@ -20,6 +20,7 @@ import {
 import { AgentWorkingIndicator } from "../execution/agent-working-indicator";
 import { hasToolDetails, ToolDetails } from "../execution/tool-details";
 import { ChatMarkdown } from "../markdown/chat-markdown";
+import { ReadOnlyCanvasCard } from "../../canvas/readonly-canvas-card";
 import type {
   AgentProposalDecision,
   AgentProposalLifecycle,
@@ -718,12 +719,9 @@ function BashProposal({ proposal }: { proposal: BashProposalView }) {
   );
 }
 
-// 只读画布渲染经 lazy 引入：把 @antv/x6 排除出本模块的 eager 依赖图（proposal-card 的
-// 单测跑在 ESM 环境，X6 CJS lib 载入会炸；且只在 canvas 提案实际渲染时才需要 X6）。
-const CanvasReadOnlyView = lazy(() =>
-  import("../../canvas").then((m) => ({ default: m.CanvasReadOnlyView })),
-);
-
+// 只读画布经共享 ReadOnlyCanvasCard 渲染：内部 lazy 引入 CanvasReadOnlyView，把 X6
+// 排除出本模块的 eager 依赖图（proposal-card 的单测跑在 ESM 环境，X6 CJS lib 载入会炸；
+// 且只在 canvas 提案实际渲染时才需要 X6）。
 function CanvasProposalDraft({ proposal, open }: { proposal: CanvasProposalView; open: boolean }) {
   const content = proposal.content;
   if (content.variant === "delete" || !content.document) {
@@ -733,34 +731,17 @@ function CanvasProposalDraft({ proposal, open }: { proposal: CanvasProposalView;
       </div>
     );
   }
-  const understandingRefs = new Map(content.understandingRefs);
-  for (const title of content.understandingTitles ?? []) {
-    if (!understandingRefs.has(title.id))
-      understandingRefs.set(title.id, {
-        id: title.id,
-        title: title.title ?? null,
-        body: "",
-        deleted: false,
-      });
-  }
   // 卡片折叠（collapsible keepMounted + collapse-grid 动画）时 X6 图会在 0/裁剪尺寸里
   // 挂一程，展开回来不重新 fit 就坏。折叠即卸载、展开按当前尺寸重建 + fit：
   // 每次展开都是确定性的新鲜图，代价是重挂载一张小只读图（可接受）。
   return (
-    <div className="relative h-64 overflow-hidden rounded-md border border-border bg-muted/30">
-      {open ? (
-        <Suspense fallback={<div className="h-64" />}>
-          <CanvasReadOnlyView
-            document={content.document}
-            shapeData={{ understandingRefs, referencedCanvases: new Map() }}
-            showZoomControls
-            className="h-full min-h-0"
-          />
-        </Suspense>
-      ) : (
-        <div className="h-64" />
-      )}
-    </div>
+    <ReadOnlyCanvasCard
+      document={content.document}
+      understandingRefs={content.understandingRefs}
+      understandingTitles={content.understandingTitles}
+      mounted={open}
+      className="h-64"
+    />
   );
 }
 
