@@ -1,7 +1,11 @@
 import { inArray } from "drizzle-orm";
 import { understandings } from "../../db/schema";
 import type { ReflectaDb } from "../../db/types";
-import type { CanvasDocument, CanvasElementDTO, CanvasElementKind } from "./types";
+import type {
+  CanvasDocument,
+  CanvasElementDTO,
+  CanvasElementKind,
+} from "@reflecta/shared/canvas/document";
 
 /**
  * 文档级写路径下的机械校验（§2.4）：

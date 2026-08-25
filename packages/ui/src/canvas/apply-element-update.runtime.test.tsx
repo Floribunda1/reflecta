@@ -2,7 +2,7 @@
 import { describe, expect, test } from "vitest";
 import { Graph, Node } from "@antv/x6";
 import { nodeMetadataFor, applyElementUpdate } from "./graph-document";
-import type { CanvasElementDTO } from "./document";
+import type { CanvasElementDTO } from "@reflecta/shared";
 
 Node.define({
   shape: "text",

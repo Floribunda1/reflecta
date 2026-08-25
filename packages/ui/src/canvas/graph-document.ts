@@ -15,7 +15,7 @@ import type {
   CanvasEdgePortId,
   CanvasEdgeRouter,
   CanvasElementDTO,
-} from "./document";
+} from "@reflecta/shared";
 import { absolutePositionOf } from "./graph-operations";
 import { CANVAS_PORTS } from "./ports";
 

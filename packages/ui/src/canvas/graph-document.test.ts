@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import type { CanvasDocument, CanvasEdgeDTO, CanvasElementDTO } from "./document";
+import type { CanvasDocument, CanvasEdgeDTO, CanvasElementDTO } from "@reflecta/shared";
 import {
   applyEdgePresentation,
   applyElementUpdate,

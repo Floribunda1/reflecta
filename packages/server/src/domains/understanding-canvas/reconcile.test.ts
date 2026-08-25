@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { createDBInstance, type ReflectaDb } from "../../db";
 import { CanvasCore, canvasRowToDTO } from "./core";
-import type { CanvasDocument, CanvasElementDTO } from "./types";
+import type { CanvasDocument, CanvasElementDTO } from "@reflecta/shared/canvas/document";
 
 let tempDir: string;
 let db: ReflectaDb;

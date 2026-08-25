@@ -14,7 +14,7 @@ import {
   typicalCanvasDocument,
   typicalShapeData,
 } from "./canvas-story-fixtures";
-import type { CanvasDocument, CanvasEdgeDTO, CanvasEdgePortId } from "./document";
+import type { CanvasDocument, CanvasEdgeDTO, CanvasEdgePortId } from "@reflecta/shared";
 import { curveEdgePath, edgeToEdge, orthogonalEdgePath } from "./graph-document";
 
 const PATH_OPTIONS = [

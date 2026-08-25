@@ -1,4 +1,4 @@
-import type { CanvasDocument, CanvasEdgeDTO, CanvasElementDTO } from "./document";
+import type { CanvasDocument, CanvasEdgeDTO, CanvasElementDTO } from "@reflecta/shared";
 import { curveEdgePath, DEFAULT_CANVAS_EDGE_ATTRS, orthogonalEdgePath } from "./graph-document";
 import type { CanvasLibraryItemView } from "./canvas-library-panel";
 import type { DomainTreeNodeView } from "../capture/domain-tree";

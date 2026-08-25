@@ -8,7 +8,7 @@ import {
   CanvasTextCard,
   CanvasUnderstandingCard,
 } from "./canvas-cards";
-import type { CanvasElementDTO, CanvasElementKind } from "./document";
+import type { CanvasElementDTO, CanvasElementKind } from "@reflecta/shared";
 import { useCanvasElementUpdate, useCanvasShapeData } from "./shape-context";
 
 /**

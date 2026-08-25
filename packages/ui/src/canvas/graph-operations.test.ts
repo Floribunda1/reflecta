@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import type { CanvasDocument, CanvasElementDTO } from "./document";
+import type { CanvasDocument, CanvasElementDTO } from "@reflecta/shared";
 import {
   deleteGroupBranch,
   groupElements,

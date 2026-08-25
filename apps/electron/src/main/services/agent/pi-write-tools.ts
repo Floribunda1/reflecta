@@ -3,7 +3,6 @@ import { Effect } from "effect";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import type {
   CanvasGraphChange,
-  CanvasDocument,
   CanvasUpdateChange,
   CreateDomainInput,
   CreateContextInput,
@@ -13,6 +12,7 @@ import type {
   UpdateContextInput,
   UpdateUnderstandingInput,
 } from "@reflecta/server";
+import type { CanvasDocument } from "@reflecta/shared";
 import { normalizeCanvasChanges } from "@reflecta/server";
 import {
   domainService,

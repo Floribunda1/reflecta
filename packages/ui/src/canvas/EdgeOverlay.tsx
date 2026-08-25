@@ -11,7 +11,7 @@ import {
 } from "../components/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/popover";
 import { CANVAS_SWATCH_TOKENS, canvasPaintColor, CanvasColorSwatches } from "./color-swatches";
-import type { CanvasEdgeDTO } from "./document";
+import type { CanvasEdgeDTO } from "@reflecta/shared";
 import { curveEdgePath, orthogonalEdgePath } from "./graph-document";
 
 /**

@@ -27,6 +27,7 @@
       "dependencies": {
         "@lancedb/lancedb": "0.33.0",
         "@reflecta/server": "workspace:*",
+        "@reflecta/shared": "workspace:*",
         "better-sqlite3": "^13.0.2",
         "commander": "^15.0.0",
         "drizzle-orm": "^0.45.2",
@@ -66,6 +67,7 @@
         "@oxc-project/runtime": "^0.143.0",
         "@playwright/test": "^1.62.1",
         "@reflecta/server": "workspace:*",
+        "@reflecta/shared": "workspace:*",
         "@reflecta/ui": "workspace:*",
         "@tailwindcss/vite": "^4.3.3",
         "@tanstack/react-query": "^5.101.4",
@@ -115,6 +117,7 @@
       "version": "1.5.0",
       "dependencies": {
         "@lancedb/lancedb": "0.33.0",
+        "@reflecta/shared": "workspace:*",
         "better-sqlite3": "^13.0.2",
         "drizzle-orm": "^0.45.2",
         "effect": "4.0.0-rc.110",
@@ -126,6 +129,18 @@
       "devDependencies": {
         "@types/better-sqlite3": "^9.6.0",
         "@types/node": "^26.1.2",
+        "typescript": "^7.0.2",
+        "vitest": "^4.1.10",
+      },
+    },
+    "packages/shared": {
+      "name": "@reflecta/shared",
+      "version": "0.1.0",
+      "dependencies": {
+        "effect": "4.0.0-rc.110",
+        "elkjs": "^0.12.0",
+      },
+      "devDependencies": {
         "typescript": "^7.0.2",
         "vitest": "^4.1.10",
       },
@@ -150,6 +165,7 @@
         "@milkdown/prose": "7.22.0",
         "@milkdown/react": "7.22.0",
         "@milkdown/utils": "7.22.0",
+        "@reflecta/shared": "workspace:*",
         "@shadcn/react": "^0.3.0",
         "@streamdown/code": "1.1.1",
         "@streamdown/math": "1.0.2",
@@ -1206,6 +1222,8 @@
     "@reflecta/retrieval-eval": ["@reflecta/retrieval-eval@workspace:packages/retrieval-eval"],
 
     "@reflecta/server": ["@reflecta/server@workspace:packages/server"],
+
+    "@reflecta/shared": ["@reflecta/shared@workspace:packages/shared"],
 
     "@reflecta/ui": ["@reflecta/ui@workspace:packages/ui"],
 
@@ -3851,6 +3869,8 @@
 
     "@reduxjs/toolkit/immer": ["immer@11.1.18", "", {}, "sha512-EQyQtLiYW029lyoczMl/Hh4Xu7cDecSc58JRYpHyL4tIAu3eqd1yJzQX04d2BZHDkzFFvm6qJEJWOtfDSWAXbQ=="],
 
+    "@reflecta/cli/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+
     "@rollup/pluginutils/estree-walker": ["estree-walker@2.0.2", "", {}, "sha512-Rfkk/Mp/DL7JVje3u18FxFujQlTNR2q6QfMSMB7AvCBx91NGj/ba3kCfza0f6dVDbw7YlRf/nDrn7pQrCCyQ/w=="],
 
     "@streamdown/math/katex": ["katex@0.16.47", "", { "dependencies": { "commander": "^8.3.0" }, "bin": { "katex": "cli.js" } }, "sha512-Eeo8Ys1doU1z+x8AZsPpQu+p/QcZBI5PeOo7QGQdy2x2m0MU/hYagBbGOmXwr5KVbEfVuWv9LpnQWeehogurjg=="],
@@ -4206,6 +4226,8 @@
     "@esbuild-kit/core-utils/esbuild/@esbuild/win32-x64": ["@esbuild/win32-x64@0.18.20", "", { "os": "win32", "cpu": "x64" }, "sha512-kTdfRcSiDfQca/y9QIkng02avJ+NCaQvrMejlsB3RRv5sE9rRoeBPISaZpKxHELzRxZyLvNts1P27W3wV+8geQ=="],
 
     "@oxc-parser/binding-wasm32-wasi/@emnapi/core/@emnapi/wasi-threads": ["@emnapi/wasi-threads@1.2.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w=="],
+
+    "@reflecta/cli/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
 
     "@streamdown/math/katex/commander": ["commander@8.3.0", "", {}, "sha512-OkTL9umf+He2DZkUq8f8J9of7yL6RJKI24dVITBmNfZBmri9zYZQrKkuXiKhyfPSu8tUhnVBB1iKXevvnlR4Ww=="],
 

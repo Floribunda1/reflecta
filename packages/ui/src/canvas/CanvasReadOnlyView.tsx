@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { cn } from "../lib/utils";
 import { CanvasGraph, type CanvasGraphHandle } from "./CanvasGraph";
 import { CanvasZoomControls } from "./CanvasZoomControls";
-import type { CanvasDocument } from "./document";
+import type { CanvasDocument } from "@reflecta/shared";
 import { EMPTY_CANVAS_SHAPE_DATA, type CanvasShapeData } from "./shape-context";
 
 /**

@@ -1,10 +1,9 @@
 /**
- * 画布文档契约类型（ui 包本地视图模型）。
+ * 画布文档契约（跨 server / UI / CLI 共享的 wire format）。
  *
- * 与 `@reflecta/server` 的 CanvasDocument / CanvasElementDTO / CanvasEdgeDTO
- * 结构同构（见 server `domains/understanding-canvas/types.ts`）；ui 包不依赖
- * server 包，契约漂移由 electron renderer 边界（IPC 层）做结构校验兜底。
- * 渲染层（React Flow）与文档层只认这里的形状：元素 / 连线 id 零映射。
+ * 单一真源：server 侧 normalize/validate/layout、UI 侧渲染、CLI 创建都认这里的
+ * 形状。元素 / 连线 id 零映射；`x/y/width/height` 中「组内子元素为相对坐标」，
+ * UI 渲染时换算成绝对坐标（见 UI graph-document 注释）。
  */
 
 export type CanvasElementKind = "understanding" | "text" | "group" | "canvas_ref";
@@ -73,7 +72,7 @@ export type CanvasEdgeDTO = {
   createdAt: string;
 };
 
-/** saveCanvas 的唯一参数（与读出的 detail 内容同构，不含服务端派生字段） */
+/** saveCanvas 的唯一参数（与读出的 detail 内容同构） */
 export type CanvasDocument = {
   elements: CanvasElementDTO[];
   edges: CanvasEdgeDTO[];

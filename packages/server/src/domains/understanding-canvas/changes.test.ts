@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { describe, expect, test } from "vitest";
 import { normalizeCanvasChanges } from "./changes";
-import type { CanvasElementDTO } from "./types";
+import type { CanvasElementDTO } from "@reflecta/shared/canvas/document";
 
 const textElement = (id: string, text: string): CanvasElementDTO => ({
   id,

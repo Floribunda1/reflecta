@@ -4,7 +4,7 @@ import { Button } from "../components/button";
 import { CanvasGraph, type CanvasGraphHandle } from "./CanvasGraph";
 import { CanvasZoomControls } from "./CanvasZoomControls";
 import { typicalShapeData } from "./canvas-story-fixtures";
-import type { CanvasDocument } from "./document";
+import type { CanvasDocument } from "@reflecta/shared";
 import type { CanvasShapeData } from "./shape-context";
 
 /**

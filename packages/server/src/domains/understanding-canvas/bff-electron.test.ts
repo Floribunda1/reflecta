@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { createDBInstance, type ReflectaDb } from "../../db";
 import { UnderstandingCanvasElectronBff } from "./bff-electron";
 import { UnderstandingCliBff } from "../understanding/bff-cli";
-import type { CanvasDocument, CanvasElementDTO } from "./types";
+import type { CanvasDocument, CanvasElementDTO } from "@reflecta/shared/canvas/document";
 
 let tempDir: string;
 let db: ReflectaDb;

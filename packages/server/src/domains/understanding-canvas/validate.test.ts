@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
 import { assertValidDocument, CanvasValidationError } from "./validate";
-import type { CanvasDocument, CanvasElementDTO, CanvasEdgeDTO } from "./types";
+import type {
+  CanvasDocument,
+  CanvasElementDTO,
+  CanvasEdgeDTO,
+} from "@reflecta/shared/canvas/document";
 
 function element(partial: Partial<CanvasElementDTO> & { id: string }): CanvasElementDTO {
   const base = {

@@ -22,7 +22,11 @@ import {
   typicalSearchIndex,
   typicalShapeData,
 } from "./canvas-story-fixtures";
-import { EMPTY_CANVAS_DOCUMENT, type CanvasDocument, type CanvasElementDTO } from "./document";
+import {
+  EMPTY_CANVAS_DOCUMENT,
+  type CanvasDocument,
+  type CanvasElementDTO,
+} from "@reflecta/shared";
 
 function newTextElement(): CanvasElementDTO {
   return {

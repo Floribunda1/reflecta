@@ -2,7 +2,7 @@
 import { describe, expect, test } from "vitest";
 import { Graph, Node } from "@antv/x6";
 import { nodeMetadataFor, applyElementUpdate } from "./graph-document";
-import type { CanvasDocument, CanvasElementDTO } from "./document";
+import type { CanvasElementDTO } from "@reflecta/shared";
 
 Node.define({
   shape: "group",
@@ -34,9 +34,23 @@ function elementFor(
   };
   switch (kind) {
     case "group":
-      return { ...base, kind, understandingId: null, canvasRefId: null, props: { label: "G" }, ...partial } as CanvasElementDTO;
+      return {
+        ...base,
+        kind,
+        understandingId: null,
+        canvasRefId: null,
+        props: { label: "G" },
+        ...partial,
+      } as CanvasElementDTO;
     case "text":
-      return { ...base, kind, understandingId: null, canvasRefId: null, props: { text: "t" }, ...partial } as CanvasElementDTO;
+      return {
+        ...base,
+        kind,
+        understandingId: null,
+        canvasRefId: null,
+        props: { text: "t" },
+        ...partial,
+      } as CanvasElementDTO;
     default:
       throw new Error("unsupported");
   }

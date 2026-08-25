@@ -29,12 +29,12 @@ export const understandingCanvas: HandlerModule = {
       understandingCanvasService.deleteCanvas(id).pipe(toVoid),
     "understandingCanvas.updateViewport": ({ canvasId, viewport }) =>
       understandingCanvasService
-        .updateViewport(canvasId, viewport as import("@reflecta/server").Viewport)
+        .updateViewport(canvasId, viewport as import("@reflecta/shared").CanvasViewport)
         .pipe(toVoid),
     "understandingCanvas.saveCanvas": ({ canvasId, document }) =>
       understandingCanvasService.saveCanvas(
         canvasId,
-        document as import("@reflecta/server").CanvasDocument,
+        document as import("@reflecta/shared").CanvasDocument,
       ),
   },
 };

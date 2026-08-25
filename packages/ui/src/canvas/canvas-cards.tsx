@@ -18,7 +18,7 @@ import { cn } from "../lib/utils";
 import type { ChatEntityReference, ResolveChatEntity } from "../chat/entity";
 import { Skeleton } from "../components/skeleton";
 import { canvasPaintColor, CanvasColorSwatches } from "./color-swatches";
-import type { CanvasDocument } from "./document";
+import type { CanvasDocument } from "@reflecta/shared";
 import type { CanvasShapeData } from "./shape-context";
 
 const CanvasReadOnlyView = lazy(() =>

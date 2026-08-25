@@ -1,4 +1,4 @@
-import type { CanvasDocument, CanvasElementDTO } from "./document";
+import type { CanvasDocument, CanvasElementDTO } from "@reflecta/shared";
 
 /**
  * 画布图操作（纯函数、引擎无关）。

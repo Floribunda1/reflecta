@@ -41,7 +41,7 @@ import {
   type CanvasElementDTO,
   type CanvasElementKind,
   type CanvasViewport,
-} from "./document";
+} from "@reflecta/shared";
 import {
   applyEdgePresentation,
   DEFAULT_CANVAS_EDGE_CONNECTOR,

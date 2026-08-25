@@ -1,7 +1,11 @@
 import { DateTime, Effect, Schema } from "effect";
 import ELK, { type ElkNode } from "elkjs";
 import { createEntityId } from "../shared/id";
-import type { CanvasDocument, CanvasEdgePortId, CanvasElementDTO } from "./types";
+import type {
+  CanvasDocument,
+  CanvasEdgePortId,
+  CanvasElementDTO,
+} from "@reflecta/shared/canvas/document";
 import { assertValidDocument, CanvasValidationError } from "./validate";
 
 export type LayoutDirection = "auto" | "horizontal" | "vertical";

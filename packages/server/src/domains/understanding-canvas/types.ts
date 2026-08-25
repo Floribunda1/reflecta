@@ -9,73 +9,10 @@ export type UnderstandingCanvas = InferSelectModel<typeof understandingCanvases>
 export type UnderstandingCanvasElement = InferSelectModel<typeof understandingCanvasElements>;
 export type UnderstandingCanvasEdge = InferSelectModel<typeof understandingCanvasEdges>;
 
-// --- 元素判别联合（kind 收窄 props 与引用字段） ---------------------------------
-
-export type CanvasElementKind = "understanding" | "text" | "group" | "canvas_ref";
-
-export type ElementPropsMap = {
-  understanding: { color?: string };
-  text: { text: string; color?: string };
-  group: { label: string; color?: string };
-  canvas_ref: { color?: string };
-};
-
-export type CanvasElementBase = {
-  id: string;
-  canvasId: string;
-  parentId: string | null;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  zIndex: number;
-  createdAt: string;
-  updatedAt: string;
-};
-
-/** DTO 判别联合：kind 收窄 props 与引用字段（无意义组合在类型层面不可能） */
-export type CanvasElementDTO = {
-  [K in CanvasElementKind]: CanvasElementBase & {
-    kind: K;
-    understandingId: K extends "understanding" ? string | null : null;
-    canvasRefId: K extends "canvas_ref" ? string | null : null;
-    props: ElementPropsMap[K];
-  };
-}[CanvasElementKind];
-
-// --- X6 连线配置 ---------------------------------------------------------------
-
-export type CanvasEdgeAttrs = Record<string, Record<string, unknown>>;
-
-export type CanvasEdgePortId = "top" | "right" | "bottom" | "left";
-
-export type CanvasEdgeRouter = {
-  name: "normal" | "orth" | "oneSide" | "manhattan" | "metro" | "er" | "reflecta-curve";
-  args?: Record<string, unknown>;
-};
-
-export type CanvasEdgeConnector = {
-  name: "normal" | "smooth" | "rounded" | "jumpover" | "reflecta-curve";
-  args?: Record<string, unknown>;
-};
-
-/** 与 X6 Edge terminal 同构；服务端持久化端点，不持久化引擎派生的路径。 */
-export type CanvasEdgeTerminal = {
-  cell: string;
-  port: CanvasEdgePortId;
-};
-
-export type CanvasEdgeDTO = {
-  id: string;
-  canvasId: string;
-  source: CanvasEdgeTerminal;
-  target: CanvasEdgeTerminal;
-  router: CanvasEdgeRouter | null;
-  connector: CanvasEdgeConnector;
-  attrs: CanvasEdgeAttrs;
-  label: string | null;
-  createdAt: string;
-};
+// --- 文档契约（单一真源在 @reflecta/shared）-----------------------------------
+// UI 渲染、server normalize/validate/layout、CLI 创建共用同一份 wire format。
+// 消费者直接引 `@reflecta/shared`，本文件不再 re-export，避免兼容 shim。
+import type { CanvasElementDTO, CanvasEdgeDTO } from "@reflecta/shared/canvas/document";
 
 // --- 画布 DTO ------------------------------------------------------------------
 
@@ -131,12 +68,6 @@ export type CanvasDetailDTO = {
   referencedCanvases: CanvasReferencedCanvas[];
 };
 
-/** saveCanvas 的唯一参数（与读出的 CanvasDetailDTO 内容同构，不含服务端派生字段） */
-export type CanvasDocument = {
-  elements: CanvasElementDTO[];
-  edges: CanvasEdgeDTO[];
-};
-
 // --- 输入 ----------------------------------------------------------------------
 
 export type CreateCanvasInput = {
@@ -146,5 +77,3 @@ export type CreateCanvasInput = {
 export type UpdateCanvasInput = {
   title?: string;
 };
-
-export type Viewport = { x: number; y: number; zoom: number };

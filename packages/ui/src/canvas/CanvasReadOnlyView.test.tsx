@@ -3,7 +3,7 @@ import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, test, vi } from "vitest";
 import { CanvasReadOnlyView } from "./CanvasReadOnlyView";
-import { EMPTY_CANVAS_DOCUMENT } from "./document";
+import { EMPTY_CANVAS_DOCUMENT } from "@reflecta/shared";
 
 const handles = vi.hoisted(() => ({
   zoomIn: vi.fn(),

@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import { CliError, ErrorCodes } from "../../error";
 import { getServices } from "../../services";
 import { getCommandOptions, runCommand, type GlobalOptions } from "../../runner";
-import type { CanvasDocument } from "@reflecta/server";
+import type { CanvasDocument } from "@reflecta/shared";
 
 import { registerActionMeta } from "../meta";
 

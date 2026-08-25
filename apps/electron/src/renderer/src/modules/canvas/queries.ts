@@ -7,9 +7,8 @@ import type {
   CanvasDetailDTO,
   CreateCanvasInput,
   UpdateCanvasInput,
-  Viewport,
 } from "@reflecta/server";
-import type { CanvasDocument as CanvasDocumentContract } from "@reflecta/ui/canvas";
+import type { CanvasDocument as CanvasDocumentContract, CanvasViewport } from "@reflecta/ui/canvas";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
 /**
@@ -161,7 +160,7 @@ export function useSaveCanvasMutation() {
 export function useUpdateViewportMutation() {
   return useMutation(
     effectQuery.mutationOptions({
-      mutationFn: ({ canvasId, viewport }: { canvasId: string; viewport: Viewport }) =>
+      mutationFn: ({ canvasId, viewport }: { canvasId: string; viewport: CanvasViewport }) =>
         rpc.canvasUpdateViewport(canvasId, viewport as import("../../../../ipc").Viewport),
     }),
   );

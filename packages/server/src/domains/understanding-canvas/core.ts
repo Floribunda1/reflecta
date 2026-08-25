@@ -11,14 +11,7 @@ import type { ReflectaDb } from "../../db/types";
 import { createEntityId } from "../shared/id";
 import type {
   CanvasDetailDTO,
-  CanvasDocument,
   CanvasDTO,
-  CanvasElementDTO,
-  CanvasEdgeAttrs,
-  CanvasEdgeDTO,
-  CanvasEdgeConnector,
-  CanvasEdgePortId,
-  CanvasEdgeRouter,
   CanvasHit,
   CanvasReferencedCanvas,
   CanvasUnderstandingRef,
@@ -29,8 +22,17 @@ import type {
   UpdateCanvasInput,
   UnderstandingCanvasEdge,
   UnderstandingCanvasElement,
-  Viewport,
 } from "./types";
+import type {
+  CanvasDocument,
+  CanvasElementDTO,
+  CanvasEdgeAttrs,
+  CanvasEdgeDTO,
+  CanvasEdgeConnector,
+  CanvasEdgePortId,
+  CanvasEdgeRouter,
+  CanvasViewport,
+} from "@reflecta/shared/canvas/document";
 import type { TrashedCanvasDTO } from "../trash/types";
 import {
   assertUnderstandingRefsExist,
@@ -123,7 +125,7 @@ export function canvasRowToDTO(row: typeof understandingCanvases.$inferSelect): 
     id: row.id,
     title: row.title,
     description: row.description,
-    viewport: parseJson<Viewport | null>(row.viewport, null),
+    viewport: parseJson<CanvasViewport | null>(row.viewport, null),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -276,7 +278,7 @@ export class CanvasCore {
     });
   }
 
-  updateViewport(id: string, viewport: Viewport): Effect.Effect<void> {
+  updateViewport(id: string, viewport: CanvasViewport): Effect.Effect<void> {
     return Effect.sync(() => {
       // 视口（平移/缩放）不算内容变更：不 bump updatedAt，否则「更新于」随拖动乱跳。
       this.db

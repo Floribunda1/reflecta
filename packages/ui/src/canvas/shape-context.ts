@@ -1,7 +1,7 @@
 import { createContext, useContext } from "react";
 import type { ChatEntityReference, ResolveChatEntity } from "../chat/entity";
-import type { CanvasDocument, CanvasElementDTO } from "./document";
-import type { CanvasEdgeDTO } from "./document";
+import type { CanvasDocument, CanvasElementDTO } from "@reflecta/shared";
+import type { CanvasEdgeDTO } from "@reflecta/shared";
 
 /**
  * 节点展示数据与编辑回写通道。

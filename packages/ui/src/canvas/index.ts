@@ -44,7 +44,7 @@ export {
   type CanvasElementDTO,
   type CanvasElementKind,
   type CanvasViewport,
-} from "./document";
+} from "@reflecta/shared";
 export {
   toX6Cells,
   toX6Edge,
