@@ -371,10 +371,14 @@ const typicalDayDetails: Record<string, ParticipationDayDetail> = {
   "2026-08-24": {
     sessions: [{ id: "s-today", title: "复核分区灌溉策略", messageCount: 2 }],
     understandings: [{ id: "acceptance", title: "Storybook 只验收高价值组件" }],
+    contextCount: 1,
+    canvases: [],
   },
   "2026-08-03": {
     sessions: [{ id: "s-aug", title: "画布连线与端口", messageCount: 4 }],
     understandings: [{ id: "seam", title: "UI-owned interface 不依赖 Renderer runtime" }],
+    contextCount: 0,
+    canvases: [{ id: "canvas-aug", title: "画布连线与端口" }],
   },
   "2026-06-18": {
     sessions: [
@@ -385,11 +389,15 @@ const typicalDayDetails: Record<string, ParticipationDayDetail> = {
       { id: "irrigation", title: "低温环境下的分区灌溉策略" },
       { id: "untitled", title: "（无标题）" },
     ],
+    contextCount: 2,
+    canvases: [{ id: "canvas-june", title: "极地温室复验画布" }],
   },
 };
 
 export function typicalParticipationDetail(date: string): ParticipationDayDetail {
-  return typicalDayDetails[date] ?? { sessions: [], understandings: [] };
+  return (
+    typicalDayDetails[date] ?? { sessions: [], understandings: [], contextCount: 0, canvases: [] }
+  );
 }
 
 const denseCountsByDate: Record<string, number> = Object.fromEntries(

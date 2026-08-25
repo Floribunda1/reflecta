@@ -1,7 +1,7 @@
 import { useLatest } from "ahooks";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { FileText, MessageCircleDashed, X } from "lucide-react";
+import { FileText, LayoutGrid, MessageCircleDashed, NotebookText, X } from "lucide-react";
 import { Empty, EmptyDescription } from "../components/empty";
 import {
   cloneElement,
@@ -64,6 +64,8 @@ export type ParticipationDayCounts = {
 export type ParticipationDayDetail = {
   sessions: readonly { id: string; title: string; messageCount: number }[];
   understandings: readonly { id: string; title: string }[];
+  contextCount: number;
+  canvases: readonly { id: string; title: string }[];
 };
 
 export type ParticipationOverviewProps = {
@@ -100,7 +102,12 @@ function activityTip(
 }
 
 function DayDetail({ detail }: { detail: ParticipationDayDetail }) {
-  if (detail.sessions.length === 0 && detail.understandings.length === 0) {
+  if (
+    detail.sessions.length === 0 &&
+    detail.understandings.length === 0 &&
+    detail.contextCount === 0 &&
+    detail.canvases.length === 0
+  ) {
     return (
       <Empty className="py-6">
         <EmptyDescription>这一天没有参与记录。</EmptyDescription>
@@ -155,6 +162,42 @@ function DayDetail({ detail }: { detail: ParticipationDayDetail }) {
           </ItemGroup>
         </section>
       ) : null}
+      {detail.canvases.length > 0 ? (
+        <section className="space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <LayoutGrid className="size-3.5" />
+            <span>画布</span>
+          </div>
+          <ItemGroup className="gap-1.5">
+            {detail.canvases.map((canvas) => (
+              <Item key={canvas.id} variant="outline" size="sm">
+                <ItemMedia variant="icon">
+                  <LayoutGrid className="text-muted-foreground" />
+                </ItemMedia>
+                <ItemContent className="min-w-0">
+                  <ItemTitle>{canvas.title}</ItemTitle>
+                </ItemContent>
+              </Item>
+            ))}
+          </ItemGroup>
+        </section>
+      ) : null}
+      {detail.contextCount > 0 ? (
+        <section className="space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <NotebookText className="size-3.5" />
+            <span>上下文</span>
+          </div>
+          <Item variant="muted" size="sm">
+            <ItemMedia variant="icon">
+              <NotebookText className="text-muted-foreground" />
+            </ItemMedia>
+            <ItemContent>
+              <ItemTitle>创建了 {detail.contextCount} 条上下文</ItemTitle>
+            </ItemContent>
+          </Item>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -181,7 +224,12 @@ const PARTICIPATION_CALENDAR_LABELS = {
   totalCount: "共 {{count}} 次参与",
 };
 
-const EMPTY_DAY_DETAIL: ParticipationDayDetail = { sessions: [], understandings: [] };
+const EMPTY_DAY_DETAIL: ParticipationDayDetail = {
+  sessions: [],
+  understandings: [],
+  contextCount: 0,
+  canvases: [],
+};
 
 /**
  * 捕获页顶部足迹：资产存量与 365 天热力图同排。

@@ -57,7 +57,12 @@ function CaptureDashboard({
       <ParticipationOverview
         assets={participation === "dense" ? denseParticipationAssets : emptyParticipationAssets}
         days={participation === "dense" ? denseParticipationDays : emptyParticipationDays}
-        resolveDayDetail={() => ({ sessions: [], understandings: [] })}
+        resolveDayDetail={() => ({
+          sessions: [],
+          understandings: [],
+          contextCount: 0,
+          canvases: [],
+        })}
       />
     );
 

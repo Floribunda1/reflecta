@@ -31,7 +31,12 @@ function ParticipationOverviewShowcase() {
           <ParticipationOverview
             assets={emptyParticipationAssets}
             days={emptyParticipationDays}
-            resolveDayDetail={() => ({ sessions: [], understandings: [] })}
+            resolveDayDetail={() => ({
+              sessions: [],
+              understandings: [],
+              contextCount: 0,
+              canvases: [],
+            })}
           />
         </OverviewFrame>
       </StoryCase>
@@ -68,6 +73,8 @@ function ParticipationOverviewShowcase() {
             resolveDayDetail={() => ({
               sessions: [{ id: "s-dense", title: "连续复验窗口", messageCount: 12 }],
               understandings: [{ id: "u-dense", title: "模拟理解 1：极地温室第 1 轮复验记录" }],
+              contextCount: 3,
+              canvases: [{ id: "canvas-dense", title: "极地温室复验画布" }],
             })}
           />
         </OverviewFrame>
