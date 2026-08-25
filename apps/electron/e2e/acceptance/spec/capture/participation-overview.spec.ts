@@ -3,6 +3,8 @@ import { launchApp } from "../agent/agent-e2e";
 import {
   assistantMessage,
   seedAgentThread,
+  seedCanvas,
+  seedContext,
   seedUnderstanding,
   userMessage,
 } from "../agent/agent-fixtures";
@@ -93,6 +95,17 @@ test("@CP-OVERVIEW-003 用户点击热力图某天回看当天足迹", async () 
     createdAt: new Date(now).toISOString(),
     updatedAt: new Date(now).toISOString(),
   });
+  seedContext({
+    id: "participation-context-day",
+    understandingId: "participation-understanding-2",
+    title: "足迹回看上下文",
+    content: "当天沉淀的一条上下文",
+  });
+  seedCanvas({
+    id: "participation-canvas-day",
+    title: "足迹回看画布",
+    createdAt: new Date(now).toISOString(),
+  });
   const { app, page } = await launchApp();
 
   try {
@@ -102,6 +115,8 @@ test("@CP-OVERVIEW-003 用户点击热力图某天回看当天足迹", async () 
     const popover = page.getByTestId("participation-day-popover");
     await expect(popover).toBeVisible();
     await expect(popover.getByText("足迹回看理解", { exact: true })).toBeVisible();
+    await expect(popover.getByText("足迹回看上下文", { exact: true })).toBeVisible();
+    await expect(popover.getByText("足迹回看画布", { exact: true })).toBeVisible();
   } finally {
     await app.close();
   }

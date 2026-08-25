@@ -186,6 +186,9 @@ function proposalTitle(toolName: string) {
   if (toolName === "context_update") return "候选修改 Context";
   if (toolName === "context_delete") return "候选删除 Context";
   if (toolName === "bash") return "执行 Bash";
+  if (toolName === "canvas_create") return "候选画布";
+  if (toolName === "canvas_update") return "候选修改画布";
+  if (toolName === "canvas_delete") return "候选删除画布";
   return "候选操作";
 }
 
@@ -204,6 +207,9 @@ function isProposalPart(part: Record<string, unknown>, toolName: string) {
       "context_update",
       "context_delete",
       "bash",
+      "canvas_create",
+      "canvas_update",
+      "canvas_delete",
     ].includes(toolName)
   );
 }

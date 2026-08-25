@@ -6,6 +6,7 @@ import {
   reasoningPart,
   resetAgentFixtures,
   seedAgentThread,
+  seedCanvas,
   seedContext,
   seedDomain,
   seedUnderstanding,
@@ -444,6 +445,7 @@ test("@AG-RESULT-012 用户查看 Agent 回复中的 Mermaid 图表", async () =
 });
 
 test("@AG-RESULT-016 用户从对话顶部查看已生成的知识条目", async () => {
+  seedCanvas({ id: "artifact-canvas", title: "生成的画布" });
   seedAgentThread({
     id: "result-artifact-panel",
     title: "已生成内容",
@@ -483,6 +485,17 @@ test("@AG-RESULT-016 用户从对话顶部查看已生成的知识条目", async
             resultRefTitle: "生成的领域",
           },
         }),
+        proposalPart({
+          type: "canvas_create",
+          toolCallId: "artifact-canvas-tool",
+          title: "生成的画布",
+          state: "output-available",
+          output: {
+            resultRefType: "canvas",
+            resultRefId: "artifact-canvas",
+            resultRefTitle: "生成的画布",
+          },
+        }),
       ]),
     ],
   });
@@ -491,7 +504,7 @@ test("@AG-RESULT-016 用户从对话顶部查看已生成的知识条目", async
   try {
     await openThread(page, "已生成内容");
     const toggle = page.getByTestId("artifact-panel-toggle");
-    await expect(toggle).toHaveAttribute("aria-label", "已生成 3 项");
+    await expect(toggle).toHaveAttribute("aria-label", "已生成 4 项");
 
     await toggle.click();
     const list = page.getByTestId("artifact-panel-list");
@@ -505,6 +518,9 @@ test("@AG-RESULT-016 用户从对话顶部查看已生成的知识条目", async
     await expect(list.getByTestId("artifact-item-artifact-domain")).toHaveAccessibleName(
       "领域：生成的领域",
     );
+    await expect(list.getByTestId("artifact-item-artifact-canvas")).toHaveAccessibleName(
+      "画布：生成的画布",
+    );
     await expect(
       list.getByTestId("artifact-item-artifact-understanding").locator("svg"),
     ).toHaveClass(/lucide-file-text/);
@@ -513,6 +529,99 @@ test("@AG-RESULT-016 用户从对话顶部查看已生成的知识条目", async
     );
     await expect(list.getByTestId("artifact-item-artifact-domain").locator("svg")).toHaveClass(
       /lucide-tags/,
+    );
+    await expect(list.getByTestId("artifact-item-artifact-canvas").locator("svg")).toHaveClass(
+      /lucide-panels-top-left/,
+    );
+
+    // 点击画布产出后以只读方式打开该画布
+    await list.getByTestId("artifact-item-artifact-canvas").click();
+    await expect(page.getByTestId("agent-canvas-dialog")).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-RESULT-017 用户从 Agent 回复查看 Agent 生成的分析画布", async () => {
+  seedAgentThread({
+    id: "result-canvas-present",
+    title: "分析画布",
+    messages: [
+      userMessage("result-canvas-present-user", "请分析我们的前端知识结构"),
+      assistantMessage("result-canvas-present-assistant", [
+        toolPart("canvas_present", "result-canvas-present-tool", {
+          kind: "canvas-view",
+          version: 1,
+          title: "前端知识结构",
+          caption: "未保存的分析视图",
+          document: {
+            elements: [
+              {
+                id: "cp_a",
+                kind: "text",
+                props: { text: "CP_ANALYSIS_NODE" },
+                x: 80,
+                y: 40,
+                width: 220,
+                height: 80,
+              },
+            ],
+            edges: [],
+          },
+        }),
+      ]),
+    ],
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "分析画布");
+    const view = page.getByTestId("agent-canvas-view");
+    await expect(view).toBeVisible();
+    await expect(view).toContainText("前端知识结构");
+    // 只读分析画布：渲染节点、无确认/拒绝决策按钮
+    await expect(view.locator('[data-node-id="cp_a"]')).toBeVisible();
+    await expect(page.getByTestId("agent-proposal-confirm-button")).toHaveCount(0);
+    // canvas_present 不进入对话顶部产出入口
+    await expect(page.getByTestId("artifact-panel-toggle")).toHaveCount(0);
+  } finally {
+    await app.close();
+  }
+});
+
+test("@AG-PROPOSAL-010 用户确认候选画布后看到执行结果并进入产出", async () => {
+  seedCanvas({ id: "proposal-canvas", title: "生成的画布" });
+  seedAgentThread({
+    id: "result-canvas-proposal",
+    title: "画布提案",
+    messages: [
+      userMessage("result-canvas-proposal-user", "请帮我创建一张画布"),
+      assistantMessage("result-canvas-proposal-assistant", [
+        proposalPart({
+          type: "canvas_create",
+          toolCallId: "result-canvas-proposal-tool",
+          title: "生成的画布",
+          state: "output-available",
+          output: {
+            resultRefType: "canvas",
+            resultRefId: "proposal-canvas",
+            resultRefTitle: "生成的画布",
+          },
+        }),
+      ]),
+    ],
+  });
+  const { app, page } = await launchAgentPage();
+
+  try {
+    await openThread(page, "画布提案");
+    const card = page.getByTestId("agent-proposal-card");
+    await expect(card).toContainText("候选画布");
+    await expect(card).toContainText("执行完成");
+    // 已落地的画布进入对话顶部产出入口
+    await expect(page.getByTestId("artifact-panel-toggle")).toHaveAttribute(
+      "aria-label",
+      "已生成 1 项",
     );
   } finally {
     await app.close();
