@@ -25,12 +25,14 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
-    <CanvasPortalHost />
     <RendererErrorBoundary>
       <RegistryContext.Provider value={appAtomRegistry}>
         <ThemeProvider>
           <ThemeBridge />
           <QueryClientProvider client={queryClient}>
+            {/* x6 单例 portal 宿主：画布卡片的 React 子树挂这里，必须位于
+              react-query / atom 等 context 之内，否则卡片内 hook 拿不到 provider */}
+            <CanvasPortalHost />
             <App />
           </QueryClientProvider>
         </ThemeProvider>
