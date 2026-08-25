@@ -14,6 +14,7 @@ import { CanvasZoomControls } from "./CanvasZoomControls";
 import { CanvasReadOnlyView } from "./CanvasReadOnlyView";
 import { GraphFrame, StoryCaseSwitch } from "./canvas-story-graph";
 import {
+  agentCanvasDocument,
   denseCanvasDocument,
   typicalCanvasDocument,
   typicalLibraryDomains,
@@ -235,6 +236,23 @@ function ReadonlySizeCase() {
   );
 }
 
+function AgentDocumentShowcase() {
+  return (
+    <StoryShowcase
+      title="Agent 生成文档"
+      description="独立验收 Agent changes 归一化后的分支、分组、连线与首次 fitView。"
+    >
+      <GraphFrame height="h-[520px]">
+        <CanvasReadOnlyView
+          document={agentCanvasDocument}
+          showZoomControls
+          className="absolute inset-0"
+        />
+      </GraphFrame>
+    </StoryShowcase>
+  );
+}
+
 function CanvasCompositionShowcase() {
   return (
     <StoryShowcase
@@ -297,4 +315,9 @@ type Story = StoryObj<typeof meta>;
 export const CanvasCompositionStory: Story = {
   name: "画布工作区核心组合",
   render: () => <CanvasCompositionShowcase />,
+};
+
+export const AgentGeneratedDocumentStory: Story = {
+  name: "Agent 生成文档",
+  render: () => <AgentDocumentShowcase />,
 };

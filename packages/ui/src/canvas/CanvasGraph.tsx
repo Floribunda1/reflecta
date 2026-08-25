@@ -551,6 +551,7 @@ export const CanvasGraph = React.memo(
       appliedDocRef.current = doc;
       suppressEmitRef.current = true;
       graph.fromJSON(toX6Cells(doc));
+      restoreChildLinks(graph, doc);
       suppressEmitRef.current = false;
 
       return () => {

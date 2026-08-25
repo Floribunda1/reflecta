@@ -179,6 +179,37 @@ describe("normalizeCanvasChanges", () => {
     expect(a.x + a.width).toBeLessThan(b.x);
   });
 
+  test("lays out an agent-created branching graph without overlapping cards", async () => {
+    const result = await Effect.runPromise(
+      normalizeCanvasChanges({
+        layout: "horizontal",
+        changes: [
+          { op: "add_element", ref: "question", element: { kind: "text", text: "Question" } },
+          { op: "add_element", ref: "option-a", element: { kind: "text", text: "Option A" } },
+          { op: "add_element", ref: "option-b", element: { kind: "text", text: "Option B" } },
+          { op: "add_element", ref: "evidence", element: { kind: "text", text: "Evidence" } },
+          { op: "add_element", ref: "decision", element: { kind: "text", text: "Decision" } },
+          { op: "add_edge", ref: "q-a", sourceRef: "question", targetRef: "option-a" },
+          { op: "add_edge", ref: "q-b", sourceRef: "question", targetRef: "option-b" },
+          { op: "add_edge", ref: "a-decision", sourceRef: "option-a", targetRef: "decision" },
+          { op: "add_edge", ref: "b-evidence", sourceRef: "option-b", targetRef: "evidence" },
+          { op: "add_edge", ref: "e-decision", sourceRef: "evidence", targetRef: "decision" },
+        ],
+      }),
+    );
+
+    for (const [index, a] of result.document.elements.entries()) {
+      for (const b of result.document.elements.slice(index + 1)) {
+        const overlaps =
+          a.x < b.x + b.width &&
+          a.x + a.width > b.x &&
+          a.y < b.y + b.height &&
+          a.y + a.height > b.y;
+        expect(overlaps, `${a.id} overlaps ${b.id}`).toBe(false);
+      }
+    }
+  });
+
   test("returns title changes and applies explicit relayout", async () => {
     const result = await Effect.runPromise(
       normalizeCanvasChanges({
