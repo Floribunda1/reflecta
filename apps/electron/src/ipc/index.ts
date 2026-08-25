@@ -118,7 +118,7 @@ export type {
   AgentSessionProjection,
   AgentSessionSummary,
   AgentSkillSummary,
-} from "./contract/chat";
+} from "@reflecta/shared";
 export type {
   AiConfig,
   AiModelOption,

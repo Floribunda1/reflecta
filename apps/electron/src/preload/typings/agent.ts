@@ -1,61 +1,23 @@
-export type AgentContextRef = {
-  type: "understanding" | "context" | "domain" | "canvas";
-  id: string;
-  title?: string;
-};
+import type {
+  AgentContextCompacted,
+  AgentContextCompactionStarted,
+  AgentContextRef,
+  AgentContextUsage,
+  AgentEntityCatalogEntry,
+  AgentFileAttachment,
+  AgentMessageProjection,
+  AgentModelSelection,
+  AgentReducedAssistantBlock,
+  AgentSessionProjection,
+  AgentToolExecutionError,
+  AgentUsage,
+} from "@reflecta/shared";
 
 export type AgentComposerContentNode = {
   type?: string;
   text?: string;
   attrs?: Record<string, unknown>;
   content?: AgentComposerContentNode[];
-};
-
-export type AgentModelSelection = {
-  providerId: string;
-  modelId: string;
-};
-
-export type AgentUsage = {
-  input: number;
-  output: number;
-  cacheRead: number;
-  cacheWrite: number;
-  totalTokens: number;
-  cost?: {
-    input: number;
-    output: number;
-    cacheRead: number;
-    cacheWrite: number;
-    total: number;
-  };
-};
-
-export type AgentContextUsage = {
-  tokens: number | null;
-  contextWindow: number;
-  percent: number | null;
-};
-
-export type AgentReasoningLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
-
-export type AgentFileAttachment = {
-  type: "file";
-  mediaType: string;
-  url: string;
-  filename?: string;
-  /** 本地磁盘路径（用户选择/拖拽的文件；粘贴等来源为空）。用于系统应用打开。 */
-  filePath?: string;
-  providerMetadata?: Record<string, unknown>;
-};
-
-export type AgentSessionSummary = {
-  id: string;
-  title: string;
-  status: "active" | "archived";
-  createdAt: string;
-  updatedAt: string;
-  runtime: "pi";
 };
 
 export type AgentEventBase = {
@@ -97,14 +59,6 @@ export type AgentUserMessage = AgentEventBase & {
   composerContent?: AgentComposerContentNode;
 };
 
-export type AgentEntityCatalogEntry = {
-  key: string;
-  entity: AgentContextRef;
-  origin:
-    | { kind: "user_context"; messageId: string }
-    | { kind: "tool_result"; toolCallId: string; toolName: string };
-};
-
 export type AgentEntityCatalogUpdated = AgentEventBase & {
   type: "entity.catalog.updated";
   entries: AgentEntityCatalogEntry[];
@@ -112,27 +66,10 @@ export type AgentEntityCatalogUpdated = AgentEventBase & {
 
 export type AgentContextCompactionReason = "manual" | "threshold" | "overflow";
 
-export type AgentContextCompactionStarted = AgentEventBase & {
-  type: "context.compaction.started";
-  reason: AgentContextCompactionReason;
-};
-
 export type AgentContextCompactionFinished = AgentEventBase & {
   type: "context.compaction.finished";
   reason: AgentContextCompactionReason;
   error?: string;
-};
-
-export type AgentContextCompacted = AgentEventBase & {
-  type: "context.compacted";
-  reason: AgentContextCompactionReason;
-  messageId?: string;
-  summary: string;
-  firstKeptEntryId: string;
-  tokensBefore: number;
-  estimatedTokensAfter?: number;
-  contextWindow?: number;
-  afterMessageId?: string;
 };
 
 export type AgentAssistantTextDelta = AgentEventBase & {
@@ -174,12 +111,6 @@ export type AgentToolFailed = AgentEventBase & {
   toolCallId: string;
   toolName: string;
   error: string;
-};
-
-export type AgentToolExecutionError = {
-  message: string;
-  code?: string;
-  details?: Record<string, unknown>;
 };
 
 export type AgentToolExecutionStarted = AgentEventBase & {
@@ -282,121 +213,6 @@ export type AgentSessionEvent =
 
 export type AgentEvent = AgentSessionEvent | AgentLiveEvent;
 
-export type AgentReducedAssistantBlock =
-  | {
-      kind: "reasoning";
-      text: string;
-      createdAt: string;
-    }
-  | {
-      kind: "tool";
-      toolCallId: string;
-      toolName: string;
-      input?: unknown;
-      output?: unknown;
-      error?: string;
-      state: "running" | "completed" | "failed";
-      createdAt: string;
-    }
-  | {
-      kind: "approval";
-      approvalId: string;
-      toolCallId: string;
-      toolName: string;
-      title: string;
-      description?: string;
-      payload?: unknown;
-      preview?: boolean;
-      output?: unknown;
-      error?: string;
-      executionError?: AgentToolExecutionError;
-      approved?: boolean;
-      rejectionReason?: string;
-      state: "pending" | "approved" | "rejected" | "completed" | "failed";
-      approvalState: AgentToolApprovalState;
-      executionState: AgentToolExecutionState;
-      displayState: AgentToolDisplayState;
-      createdAt: string;
-    }
-  | {
-      kind: "text";
-      text: string;
-      state?: "streaming" | "done" | "failed";
-      error?: string;
-      createdAt: string;
-    }
-  | {
-      kind: "context-compaction";
-      compaction: AgentContextCompacted;
-    };
-
-export type AgentCommand =
-  | {
-      type: "session.create";
-      title?: string;
-    }
-  | {
-      type: "message.send";
-      sessionId: string;
-      text: string;
-      messageId?: string;
-      contextRefs?: AgentContextRef[];
-      files?: AgentFileAttachment[];
-      composerContent?: AgentComposerContentNode;
-      modelSelection?: AgentModelSelection;
-      reasoningLevel?: AgentReasoningLevel;
-    }
-  | {
-      type: "run.cancel";
-      sessionId: string;
-    }
-  | {
-      type: "context.compact";
-      sessionId: string;
-      modelSelection?: AgentModelSelection;
-      reasoningLevel?: AgentReasoningLevel;
-    }
-  | {
-      type: "tool.approve";
-      sessionId: string;
-      approvalId: string;
-      modelSelection?: AgentModelSelection;
-      reasoningLevel?: AgentReasoningLevel;
-    }
-  | {
-      type: "tool.reject";
-      sessionId: string;
-      approvalId: string;
-      reason?: string;
-      modelSelection?: AgentModelSelection;
-      reasoningLevel?: AgentReasoningLevel;
-    }
-  | {
-      type: "session.rename";
-      sessionId: string;
-      title: string;
-    }
-  | {
-      type: "session.delete";
-      sessionId: string;
-    };
-
-export type AgentMessageProjection = {
-  id: string;
-  role: "user" | "assistant";
-  text: string;
-  createdAt: string;
-  runId?: string;
-  blocks?: AgentReducedAssistantBlock[];
-  contextRefs?: AgentContextRef[];
-  files?: AgentFileAttachment[];
-  composerContent?: AgentComposerContentNode;
-  usage?: AgentUsage;
-  contextUsage?: AgentContextUsage;
-  model?: AgentModelSelection;
-  stopReason?: string;
-};
-
 /** @deprecated Use AgentMessageProjection. */
 export type AgentReducedMessage = AgentMessageProjection;
 
@@ -418,10 +234,6 @@ export type AgentSessionState = {
    * Cleared when the next run starts.
    */
   cancelledAssistantMessageId: string | null;
-};
-
-export type AgentSessionProjection = Omit<AgentSessionState, "sessionId"> & {
-  sessionId: string;
 };
 
 export type AgentSessionFeedError = {
@@ -1253,3 +1065,23 @@ export function projectAgentSessionEvents(
     sessionId,
   };
 }
+
+// wire format（单一真源在 @reflecta/shared，富形态）
+export type {
+  AgentCommand,
+  AgentContextCompacted,
+  AgentContextCompactionStarted,
+  AgentContextRef,
+  AgentContextUsage,
+  AgentEntityCatalogEntry,
+  AgentFileAttachment,
+  AgentMessageProjection,
+  AgentModelSelection,
+  AgentReasoningLevel,
+  AgentReducedAssistantBlock,
+  AgentSessionProjection,
+  AgentSessionSummary,
+  AgentSkillSummary,
+  AgentToolExecutionError,
+  AgentUsage,
+} from "@reflecta/shared";
