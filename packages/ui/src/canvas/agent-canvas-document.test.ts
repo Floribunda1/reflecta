@@ -1,15 +1,10 @@
+import { Effect } from "effect";
 import { expect, test } from "vitest";
-import { agentLayoutScenarios, agentCanvasDocument } from "./canvas-story-fixtures";
+import { normalizeCanvasChanges } from "@reflecta/shared";
+import { agentScenarioInputs } from "./canvas-story-fixtures";
 import { toX6Cells } from "./graph-document";
 
-type CellBox = {
-  id: string;
-  parent?: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
+type CellBox = { id: string; parent?: string; x: number; y: number; width: number; height: number };
 const box = (raw: unknown): CellBox => {
   const cell = raw as {
     id?: string;
@@ -29,45 +24,35 @@ const box = (raw: unknown): CellBox => {
   };
 };
 
-test("converts an agent-created document into positioned X6 cells", () => {
-  const cells = toX6Cells(agentCanvasDocument);
-  const grouped = cells.find((cell) => cell.id === "agent-risk");
-  const edges = cells.filter((cell) => cell.shape === "edge");
-
-  expect(cells).toHaveLength(
-    agentCanvasDocument.elements.length + agentCanvasDocument.edges.length,
-  );
-  // toX6Cells 已把组内子元素相对坐标换算为绝对坐标（与真实 normalizeCanvasChanges 一致）。
-  expect(grouped).toMatchObject({
-    parent: "agent-options",
-    x: 12 + 337, // 组内 rel(12,152) + 组绝(337,12)
-    y: 152 + 12,
-  });
-  expect(edges).toHaveLength(agentCanvasDocument.edges.length);
-  expect(edges[0]).toMatchObject({
-    source: { cell: "agent-question", port: "right" },
-    target: { cell: "agent-risk", port: "left" },
-  });
-});
-
-test("every agent layout scenario stays clean: groups bound children, top-level nodes don't overlap", () => {
-  for (const scenario of agentLayoutScenarios) {
-    const byId = new Map(
-      toX6Cells(scenario.document)
-        .filter((c) => c.shape !== "edge")
-        .map((c) => [c.id, box(c)]),
+/**
+ * 对每个 agent 场景跑真实 `normalizeCanvasChanges`（shared，ELK），并断言布局不变量：
+ * 顶层节点互不重叠、组包住子节点、每条边连接已存在的 cell。几何 live 生成，
+ * 与 storybook 渲染同一真源——布局规则一变这里的断言就是验收锚点。
+ */
+test("every agent layout scenario stays clean (live from normalizeCanvasChanges)", async () => {
+  for (const scenario of agentScenarioInputs) {
+    const result = await Effect.runPromise(
+      normalizeCanvasChanges({ layout: scenario.layout, changes: scenario.changes }),
     );
+    const doc = result.document;
+    const cells = toX6Cells(doc);
+    const byId = new Map(cells.filter((c) => c.shape !== "edge").map((c) => [c.id, box(c)]));
+
     // 组必须包含其子节点（toX6Cells 已是绝对坐标）
-    for (const child of byId.values()) {
-      if (!child.parent) continue;
-      const parent = byId.get(child.parent)!;
-      expect(child.x, `${scenario.title}: ${child.id} 超出组左`).toBeGreaterThanOrEqual(parent.x);
-      expect(child.x + child.width).toBeLessThanOrEqual(parent.x + parent.width);
-      expect(child.y).toBeGreaterThanOrEqual(parent.y);
-      expect(child.y + child.height).toBeLessThanOrEqual(parent.y + parent.height);
+    const group = doc.elements.find((e) => e.kind === "group");
+    if (group) {
+      const g = byId.get(group.id)!;
+      for (const child of doc.elements.filter((e) => e.parentId === group.id)) {
+        const c = byId.get(child.id)!;
+        expect(c.x, `${scenario.title}: 子节点 ${child.id} 超出组左`).toBeGreaterThanOrEqual(g.x);
+        expect(c.x + c.width).toBeLessThanOrEqual(g.x + g.width);
+        expect(c.y).toBeGreaterThanOrEqual(g.y);
+        expect(c.y + c.height).toBeLessThanOrEqual(g.y + g.height);
+      }
     }
+
     // 顶层节点（含组）互不重叠
-    const top = [...byId.values()].filter((c) => !c.parent);
+    const top = doc.elements.filter((e) => !e.parentId).map((e) => byId.get(e.id)!);
     for (const [i, a] of top.entries()) {
       for (const b of top.slice(i + 1)) {
         const overlaps =
@@ -78,30 +63,14 @@ test("every agent layout scenario stays clean: groups bound children, top-level 
         expect(overlaps, `${scenario.title}: ${a.id} 与 ${b.id} 重叠`).toBe(false);
       }
     }
-  }
-});
-test("agent-created group contains its children without overflow", () => {
-  const byId = new Map(toX6Cells(agentCanvasDocument).map((c) => [c.id, box(c)]));
-  const group = byId.get("agent-options")!;
-  for (const id of ["agent-risk", "agent-cost"]) {
-    const child = byId.get(id)!;
-    expect(child.parent).toBe("agent-options");
-    expect(child.x).toBeGreaterThanOrEqual(group.x);
-    expect(child.x + child.width).toBeLessThanOrEqual(group.x + group.width);
-    expect(child.y).toBeGreaterThanOrEqual(group.y);
-    expect(child.y + child.height).toBeLessThanOrEqual(group.y + group.height);
-  }
-});
 
-test("every agent edge connects existing cells with right/left ports", () => {
-  const cells = toX6Cells(agentCanvasDocument);
-  const ids = new Set(cells.map((c) => c.id));
-  const edges = cells.filter((cell) => cell.shape === "edge");
-  for (const e of edges) {
-    expect(e.source?.cell).toBeTruthy();
-    expect(ids.has(e.source.cell)).toBe(true);
-    expect(ids.has(e.target.cell)).toBe(true);
-    expect(e.source?.port).toBe("right");
-    expect(e.target?.port).toBe("left");
+    // 每条边连接已存在的节点（端口方向相反）
+    for (const edge of doc.edges) {
+      expect(byId.has(edge.source.cell), `${scenario.title}: 边 ${edge.id} 源不存在`).toBe(true);
+      expect(byId.has(edge.target.cell), `${scenario.title}: 边 ${edge.id} 目标不存在`).toBe(true);
+      const horizontal = scenario.layout !== "vertical";
+      expect(edge.source.port).toBe(horizontal ? "right" : "bottom");
+      expect(edge.target.port).toBe(horizontal ? "left" : "top");
+    }
   }
 });

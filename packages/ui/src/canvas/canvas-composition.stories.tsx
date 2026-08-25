@@ -14,7 +14,8 @@ import { CanvasZoomControls } from "./CanvasZoomControls";
 import { CanvasReadOnlyView } from "./CanvasReadOnlyView";
 import { GraphFrame, StoryCaseSwitch } from "./canvas-story-graph";
 import {
-  agentLayoutScenarios,
+  agentScenarioInputs,
+  type AgentLayoutScenarioInput,
   denseCanvasDocument,
   typicalCanvasDocument,
   typicalLibraryDomains,
@@ -24,9 +25,11 @@ import {
 } from "./canvas-story-fixtures";
 import {
   EMPTY_CANVAS_DOCUMENT,
+  normalizeCanvasChanges,
   type CanvasDocument,
   type CanvasElementDTO,
 } from "@reflecta/shared";
+import { Effect } from "effect";
 
 function newTextElement(): CanvasElementDTO {
   return {
@@ -240,24 +243,53 @@ function ReadonlySizeCase() {
   );
 }
 
+function AgentScenarioGraph({ input }: { input: AgentLayoutScenarioInput }) {
+  const [doc, setDoc] = useState<CanvasDocument | null>(null);
+  useEffect(() => {
+    // 现场跑真实 normalizeCanvasChanges（shared，ELK）——几何与 server 一致，无静态快照。
+    let mounted = true;
+    const promise = Effect.runPromise(
+      normalizeCanvasChanges({ layout: input.layout, changes: input.changes }),
+    ).then((result) => {
+      if (mounted) setDoc(result.document);
+    });
+    return () => {
+      mounted = false;
+      promise.catch(() => undefined);
+    };
+  }, [input]);
+  if (!doc)
+    return (
+      <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+        生成中…
+      </div>
+    );
+  return (
+    <CanvasReadOnlyView
+      document={doc}
+      shapeData={{
+        understandingRefs: input.understandingRefs ?? new Map(),
+        referencedCanvases: new Map(),
+      }}
+      showZoomControls
+      className="absolute inset-0"
+    />
+  );
+}
+
 function AgentDocumentShowcase() {
   return (
     <StoryShowcase
       title="Agent 生成文档：布局场景"
-      description="逐场景验收 Agent changes 归一化后的分支、分组、连线与首次 fitView。每个场景的几何均为真实 normalizeCanvasChanges（ELK）输出。x6-react-shape portal 为单例，同一页一次只挂一张图，用切换逐场景查看。"
+      description="逐场景用真实 normalizeCanvasChanges（ELK）现场生成，验收分支、分组、连线与首次 fitView。几何无静态快照，与 server 永远一致。x6-react-shape portal 为单例，同一页一次只挂一张图，用切换逐场景查看。"
     >
       <StoryCaseSwitch
-        cases={agentLayoutScenarios.map((scenario) => ({
+        cases={agentScenarioInputs.map((scenario) => ({
           title: scenario.title,
           description: scenario.description,
           content: (
             <GraphFrame height="h-[420px]">
-              <CanvasReadOnlyView
-                document={scenario.document}
-                shapeData={scenario.shapeData}
-                showZoomControls
-                className="absolute inset-0"
-              />
+              <AgentScenarioGraph input={scenario} />
             </GraphFrame>
           ),
         }))}
